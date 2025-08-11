@@ -116,7 +116,7 @@ public abstract unsafe class BitBuffer
 
 	protected int dataBytes;
 	protected int dataBits;
-	protected int curBit;
+	public int curBit;
 	protected bool overflow;
 	protected string? debugName;
 

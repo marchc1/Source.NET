@@ -1,4 +1,6 @@
 ﻿namespace Source.Common.Engine;
+
+using Source.Common.Entity;
 using System.Collections.Generic;
 using System.Numerics;
 
@@ -8,8 +10,6 @@ public class IClientRenderable { }
 public class IPhysicsEnvironment { }
 public class IVPhysicsKeyHandler { }
 public class ICollideable { }
-public struct BaseHandle { }
-public class IHandleEntity { }
 
 public interface IStaticPropMgr
 {

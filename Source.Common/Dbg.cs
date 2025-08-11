@@ -188,6 +188,12 @@ public static class Dbg
 	public static void Error([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args)
 		=> _SpewMessage(SpewType.Error, msgFormat, args);
 
+	public static void ErrorIfNot(bool shouldError, [StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args) { if (shouldError) { _SpewMessage(SpewType.Error, msgFormat, args); } }
+
+	// RaphaelIT7: Define it here until we implement it properly.
+	public static void Host_Error([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args)
+		=> _SpewMessage(SpewType.Error, msgFormat, args);
+
 
 
 

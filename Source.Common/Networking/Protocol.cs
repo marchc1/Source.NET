@@ -228,3 +228,11 @@ public static class Protocol
 	public const int MAX_FILE_SIZE_BITS = 26;
 	public const int MAX_FILE_SIZE = (1 << MAX_FILE_SIZE_BITS) - 1;// maximum transferable size is	64MB
 }
+
+[Flags] public enum FHDR
+{
+	ZERO			= 0x0000,
+	LEAVEPVS		= 0x0001,
+	DELETE			= 0x0002,
+	ENTERPVS		= 0x0004,
+};

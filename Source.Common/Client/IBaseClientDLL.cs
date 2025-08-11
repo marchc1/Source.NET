@@ -1,4 +1,5 @@
 ﻿using Source.Common.Bitbuffers;
+using Source.Common.Entity;
 
 namespace Source.Common.Client;
 
@@ -17,4 +18,6 @@ public interface IBaseClientDLL
 	void HudText(ReadOnlySpan<char> text);
 	bool DispatchUserMessage(int msgType, bf_read msgData);
 	bool Init();
+	public IClientEntityList GetClientEntityList();
+	public void FrameStageNotify(ClientFrameStage curStage);
 }

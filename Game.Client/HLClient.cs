@@ -4,11 +4,14 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
+using Game.Client.Entity;
+using Source.Common.Entity;
 
 namespace Game.Client;
 
 public class HLClient(IInput input, UserMessages usermessages) : IBaseClientDLL
 {
+	private ClientEntityList EntityList;
 	public static void DLLInit(IServiceCollection services) {
 		services.AddSingleton<IInput, HLInput>();
 	}
@@ -48,5 +51,15 @@ public class HLClient(IInput input, UserMessages usermessages) : IBaseClientDLL
 
 	public void DecodeUserCmdFromBuffer(bf_read buf, int slot) {
 		input.DecodeUserCmdFromBuffer(buf, slot);
+	}
+
+	public IClientEntityList GetClientEntityList()
+	{
+		return EntityList;
+	}
+
+	public void FrameStageNotify(ClientFrameStage stage)
+	{
+		
 	}
 }

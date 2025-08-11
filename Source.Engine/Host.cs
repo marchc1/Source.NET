@@ -24,8 +24,8 @@ public class Host(
 	IServiceProvider services
 	)
 {
-	public int TimeToTicks(float dt) => (int)(0.5f + (float)dt / (float)host_state.IntervalPerTick);
-	public float TicksToTime(int dt) => (float)host_state.IntervalPerTick * (float)dt;
+	public int TimeToTicks(double dt) => (int)(0.5f + (double)dt / (double)host_state.IntervalPerTick);
+	public double TicksToTime(int dt) => (double)host_state.IntervalPerTick * (double)dt;
 
 	public string GetCurrentMod() => host_parms.Mod;
 	public string GetCurrentGame() => host_parms.Game;

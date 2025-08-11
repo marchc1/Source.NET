@@ -16,6 +16,7 @@ public unsafe class bf_write : BitBuffer
 	protected byte[]? data;
 	public int BytesWritten => BitByte(curBit);
 	public int BitsWritten => curBit; // should be nint
+	public string DebugName = "";
 
 	// Constructors
 
@@ -42,6 +43,11 @@ public unsafe class bf_write : BitBuffer
 	}
 
 	public bf_write(byte[] data, int bytes, int bits) {
+		StartWriting(data, bytes, 0, bits);
+	}
+
+	public bf_write(string name, byte[] data, int bytes, int bits = -1) {
+		DebugName = name;
 		StartWriting(data, bytes, 0, bits);
 	}
 

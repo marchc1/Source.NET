@@ -45,6 +45,7 @@ public class CL(IServiceProvider services, Net Net,
 		cl.Clear();
 
 		ClientDLL = services.GetRequiredService<IBaseClientDLL>();
+		cl.ClientEntityList = ClientDLL.GetClientEntityList();
 	}
 
 	public void ReadPackets(bool finalTick) {
@@ -205,6 +206,11 @@ public class CL(IServiceProvider services, Net Net,
 	internal void TakeSnapshotAndSwap() {
 
 	}
+
+	public void FrameStageNotify(ClientFrameStage stage)
+	{
+		ClientDLL.FrameStageNotify(stage);
+	}
 }
 
 
@@ -231,6 +237,6 @@ public class ClientDLL(IServiceProvider services, Sys Sys)
 	}
 
 	public void FrameStageNotify(ClientFrameStage stage) {
-
+		clientDLL.FrameStageNotify(stage);
 	}
 }

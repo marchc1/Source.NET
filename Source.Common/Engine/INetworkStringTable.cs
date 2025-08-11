@@ -14,6 +14,11 @@ public interface INetworkStringTable
 	public const ushort INVALID_STRING_INDEX = ushort.MaxValue;
 	public const uint MAX_TABLES = 32;
 
+	public const string INSTANCE_BASELINE_TABLENAME = "instancebaseline";
+	public const string LIGHT_STYLES_TABLENAME = "lightstyles";
+	public const string USER_INFO_TABLENAME = "userinfo";
+	public const string SERVER_STARTUP_DATA_TABLENAME = "server_query_info";
+
 	public string GetTableName();
 	public int GetTableId();
 	public int GetNumStrings();

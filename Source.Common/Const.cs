@@ -6,6 +6,8 @@ public static class Constants
 
 	public const int MAX_EDICTS = 1 << MAX_EDICT_BITS;
 	public const int MAX_EDICT_BITS = 13;
+	public const int NUM_ENT_ENTRY_BITS = MAX_EDICT_BITS + 1;
+	public const int NUM_ENT_ENTRIES = 1 << NUM_ENT_ENTRY_BITS;
 
 	/// <summary>
 	/// Most Source games have this at 20; Garry's Mod has it at 24
@@ -41,4 +43,10 @@ public static class Constants
 	public const double DEFAULT_TICK_INTERVAL = 0.015;
 	public const double MINIMUM_TICK_INTERVAL = 0.001;
 	public const double MAXIMUM_TICK_INTERVAL = 0.1;
+
+	// Networking related stuff
+	public const int MAX_CLIENT_FRAMES = 64;
+	public const int ENTITY_SENTINEL = 9999;
+	public const int MAX_PACKEDENTITY_DATA = 16384;
+	public const int MAX_PACKEDENTITY_PROPS = 4096;
 }

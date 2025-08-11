@@ -3,8 +3,10 @@ using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Compression;
 using Source.Common.Engine;
+using Source.Common.Entity;
 using Source.Common.Filesystem;
 using Source.Common.Networking;
+using Source.Common.Networking.DataTable;
 using Source.Engine.Server;
 
 using Steamworks;
@@ -15,7 +17,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection.Metadata.Ecma335;
 using System.Xml.Linq;
-
+using static Source.Common.Networking.svc_ClassInfo;
 using static Source.Dbg;
 
 using GameServer = Source.Engine.Server.GameServer;
@@ -60,6 +62,7 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 	// PackedEntity entity baselines
 	// ServerClassInfo
 
+	public ServerClassInfo[]? ServerClassInfo = null;
 	public int ServerClasses;
 	public int ServerClassBits;
 	public string EncryptionKey;
@@ -72,6 +75,12 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 	public bool RestrictServerCommands;
 	public bool RestrictClientCommands;
 
+	// Networking stuff
+	public PackedEntity?[][] EntityBaselines = new PackedEntity?[2][];
+	public ClientFrameManager FrameManager;
+	public IClientEntityList ClientEntityList;
+	public EntityReport EntityReport;
+
 	// Source does it differently but who really cares, this works fine... I think
 	public NetworkStringTableContainer? StringTableContainer;
 
@@ -83,6 +92,7 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 		ClockDriftMgr.Clear();
 
 		CurrentSequence = 0;
+		ServerClassInfo = null;
 		ServerClasses = 0;
 		ServerClassBits = 0;
 		PlayerSlot = 0;
@@ -108,6 +118,11 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 		ViewEntity = 0;
 		ChallengeNumber = 0;
 		ConnectTime = 0.0;
+
+		for (int i = 0; i < 2; i++)
+		{
+			EntityBaselines[i] = new PackedEntity?[Constants.MAX_EDICTS];
+		}
 	}
 
 	public virtual bool ProcessConnectionlessPacket(ref NetPacket packet) {
@@ -250,14 +265,15 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 		return true;
 	}
 
-	private bool ProcessPacketEntities(svc_PacketEntities msg) {
+	virtual protected bool ProcessPacketEntities(svc_PacketEntities msg) {
 		// Cheating; need to better implement all of this
 		if (SignOnState < SignOnState.Spawn) {
 			ConWarning("Received packet entities while connecting!\n");
 			return false;
 		}
 
-		if (msg.UpdateBaseline) {
+		if (msg.UpdateBaseline)
+		{
 			var clcAck = new clc_BaselineAck(0, msg.Baseline);
 			NetChannel.SendNetMsg(clcAck, true);
 		}
@@ -404,6 +420,7 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 		MaxClients = msg.MaxClients;
 		ServerClasses = msg.MaxClasses;
 		ServerClassBits = (int)Math.Log2(ServerClasses) + 1;
+		ServerClassInfo = new ServerClassInfo[ServerClasses];
 
 		StringTableContainer = (NetworkStringTableContainer)INetworkStringTableContainer.networkStringTableContainerClient;
 
@@ -710,5 +727,151 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 	public void HookClientStringTable(string tableName)
 	{
 		// ToDo
+	}
+
+	public void CopyEntityBaseline(int From, int To)
+	{
+		for (int i=0; i<Constants.MAX_EDICTS; i++)
+		{
+			PackedEntity? blfrom = EntityBaselines[From][i];
+			PackedEntity? blto = EntityBaselines[To][i];
+
+			if(blfrom == null)
+			{
+				// make sure blto doesn't exists
+				if (blto != null)
+				{
+					// ups, we already had this entity but our ack got lost
+					// we have to remove it again to stay in sync
+					EntityBaselines[To][i] = null;
+				}
+				continue;
+			}
+
+			if (blto == null)
+			{
+				// create new to baseline if none existed before
+				blto = EntityBaselines[To][i] = new PackedEntity();
+				blto.ClientClass = null;
+				blto.ServerClass = null;
+				blto.ReferenceCount = 0;
+			}
+
+			blto.EntityIndex	= blfrom.EntityIndex; 
+			blto.ClientClass	= blfrom.ClientClass;
+			blto.ServerClass	= blfrom.ServerClass;
+			blto.AllocAndCopyPadded(blfrom.GetData(), blfrom.GetNumBytes());
+		}
+	}
+
+	public void ReadPacketEntities(CEntityReadInfo u)
+	{
+		u.NextOldEntity();
+		while (u.UpdateType < UpdateType.Finished)
+		{
+			u.HeaderCount--;
+			u.IsEntity = (u.HeaderCount >= 0) ? true : false;
+			if (u.IsEntity)
+			{
+				EntsParse.ParseDeltaHeader(u);
+			}
+
+			u.UpdateType = UpdateType.PreserveEnt;
+			while (u.UpdateType == UpdateType.PreserveEnt)
+			{
+				if (EntsParse.DetermineUpdateType(u))
+				{
+					switch (u.UpdateType)
+					{
+						case UpdateType.EnterPVS:
+							EntsParse.ReadEnterPVS(this, u);
+							break;
+						case UpdateType.LeavePVS:
+							EntsParse.ReadLeavePVS(this, u);
+							break;
+						case UpdateType.DeltaEnt:
+							EntsParse.ReadDeltaPVS(this, u);
+							break;
+						case UpdateType.PreserveEnt:
+							EntsParse.ReadPreservePVS(this, u);
+							break;
+					}
+				}
+			}
+		}
+	}
+
+	public PackedEntity? GetEntityBaseline(int Baseline, int Entity)
+	{
+		return EntityBaselines[Baseline][Entity];
+	}
+
+	public INetworkStringTable? GetStringTable(string name)
+	{
+		if (StringTableContainer == null)
+		{
+			return null;
+		}
+
+		return StringTableContainer.FindTable( name );
+	}
+
+	public bool GetClassBaseline(int Class, out byte[]? Data, out int DataLength)
+	{
+		ErrorIfNot(Class >= 0 && Class < ServerClasses, "GetDynamicBaseline: invalid class index '%d'", Class);
+
+		// We lazily update these because if you connect to a server that's already got some dynamic baselines,
+		// you'll get the baselines BEFORE you get the class descriptions.
+		ServerClassInfo pInfo = ServerClassInfo[Class];
+		INetworkStringTable? pBaselineTable = GetStringTable(INetworkStringTable.INSTANCE_BASELINE_TABLENAME);
+		if (pBaselineTable == null)
+		{
+			Error("GetDynamicBaseline: NULL baseline table");
+			Data = null;
+			DataLength = -1;
+			return false;
+		}
+
+		if (pInfo.InstanceBaselineIndex == INetworkStringTable.INVALID_STRING_INDEX)
+		{
+			// The key is the class index string.
+			string strClass = Class.ToString();
+			pInfo.InstanceBaselineIndex = pBaselineTable.FindStringIndex(strClass);
+			if (pInfo.InstanceBaselineIndex == INetworkStringTable.INVALID_STRING_INDEX)
+			{
+				for (int i = 0; i < pBaselineTable.GetNumStrings(); ++i )
+				{
+					DevMsg("%i: %s\n", i, pBaselineTable.GetString(i));
+				}
+
+				// Gets a callstack, whereas ErrorIfNot(), does not.
+				Assert(false);
+			}
+
+			ErrorIfNot(pInfo.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX, "GetDynamicBaseline: FindStringIndex(%s-%s) failed.", strClass, pInfo.ClassName);
+		}
+
+		Data = pBaselineTable.GetStringUserData(pInfo.InstanceBaselineIndex, out DataLength);
+		return Data != null;
+	}
+
+	public void SetEntityBaseline(int Baseline, ClientClass ClientClass, int index, byte[] packedData, int length)
+	{
+		Assert( index >= 0 && index < Constants.MAX_EDICTS );
+		Assert( ClientClass != null );
+		Assert( (Baseline == 0) || (Baseline == 1) );
+	
+		PackedEntity? entitybl = EntityBaselines[Baseline][index];
+		if (entitybl == null)
+		{
+			entitybl = EntityBaselines[Baseline][index] = new PackedEntity();
+		}
+
+		entitybl.ClientClass = ClientClass;
+		entitybl.EntityIndex = index;
+		entitybl.ServerClass = null;
+
+		// Copy out the data we just decoded.
+		entitybl.AllocAndCopyPadded( packedData, length );
 	}
 }

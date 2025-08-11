@@ -1,11 +1,9 @@
-﻿using Source.Common.Client;
-using Source.Common.Commands;
+﻿using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Hashing;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
-using Source.Engine.Server;
 
 using Steamworks;
 
@@ -20,7 +18,7 @@ namespace Source.Engine.Client;
 /// </summary>
 public class ClientState : BaseClientState
 {
-	readonly Host Host;
+	public readonly Host Host;
 	readonly IFileSystem fileSystem;
 	readonly Net Net;
 	readonly CommonHostState host_state;
@@ -82,6 +80,8 @@ public class ClientState : BaseClientState
 	PrecacheItem[] GenericPrecache = new PrecacheItem[PrecacheItem.MAX_GENERIC];
 	PrecacheItem[] SoundPrecache = new PrecacheItem[PrecacheItem.MAX_SOUNDS];
 	PrecacheItem[] DecalPrecache = new PrecacheItem[PrecacheItem.MAX_BASE_DECAL];
+
+	public static ConVar cl_flushentitypacket = new("0", FCvar.Cheat, "For debugging. Force the engine to flush an entity packet.");
 
 	public static ConVar cl_timeout = new("30", FCvar.Archive, "After this many seconds without receiving a packet from the server, the client will disconnect itself");
 	public static ConVar cl_allowdownload = new("1", FCvar.Archive, "Client downloads customization files");
@@ -335,5 +335,35 @@ public class ClientState : BaseClientState
 	public void ClearSounds() // RaphaelIT7: This is used by Snd_Restart_f
 	{
 		Array.Clear(SoundPrecache,  0, SoundPrecache.Length);
+	}
+
+	protected override bool ProcessPacketEntities(svc_PacketEntities msg) {
+		if ( !msg.IsDelta )
+		{
+			// we can start recording now that we've received an uncompressed packet
+			// demorecorder->SetSignonState(SIGNONSTATE_FULL);
+
+			/*
+			// Tell prediction that we're recreating entities due to an uncompressed packet arriving
+			if (g_pClientSidePrediction)
+			{
+				g_pClientSidePrediction->OnReceivedUncompressedPacket();
+			}
+			 */
+		} else {
+			if (DeltaTick == -1) {
+				// we requested a full update but still got a delta compressed packet. ignore it.
+				return true;
+			}
+
+			// Preprocessing primarily does client prediction. So if we're processing deltas--do it
+			// otherwise, we're about to be told exactly what the state of everything is--so skip it.
+			// CL_PreprocessEntities(); // setup client prediction
+		}
+
+		if (!EntsParse.ProcessPacketEntities(this, msg))
+			return false;
+
+		return base.ProcessPacketEntities( msg );
 	}
 }
