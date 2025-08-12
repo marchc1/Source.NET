@@ -205,21 +205,21 @@ public class NetworkStringTable : INetworkStringTable
 
 		if (UserDataSizeBits > NetworkStringTableItem.MAX_USERDATA_BITS)
 		{
-			Host_Error("String tables user data bits restricted to %i bits, requested %i is too large\n", 
+			Host_Error("String tables user data bits restricted to {0} bits, requested {1} is too large\n", 
 				NetworkStringTableItem.MAX_USERDATA_BITS,
 				UserDataSizeBits );
 		}
 
 		if (UserDataSize > NetworkStringTableItem.MAX_USERDATA_SIZE)
 		{
-			Host_Error("String tables user data size restricted to %i bytes, requested %i is too large\n", 
+			Host_Error("String tables user data size restricted to {0} bytes, requested {1} is too large\n", 
 				NetworkStringTableItem.MAX_USERDATA_SIZE,
 				UserDataSize);
 		}
 
 		if ((1 << EntryBits) != maxEntries)
 		{
-			Host_Error("String tables must be powers of two in size!, %i is not a power of 2\n", maxEntries);
+			Host_Error("String tables must be powers of two in size!, {0} is not a power of 2\n", maxEntries);
 		}
 
 		if (bIsFilenames)
@@ -271,13 +271,13 @@ public class NetworkStringTable : INetworkStringTable
 	{
 		/*if (!value)
 		{
-			ConMsg("Warning:  Can't add NULL string to table %s\n", m_pszTableName);
+			ConMsg("Warning:  Can't add NULL string to table {0}\n", m_pszTableName);
 			return INetworkStringTable.INVALID_STRING_INDEX;
 		}*/
 
 		if (Locked)
 		{
-			DevMsg("Warning! CNetworkStringTable::AddString: adding '%s' while locked.\n", value);
+			DevMsg("Warning! CNetworkStringTable::AddString: adding '{0}' while locked.\n", value);
 		}
 
 		int i = Items.Find(value);
@@ -295,7 +295,7 @@ public class NetworkStringTable : INetworkStringTable
 			{
 				if (ItemsClientSide.Count() >= (uint)GetMaxStrings())
 				{
-					ConMsg("Warning:  Table %s is full, can't add %s\n", GetTableName(), value);
+					ConMsg("Warning:  Table {0} is full, can't add {1}\n", GetTableName(), value);
 					return INetworkStringTable.INVALID_STRING_INDEX;
 				}
 
@@ -333,7 +333,7 @@ public class NetworkStringTable : INetworkStringTable
 			{
 				if (Items.Count() >= (uint)GetMaxStrings())
 				{
-					ConMsg("Warning:  Table %s is full, can't add %s\n", GetTableName(), value);
+					ConMsg("Warning:  Table {0} is full, can't add {1}\n", GetTableName(), value);
 					return INetworkStringTable.INVALID_STRING_INDEX;
 				}
 
@@ -388,7 +388,7 @@ public class NetworkStringTable : INetworkStringTable
 	{
 		if (Locked)
 		{
-			DevMsg("Warning! CNetworkStringTable::SetStringUserData (%s): changing entry %i while locked.\n", GetTableName(), stringNumber);
+			DevMsg("Warning! CNetworkStringTable::SetStringUserData ({0}): changing entry %i while locked.\n", GetTableName(), stringNumber);
 		}
 
 		INetworkStringDict dict = Items;
@@ -475,18 +475,18 @@ public class NetworkStringTable : INetworkStringTable
 
 	public void Dump()
 	{
-		ConMsg("Table %s\n", GetTableName());
-		ConMsg("  %i/%i items\n", GetNumStrings(), GetMaxStrings());
+		ConMsg("Table {0}\n", GetTableName());
+		ConMsg("  {0}/{1} items\n", GetNumStrings(), GetMaxStrings());
 		for (int i = 0; i < GetNumStrings() ; i++)
 		{
-			ConMsg("  %i : %s\n", i, GetString(i));
+			ConMsg("  {0} : {1}\n", i, GetString(i));
 		}
 
 		if (ItemsClientSide != null)
 		{
 			for (int i = 0; i < (int)ItemsClientSide.Count() ; i++)
 			{
-				ConMsg("  (c)%i : %s\n", i, ItemsClientSide.String(i));
+				ConMsg("  (c){0} : {1}\n", i, ItemsClientSide.String(i));
 			}
 		}
 
@@ -523,7 +523,7 @@ public class NetworkStringTable : INetworkStringTable
 			lastEntry = entryIndex;
 			if (entryIndex < 0 || entryIndex >= GetMaxStrings())
 			{
-				Host_Error("Server sent bogus string index %i for table %s\n", entryIndex, GetTableName());
+				Host_Error("Server sent bogus string index {0} for table {1}\n", entryIndex, GetTableName());
 				continue;
 			}
 
@@ -538,7 +538,7 @@ public class NetworkStringTable : INetworkStringTable
 					uint bytesToCopy = buf.ReadUBitLong(NetworkStringTable.SUBSTRING_BITS);
 					if (index >= history.Count)
 					{
-						Host_Error("Server sent bogus substring index %i for table %s\n", entryIndex, GetTableName());
+						Host_Error("Server sent bogus substring index {0} for table {1}\n", entryIndex, GetTableName());
 						continue;
 					}
 
@@ -565,7 +565,7 @@ public class NetworkStringTable : INetworkStringTable
 					nBytes = (int)buf.ReadUBitLong(NetworkStringTableItem.MAX_USERDATA_BITS);
 					if (nBytes > NetworkStringTableItem.MAX_USERDATA_SIZE)
 					{
-						Host_Error("CNetworkStringTableClient::ParseUpdate: message too large (%i bytes).", nBytes);
+						Host_Error("CNetworkStringTableClient::ParseUpdate: message too large ({0} bytes).", nBytes);
 						continue;
 					}
 
@@ -590,7 +590,7 @@ public class NetworkStringTable : INetworkStringTable
 			} else {
 				if (pEntry == null)
 				{
-					Msg("CNetworkStringTable::ParseUpdate: NULL pEntry, table %s, index %i\n", GetTableName(), entryIndex);
+					Msg("CNetworkStringTable::ParseUpdate: NULL pEntry, table {0}, index {1}\n", GetTableName(), entryIndex);
 					pEntry = "";
 				}
 
@@ -624,20 +624,20 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 	{
 		if (!AllowCreation)
 		{
-			Host_Error("Tried to create string table '%s' at wrong time\n", tableName);
+			Host_Error("Tried to create string table '{0}' at wrong time\n", tableName);
 			return null;
 		}
 
 		NetworkStringTable? pTable = (NetworkStringTable?)FindTable(tableName);
 		if (pTable != null)
 		{
-			Host_Error("Tried to create string table '%s' twice\n", tableName);
+			Host_Error("Tried to create string table '{0}' twice\n", tableName);
 			return null;
 		}
 
 		if (Tables.Count() >= INetworkStringTable.MAX_TABLES)
 		{
-			Host_Error("Only %i string tables allowed, can't create'%s'", INetworkStringTable.MAX_TABLES, tableName);
+			Host_Error("Only {0} string tables allowed, can't create'{1}'", INetworkStringTable.MAX_TABLES, tableName);
 			return null;
 		}
 

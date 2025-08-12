@@ -22,6 +22,7 @@ public class ClientClass
 		this.EventFn = EventFn;
 		this.Next = g_pClientClassHead;
 		g_pClientClassHead = this;
+		this.pRecvTable = pRecvTable;
 
 		this.ClassID = -1;
 	}
@@ -30,4 +31,22 @@ public class ClientClass
 	{
 		return NetworkName;
 	}
+}
+
+public class ClientClass<T> where T : IClientNetworkable, new()
+{
+	public ClientClass Class;
+	public RecvTable Table;
+
+    public ClientClass(string name)
+    {
+		Table = new();
+
+		Class = new(name, (entNum, serialNum) =>
+        {
+            var instance = new T();
+            instance.Init(entNum, serialNum);
+            return instance;
+        }, null, Table);
+    }
 }

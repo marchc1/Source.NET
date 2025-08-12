@@ -69,7 +69,13 @@ public class EntsParse
 
 	public static void ReadEnterPVS(BaseClientState state, CEntityReadInfo u)
 	{
-		
+		int iClass = (int)u.Buf.ReadUBitLong(state.ServerClassBits);
+		int iSerialNum = (int)u.Buf.ReadUBitLong(Constants.NUM_NETWORKED_EHANDLE_SERIAL_NUMBER_BITS);
+
+		CopyNewEntity(state, u, iClass, iSerialNum);
+
+		if (u.NewEntity == u.OldEntity) // that was a recreate
+			u.NextOldEntity();
 	}
 
 	public static void ReadLeavePVS(BaseClientState state, CEntityReadInfo u)
@@ -97,7 +103,7 @@ public class EntsParse
 
 		if (Class >= state.ServerClasses)
 		{
-			Host_Error("CL_CopyNewEntity: invalid class index (%d).\n", Class);
+			Host_Error("CL_CopyNewEntity: invalid class index ({0}).\n", Class);
 			return;
 		}
 
@@ -119,7 +125,7 @@ public class EntsParse
 			if (ent == null)
 			{
 				string NetworkName = (state.ServerClassInfo[Class].ClientClass != null) ? state.ServerClassInfo[Class].ClientClass.NetworkName : "";
-				Host_Error("CL_ParsePacketEntities:  Error creating entity %s(%i)\n", NetworkName, u.NewEntity);
+				Host_Error("CL_ParsePacketEntities: Error creating entity {0} ({1})\n", NetworkName, u.NewEntity);
 				return;
 			}
 
@@ -141,7 +147,7 @@ public class EntsParse
 		} else {
 			if (!state.GetClassBaseline(Class, out FromData, out FromBits))
 			{
-				Error("CL_CopyNewEntity: GetClassBaseline(%d) failed.", Class);
+				Error("CL_CopyNewEntity: GetClassBaseline({0}) failed.", Class);
 				return;
 			}
 
@@ -153,7 +159,7 @@ public class EntsParse
 
 		if (RecvTable == null)
 		{
-			Host_Error("CL_ParseDelta: invalid recv table for ent %d.\n", u.NewEntity);
+			Host_Error("CL_ParseDelta: invalid recv table for ent {0}.\n", u.NewEntity);
 			return;
 		}
 
@@ -207,10 +213,12 @@ public class EntsParse
 
 			if (!state.IsActive())
 			{
-				// COM_TimestampedLog( "cl:  create '%s'", clientClass.GetName() );
+				// COM_TimestampedLog( "cl:  create '{0}'", clientClass.GetName() );
 			}
 
 			return clientClass.CreateFn(Entity, SerialNum);
+		} else {
+			Warning("Missing ClientClass for {0} (\"{1}\")\n", Class, state.ServerClassInfo[Class].ClassName);
 		}
 
 		return null;

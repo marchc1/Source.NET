@@ -2,7 +2,8 @@
   "profiles": {
     "Source.Launcher": {
       "commandName": "Project",
-      "commandLineArgs": "-textmode +fps_max 60"
+      "commandLineArgs": "-textmode +fps_max 60",
+      "hotReloadEnabled": false
     }
   }
 }

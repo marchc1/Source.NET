@@ -2,6 +2,7 @@
 
 using Source.Common.Client;
 using Source.Common.Filesystem;
+using Source.Common.Networking.DataTable;
 using Source.Common.Server;
 using Source.Engine;
 
@@ -40,5 +41,10 @@ public class ServerGameDLL(IEngineServer engine, IFileSystem filesystem) : IServ
 
 	public void PostInit() {
 
+	}
+
+	public ServerClass? GetAllServerClasses()
+	{
+		return ServerClass.ServerClassHead;
 	}
 }

@@ -49,4 +49,7 @@ public static class Constants
 	public const int ENTITY_SENTINEL = 9999;
 	public const int MAX_PACKEDENTITY_DATA = 16384;
 	public const int MAX_PACKEDENTITY_PROPS = 4096;
+	public const int  NUM_NETWORKED_EHANDLE_SERIAL_NUMBER_BITS = 10;
+	public const int  NUM_NETWORKED_EHANDLE_BITS = (MAX_EDICT_BITS + NUM_NETWORKED_EHANDLE_SERIAL_NUMBER_BITS);
+	public const int  INVALID_NETWORKED_EHANDLE_VALUE = ((1 << NUM_NETWORKED_EHANDLE_BITS) - 1);
 }

@@ -2,8 +2,8 @@
 
 namespace Source.Common.Entity;
 
-public abstract class IHandleEntity
+public interface IHandleEntity
 {
-	public abstract void SetRefEHandle(BaseHandle handle);
-	public abstract BaseHandle GetRefEHandle();
+	public void SetRefEHandle(BaseHandle handle);
+	public BaseHandle GetRefEHandle();
 }

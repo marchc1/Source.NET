@@ -289,12 +289,12 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 			ReadOnlySpan<char> pathID = "MOD";
 
 			if (!Common.IsValidPath(file)) {
-				Dbg.ConMsg("exec %s: invalid path.\n");
+				Dbg.ConMsg("exec {0}: invalid path.\n", new string(file));
 				return;
 			}
 
 			if (!IsValidFileExtension(file)) {
-				Dbg.ConMsg("exec %s: invalid file type.\n");
+				Dbg.ConMsg("exec {0}: invalid file type.\n", new string(file));
 				return;
 			}
 

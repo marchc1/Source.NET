@@ -1,4 +1,6 @@
-﻿namespace Source.Common.Server;
+﻿using Source.Common.Networking.DataTable;
+
+namespace Source.Common.Server;
 
 /// <summary>
 /// Interface the game DLL exposes to the engine
@@ -7,4 +9,6 @@ public interface IServerGameDLL
 {
 	void GameShutdown() { }
 	public void PostInit();
+	public ServerClass? GetAllServerClasses();
+	// public StandardSendProxies? GetStandardSendProxies();
 }

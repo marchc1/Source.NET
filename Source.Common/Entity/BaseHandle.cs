@@ -2,13 +2,11 @@
 
 public class BaseHandle : IEquatable<BaseHandle>, IComparable<BaseHandle>
 {
-
-	public const int NUM_ENT_ENTRY_BITS = 11;
 	public const int NUM_SERIAL_NUM_BITS = 16;
 	public const int ENT_ENTRY_MASK = Constants.NUM_ENT_ENTRIES - 1;
 	public const uint INVALID_EHANDLE_INDEX = 0xFFFFFFFF;
 
-	protected uint Index;
+	public uint Index;
 
 	public BaseHandle()
 	{
@@ -37,7 +35,7 @@ public class BaseHandle : IEquatable<BaseHandle>, IComparable<BaseHandle>
 		if (serialNumber < 0 || serialNumber >= (1 << NUM_SERIAL_NUM_BITS))
 			throw new ArgumentOutOfRangeException(nameof(serialNumber));
 
-		Index = (uint)(entry | (serialNumber << NUM_ENT_ENTRY_BITS));
+		Index = (uint)(entry | (serialNumber << Constants.NUM_ENT_ENTRY_BITS));
 	}
 
 	public void Term()
@@ -49,7 +47,7 @@ public class BaseHandle : IEquatable<BaseHandle>, IComparable<BaseHandle>
 
 	public int GetEntryIndex() => (int)(Index & ENT_ENTRY_MASK);
 
-	public int GetSerialNumber() => (int)(Index >> NUM_ENT_ENTRY_BITS);
+	public int GetSerialNumber() => (int)(Index >> Constants.NUM_ENT_ENTRY_BITS);
 
 	public int ToInt() => (int)Index;
 

@@ -6,12 +6,16 @@ using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Game.Client.Entity;
 using Source.Common.Entity;
+using Source.Common.Networking.DataTable;
+using Source.Common;
 
 namespace Game.Client;
 
-public class HLClient(IInput input, UserMessages usermessages) : IBaseClientDLL
+public class HLClient(IInput input, UserMessages usermessages, ClientGlobalVariables globalVars) : IBaseClientDLL
 {
-	private ClientEntityList EntityList;
+	// We really need this.
+	public static ClientGlobalVariables GlobalVars;
+	public static ClientEntityList EntityList = new();
 	public static void DLLInit(IServiceCollection services) {
 		services.AddSingleton<IInput, HLInput>();
 	}
@@ -21,7 +25,7 @@ public class HLClient(IInput input, UserMessages usermessages) : IBaseClientDLL
 	}
 
 	public void PostInit() {
-
+		GlobalVars = globalVars;
 	}
 
 	public void CreateMove(int sequenceNumber, double inputSampleFrametime, bool active) {
@@ -61,5 +65,10 @@ public class HLClient(IInput input, UserMessages usermessages) : IBaseClientDLL
 	public void FrameStageNotify(ClientFrameStage stage)
 	{
 		
+	}
+
+	public ClientClass? GetAllClientClasses()
+	{
+		return ClientClass.g_pClientClassHead;
 	}
 }

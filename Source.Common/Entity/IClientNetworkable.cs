@@ -12,18 +12,19 @@ public enum DataUpdateType
 								// since it changes a bunch of existing code
 };
 
-public abstract class IClientNetworkable
+public interface IClientNetworkable
 {
-	public abstract IClientUnknown? GetIClientUnknown();
-	public abstract void Release();
-	public abstract ClientClass? GetClientClass();
-	public abstract void SetDestroyedOnRecreateEntities();
-	public abstract void OnPreDataChanged(DataUpdateType updateType);
-	public abstract void OnDataChanged(DataUpdateType updateType);
+	public IClientUnknown? GetIClientUnknown();
+	public void Release();
+	public ClientClass? GetClientClass();
+	public void SetDestroyedOnRecreateEntities();
+	public void OnPreDataChanged(DataUpdateType updateType);
+	public void OnDataChanged(DataUpdateType updateType);
 
 	// Called when data is being updated across the network.
 	// Only low-level entities should need to know about these.
-	public abstract void PreDataUpdate(DataUpdateType updateType);
-	public abstract void PostDataUpdate(DataUpdateType updateType);
-	public abstract byte[] GetDataTableBasePtr();
+	public void PreDataUpdate(DataUpdateType updateType);
+	public void PostDataUpdate(DataUpdateType updateType);
+	public IntPtr GetDataTableBasePtr();
+	public void Init(int entityNum, int serialNum);
 }

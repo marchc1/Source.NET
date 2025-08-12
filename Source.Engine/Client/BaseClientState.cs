@@ -29,7 +29,9 @@ namespace Source.Engine.Client;
 public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net, GameServer sv, Cbuf Cbuf, ICvar cvar, IEngineVGuiInternal? EngineVGui, IEngineAPI engineAPI) : INetChannelHandler, IConnectionlessPacketHandler, IServerMessageHandler
 {
 	public ConVar cl_connectmethod = new(nameof(cl_connectmethod), "", FCvar.UserInfo | FCvar.Hidden, "Method by which we connected to the current server.");
-	public ConVar password = new(nameof(password), "", FCvar.Archive | FCvar.ServerCannotQuery | FCvar.DontRecord, "Current server access password");
+	public ConVar password = new(nameof(password), "privatelol", FCvar.Archive | FCvar.ServerCannotQuery | FCvar.DontRecord, "Current server access password");
+	// RaphaelIT7: I really need this since I don't have steam everywhere
+	public ConVar steamid = new(nameof(steamid), "76561198399203059", FCvar.Archive | FCvar.ServerCannotQuery | FCvar.DontRecord, "If Steam isn't available, we'll use this one instead");
 
 	public const int CL_CONNECTION_RETRIES = 4;
 	public const double CL_MIN_RESEND_TIME = 1.5;
@@ -77,9 +79,9 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 
 	// Networking stuff
 	public PackedEntity?[][] EntityBaselines = new PackedEntity?[2][];
-	public ClientFrameManager FrameManager;
+	public ClientFrameManager FrameManager = new();
 	public IClientEntityList ClientEntityList;
-	public EntityReport EntityReport;
+	public EntityReport EntityReport = new();
 
 	// Source does it differently but who really cares, this works fine... I think
 	public NetworkStringTableContainer? StringTableContainer;
@@ -119,6 +121,9 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 		ChallengeNumber = 0;
 		ConnectTime = 0.0;
 
+		// RaphaelIT7 - ToDo: Implement a way to clear the Entity reporting stuff
+		// EntityReport
+		FrameManager.DeleteClientFrames(-1);
 		for (int i = 0; i < 2; i++)
 		{
 			EntityBaselines[i] = new PackedEntity?[Constants.MAX_EDICTS];
@@ -328,7 +333,7 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 		return true;
 	}
 
-	private bool ProcessClassInfo(svc_ClassInfo msg) {
+	protected virtual bool ProcessClassInfo(svc_ClassInfo msg) {
 		return true;
 	}
 
@@ -420,7 +425,6 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 		MaxClients = msg.MaxClients;
 		ServerClasses = msg.MaxClasses;
 		ServerClassBits = (int)Math.Log2(ServerClasses) + 1;
-		ServerClassInfo = new ServerClassInfo[ServerClasses];
 
 		StringTableContainer = (NetworkStringTableContainer)INetworkStringTableContainer.networkStringTableContainerClient;
 
@@ -638,6 +642,16 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 	public virtual bool PrepareSteamConnectResponse(ulong gameServerSteamID, bool gameServerSecure, IPEndPoint addr, bf_write msg) {
 		// Check steam user
 		if (!SteamAPI.IsSteamRunning()) {
+			if (addr.Port == 32030) // RaphaelIT7: Port I used for my testing server, should be fine for now.
+			{ // For Testing without steam
+				uint fakeKeysize = 10; // We can't just use 0 since that kicks us before we reach ConnectClient
+				msg.WriteShort((int)(fakeKeysize + sizeof(ulong)));
+				msg.WriteLongLong((long)long.Parse(steamid.GetString()));
+				byte[] fakeKey = new byte[fakeKeysize];
+				msg.WriteBytes(fakeKey, (int)fakeKeysize);
+				return true;
+			}
+
 			Disconnect("The server requires Steam authentication.", true);
 			return false;
 		}
@@ -689,7 +703,6 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 		ConnectTime = Net.Time;
 	}
 
-	public virtual bool LinkClasses() => false;
 	public virtual int GetConnectionRetryNumber() => CL_CONNECTION_RETRIES;
 
 	public ConVar cl_name = new(nameof(cl_name), "unnamed", FCvar.Archive | FCvar.UserInfo | FCvar.PrintableOnly | FCvar.ServerCanExecute, "Current user name");
@@ -757,9 +770,9 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 				blto.ReferenceCount = 0;
 			}
 
-			blto.EntityIndex	= blfrom.EntityIndex; 
-			blto.ClientClass	= blfrom.ClientClass;
-			blto.ServerClass	= blfrom.ServerClass;
+			blto.EntityIndex = blfrom.EntityIndex; 
+			blto.ClientClass = blfrom.ClientClass;
+			blto.ServerClass = blfrom.ServerClass;
 			blto.AllocAndCopyPadded(blfrom.GetData(), blfrom.GetNumBytes());
 		}
 	}
@@ -818,7 +831,7 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 
 	public bool GetClassBaseline(int Class, out byte[]? Data, out int DataLength)
 	{
-		ErrorIfNot(Class >= 0 && Class < ServerClasses, "GetDynamicBaseline: invalid class index '%d'", Class);
+		ErrorIfNot(Class >= 0 && Class < ServerClasses, "GetDynamicBaseline: invalid class index '{0}'", Class);
 
 		// We lazily update these because if you connect to a server that's already got some dynamic baselines,
 		// you'll get the baselines BEFORE you get the class descriptions.
@@ -841,14 +854,14 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 			{
 				for (int i = 0; i < pBaselineTable.GetNumStrings(); ++i )
 				{
-					DevMsg("%i: %s\n", i, pBaselineTable.GetString(i));
+					DevMsg("{0}: {1}\n", i, pBaselineTable.GetString(i));
 				}
 
 				// Gets a callstack, whereas ErrorIfNot(), does not.
 				Assert(false);
 			}
 
-			ErrorIfNot(pInfo.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX, "GetDynamicBaseline: FindStringIndex(%s-%s) failed.", strClass, pInfo.ClassName);
+			ErrorIfNot(pInfo.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX, "GetDynamicBaseline: FindStringIndex({0}-{1}) failed.", strClass, pInfo.ClassName);
 		}
 
 		Data = pBaselineTable.GetStringUserData(pInfo.InstanceBaselineIndex, out DataLength);
@@ -873,5 +886,55 @@ public abstract class BaseClientState(Host Host, IFileSystem fileSystem, Net Net
 
 		// Copy out the data we just decoded.
 		entitybl.AllocAndCopyPadded( packedData, length );
+	}
+
+	public ClientClass? FindClientClass(string? pClassName)
+	{
+		if ( pClassName == null )
+			return null;
+
+		for(ClientClass? pCur = Host.CL.ClientDLL.GetAllClientClasses(); pCur != null; pCur = pCur.Next)
+		{
+			if(pCur.NetworkName.Equals(pClassName))
+				return pCur;
+		}
+
+		return null;
+	}
+
+	public virtual bool LinkClasses()
+	{
+		for (int i=0; i < ServerClasses; ++i)
+		{
+			ServerClassInfo pServerClass = ServerClassInfo[i];
+			if (pServerClass.DatatableName == null)
+				continue;
+
+			// (this can be null in which case we just use default behavior).
+			pServerClass.ClientClass = FindClientClass(pServerClass.ClassName);
+			if (pServerClass.ClientClass != null)
+			{
+				// If the class names match, then their datatables must match too.
+				// It's ok if the client is missing a class that the server has. In that case,
+				// if the server actually tries to use it, the client will bomb out.
+				string pServerName = pServerClass.DatatableName;
+				string pClientName = pServerClass.ClientClass.pRecvTable.GetName();
+
+				if (!pServerName.Equals(pClientName))
+				{
+					Host_Error("CL_ParseClassInfo_EndClasses: server and client classes for '{0}' use different datatables (server: {1}, client: {2})",
+						pServerClass.ClassName, pServerName, pClientName );
+				
+					return false;
+				}
+
+				// copy class ID
+				pServerClass.ClientClass.ClassID = i;
+			} else {
+				Msg("Client missing DT class {0}\n", pServerClass.ClassName);
+			}
+		}
+
+		return true;
 	}
 }

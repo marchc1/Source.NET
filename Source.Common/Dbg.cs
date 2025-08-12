@@ -129,6 +129,9 @@ public static class Dbg
 				break;
 
 			case SpewRetval.Abort:
+				if (spewType == SpewType.Error)
+					Debugger.Break();
+
 				Environment.Exit(1);
 				break;
 

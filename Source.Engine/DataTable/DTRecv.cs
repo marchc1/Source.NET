@@ -4,9 +4,24 @@ using Source.Engine.DataTable;
 
 public static class DTRecv
 {
+	public static LinkedList<RecvTable> g_RecvTables = new();
+	public static LinkedList<RecvDecoder> g_RecvDecoders = new();
+	public static LinkedList<CClientSendTable> g_ClientSendTables = new();
+
+	public static RecvTable? FindRecvTable(string pName)
+	{
+		foreach(RecvTable pTable in g_RecvTables)
+		{
+			if (pTable.GetName().Equals(pName))
+				return pTable;
+		}
+
+		return null;
+	}
+
 	public static bool Decode(
 		RecvTable table,
-		byte[] structBase,
+		IntPtr structBase,
 		bf_read input,
 		int objectID,
 		bool updateDTI)
@@ -45,7 +60,7 @@ public static class DTRecv
 		return !input.Overflowed;
 	}
 
-	public static void DecodeZeros(RecvTable table, byte[] structBase, int objectID)
+	public static void DecodeZeros(RecvTable table, IntPtr structBase, int objectID)
 	{
 		var decoder = table.Decoder
 			?? throw new InvalidOperationException($"Missing decoder for {table.NetTableName}.");
@@ -75,7 +90,7 @@ public static class DTRecv
 
 	public static int MergeDeltas(
 		RecvTable table,
-		bf_read oldState,
+		bf_read? oldState,
 		bf_read newState,
 		bf_write output,
 		int objectID,
@@ -137,4 +152,10 @@ public static class DTRecv
 	{
 		MergeDeltas(table, null, input, output, objectID, out _, false);
 	}
+
+	/*public static bool CreateDecoders(CStandardSendProxies SendProxies, bool AllowMismach, out bool AnyMismatches)
+	{
+		AnyMismatches = false;
+		return true;
+	}*/
 }

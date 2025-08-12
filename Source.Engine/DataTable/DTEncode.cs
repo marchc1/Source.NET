@@ -678,7 +678,7 @@ public static class DTArray
 			lengthProxy(pRecvData, objectID, nElements);
 
 		object pCurSendPos = pSendData; // placeholder for offset math
-		object pCurRecvPos = pRecvData; // placeholder for offset math
+		IntPtr pCurRecvPos = pRecvData; // placeholder for offset math
 
 		for (recvProxyData.Element = 0; recvProxyData.Element < nElements; recvProxyData.Element++)
 		{

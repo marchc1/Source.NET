@@ -1,5 +1,6 @@
 ﻿using Source.Common.Bitbuffers;
 using Source.Common.Entity;
+using Source.Common.Networking.DataTable;
 
 namespace Source.Common.Client;
 
@@ -20,4 +21,5 @@ public interface IBaseClientDLL
 	bool Init();
 	public IClientEntityList GetClientEntityList();
 	public void FrameStageNotify(ClientFrameStage curStage);
+	public ClientClass? GetAllClientClasses();
 }

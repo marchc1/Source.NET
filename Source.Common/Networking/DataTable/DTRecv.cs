@@ -2,9 +2,9 @@
 
 namespace Source.Common.Networking.DataTable;
 
-public delegate void RecvVarProxyFn(CRecvProxyData pData, object pStruct, object pOut);
+public delegate void RecvVarProxyFn(CRecvProxyData pData, object pStruct, IntPtr pOut);
 public delegate void ArrayLengthRecvProxyFn(object pStruct, int objectID, int currentArrayLength);
-public delegate void DataTableRecvVarProxyFn(RecvProp pProp, ref object pOut, object pData, int objectID);
+public delegate void DataTableRecvVarProxyFn(RecvProp pProp, ref IntPtr pOut, IntPtr pData, int objectID);
 
 public class CRecvProxyData
 {

@@ -4,7 +4,9 @@ using Source.Common.Filesystem;
 using Source.Common.Hashing;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
-
+using Source.Common.Networking.DataTable;
+using Source.Common.Server;
+using Source.Engine.DataTable;
 using Steamworks;
 
 using static Source.Constants;
@@ -281,7 +283,7 @@ public class ClientState : BaseClientState
 		info.SendTableCRC = CLC.ClientInfoCRC;
 		info.ServerCount = ServerCount;
 		info.IsHLTV = false;
-		info.FriendsID = SteamUser.GetSteamID().m_SteamID;
+		info.FriendsID = long.Parse(steamid.GetString());
 		info.FriendsName = "";
 
 		// check stuff later
@@ -365,5 +367,33 @@ public class ClientState : BaseClientState
 			return false;
 
 		return base.ProcessPacketEntities( msg );
+	}
+
+	protected override bool ProcessClassInfo(svc_ClassInfo msg)
+	{
+		if (msg.CreateOnClient)
+		{
+			// if (!demoplayer.IsPlayingBack())
+			{
+				DTCommon.CreateClientTablesFromServerTables(Host.serverDLL.GetAllServerClasses());
+
+				DTCommon.CreateClientClassInfosFromServerClasses(this, Host.serverDLL.GetAllServerClasses());
+
+				// demorecorder->RecordServerClasses(serverGameDLL.GetAllServerClasses());
+			}
+
+			LinkClasses(); // link server and client classes
+		} else {
+			base.ProcessClassInfo(msg);
+		}
+
+		bool AllowMismatches = false;
+		//if (!DTRecv.CreateDecoders(Host.serverDLL.GetStandardSendProxies(), AllowMismatches)) // create receive table decoders
+		{
+		//	Dbg.Host_Error("CL_ParseClassInfo_EndClasses: CreateDecoders failed.\n");
+		//	return false;
+		}
+		
+		return true;
 	}
 }

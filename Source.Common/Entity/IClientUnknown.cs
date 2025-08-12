@@ -2,7 +2,7 @@
 
 namespace Source.Common.Entity;
 
-public abstract class IClientUnknown : IHandleEntity
+public interface IClientUnknown : IHandleEntity
 {
 
 }

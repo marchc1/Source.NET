@@ -24,6 +24,8 @@ public class Host(
 	IServiceProvider services
 	)
 {
+	// RaphaelIT7: Kill me later, though we really need access to things like ClientGlobalVariables without having to pass around everything!
+	public static Host CurrentHost;
 	public int TimeToTicks(double dt) => (int)(0.5f + (double)dt / (double)host_state.IntervalPerTick);
 	public double TicksToTime(int dt) => (double)host_state.IntervalPerTick * (double)dt;
 
@@ -498,6 +500,7 @@ public class Host(
 		if (clientDLL != null)
 			clientDLL.PostInit();
 		this.clientDLL = clientDLL;
+		CurrentHost = this;
 	}
 
 	public void ReadConfiguration() {
@@ -547,6 +550,7 @@ public class Host(
 			Scr = engineAPI.InitSubsystem<Scr>()!;
 			// engineAPI.InitSubsystem<Render>();
 			// engineAPI.InitSubsystem<Decal>();
+			CL.Init();
 		}
 		else {
 			cl.SignOnState = SignOnState.None;
