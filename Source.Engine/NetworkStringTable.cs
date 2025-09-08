@@ -194,7 +194,7 @@ public class NetworkStringTable : INetworkStringTable
 			Host.Error($"String tables user data bits restricted to {NetworkStringTableItem.MAX_USERDATA_SIZE} bits, requested {UserDataSizeBits} is too large\n");
 
 		if (UserDataSize > NetworkStringTableItem.MAX_USERDATA_SIZE)
-			Host.Error("String tables user data size restricted to {NetworkStringTableItem.MAX_USERDATA_SIZE} bytes, requested {UserDataSizeBits} is too large\n");
+			Host.Error($"String tables user data size restricted to {NetworkStringTableItem.MAX_USERDATA_SIZE} bytes, requested {UserDataSizeBits} is too large\n");
 
 		if ((1 << EntryBits) != maxEntries)
 			Host.Error($"String tables must be powers of two in size!, {maxEntries} is not a power of 2\n");
