@@ -1,6 +1,7 @@
 ﻿using Source.Common.Bitbuffers;
 using Source.Common.Engine;
 using Source.Common.Input;
+using Source.Common.Entity;
 
 namespace Source.Common.Client;
 
@@ -30,4 +31,5 @@ public interface IBaseClientDLL
 	void IN_ClearStates();
 	bool ShouldAllowConsole();
 	void FrameStageNotify(ClientFrameStage stage);
+	IClientEntityList GetClientEntityList();
 }

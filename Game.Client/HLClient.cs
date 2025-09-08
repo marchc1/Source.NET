@@ -161,4 +161,9 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	private void OnRenderEnd() {
 
 	}
+
+    public IClientEntityList GetClientEntityList()
+    {
+        return EntityList;
+    }
 }

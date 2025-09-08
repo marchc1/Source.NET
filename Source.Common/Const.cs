@@ -6,6 +6,8 @@ public static class Constants
 
 	public const int MAX_EDICTS = 1 << MAX_EDICT_BITS;
 	public const int MAX_EDICT_BITS = 13;
+	public const int NUM_ENT_ENTRY_BITS = MAX_EDICT_BITS + 1;
+	public const int NUM_ENT_ENTRIES = 1 << NUM_ENT_ENTRY_BITS;
 
 	/// <summary>
 	/// Most Source games have this at 20; Garry's Mod has it at 24
