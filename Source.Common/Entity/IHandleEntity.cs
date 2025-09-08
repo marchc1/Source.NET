@@ -1,6 +1,4 @@
-﻿using Source.Common.Networking.DataTable;
-
-namespace Source.Common.Entity;
+﻿namespace Source.Common.Entity;
 
 public interface IHandleEntity
 {

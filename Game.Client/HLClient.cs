@@ -11,6 +11,7 @@ using Source.Common.Engine;
 using Source.Common.GUI;
 using Source.Common.Input;
 using Source.Engine;
+using Source.Common.Entity;
 
 namespace Game.Client;
 

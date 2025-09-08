@@ -233,3 +233,12 @@ public static class Protocol
 	public const string USER_INFO_TABLENAME = "userinfo";
 	public const string SERVER_STARTUP_DATA_TABLENAME = "server_query_info";
 }
+
+[Flags]
+public enum FHDR
+{
+    ZERO = 0x0000,
+    LEAVEPVS = 0x0001,
+    DELETE = 0x0002,
+    ENTERPVS = 0x0004,
+};

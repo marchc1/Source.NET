@@ -8,8 +8,10 @@ using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Compression;
 using Source.Common.Engine;
+using Source.Common.Entity;
 using Source.Common.Filesystem;
 using Source.Common.Networking;
+using Source.Common.Networking.DataTable;
 using Source.Engine.Server;
 
 using Steamworks;
@@ -143,6 +145,11 @@ public abstract class BaseClientState(
 		throw new NotImplementedException();
 	}
 
+	// Networking Stuff
+	public PackedEntity?[][] EntityBaselines = new PackedEntity?[2][];
+	public ClientFrameManager FrameManager = new();
+	public IClientEntityList ClientEntityList;
+
 	public virtual void Clear() {
 		ServerCount = -1;
 		DeltaTick = -1;
@@ -173,6 +180,10 @@ public abstract class BaseClientState(
 		ViewEntity = 0;
 		ChallengeNumber = 0;
 		ConnectTime = 0.0;
+
+		FrameManager.DeleteClientFrames(-1);
+		for (int i = 0; i < 2; i++)
+			EntityBaselines[i] = new PackedEntity?[Constants.MAX_EDICTS];
 	}
 
 	public virtual bool ProcessConnectionlessPacket(ref NetPacket packet) {
@@ -755,7 +766,6 @@ public abstract class BaseClientState(
 		ConnectTime = Net.Time;
 	}
 
-	public virtual bool LinkClasses() => false;
 	public virtual int GetConnectionRetryNumber() => CL_CONNECTION_RETRIES;
 
 	public ConVar cl_name = new("name", "unnamed", FCvar.Archive | FCvar.UserInfo | FCvar.PrintableOnly | FCvar.ServerCanExecute, "Current user name");
@@ -800,5 +810,208 @@ public abstract class BaseClientState(
 	}
 	public virtual bool HookClientStringTable(ReadOnlySpan<char> tableName) {
 		return false;
+	}
+
+	public void CopyEntityBaseline(int From, int To)
+	{
+		for (int i = 0; i < Constants.MAX_EDICTS; i++)
+		{
+			PackedEntity? blfrom = EntityBaselines[From][i];
+			PackedEntity? blto = EntityBaselines[To][i];
+
+			if (blfrom == null)
+			{
+				// make sure blto doesn't exists
+				if (blto != null)
+				{
+					// ups, we already had this entity but our ack got lost
+					// we have to remove it again to stay in sync
+					EntityBaselines[To][i] = null;
+				}
+				continue;
+			}
+
+			if (blto == null)
+			{
+				// create new to baseline if none existed before
+				blto = EntityBaselines[To][i] = new PackedEntity();
+				blto.ClientClass = null;
+				blto.ServerClass = null;
+				blto.ReferenceCount = 0;
+			}
+
+			blto.EntityIndex = blfrom.EntityIndex;
+			blto.ClientClass = blfrom.ClientClass;
+			blto.ServerClass = blfrom.ServerClass;
+			blto.AllocAndCopyPadded(blfrom.GetData(), blfrom.GetNumBytes());
+		}
+	}
+
+	public void ReadPacketEntities(EntityReadInfo u)
+	{
+		u.NextOldEntity();
+		while (u.UpdateType < UpdateType.Finished)
+		{
+			u.HeaderCount--;
+			u.IsEntity = (u.HeaderCount >= 0) ? true : false;
+			if (u.IsEntity)
+			{
+				EntsParse.ParseDeltaHeader(u);
+			}
+
+			u.UpdateType = UpdateType.PreserveEnt;
+			while (u.UpdateType == UpdateType.PreserveEnt)
+			{
+				if (EntsParse.DetermineUpdateType(u))
+				{
+					switch (u.UpdateType)
+					{
+						case UpdateType.EnterPVS:
+							EntsParse.ReadEnterPVS(this, u);
+							break;
+						case UpdateType.LeavePVS:
+							EntsParse.ReadLeavePVS(this, u);
+							break;
+						case UpdateType.DeltaEnt:
+							EntsParse.ReadDeltaPVS(this, u);
+							break;
+						case UpdateType.PreserveEnt:
+							EntsParse.ReadPreservePVS(this, u);
+							break;
+					}
+				}
+			}
+		}
+	}
+
+	public PackedEntity? GetEntityBaseline(int Baseline, int Entity)
+	{
+		return EntityBaselines[Baseline][Entity];
+	}
+
+	public INetworkStringTable? GetStringTable(string name)
+	{
+		if (StringTableContainer == null)
+		{
+			return null;
+		}
+
+		return StringTableContainer.FindTable(name);
+	}
+
+	public bool GetClassBaseline(int Class, out byte[]? Data, out int DataLength)
+	{
+		if (!(Class >= 0 && Class < ServerClasses))
+			Error($"GetDynamicBaseline: invalid class index '{Class}'");
+
+        // We lazily update these because if you connect to a server that's already got some dynamic baselines,
+        // you'll get the baselines BEFORE you get the class descriptions.
+        /*ServerClassInfo pInfo = ServerClassInfo[Class];
+		INetworkStringTable? pBaselineTable = GetStringTable(INetworkStringTable.INSTANCE_BASELINE_TABLENAME);
+		if (pBaselineTable == null)
+		{
+			Error("GetDynamicBaseline: NULL baseline table");
+			Data = null;
+			DataLength = -1;
+			return false;
+		}
+
+		if (pInfo.InstanceBaselineIndex == INetworkStringTable.INVALID_STRING_INDEX)
+		{
+			// The key is the class index string.
+			string strClass = Class.ToString();
+			pInfo.InstanceBaselineIndex = pBaselineTable.FindStringIndex(strClass);
+			if (pInfo.InstanceBaselineIndex == INetworkStringTable.INVALID_STRING_INDEX)
+			{
+				for (int i = 0; i < pBaselineTable.GetNumStrings(); ++i)
+				{
+					DevMsg($"{i}: {pBaselineTable.GetString(i)}\n");
+				}
+
+				// Gets a callstack, whereas ErrorIfNot(), does not.
+				Assert(false);
+			}
+
+			if (pInfo.InstanceBaselineIndex == INetworkStringTable.INVALID_STRING_INDEX)
+				Error($"GetDynamicBaseline: FindStringIndex({strClass}-{pInfo.ClassName}) failed.");
+		}
+
+		Data = pBaselineTable.GetStringUserData(pInfo.InstanceBaselineIndex, out DataLength);
+		return Data != null;*/
+        Data = null;
+        DataLength = -1;
+        return false;
+	}
+
+	/*public void SetEntityBaseline(int Baseline, ClientClass ClientClass, int index, byte[] packedData, int length)
+	{
+		Assert(index >= 0 && index < Constants.MAX_EDICTS);
+		Assert(ClientClass != null);
+		Assert((Baseline == 0) || (Baseline == 1));
+
+		PackedEntity? entitybl = EntityBaselines[Baseline][index];
+		if (entitybl == null)
+		{
+			entitybl = EntityBaselines[Baseline][index] = new PackedEntity();
+		}
+
+		entitybl.ClientClass = ClientClass;
+		entitybl.EntityIndex = index;
+		entitybl.ServerClass = null;
+
+		// Copy out the data we just decoded.
+		entitybl.AllocAndCopyPadded(packedData, length);
+	}
+
+	public ClientClass? FindClientClass(string? pClassName)
+	{
+		if (pClassName == null)
+			return null;
+
+		for (ClientClass? pCur = Host.CL.ClientDLL.GetAllClientClasses(); pCur != null; pCur = pCur.Next)
+		{
+			if (pCur.NetworkName.Equals(pClassName))
+				return pCur;
+		}
+
+		return null;
+	}*/
+
+	public virtual bool LinkClasses()
+	{
+		for (int i = 0; i < ServerClasses; ++i)
+		{
+			/*ServerClassInfo pServerClass = ServerClassInfo[i];
+			if (pServerClass.DatatableName == null)
+				continue;
+
+			// (this can be null in which case we just use default behavior).
+			pServerClass.ClientClass = FindClientClass(pServerClass.ClassName);
+			if (pServerClass.ClientClass != null)
+			{
+				// If the class names match, then their datatables must match too.
+				// It's ok if the client is missing a class that the server has. In that case,
+				// if the server actually tries to use it, the client will bomb out.
+				string pServerName = pServerClass.DatatableName;
+				string pClientName = pServerClass.ClientClass.pRecvTable.GetName();
+
+				if (!pServerName.Equals(pClientName))
+				{
+					Host_Error("CL_ParseClassInfo_EndClasses: server and client classes for '{0}' use different datatables (server: {1}, client: {2})",
+						pServerClass.ClassName, pServerName, pClientName);
+
+					return false;
+				}
+
+				// copy class ID
+				pServerClass.ClientClass.ClassID = i;
+			}
+			else
+			{
+				Msg("Client missing DT class {0}\n", pServerClass.ClassName);
+			}*/
+		}
+
+		return true;
 	}
 }

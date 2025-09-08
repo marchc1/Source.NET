@@ -1,6 +1,4 @@
-﻿using Source.Common.Networking.DataTable;
-
-namespace Source.Common.Entity;
+﻿namespace Source.Common.Entity;
 
 public enum DataUpdateType
 {
@@ -16,7 +14,7 @@ public interface IClientNetworkable
 {
 	public IClientUnknown? GetIClientUnknown();
 	public void Release();
-	public ClientClass? GetClientClass();
+	// public ClientClass? GetClientClass();
 	public void SetDestroyedOnRecreateEntities();
 	public void OnPreDataChanged(DataUpdateType updateType);
 	public void OnDataChanged(DataUpdateType updateType);
