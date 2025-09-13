@@ -13,7 +13,7 @@ public class BaseEntity : IClientEntity
 {
 	public static BaseEntityList EntityList;
 	private BaseHandle RefEHandle;
-	private static ClientClass<BaseEntity> Class = new("C_BaseEntity");
+	// private static ClientClass<BaseEntity> Class = new("C_BaseEntity");
 	private int index;
 	private long CreationTick;
 	private GCHandle GChandle;
@@ -74,11 +74,11 @@ public class BaseEntity : IClientEntity
     }
 
 
-	public virtual ClientClass GetClientClass()
+	/*public virtual ClientClass GetClientClass()
 	{
 		// RaphaelIT7: I should really change the names xD
 		return Class.Class;
-	}
+	}*/
 
 	public virtual void SetDestroyedOnRecreateEntities()
 	{
