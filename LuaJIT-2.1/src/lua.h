@@ -154,6 +154,14 @@ LUA_API void	       *(lua_touserdata) (lua_State *L, int idx);
 LUA_API lua_State      *(lua_tothread) (lua_State *L, int idx);
 LUA_API const void     *(lua_topointer) (lua_State *L, int idx);
 
+/*
+** custom
+*/
+class GCudata;
+LUA_API GCudata        *(lua_getuserdata) (lua_State *L, int idx);
+LUA_API int             (lua_getcdatatype) (lua_State *L, int idx);
+LUA_API void           *(lua_getrawcdata) (lua_State *L, int idx);
+LUA_API int             (lua_checkrawcdata) (lua_State *L, int idx, int type);
 
 /*
 ** push functions (C -> stack)

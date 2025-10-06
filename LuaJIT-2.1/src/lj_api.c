@@ -644,6 +644,43 @@ LUA_API void *lua_touserdata(lua_State *L, int idx)
     return NULL;
 }
 
+LUA_API GCudata *lua_getuserdata(lua_State *L, int idx)
+{
+  cTValue *o = index2adr(L, idx);
+  if (tvisudata(o))
+    return udataV(o);
+  else
+    return NULL;
+}
+
+LUA_API int lua_getcdatatype(lua_State *L, int idx)
+{
+  cTValue *o = index2adr(L, idx);
+  else if (tviscdata(o))
+    return cdataV(o)->ctypeid;
+  else
+    return -1;
+}
+
+LUA_API void* lua_getrawcdata(lua_State *L, int idx)
+{
+  cTValue *o = index2adr(L, idx);
+  else if (tviscdata(o))
+    return (void*)lj_obj_ptr(G(L), o);
+  else
+    return NULL;
+}
+
+LUA_API int lua_checkrawcdata(lua_State *L, int idx, int type)
+{
+  cTValue *o = index2adr(L, idx);
+  else if (tviscdata(o))
+    if (cdataV(o)->ctypeid == type)
+      return (void*)lj_obj_ptr(G(L), o);
+  else
+    return NULL;
+}
+
 LUA_API lua_State *lua_tothread(lua_State *L, int idx)
 {
   cTValue *o = index2adr(L, idx);
