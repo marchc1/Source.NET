@@ -416,7 +416,7 @@ public class NetGraphPanel : Panel
 		AvgPacketIn = netchannel.GetAveragePackets(NetFlow.FLOW_INCOMING);
 		AvgPacketOut = netchannel.GetAveragePackets(NetFlow.FLOW_OUTGOING);
 
-		for (int i = 0; i < 2; i++) // MAX_FLOWS
+		for (int i = 0; i < NetFlow.MAX_FLOWS; i++) 
 			netchannel.GetStreamProgress(i, out StreamRecv[i], out StreamTotal[i]);
 
 		float flAdjust = 0.0f;

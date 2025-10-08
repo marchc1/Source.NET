@@ -868,7 +868,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 					return false;
 				}
 
-				if (IsOverflowed)
+				if (IsOverflowed())
 					return false;
 			}
 			else {
@@ -1306,7 +1306,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		MaxRoutablePayloadSize = splitSize;
 	}
 
-	private ReadOnlySpan<char> GetName() => Name;
+	public ReadOnlySpan<char> GetName() => Name;
 
 	private int GetMaxRoutablePayloadSize() => MaxRoutablePayloadSize;
 
@@ -1399,11 +1399,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 									   || WaitingList[FRAG_NORMAL_STREAM].Count > 0
 									   || WaitingList[FRAG_FILE_STREAM].Count > 0;
 
-	public double TimeConnected => Math.Max(0, Net.Time - ConnectTime);
-	public bool IsTimedOut => Timeout == -1 ? false : LastReceived + Timeout < Net.Time;
-	public bool IsTimingOut => Timeout == -1 ? false : LastReceived + CONNECTION_PROBLEM_TIME < Net.Time;
-	public double TimeSinceLastReceived => Math.Max(Net.Time - LastReceived, 0);
-	public bool IsOverflowed => StreamReliable.Overflowed;
+	public double TimeConnected() => Math.Max(0, Net.Time - ConnectTime);
+	public bool IsTimedOut() => Timeout == -1 ? false : LastReceived + Timeout < Net.Time;
+	public bool IsTimingOut() => Timeout == -1 ? false : LastReceived + CONNECTION_PROBLEM_TIME < Net.Time;
+	public double TimeSinceLastReceived() => Math.Max(Net.Time - LastReceived, 0);
+	public bool IsOverflowed() => StreamReliable.Overflowed;
 
 	public void Reset() {
 		StreamUnreliable.Reset();
@@ -1430,6 +1430,14 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public bool IsValidPacket(int flow, int frame) => DataFlow[flow].Frames[frame & NET_FRAMES_MASK].IsValid;
 	public double GetPacketTime(int flow, int frame) => DataFlow[flow].Frames[frame & NET_FRAMES_MASK].Time;
 	public double GetLatency(int flow) => DataFlow[flow].Latency;
+
+	public int GetSequenceNumber(int flow) {
+		if (flow == NetFlow.FLOW_OUTGOING)
+			return OutSequence;
+		else if (flow == NetFlow.FLOW_INCOMING)
+			return InSequence;
+		return 0;
+	}
 
 	public int GetPacketBytes(int flow, int frame, NetChannelGroup group) {
 		if (group >= NetChannelGroup.Total)
@@ -1673,4 +1681,23 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public TimeUnit_t GetAverageChoke(int flow) => DataFlow[flow].AverageChoke;
 	public TimeUnit_t GetAverageData(int flow) => DataFlow[flow].AverageBytesPerSec;
 	public TimeUnit_t GetAveragePackets(int flow) => DataFlow[flow].AveragePacketsPerSec;
+
+	public ReadOnlySpan<char> GetAddress() => RemoteAddress?.ToString();
+
+	public double GetTime() => Net.Time;
+
+	public double GetTimeConnected() {
+		TimeUnit_t t = Net.Time - ConnectTime;
+		return (t > 0) ? t : 0;
+	}
+
+	public int GetBufferSize() => NET_FRAMES_BACKUP;
+	public int GetDataRate() => Rate;
+
+	public double GetTimeSinceLastReceived() {
+		TimeUnit_t t = Net.Time - LastReceived;
+		return (t > 0) ? t : 0;
+	}
+
+	public double GetTimeoutSeconds() => Timeout;
 }

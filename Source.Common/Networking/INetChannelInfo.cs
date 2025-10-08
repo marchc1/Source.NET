@@ -2,29 +2,29 @@ namespace Source.Common.Networking;
 
 public interface INetChannelInfo
 {
-	public virtual string? GetName() => null;
-	public virtual string? GetAddress() => null;
-	public virtual TimeUnit_t GetTime() => 0;
-	public virtual TimeUnit_t GetTimeConnected() => 0;
-	public virtual int GetBufferSize() => 0;
-	public virtual int GetDataRate() => 0;
-	public virtual bool IsLoopback() => false;
-	public virtual bool IsTimingOut() => false;
-	public virtual TimeUnit_t GetLatency(int flow) => 0;
-	public virtual TimeUnit_t GetAverageLatency(int flow) => 0;
-	public virtual TimeUnit_t GetAverageLoss(int flow) => 0;
-	public virtual TimeUnit_t GetAverageChoke(int flow) => 0;
-	public virtual TimeUnit_t GetAverageData(int flow) => 0;
-	public virtual TimeUnit_t GetAveragePackets(int flow) => 0;
-	public virtual int GetTotalData(int flow) => 0;
-	public virtual int GetSequenceNumber(int flow) => 0;
-	public virtual bool IsValidPacket(int flow, int frameNumber) => false;
-	public virtual TimeUnit_t GetPacketTime(int flow, int frameNumber) => 0;
-	public virtual int GetPacketBytes(int flow, int frameNumber, NetChannelGroup group) => 0;
-	public virtual bool GetStreamProgress(int flow, out int received, out int total) { received = 0; total = 0; return false; }
-	public virtual TimeUnit_t GetTimeSinceLastReceived() => 0;
-	public virtual TimeUnit_t GetCommandInterpolationAmount(int flow, int frameNumber) => 0;
-	public virtual void GetPacketResponseLatency(int flow, int frameNumber, out int latencyMsecs, out int choke) { latencyMsecs = 0; choke = 0; return; }
-	public virtual void GetRemoteFramerate(out TimeUnit_t frameTime, out TimeUnit_t frameTimeStdDeviation) { frameTimeStdDeviation = 0; frameTime = 0; }
-	public virtual TimeUnit_t GetTimeoutSeconds() => 0;
+	ReadOnlySpan<char> GetName();
+	ReadOnlySpan<char> GetAddress();
+	TimeUnit_t GetTime();
+	TimeUnit_t GetTimeConnected();
+	int GetBufferSize();
+	int GetDataRate();
+	bool IsLoopback();
+	bool IsTimingOut();
+	TimeUnit_t GetLatency(int flow);
+	TimeUnit_t GetAverageLatency(int flow);
+	TimeUnit_t GetAverageLoss(int flow);
+	TimeUnit_t GetAverageChoke(int flow);
+	TimeUnit_t GetAverageData(int flow);
+	TimeUnit_t GetAveragePackets(int flow);
+	int GetTotalData(int flow);
+	int GetSequenceNumber(int flow);
+	bool IsValidPacket(int flow, int frameNumber) => false;
+	TimeUnit_t GetPacketTime(int flow, int frameNumber);
+	int GetPacketBytes(int flow, int frameNumber, NetChannelGroup group);
+	bool GetStreamProgress(int flow, out int received, out int total) { received = 0; total = 0; return false; }
+	TimeUnit_t GetTimeSinceLastReceived();
+	TimeUnit_t GetCommandInterpolationAmount(int flow, int frameNumber);
+	void GetPacketResponseLatency(int flow, int frameNumber, out int latencyMsecs, out int choke) { latencyMsecs = 0; choke = 0; return; }
+	void GetRemoteFramerate(out TimeUnit_t frameTime, out TimeUnit_t frameTimeStdDeviation) { frameTimeStdDeviation = 0; frameTime = 0; }
+	TimeUnit_t GetTimeoutSeconds();
 }
