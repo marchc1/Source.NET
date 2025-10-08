@@ -543,7 +543,7 @@ public class NetGraphPanel : Panel
 		float flInterp = (float)gpGlobals.InterpolationAmount;
 		sz = $"lerp: {flInterp * 1000.0f,5:F1} ms";
 
-		int[] interpcolor = { GRAPH_RED, GRAPH_GREEN, GRAPH_BLUE };
+		Span<int> interpcolor = [GRAPH_RED, GRAPH_GREEN, GRAPH_BLUE];
 		if (flInterp > 0.001f) {
 			// Server framerate is lower than interp can possibly deal with
 			if (ServerFramerate < (1.0f / flInterp)) {
@@ -593,7 +593,7 @@ public class NetGraphPanel : Panel
 			if (graphvalue > 3) {
 				sz = $"sv  : {ServerFramerate,5:F1}   var: {ServerFramerateStdDeviation * 1000.0f,4:F2} msec";
 
-				int[] servercolor = { GRAPH_RED, GRAPH_GREEN, GRAPH_BLUE };
+				Span<int> servercolor = [GRAPH_RED, GRAPH_GREEN, GRAPH_BLUE];
 
 				if (ServerFramerate < 10.0f) {
 					servercolor[0] = 255;
