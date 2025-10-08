@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.HighPerformance;
+using CommunityToolkit.HighPerformance;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -44,11 +44,8 @@ public class CommandBuffer
 		Command cmd = command.Value;
 
 		currentTick = cmd.Tick;
-		if (cmd.BufferSize > 0) {
-			fixed (char* buff = argsBuffer) {
-				currentCommand.Tokenize(new Span<char>((char*)((nint)buff + (cmd.FirstArgS * sizeof(char))), cmd.BufferSize));
-			}
-		}
+		if (cmd.BufferSize > 0)
+			currentCommand.Tokenize(argsBuffer.AsSpan()[cmd.FirstArgS..(cmd.FirstArgS + cmd.BufferSize)]);
 
 		Commands.Remove(cmd);
 		nextCommand = Commands.First;
@@ -87,8 +84,9 @@ public class CommandBuffer
 			StringReader reader = new StringReader(new(currentCommand[..commandLength]));
 
 			ParseArgV0(reader, argV0, out argS);
-			if (argV0[0] == '\0')
-				continue;
+			// We had this, but it seems unnecessary now due to the SliceNullTerminatedString call, and it breaks
+			// single-letter commands (which don't really exist anyway, but its still a bug)
+			//if (argV0[0] == '\0') continue;
 
 			// wait command later
 
@@ -102,15 +100,14 @@ public class CommandBuffer
 	unsafe void Compact() {
 		argBufferSize = 0;
 		Span<char> tempBuffer = stackalloc char[ARGS_BUFFER_LENGTH];
-		fixed (char* ar = argsBuffer) {
-			foreach (Command command in Commands) {
-				new ReadOnlySpan<char>(ar, argsBuffer.Length)[command.FirstArgS..].CopyTo(tempBuffer[argBufferSize..]);
-				command.FirstArgS = argBufferSize;
-				argBufferSize += command.BufferSize;
-			}
-
-			tempBuffer[..argBufferSize].CopyTo(new Span<char>(ar, argsBuffer.Length));
+		Span<char> writeBuffer = argsBuffer.AsSpan();
+		foreach (Command command in Commands) {
+			writeBuffer[command.FirstArgS..].CopyTo(tempBuffer[argBufferSize..]);
+			command.FirstArgS = argBufferSize;
+			argBufferSize += command.BufferSize;
 		}
+
+		tempBuffer[..argBufferSize].CopyTo(writeBuffer);
 	}
 
 	private unsafe bool InsertCommand(ReadOnlySpan<char> argS, long tick) {
@@ -127,9 +124,9 @@ public class CommandBuffer
 				return false;
 		}
 
-		fixed (char* pArgSBuffer = argsBuffer) 
+		fixed (char* pArgSBuffer = argsBuffer)
 			argS.CopyTo(new Span<char>((void*)(((nint)pArgSBuffer) + (argBufferSize * sizeof(char))), argsBuffer.Length));
-		
+
 		argsBuffer[argBufferSize + commandSize] = '\0';
 		++commandSize;
 
@@ -311,7 +308,7 @@ public class Cbuf(IServiceProvider provider)
 		int textToBeAddedLen = strLeftLen + strRightLen + text.Length + 3;
 
 		lock (Buffer) {
-			if(Buffer.GetArgumentBufferSize() + textToBeAddedLen + 1 > Buffer.GetMaxArgumentBufferSize()) {
+			if (Buffer.GetArgumentBufferSize() + textToBeAddedLen + 1 > Buffer.GetMaxArgumentBufferSize()) {
 				FindAndRemoveExecutionMarker(markerCodeLeft);
 				FindAndRemoveExecutionMarker(markerCodeRight);
 
@@ -320,7 +317,7 @@ public class Cbuf(IServiceProvider provider)
 			}
 
 			bool success = AddExecutionMarker(markerLeft, strMarkerLeft[..strLeftLen]) && Buffer.AddText(text) && AddExecutionMarker(markerRight, strMarkerRight[..strRightLen]);
-			if (!success) 
+			if (!success)
 				Dbg.ConMsg("Cbuf.AddTextWithMarkers: buffer overflow\n");
 
 			return true;
@@ -328,10 +325,10 @@ public class Cbuf(IServiceProvider provider)
 	}
 
 	private bool AddExecutionMarker(CmdExecutionMarker marker, ReadOnlySpan<char> markerCode) {
-		if(marker == CmdExecutionMarker.EnableServerCanExecute) {
+		if (marker == CmdExecutionMarker.EnableServerCanExecute) {
 			Buffer.SetWaitEnabled(false);
 		}
-		else if(marker == CmdExecutionMarker.DisableServerCanExecute) {
+		else if (marker == CmdExecutionMarker.DisableServerCanExecute) {
 			Buffer.SetWaitEnabled(true);
 		}
 
@@ -341,7 +338,7 @@ public class Cbuf(IServiceProvider provider)
 	public bool FindAndRemoveExecutionMarker(int code) => ExecutionMarkers.Remove(code);
 
 	public int CreateExecutionMarker() {
-		if(ExecutionMarkers.Count >= MAX_EXECUTION_MARKERS) {
+		if (ExecutionMarkers.Count >= MAX_EXECUTION_MARKERS) {
 			// todo
 		}
 
