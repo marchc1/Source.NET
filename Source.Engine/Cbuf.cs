@@ -70,20 +70,17 @@ public class CommandBuffer
 		long tick = currentTick + tickDelay;
 
 		ReadOnlySpan<char> currentCommand = text.SliceNullTerminatedString();
+
+		Span<char> argV0 = stackalloc char[1024];
 		int len = currentCommand.Length;
 		int offsetToNextCommand = 0;
 		for (; len > 0; len -= offsetToNextCommand + 1, currentCommand = currentCommand[(offsetToNextCommand)..]) {
-			int commandLength;
-			GetNextCommandLength(currentCommand, len, out commandLength, out offsetToNextCommand);
+			GetNextCommandLength(currentCommand, len, out int commandLength, out offsetToNextCommand);
 			if (commandLength <= 0)
 				continue;
 
-			ReadOnlySpan<char> argS;
-			Span<char> argV0 = stackalloc char[commandLength];
-
 			StringReader reader = new StringReader(new(currentCommand[..commandLength]));
-
-			ParseArgV0(reader, argV0, out argS);
+			ParseArgV0(reader, argV0[..commandLength], out ReadOnlySpan<char> argS);
 			// We had this, but it seems unnecessary now due to the SliceNullTerminatedString call, and it breaks
 			// single-letter commands (which don't really exist anyway, but its still a bug)
 			//if (argV0[0] == '\0') continue;
