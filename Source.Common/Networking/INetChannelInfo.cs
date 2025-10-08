@@ -1,4 +1,4 @@
-﻿namespace Source.Common.Networking;
+namespace Source.Common.Networking;
 
 public interface INetChannelInfo
 {
@@ -25,6 +25,6 @@ public interface INetChannelInfo
 	public virtual TimeUnit_t GetTimeSinceLastReceived() => 0;
 	public virtual TimeUnit_t GetCommandInterpolationAmount(int flow, int frameNumber) => 0;
 	public virtual void GetPacketResponseLatency(int flow, int frameNumber, out int latencyMsecs, out int choke) { latencyMsecs = 0; choke = 0; return; }
-	public virtual void GetRemoteFramerate(out float frameTime, out float frameTimeStdDeviation) { frameTimeStdDeviation = 0; frameTime = 0; }
+	public virtual void GetRemoteFramerate(out TimeUnit_t frameTime, out TimeUnit_t frameTimeStdDeviation) { frameTimeStdDeviation = 0; frameTime = 0; }
 	public virtual TimeUnit_t GetTimeoutSeconds() => 0;
 }

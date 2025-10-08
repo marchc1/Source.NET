@@ -1,4 +1,4 @@
-﻿#if !CLIENT_DLL && !GAME_DLL
+#if !CLIENT_DLL && !GAME_DLL
 global using EHANDLE = Source.Common.BaseHandle; // < Intellisense compatibility
 #endif
 
@@ -10,6 +10,9 @@ using Source;
 using Source.Common;
 
 namespace Game.Shared;
+
+using Source.Common.Networking;
+
 using System;
 
 
@@ -135,6 +138,7 @@ public enum HideHudBits
 
 [InlineArray(NUM_AUDIO_LOCAL_SOUNDS)] public struct InlineArrayNumLocalAudioSounds<T> { public T item; }
 [InlineArray(MAX_AMMO_SLOTS)] public struct InlineArrayMaxAmmoSlots<T> { public T item; }
+[InlineArray(NetFlow.MAX_FLOWS)] public struct InlineArrayMaxFlows<T> { public T item; }
 [InlineArray(Constants.MAX_PLAYERS)] public struct InlineArrayMaxPlayers<T> { public T item; }
 [InlineArray(Constants.MAX_PLAYERS + 1)] public struct InlineArrayMaxPlayersPlusOne<T> { public T item; }
 
