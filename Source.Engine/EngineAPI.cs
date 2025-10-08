@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common.Commands;
 using Source.Common.Engine;
@@ -140,7 +140,7 @@ public class EngineAPI(IGame game, IServiceProvider provider, Common COM, IFileS
 						cvar.RegisterConCommand(cv);
 					}
 					else {
-						object? instance = DetermineInstance(type);
+						object? instance = DetermineInstance(type, false, prop.Name);
 						ConVar cv = (ConVar)getMethod.Invoke(instance, null)!;
 						if (cv.GetName() == null) cv.SetName(prop.Name);
 						cvar.RegisterConCommand(cv);
@@ -158,7 +158,7 @@ public class EngineAPI(IGame game, IServiceProvider provider, Common COM, IFileS
 						cvar.RegisterConCommand(cv);
 					}
 					else {
-						object? instance = DetermineInstance(type);
+						object? instance = DetermineInstance(type, false, field.Name);
 						ConVar cv = (ConVar)field.GetValue(instance)!;
 						if (cv.GetName() == null) cv.SetName(field.Name);
 						cvar.RegisterConCommand(cv);
@@ -172,7 +172,7 @@ public class EngineAPI(IGame game, IServiceProvider provider, Common COM, IFileS
 						continue;
 
 					ConCommandAttribute attribute = method.GetCustomAttribute<ConCommandAttribute>()!; // ^^ never null!
-					object? instance = method.IsStatic ? null : DetermineInstance(type);
+					object? instance = method.IsStatic ? null : DetermineInstance(type, true, method.Name);
 
 					// Lets see if we can find a FnCommandCompletionCallback...
 					FnCommandCompletionCallback? completionCallback = null;
@@ -201,7 +201,7 @@ public class EngineAPI(IGame game, IServiceProvider provider, Common COM, IFileS
 		}
 	}
 
-	private object? DetermineInstance(Type type) {
+	private object? DetermineInstance(Type type, bool concommand, ReadOnlySpan<char> name) {
 		// We need to find an appropriate instance of the type in question.
 		// If it's not registered with the dependency injection framework, then we can't really link anything
 		// Should've made it static...
@@ -218,6 +218,6 @@ public class EngineAPI(IGame game, IServiceProvider provider, Common COM, IFileS
 		else
 			return instance;
 
-		throw new DllNotFoundException("Cannot find an instance of the type...");
+		throw new DllNotFoundException($"{(concommand ? "ConCommand" : "ConVar")} at member '{name}' was marked as by-instance, and the EngineAPI cannot find an instance of the type it's contained in ({type.Name}). Review if the instance type is an engine component, or if this should be a static field/method.");
 	}
 }

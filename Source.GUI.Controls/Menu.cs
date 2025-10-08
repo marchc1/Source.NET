@@ -206,14 +206,16 @@ public class Menu : Panel
 
 			// TODO: checkable
 
-			int sepIndex = Separators.FindIndex(0, (x) => x == itemId);
-			if (sepIndex != -1) {
-				MenuSeparator? sep = SeparatorPanels[sepIndex];
-				Assert(sep != null);
-				sep.SetVisible(true);
-				sep.SetBounds(0, menuTall, trueW, separatorHeight);
-				menuTall += separatorHeight;
-				totalTall += separatorHeight;
+			for (int j = 0; j < Separators.Count; j++) {
+				if (Separators[j] == itemId) {
+					MenuSeparator? sep = SeparatorPanels[j];
+					Assert(sep != null);
+					sep.SetVisible(true);
+					sep.SetBounds(0, menuTall, trueW, separatorHeight);
+					menuTall += separatorHeight;
+					totalTall += separatorHeight;
+					break;
+				}
 			}
 		}
 
@@ -323,7 +325,7 @@ public class Menu : Panel
 			}
 
 			int itemHeight = MenuItemHeight;
-			int sepIndex = -1; // Separators.Find(itemId);
+			int sepIndex = -1; 
 			if (sepIndex != -1) {
 				itemHeight += MENU_SEPARATOR_HEIGHT;
 			}
