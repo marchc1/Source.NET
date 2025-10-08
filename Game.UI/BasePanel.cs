@@ -1,4 +1,4 @@
-﻿using Source;
+using Source;
 using Source.Common;
 using Source.Common.Client;
 using Source.Common.Filesystem;
@@ -559,7 +559,7 @@ public class BasePanel : Panel
 		Span<char> filename = stackalloc char[MAX_PATH];
 		Span<char> background = stackalloc char[MAX_PATH];
 		engine.GetMainMenuBackgroundName(background); background = background[..background.IndexOf('\0')];
-		Span<char> finalFilename = filename[..sprintf(filename, "console/%s", new string(background))];
+		Span<char> finalFilename = sprintf(filename, "console/%s").S(background);
 
 		if (BackgroundImageID == TextureID.INVALID)
 			BackgroundImageID = Surface.CreateNewTextureID();

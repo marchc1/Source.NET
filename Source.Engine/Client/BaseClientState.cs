@@ -113,7 +113,7 @@ public abstract class BaseClientState(
 
 		if (pInfo.InstanceBaselineIndex == INetworkStringTable.INVALID_STRING_INDEX) {
 			Span<char> str = stackalloc char[64];
-			sprintf(str, "%d", iClass);
+			sprintf(str, "%d").D(iClass);
 
 			pInfo.InstanceBaselineIndex = pBaselineTable.FindStringIndex(str.SliceNullTerminatedString());
 

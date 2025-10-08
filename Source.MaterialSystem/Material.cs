@@ -1,5 +1,6 @@
 using CommunityToolkit.HighPerformance;
 
+using Source.Common;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.MaterialSystem;
@@ -232,10 +233,10 @@ public class Material : IMaterialInternal
 		Span<char> fileName = stackalloc char[MAX_PATH];
 		ReadOnlySpan<char> pathID = "GAME";
 		if (!absolutePath) {
-			sprintf(fileName, "materials/%s.vmt", new string(materialName));
+			sprintf(fileName, "materials/%s.vmt").S(materialName);
 		}
 		else {
-			sprintf(fileName, "%s.vmt", new string(materialName));
+			sprintf(fileName, "%s.vmt").S(materialName);
 			if (materialName[0] == '/' && materialName[1] == '/' && materialName[2] != '/') {
 				pathID = null;
 			}

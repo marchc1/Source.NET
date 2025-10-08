@@ -1,4 +1,4 @@
-﻿using Source.Common;
+using Source.Common;
 using Source.Common.Bitmap;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
@@ -257,7 +257,7 @@ public class FontTextureCache
 			nNextX = charWide;
 
 			Span<char> textureName = stackalloc char[64];
-			Span<char> finalName = textureName[..sprintf(textureName, "__font_page_%d", fontPageId)];
+			Span<char> finalName = sprintf(textureName, "__font_page_%d").D(fontPageId);
 			++fontPageId;
 
 			ITexture pTexture = materials.CreateProceduralTexture(

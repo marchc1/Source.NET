@@ -191,7 +191,7 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 		// It's assumed to have already been set by this point	
 		// Compute the cache name
 		Span<char> cacheFileName = stackalloc char[MATERIAL_MAX_PATH];
-		sprintf(cacheFileName, "materials/%s.vtf", Name);
+		sprintf(cacheFileName, "materials/%s.vtf").S(Name);
 
 		ushort nHeaderSize = IVTFTexture.FileHeaderSize(IVTFTexture.VTF_MAJOR_VERSION);
 		Span<byte> mem = stackalloc byte[nHeaderSize];
@@ -520,7 +520,7 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 			Assert(count == 1);
 
 			Span<char> debugName = stackalloc char[128];
-			sprintf(debugName, "%s_ZBuffer", new string(GetName()));
+			sprintf(debugName, "%s_ZBuffer").S(GetName());
 			Assert(FrameCount >= 2);
 			TextureHandles![1] = materials.ShaderAPI.CreateDepthTexture(
 					ImageFormat,
@@ -704,7 +704,7 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 	}
 
 	private void GetCacheFilename(ref Span<char> pCacheFileName) {
-		int written = sprintf(pCacheFileName, "materials/%s.vtf", Name);
+		int written = sprintf(pCacheFileName, "materials/%s.vtf").S(Name);
 		pCacheFileName = pCacheFileName[..written];
 	}
 
@@ -1033,7 +1033,7 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 			SetName(rtName);
 		else {
 			Span<char> newName = stackalloc char[128];
-			sprintf(newName, "__render_target_%d", rtTexID++);
+			sprintf(newName, "__render_target_%d").D(rtTexID++);
 			SetName(newName.SliceNullTerminatedString());
 		}
 

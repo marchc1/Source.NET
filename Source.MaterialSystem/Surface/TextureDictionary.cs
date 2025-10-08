@@ -1,4 +1,4 @@
-﻿using Source.Bitmap;
+using Source.Bitmap;
 using Source.Common;
 using Source.Common.Bitmap;
 using Source.Common.Formats.Keyvalues;
@@ -287,7 +287,7 @@ public class MatSystemTexture(IMaterialSystem materials)
 			}
 
 			Span<char> textureName = stackalloc char[64];
-			sprintf(textureName, "__vgui_texture_%d", textureID);
+			sprintf(textureName, "__vgui_texture_%d").D(textureID);
 			++textureID;
 
 			ITexture pTexture = materials.CreateProceduralTexture(

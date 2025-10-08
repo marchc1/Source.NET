@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.HighPerformance;
+using CommunityToolkit.HighPerformance;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -141,7 +141,7 @@ public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClie
 		Span<char> cmd = stackalloc char[1024];
 		if (!down) {
 			if (kb[0] == '+') {
-				sprintf(cmd, $"-{kb[1..]} {(int)code}\n");
+				sprintf(cmd, "-%s %i\n").S(kb[1..]).I((int)code);
 				Cbuf.AddText(cmd);
 				return true;
 			}
@@ -150,7 +150,7 @@ public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClie
 		}
 
 		if (kb[0] == '+') {
-			sprintf(cmd, $"{kb} {(int)code}\n");
+			sprintf(cmd, "%s %i\n").S(kb).I((int)code);
 			Cbuf.AddText(cmd);
 			return true;
 		}

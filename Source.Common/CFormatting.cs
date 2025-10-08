@@ -1,4 +1,8 @@
-﻿using System.Globalization;
+using Steamworks;
+
+using System.Formats.Asn1;
+using System.Globalization;
+using System.Runtime.CompilerServices;
 
 namespace Source.Common;
 public enum VariableType
@@ -17,6 +21,88 @@ public enum VariableType
 	PointerAddress = 'p',
 	Nothing = 'n'
 }
+
+public ref struct SpanWriter<T>
+{
+	Span<T> input;
+	int writePtr;
+	bool overflowed;
+	public SpanWriter(Span<T> input) {
+		this.input = input;
+	}
+
+	public SpanWriter<T> Write(in T value) {
+		if (writePtr >= input.Length)
+			return this;
+		input[writePtr++] = value;
+		return this;
+	}
+	public SpanWriter<T> Write(ReadOnlySpan<T> span) {
+		if ((writePtr + span.Length) >= input.Length) {
+			// We'll clamped-copy it anyway, but set overflow flag
+			overflowed = true;
+		}
+		writePtr += span.ClampedCopyTo(input[writePtr..]);
+		return this;
+	}
+
+	public readonly int Length => writePtr;
+	public readonly bool Overflowed => overflowed;
+
+	public Span<T> ToSpan() => input[..writePtr];
+	public static implicit operator Span<T>(SpanWriter<T> self) => self.input[..self.writePtr];
+}
+
+public ref struct PrintF
+{
+	SpanWriter<char> input;
+	CFormatReader reader;
+	public PrintF(Span<char> input, ReadOnlySpan<char> format) {
+		this.input = new(input);
+		this.reader = new(format);
+		// This gets called to flush any literals so we're immediately at a variable
+		// (and any variable writes will do the same)
+		WriteAnyLiterals();
+	}
+
+	private unsafe void WriteAnyLiterals() {
+		Span<char> literalBufferTarget = stackalloc char[64];
+		while (!reader.Overflowed()) {
+			int read = reader.ReadLiteral(literalBufferTarget);
+			if (read > 0) {
+				input.Write(literalBufferTarget[..read]);
+				continue;
+			}
+
+			break;
+		}
+	}
+
+	public readonly int Length => input.Length;
+	public readonly bool Overflowed => input.Overflowed;
+	public Span<char> ToSpan() => input.ToSpan();
+
+	public static implicit operator Span<char>(PrintF self) => self.input;
+	public static implicit operator int(PrintF self) => self.input.Length;
+
+	public unsafe PrintF D(int i) {
+		Span<char> buffer = stackalloc char[11];
+		if (i.TryFormat(buffer, out int written))
+			input.Write(buffer);
+
+		WriteAnyLiterals();
+		return this;
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]public unsafe PrintF I(int i) => D(i);
+	public PrintF S(ReadOnlySpan<char> str) {
+		if (reader.ReadVariable(out char type, out int variableIdx)) {
+			input.Write(str);
+			WriteAnyLiterals();
+		}
+		return this;
+	}
+}
+
 
 public ref struct ScanF
 {
@@ -269,10 +355,7 @@ public static class CFormatting
 			target[len] = '\0';
 		return len;
 	}
-	public static unsafe int sprintf(Span<char> target, ReadOnlySpan<char> format, params object?[] args) {
-		CFormatReader reader = new(format);
-		return sprintf(target, ref reader, args);
-	}
+	// This needs to go in the future, but Dbg currently relies on it.
 	public static unsafe int sprintf(Span<char> target, ref CFormatReader reader, params object?[] args) {
 		int originalSize = target.Length;
 
@@ -305,4 +388,5 @@ public static class CFormatting
 
 		return originalSize - target.Length; // Should return the delta length
 	}
+	public static PrintF sprintf(Span<char> target, ReadOnlySpan<char> format) => new(target, format);
 }

@@ -197,7 +197,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		Span<char> textureName = stackalloc char[256];
 
 		if (textureIndex > 0)
-			sprintf(textureName, MaterialDefines.FULL_FRAME_FRAMEBUFFER_INDEXED, textureIndex);
+			sprintf(textureName, MaterialDefines.FULL_FRAME_FRAMEBUFFER_INDEXED).D(textureIndex);
 		else
 			strcpy(textureName, MaterialDefines.FULL_FRAME_FRAMEBUFFER);
 

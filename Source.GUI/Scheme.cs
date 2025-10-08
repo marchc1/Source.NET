@@ -1,4 +1,4 @@
-﻿using Source.Common;
+using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
@@ -253,10 +253,10 @@ public class Scheme : IScheme
 	static char[] mungeBuffer = new char[64];
 	private ReadOnlySpan<char> GetMungedFontName(ReadOnlySpan<char> fontName, ReadOnlySpan<char> scheme, bool proportional) {
 		memset(mungeBuffer.AsSpan(), '\0');
-		if (scheme != null)
-			sprintf(mungeBuffer, $"{fontName}{scheme}-{(proportional ? "p" : "no")}");
+		if (!scheme.IsEmpty)
+			sprintf(mungeBuffer, "%s%s-%s").S(fontName).S(scheme).S(proportional ? "p" : "no");
 		else
-			sprintf(mungeBuffer, $"{fontName}-{(proportional ? "p" : "no")}");
+			sprintf(mungeBuffer, "%s-%s").S(fontName).S(proportional ? "p" : "no");
 
 		return mungeBuffer.AsSpan().SliceNullTerminatedString();
 	}

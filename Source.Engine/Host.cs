@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
 using Source.Common.Client;
@@ -352,9 +352,7 @@ public class Host(
 		}
 	}
 	public static void DefaultMapFileName(ReadOnlySpan<char> fullMapName, Span<char> diskName) {
-		diskName = diskName[sprintf(diskName, "maps/")..];
-		diskName = diskName[sprintf(diskName, fullMapName)..];
-		diskName = diskName[sprintf(diskName, ".bsp")..];
+		sprintf(diskName, "maps/%s.bsp").S(fullMapName);
 	}
 	private void ReceiveUpArrow() {
 

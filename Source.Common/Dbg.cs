@@ -1,4 +1,4 @@
-﻿#define DBGFLAG_HIDE_ASSERTS_FROM_DEBUGGING_STACK
+#define DBGFLAG_HIDE_ASSERTS_FROM_DEBUGGING_STACK
 using Source.Common;
 
 using System.Collections.Concurrent;
@@ -151,7 +151,7 @@ public static class Dbg
 		CFormatReader reader = new(msgFormat);
 		while (!reader.Overflowed()) {
 			Span<char> target = new(piece, 2048);
-			writer = sprintf(target, ref reader, args);
+			writer = sprintf(target, ref reader);
 
 			ret = writeOnePiece();
 			SpewInfo.Value = null;
