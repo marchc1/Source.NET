@@ -382,10 +382,12 @@ public class Menu : Panel
 				continue;
 
 			totalTall += MenuItemHeight;
-
-			int sepIndex = Separators.FindIndex(0, (i) => i == itemId);
-			if (sepIndex != -1)
-				totalTall += separatorHeight;
+			for (int j = 0; j < Separators.Count; j++) {
+				if (Separators[j] == itemId) {
+					totalTall += separatorHeight;
+					break;
+				}
+			}
 		}
 
 		return totalTall;
