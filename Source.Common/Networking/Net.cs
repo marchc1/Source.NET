@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
@@ -121,7 +121,7 @@ public class Net
 	public static int Bits2Bytes(int b) {
 		return b + 7 >> 3;
 	}
-	public double Time { get; private set; }
+	public TimeUnit_t Time { get; private set; }
 
 	public bool IsMultiplayer() => Multiplayer; // its always going to be true; listen servers don't exist yet (if ever)
 

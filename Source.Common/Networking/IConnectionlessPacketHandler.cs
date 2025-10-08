@@ -72,8 +72,13 @@ public class NetFlow
 	public int TotalPackets;
 	public int TotalBytes;
 	public int CurrentIndex;
-	public NetFrame[] Frames = new NetFrame[NetFrame.BACKUP];
+	public readonly NetFrame[] Frames = new NetFrame[NetFrame.BACKUP];
 	public NetFrame? CurrentFrame;
+
+	public NetFlow() {
+		for (int i = 0; i < Frames.Length; i++)
+			Frames[i] = new();
+	}
 }
 
 public enum PacketFlag
@@ -163,8 +168,8 @@ public class LONGPACKET
 
 public class SplitPacketEntry
 {
-	public NetAddress From;
-	public int[] SplitFlags = new int[MAX_SPLITPACKET_SPLITS];
+	public NetAddress? From;
+	public readonly int[] SplitFlags = new int[MAX_SPLITPACKET_SPLITS];
 	public LONGPACKET NetSplit = new();
 	public double LastActiveTime;
 }
