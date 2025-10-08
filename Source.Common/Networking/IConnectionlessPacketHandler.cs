@@ -1,4 +1,4 @@
-﻿using Source.Common.Bitbuffers;
+using Source.Common.Bitbuffers;
 
 using System.Buffers;
 using System.Net;
@@ -35,15 +35,15 @@ public class NetFrame
 	public const int BACKUP = 64;
 	public const int MASK = BACKUP - 1;
 
-	public double Time;
+	public TimeUnit_t Time;
 	public int Size;
-	public float Latency;
-	public float AverageLatency;
+	public TimeUnit_t Latency;
+	public TimeUnit_t AverageLatency;
 	public bool IsValid;
 	public int ChokedPackets;
 	public int DroppedPackets;
-	public float InterpolationAmount;
-	public ushort[] MessageGroups = new ushort[(uint)NetChannelGroup.Total];
+	public TimeUnit_t InterpolationAmount;
+	public uint[] MessageGroups = new uint[(uint)NetChannelGroup.Total];
 }
 
 public class NetFlow
@@ -73,7 +73,7 @@ public class NetFlow
 	public int TotalBytes;
 	public int CurrentIndex;
 	public NetFrame[] Frames = new NetFrame[NetFrame.BACKUP];
-	public NetFrame CurrentFrame;
+	public NetFrame? CurrentFrame;
 }
 
 public enum PacketFlag

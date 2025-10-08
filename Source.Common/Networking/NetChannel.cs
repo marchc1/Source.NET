@@ -214,20 +214,20 @@ public class NetChannel : INetChannelInfo, INetChannel
 		MessageHandler.ConnectionStart(this);
 	}
 
-	public int MaxReliablePayloadSize { get; set; }
-	public int MaxRoutablePayloadSize { get; set; }
-	public uint FileRequestCounter { get; set; }
-	public bool FileBackgroundTransmission { get; set; }
-	public bool UseCompression { get; set; }
-	public int QueuedPackets { get; set; }
-
-	public float RemoteFrameTime { get; set; }
-	public float RemoteFrameTimeStdDeviation { get; set; }
+	public int MaxReliablePayloadSize;
+	public int MaxRoutablePayloadSize;
+	public uint FileRequestCounter;
+	public bool FileBackgroundTransmission;
+	public bool UseCompression;
+	public int QueuedPackets;
+	TimeUnit_t InterpolationAmount;
+	public TimeUnit_t RemoteFrameTime;
+	public TimeUnit_t RemoteFrameTimeStdDeviation;
 
 	// Packet history
 
-	NetFlow[] DataFlow = new NetFlow[NetFlow.MAX];
-	int[] MessageStats = new int[(int)NetChannelGroup.Total];
+	readonly NetFlow[] DataFlow = new NetFlow[NetFlow.MAX];
+	readonly int[] MessageStats = new int[(int)NetChannelGroup.Total];
 
 	// TCP stream state
 	public bool StreamActive;
@@ -236,8 +236,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public int StreamLength;
 	public int StreamReceived;
 	public string? StreamFile;
-	List<byte> StreamData = [];
-
+	readonly List<byte> StreamData = [];
 
 	public void ResetStreaming() {
 		StreamType = StreamCmd.None;
@@ -833,8 +832,18 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public bool ProcessingMessages { get; private set; }
 	public bool ClearedDuringProcessing { get; private set; }
 
+	readonly int[] MsgStats = new int[(int)NetChannelGroup.Total];
+
 	public void UpdateMessageStats(NetChannelGroup group, int bits) {
-		// TODO
+		NetFlow flow = DataFlow[NetFlow.FLOW_INCOMING];
+		NetFrame? frame = flow.CurrentFrame;
+
+		Assert((group >= NetChannelGroup.Generic) && (group < NetChannelGroup.Total));
+
+		MsgStats[(int)group] += bits;
+
+		if (frame != null)
+			frame.MessageGroups[(int)group] += (uint)bits;
 	}
 
 
@@ -1351,9 +1360,36 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return 0;
 	}
 
+	public TimeUnit_t GetCommandInterpolationAmount(int flow, int frame) => DataFlow[flow].Frames[frame & NET_FRAMES_MASK].InterpolationAmount;
 	public bool IsValidPacket(int flow, int frame) => DataFlow[flow].Frames[frame & NET_FRAMES_MASK].IsValid;
 	public double GetPacketTime(int flow, int frame) => DataFlow[flow].Frames[frame & NET_FRAMES_MASK].Time;
 	public double GetLatency(int flow) => DataFlow[flow].Latency;
+
+	public int GetPacketBytes(int flow, int frame, NetChannelGroup group) {
+		if (group >= NetChannelGroup.Total) 
+			return DataFlow[flow].Frames[frame & NET_FRAMES_MASK].Size;
+		else 
+			return Bits2Bytes((int)DataFlow[flow].Frames[frame & NET_FRAMES_MASK].MessageGroups[(int)group]);
+	}
+
+	public void IncrementQueuedPackets() {
+		QueuedPackets++;
+	}
+	public void DecrementQueuedPackets() {
+		QueuedPackets--;
+		Assert(QueuedPackets >= 0);
+		if (QueuedPackets < 0)
+			QueuedPackets = 0;
+	}
+	public bool HasQueuedPackets() {
+		// todo: queued packet sender
+		return QueuedPackets > 0;
+	}
+
+
+	public void SetInterpolationAmount(TimeUnit_t interpolationAmount) {
+		InterpolationAmount = interpolationAmount;
+	}
 
 	public unsafe bool ReadSubChannelData(bf_read buf, int stream) {
 		DataFragments data = ReceiveList[stream]; // get list
