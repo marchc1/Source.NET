@@ -466,7 +466,7 @@ public static class UnmanagedUtils
 	}
 
 	public static unsafe ulong Hash(this ReadOnlySpan<char> str, bool invariant = true) {
-		if (str == null || str.Length == 0)
+		if (str.IsEmpty || str.Length == 0)
 			return 0;
 
 		ulong hash;
@@ -500,7 +500,7 @@ public static class UnmanagedUtils
 	}
 
 	public static unsafe ulong Hash<T>(this Span<T> target) where T : unmanaged {
-		if (target == null) return 0;
+		if (target.IsEmpty) return 0;
 		ReadOnlySpan<byte> data = MemoryMarshal.Cast<T, byte>(target);
 		return XXH64.DigestOf(data);
 	}
@@ -553,7 +553,7 @@ public static class UnmanagedUtils
 				case '/':
 				case '\\':
 					lastSlashIdx = i;
-					if (slashSeparators != null && slashSepIdx < slashSeparators.Length) {
+					if (!slashSeparators.IsEmpty && slashSepIdx < slashSeparators.Length) {
 						slashSeparators[slashSepIdx++] = new(lastMetRange, i - 1);
 						lastMetRange = i + 1;
 					}

@@ -1,4 +1,4 @@
-﻿using Game.Client.HUD;
+using Game.Client.HUD;
 using Game.Shared;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -111,7 +111,7 @@ public partial class Input(IServiceProvider provider, ISurface Surface, IViewRen
 	}
 
 	void KeyUp(ref KeyButtonState button, ReadOnlySpan<char> c) {
-		if (c == null || c.Length <= 0) {
+		if (c.IsEmpty || c.Length <= 0) {
 			button.Down[0] = button.Down[1] = 0;
 			button.State = KeyButtonStateFlags.ImpulseUp;
 			return;

@@ -1,4 +1,4 @@
-﻿using Game.Client.HUD;
+using Game.Client.HUD;
 
 using Source;
 using Source.Common.Formats.Keyvalues;
@@ -161,7 +161,7 @@ public class BaseViewport : EditablePanel, IViewPort
 	}
 
 	internal void ReloadScheme(ReadOnlySpan<char> from) {
-		if (from != null) {
+		if (!from.IsEmpty) {
 			IScheme scheme = SchemeManager.LoadSchemeFromFileEx(EngineVGui.GetPanel(VGuiPanelType.ClientDll), from, "HudScheme")!;
 
 			SetScheme(scheme);

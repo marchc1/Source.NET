@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
 using Source.Common.Commands;
@@ -132,7 +132,7 @@ public class FileSystem(IFileSystem fileSystem, IServiceProvider services) {
 	[ConCommand]
 	void whereis(in TokenizedCommand args) {
 		ReadOnlySpan<char> where = fileSystem.WhereIsFile(args.ArgS(1), "GAME");
-		if (where == null)
+		if (where.IsEmpty)
 			ConWarning($"File '{args.ArgS(1)}' not found\n");
 		else
 			ConMsg($"{where}\n");

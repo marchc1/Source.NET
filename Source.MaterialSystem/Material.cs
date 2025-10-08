@@ -550,7 +550,7 @@ public class Material : IMaterialInternal
 			bool isConditionalVar;
 			ReadOnlySpan<char> varName = GetVarName(var);
 
-			if (findContext == MaterialFindContext.IsOnAModel && varName != null && varName.Length > 0) {
+			if (findContext == MaterialFindContext.IsOnAModel && !varName.IsEmpty && varName.Length > 0) {
 				if (varName.Contains("$ignorez", StringComparison.OrdinalIgnoreCase)) {
 					Warning($"Ignoring material flag '{varName}' on material '{matName}'.\n");
 					goto nextVar;
@@ -628,7 +628,7 @@ public class Material : IMaterialInternal
 			case KeyValues.Types.Double: return new MaterialVar(material, name, keyValue.GetFloat());
 			case KeyValues.Types.String:
 				ReadOnlySpan<char> str = keyValue.GetString();
-				if (str == null || str.Length == 0)
+				if (str.IsEmpty || str.Length == 0)
 					return null;
 
 				IMaterialVar? matrixVar = CreateMatrixVarFromKeyValue(material, keyValue);
@@ -778,7 +778,7 @@ public class Material : IMaterialInternal
 	private MaterialVarFlags FindMaterialVarFlag(ReadOnlySpan<char> flagName) {
 		flagName = flagName.Trim();
 
-		for (int i = 0; materials.ShaderSystem.ShaderStateString(i) != null; ++i) {
+		for (int i = 0; !materials.ShaderSystem.ShaderStateString(i).IsEmpty; ++i) {
 			ReadOnlySpan<char> stateString = materials.ShaderSystem.ShaderStateString(i);
 			int foundIndex = flagName.IndexOf(stateString, StringComparison.OrdinalIgnoreCase);
 

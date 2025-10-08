@@ -323,10 +323,10 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		}
 
 		if (complain) {
-			Assert(tempNameBuffer != null);
+			Assert(!tempNameBuffer.IsEmpty);
 
 			if (MaterialDict.NoteMissing(vmtName)) {
-				if (complainPrefix != null)
+				if (!complainPrefix.IsEmpty)
 					DevWarning(complainPrefix);
 
 				DevWarning($"material \"{vmtName}\" not found.\n");

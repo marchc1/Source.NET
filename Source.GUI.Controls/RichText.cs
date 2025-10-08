@@ -1,4 +1,4 @@
-﻿
+
 using CommunityToolkit.HighPerformance;
 
 using Source.Common.GUI;
@@ -610,7 +610,7 @@ public class RichText : Panel
 		SelectionColor = GetSchemeColor("RichText.SelectedBgColor", scheme);
 
 		ReadOnlySpan<char> insetX = scheme.GetResourceString("RichText.InsetX");
-		if (insetX != null && insetX.Length != 0)
+		if (!insetX.IsEmpty && insetX.Length != 0)
 			SetDrawOffsets(int.TryParse(scheme.GetResourceString("RichText.InsetX"), out int i1) ? i1 : 0, int.TryParse(scheme.GetResourceString("RichText.InsetY"), out int i2) ? i2 : 0);
 	}
 
@@ -619,7 +619,7 @@ public class RichText : Panel
 
 	public void GetText(Span<char> buf) => GetText(0, buf);
 	public void GetText(int offset, Span<char> buf) {
-		if (buf == null || buf.Length <= 0)
+		if (buf.IsEmpty || buf.Length <= 0)
 			return;
 
 		int i;
@@ -635,7 +635,7 @@ public class RichText : Panel
 	}
 
 	public void SetText(ReadOnlySpan<char> text) {
-		if (text == null)
+		if (text.IsEmpty)
 			text = "";
 
 		Span<char> unicode = stackalloc char[1024];
@@ -657,7 +657,7 @@ public class RichText : Panel
 		FormatStream.Add(stream);
 
 		TextStream.Clear();
-		if (text != null && text.Length > 0) {
+		if (!text.IsEmpty && text.Length > 0) {
 			ReadOnlySpan<char> t = text.SliceNullTerminatedString();
 			TextStream.EnsureCapacity(t.Length + 1);
 			for (int i = 0; i < t.Length; i++)

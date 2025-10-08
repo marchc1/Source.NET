@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.HighPerformance;
+using CommunityToolkit.HighPerformance;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -535,43 +535,43 @@ public class Panel : IPanel
 	}
 
 	public void SetNavUp(ReadOnlySpan<char> controlName) {
-		if (controlName != null && controlName.Length > 0 && GetParent() != null) {
+		if (!controlName.IsEmpty && controlName.Length > 0 && GetParent() != null) {
 			NavUp = null;
 			NavUpName = new(controlName);
 		}
 	}
 	public void SetNavDown(ReadOnlySpan<char> controlName) {
-		if (controlName != null && controlName.Length > 0 && GetParent() != null) {
+		if (!controlName.IsEmpty && controlName.Length > 0 && GetParent() != null) {
 			NavDown = null;
 			NavDownName = new(controlName);
 		}
 	}
 	public void SetNavLeft(ReadOnlySpan<char> controlName) {
-		if (controlName != null && controlName.Length > 0 && GetParent() != null) {
+		if (!controlName.IsEmpty && controlName.Length > 0 && GetParent() != null) {
 			NavLeft = null;
 			NavLeftName = new(controlName);
 		}
 	}
 	public void SetNavRight(ReadOnlySpan<char> controlName) {
-		if (controlName != null && controlName.Length > 0 && GetParent() != null) {
+		if (!controlName.IsEmpty && controlName.Length > 0 && GetParent() != null) {
 			NavRight = null;
 			NavRightName = new(controlName);
 		}
 	}
 	public void SetNavToRelay(ReadOnlySpan<char> controlName) {
-		if (controlName != null && controlName.Length > 0 && GetParent() != null) {
+		if (!controlName.IsEmpty && controlName.Length > 0 && GetParent() != null) {
 			NavToRelay = null;
 			NavToRelayName = new(controlName);
 		}
 	}
 	public void SetNavActivate(ReadOnlySpan<char> controlName) {
-		if (controlName != null && controlName.Length > 0 && GetParent() != null) {
+		if (!controlName.IsEmpty && controlName.Length > 0 && GetParent() != null) {
 			NavActivate = null;
 			NavActivateName = new(controlName);
 		}
 	}
 	public void SetNavBack(ReadOnlySpan<char> controlName) {
-		if (controlName != null && controlName.Length > 0 && GetParent() != null) {
+		if (!controlName.IsEmpty && controlName.Length > 0 && GetParent() != null) {
 			NavBack = null;
 			NavBackName = new(controlName);
 		}
@@ -583,7 +583,7 @@ public class Panel : IPanel
 		int wide = panel.GetWide();
 
 		ReadOnlySpan<char> str = resourceData.GetString("wide", null);
-		if (str != null) {
+		if (!str.IsEmpty) {
 			if (str[0] == 'f' || str[0] == 'F') {
 				buildFlags |= BuildModeFlags.SaveWideFull;
 				str = str[1..];
@@ -644,7 +644,7 @@ public class Panel : IPanel
 		int tall = panel.GetTall();
 
 		ReadOnlySpan<char> str = resourceData.GetString("tall", null);
-		if (str != null) {
+		if (!str.IsEmpty) {
 			if (str[0] == 'f' || str[0] == 'F') {
 				buildFlags |= BuildModeFlags.SaveTallFull;
 				str = str[1..];
@@ -707,7 +707,7 @@ public class Panel : IPanel
 
 		BuildModeFlags flags = 0;
 		int posDelta = 0;
-		if (input != null) {
+		if (!input.IsEmpty) {
 			if (input[0] == 'r' || input[0] == 'R') {
 				flags |= flagRightAlign;
 				input = input[1..];
@@ -768,7 +768,7 @@ public class Panel : IPanel
 			while (input.Length > 0 && (char.IsDigit(input[0]) || input[0] == '.'))
 				input = input[1..];
 
-			if (input != null && input.Length > 0) {
+			if (!input.IsEmpty && input.Length > 0) {
 				switch (input[0]) {
 					case '+':
 						ComputePos(panel, input[1..], ref pos, size, parentSize, x, Operator.Add);
@@ -905,13 +905,13 @@ public class Panel : IPanel
 			SetPaintBorderEnabled(paintBorder != 0);
 
 		ReadOnlySpan<char> border = resourceData.GetString("border", "");
-		if (border != null && border.Length > 0) {
+		if (!border.IsEmpty && border.Length > 0) {
 			IScheme? scheme = GetScheme();
 			SetBorder(scheme!.GetBorder(border));
 		}
 
 		ReadOnlySpan<char> newName = resourceData.GetString("fieldName", null);
-		if (newName != null)
+		if (!newName.IsEmpty)
 			SetName(newName);
 
 
@@ -932,7 +932,7 @@ public class Panel : IPanel
 		// TODO: Pin corners
 
 		ReadOnlySpan<char> pKeyboardInputEnabled = resourceData.GetString("keyboardinputenabled", null);
-		if (pKeyboardInputEnabled != null && pKeyboardInputEnabled.Length > 0) {
+		if (!pKeyboardInputEnabled.IsEmpty && pKeyboardInputEnabled.Length > 0) {
 			SetKeyboardInputEnabled(int.TryParse(pKeyboardInputEnabled, out int _r) && _r != 0);
 		}
 
@@ -1574,13 +1574,13 @@ public class Panel : IPanel
 	}
 
 	public void SetName(ReadOnlySpan<char> panelName) {
-		if (this.PanelName != null && panelName != null && !panelName.Equals(this.PanelName, StringComparison.Ordinal))
+		if (this.PanelName != null && !panelName.IsEmpty && !panelName.Equals(this.PanelName, StringComparison.Ordinal))
 			return;
 
 		if (this.PanelName != null)
 			panelName = null;
 
-		if (panelName != null)
+		if (!panelName.IsEmpty)
 			this.PanelName = new(panelName);
 	}
 
@@ -2327,7 +2327,7 @@ class ColorProperty : IPanelAnimationPropertyConverter
 			Color col;
 
 			ReadOnlySpan<char> colorName = kv.GetString(entry.ScriptName);
-			if (colorName == null || colorName.Length <= 0)
+			if (colorName.IsEmpty || colorName.Length <= 0)
 				col = kv.GetColor(entry.ScriptName);
 			else
 				col = scheme.GetColor(colorName, new(0, 0, 0, 0));

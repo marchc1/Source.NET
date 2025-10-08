@@ -225,17 +225,17 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 		string build = "";
 		for (int i = 1; i < CommandLine.ParmCount(); i++) {
 			ReadOnlySpan<char> parm = CommandLine.GetParm(i);
-			if (parm == null || parm.Length == 0) continue;
+			if (parm.IsEmpty || parm.Length == 0) continue;
 
 			if (parm[0] == '-') {
 				ReadOnlySpan<char> value = CommandLine.ParmValueByIndex(i);
-				if (value != null)
+				if (!value.IsEmpty)
 					i++;
 				continue;
 			}
 			if (parm[0] == '+') {
 				ReadOnlySpan<char> value = CommandLine.ParmValueByIndex(i);
-				if (value != null && value.Length > 0) {
+				if (!value.IsEmpty && value.Length > 0) {
 					build += ($"{parm[1..]} {value}\n");
 					i++;
 				}
@@ -246,7 +246,7 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 			}
 			else {
 				ReadOnlySpan<char> translated = TranslateFileAssociation(CommandLine.GetParm(i));
-				if (translated != null) {
+				if (!translated.IsEmpty) {
 					build += new string(translated);
 					build += ('\n');
 				}
@@ -258,7 +258,7 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 	}
 
 	static bool IsValidFileExtension(ReadOnlySpan<char> filename) {
-		if (filename == null)
+		if (filename.IsEmpty)
 			return false;
 
 		if (

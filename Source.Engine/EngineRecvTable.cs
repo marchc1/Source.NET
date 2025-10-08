@@ -321,7 +321,7 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 			var prop = decoder.GetSendProp((int)newProp);
 			newStateReader.CopyPropData(deltaBitsWriter.GetBitBuf(), prop);
 
-			if (changedProps != null)
+			if (!changedProps.IsEmpty)
 				changedProps[changed] = (int)newProp;
 
 			changed++;
@@ -344,7 +344,7 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 
 				if (prop.Type == SendPropType.DataTable) {
 					ReadOnlySpan<char> tableName = clientProp.GetTableName();
-					ErrorIfNot(tableName != null && tableName.Length > 0, $"SetupClientSendTableHierarchy: missing table name for prop '{prop.GetName()}'.");
+					ErrorIfNot(!tableName.IsEmpty && tableName.Length > 0, $"SetupClientSendTableHierarchy: missing table name for prop '{prop.GetName()}'.");
 
 					ClientSendTable? child = FindClientSendTable(tableName);
 					if (child == null) {

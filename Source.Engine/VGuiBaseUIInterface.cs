@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
 using Source.Common.Audio;
@@ -232,7 +232,7 @@ public class EngineVGui(
 			return false;
 
 		ReadOnlySpan<char> levelName = engineClient.GetLevelName();
-		bool inNonBgLevel = levelName != null && levelName.Length > 0 && !engineClient.IsLevelMainMenuBackground();
+		bool inNonBgLevel = !levelName.IsEmpty && levelName.Length > 0 && !engineClient.IsLevelMainMenuBackground();
 		if (inNonBgLevel) {
 			staticGameUIPanel.SetVisible(false);
 			staticGameUIPanel.SetPaintBackgroundEnabled(false);
@@ -246,7 +246,7 @@ public class EngineVGui(
 			staticGameUIFuncs.OnGameUIHidden();
 		}
 		else {
-			if (levelName != null && levelName.Length > 0 && engineClient.GetMaxClients() <= 1 && engineClient.IsPaused())
+			if (!levelName.IsEmpty && levelName.Length > 0 && engineClient.GetMaxClients() <= 1 && engineClient.IsPaused())
 				Cbuf.AddText("unpause\n");
 		}
 		return true;
@@ -716,7 +716,7 @@ public class EngineVGui(
 			if (IsPC()) {
 				if (IsGameUIVisible()) {
 					ReadOnlySpan<char> levelName = engineClient.GetLevelName();
-					if (levelName != null && levelName.Length > 0) {
+					if (!levelName.IsEmpty && levelName.Length > 0) {
 						Cbuf.AddText("gameui_hide");
 						if (IsDebugSystemVisible())
 							Cbuf.AddText("debugsystemui 0");

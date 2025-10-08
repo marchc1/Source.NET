@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Source.Common.Utilities;
@@ -53,13 +53,13 @@ public struct UtlSymbol
 	public static bool operator ==(UtlSymbol symbol, ReadOnlySpan<char> str) 
 		=> symbol.id == UTL_INVAL_SYMBOL 
 			? false 
-			: str == null 
+			: str.IsEmpty
 				? symbol.id == 0 
 				: str.Hash() == symbol.id;
 	public static bool operator !=(UtlSymbol symbol, ReadOnlySpan<char> str) 
 		=> symbol.id == UTL_INVAL_SYMBOL 
 			? false 
-			: str == null 
+			: str.IsEmpty 
 				? symbol.id == 0 
 				: str.Hash() != symbol.id;
 	public static implicit operator UtlSymId_t(UtlSymbol symbol) => symbol.id;

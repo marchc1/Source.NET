@@ -1,4 +1,4 @@
-﻿
+
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 
@@ -69,7 +69,7 @@ public class ProgressBar : Panel
 		Progress = resourceData.GetFloat("progress", 0.0f);
 
 		ReadOnlySpan<char> dialogVar = resourceData.GetString("variable", "");
-		if (dialogVar != null && dialogVar.Length > 0) {
+		if (!dialogVar.IsEmpty && dialogVar.Length > 0) {
 			DialogVar = new(dialogVar);
 		}
 

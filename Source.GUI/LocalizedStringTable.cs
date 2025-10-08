@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.HighPerformance;
+using CommunityToolkit.HighPerformance;
 
 using Source.Common;
 using Source.Common.Filesystem;
@@ -56,7 +56,7 @@ public class LocalizedStringTable(ISystem system, IFileSystem fileSystem) : ILoc
 
 		LocalizationFileInfo search;
 		search.SymName = new string(fileName);
-		search.SymPathID = pathID != null ? new string(pathID) : "";
+		search.SymPathID = !pathID.IsEmpty ? new string(pathID) : "";
 		search.IncludeFallbacks = includeFallbackSearchPaths;
 
 		Span<LocalizationFileInfo> localizationFiles = LocalizationFiles.AsSpan();

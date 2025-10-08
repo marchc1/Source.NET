@@ -135,7 +135,7 @@ public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClie
 #endif
 
 		ReadOnlySpan<char> kb = KeyInfo[(int)code].KeyBinding;
-		if (kb == null || kb.Length <= 0)
+		if (kb.IsEmpty || kb.Length <= 0)
 			return false;
 
 		Span<char> cmd = stackalloc char[1024];

@@ -1,4 +1,4 @@
-﻿
+
 using Source.Common;
 using Source.Common.Client;
 using Source.Common.Commands;
@@ -101,7 +101,7 @@ public class DtCommonEng(Host Host, Sys Sys, IServerGameDLL serverGameDLL, IBase
 			prop.NameOverride = sendTableProp.NameOverride;
 			prop.SetFlags(sendTableProp.GetFlags());
 
-			if (CommandLine.FindParm("-dti") != 0 && sendTableProp.GetParentArrayPropName() != null) {
+			if (CommandLine.FindParm("-dti") != 0 && !sendTableProp.GetParentArrayPropName().IsEmpty) {
 				prop.ParentArrayPropName = new(sendTableProp.GetParentArrayPropName());
 			}
 
@@ -111,7 +111,7 @@ public class DtCommonEng(Host Host, Sys Sys, IServerGameDLL serverGameDLL, IBase
 				if (sendTableProp.GetDataTable() != null)
 					dtName = sendTableProp.GetDataTable()!.NetTableName;
 
-				Assert(dtName != null && !dtName.IsEmpty);
+				Assert(!dtName.IsEmpty);
 
 				clientProp.SetTableName(dtName);
 

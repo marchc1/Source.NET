@@ -197,7 +197,7 @@ public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem file
 				}
 			}
 		}
-		while ((fontName = GetFallbackFontName(fontName)) != null);
+		while (!(fontName = GetFallbackFontName(fontName)).IsEmpty);
 
 		return false;
 	}
@@ -332,8 +332,8 @@ public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem file
 	internal bool AddCustomFontFile(ReadOnlySpan<char> fontName, ReadOnlySpan<char> fontFileName) {
 		ReadOnlySpan<char> fontFilepath = fileSystem.RelativePathToFullPath(fontFileName, null, null);
 
-		if (fontFilepath == null) {
-			Warning($"Couldn't find custom font file '{fontFileName}' for font '{(fontName == null ? "" : fontName)}'\n");
+		if (fontFilepath.IsEmpty) {
+			Warning($"Couldn't find custom font file '{fontFileName}' for font '{(fontName.IsEmpty ? "" : fontName)}'\n");
 			return false;
 		}
 
@@ -347,7 +347,7 @@ public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem file
 		}
 
 		// We now need to resolve fontName if it wasn't provided.
-		if (fontName == null) {
+		if (fontName.IsEmpty) {
 			// TODO: This means we load the font twice... not ideal..
 			Span<byte> filePathAlloc = stackalloc byte[Encoding.UTF8.GetByteCount(fontFilepath) + 1];
 			int written = Encoding.UTF8.GetBytes(fontFilepath, filePathAlloc);
@@ -434,7 +434,7 @@ public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem file
 		wide = 0;
 		tall = 0;
 
-		if (text == null)
+		if (text.IsEmpty)
 			return;
 
 		tall = GetFontTall(font);

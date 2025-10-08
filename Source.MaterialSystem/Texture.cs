@@ -1029,7 +1029,7 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 
 	static int rtTexID = 0;
 	public void InitRenderTarget(ReadOnlySpan<char> rtName, int w, int h, RenderTargetSizeMode sizeMode, ImageFormat format, RenderTargetType type, TextureFlags textureFlags, CreateRenderTargetFlags renderTargetFlags) {
-		if (rtName != null)
+		if (!rtName.IsEmpty)
 			SetName(rtName);
 		else {
 			Span<char> newName = stackalloc char[128];

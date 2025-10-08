@@ -170,7 +170,7 @@ public class GripPanel : Panel
 		SetBgColor(GetSchemeColor("FrameGrip.Color2", scheme));
 
 		ReadOnlySpan<char> snapRange = scheme.GetResourceString("Frame.AutoSnapRange");
-		if (snapRange != null && snapRange.Length > 0)
+		if (!snapRange.IsEmpty && snapRange.Length > 0)
 			SnapRange = int.TryParse(snapRange, out int r) ? r : 0;
 	}
 }
@@ -610,7 +610,7 @@ public class Frame : EditablePanel
 		if (CustomTitleFont != null)
 			titlefont = CustomTitleFont;
 		else
-			titlefont = scheme.GetFont((font != null && font.Length > 0) ? font : "Default", IsProportional());
+			titlefont = scheme.GetFont((!font.IsEmpty && font.Length > 0) ? font : "Default", IsProportional());
 
 		Title?.SetFont(titlefont);
 		Title?.ResizeImageToContent();
@@ -633,15 +633,15 @@ public class Frame : EditablePanel
 		SetOverridableColor(out OutOfFocusBgColor, scheme.GetColor("Frame.OutOfFocusBgColor", InFocusBgColor));
 
 		ReadOnlySpan<char> resourceString = scheme.GetResourceString("Frame.ClientInsetX");
-		if (resourceString != null)
+		if (!resourceString.IsEmpty)
 			ClientInsetX = int.TryParse(resourceString, out int i1) ? i1 : 0;
 
 		resourceString = scheme.GetResourceString("Frame.ClientInsetY");
-		if (resourceString != null)
+		if (!resourceString.IsEmpty)
 			ClientInsetY = int.TryParse(resourceString, out int i1) ? i1 : 0;
 
 		resourceString = scheme.GetResourceString("Frame.TitleTextInsetX");
-		if (resourceString != null)
+		if (!resourceString.IsEmpty)
 			TitleTextInsetX = int.TryParse(resourceString, out int i1) ? i1 : 0;
 
 		SetBgColor(InFocusBgColor);
@@ -813,12 +813,12 @@ public class Frame : EditablePanel
 			SetTitleBarVisible(false);
 
 		ReadOnlySpan<char> title = resourceData.GetString("title", "");
-		if (title != null && title.Length > 0) {
+		if (!title.IsEmpty && title.Length > 0) {
 			SetTitle(title, true);
 		}
 
 		ReadOnlySpan<char> titlefont = resourceData.GetString("title_font", "");
-		if (titlefont != null && titlefont.Length > 0) {
+		if (!titlefont.IsEmpty && titlefont.Length > 0) {
 			IScheme? scheme = GetScheme();
 			if (scheme != null)
 				CustomTitleFont = scheme.GetFont(titlefont);
@@ -1023,7 +1023,7 @@ public class Frame : EditablePanel
 		}
 
 		bool localized = false;
-		if (title != null && title.Length > 0 && title[0] == '#') {
+		if (!title.IsEmpty && title.Length > 0 && title[0] == '#') {
 			ulong unlocalizedTextSymbol = Localize.FindIndex(title[1..]);
 			localized = unlocalizedTextSymbol != ulong.MaxValue;
 			if (localized)
