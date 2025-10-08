@@ -155,6 +155,8 @@ public class FontTextureCache
 					cacheItem.TexCoord.Y1 = (float)((double)(drawY + fontTall) / (double)ttall);
 
 					CharCache[cacheItem.FontCharHash()] = cacheItem;
+					// Copy cacheItem to entry so its valid for the first frame
+					entry = cacheItem;
 				}
 
 				nint charPage = entry.Page;
