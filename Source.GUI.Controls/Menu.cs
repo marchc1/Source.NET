@@ -1,4 +1,4 @@
-﻿using Source.Common.GUI;
+using Source.Common.GUI;
 
 namespace Source.GUI.Controls;
 
@@ -154,7 +154,7 @@ public class Menu : Panel
 			RemoveScrollBar();
 			VisibleSortedItems.Clear();
 			int ip;
-			int c = SortedItems.Count();
+			int c = SortedItems.Count;
 			for (ip = 0; ip < c; ++ip) {
 				int itemID = SortedItems[ip];
 				MenuItem child = MenuItems[itemID];
@@ -164,7 +164,7 @@ public class Menu : Panel
 				VisibleSortedItems.Add(itemID);
 			}
 
-			c = SeparatorPanels.Count();
+			c = SeparatorPanels.Count;
 			for (ip = 0; ip < c; ++ip)
 				SeparatorPanels[ip]?.SetVisible(false);
 		}
@@ -181,7 +181,7 @@ public class Menu : Panel
 		int menuTall = 0;
 		int totalTall = itop + ibottom;
 		int i;
-		for (i = 0; i < VisibleSortedItems.Count(); i++) {
+		for (i = 0; i < VisibleSortedItems.Count; i++) {
 			int itemId = VisibleSortedItems[i];
 
 			MenuItem? child = MenuItems[itemId];
@@ -370,7 +370,7 @@ public class Menu : Panel
 
 		int totalTall = top + bottom;
 		int i;
-		for (i = 0; i < SortedItems.Count(); i++) {
+		for (i = 0; i < SortedItems.Count; i++) {
 			int itemId = SortedItems[i];
 
 			MenuItem child = MenuItems[itemId];
