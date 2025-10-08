@@ -1013,7 +1013,7 @@ public class NetGraphPanel : Panel
 			return;
 
 		foreach (var seg in Rects) {
-			Surface.DrawSetColor(seg.Color[0], seg.Color[1], seg.Color[2], seg.Color[3]);
+			Surface.DrawSetColor(seg.Color);
 			Surface.DrawLine(seg.X1, seg.Y1, seg.X2, seg.Y2);
 		}
 	}

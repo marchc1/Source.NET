@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.HighPerformance;
+using CommunityToolkit.HighPerformance;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -174,9 +174,15 @@ public class MatSystemSurface : IMatSystemSurface
 		vertex.TexCoord = new(u, v);
 	}
 
+
+	IMaterial? lastMaterial;
 	public void InternalSetMaterial(IMaterial? material = null) {
+		if (lastMaterial == material)
+			return;
+
 		if (material == null)
 			material = White.Get();
+		lastMaterial = material;
 
 		using MatRenderContextPtr renderContext = new(materials);
 		Mesh = renderContext.GetDynamicMesh(true, null, null, material);
@@ -449,7 +455,52 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public void DrawLine(int x0, int y0, int x1, int y1) {
-		throw new NotImplementedException();
+		Assert(InDrawing);
+
+		if (FullyTransparent)
+			return;
+
+		Span<SurfaceVertex> verts = stackalloc SurfaceVertex[2];
+		verts[0] = new(new(x0, y0), new(0, 0));
+		verts[1] = new(new(x1, y1), new(1, 1));
+
+		InternalSetMaterial();
+		DrawTexturedLineInternal(in verts[0], in verts[1]);
+	}
+
+	private void DrawTexturedLineInternal(in SurfaceVertex a, in SurfaceVertex b) {
+		Assert(!In3DPaintMode);
+
+		if (FullyTransparent)
+			return;
+
+		Span<SurfaceVertex> verts = [a, b];
+
+		verts[0].Position.X += TranslateX + pixelOffsetX;
+		verts[0].Position.Y += TranslateY + pixelOffsetY;
+
+		verts[1].Position.X += TranslateX + pixelOffsetX;
+		verts[1].Position.Y += TranslateY + pixelOffsetY;
+
+		Span<SurfaceVertex> clippedVerts = [a, b];
+
+		if (!Clip2D.ClipLine(in scissorRect, verts, clippedVerts))
+			return;
+
+		meshBuilder.Begin(Mesh!, MaterialPrimitiveType.Lines, 1);
+
+		meshBuilder.Position3f(clippedVerts[0].Position.X, clippedVerts[0].Position.X, zPos);
+		meshBuilder.Color4ubv(DrawColor);
+		meshBuilder.TexCoord2fv(0, clippedVerts[0].TexCoord);
+		meshBuilder.AdvanceVertex();
+
+		meshBuilder.Position3f(clippedVerts[1].Position.Y, clippedVerts[1].Position.Y, zPos);
+		meshBuilder.Color4ubv(DrawColor);
+		meshBuilder.TexCoord2fv(0, clippedVerts[1].TexCoord);
+		meshBuilder.AdvanceVertex();
+
+		meshBuilder.End();
+		Mesh!.Draw();
 	}
 
 	public void DrawOutlinedRect(int x0, int y0, int x1, int y1) {
