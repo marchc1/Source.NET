@@ -44,6 +44,7 @@ public class Host(
 	public ConVar host_name = new("hostname", "", 0, "Hostname for server.");
 	public ConVar host_map = new("host_map", "", 0, "Current map name.");
 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 	public ClientGlobalVariables clientGlobalVariables;
 	public CL CL;
 	public MatSysInterface MatSysInterface;
@@ -68,6 +69,7 @@ public class Host(
 	public IHostState HostState;
 	public IBaseClientDLL? clientDLL;
 	public IServerGameDLL? serverDLL;
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
 	public bool Initialized;
 	public TimeUnit_t FrameTime;
@@ -543,7 +545,7 @@ public class Host(
 		
 		Key.SetBinding(ButtonCode.KeyEscape, "cancelselect");
 
-		if (Key.NameForBinding("toggleconsole") == null) 
+		if (Key.NameForBinding("toggleconsole").IsEmpty) 
 			Key.SetBinding(ButtonCode.KeyBackquote, "toggleconsole");
 
 		ConfigCfgExecuted = true;
@@ -565,8 +567,8 @@ public class Host(
 	}
 
 	public void WriteConfiguration(ReadOnlySpan<char> filename = default, bool allVars = false) {
-		bool isUserRequested = filename != null;
-		if (filename == null || filename.Length == 0)
+		bool isUserRequested = !filename.IsEmpty;
+		if (filename.IsEmpty)
 			filename = "config.cfg";
 
 		if (!Initialized)
@@ -707,11 +709,11 @@ public class Host(
 
 
 
-	delegate void printer(ReadOnlySpan<char> text);
+	delegate void PrinterFn(ReadOnlySpan<char> text);
 
 	[ConCommand(helpText: "Display map and connection status.")]
 	void status(in TokenizedCommand args) {
-		printer print;
+		PrinterFn print;
 		if (Cmd.Source == CommandSource.Command) {
 			if (!sv.IsActive()) {
 				Cmd.ForwardToServer(in args);
@@ -761,7 +763,7 @@ public class Host(
 	[ConCommand(helpText: "Exits the engine")]
 	void quit(in TokenizedCommand args) {
 #if !SWDS
-		if (args.FindArg("prompt") != null) {
+		if (!args.FindArg("prompt").IsEmpty) {
 			// EngineVGui.ConfirmQuit();
 			return;
 		}
