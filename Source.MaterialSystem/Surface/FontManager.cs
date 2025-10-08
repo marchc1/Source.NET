@@ -443,11 +443,14 @@ public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem file
 		char chBefore = '\0';
 		char chAfter = '\0';
 		for (int i = 0; ; i++) {
+			if (i >= text.Length)
+				break;
+
 			char ch = text[i];
 			if (ch == 0)
 				break;
 
-			chAfter = text[i + 1];
+			chAfter = i + 1 >= text.Length ? '\0' : text[i + 1];
 
 			if (ch == '\n') {
 				tall += GetFontTall(font);
