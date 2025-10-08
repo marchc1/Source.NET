@@ -131,7 +131,7 @@ public class CL(IServiceProvider services, Net Net,
 		if (!sendPacket)
 			return;
 
-		bool hasProblem = cl.NetChannel.IsTimingOut && cl.IsActive();
+		bool hasProblem = cl.NetChannel.IsTimingOut() && cl.IsActive();
 
 		if (cl.IsActive()) {
 			NET_Tick mymsg = new NET_Tick(cl.DeltaTick, (float)Host.FrameTimeUnbounded, (float)Host.FrameTimeStandardDeviation);
