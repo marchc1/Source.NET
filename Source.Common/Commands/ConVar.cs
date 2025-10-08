@@ -21,6 +21,8 @@ public struct ConVarRef
 	
 	ConVar ConVar;
 
+	public readonly bool IsEmpty => ConVar == null;
+
 	public ConVarRef(ReadOnlySpan<char> name) {
 		Init(name, false);
 	}
@@ -29,12 +31,15 @@ public struct ConVarRef
 		ConVar = (ConVar)cvar;
 	}
 
-	public ConVarRef(ReadOnlySpan<char> name, bool ignoreMissing) {
+	public ConVarRef(ReadOnlySpan<char> name, bool ignoreMissing = false) {
 		Init(name, ignoreMissing);
 	}
 
 	[MemberNotNull(nameof(ConVar))]
-	public void Init(ReadOnlySpan<char> name, bool ignoreMissing) {
+	public void Init(ReadOnlySpan<char> name, bool ignoreMissing = false) {
+		if (ConVar != null)
+			return;
+
 		var conVar = CVar?.FindVar(name);
 		ConVar = conVar ??= EmptyConVar;
 		if (!IsValid()) {

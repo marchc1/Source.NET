@@ -106,6 +106,7 @@ public class CL(IServiceProvider services, Net Net,
 		ArrayPool<byte>.Shared.Return(data, true);
 	}
 
+	ConVarRef cl_cmdrate;
 	public void Move(double accumulatedExtraSamples, bool finalTick) {
 		if (!cl.IsConnected())
 			return;
@@ -141,8 +142,8 @@ public class CL(IServiceProvider services, Net Net,
 		cl.ChokedCommands = 0;
 
 		if (cl.IsActive()) {
-			const int cl_cmdrate = 66;
-			float commandInterval = 1.0f / cl_cmdrate;
+			cl_cmdrate.Init("cl_cmdrate");
+			float commandInterval = 1.0f / cl_cmdrate.GetFloat();
 			float maxDelta = Math.Min((float)host_state.IntervalPerTick, commandInterval);
 			float delta = Math.Clamp((float)(Net.Time - cl.NextCmdTime), 0, maxDelta);
 			cl.NextCmdTime = Net.Time + commandInterval - delta;
