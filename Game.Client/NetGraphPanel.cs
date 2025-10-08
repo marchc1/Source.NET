@@ -105,17 +105,17 @@ public class NetGraphPanel : Panel
 	readonly CmdInfo[] m_Cmdinfo = new CmdInfo[TIMINGS];
 	readonly NetBandWidthGraph[] m_Graph = new NetBandWidthGraph[TIMINGS];
 
-	float Framerate;
-	float AvgLatency;
-	float AvgPacketLoss;
-	float AvgPacketChoke;
+	TimeUnit_t Framerate;
+	TimeUnit_t AvgLatency;
+	TimeUnit_t AvgPacketLoss;
+	TimeUnit_t AvgPacketChoke;
 	int IncomingSequence;
 	int OutgoingSequence;
 	int UpdateWindowSize;
-	float IncomingData;
-	float OutgoingData;
-	float AvgPacketIn;
-	float AvgPacketOut;
+	TimeUnit_t IncomingData;
+	TimeUnit_t OutgoingData;
+	TimeUnit_t AvgPacketIn;
+	TimeUnit_t AvgPacketOut;
 
 	InlineArrayMaxFlows<int> StreamRecv;
 	InlineArrayMaxFlows<int> StreamTotal;
@@ -207,7 +207,7 @@ public class NetGraphPanel : Panel
 		base.OnDelete();
 	}
 	public void OnFontChanged() {
-		string str = "fps:  435  ping: 533 ms lerp 112.3 ms   0/0";
+		ReadOnlySpan<char> str = "fps:  435  ping: 533 ms lerp 112.3 ms   0/0";
 
 		if (FontProportional == null)
 			EstimatedWidth = 0;
@@ -416,7 +416,7 @@ public class NetGraphPanel : Panel
 		AvgPacketIn = netchannel.GetAveragePackets(NetFlow.FLOW_INCOMING);
 		AvgPacketOut = netchannel.GetAveragePackets(NetFlow.FLOW_OUTGOING);
 
-		for (int i = 0; i < 2; i++) // MAX_FLOWS
+		for (int i = 0; i < NetFlow.MAX_FLOWS; i++) 
 			netchannel.GetStreamProgress(i, out StreamRecv[i], out StreamTotal[i]);
 
 		float flAdjust = 0.0f;

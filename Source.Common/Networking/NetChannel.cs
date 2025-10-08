@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using static Source.Common.Networking.Protocol;
 using Source.Common.Bitbuffers;
 using Source.Common.Hashing;
+using Source.Common.Commands;
 
 namespace Source.Common.Networking;
 public class NetChannel : INetChannelInfo, INetChannel
@@ -595,8 +596,61 @@ public class NetChannel : INetChannelInfo, INetChannel
 		}
 	}
 
-	public void FlowNewPacket(int flow, int seq, int outSeqAck, int choked, int packetDrop, int wiresize) {
-		// todo
+	public void FlowNewPacket(int flowIdx, int seq, int ack, int choked, int dropped, int size) {
+		NetFlow flow = DataFlow[flowIdx];
+		NetFrame? frame = null;
+
+		if (seq > flow.CurrentIndex) {
+			for (int i = flow.CurrentIndex + 1, numPacketFramesOverflow = 0;
+				(i <= seq) && (numPacketFramesOverflow < NET_FRAMES_BACKUP);
+				++i, ++numPacketFramesOverflow) {
+				int backTrack = seq - i;
+
+				frame = flow.Frames[i & NET_FRAMES_MASK];
+
+				frame.Time = Net.Time;
+				frame.IsValid = false;
+				frame.Size = 0;
+				frame.Latency = -1.0f;
+				frame.AverageLatency = GetAverageLatency(NetFlow.FLOW_OUTGOING);
+				frame.ChokedPackets = 0;
+				frame.DroppedPackets = 0;
+				frame.InterpolationAmount = 0;
+				frame.MessageGroups.ZeroOut();
+
+				if (backTrack < (choked + dropped)) {
+					if (backTrack < choked)
+						frame.ChokedPackets = 1;
+					else
+						frame.DroppedPackets = 1;
+				}
+			}
+
+			frame.DroppedPackets = dropped;
+			frame.ChokedPackets = choked;
+			frame.Size = size;
+			frame.IsValid = true;
+			frame.AverageLatency = GetAverageLatency(NetFlow.FLOW_OUTGOING);
+			frame.InterpolationAmount = InterpolationAmount;
+		}
+
+		flow.TotalPackets++;
+		flow.CurrentIndex = seq;
+		flow.CurrentFrame = frame;
+
+		int aflow = (flowIdx == NetFlow.FLOW_OUTGOING) ? NetFlow.FLOW_INCOMING : NetFlow.FLOW_OUTGOING;
+
+		if (ack <= (DataFlow[aflow].CurrentIndex - NET_FRAMES_BACKUP))
+			return;
+
+		NetFrame aframe = DataFlow[aflow].Frames[ack & NET_FRAMES_MASK];
+
+		if (aframe.IsValid && aframe.Latency == -1) {
+			aframe.Latency = Net.Time - aframe.Time;
+
+			if (aframe.Latency < 0)
+				aframe.Latency = 0;
+		}
 	}
 
 	public void ProcessPacket(NetPacket packet, bool hasHeader) {
@@ -780,8 +834,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 				UpdateMessageStats(netMsg.GetGroup(), buf.BitsRead - msgStartBit);
 
 				string showmsgname = Net.net_showmsg.GetString();
-				if (showmsgname != "0")
-				{
+				if (showmsgname != "0") {
 					bool invert = showmsgname.StartsWith('!');
 					if (invert) showmsgname = showmsgname[1..];
 					if (showmsgname == "1" || (showmsgname.Equals(netMsg.GetName(), StringComparison.OrdinalIgnoreCase) ^ invert))
@@ -815,7 +868,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 					return false;
 				}
 
-				if (IsOverflowed)
+				if (IsOverflowed())
 					return false;
 			}
 			else {
@@ -882,7 +935,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			stream = StreamVoice;
 
 		//if (msg.IsReliable)
-			//Msg("writing " + msg + "\n");
+		//Msg("writing " + msg + "\n");
 		return msg.WriteToBuffer(stream);
 	}
 
@@ -1103,12 +1156,14 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return true;
 	}
 
+	static ConVar net_maxroutable = new("1260", FCvar.Archive | FCvar.UserInfo, "Requested max packet size before packets are 'split'.", MIN_USER_MAXROUTABLE_SIZE, MAX_USER_MAXROUTABLE_SIZE);
 	private unsafe byte[] sendbuf = new byte[MAX_MESSAGE];
 	private bf_write send = new();
 	public unsafe int SendDatagram(bf_write? datagram) {
 		if (Socket == NetSocketType.Client) {
-			// todo: maxroutable?
-
+			if (net_maxroutable.GetInt() != GetMaxRoutablePayloadSize()) {
+				SetMaxRoutablePayloadSize(net_maxroutable.GetInt());
+			}
 		}
 
 		if (RemoteAddress == null || RemoteAddress.Type == NetAddressType.Null) {
@@ -1244,6 +1299,17 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return OutSequence - 1;
 	}
 
+	private void SetMaxRoutablePayloadSize(int splitSize) {
+		if (MaxRoutablePayloadSize != splitSize) {
+			DevMsg($"Setting max routable payload size from {MaxRoutablePayloadSize} to {splitSize} for {GetName()}");
+		}
+		MaxRoutablePayloadSize = splitSize;
+	}
+
+	public ReadOnlySpan<char> GetName() => Name;
+
+	private int GetMaxRoutablePayloadSize() => MaxRoutablePayloadSize;
+
 	public unsafe bool CreateFragmentsFromBuffer(bf_write buffer, int stream) {
 		bf_write bfwrite = new();
 		DataFragments? data = null;
@@ -1333,11 +1399,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 									   || WaitingList[FRAG_NORMAL_STREAM].Count > 0
 									   || WaitingList[FRAG_FILE_STREAM].Count > 0;
 
-	public double TimeConnected => Math.Max(0, Net.Time - ConnectTime);
-	public bool IsTimedOut => Timeout == -1 ? false : LastReceived + Timeout < Net.Time;
-	public bool IsTimingOut => Timeout == -1 ? false : LastReceived + CONNECTION_PROBLEM_TIME < Net.Time;
-	public double TimeSinceLastReceived => Math.Max(Net.Time - LastReceived, 0);
-	public bool IsOverflowed => StreamReliable.Overflowed;
+	public double TimeConnected() => Math.Max(0, Net.Time - ConnectTime);
+	public bool IsTimedOut() => Timeout == -1 ? false : LastReceived + Timeout < Net.Time;
+	public bool IsTimingOut() => Timeout == -1 ? false : LastReceived + CONNECTION_PROBLEM_TIME < Net.Time;
+	public double TimeSinceLastReceived() => Math.Max(Net.Time - LastReceived, 0);
+	public bool IsOverflowed() => StreamReliable.Overflowed;
 
 	public void Reset() {
 		StreamUnreliable.Reset();
@@ -1365,10 +1431,18 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public double GetPacketTime(int flow, int frame) => DataFlow[flow].Frames[frame & NET_FRAMES_MASK].Time;
 	public double GetLatency(int flow) => DataFlow[flow].Latency;
 
+	public int GetSequenceNumber(int flow) {
+		if (flow == NetFlow.FLOW_OUTGOING)
+			return OutSequence;
+		else if (flow == NetFlow.FLOW_INCOMING)
+			return InSequence;
+		return 0;
+	}
+
 	public int GetPacketBytes(int flow, int frame, NetChannelGroup group) {
-		if (group >= NetChannelGroup.Total) 
+		if (group >= NetChannelGroup.Total)
 			return DataFlow[flow].Frames[frame & NET_FRAMES_MASK].Size;
-		else 
+		else
 			return Bits2Bytes((int)DataFlow[flow].Frames[frame & NET_FRAMES_MASK].MessageGroups[(int)group]);
 	}
 
@@ -1515,8 +1589,81 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return true;
 	}
 
-	private void FlowUpdate(int flow, int size) {
+	private void FlowUpdate(int flowIdx, int size) {
+		NetFlow flow = DataFlow[flowIdx];
+		flow.TotalBytes += size;
 
+		if (flow.NextCompute > Net.Time)
+			return;
+
+		flow.NextCompute = Net.Time + NetFlow.FLOW_INTERVAL;
+
+		int totalvalid = 0;
+		int totalinvalid = 0;
+		int totalbytes = 0;
+		TimeUnit_t totallatency = 0.0;
+		int totallatencycount = 0;
+		int totalchoked = 0;
+
+		TimeUnit_t starttime = double.MaxValue;
+		TimeUnit_t endtime = 0.0;
+
+		NetFrame prev = flow.Frames[NET_FRAMES_BACKUP - 1];
+
+		for (int i = 0; i < NET_FRAMES_BACKUP; i++) {
+			NetFrame curr = flow.Frames[i];
+
+			if (curr.IsValid) {
+				if (curr.Time < starttime)
+					starttime = curr.Time;
+
+				if (curr.Time > endtime)
+					endtime = curr.Time;
+
+				totalvalid++;
+				totalchoked += curr.ChokedPackets;
+				totalbytes += curr.Size;
+
+				if (curr.Latency > 0) {
+					totallatency += curr.Latency;
+					totallatencycount++;
+				}
+			}
+			else
+				totalinvalid++;
+
+			prev = curr;
+		}
+
+		TimeUnit_t totaltime = endtime - starttime;
+
+		if (totaltime > 0) {
+			flow.AverageBytesPerSec *= NetFlow.FLOW_AVG;
+			flow.AverageBytesPerSec += (1.0f - NetFlow.FLOW_AVG) * (totalbytes / totaltime);
+
+			flow.AverageBytesPerSec *= NetFlow.FLOW_AVG;
+			flow.AverageBytesPerSec += (1.0f - NetFlow.FLOW_AVG) * (totalvalid / totaltime);
+		}
+
+		int totalPackets = totalvalid + totalinvalid;
+
+		if (totalPackets > 0) {
+			flow.AverageLoss *= NetFlow.FLOW_AVG;
+			flow.AverageLoss += (1.0f - NetFlow.FLOW_AVG) * ((float)(totalinvalid - totalchoked) / totalPackets);
+
+			if (flow.AverageLoss < 0)
+				flow.AverageLoss = 0;
+
+			flow.AverageChoke *= NetFlow.FLOW_AVG;
+			flow.AverageChoke += (1.0f - NetFlow.FLOW_AVG) * ((float)totalchoked / totalPackets);
+		}
+
+		if (totallatencycount > 0) {
+			TimeUnit_t newping = totallatency / totallatencycount;
+			flow.Latency = newping;
+			flow.AverageLatency *= NetFlow.FLOW_AVG;
+			flow.AverageLatency += (1.0 - NetFlow.FLOW_AVG) * newping;
+		}
 	}
 
 	public void SetRemoteFramerate(float hostFrameTime, float hostFrameDeviation) {
@@ -1529,4 +1676,28 @@ public class NetChannel : INetChannelInfo, INetChannel
 	}
 
 	public bool IsLoopback() => false;
+	public TimeUnit_t GetAverageLatency(int flow) => DataFlow[flow].AverageLatency;
+	public TimeUnit_t GetAverageLoss(int flow) => DataFlow[flow].AverageLoss;
+	public TimeUnit_t GetAverageChoke(int flow) => DataFlow[flow].AverageChoke;
+	public TimeUnit_t GetAverageData(int flow) => DataFlow[flow].AverageBytesPerSec;
+	public TimeUnit_t GetAveragePackets(int flow) => DataFlow[flow].AveragePacketsPerSec;
+
+	public ReadOnlySpan<char> GetAddress() => RemoteAddress?.ToString();
+
+	public double GetTime() => Net.Time;
+
+	public double GetTimeConnected() {
+		TimeUnit_t t = Net.Time - ConnectTime;
+		return (t > 0) ? t : 0;
+	}
+
+	public int GetBufferSize() => NET_FRAMES_BACKUP;
+	public int GetDataRate() => Rate;
+
+	public double GetTimeSinceLastReceived() {
+		TimeUnit_t t = Net.Time - LastReceived;
+		return (t > 0) ? t : 0;
+	}
+
+	public double GetTimeoutSeconds() => Timeout;
 }
