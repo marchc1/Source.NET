@@ -202,6 +202,11 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 		ReadOnlySpan<char> s = args[1];
 		ReadOnlySpan<char> restOfCommandLine = args.ArgS(startingArg: 2);
 
+		if (restOfCommandLine.Equals(s, StringComparison.OrdinalIgnoreCase)) {
+			ConMsg($"Can't alias '{s}' to itself.\n");
+			return;
+		}
+
 		aliases[new string(s)] = new string(restOfCommandLine);
 	}
 	[ConCommand(helpText: "Echos text to console.")]
