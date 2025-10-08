@@ -125,7 +125,7 @@ public class EngineAPI(IGame game, IServiceProvider provider, Common COM, IFileS
 
 				for (int i = 0; i < props.Length; i++) {
 					PropertyInfo prop = props[i];
-					if (prop.PropertyType != CVAR)
+					if (!prop.PropertyType.IsAssignableTo(CVAR))
 						continue;
 
 					var getMethod = prop.GetGetMethod();
@@ -149,8 +149,9 @@ public class EngineAPI(IGame game, IServiceProvider provider, Common COM, IFileS
 
 				for (int i = 0; i < fields.Length; i++) {
 					FieldInfo field = fields[i];
-					if (field.FieldType != CVAR)
+					if (!field.FieldType.IsAssignableTo(CVAR))
 						continue;
+
 					if (field.IsStatic) {
 						// Pull a static reference out to link
 						ConVar cv = (ConVar)field.GetValue(null)!;

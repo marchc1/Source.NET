@@ -40,8 +40,6 @@ public abstract class BaseClientState(
 	public const int CL_CONNECTION_RETRIES = 4;
 	public const double CL_MIN_RESEND_TIME = 1.5;
 	public const double CL_MAX_RESEND_TIME = 20;
-	public const double MIN_CMD_RATE = 10;
-	public const double MAX_CMD_RATE = 100;
 
 	public ClockDriftMgr ClockDriftMgr;
 	public NetSocket Socket;

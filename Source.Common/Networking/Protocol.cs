@@ -1,4 +1,4 @@
-﻿namespace Source.Common.Networking;
+namespace Source.Common.Networking;
 
 public static class C2S
 {
@@ -176,6 +176,9 @@ public static class CLC
 
 public static class Protocol
 {
+	public const double MIN_CMD_RATE = 10;
+	public const double MAX_CMD_RATE = 100;
+
 	public static readonly int MAX_TABLES_BITS = (int)MathF.Log2(32);
 
 	public const int NUM_NEW_COMMAND_BITS = 4;

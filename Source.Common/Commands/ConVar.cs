@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -13,7 +13,6 @@ public class EmptyConVar() : ConVar("", "0", 0) {
 	public override string GetName() => "";
 	public override bool IsFlagSet(FCvar flag) => false;
 }
-
 public struct ConVarRef
 {
 	static readonly EmptyConVar EmptyConVar = new();
@@ -156,9 +155,9 @@ public class ConVar : ConCommandBase, IConVar
 	/// NOTE: This returns a downcast (ie. precision loss) of the internal double value.
 	/// </summary>
 	/// <returns></returns>
-	public float GetFloat() => (float)parent!.doubleValue;
+	public virtual float GetFloat() => (float)parent!.doubleValue;
 	public double GetDouble() => parent!.doubleValue;
-	public int GetInt() => parent!.intValue;
+	public virtual int GetInt() => parent!.intValue;
 	public string GetString() => parent!.value ?? "";
 
 	public override bool IsFlagSet(FCvar flag) {
@@ -276,7 +275,7 @@ public class ConVar : ConCommandBase, IConVar
 		}
 	}
 
-	public bool GetBool() => GetInt() != 0;
+	public virtual bool GetBool() => GetInt() != 0;
 
 	public static void PrintDescription(ConCommandBase pvar) {
 		bool hasMin, hasMax;
