@@ -289,7 +289,7 @@ public class ConVar : ConCommandBase, IConVar
 			// Server bounded convar? need to implement later
 
 			hasMin = var.GetMin(out min);
-			hasMax = var.GetMin(out max);
+			hasMax = var.GetMax(out max);
 
 			string value;
 			if (false) {
@@ -307,7 +307,7 @@ public class ConVar : ConCommandBase, IConVar
 			}
 
 			if (hasMin) Dbg.ConMsg($" min. {min:.4}");
-			if (hasMax) Dbg.ConMsg($" min. {max:.4}");
+			if (hasMax) Dbg.ConMsg($" max. {max:.4}");
 
 
 			Dbg.ConMsg("\n");
