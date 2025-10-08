@@ -197,15 +197,12 @@ public class Scheme : IScheme
 							KeyValues? pRange = data.FindKey("range");
 							if (pRange != null) {
 								useRange = true;
-								// TODO: scanf or some other faster/less allocationy way to do this...
-								string[] parts = new string(pRange.GetString()).Split(' ', StringSplitOptions.RemoveEmptyEntries);
-								if (
-									parts.Length >= 2 &&
-									int.TryParse(parts[0], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out rangeMin) &&
-									int.TryParse(parts[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out rangeMax)
-								)
+								// Untested since none of the fonts I had loaded at the time used these, sorry if this breaks horribly
+								if (!new ScanF(pRange.GetString(), "%x %x").Read(out rangeMin).Read(out rangeMax).Overflowed)
 									if (rangeMin > rangeMax)
 										(rangeMax, rangeMin) = (rangeMin, rangeMax);
+									else
+										Warning("ScanF range failure while parsing font range\n");
 							}
 						}
 					}

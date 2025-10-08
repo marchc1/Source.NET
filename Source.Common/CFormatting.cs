@@ -116,6 +116,8 @@ public ref struct ScanF
 		Format = new(format);
 		this.input = input;
 	}
+	public readonly bool Overflowed => Format.Overflowed();
+
 	// NOTE: Only unsafe because C# can't tell we're never going to lose track of the stack allocated buffer target
 	// (which is needed to read out a literal)
 	private unsafe bool TryReadVariable(Span<char> incoming, out char type, out int len) {
@@ -162,11 +164,15 @@ public ref struct ScanF
 	public unsafe ScanF Read(out int i, int max = DEFAULT_SCANF_MAX) {
 		Span<char> incoming = stackalloc char[max];
 		i = default;
+		int iAttempt;
 		if (TryReadVariable(incoming, out char type, out int len))
 			switch (type) {
 				case 'd':
 				case (char)VariableType.SignedDecimalInteger:
-					i = int.TryParse(incoming[..len], out int iAttempt) ? iAttempt : default;
+					i = int.TryParse(incoming[..len], out iAttempt) ? iAttempt : default;
+					break;
+				case (char)VariableType.UnsignedHexadecimalInteger:
+					i = int.TryParse(incoming[..len], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out iAttempt) ? iAttempt : default;
 					break;
 				default: throw new NotImplementedException();
 			}
