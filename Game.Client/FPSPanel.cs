@@ -77,13 +77,13 @@ public class FPSPanel : Panel
 					fps = (int)(long)AverageFPS;
 					double frameMS = realFrameTime * 1000.0;
 					GetFPSColor(fps, out color);
-					Surface.DrawColoredText(Font, x, 2, color[0], color[1], color[2], 255, $"{fps:F3} fps ({Low}, {High}) {frameMS:F1} ms on {engine.GetLevelName()}");
+					Surface.DrawColoredText(Font, x, 2, color[0], color[1], color[2], 255, $"{fps} fps ({Low}, {High}) {frameMS:F1} ms on {engine.GetLevelName()}");
 				}
 				else {
 					AverageFPS = -1;
 					fps = (int)(long)(1.0 / realFrameTime);
 					GetFPSColor(fps, out color);
-					Surface.DrawColoredText(Font, x, 2, color[0], color[1], color[2], 255, $"{fps:F3} fps on {engine.GetLevelName()}");
+					Surface.DrawColoredText(Font, x, 2, color[0], color[1], color[2], 255, $"{fps} fps on {engine.GetLevelName()}");
 				}
 			}
 		}
