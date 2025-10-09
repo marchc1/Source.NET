@@ -687,7 +687,7 @@ public class RichText : Panel
 
 			if (cy < YStart)
 				OnRightLine = true;
-			else if (cy > y && (cy < (y + FontTall + DrawOffsetY)))
+			else if (cy >= y && (cy < (y + FontTall + DrawOffsetY)))
 				OnRightLine = true;
 
 			int wide = Surface.GetCharacterWidth(Font, ch);
@@ -698,7 +698,7 @@ public class RichText : Panel
 				else if (cx < (DrawOffsetX + renderState.PixelsIndent) || cy < YStart) // off left side of window
 					return i;
 
-				if (cx > x && cx < (x + wide))
+				if (cx >= x && cx < (x + wide))
 				{
 					if (cx < (x + (wide / 2)))
 						return i;
