@@ -494,8 +494,36 @@ public class TextEntry : Panel
 	public void SetWrap(bool state) {
 		Wrap = state;
 	}
+
 	public void SendNewLine(bool state) {
 		SendNewLines = state;
+	}
+
+	public override void OnCursorMoved(int x, int y)
+	{
+		if (!MouseSelection)
+			return;
+
+		ScreenToLocal(ref x, ref y);
+		CursorPos = PixelToCursorSpace(x, y);
+
+		if (CursorPos == 0)
+			PutCursorAtEnd = false;
+
+		if (CursorPos == CurrentStartIndex)
+		{
+			if (CursorPos > 0)
+				CursorPos--;
+
+			ScrollLeft();
+			CursorPos = CurrentStartIndex;
+		}
+
+		if (CursorPos != Select[1])
+		{
+			Select[1] = CursorPos;
+			Repaint();
+		}
 	}
 
 	public override void OnMousePressed(ButtonCode code) {
@@ -876,6 +904,21 @@ public class TextEntry : Panel
 		Repaint();
 	}
 
+	private void ScrollRight()
+	{
+		if (!HorizScrollingAllowed)
+			return;
+
+		if (Multiline) { }
+		else if (IsCursorOffRightSideOfWindow(CursorPos))
+		{
+			CurrentStartIndex++;
+			ScrollRight();
+		}
+
+		LayoutVerticalScrollBarSlider();
+	}
+
 	private void Undo() {
 		CursorPos = UndoCursorPos;
 
@@ -1019,8 +1062,17 @@ public class TextEntry : Panel
 		DataChanged = true;
 	}
 
-	private void ScrollRight() {
+	private bool IsCursorOffRightSideOfWindow(int CursorPos) {
+		int wx = GetWide() - 1;
+		CursorToPixelSpace(CursorPos, out int cx, out int cy);
+		if (wx <= 0) return false;
 
+		return (cx >= wx);
+	}
+
+	private bool IsCursorOffLeftSideOfWindow(int CursorPos) {
+		CursorToPixelSpace(CursorPos, out int cx, out int cy);
+		return (cx < 0);
 	}
 
 	private void CalcBreakIndex() {

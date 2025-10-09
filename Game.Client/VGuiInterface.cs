@@ -9,5 +9,6 @@ public static class ClientVGui
 		IPanel toolParent = enginevgui.GetPanel(Source.Engine.VGuiPanelType.Tools);
 		IFPSPanel.FPS.Create(toolParent);
 		INetGraphPanel.NetGraph.Create(toolParent);
+		IEntityReportPanel.EntityReport.Create(toolParent);
 	}
 }
