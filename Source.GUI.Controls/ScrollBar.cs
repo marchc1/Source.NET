@@ -1,4 +1,4 @@
-﻿using Source.Common.Formats.Keyvalues;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Input;
 
@@ -6,7 +6,9 @@ namespace Source.GUI.Controls;
 public class ScrollBarButton : Button
 {
 	public ScrollBarButton(Panel? parent, string? name, string text) : base(parent, name, text) {
+		SetButtonActivationType(ActivationType.OnPressed);
 
+		SetContentAlignment(Alignment.Center);
 	}
 
 	public override void OnMouseFocusTicked() {
@@ -101,8 +103,7 @@ public class ScrollBar : Panel
 			Button[1]!.SetTextInset(0, -1);
 
 			SetSize(SCROLLBAR_DEFAULT_WIDTH, 64);
-		}
-		else {
+		} else {
 			SetSlider(new ScrollBarSlider(null, null, false));
 			SetButton(new ScrollBarButton(null, null, "w"), 0);
 			SetButton(new ScrollBarButton(null, null, "4"), 1);
@@ -169,7 +170,7 @@ public class ScrollBar : Panel
 			}
 
 			if (DownArrow != null) {
-				Button[1].GetBounds(out x, out y, out wide, out tall);
+				Button[1]!.GetBounds(out x, out y, out wide, out tall);
 				DownArrow.SetBounds(x, y, wide, tall);
 			}
 
