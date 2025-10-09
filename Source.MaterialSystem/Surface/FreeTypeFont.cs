@@ -112,8 +112,7 @@ public unsafe class FreeTypeFont : BaseFont
 			glyph_index = FT_Get_Char_Index(face, (uint)((int)ch | 0xF000));
 
 		if (glyph_index != 0) {
-			FT_Load_Glyph(face, glyph_index,
-				FT_LOAD.FT_LOAD_DEFAULT | (render ? FT_LOAD.FT_LOAD_RENDER : 0));
+			FT_Load_Glyph(face, glyph_index, FT_LOAD.FT_LOAD_DEFAULT);
 		}
 	}
 
@@ -134,6 +133,7 @@ public unsafe class FreeTypeFont : BaseFont
 			a = (int)(g->metrics.horiBearingX >> 6);          // leading
 			b = (int)(g->metrics.width >> 6);                 // glyph width
 			c = (int)((g->metrics.horiAdvance >> 6) - a - b); // trailing
+
 			glyphABC = new() {
 				A = a,
 				B = b,
@@ -197,9 +197,10 @@ public unsafe class FreeTypeFont : BaseFont
 		byte* buffer = bitmap->buffer;
 		int bmpWidth = (int)bitmap->width;
 		int bmpHeight = (int)bitmap->rows;
+		int pitch = Math.Abs(bitmap->pitch);
 
 		for (int y = 0; y < bmpHeight; y++) {
-			byte* row = buffer + y * Math.Abs(bitmap->pitch);
+			byte* row = buffer + y * pitch;
 			for (int x = 0; x < bmpWidth; x++) {
 				int dstX = x;
 				int dstY = (int)(Ascent - rec->bitmap_top + y);
@@ -207,13 +208,29 @@ public unsafe class FreeTypeFont : BaseFont
 				if (dstX < 0 || dstY < 0 || dstX >= rgbaWide || dstY >= rgbaTall)
 					continue;
 
-				byte coverage = row[x];
+				byte coverage = 0;
+
+				switch (bitmap->pixel_mode) {
+					case FT_Pixel_Mode_.FT_PIXEL_MODE_GRAY:
+						coverage = row[x];
+						break;
+
+					case FT_Pixel_Mode_.FT_PIXEL_MODE_MONO:
+						int byteIndex = x >> 3;
+						int bitIndex = 7 - (x & 7);
+						coverage = (row[byteIndex] & (1 << bitIndex)) != 0 ? (byte)255 : (byte)0;
+						break;
+
+					default:
+						coverage = 0;
+						break;
+				}
 
 				int dstIndex = (dstY * rgbaWide + dstX) * 4;
-				rgba[dstIndex + 0] = 255;
-				rgba[dstIndex + 1] = 255;
-				rgba[dstIndex + 2] = 255;
-				rgba[dstIndex + 3] = coverage;
+				rgba[dstIndex + 0] = 255;  
+				rgba[dstIndex + 1] = 255;  
+				rgba[dstIndex + 2] = 255;  
+				rgba[dstIndex + 3] = coverage; 
 			}
 		}
 	}
