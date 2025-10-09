@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 
 namespace Source.Common.MaterialSystem;
 
@@ -107,7 +107,7 @@ public unsafe struct VertexBuilder
 	public const ulong INVALID_BUFFER_OFFSET = 0xFFFFFFFFUL;
 
 	public VertexDesc Desc;
-	public IVertexBuffer VertexBuffer;
+	public IVertexBuffer? VertexBuffer;
 
 	// Used to make sure Begin/End calls and BeginModify/EndModify calls match.
 	public bool Modify;
@@ -311,7 +311,7 @@ public unsafe struct VertexBuilder
 public struct IndexBuilder
 {
 	public IndexDesc Desc;
-	public IIndexBuffer IndexBuffer;
+	public IIndexBuffer? IndexBuffer;
 
 	// Max number of indices
 	public int MaxIndexCount;
