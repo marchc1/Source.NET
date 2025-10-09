@@ -3,6 +3,7 @@ using Source.Common.GUI;
 using FreeTypeSharp;
 using static FreeTypeSharp.FT;
 using Source.Common.Launcher;
+using System.Runtime.InteropServices;
 
 namespace Source.MaterialSystem.Surface;
 
@@ -13,6 +14,12 @@ public unsafe class FreeTypeFont : BaseFont
 		FT_Error error;
 		fixed (FT_LibraryRec_** outRec = &Library)
 			error = FT_Init_FreeType(outRec);
+
+		if (error != 0)
+			throw new Exception("FT_Init_FreeType failed");
+
+		int prop = 35;
+		error = FT_Property_Set(Library, (byte*)Marshal.StringToCoTaskMemAnsi("truetype"), (byte*)Marshal.StringToCoTaskMemAnsi("interpreter-version"), &prop);
 
 		if (error != 0)
 			throw new Exception("FT_Init_FreeType failed");
