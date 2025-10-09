@@ -401,10 +401,17 @@ public ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName, int wei
 		};
 	}
 
+	ConVarRef cl_language;
 	public void GetUILanguage(Span<char> destination) {
-		language.AsSpan().ClampedCopyTo(destination);
+		cl_language.Init("cl_language", true);
+		if (cl_language.IsValid())
+			cl_language.GetString().ClampedCopyTo(destination);
+		else
+			"english".AsSpan().ClampedCopyTo(destination);
 	}
 	public void SetUILanguage(ReadOnlySpan<char> incoming) {
-		language = new(incoming);
+		cl_language.Init("cl_language", true);
+		if (cl_language.IsValid())
+			cl_language.SetValue(incoming);
 	}
 }
