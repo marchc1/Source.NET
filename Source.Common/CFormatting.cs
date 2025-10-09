@@ -1,5 +1,6 @@
 using Steamworks;
 
+using System;
 using System.Formats.Asn1;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -68,9 +69,11 @@ public ref struct PrintF
 	private unsafe void WriteAnyLiterals() {
 		Span<char> literalBufferTarget = stackalloc char[64];
 		while (!reader.Overflowed()) {
+#pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
 			int read = reader.ReadLiteral(literalBufferTarget);
 			if (read > 0) {
 				input.Write(literalBufferTarget[..read]);
+#pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
 				continue;
 			}
 
@@ -88,7 +91,9 @@ public ref struct PrintF
 	public unsafe PrintF D(int i) {
 		Span<char> buffer = stackalloc char[11];
 		if (i.TryFormat(buffer, out int written))
+#pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
 			input.Write(buffer);
+#pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
 
 		WriteAnyLiterals();
 		return this;
@@ -129,7 +134,9 @@ public ref struct ScanF
 		// Read until a variable or overflow
 		Span<char> literalBufferTarget = stackalloc char[64];
 		while (!Format.Overflowed() && input.Length > 0) {
+#pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
 			int read = Format.ReadLiteral(literalBufferTarget);
+#pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
 			if (read > 0) {
 				input = input[read..]; // slice so we're aligned
 				continue;
@@ -165,7 +172,10 @@ public ref struct ScanF
 		Span<char> incoming = stackalloc char[max];
 		i = default;
 		int iAttempt;
+
+#pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
 		if (TryReadVariable(incoming, out char type, out int len))
+#pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
 			switch (type) {
 				case 'd':
 				case (char)VariableType.SignedDecimalInteger:
@@ -251,7 +261,6 @@ public static class CFormatUtils
 {
 	public static int WriteFormattedObject(Span<char> writeBuffer, char type, object? arg) {
 		int writeSize = 0;
-		bool useWriteBuffer = false;
 
 		VariableType varType;
 		if (type == 'd')
@@ -262,11 +271,9 @@ public static class CFormatUtils
 		switch (arg) {
 			case int v when varType == VariableType.SignedDecimalInteger:
 				v.TryFormat(writeBuffer, out writeSize);
-				useWriteBuffer = true;
 				break;
 			case uint v when varType == VariableType.UnsignedDecimalInteger:
 				v.TryFormat(writeBuffer, out writeSize);
-				useWriteBuffer = true;
 				break;
 			case uint v when varType == VariableType.UnsignedOctal:
 				string uoctal = Convert.ToString(v, 8); // ugh
@@ -275,46 +282,36 @@ public static class CFormatUtils
 				break;
 			case uint v when varType == VariableType.UnsignedHexadecimalInteger:
 				v.TryFormat(writeBuffer, out writeSize, "x");
-				useWriteBuffer = true;
 				break;
 			case double v when varType == VariableType.DecimalFloatingPoint:
 				v.TryFormat(writeBuffer, out writeSize, "F");
-				useWriteBuffer = true;
 				break;
 			case double v when varType == VariableType.ScientificNotation:
 				v.TryFormat(writeBuffer, out writeSize, "E");
-				useWriteBuffer = true;
 				break;
 			case double v when varType == VariableType.ShortestRepresentation:
 				v.TryFormat(writeBuffer, out writeSize, "G");
-				useWriteBuffer = true;
 				break;
 			case double v when varType == VariableType.HexadecimalFloatingPoint:
 				var bits = BitConverter.DoubleToInt64Bits(v);
 				writeSize = bits.TryFormat(writeBuffer, out var written, "X") ? written : 0;
-				useWriteBuffer = true;
 				break;
 			case char v when varType == VariableType.Character:
 				writeBuffer[0] = v;
 				writeSize = 1;
-				useWriteBuffer = true;
 				break;
 			case string v when varType == VariableType.StringOfCharacters:
 				v.AsSpan().CopyTo(writeBuffer);
 				writeSize = v.Length;
-				useWriteBuffer = true;
 				break;
 			case object v when varType == VariableType.PointerAddress:
 				var ptrStr = $"0x{v.GetHashCode():X}";
 				ptrStr.AsSpan().CopyTo(writeBuffer);
 				writeSize = ptrStr.Length;
-				useWriteBuffer = true;
 				break;
 			case object _ when varType == VariableType.Nothing:
-				useWriteBuffer = false;
 				break;
 			default:
-				useWriteBuffer = false;
 				break;
 		}
 		return writeSize;
@@ -368,7 +365,10 @@ public static class CFormatting
 		Span<char> buffer = stackalloc char[256];
 		while (!reader.Overflowed()) {
 			// Try reading literal
+
+#pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
 			Span<char> read = buffer[0..reader.ReadLiteral(buffer)];
+#pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
 			if (read.Length > 0) {
 				read.CopyTo(target);
 				target = target[read.Length..];
