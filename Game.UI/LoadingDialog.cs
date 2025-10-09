@@ -1,6 +1,8 @@
+using Source;
 using Source.Common;
 using Source.Common.Client;
 using Source.Common.GameUI;
+using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Game.UI;
@@ -24,7 +26,7 @@ public class LoadingDialog : Frame
 	bool ShowingVACInfo;
 	bool Center;
 	bool ConsoleStyle;
-	float ProgressFraction;
+	int ProgressFraction;
 
 	[PanelAnimationVar("0")] int AdditionalIndentX;
 	[PanelAnimationVar("0")] int AdditionalIndentY;
@@ -92,6 +94,21 @@ public class LoadingDialog : Frame
 		SetCloseButtonVisible(false);
 		SetSizeable(false);
 		SetMoveable(false);
+
+		if (ConsoleStyle)
+		{
+			Center = false;
+			Progress.SetVisible(false);
+			Progress2.SetVisible(false);
+			InfoLabel.SetVisible(false);
+			CancelButton.SetVisible(false);
+			TimeRemainingLabel.SetVisible(false);
+
+			SetMinimumSize(0, 0);
+			// SetTitleBarVisible(false);
+
+			ProgressFraction = 0;
+		}
 
 		InfoLabel.SetBounds(20, 32, 392, 24);
 		Progress.SetBounds(20, 64, 300, 24);
@@ -202,5 +219,39 @@ public class LoadingDialog : Frame
 
 	internal void SetStatusText(ReadOnlySpan<char> statusText) {
 		InfoLabel.SetText(statusText);
+	}
+
+	public override void PaintBackground()
+	{
+		if (!ConsoleStyle)
+		{
+			base.PaintBackground();
+			return;
+		}
+
+		GetSize(out int panelWide, out int panelTall);
+		Progress.GetSize(out int barWide, out int barTall);
+		int x = (panelWide - barWide) / 2;
+		int y = panelTall - barTall;
+
+		if (LoadingBackground != null)
+		{
+			IScheme? scheme = SchemeManager.GetScheme("ClientScheme");
+			Color color = GetSchemeColor("TanDarker", new(255, 255, 255, 255), scheme);
+
+			LoadingBackground.SetFgColor(color);
+			LoadingBackground.SetBgColor(color);
+
+			LoadingBackground.SetPaintBackgroundEnabled(true);
+		}
+
+		if (ModInfo.IsSinglePlayerOnly())
+			DrawBox(x, y, barWide, barTall, new(0, 0, 0, 255), 1.0f);
+
+		DrawBox(x + 2, y + 2, barWide - 4, barTall - 4, new(100, 100, 100, 255), 1.0f);
+
+		barWide = ProgressFraction * (barWide - 4);
+		if (barWide >= 12)
+			DrawBox(x + 2, y + 2, barWide, barTall - 4, new(200, 100, 0, 255), 1.0f);
 	}
 }

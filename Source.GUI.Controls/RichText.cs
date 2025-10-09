@@ -1,29 +1,52 @@
 
 using CommunityToolkit.HighPerformance;
-
+using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Input;
 using Source.Common.Utilities;
 
 namespace Source.GUI.Controls;
 
-public class ClickPanel : Panel // todo
+public class ClickPanel : Panel
 {
+
+	private int TestIndex;
+	private int ViewIndex;
 
 	public static Panel Create_RichText() => new RichText(null, null);
 	public ClickPanel(RichText richText) {
+		ViewIndex = 0;
+		TestIndex = 0;
 
+		SetParent(richText);
+		AddActionSignalTarget(richText);
+
+		SetCursor(CursorCode.Hand);
+
+		SetPaintBackgroundEnabled(false);
+		SetPaintEnabled(false);
 	}
-	internal int GetViewTextIndex() {
-		throw new NotImplementedException();
-	}
 
-	internal void SetTextIndex(int i1, int i2) {
-
+	internal void SetTextIndex(int LinkStartIdx, int ViewStartIdx) {
+		TestIndex = LinkStartIdx;
+		ViewIndex = ViewStartIdx;
 	}
 
 	internal int GetTextIndex() {
-		return 0;
+		return TestIndex;
+	}
+
+	internal int GetViewTextIndex()
+	{
+		return ViewIndex;
+	}
+
+	public override void OnMousePressed(ButtonCode code)
+	{
+		if (code == ButtonCode.MouseLeft)
+			PostActionSignal(new KeyValues("ClickPanel", "index", TestIndex));
+		else
+			GetParent()?.OnMousePressed(code);
 	}
 }
 
@@ -157,6 +180,104 @@ public class RichText : Panel
 		UnusedScrollbarInvis = false;
 	}
 
+	public override void OnMouseFocusTicked()
+	{
+		if (MouseDragSelection)
+			OnCursorMoved(0, 0);
+	}
+
+	public override void OnCursorEntered()
+	{
+		MouseDragSelection = false;
+	}
+
+	public override void OnCursorExited()
+	{
+		if (MouseSelection) MouseDragSelection = true;
+	}
+
+	public override void OnCursorMoved(int x, int y)
+	{
+		if (!MouseSelection)
+			return;
+
+		Input.GetCursorPos(out int mx, out int my);
+		ScreenToLocal(ref mx, ref my);
+		CursorPos = PixelToCursorSpace(mx, my);
+
+		if (CursorPos != Select[1])
+		{
+			Select[1] = CursorPos;
+			Repaint();
+		}
+	}
+
+	public override void OnMousePressed(ButtonCode code)
+	{
+		if (code == ButtonCode.MouseLeft)
+		{
+			SelectNone();
+
+			Input.GetCursorPos(out int x, out int y);
+			ScreenToLocal(ref x, ref y);
+
+			CursorPos = PixelToCursorSpace(x, y);
+
+			if (Interactive)
+			{
+				Input.SetMouseCapture(this);
+				MouseSelection = true;
+
+				if (Select[0] < 0)
+					Select[0] = CursorPos;
+				Select[1] = CursorPos;
+
+				RequestFocus();
+				Repaint();
+			}
+		}
+		else if (code == ButtonCode.MouseRight)
+		{
+			if (Interactive)
+			{
+				//CreateEditMenu();
+				//Assert(EditMenu);
+
+				//OpenEditMenu();
+			}
+		}
+	}
+
+	public override void OnMouseReleased(ButtonCode code)
+	{
+		MouseSelection = false;
+		Input.SetMouseCapture(null);
+
+		if (GetSelectedRange(out int start, out int end) && end - start == 0)
+			Select[0] = -1;
+	}
+
+	public override void OnMouseWheeled(int delta)
+	{
+		MoveScrollBar(delta);
+	}
+
+	public void MoveScrollBar(int delta)
+	{
+		MoveScrollBarDirect(delta * 3);
+	}
+
+	public void MoveScrollBarDirect(int delta)
+	{
+		if (!VertScrollBar.IsVisible())
+			return;
+
+		int val = VertScrollBar.GetValue();
+		val -= delta;
+		VertScrollBar.SetValue(val);
+		RecalcSavedRenderState = true;
+	}
+
 	public void SetDrawOffsets(int x, int y) {
 		DrawOffsetX = x;
 		DrawOffsetY = y;
@@ -263,8 +384,7 @@ public class RichText : Panel
 		renderState.X = DrawOffsetX + PixelsIndent;
 		renderState.Y = DrawOffsetY;
 
-		int selection0 = -1, selection1 = -1;
-		GetSelectedRange(out selection0, out selection1);
+		GetSelectedRange(out int selection0, out int selection1);
 
 		Surface.DrawSetTextFont(fontCurrent);
 
@@ -530,6 +650,72 @@ public class RichText : Panel
 		base.OnKillFocus(newPanel);
 	}
 
+	public int PixelToCursorSpace(int cx, int cy)
+	{
+		int FontTall = GetLineHeight();
+
+		int YStart = DrawOffsetY;
+		int x = DrawOffsetX, y = YStart;
+		PixelsIndent = 0;
+
+		int StartIndex = GetStartDrawIndex(out int LineBreakIndexIndex);
+		if (RecalcSavedRenderState)
+			RecalculateDefaultState(StartIndex);
+
+		PixelsIndent = CachedRenderState.PixelsIndent;
+		CurrentTextClickable = CachedRenderState.TextClickable;
+		RenderState renderState = CachedRenderState;
+
+		bool OnRightLine = false;
+		int i = 0;
+		for (i = StartIndex; i < TextStream.Count; i++)
+		{
+			char ch = TextStream[i];
+
+			renderState.X = x;
+			if (UpdateRenderState(i, ref renderState))
+				x = renderState.X;
+
+			if (LineBreaks[LineBreakIndexIndex] == i)
+			{
+				AddAnotherLine(ref x, ref y);
+				LineBreakIndexIndex++;
+
+				if (OnRightLine)
+					break;
+			}
+
+			if (cy < YStart)
+				OnRightLine = true;
+			else if (cy > y && (cy < (y + FontTall + DrawOffsetY)))
+				OnRightLine = true;
+
+			int wide = Surface.GetCharacterWidth(Font, ch);
+
+			if (OnRightLine)
+			{
+				if (cx > GetWide()) { } // off right side of window
+				else if (cx < (DrawOffsetX + renderState.PixelsIndent) || cy < YStart) // off left side of window
+					return i;
+
+				if (cx > x && cx < (x + wide))
+				{
+					if (cx < (x + (wide / 2)))
+						return i;
+					else
+						return i + 1;
+				}
+			}
+			x += wide;
+		}
+
+		return i;
+	}
+
+	//public override void OnKeyCodeTyped(ButtonCode code) // todo
+	//{
+	//}
+
 	private bool GetSelectedRange(out int start, out int end) {
 		if (Select[0] == -1) {
 			start = end = -1;
@@ -615,7 +801,6 @@ public class RichText : Panel
 	}
 
 	public void SetMaximumCharCount(int maxChars) => MaxCharCount = maxChars;
-
 
 	public void GetText(Span<char> buf) => GetText(0, buf);
 	public void GetText(int offset, Span<char> buf) {
