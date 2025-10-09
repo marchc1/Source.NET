@@ -5,11 +5,11 @@ using Source.Common.Input;
 
 namespace Source.GUI.Controls;
 
-public class CNonFocusableMenu : Menu
+public class NonFocusableMenu : Menu
 {
 	private Panel? FocusPanel;
 
-	public CNonFocusableMenu(Panel? parent, string? panelName) : base(parent, panelName) {
+	public NonFocusableMenu(Panel? parent, string? panelName) : base(parent, panelName) {
 		FocusPanel = null;
 	}
 
@@ -43,7 +43,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 	internal RichText History;
 	internal TextEntry Entry;
 	internal Button Submit;
-	internal CNonFocusableMenu CompletionList;
+	internal NonFocusableMenu CompletionList;
 
 	protected Color PrintColor, DPrintColor;
 
@@ -114,7 +114,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		Submit.SetCommand("submit");
 		Submit.SetVisible(!StatusVersion);
 
-		CompletionList = new CNonFocusableMenu(this, "CompletionList");
+		CompletionList = new NonFocusableMenu(this, "CompletionList");
 		CompletionList.SetVisible(false);
 
 		Entry = new TabCatchingTextEntry(this, "ConsoleEntry", CompletionList);
