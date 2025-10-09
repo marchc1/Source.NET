@@ -94,6 +94,16 @@ public unsafe class FreeTypeFont : BaseFont
 		if (error != FT_Error.FT_Err_Ok) { Warning($"FreeType error during pixel size set: {error}\n"); return false; }
 
 		FT_Size_Metrics_ tm = face->size->metrics;
+
+		int actualCellHeight = (int)(tm.height >> 6);
+
+		if (actualCellHeight != tall && actualCellHeight > 0) {
+			uint scaledPixelSize = (uint)((tall * (long)tall) / actualCellHeight);
+			error = FT_Set_Pixel_Sizes(face, 0, scaledPixelSize);
+			if (error != FT_Error.FT_Err_Ok) { Warning($"FreeType error during scaled pixel size set: {error}\n"); return false; }
+			tm = face->size->metrics;
+		}
+
 		Height = (uint)(tm.height >> 6) + DropShadowOffset + 2 * OutlineSize;
 		MaxCharWidth = (uint)(tm.max_advance >> 6);
 		Ascent = (uint)(tm.ascender >> 6);
