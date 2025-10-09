@@ -220,7 +220,7 @@ public unsafe class FreeTypeFont : BaseFont
 			byte* row = buffer + y * pitch;
 			for (int x = 0; x < bmpWidth; x++) {
 				int dstX = x + (int)OutlineSize;
-				int dstY = (int)(Ascent - rec->bitmap_top + y);
+				int dstY = (int)(Ascent - rec->bitmap_top + y) + (int)OutlineSize;
 
 				if (dstX < 0 || dstY < 0 || dstX >= rgbaWide || dstY >= rgbaTall)
 					continue;
