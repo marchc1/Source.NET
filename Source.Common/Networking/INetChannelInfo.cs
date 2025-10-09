@@ -21,10 +21,10 @@ public interface INetChannelInfo
 	bool IsValidPacket(int flow, int frameNumber) => false;
 	TimeUnit_t GetPacketTime(int flow, int frameNumber);
 	int GetPacketBytes(int flow, int frameNumber, NetChannelGroup group);
-	bool GetStreamProgress(int flow, out int received, out int total) { received = 0; total = 0; return false; }
+	bool GetStreamProgress(int flow, out int received, out int total);
 	TimeUnit_t GetTimeSinceLastReceived();
 	TimeUnit_t GetCommandInterpolationAmount(int flow, int frameNumber);
-	void GetPacketResponseLatency(int flow, int frameNumber, out int latencyMsecs, out int choke) { latencyMsecs = 0; choke = 0; return; }
-	void GetRemoteFramerate(out TimeUnit_t frameTime, out TimeUnit_t frameTimeStdDeviation) { frameTimeStdDeviation = 0; frameTime = 0; }
+	void GetPacketResponseLatency(int flow, int frameNumber, out int latencyMsecs, out int choke);
+	void GetRemoteFramerate(out TimeUnit_t frameTime, out TimeUnit_t frameTimeStdDeviation);
 	TimeUnit_t GetTimeoutSeconds();
 }

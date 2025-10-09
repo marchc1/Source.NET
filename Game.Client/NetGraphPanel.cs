@@ -162,6 +162,10 @@ public class NetGraphPanel : Panel
 		HoldColor = new(0, 0, 0, 255);
 		ExtrapBaseColor = new(255, 255, 255, 255);
 
+		for (int i = 0; i < 24; i++) {
+			Colors[i][3] = 255;
+		}
+
 		Framerate = 0.0f;
 		AvgLatency = 0.0f;
 		AvgPacketLoss = 0.0f;
@@ -197,8 +201,7 @@ public class NetGraphPanel : Panel
 		NetColors[COLOR_NORMAL][2] = 63;
 		NetColors[COLOR_NORMAL][3] = 232;
 
-		var vgui = Singleton<IVGui>();
-		vgui.AddTickSignal(this, 500);
+		VGui.AddTickSignal(this, 500);
 
 		g_NetGraphPanel = this;
 	}
@@ -509,7 +512,6 @@ public class NetGraphPanel : Panel
 		if (Framerate <= 0.0f)
 			Framerate = 1.0f;
 
-		var engine = Singleton<IEngineClient>();
 		if (engine.IsPlayingDemo())
 			AvgLatency = 0.0f;
 
@@ -754,7 +756,7 @@ public class NetGraphPanel : Panel
 		Surface.DrawColoredText(GetNetgraphFont(), xright - textWide - 1, y, GRAPH_RED, GRAPH_GREEN, GRAPH_BLUE, 255, sz);
 	}
 
-	int DrawDataSegment(ref Rectangle rcFill, int bytes, byte r, byte g, byte b, byte alpha = 255) {
+	bool DrawDataSegment(ref Rectangle rcFill, int bytes, byte r, byte g, byte b, byte alpha = 255) {
 		int h;
 		Color color = new(0, 0, 0);
 
@@ -763,16 +765,17 @@ public class NetGraphPanel : Panel
 		color[0] = r;
 		color[1] = g;
 		color[2] = b;
+		color[3] = 255;
 
 		rcFill.Height = h;
 		rcFill.Y -= h;
 
 		if (rcFill.Y < 2)
-			return 0;
+			return false;
 
 		DrawLine(in rcFill, color with { A = alpha });
 
-		return 1;
+		return true;
 	}
 
 	public override void OnTick() {
@@ -846,8 +849,6 @@ public class NetGraphPanel : Panel
 			w = vrect.Width - 10;
 		}
 
-		// get current client netchannel INetChannelInfo interface
-		var engine = Singleton<IEngineClient>();
 		var nci = engine.GetNetChannelInfo();
 
 		if (nci != null) {
@@ -945,34 +946,34 @@ public class NetGraphPanel : Panel
 			if (m_PacketLatency[i].Latency > 9995)
 				continue;
 
-			if (DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.LocalPlayer], 0, 0, 255) == 0)
+			if (!DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.LocalPlayer], 0, 0, 255))
 				continue;
 
-			if (DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.OtherPlayers], 0, 255, 0) == 0)
+			if (!DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.OtherPlayers], 0, 255, 0))
 				continue;
 
-			if (DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.Entities], 255, 0, 0) == 0)
+			if (!DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.Entities], 255, 0, 0))
 				continue;
 
-			if (DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.Sounds], 255, 255, 0) == 0)
+			if (!DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.Sounds], 255, 255, 0))
 				continue;
 
-			if (DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.Events], 0, 255, 255) == 0)
+			if (!DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.Events], 0, 255, 255))
 				continue;
 
-			if (DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.UserMessage], 128, 128, 0) == 0)
+			if (!DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.UserMessage], 128, 128, 0))
+				continue;
+			
+			if (!DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.EntMessage], 0, 128, 128))
 				continue;
 
-			if (DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.EntMessage], 0, 128, 128) == 0)
+			if (!DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.StringCmd], 128, 0, 0))
 				continue;
 
-			if (DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.StringCmd], 128, 0, 0) == 0)
+			if (!DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.StringTable], 0, 128, 0))
 				continue;
 
-			if (DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.StringTable], 0, 128, 0) == 0)
-				continue;
-
-			if (DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.Voice], 0, 0, 128) == 0)
+			if (!DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.Voice], 0, 0, 128))
 				continue;
 
 			// Final data chunk is total size, don't use solid line routine for this
@@ -1012,10 +1013,13 @@ public class NetGraphPanel : Panel
 		if (c <= 0)
 			return;
 
-		foreach (var seg in Rects) {
+		Span<LineSegment> rects = Rects.AsSpan();
+		for (int i = 0; i < rects.Length; i++) {
+			ref LineSegment seg = ref rects[i];
 			Surface.DrawSetColor(seg.Color);
 			Surface.DrawLine(seg.X1, seg.Y1, seg.X2, seg.Y2);
 		}
+
 	}
 
 	void DrawLine(in Rectangle rect, in Color color) {

@@ -48,10 +48,20 @@ public class NetChannel : INetChannelInfo, INetChannel
 		StreamActive = false;
 
 		ResetStreaming();
+
+		MaxReliablePayloadSize = Protocol.MAX_PAYLOAD;
+		FileRequestCounter = 0;
+		FileBackgroundTransmission = true;
+		UseCompression = false;
+		QueuedPackets = 0;
+		RemoteFrameTime = 0;
+		RemoteFrameTimeStdDeviation = 0;
+
+		FlowReset();
 	}
 
 	public const int DEFAULT_RATE = 80_000;
-	public const float SIGNON_TIME_OUT = 300.0f;
+	public const TimeUnit_t SIGNON_TIME_OUT = 300;
 	/// <summary>
 	/// Socket type
 	/// </summary>
@@ -210,7 +220,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		RemoteFrameTime = 0;
 		RemoteFrameTimeStdDeviation = 0;
 
-		ResetFlow();
+		FlowReset();
 
 		MessageHandler.ConnectionStart(this);
 	}
@@ -265,7 +275,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return StreamSocket != null;
 	}
 
-	public void ResetFlow() {
+	public void FlowReset() {
 		for (int i = 0; i < DataFlow.Length; i++)
 			DataFlow[i] = new();
 
@@ -626,12 +636,14 @@ public class NetChannel : INetChannelInfo, INetChannel
 				}
 			}
 
-			frame.DroppedPackets = dropped;
-			frame.ChokedPackets = choked;
-			frame.Size = size;
-			frame.IsValid = true;
-			frame.AverageLatency = GetAverageLatency(NetFlow.FLOW_OUTGOING);
-			frame.InterpolationAmount = InterpolationAmount;
+			if (frame != null) {
+				frame.DroppedPackets = dropped;
+				frame.ChokedPackets = choked;
+				frame.Size = size;
+				frame.IsValid = true;
+				frame.AverageLatency = GetAverageLatency(NetFlow.FLOW_OUTGOING);
+				frame.InterpolationAmount = InterpolationAmount;
+			}
 		}
 
 		flow.TotalPackets++;
@@ -1413,8 +1425,6 @@ public class NetChannel : INetChannelInfo, INetChannel
 		SplitPacketSequence = 1;
 	}
 
-	public double GetAvgData(int flow) => DataFlow[flow].AverageBytesPerSec;
-	public double GetAvgPackets(int flow) => DataFlow[flow].AveragePacketsPerSec;
 	public int GetTotalData(int flow) => DataFlow[flow].TotalBytes;
 	public int GetSequenceNr(int flow) {
 		if (flow == NetFlow.FLOW_OUTGOING)
@@ -1641,8 +1651,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 			flow.AverageBytesPerSec *= NetFlow.FLOW_AVG;
 			flow.AverageBytesPerSec += (1.0f - NetFlow.FLOW_AVG) * (totalbytes / totaltime);
 
-			flow.AverageBytesPerSec *= NetFlow.FLOW_AVG;
-			flow.AverageBytesPerSec += (1.0f - NetFlow.FLOW_AVG) * (totalvalid / totaltime);
+			flow.AveragePacketsPerSec *= NetFlow.FLOW_AVG;
+			flow.AveragePacketsPerSec += (1.0f - NetFlow.FLOW_AVG) * (totalvalid / totaltime);
 		}
 
 		int totalPackets = totalvalid + totalinvalid;
@@ -1666,12 +1676,12 @@ public class NetChannel : INetChannelInfo, INetChannel
 		}
 	}
 
-	public void SetRemoteFramerate(float hostFrameTime, float hostFrameDeviation) {
+	public void SetRemoteFramerate(TimeUnit_t hostFrameTime, TimeUnit_t hostFrameDeviation) {
 		RemoteFrameTime = hostFrameTime;
 		RemoteFrameTimeStdDeviation = hostFrameDeviation;
 	}
 
-	public void SetTimeout(double time) {
+	public void SetTimeout(TimeUnit_t time) {
 		Timeout = time;
 	}
 
@@ -1700,4 +1710,49 @@ public class NetChannel : INetChannelInfo, INetChannel
 	}
 
 	public double GetTimeoutSeconds() => Timeout;
+
+	public bool GetStreamProgress(int flow, out int received, out int total) {
+		total = 0;
+		received = 0;
+
+		if (flow == NetFlow.FLOW_INCOMING) {
+			for (int i = 0; i < MAX_STREAMS; i++) {
+				if (ReceiveList[i].Buffer != null) {
+					total += ReceiveList[i].NumFragments * FRAGMENT_SIZE;
+					received += ReceiveList[i].AckedFragments * FRAGMENT_SIZE;
+				}
+			}
+
+			return total > 0;
+		}
+
+		if (flow == NetFlow.FLOW_OUTGOING) {
+			for (int i = 0; i < MAX_STREAMS; i++) {
+				if (WaitingList[i].Count > 0) {
+					total += WaitingList[i][0].NumFragments * FRAGMENT_SIZE;
+					received += WaitingList[i][0].AckedFragments * FRAGMENT_SIZE;
+				}
+			}
+
+			return total > 0;
+		}
+
+		return false;
+	}
+
+	public void GetPacketResponseLatency(int flow, int frameNumber, out int latencyMsecs, out int choke) {
+		NetFrame frame = DataFlow[flow].Frames[frameNumber & NET_FRAMES_MASK];
+
+		if (frame.DroppedPackets != 0)
+			latencyMsecs = 9999;
+		else
+			latencyMsecs = (int)(float)(1000.0 * frame.AverageLatency);
+
+		choke = frame.ChokedPackets;
+	}
+
+	public void GetRemoteFramerate(out double frameTime, out double frameTimeStdDeviation) {
+		frameTime = RemoteFrameTime;
+		frameTimeStdDeviation = RemoteFrameTimeStdDeviation;
+	}
 }

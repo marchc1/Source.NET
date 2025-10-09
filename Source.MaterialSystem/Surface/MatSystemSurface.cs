@@ -174,15 +174,9 @@ public class MatSystemSurface : IMatSystemSurface
 		vertex.TexCoord = new(u, v);
 	}
 
-
-	IMaterial? lastMaterial;
 	public void InternalSetMaterial(IMaterial? material = null) {
-		if (lastMaterial == material)
-			return;
-
 		if (material == null)
 			material = White.Get();
-		lastMaterial = material;
 
 		using MatRenderContextPtr renderContext = new(materials);
 		Mesh = renderContext.GetDynamicMesh(true, null, null, material);
