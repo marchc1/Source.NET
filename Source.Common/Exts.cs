@@ -12,11 +12,14 @@ using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Source;
 
@@ -1026,6 +1029,29 @@ public static class SpanExts
 
 		source.CopyTo(dest);
 		return source.Length;
+	}
+
+	// Useful for debugging
+	public static void ReinterpretAsImageThenWriteTo(this Span<byte> data, ReadOnlySpan<char> path, int wide, int tall)
+		=> ReinterpretAsImageThenWriteTo(MemoryMarshal.Cast<byte, Color>(data), path, wide, tall);
+	public static void ReinterpretAsImageThenWriteTo(this Span<Color> data, ReadOnlySpan<char> path, int wide, int tall) {
+		using Bitmap bitmap = new(wide, tall);
+		BitmapData bmpData = bitmap.LockBits(new Rectangle(0, 0, wide, tall), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+		unsafe {
+			Span<byte> writeTarget = new Span<byte>((void*)bmpData.Scan0, wide * tall * 4);
+			for (int y = 0; y < tall; y++) {
+				for (int x = 0; x < wide; x++) {
+					ref Color c = ref data[x + (y * wide)];
+					int index = y * bmpData.Stride + x * 4;
+					writeTarget[index] = c.R;
+					writeTarget[index + 1] = c.G;
+					writeTarget[index + 2] = c.B;
+					writeTarget[index + 3] = c.A;
+				}
+			}
+		}
+		bitmap.UnlockBits(bmpData);
+		bitmap.Save(new(path));
 	}
 
 	public static int ClampedCopyTo<T>(this Span<T> source, Span<T> dest) {

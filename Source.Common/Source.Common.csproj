@@ -18,6 +18,7 @@
 	<ItemGroup> <Compile Include="..\Usings\MaterialUsings.cs" Link="Usings/Globals/MaterialUsings.cs" /> </ItemGroup>
 	<ItemGroup> <Compile Include="..\Usings\ShaderUsings.cs" Link="Usings/Globals/ShaderUsings.cs" /> </ItemGroup>
 	<ItemGroup>
+		<PackageReference Include="Aspose.Drawing" Version="25.9.0" />
 		<PackageReference Include="CommunityToolkit.HighPerformance" Version="8.4.0" />
 		<PackageReference Include="K4os.Hash.xxHash" Version="1.0.8" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.9" />
