@@ -545,7 +545,7 @@ public class Net
 						return false;
 					}
 
-					uncompressedArray.CopyTo(packetData[..(int)uncompressedSize]);
+					uncompressedArray[..(int)uncompressedSize].CopyTo(packetData);
 					DecompressionPool.Return(uncompressedArray, true);
 					packet.Size = (int)uncompressedSize;
 				}
