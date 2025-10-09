@@ -203,15 +203,16 @@ public unsafe class SDL3_System(ICommandLine commandLine) : ISystem
 		Span<Entry> entries = Entries.AsSpan();
 
 		string? consideration = null;
-		int considerationWeight = 0;
+		int closestDistance = int.MaxValue;
 
 		for (int i = 0; i < entries.Length; i++) {
 			ref Entry entry = ref entries[i];
 
 			if (name.Equals(entry.Name, StringComparison.OrdinalIgnoreCase)) {
-				if (weight == 0 || (entry.Weight > considerationWeight && entry.Weight <= weight)) {
+				int distance = Math.Abs(entry.Weight - weight);
+				if (distance < closestDistance) {
 					consideration = entry.AbsPath;
-					considerationWeight = entry.Weight;
+					closestDistance = distance;
 				}
 			}
 		}
