@@ -134,6 +134,8 @@ public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem file
 	List<FontAmalgam> FontAmalgams = [];
 	List<FreeTypeFont> FreeTypeFonts = [];
 
+	static ulong FontHash(ReadOnlySpan<char> name, int weight) => sprintf(stackalloc char[name.Length + 16], "%s-%i").S(name).I(weight).ToSpan().Hash();
+
 	Dictionary<ulong, nint> FontBinaries = [];
 	Dictionary<ulong, nint> FontBinaryLengths = [];
 	Dictionary<ulong, string> CustomFontFiles = [];
@@ -273,12 +275,15 @@ public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem file
 		return false;
 	}
 
-	internal byte* GetFontBinary(ReadOnlySpan<char> fontName, out nint length) {
-		if (!FontBinaries.TryGetValue(fontName.Hash(), out nint binary)) {
+	internal byte* GetFontBinary(ReadOnlySpan<char> fontName, int weight, out nint length) {
+		UtlSymId_t hash = FontHash(fontName, weight);
+
+		if (!FontBinaries.TryGetValue(hash, out nint binary)) {
 			length = 0;
 			return null;
 		}
-		length = FontBinaryLengths[fontName.Hash()];
+
+		length = FontBinaryLengths[hash];
 		return (byte*)binary;
 	}
 
@@ -291,10 +296,11 @@ public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem file
 			}
 		}
 		if (foundFont == null) {
-			if (!FontBinaries.TryGetValue(fontName.Hash(), out nint binary)) {
+			ulong hash = FontHash(fontName, weight);
+			if (!FontBinaries.TryGetValue(hash, out nint binary)) {
 				// Load the binary
 				if (!CustomFontFiles.TryGetValue(fontName.Hash(), out string? filePath))
-					filePath = new(system.GetSystemFontPath(fontName)); // If not custom font file, load from the OS
+					filePath = new(system.GetSystemFontPath(fontName, weight)); // If not custom font file, load from the OS
 
 				FileInfo info = new(filePath);
 				if (!info.Exists)
@@ -304,8 +310,8 @@ public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem file
 				binary = (nint)NativeMemory.AllocZeroed((nuint)file.Length);
 				using UnmanagedMemoryStream stream = new UnmanagedMemoryStream((byte*)binary, 0, file.Length, FileAccess.Write);
 				file.CopyTo(stream);
-				FontBinaries[fontName.Hash()] = binary;
-				FontBinaryLengths[fontName.Hash()] = (nint)info.Length;
+				FontBinaries[hash] = binary;
+				FontBinaryLengths[hash] = (nint)info.Length;
 			}
 
 			FreeTypeFont font = new FreeTypeFont(this, system);

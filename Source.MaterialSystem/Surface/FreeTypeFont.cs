@@ -79,7 +79,7 @@ public unsafe class FreeTypeFont : BaseFont
 
 		FT_Error error;
 
-		byte* font = fontManager.GetFontBinary(fontName, out nint length);
+		byte* font = fontManager.GetFontBinary(fontName, weight, out nint length);
 		if (font == null)
 			return false;
 

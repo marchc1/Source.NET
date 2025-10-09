@@ -1,4 +1,4 @@
-﻿using Source.Common.Formats.Keyvalues;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.Input;
 
 namespace Source.Common.Launcher;
@@ -61,5 +61,5 @@ public interface ISystem
 	/// </summary>
 	/// <param name="fontName"></param>
 	/// <returns></returns>
-	ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName);
+	ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName, int weight = 0);
 }

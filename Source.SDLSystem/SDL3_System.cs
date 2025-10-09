@@ -1,16 +1,11 @@
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Input;
 using Source.Common.Launcher;
-using System.Text.RegularExpressions;
 using Source.Common.Commands;
 using SDL;
 using System.Runtime.InteropServices;
 using System.Text;
-
-
-
-
-
+using CommunityToolkit.HighPerformance;
 
 #if WIN32
 using Microsoft.Win32;
@@ -166,30 +161,70 @@ public unsafe class SDL3_System(ICommandLine commandLine) : ISystem
 #if WIN32
 #pragma warning disable CA1416 // Validate platform compatibility (WIN32 ifdef catches this instead)
 	static string[] possibleKeys = [@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", @"SOFTWARE\Microsoft\Windows\CurrentVersion\Fonts"];
-	public ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName) {
-		foreach (var keyPath in possibleKeys) {
-			using var baseKey = Registry.LocalMachine.OpenSubKey(keyPath, false);
-			if (baseKey is null)
-				continue;
 
-			foreach (var valueName in baseKey.GetValueNames()) {
-				var normalized = Regex.Replace(valueName, @"\s*\(.*?\)$", "").Trim();
-				if (fontName.Equals(normalized, StringComparison.OrdinalIgnoreCase)) {
-					var fontFile = baseKey.GetValue(valueName)?.ToString();
-					if (string.IsNullOrEmpty(fontFile))
-						continue;
+	struct Entry
+	{
+		public string Name;
+		public int Index;
+		public int Weight;
+		public bool Italic;
+		public string AbsPath;
+	}
+	List<Entry>? Entries;
 
-					return Path.IsPathRooted(fontFile)
-						? fontFile
-						: Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), fontFile);
+	public ReadOnlySpan<char> GetEntryPath(ReadOnlySpan<char> name, int weight, bool italic) {
+		if (Entries == null) {
+			Entries = [];
+			string windowsDirectory = Environment.GetEnvironmentVariable("windir")!;
+			string fontsPath = Path.Combine(windowsDirectory, "Fonts");
+			foreach (var keyPath in possibleKeys) {
+				using var baseKey = Registry.LocalMachine.OpenSubKey(keyPath, false);
+				if (baseKey is null)
+					continue;
+
+				foreach (var valueName in baseKey.GetValueNames()) {
+					var value = baseKey.GetValue(valueName);
+
+					string absPath = Path.Combine(fontsPath, (string)value!);
+					int i = 0;
+					foreach (var entry in GetFontConditions(absPath)) {
+						Entries.Add(new() {
+							AbsPath = absPath,
+							Index = i++,
+							Italic = italic,
+							Weight = entry.Weight,
+							Name = entry.Name
+						});
+					}
 				}
 			}
 		}
-		return null;
+
+		Span<Entry> entries = Entries.AsSpan();
+
+		string? consideration = null;
+		int considerationWeight = 0;
+
+		for (int i = 0; i < entries.Length; i++) {
+			ref Entry entry = ref entries[i];
+
+			if (name.Equals(entry.Name, StringComparison.OrdinalIgnoreCase)) {
+				if (weight == 0 || (entry.Weight > considerationWeight && entry.Weight <= weight)) {
+					consideration = entry.AbsPath;
+					considerationWeight = entry.Weight;
+				}
+			}
+		}
+
+		return consideration;
+	}
+
+	public ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName, int weight = 0) {
+		return GetEntryPath(fontName, weight, false);
 	}
 #pragma warning restore CA1416 // Validate platform compatibility
 #elif LINUX
-public ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName) {
+public ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName, int weight = 0) {
 		try {
 			var processStartInfo = new System.Diagnostics.ProcessStartInfo {
 				FileName = "fc-match",
@@ -221,7 +256,151 @@ public ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName) {
 #error Please implement System.GetSystemFontPath for this platform
 #endif
 
-	string language = "english";
+	private static ushort SwapUInt16(ushort val) {
+		return (ushort)((val >> 8) | (val << 8));
+	}
+
+	private static uint SwapUInt32(uint val) {
+		return (val >> 24) |
+			   ((val >> 8) & 0x0000FF00) |
+			   ((val << 8) & 0x00FF0000) |
+			   (val << 24);
+	}
+	// TODO: Make these soft warnings
+	struct FontConditions {
+		public string Name;
+		public int Weight;
+	}
+	private FontConditions[] GetFontConditions(string absPath) {
+		ReadOnlySpan<char> cExt = absPath.AsSpan().GetFileExtension();
+		Span<char> ext = stackalloc char[cExt.Length];
+		cExt.ToLowerInvariant(ext);
+		switch (ext) {
+			case "ttc": {
+					using var stream = new FileStream(absPath, FileMode.Open, FileAccess.Read);
+					using var reader = new BinaryReader(stream);
+
+					string tag = Encoding.ASCII.GetString(reader.ReadBytes(4));
+					if (tag != "ttcf") {
+						Warning("Not a valid TTC file.\n");
+						return [];
+					}
+
+					reader.BaseStream.Seek(4, SeekOrigin.Current); // skip version
+					uint numFonts = SwapUInt32(reader.ReadUInt32());
+
+					int[] offsets = new int[numFonts];
+					for (int i = 0; i < numFonts; i++) {
+						offsets[i] = (int)SwapUInt32(reader.ReadUInt32());
+					}
+
+					FontConditions[] conditions = new FontConditions[numFonts];
+					for (int i = 0; i < numFonts; i++) 
+						conditions[i] = ParseTtfAtOffset(reader, offsets[i]);
+					return conditions;
+				}
+			case "ttf": {
+					using (var stream = new FileStream(absPath, FileMode.Open, FileAccess.Read))
+					using (var reader = new BinaryReader(stream)) {
+						return [ParseTtfAtOffset(reader, 0)];
+					}
+				}
+			default: return [];
+		}
+	}
+
+	private FontConditions ParseTtfAtOffset(BinaryReader reader, int offset) {
+		reader.BaseStream.Seek(offset, SeekOrigin.Begin);
+
+		// Read TTF header
+		reader.BaseStream.Seek(4, SeekOrigin.Current); // skip scaler type
+		ushort numTables = SwapUInt16(reader.ReadUInt16());
+		reader.BaseStream.Seek(6, SeekOrigin.Current); // skip searchRange, entrySelector, rangeShift
+
+		uint os2Offset = 0;
+		uint nameOffset = 0;
+
+		// Locate OS/2 and name tables
+		for (int i = 0; i < numTables; i++) {
+			string tag = Encoding.ASCII.GetString(reader.ReadBytes(4));
+			reader.BaseStream.Seek(4, SeekOrigin.Current); // skip checksum
+			uint tableOffset = SwapUInt32(reader.ReadUInt32());
+			reader.BaseStream.Seek(4, SeekOrigin.Current); // skip length
+
+			if (tag == "OS/2") os2Offset = tableOffset;
+			if (tag == "name") nameOffset = tableOffset;
+		}
+
+		if (os2Offset == 0)
+			throw new Exception("OS/2 table not found.");
+		if (nameOffset == 0)
+			throw new Exception("name table not found.");
+
+		// Read font weight
+		reader.BaseStream.Seek(os2Offset + 4, SeekOrigin.Begin); // usWeightClass at offset 4
+		ushort usWeightClass = SwapUInt16(reader.ReadUInt16());
+
+		// Read name table
+		reader.BaseStream.Seek(nameOffset, SeekOrigin.Begin);
+		SwapUInt16(reader.ReadUInt16()); // format
+		ushort count = SwapUInt16(reader.ReadUInt16());
+		ushort stringOffset = SwapUInt16(reader.ReadUInt16());
+
+		string? baseFamily = null;
+		string? subFamily = null;
+		string? fullName = null;
+
+		for (int i = 0; i < count; i++) {
+			ushort platformID = SwapUInt16(reader.ReadUInt16());
+			ushort encodingID = SwapUInt16(reader.ReadUInt16());
+			ushort languageID = SwapUInt16(reader.ReadUInt16());
+			ushort nameID = SwapUInt16(reader.ReadUInt16());
+			ushort length = SwapUInt16(reader.ReadUInt16());
+			ushort offsetInTable = SwapUInt16(reader.ReadUInt16());
+
+			long currentPos = reader.BaseStream.Position;
+
+			// Decode string
+			reader.BaseStream.Seek(nameOffset + stringOffset + offsetInTable, SeekOrigin.Begin);
+			byte[] nameData = reader.ReadBytes(length);
+
+			string decodedName = (platformID == 0 || platformID == 3)
+				? Encoding.BigEndianUnicode.GetString(nameData)
+				: Encoding.ASCII.GetString(nameData);
+
+			// Store values based on nameID
+			switch (nameID) {
+				case 1: baseFamily = decodedName; break;   // Family
+				case 2: subFamily = decodedName; break;    // Subfamily (Bold, Italic)
+				case 4: fullName = decodedName; break;     // Full font name
+			}
+
+			reader.BaseStream.Seek(currentPos, SeekOrigin.Begin);
+		}
+
+		// Determine the best family name
+		string familyName;
+		if (!string.IsNullOrEmpty(fullName)) {
+			// Remove style suffix if it matches subFamily
+			familyName = fullName;
+			if (!string.IsNullOrEmpty(subFamily) &&
+				familyName.EndsWith(subFamily, StringComparison.OrdinalIgnoreCase)) {
+				familyName = familyName.Substring(0, familyName.Length - subFamily.Length).TrimEnd();
+			}
+		}
+		else if (!string.IsNullOrEmpty(baseFamily)) {
+			familyName = baseFamily;
+		}
+		else {
+			familyName = "Unknown";
+		}
+
+		return new FontConditions {
+			Name = familyName,
+			Weight = usWeightClass
+		};
+	}
+
 	public void GetUILanguage(Span<char> destination) {
 		language.AsSpan().ClampedCopyTo(destination);
 	}
