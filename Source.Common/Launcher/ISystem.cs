@@ -61,5 +61,5 @@ public interface ISystem
 	/// </summary>
 	/// <param name="fontName"></param>
 	/// <returns></returns>
-	ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName, int weight = 0);
+	ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName, int weight = 0, bool italic = false);
 }

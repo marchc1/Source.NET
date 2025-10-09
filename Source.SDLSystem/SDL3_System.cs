@@ -187,13 +187,13 @@ public unsafe class SDL3_System(ICommandLine commandLine) : ISystem
 
 					string absPath = Path.Combine(fontsPath, (string)value!);
 					int i = 0;
-					foreach (var entry in GetFontConditions(absPath)) {
+					foreach (var fontfile in GetFontConditions(absPath)) {
 						Entries.Add(new() {
 							AbsPath = absPath,
 							Index = i++,
-							Italic = italic,
-							Weight = entry.Weight,
-							Name = entry.Name
+							Italic = fontfile.Italic,
+							Weight = fontfile.Weight,
+							Name = fontfile.Name
 						});
 					}
 				}
@@ -208,7 +208,7 @@ public unsafe class SDL3_System(ICommandLine commandLine) : ISystem
 		for (int i = 0; i < entries.Length; i++) {
 			ref Entry entry = ref entries[i];
 
-			if (name.Equals(entry.Name, StringComparison.OrdinalIgnoreCase)) {
+			if (entry.Italic == italic && name.Equals(entry.Name, StringComparison.OrdinalIgnoreCase)) {
 				int distance = Math.Abs(entry.Weight - weight);
 				if (distance < closestDistance) {
 					consideration = entry.AbsPath;
@@ -220,12 +220,12 @@ public unsafe class SDL3_System(ICommandLine commandLine) : ISystem
 		return consideration;
 	}
 
-	public ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName, int weight = 0) {
-		return GetEntryPath(fontName, weight, false);
+	public ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName, int weight = 0, bool italic = false) {
+		return GetEntryPath(fontName, weight, italic);
 	}
 #pragma warning restore CA1416 // Validate platform compatibility
 #elif LINUX
-public ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName, int weight = 0) {
+	public ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName, int weight = 0, bool italic = false) {
 		try {
 			var processStartInfo = new System.Diagnostics.ProcessStartInfo {
 				FileName = "fc-match",
@@ -268,9 +268,11 @@ public ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName, int wei
 			   (val << 24);
 	}
 	// TODO: Make these soft warnings
-	struct FontConditions {
+	struct FontConditions
+	{
 		public string Name;
 		public int Weight;
+		public bool Italic;
 	}
 	private FontConditions[] GetFontConditions(string absPath) {
 		ReadOnlySpan<char> cExt = absPath.AsSpan().GetFileExtension();
@@ -296,7 +298,7 @@ public ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName, int wei
 					}
 
 					FontConditions[] conditions = new FontConditions[numFonts];
-					for (int i = 0; i < numFonts; i++) 
+					for (int i = 0; i < numFonts; i++)
 						conditions[i] = ParseTtfAtOffset(reader, offsets[i]);
 					return conditions;
 				}
@@ -340,6 +342,11 @@ public ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName, int wei
 		// Read font weight
 		reader.BaseStream.Seek(os2Offset + 4, SeekOrigin.Begin); // usWeightClass at offset 4
 		ushort usWeightClass = SwapUInt16(reader.ReadUInt16());
+
+		// Read fsSelection to detect Italic (offset 62 from start of OS/2 table)
+		reader.BaseStream.Seek(os2Offset + 62, SeekOrigin.Begin);
+		ushort fsSelection = SwapUInt16(reader.ReadUInt16());
+		bool italic = (fsSelection & 0x01) != 0;
 
 		// Read name table
 		reader.BaseStream.Seek(nameOffset, SeekOrigin.Begin);
@@ -398,7 +405,8 @@ public ReadOnlySpan<char> GetSystemFontPath(ReadOnlySpan<char> fontName, int wei
 
 		return new FontConditions {
 			Name = familyName,
-			Weight = usWeightClass
+			Weight = usWeightClass,
+			Italic = italic
 		};
 	}
 
