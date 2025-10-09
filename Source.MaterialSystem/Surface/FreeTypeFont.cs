@@ -104,7 +104,7 @@ public unsafe class FreeTypeFont : BaseFont
 			tm = face->size->metrics;
 		}
 
-		Height = (uint)(tm.height >> 6) + DropShadowOffset + 2 * OutlineSize;
+		Height = (uint)((tm.height + ((DropShadowOffset + 2 * OutlineSize) << 6)) >> 6);
 		MaxCharWidth = (uint)(tm.max_advance >> 6);
 		Ascent = (uint)(tm.ascender >> 6);
 
@@ -146,10 +146,10 @@ public unsafe class FreeTypeFont : BaseFont
 		if (!Glyphs.TryGetValue(ch, out GlyphABC glyphABC)) {
 			LoadChar(ch);
 			FT_GlyphSlotRec_* g = face->glyph;
-
-			a = (int)(g->metrics.horiBearingX >> 6);          // leading
-			b = (int)(g->metrics.width >> 6);                 // glyph width
-			c = (int)((g->metrics.horiAdvance >> 6) - a - b); // trailing
+			ref FT_Glyph_Metrics_ metrics = ref g->metrics;
+			a = (int)((metrics.horiBearingX >> 6) - Blur - OutlineSize);
+			b = (int)((metrics.width >> 6) + ((Blur + OutlineSize) * 2) + DropShadowOffset);
+			c = (int)(((metrics.horiAdvance - metrics.horiBearingX - metrics.width) >> 6) - Blur - DropShadowOffset - OutlineSize);
 
 			glyphABC = new() {
 				A = a,
@@ -219,7 +219,7 @@ public unsafe class FreeTypeFont : BaseFont
 		for (int y = 0; y < bmpHeight; y++) {
 			byte* row = buffer + y * pitch;
 			for (int x = 0; x < bmpWidth; x++) {
-				int dstX = x;
+				int dstX = x + (int)OutlineSize;
 				int dstY = (int)(Ascent - rec->bitmap_top + y);
 
 				if (dstX < 0 || dstY < 0 || dstX >= rgbaWide || dstY >= rgbaTall)
@@ -244,10 +244,10 @@ public unsafe class FreeTypeFont : BaseFont
 				}
 
 				int dstIndex = (dstY * rgbaWide + dstX) * 4;
-				rgba[dstIndex + 0] = 255;  
-				rgba[dstIndex + 1] = 255;  
-				rgba[dstIndex + 2] = 255;  
-				rgba[dstIndex + 3] = coverage; 
+				rgba[dstIndex + 0] = 255;
+				rgba[dstIndex + 1] = 255;
+				rgba[dstIndex + 2] = 255;
+				rgba[dstIndex + 3] = coverage;
 			}
 		}
 	}
