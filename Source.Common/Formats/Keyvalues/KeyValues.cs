@@ -427,7 +427,7 @@ public class KeyValues : IEnumerable<KeyValues>
 			if (dat.Type == Types.String && value.Equals(dat.Value?.ToString(), StringComparison.Ordinal))
 				return;
 
-			if (value == null)
+			if (value.IsEmpty)
 				value = "";
 			dat.Value = new string(value);
 			dat.Type = Types.String;
@@ -697,7 +697,7 @@ public class KeyValues : IEnumerable<KeyValues>
 	public void SetStringValue(ReadOnlySpan<char> str) {
 		Value = null;
 
-		if (str == null)
+		if (str.IsEmpty)
 			str = "";
 
 		Value = new string(str);

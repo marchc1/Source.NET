@@ -192,12 +192,12 @@ public class MatSystemSurface : IMatSystemSurface
 			checkedCommandLine = true;
 
 			ReadOnlySpan<char> pX = CommandLine.ParmValue("-pixel_offset_x", null);
-			if (pX != null)
+			if (!pX.IsEmpty)
 				pixelOffsetX = float.TryParse(pX, out pixelOffsetX) ? pixelOffsetX : 0;
 
 
 			ReadOnlySpan<char> pY = CommandLine.ParmValue("-pixel_offset_y", null);
-			if (pY != null)
+			if (!pY.IsEmpty)
 				pixelOffsetY = float.TryParse(pY, out pixelOffsetY) ? pixelOffsetY : 0;
 		}
 
@@ -513,7 +513,7 @@ public class MatSystemSurface : IMatSystemSurface
 	public void DrawPrintText(ReadOnlySpan<char> text, FontDrawType drawType = FontDrawType.Default) {
 		Assert(InDrawing);
 
-		if (text == null)
+		if (text.IsEmpty)
 			return;
 
 		if (CurrentFont == null)
@@ -1064,7 +1064,7 @@ public class MatSystemSurface : IMatSystemSurface
 		Assert(InDrawing);
 
 		// Don't even bother drawing fully transparent junk
-		if (vertices == null || vertices.Length == 0 || DrawColor[3] == 0)
+		if (vertices.IsEmpty || vertices.Length == 0 || DrawColor[3] == 0)
 			return;
 
 		if (clipVertices) {

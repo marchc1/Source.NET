@@ -1,4 +1,4 @@
-﻿using Source.Common;
+using Source.Common;
 using Source.Common.GUI;
 
 namespace Source.GUI.Controls;
@@ -60,10 +60,10 @@ public class TextImage : Image
 
 
 	public void SetText(ReadOnlySpan<char> text) {
-		if (text == null)
+		if (text.IsEmpty)
 			text = "";
 
-		if (text != null && text.Length > 0 && text[0] == '#') {
+		if (!text.IsEmpty && text.Length > 0 && text[0] == '#') {
 			UnlocalizedTextSymbol = Localize.FindIndex(text[1..]);
 			if(UnlocalizedTextSymbol != ulong.MaxValue) {
 				SetText(Localize.GetValueByIndex(UnlocalizedTextSymbol));
@@ -79,7 +79,7 @@ public class TextImage : Image
 			UnlocalizedTextSymbol = unchecked((ulong)-1);
 		}
 
-		if (text == null)
+		if (text.IsEmpty)
 			text = "";
 
 		Text = new(text);

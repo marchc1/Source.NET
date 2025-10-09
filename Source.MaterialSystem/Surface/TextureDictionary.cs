@@ -243,7 +243,7 @@ public class MatSystemTexture(IMaterialSystem materials)
 
 		Assert(Regen);
 
-		Assert(rgba != null);
+		Assert(!rgba.IsEmpty);
 
 		Rectangle subRect = new();
 		subRect.X = drawX;

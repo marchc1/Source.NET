@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.HighPerformance;
+using CommunityToolkit.HighPerformance;
 
 using Game.Shared;
 
@@ -736,7 +736,7 @@ public class BaseHudChat : EditableHudElement
 		ChatInput.ClearEntry();
 
 		ReadOnlySpan<char> prompt = MessageMode == MessageModeType.Say ? Localize.Find("#chat_say") : Localize.Find("#chat_say_team");
-		if (prompt != null)
+		if (!prompt.IsEmpty)
 			ChatInput.SetPrompt(prompt);
 		else
 			ChatInput.SetPrompt(MessageMode == MessageModeType.Say ? "Say : " : "Say (TEAM) :");

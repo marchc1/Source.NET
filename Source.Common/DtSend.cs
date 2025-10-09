@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.HighPerformance;
+using CommunityToolkit.HighPerformance;
 
 using Source.Common.Engine;
 using Source.Common.Mathematics;
@@ -753,7 +753,7 @@ public class SendTable : IEnumerable<SendProp>, IDataTableBase<SendProp>
 			if (prop.IsExcludeProp()) {
 				ReadOnlySpan<char> pName = prop.GetExcludeDTName();
 
-				ErrorIfNot(pName != null, "Found an exclude prop missing a name.");
+				ErrorIfNot(!pName.IsEmpty, "Found an exclude prop missing a name.");
 				ErrorIfNot(numExcludeProps < maxExcludeProps, $"SendTable_GetPropsExcluded: Overflowed max exclude props with {pName}.");
 
 				excludeProps[numExcludeProps].TableName = new(pName);

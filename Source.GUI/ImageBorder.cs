@@ -1,4 +1,4 @@
-﻿using Source.Common.Formats.Keyvalues;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 
 using System.Numerics;
@@ -20,7 +20,7 @@ public class ImageBorder : Border
 	}
 
 	public virtual void SetImage(ReadOnlySpan<char> imageName) {
-		if (imageName != null && imageName.Length > 0) {
+		if (!imageName.IsEmpty && imageName.Length > 0) {
 			ImageName = "vgui/" + new string(imageName);
 			Surface.DrawSetTextureFile(TextureID, imageName, 1, false);
 		}

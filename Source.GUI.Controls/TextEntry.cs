@@ -1701,12 +1701,12 @@ public class TextEntry : Panel
 	}
 
 	public void SetText(ReadOnlySpan<char> text) {
-		if (text == null)
+		if (text.IsEmpty)
 			text = "";
 
 		if (text.Length > 0 && text[0] == '#') {
 			ReadOnlySpan<char> localized = Localize.Find(text);
-			if (localized != null) {
+			if (!localized.IsEmpty) {
 				SetText(text);
 				return;
 			}

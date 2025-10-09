@@ -1,4 +1,4 @@
-﻿using Source.Common;
+using Source.Common;
 using Source.Common.Client;
 using Source.Common.GameUI;
 using Source.GUI.Controls;
@@ -118,7 +118,7 @@ public class LoadingDialog : Frame
 
 		SetupControlSettingsForErrorDisplay("resource/LoadingDialogError.res");
 
-		if (extendedReason != null && extendedReason.Length > 0) {
+		if (!extendedReason.IsEmpty && extendedReason.Length > 0) {
 			ReadOnlySpan<char> fail = failureReason[0] == '#' ? Localize.Find(failureReason) : failureReason;
 			ReadOnlySpan<char> ext = extendedReason[0] == '#' ? Localize.Find(extendedReason) : extendedReason;
 

@@ -790,7 +790,7 @@ public abstract class BaseClientState(
 	}
 
 	private ClientClass? FindClientClass(ReadOnlySpan<char> className) {
-		if (className == null || className.IsEmpty)
+		if (className.IsEmpty || className.IsEmpty)
 			return null;
 
 		for (ClientClass? cur = Host.ClientDLL.GetAllClasses(); cur != null; cur = cur.Next) 

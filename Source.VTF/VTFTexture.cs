@@ -1,4 +1,4 @@
-﻿using Source.Bitmap;
+using Source.Bitmap;
 using Source.Common;
 using Source.Common.Bitmap;
 
@@ -619,7 +619,7 @@ public sealed class VTFTexture : IVTFTexture
 		int lastAvailableMip = MipCount - 1;
 
 		Span<byte> data = GetResourceData(ResourceEntryType.TextureLOD);
-		if (data != null) {
+		if (!data.IsEmpty) {
 			ref TextureStreamSettings_t streamSettings = ref MemoryMarshal.Cast<byte, TextureStreamSettings_t>(data)[0];
 			firstAvailableMip = Math.Max(0, streamSettings.FirstAvailableMip - skipMipLevels);
 			lastAvailableMip = Math.Max(0, streamSettings.LastAvailableMip - skipMipLevels);
@@ -811,7 +811,7 @@ public sealed class VTFTexture : IVTFTexture
 	int IVTFTexture.Width() => Width;
 
 	public uint GetResourceTypes(Span<ResourceEntryType> arrRsrcTypes) {
-		if (arrRsrcTypes != null)
+		if (!arrRsrcTypes.IsEmpty)
 			for (int i = 0; i < Math.Min(arrRsrcTypes.Length, Resources.Count); i++)
 				arrRsrcTypes[i] = Resources[i].Tag;
 

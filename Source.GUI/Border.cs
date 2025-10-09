@@ -1,4 +1,4 @@
-﻿using Source.Common;
+using Source.Common;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 
@@ -51,7 +51,7 @@ public class Border : IBorder
 
 			col = kv.GetString("offset", null);
 			int start = 0, end = 0;
-			if (col != null) 
+			if (!col.IsEmpty) 
 				new ScanF(col, "%d %d").Read(out start).Read(out end);
 			
 			line.StartOffset = start;

@@ -1,4 +1,4 @@
-﻿using Source.Common.MaterialSystem;
+using Source.Common.MaterialSystem;
 using Source.Common.ShaderAPI;
 using Source.Common.ShaderLib;
 
@@ -216,10 +216,10 @@ public abstract class BaseShader : IShader
 	}
 
 	private float GetAlpha(Span<IMaterialVar> parms) {
-		if (parms == null)
+		if (parms.IsEmpty)
 			parms = Params;
 
-		if (parms == null)
+		if (parms.IsEmpty)
 			return 1.0f;
 
 		if ((parms[(int)ShaderMaterialVars.Flags].GetIntValue() & (int)MaterialVarFlags.NoAlphaMod) != 0)

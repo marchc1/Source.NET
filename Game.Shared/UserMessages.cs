@@ -1,4 +1,4 @@
-﻿namespace Game.Shared;
+namespace Game.Shared;
 
 using Source.Common.Bitbuffers;
 
@@ -68,8 +68,7 @@ public partial class UserMessages
 	}
 
 	public void HookMessage(ReadOnlySpan<char> name, UserMessageHook hook) {
-		Assert(name != null);
-		Assert(hook != null);
+		Assert(!name.IsEmpty && hook != null);
 
 		if (!nameToIntType.TryGetValue(new UtlSymbol(name), out int idx)) {
 			Assert(false, $"UserMessages.HookMessage: no such message {name}");

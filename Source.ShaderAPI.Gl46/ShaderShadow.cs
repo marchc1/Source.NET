@@ -70,7 +70,7 @@ public class ShadowStateGl46 : IShaderShadow
 	public unsafe ShadowStateGl46(IShaderAPI shaderAPI, IShaderSystemInternal shaderSystem, ReadOnlySpan<char> name = default) {
 		ShaderAPI = shaderAPI;
 		Shaders = shaderSystem;
-		this.name = name == null ? null : new(name);
+		this.name = name.IsEmpty ? null : new(name);
 
 		if (shaderAPI.IsActive()) {
 			CreateShaderObjects();

@@ -299,7 +299,7 @@ public class BaseFileSystem : IFileSystem
 	public void CreateDirHierarchy(ReadOnlySpan<char> relativePath, ReadOnlySpan<char> pathID) {
 		Span<char> scratchFileName = stackalloc char[MAX_PATH];
 		if (!Path.IsPathFullyQualified(relativePath)) {
-			Assert(pathID != null);
+			Assert(!pathID.IsEmpty);
 			ComputeFullWritePath(scratchFileName, relativePath, pathID);
 		}
 		else {
@@ -316,7 +316,7 @@ public class BaseFileSystem : IFileSystem
 				if (searchPath is not DiskSearchPath)
 					continue;
 
-				if (pathID == null || searchPaths.Key == hash)
+				if (pathID.IsEmpty || searchPaths.Key == hash)
 					return searchPath;
 			}
 		}
@@ -324,7 +324,7 @@ public class BaseFileSystem : IFileSystem
 	}
 	private ReadOnlySpan<char> GetWritePath(ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID) {
 		SearchPath? searchPath = null;
-		if (pathID != null && pathID.Length > 0) {
+		if (!pathID.IsEmpty && pathID.Length > 0) {
 			if (pathID.Equals("game", StringComparison.OrdinalIgnoreCase))
 				searchPath = FindWritePath(filename, "game_write");
 			else if (pathID.Equals("game", StringComparison.OrdinalIgnoreCase))

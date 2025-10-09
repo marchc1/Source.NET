@@ -1,4 +1,4 @@
-﻿
+
 using Microsoft.Extensions.DependencyInjection;
 
 using SDL;
@@ -556,7 +556,7 @@ public class SDL3_InputSystem(IServiceProvider services) : IInputSystem
 	};
 
 	public ButtonCode StringToButtonCode(ReadOnlySpan<char> str) {
-		if (str == null || str.Length <=0)
+		if (str.IsEmpty || str.Length <=0)
 			return ButtonCode.Invalid;
 
 		for (ButtonCode i = 0; i < ButtonCode.Last; ++i) 

@@ -1,4 +1,4 @@
-﻿using Source.Common.Commands;
+using Source.Common.Commands;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Utilities;
@@ -59,7 +59,7 @@ public class BuildGroup
 			dat = new KeyValues(controlResourceName);
 
 			bool bSuccess = false;
-			if (pathID == null)
+			if (pathID.IsEmpty)
 				bSuccess = dat.LoadFromFile(fileSystem, controlResourceName, "SKIN");
 
 			if (!bSuccess)
@@ -87,7 +87,7 @@ public class BuildGroup
 
 		ResourceName = new(controlResourceName);
 
-		if (pathID != null)
+		if (!pathID.IsEmpty)
 			ResourcePathID = new(pathID);
 
 		DeleteAllControlsCreatedByControlSettingsFile();
@@ -138,9 +138,8 @@ public class BuildGroup
 				}
 			}
 
-			if (!found)
-				if (keyName != null)
-					NewControl(controlKeys);
+			if (!found && !keyName.IsEmpty)
+				NewControl(controlKeys);
 		}
 	}
 

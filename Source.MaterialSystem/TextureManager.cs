@@ -1,4 +1,4 @@
-﻿using Source.Common;
+using Source.Common;
 using Source.Common.Bitmap;
 using Source.Common.MaterialSystem;
 using Source.Common.MaterialSystem.TextureRegenerators;
@@ -134,7 +134,7 @@ public class TextureManager : ITextureManager
 
 	internal ITextureInternal? CreateRenderTargetTexture(ReadOnlySpan<char> rtName, int w, int h, RenderTargetSizeMode sizeMode, ImageFormat format, RenderTargetType type, TextureFlags textureFlags, CreateRenderTargetFlags renderTargetFlags) {
 		ITextureInternal? texture;
-		if(rtName != null) {
+		if(!rtName.IsEmpty) {
 			texture = FindTexture(rtName);
 			if(texture != null) {
 				((Texture)texture)!.InitRenderTarget(texture.GetName(), w, h, sizeMode, format, type, textureFlags, renderTargetFlags);

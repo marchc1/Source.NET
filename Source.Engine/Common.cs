@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
 using Source.Common.Engine;
@@ -44,7 +44,7 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 	}
 
 	public static bool IsValidPath(ReadOnlySpan<char> filename) {
-		if (filename == null)
+		if (filename.IsEmpty)
 			return false;
 
 		if (filename.Length == 0
@@ -60,7 +60,7 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 	}
 
 	public void ExplainDisconnection(bool print, ReadOnlySpan<char> disconnectReason) {
-		if (print && disconnectReason != null) {
+		if (print && !disconnectReason.IsEmpty) {
 			if (disconnectReason.Length > 0 && disconnectReason[0] == '#')
 				disconnectReason = Localize == null ? disconnectReason : Localize.Find(disconnectReason);
 

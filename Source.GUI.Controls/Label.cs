@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.HighPerformance;
+using CommunityToolkit.HighPerformance;
 
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
@@ -183,7 +183,7 @@ public class Label : Panel
 	}
 	public virtual void GetText(Span<char> textOut) { }
 	public virtual void SetText(ReadOnlySpan<char> text) {
-		if (text == null)
+		if (text.IsEmpty)
 			text = "";
 
 		TextImage!.SetText(text);
@@ -262,7 +262,7 @@ public class Label : Panel
 		base.ApplySettings(resourceData);
 
 		ReadOnlySpan<char> labelText = resourceData.GetString("labelText", null);
-		if (labelText != null && labelText.Length > 0) {
+		if (!labelText.IsEmpty && labelText.Length > 0) {
 			if (labelText[0] == '%' && labelText[labelText.Length - 1] == '%') {
 				// TODO: What is this exactly
 			}

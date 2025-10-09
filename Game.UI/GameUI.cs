@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
 using Source.Common.Client;
@@ -151,7 +151,7 @@ public class GameUI(IEngineClient engine) : IGameUI
 		if (LoadingDialog == null)
 			return false;
 
-		if (statusText == null || statusText.Length <= 0)
+		if (statusText.IsEmpty || statusText.Length <= 0)
 			return false;
 
 		if (statusText.Equals(PreviousStatusText, StringComparison.OrdinalIgnoreCase))
@@ -199,7 +199,7 @@ public class GameUI(IEngineClient engine) : IGameUI
 
 	public bool IsInLevel() {
 		ReadOnlySpan<char> levelName = engine.GetLevelName();
-		return levelName != null && levelName.Length > 0 && !engine.IsLevelMainMenuBackground();
+		return !levelName.IsEmpty && levelName.Length > 0 && !engine.IsLevelMainMenuBackground();
 	}
 
 	public bool IsInReplay() {

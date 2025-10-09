@@ -1,4 +1,4 @@
-﻿using Source.Common.Formats.Keyvalues;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.Input;
 using Source.Common.Launcher;
 using System.Text.RegularExpressions;
@@ -130,7 +130,7 @@ public unsafe class SDL3_System(ICommandLine commandLine) : ISystem
 	}
 
 	public unsafe void SetClipboardText(ReadOnlySpan<char> text) {
-		if (text == null)
+		if (text.IsEmpty)
 			SDL3.SDL_SetClipboardText("");
 
 		if (text.Length == 0)

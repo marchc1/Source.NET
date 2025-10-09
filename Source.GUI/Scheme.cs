@@ -115,7 +115,7 @@ public class Scheme : IScheme
 		KeyValues name = Data.FindKey("Name", true)!;
 		name.SetString("Name", inTag);
 
-		if (inTag != null)
+		if (!inTag.IsEmpty)
 			tag = new(inTag);
 
 		LoadFonts();
@@ -129,7 +129,7 @@ public class Scheme : IScheme
 			if (kv.Type != KeyValues.Types.String) {
 				IBorder? border = null;
 				ReadOnlySpan<char> borderType = kv.GetString("bordertype", null);
-				if (borderType != null && borderType.Length > 0) {
+				if (!borderType.IsEmpty && borderType.Length > 0) {
 					if (borderType.Equals("image", StringComparison.OrdinalIgnoreCase))
 						border = new ImageBorder();
 					else if (borderType.Equals("scalable_image", StringComparison.OrdinalIgnoreCase))
@@ -178,7 +178,7 @@ public class Scheme : IScheme
 
 		for (var kv = Data.FindKey("CustomFontFiles", true)!.GetFirstSubKey(); kv != null; kv = kv.GetNextKey()) {
 			ReadOnlySpan<char> fontFile = kv.GetString();
-			if (fontFile != null && fontFile[0] != 0) {
+			if (!fontFile.IsEmpty && fontFile[0] != 0) {
 				Surface.AddCustomFontFile(null, fontFile);
 			}
 			else {
@@ -207,7 +207,7 @@ public class Scheme : IScheme
 						}
 					}
 
-					if (fontFile != null && fontFile[0] != 0) {
+					if (!fontFile.IsEmpty && fontFile[0] != 0) {
 						Surface.AddCustomFontFile(name, fontFile);
 
 						if (useRange)
@@ -219,7 +219,7 @@ public class Scheme : IScheme
 
 		for (KeyValues? kv = Data.FindKey("BitmapFontFiles", true)!.GetFirstSubKey(); kv != null; kv = kv.GetNextKey()) {
 			ReadOnlySpan<char> fontFile = kv.GetString();
-			if (fontFile != null && fontFile[0] != 0) {
+			if (!fontFile.IsEmpty && fontFile[0] != 0) {
 				bool success = Surface.AddBitmapFontFile(fontFile);
 				if (success)
 					Surface.SetBitmapFontName(kv.Name, fontFile);
@@ -445,7 +445,7 @@ public class Scheme : IScheme
 
 	public Color GetColor(ReadOnlySpan<char> colorName, Color defaultColor) {
 		ReadOnlySpan<char> schemeValue = LookupSchemeSetting(colorName);
-		if (schemeValue == null)
+		if (schemeValue.IsEmpty)
 			return defaultColor;
 
 		if (new ScanF(schemeValue, "%d %d %d %d").Read(out int r).Read(out int g).Read(out int b).Read(out int a).ReadArguments >= 3)
@@ -466,11 +466,11 @@ public class Scheme : IScheme
 			return setting;
 
 		ReadOnlySpan<char> colStr = Colors.GetString(setting, null);
-		if (colStr != null)
+		if (!colStr.IsEmpty)
 			return colStr;
 
 		colStr = BaseSettings.GetString(setting, null);
-		if (colStr != null)
+		if (!colStr.IsEmpty)
 			return LookupSchemeSetting(colStr);
 
 		return setting;

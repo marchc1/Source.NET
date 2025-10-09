@@ -1,4 +1,4 @@
-﻿namespace Source.Engine;
+namespace Source.Engine;
 
 using Source.Common.Bitbuffers;
 using Source.Common.Engine;
@@ -69,7 +69,7 @@ public class NetworkStringTableItem
 		if (length > MAX_USERDATA_SIZE)
 			throw new ArgumentOutOfRangeException(nameof(length), "Length exceeds MAX_USERDATA_SIZE");
 
-		if (userData == null || length == 0) {
+		if (userData.IsEmpty || length == 0) {
 			UserData = null;
 			UserDataLength = 0;
 		}
