@@ -455,7 +455,7 @@ public static class UnmanagedUtils
 			list.Add(default);
 	}
 
-	public static void SetSize<T>(this List<T> list, int ensureTo) {
+	public static void SetSize<T>(this List<T?> list, int ensureTo) {
 		list.EnsureCapacity(ensureTo);
 
 		while (list.Count > ensureTo)

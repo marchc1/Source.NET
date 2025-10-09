@@ -176,7 +176,7 @@ public static class SendPropHelpers
 		}
 
 		ret.Type = SendPropType.Float;
-		ret.FieldInfo = field;
+		ret.FieldInfo = field!;
 		ret.Bits = bits;
 		ret.SetFlags(flags);
 		ret.LowValue = lowValue;
@@ -270,7 +270,8 @@ public static class SendPropHelpers
 	public static SendProp SendPropInt(string name, int bits = -1, PropFlags flags = 0, SendVarProxyFn? proxyFn = null, int sizeOfVar = -1)
 		=> SendPropInt(name, null, bits, flags, proxyFn, sizeOfVar);
 
-	public static SendProp SendPropInt(string? nameOverride, IFieldAccessor? field, int bits = -1, PropFlags flags = 0, SendVarProxyFn? proxyFn = null, int sizeOfVar = -1) {
+	// This only gets used by a couple of things in DtSend, where field can be null (like list proxies iirc)
+	private static SendProp SendPropInt(string? nameOverride, IFieldAccessor? field, int bits = -1, PropFlags flags = 0, SendVarProxyFn? proxyFn = null, int sizeOfVar = -1) {
 		SendProp ret = new();
 		sizeOfVar = sizeOfVar == -1
 						? field == null
@@ -297,7 +298,7 @@ public static class SendPropHelpers
 
 		ret.Type = SendPropType.Int;
 		ret.NameOverride = nameOverride;
-		ret.FieldInfo = field;
+		ret.FieldInfo = field!;
 		ret.Bits = bits;
 		ret.SetFlags(flags);
 
@@ -484,8 +485,11 @@ public class SendProp : IDataTableProp
 	public int GetOffset() => Offset;
 	public void SetOffset(int value) => Offset = value;
 
+	// Only used when creating clientsendtables iirc? So it's acceptable to be nulled out here
 	public SendProp() {
-
+		FieldInfo = null!;
+		Fn = null!;
+		DtFn = null!;
 	}
 	public SendProp(IFieldAccessor field, SendPropType type, int bits = 32, PropFlags flags = 0, float lowValue = 0f, float highValue = -121121.125f) {
 		Type = type;
@@ -494,6 +498,9 @@ public class SendProp : IDataTableProp
 		Flags = flags;
 		LowValue = lowValue;
 		HighValue = highValue;
+		// These should be set by the sendprop methods
+		Fn = null!;
+		DtFn = null!;
 	}
 	public SendProp(string? name, IFieldAccessor field, SendPropType type, int bits = 32, PropFlags flags = 0, float lowValue = 0f, float highValue = -121121.125f) {
 		NameOverride = name;
@@ -503,6 +510,10 @@ public class SendProp : IDataTableProp
 		Flags = flags;
 		LowValue = lowValue;
 		HighValue = highValue;
+		// These should be set by the sendprop methods
+
+		Fn = null!;
+		DtFn = null!;
 	}
 
 	public string? NameOverride;
@@ -613,7 +624,7 @@ public class SendProp : IDataTableProp
 }
 
 [DebuggerDisplay("SendTable '{NetTableName}'")]
-public class SendTable : IEnumerable<SendProp>, IDataTableBase<SendProp>
+public class SendTable : IDataTableBase<SendProp>
 {
 	public SendTable() { }
 	public SendTable(SendProp[] props) {
@@ -669,7 +680,7 @@ public class SendTable : IEnumerable<SendProp>, IDataTableBase<SendProp>
 
 	private static void BuildHierarchy_IterateProps(SendNode node, SendTable? table, ref BuildHierarchyStruct bhs, SendProp[] nonDatatableProps, ref int numNonDatatableProps) {
 		int i;
-		for (i = 0; i < (table?.Props?.Length ?? 0); i++) {
+		for (i = 0; i < table?.Props?.Length; i++) {
 			SendProp prop = table.Props![i];
 
 			if (prop.IsExcludeProp() || prop.IsInsideArray() || FindExcludeProp(table.GetName(), prop.GetName(), bhs.ExcludeProps!)) {
@@ -819,14 +830,6 @@ public class SendTable : IEnumerable<SendProp>, IDataTableBase<SendProp>
 
 		for (int i = 0; i < node.GetNumChildren(); i++)
 			FillPathEntries_R(precalc, node.GetChild(i), node, ref curEntry);
-	}
-
-	public IEnumerator<SendProp> GetEnumerator() {
-		return ((IEnumerable<SendProp>)Props).GetEnumerator();
-	}
-
-	IEnumerator IEnumerable.GetEnumerator() {
-		return Props.GetEnumerator();
 	}
 
 	public void SetHasPropsEncodedAgainstTickcount(bool state) {
