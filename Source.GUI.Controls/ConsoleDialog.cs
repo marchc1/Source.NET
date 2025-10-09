@@ -1,9 +1,28 @@
-﻿using Source.Common.Commands;
+using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Input;
 
 namespace Source.GUI.Controls;
+
+public class CNonFocusableMenu : Menu
+{
+	private Panel? FocusPanel;
+
+	public CNonFocusableMenu(Panel? parent, string? panelName) : base(parent, panelName) {
+		FocusPanel = null;
+	}
+
+	public void SetFocusPanel(Panel? panel) {
+		FocusPanel = panel;
+	}
+
+	public override IPanel? GetCurrentKeyFocus() {
+		if (FocusPanel == null)
+			return this;
+		return FocusPanel;
+	}
+}
 
 public class TabCatchingTextEntry : TextEntry
 {
@@ -24,7 +43,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 	internal RichText History;
 	internal TextEntry Entry;
 	internal Button Submit;
-	internal Menu CompletionList;
+	internal CNonFocusableMenu CompletionList;
 
 	protected Color PrintColor, DPrintColor;
 
@@ -35,8 +54,8 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 	protected bool WasBackspacing;
 	protected bool StatusVersion;
 
-	public override void OnTextChanged(Panel p) { 
-	
+	public override void OnTextChanged(Panel p) {
+
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
@@ -64,7 +83,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			if (command.Length > 0) 
 				AddToHistory(command, extra);
 			
-			// CompletionList.SetVisible(false);
+			 // CompletionList.SetVisible(false);
 		}
 		base.OnCommand(command);
 	}
@@ -85,9 +104,9 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		History.SetAllowKeyBindingChainToParent(false);
 		History.MakeReadyForUse();
 
-		// History.SetVerticalScrollbar(!m_bStatusVersion);
-		// if (StatusVersion)
-		// History.SetDrawOffsets(3, 3);
+		 // History.SetVerticalScrollbar(!statusVersion);
+		 // if (StatusVersion)
+			// History.SetDrawOffsets(3, 3);
 
 		// History.GotoTextEnd();
 
@@ -95,13 +114,13 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		Submit.SetCommand("submit");
 		Submit.SetVisible(!StatusVersion);
 
-		// var completionList = new NonFocusableMenu(this, "CompletionList");
-		// completionList.SetVisible(false);
+		CompletionList = new CNonFocusableMenu(this, "CompletionList");
+		CompletionList.SetVisible(false);
 
 		Entry = new TabCatchingTextEntry(this, "ConsoleEntry", CompletionList);
 		Entry.AddActionSignalTarget(this);
 		Entry.SendNewLine(true);
-		// completionList.SetFocusPanel(Entry);
+		CompletionList.SetFocusPanel(Entry);
 
 		PrintColor = new(216, 222, 211, 255);
 		DPrintColor = new(196, 181, 80, 255);
@@ -162,7 +181,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		PrintColor = GetSchemeColor("Console.TextColor", scheme);
 		DPrintColor = GetSchemeColor("Console.DevTextColor", scheme);
 		History.SetFont(scheme.GetFont("ConsoleText", IsProportional()));
-		// CompletionList.SetFont(scheme.GetFont("DefaultSmall", IsProportional()));
+		CompletionList.SetFont(scheme.GetFont("DefaultSmall", IsProportional()));
 
 		InvalidateLayout();
 	}
@@ -216,7 +235,21 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 	}
 
 	private void UpdateCompletionListPosition() {
+		Entry.GetPos(out int x, out int y);
 
+		if (!StatusVersion)
+			y = Entry.GetTall();
+		else
+			y = Entry.GetTall() + 4;
+
+		LocalToScreen(ref x, ref y);
+		CompletionList.SetPos(x, y);
+
+		if (CompletionList.IsVisible()) {
+			Entry.RequestFocus();
+			MoveToFront();
+			CompletionList.MoveToFront();
+		}
 	}
 
 	public bool TextEntryHasFocus() => Input.GetFocus() == Entry;
