@@ -452,7 +452,7 @@ public abstract class BaseClientState(
 				unsafe {
 					fixed (byte* uncompressedBfr = uncompressedBuffer)
 					fixed (byte* compressedBfr = compressedBuffer)
-						success = Net.BufferToBufferDecompress(uncompressedBfr, ref uncompressedSize, compressedBfr, uncompressedSize);
+						success = Net.BufferToBufferDecompress(uncompressedBuffer, ref uncompressedSize, compressedBuffer, uncompressedSize);
 				}
 				success &= (uncompressedSize == msgUncompressedSize);
 

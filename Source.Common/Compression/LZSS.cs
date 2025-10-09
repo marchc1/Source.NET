@@ -1,93 +1,63 @@
-﻿// C# implementation of Valve's implementation of LZSS. Complete with C++ memory safety hell
+// C# implementation of Valve's implementation of LZSS. -- Complete with C++ memory safety hell -- Now safe!!!
 
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Source.Common.Compression;
 
 public struct lzss_header_t
 {
-	public uint id;
-	public uint actualSize;    // always little endian
-};
-public unsafe struct lzss_node_t
-{
-	byte* pData;
-	lzss_node_t* pPrev;
-	lzss_node_t* pNext;
-	public fixed byte empty[4];
-};
+	public uint ID;
+	public uint ActualSize;
 
-public unsafe struct lzss_list_t
-{
-	lzss_node_t* pStart;
-	lzss_node_t* pEnd;
-};
-public unsafe class CLZSS
+	public const int SIZEOF = sizeof(uint) * 2;
+}
+
+public class CLZSS
 {
 	public const uint LZSS_ID = 'S' << 24 | 'S' << 16 | 'Z' << 8 | 'L';
 	public const uint SNAPPY_ID = 'P' << 24 | 'A' << 16 | 'N' << 8 | 'S';
-
-	private lzss_list_t* m_pHashTable;
-	private lzss_node_t* m_pHashTarget;
-	private int m_nWindowSize;
-
-	public CLZSS(int nWindowSize = 4096) {
-		m_nWindowSize = nWindowSize;
-	}
 
 	public static uint WordSwap(uint value) {
 		ushort temp = BitConverter.ToUInt16(BitConverter.GetBytes(value), 0);
 		temp = (ushort)(temp >> 8 | temp << 8);
 		return Unsafe.As<ushort, uint>(ref temp);
 	}
+
 	public static uint DWordSwap(uint value) {
 		uint temp = BitConverter.ToUInt32(BitConverter.GetBytes(value), 0);
 		temp = temp >> 24 | (temp & 0x00FF0000) >> 8 | (temp & 0x0000FF00) << 8 | temp << 24;
 		return Unsafe.As<uint, uint>(ref temp);
 	}
 
-
 	public const int LZSS_LOOKSHIFT = 4;
 	public const int LZSS_LOOKAHEAD = 1 << LZSS_LOOKSHIFT;
 
-	//-----------------------------------------------------------------------------
-	// Returns true if buffer is compressed.
-	//-----------------------------------------------------------------------------
-	public static bool IsCompressed(byte* pInput) {
-		lzss_header_t* pHeader = (lzss_header_t*)pInput;
+	/// <summary>
+	/// Returns true if buffer is compressed.
+	/// </summary>
+	public static bool IsCompressed(Span<byte> input) {
+		if (input.IsEmpty || input.Length < lzss_header_t.SIZEOF)
+			return false;
 
-		//printf("LOL: %x __ %x\n", pHeader->id, LZSS_ID);
-		if (pHeader != null && pHeader->id == LZSS_ID) {
+		ref lzss_header_t header = ref MemoryMarshal.Cast<byte, lzss_header_t>(input)[0];
+
+		if (header.ID == LZSS_ID)
 			return true;
-		}
 
-		// unrecognized
 		return false;
 	}
 
-	//-----------------------------------------------------------------------------
-	// Returns uncompressed size of compressed input buffer. Used for allocating output
-	// buffer for decompression. Returns 0 if input buffer is not compressed.
-	//-----------------------------------------------------------------------------
-	public static uint GetActualSize(byte* pPtr) {
-		lzss_header_t* pHeader = (lzss_header_t*)pPtr;
-		if (pHeader != null && pHeader->id == LZSS_ID) {
-			return pHeader->actualSize;
-		}
+	public static uint GetActualSize(Span<byte> input) {
+		if (input.IsEmpty || input.Length < lzss_header_t.SIZEOF)
+			return 0;
 
+		ref lzss_header_t header = ref MemoryMarshal.Cast<byte, lzss_header_t>(input)[0];
+		if (header.ID == LZSS_ID) 
+			return header.ActualSize;
+		
 		// unrecognized
 		return 0;
-	}
-	public static uint GetActualSize(Span<byte> pInput) {
-		fixed (byte* pPtr = pInput) {
-			lzss_header_t* pHeader = (lzss_header_t*)pPtr;
-			if (pHeader != null && pHeader->id == LZSS_ID) {
-				return pHeader->actualSize;
-			}
-
-			// unrecognized
-			return 0;
-		}
 	}
 
 
@@ -105,7 +75,7 @@ public unsafe class CLZSS
 			return 0;
 		}
 
-		int inputIndex = sizeof(lzss_header_t);
+		int inputIndex = lzss_header_t.SIZEOF;
 		int outputIndex = 0;
 
 		while (true) {

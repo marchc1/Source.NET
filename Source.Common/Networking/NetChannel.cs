@@ -759,7 +759,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		// todo
 	}
 
-	public unsafe void UncompressFragments(DataFragments data) {
+	public void UncompressFragments(DataFragments data) {
 		if (!data.Compressed || data.Buffer == null)
 			return;
 
@@ -773,10 +773,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 		byte[] newBuffer = ArrayPool<byte>.Shared.Rent((int)(uncompressedSize * 3u));
 
-		fixed (byte* bPtr = newBuffer)
-		fixed (byte* dBfr = data.Buffer) {
-			Net.BufferToBufferDecompress(bPtr, ref uncompressedSize, dBfr, data.Bytes);
-		}
+		Net.BufferToBufferDecompress(newBuffer.AsSpan(), ref uncompressedSize, data.Buffer.AsSpan(), data.Bytes);
 
 		data.Return();
 		data.Buffer = newBuffer;

@@ -466,32 +466,29 @@ public class Net
 
 		return 0;
 	}
-	public unsafe bool BufferToBufferDecompress(void* dest, ref uint destLen, void* source, uint sourceLen) {
-		Span<byte> src = new Span<byte>(source, (int)sourceLen);
-		Span<byte> dst = new Span<byte>(dest, (int)destLen);
 
-		if (CLZSS.IsCompressed((byte*)source)) {
+	public bool BufferToBufferDecompress(Span<byte> dst, ref uint dstLen, Span<byte> src, uint srcLen) {
+		if (CLZSS.IsCompressed(src)) {
 			uint uDecompressedLen = CLZSS.GetActualSize(src);
-			if (uDecompressedLen > destLen) {
-				Warning($"NET_BufferToBufferDecompress with improperly sized dest buffer ({destLen} in, {uDecompressedLen} needed)\n");
+			if (uDecompressedLen > dstLen) {
+				Warning($"NET_BufferToBufferDecompress with improperly sized dest buffer ({dstLen} in, {uDecompressedLen} needed)\n");
 				return false;
 			}
 			else {
-
-				destLen = CLZSS.Uncompress(src, dst);
+				dstLen = CLZSS.Uncompress(src, dst);
 			}
 		}
 		else {
-			NativeMemory.Copy(source, dest, sourceLen);
-			destLen = sourceLen;
+			src.CopyTo(dst);
+			dstLen = srcLen;
 		}
 
 		return true;
 	}
 
 	private ArrayPool<byte> DecompressionPool = ArrayPool<byte>.Create();
-	public unsafe uint GetDecompressedBufferSize(byte* compressedbuf) {
-		if (compressedbuf == null)
+	public unsafe uint GetDecompressedBufferSize(Span<byte> compressedbuf) {
+		if (compressedbuf.IsEmpty)
 			return 0;
 
 		if (!CLZSS.IsCompressed(compressedbuf))
@@ -500,7 +497,7 @@ public class Net
 		return CLZSS.GetActualSize(compressedbuf);
 	}
 
-	public unsafe bool ReceiveDatagram(NetSocketType sock, NetPacket packet) {
+	public bool ReceiveDatagram(NetSocketType sock, NetPacket packet) {
 		if (packet.Data == null)
 			return false;
 
@@ -520,10 +517,8 @@ public class Net
 
 			if (ret < MAX_MESSAGE) {
 				// Check for split messages
-				int netHeader;
-				fixed (byte* b = packet.Data) {
-					netHeader = *(int*)b;
-				}
+				int netHeader = MemoryMarshal.Cast<byte, int>(packet.Data.AsSpan())[0];
+
 				// Check for split packet
 				//Console.WriteLine($"Header: {netHeader}");
 				if (netHeader == (int)NetHeaderFlag.SplitPacket) {
@@ -533,29 +528,26 @@ public class Net
 
 				// Check for compressed packet
 				if (netHeader == (int)NetHeaderFlag.CompressedPacket) {
-					fixed (byte* packetData = packet.Data) {
-						byte* lzssStart = packetData + sizeof(uint);
-						uint uncompressedSize = GetDecompressedBufferSize(lzssStart);
+					Span<byte> packetData = packet.Data.AsSpan();
+					Span<byte> lzssStart = packetData[sizeof(uint)..];
+					uint uncompressedSize = GetDecompressedBufferSize(lzssStart);
 
-						if (uncompressedSize <= 0 || uncompressedSize > MAX_PAYLOAD)
-							return false;
+					if (uncompressedSize <= 0 || uncompressedSize > MAX_PAYLOAD)
+						return false;
 
-						byte[] uncompressedArray = DecompressionPool.Rent((int)(uncompressedSize * 2 + 1024));
+					byte[] uncompressedArray = DecompressionPool.Rent((int)(uncompressedSize * 2 + 1024));
 
-						fixed (byte* uncompressedBuffer = uncompressedArray) {
-							BufferToBufferDecompress(uncompressedBuffer, ref uncompressedSize, lzssStart, (uint)packet.WireSize);
+					BufferToBufferDecompress(uncompressedArray.AsSpan(), ref uncompressedSize, lzssStart, (uint)packet.WireSize);
 
-							if (uncompressedSize == 0) {
-								DecompressionPool.Return(uncompressedArray);
-								Warning($"UDP: discarding {ret} bytes due to decompression error.\n");
-								return false;
-							}
-
-							NativeMemory.Copy(uncompressedBuffer, packetData, uncompressedSize);
-							DecompressionPool.Return(uncompressedArray, true);
-							packet.Size = (int)uncompressedSize;
-						}
+					if (uncompressedSize == 0) {
+						DecompressionPool.Return(uncompressedArray);
+						Warning($"UDP: discarding {ret} bytes due to decompression error.\n");
+						return false;
 					}
+
+					uncompressedArray.CopyTo(packetData[..(int)uncompressedSize]);
+					DecompressionPool.Return(uncompressedArray, true);
+					packet.Size = (int)uncompressedSize;
 				}
 
 				return LagPacket(true, packet);
@@ -976,7 +968,7 @@ public class Net
 		else
 			ret = -1;
 
-	end:
+		end:
 		if (ret == -1) {
 			Warning("Net.SendPacket went wrong!!!\n");
 			ret = length;
