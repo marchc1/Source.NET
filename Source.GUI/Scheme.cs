@@ -3,6 +3,7 @@ using Source.Common.Engine;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Launcher;
+using Source.Common.Utilities;
 
 using System.Globalization;
 
@@ -48,7 +49,7 @@ public class Scheme : IScheme
 	IBorder? BaseBorder;
 	KeyValues Borders;
 
-	Dictionary<ulong, FontAlias> FontAliases = [];
+	Dictionary<UtlSymbol, FontAlias> FontAliases = [];
 
 	public IBorder? GetBorder(ReadOnlySpan<char> borderName) {
 		var hash = borderName.Hash();
@@ -83,7 +84,7 @@ public class Scheme : IScheme
 	}
 
 	private IFont? FindFontInAliasList(ReadOnlySpan<char> name) {
-		if (FontAliases.TryGetValue(name.Hash(), out FontAlias alias))
+		if (FontAliases.TryGetValue(name, out FontAlias alias))
 			return alias.Font;
 
 		return null;
@@ -239,7 +240,7 @@ public class Scheme : IScheme
 				alias.TrueFontSymbol = fontName.Hash();
 				alias.Font = font;
 				alias.Proportional = proportionalFont;
-				FontAliases[fontName.Hash()] = alias;
+				FontAliases[fontName] = alias;
 			}
 		}
 
