@@ -1032,9 +1032,9 @@ public static class SpanExts
 	}
 
 	// Useful for debugging
-	public static void ReinterpretAsImageThenWriteTo(this Span<byte> data, ReadOnlySpan<char> path, int wide, int tall)
-		=> ReinterpretAsImageThenWriteTo(MemoryMarshal.Cast<byte, Color>(data), path, wide, tall);
-	public static void ReinterpretAsImageThenWriteTo(this Span<Color> data, ReadOnlySpan<char> path, int wide, int tall) {
+	public static void SaveImageToFile(this Span<byte> data, ReadOnlySpan<char> path, int wide, int tall)
+		=> SaveImageToFile(MemoryMarshal.Cast<byte, Color>(data), path, wide, tall);
+	public static void SaveImageToFile(this Span<Color> data, ReadOnlySpan<char> path, int wide, int tall) {
 		using Bitmap bitmap = new(wide, tall);
 		BitmapData bmpData = bitmap.LockBits(new Rectangle(0, 0, wide, tall), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
 		unsafe {
