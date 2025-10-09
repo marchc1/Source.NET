@@ -1,4 +1,4 @@
-﻿using Source.Common.GUI;
+using Source.Common.GUI;
 
 using FreeTypeSharp;
 using static FreeTypeSharp.FT;
@@ -151,7 +151,7 @@ public unsafe class FreeTypeFont : BaseFont
 	internal override void GetCharRGBA(char ch, int rgbaWide, int rgbaTall, Span<byte> rgba) {
 		LoadChar(ch, render: true);
 		FT_GlyphSlotRec_* slot = face->glyph;
-		FT_Render_Glyph(slot, AntiAliased ? FT_Render_Mode_.FT_RENDER_MODE_MONO : FT_Render_Mode_.FT_RENDER_MODE_NORMAL);
+		FT_Render_Glyph(slot, AntiAliased ? FT_Render_Mode_.FT_RENDER_MODE_NORMAL : FT_Render_Mode_.FT_RENDER_MODE_MONO);
 		DrawBitmap(slot, rgbaWide, rgbaTall, rgba);
 		ApplyOutlineToTexture(rgbaWide, rgbaTall, rgba, OutlineSize);
 	}
