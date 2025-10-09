@@ -384,8 +384,7 @@ public class RichText : Panel
 		renderState.X = DrawOffsetX + PixelsIndent;
 		renderState.Y = DrawOffsetY;
 
-		int selection0 = -1, selection1 = -1;
-		GetSelectedRange(out selection0, out selection1);
+		GetSelectedRange(out int selection0, out int selection1);
 
 		Surface.DrawSetTextFont(fontCurrent);
 
@@ -696,7 +695,7 @@ public class RichText : Panel
 			if (OnRightLine)
 			{
 				if (cx > GetWide()) { } // off right side of window
-				else if (cx < (DrawOffsetX + renderState.PixelsIndent) || cy > YStart) // off left side of window
+				else if (cx < (DrawOffsetX + renderState.PixelsIndent) || cy < YStart) // off left side of window
 					return i;
 
 				if (cx > x && cx < (x + wide))
