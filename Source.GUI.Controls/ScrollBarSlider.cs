@@ -36,13 +36,13 @@ public class ScrollBarSlider : Panel
 	{
 		GetPaintSize(out int wide, out int tall);
 
-		float frangewindow = (float)RangeWindow;
+		float frangewindow = RangeWindow;
 
-		float CheckAgainst = 0;
+		float CheckAgainst;
 		if (Vertical)
-			CheckAgainst = (float)tall;
+			CheckAgainst = tall;
 		else
-			CheckAgainst = (float)wide;
+			CheckAgainst = wide;
 
 		if (frangewindow > 0)
 			if (frangewindow <= (CheckAgainst + ButtonOffset))
@@ -246,6 +246,9 @@ public class ScrollBarSlider : Panel
 		if (!Dragging)
 			return;
 
+		Input.GetCursorPos(out x, out y);
+		ScreenToLocal(ref x, ref y);
+
 		GetPaintSize(out int wide, out int tall);
 
 		if (Vertical)
@@ -313,6 +316,12 @@ public class ScrollBarSlider : Panel
 			else if (y < NobPos[0])
 			{
 				int val = GetValue();
+				val -= RangeWindow;
+				SetValue(val);
+			}
+			else if (y >= NobPos[1])
+			{
+				int val = GetValue();
 				val += RangeWindow;
 				SetValue(val);
 			}
@@ -329,6 +338,12 @@ public class ScrollBarSlider : Panel
 				DragStartPos[1] = y;
 			}
 			else if (x < NobPos[0])
+			{
+				int val = GetValue();
+				val -= RangeWindow;
+				SetValue(val);
+			}
+			else if (x >= NobPos[1])
 			{
 				int val = GetValue();
 				val += RangeWindow;
