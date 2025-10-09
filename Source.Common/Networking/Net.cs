@@ -501,6 +501,9 @@ public class Net
 	}
 
 	public unsafe bool ReceiveDatagram(NetSocketType sock, NetPacket packet) {
+		if (packet.Data == null)
+			return false;
+
 		NetSocket net_socket = NetSockets[(int)packet.Source];
 		Socket socket = net_socket.UDP ?? throw new Exception("No UDP socket.");
 
@@ -708,8 +711,6 @@ public class Net
 			}
 
 			// UDP only
-			int currentRecvBuf = (int)socket.GetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveBuffer);
-			//Msg($"UDP socket SO_RCVBUF size {currentRecvBuf} bytes, changing to {Protocol.MAX_MESSAGE}\n");
 			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveBuffer, Protocol.MAX_MESSAGE);
 			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendBuffer, Protocol.MAX_MESSAGE);
 			socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
@@ -717,11 +718,11 @@ public class Net
 
 			// This disables the exception when the UDP socket is forcibly closed
 			const int SIO_UDP_CONNRESET = -1744830452;
-			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) 
+			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				socket.IOControl((IOControlCode)SIO_UDP_CONNRESET, [0, 0, 0, 0], null);
 
 			// Determine IP address to bind to
-			IPAddress ipAddress = IPAddress.Any;
+			IPAddress? ipAddress = null;
 			if (!string.IsNullOrEmpty(netInterface) && netInterface != "localhost") {
 				if (!IPAddress.TryParse(netInterface, out ipAddress)) {
 					Warning($"WARNING: OpenSocket: failed to parse address: {netInterface}\n");
@@ -729,6 +730,8 @@ public class Net
 					return null;
 				}
 			}
+
+			ipAddress ??= IPAddress.Any;
 
 			IPEndPoint endPoint = new IPEndPoint(ipAddress, 0);
 			const int PORT_TRY_MAX = 32;
@@ -908,8 +911,15 @@ public class Net
 		ConfigLoopbackBuffers(false);
 	}
 
-	public unsafe int SendPacket(NetChannel chan, NetSocketType sock, NetAddress? to, byte[] data, int length, bf_write? voicePayload = null, bool useCompression = false) {
-		int ret;
+	public unsafe int SendPacket(NetChannel chan, NetSocketType sock, NetAddress? to, byte[]? data, int length, bf_write? voicePayload = null, bool useCompression = false) {
+		int ret = -1;
+
+		if (data == null)
+			return 0;
+
+		if (to == null)
+			goto end;
+
 		Socket? netSocket;
 
 		if (!IsMultiplayer() || to.Type == NetAddressType.Loopback) {
@@ -959,11 +969,14 @@ public class Net
 			// simple case, small packet, just send it
 			ret = SendTo(true, netSocket, data, length, addr, gameDataLength);
 		}
-		else {
+		else if (chan != null) {
 			// split packet into smaller pieces
 			ret = SendLong(chan, sock, netSocket, data, length, addr, maxRoutable);
 		}
+		else
+			ret = -1;
 
+	end:
 		if (ret == -1) {
 			Warning("Net.SendPacket went wrong!!!\n");
 			ret = length;

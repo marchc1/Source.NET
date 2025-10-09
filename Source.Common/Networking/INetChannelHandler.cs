@@ -1,16 +1,16 @@
-﻿namespace Source.Common.Networking;
+namespace Source.Common.Networking;
 
 public interface INetChannelHandler
 {
-	public virtual void ConnectionStart(NetChannel channel) { }
-	public virtual void ConnectionClosing(string reason) { }
-	public virtual void ConnectionCrashed(string reason) { }
-	public virtual void PacketStart(int incomingSequence, int outgoingAcknowledged) { }
-	public virtual void PacketEnd() { }
-	public virtual void FileRequested(string fileName, uint transferID) { }
-	public virtual void FileReceived(string fileName, uint transferID) { }
-	public virtual void FileDenied(string fileName, uint transferID) { }
-	public virtual void FileSent(string fileName, uint transferID) { }
+	void ConnectionStart(NetChannel channel) { }
+	void ConnectionClosing(ReadOnlySpan<char> reason) { }
+	void ConnectionCrashed(ReadOnlySpan<char> reason) { }
+	void PacketStart(int incomingSequence, int outgoingAcknowledged) { }
+	void PacketEnd() { }
+	void FileRequested(ReadOnlySpan<char> fileName, uint transferID) { }
+	void FileReceived(ReadOnlySpan<char> fileName, uint transferID) { }
+	void FileDenied(ReadOnlySpan<char> fileName, uint transferID) { }
+	void FileSent(ReadOnlySpan<char> fileName, uint transferID) { }
 
-	public virtual bool ProcessMessage(INetMessage message) => false;
+	bool ProcessMessage(INetMessage message) => false;
 }

@@ -69,17 +69,17 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public Socket? StreamSocket { get; set; }
 
 	public string Name { get; set; } = "";
-	public INetChannelHandler MessageHandler { get; set; }
-	public int ProtocolVersion { get; set; }
+	public INetChannelHandler? MessageHandler;
+	public int ProtocolVersion;
 
 	public bf_write StreamReliable = new();
-	public byte[] ReliableDataBuffer;
+	public byte[]? ReliableDataBuffer;
 
 	public bf_write StreamUnreliable = new();
-	public byte[] UnreliableDataBuffer;
+	public byte[]? UnreliableDataBuffer;
 
 	public bf_write StreamVoice = new();
-	public byte[] VoiceDataBuffer;
+	public byte[]? VoiceDataBuffer;
 
 	/// <summary>
 	/// Address this netchannel is talking to
@@ -146,9 +146,9 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public DataFragments[] ReceiveList = new DataFragments[MAX_STREAMS];
 	public SubChannel[] SubChannels = new SubChannel[SubChannel.MAX];
 
-	public void Setup(NetSocketType socketType, NetAddress address, string name, INetChannelHandler handler, int protocol) {
-		Debug.Assert(name != null);
-		Debug.Assert(handler != null);
+	public void Setup(NetSocketType socketType, NetAddress? address, string name, INetChannelHandler handler, int protocol) {
+		Assert(name != null);
+		Assert(handler != null);
 
 		Socket = socketType;
 		if (StreamSocket != null) {
@@ -370,7 +370,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 	}
 
 	private unsafe void DoBufferThings(ref bf_write stream, ref byte[]? bufferIn, out byte[] bufferOut, int bytes) {
-		bufferOut = bufferIn;
+		bufferOut = bufferIn!;
 
 		if (bufferIn != null && bufferIn.Length == bytes)
 			return;
@@ -436,11 +436,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 		PacketFlag flags = (PacketFlag)packet.Message.ReadByte();
 
-		// Debug.Assert((flags & PacketFlag.Compressed) == 0);
+		// Assert((flags & PacketFlag.Compressed) == 0);
 
 		if (ShouldChecksumPackets()) {
 			ushort checksum = (ushort)packet.Message.ReadUBitLong(16);
-			Debug.Assert(packet.Message.BitsRead % 8 == 0);
+			Assert(packet.Message.BitsRead % 8 == 0);
 
 			int offset = packet.Message.BitsRead >> 3;
 			int checksumBytes = packet.Message.BytesAvailable - offset;
@@ -450,7 +450,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 				if (dataChecksum != checksum) {
 					Warning($"{RemoteAddress}:corrupted packet {sequence} at {InSequence}\n");
-					Debug.Assert(false);
+					Assert(false);
 					return PacketFlag.Invalid;
 				}
 			}
@@ -497,21 +497,21 @@ public class NetChannel : INetChannelInfo, INetChannel
 		for (i = 0; i < SubChannel.MAX; i++) {
 			int bitmask = 1 << i;
 			SubChannel subchan = SubChannels[i];
-			Debug.Assert(subchan.Index == i);
+			Assert(subchan.Index == i);
 
 			if ((OutReliableState & bitmask) == (relState & bitmask)) {
 				if (subchan.State == SubChannelState.Dirty)
 					subchan.Free();
 				else if (subchan.SendSeqNumber > sequenceAck) {
 					Warning($"{RemoteAddress}: reliable state invalid ({i}).\n");
-					Debug.Assert(false);
+					Assert(false);
 				}
 				else if (subchan.State == SubChannelState.Waiting) {
 					for (j = 0; j < MAX_STREAMS; j++) {
 						if (subchan.NumFragments[j] == 0)
 							continue;
 
-						Debug.Assert(WaitingList[j].Count > 0);
+						Assert(WaitingList[j].Count > 0);
 
 						DataFragments data = WaitingList[j][0];
 
@@ -524,7 +524,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			}
 			else {
 				if (subchan.SendSeqNumber <= sequenceAck) {
-					Debug.Assert(subchan.State != SubChannelState.Free);
+					Assert(subchan.State != SubChannelState.Free);
 
 					if (subchan.State == SubChannelState.Waiting) {
 						if (Net.net_showfragments.GetBool())
@@ -666,7 +666,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 	}
 
 	public void ProcessPacket(NetPacket packet, bool hasHeader) {
-		Debug.Assert(packet != null);
+		Assert(packet != null);
+		Assert(MessageHandler != null);
 
 		bf_read msg = packet.Message;
 
@@ -680,7 +681,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			flags = ProcessPacketHeader(packet);
 
 		if (flags == PacketFlag.Invalid) {
-			Debug.Assert(false);
+			Assert(false);
 			return;
 		}
 
@@ -743,7 +744,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			if (!ProcessMessages(buffer))
 				return false;
 		}
-		else {
+		else if (MessageHandler != null) {
 			HandleUpload(data, MessageHandler);
 		}
 
@@ -801,7 +802,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 				MessageHandler.FileRequested(str, transferID);
 			}
 			else {
-				MessageHandler.FileDenied(str, transferID);
+				MessageHandler?.FileDenied(str, transferID);
 			}
 
 			return true;
@@ -815,7 +816,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		int startbit = buf.BitsRead;
 		while (true) {
 			if (buf.Overflowed) {
-				MessageHandler.ConnectionCrashed("Buffer overflow in net message");
+				MessageHandler?.ConnectionCrashed("Buffer overflow in net message");
 				return false;
 			}
 
@@ -885,7 +886,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			}
 			else {
 				Warning($"NetChannel: unknown net message ({cmd}) from {RemoteAddress}.\n");
-				//Debug.Assert(false);
+				//Assert(false);
 				return false;
 			}
 		}
@@ -1016,7 +1017,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 			int nSentFragments = data.AckedFragments + data.PendingFragments;
 
-			Debug.Assert(nSentFragments <= data.NumFragments);
+			Assert(nSentFragments <= data.NumFragments);
 
 			if (nSentFragments == data.NumFragments)
 				continue; // all fragments already send
@@ -1098,9 +1099,9 @@ public class NetChannel : INetChannelInfo, INetChannel
 								 data.Filename == null;
 
 			if (bSingleBlock) {
-				Debug.Assert(length == data.Bytes);
-				Debug.Assert(length < MAX_PAYLOAD);
-				Debug.Assert(offset == 0);
+				Assert(length == data.Bytes);
+				Assert(length < MAX_PAYLOAD);
+				Assert(offset == 0);
 
 				buf.WriteOneBit(0); // single block bit
 
@@ -1147,7 +1148,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 			// write fragments to buffer
 			if (data.Buffer != null) {
-				Debug.Assert(data.Filename == null);
+				Assert(data.Filename == null);
 				// send from memory block
 				fixed (byte* ptr = data.Buffer)
 					buf.WriteBytes(ptr + offset, (int)length);
@@ -1168,6 +1169,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return true;
 	}
 
+	static ConVar net_minroutable = new("16", 0, "Forces larger payloads.");
 	static ConVar net_maxroutable = new("1260", FCvar.Archive | FCvar.UserInfo, "Requested max packet size before packets are 'split'.", MIN_USER_MAXROUTABLE_SIZE, MAX_USER_MAXROUTABLE_SIZE);
 	private unsafe byte[] sendbuf = new byte[MAX_MESSAGE];
 	private bf_write send = new();
@@ -1206,7 +1208,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 		if (ShouldChecksumPackets()) {
 			send.WriteShort(0);
-			Debug.Assert(send.BitsWritten % 8 == 0);
+			Assert(send.BitsWritten % 8 == 0);
 		}
 
 		int checksumStart = send.BytesWritten;
@@ -1244,7 +1246,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		int minRoutable = MIN_ROUTABLE_PAYLOAD;
 
 		if (Socket == NetSocketType.Server)
-			minRoutable = minRoutable; // todo: net_minroutable convar
+			minRoutable = net_minroutable.GetInt();
 
 		while (send.BytesWritten < minRoutable)
 			send.WriteUBitLong(Net.NOP, NETMSG_TYPE_BITS);
@@ -1276,7 +1278,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		if (ShouldChecksumPackets()) {
 			fixed (byte* ptr = send.BaseArray) {
 				void* pvData = ptr + checksumStart;
-				Debug.Assert(send.BitsWritten % 8 == 0);
+				Assert(send.BitsWritten % 8 == 0);
 				int nCheckSumBytes = send.BytesWritten - checksumStart;
 				ushort usCheckSum = BufferToShortChecksum(pvData, nCheckSumBytes);
 				flagsPos.WriteUBitLong(usCheckSum, 16);
@@ -1581,7 +1583,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			return false;
 		}
 
-		Debug.Assert(offset + length <= data.Bytes);
+		Assert(offset + length <= data.Bytes);
 		if (length == 0 || offset + length > data.Bytes) {
 			data.Return();
 			Warning($"Malformed fragment offset {offset} len {length} buffer size {PAD_NUMBER((int)data.Bytes, 4)} from {RemoteAddress}\n");

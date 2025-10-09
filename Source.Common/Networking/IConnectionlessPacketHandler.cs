@@ -131,7 +131,7 @@ public class NetAddress
 
 	public static implicit operator IPEndPoint(NetAddress addr) => addr.Endpoint ?? throw new Exception("Unset endpoint");
 
-	public bool CompareAddress(NetAddress other) => other != null && IP.Equals(other.IP) && Port == other.Port;
+	public bool CompareAddress(NetAddress? other) => other != null && IP.Equals(other.IP) && Port == other.Port;
 
 	public void Clear() {
 		Endpoint = null;

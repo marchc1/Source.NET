@@ -1,10 +1,10 @@
-﻿using System.Buffers;
+using System.Buffers;
 
 namespace Source.Common.Networking;
 
 public unsafe class DataFragments
 {
-	public string Filename;
+	public string? Filename;
 	public byte[]? Buffer;
 	public uint Bytes;
 	public uint Bits;
