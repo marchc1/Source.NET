@@ -1,8 +1,9 @@
-﻿global using EHANDLE = Game.Shared.Handle<Game.Client.C_BaseEntity>;
+global using EHANDLE = Game.Shared.Handle<Game.Client.C_BaseEntity>;
 global using static Game.Client.ClientGlobals;
 using Source.Common;
 using Source.Common.Client;
 using Source.Engine;
+using Game.Client.HUD;
 
 namespace Game.Client;
 
@@ -35,6 +36,7 @@ public static class ClientGlobals
 	public static IRenderView render { get; private set; }
 	public static IEngineClient engine { get; private set; }
 	public static IEngineVGui enginevgui { get; private set; }
+	public static Hud gHUD { get; private set; }
 	public static ClientEntityList cl_entitylist { get; private set; }
 	public static TimeUnit_t TICK_INTERVAL => gpGlobals.IntervalPerTick;
 
@@ -51,6 +53,7 @@ public static class ClientGlobals
 		enginevgui = Singleton<IEngineVGui>();
 		cl_entitylist = Singleton<ClientEntityList>();
 		render = Singleton<IRenderView>();
+		gHUD = Singleton<Hud>();
 	}
 
 	public static bool IsEngineThreaded() => false; 

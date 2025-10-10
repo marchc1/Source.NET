@@ -1,4 +1,4 @@
-﻿#if CLIENT_DLL || GAME_DLL
+#if CLIENT_DLL || GAME_DLL
 global using static Game.
 #if CLIENT_DLL
 Client
@@ -128,6 +128,8 @@ public partial class
 
 
 	public static bool IsSimulatingOnAlternateTicks() => false; // TODO
+
+	public bool IsAlive() => LifeState == (int)Source.LifeState.Alive;
 }
 
 #endif

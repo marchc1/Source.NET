@@ -1,4 +1,4 @@
-﻿using Game.Shared;
+using Game.Shared;
 
 using Source;
 using Source.Common;
@@ -82,7 +82,7 @@ public class PlayerLocalData
 	// TODO: NETWORK VARS!!!!!
 	public InlineArrayMaxAreaStateBytes<byte> AreaBits;
 	public InlineArrayMaxAreaPortalStateBytes<byte> AreaPortalBits;
-	public bool HideHUD;
+	public HideHudBits HideHUD;
 	public float FOVRate;
 	public bool Ducked;
 	public bool Ducking;

@@ -1,4 +1,4 @@
-﻿using Game.Shared;
+using Game.Shared;
 
 using Source;
 using Source.Common.Filesystem;
@@ -65,6 +65,33 @@ public class Hud(HudElementHelper HudElementHelper, IFileSystem filesystem)
 	}
 
 	internal void RefreshHudTextures() {
+	}
+
+	internal bool IsHidden(HideHudBits hudFlags) {
+		if (!engine.IsInGame())
+			return true;
+
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return true;
+
+		HideHudBits hideHud = player.Local.HideHUD;
+		// todo: hidehud convar
+
+		if ((hideHud & HideHudBits.All) != 0)
+			return true;
+
+		if ((hideHud & HideHudBits.PlayerDead) != 0 && player.GetHealth() <= 0 && !player.IsAlive())
+			return true;
+
+		if ((hideHud & HideHudBits.NeedSuit) != 0 && !player.IsSuitEquipped())
+			return true;
+
+		return (hudFlags & hideHud) != 0;
+	}
+
+	internal bool IsRenderGroupLockedFor(IHudElement hudElement, int groupIndex) {
+		return false; // todo
 	}
 }
 

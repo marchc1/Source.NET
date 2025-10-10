@@ -1,4 +1,4 @@
-﻿using Source;
+using Source;
 using Source.Common;
 
 using FIELD = Source.FIELD<Game.Client.C_BasePlayer>;
@@ -159,4 +159,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public double LaggedMovementValue;
 	public int FinalPredictedTick;
 	readonly EHANDLE LastWeapon = new();
+
+	public int GetHealth() => Health;
+	public bool IsSuitEquipped() => Local.WearingSuit;
 }
