@@ -75,7 +75,7 @@ public class Hud(HudElementHelper HudElementHelper, IFileSystem filesystem)
 		if (player == null)
 			return true;
 
-		HideHudBits hideHud = player.Local.HideHUD;
+		HideHudBits hideHud = (HideHudBits)player.Local.HideHUD;
 		// todo: hidehud convar
 
 		if ((hideHud & HideHudBits.All) != 0)
