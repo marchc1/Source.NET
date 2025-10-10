@@ -86,6 +86,10 @@ public class HudNumericDisplay : Panel
 	public void SetSecondaryValue(int value) {
 		SecondaryValue = value;
 	}
+	public void SetLabelText(ReadOnlySpan<char> text) {
+		((Span<char>)LabelText).Clear();
+		text.ClampedCopyTo(LabelText);
+	}
 
 	public override void Paint() {
 		if (DisplayValue) {

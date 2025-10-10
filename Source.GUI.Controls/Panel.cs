@@ -1624,6 +1624,17 @@ public class Panel : IPanel
 			Parent.OnChildAdded(this);
 			OnParentChanged(oldParent, Parent);
 		}
+
+		var parent = GetParent();
+		if (parent != null && !IsPopup()) {
+			SetProportional(parent!.IsProportional());
+
+			if (parent.IsKeyboardInputEnabled() != IsKeyboardInputEnabled())
+				SetKeyboardInputEnabled(parent.IsKeyboardInputEnabled());
+
+			if (parent.IsMouseInputEnabled() != IsMouseInputEnabled()) 
+				SetMouseInputEnabled(parent.IsMouseInputEnabled());
+		}
 	}
 
 	public void SetPopup(bool enabled) {

@@ -31,7 +31,16 @@ public class HudHealth : HudNumericDisplay, IHudElement
 		Reset();
 	}
 	public void Reset() {
+		Health = -1;
+		BitsDamage = 0;
+		ReadOnlySpan<char> tempString = Localize.Find("#Valve_Hud_HEALTH");
 
+		if (!tempString.IsEmpty) 
+			SetLabelText(tempString);
+		else
+			SetLabelText("HEALTH");
+		
+		SetDisplayValue(Health);
 	}
 	public override void OnThink() {
 		int newHealth = 0;
