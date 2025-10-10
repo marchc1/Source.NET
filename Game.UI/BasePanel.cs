@@ -25,7 +25,7 @@ public class OptionsDialog : PropertyDialog
 
 public class GameMenuItem : MenuItem
 {
-	public GameMenuItem(Panel panel, string name, string text) : base(panel, name, text) {
+	public GameMenuItem(Menu panel, string name, string text) : base(panel, name, text) {
 
 	}
 

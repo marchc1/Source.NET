@@ -213,7 +213,7 @@ public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClie
 
 		return false;
 	}
-	[ConCommand(flags: FCvar.DontRecord)]
+	[ConCommand(flags: FCvar.DontRecord, helpText: "Bind a key.")]
 	void bind(in TokenizedCommand args) {
 		Span<char> cmd = stackalloc char[1024];
 		int c = args.ArgC();
@@ -223,6 +223,15 @@ public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClie
 		}
 
 		BindKey(args[1], c == 2, cmd[..strcpy(cmd, args[2])]);
+	}
+
+	[ConCommand(helpText: "List bound keys with bindings.")]
+	void key_listboundkeys(in TokenizedCommand args) {
+		for (int i = 0; i < (int)ButtonCode.Last; i++) {
+			string? keyBinding = KeyInfo[i].KeyBinding;
+			if (!string.IsNullOrEmpty(keyBinding))
+				ConMsg($"\"{inputSystem!.ButtonCodeToString((ButtonCode)i)}\" = \"{keyBinding}\"\n");
+		}
 	}
 
 	public void BindKey(ReadOnlySpan<char> bind, bool show, ReadOnlySpan<char> cmd) {

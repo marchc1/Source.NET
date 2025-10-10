@@ -26,16 +26,29 @@ public class NonFocusableMenu : Menu
 
 public class TabCatchingTextEntry : TextEntry
 {
-	public TabCatchingTextEntry(Panel? parent, string? name, Panel comp) : base(parent, name) {
+	private Panel CompletionList;
 
+	public TabCatchingTextEntry(Panel? parent, string? name, Panel comp) : base(parent, name) {
+		SetAllowNonAsciiCharacters(true);
+		//SetDragEnabled(true);
+
+		CompletionList = comp;
 	}
+
 	public override void OnKeyCodeTyped(ButtonCode code) {
 		if (code == ButtonCode.KeyTab)
 			GetParent()!.OnKeyCodeTyped(code);
 		else if(code != ButtonCode.KeyEnter)
 			base.OnKeyCodeTyped(code);
 	}
+
+	public override void OnKillFocus(Panel? newPanel)
+	{
+		if (Input.GetFocus() != CompletionList)
+			PostMessage(GetParent(), new KeyValues("CloseCompletionList"));
+	}
 }
+
 public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 {
 	readonly public ICvar Cvar = Singleton<ICvar>();
@@ -54,8 +67,74 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 	protected bool WasBackspacing;
 	protected bool StatusVersion;
 
-	public override void OnTextChanged(Panel p) {
+	List<CompletionItem> CompletionItems = new();
 
+	public override void OnTextChanged(Panel panel)
+	{
+		if (panel != Entry)
+			return;
+
+		Array.Copy(PartialText, PreviousPartialText, PartialText.Length);
+
+		Entry.GetText(PartialText);
+		int len = Array.IndexOf(PartialText, '\0');
+		if (len == -1) len = PartialText.Length;
+
+		bool hitTilde = len > 0 && (PartialText[len - 1] == '~' || PartialText[len - 1] == '`');
+		bool altKeyDown = Input.IsKeyDown(ButtonCode.KeyLAlt) || Input.IsKeyDown(ButtonCode.KeyRAlt);
+		bool ctrlKeyDown = Input.IsKeyDown(ButtonCode.KeyLControl) || Input.IsKeyDown(ButtonCode.KeyRControl);
+
+		if (len > 0 && hitTilde)
+		{
+			PreviousPartialText[len - 1] = '\0';
+
+			if (!altKeyDown && !ctrlKeyDown)
+			{
+				Entry.SetText("");
+				PostMessage(this, new KeyValues("Close"));
+				PostActionSignal(new KeyValues("ClosedByHittingTilde"));
+			}
+			else
+			{
+				Entry.SetText(PartialText);
+			}
+		}
+
+		AutoCompleteMode = false;
+
+		RebuildCompletionList(PartialText);
+
+		if (CompletionItems.Count < 1)
+			CompletionList.SetVisible(false);
+		else
+		{
+			CompletionList.SetVisible(true);
+
+			int MAX_MENU_ITEMS = 10;
+			CompletionList.DeleteAllItems();
+
+			for (int i = 0; i < CompletionItems.Count && i < MAX_MENU_ITEMS; i++)
+			{
+				string text;
+
+				if (i == MAX_MENU_ITEMS - 1)
+					text = "...";
+				else
+				{
+					Assert(CompletionItems[i] != null);
+					text = CompletionItems[i]!.GetItemText().ToString();
+				}
+
+				KeyValues kv = new KeyValues("CompletionCommand");
+				kv.SetString("command", text);
+				CompletionList.AddMenuItem(text, kv, this);
+			}
+
+			UpdateCompletionListPosition();
+		}
+
+		RequestFocus();
+		Entry.RequestFocus();
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
@@ -71,7 +150,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 
 			OnTextChanged(Entry);
 
-			// todo: History.GotoTextEnd();
+			History.GotoTextEnd();
 
 			int extraPtr = command.IndexOf(' ');
 			ReadOnlySpan<char> extra = null;
@@ -82,14 +161,139 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 
 			if (command.Length > 0) 
 				AddToHistory(command, extra);
-			
-			 // CompletionList.SetVisible(false);
+
+			CompletionList.SetVisible(false);
 		}
 		base.OnCommand(command);
 	}
 
 	private void AddToHistory(ReadOnlySpan<char> command, ReadOnlySpan<char> extra) {
 
+	}
+
+	private void ClearCompletionList() {
+		for (int i = 0; i < CompletionItems.Count; i++)
+			CompletionItems[i] = null;
+
+		CompletionItems = [];
+	}
+
+	ConCommand? FindAutoCompleteCommandFromPartial(ReadOnlySpan<char> text)
+	{
+		char [] command = new char[256];
+		strcpy(command, text);
+
+		ConCommand cmd = Cvar.FindCommand(command);
+		if (cmd == null)
+			return null;
+
+		if (!cmd.CanAutoComplete())
+			return null;
+
+		return cmd;
+	}
+
+	private void RebuildCompletionList(ReadOnlySpan<char> text) // todo: this isnt a perfect 1:1 just yet, still needs some cleaning up
+	{
+		ClearCompletionList();
+
+		int len = text.IndexOf('\0');
+		if (len < 1)
+		{
+			// command history
+
+			return;
+		}
+
+
+		bool NormalBuild = true;
+		int space = text.IndexOf(' ');
+
+		if (space != -1)
+		{
+			ConCommand? cmd = FindAutoCompleteCommandFromPartial(text);
+			if (cmd == null)
+				return;
+
+			NormalBuild = false;
+
+			IEnumerable<string> commands = cmd.AutoCompleteSuggest(text.ToString());
+			int count = commands.Count();
+			//Assert(count <= COMMAND_COMPLETION_MAXITEMS);
+			Assert(count <= 64);
+
+			for (int i = 0; i < count; i++)
+			{
+				CompletionItem item = new CompletionItem();
+				CompletionItems.Add(item);
+				item.IsCommand = false;
+				item.Command = null;
+				item.Text = new HistoryItem(commands.ElementAt(i));
+			}
+		}
+
+		if (NormalBuild)
+		{
+			foreach (ConCommandBase cmd in Cvar.GetCommands())
+			{
+				if (cmd.IsFlagSet(FCvar.DevelopmentOnly) || cmd.IsFlagSet(FCvar.Hidden))
+					continue;
+
+				if (string.Compare(new(text), 0, cmd.GetName(), 0, len, StringComparison.OrdinalIgnoreCase) == 0)
+				{
+					CompletionItem item = new CompletionItem();
+					CompletionItems.Add(item);
+					item.Command = cmd;
+					string tst = cmd.GetName();
+					if (!cmd.IsCommand())
+					{
+						item.IsCommand = false;
+						ConVar? var = cmd as ConVar;
+						ConVar_ServerBounded? pBounded = cmd as ConVar_ServerBounded;
+
+						if (pBounded != null || var.IsFlagSet(FCvar.NeverAsString)) {
+							string strValue;
+
+							int intVal = pBounded != null ? pBounded.GetInt() : var.GetInt();
+							float floatVal = pBounded != null ? pBounded.GetFloat() : var.GetFloat();
+
+							if (floatVal == intVal)
+								strValue = intVal.ToString();
+							else
+								strValue = floatVal.ToString("F");
+
+							item.Text = new HistoryItem(strValue);
+						}
+						else
+						{
+							item.Text = new HistoryItem(var.GetName(), var.GetString());
+						}
+					} else {
+						item.IsCommand = true;
+						item.Text = new HistoryItem(tst);
+					}
+				}
+			}
+		}
+
+		if (CompletionItems.Count >= 2)
+		{
+			for (int i = 0; i < CompletionItems.Count; i++)
+			{
+				for (int j = 0; j < CompletionItems.Count; j++)
+				{
+					CompletionItem item1 = CompletionItems[i];
+					CompletionItem item2 = CompletionItems[j];
+
+					if (string.Compare(new(item1.GetName()), new(item2.GetName())) > 0)
+					{
+						CompletionItem temp = CompletionItems[i];
+						CompletionItems[i] = CompletionItems[j];
+						CompletionItems[j] = temp;
+					}
+				}
+			}
+		}
 	}
 
 	public ConsolePanel(Panel? parent, string? panelName, bool statusVersion) : base(parent, panelName) {
@@ -103,12 +307,12 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		History = new RichText(this, "ConsoleHistory");
 		History.SetAllowKeyBindingChainToParent(false);
 		History.MakeReadyForUse();
+		History.SetVerticalScrollbar(!statusVersion);
 
-		 // History.SetVerticalScrollbar(!statusVersion);
-		 // if (StatusVersion)
-			// History.SetDrawOffsets(3, 3);
+		if (StatusVersion)
+			History.SetDrawOffsets(3, 3);
 
-		// History.GotoTextEnd();
+		History.GotoTextEnd();
 
 		Submit = new Button(this, "ConsoleSubmit", "#Console_Submit");
 		Submit.SetCommand("submit");
@@ -142,20 +346,64 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 				if (Input.IsKeyDown(ButtonCode.KeyLShift) || Input.IsKeyDown(ButtonCode.KeyRShift)) 
 					reverse = true;
 				
-				// OnAutoComplete(reverse);
+				OnAutoComplete(reverse);
 				Entry.RequestFocus();
 			}
 			else if (code == ButtonCode.KeyDown) {
-				// OnAutoComplete(false);
+				OnAutoComplete(false);
 
 				Entry.RequestFocus();
 			}
 			else if (code == ButtonCode.KeyUp) {
-				// OnAutoComplete(true);
+				OnAutoComplete(true);
 				Entry.RequestFocus();
 			}
 		}
 	}
+
+	private void OnAutoComplete(bool reverse)
+	{
+		if (!AutoCompleteMode)
+		{
+			NextCompletion = 0;
+			AutoCompleteMode = true;
+		}
+
+		if (reverse)
+		{
+			NextCompletion -= 2;
+			if (NextCompletion < 0)
+				NextCompletion = CompletionItems.Count - 1;
+		}
+
+		if (NextCompletion < 0 || NextCompletion >= CompletionItems.Count || CompletionItems[NextCompletion] == null)
+			NextCompletion = 0;
+
+		if (NextCompletion < 0 || NextCompletion >= CompletionItems.Count || CompletionItems[NextCompletion] == null)
+			return;
+
+		char[] CompletedText = new char[256];
+		CompletionItem item = CompletionItems[NextCompletion];
+		Assert(item != null);
+
+		if (item.IsCommand && item.Command != null)
+		{
+			ReadOnlySpan<char> cmd = item.GetCommand();
+			strcpy(CompletedText, cmd);
+		}
+		else
+		{
+			ReadOnlySpan<char> txt = item.GetItemText();
+			strcpy(CompletedText, txt);
+		}
+
+		Entry.SetText(CompletedText);
+		Entry.GotoTextEnd();
+		Entry.SelectNone();
+
+		NextCompletion++;
+	}
+
 	public void Clear() {
 		History.SetText("");
 		History.GotoTextEnd();
@@ -185,8 +433,6 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 
 		InvalidateLayout();
 	}
-
-
 
 	public override void PerformLayout() {
 		base.PerformLayout();
@@ -238,9 +484,9 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		Entry.GetPos(out int x, out int y);
 
 		if (!StatusVersion)
-			y = Entry.GetTall();
+			y += Entry.GetTall();
 		else
-			y = Entry.GetTall() + 4;
+			y -= Entry.GetTall() + 4;
 
 		LocalToScreen(ref x, ref y);
 		CompletionList.SetPos(x, y);
@@ -257,13 +503,43 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 	public void TextEntryRequestFocus() => Entry.RequestFocus();
 
 	const int MAX_HISTORY_ITEMS = 500;
-	class CompletionItem
+	class CompletionItem // todo: currently not 1:1
 	{
-		public ReadOnlySpan<char> GetItemText() => null;
+		public ReadOnlySpan<char> GetItemText() {
+			if (Text != null)
+			{
+				if (Text.HasExtra)
+					return Text.Text + " " + Text.ExtraText;
+				return Text.Text;
+			}
+			return "";
+		}
+
 		public ReadOnlySpan<char> GetCommand() => null;
 		public ReadOnlySpan<char> GetName() => null;
 		public bool IsCommand;
 		public ConCommandBase? Command;
+		public HistoryItem? Text;
+	}
+
+	class HistoryItem // todo
+	{
+		public string Text;
+		public string? ExtraText;
+		public bool HasExtra;
+
+		public HistoryItem(string text, string? extraText = null)
+		{
+			Text = text;
+
+			if (extraText != null)
+			{
+				ExtraText = extraText;
+				HasExtra = true;
+			}
+			else
+				HasExtra = false;
+		}
 	}
 }
 

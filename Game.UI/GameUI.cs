@@ -109,7 +109,7 @@ public class GameUI(IEngineClient engine) : IGameUI
 	}
 
 	public void PostInit() {
-		throw new NotImplementedException();
+
 	}
 
 	public void RunFrame() {
@@ -120,11 +120,16 @@ public class GameUI(IEngineClient engine) : IGameUI
 	}
 
 	public void SetMainMenuOverride(IPanel panel) {
-		throw new NotImplementedException();
+		//BasePanel? basePanel = BasePanel();
+		//if (basePanel != null)
+			//basePanel.SetMainMenuOverride(panel); // todo
 	}
 
 	public bool SetShowProgressText(bool show) {
-		throw new NotImplementedException();
+		if (LoadingDialog == null)
+			return false;
+
+		return LoadingDialog.SetShowProgressText(show);
 	}
 
 	public void Shutdown() {

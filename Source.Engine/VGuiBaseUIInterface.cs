@@ -96,6 +96,11 @@ public class StaticPanel(Panel? parent, string name) : Panel(parent, name)
 
 }
 
+public class FocusOverlayPanel(Panel? parent, string name) : Panel(parent, name)
+{
+
+}
+
 
 public class EngineVGui(
 	Sys Sys, Net Net, IEngineAPI engineAPI, ISurface surface,

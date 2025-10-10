@@ -1,4 +1,4 @@
-﻿using Source.Common.Formats.Keyvalues;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Input;
 using Source.Common.Launcher;
@@ -65,6 +65,14 @@ public class Button : Label
 
 	public void SetButtonActivationType(ActivationType type) {
 		ActivationType = type;
+	}
+
+	public void SetButtonBorderEnabled(bool state)
+	{
+		if (state != (0 != (ButtonFlags & ButtonFlags.ButtonBorderEnabled))) {
+			ButtonFlags ^= ButtonFlags.ButtonBorderEnabled;
+			InvalidateLayout(false);
+		}
 	}
 
 	public void SetMouseClickEnabled(ButtonCode code, bool state) {

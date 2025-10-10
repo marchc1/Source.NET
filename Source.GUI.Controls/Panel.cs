@@ -1055,7 +1055,7 @@ public class Panel : IPanel
 
 	public void SetProportional(bool state) {
 		if (state != ((Flags & PanelFlags.IsProportional) != 0)) {
-			Flags |= PanelFlags.IsProportional;
+			Flags ^= PanelFlags.IsProportional;
 			for (int i = 0; i < GetChildCount(); i++) {
 				GetChild(i).SetProportional(IsProportional());
 			}
@@ -1836,7 +1836,7 @@ public class Panel : IPanel
 			PostActionSignal(new KeyValues(command));
 	}
 	public virtual void OnMouseCaptureLost() {
-
+		// todo tooltips
 	}
 	public virtual void OnSetFocus() {
 		Repaint();

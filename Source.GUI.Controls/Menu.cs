@@ -1,3 +1,4 @@
+using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 
 namespace Source.GUI.Controls;
@@ -30,11 +31,14 @@ public class Menu : Panel
 	int MenuWide;
 	int NumVisibleLines;
 
-	public override void PaintBackground() {
-
-	}
-	public override void Paint() {
-
+	public override void Paint()
+	{
+		if (Scroller!.IsVisible())
+		{
+			GetSize(out int wide, out int tall);
+			Surface.DrawSetColor(BorderDark);
+			Surface.DrawFilledRect(wide - Scroller!.GetWide(), -1, wide - Scroller!.GetWide(), tall);
+		}
 	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {
@@ -44,7 +48,7 @@ public class Menu : Panel
 
 		BorderDark = scheme.GetColor("BorderDark", new(255, 255, 255, 0));
 
-		foreach (var menuItem in MenuItems) {
+		foreach (MenuItem? menuItem in MenuItems) {
 			if (menuItem.IsCheckable()) {
 				// todo;
 			}
@@ -77,6 +81,23 @@ public class Menu : Panel
 	bool UseFallbackFont;
 	IFont? FallbackItemFont;
 
+	public void DeleteAllItems()
+	{
+		for (int i = 0; i < MenuItems.Count; i++)
+			MenuItems[i].MarkForDeletion();
+
+		MenuItems.Clear();
+		SortedItems.Clear();
+		VisibleSortedItems.Clear();
+		Separators.Clear();
+
+		int count = SeparatorPanels.Count;
+		for (int i = 0; i < count; i++)
+			SeparatorPanels[i].MarkForDeletion();
+		//SeparatorPanels.RemoveAll();
+		InvalidateLayout();
+	}
+
 	public virtual int AddMenuItem(MenuItem panel) {
 		panel.SetParent(this);
 		int itemID = MenuItems.Count;
@@ -99,6 +120,54 @@ public class Menu : Panel
 		// hotkeys?
 
 		return itemID;
+	}
+
+	public int AddMenuItemCharCommand(MenuItem item, ReadOnlySpan<char> command, Panel target, KeyValues userData)
+	{
+		item.SetCommand(command);
+		item.AddActionSignalTarget(target);
+		item.SetUserData(userData);
+		return AddMenuItem(item);
+	}
+
+	public int AddMenuItemKeyValuesCommand(MenuItem item, KeyValues message, Panel target, KeyValues userData)
+	{
+		item.SetCommand(message);
+		item.AddActionSignalTarget(target);
+		item.SetUserData(userData);
+		return AddMenuItem(item);
+	}
+
+	public virtual int AddMenuItem(string itemName, string itemText, ReadOnlySpan<char> command, Panel target, KeyValues userData)
+	{
+		MenuItem item = new MenuItem(this, itemName, itemText);
+		return AddMenuItemCharCommand(item, command, target, userData);
+	}
+
+	public virtual int AddMenuItem(string itemText, ReadOnlySpan<char> command, Panel target, KeyValues userData)
+	{
+		return AddMenuItem(itemText, itemText, command, target, userData);
+	}
+
+	public virtual int AddMenuItem(string itemName, string itemText, KeyValues message, Panel target, KeyValues userData)
+	{
+		MenuItem item = new MenuItem(this, itemName, itemText);
+		return AddMenuItemKeyValuesCommand(item, message, target, userData);
+	}
+
+	public virtual int AddMenuItem(string itemText, KeyValues message, Panel target, KeyValues userData)
+	{
+		return AddMenuItem(itemText, itemText, message, target, userData);
+	}
+
+	public virtual int AddMenuItem(string itemText, Panel target, KeyValues userData)
+	{
+		return AddMenuItem(itemText, itemText, target, userData);
+	}
+
+	public virtual int AddMenuItem(string itemText, KeyValues userData, Panel target)
+	{
+		return AddMenuItem(itemText, itemText, target, userData);
 	}
 
 	MenuItem? GetParentMenuItem() => GetParent() is MenuItem mi ? mi : null;
@@ -261,7 +330,18 @@ public class Menu : Panel
 	}
 
 	private void LayoutScrollBar() {
+		Scroller!.SetEnabled(false);
+		Scroller.SetRangeWindow(VisibleSortedItems.Count);
+		Scroller.SetRange(0, CountVisibleItems());
+		Scroller.SetButtonPressedScrollValue(1);
 
+		GetSize(out int wide, out int tall);
+		GetInset(out int ileft, out int iright, out int itop, out int ibottom);
+
+		wide -= iright;
+
+		Scroller.SetPos(wide - Scroller.GetWide(), 1);
+		Scroller.SetSize(Scroller.GetWide(), tall - ibottom - itop);
 	}
 
 	private void SizeMenuItems() {
