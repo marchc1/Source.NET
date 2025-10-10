@@ -1,4 +1,4 @@
-﻿// #define LOGGED_EMIT_ENABLE
+// #define LOGGED_EMIT_ENABLE
 
 using Source.Common;
 using Source.Common.Mathematics;
@@ -150,7 +150,7 @@ namespace Source.Common
 
 								break;
 
-							default: throw new Exception(":(");
+							default: throw new NotImplementedException($"Unsupported IndexInfoBehavior value '{index.Behavior}' (implement me!)");
 						}
 						break;
 					default: throw new NotImplementedException("Cannot support the current member info");

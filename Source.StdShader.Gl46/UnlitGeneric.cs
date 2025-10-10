@@ -1,4 +1,4 @@
-﻿using Source.Common.MaterialSystem;
+using Source.Common.MaterialSystem;
 using Source.Common.ShaderLib;
 
 namespace Source.StdShader.Gl46;
@@ -26,7 +26,7 @@ public class UnlitGeneric : BaseVSShader
 
 			}
 			else {
-				Dbg.AssertMsg(false, ":(");
+				AssertMsg(false, "ShaderParamOverrides at var index had null value");
 			}
 
 			ShaderParamOverrides[(int)var] = this;

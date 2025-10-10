@@ -26,7 +26,7 @@ public class Occlusion : BaseVSShader
 
 			}
 			else {
-				Dbg.AssertMsg(false, ":(");
+				AssertMsg(false, "ShaderParamOverrides at var index had null value");
 			}
 
 			ShaderParamOverrides[(int)var] = this;
