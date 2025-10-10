@@ -105,7 +105,7 @@ public abstract class BaseVSShader : BaseShader
 			ShaderShadow.SetVertexShader(shaderName);
 			ShaderShadow.SetPixelShader(shaderName);
 
-			ShaderShadow.VertexShaderVertexFormat(VertexFormat.Position | VertexFormat.Normal | VertexFormat.TexCoord | (bVertexColor ? VertexFormat.Color : 0), 1, null, 0);
+			ShaderShadow.VertexShaderVertexFormat(VertexFormat.Position | VertexFormat.Normal | VertexFormat.TexCoord2D_0 | (bVertexColor ? VertexFormat.Color : 0), 1, null, 0);
 			SetStandardShaderUniforms();
 			// DevMsg("UnlitGeneric snapshotted!\n");
 		}

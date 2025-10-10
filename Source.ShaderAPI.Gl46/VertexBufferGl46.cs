@@ -45,6 +45,77 @@ public unsafe class VertexBufferGl46 : IDisposable
 
 	public void FlushASAP() => Flush = true;
 
+	public enum OpenGL_ShaderInputAttribute
+	{
+		Position = 0,
+		Normal = 1,
+		Color = 2,
+		Specular = 3,
+		TangentS = 4,
+		TangentT = 5,
+		Wrinkle = 6,
+		BoneIndex = 7,
+		BoneWeights = 8,
+		UserData = 9,
+		TexCoord0 = 10,
+		TexCoord1 = 11,
+		TexCoord2 = 12,
+		TexCoord3 = 13,
+		TexCoord4 = 14,
+		TexCoord5 = 15,
+		TexCoord6 = 16,
+		TexCoord7 = 17,
+		Count
+	}
+
+	public static bool IsOn(OpenGL_ShaderInputAttribute shaderAttr, VertexFormat format, out int size, out VertexElement element) {
+		switch (shaderAttr) {
+			case OpenGL_ShaderInputAttribute.Position: size = 1; element = VertexElement.Position; return (format & VertexFormat.Position) != 0;
+			case OpenGL_ShaderInputAttribute.Normal: size = 1; element = VertexElement.Normal; return (format & VertexFormat.Normal) != 0;
+			case OpenGL_ShaderInputAttribute.Color: size = 1; element = VertexElement.Color; return (format & VertexFormat.Color) != 0;
+			case OpenGL_ShaderInputAttribute.Specular: size = 1; element = VertexElement.Specular; return (format & VertexFormat.Specular) != 0;
+			case OpenGL_ShaderInputAttribute.TangentS: size = 1; element = VertexElement.TangentS; return (format & VertexFormat.TangentS) != 0;
+			case OpenGL_ShaderInputAttribute.TangentT: size = 1; element = VertexElement.TangentT; return (format & VertexFormat.TangentT) != 0;
+			case OpenGL_ShaderInputAttribute.Wrinkle: size = 1; element = VertexElement.Wrinkle; return (format & VertexFormat.Wrinkle) != 0;
+			case OpenGL_ShaderInputAttribute.BoneIndex: size = 1; element = VertexElement.BoneIndex; return (format & VertexFormat.BoneIndex) != 0;
+			case OpenGL_ShaderInputAttribute.BoneWeights:
+				int numBoneWeights = format.GetBoneWeightsSize();
+				size = numBoneWeights;
+				element = VertexElement.BoneWeights1 + (numBoneWeights - 1);
+				return numBoneWeights > 0;
+			case OpenGL_ShaderInputAttribute.UserData:
+				int userDataSize = format.GetUserDataSize();
+				size = userDataSize;
+
+				element = VertexElement.UserData1 + (userDataSize - 1);
+				return userDataSize > 0;
+			case OpenGL_ShaderInputAttribute.TexCoord0:
+			case OpenGL_ShaderInputAttribute.TexCoord1:
+			case OpenGL_ShaderInputAttribute.TexCoord2:
+			case OpenGL_ShaderInputAttribute.TexCoord3:
+			case OpenGL_ShaderInputAttribute.TexCoord4:
+			case OpenGL_ShaderInputAttribute.TexCoord5:
+			case OpenGL_ShaderInputAttribute.TexCoord6:
+			case OpenGL_ShaderInputAttribute.TexCoord7:
+				int index = shaderAttr - OpenGL_ShaderInputAttribute.TexCoord0;
+				int texCoordSize = format.GetTexCoordDimensionSize(index);
+				size = texCoordSize;
+				element = index switch {
+					0 => texCoordSize switch { 0 => default, 1 => VertexElement.TexCoord1D_0, 2 => VertexElement.TexCoord2D_0, 3 => VertexElement.TexCoord3D_0, 4 => VertexElement.TexCoord4D_0, _ => throw new NotSupportedException() },
+					1 => texCoordSize switch { 0 => default, 1 => VertexElement.TexCoord1D_1, 2 => VertexElement.TexCoord2D_1, 3 => VertexElement.TexCoord3D_1, 4 => VertexElement.TexCoord4D_1, _ => throw new NotSupportedException() },
+					2 => texCoordSize switch { 0 => default, 1 => VertexElement.TexCoord1D_2, 2 => VertexElement.TexCoord2D_2, 3 => VertexElement.TexCoord3D_2, 4 => VertexElement.TexCoord4D_2, _ => throw new NotSupportedException() },
+					3 => texCoordSize switch { 0 => default, 1 => VertexElement.TexCoord1D_3, 2 => VertexElement.TexCoord2D_3, 3 => VertexElement.TexCoord3D_3, 4 => VertexElement.TexCoord4D_3, _ => throw new NotSupportedException() },
+					4 => texCoordSize switch { 0 => default, 1 => VertexElement.TexCoord1D_4, 2 => VertexElement.TexCoord2D_4, 3 => VertexElement.TexCoord3D_4, 4 => VertexElement.TexCoord4D_4, _ => throw new NotSupportedException() },
+					5 => texCoordSize switch { 0 => default, 1 => VertexElement.TexCoord1D_5, 2 => VertexElement.TexCoord2D_5, 3 => VertexElement.TexCoord3D_5, 4 => VertexElement.TexCoord4D_5, _ => throw new NotSupportedException() },
+					6 => texCoordSize switch { 0 => default, 1 => VertexElement.TexCoord1D_6, 2 => VertexElement.TexCoord2D_6, 3 => VertexElement.TexCoord3D_6, 4 => VertexElement.TexCoord4D_6, _ => throw new NotSupportedException() },
+					7 => texCoordSize switch { 0 => default, 1 => VertexElement.TexCoord1D_7, 2 => VertexElement.TexCoord2D_7, 3 => VertexElement.TexCoord3D_7, 4 => VertexElement.TexCoord4D_7, _ => throw new NotSupportedException() },
+					_ => throw new NotSupportedException()
+				};
+				return texCoordSize > 0;
+			default: throw new NotSupportedException();
+		}
+	}
+
 	public void RecomputeVAO() {
 		// Unlike the VBO, we do not need to destroy everything when the state changes
 		if (this.vao == -1) {
@@ -62,24 +133,22 @@ public unsafe class VertexBufferGl46 : IDisposable
 		Span<uint> bindings = stackalloc uint[64];
 		int bindingsPtr = 0;
 
-		for (VertexElement i = 0; i < VertexElement.Count; i++) {
-			uint elementAttribute = (uint)i;
-			VertexFormat bitmask = (VertexFormat)(1 << (int)elementAttribute);
-			bool enabled = (VertexBufferFormat & bitmask) == bitmask;
+
+		for (OpenGL_ShaderInputAttribute i = 0; i < OpenGL_ShaderInputAttribute.Count; i++) {
+			bool enabled = IsOn(i, VertexBufferFormat, out int size, out VertexElement element);
 			if (!enabled) {
-				glDisableVertexArrayAttrib(vao, elementAttribute);
+				glDisableVertexArrayAttrib(vao, (uint)i);
 				continue;
 			}
 
-			i.GetInformation(out int count, out VertexAttributeType type);
+			element.GetInformation(out int count, out VertexAttributeType type);
 			int elementSize = count * (int)type.SizeOf();
-			glEnableVertexArrayAttrib(vao, elementAttribute);
+			glEnableVertexArrayAttrib(vao, (uint)i);
 			// type is relative to OpenGL's enumeration
 			// TODO: normalization ternary is kinda gross but acceptable for now...
-			glVertexArrayAttribFormat(vao, elementAttribute, count, (int)type, i == VertexElement.Color ? true : false, (uint)sizeof1vertex);
+			glVertexArrayAttribFormat(vao, (uint)i, count, (int)type, i == OpenGL_ShaderInputAttribute.Color ? true : false, (uint)sizeof1vertex);
 
-
-			bindings[bindingsPtr++] = elementAttribute;
+			bindings[bindingsPtr++] = (uint)i;
 			sizeof1vertex += elementSize;
 		}
 
@@ -179,86 +248,112 @@ public unsafe class VertexBufferGl46 : IDisposable
 			int** vertexSizesToSet = stackalloc int*[64];
 			int vertexSizesToSetPtr = 0;
 
-			for (VertexElement element = 0; element < VertexElement.Count; element++) {
-				VertexFormat formatMask = (VertexFormat)(1 << (int)element);
-				bool enabled = (vertexFormat & formatMask) == formatMask;
-				nint elementSize = element.GetSize();
-				switch (element) {
-					case VertexElement.Position:
-						if (enabled) {
-							descPtr->Position = (float*)(baseptr + offset);
-							vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->PositionSize;
-						}
-						else {
-							descPtr->Position = (float*)dummyData;
-							descPtr->PositionSize = 0;
-						}
-						break;
-					case VertexElement.Normal:
-						if (enabled) {
-							descPtr->Normal = (float*)(baseptr + offset);
-							vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->NormalSize;
-						}
-						else {
-							descPtr->Normal = (float*)dummyData;
-							descPtr->NormalSize = 0;
-						}
-						break;
-					case VertexElement.Color:
-						if (enabled) {
-							descPtr->Color = (byte*)(baseptr + offset);
-							vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->ColorSize;
-						}
-						else {
-							descPtr->Color = (byte*)dummyData;
-							descPtr->ColorSize = 0;
-						}
-						break;
-					case VertexElement.Specular:
-						if (enabled) {
-							descPtr->Specular = (byte*)(baseptr + offset);
-							vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->SpecularSize;
-						}
-						else {
-							descPtr->Specular = (byte*)dummyData;
-							descPtr->SpecularSize = 0;
-						}
-						break;
-					case VertexElement.BoneIndex:
-						if (enabled) {
-							descPtr->BoneIndex = (byte*)(baseptr + offset);
-							vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->BoneIndexSize;
-						}
-						else {
-							descPtr->BoneIndex = (byte*)dummyData;
-							descPtr->BoneIndexSize = 0;
-						}
-						break;
-					case VertexElement.BoneWeights:
-						if (enabled) {
-							descPtr->BoneWeight = (float*)(baseptr + offset);
-							vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->BoneWeightSize;
-						}
-						else {
-							descPtr->BoneWeight = (float*)dummyData;
-							descPtr->BoneWeightSize = 0;
-						}
-						break;
-					case VertexElement.TexCoord:
-						if (enabled) {
-							descPtr->TexCoord0 = (float*)(baseptr + offset);
-							vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->TexCoordSizePtr[0];
-						}
-						else {
-							descPtr->TexCoord0 = (float*)dummyData;
-							descPtr->TexCoordSize[0] = 0;
-						}
-						break;
+			if ((vertexFormat & VertexFormat.Position) != 0) {
+				descPtr->Position = (float*)(baseptr + offset);
+				offset += VertexElement.Position.GetSize();
+				vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->PositionSize;
+			}
+			else {
+				descPtr->Position = (float*)dummyData;
+				descPtr->PositionSize = 0;
+			}
+
+			if ((vertexFormat & VertexFormat.BoneIndex) != 0) {
+				if (desc.NumBoneWeights > 0) {
+					Assert(desc.NumBoneWeights == 2);
+					descPtr->BoneWeight = (float*)(baseptr + offset);
+					offset += VertexElement.BoneWeights2.GetSize();
+					vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->BoneWeightSize;
+				}
+				else {
+					descPtr->BoneWeight = (float*)dummyData;
+					descPtr->BoneWeightSize = 0;
 				}
 
-				if (enabled)
-					offset += elementSize;
+				descPtr->BoneIndex = (byte*)(baseptr + offset);
+				offset += VertexElement.BoneIndex.GetSize();
+				vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->BoneIndexSize;
 			}
+			else {
+				descPtr->BoneIndex = (byte*)dummyData;
+				descPtr->BoneIndexSize = 0;
+			}
+
+			if ((vertexFormat & VertexFormat.Normal) != 0) {
+				descPtr->Normal = (float*)(baseptr + offset);
+				offset += VertexElement.Normal.GetSize();
+				vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->NormalSize;
+			}
+			else {
+				descPtr->Normal = (float*)dummyData;
+				descPtr->NormalSize = 0;
+			}
+
+			if ((vertexFormat & VertexFormat.Color) != 0) {
+				descPtr->Color = (byte*)(baseptr + offset);
+				offset += VertexElement.Color.GetSize();
+				vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->ColorSize;
+			}
+			else {
+				descPtr->Color = (byte*)dummyData;
+				descPtr->ColorSize = 0;
+			}
+
+			if ((vertexFormat & VertexFormat.Specular) != 0) {
+				descPtr->Specular = (byte*)(baseptr + offset);
+				offset += VertexElement.Specular.GetSize();
+				vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->SpecularSize;
+			}
+			else {
+				descPtr->Specular = (byte*)dummyData;
+				descPtr->SpecularSize = 0;
+			}
+
+			Span<VertexElement> texCoordElements = [VertexElement.TexCoord1D_0, VertexElement.TexCoord2D_0, VertexElement.TexCoord3D_0, VertexElement.TexCoord4D_0];
+			for (int i = 0; i < IMesh.VERTEX_MAX_TEXTURE_COORDINATES; i++) {
+				int size = (int)vertexFormat.GetTexCoordDimensionSize(i);
+				if(size != 0) {
+					desc.TexCoord[i] = (float*)(baseptr + offset);
+					offset += ((VertexElement)((int)texCoordElements[size - 1] + i)).GetSize();
+					vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->TexCoordSizePtr[i];
+				}
+				else {
+					desc.TexCoord[i] = (float*)dummyData;
+					desc.TexCoordSizePtr[i] = 0;
+				}
+			}
+
+			if ((vertexFormat & VertexFormat.TangentS) != 0) {
+				descPtr->TangentS = (float*)(baseptr + offset);
+				offset += VertexElement.TangentS.GetSize();
+				vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->TangentSSize;
+			}
+			else {
+				descPtr->TangentS = (float*)dummyData;
+				descPtr->TangentSSize = 0;
+			}
+
+			if ((vertexFormat & VertexFormat.TangentT) != 0) {
+				descPtr->TangentT = (float*)(baseptr + offset);
+				offset += VertexElement.TangentT.GetSize();
+				vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->TangentTSize;
+			}
+			else {
+				descPtr->TangentT = (float*)dummyData;
+				descPtr->TangentTSize = 0;
+			}
+
+			int userDataSize = (int)vertexFormat.GetUserDataSize();
+			if(userDataSize > 0) {
+				desc.UserData = (float*)(baseptr + offset);
+				offset += (VertexElement.UserData1 + (userDataSize - 1)).GetSize();
+				vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->UserDataSize;
+			}
+			else {
+				descPtr->UserData = (float*)dummyData;
+				descPtr->UserDataSize = 0;
+			}
+
 			desc.ActualVertexSize = (int)offset;
 			for (int i = 0; i < vertexSizesToSetPtr; i++) {
 				*vertexSizesToSet[i] = (int)offset;

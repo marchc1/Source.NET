@@ -10,6 +10,10 @@ public unsafe struct VertexDesc
 	public int NormalSize;
 	public int ColorSize;
 	public int SpecularSize;
+	public int TangentSSize;
+	public int TangentTSize;
+	public int WrinkleSize;
+	public int UserDataSize;
 	public fixed int TexCoordSizePtr[8];
 	public Span<int> TexCoordSize {
 		get {
@@ -30,6 +34,10 @@ public unsafe struct VertexDesc
 	public float* Normal;
 	public byte* Color;
 	public byte* Specular;
+	public float* TangentS;
+	public float* TangentT;
+	public float* Wrinkle;
+	public float* UserData;
 	public float* TexCoord0;
 	public float* TexCoord1;
 	public float* TexCoord2;

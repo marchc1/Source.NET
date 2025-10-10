@@ -4,6 +4,37 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Source.Common.MaterialSystem;
 
+/*
+The OpenGL shader layout should look roughly like this, if you used everything:
+
+layout(location = 0) in vec3 v_Position;
+layout(location = 1) in vec3 v_Normal;
+layout(location = 2) in vec4 v_Color;
+layout(location = 3) in vec4 v_Specular;
+layout(location = 4) in vec4 v_TangentS;
+layout(location = 5) in vec4 v_TangentT;
+layout(location = 6) in vec4 v_Wrinkle;
+layout(location = 7) in vec4 v_BoneIndex;
+
+// Size here depends on your weights. But for now, only 2 is used anyway
+layout(location = 8) in vec2 v_BoneWeights;
+
+// Size here depends on your userdata.
+layout(location = 9) in vec2 v_UserData;
+
+// Sizes here depend on your texcoords
+layout(location = 10) in vec2 v_TexCoord0;
+layout(location = 11) in vec2 v_TexCoord1;
+layout(location = 12) in vec2 v_TexCoord2;
+layout(location = 13) in vec2 v_TexCoord3;
+layout(location = 14) in vec2 v_TexCoord4;
+layout(location = 15) in vec2 v_TexCoord5;
+// TODO: HOW TO HANDLE TEXCOORDS 6/7, WE OVERFLOW THE MINIMUM OPENGL GIVES US
+// (Or are we just going to switch to something else some day, like a potential Veldrid impl.)
+
+
+
+ */
 public enum VertexElement : int
 {
 	None = -1,
@@ -12,9 +43,57 @@ public enum VertexElement : int
 	Normal = 1,
 	Color = 2,
 	Specular = 3,
-	BoneIndex = 4,
-	BoneWeights = 5,
-	TexCoord = 6,
+	TangentS = 4,
+	TangentT = 5,
+	Wrinkle = 6,
+	BoneIndex = 7,
+
+	BoneWeights1 = 8,
+	BoneWeights2 = 9,
+	BoneWeights3 = 10,
+	BoneWeights4 = 11,
+
+	UserData1 = 12,
+	UserData2 = 13,
+	UserData3 = 14,
+	UserData4 = 15,
+
+	TexCoord1D_0 = 16,
+	TexCoord1D_1 = 17,
+	TexCoord1D_2 = 18,
+	TexCoord1D_3 = 19,
+	TexCoord1D_4 = 20,
+	TexCoord1D_5 = 21,
+	TexCoord1D_6 = 22,
+	TexCoord1D_7 = 23,
+
+	TexCoord2D_0 = 24,
+	TexCoord2D_1 = 25,
+	TexCoord2D_2 = 26,
+	TexCoord2D_3 = 27,
+	TexCoord2D_4 = 28,
+	TexCoord2D_5 = 29,
+	TexCoord2D_6 = 30,
+	TexCoord2D_7 = 31,
+
+	TexCoord3D_0 = 32,
+	TexCoord3D_1 = 33,
+	TexCoord3D_2 = 34,
+	TexCoord3D_3 = 35,
+	TexCoord3D_4 = 36,
+	TexCoord3D_5 = 37,
+	TexCoord3D_6 = 38,
+	TexCoord3D_7 = 39,
+
+	TexCoord4D_0 = 40,
+	TexCoord4D_1 = 41,
+	TexCoord4D_2 = 42,
+	TexCoord4D_3 = 43,
+	TexCoord4D_4 = 44,
+	TexCoord4D_5 = 45,
+	TexCoord4D_6 = 46,
+	TexCoord4D_7 = 47,
+
 	Count
 }
 
@@ -31,6 +110,15 @@ public enum VertexAttributeType
 
 public static class VertexExts
 {
+	public const int VERTEX_LAST_BIT = 10;
+
+	public const int VERTEX_BONE_WEIGHT_BIT = (VERTEX_LAST_BIT + 1);
+	public const int USER_DATA_SIZE_BIT = VERTEX_LAST_BIT + 1;
+	public const int TEX_COORD_SIZE_BIT = VERTEX_LAST_BIT + 4;
+	public const int VERTEX_BONE_WEIGHT_MASK = VERTEX_LAST_BIT + 7;
+	public const int USER_DATA_SIZE_MASK = 0x7 << USER_DATA_SIZE_BIT;
+	public const int VERTEX_FORMAT_FIELD_MASK = 0x0FF;
+
 	public static nint SizeOf(this VertexAttributeType type) => type switch {
 		VertexAttributeType.Byte => sizeof(sbyte),
 		VertexAttributeType.UnsignedByte => sizeof(byte),
@@ -42,6 +130,41 @@ public static class VertexExts
 		_ => throw new NotSupportedException()
 	};
 
+	public static int GetBoneWeightsSize(this VertexFormat format) {
+		if ((format & VertexFormat.BoneWeights4) != 0) return 4;
+		if ((format & VertexFormat.BoneWeights3) != 0) return 3;
+		if ((format & VertexFormat.BoneWeights2) != 0) return 2;
+		if ((format & VertexFormat.BoneWeights1) != 0) return 1;
+		return 0;
+	}
+
+	public static int GetUserDataSize(this VertexFormat format) {
+		if ((format & VertexFormat.UserData4) != 0) return 4;
+		if ((format & VertexFormat.UserData3) != 0) return 3;
+		if ((format & VertexFormat.UserData2) != 0) return 2;
+		if ((format & VertexFormat.UserData1) != 0) return 1;
+		return 0;
+	}
+
+	public static int GetTexCoordDimensionSize(this VertexFormat format, int index) {
+		const int TEXCOORD1D_BASE = (int)VertexElement.TexCoord1D_0; 
+		const int TEXCOORD2D_BASE = (int)VertexElement.TexCoord2D_0; 
+		const int TEXCOORD3D_BASE = (int)VertexElement.TexCoord3D_0; 
+		const int TEXCOORD4D_BASE = (int)VertexElement.TexCoord4D_0; 
+
+		ulong bit1D = 1ul << (TEXCOORD1D_BASE + index);
+		ulong bit2D = 1ul << (TEXCOORD2D_BASE + index);
+		ulong bit3D = 1ul << (TEXCOORD3D_BASE + index);
+		ulong bit4D = 1ul << (TEXCOORD4D_BASE + index);
+
+		ulong fmt = (ulong)format;
+		if ((fmt & bit4D) != 0) return 4;
+		if ((fmt & bit3D) != 0) return 3;
+		if ((fmt & bit2D) != 0) return 2;
+		if ((fmt & bit1D) != 0) return 1;
+		return 0;
+	}
+
 	public static nint GetSize(this VertexElement element, VertexCompressionType compression = VertexCompressionType.None) {
 		element.GetInformation(out int count, out VertexAttributeType type);
 		return count * type.SizeOf();
@@ -49,34 +172,60 @@ public static class VertexExts
 
 	public static void GetInformation(this VertexElement element, out int count, out VertexAttributeType type, VertexCompressionType compression = VertexCompressionType.None) {
 		switch (element) {
-			case VertexElement.Position:
-				count = 3;
-				type = VertexAttributeType.Float;
-				return;
-			case VertexElement.Normal:
-				count = 3;
-				type = VertexAttributeType.Float;
-				return;
-			case VertexElement.Color:
-				count = 4;
-				type = VertexAttributeType.UnsignedByte;
-				return;
-			case VertexElement.Specular:
-				count = 4;
-				type = VertexAttributeType.UnsignedByte;
-				return;
-			case VertexElement.BoneIndex:
-				count = 4;
-				type = VertexAttributeType.UnsignedByte;
-				return;
-			case VertexElement.BoneWeights:
-				count = 4;
-				type = VertexAttributeType.Float;
-				return;
-			case VertexElement.TexCoord:
-				count = 2;
-				type = VertexAttributeType.Float;
-				return;
+			case VertexElement.Position: count = 3; type = VertexAttributeType.Float; return;
+			case VertexElement.Normal: count = 3; type = VertexAttributeType.Float; return;
+			case VertexElement.Color: count = 4; type = VertexAttributeType.UnsignedByte; return;
+			case VertexElement.Specular: count = 4; type = VertexAttributeType.UnsignedByte; return;
+			case VertexElement.TangentS: count = 3; type = VertexAttributeType.Float; return;
+			case VertexElement.TangentT: count = 3; type = VertexAttributeType.Float; return;
+			case VertexElement.Wrinkle: count = 1; type = VertexAttributeType.Float; return;
+			case VertexElement.BoneIndex: count = 4; type = VertexAttributeType.UnsignedByte; return;
+
+			case VertexElement.BoneWeights1: count = 1; type = VertexAttributeType.Float; return;
+			case VertexElement.BoneWeights2: count = 2; type = VertexAttributeType.Float; return;
+			case VertexElement.BoneWeights3: count = 3; type = VertexAttributeType.Float; return;
+			case VertexElement.BoneWeights4: count = 4; type = VertexAttributeType.Float; return;
+
+			case VertexElement.UserData1: count = 1; type = VertexAttributeType.Float; return;
+			case VertexElement.UserData2: count = 2; type = VertexAttributeType.Float; return;
+			case VertexElement.UserData3: count = 3; type = VertexAttributeType.Float; return;
+			case VertexElement.UserData4: count = 4; type = VertexAttributeType.Float; return;
+
+			case VertexElement.TexCoord1D_0: count = 1; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord1D_1: count = 1; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord1D_2: count = 1; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord1D_3: count = 1; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord1D_4: count = 1; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord1D_5: count = 1; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord1D_6: count = 1; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord1D_7: count = 1; type = VertexAttributeType.Float; return;
+
+			case VertexElement.TexCoord2D_0: count = 2; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord2D_1: count = 2; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord2D_2: count = 2; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord2D_3: count = 2; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord2D_4: count = 2; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord2D_5: count = 2; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord2D_6: count = 2; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord2D_7: count = 2; type = VertexAttributeType.Float; return;
+
+			case VertexElement.TexCoord3D_0: count = 3; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord3D_1: count = 3; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord3D_2: count = 3; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord3D_3: count = 3; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord3D_4: count = 3; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord3D_5: count = 3; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord3D_6: count = 3; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord3D_7: count = 3; type = VertexAttributeType.Float; return;
+
+			case VertexElement.TexCoord4D_0: count = 4; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord4D_1: count = 4; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord4D_2: count = 4; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord4D_3: count = 4; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord4D_4: count = 4; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord4D_5: count = 4; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord4D_6: count = 4; type = VertexAttributeType.Float; return;
+			case VertexElement.TexCoord4D_7: count = 4; type = VertexAttributeType.Float; return;
 		}
 		AssertMsg(false, "No size definition");
 		count = 0;
@@ -87,13 +236,59 @@ public static class VertexExts
 [Flags]
 public enum VertexFormat : ulong
 {
-	Position = 1 << VertexElement.Position,
-	Normal = 1 << VertexElement.Normal,
-	Color = 1 << VertexElement.Color,
-	Specular = 1 << VertexElement.Specular,
-	BoneIndex = 1 << VertexElement.BoneIndex,
-	BoneWeights = 1 << VertexElement.BoneWeights,
-	TexCoord = 1 << VertexElement.TexCoord,
+	Position = 1ul << VertexElement.Position,
+	Normal = 1ul << VertexElement.Normal,
+	Color = 1ul << VertexElement.Color,
+	Specular = 1ul << VertexElement.Specular,
+	TangentS = 1ul << VertexElement.TangentS,
+	TangentT = 1ul << VertexElement.TangentT,
+	TangentSpace = TangentS | TangentT,
+	Wrinkle = 1ul << VertexElement.Wrinkle,
+	BoneIndex = 1ul << VertexElement.BoneIndex,
+	BoneWeights1 = 1ul << VertexElement.BoneWeights1,
+	BoneWeights2 = 1ul << VertexElement.BoneWeights2,
+	BoneWeights3 = 1ul << VertexElement.BoneWeights3,
+	BoneWeights4 = 1ul << VertexElement.BoneWeights4,
+	UserData1 = 1ul << VertexElement.UserData1,
+	UserData2 = 1ul << VertexElement.UserData2,
+	UserData3 = 1ul << VertexElement.UserData3,
+	UserData4 = 1ul << VertexElement.UserData4,
+
+	TexCoord1D_0 = 1ul << VertexElement.TexCoord1D_0,
+	TexCoord1D_1 = 1ul << VertexElement.TexCoord1D_1,
+	TexCoord1D_2 = 1ul << VertexElement.TexCoord1D_2,
+	TexCoord1D_3 = 1ul << VertexElement.TexCoord1D_3,
+	TexCoord1D_4 = 1ul << VertexElement.TexCoord1D_4,
+	TexCoord1D_5 = 1ul << VertexElement.TexCoord1D_5,
+	TexCoord1D_6 = 1ul << VertexElement.TexCoord1D_6,
+	TexCoord1D_7 = 1ul << VertexElement.TexCoord1D_7,
+
+	TexCoord2D_0 = 1ul << VertexElement.TexCoord2D_0,
+	TexCoord2D_1 = 1ul << VertexElement.TexCoord2D_1,
+	TexCoord2D_2 = 1ul << VertexElement.TexCoord2D_2,
+	TexCoord2D_3 = 1ul << VertexElement.TexCoord2D_3,
+	TexCoord2D_4 = 1ul << VertexElement.TexCoord2D_4,
+	TexCoord2D_5 = 1ul << VertexElement.TexCoord2D_5,
+	TexCoord2D_6 = 1ul << VertexElement.TexCoord2D_6,
+	TexCoord2D_7 = 1ul << VertexElement.TexCoord2D_7,
+
+	TexCoord3D_0 = 1ul << VertexElement.TexCoord3D_0,
+	TexCoord3D_1 = 1ul << VertexElement.TexCoord3D_1,
+	TexCoord3D_2 = 1ul << VertexElement.TexCoord3D_2,
+	TexCoord3D_3 = 1ul << VertexElement.TexCoord3D_3,
+	TexCoord3D_4 = 1ul << VertexElement.TexCoord3D_4,
+	TexCoord3D_5 = 1ul << VertexElement.TexCoord3D_5,
+	TexCoord3D_6 = 1ul << VertexElement.TexCoord3D_6,
+	TexCoord3D_7 = 1ul << VertexElement.TexCoord3D_7,
+
+	TexCoord4D_0 = 1ul << VertexElement.TexCoord4D_0,
+	TexCoord4D_1 = 1ul << VertexElement.TexCoord4D_1,
+	TexCoord4D_2 = 1ul << VertexElement.TexCoord4D_2,
+	TexCoord4D_3 = 1ul << VertexElement.TexCoord4D_3,
+	TexCoord4D_4 = 1ul << VertexElement.TexCoord4D_4,
+	TexCoord4D_5 = 1ul << VertexElement.TexCoord4D_5,
+	TexCoord4D_6 = 1ul << VertexElement.TexCoord4D_6,
+	TexCoord4D_7 = 1ul << VertexElement.TexCoord4D_7,
 
 	Invalid = 0xFFFFFFFFFFFFFFFFul
 }
@@ -194,7 +389,8 @@ public enum MaterialVarFlags2
 	SupportsFlashlight = (1 << 19),
 }
 
-public static class IMaterialExts {
+public static class IMaterialExts
+{
 	public static bool IsErrorMaterial([NotNullWhen(false)] this IMaterial? mat) {
 		return mat == null || mat.IsErrorMaterialInternal();
 	}
