@@ -99,6 +99,7 @@ public interface IPanelAnimationPropertyConverter
 }
 
 [AttributeUsage(AttributeTargets.Field)]
+public class PanelAnimationVarAliasTypeAttribute(string scriptName, string defaultValue, string typeAlias) : PanelAnimationVarAttribute(scriptName, defaultValue, typeAlias);
 public class PanelAnimationVarAttribute : Attribute
 {
 	public readonly string? Name;
@@ -207,12 +208,15 @@ public class Panel : IPanel
 		AddPropertyConverter("Color", colorConverter);
 		AddPropertyConverter("HFont", fontConverter);
 		AddPropertyConverter("proportional_float", p_floatConverter);
+
+		AddPropertyConverter("textureid", p_textureIdConverter);
 	}
 	static readonly FloatProperty floatConverter = new();
 	static readonly IntProperty intConverter = new();
 	static readonly ColorProperty colorConverter = new();
 	static readonly FontProperty fontConverter = new();
 	static readonly ProportionalFloatProperty p_floatConverter = new();
+	static readonly TextureIdProperty p_textureIdConverter = new();
 
 	public static void AddPropertyConverter(ReadOnlySpan<char> typeName, IPanelAnimationPropertyConverter converter) {
 		var hash = typeName.Hash();
@@ -264,7 +268,17 @@ public class Panel : IPanel
 	}
 
 	public virtual IBorder? GetBorder() => Border;
-	public void SetBorder(IBorder? border) => Border = border;
+	public void SetBorder(IBorder? border) {
+		Border = border;
+		if(border != null) {
+			border.GetInset(out int x, out int y, out int x2, out int y2);
+			SetInset(x, y, x2, y2);
+			SetPaintBackgroundType(border.GetBackgroundType());
+		}
+		else {
+			SetInset(0, 0, 0, 0);
+		}
+	}
 
 	public void MakeReadyForUse() {
 		Surface.SolveTraverse(this, true);
@@ -342,10 +356,10 @@ public class Panel : IPanel
 	Color FgColor;
 
 	PaintBackgroundType PaintBackgroundType;
-	public int BgTextureId1;
-	public int BgTextureId2;
-	public int BgTextureId3;
-	public int BgTextureId4;
+	[PanelAnimationVarAliasType("Texture1", "vgui/hud/800corner1", "textureid")] public int BgTextureId1;
+	[PanelAnimationVarAliasType("Texture2", "vgui/hud/800corner2", "textureid")] public int BgTextureId2;
+	[PanelAnimationVarAliasType("Texture3", "vgui/hud/800corner3", "textureid")] public int BgTextureId3;
+	[PanelAnimationVarAliasType("Texture4", "vgui/hud/800corner4", "textureid")] public int BgTextureId4;
 
 	public PaintBackgroundType GetPaintBackgroundType() => PaintBackgroundType;
 	public void SetPaintBackgroundType(PaintBackgroundType type) => PaintBackgroundType = type;
@@ -1466,7 +1480,7 @@ public class Panel : IPanel
 
 	public void PerformApplySchemeSettings() {
 		if (0 != (Flags & PanelFlags.NeedsDefaultSettingsApplied)) {
-			// InternalInitDefaultValues(GetAnimMap());
+			InternalInitDefaultValues(GetAnimMap());
 		}
 
 		if (0 != (Flags & PanelFlags.NeedsSchemeUpdate)) {
@@ -1546,7 +1560,10 @@ public class Panel : IPanel
 	}
 
 	public void SetInset(int left, int top, int right, int bottom) {
-		throw new NotImplementedException();
+		InsetLeft = (short)left;
+		InsetTop = (short)top;
+		InsetRight = (short)right;
+		InsetBottom = (short)bottom;
 	}
 
 	public void SetKeyboardInputEnabled(bool state) {
@@ -1893,22 +1910,22 @@ public class Panel : IPanel
 			bool shiftDown = Input.IsKeyDown(ButtonCode.KeyLShift) || Input.IsKeyDown(ButtonCode.KeyRShift);
 
 			if (IsConsoleStylePanel()) {
-				if (shiftDown) 
+				if (shiftDown)
 					NavigateUp();
-				else 
+				else
 					NavigateDown();
 			}
 			else {
-				if (shiftDown) 
+				if (shiftDown)
 					RequestFocusPrev();
-				else 
+				else
 					RequestFocusNext();
 			}
 		}
 		else {
-			if (this == Surface.GetEmbeddedPanel()) 
+			if (this == Surface.GetEmbeddedPanel())
 				Input.OnKeyCodeUnhandled(code);
-			
+
 			CallParentFunction(new KeyValues("KeyCodeTyped", "code", (int)code));
 		}
 	}
@@ -2203,7 +2220,7 @@ public class Panel : IPanel
 	public static void ChainToAnimationMap<T>() where T : Panel => ChainToAnimationMap(typeof(T));
 	public static void ChainToAnimationMap(Type t) {
 		foreach (var field in t.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)) {
-			PanelAnimationVarAttribute? attr = field.GetCustomAttribute<PanelAnimationVarAttribute>();
+			PanelAnimationVarAttribute? attr = field.GetCustomAttribute<PanelAnimationVarAliasTypeAttribute>() ?? field.GetCustomAttribute<PanelAnimationVarAttribute>();
 			if (attr == null)
 				continue;
 
@@ -2337,7 +2354,7 @@ class ColorProperty : IPanelAnimationPropertyConverter
 	}
 
 	public void InitFromDefault(Panel panel, ref PanelAnimationMapEntry entry) {
-		entry.Set(panel, int.TryParse(entry.DefaultValue, out int r) ? r : 0);
+		entry.Set(panel, (Color)(int.TryParse(entry.DefaultValue, out int r) ? r : 0));
 	}
 }
 class FontProperty : IPanelAnimationPropertyConverter
@@ -2368,5 +2385,52 @@ class ProportionalFloatProperty : IPanelAnimationPropertyConverter
 
 	public void InitFromDefault(Panel panel, ref PanelAnimationMapEntry entry) {
 		throw new NotImplementedException();
+	}
+}
+class TextureIdProperty : IPanelAnimationPropertyConverter
+{
+	ISurface? _surface;
+	ISurface surface => _surface ??= Singleton<ISurface>();
+	public void GetData(Panel panel, KeyValues kv, ref PanelAnimationMapEntry entry) {
+		object? data = entry.Get(panel);
+		if (data == null) return;
+
+		int currentId = (int)data;
+		if(currentId != -1 && surface.DrawGetTextureFile(currentId, out ReadOnlySpan<char> textureName)) 
+			kv.SetString(entry.ScriptName, textureName);
+		else
+			kv.SetString(entry.ScriptName, "");
+	}
+
+	public void SetData(Panel panel, KeyValues kv, ref PanelAnimationMapEntry entry) {
+		IScheme? scheme = panel.GetScheme();
+
+		TextureID currentId = -1;
+		string textureName = new(kv.GetString(entry.ScriptName));
+
+		if (!string.IsNullOrEmpty(textureName)) {
+			currentId = surface.DrawGetTextureId(textureName);
+			if (currentId == -1)
+				currentId = surface.CreateNewTextureID();
+			surface.DrawSetTextureFile(currentId, textureName, 0, true);
+		}
+
+		entry.Set(panel, (int)currentId);
+	}
+
+	public void InitFromDefault(Panel panel, ref PanelAnimationMapEntry entry) {
+		IScheme? scheme = panel.GetScheme();
+
+		TextureID currentId = -1;
+		string textureName = entry.DefaultValue;
+
+		if (!string.IsNullOrEmpty(textureName)) {
+			currentId = surface.DrawGetTextureId(textureName);
+			if (currentId == -1)
+				currentId = surface.CreateNewTextureID();
+			surface.DrawSetTextureFile(currentId, textureName, 0, true);
+		}
+
+		entry.Set(panel, (int)currentId);
 	}
 }

@@ -1,4 +1,4 @@
-﻿using Source.Common.Formats.Keyvalues;
+using Source.Common.Formats.Keyvalues;
 
 namespace Source.Common.GUI;
 
@@ -11,14 +11,6 @@ public enum Sides
 	Bottom = 3
 };
 
-public enum BorderBackgroundType
-{
-	Filled = 0,
-	Textured = 1,
-	RoundedCorners
-}
-
-
 public interface IBorder
 {
 	void Paint(IPanel panel);
@@ -30,7 +22,7 @@ public interface IBorder
 	ReadOnlySpan<char> GetName();
 	void SetName(ReadOnlySpan<char> name);
 
-	BorderBackgroundType GetBackgroundType();
+	PaintBackgroundType GetBackgroundType();
 
 	bool PaintFirst();
 }

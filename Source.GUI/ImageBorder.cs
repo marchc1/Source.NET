@@ -8,14 +8,14 @@ namespace Source.GUI;
 public class ImageBorder : Border
 {
 	string? Name;
-	BorderBackgroundType BackgroundType;
+	PaintBackgroundType BackgroundType;
 	TextureID TextureID;
 	bool Tiled;
 	string? ImageName;
 	bool PaintFirst;
 
 	public ImageBorder() {
-		BackgroundType = BorderBackgroundType.Textured;
+		BackgroundType = PaintBackgroundType.Textured;
 		TextureID = Surface.CreateNewTextureID();
 	}
 
@@ -76,7 +76,7 @@ public class ImageBorder : Border
 	}
 
 	public override void ApplySchemeSettings(IScheme? scheme, KeyValues inResourceData) {
-		BackgroundType = (BorderBackgroundType)inResourceData.GetInt("backgroundtype");
+		BackgroundType = (PaintBackgroundType)inResourceData.GetInt("backgroundtype");
 		Tiled = inResourceData.GetInt("tiled") != 0;
 
 		ReadOnlySpan<char> imageName = inResourceData.GetString("image", "");

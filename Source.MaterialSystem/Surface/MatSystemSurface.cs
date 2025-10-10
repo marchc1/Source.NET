@@ -441,7 +441,7 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public int DrawGetTextureId(ReadOnlySpan<char> filename) {
-		throw new NotImplementedException();
+		return TextureDictionary.FindTextureIdForTextureId(filename);
 	}
 
 	public void DrawGetTextureSize(in TextureID id, out int wide, out int tall) {

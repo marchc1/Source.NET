@@ -1,4 +1,4 @@
-﻿namespace Source;
+namespace Source;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;

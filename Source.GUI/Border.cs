@@ -29,7 +29,7 @@ public class Border : IBorder
 	}
 
 	readonly Side[] BorderSides = new Side[4];
-	BorderBackgroundType BackgroundType;
+	PaintBackgroundType BackgroundType;
 
 	public virtual void ParseSideSettings(Sides sideIndex, KeyValues? inResourceData, IScheme scheme) {
 		if (inResourceData == null)
@@ -76,10 +76,10 @@ public class Border : IBorder
 		ParseSideSettings(Sides.Right, inResourceData.FindKey("Right"), scheme);
 		ParseSideSettings(Sides.Bottom, inResourceData.FindKey("Bottom"), scheme);
 
-		BackgroundType = (BorderBackgroundType)inResourceData.GetInt("backgroundtype");
+		BackgroundType = (PaintBackgroundType)inResourceData.GetInt("backgroundtype");
 	}
 
-	public virtual BorderBackgroundType GetBackgroundType() => BackgroundType;
+	public virtual PaintBackgroundType GetBackgroundType() => BackgroundType;
 
 	public virtual void GetInset(out int left, out int top, out int right, out int bottom) {
 		left = Inset[(int)Sides.Left];

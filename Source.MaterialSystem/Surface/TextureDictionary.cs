@@ -431,6 +431,22 @@ public class TextureDictionary(IMaterialSystem materials, MatSystemSurface surfa
 
 	}
 
+	internal int FindTextureIdForTextureId(ReadOnlySpan<char> filename) {
+		foreach (var kvp in Textures) {
+			int i = (int)kvp.Key;
+			MatSystemTexture tex = kvp.Value;
+
+			IMaterial? mat = tex.Material;
+			if (mat == null)
+				continue;
+
+			if (mat.GetName().Equals(filename, StringComparison.OrdinalIgnoreCase))
+				return i;
+		}
+
+		return -1;
+	}
+
 	internal IMaterial? GetTextureMaterial(in TextureID id) {
 		if (!IsValidId(id, out MatSystemTexture? tex))
 			return null;
@@ -438,7 +454,7 @@ public class TextureDictionary(IMaterialSystem materials, MatSystemSurface surfa
 	}
 
 	internal void GetTextureSize(TextureID id, out int wide, out int tall) {
-		if(!IsValidId(id, out MatSystemTexture? tex)) {
+		if (!IsValidId(id, out MatSystemTexture? tex)) {
 			wide = tall = 0;
 			return;
 		}
