@@ -2366,7 +2366,7 @@ class FontProperty : IPanelAnimationPropertyConverter
 	}
 
 	public void SetData(Panel panel, KeyValues kv, ref PanelAnimationMapEntry entry) {
-		entry.Set(panel, panel.GetScheme().GetFont(kv.GetString(entry.ScriptName)));
+		entry.Set(panel, panel.GetScheme()?.GetFont(kv.GetString(entry.ScriptName)));
 	}
 
 	public void InitFromDefault(Panel panel, ref PanelAnimationMapEntry entry) {
@@ -2376,15 +2376,21 @@ class FontProperty : IPanelAnimationPropertyConverter
 class ProportionalFloatProperty : IPanelAnimationPropertyConverter
 {
 	public void GetData(Panel panel, KeyValues kv, ref PanelAnimationMapEntry entry) {
-		throw new NotImplementedException();
+		float f = (float)entry.Get(panel);
+		f = panel.GetScheme()?.GetProportionalScaledValueEx((int)f) ?? f;
+		kv.SetFloat(entry.ScriptName, f);
 	}
 
 	public void SetData(Panel panel, KeyValues kv, ref PanelAnimationMapEntry entry) {
-		throw new NotImplementedException();
+		float f = kv.GetFloat(entry.ScriptName);
+		f = panel.GetScheme()?.GetProportionalScaledValueEx((int)f) ?? f;
+		entry.Set(panel, f);
 	}
 
 	public void InitFromDefault(Panel panel, ref PanelAnimationMapEntry entry) {
-		throw new NotImplementedException();
+		float.TryParse(entry.DefaultValue, out float f);
+		f = panel.GetScheme()?.GetProportionalScaledValueEx((int)f) ?? f;
+		entry.Set(panel, f);
 	}
 }
 class TextureIdProperty : IPanelAnimationPropertyConverter

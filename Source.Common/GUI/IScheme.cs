@@ -1,4 +1,4 @@
-﻿using Source.Common.Formats.Keyvalues;
+using Source.Common.Formats.Keyvalues;
 
 namespace Source.Common.GUI;
 
@@ -16,6 +16,10 @@ public interface IScheme {
 	IEnumerable<IFont> GetFonts();
 
 	KeyValues GetColorData();
+
+	int GetProportionalScaledValue(int normalized);
+	int GetProportionalNormalizedValue(int scaled);
+	int GetProportionalScaledValueEx(int normalizedValue);
 }
 
 public interface ISchemeManager {

@@ -395,7 +395,7 @@ public class Scheme : IScheme
 		return false;
 	}
 
-	private int GetProportionalScaledValueEx(int normalized) {
+	public int GetProportionalScaledValueEx(int normalized) {
 		var sizing = SizingPanel;
 		if (sizing == null)
 			return GetProportionalScaledValue(normalized);
@@ -404,19 +404,19 @@ public class Scheme : IScheme
 		return GetProportionalScaledValue_(w, h, normalized);
 	}
 
-	private int GetProportionalScaledValue(int normalized) {
+	public int GetProportionalScaledValue(int normalized) {
 		Surface.GetScreenSize(out int wide, out int tall);
 		return GetProportionalScaledValue_(wide, tall, normalized);
 	}
 
-	private int GetProportionalScaledValue_(int w, int rootTall, int normalized) {
+	public int GetProportionalScaledValue_(int w, int rootTall, int normalized) {
 		Surface.GetProportionalBase(out int proW, out int proH);
 		float scale = (float)rootTall / proH;
 
 		return (int)(normalized * scale);
 	}
 
-	private int GetMinimumFontHeightForCurrentLanguage() {
+	public int GetMinimumFontHeightForCurrentLanguage() {
 		Span<char> language = stackalloc char[64];
 		System.GetUILanguage(language);
 		ReadOnlySpan<char> lang = language.SliceNullTerminatedString();
@@ -477,4 +477,6 @@ public class Scheme : IScheme
 		return setting;
 	}
 	public IPanel? GetSizingPanel() => SizingPanel;
+
+	public int GetProportionalNormalizedValue(int scaled) => SchemeManager.GetProportionalNormalizedValue(scaled);
 }
