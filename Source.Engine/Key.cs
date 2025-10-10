@@ -224,6 +224,21 @@ public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClie
 
 		BindKey(args[1], c == 2, cmd[..strcpy(cmd, args[2])]);
 	}
+	[ConCommand(flags: FCvar.DontRecord, helpText: "Unbind all keys.")]
+	void unbindall(in TokenizedCommand args) {
+		for (int i = 0; i < (int)ButtonCode.Last; i++) {
+			if (string.IsNullOrEmpty(KeyInfo[i].KeyBinding))
+				continue;
+
+			if (i == (int)ButtonCode.KeyEscape)
+				continue;
+
+			if (i == (int)ButtonCode.KeyBackquote)
+				continue;
+
+			SetBinding((ButtonCode)i, "");
+		}
+	}
 
 	[ConCommand(helpText: "List bound keys with bindings.")]
 	void key_listboundkeys(in TokenizedCommand args) {
