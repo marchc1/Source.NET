@@ -401,3 +401,4 @@ FodyWeavers.xsd
 Game.Assets/hl2/maps/gm_flatgrass.bsp
 Game.Assets/hl2/maps/gm_bigcity.bsp
 Game.Assets/hl2/maps/gm_flatgrass_classic.bsp
+Source.Launcher/Properties/launchSettings.json

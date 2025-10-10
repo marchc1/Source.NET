@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "Source.Launcher": {
-      "commandName": "Project",
-      "commandLineArgs": "-textmode +connect 10.5.0.2"
-    }
-  }
-}
