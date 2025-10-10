@@ -1,4 +1,4 @@
-﻿using Source.Common.Formats.BSP;
+using Source.Common.Formats.BSP;
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -97,6 +97,20 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int FloorPow2(int input) {
 		int retval = 1;
+		while (retval < input)
+			retval <<= 1;
+		return retval >> 1;
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static nuint CeilPow2(nuint input) {
+		nuint retval = 1;
+		while (retval < input)
+			retval <<= 2;
+		return retval;
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static nuint FloorPow2(nuint input) {
+		nuint retval = 1;
 		while (retval < input)
 			retval <<= 1;
 		return retval >> 1;
