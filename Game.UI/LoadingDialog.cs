@@ -26,16 +26,35 @@ public class LoadingDialog : Frame
 	bool ShowingVACInfo;
 	bool Center;
 	bool ConsoleStyle;
-	int ProgressFraction;
+	float ProgressFraction;
 
 	[PanelAnimationVar("0")] int AdditionalIndentX;
 	[PanelAnimationVar("0")] int AdditionalIndentY;
 
 	public override void PerformLayout() {
-		if (Center) {
-			MoveToCenterOfScreen();
+		if (ConsoleStyle)
+		{
+			Surface.GetScreenSize(out int screenWide, out int screenTall);
+			GetSize(out int wide, out int tall);
+			float x, y;
+
+			if (ModInfo.IsSinglePlayerOnly())
+			{
+				x = (screenWide - wide) * 0.50f;
+				y = (screenTall - tall) * 0.86f;
+			}
+			else
+			{
+				x = screenWide - (wide * 1.30f);
+				y = screenTall * 0.875f;
+			}
+
+			SetPos((int)x, (int)y);
 		}
-		else {
+		else if (Center)
+			MoveToCenterOfScreen();
+		else
+		{
 			Surface.GetWorkspaceBounds(out int x, out int y, out int screenWide, out int screenTall);
 			GetSize(out int wide, out int tall);
 
@@ -207,9 +226,23 @@ public class LoadingDialog : Frame
 	}
 
 	internal bool SetProgressPoint(float progress) {
+		if (ConsoleStyle)
+		{
+			if (progress >= 0.99f)
+				progress = 1.0f;
+
+			progress = Math.Clamp(progress, 0.0f, 1.0f);
+			if ((int)(progress * 25) != ProgressFraction)
+			{
+				ProgressFraction = progress;
+				return true;
+			}
+
+			return false;//IsX360();
+		}
+
 		if (!ShowingVACInfo)
 			SetupControlSettings(false);
-
 
 		int nOldDrawnSegments = Progress.GetDrawnSegmentCount();
 		Progress.SetProgress(progress);
@@ -217,8 +250,36 @@ public class LoadingDialog : Frame
 		return nOldDrawnSegments != nNewDrawSegments;
 	}
 
+	internal void SetSecondaryProgress(float progress)
+	{
+
+	}
+
 	internal void SetStatusText(ReadOnlySpan<char> statusText) {
 		InfoLabel.SetText(statusText);
+	}
+
+	internal bool SetShowProgressText(bool show) {
+		if (ConsoleStyle)
+			return false;
+
+		bool bret = InfoLabel.IsVisible();
+		if (bret != show)
+		{
+			SetupControlSettings(show);
+			InfoLabel.SetVisible(show);
+		}
+		return bret;
+	}
+
+	public override void OnThink()
+	{
+		base.OnThink();
+
+		// if (!ConsoleStyle && ShowingSecondaryProgress)
+		// {
+
+		// }
 	}
 
 	public override void PaintBackground()
@@ -250,7 +311,7 @@ public class LoadingDialog : Frame
 
 		DrawBox(x + 2, y + 2, barWide - 4, barTall - 4, new(100, 100, 100, 255), 1.0f);
 
-		barWide = ProgressFraction * (barWide - 4);
+		barWide = (int)ProgressFraction * (barWide - 4);
 		if (barWide >= 12)
 			DrawBox(x + 2, y + 2, barWide, barTall - 4, new(200, 100, 0, 255), 1.0f);
 	}

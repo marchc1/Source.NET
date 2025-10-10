@@ -1,3 +1,4 @@
+using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 
 namespace Source.GUI.Controls;
@@ -99,6 +100,14 @@ public class Menu : Panel
 		// hotkeys?
 
 		return itemID;
+	}
+
+	public virtual int AddMenuItem(string itemText, KeyValues message, Panel target, KeyValues? userData = null) {
+		var item = new MenuItem(this, itemText, message, target);
+		if (userData != null) {
+			item.SetUserData(userData);
+		}
+		return AddMenuItem(item);
 	}
 
 	MenuItem? GetParentMenuItem() => GetParent() is MenuItem mi ? mi : null;

@@ -240,10 +240,10 @@ public class RichText : Panel
 		{
 			if (Interactive)
 			{
-				//CreateEditMenu();
-				//Assert(EditMenu);
+				CreateEditMenu();
+				Assert(EditMenu);
 
-				//OpenEditMenu();
+				OpenEditMenu();
 			}
 		}
 	}
@@ -296,6 +296,18 @@ public class RichText : Panel
 			InvalidateLineBreakStream();
 			InvalidateLayout();
 		}
+	}
+
+	public void CreateEditMenu()
+	{
+		if (EditMenu != null)
+			return;
+
+		EditMenu = new Menu(this, "EditMenu");
+		EditMenu.AddMenuItem("C&opy", new KeyValues("DoCopySelected"), this);
+		EditMenu.SetVisible(false);
+		EditMenu.SetParent(this);
+		EditMenu.AddActionSignalTarget(this);
 	}
 
 	public void SelectNoText() {
@@ -728,6 +740,43 @@ public class RichText : Panel
 			(end, start) = (start, end);
 
 		return true;
+	}
+
+	private void OpenEditMenu()
+	{
+		if (EditMenu == null)
+			return;
+
+		Input.GetCursorPos(out int cursorX, out int cursorY);
+		if (GetSelectedRange(out _, out _))
+		{
+			//EditMenu.SetItemEnabled("&Cut", true);
+			//EditMenu.SetItemEnabled("C&opy", true);
+		} else {
+			//EditMenu.SetItemEnabled("&Cut", false);
+			//EditMenu.SetItemEnabled("C&opy", false);
+		}
+		EditMenu.SetVisible(true);
+		EditMenu.RequestFocus();
+		EditMenu.InvalidateLayout();
+		EditMenu.GetSize(out int menuWide, out int menuTall);
+
+		Surface.GetScreenSize(out int wide, out int tall);
+
+		if (wide - menuWide > cursorX)
+		{
+			if (tall - menuTall > cursorY)
+				EditMenu.SetPos(cursorX, cursorY);
+			else
+				EditMenu.SetPos(cursorX, cursorY - menuTall);
+		} else {
+			if (tall - menuTall > cursorY)
+				EditMenu.SetPos(cursorX - menuWide, cursorY);
+			else
+				EditMenu.SetPos(cursorX - menuWide, cursorY - menuTall);
+		}
+
+		EditMenu.RequestFocus();
 	}
 
 	private void CursorToPixelSpace(int cursorPos, out int cx, out int cy) {
