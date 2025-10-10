@@ -279,7 +279,7 @@ public class Scheme : IScheme
 			KeyValues kv = fonts.FindKey(v.TrueFontName, true)!;
 
 			for (KeyValues? fontdata = kv.GetFirstSubKey(); fontdata != null; fontdata = fontdata.GetNextKey()) {
-				new ScanF(fontdata.GetString(), "%d %d")
+				new ScanF(fontdata.GetString("yres"), "%d %d")
 					.Read(out int fontYResMin)
 					.Read(out int fontYResMax);
 				if (fontYResMin > 0) {
