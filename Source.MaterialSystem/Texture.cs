@@ -301,8 +301,90 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 		ActualDimensionLimit = DesiredDimensionLimit;
 	}
 
-	private void SetFilteringAndClampingMode() {
+	private void SetFilteringAndClampingMode(bool onlyLodValues = false) {
+		if (!HasBeenAllocated())
+			return;
 
+		for (int frame = 0; frame < FrameCount; ++frame) {
+			Modify(frame);     
+			if (!onlyLodValues) {
+				SetWrapState();
+				SetFilterState();    			
+			}
+			else
+				SetLodState();
+		}
+	}
+
+	private void SetLodState() {
+	}
+
+	private void SetWrapState() {
+		if ((Flags & (int)TextureFlags.Border) != 0) {
+			ShaderAPI.TexWrap(TexCoordComponent.S, TexWrapMode.Border);
+			ShaderAPI.TexWrap(TexCoordComponent.T, TexWrapMode.Border);
+			ShaderAPI.TexWrap(TexCoordComponent.U, TexWrapMode.Border);
+			return;
+		}
+
+		if ((Flags & (int)TextureFlags.ClampS) != 0)
+			ShaderAPI.TexWrap(TexCoordComponent.S, TexWrapMode.Clamp);
+		else 
+			ShaderAPI.TexWrap(TexCoordComponent.S, TexWrapMode.Repeat);
+
+		if ((Flags & (int)TextureFlags.ClampT) != 0)
+			ShaderAPI.TexWrap(TexCoordComponent.T, TexWrapMode.Clamp);
+		else 
+			ShaderAPI.TexWrap(TexCoordComponent.T, TexWrapMode.Repeat);
+
+		if ((Flags & (int)TextureFlags.ClampU) != 0)
+			ShaderAPI.TexWrap(TexCoordComponent.U, TexWrapMode.Clamp);
+		else 
+			ShaderAPI.TexWrap(TexCoordComponent.U, TexWrapMode.Repeat);
+	}
+
+	private void SetFilterState() {
+		if ((Flags & (int)TextureFlags.PointSample) != 0) {
+			ShaderAPI.TexMinFilter(TexFilterMode.Nearest);
+			ShaderAPI.TexMagFilter(TexFilterMode.Nearest);
+			return;
+		}
+
+		bool enableMipmapping = (Flags & (int)TextureFlags.NoMip) == 0;
+		if (!enableMipmapping) {
+			ShaderAPI.TexMinFilter(TexFilterMode.Linear);
+			ShaderAPI.TexMagFilter(TexFilterMode.Linear);
+			return;
+		}
+
+		bool isAnisotropic = false, isTrilinear = false;
+		if (g_config.ForceAnisotropicLevel > 1 && HardwareConfig.MaximumAnisotropicLevel() > 1) 
+			isAnisotropic = true;
+		else if (g_config.ForceTrilinear()) {
+			isAnisotropic = ((Flags & (int)TextureFlags.Anisotropic) != 0) && (HardwareConfig.MaximumAnisotropicLevel() > 1);
+			isTrilinear = true;
+		}
+		else {
+			isAnisotropic = ((Flags & (int)TextureFlags.Anisotropic) != 0) && (HardwareConfig.MaximumAnisotropicLevel() > 1);
+			isTrilinear = (Flags & (int)TextureFlags.Trilinear) != 0;
+		}
+
+		if (isAnisotropic) {
+			ShaderAPI.TexMinFilter(TexFilterMode.Anisotropic);
+			ShaderAPI.TexMagFilter(TexFilterMode.Anisotropic);
+		}
+		else {
+			if (isTrilinear) {
+				ShaderAPI.TexMinFilter(TexFilterMode.LinearMipmapLinear);
+				ShaderAPI.TexMagFilter(TexFilterMode.Linear);
+			}
+			else {
+				ShaderAPI.TexMinFilter(TexFilterMode.LinearMipmapNearest);
+				ShaderAPI.TexMagFilter(TexFilterMode.Linear);
+			}
+		}
+
+		SetLodState();
 	}
 
 	private void ReconstructTexture(bool copyFromCurrent) {

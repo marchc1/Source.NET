@@ -854,4 +854,90 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 
 	public int GetMaxVerticesToRender(IMaterial material) => MeshMgr.GetMaxVerticesToRender(material);
 	public int GetMaxIndicesToRender(IMaterial material) => MeshMgr.GetMaxIndicesToRender(material);
+
+	public void TexWrap(TexCoordComponent coord, TexWrapMode wrapMode) {
+		int coordinate = coord switch {
+			TexCoordComponent.S => GL_TEXTURE_WRAP_S,
+			TexCoordComponent.T => GL_TEXTURE_WRAP_T,
+			TexCoordComponent.U => GL_TEXTURE_WRAP_R,
+			_ => -1
+		};
+
+		if(coordinate == -1) {
+			Warning("ShaderAPIGl46.TexWrap: unknown coord\n");
+			return;
+		}
+
+		switch (wrapMode) {
+			case TexWrapMode.Clamp:
+				glTextureParameteri((uint)ModifyTextureHandle, coordinate, GL_CLAMP_TO_EDGE);
+				break;
+			case TexWrapMode.Repeat:
+				glTextureParameteri((uint)ModifyTextureHandle, coordinate, GL_REPEAT);
+				break;
+			case TexWrapMode.Border:
+				glTextureParameteri((uint)ModifyTextureHandle, coordinate, GL_CLAMP_TO_BORDER);
+				break;
+			default:
+				Warning("ShaderAPIGl46.TexWrap: unknown wrapMode\n");
+				break;
+		}
+	}
+	IMaterialSystemHardwareConfig HardwareConfig = Singleton<IMaterialSystemHardwareConfig>();
+	public void TexMinFilter(TexFilterMode mode) {
+		switch (mode) {
+			case TexFilterMode.Nearest:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				break;
+			case TexFilterMode.Linear:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				break;
+			case TexFilterMode.NearestMipmapNearest:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+				break;
+			case TexFilterMode.LinearMipmapNearest:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+				break;
+			case TexFilterMode.NearestMipmapLinear:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+				break;
+			case TexFilterMode.LinearMipmapLinear:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+				break;
+			case TexFilterMode.Anisotropic:
+				glTextureParameterf((uint)ModifyTextureHandle, GL_TEXTURE_MAX_ANISOTROPY, HardwareConfig.MaximumAnisotropicLevel());
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				break;
+			default:
+				break;
+		}
+	}
+
+	public void TexMagFilter(TexFilterMode mode) {
+		switch (mode) {
+			case TexFilterMode.Nearest:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+				break;
+			case TexFilterMode.Linear:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				break;
+			case TexFilterMode.NearestMipmapNearest:
+				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.NearestMipmapNearest is invalid\n");
+				break;
+			case TexFilterMode.LinearMipmapNearest:
+				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.LinearMipmapNearest is invalid\n");
+				break;
+			case TexFilterMode.NearestMipmapLinear:
+				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.NearestMipmapLinear is invalid\n");
+				break;
+			case TexFilterMode.LinearMipmapLinear:
+				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.LinearMipmapLinear is invalid\n");
+				break;
+			case TexFilterMode.Anisotropic:
+				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.Anisotropic is invalid\n");
+				break;
+			default:
+				break;
+		}
+	}
 }
