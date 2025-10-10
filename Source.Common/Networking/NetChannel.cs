@@ -906,7 +906,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		MsgStats[(int)group] += bits;
 
 		if (frame != null)
-			frame.MessageGroups[(int)group] += (uint)bits;
+			frame.MessageGroups[(int)group] += (ushort)bits;
 	}
 
 

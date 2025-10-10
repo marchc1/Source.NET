@@ -43,7 +43,7 @@ public class NetFrame
 	public int ChokedPackets;
 	public int DroppedPackets;
 	public TimeUnit_t InterpolationAmount;
-	public uint[] MessageGroups = new uint[(uint)NetChannelGroup.Total];
+	public ushort[] MessageGroups = new ushort[(uint)NetChannelGroup.Total];
 }
 
 public class NetFlow
