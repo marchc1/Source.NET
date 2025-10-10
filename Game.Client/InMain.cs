@@ -229,14 +229,12 @@ public partial class Input(IServiceProvider provider, ISurface Surface, IViewRen
 	readonly Lazy<IBaseClientDLL> clientDLLLzy = new(provider.GetRequiredService<IBaseClientDLL>);
 	IBaseClientDLL clientDLL => clientDLLLzy.Value;
 
-	ClientState cl;
-	IEngineClient engine;
-	Hud Hud;
+	Hud Hud = null!;
 
 	public const int MULTIPLAYER_BACKUP = 90;
 	UserCmd[] Commands = new UserCmd[MULTIPLAYER_BACKUP];
 
-	public unsafe ref UserCmd GetUserCmd(int sequenceNumber) {
+	public ref UserCmd GetUserCmd(int sequenceNumber) {
 		ref UserCmd usercmd = ref Commands[MathLib.Modulo(sequenceNumber, MULTIPLAYER_BACKUP)];
 		if (usercmd.CommandNumber != sequenceNumber)
 			return ref UserCmd.NULL;
@@ -245,72 +243,67 @@ public partial class Input(IServiceProvider provider, ISurface Surface, IViewRen
 	}
 
 	public void CreateMove(int sequenceNumber, double inputSampleFrametime, bool active) {
-		int nextcmdnr = cl.LastOutgoingCommand + cl.ChokedCommands + 1;
-		ref UserCmd cmd = ref Commands[MathLib.Modulo(nextcmdnr, MULTIPLAYER_BACKUP)];
-		{
-			cmd.Reset();
-			cmd.CommandNumber = nextcmdnr;
-			cmd.TickCount = cl.GetClientTickCount();
+		ref UserCmd cmd = ref Commands[MathLib.Modulo(sequenceNumber, MULTIPLAYER_BACKUP)];
 
-			if (active) {
-				AdjustAngles(inputSampleFrametime);
-				ComputeSideMove(ref cmd);
-				ComputeUpwardMove(ref cmd);
-				ComputeForwardMove(ref cmd);
-				ScaleMovements(ref cmd);
-				ControllerMove(inputSampleFrametime, ref cmd);
-				ApplyExtras(ref cmd);
-			}
+		cmd.Reset();
+		cmd.CommandNumber = sequenceNumber;
+		cmd.TickCount = (int)gpGlobals.TickCount;
 
-			cmd.Buttons = GetButtonBits(1);
-
-			engine.GetViewAngles(out QAngle curViewangles);
-			cmd.ViewAngles = curViewangles;
-			cmd.Impulse = (byte)in_impulse;
-			in_impulse = 0;
-			if (cmd.ForwardMove > 0)
-				cmd.Buttons |= InButtons.Forward;
-			else if (cmd.ForwardMove < 0)
-				cmd.Buttons |= InButtons.Back;
-
+		if (active) {
+			AdjustAngles(inputSampleFrametime);
+			ComputeSideMove(ref cmd);
+			ComputeUpwardMove(ref cmd);
+			ComputeForwardMove(ref cmd);
+			ScaleMovements(ref cmd);
+			ControllerMove(inputSampleFrametime, ref cmd);
+			ApplyExtras(ref cmd);
 		}
+
+		cmd.Buttons = GetButtonBits(1);
+
+		engine.GetViewAngles(out QAngle curViewangles);
+		cmd.ViewAngles = curViewangles;
+		cmd.Impulse = (byte)in_impulse;
+		in_impulse = 0;
+		if (cmd.ForwardMove > 0)
+			cmd.Buttons |= InButtons.Forward;
+		else if (cmd.ForwardMove < 0)
+			cmd.Buttons |= InButtons.Back;
 	}
 
 	private void ApplyExtras(ref UserCmd cmd) {
 		cmd.IsTyping = HLClient.ClientMode!.IsTyping();
 	}
 
-	public unsafe void ValidateUserCmd(UserCmd* f, int from) {
+	public void ValidateUserCmd(ref UserCmd f, int from) {
 
 	}
 
-	public unsafe bool WriteUsercmdDeltaToBuffer(bf_write buf, int from, int to, bool isNewCommand) {
-		UserCmd nullcmd;
-		UserCmd* f = null, t = null;
+
+	UserCmd nullcmd = default;
+	public bool WriteUsercmdDeltaToBuffer(bf_write buf, int from, int to, bool isNewCommand) {
+		nullcmd = default;
+		ref UserCmd f = ref Unsafe.NullRef<UserCmd>(), t = ref Unsafe.NullRef<UserCmd>();
 
 		int startbit = buf.BitsWritten;
 		if (from == -1) {
-			f = &nullcmd;
+			f = ref nullcmd;
 		}
 		else {
-			f = (UserCmd*)Unsafe.AsPointer(ref GetUserCmd(from));
-			if (f == null) {
-				f = &nullcmd;
-			}
-			else {
-				ValidateUserCmd(f, from);
-			}
+			f = ref GetUserCmd(from);
+			if (UserCmd.IsNull(ref f))
+				f = ref nullcmd;
+			else
+				ValidateUserCmd(ref f, from);
 		}
 
-		t = (UserCmd*)Unsafe.AsPointer(ref GetUserCmd(to));
-		if (t == null) {
-			t = &nullcmd;
-		}
-		else {
-			ValidateUserCmd(t, to);
-		}
+		t = ref GetUserCmd(to);
+		if (UserCmd.IsNull(ref t))
+			t = ref nullcmd;
+		else
+			ValidateUserCmd(ref t, to);
 
-		UserCmd.WriteUsercmd(buf, in *t, in *f);
+		UserCmd.WriteUsercmd(buf, in t, in f);
 		if (buf.Overflowed) {
 			Warning("WARNING! User command buffer overflow\n");
 			return false;
@@ -330,8 +323,6 @@ public partial class Input(IServiceProvider provider, ISurface Surface, IViewRen
 	}
 
 	public void Init() {
-		cl = Singleton<ClientState>();
-		engine = Singleton<IEngineClient>();
 		Hud = Singleton<Hud>();
 
 		MouseInitialized = false;
@@ -380,7 +371,7 @@ public partial class Input(IServiceProvider provider, ISurface Surface, IViewRen
 		return 1;
 	}
 
-	public unsafe void ExtraMouseSample(double frametime, bool active) {
+	public void ExtraMouseSample(double frametime, bool active) {
 		UserCmd dummy = new();
 		ref UserCmd cmd = ref dummy;
 		cmd.Reset();
@@ -490,7 +481,7 @@ public partial class Input(IServiceProvider provider, ISurface Surface, IViewRen
 			GetAccumulatedMouseDeltasAndResetAccumulators(out float mx, out float my);
 			GetMouseDelta(mx, my, out float mouse_x, out float mouse_y);
 			ScaleMouse(ref mouse_x, ref mouse_y);
-			HLClient.ClientMode.OverrideMouseInput(ref mouse_x, ref mouse_y);
+			HLClient.ClientMode!.OverrideMouseInput(ref mouse_x, ref mouse_y);
 			ApplyMouse(ref viewangles, ref cmd, mouse_x, mouse_y);
 			ResetMouse();
 		}

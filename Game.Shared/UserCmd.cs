@@ -1,4 +1,4 @@
-﻿using Source;
+using Source;
 using Source.Common.Bitbuffers;
 using Source.Common.Mathematics;
 
@@ -11,6 +11,7 @@ namespace Game.Shared;
 
 public struct UserCmd
 {
+	public static bool IsNull(ref UserCmd cmd) => Unsafe.IsNullRef(ref cmd);
 	public static ref UserCmd NULL => ref Unsafe.NullRef<UserCmd>();
 	public void Reset() {
 		CommandNumber = 0;
