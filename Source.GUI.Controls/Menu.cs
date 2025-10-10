@@ -78,6 +78,23 @@ public class Menu : Panel
 	bool UseFallbackFont;
 	IFont? FallbackItemFont;
 
+	public void DeleteAllItems()
+	{
+		for (int i = 0; i < MenuItems.Count; i++)
+			MenuItems[i].MarkForDeletion();
+
+		MenuItems.Clear();
+		SortedItems.Clear();
+		VisibleSortedItems.Clear();
+		Separators.Clear();
+
+		int count = SeparatorPanels.Count;
+		for (int i = 0; i < count; i++)
+			SeparatorPanels[i].MarkForDeletion();
+		//SeparatorPanels.RemoveAll();
+		InvalidateLayout();
+	}
+
 	public virtual int AddMenuItem(MenuItem panel) {
 		panel.SetParent(this);
 		int itemID = MenuItems.Count;

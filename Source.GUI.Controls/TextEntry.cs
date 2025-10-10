@@ -831,7 +831,7 @@ public class TextEntry : Panel
 		}
 	}
 
-	private void GotoTextEnd() {
+	public void GotoTextEnd() {
 		SelectCheck();
 		CursorPos = TextStream.Count;
 		PutCursorAtEnd = true;
