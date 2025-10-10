@@ -62,13 +62,13 @@ public class NetFlow
 	public const int FLOW_INCOMING = 1;
 	public const int MAX_FLOWS = 2;
 
-	public double NextCompute;
-	public double AverageBytesPerSec;
-	public double AveragePacketsPerSec;
-	public double AverageLoss;
-	public double AverageChoke;
-	public double AverageLatency;
-	public double Latency;
+	public TimeUnit_t NextCompute;
+	public TimeUnit_t AverageBytesPerSec;
+	public TimeUnit_t AveragePacketsPerSec;
+	public TimeUnit_t AverageLoss;
+	public TimeUnit_t AverageChoke;
+	public TimeUnit_t AverageLatency;
+	public TimeUnit_t Latency;
 	public int TotalPackets;
 	public int TotalBytes;
 	public int CurrentIndex;
