@@ -2086,6 +2086,7 @@ public class Panel : IPanel
 			case "KeyFocusTicked": InternalKeyFocusTicked(); break;
 			case "MouseCaptureLost": OnMouseCaptureLost(); break;
 			case "MousePressed": OnMousePressed((ButtonCode)message.GetInt("code")); break;
+			case "MouseWheeled": OnMouseWheeled(message.GetInt("delta")); break;
 			case "MouseReleased": OnMouseReleased((ButtonCode)message.GetInt("code")); break;
 			case "UnhandledMouseClick": OnUnhandledMouseClick((ButtonCode)message.GetInt("code")); break;
 			case "SetFocus": InternalSetFocus(); break;
