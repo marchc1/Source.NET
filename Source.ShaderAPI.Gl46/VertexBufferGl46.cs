@@ -133,7 +133,6 @@ public unsafe class VertexBufferGl46 : IDisposable
 		Span<uint> bindings = stackalloc uint[64];
 		int bindingsPtr = 0;
 
-
 		for (OpenGL_ShaderInputAttribute i = 0; i < OpenGL_ShaderInputAttribute.Count; i++) {
 			bool enabled = IsOn(i, VertexBufferFormat, out int size, out VertexElement element);
 			if (!enabled) {
@@ -313,13 +312,13 @@ public unsafe class VertexBufferGl46 : IDisposable
 			for (int i = 0; i < IMesh.VERTEX_MAX_TEXTURE_COORDINATES; i++) {
 				int size = (int)vertexFormat.GetTexCoordDimensionSize(i);
 				if(size != 0) {
-					desc.TexCoord[i] = (float*)(baseptr + offset);
+					desc.SetTexCoord(i, (float*)(baseptr + offset));
 					offset += ((VertexElement)((int)texCoordElements[size - 1] + i)).GetSize();
-					vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->TexCoordSizePtr[i];
+					vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->TexCoordSize[i];
 				}
 				else {
-					desc.TexCoord[i] = (float*)dummyData;
-					desc.TexCoordSizePtr[i] = 0;
+					desc.SetTexCoord(i, (float*)dummyData);
+					desc.TexCoordSize[i] = 0;
 				}
 			}
 

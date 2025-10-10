@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 
 namespace Source.Common.Utilities;
 
@@ -74,7 +74,6 @@ public class RefStack<T> where T : struct
 	}
 
 	public ref T Top() {
-		Assert(Count > 0);
 		return ref getBacking(count - 1);
 	}
 
