@@ -26,7 +26,7 @@ public enum KeyUpTarget
 
 public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClientDLL? clientDLL, Cbuf Cbuf)
 {
-	readonly KeyInfo[] KeyInfo = new KeyInfo[(int)ButtonCode.Last];
+	readonly KeyInfo[] KeyInfo = new KeyInfo[(int)ButtonCode.Count];
 	bool TrapMode = false;
 	bool DoneTrapping = false;
 	ButtonCode TrapKeyUp = ButtonCode.Invalid;
