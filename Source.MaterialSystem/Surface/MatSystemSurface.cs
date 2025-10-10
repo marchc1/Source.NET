@@ -1584,6 +1584,18 @@ public class MatSystemSurface : IMatSystemSurface
 		TextureDictionary.BindTextureToMaterialReference(in id, in refID, material);
 	}
 
+	public void DrawString(ReadOnlySpan<char> str, FontDrawType drawType = FontDrawType.Default) {
+		if (FullyTransparent)
+			return;
+		for (int i = 0; i < str[i]; i++) {
+			char c = str[i];
+			if (c == '\0')
+				break;
+
+			DrawChar(c);
+		}
+	}
+
 	public void DrawChar(char ch, FontDrawType drawType = FontDrawType.Default) {
 		if (DrawTextColor.A == 0)
 			return;

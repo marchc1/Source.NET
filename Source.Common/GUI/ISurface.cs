@@ -1,4 +1,4 @@
-﻿using Source.Common.Input;
+using Source.Common.Input;
 using Source.Common.Launcher;
 
 using System.Drawing;
@@ -212,6 +212,7 @@ public interface ISurface
 	void ForceScreenPosOffset(bool active, int x, int y);
 	void ForceScreenSizeOverride(bool active, int w, int h);
 	int DrawColoredText(IFont? font, int x, int y, byte r, byte g, byte b, byte a, ReadOnlySpan<char> text);
+	void DrawString(ReadOnlySpan<char> str, FontDrawType drawType = FontDrawType.Default);
 }
 
 public interface IMatSystemSurface : ISurface {

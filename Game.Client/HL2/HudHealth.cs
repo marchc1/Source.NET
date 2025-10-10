@@ -16,6 +16,8 @@ public class HudHealth : HudNumericDisplay, IHudElement
 	int BitsDamage;
 
 	public HudHealth(string? panelName) : base(null, "HudHealth") {
+		/*(IHudElement.)*/ ElementName = "HudHealth";
+
 		var parent = clientMode.GetViewport();
 		SetParent(parent);
 	}
@@ -31,7 +33,27 @@ public class HudHealth : HudNumericDisplay, IHudElement
 	public void Reset() {
 
 	}
+	public override void OnThink() {
+		int newHealth = 0;
+		C_BasePlayer? local = C_BasePlayer.GetLocalPlayer();
+		if (local != null)
+			newHealth = Math.Max(local.GetHealth(), 0);
+		
+		if (newHealth == Health)
+			return;
 
+		Health = newHealth;
+
+		if (Health >= 20) {
+			clientMode.GetViewportAnimationController()!.StartAnimationSequence("HealthIncreasedAbove20");
+		}
+		else if (Health > 0) {
+			clientMode.GetViewportAnimationController()!.StartAnimationSequence("HealthIncreasedBelow20");
+			clientMode.GetViewportAnimationController()!.StartAnimationSequence("HealthLow");
+		}
+
+		SetDisplayValue(Health);
+	}
 	private void Damage(bf_read msg) {
 		int armor = msg.ReadByte(); 
 		int damageTaken = msg.ReadByte();   
