@@ -126,7 +126,6 @@ public class GameUI(IEngineClient engine) : IGameUI
 	}
 
 	public bool SetShowProgressText(bool show) {
-		Console.WriteLine("GameUI.SetShowProgressText: " + show);
 		if (LoadingDialog == null)
 			return false;
 
