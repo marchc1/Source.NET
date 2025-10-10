@@ -1,8 +1,6 @@
 using Game.Client.HUD;
 using Game.Shared;
 
-using Microsoft.Extensions.DependencyInjection;
-
 using Source;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
@@ -10,7 +8,6 @@ using Source.Common.Commands;
 using Source.Common.GUI;
 using Source.Common.Input;
 using Source.Common.Mathematics;
-using Source.Engine.Client;
 
 using System.Runtime.CompilerServices;
 
@@ -38,7 +35,7 @@ public enum MouseParams
 	Num
 }
 
-public partial class Input(IServiceProvider provider, ISurface Surface, IViewRender view, ThirdPersonManager ThirdPersonManager) : IInput
+public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManager ThirdPersonManager) : IInput
 {
 	ConVar cl_anglespeedkey = new("0.67", 0);
 	ConVar cl_yawspeed = new("210", FCvar.None, "Client yaw speed.", -100000, 100000);
@@ -225,9 +222,6 @@ public partial class Input(IServiceProvider provider, ISurface Surface, IViewRen
 	[ConCommand(name: "-break")] void IN_BreakUp(in TokenizedCommand args) => KeyUp(ref in_break, args[1]);
 	[ConCommand(name: "-zoom")] void IN_ZoomUp(in TokenizedCommand args) => KeyUp(ref in_zoom, args[1]);
 	[ConCommand(name: "-attack3")] void IN_Attack3Up(in TokenizedCommand args) => KeyUp(ref in_attack3, args[1]);
-
-	readonly Lazy<IBaseClientDLL> clientDLLLzy = new(provider.GetRequiredService<IBaseClientDLL>);
-	IBaseClientDLL clientDLL => clientDLLLzy.Value;
 
 	Hud Hud = null!;
 
