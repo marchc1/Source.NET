@@ -47,7 +47,7 @@ public class MenuItem : Button
 	bool Checkable;
 	bool Checked;
 
-	public MenuItem(Panel parent, string name, string text) : base(parent, name, text)
+	public MenuItem(Menu parent, string name, string text) : base(parent, name, text)
 	{
 		ContentAlignment = Alignment.West;
 		SetParent(parent);
