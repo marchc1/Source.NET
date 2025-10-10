@@ -167,6 +167,7 @@ public class EngineVGui(
 	EnginePanel staticGameUIPanel;
 	EnginePanel staticGameDLLPanel;
 	ClientState cl;
+	CL CL;
 
 	EnginePanel staticEngineToolsPanel;
 
@@ -362,6 +363,7 @@ public class EngineVGui(
 		clientDLL = engineAPI.GetRequiredService<IBaseClientDLL>();
 		vguiScheme = engineAPI.GetRequiredService<ISchemeManager>();
 		localize = engineAPI.GetRequiredService<ILocalize>();
+		CL = engineAPI.GetRequiredService<CL>();
 		cl = engineAPI.GetRequiredService<ClientState>();
 		vguiScheme.Init();
 		// IGameConsole, but later.
@@ -471,6 +473,10 @@ public class EngineVGui(
 		// - VGui_CreateDrawTreePanel
 		// - CL_CreateTextureListPanel
 		// - CreateVProfPanels
+
+		if (IsPC()) {
+			CL.CreateEntityReportPanel(staticEngineToolsPanel);
+		}
 
 		staticEngineToolsPanel.LoadControlSettings("scripts/EngineVGuiLayout.res");
 

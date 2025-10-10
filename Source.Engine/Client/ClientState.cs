@@ -705,8 +705,8 @@ public class ClientState : BaseClientState
 		u.To!.LastEntity = u.OldEntity;
 		u.To!.TransmitEntity.Set(u.OldEntity);
 
-		//  if (cl_entityreport.GetBool())
-		//  	CL_RecordEntityBits(u.m_nOldEntity, 0);
+		 if (CL.cl_entityreport.GetBool())
+		 	CL.RecordEntityBits(u.OldEntity, 0);
 
 		CL.PreserveExistingEntity(u.OldEntity);
 
