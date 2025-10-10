@@ -66,13 +66,13 @@ public class HudNumericDisplay : Panel
 	bool Indent;
 	bool IsTime;
 
-	[PanelAnimationVar("0")] protected float Blur;
-	[PanelAnimationVar("FgColor")] protected Color TextColor;
-	[PanelAnimationVar("FgColor")] protected Color Ammo2Color;
-	[PanelAnimationVar("HudNumbers")] protected IFont NumberFont;
-	[PanelAnimationVar("HudNumbersGlow")] protected IFont NumberGlowFont;
-	[PanelAnimationVar("HudNumbersSmall")] protected IFont SmallNumberFont;
-	[PanelAnimationVar("Default")] protected IFont TextFont;
+	[PanelAnimationVar(nameof(Blur), "0")] protected float Blur;
+	[PanelAnimationVar(nameof(TextColor), "FgColor")] protected Color TextColor;
+	[PanelAnimationVar(nameof(Ammo2Color), "FgColor")] protected Color Ammo2Color;
+	[PanelAnimationVar(nameof(NumberFont), "HudNumbers")] protected IFont NumberFont;
+	[PanelAnimationVar(nameof(NumberGlowFont), "HudNumbersGlow")] protected IFont NumberGlowFont;
+	[PanelAnimationVar(nameof(SmallNumberFont), "HudNumbersSmall")] protected IFont SmallNumberFont;
+	[PanelAnimationVar(nameof(TextFont), "Default")] protected IFont TextFont;
 	[PanelAnimationVarAliasType("text_xpos", "8", "proportional_float")] protected float text_xpos;
 	[PanelAnimationVarAliasType("text_ypos", "20", "proportional_float")] protected float text_ypos;
 	[PanelAnimationVarAliasType("digit_xpos", "50", "proportional_float")] protected float digit_xpos;

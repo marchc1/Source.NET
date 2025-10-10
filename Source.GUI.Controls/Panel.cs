@@ -207,16 +207,17 @@ public class Panel : IPanel
 		AddPropertyConverter("int", intConverter);
 		AddPropertyConverter("Color", colorConverter);
 		AddPropertyConverter("HFont", fontConverter);
+		AddPropertyConverter("IFont", fontConverter);
 		AddPropertyConverter("proportional_float", p_floatConverter);
 
-		AddPropertyConverter("textureid", p_textureIdConverter);
+		AddPropertyConverter("textureid", textureIdConverter);
 	}
 	static readonly FloatProperty floatConverter = new();
 	static readonly IntProperty intConverter = new();
 	static readonly ColorProperty colorConverter = new();
 	static readonly FontProperty fontConverter = new();
 	static readonly ProportionalFloatProperty p_floatConverter = new();
-	static readonly TextureIdProperty p_textureIdConverter = new();
+	static readonly TextureIdProperty textureIdConverter = new();
 
 	public static void AddPropertyConverter(ReadOnlySpan<char> typeName, IPanelAnimationPropertyConverter converter) {
 		var hash = typeName.Hash();
@@ -2366,11 +2367,14 @@ class FontProperty : IPanelAnimationPropertyConverter
 	}
 
 	public void SetData(Panel panel, KeyValues kv, ref PanelAnimationMapEntry entry) {
-		entry.Set(panel, panel.GetScheme()?.GetFont(kv.GetString(entry.ScriptName)));
+		entry.Set(panel, panel.GetScheme()?.GetFont(kv.GetString(entry.ScriptName))!);
 	}
 
 	public void InitFromDefault(Panel panel, ref PanelAnimationMapEntry entry) {
-		throw new NotImplementedException();
+		IScheme? scheme = panel.GetScheme();
+		if(scheme != null) {
+			entry.Set(panel, scheme.GetFont(entry.DefaultValue, panel.IsProportional())!);
+		}
 	}
 }
 class ProportionalFloatProperty : IPanelAnimationPropertyConverter
