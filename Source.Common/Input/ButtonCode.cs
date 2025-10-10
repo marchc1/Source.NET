@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 
 namespace Source.Common.Input;
 
@@ -132,7 +132,7 @@ public enum ButtonCode
 	MouseLast = MouseWheelDown,
 	MouseCount = MouseLast - MouseFirst + 1,
 
-	Last = MouseLast,
+	Last = MouseLast + 1,
 	Count
 }
 public static class ButtonCodeExts {

@@ -571,7 +571,7 @@ public class SDL3_InputSystem(IServiceProvider services) : IInputSystem
 		if (str.IsEmpty || str.Length <=0)
 			return ButtonCode.Invalid;
 
-		for (ButtonCode i = 0; i < ButtonCode.Count; ++i) 
+		for (ButtonCode i = 0; i < ButtonCode.Last; ++i) 
 			if (str.Equals(ButtonCodeName[(int)i], StringComparison.OrdinalIgnoreCase))
 				return i;
 		

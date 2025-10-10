@@ -26,7 +26,7 @@ public enum KeyUpTarget
 
 public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClientDLL? clientDLL, Cbuf Cbuf)
 {
-	readonly KeyInfo[] KeyInfo = new KeyInfo[(int)ButtonCode.Count];
+	readonly KeyInfo[] KeyInfo = new KeyInfo[(int)ButtonCode.Last];
 	bool TrapMode = false;
 	bool DoneTrapping = false;
 	ButtonCode TrapKeyUp = ButtonCode.Invalid;
@@ -77,7 +77,7 @@ public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClie
 		if (keynum == ButtonCode.Invalid)
 			return;
 
-		KeyInfo[(int)keynum].KeyBinding = new(cmd);
+		KeyInfo[(int)keynum].KeyBinding = cmd.IsEmpty ? null : new(cmd);
 	}
 
 	public void Event(in InputEvent ev) {
@@ -227,7 +227,7 @@ public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClie
 	[ConCommand(flags: FCvar.DontRecord, helpText: "Unbind all keys.")]
 	void unbindall(in TokenizedCommand args) {
 		for (int i = 0; i < (int)ButtonCode.Last; i++) {
-			if (string.IsNullOrEmpty(KeyInfo[i].KeyBinding))
+			if (KeyInfo[i].KeyBinding == null)
 				continue;
 
 			if (i == (int)ButtonCode.KeyEscape)
