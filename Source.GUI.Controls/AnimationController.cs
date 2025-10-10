@@ -1,4 +1,4 @@
-﻿using Source.Common.GUI;
+using Source.Common.GUI;
 using CommunityToolkit.HighPerformance;
 using Source.Common.Mathematics;
 using Source.Common.Utilities;
@@ -442,5 +442,9 @@ public class AnimationController : Panel, IAnimationController
 
 		// todo
 		return true; // just lie for now
+	}
+
+	public void StartAnimationSequence(string v) {
+
 	}
 }

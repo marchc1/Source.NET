@@ -504,7 +504,7 @@ public class BaseHudChat : EditableHudElement
 	readonly ClientGlobalVariables gpGlobals = Singleton<ClientGlobalVariables>();
 
 	public BaseHudChat(string? elementName) : base("HudChat", elementName) {
-		Panel parent = HLClient.ClientMode.GetViewport();
+		Panel parent = clientMode.GetViewport();
 		SetParent(parent);
 
 		IScheme? scheme = SchemeManager.LoadSchemeFromFileEx(EngineVGui.GetPanel(VGuiPanelType.ClientDll), "resource/ChatScheme.res", "ChatScheme");

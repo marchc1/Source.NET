@@ -1,4 +1,4 @@
-﻿using Game.Client.HL2;
+using Game.Client.HL2;
 using Game.Client.HUD;
 using Game.Shared;
 
@@ -16,8 +16,6 @@ namespace Game.Client;
 
 public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals, ISurface surface, ViewRender view, IInput input, Hud HUD, UserMessages usermessages, Interpolation Interpolation) : IBaseClientDLL
 {
-	public static IClientMode? ClientMode { get; private set; }
-
 	public static void DLLInit(IServiceCollection services) {
 		services.AddSingleton<IInput, HLInput>();
 		services.AddSingleton<ClientEntityList>();
@@ -65,12 +63,12 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		InitClientGlobals();
 		IGameSystem.Add(Singleton<ViewportClientSystem>());
 
-		ClientMode ??= new ClientModeHL2MPNormal(services, gpGlobals, HUD, Singleton<IEngineVGui>(), surface);
+		clientMode ??= new ClientModeHL2MPNormal(services, gpGlobals, HUD, Singleton<IEngineVGui>(), surface);
 		HUD.Init();
-		ClientMode.Init();
+		clientMode.Init();
 		if (!IGameSystem.InitAllSystems())
 			return false;
-		ClientMode.Enable();
+		clientMode.Enable();
 		view.Init();
 		input.Init();
 		ClientVGui.CreateGlobalPanels();

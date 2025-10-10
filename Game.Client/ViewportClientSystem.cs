@@ -1,11 +1,11 @@
-﻿using Game.Shared;
+using Game.Shared;
 
 namespace Game.Client;
 
 public class ViewportClientSystem : IGameSystem
 {
 	public bool Init() {
-		HLClient.ClientMode!.Layout();
+		clientMode!.Layout();
 		return true;
 	}
 

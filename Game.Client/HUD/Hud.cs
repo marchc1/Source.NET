@@ -61,7 +61,7 @@ public class Hud(HudElementHelper HudElementHelper, IFileSystem filesystem)
 	}
 
 	internal void ResetHUD() {
-		HLClient.ClientMode!.GetViewportAnimationController()!.CancelAllAnimations();
+		clientMode.GetViewportAnimationController()!.CancelAllAnimations();
 	}
 
 	internal void RefreshHudTextures() {

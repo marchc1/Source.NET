@@ -80,7 +80,7 @@ public class BaseViewport : EditablePanel, IViewPort
 		if (OldSize[0] != w || OldSize[1] != h) {
 			OldSize[0] = w;
 			OldSize[1] = h;
-			HLClient.ClientMode!.Layout();
+			clientMode!.Layout();
 		}
 
 		base.OnThink();

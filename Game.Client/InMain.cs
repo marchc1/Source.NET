@@ -266,7 +266,7 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 	}
 
 	private void ApplyExtras(ref UserCmd cmd) {
-		cmd.IsTyping = HLClient.ClientMode!.IsTyping();
+		cmd.IsTyping = clientMode!.IsTyping();
 	}
 
 	public void ValidateUserCmd(ref UserCmd f, int from) {
@@ -360,7 +360,7 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 				return 0;
 		}
 
-		HLClient.ClientMode?.KeyInput(down, code, currentBinding);
+		clientMode?.KeyInput(down, code, currentBinding);
 
 		return 1;
 	}
@@ -475,7 +475,7 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 			GetAccumulatedMouseDeltasAndResetAccumulators(out float mx, out float my);
 			GetMouseDelta(mx, my, out float mouse_x, out float mouse_y);
 			ScaleMouse(ref mouse_x, ref mouse_y);
-			HLClient.ClientMode!.OverrideMouseInput(ref mouse_x, ref mouse_y);
+			clientMode!.OverrideMouseInput(ref mouse_x, ref mouse_y);
 			ApplyMouse(ref viewangles, ref cmd, mouse_x, mouse_y);
 			ResetMouse();
 		}

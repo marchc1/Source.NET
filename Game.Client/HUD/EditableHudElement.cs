@@ -36,7 +36,7 @@ public class HudNumericDisplay : Panel
 	// which is annoying, but no multiple inheritance 
 	public string? ElementName { get; set; }
 	public HideHudBits HiddenBits { get; set; }
-	public bool Active { get; set; }
+	public bool Active { get; set; } 
 	public bool NeedsRemove { get; set; }
 	public bool IsParentedToClientDLLRootPanel { get; set; }
 	public List<int> HudRenderGroups { get; set; } = [];

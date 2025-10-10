@@ -36,6 +36,7 @@ public static class ClientGlobals
 	public static IRenderView render { get; private set; }
 	public static IEngineClient engine { get; private set; }
 	public static IEngineVGui enginevgui { get; private set; }
+	public static IClientMode clientMode { get; set; }
 	public static Hud gHUD { get; private set; }
 	public static ClientEntityList cl_entitylist { get; private set; }
 	public static TimeUnit_t TICK_INTERVAL => gpGlobals.IntervalPerTick;
