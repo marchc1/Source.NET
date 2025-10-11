@@ -583,14 +583,14 @@ public class Menu : Panel
 			case ButtonCode.KeyUp:
 				MoveAlongMenuItemList(MENU_UP, 0);
 				if (MenuItems[CurrentlySelectedItemID] != null)
-					MenuItems[CurrentlySelectedItemID].SetArmed(true);
+					MenuItems[CurrentlySelectedItemID].ArmItem();
 				else
 					base.OnKeyCodeTyped(code);
 				break;
 			case ButtonCode.KeyDown:
 				MoveAlongMenuItemList(MENU_DOWN, 0);
 				if (MenuItems[CurrentlySelectedItemID] != null)
-					MenuItems[CurrentlySelectedItemID].SetArmed(true);
+					MenuItems[CurrentlySelectedItemID].ArmItem();
 				else
 					base.OnKeyCodeTyped(code);
 				break;
@@ -624,7 +624,7 @@ public class Menu : Panel
 					MoveAlongMenuItemList(MENU_UP, 0);
 
 				if (MenuItems[CurrentlySelectedItemID] != null)
-					MenuItems[CurrentlySelectedItemID].SetArmed(true);
+					MenuItems[CurrentlySelectedItemID].ArmItem();
 				break;
 			case ButtonCode.KeyPageDown:
 				if (NumVisibleLines > 1)
@@ -638,17 +638,17 @@ public class Menu : Panel
 					MoveAlongMenuItemList(MENU_DOWN, 0);
 
 				if (MenuItems[CurrentlySelectedItemID] != null)
-					MenuItems[CurrentlySelectedItemID].SetArmed(true);
+					MenuItems[CurrentlySelectedItemID].ArmItem();
 				break;
 			case ButtonCode.KeyHome:
 				MoveAlongMenuItemList(MENU_UP * CurrentlySelectedItemID, 0);
 				if (MenuItems[CurrentlySelectedItemID] != null)
-					MenuItems[CurrentlySelectedItemID].SetArmed(true);
+					MenuItems[CurrentlySelectedItemID].ArmItem();
 				break;
 			case ButtonCode.KeyEnd:
 				MoveAlongMenuItemList(MENU_DOWN * (MenuItems.Count - CurrentlySelectedItemID - 1), 0);
 				if (MenuItems[CurrentlySelectedItemID] != null)
-					MenuItems[CurrentlySelectedItemID].SetArmed(true);
+					MenuItems[CurrentlySelectedItemID].ArmItem();
 				break;
 		}
 	}
@@ -859,7 +859,7 @@ public class Menu : Panel
 		if (state == false)
 		{
 			PostActionSignal(new KeyValues("MenuClose"));
-			//CloseOtherMenus(null);
+			CloseOtherMenus(null);
 
 			SetCurrentlySelectedItem(-1);
 		}
@@ -1122,8 +1122,7 @@ public class Menu : Panel
 	public void ClearCurrentlyHighlightedItem()
 	{
 		if (MenuItems[CurrentlySelectedItemID] != null)
-			MenuItems[CurrentlySelectedItemID].SetArmed(false);
-
+			MenuItems[CurrentlySelectedItemID].DisarmItem();
 		CurrentlySelectedItemID = -1;
 	}
 
@@ -1133,7 +1132,7 @@ public class Menu : Panel
 			return;
 
 		if (CurrentlySelectedItemID > 0 && CurrentlySelectedItemID < MenuItems.Count)
-			MenuItems[CurrentlySelectedItemID].SetArmed(false);
+			MenuItems[CurrentlySelectedItemID].DisarmItem();
 
 		PostActionSignal(new KeyValues("MenuItemHighlight", "itemID", itemID));
 		CurrentlySelectedItemID = itemID;
@@ -1190,7 +1189,7 @@ public class Menu : Panel
 
 	public void OnSliderMoved()
 	{
-		// CloseOtherMenus(null);
+		CloseOtherMenus(null);
 
 		InvalidateLayout();
 		Repaint();
@@ -1220,7 +1219,7 @@ public class Menu : Panel
 		if (MenuItems[itemID] != null)
 		{
 			if (!MenuItems[itemID].IsArmed())
-				MenuItems[itemID].SetArmed(true);
+				MenuItems[itemID].ArmItem();
 		}
 	}
 
@@ -1233,7 +1232,7 @@ public class Menu : Panel
 	{
 		if (InputMode == MenuMode.MOUSE)
 		{
-			panel.SetArmed(true);
+			panel.ArmItem();
 			SetCurrentlySelectedItem(MenuItems.FindIndex(x => x == panel));
 
 			if (panel.HasMenu())
@@ -1247,7 +1246,7 @@ public class Menu : Panel
 	private void OnCursorExitedMenuItem(MenuItem panel)
 	{
 		if (InputMode == MenuMode.MOUSE)
-			panel.SetArmed(false);
+			panel.DisarmItem();
 	}
 
 	private void MoveAlongMenuItemList(int direction, int loopCount)
@@ -1434,6 +1433,17 @@ public class Menu : Panel
 	{
 		FallbackItemFont = fallback;
 		UseFallbackFont = state;
+	}
+
+	public void CloseOtherMenus(MenuItem? item)
+	{
+		foreach (var menuItem in MenuItems)
+		{
+			if (menuItem == item)
+				continue;
+
+				menuItem.CloseCascadeMenu();
+		}
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command)
