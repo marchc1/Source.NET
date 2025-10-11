@@ -67,11 +67,21 @@ public class KeyValues : IEnumerable<KeyValues>
 		SetString(firstKey, firstValue);
 	}
 
-	public KeyValues(ReadOnlySpan<char> name, ReadOnlySpan<char> firstKey, int firstValue) : base() {
+	public KeyValues(ReadOnlySpan<char> name, ReadOnlySpan<char> firstKey, int firstValue) : base()
+	{
 		node = new(this);
 		Name = new(name);
 
 		SetInt(firstKey, firstValue);
+	}
+
+	public KeyValues(ReadOnlySpan<char> name, ReadOnlySpan<char> firstKey, int firstValue, ReadOnlySpan<char> secondKey, int secondValue) : base()
+	{
+		node = new(this);
+		Name = new(name);
+
+		SetInt(firstKey, firstValue);
+		SetInt(secondKey, secondValue);
 	}
 
 	public bool LoadFromStream(Stream? stream) {

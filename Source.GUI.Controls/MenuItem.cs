@@ -38,7 +38,6 @@ public class MenuItemCheckImage : TextImage
 	}
 }
 
-
 public class MenuItem : Button
 {
 	static MenuItem() => ChainToAnimationMap<MenuItem>();
@@ -95,9 +94,6 @@ public class MenuItem : Button
 		userData = null;
 		userData = kv?.MakeCopy();
 	}
-	public override void PaintBackground() {
-
-	}
 
 	public Menu? GetParentMenu() => GetParent() is Menu menu ? menu : null;
 
@@ -116,18 +112,35 @@ public class MenuItem : Button
 
 	public override void PerformLayout()
 	{
-		//Button::PerformLayout();
+		base.PerformLayout();
 
-		//if (CasecadeArrow != null)
-		//{
-		//	CasecadeArrow.SetColor(GetButtonFgColor());
-		//}
+		// if (CasecadeArrow != null)
+		// {
+		// 	CasecadeArrow.SetColor(GetButtonFgColor());
+		// }
 	}
 
-	//public override void OnCursorEntered()
-	//{
+	public override void OnCursorMoved(int x, int  y)
+	{
+		if (GetParentMenu()!.GetMenuMode() == MenuMode.KEYBOARD)
+			OnCursorEntered();
 
-	//}
+		CallParentFunction(new KeyValues("OnCursorMoved", "x", x, "y", y));
+	}
+
+	public override void OnCursorEntered()
+	{
+		KeyValues msg = new KeyValues("CursorEnteredMenuItem");
+		msg.SetPtr("Panel", this);
+		VGui.PostMessage(GetParent(), msg, null);
+	}
+
+	public override void OnCursorExited()
+	{
+		KeyValues msg = new KeyValues("CursorExitedMenuItem");
+		msg.SetPtr("Panel", this);
+		VGui.PostMessage(GetParent(), msg, null);
+	}
 
 	public void CloseCascadeMenu()
 	{

@@ -44,7 +44,7 @@ public class TabCatchingTextEntry : TextEntry
 
 	public override void OnKillFocus(Panel? newPanel)
 	{
-		if (Input.GetFocus() != CompletionList)
+		if (newPanel != CompletionList)
 			PostMessage(GetParent(), new KeyValues("CloseCompletionList"));
 	}
 }
@@ -497,6 +497,22 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			MoveToFront();
 			CompletionList.MoveToFront();
 		}
+	}
+
+	internal void OnCloseCompletionList() {
+		CompletionList.SetVisible(false);
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from)
+	{
+		switch (message.Name)
+		{
+			case "CloseCompletionList":
+				OnCloseCompletionList();
+				return;
+		}
+
+		base.OnMessage(message, from);
 	}
 
 	public bool TextEntryHasFocus() => Input.GetFocus() == Entry;
