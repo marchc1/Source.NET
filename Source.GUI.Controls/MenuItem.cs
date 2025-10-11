@@ -114,6 +114,32 @@ public class MenuItem : Button
 		GetParentMenu()?.ForceCalculateWidth();
 	}
 
+	public override void PerformLayout()
+	{
+		//Button::PerformLayout();
+
+		//if (CasecadeArrow != null)
+		//{
+		//	CasecadeArrow.SetColor(GetButtonFgColor());
+		//}
+	}
+
+	//public override void OnCursorEntered()
+	//{
+
+	//}
+
+	public void CloseCascadeMenu()
+	{
+		if (CascadeMenu != null)
+		{
+			if (CascadeMenu.IsVisible())
+				CascadeMenu.SetVisible(false);
+
+			SetArmed(false);
+		}
+	}
+
 	internal bool IsCheckable()
 	{
 		return Checkable;

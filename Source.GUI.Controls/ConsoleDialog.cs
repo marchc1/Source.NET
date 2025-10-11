@@ -343,9 +343,9 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		if (TextEntryHasFocus()) {
 			if (code == ButtonCode.KeyTab) {
 				bool reverse = false;
-				if (Input.IsKeyDown(ButtonCode.KeyLShift) || Input.IsKeyDown(ButtonCode.KeyRShift)) 
+				if (Input.IsKeyDown(ButtonCode.KeyLShift) || Input.IsKeyDown(ButtonCode.KeyRShift))
 					reverse = true;
-				
+
 				OnAutoComplete(reverse);
 				Entry.RequestFocus();
 			}
@@ -381,6 +381,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 
 		if (NextCompletion < 0 || NextCompletion >= CompletionItems.Count || CompletionItems[NextCompletion] == null)
 			return;
+
 
 		char[] CompletedText = new char[256];
 		CompletionItem item = CompletionItems[NextCompletion];
@@ -515,7 +516,12 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			return "";
 		}
 
-		public ReadOnlySpan<char> GetCommand() => null;
+		public ReadOnlySpan<char> GetCommand()
+		{
+			if (Command != null)
+				return Command.GetName();
+			return "";
+		}
 		public ReadOnlySpan<char> GetName() => null;
 		public bool IsCommand;
 		public ConCommandBase? Command;
