@@ -38,7 +38,6 @@ public class MenuItemCheckImage : TextImage
 	}
 }
 
-
 public class MenuItem : Button
 {
 	static MenuItem() => ChainToAnimationMap<MenuItem>();
@@ -95,9 +94,6 @@ public class MenuItem : Button
 		userData = null;
 		userData = kv?.MakeCopy();
 	}
-	public override void PaintBackground() {
-
-	}
 
 	public Menu? GetParentMenu() => GetParent() is Menu menu ? menu : null;
 
@@ -112,6 +108,49 @@ public class MenuItem : Button
 		SetTextInset(int.TryParse(scheme.GetResourceString("Menu.TextInset"), out int r) ? r : 0, 0);
 
 		GetParentMenu()?.ForceCalculateWidth();
+	}
+
+	public override void PerformLayout()
+	{
+		base.PerformLayout();
+
+		// if (CasecadeArrow != null)
+		// {
+		// 	CasecadeArrow.SetColor(GetButtonFgColor());
+		// }
+	}
+
+	public override void OnCursorMoved(int x, int  y)
+	{
+		if (GetParentMenu()!.GetMenuMode() == MenuMode.KEYBOARD)
+			OnCursorEntered();
+
+		CallParentFunction(new KeyValues("OnCursorMoved", "x", x, "y", y));
+	}
+
+	public override void OnCursorEntered()
+	{
+		KeyValues msg = new KeyValues("CursorEnteredMenuItem");
+		msg.SetPtr("Panel", this);
+		VGui.PostMessage(GetParent(), msg, null);
+	}
+
+	public override void OnCursorExited()
+	{
+		KeyValues msg = new KeyValues("CursorExitedMenuItem");
+		msg.SetPtr("Panel", this);
+		VGui.PostMessage(GetParent(), msg, null);
+	}
+
+	public void CloseCascadeMenu()
+	{
+		if (CascadeMenu != null)
+		{
+			if (CascadeMenu.IsVisible())
+				CascadeMenu.SetVisible(false);
+
+			SetArmed(false);
+		}
 	}
 
 	internal bool IsCheckable()
