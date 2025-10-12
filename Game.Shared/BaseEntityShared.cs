@@ -126,7 +126,6 @@ public partial class
 	public void SetAnimTime(TimeUnit_t time) => AnimTime = time;
 	public void SetSimulationTime(TimeUnit_t time) => SimulationTime = time;
 
-
 	public static bool IsSimulatingOnAlternateTicks() => false; // TODO
 
 	public bool IsAlive() => LifeState == (int)Source.LifeState.Alive;
