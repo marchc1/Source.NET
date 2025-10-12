@@ -216,7 +216,6 @@ public static class Dbg
 	
 	public static void ErrorIfNot([DoesNotReturnIf(false)] bool condition, ReadOnlySpan<char> msg) {
 		if (!condition) {
-			Debug.Assert(false);
 			Error(msg);
 		}
 	}
