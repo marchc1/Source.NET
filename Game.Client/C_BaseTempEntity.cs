@@ -85,6 +85,7 @@ public class C_BaseTempEntity : IClientUnknown, IClientNetworkable
 
 		NextDynamic = s_DynamicEntities;
 		s_DynamicEntities = this;
+		return true;
 	}
 
 	public virtual void Precache() { }
