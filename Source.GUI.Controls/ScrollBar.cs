@@ -131,6 +131,12 @@ public class ScrollBar : Panel
 		Validate();
 	}
 
+	public Button GetDepressedButton(int index){
+		if (index == 0)
+			return (OverriddenButtons[0] != null) ? OverriddenButtons[0]! : Button[0]!;
+		return (OverriddenButtons[1] != null) ? OverriddenButtons[1]! : Button[1]!;
+	}
+
 	private void SetButton(ScrollBarButton button, int index) {
 		Button[index]?.SetParent(null);
 
@@ -180,7 +186,6 @@ public class ScrollBar : Panel
 			}
 
 				Box?.SetBounds(0, wide, wide, wide);
-			
 
 			Slider.MoveToFront();
 			Slider.InvalidateLayout();
@@ -188,9 +193,9 @@ public class ScrollBar : Panel
 			UpdateSliderImages();
 		}
 
-		if (AutoHideButtons) 
+		if (AutoHideButtons)
 			SetScrollbarButtonsVisible(Slider!.IsSliderVisible());
-		
+
 		base.PerformLayout();
 	}
 
@@ -209,7 +214,7 @@ public class ScrollBar : Panel
 			int nScrollPos = GetValue();
 			int nRangeWindow = GetRangeWindow();
 			int nBottom = nMax - nRangeWindow;
-			if (nBottom < 0) 
+			if (nBottom < 0)
 				nBottom = 0;
 
 			int nAlpha = (nScrollPos - nMin <= 0) ? 90 : 255;
@@ -224,17 +229,35 @@ public class ScrollBar : Panel
 			if (slider != null && slider.GetRangeWindow() > 0) {
 				Line.GetBounds(out int x, out int y, out int w, out int t);
 
-				if (slider.IsLayoutInvalid()) 
+				if (slider.IsLayoutInvalid())
 					slider.InvalidateLayout(true);
-				
+
 				slider.GetNobPos(out int min, out int max);
 
-				if (IsVertical()) 
+				if (IsVertical())
 					Box.SetBounds(x, y + min, w, (max - min));
-				else 
+				else
 					Box.SetBounds(x + min, 0, (max - min), t);
 			}
 		}
+	}
+
+	public override void ApplySettings(KeyValues resourceData) {
+		base.ApplySettings(resourceData);
+
+		NoButtons = resourceData.GetBool("nobuttons", false);
+
+		KeyValues? SliderKV = resourceData.FindKey("Slider");
+		if (SliderKV != null && Slider != null)
+			Slider.ApplySettings(SliderKV);
+
+		KeyValues? DownButtonKV = resourceData.FindKey("DownButton");
+		if (DownButtonKV != null && Button[1] != null)
+			Button[0]!.ApplySettings(DownButtonKV);
+
+		KeyValues? UpButtonKV = resourceData.FindKey("UpButton");
+		if (UpButtonKV != null && Button[0] != null)
+			Button[1]!.ApplySettings(UpButtonKV);
 	}
 
 	public bool IsVertical() => Slider!.IsVertical();

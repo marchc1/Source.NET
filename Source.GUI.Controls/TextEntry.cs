@@ -593,7 +593,11 @@ public class TextEntry : Panel
 
 			if (CursorPos > 0)
 			{
-				// if (iswpace... todo
+				if (char.IsWhiteSpace(TextStream[CursorPos - 1]))
+				{
+					selectSpotEnd--;
+					CursorPos--;
+				}
 
 				Select[0] = selectSpotStart;
 				Select[1] = selectSpotEnd;
