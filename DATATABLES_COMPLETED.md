@@ -62,9 +62,9 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #59: CFogController
 - [ ] Class #60: CFunc_Dust
 - [ ] Class #61: CFunc_LOD
-- [ ] Class #62: CFuncAreaPortalWindow
+- [x] Class #62: CFuncAreaPortalWindow
 - [ ] Class #63: CFuncConveyor
-- [ ] Class #64: CFuncLadder
+- [x] Class #64: CFuncLadder
 - [ ] Class #65: CFuncMonitor
 - [ ] Class #66: CFuncOccluder
 - [ ] Class #67: CFuncReflectiveGlass
@@ -205,7 +205,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #202: CVortigauntChargeToken
 - [ ] Class #203: CVortigauntEffectDispel
 - [ ] Class #204: CWaterBullet
-- [ ] Class #205: CWaterLODControl
+- [x] Class #205: CWaterLODControl
 - [x] Class #206: CWeapon357
 - [ ] Class #207: CWeapon357_HL1
 - [x] Class #208: CWeapon_SLAM
