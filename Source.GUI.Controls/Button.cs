@@ -64,15 +64,14 @@ public class Button : Label
 
 		SetPaintBackgroundEnabled(true);
 
-		ShouldPaint = true;
+		paint = true;
 	}
 
 	public void SetButtonActivationType(ActivationType type) {
 		ActivationType = type;
 	}
 
-	public void SetButtonBorderEnabled(bool state)
-	{
+	public void SetButtonBorderEnabled(bool state) {
 		if (state != (0 != (ButtonFlags & ButtonFlags.ButtonBorderEnabled))) {
 			ButtonFlags ^= ButtonFlags.ButtonBorderEnabled;
 			InvalidateLayout(false);
@@ -203,8 +202,8 @@ public class Button : Label
 	}
 
 	public override void Paint() {
-		// if (!ShouldPaint())
-		// return;
+		if (!ShouldPaint())
+			return;
 
 		base.Paint();
 
@@ -523,7 +522,8 @@ public class Button : Label
 			OnMousePressed(ButtonCode.MouseLeft);
 			if (IsUseCaptureMouseEnabled())
 				Input.SetMouseCapture(null);
-		} else {
+		}
+		else {
 			ButtonFlags &= ~ButtonFlags.ButtonKeyDown;
 			base.OnKeyCodePressed(code);
 		}
@@ -564,8 +564,7 @@ public class Button : Label
 		SetSize(wide + Label.Content, tall + Label.Content);
 	}
 
-	bool ShouldPaint;
-	public void SetShouldPaint(bool paint) {
-		ShouldPaint = paint;
-	}
+	bool paint;
+	public bool ShouldPaint() => paint;
+	public void SetShouldPaint(bool paint) => this.paint = paint;
 }
