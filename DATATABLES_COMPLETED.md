@@ -88,7 +88,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #85: CLaserDot
 - [ ] Class #86: CLaserDot_HL1
 - [ ] Class #87: CLightGlow
-- [ ] Class #88: CLuaNextBot
+- [x] Class #88: CLuaNextBot
 - [ ] Class #89: CMaterialModifyControl
 - [ ] Class #90: CMortarShell
 - [ ] Class #91: CNPC_AntlionGuard
@@ -246,7 +246,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #243: CWorld
 - [ ] Class #244: DustTrail
 - [ ] Class #245: MovieExplosion
-- [ ] Class #246: NextBotCombatCharacter
+- [x] Class #246: NextBotCombatCharacter
 - [ ] Class #247: ParticleSmokeGrenade
 - [ ] Class #248: RocketTrail
 - [ ] Class #249: SmokeTrail
