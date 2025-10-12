@@ -13,7 +13,7 @@ public class FuncAreaPortalWindow : BaseEntity
 		SendPropFloat(FIELD.OF(nameof(FadeDist)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(FadeStartDist)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(TranslucencyLimit)), 0, PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(BackgroundModelIndex)), Constants.SP_MODEL_INDEX_BITS, PropFlags.Unsigned),
+		SendPropModelIndex(FIELD.OF(nameof(BackgroundModelIndex))),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("FuncAreaPortalWindow", DT_FuncAreaPortalWindow).WithManualClassID(StaticClassIndices.CFuncAreaPortalWindow);
 
