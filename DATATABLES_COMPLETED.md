@@ -87,7 +87,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #84: CInfoTeleporterCountdown
 - [x] Class #85: CLaserDot
 - [x] Class #86: CLaserDot_HL1
-- [ ] Class #87: CLightGlow
+- [x] Class #87: CLightGlow
 - [x] Class #88: CLuaNextBot
 - [ ] Class #89: CMaterialModifyControl
 - [ ] Class #90: CMortarShell
@@ -146,7 +146,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #143: CSmokeStack
 - [ ] Class #144: CSpatialEntity
 - [ ] Class #145: CSpotlightEnd
-- [ ] Class #146: CSprite
+- [x] Class #146: CSprite
 - [ ] Class #147: CSpriteOriented
 - [ ] Class #148: CSpriteTrail
 - [ ] Class #149: CSteamJet
