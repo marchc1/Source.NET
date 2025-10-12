@@ -643,6 +643,10 @@ public partial class C_BaseEntity : IClientEntity
 		// TODO: ShouldDraw changes
 	}
 
+	public bool IsIntermediateDataAllocated() {
+		return false;
+	}
+
 	private void OnStoreLastNetworkedValue() {
 		bool bRestore = false;
 		Vector3 savePos = default;

@@ -4,6 +4,7 @@ using Source.Common;
 using Source.Common.Client;
 using Source.Engine;
 using Game.Client.HUD;
+using Source.Common.Commands;
 
 namespace Game.Client;
 
@@ -38,6 +39,8 @@ public static class ClientGlobals
 	public static IEngineVGui enginevgui { get; private set; }
 	public static IClientMode clientMode { get; set; }
 	public static Hud gHUD { get; private set; }
+	public static Prediction prediction { get; private set; }
+	public static ICvar cvar { get; private set; }
 	public static ClientEntityList cl_entitylist { get; private set; }
 	public static TimeUnit_t TICK_INTERVAL => gpGlobals.IntervalPerTick;
 
@@ -52,9 +55,11 @@ public static class ClientGlobals
 		gpGlobals = Singleton<ClientGlobalVariables>();
 		engine = Singleton<IEngineClient>();
 		enginevgui = Singleton<IEngineVGui>();
+		cvar = Singleton<ICvar>();
 		cl_entitylist = Singleton<ClientEntityList>();
 		render = Singleton<IRenderView>();
 		gHUD = Singleton<Hud>();
+		prediction = (Prediction)Singleton<IPrediction>();
 	}
 
 	public static bool IsEngineThreaded() => false; 

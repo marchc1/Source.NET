@@ -123,12 +123,12 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		base.PostDataUpdate(updateType);
 	}
 
-	private void SetLocalViewAngles(in QAngle angles) {
+	public void SetLocalViewAngles(in QAngle angles) {
 		pl.ViewingAngle = angles;
 	}
 
 	bool DeadFlag;
-	readonly PlayerState pl = new();
+	internal readonly PlayerState pl = new();
 	public readonly PlayerLocalData Local = new();
 	readonly EHANDLE Vehicle = new();
 	readonly EHANDLE UseEntity = new();
