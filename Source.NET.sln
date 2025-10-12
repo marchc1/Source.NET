@@ -51,6 +51,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Source.StdShader.Gl46", "So
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "0. Files, Dependencies, & Code Analysis", "0. Files, Dependencies, & Code Analysis", "{D287F29B-08EA-45EE-AD68-D46F801ECB5C}"
 	ProjectSection(SolutionItems) = preProject
+		DATATABLES_COMPLETED.md = DATATABLES_COMPLETED.md
 		README.md = README.md
 	EndProjectSection
 EndProject

@@ -30,7 +30,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #27: CBeamSpotlight
 - [ ] Class #28: CBoneFollower
 - [ ] Class #29: CBoneManipulate
-- [ ] Class #30: CBreakableProp
+- [x] Class #30: CBreakableProp
 - [ ] Class #31: CBreakableSurface
 - [ ] Class #32: CCitadelEnergyCore
 - [x] Class #33: CColorCorrection
@@ -108,7 +108,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #105: CPhysBeam
 - [ ] Class #106: CPhysBox
 - [ ] Class #107: CPhysBoxMultiplayer
-- [ ] Class #108: CPhysicsProp
+- [x] Class #108: CPhysicsProp
 - [ ] Class #109: CPhysicsPropMultiplayer
 - [ ] Class #110: CPhysMagnet
 - [ ] Class #111: CPlasma
