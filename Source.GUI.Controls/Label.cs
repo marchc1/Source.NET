@@ -42,7 +42,7 @@ public class Label : Panel
 	}
 
 	public override void PerformLayout() {
-		GetSize(out int wide, out int tall);
+		GetSize(out int wide, out _);
 		wide -= TextInsetX;
 
 		int twide, ttall;
@@ -89,7 +89,7 @@ public class Label : Panel
 		if (spaceAvail < 0)
 			return;
 
-		TextImage!.GetSize(out twide, out ttall);
+		TextImage!.GetSize(out _, out ttall);
 		TextImage!.SetSize(spaceAvail, ttall);
 
 		HandleAutoSizing();
@@ -437,6 +437,38 @@ public class Label : Panel
 
 			image.GetSize(out int wide, out int tall);
 			x += wide;
+		}
+	}
+
+	public void DrawDashedLine(int x0, int y0, int x1, int y1, int dashLen, int gapLen) {
+		if (x1 - x0 > y1 - y0) {
+			while(true) {
+				if (x0 + dashLen > x1)
+					Surface.DrawFilledRect(x0, y0, x1, y1);
+				else
+					Surface.DrawFilledRect(x0, y0, x0 + dashLen, y1);
+
+				x0 += dashLen;
+
+				if (x0 + gapLen >= x1)
+					break;
+
+				x0 += gapLen;
+			}
+		} else {
+			while (true) {
+				if (y0 + dashLen > y1)
+					Surface.DrawFilledRect(x0, y0, x1, y1);
+				else
+					Surface.DrawFilledRect(x0, y0, x1, y0 + dashLen);
+
+				y0 += dashLen;
+
+				if (y0 + gapLen >= y1)
+					break;
+
+				y0 += gapLen;
+			}
 		}
 	}
 

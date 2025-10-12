@@ -298,7 +298,7 @@ public class MenuItem : Button
 		userData = kv?.MakeCopy();
 	}
 
-	public void SetCurrentkeyBinding(ReadOnlySpan<char> keyName)
+	public void SetCurrentKeyBinding(ReadOnlySpan<char> keyName)
 	{
 		if (keyName.Length == 0)
 			return;

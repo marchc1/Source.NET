@@ -679,7 +679,7 @@ public class RichText : Panel
 		RenderState renderState = CachedRenderState;
 
 		bool OnRightLine = false;
-		int i = 0;
+		int i;
 		for (i = StartIndex; i < TextStream.Count; i++)
 		{
 			char ch = TextStream[i];
@@ -750,11 +750,11 @@ public class RichText : Panel
 		Input.GetCursorPos(out int cursorX, out int cursorY);
 		if (GetSelectedRange(out _, out _))
 		{
-			//EditMenu.SetItemEnabled("&Cut", true);
-			//EditMenu.SetItemEnabled("C&opy", true);
+			EditMenu.SetItemEnabled("&Cut", true);
+			EditMenu.SetItemEnabled("C&opy", true);
 		} else {
-			//EditMenu.SetItemEnabled("&Cut", false);
-			//EditMenu.SetItemEnabled("C&opy", false);
+			EditMenu.SetItemEnabled("&Cut", false);
+			EditMenu.SetItemEnabled("C&opy", false);
 		}
 		EditMenu.SetVisible(true);
 		EditMenu.RequestFocus();

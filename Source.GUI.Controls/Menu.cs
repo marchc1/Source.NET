@@ -513,7 +513,7 @@ public class Menu : Panel
 		Scroller.SetButtonPressedScrollValue(1);
 
 		GetSize(out int wide, out int tall);
-		GetInset(out int ileft, out int iright, out int itop, out int ibottom);
+		GetInset(out _, out int iright, out int itop, out int ibottom);
 
 		wide -= iright;
 
@@ -837,16 +837,6 @@ public class Menu : Panel
 		}
 	}
 
-	public void AbortMenus()
-	{
-
-	}
-
-	public bool IsWithinMenuOrRelative(Panel panel, int x, int y)
-	{
-		return false; //todo
-	}
-
 	internal void OnInternalMousePressed(Panel other, MouseButton code)
 	{
 		// todo MenuMgr
@@ -888,7 +878,8 @@ public class Menu : Panel
 		{
 			if (menuItem.IsCheckable())
 			{
-				// todo
+				menuItem.GetCheckImageSize(out int wide, out _);
+				CheckImageWidth = Math.Max(CheckImageWidth, wide);
 			}
 		}
 
@@ -1238,7 +1229,7 @@ public class Menu : Panel
 
 			if (panel.HasMenu())
 			{
-				//panel.OpenCasecadeMenu();
+				panel.OpenCasecadeMenu();
 				ActivateItem(CurrentlySelectedItemID);
 			}
 		}
@@ -1323,7 +1314,7 @@ public class Menu : Panel
 
 	public void SetMenuItemChecked(int itemID, bool state)
 	{
-		// MenuItems[itemID].SetChecked(state);
+		MenuItems[itemID].SetChecked(state);
 	}
 
 	public bool IsChecked(int itemID)
@@ -1388,8 +1379,8 @@ public class Menu : Panel
 
 	public void SetCurrentKeyBinding(int itemID, ReadOnlySpan<char> hotkey)
 	{
-		// if (MenuItems[itemID] != null)
-		// MenuItems[itemID].SetCurrentKeyBinding(hotkey);
+		if (MenuItems[itemID] != null)
+			MenuItems[itemID].SetCurrentKeyBinding(hotkey);
 	}
 
 	public void PlaceContextMenu(Panel parent, Menu menu)
