@@ -145,7 +145,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #142: CSlideshowDisplay
 - [ ] Class #143: CSmokeStack
 - [ ] Class #144: CSpatialEntity
-- [ ] Class #145: CSpotlightEnd
+- [x] Class #145: CSpotlightEnd
 - [x] Class #146: CSprite
 - [ ] Class #147: CSpriteOriented
 - [ ] Class #148: CSpriteTrail
