@@ -69,6 +69,9 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 
 	List<CompletionItem> CompletionItems = new();
 
+	static readonly KeyValues KV_ClosedByHittingTilde = new("ClosedByHittingTilde");
+	static readonly KeyValues KV_Close = new("Close");
+
 	public override void OnTextChanged(Panel panel)
 	{
 		if (panel != Entry)
@@ -91,8 +94,8 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			if (!altKeyDown && !ctrlKeyDown)
 			{
 				Entry.SetText("");
-				PostMessage(this, new KeyValues("Close"));
-				PostActionSignal(new KeyValues("ClosedByHittingTilde"));
+				PostMessage(this, KV_Close);
+				PostActionSignal(KV_ClosedByHittingTilde);
 			}
 			else
 			{

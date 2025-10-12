@@ -561,6 +561,7 @@ public class Menu : Panel
 			SetBorder(menuBorder);
 	}
 
+	static readonly KeyValues KV_MenuClose = new("MenuClose");
 	public override void OnKeyCodeTyped(ButtonCode code)
 	{
 		if (!IsEnabled())
@@ -572,7 +573,7 @@ public class Menu : Panel
 			base.OnKeyCodeTyped(code);
 
 			if (TypeAheadMode != MenuTypeAheadMode.TYPE_AHEAD_MODE)
-				PostActionSignal(new KeyValues("MenuClose"));
+				PostActionSignal(KV_MenuClose);
 		}
 
 		switch (code)
@@ -831,7 +832,7 @@ public class Menu : Panel
 				}
 			}
 
-			PostActionSignal(new KeyValues("MenuClose"));
+			PostActionSignal(KV_MenuClose);
 			SetVisible(false);
 		}
 	}
@@ -858,7 +859,7 @@ public class Menu : Panel
 
 		if (state == false)
 		{
-			PostActionSignal(new KeyValues("MenuClose"));
+			PostActionSignal(KV_MenuClose);
 			CloseOtherMenus(null);
 
 			SetCurrentlySelectedItem(-1);
