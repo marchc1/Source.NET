@@ -124,8 +124,8 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #121: CPropCrane
 - [ ] Class #122: CPropDoorRotating
 - [ ] Class #123: CPropEnergyBall
-- [ ] Class #124: CPropJeep
-- [ ] Class #125: CPropJeepEpisodic
+- [x] Class #124: CPropJeep
+- [x] Class #125: CPropJeepEpisodic
 - [ ] Class #126: CPropScalable
 - [ ] Class #127: CPropVehicleChoreoGeneric
 - [x] Class #128: CPropVehicleDriveable
