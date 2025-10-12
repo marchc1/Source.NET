@@ -17,8 +17,8 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #14: CBaseHL1MPCombatWeapon
 - [x] Class #15: CBaseHL2MPBludgeonWeapon
 - [x] Class #16: CBaseHL2MPCombatWeapon
-- [ ] Class #17: CBaseHLBludgeonWeapon
-- [ ] Class #18: CBaseHLCombatWeapon
+- [x] Class #17: CBaseHLBludgeonWeapon
+- [x] Class #18: CBaseHLCombatWeapon
 - [ ] Class #19: CBaseParticleEntity
 - [x] Class #20: CBasePlayer
 - [ ] Class #21: CBasePropDoor
@@ -79,8 +79,8 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #76: CHL2MPGameRulesProxy
 - [x] Class #77: CHL2MPMachineGun
 - [x] Class #78: CHL2MPRagdoll
-- [ ] Class #79: CHLMachineGun
-- [ ] Class #80: CHLSelectFireMachineGun
+- [x] Class #79: CHLMachineGun
+- [x] Class #80: CHLSelectFireMachineGun
 - [ ] Class #81: CInfoLadderDismount
 - [ ] Class #82: CInfoLightingRelative
 - [ ] Class #83: CInfoOverlayAccessor
@@ -212,7 +212,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #209: CWeaponAlyxGun
 - [ ] Class #210: CWeaponAnnabelle
 - [x] Class #211: CWeaponAR2
-- [ ] Class #212: CWeaponBugBait
+- [x] Class #212: CWeaponBugBait
 - [ ] Class #213: CWeaponCitizenPackage
 - [ ] Class #214: CWeaponCitizenSuitcase
 - [x] Class #215: CWeaponCrossbow
