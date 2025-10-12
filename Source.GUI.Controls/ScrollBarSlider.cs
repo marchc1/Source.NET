@@ -122,6 +122,7 @@ public class ScrollBarSlider : Panel
 			val = Range[0];
 
 		Value = val;
+		RecomputeNobPosFromValue();
 
 		if (OldValue != Value)
 			SendScrollBarSliderMovedMessage();

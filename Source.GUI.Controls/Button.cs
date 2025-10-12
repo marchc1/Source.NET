@@ -108,7 +108,7 @@ public class Button : Label
 		ReleasedSoundName = string.Intern(new(fileName));
 	}
 
-	public void FireActionSignal() {
+	public virtual void FireActionSignal() {
 		if (ActionMessage != null) {
 			// TODO: URL messages?
 			PostActionSignal(ActionMessage.MakeCopy());
