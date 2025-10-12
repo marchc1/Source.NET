@@ -22,7 +22,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #19: CBaseParticleEntity
 - [x] Class #20: CBasePlayer
 - [ ] Class #21: CBasePropDoor
-- [ ] Class #22: CBaseTempEntity
+- [x] Class #22: CBaseTempEntity
 - [x] Class #23: CBaseToggle
 - [ ] Class #24: CBaseTrigger
 - [x] Class #25: CBaseViewModel
