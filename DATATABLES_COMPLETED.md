@@ -10,7 +10,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #7: CBaseDoor
 - [x] Class #8: CBaseEntity
 - [x] Class #9: CBaseFlex
-- [ ] Class #10: CBaseGrenade
+- [x] Class #10: CBaseGrenade
 - [ ] Class #11: CBaseHelicopter
 - [ ] Class #12: CBaseHelicopter_HL1
 - [ ] Class #13: CBaseHL1CombatWeapon
