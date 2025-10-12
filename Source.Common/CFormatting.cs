@@ -354,8 +354,7 @@ public static class CFormatting
 		str = str.SliceNullTerminatedString();
 		int len = Math.Min(target.Length, str.Length);
 		str[..len].CopyTo(target);
-		if (target.Length < len)
-			target[len] = '\0';
+		target[Math.Min(target.Length - 1, str.Length)] = '\0';
 		return len;
 	}
 	// This needs to go in the future, but Dbg currently relies on it.
