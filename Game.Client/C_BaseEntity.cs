@@ -390,7 +390,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public readonly GModTable GMOD_DataTable = new();
 
-	public double Speed;
+	public int Speed;
 	public int TeamNum;
 
 	public readonly EHANDLE OwnerEntity = new();

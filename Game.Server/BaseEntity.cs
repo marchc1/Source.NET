@@ -1,4 +1,4 @@
-﻿using Game.Shared;
+using Game.Shared;
 
 using Source;
 using Source.Common;
@@ -150,6 +150,8 @@ public partial class BaseEntity : IServerEntity
 	public readonly bool IsPlayerSimulated;
 
 	public readonly GModTable GMOD_DataTable = new();
+
+	public int Speed;
 
 	public readonly EHANDLE OwnerEntity = new();
 	public readonly EHANDLE EffectEntity = new();

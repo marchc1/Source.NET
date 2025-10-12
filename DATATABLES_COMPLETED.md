@@ -119,7 +119,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #116: CPrecipitation
 - [ ] Class #117: CPrecipitationBlocker
 - [x] Class #118: CPredictedViewModel
-- [ ] Class #119: CPropAirboat
+- [x] Class #119: CPropAirboat
 - [ ] Class #120: CPropCombineBall
 - [ ] Class #121: CPropCrane
 - [ ] Class #122: CPropDoorRotating
@@ -128,8 +128,8 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #125: CPropJeepEpisodic
 - [ ] Class #126: CPropScalable
 - [ ] Class #127: CPropVehicleChoreoGeneric
-- [ ] Class #128: CPropVehicleDriveable
-- [ ] Class #129: CPropVehiclePrisonerPod
+- [x] Class #128: CPropVehicleDriveable
+- [x] Class #129: CPropVehiclePrisonerPod
 - [ ] Class #130: CRagdollManager
 - [ ] Class #131: CRagdollProp
 - [ ] Class #132: CRagdollPropAttached
