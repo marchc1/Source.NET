@@ -209,8 +209,8 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #206: CWeapon357
 - [ ] Class #207: CWeapon357_HL1
 - [x] Class #208: CWeapon_SLAM
-- [ ] Class #209: CWeaponAlyxGun
-- [ ] Class #210: CWeaponAnnabelle
+- [x] Class #209: CWeaponAlyxGun
+- [x] Class #210: CWeaponAnnabelle
 - [x] Class #211: CWeaponAR2
 - [x] Class #212: CWeaponBugBait
 - [ ] Class #213: CWeaponCitizenPackage

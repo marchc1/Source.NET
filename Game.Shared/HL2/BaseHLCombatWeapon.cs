@@ -1,4 +1,9 @@
 #if CLIENT_DLL || GAME_DLL
+
+#if CLIENT_DLL
+global using C_BaseHLCombatWeapon = Game.Shared.HL2.BaseHLCombatWeapon;
+#endif
+
 using Source.Common;
 
 namespace Game.Shared.HL2;
