@@ -81,7 +81,7 @@ public class TextEntry : Panel
 
 		if ((!Multiline) && (!HorizScrollingAllowed)) {
 			int endIndex = TextStream.Count;
-			if ((!HasFocus() && (IsEditable())) || (!IsEditable())) {
+			if ((!HasFocus() && IsEditable()) || (!IsEditable())) {
 				int i1 = -1;
 
 				bool addEllipses = NeedsEllipses(useFont, ref i1);
@@ -545,14 +545,10 @@ public class TextEntry : Panel
 			Input.SetMouseCapture(this);
 			MouseSelection = true;
 
-			if (TextStream.Count > 0)
-			{
+			if (Select[0] < 0)
+				Select[0] = CursorPos;
 
-				if (Select[0] < 0)
-					Select[0] = CursorPos;
-
-				Select[1] = CursorPos;
-			}
+			Select[1] = CursorPos;
 
 			ResetCursorBlink();
 			RequestFocus();
@@ -565,11 +561,44 @@ public class TextEntry : Panel
 			//OpenEditMenu();
 		}
 	}
+
 	public override void OnMouseReleased(ButtonCode code) {
 		MouseSelection = false;
 		Input.SetMouseCapture(null);
 		if (GetSelectedRange(out int cx0, out int cx1)) {
-			// todo
+			if (cx1 - cx0 == 0)
+				Select[0] = -1;
+		}
+	}
+
+	public override void OnMouseTriplePressed(ButtonCode code) {
+		base.OnMouseTriplePressed(code);
+
+		if (code == ButtonCode.MouseLeft)
+		{
+			GotoTextEnd();
+			SelectAllText(false);
+		}
+	}
+
+	public override void OnMouseDoublePressed(ButtonCode code) {
+		if (code == ButtonCode.MouseLeft)
+		{
+			OnMousePressed(code);
+			int selectSpotStart, selectSpotEnd;
+			GotoWordLeft();
+			selectSpotStart = CursorPos;
+			GotoWordRight();
+			selectSpotEnd = CursorPos;
+
+			if (CursorPos > 0)
+			{
+				// if (iswpace... todo
+
+				Select[0] = selectSpotStart;
+				Select[1] = selectSpotEnd;
+				MouseSelection = true;
+			}
 		}
 	}
 
