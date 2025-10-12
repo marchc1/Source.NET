@@ -1,8 +1,10 @@
-﻿using Pastel;
+using Pastel;
 
 using Source.Common.Commands;
 using Source.Engine.Server;
+using Source.GUI.Controls;
 
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace Source.Engine;
@@ -152,9 +154,9 @@ public class Sys(Host host, GameServer sv, ICommandLine CommandLine)
 		return SpewRetval.Continue;
 	}
 
-	public static void Error(ReadOnlySpan<char> v) {
-		Warning(v);
-		AssertMsg(false, v);
+	public static void Error(ReadOnlySpan<char> msg) {
+		Singleton<MessageBoxFn>().Invoke("Engine Error", msg, false);
+		Environment.Exit(100);
 	}
 
 	public bool InEditMode() => false;

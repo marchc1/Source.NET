@@ -1,6 +1,8 @@
-﻿// </3
+// </3
 
 using Microsoft.Extensions.DependencyInjection;
+
+using SDL;
 
 using Source.Common;
 
@@ -10,9 +12,10 @@ using System.Runtime.InteropServices;
 
 #if WIN32
 using static PInvoke.User32;
-
+using MSG = PInvoke.User32.MSG;
 #endif
 using static Source.Common.AssertDialog;
+
 
 namespace Source.SDLManager;
 
@@ -49,6 +52,31 @@ public static class SourceDllMain
 	static IntPtr sansFont;
 	static IntPtr monoFont;
 #endif
+	static unsafe byte* s_TextOK = (byte*)Marshal.StringToCoTaskMemUTF8("OK");
+	static unsafe byte* s_TextCancel = (byte*)Marshal.StringToCoTaskMemUTF8("Cancel");
+	internal static unsafe SDL_Window* g_SDLWindow;
+	static unsafe bool SDLMessageBox(ReadOnlySpan<char> title, ReadOnlySpan<char> desc, bool showOkAndCancel) {
+		int buttonid = 0;
+		SDL_MessageBoxData messageboxdata = default;
+		SDL_MessageBoxButtonData* buttondata = stackalloc SDL_MessageBoxButtonData[2];
+		buttondata[0] = new() { buttonID = 1, flags = SDL_MessageBoxButtonFlags.SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, text = s_TextOK };
+		buttondata[0] = new() { buttonID = 0, flags = SDL_MessageBoxButtonFlags.SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, text = s_TextCancel };
+
+		messageboxdata.window = g_SDLWindow;
+		messageboxdata.title = (byte*)Marshal.StringToCoTaskMemUTF8(new(title));
+		messageboxdata.message = (byte*)Marshal.StringToCoTaskMemUTF8(new(desc));
+		messageboxdata.numbuttons = showOkAndCancel ? 2 : 1;
+		messageboxdata.buttons = buttondata;
+
+		SDL3.SDL_ShowMessageBox(&messageboxdata, &buttonid);
+
+		Marshal.ZeroFreeCoTaskMemUTF8((nint)messageboxdata.title);
+		Marshal.ZeroFreeCoTaskMemUTF8((nint)messageboxdata.message);
+
+		return (buttonid == 1);
+
+
+	}
 	public static unsafe void Link(IServiceCollection services) {
 		if (initialized)
 			return;
@@ -56,6 +84,7 @@ public static class SourceDllMain
 		// We only run this stuff once to plug into asserts!
 		AssertDialog.OnMainThreadAssert += AssertDialog_OnMainThreadAssert;
 		AssertDialog.OnSepThreadAssert += AssertDialog_OnSepThreadAssert;
+		services.AddSingleton<MessageBoxFn>(SDLMessageBox);
 
 #if WIN32
 		sansFont = CreateFont(
