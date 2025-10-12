@@ -24,3 +24,10 @@ public class PhysicsPropMultiplayer : C_PhysicsProp
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("PhysicsPropMultiplayer", DT_PhysicsPropMultiplayer).WithManualClassID(StaticClassIndices.CPhysicsPropMultiplayer);
 }
+
+
+public class C_BasePropDoor : C_DynamicProp
+{
+	public static readonly RecvTable DT_BasePropDoor = new(DT_DynamicProp, []);
+	public static readonly new ClientClass ClientClass = new ClientClass("BasePropDoor", DT_BasePropDoor).WithManualClassID(StaticClassIndices.CBasePropDoor);
+}

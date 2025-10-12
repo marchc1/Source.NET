@@ -42,7 +42,7 @@ using Class =
 	ServerClass;
 #endif
 
-using FIELD = Source.FIELD<BaseCombatWeapon>;
+using FIELD = Source.FIELD<SharedBaseEntity>;
 
 public static class SharedBaseEntityConstants
 {

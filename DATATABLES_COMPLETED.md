@@ -1,7 +1,7 @@
 This is a list of all of the important SendClasses in Garry's Mod, and which ones have completed datatables.
 
 - [ ] Class #0: AR2Explosion
-- [ ] Class #1: CAI_BaseNPC
+- [x] Class #1: CAI_BaseNPC
 - [ ] Class #2: CAlyxEmpEffect
 - [x] Class #3: CBaseAnimating
 - [x] Class #4: CBaseAnimatingOverlay
@@ -11,7 +11,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #8: CBaseEntity
 - [x] Class #9: CBaseFlex
 - [x] Class #10: CBaseGrenade
-- [ ] Class #11: CBaseHelicopter
+- [x] Class #11: CBaseHelicopter
 - [ ] Class #12: CBaseHelicopter_HL1
 - [ ] Class #13: CBaseHL1CombatWeapon
 - [ ] Class #14: CBaseHL1MPCombatWeapon
@@ -19,12 +19,12 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #16: CBaseHL2MPCombatWeapon
 - [x] Class #17: CBaseHLBludgeonWeapon
 - [x] Class #18: CBaseHLCombatWeapon
-- [ ] Class #19: CBaseParticleEntity
+- [x] Class #19: CBaseParticleEntity
 - [x] Class #20: CBasePlayer
-- [ ] Class #21: CBasePropDoor
+- [x] Class #21: CBasePropDoor
 - [x] Class #22: CBaseTempEntity
 - [x] Class #23: CBaseToggle
-- [ ] Class #24: CBaseTrigger
+- [x] Class #24: CBaseTrigger
 - [x] Class #25: CBaseViewModel
 - [ ] Class #26: CBeam
 - [ ] Class #27: CBeamSpotlight

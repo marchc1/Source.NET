@@ -51,3 +51,10 @@ public class PhysicsPropMultiplayer : PhysicsProp
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("PhysicsPropMultiplayer", DT_PhysicsPropMultiplayer).WithManualClassID(StaticClassIndices.CPhysicsPropMultiplayer);
 }
+
+
+public class BasePropDoor : DynamicProp
+{
+	public static readonly SendTable DT_BasePropDoor = new(DT_DynamicProp, []);
+	public static readonly new ServerClass ServerClass = new ServerClass("BasePropDoor", DT_BasePropDoor).WithManualClassID(StaticClassIndices.CBasePropDoor);
+}
