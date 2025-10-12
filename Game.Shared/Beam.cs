@@ -64,7 +64,7 @@ public class
 #else
 		SendTable
 #endif
-		DT_BeamPredictableId = new([
+		DT_BeamPredictableId = new(nameof(DT_BeamPredictableId), [
 #if CLIENT_DLL
 		RecvPropPredictableId(FIELD.OF(nameof(PredictableId))),
 		RecvPropBool(FIELD.OF(nameof(IsPlayerSimulated)))
