@@ -106,8 +106,8 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #103: CParticlePerformanceMonitor
 - [ ] Class #104: CParticleSystem
 - [x] Class #105: CPhysBeam
-- [ ] Class #106: CPhysBox
-- [ ] Class #107: CPhysBoxMultiplayer
+- [x] Class #106: CPhysBox
+- [x] Class #107: CPhysBoxMultiplayer
 - [x] Class #108: CPhysicsProp
 - [x] Class #109: CPhysicsPropMultiplayer
 - [ ] Class #110: CPhysMagnet
@@ -122,7 +122,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #119: CPropAirboat
 - [ ] Class #120: CPropCombineBall
 - [ ] Class #121: CPropCrane
-- [ ] Class #122: CPropDoorRotating
+- [x] Class #122: CPropDoorRotating
 - [ ] Class #123: CPropEnergyBall
 - [x] Class #124: CPropJeep
 - [x] Class #125: CPropJeepEpisodic

@@ -7,6 +7,7 @@ using Source.Common;
 namespace Game.Server;
 using FIELD_PP = Source.FIELD<PhysicsProp>;
 using FIELD_DP = Source.FIELD<DynamicProp>;
+using FIELD_PBM = Source.FIELD<PhysBoxMultiplayer>;
 
 public class BaseProp : BaseAnimating
 {
@@ -24,6 +25,17 @@ public class BreakableProp : BaseProp
 {
 	public static readonly SendTable DT_BreakableProp = new(DT_BaseAnimating, []);
 	public static readonly new ServerClass ServerClass = new ServerClass("BreakableProp", DT_BreakableProp).WithManualClassID(StaticClassIndices.CBreakableProp);
+}
+
+public class PhysBoxMultiplayer : PhysBox, IMultiplayerPhysics
+{
+	public static readonly SendTable DT_PhysBoxMultiplayer = new(DT_PhysBox, [
+		SendPropInt(FIELD_PBM.OF(nameof(PhysicsMode))),
+		SendPropFloat(FIELD_PBM.OF(nameof(Mass)), 0, PropFlags.NoScale)
+	]);
+	public static readonly new ServerClass ServerClass = new ServerClass("PhysBoxMultiplayer", DT_PhysBoxMultiplayer).WithManualClassID(StaticClassIndices.CPhysBoxMultiplayer);
+	public int PhysicsMode;
+	public float Mass;
 }
 
 public class PhysicsProp : BreakableProp
@@ -57,4 +69,11 @@ public class BasePropDoor : DynamicProp
 {
 	public static readonly SendTable DT_BasePropDoor = new(DT_DynamicProp, []);
 	public static readonly new ServerClass ServerClass = new ServerClass("BasePropDoor", DT_BasePropDoor).WithManualClassID(StaticClassIndices.CBasePropDoor);
+}
+
+
+public class PropDoorRotating : BasePropDoor
+{
+	public static readonly SendTable DT_PropDoorRotating = new(DT_BasePropDoor, []);
+	public static readonly new ServerClass ServerClass = new ServerClass("PropDoorRotating", DT_PropDoorRotating).WithManualClassID(StaticClassIndices.CPropDoorRotating);
 }
