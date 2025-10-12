@@ -2,11 +2,7 @@
 
 using Source;
 using Source.Common;
-using System.Net;
 
-using System.Security.Cryptography.X509Certificates;
-using Source.Common.MaterialSystem;
-using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_LightGlow>;
 

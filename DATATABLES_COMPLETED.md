@@ -68,7 +68,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #65: CFuncMonitor
 - [ ] Class #66: CFuncOccluder
 - [ ] Class #67: CFuncReflectiveGlass
-- [ ] Class #68: CFuncRotating
+- [x] Class #68: CFuncRotating
 - [ ] Class #69: CFuncSmokeVolume
 - [ ] Class #70: CFuncTrackTrain
 - [x] Class #71: CGameRulesProxy
