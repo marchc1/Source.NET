@@ -34,14 +34,14 @@ public enum MenuMode
 {
 	MOUSE = 0,
 	KEYBOARD = 1
-};
+}
 
 public enum MenuTypeAheadMode
 {
 	COMPAT_MODE = 0,
 	HOT_KEY_MODE = 1,
 	TYPE_AHEAD_MODE = 3
-};
+}
 
 public class Menu : Panel
 {
