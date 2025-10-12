@@ -1,3 +1,5 @@
+using Game.Shared;
+
 using Source;
 using Source.Common;
 namespace Game.Client;

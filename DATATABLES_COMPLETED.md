@@ -12,9 +12,9 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #9: CBaseFlex
 - [x] Class #10: CBaseGrenade
 - [x] Class #11: CBaseHelicopter
-- [ ] Class #12: CBaseHelicopter_HL1
-- [ ] Class #13: CBaseHL1CombatWeapon
-- [ ] Class #14: CBaseHL1MPCombatWeapon
+- [x] Class #12: CBaseHelicopter_HL1
+- [x] Class #13: CBaseHL1CombatWeapon
+- [x] Class #14: CBaseHL1MPCombatWeapon
 - [x] Class #15: CBaseHL2MPBludgeonWeapon
 - [x] Class #16: CBaseHL2MPCombatWeapon
 - [x] Class #17: CBaseHLBludgeonWeapon
@@ -85,8 +85,8 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #82: CInfoLightingRelative
 - [ ] Class #83: CInfoOverlayAccessor
 - [ ] Class #84: CInfoTeleporterCountdown
-- [ ] Class #85: CLaserDot
-- [ ] Class #86: CLaserDot_HL1
+- [x] Class #85: CLaserDot
+- [x] Class #86: CLaserDot_HL1
 - [ ] Class #87: CLightGlow
 - [x] Class #88: CLuaNextBot
 - [ ] Class #89: CMaterialModifyControl
@@ -207,7 +207,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #204: CWaterBullet
 - [x] Class #205: CWaterLODControl
 - [x] Class #206: CWeapon357
-- [ ] Class #207: CWeapon357_HL1
+- [x] Class #207: CWeapon357_HL1
 - [x] Class #208: CWeapon_SLAM
 - [x] Class #209: CWeaponAlyxGun
 - [x] Class #210: CWeaponAnnabelle
@@ -216,33 +216,33 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #213: CWeaponCitizenPackage
 - [ ] Class #214: CWeaponCitizenSuitcase
 - [x] Class #215: CWeaponCrossbow
-- [ ] Class #216: CWeaponCrossbow_HL1
+- [x] Class #216: CWeaponCrossbow_HL1
 - [x] Class #217: CWeaponCrowbar
-- [ ] Class #218: CWeaponCrowbar_HL1
+- [x] Class #218: CWeaponCrowbar_HL1
 - [ ] Class #219: CWeaponCubemap
 - [ ] Class #220: CWeaponCycler
-- [ ] Class #221: CWeaponEgon
+- [x] Class #221: CWeaponEgon
 - [x] Class #222: CWeaponFrag
-- [ ] Class #223: CWeaponGauss
-- [ ] Class #224: CWeaponGlock
-- [ ] Class #225: CWeaponHandGrenade
-- [ ] Class #226: CWeaponHgun
+- [x] Class #223: CWeaponGauss
+- [x] Class #224: CWeaponGlock
+- [x] Class #225: CWeaponHandGrenade
+- [x] Class #226: CWeaponHgun
 - [x] Class #227: CWeaponHL2MPBase
-- [ ] Class #228: CWeaponMP5
+- [x] Class #228: CWeaponMP5
 - [ ] Class #229: CWeaponOldManHarpoon
 - [x] Class #230: CWeaponPhysCannon
 - [x] Class #231: CWeaponPhysGun
 - [x] Class #232: CWeaponPistol
 - [x] Class #233: CWeaponRPG
-- [ ] Class #234: CWeaponRPG_HL1
-- [ ] Class #235: CWeaponSatchel
+- [x] Class #234: CWeaponRPG_HL1
+- [x] Class #235: CWeaponSatchel
 - [x] Class #236: CWeaponShotgun
-- [ ] Class #237: CWeaponShotgun_HL1
+- [x] Class #237: CWeaponShotgun_HL1
 - [x] Class #238: CWeaponSMG1
-- [ ] Class #239: CWeaponSnark
+- [x] Class #239: CWeaponSnark
 - [x] Class #240: CWeaponStunStick
 - [x] Class #241: CWeaponSWEP
-- [ ] Class #242: CWeaponTripMine
+- [x] Class #242: CWeaponTripMine
 - [x] Class #243: CWorld
 - [ ] Class #244: DustTrail
 - [ ] Class #245: MovieExplosion

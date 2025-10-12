@@ -38,4 +38,20 @@ public class WeaponRPG : BaseHL2MPCombatWeapon
 	public readonly EHANDLE Missile = new();
 	public Vector3 LaserDot;
 }
+
+public class LaserDot : SharedBaseEntity
+{
+	public static readonly
+#if CLIENT_DLL
+		RecvTable
+#else
+		SendTable
+#endif
+		DT_LaserDot = new(DT_BaseEntity, []);
+#if CLIENT_DLL
+	public static readonly new ClientClass ClientClass = new ClientClass("LaserDot", null, null, DT_LaserDot).WithManualClassID(StaticClassIndices.CLaserDot);
+#else
+	public static readonly new ServerClass ServerClass = new ServerClass("LaserDot", DT_LaserDot).WithManualClassID(StaticClassIndices.CLaserDot);
+#endif
+}
 #endif
