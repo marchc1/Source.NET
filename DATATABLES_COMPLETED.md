@@ -37,7 +37,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #34: CColorCorrectionVolume
 - [x] Class #35: CCrossbowBolt
 - [ ] Class #36: CDynamicLight
-- [ ] Class #37: CDynamicProp
+- [x] Class #37: CDynamicProp
 - [ ] Class #38: CEmbers
 - [ ] Class #39: CEntityDissolve
 - [ ] Class #40: CEntityFlame
@@ -109,7 +109,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #106: CPhysBox
 - [ ] Class #107: CPhysBoxMultiplayer
 - [x] Class #108: CPhysicsProp
-- [ ] Class #109: CPhysicsPropMultiplayer
+- [x] Class #109: CPhysicsPropMultiplayer
 - [ ] Class #110: CPhysMagnet
 - [ ] Class #111: CPlasma
 - [x] Class #112: CPlayerResource
@@ -243,7 +243,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #240: CWeaponStunStick
 - [x] Class #241: CWeaponSWEP
 - [ ] Class #242: CWeaponTripMine
-- [ ] Class #243: CWorld
+- [x] Class #243: CWorld
 - [ ] Class #244: DustTrail
 - [ ] Class #245: MovieExplosion
 - [ ] Class #246: NextBotCombatCharacter

@@ -3,7 +3,7 @@ using Game.Shared;
 
 using Source.Common;
 
-namespace Game.Server;
+namespace Game.Client;
 
 public class C_BreakableProp : C_BaseAnimating
 {

@@ -3,7 +3,7 @@ using Game.Shared;
 
 using Source.Common;
 
-namespace Game.Server;
+namespace Game.Client;
 using FIELD = Source.FIELD<C_PhysicsProp>;
 
 public class C_PhysicsProp : C_BreakableProp
