@@ -36,7 +36,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #33: CColorCorrection
 - [ ] Class #34: CColorCorrectionVolume
 - [x] Class #35: CCrossbowBolt
-- [ ] Class #36: CDynamicLight
+- [x] Class #36: CDynamicLight
 - [x] Class #37: CDynamicProp
 - [ ] Class #38: CEmbers
 - [ ] Class #39: CEntityDissolve
