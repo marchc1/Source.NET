@@ -133,7 +133,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #130: CRagdollManager
 - [ ] Class #131: CRagdollProp
 - [ ] Class #132: CRagdollPropAttached
-- [ ] Class #133: CRopeKeyframe
+- [x] Class #133: CRopeKeyframe
 - [ ] Class #134: CRotorWashEmitter
 - [ ] Class #135: CRpgRocket
 - [ ] Class #136: CSceneEntity

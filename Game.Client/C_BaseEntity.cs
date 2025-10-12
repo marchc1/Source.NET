@@ -499,10 +499,10 @@ public partial class C_BaseEntity : IClientEntity
 		// SetGroundEntity(NULL);
 	}
 
-	readonly EHANDLE MoveParent = new();
-	readonly EHANDLE MoveChild = new();
-	readonly EHANDLE MovePeer = new();
-	readonly EHANDLE MovePrevPeer = new();
+	public readonly EHANDLE MoveParent = new();
+	public readonly EHANDLE MoveChild = new();
+	public readonly EHANDLE MovePeer = new();
+	public readonly EHANDLE MovePrevPeer = new();
 
 	public void UnlinkFromHierarchy() {
 		// todo
