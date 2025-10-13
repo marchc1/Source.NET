@@ -28,7 +28,7 @@ public struct GModVariant {
 }
 
 public delegate void GModReadFn(bf_read buf, ref GModVariant dvariant);
-public delegate void GModCompareFn(bf_read buf1, bf_read buf2);
+public delegate bool GModCompareFn(bf_read buf1, bf_read buf2);
 public delegate void GModSkipFn(bf_read buf);
 
 public enum GModTableType {
@@ -45,7 +45,7 @@ public enum GModTableType {
 public struct GmodTableTypeFns {
 	public static readonly GmodTableTypeFns Empty = new(
 		(bf_read _, ref GModVariant _) => Warning("Attempted to call a Read function with an invalid GModTableType!\n"), 
-		(_, _) => Warning("Attempted to call a Compare function with an invalid GModTableType!\n"), 
+		(_, _) => { Warning("Attempted to call a Compare function with an invalid GModTableType!\n"); return false; }, 
 		(_) => Warning("Attempted to call a Skip function with an invalid GModTableType!\n")
 	);
 
@@ -78,32 +78,62 @@ public struct GmodTableTypeFns {
 		return ref Fns[ptr];
 	}
 
-	static void Float_Read(bf_read buf, ref GModVariant dvariant) => throw new NotImplementedException();
-	static void Float_Compare(bf_read buf1, bf_read buf2) => throw new NotImplementedException();
+	static void Float_Read(bf_read buf, ref GModVariant dvariant) => dvariant.Float = buf.ReadBitFloat();
+	static bool Float_Compare(bf_read buf1, bf_read buf2) => buf1.ReadBitFloat() != buf2.ReadBitFloat();
 	static void Float_Skip(bf_read buf) => buf.SeekRelative(32);
 
-	static void Int_Read(bf_read buf, ref GModVariant dvariant) => throw new NotImplementedException();
-	static void Int_Compare(bf_read buf1, bf_read buf2) => throw new NotImplementedException();
+	static void Int_Read(bf_read buf, ref GModVariant dvariant) => dvariant.Int = (int)buf.ReadUBitLong(32);
+	static bool Int_Compare(bf_read buf1, bf_read buf2) => buf1.ReadUBitLong(32) != buf2.ReadUBitLong(32);
 	static void Int_Skip(bf_read buf) => buf.SeekRelative(32);
 
-	static void Bool_Read(bf_read buf, ref GModVariant dvariant) => throw new NotImplementedException();
-	static void Bool_Compare(bf_read buf1, bf_read buf2) => throw new NotImplementedException();
+	static void Bool_Read(bf_read buf, ref GModVariant dvariant) => dvariant.Int = buf.ReadOneBit();
+	static bool Bool_Compare(bf_read buf1, bf_read buf2) => buf1.ReadBool() != buf2.ReadBool();
 	static void Bool_Skip(bf_read buf) => buf.SeekRelative(1);
 
-	static void Vector_Read(bf_read buf, ref GModVariant dvariant) => throw new NotImplementedException();
-	static void Vector_Compare(bf_read buf1, bf_read buf2) => throw new NotImplementedException();
+	static void Vector_Read(bf_read buf, ref GModVariant dvariant) => dvariant.Vector = new(buf.ReadBitFloat(), buf.ReadBitFloat(), buf.ReadBitFloat());
+	static bool Vector_Compare(bf_read buf1, bf_read buf2) {
+		float x1 = buf1.ReadBitFloat(), y1 = buf1.ReadBitFloat(), z1 = buf1.ReadBitFloat();
+		float x2 = buf2.ReadBitFloat(), y2 = buf2.ReadBitFloat(), z2 = buf2.ReadBitFloat();
+		return x1 != x2 || y1 != y2 || z1 != z2;
+	}
 	static void Vector_Skip(bf_read buf) => buf.SeekRelative(32 * 3);
 
-	static void Angle_Read(bf_read buf, ref GModVariant dvariant) => throw new NotImplementedException();
-	static void Angle_Compare(bf_read buf1, bf_read buf2) => throw new NotImplementedException();
-	static void Angle_Skip(bf_read buf) => buf.SeekRelative(32 * 3);
+	static void Angle_Read(bf_read buf, ref GModVariant dvariant) => dvariant.Angle = new(buf.ReadBitFloat(), buf.ReadBitFloat(), buf.ReadBitFloat());
+	static bool Angle_Compare(bf_read buf1, bf_read buf2) => Vector_Compare(buf1, buf2);
+	static void Angle_Skip(bf_read buf) => Vector_Skip(buf);
 
-	static void Entity_Read(bf_read buf, ref GModVariant dvariant) => throw new NotImplementedException();
-	static void Entity_Compare(bf_read buf1, bf_read buf2) => throw new NotImplementedException();
+	static void Entity_Read(bf_read buf, ref GModVariant dvariant) => dvariant.Int = (int)buf.ReadUBitLong(Constants.NUM_NETWORKED_EHANDLE_BITS);
+	static bool Entity_Compare(bf_read buf1, bf_read buf2) => buf1.ReadUBitLong(Constants.NUM_NETWORKED_EHANDLE_BITS) != buf2.ReadUBitLong(Constants.NUM_NETWORKED_EHANDLE_BITS);
 	static void Entity_Skip(bf_read buf) => buf.SeekRelative(Constants.NUM_NETWORKED_EHANDLE_BITS);
 
-	static void String_Read(bf_read buf, ref GModVariant dvariant) => throw new NotImplementedException();
-	static void String_Compare(bf_read buf1, bf_read buf2) => throw new NotImplementedException();
+	static void String_Read(bf_read buf, ref GModVariant dvariant) {
+		int len = (int)buf.ReadUBitLong(Constants.DT_MAX_STRING_BITS);
+		Span<char> data = stackalloc char[len];
+		buf.ReadString(data);
+		dvariant.String = new(data);
+	}
+	static bool String_Compare(bf_read buf1, bf_read buf2) {
+		int len1 = (int)buf1.ReadUBitLong(Constants.DT_MAX_STRING_BITS);
+		int len2 = (int)buf2.ReadUBitLong(Constants.DT_MAX_STRING_BITS);
+
+		if(len1 == len2) {
+			if (len1 == 0)
+				return false;
+
+			Span<char> data1 = stackalloc char[len1];
+			Span<char> data2 = stackalloc char[len2];
+
+			buf1.ReadString(data1);
+			buf2.ReadString(data2);
+
+			return !((ReadOnlySpan<char>)data1).Equals(data2, StringComparison.Ordinal);
+		}
+		else {
+			buf1.SeekRelative(len1 * 8);
+			buf1.SeekRelative(len2 * 8);
+			return true;
+		}
+	}
 	static void String_Skip(bf_read buf) => buf.SeekRelative((int)buf.ReadUBitLong(Constants.DT_MAX_STRING_BITS));
 }
 
