@@ -1497,6 +1497,11 @@ public class Panel : IPanel
 	public virtual void SetBgColor(in Color color) => BgColor = color;
 	public virtual void SetFgColor(in Color color) => FgColor = color;
 
+	public virtual void GetSettings(KeyValues outResourceData) {
+		// todo
+	}
+
+
 	// This in theory will replicate the pointer logic?
 	private void ApplyOverridableColors() {
 		Span<OverrideableColorEntry> entries = CollectionsMarshal.AsSpan(OverrideableColorEntries);

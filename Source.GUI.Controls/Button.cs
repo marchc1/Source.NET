@@ -157,7 +157,7 @@ public class Button : Label
 	}
 
 
-	public Color GetButtonFgColor() {
+	public virtual Color GetButtonFgColor() {
 		if (0 == (ButtonFlags & ButtonFlags.Blink)) {
 			if (0 != (ButtonFlags & ButtonFlags.Depressed))
 				return DepressedFgColor;
@@ -292,7 +292,7 @@ public class Button : Label
 			SetArmed(false);
 	}
 
-	public void SetSelected(bool state) {
+	public virtual void SetSelected(bool state) {
 		if (((ButtonFlags & ButtonFlags.Selected) != 0) != state) {
 			if (state)
 				ButtonFlags |= ButtonFlags.Selected;
