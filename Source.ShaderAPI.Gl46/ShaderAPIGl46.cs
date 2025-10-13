@@ -645,10 +645,10 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 	private unsafe void LoadTextureFromVTF(in TextureLoadInfo info, IVTFTexture vtf, int vtfFrame) {
 		vtf.ImageFileInfo(vtfFrame, 0, info.Level, out int start, out int size);
 
+		vtf.ComputeMipLevelDimensions(info.Level, out int w, out int h, out _);
+
 		if (info.SrcFormat.IsCompressed()) {
 			Span<byte> data = vtf.ImageData(vtfFrame, 0, info.Level);
-			vtf.ComputeMipLevelDimensions(info.Level, out int w, out int h, out _);
-			glGetError();
 			fixed (byte* bytes = data)
 				glCompressedTextureSubImage2D((uint)info.Handle, info.Level, 0, 0, w, h, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
 			// Msg("err: " + glGetErrorName() + "\n");
@@ -734,7 +734,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		glGetError();
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, srcStride / srcFormat.SizeInBytes());
 		ConvertDataToAcceptableGLFormat(srcFormat, imageData, out srcFormat, out Span<byte> convertedData);
-		fixed (byte* data = imageData)
+		fixed (byte* data = convertedData)
 			glTextureSubImage2D((uint)ModifyTextureHandle, mip, x, y, width, height, ImageLoader.GetGLImageUploadFormat(srcFormat), GL_UNSIGNED_BYTE, data);
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		var err = glGetError();
@@ -745,7 +745,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 	Span<byte> GetTempTransformBuffer(ImageFormat inFormat, ImageFormat outFormat, Span<byte> inData) {
 		int desiredLength = ImageLoader.SizeInBytes(outFormat) * (inData.Length / ImageLoader.SizeInBytes(inFormat));
 
-		if(desiredLength > tempTransformBuffers.Value!.Length) 
+		if (desiredLength > tempTransformBuffers.Value!.Length)
 			tempTransformBuffers.Value = new byte[MathLib.CeilPow2(desiredLength)];
 
 		return tempTransformBuffers.Value!.AsSpan()[..desiredLength];
@@ -755,7 +755,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 			case ImageFormat.BGR888:
 				outFormat = ImageFormat.RGB888;
 				outData = GetTempTransformBuffer(inFormat, outFormat, inData);
-				for (int i = 0; i < inData.Length; i+= 3) {
+				for (int i = 0; i < inData.Length; i += 3) {
 					outData[i + 2] = inData[i + 0];
 					outData[i + 1] = inData[i + 1];
 					outData[i + 0] = inData[i + 2];
