@@ -213,8 +213,8 @@ public class Button : Label
 		}
 	}
 
-	public void OnSetState(int state) {
-		SetSelected((state & 1) != 0);
+	public virtual void OnSetState(int state) {
+		SetSelected(state != 0);
 		Repaint();
 	}
 
