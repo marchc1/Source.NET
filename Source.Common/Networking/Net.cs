@@ -350,7 +350,7 @@ public class Net
 				entry.SplitFlags[packetNumber] = sequenceNumber;
 
 				if (true) {
-					Msg($"<-- [{DescribeSocket(sock)}] Split packet {packetNumber + 1}/{packetCount} seq {sequenceNumber} size {size} mtu {splitSizeMinusHeader + sizeof(SPLITPACKET)} from {packet.From}");
+					Msg($"<-- [{DescribeSocket(sock)}] Split packet {packetNumber + 1}/{packetCount} seq {sequenceNumber} size {size} mtu {splitSizeMinusHeader + sizeof(SPLITPACKET)} from {packet.From}\n");
 				}
 			}
 			else {
