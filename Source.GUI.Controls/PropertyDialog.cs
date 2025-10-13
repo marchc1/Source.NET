@@ -11,7 +11,7 @@ public class PropertyDialog : Frame
 	[PanelAnimationVar("sheetinset_bottom", "32")] protected int SheetInsetBottom;
 
 	public PropertyDialog(Panel? parent, string? name) : base(parent, name) {
-		PropertySheet = new(this, "Sheet");
+		PropertySheet = new(this, "Sheet", false);
 		PropertySheet.AddActionSignalTarget(this);
 		PropertySheet.SetTabPosition(1);
 

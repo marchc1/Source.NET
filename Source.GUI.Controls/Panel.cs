@@ -1534,11 +1534,11 @@ public class Panel : IPanel
 	public virtual void OnRequestFocus(Panel subFocus, Panel? defaultPanel)
 		=> CallParentFunction(new KeyValues("OnRequestFocus").AddSubKey(new("subFocus", subFocus)).AddSubKey(new("defaultPanel", defaultPanel)));
 
-	public bool RequestFocusNext(IPanel? existingPanel = null) {
+	public virtual bool RequestFocusNext(IPanel? existingPanel = null) {
 		return false;
 	}
 
-	public bool RequestFocusPrev(IPanel? existingPanel = null) {
+	public virtual bool RequestFocusPrev(IPanel? existingPanel = null) {
 		return false;
 	}
 
