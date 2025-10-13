@@ -80,31 +80,31 @@ public struct GmodTableTypeFns {
 
 	static void Float_Read(bf_read buf, ref GModVariant dvariant) => throw new NotImplementedException();
 	static void Float_Compare(bf_read buf1, bf_read buf2) => throw new NotImplementedException();
-	static void Float_Skip(bf_read buf) => throw new NotImplementedException();
+	static void Float_Skip(bf_read buf) => buf.SeekRelative(32);
 
 	static void Int_Read(bf_read buf, ref GModVariant dvariant) => throw new NotImplementedException();
 	static void Int_Compare(bf_read buf1, bf_read buf2) => throw new NotImplementedException();
-	static void Int_Skip(bf_read buf) => throw new NotImplementedException();
+	static void Int_Skip(bf_read buf) => buf.SeekRelative(32);
 
 	static void Bool_Read(bf_read buf, ref GModVariant dvariant) => throw new NotImplementedException();
 	static void Bool_Compare(bf_read buf1, bf_read buf2) => throw new NotImplementedException();
-	static void Bool_Skip(bf_read buf) => throw new NotImplementedException();
+	static void Bool_Skip(bf_read buf) => buf.SeekRelative(1);
 
 	static void Vector_Read(bf_read buf, ref GModVariant dvariant) => throw new NotImplementedException();
 	static void Vector_Compare(bf_read buf1, bf_read buf2) => throw new NotImplementedException();
-	static void Vector_Skip(bf_read buf) => throw new NotImplementedException();
+	static void Vector_Skip(bf_read buf) => buf.SeekRelative(32 * 3);
 
 	static void Angle_Read(bf_read buf, ref GModVariant dvariant) => throw new NotImplementedException();
 	static void Angle_Compare(bf_read buf1, bf_read buf2) => throw new NotImplementedException();
-	static void Angle_Skip(bf_read buf) => throw new NotImplementedException();
+	static void Angle_Skip(bf_read buf) => buf.SeekRelative(32 * 3);
 
 	static void Entity_Read(bf_read buf, ref GModVariant dvariant) => throw new NotImplementedException();
 	static void Entity_Compare(bf_read buf1, bf_read buf2) => throw new NotImplementedException();
-	static void Entity_Skip(bf_read buf) => throw new NotImplementedException();
+	static void Entity_Skip(bf_read buf) => buf.SeekRelative(Constants.NUM_NETWORKED_EHANDLE_BITS);
 
 	static void String_Read(bf_read buf, ref GModVariant dvariant) => throw new NotImplementedException();
 	static void String_Compare(bf_read buf1, bf_read buf2) => throw new NotImplementedException();
-	static void String_Skip(bf_read buf) => throw new NotImplementedException();
+	static void String_Skip(bf_read buf) => buf.SeekRelative((int)buf.ReadUBitLong(Constants.DT_MAX_STRING_BITS));
 }
 
 public class GModTable {
