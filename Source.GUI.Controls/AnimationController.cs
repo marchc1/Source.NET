@@ -3,6 +3,7 @@ using CommunityToolkit.HighPerformance;
 using Source.Common.Mathematics;
 using Source.Common.Utilities;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.Filesystem;
 
 namespace Source.GUI.Controls;
 
@@ -49,45 +50,46 @@ public enum AnimCommandType
 public struct AnimAlign
 {
 	public bool RelativePosition;
-	public ulong AlignPanel;
+	public UtlSymId_t AlignPanel;
 	public Alignment RelativeAlignment;
 
 }
 public struct AnimCmdAnimate
 {
-	public Panel? Panel;
-	public ulong Variable;
+	public UtlSymId_t Panel;
+	public UtlSymId_t Variable;
 	public AnimValue Target;
 	public Interpolators InterpolationFunction;
 	public float InterpolationParameter;
-	public double StartTime;
-	public double Duration;
+	public TimeUnit_t StartTime;
+	public TimeUnit_t Duration;
 	public AnimAlign Align;
 }
 
 public struct ActiveAnimation
 {
 	public Panel? Panel;
-	public ulong SeqName;
-	public ulong Variable;
+	public UtlSymId_t SeqName;
+	public UtlSymId_t Variable;
 	public bool Started;
 	public AnimValue StartValue;
 	public AnimValue EndValue;
 	public Interpolators Interpolator;
 	public float InterpolatorParam;
-	public double StartTime;
-	public double EndTime;
+	public TimeUnit_t StartTime;
+	public TimeUnit_t EndTime;
 	public bool CanBeCancelled;
 	public AnimAlign Align;
 }
 
-public struct PostedMessage {
+public struct PostedMessage
+{
 	public AnimCommandType CommandType;
 	public UtlSymId_t SeqName;
 	public UtlSymId_t Event;
 	public UtlSymId_t Variable;
 	public UtlSymId_t Variable2;
-	public 	double StartTime;
+	public double StartTime;
 	public IPanel Parent;
 	public bool CanBeCancelled;
 }
@@ -131,12 +133,12 @@ public class AnimationController : Panel, IAnimationController
 		CurrentTime = 0;
 	}
 
-	public void RunAnimationCommand(Panel panel, ReadOnlySpan<char> variable, float target, double startDelaySeconds, double durationSeconds, Interpolators interpolator, float animParameter = 0) {
+	public void RunAnimationCommand(Panel panel, ReadOnlySpan<char> variable, float target, TimeUnit_t startDelaySeconds, TimeUnit_t durationSeconds, Interpolators interpolator, float animParameter = 0) {
 		ulong var = ScriptSymbols.AddString(variable);
 		RemoveQueuedAnimationByType(panel, var, 0);
 
 		AnimCmdAnimate animateCmd = new();
-		animateCmd.Panel = null;
+		animateCmd.Panel = 0;
 		animateCmd.Variable = var;
 		animateCmd.Target.A = target;
 		animateCmd.InterpolationFunction = interpolator;
@@ -147,9 +149,9 @@ public class AnimationController : Panel, IAnimationController
 		StartCmd_Animate(panel, 0, in animateCmd, true);
 	}
 
-	double CurrentTime;
+	TimeUnit_t CurrentTime;
 
-	public void UpdateAnimations(double curTime) {
+	public void UpdateAnimations(TimeUnit_t curTime) {
 		CurrentTime = curTime;
 
 		UpdatePostedMessages(false);
@@ -214,7 +216,7 @@ public class AnimationController : Panel, IAnimationController
 			int y = (int)value.B + GetRelativeOffset(anim.Align, false);
 			panel.SetPos(x, y);
 		}
-		else if (variable == Size) 
+		else if (variable == Size)
 			panel.SetSize((int)value.A, (int)value.B);
 		else if (variable == FgColor) {
 			Color col = panel.GetFgColor();
@@ -232,13 +234,13 @@ public class AnimationController : Panel, IAnimationController
 			col[3] = (byte)Math.Clamp((int)value.D, 0, 255);
 			panel.SetBgColor(col);
 		}
-		else if (variable == XPos) 
+		else if (variable == XPos)
 			panel.SetPos((int)value.A + GetRelativeOffset(anim.Align, true), panel.GetY());
-		else if (variable == YPos) 
+		else if (variable == YPos)
 			panel.SetPos(panel.GetX(), (int)value.A + GetRelativeOffset(anim.Align, false));
-		else if (variable == Wide) 
+		else if (variable == Wide)
 			panel.SetSize((int)value.A, panel.GetTall());
-		else if (variable == Tall) 
+		else if (variable == Tall)
 			panel.SetSize(panel.GetWide(), (int)value.A);
 		else {
 			KeyValues inputData = new KeyValues(ScriptSymbols.String(variable));
@@ -260,19 +262,19 @@ public class AnimationController : Panel, IAnimationController
 
 	private AnimValue GetValue(ActiveAnimation anim, Panel panel, ulong variable) {
 		AnimValue val = new();
-		if(variable == Position) {
+		if (variable == Position) {
 			int x, y;
 			panel.GetPos(out x, out y);
 			val.A = x - GetRelativeOffset(in anim.Align, true);
 			val.B = y - GetRelativeOffset(in anim.Align, false);
 		}
-		else if(variable == Size) { }
-		else if(variable == FgColor) { }
-		else if(variable == BgColor) { }
-		else if(variable == XPos) { }
-		else if(variable == YPos) { }
-		else if(variable == Wide) { }
-		else if(variable == Tall) { }
+		else if (variable == Size) { }
+		else if (variable == FgColor) { }
+		else if (variable == BgColor) { }
+		else if (variable == XPos) { }
+		else if (variable == YPos) { }
+		else if (variable == Wide) { }
+		else if (variable == Tall) { }
 		else {
 			KeyValues outputData = new KeyValues(ScriptSymbols.String(variable));
 			if (panel.RequestInfo(outputData)) {
@@ -430,21 +432,185 @@ public class AnimationController : Panel, IAnimationController
 	}
 
 	static readonly UtlSymbolTable ScriptSymbols = new(true);
-	Panel? SizePanel;
+	IPanel? SizePanel;
 
-	public bool SetScriptFile(Panel sizingPanel, ReadOnlySpan<char> fileName, bool wipeAll = false) {
+	public bool StartAnimationSequence(ReadOnlySpan<char> sequenceName, bool canBeCancelled = true) {
+		return StartAnimationSequence(GetParent(), sequenceName, canBeCancelled);
+	}
+
+	public struct AnimCmdEvent
+	{
+		public UtlSymId_t Event;
+		public UtlSymId_t Variable;
+		public UtlSymId_t Variable2;
+		public TimeUnit_t TimeDelay;
+	}
+
+	public struct AnimCommand
+	{
+		public AnimCommandType CommandType;
+		public AnimCmdAnimate Animate;
+		public AnimCmdEvent RunEvent;
+	}
+
+	public struct AnimSequence
+	{
+		public UtlSymId_t Name;
+		public TimeUnit_t Duration;
+		public List<AnimCommand> CmdList;
+	}
+	public bool AutoReloadScript;
+	readonly List<AnimSequence> Sequences = [];
+
+	public bool StartAnimationSequence(Panel withinParent, ReadOnlySpan<char> sequenceName, bool canBeCancelled = true) {
+		if (AutoReloadScript)
+			ReloadScriptFile();
+
+		UtlSymId_t seqName = ScriptSymbols.Find(sequenceName);
+		if (seqName == UTL_INVAL_SYMBOL)
+			return false;
+
+		RemoveQueuedAnimationCommands(seqName, withinParent);
+
+		int i;
+		for (i = 0; i < Sequences.Count; i++) {
+			if (Sequences[i].Name == seqName)
+				break;
+		}
+
+		if (i >= Sequences.Count)
+			return false;
+
+		for (int cmdIndex = 0; cmdIndex < Sequences[i].CmdList.Count; cmdIndex++)
+			ExecAnimationCommand(seqName, ref Sequences[i].CmdList.AsSpan()[cmdIndex], withinParent, canBeCancelled);
+
+		return true;
+	}
+
+	private void ExecAnimationCommand(ulong seqName, ref AnimCommand animCommand, Panel withinParent, bool canBeCancelled) {
+		if (animCommand.CommandType == AnimCommandType.Animate) {
+			StartCmd_Animate(seqName, ref animCommand.Animate, withinParent, canBeCancelled);
+		}
+		else {
+			PostedMessages.Add(default);
+			ref PostedMessage msg = ref PostedMessages.AsSpan()[PostedMessages.Count - 1];
+			msg.SeqName = seqName;
+			msg.CommandType = animCommand.CommandType;
+			msg.Event = animCommand.RunEvent.Event;
+			msg.Variable = animCommand.RunEvent.Variable;
+			msg.Variable2 = animCommand.RunEvent.Variable2;
+			msg.StartTime = CurrentTime + animCommand.RunEvent.TimeDelay;
+			msg.Parent = withinParent;
+			msg.CanBeCancelled = canBeCancelled;
+		}
+	}
+
+	private void StartCmd_Animate(UtlSymId_t seqName, ref AnimCmdAnimate cmd, Panel withinParent, bool canBeCancelled) {
+		if (withinParent == null)
+			return;
+
+		Panel? panel = withinParent.FindChildByName(ScriptSymbols.String(cmd.Panel), true);
+		if (panel == null) {
+			Panel? parent = GetParent();
+			if (parent != null && parent.GetName().Equals(ScriptSymbols.String(cmd.Panel), StringComparison.OrdinalIgnoreCase))
+				panel = parent;
+		}
+
+		if (panel == null)
+			return;
+
+		StartCmd_Animate(panel, seqName, cmd, canBeCancelled);
+	}
+
+	private void RemoveQueuedAnimationCommands(UtlSymId_t seqName, Panel withinParent) {
+		for (int i = 0; i < PostedMessages.Count; i++) {
+			if ((PostedMessages[i].SeqName == seqName) && (withinParent == null || (PostedMessages[i].Parent == withinParent))) {
+				PostedMessages.RemoveAt(i);
+				--i;
+			}
+		}
+
+		for (int i = 0; i < ActiveAnimations.Count; i++) {
+			if (ActiveAnimations[i].SeqName != seqName)
+				continue;
+
+			if (withinParent != null) {
+				Panel? animPanel = ActiveAnimations[i].Panel;
+
+				if (animPanel == null)
+					continue;
+
+				Panel? foundPanel = withinParent.FindChildByName(animPanel.GetName(), true);
+
+				if (foundPanel != animPanel)
+					continue;
+			}
+
+			ActiveAnimations.RemoveAt(i);
+			--i;
+		}
+	}
+
+	readonly List<UtlSymId_t> ScriptFileNames = [];
+
+	public void ReloadScriptFile() {
+		Sequences.Clear();
+		UpdateScreenSize();
+
+		for (int i = 0; i < ScriptFileNames.Count; i++) {
+			ReadOnlySpan<char> filename = ScriptSymbols.String(ScriptFileNames[i]);
+			if (!filename.IsEmpty) {
+				if (LoadScriptFile(filename) == false) {
+					Assert(false);
+				}
+			}
+		}
+	}
+
+	public bool SetScriptFile(IPanel sizingPanel, ReadOnlySpan<char> fileName, bool wipeAll = false) {
 		SizePanel = sizingPanel;
 
 		if (wipeAll) {
-			// todo
+			Sequences.Clear();
+			ScriptFileNames.Clear();
+
 			CancelAllAnimations();
 		}
 
-		// todo
-		return true; // just lie for now
+		UtlSymId_t sFilename = ScriptSymbols.AddString(fileName);
+		bool found = false;
+		for (int i = 0; i < ScriptFileNames.Count; i++) {
+			if (ScriptFileNames[i] == sFilename) {
+				found = true;
+				break;
+			}
+		}
+		if(!found)
+			ScriptFileNames.Add(sFilename);
+
+		UpdateScreenSize();
+
+		return LoadScriptFile(fileName);
 	}
 
-	public void StartAnimationSequence(string v) {
+	static readonly IFileSystem fileSystem = Singleton<IFileSystem>();
+
+	public bool LoadScriptFile(ReadOnlySpan<char> filename) {
+		using IFileHandle? f = fileSystem.Open(filename, FileOpenOptions.Read | FileOpenOptions.Text);
+
+		if (f == null) {
+			Warning($"Couldn't find script file {filename}\n");
+			return false;
+		}
+
+		return ParseScriptFile(f);
+	}
+
+	private bool ParseScriptFile(IFileHandle f) {
+		return true;
+	}
+
+	public void UpdateScreenSize() {
 
 	}
 }

@@ -16,7 +16,7 @@ public class HudHealth : HudNumericDisplay, IHudElement
 	int BitsDamage;
 
 	public HudHealth(string? panelName) : base(null, "HudHealth") {
-		/*(IHudElement.)*/ ElementName = "HudHealth";
+		/*(IHudElement.)*/ ElementName = panelName;
 
 		var parent = clientMode.GetViewport();
 		SetParent(parent);

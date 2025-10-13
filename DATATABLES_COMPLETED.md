@@ -70,18 +70,18 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #67: CFuncReflectiveGlass
 - [x] Class #68: CFuncRotating
 - [x] Class #69: CFuncSmokeVolume
-- [ ] Class #70: CFuncTrackTrain
+- [x] Class #70: CFuncTrackTrain
 - [x] Class #71: CGameRulesProxy
 - [x] Class #72: CGMOD_Player
 - [x] Class #73: CGMODGameRulesProxy
 - [x] Class #74: CHL2_Player
 - [x] Class #75: CHL2MP_Player
-- [ ] Class #76: CHL2MPGameRulesProxy
+- [x] Class #76: CHL2MPGameRulesProxy
 - [x] Class #77: CHL2MPMachineGun
 - [x] Class #78: CHL2MPRagdoll
 - [x] Class #79: CHLMachineGun
 - [x] Class #80: CHLSelectFireMachineGun
-- [ ] Class #81: CInfoLadderDismount
+- [x] Class #81: CInfoLadderDismount
 - [ ] Class #82: CInfoLightingRelative
 - [ ] Class #83: CInfoOverlayAccessor
 - [ ] Class #84: CInfoTeleporterCountdown
@@ -138,7 +138,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #135: CRpgRocket
 - [ ] Class #136: CSceneEntity
 - [ ] Class #137: CScriptIntro
-- [ ] Class #138: CSENT_AI
+- [x] Class #138: CSENT_AI
 - [x] Class #139: CSENT_anim
 - [x] Class #140: CSENT_point
 - [x] Class #141: CShadowControl
@@ -213,14 +213,14 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #210: CWeaponAnnabelle
 - [x] Class #211: CWeaponAR2
 - [x] Class #212: CWeaponBugBait
-- [ ] Class #213: CWeaponCitizenPackage
-- [ ] Class #214: CWeaponCitizenSuitcase
+- [x] Class #213: CWeaponCitizenPackage
+- [x] Class #214: CWeaponCitizenSuitcase
 - [x] Class #215: CWeaponCrossbow
 - [x] Class #216: CWeaponCrossbow_HL1
 - [x] Class #217: CWeaponCrowbar
 - [x] Class #218: CWeaponCrowbar_HL1
-- [ ] Class #219: CWeaponCubemap
-- [ ] Class #220: CWeaponCycler
+- [x] Class #219: CWeaponCubemap
+- [x] Class #220: CWeaponCycler
 - [x] Class #221: CWeaponEgon
 - [x] Class #222: CWeaponFrag
 - [x] Class #223: CWeaponGauss
@@ -229,7 +229,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #226: CWeaponHgun
 - [x] Class #227: CWeaponHL2MPBase
 - [x] Class #228: CWeaponMP5
-- [ ] Class #229: CWeaponOldManHarpoon
+- [x] Class #229: CWeaponOldManHarpoon
 - [x] Class #230: CWeaponPhysCannon
 - [x] Class #231: CWeaponPhysGun
 - [x] Class #232: CWeaponPistol

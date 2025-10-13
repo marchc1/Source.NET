@@ -5,10 +5,10 @@ using Source;
 
 #if CLIENT_DLL
 namespace Game.Client;
-using FIELD = Source.FIELD<C_SENT_Point>;
+using FIELD = Source.FIELD<C_SENT_AI>;
 #else
 namespace Game.Server;
-using FIELD = Source.FIELD<SENT_Point>;
+using FIELD = Source.FIELD<SENT_AI>;
 #endif
 
 using Table =
@@ -27,13 +27,12 @@ using Class =
 
 public partial class
 #if CLIENT_DLL
-    C_SENT_Point
-#else
-	SENT_Point
+	C_SENT_AI : C_AI_BaseNPC
+#elif GAME_DLL
+	SENT_AI 	: AI_BaseNPC
 #endif
-	: SharedBaseEntity
 {
-	public static readonly Table DT_SENT_Point = new(DT_BaseEntity, [
+	public static readonly Table DT_SENT_AI = new(DT_AI_BaseNPC, [
 #if CLIENT_DLL
 		RecvPropDataTable("ScriptedEntity", DT_ScriptedEntity)
 #elif GAME_DLL
@@ -47,6 +46,6 @@ public partial class
 #else
 		ServerClass
 #endif
-		= new Class("SENT_Point", DT_SENT_Point).WithManualClassID(StaticClassIndices.CSENT_point);
+		= new Class("SENT_AI", DT_SENT_AI).WithManualClassID(StaticClassIndices.CSENT_AI);
 }
 #endif
