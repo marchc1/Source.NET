@@ -317,6 +317,26 @@ public class Button : Label
 		return (MouseClickMask & unchecked(1 << unchecked((int)(code + 1)))) != 0;
 	}
 
+	public void SetBlink(bool state) {
+		if (((ButtonFlags & ButtonFlags.Blink) != 0) != state) {
+			if (state) ButtonFlags |= ButtonFlags.Blink;
+			else ButtonFlags &= ~ButtonFlags.Blink;
+
+			RecalculateDepressedState();
+			InvalidateLayout(false);
+		}
+	}
+
+	public void ForceDepressed(bool state) {
+		if (((ButtonFlags & ButtonFlags.ForceDepressed) != 0) != state) {
+			if (state) ButtonFlags |= ButtonFlags.ForceDepressed;
+			else ButtonFlags &= ~ButtonFlags.ForceDepressed;
+
+			RecalculateDepressedState();
+			InvalidateLayout(false);
+		}
+	}
+
 	public bool IsUseCaptureMouseEnabled() => (ButtonFlags & ButtonFlags.UseCaptureMouse) != 0;
 	public void SetUseCaptureMouse(bool state) {
 		if (state) ButtonFlags |= ButtonFlags.UseCaptureMouse;
