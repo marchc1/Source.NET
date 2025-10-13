@@ -1,4 +1,4 @@
-#if CLIENT_DLL || GAME_DLL
+#if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
 using Game.Server;
 
 using Source.Common;

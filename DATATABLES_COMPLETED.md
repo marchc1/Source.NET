@@ -70,18 +70,18 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #67: CFuncReflectiveGlass
 - [x] Class #68: CFuncRotating
 - [x] Class #69: CFuncSmokeVolume
-- [ ] Class #70: CFuncTrackTrain
+- [x] Class #70: CFuncTrackTrain
 - [x] Class #71: CGameRulesProxy
 - [x] Class #72: CGMOD_Player
 - [x] Class #73: CGMODGameRulesProxy
 - [x] Class #74: CHL2_Player
 - [x] Class #75: CHL2MP_Player
-- [ ] Class #76: CHL2MPGameRulesProxy
+- [x] Class #76: CHL2MPGameRulesProxy
 - [x] Class #77: CHL2MPMachineGun
 - [x] Class #78: CHL2MPRagdoll
 - [x] Class #79: CHLMachineGun
 - [x] Class #80: CHLSelectFireMachineGun
-- [ ] Class #81: CInfoLadderDismount
+- [x] Class #81: CInfoLadderDismount
 - [ ] Class #82: CInfoLightingRelative
 - [ ] Class #83: CInfoOverlayAccessor
 - [ ] Class #84: CInfoTeleporterCountdown
