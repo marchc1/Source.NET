@@ -742,8 +742,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 	}
 
 	readonly ThreadLocal<byte[]> tempTransformBuffers = new ThreadLocal<byte[]>(() => new byte[1024 * 1024]);
-	Span<byte> GetTempTransformBuffer(ImageFormat format, Span<byte> inData) {
-		int desiredLength = ImageLoader.SizeInBytes(format);
+	Span<byte> GetTempTransformBuffer(ImageFormat inFormat, ImageFormat outFormat, Span<byte> inData) {
+		int desiredLength = ImageLoader.SizeInBytes(outFormat) * (inData.Length / ImageLoader.SizeInBytes(inFormat));
 
 		if(desiredLength > tempTransformBuffers.Value!.Length) 
 			tempTransformBuffers.Value = new byte[MathLib.CeilPow2(desiredLength)];
@@ -754,7 +754,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		switch (inFormat) {
 			case ImageFormat.BGR888:
 				outFormat = ImageFormat.RGB888;
-				outData = GetTempTransformBuffer(outFormat, inData);
+				outData = GetTempTransformBuffer(inFormat, outFormat, inData);
 				for (int i = 0; i < inData.Length; i+= 3) {
 					outData[i + 2] = inData[i + 0];
 					outData[i + 1] = inData[i + 1];
