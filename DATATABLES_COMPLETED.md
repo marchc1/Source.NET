@@ -26,7 +26,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #23: CBaseToggle
 - [x] Class #24: CBaseTrigger
 - [x] Class #25: CBaseViewModel
-- [ ] Class #26: CBeam
+- [x] Class #26: CBeam
 - [ ] Class #27: CBeamSpotlight
 - [ ] Class #28: CBoneFollower
 - [ ] Class #29: CBoneManipulate
@@ -104,7 +104,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #101: CNPC_Vortigaunt
 - [ ] Class #102: CParticleFire
 - [ ] Class #103: CParticlePerformanceMonitor
-- [ ] Class #104: CParticleSystem
+- [x] Class #104: CParticleSystem
 - [x] Class #105: CPhysBeam
 - [x] Class #106: CPhysBox
 - [x] Class #107: CPhysBoxMultiplayer
