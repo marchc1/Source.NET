@@ -30,8 +30,32 @@ public struct AudioChannel {
 	public int UserData;
 }
 
-public class AudioSource {
+public enum AudioSourceType {
+	Unknown,
+	WAV,
+	MP3,
+	Voice,
+	Max
+}
 
+public enum AudioStatus {
+	NotLoaded,
+	IsLoading,
+	Loaded
+}
+
+public abstract class AudioSource {
+	public abstract int SampleRate();
+	public abstract bool IsVoiceSource();
+	public abstract int SampleSize();
+	public abstract int SampleCount();
+	public abstract bool IsLooped();
+	public abstract bool IsStereoWav();
+	public abstract bool IsStreaming();
+	public abstract AudioStatus GetCacheStatus();
+	public bool IsCached() => GetCacheStatus() == AudioStatus.Loaded ? true : false;
+	public abstract void CacheLoad();
+	public abstract void CacheUnload();
 }
 
 public class SfxTable {
@@ -41,6 +65,14 @@ public class SfxTable {
 	public bool IsLateLoad;
 	public bool MixGroupsCached;
 	public byte MixGroupCount;
+
+	public FileNameHandle_t NamePoolIndex;
+	public void SetNamePoolIndex(FileNameHandle_t handle) {
+		NamePoolIndex = handle;
+		if(NamePoolIndex != FileNameHandle_t.MaxValue) {
+			// on name changed todo
+		}
+	}
 }
 
 public interface IAudioDevice {

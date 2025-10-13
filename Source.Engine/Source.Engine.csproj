@@ -14,5 +14,8 @@
     <ProjectReference Include="..\Source.GUI.Controls\Source.GUI.Controls.csproj" />
     <ProjectReference Include="..\Source.GUI\Source.GUI.csproj" />
   </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="ppy.SDL3-CS" Version="2025.703.0" />
+	</ItemGroup>
 
 </Project>
