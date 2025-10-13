@@ -371,11 +371,9 @@ public class Net
 					return false;
 				}
 
-				fixed (byte* dst = packet.Data)
-				fixed (byte* src = entry.NetSplit.Buffer) {
-					NativeMemory.Copy(dst, src, (nuint)entry.NetSplit.TotalSize);
-				}
 
+				entry.NetSplit.Buffer.AsSpan()[..entry.NetSplit.TotalSize].CopyTo(packet.Data);
+				
 				packet.Size = entry.NetSplit.TotalSize;
 				packet.WireSize = entry.NetSplit.TotalSize;
 
@@ -517,17 +515,16 @@ public class Net
 
 			if (ret < MAX_MESSAGE) {
 				// Check for split messages
-				int netHeader = MemoryMarshal.Cast<byte, int>(packet.Data.AsSpan())[0];
 
 				// Check for split packet
 				//Console.WriteLine($"Header: {netHeader}");
-				if (netHeader == (int)NetHeaderFlag.SplitPacket) {
+				if (MemoryMarshal.Cast<byte, int>(packet.Data.AsSpan())[0] == (int)NetHeaderFlag.SplitPacket) {
 					if (!GetLong(sock, packet))
 						return false;
 				}
 
 				// Check for compressed packet
-				if (netHeader == (int)NetHeaderFlag.CompressedPacket) {
+				if (MemoryMarshal.Cast<byte, int>(packet.Data.AsSpan())[0] == (int)NetHeaderFlag.CompressedPacket) {
 					Span<byte> packetData = packet.Data.AsSpan();
 					Span<byte> lzssStart = packetData[sizeof(uint)..];
 					uint uncompressedSize = GetDecompressedBufferSize(lzssStart);
@@ -592,8 +589,7 @@ public class Net
 	}
 
 	public unsafe NetPacket? GetPacket(NetSocketType sock, byte[] scratch) {
-		// AdjustLag, DiscardStaleSplitpackets?
-
+		DiscardStaleSplitPackets(sock);
 		NetPacket packet = NetPackets[(int)sock];
 
 		packet.From.Type = NetAddressType.IP;

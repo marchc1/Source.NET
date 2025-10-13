@@ -2,6 +2,7 @@ using Source.Common.Bitbuffers;
 
 using System.Buffers;
 using System.Net;
+using System.Runtime.InteropServices;
 
 namespace Source.Common.Networking;
 
@@ -140,6 +141,7 @@ public class NetAddress
 	}
 }
 
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct SPLITPACKET
 {
 	public int NetID;
