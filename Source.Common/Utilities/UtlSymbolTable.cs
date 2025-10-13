@@ -29,7 +29,7 @@ public class UtlSymbolTable(bool caseInsensitive = false) : ISymbolTable
 		UtlSymId_t hash = str.Hash(invariant: caseInsensitive);
 		if (Symbols.ContainsKey(hash))
 			return hash;
-		return 0;
+		return UTL_INVAL_SYMBOL;
 	}
 
 	public string? String(UtlSymId_t symbol) {

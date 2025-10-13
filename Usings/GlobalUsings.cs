@@ -8,6 +8,7 @@ global using static Source.Common.Mathematics.MathLibConsts;
 global using static Source.GlobalReflectionUtils;
 global using static Source.Common.RecvPropHelpers;
 global using static Source.Common.SendPropHelpers;
+global using static Source.Common.Utilities.UtlSymbolGlobals;
 global using CRC32_t = uint;
 global using HCursor = nint;
 global using UtlSymId_t = ulong;
