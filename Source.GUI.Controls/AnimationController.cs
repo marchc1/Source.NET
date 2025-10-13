@@ -3,6 +3,7 @@ using CommunityToolkit.HighPerformance;
 using Source.Common.Mathematics;
 using Source.Common.Utilities;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.Filesystem;
 
 namespace Source.GUI.Controls;
 
@@ -431,19 +432,7 @@ public class AnimationController : Panel, IAnimationController
 	}
 
 	static readonly UtlSymbolTable ScriptSymbols = new(true);
-	Panel? SizePanel;
-
-	public bool SetScriptFile(Panel sizingPanel, ReadOnlySpan<char> fileName, bool wipeAll = false) {
-		SizePanel = sizingPanel;
-
-		if (wipeAll) {
-			// todo
-			CancelAllAnimations();
-		}
-
-		// todo
-		return true; // just lie for now
-	}
+	IPanel? SizePanel;
 
 	public bool StartAnimationSequence(ReadOnlySpan<char> sequenceName, bool canBeCancelled = true) {
 		return StartAnimationSequence(GetParent(), sequenceName, canBeCancelled);
@@ -488,6 +477,7 @@ public class AnimationController : Panel, IAnimationController
 			if (Sequences[i].Name == seqName)
 				break;
 		}
+
 		if (i >= Sequences.Count)
 			return false;
 
@@ -561,7 +551,66 @@ public class AnimationController : Panel, IAnimationController
 		}
 	}
 
-	private void ReloadScriptFile() {
-		throw new NotImplementedException();
+	readonly List<UtlSymId_t> ScriptFileNames = [];
+
+	public void ReloadScriptFile() {
+		Sequences.Clear();
+		UpdateScreenSize();
+
+		for (int i = 0; i < ScriptFileNames.Count; i++) {
+			ReadOnlySpan<char> filename = ScriptSymbols.String(ScriptFileNames[i]);
+			if (!filename.IsEmpty) {
+				if (LoadScriptFile(filename) == false) {
+					Assert(false);
+				}
+			}
+		}
+	}
+
+	public bool SetScriptFile(IPanel sizingPanel, ReadOnlySpan<char> fileName, bool wipeAll = false) {
+		SizePanel = sizingPanel;
+
+		if (wipeAll) {
+			Sequences.Clear();
+			ScriptFileNames.Clear();
+
+			CancelAllAnimations();
+		}
+
+		UtlSymId_t sFilename = ScriptSymbols.AddString(fileName);
+		bool found = false;
+		for (int i = 0; i < ScriptFileNames.Count; i++) {
+			if (ScriptFileNames[i] == sFilename) {
+				found = true;
+				break;
+			}
+		}
+		if(!found)
+			ScriptFileNames.Add(sFilename);
+
+		UpdateScreenSize();
+
+		return LoadScriptFile(fileName);
+	}
+
+	static readonly IFileSystem fileSystem = Singleton<IFileSystem>();
+
+	public bool LoadScriptFile(ReadOnlySpan<char> filename) {
+		using IFileHandle? f = fileSystem.Open(filename, FileOpenOptions.Read | FileOpenOptions.Text);
+
+		if (f == null) {
+			Warning($"Couldn't find script file {filename}\n");
+			return false;
+		}
+
+		return ParseScriptFile(f);
+	}
+
+	private bool ParseScriptFile(IFileHandle f) {
+		return true;
+	}
+
+	public void UpdateScreenSize() {
+
 	}
 }
