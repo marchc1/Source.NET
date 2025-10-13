@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
+using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Engine;
@@ -12,6 +13,7 @@ using Source.Engine.Server;
 
 using Steamworks;
 
+using System.Buffers;
 using System.Runtime.CompilerServices;
 
 using static Source.Constants;
@@ -363,6 +365,91 @@ public class ClientState : BaseClientState
 	public override void PacketEnd() {
 		base.PacketEnd();
 	}
+	readonly LinkedList<EventInfo> Events = [];
+
+	protected override bool ProcessTempEntities(svc_TempEntities msg) {
+		bool reliable = false;
+
+		TimeUnit_t fire_time = GetTime();
+
+		if (MaxClients > 1) {
+			TimeUnit_t interpAmount = GetClientInterpAmount();
+			fire_time += interpAmount;
+		}
+
+		if (msg.NumEntries == 0) {
+			reliable = true;
+			msg.NumEntries = 1;
+		}
+
+		EventFlags flags = reliable ? EventFlags.Reliable : 0;
+
+		bf_read buffer = msg.DataIn;
+
+		int classID = -1;
+		C_ServerClassInfo? serverClass = null;
+		ClientClass? clientClass = null;
+		byte[] data = ArrayPool<byte>.Shared.Rent(EventInfo.MAX_EVENT_DATA);
+
+		bf_write toBuf = new(data, data.Length);
+		EventInfo? ei = null;
+
+		for (int i = 0; i < msg.NumEntries; i++) {
+			float delay = 0.0f;
+
+			if (buffer.ReadOneBit() != 0)
+				delay = (float)buffer.ReadSBitLong(8) / 100.0f;
+
+			toBuf.Reset();
+
+			if (buffer.ReadOneBit() != 0) {
+				classID = (int)buffer.ReadUBitLong(ServerClassBits);
+
+				serverClass = ServerClasses?[classID - 1];
+
+				if (serverClass == null) {
+					DevMsg($"CL_QueueEvent: missing server class info for {classID - 1}.\n");
+					ArrayPool<byte>.Shared.Return(data);
+					return false;
+				}
+
+				clientClass = FindClientClass(serverClass.ClassName);
+
+				if (clientClass == null || clientClass.RecvTable == null) {
+					DevMsg($"CL_QueueEvent: missing client receive table for {serverClass.ClassName}.\n");
+					ArrayPool<byte>.Shared.Return(data);
+					return false;
+				}
+
+				RecvTable.MergeDeltas(clientClass.RecvTable, null, buffer, toBuf);
+			}
+			else {
+				Assert(ei != null);
+
+				uint buffer_size = (uint)NetChannel.PAD_NUMBER(NetChannel.Bits2Bytes(ei.Bits), 4);
+				bf_read fromBuf = new(ei.Data!, buffer_size);
+
+				RecvTable.MergeDeltas(clientClass!.RecvTable!, fromBuf, buffer, toBuf);
+			}
+
+			ei = new();
+			Events.AddLast(ei);
+
+			int size = NetChannel.Bits2Bytes(toBuf.BitsWritten);
+
+			ei.ClassID = (short)classID;
+			ei.FireDelay = fire_time + delay;
+			ei.Flags = flags;
+			ei.ClientClass = clientClass;
+			ei.Bits = toBuf.BitsWritten;
+
+			ei.Data = new byte[size.AlignValue(4)];
+			data.AsSpan()[..size].CopyTo(ei.Data);
+		}
+
+		ArrayPool<byte>.Shared.Return(data);
+		return true;
+	}
 
 	public override void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {
 		throw new NotImplementedException();
@@ -541,7 +628,7 @@ public class ClientState : BaseClientState
 		ClientFrame? lastFrame = frame;
 
 		while (frame != null) {
-			if (frame.TickCount>= tick) {
+			if (frame.TickCount >= tick) {
 				if (frame.TickCount == tick)
 					return frame;
 
@@ -705,8 +792,8 @@ public class ClientState : BaseClientState
 		u.To!.LastEntity = u.OldEntity;
 		u.To!.TransmitEntity.Set(u.OldEntity);
 
-		 if (CL.cl_entityreport.GetBool())
-		 	CL.RecordEntityBits(u.OldEntity, 0);
+		if (CL.cl_entityreport.GetBool())
+			CL.RecordEntityBits(u.OldEntity, 0);
 
 		CL.PreserveExistingEntity(u.OldEntity);
 
@@ -772,13 +859,11 @@ public class ClientState : BaseClientState
 		}
 	}
 
-	public override bool ProcessServerInfo(svc_ServerInfo msg)
-	{
+	public override bool ProcessServerInfo(svc_ServerInfo msg) {
 		// Reset client state
 		Clear();
 
-		if (!base.ProcessServerInfo(msg))
-		{
+		if (!base.ProcessServerInfo(msg)) {
 			Disconnect("CBaseClientState::ProcessServerInfo failed", true);
 			return false;
 		}
@@ -790,8 +875,7 @@ public class ClientState : BaseClientState
 		//  the client is probably cheating.
 		ServerMD5 = msg.MapMD5;
 
-		if (MaxClients > 1)
-		{
+		if (MaxClients > 1) {
 			/*if (mp_decals.GetInt() < r_decals.GetInt())
 			{
 				r_decals.SetValue(mp_decals.GetInt());
@@ -806,23 +890,22 @@ public class ClientState : BaseClientState
 
 		// CL_ReallocateDynamicData(MaxClients);
 
-		if (sv.IsPaused())
-		{
-			if (msg.TickInterval != host_state.IntervalPerTick)
-			{
+		if (sv.IsPaused()) {
+			if (msg.TickInterval != host_state.IntervalPerTick) {
 				Host.Error($"Expecting interval_per_tick {host_state.IntervalPerTick}, got {msg.TickInterval}\n");
 				return false;
 			}
-		} else {
+		}
+		else {
 			host_state.IntervalPerTick = msg.TickInterval;
 		}
 
-        // Gmod Specific - a global bool. Should we put this into the host state?
-        // g_bIsDedicated = msg->m_bIsDedicated;
+		// Gmod Specific - a global bool. Should we put this into the host state?
+		// g_bIsDedicated = msg->m_bIsDedicated;
 
-        // gHostSpawnCount = m_nServerCount;
+		// gHostSpawnCount = m_nServerCount;
 
-        // videomode->MarkClientViewRectDirty();
+		// videomode->MarkClientViewRectDirty();
 		return true;
-    }
+	}
 }
