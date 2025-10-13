@@ -1525,7 +1525,7 @@ public class Panel : IPanel
 		Surface?.Invalidate(this);
 	}
 
-	public void RequestFocus(int direction = 0) {
+	public virtual void RequestFocus(int direction = 0) {
 		OnRequestFocus(this, null);
 	}
 
