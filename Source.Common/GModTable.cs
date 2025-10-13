@@ -144,13 +144,14 @@ public class GModTable {
 	public static GModVariant Empty;
 
 	// This sucks. But I need this function, and its internal to a Dictionary<TKey, TValue>...
+	static MethodInfo FindValueMethod = typeof(Dictionary<int, GModVariant>).GetMethod("FindValue", (BindingFlags)~0)!;
 	delegate ref GModVariant GetRefVariant(int key);
 	readonly Dictionary<int, GModVariant> Values;
 	readonly GetRefVariant FindValue;
 
 	public GModTable() {
 		Values = [];
-		FindValue = typeof(Dictionary<int, GModVariant>).GetMethod("FindValue", (BindingFlags)~0)!.CreateDelegate<GetRefVariant>(Values);
+		FindValue = FindValueMethod.CreateDelegate<GetRefVariant>(Values);
 	}
 
 	public const int ENTRIES_BITS = 12;
