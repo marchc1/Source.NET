@@ -15,6 +15,7 @@ namespace Source.Common.Networking;
 
 public class Net
 {
+	internal static readonly ConVar net_showsplits = new("net_showsplits", "0", 0, "Show info about packet splits");
 	internal static readonly ConVar net_showmsg = new("net_showmsg", "0", 0, "Show incoming message: <0|1|name>");
 	internal static readonly ConVar net_showfragments = new("net_showfragments", "0", 0, "Show netchannel fragments");
 	internal static readonly ConVar net_showpeaks = new("net_showpeaks", "0", 0, "Show messages for large packets only: <size>");
@@ -349,9 +350,8 @@ public class Net
 				entry.NetSplit.SplitCount--;
 				entry.SplitFlags[packetNumber] = sequenceNumber;
 
-				if (true) {
+				if (net_showsplits.GetInt() != 0 && net_showsplits.GetInt() != 3)
 					Msg($"<-- [{DescribeSocket(sock)}] Split packet {packetNumber + 1}/{packetCount} seq {sequenceNumber} size {size} mtu {splitSizeMinusHeader + sizeof(SPLITPACKET)} from {packet.From}\n");
-				}
 			}
 			else {
 				Warning($"Net.GetLong: Ignoring duplicated split packet {packetNumber + 1} of {packetCount} ({size} bytes) from {packet.From}\n");
@@ -373,7 +373,7 @@ public class Net
 
 
 				entry.NetSplit.Buffer.AsSpan()[..entry.NetSplit.TotalSize].CopyTo(packet.Data);
-				
+
 				packet.Size = entry.NetSplit.TotalSize;
 				packet.WireSize = entry.NetSplit.TotalSize;
 
@@ -1034,7 +1034,8 @@ public class Net
 				bytesLeft -= size;
 				++packetNumber;
 
-				Msg($"--> [{DescribeSocket(sock)}] Split packet {packetNumber}/{packetCount} seq {sequenceNumber} size {size} mtu {maxRoutable} to {to} [ total {sendlen} ]\n");
+				if (net_showsplits.GetInt() != 0 && net_showsplits.GetInt() != 2)
+					Msg($"--> [{DescribeSocket(sock)}] Split packet {packetNumber}/{packetCount} seq {sequenceNumber} size {size} mtu {maxRoutable} to {to} [ total {sendlen} ]\n");
 			}
 		}
 
