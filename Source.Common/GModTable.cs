@@ -109,7 +109,7 @@ public struct GmodTableTypeFns {
 		if(val != Constants.INVALID_NETWORKED_EHANDLE_VALUE) {
 			uint entity = val & ((1 << Constants.MAX_EDICT_BITS) - 1);
 			uint serialNum = val >> Constants.MAX_EDICT_BITS;
-			dvariant.Handle?.Init((int)entity, (int)serialNum);
+			(dvariant.Handle ??= new()).Init((int)entity, (int)serialNum);
 		}
 	}
 	static bool Entity_Compare(bf_read buf1, bf_read buf2) => buf1.ReadUBitLong(Constants.NUM_NETWORKED_EHANDLE_BITS) != buf2.ReadUBitLong(Constants.NUM_NETWORKED_EHANDLE_BITS);
