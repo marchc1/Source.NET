@@ -15,6 +15,7 @@ namespace Source.Common.Networking;
 
 public class Net
 {
+	internal static readonly ConVar net_showsplits = new("net_showsplits", "0", 0, "Show info about packet splits");
 	internal static readonly ConVar net_showmsg = new("net_showmsg", "0", 0, "Show incoming message: <0|1|name>");
 	internal static readonly ConVar net_showfragments = new("net_showfragments", "0", 0, "Show netchannel fragments");
 	internal static readonly ConVar net_showpeaks = new("net_showpeaks", "0", 0, "Show messages for large packets only: <size>");
@@ -349,9 +350,8 @@ public class Net
 				entry.NetSplit.SplitCount--;
 				entry.SplitFlags[packetNumber] = sequenceNumber;
 
-				if (true) {
-					Msg($"<-- [{DescribeSocket(sock)}] Split packet {packetNumber + 1}/{packetCount} seq {sequenceNumber} size {size} mtu {splitSizeMinusHeader + sizeof(SPLITPACKET)} from {packet.From}");
-				}
+				if (net_showsplits.GetInt() != 0 && net_showsplits.GetInt() != 3)
+					Msg($"<-- [{DescribeSocket(sock)}] Split packet {packetNumber + 1}/{packetCount} seq {sequenceNumber} size {size} mtu {splitSizeMinusHeader + sizeof(SPLITPACKET)} from {packet.From}\n");
 			}
 			else {
 				Warning($"Net.GetLong: Ignoring duplicated split packet {packetNumber + 1} of {packetCount} ({size} bytes) from {packet.From}\n");
@@ -371,10 +371,8 @@ public class Net
 					return false;
 				}
 
-				fixed (byte* dst = packet.Data)
-				fixed (byte* src = entry.NetSplit.Buffer) {
-					NativeMemory.Copy(src, dst, (nuint)entry.NetSplit.TotalSize);
-				}
+
+				entry.NetSplit.Buffer.AsSpan()[..entry.NetSplit.TotalSize].CopyTo(packet.Data);
 
 				packet.Size = entry.NetSplit.TotalSize;
 				packet.WireSize = entry.NetSplit.TotalSize;
@@ -517,17 +515,16 @@ public class Net
 
 			if (ret < MAX_MESSAGE) {
 				// Check for split messages
-				int netHeader = MemoryMarshal.Cast<byte, int>(packet.Data.AsSpan())[0];
 
 				// Check for split packet
 				//Console.WriteLine($"Header: {netHeader}");
-				if (netHeader == (int)NetHeaderFlag.SplitPacket) {
+				if (MemoryMarshal.Cast<byte, int>(packet.Data.AsSpan())[0] == (int)NetHeaderFlag.SplitPacket) {
 					if (!GetLong(sock, packet))
 						return false;
 				}
 
 				// Check for compressed packet
-				if (netHeader == (int)NetHeaderFlag.CompressedPacket) {
+				if (MemoryMarshal.Cast<byte, int>(packet.Data.AsSpan())[0] == (int)NetHeaderFlag.CompressedPacket) {
 					Span<byte> packetData = packet.Data.AsSpan();
 					Span<byte> lzssStart = packetData[sizeof(uint)..];
 					uint uncompressedSize = GetDecompressedBufferSize(lzssStart);
@@ -592,8 +589,7 @@ public class Net
 	}
 
 	public unsafe NetPacket? GetPacket(NetSocketType sock, byte[] scratch) {
-		// AdjustLag, DiscardStaleSplitpackets?
-
+		DiscardStaleSplitPackets(sock);
 		NetPacket packet = NetPackets[(int)sock];
 
 		packet.From.Type = NetAddressType.IP;
@@ -1011,7 +1007,7 @@ public class Net
 			sbyte* packet = packetptr;
 
 			SPLITPACKET* pPacket = (SPLITPACKET*)packetptr;
-			pPacket->NetID = SPLITPACKET_HEADER;
+			pPacket->NetID = NET_HEADER_FLAG_SPLITPACKET;
 			pPacket->SequenceNumber = sequenceNumber;
 			pPacket->SplitSize = splitSizeMinusHeader;
 
@@ -1038,7 +1034,8 @@ public class Net
 				bytesLeft -= size;
 				++packetNumber;
 
-				Msg($"--> [{DescribeSocket(sock)}] Split packet {packetNumber}/{packetCount} seq {sequenceNumber} size {size} mtu {maxRoutable} to {to} [ total {sendlen} ]\n");
+				if (net_showsplits.GetInt() != 0 && net_showsplits.GetInt() != 2)
+					Msg($"--> [{DescribeSocket(sock)}] Split packet {packetNumber}/{packetCount} seq {sequenceNumber} size {size} mtu {maxRoutable} to {to} [ total {sendlen} ]\n");
 			}
 		}
 

@@ -350,7 +350,7 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 			return;
 		}
 
-		bool enableMipmapping = (Flags & (int)TextureFlags.NoMip) == 0;
+		bool enableMipmapping = (Flags & (int)TextureFlags.NoMip) != 0;
 		if (!enableMipmapping) {
 			ShaderAPI.TexMinFilter(TexFilterMode.Linear);
 			ShaderAPI.TexMagFilter(TexFilterMode.Linear);

@@ -26,7 +26,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #23: CBaseToggle
 - [x] Class #24: CBaseTrigger
 - [x] Class #25: CBaseViewModel
-- [ ] Class #26: CBeam
+- [x] Class #26: CBeam
 - [ ] Class #27: CBeamSpotlight
 - [ ] Class #28: CBoneFollower
 - [ ] Class #29: CBoneManipulate
@@ -60,16 +60,16 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #57: CFleshEffectTarget
 - [ ] Class #58: CFlexManipulate
 - [ ] Class #59: CFogController
-- [ ] Class #60: CFunc_Dust
+- [x] Class #60: CFunc_Dust
 - [ ] Class #61: CFunc_LOD
 - [x] Class #62: CFuncAreaPortalWindow
 - [ ] Class #63: CFuncConveyor
 - [x] Class #64: CFuncLadder
 - [ ] Class #65: CFuncMonitor
-- [ ] Class #66: CFuncOccluder
+- [x] Class #66: CFuncOccluder
 - [ ] Class #67: CFuncReflectiveGlass
-- [ ] Class #68: CFuncRotating
-- [ ] Class #69: CFuncSmokeVolume
+- [x] Class #68: CFuncRotating
+- [x] Class #69: CFuncSmokeVolume
 - [ ] Class #70: CFuncTrackTrain
 - [x] Class #71: CGameRulesProxy
 - [x] Class #72: CGMOD_Player
@@ -104,7 +104,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #101: CNPC_Vortigaunt
 - [ ] Class #102: CParticleFire
 - [ ] Class #103: CParticlePerformanceMonitor
-- [ ] Class #104: CParticleSystem
+- [x] Class #104: CParticleSystem
 - [x] Class #105: CPhysBeam
 - [x] Class #106: CPhysBox
 - [x] Class #107: CPhysBoxMultiplayer
@@ -145,7 +145,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #142: CSlideshowDisplay
 - [ ] Class #143: CSmokeStack
 - [ ] Class #144: CSpatialEntity
-- [ ] Class #145: CSpotlightEnd
+- [x] Class #145: CSpotlightEnd
 - [x] Class #146: CSprite
 - [ ] Class #147: CSpriteOriented
 - [ ] Class #148: CSpriteTrail

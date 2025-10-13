@@ -169,3 +169,20 @@ public struct InlineArrayNewMaxPlayersPlus1<T> where T : new()
 	public T item;
 	public InlineArrayNewMaxPlayersPlus1() { for (int i = 0; i < MAX_VIEWMODELS; i++) this[i] = new(); }
 }
+
+[InlineArray(MAX_BEAM_ENTS)]
+public struct InlineArrayNewMaxBeamEnts<T> where T : new()
+{
+	public T item;
+	public InlineArrayNewMaxBeamEnts() { for (int i = 0; i < MAX_BEAM_ENTS; i++) this[i] = new(); }
+}
+
+
+
+[InlineArray(kMAXCONTROLPOINTS)]
+public struct InlineArrayNewMaxControlPoints<T> where T : new()
+{
+	public const int kMAXCONTROLPOINTS = 63;
+	public T item;
+	public InlineArrayNewMaxControlPoints() { for (int i = 0; i < kMAXCONTROLPOINTS; i++) this[i] = new(); }
+}
