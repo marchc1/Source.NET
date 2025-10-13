@@ -302,13 +302,13 @@ public class NetChannel : INetChannelInfo, INetChannel
 		ChokedPackets++;
 	}
 
-	public void Shutdown(string? reason) {
+	public void Shutdown(ReadOnlySpan<char> reason) {
 		if (Socket < 0)
 			return;
 
 		Clear();
 
-		if (reason != null) {
+		if (!reason.IsEmpty) {
 			StreamUnreliable.WriteUBitLong(Net.Disconnect, NETMSG_TYPE_BITS);
 			StreamUnreliable.WriteString(reason);
 			Transmit();

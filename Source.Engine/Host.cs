@@ -650,7 +650,7 @@ public class Host(
 		PostInit();
 	}
 
-	public void Disconnect(bool showMainMenu, string? reason = null) {
+	public void Disconnect(bool showMainMenu, ReadOnlySpan<char> reason = default) {
 #if !SWDS
 		if (!sv.IsDedicated()) {
 			cl.Disconnect(reason, showMainMenu);
@@ -859,7 +859,7 @@ public class Host(
 		Scr.EndLoadingPlaque();
 #endif
 		ConMsg($"\nHost_Error: {error}\n\n");
-		Disconnect(true, new(error));
+		Disconnect(true, error);
 		inerror = false;
 	}
 

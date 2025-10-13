@@ -211,7 +211,7 @@ public class ClientState : BaseClientState
 	}
 
 
-	public override void Disconnect(string? reason, bool showMainMenu) {
+	public override void Disconnect(ReadOnlySpan<char> reason, bool showMainMenu) {
 		base.Disconnect(reason, showMainMenu);
 
 		// CL_ClearState
@@ -237,7 +237,7 @@ public class ClientState : BaseClientState
 	public override void SetClientTickCount(int tick) => ClockDriftMgr.ClientTick = tick;
 	public override int GetServerTickCount() => ClockDriftMgr.ServerTick;
 	public override void SetServerTickCount(int tick) => ClockDriftMgr.ServerTick = tick;
-	public override void ConnectionClosing(string reason) {
+	public override void ConnectionClosing(ReadOnlySpan<char> reason) {
 		if (SignOnState > SignOnState.None) {
 			if (reason != null && reason.Length > 0 && reason[0] == '#')
 				Common.ExplainDisconnection(true, reason);
@@ -364,19 +364,19 @@ public class ClientState : BaseClientState
 		base.PacketEnd();
 	}
 
-	public override void FileReceived(string fileName, uint transferID) {
+	public override void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {
 		throw new NotImplementedException();
 	}
-	public override void FileRequested(string fileName, uint transferID) {
+	public override void FileRequested(ReadOnlySpan<char> fileName, uint transferID) {
 		throw new NotImplementedException();
 	}
-	public override void FileDenied(string fileName, uint transferID) {
+	public override void FileDenied(ReadOnlySpan<char> fileName, uint transferID) {
 		throw new NotImplementedException();
 	}
-	public override void FileSent(string fileName, uint transferID) {
+	public override void FileSent(ReadOnlySpan<char> fileName, uint transferID) {
 		throw new NotImplementedException();
 	}
-	public override void ConnectionCrashed(string reason) {
+	public override void ConnectionCrashed(ReadOnlySpan<char> reason) {
 		throw new NotImplementedException();
 	}
 	public void StartUpdatingSteamResources() {
