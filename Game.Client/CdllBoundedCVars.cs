@@ -62,9 +62,12 @@ internal static class CdllBoundedCVars
 	public static readonly BoundedCvar_Interp cl_interp = new();
 
 	static ConVarRef cl_updaterate;
+	static ConVar_ServerBounded? s_cl_updaterate;
 
 	public static double GetClientInterpAmount() {
 		cl_updaterate.Init("cl_updaterate");
-		return Math.Max(cl_interp.GetFloat(), cl_interp_ratio.GetFloat() / cl_updaterate.GetFloat());
+		s_cl_updaterate ??= (ConVar_ServerBounded?)cl_updaterate.GetLinkedConVar();
+
+		return Math.Max(cl_interp.GetFloat(), cl_interp_ratio.GetFloat() / s_cl_updaterate!.GetFloat());
 	}
 }
