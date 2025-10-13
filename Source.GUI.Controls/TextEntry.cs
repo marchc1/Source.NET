@@ -1768,7 +1768,7 @@ public class TextEntry : Panel
 		SetFont(Font);
 	}
 
-	public void SetFont(IFont? font) {
+	public virtual void SetFont(IFont? font) {
 		Font = font;
 		InvalidateLayout();
 		Repaint();

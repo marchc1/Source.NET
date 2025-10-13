@@ -6,20 +6,252 @@ namespace Source.GUI.Controls;
 
 class ContextLabel : Label
 {
-	public ContextLabel(Panel parent, string panelName, string text) : base(parent, panelName, text) {
+	private Button TabButton;
+	public ContextLabel(Button parent, string panelName, string text) : base(parent, panelName, text) {
+		TabButton = parent;
+		// SetBlockDragChaining(true);
+	}
+
+	public override void OnMousePressed(ButtonCode code) {
+		if (TabButton != null)
+			TabButton.FireActionSignal();
+	}
+
+	public override void OnMouseReleased(ButtonCode code) {
+		base.OnMouseReleased(code);
+		if (GetParent() != null)
+			GetParent()!.OnCommand("ShowContextMenu");
+	}
+
+	public override void ApplySchemeSettings(IScheme scheme) {
+		base.ApplySchemeSettings(scheme);
+
+		IFont marlett = scheme.GetFont("Marlett")!;
+		SetFont(marlett);
+		SetTextInset(0, 0);
+		SetContentAlignment(Alignment.Northwest);
+
+		if (GetParent() != null) {
+			SetFgColor(scheme.GetColor("Button.TextColor", GetParent()!.GetFgColor()));
+			SetBgColor(GetParent()!.GetBgColor());
+		}
 	}
 }
 
-class PageTab : Button {
+class PageTab : Button
+{
+	bool Active;
+	Color TextColor;
+	Color DimTextColor;
+	int MaxTabWidth;
+	IBorder ActiveBorder;
+	IBorder NormalBorder;
+	PropertySheet Parent;
+	Panel Page;
+	ImagePanel? Image;
+	char[] ImageName;
+	bool ShowContextLabel;
+	bool AtttemptingDrop;
+	ContextLabel ContextLabel;
+	long HoverActivePageTime;
+	long DropHoverTime;
 
-	public PageTab(Panel parent, string panelName, string text, ReadOnlySpan<char> imageName, int maxTabWidth, Panel page, bool showContextButton, long hoverActivePageTime = -1)
+	public PageTab(PropertySheet parent, string panelName, string text, ReadOnlySpan<char> imageName, int maxTabWidth, Panel page, bool showContextButton, long hoverActivePageTime = -1)
 		: base(parent, panelName, text) {
+		Parent = parent;
+		Page = page;
+		Image = null;
+		ShowContextLabel = showContextButton;
+		AtttemptingDrop = false;
+		HoverActivePageTime = hoverActivePageTime;
+		DropHoverTime = -1;
+
+		SetCommand(new KeyValues("TabPressed"));
+		Active = false;
+		MaxTabWidth = maxTabWidth;
+		SetDropEnabled(true);
+		// SetDragEnabled(parent.IsDraggableTab());
+
+		if (!imageName.IsEmpty) {
+			Image = new(this, text);
+			ImageName = new char[imageName.Length];
+			imageName.CopyTo(ImageName);
+		}
+
+		SetMouseClickEnabled(ButtonCode.MouseRight, true);
+
+		ContextLabel = ShowContextLabel ? new(this, "Context", "9") : null!;
+	}
+
+	public override void OnCursorEntered() {
+		DropHoverTime = System.GetTimeMillis();
+	}
+
+	public override void OnCursorExited() {
+		DropHoverTime = -1;
+	}
+
+	public override void OnThink() {
+		//
+		base.OnThink();
+	}
+
+	public bool IsDroppable() {
+		return false;//todo
+	}
+
+	public void OnDroppablePanelPaint() {
+
+	}
+
+	public void OnPanelDropped() {
+
+	}
+
+	public void OnDragFailed() {
+
+	}
+
+	public void OnCreateDragData() {
+
+	}
+
+	public override void ApplySchemeSettings(IScheme scheme) {
+		base.ApplySchemeSettings(scheme);
+
+		TextColor = GetSchemeColor("PropertySheet.SelectedTextColor", GetFgColor(), scheme);
+		DimTextColor = GetSchemeColor("PropertySheet.TextColor", new(128, 128, 128, 255), scheme);
+		ActiveBorder = scheme.GetBorder("TabActiveBorder")!;
+		NormalBorder = scheme.GetBorder("TabBorder")!;
+
+		if (Image != null) {
+			ClearImages();
+
+			// Image.SetImage(SchemeManager.GetImage(ImageName, false)!);
+			// AddImage(Image.GetImage(), 2);
+			Image.GetSize(out int w, out int h);
+			w += ContextLabel != null ? 10 : 0;
+			if (ContextLabel != null)
+				Image.SetPos(10, 0);
+			SetSize(w + 4, h + 2);
+		}
+		else {
+			GetSize(out _, out int tall);
+			GetContentSize(out int contentWide, out _);
+
+			int wide = Math.Max(MaxTabWidth, contentWide + 10);
+			wide += ContextLabel != null ? 10 : 0;
+			SetSize(wide, tall);
+		}
+
+		if (ContextLabel != null)
+			SetTextInset(12, 0);
+	}
+
+	public override void ApplySettings(KeyValues resourceData) {
+		ReadOnlySpan<char> Border = resourceData.GetString("activeborder_override", "");
+		if (!Border.IsEmpty)
+			ActiveBorder = GetScheme()!.GetBorder(Border)!;
+
+		Border = resourceData.GetString("normalborder_override", "");
+		if (!Border.IsEmpty)
+			NormalBorder = GetScheme()!.GetBorder(Border)!;
+
+		base.ApplySettings(resourceData);
+	}
+
+	public override void OnCommand(ReadOnlySpan<char> command) {
+		if (command.Equals("ShowContextMenu", StringComparison.OrdinalIgnoreCase)) {
+			KeyValues kv = new("OpenContextMenu");
+			kv.SetPtr("page", Page);
+			kv.SetPtr("contextlabel", ContextLabel);
+			PostActionSignal(kv);
+			return;
+		}
+
+		base.OnCommand(command);
+	}
+
+	public override IBorder? GetBorder(bool depressed, bool armed, bool seleced, bool keyfocus) {
+		if (Active)
+			return ActiveBorder;
+		return NormalBorder;
+	}
+
+	public Color GetButtonFgColor(Color color) {
+		if (Active)
+			return TextColor;
+		else
+			return DimTextColor;
+	}
+
+	public void SetActive(bool state) {
+		Active = state;
+		SetZPos(state ? 100 : 0);
+		InvalidateLayout();
+		Repaint();
+	}
+
+	public void SetTabWidth(int width) {
+		MaxTabWidth = width;
+		InvalidateLayout();
+	}
+
+	public override bool CanBeDefaultButton() {
+		return false;
+	}
+
+	public override void OnMousePressed(ButtonCode code) {
+		if (!IsEnabled())
+			return;
+
+		if (!IsMouseClickEnabled(code))
+			return;
+
+		if (IsUseCaptureMouseEnabled()) {
+			RequestFocus();
+			FireActionSignal();
+			SetSelected(true);
+			Repaint();
+		}
+
+		Input.SetMouseCapture(this);
+	}
+
+	public override void OnMouseReleased(ButtonCode code) {
+		if (IsUseCaptureMouseEnabled())
+			Input.SetMouseCapture(null);
+
+		SetSelected(false);
+		Repaint();
+
+		if (code == ButtonCode.MouseRight) {
+			KeyValues kv = new("OpenContextMenu");
+			kv.SetPtr("page", Page);
+			kv.SetPtr("contextlabel", ContextLabel);
+			PostActionSignal(kv);
+		}
+	}
+
+	public override void PerformLayout() {
+		base.PerformLayout();
+
+		if (ContextLabel != null) {
+			GetSize(out _, out int h);
+			ContextLabel.SetBounds(0, 0, 10, h);
+		}
 	}
 }
 
 public class PropertySheet : Frame {
 	struct Page {
+		public Panel page;
+		public bool ContextMenu;
 
+		public Page(Panel pagePnl, bool contextMenu = false) {
+			page = pagePnl;
+			ContextMenu = contextMenu;
+		}
 	}
 
 	List<Page> Pages;
@@ -28,7 +260,7 @@ public class PropertySheet : Frame {
 	PageTab? ActiveTab;
 	int TabWidth;
 	int ActiveTabIndex;
-	// ComboBox Combo;
+	ComboBox? Combo;
 	bool ShowTabs;
 	bool TabFocus;
 	// PHandle PreviouslyActivePage
@@ -47,13 +279,13 @@ public class PropertySheet : Frame {
 	int TabHeightSmall;
 	KeyValues? TabKV;
 
-	public PropertySheet(Panel? parent, string? panelName, bool draggableTabs) : base(parent, panelName) {
+	public PropertySheet(Panel? parent, string? panelName, bool draggableTabs = false) : base(parent, panelName) {
 		ActivePage = null;
 		ActiveTab = null;
 		TabWidth = 64;
 		ActiveTabIndex = -1;
 		ShowTabs = true;
-		// Combo = null;
+		Combo = null;
 		TabFocus = false;
 		PageTransitionEffectTime = 0.0f;
 		SmallTabs = false;
@@ -91,15 +323,14 @@ public class PropertySheet : Frame {
 	public bool ShouldShowContextButtons() => ContextButton;
 
 	public int FindPage(Panel page) {
-		// for (int i = 0; i < Pages.Count; i++)
-		// 	if (Pages[i].page == page)
-		// 		return i;
+		for (int i = 0; i < Pages.Count; i++)
+			if (Pages[i].page == page)
+				return i;
 
 		return -1;
 	}
 
-	public void AddPage(Panel parent, string title, string imageName, bool hasContextMenu) {
-
+	public void AddPage(Panel parent, ReadOnlySpan<char> title, char[]? imageName = null, bool hasContextMenu = false) {
 	}
 
 	public void SetActivePage(Panel page) {
@@ -126,15 +357,13 @@ public class PropertySheet : Frame {
 	}
 
 	public void ResetAllData() {
-		for (int i = 0; i < Pages.Count; i++) {
-			//
-		}
+		for (int i = 0; i < Pages.Count; i++)
+			Pages[i].page.SendMessage(new KeyValues("ResetData"), this); // todo static kv
 	}
 
 	public void ApplyChanges() {
-		for (int i = 0; i < Pages.Count; i++) {
-			//
-		}
+		for (int i = 0; i < Pages.Count; i++)
+			Pages[i].page.SendMessage(new KeyValues("ApplyChanges"), this); // todo static kv
 	}
 
 	public Panel? GetActivePage() => ActivePage;
@@ -149,7 +378,7 @@ public class PropertySheet : Frame {
 
 	public bool GetTabTitle(int i, Span<char> textOut) {
 		if (i < 0 || i >= Pages.Count) {
-			textOut = Span<char>.Empty;
+			textOut.Clear();
 			return false;
 		}
 
@@ -167,8 +396,8 @@ public class PropertySheet : Frame {
 
 	public int GetActivePageNum() {
 		for (int i = 0; i < Pages.Count; i++) {
-			// if (Pages[i].page == ActivePage)
-				// return i;
+			if (Pages[i].page == ActivePage)
+				return i;
 		}
 
 		return -1;
@@ -349,8 +578,7 @@ public class PropertySheet : Frame {
 		if (i < 0 || i >= Pages.Count)
 			return null!;
 
-		// return Pages[i].page;
-		return null!;
+		return Pages[i].page;
 	}
 
 	public void DisablePage(string title) {
@@ -369,19 +597,19 @@ public class PropertySheet : Frame {
 				if (new string(tmp).Equals(title, StringComparison.OrdinalIgnoreCase))
 					PageTabs[i].SetEnabled(state);
 			} else {
-				// Combo.SetItemEnabled(title, state);
+				Combo.SetItemEnabled(title, state);
 			}
 		}
 	}
 
 	public void RemoveAllPages() {
-		// for (int i = Pages.Count - 1; i >= 0; --i)
-		// 	RemovePage(Pages[i].page);
+		for (int i = Pages.Count - 1; i >= 0; --i)
+			RemovePage(Pages[i].page);
 	}
 
 	public void DeleteAllPages() {
-		// for (int i = Pages.Count - 1; i >= 0; --i)
-		// 	DeletePage(Pages[i].page);
+		for (int i = Pages.Count - 1; i >= 0; --i)
+			DeletePage(Pages[i].page);
 	}
 
 	public void RemovePage(Panel panel) {
@@ -500,8 +728,7 @@ public class PropertySheet : Frame {
 		if (pageNum == -1)
 			return false;
 
-		// return Pages[pageNum].ContextMenu;
-		return false;
+		return Pages[pageNum].ContextMenu;
 	}
 
 	public void OnPanelDropped(List<KeyValues> msglist) {

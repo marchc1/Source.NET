@@ -11,7 +11,7 @@ public class PropertyDialog : Frame
 	[PanelAnimationVar("sheetinset_bottom", "32")] protected int SheetInsetBottom;
 
 	public PropertyDialog(Panel? parent, string? name) : base(parent, name) {
-		PropertySheet = new(this, "Sheet", false);
+		PropertySheet = new(this, "Sheet");
 		PropertySheet.AddActionSignalTarget(this);
 		PropertySheet.SetTabPosition(1);
 
@@ -38,10 +38,10 @@ public class PropertyDialog : Frame
 
 	public PropertySheet GetPropertySheet() => PropertySheet!;
 
-	// public Panel GetActivePage() => PropertySheet!.GetActivePage();
+	public Panel GetActivePage() => PropertySheet!.GetActivePage()!;
 
 	public void AddPage(Panel page, ReadOnlySpan<char> title) {
-		// PropertySheet!.AddPage(page, title);
+		PropertySheet!.AddPage(page, title);
 	}
 
 	public void ApplyChanges() {

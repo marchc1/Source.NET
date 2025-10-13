@@ -30,6 +30,16 @@ public class MenuSeparator : Panel
 	}
 }
 
+public enum MenuDirection
+{
+	LEFT = 0,
+	RIGHT = 1,
+	UP = 2,
+	DOWN = 3,
+	CURSOR = 4,
+	ALIGN_WITH_PARENT = 5
+}
+
 public enum MenuMode
 {
 	MOUSE = 0,

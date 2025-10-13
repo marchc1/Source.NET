@@ -468,7 +468,7 @@ public class Button : Label
 		return base.RequestInfo(outputData);
 	}
 
-	public bool CanBeDefaultButton() {
+	public virtual bool CanBeDefaultButton() {
 		return true;
 	}
 
