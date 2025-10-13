@@ -11,15 +11,15 @@ using System.Runtime.InteropServices;
 namespace Source.Engine;
 
 public unsafe class AudioDeviceSDLAudio : AudioDeviceBase {
-	SDL_AudioDeviceID id;
+	SDL_AudioDeviceID devId;
 	public AudioDeviceSDLAudio() : base() {
 		SDL_AudioSpec spec = new() {
 			channels = 2,
 			format = SDL_AudioFormat.SDL_AUDIO_F32LE,
-			freq = 44100
+			freq = IAudioDevice.SOUND_DMA_SPEED
 		};
 
-		id = SDL3.SDL_OpenAudioDevice((SDL_AudioDeviceID)0xFFFFFFFFu, &spec);
+		devId = SDL3.SDL_OpenAudioDevice((SDL_AudioDeviceID)0xFFFFFFFFu, &spec);
 	}
 
 
@@ -31,6 +31,17 @@ public unsafe class AudioDeviceSDLAudio : AudioDeviceBase {
 			return;
 		// This is currently not plugged in because we stopped using SDL_OpenAudioDeviceStream for now
 		// (and it might be garbage)
+	}
+
+	public override bool Init() {
+		if (devId != 0)
+			return true;
+
+		return ValidWaveOut();
+	}
+
+	private bool ValidWaveOut() {
+		return devId != 0;
 	}
 }
 public static partial class Audio
