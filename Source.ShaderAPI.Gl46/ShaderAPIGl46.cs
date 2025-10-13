@@ -9,6 +9,7 @@ using Source.Common;
 using Source.Common.Bitmap;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
 using Source.Common.ShaderAPI;
 
 using System.Numerics;
@@ -732,11 +733,39 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 	public unsafe void TexSubImage2D(int mip, int face, int x, int y, int z, int width, int height, ImageFormat srcFormat, int srcStride, Span<byte> imageData) {
 		glGetError();
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, srcStride / srcFormat.SizeInBytes());
+		ConvertDataToAcceptableGLFormat(srcFormat, imageData, out srcFormat, out Span<byte> convertedData);
 		fixed (byte* data = imageData)
 			glTextureSubImage2D((uint)ModifyTextureHandle, mip, x, y, width, height, ImageLoader.GetGLImageUploadFormat(srcFormat), GL_UNSIGNED_BYTE, data);
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		var err = glGetError();
 		Assert(err == 0);
+	}
+
+	readonly ThreadLocal<byte[]> tempTransformBuffers = new ThreadLocal<byte[]>(() => new byte[1024 * 1024]);
+	Span<byte> GetTempTransformBuffer(ImageFormat format, Span<byte> inData) {
+		int desiredLength = ImageLoader.SizeInBytes(format);
+
+		if(desiredLength > tempTransformBuffers.Value!.Length) 
+			tempTransformBuffers.Value = new byte[MathLib.CeilPow2(desiredLength)];
+
+		return tempTransformBuffers.Value!.AsSpan()[..desiredLength];
+	}
+	private void ConvertDataToAcceptableGLFormat(ImageFormat inFormat, Span<byte> inData, out ImageFormat outFormat, out Span<byte> outData) {
+		switch (inFormat) {
+			case ImageFormat.BGR888:
+				outFormat = ImageFormat.RGB888;
+				outData = GetTempTransformBuffer(outFormat, inData);
+				for (int i = 0; i < inData.Length; i+= 3) {
+					outData[i + 2] = inData[i + 0];
+					outData[i + 1] = inData[i + 1];
+					outData[i + 0] = inData[i + 2];
+				}
+				break;
+			default:
+				outFormat = inFormat;
+				outData = inData;
+				return;
+		}
 	}
 
 	public void ReacquireResources() {
@@ -863,7 +892,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 			_ => -1
 		};
 
-		if(coordinate == -1) {
+		if (coordinate == -1) {
 			Warning("ShaderAPIGl46.TexWrap: unknown coord\n");
 			return;
 		}
