@@ -13,6 +13,7 @@ public struct GModVariant {
 	public Vector3 Vector;
 	public QAngle Angle;
 	public string? String;
+	public BaseHandle? Handle;
 	public void Clear() {
 		Int = default;
 		Float = default;
@@ -102,7 +103,15 @@ public struct GmodTableTypeFns {
 	static bool Angle_Compare(bf_read buf1, bf_read buf2) => Vector_Compare(buf1, buf2);
 	static void Angle_Skip(bf_read buf) => Vector_Skip(buf);
 
-	static void Entity_Read(bf_read buf, ref GModVariant dvariant) => dvariant.Int = (int)buf.ReadUBitLong(Constants.NUM_NETWORKED_EHANDLE_BITS);
+	static void Entity_Read(bf_read buf, ref GModVariant dvariant) {
+		uint val = buf.ReadUBitLong(Constants.NUM_NETWORKED_EHANDLE_BITS);
+
+		if(val != Constants.INVALID_NETWORKED_EHANDLE_VALUE) {
+			uint entity = val & ((1 << Constants.MAX_EDICT_BITS) - 1);
+			uint serialNum = val >> Constants.MAX_EDICT_BITS;
+			dvariant.Handle?.Init((int)entity, (int)serialNum);
+		}
+	}
 	static bool Entity_Compare(bf_read buf1, bf_read buf2) => buf1.ReadUBitLong(Constants.NUM_NETWORKED_EHANDLE_BITS) != buf2.ReadUBitLong(Constants.NUM_NETWORKED_EHANDLE_BITS);
 	static void Entity_Skip(bf_read buf) => buf.SeekRelative(Constants.NUM_NETWORKED_EHANDLE_BITS);
 
