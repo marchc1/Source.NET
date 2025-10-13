@@ -14,7 +14,7 @@ using System.Runtime.CompilerServices;
 namespace Source.Engine;
 
 
-public class EngineAPI(IGame game, IServiceProvider provider, Common COM, IFileSystem fileSystem, Sys Sys, ILauncherManager launcherMgr, IInputSystem inputSystem) : IEngineAPI, IDisposable
+public class EngineAPI(IGame game, IServiceProvider provider, Common COM, Sys Sys, ILauncherManager launcherMgr, IInputSystem inputSystem) : IEngineAPI, IDisposable
 {
 	public bool Dedicated;
 
@@ -135,13 +135,15 @@ public class EngineAPI(IGame game, IServiceProvider provider, Common COM, IFileS
 
 					if (getMethod.IsStatic) {
 						// Pull a static reference out to link
-						ConVar cv = (ConVar)getMethod.Invoke(null, null)!;
+						ConVar? cv = (ConVar?)getMethod.Invoke(null, null);
+						if (cv == null) continue;
 						if (cv.GetName() == null) cv.SetName(prop.Name);
 						cvar.RegisterConCommand(cv);
 					}
 					else {
 						object? instance = DetermineInstance(type, false, prop.Name);
-						ConVar cv = (ConVar)getMethod.Invoke(instance, null)!;
+						ConVar? cv = (ConVar?)getMethod.Invoke(instance, null);
+						if (cv == null) continue;
 						if (cv.GetName() == null) cv.SetName(prop.Name);
 						cvar.RegisterConCommand(cv);
 					}
@@ -154,13 +156,15 @@ public class EngineAPI(IGame game, IServiceProvider provider, Common COM, IFileS
 
 					if (field.IsStatic) {
 						// Pull a static reference out to link
-						ConVar cv = (ConVar)field.GetValue(null)!;
+						ConVar? cv = (ConVar?)field.GetValue(null);
+						if (cv == null) continue;
 						if (cv.GetName() == null) cv.SetName(field.Name);
 						cvar.RegisterConCommand(cv);
 					}
 					else {
 						object? instance = DetermineInstance(type, false, field.Name);
-						ConVar cv = (ConVar)field.GetValue(instance)!;
+						ConVar? cv = (ConVar?)field.GetValue(instance);
+						if (cv == null) continue;
 						if (cv.GetName() == null) cv.SetName(field.Name);
 						cvar.RegisterConCommand(cv);
 					}

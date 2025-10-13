@@ -34,6 +34,7 @@ public class ClientState : BaseClientState
 	readonly CL CL;
 	readonly IEngineVGuiInternal? EngineVGui;
 	readonly IHostState HostState;
+	readonly ICvar cvar;
 	readonly DtCommonEng DtCommonEng;
 	readonly EngineRecvTable RecvTable;
 	readonly IPrediction ClientSidePrediction;
@@ -44,13 +45,12 @@ public class ClientState : BaseClientState
 	readonly ICommandLine CommandLine;
 	readonly Scr Scr;
 
-
-	public double LastServerTickTime;
+	public TimeUnit_t LastServerTickTime;
 	public bool InSimulation;
 
 	public int OldTickCount;
-	public double TickRemainder;
-	public double FrameTime;
+	public TimeUnit_t TickRemainder;
+	public TimeUnit_t FrameTime;
 
 	public int LastOutgoingCommand;
 	public int ChokedCommands;
@@ -115,6 +115,7 @@ public class ClientState : BaseClientState
 		this.fileSystem = fileSystem;
 		this.Net = Net;
 		this.host_state = host_state;
+		this.cvar = cvar;
 		this.CL = CL;
 		this.Scr = Scr;
 		this.modelloader = modelloader;
@@ -538,8 +539,32 @@ public class ClientState : BaseClientState
 
 		return IsPaused() ? 0 : FrameTime;
 	}
-	public void SetFrameTime(double dt) => FrameTime = dt;
-	public double GetClientInterpAmount() => throw new NotImplementedException();
+	public void SetFrameTime(TimeUnit_t dt) => FrameTime = dt;
+	ConVar? s_cl_interp_ratio = null;
+	ConVar? s_cl_interp = null;
+	ConVar_ServerBounded? s_cl_interp_ratio_bounded = null;
+
+	public TimeUnit_t GetClientInterpAmount() {
+		if (s_cl_interp_ratio == null) {
+			s_cl_interp_ratio = cvar.FindVar("cl_interp_ratio");
+			if (s_cl_interp_ratio == null)
+				return 0.1;
+		}
+
+		if (s_cl_interp == null) {
+			s_cl_interp = cvar.FindVar("cl_interp");
+			if (s_cl_interp == null)
+				return 0.1;
+		}
+
+		float interpRatio = s_cl_interp_ratio.GetFloat();
+		float interp = s_cl_interp.GetFloat();
+
+		s_cl_interp_ratio_bounded ??= (ConVar_ServerBounded?)s_cl_interp_ratio;
+		if (s_cl_interp_ratio_bounded != null)
+			interpRatio = s_cl_interp_ratio_bounded.GetFloat();
+		return Math.Max(interpRatio / cl_updaterate.GetFloat(), interp);
+	}
 	public override void Connect(string adr, string sourceTag) {
 		Socket = Net.GetSocket(NetSocketType.Client);
 		base.Connect(adr, sourceTag);
