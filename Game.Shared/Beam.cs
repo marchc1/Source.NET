@@ -164,8 +164,8 @@ public class
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("Beam", DT_Beam).WithManualClassID(StaticClassIndices.CBeam);
 #endif
-	public readonly InlineArrayNewMaxBeamEnts<EHANDLE> AttachEntity = new();
-	public readonly InlineArrayNewMaxBeamEnts<int> AttachIndex = new();
+	public InlineArrayNewMaxBeamEnts<EHANDLE> AttachEntity = new();
+	public InlineArrayNewMaxBeamEnts<int> AttachIndex = new();
 	public int BeamType;
 	public int BeamFlags;
 	public int NumBeamEnts;
