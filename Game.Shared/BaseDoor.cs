@@ -10,7 +10,7 @@ public partial class BaseDoor : BaseToggle
 #else
 		SendTable
 #endif
-		DT_BaseDoor = new(DT_BaseEntity, [
+		DT_BaseDoor = new(DT_BaseToggle, [
 #if CLIENT_DLL
 		RecvPropFloat(FIELD.OF(nameof(WaveHeight)))
 #else
