@@ -373,7 +373,7 @@ public class Net
 
 				fixed (byte* dst = packet.Data)
 				fixed (byte* src = entry.NetSplit.Buffer) {
-					NativeMemory.Copy(src, dst, (nuint)entry.NetSplit.TotalSize);
+					NativeMemory.Copy(dst, src, (nuint)entry.NetSplit.TotalSize);
 				}
 
 				packet.Size = entry.NetSplit.TotalSize;
@@ -1011,7 +1011,7 @@ public class Net
 			sbyte* packet = packetptr;
 
 			SPLITPACKET* pPacket = (SPLITPACKET*)packetptr;
-			pPacket->NetID = SPLITPACKET_HEADER;
+			pPacket->NetID = NET_HEADER_FLAG_SPLITPACKET;
 			pPacket->SequenceNumber = sequenceNumber;
 			pPacket->SplitSize = splitSizeMinusHeader;
 

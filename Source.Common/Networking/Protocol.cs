@@ -188,9 +188,9 @@ public static class Protocol
 	public const int MAX_BACKUP_COMMANDS = (1 << NUM_BACKUP_COMMAND_BITS) - 1;
 
 	public const int CONNECTIONLESS_HEADER = unchecked((int)0xFFFFFFFF);
-	public const int QUERY_HEADER = -1;
-	public const int SPLITPACKET_HEADER = -2;
-	public const int COMPRESSEDPACKET_HEADER = -3;
+
+	public const int NET_HEADER_FLAG_SPLITPACKET = -2;
+	public const int NET_HEADER_FLAG_COMPRESSEDPACKET = -3;
 
 	public const int VERSION = 24;
 

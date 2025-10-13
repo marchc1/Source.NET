@@ -420,7 +420,6 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public static unsafe ushort BufferToShortChecksum(void* data, nint length) {
 		uint crc = CRC32_ProcessSingleBuffer(data, length);
 
-
 		ushort lowpart = (ushort)(crc & 0xFFFF);
 		ushort highpart = (ushort)(crc >> 16 & 0xFFFF);
 

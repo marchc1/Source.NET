@@ -81,6 +81,7 @@ public class NetFlow
 	}
 }
 
+[Flags]
 public enum PacketFlag
 {
 	Invalid = -1,
