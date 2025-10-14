@@ -82,9 +82,9 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #79: CHLMachineGun
 - [x] Class #80: CHLSelectFireMachineGun
 - [x] Class #81: CInfoLadderDismount
-- [ ] Class #82: CInfoLightingRelative
-- [ ] Class #83: CInfoOverlayAccessor
-- [ ] Class #84: CInfoTeleporterCountdown
+- [x] Class #82: CInfoLightingRelative
+- [x] Class #83: CInfoOverlayAccessor
+- [x] Class #84: CInfoTeleporterCountdown
 - [x] Class #85: CLaserDot
 - [x] Class #86: CLaserDot_HL1
 - [x] Class #87: CLightGlow

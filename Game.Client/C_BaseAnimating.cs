@@ -9,8 +9,20 @@ using System.Numerics;
 using System.Reflection;
 
 using FIELD = Source.FIELD<Game.Client.C_BaseAnimating>;
+using FIELD_ILR = Source.FIELD<Game.Client.C_InfoLightingRelative>;
 
 namespace Game.Client;
+
+public partial class C_InfoLightingRelative : C_BaseEntity
+{
+	public static readonly RecvTable DT_InfoLightingRelative = new(DT_BaseEntity, [
+		RecvPropEHandle(FIELD_ILR.OF(nameof(LightingLandmark))),
+	]);
+	public static readonly new ClientClass ClientClass = new ClientClass("InfoLightingRelative", DT_InfoLightingRelative).WithManualClassID(StaticClassIndices.CInfoLightingRelative);
+
+	public readonly EHANDLE LightingLandmark = new();
+}
+
 
 public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 {
