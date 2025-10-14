@@ -3,7 +3,7 @@
 using Source.Common;
 
 namespace Game.Client; 
-using FIELD = Source.FIELD<C_BaseTempEntity>;
+using FIELD = Source.FIELD<C_TEPlayerAnimEvent>;
 
 public class C_TEPlayerAnimEvent : C_BaseTempEntity
 {
