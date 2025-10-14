@@ -41,6 +41,9 @@ public static class SendProxy
 		outData.Int = field.GetValue<Color>(instance).GetRawColor();
 	}
 
+	public static void SendProxy_ShortAddOne(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
+		outData.Int = field.GetValue<short>(instance) + 1;
+	}
 	public static void SendProxy_EHandleToInt(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		BaseHandle? handle = field.GetValue<BaseHandle?>(instance);
 		if (handle != null && handle.Get() != null) {
