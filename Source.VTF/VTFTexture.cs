@@ -43,7 +43,7 @@ public sealed class VTFTexture : IVTFTexture
 	int FinestMipmapLevel;
 	int CoarsestMipmapLevel;
 
-	List<ResourceEntryInfo> Resources = [];
+	List<ResourceEntryInfo> ResourcesInfo = [];
 	float IVTFTexture.BumpScale() => BumpScale;
 
 	public void ComputeAlphaFlags() {
@@ -223,25 +223,14 @@ public sealed class VTFTexture : IVTFTexture
 	public void GenerateMipmaps() {
 		throw new NotImplementedException();
 	}
-
-	public Span<byte> GetResourceData(uint type) {
-		return GetResourceData((ResourceEntryType)type);
-	}
-
-	private Span<byte> GetResourceData(ResourceEntryType type) {
+	
+	public unsafe Span<byte> GetResourceData(ResourceEntryType type) {
 		ref ResourceEntryInfo info = ref FindResourceEntryInfo(type);
-		if (!Unsafe.IsNullRef(ref info)) {
-			// Slight sanity check. Although this data shouldnt even be coming in when a texture is invalid,
-			// it seems that it is after loading 2fort. TODO: Investigate why this happens!!!
-			if (info.Offset >= ImageData?.Length)
-				return null;
-			return ImageData!.AsSpan()[(int)info.Offset..];
-		}
 
 		return null;
 	}
 
-	public bool HasResourceEntry(uint type) {
+	public bool HasResourceEntry(ResourceEntryType type) {
 		throw new NotImplementedException();
 	}
 
@@ -292,23 +281,24 @@ public sealed class VTFTexture : IVTFTexture
 
 
 	private ref ResourceEntryInfo FindOrCreateResourceEntryInfo(ResourceEntryType type) {
-		for (int i = 0, c = Resources.Count; i < c; i++) {
-			ref ResourceEntryInfo searchResource = ref CollectionsMarshal.AsSpan(Resources)[i];
+		for (int i = 0, c = ResourcesInfo.Count; i < c; i++) {
+			ref ResourceEntryInfo searchResource = ref CollectionsMarshal.AsSpan(ResourcesInfo)[i];
 			if (searchResource.Tag == type)
 				return ref searchResource;
 		}
 
-		Resources.Add(new() {
+		ResourcesInfo.Add(new() {
 			Tag = type
 		});
-		ref ResourceEntryInfo newResource = ref CollectionsMarshal.AsSpan(Resources)[Resources.Count - 1];
+
+		ref ResourceEntryInfo newResource = ref CollectionsMarshal.AsSpan(ResourcesInfo)[ResourcesInfo.Count - 1];
 		return ref newResource;
 	}
 
 	private ref ResourceEntryInfo FindResourceEntryInfo(ResourceEntryType type) {
-		for (int i = 0, c = Resources.Count; i < c; i++) {
-			ref ResourceEntryInfo searchResource = ref CollectionsMarshal.AsSpan(Resources)[i];
-			if (searchResource.Tag == type)
+		for (int i = 0, c = ResourcesInfo.Count; i < c; i++) {
+			ref ResourceEntryInfo searchResource = ref CollectionsMarshal.AsSpan(ResourcesInfo)[i];
+			if ((searchResource.Tag & ~ResourceEntryType.Flag_Mask) == type)
 				return ref searchResource;
 		}
 
@@ -421,7 +411,7 @@ public sealed class VTFTexture : IVTFTexture
 	}
 
 	private void RemoveResourceEntryInfo(ResourceEntryType tag) {
-		Resources.RemoveAll(x => x.Tag == tag);
+		ResourcesInfo.RemoveAll(x => x.Tag == tag);
 	}
 
 	public void InitLowResImage(int width, int height, ImageFormat format) {
@@ -471,7 +461,7 @@ public sealed class VTFTexture : IVTFTexture
 		throw new NotImplementedException();
 	}
 
-	public Span<byte> SetResourceData(uint type, Span<byte> data) {
+	public void SetResourceData(ResourceEntryType type, Span<byte> data) {
 		throw new NotImplementedException();
 	}
 
@@ -539,14 +529,13 @@ public sealed class VTFTexture : IVTFTexture
 			return false;
 
 		if (header.NumResources > 0) {
-			Resources = new((int)header.NumResources);
+			ResourcesInfo = new((int)header.NumResources);
 			long curStreamPos = stream.Position;
 			stream.Seek(header.ResourcesOffset, SeekOrigin.Begin);
 			using (BinaryReader reader = new(stream, Encoding.ASCII, true)) {
-				reader.ReadNothing(8); // what is this?
 				for (int i = 0; i < header.NumResources; i++) {
-					Resources.Add(new());
-					ref ResourceEntryInfo resource = ref CollectionsMarshal.AsSpan(Resources)[i];
+					ResourcesInfo.Add(new());
+					ref ResourceEntryInfo resource = ref CollectionsMarshal.AsSpan(ResourcesInfo)[i];
 
 					byte b1 = reader.ReadByte(), b2 = reader.ReadByte(), b3 = reader.ReadByte();
 					resource.Tag = ResourceEntryInfo.ParseTag(b1, b2, b3);
@@ -592,7 +581,7 @@ public sealed class VTFTexture : IVTFTexture
 
 		return true;
 	}
-
+	
 	private bool LoadImageData(Stream stream, VTFFileHeader header, int skipMipLevels) {
 		if (skipMipLevels > 0) {
 			if (header.NumMipLevels < skipMipLevels) {
@@ -812,9 +801,9 @@ public sealed class VTFTexture : IVTFTexture
 
 	public uint GetResourceTypes(Span<ResourceEntryType> arrRsrcTypes) {
 		if (!arrRsrcTypes.IsEmpty)
-			for (int i = 0; i < Math.Min(arrRsrcTypes.Length, Resources.Count); i++)
-				arrRsrcTypes[i] = Resources[i].Tag;
+			for (int i = 0; i < Math.Min(arrRsrcTypes.Length, ResourcesInfo.Count); i++)
+				arrRsrcTypes[i] = ResourcesInfo[i].Tag;
 
-		return (uint)Resources.Count;
+		return (uint)ResourcesInfo.Count;
 	}
 }
