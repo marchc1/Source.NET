@@ -1,8 +1,8 @@
 This is a list of all of the important SendClasses in Garry's Mod, and which ones have completed datatables.
 
-- [ ] Class #0: AR2Explosion
+- [x] Class #0: AR2Explosion
 - [x] Class #1: CAI_BaseNPC
-- [ ] Class #2: CAlyxEmpEffect
+- [x] Class #2: CAlyxEmpEffect
 - [x] Class #3: CBaseAnimating
 - [x] Class #4: CBaseAnimatingOverlay
 - [x] Class #5: CBaseCombatCharacter
