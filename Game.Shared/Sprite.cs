@@ -74,7 +74,7 @@ public class SpriteOriented : Sprite
 #if CLIENT_DLL
 	public static readonly new ClientClass ClientClass = new ClientClass("SpriteOriented", null, null, DT_SpriteOriented).WithManualClassID(StaticClassIndices.CSpriteOriented);
 #else
-	public static readonly new ServerClass ServerClass = new ServerClass("SprSpriteOrientedite", DT_SpriteOriented).WithManualClassID(StaticClassIndices.CSpriteOriented);
+	public static readonly new ServerClass ServerClass = new ServerClass("SpriteOriented", DT_SpriteOriented).WithManualClassID(StaticClassIndices.CSpriteOriented);
 #endif
 }
 #endif
