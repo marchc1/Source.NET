@@ -174,7 +174,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #171: CTEDecal
 - [ ] Class #172: CTEDust
 - [ ] Class #173: CTEDynamicLight
-- [ ] Class #174: CTEEffectDispatch
+- [x] Class #174: CTEEffectDispatch
 - [ ] Class #175: CTEEnergySplash
 - [ ] Class #176: CTEExplosion
 - [ ] Class #177: CTEFizz
