@@ -65,9 +65,9 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #62: CFuncAreaPortalWindow
 - [ ] Class #63: CFuncConveyor
 - [x] Class #64: CFuncLadder
-- [ ] Class #65: CFuncMonitor
+- [x] Class #65: CFuncMonitor
 - [x] Class #66: CFuncOccluder
-- [ ] Class #67: CFuncReflectiveGlass
+- [x] Class #67: CFuncReflectiveGlass
 - [x] Class #68: CFuncRotating
 - [x] Class #69: CFuncSmokeVolume
 - [x] Class #70: CFuncTrackTrain
@@ -110,7 +110,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #107: CPhysBoxMultiplayer
 - [x] Class #108: CPhysicsProp
 - [x] Class #109: CPhysicsPropMultiplayer
-- [ ] Class #110: CPhysMagnet
+- [x] Class #110: CPhysMagnet
 - [ ] Class #111: CPlasma
 - [x] Class #112: CPlayerResource
 - [ ] Class #113: CPointCamera
@@ -147,7 +147,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #144: CSpatialEntity
 - [x] Class #145: CSpotlightEnd
 - [x] Class #146: CSprite
-- [ ] Class #147: CSpriteOriented
+- [x] Class #147: CSpriteOriented
 - [ ] Class #148: CSpriteTrail
 - [ ] Class #149: CSteamJet
 - [x] Class #150: CSun
