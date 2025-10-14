@@ -40,7 +40,7 @@ public class C_BaseTempEntity : IClientUnknown, IClientNetworkable
 	private static C_BaseTempEntity? s_DynamicEntities;
 
 	public static readonly RecvTable DT_BaseTempEntity = new([]);
-	public static readonly ClientClass ServerClass = new ClientClass("BaseTempEntity", DT_BaseTempEntity).WithManualClassID(Shared.StaticClassIndices.CBaseTempEntity);
+	public static readonly ClientClass ClientClass = new ClientClass("BaseTempEntity", DT_BaseTempEntity).WithManualClassID(Shared.StaticClassIndices.CBaseTempEntity);
 
 	public int EntIndex() => 0;
 	public ClientClass GetClientClass() {
