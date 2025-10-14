@@ -119,9 +119,8 @@ public class ComboBox : TextEntry
 
 	}
 
-	public void SetDropdownButtonVisible(bool state) {
-
-	}
+	public void SetDropdownButtonVisible(bool state) =>
+		Button.SetVisible(state);
 
 	public override void OnMousePressed(ButtonCode code) {
 
@@ -132,7 +131,10 @@ public class ComboBox : TextEntry
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
+		if (String.Equals(new(command), "ButtonClicked", StringComparison.OrdinalIgnoreCase))
+			DoClick();
 
+		base.OnCommand(command);
 	}
 
 	public void OnSetText() {
@@ -140,15 +142,24 @@ public class ComboBox : TextEntry
 	}
 
 	public void HideMenu() {
+		if (DropDown == null)
+			return;
 
+		DropDown.SetVisible(false);
+		Repaint();
+		// OnHideMenu();
 	}
 
 	public void ShowMnenu() {
+		if (DropDown == null)
+			return;
 
+		DropDown.SetVisible(true);
+		DoClick();
 	}
 
 	public override void OnKillFocus(Panel? newPanel) {
-
+		SelectNoText();
 	}
 
 	public void OnMenuClose() {
@@ -160,24 +171,41 @@ public class ComboBox : TextEntry
 	}
 
 	public override void OnCursorEntered() {
-
+		Button.OnCursorEntered();
+		base.OnCursorEntered();
 	}
 
 	public override void OnCursorExited() {
-
+		if (DropDown.IsVisible()) {
+			Button.SetArmed(false);
+			base.OnCursorExited();
+		}
 	}
 
 	public void OnMenuItemSelected() {
+		Highlight = true;
 
+		int idx = GetActiveItem();
+		if (idx >= 0) {
+			Span<char> name = stackalloc char[256];
+			GetItemText(idx, name);
+			OnSetText(name);
+		}
+
+		Repaint();
 	}
 
 	public override void OnSizeChanged(int newWide, int newTall) {
 		base.OnSizeChanged(newWide, newTall);
-		//
+		PerformLayout();
+		Button.GetSize(out int bwide, out _);
+		SetDrawWidth(newWide - bwide);
 	}
 
 	public override void OnSetFocus() {
-
+		base.OnSetFocus();
+		GotoTextEnd();
+		SelectAllText(false);
 	}
 
 	public override void OnKeyCodePressed(ButtonCode code) {
@@ -193,30 +221,36 @@ public class ComboBox : TextEntry
 	}
 
 	public void SelectMenuItem(int itemToSelect) {
+		if (itemToSelect >= 0 && itemToSelect < DropDown.GetItemCount()) {
+			Span<char> menuItemName = stackalloc char[255];
 
+			int menuID = DropDown.GetMenuID(itemToSelect);
+			DropDown.GetMenuItem(menuID)!.GetText(menuItemName);
+			OnSetText(menuItemName);
+			SelectAllText(false);
+		}
 	}
 
 	public void MoveAlongMenuItemList(int direction) {
 
 	}
 
-	public void MoveToFirstMenuItem() {
-
-	}
+	public void MoveToFirstMenuItem() =>
+		SelectMenuItem(0);
 
 	public void MoveToLastMenuItem() {
-
+		SelectMenuItem(DropDown.GetItemCount() - 1);
 	}
 
-	public void SetOpenDirection(MenuDirection direction) {
-
-	}
+	public void SetOpenDirection(MenuDirection direction) => Direction = direction;
 
 	public override void SetFont(IFont? font) {
-
+		base.SetFont(font);
+		DropDown.SetFont(font);
 	}
 
-	public void SetUseFallbackFont(bool state, IFont Fallback) {
-
+	public override void SetUseFallbackFont(bool state, IFont Fallback) {
+		base.SetUseFallbackFont(state, Fallback);
+		DropDown.SetUseFallbackFont(state, Fallback);
 	}
 }

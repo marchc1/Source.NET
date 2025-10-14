@@ -1498,7 +1498,9 @@ public class Panel : IPanel
 	public virtual void SetFgColor(in Color color) => FgColor = color;
 
 	public virtual void GetSettings(KeyValues outResourceData) {
-		// todo
+		outResourceData.SetString("ControlName", GetClassName());
+		outResourceData.SetString("fieldName", GetName());
+		//
 	}
 
 

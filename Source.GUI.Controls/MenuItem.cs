@@ -48,7 +48,7 @@ public class MenuItem : Button
 	Image? Check;
 	// TextImage? BlankCheck;
 	TextImage? CurrentKeyBinding;
-	KeyValues? userData;
+	KeyValues? UserData;
 
 	private int KEYBINDING_INSET = 5;
 	private int CHECK_INSET = 6;
@@ -65,17 +65,9 @@ public class MenuItem : Button
 		CascadeMenu = cascadeMenu;
 		Checkable = checkable;
 		SetButtonActivationType(ActivationType.OnReleased);
+		UserData = null;
+		CurrentKeyBinding	= null;
 		Assert(!(cascadeMenu != null && checkable));
-		Init();
-	}
-
-	public MenuItem(Menu parent, string text, KeyValues message, Panel target) : base(parent, text, text)
-	{
-		SetCommand(message);
-		if (target != null)
-		{
-			AddActionSignalTarget(target);
-		}
 		Init();
 	}
 
@@ -290,12 +282,12 @@ public class MenuItem : Button
 		if (HasMenu())
 			return CascadeMenu!.GetItemUserData(CascadeMenu.GetActiveItem());
 		else
-				return userData;
+				return UserData;
 	}
 	public void SetUserData(KeyValues? kv)
 	{
-		userData = null;
-		userData = kv?.MakeCopy();
+		UserData = null;
+		UserData = kv?.MakeCopy();
 	}
 
 	public void SetCurrentKeyBinding(ReadOnlySpan<char> keyName)
@@ -349,8 +341,7 @@ public class MenuItem : Button
 		}
 	}
 
-	public override void GetContentSize(out int wide, out int tall)
-	{
+	public override void GetContentSize(out int wide, out int tall) {
 		base.GetContentSize(out wide, out tall);
 		if (CurrentKeyBinding == null)
 			return;

@@ -306,15 +306,20 @@ public class Menu : Panel
 		return MenuItemHeight;
 	}
 
-	public void SetContentAlignment(Alignment alignment)
-	{
-		if (Alignment != alignment)
-		{
+	public void SetContentAlignment(Alignment alignment) {
+		if (Alignment != alignment) {
 			Alignment = alignment;
 
 			foreach (var menuItem in MenuItems)
 				menuItem.SetContentAlignment(alignment);
 		}
+	}
+
+	public MenuItem? GetMenuItem(int itemID) {
+		if (itemID < 0 || itemID >= MenuItems.Count)
+			return null;
+
+		return MenuItems[itemID];
 	}
 
 	public void SetFixedWidth(int width)

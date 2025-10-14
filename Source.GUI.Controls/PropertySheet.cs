@@ -301,9 +301,22 @@ public class PropertySheet : Frame {
 		KBNavigationEnabled = true;
 	}
 
-	// public PropertySheet(Panel? parent, string? panelName, ComboBox combo) : base(parent, panelName) {
-
-	// }
+	public PropertySheet(Panel? parent, string? panelName, ComboBox combo) : base(parent, panelName) {
+		ActivePage = null;
+		ActiveTab = null;
+		TabWidth = 64;
+		ActiveTabIndex = -1;
+		ShowTabs = true;
+		Combo = null;
+		TabFocus = false;
+		PageTransitionEffectTime = 0.0f;
+		SmallTabs = false;
+		// TabFont = 0;
+		DraggableTabs = false;
+		TabKV = null;
+		TabHeight = 0;
+		TabHeightSmall = 0;
+	}
 
 	public bool IsDraggableTab() => DraggableTabs;
 
@@ -330,7 +343,47 @@ public class PropertySheet : Frame {
 		return -1;
 	}
 
-	public void AddPage(Panel parent, ReadOnlySpan<char> title, char[]? imageName = null, bool hasContextMenu = false) {
+	public void AddPage(Panel page, ReadOnlySpan<char> title, char[]? imageName = null, bool hasContextMenu = false) {
+		if (page == null)
+			return;
+
+		if (FindPage(page) != -1)
+			return;
+
+		long hoverActivePageTime = 250;
+		PageTab tab = new(this, "Tab", title.ToString(), imageName, TabWidth, page, ContextButton && hasContextMenu, hoverActivePageTime);
+		// if (DraggableTabs)
+		// tab.SetDragEnabled(true);
+
+		tab.SetFont(TabFont);
+		if (ShowTabs)
+			tab.AddActionSignalTarget(this);
+		else if (Combo != null)
+			Combo.AddItem(title.ToString(), null);
+
+		if (TabKV != null)
+			tab.ApplySettings(TabKV);
+
+		PageTabs.Add(tab);
+
+		Page info;
+		info.page = page;
+		info.ContextMenu = hasContextMenu;
+
+		Pages.Add(info);
+
+		page.SetParent(this);
+		page.AddActionSignalTarget(this);
+		PostMessage(page, new KeyValues("ResetData")); // todo static kv
+
+		page.SetVisible(false);
+		InvalidateLayout();
+
+		if (ActivePage == null) {
+			ChangeActiveTab(0);
+			if (ActivePage != null)
+				ActivePage.RequestFocus();
+		}
 	}
 
 	public void SetActivePage(Panel page) {
@@ -646,7 +699,81 @@ public class PropertySheet : Frame {
 	}
 
 	public void ChangeActiveTab(int index) {
+		if (index < 0 || index >= Pages.Count) {
+			ActiveTab = null;
+			if (Pages.Count > 0) {
+				ActivePage = null;
+				if (index < 0)
+					ChangeActiveTab(Pages.Count - 1);
+				else
+					ChangeActiveTab(0);
+			}
 
+			return;
+		}
+
+		if (Pages[index].page == ActivePage) {
+			if (ActiveTab != null)
+				ActiveTab.RequestFocus();
+			TabFocus = true;
+			return;
+		}
+
+		for (int i = 0; i < PageTabs.Count; i++)
+			PageTabs[i].SetVisible(false);
+
+		// PreviouslyActivePage = ActivePage;
+		if (ActivePage != null) {
+			VGui.PostMessage(ActivePage, new KeyValues("PageHide"), this);
+			KeyValues msg = new("PageTabActivated");
+			msg.SetPtr("panel", null);
+			VGui.PostMessage(ActivePage, msg, this);
+		}
+
+		if (ActiveTab != null) {
+			ActiveTab.SetActive(false);
+			TabFocus = ActiveTab.HasFocus();
+		}
+		else TabFocus = false;
+
+		ActivePage = Pages[index].page;
+		ActiveTab = PageTabs[index];
+		ActiveTabIndex = index;
+
+		ActivePage.SetVisible(true);
+		ActivePage.MoveToFront();
+
+		ActiveTab.SetVisible(true);
+		ActiveTab.MoveToFront();
+		ActiveTab.SetActive(true);
+
+		if (TabFocus)
+			ActiveTab.RequestFocus();
+		else
+			ActivePage.RequestFocus();
+
+		if (!ShowTabs)
+			Combo.ActivateItemByRow(index);
+
+		ActivePage.MakeReadyForUse();
+
+		if (PageTransitionEffectTime != 0.0f) {
+			// todo
+		}
+		else {
+
+		}
+
+		VGui.PostMessage(ActivePage, new KeyValues("PageShow"), this);
+
+		KeyValues msg2 = new("PageTabActivated");
+		msg2.SetPtr("panel", ActivePage);
+		VGui.PostMessage(ActivePage, msg2, this);
+
+		PostActionSignal(new KeyValues("PageChanged"));
+
+		InvalidateLayout();
+		Repaint();
 	}
 
 	// todo hotkeys
@@ -690,7 +817,15 @@ public class PropertySheet : Frame {
 	}
 
 	public void OnTextChanged(Panel panel, string text) {
-		// todo combo
+		if (panel == Combo) {
+			Span<char> tabText = stackalloc char[30];
+			for (int i = 0; i < PageTabs.Count; i++) {
+				tabText.Clear();
+				PageTabs[i].GetText(tabText);
+				if (MemoryExtensions.Equals(tabText, text, StringComparison.OrdinalIgnoreCase))
+					ChangeActiveTab(i);
+			}
+		}
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
@@ -732,7 +867,25 @@ public class PropertySheet : Frame {
 	}
 
 	public void OnPanelDropped(List<KeyValues> msglist) {
+		if (msglist.Count != 1)
+			return;
 
+		PropertySheet sheet = IsDroppingSheet(msglist)!;
+		if (sheet == null) {
+			// if (ActivePage != null && ActivePage.IsDropEnabled())
+			// return ActivePage.OnPanelDropped(msglist);
+			return;
+		}
+
+		KeyValues data = msglist[0];
+		Panel page = (Panel)data.GetPtr("propertypage")!;
+		ReadOnlySpan<char> title = data.GetString("tabname", "");
+		if (page == null || sheet == null)
+			return;
+
+		// ToolWindow tw = (ToolWindow)sheet.GetParent()!;
+
+		// todo
 	}
 
 	public bool IsDroppable(List<KeyValues> msglist) {
