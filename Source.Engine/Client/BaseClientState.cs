@@ -285,7 +285,9 @@ public abstract class BaseClientState(
 	public abstract void FileDenied(ReadOnlySpan<char> fileName, uint transferID);
 	public abstract void FileSent(ReadOnlySpan<char> fileName, uint transferID);
 
-	public virtual bool ProcessMessage(INetMessage message) {
+	// todo: determine if using explicit generics like this
+	// makes it more efficient (ie. JIT collapses paths for each type?)
+	public virtual bool ProcessMessage<T>(T message) where T : INetMessage {
 		switch (message) {
 			case NET_Tick msg: return ProcessTick(msg);
 			case NET_SignonState msg: return ProcessSignonState(msg);
@@ -311,15 +313,15 @@ public abstract class BaseClientState(
 		return true;
 	}
 
-	private bool ProcessSounds(svc_Sounds msg) {
+	protected bool ProcessSounds(svc_Sounds msg) {
 		return true;
 	}
 
-	private bool ProcessGMod_ServerToClient(svc_GMod_ServerToClient msg) {
+	protected bool ProcessGMod_ServerToClient(svc_GMod_ServerToClient msg) {
 		return true;
 	}
 
-	private bool ProcessTempEntities(svc_TempEntities msg) {
+	protected virtual bool ProcessTempEntities(svc_TempEntities msg) {
 		return true;
 	}
 
@@ -789,7 +791,7 @@ public abstract class BaseClientState(
 		return true;
 	}
 
-	private ClientClass? FindClientClass(ReadOnlySpan<char> className) {
+	protected ClientClass? FindClientClass(ReadOnlySpan<char> className) {
 		if (className.IsEmpty || className.IsEmpty)
 			return null;
 

@@ -465,6 +465,14 @@ public class svc_Sounds : NetMessage
 		return $"number {NumSounds},{(ReliableSound ? " reliable" : " ")} bytes {Bits2Bytes(Length)}";
 	}
 }
+
+public class svc_Prefetch : NetMessage {
+	public svc_Prefetch() : base(SVC.Sounds) { }
+	public override NetChannelGroup GetGroup() => NetChannelGroup.Sounds;
+
+	public ushort Type;
+	public ushort SoundIndex;
+}
 public class svc_BSPDecal : NetMessage
 {
 	public svc_BSPDecal() : base(SVC.BSPDecal) { }

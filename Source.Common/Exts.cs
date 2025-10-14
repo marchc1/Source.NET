@@ -250,6 +250,7 @@ public static class ListExtensions
 }
 public static class ClassUtils
 {
+
 	public static bool IsValidIndex<T>(this List<T> list, int index) => index >= 0 && index < list.Count;
 	public static bool IsValidIndex<T>(this List<T> list, long index) => index >= 0 && index < list.Count;
 	/// <summary>
@@ -413,6 +414,12 @@ public static class ClassUtils
 
 public static class UnmanagedUtils
 {
+	public static int AlignValue(this int val, nuint alignment) => (int)(((nuint)val + alignment - 1) & ~(alignment - 1));
+	public static uint AlignValue(this uint val, nuint alignment) => (uint)(((nuint)val + alignment - 1) & ~(alignment - 1));
+	public static nint AlignValue(this nint val, nuint alignment) => (int)(((nuint)val + alignment - 1) & ~(alignment - 1));
+	public static nuint AlignValue(this nuint val, nuint alignment) => (uint)(((nuint)val + alignment - 1) & ~(alignment - 1));
+
+
 	public static void SliceNullTerminatedStringInPlace(this ref Span<char> span) {
 		int index = span.IndexOf('\0');
 		if (index == -1)

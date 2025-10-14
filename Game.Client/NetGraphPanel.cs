@@ -542,19 +542,19 @@ public class NetGraphPanel : Panel
 
 		Surface.DrawColoredText(font, x, y, GRAPH_RED, GRAPH_GREEN, GRAPH_BLUE, 255, sz);
 
-		float flInterp = (float)gpGlobals.InterpolationAmount;
-		sz = $"lerp: {flInterp * 1000.0f,5:F1} ms";
+		double interp = GetClientInterpAmount();
+		sz = $"lerp: {interp * 1000.0f,5:F1} ms";
 
 		Span<int> interpcolor = [GRAPH_RED, GRAPH_GREEN, GRAPH_BLUE];
-		if (flInterp > 0.001f) {
+		if (interp > 0.001f) {
 			// Server framerate is lower than interp can possibly deal with
-			if (ServerFramerate < (1.0f / flInterp)) {
+			if (ServerFramerate < (1.0f / interp)) {
 				interpcolor[0] = 255;
 				interpcolor[1] = 255;
 				interpcolor[2] = 31;
 			}
 			// flInterp is below recommended setting!!!
-			else if (!cl_updaterate.IsEmpty && flInterp < (2.0f / cl_updaterate.GetFloat())) {
+			else if (!cl_updaterate.IsEmpty && interp < (2.0f / cl_updaterate.GetFloat())) {
 				interpcolor[0] = 255;
 				interpcolor[1] = 125;
 				interpcolor[2] = 31;
