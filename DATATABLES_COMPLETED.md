@@ -59,7 +59,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #56: CFlare
 - [ ] Class #57: CFleshEffectTarget
 - [ ] Class #58: CFlexManipulate
-- [ ] Class #59: CFogController
+- [x] Class #59: CFogController
 - [x] Class #60: CFunc_Dust
 - [ ] Class #61: CFunc_LOD
 - [x] Class #62: CFuncAreaPortalWindow
