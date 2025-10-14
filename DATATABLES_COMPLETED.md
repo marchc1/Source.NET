@@ -189,7 +189,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #186: CTEMuzzleFlash
 - [ ] Class #187: CTEParticleSystem
 - [ ] Class #188: CTEPhysicsProp
-- [ ] Class #189: CTEPlayerAnimEvent
+- [x] Class #189: CTEPlayerAnimEvent
 - [ ] Class #190: CTEPlayerDecal
 - [ ] Class #191: CTEProjectedDecal
 - [ ] Class #192: CTEShatterSurface
