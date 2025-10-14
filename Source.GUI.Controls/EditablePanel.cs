@@ -45,6 +45,10 @@ public class EditablePanel : Panel
 		BuildGroup.ApplySettings(resourceData);
 	}
 
+	public void ActivateBuildMode() {
+		// BuildGroup.SetEnabled(true);
+	}
+
 	public virtual void LoadControlSettings(ReadOnlySpan<char> resourceName, ReadOnlySpan<char> pathID = default, KeyValues? keyValues = null, KeyValues? conditions = null) {
 		if (!fileSystem.FileExists(resourceName))
 			Msg($"Resource file \"{resourceName}\" not found on disk!\n");

@@ -102,7 +102,7 @@ public class PropertyDialog : Frame
 	// }
 
 	public bool OnOK(bool applyOnly) {
-		// PropertySheet!.ApplyChanges();
+		PropertySheet!.ApplyChanges();
 
 		PostActionSignal(new KeyValues("ApplyChanges"));// todo: make static kv
 
@@ -110,10 +110,10 @@ public class PropertyDialog : Frame
 	}
 
 	public void ActivateBuildMode() {
-		// EditablePanel panel = PropertySheet!.GetActivePage();
+		// EditablePanel panel = (EditablePanel)GetActivePage();
 
 		// if (panel == null)
-			// return;
+		// 	return;
 
 		// panel.ActivateBuildMode();
 	}

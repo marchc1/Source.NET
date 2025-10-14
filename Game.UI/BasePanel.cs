@@ -20,6 +20,9 @@ public class OptionsDialog : PropertyDialog
 
 		SetTitle("#GameUI_Options", true);
 		// TODO
+
+		SetApplyButtonVisible(true);
+		GetPropertySheet().SetTabWidth(84);
 	}
 }
 

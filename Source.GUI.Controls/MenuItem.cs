@@ -47,7 +47,7 @@ public class MenuItem : Button
 	TextImage? CasecadeArrow;
 	Image? Check;
 	// TextImage? BlankCheck;
-	TextImage CurrentKeyBinding;
+	TextImage? CurrentKeyBinding;
 	KeyValues? userData;
 
 	private int KEYBINDING_INSET = 5;

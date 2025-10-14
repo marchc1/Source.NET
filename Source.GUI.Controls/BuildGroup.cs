@@ -17,8 +17,8 @@ public class BuildGroup
 	public Panel? ParentPanel;
 
 	public BuildGroup(Panel? parentPanel, Panel? contextPanel) {
-		this.ParentPanel = parentPanel;
-		this.BuildContext = contextPanel;
+		ParentPanel = parentPanel;
+		BuildContext = contextPanel;
 	}
 
 	public List<Panel> Panels = [];
@@ -144,7 +144,7 @@ public class BuildGroup
 	}
 
 	private Panel? NewControl(KeyValues controlKeys, int x = 0, int y = 0) {
-		Panel? newPanel = null;
+		Panel? newPanel;
 		if (controlKeys != null) {
 			KeyValues? keyVal = new KeyValues("ControlFactory", "ControlName", controlKeys.GetString("ControlName"));
 			BuildContext!.RequestInfo(keyVal);
