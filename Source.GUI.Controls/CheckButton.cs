@@ -42,6 +42,8 @@ class CheckImage : TextImage {
 
 public class CheckButton : ToggleButton
 {
+	public static Panel Create_CheckButton() => new CheckButton(null, null, "CheckButton");
+
 	private int CHECK_INSET = 6;
 
 	bool CheckButtonCheckable;

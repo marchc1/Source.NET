@@ -350,4 +350,16 @@ public class MenuItem : Button
 		wide += iw + KEYBINDING_INSET;
 		tall = Math.Max(tall, ih);
 	}
+
+	public override void OnMessage(KeyValues message, IPanel? from)
+	{
+		switch (message.Name)
+		{
+			case "KeyModeSet":
+				OnKeyModeSet();
+				break;
+		}
+
+		base.OnMessage(message, from);
+	}
 }

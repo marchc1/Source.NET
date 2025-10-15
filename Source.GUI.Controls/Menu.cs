@@ -1470,10 +1470,9 @@ public class Menu : Panel
 			case "CursorExitedMenuItem":
 				OnCursorExitedMenuItem((MenuItem)message.GetPtr("Panel")!);
 				break;
-				// default:
-				// 	if (!message.Name.Contains("Ticked", StringComparison.OrdinalIgnoreCase))
-				// 		Console.WriteLine($"Menu::OnMessage: Unhandled message from {from} to {message.Name}");
-				// 	break;
+			case "KeyModeSet":
+				OnKeyModeSet();
+				break;
 		}
 
 		base.OnMessage(message, from);
