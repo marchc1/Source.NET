@@ -232,9 +232,8 @@ class PageTab : Button
 			FireActionSignal();
 			SetSelected(true);
 			Repaint();
+			Input.SetMouseCapture(this);
 		}
-
-		Input.SetMouseCapture(this);
 	}
 
 	public override void OnMouseReleased(ButtonCode code) {
@@ -329,8 +328,9 @@ public class PropertySheet : EditablePanel {
 		ActiveTab = null;
 		TabWidth = 64;
 		ActiveTabIndex = -1;
-		ShowTabs = true;
 		Combo = combo;
+		Combo.AddActionSignalTarget(this);
+		ShowTabs = false;
 		TabFocus = false;
 		PageTransitionEffectTime = 0.0f;
 		SmallTabs = false;
@@ -641,11 +641,11 @@ public class PropertySheet : EditablePanel {
 		}
 	}
 
-	public void OnTabPressed() {
+	public void OnTabPressed(Panel panel) {
 		for (int i = 0; i < PageTabs.Count; i++) {
-			if (PageTabs[i] == ActiveTab) {
+			if (PageTabs[i] == panel) {
 				ChangeActiveTab(i);
-				break;
+				return;
 			}
 		}
 	}
@@ -855,6 +855,15 @@ public class PropertySheet : EditablePanel {
 	public override void OnCommand(ReadOnlySpan<char> command) {
 		if (command.Equals("Close", StringComparison.OrdinalIgnoreCase) && GetParent() != null)
 			CallParentFunction(new KeyValues("Command", "command", command));
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name == "TabPressed") {
+			OnTabPressed((Panel)from!);
+			return;
+		}
+
+		base.OnMessage(message, from);
 	}
 
 	public void OnApplyButtonEnable() {
