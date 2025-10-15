@@ -303,7 +303,7 @@ public class MenuItem : Button
 			Span<char> curtext = stackalloc char[256];
 			CurrentKeyBinding.GetText(curtext);
 
-			if (String.Compare(new string(curtext).TrimEnd('\0'), keyName.ToString(), StringComparison.Ordinal) != 0)
+			if (keyName.Equals(curtext, StringComparison.Ordinal))
 				return;
 
 			CurrentKeyBinding.SetText(keyName);
