@@ -379,7 +379,7 @@ public class Button : Label
 
 	Color DefaultFgColor, DefaultBgColor;
 	Color ArmedFgColor, ArmedBgColor;
-	Color SelectedFgColor, SelectedBgColor;
+	public Color SelectedFgColor, SelectedBgColor;
 	Color DepressedFgColor, DepressedBgColor;
 	Color BlinkFgColor;
 	Color KeyboardFocusColor;
