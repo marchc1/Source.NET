@@ -1,4 +1,6 @@
-﻿using Source.Common.Input;
+﻿using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
+using Source.Common.Input;
 
 namespace Source.GUI.Controls;
 
@@ -39,5 +41,22 @@ public class PropertyPage : EditablePanel
 				GetFocusNavGroup().SetCurrentDefaultButton(null);
 
 		base.SetVisible(state);
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		switch (message.Name) {
+			case "PageShow":
+				OnPageShow();
+				break;
+			case "PageHide":
+				OnPageHide();
+				break;
+			case "PageTabActivated":
+				OnPageTabActivated((Panel)message.GetPtr("Panel")!);
+				break;
+			default:
+				base.OnMessage(message, from);
+				break;
+		}
 	}
 }

@@ -262,7 +262,7 @@ class PageTab : Button
 	}
 }
 
-public class PropertySheet : Frame {
+public class PropertySheet : EditablePanel {
 	struct Page {
 		public Panel page;
 		public bool ContextMenu;
@@ -330,7 +330,7 @@ public class PropertySheet : Frame {
 		TabWidth = 64;
 		ActiveTabIndex = -1;
 		ShowTabs = true;
-		Combo = null;
+		Combo = combo;
 		TabFocus = false;
 		PageTransitionEffectTime = 0.0f;
 		SmallTabs = false;
@@ -444,7 +444,7 @@ public class PropertySheet : Frame {
 
 	public Panel? GetActivePage() => ActivePage;
 
-	public Panel? GetActiveTab() => ActivePage;
+	public Panel? GetActiveTab() => ActiveTab;
 
 	public int GetNumPages() => Pages.Count;
 
@@ -621,7 +621,7 @@ public class PropertySheet : Frame {
 					else
 						tab.SetBounds(xtab, 4, tabWide, tabHeight);
 					tab.SetVisible(true);
-					xtab += tabWide + TabXDelta;
+					xtab += tabWide + 1 + TabXDelta;
 				}
 			}
 			else {

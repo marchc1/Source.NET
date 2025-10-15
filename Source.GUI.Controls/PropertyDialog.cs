@@ -44,6 +44,10 @@ public class PropertyDialog : Frame
 		PropertySheet!.AddPage(page, title);
 	}
 
+	public void ResetAllData() {
+		PropertySheet!.ResetAllData();
+	}
+
 	public void ApplyChanges() {
 		OnCommand("Apply");
 	}
