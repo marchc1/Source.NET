@@ -46,7 +46,7 @@ public class EditablePanel : Panel
 	}
 
 	public void ActivateBuildMode() {
-		// BuildGroup.SetEnabled(true);
+		BuildGroup.SetEnabled(true);
 	}
 
 	public virtual void LoadControlSettings(ReadOnlySpan<char> resourceName, ReadOnlySpan<char> pathID = default, KeyValues? keyValues = null, KeyValues? conditions = null) {
