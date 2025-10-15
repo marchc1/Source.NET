@@ -167,7 +167,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 				if (i == MAX_MENU_ITEMS - 1)
 					text = "...";
 				else {
-					Assert(CompletionItems[i] != null);
+					Assert(CompletionItems[i] != default);
 					text = CompletionItems[i]!.GetItemText();
 				}
 
@@ -267,10 +267,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 	}
 
 	private void ClearCompletionList() {
-		for (int i = 0; i < CompletionItems.Count; i++)
-			CompletionItems[i] = null;
-
-		CompletionItems = [];
+		CompletionItems.Clear();
 	}
 
 	ConCommand? FindAutoCompleteCommandFromPartial(ReadOnlySpan<char> text) {
@@ -333,7 +330,11 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 				if (cmd.IsFlagSet(FCvar.DevelopmentOnly) || cmd.IsFlagSet(FCvar.Hidden))
 					continue;
 
-				if (text.CompareTo(cmd.GetName(), StringComparison.OrdinalIgnoreCase) == 0) {
+				ReadOnlySpan<char> cmdName = cmd.GetName();
+				if (cmdName.Length < len)
+					continue;
+
+				if (text[..len].CompareTo(cmdName[..len], StringComparison.OrdinalIgnoreCase) == 0) {
 					CompletionItem item = new CompletionItem();
 					CompletionItems.Add(item);
 					item.Command = cmd;
@@ -461,15 +462,15 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 				NextCompletion = CompletionItems.Count - 1;
 		}
 
-		if (NextCompletion < 0 || NextCompletion >= CompletionItems.Count || CompletionItems[NextCompletion] == null)
+		if (NextCompletion < 0 || NextCompletion >= CompletionItems.Count || CompletionItems[NextCompletion] == default)
 			NextCompletion = 0;
 
-		if (NextCompletion < 0 || NextCompletion >= CompletionItems.Count || CompletionItems[NextCompletion] == null)
+		if (NextCompletion < 0 || NextCompletion >= CompletionItems.Count || CompletionItems[NextCompletion] == default)
 			return;
 
 		Span<char> CompletedText = stackalloc char[255];
 		CompletionItem item = CompletionItems[NextCompletion];
-		Assert(item != null);
+		Assert(item != default);
 
 		if (item.IsCommand && item.Command != null) {
 			ReadOnlySpan<char> cmd = item.GetCommand();
