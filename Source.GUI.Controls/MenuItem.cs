@@ -300,7 +300,7 @@ public class MenuItem : Button
 			CurrentKeyBinding = new TextImage(keyName.ToString());
 		else
 		{
-			char[] curtext = new char[256];
+			Span<char> curtext = stackalloc char[256];
 			CurrentKeyBinding.GetText(curtext);
 
 			if (String.Compare(new string(curtext).TrimEnd('\0'), keyName.ToString(), StringComparison.Ordinal) != 0)

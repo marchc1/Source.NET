@@ -29,7 +29,7 @@ public class OptionsDialog : PropertyDialog
 public class GameMenuItem : MenuItem
 {
 	public GameMenuItem(Menu panel, string name, string text) : base(panel, name, text) {
-
+		RightAligned = false;
 	}
 
 	bool RightAligned;
@@ -64,6 +64,8 @@ public class GameMenuItem : MenuItem
 		if (RightAligned)
 			SetContentAlignment(Alignment.East);
 	}
+
+	public void SetRightAlignedText(bool state) => RightAligned = state;
 }
 
 public enum BackgroundState

@@ -92,12 +92,31 @@ class PageTab : Button
 	}
 
 	public override void OnThink() {
-		//
+		if (AtttemptingDrop && HoverActivePageTime >= 0 && DropHoverTime >= 0) {
+			long hoverTime = System.GetTimeMillis() - DropHoverTime;
+			if (hoverTime > HoverActivePageTime) {
+				FireActionSignal();
+				SetSelected(true);
+				Repaint();
+			}
+		}
+		AtttemptingDrop = false;
+
 		base.OnThink();
 	}
 
-	public bool IsDroppable() {
-		return false;//todo
+	public bool IsDroppable(List<KeyValues> msglist) {
+		AtttemptingDrop = true;
+
+		if (GetParent() == null)
+			return false;
+
+		// PropertySheet sheet = IsDroppingSheet(msglist);
+		// if (sheet != null)
+		// 	return GetParent().IsDroppable(msglist);
+
+		// return base.IsDroppable();
+		return false;
 	}
 
 	public void OnDroppablePanelPaint() {
@@ -178,7 +197,7 @@ class PageTab : Button
 		return NormalBorder;
 	}
 
-	public Color GetButtonFgColor(Color color) {
+	public override Color GetButtonFgColor() {
 		if (Active)
 			return TextColor;
 		else
@@ -280,6 +299,8 @@ public class PropertySheet : Frame {
 	KeyValues? TabKV;
 
 	public PropertySheet(Panel? parent, string? panelName, bool draggableTabs = false) : base(parent, panelName) {
+		Pages = new();
+		PageTabs = new();
 		ActivePage = null;
 		ActiveTab = null;
 		TabWidth = 64;
@@ -302,6 +323,8 @@ public class PropertySheet : Frame {
 	}
 
 	public PropertySheet(Panel? parent, string? panelName, ComboBox combo) : base(parent, panelName) {
+		Pages = new();
+		PageTabs = new();
 		ActivePage = null;
 		ActiveTab = null;
 		TabWidth = 64;
@@ -643,9 +666,10 @@ public class PropertySheet : Frame {
 	}
 
 	public void SetPageEnabled(string title, bool state) {
+		Span<char> tmp = stackalloc char[50];
 		for (int i = 0; i < Pages.Count; i++) {
 			if (ShowTabs) {
-				char[] tmp = new char[50];
+				tmp.Clear();
 				PageTabs[i].GetText(tmp);
 				if (new string(tmp).Equals(title, StringComparison.OrdinalIgnoreCase))
 					PageTabs[i].SetEnabled(state);

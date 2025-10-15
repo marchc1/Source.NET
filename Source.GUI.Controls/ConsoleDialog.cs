@@ -274,7 +274,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 	}
 
 	ConCommand? FindAutoCompleteCommandFromPartial(ReadOnlySpan<char> text) {
-		char[] command = new char[256];
+		Span<char> command = stackalloc char[256];
 		strcpy(command, text);
 
 		ConCommand cmd = Cvar.FindCommand(command)!;
@@ -467,8 +467,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		if (NextCompletion < 0 || NextCompletion >= CompletionItems.Count || CompletionItems[NextCompletion] == null)
 			return;
 
-
-		char[] CompletedText = new char[256];
+		Span<char> CompletedText = stackalloc char[255];
 		CompletionItem item = CompletionItems[NextCompletion];
 		Assert(item != null);
 

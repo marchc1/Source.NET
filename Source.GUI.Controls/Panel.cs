@@ -2214,7 +2214,7 @@ public class Panel : IPanel
 
 	IPanel? IPanel.FindChildByName(ReadOnlySpan<char> childName, bool recurseDown) => FindChildByName(childName, recurseDown);
 
-	public Panel? FindChildByName(ReadOnlySpan<char> childName, bool recurseDown) {
+	public Panel? FindChildByName(ReadOnlySpan<char> childName, bool recurseDown = false) {
 		return null; // todo: impl
 	}
 
