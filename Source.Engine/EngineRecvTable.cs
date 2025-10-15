@@ -294,7 +294,7 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 
 		int changed = 0;
 
-		uint oldProp = 0u;
+		uint oldProp = ~0u;
 		if (oldState != null)
 			oldProp = oldStateReader.ReadNextPropIndex();
 

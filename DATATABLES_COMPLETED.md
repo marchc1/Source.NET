@@ -1,8 +1,8 @@
 This is a list of all of the important SendClasses in Garry's Mod, and which ones have completed datatables.
 
-- [ ] Class #0: AR2Explosion
+- [x] Class #0: AR2Explosion
 - [x] Class #1: CAI_BaseNPC
-- [ ] Class #2: CAlyxEmpEffect
+- [x] Class #2: CAlyxEmpEffect
 - [x] Class #3: CBaseAnimating
 - [x] Class #4: CBaseAnimatingOverlay
 - [x] Class #5: CBaseCombatCharacter
@@ -59,15 +59,15 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #56: CFlare
 - [ ] Class #57: CFleshEffectTarget
 - [ ] Class #58: CFlexManipulate
-- [ ] Class #59: CFogController
+- [x] Class #59: CFogController
 - [x] Class #60: CFunc_Dust
 - [ ] Class #61: CFunc_LOD
 - [x] Class #62: CFuncAreaPortalWindow
 - [ ] Class #63: CFuncConveyor
 - [x] Class #64: CFuncLadder
-- [ ] Class #65: CFuncMonitor
+- [x] Class #65: CFuncMonitor
 - [x] Class #66: CFuncOccluder
-- [ ] Class #67: CFuncReflectiveGlass
+- [x] Class #67: CFuncReflectiveGlass
 - [x] Class #68: CFuncRotating
 - [x] Class #69: CFuncSmokeVolume
 - [x] Class #70: CFuncTrackTrain
@@ -82,9 +82,9 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #79: CHLMachineGun
 - [x] Class #80: CHLSelectFireMachineGun
 - [x] Class #81: CInfoLadderDismount
-- [ ] Class #82: CInfoLightingRelative
-- [ ] Class #83: CInfoOverlayAccessor
-- [ ] Class #84: CInfoTeleporterCountdown
+- [x] Class #82: CInfoLightingRelative
+- [x] Class #83: CInfoOverlayAccessor
+- [x] Class #84: CInfoTeleporterCountdown
 - [x] Class #85: CLaserDot
 - [x] Class #86: CLaserDot_HL1
 - [x] Class #87: CLightGlow
@@ -110,7 +110,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #107: CPhysBoxMultiplayer
 - [x] Class #108: CPhysicsProp
 - [x] Class #109: CPhysicsPropMultiplayer
-- [ ] Class #110: CPhysMagnet
+- [x] Class #110: CPhysMagnet
 - [ ] Class #111: CPlasma
 - [x] Class #112: CPlayerResource
 - [ ] Class #113: CPointCamera
@@ -147,7 +147,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #144: CSpatialEntity
 - [x] Class #145: CSpotlightEnd
 - [x] Class #146: CSprite
-- [ ] Class #147: CSpriteOriented
+- [x] Class #147: CSpriteOriented
 - [ ] Class #148: CSpriteTrail
 - [ ] Class #149: CSteamJet
 - [x] Class #150: CSun
@@ -174,7 +174,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #171: CTEDecal
 - [ ] Class #172: CTEDust
 - [ ] Class #173: CTEDynamicLight
-- [ ] Class #174: CTEEffectDispatch
+- [x] Class #174: CTEEffectDispatch
 - [ ] Class #175: CTEEnergySplash
 - [ ] Class #176: CTEExplosion
 - [ ] Class #177: CTEFizz
@@ -189,7 +189,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #186: CTEMuzzleFlash
 - [ ] Class #187: CTEParticleSystem
 - [ ] Class #188: CTEPhysicsProp
-- [ ] Class #189: CTEPlayerAnimEvent
+- [x] Class #189: CTEPlayerAnimEvent
 - [ ] Class #190: CTEPlayerDecal
 - [ ] Class #191: CTEProjectedDecal
 - [ ] Class #192: CTEShatterSurface

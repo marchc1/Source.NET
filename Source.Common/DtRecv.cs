@@ -36,7 +36,12 @@ public static class RecvPropHelpers
 	public static void RecvProxy_Int32ToInt16(ref readonly RecvProxyData data, object instance, IFieldAccessor field) => field.SetValue(instance, unchecked((short)data.Value.Int));
 	public static void RecvProxy_Int32ToInt32(ref readonly RecvProxyData data, object instance, IFieldAccessor field) => field.SetValue(instance, unchecked(data.Value.Int));
 	public static void RecvProxy_StringToString(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		// Warning("TODO: RecvProxy_StringToString!!!!\n");
+		if (data.RecvProp.StringBufferSize <= 0)
+			return;
+		// TODO: Speed this up with something in IFieldAccessor which can return a span?
+		Span<char> strOut = stackalloc char[data.RecvProp.StringBufferSize];
+		data.Value.String?.CopyTo(strOut);
+		field.CopyFrom(instance, strOut.SliceNullTerminatedString());
 	}
 
 	public static void RecvProxy_IntToEHandle(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {

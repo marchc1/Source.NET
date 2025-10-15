@@ -94,9 +94,9 @@ public interface IVTFTexture : IDisposable
 	void SetBumpScale(float scale);
 	void SetReflectivity(in Vector3 vecReflectivity);
 	void InitLowResImage(int width, int height, ImageFormat format);
-	Span<byte> SetResourceData(uint type, Span<byte> data);
-	Span<byte> GetResourceData(uint type);
-	bool HasResourceEntry(uint type);
+	void SetResourceData(ResourceEntryType type, Span<byte> data);
+	Span<byte> GetResourceData(ResourceEntryType type);
+	bool HasResourceEntry(ResourceEntryType type);
 
 	bool Unserialize(Stream stream, bool headerOnly = false, int skipMipLevels = 0);
 	bool Serialize(Stream stream);
@@ -260,12 +260,12 @@ public enum HeaderDetails : short {
 	MaxRSRCDictionaryEntries = 32
 }
 
+
 public struct ResourceEntryInfo
 {
 	public ResourceEntryType Tag;
 	public byte Flags;
 	public uint Offset;
-
 	public static ResourceEntryType ParseTag(byte byte1, byte byte2, byte byte3) {
 		return (ResourceEntryType)((byte1 << 16) + (byte2 << 8) + byte3);
 	}
@@ -305,6 +305,9 @@ public enum ResourceEntryType : uint
 	Extended = 0x0054534f,
 	// Wait, what is this for...
 	// KeyValueData = 0x004b5644
+
+	Flag_HasNoDataChunk = (byte)0x02 << 24,
+	Flag_Mask = unchecked((uint)((byte)0xFF << 24)),
 }
 
 public struct TextureLODControlSettings {

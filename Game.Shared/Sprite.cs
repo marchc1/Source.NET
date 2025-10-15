@@ -56,4 +56,25 @@ public class Sprite : SharedBaseEntity
 	public int Brightness;
 	public bool WorldSpaceScale;
 }
+public class SpriteOriented : Sprite
+{
+	public static readonly
+#if CLIENT_DLL
+		RecvTable
+#else
+		SendTable
+#endif
+		DT_SpriteOriented = new(DT_Sprite, [
+#if CLIENT_DLL
+
+#else
+
+#endif
+		]);
+#if CLIENT_DLL
+	public static readonly new ClientClass ClientClass = new ClientClass("SpriteOriented", null, null, DT_SpriteOriented).WithManualClassID(StaticClassIndices.CSpriteOriented);
+#else
+	public static readonly new ServerClass ServerClass = new ServerClass("SpriteOriented", DT_SpriteOriented).WithManualClassID(StaticClassIndices.CSpriteOriented);
+#endif
+}
 #endif
