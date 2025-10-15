@@ -964,7 +964,7 @@ public class TextEntry : Panel
 		SelectNone();
 	}
 
-	private void SelectAllText(bool resetCursorPos) {
+	public void SelectAllText(bool resetCursorPos) {
 		if (TextStream.Count == 0)
 			Select[0] = -1;
 		else
@@ -1732,6 +1732,10 @@ public class TextEntry : Panel
 		base.OnSetFocus();
 	}
 
+	public void OnSetText(ReadOnlySpan<char> text) {
+		SetText(text);
+	}
+
 	public override void ApplySettings(KeyValues resourceData) {
 		base.ApplySettings(resourceData);
 
@@ -1768,7 +1772,7 @@ public class TextEntry : Panel
 		SetFont(Font);
 	}
 
-	public void SetFont(IFont? font) {
+	public virtual void SetFont(IFont? font) {
 		Font = font;
 		InvalidateLayout();
 		Repaint();
@@ -1801,8 +1805,7 @@ public class TextEntry : Panel
 		TextStream.EnsureCapacity(text.Length);
 		int missed_count = 0;
 		for (int i = 0; i < text.Length; i++) {
-			if (text[i] == '\r')
-			{
+			if (text[i] == '\r') {
 				missed_count++;
 				continue;
 			}
@@ -1817,5 +1820,10 @@ public class TextEntry : Panel
 
 		FlushLineBreaks(true);
 		InvalidateLayout();
+	}
+
+	public virtual void SetUseFallbackFont(bool state, IFont fallback) {
+		FallbackFont = fallback;
+		UseFallbackFont = state;
 	}
 }

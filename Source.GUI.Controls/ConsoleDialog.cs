@@ -38,14 +38,63 @@ public class TabCatchingTextEntry : TextEntry
 	public override void OnKeyCodeTyped(ButtonCode code) {
 		if (code == ButtonCode.KeyTab)
 			GetParent()!.OnKeyCodeTyped(code);
-		else if(code != ButtonCode.KeyEnter)
+		else if (code != ButtonCode.KeyEnter)
 			base.OnKeyCodeTyped(code);
 	}
 
-	public override void OnKillFocus(Panel? newPanel)
-	{
+	public override void OnKillFocus(Panel? newPanel) {
 		if (newPanel != CompletionList)
 			PostMessage(GetParent(), new KeyValues("CloseCompletionList"));
+	}
+}
+
+class HistoryItem
+{
+	public string? Text;
+	public string? ExtraText;
+	public bool HasExtra;
+
+	public HistoryItem() {
+		Text = null;
+		ExtraText = null;
+		HasExtra = false;
+	}
+
+	public HistoryItem(string text, string? extra = null) {
+		Assert(text != null);
+		Text = null;
+		ExtraText = null;
+		HasExtra = false;
+		SetText(text, extra);
+	}
+
+	public HistoryItem(HistoryItem src) {
+		Text = null;
+		ExtraText = null;
+		HasExtra = false;
+		SetText(src.GetText(), src.GetExtra());
+	}
+
+	public string GetText() {
+		if (Text != null)
+			return Text;
+		return "";
+	}
+
+	public string GetExtra() {
+		if (ExtraText != null)
+			return ExtraText;
+		return "";
+	}
+
+	public void SetText(string text, string? extra) {
+		Text = text;
+		if (extra != null) {
+			ExtraText = extra;
+			HasExtra = true;
+		}
+		else
+			HasExtra = false;
 	}
 }
 
@@ -68,12 +117,12 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 	protected bool StatusVersion;
 
 	List<CompletionItem> CompletionItems = new();
+	List<HistoryItem> CommandHistory = new();
 
 	static readonly KeyValues KV_ClosedByHittingTilde = new("ClosedByHittingTilde");
 	static readonly KeyValues KV_Close = new("Close");
 
-	public override void OnTextChanged(Panel panel)
-	{
+	public override void OnTextChanged(Panel panel) {
 		if (panel != Entry)
 			return;
 
@@ -87,18 +136,15 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		bool altKeyDown = Input.IsKeyDown(ButtonCode.KeyLAlt) || Input.IsKeyDown(ButtonCode.KeyRAlt);
 		bool ctrlKeyDown = Input.IsKeyDown(ButtonCode.KeyLControl) || Input.IsKeyDown(ButtonCode.KeyRControl);
 
-		if (len > 0 && hitTilde)
-		{
+		if (len > 0 && hitTilde) {
 			PreviousPartialText[len - 1] = '\0';
 
-			if (!altKeyDown && !ctrlKeyDown)
-			{
+			if (!altKeyDown && !ctrlKeyDown) {
 				Entry.SetText("");
 				PostMessage(this, KV_Close);
 				PostActionSignal(KV_ClosedByHittingTilde);
 			}
-			else
-			{
+			else {
 				Entry.SetText(PartialText);
 			}
 		}
@@ -109,21 +155,18 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 
 		if (CompletionItems.Count < 1)
 			CompletionList.SetVisible(false);
-		else
-		{
+		else {
 			CompletionList.SetVisible(true);
 
 			int MAX_MENU_ITEMS = 10;
 			CompletionList.DeleteAllItems();
 
-			for (int i = 0; i < CompletionItems.Count && i < MAX_MENU_ITEMS; i++)
-			{
+			for (int i = 0; i < CompletionItems.Count && i < MAX_MENU_ITEMS; i++) {
 				string text;
 
 				if (i == MAX_MENU_ITEMS - 1)
 					text = "...";
-				else
-				{
+				else {
 					Assert(CompletionItems[i] != null);
 					text = CompletionItems[i]!.GetItemText().ToString();
 				}
@@ -141,7 +184,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
-		if(command.Equals("submit", StringComparison.OrdinalIgnoreCase)) {
+		if (command.Equals("submit", StringComparison.OrdinalIgnoreCase)) {
 			Span<char> incoming = stackalloc char[256];
 			int len = Entry.GetText(incoming);
 			PostActionSignal(new KeyValues("CommandSubmitted", "command", incoming[..len]));
@@ -155,23 +198,72 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 
 			History.GotoTextEnd();
 
-			int extraPtr = command.IndexOf(' ');
-			ReadOnlySpan<char> extra = null;
+			string incomingText = incoming[..len].ToString();
+			int extraPtr = incomingText.IndexOf(' ');
+			string? extra = null;
 			if (extraPtr != -1) {
-				extra = command[(extraPtr + 1)..];
-				command = command[..extraPtr];
+				extra = incomingText[(extraPtr + 1)..];
+				incomingText = incomingText[..extraPtr];
 			}
 
-			if (command.Length > 0) 
-				AddToHistory(command, extra);
+			if (incomingText.Length > 0)
+				AddToHistory(incomingText, extra);
 
 			CompletionList.SetVisible(false);
 		}
 		base.OnCommand(command);
 	}
 
-	private void AddToHistory(ReadOnlySpan<char> command, ReadOnlySpan<char> extra) {
+	private void AddToHistory(ReadOnlySpan<char> commandText, ReadOnlySpan<char> extraText) {
+		while (CommandHistory.Count > MAX_HISTORY_ITEMS)
+			CommandHistory.RemoveAt(0);
 
+		Span<char> command = stackalloc char[commandText.Length + 1];
+		if (!commandText.IsEmpty) {
+			command.Clear();
+			commandText.CopyTo(command);
+			int last = commandText.Length - 1;
+			if (last >= 0 && command[last] == ' ')
+				command[last] = '\0';
+		}
+
+		Span<char> extra = stackalloc char[extraText.Length + 1];
+		if (!extraText.IsEmpty) {
+			extra.Clear();
+			extraText.CopyTo(extra);
+			int last = extraText.Length - 1;
+			while (last >= 0 && extra[last] == ' ') {
+				extra[last] = '\0';
+				last--;
+			}
+		}
+
+		HistoryItem item;
+		for (int i = 0; i < CommandHistory.Count; i++) {
+			item = CommandHistory[i];
+			if (item == null)
+				continue;
+
+			if (MemoryExtensions.Equals(command, item.GetText().AsSpan(), StringComparison.OrdinalIgnoreCase))
+				continue;
+
+			if (!extra.IsEmpty || item.GetExtra() != null) {
+				if (extra.IsEmpty || item.GetExtra() == null)
+					continue;
+
+				if (MemoryExtensions.Equals(extra, item.GetExtra().AsSpan(), StringComparison.OrdinalIgnoreCase))
+					continue;
+			}
+
+			CommandHistory.RemoveAt(i);
+		}
+
+		item = new HistoryItem();
+		CommandHistory.Add(item);
+		item.SetText(command.ToString(), extra.IsEmpty ? null : extra.ToString());
+
+		NextCompletion = 0;
+		RebuildCompletionList(command);
 	}
 
 	private void ClearCompletionList() {
@@ -181,12 +273,11 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		CompletionItems = [];
 	}
 
-	ConCommand? FindAutoCompleteCommandFromPartial(ReadOnlySpan<char> text)
-	{
-		char [] command = new char[256];
+	ConCommand? FindAutoCompleteCommandFromPartial(ReadOnlySpan<char> text) {
+		Span<char> command = stackalloc char[256];
 		strcpy(command, text);
 
-		ConCommand cmd = Cvar.FindCommand(command);
+		ConCommand cmd = Cvar.FindCommand(command)!;
 		if (cmd == null)
 			return null;
 
@@ -201,19 +292,22 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		ClearCompletionList();
 
 		int len = text.IndexOf('\0');
-		if (len < 1)
-		{
-			// command history
-
+		if (len < 1) {
+			for (int i = 0; i < CommandHistory.Count; i++) {
+				HistoryItem item = CommandHistory[i];
+				CompletionItem comp = new CompletionItem();
+				CompletionItems.Add(comp);
+				comp.IsCommand = true;
+				comp.Command = null;
+				comp.Text = new HistoryItem(item);
+			}
 			return;
 		}
-
 
 		bool NormalBuild = true;
 		int space = text.IndexOf(' ');
 
-		if (space != -1)
-		{
+		if (space != -1) {
 			ConCommand? cmd = FindAutoCompleteCommandFromPartial(text);
 			if (cmd == null)
 				return;
@@ -225,8 +319,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			//Assert(count <= COMMAND_COMPLETION_MAXITEMS);
 			Assert(count <= 64);
 
-			for (int i = 0; i < count; i++)
-			{
+			for (int i = 0; i < count; i++) {
 				CompletionItem item = new CompletionItem();
 				CompletionItems.Add(item);
 				item.IsCommand = false;
@@ -235,21 +328,17 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			}
 		}
 
-		if (NormalBuild)
-		{
-			foreach (ConCommandBase cmd in Cvar.GetCommands())
-			{
+		if (NormalBuild) {
+			foreach (ConCommandBase cmd in Cvar.GetCommands()) {
 				if (cmd.IsFlagSet(FCvar.DevelopmentOnly) || cmd.IsFlagSet(FCvar.Hidden))
 					continue;
 
-				if (string.Compare(new(text), 0, cmd.GetName(), 0, len, StringComparison.OrdinalIgnoreCase) == 0)
-				{
+				if (string.Compare(new(text), 0, cmd.GetName(), 0, len, StringComparison.OrdinalIgnoreCase) == 0) {
 					CompletionItem item = new CompletionItem();
 					CompletionItems.Add(item);
 					item.Command = cmd;
 					string tst = cmd.GetName();
-					if (!cmd.IsCommand())
-					{
+					if (!cmd.IsCommand()) {
 						item.IsCommand = false;
 						ConVar? var = cmd as ConVar;
 						ConVar_ServerBounded? pBounded = cmd as ConVar_ServerBounded;
@@ -267,11 +356,11 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 
 							item.Text = new HistoryItem(strValue);
 						}
-						else
-						{
+						else {
 							item.Text = new HistoryItem(var.GetName(), var.GetString());
 						}
-					} else {
+					}
+					else {
 						item.IsCommand = true;
 						item.Text = new HistoryItem(tst);
 					}
@@ -279,17 +368,13 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			}
 		}
 
-		if (CompletionItems.Count >= 2)
-		{
-			for (int i = 0; i < CompletionItems.Count; i++)
-			{
-				for (int j = 0; j < CompletionItems.Count; j++)
-				{
+		if (CompletionItems.Count >= 2) {
+			for (int i = 0; i < CompletionItems.Count; i++) {
+				for (int j = 0; j < CompletionItems.Count; j++) {
 					CompletionItem item1 = CompletionItems[i];
 					CompletionItem item2 = CompletionItems[j];
 
-					if (string.Compare(new(item1.GetName()), new(item2.GetName())) > 0)
-					{
+					if (string.Compare(new(item1.GetName()), new(item2.GetName())) > 0) {
 						CompletionItem temp = CompletionItems[i];
 						CompletionItems[i] = CompletionItems[j];
 						CompletionItems[j] = temp;
@@ -364,16 +449,13 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		}
 	}
 
-	private void OnAutoComplete(bool reverse)
-	{
-		if (!AutoCompleteMode)
-		{
+	private void OnAutoComplete(bool reverse) {
+		if (!AutoCompleteMode) {
 			NextCompletion = 0;
 			AutoCompleteMode = true;
 		}
 
-		if (reverse)
-		{
+		if (reverse) {
 			NextCompletion -= 2;
 			if (NextCompletion < 0)
 				NextCompletion = CompletionItems.Count - 1;
@@ -385,18 +467,15 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		if (NextCompletion < 0 || NextCompletion >= CompletionItems.Count || CompletionItems[NextCompletion] == null)
 			return;
 
-
-		char[] CompletedText = new char[256];
+		Span<char> CompletedText = stackalloc char[255];
 		CompletionItem item = CompletionItems[NextCompletion];
 		Assert(item != null);
 
-		if (item.IsCommand && item.Command != null)
-		{
+		if (item.IsCommand && item.Command != null) {
 			ReadOnlySpan<char> cmd = item.GetCommand();
 			strcpy(CompletedText, cmd);
 		}
-		else
-		{
+		else {
 			ReadOnlySpan<char> txt = item.GetItemText();
 			strcpy(CompletedText, txt);
 		}
@@ -413,7 +492,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		History.GotoTextEnd();
 	}
 	public void ColorPrint(in Color clr, ReadOnlySpan<char> message) {
-		if (StatusVersion) 
+		if (StatusVersion)
 			Clear();
 		History.InsertColorChange(in clr);
 		History.InsertString(message);
@@ -455,7 +534,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			const int topHeight = 4;
 			const int entryInset = 4;
 			const int submitWide = 64;
-			const int submitInset = 7; 
+			const int submitInset = 7;
 
 			History.SetPos(inset, inset + topHeight);
 			History.SetSize(wide - (inset * 2), tall - (entryInset * 2 + inset * 2 + topHeight + entryHeight));
@@ -506,10 +585,8 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		CompletionList.SetVisible(false);
 	}
 
-	public override void OnMessage(KeyValues message, IPanel? from)
-	{
-		switch (message.Name)
-		{
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		switch (message.Name) {
 			case "CloseCompletionList":
 				OnCloseCompletionList();
 				return;
@@ -525,45 +602,46 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 	const int MAX_HISTORY_ITEMS = 500;
 	class CompletionItem // todo: currently not 1:1
 	{
-		public ReadOnlySpan<char> GetItemText() {
-			if (Text != null)
-			{
-				if (Text.HasExtra)
-					return Text.Text + " " + Text.ExtraText;
-				return Text.Text;
-			}
-			return "";
-		}
-
-		public ReadOnlySpan<char> GetCommand()
-		{
-			if (Command != null)
-				return Command.GetName();
-			return "";
-		}
-		public ReadOnlySpan<char> GetName() => null;
 		public bool IsCommand;
 		public ConCommandBase? Command;
 		public HistoryItem? Text;
-	}
 
-	class HistoryItem // todo
-	{
-		public string Text;
-		public string? ExtraText;
-		public bool HasExtra;
+		public CompletionItem() {
+			IsCommand = false;
+			Command = null;
+			Text = null;
+		}
 
-		public HistoryItem(string text, string? extraText = null)
-		{
-			Text = text;
+		public CompletionItem(CompletionItem src) {
+			IsCommand = src.IsCommand;
+			Command = src.Command;
+			Text = src.Text == null ? null : new HistoryItem(src.Text.Text, src.Text.ExtraText);
+		}
 
-			if (extraText != null)
-			{
-				ExtraText = extraText;
-				HasExtra = true;
+		public ReadOnlySpan<char> GetName() {
+			if (IsCommand)
+				return Command!.GetName();
+			return Command != null ? Command.GetName() : GetCommand();
+		}
+
+		public ReadOnlySpan<char> GetItemText() {
+			string text = "";
+			if (Text != null) {
+				if (Text.HasExtra)
+					text = Text.GetText() + " " + Text.GetExtra();
+				else
+					text = Text.GetText();
 			}
-			else
-				HasExtra = false;
+
+			return text;
+		}
+
+		public ReadOnlySpan<char> GetCommand() {
+			char[] text = new char[256];
+			text[0] = '\0';
+			if (Text != null)
+				strcpy(text, Text.Text);
+			return text;
 		}
 	}
 }
@@ -583,7 +661,7 @@ public class ConsoleDialog : Frame
 	public override void OnMessage(KeyValues message, IPanel? from) {
 		switch (message.Name) {
 			case "CommandSubmitted":
-				OnCommandSubmitted(message.GetString("command"));		
+				OnCommandSubmitted(message.GetString("command"));
 				return;
 		}
 

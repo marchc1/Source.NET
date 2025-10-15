@@ -36,7 +36,6 @@ public class Button : Label
 	int MouseClickMask;
 	bool StayArmedOnClick;
 	bool StaySelectedOnClick;
-
 	string? ArmedSoundName;
 	string? DepressedSoundName;
 	string? ReleasedSoundName;
@@ -156,8 +155,7 @@ public class Button : Label
 		return DefaultBorder;
 	}
 
-
-	public Color GetButtonFgColor() {
+	public virtual Color GetButtonFgColor() {
 		if (0 == (ButtonFlags & ButtonFlags.Blink)) {
 			if (0 != (ButtonFlags & ButtonFlags.Depressed))
 				return DepressedFgColor;
@@ -292,7 +290,7 @@ public class Button : Label
 			SetArmed(false);
 	}
 
-	public void SetSelected(bool state) {
+	public virtual void SetSelected(bool state) {
 		if (((ButtonFlags & ButtonFlags.Selected) != 0) != state) {
 			if (state)
 				ButtonFlags |= ButtonFlags.Selected;
@@ -381,7 +379,7 @@ public class Button : Label
 
 	Color DefaultFgColor, DefaultBgColor;
 	Color ArmedFgColor, ArmedBgColor;
-	Color SelectedFgColor, SelectedBgColor;
+	public Color SelectedFgColor, SelectedBgColor;
 	Color DepressedFgColor, DepressedBgColor;
 	Color BlinkFgColor;
 	Color KeyboardFocusColor;
@@ -468,7 +466,7 @@ public class Button : Label
 		return base.RequestInfo(outputData);
 	}
 
-	public bool CanBeDefaultButton() {
+	public virtual bool CanBeDefaultButton() {
 		return true;
 	}
 
@@ -571,7 +569,7 @@ public class Button : Label
 		ButtonFlags |= ButtonFlags.DrawFocusBox;
 	}
 
-	public void DrawFocusBorder(int tx0, int ty0, int tx1, int ty1) {
+	public virtual void DrawFocusBorder(int tx0, int ty0, int tx1, int ty1) {
 		Surface.DrawSetColor(KeyboardFocusColor);
 		DrawDashedLine(tx0, ty0, tx1, ty0 + 1, 1, 1); // Top
 		DrawDashedLine(tx0, ty0, tx0 + 1, ty1, 1, 1); // Bottom

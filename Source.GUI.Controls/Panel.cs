@@ -1497,6 +1497,13 @@ public class Panel : IPanel
 	public virtual void SetBgColor(in Color color) => BgColor = color;
 	public virtual void SetFgColor(in Color color) => FgColor = color;
 
+	public virtual void GetSettings(KeyValues outResourceData) {
+		outResourceData.SetString("ControlName", GetClassName());
+		outResourceData.SetString("fieldName", GetName());
+		//
+	}
+
+
 	// This in theory will replicate the pointer logic?
 	private void ApplyOverridableColors() {
 		Span<OverrideableColorEntry> entries = CollectionsMarshal.AsSpan(OverrideableColorEntries);
@@ -1525,7 +1532,7 @@ public class Panel : IPanel
 		Surface?.Invalidate(this);
 	}
 
-	public void RequestFocus(int direction = 0) {
+	public virtual void RequestFocus(int direction = 0) {
 		OnRequestFocus(this, null);
 	}
 
@@ -1534,11 +1541,11 @@ public class Panel : IPanel
 	public virtual void OnRequestFocus(Panel subFocus, Panel? defaultPanel)
 		=> CallParentFunction(new KeyValues("OnRequestFocus").AddSubKey(new("subFocus", subFocus)).AddSubKey(new("defaultPanel", defaultPanel)));
 
-	public bool RequestFocusNext(IPanel? existingPanel = null) {
+	public virtual bool RequestFocusNext(IPanel? existingPanel = null) {
 		return false;
 	}
 
-	public bool RequestFocusPrev(IPanel? existingPanel = null) {
+	public virtual bool RequestFocusPrev(IPanel? existingPanel = null) {
 		return false;
 	}
 
@@ -2207,7 +2214,7 @@ public class Panel : IPanel
 
 	IPanel? IPanel.FindChildByName(ReadOnlySpan<char> childName, bool recurseDown) => FindChildByName(childName, recurseDown);
 
-	public Panel? FindChildByName(ReadOnlySpan<char> childName, bool recurseDown) {
+	public Panel? FindChildByName(ReadOnlySpan<char> childName, bool recurseDown = false) {
 		return null; // todo: impl
 	}
 
