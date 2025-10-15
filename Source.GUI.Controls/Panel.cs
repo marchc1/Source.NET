@@ -1536,6 +1536,20 @@ public class Panel : IPanel
 		OnRequestFocus(this, null);
 	}
 
+	public bool IsBuildGroupEnabled() {
+		if (BuildGroup == null)
+			return false;
+
+		bool enabled = BuildGroup.IsEnabled();
+		if (enabled)
+			return enabled;
+
+		if (GetParent() != null && GetParent().IsBuildGroupEnabled())
+			return true;
+
+		return false;
+	}
+
 	public void CallParentFunction(KeyValues message) => GetParent()?.SendMessage(message, this);
 
 	public virtual void OnRequestFocus(Panel subFocus, Panel? defaultPanel)

@@ -1079,7 +1079,7 @@ public class Frame : EditablePanel
 	}
 
 	public override void OnMousePressed(ButtonCode code) {
-		if (true /*!IsBuildGroupEnabled()*/) {
+		if (!IsBuildGroupEnabled()) {
 			IPanel focus = Input.GetFocus()!;
 			if (focus == null || !focus.HasParent(this))
 				RequestFocus();
