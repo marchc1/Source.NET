@@ -333,7 +333,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 				if (cmd.IsFlagSet(FCvar.DevelopmentOnly) || cmd.IsFlagSet(FCvar.Hidden))
 					continue;
 
-				if (text.Equals(cmd.GetName(), StringComparison.OrdinalIgnoreCase)) {
+				if (text.CompareTo(cmd.GetName(), StringComparison.OrdinalIgnoreCase) == 0) {
 					CompletionItem item = new CompletionItem();
 					CompletionItems.Add(item);
 					item.Command = cmd;
@@ -374,7 +374,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 					CompletionItem item1 = CompletionItems[i];
 					CompletionItem item2 = CompletionItems[j];
 
-					if (item1.GetName().Equals(item2.GetName(), StringComparison.Ordinal)) {
+					if (item1.GetName().CompareTo(item2.GetName(), StringComparison.Ordinal) > 0) {
 						CompletionItem temp = CompletionItems[i];
 						CompletionItems[i] = CompletionItems[j];
 						CompletionItems[j] = temp;
