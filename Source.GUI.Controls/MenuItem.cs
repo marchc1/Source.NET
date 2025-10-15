@@ -7,27 +7,23 @@ public class MenuItemCheckImage : TextImage
 {
 	private MenuItem MenuItem;
 
-	public MenuItemCheckImage(MenuItem item) : base("g")
-	{
+	public MenuItemCheckImage(MenuItem item) : base("g") {
 		MenuItem = item;
 		SetSize(20, 13);
 	}
 
-	public override void Paint()
-	{
+	public override void Paint() {
 		DrawSetTextFont(GetFont());
 
 		DrawSetTextColor(MenuItem.GetBgColor());
 		DrawPrintChar(0, 0, 'g');
 
-		if (MenuItem.IsChecked())
-		{
-			if (MenuItem.IsEnabled())
-			{
+		if (MenuItem.IsChecked()) {
+			if (MenuItem.IsEnabled()) {
 				DrawSetTextColor(MenuItem.GetButtonFgColor());
 				DrawPrintChar(1, 3, 'a');
-			} else
-			{
+			}
+			else {
 				DrawSetTextColor(MenuItem.GetDisabledFgColor1());
 				DrawPrintChar(1, 3, 'a');
 
@@ -53,37 +49,32 @@ public class MenuItem : Button
 	private int KEYBINDING_INSET = 5;
 	private int CHECK_INSET = 6;
 
-	public MenuItem(Menu parent, string name, string text) : base(parent, name, text)
-	{
+	public MenuItem(Menu parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
 		ContentAlignment = Alignment.West;
 		SetParent(parent);
 		Init();
 	}
 
-	public MenuItem(Menu parent, string panelName, string text, Menu? cascadeMenu, bool checkable) : base(parent, panelName, text)
-	{
+	public MenuItem(Menu parent, ReadOnlySpan<char> panelName, ReadOnlySpan<char> text, Menu? cascadeMenu, bool checkable) : base(parent, panelName, text) {
 		CascadeMenu = cascadeMenu;
 		Checkable = checkable;
 		SetButtonActivationType(ActivationType.OnReleased);
 		UserData = null;
-		CurrentKeyBinding	= null;
+		CurrentKeyBinding = null;
 		Assert(!(cascadeMenu != null && checkable));
 		Init();
 	}
 
-	new void Init()
-	{
+	new void Init() {
 		CasecadeArrow = null;
 		Check = null;
 
-		if (CascadeMenu != null)
-		{
+		if (CascadeMenu != null) {
 			CascadeMenu.SetParent(this);
 			CasecadeArrow = new TextImage("4");
 			CascadeMenu.AddActionSignalTarget(this);
 		}
-		else if (Checkable)
-		{
+		else if (Checkable) {
 			// SetTextImageIndex(1);
 			Check = new MenuItemCheckImage(this);
 			// SetImageAtIndex(0, Check, 6);
@@ -97,18 +88,15 @@ public class MenuItem : Button
 
 	public Menu? GetParentMenu() => GetParent() is Menu menu ? menu : null;
 
-	public override void PerformLayout()
-	{
+	public override void PerformLayout() {
 		base.PerformLayout();
 
 		if (CasecadeArrow != null)
 			CasecadeArrow.SetColor(GetButtonFgColor());
 	}
 
-	public void CloseCascadeMenu()
-	{
-		if (CascadeMenu != null)
-		{
+	public void CloseCascadeMenu() {
+		if (CascadeMenu != null) {
 			if (CascadeMenu.IsVisible())
 				CascadeMenu.SetVisible(false);
 
@@ -116,23 +104,20 @@ public class MenuItem : Button
 		}
 	}
 
-	public override void OnCursorMoved(int x, int  y)
-	{
+	public override void OnCursorMoved(int x, int y) {
 		if (GetParentMenu()!.GetMenuMode() == MenuMode.KEYBOARD)
 			OnCursorEntered();
 
 		CallParentFunction(new KeyValues("OnCursorMoved", "x", x, "y", y));
 	}
 
-	public override void OnCursorEntered()
-	{
+	public override void OnCursorEntered() {
 		KeyValues msg = new KeyValues("CursorEnteredMenuItem");
 		msg.SetPtr("Panel", this);
 		VGui.PostMessage(GetParent(), msg, null);
 	}
 
-	public override void OnCursorExited()
-	{
+	public override void OnCursorExited() {
 		KeyValues msg = new KeyValues("CursorExitedMenuItem");
 		msg.SetPtr("Panel", this);
 		VGui.PostMessage(GetParent(), msg, null);
@@ -165,14 +150,12 @@ public class MenuItem : Button
 		return IsArmed();
 	}
 
-	public override void OnKillFocus(Panel? newPanel)
-	{
+	public override void OnKillFocus(Panel? newPanel) {
 		GetParentMenu()?.OnKillFocus(newPanel);
 	}
 
 	public override void FireActionSignal() {
-		if (CascadeMenu == null)
-		{
+		if (CascadeMenu == null) {
 			KeyValues kv = new KeyValues("MenuItemSelected");
 			kv.SetPtr("panel", this);
 			VGui.PostMessage(GetParent(), kv, this);
@@ -185,8 +168,7 @@ public class MenuItem : Button
 			OpenCasecadeMenu();
 	}
 
-	public void OpenCasecadeMenu()
-	{
+	public void OpenCasecadeMenu() {
 		if (CascadeMenu != null) {
 			CascadeMenu.PerformLayout();
 			CascadeMenu.SetVisible(true);
@@ -194,13 +176,11 @@ public class MenuItem : Button
 		}
 	}
 
-	public bool HasMenu()
-	{
+	public bool HasMenu() {
 		return CascadeMenu != null;
 	}
 
-	public override void ApplySchemeSettings(IScheme scheme)
-	{
+	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
 
 		SetDefaultColor(GetSchemeColor("Menu.TextColor", GetFgColor(), scheme), GetSchemeColor("Menu.BgColor", GetBgColor(), scheme));
@@ -212,18 +192,15 @@ public class MenuItem : Button
 		GetParentMenu()?.ForceCalculateWidth();
 	}
 
-	public void GetTextImageSize(out int wide, out int tall)
-	{
+	public void GetTextImageSize(out int wide, out int tall) {
 		GetTextImage().GetSize(out wide, out tall);
 	}
 
-	public void SetTextImageSize(int wide, int tall)
-	{
+	public void SetTextImageSize(int wide, int tall) {
 		GetTextImage().SetSize(wide, tall);
 	}
 
-	public void GetArrowImageSize(out int wide, out int tall)
-	{
+	public void GetArrowImageSize(out int wide, out int tall) {
 		wide = 0;
 		tall = 0;
 
@@ -231,21 +208,18 @@ public class MenuItem : Button
 			CasecadeArrow.GetSize(out wide, out tall);
 	}
 
-	public void GetCheckImageSize(out int wide, out int tall)
-	{
+	public void GetCheckImageSize(out int wide, out int tall) {
 		wide = 0;
 		tall = 0;
 
-		if (Check != null)
-		{
+		if (Check != null) {
 			// Check.ResizeImageToContent(); todo
 			Check.GetSize(out wide, out tall);
 			wide += CHECK_INSET;
 		}
 	}
 
-	public Menu? GetMenu()
-	{
+	public Menu? GetMenu() {
 		return CascadeMenu;
 	}
 
@@ -257,24 +231,20 @@ public class MenuItem : Button
 		VGui.PostMessage(GetParent(), new KeyValues("KeyModeSet"), this);
 	}
 
-	internal bool IsCheckable()
-	{
+	internal bool IsCheckable() {
 		return Checkable;
 	}
 
-	public bool IsChecked()
-	{
+	public bool IsChecked() {
 		return Checked;
 	}
 
-	public void SetChecked(bool state)
-	{
+	public void SetChecked(bool state) {
 		if (Checkable)
 			Checked = state;
 	}
 
-	public bool CanBeDefaultButton()
-	{
+	public bool CanBeDefaultButton() {
 		return false;
 	}
 
@@ -282,24 +252,21 @@ public class MenuItem : Button
 		if (HasMenu())
 			return CascadeMenu!.GetItemUserData(CascadeMenu.GetActiveItem());
 		else
-				return UserData;
+			return UserData;
 	}
-	public void SetUserData(KeyValues? kv)
-	{
+	public void SetUserData(KeyValues? kv) {
 		UserData = null;
 		UserData = kv?.MakeCopy();
 	}
 
-	public void SetCurrentKeyBinding(ReadOnlySpan<char> keyName)
-	{
+	public void SetCurrentKeyBinding(ReadOnlySpan<char> keyName) {
 		if (keyName.Length == 0)
 			return;
 
 
 		if (CurrentKeyBinding == null)
 			CurrentKeyBinding = new TextImage(keyName.ToString());
-		else
-		{
+		else {
 			Span<char> curtext = stackalloc char[256];
 			CurrentKeyBinding.GetText(curtext);
 
@@ -312,8 +279,7 @@ public class MenuItem : Button
 		InvalidateLayout(false, true);
 	}
 
-	public override void Paint()
-	{
+	public override void Paint() {
 		base.Paint();
 		if (CurrentKeyBinding == null)
 			return;
@@ -328,7 +294,8 @@ public class MenuItem : Button
 			CurrentKeyBinding.SetPos(x, y);
 			CurrentKeyBinding.SetColor(GetButtonFgColor());
 			CurrentKeyBinding.Paint();
-		} else {
+		}
+		else {
 			CurrentKeyBinding.SetPos(x + 1, y + 1);
 			CurrentKeyBinding.SetColor(GetDisabledFgColor1());
 			CurrentKeyBinding.Paint();
@@ -351,10 +318,8 @@ public class MenuItem : Button
 		tall = Math.Max(tall, ih);
 	}
 
-	public override void OnMessage(KeyValues message, IPanel? from)
-	{
-		switch (message.Name)
-		{
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		switch (message.Name) {
 			case "KeyModeSet":
 				OnKeyModeSet();
 				break;

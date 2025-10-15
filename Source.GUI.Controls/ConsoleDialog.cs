@@ -162,13 +162,13 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			CompletionList.DeleteAllItems();
 
 			for (int i = 0; i < CompletionItems.Count && i < MAX_MENU_ITEMS; i++) {
-				string text;
+				ReadOnlySpan<char> text;
 
 				if (i == MAX_MENU_ITEMS - 1)
 					text = "...";
 				else {
 					Assert(CompletionItems[i] != null);
-					text = CompletionItems[i]!.GetItemText().ToString();
+					text = CompletionItems[i]!.GetItemText();
 				}
 
 				KeyValues kv = new KeyValues("CompletionCommand");

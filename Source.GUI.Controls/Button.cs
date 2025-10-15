@@ -85,7 +85,7 @@ public class Button : Label
 
 	}
 
-	public Button(Panel parent, string name, string text) : base(parent, name, text) {
+	public Button(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
 		Init();
 	}
 

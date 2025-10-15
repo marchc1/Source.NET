@@ -330,7 +330,7 @@ public class FrameButton : Button
 	public IBorder? BrightBorder, DepressedBorder, DisabledBorder;
 	public Color EnabledFgColor, EnabledBgColor, DisabledFgColor, DisabledBgColor;
 	public bool DisabledLook;
-	public FrameButton(Panel parent, string name, ReadOnlySpan<char> text) : base(parent, name, new(text)) {
+	public FrameButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
 		SetSize(GetButtonSide((Frame)parent), GetButtonSide((Frame)parent));
 		BrightBorder = null;
 		DepressedBorder = null;

@@ -212,88 +212,88 @@ public class Menu : Panel
 		return AddMenuItem(item);
 	}
 
-	public virtual int AddMenuItem(string itemName, string itemText, ReadOnlySpan<char> command, Panel target, KeyValues? userData = null)
+	public virtual int AddMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, ReadOnlySpan<char> command, Panel target, KeyValues? userData = null)
 	{
 		MenuItem item = new(this, itemName, itemText);
 		return AddMenuItemCharCommand(item, command, target, userData);
 	}
 
-	public virtual int AddMenuItem(string itemText, ReadOnlySpan<char> command, Panel target, KeyValues? userData = null)
+	public virtual int AddMenuItem(ReadOnlySpan<char> itemText, ReadOnlySpan<char> command, Panel target, KeyValues? userData = null)
 	{
 		return AddMenuItem(itemText, itemText, command, target, userData);
 	}
 
-	public virtual int AddMenuItem(string itemName, string itemText, KeyValues message, Panel target, KeyValues? userData = null)
+	public virtual int AddMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, KeyValues message, Panel target, KeyValues? userData = null)
 	{
 		MenuItem item = new(this, itemName, itemText);
 		return AddMenuItemKeyValuesCommand(item, message, target, userData);
 	}
 
-	public virtual int AddMenuItem(string itemText, KeyValues message, Panel target, KeyValues? userData = null)
+	public virtual int AddMenuItem(ReadOnlySpan<char> itemText, KeyValues message, Panel target, KeyValues? userData = null)
 	{
 		return AddMenuItem(itemText, itemText, message, target, userData);
 	}
 
-	public virtual int AddMenuItem(string itemText, Panel target, KeyValues? userData = null)
+	public virtual int AddMenuItem(ReadOnlySpan<char> itemText, Panel target, KeyValues? userData = null)
 	{
 		return AddMenuItem(itemText, itemText, target, userData);
 	}
 
-	public virtual int AddMenuItem(string itemText, KeyValues userData, Panel target)
+	public virtual int AddMenuItem(ReadOnlySpan<char> itemText, KeyValues userData, Panel target)
 	{
 		return AddMenuItem(itemText, itemText, target, userData);
 	}
 
-	public virtual int AddCheckableMenuItem(string itemName, string itemtext, ReadOnlySpan<char> command, Panel target, KeyValues? userData = null)
+	public virtual int AddCheckableMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemtext, ReadOnlySpan<char> command, Panel target, KeyValues? userData = null)
 	{
 		MenuItem item = new(this, itemName, itemtext, null, true);
 		return AddMenuItemCharCommand(item, command, target, userData);
 	}
 
-	public virtual int AddCheckableMenuItem(string itemText, ReadOnlySpan<char> command, Panel target, KeyValues? userData = null)
+	public virtual int AddCheckableMenuItem(ReadOnlySpan<char> itemText, ReadOnlySpan<char> command, Panel target, KeyValues? userData = null)
 	{
 		return AddCheckableMenuItem(itemText, itemText, command, target, userData);
 	}
 
-	public virtual int AddCheckableMenuItem(string itemName, string itemText, KeyValues message, Panel target, KeyValues? userData = null)
+	public virtual int AddCheckableMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, KeyValues message, Panel target, KeyValues? userData = null)
 	{
 		MenuItem item = new(this, itemName, itemText, null, true);
 		return AddMenuItemKeyValuesCommand(item, message, target, userData);
 	}
 
-	public virtual int AddCheckableMenuItem(string itemText, KeyValues message, Panel target, KeyValues? userData = null)
+	public virtual int AddCheckableMenuItem(ReadOnlySpan<char> itemText, KeyValues message, Panel target, KeyValues? userData = null)
 	{
 		return AddCheckableMenuItem(itemText, itemText, message, target, userData);
 	}
 
-	public virtual int AddCheckableMenuItem(string itemText, Panel target, KeyValues? userData = null)
+	public virtual int AddCheckableMenuItem(ReadOnlySpan<char> itemText, Panel target, KeyValues? userData = null)
 	{
 		return AddCheckableMenuItem(itemText, itemText, target, userData);
 	}
 
-	public virtual int AddCascadingMenuItem(string itemName, string itemText, ReadOnlySpan<char> command, Panel target, Menu cascadeMenu, KeyValues? userData = null)
+	public virtual int AddCascadingMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, ReadOnlySpan<char> command, Panel target, Menu cascadeMenu, KeyValues? userData = null)
 	{
 		MenuItem item = new(this, itemName, itemText, cascadeMenu, false);
 		return AddMenuItemCharCommand(item, command, target, userData);
 	}
 
-	public virtual int AddCascadingMenuItem(string itemText, ReadOnlySpan<char> command, Panel target, Menu cascadeMenu, KeyValues? userData = null)
+	public virtual int AddCascadingMenuItem(ReadOnlySpan<char> itemText, ReadOnlySpan<char> command, Panel target, Menu cascadeMenu, KeyValues? userData = null)
 	{
 		return AddCascadingMenuItem(itemText, itemText, command, target, cascadeMenu, userData);
 	}
 
-	public virtual int AddCascadingMenuItem(string itemName, string itemText, KeyValues message, Panel target, Menu cascadeMenu, KeyValues? userData = null)
+	public virtual int AddCascadingMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, KeyValues message, Panel target, Menu cascadeMenu, KeyValues? userData = null)
 	{
 		MenuItem item = new(this, itemName, itemText, cascadeMenu, false);
 		return AddMenuItemKeyValuesCommand(item, message, target, userData);
 	}
 
-	public virtual int AddCascadingMenuItem(string itemText, KeyValues message, Panel target, Menu cascadeMenu, KeyValues? userData = null)
+	public virtual int AddCascadingMenuItem(ReadOnlySpan<char> itemText, KeyValues message, Panel target, Menu cascadeMenu, KeyValues? userData = null)
 	{
 		return AddCascadingMenuItem(itemText, itemText, message, target, cascadeMenu, userData);
 	}
 
-	public virtual int AddCascadingMenuItem(string itemText, Panel target, Menu cascadeMenu, KeyValues? userData = null)
+	public virtual int AddCascadingMenuItem(ReadOnlySpan<char> itemText, Panel target, Menu cascadeMenu, KeyValues? userData = null)
 	{
 		return AddCascadingMenuItem(itemText, itemText, target, cascadeMenu, userData);
 	}

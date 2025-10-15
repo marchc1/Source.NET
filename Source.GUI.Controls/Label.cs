@@ -20,7 +20,7 @@ public class Label : Panel
 
 	protected TextImage? TextImage;
 
-	public Label(Panel? parent, string? panelName, string text) : base(parent, panelName) {
+	public Label(Panel? parent, ReadOnlySpan<char> panelName, ReadOnlySpan<char> text) : base(parent, panelName) {
 		Init();
 
 		TextImage = new TextImage(text);
