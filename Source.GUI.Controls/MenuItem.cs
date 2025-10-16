@@ -75,9 +75,9 @@ public class MenuItem : Button
 			CascadeMenu.AddActionSignalTarget(this);
 		}
 		else if (Checkable) {
-			// SetTextImageIndex(1);
+			SetTextImageIndex(1);
 			Check = new MenuItemCheckImage(this);
-			// SetImageAtIndex(0, Check, 6);
+			SetImageAtIndex(0, Check, 6);
 			SetChecked(false);
 		}
 

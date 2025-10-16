@@ -114,12 +114,12 @@ public class PropertyDialog : Frame
 	}
 
 	public void ActivateBuildMode() {
-		// EditablePanel panel = (EditablePanel)GetActivePage();
+		EditablePanel panel = (EditablePanel)GetActivePage();
 
-		// if (panel == null)
-		// 	return;
+		if (panel == null)
+			return;
 
-		// panel.ActivateBuildMode();
+		panel.ActivateBuildMode();
 	}
 
 	public void SetOKButtonText(ReadOnlySpan<char> text) {

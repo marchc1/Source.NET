@@ -53,15 +53,15 @@ public class CheckButton : ToggleButton
 	Color DisabledBgColor;
 	Color HighlightFgColor;
 
-	public CheckButton(Panel parent, string name, string text) : base(parent, name, text) {
+	public CheckButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
 		SetContentAlignment(Alignment.West);
 		CheckButtonCheckable = true;
 		UseSmallCheckImage = false;
 
 		CheckBoxImage = new(this);
 
-		// SetTextImageIndex(1);
-		// SetImageAtIndex(0, CheckBoxImage, CHECK_INSET);
+		SetTextImageIndex(1);
+		SetImageAtIndex(0, CheckBoxImage, CHECK_INSET);
 
 		SelectedFgColor = new(196, 181, 80, 255);
 		SelectedBgColor = new(130, 130, 130, 255);
@@ -97,7 +97,7 @@ public class CheckButton : ToggleButton
 
 		CheckBoxImage.SetFont(scheme.GetFont(UseSmallCheckImage ? "MarlettSmall" : "Marlett", IsProportional()));
 		CheckBoxImage.ResizeImageToContent();
-		// SetImageAtIndex(0, CheckBoxImage, CHECK_INSET);
+		SetImageAtIndex(0, CheckBoxImage, CHECK_INSET);
 
 		SetPaintBackgroundEnabled(false);
 	}

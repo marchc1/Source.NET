@@ -819,9 +819,9 @@ public class PropertySheet : EditablePanel {
 		bool alt = Input.IsKeyDown(ButtonCode.KeyLAlt) || Input.IsKeyDown(ButtonCode.KeyRAlt);
 
 		if (ctrl && shift && alt && code == ButtonCode.KeyB) {
-			// EditablePanel? panel = (EditablePanel)GetActivePage()!;
-			// if (panel != null)
-			// panel.ActivateBuildMode();
+			EditablePanel? panel = (EditablePanel)GetActivePage()!;
+			if (panel != null)
+				panel.ActivateBuildMode();
 		}
 
 		if (IsKBNavigationEnabled()) {

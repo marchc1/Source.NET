@@ -146,8 +146,8 @@ public class MenuButton : Button
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
 
-		// if (DropMenuImage != null)
-			// SetImageAtIndex(1, DropMenuImage, 0);
+		if (DropMenuImage != null)
+			SetImageAtIndex(1, DropMenuImage, 0);
 	}
 
 	public override void PerformLayout() {
