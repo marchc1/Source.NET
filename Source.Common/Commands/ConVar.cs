@@ -61,6 +61,8 @@ public struct ConVarRef
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public readonly void SetValue(double value) => ConVar.SetValue(value);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public readonly void SetValue(bool value) => ConVar.SetValue(value ? 1 : 0);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public readonly ReadOnlySpan<char> GetDefault() => ConVar.GetDefault();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public readonly bool GetMin(out double min) => ConVar.GetMin(out min);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public readonly bool GetMax(out double max) => ConVar.GetMax(out max);
 }
 
 public class ConVar : ConCommandBase, IConVar
@@ -353,11 +355,11 @@ public class ConVar : ConCommandBase, IConVar
 			Dbg.ConMsg("\n");
 	}
 
-	private bool GetMin(out double min) {
+	public bool GetMin(out double min) {
 		min = this.minVal;
 		return this.hasMin;
 	}
-	private bool GetMax(out double max) {
+	public bool GetMax(out double max) {
 		max = this.maxVal;
 		return this.hasMax;
 	}

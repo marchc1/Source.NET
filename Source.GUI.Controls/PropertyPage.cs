@@ -13,10 +13,10 @@ public class PropertyPage : EditablePanel
 
 	}
 
-	public void OnResetData() { }
-	public void OnApplyChanges() { }
-	public void OnPageShow() { }
-	public void OnPageHide() { }
+	public virtual void OnResetData() { }
+	public virtual void OnApplyChanges() { }
+	public virtual void OnPageShow() { }
+	public virtual void OnPageHide() { }
 
 	public void OnPageTabActivated(Panel pageTab) {
 		PageTab = pageTab;

@@ -24,7 +24,7 @@ public class Slider : Panel
 	float NobSize;
 	TextImage? LeftCaption;
 	TextImage? RightCaption;
-	Color TickColor;
+	public Color TickColor;
 	Color TrackColor;
 	Color DisabledTextColor1;
 	Color DisabledTextColor2;

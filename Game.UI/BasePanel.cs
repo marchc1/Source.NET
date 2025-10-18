@@ -10,31 +10,6 @@ using Source.GUI.Controls;
 
 namespace Game.UI;
 
-public class OptionsTestPage : PropertyPage
-{
-	public OptionsTestPage(Panel? parent, string? name) : base(parent, name) {}
-}
-
-public class OptionsDialog : PropertyDialog
-{
-	readonly ModInfo ModInfo = Singleton<ModInfo>();
-	public OptionsDialog(Panel? parent) : base(parent, "OptionsDialog") {
-		SetDeleteSelfOnClose(true);
-		SetBounds(0, 0, 512, 406);
-		SetSizeable(false);
-
-		SetTitle("#GameUI_Options", true);
-		// TODO
-
-		AddPage(new OptionsTestPage(this, null), "#GameUI_Video");
-		AddPage(new OptionsTestPage(this, null), "#GameUI_Video");
-		AddPage(new OptionsTestPage(this, null), "#GameUI_Video");
-
-		SetApplyButtonVisible(true);
-		GetPropertySheet().SetTabWidth(84);
-	}
-}
-
 public class GameMenuItem : MenuItem
 {
 	public GameMenuItem(Menu panel, string name, string text) : base(panel, name, text) {
