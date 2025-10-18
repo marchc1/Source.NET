@@ -1,4 +1,9 @@
-#include "gmod.h"
+extern "C"
+{
+	#include "gmod.h"
+	#include "lua.h"
+}
+#include "stdio.h"
 
 namespace std
 {
@@ -202,8 +207,19 @@ extern "C" void lua_init_stack_gmod(lua_State* L1, lua_State* L)
 
 extern "C" void GMOD_LuaPrint(const char* str, lua_State* L) // Idk how gmod does it
 {
+	if (!L->luabase) // except for this, gmod doesn't do this, but we do making testing jit less of a pain
+	{
+		printf(str);
+		return;
+	}
+
 	((ILuaInterface*)L->luabase)->Msg("%s", str);
 }
+
+struct UserData {
+	void* data;
+	unsigned char type;
+};
 
 extern "C" void GMOD_LuaCreateEmptyUserdata(lua_State* L)
 {
@@ -212,7 +228,14 @@ extern "C" void GMOD_LuaCreateEmptyUserdata(lua_State* L)
 	//udata->type = 7; // 7 = Userdata
 
 	//return udata;
-	
+
+	if (!L->luabase) // just to make testing easier. Gmod doesn't have this.
+	{
+		UserData* pData = (UserData*)lua_newuserdata(L, sizeof(ILuaBase::UserData));
+		pData->data = nullptr;
+		pData->type = 7;
+		return;
+	}
 
 	((ILuaBase*)L->luabase)->PushUserType(NULL, 7);
 }
