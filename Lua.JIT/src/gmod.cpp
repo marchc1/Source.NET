@@ -17,7 +17,7 @@ typedef int  ( *FnCommandCompletionCallback )( const char *partial, char command
 class Vector;
 class QAngle;
 class Color;
-class lua_Debug;
+struct lua_Debug;
 class CCommand;
 namespace Bootil
 {
