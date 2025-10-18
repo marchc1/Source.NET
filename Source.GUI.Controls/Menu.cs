@@ -1464,6 +1464,12 @@ public class Menu : Panel
 	{
 		switch (message.Name)
 		{
+			case "MenuItemSelected":
+				OnMenuItemSelected((Panel)message.GetPtr("panel")!);
+				break;
+			case "ScrollBarSliderMoved":
+				OnSliderMoved();
+				break;
 			case "CursorEnteredMenuItem":
 				OnCursorEnteredMenuItem((MenuItem)message.GetPtr("Panel")!);
 				break;

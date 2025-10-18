@@ -664,6 +664,9 @@ public class ConsoleDialog : Frame
 			case "CommandSubmitted":
 				OnCommandSubmitted(message.GetString("command"));
 				return;
+			case "Activate":
+				Activate();
+				return;
 		}
 
 		base.OnMessage(message, from);

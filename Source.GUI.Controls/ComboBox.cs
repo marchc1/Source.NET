@@ -322,4 +322,23 @@ public class ComboBox : TextEntry
 		base.SetUseFallbackFont(state, Fallback);
 		DropDown.SetUseFallbackFont(state, Fallback);
 	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		switch (message.Name) {
+			case "MenuItemSelected":
+				OnMenuItemSelected();
+				break;
+			case "SetText":
+				OnSetText(message.GetString("text", ""));
+				break;
+			case "MenuClosed":
+				OnMenuClose();
+				break;
+			case "ActiveItem":
+				ActivateItem(message.GetInt("itemID", -1));
+				break;
+		}
+
+		base.OnMessage(message, from);
+	}
 }

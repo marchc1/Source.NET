@@ -858,12 +858,32 @@ public class PropertySheet : EditablePanel {
 	}
 
 	public override void OnMessage(KeyValues message, IPanel? from) {
-		if (message.Name == "TabPressed") {
-			OnTabPressed((Panel)from!);
-			return;
+		switch (message.Name) {
+			case "TabPressed":
+				OnTabPressed((Panel)from!);
+				return;
+			case "TextChanged":
+				OnTextChanged((Panel)from!, message.GetString("text", "").ToString());
+				return;
+			case "OpenContextMenu":
+				OnOpenContextMenu(message);
+				return;
+			case "ApplyButtonEnable":
+				OnApplyButtonEnable();
+				return;
+			case "DefaultButtonSet":
+				OnDefaultButtonSet((Panel)message.GetPtr("button")!);
+				return;
+			case "CurrentDefaultButtonSet":
+				OnCurrentDefaultButtonSet((Panel)message.GetPtr("button")!);
+				return;
+			case "FindDefaultButton":
+				OnFindDefaultButton();
+				return;
+			default:
+				base.OnMessage(message, from);
+				return;
 		}
-
-		base.OnMessage(message, from);
 	}
 
 	public void OnApplyButtonEnable() {

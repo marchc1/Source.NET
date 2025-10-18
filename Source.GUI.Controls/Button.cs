@@ -44,8 +44,18 @@ public class Button : Label
 
 	public override void OnMessage(KeyValues message, IPanel? from) {
 		switch (message.Name) {
-			case "Hotkey": DoClick(); return;
-			default: base.OnMessage(message, from); return;
+			case "PressButton":
+				DoClick();
+				return;
+			case "Hotkey":
+				DoClick();
+				return;
+			case "SetState":
+				OnSetState(message.GetInt("state", 0));
+				return;
+			default:
+				base.OnMessage(message, from);
+				return;
 		}
 	}
 	public void Init() {

@@ -187,4 +187,13 @@ public class RadioButton : ToggleButton
 
 		return bestRadio;
 	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name == "RadioButtonChecked") {
+			OnRadioButtonChecked(message.GetInt("tabposition", -1));
+			return;
+		}
+
+		base.OnMessage(message, from);
+	}
 }

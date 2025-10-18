@@ -320,6 +320,15 @@ public class MenuItem : Button
 
 	public override void OnMessage(KeyValues message, IPanel? from) {
 		switch (message.Name) {
+			case "MenuClosed":
+				OnKillFocus(newPanel: null);
+				break;
+			case "ArmItem":
+				ArmItem();
+				break;
+			case "DisarmItem":
+				DisarmItem();
+				break;
 			case "KeyModeSet":
 				OnKeyModeSet();
 				break;

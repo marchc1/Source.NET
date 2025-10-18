@@ -1,4 +1,5 @@
 ﻿using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
 
 namespace Source.GUI.Controls;
 
@@ -163,5 +164,12 @@ public class PropertyDialog : Frame
 
 	public override void RequestFocus(int direction) {
 		PropertySheet!.RequestFocus(direction);
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name == "ApplyButtonEnable") {
+			OnApplyButtonEnable(message.GetBool("state", false));
+			return;
+		}
 	}
 }

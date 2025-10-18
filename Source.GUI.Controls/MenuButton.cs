@@ -207,4 +207,13 @@ public class MenuButton : Button
 		Assert(Menu != null);
 		return Menu;
 	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name == "MenuClosed") {
+			OnMenuClose();
+			return;
+		}
+
+		base.OnMessage(message, from);
+	}
 }

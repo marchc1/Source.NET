@@ -45,6 +45,12 @@ public class PropertyPage : EditablePanel
 
 	public override void OnMessage(KeyValues message, IPanel? from) {
 		switch (message.Name) {
+			case "ApplyChanges":
+				OnApplyChanges();
+				break;
+			case "ResetData":
+				OnResetData();
+				break;
 			case "PageShow":
 				OnPageShow();
 				break;

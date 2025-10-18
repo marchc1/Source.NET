@@ -106,7 +106,7 @@ public class CheckButton : ToggleButton
 
 	public override void SetSelected(bool state) {
 		if (CheckButtonCheckable) {
-			KeyValues msg = new("CheckButtonCheckec", "sate", state ? 1 : 0);
+			KeyValues msg = new("CheckButtonChecked", "sate", state ? 1 : 0);
 			PostActionSignal(msg);
 
 			base.SetSelected(state);
@@ -136,5 +136,14 @@ public class CheckButton : ToggleButton
 			HighlightFgColor = color;
 			InvalidateLayout(false);
 		}
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name == "CheckButtonChecked") {
+			OnCheckButtonChecked((Panel)from!);
+			return;
+		}
+
+		base.OnMessage(message, from);
 	}
 }
