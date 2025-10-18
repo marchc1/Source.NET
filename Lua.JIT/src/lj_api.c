@@ -698,6 +698,8 @@ LUA_API void* lua_checkrawcdata(lua_State *L, int idx, int type)
   } else {
     return NULL;
   }
+
+  return NULL;
 }
 
 LUA_API lua_State *lua_tothread(lua_State *L, int idx)
