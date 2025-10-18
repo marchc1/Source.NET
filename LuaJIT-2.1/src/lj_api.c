@@ -242,6 +242,8 @@ LUA_API int lua_type(lua_State *L, int idx)
 #endif
   } else if (o == niltv(L)) {
     return LUA_TNONE;
+  } else if(tviscdata(o)) {
+    return LUA_TLIGHTUSERDATA; // we would return 10 which conflicts with gmod! Now we return LUA_TLIGHTUSERDATA since that is not used at all normally
   } else {  /* Magic internal/external tag conversion. ORDER LJ_T */
     uint32_t t = ~itype(o);
 #if LJ_64
