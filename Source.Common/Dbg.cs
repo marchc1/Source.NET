@@ -216,7 +216,6 @@ public static class Dbg
 	
 	public static void ErrorIfNot([DoesNotReturnIf(false)] bool condition, ReadOnlySpan<char> msg) {
 		if (!condition) {
-			Debug.Assert(false);
 			Error(msg);
 		}
 	}
@@ -368,6 +367,9 @@ public static class Dbg
 		[CallerFilePath] string? ____fileP = null,
 		[CallerLineNumber] int ____lineNum = -1
 	) {
+		if (exp)
+			return;
+
 		const string ASSERTION_FAILED = "Assertion Failed: ";
 		Span<char> finalMsg = stackalloc char[ASSERTION_FAILED.Length + (____expI?.Length) ?? 0];
 		ASSERTION_FAILED.CopyTo(finalMsg);

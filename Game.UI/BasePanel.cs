@@ -10,6 +10,11 @@ using Source.GUI.Controls;
 
 namespace Game.UI;
 
+public class OptionsTestPage : PropertyPage
+{
+	public OptionsTestPage(Panel? parent, string? name) : base(parent, name) {}
+}
+
 public class OptionsDialog : PropertyDialog
 {
 	readonly ModInfo ModInfo = Singleton<ModInfo>();
@@ -20,13 +25,20 @@ public class OptionsDialog : PropertyDialog
 
 		SetTitle("#GameUI_Options", true);
 		// TODO
+
+		AddPage(new OptionsTestPage(this, null), "#GameUI_Video");
+		AddPage(new OptionsTestPage(this, null), "#GameUI_Video");
+		AddPage(new OptionsTestPage(this, null), "#GameUI_Video");
+
+		SetApplyButtonVisible(true);
+		GetPropertySheet().SetTabWidth(84);
 	}
 }
 
 public class GameMenuItem : MenuItem
 {
-	public GameMenuItem(Panel panel, string name, string text) : base(panel, name, text) {
-
+	public GameMenuItem(Menu panel, string name, string text) : base(panel, name, text) {
+		RightAligned = false;
 	}
 
 	bool RightAligned;
@@ -61,6 +73,8 @@ public class GameMenuItem : MenuItem
 		if (RightAligned)
 			SetContentAlignment(Alignment.East);
 	}
+
+	public void SetRightAlignedText(bool state) => RightAligned = state;
 }
 
 public enum BackgroundState

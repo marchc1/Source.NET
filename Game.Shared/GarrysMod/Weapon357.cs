@@ -1,4 +1,4 @@
-﻿#if CLIENT_DLL || GAME_DLL
+﻿#if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
 using Source.Common;
 namespace Game.Shared.GarrysMod;
 using FIELD = Source.FIELD<Weapon357>;

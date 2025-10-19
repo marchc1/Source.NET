@@ -81,7 +81,7 @@ public class TextEntry : Panel
 
 		if ((!Multiline) && (!HorizScrollingAllowed)) {
 			int endIndex = TextStream.Count;
-			if ((!HasFocus() && (IsEditable())) || (!IsEditable())) {
+			if ((!HasFocus() && IsEditable()) || (!IsEditable())) {
 				int i1 = -1;
 
 				bool addEllipses = NeedsEllipses(useFont, ref i1);
@@ -545,14 +545,10 @@ public class TextEntry : Panel
 			Input.SetMouseCapture(this);
 			MouseSelection = true;
 
-			if (TextStream.Count > 0)
-			{
+			if (Select[0] < 0)
+				Select[0] = CursorPos;
 
-				if (Select[0] < 0)
-					Select[0] = CursorPos;
-
-				Select[1] = CursorPos;
-			}
+			Select[1] = CursorPos;
 
 			ResetCursorBlink();
 			RequestFocus();
@@ -565,11 +561,48 @@ public class TextEntry : Panel
 			//OpenEditMenu();
 		}
 	}
+
 	public override void OnMouseReleased(ButtonCode code) {
 		MouseSelection = false;
 		Input.SetMouseCapture(null);
 		if (GetSelectedRange(out int cx0, out int cx1)) {
-			// todo
+			if (cx1 - cx0 == 0)
+				Select[0] = -1;
+		}
+	}
+
+	public override void OnMouseTriplePressed(ButtonCode code) {
+		base.OnMouseTriplePressed(code);
+
+		if (code == ButtonCode.MouseLeft)
+		{
+			GotoTextEnd();
+			SelectAllText(false);
+		}
+	}
+
+	public override void OnMouseDoublePressed(ButtonCode code) {
+		if (code == ButtonCode.MouseLeft)
+		{
+			OnMousePressed(code);
+			int selectSpotStart, selectSpotEnd;
+			GotoWordLeft();
+			selectSpotStart = CursorPos;
+			GotoWordRight();
+			selectSpotEnd = CursorPos;
+
+			if (CursorPos > 0)
+			{
+				if (char.IsWhiteSpace(TextStream[CursorPos - 1]))
+				{
+					selectSpotEnd--;
+					CursorPos--;
+				}
+
+				Select[0] = selectSpotStart;
+				Select[1] = selectSpotEnd;
+				MouseSelection = true;
+			}
 		}
 	}
 
@@ -831,7 +864,7 @@ public class TextEntry : Panel
 		}
 	}
 
-	private void GotoTextEnd() {
+	public void GotoTextEnd() {
 		SelectCheck();
 		CursorPos = TextStream.Count;
 		PutCursorAtEnd = true;
@@ -931,7 +964,7 @@ public class TextEntry : Panel
 		SelectNone();
 	}
 
-	private void SelectAllText(bool resetCursorPos) {
+	public void SelectAllText(bool resetCursorPos) {
 		if (TextStream.Count == 0)
 			Select[0] = -1;
 		else
@@ -1699,6 +1732,10 @@ public class TextEntry : Panel
 		base.OnSetFocus();
 	}
 
+	public void OnSetText(ReadOnlySpan<char> text) {
+		SetText(text);
+	}
+
 	public override void ApplySettings(KeyValues resourceData) {
 		base.ApplySettings(resourceData);
 
@@ -1735,7 +1772,7 @@ public class TextEntry : Panel
 		SetFont(Font);
 	}
 
-	public void SetFont(IFont? font) {
+	public virtual void SetFont(IFont? font) {
 		Font = font;
 		InvalidateLayout();
 		Repaint();
@@ -1768,8 +1805,7 @@ public class TextEntry : Panel
 		TextStream.EnsureCapacity(text.Length);
 		int missed_count = 0;
 		for (int i = 0; i < text.Length; i++) {
-			if (text[i] == '\r')
-			{
+			if (text[i] == '\r') {
 				missed_count++;
 				continue;
 			}
@@ -1784,5 +1820,10 @@ public class TextEntry : Panel
 
 		FlushLineBreaks(true);
 		InvalidateLayout();
+	}
+
+	public virtual void SetUseFallbackFont(bool state, IFont fallback) {
+		FallbackFont = fallback;
+		UseFallbackFont = state;
 	}
 }

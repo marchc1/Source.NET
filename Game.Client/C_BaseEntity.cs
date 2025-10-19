@@ -208,7 +208,7 @@ public partial class C_BaseEntity : IClientEntity
 	]);
 	public static readonly ClientClass CC_PredictableId = new ClientClass("PredictableId", null, null, DT_PredictableId);
 
-	private static void RecvProxy_SimulationTime(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
+	protected static void RecvProxy_SimulationTime(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
 		C_BaseEntity entity = (C_BaseEntity)instance;
 
 		int addt = data.Value.Int;
@@ -390,7 +390,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public readonly GModTable GMOD_DataTable = new();
 
-	public double Speed;
+	public int Speed;
 	public int TeamNum;
 
 	public readonly EHANDLE OwnerEntity = new();
@@ -499,10 +499,10 @@ public partial class C_BaseEntity : IClientEntity
 		// SetGroundEntity(NULL);
 	}
 
-	readonly EHANDLE MoveParent = new();
-	readonly EHANDLE MoveChild = new();
-	readonly EHANDLE MovePeer = new();
-	readonly EHANDLE MovePrevPeer = new();
+	public readonly EHANDLE MoveParent = new();
+	public readonly EHANDLE MoveChild = new();
+	public readonly EHANDLE MovePeer = new();
+	public readonly EHANDLE MovePrevPeer = new();
 
 	public void UnlinkFromHierarchy() {
 		// todo
@@ -641,6 +641,10 @@ public partial class C_BaseEntity : IClientEntity
 		if (OldMoveParent != NetworkMoveParent)
 			UpdateVisibility();
 		// TODO: ShouldDraw changes
+	}
+
+	public bool IsIntermediateDataAllocated() {
+		return false;
 	}
 
 	private void OnStoreLastNetworkedValue() {

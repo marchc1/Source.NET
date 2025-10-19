@@ -1,4 +1,5 @@
-﻿#if CLIENT_DLL
+﻿#if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
+#if CLIENT_DLL
 global using GMODGameRules = Game.Client.GarrysMod.C_GMODGameRules;
 global using GMODGameRulesProxy = Game.Client.GarrysMod.C_GMODGameRulesProxy;
 namespace Game.Client.GarrysMod;
@@ -41,7 +42,7 @@ public class
 	]);
 
 	public static readonly
-	#if CLIENT_DLL
+#if CLIENT_DLL
 		RecvTable
 #else
 		SendTable
@@ -74,3 +75,4 @@ public class
 	public float TimeScale;
 	public int SkillLevel;
 }
+#endif

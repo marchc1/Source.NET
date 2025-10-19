@@ -272,20 +272,22 @@ public abstract class BaseClientState(
 		channel.RegisterMessage<svc_TempEntities>();
 		channel.RegisterMessage<svc_GMod_ServerToClient>();
 	}
-	public virtual void ConnectionClosing(string reason) {
+	public virtual void ConnectionClosing(ReadOnlySpan<char> reason) {
 		Disconnect(reason, true);
 	}
-	public abstract void ConnectionCrashed(string reason);
+	public abstract void ConnectionCrashed(ReadOnlySpan<char> reason);
 
 	public virtual void PacketStart(int incomingSequence, int outgoingAcknowledged) { }
 	public virtual void PacketEnd() { }
 
-	public abstract void FileRequested(string fileName, uint transferID);
-	public abstract void FileReceived(string fileName, uint transferID);
-	public abstract void FileDenied(string fileName, uint transferID);
-	public abstract void FileSent(string fileName, uint transferID);
+	public abstract void FileRequested(ReadOnlySpan<char> fileName, uint transferID);
+	public abstract void FileReceived(ReadOnlySpan<char> fileName, uint transferID);
+	public abstract void FileDenied(ReadOnlySpan<char> fileName, uint transferID);
+	public abstract void FileSent(ReadOnlySpan<char> fileName, uint transferID);
 
-	public virtual bool ProcessMessage(INetMessage message) {
+	// todo: determine if using explicit generics like this
+	// makes it more efficient (ie. JIT collapses paths for each type?)
+	public virtual bool ProcessMessage<T>(T message) where T : INetMessage {
 		switch (message) {
 			case NET_Tick msg: return ProcessTick(msg);
 			case NET_SignonState msg: return ProcessSignonState(msg);
@@ -311,15 +313,15 @@ public abstract class BaseClientState(
 		return true;
 	}
 
-	private bool ProcessSounds(svc_Sounds msg) {
+	protected bool ProcessSounds(svc_Sounds msg) {
 		return true;
 	}
 
-	private bool ProcessGMod_ServerToClient(svc_GMod_ServerToClient msg) {
+	protected bool ProcessGMod_ServerToClient(svc_GMod_ServerToClient msg) {
 		return true;
 	}
 
-	private bool ProcessTempEntities(svc_TempEntities msg) {
+	protected virtual bool ProcessTempEntities(svc_TempEntities msg) {
 		return true;
 	}
 
@@ -640,7 +642,7 @@ public abstract class BaseClientState(
 
 		return true;
 	}
-	public virtual void Disconnect(string? reason, bool showMainMenu) {
+	public virtual void Disconnect(ReadOnlySpan<char> reason, bool showMainMenu) {
 		ConnectTime = -float.MaxValue;
 		RetryNumber = 0;
 		GameServerSteamID = 0;
@@ -651,7 +653,7 @@ public abstract class BaseClientState(
 		SignOnState = SignOnState.None;
 
 		if (NetChannel != null) {
-			NetChannel.Shutdown(reason ?? "Disconnect by user.");
+			NetChannel.Shutdown(reason.IsEmpty ? "Disconnect by user." : reason);
 			NetChannel = null;
 		}
 	}
@@ -789,7 +791,7 @@ public abstract class BaseClientState(
 		return true;
 	}
 
-	private ClientClass? FindClientClass(ReadOnlySpan<char> className) {
+	protected ClientClass? FindClientClass(ReadOnlySpan<char> className) {
 		if (className.IsEmpty || className.IsEmpty)
 			return null;
 

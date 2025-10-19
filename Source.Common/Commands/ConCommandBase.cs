@@ -25,7 +25,7 @@ public class ConCommandBase
 	/// </summary>
 	/// <param name="name"></param>
 	/// <returns></returns>
-	public virtual string SetName(string name) => Name = name!;
+	public virtual void SetName(string name) => Name = name!;
 	public virtual string? GetHelpText() => HelpString;
 	public ConCommandBase? GetNext() => Next;
 	public virtual bool IsRegistered() => Registered;

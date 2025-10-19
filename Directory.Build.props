@@ -3,6 +3,7 @@
 		<DefineConstants>$(DefineConstants);HL2_DLL</DefineConstants>
 		<DefineConstants>$(DefineConstants);HL2MP</DefineConstants>
 		<DefineConstants>$(DefineConstants);GMOD_DLL</DefineConstants>
+		<DefineConstants>$(DefineConstants);HL1_DLL</DefineConstants>
 		
 		<!-- You can define whichever game dll constants you want here. For now, we only support Garry's Mod compatibility. Anything with Garry's Mod-specific
 		functionality/properties/constants/etc should try to use this define (but it was introduced after a lot of progress was made, so there are still some 

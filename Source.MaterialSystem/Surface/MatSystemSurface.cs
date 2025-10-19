@@ -462,6 +462,46 @@ public class MatSystemSurface : IMatSystemSurface
 		DrawTexturedLineInternal(in verts[0], in verts[1]);
 	}
 
+	const int MAX_BATCHED_LINES = 4096;
+	public struct Line
+	{
+		public SurfaceVertex A;
+		public SurfaceVertex B;
+		public Color Color;
+	}
+	Line[] BatchedLines = new Line[MAX_BATCHED_LINES];
+	int BatchedLineCount;
+	public void DrawFlushLines() {
+		if (BatchedLineCount <= 0)
+			return;
+
+		IMaterial? pMaterial = TextureDictionary.GetTextureMaterial(BoundTexture);
+		InternalSetMaterial(pMaterial);
+		DrawLineArray(BatchedLines.AsSpan()[..BatchedLineCount]);
+		BatchedLineCount = 0;
+	}
+
+	public void DrawLineArray(ReadOnlySpan<Line> lines) {
+		meshBuilder.Begin(Mesh!, MaterialPrimitiveType.Lines, lines.Length);
+		for (int i = 0, len = lines.Length; i < len; i++) {
+			ref readonly Line line = ref lines[i];
+			ref readonly SurfaceVertex a = ref line.A;
+			ref readonly SurfaceVertex b = ref line.B;
+
+			meshBuilder.Position3f(a.Position.X, a.Position.Y, zPos);
+			meshBuilder.Color4ubv(line.Color);
+			meshBuilder.TexCoord2fv(0, a.TexCoord);
+			meshBuilder.AdvanceVertex();
+
+			meshBuilder.Position3f(b.Position.X, b.Position.Y, zPos);
+			meshBuilder.Color4ubv(line.Color);
+			meshBuilder.TexCoord2fv(0, b.TexCoord);
+			meshBuilder.AdvanceVertex();
+		}
+		meshBuilder.End();
+		Mesh!.Draw();
+	}
+
 	private void DrawTexturedLineInternal(in SurfaceVertex a, in SurfaceVertex b) {
 		Assert(!In3DPaintMode);
 
@@ -481,20 +521,14 @@ public class MatSystemSurface : IMatSystemSurface
 		if (!Clip2D.ClipLine(in scissorRect, verts, clippedVerts))
 			return;
 
-		meshBuilder.Begin(Mesh!, MaterialPrimitiveType.Lines, 1);
+		ref Line line = ref BatchedLines[BatchedLineCount];
+		line.A = verts[0];
+		line.B = verts[1];
+		line.Color = DrawColor;
+		BatchedLineCount += 1;
 
-		meshBuilder.Position3f(clippedVerts[0].Position.X, clippedVerts[0].Position.X, zPos);
-		meshBuilder.Color4ubv(DrawColor);
-		meshBuilder.TexCoord2fv(0, clippedVerts[0].TexCoord);
-		meshBuilder.AdvanceVertex();
-
-		meshBuilder.Position3f(clippedVerts[1].Position.Y, clippedVerts[1].Position.Y, zPos);
-		meshBuilder.Color4ubv(DrawColor);
-		meshBuilder.TexCoord2fv(0, clippedVerts[1].TexCoord);
-		meshBuilder.AdvanceVertex();
-
-		meshBuilder.End();
-		Mesh!.Draw();
+		if (BatchedLineCount >= MAX_BATCHED_LINES - 1)
+			DrawFlushLines();
 	}
 
 	public void DrawOutlinedRect(int x0, int y0, int x1, int y1) {
@@ -692,6 +726,7 @@ public class MatSystemSurface : IMatSystemSurface
 	public void DrawSetTexture(in TextureID id) {
 		if (id != BoundTexture) {
 			DrawFlushText();
+			DrawFlushLines();
 			BoundTexture = id;
 		}
 	}
@@ -984,10 +1019,14 @@ public class MatSystemSurface : IMatSystemSurface
 		Assert(InDrawing);
 		InDrawing = false;
 	}
+
 	int BatchedCharVertCount;
 	public void PopMakeCurrent(IPanel panel) {
-		if (BatchedCharVertCount > 0)
+		if (BatchedCharVertCount > 0) 
 			DrawFlushText();
+		if(BatchedLineCount > 0)
+			DrawFlushLines();
+		
 		int top = PaintStateStack.Count - 1;
 		Assert(top >= 0);
 		Assert(PaintStateStack[top].Panel == panel);
@@ -1672,6 +1711,7 @@ public class MatSystemSurface : IMatSystemSurface
 
 		if (info.TextureId != BoundTexture) {
 			DrawFlushText();
+			DrawFlushLines();
 		}
 
 		info.Verts = BatchedCharVerts.AsSpan()[BatchedCharVertCount..(BatchedCharVertCount + 2)];

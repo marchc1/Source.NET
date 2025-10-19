@@ -1,6 +1,8 @@
+using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
 using Source.Common.Utilities;
 
 namespace Source.GUI.Controls;
@@ -9,16 +11,20 @@ public class BuildGroup
 {
 	readonly public IFileSystem fileSystem = Singleton<IFileSystem>();
 	readonly public ICommandLine CommandLine = Singleton<ICommandLine>();
+	readonly public IVGui Vgui = Singleton<IVGui>();
+	readonly public IVGuiInput Input = Singleton<IVGuiInput>();
 
 	public string? ResourceName;
 	public string? ResourcePathID;
 	public Panel? BuildContext;
 	public Panel? CurrentPanel;
 	public Panel? ParentPanel;
+	public Panel? BuildDialog;
 
+	bool Enabled;
 	public BuildGroup(Panel? parentPanel, Panel? contextPanel) {
-		this.ParentPanel = parentPanel;
-		this.BuildContext = contextPanel;
+		ParentPanel = parentPanel;
+		BuildContext = contextPanel;
 	}
 
 	public List<Panel> Panels = [];
@@ -144,7 +150,7 @@ public class BuildGroup
 	}
 
 	private Panel? NewControl(KeyValues controlKeys, int x = 0, int y = 0) {
-		Panel? newPanel = null;
+		Panel? newPanel;
 		if (controlKeys != null) {
 			KeyValues? keyVal = new KeyValues("ControlFactory", "ControlName", controlKeys.GetString("ControlName"));
 			BuildContext!.RequestInfo(keyVal);
@@ -236,4 +242,54 @@ public class BuildGroup
 	public void PanelRemoved(Panel panel) {
 		Panels.Remove(panel);
 	}
+
+	public void SetEnabled(bool state) {
+		if (Enabled != state) {
+			Enabled = state;
+			CurrentPanel = null;
+
+			if (state) 
+				ActivateBuildDialog();
+			else {
+				BuildDialog?.OnCommand("Close");
+				ParentPanel!.RequestFocus();
+			}
+		}
+	}
+
+	public Panel? GetCurrentPanel() => CurrentPanel;
+
+	public Panel? CreateBuildDialog() {
+		if (BuildContext == null)
+			return null;
+
+		Panel? buildDialog = null;
+		KeyValues data = new KeyValues("BuildDialog");
+		data.SetPtr("BuildGroupPtr", this);
+		if (BuildContext.RequestInfo(data)) 
+			buildDialog = (Panel?)data.GetPtr("PanelPtr");
+
+		if (buildDialog != null) 
+			Input.ReleaseAppModalSurface();
+		
+		return buildDialog;
+	}
+
+	private void ActivateBuildDialog() {
+		if (BuildDialog == null) {
+			BuildDialog = CreateBuildDialog();
+
+			if (BuildDialog == null)
+				return;
+		}
+
+		BuildDialog.SetVisible(true);
+
+		CurrentPanel = ParentPanel;
+		KeyValues keyval = new KeyValues("SetActiveControl");
+		keyval.SetPtr("PanelPtr", GetCurrentPanel());
+		Vgui.PostMessage(BuildDialog, keyval, null);
+	}
+
+	public bool IsEnabled() => Enabled;
 }

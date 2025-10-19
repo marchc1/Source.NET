@@ -330,7 +330,7 @@ public class FrameButton : Button
 	public IBorder? BrightBorder, DepressedBorder, DisabledBorder;
 	public Color EnabledFgColor, EnabledBgColor, DisabledFgColor, DisabledBgColor;
 	public bool DisabledLook;
-	public FrameButton(Panel parent, string name, ReadOnlySpan<char> text) : base(parent, name, new(text)) {
+	public FrameButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
 		SetSize(GetButtonSide((Frame)parent), GetButtonSide((Frame)parent));
 		BrightBorder = null;
 		DepressedBorder = null;
@@ -554,7 +554,7 @@ public class Frame : EditablePanel
 		}
 
 		MenuButton = new FrameSystemButton(this, "frame_menu");
-		// MenuButton.SetMenu(GetSysMenu());
+		MenuButton.SetMenu(GetSysMenu());
 
 		SetupResizeCursors();
 	}
@@ -857,6 +857,34 @@ public class Frame : EditablePanel
 		}
 	}
 
+	public Menu GetSysMenu() {
+		if (SysMenu == null) {
+			SysMenu = new Menu(this, null);
+			SysMenu.SetVisible(false);
+			SysMenu.AddActionSignalTarget(this);
+
+			SysMenu.AddMenuItem("Minimize", "#SysMenu_Minimize", "Minimize", this);
+			SysMenu.AddMenuItem("Maximize", "#SysMenu_Maximize", "Maximize", this);
+			SysMenu.AddMenuItem("Close", "#SysMenu_Close", "Close", this);
+
+			Panel menuItem = SysMenu.FindChildByName("Maximize")!;
+			if (menuItem != null)
+				menuItem.SetEnabled(MinimizeButton!.IsVisible());
+
+			menuItem = SysMenu.FindChildByName("Minimize")!;
+			if (menuItem != null)
+				menuItem.SetEnabled(MaximizeButton!.IsVisible());
+
+			menuItem = SysMenu.FindChildByName("Close")!;
+			if (menuItem != null)
+				menuItem.SetEnabled(CloseButton!.IsVisible());
+
+			return SysMenu;
+		}
+
+		return SysMenu;
+	}
+
 	public void Close() {
 		OnClose();
 	}
@@ -1048,5 +1076,15 @@ public class Frame : EditablePanel
 
 	public bool IsSmallCaption() {
 		return SmallCaption;
+	}
+
+	public override void OnMousePressed(ButtonCode code) {
+		if (!IsBuildGroupEnabled()) {
+			IPanel focus = Input.GetFocus()!;
+			if (focus == null || !focus.HasParent(this))
+				RequestFocus();
+		}
+
+		base.OnMousePressed(code);
 	}
 }

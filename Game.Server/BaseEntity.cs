@@ -1,4 +1,4 @@
-﻿using Game.Shared;
+using Game.Shared;
 
 using Source;
 using Source.Common;
@@ -27,7 +27,7 @@ public partial class BaseEntity : IServerEntity
 		throw new NotImplementedException();
 	}
 	public static SendTable DT_PredictableId = new(nameof(DT_PredictableId), [
-		SendPropPredictableId(FIELD.OF(nameof(PredictableID))),
+		SendPropPredictableId(FIELD.OF(nameof(PredictableId))),
 		SendPropInt(FIELD.OF(nameof(IsPlayerSimulated)), 1, PropFlags.Unsigned)
 	]);
 
@@ -106,7 +106,7 @@ public partial class BaseEntity : IServerEntity
 	private static void SendProxy_Angles(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		Warning("SendProxy_Angles not yet implemented\n");
 	}
-	private static object? SendProxy_SendPredictableId(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
+	protected static object? SendProxy_SendPredictableId(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
 		Warning("SendProxy_SendPredictableId not yet implemented\n");
 		return null;
 	}
@@ -146,10 +146,12 @@ public partial class BaseEntity : IServerEntity
 	public int CreationID;
 	public int MapCreatedID;
 
-	public readonly PredictableId PredictableID = new();
+	public readonly PredictableId PredictableId = new();
 	public readonly bool IsPlayerSimulated;
 
 	public readonly GModTable GMOD_DataTable = new();
+
+	public int Speed;
 
 	public readonly EHANDLE OwnerEntity = new();
 	public readonly EHANDLE EffectEntity = new();

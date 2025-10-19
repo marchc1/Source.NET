@@ -1,4 +1,6 @@
-﻿using Source.Common;
+using Game.Shared;
+
+using Source.Common;
 using Source.Common.Mathematics;
 
 using System.Numerics;
@@ -7,7 +9,7 @@ namespace Game.Client;
 public class Prediction : IPrediction
 {
 
-	bool InPrediction;
+	bool bInPrediction;
 	bool FirstTimePredicted;
 	bool OldCLPredictValue;
 	bool EnginePaused;
@@ -22,19 +24,49 @@ public class Prediction : IPrediction
 	float IdealPitch;
 
 	public void GetLocalViewAngles(out QAngle ang) {
-		throw new NotImplementedException();
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		if (player == null)
+			ang = default;
+		else
+			ang = player.pl.ViewingAngle;
 	}
 
 	public void GetViewAngles(out QAngle ang) {
-		throw new NotImplementedException();
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		if (player == null)
+			ang = default;
+		else
+			ang = player.GetLocalAngles();
 	}
 
 	public void GetViewOrigin(out Vector3 org) {
-		throw new NotImplementedException();
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		if (player == null)
+			org = default;
+		else
+			org = player.GetLocalOrigin();
 	}
 
 	public void Init() {
-		throw new NotImplementedException();
+		OldCLPredictValue = cl_predict.GetInt() != 0;
+	}
+
+	public void CheckError(int commandsAcknowledged) {
+		if (!engine.IsInGame())
+			return;
+
+		if (cl_predict.GetInt() == 0)
+			return;
+
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return;
+
+		if (!player.IsIntermediateDataAllocated())
+			return;
+
+		Vector3 origin = player.GetNetworkOrigin();
+
 	}
 
 	public void OnReceivedUncompressedPacket() {
@@ -56,15 +88,25 @@ public class Prediction : IPrediction
 	}
 
 	public void SetLocalViewAngles(in QAngle ang) {
-		throw new NotImplementedException();
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		player?.SetLocalViewAngles(ang);
 	}
 
 	public void SetViewAngles(in QAngle ang) {
-		throw new NotImplementedException();
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		if (player == null) return;
+
+		player.SetViewAngles(ang);
+		player.IV_Rotation.Reset();
 	}
 
 	public void SetViewOrigin(in Vector3 org) {
-		throw new NotImplementedException();
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		if (player == null) return;
+
+		player.SetLocalOrigin(org);
+		player.NetworkOrigin = org;
+		player.IV_Origin.Reset();
 	}
 
 	public void Shutdown() {
@@ -73,5 +115,13 @@ public class Prediction : IPrediction
 
 	public void Update(int startFrame, bool validFrame, int incomingAcknowledged, int outgoingCommand) {
 		throw new NotImplementedException();
+	}
+
+	public int GetIncomingPacketNumber() {
+		return IncomingPacketNumber;
+	}
+
+	public bool InPrediction() {
+		return bInPrediction;
 	}
 }

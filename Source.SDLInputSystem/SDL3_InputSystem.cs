@@ -262,6 +262,8 @@ public class SDL3_InputSystem(IServiceProvider services) : IInputSystem
 	}
 
 	public void PollInputState_Platform() {
+		InputState state = InputState;
+
 		while (true) {
 			int events = launcherMgr?.GetEvents(eventBuffer, eventBuffer.Length) ?? 0;
 			if (events == 0) break;
@@ -337,6 +339,16 @@ public class SDL3_InputSystem(IServiceProvider services) : IInputSystem
 						PostUserEvent(newEvent);
 
 						break;
+					case WindowEventType.MouseScroll:
+						ButtonCode code = (short)ev.MousePos[1] > 0 ? ButtonCode.MouseWheelUp : ButtonCode.MouseWheelDown;
+						state.ButtonPressedTick[(int)code] = state.ButtonReleasedTick[(int)code] = LastSampleTick;
+						PostEvent(InputEventType.IE_ButtonPressed, LastSampleTick, (int)code, (int)code);
+						PostEvent(InputEventType.IE_ButtonReleased, LastSampleTick, (int)code, (int)code);
+
+						state.AnalogDelta[(int)AnalogCode.MouseWheel] = (int)ev.MousePos[1];
+						state.AnalogValue[(int)AnalogCode.MouseWheel] += state.AnalogDelta[(int)AnalogCode.MouseWheel];
+						PostEvent(InputEventType.IE_AnalogValueChanged, LastSampleTick, (int)AnalogCode.MouseWheel, state.AnalogValue[(int)AnalogCode.MouseWheel], state.AnalogDelta[(int)AnalogCode.MouseWheel]);
+						break;
 
 					case WindowEventType.AppQuit:
 						PostEvent(InputEventType.System_Quit, LastSampleTick, 0, 0, 0);
@@ -398,7 +410,7 @@ public class SDL3_InputSystem(IServiceProvider services) : IInputSystem
 		}
 	}
 
-	public void PostEvent(InputEventType type, int tick, int data, int data2, int data3) {
+	public void PostEvent(InputEventType type, int tick, int data = 0, int data2 = 0, int data3 = 0) {
 		InputEvent ev = new();
 		ev.Type = type;
 		ev.Tick = tick;

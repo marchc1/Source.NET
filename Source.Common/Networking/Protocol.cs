@@ -188,9 +188,9 @@ public static class Protocol
 	public const int MAX_BACKUP_COMMANDS = (1 << NUM_BACKUP_COMMAND_BITS) - 1;
 
 	public const int CONNECTIONLESS_HEADER = unchecked((int)0xFFFFFFFF);
-	public const int QUERY_HEADER = -1;
-	public const int SPLITPACKET_HEADER = -2;
-	public const int COMPRESSEDPACKET_HEADER = -3;
+
+	public const int NET_HEADER_FLAG_SPLITPACKET = -2;
+	public const int NET_HEADER_FLAG_COMPRESSEDPACKET = -3;
 
 	public const int VERSION = 24;
 
@@ -215,7 +215,7 @@ public static class Protocol
 	public const int DEFAULT_UDP_BUFFERSIZE = 131072;
 	public const int MIN_USER_MAXROUTABLE_SIZE = 576;
 	public const int MAX_USER_MAXROUTABLE_SIZE = MAX_ROUTABLE_PAYLOAD;
-	public const int SIZEOF_SPLITPACKET = 4 * 4; // 4x int32's. I don't like this, but sizeof on structs both 1. requires unsafe and 2. isn't constant (???)
+	public const int SIZEOF_SPLITPACKET = (sizeof(int) * 2) + (sizeof(short) * 2); // Split packet length. Cannot be constant, so it has to be manually set, which is annoying
 	public const int MIN_SPLIT_SIZE = MIN_USER_MAXROUTABLE_SIZE - SIZEOF_SPLITPACKET;
 	public const int MAX_SPLIT_SIZE = MAX_USER_MAXROUTABLE_SIZE - SIZEOF_SPLITPACKET;
 	public const int MAX_SPLITPACKET_SPLITS = (int)(MAX_MESSAGE / (float)MIN_SPLIT_SIZE);

@@ -574,20 +574,20 @@ public unsafe class bf_write : BitBuffer
 	/// <summary>
 	/// Writes an ASCII string to the bitbuffer.
 	/// </summary>
-	/// <param name="pStr">The string to write to the bitbuffer</param>
+	/// <param name="str">The string to write to the bitbuffer</param>
 	/// <param name="nullTerminate">Terminates the string with a null character. Turn off if you communicate the string length in a different way.</param>
 	/// <returns></returns>
-	public bool WriteString(string pStr, bool nullTerminate = true, int limit = -1) {
-		if (limit >= 0 && pStr.Length >= limit)
-			pStr = pStr.Substring(0, limit);
+	public bool WriteString(ReadOnlySpan<char> str, bool nullTerminate = true, int limit = -1) {
+		if (limit >= 0 && str.Length >= limit)
+			str = str[..limit];
 
-		if (pStr != null) {
+		if (!str.IsEmpty) {
 			var i = 0;
-			if (pStr.Length != 0) {
+			if (str.Length != 0) {
 				do {
-					WriteChar(pStr[i]);
+					WriteChar(str[i]);
 					i++;
-				} while (i < pStr.Length && pStr[i] != '\0'); // Stop at any null terminator
+				} while (i < str.Length && str[i] != '\0'); // Stop at any null terminator
 			}
 			if (nullTerminate)
 				WriteChar(0); // null terminate

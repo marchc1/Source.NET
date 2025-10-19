@@ -34,7 +34,7 @@ public class TextImage : Image
 		RecalculateTruncation = true;
 	}
 
-	public TextImage(string? text) : base() {
+	public TextImage(ReadOnlySpan<char> text) : base() {
 		Text = null;
 		Font = null;
 		FallbackFont = null;

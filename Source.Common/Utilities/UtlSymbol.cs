@@ -3,6 +3,10 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Source.Common.Utilities;
 
+public static class UtlSymbolGlobals {
+	public const UtlSymId_t UTL_INVAL_SYMBOL = unchecked((UtlSymId_t)~0);
+}
+
 [DebuggerDisplay("UtlSymbol {String()}")]
 public struct UtlSymbol
 {

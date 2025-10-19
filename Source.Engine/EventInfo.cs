@@ -4,6 +4,13 @@ using Source.Common.Networking;
 
 namespace Source.Engine;
 
+public enum EventFlags
+{
+	NotHost = 1 << 0,
+	Reliable = 1 << 1,
+	Global = 1 << 2,
+}
+
 public class EventInfo
 {
 	public const int EVENT_INDEX_BITS = 8;
@@ -43,6 +50,6 @@ public class EventInfo
 
 	public int Bits;
 	public byte[]? Data;
-	public int Flags;
+	public EventFlags Flags;
 	// TODO: EngineRecipientFilter
 }

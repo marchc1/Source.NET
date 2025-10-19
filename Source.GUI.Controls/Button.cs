@@ -1,4 +1,4 @@
-﻿using Source.Common.Formats.Keyvalues;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Input;
 using Source.Common.Launcher;
@@ -36,7 +36,6 @@ public class Button : Label
 	int MouseClickMask;
 	bool StayArmedOnClick;
 	bool StaySelectedOnClick;
-
 	string? ArmedSoundName;
 	string? DepressedSoundName;
 	string? ReleasedSoundName;
@@ -61,10 +60,21 @@ public class Button : Label
 		SetTextInset(6, 0);
 		SetMouseClickEnabled(ButtonCode.MouseLeft, true);
 		SetButtonActivationType(ActivationType.OnPressedAndReleased);
+
+		SetPaintBackgroundEnabled(true);
+
+		paint = true;
 	}
 
 	public void SetButtonActivationType(ActivationType type) {
 		ActivationType = type;
+	}
+
+	public void SetButtonBorderEnabled(bool state) {
+		if (state != (0 != (ButtonFlags & ButtonFlags.ButtonBorderEnabled))) {
+			ButtonFlags ^= ButtonFlags.ButtonBorderEnabled;
+			InvalidateLayout(false);
+		}
 	}
 
 	public void SetMouseClickEnabled(ButtonCode code, bool state) {
@@ -75,7 +85,7 @@ public class Button : Label
 
 	}
 
-	public Button(Panel parent, string name, string text) : base(parent, name, text) {
+	public Button(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
 		Init();
 	}
 
@@ -100,7 +110,7 @@ public class Button : Label
 		ReleasedSoundName = string.Intern(new(fileName));
 	}
 
-	public void FireActionSignal() {
+	public virtual void FireActionSignal() {
 		if (ActionMessage != null) {
 			// TODO: URL messages?
 			PostActionSignal(ActionMessage.MakeCopy());
@@ -145,8 +155,7 @@ public class Button : Label
 		return DefaultBorder;
 	}
 
-
-	public Color GetButtonFgColor() {
+	public virtual Color GetButtonFgColor() {
 		if (0 == (ButtonFlags & ButtonFlags.Blink)) {
 			if (0 != (ButtonFlags & ButtonFlags.Depressed))
 				return DepressedFgColor;
@@ -190,6 +199,33 @@ public class Button : Label
 		return DefaultBgColor;
 	}
 
+	public override void Paint() {
+		if (!ShouldPaint())
+			return;
+
+		base.Paint();
+
+		if (HasFocus() && IsEnabled() && IsDrawingFocusBox()) {
+			GetSize(out int wide, out int tall);
+			DrawFocusBorder(3, 3, wide - 4, tall - 2);
+		}
+	}
+
+	public virtual void OnSetState(int state) {
+		SetSelected(state != 0);
+		Repaint();
+	}
+
+	public override void OnSetFocus() {
+		InvalidateLayout(false);
+		base.OnSetFocus();
+	}
+
+	public override void OnKillFocus(Panel? newPanel) {
+		InvalidateLayout(false);
+		base.OnKillFocus(newPanel);
+	}
+
 	public override void OnMousePressed(ButtonCode code) {
 		if (!IsEnabled())
 			return;
@@ -219,6 +255,10 @@ public class Button : Label
 		}
 	}
 
+	public override void OnMouseDoublePressed(ButtonCode code) {
+		OnMousePressed(code);
+	}
+
 	public override void OnMouseReleased(ButtonCode code) {
 		if (IsUseCaptureMouseEnabled())
 			Input.SetMouseCapture(null);
@@ -232,17 +272,25 @@ public class Button : Label
 		if (!IsSelected() && ActivationType == ActivationType.OnPressedAndReleased)
 			return;
 
-		if (IsEnabled() && (this == Input.GetMouseOver() || (ButtonFlags & ButtonFlags.ButtonKeyDown) != 0)) {
+		if (IsEnabled() && (this == Input.GetMouseOver() || (ButtonFlags & ButtonFlags.ButtonKeyDown) != 0))
 			DoClick();
-		}
-		else if (!StaySelectedOnClick) {
+		else if (!StaySelectedOnClick)
 			SetSelected(false);
-		}
 
 		Repaint();
 	}
 
-	public void SetSelected(bool state) {
+	public override void OnCursorEntered() {
+		if (IsEnabled() && !IsSelected())
+			SetArmed(true);
+	}
+
+	public override void OnCursorExited() {
+		if ((ButtonFlags & ButtonFlags.ButtonKeyDown) == 0 && !IsSelected())
+			SetArmed(false);
+	}
+
+	public virtual void SetSelected(bool state) {
 		if (((ButtonFlags & ButtonFlags.Selected) != 0) != state) {
 			if (state)
 				ButtonFlags |= ButtonFlags.Selected;
@@ -267,6 +315,26 @@ public class Button : Label
 		return (MouseClickMask & unchecked(1 << unchecked((int)(code + 1)))) != 0;
 	}
 
+	public void SetBlink(bool state) {
+		if (((ButtonFlags & ButtonFlags.Blink) != 0) != state) {
+			if (state) ButtonFlags |= ButtonFlags.Blink;
+			else ButtonFlags &= ~ButtonFlags.Blink;
+
+			RecalculateDepressedState();
+			InvalidateLayout(false);
+		}
+	}
+
+	public void ForceDepressed(bool state) {
+		if (((ButtonFlags & ButtonFlags.ForceDepressed) != 0) != state) {
+			if (state) ButtonFlags |= ButtonFlags.ForceDepressed;
+			else ButtonFlags &= ~ButtonFlags.ForceDepressed;
+
+			RecalculateDepressedState();
+			InvalidateLayout(false);
+		}
+	}
+
 	public bool IsUseCaptureMouseEnabled() => (ButtonFlags & ButtonFlags.UseCaptureMouse) != 0;
 	public void SetUseCaptureMouse(bool state) {
 		if (state) ButtonFlags |= ButtonFlags.UseCaptureMouse;
@@ -276,7 +344,7 @@ public class Button : Label
 
 	public void SetArmed(bool state) {
 		if (((ButtonFlags & ButtonFlags.Armed) != 0) != state) {
-			ButtonFlags |= ButtonFlags.Armed;
+			ButtonFlags ^= ButtonFlags.Armed;
 			RecalculateDepressedState();
 			InvalidateLayout(false);
 			if (state && ArmedSoundName != null)
@@ -289,13 +357,11 @@ public class Button : Label
 		if (!IsEnabled())
 			newState = false;
 		else {
-			if (StaySelectedOnClick && (ButtonFlags & ButtonFlags.Selected) != 0) {
+			if (StaySelectedOnClick && (ButtonFlags & ButtonFlags.Selected) != 0)
 				newState = false;
-			}
-			else {
-				newState = (ButtonFlags & ButtonFlags.Depressed) != 0
-						 || (ButtonFlags&ButtonFlags.Armed) != 0 && (ButtonFlags &ButtonFlags.Selected) != 0;
-			}
+			else
+				newState = (ButtonFlags & ButtonFlags.ForceDepressed) != 0
+								|| ((ButtonFlags & ButtonFlags.Armed) != 0 && (ButtonFlags & ButtonFlags.Selected) != 0);
 		}
 
 		if (newState)
@@ -313,7 +379,7 @@ public class Button : Label
 
 	Color DefaultFgColor, DefaultBgColor;
 	Color ArmedFgColor, ArmedBgColor;
-	Color SelectedFgColor, SelectedBgColor;
+	public Color SelectedFgColor, SelectedBgColor;
 	Color DepressedFgColor, DepressedBgColor;
 	Color BlinkFgColor;
 	Color KeyboardFocusColor;
@@ -341,6 +407,82 @@ public class Button : Label
 
 		BlinkFgColor = GetSchemeColor("Button.BlinkColor", new(255, 155, 0, 255), scheme);
 		InvalidateLayout();
+	}
+
+	public override void ApplySettings(KeyValues resourceData) {
+		base.ApplySettings(resourceData);
+
+		ReadOnlySpan<char> cmd = resourceData.GetString("command", "");
+		if (cmd.Length > 0)
+			SetCommand(cmd);
+
+		int DefaultButton = resourceData.GetInt("default");
+		if ((DefaultButton & 1) != 0 && CanBeDefaultButton())
+			SetAsDefaultButton(true);
+
+		int selected = resourceData.GetInt("selected", -1);
+		if (selected != -1) {
+			SetSelected(selected != 0);
+			// SelectionStateSaved = true;
+		}
+
+		StaySelectedOnClick = resourceData.GetBool("stayselectedonclick", false);
+		StayArmedOnClick = resourceData.GetBool("stay_armed_on_click", false);
+
+		ReadOnlySpan<char> sound = resourceData.GetString("sound_armed", "");
+		if (sound.Length > 0)
+			SetArmedSound(sound);
+
+		sound = resourceData.GetString("sound_depressed", "");
+		if (sound.Length > 0)
+			SetDepressedSound(sound);
+
+		sound = resourceData.GetString("sound_released", "");
+		if (sound.Length > 0)
+			SetReleasedSound(sound);
+
+		ActivationType = (ActivationType)resourceData.GetInt("button_activation_type", (int)ActivationType.OnPressedAndReleased);
+	}
+
+	public override bool RequestInfo(KeyValues outputData) {
+		if (string.Equals(outputData.Name, "CanBeDefaultButton", StringComparison.OrdinalIgnoreCase)) {
+			outputData.SetInt("result", CanBeDefaultButton() ? 1 : 0);
+			return true;
+		}
+
+		if (string.Equals(outputData.Name, "GetState", StringComparison.OrdinalIgnoreCase)) {
+			outputData.SetInt("state", IsSelected() ? 1 : 0);
+			return true;
+		}
+
+		if (string.Equals(outputData.Name, "GetCommand", StringComparison.OrdinalIgnoreCase)) {
+			if (ActionMessage != null)
+				outputData.SetString("command", ActionMessage.GetString("command", ""));
+			else
+				outputData.SetString("command", "");
+			return true;
+		}
+
+		return base.RequestInfo(outputData);
+	}
+
+	public virtual bool CanBeDefaultButton() {
+		return true;
+	}
+
+	public void SetAsDefaultButton(bool state) {
+		if ((ButtonFlags & ButtonFlags.DefaultButton) != 0 != state) {
+			ButtonFlags ^= ButtonFlags.DefaultButton;
+
+			if (state) {
+				KeyValues msg = new("DefaultButtonSet");
+				msg.SetPtr("button", this);
+				CallParentFunction(msg);
+			}
+
+			InvalidateLayout(false);
+			Repaint();
+		}
 	}
 
 	public void SetDefaultBorder(IBorder? border) {
@@ -391,12 +533,56 @@ public class Button : Label
 		}
 	}
 
+	public override void OnKeyCodePressed(ButtonCode code) {
+		if (code == ButtonCode.KeySpace || code == ButtonCode.KeyEnter) {
+			SetArmed(true);
+			ButtonFlags |= ButtonFlags.ButtonKeyDown;
+			OnMousePressed(ButtonCode.MouseLeft);
+			if (IsUseCaptureMouseEnabled())
+				Input.SetMouseCapture(null);
+		}
+		else {
+			ButtonFlags &= ~ButtonFlags.ButtonKeyDown;
+			base.OnKeyCodePressed(code);
+		}
+	}
+
+	public override void OnKeyCodeReleased(ButtonCode code) {
+		if ((0 != (ButtonFlags & ButtonFlags.ButtonKeyDown)) && (code == ButtonCode.KeySpace || code == ButtonCode.KeyEnter)) {
+			SetArmed(true);
+			OnMouseReleased(ButtonCode.MouseLeft);
+		}
+		else
+			base.OnKeyCodeReleased(code);
+
+		ButtonFlags &= ~ButtonFlags.ButtonKeyDown;
+
+		if (code == ButtonCode.KeyUp || code == ButtonCode.KeyDown || code == ButtonCode.KeyLeft || code == ButtonCode.KeyRight)
+			SetArmed(false);
+	}
+
+	public bool IsDrawingFocusBox() {
+		return (ButtonFlags & ButtonFlags.DrawFocusBox) != 0;
+	}
+
+	public void DrawFocusBox() {
+		ButtonFlags |= ButtonFlags.DrawFocusBox;
+	}
+
+	public virtual void DrawFocusBorder(int tx0, int ty0, int tx1, int ty1) {
+		Surface.DrawSetColor(KeyboardFocusColor);
+		DrawDashedLine(tx0, ty0, tx1, ty0 + 1, 1, 1); // Top
+		DrawDashedLine(tx0, ty0, tx0 + 1, ty1, 1, 1); // Bottom
+		DrawDashedLine(tx0, ty0 - 1, tx1, ty1, 1, 1); // Left
+		DrawDashedLine(tx1 - 1, ty0, tx1, ty1, 1, 1); // Right
+	}
+
 	public void SizeToContents() {
 		GetContentSize(out int wide, out int tall);
 		SetSize(wide + Label.Content, tall + Label.Content);
 	}
-	bool Paint;
-	public void SetShouldPaint(bool paint) {
-		Paint = paint;
-	}
+
+	bool paint;
+	public bool ShouldPaint() => paint;
+	public void SetShouldPaint(bool paint) => this.paint = paint;
 }

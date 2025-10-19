@@ -1,4 +1,4 @@
-﻿using Source.Common;
+using Source.Common;
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -19,6 +19,8 @@ public static class PlatformMacros
 
 	public const int MAX_PATH = 260;
 }
+
+public delegate bool MessageBoxFn(ReadOnlySpan<char> title, ReadOnlySpan<char> info, bool showOkAndCancel);
 
 public static class Platform
 {

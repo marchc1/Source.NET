@@ -96,4 +96,7 @@ public interface IShaderAPI : IShaderDynamicAPI
 	ImageFormat GetNearestSupportedFormat(ImageFormat fmt, bool filteringRequired = true);
 	IShaderShadow NewShaderShadow(ReadOnlySpan<char> materialName);
 	IShaderDevice GetShaderDevice();
+	void TexWrap(TexCoordComponent coord, TexWrapMode wrapMode);
+	void TexMinFilter(TexFilterMode mode);
+	void TexMagFilter(TexFilterMode mode);
 }

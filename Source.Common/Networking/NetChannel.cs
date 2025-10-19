@@ -302,13 +302,13 @@ public class NetChannel : INetChannelInfo, INetChannel
 		ChokedPackets++;
 	}
 
-	public void Shutdown(string? reason) {
+	public void Shutdown(ReadOnlySpan<char> reason) {
 		if (Socket < 0)
 			return;
 
 		Clear();
 
-		if (reason != null) {
+		if (!reason.IsEmpty) {
 			StreamUnreliable.WriteUBitLong(Net.Disconnect, NETMSG_TYPE_BITS);
 			StreamUnreliable.WriteString(reason);
 			Transmit();
@@ -419,7 +419,6 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 	public static unsafe ushort BufferToShortChecksum(void* data, nint length) {
 		uint crc = CRC32_ProcessSingleBuffer(data, length);
-
 
 		ushort lowpart = (ushort)(crc & 0xFFFF);
 		ushort highpart = (ushort)(crc >> 16 & 0xFFFF);
@@ -906,7 +905,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		MsgStats[(int)group] += bits;
 
 		if (frame != null)
-			frame.MessageGroups[(int)group] += (uint)bits;
+			frame.MessageGroups[(int)group] += (ushort)bits;
 	}
 
 

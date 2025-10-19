@@ -1,8 +1,8 @@
 This is a list of all of the important SendClasses in Garry's Mod, and which ones have completed datatables.
 
-- [ ] Class #0: AR2Explosion
-- [ ] Class #1: CAI_BaseNPC
-- [ ] Class #2: CAlyxEmpEffect
+- [x] Class #0: AR2Explosion
+- [x] Class #1: CAI_BaseNPC
+- [x] Class #2: CAlyxEmpEffect
 - [x] Class #3: CBaseAnimating
 - [x] Class #4: CBaseAnimatingOverlay
 - [x] Class #5: CBaseCombatCharacter
@@ -10,34 +10,34 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #7: CBaseDoor
 - [x] Class #8: CBaseEntity
 - [x] Class #9: CBaseFlex
-- [ ] Class #10: CBaseGrenade
-- [ ] Class #11: CBaseHelicopter
-- [ ] Class #12: CBaseHelicopter_HL1
-- [ ] Class #13: CBaseHL1CombatWeapon
-- [ ] Class #14: CBaseHL1MPCombatWeapon
+- [x] Class #10: CBaseGrenade
+- [x] Class #11: CBaseHelicopter
+- [x] Class #12: CBaseHelicopter_HL1
+- [x] Class #13: CBaseHL1CombatWeapon
+- [x] Class #14: CBaseHL1MPCombatWeapon
 - [x] Class #15: CBaseHL2MPBludgeonWeapon
 - [x] Class #16: CBaseHL2MPCombatWeapon
-- [ ] Class #17: CBaseHLBludgeonWeapon
-- [ ] Class #18: CBaseHLCombatWeapon
-- [ ] Class #19: CBaseParticleEntity
+- [x] Class #17: CBaseHLBludgeonWeapon
+- [x] Class #18: CBaseHLCombatWeapon
+- [x] Class #19: CBaseParticleEntity
 - [x] Class #20: CBasePlayer
-- [ ] Class #21: CBasePropDoor
-- [ ] Class #22: CBaseTempEntity
+- [x] Class #21: CBasePropDoor
+- [x] Class #22: CBaseTempEntity
 - [x] Class #23: CBaseToggle
-- [ ] Class #24: CBaseTrigger
+- [x] Class #24: CBaseTrigger
 - [x] Class #25: CBaseViewModel
-- [ ] Class #26: CBeam
+- [x] Class #26: CBeam
 - [ ] Class #27: CBeamSpotlight
 - [ ] Class #28: CBoneFollower
 - [ ] Class #29: CBoneManipulate
-- [ ] Class #30: CBreakableProp
+- [x] Class #30: CBreakableProp
 - [ ] Class #31: CBreakableSurface
 - [ ] Class #32: CCitadelEnergyCore
 - [x] Class #33: CColorCorrection
 - [ ] Class #34: CColorCorrectionVolume
-- [ ] Class #35: CCrossbowBolt
-- [ ] Class #36: CDynamicLight
-- [ ] Class #37: CDynamicProp
+- [x] Class #35: CCrossbowBolt
+- [x] Class #36: CDynamicLight
+- [x] Class #37: CDynamicProp
 - [ ] Class #38: CEmbers
 - [ ] Class #39: CEntityDissolve
 - [ ] Class #40: CEntityFlame
@@ -59,36 +59,36 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #56: CFlare
 - [ ] Class #57: CFleshEffectTarget
 - [ ] Class #58: CFlexManipulate
-- [ ] Class #59: CFogController
-- [ ] Class #60: CFunc_Dust
+- [x] Class #59: CFogController
+- [x] Class #60: CFunc_Dust
 - [ ] Class #61: CFunc_LOD
-- [ ] Class #62: CFuncAreaPortalWindow
+- [x] Class #62: CFuncAreaPortalWindow
 - [ ] Class #63: CFuncConveyor
-- [ ] Class #64: CFuncLadder
-- [ ] Class #65: CFuncMonitor
-- [ ] Class #66: CFuncOccluder
-- [ ] Class #67: CFuncReflectiveGlass
-- [ ] Class #68: CFuncRotating
-- [ ] Class #69: CFuncSmokeVolume
-- [ ] Class #70: CFuncTrackTrain
+- [x] Class #64: CFuncLadder
+- [x] Class #65: CFuncMonitor
+- [x] Class #66: CFuncOccluder
+- [x] Class #67: CFuncReflectiveGlass
+- [x] Class #68: CFuncRotating
+- [x] Class #69: CFuncSmokeVolume
+- [x] Class #70: CFuncTrackTrain
 - [x] Class #71: CGameRulesProxy
 - [x] Class #72: CGMOD_Player
 - [x] Class #73: CGMODGameRulesProxy
 - [x] Class #74: CHL2_Player
 - [x] Class #75: CHL2MP_Player
-- [ ] Class #76: CHL2MPGameRulesProxy
+- [x] Class #76: CHL2MPGameRulesProxy
 - [x] Class #77: CHL2MPMachineGun
 - [x] Class #78: CHL2MPRagdoll
-- [ ] Class #79: CHLMachineGun
-- [ ] Class #80: CHLSelectFireMachineGun
-- [ ] Class #81: CInfoLadderDismount
-- [ ] Class #82: CInfoLightingRelative
-- [ ] Class #83: CInfoOverlayAccessor
-- [ ] Class #84: CInfoTeleporterCountdown
-- [ ] Class #85: CLaserDot
-- [ ] Class #86: CLaserDot_HL1
-- [ ] Class #87: CLightGlow
-- [ ] Class #88: CLuaNextBot
+- [x] Class #79: CHLMachineGun
+- [x] Class #80: CHLSelectFireMachineGun
+- [x] Class #81: CInfoLadderDismount
+- [x] Class #82: CInfoLightingRelative
+- [x] Class #83: CInfoOverlayAccessor
+- [x] Class #84: CInfoTeleporterCountdown
+- [x] Class #85: CLaserDot
+- [x] Class #86: CLaserDot_HL1
+- [x] Class #87: CLightGlow
+- [x] Class #88: CLuaNextBot
 - [ ] Class #89: CMaterialModifyControl
 - [ ] Class #90: CMortarShell
 - [ ] Class #91: CNPC_AntlionGuard
@@ -104,13 +104,13 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #101: CNPC_Vortigaunt
 - [ ] Class #102: CParticleFire
 - [ ] Class #103: CParticlePerformanceMonitor
-- [ ] Class #104: CParticleSystem
+- [x] Class #104: CParticleSystem
 - [x] Class #105: CPhysBeam
-- [ ] Class #106: CPhysBox
-- [ ] Class #107: CPhysBoxMultiplayer
-- [ ] Class #108: CPhysicsProp
-- [ ] Class #109: CPhysicsPropMultiplayer
-- [ ] Class #110: CPhysMagnet
+- [x] Class #106: CPhysBox
+- [x] Class #107: CPhysBoxMultiplayer
+- [x] Class #108: CPhysicsProp
+- [x] Class #109: CPhysicsPropMultiplayer
+- [x] Class #110: CPhysMagnet
 - [ ] Class #111: CPlasma
 - [x] Class #112: CPlayerResource
 - [ ] Class #113: CPointCamera
@@ -119,35 +119,35 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #116: CPrecipitation
 - [ ] Class #117: CPrecipitationBlocker
 - [x] Class #118: CPredictedViewModel
-- [ ] Class #119: CPropAirboat
+- [x] Class #119: CPropAirboat
 - [ ] Class #120: CPropCombineBall
 - [ ] Class #121: CPropCrane
-- [ ] Class #122: CPropDoorRotating
+- [x] Class #122: CPropDoorRotating
 - [ ] Class #123: CPropEnergyBall
-- [ ] Class #124: CPropJeep
-- [ ] Class #125: CPropJeepEpisodic
+- [x] Class #124: CPropJeep
+- [x] Class #125: CPropJeepEpisodic
 - [ ] Class #126: CPropScalable
 - [ ] Class #127: CPropVehicleChoreoGeneric
-- [ ] Class #128: CPropVehicleDriveable
-- [ ] Class #129: CPropVehiclePrisonerPod
+- [x] Class #128: CPropVehicleDriveable
+- [x] Class #129: CPropVehiclePrisonerPod
 - [ ] Class #130: CRagdollManager
 - [ ] Class #131: CRagdollProp
 - [ ] Class #132: CRagdollPropAttached
-- [ ] Class #133: CRopeKeyframe
+- [x] Class #133: CRopeKeyframe
 - [ ] Class #134: CRotorWashEmitter
 - [ ] Class #135: CRpgRocket
 - [ ] Class #136: CSceneEntity
 - [ ] Class #137: CScriptIntro
-- [ ] Class #138: CSENT_AI
+- [x] Class #138: CSENT_AI
 - [x] Class #139: CSENT_anim
 - [x] Class #140: CSENT_point
 - [x] Class #141: CShadowControl
 - [ ] Class #142: CSlideshowDisplay
 - [ ] Class #143: CSmokeStack
 - [ ] Class #144: CSpatialEntity
-- [ ] Class #145: CSpotlightEnd
-- [ ] Class #146: CSprite
-- [ ] Class #147: CSpriteOriented
+- [x] Class #145: CSpotlightEnd
+- [x] Class #146: CSprite
+- [x] Class #147: CSpriteOriented
 - [ ] Class #148: CSpriteTrail
 - [ ] Class #149: CSteamJet
 - [x] Class #150: CSun
@@ -174,7 +174,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #171: CTEDecal
 - [ ] Class #172: CTEDust
 - [ ] Class #173: CTEDynamicLight
-- [ ] Class #174: CTEEffectDispatch
+- [x] Class #174: CTEEffectDispatch
 - [ ] Class #175: CTEEnergySplash
 - [ ] Class #176: CTEExplosion
 - [ ] Class #177: CTEFizz
@@ -189,7 +189,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #186: CTEMuzzleFlash
 - [ ] Class #187: CTEParticleSystem
 - [ ] Class #188: CTEPhysicsProp
-- [ ] Class #189: CTEPlayerAnimEvent
+- [x] Class #189: CTEPlayerAnimEvent
 - [ ] Class #190: CTEPlayerDecal
 - [ ] Class #191: CTEProjectedDecal
 - [ ] Class #192: CTEShatterSurface
@@ -205,48 +205,48 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #202: CVortigauntChargeToken
 - [ ] Class #203: CVortigauntEffectDispel
 - [ ] Class #204: CWaterBullet
-- [ ] Class #205: CWaterLODControl
+- [x] Class #205: CWaterLODControl
 - [x] Class #206: CWeapon357
-- [ ] Class #207: CWeapon357_HL1
+- [x] Class #207: CWeapon357_HL1
 - [x] Class #208: CWeapon_SLAM
-- [ ] Class #209: CWeaponAlyxGun
-- [ ] Class #210: CWeaponAnnabelle
+- [x] Class #209: CWeaponAlyxGun
+- [x] Class #210: CWeaponAnnabelle
 - [x] Class #211: CWeaponAR2
-- [ ] Class #212: CWeaponBugBait
-- [ ] Class #213: CWeaponCitizenPackage
-- [ ] Class #214: CWeaponCitizenSuitcase
+- [x] Class #212: CWeaponBugBait
+- [x] Class #213: CWeaponCitizenPackage
+- [x] Class #214: CWeaponCitizenSuitcase
 - [x] Class #215: CWeaponCrossbow
-- [ ] Class #216: CWeaponCrossbow_HL1
+- [x] Class #216: CWeaponCrossbow_HL1
 - [x] Class #217: CWeaponCrowbar
-- [ ] Class #218: CWeaponCrowbar_HL1
-- [ ] Class #219: CWeaponCubemap
-- [ ] Class #220: CWeaponCycler
-- [ ] Class #221: CWeaponEgon
+- [x] Class #218: CWeaponCrowbar_HL1
+- [x] Class #219: CWeaponCubemap
+- [x] Class #220: CWeaponCycler
+- [x] Class #221: CWeaponEgon
 - [x] Class #222: CWeaponFrag
-- [ ] Class #223: CWeaponGauss
-- [ ] Class #224: CWeaponGlock
-- [ ] Class #225: CWeaponHandGrenade
-- [ ] Class #226: CWeaponHgun
+- [x] Class #223: CWeaponGauss
+- [x] Class #224: CWeaponGlock
+- [x] Class #225: CWeaponHandGrenade
+- [x] Class #226: CWeaponHgun
 - [x] Class #227: CWeaponHL2MPBase
-- [ ] Class #228: CWeaponMP5
-- [ ] Class #229: CWeaponOldManHarpoon
+- [x] Class #228: CWeaponMP5
+- [x] Class #229: CWeaponOldManHarpoon
 - [x] Class #230: CWeaponPhysCannon
 - [x] Class #231: CWeaponPhysGun
 - [x] Class #232: CWeaponPistol
 - [x] Class #233: CWeaponRPG
-- [ ] Class #234: CWeaponRPG_HL1
-- [ ] Class #235: CWeaponSatchel
+- [x] Class #234: CWeaponRPG_HL1
+- [x] Class #235: CWeaponSatchel
 - [x] Class #236: CWeaponShotgun
-- [ ] Class #237: CWeaponShotgun_HL1
+- [x] Class #237: CWeaponShotgun_HL1
 - [x] Class #238: CWeaponSMG1
-- [ ] Class #239: CWeaponSnark
+- [x] Class #239: CWeaponSnark
 - [x] Class #240: CWeaponStunStick
 - [x] Class #241: CWeaponSWEP
-- [ ] Class #242: CWeaponTripMine
-- [ ] Class #243: CWorld
+- [x] Class #242: CWeaponTripMine
+- [x] Class #243: CWorld
 - [ ] Class #244: DustTrail
 - [ ] Class #245: MovieExplosion
-- [ ] Class #246: NextBotCombatCharacter
+- [x] Class #246: NextBotCombatCharacter
 - [ ] Class #247: ParticleSmokeGrenade
 - [ ] Class #248: RocketTrail
 - [ ] Class #249: SmokeTrail

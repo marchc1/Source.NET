@@ -1,4 +1,4 @@
-﻿using Source.Common;
+using Source.Common;
 using Source.Common.Bitbuffers;
 using Source.Common.Networking;
 
@@ -84,6 +84,7 @@ public class EntityReadInfo : EntityInfo, IPoolableObject {
 		IsEntity = false;
 		Baseline = 0;
 		UpdateBaselines = false;
+		LocalPlayerBits = 0;
 		OtherPlayerBits = 0;
 		memreset((Span<PostDataUpdateCall>)PostDataUpdateCalls);
 		NumPostDataUpdateCalls = 0;

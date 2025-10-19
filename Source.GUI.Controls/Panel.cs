@@ -1055,7 +1055,7 @@ public class Panel : IPanel
 
 	public void SetProportional(bool state) {
 		if (state != ((Flags & PanelFlags.IsProportional) != 0)) {
-			Flags |= PanelFlags.IsProportional;
+			Flags ^= PanelFlags.IsProportional;
 			for (int i = 0; i < GetChildCount(); i++) {
 				GetChild(i).SetProportional(IsProportional());
 			}
@@ -1497,6 +1497,13 @@ public class Panel : IPanel
 	public virtual void SetBgColor(in Color color) => BgColor = color;
 	public virtual void SetFgColor(in Color color) => FgColor = color;
 
+	public virtual void GetSettings(KeyValues outResourceData) {
+		outResourceData.SetString("ControlName", GetClassName());
+		outResourceData.SetString("fieldName", GetName());
+		//
+	}
+
+
 	// This in theory will replicate the pointer logic?
 	private void ApplyOverridableColors() {
 		Span<OverrideableColorEntry> entries = CollectionsMarshal.AsSpan(OverrideableColorEntries);
@@ -1525,8 +1532,22 @@ public class Panel : IPanel
 		Surface?.Invalidate(this);
 	}
 
-	public void RequestFocus(int direction = 0) {
+	public virtual void RequestFocus(int direction = 0) {
 		OnRequestFocus(this, null);
+	}
+
+	public bool IsBuildGroupEnabled() {
+		if (BuildGroup == null)
+			return false;
+
+		bool enabled = BuildGroup.IsEnabled();
+		if (enabled)
+			return enabled;
+
+		if (GetParent() != null && GetParent().IsBuildGroupEnabled())
+			return true;
+
+		return false;
 	}
 
 	public void CallParentFunction(KeyValues message) => GetParent()?.SendMessage(message, this);
@@ -1534,11 +1555,11 @@ public class Panel : IPanel
 	public virtual void OnRequestFocus(Panel subFocus, Panel? defaultPanel)
 		=> CallParentFunction(new KeyValues("OnRequestFocus").AddSubKey(new("subFocus", subFocus)).AddSubKey(new("defaultPanel", defaultPanel)));
 
-	public bool RequestFocusNext(IPanel? existingPanel = null) {
+	public virtual bool RequestFocusNext(IPanel? existingPanel = null) {
 		return false;
 	}
 
-	public bool RequestFocusPrev(IPanel? existingPanel = null) {
+	public virtual bool RequestFocusPrev(IPanel? existingPanel = null) {
 		return false;
 	}
 
@@ -1836,7 +1857,7 @@ public class Panel : IPanel
 			PostActionSignal(new KeyValues(command));
 	}
 	public virtual void OnMouseCaptureLost() {
-
+		// todo tooltips
 	}
 	public virtual void OnSetFocus() {
 		Repaint();
@@ -2086,6 +2107,7 @@ public class Panel : IPanel
 			case "KeyFocusTicked": InternalKeyFocusTicked(); break;
 			case "MouseCaptureLost": OnMouseCaptureLost(); break;
 			case "MousePressed": OnMousePressed((ButtonCode)message.GetInt("code")); break;
+			case "MouseWheeled": OnMouseWheeled(message.GetInt("delta")); break;
 			case "MouseReleased": OnMouseReleased((ButtonCode)message.GetInt("code")); break;
 			case "UnhandledMouseClick": OnUnhandledMouseClick((ButtonCode)message.GetInt("code")); break;
 			case "SetFocus": InternalSetFocus(); break;
@@ -2206,7 +2228,7 @@ public class Panel : IPanel
 
 	IPanel? IPanel.FindChildByName(ReadOnlySpan<char> childName, bool recurseDown) => FindChildByName(childName, recurseDown);
 
-	public Panel? FindChildByName(ReadOnlySpan<char> childName, bool recurseDown) {
+	public Panel? FindChildByName(ReadOnlySpan<char> childName, bool recurseDown = false) {
 		return null; // todo: impl
 	}
 

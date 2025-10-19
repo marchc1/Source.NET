@@ -9,6 +9,7 @@ using Source.Common;
 using Source.Common.Bitmap;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
 using Source.Common.ShaderAPI;
 
 using System.Numerics;
@@ -644,10 +645,10 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 	private unsafe void LoadTextureFromVTF(in TextureLoadInfo info, IVTFTexture vtf, int vtfFrame) {
 		vtf.ImageFileInfo(vtfFrame, 0, info.Level, out int start, out int size);
 
+		vtf.ComputeMipLevelDimensions(info.Level, out int w, out int h, out _);
+
 		if (info.SrcFormat.IsCompressed()) {
 			Span<byte> data = vtf.ImageData(vtfFrame, 0, info.Level);
-			vtf.ComputeMipLevelDimensions(info.Level, out int w, out int h, out _);
-			glGetError();
 			fixed (byte* bytes = data)
 				glCompressedTextureSubImage2D((uint)info.Handle, info.Level, 0, 0, w, h, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
 			// Msg("err: " + glGetErrorName() + "\n");
@@ -732,11 +733,39 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 	public unsafe void TexSubImage2D(int mip, int face, int x, int y, int z, int width, int height, ImageFormat srcFormat, int srcStride, Span<byte> imageData) {
 		glGetError();
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, srcStride / srcFormat.SizeInBytes());
-		fixed (byte* data = imageData)
+		ConvertDataToAcceptableGLFormat(srcFormat, imageData, out srcFormat, out Span<byte> convertedData);
+		fixed (byte* data = convertedData)
 			glTextureSubImage2D((uint)ModifyTextureHandle, mip, x, y, width, height, ImageLoader.GetGLImageUploadFormat(srcFormat), GL_UNSIGNED_BYTE, data);
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		var err = glGetError();
 		Assert(err == 0);
+	}
+
+	readonly ThreadLocal<byte[]> tempTransformBuffers = new ThreadLocal<byte[]>(() => new byte[1024 * 1024]);
+	Span<byte> GetTempTransformBuffer(ImageFormat inFormat, ImageFormat outFormat, Span<byte> inData) {
+		int desiredLength = ImageLoader.SizeInBytes(outFormat) * (inData.Length / ImageLoader.SizeInBytes(inFormat));
+
+		if (desiredLength > tempTransformBuffers.Value!.Length)
+			tempTransformBuffers.Value = new byte[MathLib.CeilPow2(desiredLength)];
+
+		return tempTransformBuffers.Value!.AsSpan()[..desiredLength];
+	}
+	private void ConvertDataToAcceptableGLFormat(ImageFormat inFormat, Span<byte> inData, out ImageFormat outFormat, out Span<byte> outData) {
+		switch (inFormat) {
+			case ImageFormat.BGR888:
+				outFormat = ImageFormat.RGB888;
+				outData = GetTempTransformBuffer(inFormat, outFormat, inData);
+				for (int i = 0; i < inData.Length; i += 3) {
+					outData[i + 2] = inData[i + 0];
+					outData[i + 1] = inData[i + 1];
+					outData[i + 0] = inData[i + 2];
+				}
+				break;
+			default:
+				outFormat = inFormat;
+				outData = inData;
+				return;
+		}
 	}
 
 	public void ReacquireResources() {
@@ -854,4 +883,90 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 
 	public int GetMaxVerticesToRender(IMaterial material) => MeshMgr.GetMaxVerticesToRender(material);
 	public int GetMaxIndicesToRender(IMaterial material) => MeshMgr.GetMaxIndicesToRender(material);
+
+	public void TexWrap(TexCoordComponent coord, TexWrapMode wrapMode) {
+		int coordinate = coord switch {
+			TexCoordComponent.S => GL_TEXTURE_WRAP_S,
+			TexCoordComponent.T => GL_TEXTURE_WRAP_T,
+			TexCoordComponent.U => GL_TEXTURE_WRAP_R,
+			_ => -1
+		};
+
+		if (coordinate == -1) {
+			Warning("ShaderAPIGl46.TexWrap: unknown coord\n");
+			return;
+		}
+
+		switch (wrapMode) {
+			case TexWrapMode.Clamp:
+				glTextureParameteri((uint)ModifyTextureHandle, coordinate, GL_CLAMP_TO_EDGE);
+				break;
+			case TexWrapMode.Repeat:
+				glTextureParameteri((uint)ModifyTextureHandle, coordinate, GL_REPEAT);
+				break;
+			case TexWrapMode.Border:
+				glTextureParameteri((uint)ModifyTextureHandle, coordinate, GL_CLAMP_TO_BORDER);
+				break;
+			default:
+				Warning("ShaderAPIGl46.TexWrap: unknown wrapMode\n");
+				break;
+		}
+	}
+	IMaterialSystemHardwareConfig HardwareConfig = Singleton<IMaterialSystemHardwareConfig>();
+	public void TexMinFilter(TexFilterMode mode) {
+		switch (mode) {
+			case TexFilterMode.Nearest:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				break;
+			case TexFilterMode.Linear:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				break;
+			case TexFilterMode.NearestMipmapNearest:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+				break;
+			case TexFilterMode.LinearMipmapNearest:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+				break;
+			case TexFilterMode.NearestMipmapLinear:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+				break;
+			case TexFilterMode.LinearMipmapLinear:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+				break;
+			case TexFilterMode.Anisotropic:
+				glTextureParameterf((uint)ModifyTextureHandle, GL_TEXTURE_MAX_ANISOTROPY, HardwareConfig.MaximumAnisotropicLevel());
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+				break;
+			default:
+				break;
+		}
+	}
+
+	public void TexMagFilter(TexFilterMode mode) {
+		switch (mode) {
+			case TexFilterMode.Nearest:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+				break;
+			case TexFilterMode.Linear:
+				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				break;
+			case TexFilterMode.NearestMipmapNearest:
+				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.NearestMipmapNearest is invalid\n");
+				break;
+			case TexFilterMode.LinearMipmapNearest:
+				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.LinearMipmapNearest is invalid\n");
+				break;
+			case TexFilterMode.NearestMipmapLinear:
+				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.NearestMipmapLinear is invalid\n");
+				break;
+			case TexFilterMode.LinearMipmapLinear:
+				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.LinearMipmapLinear is invalid\n");
+				break;
+			case TexFilterMode.Anisotropic:
+				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.Anisotropic is invalid\n");
+				break;
+			default:
+				break;
+		}
+	}
 }

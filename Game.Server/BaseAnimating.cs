@@ -7,6 +7,18 @@ using System.Numerics;
 
 namespace Game.Server;
 using FIELD = Source.FIELD<Game.Server.BaseAnimating>;
+using FIELD_ILR = Source.FIELD<Game.Server.InfoLightingRelative>;
+
+public partial class InfoLightingRelative : BaseEntity
+{
+	public static readonly SendTable DT_InfoLightingRelative = new(DT_BaseEntity, [
+		SendPropEHandle(FIELD_ILR.OF(nameof(LightingLandmark)))
+	]);
+	public static readonly new ServerClass ServerClass = new ServerClass("InfoLightingRelative", DT_InfoLightingRelative).WithManualClassID(StaticClassIndices.CInfoLightingRelative);
+
+	public readonly EHANDLE LightingLandmark = new();
+}
+
 public class BaseAnimating : BaseEntity
 {
 	public const int ANIMATION_SEQUENCE_BITS = 12;

@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Source.Common.MaterialSystem;
 
@@ -14,14 +15,7 @@ public unsafe struct VertexDesc
 	public int TangentTSize;
 	public int WrinkleSize;
 	public int UserDataSize;
-	public fixed int TexCoordSizePtr[8];
-	public Span<int> TexCoordSize {
-		get {
-			fixed (int* i = TexCoordSizePtr)
-				return new(i, 8);
-		}
-	}
-
+	public fixed int TexCoordSize[8];
 	public int ActualVertexSize;
 
 	public VertexCompressionType CompressionType;
@@ -46,14 +40,22 @@ public unsafe struct VertexDesc
 	public float* TexCoord5;
 	public float* TexCoord6;
 	public float* TexCoord7;
-	public float** TexCoord {
-		get {
-			fixed (float** txPtr = &TexCoord0)
-				return txPtr;
-		}
-	}
 	public int FirstVertex;
 	public uint OffsetVertex;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public void SetTexCoord(int stage, float* val) {
+		switch (stage) {
+			case 0: TexCoord0 = val; return;
+			case 1: TexCoord1 = val; return;
+			case 2: TexCoord2 = val; return;
+			case 3: TexCoord3 = val; return;
+			case 4: TexCoord4 = val; return;
+			case 5: TexCoord5 = val; return;
+			case 6: TexCoord6 = val; return;
+			case 7: TexCoord7 = val; return;
+		}
+	}
 }
 
 public unsafe struct IndexDesc
@@ -140,12 +142,6 @@ public unsafe struct VertexBuilder
 	public float* CurrTexCoord5;
 	public float* CurrTexCoord6;
 	public float* CurrTexCoord7;
-	public float** CurrTexCoord {
-		get {
-			fixed (float** ctxcPtr = &CurrTexCoord0)
-				return ctxcPtr;
-		}
-	}
 	public byte* CurrColor;
 
 	// Total number of vertices appended
@@ -187,9 +183,16 @@ public unsafe struct VertexBuilder
 
 		CurrPosition = Desc.Position;
 		CurrNormal = Desc.Normal;
-		for (int i = 0; i < 8; i++) {
-			CurrTexCoord[i] = Desc.TexCoord[i];
-		}
+
+		CurrTexCoord0 = Desc.TexCoord0;
+		CurrTexCoord1 = Desc.TexCoord1;
+		CurrTexCoord2 = Desc.TexCoord2;
+		CurrTexCoord3 = Desc.TexCoord3;
+		CurrTexCoord4 = Desc.TexCoord4;
+		CurrTexCoord5 = Desc.TexCoord5;
+		CurrTexCoord6 = Desc.TexCoord6;
+		CurrTexCoord7 = Desc.TexCoord7;
+
 		CurrColor = Desc.Color;
 		WrittenNormal = false;
 		WrittenUserData = false;
@@ -268,8 +271,19 @@ public unsafe struct VertexBuilder
 		}
 	}
 
+
 	internal void TexCoord2f(int stage, float s, float t) {
-		float* pDst = CurrTexCoord[stage];
+		float* pDst = stage switch {
+			0 => CurrTexCoord0,
+			1 => CurrTexCoord1,
+			2 => CurrTexCoord2,
+			3 => CurrTexCoord3,
+			4 => CurrTexCoord4,
+			5 => CurrTexCoord5,
+			6 => CurrTexCoord6,
+			7 => CurrTexCoord7,
+			_ => null
+		};
 		if (pDst == null) return;
 		*pDst++ = s;
 		*pDst++ = t;
@@ -283,10 +297,15 @@ public unsafe struct VertexBuilder
 		CurrPosition = (float*)((byte*)CurrPosition + Desc.PositionSize);
 		CurrNormal = (float*)((byte*)CurrNormal + Desc.NormalSize);
 		CurrColor = CurrColor + Desc.ColorSize;
-
-		for (int i = 0; i < 8; i++) {
-			CurrTexCoord[i] = (float*)((byte*)CurrTexCoord[i] + Desc.TexCoordSize[i]);
-		}
+		
+		CurrTexCoord0 = (float*)((byte*)CurrTexCoord0 + Desc.TexCoordSize[0]);
+		CurrTexCoord1 = (float*)((byte*)CurrTexCoord1 + Desc.TexCoordSize[1]);
+		CurrTexCoord2 = (float*)((byte*)CurrTexCoord2 + Desc.TexCoordSize[2]);
+		CurrTexCoord3 = (float*)((byte*)CurrTexCoord3 + Desc.TexCoordSize[3]);
+		CurrTexCoord4 = (float*)((byte*)CurrTexCoord4 + Desc.TexCoordSize[4]);
+		CurrTexCoord5 = (float*)((byte*)CurrTexCoord5 + Desc.TexCoordSize[5]);
+		CurrTexCoord6 = (float*)((byte*)CurrTexCoord6 + Desc.TexCoordSize[6]);
+		CurrTexCoord7 = (float*)((byte*)CurrTexCoord7 + Desc.TexCoordSize[7]);
 	}
 
 	internal void AttachEnd() {

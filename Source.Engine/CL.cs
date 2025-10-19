@@ -19,7 +19,7 @@ namespace Source.Engine;
 /// Various clientside methods. In Source, these would mostly be represented by
 /// CL_MethodName's in the static global namespace
 /// </summary>
-public class CL(IServiceProvider services, Net Net,
+public partial class CL(IServiceProvider services, Net Net,
 	ClientGlobalVariables clientGlobalVariables, ServerGlobalVariables serverGlobalVariables,
 	CommonHostState host_state, Host Host, Cbuf Cbuf, IEngineVGuiInternal? EngineVGui, Scr Scr, Shader Shader, ClientDLL ClientDLL, EngineRecvTable RecvTable)
 {
@@ -363,10 +363,6 @@ public class CL(IServiceProvider services, Net Net,
 		}
 	}
 
-	private void RecordLeavePVS(int i) {
-		// throw new NotImplementedException();
-	}
-
 	public void DeleteDLLEntity(int entIndex, ReadOnlySpan<char> reason, bool onRecreatingAllEntities = false) {
 		IClientNetworkable? net = EntityList.GetClientNetworkable(entIndex);
 
@@ -379,10 +375,6 @@ public class CL(IServiceProvider services, Net Net,
 
 			net.Release();
 		}
-	}
-
-	private void RecordDeleteEntity(int entIndex, ClientClass clientClass) {
-
 	}
 
 	private void FlushEntityPacket(ClientFrame newFrame, string v) {
@@ -525,8 +517,8 @@ public class CL(IServiceProvider services, Net Net,
 		u.To!.TransmitEntity.Set(u.NewEntity);
 
 		int bit_count = u.Buf.BitsRead - start_bit;
-		// if (cl_entityreport.GetBool())
-		// CL.RecordEntityBits(u.NewEntity, bit_count);
+		if (cl_entityreport.GetBool())
+			RecordEntityBits(u.NewEntity, bit_count);
 
 		if (IsPlayerIndex(u.NewEntity)) {
 			if (u.NewEntity == cl.PlayerSlot + 1)
@@ -544,6 +536,7 @@ public class CL(IServiceProvider services, Net Net,
 	private IClientNetworkable? CreateDLLEntity(int iEnt, int iClass, int iSerialNum) {
 		ClientClass? clientClass;
 		if ((clientClass = cl.ServerClasses[iClass]?.ClientClass) != null) {
+			RecordAddEntity(iEnt);
 			if (!cl.IsActive())
 				Common.TimestampedLog($"cl:  create '{clientClass.NetworkName}'\n");
 
@@ -592,8 +585,8 @@ public class CL(IServiceProvider services, Net Net,
 
 		int bit_count = u.Buf.BitsRead - start_bit;
 
-		//  if (cl_entityreport.GetBool())
-		//  	CL_RecordEntityBits(u.m_nNewEntity, bit_count);
+		if (cl_entityreport.GetBool())
+			RecordEntityBits(u.NewEntity, bit_count);
 
 		if (IsPlayerIndex(u.NewEntity)) {
 			if (u.NewEntity == cl.PlayerSlot + 1)

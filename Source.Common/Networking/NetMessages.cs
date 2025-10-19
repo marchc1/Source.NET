@@ -75,6 +75,7 @@ public class NET_Tick : NetMessage
 public class NET_SetConVar : NetMessage
 {
 	public List<cvar_s> ConVars;
+	public override NetChannelGroup GetGroup() => NetChannelGroup.StringCmd;
 	public NET_SetConVar() : base(SetConVar) {
 		ConVars = [];
 	}
@@ -131,6 +132,7 @@ public class NET_SetConVar : NetMessage
 public class NET_StringCmd : NetMessage
 {
 	public NET_StringCmd() : base(StringCmd) { }
+	public override NetChannelGroup GetGroup() => NetChannelGroup.StringCmd;
 
 	public string Command;
 
@@ -155,7 +157,7 @@ public class NET_SignonState : NetMessage
 	public NET_SignonState() : base(Net.SignOnState) {
 
 	}
-
+	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
 	public NET_SignonState(SignOnState signOnState, int spawnCount) : base(Net.SignOnState) {
 		SignOnState = signOnState;
 		SpawnCount = spawnCount;
@@ -275,7 +277,7 @@ public class svc_ClassInfo : NetMessage
 		public string DataTableName;
 		public string ClassName;
 	}
-
+	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
 	public bool CreateOnClient;
 	public List<Class> Classes = [];
 	public int NumServerClasses = 0;
@@ -376,7 +378,7 @@ public class svc_CreateStringTable : NetMessage
 public class svc_UpdateStringTable : NetMessage
 {
 	public svc_UpdateStringTable() : base(SVC.UpdateStringTable) { }
-	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
+	public override NetChannelGroup GetGroup() => NetChannelGroup.StringTable;
 
 	public int TableID;
 	public int ChangedEntries;
@@ -409,6 +411,7 @@ public class svc_UpdateStringTable : NetMessage
 public class svc_VoiceInit : NetMessage
 {
 	public svc_VoiceInit() : base(SVC.VoiceInit) { }
+	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
 
 	public string VoiceCodec;
 	public int SampleRate;
@@ -434,7 +437,7 @@ public class svc_VoiceInit : NetMessage
 public class svc_Sounds : NetMessage
 {
 	public svc_Sounds() : base(SVC.Sounds) { }
-
+	public override NetChannelGroup GetGroup() => NetChannelGroup.Sounds;
 	public bool ReliableSound;
 	public int NumSounds;
 	public int Length;
@@ -461,6 +464,14 @@ public class svc_Sounds : NetMessage
 	public override string ToString() {
 		return $"number {NumSounds},{(ReliableSound ? " reliable" : " ")} bytes {Bits2Bytes(Length)}";
 	}
+}
+
+public class svc_Prefetch : NetMessage {
+	public svc_Prefetch() : base(SVC.Sounds) { }
+	public override NetChannelGroup GetGroup() => NetChannelGroup.Sounds;
+
+	public ushort Type;
+	public ushort SoundIndex;
 }
 public class svc_BSPDecal : NetMessage
 {
@@ -557,6 +568,7 @@ public class svc_FixAngle : NetMessage
 public class svc_UserMessage : NetMessage
 {
 	public svc_UserMessage() : base(SVC.UserMessage) { }
+	public override NetChannelGroup GetGroup() => NetChannelGroup.UserMessage;
 
 	public int MessageType;
 	public int Length;
@@ -593,7 +605,7 @@ public class svc_UserMessage : NetMessage
 public class svc_PacketEntities : NetMessage
 {
 	public svc_PacketEntities() : base(SVC.PacketEntities) { }
-
+	public override NetChannelGroup GetGroup() => NetChannelGroup.Entities;
 	public int MaxEntries;
 	public int UpdatedEntries;
 	public bool IsDelta;
@@ -684,6 +696,7 @@ public class svc_GMod_ServerToClient : NetMessage
 public class CLC_Move : NetMessage
 {
 	public CLC_Move() : base(CLC.Move) { reliable = false; }
+	public override NetChannelGroup GetGroup() => NetChannelGroup.Move;
 
 	public int BackupCommands;
 	public int NewCommands;
@@ -708,7 +721,7 @@ public class CLC_ListenEvents : NetMessage
 	public CLC_ListenEvents() : base(CLC.ListenEvents) {
 		EventArray.EnsureCount(MAX_EVENT_NUMBER);
 	}
-
+	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
 	public List<uint> EventArray = new List<uint>();
 
 	public override bool WriteToBuffer(bf_write buffer) {
@@ -792,6 +805,7 @@ public class clc_BaselineAck : NetMessage
 		BaselineTick = tick;
 		BaselineNumber = baseline;
 	}
+	public override NetChannelGroup GetGroup() => NetChannelGroup.Entities;
 
 	public int BaselineTick;
 	public int BaselineNumber;
@@ -807,7 +821,7 @@ public class clc_BaselineAck : NetMessage
 public class svc_TempEntities : NetMessage
 {
 	public svc_TempEntities() : base(SVC.TempEntities) { }
-
+	public override NetChannelGroup GetGroup() => NetChannelGroup.Events;
 	public int NumEntries;
 	public int Length;
 	public bf_read DataIn;

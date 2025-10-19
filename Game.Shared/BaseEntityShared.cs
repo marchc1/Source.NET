@@ -42,7 +42,7 @@ using Class =
 	ServerClass;
 #endif
 
-using FIELD = Source.FIELD<BaseCombatWeapon>;
+using FIELD = Source.FIELD<SharedBaseEntity>;
 
 public static class SharedBaseEntityConstants
 {
@@ -125,7 +125,6 @@ public partial class
 
 	public void SetAnimTime(TimeUnit_t time) => AnimTime = time;
 	public void SetSimulationTime(TimeUnit_t time) => SimulationTime = time;
-
 
 	public static bool IsSimulatingOnAlternateTicks() => false; // TODO
 

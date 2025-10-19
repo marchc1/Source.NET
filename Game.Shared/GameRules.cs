@@ -1,4 +1,5 @@
-﻿#if CLIENT_DLL
+﻿#if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
+#if CLIENT_DLL
 global using GameRules = Game.Client.C_GameRules;
 global using GameRulesProxy = Game.Client.C_GameRulesProxy;
 namespace Game.Client;
@@ -51,3 +52,4 @@ public class
 {
 	public virtual ReadOnlySpan<char> Name() => "GameRules";
 }
+#endif

@@ -99,8 +99,10 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 		throw new NotImplementedException();
 	}
 
-	public int MaximumAnisotropicLevel() {
-		throw new NotImplementedException();
+	public unsafe int MaximumAnisotropicLevel() {
+		float maxAniso;
+		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &maxAniso);
+		return (int)maxAniso;
 	}
 
 	public int MaxNumLights() {

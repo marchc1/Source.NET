@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 	<!-- Project Settings -->
 	<PropertyGroup>
 		<TargetFramework>net9.0</TargetFramework>
@@ -20,9 +20,10 @@
 	<!-- Shared Game Code -->
 	<ItemGroup>
 		<Compile Include="..\Game.Shared\*.cs" Link="Shared\%(Filename)%(Extension)" />
-		<Compile Condition='$(DefineConstants.Contains("HL2_DLL"))' Include="..\Game.Shared\HL2\*.cs" Link="Shared\HL2\%(Filename)%(Extension)" />
-		<Compile Condition='$(DefineConstants.Contains("HL2MP"))' Include="..\Game.Shared\HL2MP\*.cs" Link="Shared\HL2MP\%(Filename)%(Extension)" />
-		<Compile Condition='$(DefineConstants.Contains("GMOD_DLL"))'  Include="..\Game.Shared\GarrysMod\*.cs" Link="Shared\GarrysMod\%(Filename)%(Extension)" />
+		<Compile Condition="$(DefineConstants.Contains(&quot;HL1_DLL&quot;))" Include="..\Game.Shared\HL1\*.cs" Link="Shared\HL1\%(Filename)%(Extension)" />
+		<Compile Condition="$(DefineConstants.Contains(&quot;HL2_DLL&quot;))" Include="..\Game.Shared\HL2\*.cs" Link="Shared\HL2\%(Filename)%(Extension)" />
+		<Compile Condition="$(DefineConstants.Contains(&quot;HL2MP&quot;))" Include="..\Game.Shared\HL2MP\*.cs" Link="Shared\HL2MP\%(Filename)%(Extension)" />
+		<Compile Condition="$(DefineConstants.Contains(&quot;GMOD_DLL&quot;))" Include="..\Game.Shared\GarrysMod\*.cs" Link="Shared\GarrysMod\%(Filename)%(Extension)" />
 	</ItemGroup>
 	
 	<!-- Constants -->
