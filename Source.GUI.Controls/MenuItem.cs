@@ -223,7 +223,7 @@ public class MenuItem : Button
 		return CascadeMenu;
 	}
 
-	public IBorder? GetBorder(bool depressed, bool armed, bool selected, bool keyfocus) {
+	public override IBorder? GetBorder(bool depressed, bool armed, bool selected, bool keyfocus) {
 		return null;
 	}
 
@@ -244,7 +244,7 @@ public class MenuItem : Button
 			Checked = state;
 	}
 
-	public bool CanBeDefaultButton() {
+	public override bool CanBeDefaultButton() {
 		return false;
 	}
 

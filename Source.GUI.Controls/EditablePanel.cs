@@ -45,7 +45,7 @@ public class EditablePanel : Panel
 		BuildGroup.ApplySettings(resourceData);
 	}
 
-	public void ActivateBuildMode() {
+	public virtual void ActivateBuildMode() {
 		BuildGroup.SetEnabled(true);
 	}
 

@@ -40,8 +40,6 @@ public class Button : Label
 	string? DepressedSoundName;
 	string? ReleasedSoundName;
 
-	readonly public ISystem System = Singleton<ISystem>();
-
 	public override void OnMessage(KeyValues message, IPanel? from) {
 		switch (message.Name) {
 			case "PressButton":

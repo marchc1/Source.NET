@@ -114,7 +114,7 @@ public class PropertyDialog : Frame
 		return true;
 	}
 
-	public void ActivateBuildMode() {
+	public override void ActivateBuildMode() {
 		EditablePanel panel = (EditablePanel)GetActivePage();
 
 		if (panel == null)

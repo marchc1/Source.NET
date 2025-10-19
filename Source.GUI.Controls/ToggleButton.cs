@@ -49,7 +49,7 @@ public class ToggleButton : Button
 	}
 
 	public override void OnKeyCodePressed(ButtonCode code) {
-		if (code == ButtonCode.KeyEnter)
+		if (code != ButtonCode.KeyEnter)
 			base.OnKeyCodePressed(code);
 	}
 }

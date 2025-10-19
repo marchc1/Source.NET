@@ -14,7 +14,6 @@ public class RadioButton : ToggleButton
 {
 	// RadioImage RadioBoxImage;
 	int OldTabPosition;
-	Color SelectedFgColor;
 	int SubTabPosition;
 
 	public RadioButton(Panel parent, string name, string text) : base(parent, name, text) {

@@ -65,7 +65,7 @@ public enum BackgroundState
 public class GameMenu(Panel parent, string name) : Menu(parent, name)
 {
 	protected override void LayoutMenuBorder() { }
-	public virtual int AddMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, ReadOnlySpan<char> command, Panel? target, KeyValues? userData = null) {
+	public override int AddMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, ReadOnlySpan<char> command, Panel? target, KeyValues? userData = null) {
 		MenuItem item = new GameMenuItem(this, new string(itemName), new string(itemText));
 		item.AddActionSignalTarget(target);
 		item.SetCommand(command);
@@ -73,7 +73,7 @@ public class GameMenu(Panel parent, string name) : Menu(parent, name)
 		item.SetUserData(userData);
 		return base.AddMenuItem(item);
 	}
-	public virtual int AddMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, KeyValues command, Panel? target, KeyValues? userData = null) {
+	public override int AddMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, KeyValues command, Panel? target, KeyValues? userData = null) {
 		MenuItem item = new GameMenuItem(this, new string(itemName), new string(itemText));
 		item.AddActionSignalTarget(target);
 		item.SetCommand(command);
