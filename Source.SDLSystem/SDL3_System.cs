@@ -236,6 +236,7 @@ public unsafe class SDL3_System(ICommandLine commandLine) : ISystem
 
 			// Use ArgumentList to escape fontName
 			processStartInfo.ArgumentList.Add("--format=%{file}");
+			processStartInfo.ArgumentList.Add("--"); // Ensure user can't inject options
 			processStartInfo.ArgumentList.Add(new string(fontName));
 
 			using var process = System.Diagnostics.Process.Start(processStartInfo);
