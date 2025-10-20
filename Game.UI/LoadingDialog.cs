@@ -1,6 +1,7 @@
 using Source;
 using Source.Common;
 using Source.Common.Client;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.GameUI;
 using Source.Common.GUI;
 using Source.GUI.Controls;
@@ -32,8 +33,7 @@ public class LoadingDialog : Frame
 	[PanelAnimationVar("0")] int AdditionalIndentY;
 
 	public override void PerformLayout() {
-		if (ConsoleStyle)
-		{
+		if (ConsoleStyle) {
 			Surface.GetScreenSize(out int screenWide, out int screenTall);
 			GetSize(out int wide, out int tall);
 			float x, y;
@@ -114,8 +114,7 @@ public class LoadingDialog : Frame
 		SetSizeable(false);
 		SetMoveable(false);
 
-		if (ConsoleStyle)
-		{
+		if (ConsoleStyle) {
 			Center = false;
 			Progress.SetVisible(false);
 			Progress2.SetVisible(false);
@@ -124,7 +123,7 @@ public class LoadingDialog : Frame
 			TimeRemainingLabel.SetVisible(false);
 
 			SetMinimumSize(0, 0);
-			// SetTitleBarVisible(false);
+			SetTitleBarVisible(false);
 
 			ProgressFraction = 0;
 		}
@@ -250,9 +249,32 @@ public class LoadingDialog : Frame
 		return nOldDrawnSegments != nNewDrawSegments;
 	}
 
-	internal void SetSecondaryProgress(float progress)
-	{
+	internal void SetSecondaryProgress(float progress) {
+		if (!ConsoleStyle)
+			return;
 
+		if (!ShowingSecondaryProgress && progress > 0.99f)
+			return;
+
+		if (!ShowingSecondaryProgress) {
+			LoadControlSettings("resource/LoadingDialogDualProgress.res");
+			ShowingSecondaryProgress = true;
+			Progress2.SetVisible(true);
+			SecondaryProgressStartTime = System.GetFrameTime();
+		}
+
+		if (progress > SecondaryProgress) {
+			Progress2.SetProgress(progress);
+			SecondaryProgress = progress;
+			LastSecondaryProgressUpdateTime = System.GetFrameTime();
+		}
+
+		if (progress < SecondaryProgress) {
+			Progress2.SetProgress(progress);
+			SecondaryProgress = progress;
+			LastSecondaryProgressUpdateTime = System.GetFrameTime();
+			SecondaryProgressStartTime = System.GetFrameTime();
+		}
 	}
 
 	internal void SetStatusText(ReadOnlySpan<char> statusText) {
@@ -272,20 +294,24 @@ public class LoadingDialog : Frame
 		return bret;
 	}
 
-	public override void OnThink()
-	{
+	public override void OnThink() {
 		base.OnThink();
 
-		// if (!ConsoleStyle && ShowingSecondaryProgress)
-		// {
+		if (!ConsoleStyle && ShowingSecondaryProgress) {
+			Span<char> unicode = stackalloc char[512];
+			if (SecondaryProgress >= 1.0f)
+				TimeRemainingLabel.SetText("complete");
+			else if (ProgressBar.ConstructTimeRemainingString(unicode, (float)SecondaryProgressStartTime, (float)System.GetFrameTime(), SecondaryProgress, (float)LastSecondaryProgressUpdateTime, true))
+				TimeRemainingLabel.SetText(unicode);
+			else
+				TimeRemainingLabel.SetText("");
+		}
 
-		// }
+		SetAlpha(255);
 	}
 
-	public override void PaintBackground()
-	{
-		if (!ConsoleStyle)
-		{
+	public override void PaintBackground() {
+		if (!ConsoleStyle) {
 			base.PaintBackground();
 			return;
 		}
@@ -295,8 +321,7 @@ public class LoadingDialog : Frame
 		int x = (panelWide - barWide) / 2;
 		int y = panelTall - barTall;
 
-		if (LoadingBackground != null)
-		{
+		if (LoadingBackground != null) {
 			IScheme? scheme = SchemeManager.GetScheme("ClientScheme");
 			Color color = GetSchemeColor("TanDarker", new(255, 255, 255, 255), scheme);
 

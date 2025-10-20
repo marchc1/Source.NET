@@ -60,6 +60,45 @@ public class ProgressBar : Panel
 		SetBorder(scheme.GetBorder("ButtonDepressedBorder"));
 	}
 
+	public static bool ConstructTimeRemainingString(Span<char> output, float startTime, float currentTime, float currentProgress, float lastProgressUpdateTime, bool addRemainingSuffix) {
+		Assert(lastProgressUpdateTime <= currentTime);
+
+		output[0] = '\0';
+
+		float timeElapsed = lastProgressUpdateTime - startTime;
+		float totalTime = timeElapsed / currentProgress;
+
+		int secondsRemaining = (int)(totalTime - timeElapsed);
+		if (lastProgressUpdateTime < currentTime) {
+			float progressRate = currentProgress / timeElapsed;
+			float extrapolatedProgress = progressRate * (currentTime - lastProgressUpdateTime);
+			float extrapolatedTotalTimee = (currentTime - startTime) / extrapolatedProgress;
+			secondsRemaining = (int)(extrapolatedTotalTimee - timeElapsed);
+		}
+
+		if (secondsRemaining == 0 && (totalTime - timeElapsed) > 0)
+			secondsRemaining = 1;
+
+		int minutesRemaining = 0;
+		while (secondsRemaining >= 60) {
+			minutesRemaining++;
+			secondsRemaining -= 60;
+		}
+
+		char[] minutesBuf = new char[16];
+		char[] secondsBuf = new char[16];
+		minutesRemaining.TryFormat(minutesBuf, out int minutesLen);
+		secondsRemaining.TryFormat(secondsBuf, out int secondsLen);
+
+		if (minutesRemaining > 0) {
+			Span<char> unicodeMinutes = stackalloc char[16];
+			Span<char> unicodeSeconds = stackalloc char[16];
+
+		}
+
+		return false; // todo finish
+	}
+
 	public int GetBarInset() => BarInset;
 	public void SetBarInset(int pixels) => BarInset = pixels;
 	public int GetMargin() => BarMargin;

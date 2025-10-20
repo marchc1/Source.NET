@@ -832,7 +832,7 @@ public class Frame : EditablePanel
 		}
 	}
 
-	private void SetTitleBarVisible(bool state) {
+	public void SetTitleBarVisible(bool state) {
 		DrawTitleBar = state;
 		SetMenuButtonVisible(state);
 		SetMinimizeButtonVisible(state);
