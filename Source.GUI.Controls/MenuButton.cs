@@ -12,8 +12,8 @@ public class MenuButton : Button
 	MenuDirection Direction;
 	int OpenOffsetY;
 	bool DropMenuButtonStyle;
-	TextImage DropMenuImage;
-	int ImageIndex;
+	TextImage? DropMenuImage;
+	nint ImageIndex;
 
 	public MenuButton(Panel parent, string name, string text) : base(parent, name, text) {
 		Menu = null;
@@ -21,9 +21,9 @@ public class MenuButton : Button
 		DropMenuImage = null;
 		ImageIndex = -1;
 		OpenOffsetY = 0;
-		DropMenuButtonStyle = false;// true when DropMenuImage can work
+		DropMenuButtonStyle = true;
 
-		// SetDropMenuButtonStyle(false);
+		SetDropMenuButtonStyle(false);
 		SetUseCaptureMouse(true);
 		SetButtonActivationType(ActivationType.OnPressed);
 	}
@@ -46,7 +46,7 @@ public class MenuButton : Button
 			return;
 
 		Menu.SetVisible(false);
-		base.ForceDepressed(false);
+		ForceDepressed(false);
 		Repaint();
 		OnHideMenu(Menu);
 	}
@@ -62,9 +62,10 @@ public class MenuButton : Button
 		base.OnKillFocus(newPanel);
 	}
 
+	static readonly KeyValues KV_MenuClosed = new("MenuClosed");
 	public void OnMenuClose() {
 		HideMenu();
-		PostActionSignal(new KeyValues("MenuClosed")); // static kv
+		PostActionSignal(KV_MenuClosed);
 	}
 
 	public void SetOpenOffsetY(int offset) => OpenOffsetY = offset;
@@ -76,7 +77,7 @@ public class MenuButton : Button
 			Input.GetCursorPos(out int mx, out int my);
 			ScreenToLocal(ref mx, ref my);
 
-			DropMenuImage.GetContentSize(out int contentW, out int contentH);
+			DropMenuImage.GetContentSize(out int contentW, out _);
 			int drawX = GetWide() - contentW - 2;
 			if (mx > drawX && OnCheckMenuItemCount() == 0) {
 				base.DoClick();
@@ -99,7 +100,7 @@ public class MenuButton : Button
 		// Menu.PositionRelativeToPanel(this, Direction, OpenOffsetY);
 		MoveToFront();
 		OnShowMenu(Menu);
-		base.ForceDepressed(true);
+		ForceDepressed(true);
 		Menu.SetVisible(true);
 		Menu.RequestFocus();
 	}
@@ -134,12 +135,14 @@ public class MenuButton : Button
 			return;
 
 		if (state) {
-			// DropMenuImage = new TextImage("u");
-			// IScheme? scheme = GetScheme();
-			// DropMenuImage.SetFont(scheme!.GetFont("Marlett", IsProportional()));
-			// ImageIndex = AddImage(DropMenuImage);
+			DropMenuImage = new TextImage("u");
+			IScheme? scheme = GetScheme();
+			DropMenuImage.SetFont(scheme!.GetFont("Marlett", IsProportional()));
+			ImageIndex = AddImage(DropMenuImage, 0);
 		} else {
-			//
+			ResetToSimpleTextImage();
+			DropMenuImage = null;
+			ImageIndex = -1;
 		}
 	}
 
@@ -164,9 +167,9 @@ public class MenuButton : Button
 		GetSize(out int w, out int h);
 
 		DropMenuImage.ResizeImageToContent();
-		DropMenuImage.GetContentSize(out int contentW, out int contentH);
+		DropMenuImage.GetContentSize(out int contentW, out _);
 
-		// SetImageBounds(ImageIndex, w - contentW - 2, contentW);
+		SetImageBounds(ImageIndex, w - contentW - 2, contentW);
 	}
 
 	public bool IsDropMenuButtonStyle() => DropMenuButtonStyle;
@@ -177,7 +180,7 @@ public class MenuButton : Button
 		if (!IsDropMenuButtonStyle())
 			return;
 
-		DropMenuImage.GetContentSize(out int contentW, out int contentH);
+		DropMenuImage!.GetContentSize(out int contentW, out int contentH);
 		DropMenuImage.SetColor(IsEnabled() ? GetButtonFgColor() : GetDisabledFgColor1());
 
 		int drawX = GetWide() - contentW - 2;
@@ -192,7 +195,7 @@ public class MenuButton : Button
 		if (!IsDropMenuButtonStyle())
 			return;
 
-		DropMenuImage.GetContentSize(out int contentW, out int contentH);
+		DropMenuImage!.GetContentSize(out int contentW, out int contentH);
 		int drawX = GetWide() - contentW - 2;
 		if (x <= drawX || OnCheckMenuItemCount() != 0) {
 			SetButtonActivationType(ActivationType.OnPressedAndReleased);

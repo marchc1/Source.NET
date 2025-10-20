@@ -547,7 +547,7 @@ public class Label : Panel
 		ty1 = ty0 + tTall;
 	}
 
-	internal TextImage GetTextImage() {
+	internal TextImage? GetTextImage() {
 		return TextImage;
 	}
 
@@ -590,5 +590,12 @@ public class Label : Panel
 	public void EnsureImageCapacity(int maxIndex) {
 		while (Images.Count <= maxIndex)
 			AddImage(null, 0);
+	}
+
+	public void SetImageBounds(nint index, int xPos, int width) {
+		var info = Images[(int)index];
+		info.XPos = (short)xPos;
+		info.Width = (short)width;
+		Images[(int)index] = info;
 	}
 }
