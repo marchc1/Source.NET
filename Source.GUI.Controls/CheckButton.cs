@@ -106,7 +106,7 @@ public class CheckButton : ToggleButton
 
 	public override void SetSelected(bool state) {
 		if (CheckButtonCheckable) {
-			KeyValues msg = new("CheckButtonChecked", "sate", state ? 1 : 0);
+			KeyValues msg = new("CheckButtonChecked", "state", state ? 1 : 0);
 			PostActionSignal(msg);
 
 			base.SetSelected(state);
