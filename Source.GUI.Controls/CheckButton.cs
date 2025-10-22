@@ -53,15 +53,15 @@ public class CheckButton : ToggleButton
 	Color DisabledBgColor;
 	Color HighlightFgColor;
 
-	public CheckButton(Panel parent, string name, string text) : base(parent, name, text) {
+	public CheckButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
 		SetContentAlignment(Alignment.West);
 		CheckButtonCheckable = true;
 		UseSmallCheckImage = false;
 
 		CheckBoxImage = new(this);
 
-		// SetTextImageIndex(1);
-		// SetImageAtIndex(0, CheckBoxImage, CHECK_INSET);
+		SetTextImageIndex(1);
+		SetImageAtIndex(0, CheckBoxImage, CHECK_INSET);
 
 		SelectedFgColor = new(196, 181, 80, 255);
 		SelectedBgColor = new(130, 130, 130, 255);
@@ -97,7 +97,7 @@ public class CheckButton : ToggleButton
 
 		CheckBoxImage.SetFont(scheme.GetFont(UseSmallCheckImage ? "MarlettSmall" : "Marlett", IsProportional()));
 		CheckBoxImage.ResizeImageToContent();
-		// SetImageAtIndex(0, CheckBoxImage, CHECK_INSET);
+		SetImageAtIndex(0, CheckBoxImage, CHECK_INSET);
 
 		SetPaintBackgroundEnabled(false);
 	}
@@ -106,7 +106,7 @@ public class CheckButton : ToggleButton
 
 	public override void SetSelected(bool state) {
 		if (CheckButtonCheckable) {
-			KeyValues msg = new("CheckButtonCheckec", "sate", state ? 1 : 0);
+			KeyValues msg = new("CheckButtonChecked", "state", state ? 1 : 0);
 			PostActionSignal(msg);
 
 			base.SetSelected(state);
@@ -136,5 +136,14 @@ public class CheckButton : ToggleButton
 			HighlightFgColor = color;
 			InvalidateLayout(false);
 		}
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name == "CheckButtonChecked") {
+			OnCheckButtonChecked((Panel)from!);
+			return;
+		}
+
+		base.OnMessage(message, from);
 	}
 }

@@ -8,7 +8,7 @@ public class ToggleButton : Button
 {
 	Color SelectedColor;
 
-	public ToggleButton(Panel parent, string name, string text) : base(parent, name, text) {
+	public ToggleButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
 		SetButtonActivationType(ActivationType.OnPressed);
 	}
 
@@ -49,7 +49,7 @@ public class ToggleButton : Button
 	}
 
 	public override void OnKeyCodePressed(ButtonCode code) {
-		if (code == ButtonCode.KeyEnter)
+		if (code != ButtonCode.KeyEnter)
 			base.OnKeyCodePressed(code);
 	}
 }

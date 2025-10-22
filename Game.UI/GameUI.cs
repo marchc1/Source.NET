@@ -51,7 +51,7 @@ public class GameUI(IEngineClient engine) : IGameUI
 	}
 
 	public void OnGameUIHidden() {
-		if (engine.GetMaxClients() <= 1) 
+		if (engine.GetMaxClients() <= 1)
 			engine.ClientCmd_Unrestricted("unpause");
 
 		staticPanel.OnGameUIHidden();
@@ -122,7 +122,7 @@ public class GameUI(IEngineClient engine) : IGameUI
 	public void SetMainMenuOverride(IPanel panel) {
 		//BasePanel? basePanel = BasePanel();
 		//if (basePanel != null)
-			//basePanel.SetMainMenuOverride(panel); // todo
+			// basePanel.SetMainMenuOverride(panel); // todo
 	}
 
 	public bool SetShowProgressText(bool show) {
@@ -220,6 +220,9 @@ public class GameUI(IEngineClient engine) : IGameUI
 	}
 
 	public bool IsInBackgroundLevel() {
+		ReadOnlySpan<char> levelName = engine.GetLevelName();
+		if (!levelName.IsEmpty && levelName[0] != '\0' && engine.IsLevelMainMenuBackground())
+			return true;
 		return false;
 	}
 

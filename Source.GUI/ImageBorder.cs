@@ -7,7 +7,6 @@ namespace Source.GUI;
 
 public class ImageBorder : Border
 {
-	string? Name;
 	PaintBackgroundType BackgroundType;
 	TextureID TextureID;
 	bool Tiled;

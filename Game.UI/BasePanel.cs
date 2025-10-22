@@ -10,31 +10,6 @@ using Source.GUI.Controls;
 
 namespace Game.UI;
 
-public class OptionsTestPage : PropertyPage
-{
-	public OptionsTestPage(Panel? parent, string? name) : base(parent, name) {}
-}
-
-public class OptionsDialog : PropertyDialog
-{
-	readonly ModInfo ModInfo = Singleton<ModInfo>();
-	public OptionsDialog(Panel? parent) : base(parent, "OptionsDialog") {
-		SetDeleteSelfOnClose(true);
-		SetBounds(0, 0, 512, 406);
-		SetSizeable(false);
-
-		SetTitle("#GameUI_Options", true);
-		// TODO
-
-		AddPage(new OptionsTestPage(this, null), "#GameUI_Video");
-		AddPage(new OptionsTestPage(this, null), "#GameUI_Video");
-		AddPage(new OptionsTestPage(this, null), "#GameUI_Video");
-
-		SetApplyButtonVisible(true);
-		GetPropertySheet().SetTabWidth(84);
-	}
-}
-
 public class GameMenuItem : MenuItem
 {
 	public GameMenuItem(Menu panel, string name, string text) : base(panel, name, text) {
@@ -90,7 +65,7 @@ public enum BackgroundState
 public class GameMenu(Panel parent, string name) : Menu(parent, name)
 {
 	protected override void LayoutMenuBorder() { }
-	public virtual int AddMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, ReadOnlySpan<char> command, Panel? target, KeyValues? userData = null) {
+	public override int AddMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, ReadOnlySpan<char> command, Panel? target, KeyValues? userData = null) {
 		MenuItem item = new GameMenuItem(this, new string(itemName), new string(itemText));
 		item.AddActionSignalTarget(target);
 		item.SetCommand(command);
@@ -98,7 +73,7 @@ public class GameMenu(Panel parent, string name) : Menu(parent, name)
 		item.SetUserData(userData);
 		return base.AddMenuItem(item);
 	}
-	public virtual int AddMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, KeyValues command, Panel? target, KeyValues? userData = null) {
+	public override int AddMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, KeyValues command, Panel? target, KeyValues? userData = null) {
 		MenuItem item = new GameMenuItem(this, new string(itemName), new string(itemText));
 		item.AddActionSignalTarget(target);
 		item.SetCommand(command);

@@ -239,19 +239,19 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		}
 
 		HistoryItem item;
-		for (int i = 0; i < CommandHistory.Count; i++) {
+		for (int i = CommandHistory.Count - 1; i >= 0; i--) {
 			item = CommandHistory[i];
 			if (item == null)
 				continue;
 
-			if (MemoryExtensions.Equals(command, item.GetText().AsSpan(), StringComparison.OrdinalIgnoreCase))
+			if (!MemoryExtensions.Equals(command, item.GetText().AsSpan(), StringComparison.OrdinalIgnoreCase))
 				continue;
 
 			if (!extra.IsEmpty || item.GetExtra() != null) {
 				if (extra.IsEmpty || item.GetExtra() == null)
 					continue;
 
-				if (MemoryExtensions.Equals(extra, item.GetExtra().AsSpan(), StringComparison.OrdinalIgnoreCase))
+				if (!MemoryExtensions.Equals(extra, item.GetExtra().AsSpan(), StringComparison.OrdinalIgnoreCase))
 					continue;
 			}
 
@@ -274,7 +274,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		Span<char> command = stackalloc char[256];
 		strcpy(command, text);
 
-		ConCommand cmd = Cvar.FindCommand(command)!;
+		ConCommand? cmd = Cvar.FindCommand(command);
 		if (cmd == null)
 			return null;
 
@@ -663,6 +663,9 @@ public class ConsoleDialog : Frame
 		switch (message.Name) {
 			case "CommandSubmitted":
 				OnCommandSubmitted(message.GetString("command"));
+				return;
+			case "Activate":
+				Activate();
 				return;
 		}
 

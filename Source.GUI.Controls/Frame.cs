@@ -537,7 +537,7 @@ public class Frame : EditablePanel
 		Span<char> str = [(char)0x30, '\0'];
 		MinimizeToSysTrayButton = new FrameButton(this, "frame_mintosystray", str);
 		MinimizeToSysTrayButton.SetCommand("MinimizeToSysTray");
-		// SetMinimizeToSysTrayButtonVisible(false);
+		SetMinimizeToSysTrayButtonVisible(false);
 
 		CloseButton = new FrameButton(this, "frame_close", "r");
 		CloseButton.AddActionSignalTarget(this);
@@ -589,6 +589,7 @@ public class Frame : EditablePanel
 	public void SetMenuButtonResponsive(bool state) => MenuButton?.SetResponsive(state);
 	public void SetMinimizeButtonVisible(bool state) => MinimizeButton?.SetVisible(state);
 	public void SetMaximizeButtonVisible(bool state) => MaximizeButton?.SetVisible(state);
+	public void SetMinimizeToSysTrayButtonVisible(bool state) => MinimizeToSysTrayButton?.SetVisible(state);
 	public void SetCloseButtonVisible(bool state) => CloseButton?.SetVisible(state);
 
 	public override void ApplySchemeSettings(IScheme scheme) {
@@ -831,7 +832,7 @@ public class Frame : EditablePanel
 		}
 	}
 
-	private void SetTitleBarVisible(bool state) {
+	public void SetTitleBarVisible(bool state) {
 		DrawTitleBar = state;
 		SetMenuButtonVisible(state);
 		SetMinimizeButtonVisible(state);

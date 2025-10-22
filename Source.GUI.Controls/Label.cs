@@ -29,7 +29,7 @@ public class Label : Panel
 		TextImageIndex = AddImage(TextImage, 0);
 	}
 
-	public nint AddImage(TextImage textImage, int offset) {
+	public nint AddImage(TextImage? textImage, int offset) {
 		nint newImage = Images.Count;
 		Images.Add(new() {
 			Image = textImage,
@@ -547,7 +547,55 @@ public class Label : Panel
 		ty1 = ty0 + tTall;
 	}
 
-	internal TextImage GetTextImage() {
+	internal TextImage? GetTextImage() {
 		return TextImage;
+	}
+
+	public void ResetToSimpleTextImage() {
+		ClearImages();
+		TextImageIndex = AddImage(TextImage!, 0);
+	}
+
+	public void SetImageAtIndex(int index, IImage? image, int offset) {
+		EnsureImageCapacity(index);
+
+		if(Images[index].Image != image || Images[index].Offset != offset) {
+			var info = Images[index];
+			info.Image = image;
+			info.Offset = (short)offset;
+			Images[index] = info;
+			InvalidateLayout();
+		}
+	}
+
+	public int GetImageCount() => Images.Count;
+
+	public nint SetTextImageIndex(int newIndex) {
+		if (newIndex == TextImageIndex)
+			return TextImageIndex;
+
+		EnsureImageCapacity(newIndex);
+
+		nint oldIndex = TextImageIndex;
+
+		var info = Images[newIndex];
+		if (TextImageIndex != 0) info.Image = null;
+		if (newIndex > -1) info.Image = TextImage;
+		Images[newIndex] = info;
+
+		TextImageIndex = newIndex;
+		return oldIndex;
+	}
+
+	public void EnsureImageCapacity(int maxIndex) {
+		while (Images.Count <= maxIndex)
+			AddImage(null, 0);
+	}
+
+	public void SetImageBounds(nint index, int xPos, int width) {
+		var info = Images[(int)index];
+		info.XPos = (short)xPos;
+		info.Width = (short)width;
+		Images[(int)index] = info;
 	}
 }

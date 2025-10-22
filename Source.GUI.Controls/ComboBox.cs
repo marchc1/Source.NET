@@ -8,13 +8,27 @@ class ComboBoxButton : Button
 {
 	Color DisabledBgColor;
 
-	public ComboBoxButton(Panel parent, string name, string text) : base(parent, name, text) {
+	public ComboBoxButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
 		SetButtonActivationType(ActivationType.OnPressed);
 	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
-		// todo
+
+		SetFont(scheme.GetFont("Marlett", IsProportional()));
+		SetContentAlignment(Alignment.West);
+
+#if OSX
+		SetTextInset(-3, 0);
+#else
+		SetTextInset(3, 0);
+#endif
+		SetDefaultBorder(scheme.GetBorder("ScrollBarButtonBorder"));
+
+		SetDefaultColor(GetSchemeColor("ComboBoxButton.ArrowColor", scheme), GetSchemeColor("ComboBoxButton.BgColor", scheme));
+		SetArmedColor(GetSchemeColor("ComboBoxButton.ArmedArrowColor", scheme), GetSchemeColor("ComboBoxButton.BgColor", scheme));
+		SetDepressedColor(GetSchemeColor("ComboBoxButton.ArmedArrowColor", scheme), GetSchemeColor("ComboBoxButton.BgColor", scheme));
+		DisabledBgColor = GetSchemeColor("ComboBoxButton.DisabledBgColor", scheme);
 	}
 
 	public override IBorder GetBorder(/*bool depressed, bool armed, bool selected, bool keyfocus*/) {
@@ -24,20 +38,45 @@ class ComboBoxButton : Button
 	public override void OnCursorExited() {
 		CallParentFunction(new KeyValues("CursorExited")); // todo: static kv
 	}
+
+	public override Color GetButtonFgColor() {
+		if (IsEnabled())
+			return base.GetButtonFgColor();
+		return DisabledBgColor;
+	}
 }
 
 public class ComboBox : TextEntry
 {
+	public static Panel Create_ComboBox() => new ComboBox(null, null, 5, true);
+
 	Menu DropDown;
 	ComboBoxButton Button;
 	bool PreventTextChangeMessage;
 	bool Highlight;
 	MenuDirection Direction;
 	int OpenOffsetY;
-	char[] BorderOverride;
+	char[] BorderOverride = new char[64];
 
 	public ComboBox(Panel parent, string name, int numLines, bool allowEdit) : base(parent, name) {
+		SetEditable(allowEdit);
+		// SetHorizontalScrolling(false);
 
+		DropDown = new Menu(this, null);
+		DropDown.AddActionSignalTarget(this);
+		DropDown.SetTypeAheadMode(MenuTypeAheadMode.TYPE_AHEAD_MODE);
+
+		Button = new ComboBoxButton(this, "Button", "u");
+		Button.SetCommand("ButtonClicked");
+		Button.AddActionSignalTarget(this);
+
+		// SetNumberOfEditLines(numLines);
+
+		Highlight = false;
+		Direction = MenuDirection.DOWN;
+		OpenOffsetY = 0;
+		PreventTextChangeMessage = false;
+		BorderOverride[0] = '\0';
 	}
 
 	~ComboBox() {
@@ -92,7 +131,28 @@ public class ComboBox : TextEntry
 	}
 
 	public override void PerformLayout() {
+		GetPaintSize(out int wide, out int tall);
+		base.PerformLayout();
 
+		IFont buttonFont = Button.GetFont()!;
+
+		int fontTall = Surface.GetFontTall(buttonFont);
+		int buttonSize = Math.Min(tall, fontTall);
+		int buttonY = (tall - 1 - buttonSize) / 2;
+
+		Button.GetContentSize(out int buttonWide, out int buttonTall);
+		buttonWide = Math.Max(buttonSize, buttonWide);
+
+		Button.SetBounds(wide - buttonWide, buttonY, buttonWide, buttonSize);
+
+		if (IsEditable())
+			SetCursor(CursorCode.IBeam);
+		else
+			SetCursor(CursorCode.Arrow);
+
+		Button.SetEnabled(IsEnabled());
+
+		DoMenuLayout();
 	}
 
 	public void DoMenuLayout() {
@@ -112,11 +172,20 @@ public class ComboBox : TextEntry
 	public bool IsDropdownVisible() => DropDown.IsVisible();
 
 	public override void ApplySchemeSettings(IScheme scheme) {
-
+		base.ApplySchemeSettings(scheme);
+		SetBorder(scheme.GetBorder(BorderOverride.Length > 0 ? BorderOverride : "ComboBoxBorder"));
 	}
 
 	public override void ApplySettings(KeyValues resourceData) {
+		base.ApplySettings(resourceData);
 
+		ReadOnlySpan<char> border = resourceData.GetString("border_override", "");
+		if (border.Length > 0)
+			border.CopyTo(BorderOverride);
+
+		KeyValues KVButton = resourceData.FindKey("Button")!;
+		if (KVButton != null && Button != null)
+			Button.ApplySettings(KVButton);
 	}
 
 	public void SetDropdownButtonVisible(bool state) =>
@@ -197,9 +266,9 @@ public class ComboBox : TextEntry
 
 	public override void OnSizeChanged(int newWide, int newTall) {
 		base.OnSizeChanged(newWide, newTall);
-		PerformLayout();
-		Button.GetSize(out int bwide, out _);
-		SetDrawWidth(newWide - bwide);
+		//PerformLayout();
+		//Button.GetSize(out int bwide, out _);
+		//SetDrawWidth(newWide - bwide);
 	}
 
 	public override void OnSetFocus() {
@@ -252,5 +321,24 @@ public class ComboBox : TextEntry
 	public override void SetUseFallbackFont(bool state, IFont Fallback) {
 		base.SetUseFallbackFont(state, Fallback);
 		DropDown.SetUseFallbackFont(state, Fallback);
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		switch (message.Name) {
+			case "MenuItemSelected":
+				OnMenuItemSelected();
+				break;
+			case "SetText":
+				OnSetText(message.GetString("text", ""));
+				break;
+			case "MenuClosed":
+				OnMenuClose();
+				break;
+			case "ActiveItem":
+				ActivateItem(message.GetInt("itemID", -1));
+				break;
+		}
+
+		base.OnMessage(message, from);
 	}
 }

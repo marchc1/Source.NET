@@ -83,7 +83,7 @@ public class BuildGroup
 
 		if (conditions != null && conditions.GetFirstSubKey() != null) {
 			if (usingPrecachedSourceKeys) {
-				dat = dat.MakeCopy();
+				dat = dat!.MakeCopy();
 				deleteKeys = true;
 			}
 

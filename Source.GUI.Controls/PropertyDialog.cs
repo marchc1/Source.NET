@@ -1,4 +1,5 @@
 ﻿using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
 
 namespace Source.GUI.Controls;
 
@@ -113,13 +114,13 @@ public class PropertyDialog : Frame
 		return true;
 	}
 
-	public void ActivateBuildMode() {
-		// EditablePanel panel = (EditablePanel)GetActivePage();
+	public override void ActivateBuildMode() {
+		EditablePanel panel = (EditablePanel)GetActivePage();
 
-		// if (panel == null)
-		// 	return;
+		if (panel == null)
+			return;
 
-		// panel.ActivateBuildMode();
+		panel.ActivateBuildMode();
 	}
 
 	public void SetOKButtonText(ReadOnlySpan<char> text) {
@@ -163,5 +164,12 @@ public class PropertyDialog : Frame
 
 	public override void RequestFocus(int direction) {
 		PropertySheet!.RequestFocus(direction);
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name == "ApplyButtonEnable") {
+			OnApplyButtonEnable(message.GetBool("state", false));
+			return;
+		}
 	}
 }

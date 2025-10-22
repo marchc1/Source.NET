@@ -8,6 +8,7 @@ namespace Source.GUI.Controls;
 
 public class TextEntry : Panel
 {
+	public static Panel Create_TextEntry() => new TextEntry(null, null);
 	public TextEntry(Panel? parent, string? name) : base(parent, name) {
 		SetTriplePressAllowed(true);
 
@@ -22,6 +23,8 @@ public class TextEntry : Panel
 		ShouldSelectAllOnFirstFocus = false;
 		ShouldSelectAllOnFocusAlways = false;
 
+		GotoTextEnd();
+		SetAllowKeyBindingChainToParent(true);
 	}
 
 	public override void OnKeyFocusTicked() {
@@ -234,7 +237,26 @@ public class TextEntry : Panel
 	}
 
 	private void ScrollLeftForResize() {
+		if (Multiline)
+			return;
 
+		if (!HorizScrollingAllowed)
+			return;
+
+		while (CurrentStartIndex > 0) {
+			CurrentStartIndex--;
+			int val = CurrentStartIndex;
+
+			if (IsCursorOffRightSideOfWindow(CursorPos)) {
+				CurrentStartIndex++;
+				break;
+			}
+
+			if (val != CurrentStartIndex)
+				break;
+		}
+
+		LayoutVerticalScrollBarSlider();
 	}
 
 	public int GetDrawWidth() => DrawWidth;
@@ -447,7 +469,7 @@ public class TextEntry : Panel
 
 	List<char> TextStream = [];
 	List<char> UndoTextStream = [];
-	List<int> LineBreaks = [BUFFER_SIZE];
+	List<int> LineBreaks = [];
 
 	int CursorPos;
 	bool CursorIsAtEnd;
@@ -461,7 +483,7 @@ public class TextEntry : Panel
 	long CursorNextBlinkTime;
 	int CursorBlinkRate;
 	int PixelsIndent;
-	int CharsCount;
+	int CharCount;
 	int MaxCharCount;
 	bool DataChanged;
 	bool Multiline;
@@ -608,6 +630,23 @@ public class TextEntry : Panel
 
 	public void SetCatchEnterKey(bool state) {
 		CatchEnterKey = state;
+	}
+
+	public void SetVerticalScrollbar(bool state) {
+		VerticalScrollbar = state;
+
+		if (VerticalScrollbar) {
+			if (VertScrollBar == null) {
+				VertScrollBar = new(this, "ScrollBar", true);
+				VertScrollBar.AddActionSignalTarget(this);
+			}
+
+			VertScrollBar.SetVisible(true);
+		}
+		else if (VertScrollBar != null)
+			VertScrollBar.SetVisible(false);
+
+		InvalidateLayout();
 	}
 
 	public override void OnKeyCodePressed(ButtonCode code) {
@@ -952,12 +991,12 @@ public class TextEntry : Panel
 		LayoutVerticalScrollBarSlider();
 	}
 
-	private void Undo() {
+	private void Undo() { // FIXME: why does this only work once?
 		CursorPos = UndoCursorPos;
 
 		// I have a bad feeling about this...
-		UndoTextStream.CopyTo(TextStream.AsSpan());
-		TextStream.RemoveRange(UndoTextStream.Count, TextStream.Count - UndoTextStream.Count);
+		TextStream.Clear();
+		TextStream.AddRange(UndoTextStream);
 
 		InvalidateLayout();
 		Repaint();
@@ -1109,7 +1148,16 @@ public class TextEntry : Panel
 	}
 
 	private void CalcBreakIndex() {
+		// if (CursorPos == TextStream.Count) {
+		// 	RecalculateBreaksIndex = LineBreaks.Count - 2;
+		// 	return;
+		// }
 
+		// RecalculateBreaksIndex = 0;
+		// while (CursorPos > LineBreaks[RecalculateBreaksIndex]) // todo: fix out of range
+		// 	++RecalculateBreaksIndex;
+
+		// --RecalculateBreaksIndex;
 	}
 
 	private void LayoutVerticalScrollBarSlider() {
@@ -1117,11 +1165,95 @@ public class TextEntry : Panel
 	}
 
 	private void RecalculateLineBreaks() {
+		if (!Multiline || HideText)
+			return;
 
+		if (TextStream.Count == 0)
+			return;
+
+		IFont font = Font!;
+
+		int wide = GetWide() - 2;
+
+		if (VertScrollBar != null)
+			wide -= VertScrollBar.GetWide();
+
+		int charWidth;
+		int x = DRAW_OFFSET_X, y = DRAW_OFFSET_Y;
+		int wordStartIndex = 0;
+		int wordLength = 0;
+		bool hasWord = false;
+		bool justStartedNewLine = true;
+		bool wordStartedOnNewLine = true;
+
+		int startChar = 0;
+		if (RecalculateBreaksIndex <= 0) {
+			LineBreaks.Clear();
+		}
+		else {
+			for (int i2 = RecalculateBreaksIndex + 1; i2 < LineBreaks.Count; ++i2) {
+				LineBreaks.RemoveAt(i2);
+				i2--;
+				startChar = LineBreaks[RecalculateBreaksIndex];
+			}
+		}
+
+		if (TextStream[startChar] == '\r' || TextStream[startChar] == '\n')
+			startChar++;
+
+		int i;
+		for (i = startChar; i < TextStream.Count; ++i) {
+			char ch = TextStream[i];
+
+			if (!char.IsWhiteSpace(ch)) {
+				if (hasWord) {
+
+				}
+				else {
+					wordStartIndex = i;
+					hasWord = true;
+					wordStartedOnNewLine = justStartedNewLine;
+					wordLength = 0;
+				}
+			}
+			else
+				hasWord = false;
+
+			charWidth = getCharWidth(font, ch);
+			if (char.IsControl(ch))
+				justStartedNewLine = false;
+
+			if ((x + charWidth) > wide || ch == '\r' || ch == '\n') {
+				AddAnotherLine(ref x, ref y);
+
+				justStartedNewLine = true;
+				hasWord = false;
+
+				if (ch == '\r' || ch == '\n')
+					LineBreaks.Add(i);
+				else if (wordStartedOnNewLine)
+					LineBreaks.Add(wordStartIndex);
+				else {
+					LineBreaks.Add(wordStartIndex);
+					i = wordStartIndex;
+				}
+
+				wordLength = 0;
+			}
+
+			x += charWidth;
+			wordLength += charWidth;
+		}
+
+		CharCount = i - 1;
+		LineBreaks.Add(BUFFER_SIZE);
+		LayoutVerticalScrollBarSlider();
 	}
 
 	private void SaveUndoState() {
-
+		UndoCursorPos = CursorPos;
+		UndoTextStream.Clear();
+		UndoTextStream.AddRange(TextStream);
 	}
 
 	private void Backspace() {
@@ -1782,7 +1914,7 @@ public class TextEntry : Panel
 		int i, c;
 		for (i = 0, c = Math.Min(outBuffer.Length, TextStream.Count); i < c; i++) {
 			char ch = TextStream[i];
-			if (c == '\0')
+			if (ch == '\0')
 				break;
 			outBuffer[i] = ch;
 		}
@@ -1796,7 +1928,7 @@ public class TextEntry : Panel
 		if (text.Length > 0 && text[0] == '#') {
 			ReadOnlySpan<char> localized = Localize.Find(text);
 			if (!localized.IsEmpty) {
-				SetText(text);
+				SetText(localized);
 				return;
 			}
 		}

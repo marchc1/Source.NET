@@ -75,9 +75,9 @@ public class MenuItem : Button
 			CascadeMenu.AddActionSignalTarget(this);
 		}
 		else if (Checkable) {
-			// SetTextImageIndex(1);
+			SetTextImageIndex(1);
 			Check = new MenuItemCheckImage(this);
-			// SetImageAtIndex(0, Check, 6);
+			SetImageAtIndex(0, Check, 6);
 			SetChecked(false);
 		}
 
@@ -223,7 +223,7 @@ public class MenuItem : Button
 		return CascadeMenu;
 	}
 
-	public IBorder? GetBorder(bool depressed, bool armed, bool selected, bool keyfocus) {
+	public override IBorder? GetBorder(bool depressed, bool armed, bool selected, bool keyfocus) {
 		return null;
 	}
 
@@ -244,7 +244,7 @@ public class MenuItem : Button
 			Checked = state;
 	}
 
-	public bool CanBeDefaultButton() {
+	public override bool CanBeDefaultButton() {
 		return false;
 	}
 
@@ -320,6 +320,15 @@ public class MenuItem : Button
 
 	public override void OnMessage(KeyValues message, IPanel? from) {
 		switch (message.Name) {
+			case "MenuClosed":
+				OnKillFocus(newPanel: null);
+				break;
+			case "ArmItem":
+				ArmItem();
+				break;
+			case "DisarmItem":
+				DisarmItem();
+				break;
 			case "KeyModeSet":
 				OnKeyModeSet();
 				break;
