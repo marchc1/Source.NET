@@ -85,16 +85,16 @@ public class ProgressBar : Panel
 			secondsRemaining -= 60;
 		}
 
-		char[] minutesBuf = new char[16];
-		char[] secondsBuf = new char[16];
+		Span<char> minutesBuf = stackalloc char[16];
+		Span<char> secondsBuf = stackalloc char[16];
 		minutesRemaining.TryFormat(minutesBuf, out int minutesLen);
 		secondsRemaining.TryFormat(secondsBuf, out int secondsLen);
 
-		if (minutesRemaining > 0) {
-			Span<char> unicodeMinutes = stackalloc char[16];
-			Span<char> unicodeSeconds = stackalloc char[16];
+		// if (minutesRemaining > 0) {
+			// Span<char> unicodeMinutes = stackalloc char[16];
+			// Span<char> unicodeSeconds = stackalloc char[16];
 
-		}
+		// }
 
 		return false; // todo finish
 	}

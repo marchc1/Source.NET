@@ -6,9 +6,9 @@ namespace Source.GUI.Controls;
 public class ImagePanel : Panel
 {
 	IImage? Image;
-	char[]? ImageName;
-	char[]? FillColorName;
-	char[]? DrawColorName;
+	string? ImageName;
+	string? FillColorName;
+	string? DrawColorName;
 	bool PositionImage;
 	bool CenterImage;
 	bool ScaleImage;
@@ -48,8 +48,7 @@ public class ImagePanel : Panel
 			return;
 
 		int len = imageName.Length;
-		ImageName = new char[len];
-		imageName.CopyTo(ImageName);
+		ImageName = new(imageName);
 		InvalidateLayout(false, true);
 	}
 
@@ -85,7 +84,7 @@ public class ImagePanel : Panel
 	public void SetFillColor(Color color) => FillColor = color;
 	public Color GetFillColor() => FillColor;
 
-	public char[]? GetImageName() => ImageName;
+	public ReadOnlySpan<char> GetImageName() => ImageName;
 
 	public bool EvictImage() {
 		return false; // todo

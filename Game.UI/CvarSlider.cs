@@ -15,7 +15,7 @@ public class CvarSlider : Slider
 	int iStartValue;
 	float LastSliderValue;
 	float CurrentValue;
-	char[]? CvarName = new char[64];
+	InlineArray64<char> CvarName;
 	bool CreatedInCode;
 	float MinValue;
 	float MaxValue;
