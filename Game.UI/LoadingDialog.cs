@@ -307,7 +307,7 @@ public class LoadingDialog : Frame
 				TimeRemainingLabel.SetText("");
 		}
 
-		SetAlpha(255);
+		// SetAlpha(255);
 	}
 
 	public override void PaintBackground() {
