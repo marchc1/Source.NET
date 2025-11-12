@@ -35,8 +35,9 @@ class ComboBoxButton : Button
 		return null!;
 	}
 
+	static readonly KeyValues KV_CursorExited = new("CursorExited");
 	public override void OnCursorExited() {
-		CallParentFunction(new KeyValues("CursorExited")); // todo: static kv
+		CallParentFunction(KV_CursorExited);
 	}
 
 	public override Color GetButtonFgColor() {

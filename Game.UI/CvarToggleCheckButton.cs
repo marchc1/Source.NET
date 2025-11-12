@@ -61,9 +61,10 @@ public class CvarToggleCheckButton : CheckButton
 
 	public bool HasBeenModified() => IsSelected() != StartValue;
 
+	static readonly KeyValues KV_ControlModified = new("ControlModified");
 	public void OnButtonChecked() {
 		if (HasBeenModified())
-			PostActionSignal(new KeyValues("ControlModified")); // todo static
+			PostActionSignal(KV_ControlModified);
 	}
 
 	public override void ApplySettings(KeyValues resourceData) {

@@ -25,11 +25,12 @@ public class OptionsDialog : PropertyDialog
 		EnableApplyButton(false);
 	}
 
+	static readonly KeyValues KV_GameUIHidden = new("GameUIHidden");
 	public void OnGameUIHidden() {
 		for (int i = 0; i < GetChildCount(); i++) {
 			Panel child = GetChild(i);
 			if (child != null && child.IsVisible())
-				PostMessage(child, new KeyValues("GameUIHidden")); // todo static kv
+				PostMessage(child, KV_GameUIHidden);
 		}
 	}
 }

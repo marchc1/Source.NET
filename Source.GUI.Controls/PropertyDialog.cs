@@ -106,10 +106,11 @@ public class PropertyDialog : Frame
 	// 	base.OnKeyCodeTyped(code);
 	// }
 
+	static readonly KeyValues KV_ApplyChanges = new("GameUIHidden");
 	public bool OnOK(bool applyOnly) {
 		PropertySheet!.ApplyChanges();
 
-		PostActionSignal(new KeyValues("ApplyChanges"));// todo: make static kv
+		PostActionSignal(KV_ApplyChanges);
 
 		return true;
 	}
