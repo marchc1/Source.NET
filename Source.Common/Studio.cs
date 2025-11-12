@@ -30,6 +30,17 @@ public class VirtualModel {
 	// todo
 }
 
+public class StudioLODData {
+
+}
+
+public class StudioHWData {
+	public int RootLOD;
+	public int NumLODs;
+	public StudioLODData[]? LODs;
+	public int NumStudioMeshes;
+}
+
 public class VertexFileHeader {
 	public Memory<byte> Data;
 

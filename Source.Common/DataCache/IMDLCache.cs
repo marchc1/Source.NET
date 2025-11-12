@@ -46,7 +46,7 @@ public interface IMDLCache
 	VCollide GetVCollide(MDLHandle_t handle);
 	ReadOnlySpan<char> GetAnimBlock(MDLHandle_t handle, int block);
 	VirtualModel GetVirtualModel(MDLHandle_t handle);
-	int GetAutoplayList(MDLHandle_t handle, unsigned short** pOut);
+	short[] GetAutoplayList(MDLHandle_t handle);
 	VertexFileHeader GetVertexData(MDLHandle_t handle);
 
 	void TouchAllData(MDLHandle_t handle);
