@@ -4,8 +4,7 @@ public interface IModelInfo
 {
 	Model? GetModel(int modelIndex);
 	int GetModelIndex(ReadOnlySpan<char> name);
+	ReadOnlySpan<char> GetModelName(Model? model);
 }
 
-public interface IModelInfoClient : IModelInfo {
-
-}
+public interface IModelInfoClient : IModelInfo;

@@ -1,10 +1,11 @@
-﻿using Source.Common.Engine;
+﻿using Source.Common;
+using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Engine.Client;
 
 namespace Source.Engine;
 
-public abstract class ModelInfo(IFileSystem filesystem) : IModelInfoClient
+public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader) : IModelInfoClient
 {
 	public Model? GetModel(int modelIndex) {
 		throw new NotImplementedException();
@@ -18,6 +19,12 @@ public abstract class ModelInfo(IFileSystem filesystem) : IModelInfoClient
 	protected static int MODEL_TO_CLIENTSIDE(int i) => (i <= -2 && (i & 1) == 1) ? (-2 - i) >> 1 : -1;
 	protected static int MODEL_TO_NETDYNAMIC(int i) => (i <= -2 && (i & 1) == 0) ? (-2 - i) >> 1 : -1;
 
+	public ReadOnlySpan<char> GetModelName(Model? model) {
+		if (model == null)
+			return "?";
+
+		return modelloader.GetName(model);
+	}
 	public int GetModelIndex(ReadOnlySpan<char> name) {
 		if (name.IsEmpty)
 			return -1;
@@ -55,7 +62,7 @@ public abstract class ModelInfo(IFileSystem filesystem) : IModelInfoClient
 	readonly List<Model> NetworkedDynamicModels = [];
 }
 
-public class ModelInfoClient(ClientState cl, IFileSystem filesystem) : ModelInfo(filesystem)
+public class ModelInfoClient(ClientState cl, IFileSystem filesystem, IModelLoader modelloader) : ModelInfo(filesystem, modelloader)
 {
 	protected override INetworkStringTable? GetDynamicModelStringTable() {
 		return cl.DynamicModelsTable;

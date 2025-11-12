@@ -1,18 +1,20 @@
+using CommunityToolkit.HighPerformance;
+
 using Game.Shared;
 
 using Source;
 using Source.Common;
 using Source.Common.Bitbuffers;
+using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
+using Source.Common.Networking;
 
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
-using CommunityToolkit.HighPerformance;
-using Source.Common.Commands;
-using Source.Common.Networking;
 
 namespace Game.Client;
 
@@ -430,7 +432,7 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual void ClientThink() { }
 
 	public bool ReadyToDraw;
-	public int DrawModel(StudioFlags flags) {
+	public virtual int DrawModel(StudioFlags flags) {
 		if (!ReadyToDraw)
 			return 0;
 		int drawn = 0;
@@ -441,10 +443,31 @@ public partial class C_BaseEntity : IClientEntity
 			case ModelType.Brush:
 				drawn = DrawBrushModel((flags & StudioFlags.Transparency) != 0, flags, (flags & StudioFlags.TwoPass) != 0);
 				break;
-			case ModelType.Studio: break;
-			case ModelType.Sprite: break;
+			case ModelType.Studio:
+				Warning($"ERROR:  Can't draw studio model {modelinfo.GetModelName(Model)} because {GetClientClass().NetworkName ?? "unknown"} is not derived from C_BaseAnimating\n");
+				break;
+			case ModelType.Sprite:
+				Warning("ERROR:  Sprite model's not supported any more except in legacy temp ents\n");
+				break;
 		}
+
+		DrawBBoxVisualizations();
+
 		return drawn;
+	}
+
+	public virtual bool SetupBones(Matrix4x4 boneToWorldOut, int maxBones, int boneMask, TimeUnit_t currentTime) {
+		return true;
+	}
+	public virtual void SetupWeights(Matrix4x4 boneToWorldOut, Span<float> flexWeights, TimeUnit_t currentTime) {
+		
+	}
+	public virtual void DoAnimationEvents() {
+
+	}
+
+	private void DrawBBoxVisualizations() {
+
 	}
 
 	private int DrawBrushModel(bool v1, StudioFlags flags, bool v2) {
