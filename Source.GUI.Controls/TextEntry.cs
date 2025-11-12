@@ -1263,7 +1263,7 @@ public class TextEntry : Panel
 		if (CursorPos == 0)
 			return;
 
-		if (TextStream.Count() == 0)
+		if (TextStream.Count == 0)
 			return;
 
 		SaveUndoState();
@@ -1459,6 +1459,8 @@ public class TextEntry : Panel
 		ResetCursorBlink();
 		Repaint();
 	}
+
+	public void SetHorizontalScrolling(bool status) => HorizScrollingAllowed = status;
 
 	private void Delete() {
 		if (!IsEditable())

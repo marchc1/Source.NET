@@ -56,7 +56,7 @@ public class MenuButton : Button
 	public virtual int OnCheckMenuItemCount() => 0;
 
 	public override void OnKillFocus(Panel? newPanel) {
-		if (Menu != null && Menu.HasFocus() && newPanel != Menu)
+		if (Menu != null && !Menu.HasFocus() && newPanel != Menu)
 			HideMenu();
 
 		base.OnKillFocus(newPanel);
@@ -97,7 +97,7 @@ public class MenuButton : Button
 			return;
 
 		Menu.PerformLayout();
-		// Menu.PositionRelativeToPanel(this, Direction, OpenOffsetY);
+		Menu.PositionRelativeToPanel(this, Direction, OpenOffsetY);
 		MoveToFront();
 		OnShowMenu(Menu);
 		ForceDepressed(true);
