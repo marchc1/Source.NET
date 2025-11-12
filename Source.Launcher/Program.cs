@@ -22,6 +22,7 @@ using Source.GUI.Controls;
 using Source.Common.ShaderAPI;
 using Source.ShaderAPI.Gl46;
 using Source.Common.DataCache;
+using Source.DataCache;
 
 namespace Source.Launcher;
 
@@ -62,7 +63,7 @@ public class Bootloader : IDisposable
 				.WithComponent<IMaterialSystem, MaterialSystem.MaterialSystem>()
 				.WithComponent<IShaderAPI, ShaderAPIGl46>()
 				// Datacache impl
-				.WithComponent<IDataCache, DataCache>()
+				.WithComponent<IDataCache, DataCache.DataCache>()
 				.WithComponent<IMDLCache, MDLCache>()
 				// Our game DLL's. Server/game impl, client impl, UI impl.
 				.WithGameDLL<ServerGameDLL>()

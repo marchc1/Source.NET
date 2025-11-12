@@ -42,12 +42,12 @@ public interface IMDLCache
 	int GetRef(MDLHandle_t handle);
 
 	StudioHDR GetStudioHdr(MDLHandle_t handle);
-	// StudioHWData GetHardwareData(MDLHandle_t handle);
+	StudioHWData GetHardwareData(MDLHandle_t handle);
 	VCollide GetVCollide(MDLHandle_t handle);
 	ReadOnlySpan<char> GetAnimBlock(MDLHandle_t handle, int block);
 	VirtualModel GetVirtualModel(MDLHandle_t handle);
-	// int GetAutoplayList(MDLHandle_t handle, unsigned short** pOut);
-	// VertexFileHeader GetVertexData(MDLHandle_t handle);
+	int GetAutoplayList(MDLHandle_t handle, unsigned short** pOut);
+	VertexFileHeader GetVertexData(MDLHandle_t handle);
 
 	void TouchAllData(MDLHandle_t handle);
 

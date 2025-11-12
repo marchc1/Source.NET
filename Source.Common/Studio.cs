@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Source.Common;
 
@@ -18,11 +19,29 @@ public static class Studio
 	public const int MAXSTUDIOBONECTRLS = 4;
 	public const int MAXSTUDIOANIMBLOCKS = 256;
 
+	public const int MAX_NUM_LODS = 8;
+
 	public const int MAXSTUDIOBONEBITS = 7;
 }
 
+[InlineArray(Studio.MAX_NUM_LODS)] public struct InlineArrayMaxNumLODs<T> { T first; }
+
 public class VirtualModel {
 	// todo
+}
+
+public class VertexFileHeader {
+	public Memory<byte> Data;
+
+	public int ID;
+	public int Version;
+	public int Checksum;
+	public int NumLODs;
+	public InlineArrayMaxNumLODs<int> NumLODVertices;
+	public int NumFixups;
+	public int FixupTableStart;
+	public int VertexTableStart;
+	public int TangentTableStart;
 }
 
 public class StudioHDR2 {
