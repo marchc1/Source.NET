@@ -21,6 +21,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Source.GUI.Controls;
 using Source.Common.ShaderAPI;
 using Source.ShaderAPI.Gl46;
+using Source.Common.DataCache;
 
 namespace Source.Launcher;
 
@@ -60,6 +61,9 @@ public class Bootloader : IDisposable
 				// Rendering abstraction
 				.WithComponent<IMaterialSystem, MaterialSystem.MaterialSystem>()
 				.WithComponent<IShaderAPI, ShaderAPIGl46>()
+				// Datacache impl
+				.WithComponent<IDataCache, DataCache>()
+				.WithComponent<IMDLCache, MDLCache>()
 				// Our game DLL's. Server/game impl, client impl, UI impl.
 				.WithGameDLL<ServerGameDLL>()
 				.WithClientDLL<HLClient>()

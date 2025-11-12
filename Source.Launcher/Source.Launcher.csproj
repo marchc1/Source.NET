@@ -15,6 +15,7 @@
 		<ProjectReference Include="..\Game.Client\Game.Client.csproj" />
 		<ProjectReference Include="..\Game.Server\Game.Server.csproj" />
 		<ProjectReference Include="..\Game.UI\Game.UI.csproj" />
+		<ProjectReference Include="..\Source.DataCache\Source.DataCache.csproj" />
 		<ProjectReference Include="..\Source.Engine\Source.Engine.csproj" />
 		<ProjectReference Include="..\Source.Filesystem\Source.Filesystem.csproj" />
 		<ProjectReference Include="..\Source.SDLInputSystem\Source.SDLInputSystem.csproj" />
