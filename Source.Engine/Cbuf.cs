@@ -300,8 +300,8 @@ public class Cbuf(IServiceProvider provider)
 		$"{CMDSTR_ADD_EXECUTION_MARKER} {markerLeft} {markerCodeLeft}".CopyTo(strMarkerLeft);
 		$"{CMDSTR_ADD_EXECUTION_MARKER} {markerRight} {markerCodeRight}".CopyTo(strMarkerRight);
 
-		int strLeftLen = strMarkerLeft.IndexOf('\0');
-		int strRightLen = strMarkerRight.IndexOf('\0');
+		int strLeftLen = System.MemoryExtensions.IndexOf(strMarkerLeft, '\0');
+		int strRightLen = System.MemoryExtensions.IndexOf(strMarkerRight, '\0');
 		int textToBeAddedLen = strLeftLen + strRightLen + text.Length + 3;
 
 		lock (Buffer) {

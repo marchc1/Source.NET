@@ -547,7 +547,7 @@ public class BasePanel : Panel
 
 		Span<char> filename = stackalloc char[MAX_PATH];
 		Span<char> background = stackalloc char[MAX_PATH];
-		engine.GetMainMenuBackgroundName(background); background = background[..background.IndexOf('\0')];
+		engine.GetMainMenuBackgroundName(background); background = background.SliceNullTerminatedString();
 		Span<char> finalFilename = sprintf(filename, "console/%s").S(background);
 
 		if (BackgroundImageID == TextureID.INVALID)

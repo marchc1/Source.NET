@@ -421,7 +421,7 @@ public static class UnmanagedUtils
 
 
 	public static void SliceNullTerminatedStringInPlace(this ref Span<char> span) {
-		int index = span.IndexOf('\0');
+		int index = System.MemoryExtensions.IndexOf(span, '\0');
 		if (index == -1)
 			return;
 		span = span[..index];
@@ -431,7 +431,7 @@ public static class UnmanagedUtils
 		return sr.Read(block) != 0;
 	}
 	public static Span<char> SliceNullTerminatedString(this Span<char> span) {
-		int index = span.IndexOf('\0');
+		int index = System.MemoryExtensions.IndexOf(span, '\0');
 		if (index == -1)
 			return span;
 		return span[..index];
@@ -445,7 +445,7 @@ public static class UnmanagedUtils
 		return "";
 	}
 	public static ReadOnlySpan<char> SliceNullTerminatedString(this ReadOnlySpan<char> span) {
-		int index = span.IndexOf('\0');
+		int index = System.MemoryExtensions.IndexOf(span, '\0');
 		if (index == -1)
 			return span;
 		return span[..index];

@@ -169,7 +169,7 @@ public class KeyValues : IEnumerable<KeyValues>
 	}
 
 	private bool HandleConditional(ReadOnlySpan<char> condition, bool mustMatch) {
-		int realStrLength = condition.IndexOf('\0');
+		int realStrLength = System.MemoryExtensions.IndexOf(condition, '\0');
 		if (realStrLength == -1) {
 			Debug.Assert(false, "String overflow!!!");
 			return false;
