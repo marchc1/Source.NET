@@ -79,11 +79,8 @@ public class ProgressBar : Panel
 		if (secondsRemaining == 0 && (totalTime - timeElapsed) > 0)
 			secondsRemaining = 1;
 
-		int minutesRemaining = 0;
-		while (secondsRemaining >= 60) {
-			minutesRemaining++;
-			secondsRemaining -= 60;
-		}
+		int minutesRemaining = (secondsRemaining / 60);
+		secondsRemaining %= 60;
 
 		Span<char> minutesBuf = stackalloc char[16];
 		Span<char> secondsBuf = stackalloc char[16];
