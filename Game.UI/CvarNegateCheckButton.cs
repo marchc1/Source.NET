@@ -83,9 +83,10 @@ public class CvarNegateCheckButton : CheckButton
 		var.SetValue(ans);
 	}
 
+	static readonly KeyValues KV_ControlModified = new("ControlModified");
 	public void OnButtonChecked() {
 		if (HasBeenModified())
-			PostActionSignal(new KeyValues("ControlModified")); // todo static
+			PostActionSignal(KV_ControlModified);
 	}
 
 	public override void OnMessage(KeyValues message, IPanel? from) {

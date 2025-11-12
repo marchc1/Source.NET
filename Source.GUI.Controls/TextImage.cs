@@ -27,7 +27,7 @@ public class TextImage : Image
 
 	List<nint> LineBreaks = [];
 	List<int> LineXIndent = [];
-	List<ColorChange> ColorChangeStream = new();
+	List<ColorChange> ColorChangeStream = [];
 
 	public void SetDrawWidth(int width) {
 		DrawWidth = width;
@@ -459,7 +459,7 @@ public class TextImage : Image
 	}
 
 	internal void SetUseFallbackFont(bool useFallbackFont, IFont? fallbackItemFont) {
-		UseFallbackFont = true;
+		UseFallbackFont = useFallbackFont;
 		FallbackFont = fallbackItemFont;
 	}
 

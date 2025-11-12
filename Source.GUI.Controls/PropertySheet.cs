@@ -297,6 +297,11 @@ public class PropertySheet : EditablePanel {
 	int TabHeightSmall;
 	KeyValues? TabKV;
 
+	static readonly KeyValues KV_ResetData = new("ResetData");
+	static readonly KeyValues KV_ApplyChanges = new("ApplyChanges");
+	static readonly KeyValues KV_FindDefaultButton = new("FindDefaultButton");
+	static readonly KeyValues KV_ApplyButtonEnable = new("ApplyButtonEnable");
+
 	public PropertySheet(Panel? parent, string? panelName, bool draggableTabs = false) : base(parent, panelName) {
 		Pages = new();
 		PageTabs = new();
@@ -397,7 +402,7 @@ public class PropertySheet : EditablePanel {
 
 		page.SetParent(this);
 		page.AddActionSignalTarget(this);
-		PostMessage(page, new KeyValues("ResetData")); // todo static kv
+		PostMessage(page, KV_ResetData);
 
 		page.SetVisible(false);
 		InvalidateLayout();
@@ -434,12 +439,12 @@ public class PropertySheet : EditablePanel {
 
 	public void ResetAllData() {
 		for (int i = 0; i < Pages.Count; i++)
-			Pages[i].page.SendMessage(new KeyValues("ResetData"), this); // todo static kv
+			Pages[i].page.SendMessage(KV_ResetData, this);
 	}
 
 	public void ApplyChanges() {
 		for (int i = 0; i < Pages.Count; i++)
-			Pages[i].page.SendMessage(new KeyValues("ApplyChanges"), this); // todo static kv
+			Pages[i].page.SendMessage(KV_ApplyChanges, this);
 	}
 
 	public Panel? GetActivePage() => ActivePage;
@@ -502,7 +507,7 @@ public class PropertySheet : EditablePanel {
 			return base.RequestFocusPrev(panel);
 		} else {
 			if (GetParent() != null)
-				PostMessage(GetParent()!, new KeyValues("FindDefaultButton")); // todo: make static kv
+				PostMessage(GetParent()!, KV_FindDefaultButton);
 			ActiveTab.RequestFocus(-1);
 			TabFocus = true;
 			return true;
@@ -887,7 +892,7 @@ public class PropertySheet : EditablePanel {
 	}
 
 	public void OnApplyButtonEnable() {
-		PostActionSignal(new KeyValues("ApplyButtonEnable"));// todo: make static kv
+		PostActionSignal(KV_ApplyButtonEnable);
 	}
 
 	public void OnCurrentDefaultButtonSet(Panel defaultButton) {
@@ -908,7 +913,7 @@ public class PropertySheet : EditablePanel {
 
 	public void OnFindDefaultButton() {
 		if (GetParent() != null)
-			CallParentFunction(new KeyValues("FindDefaultButton")); // todo: make static kv
+			CallParentFunction(KV_FindDefaultButton);
 	}
 
 	public bool PageHasContextMenu(Panel page) {

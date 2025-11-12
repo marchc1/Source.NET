@@ -35,8 +35,9 @@ class ComboBoxButton : Button
 		return null!;
 	}
 
+	static readonly KeyValues KV_CursorExited = new("CursorExited");
 	public override void OnCursorExited() {
-		CallParentFunction(new KeyValues("CursorExited")); // todo: static kv
+		CallParentFunction(KV_CursorExited);
 	}
 
 	public override Color GetButtonFgColor() {
@@ -60,7 +61,7 @@ public class ComboBox : TextEntry
 
 	public ComboBox(Panel parent, string name, int numLines, bool allowEdit) : base(parent, name) {
 		SetEditable(allowEdit);
-		// SetHorizontalScrolling(false);
+		SetHorizontalScrolling(false);
 
 		DropDown = new Menu(this, null);
 		DropDown.AddActionSignalTarget(this);
@@ -70,7 +71,7 @@ public class ComboBox : TextEntry
 		Button.SetCommand("ButtonClicked");
 		Button.AddActionSignalTarget(this);
 
-		// SetNumberOfEditLines(numLines);
+		SetNumberOfEditLines(numLines);
 
 		Highlight = false;
 		Direction = MenuDirection.DOWN;
@@ -84,21 +85,31 @@ public class ComboBox : TextEntry
 		Button?.DeletePanel();
 	}
 
-	// public void SetNumberOfEditLines(int numLines) => DropDown.SetNumberOfVisibleItems(numLines);
+	public void SetNumberOfEditLines(int numLines) => DropDown.SetNumberOfVisibleItems(numLines);
 
-	public void AddItem(ReadOnlySpan<char> itemText, KeyValues? userData) {
-
+	public int AddItem(ReadOnlySpan<char> itemText, KeyValues? userData) {
+		return DropDown.AddMenuItem(itemText, new KeyValues("SetText", "text", itemText), this, userData);
 	}
 
 	public void DeleteItem(int itemID) {
+		if (!DropDown.IsValidMenuID(itemID))
+			return;
 
+		DropDown.DeleteItem(itemID);
 	}
 
 	public bool UpdateItem(int itemID, ReadOnlySpan<char> itemText, KeyValues? userData) {
-		return false;//todo
+		if (!DropDown.IsValidMenuID(itemID))
+			return false;
+
+		KeyValues kv = new("SetText");
+		kv.SetString("text", itemText);
+		//DropDown.UpdateMenuItem(itemID, itemText, kv, userData);
+		InvalidateLayout();
+		return true;
 	}
 
-	// public bool IsItemIDValid(int itemID) => DropDown.IsValidMenuID(itemID);
+	public bool IsItemIDValid(int itemID) => DropDown.IsValidMenuID(itemID);
 
 	public void SetItemEnabled(ReadOnlySpan<char> itemText, bool state) => DropDown.SetItemEnabled(itemText, state);
 
@@ -127,7 +138,12 @@ public class ComboBox : TextEntry
 	}
 
 	public void SetMenu(Menu menu) {
+		if (DropDown != null)
+			DropDown.MarkForDeletion();
 
+		DropDown = menu;
+		if (DropDown != null)
+			DropDown.SetParent(this);
 	}
 
 	public override void PerformLayout() {
@@ -156,7 +172,9 @@ public class ComboBox : TextEntry
 	}
 
 	public void DoMenuLayout() {
-
+		DropDown.PositionRelativeToPanel(this, Direction, OpenOffsetY);
+		DropDown.SetFixedWidth(GetWide());
+		DropDown.ForceCalculateWidth();
 	}
 
 	public void SortItems() { }
@@ -232,7 +250,21 @@ public class ComboBox : TextEntry
 	}
 
 	public void OnMenuClose() {
+		HideMenu();
 
+		if (HasFocus())
+			SelectAllText(false);
+		else if (Highlight) {
+			Highlight = false;
+			RequestFocus();
+		}
+		//else if (IsCursorOver()) { // todo
+		//	SelectAllText(false);
+		//	OnCursorExited();
+		//	RequestFocus();
+		//}
+		else
+			Button.SetArmed(false);
 	}
 
 	public void DoClick() {

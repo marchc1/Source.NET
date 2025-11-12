@@ -86,9 +86,9 @@ public class Menu : Panel
 	public const int DEFAULT_MENU_ITEM_HEIGHT = 22;
 	public const int MENU_UP = -1;
 	public const int MENU_DOWN = 1;
+	public const int TYPEAHEAD_BUFSIZE = 256;
 
 	MenuMode InputMode;
-	public const int TYPEAHEAD_BUFSIZE = 256;
 	MenuTypeAheadMode TypeAheadMode;
 	char[] TypeAheadBuffer;
 	int NumTypeAheadChars;
@@ -298,6 +298,12 @@ public class Menu : Panel
 		return AddCascadingMenuItem(itemText, itemText, target, cascadeMenu, userData);
 	}
 
+	public void SetNumberOfVisibleItems(int numLines)
+	{
+		NumVisibleLines = numLines;
+		InvalidateLayout(false);
+	}
+
 	MenuItem? GetParentMenuItem() => GetParent() is MenuItem mi ? mi : null;
 
 
@@ -320,6 +326,10 @@ public class Menu : Panel
 			return null;
 
 		return MenuItems[itemID];
+	}
+
+	public bool IsValidMenuID(int itemID) {
+		return itemID >= 0 && itemID < MenuItems.Count;
 	}
 
 	public void SetFixedWidth(int width)
@@ -764,6 +774,79 @@ public class Menu : Panel
 		workTall -= 20;
 		workTall -= top;
 		workTall -= bottom;
+	}
+
+	public void PositionRelativeToPanel(Panel relative, MenuDirection direction, int additionalYOffset, bool showMenu = false) {
+		Assert(relative != null);
+
+		relative.GetBounds(out int rx, out int ry, out int rw, out int rh);
+		relative.LocalToScreen(ref rx, ref ry);
+
+		if (direction == MenuDirection.CURSOR) {
+			Input.GetCursorPos(out rx, out ry);
+			rw = rh = 0;
+		} else if (direction == MenuDirection.ALIGN_WITH_PARENT && relative.GetParent() != null) {
+			rx = 0; ry = 0;
+			relative.ParentLocalToScreen(ref rx, ref ry);
+			rx -= 1;
+			ry = rh + additionalYOffset;
+			rw = rh = 0;
+		} else {
+			rx = 0; ry = 0;
+			relative.LocalToScreen(ref rx, ref ry);
+		}
+
+		ComputeWorkspaceSize(out int workWide, out int workTall);
+
+		int x = 0;
+		int y = 0;
+
+		GetSize(out int menuWide, out int menuTall);
+
+		int bottomOfReference;
+		switch (direction) {
+			case MenuDirection.UP:
+				x = rx;
+				int topOfReference = ry;
+				y = topOfReference - menuTall;
+				if (y < 0) {
+					bottomOfReference = ry + rh + 1;
+					int remainingPixels = workTall - bottomOfReference;
+
+					if (menuTall >= remainingPixels) {
+						y = workTall - menuTall;
+						x = rx + rw;
+						if (x + menuWide > workWide)
+							x = rx - menuWide;
+					} else
+						y = bottomOfReference;
+				}
+				break;
+			default:
+				x = rx;
+				bottomOfReference = ry + rh + 1;
+				y = bottomOfReference;
+				if (bottomOfReference + menuTall >= workTall) {
+					if (menuTall > ry) {
+						y = workTall - menuTall;
+						x = rx = rw;
+						if (x + menuWide > workWide)
+							x = rx - menuWide;
+					} else
+						y = ry - menuTall;
+				}
+				break;
+		}
+
+		if (x + menuWide > workWide) {
+			x = workWide - menuWide;
+			Assert(x >= 0);
+		} else if (x < 0)
+			x = 0;
+
+		SetPos(x, y);
+		if (showMenu)
+			SetVisible(true);
 	}
 
 	private int ComputeFullMenuHeightWithInsets()
