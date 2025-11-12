@@ -242,7 +242,7 @@ public class Material : IMaterialInternal
 			}
 		}
 
-		if (!keyValues.LoadFromFile(fileSystem, fileName[..fileName.IndexOf('\0')], pathID)) {
+		if (!keyValues.LoadFromFile(fileSystem, fileName.SliceNullTerminatedString(), pathID)) {
 			return false;
 		}
 		ExpandPatchFile(ref keyValues, patchKeyValues, pathID, includes);
