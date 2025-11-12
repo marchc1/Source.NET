@@ -5,7 +5,7 @@ namespace Source.DataCache;
 
 public class MDLCache : IMDLCache
 {
-	public int AddRef(uint handle) {
+	public int AddRef(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
@@ -25,7 +25,7 @@ public class MDLCache : IMDLCache
 		throw new NotImplementedException();
 	}
 
-	public uint FindMDL(ReadOnlySpan<char> mdlRleativePath) {
+	public MDLHandle_t FindMDL(ReadOnlySpan<char> mdlRleativePath) {
 		throw new NotImplementedException();
 	}
 
@@ -37,11 +37,11 @@ public class MDLCache : IMDLCache
 		throw new NotImplementedException();
 	}
 
-	public void Flush(uint handle, MDLCacheFlush flushFlags = MDLCacheFlush.All) {
+	public void Flush(MDLHandle_t handle, MDLCacheFlush flushFlags = MDLCacheFlush.All) {
 		throw new NotImplementedException();
 	}
 
-	public ReadOnlySpan<char> GetAnimBlock(uint handle, int block) {
+	public ReadOnlySpan<char> GetAnimBlock(MDLHandle_t handle, int block) {
 		throw new NotImplementedException();
 	}
 
@@ -53,39 +53,39 @@ public class MDLCache : IMDLCache
 		throw new NotImplementedException();
 	}
 
-	public ReadOnlySpan<char> GetModelName(uint handle) {
+	public ReadOnlySpan<char> GetModelName(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
-	public int GetRef(uint handle) {
+	public int GetRef(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
-	public StudioHDR GetStudioHdr(uint handle) {
+	public StudioHDR GetStudioHdr(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
-	public T? GetUserData<T>(uint handle) {
+	public T? GetUserData<T>(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
-	public VCollide GetVCollide(uint handle) {
+	public VCollide GetVCollide(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
-	public VCollide GetVCollideEx(uint handle, bool synchronousLoad = true) {
+	public VCollide GetVCollideEx(MDLHandle_t handle, bool synchronousLoad = true) {
 		throw new NotImplementedException();
 	}
 
-	public bool GetVCollideSize(uint handle, out int VCollideSize) {
+	public bool GetVCollideSize(MDLHandle_t handle, out int VCollideSize) {
 		throw new NotImplementedException();
 	}
 
-	public VirtualModel GetVirtualModel(uint handle) {
+	public VirtualModel GetVirtualModel(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
-	public VirtualModel GetVirtualModelFast(StudioHDR studioHdr, uint handle) {
+	public VirtualModel GetVirtualModelFast(StudioHDR studioHdr, MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
@@ -93,19 +93,19 @@ public class MDLCache : IMDLCache
 		throw new NotImplementedException();
 	}
 
-	public bool IsDataLoaded(uint handle, MDLCacheDataType type) {
+	public bool IsDataLoaded(MDLHandle_t handle, MDLCacheDataType type) {
 		throw new NotImplementedException();
 	}
 
-	public bool IsErrorModel(uint handle) {
+	public bool IsErrorModel(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
-	public StudioHDR LockStudioHdr(uint handle) {
+	public StudioHDR LockStudioHdr(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
-	public void MarkAsLoaded(uint handle) {
+	public void MarkAsLoaded(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
@@ -113,19 +113,19 @@ public class MDLCache : IMDLCache
 		throw new NotImplementedException();
 	}
 
-	public bool PreloadModel(uint handle) {
+	public bool PreloadModel(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
-	public int Release(uint handle) {
+	public int Release(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
-	public void ResetErrorModelStatus(uint handle) {
+	public void ResetErrorModelStatus(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
-	public bool SetAsyncLoad(MDLCacheDataType type, bool bAsync) {
+	public bool SetAsyncLoad(MDLCacheDataType type, bool async) {
 		throw new NotImplementedException();
 	}
 
@@ -133,7 +133,7 @@ public class MDLCache : IMDLCache
 		throw new NotImplementedException();
 	}
 
-	public void SetUserData<T>(uint handle, T? data) {
+	public void SetUserData<T>(MDLHandle_t handle, T? data) {
 		throw new NotImplementedException();
 	}
 
@@ -141,11 +141,11 @@ public class MDLCache : IMDLCache
 		throw new NotImplementedException();
 	}
 
-	public void TouchAllData(uint handle) {
+	public void TouchAllData(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
-	public void UnlockStudioHdr(uint handle) {
+	public void UnlockStudioHdr(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 }
