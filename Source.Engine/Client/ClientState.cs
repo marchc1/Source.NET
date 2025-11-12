@@ -933,4 +933,11 @@ public class ClientState : BaseClientState
 		// videomode->MarkClientViewRectDirty();
 		return true;
 	}
+
+	internal int LookupModelIndex(ReadOnlySpan<char> name) {
+		if (ModelPrecacheTable == null)
+			return -1;
+		int idx = ModelPrecacheTable.FindStringIndex(name);
+		return idx == INetworkStringTable.INVALID_STRING_INDEX ? -1 : idx;
+	}
 }

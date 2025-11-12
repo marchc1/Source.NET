@@ -129,6 +129,7 @@ public interface IFileSystem : IBaseFileSystem
 	/// <param name="name"></param>
 	/// <returns></returns>
 	FileNameHandle_t FindOrAddFileName(ReadOnlySpan<char> name);
+	FileNameHandle_t FindFileName(ReadOnlySpan<char> name);
 	void BeginMapAccess();
 	void EndMapAccess();
 

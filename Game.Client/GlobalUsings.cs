@@ -5,6 +5,8 @@ using Source.Common.Client;
 using Source.Engine;
 using Game.Client.HUD;
 using Source.Common.Commands;
+using Source.Common.Engine;
+using Source.Common.DataCache;
 
 namespace Game.Client;
 
@@ -33,15 +35,20 @@ public ref struct C_BaseEntityIterator {
 
 public static class ClientGlobals
 {
-	public static ClientGlobalVariables gpGlobals { get; private set; }
-	public static IRenderView render { get; private set; }
-	public static IEngineClient engine { get; private set; }
-	public static IEngineVGui enginevgui { get; private set; }
-	public static IClientMode clientMode { get; set; }
-	public static Hud gHUD { get; private set; }
-	public static Prediction prediction { get; private set; }
-	public static ICvar cvar { get; private set; }
-	public static ClientEntityList cl_entitylist { get; private set; }
+	public static ClientGlobalVariables gpGlobals { get; private set; } = null!;
+	public static IRenderView render { get; private set; } = null!;
+	public static IEngineClient engine { get; private set; } = null!;
+	public static IEngineVGui enginevgui { get; private set; } = null!;
+	public static IClientMode clientMode { get; set; } = null!;
+	public static Hud gHUD { get; private set; } = null!;
+	public static Prediction prediction { get; private set; } = null!;
+	public static ICvar cvar { get; private set; } = null!;
+	public static ClientEntityList cl_entitylist { get; private set; } = null!;
+	public static IModelInfoClient modelinfo { get; private set; } = null!;
+	public static IDataCache datacache { get; private set; } = null!;
+	public static IMDLCache mdlcache { get; private set; } = null!;
+	public static IModelRender modelrender { get; private set; } = null!;
+
 	public static TimeUnit_t TICK_INTERVAL => gpGlobals.IntervalPerTick;
 
 	public static TimeUnit_t TICKS_TO_TIME(int t) => TICK_INTERVAL * t;
@@ -60,6 +67,11 @@ public static class ClientGlobals
 		render = Singleton<IRenderView>();
 		gHUD = Singleton<Hud>();
 		prediction = (Prediction)Singleton<IPrediction>();
+
+		modelinfo = Singleton<IModelInfoClient>();
+		datacache = Singleton<IDataCache>();
+		mdlcache = Singleton<IMDLCache>();
+		modelrender = Singleton<IModelRender>();
 	}
 
 	public static bool IsEngineThreaded() => false; 

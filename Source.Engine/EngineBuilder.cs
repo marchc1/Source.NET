@@ -153,6 +153,10 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<ClientGlobalVariables>();
 		this.AddSingleton<ServerGlobalVariables>();
 		this.AddSingleton<DtCommonEng>();
+		// Engine datacache
+		this.AddSingleton<IModelRender, ModelRender>();
+		this.AddSingleton<IModelInfoClient, ModelInfoClient>();
+		this.AddSingleton<IModelInfo>(x => x.GetRequiredService<IModelInfoClient>());
 		// Engine VGUI and how to read it later
 		this.AddSingleton<EngineVGui>();
 		this.AddSingleton<IEngineVGuiInternal, EngineVGui>(x => x.GetRequiredService<EngineVGui>());

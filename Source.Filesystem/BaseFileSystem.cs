@@ -409,8 +409,8 @@ public class BaseFileSystem : IFileSystem
 	readonly Dictionary<ulong, FileNameHandle_t> fileNameHandles = [];
 	readonly Dictionary<FileNameHandle_t, string> fileNameStrings = [];
 	FileNameHandle_t currentHandle;
-	public FileNameHandle_t FindOrAddFileName(ReadOnlySpan<char> name) {
-		Span<char> newNameBuffer = stackalloc char[name.Length];
+
+	Span<char> FormatFileName(ReadOnlySpan<char> name, Span<char> newNameBuffer) {
 		int newNamePtr = 0;
 		for (int i = 0; i < name.Length; i++) {
 			char c = char.ToLowerInvariant(name[i]);
@@ -418,7 +418,15 @@ public class BaseFileSystem : IFileSystem
 				newNameBuffer[newNamePtr++] = c;
 		}
 
-		ulong hash = newNameBuffer[..newNamePtr].Hash();
+		return newNameBuffer[..newNamePtr];
+	}
+
+	public FileNameHandle_t FindFileName(ReadOnlySpan<char> name) {
+		ulong hash = FormatFileName(name, stackalloc char[name.Length]).Hash();
+		return fileNameHandles.TryGetValue(hash, out FileNameHandle_t handle) ? handle : FILENAMEHANDLE_INVALID;
+	}
+	public FileNameHandle_t FindOrAddFileName(ReadOnlySpan<char> name) {
+		ulong hash = FormatFileName(name, stackalloc char[name.Length]).Hash();
 		if (!fileNameHandles.TryGetValue(hash, out var handle)) {
 			handle = fileNameHandles[hash] = ++currentHandle;
 			fileNameStrings[handle] = new(name); // Make a copy of the string to live forever

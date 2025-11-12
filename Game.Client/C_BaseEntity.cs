@@ -325,6 +325,7 @@ public partial class C_BaseEntity : IClientEntity
 	public int Index;
 
 	private Model? Model;
+	ModelInstanceHandle_t ModelInstance;
 
 	public TimeUnit_t AnimTime;
 	public TimeUnit_t OldAnimTime;
@@ -336,7 +337,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public byte InterpolationFrame;
 	public byte OldInterpolationFrame;
-	public short ModelIndex;
+	public int ModelIndex;
 	public byte OldParentAttachment;
 	public byte ParentAttachment;
 
@@ -475,6 +476,44 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public Model? GetModel() => Model;
+
+	void SetModelPointer(Model? model) {
+		if (model != Model) {
+			DestroyModelInstance();
+			Model = model;
+			OnNewModel();
+
+			UpdateVisibility();
+		}
+	}
+	void DestroyModelInstance() {
+		if (ModelInstance != MODEL_INSTANCE_INVALID) {
+			modelrender.DestroyInstance(ModelInstance);
+			ModelInstance = MODEL_INSTANCE_INVALID;
+		}
+	}
+	StudioHDR? OnNewModel() {
+		return null; // what the hell????????????????? 
+	}
+	void SetModelIndex(int index) {
+		ModelIndex = index;
+		Model? model = modelinfo.GetModel(ModelIndex);
+		SetModelPointer(model);
+	}
+	public void SetModelByIndex(int modelIndex) {
+		SetModelIndex(modelIndex);
+	}
+	public bool SetModel(ReadOnlySpan<char> modelName) {
+		if (!modelName.IsEmpty) {
+			int modelIndex = modelinfo.GetModelIndex(modelName);
+			SetModelByIndex(modelIndex);
+			return modelIndex != -1;
+		}
+		else {
+			SetModelByIndex(-1);
+			return false;
+		}
+	}
 
 	public virtual ref readonly Vector3 GetRenderOrigin() => ref GetAbsOrigin();
 	public virtual ref readonly QAngle GetRenderAngles() => ref GetAbsAngles();
@@ -901,9 +940,9 @@ public partial class C_BaseEntity : IClientEntity
 
 		eflags |= EFL.DirtyAbsTransform;
 
-		if ((eflags & EFL.DirtyAbsTransform) == 0) 
+		if ((eflags & EFL.DirtyAbsTransform) == 0)
 			return;
-		
+
 		lock (CalcAbsolutePositionMutex) {
 			if ((eflags & EFL.DirtyAbsTransform) == 0)
 				return;

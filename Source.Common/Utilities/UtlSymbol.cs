@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 namespace Source.Common.Utilities;
 
@@ -15,6 +16,12 @@ public struct UtlSymbol
 	private static UtlSymbolTableMT? SymbolTable;
 	private readonly UtlSymId_t id;
 	private readonly bool ValidId; // Trick because Id may equal 0 when uninitialized.
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public readonly bool Equals(ReadOnlySpan<char> other, StringComparison comparison) => String().Equals(other, comparison);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public readonly bool Equals(UtlSymbol other, StringComparison comparison) => Equals(other.String(), comparison);
 
 	// Instance methods
 	public UtlSymbol() {
