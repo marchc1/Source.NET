@@ -49,7 +49,15 @@ public class MDLCache : IMDLCache
 		throw new NotImplementedException();
 	}
 
+	public short[] GetAutoplayList(uint handle) {
+		throw new NotImplementedException();
+	}
+
 	public ref int GetFrameUnlockCounterPtr(MDLCacheDataType type) {
+		throw new NotImplementedException();
+	}
+
+	public StudioHWData GetHardwareData(uint handle) {
 		throw new NotImplementedException();
 	}
 
@@ -78,6 +86,10 @@ public class MDLCache : IMDLCache
 	}
 
 	public bool GetVCollideSize(MDLHandle_t handle, out int VCollideSize) {
+		throw new NotImplementedException();
+	}
+
+	public VertexFileHeader GetVertexData(uint handle) {
 		throw new NotImplementedException();
 	}
 
