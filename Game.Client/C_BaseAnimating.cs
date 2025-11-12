@@ -87,6 +87,17 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 	}
 
+	public override int DrawModel(StudioFlags flags) {
+		if (!ReadyToDraw)
+			return 0;
+
+		int drawn = 0;
+
+		DrawBBoxVisualizations();
+
+		return drawn;
+	}
+
 	public override void GetAimEntOrigin(C_BaseEntity attachedTo, out Vector3 origin, out QAngle angles) {
 		C_BaseEntity? moveParent = null;
 		if(IsEffectActive(EntityEffects.BoneMerge) && IsEffectActive(EntityEffects.BoneMergeFastCull) && (moveParent = GetMoveParent()) != null) {

@@ -466,7 +466,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	}
 
-	private void DrawBBoxVisualizations() {
+	public void DrawBBoxVisualizations() {
 
 	}
 
