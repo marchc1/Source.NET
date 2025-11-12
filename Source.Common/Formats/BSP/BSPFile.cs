@@ -281,7 +281,7 @@ public struct BSPLump
 				return null; // Funny size
 
 			T[] data = new T[FileLength / Unsafe.SizeOf<T>()];
-			stream.ReadExactly(MemoryMarshal.Cast<T, byte>(data));
+			stream.ReadExactly(MemoryMarshal.Cast<T, byte>(data.AsSpan()));
 			return data;
 		}
 	}

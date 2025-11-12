@@ -283,7 +283,7 @@ public class NetGraphPanel : Panel
 	void InitColors() {
 		Span<Color> mincolor = stackalloc Color[2];
 		Span<Color> maxcolor = stackalloc Color[2];
-		Span<InlineArray3<float>> dc = stackalloc InlineArray3<float>[2];
+		Span<Source.InlineArray3<float>> dc = stackalloc Source.InlineArray3<float>[2];
 		int hfrac;
 		float f;
 

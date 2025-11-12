@@ -112,7 +112,7 @@ public struct UserCmd
 	/// <summary>
 	/// Holds current buttons pressed, and sends to server used for PlayerButtonDown and other hooks serverside.
 	/// </summary>
-	public InlineArray5<byte> ButtonsPressed;
+	public Source.InlineArray5<byte> ButtonsPressed;
 
 	/// <summary>
 	/// Scroll wheel speed.
@@ -149,7 +149,7 @@ public struct UserCmd
 		// TODO: implement
 	}
 
-	static bool HasChanged<T>(InlineArray5<T> from, InlineArray5<T> to) where T : IEquatable<T> {
+	static bool HasChanged<T>(Source.InlineArray5<T> from, Source.InlineArray5<T> to) where T : IEquatable<T> {
 		for (int i = 0; i < 5; i++) {
 			if (!from[i].Equals(to[i]))
 				return true;

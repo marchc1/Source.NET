@@ -256,7 +256,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host, IEngineVGui
 		IFileHandle? mapFile = fileSystem.Open(name, FileOpenOptions.Read | FileOpenOptions.Binary, "GAME");
 		if (mapFile != null) {
 			BSPHeader header = default;
-			Span<byte> outWrite = MemoryMarshal.Cast<BSPHeader, byte>(new(ref header));
+			Span<byte> outWrite = MemoryMarshal.Cast<BSPHeader, byte>(new Span<BSPHeader>(ref header));
 			int len = mapFile.Stream.Read(outWrite);
 			mapFile.Dispose();
 			if (len != outWrite.Length) {

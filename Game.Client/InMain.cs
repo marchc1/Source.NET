@@ -23,7 +23,7 @@ public enum KeyButtonStateFlags
 }
 public struct KeyButtonState
 {
-	public InlineArray2<int> Down;
+	public Source.InlineArray2<int> Down;
 	public KeyButtonStateFlags State;
 }
 
