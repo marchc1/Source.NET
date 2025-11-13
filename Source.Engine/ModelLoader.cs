@@ -145,6 +145,19 @@ public ref struct MapLoadHelper
 	}
 }
 
+public class MDLCacheNotify : IMDLCacheNotify
+{
+	public void OnDataLoaded(MDLCacheDataType type, uint handle) {
+		throw new NotImplementedException();
+	}
+
+	public void OnDataUnloaded(MDLCacheDataType type, uint handle) {
+		throw new NotImplementedException();
+	}
+
+	public static readonly MDLCacheNotify s = new();
+}
+
 public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host, 
 						 IEngineVGuiInternal EngineVGui, MatSysInterface materials, 
 						 CollisionModelSubsystem CM, IMaterialSystemHardwareConfig materialSystemHardwareConfig, 
@@ -181,6 +194,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	double accumulatedModelLoadTimeVCollideSync;
 	double accumulatedModelLoadTimeVCollideAsync;
 	double accumulatedModelLoadTimeMaterialNamesOnly;
+	double accumulatedModelLoadTimeVirtualModel;
 
 	private Model? LoadModel(Model? mod, ref ModelLoaderFlags referenceType) {
 		mod!.LoadFlags |= referenceType;
@@ -340,12 +354,45 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		return found;
 	}
 
-	private void Mod_TouchAllData(Model model, int v) {
-		throw new NotImplementedException();
+	private void Mod_TouchAllData(Model model, int serverCount) {
+		double t1 = Platform.Time;
+
+		VirtualModel virtualModel = MDLCache.GetVirtualModel(model.Studio);
+
+		double t2 = Platform.Time;
+		accumulatedModelLoadTimeVirtualModel += (t2 - t1);
+
+		if (virtualModel != null && serverCount >= 1) {
+			for (int i = 1; i < virtualModel.Group.Count; ++i) {
+				// What the hell?
+				MDLHandle_t childHandle = (MDLHandle_t)virtualModel.Group[i].Cache & 0xffff;
+				Model? childModel = MDLCache.GetUserData<Model>(childHandle);
+				if (childModel != null) {
+					childModel.LoadFlags |= (model.LoadFlags & ModelLoaderFlags.ReferenceMask);
+					childModel.LoadFlags |= ModelLoaderFlags.Loaded;
+					childModel.LoadFlags &= ~ModelLoaderFlags.LoadedByPreload;
+					childModel.ServerCount = serverCount;
+				}
+			}
+		}
+
+		if (!mod_forcetouchdata.GetBool())
+			return;
+
+		MDLCache.TouchAllData(model.Studio);
 	}
 
 	private void InitStudioModelState(Model model) {
+		Assert(model.Type == ModelType.Studio);
 
+		if (MDLCache.IsDataLoaded(model.Studio, MDLCacheDataType.StudioHDR)) 
+			MDLCacheNotify.s.OnDataLoaded(MDLCacheDataType.StudioHDR, model.Studio);
+		
+		if (MDLCache.IsDataLoaded(model.Studio, MDLCacheDataType.StudioHWData)) 
+			MDLCacheNotify.s.OnDataLoaded(MDLCacheDataType.StudioHWData, model.Studio);
+		
+		if (MDLCache.IsDataLoaded(model.Studio, MDLCacheDataType.VCollide)) 
+			MDLCacheNotify.s.OnDataLoaded(MDLCacheDataType.VCollide, model.Studio);
 	}
 
 	private bool Map_IsValid(ReadOnlySpan<char> name, bool quiet = false) {
