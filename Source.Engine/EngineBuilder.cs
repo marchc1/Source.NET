@@ -103,9 +103,6 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		SetMainThread(); // Setup ThreadUtils
 		// We got the ICommandLine from EngineBuilder, insert it into the app system
 		this.AddSingleton(cmdLine);
-		// temp
-		SpewActivate(GROUP_DEVELOPER, 1);
-		SpewActivate(GROUP_CONSOLE, 1);
 		// Internal methods. These are class instances for better restart
 		// support, and I feel like every time I try this, I end up getting
 		// "static creep" where I start to revert like a primate into using

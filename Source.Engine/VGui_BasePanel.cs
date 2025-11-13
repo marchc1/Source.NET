@@ -3,7 +3,7 @@ using Source.GUI.Controls;
 
 namespace Source.Engine;
 
-public abstract class BasePanel : Panel {
+public abstract class BasePanel(Panel panel) : Panel(panel) {
 	public abstract bool ShouldDraw();
 	public abstract override void OnTick();
 

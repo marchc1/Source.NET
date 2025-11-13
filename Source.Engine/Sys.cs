@@ -76,6 +76,7 @@ public class Sys(Host host, GameServer sv, ICommandLine CommandLine)
 	public bool InitGame(bool dedicated, string rootDirectory) {
 		MainThread = Thread.CurrentThread;
 		Dbg.SpewActivate("console", 1);
+		host.developer.Changed += DeveloperChangeCallback;
 		Dbg.SpewOutputFunc(SpewFunc);
 		host.Initialized = false;
 		Dedicated = dedicated;
@@ -89,6 +90,13 @@ public class Sys(Host host, GameServer sv, ICommandLine CommandLine)
 		return true;
 	}
 
+	private void DeveloperChangeCallback(IConVar cvar, in ConVarChangeContext ctx) {
+		ConVarRef var = new(cvar);
+		int val = var.GetInt();
+		SpewActivate("developer", val);
+		SpewActivate("console", val != 0 ? 2 : 1);
+	}
+
 	private void RunDataTableTest() {
 		// later
 	}
@@ -96,7 +104,7 @@ public class Sys(Host host, GameServer sv, ICommandLine CommandLine)
 	public void ShutdownGame() {
 		host.Shutdown();
 		Shutdown();
-		// TODO: uninstall developer callback
+		host.developer.Changed -= DeveloperChangeCallback;
 		Dbg.SpewOutputFunc(null);
 	}
 

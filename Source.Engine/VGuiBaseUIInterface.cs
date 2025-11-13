@@ -168,6 +168,7 @@ public class EngineVGui(
 	EnginePanel staticGameDLLPanel;
 	ClientState cl;
 	CL CL;
+	Con Con;
 
 	EnginePanel staticEngineToolsPanel;
 
@@ -365,6 +366,7 @@ public class EngineVGui(
 		localize = engineAPI.GetRequiredService<ILocalize>();
 		CL = engineAPI.GetRequiredService<CL>();
 		cl = engineAPI.GetRequiredService<ClientState>();
+		Con = engineAPI.GetRequiredService<Con>();
 		vguiScheme.Init();
 		// IGameConsole, but later.
 
@@ -475,6 +477,7 @@ public class EngineVGui(
 		// - CreateVProfPanels
 
 		if (IsPC()) {
+			Con.CreateConsolePanel(staticEngineToolsPanel);
 			CL.CreateEntityReportPanel(staticEngineToolsPanel);
 		}
 

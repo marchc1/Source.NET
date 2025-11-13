@@ -752,6 +752,13 @@ public class Host(
 		Disconnect(true);
 	}
 
+	[ConCommand(helpText: "Print version info string.")]
+	void version() {
+		// todo
+		// We should probably just use the steam inf information. Right now build_number is implemented to use a custom solution in the meantime.
+		// Can we use that + add some custom stuff for Source.NET?
+	}
+
 	[ConCommand]
 	void disconnect(in TokenizedCommand args) {
 		if (clientDLL == null || !clientDLL.DisconnectAttempt()) {

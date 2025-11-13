@@ -7,6 +7,7 @@ using Source.Common.Engine;
 using Source.Common.GUI;
 using Source.Common.Networking;
 using Source.Engine.Client;
+using Source.GUI.Controls;
 
 namespace Source.Engine;
 
@@ -30,7 +31,7 @@ public static class ConsoleCVars
 	static readonly ConVar con_filter_text_out = new("", FCvar.MaterialSystemThread, "Text with which to filter OUT of console spew. Set con_filter_enable 1 or 2 to activate.");
 }
 
-public class ConPanel : BasePanel
+public class ConPanel(Panel panel) : BasePanel(panel)
 {
 	public Host Host = Singleton<Host>();
 	public Con Con = Singleton<Con>();
@@ -48,13 +49,13 @@ public class ConPanel : BasePanel
 		DrawNotify();
 	}
 
-	public override unsafe void PaintBackground() {
+	public override void PaintBackground() {
 		if (!Con.IsVisible())
 			return;
 
-		Span<char> text;
-		int wide = GetWide();
 		Span<char> ver = stackalloc char[100];
+		Span<char> text = ver; // Fixes an unsafe complaint in the compiler for whatever reason
+		int wide = GetWide();
 		text = new PrintF(ver, "Source.NET Engine %i (build %d)").I(Protocol.VERSION).D(Sys.BuildNumber());
 
 		Surface.DrawSetTextColor(new Color(255, 255, 255, 255));
@@ -62,7 +63,6 @@ public class ConPanel : BasePanel
 		DrawText(Font, x, 0, text);
 
 		if (cl.IsActive()) {
-			
 			if (cl.NetChannel!.IsLoopback())
 				text = new PrintF(ver, "Map '%s'").S(cl.LevelBaseName).ToSpan();
 			else 
@@ -257,6 +257,7 @@ public class ConPanel : BasePanel
 
 public class Con(ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInput Input, IBaseClientDLL ClientDLL)
 {
+	static ConPanel? conPanel = null;
 	static ConVar con_enable = new("1", FCvar.Archive, "Allows the console to be activated.");
 
 	[ConCommand]
@@ -311,4 +312,11 @@ public class Con(ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInput Input, I
 	}
 
 	public bool IsVisible() => EngineVGui.IsConsoleVisible();
+
+	internal void CreateConsolePanel(Panel parent) {
+		conPanel = new(parent);
+		conPanel.SetVisible(false);
+	}
+
+	Panel? GetConsolePanel() => conPanel;
 }
