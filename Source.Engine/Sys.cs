@@ -22,7 +22,7 @@ public struct EngineVersion
 
 		var attribute = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
 		if (attribute?.InformationalVersion != null) {
-			var value = attribute.InformationalVersion;
+			var value = attribute.InformationalVersion.Replace("\r", "").Replace("\n", "").Replace("\t", "");
 			var index = value.IndexOf(BuildVersionMetadataPrefix);
 			if (index > 0) {
 				value = value[(index + BuildVersionMetadataPrefix.Length)..];
@@ -228,11 +228,12 @@ public class Sys(Host host, GameServer sv, ICommandLine CommandLine)
 	public bool InEditMode() => false;
 
 
-	public static readonly DateTime SourceEpoch = new(2003, 9, 30);
+	// public static readonly DateTime SourceEpoch = new(2003, 9, 30);
+	public static readonly DateTime SourceEpoch = new(1998, 11, 7);
 	/// <summary>
-	/// Day counter from Sep 30, 2003
+	/// Day counter from Nov 7th, 1998
 	/// </summary>
-	/// <returns>How many days since Sep 30, 2003</returns>
+	/// <returns>How many days since Nov 7th, 1998</returns>
 	public static long BuildNumber() {
 		long days = (long)(EngineVersion.Current.Date - SourceEpoch).TotalDays;
 		return days;

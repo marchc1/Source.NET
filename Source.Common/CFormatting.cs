@@ -89,20 +89,24 @@ public ref struct PrintF
 	public static implicit operator int(PrintF self) => self.input.Length;
 
 	public unsafe PrintF D(int i) {
+		WriteAnyLiterals();
+		reader.ReadVariable(out char t, out int varIdx);
 		Span<char> buffer = stackalloc char[11];
 		if (i.TryFormat(buffer, out int written))
 #pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
-			input.Write(buffer);
+			input.Write(buffer[..written]);
 #pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
 
 		WriteAnyLiterals();
 		return this;
 	}
 	public unsafe PrintF D(long i) {
+		WriteAnyLiterals();
+		reader.ReadVariable(out char t, out int varIdx);
 		Span<char> buffer = stackalloc char[19];
 		if (i.TryFormat(buffer, out int written))
 #pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
-			input.Write(buffer);
+			input.Write(buffer[..written]);
 #pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
 
 		WriteAnyLiterals();

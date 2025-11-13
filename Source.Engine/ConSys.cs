@@ -24,20 +24,16 @@ namespace Source.Engine;
 #if !SWDS
 public static class ConsoleCVars
 {
-	internal static readonly ConVar con_trace = new("0", FCvar.MaterialSystemThread, "Print console text to low level printout.");
-	internal static readonly ConVar con_notifytime = new("8", FCvar.MaterialSystemThread, "How long to display recent console text to the upper part of the game window");
-	internal static readonly ConVar con_times = new("8", FCvar.MaterialSystemThread, "Number of console lines to overlay for debugging.");
-	internal static readonly ConVar con_drawnotify = new("1", 0, "Disables drawing of notification area (for taking screenshots).");
-	internal static readonly ConVar con_enable = new(
-#if GMOD_DLL
-		"1"
-#else
-		"0"
-#endif
-		, FCvar.Archive, "Allows the console to be activated.");
-	internal static readonly ConVar con_filter_enable = new("0", FCvar.MaterialSystemThread, "Filters console output based on the setting of con_filter_text. 1 filters completely, 2 displays filtered text brighter than other text.");
-	internal static readonly ConVar con_filter_text = new("", FCvar.MaterialSystemThread, "Text with which to filter console spew. Set con_filter_enable 1 or 2 to activate.");
-	internal static readonly ConVar con_filter_text_out = new("", FCvar.MaterialSystemThread, "Text with which to filter OUT of console spew. Set con_filter_enable 1 or 2 to activate.");
+	internal static ConVar con_trace = new( "con_trace", "0", FCvar.MaterialSystemThread, "Print console text to low level printout." );
+	internal static ConVar con_notifytime = new( "con_notifytime","8", FCvar.MaterialSystemThread, "How long to display recent console text to the upper part of the game window" );
+	internal static ConVar con_times = new("contimes", "8", FCvar.MaterialSystemThread, "Number of console lines to overlay for debugging." );
+	internal static ConVar con_drawnotify = new( "con_drawnotify", "1", 0, "Disables drawing of notification area (for taking screenshots)." );
+	internal static ConVar con_enable = new("con_enable", "1", FCvar.Archive, "Allows the console to be activated.");
+	internal static ConVar con_filter_enable = new( "con_filter_enable","0", FCvar.MaterialSystemThread, "Filters console output based on the setting of con_filter_text. 1 filters completely, 2 displays filtered text brighter than other text." );
+	internal static ConVar con_filter_text = new( "con_filter_text","", FCvar.MaterialSystemThread, "Text with which to filter console spew. Set con_filter_enable 1 or 2 to activate." );
+	internal static ConVar con_filter_text_out = new( "con_filter_text_out","", FCvar.MaterialSystemThread, "Text with which to filter OUT of console spew. Set con_filter_enable 1 or 2 to activate." );
+
+
 }
 
 public class ConPanel : BasePanel
