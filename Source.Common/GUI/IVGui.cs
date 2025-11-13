@@ -39,6 +39,6 @@ public interface IVGui
 	IVGuiInput GetInput();
 	void MarkPanelForDeletion(IPanel? panel);
 	IAnimationController GetAnimationController();
-	void AddTickSignal(IPanel baseHudChat, long intervalMilliseconds = 0);
-	void RemoveTickSignal(IPanel baseHudChat);
+	void AddTickSignal(IPanel panel, long intervalMilliseconds = 0);
+	void RemoveTickSignal(IPanel panel);
 }

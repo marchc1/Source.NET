@@ -13,6 +13,7 @@ public class EmptyConVar() : ConVar("", "0", 0) {
 	public override string GetName() => "";
 	public override bool IsFlagSet(FCvar flag) => false;
 }
+
 public struct ConVarRef
 {
 	static readonly EmptyConVar EmptyConVar = new();

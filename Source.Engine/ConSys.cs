@@ -1,5 +1,7 @@
 ﻿using CommunityToolkit.HighPerformance;
 
+using SDL;
+
 using Source.Common;
 using Source.Common.Client;
 using Source.Common.Commands;
@@ -7,7 +9,14 @@ using Source.Common.Engine;
 using Source.Common.GUI;
 using Source.Common.Networking;
 using Source.Engine.Client;
+using Source.GUI;
 using Source.GUI.Controls;
+
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Source.Engine;
 
@@ -15,24 +24,38 @@ namespace Source.Engine;
 #if !SWDS
 public static class ConsoleCVars
 {
-	static readonly ConVar con_trace = new("0", FCvar.MaterialSystemThread, "Print console text to low level printout.");
-	static readonly ConVar con_notifytime = new("8", FCvar.MaterialSystemThread, "How long to display recent console text to the upper part of the game window");
-	static readonly ConVar con_times = new("8", FCvar.MaterialSystemThread, "Number of console lines to overlay for debugging.");
-	static readonly ConVar con_drawnotify = new("1", 0, "Disables drawing of notification area (for taking screenshots).");
-	static readonly ConVar con_enable = new(
+	internal static readonly ConVar con_trace = new("0", FCvar.MaterialSystemThread, "Print console text to low level printout.");
+	internal static readonly ConVar con_notifytime = new("8", FCvar.MaterialSystemThread, "How long to display recent console text to the upper part of the game window");
+	internal static readonly ConVar con_times = new("8", FCvar.MaterialSystemThread, "Number of console lines to overlay for debugging.");
+	internal static readonly ConVar con_drawnotify = new("1", 0, "Disables drawing of notification area (for taking screenshots).");
+	internal static readonly ConVar con_enable = new(
 #if GMOD_DLL
 		"1"
 #else
 		"0"
 #endif
 		, FCvar.Archive, "Allows the console to be activated.");
-	static readonly ConVar con_filter_enable = new("0", FCvar.MaterialSystemThread, "Filters console output based on the setting of con_filter_text. 1 filters completely, 2 displays filtered text brighter than other text.");
-	static readonly ConVar con_filter_text = new("", FCvar.MaterialSystemThread, "Text with which to filter console spew. Set con_filter_enable 1 or 2 to activate.");
-	static readonly ConVar con_filter_text_out = new("", FCvar.MaterialSystemThread, "Text with which to filter OUT of console spew. Set con_filter_enable 1 or 2 to activate.");
+	internal static readonly ConVar con_filter_enable = new("0", FCvar.MaterialSystemThread, "Filters console output based on the setting of con_filter_text. 1 filters completely, 2 displays filtered text brighter than other text.");
+	internal static readonly ConVar con_filter_text = new("", FCvar.MaterialSystemThread, "Text with which to filter console spew. Set con_filter_enable 1 or 2 to activate.");
+	internal static readonly ConVar con_filter_text_out = new("", FCvar.MaterialSystemThread, "Text with which to filter OUT of console spew. Set con_filter_enable 1 or 2 to activate.");
 }
 
-public class ConPanel(Panel panel) : BasePanel(panel)
+public class ConPanel : BasePanel
 {
+	public ConPanel(Panel panel) : base(panel) {
+		SetSize(videomode.GetModeStereoWidth(), videomode.GetModeStereoHeight());
+		SetPos(0, 0);
+		SetVisible(true);
+		SetMouseInputEnabled(false);
+		SetKeyboardInputEnabled(false);
+
+		DefaultColor[0] = 1.0f;
+		DefaultColor[1] = 1.0f;
+		DefaultColor[2] = 1.0f;
+
+		drawDebugAreas = false;
+	}
+
 	public Host Host = Singleton<Host>();
 	public Con Con = Singleton<Con>();
 	public ClientState cl => Host.cl;
@@ -40,6 +63,9 @@ public class ConPanel(Panel panel) : BasePanel(panel)
 
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
+
+		Font = scheme.GetFont("DefaultSmallDropShadow", false);
+		FontFixed = scheme.GetFont("DefaultFixedDropShadow", false);
 	}
 
 	public override void Paint() {
@@ -65,9 +91,9 @@ public class ConPanel(Panel panel) : BasePanel(panel)
 		if (cl.IsActive()) {
 			if (cl.NetChannel!.IsLoopback())
 				text = new PrintF(ver, "Map '%s'").S(cl.LevelBaseName).ToSpan();
-			else 
+			else
 				text = new PrintF(ver, "Server '%s' Map '%s'").S(cl.NetChannel!.RemoteAddress!.ToString()).S(cl.LevelBaseName).ToSpan();
-			
+
 			int tall = Surface.GetFontTall(Font);
 
 			x = wide - DrawTextLen(Font, text) - 2;
@@ -109,7 +135,7 @@ public class ConPanel(Panel panel) : BasePanel(panel)
 
 				clr[3] = (byte)(int)(float)(f * 255.0);
 
-				if (i == 0 && f < 0.2f) 
+				if (i == 0 && f < 0.2f)
 					y -= (int)(float)(fontTall * (1.0 - f / 0.2));
 			}
 			else {
@@ -121,9 +147,28 @@ public class ConPanel(Panel panel) : BasePanel(panel)
 			y += fontTall;
 		}
 	}
+	static ConVar con_nprint_bgalpha = new("50", 0, "Con_NPrint background alpha.");
+	static ConVar con_nprint_bgborder = new("5", 0, "Con_NPrint border size.");
 
 	public virtual void DrawDebugAreas() {
+		if (!drawDebugAreas)
+			return;
 
+		// Find the top and bottom of all the nprint text so we can draw a box behind it.
+		int left = 99999, top = 99999, right = -99999, bottom = -99999;
+		if (con_nprint_bgalpha.GetInt() != 0) {
+			// First, figure out the bounds of all the con_nprint text.
+			if (ProcessNotifyLines(ref left, ref top, ref right, ref bottom, false) != 0) {
+				int b = con_nprint_bgborder.GetInt();
+
+				// Now draw a box behind it.
+				Surface.DrawSetColor(0, 0, 0, con_nprint_bgalpha.GetInt());
+				Surface.DrawFilledRect(left - b, top - b, right + b, bottom + b);
+			}
+		}
+
+		if (ProcessNotifyLines(ref left, ref top, ref right, ref bottom, true) == 0)
+			drawDebugAreas = false;
 	}
 
 	public virtual int ProcessNotifyLines(ref int left, ref int top, ref int right, ref int bottom, bool draw) {
@@ -157,7 +202,7 @@ public class ConPanel(Panel panel) : BasePanel(panel)
 						(byte)(int)(da_notify[i].Color[0] * 255),
 						(byte)(int)(da_notify[i].Color[1] * 255),
 						(byte)(int)(da_notify[i].Color[2] * 255),
-						255,		 
+						255,
 						da_notify[i].Notify);
 				}
 
@@ -231,20 +276,105 @@ public class ConPanel(Panel panel) : BasePanel(panel)
 		return visible;
 	}
 
-	public void Con_NPrintf(int idx, ReadOnlySpan<char> msg) {
+	const int DBG_NOTIFY_TIMEOUT = 4;
 
+	public void Con_NPrintf(int idx, ReadOnlySpan<char> msg) {
+		if (idx < 0 || idx >= MAX_DBG_NOTIFY)
+			return;
+
+		msg.ClampedCopyTo(da_notify[idx].Notify);
+
+		// Reset values
+		da_notify[idx].Expire = Host.RealTime + DBG_NOTIFY_TIMEOUT;
+		da_notify[idx].Color = DefaultColor;
+		da_notify[idx].FixedWidthFont = false;
+		drawDebugAreas = true;
 	}
 
 	public void Con_NXPrintf(in Con_NPrint_s info, ReadOnlySpan<char> msg) {
+		if (info.Index < 0 || info.Index >= MAX_DBG_NOTIFY)
+			return;
 
+		msg.ClampedCopyTo(da_notify[info.Index].Notify);
+		if (info.TimeToLive == -1)
+			da_notify[info.Index].Expire = -1;
+		else
+			da_notify[info.Index].Expire = Host.RealTime + info.TimeToLive;
+
+		MemoryMarshal.Cast<Vector3, float>(new(in info.Color)).CopyTo(da_notify[info.Index].Color);
+		da_notify[info.Index].FixedWidthFont = info.FixedWidthFont;
+		drawDebugAreas = true;
 	}
 
 	public void AddToNotify(in Color clr, ReadOnlySpan<char> msg) {
+		if (!Host.Initialized)
+			return;
 
+		if (!Host.developer.GetBool())
+			return;
+
+		if (msg[0] == 1 || msg[0] == 2)
+			msg = msg[1..];
+
+		if (msg.IsEmpty || msg[0] == '\0')
+			return;
+
+		lock (NotifyTexts) {
+			ref NotifyText current = ref Unsafe.NullRef<NotifyText>();
+
+			int slot = NotifyTexts.Count - 1;
+			if (slot < 0) {
+				NotifyTexts.Add(default);
+				slot = NotifyTexts.Count - 1;
+				current = ref NotifyTexts.AsSpan()[slot];
+				current.Color = clr;
+				current.Text[0] = '\0';
+				current.LifeRemaining = ConsoleCVars.con_notifytime.GetFloat();
+			}
+			else {
+				current = ref NotifyTexts.AsSpan()[slot];
+				current.Color = clr;
+			}
+
+			Assert(current);
+			// TODO: Localization
+
+			ReadOnlySpan<char> p = msg;
+			while (!p.IsEmpty && p[0] != '\0') {
+				int nextreturn = p.IndexOf('\n');
+				if (nextreturn != -1) {
+					int copysize = nextreturn + 1;
+					p[..copysize].CopyTo(current.Text);
+
+					if (current.Text[0] != '\0' && current.Text[0] != '\n') {
+						NotifyTexts.Add(default);
+						slot = NotifyTexts.Count - 1;
+						current = ref NotifyTexts.AsSpan()[slot];
+					}
+					current.Color = clr;
+					current.Text[0] = '\0';
+					current.LifeRemaining = ConsoleCVars.con_notifytime.GetFloat();
+					p = p[copysize..];
+					continue;
+				}
+
+				// Append it
+				p.ClampedCopyTo(current.Text);
+				current.Color = clr;
+				current.LifeRemaining = ConsoleCVars.con_notifytime.GetFloat();
+				break;
+			}
+
+			while (NotifyTexts.Count > 0 && (NotifyTexts.Count >= ConsoleCVars.con_times.GetInt())) {
+				NotifyTexts.RemoveAt(0);
+			}
+		}
 	}
 
 	public void ClearNotify() {
-
+		lock (NotifyTexts) {
+			NotifyTexts.Clear();
+		}
 	}
 
 
@@ -255,7 +385,7 @@ public class ConPanel(Panel panel) : BasePanel(panel)
 #endif
 
 
-public class Con(ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInput Input, IBaseClientDLL ClientDLL)
+public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInput Input, IBaseClientDLL ClientDLL)
 {
 	static ConPanel? conPanel = null;
 	static ConVar con_enable = new("1", FCvar.Archive, "Allows the console to be activated.");
@@ -307,8 +437,83 @@ public class Con(ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInput Input, I
 
 	[ConCommand] void clear() => Clear();
 
+	bool g_fColorPrintf;
+	bool g_fIsDebugPrint;
+	bool g_bInColorPrint;
 	public void ColorPrintf(in Color clr, ReadOnlySpan<char> fmt) {
-		cvar.ConsoleColorPrintf(in clr, fmt);
+		g_fColorPrintf = true;
+		ColorPrint(clr, fmt);
+		g_fColorPrintf = false;
+	}
+
+	static ConVar spew_consolelog_to_debugstring = new("0", 0, "Send console log to PLAT_DebugString()");
+
+	public void ColorPrint(in Color clr, ReadOnlySpan<char> msg) {
+		if (g_bInColorPrint)
+			return;
+
+		int nCon_Filter_Enable = ConsoleCVars.con_filter_enable.GetInt();
+		if (nCon_Filter_Enable > 0) {
+			ReadOnlySpan<char> pszText = ConsoleCVars.con_filter_text.GetString();
+			ReadOnlySpan<char> pszIgnoreText = ConsoleCVars.con_filter_text_out.GetString();
+
+			switch (nCon_Filter_Enable) {
+				case 1:
+					if (!pszText.IsEmpty && (pszText[0] != '\0') && !msg.Contains(pszText, StringComparison.OrdinalIgnoreCase))
+						return;
+					if (!pszIgnoreText.IsEmpty && pszIgnoreText[0] != '\0' && msg.Contains(pszIgnoreText, StringComparison.OrdinalIgnoreCase))
+						return;
+					break;
+
+				case 2:
+					if (!pszIgnoreText.IsEmpty && pszIgnoreText[0] != '\0' && msg.Contains(pszIgnoreText, StringComparison.OrdinalIgnoreCase))
+						return;
+					if (!pszText.IsEmpty && (pszText[0] != '\0') && !msg.Contains(pszText, StringComparison.OrdinalIgnoreCase)) {
+						Color mycolor = new(200, 200, 200, 150);
+						cvar.ConsoleColorPrintf(mycolor, msg);
+						return;
+					}
+					break;
+
+				default:
+					// by default do no filtering
+					break;
+			}
+		}
+
+		g_bInColorPrint = true;
+
+		// also echo to debugging console
+		if (Debugger.IsAttached && ConsoleCVars.con_trace.GetInt() == 0 && !spew_consolelog_to_debugstring.GetBool())
+			Sys.OutputDebugString(msg);
+
+		if (Host.sv.IsDedicated()) {
+			g_bInColorPrint = false;
+			return;     // no graphics mode
+		}
+
+		bool convisible = IsVisible();
+		bool indeveloper = (Host.developer.GetInt() > 0);
+		bool debugprint = g_fIsDebugPrint;
+
+		if (g_fColorPrintf)
+			cvar.ConsoleColorPrintf(clr, msg);
+		else {
+			if (g_fIsDebugPrint) {
+				if (!Host.cl.IsActive() || !convisible)
+					cvar.ConsoleDPrintf(msg);
+			}
+			else
+				cvar.ConsolePrintf(msg);
+		}
+
+		if (Host.Sys != null && !Host.Sys.InSpew)
+			Msg(msg);
+
+		if ((!debugprint || indeveloper) && !(debugprint && convisible)) 
+			conPanel?.AddToNotify(clr, msg);
+		
+		g_bInColorPrint = false;
 	}
 
 	public bool IsVisible() => EngineVGui.IsConsoleVisible();

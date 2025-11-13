@@ -62,7 +62,8 @@ public class EditablePanel : Panel
 		// TODO
 	}
 
-	static ConVar vgui_nav_lock_default_button = new(nameof(vgui_nav_lock_default_button), 0);
+	static ConVarRef vgui_nav_lock_default_button = new("vgui_nav_lock_default_button");
+
 	public override void OnKeyCodePressed(ButtonCode code) {
 		if (vgui_nav_lock_default_button.GetInt() == 0) {
 			ButtonCode nButtonCode = code.GetBaseButtonCode();

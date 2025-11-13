@@ -1,11 +1,26 @@
-﻿using Source.Common.GUI;
+﻿using Source.Common.Commands;
+using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Source.Engine;
 
-public abstract class BasePanel(Panel panel) : Panel(panel) {
+public abstract class BasePanel : Panel {
+	static ConVar vgui_nav_lock = new("0", FCvar.DevelopmentOnly);
+	static ConVar vgui_nav_lock_default_button = new("0", FCvar.DevelopmentOnly);
+
+	public BasePanel(Panel parent) : base(parent) {
+		VGui.AddTickSignal(this);
+	}
 	public abstract bool ShouldDraw();
-	public abstract override void OnTick();
+	public override void OnTick() {
+		if (vgui_nav_lock.GetInt() > 0) 
+			vgui_nav_lock.SetValue(vgui_nav_lock.GetInt() - 1);
+
+		if (vgui_nav_lock_default_button.GetInt() > 0) 
+			vgui_nav_lock_default_button.SetValue(vgui_nav_lock_default_button.GetInt() - 1);
+
+		SetVisible(ShouldDraw());
+	}
 
 	protected int DrawColoredText(IFont? font, int x, int y, int r, int g, int b, int a, ReadOnlySpan<char> text) {
 		if (text.Length <= 0)

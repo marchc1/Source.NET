@@ -112,6 +112,8 @@ public class Sys(Host host, GameServer sv, ICommandLine CommandLine)
 
 	}
 
+	public bool InSpew => inSpew.Value;
+
 	ThreadLocal<bool> inSpew = new();
 	ThreadLocal<string> groupWrite = new();
 	private void Write(string group, ReadOnlySpan<char> str, in Color color, bool routeInGame = false) {
@@ -234,5 +236,9 @@ public class Sys(Host host, GameServer sv, ICommandLine CommandLine)
 	public static long BuildNumber() {
 		long days = (long)(EngineVersion.Current.Date - SourceEpoch).TotalDays;
 		return days;
+	}
+
+	internal static void OutputDebugString(ReadOnlySpan<char> msg) {
+		// Platform.DebugString(msg);
 	}
 }
