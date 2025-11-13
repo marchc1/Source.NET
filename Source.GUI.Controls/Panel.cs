@@ -1155,7 +1155,6 @@ public class Panel : IPanel
 	// These implementations break everything. Fix later
 
 	public void MoveToBack() {
-		/*
 		if (Parent != null) {
 			Parent.Children.Remove(this);
 			Parent.Children.Insert(0, this);
@@ -1171,11 +1170,9 @@ public class Panel : IPanel
 					break;
 			}
 		}
-		*/
 	}
 
 	public void MoveToFront() {
-		/*
 		Surface.MovePopupToFront(this);
 
 		if (Parent != null) {
@@ -1193,7 +1190,6 @@ public class Panel : IPanel
 					break;
 			}
 		}
-		*/
 	}
 
 	public bool IsLayoutInvalid() => (Flags & PanelFlags.NeedsLayout) != 0;

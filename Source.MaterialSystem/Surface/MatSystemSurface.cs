@@ -883,6 +883,8 @@ public class MatSystemSurface : IMatSystemSurface
 		ActivateCurrentCursor();
 	}
 
+	static KeyValues OnMovedPopupToFront = new("OnMovedPopupToFront");
+
 	public void MovePopupToBack(IPanel panel) {
 		LinkVGUI();
 
@@ -891,12 +893,29 @@ public class MatSystemSurface : IMatSystemSurface
 			return;
 
 		PopupList.RemoveAt(index);
-		PopupList.Add(panel);
+		PopupList.Insert(0, panel);
 	}
 
 	public void MovePopupToFront(IPanel panel) {
-		PopupList.Remove(panel);
+		int index = PopupList.IndexOf(panel);
+		if (index == -1)
+			return;
+
+		PopupList.RemoveAt(index);
 		PopupList.Add(panel);
+
+		// If the modal panel isn't a parent, restore it to the top, to prevent a hard lock
+		if (VGuiInput.GetAppModalSurface() != null) {
+			if (!panel.HasParent(VGuiInput.GetAppModalSurface()!)) {
+				index = PopupList.IndexOf(panel);
+				if (index != -1) {
+					PopupList.RemoveAt(index);
+					PopupList.Add(panel);
+				}
+			}
+		}
+
+		VGui.PostMessage(panel, OnMovedPopupToFront, null);
 	}
 
 	public bool NeedKBInput() {
