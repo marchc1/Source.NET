@@ -82,6 +82,6 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 	}
 
 	public void Shutdown() {
-		throw new NotImplementedException();
+
 	}
 }

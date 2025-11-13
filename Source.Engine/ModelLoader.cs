@@ -723,7 +723,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host, IEngineVGui
 	}
 
 	public void Init() {
-		throw new NotImplementedException();
+
 	}
 
 	public void PurgeUnusedModels() {
