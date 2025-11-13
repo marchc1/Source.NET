@@ -14,9 +14,12 @@ using Source.GUI.Controls;
 
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+
+using MemoryExtensions = System.MemoryExtensions;
 
 namespace Source.Engine;
 
@@ -302,6 +305,16 @@ public class ConPanel : BasePanel
 		drawDebugAreas = true;
 	}
 
+	private static void AppendToText(ref NotifyText nt, ReadOnlySpan<char> src) {
+		Span<char> dest = nt.Text;
+		int len = MemoryExtensions.IndexOf(dest, '\0');
+		if (len < 0) len = dest.Length;
+
+		int copyLen = Math.Min(src.Length, dest.Length - len - 1);
+		src[..copyLen].ClampedCopyTo(dest[len..]);
+		dest[len + copyLen] = '\0';
+	}
+
 	public void AddToNotify(in Color clr, ReadOnlySpan<char> msg) {
 		if (!Host.Initialized)
 			return;
@@ -340,7 +353,7 @@ public class ConPanel : BasePanel
 				int nextreturn = p.IndexOf('\n');
 				if (nextreturn != -1) {
 					int copysize = nextreturn + 1;
-					p[..copysize].CopyTo(current.Text);
+					AppendToText(ref current, p[..copysize]);
 
 					if (current.Text[0] != '\0' && current.Text[0] != '\n') {
 						NotifyTexts.Add(default);
@@ -348,14 +361,12 @@ public class ConPanel : BasePanel
 						current = ref NotifyTexts.AsSpan()[slot];
 					}
 					current.Color = clr;
-					current.Text[0] = '\0';
 					current.LifeRemaining = ConsoleCVars.con_notifytime.GetFloat();
 					p = p[copysize..];
 					continue;
 				}
 
-				// Append it
-				p.ClampedCopyTo(current.Text);
+				AppendToText(ref current, p);
 				current.Color = clr;
 				current.LifeRemaining = ConsoleCVars.con_notifytime.GetFloat();
 				break;
