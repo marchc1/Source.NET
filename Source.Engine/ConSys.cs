@@ -27,16 +27,18 @@ namespace Source.Engine;
 #if !SWDS
 public static class ConsoleCVars
 {
-	internal static ConVar con_trace = new( "con_trace", "0", FCvar.MaterialSystemThread, "Print console text to low level printout." );
-	internal static ConVar con_notifytime = new( "con_notifytime","8", FCvar.MaterialSystemThread, "How long to display recent console text to the upper part of the game window" );
-	internal static ConVar con_times = new("contimes", "8", FCvar.MaterialSystemThread, "Number of console lines to overlay for debugging." );
-	internal static ConVar con_drawnotify = new( "con_drawnotify", "1", 0, "Disables drawing of notification area (for taking screenshots)." );
+	internal static ConVar con_trace = new("con_trace", "0", FCvar.MaterialSystemThread, "Print console text to low level printout.");
+	internal static ConVar con_notifytime = new("con_notifytime", "8", FCvar.MaterialSystemThread, "How long to display recent console text to the upper part of the game window");
+	internal static ConVar con_times = new("contimes", "8", FCvar.MaterialSystemThread, "Number of console lines to overlay for debugging.");
+	internal static ConVar con_drawnotify = new("con_drawnotify", "1", 0, "Disables drawing of notification area (for taking screenshots).");
 	internal static ConVar con_enable = new("con_enable", "1", FCvar.Archive, "Allows the console to be activated.");
-	internal static ConVar con_filter_enable = new( "con_filter_enable","0", FCvar.MaterialSystemThread, "Filters console output based on the setting of con_filter_text. 1 filters completely, 2 displays filtered text brighter than other text." );
-	internal static ConVar con_filter_text = new( "con_filter_text","", FCvar.MaterialSystemThread, "Text with which to filter console spew. Set con_filter_enable 1 or 2 to activate." );
-	internal static ConVar con_filter_text_out = new( "con_filter_text_out","", FCvar.MaterialSystemThread, "Text with which to filter OUT of console spew. Set con_filter_enable 1 or 2 to activate." );
-
-
+	internal static ConVar con_filter_enable = new("con_filter_enable", "0", FCvar.MaterialSystemThread, "Filters console output based on the setting of con_filter_text. 1 filters completely, 2 displays filtered text brighter than other text.");
+	internal static ConVar con_filter_text = new("con_filter_text", "", FCvar.MaterialSystemThread, "Text with which to filter console spew. Set con_filter_enable 1 or 2 to activate.");
+	internal static ConVar con_filter_text_out = new("con_filter_text_out", "", FCvar.MaterialSystemThread, "Text with which to filter OUT of console spew. Set con_filter_enable 1 or 2 to activate.");
+#if GMOD_DLL
+	internal static ConVar con_bgalpha = new("con_bgalpha", "50", FCvar.Archive, "Background alpha for console notify (contimes + developer 1).");
+	internal static ConVar con_border = new("con_border", "6", FCvar.Archive, "Border size for console notify (contimes + developer 1)..");
+#endif
 }
 
 public class ConPanel : BasePanel
@@ -74,7 +76,45 @@ public class ConPanel : BasePanel
 		DrawNotify();
 	}
 
+	protected int GetConLinesSize(out int width, out int height) {
+		width = 0;
+		height = 0;
+
+		int fontTall = Surface.GetFontTall(FontFixed) + 1;
+		Span<NotifyText> textToDraw = TextToDraw.AsSpan();
+		int c = textToDraw.Length;
+		for (int i = 0; i < c; i++) {
+			ref NotifyText notify = ref textToDraw[i];
+			TimeUnit_t timeleft = notify.LifeRemaining;
+
+			if (timeleft < .5f) {
+				TimeUnit_t f = Math.Clamp(timeleft, 0.0, .5) / .5;
+				if (i == 0 && f < 0.2f)
+					height -= (int)(float)(fontTall * (1.0 - f / 0.2));
+			}
+
+			height += fontTall;
+			Surface.GetTextSize(FontFixed, notify.Text, out int wide, out _);
+			width = Math.Max(width, wide);
+		}
+
+		return c;
+	}
+
 	public override void PaintBackground() {
+#if GMOD_DLL
+		if (ConsoleCVars.con_bgalpha.GetInt() != 0) {
+			int _x = 8;
+			int _y = 5;
+			if (GetConLinesSize(out int width, out int height) != 0) {
+				int b = ConsoleCVars.con_border.GetInt();
+
+				Surface.DrawSetColor(0, 0, 0, ConsoleCVars.con_bgalpha.GetInt());
+				Surface.DrawFilledRect(Math.Max(0, _x - b), Math.Max(0, _y - b), width + (b * 2), height);
+			}
+		}
+#endif
+
 		if (!Con.IsVisible())
 			return;
 
@@ -512,9 +552,9 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 		if (Host.Sys != null && !Host.Sys.InSpew)
 			Msg(msg);
 
-		if ((!debugprint || indeveloper) && !(debugprint && convisible)) 
+		if ((!debugprint || indeveloper) && !(debugprint && convisible))
 			conPanel?.AddToNotify(clr, msg);
-		
+
 		g_bInColorPrint = false;
 	}
 
