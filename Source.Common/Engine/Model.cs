@@ -131,7 +131,7 @@ public class Model
 	public UtlSymbol StrName;
 	public ModelLoaderFlags LoadFlags;
 	public int ServerCount;
-	public IMaterial[]? Materials;
+	public Memory<IMaterial> Materials;
 
 	public ModelType Type;
 	public ModelFlag Flags;

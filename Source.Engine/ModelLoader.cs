@@ -1,14 +1,20 @@
-using Source.Common.Engine;
+using CommunityToolkit.HighPerformance;
+
 using Source.Common;
+using Source.Common.Commands;
+using Source.Common.DataCache;
+using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Formats.BSP;
-using System.Numerics;
-using Source.Common.Mathematics;
-using CommunityToolkit.HighPerformance;
 using Source.Common.MaterialSystem;
-using System.Runtime.InteropServices;
-using System.Collections.Generic;
+using Source.Common.Mathematics;
+
+using System;
+using System.Buffers;
 using System.Collections;
+using System.Collections.Generic;
+using System.Numerics;
+using System.Runtime.InteropServices;
 namespace Source.Engine;
 
 public ref struct MapLoadHelper
@@ -139,7 +145,10 @@ public ref struct MapLoadHelper
 	}
 }
 
-public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host, IEngineVGuiInternal EngineVGui, MatSysInterface materials, CollisionModelSubsystem CM, IMaterialSystemHardwareConfig materialSystemHardwareConfig) : IModelLoader
+public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host, 
+						 IEngineVGuiInternal EngineVGui, MatSysInterface materials, 
+						 CollisionModelSubsystem CM, IMaterialSystemHardwareConfig materialSystemHardwareConfig, 
+						 IMDLCache MDLCache, IStudioRender StudioRender) : IModelLoader
 {
 	public int GetCount() {
 		throw new NotImplementedException();
@@ -168,6 +177,10 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host, IEngineVGui
 	InlineArray64<char> LoadName;
 
 	Model? WorldModel;
+	double accumulatedModelLoadTimeStudio;
+	double accumulatedModelLoadTimeVCollideSync;
+	double accumulatedModelLoadTimeVCollideAsync;
+	double accumulatedModelLoadTimeMaterialNamesOnly;
 
 	private Model? LoadModel(Model? mod, ref ModelLoaderFlags referenceType) {
 		mod!.LoadFlags |= referenceType;
@@ -199,7 +212,12 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host, IEngineVGui
 
 		switch (mod.Type) {
 			case ModelType.Sprite: throw new NotImplementedException("ModelType.Sprite unsupported for now");
-			case ModelType.Studio: throw new NotImplementedException("ModelType.Studio unsupported for now");
+			case ModelType.Studio:
+				double t1 = Platform.Time;
+				Studio_LoadModel(mod, touchAllData);
+				double t2 = Platform.Time;
+				accumulatedModelLoadTimeStudio = (t2 - t1);
+				break;
 			case ModelType.Brush: {
 					fileSystem.AddSearchPath(mod.StrName, "GAME", SearchPathAdd.ToHead);
 
@@ -214,6 +232,120 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host, IEngineVGui
 				break;
 		}
 		return mod;
+	}
+	static readonly ConVar mod_touchalldata = new("1", 0, "Touch model data during level startup" );
+	static readonly ConVar mod_forcetouchdata = new("1", 0, "Forces all model file data into cache on model load.");
+
+	private void Studio_LoadModel(Model model, bool touchAllData) {
+		if (!mod_touchalldata.GetBool())
+			touchAllData = false;
+
+		bool preloaded = (model.LoadFlags & ModelLoaderFlags.LoadedByPreload) != 0;
+
+		bool loadPhysics = true;
+		if (model.LoadFlags == ModelLoaderFlags.StaticProp)
+			loadPhysics = false;
+
+		model.LoadFlags |= ModelLoaderFlags.Loaded;
+		model.LoadFlags &= ~ModelLoaderFlags.LoadedByPreload;
+
+		if (!preloaded) {
+			model.Studio = MDLCache.FindMDL(model.StrName);
+			MDLCache.SetUserData(model.Studio, model);
+			InitStudioModelState(model);
+		}
+
+		MDLCache.GetStudioHdr(model.Studio);
+		if(loadPhysics && !preloaded) {
+			bool synchronous = touchAllData;
+			double t1 = Platform.Time;
+			MDLCache.GetVCollideEx(model.Studio, synchronous);
+			double t2 = Platform.Time;
+
+			if (synchronous)
+				accumulatedModelLoadTimeVCollideSync += t2 - t1;
+			else
+				accumulatedModelLoadTimeVCollideAsync += t2 - t1;
+		}
+
+		{
+			double t1 = Platform.Time;
+			model.Materials = default;
+
+			IMaterial[] materials = ArrayPool<IMaterial>.Shared.Rent(128);
+			int nMaterials = Mod_GetModelMaterials(model, materials);
+
+			if ((model.LoadFlags & ModelLoaderFlags.Dynamic) != 0) {
+				model.Materials = new Memory<IMaterial>(new IMaterial[nMaterials]);
+				for (int i = 0; i < nMaterials; i++) 
+					model.Materials.Span[i] = materials[i];
+			}
+
+			if (nMaterials != 0) 
+				model.LoadFlags |= ModelLoaderFlags.TouchedMaterials;
+
+			double t2 = Platform.Time;
+			accumulatedModelLoadTimeMaterialNamesOnly += (t2 - t1);
+
+			if (touchAllData || preloaded) 
+				Mod_TouchAllData(model, Host.GetServerCount());
+
+			ArrayPool<IMaterial>.Shared.Return(materials, true);
+		}
+	}
+
+	private int Mod_GetModelMaterials(Model model, Span<IMaterial> materials) {
+		StudioHDR studioHdr;
+		int found = 0;
+		int i;
+
+		switch (model.Type) {
+			case ModelType.Brush: {
+					for (i = 0; i < model.Brush.NumModelSurfaces; ++i) {
+						ref BSPMSurface2 surfID = ref SurfaceHandleFromIndex(model.Brush.FirstModelSurface + i, model.Brush.Shared);
+						if ((MSurf_Flags(ref surfID) & SurfDraw.NoDraw) != 0)
+							continue;
+
+						IMaterial? material = MSurf_TexInfo(ref surfID, model.Brush.Shared).Material;
+
+						int j = found;
+						while (--j >= 0) {
+							if (materials[j] == material)
+								break;
+						}
+						if (j < 0)
+							materials[found++] = material!;
+
+						if (found >= materials.Length)
+							return found;
+					}
+				}
+				break;
+
+			case ModelType.Studio:
+				if (!model.Materials.IsEmpty) {
+					model.Materials.Span.CopyTo(materials);
+				}
+				else {
+					studioHdr = MDLCache.GetStudioHdr(model.Studio);
+					found = StudioRender.GetMaterialList(studioHdr, materials);
+				}
+				break;
+
+			default:
+				Assert(0);
+				break;
+		}
+
+		return found;
+	}
+
+	private void Mod_TouchAllData(Model model, int v) {
+		throw new NotImplementedException();
+	}
+
+	private void InitStudioModelState(Model model) {
+
 	}
 
 	private bool Map_IsValid(ReadOnlySpan<char> name, bool quiet = false) {

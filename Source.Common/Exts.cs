@@ -206,6 +206,77 @@ public class StructMemoryPool<T> where T : struct
 	}
 }
 
+public static class StrTools
+{
+	// We're going to use / everywhere instead of \ on Windows, since C#'s API
+	// takes both nicely
+	public const char CORRECT_PATH_SEPARATOR = '/';
+	public const char INCORRECT_PATH_SEPARATOR = '\\';
+
+	public static bool IsSlash(this char c) => c == CORRECT_PATH_SEPARATOR || c == INCORRECT_PATH_SEPARATOR;
+
+	public static void FixSlashes(Span<char> name) {
+		for (int i = 0; i < name.Length; i++) {
+			if (name[i] == INCORRECT_PATH_SEPARATOR)
+				name[i] = CORRECT_PATH_SEPARATOR;
+		}
+	}
+
+	public static int StrLen(ReadOnlySpan<char> str) {
+		int i = str.IndexOf('\0');
+		return i == -1 ? str.Length : i;
+	}
+	public const int COPY_ALL_CHARACTERS = -1;
+	public static Span<char> StrConcat(Span<char> dest, ReadOnlySpan<char> src, int max_chars_to_copy = COPY_ALL_CHARACTERS) {
+		int charstocopy = 0;
+		int len = StrLen(dest);
+		int srclen = StrLen(src);
+
+		if (max_chars_to_copy <= COPY_ALL_CHARACTERS) 
+			charstocopy = srclen;
+		else 
+			charstocopy = Math.Min(max_chars_to_copy, srclen);
+
+		if (len + charstocopy >= dest.Length) {
+			charstocopy = dest.Length - len - 1;
+		}
+
+		int destLen = 0;
+		while (destLen < dest.Length && dest[destLen] != '\0')
+			destLen++;
+
+		int i = 0;
+		while (i < charstocopy && i < src.Length && destLen + i < dest.Length - 1 && src[i] != '\0') {
+			dest[destLen + i] = src[i];
+			i++;
+		}
+
+		if (destLen + i < dest.Length)
+			dest[destLen + i] = '\0';
+
+		return dest;
+	}
+
+	public static void AppendSlash(Span<char> str) {
+		int len = StrLen(str);
+		if (len > 0 && str[len - 1] != CORRECT_PATH_SEPARATOR) {
+			if (len + 1 >= str.Length)
+				Error($"AppendSlash: ran out of space on {str}.");
+
+			str[len] = CORRECT_PATH_SEPARATOR;
+			str[len + 1] = '\0';
+		}
+	}
+
+	public static void ComposeFileName(ReadOnlySpan<char> path, ReadOnlySpan<char> filename, Span<char> dest) {
+		path.CopyTo(dest);
+		FixSlashes(dest);
+		AppendSlash(dest);
+		StrConcat(dest, filename, COPY_ALL_CHARACTERS);
+		FixSlashes(dest);
+	}
+}
+
 public static class BitVecExts
 {
 	/// <summary>
@@ -418,7 +489,6 @@ public static class UnmanagedUtils
 	public static uint AlignValue(this uint val, nuint alignment) => (uint)(((nuint)val + alignment - 1) & ~(alignment - 1));
 	public static nint AlignValue(this nint val, nuint alignment) => (int)(((nuint)val + alignment - 1) & ~(alignment - 1));
 	public static nuint AlignValue(this nuint val, nuint alignment) => (uint)(((nuint)val + alignment - 1) & ~(alignment - 1));
-
 
 	public static void SliceNullTerminatedStringInPlace(this ref Span<char> span) {
 		int index = System.MemoryExtensions.IndexOf(span, '\0');

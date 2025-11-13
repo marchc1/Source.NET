@@ -1,4 +1,6 @@
-﻿using Source.Common.Client;
+﻿using Source.Common;
+using Source.Common.Client;
+using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
@@ -11,7 +13,9 @@ using System.Numerics;
 
 namespace Source.Engine;
 
-public class EngineClient(ClientState cl, GameServer sv, Cbuf Cbuf, Scr Scr, Con Con, IMaterialSystem materials, MaterialSystem_Config MaterialSystemConfig, MatSysInterface MatSys) : IEngineClient
+public class EngineClient(ClientState cl, GameServer sv, Cbuf Cbuf, Scr Scr, Con Con, 
+						  IMaterialSystem materials, MaterialSystem_Config MaterialSystemConfig, 
+						  MatSysInterface MatSys, ModelLoader modelloader) : IEngineClient
 {
 	public ReadOnlySpan<char> Key_LookupBinding(ReadOnlySpan<char> binding) {
 		return "";
@@ -121,4 +125,8 @@ public class EngineClient(ClientState cl, GameServer sv, Cbuf Cbuf, Scr Scr, Con
 	public bool IsPlayingTimeDemo() => false; // Demos arent implemented yet
 	public INetChannelInfo? GetNetChannelInfo() => cl.NetChannel;
 	public void FireEvents() { } // todo
+
+	public Model? LoadModel(ReadOnlySpan<char> name, bool prop) {
+		return modelloader.GetModelForName(name, prop ? ModelLoaderFlags.DetailProp : ModelLoaderFlags.ClientDLL);
+	}
 }
