@@ -376,11 +376,6 @@ public class ConPanel : BasePanel
 			NotifyTexts.Clear();
 		}
 	}
-
-
-	public override void OnTick() {
-		throw new NotImplementedException();
-	}
 }
 #endif
 
