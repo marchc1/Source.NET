@@ -271,7 +271,7 @@ public class Panel : IPanel
 	public virtual IBorder? GetBorder() => Border;
 	public void SetBorder(IBorder? border) {
 		Border = border;
-		if(border != null) {
+		if (border != null) {
 			border.GetInset(out int x, out int y, out int x2, out int y2);
 			SetInset(x, y, x2, y2);
 			SetPaintBackgroundType(border.GetBackgroundType());
@@ -1166,7 +1166,7 @@ public class Panel : IPanel
 					Parent.Children[i] = this;
 					i++;
 				}
-				else 
+				else
 					break;
 			}
 		}
@@ -1182,11 +1182,11 @@ public class Panel : IPanel
 			int i = Parent.Children.Count - 2;
 			while (i >= 0) {
 				if (Parent.Children[i].ZPos > ZPos) {
-					Parent.Children[i + 1] =  Parent.Children[i];
-					Parent.Children[i]  = this;
+					Parent.Children[i + 1] = Parent.Children[i];
+					Parent.Children[i] = this;
 					i--;
 				}
-				else 
+				else
 					break;
 			}
 		}
@@ -1649,7 +1649,7 @@ public class Panel : IPanel
 			if (parent.IsKeyboardInputEnabled() != IsKeyboardInputEnabled())
 				SetKeyboardInputEnabled(parent.IsKeyboardInputEnabled());
 
-			if (parent.IsMouseInputEnabled() != IsMouseInputEnabled()) 
+			if (parent.IsMouseInputEnabled() != IsMouseInputEnabled())
 				SetMouseInputEnabled(parent.IsMouseInputEnabled());
 		}
 	}
@@ -2401,7 +2401,7 @@ class FontProperty : IPanelAnimationPropertyConverter
 
 	public void InitFromDefault(Panel panel, ref PanelAnimationMapEntry entry) {
 		IScheme? scheme = panel.GetScheme();
-		if(scheme != null) {
+		if (scheme != null) {
 			entry.Set(panel, scheme.GetFont(entry.DefaultValue, panel.IsProportional())!);
 		}
 	}
@@ -2435,7 +2435,7 @@ class TextureIdProperty : IPanelAnimationPropertyConverter
 		if (data == null) return;
 
 		int currentId = (int)data;
-		if(currentId != -1 && surface.DrawGetTextureFile(currentId, out ReadOnlySpan<char> textureName)) 
+		if (currentId != -1 && surface.DrawGetTextureFile(currentId, out ReadOnlySpan<char> textureName))
 			kv.SetString(entry.ScriptName, textureName);
 		else
 			kv.SetString(entry.ScriptName, "");

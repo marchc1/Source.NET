@@ -143,15 +143,15 @@ public class Slider : Panel
 	}
 
 	public int EstimateValueAtPos(int localMouseX) {
-    GetTrackRect(out int x, out int y, out int wide, out int tall);
+		GetTrackRect(out int x, out int y, out int wide, out int tall);
 
 		int useRangeMin = UseSubRange ? SubRangeMin : RangeMin;
-    int useRangeMax = UseSubRange ? SubRangeMax : RangeMax;
+		int useRangeMax = UseSubRange ? SubRangeMax : RangeMax;
 
 		float fwide = wide;
-    float fnob = localMouseX - x;
-    float freepixels = fwide - NobSize;
-    float fvalue = freepixels != 0.0f ? fnob / freepixels : 0.0f;
+		float fnob = localMouseX - x;
+		float freepixels = fwide - NobSize;
+		float fvalue = freepixels != 0.0f ? fnob / freepixels : 0.0f;
 
 		return (int)(useRangeMin + fvalue * (useRangeMax - useRangeMin));
 	}
@@ -277,7 +277,8 @@ public class Slider : Panel
 				int xpos = (int)(leftpixel + i * pixelspertick);
 				Surface.DrawFilledRect(xpos, y, xpos + 1, y + tickHeight);
 			}
-		} else {
+		}
+		else {
 			Surface.DrawSetColor(DisabledTextColor1);
 			for (int i = 0; i <= NumTicks; i++) {
 				int xpos = (int)(leftpixel + i * pixelspertick);
@@ -374,7 +375,8 @@ public class Slider : Panel
 				SetValue(RangeMin, false);
 			else if (Value > RangeMax)
 				SetValue(RangeMax, false);
-		} else {
+		}
+		else {
 			if (Value < RangeMax)
 				SetValue(RangeMax, false);
 			else if (Value > RangeMin)
@@ -479,7 +481,7 @@ public class Slider : Panel
 	public override void OnMouseDoublePressed(ButtonCode code) => OnMousePressed(code);
 
 	public override void OnKeyCodeTyped(ButtonCode code) {
-		switch(code) {
+		switch (code) {
 			case ButtonCode.KeyLeft:
 			case ButtonCode.KeyDown:
 				SetValue(Value - 1);

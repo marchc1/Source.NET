@@ -261,8 +261,10 @@ class PageTab : Button
 	}
 }
 
-public class PropertySheet : EditablePanel {
-	struct Page {
+public class PropertySheet : EditablePanel
+{
+	struct Page
+	{
 		public Panel page;
 		public bool ContextMenu;
 
@@ -490,11 +492,13 @@ public class PropertySheet : EditablePanel {
 				ActivePage.RequestFocus(direction);
 				TabFocus = false;
 			}
-		} else {
+		}
+		else {
 			if (ShowTabs && ActiveTab != null) {
 				ActiveTab.RequestFocus(direction);
 				TabFocus = true;
-			} else if (ActivePage != null) {
+			}
+			else if (ActivePage != null) {
 				ActivePage.RequestFocus(direction);
 				TabFocus = false;
 			}
@@ -505,7 +509,8 @@ public class PropertySheet : EditablePanel {
 		if (TabFocus || !ShowTabs || ActiveTab == null) {
 			TabFocus = false;
 			return base.RequestFocusPrev(panel);
-		} else {
+		}
+		else {
 			if (GetParent() != null)
 				PostMessage(GetParent()!, KV_FindDefaultButton);
 			ActiveTab.RequestFocus(-1);
@@ -546,7 +551,8 @@ public class PropertySheet : EditablePanel {
 		if (IsProportional()) {
 			TabHeight = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, SpecifiedTabHeight);
 			TabHeightSmall = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, SpecifiedTabHeightSmall);
-		} else {
+		}
+		else {
 			TabHeight = SpecifiedTabHeight;
 			TabHeightSmall = SpecifiedTabHeightSmall;
 		}
@@ -678,7 +684,8 @@ public class PropertySheet : EditablePanel {
 				PageTabs[i].GetText(tmp);
 				if (new string(tmp).Equals(title, StringComparison.OrdinalIgnoreCase))
 					PageTabs[i].SetEnabled(state);
-			} else {
+			}
+			else {
 				Combo.SetItemEnabled(title, state);
 			}
 		}
@@ -841,7 +848,8 @@ public class PropertySheet : EditablePanel {
 					base.OnKeyCodePressed(code);
 					break;
 			}
-		} else
+		}
+		else
 			base.OnKeyCodePressed(code);
 	}
 

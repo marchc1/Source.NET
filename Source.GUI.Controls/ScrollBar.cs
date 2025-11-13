@@ -3,6 +3,7 @@ using Source.Common.GUI;
 using Source.Common.Input;
 
 namespace Source.GUI.Controls;
+
 public class ScrollBarButton : Button
 {
 	public ScrollBarButton(Panel? parent, string? name, string text) : base(parent, name, text) {
@@ -103,7 +104,8 @@ public class ScrollBar : Panel
 			Button[1]!.SetTextInset(0, -1);
 
 			SetSize(SCROLLBAR_DEFAULT_WIDTH, 64);
-		} else {
+		}
+		else {
 			SetSlider(new ScrollBarSlider(null, null, false));
 			SetButton(new ScrollBarButton(null, null, "w"), 0);
 			SetButton(new ScrollBarButton(null, null, "4"), 1);
@@ -131,7 +133,7 @@ public class ScrollBar : Panel
 		Validate();
 	}
 
-	public Button GetDepressedButton(int index){
+	public Button GetDepressedButton(int index) {
 		if (index == 0)
 			return (OverriddenButtons[0] != null) ? OverriddenButtons[0]! : Button[0]!;
 		return (OverriddenButtons[1] != null) ? OverriddenButtons[1]! : Button[1]!;
@@ -185,7 +187,7 @@ public class ScrollBar : Panel
 				Line.SetBounds(x, y, wide, tall);
 			}
 
-				Box?.SetBounds(0, wide, wide, wide);
+			Box?.SetBounds(0, wide, wide, wide);
 
 			Slider.MoveToFront();
 			Slider.InvalidateLayout();

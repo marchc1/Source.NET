@@ -145,7 +145,7 @@ public class MessageBox : Frame
 		GetSize(out boxWidth, out boxTall);
 
 		MessageLabel.SetPos((wide / 2) - (MessageLabel.GetWide() / 2) + x, y + 5);
-		if (!CancelButton.IsVisible()) 
+		if (!CancelButton.IsVisible())
 			OkButton.SetPos((wide / 2) - (OkButton.GetWide() / 2) + x, tall - OkButton.GetTall() - 15);
 		else {
 			OkButton.SetPos((wide / 4) - (OkButton.GetWide() / 2) + x, tall - OkButton.GetTall() - 15);

@@ -248,7 +248,7 @@ public class BuildGroup
 			Enabled = state;
 			CurrentPanel = null;
 
-			if (state) 
+			if (state)
 				ActivateBuildDialog();
 			else {
 				BuildDialog?.OnCommand("Close");
@@ -266,12 +266,12 @@ public class BuildGroup
 		Panel? buildDialog = null;
 		KeyValues data = new KeyValues("BuildDialog");
 		data.SetPtr("BuildGroupPtr", this);
-		if (BuildContext.RequestInfo(data)) 
+		if (BuildContext.RequestInfo(data))
 			buildDialog = (Panel?)data.GetPtr("PanelPtr");
 
-		if (buildDialog != null) 
+		if (buildDialog != null)
 			Input.ReleaseAppModalSurface();
-		
+
 		return buildDialog;
 	}
 

@@ -123,7 +123,7 @@ public class EditablePanel : Panel
 	public override bool RequestFocusNext(IPanel? existingPanel = null) {
 		// bool Ret = NavGroup.RequestFocusNext(existingPanel);
 		// if (IsPC() && !Ret && IsConsoleStylePanel())
-			// NavigateUp();
+		// NavigateUp();
 		// return Ret;
 
 		return false;
@@ -132,7 +132,7 @@ public class EditablePanel : Panel
 	public override bool RequestFocusPrev(IPanel? existingPanel = null) {
 		// bool Ret = NavGroup.RequestFocusPrev(existingPanel);
 		// if (IsPC() && !Ret && IsConsoleStylePanel())
-			// NavigateDown();
+		// NavigateDown();
 		// return Ret;
 
 		return false;
@@ -230,10 +230,10 @@ public class FocusNavGroup
 			if (child == null)
 				continue;
 
-			if (child.GetTabPosition() == 1) 
+			if (child.GetTabPosition() == 1)
 				return child;
 		}
 
-		return null; 
+		return null;
 	}
 }

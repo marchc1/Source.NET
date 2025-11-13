@@ -3,6 +3,7 @@ using Source.Common.GUI;
 using Source.Common.Input;
 
 namespace Source.GUI.Controls;
+
 public class FrameSystemButton : MenuButton
 {
 	public FrameSystemButton(Panel parent, string name) : base(parent, name, "") {
@@ -179,7 +180,7 @@ public class CaptionGripPanel : GripPanel
 {
 	public const int CAPTION_TITLE_BORDER = 7;
 	public const int CAPTION_TITLE_BORDER_SMALL = 0;
-	
+
 	public CaptionGripPanel(Frame dragFrame, ReadOnlySpan<char> name) : base(dragFrame, name, 0, 0) {
 		Frame = dragFrame;
 	}
@@ -280,14 +281,14 @@ public class CaptionGripPanel : GripPanel
 		Assert(wide > 0);
 		Assert(tall > 0);
 
-		bool horizSnappable = ((snapToY > top) && (snapToY < bottom)) 
-						   || ((snapToY + tall > top) && (snapToY + tall < bottom)) 
-						   || ((snapToY < top) && (snapToY + tall > bottom));
+		bool horizSnappable = ((snapToY > top) && (snapToY < bottom))
+							 || ((snapToY + tall > top) && (snapToY + tall < bottom))
+							 || ((snapToY < top) && (snapToY + tall > bottom));
 
 
-		bool vertSnappable = ((snapToX > left) && (snapToX < right)) 
-						  || ((snapToX + wide > left) && (snapToX + wide < right)) 
-						  || ((snapToX < left) && (snapToX + wide > right));
+		bool vertSnappable = ((snapToX > left) && (snapToX < right))
+							|| ((snapToX + wide > left) && (snapToX + wide < right))
+							|| ((snapToX < left) && (snapToX + wide > right));
 
 		if (!(horizSnappable || vertSnappable))
 			return false;
@@ -1023,7 +1024,7 @@ public class Frame : EditablePanel
 
 			Surface.DrawFilledRect(inset, inset, wide - inset, captionHeight);
 
-			{
+			if (Title != null) {
 				int nTitleX = TitleTextInsetXOverride != 0 ? TitleTextInsetXOverride : TitleTextInsetX;
 				int nTitleWidth = wide - 72;
 
@@ -1039,9 +1040,9 @@ public class Frame : EditablePanel
 				else
 					nTitleY = SmallCaption ? 2 : 9;
 
-				Title?.SetPos(nTitleX, nTitleY);
-				Title?.SetSize(nTitleWidth, tall);
-				Title?.Paint();
+				Title.SetPos(nTitleX, nTitleY);
+				Title.SetSize(nTitleWidth, tall);
+				Title.Paint();
 			}
 		}
 	}

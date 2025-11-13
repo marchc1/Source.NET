@@ -1,6 +1,7 @@
 ﻿namespace Source.GUI.Controls;
 
-public class PanelAnimationMap {
+public class PanelAnimationMap
+{
 	public List<PanelAnimationMapEntry> Entries = [];
 	public PanelAnimationMap? BaseMap;
 	public string? ClassName;
@@ -23,7 +24,8 @@ public struct PanelAnimationMapEntry
 	public PanelSetFunc Set;
 }
 
-public static class PanelAnimationDictionary {
+public static class PanelAnimationDictionary
+{
 	static Dictionary<ulong, PanelAnimationMap> AnimationMaps = [];
 
 	public static PanelAnimationMap FindOrAddPanelAnimationMap(ReadOnlySpan<char> className) {

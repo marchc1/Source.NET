@@ -87,14 +87,17 @@ public class PropertyDialog : Frame
 			if (OnOK(false))
 				OnCommand("Close");
 			ApplyButton.SetEnabled(false);
-		} else if (command.Equals("Cancel", StringComparison.OrdinalIgnoreCase)) {
+		}
+		else if (command.Equals("Cancel", StringComparison.OrdinalIgnoreCase)) {
 			OnCancel();
 			Close();
-		} else if (command.Equals("Apply", StringComparison.OrdinalIgnoreCase)) {
+		}
+		else if (command.Equals("Apply", StringComparison.OrdinalIgnoreCase)) {
 			OnOK(true);
 			ApplyButton.SetEnabled(false);
 			InvalidateLayout();
-		} else
+		}
+		else
 			base.OnCommand(command);
 	}
 
