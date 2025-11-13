@@ -266,12 +266,11 @@ public class KeyValues : IEnumerable<KeyValues>
 			if (reader.Peek() == '}') {
 				reader.Read();
 
-				SkipWhitespace(reader);
-				SkipComments(reader);
+				SkipUntilParseableTextOrEOF(reader);
 
 				break;
 			}
-			SkipComments(reader);
+			SkipUntilParseableTextOrEOF(reader);
 			// Start reading keyvalues.
 			KeyValues kvpair = new() { evaluateConditionals = this.evaluateConditionals, useEscapeSequences = this.useEscapeSequences };
 
