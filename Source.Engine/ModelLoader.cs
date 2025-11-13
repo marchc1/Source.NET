@@ -838,6 +838,10 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host, IEngineVGui
 		}
 		return ret;
 	}
+
+	public void Shutdown() {
+
+	}
 }
 
 public class DispArray(nint elements)

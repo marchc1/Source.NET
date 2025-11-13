@@ -44,9 +44,15 @@ public class Sys(Host host, GameServer sv, ICommandLine CommandLine)
 	}
 
 	public void ShutdownGame() {
-
+		host.Shutdown();
+		Shutdown();
+		// TODO: uninstall developer callback
+		Dbg.SpewOutputFunc(null);
 	}
 
+	private void Shutdown() {
+
+	}
 
 	ThreadLocal<bool> inSpew = new();
 	ThreadLocal<string> groupWrite = new();

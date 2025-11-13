@@ -718,7 +718,25 @@ public class Host(
 	}
 
 	private bool OverlayText_IsDeadFn(OverlayText text) {
+		if (cl.IsPaused())
+			return false;
 
+		if (text.ServerCount != cl.ServerCount)
+			return true;
+
+		if(text.CreationTick != -1) 
+			return GetOverlayTick() > text.CreationTick;
+
+		if (text.EndTime == 0)
+			return false;
+
+		return cl.GetTime() >= text.EndTime;
+	}
+
+	private long GetOverlayTick() {
+		if (sv.IsActive())
+			return sv.TickCount;
+		return cl.GetClientTickCount();
 	}
 
 	public void Disconnect(bool showMainMenu, ReadOnlySpan<char> reason = default) {
