@@ -149,6 +149,15 @@ public class GameMenu(Panel parent, string name) : Menu(parent, name)
 
 		base.OnKeyCodePressed(code);
 	}
+
+	public override void OnKillFocus(Panel? newPanel) {
+		base.OnKillFocus(newPanel);
+
+		if (MainMenuOverridePanel != null)
+			Surface.MovePopupToBack(MainMenuOverridePanel);
+		else
+			Surface.MovePopupToBack(this);
+	}
 }
 
 public class MainMenuGameLogo : EditablePanel
