@@ -51,7 +51,7 @@ public class ConPanel : BasePanel
 		DefaultColor[0] = 1.0f;
 		DefaultColor[1] = 1.0f;
 		DefaultColor[2] = 1.0f;
-
+		SetName("ConPanel");
 		drawDebugAreas = false;
 	}
 
