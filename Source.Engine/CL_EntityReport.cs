@@ -129,6 +129,10 @@ public partial class CL
 		slot.EffectFinishTime = (float)Host.RealTime + EFFECT_TIME;
 		slot.DeletedClientClass = clientClass;
 	}
+
+	internal void Shutdown() {
+
+	}
 }
 
 enum EntitySort

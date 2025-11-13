@@ -273,4 +273,8 @@ public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClie
 
 		SetBinding(code, cmd);
 	}
+
+	internal void Shutdown() {
+
+	}
 }

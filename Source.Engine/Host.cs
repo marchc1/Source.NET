@@ -43,11 +43,13 @@ public class Host(
 
 	public ConVar host_name = new("hostname", "", 0, "Hostname for server.");
 	public ConVar host_map = new("host_map", "", 0, "Current map name.");
+	public ConVar developer = new("developer", "0", 0, "Set developer message level");
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 	public ClientGlobalVariables clientGlobalVariables;
 	public CL CL;
 	public MatSysInterface MatSysInterface;
+	public IModelLoader modelloader;
 	public SV SV;
 	public GameServer sv => _sv;
 	public ServerGlobalVariables serverGlobalVariables;
@@ -66,6 +68,7 @@ public class Host(
 	public Net Net;
 	public Sys Sys;
 	public ClientDLL ClientDLL;
+	public Sound Sound;
 	public IHostState HostState;
 	public IBaseClientDLL? clientDLL;
 	public IServerGameDLL? serverDLL;
@@ -525,10 +528,10 @@ public class Host(
 
 		if (fileSystem == null)
 			Sys.Error("Host_ReadConfiguration:  g_pFileSystem == NULL\n");
-		
+
 		bool saveconfig = false;
 
-		if (fileSystem!.FileExists("cfg/config.cfg", "MOD")) 
+		if (fileSystem!.FileExists("cfg/config.cfg", "MOD"))
 			Cbuf.AddText("exec config.cfg\n");
 		else {
 			Cbuf.AddText("exec config_default.cfg\n");
@@ -538,14 +541,14 @@ public class Host(
 		Cbuf.Execute();
 
 		int numBinds = Key.CountBindings();
-		if (numBinds == 0) 
+		if (numBinds == 0)
 			UseDefaultBindings();
-		else 
+		else
 			SetupNewBindings();
-		
+
 		Key.SetBinding(ButtonCode.KeyEscape, "cancelselect");
 
-		if (Key.NameForBinding("toggleconsole").IsEmpty) 
+		if (Key.NameForBinding("toggleconsole").IsEmpty)
 			Key.SetBinding(ButtonCode.KeyBackquote, "toggleconsole");
 
 		ConfigCfgExecuted = true;
@@ -593,6 +596,8 @@ public class Host(
 		RealTime = 0;
 		IdealTime = 0;
 
+		OverlayText.IsDeadFn += OverlayText_IsDeadFn;
+		OverlayText.SetEndTimeFn += OverlayText_SetEndTimeFn;
 
 		host_state.IntervalPerTick = DEFAULT_TICK_INTERVAL;
 
@@ -626,6 +631,7 @@ public class Host(
 		if (!dedicated) {
 			CL = engineAPI.InitSubsystem<CL>()!;
 			MatSysInterface = engineAPI.InitSubsystem<MatSysInterface>()!;
+			modelloader = engineAPI.InitSubsystem<IModelLoader>()!;
 			EngineVGui = engineAPI.InitSubsystem<EngineVGui>()!;
 			ClientDLL = engineAPI.InitSubsystem<ClientDLL>()!;
 			HostState = engineAPI.GetRequiredService<IHostState>();
@@ -640,7 +646,7 @@ public class Host(
 
 #if !SWDS
 		ReadConfiguration();
-		engineAPI.InitSubsystem<Sound>();
+		Sound = engineAPI.InitSubsystem<Sound>();
 #endif
 		Cbuf.AddText("exec valve.rc");
 
@@ -648,6 +654,71 @@ public class Host(
 		hostState.Init();
 
 		PostInit();
+	}
+
+	public void Shutdown() {
+		OverlayText.IsDeadFn -= OverlayText_IsDeadFn;
+		OverlayText.SetEndTimeFn -= OverlayText_SetEndTimeFn;
+
+		Disconnect(true);
+		Scr.DisabledForLoading = true;
+
+#if !SWDS
+		if (!sv.IsDedicated()) {
+			// Decal.Shutdown();
+			Render.Shutdown();
+			Scr.Shutdown();
+			Sound.Shutdown();
+			ClientDLL.Shutdown();
+			// TextMessageShutdown();
+			EngineVGui.Shutdown();
+			//StaticPropMgr.Shutdown();
+			modelloader.Shutdown();
+			// ShutdownStudioRender();
+			// ShutdownMaterialSystem();
+			CL.Shutdown();
+		}
+		else
+#endif
+		{
+			// Decal.Shutdown();
+			modelloader.Shutdown();
+			// ShutdownStudioRender();
+			// StaticPropMgr.Shutdown();
+			// ShutdownMaterialSystem();
+		}
+
+
+		// HLTV.Shutdown();
+		// Log.Shutdown();
+		// GameEventManager.Shutdown();
+
+		sv.Shutdown();
+		Net.Shutdown();
+
+#if !SWDS
+		Key.Shutdown();
+#endif
+
+
+		Common.Shutdown();
+
+#if !SWDS
+		View.Shutdown();
+#endif
+
+		Cvar.Shutdown();
+		Cmd.Shutdown();
+		Cbuf.Shutdown();
+		Con.Shutdown();
+	}
+
+	private void OverlayText_SetEndTimeFn(OverlayText text, TimeUnit_t duration) {
+
+	}
+
+	private bool OverlayText_IsDeadFn(OverlayText text) {
+
 	}
 
 	public void Disconnect(bool showMainMenu, ReadOnlySpan<char> reason = default) {

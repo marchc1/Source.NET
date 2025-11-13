@@ -786,4 +786,8 @@ public class EngineVGui(
 	public void HideConsole() {
 		staticGameConsole?.Hide();
 	}
+
+	internal void Shutdown() {
+
+	}
 }

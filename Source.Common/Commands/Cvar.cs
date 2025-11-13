@@ -376,4 +376,8 @@ public class Cvar(ICommandLine CommandLine, IServiceProvider services, ICvarQuer
 			cvar.Revert();
 		}
 	}
+
+	public void Shutdown() {
+
+	}
 }

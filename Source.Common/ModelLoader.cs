@@ -31,4 +31,5 @@ public interface IModelLoader {
 	void UnreferenceAllModels(ModelLoaderFlags referenceType);
 	void ResetModelServerCounts();
 	void PurgeUnusedModels();
+	void Shutdown();
 }

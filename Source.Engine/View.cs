@@ -44,6 +44,10 @@ public class View(Host Host, IEngineVGuiInternal EngineVGui, IMaterialSystem mat
 	public virtual void SetMainView(in Vector3 origin, in QAngle angles) {
 		EngineRenderer.SetMainView(in origin, in angles);
 	}
+
+	internal void Shutdown() {
+
+	}
 }
 
 

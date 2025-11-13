@@ -137,4 +137,8 @@ public class Scr(IEngineAPI engineAPI)
 
 	public void CenterPrint(ReadOnlySpan<char> str) { }
 	public void CenterStringOff() { }
+
+	internal void Shutdown() {
+
+	}
 }

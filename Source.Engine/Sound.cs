@@ -89,6 +89,10 @@ public class Sound(IFileSystem fileSystem)
 
 	}
 
+	internal void Shutdown() {
+
+	}
+
 	// todo: everything else here
 	// Further research is needed on audio systems
 }

@@ -80,4 +80,8 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 		finalMsg[^1] = '\n';
 		Msg(finalMsg);
 	}
+
+	public void Shutdown() {
+		throw new NotImplementedException();
+	}
 }

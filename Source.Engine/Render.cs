@@ -574,4 +574,8 @@ public class Render(
 
 		return true;
 	}
+
+	internal void Shutdown() {
+
+	}
 }

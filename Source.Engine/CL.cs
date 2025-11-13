@@ -659,4 +659,8 @@ public class ClientDLL(IServiceProvider services, Sys Sys, EngineRecvTable RecvT
 	public ClientClass? GetAllClasses() {
 		return clientDLL != null ? clientDLL.GetAllClasses() : ClientClass.Head;
 	}
+
+	internal void Shutdown() {
+
+	}
 }
