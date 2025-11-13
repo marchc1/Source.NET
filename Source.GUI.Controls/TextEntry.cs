@@ -9,7 +9,7 @@ namespace Source.GUI.Controls;
 public class TextEntry : Panel
 {
 	public static Panel Create_TextEntry() => new TextEntry(null, null);
-	public TextEntry(Panel? parent, string? name) : base(parent, name) {
+	public TextEntry(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 		SetTriplePressAllowed(true);
 
 		CursorBlinkRate = 400;

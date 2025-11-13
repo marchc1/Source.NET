@@ -1532,7 +1532,7 @@ public class Panel : IPanel
 		OnRequestFocus(this, null);
 	}
 
-	public bool IsBuildGroupEnabled() {
+	public virtual bool IsBuildGroupEnabled() {
 		if (BuildGroup == null)
 			return false;
 

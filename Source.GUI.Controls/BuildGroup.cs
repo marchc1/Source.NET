@@ -292,4 +292,6 @@ public class BuildGroup
 	}
 
 	public bool IsEnabled() => Enabled;
+
+	public Panel? GetContextPanel() => BuildContext;
 }

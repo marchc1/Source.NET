@@ -120,6 +120,33 @@ public class EditablePanel : Panel
 		base.OnRequestFocus(subFocus, defaultPanel);
 	}
 
+	public override bool RequestFocusNext(IPanel? existingPanel = null) {
+		// bool Ret = NavGroup.RequestFocusNext(existingPanel);
+		// if (IsPC() && !Ret && IsConsoleStylePanel())
+			// NavigateUp();
+		// return Ret;
+
+		return false;
+	}
+
+	public override bool RequestFocusPrev(IPanel? existingPanel = null) {
+		// bool Ret = NavGroup.RequestFocusPrev(existingPanel);
+		// if (IsPC() && !Ret && IsConsoleStylePanel())
+			// NavigateDown();
+		// return Ret;
+
+		return false;
+	}
+
+	public override void RequestFocus(int direction = 0) {
+		if (direction == 1)
+			RequestFocusNext();
+		else if (direction == -1)
+			RequestFocusPrev();
+		else
+			base.RequestFocus(direction);
+	}
+
 	public FocusNavGroup GetFocusNavGroup() => NavGroup;
 	BuildGroup BuildGroup;
 	readonly FocusNavGroup NavGroup;
