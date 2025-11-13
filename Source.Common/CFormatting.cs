@@ -98,6 +98,16 @@ public ref struct PrintF
 		WriteAnyLiterals();
 		return this;
 	}
+	public unsafe PrintF D(long i) {
+		Span<char> buffer = stackalloc char[19];
+		if (i.TryFormat(buffer, out int written))
+#pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+			input.Write(buffer);
+#pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+
+		WriteAnyLiterals();
+		return this;
+	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]public unsafe PrintF I(int i) => D(i);
 	public PrintF S(ReadOnlySpan<char> str) {
 		if (reader.ReadVariable(out char type, out int variableIdx)) {

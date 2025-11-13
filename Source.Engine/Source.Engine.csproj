@@ -1,21 +1,25 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-	  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
 	<ItemGroup>
 		<Compile Include="..\Usings\GlobalUsings.cs" Link="Usings/GlobalUsings.cs" />
 	</ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Source.Common\Source.Common.csproj" />
-    <ProjectReference Include="..\Source.GUI.Controls\Source.GUI.Controls.csproj" />
-    <ProjectReference Include="..\Source.GUI\Source.GUI.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Source.Common\Source.Common.csproj" />
+		<ProjectReference Include="..\Source.GUI.Controls\Source.GUI.Controls.csproj" />
+		<ProjectReference Include="..\Source.GUI\Source.GUI.csproj" />
+	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="ppy.SDL3-CS" Version="2025.703.0" />
 	</ItemGroup>
 
+	<PropertyGroup>
+		<SourceRevisionId>
+			build$([System.DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ss:fffZ"))
+		</SourceRevisionId>
+	</PropertyGroup>
 </Project>

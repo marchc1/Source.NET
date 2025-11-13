@@ -5,9 +5,58 @@ using Source.Engine.Server;
 using Source.GUI.Controls;
 
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Source.Engine;
+
+// Kind of custom here, we can figure out what to properly do here later.
+// What would be nice if we continue to go custom is something like "date (git branch)",
+// but I don't know how to extract the git branch into the assembly (yet)...
+public struct EngineVersion
+{
+	public static DateTime? GetLinkerTime(Assembly assembly) {
+		const string BuildVersionMetadataPrefix = "+build";
+
+		var attribute = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+		if (attribute?.InformationalVersion != null) {
+			var value = attribute.InformationalVersion;
+			var index = value.IndexOf(BuildVersionMetadataPrefix);
+			if (index > 0) {
+				value = value[(index + BuildVersionMetadataPrefix.Length)..];
+				return DateTime.ParseExact(value, "yyyy-MM-ddTHH:mm:ss:fffZ", CultureInfo.InvariantCulture);
+			}
+		}
+
+		return null;
+	}
+
+	public static bool TryGetLinkerTime(Assembly assembly, [NotNullWhen(true)] out DateTime dateTime) {
+		var dt = GetLinkerTime(assembly);
+		dateTime = dt ?? default;
+		return dt.HasValue;
+	}
+
+	public static EngineVersion FromAssembly(Assembly assembly, string? extra = null) {
+		if (TryGetLinkerTime(assembly, out var dt)) 
+			return new(dt, extra);
+
+		return default;
+	}
+
+	public static readonly EngineVersion Current = FromAssembly(Assembly.GetExecutingAssembly(), "alpha");
+
+	public DateTime Date;
+	public string? Extra;
+
+	public EngineVersion(DateTime time, string? extra = null) {
+		Date = time;
+		Extra = extra;
+	}
+}
+
 public class Sys(Host host, GameServer sv, ICommandLine CommandLine)
 {
 	public static double Time => Platform.Time;
@@ -19,6 +68,7 @@ public class Sys(Host host, GameServer sv, ICommandLine CommandLine)
 	public bool ExtendedError = false;
 
 	public Thread? MainThread;
+
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public bool InMainThread() => Thread.CurrentThread == MainThread;
@@ -166,4 +216,15 @@ public class Sys(Host host, GameServer sv, ICommandLine CommandLine)
 	}
 
 	public bool InEditMode() => false;
+
+
+	public static readonly DateTime SourceEpoch = new(2003, 9, 30);
+	/// <summary>
+	/// Day counter from Sep 30, 2003
+	/// </summary>
+	/// <returns>How many days since Sep 30, 2003</returns>
+	public static long BuildNumber() {
+		long days = (long)(EngineVersion.Current.Date - SourceEpoch).TotalDays;
+		return days;
+	}
 }
