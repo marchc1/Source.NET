@@ -28,11 +28,8 @@ public class ClientRenderablesList : IPoolableObject {
 	public readonly int[] RenderGroupCounts = new int[RENDER_GROUP_COUNT];
 
 	public void Init() {
-		for (int x = 0; x < RENDER_GROUP_COUNT; x++) {
-			for (int y = 0; y < MAX_GROUP_ENTITIES; y++) 
-				RenderGroups[x, y] = default;
-			RenderGroupCounts[x] = default;
-		}
+		Array.Clear(RenderGroups);
+		Array.Clear(RenderGroupCounts);
 	}
 
 	public void Reset() {}

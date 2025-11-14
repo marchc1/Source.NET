@@ -263,10 +263,13 @@ public class ViewRender : IViewRender
 
 		bool drew3dSkybox = false;
 		SkyboxVisibility skyboxVisible = SkyboxVisibility.NotVisible;
-		SkyboxView skyView = new SkyboxView(this);
-		if ((drew3dSkybox = skyView.Setup(in viewRender, ref clearFlags, ref skyboxVisible)) != false)
-			AddViewToScene(skyView);
-		skyView.ReleaseLists();
+
+		{
+			SkyboxView skyView = new SkyboxView(this);
+			if ((drew3dSkybox = skyView.Setup(in viewRender, ref clearFlags, ref skyboxVisible)) != false)
+				AddViewToScene(skyView);
+			skyView.ReleaseLists();
+		}
 
 		if ((clearFlags & ClearFlags.ClearColor) == 0) {
 			if (enginetrace.GetPointContents(viewRender.Origin, out _) == Contents.Solid) {
