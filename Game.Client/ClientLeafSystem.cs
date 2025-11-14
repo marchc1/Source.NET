@@ -1,11 +1,13 @@
-﻿using Source.Common;
+﻿using Source;
+using Source.Common;
 using Source.Common.Engine;
 
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace Game.Client;
 
-public enum RenderFlags {
+public enum RenderFlags : byte {
 	TwoPass = 0x01,
 	StaticProp = 0x02,
 	BrushModel = 0x04,
@@ -23,11 +25,11 @@ public struct RenderableInfo
 	public long TranslucencyCalculated;
 	public uint LeafList;
 	public uint RenderLeaf;
-	public byte Flags;
+	public RenderFlags Flags;
 	public RenderGroup RenderGroup;
-	public uint  FirstShadow;
+	public uint FirstShadow;
 	public short Area;
-	public sbyte TranslucencyCalculatedView;
+	public ViewID TranslucencyCalculatedView;
 }
 
 public struct ClientLeaf {
@@ -61,14 +63,66 @@ public class EnumResultList
 public class ClientLeafSystem : IClientLeafSystem
 {
 	readonly List<ClientLeaf> Leaf = [];
+	readonly List<ClientRenderHandle_t> DirtyRenderables = [];
+	readonly List<ClientRenderHandle_t> ViewModels = [];
+	readonly LinkedList<RenderableInfo> Renderables = [];
 
 
 
 	public void AddRenderable(IClientRenderable renderable, RenderGroup group) {
 		RenderFlags flags = RenderFlags.HasChanged;
+		if(group == RenderGroup.TwoPass) {
+			group = RenderGroup.TranslucentEntity;
+			flags |= RenderFlags.TwoPass;
+		}
+
+		NewRenderable(renderable, group, flags);
+		ClientRenderHandle_t handle = renderable.RenderHandle();
+		DirtyRenderables.Add(handle);
 	}
 
-	public void AddRenderableToLeaves(uint renderable, Span<ushort> pLeaves) {
+	private void NewRenderable(IClientRenderable renderable, RenderGroup type, RenderFlags flags) {
+		Assert(renderable);
+		Assert(renderable.RenderHandle() == INVALID_CLIENT_RENDER_HANDLE);
+
+		var listObj = Renderables.AddLast(new RenderableInfo());
+		ClientRenderHandle_t handle = GCHandle.ToIntPtr(GCHandle.Alloc(listObj, GCHandleType.Weak));
+		ref RenderableInfo info = ref listObj.ValueRef;
+
+		// We need to know if it's a brush model for shadows
+		ModelType modelType = modelinfo.GetModelType(renderable.GetModel());
+		if (modelType == ModelType.Brush) 
+			flags |= RenderFlags.BrushModel;
+		else if (modelType == ModelType.Studio) 
+			flags |= RenderFlags.StudioModel;
+		
+		info.Renderable = renderable;
+		info.RenderFrame = -1;
+		info.RenderFrame2 = -1;
+		info.TranslucencyCalculated = -1;
+		info.TranslucencyCalculatedView = ViewID.Illegal;
+		info.FirstShadow = unchecked((uint)-1);
+		info.LeafList = unchecked((uint)-1);
+		info.Flags = flags;
+		info.RenderGroup = type;
+		info.EnumCount = 0;
+		info.RenderLeaf = unchecked((uint)-1);
+		if (IsViewModelRenderGroup(info.RenderGroup)) 
+			AddToViewModelList(handle);
+
+		renderable.RenderHandle() = handle;
+	}
+
+	private void AddToViewModelList(ClientRenderHandle_t handle) {
+		Assert(ViewModels.Find(handle) == -1);
+		ViewModels.Add(handle);
+	}
+
+	private bool IsViewModelRenderGroup(RenderGroup renderGroup) {
+		return renderGroup == RenderGroup.ViewModelTranslucent || renderGroup == RenderGroup.ViewModelOpaque;
+	}
+
+	public void AddRenderableToLeaves(ClientRenderHandle_t renderable, Span<ushort> pLeaves) {
 		throw new NotImplementedException();
 	}
 
@@ -76,7 +130,7 @@ public class ClientLeafSystem : IClientLeafSystem
 		// todo later
 	}
 
-	public void ChangeRenderableRenderGroup(uint handle, RenderGroup group) {
+	public void ChangeRenderableRenderGroup(ClientRenderHandle_t handle, RenderGroup group) {
 		throw new NotImplementedException();
 	}
 
@@ -84,7 +138,7 @@ public class ClientLeafSystem : IClientLeafSystem
 		throw new NotImplementedException();
 	}
 
-	public void EnableAlternateSorting(uint renderHandle, bool alternateSorting) {
+	public void EnableAlternateSorting(ClientRenderHandle_t renderHandle, bool alternateSorting) {
 
 	}
 
@@ -136,11 +190,11 @@ public class ClientLeafSystem : IClientLeafSystem
 		throw new NotImplementedException();
 	}
 
-	public void RemoveRenderable(uint handle) {
+	public void RemoveRenderable(ClientRenderHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
-	public void RenderableChanged(uint handle) {
+	public void RenderableChanged(ClientRenderHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
@@ -148,7 +202,7 @@ public class ClientLeafSystem : IClientLeafSystem
 		throw new NotImplementedException();
 	}
 
-	public void SetRenderGroup(uint handle, RenderGroup group) {
+	public void SetRenderGroup(ClientRenderHandle_t handle, RenderGroup group) {
 		throw new NotImplementedException();
 	}
 

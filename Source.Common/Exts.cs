@@ -232,9 +232,9 @@ public static class StrTools
 		int len = StrLen(dest);
 		int srclen = StrLen(src);
 
-		if (max_chars_to_copy <= COPY_ALL_CHARACTERS) 
+		if (max_chars_to_copy <= COPY_ALL_CHARACTERS)
 			charstocopy = srclen;
-		else 
+		else
 			charstocopy = Math.Min(max_chars_to_copy, srclen);
 
 		if (len + charstocopy >= dest.Length) {
@@ -313,6 +313,22 @@ public static class ListExtensions
 			il.Emit(OpCodes.Ret); // Return field
 			Getter = (Func<List<T>, T[]>)dm.CreateDelegate(typeof(Func<List<T>, T[]>));
 		}
+	}
+
+	public static nint Find<T>(this List<T> list, T? value) {
+		for (int i = 0, c = list.Count; i < c; i++) {
+			T? at = list[i];
+			if (value == null) {
+				if (at == null)
+					return i;
+				else
+					continue;
+			}
+
+			if (value.Equals(at))
+				return i;
+		}
+		return -1;
 	}
 
 	public static T[] Base<T>(this List<T> list) {

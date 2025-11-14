@@ -44,7 +44,7 @@ public struct SetupRenderInfo {
 public interface IClientLeafSystem : IClientLeafSystemEngine, IGameSystem {
 	void AddRenderable(IClientRenderable renderable, RenderGroup group);
 	void BuildRenderablesList(in SetupRenderInfo setupInfo);
-	void EnableAlternateSorting(uint renderHandle, bool alternateSorting);
+	void EnableAlternateSorting(ClientRenderHandle_t renderHandle, bool alternateSorting);
 	bool IsRenderableInPVS(IClientRenderable renderable);
 
 	void RenderableChanged(ClientRenderHandle_t handle);

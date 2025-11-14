@@ -15,6 +15,6 @@ public interface IClientRenderable {
 	bool SetupBones(ref Matrix4x4 boneToWOrldOut, int maxBones, int boneMask, double currentTime);
 	void GetRenderBounds(out Vector3 mins, out Vector3 maxs);
 	void GetRenderBoundsWorldspace(out Vector3 mins, out Vector3 maxs);
-
+	ref ClientRenderHandle_t RenderHandle();
 	IPVSNotify? GetPVSNotifyInterface();
 }

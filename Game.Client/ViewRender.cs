@@ -51,7 +51,7 @@ public class SimpleRenderExecutor : RenderExecutor
 	}
 }
 
-public enum ViewID
+public enum ViewID : sbyte
 {
 	Illegal = -2,
 	None = -1,
