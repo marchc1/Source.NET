@@ -25,6 +25,20 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 
 		return modelloader.GetName(model);
 	}
+	public ModelType GetModelType(Model? model) {
+		if (model == null)
+			return (ModelType)(-1);
+
+		if (model.Type == ModelType.Invalid) {
+			if (ClientDynamicModels.ContainsKey(model.FileNameHandle))
+				return ModelType.Studio;
+			INetworkStringTable? table = GetDynamicModelStringTable();
+			if (table != null && table.FindStringIndex(model.StrName) != INetworkStringTable.INVALID_STRING_INDEX)
+				return ModelType.Studio;
+		}
+
+		return model.Type;
+	}
 	public int GetModelIndex(ReadOnlySpan<char> name) {
 		if (name.IsEmpty)
 			return -1;

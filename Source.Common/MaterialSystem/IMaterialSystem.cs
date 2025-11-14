@@ -206,6 +206,7 @@ public interface IMaterialSystem
 	IShaderUtil GetShaderUtil();
 	ITexture FindTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroupName, bool complain, int additionalCreationFlags);
 	ITexture GetErrorTexture();
+	IMaterial? FindMaterialEx(ReadOnlySpan<char> materialName, ReadOnlySpan<char> textureGroupName, MaterialFindContext isOnAModel, bool complain = true, ReadOnlySpan<char> complainPrefix = default);
 }
 
 public interface IMatRenderContext

@@ -20,6 +20,18 @@ namespace Game.Client;
 public class BaseWorldView : Rendering3dView
 {
 	public BaseWorldView(ViewRender mainView) : base(mainView) { }
+
+	protected void DrawExecute(float waterHeight, ViewID viewID, float waterZAdjust) {
+		using MatRenderContextPtr renderContext = new(mainView.materials);
+		renderContext.ClearBuffers(false, true, false);
+
+		RenderDepthMode depthMode = RenderDepthMode.Normal;
+
+		if ((DrawFlags & DrawFlags.DrawEntities) != 0) {
+			DrawWorld(waterZAdjust);
+			DrawOpaqueRenderables(depthMode);
+		}
+	}
 }
 public class SimpleWorldView : BaseWorldView
 {
@@ -37,14 +49,6 @@ public class SimpleWorldView : BaseWorldView
 		using MatRenderContextPtr renderContext = new(mainView.materials);
 
 		DrawExecute(0, ViewRender.CurrentViewID, 0);
-	}
-
-	private void DrawExecute(float waterHeight, ViewID viewID, float waterZAdjust) {
-		using MatRenderContextPtr renderContext = new(mainView.materials);
-		renderContext.ClearBuffers(false, true, false);
-		if((DrawFlags & DrawFlags.DrawEntities) != 0) {
-			DrawWorld(waterZAdjust);
-		}
 	}
 }
 
@@ -262,6 +266,7 @@ public class ViewRender : IViewRender
 		SkyboxView skyView = new SkyboxView(this);
 		if ((drew3dSkybox = skyView.Setup(in viewRender, ref clearFlags, ref skyboxVisible)) != false)
 			AddViewToScene(skyView);
+		skyView.ReleaseLists();
 
 		if ((clearFlags & ClearFlags.ClearColor) == 0) {
 			if (enginetrace.GetPointContents(viewRender.Origin, out _) == Contents.Solid) {
@@ -351,6 +356,7 @@ public class ViewRender : IViewRender
 		SimpleWorldView noWaterView = new SimpleWorldView(this);
 		noWaterView.Setup(in viewRender, clearFlags, drawSkybox);
 		AddViewToScene(noWaterView);
+		noWaterView.ReleaseLists();
 	}
 
 	public static Vector3 CurrentRenderOrigin = new(0, 0, 0);
@@ -467,4 +473,15 @@ public class ViewRender : IViewRender
 		ActiveRenderer = view;
 		return previous;
 	}
+
+	ConVar? DrawEntities;
+
+	internal bool ShouldDrawEntities() {
+		return DrawEntities == null || DrawEntities.GetInt() != 0;
+	}
+
+	public int m_BuildRenderablesListsNumber;
+
+	public long BuildRenderablesListsNumber() => m_BuildRenderablesListsNumber;
+	public long IncRenderablesListsNumber() => ++m_BuildRenderablesListsNumber;
 }

@@ -1,4 +1,5 @@
-﻿using Source.Common.Mathematics;
+﻿using Source.Common.Engine;
+using Source.Common.Mathematics;
 using Source.Common.Networking;
 
 using System.Numerics;
@@ -101,4 +102,5 @@ public interface IEngineClient
 	bool IsPlayingTimeDemo();
 	INetChannelInfo? GetNetChannelInfo();
 	void FireEvents();
+	Model? LoadModel(ReadOnlySpan<char> name, bool prop);
 }

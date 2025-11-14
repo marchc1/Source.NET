@@ -125,6 +125,33 @@ public partial class C_BaseEntity : IClientEntity
 		s_bAbsRecomputationEnabled = enable;
 	}
 
+	void Clear() {
+		Dormant = true;
+		CreationTick = -1;
+		ModelInstance = MODEL_INSTANCE_INVALID;
+		renderHandle = INVALID_CLIENT_RENDER_HANDLE;
+		Index = -1;
+		SetLocalOrigin(vec3_origin);
+		SetLocalAngles(vec3_angle);
+		Model = null;
+		AbsOrigin = default;
+		AbsRotation = default;
+		Velocity = default;
+		ViewOffset = default;
+		BaseVelocity = default;
+		ModelIndex = default;
+		AnimTime = default;
+		SimulationTime = default;
+
+		eflags = 0;
+		RenderMode = 0;
+		OldRenderMode = 0;
+		RenderFX = 0;
+		Friction = 0;
+
+		UpdateVisibility();
+	}
+
 	static readonly List<C_BaseEntity> AimEntsList = [];
 
 	internal static void CalcAimEntPositions() {
@@ -322,6 +349,16 @@ public partial class C_BaseEntity : IClientEntity
 	public C_BaseEntity() {
 		AddVar(DA_Origin, IV_Origin, LatchFlags.LatchSimulationVar);
 		AddVar(DA_Rotation, IV_Rotation, LatchFlags.LatchSimulationVar);
+
+		RenderFXBlend = 255;
+		Predictable = false;
+
+		SimulatedEveryTick = false;
+		AnimatedEveryTick = false;
+
+		ReadyToDraw = true;
+		PredictionContext = null;
+		Clear();
 	}
 
 	public int Index;
@@ -764,8 +801,29 @@ public partial class C_BaseEntity : IClientEntity
 			RemoveFromLeafSystem();
 	}
 
-	private void AddToLeafSystem() {
-		// todo
+	ClientRenderHandle_t renderHandle;
+
+	public ClientRenderHandle_t GetRenderHandle() => renderHandle;
+	public ref ClientRenderHandle_t RenderHandle() => ref renderHandle;
+
+	public RenderGroup GetRenderGroup() {
+		if (RenderMode == (int)Source.RenderMode.None)
+			return RenderGroup.OpaqueEntity;
+
+		// The rest of this can be implemented later
+		return RenderGroup.OpaqueEntity;
+	}
+
+	public void AddToLeafSystem() => AddToLeafSystem(GetRenderGroup());
+	public void AddToLeafSystem(RenderGroup group) {
+		if (renderHandle == INVALID_CLIENT_RENDER_HANDLE) {
+			clientLeafSystem.AddRenderable(this, group);
+			clientLeafSystem.EnableAlternateSorting(renderHandle, AlternateSorting);
+		}					
+		else {				
+			clientLeafSystem.SetRenderGroup(renderHandle, group);
+			clientLeafSystem.RenderableChanged(renderHandle);
+		}
 	}
 
 	private void RemoveFromLeafSystem() {
@@ -1313,7 +1371,7 @@ public partial class C_BaseEntity : IClientEntity
 	public C_BaseEntity? GetMoveParent() => MoveParent.Get();
 	public C_BaseEntity? FirstMoveChild() => MoveChild.Get();
 	public C_BaseEntity? NextMovePeer() => MovePeer.Get();
-	public bool IsVisible() => true; // TODO: ClientRenderHandle_t !!!!! We need BSP vis testing for that though I believe 
+	public bool IsVisible() => renderHandle != INVALID_CLIENT_RENDER_HANDLE;
 
 
 	private bool IsFollowingEntity() => IsEffectActive(EntityEffects.BoneMerge) && (GetMoveType() != Source.MoveType.None && GetMoveParent() != null);

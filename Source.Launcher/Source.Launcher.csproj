@@ -24,6 +24,7 @@
 		<ProjectReference Include="..\Source.SDLSystem\Source.SDLSystem.csproj" />
 		<ProjectReference Include="..\Source.ShaderAPI.Gl46\Source.ShaderAPI.Gl46.csproj" />
 		<ProjectReference Include="..\Source.StdShader.Gl46\Source.StdShader.Gl46.csproj" />
+		<ProjectReference Include="..\Source.StudioRender\Source.StudioRender.csproj" />
 		<ProjectReference Include="..\Source.VTF\Source.VTF.csproj" />
 	</ItemGroup>
 

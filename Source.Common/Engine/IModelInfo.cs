@@ -7,4 +7,7 @@ public interface IModelInfo
 	ReadOnlySpan<char> GetModelName(Model? model);
 }
 
-public interface IModelInfoClient : IModelInfo;
+public interface IModelInfoClient : IModelInfo
+{
+	ModelType GetModelType(Model? model);
+}

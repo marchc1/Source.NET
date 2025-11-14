@@ -1,10 +1,15 @@
-using Source.Common.Mathematics;
+using Game.Shared;
+
+using Source;
 using Source.Common;
 using Source.Common.Client;
-using Game.Shared;
 using Source.Common.Commands;
-using Source;
+using Source.Common.Engine;
 using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
+using Source.Engine;
+
+using System.Numerics;
 
 namespace Game.Client;
 using static ViewRenderConVars;
@@ -46,7 +51,7 @@ public class SimpleRenderExecutor : RenderExecutor
 	}
 }
 
-public enum ViewID
+public enum ViewID : sbyte
 {
 	Illegal = -2,
 	None = -1,
@@ -82,11 +87,19 @@ public class Rendering3dView : Base3dView
 	protected ClearFlags ClearFlags;
 	protected ViewSetup ViewSetup;
 
+	ClientRenderablesList RenderablesList = null!;
+
 	public Rendering3dView(ViewRender mainView) : base(mainView) {
 
 	}
 	public virtual void Setup(in ViewSetup setup) {
 		ViewSetup = setup; // copy to our ViewSetup
+		ReleaseLists();
+
+		RenderablesList = ClientRenderablesList.Shared.Alloc();
+	}
+	public virtual void ReleaseLists() {
+		ClientRenderablesList.Shared.Free(RenderablesList);
 	}
 	public override DrawFlags GetDrawFlags() {
 		return DrawFlags;
@@ -95,8 +108,43 @@ public class Rendering3dView : Base3dView
 
 	}
 
+	protected void DrawOpaqueRenderables(RenderDepthMode depthMode) {
+		if (!r_drawopaquerenderables.GetBool())
+			return;
+
+		if (!mainView.ShouldDrawEntities())
+			return;
+
+		render.SetBlend(1);
+	}
+
 	protected void EnableWorldFog() => throw new NotImplementedException();
-	protected void SetupRenderablesList(int viewID) => throw new NotImplementedException();
+	protected void SetupRenderablesList(ViewID viewID) {
+		// Clear the list.
+		int i;
+		for (i = 0; i < (int)RenderGroup.Count; i++) 
+			RenderablesList.RenderGroupCounts[i] = 0;
+
+		// Now collate the entities in the leaves.
+		if (mainView.ShouldDrawEntities()) {
+			SetupRenderInfo setupInfo = default;
+			setupInfo.RenderFrame = mainView.BuildRenderablesListsNumber(); 
+			// setupInfo.DetailBuildFrame = mainView.BuildWorldListsNumber();  
+			setupInfo.RenderList = RenderablesList;
+			// setupInfo.DrawDetailObjects = ClientMode.ShouldDrawDetailObjects() && r_DrawDetailProps.GetInt();
+			setupInfo.DrawTranslucentObjects = (viewID != ViewID.ShadowDepthTexture);
+
+			setupInfo.RenderOrigin = setup.Origin;
+			setupInfo.RenderForward = ViewRender.CurrentRenderForward;
+
+			float fMaxDist = cl_maxrenderable_dist.GetFloat();
+
+			setupInfo.RenderDistSq = (viewID == ViewID.ShadowDepthTexture) ? Math.Min(setup.ZFar, fMaxDist) : fMaxDist;
+			setupInfo.RenderDistSq *= setupInfo.RenderDistSq;
+
+			clientLeafSystem.BuildRenderablesList(setupInfo);
+		}
+	}
 	protected void DrawWorld(float waterZAdjust) {
 		DrawWorldListFlags engineFlags = BuildEngineDrawWorldListFlags(DrawFlags);
 		mainView.render.DrawWorld(engineFlags, waterZAdjust);
@@ -188,8 +236,12 @@ public class SkyboxView : Rendering3dView
 		render.ViewSetupVisEx(false, new(ref sky3dParams.Origin), out _);
 		render.Push3DView(in ViewSetup, ClearFlags, rtColor, GetFrustrum(), rtDepth);
 
+		SetupCurrentView(in setup.Origin, in setup.Angles, skyBoxViewID);
+
 		if (invokePreAndPostRender)
 			IGameSystem.PreRenderAllSystems();
+
+		BuildRenderableRenderLists(skyBoxViewID);
 
 		DrawWorld(0);
 
@@ -199,6 +251,19 @@ public class SkyboxView : Rendering3dView
 		}
 
 		render.PopView(GetFrustrum());
+	}
+
+	protected void BuildRenderableRenderLists(ViewID viewID) {
+		//  if (viewID != ViewID.ShadowDepthTexture)
+		//  	render.BeginUpdateLightmaps();
+		mainView.IncRenderablesListsNumber();
+		SetupRenderablesList(viewID);
+	}
+
+	private void SetupCurrentView(in Vector3 origin, in QAngle angles, ViewID viewID) {
+		ViewRender.CurrentRenderOrigin = origin;
+		ViewRender.CurrentRenderAngles = angles;
+		ViewRender.CurrentViewID = viewID;
 	}
 
 	private SafeFieldPointer<PlayerLocalData, Sky3DParams> PreRender3dSkyboxWorld(ref SkyboxVisibility skyboxVisible) {

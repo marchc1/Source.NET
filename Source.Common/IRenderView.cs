@@ -64,4 +64,9 @@ public interface IRenderView
 	void DrawWorld(DrawWorldListFlags flags, float waterZAdjust);
 	void Push3DView(in ViewSetup viewRender, ClearFlags clearFlags, ITexture? rtColor, Frustum frustum, ITexture? rtDepth);
 	int GetViewEntity();
+	void SetBlend(float blend);
+	float GetBlend();
+	Vector3 GetColorModulation();
+	void SetColorModulation(ReadOnlySpan<float> mod);
+	void SetColorModulation(Vector3 mod);
 }
