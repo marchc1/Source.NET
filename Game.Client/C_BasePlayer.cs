@@ -42,6 +42,9 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public virtual void PreThink() {}
 	public virtual void PostThink() {}
 
+	public virtual bool IsOverridingViewmodel() => false;
+	public virtual int DrawOverriddenViewmodel(C_BaseViewModel viewmodel, StudioFlags flags) => 0;
+
 	public void SetViewAngles(in QAngle angles) {
 		SetLocalAngles(angles);
 		SetNetworkAngles(angles);

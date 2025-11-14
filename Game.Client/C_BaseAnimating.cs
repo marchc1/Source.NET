@@ -2,6 +2,7 @@
 
 using Source;
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
 
@@ -26,6 +27,9 @@ public partial class C_InfoLightingRelative : C_BaseEntity
 
 public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 {
+	static readonly ConVar r_drawothermodels = new("1", FCvar.Cheat, "0=Off, 1=Normal, 2=Wireframe" );
+
+
 	public static readonly RecvTable DT_ServerAnimationData = new([
 		RecvPropFloat(FIELD.OF(nameof(Cycle))),
 	]);
@@ -87,11 +91,77 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 	}
 
+	public int InternalDrawModel(StudioFlags flags) {
+
+	}
+
+	public C_BaseAnimating? FindFollowedEntity() {
+		C_BaseEntity? follow = GetFollowedEntity();
+
+		if (follow == null)
+			return null;
+
+		if (follow.IsDormant())
+			return null;
+
+		if (follow.GetModel() == null) {
+			Warning("ModelType.Studio: MoveType.Follow with no model.\n");
+			return null;
+		}
+
+		if (modelinfo.GetModelType(follow.GetModel()) != ModelType.Studio) {
+			Warning($"Attached {modelinfo.GetModelName(GetModel())} (ModelType.Studio) to {modelinfo.GetModelName(follow.GetModel())} ({modelinfo.GetModelType(follow.GetModel())})\n");
+			return null;
+		}
+
+		return (C_BaseAnimating?)follow;
+	}
+
 	public override int DrawModel(StudioFlags flags) {
 		if (!ReadyToDraw)
 			return 0;
 
 		int drawn = 0;
+
+		if (r_drawothermodels.GetInt() != 0) {
+			StudioFlags extraFlags = 0;
+			if (r_drawothermodels.GetInt() == 2) 
+				extraFlags |= StudioFlags.Wireframe;
+
+			if ((flags & StudioFlags.ShadowDepthTexture) != 0)
+				extraFlags |= StudioFlags.ShadowDepthTexture;
+
+			if ((flags & StudioFlags.SSAODepthTexture) != 0)
+				extraFlags |= StudioFlags.SSAODepthTexture;
+
+			// todo: g_pStudioStatsEntity
+			if ((flags & (StudioFlags.SSAODepthTexture | StudioFlags.ShadowDepthTexture)) == 0 && false)
+				extraFlags |= StudioFlags.GenerateStats;
+
+			if ((flags & StudioFlags.NoOverrideForAttach) != 0) 
+				extraFlags |= StudioFlags.NoOverrideForAttach;
+
+			// Necessary for lighting blending
+			CreateModelInstance();
+
+			if (!IsFollowingEntity()) {
+				drawn = InternalDrawModel(flags | extraFlags);
+			}
+			else {
+				// this doesn't draw unless master entity is visible and it's a studio model!!!
+				C_BaseAnimating? follow = FindFollowedEntity();
+				if (follow != null) {
+					// recompute master entity bone structure
+					int baseDrawn = follow.DrawModel(0);
+
+					// draw entity
+					// FIXME: Currently only draws if aiment is drawn.  
+					// BUGBUG: Fixup bbox and do a separate cull for follow object
+					if (baseDrawn != 0) 
+						drawn = InternalDrawModel(StudioFlags.Render | extraFlags);
+				}
+			}
+		}
 
 		DrawBBoxVisualizations();
 

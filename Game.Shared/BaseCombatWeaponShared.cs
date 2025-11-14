@@ -1,4 +1,5 @@
-﻿#if CLIENT_DLL
+﻿#if CLIENT_DLL || GAME_DLL
+#if CLIENT_DLL
 global using BaseCombatWeapon = Game.Client.C_BaseCombatWeapon;
 global using WeaponHL2MPBase = Game.Client.C_WeaponHL2MPBase;
 global using BaseHL2MPCombatWeapon = Game.Client.C_BaseHL2MPCombatWeapon;
@@ -135,4 +136,9 @@ public partial class
 
 	public int State;
 	public readonly EHANDLE Owner = new();
+
+	public virtual bool IsOverridingViewmodel() => false;
+	public virtual int DrawOverriddenViewmodel(BaseViewModel viewmodel, StudioFlags flags) => 0;
+	public virtual void ViewModelDrawn(BaseViewModel viewmodelflags) { }
 }
+#endif

@@ -466,6 +466,13 @@ public partial class C_BaseEntity : IClientEntity
 	public readonly Handle<C_BasePlayer> PlayerSimulationOwner = new();
 	public int DataChangeEventRef;
 
+	public int GetFxBlend() => RenderFXBlend;
+	public void GetColorModulation(Span<float> color) {
+		color[0] = ColorRender.R / 255f;
+		color[1] = ColorRender.G / 255f;
+		color[2] = ColorRender.B / 255f;
+	}
+
 	public virtual void ClientThink() { }
 
 	public bool ReadyToDraw;
@@ -544,12 +551,6 @@ public partial class C_BaseEntity : IClientEntity
 			OnNewModel();
 
 			UpdateVisibility();
-		}
-	}
-	void DestroyModelInstance() {
-		if (ModelInstance != MODEL_INSTANCE_INVALID) {
-			modelrender.DestroyInstance(ModelInstance);
-			ModelInstance = MODEL_INSTANCE_INVALID;
 		}
 	}
 	StudioHDR? OnNewModel() {
@@ -1374,7 +1375,24 @@ public partial class C_BaseEntity : IClientEntity
 	public bool IsVisible() => renderHandle != INVALID_CLIENT_RENDER_HANDLE;
 
 
-	private bool IsFollowingEntity() => IsEffectActive(EntityEffects.BoneMerge) && (GetMoveType() != Source.MoveType.None && GetMoveParent() != null);
+	public bool IsFollowingEntity() => IsEffectActive(EntityEffects.BoneMerge) && (GetMoveType() != Source.MoveType.None && GetMoveParent() != null);
+
+	public virtual C_BaseEntity? GetFollowedEntity() {
+		if (!IsFollowingEntity())
+			return null;
+		return GetMoveParent();
+	}
+
+	public void CreateModelInstance() {
+		if (ModelInstance == MODEL_INSTANCE_INVALID)
+			ModelInstance = modelrender.CreateInstance(this);
+	}
+	public void DestroyModelInstance() {
+		if (ModelInstance != MODEL_INSTANCE_INVALID) {
+			modelrender.DestroyInstance(ModelInstance);
+			ModelInstance = MODEL_INSTANCE_INVALID;
+		}
+	}
 
 	private bool ShouldInterpolate() {
 		if (render.GetViewEntity() == Index)

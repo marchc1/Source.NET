@@ -1,4 +1,5 @@
-﻿#if CLIENT_DLL
+﻿#if CLIENT_DLL || GAME_DLL
+#if CLIENT_DLL
 global using BaseViewModel = Game.Client.C_BaseViewModel;
 namespace Game.Client;
 #else
@@ -12,7 +13,7 @@ using Source;
 using FIELD = Source.FIELD<BaseViewModel>;
 using Game.Shared;
 
-public class
+public partial class
 #if CLIENT_DLL
 	C_BaseViewModel
 #else
@@ -84,6 +85,9 @@ public class
 #endif
 	public int ViewModelIndex;
 	public readonly EHANDLE Owner = new();
-	public readonly EHANDLE Weapon = new();
+	public readonly Handle<BaseCombatWeapon> Weapon = new();
 	public int AnimationParity;
+
+	public BaseCombatWeapon? GetOwningWeapon() => Weapon.Get();
 }
+#endif
