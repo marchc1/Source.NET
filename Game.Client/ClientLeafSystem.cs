@@ -1,16 +1,31 @@
 ﻿using Source.Common;
 using Source.Common.Engine;
 
+using System.Numerics;
+
 namespace Game.Client;
+
+public enum RenderFlags {
+	TwoPass = 0x01,
+	StaticProp = 0x02,
+	BrushModel = 0x04,
+	StudioModel = 0x08,
+	HasChanged = 0x10,
+	AlternateSorting = 0x20
+}
 
 public class ClientLeafSystem : IClientLeafSystem
 {
 	public void AddRenderable(IClientRenderable renderable, RenderGroup group) {
-		throw new NotImplementedException();
+		RenderFlags flags = RenderFlags.HasChanged;
 	}
 
 	public void AddRenderableToLeaves(uint renderable, Span<ushort> pLeaves) {
 		throw new NotImplementedException();
+	}
+
+	public void BuildRenderablesList(in SetupRenderInfo info) {
+		// todo later
 	}
 
 	public void ChangeRenderableRenderGroup(uint handle, RenderGroup group) {

@@ -3,6 +3,8 @@
 using Source.Common;
 using Source.Common.Engine;
 
+using System.Numerics;
+
 namespace Game.Client;
 
 
@@ -23,8 +25,25 @@ public class ClientRenderablesList
 	public readonly int[] RenderGroupCounts = new int[RENDER_GROUP_COUNT];
 }
 
+public struct SetupRenderInfo {
+	public ClientRenderablesList? RenderList;
+	public Vector3 RenderOrigin;
+	public Vector3 RenderForward;
+	public long RenderFrame;
+	public long DetailBuildFrame;
+	public float RenderDistSq;
+	public bool DrawDetailObjects;
+	public bool DrawTranslucentObjects;
+
+	public SetupRenderInfo() {
+		DrawDetailObjects = true;
+		DrawTranslucentObjects = true;
+	}
+}
+
 public interface IClientLeafSystem : IClientLeafSystemEngine, IGameSystem {
 	void AddRenderable(IClientRenderable renderable, RenderGroup group);
+	void BuildRenderablesList(in SetupRenderInfo setupInfo);
 	bool IsRenderableInPVS(IClientRenderable renderable);
 
 	void RenderableChanged(ClientRenderHandle_t handle);

@@ -48,6 +48,7 @@ public static class ClientGlobals
 	public static IDataCache datacache { get; private set; } = null!;
 	public static IMDLCache mdlcache { get; private set; } = null!;
 	public static IModelRender modelrender { get; private set; } = null!;
+	public static IClientLeafSystem clientLeafSystem { get; private set; } = null!;
 
 	public static TimeUnit_t TICK_INTERVAL => gpGlobals.IntervalPerTick;
 
@@ -72,6 +73,7 @@ public static class ClientGlobals
 		datacache = Singleton<IDataCache>();
 		mdlcache = Singleton<IMDLCache>();
 		modelrender = Singleton<IModelRender>();
+		clientLeafSystem = Singleton<ClientLeafSystem>();
 	}
 
 	public static bool IsEngineThreaded() => false; 

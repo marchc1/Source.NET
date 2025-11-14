@@ -477,4 +477,9 @@ public class ViewRender : IViewRender
 	internal bool ShouldDrawEntities() {
 		return DrawEntities == null || DrawEntities.GetInt() != 0;
 	}
+
+	public int m_BuildRenderablesListsNumber;
+
+	public long BuildRenderablesListsNumber() => m_BuildRenderablesListsNumber;
+	public long IncRenderablesListsNumber() => ++m_BuildRenderablesListsNumber;
 }
