@@ -54,6 +54,7 @@ public struct SetupRenderInfo {
 public interface IClientLeafSystem : IClientLeafSystemEngine, IGameSystem {
 	void AddRenderable(IClientRenderable renderable, RenderGroup group);
 	void BuildRenderablesList(in SetupRenderInfo setupInfo);
+	void CollateViewModelRenderables(List<IClientRenderable> opaqueViewModelList, List<IClientRenderable> translucentViewModelList);
 	void EnableAlternateSorting(ClientRenderHandle_t renderHandle, bool alternateSorting);
 	bool IsRenderableInPVS(IClientRenderable renderable);
 

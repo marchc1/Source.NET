@@ -6,6 +6,7 @@ using System.Numerics;
 namespace Source.Common;
 
 public interface IClientRenderable {
+	IClientUnknown GetIClientUnknown();
 	ref readonly Vector3 GetRenderOrigin();
 	ref readonly QAngle GetRenderAngles();
 	bool ShouldDraw();

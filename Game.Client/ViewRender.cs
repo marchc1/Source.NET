@@ -1,3 +1,4 @@
+global using static Game.Client.ViewRenderConVars;
 using Game.Shared;
 
 using Source;
@@ -12,7 +13,6 @@ using Source.Engine;
 using System.Numerics;
 
 namespace Game.Client;
-using static ViewRenderConVars;
 public static class ViewRenderConVars
 {
 	internal readonly static ConVar cl_maxrenderable_dist = new("3000", FCvar.Cheat, "Max distance from the camera at which things will be rendered");

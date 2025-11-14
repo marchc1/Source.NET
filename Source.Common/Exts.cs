@@ -89,6 +89,32 @@ public interface IPoolableObject
 	void Reset();
 }
 
+public class PoolableList<T> : List<T>, IPoolableObject
+{
+	public void Init() { }
+	public void Reset() => Clear();
+}
+
+public class ListPool<T>
+{
+	public static readonly ListPool<T> Shared = new();
+	readonly ObjectPool<PoolableList<T>> pool = new();
+
+	public List<T> Alloc(int capacity = 0) {
+		List<T> list = pool.Alloc();
+		if (capacity > 0)
+			list.EnsureCapacity(capacity);
+		return list;
+	}
+
+	public void Free(List<T> list) {
+		if (list is not PoolableList<T> pooledList)
+			throw new InvalidCastException("Got a non-poolable list!");
+		pool.Free(pooledList);
+	}
+}
+
+
 public class ObjectPool<T> where T : IPoolableObject, new()
 {
 	readonly ConcurrentDictionary<T, bool> valueStates = [];
