@@ -14,8 +14,56 @@ public enum RenderFlags {
 	AlternateSorting = 0x20
 }
 
+public struct RenderableInfo
+{
+	public IClientRenderable? Renderable;
+	public long RenderFrame;
+	public long RenderFrame2;
+	public long EnumCount;
+	public long TranslucencyCalculated;
+	public uint LeafList;
+	public uint RenderLeaf;
+	public byte Flags;
+	public RenderGroup RenderGroup;
+	public uint  FirstShadow;
+	public short Area;
+	public sbyte TranslucencyCalculatedView;
+}
+
+public struct ClientLeaf {
+	public uint FirstElement;
+	public uint FirstShadow;
+	public ushort FirstDetailProp;
+	public ushort DetailPropCount;
+	public int DetailPropRenderFrame;
+}
+
+public struct ShadowInfo_t
+{
+	public uint FirstLeaf;
+	public uint FirstRenderable;
+	public int EnumCount;
+	// public ClientShadowHandle_t Shadow;
+	public ushort Flags;
+}
+public class EnumResult
+{
+	public int Leaf;
+	public EnumResult? Next;
+}
+
+public class EnumResultList
+{
+	public EnumResult? Head;
+	public ClientRenderHandle_t Handle;
+}
+
 public class ClientLeafSystem : IClientLeafSystem
 {
+	readonly List<ClientLeaf> Leaf = [];
+
+
+
 	public void AddRenderable(IClientRenderable renderable, RenderGroup group) {
 		RenderFlags flags = RenderFlags.HasChanged;
 	}
@@ -34,6 +82,10 @@ public class ClientLeafSystem : IClientLeafSystem
 
 	public void CreateRenderableHandle(IClientRenderable? renderable, bool bIsStaticProp = false) {
 		throw new NotImplementedException();
+	}
+
+	public void EnableAlternateSorting(uint renderHandle, bool alternateSorting) {
+
 	}
 
 	public bool Init() {
