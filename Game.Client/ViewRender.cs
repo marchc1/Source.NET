@@ -94,7 +94,12 @@ public class Rendering3dView : Base3dView
 	}
 	public virtual void Setup(in ViewSetup setup) {
 		ViewSetup = setup; // copy to our ViewSetup
-		RenderablesList = new();
+		ReleaseLists();
+
+		RenderablesList = ClientRenderablesList.Shared.Alloc();
+	}
+	public virtual void ReleaseLists() {
+		ClientRenderablesList.Shared.Free(RenderablesList);
 	}
 	public override DrawFlags GetDrawFlags() {
 		return DrawFlags;

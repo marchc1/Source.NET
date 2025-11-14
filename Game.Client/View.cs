@@ -266,6 +266,7 @@ public class ViewRender : IViewRender
 		SkyboxView skyView = new SkyboxView(this);
 		if ((drew3dSkybox = skyView.Setup(in viewRender, ref clearFlags, ref skyboxVisible)) != false)
 			AddViewToScene(skyView);
+		skyView.ReleaseLists();
 
 		if ((clearFlags & ClearFlags.ClearColor) == 0) {
 			if (enginetrace.GetPointContents(viewRender.Origin, out _) == Contents.Solid) {
@@ -355,6 +356,7 @@ public class ViewRender : IViewRender
 		SimpleWorldView noWaterView = new SimpleWorldView(this);
 		noWaterView.Setup(in viewRender, clearFlags, drawSkybox);
 		AddViewToScene(noWaterView);
+		noWaterView.ReleaseLists();
 	}
 
 	public static Vector3 CurrentRenderOrigin = new(0, 0, 0);

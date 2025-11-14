@@ -111,6 +111,8 @@ public class ObjectPool<T> where T : IPoolableObject, new()
 
 	public bool IsMemoryPoolAllocated(T value) => valueStates.TryGetValue(value, out _);
 	public void Free(T value) {
+		if (value == null)
+			return;
 		if (!valueStates.TryGetValue(value, out bool state))
 			AssertMsg(false, $"Passed an instance of {typeof(T).Name} to {nameof(Free)}(T value) that was not allocated by {nameof(Alloc)}()");
 		else if (state == false)

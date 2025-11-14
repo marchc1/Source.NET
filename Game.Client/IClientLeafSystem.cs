@@ -1,5 +1,6 @@
 ﻿using Game.Shared;
 
+using Source;
 using Source.Common;
 using Source.Common.Engine;
 
@@ -8,8 +9,10 @@ using System.Numerics;
 namespace Game.Client;
 
 
-public class ClientRenderablesList
-{
+public class ClientRenderablesList : IPoolableObject {
+
+	public static readonly ObjectPool<ClientRenderablesList> Shared = new();
+
 	public struct Entry
 	{
 		public IClientRenderable? Renderable;
@@ -23,6 +26,16 @@ public class ClientRenderablesList
 
 	public readonly Entry[,] RenderGroups = new Entry[RENDER_GROUP_COUNT, MAX_GROUP_ENTITIES];
 	public readonly int[] RenderGroupCounts = new int[RENDER_GROUP_COUNT];
+
+	public void Init() {
+		for (int x = 0; x < RENDER_GROUP_COUNT; x++) {
+			for (int y = 0; y < MAX_GROUP_ENTITIES; y++) 
+				RenderGroups[x, y] = default;
+			RenderGroupCounts[x] = default;
+		}
+	}
+
+	public void Reset() {}
 }
 
 public struct SetupRenderInfo {
