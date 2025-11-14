@@ -7,6 +7,7 @@ using Source.Common.Mathematics;
 using Source.Engine.Client;
 
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace Source.Engine;
 
@@ -88,4 +89,25 @@ public class RenderView(EngineVGui EngineVGui, Render engineRenderer, ClientStat
 	public void Push3DView(in ViewSetup viewRender, ClearFlags clearFlags, ITexture? rtColor, Frustum frustum, ITexture? rtDepth) => engineRenderer.Push3DView(in viewRender, clearFlags, rtColor, frustum, rtDepth);
 
 	public int GetViewEntity() => cl.ViewEntity;
+
+	float r_blend = 1;
+	Vector3 r_colormod = new(1, 1, 1);
+	public bool IsBlendingOrModulating { get; private set; }
+	public void CheckBlend() {
+		IsBlendingOrModulating = r_blend != 1.0f || r_colormod[0] != 1.0f || r_colormod[1] != 1.0f || r_colormod[2] != 1.0f;
+	}
+	public void SetBlend(float blend) {
+		r_blend = blend;
+		CheckBlend();
+	}
+	public float GetBlend() => r_blend;
+	public void SetColorModulation(Vector3 mod) {
+		r_colormod = mod;
+		CheckBlend();
+	}
+	public void SetColorModulation(ReadOnlySpan<float> mod) {
+		r_colormod = MemoryMarshal.Cast<float, Vector3>(mod)[0];
+		CheckBlend();
+	}
+	public Vector3 GetColorModulation() => r_colormod;
 }

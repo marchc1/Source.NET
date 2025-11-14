@@ -1,12 +1,35 @@
-﻿namespace Game.Client;
+﻿using Source.Common;
+using Source.Common.Engine;
+
+namespace Game.Client;
 
 public class ClientLeafSystem : IClientLeafSystem
 {
+	public void AddRenderable(IClientRenderable renderable, RenderGroup group) {
+		throw new NotImplementedException();
+	}
+
+	public void AddRenderableToLeaves(uint renderable, Span<ushort> pLeaves) {
+		throw new NotImplementedException();
+	}
+
+	public void ChangeRenderableRenderGroup(uint handle, RenderGroup group) {
+		throw new NotImplementedException();
+	}
+
+	public void CreateRenderableHandle(IClientRenderable? renderable, bool bIsStaticProp = false) {
+		throw new NotImplementedException();
+	}
+
 	public bool Init() {
 		throw new NotImplementedException();
 	}
 
 	public bool IsPerFrame() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsRenderableInPVS(IClientRenderable renderable) {
 		throw new NotImplementedException();
 	}
 
@@ -46,7 +69,19 @@ public class ClientLeafSystem : IClientLeafSystem
 		throw new NotImplementedException();
 	}
 
+	public void RemoveRenderable(uint handle) {
+		throw new NotImplementedException();
+	}
+
+	public void RenderableChanged(uint handle) {
+		throw new NotImplementedException();
+	}
+
 	public void SafeRemoveIfDesired() {
+		throw new NotImplementedException();
+	}
+
+	public void SetRenderGroup(uint handle, RenderGroup group) {
 		throw new NotImplementedException();
 	}
 

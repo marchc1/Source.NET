@@ -20,6 +20,18 @@ namespace Game.Client;
 public class BaseWorldView : Rendering3dView
 {
 	public BaseWorldView(ViewRender mainView) : base(mainView) { }
+
+	protected void DrawExecute(float waterHeight, ViewID viewID, float waterZAdjust) {
+		using MatRenderContextPtr renderContext = new(mainView.materials);
+		renderContext.ClearBuffers(false, true, false);
+
+		RenderDepthMode depthMode = RenderDepthMode.Normal;
+
+		if ((DrawFlags & DrawFlags.DrawEntities) != 0) {
+			DrawWorld(waterZAdjust);
+			DrawOpaqueRenderables(depthMode);
+		}
+	}
 }
 public class SimpleWorldView : BaseWorldView
 {
@@ -37,14 +49,6 @@ public class SimpleWorldView : BaseWorldView
 		using MatRenderContextPtr renderContext = new(mainView.materials);
 
 		DrawExecute(0, ViewRender.CurrentViewID, 0);
-	}
-
-	private void DrawExecute(float waterHeight, ViewID viewID, float waterZAdjust) {
-		using MatRenderContextPtr renderContext = new(mainView.materials);
-		renderContext.ClearBuffers(false, true, false);
-		if((DrawFlags & DrawFlags.DrawEntities) != 0) {
-			DrawWorld(waterZAdjust);
-		}
 	}
 }
 
@@ -466,5 +470,11 @@ public class ViewRender : IViewRender
 		Base3dView? previous = ActiveRenderer;
 		ActiveRenderer = view;
 		return previous;
+	}
+
+	ConVar? DrawEntities;
+
+	internal bool ShouldDrawEntities() {
+		return DrawEntities == null || DrawEntities.GetInt() != 0;
 	}
 }

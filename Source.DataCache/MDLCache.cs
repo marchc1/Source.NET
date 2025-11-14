@@ -154,7 +154,30 @@ public class MDLCache : IMDLCache
 	}
 
 	public void TouchAllData(MDLHandle_t handle) {
-		throw new NotImplementedException();
+		StudioHDR? studioHdr = GetStudioHdr(handle);
+		VirtualModel? vModel = GetVirtualModel(handle);
+		if (vModel != null) {
+			for (int i = 1; i < vModel.Group.Count; ++i) {
+				// ????????????????
+				MDLHandle_t childHandle = (MDLHandle_t)(nint)vModel.Group[i].Cache! & 0xffff;
+				if (childHandle != MDLHANDLE_INVALID)
+					GetStudioHdr(childHandle);
+			}
+		}
+
+		for (int i = 1; i < studioHdr.NumAnimBlocks; ++i) {
+			// studioHdr.GetAnimBlock(i);
+		}
+
+		// cache the vertexes
+		if (studioHdr.NumBodyParts != 0) {
+			CacheVertexData(studioHdr);
+			GetHardwareData(handle);
+		}
+	}
+
+	private void CacheVertexData(StudioHDR studioHdr) {
+		// todo
 	}
 
 	public void UnlockStudioHdr(MDLHandle_t handle) {
