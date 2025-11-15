@@ -365,6 +365,12 @@ public static class ListExtensions
 }
 public static class ClassUtils
 {
+	public static ref V TryGetRef<K, V>(this Dictionary<K, V> dict, K key, out bool ok) where K : notnull {
+		ref V ret = ref CollectionsMarshal.GetValueRefOrNullRef(dict, key);
+		ok = !Unsafe.IsNullRef(ref ret);
+		return ref ret;
+	}
+
 
 	public static bool IsValidIndex<T>(this List<T> list, int index) => index >= 0 && index < list.Count;
 	public static bool IsValidIndex<T>(this List<T> list, long index) => index >= 0 && index < list.Count;

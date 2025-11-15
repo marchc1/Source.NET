@@ -60,12 +60,18 @@ public class EnumResultList
 	public ClientRenderHandle_t Handle;
 }
 
+class RenderableInfoBox {
+	public RenderableInfo Info = new();
+}
+
 public class ClientLeafSystem : IClientLeafSystem
 {
 	readonly List<ClientLeaf> Leaf = [];
 	readonly List<ClientRenderHandle_t> DirtyRenderables = [];
 	readonly List<ClientRenderHandle_t> ViewModels = [];
-	readonly LinkedList<RenderableInfo> Renderables = [];
+	readonly Dictionary<ClientRenderHandle_t, RenderableInfoBox> Renderables = [];
+	ClientRenderHandle_t handle;
+	ClientRenderHandle_t AllocHandle() => Interlocked.Increment(ref handle);
 
 
 
@@ -85,9 +91,9 @@ public class ClientLeafSystem : IClientLeafSystem
 		Assert(renderable);
 		Assert(renderable.RenderHandle() == INVALID_CLIENT_RENDER_HANDLE);
 
-		var listObj = Renderables.AddLast(new RenderableInfo());
-		ClientRenderHandle_t handle = GCHandle.ToIntPtr(GCHandle.Alloc(listObj, GCHandleType.Weak));
-		ref RenderableInfo info = ref listObj.ValueRef;
+		ClientRenderHandle_t handle = AllocHandle();
+		Renderables[handle] = new();
+		ref RenderableInfo info = ref Renderables[handle].Info;
 
 		// We need to know if it's a brush model for shadows
 		ModelType modelType = modelinfo.GetModelType(renderable.GetModel());
@@ -208,5 +214,23 @@ public class ClientLeafSystem : IClientLeafSystem
 
 	public void Shutdown() {
 		throw new NotImplementedException();
+	}
+
+	public void CollateViewModelRenderables(List<IClientRenderable> opaque, List<IClientRenderable> translucent) {
+		for (int i = ViewModels.Count - 1; i >= 0; --i) {
+			ClientRenderHandle_t handle = ViewModels[i];
+			ref RenderableInfo renderable = ref Renderables[handle].Info;
+
+			// NOTE: In some cases, this removes the entity from the view model list
+			renderable.Renderable!.ComputeFxBlend();
+
+			// That's why we need to test RENDER_GROUP_OPAQUE_ENTITY - it may have changed in ComputeFXBlend()
+			if (renderable.RenderGroup == RenderGroup.ViewModelOpaque || renderable.RenderGroup == RenderGroup.OpaqueEntity) {
+				opaque.Add(renderable.Renderable);
+			}
+			else {
+				translucent.Add(renderable.Renderable);
+			}
+		}
 	}
 }

@@ -18,4 +18,5 @@ public interface IClientRenderable {
 	void GetRenderBoundsWorldspace(out Vector3 mins, out Vector3 maxs);
 	ref ClientRenderHandle_t RenderHandle();
 	IPVSNotify? GetPVSNotifyInterface();
+	void ComputeFxBlend();
 }

@@ -1154,6 +1154,10 @@ public partial class C_BaseEntity : IClientEntity
 		return null;
 	}
 
+	public void ComputeFxBlend() {
+		// todo
+	}
+
 	public virtual object GetDataTableBasePtr() {
 		return this;
 	}

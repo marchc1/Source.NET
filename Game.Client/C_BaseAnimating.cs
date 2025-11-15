@@ -92,7 +92,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	}
 
 	public int InternalDrawModel(StudioFlags flags) {
-
+		throw new NotImplementedException();
 	}
 
 	public C_BaseAnimating? FindFollowedEntity() {
