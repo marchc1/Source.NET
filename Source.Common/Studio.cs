@@ -25,8 +25,13 @@ public static class Studio
 	public const int MAXSTUDIOANIMBLOCKS = 256;
 
 	public const int MAX_NUM_LODS = 8;
+	public const int MAX_NUM_BONES_PER_VERT = 3;
 
 	public const int MAXSTUDIOBONEBITS = 7;
+
+	public const int MODEL_VERTEX_FILE_ID = (('V' << 24) + ('S' << 16) + ('D' << 8) + 'I');
+	public const int MODEL_VERTEX_FILE_VERSION = 4;
+	public const int MODEL_VERTEX_FILE_THIN_ID = (('V' << 24) + ('C' << 16) + ('D' << 8) + 'I');
 }
 
 public enum StudioHdrFlags
@@ -55,6 +60,7 @@ public enum StudioHdrFlags
 
 
 [InlineArray(Studio.MAX_NUM_LODS)] public struct InlineArrayMaxNumLODs<T> { T first; }
+[InlineArray(Studio.MAX_NUM_BONES_PER_VERT)] public struct InlineArrayMaxNumBonesPerVert<T> { T first; }
 
 public class VirtualGroup
 {
@@ -157,9 +163,40 @@ public class StudioHWData
 	public int NumStudioMeshes;
 }
 
+public struct MStudioBoneWeight
+{
+	public InlineArrayMaxNumBonesPerVert<float> Weight;
+	public InlineArrayMaxNumBonesPerVert<float> Bone;
+	public byte NumBones;
+}
+
+public struct MStudioVertex
+{
+	public MStudioBoneWeight BoneWeights;
+	public Vector3 Position;
+	public Vector3 Normal;
+	public Vector2 TexCoord;
+}
+
 public class VertexFileHeader
 {
 	public Memory<byte> Data;
+
+	public VertexFileHeader(byte[] data) {
+		Data = data;
+		using BinaryReader br = new(new MemoryStream(data));
+		ID = br.ReadInt32();
+		Version = br.ReadInt32();
+		Checksum = br.ReadInt32();
+		NumLODs = br.ReadInt32();
+		for (int i = 0; i < Studio.MAX_NUM_LODS; i++)
+			NumLODVertices[i] = br.ReadInt32();
+
+		NumFixups = br.ReadInt32();
+		FixupTableStart = br.ReadInt32();
+		VertexDataStart = br.ReadInt32();
+		tangentDataStart = br.ReadInt32();
+	}
 
 	public int ID;
 	public int Version;
@@ -168,8 +205,15 @@ public class VertexFileHeader
 	public InlineArrayMaxNumLODs<int> NumLODVertices;
 	public int NumFixups;
 	public int FixupTableStart;
-	public int VertexTableStart;
-	public int TangentTableStart;
+	public int VertexDataStart;
+	public int tangentDataStart;
+
+	public ReadOnlySpan<MStudioVertex> GetVertexData() {
+		if (ID == Studio.MODEL_VERTEX_FILE_ID && VertexDataStart != 0)
+			return Data.Span[VertexDataStart..].Cast<byte, MStudioVertex>();
+		else
+			return null;
+	}
 }
 
 public class StudioHDR2

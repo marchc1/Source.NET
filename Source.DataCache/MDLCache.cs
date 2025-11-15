@@ -30,7 +30,7 @@ public class StudioData
 	public readonly VCollide VCollisionData = new();
 	public readonly StudioHWData HardwareData = new();
 
-	public byte[]? VertexCache = null;
+	public VertexFileHeader? VertexCache = null;
 
 	public StudioDataFlags Flags;
 	public int RefCount;
@@ -44,19 +44,19 @@ public class StudioData
 
 public class MDLCache(IFileSystem fileSystem) : IMDLCache
 {
-	static readonly ConVar r_rootlod = new( "r_rootlod", "0", FCvar.Archive, "Root LOD", 0, Studio.MAX_NUM_LODS );
-	static readonly ConVar mod_forcedata = new( "mod_forcedata", "0",	0, "Forces all model file data into cache on model load." );
-	static readonly ConVar mod_test_not_available = new( "mod_test_not_available", "0", FCvar.Cheat);
-	static readonly ConVar mod_test_mesh_not_available = new( "mod_test_mesh_not_available", "0", FCvar.Cheat);
-	static readonly ConVar mod_test_verts_not_available = new( "mod_test_verts_not_available", "0", FCvar.Cheat);
+	static readonly ConVar r_rootlod = new("r_rootlod", "0", FCvar.Archive, "Root LOD", 0, Studio.MAX_NUM_LODS);
+	static readonly ConVar mod_forcedata = new("mod_forcedata", "0", 0, "Forces all model file data into cache on model load.");
+	static readonly ConVar mod_test_not_available = new("mod_test_not_available", "0", FCvar.Cheat);
+	static readonly ConVar mod_test_mesh_not_available = new("mod_test_mesh_not_available", "0", FCvar.Cheat);
+	static readonly ConVar mod_test_verts_not_available = new("mod_test_verts_not_available", "0", FCvar.Cheat);
 	// these do nothing for onw
-	static readonly ConVar mod_load_mesh_async = new( "mod_load_mesh_async", "0", 0);
-	static readonly ConVar mod_load_anims_async = new( "mod_load_anims_async", "0", 0);
-	static readonly ConVar mod_load_vcollide_async = new( "mod_load_vcollide_async", "0", 0);
+	static readonly ConVar mod_load_mesh_async = new("mod_load_mesh_async", "0", 0);
+	static readonly ConVar mod_load_anims_async = new("mod_load_anims_async", "0", 0);
+	static readonly ConVar mod_load_vcollide_async = new("mod_load_vcollide_async", "0", 0);
 
-	static readonly ConVar mod_trace_load = new( "mod_trace_load", "0", 0);
-	static readonly ConVar mod_lock_mdls_on_load = new( "mod_lock_mdls_on_load", "0", 0);
-	static readonly ConVar mod_load_fakestall = new( "mod_load_fakestall", "0", 0, "Forces all ANI file loading to stall for specified ms\n");
+	static readonly ConVar mod_trace_load = new("mod_trace_load", "0", 0);
+	static readonly ConVar mod_lock_mdls_on_load = new("mod_lock_mdls_on_load", "0", 0);
+	static readonly ConVar mod_load_fakestall = new("mod_load_fakestall", "0", 0, "Forces all ANI file loading to stall for specified ms\n");
 
 	public int AddRef(MDLHandle_t handle) {
 		return ++HandleToMDLDict[handle].RefCount;
@@ -129,7 +129,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		throw new NotImplementedException();
 	}
 
-	public short[] GetAutoplayList(uint handle) {
+	public short[] GetAutoplayList(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
@@ -137,8 +137,50 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		throw new NotImplementedException();
 	}
 
-	public StudioHWData GetHardwareData(uint handle) {
-		throw new NotImplementedException();
+	public StudioHWData? GetHardwareData(MDLHandle_t handle) {
+		StudioData studioData = HandleToMDLDict[handle];
+
+		if ((studioData.Flags & (StudioDataFlags.StudioMeshLoaded | StudioDataFlags.NoStudioMesh)) == 0)
+			if (!LoadHardwareData(handle))
+				return null;
+
+		if ((studioData.Flags & StudioDataFlags.NoStudioMesh) != 0)
+			return null;
+
+		return studioData.HardwareData;
+	}
+
+	private bool LoadHardwareData(MDLHandle_t handle) {
+		StudioData studioData = HandleToMDLDict[handle];
+
+		StudioHDR? studioHdr = GetStudioHdr(handle);
+		if (studioHdr == null || studioHdr.NumBodyParts == 0) {
+			studioData.Flags |= StudioDataFlags.NoStudioMesh;
+			return true;
+		}
+
+		if ((studioData.Flags & StudioDataFlags.NoStudioMesh) != 0) {
+			return false;
+		}
+
+		// Vertex data is required to call LoadModel(), so make sure that's ready
+		if (GetVertexData(handle) == null) {
+			if ((studioData.Flags & StudioDataFlags.NoVertexData) != 0)
+				studioData.Flags |= StudioDataFlags.NoStudioMesh;
+
+			return false;
+		}
+
+		Span<char> fileName = stackalloc char[MAX_PATH];
+		MakeFilename(handle, GetVTXExtension(), fileName);
+
+		Msg($"MDLCache: Begin load VTX {GetModelName(handle)}\n");
+
+		return false;
+	}
+
+	private ReadOnlySpan<char> GetVTXExtension() {
+		return ".dx90.vtx";
 	}
 
 	public ReadOnlySpan<char> GetModelName(MDLHandle_t handle) {
@@ -185,7 +227,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 
 	public const int IDSTUDIOHEADER = (('T' << 24) + ('S' << 16) + ('D' << 8) + 'I');
 
-	private bool ReadMDLFile(uint handle, ReadOnlySpan<char> mdlFileName, MemoryStream buf) {
+	private bool ReadMDLFile(MDLHandle_t handle, ReadOnlySpan<char> mdlFileName, MemoryStream buf) {
 		Span<char> fileName = stackalloc char[MAX_PATH];
 		strcpy(fileName, mdlFileName);
 		StrTools.FixSlashes(fileName);
@@ -398,7 +440,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		Msg($"MDLCache: {(asyncLoad ? "Async" : "Sync")} load vcollide {GetModelName(handle)}\n");
 	}
 
-	private void MakeFilename(uint handle, ReadOnlySpan<char> extension, Span<char> fileName) {
+	private void MakeFilename(MDLHandle_t handle, ReadOnlySpan<char> extension, Span<char> fileName) {
 		strcpy(fileName, GetActualModelName(handle));
 		StrTools.SetExtension(fileName, extension);
 		StrTools.FixSlashes(fileName);
@@ -409,8 +451,14 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		throw new NotImplementedException();
 	}
 
-	public VertexFileHeader GetVertexData(uint handle) {
-		throw new NotImplementedException();
+	public VertexFileHeader? GetVertexData(MDLHandle_t handle) {
+		if (mod_test_not_available.GetBool())
+			return null;
+
+		if (mod_test_verts_not_available.GetBool())
+			return null;
+
+		return CacheVertexData(GetStudioHdr(handle));
 	}
 
 	public VirtualModel? GetVirtualModel(MDLHandle_t handle) {
@@ -454,7 +502,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		return studioData.VirtualModel;
 	}
 
-	private VirtualModel AllocateVirtualModel(uint handle) {
+	private VirtualModel AllocateVirtualModel(MDLHandle_t handle) {
 		StudioData studioData = HandleToMDLDict[handle];
 		Assert(studioData.VirtualModel == null);
 		studioData.VirtualModel = new VirtualModel();
@@ -529,7 +577,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		return nRefCount;
 	}
 
-	private void ShutdownStudioData(uint handle) {
+	private void ShutdownStudioData(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
@@ -578,8 +626,55 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		}
 	}
 
-	private void CacheVertexData(StudioHDR studioHdr) {
-		// todo
+	private VertexFileHeader? CacheVertexData(StudioHDR? studioHdr) {
+		VertexFileHeader? vvdHdr;
+		Assert(studioHdr != null);
+		MDLHandle_t handle = studioHdr.VirtualModel;
+
+
+		Assert(handle != MDLHANDLE_INVALID);
+
+		vvdHdr = HandleToMDLDict[handle].VertexCache;
+		if (vvdHdr != null)
+			return vvdHdr;
+
+		HandleToMDLDict[handle].VertexCache = null;
+
+		return LoadVertexData(studioHdr);
+	}
+
+	private VertexFileHeader? LoadVertexData(StudioHDR studioHdr) {
+		Span<char> fileName = stackalloc char[MAX_PATH];
+		MDLHandle_t handle = studioHdr.VirtualModel;
+		Assert(HandleToMDLDict[handle].VertexCache == null);
+
+		StudioData studioData = HandleToMDLDict[handle];
+
+		if ((studioData.Flags & StudioDataFlags.NoVertexData) != 0)
+			return null;
+
+		// load the VVD file
+		// use model name for correct path
+		MakeFilename(handle, ".vvd", fileName);
+
+		Msg($"MDLCache: Begin load VVD {fileName}\n");
+		MemoryStream vvdHeader = new();
+		if (!ReadFileNative(fileName, "GAME", vvdHeader))
+			return null;
+
+		vvdHeader.Position = 0;
+		HandleToMDLDict[handle].VertexCache = ReadVertices(vvdHeader);
+		return HandleToMDLDict[handle].VertexCache;
+	}
+
+	private VertexFileHeader ReadVertices(MemoryStream ms) {
+		// Justification for GetInternalArray: If the buffer won't have any changes made to it, then we don't need
+		// to store another copy of the byte data and can use the MemoryStream's array. When MemoryStream disposes,
+		// the internal array will still remain ref'd by the Memory<byte>.
+		VertexFileHeader vvdHeader = new(ms.GetInternalArray());
+		// TODO: Can we simplify reading the .mdl into a constructor like this?
+
+		return vvdHeader;
 	}
 
 	public void UnlockStudioHdr(MDLHandle_t handle) {
