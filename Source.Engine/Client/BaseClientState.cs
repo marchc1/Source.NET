@@ -589,7 +589,7 @@ public abstract class BaseClientState(
 		return true;
 	}
 
-	private bool ProcessTick(NET_Tick msg) {
+	protected virtual bool ProcessTick(NET_Tick msg) {
 		NetChannel.SetRemoteFramerate(msg.HostFrameTime, msg.HostFrameDeviation);
 		SetClientTickCount(msg.Tick);
 		SetServerTickCount(msg.Tick);

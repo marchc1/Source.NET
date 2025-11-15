@@ -133,6 +133,11 @@ public partial class CL
 	internal void Shutdown() {
 
 	}
+
+	internal void ReallocateDynamicData(int maxClients) {
+		if (entitylist != null)
+			entitylist.SetMaxEntities(Constants.MAX_EDICTS);
+	}
 }
 
 enum EntitySort
