@@ -37,10 +37,27 @@ public class StudioData
 	public VirtualModel? VirtualModel;
 
 	public object? UserData;
+
+	public int AnimBlockCount;
+	public object? AnimBlock; // todo: research what this is
 }
 
 public class MDLCache(IFileSystem fileSystem) : IMDLCache
 {
+	static readonly ConVar r_rootlod = new( "r_rootlod", "0", FCvar.Archive, "Root LOD", 0, Studio.MAX_NUM_LODS );
+	static readonly ConVar mod_forcedata = new( "mod_forcedata", "0",	0, "Forces all model file data into cache on model load." );
+	static readonly ConVar mod_test_not_available = new( "mod_test_not_available", "0", FCvar.Cheat);
+	static readonly ConVar mod_test_mesh_not_available = new( "mod_test_mesh_not_available", "0", FCvar.Cheat);
+	static readonly ConVar mod_test_verts_not_available = new( "mod_test_verts_not_available", "0", FCvar.Cheat);
+	// these do nothing for onw
+	static readonly ConVar mod_load_mesh_async = new( "mod_load_mesh_async", "0", 0);
+	static readonly ConVar mod_load_anims_async = new( "mod_load_anims_async", "0", 0);
+	static readonly ConVar mod_load_vcollide_async = new( "mod_load_vcollide_async", "0", 0);
+
+	static readonly ConVar mod_trace_load = new( "mod_trace_load", "0", 0);
+	static readonly ConVar mod_lock_mdls_on_load = new( "mod_lock_mdls_on_load", "0", 0);
+	static readonly ConVar mod_load_fakestall = new( "mod_load_fakestall", "0", 0, "Forces all ANI file loading to stall for specified ms\n");
+
 	public int AddRef(MDLHandle_t handle) {
 		return ++HandleToMDLDict[handle].RefCount;
 	}
@@ -348,9 +365,9 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 				for (int i = 1; i < virtualModel.Group.Count; i++) {
 					MDLHandle_t sharedHandle = (MDLHandle_t)virtualModel.Group[i].Cache!;
 					StudioData data = HandleToMDLDict[sharedHandle];
-					if ((data.Flags & StudioDataFlags.VCollisionLoaded) == 0) 
+					if ((data.Flags & StudioDataFlags.VCollisionLoaded) == 0)
 						UnserializeVCollide(sharedHandle, synchronousLoad);
-					
+
 					if (data.VCollisionData.SolidCount > 0) {
 						data.VCollisionData.CopyInstantiatedReferenceTo(studioData.VCollisionData);
 						studioData.Flags |= StudioDataFlags.VCollisionShared;
@@ -382,12 +399,56 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		throw new NotImplementedException();
 	}
 
-	public VirtualModel GetVirtualModel(MDLHandle_t handle) {
-		throw new NotImplementedException();
+	public VirtualModel? GetVirtualModel(MDLHandle_t handle) {
+		if (mod_test_not_available.GetBool())
+			return null;
+
+		if (handle == MDLHANDLE_INVALID)
+			return null;
+
+		StudioHDR? studioHdr = GetStudioHdr(handle);
+
+		if (studioHdr == null)
+			return null;
+
+		return GetVirtualModelFast(studioHdr, handle);
 	}
 
-	public VirtualModel GetVirtualModelFast(StudioHDR studioHdr, MDLHandle_t handle) {
-		throw new NotImplementedException();
+	public VirtualModel? GetVirtualModelFast(StudioHDR studioHdr, MDLHandle_t handle) {
+		if (studioHdr.NumIncludeModels == 0)
+			return null;
+
+		if (!HandleToMDLDict.TryGetValue(handle, out StudioData? studioData))
+			return null;
+
+		if (studioData.VirtualModel == null) {
+			DevMsg(2, $"Loading virtual model for {studioHdr.GetName()}\n");
+
+			studioData.VirtualModel = AllocateVirtualModel(handle);
+
+			// Group has to be zero to ensure refcounting is correct
+			var group = studioData.VirtualModel.Group.Count;
+			studioData.VirtualModel.Group.Add(new());
+
+			Assert(group == 0);
+			studioData.VirtualModel.Group[group].Cache = handle;
+
+			// Add all dependent data
+			studioData.VirtualModel.AppendModels(0, studioHdr);
+		}
+
+		return studioData.VirtualModel;
+	}
+
+	private VirtualModel AllocateVirtualModel(uint handle) {
+		StudioData studioData = HandleToMDLDict[handle];
+		Assert(studioData.VirtualModel == null);
+		studioData.VirtualModel = new VirtualModel();
+
+		Assert(studioData.AnimBlockCount == 0);
+		Assert(studioData.AnimBlock == null);
+
+		return studioData.VirtualModel;
 	}
 
 	public void InitPreloadData(bool rebuild) {

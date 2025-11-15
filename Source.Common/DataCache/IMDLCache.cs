@@ -61,7 +61,7 @@ public interface IMDLCache
 
 	ReadOnlySpan<char> GetModelName(MDLHandle_t handle);
 
-	VirtualModel GetVirtualModelFast(StudioHDR studioHdr, MDLHandle_t handle);
+	VirtualModel? GetVirtualModelFast(StudioHDR studioHdr, MDLHandle_t handle);
 
 	void BeginLock();
 	void EndLock();

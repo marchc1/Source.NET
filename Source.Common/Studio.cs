@@ -200,6 +200,15 @@ public class StudioHDR
 	public int CDTextureIndex;
 	public ReadOnlySpan<char> CDTexture(int i) => new(); // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO 
 
+	/// <summary>
+	/// pszName equiv
+	/// </summary>
+	public ReadOnlySpan<char> GetName() {
+		// TODO: studiohdr2 index
+
+		return ((ReadOnlySpan<char>)Name).SliceNullTerminatedString();
+	}
+
 	public int NumSkinRef;
 	public int NumSkinFamilies;
 	public int SkinIndex;
