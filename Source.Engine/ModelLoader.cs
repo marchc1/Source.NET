@@ -215,10 +215,8 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 
 		double st = Platform.Time;
 		mod.StrName.String()!.FileBase(LoadName);
-		DevMsg($"Loading: {mod.StrName.String()}\n");
-
-		if (!Map_IsValid(mod.StrName))
-			return null;
+		if(Host.developer.GetInt() > 1)
+			DevMsg($"Loading: {mod.StrName.String()}\n");
 
 		mod.Type = GetTypeFromName(mod.StrName);
 		if (mod.Type == ModelType.Invalid)
