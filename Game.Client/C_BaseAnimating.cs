@@ -181,6 +181,10 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		// todo
 	}
+	public override void ValidateModelIndex() {
+		base.ValidateModelIndex();
+		Assert(ModelIndex == 0);
+	}
 	public virtual bool IsViewModel() => false;
 	public override void NotifyShouldTransmit(ShouldTransmiteState state) {
 		base.NotifyShouldTransmit(state);

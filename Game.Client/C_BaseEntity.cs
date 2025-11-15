@@ -233,7 +233,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public static RecvTable DT_PredictableId = new(nameof(DT_PredictableId), [
 		RecvPropPredictableId(FIELD.OF(nameof(PredictableId))),
-		RecvPropInt(FIELD.OF(nameof(IsPlayerSimulated))),
+		RecvPropInt(FIELD.OF(nameof(b_IsPlayerSimulated))),
 	]);
 	public static readonly ClientClass CC_PredictableId = new ClientClass("PredictableId", null, null, DT_PredictableId);
 
@@ -390,7 +390,6 @@ public partial class C_BaseEntity : IClientEntity
 	public bool AlternateSorting;
 
 	public readonly PredictableId PredictableId = new();
-	public readonly bool IsPlayerSimulated;
 
 	public byte TakeDamage;
 	public ushort RealClassName;
@@ -545,7 +544,9 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public Model? GetModel() => Model;
-
+	public virtual void ValidateModelIndex() {
+		SetModelByIndex(ModelIndex);
+	}
 	void SetModelPointer(Model? model) {
 		if (model != Model) {
 			DestroyModelInstance();
@@ -724,7 +725,7 @@ public partial class C_BaseEntity : IClientEntity
 
 		MarkMessageReceived();
 
-		// ValidateModelIndex();
+		ValidateModelIndex();
 
 		if (updateType == DataUpdateType.Created) {
 			ProxyRandomValue = Random.Shared.NextSingle();

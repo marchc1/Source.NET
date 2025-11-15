@@ -129,6 +129,9 @@ public partial class
 	public static bool IsSimulatingOnAlternateTicks() => false; // TODO
 
 	public bool IsAlive() => LifeState == (int)Source.LifeState.Alive;
+
+	protected bool b_IsPlayerSimulated;
+	public bool IsPlayerSimulated() => b_IsPlayerSimulated;
 }
 
 #endif
