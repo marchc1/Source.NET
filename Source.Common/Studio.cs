@@ -184,7 +184,7 @@ public class VertexFileHeader
 
 	public VertexFileHeader(byte[] data) {
 		Data = data;
-		using BinaryReader br = new(new MemoryStream(data));
+		using BinaryReader br = new(new MemoryStream(data), System.Text.Encoding.ASCII);
 		ID = br.ReadInt32();
 		Version = br.ReadInt32();
 		Checksum = br.ReadInt32();

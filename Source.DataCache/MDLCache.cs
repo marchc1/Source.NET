@@ -280,7 +280,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 			// and that's what's being set here
 			Data = new(buf.GetBuffer())
 		};
-		using BinaryReader br = new(buf);
+		using BinaryReader br = new(buf, System.Text.Encoding.ASCII);
 		header.ID = br.ReadInt32();
 		header.Version = br.ReadInt32();
 		header.Checksum = br.ReadInt32();
