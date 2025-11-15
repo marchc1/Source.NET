@@ -19,4 +19,5 @@ public interface IClientRenderable {
 	ref ClientRenderHandle_t RenderHandle();
 	IPVSNotify? GetPVSNotifyInterface();
 	void ComputeFxBlend();
+	bool IsTwoPass();
 }

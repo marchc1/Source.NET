@@ -1,4 +1,5 @@
 ﻿using Source.Common;
+using Source.Common.Engine;
 
 namespace Game.Client;
 
@@ -45,5 +46,9 @@ public partial class C_BaseViewModel
 		}
 
 		return ret;
+	}
+	public override bool IsViewModel() => true;
+	public override RenderGroup GetRenderGroup() {
+		return RenderGroup.ViewModelOpaque;
 	}
 }

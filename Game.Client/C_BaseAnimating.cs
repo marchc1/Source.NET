@@ -168,6 +168,30 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return drawn;
 	}
 
+	void DisableMuzzleFlash() {
+
+	}
+
+	int PrevNewSequenceParity;
+	int PrevResetEventsParity;
+
+	public int GetSequence() => Sequence;
+	protected override void UpdateVisibility() {
+		base.UpdateVisibility();
+
+		// todo
+	}
+	public virtual bool IsViewModel() => false;
+	public override void NotifyShouldTransmit(ShouldTransmiteState state) {
+		base.NotifyShouldTransmit(state);
+
+		if(state == ShouldTransmiteState.Start) {
+			DisableMuzzleFlash();
+
+			PrevResetEventsParity = ResetEventsParity;
+			EventSequence = GetSequence();
+		}
+	}
 	public override void GetAimEntOrigin(C_BaseEntity attachedTo, out Vector3 origin, out QAngle angles) {
 		C_BaseEntity? moveParent = null;
 		if(IsEffectActive(EntityEffects.BoneMerge) && IsEffectActive(EntityEffects.BoneMergeFastCull) && (moveParent = GetMoveParent()) != null) {

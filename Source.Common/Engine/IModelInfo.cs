@@ -10,4 +10,5 @@ public interface IModelInfo
 public interface IModelInfoClient : IModelInfo
 {
 	ModelType GetModelType(Model? model);
+	bool IsTranslucentTwoPass(Model? model);
 }

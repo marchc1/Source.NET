@@ -25,6 +25,9 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 
 		return modelloader.GetName(model);
 	}
+	public bool IsTranslucentTwoPass(Model? model) {
+		return model != null && (model.Flags & ModelFlag.TranslucentTwoPass) != 0;
+	}
 	public ModelType GetModelType(Model? model) {
 		if (model == null)
 			return (ModelType)(-1);

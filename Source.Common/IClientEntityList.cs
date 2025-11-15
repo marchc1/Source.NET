@@ -11,4 +11,5 @@ public interface IClientEntityList {
 	void SetMaxEntities(int maxEnts);
 	int GetMaxEntities();
 	IHandleEntity? LookupEntity(BaseHandle index);
+	BaseHandle? InvalidHandle();
 }

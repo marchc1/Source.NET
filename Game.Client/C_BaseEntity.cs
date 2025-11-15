@@ -361,6 +361,8 @@ public partial class C_BaseEntity : IClientEntity
 		Clear();
 	}
 
+	public virtual bool IsTwoPass() => modelinfo.IsTranslucentTwoPass(GetModel());
+
 	public int Index;
 
 	private Model? Model;
@@ -794,7 +796,53 @@ public partial class C_BaseEntity : IClientEntity
 		UpdateVisibility();
 	}
 
-	private void UpdateVisibility() {
+	public BaseHandle? GetClientHandle() => RefEHandle;
+
+	public bool InitializeAsClientEntity(ReadOnlySpan<char> modelName, RenderGroup renderGroup) {
+		int modelIndex;
+
+		if (!modelName.IsEmpty) {
+			modelIndex = modelinfo.GetModelIndex(modelName);
+
+			if (modelIndex == -1) {
+				// Model could not be found
+				AssertMsg(false, "Model could not be found, index is -1");
+				return false;
+			}
+		}
+		else 
+			modelIndex = -1;
+
+		Interp_SetupMappings(ref GetVarMapping());
+		return InitializeAsClientEntityByIndex(modelIndex, renderGroup);
+	}
+
+	public bool InitializeAsClientEntityByIndex(int index, RenderGroup renderGroup) {
+		this.Index = -1;
+
+		// Setup model data.
+		SetModelByIndex(index);
+
+		// Add the client entity to the master entity list.
+		cl_entitylist.AddNonNetworkableEntity(GetIClientUnknown());
+		Assert(GetClientHandle() != cl_entitylist.InvalidHandle());
+
+		// Add the client entity to the renderable "leaf system." (Renderable)
+		AddToLeafSystem(renderGroup);
+
+		// Add the client entity to the spatial partition. (Collidable)
+		// CollisionProp()->CreatePartitionHandle();
+
+		SpawnClientEntity();
+
+		return true;
+	}
+
+	public virtual void SpawnClientEntity() {
+
+	}
+
+	protected virtual void UpdateVisibility() {
 		// todo: tools
 		if (ShouldDraw() && !IsDormant())
 			AddToLeafSystem();
@@ -807,7 +855,7 @@ public partial class C_BaseEntity : IClientEntity
 	public ClientRenderHandle_t GetRenderHandle() => renderHandle;
 	public ref ClientRenderHandle_t RenderHandle() => ref renderHandle;
 
-	public RenderGroup GetRenderGroup() {
+	public virtual RenderGroup GetRenderGroup() {
 		if (RenderMode == (int)Source.RenderMode.None)
 			return RenderGroup.OpaqueEntity;
 
@@ -832,7 +880,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 
-	public void NotifyShouldTransmit(ShouldTransmiteState state) {
+	public virtual void NotifyShouldTransmit(ShouldTransmiteState state) {
 		if (EntIndex() < 0)
 			return;
 

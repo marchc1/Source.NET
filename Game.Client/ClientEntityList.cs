@@ -140,6 +140,7 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 
 	}
 
+	public BaseHandle? InvalidHandle() => null;
 
 	class PVSNotifyInfo
 	{

@@ -7,7 +7,8 @@ using System.Runtime.InteropServices;
 
 namespace Game.Client;
 
-public enum RenderFlags : byte {
+public enum RenderFlags : byte
+{
 	TwoPass = 0x01,
 	StaticProp = 0x02,
 	BrushModel = 0x04,
@@ -32,7 +33,8 @@ public struct RenderableInfo
 	public ViewID TranslucencyCalculatedView;
 }
 
-public struct ClientLeaf {
+public struct ClientLeaf
+{
 	public uint FirstElement;
 	public uint FirstShadow;
 	public ushort FirstDetailProp;
@@ -60,7 +62,8 @@ public class EnumResultList
 	public ClientRenderHandle_t Handle;
 }
 
-class RenderableInfoBox {
+class RenderableInfoBox
+{
 	public RenderableInfo Info = new();
 }
 
@@ -70,14 +73,19 @@ public class ClientLeafSystem : IClientLeafSystem
 	readonly List<ClientRenderHandle_t> DirtyRenderables = [];
 	readonly List<ClientRenderHandle_t> ViewModels = [];
 	readonly Dictionary<ClientRenderHandle_t, RenderableInfoBox> Renderables = [];
-	ClientRenderHandle_t handle;
-	ClientRenderHandle_t AllocHandle() => Interlocked.Increment(ref handle);
+	readonly HashSet<ClientRenderHandle_t> ValidHandles = [];
+	ClientRenderHandle_t curHandleIdx;
+	ClientRenderHandle_t AllocHandle() {
+		ClientRenderHandle_t handle = Interlocked.Increment(ref curHandleIdx);
+		ValidHandles.Add(handle);
+		return handle;
+	}
 
 
 
 	public void AddRenderable(IClientRenderable renderable, RenderGroup group) {
 		RenderFlags flags = RenderFlags.HasChanged;
-		if(group == RenderGroup.TwoPass) {
+		if (group == RenderGroup.TwoPass) {
 			group = RenderGroup.TranslucentEntity;
 			flags |= RenderFlags.TwoPass;
 		}
@@ -93,15 +101,16 @@ public class ClientLeafSystem : IClientLeafSystem
 
 		ClientRenderHandle_t handle = AllocHandle();
 		Renderables[handle] = new();
+		ValidHandles.Add(handle);
 		ref RenderableInfo info = ref Renderables[handle].Info;
 
 		// We need to know if it's a brush model for shadows
 		ModelType modelType = modelinfo.GetModelType(renderable.GetModel());
-		if (modelType == ModelType.Brush) 
+		if (modelType == ModelType.Brush)
 			flags |= RenderFlags.BrushModel;
-		else if (modelType == ModelType.Studio) 
+		else if (modelType == ModelType.Studio)
 			flags |= RenderFlags.StudioModel;
-		
+
 		info.Renderable = renderable;
 		info.RenderFrame = -1;
 		info.RenderFrame2 = -1;
@@ -113,7 +122,7 @@ public class ClientLeafSystem : IClientLeafSystem
 		info.RenderGroup = type;
 		info.EnumCount = 0;
 		info.RenderLeaf = unchecked((uint)-1);
-		if (IsViewModelRenderGroup(info.RenderGroup)) 
+		if (IsViewModelRenderGroup(info.RenderGroup))
 			AddToViewModelList(handle);
 
 		renderable.RenderHandle() = handle;
@@ -141,7 +150,23 @@ public class ClientLeafSystem : IClientLeafSystem
 	}
 
 	public void CreateRenderableHandle(IClientRenderable? renderable, bool bIsStaticProp = false) {
-		throw new NotImplementedException();
+		RenderGroup group = renderable!.IsTransparent() ? RenderGroup.TranslucentEntity : RenderGroup.OpaqueEntity;
+
+		bool bTwoPass = false;
+		if (group == RenderGroup.TranslucentEntity)
+			bTwoPass = renderable.IsTwoPass();
+
+		RenderFlags flags = 0;
+		if (bIsStaticProp) {
+			flags = RenderFlags.StaticProp;
+			if (group == RenderGroup.OpaqueEntity)
+				group = RenderGroup.OpaqueStatic;
+		}
+
+		if (bTwoPass) 
+			flags |= RenderFlags.TwoPass;
+
+		NewRenderable(renderable, group, flags);
 	}
 
 	public void EnableAlternateSorting(ClientRenderHandle_t renderHandle, bool alternateSorting) {
@@ -201,7 +226,29 @@ public class ClientLeafSystem : IClientLeafSystem
 	}
 
 	public void RenderableChanged(ClientRenderHandle_t handle) {
-		throw new NotImplementedException();
+		if (!ValidHandles.Contains(handle))
+			return;
+
+		IClientRenderable renderable = Renderables[handle].Info.Renderable!;
+		renderable.RenderHandle() = INVALID_CLIENT_RENDER_HANDLE;
+
+		if ((Renderables[handle].Info.Flags & RenderFlags.HasChanged) != 0) {
+			var i = DirtyRenderables.IndexOf(handle);
+			Assert(i != -1);
+			DirtyRenderables.RemoveAt(i);
+		}
+
+		if (IsViewModelRenderGroup(Renderables[handle].Info.RenderGroup))
+			RemoveFromViewModelList(handle);
+
+		ValidHandles.Remove(handle);
+		Renderables.Remove(handle);
+	}
+
+	private void RemoveFromViewModelList(long handle) {
+		int i = ViewModels.IndexOf(handle);
+		Assert(i != -1);
+		ViewModels.RemoveAt(i);
 	}
 
 	public void SafeRemoveIfDesired() {
