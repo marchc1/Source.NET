@@ -236,7 +236,7 @@ public class StudioHDR
 	public int NumLocalIKAutoplayLocks;
 	public int LocalIKAutoplayLockIndex;
 
-	public int Mass;
+	public float Mass;
 	public int Contents;
 
 	public int NumIncludeModels;
@@ -254,7 +254,7 @@ public class StudioHDR
 	public int IndexBase;
 	public byte ConstDirectionalLightDot;
 	public byte RootLOD;
-	public byte NumALlowedRootLODs;
+	public byte NumAllowedRootLODs;
 	byte _UNUSED1;
 	public int StudioHDR2Index;
 	byte _UNUSED2;

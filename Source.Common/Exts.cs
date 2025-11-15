@@ -567,6 +567,13 @@ public static class ClassUtils
 		}
 		return true;
 	}
+	public static unsafe int ReadASCIIStringInto(this BinaryReader reader, Span<char> into)
+		=> ReadASCIIStringInto(reader, into, into.Length);
+	public static unsafe int ReadASCIIStringInto(this BinaryReader reader, Span<char> into, int maxLength) {
+		Span<byte> asciiBlock = stackalloc byte[maxLength];
+		reader.Read(asciiBlock);
+		return Encoding.ASCII.GetChars(asciiBlock, into);
+	}
 	public static unsafe bool ReadInto<T>(this BinaryReader reader, ref T into) where T : unmanaged {
 		int sizeOfOne = sizeof(T);
 		Span<byte> byteAlloc = stackalloc byte[sizeOfOne];

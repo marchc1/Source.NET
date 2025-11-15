@@ -72,6 +72,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		Span<char> fixedName = stackalloc char[MAX_PATH];
 		strcpy(fixedName, mdlRelativePath);
 		StrTools.RemoveDotSlashes(fixedName, '/');
+		fixedName = fixedName.SliceNullTerminatedString();
 
 		UtlSymbol fixedNameHash = new(fixedName);
 		if (!FileToMDLDict.TryGetValue(fixedNameHash, out var info)) {
@@ -188,7 +189,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		}
 
 		studioHdr.VirtualModel = handle;
-		
+
 		if (!VerifyHeaders(studioHdr)) {
 			DevWarning($"Model {mdlFileName} has mismatched .vvd + .vtx files!\n");
 			return false;
@@ -207,6 +208,79 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		using BinaryReader br = new(buf);
 		header.ID = br.ReadInt32();
 		header.Version = br.ReadInt32();
+		header.Checksum = br.ReadInt32();
+		br.ReadASCIIStringInto(header.Name);
+		header.Length = br.ReadInt32();
+
+		br.ReadInto(ref header.EyePosition);
+		br.ReadInto(ref header.IllumPosition);
+		br.ReadInto(ref header.HullMin);
+		br.ReadInto(ref header.HullMax);
+		br.ReadInto(ref header.ViewBoundingBoxMin);
+		br.ReadInto(ref header.ViewBoundingBoxMax);
+
+		header.Flags = (StudioHdrFlags)br.ReadInt32();
+
+		header.NumBones = br.ReadInt32();
+		header.BoneIndex = br.ReadInt32();
+		header.NumBoneControllers = br.ReadInt32();
+		header.BoneControllerIndex = br.ReadInt32();
+		header.NumHitboxSets = br.ReadInt32();
+		header.HitboxSetIndex = br.ReadInt32();
+		header.NumLocalAnim = br.ReadInt32();
+		header.LocalAnimIndex = br.ReadInt32();
+		header.NumLocalSeq = br.ReadInt32();
+		header.LocalSeqIndex = br.ReadInt32();
+		header.ActivityListVersion = br.ReadInt32();
+		header.EventsIndexed = br.ReadInt32();
+		header.NumTextures = br.ReadInt32();
+		header.TextureIndex = br.ReadInt32();
+
+		header.NumCDTextures = br.ReadInt32();
+		header.CDTextureIndex = br.ReadInt32();
+		header.NumSkinRef = br.ReadInt32();
+		header.NumSkinFamilies = br.ReadInt32();
+		header.SkinIndex = br.ReadInt32();
+		header.NumBodyParts = br.ReadInt32();
+		header.BodyPartIndex = br.ReadInt32();
+		header.NumLocalNodes = br.ReadInt32();
+		header.LocalNodeIndex = br.ReadInt32();
+		header.LocalNodeNameIndex = br.ReadInt32();
+		header.NumFlexDesc = br.ReadInt32();
+		header.FlexDescIndex = br.ReadInt32();
+		header.NumFlexControllers = br.ReadInt32();
+		header.FlexControllerIndex = br.ReadInt32();
+		header.NumFlexRules = br.ReadInt32();
+		header.FlexRuleIndex = br.ReadInt32();
+		header.NumIKChains = br.ReadInt32();
+		header.IKChainIndex = br.ReadInt32();
+		header.NumMouths = br.ReadInt32();
+		header.MouthIndex = br.ReadInt32();
+		header.NumLocalPoseParameters = br.ReadInt32();
+		header.LocalPoseParamIndex = br.ReadInt32();
+		header.SurfacePropIndex = br.ReadInt32();
+		header.KeyValueIndex = br.ReadInt32();
+		header.KeyValueSize = br.ReadInt32();
+		header.NumLocalIKAutoplayLocks = br.ReadInt32();
+		header.LocalIKAutoplayLockIndex = br.ReadInt32();
+		header.Mass = br.ReadSingle();
+		header.Contents = br.ReadInt32();
+		header.NumIncludeModels = br.ReadInt32();
+		header.IncludeModelIndex = br.ReadInt32();
+
+		header.SzAnimBlockNameIndex = br.ReadInt32();
+		header.NumAnimBlocks = br.ReadInt32();
+		header.AnimBlockIndex = br.ReadInt32();
+		header.AnimBlockModel = br.ReadInt32();
+		header.BoneTableByNameIndex = br.ReadInt32();
+		header.VertexBase = br.ReadInt32();
+		header.IndexBase = br.ReadInt32();
+		header.ConstDirectionalLightDot = br.ReadByte();
+		header.RootLOD = br.ReadByte();
+		header.NumAllowedRootLODs = br.ReadByte();
+		br.ReadNothing(1);
+		header.StudioHDR2Index = br.ReadInt32();
+		br.ReadNothing(1);
 
 		return header;
 	}
@@ -217,6 +291,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 			return false;
 
 		file.Stream.CopyTo(buf);
+		buf.Position = 0;
 		return true;
 	}
 
