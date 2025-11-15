@@ -1,5 +1,10 @@
-﻿using Source.Common;
+﻿using SevenZip.Buffer;
+
+using Source.Common;
+using Source.Common.Commands;
 using Source.Common.DataCache;
+using Source.Common.Filesystem;
+using Source.Common.Utilities;
 
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -10,14 +15,15 @@ public enum StudioDataFlags : ushort
 {
 	StudioMeshLoaded = 0x0001,
 	VCollisionLoaded = 0x0002,
-	Model = 0x0004,
+	ErrorModel = 0x0004,
 	NoStudioMesh = 0x0008,
 	NoVertexData = 0x0010,
 	VCollisionShared = 0x0020,
 	LockedMDL = 0x0040,
 }
 
-public class StudioData {
+public class StudioData
+{
 	public MDLHandle_t Handle;
 
 	public StudioHDR? Header = null;
@@ -33,7 +39,7 @@ public class StudioData {
 	public object? UserData;
 }
 
-public class MDLCache : IMDLCache
+public class MDLCache(IFileSystem fileSystem) : IMDLCache
 {
 	public int AddRef(MDLHandle_t handle) {
 		return ++HandleToMDLDict[handle].RefCount;
@@ -56,7 +62,8 @@ public class MDLCache : IMDLCache
 	}
 
 	readonly ConcurrentDictionary<UtlSymId_t, StudioData> FileToMDLDict = [];
-	readonly ConcurrentDictionary<UtlSymId_t, StudioData> HandleToMDLDict = [];
+	readonly ConcurrentDictionary<MDLHandle_t, UtlSymbol> HandleToFileDict = [];
+	readonly ConcurrentDictionary<MDLHandle_t, StudioData> HandleToMDLDict = [];
 	MDLHandle_t curHandle;
 	MDLHandle_t NewHandle() => Interlocked.Increment(ref curHandle);
 
@@ -66,10 +73,11 @@ public class MDLCache : IMDLCache
 		strcpy(fixedName, mdlRelativePath);
 		StrTools.RemoveDotSlashes(fixedName, '/');
 
-		UtlSymId_t fixedNameHash = fixedName.Hash();
+		UtlSymbol fixedNameHash = new(fixedName);
 		if (!FileToMDLDict.TryGetValue(fixedNameHash, out var info)) {
 			info = InitStudioData(NewHandle());
 			FileToMDLDict.TryAdd(fixedNameHash, info);
+			HandleToFileDict.TryAdd(info.Handle, fixedNameHash);
 		}
 
 		AddRef(info.Handle);
@@ -122,9 +130,104 @@ public class MDLCache : IMDLCache
 	public int GetRef(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
+	const string ERROR_MODEL = "models/error.mdl";
+	public StudioHDR? GetStudioHdr(MDLHandle_t handle) {
+		if (handle == MDLHANDLE_INVALID)
+			return null;
 
-	public StudioHDR GetStudioHdr(MDLHandle_t handle) {
+		StudioHDR? hdr = HandleToMDLDict[handle].Header;
+		if (hdr == null) {
+			ReadOnlySpan<char> modelName = GetActualModelName(handle);
+			DevMsg($"Loading {modelName}\n");
+
+			MemoryStream buf = new();
+			if (!ReadMDLFile(handle, modelName, buf)) {
+				bool ok = false;
+				if ((HandleToMDLDict[handle].Flags & StudioDataFlags.ErrorModel) == 0) {
+					buf.SetLength(0);
+
+					HandleToMDLDict[handle].Flags |= StudioDataFlags.ErrorModel;
+					ok = ReadMDLFile(handle, ERROR_MODEL, buf);
+				}
+
+				if (!ok) {
+					Error($"Model {modelName} not found and {ERROR_MODEL} couldn't be loaded");
+					return null;
+				}
+			}
+
+			hdr = HandleToMDLDict[handle].Header;
+		}
+
+		return hdr;
+	}
+
+	public const int IDSTUDIOHEADER = (('T' << 24) + ('S' << 16) + ('D' << 8) + 'I');
+
+	private bool ReadMDLFile(uint handle, ReadOnlySpan<char> mdlFileName, MemoryStream buf) {
+		Span<char> fileName = stackalloc char[MAX_PATH];
+		strcpy(fileName, mdlFileName);
+		StrTools.FixSlashes(fileName);
+
+		Msg($"MDLCache: Load studiohdr {fileName}\n");
+
+		bool ok = ReadFileNative(fileName, "GAME", buf);
+		if (!ok) {
+			DevWarning($"Failed to load {mdlFileName}!\n");
+			return false;
+		}
+
+		StudioHDR? studioHdr = ReinterpretDataToStudioHdr(buf);
+		if (studioHdr == null) {
+			DevWarning($"Failed to read model {mdlFileName} from buffer!\n");
+			return false;
+		}
+		if (studioHdr.ID != IDSTUDIOHEADER) {
+			DevWarning($"Model {mdlFileName} not a .MDL format file!\n");
+			return false;
+		}
+
+		studioHdr.VirtualModel = handle;
+		
+		if (!VerifyHeaders(studioHdr)) {
+			DevWarning($"Model {mdlFileName} has mismatched .vvd + .vtx files!\n");
+			return false;
+		}
+
+		return true;
+	}
+
+	private bool VerifyHeaders(StudioHDR studioHdr) {
 		throw new NotImplementedException();
+	}
+
+	private StudioHDR? ReinterpretDataToStudioHdr(MemoryStream buf) {
+
+		StudioHDR header = new();
+		using BinaryReader br = new(buf);
+		header.ID = br.ReadInt32();
+		header.Version = br.ReadInt32();
+
+		return header;
+	}
+
+	private bool ReadFileNative(ReadOnlySpan<char> fileName, ReadOnlySpan<char> path, MemoryStream buf) {
+		using var file = fileSystem.Open(fileName, FileOpenOptions.Read, path);
+		if (file == null)
+			return false;
+
+		file.Stream.CopyTo(buf);
+		return true;
+	}
+
+	private ReadOnlySpan<char> GetActualModelName(MDLHandle_t handle) {
+		if (handle == MDLHANDLE_INVALID)
+			return ERROR_MODEL;
+
+		if ((HandleToMDLDict[handle].Flags & StudioDataFlags.ErrorModel) != 0)
+			return ERROR_MODEL;
+
+		return HandleToFileDict[handle].String();
 	}
 
 	public T? GetUserData<T>(MDLHandle_t handle) {

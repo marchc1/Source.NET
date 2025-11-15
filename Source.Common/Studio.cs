@@ -242,7 +242,7 @@ public class StudioHDR
 	public int NumIncludeModels;
 	public int IncludeModelIndex;
 
-	public int VirtualModel;
+	public MDLHandle_t VirtualModel;
 
 	public int SzAnimBlockNameIndex;
 	public int NumAnimBlocks;
