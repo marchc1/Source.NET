@@ -971,14 +971,16 @@ public class Frame : EditablePanel
 			Title?.SetColor(TitleBarDisabledFgColor);
 
 		if (HasFocus) {
-			if (FocusTransitionEffectTime != 0 && (!DisableFadeEffect)) { }
-			// TODO: Animation controllers
+			if (FocusTransitionEffectTime != 0 && (!DisableFadeEffect)) {
+				// GetAnimationController().RunAnimationCommand(this, "BgColor", InFocusBgColor, 0.0f, DisableFadeEffect ? 0.0f : FocusTransitionEffectTime, Interpolators.Linear);
+			}
 			else
 				SetBgColor(InFocusBgColor);
 		}
 		else {
-			if (FocusTransitionEffectTime != 0 && (!DisableFadeEffect)) { }
-			// TODO: Animation controllers
+			if (FocusTransitionEffectTime != 0 && (!DisableFadeEffect)) {
+				// GetAnimationController().RunAnimationCommand(this, "BgColor", OutOfFocusBgColor, 0.0f, DisableFadeEffect ? 0.0f : FocusTransitionEffectTime, Interpolators.Linear);
+			}
 			else
 				SetBgColor(OutOfFocusBgColor);
 		}
@@ -1001,8 +1003,8 @@ public class Frame : EditablePanel
 		SetPos((w - GetWide()) / 2, (t - GetTall()) / 2);
 	}
 
-	int TitleTextInsetXOverride; // TODO: Animation vars...
-	int TitleTextInsetYOverride; // TODO: Animation vars...
+	[PanelAnimationVarAliasType("titletextinsetX", "0", "proportional_int")] int TitleTextInsetXOverride;
+	[PanelAnimationVar("titletextinsetY", "0")] int TitleTextInsetYOverride;
 
 	public override void PaintBackground() {
 		Color titleColor = TitleBarDisabledBgColor;
