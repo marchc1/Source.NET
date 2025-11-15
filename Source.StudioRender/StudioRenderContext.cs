@@ -56,7 +56,6 @@ public class StudioRenderContext(IMaterialSystem materialSystem) : IStudioRender
 				if (!textureName.IsEmpty && pCdTexture[0].IsPathSeparator())
 					textureName = textureName[1..];
 
-
 				StrTools.ComposeFileName(pCdTexture, textureName, path);
 
 				if ((studioHDR.Flags & StudioHdrFlags.Obsolete) != 0)
