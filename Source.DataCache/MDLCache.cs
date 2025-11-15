@@ -173,6 +173,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 
 		Span<char> fileName = stackalloc char[MAX_PATH];
 		MakeFilename(handle, GetVTXExtension(), fileName);
+		fileName = fileName.SliceNullTerminatedString();
 
 		Msg($"MDLCache: Begin load VTX {GetModelName(handle)}\n");
 
@@ -231,8 +232,9 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		Span<char> fileName = stackalloc char[MAX_PATH];
 		strcpy(fileName, mdlFileName);
 		StrTools.FixSlashes(fileName);
+		fileName = fileName.SliceNullTerminatedString();
 
-		Msg($"MDLCache: Load studiohdr {fileName.SliceNullTerminatedString()}\n");
+		Msg($"MDLCache: Load studiohdr {fileName}\n");
 
 		bool ok = ReadFileNative(fileName, "GAME", buf);
 		if (!ok) {
@@ -435,6 +437,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 
 		Span<char> fileName = stackalloc char[MAX_PATH];
 		MakeFilename(handle, ".phy", fileName);
+		fileName = fileName.SliceNullTerminatedString();
 		bool asyncLoad = false;
 
 		Msg($"MDLCache: {(asyncLoad ? "Async" : "Sync")} load vcollide {GetModelName(handle)}\n");
@@ -656,6 +659,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		// load the VVD file
 		// use model name for correct path
 		MakeFilename(handle, ".vvd", fileName);
+		fileName = fileName.SliceNullTerminatedString();
 
 		Msg($"MDLCache: Begin load VVD {fileName}\n");
 		MemoryStream vvdHeader = new();
