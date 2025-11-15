@@ -1,5 +1,10 @@
-﻿using System.Numerics;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source.Common.MaterialSystem;
+
+using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Source.Common;
 
@@ -79,19 +84,52 @@ public class VirtualGeneric
 
 public class VirtualModel
 {
-	public void AppendSequences(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendAnimations(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendAttachments(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendPoseParameters(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendBonemap(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendNodes(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendTransitions(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendIKLocks(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendModels(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void UpdateAutoplaySequences(int group, StudioHDR studioHDR) => throw new NotImplementedException();
+	public void AppendSequences(int group, StudioHDR studioHDR) {
 
-	public VirtualGroup AnimGroup(int animation) => throw new NotImplementedException();
-	public VirtualGroup SeqGroup(int sequence) => throw new NotImplementedException();
+	}
+	public void AppendAnimations(int group, StudioHDR studioHDR) {
+
+	}
+	public void AppendAttachments(int group, StudioHDR studioHDR) {
+
+	}
+	public void AppendPoseParameters(int group, StudioHDR studioHDR) {
+
+	}
+	public void AppendBonemap(int group, StudioHDR studioHDR) {
+
+	}
+	public void AppendNodes(int group, StudioHDR studioHDR) {
+
+	}
+	public void AppendTransitions(int group, StudioHDR studioHDR) {
+
+	}
+	public void AppendIKLocks(int group, StudioHDR studioHDR) {
+
+	}
+	public void AppendModels(int group, StudioHDR studioHDR) {
+		AppendSequences(group, studioHDR);
+		AppendAnimations(group, studioHDR);
+		AppendBonemap(group, studioHDR);
+		AppendAttachments(group, studioHDR);
+		AppendPoseParameters(group, studioHDR);
+		AppendNodes(group, studioHDR);
+		AppendIKLocks(group, studioHDR);
+		// todo
+
+		UpdateAutoplaySequences(studioHDR);
+	}
+	public void UpdateAutoplaySequences(StudioHDR studioHDR) {
+
+	}
+
+	public VirtualGroup AnimGroup(int animation) {
+		throw new NotImplementedException();
+	}
+	public VirtualGroup SeqGroup(int sequence) {
+		throw new NotImplementedException();
+	}
 
 	// TODO
 	// public readonly Mutex Lock = new();
@@ -149,9 +187,18 @@ public class StudioHDR2
 	public InlineArray56<int> Reserved;
 }
 
-public class MStudioTexture
+public struct MStudioTexture
 {
+	public const int SIZE_OF_ONE = (sizeof(int) * 4)  // Name, flags, used, unused.
+								 + (sizeof(int) * 2)  // The two pointers
+								 + (sizeof(int) * 10) // The other unused data
+		;
+
 	public Memory<byte> Data;
+	public readonly int NameIndex => Data.Span.Cast<byte, int>()[0];
+	public readonly int Flags => Data.Span.Cast<byte, int>()[1];
+	public readonly int Used => Data.Span.Cast<byte, int>()[2];
+	public readonly int Unused => Data.Span.Cast<byte, int>()[3];
 	public ReadOnlySpan<char> Name() => ""; // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO 
 }
 
@@ -171,7 +218,7 @@ public class StudioHDR
 	public Vector3 HullMax;
 	public Vector3 ViewBoundingBoxMin;
 	public Vector3 ViewBoundingBoxMax;
-	public StudioHdrFlags Flags; 
+	public StudioHdrFlags Flags;
 
 	public int NumBones;
 	public int BoneIndex;
@@ -193,12 +240,30 @@ public class StudioHDR
 
 	public int NumTextures;
 	public int TextureIndex;
-	public MStudioTexture Texture(int i) => new(); // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO 
-	// ^^ All these todos need to consider how we load MDL's and how we interface with them in C#. Since we want to use class instances rather than struct ref casting
+	public MStudioTexture Texture(int i) => new() {
+		Data = Data[(TextureIndex + (MStudioTexture.SIZE_OF_ONE * i))..]
+	};
 
 	public int NumCDTextures;
 	public int CDTextureIndex;
-	public ReadOnlySpan<char> CDTexture(int i) => new(); // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO 
+	string[]? cdTextureCache;
+	public ReadOnlySpan<char> CDTexture(int i) {
+		if (cdTextureCache == null)
+			cdTextureCache = new string[NumCDTextures];
+
+		if (cdTextureCache[i] != null)
+			return cdTextureCache[i];
+
+		Span<byte> span = Data.Span;
+
+		var offsetTable = MemoryMarshal.Cast<byte, int>(span[CDTextureIndex..]);
+		int stringOffset = offsetTable[i];
+		var strBytes = span[stringOffset..];
+
+		using ASCIIStringView ascii = new(strBytes);
+		cdTextureCache[i] = new(ascii);
+		return cdTextureCache[i];
+	}
 
 	/// <summary>
 	/// pszName equiv

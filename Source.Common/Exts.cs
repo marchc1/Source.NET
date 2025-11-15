@@ -17,6 +17,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
@@ -488,6 +489,28 @@ public static class ListExtensions
 }
 public static class ClassUtils
 {
+	/// <summary>
+	/// Preferably, don't use this. And justify why in a comment to the call
+	/// </summary>
+	/// <param name="ms"></param>
+	delegate byte[] getInternalArrayFn(MemoryStream ms);
+	static getInternalArrayFn? getInternalArray_store;
+	static getInternalArrayFn getInternalArray {
+		get {
+			if (getInternalArray_store != null)
+				return getInternalArray_store;
+
+			var dm = new DynamicMethod("GetMemoryStream_buffer", typeof(byte[]), [typeof(MemoryStream)], true);
+			var il = dm.GetILGenerator();
+			il.Emit(OpCodes.Ldarg_0);
+			il.Emit(OpCodes.Ldfld, typeof(MemoryStream).GetField("_buffer", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)!);
+			il.Emit(OpCodes.Ret);
+
+			getInternalArray_store = dm.CreateDelegate<getInternalArrayFn>();
+			return getInternalArray_store;
+		}
+	}
+	public static byte[] GetInternalArray(this MemoryStream ms) => getInternalArray(ms);
 	public static ref V TryGetRef<K, V>(this Dictionary<K, V> dict, K key, out bool ok) where K : notnull {
 		ref V ret = ref CollectionsMarshal.GetValueRefOrNullRef(dict, key);
 		ok = !Unsafe.IsNullRef(ref ret);
@@ -1308,6 +1331,29 @@ public static class ReflectionUtils
 /// </summary
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class EngineComponentAttribute : Attribute;
+
+public unsafe ref struct ASCIIStringView : IDisposable
+{
+	char* str;
+	int chars;
+	public ASCIIStringView(ReadOnlySpan<byte> data) {
+		int indexOfNullTerminator = System.MemoryExtensions.IndexOf(data, (byte)0);
+		if (indexOfNullTerminator != -1)
+			data = data[..indexOfNullTerminator];
+
+		chars = Encoding.ASCII.GetCharCount(data);
+		str = (char*)NativeMemory.Alloc((nuint)chars);
+		Encoding.ASCII.GetChars(data, new Span<char>(str, chars));
+	}
+
+	public static implicit operator ReadOnlySpan<char>(ASCIIStringView view) => new(view.str, view.chars);
+
+	public void Dispose() {
+		NativeMemory.Free(str);
+		chars = 0;
+		str = null;
+	}
+}
 
 public static class SpanExts
 {

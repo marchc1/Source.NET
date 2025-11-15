@@ -142,7 +142,10 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 	}
 
 	public ReadOnlySpan<char> GetModelName(MDLHandle_t handle) {
-		throw new NotImplementedException();
+		if (handle == MDLHANDLE_INVALID)
+			return ERROR_MODEL;
+
+		return HandleToFileDict[handle].String();
 	}
 
 	public int GetRef(MDLHandle_t handle) {
@@ -187,7 +190,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		strcpy(fileName, mdlFileName);
 		StrTools.FixSlashes(fileName);
 
-		Msg($"MDLCache: Load studiohdr {fileName}\n");
+		Msg($"MDLCache: Load studiohdr {fileName.SliceNullTerminatedString()}\n");
 
 		bool ok = ReadFileNative(fileName, "GAME", buf);
 		if (!ok) {
@@ -205,6 +208,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 			return false;
 		}
 
+		HandleToMDLDict[handle].Header = studioHdr;
 		studioHdr.VirtualModel = handle;
 
 		if (!VerifyHeaders(studioHdr)) {
@@ -221,7 +225,17 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 	}
 
 	private StudioHDR? ReinterpretDataToStudioHdr(MemoryStream buf) {
-		StudioHDR header = new();
+		// NOTE: We now assume that the buffer is locked.
+		// TODO: Size check the memory stream before reading!!!
+
+		StudioHDR header = new() {
+			// Justification for GetInternalArray: If the buffer won't have any changes made to it, then we don't need
+			// to store another copy of the byte data and can use the MemoryStream's array. When MemoryStream disposes,
+			// the internal array will still remain ref'd by the Memory<byte>, so
+			// Some operations in studio .mdl's require accessing data later on in the file beyond just the header data
+			// and that's what's being set here
+			Data = new(buf.GetInternalArray())
+		};
 		using BinaryReader br = new(buf);
 		header.ID = br.ReadInt32();
 		header.Version = br.ReadInt32();
