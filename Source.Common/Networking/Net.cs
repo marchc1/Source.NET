@@ -1049,4 +1049,10 @@ public class Net
 	public void SendQueuedPackets() {
 
 	}
+
+	float FakeLag = 0;
+
+	public float GetFakeLag() {
+		return FakeLag;
+	}
 }

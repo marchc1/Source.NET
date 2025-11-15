@@ -121,7 +121,7 @@ public class ClientState : BaseClientState
 		this.CL = CL;
 		this.Scr = Scr;
 		this.modelloader = modelloader;
-		this.ClockDriftMgr = new(this, Host, host_state);
+		this.ClockDriftMgr = new(this, sv, Host, host_state, Net, clientGlobalVariables);
 		this.EngineVGui = EngineVGui;
 		this.HostState = HostState;
 		this.DtCommonEng = DtCommonEng;

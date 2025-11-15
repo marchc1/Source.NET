@@ -6,5 +6,5 @@ public static class EngineThreads
 	public static int MaterialSystemThread = 0;
 	public static int ServerThread = 1;
 
-	public static bool IsThreadedEngine() => ThreadedEngine;
+	public static bool IsEngineThreaded() => ThreadedEngine;
 }

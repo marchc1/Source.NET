@@ -183,7 +183,7 @@ public class Host(
 #endif
 
 #if !SWDS
-		if (!EngineThreads.IsThreadedEngine())
+		if (!EngineThreads.IsEngineThreaded())
 #endif
 		{
 #if !SWDS

@@ -1,14 +1,57 @@
-﻿namespace Source.Engine.Client;
+﻿using Source.Common;
+using Source.Common.Commands;
+using Source.Common.Networking;
+using Source.Engine.Server;
 
-public class ClockDriftMgr(ClientState cl, Host Host, CommonHostState host_state)
+namespace Source.Engine.Client;
+
+public class ClockDriftMgr(ClientState cl, GameServer sv, Host Host, CommonHostState host_state, Net Net, ClientGlobalVariables clientGlobalVariables)
 {
+	public static readonly ConVar cl_clock_correction = new( "cl_clock_correction", "1", FCvar.Cheat, "Enable/disable clock correction on the client." );
+
+	public static readonly ConVar cl_clockdrift_max_ms = new( "cl_clockdrift_max_ms", "150", FCvar.Cheat, "Maximum number of milliseconds the clock is allowed to drift before the client snaps its clock to the server's." );
+	public static readonly ConVar cl_clockdrift_max_ms_threadmode = new( "cl_clockdrift_max_ms_threadmode", "0", FCvar.Cheat, "Maximum number of milliseconds the clock is allowed to drift before the client snaps its clock to the server's." );
+
+	public static readonly ConVar cl_clock_showdebuginfo = new( "cl_clock_showdebuginfo", "0", FCvar.Cheat, "Show debugging info about the clock drift. ");
+
+	public static readonly ConVar cl_clock_correction_force_server_tick = new( "cl_clock_correction_force_server_tick", "999", FCvar.Cheat, "Force clock correction to match the server tick + this offset (-999 disables it)."  );
+
+	public static readonly ConVar cl_clock_correction_adjustment_max_amount = new( "cl_clock_correction_adjustment_max_amount", "200", FCvar.Cheat,
+		"Sets the maximum number of milliseconds per second it is allowed to correct the client clock. " +
+	"It will only correct this amount if the difference between the client and server clock is equal to or larger than cl_clock_correction_adjustment_max_offset." );
+
+	public static readonly ConVar cl_clock_correction_adjustment_min_offset = new( "cl_clock_correction_adjustment_min_offset", "10", FCvar.Cheat,
+		"If the clock offset is less than this amount (in milliseconds), then no clock correction is applied." );
+
+	public static readonly ConVar cl_clock_correction_adjustment_max_offset = new( "cl_clock_correction_adjustment_max_offset", "90", FCvar.Cheat,
+		"As the clock offset goes from cl_clock_correction_adjustment_min_offset to this value (in milliseconds), " +
+	"it moves towards applying cl_clock_correction_adjustment_max_amount of adjustment. That way, the response " +
+	"is small when the offset is small." );
+
+
+
 	public static bool Enabled = true;
 
-	const float cl_clockdrift_max_ms = 150;
-	const int cl_clock_correction_force_server_tick = 999;
-	const int cl_clock_correction_adjustment_min_offset = 10;
-	const int cl_clock_correction_adjustment_max_offset = 90;
-	const int cl_clock_correction_adjustment_max_amount = 200;
+	public bool IsClockCorrectionEnabled() {
+#if SWDS
+		return false;
+#else
+
+		bool isMultiplayer = Net.IsMultiplayer();
+		bool wantsClockDriftMgr = isMultiplayer;
+		if (isMultiplayer) {
+			bool isListenServer = sv.IsActive();
+			// todo: net_usesocketsforloopback
+			bool localConnectionHasZeroLatency = (Net.GetFakeLag() <= 0.0f) && false;
+
+			if (isListenServer && localConnectionHasZeroLatency) 
+				wantsClockDriftMgr = false;
+		}
+
+		return cl_clock_correction.GetInt() != 0 &&
+			(EngineThreads.IsEngineThreaded() || wantsClockDriftMgr);
+#endif
+	}
 
 	public void Clear() {
 		ClientTick = 0;
@@ -19,11 +62,12 @@ public class ClockDriftMgr(ClientState cl, Host Host, CommonHostState host_state
 		}
 	}
 	public void SetServerTick(int tick) {
-		int maxDriftTicks = Host.TimeToTicks(cl_clockdrift_max_ms / 1000f);
-		int clientTick = cl.GetClientTickCount() + 0; // simticks this frame?
+		ServerTick = tick;
+		int maxDriftTicks = Host.TimeToTicks(cl_clockdrift_max_ms.GetFloat() / 1000f);
+		int clientTick = cl.GetClientTickCount() + clientGlobalVariables.SimTicksThisFrame - 1; 
 
-		if (cl_clock_correction_force_server_tick == 999) {
-			if (clientTick == 0 || Math.Abs(tick - clientTick) > maxDriftTicks) {
+		if (cl_clock_correction_force_server_tick.GetInt() == 999) {
+			if (!IsClockCorrectionEnabled() || clientTick == 0 || Math.Abs(tick - clientTick) > maxDriftTicks) {
 				cl.SetClientTickCount(tick - 0);
 				if (cl.GetClientTickCount() < cl.OldTickCount) {
 					cl.OldTickCount = cl.GetClientTickCount();
@@ -34,7 +78,7 @@ public class ClockDriftMgr(ClientState cl, Host Host, CommonHostState host_state
 			}
 		}
 		else {
-			cl.SetClientTickCount(tick + cl_clock_correction_force_server_tick);
+			cl.SetClientTickCount(tick + cl_clock_correction_force_server_tick.GetInt());
 		}
 
 		ClockOffsets[CurClockOffset] = clientTick - ServerTick;
@@ -47,16 +91,19 @@ public class ClockDriftMgr(ClientState cl, Host Host, CommonHostState host_state
 		float flCurDiffInSeconds = GetCurrentClockDifference() * (float)host_state.IntervalPerTick;
 		float flCurDiffInMS = flCurDiffInSeconds * 1000.0f;
 
-		if (flCurDiffInMS > cl_clock_correction_adjustment_min_offset) {
+		if (flCurDiffInMS > cl_clock_correction_adjustment_min_offset.GetFloat()) {
 			adjustmentPerSec = -GetClockAdjustmentAmount(flCurDiffInMS);
 			adjustmentThisFrame = inputFrameTime * adjustmentPerSec;
 			adjustmentThisFrame = Math.Max(adjustmentThisFrame, -flCurDiffInSeconds);
 		}
-		else if (flCurDiffInMS < -cl_clock_correction_adjustment_min_offset) {
+		else if (flCurDiffInMS < -cl_clock_correction_adjustment_min_offset.GetFloat()) {
 			adjustmentPerSec = GetClockAdjustmentAmount(-flCurDiffInMS);
 			adjustmentThisFrame = inputFrameTime * adjustmentPerSec;
 			adjustmentThisFrame = Math.Min(adjustmentThisFrame, -flCurDiffInSeconds);
 		}
+
+		if (EngineThreads.IsEngineThreaded())
+			adjustmentThisFrame = -flCurDiffInSeconds;
 
 		AdjustAverageDifferenceBy(adjustmentThisFrame);
 		return inputFrameTime + adjustmentThisFrame;
@@ -83,11 +130,11 @@ public class ClockDriftMgr(ClientState cl, Host Host, CommonHostState host_state
 		return targetFrom + (source - sourceFrom) * (targetTo - targetFrom) / (sourceTo - sourceFrom);
 	}
 	public static float GetClockAdjustmentAmount(float curDiffInMS) {
-		curDiffInMS = Math.Clamp(curDiffInMS, cl_clock_correction_adjustment_min_offset, cl_clock_correction_adjustment_max_offset);
+		curDiffInMS = Math.Clamp(curDiffInMS, cl_clock_correction_adjustment_min_offset.GetFloat(), cl_clock_correction_adjustment_max_offset.GetFloat());
 
 		float flReturnValue = Remap(curDiffInMS,
-			cl_clock_correction_adjustment_min_offset, cl_clock_correction_adjustment_max_offset,
-			0, cl_clock_correction_adjustment_max_amount / 1000.0f);
+			cl_clock_correction_adjustment_min_offset.GetFloat(), cl_clock_correction_adjustment_max_offset.GetFloat(),
+			0, cl_clock_correction_adjustment_max_amount.GetFloat() / 1000.0f);
 
 		return flReturnValue;
 	}

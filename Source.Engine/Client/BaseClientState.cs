@@ -808,13 +808,11 @@ public abstract class BaseClientState(
 
 	public virtual string GetClientName() => cl_name.GetString();
 
-	public virtual int GetClientTickCount() => 0;
-	public virtual void SetClientTickCount(int tick) { }
-
-	public virtual int GetServerTickCount() => 0;
-	public virtual void SetServerTickCount(int tick) { }
-
-	public virtual void SetClientAndServerTickCount(int tick) { }
+	public virtual int GetClientTickCount() => ClockDriftMgr.ClientTick;
+	public virtual void SetClientTickCount(int tick) => ClockDriftMgr.ClientTick = tick;
+	public virtual int GetServerTickCount() => ClockDriftMgr.ServerTick;
+	public virtual void SetServerTickCount(int tick) => ClockDriftMgr.ServerTick = tick;
+	public virtual void SetClientAndServerTickCount(int tick) => ClockDriftMgr.ServerTick = ClockDriftMgr.ClientTick = tick;
 
 	public void ForceFullUpdate() {
 		if (DeltaTick == -1)
