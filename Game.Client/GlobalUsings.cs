@@ -39,7 +39,6 @@ public static class ClientGlobals
 	public static IRenderView render { get; private set; } = null!;
 	public static IEngineClient engine { get; private set; } = null!;
 	public static IEngineVGui enginevgui { get; private set; } = null!;
-	public static IClientMode clientMode { get; set; } = null!;
 	public static Hud gHUD { get; private set; } = null!;
 	public static Prediction prediction { get; private set; } = null!;
 	public static ICvar cvar { get; private set; } = null!;

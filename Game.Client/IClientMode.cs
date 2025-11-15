@@ -20,4 +20,5 @@ public interface IClientMode
 	AnimationController? GetViewportAnimationController();
 	void Enable();
 	bool IsTyping();
+	float GetViewModelFOV();
 }

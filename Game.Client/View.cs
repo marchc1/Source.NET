@@ -1,3 +1,4 @@
+global using static Game.Client.ViewConVars;
 using Game.Shared;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,10 @@ using System.Numerics;
 
 namespace Game.Client;
 
+public static class ViewConVars
+{
+	public static readonly ConVar v_viewmodel_fov = new("viewmodel_fov", "54", FCvar.Cheat, "Sets the field-of-view for the viewmodel.", 0.1, 179.9);
+}
 
 public class BaseWorldView : Rendering3dView
 {
@@ -160,7 +165,7 @@ public class ViewRender : IViewRender
 
 		viewEye.ZNear = GetZNear();
 		viewEye.ZNearViewmodel = 1;
-		viewEye.FOV = 75; // todo
+		viewEye.FOV = default_fov.GetFloat(); // todo
 
 		viewEye.Ortho = false;
 		viewEye.ViewToProjectionOverride = false;
@@ -170,6 +175,11 @@ public class ViewRender : IViewRender
 		if (player != null) {
 			player.CalcView(ref viewEye.Origin, ref viewEye.Angles, ref viewEye.ZNear, ref viewEye.ZFar, ref viewEye.FOV);
 		}
+
+		float fDefaultFov = default_fov.GetFloat();
+		float flFOVOffset = fDefaultFov - viewEye.FOV;
+
+		viewEye.FOVViewmodel = MathF.Abs(clientMode.GetViewModelFOV() - flFOVOffset);
 	}
 
 	public void QueueOverlayRenderView(in ViewSetup view, ClearFlags clearFlags, DrawFlags whatToDraw) {
@@ -463,7 +473,7 @@ public class ViewRender : IViewRender
 
 		ITexture? rtColor = null;
 		ITexture? rtDepth = null;
-		if (viewRender.StereoEye != StereoEye.Mono) 
+		if (viewRender.StereoEye != StereoEye.Mono)
 			throw new NotImplementedException("Non-mono StereoEye not supported");
 
 		render.Push3DView(viewModelSetup, 0, rtColor, GetFrustum(), rtDepth);
@@ -480,8 +490,8 @@ public class ViewRender : IViewRender
 			renderContext.DepthRange(0.0f, 0.1f);
 
 		if (shouldDrawPlayerViewModel || shouldDrawToolViewModels) {
-			List<IClientRenderable> opaqueViewModelList = ListPool<IClientRenderable>.Shared.Alloc( 32 );
-			List<IClientRenderable> translucentViewModelList = ListPool<IClientRenderable>.Shared.Alloc( 32 );
+			List<IClientRenderable> opaqueViewModelList = ListPool<IClientRenderable>.Shared.Alloc(32);
+			List<IClientRenderable> translucentViewModelList = ListPool<IClientRenderable>.Shared.Alloc(32);
 
 			clientLeafSystem.CollateViewModelRenderables(opaqueViewModelList, translucentViewModelList);
 
@@ -490,7 +500,7 @@ public class ViewRender : IViewRender
 				for (int i = opaque - 1; i >= 0; --i) {
 					IClientRenderable renderable = opaqueViewModelList[i];
 					bool entity = renderable.GetIClientUnknown().GetBaseEntity() != null;
-					if ((entity && !shouldDrawPlayerViewModel) || (!entity && !shouldDrawToolViewModels)) 
+					if ((entity && !shouldDrawPlayerViewModel) || (!entity && !shouldDrawToolViewModels))
 						opaqueViewModelList.RemoveAt(i);
 				}
 
@@ -498,7 +508,7 @@ public class ViewRender : IViewRender
 				for (int i = translucent - 1; i >= 0; --i) {
 					IClientRenderable renderable = translucentViewModelList[i];
 					bool entity = renderable.GetIClientUnknown().GetBaseEntity() != null;
-					if ((entity && !shouldDrawPlayerViewModel) || (!entity && !shouldDrawToolViewModels)) 
+					if ((entity && !shouldDrawPlayerViewModel) || (!entity && !shouldDrawToolViewModels))
 						translucentViewModelList.RemoveAt(i);
 				}
 			}

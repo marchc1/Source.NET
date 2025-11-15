@@ -92,6 +92,10 @@ public class ClientModeShared(IServiceProvider services, ClientGlobalVariables g
 		return Viewport;
 	}
 
+	public float GetViewModelFOV() {
+		return v_viewmodel_fov.GetFloat();
+	}
+
 	public void Layout() {
 		IPanel? root = enginevgui.GetPanel(VGuiPanelType.ClientDll);
 
