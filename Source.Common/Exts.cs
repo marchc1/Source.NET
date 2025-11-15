@@ -241,7 +241,7 @@ public static class StrTools
 	public const char CORRECT_PATH_SEPARATOR = '/';
 	public const char INCORRECT_PATH_SEPARATOR = '\\';
 
-	public static bool IsSlash(this char c) => c == CORRECT_PATH_SEPARATOR || c == INCORRECT_PATH_SEPARATOR;
+	public static bool IsPathSeparator(this char c) => c == CORRECT_PATH_SEPARATOR || c == INCORRECT_PATH_SEPARATOR;
 
 	public static void FixSlashes(Span<char> name) {
 		for (int i = 0; i < name.Length; i++) {
@@ -302,6 +302,70 @@ public static class StrTools
 		AppendSlash(dest);
 		StrConcat(dest, filename, COPY_ALL_CHARACTERS);
 		FixSlashes(dest);
+	}
+
+	public static bool RemoveDotSlashes(Span<char> filename, char separator, bool removeDoubleSlashes = true) {
+		int pIn = 0;
+		int pOut = 0;
+		bool ret = true;
+		bool boundary = true;
+
+		while (pIn < filename.Length && filename[pIn] != '\0') {
+			if (boundary &&
+				filename[pIn] == '.' &&
+				pIn + 1 < filename.Length && filename[pIn + 1] == '.' &&
+				(pIn + 2 >= filename.Length || IsPathSeparator(filename[pIn + 2]))) {
+				while (pOut > 0 && filename[pOut - 1] == separator)
+					pOut--;
+
+				while (true) {
+					if (pOut == 0) {
+						ret = false;
+						break;
+					}
+					pOut--;
+					if (filename[pOut] == separator)
+						break;
+				}
+
+				pIn += 2;
+				boundary = (pOut == 0);
+			}
+			else if (boundary &&
+					 filename[pIn] == '.' &&
+					 (pIn + 1 >= filename.Length || IsPathSeparator(filename[pIn + 1]))) {
+				if (pIn + 1 < filename.Length && IsPathSeparator(filename[pIn + 1])) {
+					pIn += 2;
+				}
+				else {
+					if (pOut > 0 && filename[pOut - 1] == separator)
+						pOut--;
+					pIn += 1;
+				}
+			}
+			else if (IsPathSeparator(filename[pIn])) {
+				filename[pOut] = separator;
+
+				if (!(boundary && removeDoubleSlashes && pOut != 0))
+					pOut++;
+
+				pIn++;
+				boundary = true;
+			}
+			else {
+				if (pOut != pIn)
+					filename[pOut] = filename[pIn];
+
+				pOut++;
+				pIn++;
+				boundary = false;
+			}
+		}
+
+		if (pOut < filename.Length)
+			filename[pOut] = '\0';
+
+		return ret;
 	}
 }
 
