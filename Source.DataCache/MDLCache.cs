@@ -199,7 +199,8 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 	}
 
 	private bool VerifyHeaders(StudioHDR studioHdr) {
-		throw new NotImplementedException();
+		// Temporary todo
+		return true;
 	}
 
 	private StudioHDR? ReinterpretDataToStudioHdr(MemoryStream buf) {
@@ -320,8 +321,57 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		throw new NotImplementedException();
 	}
 
-	public VCollide GetVCollideEx(MDLHandle_t handle, bool synchronousLoad = true) {
-		throw new NotImplementedException();
+	public VCollide? GetVCollideEx(MDLHandle_t handle, bool synchronousLoad = true) {
+		if (handle == MDLHANDLE_INVALID)
+			return null;
+
+		StudioData studioData = HandleToMDLDict[handle];
+
+		if ((studioData.Flags & StudioDataFlags.VCollisionLoaded) == 0)
+			UnserializeVCollide(handle, synchronousLoad);
+
+		if (studioData.VCollisionData.SolidCount == 0)
+			return null;
+
+		return studioData.VCollisionData;
+	}
+
+	private void UnserializeVCollide(MDLHandle_t handle, bool synchronousLoad) {
+		StudioData studioData = HandleToMDLDict[handle];
+
+		studioData.Flags &= ~StudioDataFlags.VCollisionLoaded;
+		//studioData.VCollisionData.ClearInstantiatedReference();
+		// ^^ Likely don't need this?
+		{
+			VirtualModel? virtualModel = GetVirtualModel(handle);
+			if (virtualModel != null) {
+				for (int i = 1; i < virtualModel.Group.Count; i++) {
+					MDLHandle_t sharedHandle = (MDLHandle_t)virtualModel.Group[i].Cache!;
+					StudioData data = HandleToMDLDict[sharedHandle];
+					if ((data.Flags & StudioDataFlags.VCollisionLoaded) == 0) 
+						UnserializeVCollide(sharedHandle, synchronousLoad);
+					
+					if (data.VCollisionData.SolidCount > 0) {
+						data.VCollisionData.CopyInstantiatedReferenceTo(studioData.VCollisionData);
+						studioData.Flags |= StudioDataFlags.VCollisionShared;
+						return;
+					}
+				}
+			}
+		}
+
+		Span<char> fileName = stackalloc char[MAX_PATH];
+		MakeFilename(handle, ".phy", fileName);
+		bool asyncLoad = false;
+
+		Msg($"MDLCache: {(asyncLoad ? "Async" : "Sync")} load vcollide {GetModelName(handle)}\n");
+	}
+
+	private void MakeFilename(uint handle, ReadOnlySpan<char> extension, Span<char> fileName) {
+		strcpy(fileName, GetActualModelName(handle));
+		StrTools.SetExtension(fileName, extension);
+		StrTools.FixSlashes(fileName);
+		StrTools.ToLower(fileName);
 	}
 
 	public bool GetVCollideSize(MDLHandle_t handle, out int VCollideSize) {

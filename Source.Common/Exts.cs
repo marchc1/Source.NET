@@ -14,6 +14,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
@@ -367,6 +368,64 @@ public static class StrTools
 
 		return ret;
 	}
+
+	/// <summary>
+	/// Rewrites a string in place to be all lowercase
+	/// </summary>
+	/// <param name="str"></param>
+	/// <param name="invariant"></param>
+	public static void ToLower(Span<char> str, bool invariant = false) {
+		if (invariant)
+			for (int i = 0; i < str.Length; i++)
+				str[i] = char.ToLowerInvariant(str[i]);
+		else
+			for (int i = 0; i < str.Length; i++)
+				str[i] = char.ToLower(str[i]);
+	}
+
+	/// <summary>
+	/// Rewrites a string in place to be all uppercase
+	/// </summary>
+	/// <param name="str"></param>
+	/// <param name="invariant"></param>
+	public static void ToUpper(Span<char> str, bool invariant = false) {
+		if (invariant)
+			for (int i = 0; i < str.Length; i++)
+				str[i] = char.ToUpperInvariant(str[i]);
+		else
+			for (int i = 0; i < str.Length; i++)
+				str[i] = char.ToUpper(str[i]);
+	}
+
+	public static void StripExtension(ReadOnlySpan<char> input, Span<char> output) {
+		int end = input.Length - 1;
+		while (end > 0 && input[end] != '.' && !IsPathSeparator(input[end]))
+			--end;
+
+		if (end > 0 && !IsPathSeparator(input[end]) && end < output.Length) {
+			int nChars = Math.Min(end, output.Length - 1);
+			if (!Unsafe.AreSame(in input[0], in output[0]))
+				memcpy(output, input[..nChars]);
+			output[nChars] = '\0';
+		}
+		else {
+			if (!Unsafe.AreSame(in input[0], in output[0]))
+				strcpy(output, input);
+		}
+	}
+	public static void SetExtension(Span<char> path, ReadOnlySpan<char> extension) {
+		StripExtension(path, path);
+
+		// We either had an extension and stripped it, or didn't have an extension
+		// at all. Either way, we need to concatenate our extension now.
+
+		// extension is not required to start with '.', so if it's not there,
+		// then append that first.
+		if (extension[0] != '.')
+			StrConcat(path, ".", COPY_ALL_CHARACTERS);
+
+		StrConcat(path, extension, COPY_ALL_CHARACTERS);
+	}
 }
 
 public static class BitVecExts
@@ -447,6 +506,7 @@ public static class ClassUtils
 	public static void ClearInstantiatedReferences<T>(this T[] array) where T : class => ClearInstantiatedReferences(array.AsSpan());
 	public static void ClearInstantiatedReferences<T>(this List<T> array) where T : class => ClearInstantiatedReferences(array.AsSpan());
 	private static readonly ConcurrentDictionary<Type, Action<object>> _clearers = new();
+	private static readonly ConcurrentDictionary<Type, Action<object, object>> _copiers = new();
 	public static void ClearInstantiatedReferences<T>(this Span<T> array) where T : class {
 		Action<object> clearer = _clearers.GetOrAdd(typeof(T), CreateClearer);
 
@@ -459,6 +519,10 @@ public static class ClassUtils
 	public static void ClearInstantiatedReference<T>(this T target) where T : class {
 		Action<object> clearer = _clearers.GetOrAdd(typeof(T), CreateClearer);
 		clearer(target);
+	}
+	public static void CopyInstantiatedReferenceTo<T>(this T source, T dest) where T : class {
+		Action<object, object> copier = _copiers.GetOrAdd(typeof(T), CreateCopier);
+		copier(source, dest);
 	}
 	public static Action<object> CreateClearer(Type type) {
 		var fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -490,6 +554,35 @@ public static class ClassUtils
 
 		return (Action<object>)dm.CreateDelegate(typeof(Action<object>));
 	}
+	public static Action<object, object> CreateCopier(Type type) {
+		var fields = type.GetFields(BindingFlags.Instance |
+									BindingFlags.Public |
+									BindingFlags.NonPublic);
+
+		var dm = new DynamicMethod("Copy_" + type.Name,
+								   null,
+								   new[] { typeof(object), typeof(object) },
+								   true);
+
+		ILGenerator il = dm.GetILGenerator();
+
+		foreach (var field in fields) {
+			il.Emit(OpCodes.Ldarg_1);
+			il.Emit(OpCodes.Castclass, type);
+
+			il.Emit(OpCodes.Ldarg_0);
+			il.Emit(OpCodes.Castclass, type);
+
+			il.Emit(OpCodes.Ldfld, field);
+
+			il.Emit(OpCodes.Stfld, field);
+		}
+
+		il.Emit(OpCodes.Ret);
+
+		return (Action<object, object>)dm.CreateDelegate(typeof(Action<object, object>));
+	}
+
 
 	/// <summary>
 	/// Creates an array of class instances, where the class instances are not null, but also uninitialized (ie. a reference to an object exists,

@@ -67,7 +67,7 @@ public interface IMDLCache
 	void EndLock();
 	void FinishPendingLoads();
 
-	VCollide GetVCollideEx(MDLHandle_t handle, bool synchronousLoad = true);
+	VCollide? GetVCollideEx(MDLHandle_t handle, bool synchronousLoad = true);
 	bool GetVCollideSize(MDLHandle_t handle, out int VCollideSize);
 
 	bool GetAsyncLoad(MDLCacheDataType type);
