@@ -1320,7 +1320,7 @@ public unsafe ref struct ASCIIStringView : IDisposable
 			data = data[..indexOfNullTerminator];
 
 		chars = Encoding.ASCII.GetCharCount(data);
-		str = (char*)NativeMemory.Alloc((nuint)chars);
+		str = (char*)NativeMemory.Alloc((nuint)chars, sizeof(char));
 		Encoding.ASCII.GetChars(data, new Span<char>(str, chars));
 	}
 
