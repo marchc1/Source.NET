@@ -47,7 +47,6 @@ public class ImagePanel : Panel
 		if (!imageName.IsEmpty && MemoryExtensions.Equals(imageName, ImageName, StringComparison.Ordinal))
 			return;
 
-		int len = imageName.Length;
 		ImageName = new(imageName);
 		InvalidateLayout(false, true);
 	}

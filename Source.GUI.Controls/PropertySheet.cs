@@ -51,7 +51,7 @@ class PageTab : Button
 	ImagePanel? Image;
 	char[] ImageName;
 	bool ShowContextLabel;
-	bool AtttemptingDrop;
+	bool AttemptingDrop;
 	ContextLabel ContextLabel;
 	long HoverActivePageTime;
 	long DropHoverTime;
@@ -62,7 +62,7 @@ class PageTab : Button
 		Page = page;
 		Image = null;
 		ShowContextLabel = showContextButton;
-		AtttemptingDrop = false;
+		AttemptingDrop = false;
 		HoverActivePageTime = hoverActivePageTime;
 		DropHoverTime = -1;
 
@@ -92,7 +92,7 @@ class PageTab : Button
 	}
 
 	public override void OnThink() {
-		if (AtttemptingDrop && HoverActivePageTime >= 0 && DropHoverTime >= 0) {
+		if (AttemptingDrop && HoverActivePageTime >= 0 && DropHoverTime >= 0) {
 			long hoverTime = System.GetTimeMillis() - DropHoverTime;
 			if (hoverTime > HoverActivePageTime) {
 				FireActionSignal();
@@ -100,13 +100,13 @@ class PageTab : Button
 				Repaint();
 			}
 		}
-		AtttemptingDrop = false;
+		AttemptingDrop = false;
 
 		base.OnThink();
 	}
 
 	public bool IsDroppable(List<KeyValues> msglist) {
-		AtttemptingDrop = true;
+		AttemptingDrop = true;
 
 		if (GetParent() == null)
 			return false;

@@ -175,5 +175,7 @@ public class PropertyDialog : Frame
 			OnApplyButtonEnable(message.GetBool("state", false));
 			return;
 		}
+
+		base.OnMessage(message, from);
 	}
 }
