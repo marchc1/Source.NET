@@ -207,6 +207,9 @@ public class StudioHDR
 	public int NumBodyParts;
 	public int BodyPartIndex;
 
+	public int NumLocalAttachments;
+	public int LocalAttachmentIndex;
+
 	public int NumLocalNodes;
 	public int LocalNodeIndex;
 	public int LocalNodeNameIndex;
@@ -258,4 +261,7 @@ public class StudioHDR
 	byte _UNUSED1;
 	public int StudioHDR2Index;
 	byte _UNUSED2;
+	public int NumFlexControllerUI;
+	public int FlexControllerUIIndex;
+	public float VertAnimFixedPointScale;
 }

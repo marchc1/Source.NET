@@ -203,7 +203,6 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 	}
 
 	private StudioHDR? ReinterpretDataToStudioHdr(MemoryStream buf) {
-
 		StudioHDR header = new();
 		using BinaryReader br = new(buf);
 		header.ID = br.ReadInt32();
@@ -243,6 +242,8 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		header.SkinIndex = br.ReadInt32();
 		header.NumBodyParts = br.ReadInt32();
 		header.BodyPartIndex = br.ReadInt32();
+		header.NumLocalAttachments = br.ReadInt32();
+		header.LocalAttachmentIndex = br.ReadInt32();
 		header.NumLocalNodes = br.ReadInt32();
 		header.LocalNodeIndex = br.ReadInt32();
 		header.LocalNodeNameIndex = br.ReadInt32();
@@ -279,7 +280,13 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		header.RootLOD = br.ReadByte();
 		header.NumAllowedRootLODs = br.ReadByte();
 		br.ReadNothing(1);
+		br.ReadNothing(1);
+		header.NumFlexControllerUI = br.ReadInt32();
+		header.FlexControllerUIIndex = br.ReadInt32();
+		header.VertAnimFixedPointScale = br.ReadSingle();
+		br.ReadNothing(1);
 		header.StudioHDR2Index = br.ReadInt32();
+		br.ReadNothing(1);
 		br.ReadNothing(1);
 
 		return header;
