@@ -3,13 +3,13 @@ using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Engine.Client;
 
+using System.Reflection.Metadata.Ecma335;
+
 namespace Source.Engine;
 
 public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader) : IModelInfoClient
 {
-	public Model? GetModel(int modelIndex) {
-		throw new NotImplementedException();
-	}
+	public abstract Model? GetModel(int modelIndex);
 
 	protected abstract INetworkStringTable? GetDynamicModelStringTable();
 	protected abstract int LookupPrecachedModelIndex(ReadOnlySpan<char> name);
@@ -76,11 +76,23 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		return -1;
 	}
 
+	protected bool IsDynamicModelIndex(int modelIndex) => modelIndex < -1;
+	protected Model? LookupDynamicModel(int modelIndex) {
+		throw new NotImplementedException("LookupDynamicModel not yet implemented!");
+	}
+
 	readonly List<Model> NetworkedDynamicModels = [];
 }
 
 public class ModelInfoClient(ClientState cl, IFileSystem filesystem, IModelLoader modelloader) : ModelInfo(filesystem, modelloader)
 {
+	public override Model? GetModel(int modelIndex) {
+		if (IsDynamicModelIndex(modelIndex))
+			return LookupDynamicModel(modelIndex);
+
+		return cl.GetModel(modelIndex);
+	}
+
 	protected override INetworkStringTable? GetDynamicModelStringTable() {
 		return cl.DynamicModelsTable;
 	}

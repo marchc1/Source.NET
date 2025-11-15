@@ -28,7 +28,7 @@ public partial class BaseEntity : IServerEntity
 	}
 	public static SendTable DT_PredictableId = new(nameof(DT_PredictableId), [
 		SendPropPredictableId(FIELD.OF(nameof(PredictableId))),
-		SendPropInt(FIELD.OF(nameof(IsPlayerSimulated)), 1, PropFlags.Unsigned)
+		SendPropInt(FIELD.OF(nameof(b_IsPlayerSimulated)), 1, PropFlags.Unsigned)
 	]);
 
 	public static SendTable DT_BaseEntity = new([
@@ -147,7 +147,6 @@ public partial class BaseEntity : IServerEntity
 	public int MapCreatedID;
 
 	public readonly PredictableId PredictableId = new();
-	public readonly bool IsPlayerSimulated;
 
 	public readonly GModTable GMOD_DataTable = new();
 

@@ -70,7 +70,7 @@ public class
 		RecvPropBool(FIELD.OF(nameof(b_IsPlayerSimulated)))
 #else
 		SendPropPredictableId(FIELD.OF(nameof(PredictableId))),
-		SendPropBool(FIELD.OF(nameof(IsPlayerSimulated)))
+		SendPropBool(FIELD.OF(nameof(b_IsPlayerSimulated)))
 #endif
 		]);
 	public static readonly
