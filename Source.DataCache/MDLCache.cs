@@ -45,7 +45,7 @@ public class StudioData
 	public object? AnimBlock; // todo: research what this is
 }
 
-public class MDLCache(IFileSystem fileSystem, IStudioRender StudioRender) : IMDLCache, IStudioDataCache
+public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 {
 	static readonly ConVar r_rootlod = new("r_rootlod", "0", FCvar.Archive, "Root LOD", 0, Studio.MAX_NUM_LODS);
 	static readonly ConVar mod_forcedata = new("mod_forcedata", "0", 0, "Forces all model file data into cache on model load.");
@@ -177,7 +177,8 @@ public class MDLCache(IFileSystem fileSystem, IStudioRender StudioRender) : IMDL
 		Msg($"MDLCache: Begin load VTX {GetModelName(handle)}\n");
 		return BuildHardwareData(handle, studioData, studioHdr);
 	}
-
+	IStudioRender? studioRender;
+	IStudioRender StudioRender => studioRender ??= Singleton<IStudioRender>();
 	private bool BuildHardwareData(uint handle, StudioData studioData, StudioHeader studioHdr) {
 		Span<char> fileName = stackalloc char[MAX_PATH];
 		MakeFilename(handle, GetVTXExtension(), fileName);
@@ -189,25 +190,25 @@ public class MDLCache(IFileSystem fileSystem, IStudioRender StudioRender) : IMDL
 
 		vtxHeader.Position = 0;
 		OptimizedModel.FileHeader? vtxHdr = new(vtxHeader.GetBuffer());
-		if(vtxHdr.Version != OptimizedModel.OPTIMIZED_MODEL_FILE_VERSION) {
+		if (vtxHdr.Version != OptimizedModel.OPTIMIZED_MODEL_FILE_VERSION) {
 			Warning($"Error Index File for '{studioHdr.GetName()}' version {vtxHdr.Version} should be {OptimizedModel.OPTIMIZED_MODEL_FILE_VERSION}\n");
 			vtxHdr = null;
 		}
-		else if(vtxHdr.Checksum != studioHdr.Checksum) {
+		else if (vtxHdr.Checksum != studioHdr.Checksum) {
 			Warning($"Error Index File for '{studioHdr.GetName()}' checksum {vtxHdr.Checksum} should be {studioHdr.Checksum}\n");
 			vtxHdr = null;
 		}
 
-		if(vtxHdr == null){
+		if (vtxHdr == null) {
 			studioData.Flags |= StudioDataFlags.NoStudioMesh;
 			return false;
 		}
 
 		bool loaded = StudioRender.LoadModel(studioHdr, vtxHeader.GetBuffer(), studioData.HardwareData);
 
-		if (loaded) 
+		if (loaded)
 			studioData.Flags |= StudioDataFlags.StudioMeshLoaded;
-		else 
+		else
 			studioData.Flags |= StudioDataFlags.NoStudioMesh;
 
 		// todo: cacheNotify
@@ -581,11 +582,11 @@ public class MDLCache(IFileSystem fileSystem, IStudioRender StudioRender) : IMDL
 	}
 
 	public StudioHeader? LockStudioHdr(MDLHandle_t handle) {
-		if (handle == MDLHANDLE_INVALID) 
+		if (handle == MDLHANDLE_INVALID)
 			return null;
 
 		StudioHeader? pStdioHdr = GetStudioHdr(handle);
-		if (pStdioHdr == null) 
+		if (pStdioHdr == null)
 			return null;
 
 		return pStdioHdr;
