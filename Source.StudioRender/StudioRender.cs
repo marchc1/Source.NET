@@ -3,9 +3,16 @@ using Source.Common.Engine;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
+using System.Buffers;
 using System.Numerics;
 
 namespace Source.StudioRender;
+
+public struct BodyPartInfo
+{
+	public int SubModelIndex;
+	public MStudioModel? SubModel;
+}
 
 [EngineComponent]
 public unsafe class StudioRender
@@ -62,7 +69,7 @@ public unsafe class StudioRender
 			pRenderContext.PopMatrix();
 
 			// TODO: Restore the configs
-			
+
 
 			pRenderContext.SetNumBoneWeights(0);
 			pRC = null;
@@ -101,8 +108,64 @@ public unsafe class StudioRender
 		}
 	}
 
+	bool SkippedMeshes;
+	bool DrawTranslucentSubModels;
+
 	private int R_StudioRenderModel(IMatRenderContext renderContext, int skin, int body, int hitboxset, object? entity,
 									Span<IMaterial> materials, Span<int> materialFlags, StudioRenderFlags flags, int boneMask, int lod, Span<ColorMeshInfo> colorMeshes) {
+		StudioRenderFlags nDrawGroup = flags & StudioRenderFlags.DrawGroupMask;
+
+		// TODO: Draw modes for entities/bones stuff
+
+		int numTrianglesRendered = 0;
+
+		// Build list of submodels
+		BodyPartInfo[] pBodyPartInfo = ArrayPool<BodyPartInfo>.Shared.Rent(StudioHdr!.NumBodyParts);
+		for (int i = 0; i < StudioHdr.NumBodyParts; ++i)
+			pBodyPartInfo[i].SubModelIndex = R_StudioSetupModel(i, body, out pBodyPartInfo[i].SubModel, StudioHdr);
+
+		if (nDrawGroup != StudioRenderFlags.DrawTranslucentOnly) {
+			SkippedMeshes = false;
+			DrawTranslucentSubModels = false;
+			numTrianglesRendered += R_StudioRenderFinal(renderContext, skin, StudioHdr.NumBodyParts, pBodyPartInfo,
+				entity, materials, materialFlags, boneMask, lod, colorMeshes);
+		}
+		else {
+			SkippedMeshes = true;
+		}
+
+		if (SkippedMeshes && nDrawGroup != StudioRenderFlags.DrawOpaqueOnly) {
+			DrawTranslucentSubModels = true;
+			numTrianglesRendered += R_StudioRenderFinal(renderContext, skin, StudioHdr.NumBodyParts, pBodyPartInfo,
+				entity, materials, materialFlags, boneMask, lod, colorMeshes);
+		}
+		ArrayPool<BodyPartInfo>.Shared.Return(pBodyPartInfo, true);
+		return numTrianglesRendered;
+	}
+
+	private int R_StudioRenderFinal(IMatRenderContext renderContext, int skin, int numBodyParts, BodyPartInfo[] pBodyPartInfo, object? entity, Span<IMaterial> materials, Span<int> materialFlags, int boneMask, int lod, Span<ColorMeshInfo> colorMeshes) {
 		throw new NotImplementedException();
+	}
+
+	private int R_StudioSetupModel(int bodypart, int entity_body, out MStudioModel? subModel, StudioHeader studioHdr) {
+		int index;
+		MStudioBodyParts pbodypart;
+
+		if (bodypart > studioHdr.NumBodyParts) {
+			ConDMsg($"R_StudioSetupModel: no such bodypart {bodypart}\n");
+			bodypart = 0;
+		}
+
+		pbodypart = studioHdr.BodyPart(bodypart);
+
+		if (pbodypart.Base == 0) {
+			Warning($"Model has missing body part: {studioHdr.GetName()}\n");
+			Assert(0);
+		}
+		index = entity_body / pbodypart.Base;
+		index = index % pbodypart.NumModels;
+
+		subModel = pbodypart.Model(index);
+		return index;
 	}
 }
