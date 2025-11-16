@@ -451,7 +451,11 @@ public class StudioHdr
 /// </summary>
 public class StudioHeader
 {
-	public Memory<byte> Data;
+	private StudioHeader() { }
+	public StudioHeader(Memory<byte> data) {
+		Data = data;
+	}
+	public readonly Memory<byte> Data;
 
 	public int ID;
 	public int Version;
@@ -531,7 +535,7 @@ public class StudioHeader
 		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(i, NumBodyParts);
 
 		if (bodyPartCache[i] == null)
-			return bodyPartCache[i] = new(Data = Data[BodyPartIndex..]);
+			return bodyPartCache[i] = new(Data[BodyPartIndex..]);
 		return bodyPartCache[i];
 	}
 

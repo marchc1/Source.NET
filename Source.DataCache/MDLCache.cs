@@ -307,14 +307,12 @@ public class MDLCache(IFileSystem fileSystem, IStudioRender StudioRender) : IMDL
 		// NOTE: We now assume that the buffer is locked.
 		// TODO: Size check the memory stream before reading!!!
 
-		StudioHeader header = new() {
-			// Justification for GetBuffer: If the buffer won't have any changes made to it, then we don't need
-			// to store another copy of the byte data and can use the MemoryStream's array. When MemoryStream disposes,
-			// the internal array will still remain ref'd by the Memory<byte>, so
-			// Some operations in studio .mdl's require accessing data later on in the file beyond just the header data
-			// and that's what's being set here
-			Data = new(buf.GetBuffer())
-		};
+		// Justification for GetBuffer: If the buffer won't have any changes made to it, then we don't need
+		// to store another copy of the byte data and can use the MemoryStream's array. When MemoryStream disposes,
+		// the internal array will still remain ref'd by the Memory<byte>, so
+		// Some operations in studio .mdl's require accessing data later on in the file beyond just the header data
+		// and that's what's being set here
+		StudioHeader header = new(buf.GetBuffer());
 		using BinaryReader br = new(buf, System.Text.Encoding.ASCII);
 		header.ID = br.ReadInt32();
 		header.Version = br.ReadInt32();
