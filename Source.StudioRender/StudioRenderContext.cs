@@ -566,8 +566,13 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 		// todo
 	}
 
+	// DEVIATION: But the way Source does it is so confusing and very much so built for C++ it seems...
+	// so it seems more reasonable to deviate.
+	List<Matrix4x4> matrices = [];
 	public Span<Matrix4x4> LockBoneMatrices(int boneCount) {
-		throw new NotImplementedException();
+		matrices.Clear();
+		matrices.EnsureCountDefault(boneCount);
+		return matrices.AsSpan();
 	}
 
 	public void UnloadModel(StudioHWData hardwareData) {
@@ -575,6 +580,6 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 	}
 
 	public void UnlockBoneMatrices() {
-		throw new NotImplementedException();
+
 	}
 }
