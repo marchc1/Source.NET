@@ -5,7 +5,9 @@ using Source.Common.Mathematics;
 
 using System;
 using System.Buffers;
+using System.Drawing.Drawing2D;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Source.StudioRender;
 
@@ -218,6 +220,101 @@ public unsafe class StudioRender
 	}
 
 	private int R_StudioDrawMesh(IMatRenderContext renderContext, MStudioMesh pmesh, StudioMeshData pMeshData, StudioModelLighting lighting, IMaterial pMaterial, Span<ColorMeshInfo> colorMeshes, int lod) {
+		int numTrianglesRendered = 0;
+
+		for (int j = 0; j < pMeshData.NumGroup; ++j) {
+			StudioMeshGroup pGroup = pMeshData.MeshGroup![j];
+
+			bool bIsFlexed = (pGroup.Flags & StudioMeshGroupFlags.IsFlexed) != 0;
+			bool bIsDeltaFlexed = (pGroup.Flags & StudioMeshGroupFlags.IsDeltaFlexed) != 0;
+
+			bool bFlexStatic = bIsDeltaFlexed; // && g_pMaterialSystemHardwareConfig->SupportsStreamOffset()); << todo: research
+
+			bool bIsHardwareSkinnedData = (pGroup.Flags & StudioMeshGroupFlags.IsHWSkinned) != 0;
+			bool bShouldHardwareSkin = bIsHardwareSkinnedData && (!bIsFlexed || bFlexStatic) && (lighting != StudioModelLighting.Software);
+
+			if (bShouldHardwareSkin && !pRC!.Config.DrawNormals && !pRC!.Config.DrawTangentFrame && !pRC!.Config.Wireframe) {
+				if (!pRC!.Config.NoHardware)
+					numTrianglesRendered += R_StudioDrawStaticMesh(renderContext, pmesh, pGroup, lighting, pRC.AlphaMod, pMaterial, lod, colorMeshes);
+			}
+			else {
+				if (!pRC!.Config.NoSoftware)
+					numTrianglesRendered += R_StudioDrawDynamicMesh(renderContext, pmesh, pGroup, lighting, pRC.AlphaMod, pMaterial, lod);
+			}
+		}
+		return numTrianglesRendered;
+	}
+
+	private int R_StudioDrawStaticMesh(IMatRenderContext renderContext, MStudioMesh pmesh, StudioMeshGroup pGroup, StudioModelLighting lighting, float alphaMod, IMaterial pMaterial, int lod, Span<ColorMeshInfo> colorMeshes) {
+		int numTrianglesRendered = 0;
+
+		bool bDoSoftwareLighting = colorMeshes.IsEmpty &&
+			((pRC!.Config.SoftwareSkin) || pRC.Config.DrawNormals || pRC.Config.DrawTangentFrame ||
+			// (pMaterial != null ? pMaterial.NeedsSoftwareSkinning() : false) ||
+			(pRC.Config.SoftwareLighting) ||
+			((lighting != StudioModelLighting.Hardware) && (lighting != StudioModelLighting.Mouth)));
+
+		// software lighting case
+		// TODO ^^^^^^^^^^^^^^^^
+
+		// Needed when we switch back and forth between hardware + software lighting
+		// TODO ^^^^^^^^^^^^^^^^^^
+
+		// Build separate flex stream containing deltas, which will get copied into another vertex stream
+		// TODO ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+		if (!colorMeshes.IsEmpty && (pGroup.ColorMeshID != -1))
+			numTrianglesRendered = R_StudioDrawGroupHWSkin(renderContext, pGroup, pGroup.Mesh, ref colorMeshes[pGroup.ColorMeshID]);
+		else
+			numTrianglesRendered = R_StudioDrawGroupHWSkin(renderContext, pGroup, pGroup.Mesh, ref Unsafe.NullRef<ColorMeshInfo>());
+
+		// TODO: Morph/flex
+
+		return numTrianglesRendered;
+	}
+
+	private int R_StudioDrawGroupHWSkin(IMatRenderContext renderContext, StudioMeshGroup pGroup, IMesh? mesh, ref ColorMeshInfo colorMeshInfo) {
+		int numTrianglesRendered = 0;
+
+
+		if (StudioHdr!.NumBones == 1) {
+			renderContext.MatrixMode(MaterialMatrixMode.Model);
+			renderContext.LoadMatrix(PoseToWorld[0]);
+
+			renderContext.SetNumBoneWeights(0);
+		}
+
+		if (!Unsafe.IsNullRef(ref colorMeshInfo))
+			mesh!.SetColorMesh(colorMeshInfo.Mesh!, colorMeshInfo.VertOffsetInBytes);
+		else
+			mesh!.SetColorMesh(null!, 0);
+
+		for (int j = 0; j < pGroup.NumStrips; ++j) {
+			OptimizedModel.StripHeader pStrip = pGroup.StripData![j];
+
+			if (StudioHdr.NumBones > 1) {
+				renderContext.SetNumBoneWeights(pStrip.NumBones);
+
+				for (int k = 0; k < pStrip.NumBoneStateChanges; ++k) {
+					ref OptimizedModel.BoneStateChangeHeader pStateChange = ref pStrip.BoneStateChange(k);
+					if (pStateChange.NewBoneID < 0)
+						break;
+
+					renderContext.LoadBoneMatrix(pStateChange.HardwareID, in PoseToWorld[pStateChange.NewBoneID]);
+				}
+			}
+
+			mesh.SetPrimitiveType((pStrip.Flags & OptimizedModel.StripHeaderFlags.IsTriStrip) != 0 ? MaterialPrimitiveType.TriangleStrip : MaterialPrimitiveType.Triangles);
+
+			mesh.Draw(pStrip.IndexOffset, pStrip.NumIndices);
+			numTrianglesRendered += 0; // TODO: uniquetris
+		}
+		mesh.SetColorMesh(null, 0);
+
+		return numTrianglesRendered;
+	}
+
+	private int R_StudioDrawDynamicMesh(IMatRenderContext renderContext, MStudioMesh pmesh, StudioMeshGroup pGroup, StudioModelLighting lighting, float alphaMod, IMaterial pMaterial, int lod) {
 		throw new NotImplementedException();
 	}
 

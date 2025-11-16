@@ -74,6 +74,11 @@ public static class OptimizedModel
 		public int NewBoneID;
 	}
 
+	public enum StripHeaderFlags {
+		IsTriList = 0x01,
+		IsTriStrip = 0x02,
+	}
+
 	public class StripHeader
 	{
 		public Memory<byte> Data;
@@ -83,7 +88,7 @@ public static class OptimizedModel
 		public int NumVerts;
 		public int VertOffset;
 		public short NumBones;
-		public StripGroupFlags Flags;
+		public StripHeaderFlags Flags;
 		public int NumBoneStateChanges;
 		public int BoneStateChangeOffset;
 
@@ -99,7 +104,7 @@ public static class OptimizedModel
 
 			NumBones = data[16..].Cast<byte, short>()[0];
 
-			Flags = (StripGroupFlags)data[18];
+			Flags = (StripHeaderFlags)data[18];
 
 			NumBoneStateChanges = data[19..].Cast<byte, int>()[0];
 			BoneStateChangeOffset = data[23..].Cast<byte, int>()[0];

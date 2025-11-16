@@ -518,4 +518,8 @@ public class MatRenderContext : IMatRenderContextInternal
 	public void SetNumBoneWeights(int v) {
 		// todo
 	}
+
+	public void LoadBoneMatrix(int boneIndex, in Matrix4x4 matrix) {
+		shaderAPI.LoadBoneMatrix(boneIndex, in matrix);
+	}
 }

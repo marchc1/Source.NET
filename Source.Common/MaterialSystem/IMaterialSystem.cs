@@ -173,6 +173,7 @@ public struct MaterialSystem_SortInfo
 
 public interface IMaterialSystem
 {
+	public const int NUM_MODEL_TRANSFORMS = 53;
 	public const float OVERBRIGHT = 2;
 	public const float OO_OVERBRIGHT = 1f / 2f;
 	public const float GAMMA = 2.2f;
@@ -250,6 +251,7 @@ public interface IMatRenderContext
 	float ComputePixelDiameterOfSphere(Vector3 origin, float radius);
 	float ComputePixelWidthOfSphere(Vector3 origin, float radius);
 	void SetNumBoneWeights(int v);
+	void LoadBoneMatrix(int hardwareID, in Matrix4x4 matrix4x4);
 }
 
 public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
@@ -320,4 +322,6 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public float ComputePixelWidthOfSphere(Vector3 origin, float radius) => ctx.ComputePixelWidthOfSphere(origin, radius);
 
 	public void SetNumBoneWeights(int v) => ctx.SetNumBoneWeights(v);
+
+	public void LoadBoneMatrix(int hardwareID, in Matrix4x4 matrix) => ctx.LoadBoneMatrix(hardwareID, in matrix); 
 }

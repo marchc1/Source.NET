@@ -969,4 +969,19 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 				break;
 		}
 	}
+
+	readonly Matrix4x4[] BoneMatrix = new Matrix4x4[IMaterialSystem.NUM_MODEL_TRANSFORMS];
+	int MaxBoneLoaded;
+	public void LoadBoneMatrix(int boneIndex, in Matrix4x4 matrix) {
+		if (IsDeactivated())
+			return;
+		BoneMatrix[boneIndex] = matrix;
+		if (boneIndex > MaxBoneLoaded)
+			MaxBoneLoaded = boneIndex;
+
+		if(boneIndex == 0) {
+			MatrixMode(MaterialMatrixMode.Model);
+			LoadMatrix(matrix);
+		}
+	}
 }

@@ -2,6 +2,8 @@ using Source.Common.Bitmap;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 
+using System.Numerics;
+
 namespace Source.Common.ShaderAPI;
 public enum CreateTextureFlags
 {
@@ -99,4 +101,5 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void TexWrap(TexCoordComponent coord, TexWrapMode wrapMode);
 	void TexMinFilter(TexFilterMode mode);
 	void TexMagFilter(TexFilterMode mode);
+	void LoadBoneMatrix(int boneIndex, in Matrix4x4 matrix);
 }
