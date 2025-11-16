@@ -144,8 +144,8 @@ public static class OptimizedModel
 			flags = data[24..][0];
 		}
 
-		public ref Vertex Vertex(int i) => ref Data.Span[IndexOffset..].Cast<byte, Vertex>()[i];
-		public Span<Vertex> Vertices() => Data.Span[IndexOffset..].Cast<byte, Vertex>()[..NumVerts];
+		public ref Vertex Vertex(int i) => ref Data.Span[VertOffset..].Cast<byte, Vertex>()[i];
+		public Span<Vertex> Vertices() => Data.Span[VertOffset..].Cast<byte, Vertex>()[..NumVerts];
 		public ref ushort Index(int i) => ref Data.Span[IndexOffset..].Cast<byte, ushort>()[i];
 		public Span<ushort> Indices() => Data.Span[IndexOffset..].Cast<byte, ushort>()[..NumIndices];
 		StripHeader[]? partCache;
