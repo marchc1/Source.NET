@@ -8,8 +8,11 @@ using Source.Common.Utilities;
 
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Source.DataCache;
+
 
 public enum StudioDataFlags : ushort
 {
@@ -42,7 +45,7 @@ public class StudioData
 	public object? AnimBlock; // todo: research what this is
 }
 
-public class MDLCache(IFileSystem fileSystem) : IMDLCache
+public class MDLCache(IFileSystem fileSystem, IStudioRender StudioRender) : IMDLCache
 {
 	static readonly ConVar r_rootlod = new("r_rootlod", "0", FCvar.Archive, "Root LOD", 0, Studio.MAX_NUM_LODS);
 	static readonly ConVar mod_forcedata = new("mod_forcedata", "0", 0, "Forces all model file data into cache on model load.");
@@ -171,13 +174,45 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 			return false;
 		}
 
+		Msg($"MDLCache: Begin load VTX {GetModelName(handle)}\n");
+		return BuildHardwareData(handle, studioData, studioHdr);
+	}
+
+	private bool BuildHardwareData(uint handle, StudioData studioData, StudioHeader studioHdr) {
 		Span<char> fileName = stackalloc char[MAX_PATH];
 		MakeFilename(handle, GetVTXExtension(), fileName);
 		fileName = fileName.SliceNullTerminatedString();
 
-		Msg($"MDLCache: Begin load VTX {GetModelName(handle)}\n");
+		MemoryStream vtxHeader = new();
+		if (!ReadFileNative(fileName, "GAME", vtxHeader))
+			return false;
 
-		return false;
+		vtxHeader.Position = 0;
+		ref OptimizedModelFileHeader vtxHdr = ref MemoryMarshal.Cast<byte, OptimizedModelFileHeader>(vtxHeader.GetBuffer().AsSpan())[0];
+		if(vtxHdr.Version != OptimizedModelFileHeader.OPTIMIZED_MODEL_FILE_VERSION) {
+			Warning($"Error Index File for '{studioHdr.GetName()}' version {vtxHdr.Version} should be {OptimizedModelFileHeader.OPTIMIZED_MODEL_FILE_VERSION}\n");
+			vtxHdr = ref Unsafe.NullRef<OptimizedModelFileHeader>();
+		}
+		else if(vtxHdr.CheckSum != studioHdr.Checksum) {
+			Warning($"Error Index File for '{studioHdr.GetName()}' checksum {vtxHdr.CheckSum} should be {studioHdr.Checksum}\n");
+			vtxHdr = ref Unsafe.NullRef<OptimizedModelFileHeader>();
+		}
+
+		if(Unsafe.IsNullRef(ref vtxHdr)){
+			studioData.Flags |= StudioDataFlags.NoStudioMesh;
+			return false;
+		}
+
+		bool loaded = StudioRender.LoadModel(studioHdr, ref vtxHdr, studioData.HardwareData);
+
+		if (loaded) 
+			studioData.Flags |= StudioDataFlags.StudioMeshLoaded;
+		else 
+			studioData.Flags |= StudioDataFlags.NoStudioMesh;
+
+		// todo: cacheNotify
+
+		return true;
 	}
 
 	private ReadOnlySpan<char> GetVTXExtension() {
@@ -547,8 +582,15 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		throw new NotImplementedException();
 	}
 
-	public StudioHeader LockStudioHdr(MDLHandle_t handle) {
-		throw new NotImplementedException();
+	public StudioHeader? LockStudioHdr(MDLHandle_t handle) {
+		if (handle == MDLHANDLE_INVALID) 
+			return null;
+
+		StudioHeader? pStdioHdr = GetStudioHdr(handle);
+		if (pStdioHdr == null) 
+			return null;
+
+		return pStdioHdr;
 	}
 
 	public void MarkAsLoaded(MDLHandle_t handle) {

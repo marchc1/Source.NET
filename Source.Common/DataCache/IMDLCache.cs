@@ -84,7 +84,7 @@ public interface IMDLCache
 
 	ref int GetFrameUnlockCounterPtr(MDLCacheDataType type);
 
-	StudioHeader LockStudioHdr(MDLHandle_t handle);
+	StudioHeader? LockStudioHdr(MDLHandle_t handle);
 	void UnlockStudioHdr(MDLHandle_t handle);
 
 	bool PreloadModel(MDLHandle_t handle);

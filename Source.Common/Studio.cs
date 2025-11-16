@@ -293,9 +293,17 @@ public class StudioHdr {
 	private StudioHeader? studioHdr;
 	private VirtualModel? vModel;
 	public int NumBones() => studioHdr!.NumBones;
+	readonly List<StudioHeader> StudioHdrCache = [];
 
 	public void Init(StudioHeader? studioHdr, IMDLCache mdlcache) {
-		throw new NotImplementedException();
+		this.studioHdr = studioHdr;
+
+		this.vModel = null;
+		StudioHdrCache.Clear();
+
+		if (this.studioHdr == null)
+			return;
+		// todo the rest
 	}
 }
 

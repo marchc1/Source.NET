@@ -264,9 +264,9 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		// vcollide_wireframe todo
 	}
 
-	private void OnPostInternalDrawModel(ref ClientModelRenderInfo info) {
-		throw new NotImplementedException();
-	}
+	protected virtual bool OnPostInternalDrawModel(ref ClientModelRenderInfo info) {
+        return true;
+    }
 
 	protected virtual bool OnInternalDrawModel(ref ClientModelRenderInfo info) {
 		var lor = LightingOriginRelative.Get();

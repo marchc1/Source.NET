@@ -85,7 +85,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem) : IStudioRender
 		return found;
 	}
 
-	public void LoadModel(StudioHeader studioHDR, object vtxData, StudioHWData hardwareData) {
+	public bool LoadModel(StudioHeader studioHDR, ref OptimizedModelFileHeader vtxData, StudioHWData hardwareData) {
 		throw new NotImplementedException();
 	}
 
