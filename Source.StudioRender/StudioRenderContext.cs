@@ -188,12 +188,12 @@ public class StudioRenderContext(IMaterialSystem materialSystem) : IStudioRender
 		for (int j = 0; j < hdr.NumCDTextures && material.IsErrorMaterial(); j++) {
 			// If we don't do this, we get filenames like "materials\\blah.vmt".
 			ReadOnlySpan<char> textureName = GetTextureName(hdr, vtxHeader, lodID, i);
-			if (textureName[0] == StrTools.CORRECT_PATH_SEPARATOR || textureName[0] == StrTools.INCORRECT_PATH_SEPARATOR)
+			if (!textureName.IsEmpty && (textureName[0] == StrTools.CORRECT_PATH_SEPARATOR || textureName[0] == StrTools.INCORRECT_PATH_SEPARATOR))
 				textureName = textureName[1..];
 
 			// This prevents filenames like /models/blah.vmt.
 			ReadOnlySpan<char> cdTexture = hdr.CDTexture(j);
-			if (cdTexture[0] == StrTools.CORRECT_PATH_SEPARATOR || cdTexture[0] == StrTools.INCORRECT_PATH_SEPARATOR)
+			if (!cdTexture.IsEmpty && (cdTexture[0] == StrTools.CORRECT_PATH_SEPARATOR || cdTexture[0] == StrTools.INCORRECT_PATH_SEPARATOR))
 				cdTexture = cdTexture[1..];
 
 			StrTools.ComposeFileName(cdTexture, textureName, path);
