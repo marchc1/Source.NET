@@ -97,8 +97,38 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	MDLHandle_t hStudioHdr;
 
 	public void LockStudioHdr() {
+        Assert(hStudioHdr == MDLHANDLE_INVALID && pStudioHdr == null);
 
-	}
+        if (hStudioHdr != MDLHANDLE_INVALID || pStudioHdr != null) {
+            Assert(pStudioHdr != null ? pStudioHdr.GetRenderHdr() == mdlcache.GetStudioHdr(hStudioHdr) : hStudioHdr == MDLHANDLE_INVALID);
+            return;
+        }
+
+        Model? mdl = GetModel();
+        if (mdl == null)
+            return;
+
+        hStudioHdr = modelinfo.GetCacheHandle(mdl);
+        if (hStudioHdr == MDLHANDLE_INVALID)
+            return;
+
+        StudioHeader studioHdr = mdlcache.LockStudioHdr(hStudioHdr);
+        if (studioHdr == null) {
+            hStudioHdr = MDLHANDLE_INVALID;
+            return;
+        }
+
+        StudioHdr newWrapper = new StudioHdr();
+        newWrapper.Init(studioHdr, mdlcache);
+        Assert(newWrapper.IsValid());
+
+        if (newWrapper.GetVirtualModel() != null) {
+            MDLHandle_t hVirtualModel = studioHdr.VirtualModel;
+            mdlcache.LockStudioHdr(hVirtualModel);
+        }
+
+        pStudioHdr = newWrapper; // must be last to ensure virtual model correctly set up
+    }
 
 	public void UnlockStudioHdr() {
 		if (hStudioHdr != MDLHANDLE_INVALID) {

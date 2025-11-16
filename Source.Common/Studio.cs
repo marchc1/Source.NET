@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.HighPerformance;
 
+using Source.Common.DataCache;
 using Source.Common.MaterialSystem;
 
 using System.Numerics;
@@ -292,6 +293,10 @@ public class StudioHdr {
 	private StudioHeader? studioHdr;
 	private VirtualModel? vModel;
 	public int NumBones() => studioHdr!.NumBones;
+
+	public void Init(StudioHeader? studioHdr, IMDLCache mdlcache) {
+		throw new NotImplementedException();
+	}
 }
 
 /// <summary>

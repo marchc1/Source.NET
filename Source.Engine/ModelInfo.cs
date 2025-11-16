@@ -86,6 +86,10 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		return mdlCache.GetVirtualModelFast(studioHdr, studioHdr.VirtualModel);
 	}
 
+	public virtual MDLHandle_t GetCacheHandle(Model model) {
+		return model.Type == ModelType.Studio ? model.Studio : MDLHANDLE_INVALID;
+	}
+
 	readonly List<Model> NetworkedDynamicModels = [];
 }
 
