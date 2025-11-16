@@ -10,5 +10,6 @@ public interface IModelInfo
 public interface IModelInfoClient : IModelInfo
 {
 	ModelType GetModelType(Model? model);
+	VirtualModel? GetVirtualModel(StudioHeader self);
 	bool IsTranslucentTwoPass(Model? model);
 }

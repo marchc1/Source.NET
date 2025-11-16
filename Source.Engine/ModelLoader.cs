@@ -307,7 +307,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	}
 
 	private int Mod_GetModelMaterials(Model model, Span<IMaterial> materials) {
-		StudioHDR studioHdr;
+		StudioHeader studioHdr;
 		int found = 0;
 		int i;
 

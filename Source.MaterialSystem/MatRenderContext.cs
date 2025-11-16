@@ -4,6 +4,8 @@ using Source.Common.ShaderAPI;
 using Source.Common.Utilities;
 
 using System.Numerics;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 
 namespace Source.MaterialSystem;
 
@@ -32,6 +34,9 @@ public class MatRenderContext : IMatRenderContextInternal
 		};
 		RenderTargetStack.Push(initialElement);
 		shaderAPI = materials.ShaderAPI;
+
+		DirtyViewState = true;
+		DirtyViewProjState = true;
 	}
 	RefStack<RenderTargetStackElement> RenderTargetStack;
 	RefStack<MatrixStackItem>[] MatrixStacks;
@@ -122,6 +127,13 @@ public class MatRenderContext : IMatRenderContextInternal
 
 	private void CurrentMatrixChanged() {
 		MarkDirty();
+
+		if (matrixMode == MaterialMatrixMode.View) {
+			DirtyViewState = true;
+			DirtyViewProjState = true;
+		}
+		else if (matrixMode == MaterialMatrixMode.Projection)
+			DirtyViewProjState = true;
 	}
 
 	public void Viewport(int x, int y, int width, int height) {
@@ -410,4 +422,96 @@ public class MatRenderContext : IMatRenderContextInternal
 
 	public int GetMaxVerticesToRender(IMaterial material) => materials.ShaderAPI.GetMaxVerticesToRender(material);
 	public int GetMaxIndicesToRender(IMaterial material) => materials.ShaderAPI.GetMaxIndicesToRender(material);
+
+	public float ComputePixelDiameterOfSphere(Vector3 absOrigin, float radius) {
+		RecomputeViewState();
+		RecomputeViewProjState();
+		// This is sort of faked, but it's faster that way
+		// FIXME: Also, there's a much faster way to do this with similar triangles
+		// but I want to make sure it exactly matches the current matrices, so
+		// for now, I do it this conservative way
+		Vector4 testPoint1 = default, testPoint2 = default;
+		MathLib.VectorMA(in absOrigin, radius, in VecViewUp, ref testPoint1.AsVector3D());
+		MathLib.VectorMA(in absOrigin, -radius, in VecViewUp, ref testPoint2.AsVector3D());
+		testPoint1.W = testPoint2.W = 1.0f;
+
+		Vector4 clipPos1 = default, clipPos2 = default;
+		MathLib.Vector4DMultiply(ViewProjMatrix, in testPoint1, ref clipPos1);
+		MathLib.Vector4DMultiply(ViewProjMatrix, in testPoint2, ref clipPos2);
+
+		if (clipPos1.W >= 0.001f) 
+			clipPos1.Y /= clipPos1.W;
+		else 
+			clipPos1.Y *= 1000;
+
+		if (clipPos2.W >= 0.001f) 
+			clipPos2.Y /= clipPos2.W;
+		else 
+			clipPos2.Y *= 1000;
+		
+		GetViewport(out int vx, out int vy, out int vwidth, out int vheight);
+
+		return vheight * MathF.Abs(clipPos2.Y - clipPos1.Y) / 2.0f;
+	}
+
+	Vector3 VecViewOrigin;
+	Vector3 VecViewForward;
+	Vector3 VecViewRight;
+	Vector3 VecViewUp;
+
+	private void RecomputeViewProjState() {
+		if (DirtyViewProjState) {
+			Matrix4x4 viewMatrix, projMatrix;
+
+			// FIXME: Should consider caching this upon change for projection or view matrix.
+			GetMatrix(MaterialMatrixMode.View, out viewMatrix);
+			GetMatrix(MaterialMatrixMode.Projection, out projMatrix);
+			ViewProjMatrix = projMatrix * viewMatrix;
+			DirtyViewProjState = false;
+		}
+	}
+	Matrix4x4 ViewProjMatrix;
+
+	private void RecomputeViewState() {
+		if (!DirtyViewState)
+			return;
+		DirtyViewState = false;
+
+		// FIXME: Cache this off to make it less expensive?
+		Matrix4x4 viewMatrix;
+		GetMatrix(MaterialMatrixMode.View, out viewMatrix);
+		VecViewOrigin.X =
+			-(viewMatrix[0][3] * viewMatrix[0][0] +
+			viewMatrix[1][3] * viewMatrix[1][0] +
+			viewMatrix[2][3] * viewMatrix[2][0]);
+		VecViewOrigin.Y =
+			-(viewMatrix[0][3] * viewMatrix[0][1] +
+			viewMatrix[1][3] * viewMatrix[1][1] +
+			viewMatrix[2][3] * viewMatrix[2][1]);
+		VecViewOrigin.Z =
+			-(viewMatrix[0][3] * viewMatrix[0][2] +
+			viewMatrix[1][3] * viewMatrix[1][2] +
+			viewMatrix[2][3] * viewMatrix[2][2]);
+
+		// FIXME Implement computation of m_vecViewForward, etc
+		VecViewForward = new();
+		VecViewRight = new();
+
+		// FIXME: Is this correct?
+		VecViewUp = new(viewMatrix[1][0], viewMatrix[1][1], viewMatrix[1][2]);
+	}
+
+	private void GetMatrix(MaterialMatrixMode mode, out Matrix4x4 viewMatrix) {
+		var stack = MatrixStacks[(int)mode];
+		if(stack.Count == 0) {
+			viewMatrix = Matrix4x4.Identity;
+			return;
+		}
+
+		viewMatrix = stack.Top().Matrix;
+	}
+
+	public float ComputePixelWidthOfSphere(Vector3 origin, float radius) {
+		return ComputePixelDiameterOfSphere(origin, radius) * 2.0f;
+	}
 }

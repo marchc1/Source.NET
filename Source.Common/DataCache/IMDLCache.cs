@@ -41,7 +41,7 @@ public interface IMDLCache
 	int Release(MDLHandle_t handle);
 	int GetRef(MDLHandle_t handle);
 
-	StudioHDR? GetStudioHdr(MDLHandle_t handle);
+	StudioHeader? GetStudioHdr(MDLHandle_t handle);
 	StudioHWData? GetHardwareData(MDLHandle_t handle);
 	VCollide? GetVCollide(MDLHandle_t handle);
 	ReadOnlySpan<char> GetAnimBlock(MDLHandle_t handle, int block);
@@ -61,7 +61,7 @@ public interface IMDLCache
 
 	ReadOnlySpan<char> GetModelName(MDLHandle_t handle);
 
-	VirtualModel? GetVirtualModelFast(StudioHDR studioHdr, MDLHandle_t handle);
+	VirtualModel? GetVirtualModelFast(StudioHeader studioHdr, MDLHandle_t handle);
 
 	void BeginLock();
 	void EndLock();
@@ -84,7 +84,7 @@ public interface IMDLCache
 
 	ref int GetFrameUnlockCounterPtr(MDLCacheDataType type);
 
-	StudioHDR LockStudioHdr(MDLHandle_t handle);
+	StudioHeader LockStudioHdr(MDLHandle_t handle);
 	void UnlockStudioHdr(MDLHandle_t handle);
 
 	bool PreloadModel(MDLHandle_t handle);

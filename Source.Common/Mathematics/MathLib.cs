@@ -1,3 +1,5 @@
+using CommunityToolkit.HighPerformance;
+
 using Source.Common.Formats.BSP;
 
 using System.Numerics;
@@ -71,6 +73,16 @@ public static class MathLib
 	static MathLib() {
 
 	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static ref Vector3 AsVector3D(this ref Vector4 vec)
+		=> ref new Span<Vector4>(ref vec).Cast<Vector4, float>()[..3].Cast<float, Vector3>()[0];
+	
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static ref Vector2 AsVector2D(this ref Vector4 vec)
+		=> ref new Span<Vector4>(ref vec).Cast<Vector4, float>()[..2].Cast<float, Vector2>()[0];
+
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float Lerp(float f1, float f2, float i1, float i2, float x) {
 		return f1 + (f2 - f1) * (x - i1) / (i2 - i1);
@@ -231,5 +243,25 @@ public static class MathLib
 			else if (angles[i] < -180.0f) 
 				angles[i] += 360.0f;
 		}
+	}
+
+	public static void VectorMA(in Vector3 start, float scale, in Vector3 direction, ref Vector3 dest) {
+		dest.X = start.X + direction.X * scale;
+		dest.Y = start.Y + direction.Y * scale;
+		dest.Z = start.Z + direction.Z * scale;
+	}
+
+	public static void Vector4DMultiply(Matrix4x4 src1, in Vector4 src2, ref Vector4 dst) {
+		Vector4 v = src2;
+
+		// If src2 and dst reference the same location, copy first
+		if (Unsafe.AreSame(ref Unsafe.AsRef(in src2), ref dst)) {
+			v = new Vector4(src2.X, src2.Y, src2.Z, src2.W);
+		}
+
+		dst.X = src1.M11 * v.X + src1.M12 * v.Y + src1.M13 * v.Z + src1.M14 * v.W;
+		dst.Y = src1.M21 * v.X + src1.M22 * v.Y + src1.M23 * v.Z + src1.M24 * v.W;
+		dst.Z = src1.M31 * v.X + src1.M32 * v.Y + src1.M33 * v.Z + src1.M34 * v.W;
+		dst.W = src1.M41 * v.X + src1.M42 * v.Y + src1.M43 * v.Z + src1.M44 * v.W;
 	}
 }

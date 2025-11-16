@@ -1,4 +1,5 @@
 ﻿using Source.Common;
+using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Engine.Client;
@@ -7,7 +8,7 @@ using System.Reflection.Metadata.Ecma335;
 
 namespace Source.Engine;
 
-public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader) : IModelInfoClient
+public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader, IMDLCache mdlCache) : IModelInfoClient
 {
 	public abstract Model? GetModel(int modelIndex);
 
@@ -81,10 +82,14 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException("LookupDynamicModel not yet implemented!");
 	}
 
+	public VirtualModel? GetVirtualModel(StudioHeader studioHdr) {
+		return mdlCache.GetVirtualModelFast(studioHdr, studioHdr.VirtualModel);
+	}
+
 	readonly List<Model> NetworkedDynamicModels = [];
 }
 
-public class ModelInfoClient(ClientState cl, IFileSystem filesystem, IModelLoader modelloader) : ModelInfo(filesystem, modelloader)
+public class ModelInfoClient(ClientState cl, IFileSystem filesystem, IModelLoader modelloader, IMDLCache mdlCache) : ModelInfo(filesystem, modelloader, mdlCache)
 {
 	public override Model? GetModel(int modelIndex) {
 		if (IsDynamicModelIndex(modelIndex))

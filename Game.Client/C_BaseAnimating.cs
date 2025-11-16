@@ -6,12 +6,14 @@ using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
 
+using System.Net.NetworkInformation;
 using System.Numerics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
+using ClientModelRenderInfo = Source.Common.Engine.ModelRenderInfo;
 using FIELD = Source.FIELD<Game.Client.C_BaseAnimating>;
 using FIELD_ILR = Source.FIELD<Game.Client.C_InfoLightingRelative>;
-
 namespace Game.Client;
 
 public partial class C_InfoLightingRelative : C_BaseEntity
@@ -27,7 +29,7 @@ public partial class C_InfoLightingRelative : C_BaseEntity
 
 public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 {
-	static readonly ConVar r_drawothermodels = new("1", FCvar.Cheat, "0=Off, 1=Normal, 2=Wireframe" );
+	static readonly ConVar r_drawothermodels = new("1", FCvar.Cheat, "0=Off, 1=Normal, 2=Wireframe");
 
 
 	public static readonly RecvTable DT_ServerAnimationData = new([
@@ -91,8 +93,139 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 	}
 
+	StudioHdr? pStudioHdr;
+	MDLHandle_t hStudioHdr;
+
+	public void LockStudioHdr() {
+
+	}
+
+	public void UnlockStudioHdr() {
+		if (hStudioHdr != MDLHANDLE_INVALID) {
+			StudioHeader? studioHdr = mdlcache.GetStudioHdr(hStudioHdr);
+			Assert(studioHdr != null && pStudioHdr!.GetRenderHdr() == studioHdr);
+
+			{
+				// Immediate-mode rendering, can unlock immediately
+				if (studioHdr.GetVirtualModel() != null) {
+					MDLHandle_t hVirtualModel = studioHdr.VirtualModel;
+					mdlcache.UnlockStudioHdr(hVirtualModel);
+				}
+				mdlcache.UnlockStudioHdr(hStudioHdr);
+			}
+			hStudioHdr = MDLHANDLE_INVALID;
+
+			pStudioHdr = null;
+		}
+	}
+
+	public StudioHdr? GetModelPtr() {
+		if (pStudioHdr == null)
+			LockStudioHdr();
+		return pStudioHdr;
+	}
+
+	public void InvalidateMdlCache() {
+		UnlockStudioHdr();
+	}
+
+	public bool IsModelScaleFractional() => ModelScale < 1.0f;
+	public bool IsModelScaled() => ModelScale > 1.0f + float.Epsilon || ModelScale < 1.0f - float.Epsilon;
+	public float GetModelScale() => ModelScale;
+
+	public int GetBody() => Body;
+	public int GetSkin() => Skin;
+
 	public int InternalDrawModel(StudioFlags flags) {
+		var model = GetModel();
+		if (model == null)
+			return 0;
+
+		// This should never happen, but if the server class hierarchy has bmodel entities derived from CBaseAnimating or does a
+		//  SetModel with the wrong type of model, this could occur.
+		if (modelinfo.GetModelType(model) != ModelType.Studio) {
+			return base.DrawModel(flags);
+		}
+
+		// Make sure hdr is valid for drawing
+		if (GetModelPtr() == null)
+			return 0;
+
+		UpdateBoneAttachments();
+
+		if (IsEffectActive(EntityEffects.ItemBlink))
+			flags |= StudioFlags.ItemBlink;
+
+		ClientModelRenderInfo info = default;
+
+		info.Flags = flags;
+		info.Renderable = this;
+		info.Instance = GetModelInstance();
+		info.EntityIndex = Index;
+		info.Model = GetModel();
+		info.Origin = GetRenderOrigin();
+		info.Angles = GetRenderAngles();
+		info.Skin = GetSkin();
+		info.Body = GetBody();
+		info.HitboxSet = HitboxSet;
+
+		if (!OnInternalDrawModel(ref info))
+			return 0;
+
+		// Turns the origin + angles into a matrix
+		MathLib.AngleMatrix(info.Angles, info.Origin, ref info.ModelToWorld);
+
+		DrawModelState state = default;
+		bool markAsDrawn = modelrender.DrawModelSetup(ref info, ref state, default, out Span<Matrix4x4> boneToWorld);
+
+		// Scale the base transform if we don't have a bone hierarchy
+		if (IsModelScaled()) {
+			StudioHdr? pHdr = GetModelPtr();
+			if (pHdr != null && !Unsafe.IsNullRef(ref boneToWorld) && pHdr.NumBones() == 1) {
+				// Scale the bone to world at this point
+				float flScale = GetModelScale();
+
+				boneToWorld[0] *= Matrix4x4.CreateScale(flScale); // >
+			}
+		}
+
+		if (markAsDrawn && (info.Flags & StudioFlags.Render) != 0)
+			DoInternalDrawModel(ref info, ref state, boneToWorld);
+		else
+			DoInternalDrawModel(ref info, ref Unsafe.NullRef<DrawModelState>(), boneToWorld);
+
+		OnPostInternalDrawModel(ref info);
+
+		return markAsDrawn ? 1 : 0;
+	}
+
+	private void DoInternalDrawModel(ref ClientModelRenderInfo info, ref DrawModelState state, Span<Matrix4x4> boneToWorldArray) {
+		if (!Unsafe.IsNullRef(ref state))
+			modelrender.DrawModelExecute(ref state, ref info, boneToWorldArray);
+
+		// vcollide_wireframe todo
+	}
+
+	private void OnPostInternalDrawModel(ref ClientModelRenderInfo info) {
 		throw new NotImplementedException();
+	}
+
+	protected virtual bool OnInternalDrawModel(ref ClientModelRenderInfo info) {
+		var lor = LightingOriginRelative.Get();
+		var lo = LightingOrigin.Get();
+		if (lor != null) {
+			// todo
+		}
+
+		if (lo != null) {
+			info.LightingOrigin = lo.GetAbsOrigin();
+		}
+
+		return true;
+	}
+
+	private void UpdateBoneAttachments() {
+
 	}
 
 	public C_BaseAnimating? FindFollowedEntity() {
@@ -125,7 +258,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		if (r_drawothermodels.GetInt() != 0) {
 			StudioFlags extraFlags = 0;
-			if (r_drawothermodels.GetInt() == 2) 
+			if (r_drawothermodels.GetInt() == 2)
 				extraFlags |= StudioFlags.Wireframe;
 
 			if ((flags & StudioFlags.ShadowDepthTexture) != 0)
@@ -138,7 +271,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			if ((flags & (StudioFlags.SSAODepthTexture | StudioFlags.ShadowDepthTexture)) == 0 && false)
 				extraFlags |= StudioFlags.GenerateStats;
 
-			if ((flags & StudioFlags.NoOverrideForAttach) != 0) 
+			if ((flags & StudioFlags.NoOverrideForAttach) != 0)
 				extraFlags |= StudioFlags.NoOverrideForAttach;
 
 			// Necessary for lighting blending
@@ -157,7 +290,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 					// draw entity
 					// FIXME: Currently only draws if aiment is drawn.  
 					// BUGBUG: Fixup bbox and do a separate cull for follow object
-					if (baseDrawn != 0) 
+					if (baseDrawn != 0)
 						drawn = InternalDrawModel(StudioFlags.Render | extraFlags);
 				}
 			}
@@ -189,7 +322,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public override void NotifyShouldTransmit(ShouldTransmiteState state) {
 		base.NotifyShouldTransmit(state);
 
-		if(state == ShouldTransmiteState.Start) {
+		if (state == ShouldTransmiteState.Start) {
 			DisableMuzzleFlash();
 
 			PrevResetEventsParity = ResetEventsParity;
@@ -198,7 +331,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	}
 	public override void GetAimEntOrigin(C_BaseEntity attachedTo, out Vector3 origin, out QAngle angles) {
 		C_BaseEntity? moveParent = null;
-		if(IsEffectActive(EntityEffects.BoneMerge) && IsEffectActive(EntityEffects.BoneMergeFastCull) && (moveParent = GetMoveParent()) != null) {
+		if (IsEffectActive(EntityEffects.BoneMerge) && IsEffectActive(EntityEffects.BoneMergeFastCull) && (moveParent = GetMoveParent()) != null) {
 			origin = moveParent.GetAbsOrigin(); //TODO:  moveParent.WorldSpaceCenter();
 			angles = moveParent.GetRenderAngles();
 		}

@@ -3,6 +3,7 @@ using Source.Common.MaterialSystem;
 
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Text;
 
 namespace Source.StudioRender;
@@ -28,7 +29,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem) : IStudioRender
 		throw new NotImplementedException();
 	}
 
-	public int GetMaterialList(StudioHDR studioHDR, Span<IMaterial> materials) {
+	public int GetMaterialList(StudioHeader studioHDR, Span<IMaterial> materials) {
 		AssertMsg(studioHDR != null, "Don't ignore this assert! StudioRenderContext.GetMaterialList() has null studioHDR.");
 
 		if (studioHDR == null)
@@ -84,11 +85,19 @@ public class StudioRenderContext(IMaterialSystem materialSystem) : IStudioRender
 		return found;
 	}
 
-	public void LoadModel(StudioHDR studioHDR, object vtxData, StudioHWData hardwareData) {
+	public void LoadModel(StudioHeader studioHDR, object vtxData, StudioHWData hardwareData) {
+		throw new NotImplementedException();
+	}
+
+	public Span<Matrix4x4> LockBoneMatrices(int boneCount) {
 		throw new NotImplementedException();
 	}
 
 	public void UnloadModel(StudioHWData hardwareData) {
+		throw new NotImplementedException();
+	}
+
+	public void UnlockBoneMatrices() {
 		throw new NotImplementedException();
 	}
 }

@@ -32,6 +32,30 @@ public static class Studio
 	public const int MODEL_VERTEX_FILE_ID = (('V' << 24) + ('S' << 16) + ('D' << 8) + 'I');
 	public const int MODEL_VERTEX_FILE_VERSION = 4;
 	public const int MODEL_VERTEX_FILE_THIN_ID = (('V' << 24) + ('C' << 16) + ('D' << 8) + 'I');
+
+	public const int BONE_CALCULATE_MASK = 0x1F;
+	public const int BONE_PHYSICALLY_SIMULATED = 0x01; 
+	public const int BONE_PHYSICS_PROCEDURAL = 0x02;   
+	public const int BONE_ALWAYS_PROCEDURAL = 0x04;    
+	public const int BONE_SCREEN_ALIGN_SPHERE = 0x08;  
+	public const int BONE_SCREEN_ALIGN_CYLINDER = 0x10;
+
+	public const int BONE_USED_MASK = 0x0007FF00;
+	public const int BONE_USED_BY_ANYTHING = 0x0007FF00;
+	public const int BONE_USED_BY_HITBOX = 0x00000100;
+	public const int BONE_USED_BY_ATTACHMENT = 0x00000200;
+	public const int BONE_USED_BY_VERTEX_MASK = 0x0003FC00;
+	public const int BONE_USED_BY_VERTEX_LOD0 = 0x00000400;
+	public const int BONE_USED_BY_VERTEX_LOD1 = 0x00000800;
+	public const int BONE_USED_BY_VERTEX_LOD2 = 0x00001000;
+	public const int BONE_USED_BY_VERTEX_LOD3 = 0x00002000;
+	public const int BONE_USED_BY_VERTEX_LOD4 = 0x00004000;
+	public const int BONE_USED_BY_VERTEX_LOD5 = 0x00008000;
+	public const int BONE_USED_BY_VERTEX_LOD6 = 0x00010000;
+	public const int BONE_USED_BY_VERTEX_LOD7 = 0x00020000;
+	public const int BONE_USED_BY_BONE_MERGE = 0x00040000;
+
+	public static int BONE_USED_BY_VERTEX_AT_LOD(int lod) => BONE_USED_BY_VERTEX_LOD0 << lod;
 }
 
 public enum StudioHdrFlags
@@ -90,31 +114,31 @@ public class VirtualGeneric
 
 public class VirtualModel
 {
-	public void AppendSequences(int group, StudioHDR studioHDR) {
+	public void AppendSequences(int group, StudioHeader studioHDR) {
 
 	}
-	public void AppendAnimations(int group, StudioHDR studioHDR) {
+	public void AppendAnimations(int group, StudioHeader studioHDR) {
 
 	}
-	public void AppendAttachments(int group, StudioHDR studioHDR) {
+	public void AppendAttachments(int group, StudioHeader studioHDR) {
 
 	}
-	public void AppendPoseParameters(int group, StudioHDR studioHDR) {
+	public void AppendPoseParameters(int group, StudioHeader studioHDR) {
 
 	}
-	public void AppendBonemap(int group, StudioHDR studioHDR) {
+	public void AppendBonemap(int group, StudioHeader studioHDR) {
 
 	}
-	public void AppendNodes(int group, StudioHDR studioHDR) {
+	public void AppendNodes(int group, StudioHeader studioHDR) {
 
 	}
-	public void AppendTransitions(int group, StudioHDR studioHDR) {
+	public void AppendTransitions(int group, StudioHeader studioHDR) {
 
 	}
-	public void AppendIKLocks(int group, StudioHDR studioHDR) {
+	public void AppendIKLocks(int group, StudioHeader studioHDR) {
 
 	}
-	public void AppendModels(int group, StudioHDR studioHDR) {
+	public void AppendModels(int group, StudioHeader studioHDR) {
 		AppendSequences(group, studioHDR);
 		AppendAnimations(group, studioHDR);
 		AppendBonemap(group, studioHDR);
@@ -126,7 +150,7 @@ public class VirtualModel
 
 		UpdateAutoplaySequences(studioHDR);
 	}
-	public void UpdateAutoplaySequences(StudioHDR studioHDR) {
+	public void UpdateAutoplaySequences(StudioHeader studioHDR) {
 
 	}
 
@@ -161,6 +185,14 @@ public class StudioHWData
 	public int NumLODs;
 	public StudioLODData[]? LODs;
 	public int NumStudioMeshes;
+
+	public int GetLODForMetric(float metric) {
+		throw new NotImplementedException();
+	}
+
+	public float LODMetric(float screenSize) {
+		throw new NotImplementedException();
+	}
 }
 
 public struct MStudioBoneWeight
@@ -216,7 +248,7 @@ public class VertexFileHeader
 	}
 }
 
-public class StudioHDR2
+public class StudioHeader2
 {
 	public Memory<byte> Data;
 
@@ -246,7 +278,26 @@ public struct MStudioTexture
 	public ReadOnlySpan<char> Name() => ""; // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO 
 }
 
-public class StudioHDR
+/// <summary>
+/// Analog of CStudioHdr
+/// </summary>
+public class StudioHdr {
+	public bool IsVirtual() => vModel != null;
+	public bool IsValid() => studioHdr != null;
+	public bool IsReadyForAccess() => studioHdr != null;
+
+	public VirtualModel GetVirtualModel() => vModel!;
+	public StudioHeader GetRenderHdr() => studioHdr!;
+
+	private StudioHeader? studioHdr;
+	private VirtualModel? vModel;
+	public int NumBones() => studioHdr!.NumBones;
+}
+
+/// <summary>
+/// Analog of studiohdr_t
+/// </summary>
+public class StudioHeader
 {
 	public Memory<byte> Data;
 

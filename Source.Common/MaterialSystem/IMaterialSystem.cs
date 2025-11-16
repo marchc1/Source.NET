@@ -4,6 +4,7 @@ using Source.Common.Launcher;
 using Source.Common.ShaderAPI;
 
 using System.Numerics;
+using System.Runtime.Intrinsics;
 
 namespace Source.Common.MaterialSystem;
 
@@ -246,6 +247,8 @@ public interface IMatRenderContext
 	int GetMaxVerticesToRender(IMaterial material);
 	int GetMaxIndicesToRender(IMaterial material);
 	void LoadMatrix(in Matrix4x4 matrixProjection);
+	float ComputePixelDiameterOfSphere(Vector3 origin, float radius);
+	float ComputePixelWidthOfSphere(Vector3 origin, float radius);
 }
 
 public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
@@ -311,4 +314,7 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public void PushRenderTargetAndViewport(ITexture? rtColor, ITexture? rtDepth, int x, int y, int width, int height) => ctx.PushRenderTargetAndViewport(rtColor, rtDepth, x, y, width, height);
 
 	public void LoadMatrix(in Matrix4x4 matrixProjection) => ctx.LoadMatrix(in matrixProjection);
+
+	public float ComputePixelDiameterOfSphere(Vector3 origin, float radius) => ctx.ComputePixelDiameterOfSphere(origin, radius);
+	public float ComputePixelWidthOfSphere(Vector3 origin, float radius) => ctx.ComputePixelWidthOfSphere(origin, radius);
 }

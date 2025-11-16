@@ -26,7 +26,7 @@ public class StudioData
 {
 	public MDLHandle_t Handle;
 
-	public StudioHDR? Header = null;
+	public StudioHeader? Header = null;
 	public readonly VCollide VCollisionData = new();
 	public readonly StudioHWData HardwareData = new();
 
@@ -153,7 +153,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 	private bool LoadHardwareData(MDLHandle_t handle) {
 		StudioData studioData = HandleToMDLDict[handle];
 
-		StudioHDR? studioHdr = GetStudioHdr(handle);
+		StudioHeader? studioHdr = GetStudioHdr(handle);
 		if (studioHdr == null || studioHdr.NumBodyParts == 0) {
 			studioData.Flags |= StudioDataFlags.NoStudioMesh;
 			return true;
@@ -195,11 +195,11 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		throw new NotImplementedException();
 	}
 	const string ERROR_MODEL = "models/error.mdl";
-	public StudioHDR? GetStudioHdr(MDLHandle_t handle) {
+	public StudioHeader? GetStudioHdr(MDLHandle_t handle) {
 		if (handle == MDLHANDLE_INVALID)
 			return null;
 
-		StudioHDR? hdr = HandleToMDLDict[handle].Header;
+		StudioHeader? hdr = HandleToMDLDict[handle].Header;
 		if (hdr == null) {
 			ReadOnlySpan<char> modelName = GetActualModelName(handle);
 			DevMsg($"Loading {modelName}\n");
@@ -242,7 +242,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 			return false;
 		}
 
-		StudioHDR? studioHdr = ReinterpretDataToStudioHdr(buf);
+		StudioHeader? studioHdr = ReinterpretDataToStudioHdr(buf);
 		if (studioHdr == null) {
 			DevWarning($"Failed to read model {mdlFileName} from buffer!\n");
 			return false;
@@ -263,16 +263,16 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		return true;
 	}
 
-	private bool VerifyHeaders(StudioHDR studioHdr) {
+	private bool VerifyHeaders(StudioHeader studioHdr) {
 		// Temporary todo
 		return true;
 	}
 
-	private StudioHDR? ReinterpretDataToStudioHdr(MemoryStream buf) {
+	private StudioHeader? ReinterpretDataToStudioHdr(MemoryStream buf) {
 		// NOTE: We now assume that the buffer is locked.
 		// TODO: Size check the memory stream before reading!!!
 
-		StudioHDR header = new() {
+		StudioHeader header = new() {
 			// Justification for GetBuffer: If the buffer won't have any changes made to it, then we don't need
 			// to store another copy of the byte data and can use the MemoryStream's array. When MemoryStream disposes,
 			// the internal array will still remain ref'd by the Memory<byte>, so
@@ -471,7 +471,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		if (handle == MDLHANDLE_INVALID)
 			return null;
 
-		StudioHDR? studioHdr = GetStudioHdr(handle);
+		StudioHeader? studioHdr = GetStudioHdr(handle);
 
 		if (studioHdr == null)
 			return null;
@@ -479,7 +479,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		return GetVirtualModelFast(studioHdr, handle);
 	}
 
-	public VirtualModel? GetVirtualModelFast(StudioHDR studioHdr, MDLHandle_t handle) {
+	public VirtualModel? GetVirtualModelFast(StudioHeader studioHdr, MDLHandle_t handle) {
 		if (studioHdr.NumIncludeModels == 0)
 			return null;
 
@@ -547,7 +547,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		throw new NotImplementedException();
 	}
 
-	public StudioHDR LockStudioHdr(MDLHandle_t handle) {
+	public StudioHeader LockStudioHdr(MDLHandle_t handle) {
 		throw new NotImplementedException();
 	}
 
@@ -607,7 +607,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 	}
 
 	public void TouchAllData(MDLHandle_t handle) {
-		StudioHDR? studioHdr = GetStudioHdr(handle);
+		StudioHeader? studioHdr = GetStudioHdr(handle);
 		VirtualModel? vModel = GetVirtualModel(handle);
 		if (vModel != null) {
 			for (int i = 1; i < vModel.Group.Count; ++i) {
@@ -629,7 +629,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		}
 	}
 
-	private VertexFileHeader? CacheVertexData(StudioHDR? studioHdr) {
+	private VertexFileHeader? CacheVertexData(StudioHeader? studioHdr) {
 		VertexFileHeader? vvdHdr;
 		Assert(studioHdr != null);
 		MDLHandle_t handle = studioHdr.VirtualModel;
@@ -646,7 +646,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache
 		return LoadVertexData(studioHdr);
 	}
 
-	private VertexFileHeader? LoadVertexData(StudioHDR studioHdr) {
+	private VertexFileHeader? LoadVertexData(StudioHeader studioHdr) {
 		Span<char> fileName = stackalloc char[MAX_PATH];
 		MDLHandle_t handle = studioHdr.VirtualModel;
 		Assert(HandleToMDLDict[handle].VertexCache == null);

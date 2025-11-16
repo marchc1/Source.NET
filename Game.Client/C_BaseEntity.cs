@@ -501,7 +501,7 @@ public partial class C_BaseEntity : IClientEntity
 		return drawn;
 	}
 
-	public virtual bool SetupBones(Matrix4x4 boneToWorldOut, int maxBones, int boneMask, TimeUnit_t currentTime) {
+	public virtual bool SetupBones(Span<Matrix4x4> boneToWorldOut, int maxBones, int boneMask, TimeUnit_t currentTime) {
 		return true;
 	}
 	public virtual void SetupWeights(Matrix4x4 boneToWorldOut, Span<float> flexWeights, TimeUnit_t currentTime) {
@@ -556,7 +556,7 @@ public partial class C_BaseEntity : IClientEntity
 			UpdateVisibility();
 		}
 	}
-	StudioHDR? OnNewModel() {
+	StudioHeader? OnNewModel() {
 		return null; // what the hell????????????????? 
 	}
 	void SetModelIndex(int index) {
@@ -620,9 +620,6 @@ public partial class C_BaseEntity : IClientEntity
 		UpdateOnRemove();
 	}
 
-	public bool SetupBones(ref Matrix4x4 boneToWOrldOut, int maxBones, int boneMask, double currentTime) {
-		throw new NotImplementedException();
-	}
 
 	public virtual bool ShouldDraw() {
 		if ((RenderMode)RenderMode == Source.RenderMode.None)
@@ -1436,6 +1433,8 @@ public partial class C_BaseEntity : IClientEntity
 		return GetMoveParent();
 	}
 
+	public virtual ModelInstanceHandle_t GetModelInstance() => ModelInstance;
+	public virtual void SetModelInstance(ModelInstanceHandle_t modelInstance) => ModelInstance = modelInstance;
 	public void CreateModelInstance() {
 		if (ModelInstance == MODEL_INSTANCE_INVALID)
 			ModelInstance = modelrender.CreateInstance(this);
