@@ -73,11 +73,12 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 					textureName = textureName[1..];
 
 				StrTools.ComposeFileName(pCdTexture, textureName, path);
+				Span<char> finalPath = path.SliceNullTerminatedString();
 
 				if ((studioHDR.Flags & StudioHdrFlags.Obsolete) != 0)
 					material = materialSystem.FindMaterialEx("models/obsolete/obsolete", TEXTURE_GROUP_MODEL, MaterialFindContext.IsOnAModel, false);
 				else
-					material = materialSystem.FindMaterialEx(path, TEXTURE_GROUP_MODEL, MaterialFindContext.IsOnAModel, false);
+					material = materialSystem.FindMaterialEx(finalPath, TEXTURE_GROUP_MODEL, MaterialFindContext.IsOnAModel, false);
 			}
 
 			if (material == null)
@@ -376,7 +377,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 		int stripCount = pStripGroup.NumStrips;
 		int stripHeaderSize = OptimizedModel.StripHeader.SIZEOF;
 		int boneChangeSize; unsafe {
-			 boneChangeSize = sizeof(OptimizedModel.BoneStateChangeHeader);
+			boneChangeSize = sizeof(OptimizedModel.BoneStateChangeHeader);
 		}
 
 		int stripDataSize = 0;
@@ -500,6 +501,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 				cdTexture = cdTexture[1..];
 
 			StrTools.ComposeFileName(cdTexture, textureName, path);
+			Span<char> finalPath = path.SliceNullTerminatedString();
 
 			if ((hdr.Flags & StudioHdrFlags.Obsolete) != 0) {
 				material = materialSystem.FindMaterial("models/obsolete/obsolete", TEXTURE_GROUP_MODEL, false);
@@ -507,7 +509,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 					Warning("StudioRender: OBSOLETE material missing: \"models/obsolete/obsolete\"\n");
 			}
 			else
-				material = materialSystem.FindMaterial(path, TEXTURE_GROUP_MODEL, false);
+				material = materialSystem.FindMaterial(finalPath, TEXTURE_GROUP_MODEL, false);
 		}
 		if (material.IsErrorMaterial()) {
 			// hack - if it isn't found, go through the motions of looking for it again
@@ -520,10 +522,13 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 				ReadOnlySpan<char> textureName = GetTextureName(hdr, vtxHeader, lodID, i);
 				StrTools.StrConcat(path, textureName, StrTools.COPY_ALL_CHARACTERS);
 				StrTools.FixSlashes(path);
-				materialSystem.FindMaterial(path, TEXTURE_GROUP_MODEL, true, szPrefix);
+				Span<char> finalPath = path.SliceNullTerminatedString();
+				materialSystem.FindMaterial(finalPath, TEXTURE_GROUP_MODEL, true, szPrefix);
 			}
 		}
-
+		if (material.IsErrorMaterial()) {
+			Warning($"Material '{path.SliceNullTerminatedString()}' not found.\n");
+		}
 		lodData.Materials![i] = material!;
 		if (material != null) {
 			// Increment the reference count for the material.
@@ -582,9 +587,9 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 		if (!Unsafe.IsNullRef(ref results))
 			results.ActualTriCount = results.TextureMemoryBytes = 0;
 
-		if (info.StudioHdr == null || info.HardwareData == null || info.HardwareData.NumLODs == 0 || info.HardwareData.LODs == null) 
+		if (info.StudioHdr == null || info.HardwareData == null || info.HardwareData.NumLODs == 0 || info.HardwareData.LODs == null)
 			return;
-		
+
 		// TODO: Flex weights
 
 		using MatRenderContextPtr renderContext = new(materialSystem);
