@@ -813,7 +813,7 @@ public class Material : IMaterialInternal
 		else {
 			bool shouldSkip = true;
 			isConditional = true;
-			
+
 			// There's more logic here, can implement it later
 
 			return shouldSkip;
@@ -964,5 +964,29 @@ public class Material : IMaterialInternal
 
 	public void DecrementReferenceCount() {
 		// VERY IMPORTANT TODO
+	}
+
+	public IMaterialVar? FindVarFast(string v, ref uint lightmapVarCache) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsTranslucent() {
+		Precache();
+		if (VarCount > (int)ShaderMaterialVars.Alpha)
+			return IsTranslucentInternal(ShaderParams != null ? ShaderParams[(int)ShaderMaterialVars.Alpha].GetFloatValue() : 0f);
+		return false;
+	}
+
+	
+
+	private bool IsTranslucentInternal(float alphaModulation) {
+		if (Shader !=null && IsValidRenderState()) {
+			return IShaderSystem.IsTranslucent(ShaderRenderState) || (alphaModulation < 1.0f) || Shader.IsTranslucent(ShaderParams);
+		}
+		return false;
+	}
+
+	private bool IsValidRenderState() {
+		return (flags & MaterialFlags.ValidRenderState) != 0;
 	}
 }

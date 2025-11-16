@@ -32,6 +32,33 @@ public struct DrawModelInfo {
 	// todo: lights
 }
 
+public struct StudioRenderConfig {
+	public float EyeShiftX;
+	public float EyeShiftY;
+	public float EyeShiftZ;
+	public float EyeSize;
+	public int MaxDecalsPerModel;
+	public int DrawEntities;
+	public int Skin;
+	public int FullBright;
+	public bool EyeMove;
+	public bool SoftwareSkin;
+	public bool NoHardware;
+	public bool NoSoftware;
+	public bool Teeth;
+	public bool Eyes;
+	public bool Flex;
+	public bool Wireframe;
+	public bool DrawNormals;
+	public bool DrawTangentFrame;
+	public bool DrawZBufferedWireframe;
+	public bool SoftwareLighting;
+	public bool ShowEnvCubemapOnly;
+	public bool WireframeDecals;
+	public bool EnableHWMorph;
+	public bool StatsMode;
+}
+
 public struct DrawModelResults {
 	public int ActualTriCount;
 	public int TextureMemoryBytes;

@@ -29,6 +29,7 @@ public interface IShader
 	void InitShaderParams(IMaterialVar[] vars, IShaderAPI shaderAPI, ReadOnlySpan<char> materialName);
 	void InitShaderInstance(IMaterialVar[] shaderParams, IShaderAPI shaderAPI, IShaderInit shaderManager, ReadOnlySpan<char> materialName, ReadOnlySpan<char> textureGroupName);
 	void DrawElements(IMaterialVar[] shaderParams, IShaderShadow? shadow, IShaderDynamicAPI? shaderAPI, VertexCompressionType none);
+	bool IsTranslucent(IMaterialVar[]? shaderParams);
 }
 
 public interface IShaderInit {

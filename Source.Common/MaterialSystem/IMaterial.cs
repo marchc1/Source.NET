@@ -438,6 +438,8 @@ public interface IMaterial
 	// TODO: We need to get these working. The original plan was to use C#'s finalizers, but that's a bad idea in hindsight
 	void IncrementReferenceCount();
 	void DecrementReferenceCount();
+	IMaterialVar? FindVarFast(string v, ref uint lightmapVarCache);
+	bool IsTranslucent();
 }
 
 // Intended to only be used by the material system and not other components

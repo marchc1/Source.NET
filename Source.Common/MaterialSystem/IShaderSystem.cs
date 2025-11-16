@@ -5,6 +5,10 @@ namespace Source.Common.MaterialSystem;
 
 public interface IShaderSystem
 {
+	public static bool IsTranslucent(IShaderShadow renderState) {
+		return false; // todo
+	}
+
 	void BindTexture(Sampler sampler, ITexture texture, int frame = 0);
 	void Draw(bool makeActualDrawCall = true);
 	void Init();

@@ -18,14 +18,17 @@ namespace Source.StudioRender;
 /// <summary>
 /// Analog of StudioRenderContext_t
 /// </summary>
-public struct StudioRenderCtx
+public class StudioRenderCtx
 {
+	public StudioRenderConfig Config;
+	public Vector3 ViewTarget;
 	public Vector3 ViewOrigin;
 	public Vector3 ViewRight;
 	public Vector3 ViewUp;
 	public Vector3 ViewPlaneNormal;
 	public Vector3 ColorMod;
 	public float AlphaMod;
+	public IMaterial? ForcedMaterial;
 }
 
 /// <summary>
@@ -590,7 +593,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 	}
 
 
-	StudioRenderCtx RC;
+	readonly StudioRenderCtx RC = new();
 	public void DrawModel(ref DrawModelResults results, ref DrawModelInfo info, Span<Matrix4x4> boneToWorld, Span<byte> flexWeights, Span<byte> flexDelayedWeights, in Vector3 origin, StudioRenderFlags flags = StudioRenderFlags.DrawEntireModel) {
 		// Set to zero in case we don't render anything.
 		if (!Unsafe.IsNullRef(ref results))
@@ -608,7 +611,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 			results.LODMetric = flMetric;
 		}
 
-		studioRenderImp.DrawModel(ref info, ref RC, boneToWorld, flags);
+		studioRenderImp.DrawModel(ref info, RC, boneToWorld, flags);
 	}
 
 	private int ComputeRenderLOD(MatRenderContextPtr renderContext, DrawModelInfo info, Vector3 origin, out float metric) {

@@ -792,6 +792,8 @@ public class StudioHeader
 	public int NumSkinFamilies;
 	public int SkinIndex;
 
+	public Span<short> SkinRef(int i) => Data.Span[SkinIndex..].Cast<byte, short>()[i..];
+
 	public int NumBodyParts;
 	public int BodyPartIndex;
 

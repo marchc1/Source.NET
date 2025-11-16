@@ -99,6 +99,8 @@ public abstract class BaseShader : IShader
 
 	}
 
+	public virtual bool IsTranslucent(IMaterialVar[]? parms) => IsFlagSet(parms, (int)MaterialVarFlags.Translucent);
+
 	public void DrawElements(IMaterialVar[] vars, IShaderShadow? shadow, IShaderDynamicAPI? shaderAPI, VertexCompressionType vertexCompression) {
 		Assert(Params == null);
 		Params = vars;
