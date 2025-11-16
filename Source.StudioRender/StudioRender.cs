@@ -1,6 +1,7 @@
 ﻿using Source.Common;
 using Source.Common.Engine;
 using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
 
 using System.Numerics;
 
@@ -71,8 +72,33 @@ public unsafe class StudioRender
 		}
 	}
 
-	private void ComputePoseToWorld(Matrix4x4[] poseToWorld, StudioHeader studioHdr, int boneMask, in Vector3 viewOrigin, Matrix4x4* pBoneToWorld) {
-		throw new NotImplementedException();
+	private void ComputePoseToWorld(Span<Matrix4x4> poseToWorld, StudioHeader studioHdr, int boneMask, in Vector3 viewOrigin, Matrix4x4* pBoneToWorld) {
+		if ((studioHdr.Flags & StudioHdrFlags.StaticProp) != 0) {
+			poseToWorld[0] = pBoneToWorld[0];
+			return;
+		}
+
+		if (studioHdr.LinearBones() == null) {
+			for (int i = 0; i < studioHdr.NumBones; i++) {
+				MStudioBone pCurBone = studioHdr.Bone(i);
+				if ((pCurBone.Flags & boneMask) == 0)
+					continue;
+
+				Matrix4x4 poseToBone = pCurBone.PoseToBone.To4x4();
+				MathLib.ConcatTransforms(in pBoneToWorld[i], in poseToBone, out poseToWorld[i]);
+			}
+		}
+		else {
+			MStudioLinearBone linearBones = studioHdr.LinearBones()!;
+
+			for (int i = 0; i < studioHdr.NumBones; i++) {
+				if ((linearBones.Flags(i) & boneMask) == 0)
+					continue;
+
+				Matrix4x4 poseToBone = linearBones.PoseToBone(i).To4x4();
+				MathLib.ConcatTransforms(in pBoneToWorld[i], in poseToBone, out poseToWorld[i]);
+			}
+		}
 	}
 
 	private int R_StudioRenderModel(IMatRenderContext renderContext, int skin, int body, int hitboxset, object? entity,

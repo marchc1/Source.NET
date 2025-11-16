@@ -3,6 +3,7 @@
 using Source.Common.DataCache;
 using Source.Common.Formats.BSP;
 using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
 
 using System.Numerics;
 using System.Reflection.Metadata.Ecma335;
@@ -526,11 +527,29 @@ public class StudioHeader2
 {
 	public Memory<byte> Data;
 
+	public StudioHeader2(Memory<byte> data) {
+		Data = data;
+		SpanBinaryReader br = new(data.Span);
+
+		br.Read(out NumSrcBoneTransform);
+		br.Read(out SrcBoneTransformIndex);
+		br.Read(out IllumPositionAttachmentIndex);
+		br.Read(out MaxEyeDeflection);
+		br.Read(out LinearBoneIndex);
+		br.Read(out SzNameIndex);
+		br.Read(out BoneFlexDriverCount);
+		br.Read(out BoneFlexDriverIndex);
+	}
+
 	public int NumSrcBoneTransform;
 	public int SrcBoneTransformIndex;
 	public int IllumPositionAttachmentIndex;
 	public float MaxEyeDeflection;
+
 	public int LinearBoneIndex;
+	MStudioLinearBone? linearBones;
+	public MStudioLinearBone LinearBones() => linearBones ??= new(Data[LinearBoneIndex..]);
+
 	public int SzNameIndex;
 	public int BoneFlexDriverCount;
 	public int BoneFlexDriverIndex;
@@ -581,6 +600,94 @@ public class StudioHdr
 	}
 }
 
+public class MStudioBone {
+	public const int SIZEOF = 216; // Static offset from MSVC stats (mstudiobone_t size 216, alignment 4)
+	
+	Memory<byte> Data;
+	public int NameIndex;
+	public int Parent;
+	public InlineArray6<int> BoneController;
+	public Vector3 Position;
+	public Quaternion Quat;
+	public RadianEuler Rot;
+	public Vector3 PosScale;
+	public Vector3 RotScale;
+	public Matrix3x4 PoseToBone;
+	public Quaternion Alignment;
+	public int Flags;
+	public int ProcType;
+	public int ProcIndex;
+	public int PhysicsBone;
+	public int SurfacePropIdx;
+	public int Contents;
+	public InlineArray8<int> Unused;
+
+	public MStudioBone(Memory<byte> data) {
+		Data = data;
+
+		SpanBinaryReader br = new(data.Span);
+		br.Read(out NameIndex);
+		br.Read(out Parent);
+		br.ReadInto<int>(BoneController);
+		br.Read(out Position);
+		br.Read(out Quat);
+		br.Read(out Rot);
+		br.Read(out PosScale);
+		br.Read(out RotScale);
+		br.Read(out PoseToBone);
+		br.Read(out Alignment);
+		br.Read(out Flags);
+		br.Read(out ProcType);
+		br.Read(out ProcIndex);
+		br.Read(out PhysicsBone);
+		br.Read(out SurfacePropIdx);
+		br.Read(out Contents);
+	}
+}
+
+public class MStudioLinearBone {
+	public const int SIZEOF = 64; // Static offset from MSVC stats (mstudiobonelinear_t size 64, alignment 4)
+	private Memory<byte> Data;
+
+	public int NumBones;
+	public int FlagsIndex;
+	public int ParentIndex;
+	public int PosIndex;
+	public int QuatIndex;
+	public int RotIndex;
+	public int PoseToBoneIndex;
+	public int PosScaleIndex;
+	public int RotScaleIndex;
+	public int QAlignmentIndex;
+
+	public MStudioLinearBone(Memory<byte> data) {
+		Data = data;
+		SpanBinaryReader br = new(data.Span);
+
+		br.Read(out NumBones);
+		br.Read(out FlagsIndex);
+		br.Read(out ParentIndex);
+		br.Read(out PosIndex);
+		br.Read(out QuatIndex);
+		br.Read(out RotIndex);
+		br.Read(out PoseToBoneIndex);
+		br.Read(out PosScaleIndex);
+		br.Read(out RotScaleIndex);
+		br.Read(out QAlignmentIndex);
+	}
+
+	public int Flags(int i) => Data.Span[FlagsIndex..].Cast<byte, int>()[i];
+	public ref int RefFlags(int i) => ref Data.Span[FlagsIndex..].Cast<byte, int>()[i];
+	public int Parent(int i) => Data.Span[ParentIndex..].Cast<byte, int>()[i];
+	public Vector3 Pos(int i) => Data.Span[PosIndex..].Cast<byte, Vector3>()[i];
+	public Quaternion Quat(int i) => Data.Span[QuatIndex..].Cast<byte, Quaternion>()[i];
+	public RadianEuler Rot(int i) => Data.Span[RotIndex..].Cast<byte, RadianEuler>()[i];
+	public Matrix3x4 PoseToBone(int i) => Data.Span[PoseToBoneIndex..].Cast<byte, Matrix3x4>()[i];
+	public Vector3 PosScale(int i) => Data.Span[PosScaleIndex..].Cast<byte, Vector3>()[i];
+	public Vector3 RotScale(int i) => Data.Span[RotScaleIndex..].Cast<byte, Vector3>()[i];
+	public Quaternion QAlignment(int i) => Data.Span[QAlignmentIndex..].Cast<byte, Quaternion>()[i];
+}
+
 /// <summary>
 /// Analog of studiohdr_t
 /// </summary>
@@ -608,6 +715,13 @@ public class StudioHeader
 
 	public int NumBones;
 	public int BoneIndex;
+	MStudioBone[]? studioBoneCache;
+	public MStudioBone Bone(int i) {
+		if (studioBoneCache == null)
+			studioBoneCache = new MStudioBone[NumBones];
+
+		return studioBoneCache[i] ??= new(Data[(BoneIndex + (i * MStudioBone.SIZEOF))..]);
+	}
 
 	public int NumBoneControllers;
 	public int BoneControllerIndex;
@@ -734,6 +848,11 @@ public class StudioHeader
 	public byte NumAllowedRootLODs;
 	byte _UNUSED1;
 	public int StudioHDR2Index;
+	StudioHeader2? studioHdr2;
+	public StudioHeader2 StudioHdr2() => studioHdr2 ??= new(Data[StudioHDR2Index..]);
+
+	public MStudioLinearBone? LinearBones() => StudioHDR2Index != 0 ? StudioHdr2().LinearBones() : null;
+
 	byte _UNUSED2;
 	public int NumFlexControllerUI;
 	public int FlexControllerUIIndex;

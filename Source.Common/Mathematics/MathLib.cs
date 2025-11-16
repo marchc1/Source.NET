@@ -4,6 +4,7 @@ using Source.Common.Formats.BSP;
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Source.Common.Mathematics;
 
@@ -15,6 +16,43 @@ public static class MathLibConsts
 
 	public static readonly Vector3 vec3_origin = new(0, 0, 0);
 	public static readonly QAngle vec3_angle = new(0, 0, 0);
+}
+
+public struct RadianEuler {
+	public vec_t X, Y, Z;
+}
+
+/// <summary>
+/// Mostly for data structure compatibility
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 4, Size = 48)]
+public struct Matrix3x4 {
+	public float M00, M01, M02, M03;
+	public float M10, M11, M12, M13;
+	public float M20, M21, M22, M23;
+	public unsafe float this[int row, int col] {
+		get {
+			if (row < 0 || row >= 3) throw new ArgumentOutOfRangeException(nameof(row));
+			if (col < 0 || col >= 4) throw new ArgumentOutOfRangeException(nameof(col));
+
+			return Unsafe.Add(ref M00, (row * 4) + col);
+		}
+		set {
+			if (row < 0 || row >= 3) throw new ArgumentOutOfRangeException(nameof(row));
+			if (col < 0 || col >= 4) throw new ArgumentOutOfRangeException(nameof(col));
+
+			Unsafe.Add(ref M00, (row * 4) + col) = value;
+		}
+	}
+
+	public Matrix4x4 To4x4() {
+		return new(
+			M00, M01, M02, M03,
+			M10, M11, M12, M13,
+			M20, M21, M22, M23,
+			0f, 0f, 0f, 1f
+			);
+	}
 }
 
 public enum PlaneType : byte
@@ -263,5 +301,9 @@ public static class MathLib
 		dst.Y = src1.M21 * v.X + src1.M22 * v.Y + src1.M23 * v.Z + src1.M24 * v.W;
 		dst.Z = src1.M31 * v.X + src1.M32 * v.Y + src1.M33 * v.Z + src1.M34 * v.W;
 		dst.W = src1.M41 * v.X + src1.M42 * v.Y + src1.M43 * v.Z + src1.M44 * v.W;
+	}
+
+	public static void ConcatTransforms(in Matrix4x4 in1, in Matrix4x4 in2, out Matrix4x4 output) {
+		output = Matrix4x4.Multiply(in1, in2);
 	}
 }
