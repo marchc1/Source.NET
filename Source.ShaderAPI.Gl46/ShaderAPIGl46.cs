@@ -877,7 +877,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	public IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial material) {
+	public IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material) {
 		return MeshMgr.CreateStaticMesh(format, textureGroup, material);
 	}
 

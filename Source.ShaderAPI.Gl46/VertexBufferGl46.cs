@@ -269,13 +269,13 @@ public unsafe class VertexBufferGl46 : IDisposable
 					descPtr->BoneWeightSize = 0;
 				}
 
-				descPtr->BoneIndex = (byte*)(baseptr + offset);
+				descPtr->BoneMatrixIndex = (byte*)(baseptr + offset);
 				offset += VertexElement.BoneIndex.GetSize();
-				vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->BoneIndexSize;
+				vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->BoneMatrixIndexSize;
 			}
 			else {
-				descPtr->BoneIndex = (byte*)dummyData;
-				descPtr->BoneIndexSize = 0;
+				descPtr->BoneMatrixIndex = (byte*)dummyData;
+				descPtr->BoneMatrixIndexSize = 0;
 			}
 
 			if ((vertexFormat & VertexFormat.Normal) != 0) {

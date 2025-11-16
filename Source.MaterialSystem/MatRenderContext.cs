@@ -416,7 +416,7 @@ public class MatRenderContext : IMatRenderContextInternal
 			return null;
 	}
 
-	public IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial material) {
+	public IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material) {
 		return materials.ShaderDevice.CreateStaticMesh(format, textureGroup, material);
 	}
 

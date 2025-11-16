@@ -525,6 +525,12 @@ public static class ClassUtils
 		Action<object, object> copier = _copiers.GetOrAdd(typeof(T), CreateCopier);
 		copier(source, dest);
 	}
+	public static T CloneInstance<T>(this T source) where T : class, new() {
+		Action<object, object> copier = _copiers.GetOrAdd(typeof(T), CreateCopier);
+		T dest = new T();
+		copier(source, dest);
+		return dest;
+	}
 	public static Action<object> CreateClearer(Type type) {
 		var fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 		if (fields.Length == 0)

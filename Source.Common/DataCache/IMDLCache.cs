@@ -32,6 +32,9 @@ public enum MDLCacheFlush : uint
 	All = 0xFFFFFFFF
 }
 
+public interface IStudioDataCache {
+	VertexFileHeader? CacheVertexData(StudioHeader studioHdr);
+}
 public interface IMDLCache
 {
 	void SetCacheNotify(IMDLCacheNotify notify);

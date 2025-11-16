@@ -7,7 +7,7 @@ public unsafe struct VertexDesc
 {
 	public int PositionSize;
 	public int BoneWeightSize;
-	public int BoneIndexSize;
+	public int BoneMatrixIndexSize;
 	public int NormalSize;
 	public int ColorSize;
 	public int SpecularSize;
@@ -24,7 +24,7 @@ public unsafe struct VertexDesc
 
 	public float* Position;
 	public float* BoneWeight;
-	public byte* BoneIndex;
+	public byte* BoneMatrixIndex;
 	public float* Normal;
 	public byte* Color;
 	public byte* Specular;
@@ -332,6 +332,32 @@ public unsafe struct VertexBuilder
 		*pDst++ = rgba[1];
 		*pDst++ = rgba[2];
 		*pDst = rgba[3];
+	}
+
+	internal unsafe void CompressedBoneWeight3fv(ReadOnlySpan<float> boneWeights) {
+		float* pDestWeights = OffsetFloatPointer(Desc.BoneWeight, CurrentVertex, Desc.BoneWeightSize);
+		// No compression yet
+		pDestWeights[0] = boneWeights[0];
+		pDestWeights[1] = boneWeights[1];
+	}
+
+	private float* OffsetFloatPointer(float* bufferPointer, int vertexCount, int vertexSize) {
+		return (float*)((byte*)(bufferPointer) + (vertexCount * vertexSize));
+	}
+
+	internal void BoneWeight(int idx, float weight) {
+		if(idx < Desc.NumBoneWeights) {
+			float* boneWeight = OffsetFloatPointer(Desc.BoneWeight, CurrentVertex, Desc.BoneWeightSize);
+			boneWeight[idx] = weight;
+		}
+	}
+
+	internal void BoneMatrix(int idx, byte matrixIndex) {
+		if (matrixIndex == IMesh.BONE_MATRIX_INDEX_INVALID)
+			matrixIndex = 0;
+
+		byte* boneMatrix = &Desc.BoneMatrixIndex[CurrentVertex + Desc.BoneMatrixIndexSize];
+		boneMatrix[idx] = matrixIndex;
 	}
 }
 
@@ -681,7 +707,7 @@ public unsafe struct MeshBuilder : IDisposable
 	// normal setting
 	public void Normal3f(float x, float y, float z) => VertexBuilder.Normal3f(x, y, z);
 	public void Normal3fv(ReadOnlySpan<float> n) => VertexBuilder.Normal3fv(n);
-	public void Normal3fv(Vector3 vec) => VertexBuilder.Normal3f(vec.X, vec.Y, vec.Z);
+	public void Normal3fv(in Vector3 vec) => VertexBuilder.Normal3f(vec.X, vec.Y, vec.Z);
 	// What do these even do
 	public void NormalDelta3fv(ReadOnlySpan<float> n) => throw new NotImplementedException();
 	public void NormalDelta3f(float nx, float ny, float nz) => throw new NotImplementedException();
@@ -743,11 +769,11 @@ public unsafe struct MeshBuilder : IDisposable
 	public void Wrinkle1f(float flWrinkle) => throw new NotImplementedException();
 
 	// bone weights
-	public void BoneWeight(int idx, float weight) => throw new NotImplementedException();
+	public void BoneWeight(int idx, float weight) => VertexBuilder.BoneWeight(idx, weight);
 	// bone weights (templatized for code which needs to support compressed vertices)
 
 	// bone matrix index
-	public void BoneMatrix(int idx, int matrixIndex) => throw new NotImplementedException();
+	public void BoneMatrix(int idx, int matrixIndex) => VertexBuilder.BoneMatrix(idx, (byte)matrixIndex);
 
 	// Generic per-vertex data
 	public void UserData(ReadOnlySpan<float> pData) => throw new NotImplementedException();
@@ -832,6 +858,10 @@ public unsafe struct MeshBuilder : IDisposable
 			default:
 				return vertexCount;
 		}
+	}
+
+	public void CompressedBoneWeight3fv(ReadOnlySpan<float> boneWeights) {
+		VertexBuilder.CompressedBoneWeight3fv(boneWeights);
 	}
 
 	// The mesh we're modifying

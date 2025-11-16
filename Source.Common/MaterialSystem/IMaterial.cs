@@ -130,6 +130,31 @@ public static class VertexExts
 		_ => throw new NotSupportedException()
 	};
 
+	public static VertexFormat GetBoneWeight(int boneWeights) {
+		switch (boneWeights) {
+			case 0: return 0;
+			case 1: return VertexFormat.BoneWeights1;
+			case 2: return VertexFormat.BoneWeights1 | VertexFormat.BoneWeights2;
+			case 3: return VertexFormat.BoneWeights1 | VertexFormat.BoneWeights2 | VertexFormat.BoneWeights3;
+			case 4: return VertexFormat.BoneWeights1 | VertexFormat.BoneWeights2 | VertexFormat.BoneWeights3 | VertexFormat.BoneWeights4;
+			default:
+				throw new NotSupportedException();
+		}
+	}
+
+	public static VertexFormat GetUserDataSize(int userDatas) {
+		switch (userDatas) {
+			case 0: return 0;
+			case 1: return VertexFormat.UserData1;
+			case 2: return VertexFormat.UserData1 | VertexFormat.UserData2;
+			case 3: return VertexFormat.UserData1 | VertexFormat.UserData2 | VertexFormat.UserData3;
+			case 4: return VertexFormat.UserData1 | VertexFormat.UserData2 | VertexFormat.UserData3 | VertexFormat.UserData4;
+			default:
+				throw new NotSupportedException();
+		}
+	}
+
+
 	public static int GetBoneWeightsSize(this VertexFormat format) {
 		if ((format & VertexFormat.BoneWeights4) != 0) return 4;
 		if ((format & VertexFormat.BoneWeights3) != 0) return 3;

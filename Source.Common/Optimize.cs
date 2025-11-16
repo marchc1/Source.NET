@@ -1,7 +1,11 @@
 ﻿
 using CommunityToolkit.HighPerformance;
 
+using System.Runtime.InteropServices;
+
+using static Source.Common.Networking.svc_ClassInfo;
 using static Source.Common.OptimizedModel;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Source.Common;
 
@@ -62,6 +66,58 @@ public static class OptimizedModel
 		IsDeltaFlexed = 0x4,
 		SuppressHWMorph = 0x8
 	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	public struct BoneStateChangeHeader
+	{
+		public int HardwareID;
+		public int NewBoneID;
+	}
+
+	public class StripHeader
+	{
+		public Memory<byte> Data;
+
+		public int NumIndices;
+		public int IndexOffset;
+		public int NumVerts;
+		public int VertOffset;
+		public short NumBones;
+		public StripGroupFlags Flags;
+		public int NumBoneStateChanges;
+		public int BoneStateChangeOffset;
+
+		public StripHeader() { }
+		public StripHeader(Memory<byte> mem) {
+			Data = mem;
+			Span<byte> data = mem.Span;
+			NumIndices = data[0..].Cast<byte, int>()[0];
+			IndexOffset = data[4..].Cast<byte, int>()[0];
+
+			NumVerts = data[8..].Cast<byte, int>()[0];
+			VertOffset = data[12..].Cast<byte, int>()[0];
+
+			NumBones = data[16..].Cast<byte, short>()[0];
+
+			Flags = (StripGroupFlags)data[18];
+
+			NumBoneStateChanges = data[19..].Cast<byte, int>()[0];
+			BoneStateChangeOffset = data[23..].Cast<byte, int>()[0];
+		}
+		public ref BoneStateChangeHeader BoneStateChange(int i) => ref Data.Span[BoneStateChangeOffset..].Cast<byte, BoneStateChangeHeader>()[i];
+		public Span<BoneStateChangeHeader> BoneStateChanges(int i) => Data.Span[BoneStateChangeOffset..].Cast<byte, BoneStateChangeHeader>()[i..];
+		public const int SIZEOF = 4 + 4 + 4 + 4 + 2 + 1 + 4 + 4;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	public struct Vertex
+	{
+		public InlineArrayMaxNumBonesPerVert<byte> BoneWeightIndex;
+		public byte NumBones;
+		public ushort OrigMeshVertID;
+		public InlineArrayMaxNumBonesPerVert<sbyte> BoneID;
+	}
+
 	public class StripGroupHeader
 	{
 		public const int SIZEOF = (sizeof(int) * 6) + 1;
@@ -86,6 +142,18 @@ public static class OptimizedModel
 			NumStrips = data[16..].Cast<byte, int>()[0];
 			StripOffset = data[20..].Cast<byte, int>()[0];
 			flags = data[24..][0];
+		}
+
+		public ref Vertex Vertex(int i) => ref Data.Span[VertOffset..].Cast<byte, Vertex>()[i];
+		public Span<Vertex> Vertices() => Data.Span[IndexOffset..].Cast<byte, Vertex>()[..NumVerts];
+		public ref ushort Index(int i) => ref Data.Span[IndexOffset..].Cast<byte, ushort>()[i];
+		public Span<ushort> Indices() => Data.Span[IndexOffset..].Cast<byte, ushort>()[..NumIndices];
+		StripHeader[]? partCache;
+		public StripHeader Strip(int i) {
+			if (partCache == null)
+				partCache = new StripHeader[NumStrips];
+
+			return partCache[i] ?? (partCache[i] = new(Data[(StripOffset + (StripHeader.SIZEOF * i))..]));
 		}
 	}
 	public class MeshHeader
@@ -129,7 +197,7 @@ public static class OptimizedModel
 		}
 
 		MeshHeader[]? partCache;
-		public MeshHeader LOD(int i) {
+		public MeshHeader Mesh(int i) {
 			if (partCache == null)
 				partCache = new MeshHeader[NumMeshes];
 

@@ -45,7 +45,7 @@ public class StudioData
 	public object? AnimBlock; // todo: research what this is
 }
 
-public class MDLCache(IFileSystem fileSystem, IStudioRender StudioRender) : IMDLCache
+public class MDLCache(IFileSystem fileSystem, IStudioRender StudioRender) : IMDLCache, IStudioDataCache
 {
 	static readonly ConVar r_rootlod = new("r_rootlod", "0", FCvar.Archive, "Root LOD", 0, Studio.MAX_NUM_LODS);
 	static readonly ConVar mod_forcedata = new("mod_forcedata", "0", 0, "Forces all model file data into cache on model load.");
@@ -669,7 +669,7 @@ public class MDLCache(IFileSystem fileSystem, IStudioRender StudioRender) : IMDL
 		}
 	}
 
-	private VertexFileHeader? CacheVertexData(StudioHeader? studioHdr) {
+	public VertexFileHeader? CacheVertexData(StudioHeader? studioHdr) {
 		VertexFileHeader? vvdHdr;
 		Assert(studioHdr != null);
 		MDLHandle_t handle = studioHdr.VirtualModel;

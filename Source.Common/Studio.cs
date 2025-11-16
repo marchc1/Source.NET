@@ -1,9 +1,11 @@
 ﻿using CommunityToolkit.HighPerformance;
 
 using Source.Common.DataCache;
+using Source.Common.Formats.BSP;
 using Source.Common.MaterialSystem;
 
 using System.Numerics;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -55,6 +57,8 @@ public static class Studio
 	public const int BONE_USED_BY_VERTEX_LOD6 = 0x00010000;
 	public const int BONE_USED_BY_VERTEX_LOD7 = 0x00020000;
 	public const int BONE_USED_BY_BONE_MERGE = 0x00040000;
+
+	public const int MAX_NUM_BONE_INDICES = 4;
 
 	public static int BONE_USED_BY_VERTEX_AT_LOD(int lod) => BONE_USED_BY_VERTEX_LOD0 << lod;
 }
@@ -185,6 +189,7 @@ public class StudioMeshGroup {
 	public IMesh? Mesh;
 	public int NumStrips;
 	public StudioMeshGroupFlags Flags;
+	public OptimizedModel.StripHeader[]? StripData;
 	public ushort[]? GroupIndexToMeshIndex;
 	public int NumVertices;
 	public ushort[]? Indices;
@@ -197,12 +202,12 @@ public class StudioMeshGroup {
 
 public class StudioMeshData {
 	public int NumGroup;
-	public StudioMeshGroup? MeshGroup;
+	public StudioMeshGroup[]? MeshGroup;
 }
 
 public class StudioLODData
 {
-	public StudioMeshData? MeshData;
+	public StudioMeshData[]? MeshData;
 	public float SwitchPoint;
 	public IMaterial[]? Materials;
 	public int[]? MaterialFlags;
@@ -231,27 +236,101 @@ public struct MStudioBoneWeight
 	public byte NumBones;
 }
 
-public struct MStudioModelVertexData
+/// <summary>
+/// mstudio_meshvertexdata_t
+/// </summary>
+public class MStudioMeshVertexData
+{
+	public Memory<byte> Data;
+	public MStudioModelVertexData? ModelVertexData;
+	public InlineArrayMaxNumLODs<int> NumLODVertexes;
+
+	public MStudioMeshVertexData(Memory<byte> data) {
+		Data = data;
+		Span<byte> span = data.Span;
+		for (int i = 0; i < Studio.MAX_NUM_LODS; i++) {
+			NumLODVertexes[i] = span.Cast<byte, int>()[i + 1];
+		}
+	}
+
+	public bool HasTangentData() => ModelVertexData!.HasTangentData();
+
+	public ref Vector3 Position(int i) => throw new NotImplementedException();
+	public ref Vector3 Normal(int i) => throw new NotImplementedException();
+	public ref Vector4 TangentS(int i) => throw new NotImplementedException();
+	public ref Vector2 TexCoord(int i) => throw new NotImplementedException();
+	public ref MStudioBoneWeight BoneWeights(int i) => throw new NotImplementedException();
+	public ref MStudioVertex Vertex(int i) => throw new NotImplementedException();
+}
+
+
+public class MStudioModelVertexData
 {
 	public object? VertexData;
 	public object? TangentData;
 
-	public readonly object? GetVertexData() => VertexData;
-	public readonly T? GetVertexData<T>() => (T?)VertexData;
-	public readonly object? GetTangentData() => TangentData;
-	public readonly T? GetTangentData<T>() => (T?)TangentData;
+	public object? GetVertexData() => VertexData;
+	public T? GetVertexData<T>() => (T?)VertexData;
+	public object? GetTangentData() => TangentData;
+	public T? GetTangentData<T>() => (T?)TangentData;
 
-	public readonly ref Vector3 Position(int i) => throw new NotImplementedException();
-	public readonly ref Vector3 Normal(int i) => throw new NotImplementedException();
-	public readonly ref Vector4 TangentS(int i) => throw new NotImplementedException();
-	public readonly ref Vector2 TexCoord(int i) => throw new NotImplementedException();
-	public readonly ref MStudioBoneWeight BoneWeights(int i) => throw new NotImplementedException();
-	public readonly ref MStudioVertex Vertex(int i) => throw new NotImplementedException();
+	public ref Vector3 Position(int i) => throw new NotImplementedException();
+	public ref Vector3 Normal(int i) => throw new NotImplementedException();
+	public ref Vector4 TangentS(int i) => throw new NotImplementedException();
+	public ref Vector2 TexCoord(int i) => throw new NotImplementedException();
+	public ref MStudioBoneWeight BoneWeights(int i) => throw new NotImplementedException();
+	public ref MStudioVertex Vertex(int i) => throw new NotImplementedException();
 
 	// todo: verify
-	public readonly bool HasTangentData() => TangentData != null;
+	public bool HasTangentData() => TangentData != null;
 }
 
+public class MStudioMesh {
+	public const int SIZEOF = 116; // don't feel like typing this out right now
+	public Memory<byte> Data;
+	public readonly MStudioModel Model;
+	public MStudioMesh(MStudioModel model, Memory<byte> data) {
+		Data = data;
+		Model = model;
+
+		Material = data.Span[0..].Cast<byte, int>()[0];
+		ModelIndex = data.Span[4..].Cast<byte, int>()[0];
+		NumVertices = data.Span[8..].Cast<byte, int>()[0];
+		VertexOffset = data.Span[12..].Cast<byte, int>()[0];
+
+		NumFlexes = data.Span[16..].Cast<byte, int>()[0];
+		FlexIndex = data.Span[20..].Cast<byte, int>()[0];
+		MaterialType= data.Span[24..].Cast<byte, int>()[0];
+		MaterialParam= data.Span[28..].Cast<byte, int>()[0];
+		MeshID= data.Span[32..].Cast<byte, int>()[0];
+		Center = data.Span[36..].Cast<byte, Vector3>()[0];
+		VertexData = new(data[48..]);
+	}
+
+	public int Material;
+	public int ModelIndex;
+	public int NumVertices;
+	public int VertexOffset;
+
+	public int NumFlexes;
+	public int FlexIndex;
+	public int MaterialType;
+	public int MaterialParam;
+	public int MeshID;
+	public Vector3 Center;
+	public readonly MStudioMeshVertexData VertexData;
+
+	public MStudioMeshVertexData? GetVertexData(IStudioDataCache dataCache, StudioHeader studioHdr) {
+		this.Model.GetVertexData(dataCache, studioHdr);
+		VertexData.ModelVertexData = this.Model.VertexData;
+		if (VertexData.ModelVertexData.VertexData == null)
+			return null;
+		return VertexData;
+	}
+}
+/// <summary>
+/// analog of mstudiomodel_t
+/// </summary>
 public class MStudioModel
 {
 	Memory<byte> Data;
@@ -290,11 +369,25 @@ public class MStudioModel
 	public ref int NumEyeballs { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.NumEyeballs; }
 	public ref int EyeballIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.EyeballIndex; }
 
-	public MStudioModelVertexData VertexData;
+	public readonly MStudioModelVertexData VertexData = new();
 
 	public MStudioModel(Memory<byte> data) {
 		Data = data;
 		Contents = data.Span.Cast<byte, __contents>()[0];
+	}
+
+	MStudioMesh[]? studioMeshCache;
+
+	public MStudioMesh Mesh(int i) {
+		if (studioMeshCache == null)
+			studioMeshCache = new MStudioMesh[NumMeshes];
+
+		ArgumentOutOfRangeException.ThrowIfLessThan(i, 0);
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(i, NumMeshes);
+
+		if (studioMeshCache[i] == null)
+			return studioMeshCache[i] = new(this, Data[(MeshIndex + (i * MStudioMesh.SIZEOF))..]);
+		return studioMeshCache[i];
 	}
 
 	string? nameCache;
@@ -306,7 +399,26 @@ public class MStudioModel
 		return nameCache;
 	}
 
-	public ref readonly MStudioModelVertexData GetVertexData() => ref VertexData;
+	public MStudioModelVertexData? GetVertexData(IStudioDataCache dataCache, StudioHeader studioHdr) {
+		VertexFileHeader? vertexHdr = CacheVertexData(dataCache, studioHdr);
+		if(vertexHdr == null) {
+			VertexData.VertexData = null;
+			VertexData.TangentData = null;
+			return null;
+		}
+
+		VertexData.VertexData = vertexHdr.GetVertexData();
+		VertexData.TangentData = vertexHdr.GetTangentData();
+
+		if (VertexData.VertexData == null)
+			return null;
+
+		return VertexData;
+	}
+
+	public VertexFileHeader? CacheVertexData(IStudioDataCache mdlCache, StudioHeader studioHdr) {
+		return mdlCache.CacheVertexData(studioHdr);
+	}
 }
 
 public class MStudioBodyParts(Memory<byte> Data)
@@ -366,7 +478,7 @@ public class VertexFileHeader
 		NumFixups = br.ReadInt32();
 		FixupTableStart = br.ReadInt32();
 		VertexDataStart = br.ReadInt32();
-		tangentDataStart = br.ReadInt32();
+		TangentDataStart = br.ReadInt32();
 	}
 
 	public int ID;
@@ -377,11 +489,18 @@ public class VertexFileHeader
 	public int NumFixups;
 	public int FixupTableStart;
 	public int VertexDataStart;
-	public int tangentDataStart;
+	public int TangentDataStart;
 
-	public ReadOnlySpan<MStudioVertex> GetVertexData() {
+	public Memory<MStudioVertex> GetVertexData() {
 		if (ID == Studio.MODEL_VERTEX_FILE_ID && VertexDataStart != 0)
-			return Data.Span[VertexDataStart..].Cast<byte, MStudioVertex>();
+			return Data[VertexDataStart..].Cast<byte, MStudioVertex>();
+		else
+			return null;
+	}
+
+	public Memory<Vector4> GetTangentData() {
+		if (ID == Studio.MODEL_VERTEX_FILE_ID && TangentDataStart != 0)
+			return Data[TangentDataStart..].Cast<byte, Vector4>();
 		else
 			return null;
 	}

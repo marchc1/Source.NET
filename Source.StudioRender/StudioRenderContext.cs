@@ -1,11 +1,16 @@
-﻿using Source.Common;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source.Common;
+using Source.Common.DataCache;
 using Source.Common.MaterialSystem;
 
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Source.StudioRender;
 
@@ -20,7 +25,7 @@ public struct StudioRenderCtx
 /// <summary>
 /// Analog of CStudioRenderContext
 /// </summary>
-public class StudioRenderContext(IMaterialSystem materialSystem) : IStudioRender
+public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCache studioDataCache) : IStudioRender
 {
 	public void BeginFrame() {
 		throw new NotImplementedException();
@@ -71,7 +76,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem) : IStudioRender
 
 			if (found < materials.Length) {
 				int k;
-				
+
 				for (k = 0; k < found; k++)
 					if (materials[k] == material)
 						break;
@@ -113,7 +118,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem) : IStudioRender
 		studioHWData.RootLOD = Math.Min((int)studioHdr.RootLOD, vertexHdr.NumLODs - 1);
 		studioHWData.NumLODs = vertexHdr.NumLODs;
 		studioHWData.LODs = new StudioLODData[vertexHdr.NumLODs];
-		for (int k = 0; k < vertexHdr.NumLODs; k++) 
+		for (int k = 0; k < vertexHdr.NumLODs; k++)
 			studioHWData.LODs[k] = new();
 
 		// reset the runtime flags
@@ -134,14 +139,317 @@ public class StudioRenderContext(IMaterialSystem materialSystem) : IStudioRender
 	}
 
 	private void ComputeHWMorphDecalBoneRemap(StudioHeader studioHdr, OptimizedModel.FileHeader vertexHdr, StudioHWData studioHWData, int nLodID) {
-		throw new NotImplementedException();
+		// Decals todo
 	}
 
-	private void R_StudioCreateStaticMeshes(StudioHeader studioHdr, OptimizedModel.FileHeader vertexHdr, StudioHWData studioHWData, int nLodID, ref int nColorMeshID) {
-		throw new NotImplementedException();
+	private void R_StudioCreateStaticMeshes(StudioHeader studioHdr, OptimizedModel.FileHeader vtxHdr, StudioHWData studioHWData, int nLodID, ref int colorMeshID) {
+		int i, j, k;
+
+		studioHWData.LODs![nLodID].MeshData = new StudioMeshData[studioHWData.NumStudioMeshes];
+		for (int l = 0; l < studioHWData.NumStudioMeshes; l++)
+			studioHWData.LODs![nLodID]!.MeshData![l] = new();
+
+		// Iterate over every body part...
+		for (i = 0; i < studioHdr.NumBodyParts; i++) {
+			MStudioBodyParts bodyPart = studioHdr.BodyPart(i);
+			OptimizedModel.BodyPartHeader vtxBodyPart = vtxHdr.BodyPart(i);
+
+			// Iterate over every submodel...
+			for (j = 0; j < bodyPart.NumModels; ++j) {
+				MStudioModel model = bodyPart.Model(j);
+				OptimizedModel.ModelHeader vtxModel = vtxBodyPart.Model(j);
+				OptimizedModel.ModelLODHeader vtxLOD = vtxModel.LOD(nLodID);
+
+				// Determine which meshes should be hw morphed
+				// DetermineHWMorphing(model, vtxLOD);
+
+				// Iterate over all the meshes....
+				for (k = 0; k < model.NumMeshes; ++k) {
+					Assert(model.NumMeshes == vtxLOD.NumMeshes);
+					MStudioMesh mesh = model.Mesh(k);
+					OptimizedModel.MeshHeader vtxMesh = vtxLOD.Mesh(k);
+
+					Assert(mesh.MeshID < studioHWData.NumStudioMeshes);
+					R_StudioCreateSingleMesh(studioHdr, studioHWData.LODs[nLodID],
+						mesh, vtxMesh, vtxHdr.MaxBonesPerVert,
+						studioHWData.LODs![nLodID].MeshData![mesh.MeshID], ref colorMeshID);
+				}
+			}
+		}
+	}
+	const int PREFETCH_VERT_COUNT = 4;
+	private void R_StudioCreateSingleMesh(StudioHeader studioHdr, StudioLODData studioLodData, MStudioMesh mesh, OptimizedModel.MeshHeader vtxMesh, int numBones, StudioMeshData meshData, ref int colorMeshID) {
+		bool needsTangentSpace = MeshNeedsTangentSpace(studioHdr, studioLodData, mesh);
+
+		// Each strip group represents a locking group, it's a set of vertices
+		// that are locked together, and, potentially, software light + skinned together
+		meshData.NumGroup = vtxMesh.NumStripGroups;
+		meshData.MeshGroup = new StudioMeshGroup[vtxMesh.NumStripGroups];
+
+		for (int i = 0; i < vtxMesh.NumStripGroups; ++i) {
+			OptimizedModel.StripGroupHeader stripGroup = vtxMesh.StripGroup(i);
+			StudioMeshGroup meshGroup = meshData.MeshGroup[i] = new();
+
+			meshGroup.MeshNeedsRestore = false;
+
+			// Set the flags...
+			meshGroup.Flags = 0;
+			if ((stripGroup.Flags & OptimizedModel.StripGroupFlags.IsFlexed) != 0)
+				meshGroup.Flags |= StudioMeshGroupFlags.IsFlexed;
+
+			if ((stripGroup.Flags & OptimizedModel.StripGroupFlags.IsDeltaFlexed) != 0)
+				meshGroup.Flags |= StudioMeshGroupFlags.IsDeltaFlexed;
+
+			bool isHwSkinned = !!((stripGroup.Flags & OptimizedModel.StripGroupFlags.IsHWSkinned) != 0);
+			if (isHwSkinned)
+				meshGroup.Flags |= StudioMeshGroupFlags.IsHWSkinned;
+
+			// get the minimal vertex format for this mesh
+			VertexFormat vertexFormat = CalculateVertexFormat(studioHdr, studioLodData, mesh, stripGroup, isHwSkinned);
+
+			// Build the vertex + index buffers
+			R_StudioBuildMeshGroup(studioHdr.GetName(), needsTangentSpace, meshGroup, stripGroup, mesh, studioHdr, vertexFormat);
+
+			// Copy over the tristrip and triangle list data
+			R_StudioBuildMeshStrips(meshGroup, stripGroup);
+
+			// Builds morph targets
+			R_StudioBuildMorph(studioHdr, meshGroup, mesh, stripGroup);
+
+			// Build the mapping from strip group vertex idx to actual mesh idx
+			meshGroup.GroupIndexToMeshIndex = new ushort[stripGroup.NumVerts + PREFETCH_VERT_COUNT];
+			meshGroup.NumVertices = stripGroup.NumVerts;
+
+			int j;
+			for (j = 0; j < stripGroup.NumVerts; ++j)
+				meshGroup.GroupIndexToMeshIndex[j] = stripGroup.Vertex(j).OrigMeshVertID;
+
+			// Extra copies are for precaching...
+			for (j = stripGroup.NumVerts; j < stripGroup.NumVerts + PREFETCH_VERT_COUNT; ++j)
+				meshGroup.GroupIndexToMeshIndex[j] = meshGroup.GroupIndexToMeshIndex[stripGroup.NumVerts - 1];
+
+			// assign the possibly used color mesh id now
+			meshGroup.ColorMeshID = colorMeshID++;
+		}
 	}
 
-	struct Threaded_LoadMaterials_Data {
+	private void R_StudioBuildMeshGroup(ReadOnlySpan<char> pModelName, bool bNeedsTangentSpace, StudioMeshGroup pMeshGroup, OptimizedModel.StripGroupHeader pStripGroup, MStudioMesh pMesh, StudioHeader pStudioHdr, VertexFormat vertexFormat) {
+		using MatRenderContextPtr renderContext = new(materialSystem);
+
+		// We have to do this here because of skinning; there may be any number of
+		// materials that are applied to this mesh.
+		// Copy over all the vertices + indices in this strip group
+		pMeshGroup.Mesh = renderContext.CreateStaticMesh(vertexFormat, TEXTURE_GROUP_STATIC_VERTEX_BUFFER_MODELS);
+
+		VertexCompressionType compressionType = CompressionType(vertexFormat);
+
+		pMeshGroup.ColorMeshID = -1;
+
+		bool hwSkin = (pMeshGroup.Flags & StudioMeshGroupFlags.IsHWSkinned) != 0;
+
+		// This mesh could have tristrips or trilists in it
+		MeshBuilder meshBuilder = new();
+		meshBuilder.SetCompressionType(compressionType);
+		meshBuilder.Begin(pMeshGroup.Mesh, MaterialPrimitiveType.Heterogenous, hwSkin ? pStripGroup.NumVerts : 0, pStripGroup.NumIndices);
+
+		int i;
+		bool bBadBoneWeights = false;
+		if (hwSkin) {
+			MStudioMeshVertexData? vertData = GetFatVertexData(pMesh, pStudioHdr);
+			Assert(vertData != null);
+
+			for (i = 0; i < pStripGroup.NumVerts; ++i) {
+				bool success = R_AddVertexToMesh(pModelName, bNeedsTangentSpace, ref meshBuilder, ref pStripGroup.Vertex(i), pMesh, vertData, hwSkin);
+				if (!success)
+					bBadBoneWeights = true;
+			}
+		}
+
+		if (bBadBoneWeights) {
+			MStudioModel pModel = pMesh.Model;
+			ConMsg($"Bad data found in model \"{pModel.Name()}\" (bad bone weights)\n");
+		}
+
+		for (i = 0; i < pStripGroup.NumIndices; ++i) {
+			meshBuilder.Index(pStripGroup.Index(i));
+			meshBuilder.AdvanceIndex();
+		}
+
+		meshBuilder.End();
+
+		// Copy over the strip indices. We need access to the indices for decals
+		pMeshGroup.Indices = new ushort[pStripGroup.NumIndices];
+		memcpy(pMeshGroup.Indices, pStripGroup.Indices());
+
+		// TODO: Statistics gathering?
+	}
+
+	private bool R_AddVertexToMesh(ReadOnlySpan<char> pModelName, bool bNeedsTangentSpace, ref MeshBuilder meshBuilder, ref OptimizedModel.Vertex pVertex, MStudioMesh pMesh, MStudioMeshVertexData? vertData, bool hwSkin) {
+		bool bOK = true;
+		int idx = pVertex.OrigMeshVertID;
+
+		ref MStudioVertex vert = ref vertData!.Vertex(idx);
+
+		meshBuilder.Position3fv(in vert.Position);
+		meshBuilder.Normal3fv(in vert.Normal);
+
+		meshBuilder.TexCoord2fv(0, in vert.TexCoord);
+
+		// TODO: Tangents
+
+		meshBuilder.Color4ub(255, 255, 255, 255);
+
+		Span<float> boneWeights = stackalloc float[Studio.MAX_NUM_BONE_INDICES];
+		if (hwSkin) {
+			int i;
+			ref MStudioBoneWeight boneWeight = ref vertData.BoneWeights(idx);
+
+			float totalWeight = 0;
+			for (i = 0; i < pVertex.NumBones; ++i)
+				totalWeight += boneWeight.Weight[pVertex.BoneWeightIndex[i]];
+
+			if ((pVertex.NumBones > 0) && (boneWeight.NumBones <= 3) && MathF.Abs(totalWeight - 1.0f) > 1e-3f) {
+				bOK = false;
+				totalWeight = 1.0f;
+			}
+
+			if (totalWeight == 0.0f)
+				totalWeight = 1.0f;
+
+			float invTotalWeight = 1.0f / totalWeight;
+
+			for (i = 0; i < pVertex.NumBones; ++i) {
+				if (pVertex.BoneID[i] == -1) {
+					boneWeights[i] = 0.0f;
+					meshBuilder.BoneMatrix(i, IMesh.BONE_MATRIX_INDEX_INVALID);
+				}
+				else {
+					float weight = boneWeight.Weight[pVertex.BoneWeightIndex[i]];
+					boneWeights[i] = weight * invTotalWeight;
+					meshBuilder.BoneMatrix(i, pVertex.BoneID[i]);
+				}
+			}
+
+			for (; i < Studio.MAX_NUM_BONE_INDICES; i++) {
+				boneWeights[i] = 0.0f;
+				meshBuilder.BoneMatrix(i, IMesh.BONE_MATRIX_INDEX_INVALID);
+			}
+		}
+		else
+			for (int i = 0; i < Studio.MAX_NUM_BONE_INDICES; ++i) {
+				boneWeights[i] = (i == 0) ? 1.0f : 0.0f;
+				meshBuilder.BoneMatrix(i, IMesh.BONE_MATRIX_INDEX_INVALID);
+			}
+
+		Assert(pVertex.NumBones <= 3);
+
+		if (pVertex.NumBones > 0)
+			meshBuilder.CompressedBoneWeight3fv(boneWeights);
+
+		meshBuilder.AdvanceVertex();
+
+		return bOK;
+	}
+
+	private MStudioMeshVertexData? GetFatVertexData(MStudioMesh pMesh, StudioHeader pStudioHdr) {
+		if (pMesh.Model.CacheVertexData(studioDataCache, pStudioHdr) == null)
+			return null;
+
+		MStudioMeshVertexData? pVertData = pMesh.GetVertexData(studioDataCache, pStudioHdr);
+		return pVertData;
+	}
+
+	private VertexCompressionType CompressionType(VertexFormat vertexFormat) {
+		return VertexCompressionType.None; //not implemented
+	}
+
+	private void R_StudioBuildMeshStrips(StudioMeshGroup pMeshGroup, OptimizedModel.StripGroupHeader pStripGroup) {
+		int stripCount = pStripGroup.NumStrips;
+
+		int stripHeadersSize = stripCount * OptimizedModel.StripHeader.SIZEOF;
+
+		int boneBlockSize = 0;
+		Span<int> boneSizes = stackalloc int[stripCount];
+
+		for (int i = 0; i < stripCount; i++) {
+			int bsize = pStripGroup.Strip(i).NumBoneStateChanges *
+						Unsafe.SizeOf<OptimizedModel.BoneStateChangeHeader>();
+			boneSizes[i] = bsize;
+			boneBlockSize += bsize;
+		}
+
+		int totalSize = stripHeadersSize + boneBlockSize;
+
+		byte[] basePtr = new byte[totalSize];
+
+		Memory<byte> headerRegion = basePtr.AsMemory()[..stripHeadersSize];
+
+		Memory<byte> boneRegion = basePtr.AsMemory()[stripHeadersSize..];
+
+		pMeshGroup.StripData = new OptimizedModel.StripHeader[stripCount];
+
+		for (int i = 0; i < stripCount; i++) {
+			pMeshGroup.StripData[i] =
+				new OptimizedModel.StripHeader(
+					headerRegion.Slice(i * OptimizedModel.StripHeader.SIZEOF,
+									   OptimizedModel.StripHeader.SIZEOF));
+		}
+
+		int boneWriteOffset = 0;
+
+		for (int i = 0; i < stripCount; i++) {
+			OptimizedModel.StripHeader dstStrip = pMeshGroup.StripData[i];
+			OptimizedModel.StripHeader srcStrip = pStripGroup.Strip(i);
+
+			srcStrip.CopyInstantiatedReferenceTo(dstStrip);
+
+			dstStrip.BoneStateChangeOffset =
+				stripHeadersSize - (i * OptimizedModel.StripHeader.SIZEOF);
+
+			int bsize = boneSizes[i];
+
+			if (bsize > 0) {
+				Span<byte> dst = boneRegion.Span.Slice(boneWriteOffset, bsize);
+
+				memcpy(dst, srcStrip.BoneStateChanges(0).Cast<OptimizedModel.BoneStateChangeHeader, byte>());
+
+				boneWriteOffset += bsize;
+			}
+		}
+
+		pMeshGroup.NumStrips = stripCount;
+	}
+
+	private void R_StudioBuildMorph(StudioHeader studioHdr, StudioMeshGroup meshGroup, MStudioMesh mesh, OptimizedModel.StripGroupHeader stripGroup) {
+		// todo
+	}
+
+	private bool MeshNeedsTangentSpace(StudioHeader studioHdr, StudioLODData studioLodData, MStudioMesh mesh) {
+		return false; // For now, todo
+	}
+
+	private VertexFormat CalculateVertexFormat(StudioHeader studioHdr, StudioLODData studioLodData, MStudioMesh mesh, OptimizedModel.StripGroupHeader group, bool isHwSkinned) {
+		bool bSkinnedMesh = studioHdr.NumBones > 1;
+
+		if (bSkinnedMesh)
+			return MaterialVertexFormat.SkinnedModel;
+		else
+			return MaterialVertexFormat.Model;
+	}
+
+	private int GetNumBoneWeights(OptimizedModel.StripGroupHeader group) {
+		int nBoneWeightsMax = 0;
+
+		for (int i = 0; i < group.NumStrips; i++) {
+			OptimizedModel.StripHeader pStrip = group.Strip(i);
+			nBoneWeightsMax = Math.Max(nBoneWeightsMax, (int)pStrip.NumBones);
+		}
+
+		return nBoneWeightsMax;
+	}
+
+	struct Threaded_LoadMaterials_Data
+	{
 		public StudioRenderContext Context;
 		public int ID;
 		public int LodID;
@@ -155,7 +463,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem) : IStudioRender
 			lodData.Materials = null;
 			return;
 		}
-		lodData.Materials = new IMaterial[hdr.NumTextures]; 
+		lodData.Materials = new IMaterial[hdr.NumTextures];
 		lodData.MaterialFlags = new int[hdr.NumTextures];
 
 		if (hdr.TextureIndex == 0)
@@ -203,7 +511,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem) : IStudioRender
 				if (material.IsErrorMaterial())
 					Warning("StudioRender: OBSOLETE material missing: \"models/obsolete/obsolete\"\n");
 			}
-			else 
+			else
 				material = materialSystem.FindMaterial(path, TEXTURE_GROUP_MODEL, false);
 		}
 		if (material.IsErrorMaterial()) {

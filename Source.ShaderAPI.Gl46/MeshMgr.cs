@@ -154,7 +154,7 @@ public class MeshMgr : IMeshMgr
 		Init();
 	}
 
-	internal IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial material) {
+	internal IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material) {
 		MeshGl46 mesh = InitMesh<MeshGl46>();
 		mesh.SetVertexFormat(format);
 		if (material != null)
