@@ -67,7 +67,7 @@ public static class OptimizedModel
 		SuppressHWMorph = 0x8
 	}
 
-	[StructLayout(LayoutKind.Sequential)]
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public struct BoneStateChangeHeader
 	{
 		public int HardwareID;
@@ -158,17 +158,19 @@ public static class OptimizedModel
 	}
 	public class MeshHeader
 	{
-		public const int SIZEOF = sizeof(int) * 2;
+		public const int SIZEOF = (sizeof(int) * 2) + 1;
 
 		Memory<byte> Data;
 		public int NumStripGroups;
 		public int StripGroupHeaderOffset;
+		public byte Flags;
 
 		public MeshHeader(Memory<byte> mem) {
 			Data = mem;
 			Span<byte> data = mem.Span;
 			NumStripGroups = data[0..].Cast<byte, int>()[0];
 			StripGroupHeaderOffset = data[4..].Cast<byte, int>()[0];
+			Flags = data[8];
 		}
 
 		StripGroupHeader[]? partCache;
