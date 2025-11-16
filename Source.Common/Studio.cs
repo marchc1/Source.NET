@@ -556,19 +556,37 @@ public class StudioHeader2
 	public InlineArray56<int> Reserved;
 }
 
-public struct MStudioTexture
+public class MStudioTexture
 {
-	public const int SIZE_OF_ONE = (sizeof(int) * 4)  // Name, flags, used, unused.
-								 + (sizeof(int) * 2)  // The two pointers
-								 + (sizeof(int) * 10) // The other unused data
-		;
-
+	public const int SIZE_OF_ONE = 64; // msvc reports size 64, alignment 4
 	public Memory<byte> Data;
-	public readonly int NameIndex => Data.Span.Cast<byte, int>()[0];
-	public readonly int Flags => Data.Span.Cast<byte, int>()[1];
-	public readonly int Used => Data.Span.Cast<byte, int>()[2];
-	public readonly int Unused => Data.Span.Cast<byte, int>()[3];
-	public ReadOnlySpan<char> Name() => ""; // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO 
+
+	public int SzNameIndex;
+	public int Flags;
+	public int Used;
+	public int Unused;
+
+	public IMaterial? Material;
+	public object? ClientMaterial;
+
+	public MStudioTexture(Memory<byte> data) {
+		Data = data;
+		SpanBinaryReader br = new(data.Span);
+
+		SzNameIndex = br.Read<int>();
+		Flags = br.Read<int>();
+		Used = br.Read<int>();
+		Unused = br.Read<int>();
+	}
+
+	public string? name;
+	public string Name() {
+		if(name == null) {
+			using ASCIIStringView view = new(Data.Span[SzNameIndex..]);
+			return name = new(view);
+		}
+		return name;
+	}
 }
 
 /// <summary>
@@ -740,9 +758,14 @@ public class StudioHeader
 
 	public int NumTextures;
 	public int TextureIndex;
-	public MStudioTexture Texture(int i) => new() {
-		Data = Data[(TextureIndex + (MStudioTexture.SIZE_OF_ONE * i))..]
-	};
+	MStudioTexture[]? studioTextures;
+
+	public MStudioTexture Texture(int i) {
+		if(studioTextures == null) 
+			studioTextures = new MStudioTexture[NumTextures];
+
+		return studioTextures[i] ??= new(Data[(TextureIndex + (MStudioTexture.SIZE_OF_ONE * i))..]);
+	}
 
 	public int NumCDTextures;
 	public int CDTextureIndex;
