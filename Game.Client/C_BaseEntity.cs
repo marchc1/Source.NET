@@ -556,7 +556,7 @@ public partial class C_BaseEntity : IClientEntity
 			UpdateVisibility();
 		}
 	}
-	StudioHeader? OnNewModel() {
+	protected virtual StudioHdr? OnNewModel() {
 		return null; // what the hell????????????????? 
 	}
 	void SetModelIndex(int index) {
@@ -1446,7 +1446,7 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
-	private bool ShouldInterpolate() {
+	protected bool ShouldInterpolate() {
 		if (render.GetViewEntity() == Index)
 			return true;
 

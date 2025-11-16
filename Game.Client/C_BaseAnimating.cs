@@ -81,9 +81,37 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	}
 
 	public static readonly new ClientClass ClientClass = new ClientClass("BaseAnimating", null, null, DT_BaseAnimating).WithManualClassID(StaticClassIndices.CBaseAnimating);
+	protected override StudioHdr? OnNewModel() {
+        InvalidateMdlCache();
+
+        // remove transition animations playback
+        // SequenceTransitioner.RemoveAll();
+
+        // TODO: Jiggle bones
+        // TODO: Dynamic model pending
+        // TODO: AutoRefModelIndex
+
+        if (GetModel() == null || modelinfo.GetModelType(GetModel()) != ModelType.Studio)
+            return null;
+
+        // TODO: Dynamic model loading
+
+        StudioHdr? hdr = GetModelPtr();
+        if (hdr == null)
+            return null;
+
+        // todo: the rest of this
+        
+        return hdr;
+    }
+    public C_BaseAnimating() {
+        pStudioHdr = null;
+        hStudioHdr = MDLHANDLE_INVALID;
+    }
 
 	public void OnModelLoadComplete(Model model) {
-		throw new NotImplementedException();
+        OnNewModel();
+        UpdateVisibility();
 	}
 	public override void PostDataUpdate(DataUpdateType updateType) {
 		base.PostDataUpdate(updateType);
