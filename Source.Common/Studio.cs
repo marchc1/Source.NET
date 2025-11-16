@@ -428,6 +428,7 @@ public class MStudioModel
 
 public class MStudioBodyParts(Memory<byte> Data)
 {
+	public const int SIZEOF = sizeof(int) * 4;
 	public int SzNameIndex => MemoryMarshal.Cast<byte, int>(Data.Span)[0];
 	public int NumModels => MemoryMarshal.Cast<byte, int>(Data.Span)[1];
 	public int Base => MemoryMarshal.Cast<byte, int>(Data.Span)[2];
@@ -660,7 +661,7 @@ public class StudioHeader
 		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(i, NumBodyParts);
 
 		if (bodyPartCache[i] == null)
-			return bodyPartCache[i] = new(Data[BodyPartIndex..]);
+			return bodyPartCache[i] = new(Data[(BodyPartIndex + (MStudioBodyParts.SIZEOF * i))..]);
 		return bodyPartCache[i];
 	}
 
