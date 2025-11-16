@@ -120,7 +120,7 @@ public static class OptimizedModel
 
 	public class StripGroupHeader
 	{
-		public const int SIZEOF = (sizeof(int) * 6) + 1;
+		public const int SIZEOF = (sizeof(int) * 6) + 4; // MSVC padding the byte from 1 -> 4
 
 		Memory<byte> Data;
 		public int NumVerts;
@@ -144,7 +144,7 @@ public static class OptimizedModel
 			flags = data[24..][0];
 		}
 
-		public ref Vertex Vertex(int i) => ref Data.Span[VertOffset..].Cast<byte, Vertex>()[i];
+		public ref Vertex Vertex(int i) => ref Data.Span[(VertOffset + (i * 9))..].Cast<byte, Vertex>()[0];
 		public Span<Vertex> Vertices() => Data.Span[IndexOffset..].Cast<byte, Vertex>()[..NumVerts];
 		public ref ushort Index(int i) => ref Data.Span[IndexOffset..].Cast<byte, ushort>()[i];
 		public Span<ushort> Indices() => Data.Span[IndexOffset..].Cast<byte, ushort>()[..NumIndices];
