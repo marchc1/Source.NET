@@ -179,13 +179,15 @@ public class VirtualModel
 	public readonly List<ushort> AutoplaySequences = [];
 }
 
-public enum StudioMeshGroupFlags {
+public enum StudioMeshGroupFlags
+{
 	IsFlexed = 0x1,
 	IsHWSkinned = 0x2,
 	IsDeltaFlexed = 0x4,
 }
 
-public class StudioMeshGroup {
+public class StudioMeshGroup
+{
 	public IMesh? Mesh;
 	public int NumStrips;
 	public StudioMeshGroupFlags Flags;
@@ -200,7 +202,8 @@ public class StudioMeshGroup {
 	public ushort MeshIndex(int i) => GroupIndexToMeshIndex![Indices![i]];
 }
 
-public class StudioMeshData {
+public class StudioMeshData
+{
 	public int NumGroup;
 	public StudioMeshGroup[]? MeshGroup;
 }
@@ -286,7 +289,8 @@ public class MStudioModelVertexData
 	public bool HasTangentData() => TangentData != null;
 }
 
-public class MStudioMesh {
+public class MStudioMesh
+{
 	public const int SIZEOF = 116; // don't feel like typing this out right now
 	public Memory<byte> Data;
 	public readonly MStudioModel Model;
@@ -301,9 +305,9 @@ public class MStudioMesh {
 
 		NumFlexes = data.Span[16..].Cast<byte, int>()[0];
 		FlexIndex = data.Span[20..].Cast<byte, int>()[0];
-		MaterialType= data.Span[24..].Cast<byte, int>()[0];
-		MaterialParam= data.Span[28..].Cast<byte, int>()[0];
-		MeshID= data.Span[32..].Cast<byte, int>()[0];
+		MaterialType = data.Span[24..].Cast<byte, int>()[0];
+		MaterialParam = data.Span[28..].Cast<byte, int>()[0];
+		MeshID = data.Span[32..].Cast<byte, int>()[0];
 		Center = data.Span[36..].Cast<byte, Vector3>()[0];
 		VertexData = new(data[48..]);
 	}
@@ -402,7 +406,7 @@ public class MStudioModel
 
 	public MStudioModelVertexData? GetVertexData(IStudioDataCache dataCache, StudioHeader studioHdr) {
 		VertexFileHeader? vertexHdr = CacheVertexData(dataCache, studioHdr);
-		if(vertexHdr == null) {
+		if (vertexHdr == null) {
 			VertexData.VertexData = null;
 			VertexData.TangentData = null;
 			return null;
@@ -454,12 +458,13 @@ public class MStudioBodyParts(Memory<byte> Data)
 	}
 }
 
+[StructLayout(LayoutKind.Explicit, Pack = 4)]
 public struct MStudioVertex
 {
-	public MStudioBoneWeight BoneWeights;
-	public Vector3 Position;
-	public Vector3 Normal;
-	public Vector2 TexCoord;
+	[FieldOffset(0)] public MStudioBoneWeight BoneWeights;
+	[FieldOffset(16)] public Vector3 Position;
+	[FieldOffset(28)] public Vector3 Normal;
+	[FieldOffset(40)] public Vector2 TexCoord;
 }
 
 public class VertexFileHeader
