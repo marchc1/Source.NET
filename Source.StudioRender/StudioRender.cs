@@ -276,7 +276,6 @@ public unsafe class StudioRender
 	private int R_StudioDrawGroupHWSkin(IMatRenderContext renderContext, StudioMeshGroup pGroup, IMesh? mesh, ref ColorMeshInfo colorMeshInfo) {
 		int numTrianglesRendered = 0;
 
-
 		if (StudioHdr!.NumBones == 1) {
 			renderContext.MatrixMode(MaterialMatrixMode.Model);
 			renderContext.LoadMatrix(PoseToWorld[0]);

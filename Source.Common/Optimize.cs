@@ -110,7 +110,7 @@ public static class OptimizedModel
 			BoneStateChangeOffset = data[23..].Cast<byte, int>()[0];
 		}
 		public ref BoneStateChangeHeader BoneStateChange(int i) => ref Data.Span[BoneStateChangeOffset..].Cast<byte, BoneStateChangeHeader>()[i];
-		public Span<BoneStateChangeHeader> BoneStateChanges(int i) => Data.Span[BoneStateChangeOffset..].Cast<byte, BoneStateChangeHeader>()[i..];
+		public Span<BoneStateChangeHeader> BoneStateChanges(int i) => Data.Span[BoneStateChangeOffset..].Cast<byte, BoneStateChangeHeader>()[i..NumBoneStateChanges];
 		public const int SIZEOF = 4 + 4 + 4 + 4 + 2 + 1 + 4 + 4;
 	}
 

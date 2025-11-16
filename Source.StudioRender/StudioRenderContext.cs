@@ -372,58 +372,41 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 		return VertexCompressionType.None; //not implemented
 	}
 
-	// TODO: Lets make this safe
-	private unsafe void R_StudioBuildMeshStrips(StudioMeshGroup pMeshGroup, OptimizedModel.StripGroupHeader pStripGroup) {
+	private void R_StudioBuildMeshStrips(StudioMeshGroup pMeshGroup, OptimizedModel.StripGroupHeader pStripGroup) {
 		int stripCount = pStripGroup.NumStrips;
-
 		int stripHeaderSize = OptimizedModel.StripHeader.SIZEOF;
-		int boneChangeSize = sizeof(OptimizedModel.BoneStateChangeHeader);
-
-		int stripHeadersSize = stripCount * stripHeaderSize;
-
-		int totalBoneBytes = 0;
-		int[] boneSizes = new int[stripCount];
-
-		for (int i = 0; i < stripCount; i++) {
-			int bsize = pStripGroup.Strip(i).NumBoneStateChanges * boneChangeSize;
-			boneSizes[i] = bsize;
-			totalBoneBytes += bsize;
+		int boneChangeSize; unsafe {
+			 boneChangeSize = sizeof(OptimizedModel.BoneStateChangeHeader);
 		}
 
-		int totalSize = stripHeadersSize + totalBoneBytes;
+		int stripDataSize = 0;
+		for (int i = 0; i < stripCount; i++) {
+			stripDataSize += stripHeaderSize;
+			stripDataSize += pStripGroup.Strip(i).NumBoneStateChanges * boneChangeSize;
+		}
 
-		byte[] block = new byte[totalSize];
-
+		byte[] block = new byte[stripDataSize];
 		pMeshGroup.StripData = new OptimizedModel.StripHeader[stripCount];
-		int boneWriteOffset = 0;
 
+		int boneStateChangeOffset = stripCount * stripHeaderSize;
 		for (int i = 0; i < stripCount; i++) {
 			OptimizedModel.StripHeader src = pStripGroup.Strip(i);
+			int headerOffset = i * stripHeaderSize;
 
-			var dstHeaderMemory =
-				block.AsMemory().Slice(i * stripHeaderSize, stripHeaderSize);
-
-			OptimizedModel.StripHeader dst =
-				new OptimizedModel.StripHeader(dstHeaderMemory);
+			var dstHeaderMemory = block.AsMemory().Slice(headerOffset, stripHeaderSize);
+			OptimizedModel.StripHeader dst = new OptimizedModel.StripHeader(dstHeaderMemory);
 
 			src.CopyInstantiatedReferenceTo(dst);
+			dst.Data = new(block);
 
-			dst.BoneStateChangeOffset =
-				(stripHeadersSize + boneWriteOffset) -
-				(i * stripHeaderSize);
+			dst.BoneStateChangeOffset = boneStateChangeOffset - headerOffset;
 
-			int bsize = boneSizes[i];
-			if (bsize > 0) {
-				Span<byte> dstBoneSpan =
-					block.AsSpan(stripHeadersSize + boneWriteOffset, bsize);
+			int boneWeightSize = dst.NumBoneStateChanges * boneChangeSize;
+			if (boneWeightSize > 0) {
+				Span<byte> dstBoneSpan = block.AsSpan(boneStateChangeOffset, boneWeightSize);
 
-				Buffer.MemoryCopy(
-					source: Unsafe.AsPointer(ref src.BoneStateChanges(0)[0]),
-					destination: Unsafe.AsPointer(ref dstBoneSpan[0]),
-					destinationSizeInBytes: bsize,
-					sourceBytesToCopy: bsize);
-
-				boneWriteOffset += bsize;
+				src.BoneStateChanges(0)[0..1].Cast<OptimizedModel.BoneStateChangeHeader, byte>().CopyTo(dstBoneSpan);
+				boneStateChangeOffset += boneWeightSize;
 			}
 
 			pMeshGroup.StripData[i] = dst;
