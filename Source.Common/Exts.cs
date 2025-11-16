@@ -1485,3 +1485,33 @@ public struct AnonymousSafeFieldPointer<TType>
 		return ref refFn(owner);
 	}
 }
+
+public ref struct SpanBinaryReader
+{
+	ReadOnlySpan<byte> contents;
+	int ptr;
+	public SpanBinaryReader(ReadOnlySpan<byte> contents) {
+		this.contents = contents;
+		this.ptr = 0;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public ReadOnlySpan<byte> ReadBytes(int bytes) {
+		ReadOnlySpan<byte> ret = contents[ptr..(ptr + bytes)];
+		ptr += bytes;
+		return ret;
+	}
+	/*
+	public byte ReadUInt8() => ReadBytes(sizeof(byte))[0];
+	public sbyte ReadInt8() => (sbyte)ReadBytes(sizeof(sbyte))[0];
+	public ushort ReadUInt16() => ReadBytes(sizeof(ushort)).Cast<byte, ushort>()[0];
+	public short ReadInt16() => ReadBytes(sizeof(short)).Cast<byte, short>()[0];
+	public uint ReadUInt32() => ReadBytes(sizeof(uint)).Cast<byte, uint>()[0];
+	public int ReadInt32() => ReadBytes(sizeof(int)).Cast<byte, int>()[0];
+	public ulong ReadUInt64() => ReadBytes(sizeof(ulong)).Cast<byte, ulong>()[0];
+	public long ReadInt64() => ReadBytes(sizeof(long)).Cast<byte, long>()[0];
+	public float ReadFloat() => ReadBytes(sizeof(float)).Cast<byte, float>()[0];
+	public double ReadDouble() => ReadBytes(sizeof(double)).Cast<byte, double>()[0];
+	*/
+	public unsafe T Read<T>() where T : unmanaged => ReadBytes(sizeof(T)).Cast<byte, T>()[0];
+}
