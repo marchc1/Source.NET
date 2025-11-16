@@ -113,6 +113,8 @@ public class StudioRenderContext(IMaterialSystem materialSystem) : IStudioRender
 		studioHWData.RootLOD = Math.Min((int)studioHdr.RootLOD, vertexHdr.NumLODs - 1);
 		studioHWData.NumLODs = vertexHdr.NumLODs;
 		studioHWData.LODs = new StudioLODData[vertexHdr.NumLODs];
+		for (int k = 0; k < vertexHdr.NumLODs; k++) 
+			studioHWData.LODs[k] = new();
 
 		// reset the runtime flags
 		studioHdr.Flags &= ~StudioHdrFlags.UsesEnvCubemap;
