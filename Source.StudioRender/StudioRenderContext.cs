@@ -244,8 +244,15 @@ public class StudioRenderContext(IMaterialSystem materialSystem) : IStudioRender
 		return hdr.Texture(inMaterialID).Name();
 	}
 
+	static uint bumpvarCache = 0;
+
 	private void ComputeMaterialFlags(StudioHeader hdr, StudioLODData lodData, IMaterial material) {
-		throw new NotImplementedException();
+		//  if (material.UsesEnvCubemap()) 
+		//  	hdr.Flags |= StudioHdrFlags.UsesEnvCubemap;
+
+		//  if (material.NeedsPowerOfTwoFrameBufferTexture(false)) // The false checks if it will ever need the frame buffer, not just this frame
+		//  	hdr.Flags |= StudioHdrFlags.UsesFbTexture;
+		// todo
 	}
 
 	public Span<Matrix4x4> LockBoneMatrices(int boneCount) {
