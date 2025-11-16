@@ -67,7 +67,7 @@ public static class OptimizedModel
 		SuppressHWMorph = 0x8
 	}
 
-	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	[StructLayout(LayoutKind.Sequential, Pack = 1, Size = 8)]
 	public struct BoneStateChangeHeader
 	{
 		public int HardwareID;

@@ -229,8 +229,12 @@ public unsafe class MeshGl46 : IMesh
 		throw new NotImplementedException();
 	}
 
+	IMesh? ColorMesh;
+	int ColorMeshVertOffsetInBytes = 0;
+
 	public virtual void SetColorMesh(IMesh colorMesh, int vertexOffset) {
-		throw new NotImplementedException();
+		ColorMesh = colorMesh;
+		ColorMeshVertOffsetInBytes = vertexOffset;
 	}
 
 	public virtual MaterialPrimitiveType GetPrimitiveType() {
