@@ -554,7 +554,9 @@ public unsafe struct MeshBuilder : IDisposable
 
 
 	// This must be called before Begin, if a vertex buffer with a compressed format is to be used
-	public void SetCompressionType(VertexCompressionType compressionType) => throw new NotImplementedException();
+	public void SetCompressionType(VertexCompressionType compressionType) {
+		// No op for now
+	}
 
 	// Locks the vertex buffer
 	// (*cannot* use the Index() call below)

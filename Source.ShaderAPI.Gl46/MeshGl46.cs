@@ -317,6 +317,7 @@ public unsafe class MeshGl46 : IMesh
 			case MaterialPrimitiveType.Lines: return GL_LINES;
 			case MaterialPrimitiveType.Triangles: return GL_TRIANGLES;
 			case MaterialPrimitiveType.TriangleStrip: return GL_TRIANGLE_STRIP;
+			case MaterialPrimitiveType.Heterogenous: return -1;
 			default: throw new Exception();
 		}
 	}

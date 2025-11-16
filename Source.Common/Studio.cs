@@ -255,12 +255,12 @@ public class MStudioMeshVertexData
 
 	public bool HasTangentData() => ModelVertexData!.HasTangentData();
 
-	public ref Vector3 Position(int i) => throw new NotImplementedException();
-	public ref Vector3 Normal(int i) => throw new NotImplementedException();
-	public ref Vector4 TangentS(int i) => throw new NotImplementedException();
-	public ref Vector2 TexCoord(int i) => throw new NotImplementedException();
-	public ref MStudioBoneWeight BoneWeights(int i) => throw new NotImplementedException();
-	public ref MStudioVertex Vertex(int i) => throw new NotImplementedException();
+	public ref Vector3 Position(int i) => ref ModelVertexData!.Position(i);
+	public ref Vector3 Normal(int i) => ref ModelVertexData!.Normal(i);
+	public ref Vector4 TangentS(int i) => ref ModelVertexData!.TangentS(i);
+	public ref Vector2 TexCoord(int i) => ref ModelVertexData!.TexCoord(i);
+	public ref MStudioBoneWeight BoneWeights(int i) => ref ModelVertexData!.BoneWeights(i);
+	public ref MStudioVertex Vertex(int i) => ref ModelVertexData!.Vertex(i);
 }
 
 
@@ -274,12 +274,12 @@ public class MStudioModelVertexData
 	public object? GetTangentData() => TangentData;
 	public T? GetTangentData<T>() => (T?)TangentData;
 
-	public ref Vector3 Position(int i) => throw new NotImplementedException();
-	public ref Vector3 Normal(int i) => throw new NotImplementedException();
-	public ref Vector4 TangentS(int i) => throw new NotImplementedException();
-	public ref Vector2 TexCoord(int i) => throw new NotImplementedException();
-	public ref MStudioBoneWeight BoneWeights(int i) => throw new NotImplementedException();
-	public ref MStudioVertex Vertex(int i) => throw new NotImplementedException();
+	public ref Vector3 Position(int i) => ref Vertex(i).Position;
+	public ref Vector3 Normal(int i) => ref Vertex(i).Normal;
+	public ref Vector4 TangentS(int i) => ref ((Memory<Vector4>)GetTangentData()!).Span[i];
+	public ref Vector2 TexCoord(int i) => ref Vertex(i).TexCoord;
+	public ref MStudioBoneWeight BoneWeights(int i) => ref Vertex(i).BoneWeights;
+	public ref MStudioVertex Vertex(int i) => ref ((Memory<MStudioVertex>)GetVertexData()!).Span[i];
 
 	// todo: verify
 	public bool HasTangentData() => TangentData != null;
