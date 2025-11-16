@@ -223,13 +223,21 @@ public class StudioHWData
 	public StudioLODData[]? LODs;
 	public int NumStudioMeshes;
 
-	public int GetLODForMetric(float metric) {
-		throw new NotImplementedException();
+	public int GetLODForMetric(float lodMetric) {
+		if (NumLODs == 0)
+			return 0;
+
+		int numLODs = (LODs![NumLODs - 1].SwitchPoint < 0.0f) ? NumLODs - 1 : NumLODs;
+
+		for (int i = RootLOD; i < numLODs - 1; i++) {
+			if (LODs[i + 1].SwitchPoint > lodMetric)
+				return i;
+		}
+
+		return numLODs - 1;
 	}
 
-	public float LODMetric(float screenSize) {
-		throw new NotImplementedException();
-	}
+	public float LODMetric(float unitSphereSize) => (unitSphereSize != 0.0f) ? (100.0f / unitSphereSize) : 0.0f;
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 4)]
