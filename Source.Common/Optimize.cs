@@ -109,7 +109,7 @@ public static class OptimizedModel
 		public const int SIZEOF = 4 + 4 + 4 + 4 + 2 + 1 + 4 + 4;
 	}
 
-	[StructLayout(LayoutKind.Sequential)]
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	public struct Vertex
 	{
 		public InlineArrayMaxNumBonesPerVert<byte> BoneWeightIndex;
@@ -120,7 +120,7 @@ public static class OptimizedModel
 
 	public class StripGroupHeader
 	{
-		public const int SIZEOF = (sizeof(int) * 6) + 4; // MSVC padding the byte from 1 -> 4
+		public const int SIZEOF = (sizeof(int) * 6) + 1;
 
 		Memory<byte> Data;
 		public int NumVerts;
@@ -144,7 +144,7 @@ public static class OptimizedModel
 			flags = data[24..][0];
 		}
 
-		public ref Vertex Vertex(int i) => ref Data.Span[(VertOffset + (i * 9))..].Cast<byte, Vertex>()[0];
+		public ref Vertex Vertex(int i) => ref Data.Span[IndexOffset..].Cast<byte, Vertex>()[i];
 		public Span<Vertex> Vertices() => Data.Span[IndexOffset..].Cast<byte, Vertex>()[..NumVerts];
 		public ref ushort Index(int i) => ref Data.Span[IndexOffset..].Cast<byte, ushort>()[i];
 		public Span<ushort> Indices() => Data.Span[IndexOffset..].Cast<byte, ushort>()[..NumIndices];

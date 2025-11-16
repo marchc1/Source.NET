@@ -229,10 +229,11 @@ public class StudioHWData
 	}
 }
 
+[StructLayout(LayoutKind.Sequential, Pack = 4)]
 public struct MStudioBoneWeight
 {
 	public InlineArrayMaxNumBonesPerVert<float> Weight;
-	public InlineArrayMaxNumBonesPerVert<float> Bone;
+	public InlineArrayMaxNumBonesPerVert<byte> Bone;
 	public byte NumBones;
 }
 
