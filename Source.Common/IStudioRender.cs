@@ -7,7 +7,7 @@ namespace Source.Common;
 public interface IStudioRender {
 	void BeginFrame();
 	void EndFrame();
-	bool LoadModel(StudioHeader studioHDR, ref OptimizedModelFileHeader vtxData, StudioHWData hardwareData);
+	bool LoadModel(StudioHeader studioHDR, Memory<byte> vtxData, StudioHWData hardwareData);
 	void UnloadModel(StudioHWData hardwareData);
 
 	int GetMaterialList(StudioHeader studioHDR, Span<IMaterial> materials);

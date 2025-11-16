@@ -35,10 +35,10 @@ public static class Studio
 	public const int MODEL_VERTEX_FILE_THIN_ID = (('V' << 24) + ('C' << 16) + ('D' << 8) + 'I');
 
 	public const int BONE_CALCULATE_MASK = 0x1F;
-	public const int BONE_PHYSICALLY_SIMULATED = 0x01; 
-	public const int BONE_PHYSICS_PROCEDURAL = 0x02;   
-	public const int BONE_ALWAYS_PROCEDURAL = 0x04;    
-	public const int BONE_SCREEN_ALIGN_SPHERE = 0x08;  
+	public const int BONE_PHYSICALLY_SIMULATED = 0x01;
+	public const int BONE_PHYSICS_PROCEDURAL = 0x02;
+	public const int BONE_ALWAYS_PROCEDURAL = 0x04;
+	public const int BONE_SCREEN_ALIGN_SPHERE = 0x08;
 	public const int BONE_SCREEN_ALIGN_CYLINDER = 0x10;
 
 	public const int BONE_USED_MASK = 0x0007FF00;
@@ -175,9 +175,37 @@ public class VirtualModel
 	public readonly List<ushort> AutoplaySequences = [];
 }
 
+public enum StudioMeshGroupFlags {
+	IsFlexed = 0x1,
+	IsHWSkinned = 0x2,
+	IsDeltaFlexed = 0x4,
+}
+
+public class StudioMeshGroup {
+	public IMesh? Mesh;
+	public int NumStrips;
+	public StudioMeshGroupFlags Flags;
+	public ushort[]? GroupIndexToMeshIndex;
+	public int NumVertices;
+	public ushort[]? Indices;
+	public bool MeshNeedsRestore;
+	public int ColorMeshID;
+	// IMorph?
+
+	public ushort MeshIndex(int i) => GroupIndexToMeshIndex![Indices![i]];
+}
+
+public class StudioMeshData {
+	public int NumGroup;
+	public StudioMeshGroup? MeshGroup;
+}
+
 public class StudioLODData
 {
-
+	public StudioMeshData? MeshData;
+	public float SwitchPoint;
+	public IMaterial[]? Materials;
+	public int[]? MaterialFlags;
 }
 
 public class StudioHWData
@@ -201,6 +229,116 @@ public struct MStudioBoneWeight
 	public InlineArrayMaxNumBonesPerVert<float> Weight;
 	public InlineArrayMaxNumBonesPerVert<float> Bone;
 	public byte NumBones;
+}
+
+public struct MStudioModelVertexData
+{
+	public object? VertexData;
+	public object? TangentData;
+
+	public readonly object? GetVertexData() => VertexData;
+	public readonly T? GetVertexData<T>() => (T?)VertexData;
+	public readonly object? GetTangentData() => TangentData;
+	public readonly T? GetTangentData<T>() => (T?)TangentData;
+
+	public readonly ref Vector3 Position(int i) => throw new NotImplementedException();
+	public readonly ref Vector3 Normal(int i) => throw new NotImplementedException();
+	public readonly ref Vector4 TangentS(int i) => throw new NotImplementedException();
+	public readonly ref Vector2 TexCoord(int i) => throw new NotImplementedException();
+	public readonly ref MStudioBoneWeight BoneWeights(int i) => throw new NotImplementedException();
+	public readonly ref MStudioVertex Vertex(int i) => throw new NotImplementedException();
+
+	// todo: verify
+	public readonly bool HasTangentData() => TangentData != null;
+}
+
+public class MStudioModel
+{
+	Memory<byte> Data;
+	[StructLayout(LayoutKind.Explicit)]
+	internal struct __contents
+	{
+		[FieldOffset(0)] public InlineArray64<byte> Name;
+		[FieldOffset(64)] public int Type;
+		[FieldOffset(68)] public float BoundingRadius;
+		[FieldOffset(72)] public int NumMeshes;
+		[FieldOffset(76)] public int MeshIndex;
+		[FieldOffset(80)] public int NumVertices;
+		[FieldOffset(84)] public int VertexIndex;
+		[FieldOffset(88)] public int TangentsIndex;
+		[FieldOffset(92)] public int NumAttachments;
+		[FieldOffset(96)] public int AttachmentIndex;
+		[FieldOffset(100)] public int NumEyeballs;
+		[FieldOffset(104)] public int EyeballIndex;
+
+		// these are pointers which will instead be class instance refs OUTSIDE of the contents.
+		// But we need to parse unused data anyway here for the pointers, so
+		[FieldOffset(108)] InlineArray40<byte> unused;
+	}
+	__contents Contents;
+
+
+	public ref int Type { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.Type; }
+	public ref float BoundingRadius { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.BoundingRadius; }
+	public ref int NumMeshes { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.NumMeshes; }
+	public ref int MeshIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.MeshIndex; }
+	public ref int NumVertices { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.NumVertices; }
+	public ref int VertexIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.VertexIndex; }
+	public ref int TangentsIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.TangentsIndex; }
+	public ref int NumAttachments { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.NumAttachments; }
+	public ref int AttachmentIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.AttachmentIndex; }
+	public ref int NumEyeballs { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.NumEyeballs; }
+	public ref int EyeballIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.EyeballIndex; }
+
+	public MStudioModelVertexData VertexData;
+
+	public MStudioModel(Memory<byte> data) {
+		Data = data;
+		Contents = data.Span.Cast<byte, __contents>()[0];
+	}
+
+	string? nameCache;
+	public string Name() {
+		if (nameCache == null) {
+			using ASCIIStringView strView = new(Contents.Name);
+			nameCache = new(strView);
+		}
+		return nameCache;
+	}
+
+	public ref readonly MStudioModelVertexData GetVertexData() => ref VertexData;
+}
+
+public class MStudioBodyParts(Memory<byte> Data)
+{
+	public int SzNameIndex => MemoryMarshal.Cast<byte, int>(Data.Span)[0];
+	public int NumModels => MemoryMarshal.Cast<byte, int>(Data.Span)[1];
+	public int Base => MemoryMarshal.Cast<byte, int>(Data.Span)[2];
+	public int ModelIndex => MemoryMarshal.Cast<byte, int>(Data.Span)[3];
+
+
+	string? nameCache;
+	public string Name() {
+		if (nameCache == null) {
+			using ASCIIStringView strView = new(Data.Span[SzNameIndex..]);
+			nameCache = new(strView);
+		}
+		return nameCache;
+	}
+
+	MStudioModel[]? studioModelCache;
+
+	public MStudioModel Model(int i) {
+		if (studioModelCache == null)
+			studioModelCache = new MStudioModel[NumModels];
+
+		ArgumentOutOfRangeException.ThrowIfLessThan(i, 0);
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(i, NumModels);
+
+		if (studioModelCache[i] == null)
+			return studioModelCache[i] = new(Data[(ModelIndex + (i * Unsafe.SizeOf<MStudioModel.__contents>()))..]);
+		return studioModelCache[i];
+	}
 }
 
 public struct MStudioVertex
@@ -282,7 +420,8 @@ public struct MStudioTexture
 /// <summary>
 /// Analog of CStudioHdr
 /// </summary>
-public class StudioHdr {
+public class StudioHdr
+{
 	public bool IsVirtual() => vModel != null;
 	public bool IsValid() => studioHdr != null;
 	public bool IsReadyForAccess() => studioHdr != null;
@@ -380,6 +519,20 @@ public class StudioHeader
 		// TODO: studiohdr2 index
 
 		return ((ReadOnlySpan<char>)Name).SliceNullTerminatedString();
+	}
+
+	MStudioBodyParts[]? bodyPartCache;
+
+	public MStudioBodyParts BodyPart(int i) {
+		if (bodyPartCache == null)
+			bodyPartCache = new MStudioBodyParts[NumBodyParts];
+
+		ArgumentOutOfRangeException.ThrowIfLessThan(i, 0);
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(i, NumBodyParts);
+
+		if (bodyPartCache[i] == null)
+			return bodyPartCache[i] = new(Data = Data[BodyPartIndex..]);
+		return bodyPartCache[i];
 	}
 
 	public int NumSkinRef;

@@ -188,22 +188,22 @@ public class MDLCache(IFileSystem fileSystem, IStudioRender StudioRender) : IMDL
 			return false;
 
 		vtxHeader.Position = 0;
-		ref OptimizedModelFileHeader vtxHdr = ref MemoryMarshal.Cast<byte, OptimizedModelFileHeader>(vtxHeader.GetBuffer().AsSpan())[0];
-		if(vtxHdr.Version != OptimizedModelFileHeader.OPTIMIZED_MODEL_FILE_VERSION) {
-			Warning($"Error Index File for '{studioHdr.GetName()}' version {vtxHdr.Version} should be {OptimizedModelFileHeader.OPTIMIZED_MODEL_FILE_VERSION}\n");
-			vtxHdr = ref Unsafe.NullRef<OptimizedModelFileHeader>();
+		OptimizedModel.FileHeader? vtxHdr = new(vtxHeader.GetBuffer());
+		if(vtxHdr.Version != OptimizedModel.OPTIMIZED_MODEL_FILE_VERSION) {
+			Warning($"Error Index File for '{studioHdr.GetName()}' version {vtxHdr.Version} should be {OptimizedModel.OPTIMIZED_MODEL_FILE_VERSION}\n");
+			vtxHdr = null;
 		}
-		else if(vtxHdr.CheckSum != studioHdr.Checksum) {
-			Warning($"Error Index File for '{studioHdr.GetName()}' checksum {vtxHdr.CheckSum} should be {studioHdr.Checksum}\n");
-			vtxHdr = ref Unsafe.NullRef<OptimizedModelFileHeader>();
+		else if(vtxHdr.Checksum != studioHdr.Checksum) {
+			Warning($"Error Index File for '{studioHdr.GetName()}' checksum {vtxHdr.Checksum} should be {studioHdr.Checksum}\n");
+			vtxHdr = null;
 		}
 
-		if(Unsafe.IsNullRef(ref vtxHdr)){
+		if(vtxHdr == null){
 			studioData.Flags |= StudioDataFlags.NoStudioMesh;
 			return false;
 		}
 
-		bool loaded = StudioRender.LoadModel(studioHdr, ref vtxHdr, studioData.HardwareData);
+		bool loaded = StudioRender.LoadModel(studioHdr, vtxHeader.GetBuffer(), studioData.HardwareData);
 
 		if (loaded) 
 			studioData.Flags |= StudioDataFlags.StudioMeshLoaded;
