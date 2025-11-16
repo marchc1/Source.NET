@@ -90,8 +90,8 @@ public class RenderView(EngineVGui EngineVGui, Render engineRenderer, ClientStat
 
 	public int GetViewEntity() => cl.ViewEntity;
 
-	float r_blend = 1;
-	Vector3 r_colormod = new(1, 1, 1);
+	public float r_blend = 1;
+	public Vector3 r_colormod = new(1, 1, 1);
 	public bool IsBlendingOrModulating { get; private set; }
 	public void CheckBlend() {
 		IsBlendingOrModulating = r_blend != 1.0f || r_colormod[0] != 1.0f || r_colormod[1] != 1.0f || r_colormod[2] != 1.0f;

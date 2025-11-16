@@ -249,6 +249,7 @@ public interface IMatRenderContext
 	void LoadMatrix(in Matrix4x4 matrixProjection);
 	float ComputePixelDiameterOfSphere(Vector3 origin, float radius);
 	float ComputePixelWidthOfSphere(Vector3 origin, float radius);
+	void SetNumBoneWeights(int v);
 }
 
 public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
@@ -317,4 +318,6 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 
 	public float ComputePixelDiameterOfSphere(Vector3 origin, float radius) => ctx.ComputePixelDiameterOfSphere(origin, radius);
 	public float ComputePixelWidthOfSphere(Vector3 origin, float radius) => ctx.ComputePixelWidthOfSphere(origin, radius);
+
+	public void SetNumBoneWeights(int v) => ctx.SetNumBoneWeights(v);
 }

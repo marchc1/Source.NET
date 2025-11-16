@@ -2,6 +2,7 @@
 
 using Source.Common;
 using Source.Common.DataCache;
+using Source.Common.Engine;
 using Source.Common.MaterialSystem;
 
 using System;
@@ -19,13 +20,18 @@ namespace Source.StudioRender;
 /// </summary>
 public struct StudioRenderCtx
 {
-
+	public Vector3 ViewOrigin;
+	public Vector3 ViewRight;
+	public Vector3 ViewUp;
+	public Vector3 ViewPlaneNormal;
+	public Vector3 ColorMod;
+	public float AlphaMod;
 }
 
 /// <summary>
 /// Analog of CStudioRenderContext
 /// </summary>
-public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCache studioDataCache) : IStudioRender
+public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCache studioDataCache, StudioRender studioRenderImp) : IStudioRender
 {
 	public void BeginFrame() {
 		throw new NotImplementedException();
@@ -581,5 +587,67 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 
 	public void UnlockBoneMatrices() {
 
+	}
+
+
+	StudioRenderCtx RC;
+	public void DrawModel(ref DrawModelResults results, ref DrawModelInfo info, Span<Matrix4x4> boneToWorld, Span<byte> flexWeights, Span<byte> flexDelayedWeights, in Vector3 origin, StudioRenderFlags flags = StudioRenderFlags.DrawEntireModel) {
+		// Set to zero in case we don't render anything.
+		if (!Unsafe.IsNullRef(ref results))
+			results.ActualTriCount = results.TextureMemoryBytes = 0;
+
+		if (info.StudioHdr == null || info.HardwareData == null || info.HardwareData.NumLODs == 0 || info.HardwareData.LODs == null) 
+			return;
+		
+		// TODO: Flex weights
+
+		using MatRenderContextPtr renderContext = new(materialSystem);
+		info.Lod = ComputeRenderLOD(renderContext, info, origin, out float flMetric);
+		if (!Unsafe.IsNullRef(ref results)) {
+			results.LODUsed = info.Lod;
+			results.LODMetric = flMetric;
+		}
+
+		studioRenderImp.DrawModel(ref info, ref RC, boneToWorld, flags);
+	}
+
+	private int ComputeRenderLOD(MatRenderContextPtr renderContext, DrawModelInfo info, Vector3 origin, out float metric) {
+		int lod = info.Lod;
+		int lastlod = info.HardwareData.NumLODs - 1;
+		metric = 0;
+		if (lod == Studio.USESHADOWLOD)
+			return lastlod;
+
+		if (lod != -1)
+			return Math.Clamp(lod, info.HardwareData.RootLOD, lastlod);
+
+		float screenSize = renderContext.ComputePixelWidthOfSphere(origin, 0.5f);
+		lod = ComputeModelLODAndMetric(info.HardwareData, screenSize, out metric);
+
+		if ((info.StudioHdr.Flags & StudioHdrFlags.HasShadowLod) != 0)
+			lastlod--;
+
+		lod = Math.Clamp(lod, info.HardwareData.RootLOD, lastlod);
+		return lod;
+	}
+
+	private int ComputeModelLODAndMetric(StudioHWData hardwareData, float unitSphereSize, out float metric) {
+		metric = hardwareData.LODMetric(unitSphereSize);
+		return hardwareData.GetLODForMetric(metric);
+	}
+
+	public void SetViewState(in Vector3 viewOrigin, in Vector3 viewRight, in Vector3 viewUp, in Vector3 viewForward) {
+		RC.ViewOrigin = viewOrigin;
+		RC.ViewRight = viewRight;
+		RC.ViewUp = viewUp;
+		RC.ViewPlaneNormal = viewForward;
+	}
+
+	public void SetColorModulation(Vector3 color) {
+		RC.ColorMod = color;
+	}
+
+	public void SetAlphaModulation(float alpha) {
+		RC.AlphaMod = alpha;
 	}
 }

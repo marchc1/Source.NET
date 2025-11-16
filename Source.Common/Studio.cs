@@ -60,6 +60,7 @@ public static class Studio
 
 	public const int MAX_NUM_BONE_INDICES = 4;
 
+	public const int USESHADOWLOD = -2;
 	public static int BONE_USED_BY_VERTEX_AT_LOD(int lod) => BONE_USED_BY_VERTEX_LOD0 << lod;
 }
 

@@ -514,4 +514,8 @@ public class MatRenderContext : IMatRenderContextInternal
 	public float ComputePixelWidthOfSphere(Vector3 origin, float radius) {
 		return ComputePixelDiameterOfSphere(origin, radius) * 2.0f;
 	}
+
+	public void SetNumBoneWeights(int v) {
+		// todo
+	}
 }
