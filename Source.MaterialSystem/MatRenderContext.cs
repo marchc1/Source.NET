@@ -515,8 +515,8 @@ public class MatRenderContext : IMatRenderContextInternal
 		return ComputePixelDiameterOfSphere(origin, radius) * 2.0f;
 	}
 
-	public void SetNumBoneWeights(int v) {
-		// todo
+	public void SetNumBoneWeights(int numBones) {
+		shaderAPI.SetNumBoneWeights(numBones);
 	}
 
 	public void LoadBoneMatrix(int boneIndex, in Matrix4x4 matrix) {

@@ -1007,4 +1007,12 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 			LoadMatrix(matrix);
 		}
 	}
+	int numBones;
+	public void SetNumBoneWeights(int numBones) {
+		if(this.numBones != numBones) {
+			FlushBufferedPrimitives();
+			this.numBones = numBones;
+		}
+	}
+
 }

@@ -102,4 +102,5 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void TexMinFilter(TexFilterMode mode);
 	void TexMagFilter(TexFilterMode mode);
 	void LoadBoneMatrix(int boneIndex, in Matrix4x4 matrix);
+	void SetNumBoneWeights(int numBones);
 }

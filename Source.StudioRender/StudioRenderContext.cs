@@ -374,271 +374,255 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 	}
 
 	private void R_StudioBuildMeshStrips(StudioMeshGroup pMeshGroup, OptimizedModel.StripGroupHeader pStripGroup) {
-		int stripCount = pStripGroup.NumStrips;
-		int stripHeaderSize = OptimizedModel.StripHeader.SIZEOF;
-		int boneChangeSize; unsafe {
-			boneChangeSize = sizeof(OptimizedModel.BoneStateChangeHeader);
-		}
+		pMeshGroup.NumStrips = pStripGroup.NumStrips;
+		pMeshGroup.StripData = new OptimizedModel.StripHeader[pStripGroup.NumStrips];
 
-		int stripDataSize = 0;
-		for (int i = 0; i < stripCount; i++) {
-			stripDataSize += stripHeaderSize;
-			stripDataSize += pStripGroup.Strip(i).NumBoneStateChanges * boneChangeSize;
-		}
+		for (int i = 0; i < pStripGroup.NumStrips; ++i) {
+			OptimizedModel.StripHeader sourceStrip = pStripGroup.Strip(i);
 
-		byte[] block = new byte[stripDataSize];
-		pMeshGroup.StripData = new OptimizedModel.StripHeader[stripCount];
+			int stripHeaderSize = OptimizedModel.StripHeader.SIZEOF;
+			int boneStateChangeSize = sourceStrip.NumBoneStateChanges * Marshal.SizeOf<OptimizedModel.BoneStateChangeHeader>();
+			int totalSize = stripHeaderSize + boneStateChangeSize;
 
-		int boneStateChangeOffset = stripCount * stripHeaderSize;
-		for (int i = 0; i < stripCount; i++) {
-			OptimizedModel.StripHeader src = pStripGroup.Strip(i);
-			int headerOffset = i * stripHeaderSize;
+			Memory<byte> stripMemory = new byte[totalSize];
 
-			var dstHeaderMemory = block.AsMemory().Slice(headerOffset, stripHeaderSize);
-			int dstBoneStateChangeOffset = boneStateChangeOffset - headerOffset;
+			sourceStrip.Data.Span[..OptimizedModel.StripHeader.SIZEOF].CopyTo(stripMemory.Span);
 
+			if (sourceStrip.NumBoneStateChanges > 0) {
+				Span<OptimizedModel.BoneStateChangeHeader> sourceBoneStates = sourceStrip.Data.Span[sourceStrip.BoneStateChangeOffset..].Cast<byte, OptimizedModel.BoneStateChangeHeader>()[..sourceStrip.NumBoneStateChanges];
+				Span<OptimizedModel.BoneStateChangeHeader> destBoneStates = stripMemory.Span[stripHeaderSize..].Cast<byte, OptimizedModel.BoneStateChangeHeader>();
 
-			int boneWeightSize = src.NumBoneStateChanges * boneChangeSize;
-			if (boneWeightSize > 0) {
-				Span<byte> dstBoneSpan = block.AsSpan(boneStateChangeOffset, boneWeightSize);
-
-				src.BoneStateChanges(0)[0..].Cast<OptimizedModel.BoneStateChangeHeader, byte>().CopyTo(dstBoneSpan);
-
-				OptimizedModel.StripHeader dst = new(block);
-				dst.BoneStateChangeOffset = boneStateChangeOffset - headerOffset;
-
-				boneStateChangeOffset += boneWeightSize;
-				pMeshGroup.StripData[i] = dst;
+				sourceBoneStates.CopyTo(destBoneStates);
 			}
 
+			pMeshGroup.StripData[i] = new OptimizedModel.StripHeader(stripMemory);
+			pMeshGroup.StripData[i].BoneStateChangeOffset = stripHeaderSize;
 		}
-
-		pMeshGroup.NumStrips = stripCount;
 	}
 
 	private void R_StudioBuildMorph(StudioHeader studioHdr, StudioMeshGroup meshGroup, MStudioMesh mesh, OptimizedModel.StripGroupHeader stripGroup) {
-		// todo
+	// todo
+}
+
+private bool MeshNeedsTangentSpace(StudioHeader studioHdr, StudioLODData studioLodData, MStudioMesh mesh) {
+	return false; // For now, todo
+}
+
+private VertexFormat CalculateVertexFormat(StudioHeader studioHdr, StudioLODData studioLodData, MStudioMesh mesh, OptimizedModel.StripGroupHeader group, bool isHwSkinned) {
+	bool bSkinnedMesh = studioHdr.NumBones > 1;
+
+	if (bSkinnedMesh)
+		return MaterialVertexFormat.SkinnedModel;
+	else
+		return MaterialVertexFormat.Model;
+}
+
+private int GetNumBoneWeights(OptimizedModel.StripGroupHeader group) {
+	int nBoneWeightsMax = 0;
+
+	for (int i = 0; i < group.NumStrips; i++) {
+		OptimizedModel.StripHeader pStrip = group.Strip(i);
+		nBoneWeightsMax = Math.Max(nBoneWeightsMax, (int)pStrip.NumBones);
 	}
 
-	private bool MeshNeedsTangentSpace(StudioHeader studioHdr, StudioLODData studioLodData, MStudioMesh mesh) {
-		return false; // For now, todo
+	return nBoneWeightsMax;
+}
+
+struct Threaded_LoadMaterials_Data
+{
+	public StudioRenderContext Context;
+	public int ID;
+	public int LodID;
+	public StudioHeader Hdr;
+	public OptimizedModel.FileHeader VtxHeader;
+	public StudioLODData LodData;
+}
+
+private void LoadMaterials(StudioHeader hdr, OptimizedModel.FileHeader vtxHeader, StudioLODData lodData, int lodID) {
+	if (hdr.NumTextures == 0) {
+		lodData.Materials = null;
+		return;
 	}
+	lodData.Materials = new IMaterial[hdr.NumTextures];
+	lodData.MaterialFlags = new int[hdr.NumTextures];
 
-	private VertexFormat CalculateVertexFormat(StudioHeader studioHdr, StudioLODData studioLodData, MStudioMesh mesh, OptimizedModel.StripGroupHeader group, bool isHwSkinned) {
-		bool bSkinnedMesh = studioHdr.NumBones > 1;
+	if (hdr.TextureIndex == 0)
+		return;
 
-		if (bSkinnedMesh)
-			return MaterialVertexFormat.SkinnedModel;
+	for (int i = 0; i < hdr.NumTextures; i++) {
+		Threaded_LoadMaterials_Data threadData = new Threaded_LoadMaterials_Data() {
+			Context = this,
+			ID = i,
+			LodID = lodID,
+			Hdr = hdr,
+			VtxHeader = vtxHeader,
+			LodData = lodData
+		};
+		Threaded_LoadMaterials(in threadData);
+	}
+}
+
+private void Threaded_LoadMaterials(in Threaded_LoadMaterials_Data threadData) {
+	StudioHeader hdr = threadData.Hdr;
+	OptimizedModel.FileHeader vtxHeader = threadData.VtxHeader;
+	StudioLODData lodData = threadData.LodData;
+	int lodID = threadData.LodID;
+	int i = threadData.ID;
+
+	Span<char> path = stackalloc char[MAX_PATH];
+	IMaterial? material = null;
+
+	// search through all specified directories until a valid material is found
+	for (int j = 0; j < hdr.NumCDTextures && material.IsErrorMaterial(); j++) {
+		// If we don't do this, we get filenames like "materials\\blah.vmt".
+		ReadOnlySpan<char> textureName = GetTextureName(hdr, vtxHeader, lodID, i);
+		if (!textureName.IsEmpty && (textureName[0] == StrTools.CORRECT_PATH_SEPARATOR || textureName[0] == StrTools.INCORRECT_PATH_SEPARATOR))
+			textureName = textureName[1..];
+
+		// This prevents filenames like /models/blah.vmt.
+		ReadOnlySpan<char> cdTexture = hdr.CDTexture(j);
+		if (!cdTexture.IsEmpty && (cdTexture[0] == StrTools.CORRECT_PATH_SEPARATOR || cdTexture[0] == StrTools.INCORRECT_PATH_SEPARATOR))
+			cdTexture = cdTexture[1..];
+
+		StrTools.ComposeFileName(cdTexture, textureName, path);
+		Span<char> finalPath = path.SliceNullTerminatedString();
+
+		if ((hdr.Flags & StudioHdrFlags.Obsolete) != 0) {
+			material = materialSystem.FindMaterial("models/obsolete/obsolete", TEXTURE_GROUP_MODEL, false);
+			if (material.IsErrorMaterial())
+				Warning("StudioRender: OBSOLETE material missing: \"models/obsolete/obsolete\"\n");
+		}
 		else
-			return MaterialVertexFormat.Model;
+			material = materialSystem.FindMaterial(finalPath, TEXTURE_GROUP_MODEL, false);
 	}
-
-	private int GetNumBoneWeights(OptimizedModel.StripGroupHeader group) {
-		int nBoneWeightsMax = 0;
-
-		for (int i = 0; i < group.NumStrips; i++) {
-			OptimizedModel.StripHeader pStrip = group.Strip(i);
-			nBoneWeightsMax = Math.Max(nBoneWeightsMax, (int)pStrip.NumBones);
-		}
-
-		return nBoneWeightsMax;
-	}
-
-	struct Threaded_LoadMaterials_Data
-	{
-		public StudioRenderContext Context;
-		public int ID;
-		public int LodID;
-		public StudioHeader Hdr;
-		public OptimizedModel.FileHeader VtxHeader;
-		public StudioLODData LodData;
-	}
-
-	private void LoadMaterials(StudioHeader hdr, OptimizedModel.FileHeader vtxHeader, StudioLODData lodData, int lodID) {
-		if (hdr.NumTextures == 0) {
-			lodData.Materials = null;
-			return;
-		}
-		lodData.Materials = new IMaterial[hdr.NumTextures];
-		lodData.MaterialFlags = new int[hdr.NumTextures];
-
-		if (hdr.TextureIndex == 0)
-			return;
-
-		for (int i = 0; i < hdr.NumTextures; i++) {
-			Threaded_LoadMaterials_Data threadData = new Threaded_LoadMaterials_Data() {
-				Context = this,
-				ID = i,
-				LodID = lodID,
-				Hdr = hdr,
-				VtxHeader = vtxHeader,
-				LodData = lodData
-			};
-			Threaded_LoadMaterials(in threadData);
-		}
-	}
-
-	private void Threaded_LoadMaterials(in Threaded_LoadMaterials_Data threadData) {
-		StudioHeader hdr = threadData.Hdr;
-		OptimizedModel.FileHeader vtxHeader = threadData.VtxHeader;
-		StudioLODData lodData = threadData.LodData;
-		int lodID = threadData.LodID;
-		int i = threadData.ID;
-
-		Span<char> path = stackalloc char[MAX_PATH];
-		IMaterial? material = null;
-
-		// search through all specified directories until a valid material is found
-		for (int j = 0; j < hdr.NumCDTextures && material.IsErrorMaterial(); j++) {
-			// If we don't do this, we get filenames like "materials\\blah.vmt".
+	if (material.IsErrorMaterial()) {
+		// hack - if it isn't found, go through the motions of looking for it again
+		// so that the materialsystem will give an error.
+		Span<char> szPrefix = stackalloc char[256];
+		strcpy(szPrefix, hdr.GetName());
+		StrTools.StrConcat(szPrefix, " : ", StrTools.COPY_ALL_CHARACTERS);
+		for (int j = 0; j < hdr.NumCDTextures; j++) {
+			strcpy(path, hdr.CDTexture(j));
 			ReadOnlySpan<char> textureName = GetTextureName(hdr, vtxHeader, lodID, i);
-			if (!textureName.IsEmpty && (textureName[0] == StrTools.CORRECT_PATH_SEPARATOR || textureName[0] == StrTools.INCORRECT_PATH_SEPARATOR))
-				textureName = textureName[1..];
-
-			// This prevents filenames like /models/blah.vmt.
-			ReadOnlySpan<char> cdTexture = hdr.CDTexture(j);
-			if (!cdTexture.IsEmpty && (cdTexture[0] == StrTools.CORRECT_PATH_SEPARATOR || cdTexture[0] == StrTools.INCORRECT_PATH_SEPARATOR))
-				cdTexture = cdTexture[1..];
-
-			StrTools.ComposeFileName(cdTexture, textureName, path);
+			StrTools.StrConcat(path, textureName, StrTools.COPY_ALL_CHARACTERS);
+			StrTools.FixSlashes(path);
 			Span<char> finalPath = path.SliceNullTerminatedString();
-
-			if ((hdr.Flags & StudioHdrFlags.Obsolete) != 0) {
-				material = materialSystem.FindMaterial("models/obsolete/obsolete", TEXTURE_GROUP_MODEL, false);
-				if (material.IsErrorMaterial())
-					Warning("StudioRender: OBSOLETE material missing: \"models/obsolete/obsolete\"\n");
-			}
-			else
-				material = materialSystem.FindMaterial(finalPath, TEXTURE_GROUP_MODEL, false);
-		}
-		if (material.IsErrorMaterial()) {
-			// hack - if it isn't found, go through the motions of looking for it again
-			// so that the materialsystem will give an error.
-			Span<char> szPrefix = stackalloc char[256];
-			strcpy(szPrefix, hdr.GetName());
-			StrTools.StrConcat(szPrefix, " : ", StrTools.COPY_ALL_CHARACTERS);
-			for (int j = 0; j < hdr.NumCDTextures; j++) {
-				strcpy(path, hdr.CDTexture(j));
-				ReadOnlySpan<char> textureName = GetTextureName(hdr, vtxHeader, lodID, i);
-				StrTools.StrConcat(path, textureName, StrTools.COPY_ALL_CHARACTERS);
-				StrTools.FixSlashes(path);
-				Span<char> finalPath = path.SliceNullTerminatedString();
-				materialSystem.FindMaterial(finalPath, TEXTURE_GROUP_MODEL, true, szPrefix);
-			}
-		}
-		if (material.IsErrorMaterial()) {
-			Warning($"Material '{path.SliceNullTerminatedString()}' not found.\n");
-		}
-		lodData.Materials![i] = material!;
-		if (material != null) {
-			// Increment the reference count for the material.
-			// material.IncrementReferenceCount();
-			threadData.Context.ComputeMaterialFlags(hdr, lodData, material);
-			// lodData.MaterialFlags[i] = UsesMouthShader(material) ? 1 : 0;
-			// ^ todo: flex system...
+			materialSystem.FindMaterial(finalPath, TEXTURE_GROUP_MODEL, true, szPrefix);
 		}
 	}
+	if (material.IsErrorMaterial()) {
+		Warning($"Material '{path.SliceNullTerminatedString()}' not found.\n");
+	}
+	lodData.Materials![i] = material!;
+	if (material != null) {
+		// Increment the reference count for the material.
+		// material.IncrementReferenceCount();
+		threadData.Context.ComputeMaterialFlags(hdr, lodData, material);
+		// lodData.MaterialFlags[i] = UsesMouthShader(material) ? 1 : 0;
+		// ^ todo: flex system...
+	}
+}
 
-	private ReadOnlySpan<char> GetTextureName(StudioHeader hdr, OptimizedModel.FileHeader vtxHeader, int lodID, int inMaterialID) {
-		OptimizedModel.MaterialReplacementListHeader materialReplacementList = vtxHeader.MaterialReplacementList(lodID);
-		int i;
-		for (i = 0; i < materialReplacementList.NumReplacements; i++) {
-			OptimizedModel.MaterialReplacementHeader materialReplacement = materialReplacementList.MaterialReplacement(i);
-			if (materialReplacement.MaterialID == inMaterialID) {
-				string str = materialReplacement.MaterialReplacementName();
-				return str;
-			}
+private ReadOnlySpan<char> GetTextureName(StudioHeader hdr, OptimizedModel.FileHeader vtxHeader, int lodID, int inMaterialID) {
+	OptimizedModel.MaterialReplacementListHeader materialReplacementList = vtxHeader.MaterialReplacementList(lodID);
+	int i;
+	for (i = 0; i < materialReplacementList.NumReplacements; i++) {
+		OptimizedModel.MaterialReplacementHeader materialReplacement = materialReplacementList.MaterialReplacement(i);
+		if (materialReplacement.MaterialID == inMaterialID) {
+			string str = materialReplacement.MaterialReplacementName();
+			return str;
 		}
-		return hdr.Texture(inMaterialID).Name();
+	}
+	return hdr.Texture(inMaterialID).Name();
+}
+
+static uint bumpvarCache = 0;
+
+private void ComputeMaterialFlags(StudioHeader hdr, StudioLODData lodData, IMaterial material) {
+	//  if (material.UsesEnvCubemap()) 
+	//  	hdr.Flags |= StudioHdrFlags.UsesEnvCubemap;
+
+	//  if (material.NeedsPowerOfTwoFrameBufferTexture(false)) // The false checks if it will ever need the frame buffer, not just this frame
+	//  	hdr.Flags |= StudioHdrFlags.UsesFbTexture;
+	// todo
+}
+
+// DEVIATION: But the way Source does it is so confusing and very much so built for C++ it seems...
+// so it seems more reasonable to deviate.
+List<Matrix4x4> matrices = [];
+public Span<Matrix4x4> LockBoneMatrices(int boneCount) {
+	matrices.Clear();
+	matrices.EnsureCountDefault(boneCount);
+	return matrices.AsSpan();
+}
+
+public void UnloadModel(StudioHWData hardwareData) {
+	throw new NotImplementedException();
+}
+
+public void UnlockBoneMatrices() {
+
+}
+
+
+readonly StudioRenderCtx RC = new();
+public void DrawModel(ref DrawModelResults results, ref DrawModelInfo info, Span<Matrix4x4> boneToWorld, Span<byte> flexWeights, Span<byte> flexDelayedWeights, in Vector3 origin, StudioRenderFlags flags = StudioRenderFlags.DrawEntireModel) {
+	// Set to zero in case we don't render anything.
+	if (!Unsafe.IsNullRef(ref results))
+		results.ActualTriCount = results.TextureMemoryBytes = 0;
+
+	if (info.StudioHdr == null || info.HardwareData == null || info.HardwareData.NumLODs == 0 || info.HardwareData.LODs == null)
+		return;
+
+	// TODO: Flex weights
+
+	using MatRenderContextPtr renderContext = new(materialSystem);
+	info.Lod = ComputeRenderLOD(renderContext, info, origin, out float flMetric);
+	if (!Unsafe.IsNullRef(ref results)) {
+		results.LODUsed = info.Lod;
+		results.LODMetric = flMetric;
 	}
 
-	static uint bumpvarCache = 0;
+	studioRenderImp.DrawModel(ref info, RC, boneToWorld, flags);
+}
 
-	private void ComputeMaterialFlags(StudioHeader hdr, StudioLODData lodData, IMaterial material) {
-		//  if (material.UsesEnvCubemap()) 
-		//  	hdr.Flags |= StudioHdrFlags.UsesEnvCubemap;
+private int ComputeRenderLOD(MatRenderContextPtr renderContext, DrawModelInfo info, Vector3 origin, out float metric) {
+	int lod = info.Lod;
+	int lastlod = info.HardwareData.NumLODs - 1;
+	metric = 0;
+	if (lod == Studio.USESHADOWLOD)
+		return lastlod;
 
-		//  if (material.NeedsPowerOfTwoFrameBufferTexture(false)) // The false checks if it will ever need the frame buffer, not just this frame
-		//  	hdr.Flags |= StudioHdrFlags.UsesFbTexture;
-		// todo
-	}
+	if (lod != -1)
+		return Math.Clamp(lod, info.HardwareData.RootLOD, lastlod);
 
-	// DEVIATION: But the way Source does it is so confusing and very much so built for C++ it seems...
-	// so it seems more reasonable to deviate.
-	List<Matrix4x4> matrices = [];
-	public Span<Matrix4x4> LockBoneMatrices(int boneCount) {
-		matrices.Clear();
-		matrices.EnsureCountDefault(boneCount);
-		return matrices.AsSpan();
-	}
+	float screenSize = renderContext.ComputePixelWidthOfSphere(origin, 0.5f);
+	lod = ComputeModelLODAndMetric(info.HardwareData, screenSize, out metric);
 
-	public void UnloadModel(StudioHWData hardwareData) {
-		throw new NotImplementedException();
-	}
+	if ((info.StudioHdr.Flags & StudioHdrFlags.HasShadowLod) != 0)
+		lastlod--;
 
-	public void UnlockBoneMatrices() {
+	lod = Math.Clamp(lod, info.HardwareData.RootLOD, lastlod);
+	return lod;
+}
 
-	}
+private int ComputeModelLODAndMetric(StudioHWData hardwareData, float unitSphereSize, out float metric) {
+	metric = hardwareData.LODMetric(unitSphereSize);
+	return hardwareData.GetLODForMetric(metric);
+}
 
+public void SetViewState(in Vector3 viewOrigin, in Vector3 viewRight, in Vector3 viewUp, in Vector3 viewForward) {
+	RC.ViewOrigin = viewOrigin;
+	RC.ViewRight = viewRight;
+	RC.ViewUp = viewUp;
+	RC.ViewPlaneNormal = viewForward;
+}
 
-	readonly StudioRenderCtx RC = new();
-	public void DrawModel(ref DrawModelResults results, ref DrawModelInfo info, Span<Matrix4x4> boneToWorld, Span<byte> flexWeights, Span<byte> flexDelayedWeights, in Vector3 origin, StudioRenderFlags flags = StudioRenderFlags.DrawEntireModel) {
-		// Set to zero in case we don't render anything.
-		if (!Unsafe.IsNullRef(ref results))
-			results.ActualTriCount = results.TextureMemoryBytes = 0;
+public void SetColorModulation(Vector3 color) {
+	RC.ColorMod = color;
+}
 
-		if (info.StudioHdr == null || info.HardwareData == null || info.HardwareData.NumLODs == 0 || info.HardwareData.LODs == null)
-			return;
-
-		// TODO: Flex weights
-
-		using MatRenderContextPtr renderContext = new(materialSystem);
-		info.Lod = ComputeRenderLOD(renderContext, info, origin, out float flMetric);
-		if (!Unsafe.IsNullRef(ref results)) {
-			results.LODUsed = info.Lod;
-			results.LODMetric = flMetric;
-		}
-
-		studioRenderImp.DrawModel(ref info, RC, boneToWorld, flags);
-	}
-
-	private int ComputeRenderLOD(MatRenderContextPtr renderContext, DrawModelInfo info, Vector3 origin, out float metric) {
-		int lod = info.Lod;
-		int lastlod = info.HardwareData.NumLODs - 1;
-		metric = 0;
-		if (lod == Studio.USESHADOWLOD)
-			return lastlod;
-
-		if (lod != -1)
-			return Math.Clamp(lod, info.HardwareData.RootLOD, lastlod);
-
-		float screenSize = renderContext.ComputePixelWidthOfSphere(origin, 0.5f);
-		lod = ComputeModelLODAndMetric(info.HardwareData, screenSize, out metric);
-
-		if ((info.StudioHdr.Flags & StudioHdrFlags.HasShadowLod) != 0)
-			lastlod--;
-
-		lod = Math.Clamp(lod, info.HardwareData.RootLOD, lastlod);
-		return lod;
-	}
-
-	private int ComputeModelLODAndMetric(StudioHWData hardwareData, float unitSphereSize, out float metric) {
-		metric = hardwareData.LODMetric(unitSphereSize);
-		return hardwareData.GetLODForMetric(metric);
-	}
-
-	public void SetViewState(in Vector3 viewOrigin, in Vector3 viewRight, in Vector3 viewUp, in Vector3 viewForward) {
-		RC.ViewOrigin = viewOrigin;
-		RC.ViewRight = viewRight;
-		RC.ViewUp = viewUp;
-		RC.ViewPlaneNormal = viewForward;
-	}
-
-	public void SetColorModulation(Vector3 color) {
-		RC.ColorMod = color;
-	}
-
-	public void SetAlphaModulation(float alpha) {
-		RC.AlphaMod = alpha;
-	}
+public void SetAlphaModulation(float alpha) {
+	RC.AlphaMod = alpha;
+}
 }

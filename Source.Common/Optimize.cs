@@ -93,9 +93,17 @@ public static class OptimizedModel
 		public int BoneStateChangeOffset;
 
 		public StripHeader() { }
+		public StripHeader(StripHeader copyFrom) {
+			Data = new byte[copyFrom.Data.Length];
+			copyFrom.Data.CopyTo(Data);
+			ReadData();
+		}
 		public StripHeader(Memory<byte> mem) {
 			Data = mem;
-			Span<byte> data = mem.Span;
+			ReadData();
+		}
+		void ReadData() {
+			Span<byte> data = Data.Span;
 			NumIndices = data[0..].Cast<byte, int>()[0];
 			IndexOffset = data[4..].Cast<byte, int>()[0];
 
@@ -109,6 +117,7 @@ public static class OptimizedModel
 			NumBoneStateChanges = data[19..].Cast<byte, int>()[0];
 			BoneStateChangeOffset = data[23..].Cast<byte, int>()[0];
 		}
+
 		public ref BoneStateChangeHeader BoneStateChange(int i) => ref Data.Span[BoneStateChangeOffset..].Cast<byte, BoneStateChangeHeader>()[i];
 		public Span<BoneStateChangeHeader> BoneStateChanges(int i) => Data.Span[BoneStateChangeOffset..].Cast<byte, BoneStateChangeHeader>()[i..NumBoneStateChanges];
 		public const int SIZEOF = 4 + 4 + 4 + 4 + 2 + 1 + 4 + 4;
