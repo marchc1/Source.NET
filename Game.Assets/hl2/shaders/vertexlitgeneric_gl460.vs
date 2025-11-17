@@ -3,6 +3,9 @@
 layout(location = 0) in vec3 v_Position;
 layout(location = 1) in vec3 v_Normal;
 layout(location = 2) in vec4 v_Color;
+layout(location = 7) in vec4 v_BoneIndex;
+layout(location = 8) in vec2 v_BoneWeights;
+layout(location = 9) in vec4 v_UserData;
 layout(location = 10) in vec2 v_TexCoord;
 
 layout(std140, binding = 0) uniform source_matrices {
