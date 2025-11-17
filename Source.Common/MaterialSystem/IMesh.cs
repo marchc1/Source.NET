@@ -356,7 +356,7 @@ public unsafe struct VertexBuilder
 		if (matrixIndex == IMesh.BONE_MATRIX_INDEX_INVALID)
 			matrixIndex = 0;
 
-		byte* boneMatrix = &Desc.BoneMatrixIndex[CurrentVertex + Desc.BoneMatrixIndexSize];
+		byte* boneMatrix = &Desc.BoneMatrixIndex[CurrentVertex * Desc.BoneMatrixIndexSize];
 		boneMatrix[idx] = matrixIndex;
 	}
 }

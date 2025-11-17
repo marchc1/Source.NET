@@ -241,6 +241,7 @@ public unsafe class VertexBufferGl46 : IDisposable
 	unsafe static nint dummyData = (nint)NativeMemory.AlignedAlloc(512, 16);
 
 	public static unsafe void ComputeVertexDescription(byte* vertexMemory, VertexFormat vertexFormat, ref VertexDesc desc) {
+		desc.NumBoneWeights = vertexFormat.GetBoneWeightsSize();
 		fixed (VertexDesc* descPtr = &desc) {
 			nint offset = 0;
 			nint baseptr = (nint)vertexMemory;
@@ -259,9 +260,9 @@ public unsafe class VertexBufferGl46 : IDisposable
 
 			if ((vertexFormat & VertexFormat.BoneIndex) != 0) {
 				if (desc.NumBoneWeights > 0) {
-					Assert(desc.NumBoneWeights == 2);
+					VertexElement boneWeightElement = VertexElement.BoneWeights1 + (desc.NumBoneWeights - 1);
 					descPtr->BoneWeight = (float*)(baseptr + offset);
-					offset += VertexElement.BoneWeights2.GetSize();
+					offset += boneWeightElement.GetSize();
 					vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->BoneWeightSize;
 				}
 				else {

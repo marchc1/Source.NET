@@ -124,7 +124,7 @@ public class VertexLitGeneric : BaseVSShader
 				shaderShadow.AlphaFunc(ShaderAlphaFunc.GreaterEqual, vars[ALPHATESTREFERENCE].GetFloatValue());
 
 
-			VertexFormat fmt = VertexFormat.Position | VertexFormat.Normal;
+			VertexFormat fmt = Source.Common.MaterialSystem.VertexFormat.Position | Source.Common.MaterialSystem.VertexFormat.Normal | Source.Common.MaterialSystem.VertexFormat.Color | Source.Common.MaterialSystem.VertexFormat.BoneIndex | Source.Common.MaterialSystem.VertexFormat.BoneWeights2 | Source.Common.MaterialSystem.VertexFormat.UserData4 | Source.Common.MaterialSystem.VertexFormat.TexCoord2D_0;
 
 			if (IsFlagSet(vars, MaterialVarFlags.VertexColor) || IsFlagSet(vars, MaterialVarFlags.VertexAlpha))
 				fmt |= VertexFormat.Color;
