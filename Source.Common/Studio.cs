@@ -704,6 +704,15 @@ public class MStudioBone
 	public int Contents;
 	public InlineArray8<int> Unused;
 
+	string? nameCache;
+	public string Name() {
+		if(nameCache == null) {
+			using ASCIIStringView view = new(Data.Span[NameIndex..]);
+			nameCache = new(view);
+		}
+		return nameCache;
+	}
+
 	public MStudioBone(Memory<byte> data) {
 		Data = data;
 
