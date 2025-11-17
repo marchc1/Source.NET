@@ -134,9 +134,9 @@ public static class VertexExts
 		switch (boneWeights) {
 			case 0: return 0;
 			case 1: return VertexFormat.BoneWeights1;
-			case 2: return VertexFormat.BoneWeights1 | VertexFormat.BoneWeights2;
-			case 3: return VertexFormat.BoneWeights1 | VertexFormat.BoneWeights2 | VertexFormat.BoneWeights3;
-			case 4: return VertexFormat.BoneWeights1 | VertexFormat.BoneWeights2 | VertexFormat.BoneWeights3 | VertexFormat.BoneWeights4;
+			case 2: return VertexFormat.BoneWeights2;
+			case 3: return VertexFormat.BoneWeights3;
+			case 4: return VertexFormat.BoneWeights4;
 			default:
 				throw new NotSupportedException();
 		}
@@ -146,9 +146,9 @@ public static class VertexExts
 		switch (userDatas) {
 			case 0: return 0;
 			case 1: return VertexFormat.UserData1;
-			case 2: return VertexFormat.UserData1 | VertexFormat.UserData2;
-			case 3: return VertexFormat.UserData1 | VertexFormat.UserData2 | VertexFormat.UserData3;
-			case 4: return VertexFormat.UserData1 | VertexFormat.UserData2 | VertexFormat.UserData3 | VertexFormat.UserData4;
+			case 2: return VertexFormat.UserData2;
+			case 3: return VertexFormat.UserData3;
+			case 4: return VertexFormat.UserData4;
 			default:
 				throw new NotSupportedException();
 		}
