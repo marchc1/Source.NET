@@ -15,6 +15,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		SendPropInt(FIELD.OF(nameof(DeadFlag)), 1, PropFlags.Unsigned)
 	]); public static readonly ServerClass CC_PlayerState = new("PlayerState", DT_PlayerState);
 
+	public BaseViewModel GetViewModel(int index) => throw new NotImplementedException();
 	
 	public static readonly SendTable DT_LocalPlayerExclusive = new([
 		SendPropDataTable(nameof(Local), PlayerLocalData.DT_Local),

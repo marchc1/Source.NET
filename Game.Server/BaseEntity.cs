@@ -225,4 +225,7 @@ public partial class BaseEntity : IServerEntity
 	public ref readonly Vector3 GetAbsOrigin() => ref AbsOrigin;
 	public ref readonly Vector3 GetViewOffset() => ref ViewOffset;
 	public ref readonly QAngle GetAbsAngles() => ref AbsRotation;
+
+	public void SetLocalOrigin(in Vector3 origin) { } // todo
+	public void SetLocalAngles(in QAngle origin) { } // todo
 }

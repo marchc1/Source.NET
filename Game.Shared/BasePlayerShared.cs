@@ -1,10 +1,17 @@
 ﻿#if CLIENT_DLL || GAME_DLL
+#if CLIENT_DLL
+global using BasePlayer = Game.Client.C_BasePlayer;
+#else
+global using BasePlayer = Game.Server.BasePlayer;
+
+#endif
 using Source.Common.Mathematics;
 
 using System.Numerics;
 
 #if CLIENT_DLL
 namespace Game.Client;
+
 #else
 namespace Game.Server;
 #endif
@@ -32,6 +39,15 @@ public partial class
 		return ref base.EyeAngles();
 	}
 
+	public virtual void CalcViewModelView(in Vector3 eyeOrigin, in QAngle eyeAngles) {
+		for (int i = 0; i < MAX_VIEWMODELS; i++) {
+			BaseViewModel? vm = GetViewModel(i);
+			if (vm == null)
+				continue;
+
+			vm.CalcViewModelView(this, eyeOrigin, eyeAngles);
+		}
+	}
 	private void CalcPlayerView(ref Vector3 eyeOrigin, ref QAngle eyeAngles, ref float fov) {
 		eyeOrigin = EyePosition();
 		eyeAngles = EyeAngles();

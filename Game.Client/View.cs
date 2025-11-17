@@ -1,4 +1,5 @@
 global using static Game.Client.ViewConVars;
+
 using Game.Shared;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -172,14 +173,27 @@ public class ViewRender : IViewRender
 		viewEye.StereoEye = StereoEye.Mono;
 
 		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		bool calcViewModelView = false;
+		Vector3 viewModelOrigin = default;
+		QAngle viewModelAngles = default;
+
 		if (player != null) {
 			player.CalcView(ref viewEye.Origin, ref viewEye.Angles, ref viewEye.ZNear, ref viewEye.ZFar, ref viewEye.FOV);
+
+			calcViewModelView = true;
+			viewModelOrigin = viewEye.Origin;
+			viewModelAngles = viewEye.Angles;
 		}
 
 		float fDefaultFov = default_fov.GetFloat();
 		float flFOVOffset = fDefaultFov - viewEye.FOV;
 
 		viewEye.FOVViewmodel = MathF.Abs(clientMode.GetViewModelFOV() - flFOVOffset);
+
+		if (calcViewModelView) {
+			Assert(player != null);
+			player.CalcViewModelView(in viewModelOrigin, in viewModelAngles);
+		}
 	}
 
 	public void QueueOverlayRenderView(in ViewSetup view, ClearFlags clearFlags, DrawFlags whatToDraw) {

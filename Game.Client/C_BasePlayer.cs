@@ -1,10 +1,13 @@
+using Game.Shared;
+
 using Source;
 using Source.Common;
+using Source.Common.Mathematics;
+
+using System;
+using System.Numerics;
 
 using FIELD = Source.FIELD<Game.Client.C_BasePlayer>;
-using System.Numerics;
-using Game.Shared;
-using Source.Common.Mathematics;
 
 namespace Game.Client;
 
@@ -140,7 +143,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	readonly EHANDLE ConstraintEntity = new();
 	readonly EHANDLE TonemapController = new();
 	readonly EHANDLE ViewEntity = new();
-	InlineArrayNewMaxViewmodels<EHANDLE> ViewModel = new(); 
+	InlineArrayNewMaxViewmodels<Handle<C_BaseViewModel>> ViewModel = new(); 
 	bool DisableWorldClicking;
 	float MaxSpeed;
 	int Flags;
@@ -165,4 +168,11 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 	public int GetHealth() => Health;
 	public bool IsSuitEquipped() => Local.WearingSuit;
+
+	public C_BaseViewModel? GetViewModel(int index, bool observerOK = true) {
+		C_BaseViewModel? vm = ViewModel[index].Get();
+		// TODO: Observer OK
+
+		return vm;
+	}
 }
