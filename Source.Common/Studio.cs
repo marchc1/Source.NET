@@ -22,7 +22,7 @@ public static class Studio
 	public const int MAXSTUDIOFLEXVERTS = 10000;
 
 	public const int MAXSTUDIOSKINS = 32;
-	public const int MAXSTUDIOBONES = 128;
+	public const int MAXSTUDIOBONES = 256;
 	public const int MAXSTUDIOFLEXDESC = 1024;
 	public const int MAXSTUDIOFLEXCTRL = 96;
 	public const int MAXSTUDIOPOSEPARAM = 24;

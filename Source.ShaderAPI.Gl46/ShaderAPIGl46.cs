@@ -18,12 +18,20 @@ using System.Threading;
 
 namespace Source.ShaderAPI.Gl46;
 
+/// <summary>
+/// Standardized OpenGL UBO binding locations. All uniform buffers are loaded with layout std140
+/// </summary>
 public enum UniformBufferBindingLocation
 {
+	/// <summary><b>source_matrices</b>: The model, view, and projection matrices</summary>
 	SharedMatrices = 0,
+	/// <summary><b>source_base_sharedUBO</b>: Shared uniforms that every shader can use.</summary>
 	SharedBaseShader = 1,
+	/// <summary><b>source_vertex_sharedUBO</b>: Shared uniforms that every vertex shader can use.</summary>
 	SharedVertexShader = 2,
+	/// <summary><b>source_pixel_sharedUBO</b>: Shared uniforms that every pixel shader can use.</summary>
 	SharedPixelShader = 3,
+	/// <summary><b>source_bone_matrices</b>: A <see cref="Matrix4x4"/>[<see cref="Studio.MAXSTUDIOBONES"/>] array.</summary>
 	SharedBoneMatrices = 4
 }
 
@@ -137,7 +145,12 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 
 		uboBones = glCreateBuffer();
 		glObjectLabel(GL_BUFFER, uboBones, "ShaderAPI Shared Bone UBO");
-		glNamedBufferData(uboBones, sizeof(Matrix4x4) * IMaterialSystem.NUM_MODEL_TRANSFORMS, null, GL_DYNAMIC_DRAW);
+
+		Matrix4x4* identityMatrices = stackalloc Matrix4x4[Studio.MAXSTUDIOBONES];
+		for (int i = 0; i < Studio.MAXSTUDIOBONES; i++)
+			identityMatrices[i] = Matrix4x4.Identity;
+
+		glNamedBufferData(uboBones, sizeof(Matrix4x4) * Studio.MAXSTUDIOBONES, identityMatrices, GL_DYNAMIC_DRAW);
 		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.SharedBoneMatrices, uboBones);
 	}
 

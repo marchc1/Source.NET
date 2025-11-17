@@ -138,8 +138,12 @@ public unsafe class VertexBufferGl46 : IDisposable
 			int elementSize = count * (int)type.SizeOf();
 
 			glEnableVertexArrayAttrib(vao, (uint)attr);
+			// These specific checks are annoying...
 			bool normalize = attr == OpenGL_ShaderInputAttribute.Color;
-			glVertexArrayAttribFormat(vao, (uint)attr, count, (int)type, normalize, (uint)offset);
+			if (attr == OpenGL_ShaderInputAttribute.BoneIndex)
+				glVertexArrayAttribIFormat(vao, (uint)attr, count, (int)type, (uint)offset);
+			else
+				glVertexArrayAttribFormat(vao, (uint)attr, count, (int)type, normalize, (uint)offset);
 			bindings[bindingsPtr++] = (uint)attr;
 			offset += elementSize;
 		}
@@ -233,7 +237,7 @@ public unsafe class VertexBufferGl46 : IDisposable
 		glVertexArrayVertexBuffer(vao, 0, (uint)vbo, 0, vertexSize);
 
 		Assert(bindingsPtr < bindings.Length);
-		for (int i = 0; i < bindingsPtr; i++) 
+		for (int i = 0; i < bindingsPtr; i++)
 			glVertexArrayAttribBinding(vao, bindings[i], 0);
 	}
 
@@ -387,7 +391,7 @@ public unsafe class VertexBufferGl46 : IDisposable
 			Span<VertexElement> texCoordElements = [VertexElement.TexCoord1D_0, VertexElement.TexCoord2D_0, VertexElement.TexCoord3D_0, VertexElement.TexCoord4D_0];
 			for (int i = 0; i < IMesh.VERTEX_MAX_TEXTURE_COORDINATES; i++) {
 				int size = (int)vertexFormat.GetTexCoordDimensionSize(i);
-				if(size != 0) {
+				if (size != 0) {
 					desc.SetTexCoord(i, (float*)(baseptr + offset));
 					offset += ((VertexElement)((int)texCoordElements[size - 1] + i)).GetSize();
 					vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->TexCoordSize[i];
@@ -419,7 +423,7 @@ public unsafe class VertexBufferGl46 : IDisposable
 			}
 
 			int userDataSize = (int)vertexFormat.GetUserDataSize();
-			if(userDataSize > 0) {
+			if (userDataSize > 0) {
 				desc.UserData = (float*)(baseptr + offset);
 				offset += (VertexElement.UserData1 + (userDataSize - 1)).GetSize();
 				vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->UserDataSize;
