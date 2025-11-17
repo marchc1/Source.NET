@@ -395,22 +395,22 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 			int headerOffset = i * stripHeaderSize;
 
 			var dstHeaderMemory = block.AsMemory().Slice(headerOffset, stripHeaderSize);
-			OptimizedModel.StripHeader dst = new OptimizedModel.StripHeader(dstHeaderMemory);
+			int dstBoneStateChangeOffset = boneStateChangeOffset - headerOffset;
 
-			src.CopyInstantiatedReferenceTo(dst);
-			dst.Data = new(block);
 
-			dst.BoneStateChangeOffset = boneStateChangeOffset - headerOffset;
-
-			int boneWeightSize = dst.NumBoneStateChanges * boneChangeSize;
+			int boneWeightSize = src.NumBoneStateChanges * boneChangeSize;
 			if (boneWeightSize > 0) {
 				Span<byte> dstBoneSpan = block.AsSpan(boneStateChangeOffset, boneWeightSize);
 
-				src.BoneStateChanges(0)[0..1].Cast<OptimizedModel.BoneStateChangeHeader, byte>().CopyTo(dstBoneSpan);
+				src.BoneStateChanges(0)[0..].Cast<OptimizedModel.BoneStateChangeHeader, byte>().CopyTo(dstBoneSpan);
+
+				OptimizedModel.StripHeader dst = new(block);
+				dst.BoneStateChangeOffset = boneStateChangeOffset - headerOffset;
+
 				boneStateChangeOffset += boneWeightSize;
+				pMeshGroup.StripData[i] = dst;
 			}
 
-			pMeshGroup.StripData[i] = dst;
 		}
 
 		pMeshGroup.NumStrips = stripCount;
