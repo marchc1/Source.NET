@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.HighPerformance;
 
 using Source.Common.DataCache;
+using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
@@ -581,7 +582,7 @@ public class MStudioTexture
 
 	public string? name;
 	public string Name() {
-		if(name == null) {
+		if (name == null) {
 			using ASCIIStringView view = new(Data.Span[SzNameIndex..]);
 			return name = new(view);
 		}
@@ -606,6 +607,8 @@ public class StudioHdr
 	public int NumBones() => studioHdr!.NumBones;
 	readonly List<StudioHeader> StudioHdrCache = [];
 
+	public StudioHdrFlags Flags() => studioHdr!.Flags;
+
 	public void Init(StudioHeader? studioHdr, IMDLCache mdlcache) {
 		this.studioHdr = studioHdr;
 
@@ -616,11 +619,40 @@ public class StudioHdr
 			return;
 		// todo the rest
 	}
+
+	public bool SequencesAvailable(IModelInfo modelinfo) {
+		if (studioHdr!.NumIncludeModels == 0) {
+			return true;
+		}
+
+		if (vModel == null) {
+			return (ResetVModel(studioHdr.GetVirtualModel(modelinfo)) != null);
+		}
+		else
+			return true;
+	}
+
+	private VirtualModel? ResetVModel(VirtualModel? virtualModel) {
+		if (virtualModel != null) {
+			vModel = virtualModel;
+			StudioHdrCache!.EnsureCountDefault(vModel.Group.Count());
+
+			for (int i = 0; i < StudioHdrCache.Count; i++)
+				StudioHdrCache[i] = null!;
+
+			return vModel;
+		}
+		else {
+			vModel = null;
+			return null;
+		}
+	}
 }
 
-public class MStudioBone {
+public class MStudioBone
+{
 	public const int SIZEOF = 216; // Static offset from MSVC stats (mstudiobone_t size 216, alignment 4)
-	
+
 	Memory<byte> Data;
 	public int NameIndex;
 	public int Parent;
@@ -663,7 +695,8 @@ public class MStudioBone {
 	}
 }
 
-public class MStudioLinearBone {
+public class MStudioLinearBone
+{
 	public const int SIZEOF = 64; // Static offset from MSVC stats (mstudiobonelinear_t size 64, alignment 4)
 	private Memory<byte> Data;
 
@@ -761,7 +794,7 @@ public class StudioHeader
 	MStudioTexture[]? studioTextures;
 
 	public MStudioTexture Texture(int i) {
-		if(studioTextures == null) 
+		if (studioTextures == null)
 			studioTextures = new MStudioTexture[NumTextures];
 
 		return studioTextures[i] ??= new(Data[(TextureIndex + (MStudioTexture.SIZE_OF_ONE * i))..]);
@@ -877,6 +910,12 @@ public class StudioHeader
 	public StudioHeader2 StudioHdr2() => studioHdr2 ??= new(Data[StudioHDR2Index..]);
 
 	public MStudioLinearBone? LinearBones() => StudioHDR2Index != 0 ? StudioHdr2().LinearBones() : null;
+
+	internal VirtualModel? GetVirtualModel(IModelInfo modelinfo) {
+		if (NumIncludeModels == 0)
+			return null;
+		return modelinfo.GetVirtualModel(this);
+	}
 
 	byte _UNUSED2;
 	public int NumFlexControllerUI;
