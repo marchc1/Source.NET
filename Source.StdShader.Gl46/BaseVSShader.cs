@@ -96,8 +96,11 @@ public abstract class BaseVSShader : BaseShader
 			if (alphaTestReferenceVar != -1 && shaderParams[alphaTestReferenceVar].GetFloatValue() > 0.0f)
 				ShaderShadow.AlphaFunc(ShaderAlphaFunc.GreaterEqual, shaderParams[alphaTestReferenceVar].GetFloatValue());
 
-			if (bBaseTexture)
+			int numTexCoords = 1;
+			
+			if (bBaseTexture) {
 				ShaderShadow.EnableTexture(Sampler.Sampler0, true);
+			}
 
 			if (bBaseTexture)
 				SetDefaultBlendingShadowState(baseTextureVar, true);
@@ -105,7 +108,10 @@ public abstract class BaseVSShader : BaseShader
 			ShaderShadow.SetVertexShader(shaderName);
 			ShaderShadow.SetPixelShader(shaderName);
 
-			ShaderShadow.VertexShaderVertexFormat(VertexFormat.Position | VertexFormat.Normal | VertexFormat.TexCoord2D_0 | (bVertexColor ? VertexFormat.Color : 0), 1, null, 0);
+			ShaderShadow.VertexShaderVertexFormat(
+				VertexFormat.Position | VertexFormat.Normal | VertexFormat.TexCoord2D_0
+				| (bVertexColor ? VertexFormat.Color : 0)
+			, numTexCoords, null, 0);
 			SetStandardShaderUniforms();
 			// DevMsg("UnlitGeneric snapshotted!\n");
 		}
@@ -126,7 +132,7 @@ public abstract class BaseVSShader : BaseShader
 		}
 	}
 
-	private void SetDefaultBlendingShadowState(int baseTextureVar, bool isBaseTexture) {
+	protected void SetDefaultBlendingShadowState(int baseTextureVar, bool isBaseTexture) {
 		if ((CurrentMaterialVarFlags() & (int)MaterialVarFlags.Additive) != 0)
 			SetAdditiveBlendingShadowState(baseTextureVar, isBaseTexture); // TODO: additive
 		else
