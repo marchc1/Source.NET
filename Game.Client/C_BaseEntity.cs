@@ -42,6 +42,8 @@ public partial class C_BaseEntity : IClientEntity
 	static bool s_bAbsRecomputationEnabled = true;
 	static ConVar cl_interpolate = new("cl_interpolate", "1", FCvar.UserInfo | FCvar.DevelopmentOnly);
 
+	public ReadOnlySpan<char> GetClassname() => "not_yet_implemented";
+
 	public static void InterpolateServerEntities() {
 		s_bInterpolate = cl_interpolate.GetBool();
 
@@ -1054,6 +1056,7 @@ public partial class C_BaseEntity : IClientEntity
 
 
 
+	int flags;
 	EFL eflags = EFL.DirtyAbsTransform; // << TODO: FIGURE OUT WHAT ACTUALLY INITIALIZES THIS.
 	public Matrix4x4 CoordinateFrame;
 

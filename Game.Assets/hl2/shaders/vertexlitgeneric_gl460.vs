@@ -14,6 +14,10 @@ layout(std140, binding = 0) uniform source_matrices {
     mat4 modelMatrix;
 };
 
+layout(std140, binding = 4) uniform bone_matrices {
+    mat4 bones[53];
+};
+
 out vec2 vs_TexCoord;
 out vec4 vs_Color;
 

@@ -215,6 +215,7 @@ public partial class BaseEntity : IServerEntity
 	}
 
 
+	int flags;
 	EFL eflags;
 	public Matrix4x4 CoordinateFrame;
 

@@ -306,4 +306,13 @@ public static class MathLib
 	public static void ConcatTransforms(in Matrix4x4 in1, in Matrix4x4 in2, out Matrix4x4 output) {
 		output = Matrix4x4.Multiply(in1, in2);
 	}
+
+	public static void QuaternionMatrix(in Quaternion quaternion, in Vector3 pos, out Matrix4x4 bonematrix) {
+		QuaternionMatrix(quaternion, out bonematrix);
+		bonematrix.Translation = pos;
+	}
+
+	public static void QuaternionMatrix(in Quaternion quaternion, out Matrix4x4 bonematrix) {
+		bonematrix = Matrix4x4.CreateFromQuaternion(quaternion);
+	}
 }

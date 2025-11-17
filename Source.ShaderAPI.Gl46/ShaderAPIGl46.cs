@@ -14,6 +14,7 @@ using Source.Common.ShaderAPI;
 
 using System.Numerics;
 using System.Text;
+using System.Threading;
 
 namespace Source.ShaderAPI.Gl46;
 
@@ -22,7 +23,8 @@ public enum UniformBufferBindingLocation
 	SharedMatrices = 0,
 	SharedBaseShader = 1,
 	SharedVertexShader = 2,
-	SharedPixelShader = 3
+	SharedPixelShader = 3,
+	SharedBoneMatrices = 4
 }
 
 public struct GfxViewport
@@ -125,12 +127,18 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 	}
 
 	uint uboMatrices;
+	uint uboBones;
 
 	private unsafe void CreateMatrixStacks() {
 		uboMatrices = glCreateBuffer();
 		glObjectLabel(GL_BUFFER, uboMatrices, "ShaderAPI Shared Matrix UBO");
 		glNamedBufferData(uboMatrices, sizeof(Matrix4x4) * 3, null, GL_DYNAMIC_DRAW);
 		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.SharedMatrices, uboMatrices);
+
+		uboBones = glCreateBuffer();
+		glObjectLabel(GL_BUFFER, uboBones, "ShaderAPI Shared Bone UBO");
+		glNamedBufferData(uboBones, sizeof(Matrix4x4) * IMaterialSystem.NUM_MODEL_TRANSFORMS, null, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.SharedBoneMatrices, uboBones);
 	}
 
 	private void AcquireInternalRenderTargets() {
@@ -970,12 +978,14 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		}
 	}
 
-	readonly Matrix4x4[] BoneMatrix = new Matrix4x4[IMaterialSystem.NUM_MODEL_TRANSFORMS];
 	int MaxBoneLoaded;
-	public void LoadBoneMatrix(int boneIndex, in Matrix4x4 matrix) {
+	public unsafe void LoadBoneMatrix(int boneIndex, in Matrix4x4 matrix) {
 		if (IsDeactivated())
 			return;
-		BoneMatrix[boneIndex] = matrix;
+		int szm4x4 = sizeof(Matrix4x4);
+		int loc = (int)boneIndex * szm4x4;
+		Matrix4x4 transposed = matrix;
+		glNamedBufferSubData(uboBones, loc, szm4x4, &transposed);
 		if (boneIndex > MaxBoneLoaded)
 			MaxBoneLoaded = boneIndex;
 
