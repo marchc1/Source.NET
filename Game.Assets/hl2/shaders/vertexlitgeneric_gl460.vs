@@ -27,14 +27,10 @@ void main()
     mat4 bone1 = bones[v_BoneIndex.y];
 
     vec4 localPos =
-        bone0 * vec4(v_Position, 1.0) * v_BoneWeights.x +
-        bone1 * vec4(v_Position, 1.0) * v_BoneWeights.y;
+      (bone0 * vec4(v_Position, 1.0)) * v_BoneWeights.x
+    + (bone1 * vec4(v_Position, 1.0)) * v_BoneWeights.y;
 
-    vec3 localNormal =
-        mat3(bone0) * v_Normal * v_BoneWeights.x +
-        mat3(bone1) * v_Normal * v_BoneWeights.y;
-
-    mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
+    mat4 mvp = projectionMatrix * viewMatrix;
     gl_Position = mvp * localPos;
 
     vs_TexCoord = v_TexCoord;
