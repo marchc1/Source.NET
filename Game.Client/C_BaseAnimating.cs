@@ -186,7 +186,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		if (!boneToWorldOut.IsEmpty) {
 			if (maxBones >= CachedBoneData.Count) {
-				memcpy(boneToWorldOut, CachedBoneData.Base());
+				memcpy(boneToWorldOut, CachedBoneData.AsSpan());
 			}
 			else {
 				Warning($"SetupBones: invalid bone array size ({maxBones} - needs {CachedBoneData.Count})\n");
