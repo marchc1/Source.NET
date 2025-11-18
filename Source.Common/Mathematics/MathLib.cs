@@ -438,7 +438,8 @@ public static class MathLib
 		float out32 = a30 * b02 + a31 * b12 + a32 * b22 + a33 * b32;
 		float out33 = a30 * b03 + a31 * b13 + a32 * b23 + a33 * b33;
 
-		dst = new Matrix4x4(
+		dst = default;
+		dst.Init(
 			out00, out01, out02, out03,
 			out10, out11, out12, out13,
 			out20, out21, out22, out23,

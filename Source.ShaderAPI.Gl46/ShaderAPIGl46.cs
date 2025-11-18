@@ -1004,7 +1004,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 
 		if(boneIndex == 0) {
 			MatrixMode(MaterialMatrixMode.Model);
-			LoadMatrix(transposed);
+			LoadMatrix(matrix);
 		}
 	}
 

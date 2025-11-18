@@ -534,7 +534,8 @@ public class Render(
 	private void ComputeViewMatrix(ref Matrix4x4 worldToView, in Vector3 origin, in QAngle angles) {
 		angles.Vectors(out Vector3 forward, out Vector3 right, out Vector3 up);
 
-		Matrix4x4 view = new Matrix4x4(
+		Matrix4x4 view = default;
+		view.Init(
 			right.X, right.Y, right.Z, 0,
 			up.X, up.Y, up.Z, 0,
 			-forward.X, -forward.Y, -forward.Z, 0,
