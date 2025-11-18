@@ -590,30 +590,6 @@ public class MStudioTexture
 	}
 }
 
-public static class BoneFlags
-{
-	public const int BONE_CALCULATE_MASK = 0x1F;
-	public const int BONE_PHYSICALLY_SIMULATED = 0x01;
-	public const int BONE_PHYSICS_PROCEDURAL = 0x02;
-	public const int BONE_ALWAYS_PROCEDURAL = 0x04;
-	public const int BONE_SCREEN_ALIGN_SPHERE = 0x08;
-	public const int BONE_SCREEN_ALIGN_CYLINDER = 0x10;
-	public const int BONE_USED_MASK = 0x0007FF00;
-	public const int BONE_USED_BY_ANYTHING = 0x0007FF00;
-	public const int BONE_USED_BY_HITBOX = 0x00000100;
-	public const int BONE_USED_BY_ATTACHMENT = 0x00000200;
-	public const int BONE_USED_BY_VERTEX_MASK = 0x0003FC00;
-	public const int BONE_USED_BY_VERTEX_LOD0 = 0x00000400;
-	public const int BONE_USED_BY_VERTEX_LOD1 = 0x00000800;
-	public const int BONE_USED_BY_VERTEX_LOD2 = 0x00001000;
-	public const int BONE_USED_BY_VERTEX_LOD3 = 0x00002000;
-	public const int BONE_USED_BY_VERTEX_LOD4 = 0x00004000;
-	public const int BONE_USED_BY_VERTEX_LOD5 = 0x00008000;
-	public const int BONE_USED_BY_VERTEX_LOD6 = 0x00010000;
-	public const int BONE_USED_BY_VERTEX_LOD7 = 0x00020000;
-	public const int BONE_USED_BY_BONE_MERGE = 0x00040000;
-}
-
 /// <summary>
 /// Analog of CStudioHdr
 /// </summary>
@@ -647,6 +623,10 @@ public class StudioHdr
 
 		boneFlags.EnsureCount(NumBones());
 		boneParent.EnsureCount(NumBones());
+		for (int i = 0; i < NumBones(); i++) {
+			boneFlags[i] = Bone(i).Flags;
+			boneParent[i] = Bone(i).Parent;
+		}
 	}
 
 	readonly List<int> boneFlags = [];
@@ -678,6 +658,10 @@ public class StudioHdr
 			vModel = null;
 			return null;
 		}
+	}
+
+	public MStudioLinearBone? LinearBones() {
+		return studioHdr!.LinearBones();
 	}
 }
 

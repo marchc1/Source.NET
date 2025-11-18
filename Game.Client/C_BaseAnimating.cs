@@ -196,11 +196,15 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		return true;
 	}
+	public TimeUnit_t GetCycle() => Cycle;
+	private void StandardBlendingRules(StudioHdr hdr, Span<Vector3> pos, Span<Quaternion> q, TimeUnit_t currentTime, int boneMask) {
+		Span<float> poseparam = stackalloc float[Studio.MAXSTUDIOPOSEPARAM];
 
-	private void StandardBlendingRules(StudioHdr hdr, Span<Vector3> pos, Span<Quaternion> q, TimeUnit_t currentTime, int bonesMaskNeedRecalc) {
-		for (int i = 0; i < pos.Length; i++) pos[i] = Vector3.Zero;
-		for (int i = 0; i < q.Length; i++) q[i] = Quaternion.Identity;
-		
+		TimeUnit_t cycle = GetCycle();
+
+		BoneSetup setup = new(hdr, boneMask, poseparam);
+		setup.InitPose(pos, q);	
+		setup.AccumulatePose(pos, q, GetSequence(), cycle, 1.0, currentTime);	
 	}
 
 	public static readonly RecvTable DT_ServerAnimationData = new([

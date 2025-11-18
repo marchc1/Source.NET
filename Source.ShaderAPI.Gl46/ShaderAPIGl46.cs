@@ -1007,6 +1007,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 			LoadMatrix(transposed);
 		}
 	}
+
 	int numBones;
 	public void SetNumBoneWeights(int numBones) {
 		if(this.numBones != numBones) {
