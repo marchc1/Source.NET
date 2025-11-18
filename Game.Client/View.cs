@@ -619,4 +619,14 @@ public class ViewRender : IViewRender
 
 	public long BuildRenderablesListsNumber() => m_BuildRenderablesListsNumber;
 	public long IncRenderablesListsNumber() => ++m_BuildRenderablesListsNumber;
+
+
+	C_BaseEntity? currentlyDrawingEntity;
+	public C_BaseEntity? GetCurrentlyDrawingEntity() {
+		return currentlyDrawingEntity;
+	}
+
+	public void SetCurrentlyDrawingEntity(C_BaseEntity? ent) {
+		currentlyDrawingEntity = ent;
+	}
 }

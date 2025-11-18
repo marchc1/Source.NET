@@ -1,4 +1,5 @@
 global using static Game.Client.ViewRenderConVars;
+
 using Game.Shared;
 
 using Source;
@@ -13,6 +14,7 @@ using Source.Engine;
 using System.Numerics;
 
 namespace Game.Client;
+
 public static class ViewRenderConVars
 {
 	internal readonly static ConVar cl_maxrenderable_dist = new("3000", FCvar.Cheat, "Max distance from the camera at which things will be rendered");
@@ -116,19 +118,52 @@ public class Rendering3dView : Base3dView
 			return;
 
 		render.SetBlend(1);
+
+		// TODO: do this properly, lazy right now
+		int count = RenderablesList.Count(RenderGroup.OpaqueEntity);
+		for (int i = 0; i < count; i++) {
+			ref ClientRenderablesList.Entry entry = ref RenderablesList[RenderGroup.OpaqueEntity, i];
+			if (entry.Renderable != null)
+				DrawOpaqueRenderable(entry.Renderable, entry.TwoPass, depthMode);
+		}
+	}
+
+	private void DrawOpaqueRenderable(IClientRenderable ent, bool twoPass, RenderDepthMode depthMode, StudioFlags defaultFlags = 0) {
+		Span<float> color = stackalloc float[3];
+
+		ent.GetColorModulation(color);
+		render.SetColorModulation(color);
+
+		StudioFlags flags = defaultFlags | StudioFlags.Render;
+		if (twoPass)
+			flags |= StudioFlags.TwoPass;
+
+		if (depthMode == RenderDepthMode.Shadow) {
+			flags |= StudioFlags.ShadowDepthTexture;
+		}
+		else if (depthMode == RenderDepthMode.SSAO) {
+			flags |= StudioFlags.SSAODepthTexture;
+		}
+
+		// todo: entity clip planes
+
+		Assert(view.GetCurrentlyDrawingEntity() == null);
+		view.SetCurrentlyDrawingEntity(ent.GetIClientUnknown().GetBaseEntity());
+		ent.DrawModel(flags);
+		view.SetCurrentlyDrawingEntity(null);
 	}
 
 	protected void EnableWorldFog() => throw new NotImplementedException();
 	protected void SetupRenderablesList(ViewID viewID) {
 		// Clear the list.
 		int i;
-		for (i = 0; i < (int)RenderGroup.Count; i++) 
+		for (i = 0; i < (int)RenderGroup.Count; i++)
 			RenderablesList.RenderGroupCounts[i] = 0;
 
 		// Now collate the entities in the leaves.
 		if (mainView.ShouldDrawEntities()) {
 			SetupRenderInfo setupInfo = default;
-			setupInfo.RenderFrame = mainView.BuildRenderablesListsNumber(); 
+			setupInfo.RenderFrame = mainView.BuildRenderablesListsNumber();
 			// setupInfo.DetailBuildFrame = mainView.BuildWorldListsNumber();  
 			setupInfo.RenderList = RenderablesList;
 			// setupInfo.DrawDetailObjects = ClientMode.ShouldDrawDetailObjects() && r_DrawDetailProps.GetInt();
@@ -155,7 +190,7 @@ public class Rendering3dView : Base3dView
 
 		if ((drawFlags & DrawFlags.DrawSkybox) != 0)
 			engineFlags |= DrawWorldListFlags.Skybox;
-		
+
 		if ((drawFlags & DrawFlags.RenderAbovewater) != 0) {
 			engineFlags |= DrawWorldListFlags.StrictlyAboveWater;
 			engineFlags |= DrawWorldListFlags.IntersectsWater;
@@ -168,19 +203,19 @@ public class Rendering3dView : Base3dView
 
 		if ((drawFlags & DrawFlags.RenderWater) != 0)
 			engineFlags |= DrawWorldListFlags.WaterSurface;
-		
+
 		if ((drawFlags & DrawFlags.ClipSkybox) != 0)
 			engineFlags |= DrawWorldListFlags.ClipSkybox;
 
 		if ((drawFlags & DrawFlags.ShadowDepthMap) != 0)
 			engineFlags |= DrawWorldListFlags.ShadowDepth;
-		
+
 		if ((drawFlags & DrawFlags.RenderRefraction) != 0)
 			engineFlags |= DrawWorldListFlags.Refraction;
-		
+
 		if ((drawFlags & DrawFlags.RenderReflection) != 0)
 			engineFlags |= DrawWorldListFlags.Reflection;
-		
+
 		if ((drawFlags & DrawFlags.SSAODepthPass) != 0) {
 			engineFlags |= DrawWorldListFlags.SSAO | DrawWorldListFlags.StrictlyUnderWater | DrawWorldListFlags.IntersectsWater | DrawWorldListFlags.StrictlyAboveWater;
 			engineFlags &= ~(DrawWorldListFlags.WaterSurface | DrawWorldListFlags.Refraction | DrawWorldListFlags.Reflection);

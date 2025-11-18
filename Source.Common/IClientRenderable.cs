@@ -20,4 +20,5 @@ public interface IClientRenderable {
 	IPVSNotify? GetPVSNotifyInterface();
 	void ComputeFxBlend();
 	bool IsTwoPass();
+	public void GetColorModulation(Span<float> color) => color[0] = color[1] = color[2] = 1.0f;
 }

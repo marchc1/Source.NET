@@ -13,11 +13,14 @@ public class ClientRenderablesList : IPoolableObject {
 
 	public static readonly ObjectPool<ClientRenderablesList> Shared = new();
 
+	public ref Entry this[RenderGroup renderGroup, int index] => ref RenderGroups[(int)renderGroup, index];
+	public ref int Count(RenderGroup group) => ref RenderGroupCounts[(int)group];
+
 	public struct Entry
 	{
 		public IClientRenderable? Renderable;
 		public ushort WorldListInfoLeaf;
-		public ushort TwoPass;
+		public bool TwoPass;
 		public ClientRenderHandle_t RenderHandle;
 	}
 

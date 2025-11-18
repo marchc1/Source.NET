@@ -1,3 +1,5 @@
+using Game.Client;
+
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
@@ -71,4 +73,6 @@ public interface IViewRender
 	// void SetCurrentlyDrawingEntity(C_BaseEntity ent);
 	bool UpdateShadowDepthTexture(ITexture? pRenderTarget, ITexture? pDepthTexture, in ViewSetup shadowView);
 	void FreezeFrame(float flFreezeTime);
+	C_BaseEntity? GetCurrentlyDrawingEntity();
+	void SetCurrentlyDrawingEntity(C_BaseEntity? ent);
 }
