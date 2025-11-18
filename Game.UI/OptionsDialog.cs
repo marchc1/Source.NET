@@ -14,7 +14,7 @@ public class OptionsDialog : PropertyDialog
 		SetTitle("#GameUI_Options", true);
 		// TODO
 
-		// AddPage(new OptionsSubMouse(this, null), "#GameUI_Mouse");
+		AddPage(new OptionsSubMouse(this, null), "#GameUI_Mouse");
 		AddPage(new OptionsSubKeyboard(this, null), "#GameUI_Keyboard");
 
 		SetApplyButtonVisible(true);

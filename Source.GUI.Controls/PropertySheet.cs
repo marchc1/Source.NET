@@ -277,13 +277,13 @@ public class PropertySheet : EditablePanel
 	List<Page> Pages;
 	List<PageTab> PageTabs;
 	Panel? ActivePage;
+	Panel? PreviouslyActivePage;
 	PageTab? ActiveTab;
 	int TabWidth;
 	int ActiveTabIndex;
 	ComboBox? Combo;
 	bool ShowTabs;
 	bool TabFocus;
-	// PHandle PreviouslyActivePage
 	float PageTransitionEffectTime;
 	bool SmallTabs;
 	IFont TabFont;
@@ -706,7 +706,7 @@ public class PropertySheet : EditablePanel
 		if (location == -1)
 			return;
 
-		// PreviouslyActivePage = ActivePage;
+		PreviouslyActivePage = ActivePage;
 		ActiveTab = null;
 
 		if (ShowTabs)
@@ -758,7 +758,7 @@ public class PropertySheet : EditablePanel
 		for (int i = 0; i < PageTabs.Count; i++)
 			PageTabs[i].SetVisible(false);
 
-		// PreviouslyActivePage = ActivePage;
+		PreviouslyActivePage = ActivePage;
 		if (ActivePage != null) {
 			VGui.PostMessage(ActivePage, new KeyValues("PageHide"), this);
 			KeyValues msg = new("PageTabActivated");
@@ -789,15 +789,20 @@ public class PropertySheet : EditablePanel
 			ActivePage.RequestFocus();
 
 		if (!ShowTabs)
-			Combo.ActivateItemByRow(index);
+			Combo?.ActivateItemByRow(index);
 
 		ActivePage.MakeReadyForUse();
 
 		if (PageTransitionEffectTime != 0.0f) {
-			// todo
+			if (PreviouslyActivePage != null)
+				GetAnimationController().RunAnimationCommand(PreviouslyActivePage, "Alpha", 0.0f, 0.0f, PageTransitionEffectTime / 2, Interpolators.Linear);
+
+			ActivePage.SetAlpha(0);
+			GetAnimationController().RunAnimationCommand(ActivePage, "Alpha", 255.0f, PageTransitionEffectTime / 2, PageTransitionEffectTime / 2, Interpolators.Linear);
 		}
 		else {
-
+			PreviouslyActivePage?.SetVisible(false);
+			ActivePage.SetAlpha(255);
 		}
 
 		VGui.PostMessage(ActivePage, new KeyValues("PageShow"), this);

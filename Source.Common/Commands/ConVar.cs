@@ -41,6 +41,11 @@ public struct ConVarRef
 		if (ConVar != null)
 			return;
 
+		// todo: remove override once more convars are implemented
+#if DEBUG
+	ignoreMissing = true;
+#endif
+
 		var conVar = CVar?.FindVar(name);
 		ConVar = conVar ??= EmptyConVar;
 		if (!IsValid()) {

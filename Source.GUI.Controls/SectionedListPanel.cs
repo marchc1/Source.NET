@@ -2,7 +2,7 @@
 
 namespace Source.GUI.Controls;
 
-class SectionedListPanel : Panel
+public class SectionedListPanel : Panel
 {
 	public static Panel Create_SectionedListPanel() => new SectionedListPanel(null, null);
 

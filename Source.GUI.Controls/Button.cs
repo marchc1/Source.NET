@@ -49,6 +49,12 @@ public class Button : Label
 			case "Hotkey":
 				DoClick();
 				return;
+			case "SetAsDefaultButton":
+				SetAsDefaultButton(message.GetBool("state", false));
+				return;
+			case "SetAsCurrentDefaultButton":
+				// SetAsCurrentDefaultButton(message.GetBool("state", false));
+				return;
 			case "SetState":
 				OnSetState(message.GetInt("state", 0));
 				return;

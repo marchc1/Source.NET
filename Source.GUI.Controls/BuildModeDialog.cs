@@ -35,6 +35,8 @@ class SmallTextEntry : TextEntry
 
 public class BuildModeDialog : Frame
 {
+	public static Panel Create_BuildModeDialog() => new BuildModeDialog(null);
+
 	class PanelList
 	{
 		List<PanelItem> panelList = [];
@@ -115,7 +117,7 @@ public class BuildModeDialog : Frame
 	Button NextChild;
 	Button PrevChild;
 
-	public BuildModeDialog(BuildGroup buildGroup) : base(buildGroup.GetContextPanel(), "BuildModeDialog") {
+	public BuildModeDialog(BuildGroup buildGroup) : base(buildGroup?.GetContextPanel(), "BuildModeDialog") {
 
 	}
 
