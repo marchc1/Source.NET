@@ -272,7 +272,31 @@ public class ClientLeafSystem : IClientLeafSystem
 	}
 
 	public void SetRenderGroup(ClientRenderHandle_t handle, RenderGroup group) {
-		throw new NotImplementedException();
+		ref RenderableInfo pInfo = ref Renderables[handle].Info;
+
+		bool twoPass = false;
+		if (group == RenderGroup.TwoPass) {
+			twoPass = true;
+			group = RenderGroup.TranslucentEntity;
+		}
+
+		if (twoPass) 
+			pInfo.Flags |= RenderFlags.TwoPass;
+		else 
+			pInfo.Flags &= ~RenderFlags.TwoPass;
+		
+		bool bOldViewModelRenderGroup = IsViewModelRenderGroup(pInfo.RenderGroup);
+		bool bNewViewModelRenderGroup = IsViewModelRenderGroup(group);
+		if (bOldViewModelRenderGroup != bNewViewModelRenderGroup) {
+			if (bOldViewModelRenderGroup) {
+				RemoveFromViewModelList(handle);
+			}
+			else {
+				AddToViewModelList(handle);
+			}
+		}
+
+		pInfo.RenderGroup = group;
 	}
 
 	public void Shutdown() {

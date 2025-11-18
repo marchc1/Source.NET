@@ -723,6 +723,6 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 	}
 
 	public void UnlockStudioHdr(MDLHandle_t handle) {
-		throw new NotImplementedException();
+
 	}
 }
