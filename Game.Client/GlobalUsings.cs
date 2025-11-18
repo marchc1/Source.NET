@@ -65,6 +65,7 @@ public static class ClientGlobals
 		enginevgui = Singleton<IEngineVGui>();
 		cvar = Singleton<ICvar>();
 		cl_entitylist = Singleton<ClientEntityList>();
+		view = Singleton<IViewRender>();
 		render = Singleton<IRenderView>();
 		gHUD = Singleton<Hud>();
 		prediction = (Prediction)Singleton<IPrediction>();
