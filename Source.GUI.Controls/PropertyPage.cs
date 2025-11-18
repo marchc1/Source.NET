@@ -6,7 +6,6 @@ namespace Source.GUI.Controls;
 
 public class PropertyPage : EditablePanel
 {
-	// Handle PageTab;
 	Panel? PageTab;
 
 	public PropertyPage(Panel? parent, string? name) : base(parent, name) {

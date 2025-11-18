@@ -29,9 +29,9 @@ public class ToggleButton : Button
 
 	public override void DoClick() {
 		if (IsSelected())
-			ForceDepressed(true);
-		else
 			ForceDepressed(false);
+		else
+			ForceDepressed(true);
 
 		SetSelected(!IsSelected());
 		FireActionSignal();
