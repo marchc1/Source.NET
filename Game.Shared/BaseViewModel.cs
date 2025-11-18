@@ -1,4 +1,5 @@
-﻿#if CLIENT_DLL
+﻿#if CLIENT_DLL || GAME_DLL
+#if CLIENT_DLL
 global using BaseViewModel = Game.Client.C_BaseViewModel;
 namespace Game.Client;
 #else
@@ -11,8 +12,10 @@ using Source;
 
 using FIELD = Source.FIELD<BaseViewModel>;
 using Game.Shared;
+using Source.Common.Mathematics;
+using System.Numerics;
 
-public class
+public partial class
 #if CLIENT_DLL
 	C_BaseViewModel
 #else
@@ -48,11 +51,11 @@ public class
 			RecvPropInt(FIELD.OF(nameof(AnimationParity))),
 			RecvPropEHandle(FIELD.OF(nameof(Weapon))),
 			RecvPropEHandle(FIELD.OF(nameof(Owner))),
-			
+
 			RecvPropInt(FIELD.OF(nameof(NewSequenceParity))),
 			RecvPropInt(FIELD.OF(nameof(ResetEventsParity))),
 			RecvPropInt(FIELD.OF(nameof(MuzzleFlashParity))),
-			
+
 			RecvPropFloat(FIELD.OF_ARRAYINDEX(nameof(PoseParameter), 0)),
 			RecvPropArray(FIELD.OF_ARRAY(nameof(PoseParameter))),
 #else
@@ -84,6 +87,38 @@ public class
 #endif
 	public int ViewModelIndex;
 	public readonly EHANDLE Owner = new();
-	public readonly EHANDLE Weapon = new();
+	public readonly Handle<BaseCombatWeapon> Weapon = new();
 	public int AnimationParity;
+
+	public BaseCombatWeapon? GetOwningWeapon() => Weapon.Get();
+
+	public void CalcViewModelView(BasePlayer owner, in Vector3 eyePosition, in QAngle eyeAngles) {
+		QAngle vmangoriginal = eyeAngles;
+		QAngle vmangles = eyeAngles;
+		Vector3 vmorigin = eyePosition;
+
+		BaseCombatWeapon? pWeapon = Weapon.Get();
+		//Allow weapon lagging
+		if (pWeapon != null) {
+#if CLIENT_DLL
+			if (!prediction.InPrediction())
+#endif
+			{
+				// add weapon-specific bob 
+				// TODO: pWeapon.AddViewmodelBob(this, vmorigin, vmangles);
+			}
+		}
+		// Add model-specific bob even if no weapon associated (for head bob for off hand models)
+		// todo: AddViewModelBob(owner, vmorigin, vmangles);
+		// todo: CalcViewModelLag
+#if CLIENT_DLL
+		if (!prediction.InPrediction()) {
+			// Let the viewmodel shake at about 10% of the amplitude of the player's view
+			// TODO: vieweffects.ApplyShake( vmorigin, vmangles, 0.1 );	
+		}
+#endif
+		SetLocalOrigin(in vmorigin);
+		SetLocalAngles(in vmangles);
+	}
 }
+#endif

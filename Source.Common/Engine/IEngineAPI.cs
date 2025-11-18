@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
 namespace Source.Common.Engine;
-public interface IEngineAPI : IServiceProvider
+public interface IEngineAPI : IServiceProvider, IKeyedServiceProvider
 {
 	public enum Result
 	{

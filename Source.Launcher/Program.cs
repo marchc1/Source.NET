@@ -65,7 +65,9 @@ public class Bootloader : IDisposable
 				.WithComponent<IShaderAPI, ShaderAPIGl46>()
 				// Datacache impl
 				.WithComponent<IDataCache, DataCache.DataCache>()
-				.WithComponent<IMDLCache, MDLCache>()
+				.WithComponent<MDLCache>()
+				.WithResolvedComponent<IMDLCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
+				.WithResolvedComponent<IStudioDataCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
 				// Studiorender
 				.WithComponent<IStudioRender, StudioRenderContext>()
 				// Our game DLL's. Server/game impl, client impl, UI impl.

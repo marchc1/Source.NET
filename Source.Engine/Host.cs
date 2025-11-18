@@ -183,7 +183,7 @@ public class Host(
 #endif
 
 #if !SWDS
-		if (!EngineThreads.IsThreadedEngine())
+		if (!EngineThreads.IsEngineThreaded())
 #endif
 		{
 #if !SWDS
@@ -470,8 +470,10 @@ public class Host(
 
 	}
 
-	public void SetClientInSimulation(bool v) {
-
+	public void SetClientInSimulation(bool inSimulation) {
+		cl.InSimulation = inSimulation || cl.IsPaused();
+		clientGlobalVariables.CurTime = cl.GetTime();
+		clientGlobalVariables.FrameTime = cl.GetFrameTime();
 	}
 
 	private void _RunFrame_Client(bool finalTick) {

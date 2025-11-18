@@ -14,22 +14,22 @@ using System.Runtime.CompilerServices;
 namespace Source.Engine;
 
 
-public class EngineAPI(IGame game, IServiceProvider provider, Common COM, Sys Sys, ILauncherManager launcherMgr, IInputSystem inputSystem) : IEngineAPI, IDisposable
+public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sys, ILauncherManager launcherMgr, IInputSystem inputSystem) : IEngineAPI, IDisposable
 {
 	public bool Dedicated;
 
 	public void Dispose() {
-		((IDisposable)provider).Dispose();
+		((IDisposable)services).Dispose();
 		GC.SuppressFinalize(this);
 	}
 
 	StartupInfo startupInfo;
 
-	Lazy<IEngine> engR = new(provider.GetRequiredService<IEngine>);
+	Lazy<IEngine> engR = new(services.GetRequiredService<IEngine>);
 
 	public IEngineAPI.Result RunListenServer() {
 		IEngineAPI.Result result = IEngineAPI.Result.RunOK;
-		IMod mod = provider.GetRequiredService<IMod>();
+		IMod mod = services.GetRequiredService<IMod>();
 		if (mod.Init(startupInfo.InitialMod, startupInfo.InitialGame)) {
 			result = (IEngineAPI.Result)mod.Run();
 			mod.Shutdown();
@@ -45,13 +45,15 @@ public class EngineAPI(IGame game, IServiceProvider provider, Common COM, Sys Sy
 	}
 
 	public IEngineAPI.Result Run() {
-		provider.GetRequiredService<IMaterialSystem>().ModInit();
+		services.GetRequiredService<IMaterialSystem>().ModInit();
 
 		ConVar_Register();
 		return RunListenServer();
 	}
 
-	public object? GetService(Type serviceType) => provider.GetService(serviceType);
+	public object? GetService(Type serviceType) => services.GetService(serviceType);
+	public object? GetKeyedService(Type serviceType, object? key) => ((IKeyedServiceProvider)services).GetKeyedService(serviceType, key);
+	public object GetRequiredKeyedService(Type serviceType, object? key) => ((IKeyedServiceProvider)services).GetRequiredKeyedService(serviceType, key);
 
 	public bool InEditMode() => false;
 	public void PumpMessages() {

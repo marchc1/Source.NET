@@ -14,8 +14,10 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
@@ -88,6 +90,32 @@ public interface IPoolableObject
 	void Init();
 	void Reset();
 }
+
+public class PoolableList<T> : List<T>, IPoolableObject
+{
+	public void Init() { }
+	public void Reset() => Clear();
+}
+
+public class ListPool<T>
+{
+	public static readonly ListPool<T> Shared = new();
+	readonly ObjectPool<PoolableList<T>> pool = new();
+
+	public List<T> Alloc(int capacity = 0) {
+		List<T> list = pool.Alloc();
+		if (capacity > 0)
+			list.EnsureCapacity(capacity);
+		return list;
+	}
+
+	public void Free(List<T> list) {
+		if (list is not PoolableList<T> pooledList)
+			throw new InvalidCastException("Got a non-poolable list!");
+		pool.Free(pooledList);
+	}
+}
+
 
 public class ObjectPool<T> where T : IPoolableObject, new()
 {
@@ -215,7 +243,7 @@ public static class StrTools
 	public const char CORRECT_PATH_SEPARATOR = '/';
 	public const char INCORRECT_PATH_SEPARATOR = '\\';
 
-	public static bool IsSlash(this char c) => c == CORRECT_PATH_SEPARATOR || c == INCORRECT_PATH_SEPARATOR;
+	public static bool IsPathSeparator(this char c) => c == CORRECT_PATH_SEPARATOR || c == INCORRECT_PATH_SEPARATOR;
 
 	public static void FixSlashes(Span<char> name) {
 		for (int i = 0; i < name.Length; i++) {
@@ -276,6 +304,128 @@ public static class StrTools
 		AppendSlash(dest);
 		StrConcat(dest, filename, COPY_ALL_CHARACTERS);
 		FixSlashes(dest);
+	}
+
+	public static bool RemoveDotSlashes(Span<char> filename, char separator, bool removeDoubleSlashes = true) {
+		int pIn = 0;
+		int pOut = 0;
+		bool ret = true;
+		bool boundary = true;
+
+		while (pIn < filename.Length && filename[pIn] != '\0') {
+			if (boundary &&
+				filename[pIn] == '.' &&
+				pIn + 1 < filename.Length && filename[pIn + 1] == '.' &&
+				(pIn + 2 >= filename.Length || IsPathSeparator(filename[pIn + 2]))) {
+				while (pOut > 0 && filename[pOut - 1] == separator)
+					pOut--;
+
+				while (true) {
+					if (pOut == 0) {
+						ret = false;
+						break;
+					}
+					pOut--;
+					if (filename[pOut] == separator)
+						break;
+				}
+
+				pIn += 2;
+				boundary = (pOut == 0);
+			}
+			else if (boundary &&
+					 filename[pIn] == '.' &&
+					 (pIn + 1 >= filename.Length || IsPathSeparator(filename[pIn + 1]))) {
+				if (pIn + 1 < filename.Length && IsPathSeparator(filename[pIn + 1])) {
+					pIn += 2;
+				}
+				else {
+					if (pOut > 0 && filename[pOut - 1] == separator)
+						pOut--;
+					pIn += 1;
+				}
+			}
+			else if (IsPathSeparator(filename[pIn])) {
+				filename[pOut] = separator;
+
+				if (!(boundary && removeDoubleSlashes && pOut != 0))
+					pOut++;
+
+				pIn++;
+				boundary = true;
+			}
+			else {
+				if (pOut != pIn)
+					filename[pOut] = filename[pIn];
+
+				pOut++;
+				pIn++;
+				boundary = false;
+			}
+		}
+
+		if (pOut < filename.Length)
+			filename[pOut] = '\0';
+
+		return ret;
+	}
+
+	/// <summary>
+	/// Rewrites a string in place to be all lowercase
+	/// </summary>
+	/// <param name="str"></param>
+	/// <param name="invariant"></param>
+	public static void ToLower(Span<char> str, bool invariant = false) {
+		if (invariant)
+			for (int i = 0; i < str.Length; i++)
+				str[i] = char.ToLowerInvariant(str[i]);
+		else
+			for (int i = 0; i < str.Length; i++)
+				str[i] = char.ToLower(str[i]);
+	}
+
+	/// <summary>
+	/// Rewrites a string in place to be all uppercase
+	/// </summary>
+	/// <param name="str"></param>
+	/// <param name="invariant"></param>
+	public static void ToUpper(Span<char> str, bool invariant = false) {
+		if (invariant)
+			for (int i = 0; i < str.Length; i++)
+				str[i] = char.ToUpperInvariant(str[i]);
+		else
+			for (int i = 0; i < str.Length; i++)
+				str[i] = char.ToUpper(str[i]);
+	}
+
+	public static void StripExtension(ReadOnlySpan<char> input, Span<char> output) {
+		int end = input.Length - 1;
+		while (end > 0 && input[end] != '.' && !IsPathSeparator(input[end]))
+			--end;
+
+		if (end > 0 && !IsPathSeparator(input[end]) && end < output.Length) {
+			int nChars = Math.Min(end, output.Length - 1);
+			if (!Unsafe.AreSame(in input[0], in output[0]))
+				memcpy(output, input[..nChars]);
+			output[nChars] = '\0';
+		}
+		else {
+			if (!Unsafe.AreSame(in input[0], in output[0]))
+				strcpy(output, input);
+		}
+	}
+	public static void SetExtension(Span<char> path, ReadOnlySpan<char> extension) {
+		StripExtension(path, path);
+
+		// We either had an extension and stripped it, or didn't have an extension
+		// at all. Either way, we need to concatenate our extension now.
+
+		// extension is not required to start with '.', so if it's not there,
+		// then append that first.
+		if (extension[0] != '.')
+			StrConcat(path, ".", COPY_ALL_CHARACTERS);
+
+		StrConcat(path, extension, COPY_ALL_CHARACTERS);
 	}
 }
 
@@ -339,6 +489,12 @@ public static class ListExtensions
 }
 public static class ClassUtils
 {
+	public static ref V TryGetRef<K, V>(this Dictionary<K, V> dict, K key, out bool ok) where K : notnull {
+		ref V ret = ref CollectionsMarshal.GetValueRefOrNullRef(dict, key);
+		ok = !Unsafe.IsNullRef(ref ret);
+		return ref ret;
+	}
+
 
 	public static bool IsValidIndex<T>(this List<T> list, int index) => index >= 0 && index < list.Count;
 	public static bool IsValidIndex<T>(this List<T> list, long index) => index >= 0 && index < list.Count;
@@ -351,6 +507,7 @@ public static class ClassUtils
 	public static void ClearInstantiatedReferences<T>(this T[] array) where T : class => ClearInstantiatedReferences(array.AsSpan());
 	public static void ClearInstantiatedReferences<T>(this List<T> array) where T : class => ClearInstantiatedReferences(array.AsSpan());
 	private static readonly ConcurrentDictionary<Type, Action<object>> _clearers = new();
+	private static readonly ConcurrentDictionary<Type, Action<object, object>> _copiers = new();
 	public static void ClearInstantiatedReferences<T>(this Span<T> array) where T : class {
 		Action<object> clearer = _clearers.GetOrAdd(typeof(T), CreateClearer);
 
@@ -363,6 +520,16 @@ public static class ClassUtils
 	public static void ClearInstantiatedReference<T>(this T target) where T : class {
 		Action<object> clearer = _clearers.GetOrAdd(typeof(T), CreateClearer);
 		clearer(target);
+	}
+	public static void CopyInstantiatedReferenceTo<T>(this T source, T dest) where T : class {
+		Action<object, object> copier = _copiers.GetOrAdd(typeof(T), CreateCopier);
+		copier(source, dest);
+	}
+	public static T CloneInstance<T>(this T source) where T : class, new() {
+		Action<object, object> copier = _copiers.GetOrAdd(typeof(T), CreateCopier);
+		T dest = new T();
+		copier(source, dest);
+		return dest;
 	}
 	public static Action<object> CreateClearer(Type type) {
 		var fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -394,6 +561,35 @@ public static class ClassUtils
 
 		return (Action<object>)dm.CreateDelegate(typeof(Action<object>));
 	}
+	public static Action<object, object> CreateCopier(Type type) {
+		var fields = type.GetFields(BindingFlags.Instance |
+									BindingFlags.Public |
+									BindingFlags.NonPublic);
+
+		var dm = new DynamicMethod("Copy_" + type.Name,
+								   null,
+								   new[] { typeof(object), typeof(object) },
+								   true);
+
+		ILGenerator il = dm.GetILGenerator();
+
+		foreach (var field in fields) {
+			il.Emit(OpCodes.Ldarg_1);
+			il.Emit(OpCodes.Castclass, type);
+
+			il.Emit(OpCodes.Ldarg_0);
+			il.Emit(OpCodes.Castclass, type);
+
+			il.Emit(OpCodes.Ldfld, field);
+
+			il.Emit(OpCodes.Stfld, field);
+		}
+
+		il.Emit(OpCodes.Ret);
+
+		return (Action<object, object>)dm.CreateDelegate(typeof(Action<object, object>));
+	}
+
 
 	/// <summary>
 	/// Creates an array of class instances, where the class instances are not null, but also uninitialized (ie. a reference to an object exists,
@@ -470,6 +666,13 @@ public static class ClassUtils
 			howMany--;
 		}
 		return true;
+	}
+	public static unsafe int ReadASCIIStringInto(this BinaryReader reader, Span<char> into)
+		=> ReadASCIIStringInto(reader, into, into.Length);
+	public static unsafe int ReadASCIIStringInto(this BinaryReader reader, Span<char> into, int maxLength) {
+		Span<byte> asciiBlock = stackalloc byte[maxLength];
+		reader.Read(asciiBlock);
+		return Encoding.ASCII.GetChars(asciiBlock, into);
 	}
 	public static unsafe bool ReadInto<T>(this BinaryReader reader, ref T into) where T : unmanaged {
 		int sizeOfOne = sizeof(T);
@@ -1113,6 +1316,29 @@ public static class ReflectionUtils
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class EngineComponentAttribute : Attribute;
 
+public unsafe ref struct ASCIIStringView : IDisposable
+{
+	char* str;
+	int chars;
+	public ASCIIStringView(ReadOnlySpan<byte> data) {
+		int indexOfNullTerminator = System.MemoryExtensions.IndexOf(data, (byte)0);
+		if (indexOfNullTerminator != -1)
+			data = data[..indexOfNullTerminator];
+
+		chars = Encoding.ASCII.GetCharCount(data);
+		str = (char*)NativeMemory.Alloc((nuint)chars, sizeof(char));
+		Encoding.ASCII.GetChars(data, new Span<char>(str, chars));
+	}
+
+	public static implicit operator ReadOnlySpan<char>(ASCIIStringView view) => new(view.str, view.chars);
+
+	public void Dispose() {
+		NativeMemory.Free(str);
+		chars = 0;
+		str = null;
+	}
+}
+
 public static class SpanExts
 {
 	public static int ClampedCopyTo<T>(this ReadOnlySpan<T> source, Span<T> dest) {
@@ -1258,4 +1484,36 @@ public struct AnonymousSafeFieldPointer<TType>
 			throw new NullReferenceException("Owner and/or GetRefFn are null.");
 		return ref refFn(owner);
 	}
+}
+
+public ref struct SpanBinaryReader
+{
+	ReadOnlySpan<byte> contents;
+	int ptr;
+	public SpanBinaryReader(ReadOnlySpan<byte> contents) {
+		this.contents = contents;
+		this.ptr = 0;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public ReadOnlySpan<byte> ReadBytes(int bytes) {
+		ReadOnlySpan<byte> ret = contents[ptr..(ptr + bytes)];
+		ptr += bytes;
+		return ret;
+	}
+	/*
+	public byte ReadUInt8() => ReadBytes(sizeof(byte))[0];
+	public sbyte ReadInt8() => (sbyte)ReadBytes(sizeof(sbyte))[0];
+	public ushort ReadUInt16() => ReadBytes(sizeof(ushort)).Cast<byte, ushort>()[0];
+	public short ReadInt16() => ReadBytes(sizeof(short)).Cast<byte, short>()[0];
+	public uint ReadUInt32() => ReadBytes(sizeof(uint)).Cast<byte, uint>()[0];
+	public int ReadInt32() => ReadBytes(sizeof(int)).Cast<byte, int>()[0];
+	public ulong ReadUInt64() => ReadBytes(sizeof(ulong)).Cast<byte, ulong>()[0];
+	public long ReadInt64() => ReadBytes(sizeof(long)).Cast<byte, long>()[0];
+	public float ReadFloat() => ReadBytes(sizeof(float)).Cast<byte, float>()[0];
+	public double ReadDouble() => ReadBytes(sizeof(double)).Cast<byte, double>()[0];
+	*/
+	public unsafe T Read<T>() where T : unmanaged => ReadBytes(sizeof(T)).Cast<byte, T>()[0];
+	public unsafe void Read<T>(out T value) where T : unmanaged => value = ReadBytes(sizeof(T)).Cast<byte, T>()[0];
+	public unsafe void ReadInto<T>(Span<T> value) where T : unmanaged => ReadBytes(sizeof(T) * value.Length).Cast<byte, T>().CopyTo(value);
 }

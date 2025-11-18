@@ -99,6 +99,8 @@ public abstract class BaseShader : IShader
 
 	}
 
+	public virtual bool IsTranslucent(IMaterialVar[]? parms) => IsFlagSet(parms, (int)MaterialVarFlags.Translucent);
+
 	public void DrawElements(IMaterialVar[] vars, IShaderShadow? shadow, IShaderDynamicAPI? shaderAPI, VertexCompressionType vertexCompression) {
 		Assert(Params == null);
 		Params = vars;
@@ -227,9 +229,5 @@ public abstract class BaseShader : IShader
 
 		float alpha = parms[(int)ShaderMaterialVars.Alpha].GetFloatValue();
 		return Math.Clamp(alpha, 0, 1);
-	}
-
-	public virtual void SpecifyVertexFormat(ref VertexFormat vertexFormat) {
-		Warning("No SpecifyVertexFormat override!!!\n");
 	}
 }

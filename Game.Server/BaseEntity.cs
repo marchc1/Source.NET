@@ -28,7 +28,7 @@ public partial class BaseEntity : IServerEntity
 	}
 	public static SendTable DT_PredictableId = new(nameof(DT_PredictableId), [
 		SendPropPredictableId(FIELD.OF(nameof(PredictableId))),
-		SendPropInt(FIELD.OF(nameof(IsPlayerSimulated)), 1, PropFlags.Unsigned)
+		SendPropInt(FIELD.OF(nameof(b_IsPlayerSimulated)), 1, PropFlags.Unsigned)
 	]);
 
 	public static SendTable DT_BaseEntity = new([
@@ -147,7 +147,6 @@ public partial class BaseEntity : IServerEntity
 	public int MapCreatedID;
 
 	public readonly PredictableId PredictableId = new();
-	public readonly bool IsPlayerSimulated;
 
 	public readonly GModTable GMOD_DataTable = new();
 
@@ -216,6 +215,7 @@ public partial class BaseEntity : IServerEntity
 	}
 
 
+	int flags;
 	EFL eflags;
 	public Matrix4x4 CoordinateFrame;
 
@@ -226,4 +226,7 @@ public partial class BaseEntity : IServerEntity
 	public ref readonly Vector3 GetAbsOrigin() => ref AbsOrigin;
 	public ref readonly Vector3 GetViewOffset() => ref ViewOffset;
 	public ref readonly QAngle GetAbsAngles() => ref AbsRotation;
+
+	public void SetLocalOrigin(in Vector3 origin) { } // todo
+	public void SetLocalAngles(in QAngle origin) { } // todo
 }

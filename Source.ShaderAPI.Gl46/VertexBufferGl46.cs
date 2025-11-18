@@ -128,38 +128,117 @@ public unsafe class VertexBufferGl46 : IDisposable
 			RecomputeVBO();
 
 		uint vao = (uint)this.vao;
-		int sizeof1vertex = 0;
+		int offset = 0;
 
 		Span<uint> bindings = stackalloc uint[64];
 		int bindingsPtr = 0;
 
-		for (OpenGL_ShaderInputAttribute i = 0; i < OpenGL_ShaderInputAttribute.Count; i++) {
-			bool enabled = IsOn(i, VertexBufferFormat, out int size, out VertexElement element);
-			if (!enabled) {
-				glDisableVertexArrayAttrib(vao, (uint)i);
-				continue;
-			}
-
+		void ConfigureAttribute(Span<uint> bindings, OpenGL_ShaderInputAttribute attr, VertexElement element, int size) {
 			element.GetInformation(out int count, out VertexAttributeType type);
 			int elementSize = count * (int)type.SizeOf();
-			glEnableVertexArrayAttrib(vao, (uint)i);
-			// type is relative to OpenGL's enumeration
-			// TODO: normalization ternary is kinda gross but acceptable for now...
-			glVertexArrayAttribFormat(vao, (uint)i, count, (int)type, i == OpenGL_ShaderInputAttribute.Color ? true : false, (uint)sizeof1vertex);
 
-			bindings[bindingsPtr++] = (uint)i;
-			sizeof1vertex += elementSize;
+			glEnableVertexArrayAttrib(vao, (uint)attr);
+			// These specific checks are annoying...
+			bool normalize = attr == OpenGL_ShaderInputAttribute.Color;
+			if (attr == OpenGL_ShaderInputAttribute.BoneIndex)
+				glVertexArrayAttribIFormat(vao, (uint)attr, count, (int)type, (uint)offset);
+			else
+				glVertexArrayAttribFormat(vao, (uint)attr, count, (int)type, normalize, (uint)offset);
+			bindings[bindingsPtr++] = (uint)attr;
+			offset += elementSize;
 		}
 
-		// Bind the VBO to the VAO here
-		glVertexArrayVertexBuffer(vao, 0, (uint)vbo, 0, sizeof1vertex);
+		// Rewrote this to process attributes in the same order as ComputeVertexDescription
+
+		if ((VertexBufferFormat & VertexFormat.Position) != 0) {
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.Position, VertexElement.Position, 1);
+		}
+		else {
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Position);
+		}
+
+		if ((VertexBufferFormat & VertexFormat.BoneIndex) != 0) {
+			int numBoneWeights = VertexBufferFormat.GetBoneWeightsSize();
+			if (numBoneWeights > 0) {
+				VertexElement boneWeightElement = VertexElement.BoneWeights1 + (numBoneWeights - 1);
+				ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.BoneWeights, boneWeightElement, numBoneWeights);
+			}
+			else {
+				glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.BoneWeights);
+			}
+
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.BoneIndex, VertexElement.BoneIndex, 1);
+		}
+		else {
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.BoneIndex);
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.BoneWeights);
+		}
+
+		if ((VertexBufferFormat & VertexFormat.Normal) != 0) {
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.Normal, VertexElement.Normal, 1);
+		}
+		else {
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Normal);
+		}
+
+		if ((VertexBufferFormat & VertexFormat.Color) != 0) {
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.Color, VertexElement.Color, 1);
+		}
+		else {
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Color);
+		}
+
+		if ((VertexBufferFormat & VertexFormat.Specular) != 0) {
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.Specular, VertexElement.Specular, 1);
+		}
+		else {
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Specular);
+		}
+
+		Span<VertexElement> texCoordElements = [VertexElement.TexCoord1D_0, VertexElement.TexCoord2D_0, VertexElement.TexCoord3D_0, VertexElement.TexCoord4D_0];
+		for (int i = 0; i < IMesh.VERTEX_MAX_TEXTURE_COORDINATES; i++) {
+			int texCoordSize = VertexBufferFormat.GetTexCoordDimensionSize(i);
+			if (texCoordSize > 0) {
+				VertexElement element = (VertexElement)((int)texCoordElements[texCoordSize - 1] + i);
+				ConfigureAttribute(bindings, (OpenGL_ShaderInputAttribute)((int)OpenGL_ShaderInputAttribute.TexCoord0 + i), element, texCoordSize);
+			}
+			else {
+				glDisableVertexArrayAttrib(vao, (uint)((int)OpenGL_ShaderInputAttribute.TexCoord0 + i));
+			}
+		}
+
+		if ((VertexBufferFormat & VertexFormat.TangentS) != 0) {
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.TangentS, VertexElement.TangentS, 1);
+		}
+		else {
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.TangentS);
+		}
+
+		if ((VertexBufferFormat & VertexFormat.TangentT) != 0) {
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.TangentT, VertexElement.TangentT, 1);
+		}
+		else {
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.TangentT);
+		}
+
+		int userDataSize = VertexBufferFormat.GetUserDataSize();
+		if (userDataSize > 0) {
+			VertexElement element = VertexElement.UserData1 + (userDataSize - 1);
+			ConfigureAttribute(bindings, OpenGL_ShaderInputAttribute.UserData, element, userDataSize);
+		}
+		else {
+			glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.UserData);
+		}
+
+		// todo
+		glDisableVertexArrayAttrib(vao, (uint)OpenGL_ShaderInputAttribute.Wrinkle);
+
+		int vertexSize = offset;
+		glVertexArrayVertexBuffer(vao, 0, (uint)vbo, 0, vertexSize);
 
 		Assert(bindingsPtr < bindings.Length);
-		for (int i = 0; i < bindingsPtr; i++) {
-			// Bind every enabled element to the 0th buffer (we don't use other buffers)
+		for (int i = 0; i < bindingsPtr; i++)
 			glVertexArrayAttribBinding(vao, bindings[i], 0);
-		}
-
 	}
 
 	public int NextLockOffset() {
@@ -241,6 +320,7 @@ public unsafe class VertexBufferGl46 : IDisposable
 	unsafe static nint dummyData = (nint)NativeMemory.AlignedAlloc(512, 16);
 
 	public static unsafe void ComputeVertexDescription(byte* vertexMemory, VertexFormat vertexFormat, ref VertexDesc desc) {
+		desc.NumBoneWeights = vertexFormat.GetBoneWeightsSize();
 		fixed (VertexDesc* descPtr = &desc) {
 			nint offset = 0;
 			nint baseptr = (nint)vertexMemory;
@@ -259,9 +339,9 @@ public unsafe class VertexBufferGl46 : IDisposable
 
 			if ((vertexFormat & VertexFormat.BoneIndex) != 0) {
 				if (desc.NumBoneWeights > 0) {
-					Assert(desc.NumBoneWeights == 2);
+					VertexElement boneWeightElement = VertexElement.BoneWeights1 + (desc.NumBoneWeights - 1);
 					descPtr->BoneWeight = (float*)(baseptr + offset);
-					offset += VertexElement.BoneWeights2.GetSize();
+					offset += boneWeightElement.GetSize();
 					vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->BoneWeightSize;
 				}
 				else {
@@ -269,13 +349,13 @@ public unsafe class VertexBufferGl46 : IDisposable
 					descPtr->BoneWeightSize = 0;
 				}
 
-				descPtr->BoneIndex = (byte*)(baseptr + offset);
+				descPtr->BoneMatrixIndex = (byte*)(baseptr + offset);
 				offset += VertexElement.BoneIndex.GetSize();
-				vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->BoneIndexSize;
+				vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->BoneMatrixIndexSize;
 			}
 			else {
-				descPtr->BoneIndex = (byte*)dummyData;
-				descPtr->BoneIndexSize = 0;
+				descPtr->BoneMatrixIndex = (byte*)dummyData;
+				descPtr->BoneMatrixIndexSize = 0;
 			}
 
 			if ((vertexFormat & VertexFormat.Normal) != 0) {
@@ -311,7 +391,7 @@ public unsafe class VertexBufferGl46 : IDisposable
 			Span<VertexElement> texCoordElements = [VertexElement.TexCoord1D_0, VertexElement.TexCoord2D_0, VertexElement.TexCoord3D_0, VertexElement.TexCoord4D_0];
 			for (int i = 0; i < IMesh.VERTEX_MAX_TEXTURE_COORDINATES; i++) {
 				int size = (int)vertexFormat.GetTexCoordDimensionSize(i);
-				if(size != 0) {
+				if (size != 0) {
 					desc.SetTexCoord(i, (float*)(baseptr + offset));
 					offset += ((VertexElement)((int)texCoordElements[size - 1] + i)).GetSize();
 					vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->TexCoordSize[i];
@@ -343,7 +423,7 @@ public unsafe class VertexBufferGl46 : IDisposable
 			}
 
 			int userDataSize = (int)vertexFormat.GetUserDataSize();
-			if(userDataSize > 0) {
+			if (userDataSize > 0) {
 				desc.UserData = (float*)(baseptr + offset);
 				offset += (VertexElement.UserData1 + (userDataSize - 1)).GetSize();
 				vertexSizesToSet[vertexSizesToSetPtr++] = &descPtr->UserDataSize;

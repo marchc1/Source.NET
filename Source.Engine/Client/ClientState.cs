@@ -39,6 +39,7 @@ public class ClientState : BaseClientState
 	readonly EngineRecvTable RecvTable;
 	readonly IPrediction ClientSidePrediction;
 	readonly IModelLoader modelloader;
+	readonly ClientGlobalVariables clientGlobalVariables;
 	readonly Lazy<IEngineClient> engineClient_LAZY;
 	IEngineClient engineClient => engineClient_LAZY.Value;
 	readonly IServiceProvider services;
@@ -109,7 +110,8 @@ public class ClientState : BaseClientState
 	public ClientState(Host Host, IFileSystem fileSystem, Net Net, CommonHostState host_state, GameServer sv, Common Common,
 		Cbuf Cbuf, Cmd Cmd, ICvar cvar, CL CL, IEngineVGuiInternal? EngineVGui, IHostState HostState, Scr Scr, IEngineAPI engineAPI,
 		[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient, IServiceProvider services,
-		IModelLoader modelloader, ICommandLine commandLine, IPrediction ClientSidePrediction, DtCommonEng DtCommonEng, EngineRecvTable recvTable)
+		IModelLoader modelloader, ICommandLine commandLine, IPrediction ClientSidePrediction, DtCommonEng DtCommonEng, EngineRecvTable recvTable,
+		ClientGlobalVariables clientGlobalVariables)
 		: base(Host, fileSystem, Net, sv, Cbuf, cvar, EngineVGui, engineAPI, networkStringTableContainerClient) {
 		this.Host = Host;
 		this.fileSystem = fileSystem;
@@ -119,13 +121,14 @@ public class ClientState : BaseClientState
 		this.CL = CL;
 		this.Scr = Scr;
 		this.modelloader = modelloader;
-		this.ClockDriftMgr = new(this, Host, host_state);
+		this.ClockDriftMgr = new(this, sv, Host, host_state, Net, clientGlobalVariables);
 		this.EngineVGui = EngineVGui;
 		this.HostState = HostState;
 		this.DtCommonEng = DtCommonEng;
 		this.Common = Common;
 		this.services = services;
 		this.ClientSidePrediction = ClientSidePrediction;
+		this.clientGlobalVariables = clientGlobalVariables;
 		engineClient_LAZY = new(ProduceEngineClient);
 		CommandLine = commandLine;
 		RecvTable = recvTable;
@@ -182,6 +185,22 @@ public class ClientState : BaseClientState
 
 	public bool ProcessConnectionlessPacket(in NetPacket packet) {
 		return false;
+	}
+
+	protected override bool ProcessTick(NET_Tick msg) {
+		int tick = msg.Tick;
+
+		NetChannel!.SetRemoteFramerate(msg.HostFrameTime, msg.HostFrameDeviation);
+
+		ClockDriftMgr.SetServerTick(tick);
+
+		LastServerTickTime = tick * host_state.IntervalPerTick;
+
+		clientGlobalVariables.TickCount = tick;
+		clientGlobalVariables.CurTime = tick * host_state.IntervalPerTick;
+		clientGlobalVariables.FrameTime = (tick - OldTickCount) * host_state.IntervalPerTick; 
+																								
+		return true;
 	}
 
 	public override bool HookClientStringTable(ReadOnlySpan<char> tableName) {
@@ -907,13 +926,12 @@ public class ClientState : BaseClientState
 			}*/
 		}
 
-		// RaphaelIT7
-		// ToDo: Set g_ClientGlobalVariables.maxClients = m_nMaxClients same for .network_protocol = msg.Protocol
-		// ToDo - How do I use this keyed service stuff, still have barelly an idea :sob:
-		// [FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient;
-		// StringTableContainer = networkStringTableContainerClient;
+		clientGlobalVariables.MaxClients = MaxClients;
+		clientGlobalVariables.NetworkProtocol = msg.Protocol;
 
-		// CL_ReallocateDynamicData(MaxClients);
+		StringTableContainer = KeyedSingleton<NetworkStringTableContainer>(Realm.Client);
+
+		CL.ReallocateDynamicData(MaxClients);
 
 		if (sv.IsPaused()) {
 			if (msg.TickInterval != host_state.IntervalPerTick) {

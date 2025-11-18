@@ -129,6 +129,14 @@ public partial class
 	public static bool IsSimulatingOnAlternateTicks() => false; // TODO
 
 	public bool IsAlive() => LifeState == (int)Source.LifeState.Alive;
+
+	protected bool b_IsPlayerSimulated;
+	public bool IsPlayerSimulated() => b_IsPlayerSimulated;
+
+	public void AddFlag(int flag) => flags |= flag;
+	public void RemoveFlag(int flag) => flags &= ~flag;
+	public void ClearFlags(int flag) => flags= 0;
+	public void ToggleFlag(int flag) => flags ^= flag;
 }
 
 #endif

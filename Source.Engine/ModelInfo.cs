@@ -1,15 +1,16 @@
 ﻿using Source.Common;
+using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Engine.Client;
 
+using System.Reflection.Metadata.Ecma335;
+
 namespace Source.Engine;
 
-public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader) : IModelInfoClient
+public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader, IMDLCache mdlCache) : IModelInfoClient
 {
-	public Model? GetModel(int modelIndex) {
-		throw new NotImplementedException();
-	}
+	public abstract Model? GetModel(int modelIndex);
 
 	protected abstract INetworkStringTable? GetDynamicModelStringTable();
 	protected abstract int LookupPrecachedModelIndex(ReadOnlySpan<char> name);
@@ -24,6 +25,9 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 			return "?";
 
 		return modelloader.GetName(model);
+	}
+	public bool IsTranslucentTwoPass(Model? model) {
+		return model != null && (model.Flags & ModelFlag.TranslucentTwoPass) != 0;
 	}
 	public ModelType GetModelType(Model? model) {
 		if (model == null)
@@ -73,11 +77,31 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		return -1;
 	}
 
+	protected bool IsDynamicModelIndex(int modelIndex) => modelIndex < -1;
+	protected Model? LookupDynamicModel(int modelIndex) {
+		throw new NotImplementedException("LookupDynamicModel not yet implemented!");
+	}
+
+	public VirtualModel? GetVirtualModel(StudioHeader studioHdr) {
+		return mdlCache.GetVirtualModelFast(studioHdr, studioHdr.VirtualModel);
+	}
+
+	public virtual MDLHandle_t GetCacheHandle(Model model) {
+		return model.Type == ModelType.Studio ? model.Studio : MDLHANDLE_INVALID;
+	}
+
 	readonly List<Model> NetworkedDynamicModels = [];
 }
 
-public class ModelInfoClient(ClientState cl, IFileSystem filesystem, IModelLoader modelloader) : ModelInfo(filesystem, modelloader)
+public class ModelInfoClient(ClientState cl, IFileSystem filesystem, IModelLoader modelloader, IMDLCache mdlCache) : ModelInfo(filesystem, modelloader, mdlCache)
 {
+	public override Model? GetModel(int modelIndex) {
+		if (IsDynamicModelIndex(modelIndex))
+			return LookupDynamicModel(modelIndex);
+
+		return cl.GetModel(modelIndex);
+	}
+
 	protected override INetworkStringTable? GetDynamicModelStringTable() {
 		return cl.DynamicModelsTable;
 	}

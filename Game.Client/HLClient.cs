@@ -14,6 +14,12 @@ using Source.Engine;
 
 namespace Game.Client;
 
+public static class CdllExts {
+	public static void TrackBoneSetupEnt(C_BaseAnimating ent) {
+		// todo
+	}
+}
+
 public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals, ISurface surface, ViewRender view, IInput input, Hud HUD, UserMessages usermessages, Interpolation Interpolation) : IBaseClientDLL
 {
 	public static void DLLInit(IServiceCollection services) {

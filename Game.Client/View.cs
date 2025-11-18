@@ -1,7 +1,10 @@
+global using static Game.Client.ViewConVars;
+
 using Game.Shared;
 
 using Microsoft.Extensions.DependencyInjection;
 
+using Source;
 using Source.Common;
 using Source.Common.Client;
 using Source.Common.Commands;
@@ -16,6 +19,10 @@ using System.Numerics;
 
 namespace Game.Client;
 
+public static class ViewConVars
+{
+	public static readonly ConVar v_viewmodel_fov = new("viewmodel_fov", "54", FCvar.Cheat, "Sets the field-of-view for the viewmodel.", 0.1, 179.9);
+}
 
 public class BaseWorldView : Rendering3dView
 {
@@ -159,15 +166,33 @@ public class ViewRender : IViewRender
 
 		viewEye.ZNear = GetZNear();
 		viewEye.ZNearViewmodel = 1;
-		viewEye.FOV = 75; // todo
+		viewEye.FOV = default_fov.GetFloat(); // todo
 
 		viewEye.Ortho = false;
 		viewEye.ViewToProjectionOverride = false;
 		viewEye.StereoEye = StereoEye.Mono;
 
 		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		bool calcViewModelView = false;
+		Vector3 viewModelOrigin = default;
+		QAngle viewModelAngles = default;
+
 		if (player != null) {
 			player.CalcView(ref viewEye.Origin, ref viewEye.Angles, ref viewEye.ZNear, ref viewEye.ZFar, ref viewEye.FOV);
+
+			calcViewModelView = true;
+			viewModelOrigin = viewEye.Origin;
+			viewModelAngles = viewEye.Angles;
+		}
+
+		float fDefaultFov = default_fov.GetFloat();
+		float flFOVOffset = fDefaultFov - viewEye.FOV;
+
+		viewEye.FOVViewmodel = MathF.Abs(clientMode.GetViewModelFOV() - flFOVOffset);
+
+		if (calcViewModelView) {
+			Assert(player != null);
+			player.CalcViewModelView(in viewModelOrigin, in viewModelAngles);
 		}
 	}
 
@@ -263,10 +288,13 @@ public class ViewRender : IViewRender
 
 		bool drew3dSkybox = false;
 		SkyboxVisibility skyboxVisible = SkyboxVisibility.NotVisible;
-		SkyboxView skyView = new SkyboxView(this);
-		if ((drew3dSkybox = skyView.Setup(in viewRender, ref clearFlags, ref skyboxVisible)) != false)
-			AddViewToScene(skyView);
-		skyView.ReleaseLists();
+
+		{
+			SkyboxView skyView = new SkyboxView(this);
+			if ((drew3dSkybox = skyView.Setup(in viewRender, ref clearFlags, ref skyboxVisible)) != false)
+				AddViewToScene(skyView);
+			skyView.ReleaseLists();
+		}
 
 		if ((clearFlags & ClearFlags.ClearColor) == 0) {
 			if (enginetrace.GetPointContents(viewRender.Origin, out _) == Contents.Solid) {
@@ -276,7 +304,7 @@ public class ViewRender : IViewRender
 
 		ViewDrawScene(drew3dSkybox, skyboxVisible, in viewRender, clearFlags, ViewID.Main, (whatToDraw & RenderViewInfo.DrawViewmodel) != 0);
 		render.SceneEnd();
-		DrawViewModels(in viewRender, whatToDraw & RenderViewInfo.DrawViewmodel);
+		DrawViewModels(in viewRender, (whatToDraw & RenderViewInfo.DrawViewmodel) != 0);
 
 		CleanupMain3DView(in viewRender);
 
@@ -404,9 +432,116 @@ public class ViewRender : IViewRender
 		render.ViewSetupVisEx(ShouldForceNoVis(), new ReadOnlySpan<Vector3>(in viewRender.Origin), out visFlags);
 	}
 
-	private void DrawViewModels(in ViewSetup viewRender, RenderViewInfo renderViewInfo) {
-		// TODO
-		// We don't have viewmodel stuff ready at all yet
+	protected bool ShouldDrawViewModel(bool drawViewmodel) {
+		if (!drawViewmodel)
+			return false;
+
+		if (!r_drawviewmodel.GetBool())
+			return false;
+
+		//  if (C_BasePlayer.ShouldDrawLocalPlayer())
+		//  	return false;
+
+		if (!ShouldDrawEntities())
+			return false;
+
+		if (render.GetViewEntity() > gpGlobals.MaxClients)
+			return false;
+
+		return true;
+	}
+
+	C_BaseEntity? CurrentlyDrawingEntity;
+
+	private void DrawRenderablesInList(List<IClientRenderable> list, StudioFlags flags = 0) {
+		int nCount = list.Count();
+		for (int i = 0; i < nCount; ++i) {
+			IClientUnknown? unk = list[i].GetIClientUnknown();
+			Assert(unk != null);
+
+			IClientRenderable? renderable = unk.GetClientRenderable();
+			Assert(renderable != null);
+
+			if (renderable.ShouldDraw()) {
+				CurrentlyDrawingEntity = unk.GetBaseEntity();
+				renderable.DrawModel(StudioFlags.Render | flags);
+			}
+		}
+		CurrentlyDrawingEntity = null;
+	}
+
+	private void DrawViewModels(in ViewSetup viewRender, bool drawViewmodel) {
+		bool shouldDrawPlayerViewModel = ShouldDrawViewModel(drawViewmodel);
+		bool shouldDrawToolViewModels = ToolsEnabled();
+
+		using MatRenderContextPtr renderContext = new(materials);
+
+		renderContext.MatrixMode(MaterialMatrixMode.Projection);
+		renderContext.PushMatrix();
+
+		ViewSetup viewModelSetup = viewRender;
+		viewModelSetup.ZNear = viewRender.ZNearViewmodel;
+		viewModelSetup.ZFar = viewRender.ZFarViewmodel;
+		viewModelSetup.FOV = viewRender.FOVViewmodel;
+		viewModelSetup.AspectRatio = engine.GetScreenAspectRatio();
+
+		ITexture? rtColor = null;
+		ITexture? rtDepth = null;
+		if (viewRender.StereoEye != StereoEye.Mono)
+			throw new NotImplementedException("Non-mono StereoEye not supported");
+
+		render.Push3DView(viewModelSetup, 0, rtColor, GetFrustum(), rtDepth);
+
+		const bool useDepthHack = true;
+
+		// FIXME: Add code to read the current depth range
+		float depthmin = 0.0f;
+		float depthmax = 1.0f;
+
+		// HACK HACK:  Munge the depth range to prevent view model from poking into walls, etc.
+		// Force clipped down range
+		if (useDepthHack)
+			renderContext.DepthRange(0.0f, 0.1f);
+
+		if (shouldDrawPlayerViewModel || shouldDrawToolViewModels) {
+			List<IClientRenderable> opaqueViewModelList = ListPool<IClientRenderable>.Shared.Alloc(32);
+			List<IClientRenderable> translucentViewModelList = ListPool<IClientRenderable>.Shared.Alloc(32);
+
+			clientLeafSystem.CollateViewModelRenderables(opaqueViewModelList, translucentViewModelList);
+
+			if (ToolsEnabled() && (!shouldDrawPlayerViewModel || !shouldDrawToolViewModels)) {
+				int opaque = opaqueViewModelList.Count;
+				for (int i = opaque - 1; i >= 0; --i) {
+					IClientRenderable renderable = opaqueViewModelList[i];
+					bool entity = renderable.GetIClientUnknown().GetBaseEntity() != null;
+					if ((entity && !shouldDrawPlayerViewModel) || (!entity && !shouldDrawToolViewModels))
+						opaqueViewModelList.RemoveAt(i);
+				}
+
+				int translucent = translucentViewModelList.Count;
+				for (int i = translucent - 1; i >= 0; --i) {
+					IClientRenderable renderable = translucentViewModelList[i];
+					bool entity = renderable.GetIClientUnknown().GetBaseEntity() != null;
+					if ((entity && !shouldDrawPlayerViewModel) || (!entity && !shouldDrawToolViewModels))
+						translucentViewModelList.RemoveAt(i);
+				}
+			}
+
+			//  if (!UpdateRefractIfNeededByList(opaqueViewModelList)) 
+			//  	UpdateRefractIfNeededByList(translucentViewModelList);
+
+			DrawRenderablesInList(opaqueViewModelList);
+			DrawRenderablesInList(translucentViewModelList, StudioFlags.Transparency);
+		}
+
+		// Reset the depth range to the original values
+		if (useDepthHack)
+			renderContext.DepthRange(depthmin, depthmax);
+
+		render.PopView(GetFrustum());
+
+		renderContext.MatrixMode(MaterialMatrixMode.Projection);
+		renderContext.PopMatrix();
 	}
 
 	private void CleanupMain3DView(in ViewSetup viewRender) {

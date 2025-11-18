@@ -1,5 +1,15 @@
-﻿using System.Numerics;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source.Common.DataCache;
+using Source.Common.Engine;
+using Source.Common.Formats.BSP;
+using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
+
+using System.Numerics;
+using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Source.Common;
 
@@ -12,7 +22,7 @@ public static class Studio
 	public const int MAXSTUDIOFLEXVERTS = 10000;
 
 	public const int MAXSTUDIOSKINS = 32;
-	public const int MAXSTUDIOBONES = 128;
+	public const int MAXSTUDIOBONES = 256;
 	public const int MAXSTUDIOFLEXDESC = 1024;
 	public const int MAXSTUDIOFLEXCTRL = 96;
 	public const int MAXSTUDIOPOSEPARAM = 24;
@@ -20,8 +30,40 @@ public static class Studio
 	public const int MAXSTUDIOANIMBLOCKS = 256;
 
 	public const int MAX_NUM_LODS = 8;
+	public const int MAX_NUM_BONES_PER_VERT = 3;
 
 	public const int MAXSTUDIOBONEBITS = 7;
+
+	public const int MODEL_VERTEX_FILE_ID = (('V' << 24) + ('S' << 16) + ('D' << 8) + 'I');
+	public const int MODEL_VERTEX_FILE_VERSION = 4;
+	public const int MODEL_VERTEX_FILE_THIN_ID = (('V' << 24) + ('C' << 16) + ('D' << 8) + 'I');
+
+	public const int BONE_CALCULATE_MASK = 0x1F;
+	public const int BONE_PHYSICALLY_SIMULATED = 0x01;
+	public const int BONE_PHYSICS_PROCEDURAL = 0x02;
+	public const int BONE_ALWAYS_PROCEDURAL = 0x04;
+	public const int BONE_SCREEN_ALIGN_SPHERE = 0x08;
+	public const int BONE_SCREEN_ALIGN_CYLINDER = 0x10;
+
+	public const int BONE_USED_MASK = 0x0007FF00;
+	public const int BONE_USED_BY_ANYTHING = 0x0007FF00;
+	public const int BONE_USED_BY_HITBOX = 0x00000100;
+	public const int BONE_USED_BY_ATTACHMENT = 0x00000200;
+	public const int BONE_USED_BY_VERTEX_MASK = 0x0003FC00;
+	public const int BONE_USED_BY_VERTEX_LOD0 = 0x00000400;
+	public const int BONE_USED_BY_VERTEX_LOD1 = 0x00000800;
+	public const int BONE_USED_BY_VERTEX_LOD2 = 0x00001000;
+	public const int BONE_USED_BY_VERTEX_LOD3 = 0x00002000;
+	public const int BONE_USED_BY_VERTEX_LOD4 = 0x00004000;
+	public const int BONE_USED_BY_VERTEX_LOD5 = 0x00008000;
+	public const int BONE_USED_BY_VERTEX_LOD6 = 0x00010000;
+	public const int BONE_USED_BY_VERTEX_LOD7 = 0x00020000;
+	public const int BONE_USED_BY_BONE_MERGE = 0x00040000;
+
+	public const int MAX_NUM_BONE_INDICES = 4;
+
+	public const int USESHADOWLOD = -2;
+	public static int BONE_USED_BY_VERTEX_AT_LOD(int lod) => BONE_USED_BY_VERTEX_LOD0 << lod;
 }
 
 public enum StudioHdrFlags
@@ -50,6 +92,7 @@ public enum StudioHdrFlags
 
 
 [InlineArray(Studio.MAX_NUM_LODS)] public struct InlineArrayMaxNumLODs<T> { T first; }
+[InlineArray(Studio.MAX_NUM_BONES_PER_VERT)] public struct InlineArrayMaxNumBonesPerVert<T> { T first; }
 
 public class VirtualGroup
 {
@@ -79,19 +122,52 @@ public class VirtualGeneric
 
 public class VirtualModel
 {
-	public void AppendSequences(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendAnimations(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendAttachments(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendPoseParameters(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendBonemap(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendNodes(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendTransitions(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendIKLocks(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void AppendModels(int group, StudioHDR studioHDR) => throw new NotImplementedException();
-	public void UpdateAutoplaySequences(int group, StudioHDR studioHDR) => throw new NotImplementedException();
+	public void AppendSequences(int group, StudioHeader studioHDR) {
 
-	public VirtualGroup AnimGroup(int animation) => throw new NotImplementedException();
-	public VirtualGroup SeqGroup(int sequence) => throw new NotImplementedException();
+	}
+	public void AppendAnimations(int group, StudioHeader studioHDR) {
+
+	}
+	public void AppendAttachments(int group, StudioHeader studioHDR) {
+
+	}
+	public void AppendPoseParameters(int group, StudioHeader studioHDR) {
+
+	}
+	public void AppendBonemap(int group, StudioHeader studioHDR) {
+
+	}
+	public void AppendNodes(int group, StudioHeader studioHDR) {
+
+	}
+	public void AppendTransitions(int group, StudioHeader studioHDR) {
+
+	}
+	public void AppendIKLocks(int group, StudioHeader studioHDR) {
+
+	}
+	public void AppendModels(int group, StudioHeader studioHDR) {
+		AppendSequences(group, studioHDR);
+		AppendAnimations(group, studioHDR);
+		AppendBonemap(group, studioHDR);
+		AppendAttachments(group, studioHDR);
+		AppendPoseParameters(group, studioHDR);
+		AppendNodes(group, studioHDR);
+		AppendIKLocks(group, studioHDR);
+		// todo
+
+		UpdateAutoplaySequences(studioHDR);
+	}
+	public void UpdateAutoplaySequences(StudioHeader studioHDR) {
+
+	}
+
+	public VirtualGroup AnimGroup(int animation) {
+		throw new NotImplementedException();
+	}
+	public VirtualGroup SeqGroup(int sequence) {
+		throw new NotImplementedException();
+	}
 
 	// TODO
 	// public readonly Mutex Lock = new();
@@ -106,9 +182,41 @@ public class VirtualModel
 	public readonly List<ushort> AutoplaySequences = [];
 }
 
+public enum StudioMeshGroupFlags
+{
+	IsFlexed = 0x1,
+	IsHWSkinned = 0x2,
+	IsDeltaFlexed = 0x4,
+}
+
+public class StudioMeshGroup
+{
+	public IMesh? Mesh;
+	public int NumStrips;
+	public StudioMeshGroupFlags Flags;
+	public OptimizedModel.StripHeader[]? StripData;
+	public ushort[]? GroupIndexToMeshIndex;
+	public int NumVertices;
+	public ushort[]? Indices;
+	public bool MeshNeedsRestore;
+	public int ColorMeshID;
+	// IMorph?
+
+	public ushort MeshIndex(int i) => GroupIndexToMeshIndex![Indices![i]];
+}
+
+public class StudioMeshData
+{
+	public int NumGroup;
+	public StudioMeshGroup[]? MeshGroup;
+}
+
 public class StudioLODData
 {
-
+	public StudioMeshData[]? MeshData;
+	public float SwitchPoint;
+	public IMaterial[]? Materials;
+	public int[]? MaterialFlags;
 }
 
 public class StudioHWData
@@ -117,11 +225,279 @@ public class StudioHWData
 	public int NumLODs;
 	public StudioLODData[]? LODs;
 	public int NumStudioMeshes;
+
+	public int GetLODForMetric(float lodMetric) {
+		if (NumLODs == 0)
+			return 0;
+
+		int numLODs = (LODs![NumLODs - 1].SwitchPoint < 0.0f) ? NumLODs - 1 : NumLODs;
+
+		for (int i = RootLOD; i < numLODs - 1; i++) {
+			if (LODs[i + 1].SwitchPoint > lodMetric)
+				return i;
+		}
+
+		return numLODs - 1;
+	}
+
+	public float LODMetric(float unitSphereSize) => (unitSphereSize != 0.0f) ? (100.0f / unitSphereSize) : 0.0f;
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 4)]
+public struct MStudioBoneWeight
+{
+	public InlineArrayMaxNumBonesPerVert<float> Weight;
+	public InlineArrayMaxNumBonesPerVert<byte> Bone;
+	public byte NumBones;
+}
+
+/// <summary>
+/// mstudio_meshvertexdata_t
+/// </summary>
+public class MStudioMeshVertexData
+{
+	public Memory<byte> Data;
+	public MStudioModelVertexData? ModelVertexData;
+	public InlineArrayMaxNumLODs<int> NumLODVertexes;
+
+	public MStudioMeshVertexData(Memory<byte> data) {
+		Data = data;
+		Span<byte> span = data.Span;
+		for (int i = 0; i < Studio.MAX_NUM_LODS; i++) {
+			NumLODVertexes[i] = span.Cast<byte, int>()[i + 1];
+		}
+	}
+
+	public bool HasTangentData() => ModelVertexData!.HasTangentData();
+
+	public ref Vector3 Position(int i) => ref ModelVertexData!.Position(i);
+	public ref Vector3 Normal(int i) => ref ModelVertexData!.Normal(i);
+	public ref Vector4 TangentS(int i) => ref ModelVertexData!.TangentS(i);
+	public ref Vector2 TexCoord(int i) => ref ModelVertexData!.TexCoord(i);
+	public ref MStudioBoneWeight BoneWeights(int i) => ref ModelVertexData!.BoneWeights(i);
+	public ref MStudioVertex Vertex(int i) => ref ModelVertexData!.Vertex(i);
+}
+
+
+public class MStudioModelVertexData
+{
+	public object? VertexData;
+	public object? TangentData;
+
+	public object? GetVertexData() => VertexData;
+	public T? GetVertexData<T>() => (T?)VertexData;
+	public object? GetTangentData() => TangentData;
+	public T? GetTangentData<T>() => (T?)TangentData;
+
+	public ref Vector3 Position(int i) => ref Vertex(i).Position;
+	public ref Vector3 Normal(int i) => ref Vertex(i).Normal;
+	public ref Vector4 TangentS(int i) => ref ((Memory<Vector4>)GetTangentData()!).Span[i];
+	public ref Vector2 TexCoord(int i) => ref Vertex(i).TexCoord;
+	public ref MStudioBoneWeight BoneWeights(int i) => ref Vertex(i).BoneWeights;
+	public ref MStudioVertex Vertex(int i) => ref ((Memory<MStudioVertex>)GetVertexData()!).Span[i];
+
+	// todo: verify
+	public bool HasTangentData() => TangentData != null;
+}
+
+public class MStudioMesh
+{
+	public const int SIZEOF = 116; // don't feel like typing this out right now
+	public Memory<byte> Data;
+	public readonly MStudioModel Model;
+	public MStudioMesh(MStudioModel model, Memory<byte> data) {
+		Data = data;
+		Model = model;
+
+		Material = data.Span[0..].Cast<byte, int>()[0];
+		ModelIndex = data.Span[4..].Cast<byte, int>()[0];
+		NumVertices = data.Span[8..].Cast<byte, int>()[0];
+		VertexOffset = data.Span[12..].Cast<byte, int>()[0];
+
+		NumFlexes = data.Span[16..].Cast<byte, int>()[0];
+		FlexIndex = data.Span[20..].Cast<byte, int>()[0];
+		MaterialType = data.Span[24..].Cast<byte, int>()[0];
+		MaterialParam = data.Span[28..].Cast<byte, int>()[0];
+		MeshID = data.Span[32..].Cast<byte, int>()[0];
+		Center = data.Span[36..].Cast<byte, Vector3>()[0];
+		VertexData = new(data[48..]);
+	}
+
+	public int Material;
+	public int ModelIndex;
+	public int NumVertices;
+	public int VertexOffset;
+
+	public int NumFlexes;
+	public int FlexIndex;
+	public int MaterialType;
+	public int MaterialParam;
+	public int MeshID;
+	public Vector3 Center;
+	public readonly MStudioMeshVertexData VertexData;
+
+	public MStudioMeshVertexData? GetVertexData(IStudioDataCache dataCache, StudioHeader studioHdr) {
+		this.Model.GetVertexData(dataCache, studioHdr);
+		VertexData.ModelVertexData = this.Model.VertexData;
+		if (VertexData.ModelVertexData.VertexData == null)
+			return null;
+		return VertexData;
+	}
+}
+/// <summary>
+/// analog of mstudiomodel_t
+/// </summary>
+public class MStudioModel
+{
+	Memory<byte> Data;
+	[StructLayout(LayoutKind.Explicit)]
+	internal struct __contents
+	{
+		[FieldOffset(0)] public InlineArray64<byte> Name;
+		[FieldOffset(64)] public int Type;
+		[FieldOffset(68)] public float BoundingRadius;
+		[FieldOffset(72)] public int NumMeshes;
+		[FieldOffset(76)] public int MeshIndex;
+		[FieldOffset(80)] public int NumVertices;
+		[FieldOffset(84)] public int VertexIndex;
+		[FieldOffset(88)] public int TangentsIndex;
+		[FieldOffset(92)] public int NumAttachments;
+		[FieldOffset(96)] public int AttachmentIndex;
+		[FieldOffset(100)] public int NumEyeballs;
+		[FieldOffset(104)] public int EyeballIndex;
+
+		// these are pointers which will instead be class instance refs OUTSIDE of the contents.
+		// But we need to parse unused data anyway here for the pointers, so
+		[FieldOffset(108)] InlineArray40<byte> unused;
+	}
+	__contents Contents;
+
+
+	public ref int Type { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.Type; }
+	public ref float BoundingRadius { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.BoundingRadius; }
+	public ref int NumMeshes { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.NumMeshes; }
+	public ref int MeshIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.MeshIndex; }
+	public ref int NumVertices { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.NumVertices; }
+	public ref int VertexIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.VertexIndex; }
+	public ref int TangentsIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.TangentsIndex; }
+	public ref int NumAttachments { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.NumAttachments; }
+	public ref int AttachmentIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.AttachmentIndex; }
+	public ref int NumEyeballs { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.NumEyeballs; }
+	public ref int EyeballIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.EyeballIndex; }
+
+	public readonly MStudioModelVertexData VertexData = new();
+
+	public MStudioModel(Memory<byte> data) {
+		Data = data;
+		Contents = data.Span.Cast<byte, __contents>()[0];
+	}
+
+	MStudioMesh[]? studioMeshCache;
+
+	public MStudioMesh Mesh(int i) {
+		if (studioMeshCache == null)
+			studioMeshCache = new MStudioMesh[NumMeshes];
+
+		ArgumentOutOfRangeException.ThrowIfLessThan(i, 0);
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(i, NumMeshes);
+
+		if (studioMeshCache[i] == null)
+			return studioMeshCache[i] = new(this, Data[(MeshIndex + (i * MStudioMesh.SIZEOF))..]);
+		return studioMeshCache[i];
+	}
+
+	string? nameCache;
+	public string Name() {
+		if (nameCache == null) {
+			using ASCIIStringView strView = new(Contents.Name);
+			nameCache = new(strView);
+		}
+		return nameCache;
+	}
+
+	public MStudioModelVertexData? GetVertexData(IStudioDataCache dataCache, StudioHeader studioHdr) {
+		VertexFileHeader? vertexHdr = CacheVertexData(dataCache, studioHdr);
+		if (vertexHdr == null) {
+			VertexData.VertexData = null;
+			VertexData.TangentData = null;
+			return null;
+		}
+
+		VertexData.VertexData = vertexHdr.GetVertexData();
+		VertexData.TangentData = vertexHdr.GetTangentData();
+
+		if (VertexData.VertexData == null)
+			return null;
+
+		return VertexData;
+	}
+
+	public VertexFileHeader? CacheVertexData(IStudioDataCache mdlCache, StudioHeader studioHdr) {
+		return mdlCache.CacheVertexData(studioHdr);
+	}
+}
+
+public class MStudioBodyParts(Memory<byte> Data)
+{
+	public const int SIZEOF = sizeof(int) * 4;
+	public int SzNameIndex => MemoryMarshal.Cast<byte, int>(Data.Span)[0];
+	public int NumModels => MemoryMarshal.Cast<byte, int>(Data.Span)[1];
+	public int Base => MemoryMarshal.Cast<byte, int>(Data.Span)[2];
+	public int ModelIndex => MemoryMarshal.Cast<byte, int>(Data.Span)[3];
+
+
+	string? nameCache;
+	public string Name() {
+		if (nameCache == null) {
+			using ASCIIStringView strView = new(Data.Span[SzNameIndex..]);
+			nameCache = new(strView);
+		}
+		return nameCache;
+	}
+
+	MStudioModel[]? studioModelCache;
+
+	public MStudioModel Model(int i) {
+		if (studioModelCache == null)
+			studioModelCache = new MStudioModel[NumModels];
+
+		ArgumentOutOfRangeException.ThrowIfLessThan(i, 0);
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(i, NumModels);
+
+		if (studioModelCache[i] == null)
+			return studioModelCache[i] = new(Data[(ModelIndex + (i * Unsafe.SizeOf<MStudioModel.__contents>()))..]);
+		return studioModelCache[i];
+	}
+}
+
+[StructLayout(LayoutKind.Explicit, Pack = 4)]
+public struct MStudioVertex
+{
+	[FieldOffset(0)] public MStudioBoneWeight BoneWeights;
+	[FieldOffset(16)] public Vector3 Position;
+	[FieldOffset(28)] public Vector3 Normal;
+	[FieldOffset(40)] public Vector2 TexCoord;
 }
 
 public class VertexFileHeader
 {
 	public Memory<byte> Data;
+
+	public VertexFileHeader(byte[] data) {
+		Data = data;
+		using BinaryReader br = new(new MemoryStream(data), System.Text.Encoding.ASCII);
+		ID = br.ReadInt32();
+		Version = br.ReadInt32();
+		Checksum = br.ReadInt32();
+		NumLODs = br.ReadInt32();
+		for (int i = 0; i < Studio.MAX_NUM_LODS; i++)
+			NumLODVertices[i] = br.ReadInt32();
+
+		NumFixups = br.ReadInt32();
+		FixupTableStart = br.ReadInt32();
+		VertexDataStart = br.ReadInt32();
+		TangentDataStart = br.ReadInt32();
+	}
 
 	public int ID;
 	public int Version;
@@ -130,19 +506,51 @@ public class VertexFileHeader
 	public InlineArrayMaxNumLODs<int> NumLODVertices;
 	public int NumFixups;
 	public int FixupTableStart;
-	public int VertexTableStart;
-	public int TangentTableStart;
+	public int VertexDataStart;
+	public int TangentDataStart;
+
+	public Memory<MStudioVertex> GetVertexData() {
+		if (ID == Studio.MODEL_VERTEX_FILE_ID && VertexDataStart != 0)
+			return Data[VertexDataStart..].Cast<byte, MStudioVertex>();
+		else
+			return null;
+	}
+
+	public Memory<Vector4> GetTangentData() {
+		if (ID == Studio.MODEL_VERTEX_FILE_ID && TangentDataStart != 0)
+			return Data[TangentDataStart..].Cast<byte, Vector4>();
+		else
+			return null;
+	}
 }
 
-public class StudioHDR2
+public class StudioHeader2
 {
 	public Memory<byte> Data;
+
+	public StudioHeader2(Memory<byte> data) {
+		Data = data;
+		SpanBinaryReader br = new(data.Span);
+
+		br.Read(out NumSrcBoneTransform);
+		br.Read(out SrcBoneTransformIndex);
+		br.Read(out IllumPositionAttachmentIndex);
+		br.Read(out MaxEyeDeflection);
+		br.Read(out LinearBoneIndex);
+		br.Read(out SzNameIndex);
+		br.Read(out BoneFlexDriverCount);
+		br.Read(out BoneFlexDriverIndex);
+	}
 
 	public int NumSrcBoneTransform;
 	public int SrcBoneTransformIndex;
 	public int IllumPositionAttachmentIndex;
 	public float MaxEyeDeflection;
+
 	public int LinearBoneIndex;
+	MStudioLinearBone? linearBones;
+	public MStudioLinearBone LinearBones() => linearBones ??= new(Data[LinearBoneIndex..]);
+
 	public int SzNameIndex;
 	public int BoneFlexDriverCount;
 	public int BoneFlexDriverIndex;
@@ -151,13 +559,237 @@ public class StudioHDR2
 
 public class MStudioTexture
 {
+	public const int SIZE_OF_ONE = 64; // msvc reports size 64, alignment 4
 	public Memory<byte> Data;
-	public ReadOnlySpan<char> Name() => ""; // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO 
+
+	public int SzNameIndex;
+	public int Flags;
+	public int Used;
+	public int Unused;
+
+	public IMaterial? Material;
+	public object? ClientMaterial;
+
+	public MStudioTexture(Memory<byte> data) {
+		Data = data;
+		SpanBinaryReader br = new(data.Span);
+
+		SzNameIndex = br.Read<int>();
+		Flags = br.Read<int>();
+		Used = br.Read<int>();
+		Unused = br.Read<int>();
+	}
+
+	public string? name;
+	public string Name() {
+		if (name == null) {
+			using ASCIIStringView view = new(Data.Span[SzNameIndex..]);
+			return name = new(view);
+		}
+		return name;
+	}
 }
 
-public class StudioHDR
+public static class BoneFlags
 {
-	public Memory<byte> Data;
+	public const int BONE_CALCULATE_MASK = 0x1F;
+	public const int BONE_PHYSICALLY_SIMULATED = 0x01;
+	public const int BONE_PHYSICS_PROCEDURAL = 0x02;
+	public const int BONE_ALWAYS_PROCEDURAL = 0x04;
+	public const int BONE_SCREEN_ALIGN_SPHERE = 0x08;
+	public const int BONE_SCREEN_ALIGN_CYLINDER = 0x10;
+	public const int BONE_USED_MASK = 0x0007FF00;
+	public const int BONE_USED_BY_ANYTHING = 0x0007FF00;
+	public const int BONE_USED_BY_HITBOX = 0x00000100;
+	public const int BONE_USED_BY_ATTACHMENT = 0x00000200;
+	public const int BONE_USED_BY_VERTEX_MASK = 0x0003FC00;
+	public const int BONE_USED_BY_VERTEX_LOD0 = 0x00000400;
+	public const int BONE_USED_BY_VERTEX_LOD1 = 0x00000800;
+	public const int BONE_USED_BY_VERTEX_LOD2 = 0x00001000;
+	public const int BONE_USED_BY_VERTEX_LOD3 = 0x00002000;
+	public const int BONE_USED_BY_VERTEX_LOD4 = 0x00004000;
+	public const int BONE_USED_BY_VERTEX_LOD5 = 0x00008000;
+	public const int BONE_USED_BY_VERTEX_LOD6 = 0x00010000;
+	public const int BONE_USED_BY_VERTEX_LOD7 = 0x00020000;
+	public const int BONE_USED_BY_BONE_MERGE = 0x00040000;
+}
+
+/// <summary>
+/// Analog of CStudioHdr
+/// </summary>
+public class StudioHdr
+{
+	public bool IsVirtual() => vModel != null;
+	public bool IsValid() => studioHdr != null;
+	public bool IsReadyForAccess() => studioHdr != null;
+
+	public VirtualModel GetVirtualModel() => vModel!;
+	public StudioHeader GetRenderHdr() => studioHdr!;
+
+	private StudioHeader? studioHdr;
+	private VirtualModel? vModel;
+	public int NumBones() => studioHdr!.NumBones;
+	public int BoneFlags(int i) => boneFlags[i];
+	public int BoneParent(int i) => boneParent[i];
+	public MStudioBone Bone(int i) => studioHdr!.Bone(i);
+	readonly List<StudioHeader> StudioHdrCache = [];
+
+	public StudioHdrFlags Flags() => studioHdr!.Flags;
+
+	public void Init(StudioHeader? studioHdr, IMDLCache mdlcache) {
+		this.studioHdr = studioHdr;
+
+		this.vModel = null;
+		StudioHdrCache.Clear();
+
+		if (this.studioHdr == null)
+			return;
+
+		boneFlags.EnsureCount(NumBones());
+		boneParent.EnsureCount(NumBones());
+	}
+
+	readonly List<int> boneFlags = [];
+	readonly List<int> boneParent = [];
+
+	public bool SequencesAvailable(IModelInfo modelinfo) {
+		if (studioHdr!.NumIncludeModels == 0) {
+			return true;
+		}
+
+		if (vModel == null) {
+			return (ResetVModel(studioHdr.GetVirtualModel(modelinfo)) != null);
+		}
+		else
+			return true;
+	}
+
+	private VirtualModel? ResetVModel(VirtualModel? virtualModel) {
+		if (virtualModel != null) {
+			vModel = virtualModel;
+			StudioHdrCache!.EnsureCountDefault(vModel.Group.Count());
+
+			for (int i = 0; i < StudioHdrCache.Count; i++)
+				StudioHdrCache[i] = null!;
+
+			return vModel;
+		}
+		else {
+			vModel = null;
+			return null;
+		}
+	}
+}
+
+public class MStudioBone
+{
+	public const int SIZEOF = 216; // Static offset from MSVC stats (mstudiobone_t size 216, alignment 4)
+
+	Memory<byte> Data;
+	public int NameIndex;
+	public int Parent;
+	public InlineArray6<int> BoneController;
+	public Vector3 Position;
+	public Quaternion Quat;
+	public RadianEuler Rot;
+	public Vector3 PosScale;
+	public Vector3 RotScale;
+	public Matrix3x4 PoseToBone;
+	public Quaternion Alignment;
+	public int Flags;
+	public int ProcType;
+	public int ProcIndex;
+	public int PhysicsBone;
+	public int SurfacePropIdx;
+	public int Contents;
+	public InlineArray8<int> Unused;
+
+	string? nameCache;
+	public string Name() {
+		if(nameCache == null) {
+			using ASCIIStringView view = new(Data.Span[NameIndex..]);
+			nameCache = new(view);
+		}
+		return nameCache;
+	}
+
+	public MStudioBone(Memory<byte> data) {
+		Data = data;
+
+		SpanBinaryReader br = new(data.Span);
+		br.Read(out NameIndex);
+		br.Read(out Parent);
+		br.ReadInto<int>(BoneController);
+		br.Read(out Position);
+		br.Read(out Quat);
+		br.Read(out Rot);
+		br.Read(out PosScale);
+		br.Read(out RotScale);
+		br.Read(out PoseToBone);
+		br.Read(out Alignment);
+		br.Read(out Flags);
+		br.Read(out ProcType);
+		br.Read(out ProcIndex);
+		br.Read(out PhysicsBone);
+		br.Read(out SurfacePropIdx);
+		br.Read(out Contents);
+	}
+}
+
+public class MStudioLinearBone
+{
+	public const int SIZEOF = 64; // Static offset from MSVC stats (mstudiobonelinear_t size 64, alignment 4)
+	private Memory<byte> Data;
+
+	public int NumBones;
+	public int FlagsIndex;
+	public int ParentIndex;
+	public int PosIndex;
+	public int QuatIndex;
+	public int RotIndex;
+	public int PoseToBoneIndex;
+	public int PosScaleIndex;
+	public int RotScaleIndex;
+	public int QAlignmentIndex;
+
+	public MStudioLinearBone(Memory<byte> data) {
+		Data = data;
+		SpanBinaryReader br = new(data.Span);
+
+		br.Read(out NumBones);
+		br.Read(out FlagsIndex);
+		br.Read(out ParentIndex);
+		br.Read(out PosIndex);
+		br.Read(out QuatIndex);
+		br.Read(out RotIndex);
+		br.Read(out PoseToBoneIndex);
+		br.Read(out PosScaleIndex);
+		br.Read(out RotScaleIndex);
+		br.Read(out QAlignmentIndex);
+	}
+
+	public int Flags(int i) => Data.Span[FlagsIndex..].Cast<byte, int>()[i];
+	public ref int RefFlags(int i) => ref Data.Span[FlagsIndex..].Cast<byte, int>()[i];
+	public int Parent(int i) => Data.Span[ParentIndex..].Cast<byte, int>()[i];
+	public Vector3 Pos(int i) => Data.Span[PosIndex..].Cast<byte, Vector3>()[i];
+	public Quaternion Quat(int i) => Data.Span[QuatIndex..].Cast<byte, Quaternion>()[i];
+	public RadianEuler Rot(int i) => Data.Span[RotIndex..].Cast<byte, RadianEuler>()[i];
+	public Matrix3x4 PoseToBone(int i) => Data.Span[PoseToBoneIndex..].Cast<byte, Matrix3x4>()[i];
+	public Vector3 PosScale(int i) => Data.Span[PosScaleIndex..].Cast<byte, Vector3>()[i];
+	public Vector3 RotScale(int i) => Data.Span[RotScaleIndex..].Cast<byte, Vector3>()[i];
+	public Quaternion QAlignment(int i) => Data.Span[QAlignmentIndex..].Cast<byte, Quaternion>()[i];
+}
+
+/// <summary>
+/// Analog of studiohdr_t
+/// </summary>
+public class StudioHeader
+{
+	private StudioHeader() { }
+	public StudioHeader(Memory<byte> data) {
+		Data = data;
+	}
+	public readonly Memory<byte> Data;
 
 	public int ID;
 	public int Version;
@@ -171,10 +803,17 @@ public class StudioHDR
 	public Vector3 HullMax;
 	public Vector3 ViewBoundingBoxMin;
 	public Vector3 ViewBoundingBoxMax;
-	public StudioHdrFlags Flags; 
+	public StudioHdrFlags Flags;
 
 	public int NumBones;
 	public int BoneIndex;
+	MStudioBone[]? studioBoneCache;
+	public MStudioBone Bone(int i) {
+		if (studioBoneCache == null)
+			studioBoneCache = new MStudioBone[NumBones];
+
+		return studioBoneCache[i] ??= new(Data[(BoneIndex + (i * MStudioBone.SIZEOF))..]);
+	}
 
 	public int NumBoneControllers;
 	public int BoneControllerIndex;
@@ -193,19 +832,70 @@ public class StudioHDR
 
 	public int NumTextures;
 	public int TextureIndex;
-	public MStudioTexture Texture(int i) => new(); // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO 
-	// ^^ All these todos need to consider how we load MDL's and how we interface with them in C#. Since we want to use class instances rather than struct ref casting
+	MStudioTexture[]? studioTextures;
+
+	public MStudioTexture Texture(int i) {
+		if (studioTextures == null)
+			studioTextures = new MStudioTexture[NumTextures];
+
+		return studioTextures[i] ??= new(Data[(TextureIndex + (MStudioTexture.SIZE_OF_ONE * i))..]);
+	}
 
 	public int NumCDTextures;
 	public int CDTextureIndex;
-	public ReadOnlySpan<char> CDTexture(int i) => new(); // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO 
+	string[]? cdTextureCache;
+	public ReadOnlySpan<char> CDTexture(int i) {
+		if (cdTextureCache == null)
+			cdTextureCache = new string[NumCDTextures];
+
+		if (cdTextureCache[i] != null)
+			return cdTextureCache[i];
+
+		Span<byte> span = Data.Span;
+
+		var offsetTable = MemoryMarshal.Cast<byte, int>(span[CDTextureIndex..]);
+		int stringOffset = offsetTable[i];
+		var strBytes = span[stringOffset..];
+
+		using ASCIIStringView ascii = new(strBytes);
+		cdTextureCache[i] = new(ascii);
+		return cdTextureCache[i];
+	}
+
+	/// <summary>
+	/// pszName equiv
+	/// </summary>
+	public ReadOnlySpan<char> GetName() {
+		// TODO: studiohdr2 index
+
+		return ((ReadOnlySpan<char>)Name).SliceNullTerminatedString();
+	}
+
+	MStudioBodyParts[]? bodyPartCache;
+
+	public MStudioBodyParts BodyPart(int i) {
+		if (bodyPartCache == null)
+			bodyPartCache = new MStudioBodyParts[NumBodyParts];
+
+		ArgumentOutOfRangeException.ThrowIfLessThan(i, 0);
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(i, NumBodyParts);
+
+		if (bodyPartCache[i] == null)
+			return bodyPartCache[i] = new(Data[(BodyPartIndex + (MStudioBodyParts.SIZEOF * i))..]);
+		return bodyPartCache[i];
+	}
 
 	public int NumSkinRef;
 	public int NumSkinFamilies;
 	public int SkinIndex;
 
+	public Span<short> SkinRef(int i) => Data.Span[SkinIndex..].Cast<byte, short>()[i..];
+
 	public int NumBodyParts;
 	public int BodyPartIndex;
+
+	public int NumLocalAttachments;
+	public int LocalAttachmentIndex;
 
 	public int NumLocalNodes;
 	public int LocalNodeIndex;
@@ -236,13 +926,13 @@ public class StudioHDR
 	public int NumLocalIKAutoplayLocks;
 	public int LocalIKAutoplayLockIndex;
 
-	public int Mass;
+	public float Mass;
 	public int Contents;
 
 	public int NumIncludeModels;
 	public int IncludeModelIndex;
 
-	public int VirtualModel;
+	public MDLHandle_t VirtualModel;
 
 	public int SzAnimBlockNameIndex;
 	public int NumAnimBlocks;
@@ -254,8 +944,22 @@ public class StudioHDR
 	public int IndexBase;
 	public byte ConstDirectionalLightDot;
 	public byte RootLOD;
-	public byte NumALlowedRootLODs;
+	public byte NumAllowedRootLODs;
 	byte _UNUSED1;
 	public int StudioHDR2Index;
+	StudioHeader2? studioHdr2;
+	public StudioHeader2 StudioHdr2() => studioHdr2 ??= new(Data[StudioHDR2Index..]);
+
+	public MStudioLinearBone? LinearBones() => StudioHDR2Index != 0 ? StudioHdr2().LinearBones() : null;
+
+	internal VirtualModel? GetVirtualModel(IModelInfo modelinfo) {
+		if (NumIncludeModels == 0)
+			return null;
+		return modelinfo.GetVirtualModel(this);
+	}
+
 	byte _UNUSED2;
+	public int NumFlexControllerUI;
+	public int FlexControllerUIIndex;
+	public float VertAnimFixedPointScale;
 }

@@ -14,15 +14,25 @@ using Source.Common.ShaderAPI;
 
 using System.Numerics;
 using System.Text;
+using System.Threading;
 
 namespace Source.ShaderAPI.Gl46;
 
+/// <summary>
+/// Standardized OpenGL UBO binding locations. All uniform buffers are loaded with layout std140
+/// </summary>
 public enum UniformBufferBindingLocation
 {
+	/// <summary><b>source_matrices</b>: The model, view, and projection matrices</summary>
 	SharedMatrices = 0,
+	/// <summary><b>source_base_sharedUBO</b>: Shared uniforms that every shader can use.</summary>
 	SharedBaseShader = 1,
+	/// <summary><b>source_vertex_sharedUBO</b>: Shared uniforms that every vertex shader can use.</summary>
 	SharedVertexShader = 2,
-	SharedPixelShader = 3
+	/// <summary><b>source_pixel_sharedUBO</b>: Shared uniforms that every pixel shader can use.</summary>
+	SharedPixelShader = 3,
+	/// <summary><b>source_bone_matrices</b>: A <see cref="Matrix4x4"/>[<see cref="Studio.MAXSTUDIOBONES"/>] array.</summary>
+	SharedBoneMatrices = 4
 }
 
 public struct GfxViewport
@@ -125,12 +135,23 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 	}
 
 	uint uboMatrices;
+	uint uboBones;
 
 	private unsafe void CreateMatrixStacks() {
 		uboMatrices = glCreateBuffer();
 		glObjectLabel(GL_BUFFER, uboMatrices, "ShaderAPI Shared Matrix UBO");
 		glNamedBufferData(uboMatrices, sizeof(Matrix4x4) * 3, null, GL_DYNAMIC_DRAW);
 		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.SharedMatrices, uboMatrices);
+
+		uboBones = glCreateBuffer();
+		glObjectLabel(GL_BUFFER, uboBones, "ShaderAPI Shared Bone UBO");
+
+		Matrix4x4* identityMatrices = stackalloc Matrix4x4[Studio.MAXSTUDIOBONES];
+		for (int i = 0; i < Studio.MAXSTUDIOBONES; i++)
+			identityMatrices[i] = Matrix4x4.Identity;
+
+		glNamedBufferData(uboBones, sizeof(Matrix4x4) * Studio.MAXSTUDIOBONES, identityMatrices, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.SharedBoneMatrices, uboBones);
 	}
 
 	private void AcquireInternalRenderTargets() {
@@ -877,7 +898,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
-	public IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial material) {
+	public IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material) {
 		return MeshMgr.CreateStaticMesh(format, textureGroup, material);
 	}
 
@@ -969,4 +990,29 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 				break;
 		}
 	}
+
+	int MaxBoneLoaded;
+	public unsafe void LoadBoneMatrix(int boneIndex, in Matrix4x4 matrix) {
+		if (IsDeactivated())
+			return;
+		int szm4x4 = sizeof(Matrix4x4);
+		int loc = (int)boneIndex * szm4x4;
+		Matrix4x4 transposed = matrix;
+		glNamedBufferSubData(uboBones, loc, szm4x4, &transposed);
+		if (boneIndex > MaxBoneLoaded)
+			MaxBoneLoaded = boneIndex;
+
+		if(boneIndex == 0) {
+			MatrixMode(MaterialMatrixMode.Model);
+			LoadMatrix(matrix);
+		}
+	}
+	int numBones;
+	public void SetNumBoneWeights(int numBones) {
+		if(this.numBones != numBones) {
+			FlushBufferedPrimitives();
+			this.numBones = numBones;
+		}
+	}
+
 }

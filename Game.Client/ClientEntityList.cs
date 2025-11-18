@@ -45,7 +45,7 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 	}
 
 	public void SetMaxEntities(int maxEnts) {
-		throw new NotImplementedException();
+		MaxServerEnts = maxEnts;
 	}
 
 	readonly Dictionary<IClientUnknown, LinkedListNode<PVSNotifyInfo>> PVSNotifierMap = [];
@@ -140,6 +140,7 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 
 	}
 
+	public BaseHandle? InvalidHandle() => null;
 
 	class PVSNotifyInfo
 	{

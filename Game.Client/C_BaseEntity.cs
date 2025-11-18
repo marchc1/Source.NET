@@ -42,6 +42,8 @@ public partial class C_BaseEntity : IClientEntity
 	static bool s_bAbsRecomputationEnabled = true;
 	static ConVar cl_interpolate = new("cl_interpolate", "1", FCvar.UserInfo | FCvar.DevelopmentOnly);
 
+	public ReadOnlySpan<char> GetClassname() => "not_yet_implemented";
+
 	public static void InterpolateServerEntities() {
 		s_bInterpolate = cl_interpolate.GetBool();
 
@@ -233,7 +235,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public static RecvTable DT_PredictableId = new(nameof(DT_PredictableId), [
 		RecvPropPredictableId(FIELD.OF(nameof(PredictableId))),
-		RecvPropInt(FIELD.OF(nameof(IsPlayerSimulated))),
+		RecvPropInt(FIELD.OF(nameof(b_IsPlayerSimulated))),
 	]);
 	public static readonly ClientClass CC_PredictableId = new ClientClass("PredictableId", null, null, DT_PredictableId);
 
@@ -361,6 +363,8 @@ public partial class C_BaseEntity : IClientEntity
 		Clear();
 	}
 
+	public virtual bool IsTwoPass() => modelinfo.IsTranslucentTwoPass(GetModel());
+
 	public int Index;
 
 	private Model? Model;
@@ -388,7 +392,6 @@ public partial class C_BaseEntity : IClientEntity
 	public bool AlternateSorting;
 
 	public readonly PredictableId PredictableId = new();
-	public readonly bool IsPlayerSimulated;
 
 	public byte TakeDamage;
 	public ushort RealClassName;
@@ -466,6 +469,13 @@ public partial class C_BaseEntity : IClientEntity
 	public readonly Handle<C_BasePlayer> PlayerSimulationOwner = new();
 	public int DataChangeEventRef;
 
+	public int GetFxBlend() => RenderFXBlend;
+	public void GetColorModulation(Span<float> color) {
+		color[0] = ColorRender.R / 255f;
+		color[1] = ColorRender.G / 255f;
+		color[2] = ColorRender.B / 255f;
+	}
+
 	public virtual void ClientThink() { }
 
 	public bool ReadyToDraw;
@@ -493,7 +503,7 @@ public partial class C_BaseEntity : IClientEntity
 		return drawn;
 	}
 
-	public virtual bool SetupBones(Matrix4x4 boneToWorldOut, int maxBones, int boneMask, TimeUnit_t currentTime) {
+	public virtual bool SetupBones(Span<Matrix4x4> boneToWorldOut, int maxBones, int boneMask, TimeUnit_t currentTime) {
 		return true;
 	}
 	public virtual void SetupWeights(Matrix4x4 boneToWorldOut, Span<float> flexWeights, TimeUnit_t currentTime) {
@@ -536,7 +546,9 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public Model? GetModel() => Model;
-
+	public virtual void ValidateModelIndex() {
+		SetModelByIndex(ModelIndex);
+	}
 	void SetModelPointer(Model? model) {
 		if (model != Model) {
 			DestroyModelInstance();
@@ -546,13 +558,7 @@ public partial class C_BaseEntity : IClientEntity
 			UpdateVisibility();
 		}
 	}
-	void DestroyModelInstance() {
-		if (ModelInstance != MODEL_INSTANCE_INVALID) {
-			modelrender.DestroyInstance(ModelInstance);
-			ModelInstance = MODEL_INSTANCE_INVALID;
-		}
-	}
-	StudioHDR? OnNewModel() {
+	protected virtual StudioHdr? OnNewModel() {
 		return null; // what the hell????????????????? 
 	}
 	void SetModelIndex(int index) {
@@ -616,9 +622,6 @@ public partial class C_BaseEntity : IClientEntity
 		UpdateOnRemove();
 	}
 
-	public bool SetupBones(ref Matrix4x4 boneToWOrldOut, int maxBones, int boneMask, double currentTime) {
-		throw new NotImplementedException();
-	}
 
 	public virtual bool ShouldDraw() {
 		if ((RenderMode)RenderMode == Source.RenderMode.None)
@@ -721,7 +724,7 @@ public partial class C_BaseEntity : IClientEntity
 
 		MarkMessageReceived();
 
-		// ValidateModelIndex();
+		ValidateModelIndex();
 
 		if (updateType == DataUpdateType.Created) {
 			ProxyRandomValue = Random.Shared.NextSingle();
@@ -793,7 +796,53 @@ public partial class C_BaseEntity : IClientEntity
 		UpdateVisibility();
 	}
 
-	private void UpdateVisibility() {
+	public BaseHandle? GetClientHandle() => RefEHandle;
+
+	public bool InitializeAsClientEntity(ReadOnlySpan<char> modelName, RenderGroup renderGroup) {
+		int modelIndex;
+
+		if (!modelName.IsEmpty) {
+			modelIndex = modelinfo.GetModelIndex(modelName);
+
+			if (modelIndex == -1) {
+				// Model could not be found
+				AssertMsg(false, "Model could not be found, index is -1");
+				return false;
+			}
+		}
+		else 
+			modelIndex = -1;
+
+		Interp_SetupMappings(ref GetVarMapping());
+		return InitializeAsClientEntityByIndex(modelIndex, renderGroup);
+	}
+
+	public bool InitializeAsClientEntityByIndex(int index, RenderGroup renderGroup) {
+		this.Index = -1;
+
+		// Setup model data.
+		SetModelByIndex(index);
+
+		// Add the client entity to the master entity list.
+		cl_entitylist.AddNonNetworkableEntity(GetIClientUnknown());
+		Assert(GetClientHandle() != cl_entitylist.InvalidHandle());
+
+		// Add the client entity to the renderable "leaf system." (Renderable)
+		AddToLeafSystem(renderGroup);
+
+		// Add the client entity to the spatial partition. (Collidable)
+		// CollisionProp()->CreatePartitionHandle();
+
+		SpawnClientEntity();
+
+		return true;
+	}
+
+	public virtual void SpawnClientEntity() {
+
+	}
+
+	protected virtual void UpdateVisibility() {
 		// todo: tools
 		if (ShouldDraw() && !IsDormant())
 			AddToLeafSystem();
@@ -806,7 +855,7 @@ public partial class C_BaseEntity : IClientEntity
 	public ClientRenderHandle_t GetRenderHandle() => renderHandle;
 	public ref ClientRenderHandle_t RenderHandle() => ref renderHandle;
 
-	public RenderGroup GetRenderGroup() {
+	public virtual RenderGroup GetRenderGroup() {
 		if (RenderMode == (int)Source.RenderMode.None)
 			return RenderGroup.OpaqueEntity;
 
@@ -831,7 +880,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 
-	public void NotifyShouldTransmit(ShouldTransmiteState state) {
+	public virtual void NotifyShouldTransmit(ShouldTransmiteState state) {
 		if (EntIndex() < 0)
 			return;
 
@@ -1007,6 +1056,7 @@ public partial class C_BaseEntity : IClientEntity
 
 
 
+	int flags;
 	EFL eflags = EFL.DirtyAbsTransform; // << TODO: FIGURE OUT WHAT ACTUALLY INITIALIZES THIS.
 	public Matrix4x4 CoordinateFrame;
 
@@ -1151,6 +1201,10 @@ public partial class C_BaseEntity : IClientEntity
 
 	public virtual IPVSNotify? GetPVSNotifyInterface() {
 		return null;
+	}
+
+	public void ComputeFxBlend() {
+		// todo
 	}
 
 	public virtual object GetDataTableBasePtr() {
@@ -1374,9 +1428,28 @@ public partial class C_BaseEntity : IClientEntity
 	public bool IsVisible() => renderHandle != INVALID_CLIENT_RENDER_HANDLE;
 
 
-	private bool IsFollowingEntity() => IsEffectActive(EntityEffects.BoneMerge) && (GetMoveType() != Source.MoveType.None && GetMoveParent() != null);
+	public bool IsFollowingEntity() => IsEffectActive(EntityEffects.BoneMerge) && (GetMoveType() != Source.MoveType.None && GetMoveParent() != null);
 
-	private bool ShouldInterpolate() {
+	public virtual C_BaseEntity? GetFollowedEntity() {
+		if (!IsFollowingEntity())
+			return null;
+		return GetMoveParent();
+	}
+
+	public virtual ModelInstanceHandle_t GetModelInstance() => ModelInstance;
+	public virtual void SetModelInstance(ModelInstanceHandle_t modelInstance) => ModelInstance = modelInstance;
+	public void CreateModelInstance() {
+		if (ModelInstance == MODEL_INSTANCE_INVALID)
+			ModelInstance = modelrender.CreateInstance(this);
+	}
+	public void DestroyModelInstance() {
+		if (ModelInstance != MODEL_INSTANCE_INVALID) {
+			modelrender.DestroyInstance(ModelInstance);
+			ModelInstance = MODEL_INSTANCE_INVALID;
+		}
+	}
+
+	protected bool ShouldInterpolate() {
 		if (render.GetViewEntity() == Index)
 			return true;
 
