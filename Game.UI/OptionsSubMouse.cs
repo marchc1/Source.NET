@@ -44,6 +44,15 @@ public class OptionsSubMouse : PropertyPage
 		JoyPitchSensitivityPreLabel = new(this, "JoystickPitchSensitivityPreLabel", "#GameUI_JoystickLookSpeedPitch");
 
 		LoadControlSettings("resource/OptionsSubMouse.res");
+
+		// just sticks to top left corner, hiding for now..
+		JoystickCheckBox.SetVisible(false);
+		JoystickSouthpawCheckBox.SetVisible(false);
+		ReverseJoystickCheckBox.SetVisible(false);
+		JoyYawSensitivitySlider.SetVisible(false);
+		JoyYawSensitivityPreLabel.SetVisible(false);
+		JoyPitchSensitivitySlider.SetVisible(false);
+		JoyPitchSensitivityPreLabel.SetVisible(false);
 	}
 
 	public override void OnResetData() {
@@ -77,7 +86,7 @@ public class OptionsSubMouse : PropertyPage
 		JoyYawSensitivitySlider.ApplyChanges();
 		JoyPitchSensitivitySlider.ApplyChanges();
 
-		// engine.ClientCmd_Unrestricted("jpyadvancedupdate");
+		// engine.ClientCmd_Unrestricted("joyadvancedupdate");
 
 		ConVarRef var = new("m_customaccel");
 		if (var.IsValid())
@@ -91,8 +100,8 @@ public class OptionsSubMouse : PropertyPage
 			UpdateSensitivityLabel();
 		else if (panel == MouseAccelExponentSlider && MouseAccelExponentSlider.HasBeenModified())
 			UpdateAccelerationLabel();
-		// else if (panel == JoystickCheckBox)
-			// UpdateJoystickPanels();
+		else if (panel == JoystickCheckBox)
+			UpdateJoystickPanels();
 		else if (panel == MouseAccelerationCheckBox) {
 			MouseAccelExponentSlider.SetEnabled(MouseAccelerationCheckBox.IsSelected());
 			MouseAccelExponentLabel.SetEnabled(MouseAccelerationCheckBox.IsSelected());
@@ -106,12 +115,21 @@ public class OptionsSubMouse : PropertyPage
 		MouseSensitivityLabel.SetText(buf);
 	}
 
-	public void UpdateAccelerationLabel() {
+	private void UpdateAccelerationLabel() {
 		Span<char> buf = stackalloc char[64];
 		string formatted = $" {MouseAccelExponentSlider.GetSliderValue():F2}";
 		formatted.AsSpan().CopyTo(buf);
 		MouseAccelExponentLabel.SetText(buf);
 	}
 
-	//todo
+	private void UpdateJoystickPanels() {
+		bool joystickEnabled = JoystickCheckBox.IsSelected();
+
+		JoystickSouthpawCheckBox.SetEnabled(joystickEnabled);
+		ReverseJoystickCheckBox.SetEnabled(joystickEnabled);
+		JoyYawSensitivitySlider.SetEnabled(joystickEnabled);
+		JoyPitchSensitivitySlider.SetEnabled(joystickEnabled);
+		JoyYawSensitivityPreLabel.SetEnabled(joystickEnabled);
+		JoyPitchSensitivityPreLabel.SetEnabled(joystickEnabled);
+	}
 }
