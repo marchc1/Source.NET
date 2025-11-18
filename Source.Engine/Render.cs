@@ -524,7 +524,7 @@ public class Render(
 		else
 			MathLib.MatrixBuildPerspectiveX(ref viewToProjection, viewSetup.FOV, aspectRatio, viewSetup.ZNear, viewSetup.ZFar);
 
-		worldToProjection = Matrix4x4.Multiply(viewToProjection, worldToView);
+		MathLib.MatrixMultiply(viewToProjection, worldToView, out worldToProjection);
 
 		return aspectRatio;
 	}
