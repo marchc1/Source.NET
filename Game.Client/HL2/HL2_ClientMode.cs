@@ -5,6 +5,6 @@ namespace Game.Client.HL2;
 
 public static class HL2_ClientMode_Globals
 {
-	public static readonly ConVar default_fov = new("75", 0);
+	public static readonly ConVar default_fov = new("90", 0);
 	public static IClientMode clientMode { get; set; } = null!;
 }

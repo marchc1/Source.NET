@@ -503,10 +503,10 @@ public partial class C_BaseEntity : IClientEntity
 		return drawn;
 	}
 
-	public virtual bool SetupBones(Span<Matrix4x4> boneToWorldOut, int maxBones, int boneMask, TimeUnit_t currentTime) {
+	public virtual bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, TimeUnit_t currentTime) {
 		return true;
 	}
-	public virtual void SetupWeights(Matrix4x4 boneToWorldOut, Span<float> flexWeights, TimeUnit_t currentTime) {
+	public virtual void SetupWeights(Matrix3x4 boneToWorldOut, Span<float> flexWeights, TimeUnit_t currentTime) {
 		
 	}
 	public virtual void DoAnimationEvents() {
@@ -1032,7 +1032,7 @@ public partial class C_BaseEntity : IClientEntity
 		return false;
 	}
 
-	public Matrix4x4 EntityToWorldTransform() {
+	public Matrix3x4 EntityToWorldTransform() {
 		CalcAbsolutePosition();
 		return CoordinateFrame;
 	}
@@ -1058,7 +1058,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	int flags;
 	EFL eflags = EFL.DirtyAbsTransform; // << TODO: FIGURE OUT WHAT ACTUALLY INITIALIZES THIS.
-	public Matrix4x4 CoordinateFrame;
+	public Matrix3x4 CoordinateFrame;
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void AddEFlags(EFL flags) => eflags |= flags;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void RemoveEFlags(EFL flags) => eflags &= ~flags;

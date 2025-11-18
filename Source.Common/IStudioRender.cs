@@ -1,5 +1,6 @@
 using Source.Common.Engine;
 using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
 
 using System.Numerics;
 
@@ -76,9 +77,9 @@ public interface IStudioRender {
 	void UnloadModel(StudioHWData hardwareData);
 
 	int GetMaterialList(StudioHeader studioHDR, Span<IMaterial> materials);
-	Span<Matrix4x4> LockBoneMatrices(int boneCount);
+	Span<Matrix3x4> LockBoneMatrices(int boneCount);
 	void UnlockBoneMatrices();
-	void DrawModel(ref DrawModelResults results, ref DrawModelInfo info, Span<Matrix4x4> boneToWorld, Span<byte> flexWeights, Span<byte> flexDelayedWeights, in Vector3 modelOrigin, StudioRenderFlags flags = StudioRenderFlags.DrawEntireModel);
+	void DrawModel(ref DrawModelResults results, ref DrawModelInfo info, Span<Matrix3x4> boneToWorld, Span<byte> flexWeights, Span<byte> flexDelayedWeights, in Vector3 modelOrigin, StudioRenderFlags flags = StudioRenderFlags.DrawEntireModel);
 	void SetViewState(in Vector3 currentViewOrigin, in Vector3 currentViewRight, in Vector3 currentViewUp, in Vector3 currentViewForward);
 	void SetColorModulation(Vector3 r_colormod);
 	void SetAlphaModulation(float r_blend);

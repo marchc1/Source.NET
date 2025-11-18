@@ -1,6 +1,7 @@
 using Source.Common.Bitmap;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
 
 using System.Numerics;
 
@@ -101,6 +102,6 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void TexWrap(TexCoordComponent coord, TexWrapMode wrapMode);
 	void TexMinFilter(TexFilterMode mode);
 	void TexMagFilter(TexFilterMode mode);
-	void LoadBoneMatrix(int boneIndex, in Matrix4x4 matrix);
+	void LoadBoneMatrix(int boneIndex, in Matrix3x4 matrix);
 	void SetNumBoneWeights(int numBones);
 }

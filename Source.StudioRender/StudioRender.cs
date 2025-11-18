@@ -29,19 +29,19 @@ public unsafe class StudioRender
 	IMaterialSystem materialSystem = Singleton<IMaterialSystem>();
 
 	StudioRenderCtx? pRC;
-	Matrix4x4* pBoneToWorld;
+	Matrix3x4* pBoneToWorld;
 	int nBoneToWorld;
 	StudioHeader? StudioHdr;
 	StudioMeshData[]? StudioMeshes;
 
-	public readonly Matrix4x4[] PoseToWorld = new Matrix4x4[Studio.MAXSTUDIOBONES];
-	public readonly Matrix4x4[] PoseToDecal = new Matrix4x4[Studio.MAXSTUDIOBONES];
+	public readonly Matrix3x4[] PoseToWorld = new Matrix3x4[Studio.MAXSTUDIOBONES];
+	public readonly Matrix3x4[] PoseToDecal = new Matrix3x4[Studio.MAXSTUDIOBONES];
 
-	internal void DrawModel(ref DrawModelInfo info, StudioRenderCtx RC, Span<Matrix4x4> boneToWorld, StudioRenderFlags flags) {
+	internal void DrawModel(ref DrawModelInfo info, StudioRenderCtx RC, Span<Matrix3x4> boneToWorld, StudioRenderFlags flags) {
 		// TODO: a better way to do this that doesnt require unsafe
 		// TODO: flex
 		nBoneToWorld = boneToWorld.Length;
-		fixed (Matrix4x4* pBtW = boneToWorld) {
+		fixed (Matrix3x4* pBtW = boneToWorld) {
 			pRC = RC;
 			pBoneToWorld = pBtW;
 
@@ -87,7 +87,7 @@ public unsafe class StudioRender
 		}
 	}
 
-	private void ComputePoseToWorld(Span<Matrix4x4> poseToWorld, StudioHeader studioHdr, int boneMask, in Vector3 viewOrigin, Matrix4x4* pBoneToWorld) {
+	private void ComputePoseToWorld(Span<Matrix3x4> poseToWorld, StudioHeader studioHdr, int boneMask, in Vector3 viewOrigin, Matrix3x4* pBoneToWorld) {
 		if ((studioHdr.Flags & StudioHdrFlags.StaticProp) != 0) {
 			poseToWorld[0] = pBoneToWorld[0];
 			return;
@@ -99,7 +99,7 @@ public unsafe class StudioRender
 				if ((pCurBone.Flags & boneMask) == 0)
 					continue;
 
-				Matrix4x4 poseToBone = pCurBone.PoseToBone.To4x4();
+				Matrix3x4 poseToBone = pCurBone.PoseToBone;
 				MathLib.ConcatTransforms(in pBoneToWorld[i], in poseToBone, out poseToWorld[i]);
 			}
 		}
@@ -110,7 +110,7 @@ public unsafe class StudioRender
 				if ((linearBones.Flags(i) & boneMask) == 0)
 					continue;
 
-				Matrix4x4 poseToBone = linearBones.PoseToBone(i).To4x4();
+				Matrix3x4 poseToBone = linearBones.PoseToBone(i);
 				MathLib.ConcatTransforms(in pBoneToWorld[i], in poseToBone, out poseToWorld[i]);
 			}
 		}

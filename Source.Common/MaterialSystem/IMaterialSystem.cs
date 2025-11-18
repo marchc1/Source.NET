@@ -1,6 +1,7 @@
 using Source.Common.Bitmap;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Launcher;
+using Source.Common.Mathematics;
 using Source.Common.ShaderAPI;
 
 using System.Numerics;
@@ -247,11 +248,12 @@ public interface IMatRenderContext
 	IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material);
 	int GetMaxVerticesToRender(IMaterial material);
 	int GetMaxIndicesToRender(IMaterial material);
-	void LoadMatrix(in Matrix4x4 matrixProjection);
+	void LoadMatrix(in Matrix3x4 matrix);
+	void LoadMatrix(in Matrix4x4 matrix);
 	float ComputePixelDiameterOfSphere(Vector3 origin, float radius);
 	float ComputePixelWidthOfSphere(Vector3 origin, float radius);
 	void SetNumBoneWeights(int v);
-	void LoadBoneMatrix(int hardwareID, in Matrix4x4 matrix4x4);
+	void LoadBoneMatrix(int hardwareID, in Matrix3x4 matrix4x4);
 }
 
 public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
@@ -316,12 +318,13 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 
 	public void PushRenderTargetAndViewport(ITexture? rtColor, ITexture? rtDepth, int x, int y, int width, int height) => ctx.PushRenderTargetAndViewport(rtColor, rtDepth, x, y, width, height);
 
-	public void LoadMatrix(in Matrix4x4 matrixProjection) => ctx.LoadMatrix(in matrixProjection);
+	public void LoadMatrix(in Matrix3x4 matrix) => ctx.LoadMatrix(in matrix);
+	public void LoadMatrix(in Matrix4x4 matrix) => ctx.LoadMatrix(in matrix);
 
 	public float ComputePixelDiameterOfSphere(Vector3 origin, float radius) => ctx.ComputePixelDiameterOfSphere(origin, radius);
 	public float ComputePixelWidthOfSphere(Vector3 origin, float radius) => ctx.ComputePixelWidthOfSphere(origin, radius);
 
 	public void SetNumBoneWeights(int v) => ctx.SetNumBoneWeights(v);
 
-	public void LoadBoneMatrix(int hardwareID, in Matrix4x4 matrix) => ctx.LoadBoneMatrix(hardwareID, in matrix); 
+	public void LoadBoneMatrix(int hardwareID, in Matrix3x4 matrix) => ctx.LoadBoneMatrix(hardwareID, in matrix); 
 }

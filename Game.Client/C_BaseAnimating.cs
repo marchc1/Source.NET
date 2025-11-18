@@ -37,8 +37,8 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 	public TimeUnit_t GetPlaybackRate() => PlaybackRate;
 	public void SetPlaybackRate(TimeUnit_t rate) => PlaybackRate = (float)rate; // todo: double?
-	public ref readonly Matrix4x4 GetBone(int bone) => ref BoneAccessor.GetBone(bone);
-	public ref Matrix4x4 GetBoneForWrite(int bone) => ref BoneAccessor.GetBoneForWrite(bone);
+	public ref readonly Matrix3x4 GetBone(int bone) => ref BoneAccessor.GetBone(bone);
+	public ref Matrix3x4 GetBoneForWrite(int bone) => ref BoneAccessor.GetBoneForWrite(bone);
 
 	public bool IsBoneAccessAllowed() => true; // todo
 
@@ -55,7 +55,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	Vector3 BonePosition;
 	QAngle BoneAngles;
 	readonly Handle<C_BaseAnimating> AttachedTo = new();
-	readonly List<Matrix4x4> CachedBoneData = [];
+	readonly List<Matrix3x4> CachedBoneData = [];
 
 	public void InvalidateBoneCache() {
 		MostRecentModelBoneCounter = ModelBoneCounter - 1;
@@ -69,11 +69,11 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 	static TimeUnit_t SetupBones__lastWarning = 0.0;
 	// TODO: REWRITE THIS FOR BONEMERGING
-	public void BuildTransformations(StudioHdr? hdr, Span<Vector3> pos, Span<Quaternion> q, in Matrix4x4 cameraTransform, int boneMask, ref BoneBitList boneComputed) {
+	public void BuildTransformations(StudioHdr? hdr, Span<Vector3> pos, Span<Quaternion> q, in Matrix3x4 cameraTransform, int boneMask, ref BoneBitList boneComputed) {
 		if (hdr == null)
 			return;
 
-		Matrix4x4 bonematrix = default;
+		Matrix3x4 bonematrix = default;
 		Span<bool> boneSimulated = stackalloc bool[Studio.MAXSTUDIOBONES];
 
 		// no bones have been simulated
@@ -115,11 +115,11 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 	}
 
-	private void ApplyBoneMatrixTransform(ref Matrix4x4 matrix4x4) {
+	protected virtual void ApplyBoneMatrixTransform(ref Matrix3x4 matrix4x4) {
 
 	}
 
-	public override bool SetupBones(Span<Matrix4x4> boneToWorldOut, int maxBones, int boneMask, double currentTime) {
+	public override bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, double currentTime) {
 		if (!boneToWorldOut.IsEmpty && !IsBoneAccessAllowed()) {
 			if (gpGlobals.RealTime >= SetupBones__lastWarning + 1.0f) {
 				DevMsg($"*** ERROR: Bone access not allowed (entity {Index}:{GetClassname()})\n");
@@ -148,7 +148,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			if (hdr == null || !hdr.SequencesAvailable(modelinfo))
 				return false;
 
-			Matrix4x4 parentTransform = default;
+			Matrix3x4 parentTransform = default;
 			MathLib.AngleMatrix(GetRenderAngles(), GetRenderOrigin(), ref parentTransform);
 
 			boneMask |= PrevBoneMask;
@@ -419,7 +419,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		MathLib.AngleMatrix(info.Angles, info.Origin, ref info.ModelToWorld);
 
 		DrawModelState state = default;
-		bool markAsDrawn = modelrender.DrawModelSetup(ref info, ref state, default, out Span<Matrix4x4> boneToWorld);
+		bool markAsDrawn = modelrender.DrawModelSetup(ref info, ref state, default, out Span<Matrix3x4> boneToWorld);
 
 		// Scale the base transform if we don't have a bone hierarchy
 		if (IsModelScaled()) {
@@ -427,8 +427,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			if (pHdr != null && !Unsafe.IsNullRef(ref boneToWorld) && pHdr.NumBones() == 1) {
 				// Scale the bone to world at this point
 				float flScale = GetModelScale();
-
-				boneToWorld[0] *= Matrix4x4.CreateScale(flScale); // >
+				// todo: vector scale
 			}
 		}
 
@@ -442,7 +441,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return markAsDrawn ? 1 : 0;
 	}
 
-	private void DoInternalDrawModel(ref ClientModelRenderInfo info, ref DrawModelState state, Span<Matrix4x4> boneToWorldArray) {
+	private void DoInternalDrawModel(ref ClientModelRenderInfo info, ref DrawModelState state, Span<Matrix3x4> boneToWorldArray) {
 		if (!Unsafe.IsNullRef(ref state))
 			modelrender.DrawModelExecute(ref state, ref info, boneToWorldArray);
 

@@ -30,7 +30,7 @@ void main()
       (bone0 * vec4(v_Position, 1.0)) * v_BoneWeights.x
     + (bone1 * vec4(v_Position, 1.0)) * v_BoneWeights.y;
 
-    mat4 mvp = projectionMatrix * viewMatrix;
+    mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
     gl_Position = mvp * localPos;
 
     vs_TexCoord = v_TexCoord;
