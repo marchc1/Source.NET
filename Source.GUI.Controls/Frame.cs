@@ -554,8 +554,8 @@ public class Frame : EditablePanel
 			SetMaximizeButtonVisible(false);
 		}
 
-		MenuButton = new FrameSystemButton(this, "frame_menu");
-		MenuButton.SetMenu(GetSysMenu());
+		// MenuButton = new FrameSystemButton(this, "frame_menu");
+		// MenuButton.SetMenu(GetSysMenu());
 
 		SetupResizeCursors();
 	}

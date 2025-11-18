@@ -1431,20 +1431,27 @@ public class Panel : IPanel
 
 	IFont? _dbgfont;
 	IFont dbgfont => _dbgfont ??= SchemeManager.GetDefaultScheme().GetFont("DebugFixed")!;
-	static int t = 0;
+
+	static readonly ConVar sdn_vgui_debug = new("sdn_vgui_debug", 0, "Show debug info for panels under the mouse cursor.");
 	private void DebugVisualize() {
-#if NOVISUALIZE
+		if (sdn_vgui_debug.GetInt() == 0)
+			return;
+
+		Input.GetCursorPos(out int mx, out int my);
+		if (!IsWithin(mx, my))
+			return;
+
 		Surface.PushMakeCurrent(this, false);
 		GetSize(out int w, out int h);
-		Surface.DrawSetColor(255, 255, 255, 255);
+		Surface.DrawSetColor(255, 0, 0, 255);
 		Surface.DrawOutlinedRect(0, 0, w, h);
-
 		Surface.DrawSetTextFont(dbgfont);
 		Surface.DrawSetTextPos(4, 4);
-		Surface.DrawPrintText($"{GetType().Name} {GetName()} {BgColor}");
-
+		if (sdn_vgui_debug.GetInt() == 2)
+			Surface.DrawPrintText($"{GetType().Name} {GetName()} {BgColor}");
+		else
+			Surface.DrawPrintText($"{GetType().Name} {GetName()}");
 		Surface.PopMakeCurrent(this);
-#endif
 	}
 
 	public virtual void PostChildPaint() {
