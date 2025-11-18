@@ -316,35 +316,7 @@ public static class MathLib
 	}
 
 	public static void QuaternionMatrix(in Quaternion q, out Matrix4x4 m) {
-		m = default;
-		float xx = q.X * q.X;
-		float yy = q.Y * q.Y;
-		float zz = q.Z * q.Z;
-		float xy = q.X * q.Y;
-		float xz = q.X * q.Z;
-		float yz = q.Y * q.Z;
-		float wx = q.W * q.X;
-		float wy = q.W * q.Y;
-		float wz = q.W * q.Z;
-
-		// ROW 0
-		m.M11 = 1 - 2 * (yy + zz);
-		m.M12 = 2 * (xy - wz);
-		m.M13 = 2 * (xz + wy);
-
-		// ROW 1
-		m.M21 = 2 * (xy + wz);
-		m.M22 = 1 - 2 * (xx + zz);
-		m.M23 = 2 * (yz - wx);
-
-		// ROW 2
-		m.M31 = 2 * (xz - wy);
-		m.M32 = 2 * (yz + wx);
-		m.M33 = 1 - 2 * (xx + yy);
-
-		// ROW 3
-		m.M41 = m.M42 = m.M43 = 0;
-		m.M44 = 1;
+		m = Matrix4x4.CreateFromQuaternion(q);
 	}
 
 	public static void SetIdentityMatrix(out Matrix4x4 matrix4x4) {
