@@ -82,7 +82,47 @@ public class Base3dView
 	public Frustum GetFrustrum() => frustum;
 	public virtual DrawFlags GetDrawFlags() => 0;
 }
+public class BaseWorldView : Rendering3dView
+{
+	public BaseWorldView(ViewRender mainView) : base(mainView) { }
+	protected void DrawSetup(float waterHeight, DrawFlags setupFlags, float waterZAdjust) {
+		ViewID savedViewID = ViewRender.CurrentViewID;
+		ViewRender.CurrentViewID = ViewID.Illegal;
+		BuildRenderableRenderLists(savedViewID);
 
+		ViewRender.CurrentViewID = savedViewID;
+	}
+	protected void DrawExecute(float waterHeight, ViewID viewID, float waterZAdjust) {
+		using MatRenderContextPtr renderContext = new(mainView.materials);
+		renderContext.ClearBuffers(false, true, false);
+
+		RenderDepthMode depthMode = RenderDepthMode.Normal;
+
+		if ((DrawFlags & DrawFlags.DrawEntities) != 0) {
+			DrawWorld(waterZAdjust);
+			DrawOpaqueRenderables(depthMode);
+		}
+	}
+}
+
+public class SimpleWorldView : BaseWorldView
+{
+	public SimpleWorldView(ViewRender mainView) : base(mainView) { }
+	public void Setup(in ViewSetup view, ClearFlags clearFlags, bool drawSkybox) {
+		base.Setup(in view);
+
+		ClearFlags = clearFlags;
+		DrawFlags = DrawFlags.DrawEntities;
+
+		if (drawSkybox)
+			DrawFlags |= DrawFlags.DrawSkybox;
+	}
+	public override void Draw() {
+		using MatRenderContextPtr renderContext = new(mainView.materials);
+		DrawSetup(0, DrawFlags, 0);
+		DrawExecute(0, ViewRender.CurrentViewID, 0);
+	}
+}
 public class Rendering3dView : Base3dView
 {
 	protected DrawFlags DrawFlags;
@@ -93,6 +133,12 @@ public class Rendering3dView : Base3dView
 
 	public Rendering3dView(ViewRender mainView) : base(mainView) {
 
+	}
+	protected void BuildRenderableRenderLists(ViewID viewID) {
+		//  if (viewID != ViewID.ShadowDepthTexture)
+		//  	render.BeginUpdateLightmaps();
+		mainView.IncRenderablesListsNumber();
+		SetupRenderablesList(viewID);
 	}
 	public virtual void Setup(in ViewSetup setup) {
 		ViewSetup = setup; // copy to our ViewSetup
@@ -288,12 +334,6 @@ public class SkyboxView : Rendering3dView
 		render.PopView(GetFrustrum());
 	}
 
-	protected void BuildRenderableRenderLists(ViewID viewID) {
-		//  if (viewID != ViewID.ShadowDepthTexture)
-		//  	render.BeginUpdateLightmaps();
-		mainView.IncRenderablesListsNumber();
-		SetupRenderablesList(viewID);
-	}
 
 	private void SetupCurrentView(in Vector3 origin, in QAngle angles, ViewID viewID) {
 		ViewRender.CurrentRenderOrigin = origin;

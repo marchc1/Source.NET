@@ -24,40 +24,6 @@ public static class ViewConVars
 	public static readonly ConVar v_viewmodel_fov = new("viewmodel_fov", "54", FCvar.Cheat, "Sets the field-of-view for the viewmodel.", 0.1, 179.9);
 }
 
-public class BaseWorldView : Rendering3dView
-{
-	public BaseWorldView(ViewRender mainView) : base(mainView) { }
-
-	protected void DrawExecute(float waterHeight, ViewID viewID, float waterZAdjust) {
-		using MatRenderContextPtr renderContext = new(mainView.materials);
-		renderContext.ClearBuffers(false, true, false);
-
-		RenderDepthMode depthMode = RenderDepthMode.Normal;
-
-		if ((DrawFlags & DrawFlags.DrawEntities) != 0) {
-			DrawWorld(waterZAdjust);
-			DrawOpaqueRenderables(depthMode);
-		}
-	}
-}
-public class SimpleWorldView : BaseWorldView
-{
-	public SimpleWorldView(ViewRender mainView) : base(mainView) { }
-	public void Setup(in ViewSetup view, ClearFlags clearFlags, bool drawSkybox) {
-		base.Setup(in view);
-
-		ClearFlags = clearFlags;
-		DrawFlags = DrawFlags.DrawEntities;
-
-		if (drawSkybox)
-			DrawFlags |= DrawFlags.DrawSkybox;
-	}
-	public override void Draw() {
-		using MatRenderContextPtr renderContext = new(mainView.materials);
-
-		DrawExecute(0, ViewRender.CurrentViewID, 0);
-	}
-}
 
 public class ViewRender : IViewRender
 {
