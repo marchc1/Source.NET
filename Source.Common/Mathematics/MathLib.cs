@@ -33,6 +33,12 @@ public struct Matrix3x4
 	public float M00, M01, M02, M03;
 	public float M10, M11, M12, M13;
 	public float M20, M21, M22, M23;
+	public unsafe Span<float> this[int row] {
+		get {
+			if (row < 0 || row >= 3) throw new ArgumentOutOfRangeException(nameof(row));
+			return new(Unsafe.AsPointer(ref Unsafe.Add(ref M00, (row * 4))), 4);
+		}
+	}
 	public unsafe float this[int row, int col] {
 		get {
 			if (row < 0 || row >= 3) throw new ArgumentOutOfRangeException(nameof(row));
@@ -345,6 +351,34 @@ public static class MathLib
 		matrix[0, 0] = 1.0f;
 		matrix[1, 1] = 1.0f;
 		matrix[2, 2] = 1.0f;
+	}
+
+	public static void MatrixInvert(in Matrix3x4 inM, out Matrix3x4 outM) {
+		outM = default;
+		// transpose the matrix
+		outM[0, 0] = inM[0, 0];
+		outM[0, 1] = inM[1, 0];
+		outM[0, 2] = inM[2, 0];
+		outM[1, 0] = inM[0, 1];
+		outM[1, 1] = inM[1, 1];
+		outM[1, 2] = inM[2, 1];
+		outM[2, 0] = inM[0, 2];
+		outM[2, 1] = inM[1, 2];
+		outM[2, 2] = inM[2, 2];
+
+		// now fix up the translation to be in the other space
+		Span<float> tmp = stackalloc float[3];
+		tmp[0] = inM[0, 3];
+		tmp[1] = inM[1, 3];
+		tmp[2] = inM[2, 3];
+
+		outM[0, 3] = -DotProduct(tmp, outM[0]);
+		outM[1, 3] = -DotProduct(tmp, outM[1]);
+		outM[2, 3] = -DotProduct(tmp, outM[2]);
+	}
+
+	public static vec_t DotProduct(Span<vec_t> v1, Span<vec_t> v2) {
+		return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 	}
 
 	public static void MatrixBuildPerspectiveX(ref Matrix4x4 dst, float fovX, float aspectRatio, float zNear, float zFar) {
