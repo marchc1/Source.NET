@@ -42,9 +42,6 @@ public class Render(
 	ModelLoader? _modelLoader;
 	ModelLoader modelLoader => _modelLoader ??= (ModelLoader)Singleton<IModelLoader>();
 
-	IViewRender? viewRender;
-	IViewRender engineRenderer => viewRender ??= Singleton<IViewRender>();
-
 	float FOV;
 	float Framerate;
 	float ZNear;
@@ -295,7 +292,7 @@ public class Render(
 		Span<MatSysInterface.MeshList> meshLists = MaterialSystem.Meshes.AsSpan();
 
 		if ((flags & DrawWorldListFlags.Skybox) != 0) {
-			DrawSkybox(engineRenderer.GetZFar());
+			DrawSkybox(GetZFar());
 		}
 
 		for (int i = meshLists.Length - 1; i >= 0; i--) {
@@ -311,6 +308,11 @@ public class Render(
 			}
 		}
 	}
+
+	private float GetZFar() {
+		return Far;
+	}
+
 	static ConVar r_drawskybox = new("1", FCvar.Cheat);
 
 	static readonly int[] SkyTexOrder = [0, 2, 1, 3, 4, 5];
