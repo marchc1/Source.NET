@@ -168,7 +168,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 				Span<Quaternion> q = stackalloc Quaternion[Studio.MAXSTUDIOBONES];
 				int bonesMaskNeedRecalc = boneMask | oldReadableBones;
 
-				// StandardBlendingRules(hdr, pos, q, currentTime, bonesMaskNeedRecalc);
+				StandardBlendingRules(hdr, pos, q, currentTime, bonesMaskNeedRecalc);
 
 				BoneBitList boneComputed = new();
 				BuildTransformations(hdr, pos, q, parentTransform, bonesMaskNeedRecalc, ref boneComputed);
@@ -195,6 +195,12 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 
 		return true;
+	}
+
+	private void StandardBlendingRules(StudioHdr hdr, Span<Vector3> pos, Span<Quaternion> q, TimeUnit_t currentTime, int bonesMaskNeedRecalc) {
+		for (int i = 0; i < pos.Length; i++) pos[i] = Vector3.Zero;
+		for (int i = 0; i < q.Length; i++) q[i] = Quaternion.Identity;
+		
 	}
 
 	public static readonly RecvTable DT_ServerAnimationData = new([

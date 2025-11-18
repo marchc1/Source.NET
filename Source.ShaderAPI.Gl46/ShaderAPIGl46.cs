@@ -997,14 +997,14 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 			return;
 		int szm4x4 = sizeof(Matrix4x4);
 		int loc = (int)boneIndex * szm4x4;
-		Matrix4x4 transposed = matrix;
+		Matrix4x4 transposed = Matrix4x4.Transpose(matrix);
 		glNamedBufferSubData(uboBones, loc, szm4x4, &transposed);
 		if (boneIndex > MaxBoneLoaded)
 			MaxBoneLoaded = boneIndex;
 
 		if(boneIndex == 0) {
 			MatrixMode(MaterialMatrixMode.Model);
-			LoadMatrix(matrix);
+			LoadMatrix(transposed);
 		}
 	}
 	int numBones;
