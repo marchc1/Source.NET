@@ -1,4 +1,6 @@
-﻿using Game.Shared;
+﻿using CommunityToolkit.HighPerformance;
+
+using Game.Shared;
 
 using Source;
 using Source.Common;
@@ -55,6 +57,11 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	readonly Handle<C_BaseAnimating> AttachedTo = new();
 	readonly List<Matrix4x4> CachedBoneData = [];
 
+	public void InvalidateBoneCache() {
+		MostRecentModelBoneCounter = ModelBoneCounter - 1;
+		LastBoneSetupTime = -TimeUnit_t.MaxValue;
+	}
+	public bool IsBoneCacheValid() => MostRecentModelBoneCounter == ModelBoneCounter;
 	static void InvalidateBoneCaches() => ModelBoneCounter++;
 
 	public TimeUnit_t LastBoneSetupTime;
@@ -257,6 +264,16 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		StudioHdr? hdr = GetModelPtr();
 		if (hdr == null)
 			return null;
+
+		InvalidateBoneCache();
+
+		if(CachedBoneData.Count != hdr.NumBones()) {
+			CachedBoneData.SetSize(hdr.NumBones());
+			for (int i = 0; i < hdr.NumBones(); i++) {
+				MathLib.SetIdentityMatrix(out CachedBoneData.AsSpan()[i]);
+			}
+		}
+		BoneAccessor.Init(CachedBoneData.Base());
 
 		// todo: the rest of this
 

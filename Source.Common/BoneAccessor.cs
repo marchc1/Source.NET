@@ -30,4 +30,7 @@ public class BoneAccessor
 	public ref Matrix4x4 GetBoneForWrite(int bone) => ref Bones.Span[bone];
 	public Span<Matrix4x4> GetBoneArrayForWrite() => Bones.Span;
 
+	public void Init(Memory<Matrix4x4> matrix4x4s) {
+		Bones = matrix4x4s;
+	}
 }

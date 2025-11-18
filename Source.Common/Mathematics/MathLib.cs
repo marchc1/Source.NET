@@ -315,4 +315,8 @@ public static class MathLib
 	public static void QuaternionMatrix(in Quaternion quaternion, out Matrix4x4 bonematrix) {
 		bonematrix = Matrix4x4.CreateFromQuaternion(quaternion);
 	}
+
+	public static void SetIdentityMatrix(out Matrix4x4 matrix4x4) {
+		matrix4x4 = Matrix4x4.Identity;
+	}
 }
