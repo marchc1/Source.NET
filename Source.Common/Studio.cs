@@ -930,6 +930,12 @@ public class StudioHeader
 	public byte RootLOD;
 	public byte NumAllowedRootLODs;
 	byte _UNUSED1;
+	int _UNUSED4;
+	public int NumFlexControllerUI;
+	public int FlexControllerUIIndex;
+	public float VertAnimFixedPointScale;
+	byte _UNUSED3;
+
 	public int StudioHDR2Index;
 	StudioHeader2? studioHdr2;
 	public StudioHeader2 StudioHdr2() => studioHdr2 ??= new(Data[StudioHDR2Index..]);
@@ -942,8 +948,5 @@ public class StudioHeader
 		return modelinfo.GetVirtualModel(this);
 	}
 
-	byte _UNUSED2;
-	public int NumFlexControllerUI;
-	public int FlexControllerUIIndex;
-	public float VertAnimFixedPointScale;
+	
 }

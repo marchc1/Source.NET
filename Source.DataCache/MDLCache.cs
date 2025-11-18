@@ -390,7 +390,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 		header.RootLOD = br.ReadByte();
 		header.NumAllowedRootLODs = br.ReadByte();
 		br.ReadNothing(1);
-		br.ReadNothing(1);
+		br.ReadNothing(4);
 		header.NumFlexControllerUI = br.ReadInt32();
 		header.FlexControllerUIIndex = br.ReadInt32();
 		header.VertAnimFixedPointScale = br.ReadSingle();
