@@ -18,6 +18,7 @@ public struct ConVarRef
 {
 	static readonly EmptyConVar EmptyConVar = new();
 	static ICvar? cvar;
+	bool warnedBefore;
 	static ICvar CVar => cvar ??= Singleton<ICvar>();
 	
 	ConVar ConVar;
@@ -41,16 +42,12 @@ public struct ConVarRef
 		if (ConVar != null)
 			return;
 
-		// todo: remove override once more convars are implemented
-#if DEBUG
-	ignoreMissing = true;
-#endif
-
 		var conVar = CVar?.FindVar(name);
 		ConVar = conVar ??= EmptyConVar;
 		if (!IsValid()) {
-			if (CVar != null && !ignoreMissing)
+			if (CVar != null && !ignoreMissing && !warnedBefore)
 				Warning($"ConVarRef {name} doesn't point to an existing ConVar\n");
+			warnedBefore = true;
 		}
 	}
 
