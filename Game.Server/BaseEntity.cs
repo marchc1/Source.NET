@@ -217,7 +217,7 @@ public partial class BaseEntity : IServerEntity
 
 	int flags;
 	EFL eflags;
-	public Matrix4x4 CoordinateFrame;
+	public Matrix3x4 CoordinateFrame;
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void AddEFlags(EFL flags) => eflags |= flags;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void RemoveEFlags(EFL flags) => eflags &= ~flags;
@@ -229,4 +229,9 @@ public partial class BaseEntity : IServerEntity
 
 	public void SetLocalOrigin(in Vector3 origin) { } // todo
 	public void SetLocalAngles(in QAngle origin) { } // todo
+
+	public ref Matrix3x4 EntityToWorldTransform() {
+
+		return ref CoordinateFrame;
+	}
 }

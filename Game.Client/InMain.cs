@@ -383,8 +383,17 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 			ControllerMove(frametime, ref cmd);
 		}
 
+		engine.GetViewAngles(out viewangles);
+
 		cmd.Buttons = GetButtonBits(0);
+		cmd.ViewAngles = viewangles;
+
+		if(clientMode.CreateMove(frametime, ref cmd)) {
+			engine.SetViewAngles(cmd.ViewAngles);
+			prediction.SetLocalViewAngles(cmd.ViewAngles);
+		}
 	}
+	QAngle PreviousViewAngles;
 
 	private void AdjustAngles(double frametime) {
 		float speed = DetermineKeySpeed(frametime);
@@ -395,12 +404,12 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 
 		AdjustYaw(speed, ref viewangles);
 		AdjustPitch(speed, ref viewangles);
-		ClampAngles(viewangles);
+		ClampAngles(ref viewangles);
 
 		engine.SetViewAngles(viewangles);
 	}
 
-	private void ClampAngles(QAngle viewangles) {
+	private void ClampAngles(ref QAngle viewangles) {
 		if (viewangles[PITCH] > cl_pitchdown.GetFloat())
 			viewangles[PITCH] = cl_pitchdown.GetFloat();
 

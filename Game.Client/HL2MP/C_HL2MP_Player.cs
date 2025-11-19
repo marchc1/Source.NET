@@ -60,7 +60,10 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	}
 
 	public override ref readonly QAngle EyeAngles() {
-		return ref AngEyeAngles;
+		if (IsLocalPlayer())
+			return ref base.EyeAngles();
+		else
+			return ref AngEyeAngles;
 	}
 
 	public override void CalcView(ref Vector3 eyeOrigin, ref QAngle eyeAngles, ref float zNear, ref float zFar, ref float fov) {

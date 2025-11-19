@@ -1,6 +1,9 @@
 ﻿#if CLIENT_DLL || GAME_DLL
 #if CLIENT_DLL
 global using BasePlayer = Game.Client.C_BasePlayer;
+
+using Game.Shared;
+
 #else
 global using BasePlayer = Game.Server.BasePlayer;
 
@@ -35,8 +38,23 @@ public partial class
 		return base.EyePosition();
 	}
 
+	public ref readonly QAngle LocalEyeAngles() => ref pl.ViewingAngle;
+
+	static QAngle angEyeWorld;
 	public override ref readonly QAngle EyeAngles() {
-		return ref base.EyeAngles();
+		// NOTE: Viewangles are measured *relative* to the parent's coordinate system
+		SharedBaseEntity? pMoveParent = null; //this.GetMoveParent();
+
+		if (pMoveParent == null) 
+			return ref pl.ViewingAngle;
+
+		// FIXME: Cache off the angles?
+		Matrix3x4 eyesToParent = default, eyesToWorld = default;
+		MathLib.AngleMatrix(pl.ViewingAngle, ref eyesToParent);
+		MathLib.ConcatTransforms(pMoveParent.EntityToWorldTransform(), eyesToParent, out eyesToWorld);
+
+		MathLib.MatrixAngles(in eyesToWorld, out angEyeWorld);
+		return ref angEyeWorld;
 	}
 
 	public virtual void CalcViewModelView(in Vector3 eyeOrigin, in QAngle eyeAngles) {

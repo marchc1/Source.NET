@@ -1,4 +1,6 @@
-﻿using Source.Common.Input;
+﻿using Game.Shared;
+
+using Source.Common.Input;
 using Source.GUI.Controls;
 
 namespace Game.Client;
@@ -21,4 +23,5 @@ public interface IClientMode
 	void Enable();
 	bool IsTyping();
 	float GetViewModelFOV();
+	bool CreateMove(double frametime, ref UserCmd cmd);
 }

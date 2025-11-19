@@ -1,4 +1,5 @@
 ﻿using Game.Client.HUD;
+using Game.Shared;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -46,6 +47,14 @@ public class ClientModeShared(IServiceProvider services, ClientGlobalVariables g
 			Viewport.RequestFocus();
 
 		Layout();
+	}
+
+	public bool CreateMove(TimeUnit_t inputSampleTime, ref UserCmd cmd) {
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return true;
+
+		return player.CreateMove(inputSampleTime, ref cmd);
 	}
 	public virtual int KeyInput(int down, ButtonCode keynum, ReadOnlySpan<char> currentBinding) {
 		if (engine.Con_IsVisible())
