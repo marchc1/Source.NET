@@ -21,19 +21,19 @@ public class Image : IImage
 		x = X;
 		y = Y;
 	}
-	public void GetSize(out int wide, out int tall) {
+	public virtual void GetSize(out int wide, out int tall) {
 		wide = Width;
 		tall = Height;
 	}
 
 	void IImage.Paint() => Paint();
 
-	public void SetColor(Color color) {
+	public virtual void SetColor(Color color) {
 		Color = color;
 		DrawSetTextColor(color);
 	}
 
-	public void SetPos(int x, int y) {
+	public virtual void SetPos(int x, int y) {
 		X = x;
 		Y = y;
 	}

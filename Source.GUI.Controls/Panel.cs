@@ -271,7 +271,7 @@ public class Panel : IPanel
 	public virtual IBorder? GetBorder() => Border;
 	public void SetBorder(IBorder? border) {
 		Border = border;
-		if(border != null) {
+		if (border != null) {
 			border.GetInset(out int x, out int y, out int x2, out int y2);
 			SetInset(x, y, x2, y2);
 			SetPaintBackgroundType(border.GetBackgroundType());
@@ -721,7 +721,7 @@ public class Panel : IPanel
 		BuildModeFlags flagProportionalParent = x ? BuildModeFlags.SaveXPosProportionalParent : BuildModeFlags.SaveYposProportionalParent;
 
 		BuildModeFlags flags = 0;
-		int posDelta = 0;
+		int posDelta;
 		if (!input.IsEmpty) {
 			if (input[0] == 'r' || input[0] == 'R') {
 				flags |= flagRightAlign;
@@ -933,8 +933,8 @@ public class Panel : IPanel
 		int actionSignalLevel = resourceData.GetInt("actionsignallevel", -1);
 		if (actionSignalLevel != -1) {
 			Panel? pActionSignalTarget = this;
-			while ((actionSignalLevel--) != 0) {
-				pActionSignalTarget = pActionSignalTarget.GetParent();
+			while (actionSignalLevel-- != 0) {
+				pActionSignalTarget = pActionSignalTarget?.GetParent();
 			}
 			AddActionSignalTarget(pActionSignalTarget);
 		}
@@ -944,7 +944,11 @@ public class Panel : IPanel
 		int roundedCorners = resourceData.GetInt("RoundedCorners", -1);
 		if (roundedCorners >= 0)
 			RoundedCorners = (RoundedCorners)roundedCorners;
-		// TODO: Pin corners
+
+		// ReadOnlySpan<char> SiblingName = resourceData.GetString("pin_to_sibling", null);
+		// PinCorner pinOurCornerToSubling = GetPinCornerFromString(resourceData.GetString("pin_our_corner_to_sibling", null));
+		// PinCorner pinSublingCorner = GetPinCornerFromString(resourceData.GetString("pin_sibling_corner", null));
+		// PinToSibling(SiblingName, pinOurCornerToSubling, pinSublingCorner);
 
 		ReadOnlySpan<char> pKeyboardInputEnabled = resourceData.GetString("keyboardinputenabled", null);
 		if (!pKeyboardInputEnabled.IsEmpty && pKeyboardInputEnabled.Length > 0) {
@@ -955,7 +959,114 @@ public class Panel : IPanel
 	}
 
 	private void ApplyAutoResizeSettings(KeyValues resourceData) {
-		// TODO: pin corners
+		GetPos(out int x, out int y);
+		GetSize(out int wide, out int tall);
+
+		AutoResize autoResize = (AutoResize)resourceData.GetInt("AutoResize", (int)AutoResize.None);
+		PinCorner pinCorner = (PinCorner)resourceData.GetInt("PinCorner", (int)PinCorner.TopLeft);
+
+		int pw = wide;
+		int pt = tall;
+
+		if (GetParent() != null)
+			GetParent()!.GetSize(out pw, out pt);
+
+		int pinnedCornerOffsetX = 0; ;
+		int pinnedCornerOffsetY = 0;
+		int unpinnedCornerOffsetX = 0;
+		int unpinnedCornerOffsetY = 0;
+
+		switch (pinCorner) {
+			case PinCorner.TopLeft:
+				pinnedCornerOffsetX = x;
+				pinnedCornerOffsetY = y;
+				unpinnedCornerOffsetX = x + wide - pw;
+				unpinnedCornerOffsetY = y + tall - pt;
+				break;
+			case PinCorner.TopRight:
+				pinnedCornerOffsetX = x + wide - pw;
+				pinnedCornerOffsetY = y;
+				unpinnedCornerOffsetX = x;
+				unpinnedCornerOffsetY = y + tall - pt;
+				break;
+			case PinCorner.BottomLeft:
+				pinnedCornerOffsetX = x;
+				pinnedCornerOffsetY = y + tall - pt;
+				unpinnedCornerOffsetX = x + wide - pw;
+				unpinnedCornerOffsetY = y;
+				break;
+			case PinCorner.BottomRight:
+				pinnedCornerOffsetX = x + wide - pw;
+				pinnedCornerOffsetY = y + tall - pt;
+				unpinnedCornerOffsetX = x;
+				unpinnedCornerOffsetY = y;
+				break;
+		}
+
+		if (IsProportional()) {
+			if (resourceData.FindKey("PinnedCornerOffsetX") != null)
+				pinnedCornerOffsetX = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, resourceData.GetInt("PinnedCornerOffsetX"));
+			if (resourceData.FindKey("PinnedCornerOffsetY") != null)
+				pinnedCornerOffsetY = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, resourceData.GetInt("PinnedCornerOffsetY"));
+			if (resourceData.FindKey("UnpinnedCornerOffsetX") != null)
+				unpinnedCornerOffsetX = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, resourceData.GetInt("UnpinnedCornerOffsetX"));
+			if (resourceData.FindKey("UnpinnedCornerOffsetY") != null)
+				unpinnedCornerOffsetY = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, resourceData.GetInt("UnpinnedCornerOffsetY"));
+		}
+		else {
+			pinnedCornerOffsetX = resourceData.GetInt("PinnedCornerOffsetX", pinnedCornerOffsetX);
+			pinnedCornerOffsetY = resourceData.GetInt("PinnedCornerOffsetY", pinnedCornerOffsetY);
+			unpinnedCornerOffsetX = resourceData.GetInt("UnpinnedCornerOffsetX", unpinnedCornerOffsetX);
+			unpinnedCornerOffsetY = resourceData.GetInt("UnpinnedCornerOffsetY", unpinnedCornerOffsetY);
+		}
+
+		if (autoResize == AutoResize.None) {
+			unpinnedCornerOffsetX = 0;
+			unpinnedCornerOffsetY = 0;
+		}
+
+		SetAutoResize(pinCorner, autoResize, pinnedCornerOffsetX, pinnedCornerOffsetY, unpinnedCornerOffsetX, unpinnedCornerOffsetY);
+	}
+
+	PinCorner PinCorner;
+	AutoResize AutoResizeDirection;
+	int PinDeltaX;
+	int PinDeltaY;
+	int ResizeDeltaX;
+	int ResizeDeltaY;
+	public void SetAutoResize(PinCorner pinCorner, AutoResize autoResize, int pinnedCornerOffsetX, int pinnedCornerOffsetY, int unpinnedCornerOffsetX, int unpinnedCornerOffsetY) {
+		PinCorner = pinCorner;
+		AutoResizeDirection = autoResize;
+		PinDeltaX = pinnedCornerOffsetX;
+		PinDeltaY = pinnedCornerOffsetY;
+		ResizeDeltaX = unpinnedCornerOffsetX;
+		ResizeDeltaY = unpinnedCornerOffsetY;
+	}
+
+	readonly string[] PinCornerStrings = {
+		"PIN_TOPLEFT",
+		"PIN_TOPRIGHT",
+		"PIN_BOTTOMLEFT",
+		"PIN_BOTTOMRIGHT",
+		"PIN_CENTER_TOP",
+		"PIN_CENTER_RIGHT",
+		"PIN_CENTER_BOTTOM",
+		"PIN_CENTER_LEFT"
+	};
+
+	private PinCorner GetPinCornerFromString(ReadOnlySpan<char> cornerName) {
+		if (cornerName.IsEmpty)
+			return PinCorner.TopLeft;
+
+		if (cornerName.Length == 1 && int.TryParse(cornerName, out int val))
+			return (PinCorner)val;
+
+		for (int i = 0; i < PinCornerStrings.Length; i++) {
+			if (cornerName.Equals(PinCornerStrings[i], StringComparison.OrdinalIgnoreCase))
+				return (PinCorner)i;
+		}
+
+		return PinCorner.TopLeft;
 	}
 
 	public virtual void OnChildSettingsApplied(KeyValues resources, Panel child) {
@@ -1053,7 +1164,7 @@ public class Panel : IPanel
 		return true;
 	}
 
-	public void SetProportional(bool state) {
+	public virtual void SetProportional(bool state) {
 		if (state != ((Flags & PanelFlags.IsProportional) != 0)) {
 			Flags ^= PanelFlags.IsProportional;
 			for (int i = 0; i < GetChildCount(); i++) {
@@ -1166,7 +1277,7 @@ public class Panel : IPanel
 					Parent.Children[i] = this;
 					i++;
 				}
-				else 
+				else
 					break;
 			}
 		}
@@ -1182,11 +1293,11 @@ public class Panel : IPanel
 			int i = Parent.Children.Count - 2;
 			while (i >= 0) {
 				if (Parent.Children[i].ZPos > ZPos) {
-					Parent.Children[i + 1] =  Parent.Children[i];
-					Parent.Children[i]  = this;
+					Parent.Children[i + 1] = Parent.Children[i];
+					Parent.Children[i] = this;
 					i--;
 				}
-				else 
+				else
 					break;
 			}
 		}
@@ -1320,20 +1431,27 @@ public class Panel : IPanel
 
 	IFont? _dbgfont;
 	IFont dbgfont => _dbgfont ??= SchemeManager.GetDefaultScheme().GetFont("DebugFixed")!;
-	static int t = 0;
+
+	static readonly ConVar sdn_vgui_debug = new("sdn_vgui_debug", 0, "Show debug info for panels under the mouse cursor.");
 	private void DebugVisualize() {
-#if NOVISUALIZE
+		if (sdn_vgui_debug.GetInt() == 0)
+			return;
+
+		Input.GetCursorPos(out int mx, out int my);
+		if (!IsWithin(mx, my))
+			return;
+
 		Surface.PushMakeCurrent(this, false);
 		GetSize(out int w, out int h);
-		Surface.DrawSetColor(255, 255, 255, 255);
+		Surface.DrawSetColor(255, 0, 0, 255);
 		Surface.DrawOutlinedRect(0, 0, w, h);
-
 		Surface.DrawSetTextFont(dbgfont);
 		Surface.DrawSetTextPos(4, 4);
-		Surface.DrawPrintText($"{GetType().Name} {GetName()} {BgColor}");
-
+		if (sdn_vgui_debug.GetInt() == 2)
+			Surface.DrawPrintText($"{GetType().Name} {GetName()} {BgColor}");
+		else
+			Surface.DrawPrintText($"{GetType().Name} {GetName()}");
 		Surface.PopMakeCurrent(this);
-#endif
 	}
 
 	public virtual void PostChildPaint() {
@@ -1496,7 +1614,71 @@ public class Panel : IPanel
 	public virtual void GetSettings(KeyValues outResourceData) {
 		outResourceData.SetString("ControlName", GetClassName());
 		outResourceData.SetString("fieldName", GetName());
-		//
+
+		Surface.GetScreenSize(out int screenWide, out int screenTall);
+		GetPos(out int x, out int y);
+
+		if (IsProportional()) {
+			x = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, x);
+			y = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, y);
+		}
+
+		if (0 != (BuildModeFlags & BuildModeFlags.SaveXPos_RightAligned)) {
+
+		}
+		else if (0 != (BuildModeFlags & BuildModeFlags.SaveXPos_CenterAligned)) {
+
+		}
+		else {
+			outResourceData.SetInt("xpos", x);
+		}
+
+		if (0 != (BuildModeFlags & BuildModeFlags.SaveYPos_BottomAligned)) {
+		}
+		else if (0 != (BuildModeFlags & BuildModeFlags.SaveYPos_CenterAligned)) {
+		}
+		else {
+			outResourceData.SetInt("ypos", y);
+		}
+
+		//if (Toolips != null) {
+
+		//}
+
+		GetSize(out int wide, out int tall);
+		if (IsProportional()) {
+			wide = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, wide);
+			tall = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, tall);
+		}
+
+		outResourceData.SetInt("zpos", GetZPos());
+
+		if (0 != (BuildModeFlags & BuildModeFlags.SaveWideFull)) {
+
+		}
+		else {
+			outResourceData.SetInt("wide", wide);
+		}
+
+		//outResourceData.SetInt("AutoResize", GetAutoResize());
+		//outResourceData.SetInt("PinCorner", GetPinCorner());
+
+		outResourceData.SetInt("RoundedCorners", (int)RoundedCorners);
+
+		//outResourceData.SetString("pin_to_sibling", pinToSibling);
+		//outResourceData.SetString("pin_corner_to_sibling", pinCornerToSibling);
+		//outResourceData.SetString("pin_to_sibling_corner", pinToSiblingCorner);
+
+		outResourceData.SetInt("visible", IsVisible() ? 1 : 0);
+		outResourceData.SetInt("enabled", IsEnabled() ? 1 : 0);
+
+		outResourceData.SetInt("tabPosition", GetTabPosition());
+
+		Span<OverrideableColorEntry> entries = CollectionsMarshal.AsSpan(OverrideableColorEntries);
+		for (int i = 0, c = entries.Length; i < c; i++) {
+			ref OverrideableColorEntry entry = ref entries[i];
+			outResourceData.SetColor(entry.Name, entry.ColorFromScript);
+		}
 	}
 
 
@@ -1532,7 +1714,7 @@ public class Panel : IPanel
 		OnRequestFocus(this, null);
 	}
 
-	public bool IsBuildGroupEnabled() {
+	public virtual bool IsBuildGroupEnabled() {
 		if (BuildGroup == null)
 			return false;
 
@@ -1540,7 +1722,7 @@ public class Panel : IPanel
 		if (enabled)
 			return enabled;
 
-		if (GetParent() != null && GetParent().IsBuildGroupEnabled())
+		if (GetParent() != null && GetParent()!.IsBuildGroupEnabled())
 			return true;
 
 		return false;
@@ -1566,7 +1748,7 @@ public class Panel : IPanel
 
 	CursorCode Cursor;
 	public void SetCursor(CursorCode cursor) {
-		this.Cursor = cursor;
+		Cursor = cursor;
 	}
 
 	public void SetEnabled(bool state) {
@@ -1649,7 +1831,7 @@ public class Panel : IPanel
 			if (parent.IsKeyboardInputEnabled() != IsKeyboardInputEnabled())
 				SetKeyboardInputEnabled(parent.IsKeyboardInputEnabled());
 
-			if (parent.IsMouseInputEnabled() != IsMouseInputEnabled()) 
+			if (parent.IsMouseInputEnabled() != IsMouseInputEnabled())
 				SetMouseInputEnabled(parent.IsMouseInputEnabled());
 		}
 	}
@@ -2225,7 +2407,19 @@ public class Panel : IPanel
 	IPanel? IPanel.FindChildByName(ReadOnlySpan<char> childName, bool recurseDown) => FindChildByName(childName, recurseDown);
 
 	public Panel? FindChildByName(ReadOnlySpan<char> childName, bool recurseDown = false) {
-		return null; // todo: impl
+		for (int i = 0; i < GetChildCount(); i++) {
+			Panel child = GetChild(i);
+			if (childName.Equals(child.GetName(), StringComparison.Ordinal))
+				return child;
+
+			if (recurseDown) {
+				Panel? found = child.FindChildByName(childName, true);
+				if (found != null)
+					return found;
+			}
+		}
+
+		return null;
 	}
 
 	public void GetBounds(out int x, out int y, out int w, out int h) {
@@ -2401,7 +2595,7 @@ class FontProperty : IPanelAnimationPropertyConverter
 
 	public void InitFromDefault(Panel panel, ref PanelAnimationMapEntry entry) {
 		IScheme? scheme = panel.GetScheme();
-		if(scheme != null) {
+		if (scheme != null) {
 			entry.Set(panel, scheme.GetFont(entry.DefaultValue, panel.IsProportional())!);
 		}
 	}
@@ -2435,7 +2629,7 @@ class TextureIdProperty : IPanelAnimationPropertyConverter
 		if (data == null) return;
 
 		int currentId = (int)data;
-		if(currentId != -1 && surface.DrawGetTextureFile(currentId, out ReadOnlySpan<char> textureName)) 
+		if (currentId != -1 && surface.DrawGetTextureFile(currentId, out ReadOnlySpan<char> textureName))
 			kv.SetString(entry.ScriptName, textureName);
 		else
 			kv.SetString(entry.ScriptName, "");

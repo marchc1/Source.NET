@@ -3,6 +3,7 @@ using Source.Common.GUI;
 using Source.Common.Input;
 
 namespace Source.GUI.Controls;
+
 public class FrameSystemButton : MenuButton
 {
 	public FrameSystemButton(Panel parent, string name) : base(parent, name, "") {
@@ -179,7 +180,7 @@ public class CaptionGripPanel : GripPanel
 {
 	public const int CAPTION_TITLE_BORDER = 7;
 	public const int CAPTION_TITLE_BORDER_SMALL = 0;
-	
+
 	public CaptionGripPanel(Frame dragFrame, ReadOnlySpan<char> name) : base(dragFrame, name, 0, 0) {
 		Frame = dragFrame;
 	}
@@ -280,14 +281,14 @@ public class CaptionGripPanel : GripPanel
 		Assert(wide > 0);
 		Assert(tall > 0);
 
-		bool horizSnappable = ((snapToY > top) && (snapToY < bottom)) 
-						   || ((snapToY + tall > top) && (snapToY + tall < bottom)) 
-						   || ((snapToY < top) && (snapToY + tall > bottom));
+		bool horizSnappable = ((snapToY > top) && (snapToY < bottom))
+							 || ((snapToY + tall > top) && (snapToY + tall < bottom))
+							 || ((snapToY < top) && (snapToY + tall > bottom));
 
 
-		bool vertSnappable = ((snapToX > left) && (snapToX < right)) 
-						  || ((snapToX + wide > left) && (snapToX + wide < right)) 
-						  || ((snapToX < left) && (snapToX + wide > right));
+		bool vertSnappable = ((snapToX > left) && (snapToX < right))
+							|| ((snapToX + wide > left) && (snapToX + wide < right))
+							|| ((snapToX < left) && (snapToX + wide > right));
 
 		if (!(horizSnappable || vertSnappable))
 			return false;
@@ -482,7 +483,7 @@ public class Frame : EditablePanel
 		Input.SetAppModalSurface(this);
 	}
 
-	public Frame(Panel? parent, string? name, bool showTaskbarIcon = true, bool popup = true) : base(parent, name, showTaskbarIcon) {
+	public Frame(Panel? parent, ReadOnlySpan<char> name, bool showTaskbarIcon = true, bool popup = true) : base(parent, name) {
 		SetVisible(false);
 		if (popup)
 			MakePopup(showTaskbarIcon);
@@ -553,8 +554,8 @@ public class Frame : EditablePanel
 			SetMaximizeButtonVisible(false);
 		}
 
-		MenuButton = new FrameSystemButton(this, "frame_menu");
-		MenuButton.SetMenu(GetSysMenu());
+		// MenuButton = new FrameSystemButton(this, "frame_menu");
+		// MenuButton.SetMenu(GetSysMenu());
 
 		SetupResizeCursors();
 	}
@@ -970,14 +971,16 @@ public class Frame : EditablePanel
 			Title?.SetColor(TitleBarDisabledFgColor);
 
 		if (HasFocus) {
-			if (FocusTransitionEffectTime != 0 && (!DisableFadeEffect)) { }
-			// TODO: Animation controllers
+			if (FocusTransitionEffectTime != 0 && (!DisableFadeEffect)) {
+				// GetAnimationController().RunAnimationCommand(this, "BgColor", InFocusBgColor, 0.0f, DisableFadeEffect ? 0.0f : FocusTransitionEffectTime, Interpolators.Linear);
+			}
 			else
 				SetBgColor(InFocusBgColor);
 		}
 		else {
-			if (FocusTransitionEffectTime != 0 && (!DisableFadeEffect)) { }
-			// TODO: Animation controllers
+			if (FocusTransitionEffectTime != 0 && (!DisableFadeEffect)) {
+				// GetAnimationController().RunAnimationCommand(this, "BgColor", OutOfFocusBgColor, 0.0f, DisableFadeEffect ? 0.0f : FocusTransitionEffectTime, Interpolators.Linear);
+			}
 			else
 				SetBgColor(OutOfFocusBgColor);
 		}
@@ -1000,8 +1003,8 @@ public class Frame : EditablePanel
 		SetPos((w - GetWide()) / 2, (t - GetTall()) / 2);
 	}
 
-	int TitleTextInsetXOverride; // TODO: Animation vars...
-	int TitleTextInsetYOverride; // TODO: Animation vars...
+	[PanelAnimationVarAliasType("titletextinsetX", "0", "proportional_int")] int TitleTextInsetXOverride;
+	[PanelAnimationVar("titletextinsetY", "0")] int TitleTextInsetYOverride;
 
 	public override void PaintBackground() {
 		Color titleColor = TitleBarDisabledBgColor;
@@ -1023,7 +1026,7 @@ public class Frame : EditablePanel
 
 			Surface.DrawFilledRect(inset, inset, wide - inset, captionHeight);
 
-			{
+			if (Title != null) {
 				int nTitleX = TitleTextInsetXOverride != 0 ? TitleTextInsetXOverride : TitleTextInsetX;
 				int nTitleWidth = wide - 72;
 
@@ -1039,9 +1042,9 @@ public class Frame : EditablePanel
 				else
 					nTitleY = SmallCaption ? 2 : 9;
 
-				Title?.SetPos(nTitleX, nTitleY);
-				Title?.SetSize(nTitleWidth, tall);
-				Title?.Paint();
+				Title.SetPos(nTitleX, nTitleY);
+				Title.SetSize(nTitleWidth, tall);
+				Title.Paint();
 			}
 		}
 	}

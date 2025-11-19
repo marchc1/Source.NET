@@ -9,7 +9,7 @@ namespace Source.GUI.Controls;
 public class TextEntry : Panel
 {
 	public static Panel Create_TextEntry() => new TextEntry(null, null);
-	public TextEntry(Panel? parent, string? name) : base(parent, name) {
+	public TextEntry(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 		SetTriplePressAllowed(true);
 
 		CursorBlinkRate = 400;
@@ -521,8 +521,7 @@ public class TextEntry : Panel
 		SendNewLines = state;
 	}
 
-	public override void OnCursorMoved(int x, int y)
-	{
+	public override void OnCursorMoved(int x, int y) {
 		if (!MouseSelection)
 			return;
 
@@ -532,8 +531,7 @@ public class TextEntry : Panel
 		if (CursorPos == 0)
 			PutCursorAtEnd = false;
 
-		if (CursorPos == CurrentStartIndex)
-		{
+		if (CursorPos == CurrentStartIndex) {
 			if (CursorPos > 0)
 				CursorPos--;
 
@@ -541,8 +539,7 @@ public class TextEntry : Panel
 			CursorPos = CurrentStartIndex;
 		}
 
-		if (CursorPos != Select[1])
-		{
+		if (CursorPos != Select[1]) {
 			Select[1] = CursorPos;
 			Repaint();
 		}
@@ -596,16 +593,14 @@ public class TextEntry : Panel
 	public override void OnMouseTriplePressed(ButtonCode code) {
 		base.OnMouseTriplePressed(code);
 
-		if (code == ButtonCode.MouseLeft)
-		{
+		if (code == ButtonCode.MouseLeft) {
 			GotoTextEnd();
 			SelectAllText(false);
 		}
 	}
 
 	public override void OnMouseDoublePressed(ButtonCode code) {
-		if (code == ButtonCode.MouseLeft)
-		{
+		if (code == ButtonCode.MouseLeft) {
 			OnMousePressed(code);
 			int selectSpotStart, selectSpotEnd;
 			GotoWordLeft();
@@ -613,10 +608,8 @@ public class TextEntry : Panel
 			GotoWordRight();
 			selectSpotEnd = CursorPos;
 
-			if (CursorPos > 0)
-			{
-				if (char.IsWhiteSpace(TextStream[CursorPos - 1]))
-				{
+			if (CursorPos > 0) {
+				if (char.IsWhiteSpace(TextStream[CursorPos - 1])) {
 					selectSpotEnd--;
 					CursorPos--;
 				}
@@ -976,14 +969,12 @@ public class TextEntry : Panel
 		Repaint();
 	}
 
-	private void ScrollRight()
-	{
+	private void ScrollRight() {
 		if (!HorizScrollingAllowed)
 			return;
 
 		if (Multiline) { }
-		else if (IsCursorOffRightSideOfWindow(CursorPos))
-		{
+		else if (IsCursorOffRightSideOfWindow(CursorPos)) {
 			CurrentStartIndex++;
 			ScrollRight();
 		}

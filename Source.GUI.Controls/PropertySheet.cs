@@ -51,7 +51,7 @@ class PageTab : Button
 	ImagePanel? Image;
 	char[] ImageName;
 	bool ShowContextLabel;
-	bool AtttemptingDrop;
+	bool AttemptingDrop;
 	ContextLabel ContextLabel;
 	long HoverActivePageTime;
 	long DropHoverTime;
@@ -62,7 +62,7 @@ class PageTab : Button
 		Page = page;
 		Image = null;
 		ShowContextLabel = showContextButton;
-		AtttemptingDrop = false;
+		AttemptingDrop = false;
 		HoverActivePageTime = hoverActivePageTime;
 		DropHoverTime = -1;
 
@@ -92,7 +92,7 @@ class PageTab : Button
 	}
 
 	public override void OnThink() {
-		if (AtttemptingDrop && HoverActivePageTime >= 0 && DropHoverTime >= 0) {
+		if (AttemptingDrop && HoverActivePageTime >= 0 && DropHoverTime >= 0) {
 			long hoverTime = System.GetTimeMillis() - DropHoverTime;
 			if (hoverTime > HoverActivePageTime) {
 				FireActionSignal();
@@ -100,13 +100,13 @@ class PageTab : Button
 				Repaint();
 			}
 		}
-		AtttemptingDrop = false;
+		AttemptingDrop = false;
 
 		base.OnThink();
 	}
 
 	public bool IsDroppable(List<KeyValues> msglist) {
-		AtttemptingDrop = true;
+		AttemptingDrop = true;
 
 		if (GetParent() == null)
 			return false;
@@ -261,8 +261,10 @@ class PageTab : Button
 	}
 }
 
-public class PropertySheet : EditablePanel {
-	struct Page {
+public class PropertySheet : EditablePanel
+{
+	struct Page
+	{
 		public Panel page;
 		public bool ContextMenu;
 
@@ -275,13 +277,13 @@ public class PropertySheet : EditablePanel {
 	List<Page> Pages;
 	List<PageTab> PageTabs;
 	Panel? ActivePage;
+	Panel? PreviouslyActivePage;
 	PageTab? ActiveTab;
 	int TabWidth;
 	int ActiveTabIndex;
 	ComboBox? Combo;
 	bool ShowTabs;
 	bool TabFocus;
-	// PHandle PreviouslyActivePage
 	float PageTransitionEffectTime;
 	bool SmallTabs;
 	IFont TabFont;
@@ -490,11 +492,13 @@ public class PropertySheet : EditablePanel {
 				ActivePage.RequestFocus(direction);
 				TabFocus = false;
 			}
-		} else {
+		}
+		else {
 			if (ShowTabs && ActiveTab != null) {
 				ActiveTab.RequestFocus(direction);
 				TabFocus = true;
-			} else if (ActivePage != null) {
+			}
+			else if (ActivePage != null) {
 				ActivePage.RequestFocus(direction);
 				TabFocus = false;
 			}
@@ -505,7 +509,8 @@ public class PropertySheet : EditablePanel {
 		if (TabFocus || !ShowTabs || ActiveTab == null) {
 			TabFocus = false;
 			return base.RequestFocusPrev(panel);
-		} else {
+		}
+		else {
 			if (GetParent() != null)
 				PostMessage(GetParent()!, KV_FindDefaultButton);
 			ActiveTab.RequestFocus(-1);
@@ -546,7 +551,8 @@ public class PropertySheet : EditablePanel {
 		if (IsProportional()) {
 			TabHeight = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, SpecifiedTabHeight);
 			TabHeightSmall = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, SpecifiedTabHeightSmall);
-		} else {
+		}
+		else {
 			TabHeight = SpecifiedTabHeight;
 			TabHeightSmall = SpecifiedTabHeightSmall;
 		}
@@ -678,7 +684,8 @@ public class PropertySheet : EditablePanel {
 				PageTabs[i].GetText(tmp);
 				if (new string(tmp).Equals(title, StringComparison.OrdinalIgnoreCase))
 					PageTabs[i].SetEnabled(state);
-			} else {
+			}
+			else {
 				Combo.SetItemEnabled(title, state);
 			}
 		}
@@ -699,7 +706,7 @@ public class PropertySheet : EditablePanel {
 		if (location == -1)
 			return;
 
-		// PreviouslyActivePage = ActivePage;
+		PreviouslyActivePage = ActivePage;
 		ActiveTab = null;
 
 		if (ShowTabs)
@@ -751,7 +758,7 @@ public class PropertySheet : EditablePanel {
 		for (int i = 0; i < PageTabs.Count; i++)
 			PageTabs[i].SetVisible(false);
 
-		// PreviouslyActivePage = ActivePage;
+		PreviouslyActivePage = ActivePage;
 		if (ActivePage != null) {
 			VGui.PostMessage(ActivePage, new KeyValues("PageHide"), this);
 			KeyValues msg = new("PageTabActivated");
@@ -782,15 +789,20 @@ public class PropertySheet : EditablePanel {
 			ActivePage.RequestFocus();
 
 		if (!ShowTabs)
-			Combo.ActivateItemByRow(index);
+			Combo?.ActivateItemByRow(index);
 
 		ActivePage.MakeReadyForUse();
 
 		if (PageTransitionEffectTime != 0.0f) {
-			// todo
+			if (PreviouslyActivePage != null)
+				GetAnimationController().RunAnimationCommand(PreviouslyActivePage, "Alpha", 0.0f, 0.0f, PageTransitionEffectTime / 2, Interpolators.Linear);
+
+			ActivePage.SetAlpha(0);
+			GetAnimationController().RunAnimationCommand(ActivePage, "Alpha", 255.0f, PageTransitionEffectTime / 2, PageTransitionEffectTime / 2, Interpolators.Linear);
 		}
 		else {
-
+			PreviouslyActivePage?.SetVisible(false);
+			ActivePage.SetAlpha(255);
 		}
 
 		VGui.PostMessage(ActivePage, new KeyValues("PageShow"), this);
@@ -841,7 +853,8 @@ public class PropertySheet : EditablePanel {
 					base.OnKeyCodePressed(code);
 					break;
 			}
-		} else
+		}
+		else
 			base.OnKeyCodePressed(code);
 	}
 

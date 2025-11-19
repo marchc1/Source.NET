@@ -46,7 +46,7 @@ public class ProgressBar : Panel
 	public double GetProgress() => Progress;
 
 	public void SetProgress(double progress) {
-		if(progress != Progress) {
+		if (progress != Progress) {
 			Progress = Math.Clamp(progress, 0, 1);
 			Repaint();
 		}
@@ -88,8 +88,8 @@ public class ProgressBar : Panel
 		secondsRemaining.TryFormat(secondsBuf, out int secondsLen);
 
 		// if (minutesRemaining > 0) {
-			// Span<char> unicodeMinutes = stackalloc char[16];
-			// Span<char> unicodeSeconds = stackalloc char[16];
+		// Span<char> unicodeMinutes = stackalloc char[16];
+		// Span<char> unicodeSeconds = stackalloc char[16];
 
 		// }
 

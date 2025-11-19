@@ -3,7 +3,8 @@ using Source.Common.GUI;
 
 namespace Source.GUI.Controls;
 
-class CheckImage : TextImage {
+class CheckImage : TextImage
+{
 	public Color BorderColor1;
 	public Color BorderColor2;
 	public Color CheckColor;
@@ -129,7 +130,7 @@ public class CheckButton : ToggleButton
 		return base.GetButtonFgColor();
 	}
 
-	public virtual void OnCheckButtonChecked(Panel panel) {}
+	public virtual void OnCheckButtonChecked(Panel panel) { }
 
 	public void SetHighlightColor(Color color) {
 		if (HighlightFgColor != color) {

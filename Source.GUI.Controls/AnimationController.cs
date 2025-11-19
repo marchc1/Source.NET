@@ -585,7 +585,7 @@ public class AnimationController : Panel, IAnimationController
 				break;
 			}
 		}
-		if(!found)
+		if (!found)
 			ScriptFileNames.Add(sFilename);
 
 		UpdateScreenSize();

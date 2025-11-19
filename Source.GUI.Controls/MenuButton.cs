@@ -139,7 +139,8 @@ public class MenuButton : Button
 			IScheme? scheme = GetScheme();
 			DropMenuImage.SetFont(scheme!.GetFont("Marlett", IsProportional()));
 			ImageIndex = AddImage(DropMenuImage, 0);
-		} else {
+		}
+		else {
 			ResetToSimpleTextImage();
 			DropMenuImage = null;
 			ImageIndex = -1;
@@ -200,7 +201,8 @@ public class MenuButton : Button
 		if (x <= drawX || OnCheckMenuItemCount() != 0) {
 			SetButtonActivationType(ActivationType.OnPressedAndReleased);
 			SetUseCaptureMouse(true);
-		} else {
+		}
+		else {
 			SetButtonActivationType(ActivationType.OnPressed);
 			SetUseCaptureMouse(false);
 		}

@@ -65,7 +65,7 @@ public class TextImage : Image
 
 		if (!text.IsEmpty && text.Length > 0 && text[0] == '#') {
 			UnlocalizedTextSymbol = Localize.FindIndex(text[1..]);
-			if(UnlocalizedTextSymbol != ulong.MaxValue) {
+			if (UnlocalizedTextSymbol != ulong.MaxValue) {
 				SetText(Localize.GetValueByIndex(UnlocalizedTextSymbol));
 				return;
 			}

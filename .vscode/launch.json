@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Source.Launcher",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build Source.Launcher",
+      "program": "${workspaceFolder}/Source.Launcher/bin/Debug/net10.0/Source.Launcher.exe",
+      "args": [],
+      "cwd": "${workspaceFolder}/Source.Launcher/bin/Debug/net10.0",
+      "stopAtEntry": false,
+      "console": "internalConsole"
+    }
+  ]
+}

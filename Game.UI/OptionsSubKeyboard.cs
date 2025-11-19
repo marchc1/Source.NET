@@ -1,0 +1,323 @@
+using Source.Common.Client;
+using Source.Common.Commands;
+using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
+using Source.Common.Input;
+using Source.GUI.Controls;
+
+namespace Game.UI;
+
+public class OptionsSubKeyboard : PropertyPage
+{
+	struct KeyBinding
+	{
+		public char[]? Binding;
+	}
+
+	OptionsSubKeyboardAdvancedDlg? OptionsSubKeyboardAdvancedDlg;
+	ControlsListPanel KeyBindList;
+	Button SetBindingButton;
+	Button ClearBindingButton;
+
+	KeyBinding[] KeyBindings = new KeyBinding[(int)ButtonCode.Last];
+
+	List<string> KeysToUnbind = new();
+
+	public OptionsSubKeyboard(Panel? parent, string? name) : base(parent, name) {
+		for (int i = 0; i < KeyBindings.Length; i++)
+			KeyBindings[i] = new();
+
+		CreateKeyBindingList();
+		SaveCurrentBindings();
+		ParseActionDescriptions();
+
+		SetBindingButton = new(this, "ChangeKeyButton", "");
+		ClearBindingButton = new(this, "ClearKeyButton", "");
+
+		LoadControlSettings("resource/OptionsSubKeyboard.res");
+
+		SetBindingButton.SetEnabled(false);
+		ClearBindingButton.SetEnabled(false);
+	}
+
+	~OptionsSubKeyboard() => DeleteSavedBindings();
+
+	public override void OnResetData() {
+		FillInCurrentBindings();
+		if (IsVisible())
+			KeyBindList.SetSelectedItem(0);
+	}
+
+	public override void OnApplyChanges() => ApplyAllBindings();
+
+	public void CreateKeyBindingList() {
+		KeyBindList = new(this, "listpanel_keybindlist");
+	}
+
+	public override void OnKeyCodeTyped(ButtonCode code) {
+		if (code == ButtonCode.KeyEnter)
+			OnCommand("ChangeKey");
+		else
+			base.OnKeyCodeTyped(code);
+	}
+
+	public override void OnCommand(ReadOnlySpan<char> command) {
+		if (command.Equals("Defaults", StringComparison.OrdinalIgnoreCase)) {
+			var box = new QueryBox("#GameUI_KeyboardSettings", "#GameUI_KeyboardSettingsText");
+			box.AddActionSignalTarget(this);
+			box.SetOKCommand(new KeyValues("Command", "command", "DefaultsOK"));
+			box.DoModal();
+		}
+		else if (command.Equals("DefaultsOK", StringComparison.OrdinalIgnoreCase)) {
+			FillInDefaultBindings();
+			KeyBindList.RequestFocus();
+		}
+		else if (!KeyBindList.IsCapturing() && command.Equals("ChangeKey", StringComparison.OrdinalIgnoreCase))
+			KeyBindList.StartCaptureMode(CursorCode.Blank);
+		else if (!KeyBindList.IsCapturing() && command.Equals("ClearKey", StringComparison.OrdinalIgnoreCase)) {
+			OnKeyCodePressed(ButtonCode.KeyDelete);
+			KeyBindList.RequestFocus();
+		}
+		else if (command.Equals("Advanced", StringComparison.OrdinalIgnoreCase))
+			OpenKeyboardAdvancedDialog();
+		else
+			base.OnCommand(command);
+	}
+
+	readonly IEngineClient engine = Singleton<IEngineClient>();
+	public void ParseActionDescriptions() {
+		if (true) return; // TODO: Waiting for further fs implementation
+
+		Span<char> szBinding = stackalloc char[256];
+		Span<char> szDescription = stackalloc char[256];
+
+		long size = fileSystem.Size("scripts/kb_act.lst");
+		if (size <= 0) return;
+
+		char[] fileData = new char[size];
+		if (!fileSystem.ReadFile("scripts/kb_act.lst", null, fileData, 0))
+			return;
+
+		ReadOnlySpan<char> data = fileData;
+
+		int sectionIndex = 0;
+		Span<char> token = stackalloc char[512];
+
+		KeyValues item;
+		while (true) {
+			// data = engine.ParseFile(data, token);
+			if (token.Length == 0)
+				break;
+
+			token.CopyTo(szBinding);
+
+			// data = engine.ParseFile(data, token);
+			if (token.Length == 0)
+				break;
+
+			token.CopyTo(szDescription);
+
+			if (szDescription[0] == '=') {
+				if (szBinding.SequenceEqual("blank".AsSpan())) {
+					// KeyBindList.AddSection(++sectionIndex, szDescription);
+					// KeyBindList.AddColumnToSection(sectionIndex, "Action", szDescription, SectionedListPanel.ColumnBright, 286);
+					// KeyBindList.AddColumnToSection(sectionIndex, "Key", "#GameUI_KeyButton", SectionedListPanel.ColumnBright, 286);
+				}
+			}
+			else {
+				item = new("Item");
+				item.SetString("Action", szDescription);
+				item.SetString("Binding", szBinding);
+				item.SetString("key", "");
+				// KeyBindList.AddItem(sectionIndex, item);
+			}
+		}
+	}
+
+	public void GetItemForBinding() {
+
+	}
+
+	public void AddBinding() {
+
+	}
+
+	public void ClearBindItems() {
+		for (int i = 0; i < KeyBindList.GetItemCount(); i++) {
+			KeyValues? item = KeyBindList.GetItemData(KeyBindList.GetItemIDFromRow(i));
+			if (item == null)
+				continue;
+
+			item.SetString("key", "");
+
+			KeyBindList.InvalidateItem(i);
+		}
+
+		KeyBindList.InvalidateLayout();
+	}
+
+	public void RemoveKeyFromBindItems() {
+
+	}
+
+	public void FillInCurrentBindings() {
+		KeysToUnbind.Clear();
+
+		ClearBindItems();
+
+		bool Joystick = false;
+		ConVarRef joy = new("joystick");
+		if (joy.IsValid())
+			Joystick = joy.GetBool();
+
+		bool Falcon = false;
+		ConVarRef falcon = new("hap_HasDevice");
+		if (falcon.IsValid())
+			Falcon = falcon.GetBool();
+
+		for (int i = 0; i < KeyBindings.Length; i++) {
+			ReadOnlySpan<char> binding = [];//gameuifuncs.GetBindingForButtonCode((ButtonCode)i);
+			if (binding.IsEmpty)
+				continue;
+
+			// KeyValues? item = GetItemForBinding(binding);
+		}
+	}
+
+	public void DeleteSavedBindings() {
+		for (int i = 0; i < KeyBindings.Length; i++) {
+			if (KeyBindings[i].Binding != null)
+				KeyBindings[i].Binding = null;
+		}
+	}
+
+	public void SaveCurrentBindings() {
+		DeleteSavedBindings();
+
+		for (int i = 0; i < (int)ButtonCode.Last; i++) {
+			ReadOnlySpan<char> binding = [];//gameuifuncs.GetBindingForButtonCode((ButtonCode)i);
+			if (!binding.IsEmpty)
+				continue;
+
+			KeyBindings[i].Binding = binding.ToArray();
+		}
+	}
+
+	public void BindKey() {
+
+	}
+
+	public void UnbindKey() {
+
+	}
+
+	public void ApplyAllBindings() {
+
+	}
+
+	public void FillInDefaultBindings() {
+
+	}
+
+	public void ItemSelected(int itemID) {
+
+	}
+
+	static readonly KeyValues KV_ApplyButtonEnable = new("ApplyButtonEnable");
+	public void Finish(ButtonCode code) {
+		int r = KeyBindList.GetItemOfInterest();
+		KeyBindList.EndCaptureMode(CursorCode.Arrow);
+
+		KeyValues item = KeyBindList.GetItemData(r);
+		if (item != null) {
+			if (code != ButtonCode.None && code != ButtonCode.KeyEscape && code != ButtonCode.Invalid) {
+				// AddBinding(item, inputSystem.ButtonCodeToString(code));
+				PostActionSignal(KV_ApplyButtonEnable);
+			}
+
+			KeyBindList.InvalidateItem(r);
+		}
+
+		SetBindingButton.SetEnabled(true);
+		ClearBindingButton.SetEnabled(true);
+	}
+
+	public override void OnThink() {
+		base.OnThink();
+
+		// if (KeyBindList.IsCapturing()) {
+		// if (engine.CheckDoneKeyTrapping(ButtonCode.Invalid))
+		// 	Finish(ButtonCode.Invalid);
+		// }
+	}
+
+	public override void OnKeyCodePressed(ButtonCode code) {
+		base.OnKeyCodePressed(code);
+
+	}
+
+	public void OpenKeyboardAdvancedDialog() {
+		if (OptionsSubKeyboardAdvancedDlg == null)
+			OptionsSubKeyboardAdvancedDlg = new(GetParent());
+
+		OptionsSubKeyboardAdvancedDlg.Activate();
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name == "ItemSelected") {
+			ItemSelected(message.GetInt("itemID", -1));
+			return;
+		}
+
+		base.OnMessage(message, from);
+	}
+}
+
+class OptionsSubKeyboardAdvancedDlg : Frame
+{
+	public OptionsSubKeyboardAdvancedDlg(Panel? parent) : base(null, null) {
+		SetTitle("#GameUI_KeyboardAdvanced_Title", true);
+		SetSize(280, 140);
+		LoadControlSettings("resource/OptionsSubKeyboardAdvancedDlg.res");
+		MoveToCenterOfScreen();
+		SetSizeable(false);
+		SetDeleteSelfOnClose(true);
+	}
+
+	public override void Activate() {
+		base.Activate();
+
+		Input.SetAppModalSurface(this);
+
+		ConVarRef con_enable = new("con_enable");
+		// if (con_enable.IsValid())
+		// SetControlInt("ConsoleCheck", con_enable.GetBool() ? 1 : 0);
+
+		ConVarRef hud_fastswitch = new("hud_fastswitch");
+		// if (hud_fastswitch.IsValid())
+		// SetControlInt("FastSwitchCheck", hud_fastswitch.GetBool() ? 1 : 0);
+	}
+
+	public void OnApplyData() {
+		ConVarRef con_enable = new("con_enable");
+		// con_enable.SetValue(GetControlInt("ConsoleCheck", 0));
+		ConVarRef hud_fastswitch = new("hud_fastswitch");
+		// hud_fastswitch.SetValue(GetControlInt("FastSwitchCheck", 0));
+	}
+
+	public override void OnCommand(ReadOnlySpan<char> command) {
+		if (command.Equals("OK", StringComparison.OrdinalIgnoreCase)) {
+			OnApplyData();
+			Close();
+		}
+		else
+			base.OnCommand(command);
+	}
+
+	public override void OnKeyCodeTyped(ButtonCode code) {
+		if (code == ButtonCode.KeyEscape)
+			Close();
+		else
+			base.OnKeyCodeTyped(code);
+	}
+}

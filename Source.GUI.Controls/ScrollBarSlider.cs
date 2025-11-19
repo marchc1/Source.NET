@@ -32,8 +32,7 @@ public class ScrollBarSlider : Panel
 
 	public void SetButtonOffset(int buttonOffset) => ButtonOffset = buttonOffset;
 
-	public bool HasFullRange()
-	{
+	public bool HasFullRange() {
 		GetPaintSize(out int wide, out int tall);
 
 		float frangewindow = RangeWindow;
@@ -86,11 +85,11 @@ public class ScrollBarSlider : Panel
 		Surface.DrawSetColor(col);
 
 		if (Vertical) {
-			if (GetPaintBackgroundType() == PaintBackgroundType.Box) 
+			if (GetPaintBackgroundType() == PaintBackgroundType.Box)
 				DrawBox(1, NobPos[0], wide - 2, NobPos[1] - NobPos[0], col, 1.0f);
-			else 
+			else
 				Surface.DrawFilledRect(1, NobPos[0], wide - 2, NobPos[1]);
-			
+
 			ScrollBarSliderBorder?.Paint(0, NobPos[0], wide, NobPos[1]);
 		}
 		else {
@@ -138,14 +137,12 @@ public class ScrollBarSlider : Panel
 		max = Range[1];
 	}
 
-	public override void PerformLayout()
-	{
+	public override void PerformLayout() {
 		RecomputeNobPosFromValue();
 		base.PerformLayout();
 	}
 
-	internal void RecomputeNobPosFromValue()
-	{
+	internal void RecomputeNobPosFromValue() {
 		GetPaintSize(out int wide, out int tall);
 
 		float fwide = (float)wide - 1;
@@ -154,19 +151,16 @@ public class ScrollBarSlider : Panel
 		float fvalue = Value - Range[0];
 		float fper = (frange != RangeWindow) ? (fvalue / (frange - RangeWindow)) : 0;
 
-		if (RangeWindow > 0)
-		{
+		if (RangeWindow > 0) {
 			if (frange <= 0)
 				frange = 1;
 
 			float width, length;
-			if (Vertical)
-			{
+			if (Vertical) {
 				width = fwide;
 				length = ftall;
 			}
-			else
-			{
+			else {
 				width = ftall;
 				length = fwide;
 			}
@@ -182,8 +176,7 @@ public class ScrollBarSlider : Panel
 			NobPos[0] = (int)firstpixel;
 			NobPos[1] = (int)(firstpixel + fnobsize);
 
-			if (NobPos[1] > length)
-			{
+			if (NobPos[1] > length) {
 				NobPos[0] = NobPos[1] - (int)fnobsize;
 				NobPos[1] = (int)length;
 			}
@@ -192,8 +185,7 @@ public class ScrollBarSlider : Panel
 		Repaint();
 	}
 
-	internal void RecomputeValueFromNobPos()
-	{
+	internal void RecomputeValueFromNobPos() {
 		GetPaintSize(out int wide, out int tall);
 
 		float fwide = (float)wide - 1;
@@ -202,19 +194,16 @@ public class ScrollBarSlider : Panel
 		float fnob = NobPos[0];
 		float frangewindow = RangeWindow;
 
-		if (frangewindow > 0)
-		{
+		if (frangewindow > 0) {
 			if (frange <= 0)
 				frange = 1;
 
 			float width, length;
-			if (Vertical)
-			{
+			if (Vertical) {
 				width = fwide;
 				length = ftall;
 			}
-			else
-			{
+			else {
 				width = ftall;
 				length = fwide;
 			}
@@ -242,8 +231,7 @@ public class ScrollBarSlider : Panel
 		}
 	}
 
-	public override void OnCursorMoved(int x, int y)
-	{
+	public override void OnCursorMoved(int x, int y) {
 		if (!Dragging)
 			return;
 
@@ -252,31 +240,28 @@ public class ScrollBarSlider : Panel
 
 		GetPaintSize(out int wide, out int tall);
 
-		if (Vertical)
-		{
+		if (Vertical) {
 			NobPos[0] = NobDragStartPos[0] + (y - DragStartPos[1]);
 			NobPos[1] = NobDragStartPos[1] + (y - DragStartPos[1]);
 
-			if (NobPos[1] > tall)
-			{
+			if (NobPos[1] > tall) {
 				NobPos[0] = tall - (NobPos[1] - NobPos[0]);
 				NobPos[1] = tall;
 				SetValue(Range[1] - RangeWindow);
 			}
-		} else {
+		}
+		else {
 			NobPos[0] = NobDragStartPos[0] + (x - DragStartPos[0]);
 			NobPos[1] = NobDragStartPos[1] + (x - DragStartPos[0]);
 
-			if (NobPos[1] > wide)
-			{
+			if (NobPos[1] > wide) {
 				NobPos[0] = wide - (NobPos[1] - NobPos[0]);
 				NobPos[1] = wide;
 				SetValue(Range[1] - RangeWindow);
 			}
 		}
 
-		if (NobPos[0] < 0)
-		{
+		if (NobPos[0] < 0) {
 			NobPos[1] = NobPos[1] - NobPos[0];
 			NobPos[0] = 0;
 			SetValue(0);
@@ -287,26 +272,21 @@ public class ScrollBarSlider : Panel
 		SendScrollBarSliderMovedMessage();
 	}
 
-	public override void OnMouseDoublePressed(ButtonCode code)
-	{
+	public override void OnMouseDoublePressed(ButtonCode code) {
 		OnMousePressed(code);
 	}
 
-	public override void OnMouseReleased(ButtonCode code)
-	{
+	public override void OnMouseReleased(ButtonCode code) {
 		Dragging = false;
 		Input.SetMouseCapture(null);
 	}
 
-	public override void OnMousePressed(ButtonCode code)
-	{
+	public override void OnMousePressed(ButtonCode code) {
 		Input.GetCursorPos(out int x, out int y);
 		ScreenToLocal(ref x, ref y);
 
-		if (Vertical)
-		{
-			if ((y >= NobPos[0]) && (y < NobPos[1]))
-			{
+		if (Vertical) {
+			if ((y >= NobPos[0]) && (y < NobPos[1])) {
 				Dragging = true;
 				Input.SetMouseCapture(this);
 				NobDragStartPos[0] = NobPos[0];
@@ -314,23 +294,19 @@ public class ScrollBarSlider : Panel
 				DragStartPos[0] = x;
 				DragStartPos[1] = y;
 			}
-			else if (y < NobPos[0])
-			{
+			else if (y < NobPos[0]) {
 				int val = GetValue();
 				val -= RangeWindow;
 				SetValue(val);
 			}
-			else if (y >= NobPos[1])
-			{
+			else if (y >= NobPos[1]) {
 				int val = GetValue();
 				val += RangeWindow;
 				SetValue(val);
 			}
 		}
-		else
-		{
-			if ((x >= NobPos[0]) && (x < NobPos[1]))
-			{
+		else {
+			if ((x >= NobPos[0]) && (x < NobPos[1])) {
 				Dragging = true;
 				Input.SetMouseCapture(this);
 				NobDragStartPos[0] = NobPos[0];
@@ -338,14 +314,12 @@ public class ScrollBarSlider : Panel
 				DragStartPos[0] = x;
 				DragStartPos[1] = y;
 			}
-			else if (x < NobPos[0])
-			{
+			else if (x < NobPos[0]) {
 				int val = GetValue();
 				val -= RangeWindow;
 				SetValue(val);
 			}
-			else if (x >= NobPos[1])
-			{
+			else if (x >= NobPos[1]) {
 				int val = GetValue();
 				val += RangeWindow;
 				SetValue(val);

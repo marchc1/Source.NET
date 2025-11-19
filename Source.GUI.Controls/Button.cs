@@ -33,6 +33,7 @@ public class Button : Label
 	KeyValues? ActionMessage;
 	ActivationType ActivationType;
 	ButtonFlags ButtonFlags;
+	bool SelectionStateSaved;
 	int MouseClickMask;
 	bool StayArmedOnClick;
 	bool StaySelectedOnClick;
@@ -48,6 +49,12 @@ public class Button : Label
 			case "Hotkey":
 				DoClick();
 				return;
+			case "SetAsDefaultButton":
+				SetAsDefaultButton(message.GetBool("state", false));
+				return;
+			case "SetAsCurrentDefaultButton":
+				// SetAsCurrentDefaultButton(message.GetBool("state", false));
+				return;
 			case "SetState":
 				OnSetState(message.GetInt("state", 0));
 				return;
@@ -60,6 +67,7 @@ public class Button : Label
 		ButtonFlags |= ButtonFlags.UseCaptureMouse | ButtonFlags.ButtonBorderEnabled;
 		MouseClickMask = 0;
 		ActionMessage = null;
+		SelectionStateSaved = false;
 		StaySelectedOnClick = false;
 		StayArmedOnClick = false;
 		ArmedSoundName = null;
@@ -417,6 +425,18 @@ public class Button : Label
 		InvalidateLayout();
 	}
 
+	public override void GetSettings(KeyValues outResourceData) {
+		base.GetSettings(outResourceData);
+
+		if (ActionMessage != null)
+			outResourceData.SetString("command", ActionMessage.GetString("command", ""));
+
+		outResourceData.SetInt("default", (ButtonFlags & ButtonFlags.DefaultButton) != 0 ? 1 : 0);
+
+		if (SelectionStateSaved)
+			outResourceData.SetInt("selected", IsSelected() ? 1 : 0);
+	}
+
 	public override void ApplySettings(KeyValues resourceData) {
 		base.ApplySettings(resourceData);
 
@@ -431,7 +451,7 @@ public class Button : Label
 		int selected = resourceData.GetInt("selected", -1);
 		if (selected != -1) {
 			SetSelected(selected != 0);
-			// SelectionStateSaved = true;
+			SelectionStateSaved = true;
 		}
 
 		StaySelectedOnClick = resourceData.GetBool("stayselectedonclick", false);
@@ -565,7 +585,7 @@ public class Button : Label
 
 		ButtonFlags &= ~ButtonFlags.ButtonKeyDown;
 
-		if (code == ButtonCode.KeyUp || code == ButtonCode.KeyDown || code == ButtonCode.KeyLeft || code == ButtonCode.KeyRight)
+		if (!(code == ButtonCode.KeyUp || code == ButtonCode.KeyDown || code == ButtonCode.KeyLeft || code == ButtonCode.KeyRight))
 			SetArmed(false);
 	}
 
@@ -587,7 +607,7 @@ public class Button : Label
 
 	public void SizeToContents() {
 		GetContentSize(out int wide, out int tall);
-		SetSize(wide + Label.Content, tall + Label.Content);
+		SetSize(wide + Content, tall + Content);
 	}
 
 	bool paint;

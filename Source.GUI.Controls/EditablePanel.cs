@@ -8,11 +8,34 @@ namespace Source.GUI.Controls;
 
 public class EditablePanel : Panel
 {
-	public static Panel Create_EditablePanel() => new EditablePanel(null, null);
+	public static Panel Create_EditablePanel() => new EditablePanel(null, null, null);
 	readonly public IFileSystem fileSystem = Singleton<IFileSystem>();
 
-	public EditablePanel(Panel? parent, string? panelName, bool showTaskbarIcon = true) : base(parent, panelName, showTaskbarIcon) {
+	public FocusNavGroup GetFocusNavGroup() => NavGroup;
+	BuildGroup BuildGroup;
+	readonly FocusNavGroup NavGroup;
+	KeyValues? DialogVariables;
+	string? ConfigName;
+	int ConfigID;
+	bool ShouldSkipAutoResize;
+
+	public EditablePanel(Panel? parent, ReadOnlySpan<char> panelName) : base(parent, panelName) {
 		BuildGroup = new BuildGroup(this, this);
+		ConfigName = null;
+		ConfigID = 0;
+		DialogVariables = null;
+		ShouldSkipAutoResize = false;
+		NavGroup = new FocusNavGroup(this);
+
+		SetBuildGroup(GetBuildGroup());
+	}
+
+	public EditablePanel(Panel? parent, ReadOnlySpan<char> panelName, IScheme scheme) : base(parent, panelName, scheme) {
+		BuildGroup = new BuildGroup(this, this);
+		ConfigName = null;
+		ConfigID = 0;
+		DialogVariables = null;
+		ShouldSkipAutoResize = false;
 		NavGroup = new FocusNavGroup(this);
 
 		SetBuildGroup(GetBuildGroup());
@@ -24,8 +47,8 @@ public class EditablePanel : Panel
 
 	public override bool RequestInfo(KeyValues outputData) {
 		if (outputData.Name.Equals("BuildDialog", StringComparison.OrdinalIgnoreCase)) {
-			// todo
-			return false;
+			outputData.SetPtr("PanelPtr", new BuildModeDialog((BuildGroup)outputData.GetPtr("BuildGroupPtr")!));
+			return true;
 		}
 		else if (outputData.Name.Equals("ControlFactory")) {
 			Panel? newPanel = CreateControlByName(outputData.GetString("ControlName"));
@@ -58,8 +81,61 @@ public class EditablePanel : Panel
 		InvalidateLayout();
 	}
 
+	public void LoadUserConfig(ReadOnlySpan<char> configName, int dialogID = 0) {
+		KeyValues? data = System.GetUserConfigFileData(configName, dialogID);
+		ConfigName = configName.ToString();
+		ConfigID = dialogID;
+
+		if (data != null)
+			ApplyUserConfigSettings(data);
+	}
+
+	public void SaveUserConfig() {
+		if (ConfigName == null)
+			return;
+
+		KeyValues? data = System.GetUserConfigFileData(ConfigName, ConfigID);
+		if (data != null)
+			GetUserConfigSettings(data);
+	}
+
+	public void ApplyUserConfigSettings(KeyValues userConfig) {
+		for (int i = 0; i < GetChildCount(); i++) {
+			Panel child = GetChild(i);
+			// if (child.HasUserConfigSettings()) {
+			// 	ReadOnlySpan<char> childName = child.GetName();
+			// 	if (childName.IsEmpty)
+			// 		continue;
+
+			// 	child.ApplyUserConfigSettings(userConfig.FindKey(childName, true));
+			// }
+		}
+	}
+
+	public void GetUserConfigSettings(KeyValues userConfig) {
+		for (int i = 0; i < GetChildCount(); i++) {
+			Panel child = GetChild(i);
+			// if (child.HasUserConfigSettings()) {
+			// 	ReadOnlySpan<char> childName = child.GetName();
+			// 	if (childName.IsEmpty)
+			// 		continue;
+
+			// 	child.GetUserConfigSettings(userConfig.FindKey(childName, true));
+			// }
+		}
+	}
+
+	public override void OnClose() => SaveUserConfig();
+
 	private void ForceSubPanelsToUpdateWithNewDialogVariables() {
-		// TODO
+		if (DialogVariables == null)
+			return;
+
+		SendMessage(DialogVariables, this);
+		for (int i = 0; i < GetChildCount(); i++) {
+			Panel child = GetChild(i);
+			child.SendMessage(DialogVariables, this);
+		}
 	}
 
 	static ConVarRef vgui_nav_lock_default_button = new("vgui_nav_lock_default_button");
@@ -95,6 +171,7 @@ public class EditablePanel : Panel
 			panel.AddActionSignalTarget(this);
 		}
 	}
+
 	public override IPanel? GetCurrentKeyFocus() {
 		Panel? focus = NavGroup.GetCurrentFocus();
 		if (focus == this)
@@ -113,6 +190,7 @@ public class EditablePanel : Panel
 
 		return base.GetCurrentKeyFocus();
 	}
+
 	public override void OnRequestFocus(Panel subFocus, Panel? defaultPanel) {
 		if (!subFocus.IsPopup())
 			defaultPanel = NavGroup.SetCurrentFocus(subFocus, defaultPanel);
@@ -120,10 +198,140 @@ public class EditablePanel : Panel
 		base.OnRequestFocus(subFocus, defaultPanel);
 	}
 
-	public FocusNavGroup GetFocusNavGroup() => NavGroup;
-	BuildGroup BuildGroup;
-	readonly FocusNavGroup NavGroup;
+	public override bool RequestFocusNext(IPanel? existingPanel = null) {
+		// bool Ret = NavGroup.RequestFocusNext(existingPanel);
+		// if (IsPC() && !Ret && IsConsoleStylePanel())
+		// NavigateUp();
+		// return Ret;
+
+		return false;
+	}
+
+	public override bool RequestFocusPrev(IPanel? existingPanel = null) {
+		// bool Ret = NavGroup.RequestFocusPrev(existingPanel);
+		// if (IsPC() && !Ret && IsConsoleStylePanel())
+		// NavigateDown();
+		// return Ret;
+
+		return false;
+	}
+
+	public void SetControlEnabled(ReadOnlySpan<char> controlName, bool enabled, bool recurseDown = false) {
+		Panel? control = FindChildByName(controlName, recurseDown);
+		if (control != null)
+			control.SetEnabled(enabled);
+	}
+
+	public void SetControlVisible(ReadOnlySpan<char> controlName, bool visible, bool recurseDown = false) {
+		Panel? control = FindChildByName(controlName, recurseDown);
+		if (control != null)
+			control.SetVisible(visible);
+	}
+
+	public void SetControlString(ReadOnlySpan<char> controlName, ReadOnlySpan<char> str) {
+		Panel? control = FindChildByName(controlName, false);
+		if (control != null) {
+			if (str[0] == '#') {
+				// todo localize
+			}
+			else
+				PostMessage(control, new KeyValues("SetText", "text", str));
+		}
+	}
+
+	public void SetControlInt(ReadOnlySpan<char> controlName, int value) {
+		Panel? control = FindChildByName(controlName, false);
+		if (control != null)
+			PostMessage(control, new KeyValues("SetInt", "value", value));
+	}
+
+	public int GetControlInt(ReadOnlySpan<char> controlName, int defaultState) {
+		Panel? control = FindChildByName(controlName, false);
+		if (control != null) {
+			KeyValues data = new("GetState");
+			if (control.RequestInfo(data))
+				return data.GetInt("state", defaultState);
+		}
+
+		return defaultState;
+	}
+
+	public void GetControlString(ReadOnlySpan<char> controlName, Span<char> buf, ReadOnlySpan<char> defaultStr) {
+		Panel? control = FindChildByName(controlName, false);
+		if (control != null) {
+			KeyValues data = new("GetText");
+			if (control.RequestInfo(data)) {
+				ReadOnlySpan<char> text = data.GetString("text");
+				text.CopyTo(buf);
+				return;
+			}
+		}
+
+		defaultStr.CopyTo(buf);
+	}
+
+	public void SetDialogVariable(ReadOnlySpan<char> varName, ReadOnlySpan<char> value) {
+		GetDialogVariables().SetString(varName, value);
+		ForceSubPanelsToUpdateWithNewDialogVariables();
+	}
+
+	public void SetDialogVariable(ReadOnlySpan<char> varName, int value) {
+		GetDialogVariables().SetInt(varName, value);
+		ForceSubPanelsToUpdateWithNewDialogVariables();
+	}
+
+	public void SetDialogVariable(ReadOnlySpan<char> varName, float value) {
+		GetDialogVariables().SetFloat(varName, value);
+		ForceSubPanelsToUpdateWithNewDialogVariables();
+	}
+
+	public override void OnSizeChanged(int newWide, int newTall) {
+		base.OnSizeChanged(newWide, newTall);
+		InvalidateLayout();
+
+		for (int i = 0; i < GetChildCount(); i++) {
+			Panel? child = GetChild(i);
+			if (child == null)
+				continue;
+
+			child.GetBounds(out int x, out int y, out int w, out int h);
+			// child.GetPinOffset(out int px, out int py);
+			// child.GetResizeOffset(out int ox, out int oy);
+
+			int ex, ey;
+
+			// AutoResize resize = child.GetAutoResize();
+		}
+
+		Repaint();
+	}
+
+	public override void RequestFocus(int direction = 0) {
+		if (direction == 1)
+			RequestFocusNext();
+		else if (direction == -1)
+			RequestFocusPrev();
+		else
+			base.RequestFocus(direction);
+	}
+
+	public KeyValues GetDialogVariables() => DialogVariables ??= new KeyValues("DialogVariables");
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		switch (message.Name) {
+			case "DefaultButtonSet":
+				break;
+			case "CurrentDefaultButtonSet":
+				break;
+			case "FindDefaultButton":
+				break;
+			default:
+				base.OnMessage(message, from);
+				break;
+		}
+	}
 }
+
 public class FocusNavGroup
 {
 	readonly public IVGui VGui = Singleton<IVGui>();
@@ -203,10 +411,10 @@ public class FocusNavGroup
 			if (child == null)
 				continue;
 
-			if (child.GetTabPosition() == 1) 
+			if (child.GetTabPosition() == 1)
 				return child;
 		}
 
-		return null; 
+		return null;
 	}
 }

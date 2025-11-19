@@ -266,7 +266,7 @@ public class Label : Panel
 			if (labelText[0] == '%' && labelText[labelText.Length - 1] == '%') {
 				// TODO: What is this exactly
 			}
-			else 
+			else
 				SetText(labelText);
 		}
 
@@ -442,7 +442,7 @@ public class Label : Panel
 
 	public void DrawDashedLine(int x0, int y0, int x1, int y1, int dashLen, int gapLen) {
 		if (x1 - x0 > y1 - y0) {
-			while(true) {
+			while (true) {
 				if (x0 + dashLen > x1)
 					Surface.DrawFilledRect(x0, y0, x1, y1);
 				else
@@ -455,7 +455,8 @@ public class Label : Panel
 
 				x0 += gapLen;
 			}
-		} else {
+		}
+		else {
 			while (true) {
 				if (y0 + dashLen > y1)
 					Surface.DrawFilledRect(x0, y0, x1, y1);
@@ -559,7 +560,7 @@ public class Label : Panel
 	public void SetImageAtIndex(int index, IImage? image, int offset) {
 		EnsureImageCapacity(index);
 
-		if(Images[index].Image != image || Images[index].Offset != offset) {
+		if (Images[index].Image != image || Images[index].Offset != offset) {
 			var info = Images[index];
 			info.Image = image;
 			info.Offset = (short)offset;
