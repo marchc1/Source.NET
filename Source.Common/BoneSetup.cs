@@ -82,6 +82,13 @@ public ref struct BoneSetup
 		// TODO: IK
 	}
 
+	private static bool PoseIsAllZeros(StudioHdr studioHdr, int sequence, MStudioSeqDesc seqdesc, int i0, int i1) {
+		int baseanim;
+
+		baseanim = studioHdr.iRelativeAnim(sequence, seqdesc.Anim(i0, i1));
+		MStudioAnimDesc anim = studioHdr.Animdesc(baseanim);
+		return (anim.Flags & StudioAnimFlags.AllZeros) != 0;
+	}
 	private static bool CalcPoseSingle(StudioHdr studioHdr, Span<Vector3> pos, Span<Quaternion> q, MStudioSeqDesc seqdesc, int sequence, double cycle, Span<float> poseParameter, int boneMask, double time) {
 		bool bResult = true;
 
@@ -222,6 +229,62 @@ public ref struct BoneSetup
 		QuaternionPool.Free(q3);
 
 		return bResult;
+	}
+
+	private static void Studio_SeqAnims(StudioHdr studioHdr, MStudioSeqDesc seqdesc, int sequence, Span<float> poseParameter, Span<MStudioAnimDesc> panim, Span<float> weight) {
+		if (studioHdr == null || sequence >= studioHdr.GetNumSeq()) {
+			weight[0] = weight[1] = weight[2] = weight[3] = 0.0f;
+			return;
+		}
+
+		int i0 = 0, i1 = 0;
+		float s0 = 0, s1 = 0;
+
+		Studio_LocalPoseParameter(studioHdr, poseParameter, seqdesc, sequence, 0, ref s0, ref i0);
+		Studio_LocalPoseParameter(studioHdr, poseParameter, seqdesc, sequence, 1, ref s1, ref i1);
+
+		panim[0] = studioHdr.Animdesc(studioHdr.iRelativeAnim(sequence, seqdesc.Anim(i0, i1)));
+		weight[0] = (1 - s0) * (1 - s1);
+
+		panim[1] = studioHdr.Animdesc(studioHdr.iRelativeAnim(sequence, seqdesc.Anim(i0 + 1, i1)));
+		weight[1] = (s0) * (1 - s1);
+
+		panim[2] = studioHdr.Animdesc(studioHdr.iRelativeAnim(sequence, seqdesc.Anim(i0, i1 + 1)));
+		weight[2] = (1 - s0) * (s1);
+
+		panim[3] = studioHdr.Animdesc(studioHdr.iRelativeAnim(sequence, seqdesc.Anim(i0 + 1, i1 + 1)));
+		weight[3] = (s0) * (s1);
+
+		Assert(weight[0] >= 0.0f && weight[1] >= 0.0f && weight[2] >= 0.0f && weight[3] >= 0.0f);
+	}
+
+	private static float Studio_CPS(StudioHdr studioHdr, MStudioSeqDesc seqdesc, int sequence, Span<float> poseParameter) {
+		MStudioAnimDesc[] panim = ArrayPool< MStudioAnimDesc>.Shared.Rent(4);
+		Span<float> weight = stackalloc float[4];
+
+		Studio_SeqAnims(studioHdr, seqdesc, sequence, poseParameter, panim, weight);
+
+		float t = 0;
+
+		for (int i = 0; i < 4; i++) {
+			if (weight[i] > 0 && panim[i].NumFrames > 1) {
+				t += (panim[i].FPS / (panim[i].NumFrames- 1)) * weight[i];
+			}
+		}
+
+		return t;
+	}
+	private static void Calc3WayBlendIndices(int i0, int i1, float s0, float s1, MStudioSeqDesc seqdesc, Span<int> animIndices, Span<float> weight) {
+
+	}
+	private static void CalcAnimation(StudioHdr studioHdr, Span<Vector3> pos, Span<Quaternion> q, MStudioSeqDesc seqdesc, int sequence, int animation, TimeUnit_t cycle, int bonemask) {
+
+	}
+	private static void BlendBones(StudioHdr studioHdr, Span<Quaternion> q1, Span<Vector3> pos1, MStudioSeqDesc seqdesc, int sequence, ReadOnlySpan<Quaternion> q2, ReadOnlySpan<Vector3> pos2, float s, int boneMask) {
+
+	}
+	private static void ScaleBones(StudioHdr studioHdr, Span<Quaternion> q1, Span<Vector3> pos1, int sequence, float s, int boneMask) {
+
 	}
 
 	private static void Studio_LocalPoseParameter(StudioHdr studioHdr, Span<float> poseParameter, MStudioSeqDesc seqdesc, int sequence, int localIndex, ref float flSetting, ref int index) {

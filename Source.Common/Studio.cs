@@ -6,6 +6,7 @@ using Source.Common.Formats.BSP;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Reflection.Metadata.Ecma335;
@@ -695,15 +696,69 @@ public enum StudioAnimFlags
 
 public class MStudioAnimDesc
 {
+	public const int SIZEOF = 100; // Static offset from MSVC stats (mstudiobone_t size 100, alignment 4)
+	public static MStudioAnimDesc FACTORY(object caller, Memory<byte> data) => new((StudioHeader)caller ?? throw new NullReferenceException(), data);
 	public readonly StudioHeader hdr;
 	public StudioHeader Studiohdr() => hdr;
 	public Memory<byte> Data;
 
+	public int NameIndex;
 
+	public float FPS;
+	private int flags;
+	public StudioAnimFlags Flags => (StudioAnimFlags)flags;
+
+	public int NumFrames;
+
+	public int NumMovements;
+	public int MovementIndex;
+
+	// UNUSED 6 INTEGERS
+
+	public int AnimBlock;
+	public int AnimIndex;
+
+	public int NumIKRules;
+	public int IKRuleIndex;
+	public int AnimBlockIKRuleIndex;
+
+	public int NumLocalHierarchy;
+	public int LocalHierarchyIndex;
+
+	public int SectionIndex;
+	public int SectionFrames;
+
+	public int ZeroFrameSpan;
+	public int ZeroFrameCount;
+	public int ZeroFrameIndex;
+	public double ZeroFrameStallTime;
 
 	public MStudioAnimDesc(StudioHeader hdr, Memory<byte> data) {
 		this.hdr = hdr;
 		Data = data;
+		SpanBinaryReader br = new(Data.Span);
+
+		br.Read<int>(); // index not needed
+		br.Read(out NameIndex);
+		br.Read(out FPS);
+		br.Read(out flags);
+		br.Read(out NumFrames);
+		br.Read(out NumMovements);
+		br.Read(out MovementIndex);
+		br.Advance<int>(6);
+
+		br.Read(out AnimBlock);
+		br.Read(out AnimIndex);
+		br.Read(out NumIKRules);
+		br.Read(out IKRuleIndex);
+		br.Read(out AnimBlockIKRuleIndex);
+		br.Read(out NumLocalHierarchy);
+		br.Read(out LocalHierarchyIndex);
+		br.Read(out SectionIndex);
+		br.Read(out SectionFrames);
+		br.Read(out ZeroFrameSpan);
+		br.Read(out ZeroFrameCount);
+		br.Read(out ZeroFrameIndex);
 	}
 }
 
@@ -980,6 +1035,17 @@ public class StudioHdr
 		return studioHdr.LocalSeqdesc(vModel.Seq[i].Index);
 	}
 
+	public MStudioAnimDesc Animdesc(int i) {
+		if (vModel == null)
+			return this.studioHdr!.LocalAnimdesc(i);
+
+		if (vModel.Pose[i].Group == 0)
+			return this.studioHdr!.LocalAnimdesc(vModel.Pose[i].Index);
+
+		StudioHeader studioHdr = GroupStudioHdr(vModel.Pose[i].Group);
+		return studioHdr.LocalAnimdesc(vModel.Pose[i].Index);
+	}
+
 	public MStudioPoseParamDesc PoseParameter(int i) {
 		if (vModel == null)
 			return this.studioHdr!.LocalPoseParameter(i);
@@ -1004,6 +1070,14 @@ public class StudioHdr
 		VirtualGroup? pGroup = vModel.Group.IsValidIndex(group) ? vModel.Group[group] : null;
 
 		return pGroup != null ? pGroup.MasterPose[localPose] : localPose;
+	}
+
+	public int iRelativeAnim(int baseseq, int relanim) {
+		if (vModel == null)
+			return relanim;
+
+		VirtualGroup group = vModel.Group[vModel.Seq[baseseq].Group];
+		return group.MasterAnim[relanim];
 	}
 }
 
@@ -1143,9 +1217,23 @@ public class StudioHeader
 
 	public int NumLocalAnim;
 	public int LocalAnimIndex;
+	MStudioAnimDesc[]? animDescs;
+	internal MStudioAnimDesc LocalAnimdesc(int i) {
+		if (i < 0 || i >= NumLocalAnim)
+			i = 0;
+
+		return Studio.ProduceArrayIdx(this, ref animDescs, NumLocalAnim, LocalAnimIndex, i, MStudioAnimDesc.SIZEOF, Data, MStudioAnimDesc.FACTORY);
+	}
 
 	public int NumLocalSeq;
 	public int LocalSeqIndex;
+	MStudioSeqDesc[]? seqDescs;
+	internal MStudioSeqDesc LocalSeqdesc(int i) {
+		if (i < 0 || i >= NumLocalSeq)
+			i = 0;
+
+		return Studio.ProduceArrayIdx(this, ref seqDescs, NumLocalSeq, LocalSeqIndex, i, MStudioSeqDesc.SIZEOF, Data, MStudioSeqDesc.FACTORY);
+	}
 
 	public int ActivityListVersion;
 	public int EventsIndexed;
@@ -1289,14 +1377,5 @@ public class StudioHeader
 		if (NumIncludeModels == 0)
 			return null;
 		return modelinfo.GetVirtualModel(this);
-	}
-
-
-	MStudioSeqDesc[]? seqDescs;
-	internal MStudioSeqDesc LocalSeqdesc(int i) {
-		if (i < 0 || i >= NumLocalSeq)
-			i = 0;
-
-		return Studio.ProduceArrayIdx(this, ref seqDescs, NumLocalSeq, LocalSeqIndex, i, MStudioSeqDesc.SIZEOF, Data, MStudioSeqDesc.FACTORY);
 	}
 }

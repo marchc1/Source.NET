@@ -1496,6 +1496,16 @@ public ref struct SpanBinaryReader
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public void Advance(int bytes) {
+		ptr += bytes;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public unsafe void Advance<T>(int elements) where T : unmanaged {
+		ptr += sizeof(T) * elements;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public ReadOnlySpan<byte> ReadBytes(int bytes) {
 		ReadOnlySpan<byte> ret = contents[ptr..(ptr + bytes)];
 		ptr += bytes;
