@@ -27,6 +27,9 @@ public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sy
 
 	Lazy<IEngine> engR = new(services.GetRequiredService<IEngine>);
 
+
+	internal List<MemberInfo>? filledDependencies;
+
 	public IEngineAPI.Result RunListenServer() {
 		IEngineAPI.Result result = IEngineAPI.Result.RunOK;
 		IMod mod = services.GetRequiredService<IMod>();
@@ -34,9 +37,10 @@ public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sy
 			result = (IEngineAPI.Result)mod.Run();
 			mod.Shutdown();
 		}
-
+		EngineBuilder.InvalidateEngineDeps(filledDependencies);
 		return result;
 	}
+
 
 	public void SetStartupInfo(in StartupInfo info) {
 		startupInfo = info;

@@ -94,6 +94,22 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		return this;
 	}
 
+	readonly List<MemberInfo> filledDependencies = [];
+
+	/// <summary>
+	/// Nulls out all automatic references the EngineBuilder previously created for the EngineAPI.
+	/// </summary>
+	/// <param name="members"></param>
+	public static void InvalidateEngineDeps(List<MemberInfo>? members) {
+		if (members == null) return;
+		foreach (var member in members) {
+			switch (member) {
+				case FieldInfo field: field.SetValue(null, null); break;
+				case PropertyInfo prop: prop.SetValue(null, null); break;
+			}
+		}
+	}
+
 	/// <summary>
 	/// Finalizes the dependency injection setup and returns a finalized <see cref="IServiceProvider"/> (as an <see cref="EngineAPI"/>).
 	/// </summary>
@@ -217,6 +233,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		using ServiceLocatorScope locatorScope = new(provider);
 
 		EngineAPI api = (EngineAPI)provider.GetRequiredService<IEngineAPI>();
+		api.filledDependencies = filledDependencies;
 
 		object? getService(Type service, DependencyAttribute depAttr) {
 			if (depAttr is KeyedDependencyAttribute keyed)
@@ -236,7 +253,11 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 				case PropertyInfo prop:
 					prop.SetValue(null, getService(depAttr.GetUnderlyingType() ?? prop.PropertyType, depAttr));
 					break;
+				default: // don't add a dependency for junk
+					return;
 			}
+
+			filledDependencies.Add(member);
 		}
 
 		foreach (var member in populateLater) {
