@@ -142,7 +142,23 @@ public class ClientLeafSystem : IClientLeafSystem
 	}
 
 	public void BuildRenderablesList(in SetupRenderInfo info) {
-		// todo later
+		// TODO: full implementation. Every prop physics for now (I am lazy and testing model rendering).
+		foreach (var renderable in Renderables) {
+			ref RenderableInfo i = ref renderable.Value.Info;
+			if (i.Renderable is C_PhysicsProp)
+				AddRenderableToRenderList(info.RenderList!, i.Renderable, 0, i.RenderGroup);
+		}
+	}
+
+	private void AddRenderableToRenderList(ClientRenderablesList renderList, IClientRenderable? renderable, ushort leaf, RenderGroup renderGroup, ClientRenderHandle_t renderHandle = 0, bool twoPass = false) {
+		ref int curCount = ref renderList.RenderGroupCounts[(int)renderGroup];
+
+		ref ClientRenderablesList.Entry entry = ref renderList[renderGroup, curCount];
+		entry.Renderable = renderable;
+		entry.WorldListInfoLeaf = leaf;
+		entry.TwoPass = twoPass;
+		entry.RenderHandle = renderHandle;
+		curCount++;
 	}
 
 	public void ChangeRenderableRenderGroup(ClientRenderHandle_t handle, RenderGroup group) {
@@ -163,7 +179,7 @@ public class ClientLeafSystem : IClientLeafSystem
 				group = RenderGroup.OpaqueStatic;
 		}
 
-		if (bTwoPass) 
+		if (bTwoPass)
 			flags |= RenderFlags.TwoPass;
 
 		NewRenderable(renderable, group, flags);
@@ -256,7 +272,31 @@ public class ClientLeafSystem : IClientLeafSystem
 	}
 
 	public void SetRenderGroup(ClientRenderHandle_t handle, RenderGroup group) {
-		throw new NotImplementedException();
+		ref RenderableInfo pInfo = ref Renderables[handle].Info;
+
+		bool twoPass = false;
+		if (group == RenderGroup.TwoPass) {
+			twoPass = true;
+			group = RenderGroup.TranslucentEntity;
+		}
+
+		if (twoPass) 
+			pInfo.Flags |= RenderFlags.TwoPass;
+		else 
+			pInfo.Flags &= ~RenderFlags.TwoPass;
+		
+		bool bOldViewModelRenderGroup = IsViewModelRenderGroup(pInfo.RenderGroup);
+		bool bNewViewModelRenderGroup = IsViewModelRenderGroup(group);
+		if (bOldViewModelRenderGroup != bNewViewModelRenderGroup) {
+			if (bOldViewModelRenderGroup) {
+				RemoveFromViewModelList(handle);
+			}
+			else {
+				AddToViewModelList(handle);
+			}
+		}
+
+		pInfo.RenderGroup = group;
 	}
 
 	public void Shutdown() {

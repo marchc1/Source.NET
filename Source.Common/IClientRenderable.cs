@@ -13,11 +13,12 @@ public interface IClientRenderable {
 	bool IsTransparent();
 	Model? GetModel();
 	int DrawModel(StudioFlags flags);
-	bool SetupBones(Span<Matrix4x4> boneToWorldOut, int maxBones, int boneMask, double currentTime);
+	bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, double currentTime);
 	void GetRenderBounds(out Vector3 mins, out Vector3 maxs);
 	void GetRenderBoundsWorldspace(out Vector3 mins, out Vector3 maxs);
 	ref ClientRenderHandle_t RenderHandle();
 	IPVSNotify? GetPVSNotifyInterface();
 	void ComputeFxBlend();
 	bool IsTwoPass();
+	public void GetColorModulation(Span<float> color) => color[0] = color[1] = color[2] = 1.0f;
 }

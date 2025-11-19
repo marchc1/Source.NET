@@ -112,6 +112,12 @@ public class MatRenderContext : IMatRenderContextInternal
 		CurrentMatrixChanged();
 	}
 
+	public void LoadMatrix(in Matrix3x4 matrix) {
+		ref MatrixStackItem item = ref CurMatrixItem;
+		item.Matrix = matrix;
+		CurrentMatrixChanged();
+	}
+
 	private void MarkDirty() => MatrixStacksDirtyStates[(int)matrixMode] = true;
 
 	public void MatrixMode(MaterialMatrixMode mode) {
@@ -302,22 +308,20 @@ public class MatRenderContext : IMatRenderContextInternal
 	}
 
 	public void Scale(float x, float y, float z) {
-		Matrix4x4 mat = Matrix4x4.CreateScale(x, y, z);
+		MathLib.MatrixBuildScale(out Matrix4x4 mat, x, y, z);
 		MultMatrixLocal(in mat);
 	}
 
 
 	private void MultMatrixLocal(in Matrix4x4 mat) {
-		Matrix4x4 result = Matrix4x4.Multiply(CurMatrixItem.Matrix, mat);
-		ref MatrixStackItem item = ref CurMatrixItem;
-		item.Matrix = result;
+		MathLib.MatrixMultiply(in CurMatrixItem.Matrix, in mat, out Matrix4x4 result);
+		CurMatrixItem.Matrix = result;
 		CurrentMatrixChanged();
 	}
 
 	public void Ortho(double left, double top, double right, double bottom, double near, double far) {
 		ref Matrix4x4 item = ref CurMatrixItem.Matrix;
-		Matrix4x4 matrix = MathLib.CreateOpenGLOrthoOffCenter((float)left, (float)right, (float)bottom, (float)top, (float)near, (float)far);
-		item = Matrix4x4.Multiply(item, matrix);
+		MathLib.MatrixOrtho(ref item, (float)left, (float)right, (float)bottom, (float)top, (float)near, (float)far);
 		CurrentMatrixChanged();
 	}
 
@@ -519,7 +523,7 @@ public class MatRenderContext : IMatRenderContextInternal
 		shaderAPI.SetNumBoneWeights(numBones);
 	}
 
-	public void LoadBoneMatrix(int boneIndex, in Matrix4x4 matrix) {
+	public void LoadBoneMatrix(int boneIndex, in Matrix3x4 matrix) {
 		shaderAPI.LoadBoneMatrix(boneIndex, in matrix);
 	}
 }

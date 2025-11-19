@@ -42,9 +42,6 @@ public class Render(
 	ModelLoader? _modelLoader;
 	ModelLoader modelLoader => _modelLoader ??= (ModelLoader)Singleton<IModelLoader>();
 
-	IViewRender? viewRender;
-	IViewRender engineRenderer => viewRender ??= Singleton<IViewRender>();
-
 	float FOV;
 	float Framerate;
 	float ZNear;
@@ -295,7 +292,7 @@ public class Render(
 		Span<MatSysInterface.MeshList> meshLists = MaterialSystem.Meshes.AsSpan();
 
 		if ((flags & DrawWorldListFlags.Skybox) != 0) {
-			DrawSkybox(engineRenderer.GetZFar());
+			DrawSkybox(GetZFar());
 		}
 
 		for (int i = meshLists.Length - 1; i >= 0; i--) {
@@ -311,6 +308,11 @@ public class Render(
 			}
 		}
 	}
+
+	private float GetZFar() {
+		return Far;
+	}
+
 	static ConVar r_drawskybox = new("1", FCvar.Cheat);
 
 	static readonly int[] SkyTexOrder = [0, 2, 1, 3, 4, 5];
@@ -510,8 +512,6 @@ public class Render(
 		// ComputeViewMatrix(ref worldToView, new(-852, 907, (-12152) + (MathF.Sin((float)gpGlobals.CurTime * 1) * 64)), new QAngle(17.68f, -53.19f, 0));
 		ComputeViewMatrix(ref worldToView, viewSetup.Origin, viewSetup.Angles);
 
-		float fovX = MathLib.DEG2RAD(viewSetup.FOV);
-
 		if (viewSetup.Ortho) {
 			throw new NotImplementedException();
 		}
@@ -522,9 +522,9 @@ public class Render(
 			throw new NotImplementedException();
 		}
 		else
-			viewToProjection = Matrix4x4.CreatePerspectiveFieldOfView(fovX, aspectRatio, viewSetup.ZNear, viewSetup.ZFar);
+			MathLib.MatrixBuildPerspectiveX(ref viewToProjection, viewSetup.FOV, aspectRatio, viewSetup.ZNear, viewSetup.ZFar);
 
-		worldToProjection = Matrix4x4.Multiply(viewToProjection, worldToView);
+		MathLib.MatrixMultiply(viewToProjection, worldToView, out worldToProjection);
 
 		return aspectRatio;
 	}
@@ -532,8 +532,21 @@ public class Render(
 	private static Matrix4x4 baseRotation;
 	private static bool didInit = false;
 	private void ComputeViewMatrix(ref Matrix4x4 worldToView, in Vector3 origin, in QAngle angles) {
-		angles.Vectors(out Vector3 forward, out _, out Vector3 up);
-		worldToView = Matrix4x4.CreateLookTo(origin, forward, up);
+		angles.Vectors(out Vector3 forward, out Vector3 right, out Vector3 up);
+
+		Matrix4x4 view = default;
+		view.Init(
+			right.X, right.Y, right.Z, 0,
+			up.X, up.Y, up.Z, 0,
+			-forward.X, -forward.Y, -forward.Z, 0,
+			0, 0, 0, 1
+		);
+
+		view.M14 = -Vector3.Dot(right, origin);
+		view.M24 = -Vector3.Dot(up, origin);
+		view.M34 = Vector3.Dot(forward, origin);
+
+		worldToView = view;
 	}
 	readonly IMaterial?[] skyboxMaterials = new IMaterial?[6];
 	readonly static string[] skyboxsuffix = ["rt", "bk", "lf", "ft", "up", "dn"];

@@ -8,6 +8,7 @@ using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
 using Source.Common.ShaderAPI;
 using Source.MaterialSystem.Surface;
 
@@ -137,7 +138,8 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		int renderWidth = 0, renderHeight = 0;
 		launcherMgr.RenderedSize(false, ref renderWidth, ref renderHeight);
 		float scaleRatio = (float)renderWidth / (float)screenWidth;
-		return Matrix4x4.CreateScale(scaleRatio, scaleRatio, 1);
+		MathLib.MatrixBuildScale(out Matrix4x4 m, scaleRatio, scaleRatio, 1);
+		return m;
 	}
 
 	public bool IsInFrame() => InFrame;

@@ -1,4 +1,5 @@
 global using static Game.Client.ViewRenderConVars;
+
 using Game.Shared;
 
 using Source;
@@ -13,6 +14,7 @@ using Source.Engine;
 using System.Numerics;
 
 namespace Game.Client;
+
 public static class ViewRenderConVars
 {
 	internal readonly static ConVar cl_maxrenderable_dist = new("3000", FCvar.Cheat, "Max distance from the camera at which things will be rendered");
@@ -80,7 +82,47 @@ public class Base3dView
 	public Frustum GetFrustrum() => frustum;
 	public virtual DrawFlags GetDrawFlags() => 0;
 }
+public class BaseWorldView : Rendering3dView
+{
+	public BaseWorldView(ViewRender mainView) : base(mainView) { }
+	protected void DrawSetup(float waterHeight, DrawFlags setupFlags, float waterZAdjust) {
+		ViewID savedViewID = ViewRender.g_CurrentViewID;
+		ViewRender.g_CurrentViewID = ViewID.Illegal;
+		BuildRenderableRenderLists(savedViewID);
 
+		ViewRender.g_CurrentViewID = savedViewID;
+	}
+	protected void DrawExecute(float waterHeight, ViewID viewID, float waterZAdjust) {
+		using MatRenderContextPtr renderContext = new(mainView.materials);
+		renderContext.ClearBuffers(false, true, false);
+
+		RenderDepthMode depthMode = RenderDepthMode.Normal;
+
+		if ((DrawFlags & DrawFlags.DrawEntities) != 0) {
+			DrawWorld(waterZAdjust);
+			DrawOpaqueRenderables(depthMode);
+		}
+	}
+}
+
+public class SimpleWorldView : BaseWorldView
+{
+	public SimpleWorldView(ViewRender mainView) : base(mainView) { }
+	public void Setup(in ViewSetup view, ClearFlags clearFlags, bool drawSkybox) {
+		base.Setup(in view);
+
+		ClearFlags = clearFlags;
+		DrawFlags = DrawFlags.DrawEntities;
+
+		if (drawSkybox)
+			DrawFlags |= DrawFlags.DrawSkybox;
+	}
+	public override void Draw() {
+		using MatRenderContextPtr renderContext = new(mainView.materials);
+		DrawSetup(0, DrawFlags, 0);
+		DrawExecute(0, ViewRender.g_CurrentViewID, 0);
+	}
+}
 public class Rendering3dView : Base3dView
 {
 	protected DrawFlags DrawFlags;
@@ -91,6 +133,12 @@ public class Rendering3dView : Base3dView
 
 	public Rendering3dView(ViewRender mainView) : base(mainView) {
 
+	}
+	protected void BuildRenderableRenderLists(ViewID viewID) {
+		//  if (viewID != ViewID.ShadowDepthTexture)
+		//  	render.BeginUpdateLightmaps();
+		mainView.IncRenderablesListsNumber();
+		SetupRenderablesList(viewID);
 	}
 	public virtual void Setup(in ViewSetup setup) {
 		ViewSetup = setup; // copy to our ViewSetup
@@ -116,26 +164,59 @@ public class Rendering3dView : Base3dView
 			return;
 
 		render.SetBlend(1);
+
+		// TODO: do this properly, lazy right now
+		int count = RenderablesList.Count(RenderGroup.OpaqueEntity);
+		for (int i = 0; i < count; i++) {
+			ref ClientRenderablesList.Entry entry = ref RenderablesList[RenderGroup.OpaqueEntity, i];
+			if (entry.Renderable != null)
+				DrawOpaqueRenderable(entry.Renderable, entry.TwoPass, depthMode);
+		}
+	}
+
+	private void DrawOpaqueRenderable(IClientRenderable ent, bool twoPass, RenderDepthMode depthMode, StudioFlags defaultFlags = 0) {
+		Span<float> color = stackalloc float[3];
+
+		ent.GetColorModulation(color);
+		render.SetColorModulation(color);
+
+		StudioFlags flags = defaultFlags | StudioFlags.Render;
+		if (twoPass)
+			flags |= StudioFlags.TwoPass;
+
+		if (depthMode == RenderDepthMode.Shadow) {
+			flags |= StudioFlags.ShadowDepthTexture;
+		}
+		else if (depthMode == RenderDepthMode.SSAO) {
+			flags |= StudioFlags.SSAODepthTexture;
+		}
+
+		// todo: entity clip planes
+
+		Assert(view.GetCurrentlyDrawingEntity() == null);
+		view.SetCurrentlyDrawingEntity(ent.GetIClientUnknown().GetBaseEntity());
+		ent.DrawModel(flags);
+		view.SetCurrentlyDrawingEntity(null);
 	}
 
 	protected void EnableWorldFog() => throw new NotImplementedException();
 	protected void SetupRenderablesList(ViewID viewID) {
 		// Clear the list.
 		int i;
-		for (i = 0; i < (int)RenderGroup.Count; i++) 
+		for (i = 0; i < (int)RenderGroup.Count; i++)
 			RenderablesList.RenderGroupCounts[i] = 0;
 
 		// Now collate the entities in the leaves.
 		if (mainView.ShouldDrawEntities()) {
 			SetupRenderInfo setupInfo = default;
-			setupInfo.RenderFrame = mainView.BuildRenderablesListsNumber(); 
+			setupInfo.RenderFrame = mainView.BuildRenderablesListsNumber();
 			// setupInfo.DetailBuildFrame = mainView.BuildWorldListsNumber();  
 			setupInfo.RenderList = RenderablesList;
 			// setupInfo.DrawDetailObjects = ClientMode.ShouldDrawDetailObjects() && r_DrawDetailProps.GetInt();
 			setupInfo.DrawTranslucentObjects = (viewID != ViewID.ShadowDepthTexture);
 
 			setupInfo.RenderOrigin = setup.Origin;
-			setupInfo.RenderForward = ViewRender.CurrentRenderForward;
+			setupInfo.RenderForward = CurrentViewForward();
 
 			float fMaxDist = cl_maxrenderable_dist.GetFloat();
 
@@ -155,7 +236,7 @@ public class Rendering3dView : Base3dView
 
 		if ((drawFlags & DrawFlags.DrawSkybox) != 0)
 			engineFlags |= DrawWorldListFlags.Skybox;
-		
+
 		if ((drawFlags & DrawFlags.RenderAbovewater) != 0) {
 			engineFlags |= DrawWorldListFlags.StrictlyAboveWater;
 			engineFlags |= DrawWorldListFlags.IntersectsWater;
@@ -168,19 +249,19 @@ public class Rendering3dView : Base3dView
 
 		if ((drawFlags & DrawFlags.RenderWater) != 0)
 			engineFlags |= DrawWorldListFlags.WaterSurface;
-		
+
 		if ((drawFlags & DrawFlags.ClipSkybox) != 0)
 			engineFlags |= DrawWorldListFlags.ClipSkybox;
 
 		if ((drawFlags & DrawFlags.ShadowDepthMap) != 0)
 			engineFlags |= DrawWorldListFlags.ShadowDepth;
-		
+
 		if ((drawFlags & DrawFlags.RenderRefraction) != 0)
 			engineFlags |= DrawWorldListFlags.Refraction;
-		
+
 		if ((drawFlags & DrawFlags.RenderReflection) != 0)
 			engineFlags |= DrawWorldListFlags.Reflection;
-		
+
 		if ((drawFlags & DrawFlags.SSAODepthPass) != 0) {
 			engineFlags |= DrawWorldListFlags.SSAO | DrawWorldListFlags.StrictlyUnderWater | DrawWorldListFlags.IntersectsWater | DrawWorldListFlags.StrictlyAboveWater;
 			engineFlags &= ~(DrawWorldListFlags.WaterSurface | DrawWorldListFlags.Refraction | DrawWorldListFlags.Reflection);
@@ -251,19 +332,6 @@ public class SkyboxView : Rendering3dView
 		}
 
 		render.PopView(GetFrustrum());
-	}
-
-	protected void BuildRenderableRenderLists(ViewID viewID) {
-		//  if (viewID != ViewID.ShadowDepthTexture)
-		//  	render.BeginUpdateLightmaps();
-		mainView.IncRenderablesListsNumber();
-		SetupRenderablesList(viewID);
-	}
-
-	private void SetupCurrentView(in Vector3 origin, in QAngle angles, ViewID viewID) {
-		ViewRender.CurrentRenderOrigin = origin;
-		ViewRender.CurrentRenderAngles = angles;
-		ViewRender.CurrentViewID = viewID;
 	}
 
 	private SafeFieldPointer<PlayerLocalData, Sky3DParams> PreRender3dSkyboxWorld(ref SkyboxVisibility skyboxVisible) {

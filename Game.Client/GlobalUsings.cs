@@ -36,6 +36,7 @@ public ref struct C_BaseEntityIterator {
 public static class ClientGlobals
 {
 	public static ClientGlobalVariables gpGlobals { get; private set; } = null!;
+	public static IViewRender view { get; private set; } = null!;
 	public static IRenderView render { get; private set; } = null!;
 	public static IEngineClient engine { get; private set; } = null!;
 	public static IEngineVGui enginevgui { get; private set; } = null!;
@@ -64,6 +65,7 @@ public static class ClientGlobals
 		enginevgui = Singleton<IEngineVGui>();
 		cvar = Singleton<ICvar>();
 		cl_entitylist = Singleton<ClientEntityList>();
+		view = Singleton<IViewRender>();
 		render = Singleton<IRenderView>();
 		gHUD = Singleton<Hud>();
 		prediction = (Prediction)Singleton<IPrediction>();

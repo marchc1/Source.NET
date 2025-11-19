@@ -37,8 +37,8 @@ public struct ModelRenderInfo
 	public QAngle Angles;
 	public IClientRenderable? Renderable;
 	public Model? Model;
-	public Matrix4x4 ModelToWorld;
-	public Matrix4x4 LightingOffset;
+	public Matrix3x4 ModelToWorld;
+	public Matrix3x4 LightingOffset;
 	public Vector3 LightingOrigin;
 	public StudioFlags Flags;
 	public int EntityIndex;
@@ -52,7 +52,7 @@ public interface IModelRender
 {
 	ModelInstanceHandle_t CreateInstance(IClientRenderable renderable);
 	void DestroyInstance(ModelInstanceHandle_t modelInstance);
-	void DrawModelExecute(ref DrawModelState state, ref ModelRenderInfo info, Span<Matrix4x4> boneToWorldArray);
-	bool DrawModelSetup(ref ModelRenderInfo info, ref DrawModelState state, Span<Matrix4x4> customBoneToWorld, out Span<Matrix4x4> boneToWorldArray);
+	void DrawModelExecute(ref DrawModelState state, ref ModelRenderInfo info, Span<Matrix3x4> boneToWorldArray);
+	bool DrawModelSetup(ref ModelRenderInfo info, ref DrawModelState state, Span<Matrix3x4> customBoneToWorld, out Span<Matrix3x4> boneToWorldArray);
 	ref Matrix4x4 SetupModelState(IClientRenderable renderable);
 }

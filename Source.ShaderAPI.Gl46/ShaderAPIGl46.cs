@@ -520,7 +520,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 	public unsafe void LoadMatrix(in Matrix4x4 m4x4) {
 		int szm4x4 = sizeof(Matrix4x4);
 		int loc = (int)currentMode * szm4x4;
-		Matrix4x4 transposed = m4x4; // Matrix4x4.Transpose(m4x4);
+		Matrix4x4 transposed = Matrix4x4.Transpose(m4x4);
 		glNamedBufferSubData(uboMatrices, loc, szm4x4, &transposed);
 	}
 
@@ -992,12 +992,12 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 	}
 
 	int MaxBoneLoaded;
-	public unsafe void LoadBoneMatrix(int boneIndex, in Matrix4x4 matrix) {
+	public unsafe void LoadBoneMatrix(int boneIndex, in Matrix3x4 matrix) {
 		if (IsDeactivated())
 			return;
 		int szm4x4 = sizeof(Matrix4x4);
 		int loc = (int)boneIndex * szm4x4;
-		Matrix4x4 transposed = matrix;
+		Matrix4x4 transposed = Matrix4x4.Transpose(matrix);
 		glNamedBufferSubData(uboBones, loc, szm4x4, &transposed);
 		if (boneIndex > MaxBoneLoaded)
 			MaxBoneLoaded = boneIndex;
@@ -1007,6 +1007,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 			LoadMatrix(matrix);
 		}
 	}
+
 	int numBones;
 	public void SetNumBoneWeights(int numBones) {
 		if(this.numBones != numBones) {

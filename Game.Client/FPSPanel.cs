@@ -95,8 +95,8 @@ public class FPSPanel : Panel
 		if (cl_showpos.GetInt() != 0) {
 			C_BasePlayer? localplayer = C_BasePlayer.GetLocalPlayer();
 			if (localplayer != null) {
-				Vector3 pos = localplayer.EyePosition();
-				Vector3 ang = localplayer.EyeAngles();
+				Vector3 pos = MainViewOrigin();
+				Vector3 ang = MainViewAngles();
 				Vector3 vel = localplayer.Velocity;
 				Surface.DrawColoredText(Font, x, 2 + i * fontTall, 255, 255, 255, 255, $"pos: {pos.X:F2} {pos.Y:F2} {pos.Z:F2}");
 				i++;

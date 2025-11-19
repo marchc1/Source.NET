@@ -2,7 +2,9 @@ using Game.Shared;
 
 using Source;
 using Source.Common;
+using Source.Common.Client;
 using Source.Common.Mathematics;
+using Source.Engine;
 
 using System;
 using System.Numerics;
@@ -174,5 +176,11 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		// TODO: Observer OK
 
 		return vm;
+	}
+
+
+
+	public virtual bool CreateMove(TimeUnit_t inputSampleTime, ref UserCmd cmd) {
+		return true;
 	}
 }

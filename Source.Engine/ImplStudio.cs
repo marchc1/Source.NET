@@ -3,6 +3,7 @@ using Source.Common.Commands;
 using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
 using Source.Engine.Client;
 
 using System.Drawing.Drawing2D;
@@ -113,7 +114,7 @@ public class ModelRender : IModelRender
 		throw new NotImplementedException(); // todo
 	}
 
-	public bool DrawModelSetup(ref ModelRenderInfo info, ref DrawModelState state, Span<Matrix4x4> customBoneToWorld, out Span<Matrix4x4> boneToWorldOut) {
+	public bool DrawModelSetup(ref ModelRenderInfo info, ref DrawModelState state, Span<Matrix3x4> customBoneToWorld, out Span<Matrix3x4> boneToWorldOut) {
 		state.StudioHdr = MDLCache.GetStudioHdr(info.Model!.Studio);
 		state.Renderable = info.Renderable;
 
@@ -148,7 +149,7 @@ public class ModelRender : IModelRender
 		}
 
 		int boneCount = state.StudioHdr.NumBones;
-		Span<Matrix4x4> boneToWorld = customBoneToWorld;
+		Span<Matrix3x4> boneToWorld = customBoneToWorld;
 		if (customBoneToWorld.IsEmpty)
 			boneToWorld = StudioRender.LockBoneMatrices(boneCount);
 
@@ -259,7 +260,7 @@ public class ModelRender : IModelRender
 		return lod;
 	}
 
-	public void DrawModelExecute(ref DrawModelState state, ref ModelRenderInfo pInfo, Span<Matrix4x4> boneToWorldArray) {
+	public void DrawModelExecute(ref DrawModelState state, ref ModelRenderInfo pInfo, Span<Matrix3x4> boneToWorldArray) {
 #if !SWDS
 		bool bShadowDepth = (pInfo.Flags & StudioFlags.ShadowDepthTexture) != 0;
 		bool bSSAODepth = (pInfo.Flags & StudioFlags.SSAODepthTexture) != 0;

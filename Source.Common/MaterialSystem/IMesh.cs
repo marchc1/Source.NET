@@ -337,8 +337,10 @@ public unsafe struct VertexBuilder
 	internal unsafe void CompressedBoneWeight3fv(ReadOnlySpan<float> boneWeights) {
 		float* pDestWeights = OffsetFloatPointer(Desc.BoneWeight, CurrentVertex, Desc.BoneWeightSize);
 		// No compression yet
-		pDestWeights[0] = boneWeights[0];
-		pDestWeights[1] = boneWeights[1];
+		if (pDestWeights != null) {
+			pDestWeights[0] = boneWeights[0];
+			pDestWeights[1] = boneWeights[1];
+		}
 	}
 
 	private float* OffsetFloatPointer(float* bufferPointer, int vertexCount, int vertexSize) {
