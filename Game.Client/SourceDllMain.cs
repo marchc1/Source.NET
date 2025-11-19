@@ -5,6 +5,7 @@ using Game.Client.HUD;
 using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.DataCache;
+using Source;
 
 namespace Game.Client;
 

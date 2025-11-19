@@ -10,8 +10,13 @@ using System.Numerics;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-
 namespace Source.Common;
+using static StudioDeps;
+
+[EngineComponent]
+public static class StudioDeps {
+	[Dependency] public static IModelInfo modelinfo { get; private set; } = null!;
+}
 
 public static class Studio
 {
