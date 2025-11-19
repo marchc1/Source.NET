@@ -118,7 +118,24 @@ public class BuildModeDialog : Frame
 	Button PrevChild;
 
 	public BuildModeDialog(BuildGroup buildGroup) : base(buildGroup?.GetContextPanel(), "BuildModeDialog") {
+		SetMinimumSize(300, 256);
+		SetSize(300, 420);
+		CurrentPanel = null;
+		EditableParents = null;
+		EditableChildren = null;
+		NextChild = null;
+		PrevChild = null;
+		BuildGroup = buildGroup;
+		UndoSettings = null;
+		CopySettings = null;
+		AutoUpdate = false;
+		MakePopup(true);
+		SetTitle("VGUI Build Mode Editor", true);
 
+		CreateControls();
+		// LoadUserConfig("BuildModeDialog");
+
+		// buildmodedialogmgr
 	}
 
 	~BuildModeDialog() {
@@ -141,6 +158,38 @@ public class BuildModeDialog : Frame
 	public override void PerformLayout() {
 		base.PerformLayout();
 
+		if (true) return; // TODO: Finish
+
+		int BORDER_GAP = 16, YGAP_SMALL = 4, YGAP_LARGE = 8, TITLE_HEIGHT = 24, BOTTOM_CONTROLS_HEIGHT = 145, XGAP = 6;
+
+		GetSize(out int wide, out int tall);
+
+		int xpos = BORDER_GAP;
+		int ypos = BORDER_GAP + TITLE_HEIGHT;
+
+		FileSelectionCombo.SetBounds(xpos, ypos, wide - (BORDER_GAP * 2), StatusLabel.GetTall());
+		ypos += FileSelectionCombo.GetTall() + YGAP_LARGE;
+
+		StatusLabel.SetBounds(xpos, ypos, wide - (BORDER_GAP * 2), StatusLabel.GetTall());
+		ypos += StatusLabel.GetTall() + YGAP_LARGE;
+
+		// todo panel list
+
+		ypos = tall - BORDER_GAP;
+		xpos = BORDER_GAP + VarsButton.GetWide() + DeleteButton.GetWide() + AddNewControlCombo.GetWide() + (XGAP * 2);
+
+		ypos -= ApplyButton.GetTall();
+		xpos -= ApplyButton.GetWide();
+		ApplyButton.SetPos(xpos, ypos);
+
+		xpos -= ExitButton.GetWide() - XGAP;
+		ExitButton.SetPos(xpos, ypos);
+
+		ypos -= SaveButton.GetTall() - XGAP;
+		SaveButton.SetPos(xpos, ypos);
+
+		// xpos = BORDER_GAP;
+		// ypoos = YGAP_LARGE + Divider.GetTall();
 	}
 
 	public void RemoveAllControls() {
