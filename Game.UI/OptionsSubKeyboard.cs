@@ -1,3 +1,5 @@
+using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
 using Source.Common.Input;
 using Source.GUI.Controls;
 
@@ -39,12 +41,12 @@ public class OptionsSubKeyboard : PropertyPage
 	~OptionsSubKeyboard() => DeleteSavedBindings();
 
 	public override void OnResetData() {
-
+		FillInCurrentBindings();
+		if (IsVisible())
+			KeyBindList.SetSelectedItem(0);
 	}
 
-	public override void OnApplyChanges() {
-
-	}
+	public override void OnApplyChanges() => ApplyAllBindings();
 
 	public void CreateKeyBindingList() {
 		KeyBindList = new(this, "listpanel_keybindlist");
@@ -58,7 +60,26 @@ public class OptionsSubKeyboard : PropertyPage
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
-
+		if (command.Equals("Defaults", StringComparison.OrdinalIgnoreCase)) {
+			var box = new QueryBox("#GameUI_KeyboardSettings", "#GameUI_KeyboardSettingsText");
+			box.AddActionSignalTarget(this);
+			box.SetOKCommand(new KeyValues("Command", "command", "DefaultsOK"));
+			box.DoModal();
+		}
+		else if (command.Equals("DefaultsOK", StringComparison.OrdinalIgnoreCase)) {
+			FillInDefaultBindings();
+			KeyBindList.RequestFocus();
+		}
+		else if (!KeyBindList.IsCapturing() && command.Equals("ChangeKey", StringComparison.OrdinalIgnoreCase))
+			KeyBindList.StartCaptureMode(CursorCode.Blank);
+		else if (!KeyBindList.IsCapturing() && command.Equals("ClearKey", StringComparison.OrdinalIgnoreCase)) {
+			OnKeyCodePressed(ButtonCode.KeyDelete);
+			KeyBindList.RequestFocus();
+		}
+		else if (command.Equals("Advanced", StringComparison.OrdinalIgnoreCase))
+			OpenKeyboardAdvancedDialog();
+		else
+			base.OnCommand(command);
 	}
 
 	public void ParseActionDescriptions() {
@@ -109,7 +130,7 @@ public class OptionsSubKeyboard : PropertyPage
 
 	}
 
-	public void ItemSelected() {
+	public void ItemSelected(int itemID) {
 
 	}
 
@@ -127,11 +148,20 @@ public class OptionsSubKeyboard : PropertyPage
 
 	}
 
-	public void OpenKeyboardAdvancedDlg() {
+	public void OpenKeyboardAdvancedDialog() {
 		if (OptionsSubKeyboardAdvancedDlg == null)
 			OptionsSubKeyboardAdvancedDlg = new(GetParent());
 
 		OptionsSubKeyboardAdvancedDlg.Activate();
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name == "ItemSelected") {
+			ItemSelected(message.GetInt("itemID", -1));
+			return;
+		}
+
+		base.OnMessage(message, from);
 	}
 
 	char[] Util_CopyString(ReadOnlySpan<char> input) {

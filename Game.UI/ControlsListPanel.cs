@@ -1,3 +1,4 @@
+using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Input;
 using Source.GUI.Controls;
@@ -53,12 +54,38 @@ public class ControlsListPanel : SectionedListPanel
 		Font = scheme.GetFont("Default", IsProportional())!;
 	}
 
-	public void StartCaptureMode(HCursor cursor) {
-		// todo
+	public void StartCaptureMode(CursorCode? cursor) {
+		CaptureMode = true;
+		// EnterEditMode(ClickRow, 1, InlineEditPanel);
+		Input.SetMouseFocus(InlineEditPanel);
+		Input.SetMouseCapture(InlineEditPanel);
+
+		// InputSystem.SetNovintPure(true);
+
+		// Engine.StartKeyTrapMode();
+
+		if (cursor != null) {
+			InlineEditPanel.SetCursor(cursor.Value);
+			Input.GetCursorPos(out MouseX, out MouseY);
+		}
 	}
 
-	public void EndCaptureMode(HCursor cursor) {
-		// todo
+	public void EndCaptureMode(CursorCode? cursor) {
+		CaptureMode = false;
+		Input.SetMouseCapture(null);
+		LeaveEditMode();
+		RequestFocus();
+		Input.SetMouseFocus(this);
+
+		// InputSystem.SetNovintPure(false);
+
+		if (cursor != null) {
+			InlineEditPanel.SetCursor(cursor.Value);
+			Input.SetCursorPos(MouseX, MouseY);
+
+			if (cursor != CursorCode.None)
+				Input.SetCursorPos(MouseX, MouseY);
+		}
 	}
 
 	public void SetItemOfInterest(int itemID) => ClickRow = itemID;

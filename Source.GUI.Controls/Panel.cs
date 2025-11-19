@@ -1164,7 +1164,7 @@ public class Panel : IPanel
 		return true;
 	}
 
-	public void SetProportional(bool state) {
+	public virtual void SetProportional(bool state) {
 		if (state != ((Flags & PanelFlags.IsProportional) != 0)) {
 			Flags ^= PanelFlags.IsProportional;
 			for (int i = 0; i < GetChildCount(); i++) {
@@ -1748,7 +1748,7 @@ public class Panel : IPanel
 
 	CursorCode Cursor;
 	public void SetCursor(CursorCode cursor) {
-		this.Cursor = cursor;
+		Cursor = cursor;
 	}
 
 	public void SetEnabled(bool state) {
