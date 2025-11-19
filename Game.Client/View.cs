@@ -1,4 +1,5 @@
 global using static Game.Client.ViewConVars;
+global using static Game.Client.ViewAccessors;
 
 using Game.Shared;
 
@@ -24,6 +25,57 @@ public static class ViewConVars
 	public static readonly ConVar v_viewmodel_fov = new("viewmodel_fov", "54", FCvar.Cheat, "Sets the field-of-view for the viewmodel.", 0.1, 179.9);
 }
 
+public static class ViewAccessors
+{
+	public static ref readonly Vector3 MainViewOrigin() => ref ViewRender.g_VecRenderOrigin;
+	public static ref readonly QAngle MainViewAngles() => ref ViewRender.g_VecRenderAngles;
+	public static ref readonly Vector3 MainViewForward() => ref ViewRender.g_VecVForward;
+	public static ref readonly Vector3 MainViewRight() => ref ViewRender.g_VecVRight;
+	public static ref readonly Vector3 MainViewUp() => ref ViewRender.g_VecVUp;
+	public static ref readonly Matrix4x4 MainWorldToViewMatrix() => ref ViewRender.g_MatCamInverse;
+	public static ref readonly Vector3 PrevMainViewOrigin() => ref ViewRender.g_VecPrevRenderOrigin;
+	public static ref readonly QAngle PrevMainViewAngles() => ref ViewRender.g_VecPrevRenderAngles;
+
+
+	public static ref readonly Vector3 CurrentViewOrigin() => ref ViewRender.g_VecCurrentRenderOrigin;
+	public static ref readonly QAngle CurrentViewAngles() => ref ViewRender.g_VecCurrentRenderAngles;
+	public static ref readonly Vector3 CurrentViewForward() => ref ViewRender.g_VecCurrentVForward;
+	public static ref readonly Vector3 CurrentViewRight() => ref ViewRender.g_VecCurrentVRight;
+	public static ref readonly Vector3 CurrentViewUp() => ref ViewRender.g_VecCurrentVUp;
+	public static ref readonly Matrix4x4 CurrentWorldToViewMatrix() => ref ViewRender.g_MatCurrentCamInverse;
+	public static void AllowCurrentViewAccess(bool allow) => ViewRender.s_bCanAccessCurrentView = allow;
+	public static bool IsCurrentViewAccessAllowed() => ViewRender.s_bCanAccessCurrentView;
+	public static void ComputeCameraVariables(in Vector3 origin, in QAngle angles, out Vector3 forward, out Vector3 right, out Vector3 up, ref Matrix4x4 currentCamInverse) {
+		angles.Vectors(out forward, out right, out up);
+
+		for (int i = 0; i < 3; ++i) {
+			currentCamInverse[0, i] = right[i];
+			currentCamInverse[1, i] = up[i];
+			currentCamInverse[2, i] = -forward[i];
+			currentCamInverse[3, i] = 0.0f;
+		}
+
+		currentCamInverse[0, 3] = -Vector3.Dot(right, origin);
+		currentCamInverse[1, 3] = -Vector3.Dot(up, origin);
+		currentCamInverse[2, 3] = Vector3.Dot(forward, origin);
+		currentCamInverse[3, 3] = 1.0F;
+	}
+	public static void SetupCurrentView(in Vector3 origin, in QAngle angles, ViewID viewID) {
+		ViewRender.g_VecCurrentRenderOrigin = origin;
+		ViewRender.g_VecCurrentRenderAngles = angles;
+
+		// Compute the world->main camera transform
+		ComputeCameraVariables(origin, angles,
+			out ViewRender.g_VecCurrentVForward, out ViewRender.g_VecCurrentVRight, out ViewRender.g_VecCurrentVUp, ref ViewRender.g_MatCurrentCamInverse);
+
+		ViewRender.g_CurrentViewID = viewID;
+		ViewRender.s_bCanAccessCurrentView = true;
+
+		// Cache off fade distances
+		view.GetScreenFadeDistances(out float flScreenFadeMinSize, out float flScreenFadeMaxSize);
+		// modelinfo.SetViewScreenFadeRange(flScreenFadeMinSize, flScreenFadeMaxSize);
+	}
+}
 
 public class ViewRender : IViewRender
 {
@@ -76,7 +128,7 @@ public class ViewRender : IViewRender
 	}
 
 	public void GetScreenFadeDistances(out float min, out float max) {
-		throw new NotImplementedException();
+		min = max = 0;
 	}
 
 	public IMaterial? GetScreenOverlayMaterial() {
@@ -160,6 +212,11 @@ public class ViewRender : IViewRender
 			Assert(player != null);
 			player.CalcViewModelView(in viewModelOrigin, in viewModelAngles);
 		}
+
+		ViewRender.g_VecPrevRenderOrigin = ViewRender.g_VecRenderOrigin;
+		ViewRender.g_VecPrevRenderAngles = ViewRender.g_VecRenderAngles;
+		ViewRender.g_VecRenderOrigin = viewEye.Origin;
+		ViewRender.g_VecRenderAngles = viewEye.Angles;
 	}
 
 	public void QueueOverlayRenderView(in ViewSetup view, ClearFlags clearFlags, DrawFlags whatToDraw) {
@@ -313,13 +370,13 @@ public class ViewRender : IViewRender
 			root = enginevgui.GetPanel(VGuiPanelType.ClientDllTools);
 			root?.SetSize(viewWidth, viewHeight);
 
-			// AllowCurrentViewAccess(true);
+			AllowCurrentViewAccess(true);
 
 			render.VGui_Paint(PaintMode.InGamePanels);
 			if (paintMainMenu)
 				render.VGui_Paint(PaintMode.UIPanels | PaintMode.Cursor);
 
-			// AllowCurrentViewAccess(false);
+			AllowCurrentViewAccess(false);
 			// VGui_PostRender();
 			// ClientMode.PostRenderVGui();
 			using (renderContext = new MatRenderContextPtr(materials)) {
@@ -353,45 +410,21 @@ public class ViewRender : IViewRender
 		noWaterView.ReleaseLists();
 	}
 
-	public static Vector3 CurrentRenderOrigin = new(0, 0, 0);
-	public static QAngle CurrentRenderAngles = new(0, 0, 0);
-	public static Vector3 CurrentRenderForward = new(0, 0, 0);
-	public static Vector3 CurrentRenderRight = new(0, 0, 0);
-	public static Vector3 CurrentRenderUp = new(0, 0, 0);
-	public static Matrix4x4 CurrentCamInverse;
-	public static bool CanAccessCurrentView = false;
+	public static Vector3 g_VecRenderOrigin = new(0, 0, 0);
+	public static QAngle g_VecRenderAngles = new(0, 0, 0);
+	public static Vector3 g_VecPrevRenderOrigin = new(0, 0, 0);
+	public static QAngle g_VecPrevRenderAngles = new(0, 0, 0);
+	public static Vector3 g_VecVForward = new(0, 0, 0), g_VecVRight = new(0, 0, 0), g_VecVUp = new(0, 0, 0);
+	public static Matrix4x4 g_MatCamInverse;
+
+	public static Vector3 g_VecCurrentRenderOrigin = new(0, 0, 0);
+	public static QAngle g_VecCurrentRenderAngles = new(0, 0, 0);
+	public static Vector3 g_VecCurrentVForward = new(0, 0, 0), g_VecCurrentVRight = new(0, 0, 0), g_VecCurrentVUp = new(0, 0, 0);
+	public static Matrix4x4 g_MatCurrentCamInverse;
+
+	public static bool s_bCanAccessCurrentView = false;
 	public static bool RenderingView = false;
-	public static ViewID CurrentViewID = ViewID.None;
-
-	private void SetupCurrentView(in Vector3 origin, in QAngle angles, ViewID viewID) {
-		CurrentRenderOrigin = origin;
-		CurrentRenderAngles = angles;
-
-		ComputeCameraVariables(origin, angles, out CurrentRenderForward, out CurrentRenderRight, out CurrentRenderUp, ref CurrentCamInverse);
-
-		CurrentViewID = viewID;
-		CanAccessCurrentView = true;
-
-		// view.GetScreenFadeDistances(out float screenFadeMinSize, out float screenFadeMaxSize);
-		// modelinfo.SetViewScreenFadeRange(screenFadeMinSize, screenFadeMaxSize);
-	}
-
-	private void ComputeCameraVariables(in Vector3 origin, in QAngle angles, out Vector3 forward, out Vector3 right, out Vector3 up, ref Matrix4x4 currentCamInverse) {
-		angles.Vectors(out forward, out right, out up);
-
-		for (int i = 0; i < 3; ++i) {
-			currentCamInverse[i, 0] = right[i];
-			currentCamInverse[i, 1] = up[i];
-			currentCamInverse[i, 2] = -forward[i];
-			currentCamInverse[i, 3] = 0.0f;
-		}
-
-		currentCamInverse[3, 0] = -Vector3.Dot(right, origin);
-		currentCamInverse[3, 1] = -Vector3.Dot(up, origin);
-		currentCamInverse[3, 2] = Vector3.Dot(forward, origin);
-		currentCamInverse[3, 3] = 1.0F;
-	}
-
+	public static ViewID g_CurrentViewID = ViewID.None;
 	public virtual bool ShouldForceNoVis() => ForceNoVis;
 	private void SetupVis(in ViewSetup viewRender, out uint visFlags) {
 		// TODO: more logic here 

@@ -86,11 +86,11 @@ public class BaseWorldView : Rendering3dView
 {
 	public BaseWorldView(ViewRender mainView) : base(mainView) { }
 	protected void DrawSetup(float waterHeight, DrawFlags setupFlags, float waterZAdjust) {
-		ViewID savedViewID = ViewRender.CurrentViewID;
-		ViewRender.CurrentViewID = ViewID.Illegal;
+		ViewID savedViewID = ViewRender.g_CurrentViewID;
+		ViewRender.g_CurrentViewID = ViewID.Illegal;
 		BuildRenderableRenderLists(savedViewID);
 
-		ViewRender.CurrentViewID = savedViewID;
+		ViewRender.g_CurrentViewID = savedViewID;
 	}
 	protected void DrawExecute(float waterHeight, ViewID viewID, float waterZAdjust) {
 		using MatRenderContextPtr renderContext = new(mainView.materials);
@@ -120,7 +120,7 @@ public class SimpleWorldView : BaseWorldView
 	public override void Draw() {
 		using MatRenderContextPtr renderContext = new(mainView.materials);
 		DrawSetup(0, DrawFlags, 0);
-		DrawExecute(0, ViewRender.CurrentViewID, 0);
+		DrawExecute(0, ViewRender.g_CurrentViewID, 0);
 	}
 }
 public class Rendering3dView : Base3dView
@@ -216,7 +216,7 @@ public class Rendering3dView : Base3dView
 			setupInfo.DrawTranslucentObjects = (viewID != ViewID.ShadowDepthTexture);
 
 			setupInfo.RenderOrigin = setup.Origin;
-			setupInfo.RenderForward = ViewRender.CurrentRenderForward;
+			setupInfo.RenderForward = CurrentViewForward();
 
 			float fMaxDist = cl_maxrenderable_dist.GetFloat();
 
@@ -332,13 +332,6 @@ public class SkyboxView : Rendering3dView
 		}
 
 		render.PopView(GetFrustrum());
-	}
-
-
-	private void SetupCurrentView(in Vector3 origin, in QAngle angles, ViewID viewID) {
-		ViewRender.CurrentRenderOrigin = origin;
-		ViewRender.CurrentRenderAngles = angles;
-		ViewRender.CurrentViewID = viewID;
 	}
 
 	private SafeFieldPointer<PlayerLocalData, Sky3DParams> PreRender3dSkyboxWorld(ref SkyboxVisibility skyboxVisible) {
