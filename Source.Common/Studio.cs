@@ -637,13 +637,13 @@ public class StudioHdr
 	readonly List<int> boneFlags = [];
 	readonly List<int> boneParent = [];
 
-	public bool SequencesAvailable(IModelInfo modelinfo) {
+	public bool SequencesAvailable() {
 		if (studioHdr!.NumIncludeModels == 0) {
 			return true;
 		}
 
 		if (vModel == null) {
-			return (ResetVModel(studioHdr.GetVirtualModel(modelinfo)) != null);
+			return (ResetVModel(studioHdr.GetVirtualModel()) != null);
 		}
 		else
 			return true;
@@ -947,11 +947,9 @@ public class StudioHeader
 
 	public MStudioLinearBone? LinearBones() => StudioHDR2Index != 0 ? StudioHdr2().LinearBones() : null;
 
-	internal VirtualModel? GetVirtualModel(IModelInfo modelinfo) {
+	internal VirtualModel? GetVirtualModel() {
 		if (NumIncludeModels == 0)
 			return null;
 		return modelinfo.GetVirtualModel(this);
 	}
-
-	
 }

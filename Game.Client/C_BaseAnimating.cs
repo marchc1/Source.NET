@@ -145,7 +145,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		if ((BoneAccessor.GetReadableBones() & boneMask) != boneMask || true) { // TODO: true is a hack!!!!!!
 			StudioHdr? hdr = GetModelPtr();
-			if (hdr == null || !hdr.SequencesAvailable(modelinfo))
+			if (hdr == null || !hdr.SequencesAvailable())
 				return false;
 
 			Matrix3x4 parentTransform = default;
