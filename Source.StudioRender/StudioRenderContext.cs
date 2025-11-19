@@ -572,6 +572,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 		if (!Unsafe.IsNullRef(ref results))
 			results.ActualTriCount = results.TextureMemoryBytes = 0;
 
+
 		if (info.StudioHdr == null || info.HardwareData == null || info.HardwareData.NumLODs == 0 || info.HardwareData.LODs == null)
 			return;
 

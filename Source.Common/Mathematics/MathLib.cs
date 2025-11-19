@@ -30,6 +30,7 @@ public struct RadianEuler
 [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 48)]
 public record struct Matrix3x4
 {
+	public static readonly Matrix3x4 Identity = new(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0);
 	public float M00, M01, M02, M03;
 	public float M10, M11, M12, M13;
 	public float M20, M21, M22, M23;

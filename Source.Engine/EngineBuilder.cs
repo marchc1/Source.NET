@@ -30,7 +30,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 	/// </summary>
 	/// <param name="assemblyName"></param>
 	/// <returns></returns>
-	public EngineBuilder WithAssembly(string assemblyName)  {
+	public EngineBuilder WithAssembly(string assemblyName) {
 		if (!assemblyName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
 			assemblyName += ".dll";
 
@@ -101,7 +101,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 	/// <returns></returns>
 	public EngineAPI Build(bool dedicated) {
 		SetMainThread(); // Setup ThreadUtils
-		// We got the ICommandLine from EngineBuilder, insert it into the app system
+						 // We got the ICommandLine from EngineBuilder, insert it into the app system
 		this.AddSingleton(cmdLine);
 		// Internal methods. These are class instances for better restart
 		// support, and I feel like every time I try this, I end up getting
@@ -145,7 +145,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<IMod, BaseMod>();
 		this.AddSingleton<IGame, Game>();
 		this.AddSingleton<ModInfo>(); // This may not be valid for a while! At least until gameinfo is readable!
-		// Client state and server state singletons
+									  // Client state and server state singletons
 		this.AddSingleton<ClientState>();
 		this.AddSingleton<GameServer>();
 		this.AddSingleton<ClientGlobalVariables>();
@@ -171,8 +171,25 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 
 		List<Type> wantsInjection = [];
 		object?[]? linkInput = [this];
-		List<FieldInfo> populateLater = [];
-		foreach(var assembly in ReflectionUtils.GetAssemblies()) {
+		List<MemberInfo> populateLater = [];
+		List<MemberInfo> populateLaterKeyed = [];
+		void populateLookups(Type? type) {
+			if (type == null)
+				return;
+			foreach (var field in type.GetFields(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)) {
+				if (field.GetCustomAttribute<DependencyAttribute>() != null)
+					populateLater.Add(field);
+				if (field.GetCustomAttribute<KeyedDependencyAttribute>() != null)
+					populateLater.Add(field);
+			}
+			foreach (var property in type.GetProperties(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)) {
+				if (property.GetCustomAttribute<DependencyAttribute>() != null)
+					populateLater.Add(property);
+				if (property.GetCustomAttribute<KeyedDependencyAttribute>() != null)
+					populateLater.Add(property);
+			}
+		}
+		foreach (var assembly in ReflectionUtils.GetAssemblies()) {
 			// This allows a type to define a class named SourceDllMain, with a static void Link(IServiceCollection),
 			// which allows a loaded assembly to insert whatever it wants into the DI system before the provider is
 			// fully built.
@@ -180,15 +197,12 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 			sourceDLL
 				?.GetMethod("Link", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
 				?.Invoke(null, linkInput);
+			populateLookups(sourceDLL);
 
 			// This checks for any classes with the MarkForDependencyInjection attribute.
 			// They are then injected into the service collection.
-			foreach(var typeKVP in assembly.GetTypesWithAttribute<EngineComponentAttribute>()) {
-				foreach(var field in typeKVP.Key.GetFields(BindingFlags.Static | BindingFlags.NonPublic)){
-					if (field.GetCustomAttribute<EngineComponentReferenceAttribute>() != null)
-						populateLater.Add(field);
-				}
-
+			foreach (var typeKVP in assembly.GetTypesWithAttribute<EngineComponentAttribute>()) {
+				populateLookups(typeKVP.Key);
 				if (typeKVP.Key.IsAbstract && typeKVP.Key.IsSealed)
 					continue;
 
@@ -203,16 +217,63 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		using ServiceLocatorScope locatorScope = new(provider);
 
 		EngineAPI api = (EngineAPI)provider.GetRequiredService<IEngineAPI>();
-		foreach(var field in populateLater) {
-			var attr = field.GetCustomAttribute<EngineComponentReferenceAttribute>()!;
-			field.SetValue(null, attr.Key == null ? provider.GetService(field.FieldType) : provider.GetKeyedService(field.FieldType, attr.Key));
+
+		object? getService(Type service, DependencyAttribute depAttr) {
+			if (depAttr is KeyedDependencyAttribute keyed)
+				return depAttr.Required ? provider.GetRequiredKeyedService(service, keyed.Key) : provider.GetKeyedService(service, keyed.Key);
+			else
+				return depAttr.Required ? provider.GetRequiredService(service) : provider.GetService(service);
 		}
-		
+
+		void handleSet(MemberInfo member, DependencyAttribute? depAttr) {
+			if (depAttr == null)
+				return;
+
+			switch (member) {
+				case FieldInfo field:
+					field.SetValue(null, getService(depAttr.GetUnderlyingType() ?? field.FieldType, depAttr));
+					break;
+				case PropertyInfo prop:
+					prop.SetValue(null, getService(depAttr.GetUnderlyingType() ?? prop.PropertyType, depAttr));
+					break;
+			}
+		}
+
+		foreach (var member in populateLater) {
+			handleSet(member, member.GetCustomAttribute<DependencyAttribute>());
+			handleSet(member, member.GetCustomAttribute<KeyedDependencyAttribute>());
+		}
+
 		api.Dedicated = dedicated;
 		return api;
 	}
 }
-[AttributeUsage(AttributeTargets.Field)]
-public class EngineComponentReferenceAttribute : Attribute {
-	public object? Key { get; set; }
+
+/// <summary> Pull out an interface from the service provider by its field or property type. </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+public class DependencyAttribute : Attribute
+{
+	public bool Required = true;
+	public virtual Type? GetUnderlyingType() => null;
+}
+
+/// <summary> Pull out an keyed interface from the service provider by its field or property type. </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+public class KeyedDependencyAttribute : DependencyAttribute
+{
+	public object? Key;
+}
+
+/// <summary> Pull out an interface from the service provider by a specific type, which is cast to the field/property type this attribute is placed on. </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+public class DependencyAttribute<T> : DependencyAttribute
+{
+	public override Type? GetUnderlyingType() => typeof(T);
+}
+
+/// <summary> Pull out an keyed interface from the service provider by a specific type, which is cast to the field/property type this attribute is placed on. </summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+public class KeyedDependencyAttribute<T> : DependencyAttribute<T>
+{
+	public object? Key;
 }
