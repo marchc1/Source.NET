@@ -6,20 +6,53 @@ using Source.Common.Formats.BSP;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 namespace Source.Common;
+
 using static StudioDeps;
 
 [EngineComponent]
-public static class StudioDeps {
+public static class StudioDeps
+{
 	[Dependency] public static IModelInfo modelinfo { get; private set; } = null!;
 }
 
+public delegate T FactoryFn<T>(object caller, Memory<byte> data);
 public static class Studio
 {
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static T ValidateArray<T>(
+		object caller,            // the caller (some factories need this)
+		[NotNull] ref T[]? array, // the array to initialize if null
+		int elements,             // how many elements in the array, NumLocalSeq for example
+		int dataOffset,           // the offset into data, LocalSeqIndex for example
+		int index,                // the array index
+		int sizeOfOne,            // size of one component
+		Memory<byte> data,        // the raw binary
+		FactoryFn<T> factory      // how to create a new instance from the binary data, this also gets cached
+	) {
+		array ??= new T[elements];
+
+		ArgumentOutOfRangeException.ThrowIfLessThan(index, 0);
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, elements);
+
+		return array[index] ??= factory(caller, data[(dataOffset + (index * sizeOfOne))..]);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static string GetASCIIString(ref string? cache, in Span<byte> data) {
+		if (cache == null) {
+			using ASCIIStringView view = new(data);
+			cache = new(view);
+		}
+
+		return cache;
+	}
+
+
 	public const int STUDIO_VERSION = 48;
 
 	public const int MAXSTUDIOTRIANGLES = 65536;
@@ -412,13 +445,7 @@ public class MStudioModel
 	}
 
 	string? nameCache;
-	public string Name() {
-		if (nameCache == null) {
-			using ASCIIStringView strView = new(Contents.Name);
-			nameCache = new(strView);
-		}
-		return nameCache;
-	}
+	public string Name() => Studio.GetASCIIString(ref nameCache, Contents.Name);
 
 	public MStudioModelVertexData? GetVertexData(IStudioDataCache dataCache, StudioHeader studioHdr) {
 		VertexFileHeader? vertexHdr = CacheVertexData(dataCache, studioHdr);
@@ -445,6 +472,8 @@ public class MStudioModel
 public class MStudioBodyParts(Memory<byte> Data)
 {
 	public const int SIZEOF = sizeof(int) * 4;
+	public static MStudioBodyParts FACTORY(object caller, Memory<byte> data) => new(data);
+
 	public int SzNameIndex => MemoryMarshal.Cast<byte, int>(Data.Span)[0];
 	public int NumModels => MemoryMarshal.Cast<byte, int>(Data.Span)[1];
 	public int Base => MemoryMarshal.Cast<byte, int>(Data.Span)[2];
@@ -452,13 +481,7 @@ public class MStudioBodyParts(Memory<byte> Data)
 
 
 	string? nameCache;
-	public string Name() {
-		if (nameCache == null) {
-			using ASCIIStringView strView = new(Data.Span[SzNameIndex..]);
-			nameCache = new(strView);
-		}
-		return nameCache;
-	}
+	public string Name() => Studio.GetASCIIString(ref nameCache, Data.Span[SzNameIndex..]);
 
 	MStudioModel[]? studioModelCache;
 
@@ -565,6 +588,8 @@ public class StudioHeader2
 public class MStudioTexture
 {
 	public const int SIZE_OF_ONE = 64; // msvc reports size 64, alignment 4
+	public static MStudioTexture FACTORY(object caller, Memory<byte> data) => new(data);
+
 	public Memory<byte> Data;
 
 	public int SzNameIndex;
@@ -586,12 +611,208 @@ public class MStudioTexture
 	}
 
 	public string? name;
-	public string Name() {
-		if (name == null) {
-			using ASCIIStringView view = new(Data.Span[SzNameIndex..]);
-			return name = new(view);
-		}
-		return name;
+	public string Name() => Studio.GetASCIIString(ref name, Data.Span[SzNameIndex..]);
+}
+
+public enum StudioAnimFlags
+{
+	/// <summary>
+	/// ending frame should be the same as the starting frame
+	/// </summary>
+	Looping = 0x0001,
+	/// <summary>
+	/// do not interpolate between previous animation and this one
+	/// </summary>
+	Snap = 0x0002,
+	/// <summary>
+	/// this sequence "adds" to the base sequences, not slerp blends
+	/// </summary>
+	Delta = 0x0004,
+	/// <summary>
+	/// temporary flag that forces the sequence to always play
+	/// </summary>
+	Autoplay = 0x0008,
+	Post = 0x0010,
+	/// <summary>
+	/// this animation/sequence has no real animation data
+	/// </summary>
+	AllZeros = 0x0020,
+	/// <summary>
+	/// cycle index is taken from a pose parameter index
+	/// </summary>
+	CyclePose = 0x0080,
+	/// <summary>
+	/// cycle index is taken from a real-time clock, not the animations cycle index
+	/// </summary>
+	Realtime = 0x0100,
+	/// <summary>
+	/// sequence has a local context sequence
+	/// </summary>
+	Local = 0x0200,
+	/// <summary>
+	/// don't show in default selection views
+	/// </summary>
+	Hidden = 0x0400,
+	/// <summary>
+	/// a forward declared sequence (empty)
+	/// </summary>
+	Override = 0x0800,
+	/// <summary>
+	/// Has been updated at runtime to activity index
+	/// </summary>
+	Activity = 0x1000,
+	/// <summary>
+	/// Has been updated at runtime to event index
+	/// </summary>
+	Event = 0x2000,
+	/// <summary>
+	/// sequence blends in worldspace
+	/// </summary>
+	World = 0x4000
+}
+
+public class MStudioAnimDesc
+{
+	public readonly StudioHeader hdr;
+	public StudioHeader Studiohdr() => hdr;
+	public Memory<byte> Data;
+
+
+
+	public MStudioAnimDesc(StudioHeader hdr, Memory<byte> data) {
+		this.hdr = hdr;
+		Data = data;
+	}
+}
+
+public class MStudioSeqDesc
+{
+	public const int SIZEOF = 212; // Static offset from MSVC stats (mstudiobone_t size 212, alignment 4)
+	public static MStudioSeqDesc FACTORY(object caller, Memory<byte> data) => new((StudioHeader)caller ?? throw new NullReferenceException(), data);
+
+	public readonly StudioHeader hdr;
+	public StudioHeader Studiohdr() => hdr;
+	public Memory<byte> Data;
+
+	public int LabelIndex;
+	public string? labelCache;
+	public string Label() => Studio.GetASCIIString(ref labelCache, Data.Span[LabelIndex..]);
+
+	public int ActivityNameIndex;
+	public string? activityNameCache;
+	public string ActivityName() => Studio.GetASCIIString(ref activityNameCache, Data.Span[ActivityNameIndex..]);
+
+	private int flags;
+	public StudioAnimFlags Flags => (StudioAnimFlags)flags;
+
+	public int Activity;
+	public int ActWeight;
+
+	public int NumEvents;
+	public int EventIndex;
+	// TODO: Events
+
+	public Vector3 BBMin;
+	public Vector3 BBMax;
+
+	public int NumBlends;
+	public int AnimIndexIndex;
+	public int Anim(int x, int y) {
+		if (x >= GroupSize[0]) x = GroupSize[0] - 1;
+		if (y >= GroupSize[1]) y = GroupSize[1] - 1;
+
+		int offset = y * GroupSize[0] + x;
+		return Data.Span[(offset * sizeof(short))..][..2].Cast<byte, short>()[0];
+	}
+
+	public int MovementIndex;
+	public InlineArray2<int> GroupSize;
+	public InlineArray2<int> ParamIndex;
+	public InlineArray2<float> ParamStart;
+	public InlineArray2<float> ParamEnd;
+	public int ParamParent;
+
+	public float FadeInTime;
+	public float FadeOutTime;
+
+	public int LocalEntryNode;
+	public int LocalExitNode;
+	public int NodeFlags;
+
+	public float EntryPhase;
+	public float ExitPhase;
+
+	public float LastFrame;
+
+	public int NextSeq;
+	public int Pose;
+
+	public int NumIKRules;
+	public int NumAutoLayers;
+
+	public int AutoLayerIndex;
+
+	public int WeightListIndex;
+
+	public int PoseKeyIndex;
+
+	public int NumIKLocks;
+	public int IKLockIndex;
+
+	public int KeyValueIndex;
+	public int KeyValueSize;
+
+	public int CyclePoseIndex;
+
+	public int ActivityModifierIndex;
+	public int NumActivityModifiers;
+
+	public MStudioSeqDesc() { hdr = null!; }
+	public MStudioSeqDesc(StudioHeader hdr, Memory<byte> data) {
+		this.hdr = hdr;
+		Data = data;
+		SpanBinaryReader br = new(Data.Span);
+
+		br.Read<int>(); // index not needed
+		br.Read(out LabelIndex);
+		br.Read(out ActivityNameIndex);
+		br.Read(out flags);
+		br.Read(out Activity);
+		br.Read(out ActWeight);
+		br.Read(out NumEvents);
+		br.Read(out EventIndex);
+		br.Read(out BBMin);
+		br.Read(out BBMax);
+		br.Read(out NumBlends);
+		br.Read(out AnimIndexIndex);
+		br.Read(out MovementIndex);
+		br.ReadInto<int>(GroupSize);
+		br.ReadInto<int>(ParamIndex);
+		br.ReadInto<float>(ParamStart);
+		br.ReadInto<float>(ParamEnd);
+		br.Read(out ParamParent);
+		br.Read(out FadeInTime);
+		br.Read(out FadeOutTime);
+		br.Read(out LocalEntryNode);
+		br.Read(out LocalExitNode);
+		br.Read(out NodeFlags);
+		br.Read(out EntryPhase);
+		br.Read(out ExitPhase);
+		br.Read(out LastFrame);
+		br.Read(out NextSeq);
+		br.Read(out Pose);
+		br.Read(out NumIKRules);
+		br.Read(out NumAutoLayers);
+		br.Read(out AutoLayerIndex);
+		br.Read(out WeightListIndex);
+		br.Read(out PoseKeyIndex);
+		br.Read(out NumIKLocks);
+		br.Read(out IKLockIndex);
+		br.Read(out KeyValueIndex);
+		br.Read(out KeyValueSize);
+		br.Read(out CyclePoseIndex);
+		br.Read(out ActivityModifierIndex);
+		br.Read(out NumActivityModifiers);
 	}
 }
 
@@ -668,6 +889,30 @@ public class StudioHdr
 	public MStudioLinearBone? LinearBones() {
 		return studioHdr!.LinearBones();
 	}
+
+	public int GetNumSeq() => vModel == null ? studioHdr!.NumLocalSeq : vModel.Seq.Count;
+
+	public StudioHeader GroupStudioHdr(int i) {
+		StudioHeader studioHdr = StudioHdrCache[i];
+		return studioHdr; // todo: further validation needed
+	}
+
+	static readonly MStudioSeqDesc s_nil_seq = new();
+	public MStudioSeqDesc Seqdesc(int i) {
+		if (i < 0 || i >= GetNumSeq()) {
+			if (GetNumSeq() <= 0)
+				return s_nil_seq;
+
+			i = 0;
+		}
+
+		if (vModel == null)
+			return this.studioHdr!.LocalSeqdesc(i);
+
+		StudioHeader studioHdr = GroupStudioHdr(vModel.Seq[i].Group);
+
+		return studioHdr.LocalSeqdesc(vModel.Seq[i].Index);
+	}
 }
 
 public class MStudioBone
@@ -694,13 +939,7 @@ public class MStudioBone
 	public InlineArray8<int> Unused;
 
 	string? nameCache;
-	public string Name() {
-		if(nameCache == null) {
-			using ASCIIStringView view = new(Data.Span[NameIndex..]);
-			nameCache = new(view);
-		}
-		return nameCache;
-	}
+	public string Name() => Studio.GetASCIIString(ref nameCache, Data.Span[NameIndex..]);
 
 	public MStudioBone(Memory<byte> data) {
 		Data = data;
@@ -828,6 +1067,8 @@ public class StudioHeader
 			studioTextures = new MStudioTexture[NumTextures];
 
 		return studioTextures[i] ??= new(Data[(TextureIndex + (MStudioTexture.SIZE_OF_ONE * i))..]);
+
+		return Studio.ValidateArray(this, ref studioTextures, NumTextures, TextureIndex, i, MStudioTexture.SIZE_OF_ONE, Data, MStudioTexture.FACTORY);
 	}
 
 	public int NumCDTextures;
@@ -861,17 +1102,8 @@ public class StudioHeader
 	}
 
 	MStudioBodyParts[]? bodyPartCache;
-
 	public MStudioBodyParts BodyPart(int i) {
-		if (bodyPartCache == null)
-			bodyPartCache = new MStudioBodyParts[NumBodyParts];
-
-		ArgumentOutOfRangeException.ThrowIfLessThan(i, 0);
-		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(i, NumBodyParts);
-
-		if (bodyPartCache[i] == null)
-			return bodyPartCache[i] = new(Data[(BodyPartIndex + (MStudioBodyParts.SIZEOF * i))..]);
-		return bodyPartCache[i];
+		return Studio.ValidateArray(this, ref bodyPartCache, NumBodyParts, BodyPartIndex, i, MStudioBodyParts.SIZEOF, Data, MStudioBodyParts.FACTORY);
 	}
 
 	public int NumSkinRef;
@@ -951,5 +1183,14 @@ public class StudioHeader
 		if (NumIncludeModels == 0)
 			return null;
 		return modelinfo.GetVirtualModel(this);
+	}
+
+
+	MStudioSeqDesc[]? seqDescs;
+	internal MStudioSeqDesc LocalSeqdesc(int i) {
+		if (i < 0 || i >= NumLocalSeq)
+			i = 0;
+
+		return Studio.ValidateArray(this, ref seqDescs, NumLocalSeq, LocalSeqIndex, i, MStudioSeqDesc.SIZEOF, Data, MStudioSeqDesc.FACTORY);
 	}
 }

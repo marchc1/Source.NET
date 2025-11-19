@@ -204,7 +204,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		BoneSetup setup = new(hdr, boneMask, poseparam);
 		setup.InitPose(pos, q);	
-		setup.AccumulatePose(pos, q, GetSequence(), cycle, 1.0, currentTime);	
+		setup.AccumulatePose(pos, q, GetSequence(), cycle, 1.0f, currentTime, null);	
 	}
 
 	public static readonly RecvTable DT_ServerAnimationData = new([

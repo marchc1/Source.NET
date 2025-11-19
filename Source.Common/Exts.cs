@@ -1513,6 +1513,7 @@ public ref struct SpanBinaryReader
 	public float ReadFloat() => ReadBytes(sizeof(float)).Cast<byte, float>()[0];
 	public double ReadDouble() => ReadBytes(sizeof(double)).Cast<byte, double>()[0];
 	*/
+
 	public unsafe T Read<T>() where T : unmanaged => ReadBytes(sizeof(T)).Cast<byte, T>()[0];
 	public unsafe void Read<T>(out T value) where T : unmanaged => value = ReadBytes(sizeof(T)).Cast<byte, T>()[0];
 	public unsafe void ReadInto<T>(Span<T> value) where T : unmanaged => ReadBytes(sizeof(T) * value.Length).Cast<byte, T>().CopyTo(value);
