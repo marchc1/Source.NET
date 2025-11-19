@@ -483,7 +483,7 @@ public class Frame : EditablePanel
 		Input.SetAppModalSurface(this);
 	}
 
-	public Frame(Panel? parent, string? name, bool showTaskbarIcon = true, bool popup = true) : base(parent, name, showTaskbarIcon) {
+	public Frame(Panel? parent, ReadOnlySpan<char> name, bool showTaskbarIcon = true, bool popup = true) : base(parent, name) {
 		SetVisible(false);
 		if (popup)
 			MakePopup(showTaskbarIcon);
