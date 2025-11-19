@@ -147,15 +147,11 @@ public class SectionedListPanel : Panel
 {
 	public static Panel Create_SectionedListPanel() => new SectionedListPanel(null, null);
 
-	[Flags]
-	enum ColumnFlags
-	{
-		HeaderImage = 0x01,
-		ColumnImage = 0x02,
-		ColumnBright = 0x04,
-		ColumnCenter = 0x08,
-		ColumnRight = 0x10
-	}
+	public const byte HeaderImage = 0x01;
+	public const byte ColumnImage = 0x02;
+	public const byte ColumnBright = 0x04;
+	public const byte ColumnCenter = 0x08;
+	public const byte ColumnRight = 0x10;
 
 	public const int BUTTON_HEIGHT_DEFAULT = 20;
 	public const int BUTTON_HEIGHT_SPACER = 7;
@@ -298,7 +294,7 @@ public class SectionedListPanel : Panel
 		SetBorder(scheme.GetBorder("ButtonDepressedBorder"));
 
 		//foreach (var item in Items) {
-			// item.SetShowColumns(ShowColumns)
+		// item.SetShowColumns(ShowColumns)
 		//}
 	}
 
@@ -477,8 +473,8 @@ public class SectionedListPanel : Panel
 
 	// }
 
-	public void GetItemData() {
-
+	public KeyValues GetItemData(int itemID) {
+		return null;
 	}
 
 	public void GetItemSection() {
@@ -493,12 +489,12 @@ public class SectionedListPanel : Panel
 
 	}
 
-	public void GetItemCount() {
-
+	public int GetItemCount() {
+		return 0;
 	}
 
-	public void GetItemIDFromRow() {
-
+	public int GetItemIDFromRow(int row) {
+		return 0;
 	}
 
 	public void GetRowFromItemID() {
@@ -521,7 +517,7 @@ public class SectionedListPanel : Panel
 
 	}
 
-	public void InvalidateItem() {
+	public void InvalidateItem(int itemID) {
 
 	}
 
