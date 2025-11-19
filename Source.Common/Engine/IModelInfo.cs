@@ -8,6 +8,7 @@ public interface IModelInfo
 	MDLHandle_t GetCacheHandle(Model mdl);
 	ModelType GetModelType(Model? model);
 	VirtualModel? GetVirtualModel(StudioHeader self);
+	Memory<byte> GetAnimBlock(StudioHeader studioHeader, int block);
 }
 
 public interface IModelInfoClient : IModelInfo

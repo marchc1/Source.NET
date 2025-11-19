@@ -124,7 +124,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 		throw new NotImplementedException();
 	}
 
-	public ReadOnlySpan<char> GetAnimBlock(MDLHandle_t handle, int block) {
+	public Memory<byte> GetAnimBlock(MDLHandle_t handle, int block) {
 		throw new NotImplementedException();
 	}
 

@@ -90,6 +90,10 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		return model.Type == ModelType.Studio ? model.Studio : MDLHANDLE_INVALID;
 	}
 
+	public Memory<byte> GetAnimBlock(StudioHeader studioHdr, int block) {
+		return mdlCache.GetAnimBlock(studioHdr.VirtualModel, block);
+	}
+
 	readonly List<Model> NetworkedDynamicModels = [];
 }
 

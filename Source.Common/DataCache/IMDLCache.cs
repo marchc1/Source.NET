@@ -47,7 +47,7 @@ public interface IMDLCache
 	StudioHeader? GetStudioHdr(MDLHandle_t handle);
 	StudioHWData? GetHardwareData(MDLHandle_t handle);
 	VCollide? GetVCollide(MDLHandle_t handle);
-	ReadOnlySpan<char> GetAnimBlock(MDLHandle_t handle, int block);
+	Memory<byte> GetAnimBlock(MDLHandle_t handle, int block);
 	VirtualModel? GetVirtualModel(MDLHandle_t handle);
 	short[] GetAutoplayList(MDLHandle_t handle);
 	VertexFileHeader? GetVertexData(MDLHandle_t handle);
