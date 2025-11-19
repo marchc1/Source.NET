@@ -28,7 +28,7 @@ public struct RadianEuler
 /// Mostly for data structure compatibility
 /// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 48)]
-public struct Matrix3x4
+public record struct Matrix3x4
 {
 	public float M00, M01, M02, M03;
 	public float M10, M11, M12, M13;
