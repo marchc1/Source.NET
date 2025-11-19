@@ -18,36 +18,42 @@ public struct ConVarRef
 {
 	static readonly EmptyConVar EmptyConVar = new();
 	static ICvar? cvar;
-	bool warnedBefore;
 	static ICvar CVar => cvar ??= Singleton<ICvar>();
 	
 	ConVar ConVar;
 
 	public readonly bool IsEmpty => ConVar == null;
 
-	public ConVarRef(ReadOnlySpan<char> name) {
-		Init(name, false);
-	}
-
 	public ConVarRef(IConVar cvar) {
 		ConVar = (ConVar)cvar;
 	}
 
-	public ConVarRef(ReadOnlySpan<char> name, bool ignoreMissing = false) {
-		Init(name, ignoreMissing);
+	public ConVarRef(ReadOnlySpan<char> name, bool ignoreMissing = false, [CallerFilePath] string? file = null, [CallerLineNumber] int line = -1) {
+		Init(name, ignoreMissing, file, line);
+	}
+
+	static readonly HashSet<ulong> warned = [];
+	static void CVarWarn(ReadOnlySpan<char> name, string? file, int line) {
+		ulong hash;
+		if(file == null) // Shouldn't happen but could I guess
+			hash = new PrintF(stackalloc char[name.Length + 1 + 4 + 13], "cvar%s_%i").S(name).I(line).ToSpan().Hash();
+		else
+			hash = new PrintF(stackalloc char[file.Length + 1 + 4 + 13], "file%s_%i").S(file).I(line).ToSpan().Hash();
+
+		if(warned.Add(hash))
+			Warning($"ConVarRef {name} doesn't point to an existing ConVar (at {file}:{line})\n");
 	}
 
 	[MemberNotNull(nameof(ConVar))]
-	public void Init(ReadOnlySpan<char> name, bool ignoreMissing = false) {
+	public void Init(ReadOnlySpan<char> name, bool ignoreMissing = false, [CallerFilePath] string? file = null, [CallerLineNumber] int line = -1) {
 		if (ConVar != null)
 			return;
 
 		var conVar = CVar?.FindVar(name);
 		ConVar = conVar ??= EmptyConVar;
 		if (!IsValid()) {
-			if (CVar != null && !ignoreMissing && !warnedBefore)
-				Warning($"ConVarRef {name} doesn't point to an existing ConVar\n");
-			warnedBefore = true;
+			if (CVar != null && !ignoreMissing)
+				CVarWarn(name, file, line);
 		}
 	}
 
