@@ -1353,6 +1353,17 @@ public class StudioHdr
 	public string Name() {
 		return studioHdr!.GetName();
 	}
+
+	public int GetNumPoseParameters() {
+		if(vModel == null) {
+			if (studioHdr != null)
+				return studioHdr.NumLocalPoseParameters;
+			else
+				return 0;
+		}
+
+		return vModel.Pose.Count;
+	}
 }
 
 public class MStudioBone

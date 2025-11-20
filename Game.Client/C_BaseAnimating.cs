@@ -120,7 +120,13 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	}
 
 	public void AddBaseAnimatingInterpolatedVars() {
-		AddVar(FIELD.OF(nameof(Cycle)), iv_Cycle, LatchFlags.LatchAnimationVar, true);
+		AddVar(FIELD.OF_ARRAY(nameof(PoseParameter)), iv_flPoseParameter, LatchFlags.LatchAnimationVar, true);
+
+		LatchFlags flags = LatchFlags.LatchAnimationVar;
+		if (ClientSideAnimation)
+			flags |= LatchFlags.ExcludeAutoInterpolate;
+
+		AddVar(FIELD.OF(nameof(Cycle)), iv_Cycle, flags, true);
 	}
 	public void RemoveBaseAnimatingInterpolatedVars() {
 		// todo: removing vars
@@ -388,6 +394,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public static readonly new ClientClass ClientClass = new ClientClass("BaseAnimating", null, null, DT_BaseAnimating).WithManualClassID(StaticClassIndices.CBaseAnimating);
 	protected override StudioHdr? OnNewModel() {
 		InvalidateMdlCache();
+		int i;
 
 		// remove transition animations playback
 		// SequenceTransitioner.RemoveAll();
@@ -409,11 +416,18 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		if(CachedBoneData.Count != hdr.NumBones()) {
 			CachedBoneData.SetSize(hdr.NumBones());
-			for (int i = 0; i < hdr.NumBones(); i++) {
+			for (i = 0; i < hdr.NumBones(); i++) 
 				MathLib.SetIdentityMatrix(out CachedBoneData.AsSpan()[i]);
-			}
 		}
 		BoneAccessor.Init(CachedBoneData.Base());
+
+		Assert(hdr.GetNumPoseParameters() <= PoseParameter.Length);
+		iv_flPoseParameter.SetMaxCount(hdr.GetNumPoseParameters());
+
+		for (i = 0; i < hdr.GetNumPoseParameters(); i++) {
+			MStudioPoseParamDesc Pose = hdr.PoseParameter(i);
+			iv_flPoseParameter.SetLooping(Pose.Loop != 0.0f, i);
+		}
 
 		if (ShouldInterpolate())
 			AddToInterpolationList();
@@ -469,7 +483,8 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return true;
 	}
 	public C_BaseAnimating() {
-		iv_Cycle = new($"{nameof(C_BaseAnimating)}.{iv_Cycle}");
+		iv_Cycle = new($"{nameof(C_BaseAnimating)}.{nameof(iv_Cycle)}");
+		iv_flPoseParameter = new(Studio.MAXSTUDIOPOSEPARAM, $"{nameof(C_BaseAnimating)}.{nameof(iv_flPoseParameter)}");
 
 		pStudioHdr = null;
 		hStudioHdr = MDLHANDLE_INVALID;
@@ -693,6 +708,70 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return (C_BaseAnimating?)follow;
 	}
 
+	public bool GetPoseParameterRange(ReadOnlySpan<char> name, out float minValue, out float maxValue) => GetPoseParameterRange(LookupPoseParameter(name), out minValue, out maxValue);
+	public bool GetPoseParameterRange(int parameter, out float minValue, out float maxValue) {
+		StudioHdr? pStudioHdr = GetModelPtr();
+
+		if (pStudioHdr != null) {
+			if (parameter >= 0 && parameter < pStudioHdr.GetNumPoseParameters()) {
+				MStudioPoseParamDesc pose = pStudioHdr.PoseParameter(parameter);
+				minValue = pose.Start;
+				maxValue = pose.End;
+				return true;
+			}
+		}
+		minValue = 0.0f;
+		maxValue = 1.0f;
+		return false;
+	}
+
+	public float GetPoseParameter(ReadOnlySpan<char> name) => GetPoseParameter(LookupPoseParameter(name));
+	public float GetPoseParameter(int parameter) {
+		StudioHdr? pStudioHdr = GetModelPtr();
+
+		if (pStudioHdr == null)
+			return 0.0f;
+
+		if (pStudioHdr.GetNumPoseParameters() < parameter)
+			return 0.0f;
+
+		if (parameter < 0)
+			return 0.0f;
+
+		return PoseParameter[parameter];
+	}
+
+	public float SetPoseParameter(ReadOnlySpan<char> name, float value) => SetPoseParameter(GetModelPtr(), name, value);
+	public float SetPoseParameter(int parameter, float value) => SetPoseParameter(GetModelPtr(), parameter, value);
+	public float SetPoseParameter(StudioHdr? studioHdr, ReadOnlySpan<char> name, float value)=> SetPoseParameter(studioHdr, LookupPoseParameter(studioHdr, name), value);
+
+	private int LookupPoseParameter(ReadOnlySpan<char> name) => LookupPoseParameter(GetModelPtr(), name);
+	private int LookupPoseParameter(StudioHdr? studioHdr, ReadOnlySpan<char> name) {
+		if (studioHdr == null)
+			return 0;
+
+		for (int i = 0; i < studioHdr.GetNumPoseParameters(); i++) {
+			if (name.Equals(studioHdr.PoseParameter(i).Name(), StringComparison.OrdinalIgnoreCase))
+				return i;
+		}
+
+		return -1;
+	}
+
+	public float SetPoseParameter(StudioHdr? studioHdr, int parameter, float value) {
+		if (studioHdr == null) {
+			AssertMsg(false, "C_BaseAnimating.SetPoseParameter: model missing");
+			return value;
+		}
+
+		if(parameter >= 0) {
+			value = BoneSetup.Studio_SetPoseParameter(studioHdr, parameter, value, out float newValue);
+			PoseParameter[parameter] = newValue;
+		}
+
+		return value;
+	}
+
 	public override int DrawModel(StudioFlags flags) {
 		if (!ReadyToDraw)
 			return 0;
@@ -807,6 +886,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public float FadeScale;
 	public TimeUnit_t Cycle;
 	public readonly InterpolatedVar<float> iv_Cycle;
+	public readonly InterpolatedVarArray<float> iv_flPoseParameter;
 
 	public InlineArrayMaxStudioPoseParam<float> PoseParameter;
 	public InlineArrayMaxStudioPoseParam<float> OldPoseParameters;
