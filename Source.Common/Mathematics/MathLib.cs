@@ -610,26 +610,26 @@ public static class MathLib
 		m.W = w;
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector2 v) => Vector2.AnyWhereAllBitsSet(Vector2.IsNaN(v));
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector3 v) => Vector3.AnyWhereAllBitsSet(Vector3.IsNaN(v));
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector4 v) => Vector4.AnyWhereAllBitsSet(Vector4.IsNaN(v));
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector2 v) => !Vector2.AnyWhereAllBitsSet(Vector2.IsNaN(v));
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector3 v) => !Vector3.AnyWhereAllBitsSet(Vector3.IsNaN(v));
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector4 v) => !Vector4.AnyWhereAllBitsSet(Vector4.IsNaN(v));
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe bool IsValid(this ref Quaternion q) {
 		fixed (Quaternion* pQ = &q)
-			return Vector4.AnyWhereAllBitsSet(Vector4.IsNaN(*(Vector4*)pQ));
+			return !Vector4.AnyWhereAllBitsSet(Vector4.IsNaN(*(Vector4*)pQ));
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe bool IsValid(this ref QAngle a) {
 		fixed (QAngle* pA = &a)
-			return Vector3.AnyWhereAllBitsSet(Vector3.IsNaN(*(Vector3*)pA));
+			return !Vector3.AnyWhereAllBitsSet(Vector3.IsNaN(*(Vector3*)pA));
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe bool IsValid(this ref RadianEuler R) {
 		fixed (RadianEuler* pR = &R)
-			return Vector3.AnyWhereAllBitsSet(Vector3.IsNaN(*(Vector3*)pR));
+			return !Vector3.AnyWhereAllBitsSet(Vector3.IsNaN(*(Vector3*)pR));
 	}
 
 	public static void Init(this ref Matrix4x4 m, in Matrix3x4 m3x4) {
