@@ -1,4 +1,9 @@
 #if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
+
+#if CLIENT_DLL
+using Game.Client;
+#endif
+
 using Source.Common;
 using Source.Common.Mathematics;
 
@@ -48,7 +53,11 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	public int EffectState;
 	public bool Open;
 	public bool PhyscannonState;
-
+#if CLIENT_DLL
+	public bool OldOpen;
+	public int OldEffectState;
+	public readonly InterpolatedValue ElementParameter = new();
+#endif
 	public void OpenElements() {
 		if (Open)
 			return;
@@ -75,5 +84,46 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		Open = false;
 		// DoEffect() todo
 	}
+#if CLIENT_DLL
+	public override void ClientThink() {
+		UpdateElementPosition();
+	}
+	public void UpdateElementPosition() {
+		BasePlayer? owner = ToBasePlayer(GetOwner());
+		float elementPosition = ElementParameter.Interp(gpGlobals.CurTime);
+
+		if (ShouldDrawUsingViewModel()) {
+			if(owner != null) {
+				BaseViewModel? vm = owner.GetViewModel();
+				if (vm != null)
+					vm.SetPoseParameter("active", elementPosition);
+			}
+		}
+	}
+	public override void OnDataChanged(DataUpdateType type) {
+		base.OnDataChanged(type);
+
+		if (type == DataUpdateType.Created) {
+			// SetNextClientThink(CLIENT_THINK_ALWAYS);
+		}
+
+		// Update effect state when out of parity with the server
+		if (OldEffectState != EffectState) {
+			// DoEffect(EffectState);
+			OldEffectState = EffectState;
+		}
+
+		// Update element state when out of parity
+		if (OldOpen != Open) {
+			if (Open) 
+				ElementParameter.InitFromCurrent(1.0f, 0.2f, InterpType.Spline);
+			else 
+				ElementParameter.InitFromCurrent(0.0f, 0.5f, InterpType.Spline);
+
+			OldOpen = (bool)Open;
+		}
+	}
+#endif
+
 }
 #endif

@@ -1007,4 +1007,27 @@ public static class MathLib
 
 		QuaternionNormalize2(ref output);
 	}
+
+	public static double RemapVal(double val, double A, double B, double C, double D) {
+		if (A == B)
+			return val >= B ? D : C;
+		return C + (D - C) * (val - A) / (B - A);
+	}
+
+	public static double RemapValClamped(double val, double A, double B, double C, double D) {
+		if (A == B)
+			return val >= B ? D : C;
+
+		double cVal = (val - A) / (B - A);
+		cVal = Math.Clamp(cVal, 0.0, 1.0);
+
+		return C + (D - C) * cVal;
+	}
+
+	public static double SimpleSplineRemapVal(double val, double A, double B, double C, double D) {
+		if (A == B)
+			return val >= B ? D : C;
+		double cVal = (val - A) / (B - A);
+		return C + (D - C) * SimpleSpline(cVal);
+	}
 }

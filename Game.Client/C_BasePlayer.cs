@@ -22,6 +22,9 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public override bool IsPlayer() => true;
 	public TimeUnit_t GetFinalPredictedTime() => gpGlobals.TickCount * TICK_INTERVAL; // TEMPORARY //  FinalPredictedTick * TICK_INTERVAL;
 	public bool IsLocalPlayer() => GetLocalPlayer() == this;
+	public static bool ShouldDrawLocalPlayer() {
+		return false; // todo
+	}
 
 	public static readonly RecvTable DT_LocalPlayerExclusive = new([
 		RecvPropDataTable(nameof(Local), FIELD.OF(nameof(Local)), PlayerLocalData.DT_Local, 0, DataTableRecvProxy_PointerDataTable),
@@ -172,7 +175,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public int GetHealth() => Health;
 	public bool IsSuitEquipped() => Local.WearingSuit;
 
-	public C_BaseViewModel? GetViewModel(int index, bool observerOK = true) {
+	public C_BaseViewModel? GetViewModel(int index = 0, bool observerOK = true) {
 		C_BaseViewModel? vm = ViewModel[index].Get();
 		// TODO: Observer OK
 
