@@ -477,6 +477,56 @@ public static class MathLib
 		}
 	}
 
+	public static void QuaternionMult(in Quaternion p, in Quaternion q, out Quaternion qt) {
+		qt = Quaternion.Multiply(p, q);
+	}
+	public static void QuaternionScale(in Quaternion p, float t, out Quaternion q) {
+		float r;
+		float sinom = MathF.Sqrt(DotProduct(in p, in p));
+		sinom = Math.Min(sinom, 1.0f);
+
+		float sinsom = MathF.Sin(MathF.Asin(sinom) * t);
+
+		t = sinsom / (sinom + float.Epsilon);
+		q = default;
+		VectorScale(in p.AsVector3ReadOnlyRef(), t, out q.AsVector3Ref());
+
+		// rescale rotation
+		r = 1.0f - sinsom * sinsom;
+
+		// Assert( r >= 0 );
+		if (r < 0.0f)
+			r = 0.0f;
+		r = MathF.Sqrt(r);
+
+		// keep sign of rotation
+		if (p.W < 0)
+			q.W = -r;
+		else
+			q.W = r;
+
+		Assert(q.IsValid());
+	}
+
+	public static void QuaternionSM(float s, in Quaternion p, in Quaternion q, ref Quaternion qt) {
+		Quaternion p1, q1;
+		QuaternionScale(p, s, out p1);
+		QuaternionMult(p1, q, out q1);
+		QuaternionNormalize2(ref q1);
+
+		qt = q1;
+	}
+	public static void QuaternionMA(in Quaternion p, float s, in Quaternion q, ref Quaternion qt) {
+		// TODO: simd
+		QuaternionScale(q, s, out Quaternion q1);
+		QuaternionMult(p, q1, out Quaternion p1);
+		QuaternionNormalize2(ref p1);
+		qt[0] = p1[0];
+		qt[1] = p1[1];
+		qt[2] = p1[2];
+		qt[3] = p1[3];
+	}
+
 	public static void VectorMA(in Vector3 start, float scale, in Vector3 direction, ref Vector3 dest) {
 		dest.X = start.X + direction.X * scale;
 		dest.Y = start.Y + direction.Y * scale;
@@ -528,6 +578,14 @@ public static class MathLib
 		matrix[2, 3] = pos.Z;
 	}
 
+	public static void QuaternionSlerp(in Quaternion p, in Quaternion q, float t, out Quaternion qt) {
+		qt = Quaternion.Slerp(p, q, t);
+	}
+
+	public static void QuaternionSlerpNoAlign(in Quaternion p, in Quaternion q, float t, out Quaternion qt) {
+		qt = Quaternion.Slerp(p, q, t);
+	}
+
 	public static void QuaternionMatrix(in Quaternion q, out Matrix3x4 m) {
 		m = default;
 		m[0, 0] = 1.0F - 2.0F * q.Y * q.Y - 2.0F * q.Z * q.Z;
@@ -575,9 +633,19 @@ public static class MathLib
 		outM[2, 3] = -DotProduct(tmp, outM[2]);
 	}
 
-	public static vec_t DotProduct(Span<vec_t> v1, Span<vec_t> v2) {
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static vec_t DotProduct(ReadOnlySpan<vec_t> v1, ReadOnlySpan<vec_t> v2) {
 		return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe vec_t DotProduct(in Quaternion v1, in Quaternion v2) {
+		fixed(Quaternion* pV1 = &v1)
+		fixed(Quaternion* pV2 = &v2) {
+			return DotProduct(new(pV1, 4), new(pV2, 4));
+		}
+	}
+
 
 	public static void MatrixBuildPerspectiveX(ref Matrix4x4 dst, float fovX, float aspectRatio, float zNear, float zFar) {
 		float flWidthScale = 1.0f / MathF.Tan(fovX * MathF.PI / 360.0f);
@@ -609,6 +677,11 @@ public static class MathLib
 		m.Y = z;
 		m.W = w;
 	}
+
+	public static ref Vector3 AsVector3Ref(this ref Quaternion q) => ref new Span<Quaternion>(ref q).Cast<Quaternion, float>()[..3].Cast<float, Vector3>()[0];
+	public static ref Vector4 AsVector4Ref(this ref Quaternion q) => ref new Span<Quaternion>(ref q).Cast<Quaternion, Vector4>()[0];
+	public static ref readonly Vector3 AsVector3ReadOnlyRef(this ref readonly Quaternion q) => ref new ReadOnlySpan<Quaternion>(in q).Cast<Quaternion, float>()[..3].Cast<float, Vector3>()[0];
+	public static ref readonly Vector4 AsVector4ReadOnlyRef(this ref readonly Quaternion q) => ref new ReadOnlySpan<Quaternion>(in q).Cast<Quaternion, Vector4>()[0];
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector2 v) => !Vector2.AnyWhereAllBitsSet(Vector2.IsNaN(v));
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector3 v) => !Vector3.AnyWhereAllBitsSet(Vector3.IsNaN(v));

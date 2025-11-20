@@ -864,8 +864,89 @@ public ref struct BoneSetup
 
 	}
 
-	private static void SlerpBones(StudioHdr studioHdr, Span<Quaternion> q, Span<Vector3> pos, MStudioSeqDesc seqdesc, int sequence, Span<Quaternion> q2, Span<Vector3> pos2, float weight, int boneMask) {
+	private static void SlerpBones(StudioHdr studioHdr, Span<Quaternion> q1, Span<Vector3> pos1, MStudioSeqDesc seqdesc, int sequence, Span<Quaternion> q2, Span<Vector3> pos2, float s, int boneMask) {
+		if (s <= 0.0f)
+			return;
 
+		if (s > 1.0f)
+			s = 1.0f;
+
+		if ((seqdesc.Flags & StudioAnimSeqFlags.World) != 0) {
+			WorldSpaceSlerp(studioHdr, q1, pos1, seqdesc, sequence, q2, pos2, s, boneMask);
+			return;
+		}
+
+		int i, j;
+		VirtualModel? vModel = studioHdr.GetVirtualModel();
+		VirtualGroup? seqGroup = vModel != null ? vModel.SeqGroup(sequence) : null;
+
+		// Build weightlist for all bones
+		int nBoneCount = studioHdr.NumBones();
+		Span<float> pS2 = stackalloc float[nBoneCount];
+		for (i = 0; i < nBoneCount; i++) {
+			// skip unused bones
+			if ((studioHdr.BoneFlags(i) & boneMask) == 0) {
+				pS2[i] = 0.0f;
+				continue;
+			}
+
+			if (seqGroup == null) {
+				pS2[i] = s * seqdesc.Weight(i);
+				continue;
+			}
+
+			j = seqGroup.BoneMap[i];
+			if (j >= 0)
+				pS2[i] = s * seqdesc.Weight(j);
+			else
+				pS2[i] = 0.0f;
+		}
+
+		float s1, s2;
+		if ((seqdesc.Flags & StudioAnimSeqFlags.Delta) != 0) {
+			for (i = 0; i < nBoneCount; i++) {
+				s2 = pS2[i];
+
+				if (s2 <= 0.0f)
+					continue;
+
+				if ((seqdesc.Flags & StudioAnimSeqFlags.Post) != 0) {
+					MathLib.QuaternionMA(q1[i], s2, q2[i], ref q1[i]);
+
+					// FIXME: are these correct?
+					MathLib.VectorMA(pos1[i], s2, pos2[i], ref pos1[i]);
+				}
+				else {
+					MathLib.QuaternionSM(s2, q2[i], q1[i], ref q1[i]);
+
+					// FIXME: are these correct?
+					MathLib.VectorMA(pos1[i], s2, pos2[i], ref pos1[i]);
+				}
+			}
+			return;
+		}
+
+		for (i = 0; i < nBoneCount; i++) {
+			s2 = pS2[i];
+
+			if (s2 <= 0.0f)
+				continue;
+
+			s1 = 1.0f - s2;
+
+			if ((studioHdr.BoneFlags(i) & Studio.BONE_FIXED_ALIGNMENT) != 0)
+				MathLib.QuaternionSlerpNoAlign(q2[i], q1[i], s1, out q1[i]);
+			else
+				MathLib.QuaternionSlerp(q2[i], q1[i], s1, out q1[i]);
+
+			pos1[i].X = pos1[i].X * s1 + pos2[i].X * s2;
+			pos1[i].Y = pos1[i].Y * s1 + pos2[i].Y * s2;
+			pos1[i].Z = pos1[i].Z * s1 + pos2[i].Z * s2;
+		}
+	}
+
+	private static void WorldSpaceSlerp(StudioHdr studioHdr, Span<Quaternion> q1, Span<Vector3> pos1, MStudioSeqDesc seqdesc, int sequence, Span<Quaternion> q2, Span<Vector3> pos2, float s, int boneMask) {
+		throw new NotImplementedException();
 	}
 
 	private static void AddSequenceLayers(Span<Vector3> pos, Span<Quaternion> q, MStudioSeqDesc seqdesc, int sequence, double cycle, float weight, double time, object? ikContext) {
