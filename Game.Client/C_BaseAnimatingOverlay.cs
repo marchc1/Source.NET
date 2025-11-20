@@ -1,4 +1,5 @@
-﻿using Game.Shared;
+﻿global using AnimationLayer = Game.Client.C_AnimationLayer;
+using Game.Shared;
 
 using Source.Common;
 
@@ -18,10 +19,39 @@ public class C_AnimationLayer
 	]); public static readonly ClientClass ClientClass = new ClientClass("Client", null, null, DT_AnimationLayer).WithManualClassID(StaticClassIndices.CBaseAnimatingOverlay);
 
 	public int Sequence;
-	public float Cycle;
+	public TimeUnit_t Cycle;
 	public float PrevCycle;
 	public float Weight;
 	public int Order;
+
+	public TimeUnit_t PlaybackRate;
+	public TimeUnit_t LayerAnimtime;
+	public TimeUnit_t LayerFadeOuttime;
+	public double BlendIn;
+	public double BlendOut;
+	public bool ClientBlend;
+
+	public double GetFadeout(double curTime) {
+		double s;
+
+		if (LayerFadeOuttime <= 0.0f) {
+			s = 0;
+		}
+		else {
+			// blend in over 0.2 seconds
+			s = 1.0 - (curTime - LayerAnimtime) / LayerFadeOuttime;
+			if (s > 0 && s <= 1.0f) {
+				// do a nice spline curve
+				s = 3 * s * s - 2 * s * s * s;
+			}
+			else if (s > 1.0f) {
+				// Shouldn't happen, but maybe curtime is behind animtime?
+				s = 1.0;
+			}
+		}
+
+		return s;
+	}
 }
 
 

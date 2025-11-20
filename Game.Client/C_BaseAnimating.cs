@@ -237,7 +237,62 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		BoneSetup setup = new(hdr, boneMask, poseparam);
 		setup.InitPose(pos, q);	
-		setup.AccumulatePose(pos, q, GetSequence(), cycle, 1.0f, currentTime, null);	
+		setup.AccumulatePose(pos, q, GetSequence(), cycle, 1.0f, currentTime, null);
+		MaintainSequenceTransitions(ref setup, cycle, pos, q);
+	}
+
+	readonly SequenceTransitioner SequenceTransitioner = new();
+
+	private void MaintainSequenceTransitions(ref BoneSetup boneSetup, double cycle, Span<Vector3> pos, Span<Quaternion> q) {
+		if (boneSetup.GetStudioHdr() == null)
+			return;
+
+		if (prediction.InPrediction()) {
+			PrevNewSequenceParity = NewSequenceParity;
+			return;
+		}
+
+		SequenceTransitioner.CheckForSequenceChange(
+			boneSetup.GetStudioHdr(),
+			GetSequence(),
+			NewSequenceParity != PrevNewSequenceParity,
+			!IsNoInterpolationFrame()
+			);
+
+		PrevNewSequenceParity = NewSequenceParity;
+
+		// Update the transition sequence list.
+		SequenceTransitioner.UpdateCurrent(
+			boneSetup.GetStudioHdr(),
+			GetSequence(),
+			cycle,
+			PlaybackRate,
+			gpGlobals.CurTime
+			);
+
+
+		for (int i = SequenceTransitioner.AnimationQueue.Count - 2; i >= 0; i--) {
+			C_AnimationLayer blend = SequenceTransitioner.AnimationQueue[i];
+
+			double dt = (gpGlobals.CurTime - blend.LayerAnimtime);
+			cycle = blend.Cycle + dt * blend.PlaybackRate * GetSequenceCycleRate(boneSetup.GetStudioHdr(), blend.Sequence);
+			cycle = ClampCycle(cycle, IsSequenceLooping(boneSetup.GetStudioHdr(), blend.Sequence));
+
+			boneSetup.AccumulatePose(pos, q, blend.Sequence, cycle, blend.Weight, gpGlobals.CurTime, null);
+		}
+	}
+
+	private double ClampCycle(double cycle, bool isLooping) {
+		if (isLooping) {
+			cycle -= (int)cycle;
+			if (cycle < 0.0) {
+				cycle += 1.0;
+			}
+		}
+		else {
+			cycle = Math.Clamp(cycle, 0.0, 0.999);
+		}
+		return cycle;
 	}
 
 	public TimeUnit_t SequenceDuration(StudioHdr? studioHdr, int sequence) {
@@ -261,6 +316,16 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return t;
 	}
 	bool PredictionEligible;
+	public string GetSequenceName(int sequence) {
+		if (sequence == -1)
+			return "Not Found!";
+
+		if(GetModelPtr() == null)
+			return "No model!";
+
+		return Animation.GetSequenceName(GetModelPtr(), sequence);
+	}
+
 	public void SetPredictionEligible(bool canpredict) => PredictionEligible = canpredict;
 	public bool IsSequenceLooping(int sequence) => IsSequenceLooping(GetModelPtr(), sequence);
 	public bool IsSequenceLooping(StudioHdr? studioHdr, int sequence) {
@@ -415,6 +480,24 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public void OnModelLoadComplete(Model model) {
 		OnNewModel();
 		UpdateVisibility();
+	}
+	TimeUnit_t OldCycle;
+	int OldSequence;
+	float OldModelScale;
+
+	public override void PreDataUpdate(DataUpdateType updateType) {
+		OldCycle = GetCycle();
+		OldSequence = GetSequence();
+		OldModelScale = GetModelScale();
+
+		int i;
+		for (i = 0; i < Studio.MAXSTUDIOBONECTRLS; i++) 
+			OldEncodedController[i] = EncodedController[i];
+		
+		for (i = 0; i < Studio.MAXSTUDIOPOSEPARAM; i++) 
+			OldPoseParameters[i] = PoseParameter[i];
+
+		base.PreDataUpdate(updateType);
 	}
 	public override void PostDataUpdate(DataUpdateType updateType) {
 		base.PostDataUpdate(updateType);

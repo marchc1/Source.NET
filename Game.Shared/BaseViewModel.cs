@@ -130,5 +130,18 @@ public partial class
 		SetLocalOrigin(in vmorigin);
 		SetLocalAngles(in vmangles);
 	}
+
+	public
+#if CLIENT_DLL
+	C_BaseViewModel
+#else
+	BaseViewModel
+#endif
+		() {
+#if CLIENT_DLL
+		OldAnimationParity = 0;
+		EntClientFlags |= EntClientFlags.AlwaysInterpolate;
+#endif
+	}
 }
 #endif
