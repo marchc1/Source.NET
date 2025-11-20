@@ -26,12 +26,14 @@ public static class StudioDeps
 public delegate T FactoryFn<T>(object caller, Memory<byte> data);
 public static class Studio
 {
+	public static T UnmanagedFactoryFn<T>(object caller, Memory<byte> data) where T : unmanaged => data.Span.Cast<byte, T>()[0];
+
 	// Some helper functions so I didn't have to write the same boilerplate over and over again for all of the class based views.
 	// The way most of this file works differs from Source in that it instantiates class instances from binary data. That decision
 	// was made because Source does most of this with pointers - and quite often stores those pointers, which we cant do with
 	// reinterpreted struct references in any C#-safe way...
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static T ProduceArrayIdx<T>(
+	public static ref T ProduceArrayIdx<T>(
 		object caller,            // the caller (some factories need this)
 		[NotNull] ref T[]? array, // the array to initialize if null
 		int elements,             // how many elements in the array, NumLocalSeq for example
@@ -46,7 +48,8 @@ public static class Studio
 		ArgumentOutOfRangeException.ThrowIfLessThan(index, 0);
 		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, elements);
 
-		return array[index] ??= factory(caller, data[(dataOffset + (index * sizeOfOne))..]);
+		array[index] ??= factory(caller, data[(dataOffset + (index * sizeOfOne))..]);
+		return ref array[index];
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static T ProduceVaradicArrayIdx<T>(
@@ -121,10 +124,18 @@ public static class Studio
 	public const int BONE_USED_BY_VERTEX_LOD7 = 0x00020000;
 	public const int BONE_USED_BY_BONE_MERGE = 0x00040000;
 
+	public const int BONE_TYPE_MASK = 0x00F00000;
+
+	public const int BONE_FIXED_ALIGNMENT = 0x00100000;
+	public const int BONE_HAS_SAVEFRAME_POS = 0x00200000;
+	public const int BONE_HAS_SAVEFRAME_ROT = 0x00400000;
+
 	public const int MAX_NUM_BONE_INDICES = 4;
 
 	public const int USESHADOWLOD = -2;
-	public static int BONE_USED_BY_VERTEX_AT_LOD(int lod) => BONE_USED_BY_VERTEX_LOD0 << lod;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static int BONE_USED_BY_VERTEX_AT_LOD(int lod) => BONE_USED_BY_VERTEX_LOD0 << lod;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static int BONE_USED_BY_ANYTHING_AT_LOD(int lod) => ((BONE_USED_BY_ANYTHING & ~BONE_USED_BY_VERTEX_MASK) | BONE_USED_BY_VERTEX_AT_LOD(lod));
 }
 
 public enum StudioHdrFlags
@@ -872,6 +883,12 @@ public class MStudioSeqDesc
 	public int AutoLayerIndex;
 
 	public int WeightListIndex;
+	// TODO: Is this the correct size
+	const int WEIGHTLISTSIZE = Studio.MAXSTUDIOBONES;
+	float[]? weightlistCache;
+	public ref float Boneweight(int i)
+		=> ref Studio.ProduceArrayIdx(this, ref weightlistCache, WEIGHTLISTSIZE, WeightListIndex, i, sizeof(float), Data, Studio.UnmanagedFactoryFn<float>);
+	public float Weight(int i) => Boneweight(i);
 
 	public int PoseKeyIndex;
 	public ref float PoseKeyRef(int param, int anim) => ref Data.Span[PoseKeyIndex..].Cast<byte, float>()[param * GroupSize[0] + anim];

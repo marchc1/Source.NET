@@ -275,16 +275,161 @@ public ref struct BoneSetup
 		return t;
 	}
 	private static void Calc3WayBlendIndices(int i0, int i1, float s0, float s1, MStudioSeqDesc seqdesc, Span<int> animIndices, Span<float> weight) {
+		bool bEven = (((i0 + i1) & 0x1) == 0);
 
+		int x1, y1;
+		int x2, y2;
+		int x3, y3;
+
+		// diagonal is between elements 1 & 3
+		// TL to BR
+		if (bEven) {
+			if (s0 > s1) {
+				// B
+				x1 = 0; y1 = 0;
+				x2 = 1; y2 = 0;
+				x3 = 1; y3 = 1;
+				weight[0] = (1.0f - s0);
+				weight[1] = s0 - s1;
+			}
+			else {
+				// C
+				x1 = 1; y1 = 1;
+				x2 = 0; y2 = 1;
+				x3 = 0; y3 = 0;
+				weight[0] = s0;
+				weight[1] = s1 - s0;
+			}
+		}
+		// BL to TR
+		else {
+			float flTotal = s0 + s1;
+
+			if (flTotal > 1.0f) {
+				// D
+				x1 = 1; y1 = 0;
+				x2 = 1; y2 = 1;
+				x3 = 0; y3 = 1;
+				weight[0] = (1.0f - s1);
+				weight[1] = s0 - 1.0f + s1;
+			}
+			else {
+				// A
+				x1 = 0; y1 = 1;
+				x2 = 0; y2 = 0;
+				x3 = 1; y3 = 0;
+				weight[0] = s1;
+				weight[1] = 1.0f - s0 - s1;
+			}
+		}
+
+		animIndices[0] = seqdesc.Anim(i0 + x1, i1 + y1);
+		animIndices[1] = seqdesc.Anim(i0 + x2, i1 + y2);
+		animIndices[2] = seqdesc.Anim(i0 + x3, i1 + y3);
+
+		// clamp the diagonal
+		if (weight[1] < 0.001f)
+			weight[1] = 0.0f;
+		weight[2] = 1.0f - weight[0] - weight[1];
+
+		Assert(weight[0] >= 0.0f && weight[0] <= 1.0f);
+		Assert(weight[1] >= 0.0f && weight[1] <= 1.0f);
+		Assert(weight[2] >= 0.0f && weight[2] <= 1.0f);
 	}
 	private static void CalcAnimation(StudioHdr studioHdr, Span<Vector3> pos, Span<Quaternion> q, MStudioSeqDesc seqdesc, int sequence, int animation, TimeUnit_t cycle, int bonemask) {
-
+		
 	}
 	private static void BlendBones(StudioHdr studioHdr, Span<Quaternion> q1, Span<Vector3> pos1, MStudioSeqDesc seqdesc, int sequence, ReadOnlySpan<Quaternion> q2, ReadOnlySpan<Vector3> pos2, float s, int boneMask) {
+		int i, j;
+		Quaternion q3;
 
+		VirtualModel? vModel = studioHdr.GetVirtualModel();
+		VirtualGroup? seqGroup = null;
+		if (vModel != null)
+			seqGroup = vModel.SeqGroup(sequence);
+
+		if (s <= 0) {
+			Assert(false); 
+			return;
+		}
+		else if (s >= 1.0) {
+			Assert(false); 
+			for (i = 0; i < studioHdr.NumBones(); i++) {
+				if ((studioHdr.BoneFlags(i) & boneMask) == 0)
+					continue;
+
+				if (seqGroup != null)
+					j = seqGroup.BoneMap[i];
+				else 
+					j = i;
+
+				if (j >= 0 && seqdesc.Weight(j) > 0.0) {
+					q1[i] = q2[i];
+					pos1[i] = pos2[i];
+				}
+			}
+			return;
+		}
+
+		float s2 = s;
+		float s1 = 1.0F - s2;
+
+		for (i = 0; i < studioHdr.NumBones(); i++) {
+			if ((studioHdr.BoneFlags(i) & boneMask) == 0) 
+				continue;
+
+			if (seqGroup != null) 
+				j = seqGroup.BoneMap[i];
+			else 
+				j = i;
+
+
+			if (j >= 0 && seqdesc.Weight(j) > 0.0) {
+				if ((studioHdr.BoneFlags(i) & Studio.BONE_FIXED_ALIGNMENT) != 0) {
+					MathLib.QuaternionBlendNoAlign(q2[i], q1[i], s1, out q3);
+				}
+				else {
+					MathLib.QuaternionBlend(q2[i], q1[i], s1, out q3);
+				}
+
+				q1[i][0] = q3[0];
+				q1[i][1] = q3[1];
+				q1[i][2] = q3[2];
+				q1[i][3] = q3[3];
+				pos1[i][0] = pos1[i][0] * s1 + pos2[i][0] * s2;
+				pos1[i][1] = pos1[i][1] * s1 + pos2[i][1] * s2;
+				pos1[i][2] = pos1[i][2] * s1 + pos2[i][2] * s2;
+			}
+		}
 	}
 	private static void ScaleBones(StudioHdr studioHdr, Span<Quaternion> q1, Span<Vector3> pos1, int sequence, float s, int boneMask) {
+		int i, j;
 
+		MStudioSeqDesc seqdesc = studioHdr.Seqdesc(sequence);
+
+		VirtualModel? vModel = studioHdr.GetVirtualModel();
+		VirtualGroup? seqGroup = null;
+		if (vModel != null) 
+			seqGroup = vModel.SeqGroup(sequence);
+
+		float s2 = s;
+		float s1 = 1.0f - s2;
+
+		for (i = 0; i < studioHdr.NumBones(); i++) {
+			// skip unused bones
+			if ((studioHdr.BoneFlags(i) & boneMask) == 0) 
+				continue;
+
+			if (seqGroup != null) 
+				j = seqGroup.BoneMap[i];
+			else 
+				j = i;
+
+			if (j >= 0 && seqdesc.Weight(j) > 0.0) {
+				MathLib.QuaternionIdentityBlend(q1[i], s1, out q1[i]);
+				MathLib.VectorScale(pos1[i], s2, out pos1[i]);
+			}
+		}
 	}
 
 	private static void Studio_LocalPoseParameter(StudioHdr studioHdr, Span<float> poseParameter, MStudioSeqDesc seqdesc, int sequence, int localIndex, ref float flSetting, ref int index) {

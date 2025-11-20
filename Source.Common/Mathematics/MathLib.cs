@@ -129,6 +129,25 @@ public static class MathLib
 
 	}
 
+	// These can just be Systems.Numerics calls since I think System.Numerics SIMD's them. These are just to have consistent naming with Source
+	// (and maybe allow us to deviate easily if need be at some point).
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorAdd(in Vector3 a, in Vector3 b, out Vector3 result) => result = Vector3.Add(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorAdd(in Vector3 a, vec_t b, out Vector3 result) => result = Vector3.Add(a, new(b));
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorSubtract(in Vector3 a, in Vector3 b, out Vector3 result) => result = Vector3.Subtract(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorSubtract(in Vector3 a, vec_t b, out Vector3 result) => result = Vector3.Subtract(a, new(b));
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorMultiply(in Vector3 inVec, in Vector3 scale, out Vector3 result) => result = Vector3.Multiply(inVec, scale);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorMultiply(in Vector3 inVec, vec_t scale, out Vector3 result) => result = Vector3.Multiply(inVec, scale);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorDivide(in Vector3 inVec, in Vector3 scale, out Vector3 result) => result = Vector3.Divide(inVec, scale);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorDivide(in Vector3 inVec, vec_t scale, out Vector3 result) => result = Vector3.Divide(inVec, scale);
+
+
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorScale(in Vector3 inVec, in Vector3 scale, out Vector3 result) => result = Vector3.Multiply(inVec, scale);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorScale(in Vector3 inVec, vec_t scale, out Vector3 result) => result = Vector3.Multiply(inVec, scale);
+
+
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static ref Vector3 AsVector3D(this ref Vector4 vec)
 		=> ref new Span<Vector4>(ref vec).Cast<Vector4, float>()[..3].Cast<float, Vector3>()[0];
@@ -136,6 +155,8 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static ref Vector2 AsVector2D(this ref Vector4 vec)
 		=> ref new Span<Vector4>(ref vec).Cast<Vector4, float>()[..2].Cast<float, Vector2>()[0];
+
+
 
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -195,6 +216,8 @@ public static class MathLib
 		else
 			return 1 - 0.5f * Bias(2 - 2 * x, 1 - biasAmount);
 	}
+
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float RAD2DEG(float x) => x * (180f / MathF.PI);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static double RAD2DEG(double x) => x * (180 / Math.PI);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float DEG2RAD(float x) => x * (MathF.PI / 180);
@@ -538,6 +561,66 @@ public static class MathLib
 
 			// Assume no roll in this case as one degree of freedom has been lost (i.e. yaw == roll)
 			angles[2] = 0;
+		}
+	}
+
+	public static void QuaternionBlend(in Quaternion p, in Quaternion q, float t, out Quaternion qt) {
+		float dot = p.X * q.X + p.Y * q.Y + p.Z * q.Z + p.W * q.W;
+
+		float sign = dot < 0.0f ? -1.0f : 1.0f;
+
+		float oneMinusT = 1.0f - t;
+		qt.X = p.X * oneMinusT + (q.X * sign) * t;
+		qt.Y = p.Y * oneMinusT + (q.Y * sign) * t;
+		qt.Z = p.Z * oneMinusT + (q.Z * sign) * t;
+		qt.W = p.W * oneMinusT + (q.W * sign) * t;
+
+		float length = MathF.Sqrt(qt.X * qt.X + qt.Y * qt.Y + qt.Z * qt.Z + qt.W * qt.W);
+		if (length > 0.0f) {
+			float invLength = 1.0f / length;
+			qt.X *= invLength;
+			qt.Y *= invLength;
+			qt.Z *= invLength;
+			qt.W *= invLength;
+		}
+	}
+
+	public static void QuaternionBlendNoAlign(in Quaternion p, in Quaternion q, float t, out Quaternion qt) {
+		float oneMinusT = 1.0f - t;
+		qt.X = p.X * oneMinusT + q.X * t;
+		qt.Y = p.Y * oneMinusT + q.Y * t;
+		qt.Z = p.Z * oneMinusT + q.Z * t;
+		qt.W = p.W * oneMinusT + q.W * t;
+
+		float length = MathF.Sqrt(qt.X * qt.X + qt.Y * qt.Y + qt.Z * qt.Z + qt.W * qt.W);
+		if (length > 0.0f) {
+			float invLength = 1.0f / length;
+			qt.X *= invLength;
+			qt.Y *= invLength;
+			qt.Z *= invLength;
+			qt.W *= invLength;
+		}
+	}
+
+	public static void QuaternionIdentityBlend(in Quaternion p, float t, out Quaternion qt) {
+		float sclp = 1.0f - t;
+		qt.X = p.X * sclp;
+		qt.Y = p.Y * sclp;
+		qt.Z = p.Z * sclp;
+		qt.W = p.W * sclp;
+
+		if (qt.W < 0.0f) 
+			t = -t;
+
+		qt.W += t;
+
+		float length = MathF.Sqrt(qt.X * qt.X + qt.Y * qt.Y + qt.Z * qt.Z + qt.W * qt.W);
+		if (length > 0.0f) {
+			float invLength = 1.0f / length;
+			qt.X *= invLength;
+			qt.Y *= invLength;
+			qt.Z *= invLength;
+			qt.W *= invLength;
 		}
 	}
 }
