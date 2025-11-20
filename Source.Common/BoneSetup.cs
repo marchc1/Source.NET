@@ -689,7 +689,8 @@ public ref struct BoneSetup
 			return;
 		}
 
-		for (int i = 0; i < studioHdr.NumBones(); i++, pweight++) {
+		for (int i = 0; i < studioHdr.NumBones(); i++) {
+			pweight = ref seqdesc.Boneweight(i);
 			pbone = studioHdr.Bone(i);
 			if (panim != null && panim.Bone == i) {
 				if (pweight > 0 && (studioHdr.BoneFlags(i) & boneMask) != 0) {
