@@ -5,7 +5,7 @@ using System.Numerics;
 
 namespace Source.Common.Engine;
 
-public interface IDebugOverlay
+public interface IVDebugOverlay
 {
 	void AddEntityTextOverlay(int ent_index, int line_offset, float duration, int r, int g, int b, int a, ReadOnlySpan<char> text);
 	void AddBoxOverlay(in Vector3 origin, in Vector3 mins, in Vector3 max, in QAngle orientation, int r, int g, int b, int a, float duration);
