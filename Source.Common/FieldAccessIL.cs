@@ -305,7 +305,7 @@ namespace Source.Common
 				SetValue(instanceFrom, in target[i]);
 		}
 		public override void CopyTo<T>(object instanceFrom, Span<T> target) {
-			for (int i = 0; i < Length; i++)
+			for (int i = 0; i < Math.Min(Length, target.Length); i++)
 				target[i] = AtIndex(i)!.GetValue<T>(instanceFrom);
 		}
 		public DynamicArrayAccessor(Type targetType, ReadOnlySpan<char> expression, int isList = -1) : base(targetType, expression) {

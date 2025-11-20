@@ -119,18 +119,26 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 	}
 
+
+	static readonly DynamicAccessor DA_PoseParameter = FIELD.OF_ARRAY(nameof(PoseParameter));
+	static readonly DynamicAccessor DA_Cycle = FIELD.OF(nameof(Cycle));
+
 	public void AddBaseAnimatingInterpolatedVars() {
-		AddVar(FIELD.OF_ARRAY(nameof(PoseParameter)), iv_flPoseParameter, LatchFlags.LatchAnimationVar, true);
+		AddVar(DA_PoseParameter, iv_flPoseParameter, LatchFlags.LatchAnimationVar, true);
 
 		LatchFlags flags = LatchFlags.LatchAnimationVar;
 		if (ClientSideAnimation)
 			flags |= LatchFlags.ExcludeAutoInterpolate;
 
-		AddVar(FIELD.OF(nameof(Cycle)), iv_Cycle, flags, true);
+		AddVar(DA_Cycle, iv_Cycle, flags, true);
 	}
+
 	public void RemoveBaseAnimatingInterpolatedVars() {
-		// todo: removing vars
+		RemoveVar(DA_PoseParameter, false);
+		if (!GetPredictable())
+			RemoveVar(DA_Cycle, false);
 	}
+
 	public override bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, double currentTime) {
 		if (!boneToWorldOut.IsEmpty && !IsBoneAccessAllowed()) {
 			if (gpGlobals.RealTime >= SetupBones__lastWarning + 1.0f) {
@@ -214,7 +222,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	}
 	public TimeUnit_t GetCycle() => Cycle;
 	public void SetSequence(int sequence) {
-		if(Sequence != sequence) {
+		if (Sequence != sequence) {
 			Sequence = sequence;
 			InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnimationChanged);
 			if (ClientSideAnimation)
@@ -230,19 +238,19 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	}
 
 	public void SetCycle(TimeUnit_t cycle) {
-		if(cycle != Cycle) {
+		if (cycle != Cycle) {
 			Cycle = cycle;
 			InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnimationChanged);
 		}
 	}
 	private void StandardBlendingRules(StudioHdr hdr, Span<Vector3> pos, Span<Quaternion> q, TimeUnit_t currentTime, int boneMask) {
 		Span<float> poseparam = stackalloc float[Studio.MAXSTUDIOPOSEPARAM];
-		for (int i = 0; i < Studio.MAXSTUDIOPOSEPARAM; i++) 
+		for (int i = 0; i < Studio.MAXSTUDIOPOSEPARAM; i++)
 			poseparam[i] = PoseParameter[i];
 		TimeUnit_t cycle = GetCycle();
 
 		BoneSetup setup = new(hdr, boneMask, poseparam);
-		setup.InitPose(pos, q);	
+		setup.InitPose(pos, q);
 		setup.AccumulatePose(pos, q, GetSequence(), cycle, 1.0f, currentTime, null);
 		MaintainSequenceTransitions(ref setup, cycle, pos, q);
 	}
@@ -302,10 +310,10 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	}
 
 	public TimeUnit_t SequenceDuration(StudioHdr? studioHdr, int sequence) {
-		if (studioHdr == null) 
+		if (studioHdr == null)
 			return 0.1f;
 
-		if (!studioHdr.SequencesAvailable()) 
+		if (!studioHdr.SequencesAvailable())
 			return 0.1;
 
 		if (sequence >= studioHdr.GetNumSeq() || sequence < 0) {
@@ -326,7 +334,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		if (sequence == -1)
 			return "Not Found!";
 
-		if(GetModelPtr() == null)
+		if (GetModelPtr() == null)
 			return "No model!";
 
 		return Animation.GetSequenceName(GetModelPtr(), sequence);
@@ -414,9 +422,9 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		InvalidateBoneCache();
 
-		if(CachedBoneData.Count != hdr.NumBones()) {
+		if (CachedBoneData.Count != hdr.NumBones()) {
 			CachedBoneData.SetSize(hdr.NumBones());
-			for (i = 0; i < hdr.NumBones(); i++) 
+			for (i = 0; i < hdr.NumBones(); i++)
 				MathLib.SetIdentityMatrix(out CachedBoneData.AsSpan()[i]);
 		}
 		BoneAccessor.Init(CachedBoneData.Base());
@@ -506,10 +514,10 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		OldModelScale = GetModelScale();
 
 		int i;
-		for (i = 0; i < Studio.MAXSTUDIOBONECTRLS; i++) 
+		for (i = 0; i < Studio.MAXSTUDIOBONECTRLS; i++)
 			OldEncodedController[i] = EncodedController[i];
-		
-		for (i = 0; i < Studio.MAXSTUDIOPOSEPARAM; i++) 
+
+		for (i = 0; i < Studio.MAXSTUDIOPOSEPARAM; i++)
 			OldPoseParameters[i] = PoseParameter[i];
 
 		base.PreDataUpdate(updateType);
@@ -743,7 +751,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 	public float SetPoseParameter(ReadOnlySpan<char> name, float value) => SetPoseParameter(GetModelPtr(), name, value);
 	public float SetPoseParameter(int parameter, float value) => SetPoseParameter(GetModelPtr(), parameter, value);
-	public float SetPoseParameter(StudioHdr? studioHdr, ReadOnlySpan<char> name, float value)=> SetPoseParameter(studioHdr, LookupPoseParameter(studioHdr, name), value);
+	public float SetPoseParameter(StudioHdr? studioHdr, ReadOnlySpan<char> name, float value) => SetPoseParameter(studioHdr, LookupPoseParameter(studioHdr, name), value);
 
 	private int LookupPoseParameter(ReadOnlySpan<char> name) => LookupPoseParameter(GetModelPtr(), name);
 	private int LookupPoseParameter(StudioHdr? studioHdr, ReadOnlySpan<char> name) {
@@ -764,7 +772,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			return value;
 		}
 
-		if(parameter >= 0) {
+		if (parameter >= 0) {
 			value = BoneSetup.Studio_SetPoseParameter(studioHdr, parameter, value, out float newValue);
 			PoseParameter[parameter] = newValue;
 		}

@@ -1286,7 +1286,18 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 	public void RemoveVar(DynamicAccessor accessor, bool assert = true) {
-		throw new NotImplementedException();
+		for (int i = 0; i < VarMap.Entries.Count; i++) {
+			if (VarMap.Entries[i].Accessor == accessor) {
+				if ((VarMap.Entries[i].Type & LatchFlags.ExcludeAutoInterpolate) == 0)
+					--VarMap.InterpolatedEntries;
+
+				VarMap.Entries.RemoveAt(i);
+				return;
+			}
+		}
+
+		if (assert) 
+			AssertMsg(false, "RemoveVar");
 	}
 	public ref VarMapping GetVarMapping() => ref VarMap;
 	public VarMapping VarMap = new();
