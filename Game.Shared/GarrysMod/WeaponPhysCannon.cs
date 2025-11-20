@@ -48,5 +48,32 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	public int EffectState;
 	public bool Open;
 	public bool PhyscannonState;
+
+	public void OpenElements() {
+		if (Open)
+			return;
+		// WeaponSound() todo
+
+		BasePlayer? owner = ToBasePlayer(GetOwner());
+		if (owner == null)
+			return;
+
+		SendWeaponAnim(Activity.ACT_VM_IDLE);
+		Open = true;
+		// DoEffect() todo
+	}
+	public void CloseElements() {
+		if (!Open)
+			return;
+		// WeaponSound() todo
+
+		BasePlayer? owner = ToBasePlayer(GetOwner());
+		if (owner == null)
+			return;
+
+		SendWeaponAnim(Activity.ACT_VM_IDLE);
+		Open = false;
+		// DoEffect() todo
+	}
 }
 #endif

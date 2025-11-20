@@ -140,5 +140,14 @@ public partial class
 	public virtual bool IsOverridingViewmodel() => false;
 	public virtual int DrawOverriddenViewmodel(BaseViewModel viewmodel, StudioFlags flags) => 0;
 	public virtual void ViewModelDrawn(BaseViewModel viewmodelflags) { }
+
+	public BaseCombatCharacter? GetOwner() => ToBaseCombatCharacter(Owner.Get());
+
+	public bool SetIdealActivity(Activity ideal) {
+		return false; // todo
+	}
+	public bool SendWeaponAnim(Activity act) {
+		return SetIdealActivity(act);
+	}
 }
 #endif

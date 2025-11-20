@@ -42,6 +42,14 @@ public partial class C_BaseEntity : IClientEntity
 	static bool s_bAbsRecomputationEnabled = true;
 	static ConVar cl_interpolate = new("cl_interpolate", "1", FCvar.UserInfo | FCvar.DevelopmentOnly);
 
+	public virtual bool IsWorld() => EntIndex() == 0;
+	public virtual bool IsPlayer() => false;
+	public virtual bool IsBaseCombatCharacter() => false;
+	public virtual bool IsNPC() => false;
+	public virtual bool IsNextBot() => false;
+	public virtual bool IsBaseCombatWeapon() => false;
+	public virtual bool IsCombatItem() => false;
+
 	public ReadOnlySpan<char> GetClassname() => "not_yet_implemented";
 
 	public static void InterpolateServerEntities() {

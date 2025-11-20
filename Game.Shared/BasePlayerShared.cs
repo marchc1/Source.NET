@@ -1,10 +1,11 @@
 ﻿#if CLIENT_DLL || GAME_DLL
 #if CLIENT_DLL
+global using static Game.Client.BasePlayerGlobals;
 global using BasePlayer = Game.Client.C_BasePlayer;
-
 using Game.Shared;
 
 #else
+global using static Game.Server.BasePlayerGlobals;
 global using BasePlayer = Game.Server.BasePlayer;
 
 #endif
@@ -18,6 +19,22 @@ namespace Game.Client;
 #else
 namespace Game.Server;
 #endif
+
+public static class BasePlayerGlobals {
+	public static BasePlayer? ToBasePlayer(SharedBaseEntity? entity) {
+		if (entity == null || !entity.IsPlayer())
+			return null;
+
+		return (BasePlayer?)entity;
+	}
+
+	public static BaseCombatCharacter? ToBaseCombatCharacter(SharedBaseEntity? entity) {
+		if (entity == null || !entity.IsBaseCombatCharacter())
+			return null;
+
+		return (BaseCombatCharacter?)entity;
+	}
+}
 
 public partial class
 #if CLIENT_DLL

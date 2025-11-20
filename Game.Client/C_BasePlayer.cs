@@ -19,6 +19,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		RecvPropInt(FIELD.OF(nameof(DeadFlag)))
 	]); public static readonly ClientClass CC_PlayerState = new("PlayerState", null, null, DT_PlayerState);
 
+	public override bool IsPlayer() => true;
 	public TimeUnit_t GetFinalPredictedTime() => gpGlobals.TickCount * TICK_INTERVAL; // TEMPORARY //  FinalPredictedTick * TICK_INTERVAL;
 	public bool IsLocalPlayer() => GetLocalPlayer() == this;
 
