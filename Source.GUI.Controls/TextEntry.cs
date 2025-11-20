@@ -1857,7 +1857,7 @@ public class TextEntry : Panel
 		base.OnSetFocus();
 	}
 
-	public void OnSetText(ReadOnlySpan<char> text) {
+	public virtual void OnSetText(ReadOnlySpan<char> text) {
 		SetText(text);
 	}
 

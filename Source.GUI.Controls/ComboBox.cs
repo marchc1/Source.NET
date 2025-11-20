@@ -88,6 +88,7 @@ public class ComboBox : TextEntry
 	public void SetNumberOfEditLines(int numLines) => DropDown.SetNumberOfVisibleItems(numLines);
 
 	public virtual int AddItem(ReadOnlySpan<char> itemText, KeyValues? userData) {
+		Console.WriteLine($"ComboBox::AddItem: {itemText}");
 		return DropDown.AddMenuItem(itemText, new KeyValues("SetText", "text", itemText), this, userData);
 	}
 
@@ -104,7 +105,7 @@ public class ComboBox : TextEntry
 
 		KeyValues kv = new("SetText");
 		kv.SetString("text", itemText);
-		//DropDown.UpdateMenuItem(itemID, itemText, kv, userData);
+		DropDown.UpdateMenuItem(itemID, itemText, kv, userData);
 		InvalidateLayout();
 		return true;
 	}
@@ -121,20 +122,25 @@ public class ComboBox : TextEntry
 
 	public int GetItemIDFromRow(int row) => DropDown.GetMenuID(row);
 
-	public virtual void ActivateItem(int itemID) {
+	public virtual void ActivateItem(int itemID) => DropDown.ActivateItem(itemID);
 
-	}
-
-	public void ActivateItemByRow(int row) {
-
-	}
+	public void ActivateItemByRow(int row) => DropDown.ActivateItemByRow(row);
 
 	public void SilentActivateItemByRow(int row) {
-
+		int itemID = GetItemIDFromRow(row);
+		if (itemID >= 0)
+			SilentActivateItem(itemID);
 	}
 
 	public void SilentActivateItem(int itemID) {
+		DropDown.SilentActivateItem(itemID);
 
+		Span<char> name = stackalloc char[256];
+		GetItemText(itemID, name);
+
+		PreventTextChangeMessage = true;
+		OnSetText(name);
+		PreventTextChangeMessage = false;
 	}
 
 	public void SetMenu(Menu menu) {
@@ -181,9 +187,9 @@ public class ComboBox : TextEntry
 
 	public int GetActiveItem() => DropDown.GetActiveItem();
 
-	public KeyValues GetActiveItemUserData() => DropDown.GetItemUserData(GetActiveItem());
+	public KeyValues? GetActiveItemUserData() => DropDown.GetItemUserData(GetActiveItem());
 
-	public KeyValues GetItemUserData(int itemID) => DropDown.GetItemUserData(itemID);
+	public KeyValues? GetItemUserData(int itemID) => DropDown.GetItemUserData(itemID);
 
 	public void GetItemText(int itemID, Span<char> text) => DropDown.GetItemText(itemID, text);
 
@@ -210,22 +216,55 @@ public class ComboBox : TextEntry
 		Button.SetVisible(state);
 
 	public override void OnMousePressed(ButtonCode code) {
+		if (DropDown == null || !IsEnabled())
+			return;
 
+		if (!IsCursorOver()) {
+			HideMenu();
+			return;
+		}
+
+		if (IsEditable()) {
+			base.OnMousePressed(code);
+			HideMenu();
+		}
+		else {
+			RequestFocus();
+			DoClick();
+		}
 	}
 
 	public override void OnMouseDoublePressed(ButtonCode code) {
-
+		if (IsEditable())
+			base.OnMouseDoublePressed(code);
+		else
+			OnMousePressed(code);
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
-		if (String.Equals(new(command), "ButtonClicked", StringComparison.OrdinalIgnoreCase))
+		if (string.Equals(new(command), "ButtonClicked", StringComparison.OrdinalIgnoreCase))
 			DoClick();
 
 		base.OnCommand(command);
 	}
 
-	public void OnSetText() {
+	public override void OnSetText(ReadOnlySpan<char> text) {
+		if (text[0] == '#') {
+		}
 
+		Span<char> buf = stackalloc char[255];
+		GetText(buf);
+
+		if (!MemoryExtensions.Equals(buf, text, StringComparison.Ordinal)) {
+			SetText(text);
+
+			if (!PreventTextChangeMessage)
+				PostActionSignal(new KeyValues("TextChanged", "text", text));
+
+			Repaint();
+		}
+
+		HideMenu();
 	}
 
 	public void HideMenu() {
@@ -237,7 +276,7 @@ public class ComboBox : TextEntry
 		// OnHideMenu();
 	}
 
-	public void ShowMnenu() {
+	public void ShowMenu() {
 		if (DropDown == null)
 			return;
 
@@ -258,17 +297,58 @@ public class ComboBox : TextEntry
 			Highlight = false;
 			RequestFocus();
 		}
-		//else if (IsCursorOver()) { // todo
-		//	SelectAllText(false);
-		//	OnCursorExited();
-		//	RequestFocus();
-		//}
+		else if (IsCursorOver()) {
+			SelectAllText(false);
+			OnCursorExited();
+			RequestFocus();
+		}
 		else
 			Button.SetArmed(false);
 	}
 
 	public void DoClick() {
+		if (DropDown.IsVisible()) {
+			HideMenu();
+			return;
+		}
 
+		if (!DropDown.IsEnabled())
+			return;
+
+		DropDown.PerformLayout();
+
+		int itemToSelect = -1;
+		Span<char> comboBoxContents = stackalloc char[255];
+		GetText(comboBoxContents);
+
+		Span<char> menuItemName = stackalloc char[255];
+		for (int i = 0; i < DropDown.GetItemCount(); i++) {
+			menuItemName.Clear();
+			int menuID = DropDown.GetMenuID(i);
+			DropDown.GetMenuItem(menuID)!.GetText(menuItemName);
+			if (MemoryExtensions.Equals(comboBoxContents, menuItemName, StringComparison.Ordinal)) {
+				itemToSelect = i;
+				break;
+			}
+		}
+
+		if (itemToSelect >= 0)
+			DropDown.SetCurrentlyHighlightedItem(itemToSelect);
+
+		DoMenuLayout();
+		MoveToFront();
+
+		Color c = DropDown.GetBgColor();
+		c[3] = 255;
+		DropDown.SetBgColor(c);
+
+		// OnShowMenu(DropDown);
+
+		DropDown.SetVisible(true);
+		DropDown.RequestFocus();
+		SelectNoText();
+		Button.SetArmed(true);
+		Repaint();
 	}
 
 	public override void OnCursorEntered() {
@@ -298,6 +378,8 @@ public class ComboBox : TextEntry
 
 	public override void OnSizeChanged(int newWide, int newTall) {
 		base.OnSizeChanged(newWide, newTall);
+
+		// FIXME: Button is null here?
 		//PerformLayout();
 		//Button.GetSize(out int bwide, out _);
 		//SetDrawWidth(newWide - bwide);
@@ -333,15 +415,35 @@ public class ComboBox : TextEntry
 	}
 
 	public void MoveAlongMenuItemList(int direction) {
+		int itemToSelect = -1;
 
+		Span<char> comboBoxContents = stackalloc char[255];
+		GetText(comboBoxContents);
+
+		Span<char> menuItemName = stackalloc char[255];
+		for (int i = 0; i < DropDown.GetItemCount(); i++) {
+			menuItemName.Clear();
+			int menuID = DropDown.GetMenuID(i);
+			DropDown.GetMenuItem(menuID)!.GetText(menuItemName);
+			if (MemoryExtensions.Equals(comboBoxContents, menuItemName, StringComparison.Ordinal)) {
+				itemToSelect = i;
+				break;
+			}
+		}
+
+		if (itemToSelect >= 0) {
+			int newwItem = itemToSelect + direction;
+			if (newwItem < 0)
+				newwItem = 0;
+			else if (newwItem >= DropDown.GetItemCount())
+				newwItem = DropDown.GetItemCount() - 1;
+			SelectMenuItem(newwItem);
+		}
 	}
 
-	public void MoveToFirstMenuItem() =>
-		SelectMenuItem(0);
+	public void MoveToFirstMenuItem() => SelectMenuItem(0);
 
-	public void MoveToLastMenuItem() {
-		SelectMenuItem(DropDown.GetItemCount() - 1);
-	}
+	public void MoveToLastMenuItem() => SelectMenuItem(DropDown.GetItemCount() - 1);
 
 	public void SetOpenDirection(MenuDirection direction) => Direction = direction;
 
@@ -369,8 +471,9 @@ public class ComboBox : TextEntry
 			case "ActiveItem":
 				ActivateItem(message.GetInt("itemID", -1));
 				break;
+			default:
+				base.OnMessage(message, from);
+				break;
 		}
-
-		base.OnMessage(message, from);
 	}
 }
