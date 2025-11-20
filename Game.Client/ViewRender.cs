@@ -92,7 +92,21 @@ public class BaseWorldView : Rendering3dView
 
 		ViewRender.g_CurrentViewID = savedViewID;
 	}
+
+	static void MaybeInvalidateLocalPlayerAnimation() {
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		if ((player != null) /*&& pPlayer.InFirstPersonView()*/) {
+			player.InvalidateBoneCache();
+
+			C_BaseCombatWeapon? weapon = player.GetActiveWeapon();
+			if (weapon != null)
+				weapon.InvalidateBoneCache();
+		}
+	}
+
 	protected void DrawExecute(float waterHeight, ViewID viewID, float waterZAdjust) {
+		MaybeInvalidateLocalPlayerAnimation();
+
 		using MatRenderContextPtr renderContext = new(mainView.materials);
 		renderContext.ClearBuffers(false, true, false);
 

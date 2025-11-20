@@ -62,10 +62,10 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		LastBoneSetupTime = -TimeUnit_t.MaxValue;
 	}
 	public bool IsBoneCacheValid() => MostRecentModelBoneCounter == ModelBoneCounter;
-	static void InvalidateBoneCaches() => ModelBoneCounter++;
+	public static void InvalidateBoneCaches() => ModelBoneCounter++;
 
 	public TimeUnit_t LastBoneSetupTime;
-	public virtual TimeUnit_t LastBoneChangedTime() => -TimeUnit_t.MaxValue;
+	public virtual TimeUnit_t LastBoneChangedTime() => TimeUnit_t.MaxValue;
 
 	static TimeUnit_t SetupBones__lastWarning = 0.0;
 	// TODO: REWRITE THIS FOR BONEMERGING
@@ -143,7 +143,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		MostRecentModelBoneCounter = ModelBoneCounter;
 
-		if ((BoneAccessor.GetReadableBones() & boneMask) != boneMask) { 
+		if ((BoneAccessor.GetReadableBones() & boneMask) != boneMask) {  // TRUE IS A HACK! Why is this not happening???
 			StudioHdr? hdr = GetModelPtr();
 			if (hdr == null || !hdr.SequencesAvailable())
 				return false;
@@ -166,6 +166,8 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 				Span<Vector3> pos = stackalloc Vector3[Studio.MAXSTUDIOBONES];
 				Span<Quaternion> q = stackalloc Quaternion[Studio.MAXSTUDIOBONES];
+				memset(pos, Vector3.NaN);
+				memset(q, new(float.NaN, float.NaN, float.NaN, float.NaN));
 				int bonesMaskNeedRecalc = boneMask | oldReadableBones;
 
 				StandardBlendingRules(hdr, pos, q, currentTime, bonesMaskNeedRecalc);

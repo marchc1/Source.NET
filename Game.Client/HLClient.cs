@@ -156,6 +156,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		// TODO: the rest of this, as features get implemented
 
 		C_BaseEntity.InterpolateServerEntities();
+		C_BaseAnimating.InvalidateBoneCaches();
 		C_BaseEntity.SetAbsQueriesValid(true);
 		C_BaseEntity.EnableAbsRecomputations(true);
 

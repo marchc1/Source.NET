@@ -31,7 +31,7 @@ public partial class
 	}
 
 	public BaseCombatWeapon? GetActiveWeapon() {
-		throw new NotImplementedException();
+		return null;
 	}
 
 	public override Vector3 EyePosition() {
