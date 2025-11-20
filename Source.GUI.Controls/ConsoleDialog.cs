@@ -87,14 +87,17 @@ class HistoryItem
 		return "";
 	}
 
-	public void SetText(string text, string? extra) {
-		Text = text;
-		if (extra != null) {
-			ExtraText = extra;
+	public void SetText(ReadOnlySpan<char> text, ReadOnlySpan<char> extra) {
+		Text = text.ToString();
+
+		if (!extra.IsEmpty) {
 			HasExtra = true;
+			ExtraText = extra.ToString();
 		}
-		else
+		else {
 			HasExtra = false;
+			ExtraText = null;
+		}
 	}
 }
 
@@ -126,13 +129,13 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		if (panel != Entry)
 			return;
 
-		Array.Copy(PartialText, PreviousPartialText, PartialText.Length);
-
+		PartialText.CopyTo(PreviousPartialText);
+		Array.Clear(PartialText);
 		Entry.GetText(PartialText);
-		int len = Array.IndexOf(PartialText, '\0');
-		if (len == -1) len = PartialText.Length;
 
-		bool hitTilde = len > 0 && (PartialText[len - 1] == '~' || PartialText[len - 1] == '`');
+		int len = PartialText.IndexOf('\0');
+
+		bool hitTilde = len != 0 && (PartialText[len] == '~' || PartialText[len] == '`');
 		bool altKeyDown = Input.IsKeyDown(ButtonCode.KeyLAlt) || Input.IsKeyDown(ButtonCode.KeyRAlt);
 		bool ctrlKeyDown = Input.IsKeyDown(ButtonCode.KeyLControl) || Input.IsKeyDown(ButtonCode.KeyRControl);
 
@@ -158,7 +161,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		else {
 			CompletionList.SetVisible(true);
 
-			int MAX_MENU_ITEMS = 10;
+			const int MAX_MENU_ITEMS = 10;
 			CompletionList.DeleteAllItems();
 
 			for (int i = 0; i < CompletionItems.Count && i < MAX_MENU_ITEMS; i++) {
@@ -284,8 +287,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		return cmd;
 	}
 
-	private void RebuildCompletionList(ReadOnlySpan<char> text) // todo: this isnt a perfect 1:1 just yet, still needs some cleaning up
-	{
+	private void RebuildCompletionList(ReadOnlySpan<char> text) {
 		ClearCompletionList();
 
 		int len = text.IndexOf('\0');
@@ -440,7 +442,6 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			}
 			else if (code == ButtonCode.KeyDown) {
 				OnAutoComplete(false);
-
 				Entry.RequestFocus();
 			}
 			else if (code == ButtonCode.KeyUp) {
@@ -641,7 +642,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			char[] text = new char[256];
 			text[0] = '\0';
 			if (Text != null)
-				strcpy(text, Text.Text);
+				strcpy(text, Text.GetText());
 			return text;
 		}
 	}
