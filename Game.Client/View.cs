@@ -173,6 +173,11 @@ public class ViewRender : IViewRender
 
 	public void OnRenderStart() {
 		SetUpViews();
+
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		if(player != null) {
+			default_fov.SetValue(player.DefaultFOV);
+		}
 	}
 
 	private void SetUpViews() {
@@ -238,6 +243,14 @@ public class ViewRender : IViewRender
 		}
 	}
 
+	public static float ScaleFOVByWidthRatio(float fovDegrees, float ratio) {
+		float halfAngleRadians = fovDegrees * (0.5f * MathF.PI / 180.0f);
+		float t = MathF.Tan(halfAngleRadians);
+		t *= ratio;
+		float retDegrees = (180.0f / MathF.PI) * MathF.Atan(t);
+		return retDegrees * 2.0f;
+	}
+
 	public void Render(ViewRects rect) {
 		using MatRenderContextPtr renderContext = new(materials);
 		ref ViewRect vr = ref rect[0];
@@ -249,8 +262,12 @@ public class ViewRender : IViewRender
 		for (StereoEye eye = GetFirstEye(); eye <= GetLastEye(); eye = eye + 1) {
 			ref ViewSetup viewEye = ref GetView(eye);
 
-			float viewportScale = 1.0f; // mat_viewportscale todo
+			float aspectRatio = engine.GetScreenAspectRatio() * 0.75f; 
+			float limitedAspectRatio = aspectRatio;
+			viewEye.FOV = ScaleFOVByWidthRatio(viewEye.FOV, limitedAspectRatio);
+			viewEye.FOVViewmodel = ScaleFOVByWidthRatio(viewEye.FOVViewmodel, limitedAspectRatio);
 
+			float viewportScale = 1.0f; // mat_viewportscale todo
 			viewEye.UnscaledX = vr.X;
 			viewEye.UnscaledY = vr.Y;
 			viewEye.UnscaledWidth = vr.Width;

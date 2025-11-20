@@ -155,7 +155,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	int TickBase;
 	int FOVStart;
 	float FOVTime;
-	float DefaultFOV;
+	public float DefaultFOV;
 	Vector3 ConstraintCenter;
 	float ConstraintRadius;
 	float ConstraintWidth;
