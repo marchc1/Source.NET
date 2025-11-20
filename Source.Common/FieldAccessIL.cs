@@ -301,7 +301,7 @@ namespace Source.Common
 
 		public override int Length => Info.MaxLength;
 		public override void CopyFrom<T>(object instanceFrom, Span<T> target) {
-			for (int i = 0; i < Length; i++)
+			for (int i = 0; i < Math.Min(Length, target.Length); i++)
 				SetValue(instanceFrom, in target[i]);
 		}
 		public override void CopyTo<T>(object instanceFrom, Span<T> target) {

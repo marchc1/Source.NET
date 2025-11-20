@@ -533,7 +533,7 @@ public class InterpolatedVarArrayBase<T>(bool isArray) : IInterpolatedVar
 	}
 
 	public void NoteLastNetworkedValue() {
-		LastNetworkedValue![0] = Accessor.GetValue<T>(Instance);
+		Accessor.CopyTo(Instance, LastNetworkedValue);
 		LastNetworkedTime = Interpolation.LastPacketTimestamp;
 	}
 
