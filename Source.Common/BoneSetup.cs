@@ -1030,8 +1030,69 @@ public ref struct BoneSetup
 		throw new NotImplementedException();
 	}
 
-	private static void AddSequenceLayers(Span<Vector3> pos, Span<Quaternion> q, MStudioSeqDesc seqdesc, int sequence, double cycle, float weight, double time, object? ikContext) {
+	private void AddSequenceLayers(Span<Vector3> pos, Span<Quaternion> q, MStudioSeqDesc seqdesc, int sequence, double cycle, float weight, double time, object? ikContext) {
+		for (int i = 0; i < seqdesc.NumAutoLayers; i++) {
+			MStudioAutoLayer pLayer = seqdesc.Autolayer(i);
 
+			if ((pLayer.Flags & StudioAutolayerFlags.Local) != 0)
+				continue;
+
+			float layerCycle = (float)cycle;
+			float layerWeight = (float)weight;
+
+			if (pLayer.Start != pLayer.End) {
+				float s = 1.0f;
+				float index;
+
+				if ((pLayer.Flags & StudioAutolayerFlags.Pose) == 0) {
+					index = (float)cycle;
+				}
+				else {
+					int iSequence = studioHdr.RelativeSeq(sequence, pLayer.Sequence);
+					int iPose = studioHdr.GetSharedPoseParameter(iSequence, pLayer.Pose);
+					if (iPose != -1) {
+						MStudioPoseParamDesc Pose = studioHdr.PoseParameter(iPose);
+						index = poseParameter[iPose] * (Pose.End - Pose.Start) + Pose.Start;
+					}
+					else {
+						index = 0;
+					}
+				}
+
+				if (index < pLayer.Start)
+					continue;
+				if (index >= pLayer.End)
+					continue;
+
+				if (index < pLayer.Peak && pLayer.Start != pLayer.Peak) {
+					s = (index - pLayer.Start) / (pLayer.Peak - pLayer.Start);
+				}
+				else if (index > pLayer.Tail && pLayer.End != pLayer.Tail) {
+					s = (pLayer.End - index) / (pLayer.End - pLayer.Tail);
+				}
+
+				if ((pLayer.Flags & StudioAutolayerFlags.Spline) != 0) {
+					s = MathLib.SimpleSpline(s);
+				}
+
+				if ((pLayer.Flags & StudioAutolayerFlags.XFade) != 0 && (index > pLayer.Tail)) {
+					layerWeight = (float)(s * weight) / (1 - weight + s * weight);
+				}
+				else if ((pLayer.Flags & StudioAutolayerFlags.NoBlend) != 0) {
+					layerWeight = s;
+				}
+				else {
+					layerWeight = (float)weight * s;
+				}
+
+				if ((pLayer.Flags & StudioAutolayerFlags.Pose) == 0) {
+					layerCycle = (float)(cycle - pLayer.Start) / (pLayer.End - pLayer.Start);
+				}
+			}
+
+			int seq = studioHdr.RelativeSeq(sequence, pLayer.Sequence);
+			AccumulatePose(pos, q, seq, layerCycle, layerWeight, time, ikContext);
+		}
 	}
 
 	public static double Studio_Duration(StudioHdr studioHdr, int sequence, Span<float> poseParameter) {
