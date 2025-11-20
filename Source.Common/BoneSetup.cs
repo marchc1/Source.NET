@@ -30,6 +30,8 @@ public ref struct BoneSetup
 	int boneMask;
 	Span<float> poseParameter;
 
+	public StudioHdr GetStudioHdr() => studioHdr;
+
 	public BoneSetup(StudioHdr studioHdr, int boneMask, Span<float> poseParameter) {
 		this.studioHdr = studioHdr;
 		this.boneMask = boneMask;

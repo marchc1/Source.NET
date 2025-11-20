@@ -20,10 +20,21 @@ public class AnimationLayer
 	]); public static readonly ServerClass ServerClass = new ServerClass("AnimationLayer", DT_AnimationLayer);
 
 	public int Sequence;
-	public float Cycle;
+	public TimeUnit_t Cycle;
 	public float PrevCycle;
 	public float Weight;
 	public int Order;
+
+	public TimeUnit_t PlaybackRate;
+	public TimeUnit_t LayerAnimtime;
+	public TimeUnit_t LayerFadeOuttime;
+	public double BlendIn;
+	public double BlendOut;
+	public bool ClientBlend;
+
+	public double GetFadeout(double curTime) {
+		throw new NotImplementedException();
+	}
 }
 
 public class BaseAnimatingOverlay : BaseAnimating

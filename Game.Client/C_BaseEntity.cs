@@ -168,9 +168,9 @@ public partial class C_BaseEntity : IClientEntity
 		// Requires leaf system
 	}
 
-	private bool IsNoInterpolationFrame() => OldInterpolationFrame != InterpolationFrame;
+	public bool IsNoInterpolationFrame() => OldInterpolationFrame != InterpolationFrame;
 
-	private bool Teleported() => OldMoveParent != NetworkMoveParent || OldParentAttachment != ParentAttachment;
+	public bool Teleported() => OldMoveParent != NetworkMoveParent || OldParentAttachment != ParentAttachment;
 
 	public static void ProcessInterpolatedList() {
 		LinkedListNode<C_BaseEntity>? curr = InterpolationList.First;
