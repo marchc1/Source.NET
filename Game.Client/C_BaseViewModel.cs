@@ -98,7 +98,7 @@ public partial class C_BaseViewModel
 				dt = MathLib.Fmodf(dt, 1.0);
 			}
 		}
-
+		Msg($"{GetSequenceName(GetSequence())} {dt}\n");
 		SetCycle(dt);
 		return bret;
 	}

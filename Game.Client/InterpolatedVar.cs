@@ -117,7 +117,7 @@ public class SimpleRingBuffer<T> where T : new()
 		count++;
 		int index = WrapRange(firstElement + count - 1);
 		elements![index] = new T();
-		return index;
+		return count - 1;
 	}
 
 	public void RemoveAll() {

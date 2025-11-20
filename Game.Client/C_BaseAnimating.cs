@@ -261,6 +261,16 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return t;
 	}
 	bool PredictionEligible;
+	public string GetSequenceName(int sequence) {
+		if (sequence == -1)
+			return "Not Found!";
+
+		if(GetModelPtr() == null)
+			return "No model!";
+
+		return Animation.GetSequenceName(GetModelPtr(), sequence);
+	}
+
 	public void SetPredictionEligible(bool canpredict) => PredictionEligible = canpredict;
 	public bool IsSequenceLooping(int sequence) => IsSequenceLooping(GetModelPtr(), sequence);
 	public bool IsSequenceLooping(StudioHdr? studioHdr, int sequence) {
@@ -415,6 +425,24 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public void OnModelLoadComplete(Model model) {
 		OnNewModel();
 		UpdateVisibility();
+	}
+	TimeUnit_t OldCycle;
+	int OldSequence;
+	float OldModelScale;
+
+	public override void PreDataUpdate(DataUpdateType updateType) {
+		OldCycle = GetCycle();
+		OldSequence = GetSequence();
+		OldModelScale = GetModelScale();
+
+		int i;
+		for (i = 0; i < Studio.MAXSTUDIOBONECTRLS; i++) 
+			OldEncodedController[i] = EncodedController[i];
+		
+		for (i = 0; i < Studio.MAXSTUDIOPOSEPARAM; i++) 
+			OldPoseParameters[i] = PoseParameter[i];
+
+		base.PreDataUpdate(updateType);
 	}
 	public override void PostDataUpdate(DataUpdateType updateType) {
 		base.PostDataUpdate(updateType);

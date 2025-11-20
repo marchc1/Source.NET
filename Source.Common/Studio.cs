@@ -1349,6 +1349,10 @@ public class StudioHdr
 		VirtualGroup group = vModel.Group[vModel.Seq[baseseq].Group];
 		return group.MasterAnim[relanim];
 	}
+
+	public string Name() {
+		return studioHdr!.GetName();
+	}
 }
 
 public class MStudioBone
