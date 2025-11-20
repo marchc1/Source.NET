@@ -51,7 +51,6 @@ public partial class C_BaseEntity : IClientEntity
 		if (engine.IsPlayingTimeDemo() || engine.IsPaused())
 			s_bInterpolate = false;
 
-
 		if (!engine.IsPlayingDemo()) {
 			INetChannelInfo? nci = engine.GetNetChannelInfo();
 			if (nci != null && nci.GetTimeSinceLastReceived() > 0.5)
@@ -946,19 +945,19 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
-	public void OnPreDataChanged(DataUpdateType updateType) {
+	public virtual void OnPreDataChanged(DataUpdateType updateType) {
 		OldMoveParent.Set(NetworkMoveParent);
 		OldParentAttachment = ParentAttachment;
 	}
 
-	public void OnDataChanged(DataUpdateType updateType) {
+	public virtual void OnDataChanged(DataUpdateType updateType) {
 		CreateShadow();
 
 		if (updateType == DataUpdateType.Created)
 			UpdateVisibility();
 	}
 
-	private void OnLatchInterpolatedVariables(LatchFlags flags) {
+	protected virtual void OnLatchInterpolatedVariables(LatchFlags flags) {
 		TimeUnit_t changetime = GetLastChangeTime(flags);
 
 		bool updateLastNetworkedValue = (flags & LatchFlags.InteroplateOmitUpdateLastNetworked) == 0;
@@ -1312,6 +1311,8 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
+	public bool IsMarkedForDeletion() => (eflags & EFL.KillMe) != 0;
+
 	private void Interp_SetupMappings(ref VarMapping map) {
 		if (Unsafe.IsNullRef(ref map))
 			return;
@@ -1370,7 +1371,7 @@ public partial class C_BaseEntity : IClientEntity
 		BaseInterpolatePart2(oldOrigin, oldAngles, oldVel, 0);
 	}
 
-	public bool Interpolate(TimeUnit_t currentTime) {
+	public virtual bool Interpolate(TimeUnit_t currentTime) {
 		Vector3 oldOrigin = default;
 		QAngle oldAngles = default;
 		Vector3 oldVel = default;
@@ -1390,7 +1391,7 @@ public partial class C_BaseEntity : IClientEntity
 		return true;
 	}
 
-	private InterpolateResult BaseInterpolatePart1(ref TimeUnit_t currentTime, ref Vector3 oldOrigin, ref QAngle oldAngles, ref Vector3 oldVel, ref int noMoreChanges) {
+	protected InterpolateResult BaseInterpolatePart1(ref TimeUnit_t currentTime, ref Vector3 oldOrigin, ref QAngle oldAngles, ref Vector3 oldVel, ref int noMoreChanges) {
 		noMoreChanges = 1;
 
 		if (IsFollowingEntity() || !IsInterpolationEnabled()) {
@@ -1479,7 +1480,7 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
-	private void BaseInterpolatePart2(Vector3 oldOrigin, QAngle oldAngles, Vector3 oldVel, InvalidatePhysicsBits changeFlags) {
+	protected void BaseInterpolatePart2(Vector3 oldOrigin, QAngle oldAngles, Vector3 oldVel, InvalidatePhysicsBits changeFlags) {
 		if (Origin != oldOrigin)
 			changeFlags |= InvalidatePhysicsBits.PositionChanged;
 		if (Rotation != oldAngles)

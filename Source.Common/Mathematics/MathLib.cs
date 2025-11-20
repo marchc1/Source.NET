@@ -315,6 +315,10 @@ public static class MathLib
 		return x - y * (float)MathF.Truncate(x / y);
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static double Fmodf(double x, double y) {
+		return x - y * Math.Truncate(x / y);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int Modulo(int a, int b) {
 		return (Math.Abs(a * b) + a) % b;
 	}

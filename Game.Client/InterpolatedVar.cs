@@ -233,6 +233,11 @@ public class InterpolatedVarArrayBase<T>(bool isArray) : IInterpolatedVar
 		}
 	}
 
+
+	public void SetLooping(bool looping, int arrayIndex = 0) {
+		Looping![arrayIndex] = looping;
+	}
+
 	public virtual ReadOnlySpan<char> GetDebugName() {
 		return "NO NAME";
 	}

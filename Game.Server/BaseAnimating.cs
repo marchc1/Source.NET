@@ -100,6 +100,6 @@ public class BaseAnimating : BaseEntity
 	public float FadeMinDist;
 	public float FadeMaxDist;
 	public float FadeScale;
-	public int Cycle;
+	public TimeUnit_t Cycle;
 	public Vector3 OverrideViewTarget;
 }

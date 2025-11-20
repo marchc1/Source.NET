@@ -122,7 +122,9 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public void AddBaseAnimatingInterpolatedVars() {
 		AddVar(FIELD.OF(nameof(Cycle)), iv_Cycle, LatchFlags.LatchAnimationVar, true);
 	}
-
+	public void RemoveBaseAnimatingInterpolatedVars() {
+		// todo: removing vars
+	}
 	public override bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, double currentTime) {
 		if (!boneToWorldOut.IsEmpty && !IsBoneAccessAllowed()) {
 			if (gpGlobals.RealTime >= SetupBones__lastWarning + 1.0f) {
@@ -205,6 +207,28 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return true;
 	}
 	public TimeUnit_t GetCycle() => Cycle;
+	public void SetSequence(int sequence) {
+		if(Sequence != sequence) {
+			Sequence = sequence;
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnimationChanged);
+			if (ClientSideAnimation)
+				ClientSideAnimationChanged();
+		}
+	}
+
+	private void ClientSideAnimationChanged() {
+		if (!ClientSideAnimation)
+			return;
+
+		// todo
+	}
+
+	public void SetCycle(TimeUnit_t cycle) {
+		if(cycle != Cycle) {
+			Cycle = cycle;
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnimationChanged);
+		}
+	}
 	private void StandardBlendingRules(StudioHdr hdr, Span<Vector3> pos, Span<Quaternion> q, TimeUnit_t currentTime, int boneMask) {
 		Span<float> poseparam = stackalloc float[Studio.MAXSTUDIOPOSEPARAM];
 		for (int i = 0; i < Studio.MAXSTUDIOPOSEPARAM; i++) 
@@ -214,6 +238,33 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		BoneSetup setup = new(hdr, boneMask, poseparam);
 		setup.InitPose(pos, q);	
 		setup.AccumulatePose(pos, q, GetSequence(), cycle, 1.0f, currentTime, null);	
+	}
+
+	public TimeUnit_t SequenceDuration(StudioHdr? studioHdr, int sequence) {
+		if (studioHdr == null) 
+			return 0.1f;
+
+		if (!studioHdr.SequencesAvailable()) 
+			return 0.1;
+
+		if (sequence >= studioHdr.GetNumSeq() || sequence < 0) {
+			DevWarning(2, $"C_BaseAnimating::SequenceDuration({sequence}) out of range\n");
+			return 0.1;
+		}
+
+		return BoneSetup.Studio_Duration(studioHdr, sequence, PoseParameter);
+	}
+	public TimeUnit_t GetSequenceCycleRate(StudioHdr? studioHdr, int sequence) {
+		TimeUnit_t t = SequenceDuration(studioHdr, sequence);
+		if (t != 0.0)
+			return 1.0 / t;
+		return t;
+	}
+	bool PredictionEligible;
+	public void SetPredictionEligible(bool canpredict) => PredictionEligible = canpredict;
+	public bool IsSequenceLooping(int sequence) => IsSequenceLooping(GetModelPtr(), sequence);
+	public bool IsSequenceLooping(StudioHdr? studioHdr, int sequence) {
+		return (Animation.GetSequenceFlags(studioHdr, sequence) & StudioAnimSeqFlags.Looping) != 0;
 	}
 
 	public static readonly RecvTable DT_ServerAnimationData = new([
@@ -233,7 +284,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		RecvPropArray3( FIELD.OF_ARRAY(nameof(PoseParameter)), RecvPropFloat(null!)),
 
-		RecvPropInt( FIELD.OF(nameof(Sequence))),
+		RecvPropInt( FIELD.OF(nameof(Sequence)), 0, RecvProxy_Sequence),
 		RecvPropFloat( FIELD.OF(nameof(PlaybackRate))),
 
 		RecvPropArray3(FIELD.OF_ARRAY(nameof(EncodedController)), RecvPropFloat(null!) ),
@@ -260,8 +311,13 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		RecvPropVector(FIELD.OF(nameof(OverrideViewTarget))),
 	]);
 
-	private static void RecvProxy_Sequence(ref readonly RecvProxyData data, object instance, FieldInfo field) {
-		throw new NotImplementedException();
+	private static void RecvProxy_Sequence(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
+		RecvProxy_Int32ToInt32(in data, instance, field);
+		C_BaseAnimating? animating = (C_BaseAnimating)instance;
+		if (animating == null)
+			return;
+		animating.SetReceivedSequence();
+		animating.UpdateVisibility();
 	}
 
 	public static readonly new ClientClass ClientClass = new ClientClass("BaseAnimating", null, null, DT_BaseAnimating).WithManualClassID(StaticClassIndices.CBaseAnimating);
@@ -294,9 +350,58 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 		BoneAccessor.Init(CachedBoneData.Base());
 
+		if (ShouldInterpolate())
+			AddToInterpolationList();
+
+		int forceSequence = ShouldResetSequenceOnNewModel() ? 0 : Sequence;
+		if (GetSequence() >= hdr.GetNumSeq())
+			forceSequence = 0;
+
+		Sequence = -1;
+		SetSequence(forceSequence);
+		UpdateRelevantInterpolatedVars();
+
 		// todo: the rest of this
 
 		return hdr;
+	}
+	public bool ReceivedSequence;
+	public void SetReceivedSequence() => ReceivedSequence = true;
+	public bool ShouldResetSequenceOnNewModel() => ReceivedSequence == false;
+	private void UpdateRelevantInterpolatedVars() {
+		if (!IsMarkedForDeletion() && !GetPredictable() && !IsClientCreated() && GetModelPtr() != null && GetModelPtr().SequencesAvailable())
+			AddBaseAnimatingInterpolatedVars();
+		else
+			RemoveBaseAnimatingInterpolatedVars();
+	}
+
+	public override bool Interpolate(TimeUnit_t currentTime) {
+		Vector3 oldOrigin = default;
+		QAngle oldAngles = default;
+		Vector3 oldVel = default;
+		TimeUnit_t flOldCycle = GetCycle();
+		InvalidatePhysicsBits nChangeFlags = 0;
+
+		if (!ClientSideAnimation)
+			iv_Cycle.SetLooping(IsSequenceLooping(GetSequence()));
+
+		int noMoreChanges = 0;
+		InterpolateResult retVal = BaseInterpolatePart1(ref currentTime, ref oldOrigin, ref oldAngles, ref oldVel, ref noMoreChanges);
+		if (retVal == InterpolateResult.Stop) {
+			if (noMoreChanges != 0)
+				RemoveFromInterpolationList();
+			return true;
+		}
+
+		// Did cycle change?
+		if (GetCycle() != flOldCycle)
+			nChangeFlags |= InvalidatePhysicsBits.AnimationChanged;
+
+		if (noMoreChanges != 0)
+			RemoveFromInterpolationList();
+
+		BaseInterpolatePart2(oldOrigin, oldAngles, oldVel, nChangeFlags);
+		return true;
 	}
 	public C_BaseAnimating() {
 		iv_Cycle = new($"{nameof(C_BaseAnimating)}.{iv_Cycle}");
@@ -338,7 +443,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		if (hStudioHdr == MDLHANDLE_INVALID)
 			return;
 
-		StudioHeader studioHdr = mdlcache.LockStudioHdr(hStudioHdr);
+		StudioHeader? studioHdr = mdlcache.LockStudioHdr(hStudioHdr);
 		if (studioHdr == null) {
 			hStudioHdr = MDLHANDLE_INVALID;
 			return;
@@ -617,7 +722,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public float FadeMinDist;
 	public float FadeMaxDist;
 	public float FadeScale;
-	public float Cycle;
+	public TimeUnit_t Cycle;
 	public readonly InterpolatedVar<float> iv_Cycle;
 
 	public InlineArrayMaxStudioPoseParam<float> PoseParameter;

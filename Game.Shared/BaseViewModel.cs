@@ -14,6 +14,7 @@ using FIELD = Source.FIELD<BaseViewModel>;
 using Game.Shared;
 using Source.Common.Mathematics;
 using System.Numerics;
+using System;
 
 public partial class
 #if CLIENT_DLL
@@ -44,7 +45,7 @@ public partial class
 			RecvPropInt(FIELD.OF(nameof(ModelIndex))),
 			RecvPropInt(FIELD.OF(nameof(Body))),
 			RecvPropInt(FIELD.OF(nameof(Skin))),
-			RecvPropInt(FIELD.OF(nameof(Sequence))),
+			RecvPropInt(FIELD.OF(nameof(Sequence)), 0, RecvProxy_SequenceNum),
 			RecvPropInt(FIELD.OF(nameof(ViewModelIndex))),
 			RecvPropFloat(FIELD.OF(nameof(PlaybackRate))),
 			RecvPropInt(FIELD.OF(nameof(Effects))),
@@ -78,7 +79,16 @@ public partial class
 			SendPropArray(FIELD.OF_ARRAY(nameof(PoseParameter))),
 #endif
 		]);
+
 #if CLIENT_DLL
+	private static void RecvProxy_SequenceNum(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
+		BaseViewModel model = (BaseViewModel)instance;
+		if (data.Value.Int != model.GetSequence()) {
+			model.SetSequence(data.Value.Int);
+			model.AnimTime = gpGlobals.CurTime;
+			model.SetCycle(0);
+		}
+	}
 	public static readonly new ClientClass ClientClass = new ClientClass("BaseViewModel", null, null, DT_BaseViewModel).WithManualClassID(StaticClassIndices.CBaseViewModel);
 #else
 #pragma warning disable CS0109 // Member does not hide an inherited member; new keyword is not required

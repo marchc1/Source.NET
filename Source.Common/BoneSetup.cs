@@ -989,4 +989,14 @@ public ref struct BoneSetup
 	private static void AddSequenceLayers(Span<Vector3> pos, Span<Quaternion> q, MStudioSeqDesc seqdesc, int sequence, double cycle, float weight, double time, object? ikContext) {
 
 	}
+
+	public static double Studio_Duration(StudioHdr studioHdr, int sequence, Span<float> poseParameter) {
+		MStudioSeqDesc seqdesc = studioHdr.Seqdesc(sequence);
+		float cps = Studio_CPS(studioHdr, seqdesc, sequence, poseParameter);
+
+		if (cps == 0)
+			return 0.0;
+
+		return 1.0 / cps;
+	}
 }
