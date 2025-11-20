@@ -2,7 +2,6 @@
 
 #if CLIENT_DLL
 global using C_BaseProjectile = Game.Shared.BaseProjectile;
-using BaseAnimating = Game.Client.C_BaseAnimating;
 #endif
 
 #if GAME_DLL

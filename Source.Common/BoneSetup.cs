@@ -1001,4 +1001,31 @@ public ref struct BoneSetup
 
 		return 1.0 / cps;
 	}
+
+	public static float Studio_SetPoseParameter(StudioHdr studioHdr, int parameter, float value, out float ctlValue) {
+		if (parameter < 0 || parameter >= studioHdr.GetNumPoseParameters()) {
+			ctlValue = default;
+			return 0;
+		}
+
+		MStudioPoseParamDesc PoseParam = studioHdr.PoseParameter(parameter);
+
+		Assert(float.IsFinite(value));
+
+		if (PoseParam.Loop != 0) {
+			float wrap = (PoseParam.Start + PoseParam.End) / 2.0F + PoseParam.Loop / 2.0F;
+			float shift = PoseParam.Loop - wrap;
+
+			value = value - PoseParam.Loop * MathF.Floor((value + shift) / PoseParam.Loop);
+		}
+
+		ctlValue = (value - PoseParam.Start) / (PoseParam.End - PoseParam.Start);
+
+		if (ctlValue < 0) ctlValue = 0;
+		if (ctlValue > 1) ctlValue = 1;
+
+		Assert(float.IsFinite(ctlValue));
+
+		return ctlValue * (PoseParam.End - PoseParam.Start) + PoseParam.Start;
+	}
 }

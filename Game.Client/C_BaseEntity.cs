@@ -42,6 +42,14 @@ public partial class C_BaseEntity : IClientEntity
 	static bool s_bAbsRecomputationEnabled = true;
 	static ConVar cl_interpolate = new("cl_interpolate", "1", FCvar.UserInfo | FCvar.DevelopmentOnly);
 
+	public virtual bool IsWorld() => EntIndex() == 0;
+	public virtual bool IsPlayer() => false;
+	public virtual bool IsBaseCombatCharacter() => false;
+	public virtual bool IsNPC() => false;
+	public virtual bool IsNextBot() => false;
+	public virtual bool IsBaseCombatWeapon() => false;
+	public virtual bool IsCombatItem() => false;
+
 	public ReadOnlySpan<char> GetClassname() => "not_yet_implemented";
 
 	public static void InterpolateServerEntities() {
@@ -1286,7 +1294,18 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 	public void RemoveVar(DynamicAccessor accessor, bool assert = true) {
-		throw new NotImplementedException();
+		for (int i = 0; i < VarMap.Entries.Count; i++) {
+			if (VarMap.Entries[i].Accessor == accessor) {
+				if ((VarMap.Entries[i].Type & LatchFlags.ExcludeAutoInterpolate) == 0)
+					--VarMap.InterpolatedEntries;
+
+				VarMap.Entries.RemoveAt(i);
+				return;
+			}
+		}
+
+		if (assert) 
+			AssertMsg(false, "RemoveVar");
 	}
 	public ref VarMapping GetVarMapping() => ref VarMap;
 	public VarMapping VarMap = new();

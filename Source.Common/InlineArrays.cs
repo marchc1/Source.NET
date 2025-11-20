@@ -175,7 +175,7 @@ namespace Source;
 [InlineArray(Protocol.STEAM_KEYSIZE)] public struct InlineArraySteamKeysize<T> { public T item; }
 [InlineArray(Constants.DT_MAX_STRING_BUFFERSIZE)] public struct InlineArrayDtMaxStringBufferSize<T> { public T item; }
 [InlineArray(Constants.MAX_TOTAL_SENDTABLE_PROPS)] public struct InlineArrayMaxTotalSendTableProps<T> { public T item; }
-[InlineArray(Studio.MAXSTUDIOPOSEPARAM)] public struct InlineArrayMaxStudioPoseParam<T> { public T item; }
+[InlineArray(Studio.MAXSTUDIOPOSEPARAM)] public struct InlineArrayMaxStudioPoseParam<T> { public T item; public int Length => Studio.MAXSTUDIOPOSEPARAM; }
 [InlineArray(Studio.MAXSTUDIOBONECTRLS)] public struct InlineArrayMaxStudioBoneCtrls<T> { public T item; }
 [InlineArray(Constants.MAX_AREA_STATE_BYTES)] public struct InlineArrayMaxAreaStateBytes<T> { public T item; }
 [InlineArray(Constants.MAX_AREA_PORTAL_STATE_BYTES)] public struct InlineArrayMaxAreaPortalStateBytes<T> { public T item; }

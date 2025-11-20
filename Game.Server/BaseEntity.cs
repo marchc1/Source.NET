@@ -14,7 +14,12 @@ using FIELD = Source.FIELD<BaseEntity>;
 public partial class BaseEntity : IServerEntity
 {
 	public const int TEAMNUM_NUM_BITS = 15; // < gmod increased 6 -> 15
-
+	public virtual bool IsPlayer() => false;
+	public virtual bool IsBaseCombatCharacter() => false;
+	public virtual bool IsNPC() => false;
+	public virtual bool IsNextBot() => false;
+	public virtual bool IsBaseCombatWeapon() => false;
+	public virtual bool IsCombatItem() => false;
 	private static void SendProxy_AnimTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID)
 		=> throw new NotImplementedException();
 	private static void SendProxy_SimulationTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID)
