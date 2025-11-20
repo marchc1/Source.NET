@@ -1130,11 +1130,8 @@ public class MStudioSeqDesc
 	public int AutoLayerIndex;
 
 	public int WeightListIndex;
-	// TODO: Is this the correct size
-	const int WEIGHTLISTSIZE = Studio.MAXSTUDIOBONES;
-	float[]? weightlistCache;
 	public ref float Boneweight(int i)
-		=> ref Studio.ProduceArrayIdx(this, ref weightlistCache, WEIGHTLISTSIZE, WeightListIndex, i, sizeof(float), Data, Studio.UnmanagedFactoryFn<float>);
+		=> ref Data.Span[WeightListIndex..].Cast<byte, float>()[i];
 	public float Weight(int i) => Boneweight(i);
 
 	public int PoseKeyIndex;
