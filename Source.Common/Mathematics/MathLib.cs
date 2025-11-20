@@ -19,6 +19,156 @@ public static class MathLibConsts
 	public static readonly QAngle vec3_angle = new(0, 0, 0);
 }
 
+[StructLayout(LayoutKind.Sequential, Pack = 2, Size = 6)]
+public struct Quaternion48
+{
+	public static implicit operator Quaternion(Quaternion48 self) {
+		Quaternion tmp;
+		tmp.X = ((int)self.x - 32768) * (1 / 32768.0f);
+		tmp.Y = ((int)self.y - 32768) * (1 / 32768.0f);
+		tmp.Z = ((int)self.z - 16384) * (1 / 16384.0f);
+		tmp.W = MathF.Sqrt(1 - tmp.X * tmp.X - tmp.Y * tmp.Y - tmp.Z * tmp.Z);
+		if (self.wneg)
+			tmp.W = -tmp.W;
+		return tmp;
+	}
+
+	public static implicit operator Quaternion48(Quaternion vOther) {
+		Quaternion48 result;
+		result.data = 0;
+		result.x = (ushort)Math.Clamp((int)(vOther.X * 32768) + 32768, 0, 65535);
+		result.y = (ushort)Math.Clamp((int)(vOther.Y * 32768) + 32768, 0, 65535);
+		result.z = (ushort)Math.Clamp((int)(vOther.Z * 16384) + 16384, 0, 32767);
+		result.wneg = vOther.W < 0;
+		return result;
+	}
+
+	public ulong data;
+
+	private const ulong X_MASK = 0xFFFF;           // 16 bits
+	private const ulong Y_MASK = 0xFFFF;           // 16 bits
+	private const ulong Z_MASK = 0x7FFF;           // 15 bits
+	private const ulong WNEG_MASK = 0x1;           // 1 bit
+
+	private const int X_SHIFT = 0;
+	private const int Y_SHIFT = 16;
+	private const int Z_SHIFT = 32;
+	private const int WNEG_SHIFT = 47;
+
+	public ushort x {
+		readonly get => (ushort)((data >> X_SHIFT) & X_MASK);
+		set => data = (data & ~(X_MASK << X_SHIFT)) | ((ulong)(value & X_MASK) << X_SHIFT);
+	}
+
+	public ushort y {
+		readonly get => (ushort)((data >> Y_SHIFT) & Y_MASK);
+		set => data = (data & ~(Y_MASK << Y_SHIFT)) | ((ulong)(value & Y_MASK) << Y_SHIFT);
+	}
+
+	public ushort z {
+		readonly get => (ushort)((data >> Z_SHIFT) & Z_MASK);
+		set => data = (data & ~(Z_MASK << Z_SHIFT)) | ((ulong)(value & Z_MASK) << Z_SHIFT);
+	}
+
+	public bool wneg {
+		readonly get => ((data >> WNEG_SHIFT) & WNEG_MASK) != 0;
+		set {
+			if (value)
+				data |= (WNEG_MASK << WNEG_SHIFT);
+			else
+				data &= ~(WNEG_MASK << WNEG_SHIFT);
+		}
+	}
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 2, Size = 6)]
+public struct Vector48
+{
+	public Vector48(vec_t x, vec_t y, vec_t z) {
+		X = (Half)x;
+		Y = (Half)y;
+		Z = (Half)z;
+	}
+
+	public static implicit operator Vector3(Vector48 self) => new((vec_t)self.X, (vec_t)self.Y, (vec_t)self.Z);
+
+	public readonly float this[int i] => (float)(i switch {
+		0 => X,
+		1 => Y,
+		2 => Z,
+		_ => throw new IndexOutOfRangeException()
+	});
+
+	public Half X;
+	public Half Y;
+	public Half Z;
+}
+
+
+
+[StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
+public struct Quaternion64
+{
+	public static implicit operator Quaternion(Quaternion64 self) {
+		Quaternion tmp;
+		// shift to -1048576, + 1048575, then round down slightly to -1.0 < x < 1.0
+		tmp.X = ((int)self.x - 1048576) * (1 / 1048576.5f);
+		tmp.Y = ((int)self.y - 1048576) * (1 / 1048576.5f);
+		tmp.Z = ((int)self.z - 1048576) * (1 / 1048576.5f);
+		tmp.W = MathF.Sqrt(1 - tmp.X * tmp.X - tmp.Y * tmp.Y - tmp.Z * tmp.Z);
+		if (self.wneg)
+			tmp.W = -tmp.W;
+		return tmp;
+	}
+
+	public static implicit operator Quaternion64(Quaternion vOther) {
+		Quaternion64 result;
+		result.data = 0;
+		result.x = (uint)Math.Clamp((int)(vOther.X * 1048576) + 1048576, 0, 2097151);
+		result.y = (uint)Math.Clamp((int)(vOther.Y * 1048576) + 1048576, 0, 2097151);
+		result.z = (uint)Math.Clamp((int)(vOther.Z * 1048576) + 1048576, 0, 2097151);
+		result.wneg = vOther.W < 0;
+		return result;
+	}
+
+	public ulong data;
+
+	private const ulong X_MASK = 0x1FFFFF;
+	private const ulong Y_MASK = 0x1FFFFF;
+	private const ulong Z_MASK = 0x1FFFFF;
+	private const ulong WNEG_MASK = 0x1;
+
+	private const int X_SHIFT = 0;
+	private const int Y_SHIFT = 21;
+	private const int Z_SHIFT = 42;
+	private const int WNEG_SHIFT = 63;
+
+	public uint x {
+		readonly get => (uint)((data >> X_SHIFT) & X_MASK);
+		set => data = (data & ~(X_MASK << X_SHIFT)) | ((value & X_MASK) << X_SHIFT);
+	}
+
+	public uint y {
+		readonly get => (uint)((data >> Y_SHIFT) & Y_MASK);
+		set => data = (data & ~(Y_MASK << Y_SHIFT)) | ((value & Y_MASK) << Y_SHIFT);
+	}
+
+	public uint z {
+		readonly get => (uint)((data >> Z_SHIFT) & Z_MASK);
+		set => data = (data & ~(Z_MASK << Z_SHIFT)) | ((value & Z_MASK) << Z_SHIFT);
+	}
+
+	public bool wneg {
+		readonly get => ((data >> WNEG_SHIFT) & WNEG_MASK) != 0;
+		set {
+			if (value)
+				data |= (WNEG_MASK << WNEG_SHIFT);
+			else
+				data &= ~(WNEG_MASK << WNEG_SHIFT);
+		}
+	}
+}
+
 public struct RadianEuler
 {
 	public vec_t X, Y, Z;
@@ -122,9 +272,6 @@ public struct CollisionPlane
 public static class MathLib
 {
 	public static Vector3 AsVector3(this ReadOnlySpan<float> span) => new(span[0], span[1], span[2]);
-	public static bool IsValid(this Vector2 vec) => !float.IsNaN(vec.X) && !float.IsNaN(vec.Y);
-	public static bool IsValid(this Vector3 vec) => !float.IsNaN(vec.X) && !float.IsNaN(vec.Y) && !float.IsNaN(vec.Z);
-	public static bool IsValid(this Vector4 vec) => !float.IsNaN(vec.X) && !float.IsNaN(vec.Y) && !float.IsNaN(vec.Z) && !float.IsNaN(vec.W);
 	static MathLib() {
 
 	}
@@ -255,6 +402,33 @@ public static class MathLib
 		outMatrix[0, column] = inVec.X;
 		outMatrix[1, column] = inVec.Y;
 		outMatrix[2, column] = inVec.Z;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static ref float SubFloat(ref Vector4 a, int idx) {
+		ArgumentOutOfRangeException.ThrowIfNegative(idx);
+		ArgumentOutOfRangeException.ThrowIfLessThan(idx, 4);
+
+		return ref new Span<Vector4>(ref a).Cast<Vector4, float>()[idx];
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe void AngleQuaternion(in RadianEuler angles, out Quaternion outQuat) {
+		fixed (RadianEuler* pQ = &angles) {
+			Vector4 radians = new(*(Vector3*)pQ, 0.5f);
+			(Vector4 sine, Vector4 cosine) = Vector4.SinCos(radians);
+
+			float sr = SubFloat(ref sine, 0), sp = SubFloat(ref sine, 1), sy = SubFloat(ref sine, 2);
+			float cr = SubFloat(ref cosine, 0), cp = SubFloat(ref cosine, 1), cy = SubFloat(ref cosine, 2);
+
+			float srXcp = sr * cp, crXsp = cr * sp;
+			outQuat.X = srXcp * cy - crXsp * sy; 
+			outQuat.Y = crXsp * cy + srXcp * sy; 
+
+			float crXcp = cr * cp, srXsp = sr * sp;
+			outQuat.Z = crXcp * sy - srXsp * cy;
+			outQuat.W = crXcp * cy + srXsp * sy;
+		}
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -423,6 +597,41 @@ public static class MathLib
 		dst[2, 3] = znear * zfar / (znear - zfar);
 	}
 
+	public static void Init(this ref Vector3 m, float x, float y, float z) {
+		m.X = x;
+		m.Y = y;
+		m.Z = z;
+	}
+
+	public static void Init(this ref Quaternion m, float x, float y, float z, float w) {
+		m.X = x;
+		m.Z = y;
+		m.Y = z;
+		m.W = w;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector2 v) => Vector2.AnyWhereAllBitsSet(Vector2.IsNaN(v));
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector3 v) => Vector3.AnyWhereAllBitsSet(Vector3.IsNaN(v));
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector4 v) => Vector4.AnyWhereAllBitsSet(Vector4.IsNaN(v));
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe bool IsValid(this ref Quaternion q) {
+		fixed (Quaternion* pQ = &q)
+			return Vector4.AnyWhereAllBitsSet(Vector4.IsNaN(*(Vector4*)pQ));
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe bool IsValid(this ref QAngle a) {
+		fixed (QAngle* pA = &a)
+			return Vector3.AnyWhereAllBitsSet(Vector3.IsNaN(*(Vector3*)pA));
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe bool IsValid(this ref RadianEuler R) {
+		fixed (RadianEuler* pR = &R)
+			return Vector3.AnyWhereAllBitsSet(Vector3.IsNaN(*(Vector3*)pR));
+	}
+
 	public static void Init(this ref Matrix4x4 m, in Matrix3x4 m3x4) {
 		new ReadOnlySpan<Matrix3x4>(in m3x4).Cast<Matrix3x4, float>().CopyTo(new Span<Matrix4x4>(ref m).Cast<Matrix4x4, float>());
 
@@ -431,6 +640,8 @@ public static class MathLib
 		m[3, 2] = 0.0f;
 		m[3, 3] = 1.0f;
 	}
+
+
 	public static void Init(this ref Matrix4x4 m, vec_t m00, vec_t m01, vec_t m02, vec_t m03,
 	vec_t m10, vec_t m11, vec_t m12, vec_t m13,
 	vec_t m20, vec_t m21, vec_t m22, vec_t m23,
@@ -609,7 +820,7 @@ public static class MathLib
 		qt.Z = p.Z * sclp;
 		qt.W = p.W * sclp;
 
-		if (qt.W < 0.0f) 
+		if (qt.W < 0.0f)
 			t = -t;
 
 		qt.W += t;
@@ -622,5 +833,82 @@ public static class MathLib
 			qt.Z *= invLength;
 			qt.W *= invLength;
 		}
+	}
+	public static void Hermite_Spline(in Vector3 p1, in Vector3 p2, in Vector3 d1, in Vector3 d2, float t, out Vector3 output) {
+		float tSqr = t * t;
+		float tCube = t * tSqr;
+
+		float b1 = 2.0f * tCube - 3.0f * tSqr + 1.0f;
+		float b2 = 1.0f - b1; // -2*tCube+3*tSqr;
+		float b3 = tCube - 2 * tSqr + t;
+		float b4 = tCube - tSqr;
+
+		VectorScale(p1, b1, out output);
+		VectorMA(output, b2, p2, ref output);
+		VectorMA(output, b3, d1, ref output);
+		VectorMA(output, b4, d2, ref output);
+	}
+	public static void Hermite_Spline(in Vector3 p0, in Vector3 p1, in Vector3 p2, float t, out Vector3 output) {
+		Vector3 e10 = p1 - p0, e21 = p2 - p1;
+		Hermite_Spline(p1, p2, e10, e21, t, out output);
+	}
+
+	public static void QuaternionAlign(in Quaternion p, in Quaternion q, out Quaternion qt) {
+		qt = default;
+		int i;
+		// decide if one of the quaternions is backwards
+		float a = 0;
+		float b = 0;
+		for (i = 0; i < 4; i++) {
+			a += (p[i] - q[i]) * (p[i] - q[i]);
+			b += (p[i] + q[i]) * (p[i] + q[i]);
+		}
+		if (a > b) {
+			for (i = 0; i < 4; i++) {
+				qt[i] = -q[i];
+			}
+		}
+		else if (!Unsafe.AreSame(in p, ref qt)) {
+			for (i = 0; i < 4; i++) {
+				qt[i] = q[i];
+			}
+		}
+	}
+
+	public static float Hermite_Spline(float p1, float p2, float d1, float d2, float t) {
+		float output;
+		float tSqr = t * t;
+		float tCube = t * tSqr;
+
+		float b1 = 2.0f * tCube - 3.0f * tSqr + 1.0f;
+		float b2 = 1.0f - b1; // -2*tCube+3*tSqr;
+		float b3 = tCube - 2 * tSqr + t;
+		float b4 = tCube - tSqr;
+
+		output = p1 * b1;
+		output += p2 * b2;
+		output += d1 * b3;
+		output += d2 * b4;
+
+		return output;
+	}
+	public static float Hermite_Spline(float p0, float p1, float p2, float t) {
+		return Hermite_Spline(p1, p2, p1 - p0, p2 - p1, t);
+	}
+
+	public static void QuaternionNormalize2(ref Quaternion q) {
+		q = Quaternion.Normalize(q);
+	}
+
+	internal static void Hermite_Spline(Quaternion q0, Quaternion q1, Quaternion q2, float t, out Quaternion output) {
+		QuaternionAlign(q2, q0, out Quaternion q0a);
+		QuaternionAlign(q2, q1, out Quaternion q1a);
+
+		output.X = Hermite_Spline(q0a.X, q1a.X, q2.X, t);
+		output.Y = Hermite_Spline(q0a.Y, q1a.Y, q2.Y, t);
+		output.Z = Hermite_Spline(q0a.Z, q1a.Z, q2.Z, t);
+		output.W = Hermite_Spline(q0a.W, q1a.W, q2.W, t);
+
+		QuaternionNormalize2(ref output);
 	}
 }

@@ -1,8 +1,12 @@
-﻿using Source.Common.Commands;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source.Common.Commands;
 using Source.Common.Mathematics;
 
 using System.Buffers;
+using System.Drawing.Imaging;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Source.Common;
 
@@ -69,7 +73,7 @@ public ref struct BoneSetup
 
 		// TODO: IK stuff. We're ignoring it for now.
 
-		if ((seqdesc.Flags & StudioAnimFlags.Local) != 0)
+		if ((seqdesc.Flags & StudioAnimSeqFlags.Local) != 0)
 			InitPose(studioHdr, pos2, q2, boneMask);
 
 		if (CalcPoseSingle(studioHdr, pos2, q2, seqdesc, sequence, cycle, poseParameter, boneMask, time)) {
@@ -87,7 +91,7 @@ public ref struct BoneSetup
 
 		baseanim = studioHdr.iRelativeAnim(sequence, seqdesc.Anim(i0, i1));
 		MStudioAnimDesc anim = studioHdr.Animdesc(baseanim);
-		return (anim.Flags & StudioAnimFlags.AllZeros) != 0;
+		return (anim.Flags & StudioAnimSeqFlags.AllZeros) != 0;
 	}
 	private static bool CalcPoseSingle(StudioHdr studioHdr, Span<Vector3> pos, Span<Quaternion> q, MStudioSeqDesc seqdesc, int sequence, double cycle, Span<float> poseParameter, int boneMask, double time) {
 		bool bResult = true;
@@ -108,12 +112,12 @@ public ref struct BoneSetup
 		Studio_LocalPoseParameter(studioHdr, poseParameter, seqdesc, sequence, 0, ref s0, ref i0);
 		Studio_LocalPoseParameter(studioHdr, poseParameter, seqdesc, sequence, 1, ref s1, ref i1);
 
-		if ((seqdesc.Flags & StudioAnimFlags.Realtime) != 0) {
+		if ((seqdesc.Flags & StudioAnimSeqFlags.Realtime) != 0) {
 			float cps = Studio_CPS(studioHdr, seqdesc, sequence, poseParameter);
 			cycle = time * cps;
 			cycle = cycle - (int)cycle;
 		}
-		else if ((seqdesc.Flags & StudioAnimFlags.CyclePose) != 0) {
+		else if ((seqdesc.Flags & StudioAnimSeqFlags.CyclePose) != 0) {
 			int iPose = studioHdr.GetSharedPoseParameter(sequence, seqdesc.CyclePoseIndex);
 			if (iPose != -1) {
 				cycle = poseParameter[iPose];
@@ -123,7 +127,7 @@ public ref struct BoneSetup
 			}
 		}
 		else if (cycle < 0 || cycle >= 1) {
-			if ((seqdesc.Flags & StudioAnimFlags.Looping) != 0) {
+			if ((seqdesc.Flags & StudioAnimSeqFlags.Looping) != 0) {
 				cycle = cycle - (int)cycle;
 				if (cycle < 0) cycle += 1;
 			}
@@ -259,7 +263,7 @@ public ref struct BoneSetup
 	}
 
 	private static float Studio_CPS(StudioHdr studioHdr, MStudioSeqDesc seqdesc, int sequence, Span<float> poseParameter) {
-		MStudioAnimDesc[] panim = ArrayPool< MStudioAnimDesc>.Shared.Rent(4);
+		MStudioAnimDesc[] panim = ArrayPool<MStudioAnimDesc>.Shared.Rent(4);
 		Span<float> weight = stackalloc float[4];
 
 		Studio_SeqAnims(studioHdr, seqdesc, sequence, poseParameter, panim, weight);
@@ -268,7 +272,7 @@ public ref struct BoneSetup
 
 		for (int i = 0; i < 4; i++) {
 			if (weight[i] > 0 && panim[i].NumFrames > 1) {
-				t += (panim[i].FPS / (panim[i].NumFrames- 1)) * weight[i];
+				t += (panim[i].FPS / (panim[i].NumFrames - 1)) * weight[i];
 			}
 		}
 
@@ -336,8 +340,361 @@ public ref struct BoneSetup
 		Assert(weight[1] >= 0.0f && weight[1] <= 1.0f);
 		Assert(weight[2] >= 0.0f && weight[2] <= 1.0f);
 	}
-	private static void CalcAnimation(StudioHdr studioHdr, Span<Vector3> pos, Span<Quaternion> q, MStudioSeqDesc seqdesc, int sequence, int animation, TimeUnit_t cycle, int bonemask) {
-		
+
+	private static unsafe void CalcZeroframeData(StudioHdr studioHdr, StudioHeader animStudioHdr, VirtualGroup? animGroup, Span<MStudioBone> animBone, MStudioAnimDesc animdesc, TimeUnit_t frame, Span<Vector3> pos, Span<Quaternion> q, int boneMask, float weight) {
+		Span<byte> pData = animdesc.ZeroFrameData();
+
+		if (pData.IsEmpty)
+			return;
+
+		int i, j;
+
+		if (animdesc.ZeroFrameCount == 1) {
+			for (j = 0; j < animStudioHdr.NumBones; j++) {
+				if (animGroup != null)
+					i = animGroup.MasterBone[j];
+				else
+					i = j;
+
+				if ((animBone[j].Flags & Studio.BONE_HAS_SAVEFRAME_POS) != 0) {
+					if ((i >= 0) && (studioHdr.BoneFlags(i) & boneMask) != 0) {
+						Vector3 p = pData.Cast<byte, Vector48>()[0];
+						pos[i] = pos[i] * (1.0f - weight) + p * weight;
+						Assert(pos[i].IsValid());
+					}
+					pData = pData[sizeof(Vector48)..];
+				}
+				if ((animBone[j].Flags & Studio.BONE_HAS_SAVEFRAME_ROT) != 0) {
+					if ((i >= 0) && (studioHdr.BoneFlags(i) & boneMask) != 0) {
+						Quaternion q0 = pData.Cast<byte, Quaternion64>()[0];
+						MathLib.QuaternionBlend(q[i], q0, weight, out q[i]);
+						Assert(q[i].IsValid());
+					}
+					pData = pData[sizeof(Quaternion64)..];
+				}
+			}
+		}
+		else {
+			TimeUnit_t s1;
+			int index = (int)(long)frame / animdesc.ZeroFrameSpan;
+			if (index >= animdesc.ZeroFrameCount - 1) {
+				index = animdesc.ZeroFrameCount - 2;
+				s1 = 1.0;
+			}
+			else {
+				s1 = Math.Clamp((frame - index * animdesc.ZeroFrameSpan) / animdesc.ZeroFrameSpan, 0.0, 1.0);
+			}
+			int i0 = Math.Max(index - 1, 0);
+			int i1 = index;
+			int i2 = Math.Min(index + 1, animdesc.ZeroFrameCount - 1);
+			for (j = 0; j < animStudioHdr.NumBones; j++) {
+				if (animGroup != null)
+					i = animGroup.MasterBone[j];
+				else
+					i = j;
+
+				if ((animBone[j].Flags & Studio.BONE_HAS_SAVEFRAME_POS) != 0) {
+					if ((i >= 0) && (studioHdr.BoneFlags(i) & boneMask) != 0) {
+						Span<Vector48> data = pData.Cast<byte, Vector48>();
+						Vector3 p0 = data[i0];
+						Vector3 p1 = data[i1];
+						Vector3 p2 = data[i2];
+						MathLib.Hermite_Spline(p0, p1, p2, (float)s1, out Vector3 p3);
+						pos[i] = pos[i] * (1.0f - weight) + p3 * weight;
+						Assert(pos[i].IsValid());
+					}
+					pData = pData[(sizeof(Vector48) * animdesc.ZeroFrameCount)..];
+				}
+				if ((animBone[j].Flags & Studio.BONE_HAS_SAVEFRAME_ROT) != 0) {
+					if ((i >= 0) && (studioHdr.BoneFlags(i) & boneMask) != 0) {
+						Span<Quaternion64> data = pData.Cast<byte, Quaternion64>();
+						Quaternion q0 = data[i0];
+						Quaternion q1 = data[i1];
+						Quaternion q2 = data[i2];
+						if (weight == 1.0f)
+							MathLib.Hermite_Spline(q0, q1, q2, (float)s1, out q[i]);
+						else {
+							MathLib.Hermite_Spline(q0, q1, q2, (float)s1, out Quaternion q3);
+							MathLib.QuaternionBlend(q[i], q3, weight, out q[i]);
+						}
+						Assert(q[i].IsValid());
+					}
+					pData = pData[(sizeof(Quaternion64) * animdesc.ZeroFrameCount)..];
+				}
+			}
+		}
+	}
+	private static void CalcVirtualAnimation(VirtualModel vModel, StudioHdr studioHdr, Span<Vector3> pos, Span<Quaternion> q, MStudioSeqDesc seqdesc, int sequence, int animation, TimeUnit_t cycle, int boneMask) {
+		throw new NotImplementedException();
+	}
+	public static void CalcBoneQuaternion(int frame, float s, MStudioBone? bone, MStudioLinearBone? linearBones, MStudioAnim anim, ref Quaternion q) {
+		if (linearBones != null)
+			CalcBoneQuaternion(frame, s, linearBones.Quat(anim.Bone), linearBones.Rot(anim.Bone), linearBones.RotScale(anim.Bone), linearBones.Flags(anim.Bone), linearBones.Alignment(anim.Bone), anim, ref q);
+		else if (bone != null)
+			CalcBoneQuaternion(frame, s, in bone.Quat, in bone.Rot, in bone.RotScale, bone.Flags, in bone.Alignment, anim, ref q);
+		else
+			throw new NullReferenceException();
+	}
+	private static void ExtractAnimValue(int frame, Span<MStudioAnimValue> animvalue, float scale, out float v1, out float v2) {
+		if (animvalue.IsEmpty) {
+			v1 = v2 = 0;
+			return;
+		}
+
+		// Avoids a crash reading off the end of the data
+		// There is probably a better long-term solution; Ken is going to look into it.
+		if ((animvalue[0].Total == 1) && (animvalue[0].Valid == 1)) {
+			v1 = v2 = animvalue[1].Value * scale;
+			return;
+		}
+
+		int k = frame;
+
+		// find the data list that has the frame
+		while (animvalue[0].Total <= k) {
+			k -= animvalue[0].Total;
+			animvalue = animvalue[(animvalue[0].Valid + 1)..];
+			if (animvalue[0].Total == 0) {
+				Assert(false);
+				v1 = v2 = 0;
+				return;
+			}
+		}
+		if (animvalue[0].Valid > k) {
+			// has valid animation data
+			v1 = animvalue[k + 1].Value * scale;
+
+			if (animvalue[0].Valid > k + 1) {
+				// has valid animation blend data
+				v2 = animvalue[k + 2].Value * scale;
+			}
+			else {
+				if (animvalue[0].Total > k + 1) {
+					// data repeats, no blend
+					v2 = v1;
+				}
+				else {
+					// pull blend from first data block in next list
+					v2 = animvalue[animvalue[0].Valid + 2].Value * scale;
+				}
+			}
+		}
+		else {
+			// get last valid data block
+			v1 = animvalue[animvalue[0].Valid].Value * scale;
+			if (animvalue[0].Total > k + 1) {
+				// data repeats, no blend
+				v2 = v1;
+			}
+			else {
+				// pull blend from first data block in next list
+				v2 = animvalue[animvalue[0].Valid + 2].Value * scale;
+			}
+		}
+	}
+	private static void ExtractAnimValue(int frame, Span<MStudioAnimValue> animvalue, float scale, out float v1) {
+		if (animvalue.IsEmpty) {
+			v1 = 0;
+			return;
+		}
+		int k = frame;
+
+		while (animvalue[0].Total <= k) {
+			k -= animvalue[0].Total;
+			animvalue = animvalue[(animvalue[0].Valid + 1)..];
+			if (animvalue[0].Total == 0) {
+				Assert(0); // running off the end of the animation stream is bad
+				v1 = 0;
+				return;
+			}
+		}
+		if (animvalue[0].Valid > k) {
+			v1 = animvalue[k + 1].Value * scale;
+		}
+		else {
+			// get last valid data block
+			v1 = animvalue[animvalue[0].Valid].Value * scale;
+		}
+
+	}
+	private static void CalcBoneQuaternion(int frame, float s, in Quaternion baseQuat, in RadianEuler baseRot, in Vector3 baseRotScale, int baseFlags, in Quaternion baseAlignment, MStudioAnim anim, ref Quaternion q) {
+		if ((anim.Flags & StudioAnimFlags.RawRot) != 0) {
+			q = anim.Quat48();
+			Assert(q.IsValid());
+			return;
+		}
+
+		if ((anim.Flags & StudioAnimFlags.RawRot2) != 0) {
+			q = anim.Quat64();
+			Assert(q.IsValid());
+			return;
+		}
+
+		if ((anim.Flags & StudioAnimFlags.AnimRot) == 0) {
+			if ((anim.Flags & StudioAnimFlags.Delta) != 0)
+				q.Init(0.0f, 0.0f, 0.0f, 1.0f);
+			else
+				q = baseQuat;
+			return;
+		}
+
+		MStudioAnimValuePtr pValuesPtr = anim.RotV();
+
+		if (s > 0.001f) {
+			Quaternion q1, q2;
+			RadianEuler angle1, angle2;
+
+			ExtractAnimValue(frame, pValuesPtr.Animvalue(0), baseRotScale.X, out angle1.X, out angle2.X);
+			ExtractAnimValue(frame, pValuesPtr.Animvalue(1), baseRotScale.Y, out angle1.Y, out angle2.Y);
+			ExtractAnimValue(frame, pValuesPtr.Animvalue(2), baseRotScale.Z, out angle1.Z, out angle2.Z);
+
+			if ((anim.Flags & StudioAnimFlags.Delta) == 0) {
+				angle1.X = angle1.X + baseRot.X;
+				angle1.Y = angle1.Y + baseRot.Y;
+				angle1.Z = angle1.Z + baseRot.Z;
+				angle2.X = angle2.X + baseRot.X;
+				angle2.Y = angle2.Y + baseRot.Y;
+				angle2.Z = angle2.Z + baseRot.Z;
+			}
+
+			Assert(angle1.IsValid() && angle2.IsValid());
+			if (angle1.X != angle2.X || angle1.Y != angle2.Y || angle1.Z != angle2.Z) {
+				MathLib.AngleQuaternion(angle1, out q1);
+				MathLib.AngleQuaternion(angle2, out q2);
+
+
+				MathLib.QuaternionBlend(q1, q2, s, out q);
+			}
+			else {
+				MathLib.AngleQuaternion(angle1, out q);
+			}
+		}
+		else {
+			RadianEuler angle;
+
+			ExtractAnimValue(frame, pValuesPtr.Animvalue(0), baseRotScale.X, out angle.X);
+			ExtractAnimValue(frame, pValuesPtr.Animvalue(1), baseRotScale.Y, out angle.Y);
+			ExtractAnimValue(frame, pValuesPtr.Animvalue(2), baseRotScale.Z, out angle.Z);
+
+			if ((anim.Flags & StudioAnimFlags.Delta) == 0) {
+				angle.X = angle.X + baseRot.X;
+				angle.Y = angle.Y + baseRot.Y;
+				angle.Z = angle.Z + baseRot.Z;
+			}
+
+			Assert(angle.IsValid());
+			MathLib.AngleQuaternion(angle, out q);
+		}
+
+		Assert(q.IsValid());
+
+		// align to unified bone
+		if ((anim.Flags & StudioAnimFlags.Delta) == 0 && (baseFlags & Studio.BONE_FIXED_ALIGNMENT) != 0)
+			MathLib.QuaternionAlign(baseAlignment, q, out q);
+	}
+
+	public static void CalcBonePosition(int frame, float s, MStudioBone? bone, MStudioLinearBone? linearBones, MStudioAnim anim, ref Vector3 pos) {
+		if (linearBones != null)
+			CalcBonePosition(frame, s, linearBones.Pos(anim.Bone), linearBones.PosScale(anim.Bone), anim, ref pos);
+		else if (bone != null)
+			CalcBonePosition(frame, s, in bone.Position, in bone.PosScale, anim, ref pos);
+		else
+			throw new NullReferenceException();
+	}
+	public static void CalcBonePosition(int frame, float s, in Vector3 basePos, in Vector3 baseBoneScale, MStudioAnim anim, ref Vector3 pos) {
+
+	}
+	public static void CalcLocalHierarchyAnimation(StudioHdr studioHdr, Span<Matrix3x4> boneToWorld, ref BoneBitList boneComputed, Span<Vector3> pos, Span<Quaternion> q, MStudioBone bone, MStudioLocalHierarchy hierarchy, int iBone, int newParent, float cycle, int frame, float fraq, int boneMask) {
+
+	}
+	private static void CalcAnimation(StudioHdr studioHdr, Span<Vector3> pos, Span<Quaternion> q, MStudioSeqDesc seqdesc, int sequence, int animation, TimeUnit_t cycle, int boneMask) {
+		VirtualModel? vModel = studioHdr.GetVirtualModel();
+
+		if (vModel != null) {
+			CalcVirtualAnimation(vModel, studioHdr, pos, q, seqdesc, sequence, animation, cycle, boneMask);
+			return;
+		}
+
+		MStudioAnimDesc animdesc = studioHdr.Animdesc(animation);
+		MStudioBone pbone = studioHdr.Bone(0);
+		MStudioLinearBone? linearBones = studioHdr.LinearBones();
+
+		int iFrame;
+		TimeUnit_t s;
+
+		TimeUnit_t fFrame = cycle * (animdesc.NumFrames - 1);
+
+		iFrame = (int)fFrame;
+		s = (fFrame - iFrame);
+
+		int iLocalFrame = iFrame;
+		MStudioAnim? panim = animdesc.Anim(ref iLocalFrame, out TimeUnit_t flStall);
+
+		ref float pweight = ref seqdesc.Boneweight(0);
+
+		if (panim == null) {
+			for (int i = 0; i < studioHdr.NumBones(); i++, pbone = studioHdr.Bone(i), pweight++) {
+				if (pweight > 0 && (studioHdr.BoneFlags(i) & boneMask) != 0) {
+					if ((animdesc.Flags & StudioAnimSeqFlags.Delta) != 0) {
+						q[i].Init(0.0f, 0.0f, 0.0f, 1.0f);
+						pos[i].Init(0.0f, 0.0f, 0.0f);
+					}
+					else {
+						q[i] = pbone.Quat;
+						pos[i] = pbone.Position;
+					}
+				}
+			}
+
+			CalcZeroframeData(studioHdr, studioHdr.GetRenderHdr(), null, studioHdr.Bones(), animdesc, fFrame, pos, q, boneMask, 1.0f);
+
+			return;
+		}
+
+		for (int i = 0; i < studioHdr.NumBones(); i++, pbone = studioHdr.Bone(i), pweight++) {
+			if (panim != null && panim.Bone == i) {
+				if (pweight > 0 && (studioHdr.BoneFlags(i) & boneMask) != 0) {
+					CalcBoneQuaternion(iLocalFrame, (float)s, pbone, linearBones, panim, ref q[i]);
+					CalcBonePosition(iLocalFrame, (float)s, pbone, linearBones, panim, ref pos[i]);
+				}
+				panim = panim.Next();
+			}
+			else if (pweight > 0 && (studioHdr.BoneFlags(i) & boneMask) != 0) {
+				if ((animdesc.Flags & StudioAnimSeqFlags.Delta) != 0) {
+					q[i].Init(0.0f, 0.0f, 0.0f, 1.0f);
+					pos[i].Init(0.0f, 0.0f, 0.0f);
+				}
+				else {
+					q[i] = pbone.Quat;
+					pos[i] = pbone.Position;
+				}
+			}
+		}
+
+		// cross fade in previous zeroframe data
+		if (flStall > 0.0f)
+			CalcZeroframeData(studioHdr, studioHdr.GetRenderHdr(), null, studioHdr.Bones(), animdesc, fFrame, pos, q, boneMask, (float)flStall);
+
+		if (animdesc.NumLocalHierarchy != 0) {
+			Matrix3x4[] boneToWorld = MatrixPool.Alloc();
+			BoneBitList boneComputed = new();
+
+			int i;
+			for (i = 0; i < animdesc.NumLocalHierarchy; i++) {
+				MStudioLocalHierarchy? hierarchy = animdesc.Hierarchy(i);
+
+				if (hierarchy == null)
+					break;
+
+				if ((studioHdr.BoneFlags(hierarchy.Bone) & boneMask) != 0) {
+					if ((studioHdr.BoneFlags(hierarchy.NewParent) & boneMask) != 0) {
+						CalcLocalHierarchyAnimation(studioHdr, boneToWorld, ref boneComputed, pos, q, pbone, hierarchy, hierarchy.Bone, hierarchy.NewParent, (float)cycle, iFrame, (float)s, boneMask);
+					}
+				}
+			}
+
+			MatrixPool.Free(boneToWorld);
+		}
 	}
 	private static void BlendBones(StudioHdr studioHdr, Span<Quaternion> q1, Span<Vector3> pos1, MStudioSeqDesc seqdesc, int sequence, ReadOnlySpan<Quaternion> q2, ReadOnlySpan<Vector3> pos2, float s, int boneMask) {
 		int i, j;
@@ -349,18 +706,18 @@ public ref struct BoneSetup
 			seqGroup = vModel.SeqGroup(sequence);
 
 		if (s <= 0) {
-			Assert(false); 
+			Assert(false);
 			return;
 		}
 		else if (s >= 1.0) {
-			Assert(false); 
+			Assert(false);
 			for (i = 0; i < studioHdr.NumBones(); i++) {
 				if ((studioHdr.BoneFlags(i) & boneMask) == 0)
 					continue;
 
 				if (seqGroup != null)
 					j = seqGroup.BoneMap[i];
-				else 
+				else
 					j = i;
 
 				if (j >= 0 && seqdesc.Weight(j) > 0.0) {
@@ -375,12 +732,12 @@ public ref struct BoneSetup
 		float s1 = 1.0F - s2;
 
 		for (i = 0; i < studioHdr.NumBones(); i++) {
-			if ((studioHdr.BoneFlags(i) & boneMask) == 0) 
+			if ((studioHdr.BoneFlags(i) & boneMask) == 0)
 				continue;
 
-			if (seqGroup != null) 
+			if (seqGroup != null)
 				j = seqGroup.BoneMap[i];
-			else 
+			else
 				j = i;
 
 
@@ -409,7 +766,7 @@ public ref struct BoneSetup
 
 		VirtualModel? vModel = studioHdr.GetVirtualModel();
 		VirtualGroup? seqGroup = null;
-		if (vModel != null) 
+		if (vModel != null)
 			seqGroup = vModel.SeqGroup(sequence);
 
 		float s2 = s;
@@ -417,12 +774,12 @@ public ref struct BoneSetup
 
 		for (i = 0; i < studioHdr.NumBones(); i++) {
 			// skip unused bones
-			if ((studioHdr.BoneFlags(i) & boneMask) == 0) 
+			if ((studioHdr.BoneFlags(i) & boneMask) == 0)
 				continue;
 
-			if (seqGroup != null) 
+			if (seqGroup != null)
 				j = seqGroup.BoneMap[i];
-			else 
+			else
 				j = i;
 
 			if (j >= 0 && seqdesc.Weight(j) > 0.0) {

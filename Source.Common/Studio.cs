@@ -648,7 +648,7 @@ public class MStudioTexture
 	public string Name() => Studio.ProduceASCIIString(ref name, Data.Span[SzNameIndex..]);
 }
 
-public enum StudioAnimFlags
+public enum StudioAnimSeqFlags
 {
 	/// <summary>
 	/// ending frame should be the same as the starting frame
@@ -705,6 +705,144 @@ public enum StudioAnimFlags
 	World = 0x4000
 }
 
+public enum StudioAnimFlags : byte
+{
+	/// <summary>
+	/// Vector48
+	/// </summary>
+	RawPos = 0x01,
+	/// <summary>
+	/// Quaternion48
+	/// </summary>
+	RawRot = 0x02,
+	/// <summary>
+	/// mstudioanim_valueptr_t
+	/// </summary>
+	AnimPos = 0x04,
+	/// <summary>
+	/// mstudioanim_valueptr_t
+	/// </summary>
+	AnimRot = 0x08,
+	Delta = 0x10,
+	/// <summary>
+	/// Quaternion64
+	/// </summary>
+	RawRot2 = 0x20,
+}
+
+public struct MStudioAnimValue {
+	public short Value;
+	public readonly byte Valid => (byte)(Value & 0xFF);
+	public readonly byte Total => (byte)((Value & 0xFF00) >> 8);
+}
+
+public class MStudioAnimValuePtr {
+	public const int SIZEOF = 6;
+
+	public Memory<byte> Data;
+	public InlineArray3<short> Offset;
+
+	public MStudioAnimValuePtr(Memory<byte> data) {
+		Data = data;
+		SpanBinaryReader br = new(data.Span);
+		Offset[0] = br.Read<short>();
+		Offset[1] = br.Read<short>();
+		Offset[2] = br.Read<short>();
+	}
+
+	public Span<MStudioAnimValue> Animvalue(int i) {
+		if (Offset[i] > 0)
+			return Data.Span[Offset[i]..].Cast<byte, MStudioAnimValue>();
+		return null;
+	}
+}
+
+// TODO: THESE ARE NOT EQUATABLE, PAY CLOSE ATTENTION IF SOURCE IS TRYING TO DO POINTER COMPARISON!!!!!!!!!!!!!!!!!!!!!!
+// TODO: Should we use structs here instead and reinterpret casts? It's such a small data structure... and I worry heavily about
+// the optimizations I tried to make to cope...
+public class MStudioAnim
+{
+	public const int SIZEOF = 4; // Static offset from MSVC stats (mstudiobone_t size 4, alignment 2)
+	public static MStudioAnim FACTORY(object caller, Memory<byte> data) => new(data);
+
+	public Memory<byte> data;
+	public byte Bone;
+	public StudioAnimFlags Flags;
+	public short NextOffset;
+
+	public MStudioAnim(Memory<byte> data) {
+		this.data = data;
+		Bone = data.Span[0];
+		Flags = (StudioAnimFlags)data.Span[1];
+		NextOffset = data.Span[2..4].Cast<byte, short>()[0];
+	}
+
+
+	public Span<byte> Data() => data.Span[SIZEOF..];
+
+	MStudioAnimValuePtr? rotV;
+	MStudioAnimValuePtr? posV;
+
+	public MStudioAnimValuePtr RotV() => rotV ??= new(data[SIZEOF..]);
+	public MStudioAnimValuePtr PosV() => posV ??= new(data[(SIZEOF + ((Flags & StudioAnimFlags.AnimRot) != 0 ? MStudioAnimValuePtr.SIZEOF : 0))..]);
+
+	public ref Quaternion48 Quat48() => ref Data().Cast<byte, Quaternion48>()[0];
+	public ref Quaternion64 Quat64() => ref Data().Cast<byte, Quaternion64>()[0];
+	public ref Vector48 Pos() => ref Data().Cast<byte, Vector48>()[0];
+
+
+	MStudioAnim? next;
+	public MStudioAnim? Next() {
+		if (NextOffset != 0)
+			return next ??= FACTORY(null!, data[NextOffset..]);
+		else
+			return null;
+	}
+}
+
+public class MStudioLocalHierarchy
+{
+	public const int SIZEOF = 48; // Static offset from MSVC stats (mstudiobone_t size 48, alignment 4)
+	public static MStudioLocalHierarchy FACTORY(object caller, Memory<byte> data) => new(data);
+
+	public Memory<byte> Data;
+
+	public int Bone;
+	public int NewParent;
+	public float Start;
+	public float Peak;
+	public float Tail;
+	public float End;
+	public int StartFrame; // iStart 
+	public int LocalAnimIndex;
+
+	public MStudioLocalHierarchy(Memory<byte> data) {
+		Data = data;
+		SpanBinaryReader br = new(data.Span);
+
+		br.Read(out Bone);
+		br.Read(out NewParent);
+		br.Read(out Start);
+		br.Read(out Peak);
+		br.Read(out Tail);
+		br.Read(out End);
+		br.Read(out StartFrame);
+		br.Read(out LocalAnimIndex);
+		br.Advance<int>(4);
+	}
+}
+
+public class MStudioAnimSections
+{
+	public const int SIZEOF = 8; // Static offset from MSVC stats (mstudiobone_t size 8, alignment 4)
+	public static MStudioAnimSections FACTORY(object caller, Memory<byte> data) => new() {
+		AnimBlock = data.Span.Cast<byte, int>()[0],
+		AnimIndex = data.Span.Cast<byte, int>()[0]
+	};
+	public int AnimBlock;
+	public int AnimIndex;
+}
+
 public class MStudioAnimDesc
 {
 	public const int SIZEOF = 100; // Static offset from MSVC stats (mstudiobone_t size 100, alignment 4)
@@ -717,7 +855,7 @@ public class MStudioAnimDesc
 
 	public float FPS;
 	private int flags;
-	public StudioAnimFlags Flags => (StudioAnimFlags)flags;
+	public StudioAnimSeqFlags Flags => (StudioAnimSeqFlags)flags;
 
 	public int NumFrames;
 
@@ -726,8 +864,104 @@ public class MStudioAnimDesc
 
 	// UNUSED 6 INTEGERS
 
-	public int AnimBlock;
-	public int AnimIndex;
+	int nAnimBlock;
+	int nAnimIndex;
+
+	List<List<MStudioAnim?>?> animCache = [];
+	MStudioAnim CacheOffBlockIndex(int block, int index, Memory<byte> data) {
+		animCache.EnsureCount(block + 1);
+		var blockCache = animCache[block] ??= [];
+		blockCache.EnsureCountDefault(index + 1);
+		return blockCache[index] ??= MStudioAnim.FACTORY(null!, data[index..]);
+	}
+
+	public MStudioAnim? AnimBlock(int block, int index) {
+		if (block == -1)
+			return null;
+
+		if (block == 0)
+			return CacheOffBlockIndex(0, index, Data);
+
+		Memory<byte> animBlock = Studiohdr().GetAnimBlock(block);
+		if (!animBlock.IsEmpty)
+			return CacheOffBlockIndex(0, index, animBlock);
+
+		return null;
+	}
+	public MStudioAnim? Anim(ref int frame) => Anim(ref frame, out _);
+	public MStudioAnim? Anim(ref int frame, out TimeUnit_t stall) {
+		stall = default;
+
+		MStudioAnim panim = null;
+
+		int block = nAnimBlock;
+		int index = nAnimIndex;
+		int section = 0;
+
+		if (SectionFrames != 0) {
+			if (NumFrames > SectionFrames && frame == NumFrames - 1) {
+				// last frame on long anims is stored separately
+				frame = 0;
+				section = (NumFrames / SectionFrames) + 1;
+			}
+			else {
+				section = frame / SectionFrames;
+				frame -= section * SectionFrames;
+			}
+
+			block = Section(section).AnimBlock;
+			index = Section(section).AnimIndex;
+		}
+
+		if (block == -1) {
+			// model needs to be recompiled
+			return null;
+		}
+
+		panim = AnimBlock(block, index);
+
+		// force a preload on the next block
+		if (SectionFrames != 0) {
+			int count = (NumFrames / SectionFrames) + 2;
+			for (int i = section + 1; i < count; i++) {
+				if (Section(i).AnimBlock != block) {
+					AnimBlock(Section(i).AnimBlock, Section(i).AnimIndex);
+					break;
+				}
+			}
+		}
+
+		if (panim == null) {
+			// back up until a previously loaded block is found
+			while (--section >= 0) {
+				block = Section(section).AnimBlock;
+				index = Section(section).AnimIndex;
+				panim = AnimBlock(block, index);
+				if (panim != null) {
+					// set it to the last frame in the last valid section
+					frame = SectionFrames - 1;
+					break;
+				}
+			}
+		}
+
+		// try to guess a valid stall time interval (tuned for the X360)
+		stall = 0.0;
+		if (panim == null && section <= 0) {
+			ZeroFrameStallTime = Platform.Time;
+			stall = 1.0;
+		}
+		else if (panim != null && ZeroFrameStallTime != 0.0) {
+			TimeUnit_t dt = Platform.Time - ZeroFrameStallTime;
+			if (dt >= 0.0f)
+				stall = MathLib.SimpleSpline(Math.Clamp((0.200f - dt) * 5.0f, 0.0f, 1.0f));
+
+			if (stall == 0.0)
+				ZeroFrameStallTime = 0.0;
+		}
+
+		return panim;
+	}
 
 	public int NumIKRules;
 	public int IKRuleIndex;
@@ -735,13 +969,26 @@ public class MStudioAnimDesc
 
 	public int NumLocalHierarchy;
 	public int LocalHierarchyIndex;
+	MStudioLocalHierarchy[]? localHierarchyCache;
+	public MStudioLocalHierarchy Hierarchy(int i) => Studio.ProduceArrayIdx(this, ref localHierarchyCache, NumLocalHierarchy, LocalHierarchyIndex, i, MStudioLocalHierarchy.SIZEOF, Data, MStudioLocalHierarchy.FACTORY);
 
 	public int SectionIndex;
 	public int SectionFrames;
+	List<MStudioAnimSections?> sections = [];
+	public MStudioAnimSections Section(int i) => Studio.ProduceVaradicArrayIdx(this, ref sections, SectionIndex, i, MStudioAnimSections.SIZEOF, Data, MStudioAnimSections.FACTORY);
+
 
 	public int ZeroFrameSpan;
 	public int ZeroFrameCount;
 	public int ZeroFrameIndex;
+	public Span<byte> ZeroFrameData() {
+		if (ZeroFrameIndex != 0) {
+			return Data.Span[ZeroFrameIndex..];
+		}
+
+		return null;
+	}
+
 	public double ZeroFrameStallTime;
 
 	public MStudioAnimDesc(StudioHeader hdr, Memory<byte> data) {
@@ -758,8 +1005,8 @@ public class MStudioAnimDesc
 		br.Read(out MovementIndex);
 		br.Advance<int>(6);
 
-		br.Read(out AnimBlock);
-		br.Read(out AnimIndex);
+		br.Read(out nAnimBlock);
+		br.Read(out nAnimIndex);
 		br.Read(out NumIKRules);
 		br.Read(out IKRuleIndex);
 		br.Read(out AnimBlockIKRuleIndex);
@@ -833,7 +1080,7 @@ public class MStudioSeqDesc
 	public string ActivityName() => Studio.ProduceASCIIString(ref activityNameCache, Data.Span[ActivityNameIndex..]);
 
 	private int flags;
-	public StudioAnimFlags Flags => (StudioAnimFlags)flags;
+	public StudioAnimSeqFlags Flags => (StudioAnimSeqFlags)flags;
 
 	public int Activity;
 	public int ActWeight;
@@ -972,6 +1219,13 @@ public class StudioHdr
 	public int BoneFlags(int i) => boneFlags[i];
 	public int BoneParent(int i) => boneParent[i];
 	public MStudioBone Bone(int i) => studioHdr!.Bone(i);
+	/// <summary>
+	/// Forces a preload of all bones into class views!
+	/// </summary>
+	/// <returns></returns>
+	public Span<MStudioBone> Bones() => studioHdr.Bones();
+
+
 	readonly List<StudioHeader> StudioHdrCache = [];
 
 	public StudioHdrFlags Flags() => studioHdr!.Flags;
@@ -1188,7 +1442,7 @@ public class MStudioLinearBone
 	public Matrix3x4 PoseToBone(int i) => Data.Span[PoseToBoneIndex..].Cast<byte, Matrix3x4>()[i];
 	public Vector3 PosScale(int i) => Data.Span[PosScaleIndex..].Cast<byte, Vector3>()[i];
 	public Vector3 RotScale(int i) => Data.Span[RotScaleIndex..].Cast<byte, Vector3>()[i];
-	public Quaternion QAlignment(int i) => Data.Span[QAlignmentIndex..].Cast<byte, Quaternion>()[i];
+	public Quaternion Alignment(int i) => Data.Span[QAlignmentIndex..].Cast<byte, Quaternion>()[i];
 }
 
 /// <summary>
@@ -1219,11 +1473,27 @@ public class StudioHeader
 	public int NumBones;
 	public int BoneIndex;
 	MStudioBone[]? studioBoneCache;
+	bool preloadedBones = false;
+
 	public MStudioBone Bone(int i) {
 		if (studioBoneCache == null)
 			studioBoneCache = new MStudioBone[NumBones];
 
 		return studioBoneCache[i] ??= new(Data[(BoneIndex + (i * MStudioBone.SIZEOF))..]);
+	}
+
+	public Span<MStudioBone> Bones() {
+		if (preloadedBones)
+			return studioBoneCache;
+		else {
+			// Load any bones that haven't been loaded yet.
+			for (int i = 0; i < NumBones; i++)
+				Bone(i);
+
+			// Cache that all bones are good
+			preloadedBones = true;
+			return studioBoneCache;
+		}
 	}
 
 	public int NumBoneControllers;
