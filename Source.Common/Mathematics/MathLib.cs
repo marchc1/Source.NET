@@ -411,7 +411,7 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static ref float SubFloat(ref Vector4 a, int idx) {
 		ArgumentOutOfRangeException.ThrowIfNegative(idx);
-		ArgumentOutOfRangeException.ThrowIfGreaterThan(idx, 4);
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(idx, 4);
 
 		return ref new Span<Vector4>(ref a).Cast<Vector4, float>()[idx];
 	}
@@ -419,7 +419,8 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe void AngleQuaternion(in RadianEuler angles, out Quaternion outQuat) {
 		fixed (RadianEuler* pQ = &angles) {
-			Vector4 radians = new(*(Vector3*)pQ, 0.5f);
+			Vector4 radians = new(*(Vector3*)pQ, 0);
+			radians = Vector4.Multiply(radians, 0.5f);
 			(Vector4 sine, Vector4 cosine) = Vector4.SinCos(radians);
 
 			float sr = SubFloat(ref sine, 0), sp = SubFloat(ref sine, 1), sy = SubFloat(ref sine, 2);
