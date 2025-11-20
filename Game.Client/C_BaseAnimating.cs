@@ -143,7 +143,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		MostRecentModelBoneCounter = ModelBoneCounter;
 
-		if ((BoneAccessor.GetReadableBones() & boneMask) != boneMask || true) { // TODO: true is a hack!!!!!!
+		if ((BoneAccessor.GetReadableBones() & boneMask) != boneMask) { 
 			StudioHdr? hdr = GetModelPtr();
 			if (hdr == null || !hdr.SequencesAvailable())
 				return false;

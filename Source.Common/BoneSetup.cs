@@ -602,7 +602,43 @@ public ref struct BoneSetup
 			throw new NullReferenceException();
 	}
 	public static void CalcBonePosition(int frame, float s, in Vector3 basePos, in Vector3 baseBoneScale, MStudioAnim anim, ref Vector3 pos) {
+		if ((anim.Flags & StudioAnimFlags.RawPos) != 0) {
+			pos = anim.Pos();
+			Assert(pos.IsValid());
 
+			return;
+		}
+		else if ((anim.Flags & StudioAnimFlags.AnimPos) == 0) {
+			if ((anim.Flags & StudioAnimFlags.Delta) != 0) 
+				pos.Init(0.0f, 0.0f, 0.0f);
+			else 
+				pos = basePos;
+			return;
+		}
+
+		MStudioAnimValuePtr pPosV = anim.PosV();
+		int j;
+
+		if (s > 0.001f) {
+			float v1, v2;
+			for (j = 0; j < 3; j++) {
+				ExtractAnimValue(frame, pPosV.Animvalue(j), baseBoneScale[j], out v1, out v2);
+				pos[j] = v1 * (1.0f - s) + v2 * s;
+			}
+		}
+		else {
+			ExtractAnimValue(frame, pPosV.Animvalue(0), baseBoneScale[0], out pos.X);
+			ExtractAnimValue(frame, pPosV.Animvalue(1), baseBoneScale[1], out pos.Y);
+			ExtractAnimValue(frame, pPosV.Animvalue(2), baseBoneScale[2], out pos.Z);
+		}											
+
+		if ((anim.Flags & StudioAnimFlags.Delta) == 0) {
+			pos.X = pos.X + basePos.X;
+			pos.Y = pos.Y + basePos.Y;
+			pos.Z = pos.Z + basePos.Z;
+		}
+
+		Assert(pos.IsValid());
 	}
 	public static void CalcLocalHierarchyAnimation(StudioHdr studioHdr, Span<Matrix3x4> boneToWorld, ref BoneBitList boneComputed, Span<Vector3> pos, Span<Quaternion> q, MStudioBone bone, MStudioLocalHierarchy hierarchy, int iBone, int newParent, float cycle, int frame, float fraq, int boneMask) {
 
@@ -633,7 +669,9 @@ public ref struct BoneSetup
 		ref float pweight = ref seqdesc.Boneweight(0);
 
 		if (panim == null) {
-			for (int i = 0; i < studioHdr.NumBones(); i++, pbone = studioHdr.Bone(i), pweight++) {
+			for (int i = 0; i < studioHdr.NumBones(); i++) {
+				pbone = studioHdr.Bone(i);
+				pweight = ref seqdesc.Boneweight(i);
 				if (pweight > 0 && (studioHdr.BoneFlags(i) & boneMask) != 0) {
 					if ((animdesc.Flags & StudioAnimSeqFlags.Delta) != 0) {
 						q[i].Init(0.0f, 0.0f, 0.0f, 1.0f);
@@ -652,6 +690,7 @@ public ref struct BoneSetup
 		}
 
 		for (int i = 0; i < studioHdr.NumBones(); i++, pweight++) {
+			pbone = studioHdr.Bone(i);
 			if (panim != null && panim.Bone == i) {
 				if (pweight > 0 && (studioHdr.BoneFlags(i) & boneMask) != 0) {
 					CalcBoneQuaternion(iLocalFrame, (float)s, pbone, linearBones, panim, ref q[i]);
@@ -669,9 +708,6 @@ public ref struct BoneSetup
 					pos[i] = pbone.Position;
 				}
 			}
-
-			if (i < studioHdr.NumBones() - 1)
-				pbone = studioHdr.Bone(i);
 		}
 
 		// cross fade in previous zeroframe data

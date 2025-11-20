@@ -673,8 +673,8 @@ public static class MathLib
 
 	public static void Init(this ref Quaternion m, float x, float y, float z, float w) {
 		m.X = x;
-		m.Z = y;
-		m.Y = z;
+		m.Y = y;
+		m.Z = z;
 		m.W = w;
 	}
 
