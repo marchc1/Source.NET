@@ -899,8 +899,50 @@ public ref struct BoneSetup
 		}
 	}
 
-	private static void AddLocalLayers(Span<Vector3> pos2, Span<Quaternion> q2, MStudioSeqDesc seqdesc, int sequence, double cycle, double v, double time, object? ikContext) {
+	private void AddLocalLayers(Span<Vector3> pos, Span<Quaternion> q, MStudioSeqDesc seqdesc, int sequence, double cycle, double weight, double time, object? ikContext) {
+		if ((seqdesc.Flags & StudioAnimSeqFlags.Local) == 0) 
+			return;
 
+		for (int i = 0; i < seqdesc.NumAutoLayers; i++) {
+			MStudioAutoLayer pLayer = seqdesc.Autolayer(i);
+
+			if ((pLayer.Flags & StudioAutolayerFlags.Local) == 0)
+				continue;
+
+			float layerCycle = (float)cycle;
+			float layerWeight = (float)weight;
+
+			if (pLayer.Start != pLayer.End) {
+				float s = 1.0f;
+
+				if (cycle < pLayer.Start)
+					continue;
+				if (cycle >= pLayer.End)
+					continue;
+
+				if (cycle < pLayer.Peak && pLayer.Start != pLayer.Peak) {
+					s = (float)(cycle - pLayer.Start) / (pLayer.Peak - pLayer.Start);
+				}
+				else if (cycle > pLayer.Tail && pLayer.End != pLayer.Tail) {
+					s = (float)(pLayer.End - cycle) / (pLayer.End - pLayer.Tail);
+				}
+
+				if ((pLayer.Flags & StudioAutolayerFlags.Spline) != 0)
+					s = MathLib.SimpleSpline(s);
+
+				if ((pLayer.Flags & StudioAutolayerFlags.XFade) != 0 && (cycle > pLayer.Tail)) 
+					layerWeight = (float)((s * weight) / (1 - weight + s * weight));
+				else if ((pLayer.Flags & StudioAutolayerFlags.NoBlend) != 0) 
+					layerWeight = s;
+				else 
+					layerWeight = (float)weight * s;
+
+				layerCycle = (float)(cycle - pLayer.Start) / (pLayer.End - pLayer.Start);
+			}
+
+			int iSequence = studioHdr.RelativeSeq(sequence, pLayer.Sequence);
+			AccumulatePose(pos, q, iSequence, layerCycle, layerWeight, time, ikContext);
+		}
 	}
 
 	private static void SlerpBones(StudioHdr studioHdr, Span<Quaternion> q1, Span<Vector3> pos1, MStudioSeqDesc seqdesc, int sequence, Span<Quaternion> q2, Span<Vector3> pos2, float s, int boneMask) {

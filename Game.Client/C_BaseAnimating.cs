@@ -248,7 +248,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		for (int i = 0; i < Studio.MAXSTUDIOPOSEPARAM; i++)
 			poseparam[i] = PoseParameter[i];
 		TimeUnit_t cycle = GetCycle();
-
+		
 		BoneSetup setup = new(hdr, boneMask, poseparam);
 		setup.InitPose(pos, q);
 		setup.AccumulatePose(pos, q, GetSequence(), cycle, 1.0f, currentTime, null);
@@ -753,8 +753,8 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public float SetPoseParameter(int parameter, float value) => SetPoseParameter(GetModelPtr(), parameter, value);
 	public float SetPoseParameter(StudioHdr? studioHdr, ReadOnlySpan<char> name, float value) => SetPoseParameter(studioHdr, LookupPoseParameter(studioHdr, name), value);
 
-	private int LookupPoseParameter(ReadOnlySpan<char> name) => LookupPoseParameter(GetModelPtr(), name);
-	private int LookupPoseParameter(StudioHdr? studioHdr, ReadOnlySpan<char> name) {
+	public int LookupPoseParameter(ReadOnlySpan<char> name) => LookupPoseParameter(GetModelPtr(), name);
+	public int LookupPoseParameter(StudioHdr? studioHdr, ReadOnlySpan<char> name) {
 		if (studioHdr == null)
 			return 0;
 

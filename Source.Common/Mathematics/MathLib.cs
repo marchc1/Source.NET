@@ -323,6 +323,10 @@ public static class MathLib
 		return (Math.Abs(a * b) + a) % b;
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float SimpleSpline(float value) {
+		return (value * value) * (3 - 2 * value);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static double SimpleSpline(double value) {
 		return (value * value) * (3 - 2 * value);
 	}

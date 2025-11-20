@@ -33,7 +33,7 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 	}
 
 	public IClientUnknown? GetClientUnknownFromHandle(BaseHandle ent) {
-		return (IClientUnknown)LookupEntity(ent);
+		return (IClientUnknown?)LookupEntity(ent);
 	}
 
 	public int GetHighestEntityIndex() {
