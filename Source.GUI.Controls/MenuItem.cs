@@ -1,5 +1,6 @@
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
+using Source.Common.Input;
 
 namespace Source.GUI.Controls;
 
@@ -332,8 +333,9 @@ public class MenuItem : Button
 			case "KeyModeSet":
 				OnKeyModeSet();
 				break;
+			default:
+				base.OnMessage(message, from);
+				break;
 		}
-
-		base.OnMessage(message, from);
 	}
 }

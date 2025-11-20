@@ -116,8 +116,8 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 	protected bool WasBackspacing;
 	protected bool StatusVersion;
 
-	List<CompletionItem> CompletionItems = new();
-	List<HistoryItem> CommandHistory = new();
+	List<CompletionItem> CompletionItems = [];
+	List<HistoryItem> CommandHistory = [];
 
 	static readonly KeyValues KV_ClosedByHittingTilde = new("ClosedByHittingTilde");
 	static readonly KeyValues KV_Close = new("Close");
@@ -171,7 +171,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 					text = CompletionItems[i]!.GetItemText();
 				}
 
-				KeyValues kv = new KeyValues("CompletionCommand");
+				KeyValues kv = new("CompletionCommand");
 				kv.SetString("command", text);
 				CompletionList.AddMenuItem(text, kv, this);
 			}
@@ -292,7 +292,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		if (len < 1) {
 			for (int i = 0; i < CommandHistory.Count; i++) {
 				HistoryItem item = CommandHistory[i];
-				CompletionItem comp = new CompletionItem();
+				CompletionItem comp = new();
 				CompletionItems.Add(comp);
 				comp.IsCommand = true;
 				comp.Command = null;
@@ -317,7 +317,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			Assert(count <= 64);
 
 			for (int i = 0; i < count; i++) {
-				CompletionItem item = new CompletionItem();
+				CompletionItem item = new();
 				CompletionItems.Add(item);
 				item.IsCommand = false;
 				item.Command = null;
@@ -335,7 +335,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 					continue;
 
 				if (text[..len].CompareTo(cmdName[..len], StringComparison.OrdinalIgnoreCase) == 0) {
-					CompletionItem item = new CompletionItem();
+					CompletionItem item = new();
 					CompletionItems.Add(item);
 					item.Command = cmd;
 					string tst = cmd.GetName();

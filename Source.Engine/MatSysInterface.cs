@@ -317,7 +317,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 				case ToolTexture.Skybox3D: SkyboxMeshesIndices.Add(i); Skybox3DMeshesIndices.Add(i); break;
 			}
 
-			MeshBuilder meshBuilder = new MeshBuilder();
+			MeshBuilder meshBuilder = new();
 			meshBuilder.Begin(meshes[i].Mesh, MaterialPrimitiveType.Triangles, meshes[i].VertCount, meshes[i].IndexCount);
 			for (int j = 0; j < WorldStaticMeshes.Count; j++) {
 				int meshId = sortIndex[j];
@@ -612,7 +612,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		ref BSPMSurface2 surfID = ref Unsafe.NullRef<BSPMSurface2>();
 		materials.BeginLightmapAllocation();
 
-		List<nint> surfaces = new();
+		List<nint> surfaces = [];
 		for (int surfaceIndex = 0; surfaceIndex < host_state.WorldBrush!.NumSurfaces; surfaceIndex++) {
 			surfID = ref ModelLoader.SurfaceHandleFromIndex(surfaceIndex, host_state.WorldBrush);
 			if ((ModelLoader.MSurf_TexInfo(ref surfID).Flags & Surf.NoLight) != 0 ||

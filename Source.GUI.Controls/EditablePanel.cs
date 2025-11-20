@@ -101,7 +101,7 @@ public class EditablePanel : Panel
 
 	public void ApplyUserConfigSettings(KeyValues userConfig) {
 		for (int i = 0; i < GetChildCount(); i++) {
-			Panel child = GetChild(i);
+			//Panel child = GetChild(i);
 			// if (child.HasUserConfigSettings()) {
 			// 	ReadOnlySpan<char> childName = child.GetName();
 			// 	if (childName.IsEmpty)
@@ -218,14 +218,12 @@ public class EditablePanel : Panel
 
 	public void SetControlEnabled(ReadOnlySpan<char> controlName, bool enabled, bool recurseDown = false) {
 		Panel? control = FindChildByName(controlName, recurseDown);
-		if (control != null)
-			control.SetEnabled(enabled);
+		control?.SetEnabled(enabled);
 	}
 
 	public void SetControlVisible(ReadOnlySpan<char> controlName, bool visible, bool recurseDown = false) {
 		Panel? control = FindChildByName(controlName, recurseDown);
-		if (control != null)
-			control.SetVisible(visible);
+		control?.SetVisible(visible);
 	}
 
 	public void SetControlString(ReadOnlySpan<char> controlName, ReadOnlySpan<char> str) {
@@ -294,11 +292,11 @@ public class EditablePanel : Panel
 			if (child == null)
 				continue;
 
-			child.GetBounds(out int x, out int y, out int w, out int h);
+			//child.GetBounds(out int x, out int y, out int w, out int h);
 			// child.GetPinOffset(out int px, out int py);
 			// child.GetResizeOffset(out int ox, out int oy);
 
-			int ex, ey;
+			//int ex, ey;
 
 			// AutoResize resize = child.GetAutoResize();
 		}

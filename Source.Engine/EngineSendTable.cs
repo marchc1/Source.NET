@@ -34,7 +34,7 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 		if (table.Precalc != null)
 			return true;
 
-		SendTablePrecalc precalc = new SendTablePrecalc();
+		SendTablePrecalc precalc = new();
 		table.Precalc = precalc;
 
 		precalc.SendTable = table;
