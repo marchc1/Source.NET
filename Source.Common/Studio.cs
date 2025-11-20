@@ -837,7 +837,7 @@ public class MStudioAnimSections
 	public const int SIZEOF = 8; // Static offset from MSVC stats (mstudiobone_t size 8, alignment 4)
 	public static MStudioAnimSections FACTORY(object caller, Memory<byte> data) => new() {
 		AnimBlock = data.Span.Cast<byte, int>()[0],
-		AnimIndex = data.Span.Cast<byte, int>()[0]
+		AnimIndex = data.Span.Cast<byte, int>()[1]
 	};
 	public int AnimBlock;
 	public int AnimIndex;
@@ -974,8 +974,8 @@ public class MStudioAnimDesc
 
 	public int SectionIndex;
 	public int SectionFrames;
-	List<MStudioAnimSections?> sections = [];
-	public MStudioAnimSections Section(int i) => Studio.ProduceVaradicArrayIdx(this, ref sections, SectionIndex, i, MStudioAnimSections.SIZEOF, Data, MStudioAnimSections.FACTORY);
+	MStudioAnimSections[]? sections;
+	public MStudioAnimSections Section(int i) => Studio.ProduceArrayIdx(this, ref sections, SectionFrames, SectionIndex, i, MStudioAnimSections.SIZEOF, Data, MStudioAnimSections.FACTORY);
 
 
 	public int ZeroFrameSpan;
@@ -1099,7 +1099,8 @@ public class MStudioSeqDesc
 		if (y >= GroupSize[1]) y = GroupSize[1] - 1;
 
 		int offset = y * GroupSize[0] + x;
-		return Data.Span[(offset * sizeof(short))..][..2].Cast<byte, short>()[0];
+		Span<short> blends = Data.Span[AnimIndexIndex..].Cast<byte, short>();
+		return blends[offset];
 	}
 
 	public int MovementIndex;
@@ -1456,7 +1457,9 @@ public class StudioHeader
 	public int ID;
 	public int Version;
 	public int Checksum;
-	public InlineArray64<char> Name;
+	public InlineArray64<byte> Name;
+	public string? nameCache;
+	public string GetName() => Studio.ProduceASCIIString(ref nameCache, Name);
 	public int Length;
 
 	public Vector3 EyePosition;
@@ -1556,15 +1559,6 @@ public class StudioHeader
 		return cdTextureCache[i];
 	}
 
-	/// <summary>
-	/// pszName equiv
-	/// </summary>
-	public ReadOnlySpan<char> GetName() {
-		// TODO: studiohdr2 index
-
-		return ((ReadOnlySpan<char>)Name).SliceNullTerminatedString();
-	}
-
 	MStudioBodyParts[]? bodyPartCache;
 	public MStudioBodyParts BodyPart(int i) {
 		return Studio.ProduceArrayIdx(this, ref bodyPartCache, NumBodyParts, BodyPartIndex, i, MStudioBodyParts.SIZEOF, Data, MStudioBodyParts.FACTORY);
@@ -1644,12 +1638,9 @@ public class StudioHeader
 	public byte ConstDirectionalLightDot;
 	public byte RootLOD;
 	public byte NumAllowedRootLODs;
-	byte _UNUSED1;
-	int _UNUSED4;
 	public int NumFlexControllerUI;
 	public int FlexControllerUIIndex;
 	public float VertAnimFixedPointScale;
-	byte _UNUSED3;
 
 	public int StudioHDR2Index;
 	StudioHeader2? studioHdr2;

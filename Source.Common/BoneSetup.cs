@@ -275,7 +275,7 @@ public ref struct BoneSetup
 				t += (panim[i].FPS / (panim[i].NumFrames - 1)) * weight[i];
 			}
 		}
-
+		ArrayPool<MStudioAnimDesc>.Shared.Return(panim);
 		return t;
 	}
 	private static void Calc3WayBlendIndices(int i0, int i1, float s0, float s1, MStudioSeqDesc seqdesc, Span<int> animIndices, Span<float> weight) {

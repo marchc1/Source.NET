@@ -119,6 +119,10 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 	}
 
+	public void AddBaseAnimatingInterpolatedVars() {
+		AddVar(FIELD.OF(nameof(Cycle)), iv_Cycle, LatchFlags.LatchAnimationVar, true);
+	}
+
 	public override bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, double currentTime) {
 		if (!boneToWorldOut.IsEmpty && !IsBoneAccessAllowed()) {
 			if (gpGlobals.RealTime >= SetupBones__lastWarning + 1.0f) {
@@ -150,6 +154,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 			Matrix3x4 parentTransform = default;
 			MathLib.AngleMatrix(GetRenderAngles(), GetRenderOrigin(), ref parentTransform);
+			// MathLib.AngleMatrix(new(19.56f, -145.89f, 0), new(-767, 143.9f, -12650), ref parentTransform);
 
 			boneMask |= PrevBoneMask;
 
@@ -166,8 +171,9 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 				Span<Vector3> pos = stackalloc Vector3[Studio.MAXSTUDIOBONES];
 				Span<Quaternion> q = stackalloc Quaternion[Studio.MAXSTUDIOBONES];
-				memset(pos, Vector3.NaN);
-				memset(q, new(float.NaN, float.NaN, float.NaN, float.NaN));
+				memset(pos.Cast<Vector3, float>(), float.NaN);
+				memset(q.Cast<Quaternion, float>(), float.NaN);
+
 				int bonesMaskNeedRecalc = boneMask | oldReadableBones;
 
 				StandardBlendingRules(hdr, pos, q, currentTime, bonesMaskNeedRecalc);
@@ -201,7 +207,8 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public TimeUnit_t GetCycle() => Cycle;
 	private void StandardBlendingRules(StudioHdr hdr, Span<Vector3> pos, Span<Quaternion> q, TimeUnit_t currentTime, int boneMask) {
 		Span<float> poseparam = stackalloc float[Studio.MAXSTUDIOPOSEPARAM];
-
+		for (int i = 0; i < Studio.MAXSTUDIOPOSEPARAM; i++) 
+			poseparam[i] = PoseParameter[i];
 		TimeUnit_t cycle = GetCycle();
 
 		BoneSetup setup = new(hdr, boneMask, poseparam);
@@ -292,8 +299,12 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return hdr;
 	}
 	public C_BaseAnimating() {
+		iv_Cycle = new($"{nameof(C_BaseAnimating)}.{iv_Cycle}");
+
 		pStudioHdr = null;
 		hStudioHdr = MDLHANDLE_INVALID;
+
+		AddBaseAnimatingInterpolatedVars();
 	}
 
 	public void OnModelLoadComplete(Model model) {
@@ -607,6 +618,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public float FadeMaxDist;
 	public float FadeScale;
 	public float Cycle;
+	public readonly InterpolatedVar<float> iv_Cycle;
 
 	public InlineArrayMaxStudioPoseParam<float> PoseParameter;
 	public InlineArrayMaxStudioPoseParam<float> OldPoseParameters;

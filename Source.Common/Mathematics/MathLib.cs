@@ -407,7 +407,7 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static ref float SubFloat(ref Vector4 a, int idx) {
 		ArgumentOutOfRangeException.ThrowIfNegative(idx);
-		ArgumentOutOfRangeException.ThrowIfLessThan(idx, 4);
+		ArgumentOutOfRangeException.ThrowIfGreaterThan(idx, 4);
 
 		return ref new Span<Vector4>(ref a).Cast<Vector4, float>()[idx];
 	}
@@ -422,8 +422,26 @@ public static class MathLib
 			float cr = SubFloat(ref cosine, 0), cp = SubFloat(ref cosine, 1), cy = SubFloat(ref cosine, 2);
 
 			float srXcp = sr * cp, crXsp = cr * sp;
-			outQuat.X = srXcp * cy - crXsp * sy; 
-			outQuat.Y = crXsp * cy + srXcp * sy; 
+			outQuat.X = srXcp * cy - crXsp * sy;
+			outQuat.Y = crXsp * cy + srXcp * sy;
+
+			float crXcp = cr * cp, srXsp = sr * sp;
+			outQuat.Z = crXcp * sy - srXsp * cy;
+			outQuat.W = crXcp * cy + srXsp * sy;
+		}
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe void AngleQuaternion(in QAngle angles, out Quaternion outQuat) {
+		fixed (QAngle* pQ = &angles) {
+			Vector4 radians = new(*(Vector3*)pQ, 0.5f);
+			(Vector4 sine, Vector4 cosine) = Vector4.SinCos(radians);
+
+			float sr = SubFloat(ref sine, 0), sp = SubFloat(ref sine, 1), sy = SubFloat(ref sine, 2);
+			float cr = SubFloat(ref cosine, 0), cp = SubFloat(ref cosine, 1), cy = SubFloat(ref cosine, 2);
+
+			float srXcp = sr * cp, crXsp = cr * sp;
+			outQuat.X = srXcp * cy - crXsp * sy;
+			outQuat.Y = crXsp * cy + srXcp * sy;
 
 			float crXcp = cr * cp, srXsp = sr * sp;
 			outQuat.Z = crXcp * sy - srXsp * cy;
@@ -941,7 +959,7 @@ public static class MathLib
 				qt[i] = -q[i];
 			}
 		}
-		else if (!Unsafe.AreSame(in p, ref qt)) {
+		else if (!Unsafe.AreSame(in q, ref qt)) {
 			for (i = 0; i < 4; i++) {
 				qt[i] = q[i];
 			}
