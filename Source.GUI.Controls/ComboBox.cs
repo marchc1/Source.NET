@@ -88,7 +88,6 @@ public class ComboBox : TextEntry
 	public void SetNumberOfEditLines(int numLines) => DropDown.SetNumberOfVisibleItems(numLines);
 
 	public virtual int AddItem(ReadOnlySpan<char> itemText, KeyValues? userData) {
-		Console.WriteLine($"ComboBox::AddItem: {itemText}");
 		return DropDown.AddMenuItem(itemText, new KeyValues("SetText", "text", itemText), this, userData);
 	}
 
