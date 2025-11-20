@@ -651,7 +651,7 @@ public ref struct BoneSetup
 			return;
 		}
 
-		for (int i = 0; i < studioHdr.NumBones(); i++, pbone = studioHdr.Bone(i), pweight++) {
+		for (int i = 0; i < studioHdr.NumBones(); i++, pweight++) {
 			if (panim != null && panim.Bone == i) {
 				if (pweight > 0 && (studioHdr.BoneFlags(i) & boneMask) != 0) {
 					CalcBoneQuaternion(iLocalFrame, (float)s, pbone, linearBones, panim, ref q[i]);
@@ -669,6 +669,9 @@ public ref struct BoneSetup
 					pos[i] = pbone.Position;
 				}
 			}
+
+			if (i < studioHdr.NumBones() - 1)
+				pbone = studioHdr.Bone(i);
 		}
 
 		// cross fade in previous zeroframe data
