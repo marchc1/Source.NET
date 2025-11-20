@@ -788,7 +788,8 @@ public class MStudioAnim
 
 	public ref Quaternion48 Quat48() => ref Data().Cast<byte, Quaternion48>()[0];
 	public ref Quaternion64 Quat64() => ref Data().Cast<byte, Quaternion64>()[0];
-	public ref Vector48 Pos() => ref Data().Cast<byte, Vector48>()[0];
+	public unsafe ref Vector48 Pos() 
+		=> ref Data()[(((Flags & StudioAnimFlags.RawRot) != 0 ? 1 : 0) * sizeof(Quaternion48) + ((Flags & StudioAnimFlags.RawRot2) != 0 ? 1 : 0) * sizeof(Quaternion64))..].Cast<byte, Vector48>()[0];
 
 
 	MStudioAnim? next;
