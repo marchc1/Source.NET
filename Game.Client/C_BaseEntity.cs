@@ -364,6 +364,9 @@ public partial class C_BaseEntity : IClientEntity
 		AddVar(DA_Origin, IV_Origin, LatchFlags.LatchSimulationVar);
 		AddVar(DA_Rotation, IV_Rotation, LatchFlags.LatchSimulationVar);
 
+		DataChangeEventRef.Struct = unchecked((ulong)-1);
+		EntClientFlags = 0;
+
 		RenderFXBlend = 255;
 		Predictable = false;
 
@@ -479,7 +482,7 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public readonly Handle<C_BasePlayer> PlayerSimulationOwner = new();
-	public int DataChangeEventRef;
+	public readonly ReusableBox<ulong> DataChangeEventRef = new();
 
 	public int GetFxBlend() => RenderFXBlend;
 	public void GetColorModulation(Span<float> color) {
@@ -671,7 +674,7 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 	public virtual void PreDataUpdate(DataUpdateType updateType) {
-		if (AddDataChangeEvent(this, updateType, ref DataChangeEventRef))
+		if (HLClient.AddDataChangeEvent(this, updateType, DataChangeEventRef))
 			OnPreDataChanged(updateType);
 
 		bool newentity = updateType == DataUpdateType.Created;
@@ -1173,17 +1176,6 @@ public partial class C_BaseEntity : IClientEntity
 		GetAimEntOrigin(GetMoveParent(), out Vector3 aimEntOrigin, out QAngle aimEntAngles);
 		SetAbsOrigin(aimEntOrigin);
 		SetAbsAngles(aimEntAngles);
-	}
-
-	private bool AddDataChangeEvent(C_BaseEntity c_BaseEntity, DataUpdateType updateType, ref int storedEvent) {
-		if (storedEvent >= 0) {
-			// todo
-			return false;
-		}
-		else {
-			// todo
-			return true;
-		}
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]

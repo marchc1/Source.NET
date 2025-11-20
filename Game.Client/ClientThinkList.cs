@@ -207,7 +207,6 @@ public class CClientThinkList : IGameSystemPerFrame
 
 	// Internal stuff
 	private void SetNextClientThink(ClientThinkHandle_t hThink, TimeUnit_t nextTime) {
-
 		if (hThink == INVALID_THINK_HANDLE)
 			return;
 
@@ -243,7 +242,7 @@ public class CClientThinkList : IGameSystemPerFrame
 		IClientThinkable? pThink = cl_entitylist.GetClientThinkableFromHandle(entry.Ent);
 		if (pThink != null)
 			pThink.SetThinkHandle(INVALID_THINK_HANDLE);
-
+		ThinkEntries.Remove(hThink);
 	}
 
 	private void PerformThinkFunction(ThinkEntry pEntry, TimeUnit_t curtime) {

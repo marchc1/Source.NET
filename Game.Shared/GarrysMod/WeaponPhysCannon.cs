@@ -104,7 +104,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		base.OnDataChanged(type);
 
 		if (type == DataUpdateType.Created) {
-			// SetNextClientThink(CLIENT_THINK_ALWAYS);
+			SetNextClientThink(CLIENT_THINK_ALWAYS);
 		}
 
 		// Update effect state when out of parity with the server

@@ -168,6 +168,12 @@ public class PooledValueDictionary<V> : IEnumerable<V> where V : IPoolableObject
 		return false;
 	}
 
+	public void Purge() {
+		foreach (var v in this)
+			pool.Free(v);
+		dict.Clear();
+	}
+
 	public IEnumerator<V> GetEnumerator() => dict.Values.GetEnumerator();
 	IEnumerator IEnumerable.GetEnumerator() => dict.Values.GetEnumerator();
 
