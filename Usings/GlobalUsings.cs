@@ -28,4 +28,6 @@ global using OverlayFragmentHandle_t = ushort;
 global using Trace = Source.Common.GameTrace;
 global using ViewRects = Source.Common.Utilities.RefStack<Source.Common.Engine.ViewRect>;
 global using ClientRenderHandle_t = long;
+global using ClientEntityHandle = Source.Common.BaseHandle;
+global using ClientThinkHandle_t = ulong;
 global using static Source.Common.ClientRenderHandleGlobals;

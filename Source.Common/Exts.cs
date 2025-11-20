@@ -8,6 +8,7 @@ using Source.Common.Engine;
 using Source.Common.Utilities;
 
 using System.Buffers;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -116,6 +117,62 @@ public class ListPool<T>
 	}
 }
 
+public class PooledValueList<V> where V : IPoolableObject, new()
+{
+	public int Count() => list.Count;
+	readonly List<V> list = [];
+	readonly ObjectPool<V> pool = new();
+	public int AddToTail() {
+		list.Add(pool.Alloc());
+		return list.Count - 1;
+	}
+	public void RemoveAt(int i) {
+		for (int j = 0; j < list.Count; j++) {
+			if (j == i) {
+				pool.Free(list[j]);
+				list.RemoveAt(j);
+				return;
+			}
+		}
+	}
+
+	public void RemoveAll() {
+		for (int j = 0; j < list.Count; j++)
+			pool.Free(list[j]);
+		list.Clear();
+	}
+
+	public V this[int index] => list[index];
+}
+// Kind of like a CUtlLinkedList, but not really... meant to be memory efficient in a C# context.
+public class PooledValueDictionary<V> : IEnumerable<V> where V : IPoolableObject, new()
+{
+	public int Count() => dict.Count;
+	readonly Dictionary<ulong, V> dict = [];
+	readonly ObjectPool<V> pool = new();
+	ulong ptr = 0;
+	ulong NewPtr() => Interlocked.Increment(ref ptr);
+
+	public bool IsInList(ulong i) => dict.ContainsKey(i);
+
+	public ulong AddToTail() {
+		ulong newPtr = NewPtr();
+		dict[ptr] = pool.Alloc();
+		return newPtr;
+	}
+	public bool Remove(ulong key) {
+		if (dict.Remove(key, out V? value)) {
+			pool.Free(value);
+			return true;
+		}
+		return false;
+	}
+
+	public IEnumerator<V> GetEnumerator() => dict.Values.GetEnumerator();
+	IEnumerator IEnumerable.GetEnumerator() => dict.Values.GetEnumerator();
+
+	public V this[ulong index] => dict[index];
+}
 
 public class ObjectPool<T> where T : IPoolableObject, new()
 {

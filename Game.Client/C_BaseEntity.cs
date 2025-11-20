@@ -42,6 +42,10 @@ public partial class C_BaseEntity : IClientEntity
 	static bool s_bAbsRecomputationEnabled = true;
 	static ConVar cl_interpolate = new("cl_interpolate", "1", FCvar.UserInfo | FCvar.DevelopmentOnly);
 
+	ClientThinkHandle_t thinkHandle;
+	public ClientThinkHandle_t GetThinkHandle() => thinkHandle;
+	public void SetThinkHandle(ClientThinkHandle_t handle) => thinkHandle = handle;
+
 	public virtual bool IsWorld() => EntIndex() == 0;
 	public virtual bool IsPlayer() => false;
 	public virtual bool IsBaseCombatCharacter() => false;
@@ -139,6 +143,7 @@ public partial class C_BaseEntity : IClientEntity
 		CreationTick = -1;
 		ModelInstance = MODEL_INSTANCE_INVALID;
 		renderHandle = INVALID_CLIENT_RENDER_HANDLE;
+		thinkHandle = INVALID_THINK_HANDLE;
 		Index = -1;
 		SetLocalOrigin(vec3_origin);
 		SetLocalAngles(vec3_angle);
@@ -514,7 +519,7 @@ public partial class C_BaseEntity : IClientEntity
 		return true;
 	}
 	public virtual void SetupWeights(Matrix3x4 boneToWorldOut, Span<float> flexWeights, TimeUnit_t currentTime) {
-		
+
 	}
 	public virtual void DoAnimationEvents() {
 
@@ -817,7 +822,7 @@ public partial class C_BaseEntity : IClientEntity
 				return false;
 			}
 		}
-		else 
+		else
 			modelIndex = -1;
 
 		Interp_SetupMappings(ref GetVarMapping());
@@ -875,8 +880,8 @@ public partial class C_BaseEntity : IClientEntity
 		if (renderHandle == INVALID_CLIENT_RENDER_HANDLE) {
 			clientLeafSystem.AddRenderable(this, group);
 			clientLeafSystem.EnableAlternateSorting(renderHandle, AlternateSorting);
-		}					
-		else {				
+		}
+		else {
 			clientLeafSystem.SetRenderGroup(renderHandle, group);
 			clientLeafSystem.RenderableChanged(renderHandle);
 		}
@@ -1104,6 +1109,18 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
+	public void SetRemovalFlag(bool remove) {
+		if (remove)
+			eflags |= EFL.KillMe;
+		else
+			eflags &= ~EFL.KillMe;
+	}
+
+	public void SetNextClientThink(TimeUnit_t nextThinkTime) {
+		Assert(GetClientHandle() != INVALID_CLIENTENTITY_HANDLE);
+		ClientThinkList().SetNextClientThink(GetClientHandle()!, nextThinkTime);
+	}
+
 	public virtual void GetAimEntOrigin(C_BaseEntity attachedTo, out Vector3 origin, out QAngle angles) {
 		origin = attachedTo.GetAbsOrigin();
 		angles = attachedTo.GetAbsAngles();
@@ -1304,7 +1321,7 @@ public partial class C_BaseEntity : IClientEntity
 			}
 		}
 
-		if (assert) 
+		if (assert)
 			AssertMsg(false, "RemoveVar");
 	}
 	public ref VarMapping GetVarMapping() => ref VarMap;

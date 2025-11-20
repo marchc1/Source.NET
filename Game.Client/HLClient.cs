@@ -178,7 +178,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	private void SimulateEntities() {
-
+		ClientThinkList().PerformThinkFunctions();
 	}
 
 	private void OnRenderEnd() {

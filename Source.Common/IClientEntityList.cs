@@ -6,6 +6,7 @@ public interface IClientEntityList {
 	IClientUnknown? GetClientUnknownFromHandle(BaseHandle ent);
 	IClientEntity? GetClientEntity(int entNum);
 	IClientEntity? GetClientEntityFromHandle(BaseHandle ent);
+	IClientThinkable? GetClientThinkableFromHandle(BaseHandle ent);
 	int NumberOfEntities(bool includeNonNetworkable);
 	int GetHighestEntityIndex();
 	void SetMaxEntities(int maxEnts);

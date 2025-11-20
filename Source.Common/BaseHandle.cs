@@ -3,10 +3,14 @@
 public class BaseHandle {
 	public uint Index;
 
-	public BaseHandle() => Index = (uint)Constants.INVALID_EHANDLE_INDEX;
+	public void Invalidate() => Index = (uint)Constants.INVALID_EHANDLE_INDEX;
+	public BaseHandle() => Invalidate();
 	public BaseHandle(BaseHandle handle) => Index = handle.Index;
 	public BaseHandle(int entry, int serial) => Init(entry, serial);
 
+	public void Init(BaseHandle otherHandle) => Index = otherHandle.Index;
+	public void Init(uint entindex) => Index = entindex;
+	public void Init(ulong entindex) => Index = (uint)entindex;
 	public void Init(int entry, int serial) => Index = (uint)(entry | (serial << Constants.NUM_ENT_ENTRY_BITS));
 
 	public int GetEntryIndex() => (int)(Index & Constants.ENT_ENTRY_MASK);
