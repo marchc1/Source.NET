@@ -8,7 +8,7 @@ public class PropertyPage : EditablePanel
 {
 	Panel? PageTab;
 
-	public PropertyPage(Panel? parent, string? name) : base(parent, name) {
+	public PropertyPage(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 
 	}
 

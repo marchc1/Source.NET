@@ -6,24 +6,24 @@ namespace Game.UI;
 
 public class OptionsSubMouse : PropertyPage
 {
-	CvarNegateCheckButton ReverseMouseCheckBox;
-	CvarToggleCheckButton MouseFilterCheckBox;
-	CvarToggleCheckButton MouseRawCheckBox;
+	CCvarNegateCheckButton ReverseMouseCheckBox;
+	CCvarToggleCheckButton MouseFilterCheckBox;
+	CCvarToggleCheckButton MouseRawCheckBox;
 	CheckButton MouseAccelerationCheckBox;
-	CvarToggleCheckButton JoystickCheckBox;
-	CvarToggleCheckButton JoystickSouthpawCheckBox;
-	CvarToggleCheckButton QuickInfoCheckBox;
-	CvarToggleCheckButton ReverseJoystickCheckBox;
-	CvarSlider MouseSensitivitySlider;
+	CCvarToggleCheckButton JoystickCheckBox;
+	CCvarToggleCheckButton JoystickSouthpawCheckBox;
+	CCvarToggleCheckButton QuickInfoCheckBox;
+	CCvarToggleCheckButton ReverseJoystickCheckBox;
+	CCvarSlider MouseSensitivitySlider;
 	TextEntry MouseSensitivityLabel;
-	CvarSlider MouseAccelExponentSlider;
+	CCvarSlider MouseAccelExponentSlider;
 	TextEntry MouseAccelExponentLabel;
-	CvarSlider JoyYawSensitivitySlider;
+	CCvarSlider JoyYawSensitivitySlider;
 	Label JoyYawSensitivityPreLabel;
-	CvarSlider JoyPitchSensitivitySlider;
+	CCvarSlider JoyPitchSensitivitySlider;
 	Label JoyPitchSensitivityPreLabel;
 
-	public OptionsSubMouse(Panel? parent, string? name) : base(parent, name) {
+	public OptionsSubMouse(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 		ReverseMouseCheckBox = new(this, "ReverseMouse", "#GameUI_ReverseMouse", "m_pitch");
 		MouseFilterCheckBox = new(this, "MouseFilter", "#GameUI_MouseFilter", "m_filter");
 		MouseRawCheckBox = new(this, "MouseRaw", "#GameUI_MouseRaw", "m_rawinput");
@@ -44,15 +44,6 @@ public class OptionsSubMouse : PropertyPage
 		JoyPitchSensitivityPreLabel = new(this, "JoystickPitchSensitivityPreLabel", "#GameUI_JoystickLookSpeedPitch");
 
 		LoadControlSettings("resource/OptionsSubMouse.res");
-
-		// just sticks to top left corner, hiding for now..
-		JoystickCheckBox.SetVisible(false);
-		JoystickSouthpawCheckBox.SetVisible(false);
-		ReverseJoystickCheckBox.SetVisible(false);
-		JoyYawSensitivitySlider.SetVisible(false);
-		JoyYawSensitivityPreLabel.SetVisible(false);
-		JoyPitchSensitivitySlider.SetVisible(false);
-		JoyPitchSensitivityPreLabel.SetVisible(false);
 	}
 
 	public override void OnResetData() {

@@ -174,7 +174,11 @@ public class BuildGroup
 
 			newPanel.SetAutoDelete(true);
 		}
-
+#if DEBUG
+		else {
+			Warning($"BuildGroup::NewControl Could not create control of type '{controlKeys.GetString("ControlName")}'\n");
+		}
+#endif
 		return newPanel;
 	}
 

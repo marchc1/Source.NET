@@ -59,7 +59,7 @@ public class ComboBox : TextEntry
 	int OpenOffsetY;
 	char[] BorderOverride = new char[64];
 
-	public ComboBox(Panel parent, string name, int numLines, bool allowEdit) : base(parent, name) {
+	public ComboBox(Panel parent, ReadOnlySpan<char> name, int numLines, bool allowEdit) : base(parent, name) {
 		SetEditable(allowEdit);
 		SetHorizontalScrolling(false);
 
@@ -87,7 +87,7 @@ public class ComboBox : TextEntry
 
 	public void SetNumberOfEditLines(int numLines) => DropDown.SetNumberOfVisibleItems(numLines);
 
-	public int AddItem(ReadOnlySpan<char> itemText, KeyValues? userData) {
+	public virtual int AddItem(ReadOnlySpan<char> itemText, KeyValues? userData) {
 		return DropDown.AddMenuItem(itemText, new KeyValues("SetText", "text", itemText), this, userData);
 	}
 
@@ -121,7 +121,7 @@ public class ComboBox : TextEntry
 
 	public int GetItemIDFromRow(int row) => DropDown.GetMenuID(row);
 
-	public void ActivateItem(int itemID) {
+	public virtual void ActivateItem(int itemID) {
 
 	}
 

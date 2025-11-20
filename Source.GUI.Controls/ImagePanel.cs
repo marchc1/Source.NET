@@ -5,6 +5,8 @@ namespace Source.GUI.Controls;
 
 public class ImagePanel : Panel
 {
+	public static Panel Create_ImagePanel() => new ImagePanel(null, null);
+
 	IImage? Image;
 	string? ImageName;
 	string? FillColorName;

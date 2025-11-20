@@ -23,7 +23,7 @@ public class OptionsSubKeyboard : PropertyPage
 
 	List<string> KeysToUnbind = new();
 
-	public OptionsSubKeyboard(Panel? parent, string? name) : base(parent, name) {
+	public OptionsSubKeyboard(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 		for (int i = 0; i < KeyBindings.Length; i++)
 			KeyBindings[i] = new();
 
