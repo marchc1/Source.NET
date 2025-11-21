@@ -52,6 +52,11 @@ public struct PlayerInfo
 	}
 }
 
+public struct AudioState {
+	public Vector3 Origin;
+	public QAngle Angles;
+	public bool IsUnderwater;
+}
 public enum SkyboxVisibility
 {
 	NotVisible,

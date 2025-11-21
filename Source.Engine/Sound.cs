@@ -1,7 +1,10 @@
 ﻿using Source.Common.Audio;
+using Source.Common.Client;
 using Source.Common.Filesystem;
+using Source.Common.Mathematics;
 using Source.Common.Networking;
 
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Source.Engine;
@@ -90,6 +93,42 @@ public class Sound(IFileSystem fileSystem)
 	}
 
 	internal void Shutdown() {
+
+	}
+
+	Vector3 ListenerOrigin;
+	Vector3 ListenerForward;
+	Vector3 ListenerRight;
+	Vector3 ListenerUp;
+	bool IsListenerUnderwater;
+
+	internal void Update() {
+		if (!AudioDevice!.IsActive())
+			return;
+
+		UpdateSoundFade();
+
+		ListenerOrigin = vec3_origin;
+		ListenerForward = vec3_origin;
+		ListenerRight = vec3_origin;
+		ListenerUp = vec3_origin;
+	}
+
+	internal void Update(in AudioState audioState) {
+		if (!AudioDevice!.IsActive())
+			return;
+
+		UpdateSoundFade();
+
+		ListenerOrigin = audioState.Origin;
+		MathLib.AngleVectors(in audioState.Angles, out ListenerForward, out ListenerRight, out ListenerUp);
+	}
+
+	private void _Update() {
+
+	}
+
+	private void UpdateSoundFade() {
 
 	}
 

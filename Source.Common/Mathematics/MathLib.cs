@@ -413,6 +413,13 @@ public static class MathLib
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static ref float SubFloat(ref Vector3 a, int idx) {
+		ArgumentOutOfRangeException.ThrowIfNegative(idx);
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(idx, 3);
+
+		return ref new Span<Vector3>(ref a).Cast<Vector3, float>()[idx];
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static ref float SubFloat(ref Vector4 a, int idx) {
 		ArgumentOutOfRangeException.ThrowIfNegative(idx);
 		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(idx, 4);
@@ -1033,5 +1040,19 @@ public static class MathLib
 			return val >= B ? D : C;
 		double cVal = (val - A) / (B - A);
 		return C + (D - C) * SimpleSpline(cVal);
+	}
+
+	public static unsafe void AngleVectors(in QAngle angles, out Vector3 forward, out Vector3 right, out Vector3 up) {
+		fixed (QAngle* aptr = &angles) {
+			Vector3 radians = Vector3.Multiply(*(Vector3*)aptr, MathF.PI / 180f);
+			(Vector3 sine, Vector3 cosine) = Vector3.SinCos(radians);
+
+			float sp = SubFloat(ref sine, 0), sy = SubFloat(ref sine, 1), sr = SubFloat(ref sine, 2);
+			float cp = SubFloat(ref cosine, 0), cy = SubFloat(ref cosine, 1), cr = SubFloat(ref cosine, 2);
+
+			forward = new(cp * cy, cp * sy, -sp);
+			right = new(-1 * sr * sp * cy + -1 * cr * -sy, -1 * sr * sp * sy + -1 * cr * cy, -1 * sr * cp);
+			up = new(cr * sp * cy + -sr * -sy, cr * sp * sy + -sr * cy, cr * cp);
+		}
 	}
 }

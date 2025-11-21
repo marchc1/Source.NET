@@ -11,6 +11,8 @@ using Source.Common.Server;
 using Source.Engine.Client;
 using Source.Engine.Server;
 
+using System.Runtime.CompilerServices;
+
 using static Source.Constants;
 
 namespace Source.Engine;
@@ -467,7 +469,18 @@ public class Host(
 	}
 
 	private void _RunFrame_Sound() {
+		UpdateSounds();
+	}
 
+	AudioState audioState;
+
+	public void UpdateSounds() {
+		if (cl.IsActive()) {
+			Sound.Update(in audioState);
+		}
+		else {
+			Sound.Update();
+		}
 	}
 
 	public void SetClientInSimulation(bool inSimulation) {
