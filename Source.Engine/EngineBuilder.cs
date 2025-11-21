@@ -168,6 +168,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<ClientGlobalVariables>();
 		this.AddSingleton<ServerGlobalVariables>();
 		this.AddSingleton<DtCommonEng>();
+		this.AddSingleton<SoundServices>();
 		// Engine datacache
 		this.AddSingleton<IModelRender, ModelRender>();
 		this.AddSingleton<IModelInfoClient, ModelInfoClient>();

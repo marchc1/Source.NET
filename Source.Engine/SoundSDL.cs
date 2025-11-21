@@ -33,7 +33,9 @@ public unsafe class AudioDeviceSDLAudio : AudioDeviceBase {
 	public AudioDeviceSDLAudio() : base() {
 		
 	}
-
+	public override bool IsActive() {
+		return ValidWaveOut();
+	}
 	private void AllocateOutputBuffers() {
 		if (Buffer != null)
 			FreeOutputBuffers();

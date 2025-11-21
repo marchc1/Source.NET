@@ -69,6 +69,7 @@ public class Host(
 	public Scr Scr;
 	public Net Net;
 	public Sys Sys;
+	public SoundServices soundServices;
 	public ClientDLL ClientDLL;
 	public Sound Sound;
 	public IHostState HostState;
@@ -110,6 +111,8 @@ public class Host(
 		TimeUnit_t fullscale = 1; // TODO: host_timescale
 		FrameTime *= fullscale;
 		FrameTimeUnbounded = FrameTime;
+
+		soundServices.SetSoundFrametime(dt, FrameTime);
 	}
 
 	int gHostSpawnCount;
@@ -629,6 +632,7 @@ public class Host(
 		Cbuf = engineAPI.InitSubsystem<Cbuf>()!;
 		Cmd = engineAPI.InitSubsystem<Cmd>()!;
 		Cvar = engineAPI.InitSubsystem<Cvar>()!;
+		soundServices = engineAPI.GetRequiredService<SoundServices>();
 #if !SWDS
 		View = engineAPI.InitSubsystem<View>()!;
 #endif
