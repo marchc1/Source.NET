@@ -20,6 +20,7 @@ using static StudioDeps;
 [EngineComponent]
 public static class StudioDeps
 {
+	[Dependency] public static IMDLCache MDLCache { get; private set; } = null!;
 	[Dependency] public static IModelInfo modelinfo { get; private set; } = null!;
 }
 
@@ -176,6 +177,10 @@ public class VirtualGroup
 	public readonly List<int> MasterAttachment = [];
 	public readonly List<int> MasterPose = [];
 	public readonly List<int> MasterNode = [];
+
+	internal StudioHeader? GetStudioHdr() {
+		return MDLCache.GetStudioHdr((MDLHandle_t)Cache!);
+	}
 }
 
 public class VirtualSequence
@@ -251,7 +256,7 @@ public class VirtualModel
 	public readonly List<VirtualGroup> Group = [];
 	public readonly List<VirtualGeneric> Node = [];
 	public readonly List<VirtualGeneric> IKLock = [];
-	public readonly List<ushort> AutoplaySequences = [];
+	public readonly List<short> AutoplaySequences = [];
 }
 
 public enum StudioMeshGroupFlags
@@ -1410,6 +1415,10 @@ public class StudioHdr
 		VirtualGroup group = vModel.Group[vModel.Seq[baseseq].Group];
 		return group.MasterSeq[relseq];
 	}
+
+	public int GetAutoplayList(out Span<short> pList) {
+		return studioHdr!.GetAutoplayList(out pList);
+	}
 }
 
 public class MStudioBone
@@ -1719,5 +1728,57 @@ public class StudioHeader
 		if (NumIncludeModels == 0)
 			return null;
 		return modelinfo.GetVirtualModel(this);
+	}
+
+	public int GetAutoplayList(out Span<short> pList) {
+		return modelinfo.GetAutoplayList(this, out pList);
+	}
+
+	public int GetNumSeq() {
+		if (NumIncludeModels == 0)
+			return NumLocalSeq;
+
+		VirtualModel? vModel = GetVirtualModel();
+		Assert(vModel != null);
+		return vModel.Seq.Count;
+	}
+
+	public MStudioSeqDesc Seqdesc(int i) {
+		if (NumIncludeModels == 0) 
+			return LocalSeqdesc(i);
+
+		VirtualModel? vModel = GetVirtualModel();
+		Assert(vModel != null);
+
+		if (vModel == null) 
+			return LocalSeqdesc(i);
+
+		VirtualGroup group = vModel.Group[vModel.Seq[i].Group];
+		StudioHeader? studioHdr = group.GetStudioHdr();
+		Assert(studioHdr != null);
+
+		return studioHdr.LocalSeqdesc(vModel.Seq[i].Index);
+	}
+
+	public int CountAutoplaySequences() {
+		int count = 0;
+		for (int i = 0; i < GetNumSeq(); i++) {
+			MStudioSeqDesc seqdesc = Seqdesc(i);
+			if ((seqdesc.Flags & StudioAnimSeqFlags.Autoplay) != 0)
+				count++;
+		}
+		return count;
+	}
+
+	public void CopyAutoplaySequences(ref Memory<short> autoplaySequenceList, int outCount) {
+		int outIndex = 0;
+		for (int i = 0; i < GetNumSeq() && outIndex < outCount; i++) {
+			MStudioSeqDesc seqdesc = Seqdesc(i);
+			if ((seqdesc.Flags & StudioAnimSeqFlags.Autoplay) != 0) {
+				autoplaySequenceList.Span[outIndex] = (short)i;
+				outIndex++;
+			}
+		}
+		autoplaySequenceList = autoplaySequenceList[..outIndex];
 	}
 }

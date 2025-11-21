@@ -1131,4 +1131,20 @@ public ref struct BoneSetup
 
 		return ctlValue * (PoseParam.End - PoseParam.Start) + PoseParam.Start;
 	}
+
+	public void CalcAutoplaySequences(Span<Vector3> pos, Span<Quaternion> q, TimeUnit_t realTime, object? ikContext) {
+		int count = studioHdr.GetAutoplayList(out Span<short> pList);
+		for (int i = 0; i < count; i++) {
+			int sequenceIndex = pList[i];
+			MStudioSeqDesc seqdesc = studioHdr.Seqdesc(sequenceIndex);
+			if ((seqdesc.Flags & StudioAnimSeqFlags.Autoplay) != 0) {
+				double cycle = 0;
+				float cps = Studio_CPS(studioHdr, seqdesc, sequenceIndex, poseParameter);
+				cycle = realTime * cps;
+				cycle = cycle - (int)cycle;
+
+				AccumulatePose(pos, q, sequenceIndex, cycle, 1.0f, realTime, ikContext);
+			}
+		}
+	}
 }

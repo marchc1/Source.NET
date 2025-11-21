@@ -253,6 +253,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		setup.AccumulatePose(pos, q, GetSequence(), cycle, 1.0f, currentTime, null);
 		MaintainSequenceTransitions(ref setup, cycle, pos, q);
 		AccumulateLayers(ref setup, pos, q, currentTime);
+		setup.CalcAutoplaySequences(pos, q, currentTime, null);
 	}
 
 	private void GetPoseParameters(StudioHdr? hdr, Span<float> poseparam) {
