@@ -1583,6 +1583,11 @@ public class StudioHeader
 
 		return Studio.ProduceArrayIdx(this, ref seqDescs, NumLocalSeq, LocalSeqIndex, i, MStudioSeqDesc.SIZEOF, Data, MStudioSeqDesc.FACTORY);
 	}
+	internal MStudioSeqDesc[] LocalSeqdescs() {
+		for (int i = 0; i < NumLocalSeq; i++)
+			LocalSeqdesc(i);
+		return seqDescs ?? Array.Empty<MStudioSeqDesc>();
+	}
 
 	public int ActivityListVersion;
 	public int EventsIndexed;
