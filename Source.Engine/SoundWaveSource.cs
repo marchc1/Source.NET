@@ -171,7 +171,7 @@ public class AudioSourceCache : IAudioSourceCache
 				return cache;
 		}
 
-		Warning($"Cannot figure out which search path {relFilename} came from.  Absolute path is {absFilename}\n");
+		Warning($"Cannot figure out which search path {relFilename.SliceNullTerminatedString()} came from.  Absolute path is {absFilename.SliceNullTerminatedString()}\n");
 
 		return null;
 	}
