@@ -50,7 +50,7 @@ public class Slider : Panel
 		UseSubRange = false;
 		Inverted = false;
 
-		SetThumbWidth(10);
+		SetThumbWidth(0);
 		RecomputeNobPosFromValue();
 		AddActionSignalTarget(this);
 		// SetBlockDragChaining(true);
@@ -104,7 +104,7 @@ public class Slider : Panel
 	}
 
 	public void RecomputeNobPosFromValue() {
-		GetTrackRect(out int x, out int y, out int wide, out int tall);
+		GetTrackRect(out int x, out _, out int wide, out _);
 
 		float usevalue = Value;
 		int userange = RangeMin;
@@ -261,7 +261,7 @@ public class Slider : Panel
 	}
 
 	private void DrawTicks() {
-		GetTrackRect(out int x, out int y, out int wide, out int tall);
+		GetTrackRect(out _, out int y, out int wide, out _);
 
 		float fwide = wide;
 		float freepixels = fwide - NobSize;
@@ -294,7 +294,7 @@ public class Slider : Panel
 	}
 
 	private void DrawTickLabels() {
-		GetTrackRect(out int x, out int y, out int wide, out int tall);
+		GetTrackRect(out _, out int y, out int wide, out _);
 
 		y += (int)NobSize + 4;
 
@@ -313,7 +313,7 @@ public class Slider : Panel
 		}
 
 		if (RightCaption != null) {
-			RightCaption.GetSize(out int rwide, out int rtall);
+			RightCaption.GetSize(out int rwide, out _);
 			RightCaption.SetPos(wide - rwide, y);
 			if (IsEnabled())
 				RightCaption.SetColor(TickColor);
@@ -324,7 +324,7 @@ public class Slider : Panel
 	}
 
 	private void DrawNob() {
-		GetTrackRect(out int x, out int y, out int wide, out int tall);
+		GetTrackRect(out _, out int y, out _, out int tall);
 		Color col = GetFgColor();
 
 		Surface.DrawSetColor(col);
@@ -332,8 +332,7 @@ public class Slider : Panel
 
 		Surface.DrawFilledRect(NobPosMin, y + tall / 2 - nobHeight / 2, NobPosMax, y + tall / 2 + nobHeight / 2);
 
-		if (SliderBorder != null)
-			SliderBorder.Paint(NobPosMin, y + tall / 2 - nobHeight / 2, NobPosMax - NobPosMin, nobHeight);
+		SliderBorder?.Paint(NobPosMin, y + tall / 2 - nobHeight / 2, NobPosMax - NobPosMin, nobHeight);
 	}
 
 	public void SetTickCaptions(ReadOnlySpan<char> left, ReadOnlySpan<char> right) {
@@ -359,8 +358,7 @@ public class Slider : Panel
 
 		Surface.DrawSetColor(TrackColor);
 		Surface.DrawFilledRect(x, y, x + wide, y + tall);
-		if (InsetBorder != null)
-			InsetBorder.Paint(x, y, x + wide, y + tall);
+		InsetBorder?.Paint(x, y, x + wide, y + tall);
 	}
 
 	public void SetRange(int min, int max) {

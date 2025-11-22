@@ -1,6 +1,5 @@
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
-using Source.Common.Input;
 
 namespace Source.GUI.Controls;
 
@@ -50,13 +49,7 @@ public class MenuItem : Button
 	private int KEYBINDING_INSET = 5;
 	private int CHECK_INSET = 6;
 
-	public MenuItem(Menu parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
-		ContentAlignment = Alignment.West;
-		SetParent(parent);
-		Init();
-	}
-
-	public MenuItem(Menu parent, ReadOnlySpan<char> panelName, ReadOnlySpan<char> text, Menu? cascadeMenu, bool checkable) : base(parent, panelName, text) {
+	public MenuItem(Menu parent, ReadOnlySpan<char> panelName, ReadOnlySpan<char> text, Menu? cascadeMenu = null, bool checkable = false) : base(parent, panelName, text) {
 		CascadeMenu = cascadeMenu;
 		Checkable = checkable;
 		SetButtonActivationType(ActivationType.OnReleased);

@@ -249,6 +249,9 @@ public class ComboBox : TextEntry
 
 	public override void OnSetText(ReadOnlySpan<char> text) {
 		if (text[0] == '#') {
+			ulong unlocalizedTextSymbol = Localize.FindIndex(text[1..]);
+			if (unlocalizedTextSymbol != 0 && unlocalizedTextSymbol != ulong.MaxValue)
+				text = Localize.GetValueByIndex(unlocalizedTextSymbol);
 		}
 
 		Span<char> buf = stackalloc char[255];

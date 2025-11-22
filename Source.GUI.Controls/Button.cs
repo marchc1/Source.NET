@@ -250,9 +250,8 @@ public class Button : Label
 			return;
 
 		if (ActivationType == ActivationType.OnPressed) {
-			if (IsKeyboardInputEnabled()) {
+			if (IsKeyboardInputEnabled())
 				RequestFocus();
-			}
 			DoClick();
 			return;
 		}
