@@ -20,6 +20,7 @@ using static StudioDeps;
 [EngineComponent]
 public static class StudioDeps
 {
+	[Dependency] public static IMDLCache MDLCache { get; private set; } = null!;
 	[Dependency] public static IModelInfo modelinfo { get; private set; } = null!;
 }
 
@@ -176,6 +177,10 @@ public class VirtualGroup
 	public readonly List<int> MasterAttachment = [];
 	public readonly List<int> MasterPose = [];
 	public readonly List<int> MasterNode = [];
+
+	internal StudioHeader? GetStudioHdr() {
+		return MDLCache.GetStudioHdr((MDLHandle_t)Cache!);
+	}
 }
 
 public class VirtualSequence
@@ -251,7 +256,7 @@ public class VirtualModel
 	public readonly List<VirtualGroup> Group = [];
 	public readonly List<VirtualGeneric> Node = [];
 	public readonly List<VirtualGeneric> IKLock = [];
-	public readonly List<ushort> AutoplaySequences = [];
+	public readonly List<short> AutoplaySequences = [];
 }
 
 public enum StudioMeshGroupFlags
@@ -730,13 +735,15 @@ public enum StudioAnimFlags : byte
 	RawRot2 = 0x20,
 }
 
-public struct MStudioAnimValue {
+public struct MStudioAnimValue
+{
 	public short Value;
 	public readonly byte Valid => (byte)(Value & 0xFF);
 	public readonly byte Total => (byte)((Value & 0xFF00) >> 8);
 }
 
-public class MStudioAnimValuePtr {
+public class MStudioAnimValuePtr
+{
 	public const int SIZEOF = 6;
 
 	public Memory<byte> Data;
@@ -788,7 +795,7 @@ public class MStudioAnim
 
 	public ref Quaternion48 Quat48() => ref Data().Cast<byte, Quaternion48>()[0];
 	public ref Quaternion64 Quat64() => ref Data().Cast<byte, Quaternion64>()[0];
-	public unsafe ref Vector48 Pos() 
+	public unsafe ref Vector48 Pos()
 		=> ref Data()[(((Flags & StudioAnimFlags.RawRot) != 0 ? 1 : 0) * sizeof(Quaternion48) + ((Flags & StudioAnimFlags.RawRot2) != 0 ? 1 : 0) * sizeof(Quaternion64))..].Cast<byte, Vector48>()[0];
 
 
@@ -1063,6 +1070,38 @@ public class MStudioPoseParamDesc
 		br.Read(out Loop);
 	}
 }
+public enum StudioAutolayerFlags
+{
+	Post = 0x0010,
+	Spline = 0x0040,
+	XFade = 0x0080,
+	NoBlend = 0x0200,
+	Local = 0x1000,
+	Pose = 0x4000
+}
+public class MStudioAutoLayer
+{
+	public const int SIZEOF = 24; // Static offset from MSVC stats (mstudiobone_t size 24, alignment 4)
+	public static MStudioAutoLayer FACTORY(object caller, Memory<byte> data) => new(data);
+	public short Sequence;
+	public short Pose;
+	private int  flags;
+	public float Start;
+	public float Peak;
+	public float Tail;
+	public float End;
+	public MStudioAutoLayer(Memory<byte> data) {
+		SpanBinaryReader br = new(data.Span);
+		br.Read(out Sequence);
+		br.Read(out Pose);
+		br.Read(out flags);
+		br.Read(out Start);
+		br.Read(out Peak);
+		br.Read(out Tail);
+		br.Read(out End);
+	}
+	public StudioAutolayerFlags Flags => (StudioAutolayerFlags)Flags;
+}
 public class MStudioSeqDesc
 {
 	public const int SIZEOF = 212; // Static offset from MSVC stats (mstudiobone_t size 212, alignment 4)
@@ -1127,9 +1166,13 @@ public class MStudioSeqDesc
 	public int Pose;
 
 	public int NumIKRules;
-	public int NumAutoLayers;
 
+	public int NumAutoLayers;
 	public int AutoLayerIndex;
+	MStudioAutoLayer[]? autolayerCache;
+	public MStudioAutoLayer Autolayer(int i)
+		=> Studio.ProduceArrayIdx(this, ref autolayerCache, NumAutoLayers, AutoLayerIndex, i, MStudioAutoLayer.SIZEOF, Data, MStudioAutoLayer.FACTORY);
+
 
 	public int WeightListIndex;
 	public ref float Boneweight(int i)
@@ -1355,7 +1398,7 @@ public class StudioHdr
 	}
 
 	public int GetNumPoseParameters() {
-		if(vModel == null) {
+		if (vModel == null) {
 			if (studioHdr != null)
 				return studioHdr.NumLocalPoseParameters;
 			else
@@ -1363,6 +1406,18 @@ public class StudioHdr
 		}
 
 		return vModel.Pose.Count;
+	}
+
+	internal int RelativeSeq(int baseseq, int relseq) {
+		if (vModel == null)
+			return relseq;
+
+		VirtualGroup group = vModel.Group[vModel.Seq[baseseq].Group];
+		return group.MasterSeq[relseq];
+	}
+
+	public int GetAutoplayList(out Span<short> pList) {
+		return studioHdr!.GetAutoplayList(out pList);
 	}
 }
 
@@ -1537,6 +1592,11 @@ public class StudioHeader
 
 		return Studio.ProduceArrayIdx(this, ref seqDescs, NumLocalSeq, LocalSeqIndex, i, MStudioSeqDesc.SIZEOF, Data, MStudioSeqDesc.FACTORY);
 	}
+	internal MStudioSeqDesc[] LocalSeqdescs() {
+		for (int i = 0; i < NumLocalSeq; i++)
+			LocalSeqdesc(i);
+		return seqDescs ?? Array.Empty<MStudioSeqDesc>();
+	}
 
 	public int ActivityListVersion;
 	public int EventsIndexed;
@@ -1668,5 +1728,57 @@ public class StudioHeader
 		if (NumIncludeModels == 0)
 			return null;
 		return modelinfo.GetVirtualModel(this);
+	}
+
+	public int GetAutoplayList(out Span<short> pList) {
+		return modelinfo.GetAutoplayList(this, out pList);
+	}
+
+	public int GetNumSeq() {
+		if (NumIncludeModels == 0)
+			return NumLocalSeq;
+
+		VirtualModel? vModel = GetVirtualModel();
+		Assert(vModel != null);
+		return vModel.Seq.Count;
+	}
+
+	public MStudioSeqDesc Seqdesc(int i) {
+		if (NumIncludeModels == 0) 
+			return LocalSeqdesc(i);
+
+		VirtualModel? vModel = GetVirtualModel();
+		Assert(vModel != null);
+
+		if (vModel == null) 
+			return LocalSeqdesc(i);
+
+		VirtualGroup group = vModel.Group[vModel.Seq[i].Group];
+		StudioHeader? studioHdr = group.GetStudioHdr();
+		Assert(studioHdr != null);
+
+		return studioHdr.LocalSeqdesc(vModel.Seq[i].Index);
+	}
+
+	public int CountAutoplaySequences() {
+		int count = 0;
+		for (int i = 0; i < GetNumSeq(); i++) {
+			MStudioSeqDesc seqdesc = Seqdesc(i);
+			if ((seqdesc.Flags & StudioAnimSeqFlags.Autoplay) != 0)
+				count++;
+		}
+		return count;
+	}
+
+	public void CopyAutoplaySequences(ref Memory<short> autoplaySequenceList, int outCount) {
+		int outIndex = 0;
+		for (int i = 0; i < GetNumSeq() && outIndex < outCount; i++) {
+			MStudioSeqDesc seqdesc = Seqdesc(i);
+			if ((seqdesc.Flags & StudioAnimSeqFlags.Autoplay) != 0) {
+				autoplaySequenceList.Span[outIndex] = (short)i;
+				outIndex++;
+			}
+		}
+		autoplaySequenceList = autoplaySequenceList[..outIndex];
 	}
 }

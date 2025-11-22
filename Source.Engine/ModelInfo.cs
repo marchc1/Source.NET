@@ -93,6 +93,11 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 	public Memory<byte> GetAnimBlock(StudioHeader studioHdr, int block) {
 		return mdlCache.GetAnimBlock(studioHdr.VirtualModel, block);
 	}
+	public int GetAutoplayList(StudioHeader studioHdr, out Span<short> autoplayList) {
+		MDLHandle_t handle = studioHdr.VirtualModel;
+		autoplayList = mdlCache.GetAutoplayList(handle).Span;
+		return autoplayList.Length;
+	}
 
 	readonly List<Model> NetworkedDynamicModels = [];
 }

@@ -49,9 +49,9 @@ public class AudioDeviceBase : IAudioDevice
 	public virtual int DeviceDmaSpeed() => 0;
 	public virtual int DeviceSampleCount() => 0;
 
-	bool Surround;
-	bool SurroundCenter;
-	bool Headphone;
+	protected bool Surround;
+	protected bool SurroundCenter;
+	protected bool Headphone;
 
 }
 

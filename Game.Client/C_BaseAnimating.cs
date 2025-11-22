@@ -245,14 +245,37 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	}
 	private void StandardBlendingRules(StudioHdr hdr, Span<Vector3> pos, Span<Quaternion> q, TimeUnit_t currentTime, int boneMask) {
 		Span<float> poseparam = stackalloc float[Studio.MAXSTUDIOPOSEPARAM];
-		for (int i = 0; i < Studio.MAXSTUDIOPOSEPARAM; i++)
-			poseparam[i] = PoseParameter[i];
+		GetPoseParameters(hdr, poseparam);
 		TimeUnit_t cycle = GetCycle();
-
+		
 		BoneSetup setup = new(hdr, boneMask, poseparam);
 		setup.InitPose(pos, q);
 		setup.AccumulatePose(pos, q, GetSequence(), cycle, 1.0f, currentTime, null);
 		MaintainSequenceTransitions(ref setup, cycle, pos, q);
+		AccumulateLayers(ref setup, pos, q, currentTime);
+		setup.CalcAutoplaySequences(pos, q, currentTime, null);
+	}
+
+	private void GetPoseParameters(StudioHdr? hdr, Span<float> poseparam) {
+		if (hdr == null)
+			return;
+		int i;
+		for (i = 0; i < Studio.MAXSTUDIOPOSEPARAM; i++)
+			poseparam[i] = PoseParameter[i];
+
+		/*if(GetSequenceName(GetSequence()) == "idle" && hdr.Name() == "weapons/c_physcannon.mdl") {
+			Msg($"model   : {hdr.Name()}\n");
+			Msg($"curtime : {gpGlobals.CurTime} :\n");
+			for (i = 0; i < hdr.GetNumPoseParameters(); i++) {
+				MStudioPoseParamDesc Pose = hdr.PoseParameter(i);
+				Msg($"   poseparam idx#{i} {Pose.Name()} = {poseparam[i] * Pose.End + (1 - poseparam[i]) * Pose.Start}\n");
+			}
+			Msg("\n");
+		}*/
+	}
+
+	public virtual void AccumulateLayers(ref BoneSetup setup, Span<Vector3> pos, Span<Quaternion> q, double currentTime) {
+	
 	}
 
 	readonly SequenceTransitioner SequenceTransitioner = new();
@@ -522,8 +545,56 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		base.PreDataUpdate(updateType);
 	}
+
+	public void AddToClientSideAnimationList() { /* todo */}
+	public void RemoveFromClientSideAnimationList() { /* todo */}
+
 	public override void PostDataUpdate(DataUpdateType updateType) {
 		base.PostDataUpdate(updateType);
+
+		if (ClientSideAnimation) {
+			SetCycle(OldCycle);
+			AddToClientSideAnimationList();
+		}
+		else
+			RemoveFromClientSideAnimationList();
+		
+		bool bBoneControllersChanged = false;
+
+		int i;
+		for (i = 0; i < Studio.MAXSTUDIOBONECTRLS && !bBoneControllersChanged; i++) 
+			if (OldEncodedController[i] != EncodedController[i]) 
+				bBoneControllersChanged = true;
+
+		bool bPoseParametersChanged = false;
+
+		for (i = 0; i < Studio.MAXSTUDIOPOSEPARAM && !bPoseParametersChanged; i++) 
+			if (OldPoseParameters[i] != PoseParameter[i]) 
+				bPoseParametersChanged = true;
+
+		// Cycle change? Then re-render
+		bool bAnimationChanged = OldCycle != GetCycle() || bBoneControllersChanged || bPoseParametersChanged;
+		bool bSequenceChanged = OldSequence != GetSequence();
+		bool bScaleChanged = (OldModelScale != GetModelScale());
+		if (bAnimationChanged || bSequenceChanged || bScaleChanged) 
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnimationChanged);
+
+		if (bAnimationChanged || bSequenceChanged) {
+			if (ClientSideAnimation) {
+				ClientSideAnimationChanged();
+			}
+		}
+
+		// reset prev cycle if new sequence
+		if (NewSequenceParity != PrevNewSequenceParity) {
+			// It's important not to call Reset() on a static prop, because if we call
+			// Reset(), then the entity will stay in the interpolated entities list
+			// forever, wasting CPU.
+			StudioHdr? hdr = GetModelPtr();
+			if (hdr != null && (hdr.Flags() & StudioHdrFlags.StaticProp) == 0) {
+				iv_Cycle.Reset();
+			}
+		}
 	}
 
 	internal static void UpdateClientSideAnimations() {
@@ -753,8 +824,8 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public float SetPoseParameter(int parameter, float value) => SetPoseParameter(GetModelPtr(), parameter, value);
 	public float SetPoseParameter(StudioHdr? studioHdr, ReadOnlySpan<char> name, float value) => SetPoseParameter(studioHdr, LookupPoseParameter(studioHdr, name), value);
 
-	private int LookupPoseParameter(ReadOnlySpan<char> name) => LookupPoseParameter(GetModelPtr(), name);
-	private int LookupPoseParameter(StudioHdr? studioHdr, ReadOnlySpan<char> name) {
+	public int LookupPoseParameter(ReadOnlySpan<char> name) => LookupPoseParameter(GetModelPtr(), name);
+	public int LookupPoseParameter(StudioHdr? studioHdr, ReadOnlySpan<char> name) {
 		if (studioHdr == null)
 			return 0;
 

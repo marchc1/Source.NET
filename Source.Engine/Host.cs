@@ -11,6 +11,8 @@ using Source.Common.Server;
 using Source.Engine.Client;
 using Source.Engine.Server;
 
+using System.Runtime.CompilerServices;
+
 using static Source.Constants;
 
 namespace Source.Engine;
@@ -67,6 +69,7 @@ public class Host(
 	public Scr Scr;
 	public Net Net;
 	public Sys Sys;
+	public SoundServices soundServices;
 	public ClientDLL ClientDLL;
 	public Sound Sound;
 	public IHostState HostState;
@@ -108,6 +111,8 @@ public class Host(
 		TimeUnit_t fullscale = 1; // TODO: host_timescale
 		FrameTime *= fullscale;
 		FrameTimeUnbounded = FrameTime;
+
+		soundServices.SetSoundFrametime(dt, FrameTime);
 	}
 
 	int gHostSpawnCount;
@@ -467,7 +472,18 @@ public class Host(
 	}
 
 	private void _RunFrame_Sound() {
+		UpdateSounds();
+	}
 
+	AudioState audioState;
+
+	public void UpdateSounds() {
+		if (cl.IsActive()) {
+			Sound.Update(in audioState);
+		}
+		else {
+			Sound.Update();
+		}
 	}
 
 	public void SetClientInSimulation(bool inSimulation) {
@@ -616,6 +632,7 @@ public class Host(
 		Cbuf = engineAPI.InitSubsystem<Cbuf>()!;
 		Cmd = engineAPI.InitSubsystem<Cmd>()!;
 		Cvar = engineAPI.InitSubsystem<Cvar>()!;
+		soundServices = engineAPI.GetRequiredService<SoundServices>();
 #if !SWDS
 		View = engineAPI.InitSubsystem<View>()!;
 #endif

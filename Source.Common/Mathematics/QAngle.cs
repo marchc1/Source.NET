@@ -63,16 +63,8 @@ public struct QAngle
 	}
 	const float TORADS = MathF.PI / 180f;
 	// TODO: is there a C# + SIMD way to do this?
-	public void Vectors(out Vector3 forward, out Vector3 right, out Vector3 up) {
-		Vector4 radians = new Vector4(X, Y, Z, 0) * new Vector4(TORADS, TORADS, TORADS, TORADS);
-
-		float sp = MathF.Sin(radians[0]), sy = MathF.Sin(radians[1]), sr = MathF.Sin(radians[2]);
-		float cp = MathF.Cos(radians[0]), cy = MathF.Cos(radians[1]), cr = MathF.Cos(radians[2]);
-
-		forward = new(cp * cy, cp * sy, -sp);
-		right = new(-1 * sr * sp * cy + -1 * cr * -sy, -1 * sr * sp * sy + -1 * cr * cy, -1 * sr * cp);
-		up = new(cr * sp * cy + -sr * -sy, cr * sp * sy + -sr * cy, cr * cp);
-	}
+	public void Vectors(out Vector3 forward, out Vector3 right, out Vector3 up)
+		=> MathLib.AngleVectors(in this, out forward, out right, out up);
 
 	public static float Normalize(float angle) {
 		angle = MathLib.Fmodf(angle, 360.0f);

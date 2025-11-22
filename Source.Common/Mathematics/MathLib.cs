@@ -323,6 +323,10 @@ public static class MathLib
 		return (Math.Abs(a * b) + a) % b;
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float SimpleSpline(float value) {
+		return (value * value) * (3 - 2 * value);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static double SimpleSpline(double value) {
 		return (value * value) * (3 - 2 * value);
 	}
@@ -408,6 +412,13 @@ public static class MathLib
 		outMatrix[2, column] = inVec.Z;
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static ref float SubFloat(ref Vector3 a, int idx) {
+		ArgumentOutOfRangeException.ThrowIfNegative(idx);
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(idx, 3);
+
+		return ref new Span<Vector3>(ref a).Cast<Vector3, float>()[idx];
+	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static ref float SubFloat(ref Vector4 a, int idx) {
 		ArgumentOutOfRangeException.ThrowIfNegative(idx);
@@ -1006,5 +1017,42 @@ public static class MathLib
 		output.W = Hermite_Spline(q0a.W, q1a.W, q2.W, t);
 
 		QuaternionNormalize2(ref output);
+	}
+
+	public static double RemapVal(double val, double A, double B, double C, double D) {
+		if (A == B)
+			return val >= B ? D : C;
+		return C + (D - C) * (val - A) / (B - A);
+	}
+
+	public static double RemapValClamped(double val, double A, double B, double C, double D) {
+		if (A == B)
+			return val >= B ? D : C;
+
+		double cVal = (val - A) / (B - A);
+		cVal = Math.Clamp(cVal, 0.0, 1.0);
+
+		return C + (D - C) * cVal;
+	}
+
+	public static double SimpleSplineRemapVal(double val, double A, double B, double C, double D) {
+		if (A == B)
+			return val >= B ? D : C;
+		double cVal = (val - A) / (B - A);
+		return C + (D - C) * SimpleSpline(cVal);
+	}
+
+	public static unsafe void AngleVectors(in QAngle angles, out Vector3 forward, out Vector3 right, out Vector3 up) {
+		fixed (QAngle* aptr = &angles) {
+			Vector3 radians = Vector3.Multiply(*(Vector3*)aptr, MathF.PI / 180f);
+			(Vector3 sine, Vector3 cosine) = Vector3.SinCos(radians);
+
+			float sp = SubFloat(ref sine, 0), sy = SubFloat(ref sine, 1), sr = SubFloat(ref sine, 2);
+			float cp = SubFloat(ref cosine, 0), cy = SubFloat(ref cosine, 1), cr = SubFloat(ref cosine, 2);
+
+			forward = new(cp * cy, cp * sy, -sp);
+			right = new(-1 * sr * sp * cy + -1 * cr * -sy, -1 * sr * sp * sy + -1 * cr * cy, -1 * sr * cp);
+			up = new(cr * sp * cy + -sr * -sy, cr * sp * sy + -sr * cy, cr * cp);
+		}
 	}
 }

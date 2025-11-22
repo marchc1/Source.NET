@@ -41,6 +41,8 @@ public class StudioData
 
 	public object? UserData;
 
+	public Memory<short> AutoplaySequenceList;
+
 	public int AnimBlockCount;
 	public object? AnimBlock; // todo: research what this is
 }
@@ -132,8 +134,16 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 		throw new NotImplementedException();
 	}
 
-	public short[] GetAutoplayList(MDLHandle_t handle) {
-		throw new NotImplementedException();
+	public Memory<short> GetAutoplayList(MDLHandle_t handle) {
+		if (handle == MDLHANDLE_INVALID)
+			return Array.Empty<short>();
+
+		VirtualModel? virtualModel = GetVirtualModel(handle);
+		if(virtualModel != null) 
+			return virtualModel.AutoplaySequences.Base();
+
+		StudioData studioData = HandleToMDLDict[handle];
+		return studioData.AutoplaySequenceList;
 	}
 
 	public ref int GetFrameUnlockCounterPtr(MDLCacheDataType type) {
@@ -288,6 +298,14 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 			return false;
 		}
 
+		if(studioHdr.NumIncludeModels == 0) {
+			int count = studioHdr.CountAutoplaySequences();
+			if(count != 0) {
+				AllocateAutoplaySequences(HandleToMDLDict[handle], count);
+				studioHdr.CopyAutoplaySequences(ref HandleToMDLDict[handle].AutoplaySequenceList, count);
+			}
+		}
+
 		HandleToMDLDict[handle].Header = studioHdr;
 		studioHdr.VirtualModel = handle;
 
@@ -297,6 +315,10 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 		}
 
 		return true;
+	}
+
+	private void AllocateAutoplaySequences(StudioData studioData, int count) {
+		studioData.AutoplaySequenceList = new short[count];
 	}
 
 	private bool VerifyHeaders(StudioHeader studioHdr) {

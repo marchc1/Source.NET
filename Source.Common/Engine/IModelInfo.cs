@@ -9,6 +9,7 @@ public interface IModelInfo
 	ModelType GetModelType(Model? model);
 	VirtualModel? GetVirtualModel(StudioHeader self);
 	Memory<byte> GetAnimBlock(StudioHeader studioHeader, int block);
+	int GetAutoplayList(StudioHeader studioHdr, out Span<short> autoplayList);
 }
 
 public interface IModelInfoClient : IModelInfo

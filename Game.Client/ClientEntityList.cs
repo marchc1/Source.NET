@@ -1,10 +1,14 @@
-﻿using Game.Shared;
+﻿global using static Game.Client.ClientEntityGlobals;
+using Game.Shared;
 
 using Source;
 using Source.Common;
 
 namespace Game.Client;
 
+public static class ClientEntityGlobals {
+	public static readonly BaseHandle? INVALID_CLIENTENTITY_HANDLE = null;
+}
 public static class ClientEntityExts
 {
 	public static C_BaseEntity? GetBaseEntity(this IClientUnknown? unk) => unk == null ? null : unk is C_BaseEntity cbe ? cbe : null;
@@ -29,7 +33,7 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 	}
 
 	public IClientUnknown? GetClientUnknownFromHandle(BaseHandle ent) {
-		throw new NotImplementedException();
+		return (IClientUnknown?)LookupEntity(ent);
 	}
 
 	public int GetHighestEntityIndex() {
@@ -141,6 +145,16 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 	}
 
 	public BaseHandle? InvalidHandle() => null;
+
+	public IClientThinkable? GetClientThinkableFromHandle(BaseHandle hEnt) {
+		IClientUnknown? pEnt = GetClientUnknownFromHandle(hEnt);
+		return pEnt == null ? null : pEnt.GetClientThinkable();
+	}
+
+	public SharedBaseEntity? GetBaseEntityFromHandle(ClientEntityHandle hEnt) {
+		IClientUnknown? pEnt = GetClientUnknownFromHandle(hEnt);
+		return pEnt != null ? pEnt.GetBaseEntity() : null;
+	}
 
 	class PVSNotifyInfo
 	{

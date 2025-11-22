@@ -1,9 +1,12 @@
+using CommunityToolkit.HighPerformance;
+
 using Game.Client.HL2;
 using Game.Client.HUD;
 using Game.Shared;
 
 using Microsoft.Extensions.DependencyInjection;
 
+using Source;
 using Source.Common;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
@@ -14,7 +17,8 @@ using Source.Engine;
 
 namespace Game.Client;
 
-public static class CdllExts {
+public static class CdllExts
+{
 	public static void TrackBoneSetupEnt(C_BaseAnimating ent) {
 		// todo
 	}
@@ -165,6 +169,8 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 		C_BaseAnimating.UpdateClientSideAnimations();
 
+		ProcessOnDataChangedEvents();
+
 		SimulateEntities();
 		PhysicsSimulate();
 
@@ -173,12 +179,58 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		C_BaseEntity.CalcAimEntPositions();
 	}
 
+	class DataChangedEvent : IPoolableObject {
+		public IClientNetworkable? Entity;
+		public DataUpdateType UpdateType;
+		public ReusableBox<ulong>? StoredEvent;
+
+		public DataChangedEvent() { }
+		public void Init(IClientNetworkable ent, DataUpdateType updateType, ReusableBox<ulong> storedEvent) {
+			Entity = ent;
+			UpdateType = updateType;
+			StoredEvent = storedEvent;
+		}
+
+		public void Init() { }
+		public void Reset() {
+			Entity = null;
+			UpdateType = 0;
+			StoredEvent = null;
+		}
+	}
+
+	static readonly PooledValueDictionary<DataChangedEvent> DataChangedEvents = new();
+	public static bool AddDataChangeEvent(C_BaseEntity ent, DataUpdateType updateType, ReusableBox<ulong> storedEvent) {
+		if (storedEvent.Struct != unchecked((ulong)-1)) {
+			if (updateType == DataUpdateType.Created)
+				DataChangedEvents[storedEvent.Struct].UpdateType = updateType;
+			return false;
+		}
+		else {
+			storedEvent.Struct = DataChangedEvents.AddToTail();
+			DataChangedEvent ev = DataChangedEvents[storedEvent.Struct];
+			ev.Init(ent, updateType, storedEvent);
+			return true;
+		}
+	}
+
+	private static void ProcessOnDataChangedEvents() {
+		foreach(var ev in DataChangedEvents) { 
+			ev.StoredEvent!.Struct = unchecked((ulong)-1);
+
+			// Send the event.
+			IClientNetworkable pNetworkable = ev.Entity!;
+			pNetworkable.OnDataChanged(ev.UpdateType);
+		}
+		DataChangedEvents.Purge();
+	}
+
 	private void PhysicsSimulate() {
 
 	}
 
 	private void SimulateEntities() {
-
+		ClientThinkList().PerformThinkFunctions();
 	}
 
 	private void OnRenderEnd() {

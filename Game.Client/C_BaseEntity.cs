@@ -42,6 +42,10 @@ public partial class C_BaseEntity : IClientEntity
 	static bool s_bAbsRecomputationEnabled = true;
 	static ConVar cl_interpolate = new("cl_interpolate", "1", FCvar.UserInfo | FCvar.DevelopmentOnly);
 
+	ClientThinkHandle_t thinkHandle;
+	public ClientThinkHandle_t GetThinkHandle() => thinkHandle;
+	public void SetThinkHandle(ClientThinkHandle_t handle) => thinkHandle = handle;
+
 	public virtual bool IsWorld() => EntIndex() == 0;
 	public virtual bool IsPlayer() => false;
 	public virtual bool IsBaseCombatCharacter() => false;
@@ -139,6 +143,7 @@ public partial class C_BaseEntity : IClientEntity
 		CreationTick = -1;
 		ModelInstance = MODEL_INSTANCE_INVALID;
 		renderHandle = INVALID_CLIENT_RENDER_HANDLE;
+		thinkHandle = INVALID_THINK_HANDLE;
 		Index = -1;
 		SetLocalOrigin(vec3_origin);
 		SetLocalAngles(vec3_angle);
@@ -359,6 +364,9 @@ public partial class C_BaseEntity : IClientEntity
 		AddVar(DA_Origin, IV_Origin, LatchFlags.LatchSimulationVar);
 		AddVar(DA_Rotation, IV_Rotation, LatchFlags.LatchSimulationVar);
 
+		DataChangeEventRef.Struct = unchecked((ulong)-1);
+		EntClientFlags = 0;
+
 		RenderFXBlend = 255;
 		Predictable = false;
 
@@ -474,7 +482,7 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public readonly Handle<C_BasePlayer> PlayerSimulationOwner = new();
-	public int DataChangeEventRef;
+	public readonly ReusableBox<ulong> DataChangeEventRef = new();
 
 	public int GetFxBlend() => RenderFXBlend;
 	public void GetColorModulation(Span<float> color) {
@@ -514,7 +522,7 @@ public partial class C_BaseEntity : IClientEntity
 		return true;
 	}
 	public virtual void SetupWeights(Matrix3x4 boneToWorldOut, Span<float> flexWeights, TimeUnit_t currentTime) {
-		
+
 	}
 	public virtual void DoAnimationEvents() {
 
@@ -666,7 +674,7 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 	public virtual void PreDataUpdate(DataUpdateType updateType) {
-		if (AddDataChangeEvent(this, updateType, ref DataChangeEventRef))
+		if (HLClient.AddDataChangeEvent(this, updateType, DataChangeEventRef))
 			OnPreDataChanged(updateType);
 
 		bool newentity = updateType == DataUpdateType.Created;
@@ -817,7 +825,7 @@ public partial class C_BaseEntity : IClientEntity
 				return false;
 			}
 		}
-		else 
+		else
 			modelIndex = -1;
 
 		Interp_SetupMappings(ref GetVarMapping());
@@ -875,8 +883,8 @@ public partial class C_BaseEntity : IClientEntity
 		if (renderHandle == INVALID_CLIENT_RENDER_HANDLE) {
 			clientLeafSystem.AddRenderable(this, group);
 			clientLeafSystem.EnableAlternateSorting(renderHandle, AlternateSorting);
-		}					
-		else {				
+		}
+		else {
 			clientLeafSystem.SetRenderGroup(renderHandle, group);
 			clientLeafSystem.RenderableChanged(renderHandle);
 		}
@@ -1104,6 +1112,18 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
+	public void SetRemovalFlag(bool remove) {
+		if (remove)
+			eflags |= EFL.KillMe;
+		else
+			eflags &= ~EFL.KillMe;
+	}
+
+	public void SetNextClientThink(TimeUnit_t nextThinkTime) {
+		Assert(GetClientHandle() != INVALID_CLIENTENTITY_HANDLE);
+		ClientThinkList().SetNextClientThink(GetClientHandle()!, nextThinkTime);
+	}
+
 	public virtual void GetAimEntOrigin(C_BaseEntity attachedTo, out Vector3 origin, out QAngle angles) {
 		origin = attachedTo.GetAbsOrigin();
 		angles = attachedTo.GetAbsAngles();
@@ -1156,17 +1176,6 @@ public partial class C_BaseEntity : IClientEntity
 		GetAimEntOrigin(GetMoveParent(), out Vector3 aimEntOrigin, out QAngle aimEntAngles);
 		SetAbsOrigin(aimEntOrigin);
 		SetAbsAngles(aimEntAngles);
-	}
-
-	private bool AddDataChangeEvent(C_BaseEntity c_BaseEntity, DataUpdateType updateType, ref int storedEvent) {
-		if (storedEvent >= 0) {
-			// todo
-			return false;
-		}
-		else {
-			// todo
-			return true;
-		}
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1304,7 +1313,7 @@ public partial class C_BaseEntity : IClientEntity
 			}
 		}
 
-		if (assert) 
+		if (assert)
 			AssertMsg(false, "RemoveVar");
 	}
 	public ref VarMapping GetVarMapping() => ref VarMap;
