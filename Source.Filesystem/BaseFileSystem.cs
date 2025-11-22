@@ -9,6 +9,7 @@ using Source.Common.Utilities;
 using Source.Filesystem;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Source.FileSystem;
@@ -577,5 +578,11 @@ public class BaseFileSystem : IFileSystem
 
 	public ReadOnlySpan<char> String(FileNameHandle_t handle) {
 		return fileNameStrings.TryGetValue(handle, out string? v) ? v : null;
+	}
+
+	public void GetSearchPaths(List<string> paths, ReadOnlySpan<char> pathID) {
+		ulong hashID = pathID.Hash();
+		foreach (var path in GetCollections(hashID)) 
+			paths.Add(path.DiskPath ?? throw new Exception());
 	}
 }

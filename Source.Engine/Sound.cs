@@ -87,25 +87,53 @@ public partial class Sound
 	public IAudioDevice? AudioDevice;
 
 	public void Init() {
+		if (sv.IsDedicated() && !CommandLine.CheckParm("-forcesound"))
+			return;
+
+		DevMsg("Sound Initialization: Start\n");
+		// TODO: Vox
+
+		if (CommandLine.CheckParm("-nosound")) {
+			AudioDevice = Audio.GetNullDevice();
+			audiosourcecache.Init();
+			return;
+		}
+
+		Initialized = true;
+		ActiveChannels.Init();
+		Startup();
+
+		MIX_InitAllPaintbuffers();
+		// Scaletable?
+		MXR_LoadAllSoundMixers();
+		StopAllSounds(true);
+		audiosourcecache.Init();
+		// AllocDsps?
+		DevMsg($"Sound Initialization: Finish, Sampling Rate: {AudioDevice!.DeviceDmaSpeed()} Hz\n");
+	}
+
+	private void MXR_LoadAllSoundMixers() {
+		// todo (Is this needed for the bare minimum, which we're trying to get right now (ui sounds)?)
+	}
+
+	readonly IFileSystem fileSystem;
+	readonly ICommandLine CommandLine;
+	readonly ISoundServices soundServices;
+
+	public Sound(IFileSystem fileSystem, ISoundServices soundServices, ICommandLine commandLine) {
+		ActiveChannels = new(this);
+		this.fileSystem = fileSystem;
+		this.soundServices = soundServices;
+		this.CommandLine = commandLine;
+	}
+
+	public void Startup() {
 		if (AudioDevice == null || AudioDevice == Audio.GetNullDevice()) {
 			AudioDevice = Audio.AutoDetectInit(false);
 			if (AudioDevice == null) {
 				Error("Unable to init audio");
 			}
 		}
-	}
-
-	readonly IFileSystem fileSystem;
-	readonly ISoundServices soundServices;
-
-	public Sound(IFileSystem fileSystem, ISoundServices soundServices) {
-		ActiveChannels = new(this);
-		this.fileSystem = fileSystem;
-		this.soundServices = soundServices;
-	}
-
-	public void Startup() {
-
 	}
 	public SfxTable? PrecacheSound(ReadOnlySpan<char> name) {
 		if (AudioDevice == null)

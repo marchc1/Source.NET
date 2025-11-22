@@ -114,6 +114,7 @@ public class ListPool<T>
 		if (list is not PoolableList<T> pooledList)
 			throw new InvalidCastException("Got a non-poolable list!");
 		pool.Free(pooledList);
+		pooledList.Clear();
 	}
 }
 
@@ -320,6 +321,30 @@ public static class StrTools
 		return i == -1 ? str.Length : i;
 	}
 	public const int COPY_ALL_CHARACTERS = -1;
+	public static ReadOnlySpan<char> Strstr(ReadOnlySpan<char> haystack, ReadOnlySpan<char> needle) {
+		int index = haystack.IndexOf(needle, StringComparison.InvariantCulture);
+		if (index == -1)
+			return null;
+		return haystack[index..];
+	}
+	public static ReadOnlySpan<char> Stristr(ReadOnlySpan<char> haystack, ReadOnlySpan<char> needle) {
+		int index = haystack.IndexOf(needle, StringComparison.InvariantCultureIgnoreCase);
+		if (index == -1)
+			return null;
+		return haystack[index..];
+	}
+	public static Span<char> Strstr(Span<char> haystack, ReadOnlySpan<char> needle) {
+		int index = haystack.IndexOf(needle, StringComparison.InvariantCulture);
+		if (index == -1)
+			return null;
+		return haystack[index..];
+	}
+	public static Span<char> Stristr(Span<char> haystack, ReadOnlySpan<char> needle) {
+		int index = haystack.IndexOf(needle, StringComparison.InvariantCultureIgnoreCase);
+		if (index == -1)
+			return null;
+		return haystack[index..];
+	}
 	public static Span<char> StrConcat(Span<char> dest, ReadOnlySpan<char> src, int max_chars_to_copy = COPY_ALL_CHARACTERS) {
 		int charstocopy = 0;
 		int len = StrLen(dest);

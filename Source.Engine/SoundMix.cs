@@ -19,6 +19,7 @@ public partial class Sound
 	internal PortableSamplePair[]? CurRearPaintBuffer = null;
 	internal PortableSamplePair[]? CurCenterPaintBuffer = null;
 
+	public void MIX_SetCurrentPaintbuffer(SoundBufferType paintbuffer) => MIX_SetCurrentPaintbuffer((int)paintbuffer);
 	public void MIX_SetCurrentPaintbuffer(int ipaintbuffer) {
 		Assert(ipaintbuffer < PaintBuffers.Count);
 
@@ -124,7 +125,7 @@ public partial class Sound
 
 		gain_out = (int)(256 * fgain_out);
 
-		Assert(count <= PaintBuffer.PAINTBUFFER_SIZE);
+		Assert(count <= Source.Common.Audio.PaintBuffer.PAINTBUFFER_SIZE);
 		Assert(buf1 < PaintBuffers.Count);
 		Assert(buf2 < PaintBuffers.Count);
 		Assert(buf3 < PaintBuffers.Count);
@@ -513,10 +514,64 @@ public partial class Sound
 				pbufrear[i].Right = (pbufrear[i].Right * gain) >> 8;
 			}
 
-			if (PaintBuffers[bufferIndex].SurroundCenter) 
-				for (i = 0; i < count; i++) 
+			if (PaintBuffers[bufferIndex].SurroundCenter)
+				for (i = 0; i < count; i++)
 					pbufcenter![i].Left = (pbufcenter[i].Left * gain) >> 8;
 		}
+	}
+	PortableSamplePair[] TempPaintBuffer = null!;
+	PortableSamplePair[] PaintBuffer = null!;
+	void MIX_InitializePaintbuffer(PaintBuffer paintBuffer, bool surround, bool surroundCenter) {
+		paintBuffer.Buf = new PortableSamplePair[Source.Common.Audio.PaintBuffer.PAINTBUFFER_MEM_SIZE];
+		if (surround)
+			paintBuffer.BufRear = new PortableSamplePair[Source.Common.Audio.PaintBuffer.PAINTBUFFER_MEM_SIZE];
+		if (surroundCenter)
+			paintBuffer.BufCenter = new PortableSamplePair[Source.Common.Audio.PaintBuffer.PAINTBUFFER_MEM_SIZE];
+	}
+
+	bool MIX_InitAllPaintbuffers() {
+		bool surroundCenter = AudioDevice!.IsSurroundCenter();
+		bool surround = AudioDevice!.IsSurround() || surroundCenter;
+
+		TempPaintBuffer = new PortableSamplePair[Source.Common.Audio.PaintBuffer.TEMP_BUFFER_COPY_SIZE];
+
+		while (PaintBuffers.Count < (int)SoundBufferType.BaseTotal) {
+			int index = PaintBuffers.Count; PaintBuffers.Add(new());
+			MIX_InitializePaintbuffer(PaintBuffers[index], surround, surroundCenter);
+		}
+
+		PaintBuffer = PaintBuffers[(int)SoundBufferType.Paint].Buf!;
+
+		// buffer flags
+		PaintBuffers[(int)SoundBufferType.Room].Flags = SoundBus.Room;
+		PaintBuffers[(int)SoundBufferType.Facing].Flags = SoundBus.Facing;
+		PaintBuffers[(int)SoundBufferType.FacingAway].Flags = SoundBus.FacingAway;
+		PaintBuffers[(int)SoundBufferType.Speaker].Flags = SoundBus.Speaker;
+		PaintBuffers[(int)SoundBufferType.Dry].Flags = SoundBus.Dry;
+
+		// buffer surround sound flag
+		PaintBuffers[(int)SoundBufferType.Paint].Surround = surround;
+		PaintBuffers[(int)SoundBufferType.Facing].Surround = surround;
+		PaintBuffers[(int)SoundBufferType.FacingAway].Surround = surround;
+		PaintBuffers[(int)SoundBufferType.Dry].Surround = surround;
+
+		// buffer 5 channel surround sound flag
+		PaintBuffers[(int)SoundBufferType.Paint].SurroundCenter = surroundCenter;
+		PaintBuffers[(int)SoundBufferType.Facing].SurroundCenter = surroundCenter;
+		PaintBuffers[(int)SoundBufferType.FacingAway].SurroundCenter = surroundCenter;
+		PaintBuffers[(int)SoundBufferType.Dry].SurroundCenter = surroundCenter;
+
+		// room buffer mixes down to mono or stereo, never to 4 or 5 ch
+		PaintBuffers[(int)SoundBufferType.Room].Surround = false;
+		PaintBuffers[(int)SoundBufferType.Room].SurroundCenter = false;
+
+		// speaker buffer mixes to mono
+		PaintBuffers[(int)SoundBufferType.Speaker].Surround = false;
+		PaintBuffers[(int)SoundBufferType.Speaker].SurroundCenter = false;
+
+		MIX_SetCurrentPaintbuffer(SoundBufferType.Paint);
+
+		return true;
 	}
 	public int MIX_GetCurrentPaintbufferIndex() {
 		for (int i = 0; i < PaintBuffers.Count; i++)
@@ -537,7 +592,7 @@ public partial class Sound
 			return;
 
 		int i;
-		int count = Math.Min(sampleCount, PaintBuffer.PAINTBUFFER_SIZE);
+		int count = Math.Min(sampleCount, Source.Common.Audio.PaintBuffer.PAINTBUFFER_SIZE);
 
 		Span<PaintBuffer> paintBuffers = PaintBuffers.AsSpan();
 		for (i = 0; i < paintBuffers.Length; i++) {

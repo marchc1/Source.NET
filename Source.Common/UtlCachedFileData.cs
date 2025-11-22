@@ -53,10 +53,10 @@ public class UtlCachedFileData<T> where T : class, IBaseCacheInfo, new()
 	readonly bool ReadOnly;
 	readonly bool SaveManifest;
 	bool Dirty;
-	readonly bool Initialized;
+	bool Initialized;
 
 	public UtlCachedFileData(ReadOnlySpan<char> repositoryFileName, int version, ComputeCacheMetaChecksumFn? checksumfunc = null, UtlCachedFileDataType fileCheckType = UtlCachedFileDataType.UseTimestamp, bool nevercheckdisk = false, bool isReadonly = false, bool savemanifest = false) {
-		RepositoryFileName = new(repositoryFileName);
+		RepositoryFileName = new(repositoryFileName.SliceNullTerminatedString());
 		Version = version;
 		FnMetaChecksum = checksumfunc;
 		CurrentMetaChecksum = 0;
@@ -66,6 +66,16 @@ public class UtlCachedFileData<T> where T : class, IBaseCacheInfo, new()
 		SaveManifest = savemanifest;
 		Dirty = false;
 		Initialized = false;
+	}
+
+	public bool Init() {
+		if (Initialized)
+			return true;
+		Initialized = true;
+		if(RepositoryFileName.Length == 0)
+			Error("UtlCachedFileData:  Can't Init, no repository file specified.");
+		//todo
+		return true; 
 	}
 
 	public T? Get(ReadOnlySpan<char> filename) {
@@ -127,6 +137,10 @@ public class UtlCachedFileData<T> where T : class, IBaseCacheInfo, new()
 		};
 
 		return handle;
+	}
+
+	public bool IsUpToDate() {
+		return true; // todo
 	}
 
 	public int Count() => Elements.Count;

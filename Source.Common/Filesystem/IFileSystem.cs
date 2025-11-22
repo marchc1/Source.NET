@@ -1,4 +1,5 @@
-﻿namespace Source.Common.Filesystem;
+﻿
+namespace Source.Common.Filesystem;
 
 public interface IBaseFileSystem
 {
@@ -132,6 +133,7 @@ public interface IFileSystem : IBaseFileSystem
 	void FindClose(ulong findHandle);
 
 	ReadOnlySpan<char> String(FileNameHandle_t nameHandle);
+	void GetSearchPaths(List<string> vecSearchPaths, ReadOnlySpan<char> pathID);
 }
 
 public enum PathTypeFilter

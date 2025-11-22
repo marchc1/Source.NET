@@ -45,7 +45,7 @@ public class AudioSourceCachedInfo : IBaseCacheInfo
 
 public interface IAudioSourceCache
 {
-	bool Init(nint memSize);
+	bool Init();
 	void Shutdown();
 	void LevelInit(ReadOnlySpan<char> mapname);
 	void LevelShutdown();

@@ -254,6 +254,9 @@ public class InlineArray_2DPaintFilters
 public unsafe class PaintBuffer
 {
 	public const int PAINTBUFFER_SIZE = 1020;
+	public const int PAINTBUFFER_MEM_SIZE = PAINTBUFFER_SIZE + 4;
+	public const int TEMP_BUFFER_COPY_SIZE = PAINTBUFFER_MEM_SIZE * 4;
+
 	public const int CPAINTFILTERMEM = 3;
 	public const int CPAINTFILTERS = 4;
 
@@ -263,7 +266,7 @@ public unsafe class PaintBuffer
 	public int DSP_SpecialDSP;
 	public int PrevSpecialDSP;
 	public int SpecialDSP;
-	public int Flags;
+	public SoundBus Flags;
 	public PortableSamplePair[]? Buf;
 	public PortableSamplePair[]? BufRear;
 	public PortableSamplePair[]? BufCenter;
