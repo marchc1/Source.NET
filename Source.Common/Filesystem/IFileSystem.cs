@@ -59,19 +59,13 @@ public interface IBaseFileSystem
 	/// <param name="pathID">The search path ID.</param>
 	/// <returns>True if the operation succeded, and false if it didn't.</returns>
 	public bool SetFileWritable(ReadOnlySpan<char> fileName, bool writable, ReadOnlySpan<char> pathID);
-	public long Size(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID);
-	public DateTime Time(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID);
-	public bool FileExists(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID);
+	public long Size(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID = default);
+	public DateTime Time(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID = default);
+	public bool FileExists(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID = default);
 
-
-	// I can't default these :/
-	public long Size(ReadOnlySpan<char> fileName) => Size(fileName, null);
-	public DateTime Time(ReadOnlySpan<char> fileName) => Time(fileName, null);
-	public bool FileExists(ReadOnlySpan<char> fileName) => FileExists(fileName, null);
 
 	public bool ReadFile(ReadOnlySpan<char> fileName, ReadOnlySpan<char> path, Span<byte> buf, int startingByte);
 	public bool ReadFile(ReadOnlySpan<char> fileName, ReadOnlySpan<char> path, Span<char> buf, int startingByte);
-
 }
 
 public interface IFileSystem : IBaseFileSystem

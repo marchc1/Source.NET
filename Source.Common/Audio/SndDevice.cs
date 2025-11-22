@@ -1,7 +1,44 @@
-﻿using System.Numerics;
+﻿using Source.Common.Commands;
+using Source.Common.Filesystem;
+
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Source.Common.Audio;
+public static class SoundSharedGlobals
+{
+	public const int IFRONT_LEFT = 0;      
+	public const int IFRONT_RIGHT = 1;
+	public const int IREAR_LEFT = 2;
+	public const int IREAR_RIGHT = 3;
+	public const int IFRONT_CENTER = 4;
+	public const int IFRONT_CENTER0 = 5;   
+	public const int IFRONT_LEFTD = 6;     
+	public const int IFRONT_RIGHTD = 7;
+	public const int IREAR_LEFTD = 8;
+	public const int IREAR_RIGHTD = 9;
+	public const int IFRONT_CENTERD = 10;
+	public const int IFRONT_CENTERD0 = 11; 
+	public const int CCHANVOLUMES = 12;
+
+	static readonly ConVar snd_refdist = new("snd_refdist", "36", FCvar.Cheat);
+	static readonly ConVar snd_refdb = new("snd_refdb", "60", FCvar.Cheat);
+	static readonly ConVar snd_foliage_db_loss = new("snd_foliage_db_loss", "4", FCvar.Cheat);
+	static readonly ConVar snd_gain = new("snd_gain", "1", FCvar.Cheat);
+	static readonly ConVar snd_gain_max = new("snd_gain_max", "1", FCvar.Cheat);
+	static readonly ConVar snd_gain_min = new("snd_gain_min", "0.01", FCvar.Cheat);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static SoundLevel SNDLEVEL_TO_COMPATIBILITY_MODE(int x) => ((SoundLevel)(int)((x) + 256));
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static SoundLevel SNDLEVEL_TO_COMPATIBILITY_MODE(SoundLevel x) => ((SoundLevel)(int)((x) + 256));
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static SoundLevel SNDLEVEL_FROM_COMPATIBILITY_MODE(int x) => ((SoundLevel)(int)((x) - 256));
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static SoundLevel SNDLEVEL_FROM_COMPATIBILITY_MODE(SoundLevel x) => ((SoundLevel)(int)((x) - 256));
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool SNDLEVEL_IS_COMPATIBILITY_MODE(int x) => x >= 256;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool SNDLEVEL_IS_COMPATIBILITY_MODE(SoundLevel x) => x >= (SoundLevel)256;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float SNDLVL_TO_DIST_MULT(SoundLevel sndlvl) => (sndlvl != 0 ? ((MathF.Pow(10.0f, snd_refdb.GetFloat() / 20) / MathF.Pow(10.0f, (float)sndlvl / 20)) / snd_refdist.GetFloat()) : 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static SoundLevel DIST_MULT_TO_SNDLVL(float dist_mult) => (SoundLevel)(int)((dist_mult != 0) ? (20 * MathF.Log10(MathF.Pow(10.0f, snd_refdb.GetFloat() / 20) / ((dist_mult) * snd_refdist.GetFloat()))) : 0);
+}
+
 
 public enum SoundSampleRates
 {
@@ -28,13 +65,129 @@ public enum SoundBus
 	SpecialDSP = 1 << 5
 }
 
-public struct AudioChannel
+[InlineArray(CCHANVOLUMES)]
+public struct InlineArrayChanVolumes<T>
 {
-	public int GUID;
-	public int UserData;
+	T first;
 }
 
-public enum AudioSourceType
+public interface ISfxTable {
+	ReadOnlySpan<char> GetName();
+	ReadOnlySpan<char> GetFileName();
+	bool IsPrecachedSound();
+
+	AudioSource? Source { get; set; }
+	bool UseErrorFilename { get; set; }
+	bool IsUISound { get; set; }
+	bool IsLateLoad { get; set; }
+	bool MixGroupsCached { get; set; }
+	byte MixGroupCount { get; set; }
+}
+
+public struct StartSoundParams
+{
+	public bool StaticSound;
+	public int UserData;
+	public int SoundSource;
+	public SoundEntityChannel EntChannel;
+	public ISfxTable? Sfx;
+	public Vector3 Origin;
+	public Vector3 Direction;
+	public bool UpdatePositions;
+	public float Volume;
+	public SoundLevel SoundLevel;
+	public SoundFlags Flags;
+	public int Pitch;
+	public int SpecialDSP;
+	public bool FromServer;
+	public float Delay;
+	public int SpeakerEntity;
+	public bool SuppressRecording;
+	public int InitialStreamPosition;
+
+	public StartSoundParams() {
+		UpdatePositions = true;
+		Volume = 1;
+		SoundLevel = SoundLevel.LvlNorm;
+		Pitch = 100;
+		SpeakerEntity = -1;
+	}
+}
+
+public class AudioChannel
+{
+	public const int MAX_CHANNELS = 128;
+	public const int MAX_DYNAMIC_CHANNELS = 64;
+
+	public long GUID;
+	public int UserData;
+	public ISfxTable? Sfx;
+	public AudioMixer? Mixer;
+
+	public InlineArrayChanVolumes<float> Volume;
+	public InlineArrayChanVolumes<float> VolumeTarget;
+	public InlineArrayChanVolumes<float> VolumeInc;
+	public uint FreeChannelAtSampleTime;
+
+	public SoundSource SoundSource;
+	public SoundEntityChannel EntChannel;
+	public int SpeakerEntity;
+
+	public short MasterVolume;
+	public short BasePitch;
+	public float Pitch;
+	public InlineArray8<int> MixGroups;
+	public int LastMixGroupID;
+	public float LastVol;
+
+	public Vector3 Origin;
+	public Vector3 Direction;
+	public float DistMult;
+
+	public float DSPMix;
+	public float DSPFace;
+	public float DistMix;
+	public float DSPMixMin;
+	public float DSPMixMax;
+
+	public float Radius;
+
+	public float OBGain;
+	public float OBGainTarget;
+	public float OBGainInc;
+
+	public short ActiveIndex;
+	public SoundChars WavType;
+	public byte Pad;
+
+	public InlineArray8<byte> SamplePrev;
+
+	public int InitialStreamPosition;
+
+	public int SpecialDSP;
+
+	public bool UpdatePositions;               // if true, assume sound source can move and update according to entity
+	public bool IsSentence;                    // true if playing linked sentence
+	public bool Dry;                           // if true, bypass all dsp processing for this sound (ie: music)	
+	public bool Speaker;                       // true if sound is playing through in-game speaker entity.
+	public bool StereoWav;                     // if true, a stereo .wav file is the sample data source
+
+	public bool DelayedStart;                  // If true, sound had a delay and so same sound on same channel won't channel steal from it
+	public bool FromServer;                    // for snd_show, networked sounds get colored differently than local sounds
+
+	public bool FirstPass;                     // true if this is first time sound is spatialized
+	public bool Traced;                        // true if channel was already checked this frame for obscuring
+	public bool FastPitch;                     // true if using low quality pitch (fast, but no interpolation)
+
+	public bool IsFreeingChannel;              // true when inside S_FreeChannel - prevents reentrance
+	public bool CompatibilityAttenuation;      // True when we want to use goldsrc compatibility mode for the attenuation
+											   // In that case, dist_mul is set to a relatively meaningful value in StartDynamic/StartStaticSound,
+											   // but we interpret it totally differently in SND_GetGain.
+	public bool ShouldPause;                   // if true, sound should pause when the game is paused
+	public bool IgnorePhonemes;                // if true, we don't want to drive animation w/ phoneme data
+}
+
+public enum AudioSourceType : byte
 {
 	Unknown,
 	WAV,
@@ -63,23 +216,14 @@ public abstract class AudioSource
 	public bool IsCached() => GetCacheStatus() == AudioStatus.Loaded ? true : false;
 	public abstract void CacheLoad();
 	public abstract void CacheUnload();
-}
+	public abstract ReadOnlySpan<char> GetSentence();
 
-public class SfxTable
-{
-	public AudioSource? Source;
-	public bool UseErrorFilename;
-	public bool IsUISound;
-	public bool IsLateLoad;
-	public bool MixGroupsCached;
-	public byte MixGroupCount;
+	public void CheckAudioSourceCache() {
+		throw new NotImplementedException();
+	}
 
-	public FileNameHandle_t NamePoolIndex;
-	public void SetNamePoolIndex(FileNameHandle_t handle) {
-		NamePoolIndex = handle;
-		if (NamePoolIndex != FileNameHandle_t.MaxValue) {
-			// on name changed todo
-		}
+	public AudioMixer? CreateMixer(int initialStreamPosition) {
+		throw new NotImplementedException();
 	}
 }
 
@@ -166,10 +310,10 @@ public interface IAudioDevice
 	void MixBegin(int sampleCount);
 	void MixUpsample(int sampleCount, int filtertype);
 
-	void Mix8Mono(ref AudioChannel channel, Span<byte> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress);
-	void Mix8Stereo(ref AudioChannel channel, Span<byte> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress);
-	void Mix16Mono(ref AudioChannel channel, Span<short> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress);
-	void Mix16Stereo(ref AudioChannel channel, Span<short> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress);
+	void Mix8Mono(AudioChannel channel, Span<byte> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress);
+	void Mix8Stereo(AudioChannel channel, Span<byte> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress);
+	void Mix16Mono(AudioChannel channel, Span<short> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress);
+	void Mix16Stereo(AudioChannel channel, Span<short> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress);
 
 	void ChannelReset(int entnum, int channelIndex, float distanceMod);
 	void TransferSamples(int end);

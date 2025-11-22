@@ -220,19 +220,19 @@ public unsafe class AudioDeviceSDLAudio : AudioDeviceBase {
 		
 	}
 
-	public override void Mix8Mono(ref AudioChannel channel, Span<byte> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) {
+	public override void Mix8Mono(AudioChannel channel, Span<byte> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) {
 
 	}
 
-	public override void Mix8Stereo(ref AudioChannel channel, Span<byte> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) {
-		base.Mix8Stereo(ref channel, data, outputOffset, inputOffset, rateScaleFix, outCount, timecompress);
-	}
-
-	public override void Mix16Mono(ref AudioChannel channel, Span<short> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) {
+	public override void Mix8Stereo(AudioChannel channel, Span<byte> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) {
 
 	}
 
-	public override void Mix16Stereo(ref AudioChannel channel, Span<short> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) {
+	public override void Mix16Mono(AudioChannel channel, Span<short> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) {
+
+	}
+
+	public override void Mix16Stereo(AudioChannel channel, Span<short> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) {
 		
 	}
 

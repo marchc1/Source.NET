@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
+using Source.Common.Audio;
 using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Engine;
@@ -69,7 +70,7 @@ public class Host(
 	public Scr Scr;
 	public Net Net;
 	public Sys Sys;
-	public SoundServices soundServices;
+	public ISoundServices soundServices;
 	public ClientDLL ClientDLL;
 	public Sound Sound;
 	public IHostState HostState;
@@ -78,6 +79,7 @@ public class Host(
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
 	public bool Initialized;
+	public TimeUnit_t Time;
 	public TimeUnit_t FrameTime;
 	public TimeUnit_t FrameTimeUnbounded;
 	public TimeUnit_t FrameTimeStandardDeviation;
@@ -313,6 +315,7 @@ public class Host(
 		Speeds();
 		UpdateMapList();
 		FrameCount++;
+		Time = TickCount * host_state.IntervalPerTick + cl.TickRemainder;
 
 		// It may be a bad idea to put this here... whatever for now - but later figure out how it's *actually* done
 		if (Sys.TextMode)
@@ -632,7 +635,7 @@ public class Host(
 		Cbuf = engineAPI.InitSubsystem<Cbuf>()!;
 		Cmd = engineAPI.InitSubsystem<Cmd>()!;
 		Cvar = engineAPI.InitSubsystem<Cvar>()!;
-		soundServices = engineAPI.GetRequiredService<SoundServices>();
+		soundServices = engineAPI.GetRequiredService<ISoundServices>();
 #if !SWDS
 		View = engineAPI.InitSubsystem<View>()!;
 #endif

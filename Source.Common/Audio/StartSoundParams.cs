@@ -66,32 +66,3 @@ public enum SoundEntityChannel {
 
 	UserBase = VoiceBase + 128     
 }
-
-public struct StartSoundParams {
-	public bool StaticSound;
-	public int UserData;
-	public int SoundSource;
-	public SoundEntityChannel EntChannel;
-	public SfxTable? Sfx;
-	public Vector3 Origin;
-	public Vector3 Direction;
-	public bool UpdatePositions;
-	public float Volume;
-	public SoundLevel SoundLevel;
-	public SoundFlags Flags;
-	public int Pitch;
-	public int SpecialDSP;
-	public bool FromServer;
-	public float Delay;
-	public int SpeakerEntity;
-	public bool SuppressRecording;
-	public int InitialStreamPosition;
-
-	public StartSoundParams() {
-		UpdatePositions = true;
-		Volume = 1;
-		SoundLevel = SoundLevel.LvlNorm;
-		Pitch = 100;
-		SpeakerEntity = -1;
-	}
-}

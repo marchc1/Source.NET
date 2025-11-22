@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
+using Source.Common.Audio;
 using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Engine;
@@ -168,7 +169,8 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<ClientGlobalVariables>();
 		this.AddSingleton<ServerGlobalVariables>();
 		this.AddSingleton<DtCommonEng>();
-		this.AddSingleton<SoundServices>();
+		this.AddSingleton<ISoundServices, EngineSoundServices>();
+		this.AddSingleton<IAudioSourceCache, AudioSourceCache>();
 		// Engine datacache
 		this.AddSingleton<IModelRender, ModelRender>();
 		this.AddSingleton<IModelInfoClient, ModelInfoClient>();

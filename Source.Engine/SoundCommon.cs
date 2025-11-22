@@ -32,12 +32,12 @@ public class AudioDeviceBase : IAudioDevice
 
 	public virtual void MixUpsample(int sampleCount, int filtertype) { }
 
-	public virtual void Mix8Mono(ref AudioChannel channel, Span<byte> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) { }
+	public virtual void Mix8Mono(AudioChannel channel, Span<byte> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) { }
 
-	public virtual void Mix8Stereo(ref AudioChannel channel, Span<byte> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) { }
+	public virtual void Mix8Stereo(AudioChannel channel, Span<byte> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) { }
 
-	public virtual void Mix16Mono(ref AudioChannel channel, Span<short> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) { }
-	public virtual void Mix16Stereo(ref AudioChannel channel, Span<short> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) { }
+	public virtual void Mix16Mono(AudioChannel channel, Span<short> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) { }
+	public virtual void Mix16Stereo(AudioChannel channel, Span<short> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) { }
 	public virtual void ChannelReset(int entnum, int channelIndex, float distanceMod) { }
 
 	public virtual void TransferSamples(int end) { }

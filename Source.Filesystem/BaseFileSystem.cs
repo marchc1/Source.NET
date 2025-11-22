@@ -203,6 +203,7 @@ public class BaseFileSystem : IFileSystem
 		return loseDefault;
 	}
 	public ReadOnlySpan<char> RelativePathToFullPath(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID, Span<char> dest, PathTypeFilter filter = PathTypeFilter.None) {
+		fileName = fileName.SliceNullTerminatedString();
 		if (!FirstToThePost(fileName, pathID, (path, filename) => path.Exists(filename), boolWin, false, out SearchPath? winner))
 			return null;
 

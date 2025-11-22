@@ -369,7 +369,15 @@ public static class StrTools
 		FixSlashes(dest);
 	}
 
-	public static bool RemoveDotSlashes(Span<char> filename, char separator, bool removeDoubleSlashes = true) {
+	public static void StrLower(Span<char> str) {
+		for (int i = 0; i < str.Length; i++)
+			str[i] = char.ToLower(str[i]);
+	}
+	public static void StrUpper(Span<char> str) {
+		for (int i = 0; i < str.Length; i++)
+			str[i] = char.ToUpper(str[i]);
+	}
+	public static bool RemoveDotSlashes(Span<char> filename, char separator = CORRECT_PATH_SEPARATOR, bool removeDoubleSlashes = true) {
 		int pIn = 0;
 		int pOut = 0;
 		bool ret = true;
@@ -558,6 +566,11 @@ public static class ClassUtils
 		return ref ret;
 	}
 
+	public static T[] InstantiateArray<T>(this T[] array) where T : new() {
+		for (int i = 0; i < array.Length; i++) 
+			array[i] ??= new();
+		return array;
+	}
 
 	public static bool IsValidIndex<T>(this List<T> list, int index) => index >= 0 && index < list.Count;
 	public static bool IsValidIndex<T>(this List<T> list, long index) => index >= 0 && index < list.Count;

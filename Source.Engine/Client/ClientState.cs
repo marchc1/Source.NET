@@ -958,4 +958,11 @@ public class ClientState : BaseClientState
 		int idx = ModelPrecacheTable.FindStringIndex(name);
 		return idx == INetworkStringTable.INVALID_STRING_INDEX ? -1 : idx;
 	}
+
+	public int LookupSoundIndex(ReadOnlySpan<char> name) {
+		if (SoundPrecacheTable == null)
+			return -1;
+		int idx = SoundPrecacheTable.FindStringIndex(name);
+		return idx == INetworkStringTable.INVALID_STRING_INDEX ? -1 : idx;
+	}
 }
