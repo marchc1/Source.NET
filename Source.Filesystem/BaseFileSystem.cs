@@ -208,8 +208,7 @@ public class BaseFileSystem : IFileSystem
 			return null;
 
 		Span<char> concatBuffer = stackalloc char[MAX_PATH];
-		var concatted = winner.Concat(fileName, concatBuffer);
-		return new string(concatted);
+		return winner.Concat(fileName, dest);
 	}
 
 	private static bool boolWin(bool inp) => inp;
