@@ -1,5 +1,7 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Xml.Linq;
 
 namespace Source.Common;
 
@@ -13,6 +15,11 @@ public static unsafe class MemUtils
 
 	public static void memset<T>(Span<T> field, T data) where T : unmanaged {
 		fixed (T* ptr = field)
+			for (nuint i = 0; i < (nuint)field.Length; i++)
+				ptr[i] = data;
+	}
+	public static void memset<T>(Memory<T> field, T data) where T : unmanaged {
+		fixed (T* ptr = field.Span)
 			for (nuint i = 0; i < (nuint)field.Length; i++)
 				ptr[i] = data;
 	}
@@ -80,7 +87,7 @@ public static unsafe class MemUtils
 	}
 }
 
-public unsafe ref struct UnmanagedHeapMemory
+public unsafe class UnmanagedHeapMemory : IDisposable
 {
 	byte* Pointer;
 	nuint Len;
@@ -89,12 +96,25 @@ public unsafe ref struct UnmanagedHeapMemory
 		Pointer = (byte*)NativeMemory.Alloc(bytes);
 		Len = bytes;
 	}
+
 	public UnmanagedHeapMemory(int bytes) {
 		Pointer = (byte*)NativeMemory.Alloc((nuint)bytes);
 		Len = (nuint)bytes;
 	}
 
-	public static implicit operator Span<byte>(UnmanagedHeapMemory memory) => new(memory.Pointer, (int)memory.Length);
+	public void Memset(int value, nuint length) => Memset((byte)value, (int)length);
+	public void Memset(int value, nint length) => Memset((byte)value, (int)length);
+	public void Memset(int value, int length) => Memset((byte)value, length);
+	public void Memset(byte value, nuint length) => Memset(value, (int)length);
+	public void Memset(byte value, nint length) => Memset(value, (int)length);
+	public void Memset(byte value, int pos, int length) => memset(new Span<byte>(Pointer, (int)Length).Slice(pos, length), value);
+	public void Memset(byte value, int length) => memset(new Span<byte>(Pointer, (int)Length)[..length], value);
+	public void Memset(byte value) => memset(new Span<byte>(Pointer, (int)Length), value);
+
+	public static implicit operator Span<byte>(UnmanagedHeapMemory memory) => memory.ToSpan();
+
+	public Span<byte> ToSpan() => new(Pointer, (int)Length);
+	public byte* ToPointer() => Pointer;
 
 	public void Dispose() {
 		if (Pointer == null) {
@@ -106,6 +126,43 @@ public unsafe ref struct UnmanagedHeapMemory
 		Len = 0;
 	}
 
-	public readonly nuint Length => Len;
-	public readonly nuint Handle => (nuint)Pointer;
+	public bool IsValid() => Pointer != null;
+
+	public nuint Length => Len;
+	public nuint Handle => (nuint)Pointer;
+}
+public unsafe class UnmanagedHeapMemory<T> : IDisposable where T : unmanaged
+{
+	T* Pointer;
+	nuint Len;
+
+	public UnmanagedHeapMemory(nuint elements) {
+		Pointer = (T*)NativeMemory.Alloc(elements * (nuint)sizeof(T));
+		Len = elements;
+	}
+	public UnmanagedHeapMemory(int elements) : this((nuint)elements) { }
+
+	public void Memset(in T value, int pos, int length) => memset(new Span<T>(Pointer, (int)Length).Slice(pos, length), value);
+	public void Memset(in T value, int length) => memset(new Span<T>(Pointer, (int)Length)[..length], value);
+	public void Memset(in T value) => memset(new Span<T>(Pointer, (int)Length), value);
+
+	public static implicit operator Span<T>(UnmanagedHeapMemory<T> memory) => memory.ToSpan();
+
+	public Span<T> ToSpan() => new(Pointer, (int)Length);
+	public T* ToPointer() => Pointer;
+
+	public void Dispose() {
+		if (Pointer == null) {
+			Warning("WARNING: ATTEPTED TO DISPOSE OF NO LONGER VALID UNMANAGED HEAP MEMORY\n");
+			return;
+		}
+		NativeMemory.Free(Pointer);
+		Pointer = null;
+		Len = 0;
+	}
+
+	public bool IsValid() => Pointer != null;
+
+	public nuint Length => Len;
+	public nuint Handle => (nuint)Pointer;
 }

@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Source.Common.Audio;
 
@@ -100,8 +101,18 @@ public struct PortableSamplePair
 	public int Right;
 }
 
-public struct PaintBuffer
+public class InlineArray_2DPaintFilters
 {
+	public readonly PortableSamplePair[] elements = new PortableSamplePair[PaintBuffer.CPAINTFILTERS * PaintBuffer.CPAINTFILTERMEM];
+	public unsafe ref PortableSamplePair this[int x, int y] => ref elements[(x * PaintBuffer.CPAINTFILTERMEM) + y];
+}
+
+public unsafe class PaintBuffer
+{
+	public const int PAINTBUFFER_SIZE = 1020;
+	public const int CPAINTFILTERMEM = 3;
+	public const int CPAINTFILTERS = 4;
+
 	public bool Active;
 	public bool Surround;
 	public bool SurroundCenter;
@@ -109,11 +120,17 @@ public struct PaintBuffer
 	public int PrevSpecialDSP;
 	public int SpecialDSP;
 	public int Flags;
-	public Memory<PortableSamplePair> Buf;
-	public Memory<PortableSamplePair> BufRear;
-	public Memory<PortableSamplePair> BufCenter;
+	public PortableSamplePair[]? Buf;
+	public PortableSamplePair[]? BufRear;
+	public PortableSamplePair[]? BufCenter;
+
 	public int Filter;
+
+	public readonly InlineArray_2DPaintFilters FilterMem = new();
+	public readonly InlineArray_2DPaintFilters FilterMemRear = new();
+	public readonly InlineArray_2DPaintFilters FilterMemCenter = new();
 }
+
 
 public interface IAudioDevice
 {
@@ -121,6 +138,7 @@ public interface IAudioDevice
 	public const int SOUND_11k = 11025;
 	public const int SOUND_22k = 22050;
 	public const int SOUND_44k = 44100;
+	public const int SAMPLE_16BIT_SHIFT = 1;
 
 	bool IsActive();
 	bool Init();
