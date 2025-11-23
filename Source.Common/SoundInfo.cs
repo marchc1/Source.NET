@@ -14,16 +14,19 @@ using System.Xml.Linq;
 
 namespace Source.Common;
 
-public static class SoundConstants {
+public static class SoundConstants
+{
 	public const int SOUND_SEQNUMBER_BITS = 10;
 	public const int MAX_SNDLVL_BITS = 9;
 	public const int SOUND_SEQNUMBER_MASK = (1 << SOUND_SEQNUMBER_BITS) - 1;
 	public const float SOUND_DELAY_OFFSET = 0.1f;
 	public const int MAX_SOUND_DELAY_MSEC_ENCODE_BITS = 13;
 
-	public static int PITCH_NORM = 100;
-	public static int PITCH_LOW = 95;
-	public static int PITCH_HIGH = 120;
+	public const int SND_FLAG_BITS_ENCODE = 12;
+
+	public const int PITCH_NORM = 100;
+	public const int PITCH_LOW = 95;
+	public const int PITCH_HIGH = 120;
 
 	public const float DEFAULT_SOUND_PACKET_VOLUME = 1.0f;
 	public const int DEFAULT_SOUND_PACKET_PITCH = 100;
@@ -75,7 +78,6 @@ public struct SoundInfo
 				SoundNum = delta.SoundNum;
 		}
 
-		const int SND_FLAG_BITS_ENCODE = 11;
 		if (nProtoVersion > 18) {
 			if (buffer.ReadOneBit() != 0)
 				Flags = (SoundFlags)buffer.ReadUBitLong(SND_FLAG_BITS_ENCODE);
@@ -98,21 +100,21 @@ public struct SoundInfo
 		IsSentence = buffer.ReadOneBit() != 0;
 
 		if (Flags != SoundFlags.Stop) {
-			if (buffer.ReadOneBit() != 0) 
+			if (buffer.ReadOneBit() != 0)
 				SequenceNumber = delta.SequenceNumber;
-			else if (buffer.ReadOneBit() != 0) 
+			else if (buffer.ReadOneBit() != 0)
 				SequenceNumber = delta.SequenceNumber + 1;
-			else 
+			else
 				SequenceNumber = (int)buffer.ReadUBitLong(SOUND_SEQNUMBER_BITS);
-			
-			if (buffer.ReadOneBit() != 0) 
+
+			if (buffer.ReadOneBit() != 0)
 				Volume = (float)buffer.ReadUBitLong(7) / 127.0f;
-			else 
+			else
 				Volume = delta.Volume;
 
-			if (buffer.ReadOneBit() != 0) 
+			if (buffer.ReadOneBit() != 0)
 				Soundlevel = (SoundLevel)buffer.ReadUBitLong(MAX_SNDLVL_BITS);
-			else 
+			else
 				Soundlevel = delta.Soundlevel;
 
 			if (buffer.ReadOneBit() != 0)
@@ -138,7 +140,7 @@ public struct SoundInfo
 				// bias results so that we only incur the precision loss on relatively large skipaheads
 				Delay -= SOUND_DELAY_OFFSET;
 			}
-			else 
+			else
 				Delay = delta.Delay;
 
 			{
