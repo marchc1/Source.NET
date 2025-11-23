@@ -27,23 +27,18 @@ public partial class Sound
 	readonly ConVar snd_mix_async = new("snd_mix_async", "0", 0);
 
 	public bool Initialized;
-	public IAudioDevice? AudioDevice;
+	readonly IAudioSystem AudioSystem = Singleton<IAudioSystem>();
 
 	public void Init() {
 		DevMsg("Sound Initialization: Start\n");
 		// TODO: Vox
 
-		if (CommandLine.CheckParm("-nosound")) {
-			AudioDevice = Audio.GetNullDevice();
-			return;
-		}
-
 		Initialized = true;
-		Startup();
+		AudioSystem.Init();
 
 		StopAllSounds(true);
 		// AllocDsps?
-		DevMsg($"Sound Initialization: Finish, Sampling Rate: {AudioDevice!.DeviceDmaSpeed()} Hz\n");
+		DevMsg($"Sound Initialization: Finish, Sampling Rate: {AudioSystem!.DeviceDmaSpeed()} Hz\n");
 	}
 
 	readonly IFileSystem fileSystem;
@@ -54,15 +49,6 @@ public partial class Sound
 		this.fileSystem = fileSystem;
 		this.soundServices = soundServices;
 		this.CommandLine = commandLine;
-	}
-
-	public void Startup() {
-		if (AudioDevice == null || AudioDevice == Audio.GetNullDevice()) {
-			AudioDevice = Audio.AutoDetectInit(false);
-			if (AudioDevice == null) {
-				Error("Unable to init audio");
-			}
-		}
 	}
 
 	public SfxTable? PrecacheSound(ReadOnlySpan<char> name) {
@@ -97,7 +83,7 @@ public partial class Sound
 	bool IsListenerUnderwater;
 
 	internal void Update() {
-		if (!AudioDevice!.IsActive())
+		if (!AudioSystem!.IsActive())
 			return;
 
 		ListenerOrigin = vec3_origin;
@@ -110,7 +96,7 @@ public partial class Sound
 	}
 
 	internal void Update(in AudioState audioState) {
-		if (!AudioDevice!.IsActive())
+		if (!AudioSystem!.IsActive())
 			return;
 
 		ListenerOrigin = audioState.Origin;
@@ -127,7 +113,7 @@ public partial class Sound
 	private void PerformUpdate() {
 		// Something should've set up the ListenerOrigin/ListenerDirection/IsListenerUnderwater variables before calling this method!
 
-		AudioDevice!.UpdateListener(in ListenerOrigin, in ListenerForward, in ListenerRight, in ListenerUp, IsListenerUnderwater);
+		AudioSystem!.UpdateListener(in ListenerOrigin, in ListenerForward, in ListenerRight, in ListenerUp, IsListenerUnderwater);
 		int voiceChannelCount = 0;
 		int voiceChannelMaxVolume = 0;
 
@@ -135,14 +121,14 @@ public partial class Sound
 		LastSoundFrame = now;
 		LastMixTime = now;
 		EstFrameTime = (EstFrameTime * 0.9f) + (soundServices.GetHostFrametime() * 0.1f);
-		AudioDevice.Update(EstFrameTime + snd_mixahead.GetDouble());
+		AudioSystem.Update(EstFrameTime + snd_mixahead.GetDouble());
 	}
 
 	private void StopAllSounds(bool clear) {
-		if (AudioDevice == null)
+		if (AudioSystem == null)
 			return;
 
-		if (!AudioDevice.IsActive())
+		if (!AudioSystem.IsActive())
 			return;
 	}
 }

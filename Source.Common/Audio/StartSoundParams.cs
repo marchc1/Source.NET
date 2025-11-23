@@ -67,7 +67,8 @@ public enum SoundEntityChannel {
 	UserBase = VoiceBase + 128     
 }
 
-public interface IAudioDevice {
+public interface IAudioSystem
+{
 	ReadOnlySpan<char> DeviceName();
 	int DeviceChannels();
 	int DeviceSampleBits();

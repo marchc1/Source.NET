@@ -1,29 +1,31 @@
 using Game.Client;
 using Game.Server;
+using Game.UI;
 
-using Source.FileSystem;
+using Microsoft.Extensions.DependencyInjection;
+
+using Nucleus.SDL3Window;
 
 using Source.Common;
+using Source.Common.Audio;
 using Source.Common.Commands;
+using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.Input;
+using Source.Common.Launcher;
+using Source.Common.MaterialSystem;
+using Source.Common.ShaderAPI;
+using Source.DataCache;
 using Source.Engine;
+using Source.FileSystem;
+using Source.GUI.Controls;
+using Source.SDLManager;
+using Source.ShaderAPI.Gl46;
+using Source.StdShader.Gl46;
+using Source.StudioRender;
 
 using Steamworks;
-using Source.Common.Launcher;
-using Source.SDLManager;
-using Source.Common.Input;
-using Nucleus.SDL3Window;
-using Source.Common.MaterialSystem;
-using Game.UI;
-using Source.StdShader.Gl46;
-using Microsoft.Extensions.DependencyInjection;
-using Source.GUI.Controls;
-using Source.Common.ShaderAPI;
-using Source.ShaderAPI.Gl46;
-using Source.Common.DataCache;
-using Source.DataCache;
-using Source.StudioRender;
 
 namespace Source.Launcher;
 
@@ -66,6 +68,7 @@ public class Bootloader : IDisposable
 				.WithComponent<IShaderAPI, ShaderAPIGl46>()
 				// Datacache impl
 				.WithComponent<IDataCache, DataCache.DataCache>()
+				.WithComponent<IAudioSystem, AudioSystem.AudioSystem>()
 				.WithComponent<MDLCache>()
 				.WithResolvedComponent<IMDLCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
 				.WithResolvedComponent<IStudioDataCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
