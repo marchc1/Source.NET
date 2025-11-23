@@ -29,9 +29,15 @@ public partial class Sound
 	public bool Initialized;
 	readonly IAudioSystem AudioSystem = Singleton<IAudioSystem>();
 
+	ClientState cl = null!;
+	GameServer sv = null!;
+
 	public void Init() {
 		DevMsg("Sound Initialization: Start\n");
 		// TODO: Vox
+
+		cl = Singleton<ClientState>();
+		sv = Singleton<GameServer>();
 
 		Initialized = true;
 		AudioSystem.Init();
@@ -49,14 +55,38 @@ public partial class Sound
 		this.fileSystem = fileSystem;
 		this.soundServices = soundServices;
 		this.CommandLine = commandLine;
+
+		SfxTable.Impl.GetName = SfxTable_GetName;
+		SfxTable.Impl.IsPrecachedSound = SfxTable_IsPrecachedSound;
 	}
 
-	public SfxTable? PrecacheSound(ReadOnlySpan<char> name) {
+	ReadOnlySpan<char> SfxTable_GetName(SfxTable self) {
+		if (Sounds.ContainsKey(self.NamePoolIndex)) {
+			ReadOnlySpan<char> str = fileSystem.String(self.NamePoolIndex);
+			return str;
+		}
+
 		return null;
 	}
 
-	public static readonly ClassMemoryPool<SfxTable> SoundPool = new();
-	double accumulatedSoundLoadTime = 0;
+	bool SfxTable_IsPrecachedSound(SfxTable self) {
+		if (sv.IsActive())
+			return false; // Todo
+
+		ReadOnlySpan<char> name = SfxTable_GetName(self);
+		return cl.LookupSoundIndex(name) != -1;
+	}
+
+	readonly Dictionary<FileNameHandle_t, SfxTable> Sounds = [];
+	public SfxTable? PrecacheSound(ReadOnlySpan<char> name) {
+		FileNameHandle_t handle = fileSystem.FindOrAddFileName(name);
+		if (Sounds.TryGetValue(handle, out SfxTable? table))
+			return table;
+
+		Sounds[handle] = table = new();
+		table.SetNamePoolIndex(handle);
+		return table;
+	}
 
 	public void MarkUISound(SfxTable sound) {
 		sound.IsUISound = true;
@@ -72,8 +102,8 @@ public partial class Sound
 			return StartDynamicSound(parms);
 	}
 
-	private long StartDynamicSound(StartSoundParams parms) => 0;
-	private long StartStaticSound(in StartSoundParams parms) => 0;
+	private long StartDynamicSound(in StartSoundParams parms) => AudioSystem.StartDynamicSound(in parms);
+	private long StartStaticSound(in StartSoundParams parms) => AudioSystem.StartStaticSound(in parms);
 	internal void Shutdown() { }
 
 	Vector3 ListenerOrigin;
@@ -114,8 +144,6 @@ public partial class Sound
 		// Something should've set up the ListenerOrigin/ListenerDirection/IsListenerUnderwater variables before calling this method!
 
 		AudioSystem!.UpdateListener(in ListenerOrigin, in ListenerForward, in ListenerRight, in ListenerUp, IsListenerUnderwater);
-		int voiceChannelCount = 0;
-		int voiceChannelMaxVolume = 0;
 
 		TimeUnit_t now = Platform.Time;
 		LastSoundFrame = now;

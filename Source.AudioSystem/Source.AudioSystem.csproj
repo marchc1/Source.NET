@@ -7,7 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ppy.ManagedBass" Version="2022.1216.0" />
+    <PackageReference Include="ManagedBass" Version="4.0.2" />
+    <PackageReference Include="ManagedBass.Fx" Version="4.0.2" />
+    <PackageReference Include="ManagedBass.Mix" Version="4.0.2" />
   </ItemGroup>
 
   <ItemGroup>

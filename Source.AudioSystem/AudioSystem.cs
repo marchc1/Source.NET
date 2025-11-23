@@ -1,4 +1,6 @@
-﻿using Source.Common.Audio;
+﻿using ManagedBass;
+
+using Source.Common.Audio;
 
 using System.Numerics;
 
@@ -31,6 +33,9 @@ public class AudioSystem : IAudioSystem
 	}
 
 	public bool Init() {
+		if (!Bass.Init(1))
+			return false;
+
 		return true;
 	}
 
@@ -38,8 +43,16 @@ public class AudioSystem : IAudioSystem
 		return true;
 	}
 
-	public void Update(double v) {
+	public long StartDynamicSound(in StartSoundParams parms) {
+		throw new NotImplementedException();
+	}
 
+	public long StartStaticSound(in StartSoundParams parms) {
+		throw new NotImplementedException();
+	}
+
+	public void Update(double v) {
+		Bass.Update((int)(float)(v * 1000));
 	}
 
 	public void UpdateListener(in Vector3 listenerOrigin, in Vector3 listenerForward, in Vector3 listenerRight, in Vector3 listenerUp, bool isListenerUnderwater) {

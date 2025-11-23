@@ -79,9 +79,18 @@ public interface IAudioSystem
 	void UpdateListener(in Vector3 listenerOrigin, in Vector3 listenerForward, in Vector3 listenerRight, in Vector3 listenerUp, bool isListenerUnderwater);
 	void Update(double v);
 	bool Init();
+	long StartDynamicSound(in StartSoundParams parms);
+	long StartStaticSound(in StartSoundParams parms);
 }
 public class SfxTable
 {
+	// Engine implements this. Kinda sucks, but whatever
+	public static class Impl {
+		public delegate ReadOnlySpan<char> GetNameFn(SfxTable sfx);
+		public delegate bool IsPrecachedSoundFn(SfxTable sfx);
+		public static GetNameFn GetName = null!;
+		public static IsPrecachedSoundFn IsPrecachedSound = null!;
+	}
 	public AudioSource? Source { get; set; }
 	public bool UseErrorFilename { get; set; }
 	public bool IsUISound { get; set; }
@@ -90,6 +99,12 @@ public class SfxTable
 	public byte MixGroupCount { get; set; }
 
 	public FileNameHandle_t NamePoolIndex;
+	public ReadOnlySpan<char> GetName() => Impl.GetName(this);
+	public bool IsPrecachedSound() => Impl.IsPrecachedSound(this);
+	public ReadOnlySpan<char> GetFileName() {
+		ReadOnlySpan<char> name = GetName();
+		return !name.IsEmpty ? SoundCharsUtils.SkipSoundChars(name) : null;
+	}
 	public void SetNamePoolIndex(FileNameHandle_t handle) {
 		NamePoolIndex = handle;
 		if (NamePoolIndex != FileNameHandle_t.MaxValue) {
