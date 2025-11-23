@@ -61,7 +61,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	public void OpenElements() {
 		if (Open)
 			return;
-		// WeaponSound() todo
+		WeaponSound(Shared.WeaponSound.Special1);
 
 		BasePlayer? owner = ToBasePlayer(GetOwner());
 		if (owner == null)
@@ -74,7 +74,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	public void CloseElements() {
 		if (!Open)
 			return;
-		// WeaponSound() todo
+		WeaponSound(Shared.WeaponSound.MeleeHit);
 
 		BasePlayer? owner = ToBasePlayer(GetOwner());
 		if (owner == null)

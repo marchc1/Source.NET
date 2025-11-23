@@ -66,5 +66,10 @@ public partial class
 		ServerClass
 #endif
 		= new Class("BaseHL2MPCombatWeapon", DT_BaseHL2MPCombatWeapon).WithManualClassID(StaticClassIndices.CBaseHL2MPCombatWeapon);
+
+	public void WeaponSound(WeaponSound soundType, TimeUnit_t soundtime = 0.0) {
+#if CLIENT_DLL
+#endif
+	}
 }
 #endif

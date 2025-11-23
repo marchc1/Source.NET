@@ -20,9 +20,6 @@ public partial class Sound
 	readonly ConVar snd_visualize = new("snd_visualize", "0", FCvar.Cheat, "Show sounds location in world");
 	readonly ConVar snd_pitchquality = new("snd_pitchquality", "1", FCvar.Archive);      // 1) use high quality pitch shifters
 
-	readonly static ConVar volume = new("volume", "1.0", FCvar.Archive, "Sound volume", 0.0, 1.0);
-	readonly ConVar snd_musicvolume = new("snd_musicvolume", "1.0", FCvar.Archive, "Music volume", 0.0, 1.0);
-
 	readonly ConVar snd_mixahead = new("snd_mixahead", "0.1", FCvar.Archive);
 	readonly ConVar snd_mix_async = new("snd_mix_async", "0", 0);
 

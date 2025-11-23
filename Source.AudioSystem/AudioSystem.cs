@@ -1,54 +1,84 @@
 ﻿using ManagedBass;
 
 using Source.Common.Audio;
+using Source.Common.Commands;
 using Source.Common.Filesystem;
 
 using System.Numerics;
 
 using static Source.AudioSystem.AudioGlobals;
-using static Source.AudioSystem.BassAudioFileSource;
+using static Source.AudioSystem.BassAudioMemorySource;
 namespace Source.AudioSystem;
 
 [EngineComponent]
 public static class AudioGlobals
 {
 	[Dependency] public static IFileSystem filesystem = null!;
+	[Dependency] public static AudioCache audiocache = null!;
 }
 
 
-public class BassAudioSource : AudioSource
-{
-	public int BassStream = 0;
-}
+[EngineComponent]
+public class AudioCache {
+	public readonly Dictionary<FileNameHandle_t, byte[]> MemoryCache = [];
 
+	public byte[]? Lookup(ReadOnlySpan<char> file) {
+		FileNameHandle_t handle = filesystem.FindOrAddFileName(file);
+		if (MemoryCache.TryGetValue(handle, out byte[]? data))
+			return data;
 
-public class BassAudioFileSource : BassAudioSource, IDisposable
-{
-	public BassAudioFileSource(ReadOnlySpan<char> file) {
 		Span<char> fileSearch = stackalloc char[file.Length + 6];
 		"sound/".CopyTo(fileSearch);
 		file.CopyTo(fileSearch[6..]);
 
 		if (!filesystem.FileExists(fileSearch, "game"))
-			return;
+			return null;
 
 		IFileHandle? fh = filesystem.Open(fileSearch, FileOpenOptions.Read | FileOpenOptions.Binary, "game");
 		if (fh == null)
-			return;
+			return null;
 
-		byte[] data = new byte[fh.Stream.Length];
+		data = new byte[fh.Stream.Length];
 		fh.Stream.ReadExactly(data);
 		fh.Dispose();
+		MemoryCache[handle] = data;
+		return data;
+	}
+}
 
-		BassStream = Bass.CreateStream(data, 0, data.Length, BassFlags.Default);
-		if(BassStream == 0) {
+
+public class BassAudioSource : AudioSource
+{
+	public int BassHandle = 0;
+
+	public virtual void Play() {
+
+	}
+}
+
+
+public class BassAudioMemorySource : BassAudioSource, IDisposable
+{
+	public BassAudioMemorySource(ReadOnlySpan<char> file) {
+		byte[]? data = audiocache.Lookup(file);
+		if (data == null)
+			return;
+
+		BassHandle = Bass.SampleLoad(data, 0, data.Length, 128, BassFlags.Default);
+		if(BassHandle == 0) {
 			Dbg.Msg($"BASS: {Bass.LastError}\n");
 		} 
 	}
 
 	public void Dispose() {
-		Bass.StreamFree(BassStream);
-		BassStream = 0;
+		Bass.StreamFree(BassHandle);
+		BassHandle = 0;
+	}
+
+	public override void Play() {
+		var ch = Bass.SampleGetChannel(BassHandle, false);
+		if (ch != 0)
+			Bass.ChannelPlay(ch, true);
 	}
 }
 
@@ -91,21 +121,18 @@ public class AudioSystem : IAudioSystem
 	}
 
 	public long StartDynamicSound(in StartSoundParams parms) {
-		BassAudioSource src = PreloadSound(parms.Sfx);
-		Bass.ChannelPlay(src.BassStream);
-		return 0;
-	}
-
-	private BassAudioSource PreloadSound(SfxTable? sfx) {
+		SfxTable? sfx = parms.Sfx;
 		if (sfx == null)
-			return null!;
+			return 0;
 
-		if (sfx.Source != null)
-			return (BassAudioSource)sfx.Source;
+		BassAudioSource? src = (BassAudioSource?)sfx.Source;
+		if (src == null) {
+			src = new BassAudioMemorySource(sfx.GetFileName());
+			sfx.Source = src;
+		}
 
-		var src = new BassAudioFileSource(sfx.GetFileName());
-		sfx.Source = src;
-		return src;
+		src.Play();
+		return 0;
 	}
 
 	public long StartStaticSound(in StartSoundParams parms) {
@@ -113,10 +140,16 @@ public class AudioSystem : IAudioSystem
 	}
 
 	public void Update(double v) {
+		Bass.GlobalSampleVolume = (int)(volume.GetFloat() * 10000);
+		Bass.GlobalMusicVolume = (int)(snd_musicvolume.GetFloat() * volume.GetFloat() * 10000);
 		Bass.Update((int)(float)(v * 1000));
 	}
 
 	public void UpdateListener(in Vector3 listenerOrigin, in Vector3 listenerForward, in Vector3 listenerRight, in Vector3 listenerUp, bool isListenerUnderwater) {
 
 	}
+
+	readonly static ConVar volume = new("volume", "1.0", FCvar.Archive, "Sound volume", 0.0, 1.0);
+	readonly ConVar snd_musicvolume = new("snd_musicvolume", "1.0", FCvar.Archive, "Music volume", 0.0, 1.0);
+
 }
