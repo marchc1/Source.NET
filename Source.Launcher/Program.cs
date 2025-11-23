@@ -14,6 +14,7 @@ using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Input;
 using Source.Common.Launcher;
+using Source.Common.Lua;
 using Source.Common.MaterialSystem;
 using Source.Common.ShaderAPI;
 using Source.DataCache;
@@ -80,6 +81,8 @@ public class Bootloader : IDisposable
 				.WithGameUIDLL<GameUI>()
 				// Shaders we want to load
 				.WithStdShader<StdShaderGl46>()
+				// Lua stuff
+				.WithComponent<ILuaShared, CLuaShared>()
 				// Let the engine builder take over and inject engine-specific dependencies
 				.Build(dedicated: false);
 
