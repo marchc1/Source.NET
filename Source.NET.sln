@@ -95,7 +95,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Lua", "Lua", "{02EA681E-C7D
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LuaJIT", "Lua.JIT\src\LuaJIT.vcxproj", "{CC4A9E1A-1380-CC74-30A1-0648E5D47BFE}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua-shared", "Lua.Shared\lua-shared\lua-shared.vcxproj", "{9CC6D51B-762D-40CE-903A-90518B5AFF25}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua-shared", "Lua.Shared\lua-shared.vcxproj", "{9CC6D51B-762D-40CE-903A-90518B5AFF25}"
+	ProjectSection(ProjectDependencies) = postProject
+		{CC4A9E1A-1380-CC74-30A1-0648E5D47BFE} = {CC4A9E1A-1380-CC74-30A1-0648E5D47BFE}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lua.Shared.Sharp", "Lua.Shared.Sharp\Lua.Shared.Sharp.csproj", "{3B2D5B10-A00A-B3C2-BAAC-F8B5DFE48471}"
+	ProjectSection(ProjectDependencies) = postProject
+		{9CC6D51B-762D-40CE-903A-90518B5AFF25} = {9CC6D51B-762D-40CE-903A-90518B5AFF25}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -225,6 +233,10 @@ Global
 		{9CC6D51B-762D-40CE-903A-90518B5AFF25}.Debug|Any CPU.Build.0 = Debug|x64
 		{9CC6D51B-762D-40CE-903A-90518B5AFF25}.Release|Any CPU.ActiveCfg = Release|x64
 		{9CC6D51B-762D-40CE-903A-90518B5AFF25}.Release|Any CPU.Build.0 = Release|x64
+		{3B2D5B10-A00A-B3C2-BAAC-F8B5DFE48471}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3B2D5B10-A00A-B3C2-BAAC-F8B5DFE48471}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3B2D5B10-A00A-B3C2-BAAC-F8B5DFE48471}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3B2D5B10-A00A-B3C2-BAAC-F8B5DFE48471}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -265,6 +277,7 @@ Global
 		{02EA681E-C7D8-13C7-8484-4AC65E1B71E8} = {4B578BC3-0E56-46A4-9316-23258535813E}
 		{CC4A9E1A-1380-CC74-30A1-0648E5D47BFE} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{9CC6D51B-762D-40CE-903A-90518B5AFF25} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{3B2D5B10-A00A-B3C2-BAAC-F8B5DFE48471} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {34D1284B-2CD3-4934-84C5-15F7C8604501}
