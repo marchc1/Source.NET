@@ -430,7 +430,9 @@ public class BaseFileSystem : IFileSystem
 		ulong hash = FormatFileName(name, stackalloc char[name.Length]).Hash();
 		if (!fileNameHandles.TryGetValue(hash, out var handle)) {
 			handle = fileNameHandles[hash] = ++currentHandle;
-			fileNameStrings[handle] = new(name); // Make a copy of the string to live forever
+			Span<char> lowercased = stackalloc char[name.Length];
+			name.ToLower(lowercased, null);
+			fileNameStrings[handle] = new(lowercased); // Make a copy of the string to live forever
 		}
 
 		return handle;
