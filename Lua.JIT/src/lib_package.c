@@ -213,7 +213,7 @@ static void **ll_register(lua_State *L, const char *path)
     plib = (void **)lua_touserdata(L, -1);
   } else {  /* no entry yet; create one */
     lua_pop(L, 1);
-    plib = (void **)lua_newuserdata(L, sizeof(void *));
+    plib = (void **)lua_newuserdata(L, sizeof(void *), UDTYPE_USERDATA);
     *plib = NULL;
     luaL_setmetatable(L, "_LOADLIB");
     lua_pushfstring(L, "LOADLIB: %s", path);

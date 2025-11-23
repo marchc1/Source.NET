@@ -702,6 +702,29 @@ LUA_API void* lua_checkrawcdata(lua_State *L, int idx, int type)
   return NULL;
 }
 
+LUA_API void *lua_newuserdata(lua_State *L, size_t size, unsigned char type)
+{
+  GCudata *ud;
+  lj_gc_check(L);
+  if (size > LJ_MAX_UDATA)
+    lj_err_msg(L, LJ_ERR_UDATAOV);
+  ud = lj_udata_new(L, (MSize)size, getcurrenv(L));
+  ud->udtype = type;
+  setudataV(L, L->top, ud);
+  incr_top(L);
+  return uddata(ud);
+}
+
+LUA_API void lua_clearuserdatatable(lua_State *L, int idx)
+{
+  cTValue *o = index2adr(L, idx);
+  if (tvisudata(o))
+  {
+    GCudata* ud = udataV(o);
+    setgcref(ud->env, obj2gco(lj_tab_new_ah(L, 0, 0)));
+  }
+}
+
 LUA_API lua_State *lua_tothread(lua_State *L, int idx)
 {
   cTValue *o = index2adr(L, idx);
@@ -861,7 +884,7 @@ LUA_API lua_State *lua_newthread(lua_State *L)
   return L1;
 }
 
-LUA_API void *lua_newuserdata(lua_State *L, size_t size)
+/*LUA_API void *lua_newuserdata(lua_State *L, size_t size)
 {
   GCudata *ud;
   lj_gc_check(L);
@@ -871,7 +894,7 @@ LUA_API void *lua_newuserdata(lua_State *L, size_t size)
   setudataV(L, L->top, ud);
   incr_top(L);
   return uddata(ud);
-}
+}*/
 
 LUA_API void lua_concat(lua_State *L, int n)
 {
