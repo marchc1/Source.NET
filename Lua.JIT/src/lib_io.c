@@ -70,9 +70,8 @@ static IOFileUD *io_stdfile(lua_State *L, ptrdiff_t id)
 
 static IOFileUD *io_file_new(lua_State *L)
 {
-  IOFileUD *iof = (IOFileUD *)lua_newuserdata(L, sizeof(IOFileUD));
+  IOFileUD *iof = (IOFileUD *)lua_newuserdata(L, sizeof(IOFileUD), UDTYPE_IO_FILE);
   GCudata *ud = udataV(L->top-1);
-  ud->udtype = UDTYPE_IO_FILE;
   /* NOBARRIER: The GCudata is new (marked white). */
   setgcrefr(ud->metatable, curr_func(L)->c.env);
   iof->fp = NULL;
@@ -526,9 +525,8 @@ LJLIB_CF(io_type)
 
 static GCobj *io_std_new(lua_State *L, FILE *fp, const char *name)
 {
-  IOFileUD *iof = (IOFileUD *)lua_newuserdata(L, sizeof(IOFileUD));
+  IOFileUD *iof = (IOFileUD *)lua_newuserdata(L, sizeof(IOFileUD), UDTYPE_IO_FILE);
   GCudata *ud = udataV(L->top-1);
-  ud->udtype = UDTYPE_IO_FILE;
   /* NOBARRIER: The GCudata is new (marked white). */
   setgcref(ud->metatable, gcV(L->top-3));
   iof->fp = fp;
