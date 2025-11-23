@@ -700,6 +700,13 @@ public static class MathLib
 		dst[2, 3] = znear * zfar / (znear - zfar);
 	}
 
+	public static void Init(this ref Vector2 v) => v.X = v.Y = 0;
+	public static void Init(this ref Vector3 v) => v.X = v.Y = v.Z = 0;
+	public static void Init(this ref QAngle a) => a.X = a.Y = a.Z = 0;
+	public static void Init(this ref RadianEuler r) => r.X = r.Y = r.Z = 0;
+	public static void Init(this ref Vector4 v) => v.X = v.Y = v.Z = v.W = 0;
+	
+
 	public static void Init(this ref Vector3 m, float x, float y, float z) {
 		m.X = x;
 		m.Y = y;

@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
 
 namespace Source.Common.Audio;
-public enum SoundLevel
+public enum SoundLevel : uint
 {
 	LvlNone = 0,
 	Lvl20dB = 20,   

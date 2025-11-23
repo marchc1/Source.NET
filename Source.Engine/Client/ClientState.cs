@@ -1,6 +1,9 @@
+using CommunityToolkit.HighPerformance;
+
 using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
+using Source.Common.Audio;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Commands;
@@ -107,11 +110,12 @@ public class ClientState : BaseClientState
 	public static ConVar cl_downloadfilter = new("all", FCvar.Archive, "Determines which files can be downloaded from the server (all, none, nosounds, mapsonly)");
 
 	readonly Common Common;
+	readonly Sound Sound;
 	public ClientState(Host Host, IFileSystem fileSystem, Net Net, CommonHostState host_state, GameServer sv, Common Common,
 		Cbuf Cbuf, Cmd Cmd, ICvar cvar, CL CL, IEngineVGuiInternal? EngineVGui, IHostState HostState, Scr Scr, IEngineAPI engineAPI,
 		[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient, IServiceProvider services,
 		IModelLoader modelloader, ICommandLine commandLine, IPrediction ClientSidePrediction, DtCommonEng DtCommonEng, EngineRecvTable recvTable,
-		ClientGlobalVariables clientGlobalVariables)
+		ClientGlobalVariables clientGlobalVariables, Sound Sound)
 		: base(Host, fileSystem, Net, sv, Cbuf, cvar, EngineVGui, engineAPI, networkStringTableContainerClient) {
 		this.Host = Host;
 		this.fileSystem = fileSystem;
@@ -129,6 +133,7 @@ public class ClientState : BaseClientState
 		this.services = services;
 		this.ClientSidePrediction = ClientSidePrediction;
 		this.clientGlobalVariables = clientGlobalVariables;
+		this.Sound = Sound;
 		engineClient_LAZY = new(ProduceEngineClient);
 		CommandLine = commandLine;
 		RecvTable = recvTable;
@@ -210,6 +215,8 @@ public class ClientState : BaseClientState
 			return false;
 		}
 
+		StringTableBits.CL_SetupNetworkStringTableBits(StringTableContainer!, tableName);
+
 		switch (tableName) {
 			case PrecacheItem.MODEL_PRECACHE_TABLENAME:
 				ModelPrecacheTable = table;
@@ -287,6 +294,76 @@ public class ClientState : BaseClientState
 			return false;
 		}
 		return true;
+	}
+	void ProcessSoundsWithProtoVersion(svc_Sounds msg, List<SoundInfo> sounds, int protoVersion) {
+		SoundInfo defaultSound = default; 
+		defaultSound.SetDefault();
+		ref SoundInfo pDeltaSound = ref defaultSound;
+
+		sounds.EnsureCapacity(256);
+
+		for (int i = 0; i < msg.NumSounds; i++) {
+			int nSound = sounds.Count; sounds.Add(new());
+			ref SoundInfo pSound = ref sounds.AsSpan()[nSound];
+
+			pSound.ReadDelta(ref pDeltaSound, msg.DataIn, protoVersion);
+
+			pDeltaSound = pSound;   // copy delta values
+
+			if (msg.ReliableSound) {
+				SoundSequence = (SoundSequence + 1) & SOUND_SEQNUMBER_MASK;
+				Assert(pSound.SequenceNumber == 0);
+				pSound.SequenceNumber = SoundSequence;
+			}
+		}
+	}
+	protected override bool ProcessSounds(svc_Sounds msg) {
+		if (msg.DataIn.Overflowed) 
+			return false;
+
+		List<SoundInfo> sounds = ListPool<SoundInfo>.Shared.Alloc();
+
+		int startbit = msg.DataIn.BitsRead;
+
+		ProcessSoundsWithProtoVersion(msg, sounds, clientGlobalVariables.NetworkProtocol);
+
+		int nRelativeBitsRead = msg.DataIn.BitsRead - startbit;
+
+		if (msg.Length != nRelativeBitsRead || msg.DataIn.Overflowed) {
+			sounds.Clear();
+
+			int nFallbackProtocol = 0;
+
+			if (clientGlobalVariables.NetworkProtocol == Protocol.PROTOCOL_VERSION_18) 
+				nFallbackProtocol = Protocol.PROTOCOL_VERSION_19;
+			else if (clientGlobalVariables.NetworkProtocol == Protocol.PROTOCOL_VERSION_19) 
+				nFallbackProtocol = Protocol.PROTOCOL_VERSION_18;
+
+			if (nFallbackProtocol != 0) {
+				msg.DataIn.Reset();
+				msg.DataIn.Seek(startbit);
+
+				ProcessSoundsWithProtoVersion(msg, sounds, nFallbackProtocol);
+
+				nRelativeBitsRead = msg.DataIn.BitsRead - startbit;
+			}
+		}
+
+		if (msg.Length == nRelativeBitsRead) {
+			Span<SoundInfo> soundsSpan = sounds.AsSpan();
+			for (int i = 0; i < soundsSpan.Length; ++i) {
+				CL.AddSound(in soundsSpan[i]);
+			}
+
+			ListPool<SoundInfo>.Shared.Free(sounds);
+			return true;
+		}
+
+		msg.DataIn.Reset();
+		msg.DataIn.Seek(startbit + msg.Length);
+
+		ListPool<SoundInfo>.Shared.Free(sounds);
+		return false;
 	}
 	protected override bool ProcessPacketEntities(svc_PacketEntities msg) {
 		if (!msg.IsDelta)
@@ -383,7 +460,12 @@ public class ClientState : BaseClientState
 	}
 
 	public override void PacketEnd() {
-		base.PacketEnd();
+		CL.DispatchSounds();
+		if (GetServerTickCount() != DeltaTick)
+			return;
+		int commandsAcknowledged = CommandAck - LastCommandAck;
+		LastCommandAck = CommandAck;
+		// clientside prediction todo
 	}
 	readonly LinkedList<EventInfo> Events = [];
 
@@ -964,5 +1046,37 @@ public class ClientState : BaseClientState
 			return -1;
 		int idx = SoundPrecacheTable.FindStringIndex(name);
 		return idx == INetworkStringTable.INVALID_STRING_INDEX ? -1 : idx;
+	}
+
+	public ReadOnlySpan<char> GetSoundName(int index) {
+		if (index <= 0 || SoundPrecacheTable == null)
+			return "";
+
+		if (index >= SoundPrecacheTable.GetNumStrings()) {
+			return "";
+		}
+
+		ReadOnlySpan<char> name = SoundPrecacheTable.GetString(index);
+		return name;
+	}
+
+	public SfxTable? GetSound(int index) {
+		if (index <= 0 || SoundPrecacheTable == null)
+			return null;
+
+		if (index >= SoundPrecacheTable.GetNumStrings()) 
+			return null;
+
+		PrecacheItem p = SoundPrecache[index];
+		SfxTable? s = p.GetSound();
+		if (s != null)
+			return s;
+
+		ReadOnlySpan<char>	name = SoundPrecacheTable.GetString(index);
+
+		s = Sound.PrecacheSound(name);
+
+		p.SetSound(s!);
+		return s;
 	}
 }

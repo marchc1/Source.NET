@@ -43,6 +43,15 @@ public partial class
 		ServerClass
 #endif
 		= new Class("WeaponHL2MPBase", DT_WeaponHL2MPBase).WithManualClassID(StaticClassIndices.CWeaponHL2MPBase);
+
+
+	public new void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
+#if CLIENT_DLL
+
+#else
+	base.WeaponSound(soundType, soundTime);
+#endif
+	}
 }
 
 // ====================================================================================================== //
@@ -66,10 +75,5 @@ public partial class
 		ServerClass
 #endif
 		= new Class("BaseHL2MPCombatWeapon", DT_BaseHL2MPCombatWeapon).WithManualClassID(StaticClassIndices.CBaseHL2MPCombatWeapon);
-
-	public void WeaponSound(WeaponSound soundType, TimeUnit_t soundtime = 0.0) {
-#if CLIENT_DLL
-#endif
-	}
 }
 #endif

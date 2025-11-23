@@ -11,8 +11,18 @@ using Source.Engine.Server;
 using System.Numerics;
 namespace Source.Engine;
 
+public enum ClockSyncIndex {
+	Client = 0,
+	Server = 1,
+	Num = 2
+}
+
 public partial class Sound
 {
+	public float ComputeDelayForSoundtime(double soundtime, ClockSyncIndex server) {
+		return 0; // todo
+	}
+
 	readonly ConVar snd_surround = new("snd_surround_speakers", "-1", FCvar.InternalUse);
 	readonly ConVar snd_legacy_surround = new("snd_legacy_surround", "0", FCvar.Archive);
 	readonly ConVar snd_noextraupdate = new("snd_noextraupdate", "0", 0);
