@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 18
-VisualStudioVersion = 18.0.11217.181 d18.0
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36705.20 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Source.Launcher", "Source.Launcher\Source.Launcher.csproj", "{97BFFCAF-9D9D-4352-980B-F930FBFABAF5}"
 EndProject
@@ -89,6 +89,12 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Source.StudioRender", "Source.StudioRender\Source.StudioRender.csproj", "{1D0FB182-E8A6-474F-B1E6-C9DC9613D5BF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Source.AudioSystem", "Source.AudioSystem\Source.AudioSystem.csproj", "{DCFD1437-E3B5-4D4E-A433-65A73402A79B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Lua", "Lua", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LuaJIT", "Lua.JIT\src\LuaJIT.vcxproj", "{CC4A9E1A-1380-CC74-30A1-0648E5D47BFE}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "lua-shared", "Lua.Shared\lua-shared\lua-shared.vcxproj", "{9CC6D51B-762D-40CE-903A-90518B5AFF25}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -206,6 +212,14 @@ Global
 		{DCFD1437-E3B5-4D4E-A433-65A73402A79B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DCFD1437-E3B5-4D4E-A433-65A73402A79B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DCFD1437-E3B5-4D4E-A433-65A73402A79B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CC4A9E1A-1380-CC74-30A1-0648E5D47BFE}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{CC4A9E1A-1380-CC74-30A1-0648E5D47BFE}.Debug|Any CPU.Build.0 = Debug|x64
+		{CC4A9E1A-1380-CC74-30A1-0648E5D47BFE}.Release|Any CPU.ActiveCfg = Release|x64
+		{CC4A9E1A-1380-CC74-30A1-0648E5D47BFE}.Release|Any CPU.Build.0 = Release|x64
+		{9CC6D51B-762D-40CE-903A-90518B5AFF25}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{9CC6D51B-762D-40CE-903A-90518B5AFF25}.Debug|Any CPU.Build.0 = Debug|x64
+		{9CC6D51B-762D-40CE-903A-90518B5AFF25}.Release|Any CPU.ActiveCfg = Release|x64
+		{9CC6D51B-762D-40CE-903A-90518B5AFF25}.Release|Any CPU.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -242,6 +256,9 @@ Global
 		{C4743360-2258-45F7-A913-26284656A32F} = {4B578BC3-0E56-46A4-9316-23258535813E}
 		{1D0FB182-E8A6-474F-B1E6-C9DC9613D5BF} = {4B578BC3-0E56-46A4-9316-23258535813E}
 		{DCFD1437-E3B5-4D4E-A433-65A73402A79B} = {4B578BC3-0E56-46A4-9316-23258535813E}
+		{02EA681E-C7D8-13C7-8484-4AC65E1B71E8} = {4B578BC3-0E56-46A4-9316-23258535813E}
+		{CC4A9E1A-1380-CC74-30A1-0648E5D47BFE} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{9CC6D51B-762D-40CE-903A-90518B5AFF25} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {34D1284B-2CD3-4934-84C5-15F7C8604501}
