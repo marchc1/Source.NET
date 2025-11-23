@@ -319,15 +319,21 @@ typedef struct GCstr {
 
 /* -- Userdata object ----------------------------------------------------- */
 
-/* Userdata object. Payload follows. */
+/* Userdata object. Payload follows. RaphaelIT7: Modified for our needs to be more efficient than gmod */
 typedef struct GCudata {
   GCHeader;
   uint8_t udtype;	/* Userdata type. */
-  uint8_t flags;
+  uint8_t flags;    /* Some field flags though unused for now */
+#if LJ_64 // NOTE: Were on 64x - we got 4 more bytes free here if needed ^^ (no we cannot move len into here - yes it saves size but it breaks the required offsets!
+  int freespace1; // IDEA: We could use this for vectors - would save 8 bytes but makes it unessesarily complex.
+#endif
   GCRef env;		/* Should be at same offset in GCfunc. */
   MSize len;		/* Size of payload. */
+#if LJ_64 // 4 free bytes here on 64x but required to be kept for the offset below
+  int freespace2;
+#endif
   GCRef metatable;	/* Must be at same offset in GCtab. */
-  void* data;
+  // void* data; // RaphaelIT7: We removed this so that instead we allocate it when needed to not waste 8 bytes if we don't store a pointer, like vectors!
 } GCudata;
 
 /* Userdata types. */
