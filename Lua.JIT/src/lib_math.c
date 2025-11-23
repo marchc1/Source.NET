@@ -197,7 +197,7 @@ LJLIB_CF(math_randomseed)
 
 LUALIB_API int luaopen_math(lua_State *L)
 {
-  PRNGState *rs = (PRNGState *)lua_newuserdata(L, sizeof(PRNGState));
+  PRNGState *rs = (PRNGState *)lua_newuserdata(L, sizeof(PRNGState), UDTYPE_USERDATA);
   lj_prng_seed_fixed(rs);
   LJ_LIB_REG(L, LUA_MATHLIBNAME, math);
   return 1;

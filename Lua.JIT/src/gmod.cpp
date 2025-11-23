@@ -215,27 +215,3 @@ extern "C" void GMOD_LuaPrint(const char* str, lua_State* L) // Idk how gmod doe
 
 	((ILuaInterface*)L->luabase)->Msg("%s", str);
 }
-
-struct UserData {
-	void* data;
-	unsigned char type;
-};
-
-extern "C" void GMOD_LuaCreateEmptyUserdata(lua_State* L)
-{
-	//ILuaBase::UserData* udata = (ILuaBase::UserData*)((ILuaBase*)L->luabase)->NewUserdata(sizeof(ILuaBase::UserData)); // Gmod uses CLuaInterface::PushUserType(NULL, 7) Instead
-	//udata->data = nullptr;
-	//udata->type = 7; // 7 = Userdata
-
-	//return udata;
-
-	if (!L->luabase) // just to make testing easier. Gmod doesn't have this.
-	{
-		UserData* pData = (UserData*)lua_newuserdata(L, sizeof(ILuaBase::UserData));
-		pData->data = nullptr;
-		pData->type = 7;
-		return;
-	}
-
-	((ILuaBase*)L->luabase)->PushUserType(NULL, 7);
-}
