@@ -23,7 +23,6 @@ public class AudioDeviceBase : IAudioDevice
 	public virtual void PaintEnd() { }
 
 	public virtual void SpatializeChannel(Span<int> volume, int master_vol, in Vector3 sourceDir, float gain, float mono) { }
-	public virtual void ApplyDSPEffects(int idsp, Span<PortableSamplePair> bufFront, Span<PortableSamplePair> bufRear, Span<PortableSamplePair> bufCenter, int samplecount) { }
 
 	public virtual int GetOutputPosition() => 0;
 	public virtual void ClearBuffer() { }
@@ -32,12 +31,6 @@ public class AudioDeviceBase : IAudioDevice
 
 	public virtual void MixUpsample(int sampleCount, int filtertype) { }
 
-	public virtual void Mix8Mono(AudioChannel channel, Span<byte> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) { }
-
-	public virtual void Mix8Stereo(AudioChannel channel, Span<byte> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) { }
-
-	public virtual void Mix16Mono(AudioChannel channel, Span<short> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) { }
-	public virtual void Mix16Stereo(AudioChannel channel, Span<short> data, int outputOffset, int inputOffset, uint rateScaleFix, int outCount, int timecompress) { }
 	public virtual void ChannelReset(int entnum, int channelIndex, float distanceMod) { }
 
 	public virtual void TransferSamples(int end) { }
@@ -48,11 +41,12 @@ public class AudioDeviceBase : IAudioDevice
 	public virtual int DeviceSampleBytes() => 0;
 	public virtual int DeviceDmaSpeed() => 0;
 	public virtual int DeviceSampleCount() => 0;
+	public virtual void UpdateListener(in Vector3 listenerOrigin, in Vector3 listenerForward, in Vector3 listenerRight, in Vector3 listenerUp, bool isListenerUnderwater) { }
+	public virtual void Update(double v) { }
 
 	protected bool Surround;
 	protected bool SurroundCenter;
 	protected bool Headphone;
-
 }
 
 public static partial class Audio
@@ -63,14 +57,7 @@ public static partial class Audio
 	public static IAudioDevice GetNullDevice() => nullDevice;
 
 	public static IAudioDevice? AutoDetectInit(bool _) {
-		IAudioDevice? device = null;
-		device = CreateSDLAudioDevice();
-
-		FirstTime = false;
-		if (device == null) {
-			return GetNullDevice();
-		}
-		return device;
+		return GetNullDevice();
 	}
 }
 

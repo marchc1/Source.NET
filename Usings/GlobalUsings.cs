@@ -32,4 +32,4 @@ global using ClientRenderHandle_t = long;
 global using ClientEntityHandle = Source.Common.BaseHandle;
 global using ClientThinkHandle_t = ulong;
 global using static Source.Common.ClientRenderHandleGlobals;
-global using static Source.Common.Audio.SoundSharedGlobals;
+global using static Source.Common.Audio.AudioConstants;

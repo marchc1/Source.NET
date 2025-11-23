@@ -66,3 +66,63 @@ public enum SoundEntityChannel {
 
 	UserBase = VoiceBase + 128     
 }
+
+public interface IAudioDevice {
+	ReadOnlySpan<char> DeviceName();
+	int DeviceChannels();
+	int DeviceSampleBits();
+	int DeviceSampleBytes();
+	int DeviceDmaSpeed();
+	int DeviceSampleCount();
+	bool IsActive();
+	void UpdateListener(in Vector3 listenerOrigin, in Vector3 listenerForward, in Vector3 listenerRight, in Vector3 listenerUp, bool isListenerUnderwater);
+	void Update(double v);
+	bool Init();
+}
+public class SfxTable
+{
+	public AudioSource? Source { get; set; }
+	public bool UseErrorFilename { get; set; }
+	public bool IsUISound { get; set; }
+	public bool IsLateLoad { get; set; }
+	public bool MixGroupsCached { get; set; }
+	public byte MixGroupCount { get; set; }
+
+	public FileNameHandle_t NamePoolIndex;
+	public void SetNamePoolIndex(FileNameHandle_t handle) {
+		NamePoolIndex = handle;
+		if (NamePoolIndex != FileNameHandle_t.MaxValue) {
+			// on name changed todo
+		}
+	}
+}
+
+public struct StartSoundParams
+{
+	public bool StaticSound;
+	public int UserData;
+	public int SoundSource;
+	public SoundEntityChannel EntChannel;
+	public SfxTable? Sfx;
+	public Vector3 Origin;
+	public Vector3 Direction;
+	public bool UpdatePositions;
+	public float Volume;
+	public SoundLevel SoundLevel;
+	public SoundFlags Flags;
+	public int Pitch;
+	public int SpecialDSP;
+	public bool FromServer;
+	public float Delay;
+	public int SpeakerEntity;
+	public bool SuppressRecording;
+	public int InitialStreamPosition;
+
+	public StartSoundParams() {
+		UpdatePositions = true;
+		Volume = 1;
+		SoundLevel = SoundLevel.LvlNorm;
+		Pitch = 100;
+		SpeakerEntity = -1;
+	}
+}
