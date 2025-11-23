@@ -43,17 +43,6 @@ public class AudioSourceCachedInfo : IBaseCacheInfo
 	}
 }
 
-public interface IAudioSourceCache
-{
-	bool Init();
-	void Shutdown();
-	void LevelInit(ReadOnlySpan<char> mapname);
-	void LevelShutdown();
-	void ForceRecheckDiskInfo();
-	AudioSourceCachedInfo? GetInfo(AudioSourceType audiosourcetype, bool soundisprecached, ISfxTable sfx);
-	void RebuildCacheEntry(AudioSourceType audiosourcetype, bool soundisprecached, ISfxTable sfx);
-}
-
 public interface AudioMixer
 {
 	int MixDataToDevice(IAudioDevice device, AudioChannel channel, int sampleCount, int outputRate, int outputOffset);

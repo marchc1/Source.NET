@@ -213,7 +213,7 @@ public unsafe class AudioDeviceSDLAudio : AudioDeviceBase {
 	}
 
 	public override void MixBegin(int sampleCount) {
-		Sound.MIX_ClearAllPaintBuffers(sampleCount, false);
+
 	}
 
 	public override void MixUpsample(int sampleCount, int filtertype) {
