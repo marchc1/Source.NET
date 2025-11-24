@@ -548,6 +548,9 @@ public class ViewRender : IViewRender
 
 			DrawRenderablesInList(opaqueViewModelList);
 			DrawRenderablesInList(translucentViewModelList, StudioFlags.Transparency);
+
+			ListPool<IClientRenderable>.Shared.Free(opaqueViewModelList);
+			ListPool<IClientRenderable>.Shared.Free(translucentViewModelList);
 		}
 
 		// Reset the depth range to the original values
