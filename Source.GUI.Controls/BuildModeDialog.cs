@@ -133,7 +133,7 @@ public class BuildModeDialog : Frame
 		SetTitle("VGUI Build Mode Editor", true);
 
 		CreateControls();
-		// LoadUserConfig("BuildModeDialog");
+		LoadUserConfig("BuildModeDialog");
 
 		// buildmodedialogmgr
 	}
