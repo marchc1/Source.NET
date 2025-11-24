@@ -228,7 +228,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 
 		//Create the glow sprites
 		for (int i = (int)EffectType.Glow1; i < ((int)EffectType.Glow1 + NUM_GLOW_SPRITES); i++) {
-			if (Parameters[i].GetMaterial() != null)
+			if (Parameters[i].GetMaterial().IsNotNull)
 				continue;
 
 			Parameters[i].GetScale().SetAbsolute(0.05f * SPRITE_SCALE);
@@ -254,7 +254,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 
 		//Create the glow sprites
 		for (int i = (int)EffectType.EndCap1; i < ((int)EffectType.EndCap1 + NUM_ENDCAP_SPRITES); i++) {
-			if (Parameters[i].GetMaterial().IsNull)
+			if (Parameters[i].GetMaterial().IsNotNull)
 				continue;
 
 			Parameters[i].GetScale().SetAbsolute(0.05f * SPRITE_SCALE);
