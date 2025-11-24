@@ -1147,4 +1147,16 @@ public ref struct BoneSetup
 			}
 		}
 	}
+
+	public static int Studio_FindAttachment(StudioHdr hdr, ReadOnlySpan<char> attachmentName) {
+		if (hdr != null && hdr.SequencesAvailable()) {
+			for (int i = 0; i < hdr.GetNumAttachments(); i++) {
+				if (attachmentName.CompareTo(hdr.Attachment(i).Name(), StringComparison.InvariantCultureIgnoreCase) == 0) {
+					return i;
+				}
+			}
+		}
+
+		return -1;
+	}
 }

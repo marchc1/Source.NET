@@ -102,6 +102,47 @@ public partial class
 
 	public BaseCombatWeapon? GetOwningWeapon() => Weapon.Get();
 
+#if CLIENT_DLL
+	public static void FormatViewModelAttachment(ref Vector3 origin, bool inverse) {
+		// Presumably, SetUpView has been called so we know our FOV and render origin.
+		ref readonly ViewSetup pViewSetup = ref view.GetPlayerViewSetup();
+
+		float worldx = MathF.Tan(MathLib.DEG2RAD(pViewSetup.FOV) * 0.5f);
+		float viewx = MathF.Tan(MathLib.DEG2RAD(pViewSetup.FOVViewmodel) * 0.5f);
+
+		// aspect ratio cancels out, so only need one factor
+		// the difference between the screen coordinates of the 2 systems is the ratio
+		// of the coefficients of the projection matrices (tan (fov/2) is that coefficient)
+		// NOTE: viewx was coming in as 0 when folks set their viewmodel_fov to 0 and show their weapon.
+		float factorX = viewx != 0 ? (worldx / viewx) : 0.0f;
+		float factorY = factorX;
+
+		// Get the coordinates in the viewer's space.
+		Vector3 tmp = origin - pViewSetup.Origin;
+		Vector3 vTransformed = new(MainViewRight().Dot(tmp), MainViewUp().Dot(tmp), MainViewForward().Dot(tmp));
+
+		// Now squash X and Y.
+		if (inverse) {
+			if (factorX != 0 && factorY != 0) {
+				vTransformed.X /= factorX;
+				vTransformed.Y /= factorY;
+			}
+			else {
+				vTransformed.X = 0.0f;
+				vTransformed.Y = 0.0f;
+			}
+		}
+		else {
+			vTransformed.X *= factorX;
+			vTransformed.Y *= factorY;
+		}
+
+		// Transform back to world space.
+		Vector3 vOut = (MainViewRight() * vTransformed.X) + (MainViewUp() * vTransformed.Y) + (MainViewForward() * vTransformed.Z);
+		origin = pViewSetup.Origin + vOut;
+	}
+#endif
+
 	public void CalcViewModelView(BasePlayer owner, in Vector3 eyePosition, in QAngle eyeAngles) {
 		QAngle vmangoriginal = eyeAngles;
 		QAngle vmangles = eyeAngles;

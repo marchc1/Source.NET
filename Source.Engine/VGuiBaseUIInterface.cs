@@ -332,7 +332,7 @@ public class EngineVGui(
 	public void VGui_PlaySound(ReadOnlySpan<char> fileName) {
 		Vector3 dummyOrigin = new(0);
 
-		SfxTable sound = Sound.PrecacheSound(fileName);
+		SfxTable? sound = Sound.PrecacheSound(fileName);
 		if (sound != null) {
 			Sound.MarkUISound(sound);
 

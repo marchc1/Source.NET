@@ -149,5 +149,8 @@ public partial class
 	public bool SendWeaponAnim(Activity act) {
 		return SetIdealActivity(act);
 	}
+	public void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
+
+	}
 }
 #endif

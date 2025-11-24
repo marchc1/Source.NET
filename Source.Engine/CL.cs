@@ -1,17 +1,22 @@
-using Source.Common;
-using Source.Engine.Client;
-using System.Buffers;
+using CommunityToolkit.HighPerformance;
 
-using static Source.Constants;
-using static Source.Common.Networking.Protocol;
-using Source.Common.Networking;
+using Microsoft.Extensions.DependencyInjection;
+
+using Source.Common;
+using Source.Common.Audio;
+using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Commands;
-using Microsoft.Extensions.DependencyInjection;
 using Source.Common.Engine;
+using Source.Common.Networking;
+using Source.Engine.Client;
+
+using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Source.Common.Bitbuffers;
+
+using static Source.Common.Networking.Protocol;
+using static Source.Constants;
 
 namespace Source.Engine;
 
@@ -21,7 +26,8 @@ namespace Source.Engine;
 /// </summary>
 public partial class CL(IServiceProvider services, Net Net,
 	ClientGlobalVariables clientGlobalVariables, ServerGlobalVariables serverGlobalVariables,
-	CommonHostState host_state, Host Host, Cbuf Cbuf, IEngineVGuiInternal? EngineVGui, Scr Scr, Shader Shader, ClientDLL ClientDLL, EngineRecvTable RecvTable)
+	CommonHostState host_state, Host Host, Cbuf Cbuf, IEngineVGuiInternal? EngineVGui, Scr Scr,
+	Shader Shader, ClientDLL ClientDLL, EngineRecvTable RecvTable, Sound Sound)
 {
 	public IPrediction ClientSidePrediction => ClientDLL.ClientSidePrediction;
 	public IClientEntityList EntityList => ClientDLL.EntityList;
@@ -604,6 +610,89 @@ public partial class CL(IServiceProvider services, Net Net,
 		}
 
 		pEnt.OnDataUnchangedInPVS();
+	}
+
+
+	internal void Shutdown() {
+
+	}
+
+
+	// TODO: This shouldn't be a list
+	readonly List<SoundInfo> SoundMessages = [];
+
+	public void AddSound(in SoundInfo soundInfo) {
+		SoundMessages.Add(soundInfo);
+	}
+
+	public void DispatchSounds() {
+		Span<SoundInfo> sounds = SoundMessages.AsSpan();
+		for (int i = 0; i < sounds.Length; i++) {
+			ref readonly SoundInfo msg = ref sounds[i];
+			DispatchSound(in msg);
+		}
+
+		SoundMessages.Clear();
+	}
+
+	private void DispatchSound(in SoundInfo sound) {
+		int nSoundNum = sound.SoundNum;
+
+		SfxTable? pSfx = null;
+		Span<char> name = stackalloc char[MAX_PATH];
+
+		name[0] = '\0';
+		if (sound.IsSentence) {
+			// make dummy sfx for sentences
+			//  ReadOnlySequence<char> sentenceName = VOX_SentenceNameFromIndex(sound.nSoundNum);
+			//  if (!pSentenceName) {
+			//  	pSentenceName = "";
+			//  }
+			//  
+			//  V_snprintf(name, sizeof(name), "%c%s", CHAR_SENTENCE, pSentenceName);
+			//  pSfx = S_DummySfx(name);
+			Msg("Sentences are not yet implemented\n");
+			return;
+		}
+		else {
+			cl.GetSoundName(sound.SoundNum).ClampedCopyTo(name);
+			pSfx = cl.GetSound(nSoundNum);
+		}
+
+		// snd_show
+
+		StartSoundParams parms = default;
+		parms.StaticSound = (sound.Channel == SoundEntityChannel.Static) ? true : false;
+		parms.SoundSource = sound.EntityIndex;
+		parms.EntChannel = parms.StaticSound ? SoundEntityChannel.Static : sound.Channel;
+		parms.Sfx = pSfx;
+		parms.Origin = sound.Origin;
+		parms.Volume = sound.Volume;
+		parms.SoundLevel = sound.Soundlevel;
+		parms.Flags = sound.Flags;
+		parms.Pitch = sound.Pitch;
+		parms.SpecialDSP = sound.SpecialDSP;
+		parms.FromServer = true;
+		parms.Delay = sound.Delay;
+		if ((sound.Flags & SoundFlags.Delay) != 0) {
+			if (sound.Delay > -0.100f) {
+				TimeUnit_t soundtime = cl.LastServerTickTime + sound.Delay;
+				// this adjusts for host_thread_mode or any other cases where we're running more than one
+				// tick at a time, but we get network updates on the first tick
+				soundtime -= ((clientGlobalVariables.SimTicksThisFrame - 1) * host_state.IntervalPerTick);
+				// this sound was networked over from the server, use server clock
+				parms.Delay = Sound.ComputeDelayForSoundtime(soundtime, ClockSyncIndex.Server);
+				if (parms.Delay <= 0) 
+					parms.Delay = 1e-6f;
+			}
+			else 
+				parms.Delay = sound.Delay;
+		}
+		parms.SpeakerEntity = sound.SpeakerEntity;
+
+		// ClientDLL.ClientAdjustStartSoundparms(parms);
+
+		Sound.StartSound(in parms);
 	}
 }
 

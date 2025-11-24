@@ -123,10 +123,7 @@ public class ViewRender : IViewRender
 
 	public Frustum GetFrustum() => ActiveRenderer?.GetFrustrum() ?? Frustum;
 
-	public ref ViewSetup GetPlayerViewSetup() {
-		throw new NotImplementedException();
-	}
-
+	public ref ViewSetup GetPlayerViewSetup() => ref GetView(StereoEye.Mono);
 	public void GetScreenFadeDistances(out float min, out float max) {
 		min = max = 0;
 	}
@@ -548,6 +545,9 @@ public class ViewRender : IViewRender
 
 			DrawRenderablesInList(opaqueViewModelList);
 			DrawRenderablesInList(translucentViewModelList, StudioFlags.Transparency);
+
+			ListPool<IClientRenderable>.Shared.Free(opaqueViewModelList);
+			ListPool<IClientRenderable>.Shared.Free(translucentViewModelList);
 		}
 
 		// Reset the depth range to the original values

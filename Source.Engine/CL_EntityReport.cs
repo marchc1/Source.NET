@@ -1,6 +1,9 @@
+using CommunityToolkit.HighPerformance;
+
+using Source.Common;
+using Source.Common.Audio;
 using Source.Common.Commands;
 using Source.Common.GUI;
-using Source.Common;
 using Source.GUI.Controls;
 
 using Color = Source.Color;
@@ -128,10 +131,6 @@ public partial class CL
 		slot.Flags = FENTITYBITS_DELETE;
 		slot.EffectFinishTime = (float)Host.RealTime + EFFECT_TIME;
 		slot.DeletedClientClass = clientClass;
-	}
-
-	internal void Shutdown() {
-
 	}
 
 	internal void ReallocateDynamicData(int maxClients) {

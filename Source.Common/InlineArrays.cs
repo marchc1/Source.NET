@@ -23,6 +23,7 @@ Source:
 */
 
 using Source.Common;
+using Source.Common.Audio;
 using Source.Common.Formats.BSP;
 using Source.Common.Networking;
 
@@ -180,6 +181,7 @@ namespace Source;
 [InlineArray(Constants.MAX_AREA_STATE_BYTES)] public struct InlineArrayMaxAreaStateBytes<T> { public T item; }
 [InlineArray(Constants.MAX_AREA_PORTAL_STATE_BYTES)] public struct InlineArrayMaxAreaPortalStateBytes<T> { public T item; }
 [InlineArray(BSPFileCommon.MAXLIGHTMAPS)] public struct InlineArrayMaxLightmaps<T> { public T item; }
+[InlineArray(AudioConstants.MAX_CHANNELS)] public struct InlineArrayMaxChannels<T> { public T item; }
 
 // Super specific type needed. Create these as necessary. These new up their values on construction
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.

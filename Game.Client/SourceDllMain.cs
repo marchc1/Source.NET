@@ -6,6 +6,7 @@ using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.DataCache;
 using Source;
+using Source.Common.MaterialSystem;
 
 namespace Game.Client;
 
@@ -23,8 +24,10 @@ public static class SourceDllMain
 	[Dependency] public static IModelInfoClient modelinfo { get; private set; } = null!;
 	[Dependency] public static IDataCache datacache { get; private set; } = null!;
 	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;
+	[Dependency] public static IMaterialSystem materials { get; private set; } = null!;
 	[Dependency] public static IModelRender modelrender { get; private set; } = null!;
 	[Dependency] public static IClientLeafSystem clientLeafSystem { get; private set; } = null!;
+	[Dependency] public static IUniformRandomStream random { get; private set; } = null!;
 
 	public static TimeUnit_t TICK_INTERVAL => gpGlobals.IntervalPerTick;
 

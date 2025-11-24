@@ -336,7 +336,7 @@ public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem file
 	}
 
 	internal bool AddCustomFontFile(ReadOnlySpan<char> fontName, ReadOnlySpan<char> fontFileName) {
-		ReadOnlySpan<char> fontFilepath = fileSystem.RelativePathToFullPath(fontFileName, null, null);
+		ReadOnlySpan<char> fontFilepath = fileSystem.RelativePathToFullPath(fontFileName, null, stackalloc char[512]);
 
 		if (fontFilepath.IsEmpty) {
 			Warning($"Couldn't find custom font file '{fontFileName}' for font '{(fontName.IsEmpty ? "" : fontName)}'\n");

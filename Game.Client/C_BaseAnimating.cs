@@ -201,10 +201,10 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			}
 
 			if ((oldReadableBones & Studio.BONE_USED_BY_ATTACHMENT) == 0 && (boneMask & Studio.BONE_USED_BY_ATTACHMENT) != 0) {
-				// if (!SetupBones_AttachmentHelper(hdr)) {
-				// 	DevWarning(2, "SetupBones: SetupBones_AttachmentHelper failed.\n");
-				// 	return false;
-				// }
+				if (!SetupBones_AttachmentHelper(hdr)) {
+					DevWarning(2, "SetupBones: SetupBones_AttachmentHelper failed.\n");
+					return false;
+				}
 			}
 		}
 
@@ -220,6 +220,55 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		return true;
 	}
+
+	private bool SetupBones_AttachmentHelper(StudioHdr hdr) {
+		if (hdr == null)
+			return false;
+
+		// calculate attachment points
+		Matrix3x4 world;
+		for (int i = 0; i < hdr.GetNumAttachments(); i++) {
+			MStudioAttachment attachment = hdr.Attachment(i);
+			int iBone = hdr.GetAttachmentBone(i);
+			if ((attachment.Flags & Studio.ATTACHMENT_FLAG_WORLD_ALIGN) == 0)
+				MathLib.ConcatTransforms(GetBone(iBone), attachment.Local, out world);
+			else {
+				Vector3 vecLocalBonePos, vecWorldBonePos;
+				MathLib.MatrixGetColumn(attachment.Local, 3, out vecLocalBonePos);
+				MathLib.VectorTransform(in vecLocalBonePos, in GetBone(iBone), out vecWorldBonePos);
+
+				MathLib.SetIdentityMatrix(out world);
+				MathLib.MatrixSetColumn(in vecWorldBonePos, 3, ref world);
+			}
+
+			PutAttachment(i + 1, world);
+		}
+
+		return true;
+	}
+
+	public bool PutAttachment(int number, in Matrix3x4 attachmentToWorld) {
+		if (number < 1 || number > Attachments.Count)
+			return false;
+
+		AttachmentData pAtt = Attachments[number - 1];
+		if (gpGlobals.FrameTime > 0 && pAtt.LastFramecount > 0 && pAtt.LastFramecount == gpGlobals.FrameCount - 1) {
+			Vector3 vecPreviousOrigin, vecOrigin;
+			MathLib.MatrixPosition(pAtt.AttachmentToWorld, out vecPreviousOrigin);
+			MathLib.MatrixPosition(attachmentToWorld, out vecOrigin);
+			pAtt.OriginVelocity = (vecOrigin - vecPreviousOrigin) / (float)gpGlobals.FrameTime;
+		}
+		else {
+			pAtt.OriginVelocity.Init();
+		}
+		pAtt.LastFramecount = gpGlobals.FrameCount;
+		pAtt.AnglesComputed = false;
+		pAtt.AttachmentToWorld = attachmentToWorld;
+
+
+		return true;
+	}
+
 	public TimeUnit_t GetCycle() => Cycle;
 	public void SetSequence(int sequence) {
 		if (Sequence != sequence) {
@@ -247,7 +296,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		Span<float> poseparam = stackalloc float[Studio.MAXSTUDIOPOSEPARAM];
 		GetPoseParameters(hdr, poseparam);
 		TimeUnit_t cycle = GetCycle();
-		
+
 		BoneSetup setup = new(hdr, boneMask, poseparam);
 		setup.InitPose(pos, q);
 		setup.AccumulatePose(pos, q, GetSequence(), cycle, 1.0f, currentTime, null);
@@ -275,7 +324,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	}
 
 	public virtual void AccumulateLayers(ref BoneSetup setup, Span<Vector3> pos, Span<Quaternion> q, double currentTime) {
-	
+
 	}
 
 	readonly SequenceTransitioner SequenceTransitioner = new();
@@ -452,6 +501,12 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 		BoneAccessor.Init(CachedBoneData.Base());
 
+		if (Attachments.Count != hdr.GetNumAttachments())
+			Attachments.SetSizeInitialized(hdr.GetNumAttachments());
+
+		for (int j = 0; j < Attachments.Count; j++)
+			Attachments[j].Reset();
+
 		Assert(hdr.GetNumPoseParameters() <= PoseParameter.Length);
 		iv_flPoseParameter.SetMaxCount(hdr.GetNumPoseParameters());
 
@@ -469,12 +524,22 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		Sequence = -1;
 		SetSequence(forceSequence);
+		if (ResetSequenceInfoOnLoad) {
+			ResetSequenceInfoOnLoad = false;
+			ResetSequenceInfo();
+		}
 		UpdateRelevantInterpolatedVars();
 
 		// todo: the rest of this
 
 		return hdr;
 	}
+	bool ResetSequenceInfoOnLoad = false;
+
+	public void ResetSequenceInfo() {
+
+	}
+
 	public bool ReceivedSequence;
 	public void SetReceivedSequence() => ReceivedSequence = true;
 	public bool ShouldResetSequenceOnNewModel() => ReceivedSequence == false;
@@ -523,9 +588,14 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		AddBaseAnimatingInterpolatedVars();
 	}
 
+	bool DynamicModelPending;
+
 	public void OnModelLoadComplete(Model model) {
-		OnNewModel();
-		UpdateVisibility();
+		if (DynamicModelPending && model == GetModel()) {
+			DynamicModelPending = false;
+			OnNewModel();
+			UpdateVisibility();
+		}
 	}
 	TimeUnit_t OldCycle;
 	int OldSequence;
@@ -558,25 +628,25 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 		else
 			RemoveFromClientSideAnimationList();
-		
+
 		bool bBoneControllersChanged = false;
 
 		int i;
-		for (i = 0; i < Studio.MAXSTUDIOBONECTRLS && !bBoneControllersChanged; i++) 
-			if (OldEncodedController[i] != EncodedController[i]) 
+		for (i = 0; i < Studio.MAXSTUDIOBONECTRLS && !bBoneControllersChanged; i++)
+			if (OldEncodedController[i] != EncodedController[i])
 				bBoneControllersChanged = true;
 
 		bool bPoseParametersChanged = false;
 
-		for (i = 0; i < Studio.MAXSTUDIOPOSEPARAM && !bPoseParametersChanged; i++) 
-			if (OldPoseParameters[i] != PoseParameter[i]) 
+		for (i = 0; i < Studio.MAXSTUDIOPOSEPARAM && !bPoseParametersChanged; i++)
+			if (OldPoseParameters[i] != PoseParameter[i])
 				bPoseParametersChanged = true;
 
 		// Cycle change? Then re-render
 		bool bAnimationChanged = OldCycle != GetCycle() || bBoneControllersChanged || bPoseParametersChanged;
 		bool bSequenceChanged = OldSequence != GetSequence();
 		bool bScaleChanged = (OldModelScale != GetModelScale());
-		if (bAnimationChanged || bSequenceChanged || bScaleChanged) 
+		if (bAnimationChanged || bSequenceChanged || bScaleChanged)
 			InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnimationChanged);
 
 		if (bAnimationChanged || bSequenceChanged) {
@@ -765,6 +835,13 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 	}
 
+	public int LookupAttachment(ReadOnlySpan<char> attachmentName) {
+		StudioHdr? hdr = GetModelPtr();
+		if (hdr == null)
+			return -1;
+		return BoneSetup.Studio_FindAttachment(hdr, attachmentName);
+	}
+
 	public C_BaseAnimating? FindFollowedEntity() {
 		C_BaseEntity? follow = GetFollowedEntity();
 
@@ -849,6 +926,47 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 
 		return value;
+	}
+
+	class AttachmentData
+	{
+		public Matrix3x4 AttachmentToWorld;
+		public QAngle Rotation;
+		public Vector3 OriginVelocity;
+		public long LastFramecount;
+		public bool AnglesComputed;
+
+		public void Reset() {
+			AttachmentToWorld = default;
+			Rotation = default;
+			AttachmentToWorld = default;
+			LastFramecount = default;
+			AnglesComputed = default;
+		}
+	}
+
+	readonly List<AttachmentData> Attachments = [];
+
+	public bool CalcAttachments() {
+		return SetupBones(null, -1, Studio.BONE_USED_BY_ATTACHMENT, gpGlobals.CurTime);
+	}
+
+	public bool GetAttachment(int number, out Vector3 origin, out QAngle angles) {
+		if (number < 1 || number > Attachments.Count || !CalcAttachments()) {
+			// Set this to the model origin/angles so that we don't have stack fungus in origin and angles.
+			origin = GetAbsOrigin();
+			angles = GetAbsAngles();
+			return false;
+		}
+
+		AttachmentData pData = Attachments[number - 1];
+		if (!pData.AnglesComputed) {
+			MathLib.MatrixAngles(pData.AttachmentToWorld, out pData.Rotation);
+			pData.AnglesComputed = true;
+		}
+		angles = pData.Rotation;
+		MathLib.MatrixPosition(in pData.AttachmentToWorld, out origin);
+		return true;
 	}
 
 	public override int DrawModel(StudioFlags flags) {

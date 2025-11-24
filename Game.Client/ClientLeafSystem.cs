@@ -238,10 +238,6 @@ public class ClientLeafSystem : IClientLeafSystem
 	}
 
 	public void RemoveRenderable(ClientRenderHandle_t handle) {
-		throw new NotImplementedException();
-	}
-
-	public void RenderableChanged(ClientRenderHandle_t handle) {
 		if (!ValidHandles.Contains(handle))
 			return;
 
@@ -259,6 +255,20 @@ public class ClientLeafSystem : IClientLeafSystem
 
 		ValidHandles.Remove(handle);
 		Renderables.Remove(handle);
+	}
+
+	public void RenderableChanged(ClientRenderHandle_t handle) {
+		if (!ValidHandles.Contains(handle))
+			return;
+
+		IClientRenderable renderable = Renderables[handle].Info.Renderable!;
+		renderable.RenderHandle() = INVALID_CLIENT_RENDER_HANDLE;
+
+		if ((Renderables[handle].Info.Flags & RenderFlags.HasChanged) != 0) {
+			var i = DirtyRenderables.IndexOf(handle);
+			Assert(i != -1);
+			DirtyRenderables.RemoveAt(i);
+		}
 	}
 
 	private void RemoveFromViewModelList(long handle) {

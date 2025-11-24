@@ -8,6 +8,7 @@ using Source.Common.Mathematics;
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Net.Mail;
 using System.Numerics;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
@@ -126,6 +127,7 @@ public static class Studio
 	public const int BONE_USED_BY_BONE_MERGE = 0x00040000;
 
 	public const int BONE_TYPE_MASK = 0x00F00000;
+	public const int ATTACHMENT_FLAG_WORLD_ALIGN = 0x10000;
 
 	public const int BONE_FIXED_ALIGNMENT = 0x00100000;
 	public const int BONE_HAS_SAVEFRAME_POS = 0x00200000;
@@ -353,6 +355,36 @@ public class MStudioMeshVertexData
 	public ref Vector2 TexCoord(int i) => ref ModelVertexData!.TexCoord(i);
 	public ref MStudioBoneWeight BoneWeights(int i) => ref ModelVertexData!.BoneWeights(i);
 	public ref MStudioVertex Vertex(int i) => ref ModelVertexData!.Vertex(i);
+}
+
+
+/// <summary>
+/// mstudio_meshvertexdata_t
+/// </summary>
+public class MStudioAttachment
+{
+	public const int SIZEOF = 92; // 94 bytes 4 alignment
+	public static MStudioAttachment FACTORY(object caller, Memory<byte> data) => new(data);
+	public Memory<byte> Data;
+
+	public int NameIndex;
+	public uint Flags;
+	public int LocalBone;
+	public Matrix3x4 Local;
+	string? nameCache;
+	public string Name() => Studio.ProduceASCIIString(ref nameCache, Data.Span[NameIndex..]);
+
+	public MStudioAttachment(Memory<byte> data) {
+		Data = data;
+		Span<byte> span = data.Span;
+
+		SpanBinaryReader br = new(data.Span);
+		br.Read(out NameIndex);
+		br.Read(out Flags);
+		br.Read(out LocalBone);
+		br.Read(out Local);
+	}
+
 }
 
 
@@ -1419,6 +1451,33 @@ public class StudioHdr
 	public int GetAutoplayList(out Span<short> pList) {
 		return studioHdr!.GetAutoplayList(out pList);
 	}
+
+	public int GetNumAttachments() {
+		if (vModel == null)
+			return studioHdr!.NumLocalAttachments;
+		return vModel.Attachment.Count;
+	}
+
+	public MStudioAttachment Attachment(int i) {
+		if (vModel == null)
+			return this.studioHdr!.LocalAttachment(i);
+
+		StudioHeader studioHdr = GroupStudioHdr(vModel.Attachment[i].Group);
+		return studioHdr.LocalAttachment(vModel.Attachment[i].Index);
+	}
+
+	public int GetAttachmentBone(int i) {
+		if (vModel == null) {
+			return studioHdr!.LocalAttachment(i).LocalBone;
+		}
+
+		VirtualGroup pGroup = vModel.Group[vModel.Attachment[i].Group];
+		MStudioAttachment attachment = Attachment(i);
+		int iBone = pGroup.MasterBone[attachment.LocalBone];
+		if (iBone == -1)
+			return 0;
+		return iBone;
+	}
 }
 
 public class MStudioBone
@@ -1651,6 +1710,10 @@ public class StudioHeader
 
 	public int NumLocalAttachments;
 	public int LocalAttachmentIndex;
+	MStudioAttachment[]? attachmentCache;
+	internal MStudioAttachment LocalAttachment(int i) {
+		return Studio.ProduceArrayIdx(this, ref attachmentCache, NumLocalAttachments, LocalAttachmentIndex, i, MStudioAttachment.SIZEOF, Data, MStudioAttachment.FACTORY);
+	}
 
 	public int NumLocalNodes;
 	public int LocalNodeIndex;
@@ -1781,4 +1844,5 @@ public class StudioHeader
 		}
 		autoplaySequenceList = autoplaySequenceList[..outIndex];
 	}
+
 }

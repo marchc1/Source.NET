@@ -454,7 +454,7 @@ public class svc_Sounds : NetMessage
 			NumSounds = (int)buffer.ReadUBitLong(8);
 			Length = (int)buffer.ReadUBitLong(16);
 		}
-		DataIn = buffer;
+		DataIn = buffer.Copy();
 		return buffer.SeekRelative(Length);
 	}
 

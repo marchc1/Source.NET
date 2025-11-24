@@ -9,6 +9,7 @@ using Source.Common.Utilities;
 using Source.Filesystem;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Source.FileSystem;
@@ -203,12 +204,12 @@ public class BaseFileSystem : IFileSystem
 		return loseDefault;
 	}
 	public ReadOnlySpan<char> RelativePathToFullPath(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID, Span<char> dest, PathTypeFilter filter = PathTypeFilter.None) {
+		fileName = fileName.SliceNullTerminatedString();
 		if (!FirstToThePost(fileName, pathID, (path, filename) => path.Exists(filename), boolWin, false, out SearchPath? winner))
 			return null;
 
 		Span<char> concatBuffer = stackalloc char[MAX_PATH];
-		var concatted = winner.Concat(fileName, concatBuffer);
-		return new string(concatted);
+		return winner.Concat(fileName, dest);
 	}
 
 	private static bool boolWin(bool inp) => inp;
@@ -429,7 +430,9 @@ public class BaseFileSystem : IFileSystem
 		ulong hash = FormatFileName(name, stackalloc char[name.Length]).Hash();
 		if (!fileNameHandles.TryGetValue(hash, out var handle)) {
 			handle = fileNameHandles[hash] = ++currentHandle;
-			fileNameStrings[handle] = new(name); // Make a copy of the string to live forever
+			Span<char> lowercased = stackalloc char[name.Length];
+			name.ToLower(lowercased, null);
+			fileNameStrings[handle] = new(lowercased); // Make a copy of the string to live forever
 		}
 
 		return handle;
@@ -577,5 +580,11 @@ public class BaseFileSystem : IFileSystem
 
 	public ReadOnlySpan<char> String(FileNameHandle_t handle) {
 		return fileNameStrings.TryGetValue(handle, out string? v) ? v : null;
+	}
+
+	public void GetSearchPaths(List<string> paths, ReadOnlySpan<char> pathID) {
+		ulong hashID = pathID.Hash();
+		foreach (var path in GetCollections(hashID)) 
+			paths.Add(path.DiskPath ?? throw new Exception());
 	}
 }

@@ -313,11 +313,11 @@ public abstract class BaseClientState(
 		return true;
 	}
 
-	protected bool ProcessSounds(svc_Sounds msg) {
+	protected virtual bool ProcessSounds(svc_Sounds msg) {
 		return true;
 	}
 
-	protected bool ProcessGMod_ServerToClient(svc_GMod_ServerToClient msg) {
+	protected virtual bool ProcessGMod_ServerToClient(svc_GMod_ServerToClient msg) {
 		return true;
 	}
 
