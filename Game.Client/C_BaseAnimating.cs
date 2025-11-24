@@ -469,12 +469,22 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		Sequence = -1;
 		SetSequence(forceSequence);
+		if (ResetSequenceInfoOnLoad) {
+			ResetSequenceInfoOnLoad = false;
+			ResetSequenceInfo();
+		}
 		UpdateRelevantInterpolatedVars();
 
 		// todo: the rest of this
 
 		return hdr;
 	}
+	bool ResetSequenceInfoOnLoad = false;
+
+	public void ResetSequenceInfo() {
+
+	}
+
 	public bool ReceivedSequence;
 	public void SetReceivedSequence() => ReceivedSequence = true;
 	public bool ShouldResetSequenceOnNewModel() => ReceivedSequence == false;
@@ -523,9 +533,14 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		AddBaseAnimatingInterpolatedVars();
 	}
 
+	bool DynamicModelPending;
+
 	public void OnModelLoadComplete(Model model) {
-		OnNewModel();
-		UpdateVisibility();
+		if(DynamicModelPending && model == GetModel()) {
+			DynamicModelPending = false;
+			OnNewModel();
+			UpdateVisibility();
+		}
 	}
 	TimeUnit_t OldCycle;
 	int OldSequence;
