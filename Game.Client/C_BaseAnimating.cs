@@ -780,6 +780,13 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 	}
 
+	public int LookupAttachment(ReadOnlySpan<char> attachmentName) {
+		StudioHdr? hdr = GetModelPtr();
+		if (hdr == null)
+			return -1;
+		return BoneSetup.Studio_FindAttachment(hdr, attachmentName);
+	}
+
 	public C_BaseAnimating? FindFollowedEntity() {
 		C_BaseEntity? follow = GetFollowedEntity();
 

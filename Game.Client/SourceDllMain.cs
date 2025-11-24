@@ -27,6 +27,7 @@ public static class SourceDllMain
 	[Dependency] public static IMaterialSystem materials { get; private set; } = null!;
 	[Dependency] public static IModelRender modelrender { get; private set; } = null!;
 	[Dependency] public static IClientLeafSystem clientLeafSystem { get; private set; } = null!;
+	[Dependency] public static IUniformRandomStream random { get; private set; } = null!;
 
 	public static TimeUnit_t TICK_INTERVAL => gpGlobals.IntervalPerTick;
 

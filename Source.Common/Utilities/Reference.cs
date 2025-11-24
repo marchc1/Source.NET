@@ -1,4 +1,6 @@
-﻿namespace Source.Common.Utilities;
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace Source.Common.Utilities;
 
 public abstract class Reference<T> where T : class
 {
@@ -7,4 +9,8 @@ public abstract class Reference<T> where T : class
 
 	public virtual bool IsValid() => reference != null;
 	public T? Get() => reference!;
+
+
+	[MemberNotNullWhen(false, nameof(reference))] public bool IsNull => reference == null;
+	[MemberNotNullWhen(true, nameof(reference))] public bool IsNotNull => reference != null;
 }

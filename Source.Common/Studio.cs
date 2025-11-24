@@ -356,6 +356,36 @@ public class MStudioMeshVertexData
 }
 
 
+/// <summary>
+/// mstudio_meshvertexdata_t
+/// </summary>
+public class MStudioAttachment
+{
+	public const int SIZEOF = 92; // 94 bytes 4 alignment
+	public static MStudioAttachment FACTORY(object caller, Memory<byte> data) => new(data);
+	public Memory<byte> Data;
+
+	public int NameIndex;
+	public uint Flags;
+	public int LocalBone;
+	public Matrix3x4 Local;
+	string? nameCache;
+	public string Name() => Studio.ProduceASCIIString(ref nameCache, Data.Span[NameIndex..]);
+
+	public MStudioAttachment(Memory<byte> data) {
+		Data = data;
+		Span<byte> span = data.Span;
+
+		SpanBinaryReader br = new(data.Span);
+		br.Read(out NameIndex);
+		br.Read(out Flags);
+		br.Read(out LocalBone);
+		br.Read(out Local);
+	}
+
+}
+
+
 public class MStudioModelVertexData
 {
 	public object? VertexData;
@@ -1419,6 +1449,20 @@ public class StudioHdr
 	public int GetAutoplayList(out Span<short> pList) {
 		return studioHdr!.GetAutoplayList(out pList);
 	}
+
+	public int GetNumAttachments() {
+		if (vModel == null)
+			return studioHdr!.NumLocalAttachments;
+		return vModel.Attachment.Count;
+	}
+
+	public MStudioAttachment Attachment(int i) {
+		if (vModel == null)
+			return this.studioHdr!.LocalAttachment(i);
+
+		StudioHeader studioHdr = GroupStudioHdr(vModel.Attachment[i].Group);
+		return studioHdr.LocalAttachment(vModel.Attachment[i].Index);
+	}
 }
 
 public class MStudioBone
@@ -1651,6 +1695,10 @@ public class StudioHeader
 
 	public int NumLocalAttachments;
 	public int LocalAttachmentIndex;
+	MStudioAttachment[]? attachmentCache;
+	internal MStudioAttachment LocalAttachment(int i) {
+		return Studio.ProduceArrayIdx(this, ref attachmentCache, NumLocalAttachments, LocalAttachmentIndex, i, MStudioAttachment.SIZEOF, Data, MStudioAttachment.FACTORY);
+	}
 
 	public int NumLocalNodes;
 	public int LocalNodeIndex;
@@ -1781,4 +1829,5 @@ public class StudioHeader
 		}
 		autoplaySequenceList = autoplaySequenceList[..outIndex];
 	}
+
 }
