@@ -201,10 +201,10 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			}
 
 			if ((oldReadableBones & Studio.BONE_USED_BY_ATTACHMENT) == 0 && (boneMask & Studio.BONE_USED_BY_ATTACHMENT) != 0) {
-				// if (!SetupBones_AttachmentHelper(hdr)) {
-				// 	DevWarning(2, "SetupBones: SetupBones_AttachmentHelper failed.\n");
-				// 	return false;
-				// }
+				if (!SetupBones_AttachmentHelper(hdr)) {
+					DevWarning(2, "SetupBones: SetupBones_AttachmentHelper failed.\n");
+					return false;
+				}
 			}
 		}
 
@@ -220,6 +220,55 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		return true;
 	}
+
+	private bool SetupBones_AttachmentHelper(StudioHdr hdr) {
+		if (hdr == null)
+			return false;
+
+		// calculate attachment points
+		Matrix3x4 world;
+		for (int i = 0; i < hdr.GetNumAttachments(); i++) {
+			MStudioAttachment attachment = hdr.Attachment(i);
+			int iBone = hdr.GetAttachmentBone(i);
+			if ((attachment.Flags & Studio.ATTACHMENT_FLAG_WORLD_ALIGN) == 0)
+				MathLib.ConcatTransforms(GetBone(iBone), attachment.Local, out world);
+			else {
+				Vector3 vecLocalBonePos, vecWorldBonePos;
+				MathLib.MatrixGetColumn(attachment.Local, 3, out vecLocalBonePos);
+				MathLib.VectorTransform(in vecLocalBonePos, in GetBone(iBone), out vecWorldBonePos);
+
+				MathLib.SetIdentityMatrix(out world);
+				MathLib.MatrixSetColumn(in vecWorldBonePos, 3, ref world);
+			}
+
+			PutAttachment(i + 1, world);
+		}
+
+		return true;
+	}
+
+	public bool PutAttachment(int number, in Matrix3x4 attachmentToWorld) {
+		if (number < 1 || number > Attachments.Count)
+			return false;
+
+		AttachmentData pAtt = Attachments[number - 1];
+		if (gpGlobals.FrameTime > 0 && pAtt.LastFramecount > 0 && pAtt.LastFramecount == gpGlobals.FrameCount - 1) {
+			Vector3 vecPreviousOrigin, vecOrigin;
+			MathLib.MatrixPosition(pAtt.AttachmentToWorld, out vecPreviousOrigin);
+			MathLib.MatrixPosition(attachmentToWorld, out vecOrigin);
+			pAtt.OriginVelocity = (vecOrigin - vecPreviousOrigin) / (float)gpGlobals.FrameTime;
+		}
+		else {
+			pAtt.OriginVelocity.Init();
+		}
+		pAtt.LastFramecount = gpGlobals.FrameCount;
+		pAtt.AnglesComputed = false;
+		pAtt.AttachmentToWorld = attachmentToWorld;
+
+
+		return true;
+	}
+
 	public TimeUnit_t GetCycle() => Cycle;
 	public void SetSequence(int sequence) {
 		if (Sequence != sequence) {
@@ -884,14 +933,14 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		public Matrix3x4 AttachmentToWorld;
 		public QAngle Rotation;
 		public Vector3 OriginVelocity;
-		public int LastFrameCount;
+		public long LastFramecount;
 		public bool AnglesComputed;
 
 		public void Reset() {
 			AttachmentToWorld = default;
 			Rotation = default;
 			AttachmentToWorld = default;
-			LastFrameCount = default;
+			LastFramecount = default;
 			AnglesComputed = default;
 		}
 	}

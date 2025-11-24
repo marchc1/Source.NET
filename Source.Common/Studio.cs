@@ -8,6 +8,7 @@ using Source.Common.Mathematics;
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Net.Mail;
 using System.Numerics;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
@@ -126,6 +127,7 @@ public static class Studio
 	public const int BONE_USED_BY_BONE_MERGE = 0x00040000;
 
 	public const int BONE_TYPE_MASK = 0x00F00000;
+	public const int ATTACHMENT_FLAG_WORLD_ALIGN = 0x10000;
 
 	public const int BONE_FIXED_ALIGNMENT = 0x00100000;
 	public const int BONE_HAS_SAVEFRAME_POS = 0x00200000;
@@ -1462,6 +1464,19 @@ public class StudioHdr
 
 		StudioHeader studioHdr = GroupStudioHdr(vModel.Attachment[i].Group);
 		return studioHdr.LocalAttachment(vModel.Attachment[i].Index);
+	}
+
+	public int GetAttachmentBone(int i) {
+		if (vModel == null) {
+			return studioHdr!.LocalAttachment(i).LocalBone;
+		}
+
+		VirtualGroup pGroup = vModel.Group[vModel.Attachment[i].Group];
+		MStudioAttachment attachment = Attachment(i);
+		int iBone = pGroup.MasterBone[attachment.LocalBone];
+		if (iBone == -1)
+			return 0;
+		return iBone;
 	}
 }
 

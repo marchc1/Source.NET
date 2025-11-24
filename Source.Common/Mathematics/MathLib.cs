@@ -1081,14 +1081,31 @@ public static class MathLib
 	public static void CrossProduct(in Vector3 a, in Vector3 b, out Vector3 result) {
 		result = Vector3.Cross(a, b);
 	}
-
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void MatrixGetColumn(in Matrix3x4 inMatrix, int column, out Vector3 outVec) {
 		outVec.X = inMatrix[0][column];
 		outVec.Y = inMatrix[1][column];
 		outVec.Z = inMatrix[2][column];
 	}
-
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void MatrixPosition(in Matrix3x4 matrix, out Vector3 origin) {
 		MatrixGetColumn(matrix, 3, out origin);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorTransform(in Vector3 in1, in Matrix3x4 in2, out Vector3 vecOut) {
+
+		vecOut = VectorTransform(in1, in2);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static Vector3 VectorTransform(in Vector3 in1, in Matrix3x4 in2) {
+		Vector3 translation = new(in2.M03, in2.M13, in2.M23);
+
+		Vector3 dotResult = new(
+			in1.X * in2.M00 + in1.Y * in2.M01 + in1.Z * in2.M02,
+			in1.X * in2.M10 + in1.Y * in2.M11 + in1.Z * in2.M12,
+			in1.X * in2.M20 + in1.Y * in2.M21 + in1.Z * in2.M22
+		);
+
+		return Vector3.Add(dotResult, translation);
 	}
 }
