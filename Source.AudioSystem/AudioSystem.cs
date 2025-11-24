@@ -48,7 +48,7 @@ public class AudioCache
 }
 
 
-public class BassAudioSource : AudioSource
+public abstract class BassAudioSource : AudioSource
 {
 	public int BassHandle = 0;
 	public virtual int PickDynamicChannel(SoundSource soundsource, SoundEntityChannel entchannel, in Vector3 origin, SfxTable sfx, TimeUnit_t delay, bool doNotOverwriteExisting) {
@@ -58,13 +58,17 @@ public class BassAudioSource : AudioSource
 	public virtual int PickStaticChannel(SoundSource soundsource, SfxTable sfx) {
 		return 0;
 	}
+	public abstract bool IsLooped();
 }
 
 
 public class BassAudioMemorySource : BassAudioSource, IDisposable
 {
 	int staticChannel;
+	private SampleInfo Info;
+
 	public BassAudioMemorySource(ReadOnlySpan<char> file) {
+		Info = null!;
 		byte[]? data = audiocache.Lookup(file);
 		if (data == null)
 			return;
@@ -76,11 +80,17 @@ public class BassAudioMemorySource : BassAudioSource, IDisposable
 		staticChannel = Bass.SampleGetChannel(BassHandle, OnlyNew: true);
 		Bass.ChannelSetAttribute(staticChannel, ChannelAttribute.NoRamp, 1);
 		// Make it so further dynamic attempts dont work
+		Info = Bass.SampleGetInfo(BassHandle);
 	}
 
 	public void Dispose() {
 		Bass.StreamFree(BassHandle);
 		BassHandle = 0;
+		Info = null!;
+	}
+
+	public override bool IsLooped() {
+		return false; // todo
 	}
 
 	public override int PickDynamicChannel(int soundsource, SoundEntityChannel entchannel, in Vector3 origin, SfxTable sfx, double delay, bool doNotOverwriteExisting) {
