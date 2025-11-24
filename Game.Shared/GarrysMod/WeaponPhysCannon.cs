@@ -350,7 +350,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 
 			if (owner != null) {
 				owner.GetViewModel()!.GetAttachment(attachmentIdx, out attachment, out _);
-				BaseViewModel.FormatViewModelAttachment(ref attachment, true);
+				// BaseViewModel.FormatViewModelAttachment(ref attachment, true); // << this screws things up, fix later
 			}
 			else {
 				attachment = default;
