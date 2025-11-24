@@ -238,6 +238,15 @@ public class BuildGroup
 			RegisteredControlSettingsFiles.Add(symbol);
 	}
 
+	public int GetRegisteredControlSettingsFileCount() => RegisteredControlSettingsFiles.Count;
+
+	public ReadOnlySpan<char> GetRegisteredControlSettingsFileByIndex(int index) {
+		if (index < 0 || index >= RegisteredControlSettingsFiles.Count)
+			return [];
+
+		return RegisteredControlSettingsFiles[index].ToString();
+	}
+
 	public void PanelAdded(Panel panel) {
 		if (!Panels.Contains(panel))
 			Panels.Add(panel);

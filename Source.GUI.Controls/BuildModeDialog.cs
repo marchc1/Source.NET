@@ -40,8 +40,8 @@ public class BuildModeDialog : Frame
 	class PanelList
 	{
 		List<PanelItem> panelList = [];
-		// PanelListPanel Controls;
-		KeyValues? ResourceData;
+		public PanelListPanel Controls;
+		public KeyValues? ResourceData;
 
 		public void AddItem(Panel label, TextEntry edit, ComboBox combo, Button button, ReadOnlySpan<char> name, Type type) {
 			PanelItem item = new();
@@ -57,14 +57,10 @@ public class BuildModeDialog : Frame
 		public void RemoveAll() {
 			for (int i = 0; i < panelList.Count; i++) {
 				PanelItem item = panelList[i];
-				if (item.EditLabel != null)
-					item.EditLabel.DeletePanel();
-				if (item.EditPanel != null)
-					item.EditPanel.DeletePanel();
-				if (item.Combo != null)
-					item.Combo.DeletePanel();
-				if (item.EditButton != null)
-					item.EditButton.DeletePanel();
+				item.EditLabel?.DeletePanel();
+				item.EditPanel?.DeletePanel();
+				item.Combo?.DeletePanel();
+				item.EditButton?.DeletePanel();
 			}
 
 			panelList.Clear();
@@ -78,7 +74,7 @@ public class BuildModeDialog : Frame
 	BuildGroup BuildGroup;
 	Label StatusLabel;
 	ComboBox FileSelectionCombo;
-	// Divider Divider;
+	Divider Divider;
 
 	PanelList panelList;
 
@@ -133,7 +129,7 @@ public class BuildModeDialog : Frame
 		SetTitle("VGUI Build Mode Editor", true);
 
 		CreateControls();
-		LoadUserConfig("BuildModeDialog");
+		// LoadUserConfig("BuildModeDialog"); // TODO: System.GetUserConfigFileData
 
 		// buildmodedialogmgr
 	}
@@ -147,7 +143,102 @@ public class BuildModeDialog : Frame
 	}
 
 	public void CreateControls() {
+		if (BuildGroup == null)
+			return;
 
+		int i;
+		panelList = new();
+		panelList.ResourceData = new KeyValues("BuildDialog");
+		panelList.Controls = new(this, "BuildModeControls");
+
+		FileSelectionCombo = new(this, "FileSelectionCombo", 10, false);
+		for (i = 0; i < BuildGroup.GetRegisteredControlSettingsFileCount(); i++)
+			FileSelectionCombo.AddItem(BuildGroup.GetRegisteredControlSettingsFileByIndex(i), null);
+
+		if (FileSelectionCombo.GetItemCount() < 2)
+			FileSelectionCombo.SetEnabled(false);
+
+		int buttonH = 18;
+
+		StatusLabel = new(this, "StatusLabel", "[nothing currently selected]");
+		StatusLabel.SetTextColorState(ColorState.Dull);
+		StatusLabel.SetTall(buttonH);
+
+		Divider = new(this, "Divider");
+
+		AddNewControlCombo = new(this, null, 30, false);
+		AddNewControlCombo.SetSize(116, buttonH);
+		AddNewControlCombo.SetOpenDirection(MenuDirection.DOWN);
+
+		EditableParents = new(this, null, 15, false); //, true, buildGroup.GetContextPanel() // CBuildMoveNavCombo
+		EditableParents.SetSize(116, buttonH);
+		EditableParents.SetOpenDirection(MenuDirection.DOWN);
+
+		EditableChildren = new(this, null, 15, false); //, true, buildGroup.GetContextPanel() // CBuildMoveNavCombo
+		EditableChildren.SetSize(116, buttonH);
+		EditableChildren.SetOpenDirection(MenuDirection.DOWN);
+
+		NextChild = new(this, "NextChild", "Next");
+		NextChild.SetCommand(new KeyValues("OnChildChanged", "direction", 1));
+
+		PrevChild = new(this, "PrevChild", "Prev");
+		PrevChild.SetCommand(new KeyValues("OnChildChanged", "direction", -1));
+
+		int defaultItem = AddNewControlCombo.AddItem("None", null);
+
+		List<ReadOnlyMemory<char>> names = [];
+		// GetFactoryNames
+
+		var sorted = new SortedSet<string>(StringComparer.Ordinal);
+		foreach (var name in names) sorted.Add(name.ToString());
+		foreach (var name in sorted) AddNewControlCombo.AddItem(name, null);
+
+		AddNewControlCombo.ActivateItem(defaultItem);
+
+		ExitButton = new(this, "ExitButton", "&Exit");
+		ExitButton.SetSize(64, buttonH);
+
+		SaveButton = new(this, "SaveButton", "&Save");
+		SaveButton.SetSize(64, buttonH);
+
+		ApplyButton = new(this, "ApplyButton", "&Apply");
+		ApplyButton.SetSize(64, buttonH);
+
+		ReloadLocalization = new(this, "Localization", "&Reload Localization");
+		ReloadLocalization.SetSize(100, buttonH);
+
+		ExitButton.SetCommand("Exit");
+		SaveButton.SetCommand("Save");
+		ApplyButton.SetCommand("Apply");
+		ReloadLocalization.SetCommand(new KeyValues("ReloadLocalization"));//static
+
+		DeleteButton = new(this, "DeletePanelButton", "Delete");
+		DeleteButton.SetSize(64, buttonH);
+		DeleteButton.SetCommand("DeletePanel");
+
+		VarsButton = new(this, "VarsButton", "Variables");
+		VarsButton.SetSize(72, buttonH);
+		VarsButton.SetOpenDirection(MenuDirection.DOWN);
+
+		// KeyValues vars = BuildGroup.GetDialogVariables();
+		// if(vars)...
+		VarsButton.SetEnabled(false);
+
+		ApplyButton.SetTabPosition(1);
+		panelList.Controls.SetTabPosition(2);
+		VarsButton.SetTabPosition(3);
+		DeleteButton.SetTabPosition(4);
+		AddNewControlCombo.SetTabPosition(5);
+		SaveButton.SetTabPosition(6);
+		ExitButton.SetTabPosition(7);
+
+		EditableParents.SetTabPosition(8);
+		EditableChildren.SetTabPosition(9);
+
+		PrevChild.SetTabPosition(10);
+		NextChild.SetTabPosition(11);
+
+		ReloadLocalization.SetTabPosition(12);
 	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {
@@ -158,8 +249,6 @@ public class BuildModeDialog : Frame
 	public override void PerformLayout() {
 		base.PerformLayout();
 
-		if (true) return; // TODO: Finish
-
 		int BORDER_GAP = 16, YGAP_SMALL = 4, YGAP_LARGE = 8, TITLE_HEIGHT = 24, BOTTOM_CONTROLS_HEIGHT = 145, XGAP = 6;
 
 		GetSize(out int wide, out int tall);
@@ -168,12 +257,13 @@ public class BuildModeDialog : Frame
 		int ypos = BORDER_GAP + TITLE_HEIGHT;
 
 		FileSelectionCombo.SetBounds(xpos, ypos, wide - (BORDER_GAP * 2), StatusLabel.GetTall());
-		ypos += FileSelectionCombo.GetTall() + YGAP_LARGE;
+		ypos += StatusLabel.GetTall() + YGAP_SMALL;
 
 		StatusLabel.SetBounds(xpos, ypos, wide - (BORDER_GAP * 2), StatusLabel.GetTall());
-		ypos += StatusLabel.GetTall() + YGAP_LARGE;
+		ypos += StatusLabel.GetTall() + YGAP_SMALL;
 
-		// todo panel list
+		panelList.Controls.SetPos(xpos, ypos);
+		panelList.Controls.SetSize(wide - (BORDER_GAP * 2), tall - (ypos + BOTTOM_CONTROLS_HEIGHT));
 
 		ypos = tall - BORDER_GAP;
 		xpos = BORDER_GAP + VarsButton.GetWide() + DeleteButton.GetWide() + AddNewControlCombo.GetWide() + (XGAP * 2);
@@ -182,14 +272,46 @@ public class BuildModeDialog : Frame
 		xpos -= ApplyButton.GetWide();
 		ApplyButton.SetPos(xpos, ypos);
 
-		xpos -= ExitButton.GetWide() - XGAP;
+		xpos -= ExitButton.GetWide();
+		xpos -= XGAP;
 		ExitButton.SetPos(xpos, ypos);
 
-		ypos -= SaveButton.GetTall() - XGAP;
+		xpos -= SaveButton.GetWide();
+		xpos -= XGAP;
 		SaveButton.SetPos(xpos, ypos);
 
-		// xpos = BORDER_GAP;
-		// ypoos = YGAP_LARGE + Divider.GetTall();
+		xpos = BORDER_GAP;
+		ypos -= YGAP_LARGE + Divider.GetTall();
+		Divider.SetBounds(xpos, ypos, wide - (xpos + BORDER_GAP), 2);
+
+		ypos -= YGAP_LARGE + VarsButton.GetTall();
+		xpos = BORDER_GAP;
+
+		EditableParents.SetPos(xpos, ypos);
+		EditableChildren.SetPos(xpos + 150, ypos);
+
+		ypos -= YGAP_LARGE + 18;
+		xpos = BORDER_GAP;
+
+		ReloadLocalization.SetPos(xpos, ypos);
+
+		xpos += XGAP + ReloadLocalization.GetWide();
+
+		PrevChild.SetPos(xpos, ypos);
+		PrevChild.SetSize(64, ReloadLocalization.GetTall());
+		xpos += XGAP + PrevChild.GetWide();
+
+		NextChild.SetPos(xpos, ypos);
+		NextChild.SetSize(64, ReloadLocalization.GetTall());
+
+		ypos -= YGAP_LARGE + VarsButton.GetTall();
+		xpos = BORDER_GAP;
+
+		VarsButton.SetPos(xpos, ypos);
+		xpos += XGAP + VarsButton.GetWide();
+		DeleteButton.SetPos(xpos, ypos);
+		xpos += XGAP + DeleteButton.GetWide();
+		AddNewControlCombo.SetPos(xpos, ypos);
 	}
 
 	public void RemoveAllControls() {
