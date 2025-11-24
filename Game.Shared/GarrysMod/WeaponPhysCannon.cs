@@ -337,7 +337,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		TimeUnit_t dt = gpGlobals.CurTime;
 		float alpha = Parameters[(int)effectID].GetAlpha().Interp(dt);
 		scale = Parameters[(int)effectID].GetScale().Interp(dt);
-		material = (IMaterial)Parameters[(int)effectID].GetMaterial();
+		material = Parameters[(int)effectID].GetMaterial().Get()!;
 		color.R = (byte)(int)Parameters[(int)effectID].GetColor().X;
 		color.B = (byte)(int)Parameters[(int)effectID].GetColor().Y;
 		color.G = (byte)(int)Parameters[(int)effectID].GetColor().Z;
