@@ -1007,14 +1007,15 @@ public static class MathLib
 
 		return output;
 	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float Hermite_Spline(float p0, float p1, float p2, float t) {
 		return Hermite_Spline(p1, p2, p1 - p0, p2 - p1, t);
 	}
-
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void QuaternionNormalize2(ref Quaternion q) {
 		q = Quaternion.Normalize(q);
 	}
-
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	internal static void Hermite_Spline(Quaternion q0, Quaternion q1, Quaternion q2, float t, out Quaternion output) {
 		QuaternionAlign(q2, q0, out Quaternion q0a);
 		QuaternionAlign(q2, q1, out Quaternion q1a);
@@ -1026,13 +1027,13 @@ public static class MathLib
 
 		QuaternionNormalize2(ref output);
 	}
-
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static double RemapVal(double val, double A, double B, double C, double D) {
 		if (A == B)
 			return val >= B ? D : C;
 		return C + (D - C) * (val - A) / (B - A);
 	}
-
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static double RemapValClamped(double val, double A, double B, double C, double D) {
 		if (A == B)
 			return val >= B ? D : C;
@@ -1042,14 +1043,14 @@ public static class MathLib
 
 		return C + (D - C) * cVal;
 	}
-
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static double SimpleSplineRemapVal(double val, double A, double B, double C, double D) {
 		if (A == B)
 			return val >= B ? D : C;
 		double cVal = (val - A) / (B - A);
 		return C + (D - C) * SimpleSpline(cVal);
 	}
-
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe void AngleVectors(in QAngle angles, out Vector3 forward, out Vector3 right, out Vector3 up) {
 		fixed (QAngle* aptr = &angles) {
 			Vector3 radians = Vector3.Multiply(*(Vector3*)aptr, MathF.PI / 180f);
@@ -1062,5 +1063,15 @@ public static class MathLib
 			right = new(-1 * sr * sp * cy + -1 * cr * -sy, -1 * sr * sp * sy + -1 * cr * cy, -1 * sr * cp);
 			up = new(cr * sp * cy + -sr * -sy, cr * sp * sy + -sr * cy, cr * cp);
 		}
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float VectorNormalize(ref Vector3 fwd) {
+		float len = fwd.Length();
+		fwd = Vector3.Normalize(fwd);
+		return len;
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void CrossProduct(in Vector3 a, in Vector3 b, out Vector3 result) {
+		result = Vector3.Cross(a, b);
 	}
 }
