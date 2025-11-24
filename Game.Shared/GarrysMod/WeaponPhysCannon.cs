@@ -223,9 +223,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		// ------------------------------------------
 		// Glows
 		// ------------------------------------------
-
 		
-
 		//Create the glow sprites
 		for (int i = (int)EffectType.Glow1; i < ((int)EffectType.Glow1 + NUM_GLOW_SPRITES); i++) {
 			if (Parameters[i].GetMaterial().IsNotNull)
@@ -339,8 +337,8 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		scale = Parameters[(int)effectID].GetScale().Interp(dt);
 		material = Parameters[(int)effectID].GetMaterial().Get()!;
 		color.R = (byte)(int)Parameters[(int)effectID].GetColor().X;
-		color.B = (byte)(int)Parameters[(int)effectID].GetColor().Y;
-		color.G = (byte)(int)Parameters[(int)effectID].GetColor().Z;
+		color.G = (byte)(int)Parameters[(int)effectID].GetColor().Y;
+		color.B = (byte)(int)Parameters[(int)effectID].GetColor().Z;
 		color.A = (byte)(int)alpha;
 		int attachmentIdx = Parameters[(int)effectID].GetAttachment(); 
 
