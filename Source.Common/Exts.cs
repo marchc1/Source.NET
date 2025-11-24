@@ -592,7 +592,7 @@ public static class ClassUtils
 	}
 
 	public static T[] InstantiateArray<T>(this T[] array) where T : new() {
-		for (int i = 0; i < array.Length; i++) 
+		for (int i = 0; i < array.Length; i++)
 			array[i] ??= new();
 		return array;
 	}
@@ -1628,4 +1628,53 @@ public ref struct SpanBinaryReader
 	public unsafe T Read<T>() where T : unmanaged => ReadBytes(sizeof(T)).Cast<byte, T>()[0];
 	public unsafe void Read<T>(out T value) where T : unmanaged => value = ReadBytes(sizeof(T)).Cast<byte, T>()[0];
 	public unsafe void ReadInto<T>(Span<T> value) where T : unmanaged => ReadBytes(sizeof(T) * value.Length).Cast<byte, T>().CopyTo(value);
+}
+
+
+public ref struct SpanBinaryWriter
+{
+	Span<byte> contents;
+	int ptr;
+	public SpanBinaryWriter(Span<byte> contents) {
+		this.contents = contents;
+		this.ptr = 0;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public void Advance(int bytes) {
+		ptr += bytes;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public unsafe void Advance<T>(int elements) where T : unmanaged {
+		ptr += sizeof(T) * elements;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public void WriteBytes(ReadOnlySpan<byte> bytes) {
+		bytes.CopyTo(contents[ptr..]);
+		ptr += bytes.Length;
+	}
+	/*
+	public byte ReadUInt8() => ReadBytes(sizeof(byte))[0];
+	public sbyte ReadInt8() => (sbyte)ReadBytes(sizeof(sbyte))[0];
+	public ushort ReadUInt16() => ReadBytes(sizeof(ushort)).Cast<byte, ushort>()[0];
+	public short ReadInt16() => ReadBytes(sizeof(short)).Cast<byte, short>()[0];
+	public uint ReadUInt32() => ReadBytes(sizeof(uint)).Cast<byte, uint>()[0];
+	public int ReadInt32() => ReadBytes(sizeof(int)).Cast<byte, int>()[0];
+	public ulong ReadUInt64() => ReadBytes(sizeof(ulong)).Cast<byte, ulong>()[0];
+	public long ReadInt64() => ReadBytes(sizeof(long)).Cast<byte, long>()[0];
+	public float ReadFloat() => ReadBytes(sizeof(float)).Cast<byte, float>()[0];
+	public double ReadDouble() => ReadBytes(sizeof(double)).Cast<byte, double>()[0];
+	*/
+
+	public unsafe void Write<T>(in T value) where T : unmanaged {
+		ReadOnlySpan<byte> bytes = new ReadOnlySpan<T>(in value).Cast<T, byte>();
+		bytes.CopyTo(contents[ptr..]);
+		ptr += bytes.Length;
+	}
+	public unsafe void Write<T>(Span<T> value) where T : unmanaged {
+		for (int i = 0; i < value.Length; i++)
+			Write(in value[i]);
+	}
 }
