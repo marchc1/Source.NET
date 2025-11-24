@@ -705,12 +705,19 @@ public static class MathLib
 	public static void Init(this ref QAngle a) => a.X = a.Y = a.Z = 0;
 	public static void Init(this ref RadianEuler r) => r.X = r.Y = r.Z = 0;
 	public static void Init(this ref Vector4 v) => v.X = v.Y = v.Z = v.W = 0;
-	
+	public static vec_t Dot(this in Vector3 a, in Vector3 b) => Vector3.Dot(a, b);
+
 
 	public static void Init(this ref Vector3 m, float x, float y, float z) {
 		m.X = x;
 		m.Y = y;
 		m.Z = z;
+	}
+
+	public static void Init(this ref Vector3 m, ReadOnlySpan<float> f) {
+		m.X = f[0];
+		m.Y = f[1];
+		m.Z = f[2];
 	}
 
 	public static void Init(this ref Quaternion m, float x, float y, float z, float w) {
@@ -1073,5 +1080,15 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void CrossProduct(in Vector3 a, in Vector3 b, out Vector3 result) {
 		result = Vector3.Cross(a, b);
+	}
+
+	public static void MatrixGetColumn(in Matrix3x4 inMatrix, int column, out Vector3 outVec) {
+		outVec.X = inMatrix[0][column];
+		outVec.Y = inMatrix[1][column];
+		outVec.Z = inMatrix[2][column];
+	}
+
+	public static void MatrixPosition(in Matrix3x4 matrix, out Vector3 origin) {
+		MatrixGetColumn(matrix, 3, out origin);
 	}
 }

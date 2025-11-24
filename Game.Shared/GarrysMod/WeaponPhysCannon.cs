@@ -11,6 +11,8 @@ using Source.Common;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
+using Steamworks;
+
 using System;
 using System.Numerics;
 namespace Game.Shared.GarrysMod;
@@ -314,7 +316,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	}
 #if CLIENT_DLL
 	public bool IsEffectVisible(EffectType effectID) {
-		return false;
+		return Parameters[(int)effectID].IsVisible();
 	}
 
 	public void DrawEffectSprite(EffectType effectID) {
@@ -332,7 +334,31 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	}
 
 	private void GetEffectParameters(EffectType effectID, out Color color, out float scale, out IMaterial material, out Vector3 attachment) {
-		throw new NotImplementedException();
+		TimeUnit_t dt = gpGlobals.CurTime;
+		float alpha = Parameters[(int)effectID].GetAlpha().Interp(dt);
+		scale = Parameters[(int)effectID].GetScale().Interp(dt);
+		material = (IMaterial)Parameters[(int)effectID].GetMaterial();
+		color.R = (byte)(int)Parameters[(int)effectID].GetColor().X;
+		color.B = (byte)(int)Parameters[(int)effectID].GetColor().Y;
+		color.G = (byte)(int)Parameters[(int)effectID].GetColor().Z;
+		color.A = (byte)(int)alpha;
+		int attachmentIdx = Parameters[(int)effectID].GetAttachment(); 
+
+		// Format for first-person
+		if (ShouldDrawUsingViewModel()) {
+			BasePlayer? owner = ToBasePlayer(GetOwner());
+
+			if (owner != null) {
+				owner.GetViewModel()!.GetAttachment(attachmentIdx, out attachment, out _);
+				BaseViewModel.FormatViewModelAttachment(ref attachment, true);
+			}
+			else {
+				attachment = default;
+			}
+		}
+		else {
+			GetAttachment(attachmentIdx, out attachment, out _);
+		}
 	}
 
 	public override void ClientThink() {

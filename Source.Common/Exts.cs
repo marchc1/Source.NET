@@ -867,6 +867,16 @@ public static class UnmanagedUtils
 			list.Add(default);
 	}
 
+	public static void SetSizeInitialized<T>(this List<T> list, int ensureTo) where T : new() {
+		list.EnsureCapacity(ensureTo);
+
+		while (list.Count > ensureTo)
+			list.RemoveAt(list.Count - 1);
+
+		while (list.Count < ensureTo)
+			list.Add(new());
+	}
+
 	public static unsafe ulong Hash(this ReadOnlySpan<char> str, bool invariant = true) {
 		if (str.IsEmpty || str.Length == 0)
 			return 0;
