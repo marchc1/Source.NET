@@ -65,7 +65,7 @@ public class OptionsSubVideo : PropertyPage
 	CGammaDialog GammaDialog;
 
 	bool RequiredRestart;
-	// URLButton ThirdPartyCredits;
+	URLButton ThirdPartyCredits;
 	// COptionsSubVideoThirdPartyCreditsDlg OptionsSubVideoThirdPartyCreditsDlg
 
 	// Messages -> ControlModified, TextChanged, OpenAdvanced, LaunchBenchmark, OpenGammDialog, OpenThirdPartVideoCreditsDialog
@@ -81,8 +81,8 @@ public class OptionsSubVideo : PropertyPage
 		Advanced.SetCommand(KV_OpenAdvanced);
 		Benchmark = new(this, "BenchmarkButton", "#GameUI_LaunchBenchmark");
 		Benchmark.SetCommand(KV_LaunchBenchmark);
-		// ThirdPartyCredits = new(this, "ThirdPartyVideoCredits", "#GameUI_ThirdPartyTechCredits");
-		// ThirdPartyCredits.SetCommand(new KeyValues("OpenThirdPartyVideoCreditsDialog"));//static
+		ThirdPartyCredits = new(this, "ThirdPartyVideoCredits", "#GameUI_ThirdPartyTechCredits");
+		ThirdPartyCredits.SetCommand(new KeyValues("OpenThirdPartyVideoCreditsDialog"));//static
 		HDContent = new(this, "HDContentButton", "#GameUI_HDContent");
 
 		ReadOnlySpan<char> aspect1 = Localize.Find("#GameUI_AspectRatio4x3");

@@ -1,7 +1,6 @@
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Input;
-using Source.Common.Launcher;
 
 namespace Source.GUI.Controls;
 
