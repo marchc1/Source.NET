@@ -1,5 +1,6 @@
 ﻿namespace Source.Engine;
 
+using Source.Common;
 using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
@@ -24,6 +25,8 @@ public class HostState : IHostState
 	private IMDLCache? _mdlCache; private IMDLCache mdlCache => _mdlCache ??= Singleton<IMDLCache>();
 	private Scr? _Scr; private Scr Scr => _Scr ??= Singleton<Scr>();
 	private SV? _SV; private SV SV => _SV ??= Singleton<SV>();
+	private ServerGlobalVariables? _serverGlobalVariables; private ServerGlobalVariables serverGlobalVariables => _serverGlobalVariables ??= Singleton<ServerGlobalVariables>();
+
 	public HostStates CurrentState;
 	public HostStates NextState;
 	public Vector3 Location;
@@ -105,7 +108,9 @@ public class HostState : IHostState
 
 	void IHostState.RunGameInit() {
 		Assert(!ActiveGame);
+		SV.ServerGameDLL?.GameInit();
 		ActiveGame = true;
+		serverGlobalVariables.MapLoadFailed = false;
 	}
 
 	void IHostState.NewGame(ReadOnlySpan<char> mapName, bool rememberLocation, bool background) {

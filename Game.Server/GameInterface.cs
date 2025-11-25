@@ -19,7 +19,7 @@ public static class GameInterface
 
 }
 
-public class ServerGameDLL(IEngineServer engine, IFileSystem filesystem, ICommandLine CommandLine) : IServerGameDLL
+public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : IServerGameDLL
 {
 	public static void DLLInit(IServiceCollection services) {
 		services.AddSingleton<IServerGameEnts, ServerGameEnts>();
@@ -47,7 +47,16 @@ public class ServerGameDLL(IEngineServer engine, IFileSystem filesystem, IComman
 	}
 
 	public bool GameInit() {
-		throw new NotImplementedException();
+		ResetGlobalState();
+		engine.ServerCommand("exec game.cfg\n");
+		engine.ServerExecute();
+		BaseEntity.AccurateTriggerBboxChecks = true;
+
+		IGameEvent? ev = gameeventmanager.CreateEvent("game_init");
+		if (ev != null)
+			gameeventmanager.FireEvent(ev);
+
+		return true;
 	}
 
 	public void GameServerSteamAPIActivated() {

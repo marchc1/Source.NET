@@ -841,9 +841,29 @@ public class Host(
 	}
 
 	public bool NewGame(ReadOnlySpan<char> mapName, bool loadGame, bool backgroundLevel, ReadOnlySpan<char> oldMap = default, ReadOnlySpan<char> landmark = default, bool oldSave = false) {
+		Common.TimestampedLog("Host_NewGame");
+		Span<char> previousMapName = stackalloc char[MAX_PATH];
+		host_map.GetString().CopyTo(previousMapName);
 #if !SWDS
 		Scr.BeginLoadingPlaque();
 #endif
+		Span<char> _mapName = stackalloc char[MAX_PATH];
+		Span<char> _mapFile = stackalloc char[MAX_PATH];
+		mapName.CopyTo(_mapName);
+		DefaultMapFileName(_mapName, _mapFile);
+
+		SV.InitGameServerSteam();
+
+		if (!modelloader.Map_IsValid(_mapFile)) {
+			Scr.EndLoadingPlaque();
+			return false;
+		}
+
+		DevMsg("---- Host_NewGame ----\n");
+		host_map.SetValue(_mapName);
+		if (!loadGame) {
+			HostState.RunGameInit();
+		}
 
 		// do the rest later
 		return true;

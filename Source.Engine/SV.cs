@@ -100,4 +100,8 @@ public class SV(IServiceProvider services, Cbuf Cbuf, GameServer sv, ED ED, Host
 		ED.ClearFreeEdictList();
 		// TODO: EdictChangeInfo
 	}
+
+	internal void InitGameServerSteam() {
+		throw new NotImplementedException();
+	}
 }
