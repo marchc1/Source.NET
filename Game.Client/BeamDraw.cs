@@ -96,7 +96,8 @@ public class Beam : DefaultClientRenderable {
 	}
 
 	public override int DrawModel(StudioFlags flags) {
-		return base.DrawModel(flags);
+		beams.DrawBeam(this);
+		return 0;
 	}
 
 	public void Dispose() {

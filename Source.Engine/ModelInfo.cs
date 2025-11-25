@@ -148,6 +148,20 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		return null;
 	}
 
+	public int GetModelSpriteWidth(Model model) {
+		if (model.Type != ModelType.Sprite)
+			return 0;
+
+		return model.Sprite.Width;
+	}
+
+	public int GetModelSpriteHeight(Model model) {
+		if (model.Type != ModelType.Sprite)
+			return 0;
+
+		return model.Sprite.Height;
+	}
+
 	readonly List<Model> NetworkedDynamicModels = [];
 }
 

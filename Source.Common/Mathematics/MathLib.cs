@@ -290,8 +290,40 @@ public static class MathLib
 
 
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorScale(in Vector3 inVec, in Vector3 scale, out Vector3 result) => result = Vector3.Multiply(inVec, scale);
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorScale(in Vector3 inVec, vec_t scale, out Vector3 result) => result = Vector3.Multiply(inVec, scale);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(in Vector3 inVec, in Vector3 scale, out Vector3 result) => result = Vector3.Multiply(inVec, scale);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(in Vector3 inVec, vec_t scale, out Vector3 result) => result = Vector3.Multiply(inVec, scale);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(in Vector3 inVec, in Vector3 scale, Span<float> result) {
+		Vector3 v = Vector3.Multiply(inVec, scale);
+		ReadOnlySpan<Vector3> vS = new(in v);
+		vS.Cast<Vector3, float>().CopyTo(result);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(in Vector3 inVec, vec_t scale, Span<float> result) {
+		Vector3 v = Vector3.Multiply(inVec, scale);
+		ReadOnlySpan<Vector3> vS = new(in v);
+		vS.Cast<Vector3, float>().CopyTo(result);
+	}
+
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(ReadOnlySpan<float> inVec, in Vector3 scale, out Vector3 result) => result = Vector3.Multiply(inVec.Cast<float, Vector3>()[0], scale);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(ReadOnlySpan<float> inVec, vec_t scale, out Vector3 result) => result = Vector3.Multiply(inVec.Cast<float, Vector3>()[0], scale);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(ReadOnlySpan<float> inVec, in Vector3 scale, Span<float> result) {
+		Vector3 v = Vector3.Multiply(inVec.Cast<float, Vector3>()[0], scale);
+		ReadOnlySpan<Vector3> vS = new(in v);
+		vS.Cast<Vector3, float>().CopyTo(result);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(ReadOnlySpan<float> inVec, vec_t scale, Span<float> result) {
+		Vector3 v = Vector3.Multiply(inVec.Cast<float, Vector3>()[0], scale);
+		ReadOnlySpan<Vector3> vS = new(in v);
+		vS.Cast<Vector3, float>().CopyTo(result);
+	}
 
 
 

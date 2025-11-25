@@ -2,7 +2,9 @@
 
 using Game.Shared;
 
+using Source;
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
 
@@ -525,8 +527,149 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 	public void DrawBeam(C_Beam beam, ITraceFilter? entityBeamTraceFilter = null) {
 		throw new NotImplementedException();
 	}
+	static readonly ConVar r_DrawBeams = new( "r_DrawBeams", "1", FCvar.Cheat, "0=Off, 1=Normal, 2=Wireframe" );
+
 
 	public void DrawBeam(Beam beam) {
+		if (r_DrawBeams.GetInt() == 0)
+			return;
+
+		// Don't draw really short beams
+		if (beam.Delta.Length() < 0.1f) 
+			return;
+
+		Model? sprite;
+		Model? halosprite = null;
+
+		if (beam.ModelIndex < 0) {
+			beam.Die = gpGlobals.CurTime;
+			return;
+		}
+
+		sprite = modelinfo.GetModel(beam.ModelIndex);
+		if (sprite == null) 
+			return;
+
+		if (modelinfo.GetModelSpriteHeight(sprite) == 0) // GetModelSpriteHeight has a check for sprite. If the modelindex now changed, we would try to use the wrong model. Which is not good.
+		{
+			DevMsg("Model is not a sprite!\n");
+			return;
+		}
+
+		halosprite = modelinfo.GetModel(beam.HaloIndex);
+
+		int frame = ((int)(float)(beam.Frame + gpGlobals.CurTime * beam.FrameRate) % beam.FrameCount);
+		RenderMode rendermode = (beam.Flags & BeamFlags.Solid) != 0 ? RenderMode.Normal : RenderMode.TransAdd;
+
+		// set color
+		Span<float> srcColor = stackalloc float[3];
+		Span<float> color = stackalloc float[4];
+
+		srcColor[0] = beam.R;
+		srcColor[1] = beam.G;
+		srcColor[2] = beam.B;
+		if ((beam.Flags & BeamFlags.FadeIn) != 0) 
+			MathLib.VectorScale(srcColor, (float)beam.T, color);
+		else if ((beam.Flags & BeamFlags.FadeOut) != 0) 
+			MathLib.VectorScale(srcColor, (1.0f - (float)beam.T), color);
+		else 
+			color = srcColor;
+
+		MathLib.VectorScale(color, (1 / 255.0f), color);
+		srcColor = color;
+		MathLib.VectorScale(color, ((float)beam.Brightness / 255.0f), color);
+		color[3] = 1f;
+
+		switch (beam.Type) {
+			case TempEntType.BeamDisk:
+				DrawDisk(Beam.NOISE_DIVISIONS, beam.Noise, sprite, frame, rendermode,
+					beam.Attachment[0], beam.Delta, beam.Width, beam.Amplitude,
+					beam.Freq, beam.Speed, beam.Segments, color, beam.HDRColorScale);
+				break;
+
+			case TempEntType.BeamCylinder:
+				DrawCylinder(Beam.NOISE_DIVISIONS, beam.Noise, sprite, frame, rendermode,
+					beam.Attachment[0], beam.Delta, beam.Width, beam.Amplitude,
+					beam.Freq, beam.Speed, beam.Segments, color, beam.HDRColorScale);
+				break;
+
+			case TempEntType.BeamPoints:
+				if (halosprite != null) {
+					DrawBeamWithHalo(beam, frame, rendermode, color, srcColor, sprite, halosprite, beam.HDRColorScale);
+				}
+				else {
+					DrawSegs(Beam.NOISE_DIVISIONS, beam.Noise, sprite, frame, rendermode,
+						beam.Attachment[0], beam.Delta, beam.Width, beam.EndWidth,
+						beam.Amplitude, beam.Freq, beam.Speed, beam.Segments,
+						beam.Flags, color, beam.FadeLength, beam.HDRColorScale);
+				}
+				break;
+
+			case TempEntType.BeamFollow:
+				DrawBeamFollow(sprite, beam, frame, rendermode, gpGlobals.FrameTime, color, beam.HDRColorScale);
+				break;
+
+			case TempEntType.BeamRing:
+			case TempEntType.BeamRingPoint:
+				DrawRing(Beam.NOISE_DIVISIONS, beam.Noise, Noise, sprite, frame, rendermode,
+					beam.Attachment[0], beam.Delta, beam.Width, beam.Amplitude,
+					beam.Freq, beam.Speed, beam.Segments, color, beam.HDRColorScale);
+				break;
+
+			case TempEntType.BeamSpline:
+				DrawSplineSegs(Beam.NOISE_DIVISIONS, beam.Noise, sprite, halosprite,
+					beam.HaloScale, frame, rendermode, beam.NumAttachments,
+					beam.Attachment, beam.Width, beam.EndWidth, beam.Amplitude,
+					beam.Freq, beam.Speed, beam.Segments, beam.Flags, color, beam.FadeLength, beam.HDRColorScale);
+				break;
+
+			case TempEntType.BeamLaser:
+				DrawLaser(beam, frame, rendermode, color, sprite, halosprite, beam.HDRColorScale);
+				break;
+
+			case TempEntType.BeamTesla:
+				DrawTesla(beam, frame, rendermode, color, sprite, beam.HDRColorScale);
+				break;
+
+			default:
+				DevWarning(1, $"ViewRenderBeams.DrawBeam:  Unknown beam type {beam.Type}\n");
+				break;
+		}
+	}
+
+	private void DrawDisk(int nOISE_DIVISIONS, float[] noise, Model sprite, int frame, RenderMode rendermode, Vector3 vector3, Vector3 delta, float width, float amplitude, double freq, double speed, int segments, Span<float> color, float hDRColorScale) {
+		throw new NotImplementedException();
+	}
+
+	private void DrawCylinder(int nOISE_DIVISIONS, float[] noise, Model sprite, int frame, RenderMode rendermode, Vector3 vector3, Vector3 delta, float width, float amplitude, double freq, double speed, int segments, Span<float> color, float hDRColorScale) {
+		throw new NotImplementedException();
+	}
+
+	private void DrawBeamWithHalo(Beam beam, int frame, RenderMode rendermode, Span<float> color, Span<float> srcColor, Model sprite, Model halosprite, float hDRColorScale) {
+		throw new NotImplementedException();
+	}
+
+	private void DrawSegs(int nOISE_DIVISIONS, float[] noise, Model sprite, int frame, RenderMode rendermode, Vector3 vector3, Vector3 delta, float width, float endWidth, float amplitude, double freq, double speed, int segments, BeamFlags flags, Span<float> color, float fadeLength, float hDRColorScale) {
+		throw new NotImplementedException();
+	}
+
+	private void DrawBeamFollow(Model sprite, Beam beam, int frame, RenderMode rendermode, double frameTime, Span<float> color, float hDRColorScale) {
+		throw new NotImplementedException();
+	}
+
+	private void DrawRing(int nOISE_DIVISIONS, float[] noise1, Action<Span<float>, int, float> noise2, Model sprite, int frame, RenderMode rendermode, Vector3 vector3, Vector3 delta, float width, float amplitude, double freq, double speed, int segments, Span<float> color, float hDRColorScale) {
+		throw new NotImplementedException();
+	}
+
+	private void DrawSplineSegs(int nOISE_DIVISIONS, float[] noise, Model sprite, Model? halosprite, float haloScale, int frame, RenderMode rendermode, int numAttachments, InlineArrayNewMaxBeamEnts<Vector3> attachment, float width, float endWidth, float amplitude, double freq, double speed, int segments, BeamFlags flags, Span<float> color, float fadeLength, float hDRColorScale) {
+		throw new NotImplementedException();
+	}
+
+	private void DrawLaser(Beam beam, int frame, RenderMode rendermode, Span<float> color, Model sprite, Model? halosprite, float hDRColorScale) {
+		throw new NotImplementedException();
+	}
+
+	private void DrawTesla(Beam beam, int frame, RenderMode rendermode, Span<float> color, Model sprite, float hDRColorScale) {
 		throw new NotImplementedException();
 	}
 
