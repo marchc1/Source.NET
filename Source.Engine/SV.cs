@@ -102,6 +102,9 @@ public class SV(IServiceProvider services, Cbuf Cbuf, GameServer sv, ED ED, Host
 	}
 
 	internal void InitGameServerSteam() {
-		throw new NotImplementedException();
+		if (sv.IsMultiplayer()) {
+			// TODO
+			throw new NotImplementedException();
+		}
 	}
 }
