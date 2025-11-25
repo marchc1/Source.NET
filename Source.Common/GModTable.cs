@@ -1,4 +1,5 @@
-﻿using Source.Common.Bitbuffers;
+﻿#if GMOD_DLL
+using Source.Common.Bitbuffers;
 using Source.Common.Mathematics;
 
 using System.Numerics;
@@ -200,3 +201,4 @@ public class GModTable {
 		Values.Clear();
 	}
 }
+#endif
