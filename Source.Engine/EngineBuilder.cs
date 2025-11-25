@@ -132,6 +132,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<Con>();
 		this.AddSingleton<Cvar>();
 		this.AddSingleton<CvarUtilities>();
+		this.AddSingleton<ED>();
 		this.AddSingleton<FileSystem>();
 		this.AddSingleton<Key>();
 		this.AddSingleton<Host>();

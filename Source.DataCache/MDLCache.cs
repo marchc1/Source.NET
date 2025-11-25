@@ -72,7 +72,12 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 	}
 
 	public void BeginMapLoad() {
-		throw new NotImplementedException();
+		// TODO: Actually make locking do something, we're super synchronous right now
+		foreach(var mdl in HandleToMDLDict) {
+			if((mdl.Value.Flags & StudioDataFlags.LockedMDL) != 0) {
+				mdl.Value.Flags &= ~StudioDataFlags.LockedMDL;
+			}
+		}
 	}
 
 	public void EndLock() {
@@ -80,7 +85,8 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 	}
 
 	public void EndMapLoad() {
-		throw new NotImplementedException();
+		FinishPendingLoads();
+		// TODO: Remove stray MDL's
 	}
 
 	readonly ConcurrentDictionary<UtlSymId_t, StudioData> FileToMDLDict = [];
@@ -115,7 +121,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 	}
 
 	public void FinishPendingLoads() {
-		throw new NotImplementedException();
+
 	}
 
 	public void Flush(MDLCacheFlush flushFlags = MDLCacheFlush.All) {

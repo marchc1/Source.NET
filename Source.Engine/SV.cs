@@ -3,7 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
 using Source.Common.Commands;
+using Source.Common.Engine;
 using Source.Common.Server;
+using Source.Engine.Server;
 
 namespace Source.Engine;
 
@@ -11,7 +13,7 @@ namespace Source.Engine;
 /// Various serverside methods. In Source, these would mostly be represented by
 /// SV_MethodName's in the static global namespace
 /// </summary>
-public class SV(IServiceProvider services, Cbuf Cbuf)
+public class SV(IServiceProvider services, Cbuf Cbuf, GameServer sv, ED ED)
 {
 	public ConVar sv_cheats = new(nameof(sv_cheats), "0", FCvar.Notify | FCvar.Replicated, "Allow cheats on server", callback: SV_CheatsChanged);
 
@@ -46,5 +48,16 @@ public class SV(IServiceProvider services, Cbuf Cbuf)
 
 	internal void ShutdownGameDLL() {
 
+	}
+
+	public void AllocateEdicts() {
+		sv.Edicts = new Edict[sv.MaxEdicts];
+		for (int i = 0; i < sv.MaxEdicts; i++) {
+			sv.Edicts[i] = new();
+			sv.Edicts[i].EdictIndex = i;
+			sv.Edicts[i].FreeTime = 0;
+		}
+		ED.ClearFreeEdictList();
+		// TODO: EdictChangeInfo
 	}
 }

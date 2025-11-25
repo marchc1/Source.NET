@@ -26,11 +26,11 @@ public enum EdictFlags
 	/// <summary>
 	/// don't transmit this entity
 	/// </summary>
-	DontSend = (1 << 4), 
+	DontSend = (1 << 4),
 	/// <summary>
 	/// always transmit entity, but cull against PVS
 	/// </summary>
-	PVSCheck = (1 << 5),  
+	PVSCheck = (1 << 5),
 	PendingDormantCheck = (1 << 6),
 	DirtyPVSInformation = (1 << 7),
 	FullEdictChanged = (1 << 8)
@@ -89,15 +89,17 @@ public class BaseEdict
 	public EdictFlags StateFlags;
 
 	public short NetworkSerialNumber;
-	public short EdictIndex;
+	public long EdictIndex;
 	public IServerNetworkable? Networkable;
 	protected IServerUnknown? Unk;
+	public virtual void InitializeEntityDLLFields() { }
 }
 
 /// <summary>
 /// Analog of edict_t
 /// </summary>
-public class Edict : BaseEdict {
+public class Edict : BaseEdict
+{
 	public ICollideable? GetCollideable() {
 		IServerEntity? ent = GetIServerEntity();
 		if (ent != null)
@@ -105,5 +107,23 @@ public class Edict : BaseEdict {
 		else
 			return null;
 	}
+
+	public override void InitializeEntityDLLFields() {
+		base.InitializeEntityDLLFields();
+		FreeTime = default;
+	}
+
 	public TimeUnit_t FreeTime;
+}
+
+public class IChangeInfoAccessor
+{
+	public void SetChangeInfo(ushort info) => ChangeInfo = info;
+	public void SetChangeInfoSerialNumber(ushort sn) => ChangeInfoSerialNumber = sn;
+
+	public ushort GetChangeInfo() => ChangeInfo;
+	public ushort GetChangeInfoSerialNumber() => ChangeInfoSerialNumber;
+
+	private ushort ChangeInfo;
+	private ushort ChangeInfoSerialNumber;
 }
