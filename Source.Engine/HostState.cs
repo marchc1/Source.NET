@@ -1,5 +1,6 @@
 ﻿namespace Source.Engine;
 
+using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
 
@@ -20,6 +21,7 @@ public enum HostStates
 public class HostState : IHostState
 {
 	private readonly Host Host;
+	private readonly IMDLCache mdlCache;
 	public HostStates CurrentState;
 	public HostStates NextState;
 	public Vector3 Location;
@@ -35,8 +37,9 @@ public class HostState : IHostState
 
 	IEngine eng = null!;
 
-	public HostState(Host Host) {
+	public HostState(Host Host, IMDLCache mdlCache) {
 		this.Host = Host;
+		this.mdlCache = mdlCache;
 		((IHostState)this).Init();
 	}
 
@@ -62,20 +65,20 @@ public class HostState : IHostState
 			HostStates oldState = CurrentState;
 			switch (CurrentState) {
 				case HostStates.NewGame:
-					// mdl cache...
+					mdlCache.BeginMapLoad();
 					State_NewGame();
 					break;
 				case HostStates.LoadGame:
-					// mdl cache...
+					mdlCache.BeginMapLoad();
 					State_LoadGame();
 					break;
 				case HostStates.ChangeLevelMP:
-					// mdl cache...
+					mdlCache.BeginMapLoad();
 					ShortFrameTime = 0.5;
 					State_ChangeLevelMP();
 					break;
 				case HostStates.ChangeLevelSP:
-					// mdl cache...
+					mdlCache.BeginMapLoad();
 					ShortFrameTime = 1.5;
 					State_ChangeLevelSP();
 					break;
