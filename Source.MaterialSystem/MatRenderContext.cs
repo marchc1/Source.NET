@@ -526,4 +526,8 @@ public class MatRenderContext : IMatRenderContextInternal
 	public void LoadBoneMatrix(int boneIndex, in Matrix3x4 matrix) {
 		shaderAPI.LoadBoneMatrix(boneIndex, in matrix);
 	}
+
+	public void GetWorldSpaceCameraPosition(out Vector3 vecCameraPos) {
+		vecCameraPos = VecViewOrigin;
+	}
 }

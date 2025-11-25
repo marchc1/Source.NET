@@ -145,7 +145,7 @@ public class ClientLeafSystem : IClientLeafSystem
 		// TODO: full implementation. Every prop physics for now (I am lazy and testing model rendering).
 		foreach (var renderable in Renderables) {
 			ref RenderableInfo i = ref renderable.Value.Info;
-			if (i.Renderable is C_PhysicsProp)
+			if (i.Renderable is C_PhysicsProp || i.Renderable is Beam)
 				AddRenderableToRenderList(info.RenderList!, i.Renderable, 0, i.RenderGroup);
 		}
 	}

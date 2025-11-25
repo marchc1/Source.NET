@@ -708,7 +708,9 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		for (int i = 0; i < count; i++) {
 			ShaderAPITextureHandle_t handle = textureHandles[i];
 			glObjectLabel(GL_TEXTURE, (uint)handle, $"ShaderAPI Texture '{debugName}' [frame {i}]");
-			glTextureStorage2D((uint)handle, mipCount, ImageLoader.GetGLImageInternalFormat(imageFormat), width, height);
+
+			ConvertDataToAcceptableGLFormat(imageFormat, null, out ImageFormat dstFormat, out _);
+			glTextureStorage2D((uint)handle, mipCount, ImageLoader.GetGLImageInternalFormat(dstFormat), width, height);
 		}
 	}
 
@@ -756,10 +758,10 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, srcStride / srcFormat.SizeInBytes());
 		ConvertDataToAcceptableGLFormat(srcFormat, imageData, out srcFormat, out Span<byte> convertedData);
 		fixed (byte* data = convertedData)
-			glTextureSubImage2D((uint)ModifyTextureHandle, mip, x, y, width, height, ImageLoader.GetGLImageUploadFormat(srcFormat), GL_UNSIGNED_BYTE, data);
+			glTextureSubImage2D((uint)ModifyTextureHandle, mip, x, y, width >> mip, height >> mip, ImageLoader.GetGLImageUploadFormat(srcFormat), GL_UNSIGNED_BYTE, data);
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		var err = glGetError();
-		Assert(err == 0);
+		System.Diagnostics.Debug.Assert(err == 0);
 	}
 
 	readonly ThreadLocal<byte[]> tempTransformBuffers = new ThreadLocal<byte[]>(() => new byte[1024 * 1024]);
@@ -775,13 +777,22 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		switch (inFormat) {
 			case ImageFormat.BGR888:
 				outFormat = ImageFormat.RGB888;
+				break;
+			default:
+				outFormat = inFormat;
+				outData = inData;
+				return;
+		}
+
+		switch (inFormat) {
+			case ImageFormat.BGR888:
 				outData = GetTempTransformBuffer(inFormat, outFormat, inData);
 				for (int i = 0; i < inData.Length; i += 3) {
 					outData[i + 2] = inData[i + 0];
 					outData[i + 1] = inData[i + 1];
 					outData[i + 0] = inData[i + 2];
 				}
-				break;
+				return;
 			default:
 				outFormat = inFormat;
 				outData = inData;

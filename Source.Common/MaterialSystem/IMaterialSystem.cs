@@ -254,6 +254,7 @@ public interface IMatRenderContext
 	float ComputePixelWidthOfSphere(Vector3 origin, float radius);
 	void SetNumBoneWeights(int v);
 	void LoadBoneMatrix(int hardwareID, in Matrix3x4 matrix4x4);
+	void GetWorldSpaceCameraPosition(out Vector3 vecCameraPos);
 }
 
 public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
@@ -326,5 +327,9 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 
 	public void SetNumBoneWeights(int v) => ctx.SetNumBoneWeights(v);
 
-	public void LoadBoneMatrix(int hardwareID, in Matrix3x4 matrix) => ctx.LoadBoneMatrix(hardwareID, in matrix); 
+	public void LoadBoneMatrix(int hardwareID, in Matrix3x4 matrix) => ctx.LoadBoneMatrix(hardwareID, in matrix);
+
+	public void GetWorldSpaceCameraPosition(out Vector3 vecCameraPos) {
+		ctx.GetWorldSpaceCameraPosition(out vecCameraPos);
+	}
 }

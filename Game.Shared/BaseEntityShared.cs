@@ -137,6 +137,12 @@ public partial class
 	public void RemoveFlag(int flag) => flags &= ~flag;
 	public void ClearFlags(int flag) => flags= 0;
 	public void ToggleFlag(int flag) => flags ^= flag;
+
+
+	public virtual ref readonly Vector3 WorldSpaceCenter() {
+		return ref GetAbsOrigin(); // todo
+	}
+
 }
 
 #endif

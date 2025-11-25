@@ -1,6 +1,7 @@
 ﻿namespace Source.Common;
 
-public class BaseHandle {
+public class BaseHandle
+{
 	public uint Index;
 
 	public void Invalidate() => Index = (uint)Constants.INVALID_EHANDLE_INDEX;
@@ -28,4 +29,12 @@ public class BaseHandle {
 	}
 	public override int GetHashCode() => (int)Index;
 	public bool IsValid() => Index != Constants.INVALID_EHANDLE_INDEX;
+
+	public BaseHandle Set(IHandleEntity? entity) {
+		if (entity != null)
+			this.Index = entity.GetRefEHandle()!.Index;
+		else
+			Index = Constants.INVALID_EHANDLE_INDEX;
+		return this;
+	}
 }

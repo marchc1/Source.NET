@@ -46,6 +46,8 @@ public partial class C_BaseEntity : IClientEntity
 	public ClientThinkHandle_t GetThinkHandle() => thinkHandle;
 	public void SetThinkHandle(ClientThinkHandle_t handle) => thinkHandle = handle;
 
+	public virtual C_BaseAnimating? GetBaseAnimating() => null;
+
 	public virtual bool IsWorld() => EntIndex() == 0;
 	public virtual bool IsPlayer() => false;
 	public virtual bool IsBaseCombatCharacter() => false;
@@ -757,7 +759,8 @@ public partial class C_BaseEntity : IClientEntity
 
 		if (OldMoveParent != NetworkMoveParent)
 			UpdateVisibility();
-		// TODO: ShouldDraw changes
+		if(OldShouldDraw != ShouldDraw())
+			UpdateVisibility();
 	}
 
 	public bool IsIntermediateDataAllocated() {
@@ -1477,6 +1480,37 @@ public partial class C_BaseEntity : IClientEntity
 			ModelInstance = MODEL_INSTANCE_INVALID;
 		}
 	}
+
+	public virtual bool GetAttachment(int number, out Vector3 origin, out QAngle angles) {
+		origin = GetAbsOrigin();
+		angles = GetAbsAngles();
+		return true;
+	}
+
+	Vector3 AbsVelocity; 
+
+	// todo
+	public ref readonly Vector3 GetAbsVelocity() {
+		return ref AbsVelocity;
+	}
+
+	public virtual bool GetAttachment(int number, out Vector3 origin) {
+		origin = GetAbsOrigin();
+		return true;
+	}
+
+	public virtual bool GetAttachment(int number, out Matrix3x4 matrix ) {
+		matrix = EntityToWorldTransform();
+		return true;
+	}
+
+	public virtual bool GetAttachmentVelocity(int number, out Vector3 originVel, out Quaternion angleVel ) {
+		originVel = GetAbsVelocity();
+		angleVel = default;
+		angleVel.Init();
+		return true;
+	}
+
 
 	protected bool ShouldInterpolate() {
 		if (render.GetViewEntity() == Index)

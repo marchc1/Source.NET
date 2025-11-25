@@ -1,4 +1,6 @@
-﻿using System.Numerics;
+﻿using Source.Common.Utilities;
+
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Source.Common.MaterialSystem;
@@ -21,6 +23,12 @@ public struct MaterialVarGPU {
 	public int Location;
 }
 
+public struct TokenCache {
+	public ulong Symbol;
+	public int VarIndex;
+	public bool Cached;
+}
+
 public abstract class IMaterialVar
 {
 	protected string StringVal = "";
@@ -31,7 +39,7 @@ public abstract class IMaterialVar
 	protected byte NumVectorComps;
 	protected bool FakeMaterialVar;
 	protected byte TempIndex;
-	protected string Name = "";
+	protected UtlSymbol Name = "";
 	public MaterialVarGPU GPU;
 
 	public override string ToString() {
@@ -123,5 +131,20 @@ public abstract class IMaterialVar
 	}
 	public float GetFloatValue() {
 		return VecVal.X;
+	}
+
+	static readonly UtlSymbolTableMT MaterialVarSymbols = new();
+	public static UtlSymId_t FindSymbol(ReadOnlySpan<char> name) {
+		if (name.IsEmpty)
+			return UTL_INVAL_SYMBOL;
+		return MaterialVarSymbols.Find(name);
+	}
+
+	public UtlSymId_t GetNameAsSymbol() {
+		return Name;
+	}
+
+	public static bool SymbolMatches(ReadOnlySpan<char> varName, UtlSymId_t symbol) {
+		return varName.CompareTo(MaterialVarSymbols.String(symbol), StringComparison.InvariantCultureIgnoreCase) != 0;
 	}
 }

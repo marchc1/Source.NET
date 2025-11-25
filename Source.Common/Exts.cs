@@ -64,6 +64,10 @@ public static class BitVecBase
 			b &= (byte)~ByteMask(bit);
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void ClearAll(this Span<byte> bytes) {
+		memreset(bytes);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static int FindNextSetBit(this Span<byte> bytes, int startBit) {
 		while ((startBit >> 3) < bytes.Length && !IsBitSet(bytes, startBit))
 			startBit++;
@@ -84,6 +88,7 @@ public struct MaxEdictsBitVec
 	public void Clear(int bit) => BitVecBase.Clear(this, bit);
 	public void Set(int bit, bool newVal) => BitVecBase.Set(this, bit, newVal);
 	public int FindNextSetBit(int startBit) => BitVecBase.FindNextSetBit(this, startBit);
+	public void ClearAll() => BitVecBase.ClearAll(this);
 }
 
 public interface IPoolableObject
@@ -865,6 +870,11 @@ public static class UnmanagedUtils
 
 		while (list.Count < ensureTo)
 			list.Add(default);
+	}
+
+	public static void EnsureCapacity<T>(this ref Memory<T> list, int ensureTo) {
+		if(list.Length < ensureTo) 
+			list = new T[ensureTo];
 	}
 
 	public static void SetSizeInitialized<T>(this List<T> list, int ensureTo) where T : new() {

@@ -129,4 +129,13 @@ public class EngineClient(ClientState cl, GameServer sv, Cbuf Cbuf, Scr Scr, Con
 	public Model? LoadModel(ReadOnlySpan<char> name, bool prop) {
 		return modelloader.GetModelForName(name, prop ? ModelLoaderFlags.DetailProp : ModelLoaderFlags.ClientDLL);
 	}
+
+	// These need more BSP work.
+	public bool IsBoxVisible(in Vector3 mins, in Vector3 maxs) {
+		return true;
+	}
+
+	public bool CullBox(ref Vector3 mins, ref Vector3 maxs) {
+		return true;
+	}
 }

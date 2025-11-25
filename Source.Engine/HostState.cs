@@ -1,5 +1,6 @@
 ﻿namespace Source.Engine;
 
+using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
 
@@ -20,20 +21,23 @@ public enum HostStates
 public class HostState : IHostState
 {
 	private readonly Host Host;
+	private IMDLCache? _mdlCache; private IMDLCache mdlCache => _mdlCache ??= Singleton<IMDLCache>();
+	private Scr? _Scr; private Scr Scr => _Scr ??= Singleton<Scr>();
+	private SV? _SV; private SV SV => _SV ??= Singleton<SV>();
 	public HostStates CurrentState;
 	public HostStates NextState;
 	public Vector3 Location;
 	public QAngle Angles;
-	public string? LevelName;
-	public string? LandmarkName;
-	public string? SaveName;
+	public InlineArray128<char> LevelName;
+	public InlineArray128<char> LandmarkName;
+	public InlineArray128<char> SaveName;
 	public double ShortFrameTime;
 	public bool ActiveGame;
 	public bool RememberingLocation;
 	public bool BackgroundLevel;
 	public bool WaitingForConnection;
 
-	IEngine eng;
+	IEngine eng = null!;
 
 	public HostState(Host Host) {
 		this.Host = Host;
@@ -46,9 +50,9 @@ public class HostState : IHostState
 		CurrentState = HostStates.Run;
 		NextState = HostStates.Run;
 		ActiveGame = false;
-		LevelName = null;
-		SaveName = null;
-		LandmarkName = null;
+		LevelName[0] = '\0';
+		SaveName[0] = '\0';
+		LandmarkName[0] = '\0';
 		RememberingLocation = false;
 		BackgroundLevel = false;
 		Location = new();
@@ -62,20 +66,20 @@ public class HostState : IHostState
 			HostStates oldState = CurrentState;
 			switch (CurrentState) {
 				case HostStates.NewGame:
-					// mdl cache...
+					mdlCache.BeginMapLoad();
 					State_NewGame();
 					break;
 				case HostStates.LoadGame:
-					// mdl cache...
+					mdlCache.BeginMapLoad();
 					State_LoadGame();
 					break;
 				case HostStates.ChangeLevelMP:
-					// mdl cache...
+					mdlCache.BeginMapLoad();
 					ShortFrameTime = 0.5;
 					State_ChangeLevelMP();
 					break;
 				case HostStates.ChangeLevelSP:
-					// mdl cache...
+					mdlCache.BeginMapLoad();
 					ShortFrameTime = 1.5;
 					State_ChangeLevelSP();
 					break;
@@ -104,9 +108,9 @@ public class HostState : IHostState
 		ActiveGame = true;
 	}
 
-	void IHostState.NewGame(string mapName, bool rememberLocation, bool background) {
-		LevelName = mapName;
-		LandmarkName = null;
+	void IHostState.NewGame(ReadOnlySpan<char> mapName, bool rememberLocation, bool background) {
+		strcpy(LevelName, mapName);
+		LandmarkName[0] = '\0';
 		WaitingForConnection = true;
 		BackgroundLevel = background;
 		//if (rememberLocation) 
@@ -115,19 +119,19 @@ public class HostState : IHostState
 		SetNextState(HostStates.NewGame);
 	}
 
-	void IHostState.LoadGame(string mapName, bool rememberLocation) {
+	void IHostState.LoadGame(ReadOnlySpan<char> mapName, bool rememberLocation) {
 		throw new NotImplementedException();
 	}
 
-	void IHostState.ChangeLevelSP(string newLevel, string? landmarkName) {
-		LevelName = newLevel;
-		LandmarkName = landmarkName;
+	void IHostState.ChangeLevelSP(ReadOnlySpan<char> newLevel, ReadOnlySpan<char> landmarkName) {
+		strcpy(LevelName, newLevel);
+		strcpy(LevelName, landmarkName);
 		SetNextState(HostStates.ChangeLevelSP);
 	}
 
-	void IHostState.ChangeLevelMP(string newLevel, string? landmarkName) {
-		LevelName = newLevel;
-		LandmarkName = landmarkName;
+	void IHostState.ChangeLevelMP(ReadOnlySpan<char> newLevel, ReadOnlySpan<char> landmarkName) {
+		strcpy(LevelName, newLevel);
+		strcpy(LevelName, landmarkName);
 		SetNextState(HostStates.ChangeLevelMP);
 	}
 
@@ -171,7 +175,27 @@ public class HostState : IHostState
 	// the state machines processing loop.
 
 	protected void State_NewGame() {
+		if (Host.ValidGame()) {
+			if (SV.ServerGameClients == null)
+				SV.InitGameDLL();
 
+			if (SV.ServerGameClients == null) {
+				Warning("Can't start game, no valid server.dll loaded\n");
+			}
+			else {
+				if (Host.NewGame(((ReadOnlySpan<char>)LevelName).SliceNullTerminatedString(), false, BackgroundLevel)) {
+					// succesfully started the new game
+					SetState(HostStates.Run, true);
+					return;
+				}
+			}
+		}
+
+		Scr.EndLoadingPlaque();
+		// new game failed
+		Msg("NewGame failed!\n");
+		GameShutdown();
+		SetState(HostStates.Run, true);
 	}
 	protected void State_LoadGame() {
 

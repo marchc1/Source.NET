@@ -174,12 +174,17 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		SimulateEntities();
 		PhysicsSimulate();
 
-		engine.FireEvents();
+		{
+			engine.FireEvents();
+			// tempents.Update();
+			beams.UpdateTempEntBeams();
+		}
 
 		C_BaseEntity.CalcAimEntPositions();
 	}
 
-	class DataChangedEvent : IPoolableObject {
+	class DataChangedEvent : IPoolableObject
+	{
 		public IClientNetworkable? Entity;
 		public DataUpdateType UpdateType;
 		public ReusableBox<ulong>? StoredEvent;
@@ -215,7 +220,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	private static void ProcessOnDataChangedEvents() {
-		foreach(var ev in DataChangedEvents) { 
+		foreach (var ev in DataChangedEvents) {
 			ev.StoredEvent!.Struct = unchecked((ulong)-1);
 
 			// Send the event.
@@ -251,5 +256,10 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		Msg($"    Entity Serial: {serialNumber}\n");
 		Msg($"         Class ID: {classIdx}\n");
 		Msg($"     Class Lookup: {Enum.GetName((StaticClassIndices)classIdx) ?? "Failed"}\n");
+	}
+
+
+	public void InitSprite(EngineSprite? sprite, ReadOnlySpan<char> loadName) {
+		sprite?.Init(loadName);
 	}
 }

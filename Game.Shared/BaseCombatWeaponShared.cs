@@ -103,7 +103,7 @@ public partial class
 	private static void RecvProxy_WeaponState(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
 		BaseCombatWeapon weapon = (BaseCombatWeapon)instance;
 		weapon.State = data.Value.Int;
-		// weapon.UpdateVisibility();
+		weapon.UpdateVisibility();
 	}
 #else
 

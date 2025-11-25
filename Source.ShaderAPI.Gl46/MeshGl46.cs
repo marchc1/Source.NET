@@ -71,7 +71,7 @@ public unsafe class MeshGl46 : IMesh
 
 	}
 
-	private void SetIndexStreamState(object firstIndex) {
+	private void SetIndexStreamState(int firstIndex) {
 
 	}
 

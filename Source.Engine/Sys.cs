@@ -242,4 +242,8 @@ public class Sys(Host host, GameServer sv, ICommandLine CommandLine)
 	internal static void OutputDebugString(ReadOnlySpan<char> msg) {
 		// Platform.DebugString(msg);
 	}
+
+	public static void Sleep(int msec) {
+		Thread.Sleep(msec);
+	}
 }

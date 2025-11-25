@@ -33,7 +33,7 @@ public class CommonHostState
 }
 
 public class Host(
-	EngineParms host_parms, CommonHostState host_state, GameServer _sv,
+	EngineParms host_parms, CommonHostState host_state,
 	IServiceProvider services, ICommandLine CommandLine, IFileSystem fileSystem
 	)
 {
@@ -54,7 +54,8 @@ public class Host(
 	public MatSysInterface MatSysInterface;
 	public IModelLoader modelloader;
 	public SV SV;
-	public GameServer sv => _sv;
+	GameServer? _sv;
+	public GameServer sv => _sv ??= Singleton<GameServer>();
 	public ServerGlobalVariables serverGlobalVariables;
 	public Cbuf Cbuf;
 	public ClientState cl;
@@ -531,10 +532,9 @@ public class Host(
 	}
 
 	public void PostInit() {
-		var serverGameDLL = services.GetService<IServerGameDLL>();
-		if (serverGameDLL != null)
-			serverGameDLL.PostInit();
-		serverDLL = serverGameDLL;
+		if (SV.ServerGameDLL != null)
+			SV.ServerGameDLL.PostInit();
+		serverDLL = SV.ServerGameDLL;
 
 		var clientDLL = services.GetService<IBaseClientDLL>();
 		if (clientDLL != null)
@@ -746,7 +746,7 @@ public class Host(
 		if (text.ServerCount != cl.ServerCount)
 			return true;
 
-		if(text.CreationTick != -1) 
+		if (text.CreationTick != -1)
 			return GetOverlayTick() > text.CreationTick;
 
 		if (text.EndTime == 0)
@@ -816,7 +816,31 @@ public class Host(
 		return true;
 	}
 
-	public bool NewGame(ReadOnlySpan<char> mapName, bool loadGame, bool backgroundLevel, ReadOnlySpan<char> oldMap, ReadOnlySpan<char> landmark, bool oldSave) {
+	[ConCommand("map", "Start playing on specified map.", FCvar.DontRecord)]
+	public void Map_f(in TokenizedCommand args, CommandSource source, int clientSlot = -1) {
+		Map_Helper(in args, source, false, false, false);
+	}
+
+	private void Map_Helper(in TokenizedCommand args, CommandSource source, bool editmode, bool background, bool commentary) {
+		if (source != CommandSource.Command)
+			return;
+
+		if (args.ArgC() < 2) {
+			Warning("No map specified\n");
+			return;
+		}
+
+		Span<char> mapName = stackalloc char[128];
+		strcpy(mapName, args[1]);
+
+		ReadOnlySpan<char> reason = null;
+		// lots to do here still
+		Disconnect(false);
+		HostState.NewGame(mapName, false, background);
+		// TODO: accept setpos, setang.
+	}
+
+	public bool NewGame(ReadOnlySpan<char> mapName, bool loadGame, bool backgroundLevel, ReadOnlySpan<char> oldMap = default, ReadOnlySpan<char> landmark = default, bool oldSave = false) {
 #if !SWDS
 		Scr.BeginLoadingPlaque();
 #endif
@@ -993,5 +1017,21 @@ public class Host(
 			Sys.Error($"Host_EndGame: {message}\n");
 			return;
 		}
+	}
+
+	public readonly ConVar skill = new("skill", "1", FCvar.Archive, "Game skill level (1-3).", 1, 3);
+	public readonly ConVar deathmatch = new("deathmatch", "0", FCvar.Notify | FCvar.InternalUse, "Running a deathmatch server.");
+	public readonly ConVar coop = new("coop", "0", FCvar.Notify, "Cooperative play.");
+
+	internal bool ValidGame() {
+		if (sv.IsMultiplayer()) {
+			if (deathmatch.GetInt() != 0)
+				return true;
+		}
+		else
+			return true;
+
+		ConDMsg("Unable to launch game\n");
+		return false;
 	}
 }

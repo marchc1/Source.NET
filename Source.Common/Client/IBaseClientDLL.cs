@@ -32,4 +32,5 @@ public interface IBaseClientDLL
 	ClientClass? GetAllClasses();
 	RenamedRecvTableInfo? GetRenamedRecvTableInfos();
 	void ErrorCreatingEntity(int entityIdx, int classIdx, int serialNumber);
+	void InitSprite(EngineSprite? sprite, ReadOnlySpan<char> loadName);
 }

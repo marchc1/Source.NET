@@ -7,7 +7,7 @@ public interface INetMessage
 	public virtual NetChannel? GetNetChannel() => null;
 	public virtual void SetNetChannel(NetChannel netchan) { }
 
-	public virtual bool IsReliable => false;
+	public virtual bool IsReliable() => false;
 	public virtual void SetReliable(bool state) { }
 
 	public virtual int GetMessageType() => 0;

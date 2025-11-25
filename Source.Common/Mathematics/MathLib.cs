@@ -290,8 +290,40 @@ public static class MathLib
 
 
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorScale(in Vector3 inVec, in Vector3 scale, out Vector3 result) => result = Vector3.Multiply(inVec, scale);
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorScale(in Vector3 inVec, vec_t scale, out Vector3 result) => result = Vector3.Multiply(inVec, scale);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(in Vector3 inVec, in Vector3 scale, out Vector3 result) => result = Vector3.Multiply(inVec, scale);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(in Vector3 inVec, vec_t scale, out Vector3 result) => result = Vector3.Multiply(inVec, scale);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(in Vector3 inVec, in Vector3 scale, Span<float> result) {
+		Vector3 v = Vector3.Multiply(inVec, scale);
+		ReadOnlySpan<Vector3> vS = new(in v);
+		vS.Cast<Vector3, float>().CopyTo(result);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(in Vector3 inVec, vec_t scale, Span<float> result) {
+		Vector3 v = Vector3.Multiply(inVec, scale);
+		ReadOnlySpan<Vector3> vS = new(in v);
+		vS.Cast<Vector3, float>().CopyTo(result);
+	}
+
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(ReadOnlySpan<float> inVec, in Vector3 scale, out Vector3 result) => result = Vector3.Multiply(inVec.Cast<float, Vector3>()[0], scale);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(ReadOnlySpan<float> inVec, vec_t scale, out Vector3 result) => result = Vector3.Multiply(inVec.Cast<float, Vector3>()[0], scale);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(ReadOnlySpan<float> inVec, in Vector3 scale, Span<float> result) {
+		Vector3 v = Vector3.Multiply(inVec.Cast<float, Vector3>()[0], scale);
+		ReadOnlySpan<Vector3> vS = new(in v);
+		vS.Cast<Vector3, float>().CopyTo(result);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorScale(ReadOnlySpan<float> inVec, vec_t scale, Span<float> result) {
+		Vector3 v = Vector3.Multiply(inVec.Cast<float, Vector3>()[0], scale);
+		ReadOnlySpan<Vector3> vS = new(in v);
+		vS.Cast<Vector3, float>().CopyTo(result);
+	}
 
 
 
@@ -304,6 +336,8 @@ public static class MathLib
 		=> ref new Span<Vector4>(ref vec).Cast<Vector4, float>()[..2].Cast<float, Vector2>()[0];
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DistTo(this ref Vector3 vec, in Vector3 other) => Vector3.Distance(vec, other);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Min(this ref Vector3 vec, in Vector3 other) => Vector3.Min(vec, other);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Max(this ref Vector3 vec, in Vector3 other) => Vector3.Max(vec, other);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DistToSqr(this ref Vector3 vec, in Vector3 other) => Vector3.DistanceSquared(vec, other);
 
 
@@ -705,6 +739,7 @@ public static class MathLib
 	public static void Init(this ref QAngle a) => a.X = a.Y = a.Z = 0;
 	public static void Init(this ref RadianEuler r) => r.X = r.Y = r.Z = 0;
 	public static void Init(this ref Vector4 v) => v.X = v.Y = v.Z = v.W = 0;
+	public static void Init(this ref Quaternion v) => v.X = v.Y = v.Z = v.W = 0;
 	public static vec_t Dot(this in Vector3 a, in Vector3 b) => Vector3.Dot(a, b);
 
 
@@ -1108,4 +1143,8 @@ public static class MathLib
 
 		return Vector3.Add(dotResult, translation);
 	}
+
+	public static float VectorLength(in Vector3 delta) => delta.Length();
+
+	public static void SinCos(float v, out float s, out float c) => (s, c) = float.SinCos(v);
 }

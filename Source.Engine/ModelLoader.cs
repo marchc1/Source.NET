@@ -1,6 +1,7 @@
 using CommunityToolkit.HighPerformance;
 
 using Source.Common;
+using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.DataCache;
 using Source.Common.Engine;
@@ -8,6 +9,7 @@ using Source.Common.Filesystem;
 using Source.Common.Formats.BSP;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
+using Source.Common.Utilities;
 
 using System;
 using System.Buffers;
@@ -15,6 +17,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Xml.Linq;
 namespace Source.Engine;
 
 public ref struct MapLoadHelper
@@ -158,17 +161,39 @@ public class MDLCacheNotify : IMDLCacheNotify
 	public static readonly MDLCacheNotify s = new();
 }
 
-public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host, 
-						 IEngineVGuiInternal EngineVGui, MatSysInterface materials, 
-						 CollisionModelSubsystem CM, IMaterialSystemHardwareConfig materialSystemHardwareConfig, 
-						 IMDLCache MDLCache, IStudioRender StudioRender) : IModelLoader
+public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
+						 IEngineVGuiInternal EngineVGui, MatSysInterface materials,
+						 CollisionModelSubsystem CM, IMaterialSystemHardwareConfig materialSystemHardwareConfig,
+						 IMDLCache MDLCache, IStudioRender StudioRender, IBaseClientDLL g_ClientDLL, MatSysInterface matSys) : IModelLoader
 {
 	public int GetCount() {
 		throw new NotImplementedException();
 	}
 
-	public void GetExtraData(Model model) {
-		throw new NotImplementedException();
+	public object? GetExtraData(Model? model) {
+		if (model == null)
+			return null;
+
+		switch (model.Type) {
+			case ModelType.Sprite: {
+					// sprites don't use the real cache yet
+					if (model.Type == ModelType.Sprite) {
+						// The sprite got unloaded.
+						return model.Sprite.Sprite; // TODO
+					}
+				}
+				break;
+
+			case ModelType.Studio:
+				return MDLCache.GetStudioHdr(model.Studio);
+			default:
+			case ModelType.Brush:
+				// Should never happen
+				Assert(false);
+				break;
+		}
+
+		return null;
 	}
 
 	public int GetModelFileSize(ReadOnlySpan<char> name) {
@@ -215,7 +240,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 
 		double st = Platform.Time;
 		mod.StrName.String()!.FileBase(LoadName);
-		if(Host.developer.GetInt() > 1)
+		if (Host.developer.GetInt() > 1)
 			DevMsg($"Loading: {mod.StrName.String()}\n");
 
 		mod.Type = GetTypeFromName(mod.StrName);
@@ -223,12 +248,19 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 			mod.Type = ModelType.Studio;
 
 		switch (mod.Type) {
-			case ModelType.Sprite: throw new NotImplementedException("ModelType.Sprite unsupported for now");
-			case ModelType.Studio:
-				double t1 = Platform.Time;
-				Studio_LoadModel(mod, touchAllData);
-				double t2 = Platform.Time;
-				accumulatedModelLoadTimeStudio = (t2 - t1);
+			case ModelType.Sprite: {
+					double t1 = Platform.Time;
+					Sprite_LoadModel(mod);
+					double t2 = Platform.Time;
+					accumulatedModelLoadTimeStudio = (t2 - t1);
+				}
+				break;
+			case ModelType.Studio: {
+					double t1 = Platform.Time;
+					Studio_LoadModel(mod, touchAllData);
+					double t2 = Platform.Time;
+					accumulatedModelLoadTimeStudio = (t2 - t1);
+				}
 				break;
 			case ModelType.Brush: {
 					fileSystem.AddSearchPath(mod.StrName, "GAME", SearchPathAdd.ToHead);
@@ -245,7 +277,93 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		}
 		return mod;
 	}
-	static readonly ConVar mod_touchalldata = new("1", 0, "Touch model data during level startup" );
+
+	private void Sprite_LoadModel(Model mod) {
+		Assert((mod.LoadFlags & ModelLoaderFlags.Loaded) == 0);
+
+		mod.LoadFlags |= ModelLoaderFlags.Loaded;
+
+		mod.Type = ModelType.Sprite;
+		mod.Sprite.Sprite = new EngineSprite();
+
+		// Fake the bounding box. We need it for PVS culling, and we don't
+		// know the scale at which the sprite is going to be rendered at
+		// when we load it
+		mod.Mins = mod.Maxs = new(0, 0, 0);
+
+		// Figure out the real load name..
+		Span<char> loadName = stackalloc char[MAX_PATH];
+		bool bIsVideo;
+		BuildSpriteLoadName(mod.StrName, loadName, out bIsVideo);
+		GetSpriteInfo(loadName, bIsVideo, out mod.Sprite.Width, out mod.Sprite.Height, out mod.Sprite.NumFrames);
+
+#if !SWDS
+		if (g_ClientDLL != null && mod.Sprite.Sprite != null)
+			g_ClientDLL.InitSprite(mod.Sprite.Sprite, loadName);
+#endif
+	}
+
+	private void GetSpriteInfo(Span<char> pName, bool bIsVideo, out int nWidth, out int nHeight, out int nFrameCount) {
+		nFrameCount = 1;
+		nWidth = nHeight = 1;
+
+		// TODO: videos
+
+		IMaterial? pMaterial = null;
+		pMaterial = matSys.GL_LoadMaterial(pName, MaterialDefines.TEXTURE_GROUP_OTHER);
+		if (pMaterial != null) {
+			// Store off our source height, width, frame count
+			nWidth = (int)pMaterial.GetMappingWidth();
+			nHeight = (int)pMaterial.GetMappingHeight();
+			nFrameCount = pMaterial.GetNumAnimationFrames();
+		}
+
+		if (pMaterial == matSys.MaterialEmpty) 
+			DevMsg($"Missing sprite material {pName}\n");
+	}
+
+	private void BuildSpriteLoadName(ReadOnlySpan<char> name, Span<char> pOut, out bool isVideo) {
+		Span<char> szBase = stackalloc char[MAX_PATH];
+		isVideo = false;
+		bool bIsVMT = false;
+		ReadOnlySpan<char> pExt = name.GetFileExtension();
+		if (!pExt.IsEmpty) {
+			bIsVMT = pExt.CompareTo("vmt", StringComparison.OrdinalIgnoreCase) != 0;
+			if (!bIsVMT) {
+				if (false) {
+					isVideo = false; // Need to implement video sprites later
+				}
+			}
+		}
+
+		if ((false || bIsVMT) && name.Contains('/') || name.Contains('\\')) {
+			// The material system cannot handle a prepended "materials" dir
+			// Keep .avi extensions on the material to load avi-based materials
+			if (bIsVMT) {
+				ReadOnlySpan<char> nameStart = name;
+				if (name.StartsWith("materials/") ||
+					name.StartsWith("materials\\")) {
+					// skip past materials/
+					nameStart = name[10..];
+				}
+				StrTools.StripExtension(nameStart, pOut);
+			}
+			else {
+				// name is good as is
+				name.CopyTo(pOut);
+			}
+		}
+		else {
+			name.FileBase(szBase);
+			unsafe {
+				sprintf(pOut, "sprites/%s").S(szBase);
+			}
+		}
+
+		return;
+	}
+
+	static readonly ConVar mod_touchalldata = new("1", 0, "Touch model data during level startup");
 	static readonly ConVar mod_forcetouchdata = new("1", 0, "Forces all model file data into cache on model load.");
 
 	private void Studio_LoadModel(Model model, bool touchAllData) {
@@ -268,7 +386,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		}
 
 		MDLCache.GetStudioHdr(model.Studio);
-		if(loadPhysics && !preloaded) {
+		if (loadPhysics && !preloaded) {
 			bool synchronous = touchAllData;
 			double t1 = Platform.Time;
 			MDLCache.GetVCollideEx(model.Studio, synchronous);
@@ -289,17 +407,17 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 
 			if ((model.LoadFlags & ModelLoaderFlags.Dynamic) != 0) {
 				model.Materials = new Memory<IMaterial>(new IMaterial[nMaterials]);
-				for (int i = 0; i < nMaterials; i++) 
+				for (int i = 0; i < nMaterials; i++)
 					model.Materials.Span[i] = materials[i];
 			}
 
-			if (nMaterials != 0) 
+			if (nMaterials != 0)
 				model.LoadFlags |= ModelLoaderFlags.TouchedMaterials;
 
 			double t2 = Platform.Time;
 			accumulatedModelLoadTimeMaterialNamesOnly += (t2 - t1);
 
-			if (touchAllData || preloaded) 
+			if (touchAllData || preloaded)
 				Mod_TouchAllData(model, Host.GetServerCount());
 
 			ArrayPool<IMaterial>.Shared.Return(materials, true);
@@ -383,13 +501,13 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	private void InitStudioModelState(Model model) {
 		Assert(model.Type == ModelType.Studio);
 
-		if (MDLCache.IsDataLoaded(model.Studio, MDLCacheDataType.StudioHDR)) 
+		if (MDLCache.IsDataLoaded(model.Studio, MDLCacheDataType.StudioHDR))
 			MDLCacheNotify.s.OnDataLoaded(MDLCacheDataType.StudioHDR, model.Studio);
-		
-		if (MDLCache.IsDataLoaded(model.Studio, MDLCacheDataType.StudioHWData)) 
+
+		if (MDLCache.IsDataLoaded(model.Studio, MDLCacheDataType.StudioHWData))
 			MDLCacheNotify.s.OnDataLoaded(MDLCacheDataType.StudioHWData, model.Studio);
-		
-		if (MDLCache.IsDataLoaded(model.Studio, MDLCacheDataType.VCollide)) 
+
+		if (MDLCache.IsDataLoaded(model.Studio, MDLCacheDataType.VCollide))
 			MDLCacheNotify.s.OnDataLoaded(MDLCacheDataType.VCollide, model.Studio);
 	}
 
@@ -442,7 +560,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 			}
 			else {
 				if (header.Identifier == BSPFileCommon.IDBSPHEADER) {
-					if(header.Version >= BSPFileCommon.MINBSPVERSION && header.Version <= BSPFileCommon.BSPVERSION) {
+					if (header.Version >= BSPFileCommon.MINBSPVERSION && header.Version <= BSPFileCommon.BSPVERSION) {
 						name.ClampedCopyTo(LastMapFile);
 						return true;
 					}
@@ -958,7 +1076,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		dispLMAlphas.LoadLumpData(DispLMAlpha.AsSpan());
 
 		DispLMSamplePositions.Clear(); DispLMSamplePositions.SetSize((int)numLuxels);
-		MapLoadHelper dispLMPositions= new MapLoadHelper(LumpIndex.DispLightmapSamplePositions);
+		MapLoadHelper dispLMPositions = new MapLoadHelper(LumpIndex.DispLightmapSamplePositions);
 		dispLMAlphas.LoadLumpData(DispLMSamplePositions.AsSpan());
 
 		Span<BSPDispInfo> tempDisps = new BSPDispInfo[BSPFileCommon.MAX_MAP_DISPINFO];
@@ -1027,6 +1145,7 @@ public class DispArray(nint elements)
 	public int CurTag;
 }
 
-public class CoreDispInfo {
+public class CoreDispInfo
+{
 
 }

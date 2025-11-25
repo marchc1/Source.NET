@@ -1,4 +1,6 @@
-﻿namespace Source.Common.Engine;
+﻿using Source.Common.Client;
+
+namespace Source.Common.Engine;
 
 public interface IModelInfo
 {
@@ -10,9 +12,14 @@ public interface IModelInfo
 	VirtualModel? GetVirtualModel(StudioHeader self);
 	Memory<byte> GetAnimBlock(StudioHeader studioHeader, int block);
 	int GetAutoplayList(StudioHeader studioHdr, out Span<short> autoplayList);
+	object? GetModelExtraData(Model spritemodel);
 }
 
 public interface IModelInfoClient : IModelInfo
 {
+	int GetModelSpriteWidth(Model sprite);
+	int GetModelSpriteHeight(Model sprite);
+	int GetModelFrameCount(Model? pSprite);
+	StudioHeader? GetStudiomodel(Model? model);
 	bool IsTranslucentTwoPass(Model? model);
 }

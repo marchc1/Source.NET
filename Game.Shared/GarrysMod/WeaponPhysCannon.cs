@@ -19,6 +19,16 @@ namespace Game.Shared.GarrysMod;
 using FIELD = Source.FIELD<WeaponPhysCannon>;
 public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 {
+
+	public enum EffectState_t
+	{
+		None,
+		Closed,
+		Ready,
+		Holding,
+		Launch
+	}
+
 #if CLIENT_DLL
 	public enum EffectType {
 		Core,
@@ -41,14 +51,6 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	public const int NUM_GLOW_SPRITES = (int)(EffectType.Glow6 - EffectType.Glow1) + 1;
 	public const int NUM_ENDCAP_SPRITES = (int)(EffectType.EndCap3- EffectType.EndCap1) + 1;
 	public const int NUM_PHYSCANNON_BEAMS = 3;
-
-	public enum EffectState_t {
-		None,
-		Closed,
-		Ready,
-		Holding,
-		Launch
-	}
 
 	public class PhysCannonEffect {
 		public PhysCannonEffect() {
@@ -83,7 +85,69 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		readonly MaterialReference Material = new();
 	}
 
+	public class PhysCannonEffectBeam {
+		Beam? Beam;
+
+		public void Init(int startAttachment, int endAttachment, SharedBaseEntity? entity, bool firstPerson) {
+			if (Beam != null)
+				return;
+
+			BeamInfo beamInfo = new();
+
+			beamInfo.StartEnt = entity;
+			beamInfo.StartAttachment = startAttachment;
+			beamInfo.EndEnt = entity;
+			beamInfo.EndAttachment = endAttachment;
+			beamInfo.Type = TempEntType.BeamPoints;
+			beamInfo.Start = vec3_origin;
+			beamInfo.End = vec3_origin;
+
+			beamInfo.ModelName = (firstPerson) ? PHYSCANNON_BEAM_SPRITE_NOZ : PHYSCANNON_BEAM_SPRITE;
+
+			beamInfo.HaloScale = 0.0f;
+			beamInfo.Life = 0.0f;
+
+			if (firstPerson) {
+				beamInfo.Width = 0.0f;
+				beamInfo.EndWidth = 4.0f;
+			}
+			else {
+				beamInfo.Width = 0.5f;
+				beamInfo.EndWidth = 2.0f;
+			}
+
+			beamInfo.FadeLength = 0.0f;
+			beamInfo.Amplitude = 16;
+			beamInfo.Brightness = 255.0f;
+			beamInfo.Speed = 150.0f;
+			beamInfo.StartFrame = 0;
+			beamInfo.FrameRate = 30.0;
+			beamInfo.Red = 255.0f;
+			beamInfo.Green = 255.0f;
+			beamInfo.Blue = 255.0f;
+			beamInfo.Segments = 8;
+			beamInfo.Renderable = true;
+			beamInfo.Flags = BeamFlags.Forever;
+
+			Beam = beams.CreateBeamEntPoint(ref beamInfo);
+		}
+		public void Release() {
+			if (Beam != null) {
+				Beam.Flags = 0;
+				Beam.Die = gpGlobals.CurTime - 1;
+				Beam = null;
+			}
+		}
+
+		public void SetVisible(bool state = true) {
+			if (Beam == null)
+				return;
+			Beam.Brightness = state ? 255f : 0f;
+		}
+	}
+
 	readonly PhysCannonEffect[] Parameters = new PhysCannonEffect[(int)EffectType.NumPhyscannonParameters].InstantiateArray();
+	readonly PhysCannonEffectBeam[] Beams = new PhysCannonEffectBeam[NUM_PHYSCANNON_BEAMS].InstantiateArray();
 
 #endif
 
@@ -133,6 +197,33 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	public int OldEffectState;
 	public readonly InterpolatedValue ElementParameter = new();
 #endif
+
+	public void DoEffect(EffectState_t effectType, Vector3 pos = default) {
+		EffectState = (int)effectType;
+#if CLIENT_DLL
+		OldEffectState = EffectState;
+#endif
+		// Msg($"got new effect state: {(EffectState_t)EffectState}\n");
+		switch (effectType) {
+			case EffectState_t.Closed:
+				DoEffectClosed();
+				break;
+			case EffectState_t.Ready:
+				DoEffectReady();
+				break;
+			case EffectState_t.Holding:
+				DoEffectHolding();
+				break;
+			case EffectState_t.Launch:
+				DoEffectLaunch(pos);
+				break;
+			default:
+			case EffectState_t.None:
+				DoEffectNone();
+				break;
+		}
+	}
+
 	public void OpenElements() {
 		if (Open)
 			return;
@@ -144,7 +235,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 
 		SendWeaponAnim(Activity.ACT_VM_IDLE);
 		Open = true;
-		// DoEffect() todo
+		DoEffect(EffectState_t.Ready);
 	}
 	public void CloseElements() {
 		if (!Open)
@@ -157,7 +248,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 
 		SendWeaponAnim(Activity.ACT_VM_IDLE);
 		Open = false;
-		// DoEffect() todo
+		DoEffect(EffectState_t.Closed);
 	}
 
 	public const float SPRITE_SCALE = 128f;
@@ -191,7 +282,19 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	public const string PHYSCANNON_CENTER_GLOW = "sprites/orangecore1";
 	public const string PHYSCANNON_BLAST_SPRITE = "sprites/orangecore2";
 
-	
+
+	public void StopEffects() {
+		DoEffect(EffectState_t.None);
+	}
+
+	public void DestroyEffects() {
+#if CLIENT_DLL
+		Beams[0].Release();
+		Beams[1].Release();
+		Beams[2].Release();
+#endif
+		StopEffects();
+	}
 	public void StartEffects() {
 #if CLIENT_DLL
 		if (Parameters[(int)EffectType.Core].GetMaterial().IsNull) {
@@ -223,9 +326,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		// ------------------------------------------
 		// Glows
 		// ------------------------------------------
-
 		
-
 		//Create the glow sprites
 		for (int i = (int)EffectType.Glow1; i < ((int)EffectType.Glow1 + NUM_GLOW_SPRITES); i++) {
 			if (Parameters[i].GetMaterial().IsNotNull)
@@ -281,8 +382,108 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 			Parameters[(int)i].GetAlpha().SetAbsolute(random.RandomInt(200, 255));
 		}
 		if (EffectState != (int)EffectState_t.Holding) {
-			// todo: beams
+			Beams[0].SetVisible(false);
+			Beams[1].SetVisible(false);
+			Beams[2].SetVisible(false);
 		}
+#endif
+	}
+	public void DoEffectHolding() {
+#if CLIENT_DLL
+		if (ShouldDrawUsingViewModel()) {
+			// Scale up the center sprite
+			Parameters[(int)EffectType.Core].GetScale().InitFromCurrent(16.0f, 0.2f);
+			Parameters[(int)EffectType.Core].GetAlpha().InitFromCurrent(255.0f, 0.1f);
+			Parameters[(int)EffectType.Core].SetVisible();
+
+			// Prepare for scale up
+			Parameters[(int)EffectType.Blast].SetVisible(false);
+
+			// Turn on the glow sprites
+			for (EffectType i = EffectType.Glow1; i < (EffectType.Glow1 + NUM_ENDCAP_SPRITES); i++) {
+				Parameters[(int)i].GetScale().InitFromCurrent(0.5f * SPRITE_SCALE, 0.2f);
+				Parameters[(int)i].GetAlpha().InitFromCurrent(64.0f, 0.2f);
+				Parameters[(int)i].SetVisible();
+			}
+
+			// Turn on the glow sprites
+			// NOTE: The last glow is left off for first-person
+			for (EffectType i = EffectType.EndCap1; i < (EffectType.EndCap1 + NUM_ENDCAP_SPRITES); i++)
+				Parameters[(int)i].SetVisible();
+			
+			// Create our beams
+			BasePlayer pOwner = ToBasePlayer(GetOwner())!;
+			SharedBaseEntity? pBeamEnt = pOwner.GetViewModel();
+
+			Beams[0].Init(LookupAttachment("fork1t"), 1, pBeamEnt, true);
+			Beams[1].Init(LookupAttachment("fork2t"), 1, pBeamEnt, true);
+
+			Beams[0].SetVisible();
+			Beams[1].SetVisible();
+		}
+		else {
+			// Scale up the center sprite
+			Parameters[(int)EffectType.Core].GetScale().InitFromCurrent(14.0f, 0.2f);
+			Parameters[(int)EffectType.Core].GetAlpha().InitFromCurrent(255.0f, 0.1f);
+			Parameters[(int)EffectType.Core].SetVisible();
+
+			// Prepare for scale up
+			Parameters[(int)EffectType.Blast].SetVisible(false);
+
+			// Turn on the glow sprites
+			for (EffectType i = EffectType.Glow1; i < (EffectType.Glow1 + NUM_GLOW_SPRITES); i++) {
+				Parameters[(int)i].GetScale().InitFromCurrent(0.5f * SPRITE_SCALE, 0.2f);
+				Parameters[(int)i].GetAlpha().InitFromCurrent(64.0f, 0.2f);
+				Parameters[(int)i].SetVisible();
+			}
+
+			// Turn on the glow sprites
+			for (EffectType i = EffectType.EndCap1; i < (EffectType.EndCap1 + NUM_ENDCAP_SPRITES); i++)
+				Parameters[(int)i].SetVisible();
+
+			// Setup the beams
+			Beams[0].Init(LookupAttachment("fork1t"), 1, this, false);
+			Beams[1].Init(LookupAttachment("fork2t"), 1, this, false);
+			Beams[2].Init(LookupAttachment("fork3t"), 1, this, false);
+
+			// Set them visible
+			Beams[0].SetVisible();
+			Beams[1].SetVisible();
+			Beams[2].SetVisible();
+		}
+#endif
+	}
+	public void DoEffectClosed() {
+#if CLIENT_DLL
+		for (int i = (int)EffectType.EndCap1; i < ((int)EffectType.EndCap1 + NUM_ENDCAP_SPRITES); i++) 
+			Parameters[i].SetVisible(false);
+#endif
+	}
+	public void DoEffectNone() {
+#if CLIENT_DLL
+		Parameters[(int)EffectType.Core].SetVisible(false);
+		Parameters[(int)EffectType.Blast].SetVisible(false);
+
+		for (int i = (int)EffectType.Glow1; i < ((int)EffectType.Glow1 + NUM_GLOW_SPRITES); i++) {
+			Parameters[i].SetVisible(false);
+		}
+
+		// Turn on the glow sprites
+		for (int i = (int)EffectType.EndCap1; i < ((int)EffectType.EndCap1 + NUM_ENDCAP_SPRITES); i++) {
+			Parameters[i].SetVisible(false);
+		}
+
+		Beams[0].SetVisible(false);
+		Beams[1].SetVisible(false);
+		Beams[2].SetVisible(false);
+#endif
+	}
+	public void DoEffectLaunch(Vector3 pos) {
+#if CLIENT_DLL
+		//Turn on the blast sprite and scale
+		Parameters[(int)EffectType.Blast].GetScale().Init(8.0f, 64.0f, 0.1f);
+		Parameters[(int)EffectType.Blast].GetAlpha().Init(255.0f, 0.0f, 0.2f);
+		Parameters[(int)EffectType.Blast].SetVisible();
 #endif
 	}
 	public void DoEffectReady() {
@@ -339,8 +540,8 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		scale = Parameters[(int)effectID].GetScale().Interp(dt);
 		material = Parameters[(int)effectID].GetMaterial().Get()!;
 		color.R = (byte)(int)Parameters[(int)effectID].GetColor().X;
-		color.B = (byte)(int)Parameters[(int)effectID].GetColor().Y;
-		color.G = (byte)(int)Parameters[(int)effectID].GetColor().Z;
+		color.G = (byte)(int)Parameters[(int)effectID].GetColor().Y;
+		color.B = (byte)(int)Parameters[(int)effectID].GetColor().Z;
 		color.A = (byte)(int)alpha;
 		int attachmentIdx = Parameters[(int)effectID].GetAttachment(); 
 
@@ -409,7 +610,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 
 		// Update effect state when out of parity with the server
 		if (OldEffectState != EffectState) {
-			// DoEffect(EffectState);
+			DoEffect((EffectState_t)EffectState);
 			OldEffectState = EffectState;
 		}
 

@@ -937,7 +937,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			return true;
 
 		bf_write stream = StreamUnreliable;
-		if (msg.IsReliable || forceReliable)
+		if (msg.IsReliable() || forceReliable)
 			stream = StreamReliable;
 
 		if (voice)
@@ -1752,5 +1752,9 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public void GetRemoteFramerate(out double frameTime, out double frameTimeStdDeviation) {
 		frameTime = RemoteFrameTime;
 		frameTimeStdDeviation = RemoteFrameTimeStdDeviation;
+	}
+
+	public double GetAvgData(int flow) {
+		return DataFlow[flow].AverageBytesPerSec;
 	}
 }
