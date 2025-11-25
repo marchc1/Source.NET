@@ -1,4 +1,10 @@
-﻿namespace Source.Common.Server;
+﻿
+using Source.Common.Engine;
+
+using System.Collections.Generic;
+using System.Drawing;
+
+namespace Source.Common.Server;
 
 
 /// <summary>
@@ -6,10 +12,94 @@
 /// </summary>
 public interface IServerGameDLL
 {
-	void GameShutdown() { }
+	bool DLLInit(IServiceProvider services);
 
+	// This is called when a new game is started. (restart, map)
+	bool GameInit();
+
+	// Called any time a new level is started (after GameInit() also on level transitions within a game)
+	bool LevelInit(ReadOnlySpan<char> pMapName,
+									ReadOnlySpan<char> pMapEntities, ReadOnlySpan<char> pOldLevel,
+									ReadOnlySpan<char> pLandmarkName, bool loadGame, bool background );
+
+	// The server is about to activate
+	void ServerActivate(Edict[] pEdictList, int edictCount, int clientMax);
+
+	// The server should run physics/think on all edicts
+	void GameFrame(bool simulating);
+
+	// Called once per simulation frame on the final tick
+	void PreClientUpdate(bool simulating);
+
+	// Called when a level is shutdown (including changing levels)
+	void LevelShutdown();
+	// This is called when a game ends (server disconnect, death, restart, load)
+	// NOT on level transitions within a game
+	void GameShutdown();
+
+	// Called once during DLL shutdown
+	void DLLShutdown();
+
+	// Get the simulation interval (must be compiled with identical values into both client and game .dll for MOD!!!)
+	// Right now this is only requested at server startup time so it can't be changed on the fly, etc.
+	TimeUnit_t GetTickInterval();
+
+	// Give the list of datatable classes to the engine.  The engine matches class names from here with
+	//  edict_t::classname to figure out how to encode a class's data for networking
 	ServerClass? GetAllServerClasses();
-	public void PostInit();
+
+	// Returns string describing current .dll.  e.g., TeamFortress 2, Half-Life 2.  
+	//  Hey, it's more descriptive than just the name of the game directory
+	ReadOnlySpan<char> GetGameDescription();
+
+	// Let the game .dll allocate it's own network/shared string tables
+	void CreateNetworkStringTables();
+	
+	// TODO: Save/Restore
+
+
+	// Build the list of maps adjacent to the current map
+	void BuildAdjacentMapList();
+
+	// Retrieve info needed for parsing the specified user message
+	bool GetUserMessageInfo(int msg_type, Span<char> name, out ReadOnlySpan<char> sized);
+
+	// GetStandardSendProxies todo
+
+	// Called once during startup, after the game .dll has been loaded and after the client .dll has also been loaded
+	void PostInit();
+	// Called once per frame even when no level is loaded...
+	void Think(bool finalTick);
+	void PreSaveGameLoaded(ReadOnlySpan<char> pSaveName, bool bCurrentlyInGame );
+
+	// Returns true if the game DLL wants the server not to be made public.
+	// Used by commentary system to hide multiplayer commentary servers from the master.
+	bool ShouldHideServer();
+
+	void InvalidateMdlCache();
+
+	// * This function is new with version 6 of the interface.
+	//
+	// This is called when a query from IServerPluginHelpers::StartQueryCvarValue is finished.
+	// iCookie is the value returned by IServerPluginHelpers::StartQueryCvarValue.
+	// Added with version 2 of the interface.
+	// OnQueryCvarValueFinished todo
+
+	// Called after the steam API has been activated post-level startup
+	void GameServerSteamAPIActivated();
+
+	// Called after the steam API has been shutdown post-level startup
+	void GameServerSteamAPIShutdown();
+
+	void SetServerHibernation(bool bHibernating);
+
+	// Return override string to show in the server browser
+	// "map" column, or NULL to just use the default value
+	// (the map name)
+	ReadOnlySpan<char> GetServerBrowserMapOverride();
+
+	// Get gamedata string to send to the master serer updater.
+	ReadOnlySpan<char> GetServerBrowserGameData();
 }
 
 /// <summary>

@@ -225,6 +225,10 @@ public class GameServer : BaseServer
 		// todo
 	}
 
+	internal void InitMaxClients() {
+		// todo
+	}
+
 	INetworkStringTable? ModelPrecacheTable;
 	INetworkStringTable? SoundPrecacheTable;
 	INetworkStringTable? GenericPrecacheTable;

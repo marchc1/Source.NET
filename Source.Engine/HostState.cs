@@ -23,6 +23,7 @@ public class HostState : IHostState
 	private readonly Host Host;
 	private IMDLCache? _mdlCache; private IMDLCache mdlCache => _mdlCache ??= Singleton<IMDLCache>();
 	private Scr? _Scr; private Scr Scr => _Scr ??= Singleton<Scr>();
+	private SV? _SV; private SV SV => _SV ??= Singleton<SV>();
 	public HostStates CurrentState;
 	public HostStates NextState;
 	public Vector3 Location;
@@ -175,11 +176,24 @@ public class HostState : IHostState
 
 	protected void State_NewGame() {
 		if (Host.ValidGame()) {
+			if (SV.ServerGameClients == null)
+				SV.InitGameDLL();
 
+			if (SV.ServerGameClients == null) {
+				Warning("Can't start game, no valid server.dll loaded\n");
+			}
+			else {
+				if (Host.NewGame(((ReadOnlySpan<char>)LevelName).SliceNullTerminatedString(), false, BackgroundLevel)) {
+					// succesfully started the new game
+					SetState(HostStates.Run, true);
+					return;
+				}
+			}
 		}
 
 		Scr.EndLoadingPlaque();
 		// new game failed
+		Msg("NewGame failed!\n");
 		GameShutdown();
 		SetState(HostStates.Run, true);
 	}

@@ -532,10 +532,9 @@ public class Host(
 	}
 
 	public void PostInit() {
-		var serverGameDLL = services.GetService<IServerGameDLL>();
-		if (serverGameDLL != null)
-			serverGameDLL.PostInit();
-		serverDLL = serverGameDLL;
+		if (SV.ServerGameDLL != null)
+			SV.ServerGameDLL.PostInit();
+		serverDLL = SV.ServerGameDLL;
 
 		var clientDLL = services.GetService<IBaseClientDLL>();
 		if (clientDLL != null)
@@ -841,7 +840,7 @@ public class Host(
 		// TODO: accept setpos, setang.
 	}
 
-	public bool NewGame(ReadOnlySpan<char> mapName, bool loadGame, bool backgroundLevel, ReadOnlySpan<char> oldMap, ReadOnlySpan<char> landmark, bool oldSave) {
+	public bool NewGame(ReadOnlySpan<char> mapName, bool loadGame, bool backgroundLevel, ReadOnlySpan<char> oldMap = default, ReadOnlySpan<char> landmark = default, bool oldSave = false) {
 #if !SWDS
 		Scr.BeginLoadingPlaque();
 #endif
