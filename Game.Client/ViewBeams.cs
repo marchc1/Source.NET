@@ -575,10 +575,10 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 		else if ((beam.Flags & BeamFlags.FadeOut) != 0)
 			MathLib.VectorScale(srcColor, (1.0f - (float)beam.T), color);
 		else
-			color = srcColor;
+			srcColor.CopyTo(color);
 
 		MathLib.VectorScale(color, (1 / 255.0f), color);
-		srcColor = color;
+		color.CopyTo(srcColor);
 		MathLib.VectorScale(color, ((float)beam.Brightness / 255.0f), color);
 		color[3] = 1f;
 

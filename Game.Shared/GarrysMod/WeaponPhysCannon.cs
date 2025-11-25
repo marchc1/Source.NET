@@ -480,7 +480,10 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	}
 	public void DoEffectLaunch(Vector3 pos) {
 #if CLIENT_DLL
-		// todo
+		//Turn on the blast sprite and scale
+		Parameters[(int)EffectType.Blast].GetScale().Init(8.0f, 64.0f, 0.1f);
+		Parameters[(int)EffectType.Blast].GetAlpha().Init(255.0f, 0.0f, 0.2f);
+		Parameters[(int)EffectType.Blast].SetVisible();
 #endif
 	}
 	public void DoEffectReady() {
