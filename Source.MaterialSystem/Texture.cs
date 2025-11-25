@@ -84,7 +84,7 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 	}
 
 	public int GetNumAnimationFrames() {
-		throw new NotImplementedException();
+		return FrameCount;
 	}
 
 	public Span<byte> GetResourceData(uint type) {

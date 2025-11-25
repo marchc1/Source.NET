@@ -966,8 +966,32 @@ public class Material : IMaterialInternal
 		// VERY IMPORTANT TODO
 	}
 
-	public IMaterialVar? FindVarFast(string v, ref uint lightmapVarCache) {
-		throw new NotImplementedException();
+	public IMaterialVar? FindVarFast(ReadOnlySpan<char> varName, ref TokenCache token) {
+		PrecacheVars();
+
+		if (token.Cached) {
+			if (token.VarIndex < VarCount && ShaderParams![token.VarIndex].GetNameAsSymbol() == token.Symbol)
+				return ShaderParams![token.VarIndex];
+
+			// FIXME: Could look for flags here too...
+			if (!IMaterialVar.SymbolMatches(varName, token.Symbol)) 
+				token.Symbol = IMaterialVar.FindSymbol(varName);
+		}
+		else {
+			token.Cached = true;
+			token.Symbol = IMaterialVar.FindSymbol(varName);
+		}
+
+		if(token.Symbol != UTL_INVAL_SYMBOL) {
+			for (int i = VarCount; --i >= 0;) {
+				if (ShaderParams![i].GetNameAsSymbol() == token.Symbol) {
+					token.VarIndex = i;
+					return ShaderParams[i];
+				}
+			}
+		}
+
+		return null;
 	}
 
 	public bool IsTranslucent() {

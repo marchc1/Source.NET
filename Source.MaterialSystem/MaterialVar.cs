@@ -73,7 +73,7 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override ReadOnlySpan<char> GetName() {
-		return Name.ToLowerInvariant();
+		return Name.String()?.ToLowerInvariant();
 	}
 
 	public override IMaterial GetOwningMaterial() {

@@ -29,9 +29,9 @@ public class EngineSprite
 	public int GetHeight() => Height;
 	public int GetNumFrames() => NumFrames;
 	public IMaterial? GetMaterial(RenderMode nRenderMode) => Material[(int)nRenderMode];
-	static uint spriteOrientationCache;
-	static uint spriteOriginCache;
-	static uint frameCache;
+	static TokenCache spriteOrientationCache;
+	static TokenCache spriteOriginCache;
+	static TokenCache frameCache;
 	public IMaterial? GetMaterial(RenderMode nRenderMode, int nFrame) {
 		if (nRenderMode == RenderMode.None || nRenderMode == RenderMode.Environmental)
 			return null;
