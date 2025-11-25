@@ -23,7 +23,7 @@ public interface IModelLoader {
 	int GetCount();
 	Model GetModelForIndex(int i);
 	ReadOnlySpan<char> GetName(Model model);
-	void GetExtraData(Model model);
+	object? GetExtraData(Model model);
 	int GetModelFileSize(ReadOnlySpan<char> name);
 	Model? GetModelForName(ReadOnlySpan<char> name, ModelLoaderFlags referenceType);
 	Model? ReferenceModel(ReadOnlySpan<char> name, ModelLoaderFlags referenceType);

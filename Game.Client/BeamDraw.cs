@@ -1,10 +1,115 @@
-﻿using Source;
+﻿using Game.Shared;
+
+using Source;
+using Source.Common;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
 using System.Numerics;
 
+
 namespace Game.Client;
+
+public class Beam : DefaultClientRenderable {
+	public const int NOISE_DIVISIONS = 128;
+	public Beam() {
+
+	}
+
+	// Bounding box...
+	public Vector3 Mins;
+	public Vector3 Maxs;
+	public float HaloProxySize;
+
+	public Beam? Next;
+
+	// Type of beam
+	public TempEntType Type;
+	public BeamFlags Flags;
+
+	// Control points for the beam
+	public int NumAttachments;
+	public InlineArrayNewMaxBeamEnts<Vector3> Attachment;
+	public Vector3 Delta;
+
+	// 0 .. 1 over lifetime of beam
+	public TimeUnit_t T;
+	public TimeUnit_t Freq;
+
+	// Time when beam should die
+	public TimeUnit_t Die;
+	public float Width;
+	public float EndWidth;
+	public float FadeLength;
+	public float Amplitude;
+	public TimeUnit_t Life;
+
+	// Color
+	public float R, G, B;
+	public float Brightness;
+
+	// Speed
+	public TimeUnit_t Speed;
+
+	// Animation
+	public TimeUnit_t FrameRate;
+	public TimeUnit_t Frame;
+	public int Segments;
+
+	// Attachment entities for the beam
+	public InlineArrayNewMaxBeamEnts<EHANDLE> Entity = new();
+	public InlineArrayNewMaxBeamEnts<int> AttachmentIndex;
+
+	// Model info
+	public int ModelIndex;
+	public int HaloIndex;
+
+	public float HaloScale;
+	public int FrameCount;
+
+	public float StartRadius;
+	public float EndRadius;
+
+	public bool CalculatedNoise;
+	public float HDRColorScale;
+
+	public BeamTrail? Trail;
+	public readonly float[] Noise = new float[NOISE_DIVISIONS + 1];
+	public override ref readonly QAngle GetRenderAngles() {
+		throw new NotImplementedException();
+	}
+
+	public override void GetRenderBounds(out Vector3 mins, out Vector3 maxs) {
+		throw new NotImplementedException();
+	}
+
+	public override ref readonly Vector3 GetRenderOrigin() {
+		throw new NotImplementedException();
+	}
+
+	public override bool IsTransparent() {
+		throw new NotImplementedException();
+	}
+
+	public override bool ShouldDraw() {
+		throw new NotImplementedException();
+	}
+
+	public void Dispose() {
+	
+	}
+
+	public void Reset() {
+		Mins.Init(0, 0, 0);
+		Maxs.Init(0, 0, 0);
+		Type = 0;
+		Flags = 0;
+		Trail = null;
+		m_RenderHandle = INVALID_CLIENT_RENDER_HANDLE;
+		CalculatedNoise = false;
+		HDRColorScale = 1.0f;
+	}
+}
 
 public static class BeamDraw
 {

@@ -1,0 +1,578 @@
+﻿global using static Game.Client.ViewRenderBeams_Exposed;
+
+using Game.Shared;
+
+using Source.Common;
+using Source.Common.Engine;
+using Source.Common.Mathematics;
+
+using System;
+using System.Numerics;
+namespace Game.Client;
+
+public class ViewRenderBeams : IViewRenderBeams, IDisposable
+{
+	static readonly UniformRandomStream beamRandom = new();
+
+	const int BEAM_FREELIST_MAX = 32;
+	const int DEFAULT_PARTICLES = 2048;
+	const int MIN_PARTICLES = 512;
+
+	public ViewRenderBeams() {
+		FreeBeams = null;
+		ActiveBeams = null;
+		BeamFreeListLength = 0;
+	}
+
+	public void Dispose() {
+		ClearBeams();
+	}
+
+	Beam? ActiveBeams;
+	Beam? FreeBeams;
+	int BeamFreeListLength;
+
+	BeamTrail?[]? BeamTrails;
+	BeamTrail? ActiveTrails;
+	BeamTrail? FreeTrails;
+	int NumBeamTrails;
+
+	public void ClearBeams() {
+		Beam? next = null;
+		for (; ActiveBeams != null; ActiveBeams = next) {
+			next = ActiveBeams.Next;
+			ActiveBeams.Dispose();
+		}
+
+		for (; FreeBeams != null; FreeBeams = next) {
+			next = FreeBeams.Next;
+			FreeBeams.Dispose();
+		}
+
+		BeamFreeListLength = 0;
+
+		if (NumBeamTrails != 0) {
+			// Also clear any particles used by beams
+			FreeTrails = BeamTrails![0];
+			ActiveTrails = null;
+
+			for (int i = 0; i < NumBeamTrails; i++)
+				BeamTrails![i].Next = BeamTrails[i + 1];
+
+			BeamTrails![NumBeamTrails - 1].Next = null;
+		}
+	}
+
+	public Beam? CreateBeamCirclePoints(ref BeamInfo beamInfo) {
+		throw new NotImplementedException();
+	}
+
+	public void CreateBeamCirclePoints(int type, ref Vector3 start, ref Vector3 end, int modelIndex, int haloIndex, float haloScale, float life, float width, float endWidth, float fadeLength, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b) {
+		throw new NotImplementedException();
+	}
+
+	public Beam? CreateBeamEntPoint(ref BeamInfo beamInfo) {
+		if (beamInfo.Life != 0) {
+			if (beamInfo.StartEnt != null && beamInfo.StartEnt.GetModel() == null)
+				return null;
+
+			if (beamInfo.EndEnt != null && beamInfo.EndEnt.GetModel() == null)
+				return null;
+		}
+
+		// Model index.
+		if (!beamInfo.ModelName.IsEmpty && beamInfo.ModelIndex == -1) {
+			beamInfo.ModelIndex = modelinfo.GetModelIndex(beamInfo.ModelName);
+		}
+
+		if (!beamInfo.HaloName.IsEmpty && beamInfo.HaloIndex == -1) {
+			beamInfo.HaloIndex = modelinfo.GetModelIndex(beamInfo.HaloName);
+		}
+
+		Beam? pBeam = CreateGenericBeam(ref beamInfo);
+		if (pBeam == null)
+			return null;
+
+		pBeam.Type = TempEntType.BeamPoints;
+		pBeam.Flags = 0;
+
+		if (beamInfo.StartEnt != null) {
+			pBeam.Flags |= BeamFlags.StartEntity;
+			pBeam.Entity[0].Set(beamInfo.StartEnt);
+			pBeam.AttachmentIndex[0] = beamInfo.StartAttachment;
+			beamInfo.Start = vec3_origin;
+		}
+		if (beamInfo.EndEnt != null) {
+			pBeam.Flags |= BeamFlags.EndEntity;
+			pBeam.Entity[1].Set(beamInfo.EndEnt);
+			pBeam.AttachmentIndex[1] = beamInfo.EndAttachment;
+			beamInfo.End = vec3_origin;
+		}
+
+		SetBeamAttributes(pBeam, ref beamInfo);
+		if (beamInfo.Life == 0) {
+			pBeam.Flags |= BeamFlags.Forever;
+		}
+
+		UpdateBeam(pBeam, 0);
+		return pBeam;
+	}
+
+	static void Noise(Span<float> noise, int divs, float scale) {
+		int div2;
+
+		div2 = divs >> 1;
+
+		if (divs < 2)
+			return;
+
+		// Noise is normalized to +/- scale
+		noise[div2] = (noise[0] + noise[divs]) * 0.5f + scale * beamRandom.RandomFloat(-1, 1);
+		if (div2 > 1) {
+			Noise(noise[div2..], div2, scale * 0.5f);
+			Noise(noise, div2, scale * 0.5f);
+		}
+	}
+
+	static void SineNoise(Span<float> noise, int divs) {
+		int i;
+		float freq;
+		float step = MathF.PI / (float)divs;
+
+		freq = 0;
+		for (i = 0; i < divs; i++) {
+			noise[i] = MathF.Sin(freq);
+			freq += step;
+		}
+	}
+
+	private void UpdateBeam(Beam pbeam, TimeUnit_t frametime) {
+		if (pbeam.ModelIndex < 0) {
+			pbeam.Die = gpGlobals.CurTime;
+			return;
+		}
+
+		// if we are paused, force random numbers used by noise to generate the same value every frame
+		if (frametime == 0.0f) {
+			beamRandom.SetSeed((int)gpGlobals.CurTime);
+		}
+
+		// If FBEAM_ONLYNOISEONCE is set, we don't want to move once we've first calculated noise
+		if ((pbeam.Flags & BeamFlags.OnlyNoiseOnce) == 0)
+			pbeam.Freq += frametime;
+		else
+			pbeam.Freq += frametime * beamRandom.RandomFloat(1, 2);
+
+		// OPTIMIZE: Do this every frame?
+		// UNDONE: Do this differentially somehow?
+		// Generate fractal noise
+		pbeam.Noise[0] = 0;
+		pbeam.Noise[Beam.NOISE_DIVISIONS] = 0;
+		if (pbeam.Amplitude != 0) {
+			if ((pbeam.Flags & BeamFlags.OnlyNoiseOnce) == 0 || pbeam.CalculatedNoise) {
+				if ((pbeam.Flags & BeamFlags.SineNoise) != 0)
+					SineNoise(pbeam.Noise, Beam.NOISE_DIVISIONS);
+				else
+					Noise(pbeam.Noise, Beam.NOISE_DIVISIONS, 1.0f);
+
+				pbeam.CalculatedNoise = true;
+			}
+		}
+
+		// update end points
+		if ((pbeam.Flags & (BeamFlags.StartEntity | BeamFlags.EndEntity)) != 0) {
+			// Makes sure attachment[0] + attachment[1] are valid
+			if (!RecomputeBeamEndpoints(pbeam))
+				return;
+
+			// Compute segments from the new endpoints
+			MathLib.VectorSubtract(pbeam.Attachment[1], pbeam.Attachment[0], out pbeam.Delta);
+			if (pbeam.Amplitude >= 0.50f)
+				pbeam.Segments = (int)(MathLib.VectorLength(pbeam.Delta) * 0.25f + 3); // one per 4 pixels
+			else
+				pbeam.Segments = (int)(MathLib.VectorLength(pbeam.Delta) * 0.075f + 3); // one per 16 pixels
+		}
+
+		// Get position data for spline beam
+		switch (pbeam.Type) {
+			case TempEntType.BeamSpline: {
+					// Why isn't attachment[0] being computed?
+					for (int i = 1; i < pbeam.NumAttachments; i++) {
+						if (!ComputeBeamEntPosition(pbeam.Entity[i].Get(), pbeam.AttachmentIndex[i], (pbeam.Flags & BeamFlags.UseHitboxes) != 0, out pbeam.Attachment[i])) {
+							// This should never happen, but if for some reason the attachment doesn't exist, 
+							// as a safety measure copy in the location of the previous attachment point (rather than bailing)
+							pbeam.Attachment[i] = pbeam.Attachment[i - 1];
+						}
+					}
+				}
+				break;
+
+			case TempEntType.BeamRingPoint: {
+					float dr = pbeam.EndRadius - pbeam.StartRadius;
+					if (dr != 0.0f) {
+						TimeUnit_t frac = 1.0;
+						// Go some portion of the way there based on life
+						TimeUnit_t remaining = pbeam.Die - gpGlobals.CurTime;
+						if (remaining < pbeam.Life && pbeam.Life > 0.0f) {
+							frac = remaining / pbeam.Life;
+						}
+						frac = Math.Min(1.0, frac);
+						frac = Math.Max(0.0, frac);
+
+						frac = 1.0f - frac;
+
+						// Start pos
+						Vector3 endpos = pbeam.Attachment[2];
+						endpos.X += (float)((pbeam.StartRadius + frac * dr) / 2.0);
+						Vector3 startpos = pbeam.Attachment[2];
+						startpos.X -= (float)((pbeam.StartRadius + frac * dr) / 2.0);
+
+						pbeam.Attachment[0] = startpos;
+						pbeam.Attachment[1] = endpos;
+
+						MathLib.VectorSubtract(pbeam.Attachment[1], pbeam.Attachment[0], out pbeam.Delta);
+						if (pbeam.Amplitude >= 0.50)
+							pbeam.Segments = (int)(MathLib.VectorLength(pbeam.Delta) * 0.25f + 3); // one per 4 pixels
+						else
+							pbeam.Segments = (int)(MathLib.VectorLength(pbeam.Delta) * 0.075f + 3); // one per 16 pixels
+
+					}
+				}
+				break;
+
+			case TempEntType.BeamPoints:
+				// UNDONE: Build culling volumes for other types of beams
+				if (!CullBeam(in pbeam.Attachment[0], in pbeam.Attachment[1], false))
+					return;
+				break;
+		}
+
+		// update life cycle
+		pbeam.T = pbeam.Freq + (pbeam.Die - gpGlobals.CurTime);
+		if (pbeam.T != 0)
+			pbeam.T = pbeam.Freq / pbeam.T;
+		else
+			pbeam.T = 1.0;
+
+		// ------------------------------------------
+		// check for zero fadeLength (means no fade)
+		// ------------------------------------------
+		if (pbeam.FadeLength == 0) {
+			Assert(pbeam.Delta.IsValid());
+			pbeam.FadeLength = pbeam.Delta.Length();
+		}
+	}
+
+	private bool CullBeam(in Vector3 start, in Vector3 end, bool pvsOnly) {
+		Vector3 mins = default, maxs = default;
+		int i;
+
+		for (i = 0; i < 3; i++) {
+			if (start[i] < end[i]) {
+				mins[i] = start[i];
+				maxs[i] = end[i];
+			}
+			else {
+				mins[i] = end[i];
+				maxs[i] = start[i];
+			}
+
+			// Don't let it be zero sized
+			if (mins[i] == maxs[i]) {
+				maxs[i] += 1;
+			}
+		}
+
+		// Check bbox
+		if (engine.IsBoxVisible(in mins, in maxs)) {
+			if (pvsOnly || !engine.CullBox(ref mins, ref maxs)) {
+				// Beam is visible
+				return true;
+			}
+		}
+
+		// Beam is not visible
+		return false;
+	}
+
+	static bool ComputeBeamEntPosition(C_BaseEntity? ent, int nAttachment, bool bInterpretAttachmentIndexAsHitboxIndex, out Vector3 pt) {
+		if (ent == null) {
+			pt = default;
+			return false;
+		}
+
+		if (!bInterpretAttachmentIndexAsHitboxIndex) {
+			if (ent.GetAttachment(nAttachment, out pt, out _))
+				return true;
+		}
+		else {
+			// todo
+			throw new NotImplementedException();
+		}
+
+		// Player origins are at their feet
+		if (ent.IsPlayer())
+			pt = ent.WorldSpaceCenter();
+		else
+			pt = ent.GetRenderOrigin();
+
+		return true;
+	}
+
+	private bool RecomputeBeamEndpoints(Beam pbeam) {
+		if ((pbeam.Flags & BeamFlags.StartEntity) != 0) {
+			if (ComputeBeamEntPosition(pbeam.Entity[0].Get(), pbeam.AttachmentIndex[0], (pbeam.Flags & BeamFlags.UseHitboxes) != 0, out pbeam.Attachment[0]))
+				pbeam.Flags |= BeamFlags.StartVisible;
+			else if ((pbeam.Flags & BeamFlags.Forever) == 0)
+				pbeam.Flags &= ~(BeamFlags.StartEntity);
+
+			// If we've never seen the start entity, don't display
+			if ((pbeam.Flags & BeamFlags.StartVisible) == 0)
+				return false;
+		}
+
+		if ((pbeam.Flags & BeamFlags.EndEntity) != 0) {
+			if (ComputeBeamEntPosition(pbeam.Entity[1].Get(), pbeam.AttachmentIndex[1], (pbeam.Flags & BeamFlags.UseHitboxes) != 0, out pbeam.Attachment[1]))
+				pbeam.Flags |= BeamFlags.EndVisible;
+			else if ((pbeam.Flags & BeamFlags.Forever) == 0) {
+				pbeam.Flags &= ~(BeamFlags.EndEntity);
+				pbeam.Die = gpGlobals.CurTime;
+				return false;
+			}
+			else
+				return false;
+
+			// If we've never seen the end entity, don't display
+			if ((pbeam.Flags & BeamFlags.EndVisible) == 0)
+				return false;
+		}
+
+		return true;
+	}
+
+	private Beam? CreateGenericBeam(ref BeamInfo beamInfo) {
+		Beam? pBeam = BeamAlloc(beamInfo.Renderable);
+		if (pBeam == null)
+			return null;
+
+		// In case we fail.
+		pBeam.Die = gpGlobals.CurTime;
+
+		// Need a valid model.
+		if (beamInfo.ModelIndex < 0)
+			return null;
+
+		// Set it up
+		SetupBeam(pBeam, ref beamInfo);
+
+		return pBeam;
+	}
+
+	private Beam? BeamAlloc(bool renderable) {
+		Beam? beam = null;
+		if (FreeBeams != null) {
+			beam = FreeBeams;
+			FreeBeams = FreeBeams.Next;
+			BeamFreeListLength--;
+		}
+		else {
+			beam = new Beam();
+		}
+
+		beam.Next = ActiveBeams;
+		ActiveBeams = beam;
+
+		if (renderable)
+			clientLeafSystem.AddRenderable(beam, RenderGroup.OpaqueEntity); // TODO: MOVE TO TRANSLUCENT!!!!!! VERY IMPORTANT FIXME
+		else
+			beam.m_RenderHandle = INVALID_CLIENT_RENDER_HANDLE;
+
+		return beam;
+	}
+
+	private void BeamFree(Beam? beam) {
+		FreeDeadTrails(ref beam!.Trail);
+		clientLeafSystem.RemoveRenderable(beam.m_RenderHandle);
+		beam.Reset();
+
+		if (BeamFreeListLength < BEAM_FREELIST_MAX) {
+			BeamFreeListLength++;
+
+			// Now link into free list;
+			beam.Next = FreeBeams;
+			FreeBeams = beam;
+		}
+		else {
+			beam.Dispose();
+		}
+	}
+
+	private void FreeDeadTrails(ref BeamTrail? trail) {
+		BeamTrail? kill;
+		BeamTrail? p;
+
+		// kill all the ones hanging direcly off the base pointer
+		for (; ; )
+		{
+			kill = trail;
+			if (kill != null && kill.Die < gpGlobals.CurTime) {
+				trail = kill.Next;
+				kill.Next = FreeTrails;
+				FreeTrails = kill;
+				continue;
+			}
+			break;
+		}
+
+		// kill off all the others
+		for (p = trail; p != null; p = p.Next) {
+			for (; ; )
+			{
+				kill = p.Next;
+				if (kill != null && kill.Die < gpGlobals.CurTime) {
+					p.Next = kill.Next;
+					kill.Next = FreeTrails;
+					FreeTrails = kill;
+					continue;
+				}
+				break;
+			}
+		}
+	}
+
+	private void SetupBeam(Beam pBeam, ref BeamInfo beamInfo) {
+		Model? pSprite = modelinfo.GetModel(beamInfo.ModelIndex);
+		if (pSprite == null)
+			return;
+
+		pBeam.Type = (beamInfo.Type < 0) ? TempEntType.BeamPoints : beamInfo.Type;
+		pBeam.ModelIndex = beamInfo.ModelIndex;
+		pBeam.HaloIndex = beamInfo.HaloIndex;
+		pBeam.HaloScale = beamInfo.HaloScale;
+		pBeam.Frame = 0;
+		pBeam.FrameRate = 0;
+		pBeam.FrameCount = modelinfo.GetModelFrameCount(pSprite);
+		pBeam.Freq = gpGlobals.CurTime * beamInfo.Speed;
+		pBeam.Die = gpGlobals.CurTime + beamInfo.Life;
+		pBeam.Width = beamInfo.Width;
+		pBeam.EndWidth = beamInfo.EndWidth;
+		pBeam.FadeLength = beamInfo.FadeLength;
+		pBeam.Amplitude = beamInfo.Amplitude;
+		pBeam.Brightness = beamInfo.Brightness;
+		pBeam.Speed = beamInfo.Speed;
+		pBeam.Life = beamInfo.Life;
+		pBeam.Flags = 0;
+
+		pBeam.Attachment[0] = beamInfo.Start;
+		pBeam.Attachment[1] = beamInfo.End;
+		MathLib.VectorSubtract(beamInfo.End, beamInfo.Start, out pBeam.Delta);
+		Assert(pBeam.Delta.IsValid());
+
+		if (beamInfo.Segments == -1) {
+			if (pBeam.Amplitude >= 0.50f)
+				pBeam.Segments = (int)(MathLib.VectorLength(in pBeam.Delta) * 0.25f + 3); // one per 4 pixels
+			else
+				pBeam.Segments = (int)(MathLib.VectorLength(in pBeam.Delta) * 0.075f + 3); // one per 16 pixels
+		}
+		else
+			pBeam.Segments = beamInfo.Segments;
+	}
+
+	public void CreateBeamEntPoint(int startEntity, in Vector3 start, int endEntity, in Vector3 end, int modelIndex, int haloIndex, float haloScale, float life, float width, float endWidth, float fadeLength, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b) {
+		throw new NotImplementedException();
+	}
+
+	public Beam? CreateBeamEnts(ref BeamInfo beamInfo) {
+		throw new NotImplementedException();
+	}
+
+	public void CreateBeamEnts(int startEnt, int endEnt, int modelIndex, int haloIndex, float haloScale, float life, float width, float m_nEndWidth, float m_nFadeLength, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b, int type = -1) {
+		throw new NotImplementedException();
+	}
+
+	public Beam? CreateBeamFollow(ref BeamInfo beamInfo) {
+		throw new NotImplementedException();
+	}
+
+	public void CreateBeamFollow(int startEnt, int modelIndex, int haloIndex, float haloScale, float life, float width, float endWidth, float fadeLength, float r, float g, float b, float brightness) {
+		throw new NotImplementedException();
+	}
+
+	public Beam? CreateBeamPoints(ref BeamInfo beamInfo) {
+		throw new NotImplementedException();
+	}
+
+	public void CreateBeamPoints(ref Vector3 start, ref Vector3 end, int modelIndex, int haloIndex, float haloScale, float life, float width, float endWidth, float fadeLength, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b) {
+		throw new NotImplementedException();
+	}
+
+	public Beam? CreateBeamRing(ref BeamInfo beamInfo) {
+		throw new NotImplementedException();
+	}
+
+	public void CreateBeamRing(int startEnt, int endEnt, int modelIndex, int haloIndex, float haloScale, float life, float width, float endWidth, float fadeLength, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b, int flags = 0) {
+		throw new NotImplementedException();
+	}
+
+	public Beam? CreateBeamRingPoint(ref BeamInfo beamInfo) {
+		throw new NotImplementedException();
+	}
+
+	public void CreateBeamRingPoint(in Vector3 center, float startRadius, float endRadius, int modelIndex, int haloIndex, float haloScale, float life, float width, float m_nEndWidth, float fadeLength, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b, int flags = 0) {
+		throw new NotImplementedException();
+	}
+
+	public void DrawBeam(C_Beam beam, ITraceFilter? entityBeamTraceFilter = null) {
+		throw new NotImplementedException();
+	}
+
+	public void DrawBeam(Beam beam) {
+		throw new NotImplementedException();
+	}
+
+	public void FreeBeam(Beam pBeam) {
+		throw new NotImplementedException();
+	}
+
+	public void InitBeams() {
+		NumBeamTrails = DEFAULT_PARTICLES;
+		BeamTrails = new BeamTrail[NumBeamTrails];
+
+		// Clear them out
+		ClearBeams();
+	}
+
+	public void KillDeadBeams(SharedBaseEntity? ent) {
+		throw new NotImplementedException();
+	}
+
+	public void ShutdownBeams() {
+		throw new NotImplementedException();
+	}
+
+	public void UpdateBeamInfo(Beam pBeam, ref BeamInfo beamInfo) {
+		pBeam.Attachment[0] = beamInfo.Start;
+		pBeam.Attachment[1] = beamInfo.End;
+		pBeam.Delta = beamInfo.End - beamInfo.Start;
+
+		Assert(pBeam.Delta.IsValid());
+
+		SetBeamAttributes(pBeam, ref beamInfo);
+	}
+
+	private void SetBeamAttributes(Beam pBeam, ref BeamInfo beamInfo) {
+		pBeam.Frame = (TimeUnit_t)beamInfo.StartFrame;
+		pBeam.FrameRate = beamInfo.FrameRate;
+		pBeam.Flags |= beamInfo.Flags;
+
+		pBeam.R = beamInfo.Red;
+		pBeam.G = beamInfo.Green;
+		pBeam.B = beamInfo.Blue;
+	}
+
+	public void UpdateTempEntBeams() {
+		throw new NotImplementedException();
+	}
+}
+
+public static class ViewRenderBeams_Exposed { static readonly ViewRenderBeams s_ViewRenderBeams = new(); public static readonly IViewRenderBeams beams = s_ViewRenderBeams; }

@@ -246,7 +246,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		return true;
 	}
-
+	public override BaseAnimating? GetBaseAnimating() => this;
 	public bool PutAttachment(int number, in Matrix3x4 attachmentToWorld) {
 		if (number < 1 || number > Attachments.Count)
 			return false;
@@ -544,7 +544,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public void SetReceivedSequence() => ReceivedSequence = true;
 	public bool ShouldResetSequenceOnNewModel() => ReceivedSequence == false;
 	private void UpdateRelevantInterpolatedVars() {
-		if (!IsMarkedForDeletion() && !GetPredictable() && !IsClientCreated() && GetModelPtr() != null && GetModelPtr().SequencesAvailable())
+		if (!IsMarkedForDeletion() && !GetPredictable() && !IsClientCreated() && GetModelPtr() != null && GetModelPtr()!.SequencesAvailable())
 			AddBaseAnimatingInterpolatedVars();
 		else
 			RemoveBaseAnimatingInterpolatedVars();
@@ -951,7 +951,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return SetupBones(null, -1, Studio.BONE_USED_BY_ATTACHMENT, gpGlobals.CurTime);
 	}
 
-	public bool GetAttachment(int number, out Vector3 origin, out QAngle angles) {
+	public override bool GetAttachment(int number, out Vector3 origin, out QAngle angles) {
 		if (number < 1 || number > Attachments.Count || !CalcAttachments()) {
 			// Set this to the model origin/angles so that we don't have stack fungus in origin and angles.
 			origin = GetAbsOrigin();

@@ -108,4 +108,6 @@ public interface IEngineClient
 	INetChannelInfo? GetNetChannelInfo();
 	void FireEvents();
 	Model? LoadModel(ReadOnlySpan<char> name, bool prop);
+	bool IsBoxVisible(in Vector3 mins, in Vector3 maxs);
+	bool CullBox(ref Vector3 mins, ref Vector3 maxs);
 }

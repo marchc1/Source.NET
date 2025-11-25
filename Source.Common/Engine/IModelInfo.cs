@@ -14,5 +14,7 @@ public interface IModelInfo
 
 public interface IModelInfoClient : IModelInfo
 {
+	int GetModelFrameCount(Model? pSprite);
+	StudioHeader? GetStudiomodel(Model? model);
 	bool IsTranslucentTwoPass(Model? model);
 }

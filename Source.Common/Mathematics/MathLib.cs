@@ -705,6 +705,7 @@ public static class MathLib
 	public static void Init(this ref QAngle a) => a.X = a.Y = a.Z = 0;
 	public static void Init(this ref RadianEuler r) => r.X = r.Y = r.Z = 0;
 	public static void Init(this ref Vector4 v) => v.X = v.Y = v.Z = v.W = 0;
+	public static void Init(this ref Quaternion v) => v.X = v.Y = v.Z = v.W = 0;
 	public static vec_t Dot(this in Vector3 a, in Vector3 b) => Vector3.Dot(a, b);
 
 
@@ -1108,4 +1109,6 @@ public static class MathLib
 
 		return Vector3.Add(dotResult, translation);
 	}
+
+	public static float VectorLength(in Vector3 delta) => delta.Length();
 }

@@ -167,8 +167,30 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		throw new NotImplementedException();
 	}
 
-	public void GetExtraData(Model model) {
-		throw new NotImplementedException();
+	public object? GetExtraData(Model? model) {
+		if (model == null)
+			return null;
+
+		switch (model.Type) {
+			case ModelType.Sprite: {
+					// sprites don't use the real cache yet
+					if (model.Type == ModelType.Sprite) {
+						// The sprite got unloaded.
+						return null; // TODO
+					}
+				}
+				break;
+
+			case ModelType.Studio:
+				return MDLCache.GetStudioHdr(model.Studio);
+			default:
+			case ModelType.Brush:
+				// Should never happen
+				Assert(false);
+				break;
+		}
+
+		return null;
 	}
 
 	public int GetModelFileSize(ReadOnlySpan<char> name) {

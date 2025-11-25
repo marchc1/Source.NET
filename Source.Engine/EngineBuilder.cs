@@ -169,7 +169,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<ClientGlobalVariables>();
 		this.AddSingleton<ServerGlobalVariables>();
 		this.AddSingleton<DtCommonEng>();
-		this.AddSingleton<IUniformRandomStream, TempRandomness>();
+		this.AddSingleton<IUniformRandomStream, UniformRandomStream>();
 		this.AddSingleton<ISoundServices, EngineSoundServices>();
 		// Engine datacache
 		this.AddSingleton<IModelRender, ModelRender>();

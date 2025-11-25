@@ -4,6 +4,7 @@ using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Engine.Client;
 
+using System.Reflection;
 using System.Reflection.Metadata.Ecma335;
 
 namespace Source.Engine;
@@ -97,6 +98,54 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		MDLHandle_t handle = studioHdr.VirtualModel;
 		autoplayList = mdlCache.GetAutoplayList(handle).Span;
 		return autoplayList.Length;
+	}
+
+	int ModelFrameCount(Model? model) {
+		int count = 1;
+
+		if (model == null)
+			return count;
+
+		if (model.Type == ModelType.Sprite) {
+			return model.Sprite.NumFrames;
+		}
+		else if (model.Type == ModelType.Studio) {
+			count = R_StudioBodyVariations((StudioHeader?)modelloader.GetExtraData(model));
+		}
+
+		if (count < 1)
+			count = 1;
+
+		return count;
+	}
+
+	private int R_StudioBodyVariations(StudioHeader? studiohdr) {
+		Span<MStudioBodyParts> pbodypart;
+		int i, count;
+
+		if (studiohdr == null)
+			return 0;
+
+		count = 1;
+		pbodypart = studiohdr.BodyParts(0);
+
+		// Each body part has nummodels variations so there are as many total variations as there
+		// are in a matrix of each part by each other part
+		for (i = 0; i < studiohdr.NumBodyParts; i++) 
+			count = count * pbodypart[i].NumModels;
+		
+		return count;
+	}
+
+	public int GetModelFrameCount(Model? model) {
+		return ModelFrameCount(model);
+	}
+
+	public StudioHeader? GetStudiomodel(Model? model) {
+		if (model!.Type == ModelType.Studio)
+			return mdlCache.GetStudioHdr(model.Studio);
+
+		return null;
 	}
 
 	readonly List<Model> NetworkedDynamicModels = [];

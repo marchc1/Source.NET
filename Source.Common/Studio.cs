@@ -1695,8 +1695,20 @@ public class StudioHeader
 	}
 
 	MStudioBodyParts[]? bodyPartCache;
+	bool allCachedBodyParts = false;
 	public MStudioBodyParts BodyPart(int i) {
 		return Studio.ProduceArrayIdx(this, ref bodyPartCache, NumBodyParts, BodyPartIndex, i, MStudioBodyParts.SIZEOF, Data, MStudioBodyParts.FACTORY);
+	}
+
+	public Span<MStudioBodyParts> BodyParts(int idx = 0) {
+		if (allCachedBodyParts)
+			return bodyPartCache.AsSpan()[idx..];
+
+		for (int i = 0; i < NumBodyParts; i++) 
+			BodyPart(i);
+
+		allCachedBodyParts = true;
+		return bodyPartCache.AsSpan()[idx..];
 	}
 
 	public int NumSkinRef;
