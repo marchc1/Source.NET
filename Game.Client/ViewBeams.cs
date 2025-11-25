@@ -562,7 +562,7 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 		RenderMode rendermode = (beam.Flags & BeamFlags.Solid) != 0 ? RenderMode.Normal : RenderMode.TransAdd;
 
 		// set color
-		Span<float> srcColor = stackalloc float[3];
+		Span<float> srcColor = stackalloc float[4];
 		Span<float> color = stackalloc float[4];
 
 		srcColor[0] = beam.R;
