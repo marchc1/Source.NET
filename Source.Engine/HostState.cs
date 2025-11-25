@@ -21,8 +21,8 @@ public enum HostStates
 public class HostState : IHostState
 {
 	private readonly Host Host;
-	private readonly IMDLCache mdlCache;
-	private readonly Scr Scr;
+	private IMDLCache? _mdlCache; private IMDLCache mdlCache => _mdlCache ??= Singleton<IMDLCache>();
+	private Scr? _Scr; private Scr Scr => _Scr ??= Singleton<Scr>();
 	public HostStates CurrentState;
 	public HostStates NextState;
 	public Vector3 Location;
@@ -38,10 +38,8 @@ public class HostState : IHostState
 
 	IEngine eng = null!;
 
-	public HostState(Host Host, IMDLCache mdlCache, Scr Scr) {
+	public HostState(Host Host) {
 		this.Host = Host;
-		this.Scr = Scr;
-		this.mdlCache = mdlCache;
 		((IHostState)this).Init();
 	}
 
