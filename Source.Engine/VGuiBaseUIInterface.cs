@@ -77,6 +77,8 @@ public interface IEngineVGuiInternal : IEngineVGui
 	public void StartCustomProgress();
 	public void FinishCustomProgress();
 	public void ShowErrorMessage();
+	void SetNotAllowedToHideGameUI(bool notAllowed);
+	void SetNotAllowedToShowGameUI(bool notAllowed);
 	void Simulate();
 	void Paint(PaintMode paintMode);
 	void ActivateGameUI();
@@ -535,8 +537,8 @@ public class EngineVGui(
 			DumpPanels_r(child, level + 1);
 		}
 	}
-	private void SetNotAllowedToHideGameUI(bool state) => NotAllowedToHideGameUI = state;
-	private void SetNotAllowedToShowGameUI(bool state) => NotAllowedToShowGameUI = state;
+	public void SetNotAllowedToHideGameUI(bool state) => NotAllowedToHideGameUI = state;
+	public void SetNotAllowedToShowGameUI(bool state) => NotAllowedToShowGameUI = state;
 	void SetGameDLLPanelsVisible(bool show) {
 		staticGameDLLPanel?.SetVisible(show);
 	}

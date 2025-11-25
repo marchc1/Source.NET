@@ -2,6 +2,7 @@
 
 using Source.Common;
 using Source.Common.Client;
+using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.MaterialSystem;
@@ -19,21 +20,23 @@ public class Scr(IEngineAPI engineAPI)
 	public bool DrawLoading;
 	public int NextDrawTick;
 
-	ClientDLL ClientDLL;
-	Host Host;
-	Sys Sys;
-	CL CL;
-	IEngineVGuiInternal? EngineVGui;
-	Con Con;
-	Common Common;
-	Render Render;
-	View View;
-	IHostState HostState;
-	IFileSystem FileSystem;
-	IBaseClientDLL clientDll;
-	ClientState cl;
-	ClientGlobalVariables clientGlobalVariables;
-	IMaterialSystem materials;
+	ClientDLL ClientDLL = null!;
+	Host Host = null!;
+	Sys Sys = null!;
+	CL CL = null!;
+	IEngineVGuiInternal? EngineVGui = null;
+	Con Con = null!;
+	Common Common = null!;
+	Render Render = null!;
+	View View = null!;
+	Sound Sound = null!;
+	IHostState HostState = null!;
+	IFileSystem FileSystem = null!;
+	IBaseClientDLL clientDll = null!;
+	ClientState cl = null!;
+	ClientGlobalVariables clientGlobalVariables = null!;
+	IMaterialSystem materials = null!;
+	IMDLCache MDLCache = null!;
 	public void Init() {
 		Initialized = true;
 
@@ -41,6 +44,7 @@ public class Scr(IEngineAPI engineAPI)
 		Host = engineAPI.GetRequiredService<Host>();
 		Common = engineAPI.GetRequiredService<Common>();
 		View = engineAPI.GetRequiredService<View>();
+		Sound = engineAPI.GetRequiredService<Sound>();
 		Render = engineAPI.GetRequiredService<Render>();
 		Sys = engineAPI.GetRequiredService<Sys>();
 		EngineVGui = engineAPI.GetRequiredService<IEngineVGuiInternal>();
@@ -52,27 +56,28 @@ public class Scr(IEngineAPI engineAPI)
 		cl = engineAPI.GetRequiredService<ClientState>();
 		materials = engineAPI.GetRequiredService<IMaterialSystem>();
 		clientGlobalVariables = engineAPI.GetRequiredService<ClientGlobalVariables>();
+		MDLCache = engineAPI.GetRequiredService<IMDLCache>();
 	}
 
 	public void BeginLoadingPlaque() {
 		if (!DrawLoading) {
-			// EngineVGui.SetNotAllowedToShowGameUI(false);
+			EngineVGui!.SetNotAllowedToShowGameUI(false);
 			Host.AllowQueuedMaterialSystem(false);
 			DrawLoading = true;
 
-			// todo: sounds
+			Sound.StopAllSounds(true);
+			Sound.OnLoadScreen(true);
+
+			MDLCache.FinishPendingLoads();
 
 			Con.ClearNotify();
 			CenterStringOff();
 
+			clientDll?.HudText(null);
 			EngineVGui!.OnLevelLoadingStarted();
 
-			clientDll?.HudText(null);
-
 			clientGlobalVariables.FrameTime = 0;
-
 			clientGlobalVariables.FrameCount = ++Host.FrameCount;
-
 			// Ensures the screen is painted to reflect the loading state
 			UpdateScreen();
 			clientGlobalVariables.FrameCount = ++Host.FrameCount;
@@ -87,6 +92,7 @@ public class Scr(IEngineAPI engineAPI)
 	public void EndLoadingPlaque() {
 		if (DrawLoading) {
 			EngineVGui?.OnLevelLoadingFinished();
+			Sound.OnLoadScreen(false);
 		}
 		else if (Sys.ExtendedError) {
 			EngineVGui?.ShowErrorMessage();
@@ -97,7 +103,7 @@ public class Scr(IEngineAPI engineAPI)
 	}
 
 	public void UpdateScreen() {
-		if(NextDrawTick != 0) {
+		if (NextDrawTick != 0) {
 			if (Host.TickCount < NextDrawTick)
 				return;
 			NextDrawTick = 0;
