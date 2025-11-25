@@ -759,7 +759,8 @@ public partial class C_BaseEntity : IClientEntity
 
 		if (OldMoveParent != NetworkMoveParent)
 			UpdateVisibility();
-		// TODO: ShouldDraw changes
+		if(OldShouldDraw != ShouldDraw())
+			UpdateVisibility();
 	}
 
 	public bool IsIntermediateDataAllocated() {
