@@ -512,6 +512,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	}
 
 	public bool Map_IsValid(ReadOnlySpan<char> name, bool quiet = false) {
+		name = name.SliceNullTerminatedString();
 		if (name.IsEmpty || name[0] == '\0') {
 			if (!quiet)
 				ConMsg("ModelLoader.Map_IsValid: Empty mapname!\n");
