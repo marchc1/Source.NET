@@ -5,6 +5,7 @@ using Source.Common;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
+using System.Diagnostics;
 using System.Numerics;
 
 
@@ -76,23 +77,24 @@ public class Beam : DefaultClientRenderable {
 	public BeamTrail? Trail;
 	public readonly float[] Noise = new float[NOISE_DIVISIONS + 1];
 	public override ref readonly QAngle GetRenderAngles() {
-		throw new NotImplementedException();
+		return ref vec3_angle;
 	}
 
 	public override void GetRenderBounds(out Vector3 mins, out Vector3 maxs) {
-		throw new NotImplementedException();
+		mins = Mins;
+		maxs = Maxs;
 	}
 
 	public override ref readonly Vector3 GetRenderOrigin() {
-		throw new NotImplementedException();
+		return ref Attachment[0];
 	}
 
 	public override bool IsTransparent() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public override bool ShouldDraw() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public override int DrawModel(StudioFlags flags) {
@@ -113,6 +115,71 @@ public class Beam : DefaultClientRenderable {
 		m_RenderHandle = INVALID_CLIENT_RENDER_HANDLE;
 		CalculatedNoise = false;
 		HDRColorScale = 1.0f;
+	}
+
+	internal void ComputeBounds() {
+		switch (Type) {
+			case TempEntType.BeamSpline: {
+					// Here, we gotta look at all the attachments....
+					Vector3 attachmentDelta;
+					Mins.Init(0, 0, 0);
+					Maxs.Init(0, 0, 0);
+
+					for (int i = 1; i < NumAttachments; i++) {
+						MathLib.VectorSubtract(Attachment[i], Attachment[0], out attachmentDelta);
+						Mins = Mins.Min(attachmentDelta);
+						Maxs = Maxs.Max(attachmentDelta);
+					}
+				}
+				break;
+
+			case TempEntType.BeamDisk:
+			case TempEntType.BeamCylinder: {
+					// FIXME: This isn't quite right for the cylinder
+
+					// Here, delta[2] is the radius
+					int radius = (int)Delta[2];
+					Mins.Init(-radius, -radius, -radius);
+					Maxs.Init(radius, radius, radius);
+				}
+				break;
+
+			case TempEntType.BeamRing:
+			case TempEntType.BeamRingPoint: {
+					int radius = (int)(Delta.Length() * 0.5f);
+					Mins.Init(-radius, -radius, -radius);
+					Maxs.Init(radius, radius, radius);
+				}
+				break;
+
+			case TempEntType.BeamPoints:
+			default: {
+					// Just use the delta
+					for (int i = 0; i < 3; ++i) {
+						if (Delta[i] > 0.0f) {
+							Mins[i] = 0.0f;
+							Maxs[i] = Delta[i];
+						}
+						else {
+							Mins[i] = Delta[i];
+							Maxs[i] = 0.0f;
+						}
+					}
+				}
+				break;
+		}
+
+		// Deal with beam follow
+		Vector3 org = GetRenderOrigin();
+		Vector3 followDelta;
+		BeamTrail? pFollow = Trail;
+		while (pFollow != null) {
+			MathLib.VectorSubtract(pFollow.Origin, org, out followDelta);
+			Mins = Mins.Min(followDelta);
+			Maxs = Maxs.Max(followDelta);
+
+			pFollow = pFollow.Next;
+		}
 	}
 }
 

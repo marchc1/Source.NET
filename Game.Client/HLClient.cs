@@ -174,12 +174,17 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		SimulateEntities();
 		PhysicsSimulate();
 
-		engine.FireEvents();
+		{
+			engine.FireEvents();
+			// tempents.Update();
+			beams.UpdateTempEntBeams();
+		}
 
 		C_BaseEntity.CalcAimEntPositions();
 	}
 
-	class DataChangedEvent : IPoolableObject {
+	class DataChangedEvent : IPoolableObject
+	{
 		public IClientNetworkable? Entity;
 		public DataUpdateType UpdateType;
 		public ReusableBox<ulong>? StoredEvent;
@@ -215,7 +220,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	private static void ProcessOnDataChangedEvents() {
-		foreach(var ev in DataChangedEvents) { 
+		foreach (var ev in DataChangedEvents) {
 			ev.StoredEvent!.Struct = unchecked((ulong)-1);
 
 			// Send the event.

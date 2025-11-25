@@ -897,7 +897,49 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 	}
 
 	public void UpdateTempEntBeams() {
-		throw new NotImplementedException();
+		if (ActiveBeams == null)
+			return;
+
+		// Get frame time
+		TimeUnit_t frametime = gpGlobals.FrameTime;
+
+		if (frametime == 0.0)
+			return;
+
+		// Draw temporary entity beams
+		Beam? pPrev = null;
+		Beam? pNext;
+		for (Beam? pBeam = ActiveBeams; pBeam != null; pBeam = pNext) {
+			// Need to store the next one since we may delete this one
+			pNext = pBeam.Next;
+
+			// Retire old beams
+			if ((pBeam.Flags & BeamFlags.Forever) == 0 && pBeam.Die <= gpGlobals.CurTime) {
+				// Reset links
+				if (pPrev != null) 
+					pPrev.Next = pNext;
+				else 
+					ActiveBeams = pNext;
+
+				// Free the beam
+				BeamFree(pBeam);
+
+				pBeam = null;
+				continue;
+			}
+
+			// Update beam state
+			UpdateBeam(pBeam, frametime);
+
+			// Compute bounds for the beam
+			pBeam.ComputeBounds();
+
+			// Indicates the beam moved
+			if (pBeam.m_RenderHandle != INVALID_CLIENT_RENDER_HANDLE) 
+				clientLeafSystem.RenderableChanged(pBeam.m_RenderHandle);
+
+			pPrev = pBeam;
+		}
 	}
 }
 
