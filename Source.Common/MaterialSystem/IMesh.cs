@@ -720,6 +720,7 @@ public unsafe struct MeshBuilder : IDisposable
 	public void Color3f(float r, float g, float b) => VertexBuilder.Color3f(r, g, b);
 	public void Color3fv(ReadOnlySpan<float> rgb) => VertexBuilder.Color3fv(rgb);
 	public void Color4f(float r, float g, float b, float a) => VertexBuilder.Color4f(r, g, b, a);
+	public void Color4f(Vector3 rgb, float a) => VertexBuilder.Color4f(rgb.X, rgb.Y, rgb.Z, a);
 	public void Color4fv(ReadOnlySpan<float> rgba) => VertexBuilder.Color4fv(rgba);
 
 	// Faster versions of color

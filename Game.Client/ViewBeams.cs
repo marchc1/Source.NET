@@ -4,8 +4,10 @@ using Game.Shared;
 
 using Source;
 using Source.Common;
+using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
 using System;
@@ -527,7 +529,7 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 	public void DrawBeam(C_Beam beam, ITraceFilter? entityBeamTraceFilter = null) {
 		throw new NotImplementedException();
 	}
-	static readonly ConVar r_DrawBeams = new( "r_DrawBeams", "1", FCvar.Cheat, "0=Off, 1=Normal, 2=Wireframe" );
+	static readonly ConVar r_DrawBeams = new("r_DrawBeams", "1", FCvar.Cheat, "0=Off, 1=Normal, 2=Wireframe");
 
 
 	public void DrawBeam(Beam beam) {
@@ -535,7 +537,7 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 			return;
 
 		// Don't draw really short beams
-		if (beam.Delta.Length() < 0.1f) 
+		if (beam.Delta.Length() < 0.1f)
 			return;
 
 		Model? sprite;
@@ -547,7 +549,7 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 		}
 
 		sprite = modelinfo.GetModel(beam.ModelIndex);
-		if (sprite == null) 
+		if (sprite == null)
 			return;
 
 		if (modelinfo.GetModelSpriteHeight(sprite) == 0) // GetModelSpriteHeight has a check for sprite. If the modelindex now changed, we would try to use the wrong model. Which is not good.
@@ -568,11 +570,11 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 		srcColor[0] = beam.R;
 		srcColor[1] = beam.G;
 		srcColor[2] = beam.B;
-		if ((beam.Flags & BeamFlags.FadeIn) != 0) 
+		if ((beam.Flags & BeamFlags.FadeIn) != 0)
 			MathLib.VectorScale(srcColor, (float)beam.T, color);
-		else if ((beam.Flags & BeamFlags.FadeOut) != 0) 
+		else if ((beam.Flags & BeamFlags.FadeOut) != 0)
 			MathLib.VectorScale(srcColor, (1.0f - (float)beam.T), color);
-		else 
+		else
 			color = srcColor;
 
 		MathLib.VectorScale(color, (1 / 255.0f), color);
@@ -649,8 +651,189 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 		throw new NotImplementedException();
 	}
 
-	private void DrawSegs(int nOISE_DIVISIONS, float[] noise, Model sprite, int frame, RenderMode rendermode, Vector3 vector3, Vector3 delta, float width, float endWidth, float amplitude, double freq, double speed, int segments, BeamFlags flags, Span<float> color, float fadeLength, float hDRColorScale) {
-		throw new NotImplementedException();
+	static TokenCache hdrColorScaleCache;
+	private void DrawSegs(int noise_divisions, ReadOnlySpan<float> noise, Model spritemodel, int frame, RenderMode rendermode, in Vector3 source, in Vector3 delta, float startWidth, float endWidth, float scale, double freq, double speed, int segments, BeamFlags flags, Span<float> color, float fadeLength, float hdrColorScale) {
+		int i, noiseIndex, noiseStep;
+		float div, length, fraction, factor, vLast, vStep, brightness;
+
+		Assert(fadeLength >= 0.0f);
+		EngineSprite? pSprite = Draw_SetSpriteTexture(spritemodel, frame, rendermode);
+		if (pSprite == null)
+			return;
+
+		if (segments < 2)
+			return;
+
+		IMaterial? pMaterial = pSprite.GetMaterial(rendermode);
+		if (pMaterial != null) {
+			IMaterialVar? hdrColorScaleVar = pMaterial.FindVarFast("$hdrcolorscale", ref hdrColorScaleCache);
+			hdrColorScaleVar?.SetFloatValue(hdrColorScale);
+		}
+
+		length = MathLib.VectorLength(delta);
+		float flMaxWidth = MathF.Max(startWidth, endWidth) * 0.5f;
+		div = 1.0f / (segments - 1);
+
+		if (length * div < flMaxWidth * 1.414f) {
+			// Here, we have too many segments; we could get overlap... so lets have less segments
+			segments = (int)(length / (flMaxWidth * 1.414f)) + 1;
+			if (segments < 2) {
+				segments = 2;
+			}
+		}
+
+		if (segments > noise_divisions)     // UNDONE: Allow more segments?
+		{
+			segments = noise_divisions;
+		}
+
+		div = 1.0f / (segments - 1);
+		length *= 0.01f;
+
+		// UNDONE: Expose texture length scale factor to control "fuzziness"
+
+		if ((flags & BeamFlags.NoTile) != 0) {
+			// Don't tile
+			vStep = div;
+		}
+		else {
+			// Texture length texels per space pixel
+			vStep = length * div;
+		}
+
+		// UNDONE: Expose this paramter as well(3.5)?  Texture scroll rate along beam
+		vLast = MathLib.Fmodf((float)(freq * speed), 1); // Scroll speed 3.5 -- initial texture position, scrolls 3.5/sec (1.0 is entire texture)
+
+		if ((flags & BeamFlags.SineNoise) != 0) {
+			if (segments < 16) {
+				segments = 16;
+				div = 1.0f / (segments - 1);
+			}
+			scale *= 100;
+			length = segments * (1.0f / 10);
+		}
+		else {
+			scale *= length;
+		}
+
+		// Iterator to resample noise waveform (it needs to be generated in powers of 2)
+		noiseStep = (int)((float)(noise_divisions - 1) * div * 65536.0f);
+		noiseIndex = 0;
+
+		if ((flags & BeamFlags.SineNoise) != 0) {
+			noiseIndex = 0;
+		}
+
+		brightness = 1.0f;
+		if ((flags & BeamFlags.ShadeIn) != 0) {
+			brightness = 0;
+		}
+
+		// What fraction of beam should be faded
+		Assert(fadeLength >= 0.0f);
+		float fadeFraction = fadeLength / delta.Length();
+
+		// BUGBUG: This code generates NANs when fadeFraction is zero! REVIST!
+		fadeFraction = Math.Clamp(fadeFraction, 1e-6f, 1f);
+
+		// Choose two vectors that are perpendicular to the beam
+		ComputeBeamPerpendicular(delta, out Vector3 perp1);
+
+		// Specify all the segments.
+		using MatRenderContextPtr renderContext = new(materials);
+		BeamSegDraw segDraw = new();
+		segDraw.Start(renderContext, segments, null);
+
+		for (i = 0; i < segments; i++) {
+			Assert(noiseIndex < (noise_divisions << 16));
+			BeamSeg curSeg = default;
+			curSeg.Alpha = 1;
+
+			fraction = i * div;
+
+			// Fade in our out beam to fadeLength
+
+			if ((flags & BeamFlags.ShadeIn) != 0 && (flags & BeamFlags.ShadeOut) != 0) {
+				if (fraction < 0.5) {
+					brightness = 2 * (fraction / fadeFraction);
+				}
+				else {
+					brightness = 2 * (1.0f - (fraction / fadeFraction));
+				}
+			}
+			else if ((flags & BeamFlags.ShadeIn) != 0) {
+				brightness = fraction / fadeFraction;
+			}
+			else if ((flags & BeamFlags.ShadeOut) != 0) {
+				brightness = 1.0f - (fraction / fadeFraction);
+			}
+
+			// clamps
+			if (brightness < 0) {
+				brightness = 0;
+			}
+			else if (brightness > 1) {
+				brightness = 1;
+			}
+
+			MathLib.VectorScale(color, brightness, out curSeg.Color);
+
+			// UNDONE: Make this a spline instead of just a line?
+			MathLib.VectorMA(source, fraction, delta, ref curSeg.Pos);
+
+			// Distort using noise
+			if (scale != 0) {
+				factor = noise[noiseIndex >> 16] * scale;
+				if ((flags & BeamFlags.SineNoise) != 0) {
+					MathLib.SinCos((float)(fraction * Math.PI * length + freq), out float s, out float c);
+					MathLib.VectorMA(curSeg.Pos, factor * s, CurrentViewUp(), ref curSeg.Pos);
+					// Rotate the noise along the perpendicluar axis a bit to keep the bolt from looking diagonal
+					MathLib.VectorMA(curSeg.Pos, factor * c, CurrentViewRight(), ref curSeg.Pos);
+				}
+				else {
+					MathLib.VectorMA(curSeg.Pos, factor, perp1, ref curSeg.Pos);
+				}
+			}
+
+			// Specify the next segment.
+			if (endWidth == startWidth) 
+				curSeg.Width = startWidth * 2;
+			else 
+				curSeg.Width = ((fraction * (endWidth - startWidth)) + startWidth) * 2;
+
+			curSeg.TexCoord = vLast;
+			segDraw.NextSeg(ref curSeg);
+
+
+			vLast += vStep; // Advance texture scroll (v axis only)
+			noiseIndex += noiseStep;
+		}
+
+		segDraw.End();
+	}
+
+	private void ComputeBeamPerpendicular(in Vector3 delta, out Vector3 perp) {
+		Vector3 vecBeamCenter = delta;
+		MathLib.VectorNormalize(ref vecBeamCenter);
+
+		MathLib.CrossProduct(CurrentViewForward(), vecBeamCenter, out perp);
+		MathLib.VectorNormalize(ref perp);
+	}
+
+	private EngineSprite? Draw_SetSpriteTexture(Model spritemodel, int frame, RenderMode rendermode) {
+		EngineSprite? psprite;
+		IMaterial? material;
+
+		psprite =(EngineSprite?)modelinfo.GetModelExtraData(spritemodel);
+		Assert(psprite);
+
+		material = psprite!.GetMaterial(rendermode, frame);
+		if (material == null)
+			return null;
+
+		using MatRenderContextPtr renderContext = new(materials);
+		renderContext.Bind(material);
+		return psprite;
 	}
 
 	private void DrawBeamFollow(Model sprite, Beam beam, int frame, RenderMode rendermode, double frameTime, Span<float> color, float hDRColorScale) {

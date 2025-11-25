@@ -162,6 +162,10 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		return model.Sprite.Height;
 	}
 
+	public object? GetModelExtraData(Model model) {
+		return modelloader.GetExtraData(model);
+	}
+
 	readonly List<Model> NetworkedDynamicModels = [];
 }
 

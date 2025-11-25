@@ -1143,4 +1143,6 @@ public static class MathLib
 	}
 
 	public static float VectorLength(in Vector3 delta) => delta.Length();
+
+	public static void SinCos(float v, out float s, out float c) => (s, c) = float.SinCos(v);
 }

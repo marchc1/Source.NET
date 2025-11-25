@@ -179,7 +179,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 					// sprites don't use the real cache yet
 					if (model.Type == ModelType.Sprite) {
 						// The sprite got unloaded.
-						return null; // TODO
+						return model.Sprite.Sprite; // TODO
 					}
 				}
 				break;
