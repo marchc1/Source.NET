@@ -85,20 +85,62 @@ public interface IEngineVGuiInternal : IEngineVGui
 	void HideConsole();
 }
 
-public class EnginePanel(Panel? parent, string name) : EditablePanel(parent, name)
+public class EnginePanel(Panel? parent, ReadOnlySpan<char> name) : EditablePanel(parent, name)
 {
 
 }
 
 
-public class StaticPanel(Panel? parent, string name) : Panel(parent, name)
+public class StaticPanel(Panel? parent, ReadOnlySpan<char> name) : Panel(parent, name)
 {
 
 }
 
-public class FocusOverlayPanel(Panel? parent, string name) : Panel(parent, name)
+public class FocusOverlayPanel : Panel
 {
+	public FocusOverlayPanel(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
+		SetPaintEnabled(false);
+		SetPaintBorderEnabled(false);
+		SetPaintBackgroundEnabled(false);
 
+		MakePopup();
+
+		SetPostChildPaintEnabled(true);
+		SetKeyboardInputEnabled(false);
+		SetMouseInputEnabled(false);
+	}
+
+	public bool DrawTitleSafeOverlay() {
+		return false;//todo
+	}
+
+	public override void PostChildPaint() {
+		base.PostChildPaint();
+
+		bool needsMoveToFront = false;
+
+		if (true /*g_DrawTreeSelectedPanel*/) {
+			GetClipRect(out int x, out int y, out int x1, out int y1);
+			Surface.DrawSetColor(255, 0, 0, 255);
+			Surface.DrawOutlinedRect(x, y, x1, y1);
+
+			needsMoveToFront = true;
+		}
+
+		if (DrawTitleSafeOverlay()) needsMoveToFront = true;
+		if (DrawFocusPanelList()) needsMoveToFront = true;
+		if (needsMoveToFront) MoveToFront();
+	}
+
+	public bool DrawFocusPanelList() {
+		return false;//todo
+	}
+
+	static void GetColorForSlot(int slot, out int r, out int g, out int b) {
+		r = (int)(124 + slot * 47.3) & 255;
+		g = (int)(63.78 - slot * 71.4) & 255;
+		b = (int)(108.42 + slot * 13.57) & 255;
+	}
 }
 
 
@@ -166,6 +208,7 @@ public class EngineVGui(
 	EnginePanel staticClientDLLToolsPanel;
 	EnginePanel staticGameUIPanel;
 	EnginePanel staticGameDLLPanel;
+	FocusOverlayPanel staticFocusOverlayPanel;
 	ClientState cl;
 	CL CL;
 	Con Con;
@@ -285,16 +328,16 @@ public class EngineVGui(
 		}
 
 		perc = perc * (1.0f - ProgressBias) + ProgressBias;
-		if (staticGameUIFuncs.UpdateProgressBar((float)perc, desc.Description)) 
+		if (staticGameUIFuncs.UpdateProgressBar((float)perc, desc.Description))
 			Host.View.RenderGuiOnly();
-		
+
 		LastProgressPoint = progress;
 	}
 	public void UpdateCustomProgressBar(float progress, ReadOnlySpan<char> desc) {
 		if (staticGameUIFuncs == null)
 			return;
 
-		if (staticGameUIFuncs.UpdateProgressBar(progress, localize.Find(desc))) 
+		if (staticGameUIFuncs.UpdateProgressBar(progress, localize.Find(desc)))
 			Host.View.RenderGuiOnly();
 	}
 	public void StartCustomProgress() {
@@ -339,7 +382,7 @@ public class EngineVGui(
 			StartSoundParams parms = default;
 			parms.StaticSound = false;
 			parms.SoundSource = cl.ViewEntity;
-			parms.EntChannel= SoundEntityChannel.Auto;
+			parms.EntChannel = SoundEntityChannel.Auto;
 			parms.Sfx = sound;
 			parms.Origin = dummyOrigin;
 			parms.Pitch = 100;
@@ -463,6 +506,11 @@ public class EngineVGui(
 		else
 			staticGameDLLPanel.SetVisible(false);
 
+		staticFocusOverlayPanel = new(staticPanel, "FocusOverlayPanel");
+		staticFocusOverlayPanel.SetBounds(0, 0, w, h);
+		staticFocusOverlayPanel.SetZPos(150);
+		// staticFocusOverlayPanel.MoveToFront(); // FIXME: crashes :(
+
 		// TODO: the other panels...
 		// Specifically,
 		// - DebugSystemPanel
@@ -470,8 +518,6 @@ public class EngineVGui(
 		// - FogUIPanel
 		// - TxViewPanel
 		// - FocusOverlayPanel
-		// - Con_CreateConsolePanel
-		// - CL_CreateEntityReportPanel
 		// - VGui_CreateDrawTreePanel
 		// - CL_CreateTextureListPanel
 		// - CreateVProfPanels
@@ -495,7 +541,7 @@ public class EngineVGui(
 			staticGameConsole = engineAPI.GetRequiredService<IGameConsole>();
 		}
 
-		if(staticGameConsole != null) {
+		if (staticGameConsole != null) {
 			staticGameConsole.Initialize();
 			staticGameConsole.SetParent(staticGameUIPanel);
 			staticGameConsole.Activate();
@@ -609,9 +655,9 @@ public class EngineVGui(
 			return;
 		}
 
-		if (surface.IsCursorLocked()) 
+		if (surface.IsCursorLocked())
 			clientDLL.IN_ActivateMouse();
-		else 
+		else
 			clientDLL.IN_DeactivateMouse();
 	}
 

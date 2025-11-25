@@ -1,7 +1,5 @@
 ﻿using CommunityToolkit.HighPerformance;
 
-using SDL;
-
 using Source.Common;
 using Source.Common.Client;
 using Source.Common.Commands;
@@ -9,12 +7,9 @@ using Source.Common.Engine;
 using Source.Common.GUI;
 using Source.Common.Networking;
 using Source.Engine.Client;
-using Source.GUI;
 using Source.GUI.Controls;
 
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
-using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;

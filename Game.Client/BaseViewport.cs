@@ -120,7 +120,12 @@ public class BaseViewport : EditablePanel, IViewPort
 		AnimController.SetScheme(scheme!);
 		AnimController.SetProportional(true);
 
-		// TODO: Hud animations
+		if (LoadHudAnimations() == false)
+			if (!AnimController.SetScriptFile(this, "scripts/HudAnimations.txt", true))
+				Assert(0);
+
+		OldSize[0] = 0;
+		OldSize[1] = 0;
 	}
 
 	AnimationController AnimController;
@@ -184,7 +189,25 @@ public class BaseViewport : EditablePanel, IViewPort
 	}
 
 	private bool LoadHudAnimations() {
-		return true; // lie for now
+		ReadOnlySpan<char> file = "scripts/hudanimations_manifest.txt";
+		KeyValues? manifest = new(file);
+
+		if (manifest.LoadFromFile(fileSystem, file, "GAME") == false)
+			return false;
+
+		bool clearScript = false;
+
+		for (KeyValues? sub = manifest.GetFirstSubKey(); sub != null; sub = sub.GetNextKey()) {
+			if (sub.Name.Equals("file", StringComparison.Ordinal)) {
+				if (AnimController.SetScriptFile(this, sub.GetString(), clearScript) == false)
+					Assert(0);
+
+				clearScript = false;
+				continue;
+			}
+		}
+
+		return true;
 	}
 
 	public void Start() {
@@ -194,11 +217,11 @@ public class BaseViewport : EditablePanel, IViewPort
 	}
 
 	public override void PaintBackground() {
-	
+
 	}
 
 	public override void Paint() {
-		
+
 	}
 
 	private void CreateDefaultPanels() {
