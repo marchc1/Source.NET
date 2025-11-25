@@ -560,5 +560,5 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 		conPanel.SetVisible(false);
 	}
 
-	Panel? GetConsolePanel() => conPanel;
+	public ConPanel? GetConsolePanel() => conPanel;
 }
