@@ -31,7 +31,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		services.AddSingleton<ClientEntityList>();
 		services.AddSingleton<IClientEntityList>(x => x.GetRequiredService<ClientEntityList>());
 		services.AddSingleton<IPrediction, Prediction>();
-		services.AddSingleton<ICenterPrint, CenterPrint>();
+		services.AddSingleton<ICenterPrint, CenterPrint>(x => CenterPrint.CenterString);
 		services.AddSingleton<ClientLeafSystem>();
 		services.AddSingleton<IClientLeafSystem>(x => x.GetRequiredService<ClientLeafSystem>());
 		services.AddSingleton<IClientLeafSystemEngine>(x => x.GetRequiredService<ClientLeafSystem>());
@@ -73,14 +73,22 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		IGameSystem.Add(Singleton<ViewportClientSystem>());
 
 		clientMode ??= new ClientModeHL2MPNormal(services, gpGlobals, HUD, Singleton<IEngineVGui>(), surface);
+
 		HUD.Init();
+
 		clientMode.Init();
+
 		if (!IGameSystem.InitAllSystems())
 			return false;
+
 		clientMode.Enable();
+
 		view.Init();
+
 		input.Init();
-		ClientVGui.CreateGlobalPanels();
+
+		VGui_CreateGlobalPanels();
+
 		return true;
 	}
 

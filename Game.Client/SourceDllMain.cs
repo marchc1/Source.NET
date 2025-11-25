@@ -7,6 +7,7 @@ using Source.Common.Engine;
 using Source.Common.DataCache;
 using Source;
 using Source.Common.MaterialSystem;
+using Source.Common.GUI;
 
 namespace Game.Client;
 
@@ -16,6 +17,7 @@ public static class SourceDllMain
 	[Dependency] public static IViewRender view { get; private set; } = null!;
 	[Dependency] public static IRenderView render { get; private set; } = null!;
 	[Dependency] public static IEngineClient engine { get; private set; } = null!;
+	[Dependency] public static ISurface surface { get; private set; } = null!;
 	[Dependency] public static IEngineVGui enginevgui { get; private set; } = null!;
 	[Dependency] public static Hud gHUD { get; private set; } = null!;
 	[Dependency<IPrediction>] public static Prediction prediction { get; private set; } = null!;
@@ -24,6 +26,7 @@ public static class SourceDllMain
 	[Dependency] public static IModelInfoClient modelinfo { get; private set; } = null!;
 	[Dependency] public static IDataCache datacache { get; private set; } = null!;
 	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;
+	[Dependency] public static ICenterPrint centerprint { get; private set; } = null!;
 	[Dependency] public static IMaterialSystem materials { get; private set; } = null!;
 	[Dependency] public static IModelRender modelrender { get; private set; } = null!;
 	[Dependency] public static IClientLeafSystem clientLeafSystem { get; private set; } = null!;
