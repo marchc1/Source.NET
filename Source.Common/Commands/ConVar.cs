@@ -246,6 +246,7 @@ public class ConVar : ConCommandBase, IConVar
 	public virtual void SetValue(int value) {
 		parent!.InternalSetIntValue(value);
 	}
+	public void SetValue(bool value) => SetValue(value ? 1 : 0);
 	public virtual void SetValue(float value) {
 		parent!.InternalSetDoubleValue(value);
 	}

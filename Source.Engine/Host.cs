@@ -747,7 +747,7 @@ public class Host(
 		if (text.ServerCount != cl.ServerCount)
 			return true;
 
-		if(text.CreationTick != -1) 
+		if (text.CreationTick != -1)
 			return GetOverlayTick() > text.CreationTick;
 
 		if (text.EndTime == 0)
@@ -826,7 +826,7 @@ public class Host(
 		if (source != CommandSource.Command)
 			return;
 
-		if(args.ArgC() < 2) {
+		if (args.ArgC() < 2) {
 			Warning("No map specified\n");
 			return;
 		}
@@ -1018,5 +1018,21 @@ public class Host(
 			Sys.Error($"Host_EndGame: {message}\n");
 			return;
 		}
+	}
+
+	public readonly ConVar skill = new("skill", "1", FCvar.Archive, "Game skill level (1-3).", 1, 3);
+	public readonly ConVar deathmatch = new("deathmatch", "0", FCvar.Notify | FCvar.InternalUse, "Running a deathmatch server.");
+	public readonly ConVar coop = new("coop", "0", FCvar.Notify, "Cooperative play.");
+
+	internal bool ValidGame() {
+		if (sv.IsMultiplayer()) {
+			if (deathmatch.GetInt() != 0)
+				return true;
+		}
+		else
+			return true;
+
+		ConDMsg("Unable to launch game\n");
+		return false;
 	}
 }

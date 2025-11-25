@@ -22,6 +22,7 @@ public class HostState : IHostState
 {
 	private readonly Host Host;
 	private readonly IMDLCache mdlCache;
+	private readonly Scr Scr;
 	public HostStates CurrentState;
 	public HostStates NextState;
 	public Vector3 Location;
@@ -37,8 +38,9 @@ public class HostState : IHostState
 
 	IEngine eng = null!;
 
-	public HostState(Host Host, IMDLCache mdlCache) {
+	public HostState(Host Host, IMDLCache mdlCache, Scr Scr) {
 		this.Host = Host;
+		this.Scr = Scr;
 		this.mdlCache = mdlCache;
 		((IHostState)this).Init();
 	}
@@ -174,7 +176,14 @@ public class HostState : IHostState
 	// the state machines processing loop.
 
 	protected void State_NewGame() {
+		if (Host.ValidGame()) {
 
+		}
+
+		Scr.EndLoadingPlaque();
+		// new game failed
+		GameShutdown();
+		SetState(HostStates.Run, true);
 	}
 	protected void State_LoadGame() {
 

@@ -1,14 +1,21 @@
-﻿using Source.Common.Client;
+﻿using Source.Common.Bitbuffers;
+using Source.Common.Client;
+using Source.Common.Engine;
 using Source.Common.Networking;
 using Source.Common.Server;
+using Source.Common.Utilities;
 
 namespace Source.Engine.Server;
 
 /// <summary>
 /// Base server, in SERVER. Often referred to by 'sv'
 /// </summary>
-public class GameServer(Net Net, Host Host) : BaseServer(Net, Host)
+public class GameServer : BaseServer
 {
+	public override void SetMaxClients(int number) {
+		MaxClients = Math.Clamp(number, 1, MaxClientsLimit);
+		Host.deathmatch.SetValue(MaxClients > 1);
+	}
 	public override void BroadcastMessage(INetMessage msg, bool onlyActive = false, bool reliable = false) {
 		throw new NotImplementedException();
 	}
@@ -74,9 +81,30 @@ public class GameServer(Net Net, Host Host) : BaseServer(Net, Host)
 
 	}
 
-	bool bIsLevelMainMenuBackground;
-
 	internal bool IsLevelMainMenuBackground() {
-		return bIsLevelMainMenuBackground;
+		return LevelMainMenuBackground;
 	}
+
+	public bool LoadGame;           // handle connections specially
+
+	public InlineArray64<char> Startspot;
+
+	public int NumEdicts;
+	public int MaxEdicts;
+	public int FreeEdicts;
+	Edict[]? edicts;       
+
+	public int MaxClientsLimit;    // Max allowed on server.
+
+	public bool AllowSignOnWrites;
+	public bool DLLInitialized;    // Have we loaded the game dll.
+
+	public bool LevelMainMenuBackground;  // true if the level running only as the background to the main menu
+
+	public readonly List<EventInfo> TempEntities = [];     // temp entities
+
+	public readonly bf_write FullSendTables = new();
+	public readonly UtlMemory<byte> FullSendTablesBuffer = new();
+
+	public bool LoadedPlugins;
 }

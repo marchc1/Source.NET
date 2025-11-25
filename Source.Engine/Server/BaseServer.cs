@@ -28,8 +28,10 @@ public enum ServerState
 /// <summary>
 /// Base server, in SERVER
 /// </summary>
-public abstract class BaseServer(Net Net, Host Host) : IServer
+public abstract class BaseServer : IServer
 {
+	protected readonly Net Net = Singleton<Net>();
+	protected readonly Host Host = Singleton<Host>();
 	static ConVar sv_password = new("sv_password", "", FCvar.Notify | FCvar.Protected | FCvar.DontRecord, "Server password for entry into multiplayer games");
 
 	public virtual int GetNumClients() {
