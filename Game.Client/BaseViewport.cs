@@ -122,7 +122,7 @@ public class BaseViewport : EditablePanel, IViewPort
 
 		if (LoadHudAnimations() == false)
 			if (!AnimController.SetScriptFile(this, "scripts/HudAnimations.txt", true))
-				Assert(0);
+				Assert(false);
 
 		OldSize[0] = 0;
 		OldSize[1] = 0;
@@ -200,7 +200,7 @@ public class BaseViewport : EditablePanel, IViewPort
 		for (KeyValues? sub = manifest.GetFirstSubKey(); sub != null; sub = sub.GetNextKey()) {
 			if (sub.Name.Equals("file", StringComparison.Ordinal)) {
 				if (AnimController.SetScriptFile(this, sub.GetString(), clearScript) == false)
-					Assert(0);
+					Assert(false);
 
 				clearScript = false;
 				continue;
