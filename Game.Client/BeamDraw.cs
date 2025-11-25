@@ -95,6 +95,10 @@ public class Beam : DefaultClientRenderable {
 		throw new NotImplementedException();
 	}
 
+	public override int DrawModel(StudioFlags flags) {
+		return base.DrawModel(flags);
+	}
+
 	public void Dispose() {
 	
 	}
