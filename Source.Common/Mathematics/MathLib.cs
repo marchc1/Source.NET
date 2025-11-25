@@ -335,10 +335,11 @@ public static class MathLib
 	public static ref Vector2 AsVector2D(this ref Vector4 vec)
 		=> ref new Span<Vector4>(ref vec).Cast<Vector4, float>()[..2].Cast<float, Vector2>()[0];
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DistTo(this ref Vector3 vec, in Vector3 other) => Vector3.Distance(vec, other);
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Min(this ref Vector3 vec, in Vector3 other) => Vector3.Min(vec, other);
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Max(this ref Vector3 vec, in Vector3 other) => Vector3.Max(vec, other);
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DistToSqr(this ref Vector3 vec, in Vector3 other) => Vector3.DistanceSquared(vec, other);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DistTo(this in Vector3 vec, in Vector3 other) => Vector3.Distance(vec, other);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Min(this in Vector3 vec, in Vector3 other) => Vector3.Min(vec, other);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Max(this in Vector3 vec, in Vector3 other) => Vector3.Max(vec, other);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DistToSqr(this in Vector3 vec, in Vector3 other) => Vector3.DistanceSquared(vec, other);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t Length2D(this in Vector3 vec) => MathF.Sqrt(vec.X * vec.X + vec.Y * vec.Y);
 
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
