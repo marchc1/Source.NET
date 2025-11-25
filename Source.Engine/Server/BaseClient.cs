@@ -6,13 +6,48 @@ using Steamworks;
 namespace Source.Engine.Server;
 
 
-public abstract class BaseClient : IClient, IClientMessageHandler {
+public abstract class BaseClient : IClient, IClientMessageHandler, IDisposable {
 	public int GetPlayerSlot() => ClientSlot;
 	public int GetUserID() => UserID;
 	// NetworkID?
 	public string GetClientName() => Name;
 	public INetChannel GetNetChannel() => NetChannel;
 
+	public void Dispose() {
+
+	}
+
+	internal void Clear() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsConnected() {
+		throw new NotImplementedException();
+	}
+
+	public void Disconnect(ReadOnlySpan<char> v) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsActive() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsSpawned() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsFakeClient() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsHLTV() {
+		throw new NotImplementedException();
+	}
+
+	internal bool SendNetMsg(INetMessage msg, bool reliable) {
+		throw new NotImplementedException();
+	}
 
 	public int ClientSlot;
 	public int EntityIndex;
@@ -28,8 +63,8 @@ public abstract class BaseClient : IClient, IClientMessageHandler {
 	// convars...
 	public bool SendServerInfo;
 	public BaseServer Server;
-	public bool IsHLTV;
-	public bool IsReplay;
+	public bool HLTV;
+	public bool Replay;
 	public int ClientChallenge;
 	
 	public uint SendTableCRC;

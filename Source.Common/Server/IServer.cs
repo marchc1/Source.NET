@@ -30,7 +30,7 @@ public interface IServer : IConnectionlessPacketHandler
 	/// </summary>
 	/// <param name="index"></param>
 	/// <returns></returns>
-	public IClient GetClient(int index);
+	public IClient? GetClient(int index);
 	/// <summary>
 	/// Number of client slots, used & unused
 	/// </summary>
@@ -45,7 +45,7 @@ public interface IServer : IConnectionlessPacketHandler
 	/// Game world time
 	/// </summary>
 	/// <returns></returns>
-	public double GetTime();
+	public TimeUnit_t GetTime();
 	/// <summary>
 	/// Game world tick
 	/// </summary>
@@ -55,17 +55,17 @@ public interface IServer : IConnectionlessPacketHandler
 	/// Tick interval in seconds
 	/// </summary>
 	/// <returns></returns>
-	public double GetTickInterval();
+	public TimeUnit_t GetTickInterval();
 	/// <summary>
 	/// Public server name
 	/// </summary>
 	/// <returns></returns>
-	public string GetName();
+	public ReadOnlySpan<char> GetName();
 	/// <summary>
 	/// Current map name (with .bsp at the end)
 	/// </summary>
 	/// <returns></returns>
-	public string? GetMapName();
+	public ReadOnlySpan<char> GetMapName();
 	public int GetSpawnCount();
 	public int GetNumClasses();
 	public int GetClassBits();
@@ -75,7 +75,7 @@ public interface IServer : IConnectionlessPacketHandler
 	/// <param name="avgIn"></param>
 	/// <param name="avgOut"></param>
 	/// <returns></returns>
-	public int GetNetStats(in float avgIn, out float avgOut);
+	public void GetNetStats(out double avgIn, out double avgOut);
 	public int GetNumPlayers();
 	public bool GetPlayerInfo(int clientIndex, out PlayerInfo pinfo);
 
@@ -92,12 +92,12 @@ public interface IServer : IConnectionlessPacketHandler
 	/// Returns the password or null if not set
 	/// </summary>
 	/// <returns></returns>
-	public string? GetPassword();
+	public ReadOnlySpan<char> GetPassword();
 
 	public void SetPaused(bool paused);
-	public void SetPassword(string? password);
+	public void SetPassword(ReadOnlySpan<char> password);
 
-	public void BroadcastMessage(in INetMessage msg, bool onlyActive = false, bool reliable = false);
+	public void BroadcastMessage(INetMessage msg, bool onlyActive = false, bool reliable = false);
 
-	public void DisconnectClient(IClient client, string? reason);
+	public void DisconnectClient(IClient client, ReadOnlySpan<char> reason);
 }

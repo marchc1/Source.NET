@@ -2,5 +2,5 @@
 
 public interface INetChannel
 {
-
+	double GetAvgData(int flow);
 }

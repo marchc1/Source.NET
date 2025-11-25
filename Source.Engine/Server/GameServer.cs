@@ -7,21 +7,21 @@ namespace Source.Engine.Server;
 /// <summary>
 /// Base server, in SERVER. Often referred to by 'sv'
 /// </summary>
-public class GameServer : BaseServer
+public class GameServer(Net Net, Host Host) : BaseServer(Net, Host)
 {
-	public override void BroadcastMessage(in INetMessage msg, bool onlyActive = false, bool reliable = false) {
+	public override void BroadcastMessage(INetMessage msg, bool onlyActive = false, bool reliable = false) {
 		throw new NotImplementedException();
 	}
 
-	public override void DisconnectClient(IClient client, string? reason) {
+	public override void DisconnectClient(IClient client, ReadOnlySpan<char> reason) {
 		throw new NotImplementedException();
 	}
 
-	public override string GetName() {
+	public override ReadOnlySpan<char> GetName() {
 		throw new NotImplementedException();
 	}
 
-	public override int GetNetStats(in float avgIn, out float avgOut) {
+	public override void GetNetStats(out double avgIn, out double avgOut) {
 		throw new NotImplementedException();
 	}
 
@@ -41,7 +41,7 @@ public class GameServer : BaseServer
 		throw new NotImplementedException();
 	}
 
-	public override string? GetPassword() {
+	public override ReadOnlySpan<char> GetPassword() {
 		throw new NotImplementedException();
 	}
 
@@ -53,43 +53,11 @@ public class GameServer : BaseServer
 		throw new NotImplementedException();
 	}
 
-	public override bool ProcessConnect(ref NetPacket packet) {
+	public override bool ProcessConnectionlessPacket(NetPacket packet) {
 		throw new NotImplementedException();
 	}
 
-	public override bool ProcessConnectionlessPacket(ref NetPacket packet) {
-		throw new NotImplementedException();
-	}
-
-	public override bool ProcessDetails(ref NetPacket packet) {
-		throw new NotImplementedException();
-	}
-
-	public override bool ProcessGetChallenge(ref NetPacket packet) {
-		throw new NotImplementedException();
-	}
-
-	public override bool ProcessInfo(ref NetPacket packet) {
-		throw new NotImplementedException();
-	}
-
-	public override bool ProcessPlayers(ref NetPacket packet) {
-		throw new NotImplementedException();
-	}
-
-	public override bool ProcessProcessLog(ref NetPacket packet) {
-		throw new NotImplementedException();
-	}
-
-	public override bool ProcessRcon(ref NetPacket packet) {
-		throw new NotImplementedException();
-	}
-
-	public override bool ProcessRules(ref NetPacket packet) {
-		throw new NotImplementedException();
-	}
-
-	public override void SetPassword(string? password) {
+	public override void SetPassword(ReadOnlySpan<char> password) {
 		throw new NotImplementedException();
 	}
 
@@ -97,15 +65,11 @@ public class GameServer : BaseServer
 		throw new NotImplementedException();
 	}
 
-	public void InactivateClients() {
+	public override void Init(bool dedicated) {
 
 	}
 
-	public void Init(bool dedicated) {
-
-	}
-
-	public void Shutdown() {
+	public override void Shutdown() {
 
 
 	}

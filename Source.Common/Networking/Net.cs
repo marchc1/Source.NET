@@ -269,7 +269,7 @@ public class Net
 				switch (header) {
 					case CONNECTIONLESS_HEADER:
 						// Hand off out-of-band packet
-						handler.ProcessConnectionlessPacket(ref packet);
+						handler.ProcessConnectionlessPacket(packet);
 						continue;
 				}
 
@@ -1054,5 +1054,12 @@ public class Net
 
 	public float GetFakeLag() {
 		return FakeLag;
+	}
+
+	public int GetUDPPort(NetSocketType socket) {
+		if (socket < 0 || (int)socket >= NetSockets.Count)
+			return 0;
+
+		return NetSockets[(int)socket].Port;
 	}
 }

@@ -867,6 +867,11 @@ public static class UnmanagedUtils
 			list.Add(default);
 	}
 
+	public static void EnsureCapacity<T>(this ref Memory<T> list, int ensureTo) {
+		if(list.Length < ensureTo) 
+			list = new T[ensureTo];
+	}
+
 	public static void SetSizeInitialized<T>(this List<T> list, int ensureTo) where T : new() {
 		list.EnsureCapacity(ensureTo);
 

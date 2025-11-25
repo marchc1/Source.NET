@@ -201,7 +201,7 @@ public abstract class NetMessage : INetMessage
 	public NetChannel? GetNetChannel() => netchan;
 	public void SetNetChannel(NetChannel? netchan) => this.netchan = netchan;
 
-	public bool IsReliable => reliable;
+	public bool IsReliable() => reliable;
 	public void SetReliable(bool state) => reliable = state;
 
 	public int GetMessageType() => type;
@@ -245,5 +245,5 @@ public unsafe class NetPacket
 
 public interface IConnectionlessPacketHandler
 {
-	public bool ProcessConnectionlessPacket(ref NetPacket packet);
+	public bool ProcessConnectionlessPacket(NetPacket packet);
 }

@@ -172,7 +172,7 @@ public abstract class BaseClientState(
 		ConnectTime = 0.0;
 	}
 
-	public virtual bool ProcessConnectionlessPacket(ref NetPacket packet) {
+	public virtual bool ProcessConnectionlessPacket(NetPacket packet) {
 		bf_read msg = packet.Message;
 
 		int c = msg.ReadByte();

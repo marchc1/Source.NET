@@ -33,7 +33,7 @@ public class CommonHostState
 }
 
 public class Host(
-	EngineParms host_parms, CommonHostState host_state, GameServer _sv,
+	EngineParms host_parms, CommonHostState host_state,
 	IServiceProvider services, ICommandLine CommandLine, IFileSystem fileSystem
 	)
 {
@@ -54,7 +54,8 @@ public class Host(
 	public MatSysInterface MatSysInterface;
 	public IModelLoader modelloader;
 	public SV SV;
-	public GameServer sv => _sv;
+	GameServer? _sv;
+	public GameServer sv => _sv ??= Singleton<GameServer>();
 	public ServerGlobalVariables serverGlobalVariables;
 	public Cbuf Cbuf;
 	public ClientState cl;
