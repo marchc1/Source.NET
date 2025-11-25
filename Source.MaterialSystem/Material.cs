@@ -977,10 +977,21 @@ public class Material : IMaterialInternal
 		return false;
 	}
 
-	
+	public int GetNumAnimationFrames() {
+		Precache();
+		if (representativeTexture != null) {
+			return representativeTexture.GetNumAnimationFrames();
+		}
+		else {
+			Warning($"Material.GetNumAnimationFrames: no representative texture for material {GetName()}\n");
+			return 1;
+		}
+	}
+
+
 
 	private bool IsTranslucentInternal(float alphaModulation) {
-		if (Shader !=null && IsValidRenderState()) {
+		if (Shader != null && IsValidRenderState()) {
 			return IShaderSystem.IsTranslucent(ShaderRenderState) || (alphaModulation < 1.0f) || Shader.IsTranslucent(ShaderParams);
 		}
 		return false;

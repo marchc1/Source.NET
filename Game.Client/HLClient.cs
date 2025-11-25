@@ -252,4 +252,9 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		Msg($"         Class ID: {classIdx}\n");
 		Msg($"     Class Lookup: {Enum.GetName((StaticClassIndices)classIdx) ?? "Failed"}\n");
 	}
+
+
+	public void InitSprite(EngineSprite? sprite, ReadOnlySpan<char> loadName) {
+		sprite?.Init(loadName);
+	}
 }

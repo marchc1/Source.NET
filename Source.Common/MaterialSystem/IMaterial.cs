@@ -440,6 +440,7 @@ public interface IMaterial
 	void DecrementReferenceCount();
 	IMaterialVar? FindVarFast(string v, ref uint lightmapVarCache);
 	bool IsTranslucent();
+	int GetNumAnimationFrames();
 }
 
 // Intended to only be used by the material system and not other components

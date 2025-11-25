@@ -1,3 +1,4 @@
+using Source.Common.Client;
 using Source.Common.Formats.BSP;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
@@ -78,7 +79,7 @@ public struct SpriteData
 	public int NumFrames;
 	public int Width;
 	public int Height;
-	// >> todo when EngineSprite exists: public EngineSprite? Sprite;
+	public EngineSprite? Sprite;
 }
 
 
