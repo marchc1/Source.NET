@@ -115,7 +115,7 @@ public ref struct PrintF
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]public unsafe PrintF I(int i) => D(i);
 	public PrintF S(ReadOnlySpan<char> str) {
 		if (reader.ReadVariable(out char type, out int variableIdx)) {
-			input.Write(str);
+			input.Write(str.SliceNullTerminatedString());
 			WriteAnyLiterals();
 		}
 		return this;
@@ -363,6 +363,14 @@ public static class CFormatting
 		}
 		output = input;
 		return 0;
+	}
+	public static nint strlen(ReadOnlySpan<char> str) {
+		int i = 0;
+		for (i = 0; i < str.Length; i++) {
+			if (str[i] == '\0')
+				return i;
+		}
+		return i;
 	}
 	public static int strcpy(Span<char> target, ReadOnlySpan<char> str) {
 		str = str.SliceNullTerminatedString();

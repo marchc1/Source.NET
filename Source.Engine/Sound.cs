@@ -19,6 +19,10 @@ public enum ClockSyncIndex {
 
 public partial class Sound
 {
+	bool onLoadScreen = false;
+	internal void OnLoadScreen(bool value) {
+		onLoadScreen = value;
+	}
 	public float ComputeDelayForSoundtime(double soundtime, ClockSyncIndex server) {
 		return 0; // todo
 	}
@@ -159,7 +163,7 @@ public partial class Sound
 		AudioSystem.Update(EstFrameTime + snd_mixahead.GetDouble());
 	}
 
-	private void StopAllSounds(bool clear) {
+	public void StopAllSounds(bool clear) {
 		if (AudioSystem == null)
 			return;
 

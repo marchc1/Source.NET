@@ -13,6 +13,9 @@ using FIELD = Source.FIELD<BaseEntity>;
 
 public partial class BaseEntity : IServerEntity
 {
+	public static bool DisableTouchFuncs = false;
+	public static bool AccurateTriggerBboxChecks = true;
+
 	public const int TEAMNUM_NUM_BITS = 15; // < gmod increased 6 -> 15
 	public virtual bool IsPlayer() => false;
 	public virtual bool IsBaseCombatCharacter() => false;

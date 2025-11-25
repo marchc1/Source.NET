@@ -213,6 +213,7 @@ public class ConVar : ConCommandBase, IConVar
 	}
 
 	void InternalSetValue(ReadOnlySpan<char> value) {
+		value = value.SliceNullTerminatedString();
 		double dNewValue = double.TryParse(value, out double d) ? d : 0;
 		if (ClampValue(ref dNewValue)) {
 			value = $"{dNewValue:.4}";

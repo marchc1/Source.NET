@@ -17,7 +17,8 @@ public struct TokenizedCommand
 	Range[] ppArgs;
 
 	/// <summary>
-	/// How many arguments are in the tokenized command?
+	/// How many arguments are in the tokenized command? Note that this also contains the command itself. So a command
+	/// executed with no arguments will return 1 here, for example.
 	/// </summary>
 	/// <returns></returns>
 	public readonly int ArgC() => argCount;
@@ -37,6 +38,36 @@ public struct TokenizedCommand
 		Index endIdx = ppArgs[argCount - 1].End;
 
 		return argSBuffer.AsSpan()[startIdx..endIdx];
+	}
+
+	/// <summary>
+	/// Gets a single index from the command, and attempts to convert it to a 32-bit integer.
+	/// </summary>
+	/// <param name="index">A zero-indexed argument, zero will return the command name, and one is the start of the command arguments.</param>
+	public readonly int Arg(int index, int def = default) {
+		if (int.TryParse(Arg(index), null, out int r))
+			return r;
+		return def;
+	}
+
+	/// <summary>
+	/// Gets a single index from the command, and attempts to convert it to a float.
+	/// </summary>
+	/// <param name="index">A zero-indexed argument, zero will return the command name, and one is the start of the command arguments.</param>
+	public readonly float Arg(int index, float def = default) {
+		if (float.TryParse(Arg(index), null, out float r))
+			return r;
+		return def;
+	}
+
+	/// <summary>
+	/// Gets a single index from the command, and attempts to convert it to a double.
+	/// </summary>
+	/// <param name="index">A zero-indexed argument, zero will return the command name, and one is the start of the command arguments.</param>
+	public readonly double Arg(int index, double def = default) {
+		if (int.TryParse(Arg(index), null, out int r))
+			return r;
+		return def;
 	}
 
 	/// <summary>

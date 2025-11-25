@@ -1,4 +1,6 @@
-﻿namespace Source.Common;
+﻿using System.Numerics;
+
+namespace Source.Common;
 
 public interface IServerNetworkable
 {
@@ -7,4 +9,13 @@ public interface IServerNetworkable
 	ReadOnlySpan<char> GetClassName();
 	void Release();
 	int AreaNum();
+}
+
+public struct PVSInfo {
+	public short HeadNode;
+	public short ClusterCount;
+	public ushort[]? Clusters;
+	public short AreaNum;
+	public short AreaNum2;
+	public Vector3 Center;
 }

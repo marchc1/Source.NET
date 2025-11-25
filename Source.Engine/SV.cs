@@ -28,15 +28,27 @@ public class SV(IServiceProvider services, Cbuf Cbuf, GameServer sv, ED ED, Host
 
 	}
 
-	internal void InitGameDLL() {
+	internal bool InitGameDLL() {
 		Cbuf.Execute();
 		if (sv.DLLInitialized)
-			return;
+			return true;
 
 		ServerGameDLL = services.GetService<IServerGameDLL>();
 		if(ServerGameDLL == null) {
 			Warning("Failed to load server binary\n");
-			return;
+			goto IgnoreThisDLL;
+		}
+
+		ServerGameEnts = services.GetService<IServerGameEnts>();
+		if (ServerGameEnts == null) {
+			Warning("Could not get IServerGameEnts interface\n");
+			goto IgnoreThisDLL;
+		}
+
+		ServerGameClients = services.GetService<IServerGameClients>();
+		if (ServerGameClients == null) {
+			Warning("Could not get IServerGameClients interface\n");
+			goto IgnoreThisDLL;
 		}
 
 		sv.DLLInitialized = true;
@@ -50,6 +62,13 @@ public class SV(IServiceProvider services, Cbuf Cbuf, GameServer sv, ED ED, Host
 		host_state.IntervalPerTick = ServerGameDLL.GetTickInterval();
 		sv.InitMaxClients();
 		Cbuf.Execute();
+
+		return true;
+	IgnoreThisDLL:
+		ServerGameDLL = null;
+		ServerGameEnts = null;
+		ServerGameClients = null;
+		return false;
 	}
 
 	private void InitSendTables(ServerClass? classes) {
@@ -80,5 +99,12 @@ public class SV(IServiceProvider services, Cbuf Cbuf, GameServer sv, ED ED, Host
 		}
 		ED.ClearFreeEdictList();
 		// TODO: EdictChangeInfo
+	}
+
+	internal void InitGameServerSteam() {
+		if (sv.IsMultiplayer()) {
+			// TODO
+			throw new NotImplementedException();
+		}
 	}
 }

@@ -164,7 +164,7 @@ public class MDLCacheNotify : IMDLCacheNotify
 public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 						 IEngineVGuiInternal EngineVGui, MatSysInterface materials,
 						 CollisionModelSubsystem CM, IMaterialSystemHardwareConfig materialSystemHardwareConfig,
-						 IMDLCache MDLCache, IStudioRender StudioRender, IBaseClientDLL g_ClientDLL, MatSysInterface matSys) : IModelLoader
+						 IMDLCache MDLCache, IStudioRender StudioRender, IBaseClientDLL g_ClientDLL, MatSysInterface matSys, ICommandLine CommandLine) : IModelLoader
 {
 	public int GetCount() {
 		throw new NotImplementedException();
@@ -511,7 +511,8 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 			MDLCacheNotify.s.OnDataLoaded(MDLCacheDataType.VCollide, model.Studio);
 	}
 
-	private bool Map_IsValid(ReadOnlySpan<char> name, bool quiet = false) {
+	public bool Map_IsValid(ReadOnlySpan<char> name, bool quiet = false) {
+		name = name.SliceNullTerminatedString();
 		if (name.IsEmpty || name[0] == '\0') {
 			if (!quiet)
 				ConMsg("ModelLoader.Map_IsValid: Empty mapname!\n");

@@ -163,6 +163,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<IMod, BaseMod>();
 		this.AddSingleton<IGame, Game>();
 		this.AddSingleton<IVDebugOverlay, DebugOverlay>();
+		this.AddSingleton<IGameEventManager2, GameEventManager>();
 		this.AddSingleton<ModInfo>(); // This may not be valid for a while! At least until gameinfo is readable!
 									  // Client state and server state singletons
 		this.AddSingleton<ClientState>();
