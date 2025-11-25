@@ -61,7 +61,7 @@ public class Material : IMaterialInternal
 		Span<char> temp = stackalloc char[materialName.Length];
 		materialName.ToLowerInvariant(temp);
 		temp = temp.StripExtension(temp);
-
+		temp = temp.SliceNullTerminatedString();
 		this.materials = materials;
 		name = new(temp);
 		texGroupName = new(textureGroupName);
