@@ -159,6 +159,8 @@ public class GModTable {
 	readonly Dictionary<int, GModVariant> Values;
 	readonly GetRefVariant FindValue;
 
+	public bool IsEmpty() => Values.Count == 0;
+
 	public GModTable() {
 		Values = [];
 		FindValue = FindValueMethod.CreateDelegate<GetRefVariant>(Values);

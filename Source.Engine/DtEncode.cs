@@ -634,12 +634,7 @@ public struct PropTypeFns
 		}
 	}
 
-	public static void GModTable_DecodeZero(ref DecodeInfo info) { }
-	public static void GModTable_Encode(object instance, ref DVariant var, SendProp prop, bf_write writeOut, int objectID) => throw new NotImplementedException();
-	public static ReadOnlySpan<char> GModTable_GetTypeNameString() => "DPT_GMODTable";
-	public static bool GModTable_IsEncodedZero(SendProp prop, bf_read p) => throw new NotImplementedException();
-	public static bool GModTable_IsZero(object instance, ref DVariant var, SendProp prop) => throw new NotImplementedException();
-	public static void GModTable_SkipProp(SendProp prop, bf_read p) {
+	private static bool Skip(bf_read p) {
 		int len = (int)p.ReadUBitLong(GModTable.ENTRIES_BITS);
 		bool clear = p.ReadBool();
 
@@ -650,7 +645,19 @@ public struct PropTypeFns
 			if (valueType != 0)
 				GmodTableTypeFns.Get(valueType).Skip(p);
 		}
+
+		return len == 0;
 	}
+
+	public static void GModTable_DecodeZero(ref DecodeInfo info) { }
+	public static void GModTable_Encode(object instance, ref DVariant var, SendProp prop, bf_write writeOut, int objectID) => throw new NotImplementedException();
+	public static ReadOnlySpan<char> GModTable_GetTypeNameString() => "DPT_GMODTable";
+	public static bool GModTable_IsEncodedZero(SendProp prop, bf_read p) => Skip(p);
+	public static bool GModTable_IsZero(object instance, ref DVariant var, SendProp prop) {
+		GModTable? dt = (GModTable?)var.Data;
+		return dt!.IsEmpty();
+	}
+	public static void GModTable_SkipProp(SendProp prop, bf_read p) => Skip(p);
 #endif
-#endregion
+	#endregion
 }
