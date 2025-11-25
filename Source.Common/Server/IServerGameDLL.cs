@@ -1,8 +1,14 @@
 ﻿
+using SharpCompress.Common;
+
+using Source.Common.Bitbuffers;
+using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.Formats.Keyvalues;
 
 using System.Collections.Generic;
 using System.Drawing;
+using System.Numerics;
 
 namespace Source.Common.Server;
 
@@ -20,7 +26,7 @@ public interface IServerGameDLL
 	// Called any time a new level is started (after GameInit() also on level transitions within a game)
 	bool LevelInit(ReadOnlySpan<char> pMapName,
 									ReadOnlySpan<char> pMapEntities, ReadOnlySpan<char> pOldLevel,
-									ReadOnlySpan<char> pLandmarkName, bool loadGame, bool background );
+									ReadOnlySpan<char> pLandmarkName, bool loadGame, bool background);
 
 	// The server is about to activate
 	void ServerActivate(Edict[] pEdictList, int edictCount, int clientMax);
@@ -54,7 +60,7 @@ public interface IServerGameDLL
 
 	// Let the game .dll allocate it's own network/shared string tables
 	void CreateNetworkStringTables();
-	
+
 	// TODO: Save/Restore
 
 
@@ -70,7 +76,7 @@ public interface IServerGameDLL
 	void PostInit();
 	// Called once per frame even when no level is loaded...
 	void Think(bool finalTick);
-	void PreSaveGameLoaded(ReadOnlySpan<char> pSaveName, bool bCurrentlyInGame );
+	void PreSaveGameLoaded(ReadOnlySpan<char> pSaveName, bool bCurrentlyInGame);
 
 	// Returns true if the game DLL wants the server not to be made public.
 	// Used by commentary system to hide multiplayer commentary servers from the master.
@@ -107,7 +113,9 @@ public interface IServerGameDLL
 /// </summary>
 public interface IServerGameEnts
 {
-
+	void SetDebugEdictBase(Edict edict);
+	void MarkEntitiesAsTouching(Edict e1, Edict e2);
+	void FreeContainingEntity(Edict e);
 }
 
 /// <summary>
@@ -115,5 +123,20 @@ public interface IServerGameEnts
 /// </summary>
 public interface IServerGameClients
 {
-
+	void GetPlayerLimits(out int minPlayers, out int maxPlayers, out int defaultMaxPlayers);
+	bool ClientConnect(Edict entity, ReadOnlySpan<char> name, ReadOnlySpan<char> address, Span<char> reject);
+	void ClientActive(Edict entity, bool loadGame);
+	void ClientDisconnect(Edict entity);
+	void ClientPutInServer(Edict entity, ReadOnlySpan<char> playerName);
+	void ClientCommand(Edict entity, in TokenizedCommand args);
+	void SetCommandClient(int index);
+	void ClientSettingsChanged(Edict edict);
+	void ClientSetupVisibility(Edict viewEntity, Edict client, Span<byte> pvs);
+	TimeUnit_t ProcessUsercmds(Edict player, bf_read buf, int numCmds, int totalCmds, int droppedPackets, bool ignore, bool paused);
+	PlayerState GetPlayerState(Edict player);
+	void ClientEarPosition(Edict entity, out Vector3 earOrigin);
+	void GetBugReportInfo(Span<char> buf);
+	void NetworkIDValidated(ReadOnlySpan<char> userName, ReadOnlySpan<char> networkID);
+	void ClientCommandKeyValues(Edict entity, KeyValues keyValues);
+	void ClientSpawned(Edict player);
 }

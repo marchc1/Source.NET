@@ -2,10 +2,14 @@
 
 using Source;
 using Source.Common;
+using Source.Common.Bitbuffers;
 using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.Server;
+
+using System.Numerics;
 
 namespace Game.Server;
 
@@ -18,7 +22,8 @@ public static class GameInterface
 public class ServerGameDLL(IEngineServer engine, IFileSystem filesystem, ICommandLine CommandLine) : IServerGameDLL
 {
 	public static void DLLInit(IServiceCollection services) {
-		
+		services.AddSingleton<IServerGameEnts, ServerGameEnts>();
+		services.AddSingleton<IServerGameClients, ServerGameClients>();
 	}
 
 	public void BuildAdjacentMapList() {
@@ -130,6 +135,89 @@ public class ServerGameDLL(IEngineServer engine, IFileSystem filesystem, IComman
 	}
 
 	public void Think(bool finalTick) {
+		throw new NotImplementedException();
+	}
+}
+
+
+public class ServerGameClients : IServerGameClients
+{
+	public void ClientActive(Edict entity, bool loadGame) {
+		throw new NotImplementedException();
+	}
+
+	public void ClientCommand(Edict entity, in TokenizedCommand args) {
+		throw new NotImplementedException();
+	}
+
+	public void ClientCommandKeyValues(Edict entity, KeyValues keyValues) {
+		throw new NotImplementedException();
+	}
+
+	public bool ClientConnect(Edict entity, ReadOnlySpan<char> name, ReadOnlySpan<char> address, Span<char> reject) {
+		throw new NotImplementedException();
+	}
+
+	public void ClientDisconnect(Edict entity) {
+		throw new NotImplementedException();
+	}
+
+	public void ClientEarPosition(Edict entity, out Vector3 earOrigin) {
+		throw new NotImplementedException();
+	}
+
+	public void ClientPutInServer(Edict entity, ReadOnlySpan<char> playerName) {
+		throw new NotImplementedException();
+	}
+
+	public void ClientSettingsChanged(Edict edict) {
+		throw new NotImplementedException();
+	}
+
+	public void ClientSetupVisibility(Edict viewEntity, Edict client, Span<byte> pvs) {
+		throw new NotImplementedException();
+	}
+
+	public void ClientSpawned(Edict player) {
+		throw new NotImplementedException();
+	}
+
+	public void GetBugReportInfo(Span<char> buf) {
+		throw new NotImplementedException();
+	}
+
+	public void GetPlayerLimits(out int minPlayers, out int maxPlayers, out int defaultMaxPlayers) {
+		throw new NotImplementedException();
+	}
+
+	public PlayerState GetPlayerState(Edict player) {
+		throw new NotImplementedException();
+	}
+
+	public void NetworkIDValidated(ReadOnlySpan<char> userName, ReadOnlySpan<char> networkID) {
+		throw new NotImplementedException();
+	}
+
+	public double ProcessUsercmds(Edict player, bf_read buf, int numCmds, int totalCmds, int droppedPackets, bool ignore, bool paused) {
+		throw new NotImplementedException();
+	}
+
+	public void SetCommandClient(int index) {
+		throw new NotImplementedException();
+	}
+}
+
+public class ServerGameEnts : IServerGameEnts
+{
+	public void FreeContainingEntity(Edict e) {
+		throw new NotImplementedException();
+	}
+
+	public void MarkEntitiesAsTouching(Edict e1, Edict e2) {
+		throw new NotImplementedException();
+	}
+
+	public void SetDebugEdictBase(Edict edict) {
 		throw new NotImplementedException();
 	}
 }
