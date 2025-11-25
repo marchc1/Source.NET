@@ -817,6 +817,30 @@ public class Host(
 		return true;
 	}
 
+	[ConCommand("map", "Start playing on specified map.", FCvar.DontRecord)]
+	public void Map_f(in TokenizedCommand args, CommandSource source, int clientSlot = -1) {
+		Map_Helper(in args, source, false, false, false);
+	}
+
+	private void Map_Helper(in TokenizedCommand args, CommandSource source, bool editmode, bool background, bool commentary) {
+		if (source != CommandSource.Command)
+			return;
+
+		if(args.ArgC() < 2) {
+			Warning("No map specified\n");
+			return;
+		}
+
+		Span<char> mapName = stackalloc char[128];
+		strcpy(mapName, args[1]);
+
+		ReadOnlySpan<char> reason = null;
+		// lots to do here still
+		Disconnect(false);
+		HostState.NewGame(mapName, false, background);
+		// TODO: accept setpos, setang.
+	}
+
 	public bool NewGame(ReadOnlySpan<char> mapName, bool loadGame, bool backgroundLevel, ReadOnlySpan<char> oldMap, ReadOnlySpan<char> landmark, bool oldSave) {
 #if !SWDS
 		Scr.BeginLoadingPlaque();

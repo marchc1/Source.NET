@@ -9,10 +9,10 @@ public interface IHostState
 	public void Init();
 	public void Frame(double time);
 	public void RunGameInit();
-	public void NewGame(string mapName, bool rememberLocation, bool background);
-	public void LoadGame(string mapName, bool rememberLocation);
-	public void ChangeLevelSP(string mapName, string? landmark);
-	public void ChangeLevelMP(string mapName, string? landmark);
+	public void NewGame(ReadOnlySpan<char> mapName, bool rememberLocation, bool background);
+	public void LoadGame(ReadOnlySpan<char> mapName, bool rememberLocation);
+	public void ChangeLevelSP(ReadOnlySpan<char> mapName, ReadOnlySpan<char> landmark);
+	public void ChangeLevelMP(ReadOnlySpan<char> mapName, ReadOnlySpan<char> landmark);
 	public void GameShutdown();
 	public void Shutdown();
 	public void Restart();
