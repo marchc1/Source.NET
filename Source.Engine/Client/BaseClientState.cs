@@ -262,6 +262,7 @@ public abstract class BaseClientState(
 		channel.RegisterMessage<svc_UpdateStringTable>();
 		channel.RegisterMessage<svc_ClassInfo>();
 		channel.RegisterMessage<svc_BSPDecal>();
+		channel.RegisterMessage<svc_GameEvent>();
 		channel.RegisterMessage<svc_VoiceInit>();
 		channel.RegisterMessage<svc_Sounds>();
 		channel.RegisterMessage<svc_GameEventList>();
@@ -301,6 +302,7 @@ public abstract class BaseClientState(
 			case svc_BSPDecal msg: return ProcessBSPDecal(msg);
 			case svc_VoiceInit msg: return ProcessVoiceInit(msg);
 			case svc_Sounds msg: return ProcessSounds(msg);
+			case svc_GameEvent msg: return ProcessGameEvent(msg);
 			case svc_GameEventList msg: return ProcessGameEventList(msg);
 			case svc_FixAngle msg: return ProcessFixAngle(msg);
 			case svc_SetView msg: return ProcessSetView(msg);
@@ -361,23 +363,27 @@ public abstract class BaseClientState(
 		return true;
 	}
 
-	private bool ProcessSetView(svc_SetView msg) {
+	protected virtual bool ProcessSetView(svc_SetView msg) {
 		return true;
 	}
 
-	private bool ProcessFixAngle(svc_FixAngle msg) {
+	protected virtual bool ProcessFixAngle(svc_FixAngle msg) {
 		return true;
 	}
 
-	private bool ProcessGameEventList(svc_GameEventList msg) {
+	protected virtual bool ProcessGameEvent(svc_GameEvent msg) {
+		return false;
+	}
+
+	protected virtual bool ProcessGameEventList(svc_GameEventList msg) {
 		return true;
 	}
 
-	private bool ProcessBSPDecal(svc_BSPDecal msg) {
+	protected virtual bool ProcessBSPDecal(svc_BSPDecal msg) {
 		return true;
 	}
 
-	private bool ProcessVoiceInit(svc_VoiceInit msg) {
+	protected virtual bool ProcessVoiceInit(svc_VoiceInit msg) {
 		return true;
 	}
 

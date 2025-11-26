@@ -516,16 +516,17 @@ public class svc_GameEvent : NetMessage
 	public override bool ReadFromBuffer(bf_read buffer) {
 		Length = (int)buffer.ReadUBitLong(Protocol.NETMSG_LENGTH_BITS);
 		buffer.CopyTo(DataIn);
-
-		// temp
-		byte[] data = new byte[Length];
-		buffer.ReadBits(data, Length);
-
-		return !buffer.Overflowed;
+		return buffer.SeekRelative(Length);
 	}
 
 	public override bool WriteToBuffer(bf_write buffer) {
-		throw new Exception();
+		Length = DataOut.BitsWritten;
+		if (Length >= (1 << Protocol.NETMSG_LENGTH_BITS))
+			return false;
+
+		buffer.WriteNetMessageType(this);
+		buffer.WriteUBitLong((uint)Length, Protocol.NETMSG_LENGTH_BITS);
+		return buffer.WriteBits(DataOut.BaseArray, Length);
 	}
 }
 public class svc_GameEventList : NetMessage
