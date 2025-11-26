@@ -114,7 +114,7 @@ public class StaticPanel : Panel
 public class FocusOverlayPanel : Panel
 {
 	public static readonly ConVar mat_drawTitleSafe = new("mat_drawTitleSafe", "0", FCvar.None, "Enable title safe overlay");
-	public static readonly ConVar vgui_drawfocus = new("vgui_drawfocus", "1", FCvar.None, "Report which panel is under the mouse.");
+	public static readonly ConVar vgui_drawfocus = new("vgui_drawfocus", "0", FCvar.None, "Report which panel is under the mouse.");
 	static public List<Panel> FocusPanelList = [];
 	static public Panel? DrawTreeSelectedPanel;
 
