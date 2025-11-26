@@ -203,8 +203,8 @@ public class ClientState : BaseClientState
 
 		clientGlobalVariables.TickCount = tick;
 		clientGlobalVariables.CurTime = tick * host_state.IntervalPerTick;
-		clientGlobalVariables.FrameTime = (tick - OldTickCount) * host_state.IntervalPerTick; 
-																								
+		clientGlobalVariables.FrameTime = (tick - OldTickCount) * host_state.IntervalPerTick;
+
 		return true;
 	}
 
@@ -283,7 +283,26 @@ public class ClientState : BaseClientState
 	protected override bool ProcessGameEventList(svc_GameEventList msg) {
 		return gameEventManager.ParseEventList(msg);
 	}
+	protected override bool ProcessGameEvent(svc_GameEvent msg) {
+		int startbit = msg.DataIn.BitsRead;
 
+		IGameEvent? ev = gameEventManager.UnserializeEvent(msg.DataIn);
+
+		int length = msg.DataIn.BitsRead - startbit;
+
+		if (length != msg.Length) {
+			DevMsg("ClientState.ProcessGameEvent: KeyValue length mismatch.\n");
+			return true;
+		}
+
+		if (ev == null) {
+			DevMsg("ClientState.ProcessGameEvent: UnserializeKeyValue failed.\n");
+			return true;
+		}
+
+		gameEventManager.FireEventClientSide(ev);
+		return true;
+	}
 	public override bool ProcessClassInfo(svc_ClassInfo msg) {
 		if (msg.CreateOnClient) {
 			DtCommonEng.CreateClientTablesFromServerTables();
@@ -302,7 +321,7 @@ public class ClientState : BaseClientState
 		return true;
 	}
 	void ProcessSoundsWithProtoVersion(svc_Sounds msg, List<SoundInfo> sounds, int protoVersion) {
-		SoundInfo defaultSound = default; 
+		SoundInfo defaultSound = default;
 		defaultSound.SetDefault();
 		ref SoundInfo pDeltaSound = ref defaultSound;
 
@@ -324,7 +343,7 @@ public class ClientState : BaseClientState
 		}
 	}
 	protected override bool ProcessSounds(svc_Sounds msg) {
-		if (msg.DataIn.Overflowed) 
+		if (msg.DataIn.Overflowed)
 			return false;
 
 		List<SoundInfo> sounds = ListPool<SoundInfo>.Shared.Alloc();
@@ -340,9 +359,9 @@ public class ClientState : BaseClientState
 
 			int nFallbackProtocol = 0;
 
-			if (clientGlobalVariables.NetworkProtocol == Protocol.PROTOCOL_VERSION_18) 
+			if (clientGlobalVariables.NetworkProtocol == Protocol.PROTOCOL_VERSION_18)
 				nFallbackProtocol = Protocol.PROTOCOL_VERSION_19;
-			else if (clientGlobalVariables.NetworkProtocol == Protocol.PROTOCOL_VERSION_19) 
+			else if (clientGlobalVariables.NetworkProtocol == Protocol.PROTOCOL_VERSION_19)
 				nFallbackProtocol = Protocol.PROTOCOL_VERSION_18;
 
 			if (nFallbackProtocol != 0) {
@@ -1070,7 +1089,7 @@ public class ClientState : BaseClientState
 		if (index <= 0 || SoundPrecacheTable == null)
 			return null;
 
-		if (index >= SoundPrecacheTable.GetNumStrings()) 
+		if (index >= SoundPrecacheTable.GetNumStrings())
 			return null;
 
 		PrecacheItem p = SoundPrecache[index];
@@ -1078,7 +1097,7 @@ public class ClientState : BaseClientState
 		if (s != null)
 			return s;
 
-		ReadOnlySpan<char>	name = SoundPrecacheTable.GetString(index);
+		ReadOnlySpan<char> name = SoundPrecacheTable.GetString(index);
 
 		s = Sound.PrecacheSound(name);
 

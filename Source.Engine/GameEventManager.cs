@@ -11,6 +11,8 @@ using Source.Engine.Server;
 
 using System.Xml.Linq;
 
+using static Source.Common.Audio.SfxTable.Impl;
+
 namespace Source.Engine;
 
 public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
@@ -64,6 +66,7 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 		return AddListener(listener, descriptor, serverSide ? GameEventListenerType.Serverside : GameEventListenerType.Clientside);
 	}
 
+	public IGameEvent? CreateEvent(GameEventDescriptor descriptor) => new GameEvent(descriptor);
 	public IGameEvent? CreateEvent(ReadOnlySpan<char> name, bool force = false) {
 		if (name.IsEmpty)
 			return null;
@@ -178,8 +181,53 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 		throw new NotImplementedException();
 	}
 
-	public IGameEvent UnserializeEvent(bf_read buf) {
-		throw new NotImplementedException();
+	public IGameEvent? UnserializeEvent(bf_read buf) {
+		Span<char> databuf = stackalloc char[MAX_EVENT_BYTES];
+
+		// read event id
+
+		int eventid = (int)buf.ReadUBitLong(MAX_EVENT_BITS);
+
+		// get event description
+		GameEventDescriptor? descriptor = GetEventDescriptor(eventid);
+
+		if (descriptor == null) {
+			DevMsg($"GameEventManager.UnserializeEvent: unknown event id {eventid}.\n");
+			return null;
+		}
+
+		// create new event
+		IGameEvent? ev = CreateEvent(descriptor);
+
+		if (ev == null) {
+			DevMsg($"GameEventManager.UnserializeEvent: failed to create event {descriptor.Name}.\n");
+			return null;
+		}
+
+		KeyValues? key = descriptor.Keys?.GetFirstSubKey();
+
+		while (key != null) {
+			ReadOnlySpan<char> keyName = key.Name;
+			GameEventType type = (GameEventType)key.GetInt();
+
+			switch (type) {
+				case GameEventType.Local: break; // ignore 
+				case GameEventType.String:
+					if (buf.ReadString(databuf) != 0)
+						ev.SetString(keyName, databuf);
+					break;
+				case GameEventType.Float: ev.SetFloat(keyName, buf.ReadFloat()); break;
+				case GameEventType.Long: ev.SetInt(keyName, buf.ReadLong()); break;
+				case GameEventType.Short: ev.SetInt(keyName, buf.ReadShort()); break;
+				case GameEventType.Byte: ev.SetInt(keyName, buf.ReadByte()); break;
+				case GameEventType.Bool: ev.SetInt(keyName, buf.ReadOneBit()); break;
+				default: DevMsg(1, $"GameEventManager: unknown type {type} for key '{key.Name}'.\n"); break;
+			}
+
+			key = key.GetNextKey();
+		}
+
+		return ev;
 	}
 
 	static readonly string[] s_GameEventTypeMap = [
@@ -368,13 +416,13 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 
 	// TODO: Call this in server code
 	public void ReloadEventDefinitions() {
-		foreach(var fn in EventFileNames) {
+		foreach (var fn in EventFileNames) {
 			ReadOnlySpan<char> filename = EventFiles.String(fn);
 			LoadEventsFromFile(filename);
 		}
 
 		int count = GameEvents.Count;
-		for (int i = 0; i < count; i++) 
+		for (int i = 0; i < count; i++)
 			GameEvents[i].EventID = i;
 	}
 

@@ -52,7 +52,7 @@ public interface IGameEventManager2
 	IGameEvent DuplicateEvent(IGameEvent ev);
 	void FreeEvent(IGameEvent ev);
 	bool SerializeEvent(IGameEvent ev, bf_write buf);
-	IGameEvent UnserializeEvent(bf_read buf);
+	IGameEvent? UnserializeEvent(bf_read buf);
 }
 
 public interface IGameEventListener

@@ -18,7 +18,8 @@ using GameServer = Source.Engine.Server.GameServer;
 
 namespace Source.Engine.Client;
 
-public class C_ServerClassInfo() {
+public class C_ServerClassInfo()
+{
 	public ClientClass? ClientClass;
 	public string? ClassName;
 	public string? DatatableName;
@@ -63,7 +64,7 @@ public abstract class BaseClientState(
 	public string? LevelFileName;
 	public string? LevelBaseName;
 	public int MaxClients;
-	
+
 	public InlineArray2<InlineArrayMaxEdicts<PackedEntity?>> EntityBaselines;
 
 	public C_ServerClassInfo[] ServerClasses = new C_ServerClassInfo[Constants.TEMP_TOTAL_SERVER_CLASSES];
@@ -101,7 +102,7 @@ public abstract class BaseClientState(
 
 
 	public bool GetClassBaseline(int iClass, out byte[]? fromData, out int fromBits) {
-		ErrorIfNot( iClass >= 0 && iClass < ServerClasses.Length, $"GetDynamicBaseline: invalid class index '{iClass}'");
+		ErrorIfNot(iClass >= 0 && iClass < ServerClasses.Length, $"GetDynamicBaseline: invalid class index '{iClass}'");
 
 		C_ServerClassInfo pInfo = ServerClasses[iClass] ??= new();
 
@@ -116,7 +117,7 @@ public abstract class BaseClientState(
 			pInfo.InstanceBaselineIndex = pBaselineTable.FindStringIndex(str.SliceNullTerminatedString());
 
 			if (pInfo.InstanceBaselineIndex == INetworkStringTable.INVALID_STRING_INDEX) {
-				for (int i = 0; i < pBaselineTable.GetNumStrings(); ++i) 
+				for (int i = 0; i < pBaselineTable.GetNumStrings(); ++i)
 					DevMsg($"{i}: {pBaselineTable.GetString(i)}\n");
 
 				Assert(false);
@@ -334,7 +335,7 @@ public abstract class BaseClientState(
 		}
 
 		if (SignOnState == SignOnState.Spawn) {
-			if (!msg.IsDelta) 
+			if (!msg.IsDelta)
 				SetSignonState(SignOnState.Full, ServerCount);
 			else {
 				ConMsg("Received delta packet entities while spawing!\n");
@@ -342,7 +343,7 @@ public abstract class BaseClientState(
 			}
 		}
 
-		if ((DeltaTick >= 0) || !msg.IsDelta) 
+		if ((DeltaTick >= 0) || !msg.IsDelta)
 			DeltaTick = GetServerTickCount();
 
 		return true;
@@ -398,7 +399,7 @@ public abstract class BaseClientState(
 		ServerClasses = new C_ServerClassInfo[classes.Length];
 		for (int i = 0; i < classes.Length; i++) {
 			ref svc_ClassInfo.Class svclass = ref classes[i];
-			if(svclass.ClassID >= classes.Length) {
+			if (svclass.ClassID >= classes.Length) {
 				Host.EndGame(true, $"ProcessClassInfo: invalid class index ({svclass.ClassID}).\n");
 				return false;
 			}
@@ -711,10 +712,10 @@ public abstract class BaseClientState(
 
 	public virtual string GetCDKeyHash() => "123";
 
-	readonly GameEventManager gameEventManager = (GameEventManager)Singleton<IGameEventManager2>();
+	protected readonly GameEventManager gameEventManager = (GameEventManager)Singleton<IGameEventManager2>();
 
 	public virtual void RunFrame() {
-		if((SignOnState > SignOnState.New) && NetChannel != null && gameEventManager.HasClientListenersChanged()) {
+		if ((SignOnState > SignOnState.New) && NetChannel != null && gameEventManager.HasClientListenersChanged()) {
 			CLC_ListenEvents msg = ObjectPool<CLC_ListenEvents>.Shared.Alloc();
 			{
 				gameEventManager.WriteListenEventList(msg);
@@ -723,7 +724,7 @@ public abstract class BaseClientState(
 			ObjectPool<CLC_ListenEvents>.Shared.Free(msg);
 		}
 
-		if (SignOnState == SignOnState.Challenge) 
+		if (SignOnState == SignOnState.Challenge)
 			CheckForResend();
 	}
 	public virtual bool PrepareSteamConnectResponse(ulong gameServerSteamID, bool gameServerSecure, IPEndPoint addr, bf_write msg) {
@@ -812,7 +813,7 @@ public abstract class BaseClientState(
 		if (className.IsEmpty || className.IsEmpty)
 			return null;
 
-		for (ClientClass? cur = Host.ClientDLL.GetAllClasses(); cur != null; cur = cur.Next) 
+		for (ClientClass? cur = Host.ClientDLL.GetAllClasses(); cur != null; cur = cur.Next)
 			if (className.Equals(cur.NetworkName, StringComparison.OrdinalIgnoreCase))
 				return cur;
 
@@ -852,7 +853,7 @@ public abstract class BaseClientState(
 	}
 
 	public INetworkStringTable? GetStringTable(ReadOnlySpan<char> tableName) {
-		if(StringTableContainer == null) {
+		if (StringTableContainer == null) {
 			Assert(StringTableContainer);
 			return null;
 		}
