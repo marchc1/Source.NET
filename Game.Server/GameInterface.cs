@@ -68,7 +68,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void GameShutdown() {
-		throw new NotImplementedException();
+		ResetGlobalState();
 	}
 
 	public ServerClass? GetAllServerClasses() {

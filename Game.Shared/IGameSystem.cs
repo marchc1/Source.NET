@@ -1,7 +1,8 @@
 ﻿namespace Game.Shared;
 
 
-public interface IGameSystemPerFrame : IGameSystem {
+public interface IGameSystemPerFrame : IGameSystem
+{
 
 #if CLIENT_DLL
 	void PreRender();
@@ -120,10 +121,10 @@ public interface IGameSystem
 		// todo
 	}
 #else
-	static void FrameUpdatePreEntityThinkAllSystems() { 
+	static void FrameUpdatePreEntityThinkAllSystems() {
 		// todo
 	}
-	static void FrameUpdatePostEntityThinkAllSystems() { 
+	static void FrameUpdatePostEntityThinkAllSystems() {
 		// todo
 	}
 	static void PreClientUpdateAllSystems() {
@@ -131,3 +132,63 @@ public interface IGameSystem
 	}
 #endif
 };
+
+public class BaseGameSystem : IGameSystem
+{
+	public virtual bool Init() => true;
+	public virtual bool IsPerFrame() => false;
+	public virtual void LevelInitPostEntity() { }
+	public virtual void LevelInitPreEntity() { }
+	public virtual void LevelShutdownPostEntity() { }
+	public virtual void LevelShutdownPreClearSteamAPIContext() { }
+	public virtual void LevelShutdownPreEntity() { }
+	public virtual ReadOnlySpan<char> Name() => "unnamed";
+	public virtual void OnRestore() { }
+	public virtual void OnSave() { }
+	public virtual void PostInit() { }
+	public virtual void SafeRemoveIfDesired() { }
+	public virtual void Shutdown() { }
+}
+public class BaseGameSystemPerFrame : IGameSystemPerFrame
+{
+	public virtual bool Init() => true;
+	public virtual bool IsPerFrame() => true;
+	public virtual void LevelInitPostEntity() { }
+	public virtual void LevelInitPreEntity() { }
+	public virtual void LevelShutdownPostEntity() { }
+	public virtual void LevelShutdownPreClearSteamAPIContext() { }
+	public virtual void LevelShutdownPreEntity() { }
+	public virtual ReadOnlySpan<char> Name() => "unnamed";
+	public virtual void OnRestore() { }
+	public virtual void OnSave() { }
+	public virtual void PostInit() { }
+	public virtual void SafeRemoveIfDesired() { }
+	public virtual void Shutdown() { }
+
+#if CLIENT_DLL
+	public virtual void PreRender(){ }
+	public virtual void Update(TimeUnit_t frametime){ }
+	public virtual void PostRender(){ }
+#else
+	public virtual void FrameUpdatePreEntityThink() { }
+	public virtual void FrameUpdatePostEntityThink() { }
+	public virtual void PreClientUpdate() { }
+#endif
+}
+public class AutoGameSystem : BaseGameSystem
+{
+	string name;
+	public AutoGameSystem(ReadOnlySpan<char> name = default) {
+		this.name = new(name);
+	}
+	public override ReadOnlySpan<char> Name() => name;
+}
+
+public class AutoGameSystemPerFrame : BaseGameSystemPerFrame
+{
+	string name;
+	public AutoGameSystemPerFrame(ReadOnlySpan<char> name = default) {
+		this.name = new(name);
+	}
+	public override ReadOnlySpan<char> Name() => name;
+}
