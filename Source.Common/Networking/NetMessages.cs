@@ -741,20 +741,22 @@ public class CLC_Move : NetMessage
 		return buffer.WriteBits(DataOut.BaseArray, Length);
 	}
 }
-public class CLC_ListenEvents : NetMessage
+public class CLC_ListenEvents : NetMessage, IPoolableObject
 {
-	public CLC_ListenEvents() : base(CLC.ListenEvents) {
-		EventArray.EnsureCount(MAX_EVENT_NUMBER);
-	}
+	public CLC_ListenEvents() : base(CLC.ListenEvents) {}
 	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
-	public List<uint> EventArray = new List<uint>();
+	public MaxEventNumberBitVec EventArray = new();
+
+	public void Init() { }
+	public void Reset() {
+		EventArray.ClearAll();
+	}
 
 	public override bool WriteToBuffer(bf_write buffer) {
 		buffer.WriteNetMessageType(this);
 		int count = MAX_EVENT_NUMBER / 32;
-		for (int i = 0; i < count; i++) {
-			buffer.WriteUBitLong(EventArray[i], 32);
-		}
+		for (int i = 0; i < count; i++) 
+			buffer.WriteUBitLong(EventArray.GetDWord(i), 32);
 
 		return !buffer.Overflowed;
 	}
