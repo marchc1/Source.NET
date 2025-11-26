@@ -4,12 +4,14 @@ using Source.GUI.Controls;
 
 namespace Game.UI;
 
-public class CvarToggleCheckButton : CheckButton
+public class CCvarToggleCheckButton : CheckButton
 {
+	public static Panel Create_CCvarToggleCheckButton() => new CCvarToggleCheckButton(null, null, null, null);
+
 	string? CvarName;
 	bool StartValue;
 
-	public CvarToggleCheckButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, ReadOnlySpan<char> cvarName) : base(parent, name, text) {
+	public CCvarToggleCheckButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, ReadOnlySpan<char> cvarName) : base(parent, name, text) {
 		CvarName = cvarName.Length > 0 ? new(cvarName) : null;
 		if (CvarName != null)
 			Reset();

@@ -300,7 +300,7 @@ public class MatSystemTexture(IMaterialSystem materials)
 				TextureFlags.NoMip | TextureFlags.NoLOD |
 				TextureFlags.Procedural | TextureFlags.SingleCopy | TextureFlags.PointSample);
 
-			KeyValues vmtTKeyValues = new KeyValues("UnlitGeneric");
+			KeyValues vmtTKeyValues = new("UnlitGeneric");
 			vmtTKeyValues.SetInt("$vertexcolor", 1);
 			vmtTKeyValues.SetInt("$vertexalpha", 1);
 			vmtTKeyValues.SetInt("$ignorez", 1);

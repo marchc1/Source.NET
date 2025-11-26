@@ -6,8 +6,10 @@ using Source.GUI.Controls;
 
 namespace Game.UI;
 
-public class CvarSlider : Slider
+public class CCvarSlider : Slider
 {
+	public static Panel Create_CCvarSlider() => new CCvarSlider(null, null);
+
 	[PanelAnimationVar("use_convar_minmax", "0", "bool")] bool UseCvarMinMax;
 	bool AllowOutOfRange;
 	bool ModifiedOnce;
@@ -19,13 +21,13 @@ public class CvarSlider : Slider
 	bool CreatedInCode;
 	float MinValue;
 	float MaxValue;
-	public CvarSlider(Panel panel, ReadOnlySpan<char> name) : base(panel, name) {
+	public CCvarSlider(Panel? panel, ReadOnlySpan<char> name) : base(panel, name) {
 		SetupSlider(0, 1, "", false);
 		CreatedInCode = false;
 		AddActionSignalTarget(this);
 	}
 
-	public CvarSlider(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, float minValue, float maxValue, ReadOnlySpan<char> cvarName, bool allowOutOfRange) : base(parent, name) {
+	public CCvarSlider(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, float minValue, float maxValue, ReadOnlySpan<char> cvarName, bool allowOutOfRange = false) : base(parent, name) {
 		AddActionSignalTarget(this);
 		SetupSlider(minValue, maxValue, cvarName, allowOutOfRange);
 		CreatedInCode = true;
@@ -124,8 +126,10 @@ public class CvarSlider : Slider
 
 	public override void Paint() {
 		ConVarRef var = new(CvarName!, true);
-		if (!var.IsValid())
+		if (!var.IsValid()) {
+			base.Paint();
 			return;
+		}
 
 		float curValue = var.GetFloat();
 		if (curValue != StartValue) {
@@ -200,6 +204,7 @@ public class CvarSlider : Slider
 		return ModifiedOnce;
 	}
 
+	readonly static KeyValues KV_ControlModified = new("ControlModified");
 	public void OnSliderMoved() {
 		if (HasBeenModified()) {
 			if (LastSliderValue != GetValue()) {
@@ -207,11 +212,14 @@ public class CvarSlider : Slider
 				CurrentValue = GetValue() / 100.0f;
 			}
 
-			PostActionSignal(new KeyValues("ControlModified"));
+			PostActionSignal(KV_ControlModified);
 		}
 	}
 
-	// todo complete
+	public void OnSliderDragEnd() {
+		if (!CreatedInCode)
+			ApplyChanges();
+	}
 
 	public override void OnMessage(KeyValues message, IPanel? from) {
 		switch (message.Name) {
@@ -219,7 +227,7 @@ public class CvarSlider : Slider
 				OnSliderMoved();
 				break;
 			case "SliderDragEnd":
-				// OnSliderDragEnd();
+				OnSliderDragEnd();
 				break;
 			default:
 				base.OnMessage(message, from);

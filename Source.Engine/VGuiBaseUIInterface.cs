@@ -87,20 +87,143 @@ public interface IEngineVGuiInternal : IEngineVGui
 	void HideConsole();
 }
 
-public class EnginePanel(Panel? parent, string name) : EditablePanel(parent, name)
+public class EnginePanel : EditablePanel
 {
+	public EnginePanel(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
+		SetMouseInputEnabled(true);
+		SetKeyboardInputEnabled(true);
+	}
 
+	public void EnableMouseFocus(bool state) {
+		SetMouseInputEnabled(state);
+		SetKeyboardInputEnabled(state);
+	}
 }
 
 
-public class StaticPanel(Panel? parent, string name) : Panel(parent, name)
+public class StaticPanel : Panel
 {
-
+	public StaticPanel(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
+		SetCursor(CursorCode.None);
+		SetKeyboardInputEnabled(false);
+		SetMouseInputEnabled(false);
+	}
 }
 
-public class FocusOverlayPanel(Panel? parent, string name) : Panel(parent, name)
-{
 
+public class FocusOverlayPanel : Panel
+{
+	public static readonly ConVar mat_drawTitleSafe = new("mat_drawTitleSafe", "0", FCvar.None, "Enable title safe overlay");
+	public static readonly ConVar vgui_drawfocus = new("vgui_drawfocus", "0", FCvar.None, "Report which panel is under the mouse.");
+	static public List<Panel> FocusPanelList = [];
+	static public Panel? DrawTreeSelectedPanel;
+
+	public IMaterialSystem materials;
+
+	public FocusOverlayPanel(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
+		SetPaintEnabled(false);
+		SetPaintBorderEnabled(false);
+		SetPaintBackgroundEnabled(false);
+
+		MakePopup();
+
+		SetPostChildPaintEnabled(true);
+		SetKeyboardInputEnabled(false);
+		SetMouseInputEnabled(false);
+	}
+
+	public bool DrawTitleSafeOverlay() {
+		if (!mat_drawTitleSafe.GetBool())
+			return false;
+
+		materials.GetBackBufferDimensions(out int backBufferWidth, out int backBufferHeight);
+
+		int insetX = (int)(0.05f * backBufferWidth);
+		int insetY = (int)(0.05f * backBufferHeight);
+
+		int x = insetX;
+		int y = insetY;
+		int x1 = backBufferWidth - insetX;
+		int y1 = backBufferHeight - insetY;
+
+		Surface.DrawSetColor(255, 0, 0, 255);
+		Surface.DrawOutlinedRect(x, y, x1, y1);
+
+		insetX = (int)(0.075f * backBufferWidth);
+		insetY = (int)(0.075f * backBufferHeight);
+
+		x = insetX;
+		y = insetY;
+		x1 = backBufferWidth - insetX;
+		y1 = backBufferHeight - insetY;
+
+		Surface.DrawSetColor(0, 255, 0, 255);
+		Surface.DrawOutlinedRect(x, y, x1, y1);
+
+		return true;
+	}
+
+	public override void PostChildPaint() {
+		base.PostChildPaint();
+
+		bool needsMoveToFront = false;
+
+		if (DrawTreeSelectedPanel != null) {
+			DrawTreeSelectedPanel.GetClipRect(out int x, out int y, out int x1, out int y1);
+			Surface.DrawSetColor(255, 0, 0, 255);
+			Surface.DrawOutlinedRect(x, y, x1, y1);
+
+			needsMoveToFront = true;
+		}
+
+		if (DrawTitleSafeOverlay()) needsMoveToFront = true;
+		if (DrawFocusPanelList()) needsMoveToFront = true;
+		if (needsMoveToFront) MoveToFront();
+	}
+
+	public bool DrawFocusPanelList() {
+		if (!vgui_drawfocus.GetBool())
+			return false;
+
+		int c = FocusPanelList.Count;
+		if (c <= 0)
+			return false;
+
+		int slot = 0;
+		int fullscreeninset = 0;
+
+		for (int i = 0; i < c; i++) {
+			if (slot > 31)
+				break;
+
+			Panel panel = FocusPanelList[i];
+			if (!panel.IsVisible())
+				continue;
+
+			GetColorForSlot(slot, out int r, out int g, out int b);
+			panel.GetClipRect(out int x, out int y, out int x1, out int y1);
+
+			// if ((x1 - x) == videomode->GetModeUIWidth() && (y1 - y) == videomode->GetModeUIHeight()) {
+			// 	x += fullscreeninset;
+			// 	y += fullscreeninset;
+			// 	x1 -= fullscreeninset;
+			// 	y1 -= fullscreeninset;
+			// 	fullscreeninset++;
+			// }
+
+			Surface.DrawSetColor(r, g, b, 255);
+			Surface.DrawOutlinedRect(x, y, x1, y1);
+			slot++;
+		}
+
+		return true;
+	}
+
+	public static void GetColorForSlot(int slot, out int r, out int g, out int b) {
+		r = (int)(124 + slot * 47.3) & 255;
+		g = (int)(63.78 - slot * 71.4) & 255;
+		b = (int)(108.42 + slot * 13.57) & 255;
+	}
 }
 
 
@@ -168,6 +291,7 @@ public class EngineVGui(
 	EnginePanel staticClientDLLToolsPanel;
 	EnginePanel staticGameUIPanel;
 	EnginePanel staticGameDLLPanel;
+	FocusOverlayPanel staticFocusOverlayPanel;
 	ClientState cl;
 	CL CL;
 	Con Con;
@@ -287,16 +411,16 @@ public class EngineVGui(
 		}
 
 		perc = perc * (1.0f - ProgressBias) + ProgressBias;
-		if (staticGameUIFuncs.UpdateProgressBar((float)perc, desc.Description)) 
+		if (staticGameUIFuncs.UpdateProgressBar((float)perc, desc.Description))
 			Host.View.RenderGuiOnly();
-		
+
 		LastProgressPoint = progress;
 	}
 	public void UpdateCustomProgressBar(float progress, ReadOnlySpan<char> desc) {
 		if (staticGameUIFuncs == null)
 			return;
 
-		if (staticGameUIFuncs.UpdateProgressBar(progress, localize.Find(desc))) 
+		if (staticGameUIFuncs.UpdateProgressBar(progress, localize.Find(desc)))
 			Host.View.RenderGuiOnly();
 	}
 	public void StartCustomProgress() {
@@ -341,7 +465,7 @@ public class EngineVGui(
 			StartSoundParams parms = default;
 			parms.StaticSound = false;
 			parms.SoundSource = cl.ViewEntity;
-			parms.EntChannel= SoundEntityChannel.Auto;
+			parms.EntChannel = SoundEntityChannel.Auto;
 			parms.Sfx = sound;
 			parms.Origin = dummyOrigin;
 			parms.Pitch = 100;
@@ -465,6 +589,12 @@ public class EngineVGui(
 		else
 			staticGameDLLPanel.SetVisible(false);
 
+		staticFocusOverlayPanel = new(staticPanel, "FocusOverlayPanel");
+		staticFocusOverlayPanel.SetBounds(0, 0, w, h);
+		staticFocusOverlayPanel.SetZPos(150);
+		// staticFocusOverlayPanel.MoveToFront(); // FIXME: crashes :(
+		staticFocusOverlayPanel.materials = materials;
+
 		// TODO: the other panels...
 		// Specifically,
 		// - DebugSystemPanel
@@ -472,8 +602,6 @@ public class EngineVGui(
 		// - FogUIPanel
 		// - TxViewPanel
 		// - FocusOverlayPanel
-		// - Con_CreateConsolePanel
-		// - CL_CreateEntityReportPanel
 		// - VGui_CreateDrawTreePanel
 		// - CL_CreateTextureListPanel
 		// - CreateVProfPanels
@@ -497,7 +625,7 @@ public class EngineVGui(
 			staticGameConsole = engineAPI.GetRequiredService<IGameConsole>();
 		}
 
-		if(staticGameConsole != null) {
+		if (staticGameConsole != null) {
 			staticGameConsole.Initialize();
 			staticGameConsole.SetParent(staticGameUIPanel);
 			staticGameConsole.Activate();
@@ -598,6 +726,8 @@ public class EngineVGui(
 		staticGameUIFuncs.RunFrame();
 		vgui.RunFrame();
 
+		DrawMouseFocus();
+
 		surface.CalculateMouseVisible();
 		VGui_ActivateMouse();
 	}
@@ -611,9 +741,9 @@ public class EngineVGui(
 			return;
 		}
 
-		if (surface.IsCursorLocked()) 
+		if (surface.IsCursorLocked())
 			clientDLL.IN_ActivateMouse();
-		else 
+		else
 			clientDLL.IN_DeactivateMouse();
 	}
 
@@ -665,11 +795,96 @@ public class EngineVGui(
 			staticClientDLLToolsPanel.SetParent(saveParent);
 
 			panel.SetVisible(saveVisible);
+
 		}
 
 		if ((mode & PaintMode.Cursor) == PaintMode.Cursor) {
 			matSystemSurface.PaintSoftwareCursor();
 		}
+	}
+
+	static void VGui_RecursePanel(List<Panel> panelList, int x, int y, Panel check, bool include_hidden) {
+		if (!include_hidden && !check.IsVisible())
+			return;
+
+		if (check.IsWithinTraverse(x, y, true) != null)
+			panelList.Add(check);
+
+		int childCount = check.GetChildCount();
+		for (int i = 0; i < childCount; i++) {
+			Panel child = check.GetChild(i);
+			VGui_RecursePanel(panelList, x, y, child, include_hidden);
+		}
+	}
+
+	public void DrawMouseFocus() {
+		var FocusPanelList = FocusOverlayPanel.FocusPanelList;
+
+		FocusPanelList.Clear();
+
+		if (!FocusOverlayPanel.vgui_drawfocus.GetBool())
+			return;
+
+		staticFocusOverlayPanel.MoveToFront();
+
+		bool include_hidden = FocusOverlayPanel.vgui_drawfocus.GetInt() == 2;
+
+		vgui.GetInput().GetCursorPos(out int x, out int y);
+
+		Panel embedded = (Panel)surface.GetEmbeddedPanel();
+
+		if (surface.IsCursorVisible() && surface.IsWithin(x, y)) {
+			int cCount = surface.GetPopupCount();
+			for (int i = cCount - 1; i >= 0; i--) {
+				Panel? popup = (Panel?)surface.GetPopup(i);
+				if (popup == null)
+					continue;
+
+				if (popup == embedded)
+					continue;
+
+				if (!popup.IsVisible())
+					continue;
+
+				VGui_RecursePanel(FocusPanelList, x, y, popup, include_hidden);
+			}
+			VGui_RecursePanel(FocusPanelList, x, y, embedded, include_hidden);
+		}
+
+		// ConPanel? conPanel = Con.GetConsolePanel();
+		// if (conPanel == null)
+		// 	return;
+
+		// Con_NPrint_s np = new();
+		// np.TimeToLive = 1.0f;
+
+		// int c = FocusPanelList.Count;
+		// int slot = 0;
+		// for (int i = 0; i < c; i++) {
+		// 	if (slot > 31)
+		// 		break;
+
+		// 	Panel panel = FocusPanelList[i];
+		// 	if (panel == null)
+		// 		continue;
+
+		// 	np.Index = slot;
+
+		// 	FocusOverlayPanel.GetColorForSlot(slot, out int r, out int g, out int b);
+
+		// 	np.Color[0] = r / 255.0f;
+		// 	np.Color[1] = g / 255.0f;
+		// 	np.Color[2] = b / 255.0f;
+
+		// 	conPanel.Con_NXPrintf(np, $"{slot + 1:3}:  {panel.GetName()}\n");
+
+		// 	slot++;
+		// }
+
+		// while (slot <= 31) {
+		// 	conPanel.Con_NPrintf(slot, "");
+		// 	slot++;
+		// }
 	}
 
 	IPanel IEngineVGui.GetPanel(VGuiPanelType type) => GetRootPanel(type);

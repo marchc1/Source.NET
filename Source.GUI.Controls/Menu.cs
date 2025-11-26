@@ -270,6 +270,20 @@ public class Menu : Panel
 		return AddCascadingMenuItem(itemText, itemText, target, cascadeMenu, userData);
 	}
 
+	public void UpdateMenuItem(int itemID, ReadOnlySpan<char> itemText, KeyValues? message, KeyValues? userData = null) {
+		Assert(itemID >= 0 && itemID < MenuItems.Count);
+
+		MenuItem item = MenuItems[itemID];
+		if (item != null) {
+			item.SetText(itemText);
+			item.SetCommand(message);
+			if (userData != null)
+				item.SetUserData(userData);
+		}
+
+		RecalculateWidth = true;
+	}
+
 	public void SetNumberOfVisibleItems(int numLines) {
 		NumVisibleLines = numLines;
 		InvalidateLayout(false);

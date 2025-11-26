@@ -23,7 +23,7 @@ public class OptionsSubKeyboard : PropertyPage
 
 	List<string> KeysToUnbind = new();
 
-	public OptionsSubKeyboard(Panel? parent, string? name) : base(parent, name) {
+	public OptionsSubKeyboard(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 		for (int i = 0; i < KeyBindings.Length; i++)
 			KeyBindings[i] = new();
 
@@ -40,7 +40,11 @@ public class OptionsSubKeyboard : PropertyPage
 		ClearBindingButton.SetEnabled(false);
 	}
 
-	~OptionsSubKeyboard() => DeleteSavedBindings();
+	// FIXME #37
+	public override void Dispose() {
+		base.Dispose();
+		DeleteSavedBindings();
+	}
 
 	public override void OnResetData() {
 		FillInCurrentBindings();

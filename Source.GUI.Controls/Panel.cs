@@ -1259,6 +1259,11 @@ public class Panel : IPanel
 		return true;
 	}
 
+	public bool IsCursorOver() {
+		Input.GetCursorPos(out int x, out int y);
+		return IsWithin(x, y);
+	}
+
 	private bool IsMouseInputDisabledForThisPanel() {
 		return (Flags & PanelFlags.IsMouseDisabledForThisPanelOnly) != 0;
 	}
@@ -2297,7 +2302,7 @@ public class Panel : IPanel
 			case "Command": OnCommand(message.GetString("command")); break;
 		}
 		if (vgui_print_messages.GetBool())
-			if (vgui_print_messages.GetInt() == 2 || !message.Name.Contains("Ticked"))
+			if (vgui_print_messages.GetInt() == 2 || (!message.Name.Contains("Ticked") && !message.Name.Contains("Moved")))
 				Msg($"Message from {from} to {this}: {message.Name}\n");
 	}
 

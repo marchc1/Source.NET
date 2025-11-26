@@ -858,7 +858,7 @@ public class PropertySheet : EditablePanel
 			base.OnKeyCodePressed(code);
 	}
 
-	public void OnTextChanged(Panel panel, string text) {
+	public void OnTextChanged(Panel panel, ReadOnlySpan<char> text) {
 		if (panel == Combo) {
 			Span<char> tabText = stackalloc char[30];
 			for (int i = 0; i < PageTabs.Count; i++) {
@@ -881,7 +881,7 @@ public class PropertySheet : EditablePanel
 				OnTabPressed((Panel)from!);
 				return;
 			case "TextChanged":
-				OnTextChanged((Panel)from!, message.GetString("text", "").ToString());
+				OnTextChanged((Panel)from!, message.GetString("text", ""));
 				return;
 			case "OpenContextMenu":
 				OnOpenContextMenu(message);

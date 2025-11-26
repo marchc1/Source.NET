@@ -174,7 +174,11 @@ public class BuildGroup
 
 			newPanel.SetAutoDelete(true);
 		}
-
+#if DEBUG
+		else {
+			Warning($"BuildGroup::NewControl Could not create control of type '{controlKeys.GetString("ControlName")}'\n");
+		}
+#endif
 		return newPanel;
 	}
 
@@ -232,6 +236,15 @@ public class BuildGroup
 
 		if (!RegisteredControlSettingsFiles.Contains(symbol))
 			RegisteredControlSettingsFiles.Add(symbol);
+	}
+
+	public int GetRegisteredControlSettingsFileCount() => RegisteredControlSettingsFiles.Count;
+
+	public ReadOnlySpan<char> GetRegisteredControlSettingsFileByIndex(int index) {
+		if (index < 0 || index >= RegisteredControlSettingsFiles.Count)
+			return [];
+
+		return RegisteredControlSettingsFiles[index].ToString();
 	}
 
 	public void PanelAdded(Panel panel) {

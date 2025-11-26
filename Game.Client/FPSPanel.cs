@@ -55,7 +55,7 @@ public class FPSPanel : Panel
 			if (LastRealTime != -1.0) {
 				i++;
 				int fps = -1;
-				Color color = default;
+				Color color;
 				if (cl_showfps.GetInt() == 2) {
 					const double NewWeight = 0.1;
 					double newFrame = 1.0 / realFrameTime;

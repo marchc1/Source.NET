@@ -47,7 +47,11 @@ public class ControlsListPanel : SectionedListPanel
 		// Font = INVALID_FONT;
 	}
 
-	~ControlsListPanel() => InlineEditPanel.MarkForDeletion();
+	// FIXME #37
+	public override void Dispose() {
+		base.Dispose();
+		InlineEditPanel.MarkForDeletion();
+	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);

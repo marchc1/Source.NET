@@ -253,8 +253,7 @@ public class SectionedListPanel : Panel
 		base.PerformLayout();
 
 		LayoutPanels(ContentHeight);
-
-		GetBounds(out int cx, out int cy, out int cwide, out int ctall);
+		GetBounds(out _, out _, out int cwide, out int ctall);
 
 		if (ContentHeight > ctall && VerticalScrollbarEnabled) {
 			ScrollBar.SetVisible(true);

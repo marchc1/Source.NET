@@ -295,8 +295,8 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		tempNameBuffer.CopyTo(vmtName["materials/".Length..]);
 
 		List<FileNameHandle_t>? includes = null;
-		KeyValues keyValues = new KeyValues("vmt");
-		KeyValues patchKeyValues = new KeyValues("vmt_patches");
+		KeyValues keyValues = new("vmt");
+		KeyValues patchKeyValues = new("vmt_patches");
 		if (!Material.LoadVMTFile(FileSystem, ref keyValues, patchKeyValues, vmtName, true, null)) {
 			keyValues = null!;
 			patchKeyValues = null!;

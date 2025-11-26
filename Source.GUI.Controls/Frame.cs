@@ -510,7 +510,7 @@ public class Frame : EditablePanel
 		Primed = false;
 		CustomTitleFont = null;
 
-		SetTitle("#Frame_Untitled", parent != null ? false : true);
+		SetTitle("#Frame_Untitled", parent == null);
 		SetBuildGroup(GetBuildGroup());
 		SetMinimumSize(128, 66);
 		GetFocusNavGroup().SetFocusTopLevel(true);
@@ -601,7 +601,7 @@ public class Frame : EditablePanel
 		SetOverridableColor(out TitleBarDisabledFgColor, GetSchemeColor("FrameTitleBar.DisabledTextColor", scheme));
 		SetOverridableColor(out TitleBarDisabledBgColor, GetSchemeColor("FrameTitleBar.DisabledBgColor", scheme));
 
-		ReadOnlySpan<char> font = null;
+		ReadOnlySpan<char> font;
 		if (SmallCaption)
 			font = scheme.GetResourceString("FrameTitleBar.SmallFont");
 		else
@@ -705,10 +705,9 @@ public class Frame : EditablePanel
 
 		float scale = 1;
 		if (IsProportional()) {
-			Surface.GetScreenSize(out int screenW, out int screenH);
-			Surface.GetProportionalBase(out int proW, out int proH);
-
-			scale = ((float)(screenH) / (float)(proH));
+			Surface.GetScreenSize(out _, out int screenH);
+			Surface.GetProportionalBase(out _, out int proH);
+			scale = screenH / proH;
 		}
 
 		int offset_start = (int)(20 * scale);
@@ -747,8 +746,8 @@ public class Frame : EditablePanel
 		float scale = 1.0f;
 
 		if (IsProportional()) {
-			Surface.GetScreenSize(out int screenW, out int screenH);
-			Surface.GetProportionalBase(out int proW, out int proH);
+			Surface.GetScreenSize(out _, out int screenH);
+			Surface.GetProportionalBase(out _, out int proH);
 
 			scale = (float)screenH / proH;
 		}
@@ -870,16 +869,13 @@ public class Frame : EditablePanel
 			SysMenu.AddMenuItem("Close", "#SysMenu_Close", "Close", this);
 
 			Panel menuItem = SysMenu.FindChildByName("Maximize")!;
-			if (menuItem != null)
-				menuItem.SetEnabled(MinimizeButton!.IsVisible());
+			menuItem?.SetEnabled(MinimizeButton!.IsVisible());
 
 			menuItem = SysMenu.FindChildByName("Minimize")!;
-			if (menuItem != null)
-				menuItem.SetEnabled(MaximizeButton!.IsVisible());
+			menuItem?.SetEnabled(MaximizeButton!.IsVisible());
 
 			menuItem = SysMenu.FindChildByName("Close")!;
-			if (menuItem != null)
-				menuItem.SetEnabled(CloseButton!.IsVisible());
+			menuItem?.SetEnabled(CloseButton!.IsVisible());
 
 			return SysMenu;
 		}
@@ -1031,7 +1027,7 @@ public class Frame : EditablePanel
 				int nTitleWidth = wide - 72;
 
 				if (MenuButton != null && MenuButton.IsVisible()) {
-					MenuButton.GetImageSize(out int mw, out int mh);
+					MenuButton.GetImageSize(out int mw, out _);
 					nTitleX += mw;
 					nTitleWidth -= mw;
 				}

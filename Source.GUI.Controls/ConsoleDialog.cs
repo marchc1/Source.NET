@@ -87,14 +87,17 @@ class HistoryItem
 		return "";
 	}
 
-	public void SetText(string text, string? extra) {
-		Text = text;
-		if (extra != null) {
-			ExtraText = extra;
+	public void SetText(ReadOnlySpan<char> text, ReadOnlySpan<char> extra) {
+		Text = text.ToString();
+
+		if (!extra.IsEmpty) {
 			HasExtra = true;
+			ExtraText = extra.ToString();
 		}
-		else
+		else {
 			HasExtra = false;
+			ExtraText = null;
+		}
 	}
 }
 
@@ -116,8 +119,8 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 	protected bool WasBackspacing;
 	protected bool StatusVersion;
 
-	List<CompletionItem> CompletionItems = new();
-	List<HistoryItem> CommandHistory = new();
+	List<CompletionItem> CompletionItems = [];
+	List<HistoryItem> CommandHistory = [];
 
 	static readonly KeyValues KV_ClosedByHittingTilde = new("ClosedByHittingTilde");
 	static readonly KeyValues KV_Close = new("Close");
@@ -126,13 +129,13 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		if (panel != Entry)
 			return;
 
-		Array.Copy(PartialText, PreviousPartialText, PartialText.Length);
-
+		PartialText.CopyTo(PreviousPartialText);
+		Array.Clear(PartialText);
 		Entry.GetText(PartialText);
-		int len = Array.IndexOf(PartialText, '\0');
-		if (len == -1) len = PartialText.Length;
 
-		bool hitTilde = len > 0 && (PartialText[len - 1] == '~' || PartialText[len - 1] == '`');
+		int len = PartialText.IndexOf('\0');
+
+		bool hitTilde = len != 0 && (PartialText[len] == '~' || PartialText[len] == '`');
 		bool altKeyDown = Input.IsKeyDown(ButtonCode.KeyLAlt) || Input.IsKeyDown(ButtonCode.KeyRAlt);
 		bool ctrlKeyDown = Input.IsKeyDown(ButtonCode.KeyLControl) || Input.IsKeyDown(ButtonCode.KeyRControl);
 
@@ -158,7 +161,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		else {
 			CompletionList.SetVisible(true);
 
-			int MAX_MENU_ITEMS = 10;
+			const int MAX_MENU_ITEMS = 10;
 			CompletionList.DeleteAllItems();
 
 			for (int i = 0; i < CompletionItems.Count && i < MAX_MENU_ITEMS; i++) {
@@ -171,7 +174,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 					text = CompletionItems[i]!.GetItemText();
 				}
 
-				KeyValues kv = new KeyValues("CompletionCommand");
+				KeyValues kv = new("CompletionCommand");
 				kv.SetString("command", text);
 				CompletionList.AddMenuItem(text, kv, this);
 			}
@@ -284,15 +287,14 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		return cmd;
 	}
 
-	private void RebuildCompletionList(ReadOnlySpan<char> text) // todo: this isnt a perfect 1:1 just yet, still needs some cleaning up
-	{
+	private void RebuildCompletionList(ReadOnlySpan<char> text) {
 		ClearCompletionList();
 
 		int len = text.IndexOf('\0');
 		if (len < 1) {
 			for (int i = 0; i < CommandHistory.Count; i++) {
 				HistoryItem item = CommandHistory[i];
-				CompletionItem comp = new CompletionItem();
+				CompletionItem comp = new();
 				CompletionItems.Add(comp);
 				comp.IsCommand = true;
 				comp.Command = null;
@@ -317,7 +319,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			Assert(count <= 64);
 
 			for (int i = 0; i < count; i++) {
-				CompletionItem item = new CompletionItem();
+				CompletionItem item = new();
 				CompletionItems.Add(item);
 				item.IsCommand = false;
 				item.Command = null;
@@ -335,7 +337,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 					continue;
 
 				if (text[..len].CompareTo(cmdName[..len], StringComparison.OrdinalIgnoreCase) == 0) {
-					CompletionItem item = new CompletionItem();
+					CompletionItem item = new();
 					CompletionItems.Add(item);
 					item.Command = cmd;
 					string tst = cmd.GetName();
@@ -440,7 +442,6 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			}
 			else if (code == ButtonCode.KeyDown) {
 				OnAutoComplete(false);
-
 				Entry.RequestFocus();
 			}
 			else if (code == ButtonCode.KeyUp) {
@@ -641,7 +642,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			char[] text = new char[256];
 			text[0] = '\0';
 			if (Text != null)
-				strcpy(text, Text.Text);
+				strcpy(text, Text.GetText());
 			return text;
 		}
 	}

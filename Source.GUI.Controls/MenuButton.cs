@@ -24,7 +24,7 @@ public class MenuButton : Button
 		DropMenuButtonStyle = true;
 
 		SetDropMenuButtonStyle(false);
-		SetUseCaptureMouse(true);
+		SetUseCaptureMouse(false);
 		SetButtonActivationType(ActivationType.OnPressed);
 	}
 
@@ -198,7 +198,7 @@ public class MenuButton : Button
 
 		DropMenuImage!.GetContentSize(out int contentW, out int contentH);
 		int drawX = GetWide() - contentW - 2;
-		if (x <= drawX || OnCheckMenuItemCount() != 0) {
+		if (x <= drawX || OnCheckMenuItemCount() == 0) {
 			SetButtonActivationType(ActivationType.OnPressedAndReleased);
 			SetUseCaptureMouse(true);
 		}

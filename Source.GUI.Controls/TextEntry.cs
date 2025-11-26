@@ -1857,7 +1857,7 @@ public class TextEntry : Panel
 		base.OnSetFocus();
 	}
 
-	public void OnSetText(ReadOnlySpan<char> text) {
+	public virtual void OnSetText(ReadOnlySpan<char> text) {
 		SetText(text);
 	}
 
@@ -1918,7 +1918,8 @@ public class TextEntry : Panel
 		if (text.IsEmpty)
 			text = "";
 
-		if (text.Length > 0 && text[0] == '#') {
+		int length = text.IndexOf('\0');
+		if (length > 0 && text[0] == '#') {
 			ReadOnlySpan<char> localized = Localize.Find(text);
 			if (!localized.IsEmpty) {
 				SetText(localized);
@@ -1929,7 +1930,7 @@ public class TextEntry : Panel
 		TextStream.Clear();
 		TextStream.EnsureCapacity(text.Length);
 		int missed_count = 0;
-		for (int i = 0; i < text.Length; i++) {
+		for (int i = 0; i < length; i++) {
 			if (text[i] == '\r') {
 				missed_count++;
 				continue;
