@@ -169,7 +169,7 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 	readonly List<Model> NetworkedDynamicModels = [];
 }
 
-public class ModelInfoClient(ClientState cl, IFileSystem filesystem, IModelLoader modelloader, IMDLCache mdlCache) : ModelInfo(filesystem, modelloader, mdlCache)
+public class ModelInfoClient(IFileSystem filesystem, IModelLoader modelloader, IMDLCache mdlCache) : ModelInfo(filesystem, modelloader, mdlCache)
 {
 	public override Model? GetModel(int modelIndex) {
 		if (IsDynamicModelIndex(modelIndex))

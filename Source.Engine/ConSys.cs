@@ -54,7 +54,6 @@ public class ConPanel : BasePanel
 
 	public Host Host = Singleton<Host>();
 	public Con Con = Singleton<Con>();
-	public ClientState cl => Host.cl;
 	public VideoMode_Common videomode = (VideoMode_Common)Singleton<IVideoMode>();
 
 	public override void ApplySchemeSettings(IScheme scheme) {
@@ -524,7 +523,7 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 		if (Debugger.IsAttached && ConsoleCVars.con_trace.GetInt() == 0 && !spew_consolelog_to_debugstring.GetBool())
 			Sys.OutputDebugString(msg);
 
-		if (Host.sv.IsDedicated()) {
+		if (sv.IsDedicated()) {
 			g_bInColorPrint = false;
 			return;     // no graphics mode
 		}
@@ -537,7 +536,7 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 			cvar.ConsoleColorPrintf(clr, msg);
 		else {
 			if (g_fIsDebugPrint) {
-				if (!Host.cl.IsActive() || !convisible)
+				if (!cl.IsActive() || !convisible)
 					cvar.ConsoleDPrintf(msg);
 			}
 			else

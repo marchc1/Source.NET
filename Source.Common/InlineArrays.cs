@@ -179,6 +179,7 @@ namespace Source;
 [InlineArray(Studio.MAXSTUDIOPOSEPARAM)] public struct InlineArrayMaxStudioPoseParam<T> { public T item; public int Length => Studio.MAXSTUDIOPOSEPARAM; }
 [InlineArray(Studio.MAXSTUDIOBONECTRLS)] public struct InlineArrayMaxStudioBoneCtrls<T> { public T item; }
 [InlineArray(Constants.MAX_AREA_STATE_BYTES)] public struct InlineArrayMaxAreaStateBytes<T> { public T item; }
+[InlineArray(Constants.MAX_PLAYER_NAME_LENGTH)] public struct InlineArrayMaxPlayerNameLength<T> { public T item; }
 [InlineArray(Constants.MAX_AREA_PORTAL_STATE_BYTES)] public struct InlineArrayMaxAreaPortalStateBytes<T> { public T item; }
 [InlineArray(BSPFileCommon.MAXLIGHTMAPS)] public struct InlineArrayMaxLightmaps<T> { public T item; }
 [InlineArray(AudioConstants.MAX_CHANNELS)] public struct InlineArrayMaxChannels<T> { public T item; }

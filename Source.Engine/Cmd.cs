@@ -15,16 +15,12 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 	Cbuf Cbuf;
 	Host Host;
 	ICvar cvar;
-	ClientState cl;
-	GameServer sv;
 	ICommandLine CommandLine;
 	CvarUtilities cv;
 	public void Init() {
 		Cbuf = provider.GetRequiredService<Cbuf>();
 		Host = provider.GetRequiredService<Host>();
 		cvar = provider.GetRequiredService<ICvar>();
-		cl = provider.GetRequiredService<ClientState>();
-		sv = provider.GetRequiredService<GameServer>();
 		cv = provider.GetRequiredService<CvarUtilities>();
 		CommandLine = provider.GetRequiredService<ICommandLine>();
 	}

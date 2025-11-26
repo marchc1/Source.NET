@@ -100,6 +100,19 @@ public ref struct PrintF
 		WriteAnyLiterals();
 		return this;
 	}
+
+	public unsafe PrintF U(uint i) {
+		WriteAnyLiterals();
+		reader.ReadVariable(out char t, out int varIdx);
+		Span<char> buffer = stackalloc char[11];
+		if (i.TryFormat(buffer, out int written))
+#pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+			input.Write(buffer[..written]);
+#pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+
+		WriteAnyLiterals();
+		return this;
+	}
 	public unsafe PrintF D(long i) {
 		WriteAnyLiterals();
 		reader.ReadVariable(out char t, out int varIdx);

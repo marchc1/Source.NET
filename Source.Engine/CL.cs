@@ -35,7 +35,6 @@ public partial class CL(IServiceProvider services, Net Net,
 	public IClientLeafSystemEngine ClientLeafSystem => ClientDLL.ClientLeafSystem;
 
 
-	public ClientState cl;
 	public IBaseClientDLL clientDLL;
 	public IEngineClient engineClient;
 	public void ApplyAddAngle() {
@@ -57,7 +56,6 @@ public partial class CL(IServiceProvider services, Net Net,
 	}
 
 	public void Init() {
-		cl = services.GetRequiredService<ClientState>();
 		cl.Clear();
 
 		clientDLL = services.GetRequiredService<IBaseClientDLL>();

@@ -230,7 +230,7 @@ public class FocusOverlayPanel : Panel
 public class EngineVGui(
 	Sys Sys, Net Net, IEngineAPI engineAPI, ISurface surface,
 	IMaterialSystem materials, ILauncherManager launcherMgr,
-	ICommandLine CommandLine, IFileSystem fileSystem, GameServer sv, Cbuf Cbuf, Sound Sound, Host Host
+	ICommandLine CommandLine, IFileSystem fileSystem, Cbuf Cbuf, Sound Sound, Host Host
 	) : IEngineVGuiInternal
 {
 	public static LoadingProgressDescription[] ListenServerLoadingProgressDescriptions = [
@@ -292,7 +292,6 @@ public class EngineVGui(
 	EnginePanel staticGameUIPanel;
 	EnginePanel staticGameDLLPanel;
 	FocusOverlayPanel staticFocusOverlayPanel;
-	ClientState cl;
 	CL CL;
 	Con Con;
 
@@ -491,7 +490,6 @@ public class EngineVGui(
 		vguiScheme = engineAPI.GetRequiredService<ISchemeManager>();
 		localize = engineAPI.GetRequiredService<ILocalize>();
 		CL = engineAPI.GetRequiredService<CL>();
-		cl = engineAPI.GetRequiredService<ClientState>();
 		Con = engineAPI.GetRequiredService<Con>();
 		vguiScheme.Init();
 		// IGameConsole, but later.

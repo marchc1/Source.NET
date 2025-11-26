@@ -15,7 +15,7 @@ using System.Numerics;
 
 namespace Source.Engine;
 
-public class EngineClient(ClientState cl, GameServer sv, Cbuf Cbuf, Scr Scr, Con Con, 
+public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, 
 						  IMaterialSystem materials, MaterialSystem_Config MaterialSystemConfig, 
 						  MatSysInterface MatSys, ModelLoader modelloader) : IEngineClient
 {

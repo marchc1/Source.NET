@@ -97,8 +97,6 @@ public class ClientState : BaseClientState
 	public INetworkStringTable? ServerStartupTable;
 	public INetworkStringTable? DynamicModelsTable;
 
-	GameServer? _sv;
-	GameServer sv => _sv ??= Host.sv;
 
 	readonly PrecacheItem[] ModelPrecache = ClassUtils.BlankInstantiatedArray<PrecacheItem>(PrecacheItem.MAX_MODELS);
 	readonly PrecacheItem[] GenericPrecache = ClassUtils.BlankInstantiatedArray<PrecacheItem>(PrecacheItem.MAX_GENERIC);
@@ -111,12 +109,12 @@ public class ClientState : BaseClientState
 
 	readonly Common Common;
 	readonly Sound Sound;
-	public ClientState(Host Host, IFileSystem fileSystem, Net Net, CommonHostState host_state, GameServer sv, Common Common,
+	public ClientState(Host Host, IFileSystem fileSystem, Net Net, CommonHostState host_state, Common Common,
 		Cbuf Cbuf, Cmd Cmd, ICvar cvar, CL CL, IEngineVGuiInternal? EngineVGui, IHostState HostState, Scr Scr, IEngineAPI engineAPI,
 		[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient, IServiceProvider services,
 		IModelLoader modelloader, ICommandLine commandLine, IPrediction ClientSidePrediction, DtCommonEng DtCommonEng, EngineRecvTable recvTable,
 		ClientGlobalVariables clientGlobalVariables, Sound Sound)
-		: base(Host, fileSystem, Net, sv, Cbuf, cvar, EngineVGui, engineAPI, networkStringTableContainerClient) {
+		: base(Host, fileSystem, Net, Cbuf, cvar, EngineVGui, engineAPI, networkStringTableContainerClient) {
 		this.Host = Host;
 		this.fileSystem = fileSystem;
 		this.Net = Net;
@@ -125,7 +123,7 @@ public class ClientState : BaseClientState
 		this.CL = CL;
 		this.Scr = Scr;
 		this.modelloader = modelloader;
-		this.ClockDriftMgr = new(this, sv, Host, host_state, Net, clientGlobalVariables);
+		this.ClockDriftMgr = new(Host, host_state, Net, clientGlobalVariables);
 		this.EngineVGui = EngineVGui;
 		this.HostState = HostState;
 		this.DtCommonEng = DtCommonEng;

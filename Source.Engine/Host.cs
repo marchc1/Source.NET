@@ -54,11 +54,8 @@ public class Host(
 	public MatSysInterface MatSysInterface;
 	public IModelLoader modelloader;
 	public SV SV;
-	GameServer? _sv;
-	public GameServer sv => _sv ??= Singleton<GameServer>();
 	public ServerGlobalVariables serverGlobalVariables;
 	public Cbuf Cbuf;
-	public ClientState cl;
 	public Cmd Cmd;
 	public Con Con;
 	public Key Key;
@@ -627,7 +624,6 @@ public class Host(
 		var engineAPI = services.GetRequiredService<IEngineAPI>();
 		var hostState = services.GetRequiredService<IHostState>();
 		Sys = services.GetRequiredService<Sys>();
-		cl = services.GetRequiredService<ClientState>();
 
 		clientGlobalVariables = services.GetRequiredService<ClientGlobalVariables>();
 		serverGlobalVariables = services.GetRequiredService<ServerGlobalVariables>();

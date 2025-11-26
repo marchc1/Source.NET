@@ -5,7 +5,7 @@ using Source.Engine.Server;
 
 namespace Source.Engine;
 
-public class CvarUtilities(ICvar cvar, ClientState cl, GameServer sv, Host Host, Cmd cmd)
+public class CvarUtilities(ICvar cvar, Host Host, Cmd cmd)
 {
 	public unsafe bool IsCommand(in TokenizedCommand args) {
 		int c = args.ArgC();

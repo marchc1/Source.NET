@@ -12,7 +12,7 @@ using System.Runtime.InteropServices;
 namespace Source.Engine;
 
 public class View(Host Host, IEngineVGuiInternal EngineVGui, IMaterialSystem materials,
-	Render EngineRenderer, Shader Shader, ClientState cl, IBaseClientDLL ClientDLL, IVideoMode videomode)
+	Render EngineRenderer, Shader Shader, IBaseClientDLL ClientDLL, IVideoMode videomode)
 {
 	public void RenderGuiOnly() {
 		materials.BeginFrame(Host.FrameTime);
@@ -52,7 +52,7 @@ public class View(Host Host, IEngineVGuiInternal EngineVGui, IMaterialSystem mat
 }
 
 
-public class RenderView(EngineVGui EngineVGui, Render engineRenderer, ClientState cl) : IRenderView
+public class RenderView(EngineVGui EngineVGui, Render engineRenderer) : IRenderView
 {
 	public virtual void Push2DView(ViewSetup view, ClearFlags flags, ITexture? renderTarget, Frustum frustumPlanes) {
 		engineRenderer.Push2DView(in view, flags, renderTarget, frustumPlanes);

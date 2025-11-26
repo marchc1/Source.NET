@@ -3,6 +3,7 @@
 namespace Source.Common.Commands;
 
 public delegate void FnChangeCallback(IConVar var, in ConVarChangeContext ctx);
+public delegate void FnChangeCallbackSrc(IConVar var, ReadOnlySpan<char> oldString, float oldFloat);
 
 public interface IConsoleDisplayFunc
 {

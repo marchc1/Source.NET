@@ -5,7 +5,7 @@ using Source.Engine.Server;
 
 namespace Source.Engine.Client;
 
-public class ClockDriftMgr(ClientState cl, GameServer sv, Host Host, CommonHostState host_state, Net Net, ClientGlobalVariables clientGlobalVariables)
+public class ClockDriftMgr(Host Host, CommonHostState host_state, Net Net, ClientGlobalVariables clientGlobalVariables)
 {
 	public static readonly ConVar cl_clock_correction = new( "cl_clock_correction", "1", FCvar.Cheat, "Enable/disable clock correction on the client." );
 

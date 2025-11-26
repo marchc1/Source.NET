@@ -191,15 +191,13 @@ public class ModelRender : IModelRender
 	}
 
 	readonly IMDLCache MDLCache;
-	readonly ClientState cl;
 	readonly IStudioRender StudioRender;
 	readonly IMaterialSystem materials;
 	readonly RenderView RenderView;
 	readonly Render Render;
 	readonly Host Host;
-	public ModelRender(IMDLCache MDLCache, ClientState cl, IStudioRender StudioRender, Host Host, Render Render, IRenderView renderView, IMaterialSystem materialSystem) {
+	public ModelRender(IMDLCache MDLCache, IStudioRender StudioRender, Host Host, Render Render, IRenderView renderView, IMaterialSystem materialSystem) {
 		this.MDLCache = MDLCache;
-		this.cl = cl;
 		this.StudioRender = StudioRender;
 		this.Host = Host;
 		this.materials = materialSystem;

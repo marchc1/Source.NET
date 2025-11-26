@@ -13,7 +13,6 @@ public class GameEngine : IEngine
 	ConVar fps_max = new("fps_max", DEFAULT_FPS_MAX_S, FCvar.NotConnected, "Frame rate limiter, cannot be set");
 
 	readonly Sys Sys;
-	readonly GameServer sv;
 	readonly IHostState HostState;
 	readonly Host Host;
 	private bool FilterTime(double dt) {
@@ -49,10 +48,9 @@ public class GameEngine : IEngine
 	double LastRemainder;
 	bool CatchupTime;
 
-	public GameEngine(Sys Sys, IHostState HostState, GameServer sv, Host Host) {
+	public GameEngine(Sys Sys, IHostState HostState, Host Host) {
 		this.Sys = Sys;
 		this.HostState = HostState;
-		this.sv = sv;
 		this.Host = Host;
 
 		State = IEngine.State.Inactive;
