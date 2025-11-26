@@ -29,14 +29,24 @@ public unsafe class bf_write : BitBuffer
 
 	public bf_write Copy() {
 		bf_write copy = new bf_write();
-
-		copy.data = data;
-		copy.dataBits = dataBits;
-		copy.dataBytes = dataBytes;
-		copy.curBit = curBit;
-		copy.overflow = overflow;
-
+		CopyTo(copy);
 		return copy;
+	}
+
+	public void CopyTo(bf_write other) {
+		other.data = data;
+		other.dataBits = dataBits;
+		other.dataBytes = dataBytes;
+		other.curBit = curBit;
+		other.overflow = overflow;
+	}
+
+	public void CopyFrom(bf_write other) {
+		data = other.data;
+		dataBits = other.dataBits;
+		dataBytes = other.dataBytes;
+		curBit = other.curBit;
+		overflow = other.overflow;
 	}
 
 	public bf_write(byte[] data, int bytes) {

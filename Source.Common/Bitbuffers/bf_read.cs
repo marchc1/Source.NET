@@ -38,15 +38,26 @@ public unsafe class bf_read : BitBuffer
 
 	public bf_read Copy() {
 		bf_read copy = new bf_read();
-
-		copy.data = data;
-		copy.dataBytes = dataBytes;
-		copy.dataBits = dataBits;
-		copy.curBit = curBit;
-		copy.overflow = overflow;
-
+		CopyTo(copy);
 		return copy;
 	}
+
+	public void CopyTo(bf_read other) {
+		other.data = data;
+		other.dataBytes = dataBytes;
+		other.dataBits = dataBits;
+		other.curBit = curBit;
+		other.overflow = overflow;
+	}
+
+	public void Copyfrom(bf_read other) {
+		data = other.data;
+		dataBytes = other.dataBytes;
+		dataBits = other.dataBits;
+		curBit = other.curBit;
+		overflow = other.overflow;
+	}
+
 	public bf_read(byte[] pData, uint bytes) {
 		StartReading(pData, (int)bytes, 0);
 	}
