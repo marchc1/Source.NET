@@ -95,7 +95,7 @@ public class GameEvent : IGameEvent
 		Descriptor = descriptor;
 		DataKeys = new(descriptor.Name);
 	}
-	public ReadOnlySpan<char> GetName() => DataKeys!.Name;
+	public ReadOnlySpan<char> GetName() => DataKeys!.Name.SliceNullTerminatedString();
 	public bool IsEmpty(ReadOnlySpan<char> keyName = default) => DataKeys!.IsEmpty(keyName);
 	public bool IsLocal() => Descriptor!.Local;
 	public bool IsReliable() => Descriptor!.Reliable;
