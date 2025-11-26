@@ -1,4 +1,6 @@
-﻿using Source.Common;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source.Common;
 using Source.Common.Client;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
@@ -137,5 +139,22 @@ public class EngineClient(ClientState cl, GameServer sv, Cbuf Cbuf, Scr Scr, Con
 
 	public bool CullBox(ref Vector3 mins, ref Vector3 maxs) {
 		return true;
+	}
+
+	public int GetPlayerForUserID(int userID) {
+		if (cl.UserInfoTable == null)
+			return 0;
+
+		int maxClients = Math.Min(cl.MaxClients, cl.UserInfoTable.GetNumStrings());
+		for (int i = 0; i < maxClients; i++) {
+			Span<byte> pi = cl.UserInfoTable.GetStringUserData(userID);
+			if (!PlayerInfo.FromBytes(pi, out PlayerInfo playerInfo))
+				continue;
+
+			if (playerInfo.UserID == userID) 
+				return (i + 1);
+		}
+
+		return 0;
 	}
 }

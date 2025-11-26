@@ -24,6 +24,7 @@ public static class SourceDllMain
 	[Dependency] public static ICvar cvar { get; private set; } = null!;
 	[Dependency] public static ClientEntityList cl_entitylist { get; private set; } = null!;
 	[Dependency] public static IModelInfoClient modelinfo { get; private set; } = null!;
+	[Dependency] public static IGameEventManager2 gameeventmanager { get; private set; } = null!;
 	[Dependency] public static IDataCache datacache { get; private set; } = null!;
 	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;
 	[Dependency] public static ICenterPrint centerprint { get; private set; } = null!;
@@ -31,6 +32,7 @@ public static class SourceDllMain
 	[Dependency] public static IModelRender modelrender { get; private set; } = null!;
 	[Dependency] public static IClientLeafSystem clientLeafSystem { get; private set; } = null!;
 	[Dependency] public static IUniformRandomStream random { get; private set; } = null!;
+	[Dependency] public static ILocalize localize { get; private set; } = null!;
 
 	public static TimeUnit_t TICK_INTERVAL => gpGlobals.IntervalPerTick;
 
@@ -38,4 +40,7 @@ public static class SourceDllMain
 	public static int TIME_TO_TICKS(TimeUnit_t dt) => (int)(0.5f + dt / TICK_INTERVAL);
 
 	public static bool IsEngineThreaded() => false;
+
+	// TODO stubs
+	public static bool IsInCommentaryMode() => false;
 }

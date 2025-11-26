@@ -45,6 +45,13 @@ public class BaseEntityList
 		throw new NotImplementedException();
 	}
 
+	public IHandleEntity? LookupEntityByNetworkIndex(int edictIndex) {
+		if (edictIndex < 0)
+			return null;
+		return EntPtrArray[edictIndex].Entity;
+	}
+
+
 	public IHandleEntity? LookupEntity(BaseHandle handle) {
 		if (handle.Index == Constants.INVALID_EHANDLE_INDEX)
 			return null;

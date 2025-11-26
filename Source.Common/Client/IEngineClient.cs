@@ -11,8 +11,10 @@ namespace Source.Common.Client;
 /// <summary>
 /// Engine player info. (replica of player_info_s)
 /// </summary>
-public struct PlayerInfo
+public struct PlayerInfo 
 {
+	public const int SIZEOF = 132;
+
 	public InlineArray32<char> Name;
 	public int UserID;
 	public InlineArray33<byte> GUID;
@@ -24,7 +26,12 @@ public struct PlayerInfo
 	public InlineArray4<CRC32_t> CustomFiles;
 	public byte FilesDownloaded;
 
-	public static void FromBytes(ReadOnlySpan<byte> bytes, out PlayerInfo info) {
+	public static bool FromBytes(ReadOnlySpan<byte> bytes, out PlayerInfo info) {
+		if (bytes.Length < SIZEOF) {
+			info = default;
+			return false;
+		}
+
 		info = new();
 
 		ReadOnlySpan<byte> asciiName = bytes[0..32];
@@ -49,6 +56,7 @@ public struct PlayerInfo
 
 		MemoryMarshal.Cast<byte, CRC32_t>(bytes[112..(112+16)]).CopyTo(info.CustomFiles);
 		info.FilesDownloaded = bytes[128];
+		return true;
 	}
 }
 
@@ -110,4 +118,5 @@ public interface IEngineClient
 	Model? LoadModel(ReadOnlySpan<char> name, bool prop);
 	bool IsBoxVisible(in Vector3 mins, in Vector3 maxs);
 	bool CullBox(ref Vector3 mins, ref Vector3 maxs);
+	int GetPlayerForUserID(int userID);
 }

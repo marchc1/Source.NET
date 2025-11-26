@@ -87,5 +87,9 @@ public partial class
 		eyeOrigin = EyePosition();
 		eyeAngles = EyeAngles();
 	}
+
+	internal ReadOnlySpan<char> GetPlayerName() {
+		throw new NotImplementedException();
+	}
 }
 #endif

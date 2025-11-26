@@ -652,8 +652,8 @@ public class BaseHudChat : EditableHudElement
 
 	public HudChatHistory GetChatHistory() => ChatHistory;
 
-	private void Printf(ChatFilters filter, ReadOnlySpan<char> str) {
-
+	public void Printf(ChatFilters filter, ReadOnlySpan<char> str) {
+		ChatPrintf(0, filter, str);
 	}
 
 	public ChatFilters GetFilterFlags() => FilterFlags;

@@ -119,4 +119,68 @@ public class LocalizedStringTable(ISystem system, IFileSystem fileSystem) : ILoc
 			return null;
 		return GetValueByIndex(index);
 	}
+
+	// Untested...
+	public void ConstructString(Span<char> localized, ReadOnlySpan<char> format, ReadOnlySpan<char> s1, ReadOnlySpan<char> s2, ReadOnlySpan<char> s3, ReadOnlySpan<char> s4, ReadOnlySpan<char> s5, ReadOnlySpan<char> s6, ReadOnlySpan<char> s7, ReadOnlySpan<char> s8) {
+		const int FORMAT_NOT_MET = 0;
+		const int FORMAT_AWAITING_NEXT = 1;
+		const int FORMAT_AWAITING_STRNUM = 2;
+
+		int writePtr = 0;
+		int readPtr = 0;
+
+		int readStrIdx = 0;
+
+		int enteringFormat = FORMAT_NOT_MET;
+		while (readPtr < format.Length && writePtr < localized.Length) {
+			char c = format[readPtr++];
+			switch (enteringFormat) {
+				case FORMAT_NOT_MET:
+					if (c == '%')
+						enteringFormat = FORMAT_AWAITING_NEXT;
+					else
+						localized[writePtr++] = c;
+					break;
+				case FORMAT_AWAITING_NEXT:
+					if (c == '%') {
+						localized[writePtr++] = c;
+						if (writePtr < localized.Length)
+							localized[writePtr++] = c;
+						enteringFormat = FORMAT_NOT_MET;
+					}
+					else if (c == 's') {
+						enteringFormat = FORMAT_AWAITING_STRNUM;
+						readStrIdx = 0;
+					}
+					break;
+				case FORMAT_AWAITING_STRNUM:
+					readStrIdx = readStrIdx * 10;
+					if (char.IsDigit(c)) {
+						readStrIdx += c - '0';
+					}
+					else {
+						if (readStrIdx != 0) {
+							ReadOnlySpan<char> t;
+							switch (readStrIdx) {
+								case 1: t = s1; break;
+								case 2: t = s2; break;
+								case 3: t = s3; break;
+								case 4: t = s4; break;
+								case 5: t = s5; break;
+								case 6: t = s6; break;
+								case 7: t = s7; break;
+								case 8: t = s8; break;
+								default: t = ""; break;
+							}
+							int len = t.ClampedCopyTo(localized[writePtr..]);
+							// Go back! We need that character!
+							if (len != 0)
+								writePtr = writePtr - 1;
+							writePtr += len;
+						}
+					}
+					break;
+			}
+		}
+	}
 }

@@ -20,6 +20,15 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 		throw new NotImplementedException();
 	}
 
+	public C_BaseEntity? GetEnt(int entNum) => GetBaseEntity(entNum);
+
+	public C_BaseEntity? GetBaseEntity(int entNum) {
+		IClientUnknown? pEnt = GetListedEntity(entNum);
+		return pEnt?.GetBaseEntity();
+	}
+
+	public IClientUnknown? GetListedEntity(int entNum) => (IClientUnknown?)LookupEntityByNetworkIndex(entNum);
+
 	public IClientEntity? GetClientEntityFromHandle(BaseHandle ent) {
 		throw new NotImplementedException();
 	}
