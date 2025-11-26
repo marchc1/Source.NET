@@ -194,7 +194,10 @@ namespace Source.Common
 				MemberInfo member = accessor.Members[i];
 				switch (member) {
 					case FieldInfo field:
-						il.LoggedEmit(OpCodes.Ldflda, field);
+						if (field.FieldType.IsValueType)
+							il.LoggedEmit(OpCodes.Ldflda, field);
+						else
+							il.LoggedEmit(OpCodes.Ldfld, field);
 
 						break;
 					default: throw new NotImplementedException("Cannot support the current member info");
