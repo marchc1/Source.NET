@@ -87,9 +87,17 @@ public partial class
 			vm.CalcViewModelView(this, eyeOrigin, eyeAngles);
 		}
 	}
+	public void CalcViewRoll(ref QAngle angles) {
+		// todo
+	}
 	private void CalcPlayerView(ref Vector3 eyeOrigin, ref QAngle eyeAngles, ref float fov) {
 		eyeOrigin = EyePosition();
 		eyeAngles = EyeAngles();
+
+		Vector3 vecBaseEyePosition = eyeOrigin;
+
+		CalcViewRoll(ref eyeAngles);
+		eyeAngles += Local.PunchAngle;
 	}
 
 	internal ReadOnlySpan<char> GetPlayerName() {
