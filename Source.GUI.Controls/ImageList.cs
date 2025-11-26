@@ -28,9 +28,10 @@ public class ImageList(bool deleteImagesWhenDone)
 	List<IImage?> Images = [];
 	bool DeleteImagesWhenDone = deleteImagesWhenDone;
 
-	~ImageList() {
-		if (DeleteImagesWhenDone) {}
-	}
+	// FIXME #37
+	//  ~ImageList() {
+	//  	if (DeleteImagesWhenDone) {}
+	//  }
 
 	public int AddImage(IImage image) {
 		Images.Add(image);

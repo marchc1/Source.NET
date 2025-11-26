@@ -46,7 +46,9 @@ public class PanelListPanel : EditablePanel
 		}
 	}
 
-	~PanelListPanel() {
+	// FIXME #37
+	public override void Dispose() {
+		base.Dispose();
 		DeleteAllItems();
 	}
 

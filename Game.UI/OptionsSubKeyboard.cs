@@ -40,7 +40,11 @@ public class OptionsSubKeyboard : PropertyPage
 		ClearBindingButton.SetEnabled(false);
 	}
 
-	~OptionsSubKeyboard() => DeleteSavedBindings();
+	// FIXME #37
+	public override void Dispose() {
+		base.Dispose();
+		DeleteSavedBindings();
+	}
 
 	public override void OnResetData() {
 		FillInCurrentBindings();

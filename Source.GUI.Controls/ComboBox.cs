@@ -79,12 +79,12 @@ public class ComboBox : TextEntry
 		PreventTextChangeMessage = false;
 		BorderOverride[0] = '\0';
 	}
-
-	~ComboBox() {
+	// FIXME #37
+	public override void Dispose() {
+		base.Dispose();
 		DropDown?.DeletePanel();
 		Button?.DeletePanel();
 	}
-
 	public void SetNumberOfEditLines(int numLines) => DropDown.SetNumberOfVisibleItems(numLines);
 
 	public virtual int AddItem(ReadOnlySpan<char> itemText, KeyValues? userData) {

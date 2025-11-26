@@ -205,9 +205,10 @@ public class NetGraphPanel : Panel
 
 		g_NetGraphPanel = this;
 	}
-	public override void OnDelete() {
+	// FIXME #37
+	public override void Dispose() {
+		base.Dispose();
 		g_NetGraphPanel = null;
-		base.OnDelete();
 	}
 	public void OnFontChanged() {
 		ReadOnlySpan<char> str = "fps:  435  ping: 533 ms lerp 112.3 ms   0/0";

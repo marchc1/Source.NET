@@ -134,10 +134,6 @@ public class BuildModeDialog : Frame
 		// buildmodedialogmgr
 	}
 
-	~BuildModeDialog() {
-
-	}
-
 	public override void OnClose() {
 
 	}
