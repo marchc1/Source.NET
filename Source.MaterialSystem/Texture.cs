@@ -746,7 +746,7 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 		// turned off, or if the source texture is not compressed.
 
 		if ((srcFormat == ImageFormat.UVWQ8888) || (srcFormat == ImageFormat.UV88) || (srcFormat == ImageFormat.UVLX8888)) {
-			Assert(0);
+			Assert(false);
 		}
 
 		if ((srcFormat == ImageFormat.UVWQ8888) || (srcFormat == ImageFormat.UV88) ||

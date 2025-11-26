@@ -344,7 +344,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 
 			if (Parameters[i].SetMaterial(PHYSCANNON_GLOW_SPRITE) == false) {
 				// This means the texture was not found
-				Assert(0);
+				Assert(false);
 			}
 		}
 
@@ -365,7 +365,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 
 			if (Parameters[i].SetMaterial(PHYSCANNON_ENDCAP_SPRITE) == false) {
 				// This means the texture was not found
-				Assert(0);
+				Assert(false);
 			}
 		}
 #endif

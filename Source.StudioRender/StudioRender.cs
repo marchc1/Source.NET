@@ -389,7 +389,7 @@ public unsafe class StudioRender
 
 		if (pbodypart.Base == 0) {
 			Warning($"Model has missing body part: {studioHdr.GetName()}\n");
-			Assert(0);
+			Assert(false);
 		}
 		index = entity_body / pbodypart.Base;
 		index = index % pbodypart.NumModels;

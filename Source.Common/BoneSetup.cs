@@ -505,7 +505,7 @@ public ref struct BoneSetup
 			k -= animvalue[0].Total;
 			animvalue = animvalue[(animvalue[0].Valid + 1)..];
 			if (animvalue[0].Total == 0) {
-				Assert(0); // running off the end of the animation stream is bad
+				Assert(false); // running off the end of the animation stream is bad
 				v1 = 0;
 				return;
 			}

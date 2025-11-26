@@ -400,7 +400,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 				}
 				break;
 			default:
-				Assert(0);
+				Assert(false);
 				return;
 		}
 	}
@@ -444,7 +444,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 
 			if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.BumpLight) != 0) {
 				if (uv.X + ctx.BumpSTexCoordOffset * 3 > 1.00001f) {
-					Assert(0);
+					Assert(false);
 
 					SurfComputeLightmapCoordinate(ref ctx, ref surfID, ref vec, ref uv);
 				}

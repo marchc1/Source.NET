@@ -463,7 +463,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 				break;
 
 			default:
-				Assert(0);
+				Assert(false);
 				break;
 		}
 

@@ -206,7 +206,7 @@ public unsafe struct PixelWriterState
 			// FIXME: Add more color formats as need arises
 			default: {
 					if (!format_error_printed[(int)format]) {
-						Assert(0);
+						Assert(false);
 						Msg($"PixelWriter.SetPixelMemory:  Unsupported image format {format}\n");
 						format_error_printed[(int)format] = true;
 					}
@@ -289,7 +289,7 @@ public ref struct PixelWriter
 
 				switch (State.Size) {
 					default:
-						Assert(0);
+						Assert(false);
 						return;
 					case 1: {
 							bits[0] = (byte)(val & 0xff);
@@ -329,7 +329,7 @@ public ref struct PixelWriter
 							return;
 						}
 					default:
-						Assert(0);
+						Assert(false);
 						return;
 				}
 			}

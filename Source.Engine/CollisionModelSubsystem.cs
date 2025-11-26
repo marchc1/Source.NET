@@ -130,7 +130,7 @@ public class CollisionBSPData
 				CollisionBSPData_LoadLeafs_Version_1(lh);
 				break;
 			default:
-				Assert(0);
+				Assert(false);
 				Error("Unknown LUMP_LEAFS version\n");
 				break;
 		}

@@ -332,7 +332,7 @@ public unsafe class MeshGl46 : IMesh
 			case GL_LINES: return indexCount / 2;
 			case GL_TRIANGLES: return indexCount / 3;
 			case GL_TRIANGLE_STRIP: return indexCount - 2;
-			default: Assert(0); return 0;
+			default: Assert(false); return 0;
 		}
 	}
 

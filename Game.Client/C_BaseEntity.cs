@@ -932,7 +932,7 @@ public partial class C_BaseEntity : IClientEntity
 				break;
 
 			default:
-				Assert(0);
+				Assert(false);
 				break;
 		}
 	}
@@ -1019,7 +1019,7 @@ public partial class C_BaseEntity : IClientEntity
 			return st;
 		}
 
-		Assert(0);
+		Assert(false);
 
 		return gpGlobals.CurTime;
 	}

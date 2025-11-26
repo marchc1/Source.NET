@@ -67,7 +67,7 @@ public class FontTextureRegen : ITextureRegenerator
 		}
 		else {
 			if (subRect.Width != Width || subRect.Height != Height) {
-				Assert(0);
+				Assert(false);
 				return;
 			}
 			nint size = ImageLoader.GetMemRequired(Width, Height, 1, Format, false);
