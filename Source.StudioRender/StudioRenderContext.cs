@@ -475,6 +475,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 
 		// search through all specified directories until a valid material is found
 		for (int j = 0; j < hdr.NumCDTextures && material.IsErrorMaterial(); j++) {
+			memreset(path);
 			// If we don't do this, we get filenames like "materials\\blah.vmt".
 			ReadOnlySpan<char> textureName = GetTextureName(hdr, vtxHeader, lodID, i);
 			if (!textureName.IsEmpty && (textureName[0] == StrTools.CORRECT_PATH_SEPARATOR || textureName[0] == StrTools.INCORRECT_PATH_SEPARATOR))
