@@ -695,6 +695,11 @@ public class BaseHudChat : EditableHudElement
 		nameLength = playerName.Length;
 		writePtr += playerName.Length;
 
+		if(!buf.Contains(playerName, StringComparison.Ordinal)) {
+			nameStart = 0;
+			nameLength = 0;
+		}
+
 		": ".CopyTo(buf[writePtr..]);
 		writePtr += 2;
 

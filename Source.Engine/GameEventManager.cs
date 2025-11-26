@@ -213,8 +213,9 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 			switch (type) {
 				case GameEventType.Local: break; // ignore 
 				case GameEventType.String:
-					if (buf.ReadString(databuf) != 0)
-						ev.SetString(keyName, databuf);
+					int chars = buf.ReadString(databuf);
+					if (chars != 0)
+						ev.SetString(keyName, databuf[..chars]);
 					break;
 				case GameEventType.Float: ev.SetFloat(keyName, buf.ReadFloat()); break;
 				case GameEventType.Long: ev.SetInt(keyName, buf.ReadLong()); break;
@@ -448,10 +449,11 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 
 			descriptor.Keys = new KeyValues("descriptor");
 			GameEventType datatype = (GameEventType)msg.DataIn.ReadUBitLong(3);
+			memreset(name);
 
 			while (datatype != GameEventType.Local) {
 				msg.DataIn.ReadString(name);
-				descriptor.Keys.SetInt(name, (int)datatype);
+				descriptor.Keys.SetInt(name.SliceNullTerminatedString(), (int)datatype);
 
 				datatype = (GameEventType)msg.DataIn.ReadUBitLong(3);
 			}
