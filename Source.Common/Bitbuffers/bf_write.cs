@@ -33,6 +33,11 @@ public unsafe class bf_write : BitBuffer
 		return copy;
 	}
 
+	/// <summary>
+	/// Copies the state to another <see cref="bf_write"/> instance.
+	/// <br/>
+	/// <b>Important: </b> This does NOT make a copy of the internal data the bitbuffer is writing to! It merely copies the state.
+	/// </summary>
 	public void CopyTo(bf_write other) {
 		other.data = data;
 		other.dataBits = dataBits;
@@ -41,6 +46,11 @@ public unsafe class bf_write : BitBuffer
 		other.overflow = overflow;
 	}
 
+	/// <summary>
+	/// Copies the state from another <see cref="bf_write"/> instance. 
+	/// <br/>
+	/// <b>Important: </b> This does NOT make a copy of the internal data the bitbuffer is writing to! It merely copies the state.
+	/// </summary>
 	public void CopyFrom(bf_write other) {
 		data = other.data;
 		dataBits = other.dataBits;

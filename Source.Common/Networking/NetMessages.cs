@@ -99,8 +99,8 @@ public class NET_SetConVar : NetMessage
 
 		for (int i = 0; i < numvars; i++) {
 			cvar_s var = new();
-			buffer.ReadString(out var.Name, 260);
-			buffer.ReadString(out var.Value, 260);
+			buffer.ReadString(out var.Name!, 260);
+			buffer.ReadString(out var.Value!, 260);
 			ConVars.Add(var);
 		}
 
@@ -134,9 +134,9 @@ public class NET_StringCmd : NetMessage
 	public NET_StringCmd() : base(StringCmd) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.StringCmd;
 
-	public string Command;
+	public string Command = "";
 
-	public override bool ReadFromBuffer(bf_read buffer) => buffer.ReadString(out Command, 1024);
+	public override bool ReadFromBuffer(bf_read buffer) => buffer.ReadString(out Command!, 1024);
 	public override bool WriteToBuffer(bf_write buffer) {
 		if (string.IsNullOrEmpty(Command))
 			return false; // don't write anything
@@ -214,12 +214,12 @@ public class svc_ServerInfo : NetMessage
 	public int MaxClasses;
 	public int PlayerSlot;
 	public double TickInterval;
-	public string GameDirectory;
-	public string MapName;
-	public string SkyName;
-	public string HostName;
-	public string LoadingURL;
-	public string Gamemode;
+	public string GameDirectory = "";
+	public string MapName = "";
+	public string SkyName = "";
+	public string HostName = "";
+	public string LoadingURL = "";
+	public string Gamemode = "";
 
 	public override bool WriteToBuffer(bf_write buffer) {
 		buffer.WriteNetMessageType(this);
@@ -299,8 +299,8 @@ public class svc_ClassInfo : NetMessage
 			Class serverclass = new Class();
 
 			serverclass.ClassID = (int)buffer.ReadUBitLong(serverClassBits);
-			serverclass.ClassName = buffer.ReadString(256);
-			serverclass.DataTableName = buffer.ReadString(256);
+			serverclass.ClassName = buffer.ReadString(256) ?? "";
+			serverclass.DataTableName = buffer.ReadString(256) ?? "";
 
 			Classes.Add(serverclass);
 		}
@@ -318,7 +318,7 @@ public class svc_CreateStringTable : NetMessage
 	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
 
 
-	public string TableName;
+	public string TableName = "";
 	public int MaxEntries;
 	public int NumEntries;
 	public bool UserDataFixedSize;
@@ -326,8 +326,8 @@ public class svc_CreateStringTable : NetMessage
 	public int UserDataSizeBits;
 	public bool IsFilenames;
 	public int Length;
-	public bf_read DataIn;
-	public bf_write DataOut;
+	public readonly bf_read DataIn = new();
+	public readonly bf_write DataOut = new();
 	public bool DataCompressed;
 
 	public override bool WriteToBuffer(bf_write buffer) {
@@ -370,7 +370,7 @@ public class svc_CreateStringTable : NetMessage
 
 		DataCompressed = buffer.ReadBool();
 
-		DataIn = buffer.Copy();
+		buffer.CopyTo(DataIn);
 		Msg($"svc_CreateStringTable: {TableName}, contains {NumEntries}/{MaxEntries}\n");
 		return buffer.SeekRelative(Length);
 	}
@@ -383,8 +383,8 @@ public class svc_UpdateStringTable : NetMessage
 	public int TableID;
 	public int ChangedEntries;
 	public int Length;
-	public bf_read DataIn;
-	public bf_write DataOut;
+	public readonly bf_read DataIn = new();
+	public readonly bf_write DataOut = new();
 
 	public override bool WriteToBuffer(bf_write buffer) {
 		return false;
@@ -400,7 +400,7 @@ public class svc_UpdateStringTable : NetMessage
 
 		Length = (int)buffer.ReadUBitLong(20);
 
-		DataIn = buffer.Copy();
+		buffer.CopyTo(DataIn);
 		return buffer.SeekRelative(Length);
 	}
 
@@ -413,11 +413,11 @@ public class svc_VoiceInit : NetMessage
 	public svc_VoiceInit() : base(SVC.VoiceInit) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
 
-	public string VoiceCodec;
+	public string VoiceCodec = "";
 	public int SampleRate;
 
 	public override bool ReadFromBuffer(bf_read buffer) {
-		VoiceCodec = buffer.ReadString(260);
+		VoiceCodec = buffer.ReadString(260) ?? "";
 
 		byte legacyQuality = buffer.ReadByte();
 		if (legacyQuality == 255) {
@@ -441,7 +441,7 @@ public class svc_Sounds : NetMessage
 	public bool ReliableSound;
 	public int NumSounds;
 	public int Length;
-	public bf_read DataIn;
+	public readonly bf_read DataIn = new();
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		ReliableSound = buffer.ReadOneBit() != 0;
@@ -454,7 +454,7 @@ public class svc_Sounds : NetMessage
 			NumSounds = (int)buffer.ReadUBitLong(8);
 			Length = (int)buffer.ReadUBitLong(16);
 		}
-		DataIn = buffer.Copy();
+		buffer.CopyTo(DataIn);
 		return buffer.SeekRelative(Length);
 	}
 
@@ -504,19 +504,43 @@ public class svc_BSPDecal : NetMessage
 		throw new Exception();
 	}
 }
+public class svc_GameEvent : NetMessage
+{
+	public svc_GameEvent() : base(SVC.GameEvent) { }
+	public override NetChannelGroup GetGroup() => NetChannelGroup.Events;
+
+	public int Length;
+	public readonly bf_read DataIn = new();
+	public readonly bf_write DataOut = new();
+
+	public override bool ReadFromBuffer(bf_read buffer) {
+		Length = (int)buffer.ReadUBitLong(Protocol.NETMSG_LENGTH_BITS);
+		buffer.CopyTo(DataIn);
+
+		// temp
+		byte[] data = new byte[Length];
+		buffer.ReadBits(data, Length);
+
+		return !buffer.Overflowed;
+	}
+
+	public override bool WriteToBuffer(bf_write buffer) {
+		throw new Exception();
+	}
+}
 public class svc_GameEventList : NetMessage
 {
 	public svc_GameEventList() : base(SVC.GameEventList) { }
 
 	public int NumEvents;
 	public int Length;
-	public bf_read DataIn;
-	public bf_write DataOut;
+	public readonly bf_read DataIn = new();
+	public readonly bf_write DataOut = new();
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		NumEvents = (int)buffer.ReadUBitLong(MAX_EVENT_BITS);
 		Length = (int)buffer.ReadUBitLong(20);
-		DataIn = buffer.Copy();
+		buffer.CopyTo(DataIn);
 
 		// temp
 		byte[] data = new byte[Length];
@@ -572,13 +596,13 @@ public class svc_UserMessage : NetMessage
 
 	public int MessageType;
 	public int Length;
-	public bf_read DataIn;
-	public bf_write DataOut;
+	public readonly bf_read DataIn = new();
+	public readonly bf_write DataOut = new();
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		MessageType = buffer.ReadByte();
 		Length = (int)buffer.ReadUBitLong(NETMSG_LENGTH_BITS);
-		DataIn = buffer.Copy();
+		buffer.CopyTo(DataIn);
 
 		return buffer.SeekRelative(Length);
 	}
@@ -613,8 +637,8 @@ public class svc_PacketEntities : NetMessage
 	public int Baseline;
 	public int DeltaFrom;
 	public int Length;
-	public bf_read DataIn;
-	public bf_write DataOut;
+	public readonly bf_read DataIn = new();
+	public readonly bf_write DataOut = new();
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		MaxEntries = (int)buffer.ReadUBitLong(MAX_EDICT_BITS);
@@ -629,7 +653,7 @@ public class svc_PacketEntities : NetMessage
 		UpdatedEntries = (int)buffer.ReadUBitLong(MAX_EDICT_BITS);
 		Length = (int)buffer.ReadUBitLong(DELTASIZE_BITS);
 		UpdateBaseline = buffer.ReadBool();
-		DataIn = buffer.Copy();
+		buffer.CopyTo(DataIn);
 
 		return buffer.SeekRelative(Length);
 	}
@@ -701,8 +725,8 @@ public class CLC_Move : NetMessage
 	public int BackupCommands;
 	public int NewCommands;
 	public int Length;
-	public bf_read DataIn;
-	public bf_write DataOut = new();
+	public readonly bf_read DataIn = new();
+	public readonly bf_write DataOut = new();
 
 	public override bool WriteToBuffer(bf_write buffer) {
 		buffer.WriteNetMessageType(this);
@@ -742,7 +766,7 @@ public class CLC_ClientInfo : NetMessage
 	public int SendTableCRC;
 	public bool IsHLTV;
 	public ulong FriendsID;
-	public string FriendsName;
+	public string FriendsName = string.Empty;
 	public uint[] CustomFiles = new uint[MAX_CUSTOM_FILES];
 
 	// 01110100
@@ -782,8 +806,8 @@ public class CLC_GMod_ClientToServer : NetMessage
 	public CLC_GMod_ClientToServer() : base(CLC.GMod_ClientToServer) { }
 
 	public int Length;
-	public bf_write DataOut;
-	public bf_read DataIn;
+	public readonly bf_write DataOut = new();
+	public readonly bf_read DataIn = new();
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		return base.ReadFromBuffer(buffer);
@@ -824,14 +848,14 @@ public class svc_TempEntities : NetMessage
 	public override NetChannelGroup GetGroup() => NetChannelGroup.Events;
 	public int NumEntries;
 	public int Length;
-	public bf_read DataIn;
-	public bf_write DataOut;
+	public readonly bf_read DataIn = new();
+	public readonly bf_write DataOut = new();
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		NumEntries = (int)buffer.ReadUBitLong(EventInfo.EVENT_INDEX_BITS);
 		Length = (int)buffer.ReadVarInt32();
 
-		DataIn = buffer.Copy();
+		buffer.CopyTo(DataIn);
 		return buffer.SeekRelative(Length);
 	}
 

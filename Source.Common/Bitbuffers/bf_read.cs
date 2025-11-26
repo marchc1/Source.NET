@@ -42,6 +42,11 @@ public unsafe class bf_read : BitBuffer
 		return copy;
 	}
 
+	/// <summary>
+	/// Copies the state to another <see cref="bf_read"/> instance.
+	/// <br/>
+	/// <b>Important: </b> This does NOT make a copy of the internal data the bitbuffer is reading from! It merely copies the state.
+	/// </summary>
 	public void CopyTo(bf_read other) {
 		other.data = data;
 		other.dataBytes = dataBytes;
@@ -50,7 +55,12 @@ public unsafe class bf_read : BitBuffer
 		other.overflow = overflow;
 	}
 
-	public void Copyfrom(bf_read other) {
+	/// <summary>
+	/// Copies the state from another <see cref="bf_read"/> instance.
+	/// <br/>
+	/// <b>Important: </b> This does NOT make a copy of the internal data the bitbuffer is reading from! It merely copies the state.
+	/// </summary>
+	public void CopyFrom(bf_read other) {
 		data = other.data;
 		dataBytes = other.dataBytes;
 		dataBits = other.dataBits;
