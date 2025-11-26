@@ -295,12 +295,14 @@ public static class OptimizedModel
 			BodyPartOffset = data[32..].Cast<byte, int>()[0];
 		}
 
-		MaterialReplacementListHeader? materialReplacementsCache;
+		MaterialReplacementListHeader[]? materialReplacementsCache;
 		public MaterialReplacementListHeader MaterialReplacementList(int i) {
-			if (materialReplacementsCache == null)
-				return materialReplacementsCache = new(Data[(MaterialReplacementListOffset + (MaterialReplacementListHeader.SIZEOF * i))..]);
+			materialReplacementsCache ??= new MaterialReplacementListHeader[NumLODs];
+			MaterialReplacementListHeader? ret = materialReplacementsCache[i];
+			if (ret == null)
+				return materialReplacementsCache[i] = new(Data[(MaterialReplacementListOffset + (MaterialReplacementListHeader.SIZEOF * i))..]);
 
-			return materialReplacementsCache;
+			return ret;
 		}
 
 		BodyPartHeader[]? bodyPartCache;
