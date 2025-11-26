@@ -6,7 +6,7 @@ namespace Source.Common.Server;
 /// <summary>
 /// A server-side client.
 /// </summary>
-public interface IClient
+public interface IClient : INetChannelHandler
 {
 	void Connect(ReadOnlySpan<char> name, int userID, INetChannel netChannel, bool fakePlayer, int clientChallenge );
 	// set the client in a pending state waiting for a new game
