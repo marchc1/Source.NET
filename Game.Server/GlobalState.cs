@@ -40,7 +40,7 @@ public class GlobalState : AutoGameSystem
 		NameList.RemoveAll();
 	}
 
-	public UtlSymbolTable NameList;
+	public readonly UtlSymbolTable NameList = new();
 	private bool DisableStateUpdates;
 	private readonly List<GlobalEntity> List = [];
 }
