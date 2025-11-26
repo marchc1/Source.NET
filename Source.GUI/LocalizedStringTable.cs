@@ -119,6 +119,12 @@ public class LocalizedStringTable(ISystem system, IFileSystem fileSystem) : ILoc
 			return null;
 		return GetValueByIndex(index);
 	}
+	public ReadOnlySpan<char> TryFind(ReadOnlySpan<char> text) {
+		ulong index = FindIndex(text);
+		if (index == 0)
+			return text;
+		return GetValueByIndex(index);
+	}
 
 	// Untested...
 	public void ConstructString(Span<char> localized, ReadOnlySpan<char> format, ReadOnlySpan<char> s1, ReadOnlySpan<char> s2, ReadOnlySpan<char> s3, ReadOnlySpan<char> s4, ReadOnlySpan<char> s5, ReadOnlySpan<char> s6, ReadOnlySpan<char> s7, ReadOnlySpan<char> s8) {

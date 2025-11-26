@@ -162,7 +162,7 @@ public class ClientModeShared(ClientGlobalVariables gpGlobals, Hud Hud, IEngineV
 
 					if (!IsInCommentaryMode()) {
 						Span<char> localized = stackalloc char[100];
-						ReadOnlySpan<char> playerName = localize.Find(ev.GetString("name")).SliceNullTerminatedString();
+						ReadOnlySpan<char> playerName = localize.TryFind(ev.GetString("name")).SliceNullTerminatedString();
 						ReadOnlySpan<char> joined = localize.Find("#game_player_joined_game");
 
 						int written = playerName.ClampedCopyTo(localized);
@@ -183,7 +183,7 @@ public class ClientModeShared(ClientGlobalVariables gpGlobals, Hud Hud, IEngineV
 					if (!IsInCommentaryMode()) {
 						Span<char> localized = stackalloc char[100];
 						ReadOnlySpan<char> playerName = player.GetPlayerName();
-						ReadOnlySpan<char> reason = localize.Find(ev.GetString("reason")).SliceNullTerminatedString();
+						ReadOnlySpan<char> reason = localize.TryFind(ev.GetString("reason")).SliceNullTerminatedString();
 
 						localize.ConstructString(localized, localize.Find("#game_player_left_game"), playerName, reason);
 
@@ -205,8 +205,8 @@ public class ClientModeShared(ClientGlobalVariables gpGlobals, Hud Hud, IEngineV
 				break;
 			case "server_cvar": {
 					if (!IsInCommentaryMode()) {
-						ReadOnlySpan<char> cvarName = localize.Find(ev.GetString("cvarname"));
-						ReadOnlySpan<char> cvarValue = localize.Find(ev.GetString("cvarvalue"));
+						ReadOnlySpan<char> cvarName = localize.TryFind(ev.GetString("cvarname"));
+						ReadOnlySpan<char> cvarValue = localize.TryFind(ev.GetString("cvarvalue"));
 						Span<char> localized = stackalloc char[256];
 						localize.ConstructString(localized, localize.Find("#game_server_cvar_changed"), cvarName, cvarValue);
 
