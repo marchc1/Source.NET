@@ -8,6 +8,7 @@ using Source.Common.Utilities;
 using Source.Engine.Client;
 using Source.Engine.Server;
 
+
 using System.Xml.Linq;
 
 namespace Source.Engine;
@@ -102,7 +103,7 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 			return null;
 
 		foreach (var descriptor in GameEvents)
-			if (name.Equals(descriptor.Name, StringComparison.Ordinal))
+			if (name.Equals(((ReadOnlySpan<char>)descriptor.Name).SliceNullTerminatedString(), StringComparison.Ordinal))
 				return descriptor;
 
 		return null;
@@ -319,7 +320,15 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 		}
 	}
 
-	protected GameEventCallback? FindEventListener(object? listener) { throw new NotImplementedException(); }
+	protected GameEventCallback? FindEventListener(object? callback) {
+		for (int i = 0; i < Listeners.Count; i++) {
+			GameEventCallback listener = Listeners[i];
+			if (listener.Callback == callback)
+				return listener;
+		}
+
+		return null;
+	}
 
 	public bool HasClientListenersChanged(bool reset = true) {
 		if (!ClientListenersChanged)
@@ -354,6 +363,56 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 
 			msg.EventArray.Set(descriptor.EventID);
 		}
+	}
+
+	// TODO: Call this in server code
+	public void ReloadEventDefinitions() {
+		foreach(var fn in EventFileNames) {
+			ReadOnlySpan<char> filename = EventFiles.String(fn);
+			LoadEventsFromFile(filename);
+		}
+
+		int count = GameEvents.Count;
+		for (int i = 0; i < count; i++) 
+			GameEvents[i].EventID = i;
+	}
+
+	public bool ParseEventList(svc_GameEventList msg) {
+		foreach (var descriptor in GameEvents)
+			descriptor.EventID = -1;
+
+		Span<char> name = stackalloc char[MAX_EVENT_NAME_LENGTH];
+		for (int i = 0; i < msg.NumEvents; i++) {
+			int id = (int)msg.DataIn.ReadUBitLong(MAX_EVENT_BITS);
+			memreset(name);
+
+			msg.DataIn.ReadString(name);
+
+			GameEventDescriptor? descriptor = GetEventDescriptor(name);
+
+			if (descriptor == null) {
+				while (msg.DataIn.ReadUBitLong(3) != 0)
+					msg.DataIn.ReadString(name);
+
+				continue;
+			}
+
+			descriptor.Keys = new KeyValues("descriptor");
+			GameEventType datatype = (GameEventType)msg.DataIn.ReadUBitLong(3);
+
+			while (datatype != GameEventType.Local) {
+				msg.DataIn.ReadString(name);
+				descriptor.Keys.SetInt(name, (int)datatype);
+
+				datatype = (GameEventType)msg.DataIn.ReadUBitLong(3);
+			}
+
+			descriptor.EventID = id;
+		}
+
+		ClientListenersChanged = true;
+
+		return true;
 	}
 
 	protected readonly List<GameEventDescriptor> GameEvents = [];

@@ -278,6 +278,12 @@ public class ClientState : BaseClientState
 		}
 	}
 
+	GameEventManager? gem;
+	GameEventManager gameEventManager => gem ??= (GameEventManager)Singleton<IGameEventManager2>();
+	protected override bool ProcessGameEventList(svc_GameEventList msg) {
+		return gameEventManager.ParseEventList(msg);
+	}
+
 	public override bool ProcessClassInfo(svc_ClassInfo msg) {
 		if (msg.CreateOnClient) {
 			DtCommonEng.CreateClientTablesFromServerTables();
