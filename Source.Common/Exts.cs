@@ -38,6 +38,10 @@ public enum Realm
 
 public static class BitVecBase
 {
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static uint GetDWord(this Span<byte> bytes, int i) {
+		return bytes.Cast<byte, uint>()[i];
+	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static byte ByteMask(int bit) => (byte)(1 << (bit % 8));
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bool IsBitSet(this Span<byte> bytes, int bit) {
@@ -82,6 +86,7 @@ public static class BitVecBase
 public struct MaxEdictsBitVec
 {
 	public byte bytes;
+	public uint GetDWord(int i) => BitVecBase.GetDWord(this, i);
 	public int Get(int bit) => BitVecBase.IsBitSet(this, bit) ? 1 : 0;
 	public bool IsBitSet(int bit) => BitVecBase.IsBitSet(this, bit);
 	public void Set(int bit) => BitVecBase.Set(this, bit);
@@ -98,6 +103,24 @@ public struct MaxEdictsBitVec
 public struct AbsolutePlayerLimitBitVec
 {
 	public byte bytes;
+	public uint GetDWord(int i) => BitVecBase.GetDWord(this, i);
+	public int Get(int bit) => BitVecBase.IsBitSet(this, bit) ? 1 : 0;
+	public bool IsBitSet(int bit) => BitVecBase.IsBitSet(this, bit);
+	public void Set(int bit) => BitVecBase.Set(this, bit);
+	public void Clear(int bit) => BitVecBase.Clear(this, bit);
+	public void Set(int bit, bool newVal) => BitVecBase.Set(this, bit, newVal);
+	public int FindNextSetBit(int startBit) => BitVecBase.FindNextSetBit(this, startBit);
+	public void ClearAll() => BitVecBase.ClearAll(this);
+}
+
+/// <summary>
+/// An inline bit-vector array of MAX_EVENT_NUMBER >> 3 bytes.
+/// </summary>
+[InlineArray(MAX_EVENT_NUMBER >> 3)]
+public struct MaxEventNumberBitVec
+{
+	public byte bytes;
+	public uint GetDWord(int i) => BitVecBase.GetDWord(this, i);
 	public int Get(int bit) => BitVecBase.IsBitSet(this, bit) ? 1 : 0;
 	public bool IsBitSet(int bit) => BitVecBase.IsBitSet(this, bit);
 	public void Set(int bit) => BitVecBase.Set(this, bit);
@@ -141,6 +164,7 @@ public class ListPool<T>
 
 public class PooledValueList<V> where V : IPoolableObject, new()
 {
+	public static readonly PooledValueList<V> Shared = new();
 	public int Count() => list.Count;
 	readonly List<V> list = [];
 	readonly ObjectPool<V> pool = new();
@@ -169,6 +193,7 @@ public class PooledValueList<V> where V : IPoolableObject, new()
 // Kind of like a CUtlLinkedList, but not really... meant to be memory efficient in a C# context.
 public class PooledValueDictionary<V> : IEnumerable<V> where V : IPoolableObject, new()
 {
+	public static readonly PooledValueDictionary<V> Shared = new();
 	public int Count() => dict.Count;
 	readonly Dictionary<ulong, V> dict = [];
 	readonly ObjectPool<V> pool = new();
@@ -204,6 +229,9 @@ public class PooledValueDictionary<V> : IEnumerable<V> where V : IPoolableObject
 
 public class ObjectPool<T> where T : IPoolableObject, new()
 {
+	public static readonly ObjectPool<T> Shared = new();
+
+
 	readonly ConcurrentDictionary<T, bool> valueStates = [];
 
 	public T Alloc() {
@@ -239,6 +267,8 @@ public class ObjectPool<T> where T : IPoolableObject, new()
 
 public class ClassMemoryPool<T> where T : class, new()
 {
+	public static readonly ClassMemoryPool<T> Shared = new();
+
 	readonly ConcurrentDictionary<T, bool> valueStates = [];
 
 	public T Alloc() {
@@ -270,6 +300,8 @@ public class ClassMemoryPool<T> where T : class, new()
 
 public class StructMemoryPool<T> where T : struct
 {
+	public static readonly StructMemoryPool<T> Shared = new();
+
 	readonly RefStack<T> instances = new();
 	readonly ConcurrentDictionary<int, bool> valueStates = [];
 
@@ -889,7 +921,7 @@ public static class UnmanagedUtils
 	}
 
 	public static void EnsureCapacity<T>(this ref Memory<T> list, int ensureTo) {
-		if(list.Length < ensureTo) 
+		if (list.Length < ensureTo)
 			list = new T[ensureTo];
 	}
 
