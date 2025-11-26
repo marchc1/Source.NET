@@ -99,6 +99,7 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 	}
 
 	private GameEventDescriptor? GetEventDescriptor(ReadOnlySpan<char> name) {
+		name = name.SliceNullTerminatedString();
 		if (name.IsEmpty)
 			return null;
 
