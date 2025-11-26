@@ -76,6 +76,7 @@ public class Host(
 	public Sound Sound;
 	public IHostState HostState;
 	public IBaseClientDLL? clientDLL;
+	public IGameEventManager2 GameEventManager;
 	public IServerGameDLL? serverDLL;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
@@ -646,6 +647,7 @@ public class Host(
 		//engineAPI.InitSubsystem<Key>();
 #endif
 		Net = engineAPI.InitSubsystem<Net>(dedicated)!;
+		GameEventManager = engineAPI.InitSubsystem<IGameEventManager2>()!;
 		sv.Init(dedicated);
 		SV = services.GetRequiredService<SV>();
 		SV.InitGameDLL();
@@ -668,7 +670,7 @@ public class Host(
 
 #if !SWDS
 		ReadConfiguration();
-		Sound = engineAPI.InitSubsystem<Sound>();
+		Sound = engineAPI.InitSubsystem<Sound>()!;
 #endif
 		Cbuf.AddText("exec valve.rc");
 

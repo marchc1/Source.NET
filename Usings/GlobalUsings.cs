@@ -8,6 +8,7 @@ global using static Source.Common.Mathematics.MathLibConsts;
 global using static Source.GlobalReflectionUtils;
 global using static Source.Common.RecvPropHelpers;
 global using static Source.Common.SendPropHelpers;
+global using static Source.Common.GameEventConstants;
 global using static Source.Common.Utilities.UtlSymbolGlobals;
 global using static Source.Common.Filesystem.FilesystemGlobals;
 global using CRC32_t = uint;

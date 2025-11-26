@@ -364,6 +364,13 @@ public static class CFormatting
 		output = input;
 		return 0;
 	}
+
+	public static int strcmp(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.CompareTo(b, StringComparison.Ordinal);
+	public static int stricmp(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.CompareTo(b, StringComparison.OrdinalIgnoreCase);
+
+	public static bool streq(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.Equals(b, StringComparison.Ordinal);
+	public static bool strieq(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.Equals(b, StringComparison.OrdinalIgnoreCase);
+
 	public static nint strlen(ReadOnlySpan<char> str) {
 		int i = 0;
 		for (i = 0; i < str.Length; i++) {
