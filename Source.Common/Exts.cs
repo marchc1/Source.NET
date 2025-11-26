@@ -754,7 +754,7 @@ public static class ClassUtils
 		// Find a method that has
 		//     1. "Init" as the name.
 		//     2. Matches the parameters the callee provided.
-		var method = typeof(T)
+		var method = instance.GetType()
 			.GetMethods()
 			.Where(x => x.Name == "Init")
 			.FirstOrDefault(m => ParametersMatch(m.GetParameters(), argTypes));
