@@ -114,12 +114,16 @@ public class LocalizedStringTable(ISystem system, IFileSystem fileSystem) : ILoc
 	}
 
 	public ReadOnlySpan<char> Find(ReadOnlySpan<char> text) {
+		if (text.Length > 0 && text[0] == '#')
+			text = text[1..];
 		ulong index = FindIndex(text);
 		if (index == 0)
 			return null;
 		return GetValueByIndex(index);
 	}
 	public ReadOnlySpan<char> TryFind(ReadOnlySpan<char> text) {
+		if (text.Length > 0 && text[0] == '#')
+			text = text[1..];
 		ulong index = FindIndex(text);
 		if (index == 0)
 			return text;
@@ -138,8 +142,18 @@ public class LocalizedStringTable(ISystem system, IFileSystem fileSystem) : ILoc
 		int readStrIdx = 0;
 
 		int enteringFormat = FORMAT_NOT_MET;
-		while (readPtr < format.Length && writePtr < localized.Length) {
-			char c = format[readPtr++];
+		while (writePtr < localized.Length) {
+			char c;
+			if (readPtr >= format.Length) {
+				if (enteringFormat == FORMAT_AWAITING_STRNUM)
+					c = '\0';
+				else
+					break;
+			}
+			else {
+				c = format[readPtr++];
+			}
+
 			switch (enteringFormat) {
 				case FORMAT_NOT_MET:
 					if (c == '%')
@@ -160,8 +174,10 @@ public class LocalizedStringTable(ISystem system, IFileSystem fileSystem) : ILoc
 					}
 					break;
 				case FORMAT_AWAITING_STRNUM:
-					readStrIdx = readStrIdx * 10;
 					if (char.IsDigit(c)) {
+						if (readStrIdx != 0)
+							readStrIdx = readStrIdx * 10;
+
 						readStrIdx += c - '0';
 					}
 					else {
@@ -180,13 +196,17 @@ public class LocalizedStringTable(ISystem system, IFileSystem fileSystem) : ILoc
 							}
 							int len = t.ClampedCopyTo(localized[writePtr..]);
 							// Go back! We need that character!
-							if (len != 0)
-								writePtr = writePtr - 1;
 							writePtr += len;
+							if (len != 0)
+								readPtr = readPtr - 1;
 						}
+						enteringFormat = FORMAT_NOT_MET;
 					}
 					break;
 			}
+
+			if (c == '\0')
+				break;
 		}
 	}
 }
