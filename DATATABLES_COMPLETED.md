@@ -120,7 +120,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #117: CPrecipitationBlocker
 - [x] Class #118: CPredictedViewModel
 - [x] Class #119: CPropAirboat
-- [ ] Class #120: CPropCombineBall
+- [x] Class #120: CPropCombineBall
 - [ ] Class #121: CPropCrane
 - [x] Class #122: CPropDoorRotating
 - [ ] Class #123: CPropEnergyBall
@@ -148,7 +148,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #145: CSpotlightEnd
 - [x] Class #146: CSprite
 - [x] Class #147: CSpriteOriented
-- [ ] Class #148: CSpriteTrail
+- [x] Class #148: CSpriteTrail
 - [ ] Class #149: CSteamJet
 - [x] Class #150: CSun
 - [x] Class #151: CTeam
