@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+	  <DefineConstants>$(DefineConstants);DBGFLAG_ASSERT</DefineConstants>
+	</PropertyGroup>
+	<ItemGroup>
+		<Compile Include="..\Usings\GlobalUsings.cs" Link="Usings/GlobalUsings.cs" />
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Game.Server\Game.Server.csproj" />
+		<ProjectReference Include="..\Source.DataCache\Source.DataCache.csproj" />
+		<ProjectReference Include="..\Source.Engine\Source.Engine.csproj" />
+		<ProjectReference Include="..\Source.Filesystem\Source.Filesystem.csproj" />
+		<ProjectReference Include="..\Source.VTF\Source.VTF.csproj" />
+	</ItemGroup>
+
+	<!-- Copy Game.Assets -->
+	<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
+		<ItemGroup>
+			<GameAssets Include="$(MSBuildThisFileDirectory)..\Game.Assets\**\*" />
+		</ItemGroup>
+	
+		<Copy SourceFiles="@(GameAssets)" DestinationFolder="$(OutDir)%(RecursiveDir)" SkipUnchangedFiles="true" UseSymboliclinksIfPossible="true" UseHardlinksIfPossible="true" />
+	</Target>
+</Project>
