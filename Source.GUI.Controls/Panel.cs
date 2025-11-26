@@ -13,6 +13,7 @@ using Source.Common.Utilities;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
+using System.Numerics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
@@ -186,8 +187,6 @@ public class PanelAnimationVarAttribute : Attribute
 
 public class Panel : IPanel
 {
-	public static bool IsValid([NotNullWhen(true)] Panel? panel) => panel != null && !panel.IsMarkedForDeletion();
-
 	readonly static Dictionary<ulong, IPanelAnimationPropertyConverter> AnimationPropertyConverters = [];
 	static Panel() {
 		ChainToAnimationMap<Panel>();
@@ -2093,6 +2092,7 @@ public class Panel : IPanel
 	}
 	public bool IsAutoDeleteSet() => AutoDelete;
 
+	public bool Disposed() => IsMarkedForDeletion();
 	public virtual void Dispose() {
 		Flags &= ~PanelFlags.AutoDeleteEnabled;
 		Flags |= PanelFlags.MarkedForDeletion;

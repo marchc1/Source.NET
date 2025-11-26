@@ -97,7 +97,7 @@ public class GameMenu(Panel parent, string name) : Menu(parent, name)
 				if (!isInGame && !isMultiplayer && kv.GetInt("notsingle") != 0) shouldBeVisible = false;
 				else if (isMultiplayer && kv.GetInt("notmulti") != 0) shouldBeVisible = false;
 				else if (!vrEnabled && kv.GetInt("OnlyWhenVREnabled") != 0) shouldBeVisible = false;
-				else if (!vrEnabled && kv.GetInt("OnlyWhenVRActive") != 0) shouldBeVisible = false;
+				else if (!vrActive && kv.GetInt("OnlyWhenVRActive") != 0) shouldBeVisible = false;
 				else if (vrEnabled && kv.GetInt("OnlyWhenVRInactive") != 0) shouldBeVisible = false;
 
 				menuItem.SetVisible(shouldBeVisible);
@@ -237,9 +237,9 @@ public class QuitQueryBox : QueryBox
 }
 public class BasePanel : Panel
 {
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
-	GameMenu GameMenu;
+	GameMenu? GameMenu;
 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 	readonly public IFileSystem FileSystem = Singleton<IFileSystem>();
 	readonly public GameUI GameUI;
 	readonly public IEngineClient engine = Singleton<IEngineClient>();
@@ -248,7 +248,7 @@ public class BasePanel : Panel
 
 	TextureID BackgroundImageID = TextureID.INVALID;
 
-	OptionsDialog OptionsDialog;
+	OptionsDialog? OptionsDialog;
 
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
@@ -306,7 +306,7 @@ public class BasePanel : Panel
 	}
 
 	private void OnOpenOptionsDialog() {
-		if (OptionsDialog == null) {
+		if (!OptionsDialog.IsValid()) {
 			OptionsDialog = new OptionsDialog(this);
 
 			PositionDialog(OptionsDialog);
@@ -316,7 +316,7 @@ public class BasePanel : Panel
 	}
 
 	public void PositionDialog(Panel? dialog) {
-		if (dialog == null)
+		if (!dialog.IsValid())
 			return;
 
 		Surface.GetWorkspaceBounds(out int x, out int y, out int ww, out int wt);
@@ -383,7 +383,7 @@ public class BasePanel : Panel
 		base.PerformLayout();
 
 		Surface.GetScreenSize(out int wide, out int tall);
-		GameMenu.GetSize(out int menuWide, out int menuTall);
+		GameMenu!.GetSize(out int menuWide, out int menuTall);
 		int idealMenuY = GameMenuPos.Y;
 		if (idealMenuY + menuTall + GameMenuInset > tall)
 			idealMenuY = tall - menuTall - GameMenuInset;
@@ -441,7 +441,7 @@ public class BasePanel : Panel
 
 		IPanel? parent = GetParent();
 		for (i = 0; i < (parent?.GetChildCount() ?? 0); ++i) {
-			IPanel? child = parent.GetChild(i);
+			IPanel? child = parent?.GetChild(i);
 			if (child != null && child.IsVisible() && child.IsPopup() && child != this) 
 				haveActiveDialogs = true;
 		}
@@ -578,7 +578,7 @@ public class BasePanel : Panel
 	}
 
 	private void SetMenuAlpha(int alpha) {
-		GameMenu.SetAlpha(alpha);
+		GameMenu!.SetAlpha(alpha);
 	}
 
 	private void CreateGameMenu() {
@@ -587,9 +587,8 @@ public class BasePanel : Panel
 		if (datafile.LoadFromFile(FileSystem, "resource/GameMenu.res"))
 			GameMenu = RecursiveLoadGameMenu(datafile);
 
-		if (GameMenu == null)
+		if (!GameMenu.IsValid())
 			Error("Could not load file Resource/GameMenu.res\n");
-
 		else {
 			GameMenu.MakeReadyForUse();
 			GameMenu.SetAlpha(0);
@@ -637,10 +636,10 @@ public class BasePanel : Panel
 	private void UpdateGameMenus() {
 		bool isInGame = GameUI.IsInLevel();
 		bool isMulti = isInGame && engine.GetMaxClients() > 1;
-		GameMenu.UpdateMenuItemState(isInGame, isMulti);
+		GameMenu!.UpdateMenuItemState(isInGame, isMulti);
 
 		InvalidateLayout();
-		GameMenu.SetVisible(true);
+		GameMenu!.SetVisible(true);
 	}
 
 	internal void OnLevelLoadingStarted() {
@@ -656,6 +655,6 @@ public class BasePanel : Panel
 	}
 
 	public int GetMenuAlpha() {
-		return GameMenu.GetAlpha();
+		return GameMenu!.GetAlpha();
 	}
 }

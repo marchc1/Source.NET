@@ -4,6 +4,7 @@ using Source.Common.Mathematics;
 using Source.Common.Utilities;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Filesystem;
+using Source.Common;
 
 namespace Source.GUI.Controls;
 
@@ -184,7 +185,7 @@ public class AnimationController : Panel, IAnimationController
 			if (CurrentTime < anim.StartTime && !runToCompletion)
 				continue;
 
-			if (!IsValid(anim.Panel)) {
+			if (!anim.Panel.IsValid()) {
 				ActiveAnimations.RemoveAt(i);
 				--i;
 				continue;

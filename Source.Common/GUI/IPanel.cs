@@ -34,7 +34,7 @@ public enum AutoResize
 	DownAndRight,
 }
 
-public interface IPanel : IDisposable
+public interface IPanel : IExtDisposable
 {
 	// methods
 	void SetPos(int x, int y);
