@@ -187,4 +187,9 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public virtual bool CreateMove(TimeUnit_t inputSampleTime, ref UserCmd cmd) {
 		return true;
 	}
+
+	public bool IsInAVehicle() => Vehicle.Get() != null;
+
+	public ref readonly QAngle GetPunchAngle() => ref Local.PunchAngle;
+	public void SetPunchAngle(in QAngle angle) => Local.PunchAngle = angle;
 }

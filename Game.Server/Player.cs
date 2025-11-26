@@ -108,4 +108,6 @@ public partial class BasePlayer : BaseCombatCharacter
 	public double DeathTime;
 	public double LaggedMovementValue;
 	readonly EHANDLE LastWeapon = new();
+
+	public bool IsInAVehicle() => Vehicle.Get() != null;
 }

@@ -31,6 +31,12 @@ public struct QAngle
 		Z = z;
 	}
 
+	public unsafe vec_t LengthSqr() {
+		fixed(QAngle* qptr = &this) {
+			return ((Vector3*)qptr)->LengthSquared();
+		}
+	}
+
 	public QAngle(Vector3 vec) {
 		X = vec.X;
 		Y = vec.Y;

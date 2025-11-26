@@ -11,7 +11,7 @@ namespace Game.Client.GarrysMod;
 using FIELD = FIELD<C_GMOD_Player>;
 
 [LinkEntityToClass(LocalName = "player")]
-public class C_GMOD_Player : C_HL2MP_Player
+public class C_GMOD_Player() : C_HL2MP_Player()
 {
 	static ConVar cl_playercolor = new("1.0 0.0 0.0", FCvar.UserInfo | FCvar.Archive | FCvar.ServerCanExecute, "Default Player Model");
 

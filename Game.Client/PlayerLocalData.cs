@@ -95,7 +95,9 @@ public class PlayerLocalData
 	public int OldButtons;
 	public int OldForwardMove;
 	public QAngle PunchAngle;
+	public readonly InterpolatedVar<QAngle> iv_PunchAngle;
 	public QAngle PunchAngleVel;
+	public readonly InterpolatedVar<QAngle> iv_PunchAngleVel;
 	public bool DrawViewmodel;
 	public bool WearingSuit;
 	public bool Poisoned;
@@ -106,4 +108,16 @@ public class PlayerLocalData
 	public Sky3DParams Skybox3D = new();
 	public FogPlayerParams PlayerFog = new();
 	public AudioParams Audio = new();
+
+	public static readonly DynamicAccessor FIELD_PUNCHANGLE = FIELD.OF(nameof(PunchAngle));
+	public static readonly DynamicAccessor FIELD_PUNCHANGLEVEL = FIELD.OF(nameof(PunchAngleVel));
+
+	public PlayerLocalData() {
+		iv_PunchAngle = new("PlayerLocalData.iv_PunchAngle");
+		iv_PunchAngleVel = new("PlayerLocalData.iv_PunchAngleVel");
+
+		iv_PunchAngle.Setup(this, FIELD_PUNCHANGLE, LatchFlags.LatchSimulationVar);
+		iv_PunchAngleVel.Setup(this, FIELD_PUNCHANGLEVEL, LatchFlags.LatchSimulationVar);
+		FOVRate = 0;
+	}
 }
