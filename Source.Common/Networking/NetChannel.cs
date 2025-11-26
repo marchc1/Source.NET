@@ -60,6 +60,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 		FlowReset();
 	}
 
+	public const int MIN_RATE = 1000;
+	public const int MAX_RATE = (1024 * 1024);
 	public const int DEFAULT_RATE = 80_000;
 	public const TimeUnit_t SIGNON_TIME_OUT = 300;
 	/// <summary>
@@ -85,9 +87,6 @@ public class NetChannel : INetChannelInfo, INetChannel
 	/// Address this netchannel is talking to
 	/// </summary>
 	public NetAddress? RemoteAddress { get; set; }
-
-	public bool IsNull => RemoteAddress?.Type == NetAddressType.Null;
-
 
 	public const int FRAG_NORMAL_STREAM = 0;
 	public const int FRAG_FILE_STREAM = 1;
@@ -1309,7 +1308,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return OutSequence - 1;
 	}
 
-	private void SetMaxRoutablePayloadSize(int splitSize) {
+	public void SetMaxRoutablePayloadSize(int splitSize) {
 		if (MaxRoutablePayloadSize != splitSize) {
 			DevMsg($"Setting max routable payload size from {MaxRoutablePayloadSize} to {splitSize} for {GetName()}");
 		}
@@ -1318,7 +1317,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 	public ReadOnlySpan<char> GetName() => Name;
 
-	private int GetMaxRoutablePayloadSize() => MaxRoutablePayloadSize;
+	public int GetMaxRoutablePayloadSize() => MaxRoutablePayloadSize;
 
 	public unsafe bool CreateFragmentsFromBuffer(bf_write buffer, int stream) {
 		bf_write bfwrite = new();
@@ -1404,10 +1403,6 @@ public class NetChannel : INetChannelInfo, INetChannel
 	}
 
 	public int SplitPacketSequence;
-
-	public bool HasPendingReliableData => StreamReliable.BitsWritten > 0
-									   || WaitingList[FRAG_NORMAL_STREAM].Count > 0
-									   || WaitingList[FRAG_FILE_STREAM].Count > 0;
 
 	public double TimeConnected() => Math.Max(0, Net.Time - ConnectTime);
 	public bool IsTimedOut() => Timeout == -1 ? false : LastReceived + Timeout < Net.Time;
@@ -1756,5 +1751,85 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 	public double GetAvgData(int flow) {
 		return DataFlow[flow].AverageBytesPerSec;
+	}
+
+	public void SetDataRate(float rate) {
+		Rate = (int)Math.Clamp(rate, MIN_RATE, MAX_RATE);
+	}
+
+	public void SetChallengeNr(uint chnr) {
+		ChallengeNumber = chnr;
+	}
+
+	public void ProcessPlayback() {
+		throw new NotImplementedException();
+	}
+
+	public bool ProcessStream() {
+		throw new NotImplementedException();
+	}
+
+	public bool SendFile(ReadOnlySpan<char> filename, uint transferID) {
+		throw new NotImplementedException();
+	}
+
+	public void DenyFile(ReadOnlySpan<char> filename, uint transferID) {
+		throw new NotImplementedException();
+	}
+
+	public NetAddress? GetRemoteAddress() {
+		return RemoteAddress;
+	}
+
+	public INetChannelHandler? GetMsgHandler() {
+		return MessageHandler;
+	}
+
+	public int GetDropNumber() {
+		return packetDrop;
+	}
+
+	public NetSocketType GetSocket() {
+		return Socket;
+	}
+
+	public uint GetChallengeNr() {
+		return ChallengeNumber;
+	}
+
+	public void UpdateMessageStats(int msggroup, int bits) {
+		throw new NotImplementedException();
+	}
+
+	public bool CanPacket() {
+		throw new NotImplementedException();
+	}
+
+	public bool HasPendingReliableData() {
+		return StreamReliable.BitsWritten > 0 || WaitingList[FRAG_NORMAL_STREAM].Count > 0 || WaitingList[FRAG_FILE_STREAM].Count > 0;
+	}
+
+	public void SetFileTransmissionMode(bool backgroundMode) {
+		throw new NotImplementedException();
+	}
+
+	public void SetCompressionMode(bool useCompression) {
+		throw new NotImplementedException();
+	}
+
+	public uint RequestFile(ReadOnlySpan<char> filename) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsNull() {
+		return RemoteAddress?.Type == NetAddressType.Null; ;
+	}
+
+	public int GetNumBitsWritten(bool reliable) {
+		throw new NotImplementedException();
+	}
+
+	public int GetProtocolVersion() {
+		return ProtocolVersion;
 	}
 }

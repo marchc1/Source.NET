@@ -511,7 +511,7 @@ public abstract class BaseClientState(
 		}
 
 #if !SWDS
-		if (!sv.IsActive() && !(NetChannel!.IsLoopback() || NetChannel.IsNull)) {
+		if (!sv.IsActive() && !(NetChannel!.IsLoopback() || NetChannel.IsNull())) {
 			if (MaxClients <= 1) {
 				ConMsg($"Bad maxclients ({MaxClients}) from server.\n");
 				return false;

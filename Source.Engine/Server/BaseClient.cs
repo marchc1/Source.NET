@@ -45,8 +45,13 @@ public abstract class BaseClient : IClient, IClientMessageHandler, IDisposable {
 		throw new NotImplementedException();
 	}
 
-	internal bool SendNetMsg(INetMessage msg, bool reliable) {
-		throw new NotImplementedException();
+	public bool SendNetMsg(INetMessage msg, bool forceReliable = false) {
+		if (NetChannel == null)
+			return true;
+
+		int nStartBit = NetChannel.GetNumBitsWritten(msg.IsReliable() || forceReliable);
+		bool bret = NetChannel.SendNetMsg(msg, forceReliable);
+		return bret;
 	}
 
 	public int ClientSlot;

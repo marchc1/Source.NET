@@ -90,7 +90,7 @@ public abstract class BaseServer : IServer
 			if (!cl.IsConnected())
 				continue;
 
-			INetChannel netchan = cl.GetNetChannel()!;
+			NetChannel netchan = (NetChannel)cl.GetNetChannel()!;
 
 			avgIn += netchan.GetAvgData(NetFlow.FLOW_INCOMING);
 			avgOut += netchan.GetAvgData(NetFlow.FLOW_OUTGOING);
@@ -246,9 +246,9 @@ public abstract class BaseServer : IServer
 		memreset(ref WorldmapMD5);
 
 		// Use a different limit on the signon buffer, so we can save some memory in SP (for xbox).
-		if (IsMultiplayer() || IsDedicated()) 
+		if (IsMultiplayer() || IsDedicated())
 			SignonBuffer.EnsureCapacity(Protocol.MAX_PAYLOAD);
-		else 
+		else
 			SignonBuffer.EnsureCapacity(16384);
 
 		Signon.StartWriting(SignonBuffer.Base(), SignonBuffer.Count(), 0);
@@ -269,7 +269,7 @@ public abstract class BaseServer : IServer
 		// Only drop clients if we have not cleared out entity data prior to this.
 		for (int i = Clients.Count - 1; i >= 0; i--) {
 			BaseClient cl = Clients[i];
-			if (cl.IsConnected()) 
+			if (cl.IsConnected())
 				cl.Disconnect("Server shutting down");
 			else {
 				// free any memory do this out side here in case the reason the server is shutting down 
@@ -303,7 +303,7 @@ public abstract class BaseServer : IServer
 		throw new NotImplementedException();
 	}
 
-	public bool GetClassBaseline(ServerClass pClass, out ReadOnlySpan<byte> pData){
+	public bool GetClassBaseline(ServerClass pClass, out ReadOnlySpan<byte> pData) {
 		throw new NotImplementedException();
 	}
 	public void RunFrame() {
@@ -313,7 +313,15 @@ public abstract class BaseServer : IServer
 
 	}
 	public void ReconnectClients() {
-		throw new NotImplementedException();
+		for (int i = 0; i < Clients.Count; i++) {
+			BaseClient cl = Clients[i];
+
+			if (cl.IsConnected()) {
+				cl.SignOnState = SignOnState.Connected;
+				NET_SignonState signon = new(cl.SignOnState, -1);
+				cl.SendNetMsg(signon);
+			}
+		}
 	}
 	public void CheckTimeouts() {
 		throw new NotImplementedException();
