@@ -710,10 +710,21 @@ public abstract class BaseClientState(
 	}
 
 	public virtual string GetCDKeyHash() => "123";
+
+	readonly GameEventManager gameEventManager = (GameEventManager)Singleton<IGameEventManager2>();
+
 	public virtual void RunFrame() {
-		if (SignOnState == SignOnState.Challenge) {
-			CheckForResend();
+		if((SignOnState > SignOnState.New) && NetChannel != null && gameEventManager.HasClientListenersChanged()) {
+			CLC_ListenEvents msg = ObjectPool<CLC_ListenEvents>.Shared.Alloc();
+			{
+				gameEventManager.WriteListenEventList(msg);
+				NetChannel.SendNetMsg(msg);
+			}
+			ObjectPool<CLC_ListenEvents>.Shared.Free(msg);
 		}
+
+		if (SignOnState == SignOnState.Challenge) 
+			CheckForResend();
 	}
 	public virtual bool PrepareSteamConnectResponse(ulong gameServerSteamID, bool gameServerSecure, IPEndPoint addr, bf_write msg) {
 		// Check steam user

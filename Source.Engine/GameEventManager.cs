@@ -3,6 +3,7 @@ using Source.Common.Bitbuffers;
 using Source.Common.Commands;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.Networking;
 using Source.Common.Utilities;
 
 namespace Source.Engine;
@@ -183,6 +184,41 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 	protected void UnregisterEvent(int index) { throw new NotImplementedException(); }
 	protected bool FireEventIntern(IGameEvent ev, bool serverSide, bool clientOnly) { throw new NotImplementedException(); }
 	protected GameEventCallback? FindEventListener(object? listener) { throw new NotImplementedException(); }
+
+	public bool HasClientListenersChanged(bool reset = true) {
+		if (!ClientListenersChanged)
+			return false;
+
+		if (reset)
+			ClientListenersChanged = false;
+
+		return true;
+	}
+
+	internal void WriteListenEventList(CLC_ListenEvents msg) {
+		msg.EventArray.ClearAll();
+
+		foreach (var descriptor in GameEvents) {
+			bool hasClientListener = false;
+
+			foreach (var listener in descriptor.Listeners) {
+				if (listener.ListenerType == GameEventListenerType.Clientside || listener.ListenerType == GameEventListenerType.ClientsideOld) {
+					hasClientListener = true;
+					break;
+				}
+			}
+
+			if (!hasClientListener)
+				continue;
+
+			if (descriptor.EventID == -1) {
+				DevMsg($"Warning! Client listens to event '{descriptor.Name}' unknown by server.\n");
+				continue;
+			}
+
+			msg.EventArray.Set(descriptor.EventID);
+		}
+	}
 
 	protected readonly List<GameEventDescriptor> GameEvents = [];
 	protected readonly List<GameEventDescriptor> Listeners = [];

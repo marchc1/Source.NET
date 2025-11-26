@@ -27,6 +27,14 @@ public class ClientModeShared(ClientGlobalVariables gpGlobals, Hud Hud, IEngineV
 	public void Init() {
 		ChatElement = (BaseHudChat?)Hud.FindElement("CHudChat");
 		Assert(ChatElement != null);
+
+		ListenForGameEvent("player_connect_client");
+		ListenForGameEvent("player_disconnect");
+		ListenForGameEvent("player_team");
+		ListenForGameEvent("server_cvar");
+		ListenForGameEvent("player_changename");
+		ListenForGameEvent("teamplay_broadcast_audio");
+		ListenForGameEvent("achievement_earned");
 	}
 
 	public bool IsTyping() => ChatElement!.GetMessageMode() != MessageModeType.None;

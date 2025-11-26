@@ -76,7 +76,7 @@ public interface IGameEventManager
 public class GameEventCallback
 {
 	public object? Callback;
-	public int ListenerType;
+	public GameEventListenerType ListenerType;
 }
 
 public class GameEventDescriptor
