@@ -7,13 +7,15 @@ using Source.Common.Engine;
 using Source.Common.Server;
 using Source.Engine.Server;
 
+using static Source.Common.OptimizedModel;
+
 namespace Source.Engine;
 
 /// <summary>
 /// Various serverside methods. In Source, these would mostly be represented by
 /// SV_MethodName's in the static global namespace
 /// </summary>
-public class SV(IServiceProvider services, Cbuf Cbuf, GameServer sv, ED ED, Host Host, CommonHostState host_state)
+public class SV(IServiceProvider services, Cbuf Cbuf, GameServer sv, ED ED, Host Host, CommonHostState host_state, IEngineVGuiInternal EngineVGui, ICvar cvar, IModelLoader modelloader)
 {
 	public IServerGameDLL? ServerGameDLL;
 	public IServerGameEnts? ServerGameEnts;
@@ -34,7 +36,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, GameServer sv, ED ED, Host
 			return true;
 
 		ServerGameDLL = services.GetService<IServerGameDLL>();
-		if(ServerGameDLL == null) {
+		if (ServerGameDLL == null) {
 			Warning("Failed to load server binary\n");
 			goto IgnoreThisDLL;
 		}
@@ -79,7 +81,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, GameServer sv, ED ED, Host
 
 	private int BuildSendTablesArray(ServerClass? classes, SendTable[] tables) {
 		int i = 0;
-		while(classes != null) {
+		while (classes != null) {
 			tables[i++] = classes.Table;
 			classes = classes.Next;
 		}
@@ -106,5 +108,65 @@ public class SV(IServiceProvider services, Cbuf Cbuf, GameServer sv, ED ED, Host
 			// TODO
 			throw new NotImplementedException();
 		}
+	}
+
+	internal bool ActivateServer() {
+		Common.TimestampedLog("SV.ActivateServer");
+#if !SWDS
+		EngineVGui.UpdateProgressBar(LevelLoadingProgress.ActivateServer);
+#endif
+
+		Common.TimestampedLog("serverGameDLL.ServerActivate");
+
+		host_state.IntervalPerTick = ServerGameDLL!.GetTickInterval();
+		if (host_state.IntervalPerTick < Constants.MINIMUM_TICK_INTERVAL || host_state.IntervalPerTick > Constants.MAXIMUM_TICK_INTERVAL) {
+			Sys.Error($"GetTickInterval returned bogus tick interval ({host_state.IntervalPerTick})[{Constants.MINIMUM_TICK_INTERVAL} to {Constants.MAXIMUM_TICK_INTERVAL} is valid range]");
+		}
+
+		Msg($"SV.ActivateServer: setting tickrate to {1.0 / host_state.IntervalPerTick}\n");
+		// TODO
+		sv.State = ServerState.Active;
+
+		Common.TimestampedLog("SV.CreateBaseline");
+
+		// create a baseline for more efficient communications
+		CreateBaseline();
+
+		sv.AllowSignOnWrites = false;
+
+		// set skybox name
+		ConVar? skyname = cvar.FindVar("sv_skyname");
+
+		if (skyname != null)
+			strcpy(sv.Skyname, skyname.GetString());
+		else
+			strcpy(sv.Skyname, "unknown");
+
+		Common.TimestampedLog("Send Reconnects");
+
+		// Tell connected clients to reconnect
+		sv.ReconnectClients();
+
+		if (sv.IsMultiplayer())
+			ConDMsg("%i player server started\n", sv.GetMaxClients());
+		else
+			ConDMsg("Game started\n");
+
+		if (sv.IsDedicated()) {
+			// purge unused models and their data hierarchy (materials, shaders, etc)
+			modelloader.PurgeUnusedModels();
+		}
+
+		InitGameServerSteam();
+
+		// TODO: Steam3Server
+
+		Common.TimestampedLog("SV_ActivateServer(finished)");
+
+		return true;
+	}
+
+	private void CreateBaseline() {
+
 	}
 }

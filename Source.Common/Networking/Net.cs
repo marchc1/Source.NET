@@ -1,20 +1,33 @@
+using Snappier;
+
+using Source.Common.Bitbuffers;
+using Source.Common.Commands;
+using Source.Common.Compression;
+using Source.Common.Networking;
+
+using Steamworks;
+
 using System.Buffers;
 using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
-using System.Net.Sockets;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Threading;
+
 using static Source.Common.Networking.Protocol;
-using Snappier;
-using Source.Common.Bitbuffers;
-using Source.Common.Compression;
-using Source.Common.Commands;
 
 namespace Source.Common.Networking;
 
 public class Net
 {
+	static bool net_noip = false;   // Disable IP support, can't switch to MP mode
+	static bool net_nodns = false;  // Disable DNS request to avoid long timeouts
+	static bool net_notcp = true;   // Disable TCP support
+	static bool net_nohltv = false; // disable HLTV support
+	static bool net_dedicated = false;  // true is dedicated system
+
 	internal static readonly ConVar net_showsplits = new("net_showsplits", "0", 0, "Show info about packet splits");
 	internal static readonly ConVar net_showmsg = new("net_showmsg", "0", 0, "Show incoming message: <0|1|name>");
 	internal static readonly ConVar net_showfragments = new("net_showfragments", "0", 0, "Show netchannel fragments");
@@ -671,7 +684,7 @@ public class Net
 		}
 	}
 
-	public Socket? OpenSocket(string? netInterface, ref int port, ProtocolType protocol) {
+	public Socket? OpenSocket(ReadOnlySpan<char> netInterface, ref int port, ProtocolType protocol) {
 		AddressFamily addressFamily = AddressFamily.InterNetwork;
 		SocketType socketType = (protocol == ProtocolType.Tcp) ? SocketType.Stream : SocketType.Dgram;
 
@@ -711,7 +724,7 @@ public class Net
 
 			// Determine IP address to bind to
 			IPAddress? ipAddress = null;
-			if (!string.IsNullOrEmpty(netInterface) && netInterface != "localhost") {
+			if (!netInterface.IsEmpty && netInterface != "localhost") {
 				if (!IPAddress.TryParse(netInterface, out ipAddress)) {
 					Warning($"WARNING: OpenSocket: failed to parse address: {netInterface}\n");
 					socket.Close();
@@ -1061,5 +1074,21 @@ public class Net
 			return 0;
 
 		return NetSockets[(int)socket].Port;
+	}
+
+	public void ListenSocket(NetSocketType sock, bool listen) {
+		Assert((sock >= 0) && ((int)sock < NetSockets.Count));
+
+		NetSocket netsock = NetSockets[(int)sock];
+
+		if (netsock.TCP != null)
+			CloseSocket(netsock.TCP, sock);
+
+		if (!IsMultiplayer() || net_notcp)
+			return;
+
+		if (listen) {
+			// todo. TCP isn't even used by Garry's Mod anymore.
+		}
 	}
 }

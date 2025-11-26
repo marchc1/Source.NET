@@ -16,61 +16,6 @@ public class GameServer : BaseServer
 		MaxClients = Math.Clamp(number, 1, MaxClientsLimit);
 		Host.deathmatch.SetValue(MaxClients > 1);
 	}
-	public override void BroadcastMessage(INetMessage msg, bool onlyActive = false, bool reliable = false) {
-		throw new NotImplementedException();
-	}
-
-	public override void DisconnectClient(IClient client, ReadOnlySpan<char> reason) {
-		throw new NotImplementedException();
-	}
-
-	public override ReadOnlySpan<char> GetName() {
-		throw new NotImplementedException();
-	}
-
-	public override void GetNetStats(out double avgIn, out double avgOut) {
-		throw new NotImplementedException();
-	}
-
-	public override int GetNumClients() {
-		throw new NotImplementedException();
-	}
-
-	public override int GetNumFakeClients() {
-		throw new NotImplementedException();
-	}
-
-	public override int GetNumPlayers() {
-		throw new NotImplementedException();
-	}
-
-	public override int GetNumProxies() {
-		throw new NotImplementedException();
-	}
-
-	public override ReadOnlySpan<char> GetPassword() {
-		throw new NotImplementedException();
-	}
-
-	public override bool GetPlayerInfo(int clientIndex, out PlayerInfo pinfo) {
-		throw new NotImplementedException();
-	}
-
-	public override double GetTime() {
-		throw new NotImplementedException();
-	}
-
-	public override bool ProcessConnectionlessPacket(NetPacket packet) {
-		throw new NotImplementedException();
-	}
-
-	public override void SetPassword(ReadOnlySpan<char> password) {
-		throw new NotImplementedException();
-	}
-
-	public override void SetPaused(bool paused) {
-		throw new NotImplementedException();
-	}
 
 	public override void Init(bool dedicated) {
 

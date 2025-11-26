@@ -867,7 +867,29 @@ public class Host(
 			HostState.RunGameInit();
 		}
 
-		// do the rest later
+		Net.SetMultiplayer(sv.IsMultiplayer());
+		Net.ListenSocket(sv.Socket, true);
+
+		if (host_name.GetString().Length == 0)
+			host_name.SetValue(serverDLL!.GetGameDescription());
+
+		sv.LevelMainMenuBackground = backgroundLevel;
+		serverGlobalVariables.CurTime = sv.GetTime();
+
+		Common.TimestampedLog("serverGameDLL.LevelInit");
+#if !SWDS
+		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LevelInit);
+#endif
+
+		if(loadGame && !oldSave) {
+			sv.SetPaused(true);
+			sv.LoadGame = true;
+			serverGlobalVariables.CurTime = sv.GetTime();
+		}
+
+		if (!SV.ActivateServer())
+			return false;
+
 		return true;
 	}
 
