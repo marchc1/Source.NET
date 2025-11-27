@@ -299,13 +299,15 @@ public abstract class BaseServer : IServer
 	}
 	public virtual void RemoveClientFromGame(BaseClient cl) { }
 	public virtual void SendClientMessages(bool bSendSnapshots) {
-		throw new NotImplementedException();
+
 	}
+
 	public virtual void FillServerInfo(svc_ServerInfo serverinfo) {
-		throw new NotImplementedException();
+
 	}
+
 	public virtual void UserInfoChanged(int nClientIndex) {
-		throw new NotImplementedException();
+
 	}
 
 	public bool GetClassBaseline(ServerClass pClass, out ReadOnlySpan<byte> pData) {
@@ -474,7 +476,7 @@ public abstract class BaseServer : IServer
 
 	public ServerState State;     // some actions are only valid during load
 	public NetSocketType Socket;       // network socket 
-	public int TickCount;   // current server tick
+	public long TickCount;   // current server tick
 	public bool SimulatingTicks;        // whether or not the server is currently simulating ticks
 	public InlineArray64<char> MapName;       // map name
 	public InlineArray64<char> MapFilename;   // map filename, may bear no resemblance to map name

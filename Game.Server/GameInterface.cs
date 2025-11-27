@@ -144,7 +144,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void Think(bool finalTick) {
-		throw new NotImplementedException();
+
 	}
 }
 

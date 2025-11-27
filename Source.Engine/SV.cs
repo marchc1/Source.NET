@@ -15,7 +15,7 @@ namespace Source.Engine;
 /// Various serverside methods. In Source, these would mostly be represented by
 /// SV_MethodName's in the static global namespace
 /// </summary>
-public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHostState host_state, IEngineVGuiInternal EngineVGui, ICvar cvar, IModelLoader modelloader)
+public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHostState host_state, IEngineVGuiInternal EngineVGui, ICvar cvar, IModelLoader modelloader, ServerGlobalVariables serverGlobalVariables, Con Con, [FromKeyedServices(Realm.Server)] NetworkStringTableContainer networkStringTableContainerServer, IHostState HostState)
 {
 	public IServerGameDLL? ServerGameDLL;
 	public IServerGameEnts? ServerGameEnts;
@@ -176,5 +176,98 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 
 	private void CreateBaseline() {
 
+	}
+	public bool HasPlayers() => sv.GetClientCount() > 0;
+
+	public bool IsSimulating() {
+		if (sv.IsPaused())
+			return false;
+
+# if !SWDS
+		if (!sv.IsMultiplayer()) {
+			if (cl.IsActive() && (Con.IsVisible() || EngineVGui.ShouldPause()))
+				return false;
+		}
+#endif 
+		return true;
+	}
+	ConVar? sv_noclipduringpause;
+	internal void Frame(bool finalTick) {
+		if (ServerGameDLL!= null && finalTick) 
+			ServerGameDLL.Think(finalTick);
+
+		if (!sv.IsActive() || !Host.ShouldRun()) {
+			return;
+		}
+
+		serverGlobalVariables.FrameTime = host_state.IntervalPerTick;
+
+		bool isSimulating = IsSimulating();
+		bool sendDuringPause = sv_noclipduringpause != null? sv_noclipduringpause.GetBool() : false;
+
+		sv.RunFrame();
+
+		bool simulated = false;
+		if (HasPlayers()) {
+			bool serverCanSimulate = true; // TODO: Restoring
+
+			if (serverCanSimulate && (isSimulating || sendDuringPause)) {
+				simulated = true;
+				sv.TickCount++;
+				networkStringTableContainerServer.SetTick(sv.TickCount);
+			}
+
+			Think(isSimulating);
+		}
+		else if (sv.IsMultiplayer()) {
+			Think(false);  
+		}
+
+		sv.SimulatingTicks = simulated;
+
+		if (finalTick) {
+			if (!EngineThreads.IsEngineThreaded() || sv.IsMultiplayer())
+				SendClientUpdates(isSimulating, sendDuringPause);
+			// else
+				// DeferredServerWork = CreateFunctor(SendClientUpdates, isSimulating, sendDuringPause);
+
+		}
+
+		if (IsPC() && sv.IsMultiplayer()) 
+			Steam3Server().RunFrame();
+	}
+
+	public bool ForcedSend;
+
+	private void SendClientUpdates(bool isSimulating, bool sendDuringPause) {
+		bool forcedSend = ForcedSend;
+		ForcedSend = false;
+
+		PreClientUpdate(isSimulating);
+		sv.SendClientMessages(isSimulating || forcedSend);
+		networkStringTableContainerServer.SetTick(sv.TickCount + 1);
+	}
+
+	private void PreClientUpdate(bool isSimulating) {
+		ServerGameDLL?.PreClientUpdate(isSimulating);
+	}
+
+	public double TimeForceShutdown;
+
+	private void Think(bool isSimulating) {
+		sv.UpdateHibernationState();
+
+		if (TimeForceShutdown > 0.0) {
+			if (TimeForceShutdown < Platform.Time) {
+				Warning("Server shutting down because sv_shutdown was requested and timeout has expired.\n");
+				HostState.Shutdown();
+			}
+		}
+
+		serverGlobalVariables.TickCount = sv.TickCount;
+		serverGlobalVariables.CurTime = sv.GetTime();
+		serverGlobalVariables.FrameTime = isSimulating ? host_state.IntervalPerTick : 0;
+
+		isSimulating = isSimulating && (sv.IsMultiplayer() || cl.IsActive());
 	}
 }

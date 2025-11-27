@@ -85,6 +85,7 @@ public interface IEngineVGuiInternal : IEngineVGui
 	bool HideGameUI();
 	void ShowConsole();
 	void HideConsole();
+	bool ShouldPause();
 }
 
 public class EnginePanel : EditablePanel
@@ -1007,5 +1008,9 @@ public class EngineVGui(
 
 	internal void Shutdown() {
 
+	}
+
+	public bool ShouldPause() {
+		return false;
 	}
 }

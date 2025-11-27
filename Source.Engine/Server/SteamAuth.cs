@@ -394,4 +394,8 @@ public class Steam3Server : IDisposable
 	internal void NotifyClientDisconnect(BaseClient baseClient) {
 		throw new NotImplementedException();
 	}
+
+	public void RunFrame() {
+
+	}
 }

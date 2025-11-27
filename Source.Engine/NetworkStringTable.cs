@@ -581,6 +581,8 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 		return Tables.Count();
 	}
 
+	public void SetTick(long tick) { }
+
 	public void SetAllowClientSideAddString(INetworkStringTable table, bool allowClientSideAddString) {
 		foreach (NetworkStringTable pTable in Tables) {
 			if (pTable == table) {
