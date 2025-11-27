@@ -102,11 +102,15 @@ public class CvarUtilities(ICvar cvar, Host Host, Cmd cmd)
 		}
 
 		if (var.IsFlagSet(FCvar.PrintableOnly)) {
+#if !SWDS
 			if (!sv.IsDedicated()) {
 				ReadOnlySpan<char> localized = Localize.Find(strValue);
 				if (!localized.IsEmpty && localized.Length > 0)
 					strValue = localized;
 			}
+#else
+
+#endif
 		}
 
 		if (var.IsFlagSet(FCvar.NeverAsString))

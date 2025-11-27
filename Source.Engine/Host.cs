@@ -241,7 +241,10 @@ public class Host(
 				CL.ExtraMouseUpdate(clientGlobalVariables.FrameTime);
 			}
 		}
-		else {
+#if !SWDS
+		else 
+#endif
+		{
 			int clientTicks, serverTicks;
 			clientTicks = NumTicksLastFrame;
 			cl.TickRemainder = RemainderLastFrame;
@@ -877,7 +880,7 @@ public class Host(
 		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LevelInit);
 #endif
 
-		if(loadGame && !oldSave) {
+		if (loadGame && !oldSave) {
 			sv.SetPaused(true);
 			sv.LoadGame = true;
 			serverGlobalVariables.CurTime = sv.GetTime();
@@ -1045,12 +1048,12 @@ public class Host(
 		inerror = false;
 	}
 
-	static readonly ConVar singlestep = new( "singlestep", "0", FCvar.Cheat, "Run engine in single step mode ( set next to 1 to advance a frame )" );
-	static readonly ConVar cvarNext = new( "next", "0", FCvar.Cheat, "Set to 1 to advance to next frame ( when singlestep == 1 )" );
+	static readonly ConVar singlestep = new("singlestep", "0", FCvar.Cheat, "Run engine in single step mode ( set next to 1 to advance a frame )");
+	static readonly ConVar cvarNext = new("next", "0", FCvar.Cheat, "Set to 1 to advance to next frame ( when singlestep == 1 )");
 
 	int ShouldRun_CurrentTick;
 	public bool ShouldRun() {
-		if (singlestep.GetInt() == 0) 
+		if (singlestep.GetInt() == 0)
 			return true;
 
 		if (cvarNext.GetInt() != 0) {

@@ -19,23 +19,25 @@ using MemoryExtensions = System.MemoryExtensions;
 namespace Source.Engine;
 
 
-#if !SWDS
 public static class ConsoleCVars
 {
 	internal static ConVar con_trace = new("con_trace", "0", FCvar.MaterialSystemThread, "Print console text to low level printout.");
 	internal static ConVar con_notifytime = new("con_notifytime", "8", FCvar.MaterialSystemThread, "How long to display recent console text to the upper part of the game window");
 	internal static ConVar con_times = new("contimes", "8", FCvar.MaterialSystemThread, "Number of console lines to overlay for debugging.");
+#if !SWDS
 	internal static ConVar con_drawnotify = new("con_drawnotify", "1", 0, "Disables drawing of notification area (for taking screenshots).");
 	internal static ConVar con_enable = new("con_enable", "1", FCvar.Archive, "Allows the console to be activated.");
+#endif
 	internal static ConVar con_filter_enable = new("con_filter_enable", "0", FCvar.MaterialSystemThread, "Filters console output based on the setting of con_filter_text. 1 filters completely, 2 displays filtered text brighter than other text.");
 	internal static ConVar con_filter_text = new("con_filter_text", "", FCvar.MaterialSystemThread, "Text with which to filter console spew. Set con_filter_enable 1 or 2 to activate.");
 	internal static ConVar con_filter_text_out = new("con_filter_text_out", "", FCvar.MaterialSystemThread, "Text with which to filter OUT of console spew. Set con_filter_enable 1 or 2 to activate.");
-#if GMOD_DLL
+#if GMOD_DLL && !SWDS
 	internal static ConVar con_bgalpha = new("con_bgalpha", "50", FCvar.Archive, "Background alpha for console notify (contimes + developer 1).");
 	internal static ConVar con_border = new("con_border", "6", FCvar.Archive, "Border size for console notify (contimes + developer 1)..");
 #endif
 }
 
+#if !SWDS
 public class ConPanel : BasePanel
 {
 	public ConPanel(Panel panel) : base(panel) {
@@ -423,7 +425,9 @@ public class ConPanel : BasePanel
 
 public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInput Input, IBaseClientDLL ClientDLL)
 {
+#if !SWDS
 	static ConPanel? conPanel = null;
+#endif
 	static ConVar con_enable = new("1", FCvar.Archive, "Allows the console to be activated.");
 
 	[ConCommand]
@@ -546,8 +550,10 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 		if (Host.Sys != null && !Host.Sys.InSpew)
 			Msg(msg);
 
+#if !SWDS
 		if ((!debugprint || indeveloper) && !(debugprint && convisible))
 			conPanel?.AddToNotify(clr, msg);
+#endif
 
 		g_bInColorPrint = false;
 	}
@@ -555,9 +561,13 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 	public bool IsVisible() => EngineVGui.IsConsoleVisible();
 
 	internal void CreateConsolePanel(Panel parent) {
+#if !SWDS
 		conPanel = new(parent);
 		conPanel.SetVisible(false);
+#endif
 	}
 
+#if !SWDS
 	public ConPanel? GetConsolePanel() => conPanel;
+#endif
 }
