@@ -253,4 +253,12 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public void SetMaxRoutablePayloadSize(int nMaxRoutablePayloadSize) {
 		throw new NotImplementedException();
 	}
+
+	public bool IsReplay() {
+		return false;
+	}
+
+	public bool ShouldReportThisFakeClient() {
+		return false;
+	}
 }

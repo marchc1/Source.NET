@@ -30,9 +30,14 @@ public enum ServerState
 /// </summary>
 public abstract class BaseServer : IServer
 {
+
 	protected readonly Net Net = Singleton<Net>();
 	protected readonly Host Host = Singleton<Host>();
-	static ConVar sv_password = new("sv_password", "", FCvar.Notify | FCvar.Protected | FCvar.DontRecord, "Server password for entry into multiplayer games");
+	internal static readonly ConVar sv_region = new( "sv_region","-1", FCvar.None, "The region of the world to report this server in." );
+	internal static readonly ConVar sv_instancebaselines = new( "sv_instancebaselines", "1", FCvar.DevelopmentOnly, "Enable instanced baselines. Saves network overhead." );
+	internal static readonly ConVar sv_stats = new( "sv_stats", "1", 0, "Collect CPU usage stats" );
+	internal static readonly ConVar sv_enableoldqueries = new( "sv_enableoldqueries", "0", 0, "Enable support for old style (HL1) server queries" );
+	internal static readonly ConVar sv_password = new("sv_password", "", FCvar.Notify | FCvar.Protected | FCvar.DontRecord, "Server password for entry into multiplayer games");
 
 	public virtual int GetNumClients() {
 		int count = 0;

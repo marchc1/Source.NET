@@ -112,8 +112,9 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 
 	internal void InitGameServerSteam() {
 		if (sv.IsMultiplayer()) {
-			// TODO
-			throw new NotImplementedException();
+			Steam3Server().Activate(ServerType.Normal);
+			sv.SetQueryPortFromSteamServer();
+			ServerGameDLL!.GameServerSteamAPIActivated();
 		}
 	}
 

@@ -309,12 +309,68 @@ public class Steam3Server : IDisposable
 
 	}
 	public void SendUpdatedServerDetails() {
+		if (!BIsActive())
+			return;
 
+		int nNumClients = sv.GetNumClients();
+		int nMaxClients = sv.GetMaxClients();
+		int nFakeClients = sv.GetNumFakeClients();
+
+		for (int i = 0; i < sv.GetClientCount(); ++i) {
+			BaseClient cl = (BaseClient)sv.GetClient(i)!;
+			if (!cl.IsConnected())
+				continue;
+
+			bool hideClient = false;
+			if (cl.IsReplay() || cl.IsHLTV()) {
+				Assert(cl.IsFakeClient());
+				hideClient = true;
+			}
+
+			if (cl.IsFakeClient() && !cl.ShouldReportThisFakeClient())
+				hideClient = true;
+
+			if (hideClient) {
+				--nNumClients;
+				--nMaxClients;
+				--nFakeClients;
+
+				if (cl.SteamID.IsValid()) {
+					Assert(cl.SteamID.BAnonGameServerAccount());
+					SteamGameServer.SendUserDisconnect_DEPRECATED(cl.SteamID);
+					cl.SteamID = new();
+				}
+			}
+		}
+
+		// sv_visiblemaxplayers todo
+
+		SteamGameServer.SetMaxPlayerCount(nMaxClients);
+		SteamGameServer.SetBotPlayerCount(nFakeClients);
+		SteamGameServer.SetPasswordProtected(!sv.GetPassword().IsEmpty);
+		SteamGameServer.SetRegion(BaseServer.sv_region.GetString());
+		SteamGameServer.SetServerName(new(sv.GetName()));
+		SteamGameServer.SetMapName(new(sv.GetMapName()));
+
+		SteamGameServer.SetSpectatorPort(0);
+
+		// UpdateGroupSteamID(false);
 	}
+
 	public void Shutdown() {
+		if (!BIsActive())
+			return;
+
+		HasActivePlayers = false;
+		LogOnResult = false;
+		SteamIDGS = CSteamID.NotInitYetGS;
+		ServerMode = EServerMode.eServerModeInvalid;
+
+		Clear();
+	}
+	public void Clear() {
 
 	}
-
 	public void Dispose() {
 		Shutdown();
 		GC.SuppressFinalize(this);
