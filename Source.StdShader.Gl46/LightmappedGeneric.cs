@@ -114,5 +114,9 @@ public class LightmappedGeneric : BaseVSShader
 			DETAIL, DETAILSCALE, true, ENVMAP, ENVMAPFRAME, ENVMAPMASK,
 			ENVMAPMASKFRAME, ENVMAPMASKSCALE, ENVMAPTINT, ALPHATESTREFERENCE,
 			DETAILBLENDMODE, OUTLINE, OUTLINECOLOR, OUTLINESTART0, OUTLINEEND1, SEPARATEDETAILUVS, "lightmappedgeneric");
+
+		// Temporary hack...
+		if (IsSnapshotting())
+			ShaderShadow.VertexShaderVertexFormat(ShaderShadow.GetVertexFormat() | VertexFormat.TexCoord2D_1, 2, [2, 2], 0);
 	}
 }
