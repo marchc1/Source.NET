@@ -51,7 +51,7 @@ public class Bootloader : IDisposable
 				// Our game DLL's. Server/game impl, client impl, UI impl.
 				.WithGameDLL<ServerGameDLL>()
 				// Let the engine builder take over and inject engine-specific dependencies
-				.Build(dedicated: false);
+				.Build(dedicated: true);
 
 			// Generate our startup information
 			PreInit();
