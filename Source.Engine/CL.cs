@@ -41,8 +41,35 @@ public partial class CL(IServiceProvider services, Net Net,
 
 	}
 
-	public void CheckClientState() {
+	static readonly ConVar cl_LocalNetworkBackdoor = new( "cl_localnetworkbackdoor", "1", 0, "Enable network optimizations for single player games." );
+	static readonly ConVar cl_ignorepackets = new( "cl_ignorepackets", "0", FCvar.Cheat, "Force client to ignore packets (for debugging)." );
 
+	public void CheckClientState() {
+		bool useBackdoor = cl_LocalNetworkBackdoor.GetInt() != 0 &&
+						(cl.NetChannel != null && cl.NetChannel.IsLoopback()) &&
+						sv.IsActive() &&
+						Host.IsSinglePlayerGame();
+
+		SetupLocalNetworkBackDoor(useBackdoor);
+	}
+
+	readonly LocalNetworkBackdoor localNetworkBackdoor = new();
+	public LocalNetworkBackdoor? LocalNetworkBackdoor;
+
+	public void SetupLocalNetworkBackDoor(bool useBackdoor) {
+		if (useBackdoor) {
+			if (LocalNetworkBackdoor == null) {
+				LocalNetworkBackdoor = localNetworkBackdoor;
+				LocalNetworkBackdoor.StartBackdoorMode();
+			}
+		}
+		else {
+			if (LocalNetworkBackdoor != null) {
+				LocalNetworkBackdoor.StopBackdoorMode();
+				LocalNetworkBackdoor = null;
+				cl.ForceFullUpdate(); 
+			}
+		}
 	}
 
 	public void ExtraMouseUpdate(double frameTime) {

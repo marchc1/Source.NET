@@ -889,6 +889,15 @@ public class Host(
 		if (!SV.ActivateServer())
 			return false;
 
+		if (!sv.IsDedicated()) {
+			Common.TimestampedLog("Stuff 'connect localhost' to console");
+
+			Span<char> str = stackalloc char[512];
+			sprintf(str, "connect localhost:%d listenserver").D(sv.GetUDPPort());
+			Cbuf.AddText(str);
+		}
+
+
 		return true;
 	}
 

@@ -169,6 +169,12 @@ namespace Source;
 
 
 // Very specialized uses
+[InlineArray(Constants.MAX_EDICTS)] public struct InlineArrayNewMaxEdicts<T> where T : new() { 
+	public T item;
+	public InlineArrayNewMaxEdicts() {
+		for (int i = 0; i < Constants.MAX_EDICTS; i++) this[i] = new();
+	}
+}
 [InlineArray(Constants.MAX_EDICTS)] public struct InlineArrayMaxEdicts<T> { public T item; }
 [InlineArray(MAX_PATH)] public struct InlineArrayMaxPath<T> { public T item; }
 [InlineArray(Constants.MAX_PACKEDENTITY_DATA)] public struct InlineArrayMaxPackedEntityData<T> { public T item; }

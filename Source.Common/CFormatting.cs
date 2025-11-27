@@ -378,11 +378,11 @@ public static class CFormatting
 		return 0;
 	}
 
-	public static int strcmp(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.CompareTo(b, StringComparison.Ordinal);
-	public static int stricmp(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.CompareTo(b, StringComparison.OrdinalIgnoreCase);
+	public static int strcmp(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.SliceNullTerminatedString().CompareTo(b.SliceNullTerminatedString(), StringComparison.Ordinal);
+	public static int stricmp(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.SliceNullTerminatedString().CompareTo(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);
 
-	public static bool streq(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.Equals(b, StringComparison.Ordinal);
-	public static bool strieq(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.Equals(b, StringComparison.OrdinalIgnoreCase);
+	public static bool streq(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.SliceNullTerminatedString().Equals(b.SliceNullTerminatedString(), StringComparison.Ordinal);
+	public static bool strieq(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.SliceNullTerminatedString().Equals(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);
 
 	public static nint strlen(ReadOnlySpan<char> str) {
 		int i = 0;

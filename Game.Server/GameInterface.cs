@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Game.Shared;
+
+using Microsoft.Extensions.DependencyInjection;
 
 using Source;
 using Source.Common;
@@ -43,7 +45,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void GameFrame(bool simulating) {
-		throw new NotImplementedException();
+
 	}
 
 	public bool GameInit() {
@@ -124,7 +126,10 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void PreClientUpdate(bool simulating) {
-		throw new NotImplementedException();
+		if (!simulating)
+			return;
+		
+		IGameSystem.PreClientUpdateAllSystems();
 	}
 
 	public void PreSaveGameLoaded(ReadOnlySpan<char> pSaveName, bool bCurrentlyInGame) {

@@ -33,6 +33,7 @@ public abstract class BaseServer : IServer
 
 	protected readonly Net Net = Singleton<Net>();
 	protected readonly Host Host = Singleton<Host>();
+	protected readonly ServerGlobalVariables serverGlobalVariables = Singleton<ServerGlobalVariables>();
 	internal static readonly ConVar sv_region = new( "sv_region","-1", FCvar.None, "The region of the world to report this server in." );
 	internal static readonly ConVar sv_instancebaselines = new( "sv_instancebaselines", "1", FCvar.DevelopmentOnly, "Enable instanced baselines. Saves network overhead." );
 	internal static readonly ConVar sv_stats = new( "sv_stats", "1", 0, "Collect CPU usage stats" );
@@ -313,8 +314,27 @@ public abstract class BaseServer : IServer
 	public bool GetClassBaseline(ServerClass pClass, out ReadOnlySpan<byte> pData) {
 		throw new NotImplementedException();
 	}
+
+	public const double CHALLENGE_NONCE_LIFETIME = 6d;
+	public const int MAX_DELTA_TICKS = 192;
+
 	public void RunFrame() {
-		throw new NotImplementedException();
+		Net.ProcessSocket(Socket, this);
+
+		CheckTimeouts();
+		UpdateUserSettings();
+		SendPendingServerInfo();
+		CalculateCPUUsage();
+		UpdateMasterServer();
+
+		if (LastRandomNumberGenerationTime < 0 || (LastRandomNumberGenerationTime + CHALLENGE_NONCE_LIFETIME) < serverGlobalVariables.RealTime) {
+			LastRandomNonce = CurrentRandomNonce;
+			CurrentRandomNonce = (uint)((RandomInt(0, 0xFFFF)) << 16) | (uint)RandomInt(0, 0xFFFF);
+			LastRandomNumberGenerationTime = serverGlobalVariables.RealTime;
+		}
+
+		if (PausedTimeEnd >= 0 && State == ServerState.Paused && Sys.Time >= PausedTimeEnd) 
+			SetPausedForced(false);
 	}
 	public void InactivateClients() {
 
@@ -331,13 +351,13 @@ public abstract class BaseServer : IServer
 		}
 	}
 	public void CheckTimeouts() {
-		throw new NotImplementedException();
+
 	}
 	public void UpdateUserSettings() {
-		throw new NotImplementedException();
+
 	}
 	public void SendPendingServerInfo() {
-		throw new NotImplementedException();
+
 	}
 
 	public ReadOnlySpan<char> CompressPackedEntity(ServerClass pServerClass, ReadOnlySpan<byte> data, out int bits) {
@@ -439,7 +459,7 @@ public abstract class BaseServer : IServer
 	}
 
 	protected virtual void CalculateCPUUsage() {
-		throw new NotImplementedException();
+
 	}
 
 	// Keep the master server data updated.
@@ -451,7 +471,7 @@ public abstract class BaseServer : IServer
 		throw new NotImplementedException();
 	}
 	protected void UpdateMasterServer() {
-		throw new NotImplementedException();
+
 	}
 	protected void UpdateMasterServerRules() {
 		throw new NotImplementedException();

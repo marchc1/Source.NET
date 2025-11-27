@@ -1,6 +1,7 @@
 ﻿global using static Source.Engine.SourceDllMain;
 
 using Source.Common;
+using Source.Common.Server;
 using Source.Engine.Client;
 using Source.Engine.Server;
 
@@ -14,4 +15,6 @@ public static class SourceDllMain
 	public static GameEventManager g_GameEventManager => (GameEventManager)gameEventManager;
 	[Dependency] public static ClientState cl { get; private set; } = null!;
 	[Dependency] public static GameServer sv { get; private set; } = null!;
+	[Dependency] public static IServerGameDLL serverGameDLL { get; private set; } = null!;
+	[Dependency] public static IClientEntityList entitylist { get; private set; } = null!;
 }

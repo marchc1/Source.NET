@@ -171,6 +171,8 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<ClientGlobalVariables>();
 		this.AddSingleton<ServerGlobalVariables>();
 		this.AddSingleton<DtCommonEng>();
+		this.AddSingleton<ServerPlugin>();
+		this.AddSingleton<IServerPluginHelpers, ServerPlugin>(x => x.GetRequiredService<ServerPlugin>());
 		this.AddSingleton<IUniformRandomStream, UniformRandomStream>();
 		this.AddSingleton<ISoundServices, EngineSoundServices>();
 		// Engine datacache

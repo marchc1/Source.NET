@@ -15,7 +15,7 @@ namespace Source.Engine;
 /// Various serverside methods. In Source, these would mostly be represented by
 /// SV_MethodName's in the static global namespace
 /// </summary>
-public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHostState host_state, IEngineVGuiInternal EngineVGui, ICvar cvar, IModelLoader modelloader, ServerGlobalVariables serverGlobalVariables, Con Con, [FromKeyedServices(Realm.Server)] NetworkStringTableContainer networkStringTableContainerServer, IHostState HostState)
+public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHostState host_state, IEngineVGuiInternal EngineVGui, ICvar cvar, IModelLoader modelloader, ServerGlobalVariables serverGlobalVariables, Con Con, [FromKeyedServices(Realm.Server)] NetworkStringTableContainer networkStringTableContainerServer, IHostState HostState, ServerPlugin serverPluginHandler)
 {
 	public IServerGameDLL? ServerGameDLL;
 	public IServerGameEnts? ServerGameEnts;
@@ -269,5 +269,6 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		serverGlobalVariables.FrameTime = isSimulating ? host_state.IntervalPerTick : 0;
 
 		isSimulating = isSimulating && (sv.IsMultiplayer() || cl.IsActive());
+		serverPluginHandler.GameFrame(isSimulating);
 	}
 }
