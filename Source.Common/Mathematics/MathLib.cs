@@ -289,6 +289,23 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorDivide(in Vector3 inVec, vec_t scale, out Vector3 result) => result = Vector3.Divide(inVec, scale);
 
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static int RoundFloatToInt(float f) => (int)f;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static byte RoundFloatToByte(float f) => (byte)RoundFloatToInt(f);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void ColorClamp(ref Vector3 color) {
+		float maxc = MathF.Max(color.X, MathF.Max(color.Y, color.Z));
+		if (maxc > 1.0f) {
+			float ooMax = 1.0f / maxc;
+			color.X *= ooMax;
+			color.Y *= ooMax;
+			color.Z *= ooMax;
+		}
+
+		if (color[0] < 0f) color[0] = 0f;
+		if (color[1] < 0f) color[1] = 0f;
+		if (color[2] < 0f) color[2] = 0f;
+	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void VectorScale(in Vector3 inVec, in Vector3 scale, out Vector3 result) => result = Vector3.Multiply(inVec, scale);
@@ -710,8 +727,8 @@ public static class MathLib
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe vec_t DotProduct(in Quaternion v1, in Quaternion v2) {
-		fixed(Quaternion* pV1 = &v1)
-		fixed(Quaternion* pV2 = &v2) {
+		fixed (Quaternion* pV1 = &v1)
+		fixed (Quaternion* pV2 = &v2) {
 			return DotProduct(new(pV1, 4), new(pV2, 4));
 		}
 	}

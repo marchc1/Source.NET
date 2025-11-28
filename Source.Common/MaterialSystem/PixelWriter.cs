@@ -1,22 +1,35 @@
-﻿using Source.Common.Bitmap;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source.Common.Bitmap;
 
 using System.Runtime.CompilerServices;
 
 namespace Source.Common.MaterialSystem;
+
 [Flags]
-public enum PixelWriterUsing
+public enum PixelWriterUsing : byte
 {
 	Float = 0x01,
 	Float16 = 0x02,
 	SwapBytes = 0x04
 }
+public static partial class FloatHelpers
+{
+
+	[UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_value")]
+	static extern ref ushort getBits(ref Half half);
+	public static ushort GetBits(this ref Half half) => getBits(ref half);
+
+	public static uint FloatBits(this ref readonly float r) => new ReadOnlySpan<float>(in r).Cast<float, uint>()[0];
+}
+
 public unsafe struct PixelWriterState
 {
 	public ImageFormat Format;
 	public int Bits;
 	public byte Size;
 	public int BytesPerRow;
-	public byte Flags;
+	public PixelWriterUsing Flags;
 	public short RShift;
 	public short GShift;
 	public short BShift;
@@ -40,7 +53,7 @@ public unsafe struct PixelWriterState
 				GMask = 0x0;
 				BMask = 0x0;
 				AMask = 0x0;
-				Flags |= (int)PixelWriterUsing.Float;
+				Flags |= PixelWriterUsing.Float;
 				break;
 
 			case ImageFormat.RGBA32323232F:
@@ -53,7 +66,7 @@ public unsafe struct PixelWriterState
 				GMask = 0xFFFFFFFF;
 				BMask = 0xFFFFFFFF;
 				AMask = 0xFFFFFFFF;
-				Flags |= (int)PixelWriterUsing.Float;
+				Flags |= PixelWriterUsing.Float;
 				break;
 
 			case ImageFormat.RGBA16161616F:
@@ -66,7 +79,7 @@ public unsafe struct PixelWriterState
 				GMask = 0xFFFF;
 				BMask = 0xFFFF;
 				AMask = 0xFFFF;
-				Flags |= (int)PixelWriterUsing.Float | (int)PixelWriterUsing.Float16;
+				Flags |= PixelWriterUsing.Float | PixelWriterUsing.Float16;
 				break;
 
 			case ImageFormat.RGBA8888:
@@ -226,54 +239,52 @@ public unsafe struct PixelWriterState
 	static bool[] format_error_printed = new bool[(int)ImageFormat.Count];
 }
 
-public ref struct PixelWriter
+public static class PixelWriterImpl
 {
-	Span<byte> Base;
-	PixelWriterState State;
-
-	/// <summary>
-	/// Allows reuse of the internal state structure if we lose control of the pixel writer ref struct
-	/// </summary>
-	/// <param name="state"></param>
-	public readonly void Export(out PixelWriterState state, out Span<byte> memory) {
-		state = State;
-		memory = Base;
-	}
-
-
-	/// <summary>
-	/// Allows reuse of the internal state structure if we lose control of the pixel writer ref struct
-	/// </summary>
-	/// <param name="state"></param>
-	public void Import(in PixelWriterState state, in Span<byte> memory) {
-		State = state;
-		Base = memory;
-	}
-
-
-	public void SetPixelMemory(ImageFormat format, in Span<byte> memory, int stride) {
-		State.SetFormat(format, (uint)stride);
-		Base = memory;
-	}
-
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public void Seek(int x, int y) {
+	public static void Seek(ref PixelWriterState State, Span<byte> Base, int x, int y) {
 		State.Bits = y * State.BytesPerRow + x * State.Size;
 	}
-
-	public void Dispose() {
-		Base = null;
-		State = default;
-	}
-
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public void WritePixel(int r, int g, int b, int a) {
-		WritePixelNoAdvance(r, g, b, a);
+	public static void WritePixel(ref PixelWriterState State, Span<byte> Base, int r, int g, int b, int a = 255) {
+		WritePixelNoAdvance(ref State, Base, r, g, b, a);
 		State.Bits += State.Size;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private unsafe void WritePixelNoAdvance(int r, int g, int b, int a) {
+	public static void WritePixelF(ref PixelWriterState State, Span<byte> Base, float r, float g, float b, float a = 1.0f) {
+		WritePixelNoAdvanceF(ref State, Base, r, g, b, a);
+		State.Bits += State.Size;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe void WritePixelNoAdvanceF(ref PixelWriterState State, Span<byte> Base, float r, float g, float b, float a) {
+		Assert(IsUsingFloatFormat(ref State));
+		if ((State.Flags & PixelWriterUsing.Float16) != 0) {
+			Span<Half> fp16 = stackalloc Half[4];
+			fp16[0] = (Half)r;
+			fp16[1] = (Half)g;
+			fp16[2] = (Half)b;
+			fp16[3] = (Half)a;
+			Span<ushort> buf = stackalloc ushort[4];
+			buf[State.RShift >> 4] |= (ushort)((fp16[0].GetBits() & State.RMask) << (State.RShift & 0xF));
+			buf[State.GShift >> 4] |= (ushort)((fp16[1].GetBits() & State.GMask) << (State.GShift & 0xF));
+			buf[State.BShift >> 4] |= (ushort)((fp16[2].GetBits() & State.BMask) << (State.BShift & 0xF));
+			buf[State.AShift >> 4] |= (ushort)((fp16[3].GetBits() & State.AMask) << (State.AShift & 0xF));
+			memcpy(Base[..State.Size], buf[..State.Size].Cast<ushort, byte>());
+		}
+		else {
+			Span<uint> buf = stackalloc uint[4];
+			buf[State.RShift >> 5] |= (r.FloatBits() & State.RMask) << (State.RShift & 0x1F);
+			buf[State.GShift >> 5] |= (g.FloatBits() & State.GMask) << (State.GShift & 0x1F);
+			buf[State.BShift >> 5] |= (b.FloatBits() & State.BMask) << (State.BShift & 0x1F);
+			buf[State.AShift >> 5] |= (a.FloatBits() & State.AMask) << (State.AShift & 0x1F);
+			memcpy(Base[..State.Size], buf[..State.Size].Cast<uint, byte>());
+		}
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe void WritePixelNoAdvance(ref PixelWriterState State, Span<byte> Base, int r, int g, int b, int a) {
 		if (State.Size <= 0) return;
 
 		uint rmask = State.RMask, gmask = State.GMask, bmask = State.BMask, amask = State.AMask;
@@ -335,6 +346,85 @@ public ref struct PixelWriter
 			}
 		}
 	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsUsingFloatFormat(ref PixelWriterState State) => (State.Flags & PixelWriterUsing.Float) != 0;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void WritePixel(ref PixelWriterState State, Span<byte> Base, in Color color) => WritePixel(ref State, Base, color.R, color.G, color.B, color.A);
+}
 
-	public void WritePixel(in Color color) => WritePixel(color.R, color.G, color.B, color.A);
+public ref struct PixelWriter
+{
+	Span<byte> Base;
+	PixelWriterState State;
+
+	/// <summary>
+	/// Allows reuse of the internal state structure if we lose control of the pixel writer ref struct
+	/// </summary>
+	/// <param name="state"></param>
+	public readonly void Export(out PixelWriterState state, out Span<byte> memory) {
+		state = State;
+		memory = Base;
+	}
+	/// <summary>
+	/// Allows reuse of the internal state structure if we lose control of the pixel writer ref struct
+	/// </summary>
+	/// <param name="state"></param>
+	public void Import(in PixelWriterState state, in Span<byte> memory) {
+		State = state;
+		Base = memory;
+	}
+	public void SetPixelMemory(ImageFormat format, in Span<byte> memory, int stride) {
+		State.SetFormat(format, (uint)stride);
+		Base = memory;
+	}
+	public void Dispose() {
+		Base = null;
+		State = default;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void Seek(int x, int y) => PixelWriterImpl.Seek(ref State, Base, x, y);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixel(int r, int g, int b, int a = 255) => PixelWriterImpl.WritePixel(ref State, Base, r, g, b, a);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixelF(float r, float g, float b, float a = 1.0f) => PixelWriterImpl.WritePixelF(ref State, Base, r, g, b, a);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public unsafe void WritePixelNoAdvanceF(float r, float g, float b, float a) => PixelWriterImpl.WritePixelNoAdvanceF(ref State, Base, r, g, b, a);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public unsafe void WritePixelNoAdvance(int r, int g, int b, int a) => PixelWriterImpl.WritePixelNoAdvance(ref State, Base, r, g, b, a);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsUsingFloatFormat() => PixelWriterImpl.IsUsingFloatFormat(ref State);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixel(in Color color) => PixelWriterImpl.WritePixel(ref State, Base, in color);
+}
+
+
+public struct PixelWriterMem
+{
+	Memory<byte> Base;
+	PixelWriterState State;
+
+	/// <summary>
+	/// Allows reuse of the internal state structure if we lose control of the pixel writer ref struct
+	/// </summary>
+	/// <param name="state"></param>
+	public readonly void Export(out PixelWriterState state, out Memory<byte> memory) {
+		state = State;
+		memory = Base;
+	}
+	/// <summary>
+	/// Allows reuse of the internal state structure if we lose control of the pixel writer ref struct
+	/// </summary>
+	/// <param name="state"></param>
+	public void Import(in PixelWriterState state, in Memory<byte> memory) {
+		State = state;
+		Base = memory;
+	}
+	public void SetPixelMemory(ImageFormat format, in Memory<byte> memory, int stride) {
+		State.SetFormat(format, (uint)stride);
+		Base = memory;
+	}
+	public void Dispose() {
+		Base = null;
+		State = default;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void Seek(int x, int y) => PixelWriterImpl.Seek(ref State, Base.Span, x, y);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixel(int r, int g, int b, int a = 255) => PixelWriterImpl.WritePixel(ref State, Base.Span, r, g, b, a);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixelF(float r, float g, float b, float a = 1.0f) => PixelWriterImpl.WritePixelF(ref State, Base.Span, r, g, b, a);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public unsafe void WritePixelNoAdvanceF(float r, float g, float b, float a) => PixelWriterImpl.WritePixelNoAdvanceF(ref State, Base.Span, r, g, b, a);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public unsafe void WritePixelNoAdvance(int r, int g, int b, int a) => PixelWriterImpl.WritePixelNoAdvance(ref State, Base.Span, r, g, b, a);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsUsingFloatFormat() => PixelWriterImpl.IsUsingFloatFormat(ref State);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixel(in Color color) => PixelWriterImpl.WritePixel(ref State, Base.Span, in color);
 }

@@ -1,15 +1,63 @@
-﻿using Source.Common.MaterialSystem;
+﻿using Source.Bitmap;
+using Source.Common.Bitmap;
+using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
+using Source.Common.ShaderAPI;
 
+using System.Buffers;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Source.MaterialSystem;
 
+public static class ColorSpace
+{
+	static float[] textureToLinear = new float[256];  // texture (0..255) to linear (0..1)
+	static int[] linearToTexture = new int[1024];   // linear (0..1) to texture (0..255)
+	static int[] linearToScreen = new int[1024];    // linear (0..1) to gamma corrected vertex light (0..255)
+	static float[] g_LinearToVertex = new float[4096];   // linear (0..4) to screen corrected vertex space (0..1?)
+	static int[] linearToLightmap = new int[4096];  // linear (0..4) to screen corrected texture value (0..255)
+
+	public static void LinearToLightmap(Span<byte> pDstRGB, ReadOnlySpan<float> pSrcRGB) {
+		Vector3 tmpVect = default;
+		int i, j;
+		for (j = 0; j < 3; j++) {
+			i = MathLib.RoundFloatToInt(pSrcRGB[j] * 1024); // assume 0..4 range
+			if (i < 0) {
+				i = 0;
+			}
+			if (i > 4091)
+				i = 4091;
+			tmpVect[j] = g_LinearToVertex[i];
+		}
+
+		MathLib.ColorClamp(ref tmpVect);
+
+		pDstRGB[0] = MathLib.RoundFloatToByte(tmpVect[0] * 255.0f);
+		pDstRGB[1] = MathLib.RoundFloatToByte(tmpVect[1] * 255.0f);
+		pDstRGB[2] = MathLib.RoundFloatToByte(tmpVect[2] * 255.0f);
+	}
+}
+
 public class MatLightmaps
 {
 	private readonly MaterialSystem MaterialSystem;
+	readonly IMaterialSystemHardwareConfig HardwareConfig = Singleton<IMaterialSystemHardwareConfig>();
+	readonly IShaderAPI ShaderAPI = Singleton<IShaderAPI>();
+
 
 	public MatLightmaps(MaterialSystem materialSystem) {
 		MaterialSystem = materialSystem;
+	}
+
+	public void CleanupLightmaps() {
+
+		if (LightmapPages != null) {
+			for (int i = 0; i < GetNumLightmapPages(); i++)
+				ShaderAPI.DeleteTexture(LightmapPageTextureHandles[i].Handle);
+			LightmapPages = null;
+		}
+		NumLightmapPages = 0;
 	}
 
 	public int NumSortIDs = 0;
@@ -50,8 +98,27 @@ public class MatLightmaps
 		public int Flags;
 	}
 
+	class DynamicLightmap
+	{
+		public void Init() {
+			LightmapLocked = -1;
+			FrameID = 0;
+			CurrentDynamicIndex = 0;
+			for (int i = 0; i < COUNT_DYNAMIC_LIGHTMAP_PAGES; i++)
+				LightmapLockFrame[i] = 0;
+		}
+
+		public int LightmapLocked;
+		public int FrameID;
+		public int CurrentDynamicIndex;
+		public readonly int[] LightmapLockFrame = new int[COUNT_DYNAMIC_LIGHTMAP_PAGES];
+		public readonly ImagePacker[] ImagePackers = new ImagePacker[COUNT_DYNAMIC_LIGHTMAP_PAGES];
+	}
+
 	readonly List<ImagePacker> ImagePackers = [];
 	LightmapPageInfo[]? LightmapPages;
+
+	readonly DynamicLightmap dynamic = new();
 
 	public int AllocateLightmap(int width, int height, Span<int> offsetIntoLightmapPage, IMaterial imaterial) {
 		if (imaterial is not IMaterialInternal material) {
@@ -144,8 +211,125 @@ public class MatLightmaps
 		}
 	}
 
-	private void AllocateLightmapTexture(int i) {
-		// todo
+	private void AllocateLightmapTexture(int lightmap) {
+		bool bUseDynamicTextures = HardwareConfig.PreferDynamicTextures();
+
+		CreateTextureFlags flags = CreateTextureFlags.Managed;
+		LightmapPageTextureHandles.EnsureCount(lightmap + 1);
+
+		Span<char> debugName = stackalloc char[256];
+		sprintf(debugName, "[lightmap %d]").D(lightmap);
+
+		ImageFormat imageFormat;
+		switch (HardwareConfig.GetHDRType()) {
+			default:
+				Assert(0);
+				goto case HDRType.None;
+			case HDRType.None:
+				imageFormat = ImageFormat.RGBA8888;
+				flags |= CreateTextureFlags.SRGB;
+				break;
+			case HDRType.Integer:
+				imageFormat = ImageFormat.RGBA16161616;
+				break;
+			case HDRType.Float:
+				imageFormat = ImageFormat.RGBA16161616F;
+				break;
+		}
+
+		switch (LightmapsState) {
+			case LightmapsState.Default:
+				// Allow allocations in default state
+				{
+					LightmapPageTextureHandles[lightmap] = new() {
+						Handle = ShaderAPI.CreateTexture(
+							GetLightmapWidth(lightmap), GetLightmapHeight(lightmap), 1,
+							imageFormat,
+							1, 1, flags, debugName, TEXTURE_GROUP_LIGHTMAP
+						),
+						Format = imageFormat
+					};
+
+					ShaderAPI.ModifyTexture(LightmapPageTextureHandles[lightmap].Handle);
+					ShaderAPI.TexMinFilter(TexFilterMode.Linear);
+					ShaderAPI.TexMagFilter(TexFilterMode.Linear);
+
+					InitLightmapBits(lightmap);
+				}
+				break;
+
+			case LightmapsState.Released:
+				DevMsg($"AllocateLightmapTexture({lightmap}) in released lightmap state (STATE_RELEASED), delayed till \"Restore\".\n");
+				return;
+
+			default:
+				Warning($"AllocateLightmapTexture({lightmap}) in unknown lightmap state ({LightmapsState}), skipped.\n");
+				AssertMsg(false, "AllocateLightmapTexture(?) in unknown lightmap state (?)");
+				return;
+		}
+	}
+
+	private int GetLightmapWidth(int lightmap) {
+		switch (lightmap) {
+			default:
+				Assert(lightmap >= 0 && lightmap < GetNumLightmapPages());
+				return LightmapPages![lightmap].Width;
+
+			case StandardLightmap.UserDefined:
+				AssertMsg(false, "Can't use MatLightmaps to get properties of StandardLightmap.UserDefined");
+				return 1;
+
+			case StandardLightmap.White:
+			case StandardLightmap.WhiteBump:
+				return 1;
+		}
+	}
+
+	private int GetLightmapHeight(int lightmap) {
+		switch (lightmap) {
+			default:
+				Assert(lightmap >= 0 && lightmap < GetNumLightmapPages());
+				return LightmapPages![lightmap].Height;
+
+			case StandardLightmap.UserDefined:
+				AssertMsg(false, "Can't use MatLightmaps to get properties of StandardLightmap.UserDefined");
+				return 1;
+
+			case StandardLightmap.White:
+			case StandardLightmap.WhiteBump:
+				return 1;
+		}
+	}
+
+
+	private void InitLightmapBits(int lightmap) {
+		int width = GetLightmapWidth(lightmap);
+		int height = GetLightmapHeight(lightmap);
+
+		PixelWriter writer = new();
+
+		ShaderAPI.ModifyTexture(LightmapPageTextureHandles[lightmap].Handle);
+		byte[] data = ArrayPool<byte>.Shared.Rent(ImageLoader.GetMemRequired(width, height, 1, LightmapPageTextureHandles[lightmap].Format, false));
+		writer.SetPixelMemory(LightmapPageTextureHandles[lightmap].Format, data, 0);
+
+		if (writer.IsUsingFloatFormat()) {
+			for (int j = 0; j < height; ++j) {
+				writer.Seek(0, j);
+				for (int k = 0; k < width; ++k) {
+					writer.WritePixel(1, 1, 1);
+				}
+			}
+		}
+		else {
+			for (int j = 0; j < height; ++j) {
+				writer.Seek(0, j);
+				for (int k = 0; k < width; ++k) {
+					writer.WritePixel(0, 0, 0);
+				}
+			}
+		}
+
+		ArrayPool<byte>.Shared.Return(data, true);
 	}
 
 	IMaterialInternal? CurrentWhiteLightmapMaterial;
@@ -206,7 +390,7 @@ public class MatLightmaps
 		}
 	}
 
-	internal void GetLightmapPageSize(int lightmapPageID, ref int width, ref int height) {
+	internal void GetLightmapPageSize(int lightmapPageID, out int width, out int height) {
 		switch (lightmapPageID) {
 			default:
 				Assert(lightmapPageID >= 0 && lightmapPageID < GetNumLightmapPages());
@@ -225,4 +409,122 @@ public class MatLightmaps
 				break;
 		}
 	}
+
+	public void ReleaseLightmapPages() {
+		switch (LightmapsState) {
+			case LightmapsState.Default:
+
+				break;
+			default:
+				return;
+		}
+
+		for (int i = 0; i < GetNumLightmapPages(); i++)
+			ShaderAPI.DeleteTexture(LightmapPageTextureHandles[i].Handle);
+
+		LightmapsState = LightmapsState.Released;
+	}
+
+	const int COUNT_DYNAMIC_LIGHTMAP_PAGES = 1;
+
+	internal void UpdateLightmap(int lightmapPageID, Span<int> lightmapSize, Span<int> offsetIntoLightmapPage, Span<float> floatImage, Span<float> floatImageBump1, Span<float> floatImageBump2, Span<float> floatImageBump3) {
+		bool hasBump = false;
+		int uSize = 1;
+		FloatBitMap? pfmOut = null;
+		if (!floatImageBump1.IsEmpty && !floatImageBump2.IsEmpty && !floatImageBump3.IsEmpty) {
+			hasBump = true;
+			uSize = 4;
+		}
+
+		if (lightmapPageID >= GetNumLightmapPages() || lightmapPageID < 0) {
+			Error($"UpdateLightmap lightmapPageID={lightmapPageID} out of range\n");
+			return;
+		}
+		bool bDynamic = IsDynamicLightmap(lightmapPageID);
+
+		if (bDynamic) {
+			int dynamicIndex = lightmapPageID - FirstDynamicLightmap;
+			Assert(dynamicIndex < COUNT_DYNAMIC_LIGHTMAP_PAGES);
+			dynamic.CurrentDynamicIndex = (dynamicIndex + 1) % COUNT_DYNAMIC_LIGHTMAP_PAGES; //-V1063
+		}
+
+		ShaderAPI.ModifyTexture(LightmapPageTextureHandles[lightmapPageID].Handle);
+		byte[] memory = ArrayPool<byte>.Shared.Rent(ImageLoader.GetMemRequired(lightmapSize[0], lightmapSize[1], 1, LightmapPageTextureHandles[lightmapPageID].Format, false));
+		LightmapPixelWriter.SetPixelMemory(LightmapPageTextureHandles[lightmapPageID].Format, memory, 0);
+
+		if (hasBump) {
+			switch (HardwareConfig.GetHDRType()) {
+				case HDRType.None:
+					BumpedLightmapBitsToPixelWriter_LDR(floatImage, floatImageBump1, floatImageBump2, floatImageBump3, lightmapSize, offsetIntoLightmapPage, pfmOut);
+					break;
+				case HDRType.Integer:
+					throw new NotImplementedException();
+				//BumpedLightmapBitsToPixelWriter_HDRI(floatImage, floatImageBump1, floatImageBump2, floatImageBump3, lightmapSize, offsetIntoLightmapPage, pfmOut);
+				//break;
+				case HDRType.Float:
+					throw new NotImplementedException();
+					//BumpedLightmapBitsToPixelWriter_HDRF(floatImage, floatImageBump1, floatImageBump2, floatImageBump3, lightmapSize, offsetIntoLightmapPage, pfmOut);
+					//break;
+			}
+		}
+		else {
+			switch (HardwareConfig.GetHDRType()) {
+				case HDRType.None:
+					LightmapBitsToPixelWriter_LDR(floatImage, lightmapSize, offsetIntoLightmapPage, pfmOut);
+					break;
+				case HDRType.Integer:
+					throw new NotImplementedException();
+				//LightmapBitsToPixelWriter_HDRI(floatImage, lightmapSize, offsetIntoLightmapPage, pfmOut);
+				//break;
+				case HDRType.Float:
+					throw new NotImplementedException();
+				//LightmapBitsToPixelWriter_HDRF(floatImage, lightmapSize, offsetIntoLightmapPage, pfmOut);
+				//break;
+				default:
+					Assert(0);
+					break;
+			}
+		}
+
+		LightmapPixelWriter.Dispose();
+		ArrayPool<byte>.Shared.Return(memory, true);
+	}
+
+	private unsafe void LightmapBitsToPixelWriter_LDR(Span<float> floatImage, Span<int> lightmapSize, Span<int> offsetIntoLightmapPage, FloatBitMap? pfmOut) {
+		Span<float> src = floatImage;
+		Span<byte> color = stackalloc byte[4];
+		for (int t = 0; t < lightmapSize[1]; ++t) {
+			LightmapPixelWriter.Seek(offsetIntoLightmapPage[0], offsetIntoLightmapPage[1] + t);
+			for (int s = 0; s < lightmapSize[0]; ++s, src = src[(sizeof(Vector4) / sizeof(float))..]) {
+				memreset(color);
+				ColorSpace.LinearToLightmap(color, src);
+				color[3] = MathLib.RoundFloatToByte(src[3] * 255.0f);
+				LightmapPixelWriter.WritePixel(color[0], color[1], color[2], color[3]);
+			}
+		}
+	}
+
+	PixelWriterMem LightmapPixelWriter;
+
+	private void BumpedLightmapBitsToPixelWriter_LDR(Span<float> floatImage, Span<float> floatImageBump1, Span<float> floatImageBump2, Span<float> floatImageBump3, Span<int> lightmapSize, Span<int> offsetIntoLightmapPage, FloatBitMap? pfmOut) {
+		throw new NotImplementedException();
+	}
+
+	private bool IsDynamicLightmap(int lightmapPageID) {
+		return false; // todo
+	}
+
+	struct LightmapInfo
+	{
+		public ShaderAPITextureHandle_t Handle;
+		public ImageFormat Format;
+	}
+	readonly List<LightmapInfo> LightmapPageTextureHandles = [];
+	LightmapsState LightmapsState;
+}
+
+public enum LightmapsState
+{
+	Default,
+	Released
 }

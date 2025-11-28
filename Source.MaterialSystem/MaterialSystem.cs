@@ -461,11 +461,10 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void EndLightmapAllocation() => MatLightmaps.EndLightmapAllocation();
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public short AllocateLightmap(int allocationWidth, int allocationHeight, Span<int> offsetIntoLightmapPage, IMaterial? material) => (short)MatLightmaps.AllocateLightmap(allocationWidth, allocationHeight, offsetIntoLightmapPage, material);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public short AllocateWhiteLightmap(IMaterial? material) => (short)MatLightmaps.AllocateWhiteLightmap(material);
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void GetLightmapPageSize(int lightmap, ref int width, ref int height) => MatLightmaps.GetLightmapPageSize(lightmap, ref width, ref height);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void GetLightmapPageSize(int lightmap, out int width, out int height) => MatLightmaps.GetLightmapPageSize(lightmap, out width, out height);
 
-	public void UpdateLightmap(int lightmapPageID, Span<int> lightmapSize, Span<int> offsetIntoLightmapPage, Span<float> floatImage, Span<float> floatImageBump1, Span<float> floatImageBump2, Span<float> floatImageBump3) {
-
-	}
+	public void UpdateLightmap(int lightmapPageID, Span<int> lightmapSize, Span<int> offsetIntoLightmapPage, Span<float> floatImage, Span<float> floatImageBump1, Span<float> floatImageBump2, Span<float> floatImageBump3)
+		=> MatLightmaps.UpdateLightmap(lightmapPageID, lightmapSize, offsetIntoLightmapPage, floatImage, floatImageBump1, floatImageBump2, floatImageBump3);
 
 
 	public void GetBackBufferDimensions(out int width, out int height) => ShaderAPI.GetBackBufferDimensions(out width, out height);
