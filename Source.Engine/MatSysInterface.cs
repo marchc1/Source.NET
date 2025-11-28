@@ -489,7 +489,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	private int SortInfoToLightmapPage(int sortID) => materialSortInfoArray![sortID].LightmapPageID;
 
 	private void SurfSetupSurfaceContext(ref SurfaceCtx ctx, ref BSPMSurface2 surfID) {
-		materials.GetLightmapPageSize(SortInfoToLightmapPage(ModelLoader.MSurf_MaterialSortID(ref surfID)), ref ctx.LightmapPageSize[0], ref ctx.LightmapPageSize[1]);
+		materials.GetLightmapPageSize(SortInfoToLightmapPage(ModelLoader.MSurf_MaterialSortID(ref surfID)), out ctx.LightmapPageSize[0], out ctx.LightmapPageSize[1]);
 		ctx.LightmapSize[0] = ModelLoader.MSurf_LightmapExtents(ref surfID)[0] + 1;
 		ctx.LightmapSize[1] = ModelLoader.MSurf_LightmapExtents(ref surfID)[1] + 1;
 
@@ -730,7 +730,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 				for (int k = 0; k < prim.VertCount; k++) {
 					float sOffset, sScale, tOffset, tScale;
 
-					materials.GetLightmapPageSize(SortInfoToLightmapPage(ModelLoader.MSurf_MaterialSortID(ref surfID)), ref lightmapPageSize[0], ref lightmapPageSize[1]);
+					materials.GetLightmapPageSize(SortInfoToLightmapPage(ModelLoader.MSurf_MaterialSortID(ref surfID)), out lightmapPageSize[0], out lightmapPageSize[1]);
 					lightmapSize[0] = (ModelLoader.MSurf_LightmapExtents(ref surfID, bsp)[0]) + 1;
 					lightmapSize[1] = (ModelLoader.MSurf_LightmapExtents(ref surfID, bsp)[1]) + 1;
 

@@ -17,8 +17,6 @@ namespace Source.Engine;
 
 public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 {
-	ClientState? _cl; ClientState cl => _cl ??= Singleton<ClientState>();
-	GameServer? _sv; GameServer sv => _sv ??= Singleton<GameServer>();
 	public bool Init() {
 		Reset();
 		LoadEventsFromFile("resource/serverevents.res");

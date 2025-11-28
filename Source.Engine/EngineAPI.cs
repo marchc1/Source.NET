@@ -133,6 +133,8 @@ public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sy
 					PropertyInfo prop = props[i];
 					if (!prop.PropertyType.IsAssignableTo(CVAR))
 						continue;
+					if (prop.GetCustomAttribute<CvarIgnoreAttribute>() != null)
+						continue;
 
 					var getMethod = prop.GetGetMethod();
 
@@ -158,6 +160,8 @@ public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sy
 				for (int i = 0; i < fields.Length; i++) {
 					FieldInfo field = fields[i];
 					if (!field.FieldType.IsAssignableTo(CVAR))
+						continue;
+					if (field.GetCustomAttribute<CvarIgnoreAttribute>() != null)
 						continue;
 
 					if (field.IsStatic) {
@@ -229,6 +233,6 @@ public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sy
 		else
 			return instance;
 
-		throw new DllNotFoundException($"{(concommand ? "ConCommand" : "ConVar")} at member '{name}' was marked as by-instance, and the EngineAPI cannot find an instance of the type it's contained in ({type.Name}). Review if the instance type is an engine component, or if this should be a static field/method.");
+		throw new Exception($"{(concommand ? "ConCommand" : "ConVar")} at member '{name}' was marked as by-instance, and the EngineAPI cannot find an instance of the type it's contained in ({type.Name}). Review if the instance type is an engine component, or if this should be a static field/method. If you are trying to hold a reference to a ConVar, either use a ConVarRef or mark the field/property with a [CvarIgnore] attribute.");
 	}
 }

@@ -82,6 +82,16 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void BindTexture(Sampler sampler, int frame, int v);
 	void TexImageFromVTF(IVTFTexture? vtfTexture, int i);
 	void ModifyTexture(int v);
+	ShaderAPITextureHandle_t CreateTexture(
+		int width,
+		int height,
+		int depth,
+		ImageFormat imageFormat,
+		ushort mipCount,
+		int copies,
+		CreateTextureFlags creationFlags,
+		ReadOnlySpan<char> debugName,
+		ReadOnlySpan<char> textureGroup);
 	void CreateTextures(Span<ShaderAPITextureHandle_t> textureHandles,
 		int count,
 		int width,

@@ -13,6 +13,11 @@ public interface IUniformRandomStream
 	float RandomFloatExp(float minVal, float maxVal, float exponent);
 }
 
+public static class RandomGlobals {
+	static readonly UniformRandomStream s_UniformStream = new();
+	public static int RandomInt(int min, int max) => s_UniformStream.RandomInt(min, max);
+}
+
 public class UniformRandomStream : IUniformRandomStream
 {
 	const int IA = 16807;

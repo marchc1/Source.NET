@@ -26,6 +26,9 @@ public class GameServer : BaseServer
 
 	}
 
+	public void SetQueryPortFromSteamServer() {
+		// todo
+	}
 	internal bool IsLevelMainMenuBackground() {
 		return LevelMainMenuBackground;
 	}

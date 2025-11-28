@@ -100,6 +100,19 @@ public ref struct PrintF
 		WriteAnyLiterals();
 		return this;
 	}
+
+	public unsafe PrintF U(uint i) {
+		WriteAnyLiterals();
+		reader.ReadVariable(out char t, out int varIdx);
+		Span<char> buffer = stackalloc char[11];
+		if (i.TryFormat(buffer, out int written))
+#pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+			input.Write(buffer[..written]);
+#pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+
+		WriteAnyLiterals();
+		return this;
+	}
 	public unsafe PrintF D(long i) {
 		WriteAnyLiterals();
 		reader.ReadVariable(out char t, out int varIdx);
@@ -365,11 +378,11 @@ public static class CFormatting
 		return 0;
 	}
 
-	public static int strcmp(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.CompareTo(b, StringComparison.Ordinal);
-	public static int stricmp(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.CompareTo(b, StringComparison.OrdinalIgnoreCase);
+	public static int strcmp(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.SliceNullTerminatedString().CompareTo(b.SliceNullTerminatedString(), StringComparison.Ordinal);
+	public static int stricmp(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.SliceNullTerminatedString().CompareTo(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);
 
-	public static bool streq(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.Equals(b, StringComparison.Ordinal);
-	public static bool strieq(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.Equals(b, StringComparison.OrdinalIgnoreCase);
+	public static bool streq(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.SliceNullTerminatedString().Equals(b.SliceNullTerminatedString(), StringComparison.Ordinal);
+	public static bool strieq(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.SliceNullTerminatedString().Equals(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);
 
 	public static nint strlen(ReadOnlySpan<char> str) {
 		int i = 0;

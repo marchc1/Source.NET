@@ -40,15 +40,9 @@ public partial class Sound
 	public bool Initialized;
 	readonly IAudioSystem AudioSystem = Singleton<IAudioSystem>();
 
-	ClientState cl = null!;
-	GameServer sv = null!;
-
 	public void Init() {
 		DevMsg("Sound Initialization: Start\n");
 		// TODO: Vox
-
-		cl = Singleton<ClientState>();
-		sv = Singleton<GameServer>();
 
 		Initialized = true;
 		AudioSystem.Init();

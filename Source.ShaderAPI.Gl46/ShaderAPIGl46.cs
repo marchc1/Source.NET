@@ -680,6 +680,20 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		}
 	}
 
+	public unsafe ShaderAPITextureHandle_t CreateTexture(
+		int width,
+		int height,
+		int depth,
+		ImageFormat imageFormat,
+		ushort mipCount,
+		int copies,
+		CreateTextureFlags creationFlags,
+		ReadOnlySpan<char> debugName,
+		ReadOnlySpan<char> textureGroup) {
+		ShaderAPITextureHandle_t handle = default;
+		CreateTextures(new Span<int>(ref handle), 1, width, height, depth, imageFormat, mipCount, copies, creationFlags, debugName, textureGroup);
+		return handle;
+	}
 	public unsafe void CreateTextures(
 		Span<ShaderAPITextureHandle_t> textureHandles,
 		int count,
@@ -720,10 +734,14 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		return handle;
 	}
 
+	readonly HashSet<ShaderAPITextureHandle_t> TextureHandles = [];
+
 	public unsafe void CreateTextureHandles(Span<int> textureHandles) {
 		int idxCreating = 0;
 		fixed (ShaderAPITextureHandle_t* handles = textureHandles)
 			glCreateTextures(GL_TEXTURE_2D, textureHandles.Length, (uint*)handles);
+		for (int i = 0; i < textureHandles.Length; i++) 
+			TextureHandles.Add(i);
 	}
 
 	public ShaderAPITextureHandle_t CreateDepthTexture(ImageFormat imageFormat, ushort width, ushort height, Span<char> debugName, bool texture) {
@@ -737,8 +755,20 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		return true; // TODO
 	}
 
-	public void DeleteTexture(ShaderAPITextureHandle_t handle) {
-		// TODO
+	bool TextureIsAllocated(ShaderAPITextureHandle_t texture) => TextureHandles.Contains(texture);
+
+	public unsafe void DeleteTexture(ShaderAPITextureHandle_t handle) {
+		if (!TextureIsAllocated(handle))
+			return;
+
+		UnbindTexture(handle);
+		TextureHandles.Remove(handle);
+		uint h = (uint)handle;
+		glDeleteTextures(1, &h);
+	}
+
+	private void UnbindTexture(int handle) {
+		// todo
 	}
 
 	public ImageFormat GetNearestSupportedFormat(ImageFormat fmt, bool filteringRequired = true) {
@@ -1013,7 +1043,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		if (boneIndex > MaxBoneLoaded)
 			MaxBoneLoaded = boneIndex;
 
-		if(boneIndex == 0) {
+		if (boneIndex == 0) {
 			MatrixMode(MaterialMatrixMode.Model);
 			LoadMatrix(matrix);
 		}
@@ -1021,7 +1051,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 
 	int numBones;
 	public void SetNumBoneWeights(int numBones) {
-		if(this.numBones != numBones) {
+		if (this.numBones != numBones) {
 			FlushBufferedPrimitives();
 			this.numBones = numBones;
 		}

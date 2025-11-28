@@ -23,12 +23,13 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 		throw new NotImplementedException();
 	}
 
+	// HDR todo fixme
 	public HDRType GetHardwareHDRType() {
-		throw new NotImplementedException();
+		return HDRType.None;
 	}
 
 	public bool GetHDREnabled() {
-		throw new NotImplementedException();
+		return false;
 	}
 
 	public HDRType GetHDRType() {
@@ -168,7 +169,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool PreferDynamicTextures() {
-		throw new NotImplementedException();
+		return false;
 	}
 
 	public bool PreferReducedFillrate() {

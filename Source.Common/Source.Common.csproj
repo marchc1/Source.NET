@@ -41,4 +41,7 @@
 	    <LastGenOutput>assertdialog.Designer.cs</LastGenOutput>
 	  </EmbeddedResource>
 	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="Steam\" />
+	</ItemGroup>
 </Project>

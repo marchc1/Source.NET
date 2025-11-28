@@ -14,6 +14,17 @@ public partial class C_BaseHLPlayer : C_BasePlayer
 	public static readonly new ClientClass ClientClass = new ClientClass("HL2_Player", null, null, DT_HL2_Player)
 															.WithManualClassID(StaticClassIndices.CHL2_Player);
 
+	public C_BaseHLPlayer() {
+		AddVar(FIELD.OF("Local.PunchAngle"), Local.iv_PunchAngle, LatchFlags.LatchSimulationVar);
+		AddVar(FIELD.OF("Local.PunchAngleVel"), Local.iv_PunchAngleVel, LatchFlags.LatchSimulationVar);
+	}
+
+	public override void OnDataChanged(DataUpdateType updateType) {
+		if (updateType == DataUpdateType.Created)
+			SetNextClientThink(CLIENT_THINK_ALWAYS);
+		base.OnDataChanged(updateType);
+	}
+
 	public readonly C_HL2PlayerLocalData HL2Local = new();
 	public bool IsSprinting;
 }

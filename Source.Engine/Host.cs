@@ -54,11 +54,8 @@ public class Host(
 	public MatSysInterface MatSysInterface;
 	public IModelLoader modelloader;
 	public SV SV;
-	GameServer? _sv;
-	public GameServer sv => _sv ??= Singleton<GameServer>();
 	public ServerGlobalVariables serverGlobalVariables;
 	public Cbuf Cbuf;
-	public ClientState cl;
 	public Cmd Cmd;
 	public Con Con;
 	public Key Key;
@@ -244,7 +241,10 @@ public class Host(
 				CL.ExtraMouseUpdate(clientGlobalVariables.FrameTime);
 			}
 		}
-		else {
+#if !SWDS
+		else 
+#endif
+		{
 			int clientTicks, serverTicks;
 			clientTicks = NumTicksLastFrame;
 			cl.TickRemainder = RemainderLastFrame;
@@ -508,7 +508,7 @@ public class Host(
 	}
 
 	private void _RunFrame_Server(bool finalTick) {
-
+		SV.Frame(finalTick);
 	}
 
 	private bool input_firstFrame = true;
@@ -627,7 +627,6 @@ public class Host(
 		var engineAPI = services.GetRequiredService<IEngineAPI>();
 		var hostState = services.GetRequiredService<IHostState>();
 		Sys = services.GetRequiredService<Sys>();
-		cl = services.GetRequiredService<ClientState>();
 
 		clientGlobalVariables = services.GetRequiredService<ClientGlobalVariables>();
 		serverGlobalVariables = services.GetRequiredService<ServerGlobalVariables>();
@@ -881,7 +880,7 @@ public class Host(
 		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LevelInit);
 #endif
 
-		if(loadGame && !oldSave) {
+		if (loadGame && !oldSave) {
 			sv.SetPaused(true);
 			sv.LoadGame = true;
 			serverGlobalVariables.CurTime = sv.GetTime();
@@ -889,6 +888,15 @@ public class Host(
 
 		if (!SV.ActivateServer())
 			return false;
+
+		if (!sv.IsDedicated()) {
+			Common.TimestampedLog("Stuff 'connect localhost' to console");
+
+			Span<char> str = stackalloc char[512];
+			sprintf(str, "connect localhost:%d listenserver").D(sv.GetUDPPort());
+			Cbuf.AddText(str);
+		}
+
 
 		return true;
 	}
@@ -1049,9 +1057,26 @@ public class Host(
 		inerror = false;
 	}
 
+	static readonly ConVar singlestep = new("singlestep", "0", FCvar.Cheat, "Run engine in single step mode ( set next to 1 to advance a frame )");
+	static readonly ConVar cvarNext = new("next", "0", FCvar.Cheat, "Set to 1 to advance to next frame ( when singlestep == 1 )");
+
+	int ShouldRun_CurrentTick;
 	public bool ShouldRun() {
-		// TODO for later. Requires singlestep
-		return true;
+		if (singlestep.GetInt() == 0)
+			return true;
+
+		if (cvarNext.GetInt() != 0) {
+			if (ShouldRun_CurrentTick != (TickCount - 1)) {
+				cvarNext.SetValue(0);
+				return false;
+			}
+
+			return true;
+		}
+		else {
+			ShouldRun_CurrentTick = TickCount;
+			return false;
+		}
 	}
 
 	public void EndGame(bool showMainMenu, ReadOnlySpan<char> message) {

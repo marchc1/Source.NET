@@ -1311,6 +1311,10 @@ public static class UnmanagedUtils
 /// </summary>
 public static class GlobalReflectionUtils
 {
+	public static ref O reinterpret<I, O>(ref I value) where I : unmanaged where O : unmanaged => ref new Span<I>(ref value).Cast<I, O>()[0];
+	public static ref readonly O const_reinterpret<I, O>(ref I value) where I : unmanaged where O : unmanaged => ref new ReadOnlySpan<I>(in value).Cast<I, O>()[0];
+
+
 	public static string[] GeneratePaddedStrings(int max) => GeneratePaddedStrings(0, max);
 	public static string[] GeneratePaddedStrings(int min, int max) {
 		string[] arr = new string[max - min + 1];

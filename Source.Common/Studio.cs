@@ -338,23 +338,25 @@ public class MStudioMeshVertexData
 	public Memory<byte> Data;
 	public MStudioModelVertexData? ModelVertexData;
 	public InlineArrayMaxNumLODs<int> NumLODVertexes;
-
-	public MStudioMeshVertexData(Memory<byte> data) {
+	MStudioMesh mesh;
+	public MStudioMeshVertexData(MStudioMesh mesh, Memory<byte> data) {
 		Data = data;
 		Span<byte> span = data.Span;
 		for (int i = 0; i < Studio.MAX_NUM_LODS; i++) {
 			NumLODVertexes[i] = span.Cast<byte, int>()[i + 1];
 		}
+		this.mesh = mesh;
 	}
 
 	public bool HasTangentData() => ModelVertexData!.HasTangentData();
 
-	public ref Vector3 Position(int i) => ref ModelVertexData!.Position(i);
-	public ref Vector3 Normal(int i) => ref ModelVertexData!.Normal(i);
-	public ref Vector4 TangentS(int i) => ref ModelVertexData!.TangentS(i);
-	public ref Vector2 TexCoord(int i) => ref ModelVertexData!.TexCoord(i);
-	public ref MStudioBoneWeight BoneWeights(int i) => ref ModelVertexData!.BoneWeights(i);
-	public ref MStudioVertex Vertex(int i) => ref ModelVertexData!.Vertex(i);
+	public int GetModelVertexIndex(int i) => mesh.VertexOffset + i;
+	public ref Vector3 Position(int i) => ref ModelVertexData!.Position(GetModelVertexIndex(i));
+	public ref Vector3 Normal(int i) => ref ModelVertexData!.Normal(GetModelVertexIndex(i));
+	public ref Vector4 TangentS(int i) => ref ModelVertexData!.TangentS(GetModelVertexIndex(i));
+	public ref Vector2 TexCoord(int i) => ref ModelVertexData!.TexCoord(GetModelVertexIndex(i));
+	public ref MStudioBoneWeight BoneWeights(int i) => ref ModelVertexData!.BoneWeights(GetModelVertexIndex(i));
+	public ref MStudioVertex Vertex(int i) => ref ModelVertexData!.Vertex(GetModelVertexIndex(i));
 }
 
 
@@ -390,20 +392,28 @@ public class MStudioAttachment
 
 public class MStudioModelVertexData
 {
-	public object? VertexData;
+	public Memory<byte> VertexData;
 	public object? TangentData;
+	MStudioModel model;
 
-	public object? GetVertexData() => VertexData;
-	public T? GetVertexData<T>() => (T?)VertexData;
+	public MStudioModelVertexData(MStudioModel model) {
+		this.model = model;
+	}
+
+	public ref Memory<byte> GetVertexData() => ref VertexData;
 	public object? GetTangentData() => TangentData;
 	public T? GetTangentData<T>() => (T?)TangentData;
+
+	public int GetGlobalVertexIndex(int i) {
+		return i + (model.VertexIndex / Unsafe.SizeOf<MStudioVertex>());
+	}
 
 	public ref Vector3 Position(int i) => ref Vertex(i).Position;
 	public ref Vector3 Normal(int i) => ref Vertex(i).Normal;
 	public ref Vector4 TangentS(int i) => ref ((Memory<Vector4>)GetTangentData()!).Span[i];
 	public ref Vector2 TexCoord(int i) => ref Vertex(i).TexCoord;
 	public ref MStudioBoneWeight BoneWeights(int i) => ref Vertex(i).BoneWeights;
-	public ref MStudioVertex Vertex(int i) => ref ((Memory<MStudioVertex>)GetVertexData()!).Span[i];
+	public ref MStudioVertex Vertex(int i) => ref GetVertexData().Span.Cast<byte, MStudioVertex>()[GetGlobalVertexIndex(i)];
 
 	// todo: verify
 	public bool HasTangentData() => TangentData != null;
@@ -429,7 +439,7 @@ public class MStudioMesh
 		MaterialParam = data.Span[28..].Cast<byte, int>()[0];
 		MeshID = data.Span[32..].Cast<byte, int>()[0];
 		Center = data.Span[36..].Cast<byte, Vector3>()[0];
-		VertexData = new(data[48..]);
+		VertexData = new(this, data[48..]);
 	}
 
 	public int Material;
@@ -448,7 +458,7 @@ public class MStudioMesh
 	public MStudioMeshVertexData? GetVertexData(IStudioDataCache dataCache, StudioHeader studioHdr) {
 		this.Model.GetVertexData(dataCache, studioHdr);
 		VertexData.ModelVertexData = this.Model.VertexData;
-		if (VertexData.ModelVertexData.VertexData == null)
+		if (VertexData.ModelVertexData.VertexData.IsEmpty)
 			return null;
 		return VertexData;
 	}
@@ -458,47 +468,41 @@ public class MStudioMesh
 /// </summary>
 public class MStudioModel
 {
+	public const int SIZEOF = 148;
+	public static MStudioModel FACTORY(object? caller, Memory<byte> data) => new(data);
 	Memory<byte> Data;
-	[StructLayout(LayoutKind.Explicit)]
-	internal struct __contents
-	{
-		[FieldOffset(0)] public InlineArray64<byte> Name;
-		[FieldOffset(64)] public int Type;
-		[FieldOffset(68)] public float BoundingRadius;
-		[FieldOffset(72)] public int NumMeshes;
-		[FieldOffset(76)] public int MeshIndex;
-		[FieldOffset(80)] public int NumVertices;
-		[FieldOffset(84)] public int VertexIndex;
-		[FieldOffset(88)] public int TangentsIndex;
-		[FieldOffset(92)] public int NumAttachments;
-		[FieldOffset(96)] public int AttachmentIndex;
-		[FieldOffset(100)] public int NumEyeballs;
-		[FieldOffset(104)] public int EyeballIndex;
+	InlineArray64<byte> name;
+	public int Type;
+	public float BoundingRadius;
+	public int NumMeshes;
+	public int MeshIndex;
+	public int NumVertices;
+	public int VertexIndex;
+	public int TangentsIndex;
+	public int NumAttachments;
+	public int AttachmentIndex;
+	public int NumEyeballs;
+	public int EyeballIndex;
 
-		// these are pointers which will instead be class instance refs OUTSIDE of the contents.
-		// But we need to parse unused data anyway here for the pointers, so
-		[FieldOffset(108)] InlineArray40<byte> unused;
-	}
-	__contents Contents;
-
-
-	public ref int Type { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.Type; }
-	public ref float BoundingRadius { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.BoundingRadius; }
-	public ref int NumMeshes { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.NumMeshes; }
-	public ref int MeshIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.MeshIndex; }
-	public ref int NumVertices { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.NumVertices; }
-	public ref int VertexIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.VertexIndex; }
-	public ref int TangentsIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.TangentsIndex; }
-	public ref int NumAttachments { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.NumAttachments; }
-	public ref int AttachmentIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.AttachmentIndex; }
-	public ref int NumEyeballs { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.NumEyeballs; }
-	public ref int EyeballIndex { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Contents.EyeballIndex; }
-
-	public readonly MStudioModelVertexData VertexData = new();
+	public readonly MStudioModelVertexData VertexData;
 
 	public MStudioModel(Memory<byte> data) {
 		Data = data;
-		Contents = data.Span.Cast<byte, __contents>()[0];
+		VertexData = new(this);
+		SpanBinaryReader br = new(data.Span);
+		br.ReadInto<byte>(name);
+		br.Read(out Type);
+		br.Read(out BoundingRadius);
+		br.Read(out NumMeshes);
+		br.Read(out MeshIndex);
+		br.Read(out NumVertices);
+		br.Read(out VertexIndex);
+		br.Read(out TangentsIndex);
+		br.Read(out NumAttachments);
+		br.Read(out AttachmentIndex);
+		br.Read(out NumEyeballs);
+		br.Read(out EyeballIndex);
+
 	}
 
 	MStudioMesh[]? studioMeshCache;
@@ -516,7 +520,7 @@ public class MStudioModel
 	}
 
 	string? nameCache;
-	public string Name() => Studio.ProduceASCIIString(ref nameCache, Contents.Name);
+	public string Name() => Studio.ProduceASCIIString(ref nameCache, name);
 
 	public MStudioModelVertexData? GetVertexData(IStudioDataCache dataCache, StudioHeader studioHdr) {
 		VertexFileHeader? vertexHdr = CacheVertexData(dataCache, studioHdr);
@@ -526,10 +530,10 @@ public class MStudioModel
 			return null;
 		}
 
-		VertexData.VertexData = vertexHdr.GetVertexData();
+		VertexData.VertexData = vertexHdr.GetVertexData().Cast<MStudioVertex, byte>();
 		VertexData.TangentData = vertexHdr.GetTangentData();
 
-		if (VertexData.VertexData == null)
+		if (VertexData.VertexData.IsEmpty)
 			return null;
 
 		return VertexData;
@@ -557,15 +561,7 @@ public class MStudioBodyParts(Memory<byte> Data)
 	MStudioModel[]? studioModelCache;
 
 	public MStudioModel Model(int i) {
-		if (studioModelCache == null)
-			studioModelCache = new MStudioModel[NumModels];
-
-		ArgumentOutOfRangeException.ThrowIfLessThan(i, 0);
-		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(i, NumModels);
-
-		if (studioModelCache[i] == null)
-			return studioModelCache[i] = new(Data[(ModelIndex + (i * Unsafe.SizeOf<MStudioModel.__contents>()))..]);
-		return studioModelCache[i];
+		return Studio.ProduceArrayIdx(this, ref studioModelCache, NumModels, ModelIndex, i, MStudioModel.SIZEOF, Data, MStudioModel.FACTORY);
 	}
 }
 
@@ -1117,7 +1113,7 @@ public class MStudioAutoLayer
 	public static MStudioAutoLayer FACTORY(object caller, Memory<byte> data) => new(data);
 	public short Sequence;
 	public short Pose;
-	private int  flags;
+	private int flags;
 	public float Start;
 	public float Peak;
 	public float Tail;
@@ -1704,7 +1700,7 @@ public class StudioHeader
 		if (allCachedBodyParts)
 			return bodyPartCache.AsSpan()[idx..];
 
-		for (int i = 0; i < NumBodyParts; i++) 
+		for (int i = 0; i < NumBodyParts; i++)
 			BodyPart(i);
 
 		allCachedBodyParts = true;
@@ -1819,13 +1815,13 @@ public class StudioHeader
 	}
 
 	public MStudioSeqDesc Seqdesc(int i) {
-		if (NumIncludeModels == 0) 
+		if (NumIncludeModels == 0)
 			return LocalSeqdesc(i);
 
 		VirtualModel? vModel = GetVirtualModel();
 		Assert(vModel != null);
 
-		if (vModel == null) 
+		if (vModel == null)
 			return LocalSeqdesc(i);
 
 		VirtualGroup group = vModel.Group[vModel.Seq[i].Group];

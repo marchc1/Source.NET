@@ -1,7 +1,9 @@
 ﻿#if CLIENT_DLL || GAME_DLL
 #if CLIENT_DLL
 global using static Game.Client.BasePlayerGlobals;
+
 global using BasePlayer = Game.Client.C_BasePlayer;
+
 using Game.Shared;
 
 #else
@@ -19,6 +21,8 @@ namespace Game.Client;
 #else
 namespace Game.Server;
 #endif
+
+using Source.Common.Commands;
 
 public static class BasePlayerGlobals {
 	public static BasePlayer? ToBasePlayer(SharedBaseEntity? entity) {
@@ -83,13 +87,45 @@ public partial class
 			vm.CalcViewModelView(this, eyeOrigin, eyeAngles);
 		}
 	}
+	public void CalcViewRoll(ref QAngle angles) {
+		// todo
+	}
 	private void CalcPlayerView(ref Vector3 eyeOrigin, ref QAngle eyeAngles, ref float fov) {
 		eyeOrigin = EyePosition();
 		eyeAngles = EyeAngles();
+
+		Vector3 vecBaseEyePosition = eyeOrigin;
+
+		CalcViewRoll(ref eyeAngles);
+		eyeAngles += Local.PunchAngle;
 	}
 
 	internal ReadOnlySpan<char> GetPlayerName() {
 		throw new NotImplementedException();
+	}
+
+	static ConVar sv_suppress_viewpunch = new( "sv_suppress_viewpunch", "0", FCvar.Replicated | FCvar.Cheat | FCvar.DevelopmentOnly);
+
+	public void ViewPunch(in QAngle angleOffset) {
+		//See if we're suppressing the view punching
+		if (sv_suppress_viewpunch.GetBool())
+			return;
+
+		// We don't allow view kicks in the vehicle
+		if (IsInAVehicle())
+			return;
+
+		Local.PunchAngleVel += angleOffset * 20;
+	}
+	public void ViewPunchReset(float tolerance) {
+		if (tolerance != 0) {
+			tolerance *= tolerance; // square
+			float check = Local.PunchAngleVel.LengthSqr() + Local.PunchAngle.LengthSqr();
+			if (check > tolerance)
+				return;
+		}
+		Local.PunchAngle = vec3_angle;
+		Local.PunchAngleVel = vec3_angle;
 	}
 }
 #endif

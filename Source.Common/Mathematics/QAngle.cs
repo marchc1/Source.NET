@@ -31,6 +31,12 @@ public struct QAngle
 		Z = z;
 	}
 
+	public unsafe vec_t LengthSqr() {
+		fixed(QAngle* qptr = &this) {
+			return ((Vector3*)qptr)->LengthSquared();
+		}
+	}
+
 	public QAngle(Vector3 vec) {
 		X = vec.X;
 		Y = vec.Y;
@@ -65,7 +71,9 @@ public struct QAngle
 	// TODO: is there a C# + SIMD way to do this?
 	public void Vectors(out Vector3 forward, out Vector3 right, out Vector3 up)
 		=> MathLib.AngleVectors(in this, out forward, out right, out up);
-
+	public override string ToString() {
+		return $"{{{X} {Y} {Z}}}";
+	}
 	public static float Normalize(float angle) {
 		angle = MathLib.Fmodf(angle, 360.0f);
 		if (angle > 180) {

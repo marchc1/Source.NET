@@ -30,7 +30,7 @@ public class C_ServerClassInfo()
 /// Base client state, in CLIENT
 /// </summary>
 public abstract class BaseClientState(
-	Host Host, IFileSystem fileSystem, Net Net, GameServer sv, Cbuf Cbuf, ICvar cvar,
+	Host Host, IFileSystem fileSystem, Net Net, Cbuf Cbuf, ICvar cvar,
 	IEngineVGuiInternal? EngineVGui, IEngineAPI engineAPI,
 	[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient
 	) : INetChannelHandler, IConnectionlessPacketHandler, IServerMessageHandler

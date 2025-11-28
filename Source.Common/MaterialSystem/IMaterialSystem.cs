@@ -203,8 +203,9 @@ public interface IMaterialSystem
 	void BeginLightmapAllocation();
 	short AllocateLightmap(int allocationWidth, int allocationHeight, Span<int> offsetIntoLightmapPage, IMaterial? material);
 	short AllocateWhiteLightmap(IMaterial? material);
+	void UpdateLightmap(int lightmapPageID, Span<int> lightmapSize, Span<int> offsetIntoLightmapPage, Span<float> floatImage, Span<float> floatImageBump1, Span<float> floatImageBump2, Span<float> floatImageBump3);
+	void GetLightmapPageSize(int lightmap, out int width, out int height);
 	void GetSortInfo(Span<MaterialSystem_SortInfo> materialSortInfoArray);
-	void GetLightmapPageSize(int lightmap, ref int width, ref int height);
 	void GetBackBufferDimensions(out int width, out int height);
 	IShaderUtil GetShaderUtil();
 	ITexture FindTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroupName, bool complain, int additionalCreationFlags);

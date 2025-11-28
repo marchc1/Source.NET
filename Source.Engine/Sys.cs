@@ -57,7 +57,7 @@ public struct EngineVersion
 	}
 }
 
-public class Sys(Host host, GameServer sv, ICommandLine CommandLine)
+public class Sys(Host host, ICommandLine CommandLine)
 {
 	public static double Time => Platform.Time;
 	public bool Dedicated;

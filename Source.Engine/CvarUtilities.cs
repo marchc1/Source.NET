@@ -5,7 +5,7 @@ using Source.Engine.Server;
 
 namespace Source.Engine;
 
-public class CvarUtilities(ICvar cvar, ClientState cl, GameServer sv, Host Host, Cmd cmd)
+public class CvarUtilities(ICvar cvar, Host Host, Cmd cmd)
 {
 	public unsafe bool IsCommand(in TokenizedCommand args) {
 		int c = args.ArgC();
@@ -102,11 +102,15 @@ public class CvarUtilities(ICvar cvar, ClientState cl, GameServer sv, Host Host,
 		}
 
 		if (var.IsFlagSet(FCvar.PrintableOnly)) {
+#if !SWDS
 			if (!sv.IsDedicated()) {
 				ReadOnlySpan<char> localized = Localize.Find(strValue);
 				if (!localized.IsEmpty && localized.Length > 0)
 					strValue = localized;
 			}
+#else
+
+#endif
 		}
 
 		if (var.IsFlagSet(FCvar.NeverAsString))

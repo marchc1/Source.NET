@@ -5,9 +5,6 @@ using Source.Engine.Server;
 namespace Source.Engine;
 
 public class ED {
-	GameServer _sv = null!;
-	GameServer sv => _sv ??= Singleton<GameServer>();
-
 	public static void ClearEdict(Edict e) {
 		e.ClearFree();
 		e.ClearStateChanged();

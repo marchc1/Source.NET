@@ -14,9 +14,6 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 		host_parms.Mod = initialMod;
 		host_parms.Game = initialGame;
 
-		ClientState? cl = services.GetService<ClientState>();
-
-
 		if(cl != null) {
 			cl.RestrictServerCommands = false;
 			cl.RestrictClientCommands = false;

@@ -51,7 +51,7 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	public int PlayerSoundType;
 	public bool IsWalking;
 
-	public C_HL2MP_Player() {
+	public C_HL2MP_Player() : base() {
 		AddVar(FIELD.OF(nameof(AngEyeAngles)), IV_AngEyeAngles, LatchFlags.LatchSimulationVar);
 	}
 

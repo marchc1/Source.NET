@@ -33,7 +33,6 @@ public class Scr(IEngineAPI engineAPI)
 	IHostState HostState = null!;
 	IFileSystem FileSystem = null!;
 	IBaseClientDLL clientDll = null!;
-	ClientState cl = null!;
 	ClientGlobalVariables clientGlobalVariables = null!;
 	IMaterialSystem materials = null!;
 	IMDLCache MDLCache = null!;
@@ -53,7 +52,6 @@ public class Scr(IEngineAPI engineAPI)
 		FileSystem = engineAPI.GetRequiredService<IFileSystem>();
 		clientDll = engineAPI.GetRequiredService<IBaseClientDLL>();
 		CL = engineAPI.GetRequiredService<CL>();
-		cl = engineAPI.GetRequiredService<ClientState>();
 		materials = engineAPI.GetRequiredService<IMaterialSystem>();
 		clientGlobalVariables = engineAPI.GetRequiredService<ClientGlobalVariables>();
 		MDLCache = engineAPI.GetRequiredService<IMDLCache>();

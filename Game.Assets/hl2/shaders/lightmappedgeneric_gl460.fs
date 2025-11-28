@@ -1,6 +1,7 @@
 #version 460
 
-in vec2 vs_TexCoord;
+in vec2 vs_TexCoord0;
+in vec2 vs_TexCoord1;
 in vec4 vs_Color;
 
 layout(std140, binding = 3) uniform source_pixel_sharedUBO {
@@ -19,7 +20,7 @@ out vec4 fragColor;
 
 void main()
 {
-    vec4 texelColor = texture(basetexture, vs_TexCoord);
+    vec4 texelColor = texture(basetexture, vs_TexCoord0);
     if(isAlphaTesting){
         switch(alphaTestFunc){
             case 1: if(texelColor.a <  alphaTestRef){ discard; } break;
@@ -46,7 +47,4 @@ void main()
 
     // Final product: texture color * vertex color if applicable
     fragColor = texelColor * vertexColor;
-
-    // Gradient for testing
-    //fragColor = vec4(vs_TexCoord.x, vs_TexCoord.y, 1.0, 1.0);
 }
