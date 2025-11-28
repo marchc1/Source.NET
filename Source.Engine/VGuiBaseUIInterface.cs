@@ -230,7 +230,7 @@ public class FocusOverlayPanel : Panel
 public class EngineVGui(
 	Sys Sys, Net Net, IEngineAPI engineAPI, ISurface surface,
 	IMaterialSystem materials, ILauncherManager launcherMgr,
-	ICommandLine CommandLine, IFileSystem fileSystem, GameServer sv, Cbuf Cbuf, Sound Sound, Host Host
+	ICommandLine CommandLine, IFileSystem fileSystem, Cbuf Cbuf, Sound Sound, Host Host
 	) : IEngineVGuiInternal
 {
 	public static LoadingProgressDescription[] ListenServerLoadingProgressDescriptions = [
@@ -291,8 +291,8 @@ public class EngineVGui(
 	EnginePanel staticClientDLLToolsPanel;
 	EnginePanel staticGameUIPanel;
 	EnginePanel staticGameDLLPanel;
+	DebugSystemPanel staticDebugSystemPanel;
 	FocusOverlayPanel staticFocusOverlayPanel;
-	ClientState cl;
 	CL CL;
 	Con Con;
 
@@ -491,7 +491,6 @@ public class EngineVGui(
 		vguiScheme = engineAPI.GetRequiredService<ISchemeManager>();
 		localize = engineAPI.GetRequiredService<ILocalize>();
 		CL = engineAPI.GetRequiredService<CL>();
-		cl = engineAPI.GetRequiredService<ClientState>();
 		Con = engineAPI.GetRequiredService<Con>();
 		vguiScheme.Init();
 		// IGameConsole, but later.
@@ -584,6 +583,20 @@ public class EngineVGui(
 		staticGameDLLPanel.SetCursor(CursorCode.None);
 		staticGameDLLPanel.SetZPos(135);
 
+		if (IsPC()) {
+			Common.TimestampedLog("Building Panels (staticDebugSystemPanel)");
+
+			staticDebugSystemPanel = new DebugSystemPanel(staticPanel, "Engine Debug System");
+			staticDebugSystemPanel.SetZPos(125);
+
+			// DemoUIPanel.InstallDemoUI(staticEngineToolsPanel);
+			// DemoUIPanel2.Install(staticClientDLLPanel, staticEngineToolsPanel, true);
+
+			// FogUIPanel.InstallFogUI(staticEngineToolsPanel);
+
+			// TxViewwPanel.Install(staticEngineToolsPanel);
+		}
+
 		if (CommandLine.CheckParm("-tools"))
 			staticGameDLLPanel.SetVisible(true);
 		else
@@ -597,7 +610,6 @@ public class EngineVGui(
 
 		// TODO: the other panels...
 		// Specifically,
-		// - DebugSystemPanel
 		// - DemoUIPanel (if we even do demos)
 		// - FogUIPanel
 		// - TxViewPanel
@@ -986,8 +998,36 @@ public class EngineVGui(
 		return input.IsKeyDown(ButtonCode.KeyLAlt) | input.IsKeyDown(ButtonCode.KeyRAlt);
 	}
 
-	private bool IsDebugSystemVisible() {
-		return false; // Would require staticDebugSystemPanel... todo then
+	private bool IsDebugSystemVisible() => staticDebugSystemPanel != null && staticDebugSystemPanel.IsVisible();
+
+	private void HideDebugSystem() {
+		if (staticDebugSystemPanel != null) {
+			staticDebugSystemPanel.SetVisible(false);
+			SetEngineVisible(true);
+		}
+	}
+
+
+	[ConCommand("debugsystemui")]
+	private void ToggleDebugSystemUI(in TokenizedCommand args) {
+		if (staticDebugSystemPanel == null)
+			return;
+
+		bool Visisible;
+		if (args.ArgC() == 1)
+			Visisible = !IsDebugSystemVisible();
+		else
+			Visisible = int.Parse(args[1]) != 0;
+
+		if (!Visisible) {
+			staticDebugSystemPanel.SetVisible(false);
+			SetEngineVisible(true);
+		}
+		else {
+			// ClearIOStates();
+			staticDebugSystemPanel.SetVisible(true);
+			SetEngineVisible(false);
+		}
 	}
 
 	public void ClearConsole() {
