@@ -1125,6 +1125,30 @@ public class TextEntry : Panel
 		DataChanged = true;
 	}
 
+	public override void OnKillFocus(Panel? newPanel) {
+		if (DataChanged) {
+			FireActionSignal();
+			DataChanged = false;
+		}
+
+		// check if we clicked the right mouse button or if it is down
+		bool mouseRightClicked = Input.WasMousePressed(ButtonCode.MouseRight);
+		bool mouseRightUp = Input.WasMouseReleased(ButtonCode.MouseRight);
+		bool mouseRightDown = Input.IsMouseDown(ButtonCode.MouseRight);
+
+		if (mouseRightClicked || mouseRightDown || mouseRightUp) {
+			Input.GetCursorPos(out int cursorX, out int cursorY);
+
+			// if we're right clicking within our window, we don't actually kill focus
+			if (IsWithin(cursorX, cursorY))
+				return;
+		}
+
+		SelectNone();
+		PostActionSignal(new KeyValues("TextKillFocus"));
+		base.OnKillFocus(newPanel);
+	}
+
 	private bool IsCursorOffRightSideOfWindow(int CursorPos) {
 		int wx = GetWide() - 1;
 		CursorToPixelSpace(CursorPos, out int cx, out int cy);

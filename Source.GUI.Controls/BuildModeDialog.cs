@@ -359,6 +359,24 @@ public class BuildModeDialog : Frame
 
 	}
 
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		switch (message.Name) {
+			case "ApplyDataToControls": ApplyDataToControls(); return;
+			case "TextChanged": OnTextChanged((Panel)message.GetPtr("panel")!); return;
+			case "DeletePanel": OnDeletePanel(); return;
+			case "Undo": DoUndo(); return;
+			case "Copy": DoCopy(); return;
+			case "Paste": DoPaste(); return;
+			case "EnableSaveButton": EnableSaveButton(); return;
+			case "ShutdownBuildMode": Close(); return;
+			case "PanelMoved": OnPanelMoved(); return;
+			case "TextKillFocus": OnTextKillFocus(); return;
+			case "CreateNewControl": OnCreateNewControl(message.GetString("text")); return;
+			case "SetClipboardText": OnSetClipboardText(message.GetString("text")); return;
+			case "OnChangeChild": OnChangeChild(message.GetInt("direction")); return;
+		}
+	}
+
 	public KeyValues StoreSettings() {
 		return new();
 	}
@@ -411,7 +429,7 @@ public class BuildModeDialog : Frame
 
 	public override bool IsBuildGroupEnabled() => false; // Don't ever edit the actual build dialog!!!
 
-	public void OnChangeChild() {
+	public void OnChangeChild(int direction) {
 
 	}
 }

@@ -646,6 +646,12 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			return text;
 		}
 	}
+
+	internal void Hide() {
+		OnClose();
+		NextCompletion = 0;
+		RebuildCompletionList("");
+	}
 }
 
 public class ConsoleDialog : Frame
@@ -692,7 +698,10 @@ public class ConsoleDialog : Frame
 	public void Clear() {
 		ConsolePanel.Clear();
 	}
-	public void Hide() { }
+	public void Hide() {
+		OnClose();
+		ConsolePanel.Hide();
+	}
 
 	public void Print(ReadOnlySpan<char> msg) { }
 	public void DPrint(ReadOnlySpan<char> msg) { }

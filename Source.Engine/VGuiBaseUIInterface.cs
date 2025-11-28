@@ -641,7 +641,6 @@ public class EngineVGui(
 		if (staticGameConsole != null) {
 			staticGameConsole.Initialize();
 			staticGameConsole.SetParent(staticGameUIPanel);
-			staticGameConsole.Activate();
 		}
 
 		ActivateGameUI();

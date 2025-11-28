@@ -1242,7 +1242,7 @@ public class Panel : IPanel
 		return null;
 	}
 
-	private bool IsWithin(int x, int y) {
+	public bool IsWithin(int x, int y) {
 		if (x < ClipRectX)
 			return false;
 
