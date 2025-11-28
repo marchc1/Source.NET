@@ -980,7 +980,7 @@ public class MatSystemSurface : IMatSystemSurface
 				Warning("Too many popups! Rendering will be bad!\n");
 
 			int stencilRef = 254;
-			for (int i = popups - 1; i >= 0; --i) {
+			for (int i = 0; i < popups; i++) {
 				IPanel? popupPanel = GetPopup(i);
 
 				if (popupPanel == null)
