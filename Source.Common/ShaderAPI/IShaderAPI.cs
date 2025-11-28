@@ -79,7 +79,7 @@ public interface IShaderAPI : IShaderDynamicAPI
 	bool IsActive();
 	bool SetBoardState(in GraphicsBoardState state);
 	bool CanDownloadTextures();
-	void BindTexture(Sampler sampler, int frame, int v);
+	void BindTexture(Sampler sampler, ShaderAPITextureHandle_t textureHandle);
 	void TexImageFromVTF(IVTFTexture? vtfTexture, int i);
 	void ModifyTexture(int v);
 	ShaderAPITextureHandle_t CreateTexture(
@@ -114,4 +114,7 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void TexMagFilter(TexFilterMode mode);
 	void LoadBoneMatrix(int boneIndex, in Matrix3x4 matrix);
 	void SetNumBoneWeights(int numBones);
+	bool TexLock(int level, int cubeFaceID, int xOffset, int yOffset, int width, int height, ref PixelWriter writer);
+	bool TexLock(int level, int cubeFaceID, int xOffset, int yOffset, int width, int height, ref PixelWriterMem writer);
+	void TexUnlock();
 }

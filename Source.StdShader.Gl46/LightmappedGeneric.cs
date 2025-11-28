@@ -1,4 +1,5 @@
 using Source.Common.MaterialSystem;
+using Source.Common.ShaderAPI;
 using Source.Common.ShaderLib;
 
 namespace Source.StdShader.Gl46;
@@ -50,27 +51,31 @@ public class LightmappedGeneric : BaseVSShader
 	}
 
 	public static readonly ShaderParam DETAIL = new($"${nameof(DETAIL)}", ShaderParamType.Texture, "shadertest/detail", "detail texture");
-	public static readonly ShaderParam DETAILSCALE = new($"${nameof(DETAILSCALE)}", ShaderParamType.Float, "4", "scale of the detail texture" );
-	public static readonly ShaderParam ENVMAP = new($"${nameof(ENVMAP)}", ShaderParamType.Texture, "shadertest/shadertest_env", "envmap" );
-	public static readonly ShaderParam ENVMAPFRAME = new($"${nameof(ENVMAPFRAME)}", ShaderParamType.Integer, "0", "" );
-	public static readonly ShaderParam ENVMAPMASK = new($"${nameof(ENVMAPMASK)}", ShaderParamType.Texture, "shadertest/shadertest_envmask", "envmap mask" );
-	public static readonly ShaderParam ENVMAPMASKFRAME = new($"${nameof(ENVMAPMASKFRAME)}", ShaderParamType.Integer, "0", "" );
-	public static readonly ShaderParam ENVMAPMASKSCALE = new($"${nameof(ENVMAPMASKSCALE)}", ShaderParamType.Float, "1", "envmap mask scale" );
-	public static readonly ShaderParam ENVMAPTINT = new($"${nameof(ENVMAPTINT)}", ShaderParamType.Color, "[1 1 1]", "envmap tint" );
-	public static readonly ShaderParam ENVMAPOPTIONAL = new($"${nameof(ENVMAPOPTIONAL)}", ShaderParamType.Bool, "0", "Make the envmap only apply to dx9 and higher hardware" );
-	public static readonly ShaderParam DETAILBLENDMODE = new($"${nameof(DETAILBLENDMODE)}", ShaderParamType.Integer, "0", "mode for combining detail texture with base. 0=normal, 1= additive, 2=alpha blend detail over base, 3=crossfade" );
-	public static readonly ShaderParam ALPHATESTREFERENCE = new($"${nameof(ALPHATESTREFERENCE)}", ShaderParamType.Float, "0.7", "" );
+	public static readonly ShaderParam DETAILSCALE = new($"${nameof(DETAILSCALE)}", ShaderParamType.Float, "4", "scale of the detail texture");
+	public static readonly ShaderParam ENVMAP = new($"${nameof(ENVMAP)}", ShaderParamType.Texture, "shadertest/shadertest_env", "envmap");
+	public static readonly ShaderParam ENVMAPFRAME = new($"${nameof(ENVMAPFRAME)}", ShaderParamType.Integer, "0", "");
+	public static readonly ShaderParam ENVMAPMASK = new($"${nameof(ENVMAPMASK)}", ShaderParamType.Texture, "shadertest/shadertest_envmask", "envmap mask");
+	public static readonly ShaderParam ENVMAPMASKFRAME = new($"${nameof(ENVMAPMASKFRAME)}", ShaderParamType.Integer, "0", "");
+	public static readonly ShaderParam ENVMAPMASKSCALE = new($"${nameof(ENVMAPMASKSCALE)}", ShaderParamType.Float, "1", "envmap mask scale");
+	public static readonly ShaderParam ENVMAPTINT = new($"${nameof(ENVMAPTINT)}", ShaderParamType.Color, "[1 1 1]", "envmap tint");
+	public static readonly ShaderParam ENVMAPOPTIONAL = new($"${nameof(ENVMAPOPTIONAL)}", ShaderParamType.Bool, "0", "Make the envmap only apply to dx9 and higher hardware");
+	public static readonly ShaderParam DETAILBLENDMODE = new($"${nameof(DETAILBLENDMODE)}", ShaderParamType.Integer, "0", "mode for combining detail texture with base. 0=normal, 1= additive, 2=alpha blend detail over base, 3=crossfade");
+	public static readonly ShaderParam ALPHATESTREFERENCE = new($"${nameof(ALPHATESTREFERENCE)}", ShaderParamType.Float, "0.7", "");
 	public static readonly ShaderParam OUTLINE = new($"${nameof(OUTLINE)}", ShaderParamType.Bool, "0", "Enable outline for distance coded textures.");
-	public static readonly ShaderParam OUTLINECOLOR = new($"${nameof(OUTLINECOLOR)}", ShaderParamType.Color, "[1 1 1]", "color of outline for distance coded images." );
+	public static readonly ShaderParam OUTLINECOLOR = new($"${nameof(OUTLINECOLOR)}", ShaderParamType.Color, "[1 1 1]", "color of outline for distance coded images.");
 	public static readonly ShaderParam OUTLINESTART0 = new($"${nameof(OUTLINESTART0)}", ShaderParamType.Float, "0.0", "outer start value for outline");
 	public static readonly ShaderParam OUTLINESTART1 = new($"${nameof(OUTLINESTART1)}", ShaderParamType.Float, "0.0", "inner start value for outline");
 	public static readonly ShaderParam OUTLINEEND0 = new($"${nameof(OUTLINEEND0)}", ShaderParamType.Float, "0.0", "inner end value for outline");
 	public static readonly ShaderParam OUTLINEEND1 = new($"${nameof(OUTLINEEND1)}", ShaderParamType.Float, "0.0", "outer end value for outline");
-	public static readonly ShaderParam SEPARATEDETAILUVS = new($"${nameof(SEPARATEDETAILUVS)}", ShaderParamType.Integer, "0", "" );
+	public static readonly ShaderParam SEPARATEDETAILUVS = new($"${nameof(SEPARATEDETAILUVS)}", ShaderParamType.Integer, "0", "");
 
 
 	protected override void OnInitShaderParams(IMaterialVar[] vars, ReadOnlySpan<char> materialName) {
 		InitParamsUnlitGeneric((int)ShaderMaterialVars.BaseTexture, DETAILSCALE, ENVMAPOPTIONAL, ENVMAP, ENVMAPTINT, ENVMAPMASKSCALE, DETAILBLENDMODE);
+
+		SetFlags(vars, MaterialVarFlags.Decal);
+		SetFlags(vars, MaterialVarFlags.NoDebugOverride);
+		SetFlags2(vars, MaterialVarFlags2.LightingLightmap);
 	}
 
 	public override string? GetFallbackShader(IMaterialVar[] vars) {
@@ -108,15 +113,50 @@ public class LightmappedGeneric : BaseVSShader
 	}
 	protected override void OnInitShaderInstance(IMaterialVar[] vars, ReadOnlySpan<char> materialName) {
 		InitUnlitGeneric((int)ShaderMaterialVars.BaseTexture, DETAIL, ENVMAP, ENVMAPMASK);
+		if (vars[(int)ShaderMaterialVars.BaseTexture].IsDefined()) {
+			LoadTexture((int)ShaderMaterialVars.BaseTexture);
+			if (!vars[(int)ShaderMaterialVars.BaseTexture].GetTextureValue()!.IsTranslucent()) {
+				ClearFlags(vars, MaterialVarFlags.SelfIllum);
+				ClearFlags(vars, MaterialVarFlags.BaseAlphaEnvMapMask);
+			}
+		}
+		if (IsFlagSet(vars, MaterialVarFlags.SelfIllum) || IsFlagSet(vars, MaterialVarFlags.BaseAlphaEnvMapMask))
+			ClearFlags(vars, MaterialVarFlags.AlphaTest);
 	}
 	protected override void OnDrawElements(IMaterialVar[] vars, IShaderDynamicAPI shaderAPI, VertexCompressionType vertexCompression) {
-		VertexShaderUnlitGenericPass((int)ShaderMaterialVars.BaseTexture, (int)ShaderMaterialVars.Frame, (int)ShaderMaterialVars.BaseTextureTransform,
-			DETAIL, DETAILSCALE, true, ENVMAP, ENVMAPFRAME, ENVMAPMASK,
-			ENVMAPMASKFRAME, ENVMAPMASKSCALE, ENVMAPTINT, ALPHATESTREFERENCE,
-			DETAILBLENDMODE, OUTLINE, OUTLINECOLOR, OUTLINESTART0, OUTLINEEND1, SEPARATEDETAILUVS, "lightmappedgeneric");
+		bool bumpedEnvMap = false; // todo
+		DrawDetailUsingVertexShader(vars, shaderAPI, ShaderShadow, bumpedEnvMap);
+	}
 
-		// Temporary hack...
-		if (IsSnapshotting())
-			ShaderShadow.VertexShaderVertexFormat(ShaderShadow.GetVertexFormat() | VertexFormat.TexCoord2D_1, 2, [2, 2], 0);
+	private void DrawDetailUsingVertexShader(IMaterialVar[] vars, IShaderDynamicAPI shaderAPI, IShaderShadow? shaderShadow, bool bumpedEnvMap) {
+		DrawDetailNoEnvmap(vars, shaderAPI, shaderShadow, IsFlagSet(vars, MaterialVarFlags.SelfIllum));
+	}
+
+	private void DrawDetailNoEnvmap(IMaterialVar[] vars, IShaderDynamicAPI shaderAPI, IShaderShadow? shaderShadow, bool dlSelfIllum) {
+		if (IsSnapshotting()) {
+			ShaderShadow.EnableAlphaTest(IsFlagSet(vars, MaterialVarFlags.AlphaTest));
+			if (vars[(int)ShaderMaterialVars.BaseTexture].IsTexture())
+				ShaderShadow.EnableTexture(Sampler.Sampler0, true);
+
+			ShaderShadow.EnableTexture(Sampler.Sampler1, true); // Lightmap
+			ShaderShadow.EnableTexture(Sampler.Sampler2, true); // Detail
+
+			SetDefaultBlendingShadowState((int)ShaderMaterialVars.BaseTexture, true);
+			ShaderShadow.VertexShaderVertexFormat(VertexFormat.Position | VertexFormat.Normal | VertexFormat.TexCoord2D_0 | VertexFormat.TexCoord2D_1, 2, null, 0);
+
+			ShaderShadow.SetVertexShader("lightmappedgeneric");
+			ShaderShadow.SetPixelShader("lightmappedgeneric");
+		}
+		else {
+			if (vars[(int)ShaderMaterialVars.BaseTexture].IsTexture()) {
+				BindTexture(Sampler.Sampler0, (int)ShaderMaterialVars.BaseTexture, (int)ShaderMaterialVars.Frame);
+			}
+
+			ShaderAPI!.BindStandardTexture(Sampler.Sampler1, StandardTextureId.Lightmap);
+			shaderAPI.SetShaderUniform(shaderAPI.LocateShaderUniform("lightmaptexture"), 1);
+
+			BindTexture(Sampler.Sampler2, DETAIL, (int)ShaderMaterialVars.Frame);
+		}
+		Draw();
 	}
 }

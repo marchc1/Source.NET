@@ -176,8 +176,8 @@ public class MatLightmaps
 
 		return height;
 	}
-	int GetNumLightmapPages() => NumLightmapPages;
-	int GetMaxLightmapPageWidth() {
+	public  int GetNumLightmapPages() => NumLightmapPages;
+	public  int GetMaxLightmapPageWidth() {
 		int width = 512;
 		if (width > MaterialSystem.HardwareConfig.MaxTextureWidth())
 			width = MaterialSystem.HardwareConfig.MaxTextureWidth();
@@ -195,12 +195,15 @@ public class MatLightmaps
 		NumSortIDs++;
 
 		FirstDynamicLightmap = NumLightmapPages;
+		dynamic.Init();
 
 		int lastLightmapPageWidth, lastLightmapPageHeight;
 		int nLastIdx = ImagePackers.Count;
 		ImagePackers[nLastIdx - 1].GetMinimumDimensions(out lastLightmapPageWidth, out lastLightmapPageHeight);
 		ImagePackers.Clear();
+
 		LightmapPages = new LightmapPageInfo[GetNumLightmapPages()];
+
 		for (int i = 0; i < GetNumLightmapPages(); i++) {
 			bool lastStaticLightmap = (i == (FirstDynamicLightmap - 1));
 			LightmapPages[i].Width = (ushort)(lastStaticLightmap ? lastLightmapPageWidth : GetMaxLightmapPageWidth());
@@ -309,8 +312,8 @@ public class MatLightmaps
 		PixelWriter writer = new();
 
 		ShaderAPI.ModifyTexture(LightmapPageTextureHandles[lightmap].Handle);
-		byte[] data = ArrayPool<byte>.Shared.Rent(ImageLoader.GetMemRequired(width, height, 1, LightmapPageTextureHandles[lightmap].Format, false));
-		writer.SetPixelMemory(LightmapPageTextureHandles[lightmap].Format, data, 0);
+		if (!ShaderAPI.TexLock(0, 0, 0, 0, width, height, ref writer))
+			return;
 
 		if (writer.IsUsingFloatFormat()) {
 			for (int j = 0; j < height; ++j) {
@@ -329,7 +332,23 @@ public class MatLightmaps
 			}
 		}
 
-		ArrayPool<byte>.Shared.Return(data, true);
+		ShaderAPI.TexUnlock();
+	}
+
+	int LockedLightmap;
+	public bool LockLightmap(int lightmap) {
+		if (LockedLightmap != -1) 
+			ShaderAPI.TexUnlock();
+		
+		ShaderAPI.ModifyTexture(LightmapPageTextureHandles[lightmap].Handle);
+		int pageWidth = LightmapPages![lightmap].Width;
+		int pageHeight = LightmapPages![lightmap].Height;
+		if (!ShaderAPI.TexLock(0, 0, 0, 0, pageWidth, pageHeight, ref LightmapPixelWriter)) {
+			Assert(false);
+			return false;
+		}
+		LockedLightmap = lightmap;
+		return true;
 	}
 
 	IMaterialInternal? CurrentWhiteLightmapMaterial;
@@ -370,6 +389,19 @@ public class MatLightmaps
 
 				++sortId;
 			}
+		}
+	}
+	int UpdatingLightmapsStackDepth;
+
+	public void BeginUpdateLightmaps() {
+		UpdatingLightmapsStackDepth++;
+	}
+
+	public void EndUpdateLightmaps() {
+		UpdatingLightmapsStackDepth--;
+		if (UpdatingLightmapsStackDepth <= 0 && LockedLightmap != -1) {
+			ShaderAPI.TexUnlock();
+			LockedLightmap = -1;
 		}
 	}
 
@@ -449,8 +481,8 @@ public class MatLightmaps
 		}
 
 		ShaderAPI.ModifyTexture(LightmapPageTextureHandles[lightmapPageID].Handle);
-		byte[] memory = ArrayPool<byte>.Shared.Rent(ImageLoader.GetMemRequired(lightmapSize[0], lightmapSize[1], 1, LightmapPageTextureHandles[lightmapPageID].Format, false));
-		LightmapPixelWriter.SetPixelMemory(LightmapPageTextureHandles[lightmapPageID].Format, memory, 0);
+		if (!ShaderAPI.TexLock(0, 0, offsetIntoLightmapPage[0], offsetIntoLightmapPage[1], lightmapSize[0] * uSize, lightmapSize[1], ref LightmapPixelWriter))
+			return;
 
 		if (hasBump) {
 			switch (HardwareConfig.GetHDRType()) {
@@ -487,7 +519,7 @@ public class MatLightmaps
 		}
 
 		LightmapPixelWriter.Dispose();
-		ArrayPool<byte>.Shared.Return(memory, true);
+		ShaderAPI.TexUnlock();
 	}
 
 	private unsafe void LightmapBitsToPixelWriter_LDR(Span<float> floatImage, Span<int> lightmapSize, Span<int> offsetIntoLightmapPage, FloatBitMap? pfmOut) {
@@ -512,6 +544,10 @@ public class MatLightmaps
 
 	private bool IsDynamicLightmap(int lightmapPageID) {
 		return false; // todo
+	}
+
+	internal ShaderAPITextureHandle_t GetLightmapPageTextureHandle(int lightmapPageID) {
+		return LightmapPageTextureHandles[lightmapPageID].Handle;
 	}
 
 	struct LightmapInfo

@@ -263,13 +263,12 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 		return (InternalFlags & (int)InternalTextureFlags.Allocated) != 0;
 	}
 
+	public void Bind(Sampler sampler) => Bind(sampler, 0);
 	public void Bind(Sampler sampler, int frame) {
-		if (HasBeenAllocated()) {
-			materials.ShaderAPI.BindTexture(sampler, frame, TextureHandles![frame]);
-		}
-		else {
+		if (HasBeenAllocated()) 
+			materials.ShaderAPI.BindTexture(sampler, TextureHandles![frame]);
+		else 
 			Warning($"Tried to bind texture {GetName()}, but texture handles are not valid.\n");
-		}
 	}
 
 	public void Download(Rectangle rect, int additionalCreationFlags) {

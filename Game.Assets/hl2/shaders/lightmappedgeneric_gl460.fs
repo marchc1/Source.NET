@@ -15,12 +15,14 @@ const int VertexAlpha = 32;
 
 uniform int flags;
 uniform sampler2D basetexture;
+uniform sampler2D lightmaptexture;
 
 out vec4 fragColor;
 
 void main()
 {
     vec4 texelColor = texture(basetexture, vs_TexCoord0);
+    vec4 lightmapColor = texture(lightmaptexture, vs_TexCoord1);
     if(isAlphaTesting){
         switch(alphaTestFunc){
             case 1: if(texelColor.a <  alphaTestRef){ discard; } break;

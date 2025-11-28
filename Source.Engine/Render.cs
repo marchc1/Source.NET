@@ -4,6 +4,7 @@ using CommunityToolkit.HighPerformance;
 using Source.Common;
 using Source.Common.Client;
 using Source.Common.Commands;
+using Source.Common.Formats.BSP;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
@@ -11,6 +12,7 @@ using Source.Common.Utilities;
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
 
 using static Source.Engine.MatSysInterface;
 namespace Source.Engine;
@@ -33,7 +35,7 @@ public class Render(
 	ClientGlobalVariables gpGlobals
 	)
 {
-	int framecount = 1;
+	int FrameCount = 1;
 	RefStack<ViewStack> ViewStack = new();
 	Matrix4x4 MatrixView;
 	Matrix4x4 MatrixProjection;
@@ -62,7 +64,7 @@ public class Render(
 
 	internal void FrameBegin() {
 
-		framecount++;
+		FrameCount++;
 	}
 
 	internal void FrameEnd() {
@@ -201,8 +203,6 @@ public class Render(
 		}
 	}
 
-	public int FrameCount = 1;
-
 	public void LevelInit() {
 		ConDMsg("Initializing renderer...\n");
 
@@ -218,7 +218,12 @@ public class Render(
 		Areaportal_LevelInit();
 	}
 
-	private void ResetLightStyles() { }
+	private void ResetLightStyles() {
+		for (int i = 0; i < 256; i++) {
+			MaterialSystem.LightStyleValue[i] = 264;
+			MaterialSystem.LightStyleFrame[i] = FrameCount;
+		}
+	}
 	private void DecalInit() { }
 	private void LoadSkys() {
 		bool success = true;
@@ -258,7 +263,8 @@ public class Render(
 		MaterialSystem.RegisterLightmapSurfaces();
 		MaterialSystem.CreateSortInfo();
 
-		modelLoader.Map_LoadDisplacements(MaterialSystem.materialSortInfoArray, host_state.WorldModel!);
+		modelLoader.Map_LoadDisplacements(MaterialSystem.MaterialSortInfoArray!, host_state.WorldModel!);
+		RebuildLightmaps();
 	}
 	private void Surface_LevelInit() { }
 	private void Areaportal_LevelInit() { }
@@ -284,6 +290,7 @@ public class Render(
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	internal void RenderOneMesh(MatRenderContextPtr renderContext, in MatSysInterface.MeshList meshList) {
 		renderContext.Bind(meshList.Material);
+		renderContext.BindLightmapPage(meshList.LightmapPageID);
 		meshList.Mesh.Draw();
 	}
 
@@ -590,5 +597,326 @@ public class Render(
 
 	internal void Shutdown() {
 
+	}
+
+	bool rebuildLightmaps = false;
+	public void RebuildLightmaps() => rebuildLightmaps = true;
+
+	internal void CheckForLightingConfigChanges() {
+		if (rebuildLightmaps) {
+			RedownloadAllLightmaps();
+		}
+	}
+
+	private void RedownloadAllLightmaps() {
+		double st = Sys.Time;
+
+		bool onlyUseLightStyles = false;
+
+		//  if (r_dynamic.GetInt() == 0) {
+		//  	onlyUseLightStyles = true;
+		//  }
+
+		using MatRenderContextPtr renderContext = new(materials);
+		if (!host_state.WorldBrush!.UnloadedLightmaps) {
+			int surfaceCount = host_state.WorldBrush.NumSurfaces;
+
+			Span<int> sortedSurfaceIndices = stackalloc int[surfaceCount];
+			for (int surfaceIndex = 0; surfaceIndex < surfaceCount; surfaceIndex++)
+				sortedSurfaceIndices[surfaceIndex] = surfaceIndex;
+
+			SortSurfacesByLightmapID(sortedSurfaceIndices, surfaceCount); //sorts in place, so now the array really is sorted
+
+			materials.BeginUpdateLightmaps();
+
+			MathLib.SetIdentityMatrix(out Matrix3x4 xform);
+			for (int surfaceIndex = 0; surfaceIndex < surfaceCount; surfaceIndex++) {
+				ref BSPMSurface2 surfID = ref ModelLoader.SurfaceHandleFromIndex(sortedSurfaceIndices[surfaceIndex], host_state.WorldBrush!);
+
+				BuildLightMap(ref surfID, ref xform, onlyUseLightStyles);
+			}
+
+			materials.EndUpdateLightmaps();
+		}
+
+		double elapsed = (Sys.Time - st) * 1000.0;
+		DevMsg("R_RedownloadAllLightmaps took %.3f msec!\n", elapsed);
+
+		rebuildLightmaps = false;
+	}
+
+	private void BuildLightMap(ref BSPMSurface2 surfID, in Matrix3x4 entityToWorld, bool onlyUseLightStyles) {
+		bool needsBumpmap = SurfNeedsBumpedLightmaps(ref surfID);
+		bool needsLightmap = SurfNeedsLightmap(ref surfID);
+
+		if (!needsBumpmap && !needsLightmap)
+			return;
+
+		if (MaterialSystem.MaterialSortInfoArray != null) {
+			Assert(ModelLoader.MSurf_MaterialSortID(ref surfID) >= 0 && ModelLoader.MSurf_MaterialSortID(ref surfID) < MaterialSystem.WorldStaticMeshes.Count);
+			if ((MaterialSystem.MaterialSortInfoArray[ModelLoader.MSurf_MaterialSortID(ref surfID)].LightmapPageID == StandardLightmap.White) ||
+			   (MaterialSystem.MaterialSortInfoArray[ModelLoader.MSurf_MaterialSortID(ref surfID)].LightmapPageID == StandardLightmap.WhiteBump)) {
+				return;
+			}
+		}
+
+		bool bDlightsInLightmap = needsLightmap || needsBumpmap;
+		uint dlightMask = 0; // R_UpdateDlightState(pLights, surfID, entityToWorld, bOnlyUseLightStyles, bDlightsInLightmap);
+
+		if (onlyUseLightStyles)
+			dlightMask = 0;
+
+		BuildLightMapGuts(ref surfID, in entityToWorld, dlightMask, needsBumpmap, needsLightmap);
+	}
+
+	static readonly ConVar r_lightmap = new("r_lightmap", "-1", FCvar.Cheat | FCvar.MaterialSystemThread);
+	static readonly ConVar r_lightstyle = new("r_lightstyle", "-1", FCvar.Cheat | FCvar.MaterialSystemThread);
+	static readonly ConVar r_avglightmap = new("r_avglightmap", "0", FCvar.Cheat | FCvar.MaterialSystemThread);
+	static readonly ConVar r_maxdlights = new("r_maxdlights", "32", 0);
+
+	void ComputeLightmapFromLightstyle(ref BSPSurfaceLighting lighting, bool computeLightmap, bool computeBumpmap, int lightmapSize, bool hasBumpmapLightmapData) {
+		Span<ColorRGBExp32> pLightmap = lighting.Samples.Span;
+
+		// Compute iteration range
+		int minmap, maxmap;
+		if (r_lightmap.GetInt() != -1) {
+			minmap = r_lightmap.GetInt();
+			maxmap = minmap + 1;
+		}
+		else {
+			minmap = 0; maxmap = BSPFileCommon.MAXLIGHTMAPS;
+		}
+
+		for (int maps = minmap; maps < maxmap && lighting.Styles[maps] != 255; ++maps) {
+			if (r_lightstyle.GetInt() != -1 && lighting.Styles[maps] != r_lightstyle.GetInt()) {
+				continue;
+			}
+
+			float fscalar = LightStyleValue(lighting.Styles[maps]);
+
+			if (fscalar > 0.0f) {
+				float scalar = fscalar;
+
+				if (computeBumpmap) {
+					AccumulateBumpedLightstyles(pLightmap, lightmapSize, scalar);
+				}
+				else if (computeLightmap) {
+					if (r_avglightmap.GetInt() != 0) {
+						pLightmap = lighting.AvgLightColor(maps);
+						AccumulateLightstylesFlat(pLightmap, lightmapSize, scalar);
+					}
+					else {
+						AccumulateLightstyles(pLightmap, lightmapSize, scalar);
+					}
+				}
+			}
+
+			// It seems like in Source, this is allowed to overflow because the next iteration would be stopping
+			// anyway (due to lighting.Styles[maps] equaling 255), but in C#-managed-bounds-checking-land, this
+			// errors
+			int offset = (hasBumpmapLightmapData ? lightmapSize * (NUM_BUMP_VECTS + 1) : lightmapSize);
+			if (offset >= pLightmap.Length)
+				pLightmap = Span<ColorRGBExp32>.Empty;
+			else
+				pLightmap = pLightmap[offset..];
+		}
+	}
+
+	private void AccumulateLightstyles(Span<ColorRGBExp32> lightmap, int lightmapSize, float scalar) {
+		for (int i = 0; i < lightmapSize; ++i) {
+			blocklights[0][i][0] += scalar * MathLib.TexLightToLinear(lightmap[i].R, lightmap[i].Exponent);
+			blocklights[0][i][1] += scalar * MathLib.TexLightToLinear(lightmap[i].G, lightmap[i].Exponent);
+			blocklights[0][i][2] += scalar * MathLib.TexLightToLinear(lightmap[i].B, lightmap[i].Exponent);
+		}
+	}
+
+	private void AccumulateLightstylesFlat(Span<ColorRGBExp32> lightmap, int lightmapSize, float scalar) {
+		for (int i = 0; i < lightmapSize; ++i) {
+			blocklights[0][i][0] += scalar * MathLib.TexLightToLinear(lightmap[0].R, lightmap[0].Exponent);
+			blocklights[0][i][1] += scalar * MathLib.TexLightToLinear(lightmap[0].G, lightmap[0].Exponent);
+			blocklights[0][i][2] += scalar * MathLib.TexLightToLinear(lightmap[0].B, lightmap[0].Exponent);
+		}
+	}
+
+	private void AccumulateBumpedLightstyles(Span<ColorRGBExp32> lightmap, int lightmapSize, float scalar) {
+		Span<ColorRGBExp32> bumpedLightmaps_0 = lightmap[(lightmapSize)..];
+		Span<ColorRGBExp32> bumpedLightmaps_1 = lightmap[(2 * lightmapSize)..];
+		Span<ColorRGBExp32> bumpedLightmaps_2 = lightmap[(3 * lightmapSize)..];
+
+		for (int i = 0; i < lightmapSize; ++i) {
+			blocklights[0][i][0] += scalar * MathLib.TexLightToLinear(lightmap[i].R, lightmap[i].Exponent);
+			blocklights[0][i][1] += scalar * MathLib.TexLightToLinear(lightmap[i].G, lightmap[i].Exponent);
+			blocklights[0][i][2] += scalar * MathLib.TexLightToLinear(lightmap[i].B, lightmap[i].Exponent);
+			Assert(blocklights[0][i][0] >= 0.0f);
+			Assert(blocklights[0][i][1] >= 0.0f);
+			Assert(blocklights[0][i][2] >= 0.0f);
+
+			blocklights[1][i][0] += scalar * MathLib.TexLightToLinear(bumpedLightmaps_0[i].R, bumpedLightmaps_0[i].Exponent);
+			blocklights[1][i][1] += scalar * MathLib.TexLightToLinear(bumpedLightmaps_0[i].G, bumpedLightmaps_0[i].Exponent);
+			blocklights[1][i][2] += scalar * MathLib.TexLightToLinear(bumpedLightmaps_0[i].B, bumpedLightmaps_0[i].Exponent);
+			Assert(blocklights[1][i][0] >= 0.0f);
+			Assert(blocklights[1][i][1] >= 0.0f);
+			Assert(blocklights[1][i][2] >= 0.0f);
+		}
+
+		for (int i = 0; i < lightmapSize; ++i) {
+			blocklights[2][i][0] += scalar * MathLib.TexLightToLinear(bumpedLightmaps_1[i].R, bumpedLightmaps_1[i].Exponent);
+			blocklights[2][i][1] += scalar * MathLib.TexLightToLinear(bumpedLightmaps_1[i].G, bumpedLightmaps_1[i].Exponent);
+			blocklights[2][i][2] += scalar * MathLib.TexLightToLinear(bumpedLightmaps_1[i].B, bumpedLightmaps_1[i].Exponent);
+			Assert(blocklights[2][i][0] >= 0.0f);
+			Assert(blocklights[2][i][1] >= 0.0f);
+			Assert(blocklights[2][i][2] >= 0.0f);
+
+			blocklights[3][i][0] += scalar * MathLib.TexLightToLinear(bumpedLightmaps_2[i].R, bumpedLightmaps_2[i].Exponent);
+			blocklights[3][i][1] += scalar * MathLib.TexLightToLinear(bumpedLightmaps_2[i].G, bumpedLightmaps_2[i].Exponent);
+			blocklights[3][i][2] += scalar * MathLib.TexLightToLinear(bumpedLightmaps_2[i].B, bumpedLightmaps_2[i].Exponent);
+			Assert(blocklights[3][i][0] >= 0.0f);
+			Assert(blocklights[3][i][1] >= 0.0f);
+			Assert(blocklights[3][i][2] >= 0.0f);
+		}
+	}
+
+	static void InitLMSamples(Span<Vector4> samples, int nSamples, float value) {
+		for (int i = 0; i < nSamples; i++) {
+			samples[i][0] = samples[i][1] = samples[i][2] = value;
+			samples[i][3] = 1.0f;
+		}
+	}
+
+	int ComputeLightmapSize(ref BSPMSurface2 surfID) {
+		int smax = (ModelLoader.MSurf_LightmapExtents(ref surfID)[0]) + 1;
+		int tmax = (ModelLoader.MSurf_LightmapExtents(ref surfID)[1]) + 1;
+		int size = smax * tmax;
+
+		int nMaxSize = ModelLoader.MSurf_MaxLightmapSizeWithBorder(ref surfID);
+		if (size > nMaxSize * nMaxSize) {
+			ConMsg($"Bad lightmap extents on material \"{MaterialSystem.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref surfID)].Material!.GetName()}\"\n");
+			return 0;
+		}
+
+		return size;
+	}
+	static Vector4[][] _makeblocklights() {
+		Vector4[][] ret = new Vector4[NUM_BUMP_VECTS + 1][];
+		for (int i = 0; i < NUM_BUMP_VECTS + 1; i++)
+			ret[i] = new Vector4[BSPFileCommon.MAX_LIGHTMAP_DIM_INCLUDING_BORDER * BSPFileCommon.MAX_LIGHTMAP_DIM_INCLUDING_BORDER];
+		return ret;
+	}
+	readonly Vector4[][] blocklights = _makeblocklights();
+
+	public float LightStyleValue(byte style) {
+		return (float)MaterialSystem.LightStyleValue[style] * (1.0f / 264f);
+	}
+
+	public void BuildLightMapGuts(ref BSPMSurface2 surfID, in Matrix3x4 entityToWorld, uint dlightMask, bool needsBumpmap, bool needsLightmap) {
+		Assert(!host_state.WorldBrush!.UnloadedLightmaps);
+		int bumpID;
+		ref BSPSurfaceLighting pLighting = ref ModelLoader.SurfaceLighting(ref surfID, host_state.WorldBrush);
+
+		int size = ComputeLightmapSize(ref surfID);
+		if (size == 0)
+			return;
+
+		bool hasBumpmap = ModelLoader.SurfHasBumpedLightmaps(ref surfID);
+		bool hasLightmap = ModelLoader.SurfHasLightmap(ref surfID);
+
+		if (needsLightmap)
+			InitLMSamples(blocklights[0], size, hasLightmap ? 0.0f : 1.0f);
+
+		if (needsBumpmap)
+			for (bumpID = 1; bumpID < NUM_BUMP_VECTS + 1; bumpID++)
+				InitLMSamples(blocklights[bumpID], size, hasBumpmap ? 0.0f : 1.0f);
+
+		if ((hasLightmap && needsLightmap) || (hasBumpmap && needsBumpmap))
+			ComputeLightmapFromLightstyle(ref pLighting, (hasLightmap && needsLightmap), (hasBumpmap && needsBumpmap), size, hasBumpmap);
+		else if (!hasBumpmap && needsBumpmap && hasLightmap) {
+			ComputeLightmapFromLightstyle(ref pLighting, true, false, size, hasBumpmap);
+
+			for (bumpID = 0; bumpID < (hasBumpmap ? (NUM_BUMP_VECTS + 1) : 1); bumpID++)
+				for (int i = 0; i < size; i++)
+					blocklights[bumpID][i].AsVector3D() = blocklights[0][i].AsVector3D();
+		}
+		else if (needsBumpmap && !hasLightmap) {
+			// set to full bright if no light data
+			InitLMSamples(blocklights[1], size, 0.0f);
+			InitLMSamples(blocklights[2], size, 0.0f);
+			InitLMSamples(blocklights[3], size, 0.0f);
+		}
+		else if (!needsBumpmap && !needsLightmap) {
+
+		}
+		else if (needsLightmap && !hasLightmap) {
+
+		}
+		else {
+			Assert(0);
+		}
+
+		// TODO: Dynamic lights
+
+		// Update the texture state
+		UpdateLightmapTextures(ref surfID, needsBumpmap);
+	}
+
+	private void UpdateLightmapTextures(ref BSPMSurface2 surfID, bool needsBumpmap) {
+		if(MaterialSystem.MaterialSortInfoArray != null) {
+			Span<int> lightmapSize = stackalloc int[2];
+			Span<int> offsetIntoLightmapPage = stackalloc int[2];
+			lightmapSize[0] = (ModelLoader.MSurf_LightmapExtents(ref surfID)[0]) + 1;
+			lightmapSize[1] = (ModelLoader.MSurf_LightmapExtents(ref surfID)[1]) + 1;
+			offsetIntoLightmapPage[0] = ModelLoader.MSurf_OffsetIntoLightmapPage(ref surfID)[0];
+			offsetIntoLightmapPage[1] = ModelLoader.MSurf_OffsetIntoLightmapPage(ref surfID)[1];
+			Assert(ModelLoader.MSurf_MaterialSortID(ref surfID) >= 0 && ModelLoader.MSurf_MaterialSortID(ref surfID) < MaterialSystem.WorldStaticMeshes.Count);
+			// FIXME: Should differentiate between bumped and unbumped since the perf characteristics
+			// are completely different?
+			//		MarkPage( materialSortInfoArray[MSurf_MaterialSortID( surfID )].lightmapPageID );
+
+			if (needsBumpmap) {
+				materials.UpdateLightmap(MaterialSystem.MaterialSortInfoArray[ModelLoader.MSurf_MaterialSortID(ref surfID)].LightmapPageID,
+					lightmapSize, offsetIntoLightmapPage, blocklights[0].AsSpan().Cast<Vector4, float>(), blocklights[1].AsSpan().Cast<Vector4, float>(), blocklights[2].AsSpan().Cast<Vector4, float>(), blocklights[3].AsSpan().Cast<Vector4, float>());
+			}
+			else {
+				materials.UpdateLightmap(MaterialSystem.MaterialSortInfoArray[ModelLoader.MSurf_MaterialSortID(ref surfID)].LightmapPageID,
+					lightmapSize, offsetIntoLightmapPage, blocklights[0].AsSpan().Cast<Vector4, float>(), null, null, null);
+			}
+		}
+	}
+
+	private unsafe void SortSurfacesByLightmapID(Span<int> toSort, int surfaceCount) {
+		Span<BSPMSurface2> surfaces = host_state.WorldBrush!.Surfaces2;
+
+		int* pSortTemp = stackalloc int[surfaceCount];
+		Span<int> iCounts = stackalloc int[256];
+		Span<int> iOffsetTable = stackalloc int[256];
+
+		fixed(int* fpToSort = toSort) {
+			int* pToSort = fpToSort;
+			for (int radix = 0; radix < 4; ++radix) {
+				{
+					int* pTemp = pToSort;
+					pToSort = pSortTemp;
+					pSortTemp = pTemp;
+				}
+
+				memreset(iCounts);
+				int iBitOffset = radix * 8;
+				for (int i = 0; i < surfaceCount; ++i) {
+					int val = (MaterialSystem.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref surfaces[pSortTemp[i]])].LightmapPageID >> iBitOffset) & 0xFF;
+					++iCounts[val];
+				}
+
+				iOffsetTable[0] = 0;
+				for (int i = 0; i < 255; ++i) {
+					iOffsetTable[i + 1] = iOffsetTable[i] + iCounts[i];
+				}
+
+				for (int i = 0; i < surfaceCount; ++i) {
+					int val = (MaterialSystem.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref surfaces[pSortTemp[i]])].LightmapPageID >> iBitOffset) & 0xFF;
+					int iWriteIndex = iOffsetTable[val];
+					pToSort[iWriteIndex] = pSortTemp[i];
+					++iOffsetTable[val];
+				}
+			}
+		}
 	}
 }

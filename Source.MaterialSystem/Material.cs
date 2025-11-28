@@ -941,7 +941,30 @@ public class Material : IMaterialInternal
 	int EnumerationID;
 	public int GetEnumerationID() => EnumerationID;
 	public void SetEnumerationID(int id) => EnumerationID = id;
-	public bool GetPropertyFlag(MaterialPropertyTypes types) => false; // todo
+	public bool GetPropertyFlag(MaterialPropertyTypes type) {
+		Precache();
+
+		if (!IsValidRenderState())
+			return false;
+
+		switch (type) {
+			case MaterialPropertyTypes.NeedsLightmap:
+				return IsUsingLightmap();
+
+			case MaterialPropertyTypes.NeedsBumpedLightmaps:
+				return IsUsingDiffuseBumpedLighting();
+		}
+
+		return false;
+	}
+
+	private bool IsUsingDiffuseBumpedLighting() {
+		return (GetMaterialVarFlags2() & MaterialVarFlags2.LightingBumpedLightmap) != 0;
+	}
+
+	private bool IsUsingLightmap() {
+		return (GetMaterialVarFlags2() & MaterialVarFlags2.LightingLightmap) != 0;
+	}
 
 	int MinLightmapPageID;
 	int MaxLightmapPageID;

@@ -17,4 +17,5 @@ public static class SourceDllMain
 	[Dependency] public static GameServer sv { get; private set; } = null!;
 	[Dependency] public static IServerGameDLL serverGameDLL { get; private set; } = null!;
 	[Dependency] public static IClientEntityList entitylist { get; private set; } = null!;
+	[Dependency] public static CommonHostState host_state { get; private set; } = null!;
 }

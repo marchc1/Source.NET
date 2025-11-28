@@ -37,6 +37,7 @@ public class View(Host Host, IEngineVGuiInternal EngineVGui, IMaterialSystem mat
 			RenderGuiOnly_NoSwap();
 		}
 		else {
+			EngineRenderer.CheckForLightingConfigChanges();
 			ViewRects screenrect = videomode.GetClientViewRect();
 			ClientDLL.View_Render(screenrect);
 		}

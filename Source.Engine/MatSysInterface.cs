@@ -174,10 +174,12 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	public readonly TextureReference FullFrameFBTexture0 = new();
 	public readonly TextureReference FullFrameFBTexture1 = new();
 
-	CommonHostState host_state;
-
+	public int FrameConut = 1;
+	public readonly int[] LightStyleValue = new int[256];
+	public readonly int[] LightStyleNumFrames = new int[256];
+	public readonly int[] LightStyleFrame = new int[256];
+	
 	public void Init() {
-		host_state = services.GetRequiredService<CommonHostState>();
 		InitWellKnownRenderTargets();
 		InitDebugMaterials();
 	}
@@ -233,6 +235,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		public IMaterial Material;
 		public int VertCount;
 		public int IndexCount;
+		public int LightmapPageID;
 		public VertexFormat VertexFormat;
 		// TODO: Is there a better way to handle this? I can't figure out how Source does...
 		public ToolTexture ToolTexture;
@@ -485,8 +488,8 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	}
 
 
-	internal MaterialSystem_SortInfo[]? materialSortInfoArray;
-	private int SortInfoToLightmapPage(int sortID) => materialSortInfoArray![sortID].LightmapPageID;
+	internal MaterialSystem_SortInfo[]? MaterialSortInfoArray;
+	private int SortInfoToLightmapPage(int sortID) => MaterialSortInfoArray![sortID].LightmapPageID;
 
 	private void SurfSetupSurfaceContext(ref SurfaceCtx ctx, ref BSPMSurface2 surfID) {
 		materials.GetLightmapPageSize(SortInfoToLightmapPage(ModelLoader.MSurf_MaterialSortID(ref surfID)), out ctx.LightmapPageSize[0], out ctx.LightmapPageSize[1]);
@@ -569,7 +572,8 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	}
 
 	public const int NUM_BUMP_VECTS = 3;
-	private static bool SurfNeedsBumpedLightmaps(ref BSPMSurface2 surfID) => ModelLoader.MSurf_TexInfo(ref surfID).Material!.GetPropertyFlag(MaterialPropertyTypes.NeedsBumpedLightmaps);
+	public static bool SurfNeedsBumpedLightmaps(ref BSPMSurface2 surfID) => ModelLoader.MSurf_TexInfo(ref surfID).Material!.GetPropertyFlag(MaterialPropertyTypes.NeedsBumpedLightmaps);
+	public static bool SurfNeedsLightmap(ref BSPMSurface2 surfID) => ModelLoader.MSurf_TexInfo(ref surfID).Material!.GetPropertyFlag(MaterialPropertyTypes.NeedsLightmap);
 	private void RegisterUnlightmappedSurface(ref BSPMSurface2 surfID) {
 		ModelLoader.MSurf_MaterialSortID(ref surfID) = materials.AllocateWhiteLightmap(ModelLoader.MSurf_TexInfo(ref surfID).Material);
 		ModelLoader.MSurf_OffsetIntoLightmapPage(ref surfID)[0] = 0;
@@ -706,10 +710,10 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	}
 
 	internal void CreateSortInfo() {
-		Assert(materialSortInfoArray == null);
+		Assert(MaterialSortInfoArray == null);
 		int sortIDs = materials.GetNumSortIDs();
-		materialSortInfoArray = new MaterialSystem_SortInfo[sortIDs];
-		materials.GetSortInfo(materialSortInfoArray);
+		MaterialSortInfoArray = new MaterialSystem_SortInfo[sortIDs];
+		materials.GetSortInfo(MaterialSortInfoArray);
 		GenerateTexCoordsForPrimVerts();
 		WorldStaticMeshCreate();
 	}

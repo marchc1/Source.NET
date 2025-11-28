@@ -847,7 +847,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 				light.Styles[i] = 255;
 		}
 		else {
-			light.Samples = new(lightData, i, 4);
+			light.Samples = lightData.AsMemory()[i..];
 
 			for (i = 0; i < BSPFileCommon.MAXLIGHTMAPS; ++i)
 				light.Styles[i] = _in.Styles[i];
@@ -1137,6 +1137,40 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 
 	public void Shutdown() {
 
+	}
+
+	internal static ref BSPSurfaceLighting SurfaceLighting(ref BSPMSurface2 surfID, WorldBrushData data) {
+		int surfaceindex = MSurf_Index(ref surfID, data);
+		return ref data.SurfaceLighting![surfaceindex];
+	}
+
+	internal static int MSurf_MaxLightmapSizeWithBorder(ref BSPMSurface2 surfID) {
+		return SurfaceHasDispInfo(ref surfID) ? BSPFileCommon.MAX_DISP_LIGHTMAP_DIM_INCLUDING_BORDER : BSPFileCommon.MAX_BRUSH_LIGHTMAP_DIM_INCLUDING_BORDER;
+	}
+
+	internal static bool SurfHasBumpedLightmaps(ref BSPMSurface2 surfID) {
+		bool hasBumpmap = false;
+		if ((MSurf_TexInfo(ref surfID).Flags & Surf.BumpLight) != 0 &&
+			((MSurf_TexInfo(ref surfID).Flags & Surf.Light) == 0) &&
+			(host_state.WorldBrush!.LightData != null) &&
+			(!MSurf_Samples(ref surfID).IsEmpty)) {
+			hasBumpmap = true;
+		}
+		return hasBumpmap;
+	}
+
+	private static Memory<ColorRGBExp32> MSurf_Samples(ref BSPMSurface2 surfID) {
+		return host_state.WorldBrush!.SurfaceLighting![MSurf_Index(ref surfID)].Samples;
+	}
+
+	internal static bool SurfHasLightmap(ref BSPMSurface2 surfID) {
+		bool hasLightmap = false;
+		if (((MSurf_TexInfo(ref surfID).Flags & Surf.NoLight) == 0) &&
+			(host_state.WorldBrush!.LightData != null) &&
+			(!MSurf_Samples(ref surfID).IsEmpty)) {
+			hasLightmap = true;
+		}
+		return hasLightmap;
 	}
 }
 

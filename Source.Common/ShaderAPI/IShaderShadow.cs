@@ -178,6 +178,48 @@ public enum PolygonOffsetMode
 	ShadowBias = 0x2,
 	Reserved = 0x3
 }
+
+public enum StandardTextureId {
+	// Lightmaps
+	Lightmap = 0,
+	LightmapFullbright,
+	LightmapBumped,
+	LightmapBumpedFullbright,
+	// Flat colors
+	White,
+	Black,
+	Grey,
+	GreyAlphaZero,
+	// Normalmaps
+	NormalMapFlat,
+	// Normalization
+	NormalizationCubemap,
+	NormalizationCubemapSigned,
+	// Frame-buffer textures
+	FrameBufferFullTexture0,
+	FrameBufferFullTexture1,
+	// Color correction
+	ColorCorrectionVolume0,
+	ColorCorrectionVolume1,
+	ColorCorrectionVolume2,
+	ColorCorrectionVolume3,
+	// An alias to the Back Frame Buffer
+	FrameBufferAlias,
+	// Noise for shadow mapping algorithm
+	ShadowNoise2D,
+	// A texture in which morph data gets accumulated (vs30, fast vertex textures required)
+	MorphAccumulator,
+	// A texture which contains morph weights
+	MorphWeights,
+	// A snapshot of the frame buffer's depth. Currently only valid on the 360
+	FrameBufferFullDepth,
+	// A snapshot of the frame buffer's depth. Currently only valid on the 360
+	IdentityLightwarp,
+	// Equivalent to the debug material for mat_luxels, in convenient texture form.
+	DebugLuxels,
+	Max = 32
+}
+
 // We differ from Source heavily here.
 // IShaderShadow becomes an object that every shader instance has.
 // ie. every Material has its own shader object.

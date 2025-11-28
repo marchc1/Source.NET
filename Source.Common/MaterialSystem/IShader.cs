@@ -95,4 +95,5 @@ public interface IShaderDynamicAPI
 	nint GetCurrentProgram();
 
 	void SetShaderUniform(IMaterialVar variable);
+	void BindStandardTexture(Sampler sampler, StandardTextureId id);
 }

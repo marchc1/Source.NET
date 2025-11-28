@@ -482,14 +482,17 @@ public struct BSPMSurface1
 	public ushort FirstPrimID;
 }
 
+/// <summary>
+/// Analog of msurfacelighting
+/// </summary>
 public struct BSPSurfaceLighting {
 	public nint SurfNum;
 
-	public unsafe ref ColorRGBExp32 AvgLightColor(int lightStyleIndex) {
+	public unsafe Span<ColorRGBExp32> AvgLightColor(int lightStyleIndex) {
 		if (lightStyleIndex < 0 || lightStyleIndex >= (Samples.Length))
 			throw new IndexOutOfRangeException();
 
-		return ref Samples.Span![Samples.Length - 1 - lightStyleIndex];
+		return Samples.Span![(Samples.Length - 1 - lightStyleIndex)..];
 	}
 
 	// Lightmap info
@@ -514,7 +517,6 @@ public interface IDispInfo
 {
 
 }
-
 
 public struct BSPMSurface2
 {

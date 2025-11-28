@@ -443,16 +443,16 @@ public class MatRenderContext : IMatRenderContextInternal
 		MathLib.Vector4DMultiply(ViewProjMatrix, in testPoint1, ref clipPos1);
 		MathLib.Vector4DMultiply(ViewProjMatrix, in testPoint2, ref clipPos2);
 
-		if (clipPos1.W >= 0.001f) 
+		if (clipPos1.W >= 0.001f)
 			clipPos1.Y /= clipPos1.W;
-		else 
+		else
 			clipPos1.Y *= 1000;
 
-		if (clipPos2.W >= 0.001f) 
+		if (clipPos2.W >= 0.001f)
 			clipPos2.Y /= clipPos2.W;
-		else 
+		else
 			clipPos2.Y *= 1000;
-		
+
 		GetViewport(out int vx, out int vy, out int vwidth, out int vheight);
 
 		return vheight * MathF.Abs(clipPos2.Y - clipPos1.Y) / 2.0f;
@@ -507,7 +507,7 @@ public class MatRenderContext : IMatRenderContextInternal
 
 	private void GetMatrix(MaterialMatrixMode mode, out Matrix4x4 viewMatrix) {
 		var stack = MatrixStacks[(int)mode];
-		if(stack.Count == 0) {
+		if (stack.Count == 0) {
 			viewMatrix = Matrix4x4.Identity;
 			return;
 		}
@@ -529,5 +529,48 @@ public class MatRenderContext : IMatRenderContextInternal
 
 	public void GetWorldSpaceCameraPosition(out Vector3 vecCameraPos) {
 		vecCameraPos = VecViewOrigin;
+	}
+
+	int LightmapPageID;
+	public void BindLightmapPage(int lightmapPageID) {
+		if (lightmapPageID == LightmapPageID)
+			return;
+
+		shaderAPI.FlushBufferedPrimitives();
+		LightmapPageID = lightmapPageID;
+	}
+
+	public void BindStandardTexture(Sampler sampler, StandardTextureId id) {
+		switch (id) {
+			case StandardTextureId.Lightmap:
+				BindLightmap(sampler);
+				break;
+			default:
+				Assert(false);
+				break;
+		}
+	}
+
+	public MatLightmaps GetLightmaps() => materials.MatLightmaps;
+
+	public void BindLightmap(Sampler sampler) {
+		switch (LightmapPageID) {
+			default:
+				Assert((LightmapPageID == 0 && GetLightmaps().GetNumLightmapPages() == 0) || (LightmapPageID >= 0 && LightmapPageID < GetLightmaps().GetNumLightmapPages()));
+				if (LightmapPageID >= 0 && LightmapPageID < GetLightmaps().GetNumLightmapPages()) 
+					shaderAPI.BindTexture(sampler, GetLightmaps().GetLightmapPageTextureHandle(LightmapPageID));
+				
+				break;
+
+			case StandardLightmap.UserDefined:
+				// shaderAPI.BindTexture(sampler, UserDefinedLightmap.GetTextureHandle(0));
+				break;
+
+			case StandardLightmap.White:
+				break;
+
+			case StandardLightmap.WhiteBump:
+				break;
+		}
 	}
 }

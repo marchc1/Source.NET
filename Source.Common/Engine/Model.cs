@@ -63,6 +63,7 @@ public class WorldBrushData
 	public BSPMSurfaceNormal[]? SurfaceNormals;
 	public object? DispInfos;
 	public int NumDispInfos;
+	public bool UnloadedLightmaps;
 }
 
 public struct BrushData

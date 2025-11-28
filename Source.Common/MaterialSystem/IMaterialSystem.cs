@@ -211,6 +211,8 @@ public interface IMaterialSystem
 	ITexture FindTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroupName, bool complain, int additionalCreationFlags);
 	ITexture GetErrorTexture();
 	IMaterial? FindMaterialEx(ReadOnlySpan<char> materialName, ReadOnlySpan<char> textureGroupName, MaterialFindContext isOnAModel, bool complain = true, ReadOnlySpan<char> complainPrefix = default);
+	void BeginUpdateLightmaps();
+	void EndUpdateLightmaps();
 }
 
 public interface IMatRenderContext
@@ -256,6 +258,9 @@ public interface IMatRenderContext
 	void SetNumBoneWeights(int v);
 	void LoadBoneMatrix(int hardwareID, in Matrix3x4 matrix4x4);
 	void GetWorldSpaceCameraPosition(out Vector3 vecCameraPos);
+	void BindLightmapPage(int lightmapPageID);
+	void BindLightmap(Sampler sampler);
+	void BindStandardTexture(Sampler sampler, StandardTextureId id);
 }
 
 public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
@@ -289,6 +294,8 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public void PushMatrix() => ctx.PushMatrix();
 	public void LoadIdentity() => ctx.LoadIdentity();
 	public void Bind(IMaterial material, object? proxyData = null) => ctx.Bind(material, proxyData);
+	public void BindLightmap(Sampler sampler) => ctx.BindLightmap(sampler);
+	public void BindLightmapPage(int lightmapPageID) => ctx.BindLightmapPage(lightmapPageID);
 	public IMaterial? GetCurrentMaterial() => ctx.GetCurrentMaterial();
 	public void PopMatrix() => ctx.PopMatrix();
 	public IShaderAPI GetShaderAPI() => ctx.GetShaderAPI();
@@ -332,5 +339,9 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 
 	public void GetWorldSpaceCameraPosition(out Vector3 vecCameraPos) {
 		ctx.GetWorldSpaceCameraPosition(out vecCameraPos);
+	}
+
+	public void BindStandardTexture(Sampler sampler, StandardTextureId id) {
+		ctx.BindStandardTexture(sampler, id);
 	}
 }

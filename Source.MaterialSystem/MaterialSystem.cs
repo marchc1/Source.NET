@@ -468,6 +468,12 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 
 
 	public void GetBackBufferDimensions(out int width, out int height) => ShaderAPI.GetBackBufferDimensions(out width, out height);
+
+	public void BeginUpdateLightmaps() => MatLightmaps.BeginUpdateLightmaps();
+	public void EndUpdateLightmaps() => MatLightmaps.EndUpdateLightmaps();
+
+	public void BindStandardTexture(Sampler sampler, StandardTextureId id) => GetRenderContext().BindStandardTexture(sampler, id);
+
 	public event Action? Restore;
 
 	public IMaterialInternal errorMaterial;
