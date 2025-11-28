@@ -15,7 +15,7 @@ public class MenuButton : Button
 	TextImage? DropMenuImage;
 	nint ImageIndex;
 
-	public MenuButton(Panel parent, string name, string text) : base(parent, name, text) {
+	public MenuButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
 		Menu = null;
 		Direction = MenuDirection.DOWN;
 		DropMenuImage = null;

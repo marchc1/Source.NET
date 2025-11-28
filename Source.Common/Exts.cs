@@ -721,9 +721,9 @@ public static class ClassUtils
 									BindingFlags.NonPublic);
 
 		var dm = new DynamicMethod("Copy_" + type.Name,
-								   null,
-								   new[] { typeof(object), typeof(object) },
-								   true);
+									 null,
+									 new[] { typeof(object), typeof(object) },
+									 true);
 
 		ILGenerator il = dm.GetILGenerator();
 
@@ -1199,7 +1199,7 @@ public static class UnmanagedUtils
 			return null;
 
 		int current = (int)posField!.GetValue(buffer)!;
-		return underlying.AsSpan()[current..(current + Math.Min(length, underlying.Length - 1))];
+		return underlying.AsSpan()[current..Math.Min(current + length, underlying.Length)];
 	}
 	public static ReadOnlySpan<char> PeekToEnd(this StringReader buffer) {
 		string? underlying = (string?)strField!.GetValue(buffer);
