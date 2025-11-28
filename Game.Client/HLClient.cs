@@ -270,4 +270,8 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	public void InitSprite(EngineSprite? sprite, ReadOnlySpan<char> loadName) {
 		sprite?.Init(loadName);
 	}
+
+	public void LevelShutdown() {
+
+	}
 }

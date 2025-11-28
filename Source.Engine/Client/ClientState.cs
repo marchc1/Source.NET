@@ -241,15 +241,30 @@ public class ClientState : BaseClientState
 	public override void Disconnect(ReadOnlySpan<char> reason, bool showMainMenu) {
 		base.Disconnect(reason, showMainMenu);
 
-		// CL_ClearState
-		Clear(); // RaphaelIT7: Works for now though we should implement CL_ClearState at a later point
+		IGameEvent? ev = g_GameEventManager.CreateEvent("client_disconnect");
+		if (ev != null) {
+			ev.SetString("message", reason);
+			g_GameEventManager.FireEventClientSide(ev);
+		}
+
+		Sound.StopAllSounds(true);
+		R.DecalTermAll();
+
+		if (MaxClients > 1)
+			if (EngineVGui!.IsConsoleVisible() == false)
+				EngineVGui!.EnabledProgressBarForNextLoad();
+
+		CL.ClearState();
+
+		CL.HTTPStop_f();
 
 		if (showMainMenu)
 			Scr.EndLoadingPlaque();
 
 		EngineVGui!.NotifyOfServerDisconnect();
+
 		if (showMainMenu && !engineClient.IsDrawingLoadingImage())
-			EngineVGui?.ActivateGameUI();
+			EngineVGui.ActivateGameUI();
 
 		HostState.OnClientDisconnected();
 	}
@@ -398,7 +413,7 @@ public class ClientState : BaseClientState
 			CL.PreprocessEntities();
 		}
 
-		if (LocalNetworkBackdoor.Global != null) {
+		if (CL.LocalNetworkBackdoor != null) {
 			if (SignOnState == SignOnState.Spawn)
 				SetSignonState(SignOnState.Full, ServerCount);
 

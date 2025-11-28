@@ -41,8 +41,8 @@ public partial class CL(IServiceProvider services, Net Net,
 
 	}
 
-	static readonly ConVar cl_LocalNetworkBackdoor = new( "cl_localnetworkbackdoor", "1", 0, "Enable network optimizations for single player games." );
-	static readonly ConVar cl_ignorepackets = new( "cl_ignorepackets", "0", FCvar.Cheat, "Force client to ignore packets (for debugging)." );
+	static readonly ConVar cl_LocalNetworkBackdoor = new("cl_localnetworkbackdoor", "1", 0, "Enable network optimizations for single player games.");
+	static readonly ConVar cl_ignorepackets = new("cl_ignorepackets", "0", FCvar.Cheat, "Force client to ignore packets (for debugging).");
 
 	public void CheckClientState() {
 		bool useBackdoor = cl_LocalNetworkBackdoor.GetInt() != 0 &&
@@ -67,7 +67,7 @@ public partial class CL(IServiceProvider services, Net Net,
 			if (LocalNetworkBackdoor != null) {
 				LocalNetworkBackdoor.StopBackdoorMode();
 				LocalNetworkBackdoor = null;
-				cl.ForceFullUpdate(); 
+				cl.ForceFullUpdate();
 			}
 		}
 	}
@@ -707,10 +707,10 @@ public partial class CL(IServiceProvider services, Net Net,
 				soundtime -= ((clientGlobalVariables.SimTicksThisFrame - 1) * host_state.IntervalPerTick);
 				// this sound was networked over from the server, use server clock
 				parms.Delay = Sound.ComputeDelayForSoundtime(soundtime, ClockSyncIndex.Server);
-				if (parms.Delay <= 0) 
+				if (parms.Delay <= 0)
 					parms.Delay = 1e-6f;
 			}
-			else 
+			else
 				parms.Delay = sound.Delay;
 		}
 		parms.SpeakerEntity = sound.SpeakerEntity;
@@ -718,6 +718,25 @@ public partial class CL(IServiceProvider services, Net Net,
 		// ClientDLL.ClientAdjustStartSoundparms(parms);
 
 		Sound.StartSound(in parms);
+	}
+
+
+	internal void ClearState() {
+		ResetEntityBits();
+
+		R.UnloadSkys();
+		g_ClientDLL?.LevelShutdown();
+
+		R.LevelShutdown();
+
+		if (LocalNetworkBackdoor != null)
+			LocalNetworkBackdoor.ClearState();
+
+		cl.Clear();
+	}
+
+	internal void HTTPStop_f() {
+
 	}
 }
 

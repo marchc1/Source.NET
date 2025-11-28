@@ -919,4 +919,16 @@ public class Render(
 			}
 		}
 	}
+
+	internal void DecalTermAll() {
+
+	}
+
+	internal void UnloadSkys() {
+
+	}
+
+	internal void LevelShutdown() {
+
+	}
 }
