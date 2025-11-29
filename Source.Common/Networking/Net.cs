@@ -11,17 +11,26 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Drawing.Drawing2D;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading;
 
 using static Source.Common.Networking.Protocol;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Source.Common.Networking;
 
 public class Net
 {
+
+	const int LOOPBACK_SOCKETS = 2;
+	InlineArray2<Queue<Loopback>> Loopbacks = new();
+	public Net() {
+		Loopbacks[0] = [];
+		Loopbacks[1] = [];
+	}
 	static bool net_noip = false;   // Disable IP support, can't switch to MP mode
 	static bool net_nodns = false;  // Disable DNS request to avoid long timeouts
 	static bool net_notcp = true;   // Disable TCP support
@@ -309,7 +318,30 @@ public class Net
 	}
 
 	public bool GetLoopPacket(NetPacket packet) {
-		return false; // not doing this rn
+		if (packet.Source > NetSocketType.Server)
+			return false;
+
+		if (!Loopbacks[(int)packet.Source].TryDequeue(out Loopback? loop)) 
+			return false;
+
+		if (loop.Length == 0) {
+			ObjectPool<Loopback>.Shared.Free(loop);
+			return LagPacket(false, packet);
+		}
+
+		packet.From.Type = NetAddressType.Loopback;
+		packet.Size = loop.Length;
+		packet.WireSize = loop.Length;
+		memcpy(packet.Data, loop.Data.AsSpan()[..packet.Size]);
+		loop.Length = 0; 
+
+		if (loop.Data != loop.DefBuffer) {
+			ArrayPool<byte>.Shared.Return(loop.Data!, true);
+			loop.Data = loop.DefBuffer;
+		}
+
+		ObjectPool<Loopback>.Shared.Free(loop);
+		return LagPacket(true, packet);
 	}
 
 	private int net_error;
@@ -823,10 +855,10 @@ public class Net
 		else {
 			Span<char> buff = stackalloc char[512];
 			if (strcmp(ipname.GetString(), "localhost") != 0)
-				strcpy(buff, ipname.GetString()); 
+				strcpy(buff, ipname.GetString());
 			else {
-				gethostname(buff);  
-				buff[^1] = '\0';    
+				gethostname(buff);
+				buff[^1] = '\0';
 			}
 
 			StringToAdr(buff, out LocalAdr.Endpoint);
@@ -1087,8 +1119,50 @@ public class Net
 		return totalBytesSent;
 	}
 
-	public static unsafe void SendLoopPacket(NetSocketType sock, int length, byte[] data, NetAddress? to) {
-		throw new NotImplementedException();
+	const int DEF_LOOPBACK_SIZE = 2048;
+
+	class Loopback : IPoolableObject
+	{
+		public byte[]? Data;
+		public readonly byte[] DefBuffer = new byte[DEF_LOOPBACK_SIZE];
+		public int Length;
+
+		public void Init() {
+			Data = null;
+			Length = 0;
+		}
+
+		public void Reset() {
+			Data = null;
+			Length = 0;
+		}
+	}
+
+
+	public unsafe void SendLoopPacket(NetSocketType sock, int length, byte[] data, NetAddress? to) {
+		if (length > MAX_PAYLOAD) {
+			DevMsg("NET_SendLoopPacket:  packet too big (%i).\n", length);
+			return;
+		}
+
+		Loopback loop = ObjectPool<Loopback>.Shared.Alloc();
+
+		if (length <= DEF_LOOPBACK_SIZE) 
+			loop.Data = loop.DefBuffer;
+		else
+			loop.Data = new byte[length];
+
+		memcpy(loop.Data, data.AsSpan()[..length]);
+		loop.Length = length;
+
+		if (sock == NetSocketType.Server)
+			Loopbacks[(int)NetSocketType.Client].Enqueue(loop);
+		else if (sock == NetSocketType.Client)
+			Loopbacks[(int)NetSocketType.Server].Enqueue(loop);
+		else {
+			DevMsg("NET_SendLoopPacket:  invalid socket (%i).\n", sock);
+			return;
+		}
 	}
 
 	public void SendQueuedPackets() {
