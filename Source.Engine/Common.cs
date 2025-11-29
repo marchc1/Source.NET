@@ -84,4 +84,8 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 	public void Shutdown() {
 
 	}
+
+	public static ReadOnlySpan<char> FormatSeconds(double v) {
+		throw new NotImplementedException();
+	}
 }

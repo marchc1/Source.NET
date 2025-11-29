@@ -39,6 +39,16 @@ public abstract class BaseServer : IServer
 	internal static readonly ConVar sv_stats = new( "sv_stats", "1", 0, "Collect CPU usage stats" );
 	internal static readonly ConVar sv_enableoldqueries = new( "sv_enableoldqueries", "0", 0, "Enable support for old style (HL1) server queries" );
 	internal static readonly ConVar sv_password = new("sv_password", "", FCvar.Notify | FCvar.Protected | FCvar.DontRecord, "Server password for entry into multiplayer games");
+	internal static readonly ConVar sv_tags = new( "sv_tags", "", FCvar.Notify, "Server tags. Used to provide extra information to clients when they're browsing for servers. Separate tags with a comma.", callback: SvTagsChangeCallback);
+
+		static bool bTagsChangeCallback = false;
+	private static void SvTagsChangeCallback(IConVar var, in ConVarChangeContext ctx) {
+		if (bTagsChangeCallback)
+			return;
+
+		bTagsChangeCallback = true;
+		bTagsChangeCallback = false;
+	}
 
 	public virtual int GetNumClients() {
 		int count = 0;

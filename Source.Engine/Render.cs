@@ -1,4 +1,4 @@
-
+global using static Source.Engine.RenderAccessors;
 using CommunityToolkit.HighPerformance;
 
 using Source.Common;
@@ -25,6 +25,19 @@ public struct ViewStack
 	public Matrix4x4 MatrixWorldToScreen;
 	public bool Is2DView;
 	public bool NoDraw;
+}
+
+
+public static class RenderAccessors {
+
+	public static ref readonly Vector3 CurrentViewOrigin() => ref R.CurrentViewOrigin;
+	public static ref readonly Vector3 CurrentViewForward() => ref R.CurrentViewForward;
+	public static ref readonly Vector3 CurrentViewRight() => ref R.CurrentViewRight;
+	public static ref readonly Vector3 CurrentViewUp() => ref R.CurrentViewUp;
+	public static ref readonly Vector3 MainViewOrigin() => ref R.MainViewOrigin;
+	public static ref readonly Vector3 MainViewForward() => ref R.MainViewForward;
+	public static ref readonly Vector3 MainViewRight() => ref R.MainViewRight;
+	public static ref readonly Vector3 MainViewUp() => ref R.MainViewUp;
 }
 
 public class Render(

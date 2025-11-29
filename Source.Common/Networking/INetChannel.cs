@@ -2,7 +2,7 @@
 
 namespace Source.Common.Networking;
 
-public interface INetChannel
+public interface INetChannel : INetChannelInfo
 {
 	void SetDataRate(float rate);
 	bool RegisterMessage(INetMessage msg);

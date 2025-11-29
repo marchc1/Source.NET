@@ -843,6 +843,47 @@ public class Host(
 		// TODO: accept setpos, setang.
 	}
 
+
+	const int STATUS_COLUMN_LENGTH_LINEPREFIX = 1;
+	const int STATUS_COLUMN_LENGTH_USERID = 6;
+	const string STATUS_COLUMN_LENGTH_USERID_STR = "6";
+	const int STATUS_COLUMN_LENGTH_NAME = 19;
+	const int STATUS_COLUMN_LENGTH_STEAMID = 19;
+	const int STATUS_COLUMN_LENGTH_TIME = 9;
+	const int STATUS_COLUMN_LENGTH_PING = 4;
+	const string STATUS_COLUMN_LENGTH_PING_STR = "4";
+	const int STATUS_COLUMN_LENGTH_LOSS = 4;
+	const string STATUS_COLUMN_LENGTH_LOSS_STR = "4";
+	const int STATUS_COLUMN_LENGTH_STATE = 6;
+	const int STATUS_COLUMN_LENGTH_ADDR = 21;
+
+	ref struct StatusLineBuilder
+	{
+		int CurPosition;
+		InlineArray512<char> Line;
+		internal void AddColumnText(ReadOnlySpan<char> text, int columnWidth) {
+			int len = (int)strlen(Line);
+
+			if (CurPosition > len) {
+				for (int i = len; i < CurPosition; i++) 
+					Line[i] = ' ';
+
+				Line[CurPosition] = '\0';
+			}
+			else if (len != 0) {
+				Line[len] = ' ';
+				Line[len + 1] = '\0';
+			}
+			StrTools.StrConcat(Line, text);
+			CurPosition += columnWidth + 1;
+		}
+		internal void Reset() { CurPosition = 0; Line[0] = '\0'; }
+		internal void InsertEmptyColumn(int columnWidth) => CurPosition += columnWidth + 1;
+		internal unsafe ReadOnlySpan<char> GetLine() {
+			return Line;
+		}
+	}
+
 	public bool NewGame(ReadOnlySpan<char> mapName, bool loadGame, bool backgroundLevel, ReadOnlySpan<char> oldMap = default, ReadOnlySpan<char> landmark = default, bool oldSave = false) {
 		Common.TimestampedLog("Host_NewGame");
 		Span<char> previousMapName = stackalloc char[MAX_PATH];
@@ -915,10 +956,11 @@ public class Host(
 
 	delegate void PrinterFn(ReadOnlySpan<char> text);
 
+	static ConVarRef sv_tags;
 	[ConCommand(helpText: "Display map and connection status.")]
-	void status(in TokenizedCommand args) {
+	void status(in TokenizedCommand args, CommandSource source, int clientslot) {
 		PrinterFn print;
-		if (Cmd.Source == CommandSource.Command) {
+		if (source == CommandSource.Command) {
 			if (!sv.IsActive()) {
 				Cmd.ForwardToServer(in args);
 				return;
@@ -960,6 +1002,97 @@ public class Host(
 		}
 
 		print($"version : {GetSteamInfIDVersionInfo().PatchVersion}/{Protocol.VERSION} {build_number()} {(bGSSecure ? "secure" : "insecure")}{pchSecureReasonString}{pchUniverse}\n");
+
+		if (Net.IsMultiplayer()) {
+			// todo
+		}
+
+		ConVarRef sv_registration_successful = new("sv_registration_successful", true );
+		if (sv_registration_successful.IsValid()) {
+			Span<char> sExtraInfo = stackalloc char[256];
+			ConVarRef sv_registration_message = new( "sv_registration_message", true );
+			if (sv_registration_message.IsValid()) {
+				ReadOnlySpan<char> msg = sv_registration_message.GetString();
+				if (!msg.IsEmpty)
+					sprintf(sExtraInfo, "  (%s)").S(msg);
+			}
+
+			if (sv_registration_successful.GetBool()) 
+				print($"account : logged in{sExtraInfo}\n");
+			else 
+				print($"account : not logged in{sExtraInfo}\n");
+		}
+
+		print($"map     : {sv.GetMapName()} at: {(int)MainViewOrigin()[0]} x, {(int)MainViewOrigin()[1]} y, {(int)MainViewOrigin()[2]} z\n");
+		if (sv_tags.IsEmpty) sv_tags = new("sv_tags");
+		print($"tags    : {sv_tags.GetString()}\n");
+
+		int players = sv.GetNumClients();
+		int nBots = sv.GetNumFakeClients();
+		int nHumans = players - nBots;
+
+		print($"players : {nHumans} humans, {nBots} bots ({sv.GetMaxClients()} max)\n");
+		print($"edicts  : {sv.NumEdicts - sv.FreeEdicts} used of {sv.MaxEdicts} max\n");
+
+		// the header for the status rows
+		// print( "# userid %-19s %-19s connected ping loss state%s\n", "name", "uniqueid", cmd_source == src_command ? "  adr" : "" );
+		StatusLineBuilder header = new();
+		header.AddColumnText("#", STATUS_COLUMN_LENGTH_LINEPREFIX);
+		header.AddColumnText("userid", STATUS_COLUMN_LENGTH_USERID);
+		header.AddColumnText("name", STATUS_COLUMN_LENGTH_NAME);
+		header.AddColumnText("uniqueid", STATUS_COLUMN_LENGTH_STEAMID);
+		header.AddColumnText("connected", STATUS_COLUMN_LENGTH_TIME);
+		header.AddColumnText("ping", STATUS_COLUMN_LENGTH_PING);
+		header.AddColumnText("loss", STATUS_COLUMN_LENGTH_LOSS);
+		header.AddColumnText("state", STATUS_COLUMN_LENGTH_STATE);
+		if (source == CommandSource.Command) {
+			header.AddColumnText("adr", STATUS_COLUMN_LENGTH_ADDR);
+		}
+
+		print($"{header.GetLine()}\n");
+
+		for (int j = 0; j < sv.GetClientCount(); j++) {
+			IClient? client = sv.GetClient(j);
+
+			if (!client!.IsConnected())
+				continue;
+			Status_PrintClient(client, (source == CommandSource.Command), print);
+		}
+	}
+
+	private void Status_PrintClient(IClient client, bool showAddress, PrinterFn print) {
+		INetChannelInfo? nci = client.GetNetChannel();
+
+		ReadOnlySpan<char> state = "challenging";
+		if (client.IsActive())
+			state = "active";
+		else if (client.IsSpawned())
+			state = "spawning";
+		else if (client.IsConnected())
+			state = "connecting";
+
+		StatusLineBuilder builder = new();
+		builder.AddColumnText("#", STATUS_COLUMN_LENGTH_LINEPREFIX);
+		builder.AddColumnText($"{client.GetUserID()}", STATUS_COLUMN_LENGTH_USERID);
+		builder.AddColumnText(client.GetClientName(), STATUS_COLUMN_LENGTH_NAME);
+		builder.AddColumnText(client.GetNetworkIDString(), STATUS_COLUMN_LENGTH_STEAMID);
+
+		if (nci != null) {
+			builder.AddColumnText(Common.FormatSeconds(nci.GetTimeConnected()), STATUS_COLUMN_LENGTH_TIME);
+			builder.AddColumnText($"{(int)(1000.0f * nci.GetAverageLatency(NetFlow.FLOW_OUTGOING))}", STATUS_COLUMN_LENGTH_PING);
+			builder.AddColumnText($"{(int)(100.0f * nci.GetAverageLoss(NetFlow.FLOW_INCOMING))}", STATUS_COLUMN_LENGTH_LOSS);
+			builder.AddColumnText(state, STATUS_COLUMN_LENGTH_STATE);
+			if (showAddress)
+				builder.AddColumnText(nci.GetAddress(), STATUS_COLUMN_LENGTH_ADDR);
+		}
+		else {
+			builder.InsertEmptyColumn(STATUS_COLUMN_LENGTH_TIME);
+			builder.InsertEmptyColumn(STATUS_COLUMN_LENGTH_PING);
+			builder.InsertEmptyColumn(STATUS_COLUMN_LENGTH_LOSS);
+			builder.AddColumnText(state, STATUS_COLUMN_LENGTH_STATE);
+		}
+
+		print($"{builder.GetLine()}\n");
 	}
 
 	public void Client_Print(ReadOnlySpan<char> text) {
