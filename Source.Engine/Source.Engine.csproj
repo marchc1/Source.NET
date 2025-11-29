@@ -16,9 +16,6 @@
 	<ItemGroup>
 		<PackageReference Include="ppy.SDL3-CS" Version="2025.703.0" />
 	</ItemGroup>
-	<ItemGroup>
-	  <Folder Include="Steam\" />
-	</ItemGroup>
 
 	<PropertyGroup>
 		<SourceRevisionId>

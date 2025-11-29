@@ -69,11 +69,11 @@ public class Steam3Server : IDisposable
 
 	CSteamID SteamIDGroupForBlocking;
 
-	public bool BSecure() => SteamGameServer.BSecure();
-	public bool BIsActive() => ServerMode >= EServerMode.eServerModeNoAuthentication;
-	public bool BLanOnly() => ServerMode == EServerMode.eServerModeNoAuthentication;
-	public bool BWantsSecure() => ServerMode == EServerMode.eServerModeAuthenticationAndSecure;
-	public bool BLoggedOn() => SteamGameServer.BLoggedOn();
+	public bool BSecure() => IsSteamServerNotNull() && SteamGameServer.BSecure();
+	public bool BIsActive() => IsSteamServerNotNull() && ServerMode >= EServerMode.eServerModeNoAuthentication;
+	public bool BLanOnly() => IsSteamServerNotNull() && ServerMode == EServerMode.eServerModeNoAuthentication;
+	public bool BWantsSecure() => IsSteamServerNotNull() && ServerMode == EServerMode.eServerModeAuthenticationAndSecure;
+	public bool BLoggedOn() => IsSteamServerNotNull() && SteamGameServer.BLoggedOn();
 
 	public SteamIPAddress_t GetPublicIP() {
 		return SteamGameServer.GetPublicIP();
