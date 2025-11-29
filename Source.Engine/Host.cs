@@ -12,6 +12,8 @@ using Source.Common.Server;
 using Source.Engine.Client;
 using Source.Engine.Server;
 
+using Steamworks;
+
 using System.Runtime.CompilerServices;
 
 using static Source.Constants;
@@ -242,7 +244,7 @@ public class Host(
 			}
 		}
 #if !SWDS
-		else 
+		else
 #endif
 		{
 			int clientTicks, serverTicks;
@@ -902,6 +904,14 @@ public class Host(
 	}
 
 
+	public EUniverse GetSteamUniverse() {
+#if !SWDS
+		return SteamUtils.GetConnectedUniverse();
+#else
+		return SteamGameServerUtils.GetConnectedUniverse();
+#endif
+	}
+
 
 	delegate void PrinterFn(ReadOnlySpan<char> text);
 
@@ -921,6 +931,35 @@ public class Host(
 		}
 
 		print($"hostname: {host_name.GetString()}\n");
+		ReadOnlySpan<char> pchSecureReasonString = "";
+		ReadOnlySpan<char> pchUniverse = "";
+		bool bGSSecure = Steam3Server().BSecure();
+		if (!bGSSecure && Steam3Server().BWantsSecure())
+			if (Steam3Server().BLoggedOn())
+				pchSecureReasonString = " (secure mode enabled, connected to Steam3)";
+			else
+				pchSecureReasonString = " (secure mode enabled, disconnected from Steam3)";
+
+
+		switch (GetSteamUniverse()) {
+			case EUniverse.k_EUniversePublic:
+				pchUniverse = "";
+				break;
+			case EUniverse.k_EUniverseBeta:
+				pchUniverse = " (beta)";
+				break;
+			case EUniverse.k_EUniverseInternal:
+				pchUniverse = " (internal)";
+				break;
+			case EUniverse.k_EUniverseDev:
+				pchUniverse = " (dev)";
+				break;
+			default:
+				pchUniverse = " (unknown)";
+				break;
+		}
+
+		print($"version : {GetSteamInfIDVersionInfo().PatchVersion}/{Protocol.VERSION} {build_number()} {(bGSSecure ? "secure" : "insecure")}{pchSecureReasonString}{pchUniverse}\n");
 	}
 
 	public void Client_Print(ReadOnlySpan<char> text) {

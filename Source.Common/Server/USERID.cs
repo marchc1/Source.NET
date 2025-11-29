@@ -10,11 +10,12 @@ public struct USERID
 	public CSteamID SteamID;
 }
 
-class SteamIDRenderCtx {
+class SteamIDRenderCtx
+{
 	public char[][] rgchBuf;
 	public SteamIDRenderCtx() {
 		rgchBuf = new char[SteamIDExts.k_cBufs][];
-		for (int i = 0; i < SteamIDExts.k_cBufs; i++) 
+		for (int i = 0; i < SteamIDExts.k_cBufs; i++)
 			rgchBuf[i] = new char[SteamIDExts.k_cBufLen];
 	}
 	public int buf;
@@ -27,8 +28,12 @@ class SteamIDRenderCtx {
 }
 public static class SteamIDExts
 {
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static ulong ConvertToUint64(this in CSteamID steamID) {
+		return (ulong)steamID;
+	}
 	public const int k_cBufLen = 37;
-	public const int k_cBufs = 8; 
+	public const int k_cBufs = 8;
 	static ThreadLocal<SteamIDRenderCtx> rgchBuf = new(() => new());
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -84,7 +89,7 @@ public static class SteamIDExts
 				sprintf(buf, "[i:%u:%u]").U(universe).U(accountID);
 				break;
 		}
-		
+
 		return buf;
 	}
 }
