@@ -201,7 +201,8 @@ public class ServerGameClients : IServerGameClients
 	}
 
 	public void GetPlayerLimits(out int minPlayers, out int maxPlayers, out int defaultMaxPlayers) {
-		throw new NotImplementedException();
+		minPlayers = defaultMaxPlayers = 1;
+		maxPlayers = Constants.MAX_PLAYERS;
 	}
 
 	public PlayerState GetPlayerState(Edict player) {
