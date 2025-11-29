@@ -41,6 +41,11 @@ public class GameServer : BaseServer
 
 	}
 
+	protected override BaseClient CreateNewClient(int slot) {
+		BaseClient client = new GameClient(slot, this);
+		return client;
+	}
+
 	public void SetQueryPortFromSteamServer() {
 		// todo
 	}

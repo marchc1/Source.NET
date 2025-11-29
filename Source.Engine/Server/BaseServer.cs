@@ -15,6 +15,8 @@ using Source.Common.Utilities;
 using Source.Engine;
 using Source.Engine.Server;
 
+using Steamworks;
+
 namespace Source.Engine.Server;
 
 public enum ServerState
@@ -33,14 +35,15 @@ public abstract class BaseServer : IServer
 
 	protected readonly Net Net = Singleton<Net>();
 	protected readonly Host Host = Singleton<Host>();
-	internal static readonly ConVar sv_region = new( "sv_region","-1", FCvar.None, "The region of the world to report this server in." );
-	internal static readonly ConVar sv_instancebaselines = new( "sv_instancebaselines", "1", FCvar.DevelopmentOnly, "Enable instanced baselines. Saves network overhead." );
-	internal static readonly ConVar sv_stats = new( "sv_stats", "1", 0, "Collect CPU usage stats" );
-	internal static readonly ConVar sv_enableoldqueries = new( "sv_enableoldqueries", "0", 0, "Enable support for old style (HL1) server queries" );
+	protected readonly Filter Filter = Singleton<Filter>();
+	internal static readonly ConVar sv_region = new("sv_region", "-1", FCvar.None, "The region of the world to report this server in.");
+	internal static readonly ConVar sv_instancebaselines = new("sv_instancebaselines", "1", FCvar.DevelopmentOnly, "Enable instanced baselines. Saves network overhead.");
+	internal static readonly ConVar sv_stats = new("sv_stats", "1", 0, "Collect CPU usage stats");
+	internal static readonly ConVar sv_enableoldqueries = new("sv_enableoldqueries", "0", 0, "Enable support for old style (HL1) server queries");
 	internal static readonly ConVar sv_password = new("sv_password", "", FCvar.Notify | FCvar.Protected | FCvar.DontRecord, "Server password for entry into multiplayer games");
-	internal static readonly ConVar sv_tags = new( "sv_tags", "", FCvar.Notify, "Server tags. Used to provide extra information to clients when they're browsing for servers. Separate tags with a comma.", callback: SvTagsChangeCallback);
+	internal static readonly ConVar sv_tags = new("sv_tags", "", FCvar.Notify, "Server tags. Used to provide extra information to clients when they're browsing for servers. Separate tags with a comma.", callback: SvTagsChangeCallback);
 
-		static bool bTagsChangeCallback = false;
+	static bool bTagsChangeCallback = false;
 	private static void SvTagsChangeCallback(IConVar var, in ConVarChangeContext ctx) {
 		if (bTagsChangeCallback)
 			return;
@@ -222,8 +225,111 @@ public abstract class BaseServer : IServer
 		throw new NotImplementedException();
 	}
 
+
+	static readonly ConVar sv_max_queries_sec = new("sv_max_queries_sec", "3.0", 0, "Maximum queries per second to respond to from a single IP address.");
+	static readonly ConVar sv_max_queries_window = new("sv_max_queries_window", "30", 0, "Window over which to average queries per second averages.");
+	static readonly ConVar sv_max_queries_sec_global = new("sv_max_queries_sec_global", "3000", 0, "Maximum queries per second to respond to from anywhere.");
+	static readonly ConVar sv_max_connects_sec = new("sv_max_connects_sec", "2.0", 0, "Maximum connections per second to respond to from a single IP address.");
+	static readonly ConVar sv_max_connects_window = new("sv_max_connects_window", "4", 0, "Window over which to average connections per second averages.");
+	static readonly ConVar sv_max_connects_sec_global = new("sv_max_connects_sec_global", "0", 0, "Maximum connections per second to respond to from anywhere.");
+
+
+	readonly IPRateLimit QueryRateChecker = new(sv_max_queries_sec, sv_max_queries_window, sv_max_queries_sec_global);
+	readonly IPRateLimit ConnectRateChecker = new(sv_max_connects_sec, sv_max_connects_window, sv_max_connects_sec_global);
+
 	public virtual bool ProcessConnectionlessPacket(NetPacket packet) {
-		throw new NotImplementedException();
+		bf_read msg = packet.Message;
+		byte c = (byte)msg.ReadChar();
+
+		if (c == 0)
+			return false;
+
+		switch (c) {
+			case A2S.GetChallenge: {
+					int clientChallenge = msg.ReadLong();
+					ReplyChallenge(packet.From, clientChallenge);
+				}
+				break;
+			case A2S.ServerQueryGetChallenge:
+				ReplyServerChallenge(packet.From);
+				break;
+			case C2S.Connect: {
+					Span<byte> cdkey = stackalloc byte[Protocol.STEAM_KEYSIZE];
+					Span<char> name = stackalloc char[256];
+					Span<char> password = stackalloc char[256];
+					Span<char> productVersion = stackalloc char[32];
+
+					int protocol = msg.ReadLong();
+					int authProtocol = msg.ReadLong();
+					int challengeNr = msg.ReadLong();
+					int clientChallenge = msg.ReadLong();
+
+					if (!CheckChallengeNr(packet.From, challengeNr)) {
+						RejectConnection(packet.From, clientChallenge, "#GameUI_ServerRejectBadChallenge");
+						break;
+					}
+
+					if (!ConnectRateChecker.CheckIP(packet.From))
+						return false;
+#if GMOD_DLL
+					uint checksum = msg.ReadUBitLong(32); // Ignoring for now
+#endif
+					msg.ReadString(name);
+					msg.ReadString(password);
+					msg.ReadString(productVersion);
+
+					ReadOnlySpan<char> versionInP4 = "2000";
+					ReadOnlySpan<char> versionString = GetSteamInfIDVersionInfo().PatchVersion;
+					if (strcmp(versionString, versionInP4) != 0 && strcmp(productVersion, versionInP4) != 0) {
+						int nVersionCheck = strcmp(versionString, productVersion);
+						if (nVersionCheck < 0) {
+							RejectConnection(packet.From, clientChallenge, "#GameUI_ServerRejectOldVersion");
+							break;
+						}
+						if (nVersionCheck > 0) {
+							RejectConnection(packet.From, clientChallenge, "#GameUI_ServerRejectNewVersion");
+							break;
+						}
+					}
+
+					if (authProtocol == Protocol.PROTOCOL_STEAM) {
+						int keyLen = msg.ReadShort();
+						if (keyLen < 0 || keyLen > cdkey.Length) {
+							RejectConnection(packet.From, clientChallenge, "#GameUI_ServerRejectBadSteamKey");
+							break;
+						}
+						msg.ReadBytes(cdkey[..keyLen]);
+
+						ConnectClient(packet.From, protocol, challengeNr, clientChallenge, authProtocol, name, password, cdkey, keyLen);   // cd key is actually a raw encrypted key	
+					}
+					else {
+						msg.ReadString(cdkey);
+						ConnectClient(packet.From, protocol, challengeNr, clientChallenge, authProtocol, name, password, cdkey, (int)strlen(cdkey));
+					}
+				}
+
+				break;
+
+			default: {
+					if (!QueryRateChecker.CheckIP(packet.From))
+						return false;
+
+					if (IsSteamServerNotNull()) {
+						SteamGameServer.HandleIncomingPacket(
+							packet.Message.GetData(),
+							packet.Message.BytesAvailable,
+							(uint)packet.From.Endpoint!.AddressFamily,
+							(ushort)packet.From.Endpoint!.Port
+							);
+
+						ForwardPacketsFromMasterServerUpdater();
+					}
+				}
+
+				break;
+		}
+
+		return true;
 	}
 
 	public virtual void Init(bool isDedicated) {
@@ -342,7 +448,7 @@ public abstract class BaseServer : IServer
 			LastRandomNumberGenerationTime = serverGlobalVariables.RealTime;
 		}
 
-		if (PausedTimeEnd >= 0 && State == ServerState.Paused && Sys.Time >= PausedTimeEnd) 
+		if (PausedTimeEnd >= 0 && State == ServerState.Paused && Sys.Time >= PausedTimeEnd)
 			SetPausedForced(false);
 	}
 	public void InactivateClients() {
@@ -387,7 +493,15 @@ public abstract class BaseServer : IServer
 	}
 
 	public virtual void RejectConnection(NetAddress adr, int clientChallenge, ReadOnlySpan<char> s) {
-		throw new NotImplementedException();
+		byte[] msg_buffer = new byte[Protocol.MAX_ROUTABLE_PAYLOAD];
+		bf_write msg = new(msg_buffer, msg_buffer.Length);
+
+		msg.WriteLong(Protocol.CONNECTIONLESS_HEADER);
+		msg.WriteByte(S2C.ConnectionRejected);
+		msg.WriteLong(clientChallenge);
+		msg.WriteString(s);
+
+		Net.SendPacket(null!, Socket, adr, msg.GetData(), msg.BytesWritten);
 	}
 
 	public TimeUnit_t GetFinalTickTime() {
@@ -395,7 +509,7 @@ public abstract class BaseServer : IServer
 	}
 
 	public virtual bool CheckIPRestrictions(NetAddress adr, int nAuthProtocol) {
-		throw new NotImplementedException();
+		return true; // todo
 	}
 
 	public void SetMasterServerRulesDirty() {
@@ -423,13 +537,158 @@ public abstract class BaseServer : IServer
 		throw new NotImplementedException();
 	}
 
-	protected virtual IClient ConnectClient(NetAddress adr, int protocol, int challenge, int clientChallenge, int authProtocol,
-							ReadOnlySpan<char> name, ReadOnlySpan<char> password, ReadOnlySpan<char> hashedCDkey, int cdKeyLen) {
-		throw new NotImplementedException();
+	protected virtual IClient? ConnectClient(NetAddress adr, int protocol, int challenge, int clientChallenge, int authProtocol,
+							ReadOnlySpan<char> name, ReadOnlySpan<char> password, ReadOnlySpan<byte> hashedCDkey, int cdKeyLen) {
+		Common.TimestampedLog("CBaseServer::ConnectClient");
+
+		if (!IsActive())
+			return null;
+
+		if (name.IsEmpty || password.IsEmpty || hashedCDkey.IsEmpty)
+			return null;
+
+		// Make sure protocols match up
+		if (!CheckProtocol(adr, protocol, clientChallenge))
+			return null;
+
+		if (!CheckChallengeNr(adr, challenge)) {
+			RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectBadChallenge");
+			return null;
+		}
+
+		if (!IsHLTV() && !IsReplay()) {
+#if !NO_STEAM
+			if (!CheckIPRestrictions(adr, authProtocol)) {
+				RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectLANRestrict");
+				return null;
+			}
+#endif
+			if (!CheckPassword(adr, password, name)) {
+				ConMsg("%s:  password failed.\n", adr.ToString());
+				RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectBadPassword");
+				return null;
+			}
+		}
+
+		Common.TimestampedLog("BaseServer.ConnectClient: GetFreeClient");
+
+		BaseClient? client = GetFreeClient(adr);
+
+		if (client == null) {
+			RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectServerFull");
+			return null;
+		}
+
+		int nNextUserID = GetNextUserID();
+		if (!CheckChallengeType(client, nNextUserID, adr, authProtocol, hashedCDkey, cdKeyLen, clientChallenge))
+			return null;
+
+		if (!IsSteamServerNotNull() && authProtocol == Protocol.PROTOCOL_STEAM)
+			Warning("NULL ISteamGameServer in ConnectClient. Steam authentication may fail.\n");
+
+		if (Filter.IsUserBanned(client.GetNetworkID())) {
+			if (IsSteamServerNotNull() && authProtocol == Protocol.PROTOCOL_STEAM)
+				SteamGameServer.SendUserDisconnect_DEPRECATED(client.SteamID);
+
+			RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectBanned");
+			return null;
+		}
+
+		Common.TimestampedLog("CBaseServer::ConnectClient:  NET_CreateNetChannel");
+
+		// create network channel
+		INetChannel? netchan = Net.CreateNetChannel(Socket, adr, adr.ToString(), client);
+
+		if (netchan == null) {
+			if (IsSteamServerNotNull() && authProtocol == Protocol.PROTOCOL_STEAM)
+				SteamGameServer.SendUserDisconnect_DEPRECATED(client.SteamID);
+
+			RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectFailedChannel");
+			return null;
+		}
+
+		netchan.SetChallengeNr((uint)challenge);
+
+		Common.TimestampedLog("CBaseServer::ConnectClient:  client->Connect");
+		client.Connect(name, nNextUserID, netchan, false, clientChallenge);
+
+		UserID = nNextUserID;
+		NumConnections++;
+
+		client.SnapshotInterval = 1.0f / 20.0f;
+		client.NextMessageTime = Net.Time + client.SnapshotInterval;
+		client.DeltaTick = -1;
+		client.SignOnTick = 0;
+		client.StringTableAckTick = 0;
+		// client.LastSnapshot = NULL;
+
+		{
+			byte[] msg_buffer = new byte[Protocol.MAX_ROUTABLE_PAYLOAD];
+			bf_write msg = new(msg_buffer, msg_buffer.Length);
+
+			msg.WriteLong(Protocol.CONNECTIONLESS_HEADER);
+			msg.WriteByte(S2C.Connection);
+			msg.WriteLong(clientChallenge);
+			msg.WriteString("0000000000");
+
+			Net.SendPacket(null!, Socket, adr, msg.GetData(), msg.BytesWritten);
+		}
+
+		if (authProtocol == Protocol.PROTOCOL_HASHEDCDKEY) {
+			strcpy(client.GUID, hashedCDkey);
+			client.GUID[Constants.SIGNED_GUID_LEN] = 0;
+		}
+		else if (authProtocol == Protocol.PROTOCOL_STEAM) {
+			// StartSteamValidation() above initialized the clients networkid
+		}
+
+		if (netchan != null && !netchan.IsLoopback())
+			ConMsg($"Client \"{client.GetClientName()}\" connected ({netchan.GetAddress()}).\n");
+
+		return client;
 	}
 
-	protected virtual BaseClient GetFreeClient(NetAddress adr) {
-		throw new NotImplementedException();
+	protected virtual BaseClient? GetFreeClient(NetAddress adr) {
+		BaseClient? freeclient = null;
+
+		for (int slot = 0; slot < Clients.Count; slot++) {
+			BaseClient client = Clients[slot];
+
+			if (client.IsFakeClient())
+				continue;
+
+			if (client.IsConnected()) {
+				if (adr.CompareAdr(client.NetChannel.GetRemoteAddress())) {
+					ConMsg($"{adr.ToString()}:reconnect\n");
+
+					RemoveClientFromGame(client);
+
+					// perform a silent netchannel shutdown, don't send disconnect msg
+					client.NetChannel.Shutdown(null);
+					client.NetChannel = null!;
+
+					client.Clear();
+					return client;
+				}
+			}
+			else {
+				freeclient ??= client;
+			}
+		}
+
+		if (freeclient == null) {
+			int count = Clients.Count;
+
+			if (count >= MaxClients)
+				return null;
+
+			// we have to create a new client slot
+			freeclient = CreateNewClient(count);
+
+			Clients.Add(freeclient);
+		}
+
+		return freeclient;
 	}
 
 	protected virtual BaseClient CreateNewClient(int i) { AssertMsg(false, "BaseServer.CreateNewClient() being called - must be implemented in derived class!"); return null!; } // must be derived
@@ -437,31 +696,162 @@ public abstract class BaseServer : IServer
 
 	protected virtual bool FinishCertificateCheck(NetAddress adr, int a, ReadOnlySpan<char> b, int c) { return true; }
 
-	protected virtual int GetChallengeNr(NetAddress adr) {
-		throw new NotImplementedException();
+	protected virtual unsafe int GetChallengeNr(NetAddress adr) {
+		ulong challenge = ((ulong)adr.GetIPNetworkByteOrder() << 32) + CurrentRandomNonce;
+		CRC32_t hash = default;
+		CRC32.Init(ref hash);
+		CRC32.ProcessBuffer(ref hash, &challenge, sizeof(ulong));
+		CRC32.Final(ref hash);
+		return (int)hash;
 	}
+
+	bool AllowDebugDedicatedServerOutsideSteam() {
+#if ALLOW_DEBUG_DEDICATED_SERVER_OUTSIDE_STEAM
+	return true;
+#else
+		return false;
+#endif
+	}
+
 	protected virtual int GetChallengeType(NetAddress adr) {
-		throw new NotImplementedException();
+		if (AllowDebugDedicatedServerOutsideSteam())
+			return Protocol.PROTOCOL_HASHEDCDKEY;
+
+#if !SWDS
+		if (Host.IsSinglePlayerGame() || !IsDedicated())
+			return Protocol.PROTOCOL_HASHEDCDKEY;
+		else
+#endif
+			return Protocol.PROTOCOL_STEAM;
 	}
 
 	protected virtual bool CheckProtocol(NetAddress adr, int nProtocol, int clientChallenge) {
-		throw new NotImplementedException();
+		if (nProtocol != Protocol.VERSION) {
+			if (nProtocol > Protocol.VERSION)
+				RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectOldProtocol");
+			else
+				RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectNewProtocol");
+			return false;
+		}
+
+		return true;
 	}
-	protected virtual bool CheckChallengeNr(NetAddress adr, int nChallengeValue) {
-		throw new NotImplementedException();
+	protected virtual unsafe bool CheckChallengeNr(NetAddress adr, int nChallengeValue) {
+		if (adr.IsLoopback())
+			return true;
+
+		ulong challenge = ((ulong)adr.GetIPNetworkByteOrder() << 32) + CurrentRandomNonce;
+		CRC32_t hash = default;
+		CRC32.Init(ref hash);
+		CRC32.ProcessBuffer(ref hash, &challenge, sizeof(ulong));
+		CRC32.Final(ref hash);
+		if ((int)hash == nChallengeValue)
+			return true;
+
+		challenge &= 0xffffffff00000000ul;
+		challenge += LastRandomNonce;
+		hash = 0;
+		CRC32.Init(ref hash);
+		CRC32.ProcessBuffer(ref hash, &challenge, sizeof(ulong));
+		CRC32.Final(ref hash);
+		if ((int)hash == nChallengeValue)
+			return true;
+
+		return false;
 	}
-	protected virtual bool CheckChallengeType(BaseClient client, int nNewUserID, NetAddress adr, int nAuthProtocol, ReadOnlySpan<char> pchLogonCookie, int cbCookie, int clientChallenge) {
-		throw new NotImplementedException();
+	protected virtual bool CheckChallengeType(BaseClient client, int nNewUserID, NetAddress adr, int nAuthProtocol, ReadOnlySpan<byte> pchLogonCookie, int cbCookie, int clientChallenge) {
+		if (AllowDebugDedicatedServerOutsideSteam())
+			return true;
+
+		if ((nAuthProtocol <= 0) || (nAuthProtocol > Protocol.PROTOCOL_LASTVALID)) {
+			RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectInvalidConnection");
+			return false;
+		}
+
+		if ((nAuthProtocol == Protocol.PROTOCOL_HASHEDCDKEY) && (pchLogonCookie.IsEmpty || strlen(pchLogonCookie) != 32)) {
+			RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectInvalidCertLen");
+			return false;
+		}
+
+		Assert(!IsReplay());
+
+		if (IsHLTV()) {
+			Assert(nAuthProtocol == Protocol.PROTOCOL_HASHEDCDKEY);
+			Assert(!client.SteamID.IsValid());
+		}
+		else if (nAuthProtocol == Protocol.PROTOCOL_STEAM) {
+			client.SetSteamID(new()); 
+			if (cbCookie <= 0 || cbCookie >= Protocol.STEAM_KEYSIZE) {
+				RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectInvalidSteamCertLen");
+				return false;
+			}
+
+			NetAddress checkAdr = adr.Copy();
+			if (adr.Type == NetAddressType.Loopback || adr.IsLocalhost()) 
+				checkAdr.SetIP(Net.LocalAdr.GetIPHostByteOrder());
+
+			if (!Steam3Server().NotifyClientConnect(client, nNewUserID, checkAdr, pchLogonCookie, cbCookie) && !Steam3Server().BLanOnly()) {
+				RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectSteam");
+				return false;
+			}
+
+			// Matchmaking
+		}
+		else {
+			if (!Steam3Server().NotifyLocalClientConnect(client)) {
+				RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectGS");
+				return false;
+			}
+		}
+
+		return true;
 	}
 	protected virtual bool CheckPassword(NetAddress adr, ReadOnlySpan<char> password, ReadOnlySpan<char> name) {
-		throw new NotImplementedException();
+		ReadOnlySpan<char> server_password = GetPassword();
+
+		if (server_password.IsEmpty)
+			return true;
+
+		if (adr.IsLocalhost() || adr.IsLoopback())
+			return true;
+
+		int iServerPassLen = (int)strlen(server_password);
+
+		if (iServerPassLen != (int)strlen(password))
+			return false;
+
+		if (strncmp(password, server_password, iServerPassLen) == 0)
+			return true;
+
+		return false;
 	}
 	protected virtual bool CheckIPConnectionReuse(NetAddress adr) {
 		throw new NotImplementedException();
 	}
 
 	protected virtual void ReplyChallenge(NetAddress adr, int clientChallenge) {
-		throw new NotImplementedException();
+		byte[] buffer = new byte[Protocol.STEAM_KEYSIZE + 32];
+		bf_write msg = new(buffer, buffer.Length);
+
+		// get a free challenge number
+		int challengeNr = GetChallengeNr(adr);
+		int authprotocol = GetChallengeType(adr);
+
+		msg.WriteLong(Protocol.CONNECTIONLESS_HEADER);
+
+		msg.WriteByte(S2C.Challenge);
+		msg.WriteLong((int)S2C.MagicVersion);
+		msg.WriteLong(challengeNr);
+		msg.WriteLong(clientChallenge);
+		msg.WriteLong(authprotocol);
+		if (authprotocol == Protocol.PROTOCOL_STEAM) {
+			msg.WriteShort(0);
+			CSteamID steamID = Steam3Server().GetGSSteamID();
+			ulong unSteamID = steamID.ConvertToUint64();
+			msg.WriteBytes(new ReadOnlySpan<ulong>(in unSteamID).Cast<ulong, byte>());
+			msg.WriteByte(Steam3Server().BSecure() ? 1 : 0);
+		}
+		Net.SendPacket(null!, Socket, adr, msg.GetData(), msg.BytesWritten);
 	}
 	protected virtual void ReplyServerChallenge(NetAddress adr) {
 		throw new NotImplementedException();

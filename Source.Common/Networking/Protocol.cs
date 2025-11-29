@@ -6,7 +6,7 @@ public static class C2S
 }
 public static class S2C
 {
-	public const uint MagicVersion = 1515145523;
+	public const uint MagicVersion = 1515145523; 
 
 	public const byte Challenge = (byte)'A';
 	public const byte Connection = (byte)'B';
@@ -36,6 +36,7 @@ public static class A2S
 	/// Retrieves all convars on the server that contain <see cref="ConVarFlag.Replicated"/>.
 	/// </summary>
 	public const byte Rules = (byte)'V';
+	public const byte ServerQueryGetChallenge = (byte)'W';
 	public const string KeyString = "Source Engine Query";
 }
 public static class SVC
@@ -197,6 +198,7 @@ public static class Protocol
 	public const int PROTOCOL_AUTHCERTIFICATE = 0x01;
 	public const int PROTOCOL_HASHEDCDKEY = 0x02;
 	public const int PROTOCOL_STEAM = 0x03;
+	public const int PROTOCOL_LASTVALID = 0x03;
 
 	public const int STEAM_KEYSIZE = 2048;
 

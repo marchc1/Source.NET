@@ -576,6 +576,61 @@ public static class StrTools
 
 		StrConcat(path, extension, COPY_ALL_CHARACTERS);
 	}
+
+	public static bool RemoveAllEvilCharacters(Span<char> pch) {
+		int cch = (int)strlen(pch);
+		bool strippedWhitespace = false;
+
+		int walk = 0;
+		for (int i = 0; i < cch; ++i) {
+			if (!IsMeanSpaceW(pch[i])) {
+				pch[walk] = pch[i];
+				++walk;
+			}
+			else 
+				strippedWhitespace = true;
+		}
+
+		pch[walk - 1] = '\0';
+
+		return strippedWhitespace;
+	}
+
+	public static bool IsMeanSpaceW(char ch) {
+		bool isMean = false;
+
+		switch (ch) {
+			case '\x0082':	 // BREAK PERMITTED HERE
+			case '\x0083':	 // NO BREAK PERMITTED HERE
+			case '\x00A0':	 // NO-BREAK SPACE
+			case '\x034F':   // COMBINING GRAPHEME JOINER
+			case '\x2000':   // EN QUAD
+			case '\x2001':   // EM QUAD
+			case '\x2002':   // EN SPACE
+			case '\x2003':   // EM SPACE
+			case '\x2004':   // THICK SPACE
+			case '\x2005':   // MID SPACE
+			case '\x2006':   // SIX SPACE
+			case '\x2007':   // figure space
+			case '\x2008':   // PUNCTUATION SPACE
+			case '\x2009':   // THIN SPACE
+			case '\x200A':   // HAIR SPACE
+			case '\x200B':   // ZERO-WIDTH SPACE
+			case '\x200C':   // ZERO-WIDTH NON-JOINER
+			case '\x200D':   // ZERO WIDTH JOINER
+			case '\x200E':	 // LEFT-TO-RIGHT MARK
+			case '\x2028':   // LINE SEPARATOR
+			case '\x2029':   // PARAGRAPH SEPARATOR
+			case '\x202F':   // NARROW NO-BREAK SPACE
+			case '\x2060':   // word joiner
+			case '\xFEFF':   // ZERO-WIDTH NO BREAK SPACE
+			case '\xFFFC':   // OBJECT REPLACEMENT CHARACTER
+				isMean = true;
+				break;
+		}
+
+		return isMean;
+	}
 }
 
 public static class BitVecExts
@@ -891,6 +946,12 @@ public static class UnmanagedUtils
 	}
 	public static ReadOnlySpan<char> SliceNullTerminatedString(this ReadOnlySpan<char> span) {
 		int index = System.MemoryExtensions.IndexOf(span, '\0');
+		if (index == -1)
+			return span;
+		return span[..index];
+	}
+	public static ReadOnlySpan<byte> SliceNullTerminatedString(this ReadOnlySpan<byte> span) {
+		int index = System.MemoryExtensions.IndexOf(span, (byte)0);
 		if (index == -1)
 			return span;
 		return span[..index];

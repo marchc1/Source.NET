@@ -1,6 +1,7 @@
 using CommunityToolkit.HighPerformance;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Win32;
 
 using Source.Common;
 using Source.Common.Audio;
@@ -706,6 +707,11 @@ public class ClientState : BaseClientState
 	}
 	public override void Connect(ReadOnlySpan<char> adr, string sourceTag) {
 		base.Connect(adr, sourceTag);
+	}
+
+	static readonly char[] szHashedKeyBuffer = new char[64];
+	public override string GetCDKeyHash() {
+		return "12345678901234567890123456789012";
 	}
 
 	public void ClearSounds() // RaphaelIT7: This is used by Snd_Restart_f

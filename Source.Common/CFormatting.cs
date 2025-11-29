@@ -393,6 +393,21 @@ public static class CFormatting
 		}
 		return i;
 	}
+	public static nint strlen(ReadOnlySpan<byte> str) {
+		int i = 0;
+		for (i = 0; i < str.Length; i++) {
+			if (str[i] == '\0')
+				return i;
+		}
+		return i;
+	}
+	public static int strcpy(Span<byte> target, ReadOnlySpan<byte> str) {
+		str = str.SliceNullTerminatedString();
+		int len = Math.Min(target.Length, str.Length);
+		str[..len].CopyTo(target);
+		target[Math.Min(target.Length - 1, str.Length)] = 0;
+		return len;
+	}
 	public static int strcpy(Span<char> target, ReadOnlySpan<char> str) {
 		str = str.SliceNullTerminatedString();
 		int len = Math.Min(target.Length, str.Length);

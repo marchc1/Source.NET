@@ -264,6 +264,8 @@ public static class Constants
 
 	public const float HIGH_DEFAULT = -121121.121121f;
 
+	public const int SIGNED_GUID_LEN = 32;
+
 	public const double MIN_FPS = 0.1;
 	public const double MAX_FPS = 100000;
 

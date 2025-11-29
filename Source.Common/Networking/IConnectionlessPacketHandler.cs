@@ -1,3 +1,5 @@
+using CommunityToolkit.HighPerformance;
+
 using Source.Common.Bitbuffers;
 
 using System.Buffers;
@@ -99,6 +101,11 @@ public class NetAddress
 	public NetAddressType Type;
 	public IPEndPoint? Endpoint = new IPEndPoint(IPAddress.Any, 0);
 
+
+	public NetAddress Copy() => new() {
+		Type = Type,
+		Endpoint = Endpoint
+	};
 	static char[][] renderBuffers;
 	static int curRenderBuffer;
 	static NetAddress() {
@@ -154,6 +161,19 @@ public class NetAddress
 		set => (Endpoint ?? throw new Exception()).Port = value;
 	}
 
+	// TODO: This sucks
+	public uint GetIPNetworkByteOrder() {
+		byte[] data = Endpoint!.Address.GetAddressBytes();
+		return data.AsSpan().Cast<byte, uint>()[0];
+	}
+
+	// TODO: This sucks
+	public uint GetIPHostByteOrder() {
+		byte[] data = Endpoint!.Address.GetAddressBytes();
+		data.AsSpan().Reverse();
+		return data.AsSpan().Cast<byte, uint>()[0];
+	}
+
 	public NetAddress() {
 
 	}
@@ -177,6 +197,43 @@ public class NetAddress
 	public void Clear() {
 		Endpoint = null;
 		Type = NetAddressType.Null;
+	}
+
+	public bool IsLoopback() {
+		return Endpoint!.Address == IPAddress.Loopback;
+	}
+
+	public bool IsLocalhost() {
+		byte[] ip = Endpoint!.Address.GetAddressBytes();
+		return (ip[0] == 127) && (ip[1] == 0) && (ip[2] == 0) && (ip[3] == 1);
+	}
+
+	public bool CompareAdr(NetAddress? a, bool onlyBase = false) {
+		if (a.Type != Type)
+			return false;
+
+		if (Type == NetAddressType.Loopback)
+			return true;
+
+		if (Type == NetAddressType.Broadcast)
+			return true;
+
+		if (Type == NetAddressType.IP) {
+			if (!onlyBase && (Port != a.Port))
+				return false;
+
+			byte[] ip = Endpoint!.Address.GetAddressBytes();
+			byte[] a_ip = a.Endpoint!.Address.GetAddressBytes();
+
+			if (a_ip[0] == ip[0] && a_ip[1] == ip[1] && a_ip[2] == ip[2] && a_ip[3] == ip[3])
+				return true;
+		}
+
+		return false;
+	}
+
+	public void SetIP(uint v) {
+		IP = new(v);
 	}
 }
 

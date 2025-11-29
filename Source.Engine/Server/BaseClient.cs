@@ -1,8 +1,13 @@
-﻿using Source.Common;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source.Common;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.Networking;
 using Source.Common.Server;
 
 using Steamworks;
+
+using System.Runtime.CompilerServices;
 
 namespace Source.Engine.Server;
 
@@ -65,7 +70,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 		//  if (ConVars) 
 		//  	ConVars = NULL;
-		
+
 		FreeBaselines();
 
 		// This used to be a memset, but memset will screw up any embedded classes
@@ -82,7 +87,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		SnapshotInterval = 0;
 		ReceivedPacket = false;
 		UserID = 0;
-		Name = "";
+		Name[0] = '\0';
 		FriendsID = 0;
 		FriendsName = "";
 		SendTableCRC = 0;
@@ -119,9 +124,9 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			NetChannel = null!;
 		}
 
-		Clear(); 
+		Clear();
 		DedicatedServerUI.NotifyDedicatedServerUI("UpdatePlayers");
-		Steam3Server().SendUpdatedServerDetails(); 
+		Steam3Server().SendUpdatedServerDetails();
 	}
 
 	public bool IsActive() => SignOnState == SignOnState.Full;
@@ -142,14 +147,15 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public int EntityIndex;
 	public int UserID;
 
-	public string Name;
-	public string GUID;
+	public InlineArrayMaxPlayerNameLength<char> Name;
+	public InlineArray33<byte> GUID;
 
 	public CSteamID SteamID;
 	public uint FriendsID;
 	public string FriendsName;
 
-	// convars...
+	KeyValues? ConVars;
+	bool InitialConVarsSet;
 	public bool ConVarsChanged;
 	public bool SendServerInfo;
 	public BaseServer Server;
@@ -169,7 +175,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public int SignOnTick;
 	// CSmartPtr<CFrameSnapshot, CRefCountAccessorLongName>
 	// CFrameSnapshot baseline
-	int BaselineUpdateTick;
+	public int BaselineUpdateTick;
 	MaxEdictsBitVec BaselinesSent;
 	public int BaselineUsed;
 
@@ -183,7 +189,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public bool PlayerNameLocked;
 	public InlineArrayMaxPlayerNameLength<char> PendingNameChange;
 	public TimeUnit_t NextMessageTime;
-	TimeUnit_t SnapshotInterval;
+	public TimeUnit_t SnapshotInterval;
 
 	public bool IsFullyAuthenticated() => FullyAuthenticated;
 	public void SetFullyAuthenticated() => FullyAuthenticated = true;
@@ -193,9 +199,129 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public void FireGameEvent(IGameEvent ev) {
 		throw new NotImplementedException();
 	}
+	static bool BIgnoreCharInName(char cChar, bool bIsFirstCharacter) {
+		return cChar == '%' || cChar == '~' || cChar < 0x09 || (bIsFirstCharacter && cChar == '#');
+	}
+	public void SetName(ReadOnlySpan<char> playerName) {
+		Span<char> name = stackalloc char[Constants.MAX_PLAYER_NAME_LENGTH];
+		strcpy(name, playerName);
+
+		PendingNameChange[0] = '\0';
+
+		ValidateName(name);
+		if (strcmp(name, Name) == 0)
+			return; 
+
+		int i;
+		int dupc = 1;
+		ReadOnlySpan<char> p, val;
+
+		Span<char> newname = stackalloc char[Constants.MAX_PLAYER_NAME_LENGTH];
+
+		ReadOnlySpan<char> pFrom = name;
+		Span<char> pTo = Name;
+
+		while (!pFrom.IsEmpty && pTo.Length > 0) {
+			if (!BIgnoreCharInName(pFrom[0], Unsafe.AreSame(ref pTo.DangerousGetReference(), ref ((ReadOnlySpan<char>)Name).DangerousGetReference()))) {
+				pTo[0] = pFrom[0];
+				pTo = pTo[1..];
+			}
+
+			pFrom = pFrom[1..];
+		}
+		pTo[0] = '\0';
+
+		Assert(Name[0] != '\0');
+		if (Name[0] == '\0')
+			strcpy(Name, "unnamed");
+
+		val = Name;
+
+		while (true) {
+			for (i = 0; i < Server.GetClientCount(); i++) {
+				IClient client = Server.GetClient(i)!;
+
+				if (!client.IsConnected() || client == this)
+					continue;
+
+				if (stricmp(client.GetClientName(), val) == 0 && !(IsFakeClient() && client.IsFakeClient())) {
+					BaseClient? pClient = (BaseClient?)client;
+					if (IsFakeClient() && pClient != null) {
+						pClient.Name[0] = '\0';
+						pClient.SetName(val);
+					}
+					else {
+						break;
+					}
+				}
+			}
+
+			if (i >= Server.GetClientCount())
+				break;
+
+			p = val;
+
+			if (val[0] == '(') {
+				if (val[2] == ')') 
+					p = val[3..];
+				else if (val[3] == ')') 
+					p = val[4..];
+			}
+
+			sprintf(newname, "(%d)%s").D(dupc++).S(p);
+			strcpy(Name, newname);
+
+			val = Name;
+		}
+
+		ConVars!.SetString("name", Name);
+		ConVarsChanged = true;
+
+		Server.UserInfoChanged(ClientSlot);
+	}
+
+	static void ValidateName(Span<char> name) {
+		if (name.IsEmpty) 
+			sprintf(name, "unnamed");
+		else {
+			StrTools.RemoveAllEvilCharacters(name);
+
+			ReadOnlySpan<char> pChar = name;
+			while (!pChar.IsEmpty && pChar[0] != '\0' && (pChar[0] == ' ' || BIgnoreCharInName(pChar[0], true)))
+				pChar = pChar[1..];
+
+			if (pChar.IsEmpty || pChar[0] == '\0') 
+				sprintf(name, "unnamed");
+		}
+	}
 
 	public void Connect(ReadOnlySpan<char> name, int userID, INetChannel netChannel, bool fakePlayer, int clientChallenge) {
-		throw new NotImplementedException();
+		Common.TimestampedLog("CBaseClient::Connect");
+#if !SWDS
+		EngineVGui().UpdateProgressBar(LevelLoadingProgress.SignOnConnect);
+#endif
+		Clear();
+
+		ConVars = new KeyValues("userinfo");
+		InitialConVarsSet = false;
+
+		UserID = userID;
+
+		SetName(name);
+		TimeLastNameChange = 0.0;
+
+		FakePlayer = fakePlayer;
+		NetChannel = netChannel;
+
+		if (NetChannel!= null && Server != null && Server.IsMultiplayer()) 
+			NetChannel.SetCompressionMode(true);
+
+		ClientChallenge = clientChallenge;
+
+		SignOnState = SignOnState.Connected;
+
+		if (fakePlayer) 
+			Steam3Server().NotifyLocalClientConnect(this);
 	}
 
 	public void Inactivate() {
@@ -260,5 +386,9 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 	public bool ShouldReportThisFakeClient() {
 		return false;
+	}
+
+	internal void SetSteamID(in CSteamID steamID) {
+		SteamID = steamID;
 	}
 }

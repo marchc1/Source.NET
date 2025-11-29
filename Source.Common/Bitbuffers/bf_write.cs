@@ -593,6 +593,13 @@ public unsafe class bf_write : BitBuffer
 		}
 	}
 
+
+	public bool WriteBytes(ReadOnlySpan<byte> pBuf) {
+		fixed (byte* pBufTemp = pBuf) {
+			return WriteBits(pBufTemp, pBuf.Length << 3);
+		}
+	}
+
 	/// <summary>
 	/// Writes an ASCII string to the bitbuffer.
 	/// </summary>
