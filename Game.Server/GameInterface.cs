@@ -231,7 +231,7 @@ public class ServerGameEnts : IServerGameEnts
 		throw new NotImplementedException();
 	}
 
-	public void SetDebugEdictBase(Edict edict) {
-		throw new NotImplementedException();
+	public void SetDebugEdictBase(Edict[] edict) {
+
 	}
 }

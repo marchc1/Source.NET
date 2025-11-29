@@ -394,7 +394,7 @@ public class GameServer : BaseServer
 		IGameEvent? ev = g_GameEventManager.CreateEvent("server_spawn");
 		if (ev != null) {
 			ev.SetString("hostname", Host.host_name.GetString());
-			ev.SetString("address", net_local_adr.ToString(false));
+			ev.SetString("address", Net.LocalAdr.ToString(false));
 			ev.SetInt("port", GetUDPPort());
 			ev.SetString("game", Common.Gamedir);
 			ev.SetString("mapname", GetMapName());

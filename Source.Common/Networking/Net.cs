@@ -43,6 +43,8 @@ public class Net
 	internal static readonly ConVar net_maxpacketdrop = new("net_maxpacketdrop", "5000", 0, "Ignore any packets with the sequence number more than this ahead (0 == no limit)");
 
 
+	public readonly NetAddress LocalAdr = new();
+
 	/// <summary>
 	/// NOP command used for padding.
 	/// </summary>
@@ -154,9 +156,9 @@ public class Net
 		return res;
 	}
 
-	public bool StringToAdr(string host, int port, [NotNullWhen(true)] out IPEndPoint? ep) {
+	public bool StringToAdr(ReadOnlySpan<char> host, int port, [NotNullWhen(true)] out IPEndPoint? ep) {
 		ep = null;
-		if (host == null) return false;
+		if (host.IsEmpty) return false;
 
 		if (host == "localhost") {
 			ep = new IPEndPoint(IPAddress.Loopback, port);
@@ -170,9 +172,10 @@ public class Net
 		return false;
 	}
 
-	public bool StringToAdr(string host, [NotNullWhen(true)] out IPEndPoint? ep) {
+	public bool StringToAdr(ReadOnlySpan<char> host, [NotNullWhen(true)] out IPEndPoint? ep) {
+		host = host.SliceNullTerminatedString();
 		ep = null;
-		if (host == null) return false;
+		if (host.IsEmpty) return false;
 
 		if (host.IndexOf(':') == -1)
 			host = $"{host}:27015";
@@ -631,10 +634,8 @@ public class Net
 		return packet;
 	}
 
-	public bool NoIP { get; set; }
-
 	public void SetMultiplayer(bool multiplayer) {
-		if (NoIP && multiplayer) {
+		if (net_noip && multiplayer) {
 			Warning("Warning: Cannot use multiplayer networking with no Internet Protocol\n");
 			return;
 		}
@@ -808,7 +809,27 @@ public class Net
 
 	// todo
 	public void GetLocalAddress() {
+		LocalAdr.Clear();
+		if (net_noip)
+			Msg("TCP/UDP Disabled.\n");
+		else {
+			Span<char> buff = stackalloc char[512];
+			if (strcmp(ipname.GetString(), "localhost") != 0)
+				strcpy(buff, ipname.GetString()); 
+			else {
+				gethostname(buff);  
+				buff[^1] = '\0';    
+			}
 
+			StringToAdr(buff, out LocalAdr.Endpoint);
+			byte[] ip = LocalAdr.Endpoint!.Address.GetAddressBytes();
+			int ipaddr = (ip[0] << 24) + (ip[1] << 16) + (ip[2] << 8) + ip[3];
+			hostip.SetValue(ipaddr);
+		}
+	}
+
+	private void gethostname(Span<char> buff) {
+		Dns.GetHostEntry(Dns.GetHostName())!.AddressList.First().MapToIPv4().ToString().CopyTo(buff);
 	}
 
 	public const int PORT_ANY = -1;
@@ -818,13 +839,16 @@ public class Net
 	public const int PORT_SERVER = 27015;
 	public const int PORT_HLTV = 27020;
 
-	public ushort GetHostPort() => PORT_SERVER;
-	public ushort GetClientPort() => PORT_CLIENT;
-	public ConVar ipname = new("ip", "localhost", 0, "Overrides IP for multihomed hosts");
+	static string NETSTRING(int i) => $"{i}";
+	public readonly ConVar ipname = new("ip", "localhost", 0, "Overrides IP for multihomed hosts");
+	public readonly ConVar hostport = new("hostport", NETSTRING(PORT_SERVER), 0, "Host game server port");
+	public readonly ConVar hostip = new("hostip", "", 0, "Host game server ip");
+	public readonly ConVar clientport = new("clientport", NETSTRING(PORT_CLIENT), 0, "Host game client port");
+	public readonly ConVar hltvport = new("tv_port", NETSTRING(PORT_HLTV), 0, "Host SourceTV port");
 
 	public void OpenSockets() {
-		OpenSocketInternal(NetSocketType.Server, GetHostPort(), PORT_SERVER, "server", ProtocolType.Udp, false);
-		OpenSocketInternal(NetSocketType.Client, GetClientPort(), PORT_SERVER, "client", ProtocolType.Udp, true);
+		OpenSocketInternal(NetSocketType.Server, hostport.GetInt(), PORT_SERVER, "server", ProtocolType.Udp, false);
+		OpenSocketInternal(NetSocketType.Client, clientport.GetInt(), PORT_SERVER, "client", ProtocolType.Udp, true);
 	}
 
 	bool OpenSocketInternal(NetSocketType module, int setPort, int defaultPort, string name, ProtocolType protocol, bool tryAny) {

@@ -96,8 +96,47 @@ public enum PacketFlag
 }
 public class NetAddress
 {
-	public NetAddressType Type { get; set; }
-	public IPEndPoint? Endpoint { get; private set; } = new IPEndPoint(IPAddress.Any, 0);
+	public NetAddressType Type;
+	public IPEndPoint? Endpoint = new IPEndPoint(IPAddress.Any, 0);
+
+	static char[][] renderBuffers;
+	static int curRenderBuffer;
+	static NetAddress() {
+		renderBuffers = new char[4][];
+		for (int i = 0; i < renderBuffers.Length; i++)
+			renderBuffers[i] = new char[64];
+	}
+
+	public ReadOnlySpan<char> ToString(bool onlyBase) {
+		Span<char> renderBuffer = renderBuffers[curRenderBuffer = (curRenderBuffer + 1) % renderBuffers.Length];
+		memreset(renderBuffer);
+
+		if (Type == NetAddressType.Loopback)
+			"loopback".CopyTo(renderBuffer);
+		else if (Type == NetAddressType.Broadcast)
+			"broadcast".CopyTo(renderBuffer);
+		else if (Type == NetAddressType.IP)
+			if (onlyBase)
+				PrintAddress(renderBuffer);
+			else
+				PrintAddressWithPort(renderBuffer);
+		else
+			"unknown".CopyTo(renderBuffer);
+
+		return renderBuffer.SliceNullTerminatedString();
+	}
+
+	private void PrintAddressWithPort(Span<char> renderBuffer) {
+		const string formatIPV4 = "%i.%i.%i.%i:%i";
+		byte[] addr = Endpoint!.Address.GetAddressBytes();
+		sprintf(renderBuffer, formatIPV4).I(addr[0]).I(addr[1]).I(addr[2]).I(addr[3]).I(Endpoint.Port);
+	}
+
+	private void PrintAddress(Span<char> renderBuffer) {
+		const string formatIPV4 = "%i.%i.%i.%i";
+		byte[] addr = Endpoint!.Address.GetAddressBytes();
+		sprintf(renderBuffer, formatIPV4).I(addr[0]).I(addr[1]).I(addr[2]).I(addr[3]);
+	}
 
 	public override string ToString() {
 		if (Endpoint == null) return "<NULL NETADDR>";
