@@ -27,6 +27,7 @@ public class GameServer : BaseServer
 	public override void SetMaxClients(int number) {
 		MaxClients = Math.Clamp(number, 1, MaxClientsLimit);
 		Host.deathmatch.SetValue(MaxClients > 1);
+		ConMsg($"maxplayers set to {MaxClients}\n");
 	}
 
 	public override void Init(bool dedicated) {
@@ -188,7 +189,54 @@ public class GameServer : BaseServer
 	}
 
 	internal void InitMaxClients() {
-		// todo
+		int newmaxplayers = CommandLine.ParmValue("-maxplayers", -1);
+		if (newmaxplayers == -1) 
+			newmaxplayers = CommandLine.ParmValue("+maxplayers", -1);
+
+		SetupMaxPlayers(newmaxplayers);
+	}
+	static readonly ConVar tv_enable = new( "tv_enable", "0", FCvar.NotConnected, "Activates SourceTV on server. not implemented!");
+
+	private void SetupMaxPlayers(int iDesiredMaxPlayers) {
+		int minmaxplayers = 1;
+		int maxmaxplayers = Constants.ABSOLUTE_PLAYER_LIMIT;
+		int defaultmaxplayers = 1;
+
+		if (SV.ServerGameClients != null) {
+			SV.ServerGameClients.GetPlayerLimits(out minmaxplayers, out maxmaxplayers, out defaultmaxplayers);
+
+			if (minmaxplayers < 1) 
+				Sys.Error($"GetPlayerLimits:  min maxplayers must be >= 1 ({minmaxplayers})");
+			else if (defaultmaxplayers < 1) 
+				Sys.Error($"GetPlayerLimits:  default maxplayers must be >= 1 ({minmaxplayers})");
+			
+
+			if (minmaxplayers > maxmaxplayers || defaultmaxplayers > maxmaxplayers) 
+				Sys.Error($"GetPlayerLimits:  min maxplayers {minmaxplayers} > max {maxmaxplayers}");
+			if (maxmaxplayers > Constants.ABSOLUTE_PLAYER_LIMIT) 
+				Sys.Error($"GetPlayerLimits:  max players limited to {Constants.ABSOLUTE_PLAYER_LIMIT}");
+		}
+
+		sv.MaxClientsLimit = maxmaxplayers;
+		int newmaxplayers = iDesiredMaxPlayers;
+
+		if (newmaxplayers >= 1) {
+			newmaxplayers = Math.Min(newmaxplayers, maxmaxplayers);
+			sv.MaxClientsLimit = newmaxplayers;
+		}
+		else {
+			newmaxplayers = defaultmaxplayers;
+		}
+
+		if (tv_enable.GetBool()) {
+			newmaxplayers += 1;
+			sv.MaxClientsLimit += 1;
+		}
+
+		newmaxplayers = Math.Clamp(newmaxplayers, minmaxplayers, sv.MaxClientsLimit);
+
+		if (sv.GetMaxClients() < newmaxplayers || !tv_enable.GetBool())
+			sv.SetMaxClients(newmaxplayers);
 	}
 
 	int CurrentSkill;
@@ -421,12 +469,13 @@ public class GameServer : BaseServer
 	}
 
 	private void InitializeEntityDLLFields(Edict edict) {
-		throw new NotImplementedException();
+		edict.InitializeEntityDLLFields();
 	}
 
 	private void AssignClassIds() {
 
 	}
+
 
 	INetworkStringTable? ModelPrecacheTable;
 	INetworkStringTable? SoundPrecacheTable;

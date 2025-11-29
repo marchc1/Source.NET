@@ -92,6 +92,7 @@ public class BaseEdict
 	public int EdictIndex;
 	public IServerNetworkable? Networkable;
 	protected IServerUnknown? Unk;
+	// Use this to clear any fields on the edict
 	public virtual void InitializeEntityDLLFields() { }
 }
 
