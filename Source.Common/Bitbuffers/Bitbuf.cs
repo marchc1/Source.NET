@@ -168,6 +168,7 @@ public abstract unsafe class BitBuffer
 	/// The base arrray the bitbuffer is reading
 	/// </summary>
 	public abstract byte[]? BaseArray { get; }
+	public byte[]? GetData() => BaseArray;
 
 	// should go in a diff method
 	private static IEnumerable<string> SplitInParts(string s, int partLength) {

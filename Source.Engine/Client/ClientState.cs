@@ -705,7 +705,6 @@ public class ClientState : BaseClientState
 		return Math.Max(interpRatio / cl_updaterate.GetFloat(), interp);
 	}
 	public override void Connect(ReadOnlySpan<char> adr, string sourceTag) {
-		Socket = Net.GetSocket(NetSocketType.Client);
 		base.Connect(adr, sourceTag);
 	}
 

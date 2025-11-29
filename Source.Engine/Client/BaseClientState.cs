@@ -43,7 +43,7 @@ public abstract class BaseClientState(
 	public const double CL_MAX_RESEND_TIME = 20;
 
 	public ClockDriftMgr ClockDriftMgr;
-	public NetSocket Socket;
+	public NetSocketType Socket;
 	public NetChannel? NetChannel;
 	public uint ChallengeNumber;
 	public double ConnectTime;
@@ -666,15 +666,16 @@ public abstract class BaseClientState(
 		string serverName;
 		string cdKey = "NOCDKEY";
 
+		NetAddress adr;
+
 		if (RetryAddress == null || !Net.StringToAdr(RetryAddress, out IPEndPoint? addr)) {
 			ConWarning($"Bad server address ({RetryAddress})\n");
 			Disconnect("Bad server address", true);
 			return;
 		}
-
-		if (addr.Port == 0) {
+		adr = new() { Endpoint = addr, Type = NetAddressType.IP };
+		if (addr.Port == 0) 
 			addr.Port = Net.PORT_SERVER;
-		}
 
 		bf_write msg = new();
 		byte[] packet = new byte[Protocol.MAX_ROUTABLE_PAYLOAD];
@@ -701,8 +702,7 @@ public abstract class BaseClientState(
 
 				break;
 		}
-		Socket.UDP!.SendTo(msg.BaseArray!.AsSpan()[..msg.BytesWritten], addr);
-
+		Net.SendPacket(null!, Socket, adr, msg.GetData(), msg.BytesWritten);
 
 		this.ConnectTime = Net.Time;
 		this.ChallengeNumber = (uint)challengeNr;
@@ -755,6 +755,7 @@ public abstract class BaseClientState(
 			Disconnect("Bad server address", true);
 			return;
 		}
+		NetAddress adr = new() { Endpoint = addr, Type = NetAddressType.IP };
 
 		if (RetryNumber >= GetConnectionRetryNumber()) {
 			Common.ExplainDisconnection(true, $"Connection failed after {RetryNumber} retries.\n");
@@ -774,9 +775,7 @@ public abstract class BaseClientState(
 		msg.WriteByte(A2S.GetChallenge);
 		msg.WriteLong(RetryChallenge);
 		msg.WriteString("0000000000");
-
-		Socket.UDP!.SendTo(msg.BaseArray!.AsSpan()[..msg.BytesWritten], addr);
-
+		Net.SendPacket(null!, Socket, adr, msg.GetData(), msg.BytesWritten);
 		ConnectTime = Net.Time;
 	}
 

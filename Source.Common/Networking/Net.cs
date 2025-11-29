@@ -177,10 +177,18 @@ public class Net
 		ep = null;
 		if (host.IsEmpty) return false;
 
-		if (host.IndexOf(':') == -1)
-			host = $"{host}:27015";
+		Span<char> address = stackalloc char[128];
+		strcpy(address, host);
+		if (strncmp(address, "localhost", 10) == 0 || strncmp(address, "localhost:", 10) == 0)
+			memcpy(address, "127.0.0.1");
 
-		return IPEndPoint.TryParse(host, out ep);
+		if (!IPEndPoint.TryParse(address.SliceNullTerminatedString(), out ep))
+			return false;
+
+		if (ep.Port == 0)
+			ep.Port = Net.PORT_SERVER;
+
+		return true;
 	}
 
 	public NetChannel? CreateNetChannel(

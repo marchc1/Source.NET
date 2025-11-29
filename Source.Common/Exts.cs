@@ -896,6 +896,11 @@ public static class UnmanagedUtils
 		return span[..index];
 	}
 
+	public static ReadOnlySpan<char> SliceSafe(this ReadOnlySpan<char> span, int to) {
+		return span[..Math.Min(span.Length, to)];
+	}
+
+
 	public static void EnsureCount<T>(this List<T> list, int ensureTo) where T : new() {
 		list.EnsureCapacity(ensureTo);
 
