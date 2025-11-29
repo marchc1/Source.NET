@@ -905,6 +905,7 @@ public class MatSystemSurface : IMatSystemSurface
 		PopupList.Add(panel);
 
 		// If the modal panel isn't a parent, restore it to the top, to prevent a hard lock
+		LinkVGUI();
 		if (VGuiInput.GetAppModalSurface() != null) {
 			if (!panel.HasParent(VGuiInput.GetAppModalSurface()!)) {
 				index = PopupList.IndexOf(panel);
