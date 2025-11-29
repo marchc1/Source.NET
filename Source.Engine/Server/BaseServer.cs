@@ -33,7 +33,6 @@ public abstract class BaseServer : IServer
 
 	protected readonly Net Net = Singleton<Net>();
 	protected readonly Host Host = Singleton<Host>();
-	protected readonly ServerGlobalVariables serverGlobalVariables = Singleton<ServerGlobalVariables>();
 	internal static readonly ConVar sv_region = new( "sv_region","-1", FCvar.None, "The region of the world to report this server in." );
 	internal static readonly ConVar sv_instancebaselines = new( "sv_instancebaselines", "1", FCvar.DevelopmentOnly, "Enable instanced baselines. Saves network overhead." );
 	internal static readonly ConVar sv_stats = new( "sv_stats", "1", 0, "Collect CPU usage stats" );

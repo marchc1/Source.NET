@@ -915,6 +915,8 @@ public class Host(
 		if (host_name.GetString().Length == 0)
 			host_name.SetValue(serverDLL!.GetGameDescription());
 
+		if(!sv.SpawnServer(mapName, _mapFile, null))
+
 		sv.LevelMainMenuBackground = backgroundLevel;
 		serverGlobalVariables.CurTime = sv.GetTime();
 
@@ -1233,6 +1235,8 @@ public class Host(
 	static readonly ConVar cvarNext = new("next", "0", FCvar.Cheat, "Set to 1 to advance to next frame ( when singlestep == 1 )");
 
 	int ShouldRun_CurrentTick;
+	internal int SpawnCount;
+
 	public bool ShouldRun() {
 		if (singlestep.GetInt() == 0)
 			return true;
@@ -1274,5 +1278,9 @@ public class Host(
 
 		ConDMsg("Unable to launch game\n");
 		return false;
+	}
+
+	internal void FreeStateAndWorld(bool v) {
+
 	}
 }

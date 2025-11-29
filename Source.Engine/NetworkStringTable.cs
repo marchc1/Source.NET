@@ -236,7 +236,7 @@ public class NetworkStringTable : INetworkStringTable
 	public int AddString(bool isServer, ReadOnlySpan<char> value, int length, ReadOnlySpan<byte> userData = default) {
 		if (Locked) 
 			DevMsg($"Warning! CNetworkStringTable::AddString: adding '{value}' while locked.\n");
-
+		value = value.SliceNullTerminatedString();
 		string tempStrValueOhMyGodThisNeedsToUseROS = new(value);
 		int i = Items.Find(tempStrValueOhMyGodThisNeedsToUseROS);
 		if (!isServer && Items.IsValidIndex(i) && ItemsClientSide == null) {

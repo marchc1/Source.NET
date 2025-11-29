@@ -113,7 +113,7 @@ public interface IServerGameDLL
 /// </summary>
 public interface IServerGameEnts
 {
-	void SetDebugEdictBase(Edict edict);
+	void SetDebugEdictBase(Edict[] edict);
 	void MarkEntitiesAsTouching(Edict e1, Edict e2);
 	void FreeContainingEntity(Edict e);
 }

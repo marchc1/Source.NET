@@ -271,4 +271,12 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		isSimulating = isSimulating && (sv.IsMultiplayer() || cl.IsActive());
 		serverPluginHandler.GameFrame(isSimulating);
 	}
+
+	internal void CreateNetworkStringTables() {
+
+	}
+
+	internal void ClearWorld() {
+
+	}
 }

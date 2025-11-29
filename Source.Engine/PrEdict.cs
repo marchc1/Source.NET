@@ -20,4 +20,9 @@ public class ED {
 	public void ClearFreeEdictList() {
 		FreeEdicts.ClearAll();
 	}
+
+	public void ClearFreeFlag(Edict e) {
+		e.ClearFree();
+		FreeEdicts.Clear(e.EdictIndex);
+	}
 }

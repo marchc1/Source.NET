@@ -89,7 +89,7 @@ public class BaseEdict
 	public EdictFlags StateFlags;
 
 	public short NetworkSerialNumber;
-	public long EdictIndex;
+	public int EdictIndex;
 	public IServerNetworkable? Networkable;
 	protected IServerUnknown? Unk;
 	public virtual void InitializeEntityDLLFields() { }
