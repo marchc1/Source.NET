@@ -159,6 +159,11 @@ public class Label : Panel
 		ContentAlignment = alignment;
 	}
 
+	public void SizeToContents() {
+		GetContentSize(out int wide, out int tall);
+		SetSize(wide, tall);
+	}
+
 	public virtual void GetContentSize(out int wide, out int tall) {
 		if (GetFont() == null) {
 			IScheme? scheme = GetScheme();
@@ -591,6 +596,16 @@ public class Label : Panel
 	public void EnsureImageCapacity(int maxIndex) {
 		while (Images.Count <= maxIndex)
 			AddImage(null, 0);
+	}
+
+	public void SetImagePreOffset(int index, int offset) {
+		if (index < 0 || index >= Images.Count)
+			return;
+
+		var info = Images[index];
+		info.Offset = (short)offset;
+		Images[index] = info;
+		InvalidateLayout();
 	}
 
 	public void SetImageBounds(nint index, int xPos, int width) {
