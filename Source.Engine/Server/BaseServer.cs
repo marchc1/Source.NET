@@ -399,7 +399,7 @@ public abstract class BaseServer : IServer
 	}
 
 	public void SetMasterServerRulesDirty() {
-		throw new NotImplementedException();
+		MasterServerRulesDirty = true;
 	}
 	public void SendQueryPortToClient(NetAddress adr) {
 		throw new NotImplementedException();

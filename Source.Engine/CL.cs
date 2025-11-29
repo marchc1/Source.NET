@@ -206,8 +206,8 @@ public partial class CL(IServiceProvider services, Net Net,
 		// EndLoadingUpdates();
 	}
 
-	public void Connect(string address, string sourceTag) {
-		if (!address.Equals("localhost", StringComparison.OrdinalIgnoreCase)) {
+	public void Connect(ReadOnlySpan<char> address, string sourceTag) {
+		if (strcmp(address[..Math.Min(address.Length, 9)], "localhost") != 0) {
 			Host.Disconnect(false);
 			Net.SetMultiplayer(true);
 			EngineVGui?.EnabledProgressBarForNextLoad();

@@ -621,13 +621,11 @@ public abstract class BaseClientState(
 
 		SetSignonState(SignOnState.Connected, -1);
 	}
-	public virtual void Connect(string adr, string sourceTag) {
+	public virtual void Connect(ReadOnlySpan<char> adr, string sourceTag) {
+		RetryAddress = new(adr);
 		RetryChallenge = (Random.Shared.Next(0, 0x0FFF) << 16) | (Random.Shared.Next(0, 0xFFFF));
-		Net.ipname.SetValue(adr.Split(':')[0]);
-		Net.SetMultiplayer(true);
 		GameServerSteamID = 0;
 		RetrySourceTag = sourceTag;
-		RetryAddress = adr;
 		cl_connectmethod.SetValue(sourceTag);
 
 		SetSignonState(SignOnState.Challenge, -1);

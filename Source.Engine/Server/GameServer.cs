@@ -31,7 +31,9 @@ public class GameServer : BaseServer
 	}
 
 	public override void Init(bool dedicated) {
-
+		base.Init(dedicated);
+		FullSendTables.DebugName = "FullSendTables";
+		DLLInitialized = false;
 	}
 
 	public override void Shutdown() {
