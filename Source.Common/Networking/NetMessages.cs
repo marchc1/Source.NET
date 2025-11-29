@@ -828,6 +828,7 @@ public class CLC_GMod_ClientToServer : NetMessage
 
 public class clc_BaselineAck : NetMessage
 {
+	public clc_BaselineAck() : base(CLC.BaselineAck) { }
 	public clc_BaselineAck(int tick, int baseline) : base(CLC.BaselineAck) {
 		BaselineTick = tick;
 		BaselineNumber = baseline;

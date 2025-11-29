@@ -17,10 +17,138 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public int GetPlayerSlot() => ClientSlot;
 	public int GetUserID() => UserID;
 	// NetworkID?
-	public ReadOnlySpan<char> GetClientName() => Name;
+	public ReadOnlySpan<char> GetClientName() => ((ReadOnlySpan<char>)Name).SliceNullTerminatedString();
 	public INetChannel GetNetChannel() => NetChannel;
 	public void Dispose() {
 
+	}
+
+	public void ConnectionStart(NetChannel channel) {
+		channel.RegisterMessage<NET_Tick>();
+		channel.RegisterMessage<NET_StringCmd>();
+		channel.RegisterMessage<NET_SetConVar>();
+		channel.RegisterMessage<NET_SignonState>();
+
+		channel.RegisterMessage<CLC_ClientInfo>();
+		channel.RegisterMessage<CLC_Move>();
+		channel.RegisterMessage<clc_BaselineAck>();
+		channel.RegisterMessage<CLC_ListenEvents>();
+	}
+	public void ConnectionClosing(ReadOnlySpan<char> reason) { }
+	public void ConnectionCrashed(ReadOnlySpan<char> reason) { }
+	public void PacketStart(int incomingSequence, int outgoingAcknowledged) { }
+	public void PacketEnd() { }
+	public void FileRequested(ReadOnlySpan<char> fileName, uint transferID) { }
+	public void FileReceived(ReadOnlySpan<char> fileName, uint transferID) { }
+	public void FileDenied(ReadOnlySpan<char> fileName, uint transferID) { }
+	public void FileSent(ReadOnlySpan<char> fileName, uint transferID) { }
+
+	public bool ProcessMessage<T>(T message) where T : INetMessage {
+		switch (message) {
+			case NET_Tick m: return ProcessTick(m);
+			case NET_StringCmd m: return ProcessStringCmd(m);
+			case NET_SetConVar m: return ProcessSetConVar(m);
+			case NET_SignonState m: return ProcessSignonState(m);
+			case CLC_ClientInfo m: return ProcessClientInfo(m);
+			case CLC_Move m: return ProcessMove(m);
+			case clc_BaselineAck m: return ProcessBaselineAck(m);
+			case CLC_ListenEvents m: return ProcessListenEvents(m);
+		}
+		return false;
+	}
+
+	protected virtual bool ProcessMove(CLC_Move m) {
+		throw new NotImplementedException();
+	}
+
+	protected virtual bool ProcessTick(NET_Tick m) {
+		throw new NotImplementedException();
+	}
+
+	protected virtual bool ProcessStringCmd(NET_StringCmd m) {
+		throw new NotImplementedException();
+	}
+
+	protected virtual bool ProcessSetConVar(NET_SetConVar m) {
+		throw new NotImplementedException();
+	}
+
+	protected virtual bool ProcessSignonState(NET_SignonState msg) {
+		if (msg.SignOnState == SignOnState.ChangeLevel) 
+			return true; 
+
+		if (msg.SignOnState > SignOnState.Connected) {
+			if (msg.SpawnCount != Server.GetSpawnCount()) {
+				Reconnect();
+				return true;
+			}
+		}
+
+		// client must acknowledge our current state, otherwise start again
+		if (msg.SignOnState != SignOnState) {
+			Reconnect();
+			return true;
+		}
+
+		return SetSignOnState(msg.SignOnState, msg.SpawnCount);
+	}
+
+	protected virtual bool SetSignOnState(SignOnState signOnState, int spawnCount) {
+		switch (signOnState) {
+			case SignOnState.Connected:
+				SendServerInfo = true;
+				break;
+
+			case SignOnState.New:
+				if (!SendSignonData())
+					return false;
+
+				break;
+
+			case SignOnState.PreSpawn:
+				SpawnPlayer();
+				break;
+
+			case SignOnState.Spawn:
+				ActivatePlayer();
+				break;
+
+			case SignOnState.Full:
+				OnSignonStateFull();
+				break;
+
+			case SignOnState.ChangeLevel: break;
+		}
+
+		return true;
+	}
+
+	protected virtual void SpawnPlayer() {
+		throw new NotImplementedException();
+	}
+
+	protected virtual void ActivatePlayer() {
+		throw new NotImplementedException();
+	}
+
+	protected virtual void OnSignonStateFull() {
+		throw new NotImplementedException();
+	}
+
+	protected virtual bool SendSignonData() {
+		throw new NotImplementedException();
+	}
+
+	protected virtual bool ProcessClientInfo(CLC_ClientInfo m) {
+		throw new NotImplementedException();
+	}
+
+	protected virtual bool ProcessBaselineAck(clc_BaselineAck m) {
+		throw new NotImplementedException();
+	}
+
+	protected virtual bool ProcessListenEvents(CLC_ListenEvents m) {
+		throw new NotImplementedException();
 	}
 
 	public int GetClientChallenge() => ClientChallenge;
@@ -210,7 +338,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 		ValidateName(name);
 		if (strcmp(name, Name) == 0)
-			return; 
+			return;
 
 		int i;
 		int dupc = 1;
@@ -262,9 +390,9 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			p = val;
 
 			if (val[0] == '(') {
-				if (val[2] == ')') 
+				if (val[2] == ')')
 					p = val[3..];
-				else if (val[3] == ')') 
+				else if (val[3] == ')')
 					p = val[4..];
 			}
 
@@ -281,7 +409,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	static void ValidateName(Span<char> name) {
-		if (name.IsEmpty) 
+		if (name.IsEmpty)
 			sprintf(name, "unnamed");
 		else {
 			StrTools.RemoveAllEvilCharacters(name);
@@ -290,7 +418,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			while (!pChar.IsEmpty && pChar[0] != '\0' && (pChar[0] == ' ' || BIgnoreCharInName(pChar[0], true)))
 				pChar = pChar[1..];
 
-			if (pChar.IsEmpty || pChar[0] == '\0') 
+			if (pChar.IsEmpty || pChar[0] == '\0')
 				sprintf(name, "unnamed");
 		}
 	}
@@ -313,14 +441,14 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		FakePlayer = fakePlayer;
 		NetChannel = netChannel;
 
-		if (NetChannel!= null && Server != null && Server.IsMultiplayer()) 
+		if (NetChannel != null && Server != null && Server.IsMultiplayer())
 			NetChannel.SetCompressionMode(true);
 
 		ClientChallenge = clientChallenge;
 
 		SignOnState = SignOnState.Connected;
 
-		if (fakePlayer) 
+		if (fakePlayer)
 			Steam3Server().NotifyLocalClientConnect(this);
 	}
 
