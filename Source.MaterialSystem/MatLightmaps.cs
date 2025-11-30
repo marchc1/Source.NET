@@ -497,7 +497,7 @@ public class MatLightmaps
 		Span<float> src = floatImage;
 		Span<byte> color = stackalloc byte[4];
 		for (int t = 0; t < lightmapSize[1]; ++t) {
-			LightmapPixelWriter.Seek(offsetIntoLightmapPage[0], offsetIntoLightmapPage[1] + t);
+			LightmapPixelWriter.Seek(0, t);
 			for (int s = 0; s < lightmapSize[0]; ++s, src = src[4..]) {
 				memreset(color);
 				ColorSpace.LinearToLightmap(color, src);

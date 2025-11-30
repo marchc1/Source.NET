@@ -1106,7 +1106,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		Lock.H = height;
 		Lock.Handle = ModifyTextureHandle;
 		Lock.Format = info.Format;
-		writer.SetPixelMemory(info.Format, GetTempLockBuffer(info.Format, width, height).Span, width);
+		writer.SetPixelMemory(info.Format, GetTempLockBuffer(info.Format, width, height).Span, width * ImageLoader.SizeInBytes(info.Format));
 		return true;
 	}
 
@@ -1122,7 +1122,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		Lock.H = height;
 		Lock.Handle = ModifyTextureHandle;
 		Lock.Format = info.Format;
-		writer.SetPixelMemory(info.Format, GetTempLockBuffer(info.Format, width, height), width);
+		writer.SetPixelMemory(info.Format, GetTempLockBuffer(info.Format, width, height), width * ImageLoader.SizeInBytes(info.Format));
 		return true;
 	}
 
