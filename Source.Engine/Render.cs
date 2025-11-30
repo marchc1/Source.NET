@@ -862,7 +862,7 @@ public class Render(
 
 		}
 		else {
-			Assert(0);
+			Assert(false);
 		}
 
 		// TODO: Dynamic lights
