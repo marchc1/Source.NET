@@ -982,7 +982,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 				}
 			}
 
-			_out.LuxelsPerWorldUnit = _out.LightmapVecsLuxelsPerWorldUnits[0].AsVector3().Length();
+			_out.LuxelsPerWorldUnit = MathLib.VectorLength(_out.LightmapVecsLuxelsPerWorldUnits[0].AsVector3());
 			_out.WorldUnitsPerLuxel = 1.0f / _out.LuxelsPerWorldUnit;
 			_out.TexData = _in.TexData;
 			_out.Flags = (Surf)_in.Flags;
