@@ -152,7 +152,7 @@ public class MatLightmaps
 
 		bool added = false;
 		for (i = 0; i < packCount; ++i) {
-			added = ImagePackers[i].AddBlock(width, height, out offsetIntoLightmapPage[0], out offsetIntoLightmapPage[1]);
+			added = ImagePackers[i].AddBlock(width, height, ref offsetIntoLightmapPage[0], ref offsetIntoLightmapPage[1]);
 			if (added)
 				break;
 		}
@@ -162,7 +162,7 @@ public class MatLightmaps
 			i = ImagePackers.Count; ImagePackers.Add(new(materialSystem));
 			ImagePackers[i].Reset(NumSortIDs, GetMaxLightmapPageWidth(), GetMaxLightmapPageHeight());
 			++NumLightmapPages;
-			if (!ImagePackers[i].AddBlock(width, height, out offsetIntoLightmapPage[0], out offsetIntoLightmapPage[1])) {
+			if (!ImagePackers[i].AddBlock(width, height, ref offsetIntoLightmapPage[0], ref offsetIntoLightmapPage[1])) {
 				Error("MatLightmaps.AllocateLightmap: lightmap (%dx%d) too big to fit in page (%dx%d)\n",
 					width, height, GetMaxLightmapPageWidth(), GetMaxLightmapPageHeight());
 			}
@@ -205,7 +205,7 @@ public class MatLightmaps
 				Dynamic.ImagePackers[dynamicIndex].Reset(0, LightmapPages![lightmapPageIndex].Width, LightmapPages[lightmapPageIndex].Height);
 			}
 
-			if (Dynamic.ImagePackers[dynamicIndex].AddBlock(lightmapSize[0], lightmapSize[1], out outOffsetIntoPage[0], out outOffsetIntoPage[1]))
+			if (Dynamic.ImagePackers[dynamicIndex].AddBlock(lightmapSize[0], lightmapSize[1], ref outOffsetIntoPage[0], ref outOffsetIntoPage[1]))
 				return lightmapPageIndex;
 		}
 

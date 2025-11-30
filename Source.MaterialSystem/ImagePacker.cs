@@ -26,11 +26,15 @@ public class ImagePacker(MaterialSystem MaterialSystem)
 		
 		return true;
 	}
-	public bool AddBlock(int width, int height, out int returnX, out int returnY) {
-		if ((width >= MaxBlockWidth) && (height >= MaxBlockHeight)) {
-			returnX = returnY = 0;
+	public bool AddBlock(int width, int height, ref int returnX, ref int returnY) {
+#if ADD_ONE_TEXEL_BORDER
+		width += 2;
+		height += 2;
+		width = Math.Clamp(width, 0, MaxLightmapWidth);
+		height = Math.Clamp(height, 0, MaxLightmapHeight);
+#endif
+		if ((width >= MaxBlockWidth) && (height >= MaxBlockHeight)) 
 			return false;
-		}
 
 		int bestX = -1;
 		int maxYIdx;
@@ -58,7 +62,6 @@ public class ImagePacker(MaterialSystem MaterialSystem)
 				MaxBlockWidth = width;
 				MaxBlockHeight = height;
 			}
-			returnX = returnY = 0;
 			return false;
 		}
 
@@ -70,7 +73,6 @@ public class ImagePacker(MaterialSystem MaterialSystem)
 				MaxBlockWidth = width;
 				MaxBlockHeight = height;
 			}
-			returnX = returnY = 0;
 			return false;
 		}
 
