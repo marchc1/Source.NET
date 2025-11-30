@@ -691,17 +691,17 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	public static unsafe int MSurf_Index(ref BSPMSurface2 surfID, WorldBrushData? data = null) => (int)surfID.SurfNum;
 	public static ref int MSurf_FirstVertIndex(ref BSPMSurface2 surfID) => ref surfID.FirstVertIndex;
 	public static ref uint MSurf_FirstVertNormal(ref BSPMSurface2 surfID, WorldBrushData? data = null) {
-		data ??= Singleton<CommonHostState>().WorldBrush;
+		data ??= host_state.WorldBrush;
 		int surfaceIndex = MSurf_Index(ref surfID, data);
 		return ref data!.SurfaceNormals![surfaceIndex].FirstVertNormal;
 	}
 	public static Span<short> MSurf_LightmapMins(ref BSPMSurface2 surfID, WorldBrushData? data = null) {
-		data ??= Singleton<CommonHostState>().WorldBrush;
+		data ??= host_state.WorldBrush;
 		int surfaceIndex = MSurf_Index(ref surfID, data);
 		return data!.SurfaceLighting![surfaceIndex].LightmapMins;
 	}
 	public static Span<short> MSurf_LightmapExtents(ref BSPMSurface2 surfID, WorldBrushData? data = null) {
-		data ??= Singleton<CommonHostState>().WorldBrush;
+		data ??= host_state.WorldBrush;
 		int surfaceIndex = MSurf_Index(ref surfID, data);
 		return data!.SurfaceLighting![surfaceIndex].LightmapExtents;
 	}
@@ -719,9 +719,9 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	public static bool SurfaceHasPrims(ref BSPMSurface2 surfID) => (MSurf_Flags(ref surfID) & SurfDraw.HasPrims) != 0;
 	public static int MSurf_SortGroup(ref BSPMSurface2 surfID) => (int)(surfID.Flags & SurfDraw.SortGroupMask) >> (int)SurfDraw.SortGroupShift;
 	public static void MSurf_SetSortGroup(ref BSPMSurface2 surfID, int sortGroup) => surfID.Flags |= (SurfDraw)((sortGroup << (int)SurfDraw.SortGroupShift) & (int)SurfDraw.SortGroupMask);
-	public static ref ModelTexInfo MSurf_TexInfo(ref BSPMSurface2 surfID, WorldBrushData? data = null) => ref (data ?? Singleton<CommonHostState>().WorldBrush)!.TexInfo![surfID.TexInfo];
+	public static ref ModelTexInfo MSurf_TexInfo(ref BSPMSurface2 surfID, WorldBrushData? data = null) => ref (data ?? host_state.WorldBrush)!.TexInfo![surfID.TexInfo];
 	public static Span<short> MSurf_OffsetIntoLightmapPage(ref BSPMSurface2 surfID, WorldBrushData? data = null) {
-		data ??= Singleton<CommonHostState>().WorldBrush;
+		data ??= host_state.WorldBrush;
 		return data!.SurfaceLighting![MSurf_Index(ref surfID, data)].OffsetIntoLightmapPage;
 	}
 	public static int MSurf_VertCount(ref BSPMSurface2 surfID) => (int)(((uint)surfID.Flags >> (int)SurfDraw.VertCountShift) & 0xFF);
