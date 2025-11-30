@@ -549,9 +549,8 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	public static int CompareSurfID(ref BSPMSurface2 surfID1, ref BSPMSurface2 surfID2) {
 		bool hasLightmap1 = (ModelLoader.MSurf_Flags(ref surfID1) & SurfDraw.NoLight) == 0;
 		bool hasLightmap2 = (ModelLoader.MSurf_Flags(ref surfID2) & SurfDraw.NoLight) == 0;
-
 		if (hasLightmap1 != hasLightmap2)
-			return (hasLightmap2 ? 1 : 0) - (hasLightmap1 ? 1 : 0);
+			return hasLightmap2.CompareTo(hasLightmap1);
 
 		IMaterial? material1 = ModelLoader.MSurf_TexInfo(ref surfID1).Material;
 		IMaterial? material2 = ModelLoader.MSurf_TexInfo(ref surfID2).Material;
@@ -562,13 +561,15 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 
 		bool hasLightstyle1 = (ModelLoader.MSurf_Flags(ref surfID1) & SurfDraw.HasLightStyles) == 0;
 		bool hasLightstyle2 = (ModelLoader.MSurf_Flags(ref surfID2) & SurfDraw.HasLightStyles) == 0;
-
 		if (hasLightstyle1 != hasLightstyle2)
-			return (hasLightstyle2 ? 1 : 0) - (hasLightstyle1 ? 1 : 0);
+			return hasLightstyle2.CompareTo(hasLightstyle1); 
 
 		int area1 = ModelLoader.MSurf_LightmapExtents(ref surfID1)[0] * ModelLoader.MSurf_LightmapExtents(ref surfID1)[1];
 		int area2 = ModelLoader.MSurf_LightmapExtents(ref surfID2)[0] * ModelLoader.MSurf_LightmapExtents(ref surfID2)[1];
-		return area2 - area1;
+		if (area1 != area2)
+			return area2 - area1;
+
+		return (int)(surfID1.SurfNum - surfID2.SurfNum);
 	}
 
 	public const int NUM_BUMP_VECTS = 3;
