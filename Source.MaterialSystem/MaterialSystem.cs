@@ -75,6 +75,25 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 	public void ModInit() {
 		launcherMgr = services.GetRequiredService<ILauncherManager>();
 		matContext = new(() => new(this));
+		UpdateConfig(false);
+	}
+
+	private bool UpdateConfig(bool forceUpdate) {
+		MaterialSystem_Config config = new();
+		Config.CopyInstantiatedReferenceTo(config);
+		ReadConfigFromConVars(config);
+		return OverrideConfig(config, forceUpdate);
+	}
+
+	private bool OverrideConfig(MaterialSystem_Config config, bool forceUpdate) {
+		if (!ShaderDevice.IsUsingGraphics()) {
+			ColorSpace.SetGamma(2.2f, 2.2f, IMaterialSystem.OVERBRIGHT, Config.AllowCheats, false);
+		}
+		return true;
+	}
+
+	private void ReadConfigFromConVars(MaterialSystem_Config config) {
+
 	}
 
 	public void ModShutdown() {

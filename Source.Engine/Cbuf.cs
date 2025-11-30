@@ -74,7 +74,7 @@ public class CommandBuffer
 		Span<char> argV0 = stackalloc char[1024];
 		int len = currentCommand.Length;
 		int offsetToNextCommand = 0;
-		for (; len > 0; len -= offsetToNextCommand + 1, currentCommand = currentCommand[(offsetToNextCommand)..]) {
+		for (; len > 0; len -= offsetToNextCommand, currentCommand = currentCommand[(offsetToNextCommand)..]) {
 			GetNextCommandLength(currentCommand, len, out int commandLength, out offsetToNextCommand);
 			if (commandLength <= 0)
 				continue;

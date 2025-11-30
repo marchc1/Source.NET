@@ -1,14 +1,18 @@
 ﻿#define USE_GS_AUTH_API
 global using static Source.Engine.Server.Steam3ServerAccessor;
 
+using SevenZip.Buffer;
+
 using Source.Common;
 using Source.Common.Commands;
+using Source.Common.Networking;
 using Source.Common.Server;
 
 using Steamworks;
 
 using System;
 using System.Diagnostics;
+using System.Net;
 
 namespace Source.Engine.Server;
 
@@ -397,5 +401,79 @@ public class Steam3Server : IDisposable
 
 	public void RunFrame() {
 
+	}
+
+	internal CSteamID GetGSSteamID() {
+		return SteamIDGS;
+	}
+
+	internal bool NotifyLocalClientConnect(BaseClient client) {
+		CSteamID steamID = default;
+
+		if (IsSteamServerNotNull())
+			steamID = SteamGameServer.CreateUnauthenticatedUserConnection();
+		client.SetSteamID(steamID);
+
+		SendUpdatedServerDetails();
+
+		return true;
+	}
+
+	internal bool NotifyClientConnect(BaseClient? client, int unUserID, NetAddress adr, ReadOnlySpan<byte> pvCookie, int ucbCookie) {
+		if (!BIsActive())
+			return true;
+
+		if (client == null || client.IsFakeClient())
+			return false;
+
+		if (ucbCookie <= sizeof(ulong)) {
+			Warning("Client UserID {unUserID} connected with invalid ticket size {ucbCookie}\n");
+			return false;
+		}
+
+		SpanBinaryReader br = new(pvCookie);
+		ulong ulSteamID = br.Read<ulong>();
+
+		CSteamID steamID = new(ulSteamID);
+		if (steamID.GetEUniverse() != SteamGameServer.GetSteamID().GetEUniverse()) {
+			Warning($"Client {unUserID} {steamID.Render()} connected to universe {steamID.GetEUniverse()}, but game server {SteamGameServer.GetSteamID().Render()} is running in universe {SteamGameServer.GetSteamID().GetEUniverse()}\n");
+			return false;
+		}
+		if (!steamID.IsValid() || !steamID.BIndividualAccount()) {
+			Warning($"Client {unUserID} connected from {adr.ToString()} with invalid Steam ID {steamID.Render()}\n");
+			return false;
+		}
+
+		pvCookie = pvCookie[sizeof(ulong)..];
+		ucbCookie -= sizeof(ulong);
+		EBeginAuthSessionResult eResult = SteamGameServer.BeginAuthSession(pvCookie.ToArray() /* This sucks, but Steamworks.NET forces our hand */, ucbCookie, steamID);
+		switch (eResult) {
+			case EBeginAuthSessionResult.k_EBeginAuthSessionResultOK:
+				break;
+			case EBeginAuthSessionResult.k_EBeginAuthSessionResultInvalidTicket:
+				Warning("S3: Client connected with invalid ticket: UserID: %x\n", unUserID);
+				return false;
+			case EBeginAuthSessionResult.k_EBeginAuthSessionResultDuplicateRequest:
+				Warning("S3: Duplicate client connection: UserID: %x SteamID %x\n", unUserID, steamID.ConvertToUint64());
+				return false;
+			case EBeginAuthSessionResult.k_EBeginAuthSessionResultInvalidVersion:
+				Warning("S3: Client connected with invalid ticket ( old version ): UserID: %x\n", unUserID);
+				return false;
+			case EBeginAuthSessionResult.k_EBeginAuthSessionResultGameMismatch:
+				Warning("S3: Client connected with ticket for the wrong game: UserID: %x\n", unUserID);
+				return false;
+			case EBeginAuthSessionResult.k_EBeginAuthSessionResultExpiredTicket:
+				Warning("S3: Client connected with expired ticket: UserID: %x\n", unUserID);
+				return false;
+			default:
+				Warning("S3: Client failed auth session for unknown reason. UserID: %x\n", unUserID);
+				return false;
+		}
+
+		client.SetSteamID(steamID);
+
+		SendUpdatedServerDetails();
+
+		return true;
 	}
 }

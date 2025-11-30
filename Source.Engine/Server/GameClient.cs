@@ -7,6 +7,15 @@ namespace Source.Engine.Server;
 /// Represents a player client in a game server
 /// </summary>
 public class GameClient : BaseClient {
+	public GameClient(int slot, BaseServer server) {
+		Clear();
+
+		ClientSlot = slot;
+		EntityIndex = slot + 1;
+		Server = server;
+		CurrentFrame = null;
+		IsInReplayMode = false;
+	}
 	public bool VoiceLoopback;
 	public AbsolutePlayerLimitBitVec VoiceStreams;   
 	public AbsolutePlayerLimitBitVec VoiceProximity; 

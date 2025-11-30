@@ -258,7 +258,7 @@ public static class PixelWriterImpl
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static unsafe void WritePixelNoAdvanceF(ref PixelWriterState State, Span<byte> Base, float r, float g, float b, float a) {
+	public static void WritePixelNoAdvanceF(ref PixelWriterState State, Span<byte> Base, float r, float g, float b, float a) {
 		Assert(IsUsingFloatFormat(ref State));
 		if ((State.Flags & PixelWriterUsing.Float16) != 0) {
 			Span<Half> fp16 = stackalloc Half[4];
@@ -284,65 +284,63 @@ public static class PixelWriterImpl
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static unsafe void WritePixelNoAdvance(ref PixelWriterState State, Span<byte> Base, int r, int g, int b, int a) {
+	public static void WritePixelNoAdvance(ref PixelWriterState State, Span<byte> Base, int r, int g, int b, int a) {
 		if (State.Size <= 0) return;
 
 		uint rmask = State.RMask, gmask = State.GMask, bmask = State.BMask, amask = State.AMask;
 		short rshift = State.RShift, gshift = State.GShift, bshift = State.BShift, ashift = State.AShift;
 
-		fixed (byte* pBits = Base) {
-			byte* bits = pBits + State.Bits;
-			if (State.Size < 5) {
-				uint val = (uint)((r & rmask) << rshift);
-				val |= (uint)((g & gmask) << gshift);
-				val |= (uint)((bshift > 0) ? ((b & bmask) << bshift) : ((b & bmask) >> -bshift));
-				val |= (uint)((a & amask) << ashift);
+		Span<byte> bits = Base[State.Bits..];
+		if (State.Size < 5) {
+			uint val = (uint)((r & rmask) << rshift);
+			val |= (uint)((g & gmask) << gshift);
+			val |= (uint)((bshift > 0) ? ((b & bmask) << bshift) : ((b & bmask) >> -bshift));
+			val |= (uint)((a & amask) << ashift);
 
-				switch (State.Size) {
-					default:
-						Assert(false);
+			switch (State.Size) {
+				default:
+					Assert(false);
+					return;
+				case 1: {
+						bits[0] = (byte)(val & 0xff);
 						return;
-					case 1: {
-							bits[0] = (byte)(val & 0xff);
-							return;
-						}
-					case 2: {
-							((ushort*)bits)[0] = (ushort)(val & 0xffff);
-							return;
-						}
-					case 3: {
-							((ushort*)bits)[0] = (ushort)(val & 0xffff);
-							bits[2] = (byte)((val >> 16) & 0xff);
-							return;
-						}
-					case 4: {
-							((uint*)bits)[0] = val;
-							return;
-						}
-				}
+					}
+				case 2: {
+						reinterpret<byte, ushort>(bits)[0] = (ushort)(val & 0xffff);
+						return;
+					}
+				case 3: {
+						reinterpret<byte, ushort>(bits)[0] = (ushort)(val & 0xffff);
+						bits[2] = (byte)((val >> 16) & 0xff);
+						return;
+					}
+				case 4: {
+						reinterpret<byte, uint>(bits)[0] = val;
+						return;
+					}
 			}
-			else {
-				long val = (r & rmask) << rshift;
-				val |= (g & gmask) << gshift;
-				val |= (bshift > 0) ? ((b & bmask) << bshift) : ((b & bmask) >> -bshift);
-				val |= (a & amask) << ashift;
+		}
+		else {
+			long val = (r & rmask) << rshift;
+			val |= (g & gmask) << gshift;
+			val |= (bshift > 0) ? ((b & bmask) << bshift) : ((b & bmask) >> -bshift);
+			val |= (a & amask) << ashift;
 
-				switch (State.Size) {
-					case 6: {
-							((uint*)bits)[0] = (uint)(val & 0xffffffff);
-							((ushort*)bits)[2] = (ushort)((val >> 32) & 0xffff);
+			switch (State.Size) {
+				case 6: {
+						reinterpret<byte, uint>(bits)[0] = (uint)(val & 0xffffffff);
+						reinterpret<byte, ushort>(bits)[2] = (ushort)((val >> 32) & 0xffff);
 
-							return;
-						}
-					case 8: {
-							((uint*)bits)[0] = (uint)(val & 0xffffffff);
-							((uint*)bits)[1] = (uint)((val >> 32) & 0xffffffff);
-							return;
-						}
-					default:
-						Assert(false);
 						return;
-				}
+					}
+				case 8: {
+						reinterpret<byte, uint>(bits)[0] = (uint)(val & 0xffffffff);
+						reinterpret<byte, uint>(bits)[1] = (uint)((val >> 32) & 0xffffffff);
+						return;
+					}
+				default:
+					Assert(false);
+					return;
 			}
 		}
 	}

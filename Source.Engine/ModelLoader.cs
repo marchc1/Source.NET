@@ -318,7 +318,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 			nFrameCount = pMaterial.GetNumAnimationFrames();
 		}
 
-		if (pMaterial == matSys.MaterialEmpty) 
+		if (pMaterial == matSys.MaterialEmpty)
 			DevMsg($"Missing sprite material {pName}\n");
 	}
 
@@ -635,10 +635,95 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		Mod_LoadFaces();
 		Mod_LoadVertNormals();
 		Mod_LoadVertNormalIndices();
+		Mod_LoadLeafs();
+		Mod_LoadNodes();
+		List<BSPModel> submodelList = [];
+		Mod_LoadSubmodels(submodelList);
+		SetupSubModels(mod, submodelList);
 
 		MapLoadHelper.Shutdown();
 		double elapsed = Platform.Time - startTime;
 		Common.TimestampedLog($"Map_LoadModel: Finish - loading took {elapsed:F4} seconds");
+	}
+
+	private void Mod_LoadNodes() {
+		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Nodes);
+		BSPDNode[] inNodes = lh.LoadLumpData<BSPDNode>();
+
+		int count = inNodes.Length;
+		BSPMNode[] outNodes = new BSPMNode[count];
+		lh.GetMap().Nodes = outNodes; // TODO!!!!!!!!!!!
+		lh.GetMap().NumNodes = count;
+	}
+
+	private void Mod_LoadLeafs() {
+
+	}
+
+	private void SetupSubModels(Model mod, List<BSPModel> llist) {
+		int i;
+		Span<BSPModel> list = llist.AsSpan();
+
+		InlineModels.EnsureCount(WorldBrushData.NumSubModels);
+
+		for (i = 0; i < WorldBrushData.NumSubModels; i++) {
+			Model starmod = InlineModels[i];
+			ref BSPModel bm = ref list[i];
+			mod.CopyInstantiatedReferenceTo(starmod);
+
+			starmod.Brush.FirstModelSurface = bm.FirstFace;
+			starmod.Brush.NumModelSurfaces = bm.NumFaces;
+			starmod.Brush.FirstNode = (ushort)bm.HeadNode;
+			if (starmod.Brush.FirstNode >= WorldBrushData.NumNodes)
+				Sys.Error($"Inline model {i} has bad firstnode");
+
+			starmod.Maxs = bm.Maxs;
+			starmod.Mins = bm.Mins;
+
+			starmod.Radius = bm.Radius;
+			if (i == 0)
+				starmod.CopyInstantiatedReferenceTo(mod);
+			else {
+				starmod.StrName = $"*{i}";
+				starmod.FileNameHandle = g_pFileSystem.FindOrAddFileName(starmod.StrName);
+			}
+		}
+	}
+
+	static float RadiusFromBounds(in Vector3 mins, in Vector3 maxs) {
+		Vector3 corner = default;
+		for (int i = 0; i < 3; i++)
+			corner[i] = Math.Max(MathF.Abs(mins[i]), MathF.Abs(maxs[i]));
+
+		return MathLib.VectorLength(corner);
+	}
+
+
+	private void Mod_LoadSubmodels(List<BSPModel> inSubmodelList) {
+		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Models);
+		BSPDModel[] inModels = lh.LoadLumpData<BSPDModel>();
+
+		int count = inModels.Length;
+		BSPModel[] outModels = new BSPModel[count];
+
+
+		inSubmodelList.EnsureCount(count);
+		lh.GetMap().NumSubModels = count;
+
+		Span<BSPModel> submodelList = inSubmodelList.AsSpan();
+
+		for (int i = 0; i < count; i++) {
+			ref BSPDModel dm = ref inModels[i];
+			for (int j = 0; j < 3; j++) {
+				submodelList[i].Mins[j] = dm.Mins[j] - 1;
+				submodelList[i].Maxs[j] = dm.Maxs[j] + 1;
+				submodelList[i].Origin[j] = dm.Origin[j];
+			}
+			submodelList[i].Radius = RadiusFromBounds(submodelList[i].Mins, submodelList[i].Maxs);
+			submodelList[i].HeadNode = dm.HeadNode;
+			submodelList[i].FirstFace = dm.FirstFace;
+			submodelList[i].NumFaces = dm.NumFaces;
+		}
 	}
 
 	private void Map_LoadLighting(MapLoadHelper lh) {
@@ -691,17 +776,17 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	public static unsafe int MSurf_Index(ref BSPMSurface2 surfID, WorldBrushData? data = null) => (int)surfID.SurfNum;
 	public static ref int MSurf_FirstVertIndex(ref BSPMSurface2 surfID) => ref surfID.FirstVertIndex;
 	public static ref uint MSurf_FirstVertNormal(ref BSPMSurface2 surfID, WorldBrushData? data = null) {
-		data ??= Singleton<CommonHostState>().WorldBrush;
+		data ??= host_state.WorldBrush;
 		int surfaceIndex = MSurf_Index(ref surfID, data);
 		return ref data!.SurfaceNormals![surfaceIndex].FirstVertNormal;
 	}
 	public static Span<short> MSurf_LightmapMins(ref BSPMSurface2 surfID, WorldBrushData? data = null) {
-		data ??= Singleton<CommonHostState>().WorldBrush;
+		data ??= host_state.WorldBrush;
 		int surfaceIndex = MSurf_Index(ref surfID, data);
 		return data!.SurfaceLighting![surfaceIndex].LightmapMins;
 	}
 	public static Span<short> MSurf_LightmapExtents(ref BSPMSurface2 surfID, WorldBrushData? data = null) {
-		data ??= Singleton<CommonHostState>().WorldBrush;
+		data ??= host_state.WorldBrush;
 		int surfaceIndex = MSurf_Index(ref surfID, data);
 		return data!.SurfaceLighting![surfaceIndex].LightmapExtents;
 	}
@@ -719,9 +804,9 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	public static bool SurfaceHasPrims(ref BSPMSurface2 surfID) => (MSurf_Flags(ref surfID) & SurfDraw.HasPrims) != 0;
 	public static int MSurf_SortGroup(ref BSPMSurface2 surfID) => (int)(surfID.Flags & SurfDraw.SortGroupMask) >> (int)SurfDraw.SortGroupShift;
 	public static void MSurf_SetSortGroup(ref BSPMSurface2 surfID, int sortGroup) => surfID.Flags |= (SurfDraw)((sortGroup << (int)SurfDraw.SortGroupShift) & (int)SurfDraw.SortGroupMask);
-	public static ref ModelTexInfo MSurf_TexInfo(ref BSPMSurface2 surfID, WorldBrushData? data = null) => ref (data ?? Singleton<CommonHostState>().WorldBrush)!.TexInfo![surfID.TexInfo];
+	public static ref ModelTexInfo MSurf_TexInfo(ref BSPMSurface2 surfID, WorldBrushData? data = null) => ref (data ?? host_state.WorldBrush)!.TexInfo![surfID.TexInfo];
 	public static Span<short> MSurf_OffsetIntoLightmapPage(ref BSPMSurface2 surfID, WorldBrushData? data = null) {
-		data ??= Singleton<CommonHostState>().WorldBrush;
+		data ??= host_state.WorldBrush;
 		return data!.SurfaceLighting![MSurf_Index(ref surfID, data)].OffsetIntoLightmapPage;
 	}
 	public static int MSurf_VertCount(ref BSPMSurface2 surfID) => (int)(((uint)surfID.Flags >> (int)SurfDraw.VertCountShift) & 0xFF);
@@ -978,7 +1063,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 
 		if (name[0] == '*') {
 			int.TryParse(name[1..], out int modelNum);
-			if (IsWorldModelSet())
+			if (!IsWorldModelSet())
 				Sys.Error($"bad inline model number {modelNum}, worldmodel not yet setup");
 
 			if (modelNum < 1 || modelNum >= GetNumWorldSubmodels())
@@ -1007,11 +1092,14 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	}
 
 	private bool IsWorldModelSet() {
-		throw new NotImplementedException();
+		return WorldModel != null;
 	}
 
 	private int GetNumWorldSubmodels() {
-		throw new NotImplementedException();
+		if (!IsWorldModelSet())
+			return 0;
+
+		return WorldBrushData.NumSubModels;
 	}
 
 	public ReadOnlySpan<char> GetName(Model model) {

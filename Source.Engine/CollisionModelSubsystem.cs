@@ -217,7 +217,7 @@ public class CollisionBSPData
 	}
 	internal void LoadNodes() {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Nodes);
-		BSPNode[] inData = lh.LoadLumpData<BSPNode>(throwIfNoElements: true, BSPFileCommon.MAX_MAP_NODES, sysErrorIfOOB: true);
+		BSPDNode[] inData = lh.LoadLumpData<BSPDNode>(throwIfNoElements: true, BSPFileCommon.MAX_MAP_NODES, sysErrorIfOOB: true);
 		int count = inData.Length;
 		MapNodes.Clear(); MapNodes.EnsureCount(count + 6);
 
@@ -227,7 +227,7 @@ public class CollisionBSPData
 		Span<CollisionNode> outNodes = MapNodes.AsSpan();
 		Span<CollisionPlane> planes = MapPlanes.AsSpan();
 		for (int i = 0; i < count; i++) {
-			ref BSPNode _in = ref inData[i];
+			ref BSPDNode _in = ref inData[i];
 			ref CollisionNode _out = ref outNodes[i];
 			_out.CollisionPlaneIdx = _in.PlaneNum;
 			for (int j = 0; j < 2; j++)

@@ -239,8 +239,8 @@ public abstract class BaseClientState(
 						if (secure && !Host.IsSecureServerAllowed()) {
 							Disconnect("You are in insecure mode.  You must restart before you can connect to secure servers.", true);
 						}
-						SendConnectPacket(challenge, authProtocol, gameServerID, secure);
 					}
+					SendConnectPacket(challenge, authProtocol, gameServerID, secure);
 				}
 				break;
 		}
@@ -674,7 +674,7 @@ public abstract class BaseClientState(
 			return;
 		}
 		adr = new() { Endpoint = addr, Type = NetAddressType.IP };
-		if (addr.Port == 0) 
+		if (addr.Port == 0)
 			addr.Port = Net.PORT_SERVER;
 
 		bf_write msg = new();
@@ -686,14 +686,18 @@ public abstract class BaseClientState(
 		msg.WriteLong(authProtocol);
 		msg.WriteLong(challengeNr);
 		msg.WriteLong(RetryChallenge);
+#if GMOD_DLL
 		msg.WriteUBitLong(msg.ChecksumXOR(), 32);
+#endif
 		msg.WriteString(GetClientName(), true, 256);
 		msg.WriteString(password.GetString(), true, 256);
 		msg.WriteString(SteamAppInfo.GetSteamInf(fileSystem).PatchVersion, true, 32);
 
 		switch (authProtocol) {
 			case Protocol.PROTOCOL_HASHEDCDKEY:
-				throw new Exception("Cannot use CD key protocol");
+				cdKey = GetCDKeyHash();
+				msg.WriteString(cdKey);
+				break;
 			case Protocol.PROTOCOL_STEAM:
 				if (!PrepareSteamConnectResponse(gameServerSteamID, gameServerSecure, addr, msg))
 					return;
