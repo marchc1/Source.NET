@@ -514,7 +514,7 @@ public class EngineVGui(
 
 		// Root -- staticPanel
 		//		staticBackgroundImagePanel (from gamui) zpos == 0
-		//      staticClientDLLPanel ( zpos == 25 )
+		//    staticClientDLLPanel ( zpos == 25 )
 		//		staticClientDLLToolsPanel ( zpos == 28
 		//		staticGameDLLPanel ( zpos == 30 )
 		//		staticEngineToolsPanel ( zpos == 75 )
@@ -595,7 +595,14 @@ public class EngineVGui(
 
 			// FogUIPanel.InstallFogUI(staticEngineToolsPanel);
 
-			// TxViewwPanel.Install(staticEngineToolsPanel);
+			// TxViewPanel.Install(staticEngineToolsPanel);
+
+			Common.TimestampedLog("Install perf tools");
+
+			EnginePerfTools.InstallPerformanceToolsUI(staticEngineToolsPanel);
+
+			// colorcorrectiontools.InstallColorCorrectionUI(staticEngineToolsPanel);
+			// colorcorrectiontools.Init();
 		}
 
 		if (CommandLine.CheckParm("-tools"))
