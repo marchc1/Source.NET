@@ -247,14 +247,14 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			if (item == null)
 				continue;
 
-			if (!MemoryExtensions.Equals(command, item.GetText().AsSpan(), StringComparison.OrdinalIgnoreCase))
+			if (!strieq(command, item.GetText()))
 				continue;
 
 			if (!extra.IsEmpty || item.GetExtra() != null) {
 				if (extra.IsEmpty || item.GetExtra() == null)
 					continue;
 
-				if (!MemoryExtensions.Equals(extra, item.GetExtra().AsSpan(), StringComparison.OrdinalIgnoreCase))
+				if (!strieq(extra, item.GetExtra()))
 					continue;
 			}
 

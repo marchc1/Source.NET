@@ -161,7 +161,7 @@ public class ComboBox : TextEntry
 		int buttonSize = Math.Min(tall, fontTall);
 		int buttonY = (tall - 1 - buttonSize) / 2;
 
-		Button.GetContentSize(out int buttonWide, out int buttonTall);
+		Button.GetContentSize(out int buttonWide, out _);
 		buttonWide = Math.Max(buttonSize, buttonWide);
 
 		Button.SetBounds(wide - buttonWide, buttonY, buttonWide, buttonSize);
@@ -257,7 +257,7 @@ public class ComboBox : TextEntry
 		Span<char> buf = stackalloc char[255];
 		GetText(buf);
 
-		if (!MemoryExtensions.Equals(buf, text, StringComparison.Ordinal)) {
+		if (!streq(buf, text)) {
 			SetText(text);
 
 			if (!PreventTextChangeMessage)
@@ -328,7 +328,7 @@ public class ComboBox : TextEntry
 			menuItemName.Clear();
 			int menuID = DropDown.GetMenuID(i);
 			DropDown.GetMenuItem(menuID)!.GetText(menuItemName);
-			if (MemoryExtensions.Equals(comboBoxContents, menuItemName, StringComparison.Ordinal)) {
+			if (streq(comboBoxContents, menuItemName)) {
 				itemToSelect = i;
 				break;
 			}
@@ -381,10 +381,13 @@ public class ComboBox : TextEntry
 	public override void OnSizeChanged(int newWide, int newTall) {
 		base.OnSizeChanged(newWide, newTall);
 
-		// FIXME: Button is null here?
-		//PerformLayout();
-		//Button.GetSize(out int bwide, out _);
-		//SetDrawWidth(newWide - bwide);
+		// FIXME: Button can be null here?
+		if (Button == null)
+			return;
+
+		PerformLayout();
+		Button.GetSize(out int bwide, out _);
+		SetDrawWidth(newWide - bwide);
 	}
 
 	public override void OnSetFocus() {
@@ -427,7 +430,7 @@ public class ComboBox : TextEntry
 			menuItemName.Clear();
 			int menuID = DropDown.GetMenuID(i);
 			DropDown.GetMenuItem(menuID)!.GetText(menuItemName);
-			if (MemoryExtensions.Equals(comboBoxContents, menuItemName, StringComparison.Ordinal)) {
+			if (streq(comboBoxContents, menuItemName)) {
 				itemToSelect = i;
 				break;
 			}

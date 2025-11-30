@@ -6,7 +6,7 @@ namespace Game.UI;
 
 public class CCvarToggleCheckButton : CheckButton
 {
-	public static Panel Create_CCvarToggleCheckButton() => new CCvarToggleCheckButton(null, null, null, null);
+	public static Panel Create_CCvarToggleCheckButton() => new CCvarToggleCheckButton(null, null, "CvarToggleCheckButton", null);
 
 	string? CvarName;
 	bool StartValue;

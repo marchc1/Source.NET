@@ -1027,6 +1027,8 @@ public class Panel : IPanel
 		SetAutoResize(pinCorner, autoResize, pinnedCornerOffsetX, pinnedCornerOffsetY, unpinnedCornerOffsetX, unpinnedCornerOffsetY);
 	}
 
+	public AutoResize GetAutoResize() => AutoResizeDirection;
+
 	PinCorner PinCorner;
 	AutoResize AutoResizeDirection;
 	int PinDeltaX;
