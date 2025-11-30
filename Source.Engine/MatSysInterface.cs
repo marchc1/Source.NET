@@ -680,7 +680,9 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			VertCount = vertexCount,
 			IndexCount = indexCount,
 			VertexFormat = format,
-			Material = material
+			Material = material,
+			// This will not be correct
+			LightmapPageID = ((IMaterialInternal)material).GetMinLightmapPageID()
 		});
 
 		return Meshes.Count - 1;

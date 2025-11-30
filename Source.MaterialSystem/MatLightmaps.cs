@@ -489,8 +489,8 @@ public class MatLightmaps
 			}
 		}
 
-		LightmapPixelWriter.Dispose();
 		ShaderAPI.TexUnlock();
+		LightmapPixelWriter.Dispose();
 	}
 
 	private unsafe void LightmapBitsToPixelWriter_LDR(Span<float> floatImage, Span<int> lightmapSize, Span<int> offsetIntoLightmapPage, FloatBitMap? pfmOut) {

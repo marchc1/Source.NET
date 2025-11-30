@@ -1088,6 +1088,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		if (desiredLength > lockdata.Length)
 			lockdata = new byte[MathLib.CeilPow2(desiredLength)];
 
+		Array.Clear(lockdata);
 		return lockdata.AsMemory()[..desiredLength];
 	}
 
