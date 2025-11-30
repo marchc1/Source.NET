@@ -676,16 +676,17 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			return i;
 		}
 
+		int sortID = Meshes.Count;
 		Meshes.Add(new() {
 			VertCount = vertexCount,
 			IndexCount = indexCount,
 			VertexFormat = format,
 			Material = material,
 			// This will not be correct
-			LightmapPageID = ((IMaterialInternal)material).GetMinLightmapPageID()
+			LightmapPageID = SortInfoToLightmapPage(sortID)
 		});
 
-		return Meshes.Count - 1;
+		return sortID;
 	}
 
 	public void WorldStaticMeshDestroy() {

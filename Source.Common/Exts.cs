@@ -1377,6 +1377,7 @@ public static class UnmanagedUtils
 /// </summary>
 public static class GlobalReflectionUtils
 {
+	public static Span<O> reinterpret<I, O>(Span<I> value) where I : unmanaged where O : unmanaged => value.Cast<I, O>();
 	public static ref O reinterpret<I, O>(ref I value) where I : unmanaged where O : unmanaged => ref new Span<I>(ref value).Cast<I, O>()[0];
 	public static ref readonly O const_reinterpret<I, O>(ref I value) where I : unmanaged where O : unmanaged => ref new ReadOnlySpan<I>(in value).Cast<I, O>()[0];
 

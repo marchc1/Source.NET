@@ -369,10 +369,23 @@ public struct BSPGameLump
 /// <summary>
 /// Analog of dmodel_t
 /// </summary>
+public struct BSPDModel
+{
+	public Vector3 Mins, Maxs;
+	public Vector3 Origin;
+	public int HeadNode;
+	public int FirstFace, NumFaces;
+}
+
+
+/// <summary>
+/// Analog of mmodel_t
+/// </summary>
 public struct BSPModel
 {
 	public Vector3 Mins, Maxs;
 	public Vector3 Origin;
+	public float Radius;
 	public int HeadNode;
 	public int FirstFace, NumFaces;
 }
@@ -415,7 +428,7 @@ public struct BSPPlane
 /// <summary>
 /// Analog of dnode_t
 /// </summary>
-public struct BSPNode
+public struct BSPDNode
 {
 	public int PlaneNum;
 	public InlineArray2<int> Children;
@@ -424,6 +437,23 @@ public struct BSPNode
 	public ushort FirstFace;
 	public ushort NumFaces;
 	public short Area;
+}
+/// <summary>
+/// Analog of mnode_t
+/// </summary>
+public class BSPMNode
+{
+	public int Contents;
+	public int VisFrame;
+	public BSPMNode? Parent;
+	public short Area;
+	public short Flags;
+	public Vector3 Center;
+	public Vector3 HalfDiagnoal;
+	public CollisionPlane[]? Plane;
+	public InlineArray2<BSPMNode?> Children;
+	public ushort FirstSurface;
+	public ushort NumSurfaces;
 }
 /// <summary>
 /// Analog of texinfo_s
@@ -485,7 +515,8 @@ public struct BSPMSurface1
 /// <summary>
 /// Analog of msurfacelighting
 /// </summary>
-public struct BSPSurfaceLighting {
+public struct BSPSurfaceLighting
+{
 	public nint SurfNum;
 
 	public unsafe Span<ColorRGBExp32> AvgLightColor(int lightStyleIndex) {
@@ -500,11 +531,11 @@ public struct BSPSurfaceLighting {
 	public InlineArray2<short> LightmapExtents;
 	public InlineArray2<short> OffsetIntoLightmapPage;
 
-	public int LastComputedFrame; 
-	public int DLightBits;        
-	public int DLightFrame;       
+	public int LastComputedFrame;
+	public int DLightBits;
+	public int DLightFrame;
 
-	public InlineArrayMaxLightmaps<byte> Styles;  
+	public InlineArrayMaxLightmaps<byte> Styles;
 	public Memory<ColorRGBExp32> Samples;
 }
 public struct BSPMSurfaceNormal
@@ -677,14 +708,16 @@ public struct BSPPrimVert
 }
 
 
-public enum BSPPrimType {
+public enum BSPPrimType
+{
 	TriList,
 	TriStrip
 }
 /// <summary>
 /// Analog of mprimitive_t
 /// </summary>
-public struct BSPMPrimitive {
+public struct BSPMPrimitive
+{
 	public BSPPrimType Type;
 	public int FirstIndex;
 	public int IndexCount;
@@ -695,7 +728,8 @@ public struct BSPMPrimitive {
 /// <summary>
 /// Analog of mprimvert_t
 /// </summary>
-public struct BSPMPrimVert {
+public struct BSPMPrimVert
+{
 	public Vector3 Position;
 	public Vector2 TexCoord;
 	public Vector2 LightCoord;
