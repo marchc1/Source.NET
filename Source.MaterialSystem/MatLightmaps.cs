@@ -565,7 +565,17 @@ public class MatLightmaps
 	}
 
 	void LightmapBitsToPixelWriter_LDR(Span<float> floatImage, Span<int> lightmapSize, Span<int> offsetIntoLightmapPage) {
-		throw new NotImplementedException();
+		Span<float> src = floatImage;
+		Span<byte> color = stackalloc byte[4];
+		for (int t = 0; t < lightmapSize[1]; ++t) {
+			LightmapPixelWriter.Seek(offsetIntoLightmapPage[0], offsetIntoLightmapPage[1] + t);
+			for (int s = 0; s < lightmapSize[0]; ++s, src = src[4..]) {
+				memreset(color);
+				ColorSpace.LinearToLightmap(color, src);
+				color[3] = MathLib.RoundFloatToByte(src[3] * 255.0f);
+				LightmapPixelWriter.WritePixel(color[0], color[1], color[2], color[3]);
+			}
+		}
 	}
 
 	void LightmapBitsToPixelWriter_HDRF(Span<float> floatImage, Span<int> lightmapSize, Span<int> offsetIntoLightmapPage) {
