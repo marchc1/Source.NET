@@ -147,8 +147,8 @@ public class MatLightmaps
 
 		return height;
 	}
-	public  int GetNumLightmapPages() => NumLightmapPages;
-	public  int GetMaxLightmapPageWidth() {
+	public int GetNumLightmapPages() => NumLightmapPages;
+	public int GetMaxLightmapPageWidth() {
 		int width = 512;
 		if (width > MaterialSystem.HardwareConfig.MaxTextureWidth())
 			width = MaterialSystem.HardwareConfig.MaxTextureWidth();
@@ -308,9 +308,9 @@ public class MatLightmaps
 
 	int LockedLightmap;
 	public bool LockLightmap(int lightmap) {
-		if (LockedLightmap != -1) 
+		if (LockedLightmap != -1)
 			ShaderAPI.TexUnlock();
-		
+
 		ShaderAPI.ModifyTexture(LightmapPageTextureHandles[lightmap].Handle);
 		int pageWidth = LightmapPages![lightmap].Width;
 		int pageHeight = LightmapPages![lightmap].Height;
@@ -497,7 +497,7 @@ public class MatLightmaps
 		Span<float> src = floatImage;
 		Span<byte> color = stackalloc byte[4];
 		for (int t = 0; t < lightmapSize[1]; ++t) {
-			LightmapPixelWriter.Seek(0, t - lightmapSize[1]);
+			LightmapPixelWriter.Seek(0, t);
 			for (int s = 0; s < lightmapSize[0]; ++s, src = src[4..]) {
 				memreset(color);
 				ColorSpace.LinearToLightmap(color, src);
