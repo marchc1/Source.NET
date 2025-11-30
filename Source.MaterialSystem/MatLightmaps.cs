@@ -10,35 +10,6 @@ using System.Runtime.CompilerServices;
 
 namespace Source.MaterialSystem;
 
-public static class ColorSpace
-{
-	static float[] textureToLinear = new float[256];  // texture (0..255) to linear (0..1)
-	static int[] linearToTexture = new int[1024];   // linear (0..1) to texture (0..255)
-	static int[] linearToScreen = new int[1024];    // linear (0..1) to gamma corrected vertex light (0..255)
-	static float[] g_LinearToVertex = new float[4096];   // linear (0..4) to screen corrected vertex space (0..1?)
-	static int[] linearToLightmap = new int[4096];  // linear (0..4) to screen corrected texture value (0..255)
-
-	public static void LinearToLightmap(Span<byte> pDstRGB, ReadOnlySpan<float> pSrcRGB) {
-		Vector3 tmpVect = default;
-		int i, j;
-		for (j = 0; j < 3; j++) {
-			i = MathLib.RoundFloatToInt(pSrcRGB[j] * 1024); // assume 0..4 range
-			if (i < 0) {
-				i = 0;
-			}
-			if (i > 4091)
-				i = 4091;
-			tmpVect[j] = g_LinearToVertex[i];
-		}
-
-		MathLib.ColorClamp(ref tmpVect);
-
-		pDstRGB[0] = MathLib.RoundFloatToByte(tmpVect[0] * 255.0f);
-		pDstRGB[1] = MathLib.RoundFloatToByte(tmpVect[1] * 255.0f);
-		pDstRGB[2] = MathLib.RoundFloatToByte(tmpVect[2] * 255.0f);
-	}
-}
-
 public class MatLightmaps
 {
 	private readonly MaterialSystem MaterialSystem;
@@ -527,7 +498,7 @@ public class MatLightmaps
 		Span<byte> color = stackalloc byte[4];
 		for (int t = 0; t < lightmapSize[1]; ++t) {
 			LightmapPixelWriter.Seek(offsetIntoLightmapPage[0], offsetIntoLightmapPage[1] + t);
-			for (int s = 0; s < lightmapSize[0]; ++s, src = src[(sizeof(Vector4) / sizeof(float))..]) {
+			for (int s = 0; s < lightmapSize[0]; ++s, src = src[4..]) {
 				memreset(color);
 				ColorSpace.LinearToLightmap(color, src);
 				color[3] = MathLib.RoundFloatToByte(src[3] * 255.0f);

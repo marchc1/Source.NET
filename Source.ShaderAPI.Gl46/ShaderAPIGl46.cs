@@ -721,7 +721,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		CreateTextureHandles(textureHandles);
 		for (int i = 0; i < count; i++) {
 			ShaderAPITextureHandle_t handle = textureHandles[i];
-			glObjectLabel(GL_TEXTURE, (uint)handle, $"ShaderAPI Texture '{debugName}' [frame {i}]");
+			glObjectLabel(GL_TEXTURE, (uint)handle, $"ShaderAPI Texture '{debugName.SliceNullTerminatedString()}' [frame {i}]");
 
 			ConvertDataToAcceptableGLFormat(imageFormat, null, out ImageFormat dstFormat, out _);
 			glTextureStorage2D((uint)handle, mipCount, ImageLoader.GetGLImageInternalFormat(dstFormat), width, height);
@@ -1082,8 +1082,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 	// This is a rushed implementation
 
 	byte[] lockdata = new byte[2048 * 2048];
-	Memory<byte> GetTempLockBuffer(InternalTextureInfo info) {
-		int desiredLength = ImageLoader.SizeInBytes(info.Format) * (info.Width) * (info.Height);
+	Memory<byte> GetTempLockBuffer(ImageFormat format, int width, int height) {
+		int desiredLength = ImageLoader.SizeInBytes(format) * (width) * (height);
 
 		if (desiredLength > lockdata.Length)
 			lockdata = new byte[MathLib.CeilPow2(desiredLength)];
@@ -1105,7 +1105,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		Lock.H = height;
 		Lock.Handle = ModifyTextureHandle;
 		Lock.Format = info.Format;
-		writer.SetPixelMemory(info.Format, GetTempLockBuffer(info).Span, 0);
+		writer.SetPixelMemory(info.Format, GetTempLockBuffer(info.Format, width, height).Span, width);
 		return true;
 	}
 
@@ -1121,12 +1121,14 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		Lock.H = height;
 		Lock.Handle = ModifyTextureHandle;
 		Lock.Format = info.Format;
-		writer.SetPixelMemory(info.Format, GetTempLockBuffer(info), 0);
+		writer.SetPixelMemory(info.Format, GetTempLockBuffer(info.Format, width, height), width);
 		return true;
 	}
 
-	public void TexUnlock() {
-		TexSubImage2D(Lock.Mip, Lock.CubeID, Lock.X, Lock.Y, 0, Lock.W, Lock.H, Lock.Format, 0, lockdata);
+	public unsafe void TexUnlock() {
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+		fixed (byte* data = lockdata)
+			glTextureSubImage2D((uint)Lock.Handle, Lock.Mip, Lock.X, Lock.Y, Lock.W, Lock.H, ImageLoader.GetGLImageUploadFormat(Lock.Format), GL_UNSIGNED_BYTE, data);
 		Lock = default;
 	}
 
