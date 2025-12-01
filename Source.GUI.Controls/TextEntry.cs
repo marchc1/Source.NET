@@ -1921,6 +1921,10 @@ public class TextEntry : Panel
 		SetFont(Font);
 	}
 
+	public void SetSelectionTextColor(Color color) => SelectionTextColor = color;
+	public void SetSelectionBgColor(Color color) => SelectionColor = color;
+	public void SetSelectionUnfocusedBgColor(Color color) => DefaultSelectionBG2Color = color;
+
 	public virtual void SetFont(IFont? font) {
 		Font = font;
 		InvalidateLayout();

@@ -2263,7 +2263,7 @@ public class Panel : IPanel
 		}
 	}
 
-	private bool IsKeyRebound(ButtonCode code, KeyModifier modifiers) {
+	virtual public bool IsKeyRebound(ButtonCode code, KeyModifier modifiers) {
 		return false;
 	}
 
