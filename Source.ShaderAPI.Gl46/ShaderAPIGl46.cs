@@ -1092,7 +1092,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		return lockdata.AsMemory()[..desiredLength];
 	}
 
-	public bool TexLock(int level, int cubeFaceID, int xOffset, int yOffset, int width, int height, ref PixelWriter writer) {
+	public unsafe bool TexLock(int level, int cubeFaceID, int xOffset, int yOffset, int width, int height, ref PixelWriter writer) {
 		if (!Textures.TryGetValue(ModifyTextureHandle, out InternalTextureInfo? info))
 			return false;
 		if (Lock.Locked)
@@ -1106,23 +1106,35 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		Lock.H = height;
 		Lock.Handle = ModifyTextureHandle;
 		Lock.Format = info.Format;
-		writer.SetPixelMemory(info.Format, GetTempLockBuffer(info.Format, width, height).Span, width * ImageLoader.SizeInBytes(info.Format));
+
+		Memory<byte> buffer = GetTempLockBuffer(info.Format, width, height);
+		fixed(byte* data = buffer.Span){
+			glGetTextureSubImage((uint)ModifyTextureHandle, 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
+		}
+		writer.SetPixelMemory(info.Format, buffer.Span, width * ImageLoader.SizeInBytes(info.Format));
 		return true;
 	}
 
-	public bool TexLock(int level, int cubeFaceID, int xOffset, int yOffset, int width, int height, ref PixelWriterMem writer) {
+	public unsafe bool TexLock(int level, int cubeFaceID, int xOffset, int yOffset, int width, int height, ref PixelWriterMem writer) {
 		if (!Textures.TryGetValue(ModifyTextureHandle, out InternalTextureInfo? info))
 			return false;
 		if (Lock.Locked)
 			return false;
 
+		Lock.Mip = level;
+		Lock.CubeID = cubeFaceID;
 		Lock.X = xOffset;
 		Lock.Y = yOffset;
 		Lock.W = width;
 		Lock.H = height;
 		Lock.Handle = ModifyTextureHandle;
 		Lock.Format = info.Format;
-		writer.SetPixelMemory(info.Format, GetTempLockBuffer(info.Format, width, height), width * ImageLoader.SizeInBytes(info.Format));
+
+		Memory<byte> buffer = GetTempLockBuffer(info.Format, width, height);
+		fixed (byte* data = buffer.Span) {
+			glGetTextureSubImage((uint)ModifyTextureHandle, 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
+		}
+		writer.SetPixelMemory(info.Format, buffer, width * ImageLoader.SizeInBytes(info.Format));
 		return true;
 	}
 

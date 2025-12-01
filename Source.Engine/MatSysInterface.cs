@@ -1,5 +1,7 @@
 using CommunityToolkit.HighPerformance;
 
+using DStruct.BinaryTrees;
+
 using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
@@ -18,7 +20,7 @@ public struct MaterialList
 {
 	public short NextBlock;
 	public short Count;
-	public InlineArray15<BSPMSurface2> Surfaces;
+	public InlineArray15<nint> Surfaces;
 }
 
 public struct SurfaceSortGroup
@@ -116,7 +118,7 @@ public class MSurfaceSortList
 			}
 		}
 		if (!Unsafe.IsNullRef(ref list)) {
-			list.Surfaces[list.Count] = surface;
+			list.Surfaces[list.Count] = surface.SurfNum;
 			list.Count++;
 		}
 		else {
@@ -139,7 +141,7 @@ public class MSurfaceSortList
 			list = ref m_list[nextBlock];
 			list.NextBlock = -1;
 			list.Count = 1;
-			list.Surfaces[0] = surface;
+			list.Surfaces[0] = surface.SurfNum;
 		}
 	}
 
@@ -166,7 +168,7 @@ public class MSurfaceSortList
 	internal ref BSPMSurface2 GetSurfaceAtHead(in SurfaceSortGroup group) {
 		if (group.ListHead == -1)
 			return ref Unsafe.NullRef<BSPMSurface2>();
-		return ref List.AsSpan()[group.ListHead].Surfaces[0];
+		return ref host_state.WorldBrush!.Surfaces2![List.AsSpan()[group.ListHead].Surfaces[0]];
 	}
 }
 public class MatSysInterface(IMaterialSystem materials, IServiceProvider services)
@@ -178,7 +180,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	public readonly int[] LightStyleValue = new int[256];
 	public readonly int[] LightStyleNumFrames = new int[256];
 	public readonly int[] LightStyleFrame = new int[256];
-	
+
 	public void Init() {
 		InitWellKnownRenderTargets();
 		InitDebugMaterials();
@@ -257,8 +259,8 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		for (short _blockIndex = group.ListHead; _blockIndex != -1; _blockIndex = list.GetSurfaceBlock(_blockIndex).NextBlock) {
 			ref MaterialList matList = ref list.GetSurfaceBlock(_blockIndex);
 			for (int _index = 0; _index < matList.Count; ++_index) {
-				ref BSPMSurface2 surfID = ref matList.Surfaces[_index];
-				int vertCount = ModelLoader.MSurf_VertCount(ref surfID); 
+				ref BSPMSurface2 surfID = ref host_state.WorldBrush!.Surfaces2![matList.Surfaces[_index]];
+				int vertCount = ModelLoader.MSurf_VertCount(ref surfID);
 				vertexCount += vertCount;
 
 				int numPolygons = vertCount - 2;
@@ -330,7 +332,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 					for (short _blockIndex = group.ListHead; _blockIndex != -1; _blockIndex = matSortArray.GetSurfaceBlock(_blockIndex).NextBlock) {
 						ref MaterialList matList = ref matSortArray.GetSurfaceBlock(_blockIndex);
 						for (int _index = 0; _index < matList.Count; ++_index) {
-							ref BSPMSurface2 surfID = ref matList.Surfaces[_index];
+							ref BSPMSurface2 surfID = ref host_state.WorldBrush!.Surfaces2![matList.Surfaces[_index]];
 							ModelLoader.MSurf_VertBufferIndex(ref surfID) = (ushort)vertBufferIndex;
 
 							if (!ModelLoader.SurfaceHasPrims(ref surfID)) {
@@ -385,26 +387,10 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	}
 
 	private void BuildMSurfacePrimIndices(BSPPrimType type, WorldBrushData brushData, ref BSPMPrimitive prim, ref MeshBuilder builder) {
-		int firstVertex = prim.FirstIndex;
-		int vertCount = prim.VertCount;
-		switch (prim.Type) {
-			case BSPPrimType.TriList:
-				for (int i = 0, numPolygons = vertCount; i < numPolygons; ++i) {
-					builder.FastIndex((ushort)(firstVertex + (i * 3)));
-					builder.FastIndex((ushort)(firstVertex + (i * 3) + 1));
-					builder.FastIndex((ushort)(firstVertex + (i * 3) + 2));
-				}
-				break;
-			case BSPPrimType.TriStrip:
-				for (int i = 0, numPolygons = vertCount - 2; i < numPolygons; ++i) {
-					builder.FastIndex((ushort)firstVertex);
-					builder.FastIndex((ushort)(firstVertex + i + 1));
-					builder.FastIndex((ushort)(firstVertex + i + 2));
-				}
-				break;
-			default:
-				Assert(false);
-				return;
+		for (int i = 0; i < prim.IndexCount; i++) {
+			ushort primIndex = brushData.PrimIndices![prim.FirstIndex + i];
+			builder.Index((ushort)(primIndex - prim.FirstVert));
+			builder.AdvanceIndex();
 		}
 	}
 
@@ -551,25 +537,35 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		bool hasLightmap2 = (ModelLoader.MSurf_Flags(ref surfID2) & SurfDraw.NoLight) == 0;
 
 		if (hasLightmap1 != hasLightmap2)
-			return (hasLightmap2 ? 1 : 0) - (hasLightmap1 ? 1 : 0);
+			return hasLightmap2.CompareTo(hasLightmap1);
 
-		IMaterial? material1 = ModelLoader.MSurf_TexInfo(ref surfID1).Material;
-		IMaterial? material2 = ModelLoader.MSurf_TexInfo(ref surfID2).Material;
-		int enum1 = material1!.GetEnumerationID();
-		int enum2 = material2!.GetEnumerationID();
+		int enum1 = ModelLoader.MSurf_TexInfo(ref surfID1).Material!.GetEnumerationID();
+		int enum2 = ModelLoader.MSurf_TexInfo(ref surfID2).Material!.GetEnumerationID();
+
 		if (enum1 != enum2)
-			return enum1 - enum2;
+			return enum1.CompareTo(enum2);
 
 		bool hasLightstyle1 = (ModelLoader.MSurf_Flags(ref surfID1) & SurfDraw.HasLightStyles) == 0;
 		bool hasLightstyle2 = (ModelLoader.MSurf_Flags(ref surfID2) & SurfDraw.HasLightStyles) == 0;
 
 		if (hasLightstyle1 != hasLightstyle2)
-			return (hasLightstyle2 ? 1 : 0) - (hasLightstyle1 ? 1 : 0);
+			return hasLightstyle2.CompareTo(hasLightstyle1);
 
 		int area1 = ModelLoader.MSurf_LightmapExtents(ref surfID1)[0] * ModelLoader.MSurf_LightmapExtents(ref surfID1)[1];
 		int area2 = ModelLoader.MSurf_LightmapExtents(ref surfID2)[0] * ModelLoader.MSurf_LightmapExtents(ref surfID2)[1];
-		return area2 - area1;
+
+		return area2.CompareTo(area1);
 	}
+
+	class RBComparer(BSPMSurface2[] surfaces) : IComparer<nint>
+	{
+		public int Compare(nint sn1, nint sn2) {
+			ref BSPMSurface2 surfID1 = ref surfaces[sn1];
+			ref BSPMSurface2 surfID2 = ref surfaces[sn2];
+			return CompareSurfID(ref surfID1, ref surfID2);
+		}
+	}
+
 
 	public const int NUM_BUMP_VECTS = 3;
 	public static bool SurfNeedsBumpedLightmaps(ref BSPMSurface2 surfID) => ModelLoader.MSurf_TexInfo(ref surfID).Material!.GetPropertyFlag(MaterialPropertyTypes.NeedsBumpedLightmaps);
@@ -616,7 +612,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		ref BSPMSurface2 surfID = ref Unsafe.NullRef<BSPMSurface2>();
 		materials.BeginLightmapAllocation();
 
-		List<nint> surfaces = [];
+		RedBlackTree<nint> surfaces = new(new RBComparer(host_state.WorldBrush!.Surfaces2!));
 		for (int surfaceIndex = 0; surfaceIndex < host_state.WorldBrush!.NumSurfaces; surfaceIndex++) {
 			surfID = ref ModelLoader.SurfaceHandleFromIndex(surfaceIndex, host_state.WorldBrush);
 			if ((ModelLoader.MSurf_TexInfo(ref surfID).Flags & Surf.NoLight) != 0 ||
@@ -626,17 +622,12 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			else
 				ModelLoader.MSurf_Flags(ref surfID) &= ~SurfDraw.NoLight;
 
-			surfaces.Add(surfID.SurfNum);
+			surfaces.Insert(surfID.SurfNum);
 		}
-		surfaces.Sort((sn1, sn2) => {
-			ref BSPMSurface2 surfID1 = ref host_state.WorldBrush!.Surfaces2![sn1];
-			ref BSPMSurface2 surfID2 = ref host_state.WorldBrush!.Surfaces2![sn2];
-			return CompareSurfID(ref surfID1, ref surfID2);
-		});
 
-		surfID = ref Unsafe.NullRef<BSPMSurface2>();
-		foreach (var surfIDidx in surfaces) {
+		foreach (var surfIDidx in surfaces.InOrderTraverse()) {
 			surfID = ref host_state.WorldBrush!.Surfaces2![surfIDidx];
+			// Msg($"Surf ID #{surfIDAddP++} == {surfIDidx}\n");
 			bool hasLightmap = (ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.NoLight) == 0;
 			if (hasLightmap)
 				RegisterLightmappedSurface(ref surfID);
