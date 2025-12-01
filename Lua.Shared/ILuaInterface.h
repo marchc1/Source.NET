@@ -23,11 +23,34 @@
 #include <string>
 #include <vector>
 
+
+#define COMMAND_COMPLETION_MAXITEMS 128
+#define COMMAND_COMPLETION_ITEM_LENGTH 128
+
+class CCommand {};
+typedef void (*FnCommandCallback_t)(const CCommand &command);
+typedef int (*FnCommandCompletionCallback)(const char* partial, char commands[COMMAND_COMPLETION_MAXITEMS][COMMAND_COMPLETION_ITEM_LENGTH]);
+
+
 struct lua_State;
 typedef int (*CFunc)(lua_State* L);
 
+enum
+{
+	SPECIAL_GLOB, // Global table
+	SPECIAL_ENV, // Environment table
+	SPECIAL_REG, // Registry table
+};
+
 struct Vector
 {
+	Vector(float x, float y, float z)
+	{
+		this->x = x;
+		this->y = y;
+		this->z = z;
+	}
+
 	float x, y, z;
 };
 typedef Vector QAngle;
@@ -441,10 +464,13 @@ public: // ILuaInterface
 	virtual int AddThreadedCall( ILuaThreadedCall * ) = 0;
 	virtual void AppendStackTrace( char *, unsigned int ) = 0;
 	virtual void *CreateConVar( const char *, const char *, const char *, int ) = 0;
-	virtual void *CreateConCommand( const char *, const char *, int ) = 0; // Gmod has command callback stuff - we do not
+	virtual void *CreateConCommand( const char *, const char *, int, FnCommandCallback_t callback, FnCommandCompletionCallback completionFunc ) = 0;
 	virtual const char* CheckStringOpt( int iStackPos, const char* def ) = 0;
 	virtual double CheckNumberOpt( int iStackPos, double def ) = 0;
 	virtual int RegisterMetaTable( const char* name, ILuaObject* obj ) = 0;
+
+public: // RaphaelIT7: Our new functions
+	virtual void* NewUserdata( unsigned int iSize, unsigned char nType ) = 0;
 };
 
 namespace State

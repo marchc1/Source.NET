@@ -660,6 +660,15 @@ LUA_API void *lua_touserdata(lua_State *L, int idx)
     return NULL;
 }
 
+LUA_API unsigned char lua_getuserdatatype(lua_State *L, int idx)
+{
+  cTValue *o = index2adr(L, idx);
+  if (tvisudata(o))
+    return udataV(o)->udtype;
+  else
+    return UDTYPE__MAX;
+}
+
 LUA_API GCudata *lua_getuserdata(lua_State *L, int idx)
 {
   cTValue *o = index2adr(L, idx);
