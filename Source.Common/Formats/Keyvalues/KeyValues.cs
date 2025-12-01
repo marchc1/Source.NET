@@ -67,16 +67,14 @@ public class KeyValues : IEnumerable<KeyValues>
 		SetString(firstKey, firstValue);
 	}
 
-	public KeyValues(ReadOnlySpan<char> name, ReadOnlySpan<char> firstKey, int firstValue) : base()
-	{
+	public KeyValues(ReadOnlySpan<char> name, ReadOnlySpan<char> firstKey, int firstValue) : base() {
 		node = new(this);
 		Name = new(name);
 
 		SetInt(firstKey, firstValue);
 	}
 
-	public KeyValues(ReadOnlySpan<char> name, ReadOnlySpan<char> firstKey, int firstValue, ReadOnlySpan<char> secondKey, int secondValue) : base()
-	{
+	public KeyValues(ReadOnlySpan<char> name, ReadOnlySpan<char> firstKey, int firstValue, ReadOnlySpan<char> secondKey, int secondValue) : base() {
 		node = new(this);
 		Name = new(name);
 
@@ -275,8 +273,8 @@ public class KeyValues : IEnumerable<KeyValues>
 			KeyValues kvpair = new() { evaluateConditionals = this.evaluateConditionals, useEscapeSequences = this.useEscapeSequences };
 
 			if (kvpair.ReadKV(reader) && matches) // When conditional, still need to waste time on parsing, but we throw it away after
-												  // There's definitely a better way to handle this, but it would need more testing scenarios
-												  // The ReadKV call can also determine its condition and will return false if it doesnt want to be added.
+																						// There's definitely a better way to handle this, but it would need more testing scenarios
+																						// The ReadKV call can also determine its condition and will return false if it doesnt want to be added.
 				AddToTail(kvpair);
 		}
 	}
@@ -288,7 +286,7 @@ public class KeyValues : IEnumerable<KeyValues>
 			// We need to check the stream for another /
 			reader.Read();
 			if (reader.Peek() == '/') { // We got //, its a comment
-										// We read until the end of the line.
+																	// We read until the end of the line.
 				didAnything = true;
 				while (true) {
 					char c = (char)reader.Read();
@@ -421,6 +419,27 @@ public class KeyValues : IEnumerable<KeyValues>
 		}
 
 		return null;
+	}
+
+	public KeyValues CreateNewKey() {
+		int newID = 1;
+		for (KeyValues? dat = GetFirstSubKey(); dat != null; dat = dat.GetNextKey()) {
+			if (int.TryParse(dat.Name, NumberStyles.Integer, CultureInfo.InvariantCulture, out int val))
+				if (newID <= val)
+					newID = val + 1;
+		}
+
+		Span<char> buf = stackalloc char[12];
+		sprintf(buf, $"{newID}");
+
+		return CreateKey(buf);
+	}
+
+	public KeyValues CreateKey(ReadOnlySpan<char> keyName) {
+		KeyValues dat = new(keyName);
+		dat.useEscapeSequences = useEscapeSequences;
+		AddSubKey(dat);
+		return dat;
 	}
 
 	public ReadOnlySpan<char> GetString() => Value is string str ? (str ?? "") : "";
