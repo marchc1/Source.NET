@@ -3,4 +3,5 @@
 public interface ILuaShared
 {
 	void Init();
+	ILuaInterface CreateLuaInterface(byte realm);
 }

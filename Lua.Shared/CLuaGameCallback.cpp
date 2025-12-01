@@ -91,3 +91,6 @@ void CLuaGameCallback::InterfaceCreated(ILuaInterface* interface)
 {
 
 }
+
+static CLuaGameCallback pLuaGameCallback;
+ILuaGameCallback* g_pLuaGameCallback = &pLuaGameCallback;

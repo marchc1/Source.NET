@@ -158,6 +158,7 @@ LUA_API const void     *(lua_topointer) (lua_State *L, int idx);
 ** custom
 */
 typedef struct GCudata GCudata;
+LUA_API unsigned char	(lua_getuserdatatype) (lua_State *L, int idx);
 LUA_API GCudata        *(lua_getuserdata) (lua_State *L, int idx);
 LUA_API int             (lua_getcdatatype) (lua_State *L, int idx);
 LUA_API void           *(lua_getrawcdata) (lua_State *L, int idx);
