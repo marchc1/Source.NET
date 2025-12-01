@@ -342,10 +342,13 @@ enum {
   UDTYPE_IO_FILE,	/* I/O library FILE. */
   UDTYPE_FFI_CLIB,	/* FFI C library namespace. */
   UDTYPE_BUFFER,	/* String buffer. */
-  UDTYPE__MAX
+  UDTYPE_SPECIALUSERDATA, /* RaphaelIT7: We use this on OUR userdata to not conflict with binary modules*/
+  UDTYPE_BINARYMODULE, /* RaphaelIT7: Handle to a binary module */
+  UDTYPE__MAX /* RaphaelIT7: As long as we stay below 7 were fine */
 };
 
 #define uddata(u)	((void *)((u)+1))
+#define revuddata(u)	((void *)((u)-1))
 #define sizeudata(u)	(sizeof(struct GCudata)+(u)->len)
 
 /* -- C data object ------------------------------------------------------- */

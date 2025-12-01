@@ -3,6 +3,7 @@
 extern "C"
 {
 	// Not looking good but fully valid.
+	#include "../Lua.JIT/src/lua.hpp"
 	#include "../Lua.JIT/src/lj_obj.h"
 }
 
@@ -16,6 +17,10 @@ extern "C"
 
 #define MAX_PATH 260
 #define LUA_MAX_TEMP_OBJECTS 32
+#define LUA_MAX_RETURN_OBJECTS 4
+
+extern ILuaShared* g_pCLuaShared;
+extern ILuaGameCallback* g_pLuaGameCallback;
 
 class CLuaInterface : public ILuaInterface
 {
@@ -153,10 +158,13 @@ public:
 	virtual int AddThreadedCall( ILuaThreadedCall * );
 	virtual void AppendStackTrace( char *, unsigned int );
 	virtual void *CreateConVar( const char *, const char *, const char *, int );
-	virtual void *CreateConCommand( const char *, const char *, int );
+	virtual void *CreateConCommand( const char *, const char *, int, FnCommandCallback_t callback, FnCommandCompletionCallback completionFunc );
 	virtual const char* CheckStringOpt( int iStackPos, const char* def );
 	virtual double CheckNumberOpt( int iStackPos, double def );
 	virtual int RegisterMetaTable( const char* name, ILuaObject* obj );
+
+public: // RaphaelIT7: Our new functions
+	virtual void* NewUserdata( unsigned int iSize, unsigned char nType );
 
 public:
 	std::string RunMacros(std::string script);
@@ -180,10 +188,11 @@ public: // We keep gmod's structure in case any modules depend on it.
 		char path[MAX_PATH];
 	};
 
+	lua_State* m_pState = nullptr;
 	int m_nLuaErrorReporter = -1; // Always 1 since it's always the first registry reference.
-	std::deque<Path> m_CurrentPaths;
+	std::deque<Path> m_CurrentPaths; // ToDo: Recheck this one since the source engine's version is smaller/all offsets are broken by this!
 	std::list<ILuaThreadedCall*> m_pThreadedCalls;
-	ILuaObject* m_ProtectedFunctionReturns[4] = {nullptr};
+	ILuaObject* m_ProtectedFunctionReturns[LUA_MAX_RETURN_OBJECTS] = {nullptr};
 	ILuaObject* m_TempObjects[LUA_MAX_TEMP_OBJECTS] = {nullptr};
 	unsigned char m_iRealm = (unsigned char)2; // CLIENT = 0, SERVER = 1, MENU = 2
 	ILuaGameCallback* m_pGameCallback = nullptr;
@@ -197,6 +206,8 @@ public: // We keep gmod's structure in case any modules depend on it.
 private: // NOT GMOD stuff
 	std::mutex m_pThreadedCallsMutex;
 	std::atomic<bool> m_bShutDownThreadedCalls = false;
+
+	void RunThreadedCalls();
 
 public:
 	inline void DoStackCheck() {

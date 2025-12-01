@@ -5,6 +5,7 @@ using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Input;
 using Source.Common.Launcher;
+using Source.Common.Lua;
 using Source.Common.MaterialSystem;
 
 using System.Reflection;
@@ -45,6 +46,10 @@ public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sy
 	public void SetStartupInfo(in StartupInfo info) {
 		startupInfo = info;
 		Sys.TextMode = info.TextMode;
+		// RaphaelIT7: Excuse me for throwing this in here, but I don't have a copy of gmod on my laptop! lemme test in peace >:3
+		ILuaShared luaShared = services.GetRequiredService<ILuaShared>();
+		luaShared.Init();
+		ILuaInterface luaInterface = luaShared.CreateLuaInterface(0);
 		COM.InitFilesystem(info.InitialMod);
 	}
 
