@@ -1,5 +1,7 @@
 using CommunityToolkit.HighPerformance;
 
+using DStruct.BinaryTrees;
+
 using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
@@ -535,7 +537,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		bool hasLightmap2 = (ModelLoader.MSurf_Flags(ref surfID2) & SurfDraw.NoLight) == 0;
 
 		if (hasLightmap1 != hasLightmap2)
-			return hasLightmap2.CompareTo(hasLightmap1); 
+			return hasLightmap2.CompareTo(hasLightmap1);
 
 		int enum1 = ModelLoader.MSurf_TexInfo(ref surfID1).Material!.GetEnumerationID();
 		int enum2 = ModelLoader.MSurf_TexInfo(ref surfID2).Material!.GetEnumerationID();
@@ -552,10 +554,16 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		int area1 = ModelLoader.MSurf_LightmapExtents(ref surfID1)[0] * ModelLoader.MSurf_LightmapExtents(ref surfID1)[1];
 		int area2 = ModelLoader.MSurf_LightmapExtents(ref surfID2)[0] * ModelLoader.MSurf_LightmapExtents(ref surfID2)[1];
 
-		if (area1 != area2)
-			return area2.CompareTo(area1);
+		return area2.CompareTo(area1);
+	}
 
-		return surfID2.SurfNum.CompareTo(surfID1.SurfNum);
+	class RBComparer(BSPMSurface2[] surfaces) : IComparer<nint>
+	{
+		public int Compare(nint sn1, nint sn2) {
+			ref BSPMSurface2 surfID1 = ref surfaces[sn1];
+			ref BSPMSurface2 surfID2 = ref surfaces[sn2];
+			return CompareSurfID(ref surfID1, ref surfID2);
+		}
 	}
 
 
@@ -604,7 +612,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		ref BSPMSurface2 surfID = ref Unsafe.NullRef<BSPMSurface2>();
 		materials.BeginLightmapAllocation();
 
-		List<nint> surfaces = [];
+		RedBlackTree<nint> surfaces = new(new RBComparer(host_state.WorldBrush!.Surfaces2!));
 		for (int surfaceIndex = 0; surfaceIndex < host_state.WorldBrush!.NumSurfaces; surfaceIndex++) {
 			surfID = ref ModelLoader.SurfaceHandleFromIndex(surfaceIndex, host_state.WorldBrush);
 			if ((ModelLoader.MSurf_TexInfo(ref surfID).Flags & Surf.NoLight) != 0 ||
@@ -614,17 +622,10 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			else
 				ModelLoader.MSurf_Flags(ref surfID) &= ~SurfDraw.NoLight;
 
-			surfaces.Add(surfID.SurfNum);
+			surfaces.Insert(surfID.SurfNum);
 		}
-		surfaces.Sort((sn1, sn2) => {
-			ref BSPMSurface2 surfID1 = ref host_state.WorldBrush!.Surfaces2![sn1];
-			ref BSPMSurface2 surfID2 = ref host_state.WorldBrush!.Surfaces2![sn2];
-			return CompareSurfID(ref surfID1, ref surfID2);
-		});
 
-		// surfID = ref Unsafe.NullRef<BSPMSurface2>();
-		int surfIDAddP = 1;
-		foreach (var surfIDidx in surfaces) {
+		foreach (var surfIDidx in surfaces.InOrderTraverse()) {
 			surfID = ref host_state.WorldBrush!.Surfaces2![surfIDidx];
 			// Msg($"Surf ID #{surfIDAddP++} == {surfIDidx}\n");
 			bool hasLightmap = (ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.NoLight) == 0;

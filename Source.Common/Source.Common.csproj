@@ -20,6 +20,7 @@
 	<ItemGroup>
 		<PackageReference Include="Aspose.Drawing" Version="25.9.0" />
 		<PackageReference Include="CommunityToolkit.HighPerformance" Version="8.4.0" />
+		<PackageReference Include="DStruct.NET" Version="1.2.0" />
 		<PackageReference Include="K4os.Hash.xxHash" Version="1.0.8" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.9" />
 		<PackageReference Include="Pastel" Version="6.0.1" />
