@@ -10,7 +10,7 @@
       "args": [],
       "cwd": "${workspaceFolder}/Source.Launcher/bin/Debug/net10.0",
       "stopAtEntry": false,
-      "console": "internalConsole"
+      "console": "externalTerminal"
     }
   ]
 }
