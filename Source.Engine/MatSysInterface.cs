@@ -681,7 +681,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			LightmapPageID = lightmapID
 		});
 
-		return sortID;
+		return Meshes.Count - 1;
 	}
 
 	public void WorldStaticMeshDestroy() {
