@@ -23,7 +23,7 @@ public static partial class FloatHelpers
 	public static uint FloatBits(this ref readonly float r) => new ReadOnlySpan<float>(in r).Cast<float, uint>()[0];
 }
 
-public unsafe struct PixelWriterState
+public struct PixelWriterState
 {
 	public ImageFormat Format;
 	public int Bits;
@@ -381,8 +381,8 @@ public ref struct PixelWriter
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void Seek(int x, int y) => PixelWriterImpl.Seek(ref State, Base, x, y);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixel(int r, int g, int b, int a = 255) => PixelWriterImpl.WritePixel(ref State, Base, r, g, b, a);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixelF(float r, float g, float b, float a = 1.0f) => PixelWriterImpl.WritePixelF(ref State, Base, r, g, b, a);
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public unsafe void WritePixelNoAdvanceF(float r, float g, float b, float a) => PixelWriterImpl.WritePixelNoAdvanceF(ref State, Base, r, g, b, a);
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public unsafe void WritePixelNoAdvance(int r, int g, int b, int a) => PixelWriterImpl.WritePixelNoAdvance(ref State, Base, r, g, b, a);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixelNoAdvanceF(float r, float g, float b, float a) => PixelWriterImpl.WritePixelNoAdvanceF(ref State, Base, r, g, b, a);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixelNoAdvance(int r, int g, int b, int a) => PixelWriterImpl.WritePixelNoAdvance(ref State, Base, r, g, b, a);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsUsingFloatFormat() => PixelWriterImpl.IsUsingFloatFormat(ref State);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixel(in Color color) => PixelWriterImpl.WritePixel(ref State, Base, in color);
 }
@@ -421,8 +421,8 @@ public struct PixelWriterMem
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void Seek(int x, int y) => PixelWriterImpl.Seek(ref State, Base.Span, x, y);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixel(int r, int g, int b, int a = 255) => PixelWriterImpl.WritePixel(ref State, Base.Span, r, g, b, a);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixelF(float r, float g, float b, float a = 1.0f) => PixelWriterImpl.WritePixelF(ref State, Base.Span, r, g, b, a);
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public unsafe void WritePixelNoAdvanceF(float r, float g, float b, float a) => PixelWriterImpl.WritePixelNoAdvanceF(ref State, Base.Span, r, g, b, a);
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public unsafe void WritePixelNoAdvance(int r, int g, int b, int a) => PixelWriterImpl.WritePixelNoAdvance(ref State, Base.Span, r, g, b, a);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixelNoAdvanceF(float r, float g, float b, float a) => PixelWriterImpl.WritePixelNoAdvanceF(ref State, Base.Span, r, g, b, a);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixelNoAdvance(int r, int g, int b, int a) => PixelWriterImpl.WritePixelNoAdvance(ref State, Base.Span, r, g, b, a);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsUsingFloatFormat() => PixelWriterImpl.IsUsingFloatFormat(ref State);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void WritePixel(in Color color) => PixelWriterImpl.WritePixel(ref State, Base.Span, in color);
 }
