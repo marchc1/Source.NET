@@ -111,6 +111,9 @@ public class g_Sky : BaseVSShader
 		InitUnlitGeneric((int)ShaderMaterialVars.BaseTexture, DETAIL, ENVMAP, ENVMAPMASK);
 	}
 	protected override void OnDrawElements(IMaterialVar[] vars, IShaderDynamicAPI shaderAPI, VertexCompressionType vertexCompression) {
+		if (IsSnapshotting()) {
+			ShaderShadow.EnableDepthTest(false);
+		}
 		VertexShaderUnlitGenericPass((int)ShaderMaterialVars.BaseTexture, (int)ShaderMaterialVars.Frame, (int)ShaderMaterialVars.BaseTextureTransform,
 			DETAIL, DETAILSCALE, true, ENVMAP, ENVMAPFRAME, ENVMAPMASK,
 			ENVMAPMASKFRAME, ENVMAPMASKSCALE, ENVMAPTINT, ALPHATESTREFERENCE,

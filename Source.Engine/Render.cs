@@ -347,13 +347,13 @@ public class Render(
 		// This deviates from Source rendering but is necessary since we aren't using the PVS to calculate
 		// visible surfaces at runtime, and we need other sky-rooms to not be visible
 
-		/*Span<int> skyboxMeshesIndices = MaterialSystem.SkyboxMeshesIndices.AsSpan();
+		Span<int> skyboxMeshesIndices = MaterialSystem.SkyboxMeshesIndices.AsSpan();
 		Span<MeshList> meshes = MaterialSystem.Meshes.AsSpan();
 		renderContext.Bind(SkyboxOcclude!); // If Init() ran, this isn't null
 		for (int i = 0; i < skyboxMeshesIndices.Length; i++) {
 			ref MeshList meshList = ref meshes[skyboxMeshesIndices[i]];
 			meshList.Mesh.Draw();
-		}*/
+		}
 
 		Vector3 normal;
 		for (int i = 0; i < 6; i++, drawFlags >>= 1) {
