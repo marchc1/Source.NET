@@ -635,7 +635,7 @@ public struct DispVert
 	public float Alpha;
 }
 
-public enum DispTriTags
+public enum DispTriTags : ushort
 {
 	TagSurface = 1 << 0,
 	TagWalkable = 1 << 1,
@@ -645,6 +645,7 @@ public enum DispTriTags
 	TagRemove = 1 << 5
 }
 
+[StructLayout(LayoutKind.Sequential, Pack = 2, Size = 2)]
 public struct DispTri
 {
 	public DispTriTags Tags;

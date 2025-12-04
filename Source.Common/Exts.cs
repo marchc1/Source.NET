@@ -5,6 +5,7 @@ using K4os.Hash.xxHash;
 using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common.Engine;
+using Source.Common.Formats.BSP;
 using Source.Common.Utilities;
 
 using System.Buffers;
@@ -78,6 +79,24 @@ public static class BitVecBase
 		return startBit;
 	}
 }
+
+/// <summary>
+/// An inline bit-vector array of MAX_EDICTS >> 3 bytes.
+/// </summary>
+[InlineArray(BSPFileCommon.MAX_DISPVERTS >> 3)]
+public struct MaxDispVertsBitVec
+{
+	public byte bytes;
+	public uint GetDWord(int i) => BitVecBase.GetDWord(this, i);
+	public int Get(int bit) => BitVecBase.IsBitSet(this, bit) ? 1 : 0;
+	public bool IsBitSet(int bit) => BitVecBase.IsBitSet(this, bit);
+	public void Set(int bit) => BitVecBase.Set(this, bit);
+	public void Clear(int bit) => BitVecBase.Clear(this, bit);
+	public void Set(int bit, bool newVal) => BitVecBase.Set(this, bit, newVal);
+	public int FindNextSetBit(int startBit) => BitVecBase.FindNextSetBit(this, startBit);
+	public void ClearAll() => BitVecBase.ClearAll(this);
+}
+
 
 /// <summary>
 /// An inline bit-vector array of MAX_EDICTS >> 3 bytes.
