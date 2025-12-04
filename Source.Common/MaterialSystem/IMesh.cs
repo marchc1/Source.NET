@@ -377,6 +377,34 @@ public unsafe struct VertexBuilder
 		byte* boneMatrix = &Desc.BoneMatrixIndex[CurrentVertex * Desc.BoneMatrixIndexSize];
 		boneMatrix[idx] = matrixIndex;
 	}
+
+	void IncrementFloatPointer(ref float* pBufferPointer, int vertexSize) {
+		pBufferPointer = (float*)((byte*)pBufferPointer + vertexSize);
+	}
+
+	internal void AdvanceVertices(int nVerts) {
+		CurrentVertex += nVerts;
+		if (CurrentVertex > VertexCount) 
+			VertexCount = CurrentVertex;
+
+		// We may want to find a better way to error handle here.
+		// This is just to avoid heap corruption
+		if (CurrentVertex > MaxVertexCount)
+			throw new Exception();
+
+		IncrementFloatPointer(ref CurrPosition, Desc.PositionSize * nVerts);
+		IncrementFloatPointer(ref CurrNormal, Desc.NormalSize * nVerts);
+
+		IncrementFloatPointer(ref CurrTexCoord0, Desc.TexCoordSize[0] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord1,  Desc.TexCoordSize[1] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord2,  Desc.TexCoordSize[2] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord3,  Desc.TexCoordSize[3] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord4,  Desc.TexCoordSize[4] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord5,  Desc.TexCoordSize[5] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord6,  Desc.TexCoordSize[6] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord7, Desc.TexCoordSize[7] * nVerts);
+		CurrColor += Desc.ColorSize * nVerts;
+	}
 }
 
 public struct IndexBuilder
@@ -694,7 +722,7 @@ public unsafe struct MeshBuilder : IDisposable
 	public void SelectVertexFromIndex(int idx) => throw new NotImplementedException();
 	// Advances the current vertex and index by one
 	public void AdvanceVertex() => VertexBuilder.AdvanceVertex();
-	public void AdvanceVertices(int nVerts) => throw new NotImplementedException();
+	public void AdvanceVertices(int nVerts) => VertexBuilder.AdvanceVertices(nVerts);
 	public void AdvanceIndex() => IndexBuilder.AdvanceIndex();
 	public void AdvanceIndices(int indices) => IndexBuilder.AdvanceIndices(indices);
 	public int GetCurrentVertex() => VertexBuilder.CurrentVertex;
