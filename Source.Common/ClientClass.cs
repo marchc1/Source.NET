@@ -70,7 +70,7 @@ public class ClientClass
 			createFn = method.CreateDelegate<CreateClientClassFn>();
 		}
 		else
-			createFn = (_, _) => throw new NotImplementedException("ClientClass did not define how to create this object");
+			createFn = (_, _) => throw new NotImplementedException($"ClientClass did not define how to create type '{t.Name}'");
 	}
 
 	public ClientClass(ReadOnlySpan<char> networkName, RecvTable recvTable, [CallerArgumentExpression(nameof(recvTable))] string? nameOfTable = null) {
