@@ -350,7 +350,7 @@ public class TextImage : Image
 			startChar++;
 		}
 
-		for (nint i = 0, len = Text.Length; i < len; i++) {
+		for (nint i = startChar, len = Text.Length; i < len; i++) {
 			char ch = Text[(int)i];
 			if ((ch == '&' || ch == 0x01 || ch == 0x02 || ch == 0x03) && (i + 1) < len) {
 				i++;

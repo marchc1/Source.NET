@@ -80,7 +80,7 @@ public class CCvarSlider : Slider
 			float minValue = resourceData.GetFloat("minvalue", 0);
 			float maxValue = resourceData.GetFloat("maxvalue", 1);
 			ReadOnlySpan<char> cvarName = resourceData.GetString("cvar_name", "");
-			bool allowOutOfRange = resourceData.GetInt("allow_out_of_range", 0) != 0;
+			bool allowOutOfRange = resourceData.GetInt("allowoutofrange", 0) != 0;
 			SetupSlider(minValue, maxValue, cvarName, allowOutOfRange);
 
 			// HACK: If our parent is a property page, we want the dialog containing it
@@ -98,7 +98,7 @@ public class CCvarSlider : Slider
 			outResourceData.SetFloat("minvalue", MinValue);
 			outResourceData.SetFloat("maxvalue", MaxValue);
 			outResourceData.SetString("cvar_name", CvarName!);
-			outResourceData.SetInt("allow_out_of_range", AllowOutOfRange ? 1 : 0);
+			outResourceData.SetInt("allowoutofrange", AllowOutOfRange ? 1 : 0);
 		}
 	}
 
@@ -169,7 +169,7 @@ public class CCvarSlider : Slider
 		int val = (int)(value * 100.0f);
 		SetValue(val, false);
 
-		LastSliderValue = value;
+		LastSliderValue = GetValue();
 
 		if (CurrentValue != value) {
 			CurrentValue = value;

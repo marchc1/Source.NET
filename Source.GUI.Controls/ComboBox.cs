@@ -275,7 +275,7 @@ public class ComboBox : TextEntry
 
 		DropDown.SetVisible(false);
 		Repaint();
-		// OnHideMenu();
+		OnHideMenu();
 	}
 
 	public void ShowMenu() {
@@ -344,7 +344,7 @@ public class ComboBox : TextEntry
 		c[3] = 255;
 		DropDown.SetBgColor(c);
 
-		// OnShowMenu(DropDown);
+		OnShowMenu(DropDown);
 
 		DropDown.SetVisible(true);
 		DropDown.RequestFocus();
@@ -461,6 +461,9 @@ public class ComboBox : TextEntry
 		base.SetUseFallbackFont(state, Fallback);
 		DropDown.SetUseFallbackFont(state, Fallback);
 	}
+
+	public virtual void OnShowMenu(Menu menu) { }
+	public virtual void OnHideMenu() { }
 
 	public override void OnMessage(KeyValues message, IPanel? from) {
 		switch (message.Name) {
