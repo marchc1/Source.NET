@@ -16,6 +16,7 @@ using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
 namespace Source.Engine;
@@ -1146,17 +1147,17 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		if (!MapLoadHelper.Init(model, ActiveMapName))
 			return;
 
-		DispInfo_LoadDisplacements(materialSortInfoArray, model);
+		DispInfo_LoadDisplacements(model, materialSortInfoArray);
 		MapLoadHelper.Shutdown();
 	}
 
-	private bool DispInfo_LoadDisplacements(MaterialSystem_SortInfo[] sortInfos, Model model) {
-		nint numDisplacements = MapLoadHelper.GetLumpSize(LumpIndex.DispInfo);
+	private bool DispInfo_LoadDisplacements(Model world, MaterialSystem_SortInfo[] sortInfos) {
+		nint numDisplacements = MapLoadHelper.GetLumpSize(LumpIndex.DispInfo) / Unsafe.SizeOf<BSPDispInfo>();
 		nint numLuxels = MapLoadHelper.GetLumpSize(LumpIndex.DispLightmapAlphas);
 		nint numSamplePositionBytes = MapLoadHelper.GetLumpSize(LumpIndex.DispLightmapSamplePositions);
 
-		model.Brush.Shared!.NumDispInfos = (int)numDisplacements;
-		model.Brush.Shared!.DispInfos = DispInfo_CreateArray(numDisplacements);
+		world.Brush.Shared!.NumDispInfos = (int)numDisplacements;
+		world.Brush.Shared!.DispInfos = DispInfo_CreateArray(numDisplacements);
 
 		MapLoadHelper dispInfos = new MapLoadHelper(LumpIndex.DispInfo);
 
@@ -1168,7 +1169,12 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		MapLoadHelper dispLMPositions = new MapLoadHelper(LumpIndex.DispLightmapSamplePositions);
 		dispLMAlphas.LoadLumpData(DispLMSamplePositions.AsSpan());
 
-		Span<BSPDispInfo> tempDisps = new BSPDispInfo[BSPFileCommon.MAX_MAP_DISPINFO];
+		Span<BSPDispInfo> tempDisps = stackalloc BSPDispInfo[BSPFileCommon.MAX_MAP_DISPINFO];
+		dispInfos.LoadLumpData(tempDisps);
+
+		DispInfo_LinkToParentFaces(world, tempDisps, numDisplacements);
+		DispInfo_CreateMaterialGroups(world, sortInfos);
+		DispInfo_CreateEmptyStaticBuffers(world, tempDisps);
 
 		Span<DispVert> tempVerts = stackalloc DispVert[BSPFileCommon.MAX_DISPVERTS];
 		Span<DispTri> tempTris = stackalloc DispTri[BSPFileCommon.MAX_DISPTRIS];
@@ -1185,7 +1191,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 			coreDisps.Add(new());
 		}
 
-		/*for (disp = 0; disp < numDisplacements; ++disp) {
+		for (disp = 0; disp < numDisplacements; ++disp) {
 			ref BSPDispInfo mapDisp = ref tempDisps[disp];
 
 			int numVerts = BSPFileCommon.NUM_DISP_POWER_VERTS(mapDisp.Power);
@@ -1198,15 +1204,27 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 			dispTris.LoadLumpData(tempTris);
 			curTri += numTris;
 
-			if (!DispInfo_CreateFromMapDisp(model, disp, ref mapDisp, coreDisps[disp], tempVerts, tempTris, sortInfos))
+			if (!DispInfo_CreateFromMapDisp(world, disp, ref mapDisp, coreDisps[disp], tempVerts, tempTris))
 				return false;
-		}*/
+		}
 
 		return true;
 
 	}
 
-	public bool DispInfo_CreateFromMapDisp(Model world, int disp, ref BSPDispInfo mapDisp, CoreDispInfo coreDisp, Span<DispVert> verts, Span<DispTri> tris, MaterialSystem_SortInfo[] sortInfos) {
+	private void DispInfo_CreateEmptyStaticBuffers(Model world, Span<BSPDispInfo> tempDisps) {
+
+	}
+
+	private void DispInfo_CreateMaterialGroups(Model world, MaterialSystem_SortInfo[] sortInfos) {
+
+	}
+
+	private void DispInfo_LinkToParentFaces(Model world, Span<BSPDispInfo> tempDisps, nint numDisplacements) {
+
+	}
+
+	public bool DispInfo_CreateFromMapDisp(Model world, int disp, ref BSPDispInfo mapDisp, CoreDispInfo coreDisp, Span<DispVert> verts, Span<DispTri> tris) {
 		return true;
 	}
 
