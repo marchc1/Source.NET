@@ -288,8 +288,9 @@ public class KeyValues : IEnumerable<KeyValues>
 			if (reader.Peek() == '/') { // We got //, its a comment
 																	// We read until the end of the line.
 				didAnything = true;
-				while (true) {
-					char c = (char)reader.Read();
+				int val;
+				while ((val = reader.Read()) != -1) {
+					char c = (char)val;
 					if (c == '\n')
 						break;
 				}
