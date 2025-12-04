@@ -653,6 +653,7 @@ public struct DispTri
 /// <summary>
 /// Analog of ddispinfo_t
 /// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 4, Size = 176)]
 public struct BSPDispInfo
 {
 	public int NumVerts() => ((1 << Power) + 1) * ((1 << Power) + 1);
@@ -670,7 +671,7 @@ public struct BSPDispInfo
 	public int LightmapSamplePositionStart;
 	public InlineArray4<DispNeighbor> EdgeNeighbors;
 	public InlineArray4<DispCornerNeighbors> CornerNeighbors;
-	InlineArray10<long> AllowedVerts;
+	InlineArray10<int> AllowedVerts;
 }
 
 /// <summary>
