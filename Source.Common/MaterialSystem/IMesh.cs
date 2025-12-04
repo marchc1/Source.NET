@@ -292,6 +292,10 @@ public unsafe struct VertexBuilder
 	public void AdvanceVertex() {
 		if (++CurrentVertex > VertexCount)
 			VertexCount = CurrentVertex;
+		// We may want to find a better way to error handle here.
+		// This is just to avoid heap corruption
+		if (CurrentVertex > MaxVertexCount)
+			throw new Exception();
 
 		// If this cast isn't done, it increments way too far
 		CurrPosition = (float*)((byte*)CurrPosition + Desc.PositionSize);

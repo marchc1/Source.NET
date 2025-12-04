@@ -773,7 +773,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	public static ref BSPFace FaceHandleFromIndex(int surfaceIndex, WorldBrushData data) => ref data.Faces![surfaceIndex];
 	public static ref BSPMSurface2 SurfaceHandleFromIndex(int surfaceIndex, WorldBrushData data) => ref data.Surfaces2![surfaceIndex];
 	public static ref CollisionPlane MSurf_Plane(ref BSPMSurface2 surfID) => ref surfID.Plane.GetReference();
-	public static unsafe int MSurf_Index(ref BSPMSurface2 surfID, WorldBrushData? data = null) => (int)surfID.SurfNum;
+	public static int MSurf_Index(ref BSPMSurface2 surfID, WorldBrushData? data = null) => (int)surfID.SurfNum;
 	public static ref int MSurf_FirstVertIndex(ref BSPMSurface2 surfID) => ref surfID.FirstVertIndex;
 	public static ref uint MSurf_FirstVertNormal(ref BSPMSurface2 surfID, WorldBrushData? data = null) {
 		data ??= host_state.WorldBrush;
@@ -1150,7 +1150,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		MapLoadHelper.Shutdown();
 	}
 
-	private unsafe bool DispInfo_LoadDisplacements(MaterialSystem_SortInfo[] sortInfos, Model model) {
+	private bool DispInfo_LoadDisplacements(MaterialSystem_SortInfo[] sortInfos, Model model) {
 		nint numDisplacements = MapLoadHelper.GetLumpSize(LumpIndex.DispInfo);
 		nint numLuxels = MapLoadHelper.GetLumpSize(LumpIndex.DispLightmapAlphas);
 		nint numSamplePositionBytes = MapLoadHelper.GetLumpSize(LumpIndex.DispLightmapSamplePositions);

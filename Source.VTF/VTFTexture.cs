@@ -759,8 +759,6 @@ public sealed class VTFTexture : IVTFTexture
 	private static bool ReadHeaderFromBufferPastBaseHeader(BinaryReader reader, VTFFileHeader header) {
 		switch (header.Version[1]) {
 			case 0:
-				if (!ReadV0(reader, header)) return false;
-				return true;
 			case 1:
 				if (!ReadV0(reader, header)) return false;
 				if (!ReadV1(reader, header)) return false;

@@ -304,7 +304,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 
 			ref BSPMSurface2 surfID = ref matSortArray.GetSurfaceAtHead(in group);
 			WorldStaticMeshes[i] = null;
-			sortIndex[i] = !Unsafe.IsNullRef(ref surfID) ? FindOrAddMesh(ModelLoader.MSurf_TexInfo(ref surfID).Material, vertexCount, indexCount) : -1;
+			sortIndex[i] = !Unsafe.IsNullRef(ref surfID) ? FindOrAddMesh(ModelLoader.MSurf_TexInfo(ref surfID).Material, i, vertexCount, indexCount) : -1;
 		}
 
 		using MatRenderContextPtr renderContext = new(materials);
@@ -637,7 +637,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 
 		materials.EndLightmapAllocation();
 	}
-	private int FindOrAddMesh(IMaterial? material, int vertexCount, int indexCount) {
+	private int FindOrAddMesh(IMaterial? material, int sortID, int vertexCount, int indexCount) {
 		VertexFormat format = material.GetVertexFormat();
 
 		using MatRenderContextPtr renderContext = new(materials);
@@ -652,8 +652,13 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 
 		Span<MeshList> meshes = Meshes.AsSpan();
 
+		int lightmapID = SortInfoToLightmapPage(sortID);
+
 		for (int i = 0; i < meshes.Length; i++) {
 			if (meshes[i].Material != material)
+				continue;
+
+			if (meshes[i].LightmapPageID != lightmapID)
 				continue;
 
 			if (meshes[i].VertCount + vertexCount > maxVertices)
@@ -662,22 +667,21 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			if (meshes[i].IndexCount + indexCount > maxIndices)
 				continue;
 
+
 			meshes[i].VertCount += vertexCount;
 			meshes[i].IndexCount += indexCount;
 			return i;
 		}
 
-		int sortID = Meshes.Count;
 		Meshes.Add(new() {
 			VertCount = vertexCount,
 			IndexCount = indexCount,
 			VertexFormat = format,
 			Material = material,
-			// This will not be correct
-			LightmapPageID = SortInfoToLightmapPage(sortID)
+			LightmapPageID = lightmapID
 		});
 
-		return sortID;
+		return Meshes.Count - 1;
 	}
 
 	public void WorldStaticMeshDestroy() {

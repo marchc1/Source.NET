@@ -552,6 +552,7 @@ public class MatSystemSurface : IMatSystemSurface
 
 		if (CurrentFont == null)
 			return;
+		text = text.SliceNullTerminatedString();
 
 		int x = TextPosX + TranslateX;
 		int y = TextPosY + TranslateY;
