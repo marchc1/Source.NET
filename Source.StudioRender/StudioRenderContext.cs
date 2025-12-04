@@ -70,8 +70,8 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 
 				// This prevents filenames like /models/blah.vmt.
 				ReadOnlySpan<char> pCdTexture = studioHDR.CDTexture(j);
-				if (!textureName.IsEmpty && pCdTexture[0].IsPathSeparator())
-					textureName = textureName[1..];
+				if (!pCdTexture.IsEmpty && pCdTexture[0].IsPathSeparator())
+					pCdTexture = pCdTexture[1..];
 
 				StrTools.ComposeFileName(pCdTexture, textureName, path);
 				Span<char> finalPath = path.SliceNullTerminatedString();
