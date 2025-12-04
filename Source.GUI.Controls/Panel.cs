@@ -1704,6 +1704,9 @@ public class Panel : IPanel
 	public Color GetSchemeColor(ReadOnlySpan<char> keyName, Color defaultColor, IScheme scheme) {
 		return scheme.GetColor(keyName, defaultColor);
 	}
+
+	public static ReadOnlySpan<char> GetDescription() => "string fieldName, int xpos, int ypos, int wide, int tall, bool visible, bool enabled, int tabPosition, corner pinCorner, autoresize autoResize, string tooltiptext".AsSpan();
+
 	public virtual void ApplySchemeSettings(IScheme scheme) {
 		SetFgColor(GetSchemeColor("Panel.FgColor", scheme));
 		SetBgColor(GetSchemeColor("Panel.BgColor", scheme));
