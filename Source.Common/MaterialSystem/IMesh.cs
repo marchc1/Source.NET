@@ -3,6 +3,18 @@ using System.Runtime.CompilerServices;
 
 namespace Source.Common.MaterialSystem;
 
+public struct PrimList
+{
+	public PrimList() : this(0, 0) { }
+	public PrimList(int firstIndex, int indexCount) {
+		FirstIndex = firstIndex;
+		NumIndices = indexCount;
+	}
+
+	public int FirstIndex;
+	public int NumIndices;
+}
+
 public unsafe struct VertexDesc
 {
 	public int PositionSize;
@@ -301,7 +313,7 @@ public unsafe struct VertexBuilder
 		CurrPosition = (float*)((byte*)CurrPosition + Desc.PositionSize);
 		CurrNormal = (float*)((byte*)CurrNormal + Desc.NormalSize);
 		CurrColor = CurrColor + Desc.ColorSize;
-		
+
 		CurrTexCoord0 = (float*)((byte*)CurrTexCoord0 + Desc.TexCoordSize[0]);
 		CurrTexCoord1 = (float*)((byte*)CurrTexCoord1 + Desc.TexCoordSize[1]);
 		CurrTexCoord2 = (float*)((byte*)CurrTexCoord2 + Desc.TexCoordSize[2]);
@@ -352,7 +364,7 @@ public unsafe struct VertexBuilder
 	}
 
 	internal void BoneWeight(int idx, float weight) {
-		if(idx < Desc.NumBoneWeights) {
+		if (idx < Desc.NumBoneWeights) {
 			float* boneWeight = OffsetFloatPointer(Desc.BoneWeight, CurrentVertex, Desc.BoneWeightSize);
 			boneWeight[idx] = weight;
 		}

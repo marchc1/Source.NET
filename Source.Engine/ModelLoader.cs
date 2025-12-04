@@ -772,7 +772,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		lh.GetMap().PrimIndices = lh.LoadLumpData<ushort>();
 	}
 	public static ref BSPFace FaceHandleFromIndex(int surfaceIndex, WorldBrushData data) => ref data.Faces![surfaceIndex];
-	public static ref BSPMSurface2 SurfaceHandleFromIndex(int surfaceIndex, WorldBrushData data) => ref data.Surfaces2![surfaceIndex];
+	public static ref BSPMSurface2 SurfaceHandleFromIndex(int surfaceIndex, WorldBrushData? data = null) => ref (data ?? host_state.WorldBrush)!.Surfaces2![surfaceIndex];
 	public static ref CollisionPlane MSurf_Plane(ref BSPMSurface2 surfID) => ref surfID.Plane.GetReference();
 	public static int MSurf_Index(ref BSPMSurface2 surfID, WorldBrushData? data = null) => (int)surfID.SurfNum;
 	public static ref int MSurf_FirstVertIndex(ref BSPMSurface2 surfID) => ref surfID.FirstVertIndex;
@@ -1211,17 +1211,137 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		return true;
 
 	}
+	public const int MAX_STATIC_BUFFER_VERTS = (8 * 1024);
+	public const int MAX_STATIC_BUFFER_INDICES = (8 * 1024);
+	private static void DispInfo_CreateEmptyStaticBuffers(Model world, Span<BSPDispInfo> mapDisps) {
+		foreach (var combo in g_DispGroups) {
+			int nTotalVerts = 0, nTotalIndices = 0;
+			int iStart = 0;
+			for (int iDisp = 0; iDisp < combo.DispInfos.Count; iDisp++) {
+				ref BSPDispInfo pMapDisp = ref mapDisps[combo.DispInfos[iDisp]];
 
-	private void DispInfo_CreateEmptyStaticBuffers(Model world, Span<BSPDispInfo> tempDisps) {
+				CalcMaxNumVertsAndIndices(pMapDisp.Power, out int nVerts, out int nIndices);
 
+				// If we're going to pass our vertex buffer limit, or we're at the last one,
+				// make a static buffer and fill it up.
+				if ((nTotalVerts + nVerts) > MAX_STATIC_BUFFER_VERTS || (nTotalIndices + nIndices) > MAX_STATIC_BUFFER_INDICES) {
+					AddEmptyMesh(world, combo, mapDisps, combo.DispInfos.AsSpan()[iStart..], iDisp - iStart, nTotalVerts, nTotalIndices);
+					Assert(nTotalVerts > 0 && nTotalIndices > 0);
+
+					nTotalVerts = nTotalIndices = 0;
+					iStart = iDisp;
+					--iDisp;
+				}
+				else if (iDisp == combo.DispInfos.Count - 1) {
+					AddEmptyMesh(world, combo, mapDisps, combo.DispInfos.AsSpan()[iStart..], iDisp - iStart + 1, nTotalVerts + nVerts, nTotalIndices + nIndices);
+					break;
+				}
+				else {
+					nTotalVerts += nVerts;
+					nTotalIndices += nIndices;
+				}
+			}
+		}
 	}
 
-	private void DispInfo_CreateMaterialGroups(Model world, MaterialSystem_SortInfo[] sortInfos) {
+	private static void AddEmptyMesh(Model world, DispGroup combo, Span<BSPDispInfo> mapDisps, Span<int> dispInfos, int nDisps, int nTotalVerts, int nTotalIndices) {
+		MatRenderContextPtr pRenderContext = new(SourceDllMain.materials);
 
+		GroupMesh pMesh = new GroupMesh();
+		combo.Meshes.Add(pMesh);
+
+		VertexFormat vertexFormat = ComputeDisplacementStaticMeshVertexFormat(combo.Material, combo, mapDisps);
+		pMesh.Mesh = pRenderContext.CreateStaticMesh(vertexFormat, MaterialDefines.TEXTURE_GROUP_STATIC_VERTEX_BUFFER_DISP);
+		pMesh.Group = combo;
+		pMesh.NumVisible = 0;
+
+		using MeshBuilder builder = new();
+		builder.Begin(pMesh.Mesh, MaterialPrimitiveType.Triangles, nTotalVerts, nTotalIndices);
+
+		builder.AdvanceIndices(nTotalIndices);
+		builder.AdvanceVertices(nTotalVerts);
+
+		builder.End();
+
+		pMesh.DispInfos.SetSize(nDisps);
+		pMesh.Visible.SetSize(nDisps);
+		pMesh.VisibleDisps.SetSize(nDisps);
+
+		int iVertOffset = 0;
+		int iIndexOffset = 0;
+		for (int iDisp = 0; iDisp < nDisps; iDisp++) {
+			DispInfo pDisp = DispInfo.GetModelDisp(world, dispInfos[iDisp])!;
+			ref BSPDispInfo pMapDisp = ref mapDisps[dispInfos[iDisp]];
+
+			pDisp.Mesh = pMesh;
+			pDisp.VertOffset = iVertOffset;
+			pDisp.IndexOffset = iIndexOffset;
+
+			CalcMaxNumVertsAndIndices(pMapDisp.Power, out int nVerts, out int nIndices);
+			iVertOffset += nVerts;
+			iIndexOffset += nIndices;
+
+			pMesh.DispInfos[iDisp] = pDisp;
+		}
+
+		Assert(iVertOffset == nTotalVerts);
+		Assert(iIndexOffset == nTotalIndices);
 	}
 
-	private void DispInfo_LinkToParentFaces(Model world, Span<BSPDispInfo> tempDisps, nint numDisplacements) {
+	private static VertexFormat ComputeDisplacementStaticMeshVertexFormat(IMaterial? material, DispGroup combo, Span<BSPDispInfo> mapDisps) {
+		VertexFormat vertexFormat = material!.GetVertexFormat();
+		return vertexFormat;
+	}
 
+	private static void CalcMaxNumVertsAndIndices(int power, out int nVerts, out int nIndices) {
+		int sideLength = (1 << power) + 1;
+		nVerts = sideLength * sideLength;
+		nIndices = (sideLength - 1) * (sideLength - 1) * 2 * 3;
+	}
+
+	private static void DispInfo_CreateMaterialGroups(Model world, MaterialSystem_SortInfo[] sortInfos) {
+		for (int iDisp = 0; iDisp < world.Brush.Shared!.NumDispInfos; iDisp++) {
+			DispInfo pDisp = DispInfo.GetModelDisp(world, iDisp)!;
+
+			int idLMPage = sortInfos[MSurf_MaterialSortID(ref pDisp.ParentSurfID)].LightmapPageID;
+
+			DispGroup? pCombo = FindCombo(g_DispGroups, idLMPage, MSurf_TexInfo(ref pDisp.ParentSurfID).Material);
+			if (pCombo == null)
+				pCombo = AddCombo(g_DispGroups, idLMPage, MSurf_TexInfo(ref pDisp.ParentSurfID).Material);
+
+			pCombo.DispInfos.Add(iDisp);
+		}
+	}
+
+	private static DispGroup AddCombo(List<DispGroup> combos, int idLMPage, IMaterial? material) {
+		DispGroup combo = new DispGroup();
+		combo.LightmapPageID = idLMPage;
+		combo.Material = material;
+		combo.Visible = 0;
+		combos.Add(combo);
+		return combo;
+	}
+
+	private static DispGroup? FindCombo(List<DispGroup> combos, int idLMPage, IMaterial? material) {
+		foreach (var c in combos)
+			if (c.LightmapPageID == idLMPage && c.Material == material)
+				return c;
+
+		return null;
+	}
+
+	private void DispInfo_LinkToParentFaces(Model world, Span<BSPDispInfo> mapDisps, nint numDisplacements) {
+		for (int iDisp = 0; iDisp < numDisplacements; iDisp++) {
+			ref readonly BSPDispInfo pMapDisp = ref mapDisps[iDisp];
+			DispInfo pDisp = DispInfo.GetModelDisp(world, iDisp);
+
+			// Set its parent.
+			ref BSPMSurface2 surfID = ref SurfaceHandleFromIndex(pMapDisp.MapFace);
+			Assert(pMapDisp.MapFace >= 0 && pMapDisp.MapFace < world.Brush.Shared.NumSurfaces);
+			Assert(MSurf_Flags(ref surfID) & SurfDraw.HasDisp);
+			surfID.DispInfo = pDisp;
+			pDisp.SetParent(ref surfID, world.Brush.Shared);
+		}
 	}
 
 	public bool DispInfo_CreateFromMapDisp(Model world, int disp, ref BSPDispInfo mapDisp, CoreDispInfo coreDisp, Span<DispVert> verts, Span<DispTri> tris) {
@@ -1284,6 +1404,34 @@ public class DispArray(nint elements)
 {
 	public DispInfo[] DispInfos = new DispInfo[elements];
 	public int CurTag;
+}
+
+public struct DispRenderVert{
+	public Vector3 Pos;
+	public Vector3 Normal;
+	public Vector3 SVector;
+	public Vector3 TVector;
+	public Vector2 TexCoord;
+	public Vector2 LMCoords;
+}
+
+public class GroupMesh
+{
+	public IMesh? Mesh;
+	public readonly List<DispInfo?> DispInfos = [];
+	public readonly List<DispInfo?> VisibleDisps = [];
+	public readonly List<PrimList> Visible = [];
+	public int NumVisible;
+	public DispGroup? Group;
+}
+
+public class DispGroup
+{
+	public int LightmapPageID;
+	public IMaterial? Material;
+	public readonly List<GroupMesh> Meshes = [];
+	public readonly List<int> DispInfos = [];
+	public int Visible;
 }
 
 public class CoreDispInfo
