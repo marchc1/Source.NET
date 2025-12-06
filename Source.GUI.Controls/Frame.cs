@@ -840,7 +840,7 @@ public class Frame : EditablePanel
 		SetCloseButtonVisible(state);
 	}
 
-	private void SetMenuButtonVisible(bool state) {
+	public void SetMenuButtonVisible(bool state) {
 		MenuButton?.SetVisible(state);
 	}
 
@@ -967,16 +967,14 @@ public class Frame : EditablePanel
 			Title?.SetColor(TitleBarDisabledFgColor);
 
 		if (HasFocus) {
-			if (FocusTransitionEffectTime != 0 && (!DisableFadeEffect)) {
-				// GetAnimationController().RunAnimationCommand(this, "BgColor", InFocusBgColor, 0.0f, DisableFadeEffect ? 0.0f : FocusTransitionEffectTime, Interpolators.Linear);
-			}
+			if (FocusTransitionEffectTime != 0 && (!DisableFadeEffect))
+				GetAnimationController().RunAnimationCommand(this, "BgColor", InFocusBgColor, 0.0f, DisableFadeEffect ? 0.0f : FocusTransitionEffectTime, Interpolators.Linear);
 			else
 				SetBgColor(InFocusBgColor);
 		}
 		else {
-			if (FocusTransitionEffectTime != 0 && (!DisableFadeEffect)) {
-				// GetAnimationController().RunAnimationCommand(this, "BgColor", OutOfFocusBgColor, 0.0f, DisableFadeEffect ? 0.0f : FocusTransitionEffectTime, Interpolators.Linear);
-			}
+			if (FocusTransitionEffectTime != 0 && (!DisableFadeEffect))
+				GetAnimationController().RunAnimationCommand(this, "BgColor", OutOfFocusBgColor, 0.0f, DisableFadeEffect ? 0.0f : FocusTransitionEffectTime, Interpolators.Linear);
 			else
 				SetBgColor(OutOfFocusBgColor);
 		}
