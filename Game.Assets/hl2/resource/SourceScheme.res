@@ -239,7 +239,8 @@ Scheme
 		{
 			"1"
 			{
-				"name"		"Courier New"
+				"name"		"Courier New" [$WINDOWS]
+				"name"		"Noto Sans" [$LINUX]
 				"tall"		"10"
 				"weight"	"500"
 				"antialias" "1"
@@ -250,7 +251,8 @@ Scheme
 		{
 			"1"
 			{
-				"name"		"Courier New"
+				"name"		"Courier New" [$WINDOWS]
+				"name"		"Noto Sans" [$LINUX]
 				"tall"		"7"
 				"weight"	"500"
 				"antialias" "1"
@@ -262,7 +264,7 @@ Scheme
 			{
 				"name"		 "Lucida Console" [$WINDOWS]
 				"name"		 "Lucida Console" [$X360]
-				"name"		 "Verdana" [$POSIX]
+				"name"		 "Noto Sans" [$POSIX]
 				"tall"		"14" [$LINUX]
 				"tall"		"11" [$OSX]
 				"tall"		 "10"
@@ -277,7 +279,7 @@ Scheme
 			"1"
 			{
 				"name"		"Tahoma" [!$POSIX]
-				"name"		"Verdana" [$POSIX]
+				"name"		"Noto Sans" [$POSIX]
 				"tall"		"16"
 				"weight"	"500"
 			}
@@ -287,7 +289,7 @@ Scheme
 			"1"
 			{
 				"name"		"Tahoma" [!$POSIX]
-				"name"		"Verdana Bold" [$POSIX]
+				"name"		"Noto Sans Black" [$POSIX]
 				"tall"		"16"
 				"weight"	"1000"
 			}
@@ -297,7 +299,7 @@ Scheme
 			"1"
 			{
 				"name"		"Tahoma" [!$POSIX]
-				"name"		"Verdana" [$POSIX]
+				"name"		"Noto Sans" [$POSIX]
 				"tall"		"16"
 				"weight"	"500"
 				"underline" "1"
@@ -308,7 +310,7 @@ Scheme
 			"1"
 			{
 				"name"		"Tahoma" [!$POSIX]
-				"name"		"Verdana" [$POSIX]
+				"name"		"Noto Sans" [$POSIX]
 				"tall"		"12" [!$POSIX]
 				"tall"		"13" [$POSIX]
 				"weight"	"0"
@@ -319,7 +321,7 @@ Scheme
 			"1"
 			{
 				"name"		"Tahoma" [!$POSIX]
-				"name"		"Verdana" [$POSIX]
+				"name"		"Noto Sans" [$POSIX]
 				"tall"		"13"
 				"weight"	"0"
 				"dropshadow" "1"
@@ -330,7 +332,7 @@ Scheme
 			"1"
 			{
 				"name"		"Tahoma" [!$POSIX]
-				"name"		"Verdana" [$POSIX]
+				"name"		"Noto Sans" [$POSIX]
 				"tall"		"12"
 				"weight"	"0"
 			}
@@ -341,7 +343,7 @@ Scheme
 			"1"
 			{
 				"name"		"Tahoma" [!$POSIX]
-				"name"		"Verdana" [$POSIX]
+				"name"		"Noto Sans" [$POSIX]
 				"tall"		"18"
 				"weight"	"0"
 			}
@@ -351,7 +353,7 @@ Scheme
 			"1"	[$WIN32]
 			{
 				"name"		"Tahoma" [!$POSIX]
-				"name"		"Verdana" [$POSIX]
+				"name"		"Noto Sans" [$POSIX]
 				"tall"		"12"
 				"weight"	"1000"
 			}
@@ -390,7 +392,7 @@ Scheme
 		{
 			"1"	[$POSIX]
 			{
-				"name"		"Helvetica Bold"
+				"name"		"Noto Sans Black"
 				"tall"		"20"
 				"antialias" "1"
 			}
@@ -478,7 +480,7 @@ Scheme
 			{
 				"name"		 "Lucida Console" [$WINDOWS]
 				"name"		 "Lucida Console" [$X360]
-				"name"		 "Verdana" [$POSIX]
+				"name"		 "Noto Sans" [$POSIX]
 				"tall"		"11" [$OSX]
 				"tall"		"14" [$LINUX]
 				"tall"		"10"
@@ -502,7 +504,8 @@ Scheme
 		{
 			"1"
 			{
-				"name"		"Trebuchet MS"
+				"name"		"Trebuchet MS" [$WINDOWS]
+				"name"		"Noto Sans" [$LINUX]
 				"tall"		"24"
 				"weight"	"900"
 			}
@@ -512,7 +515,8 @@ Scheme
 		{
 			"1"
 			{
-				"name"		"Trebuchet MS"
+				"name"		"Trebuchet MS" [$WINDOWS]
+				"name"		"Noto Sans" [$LINUX]
 				"tall"		"20"
 				"weight"	"900"
 			}
@@ -522,7 +526,8 @@ Scheme
 		{
 			"1"
 			{
-				"name"		"Trebuchet MS"
+				"name"		"Trebuchet MS" [$WINDOWS]
+				"name"		"Noto Sans" [$LINUX]
 				"tall"		"18"
 				"weight"	"900"
 			}
@@ -534,7 +539,8 @@ Scheme
 		{
 			"1"
 			{
-				"name"		"Trebuchet MS"
+				"name"		"Trebuchet MS" [$WINDOWS]
+				"name"		"Noto Sans" [$LINUX]
 				"tall"		"40"
 				"weight"	"900"
 			}
@@ -543,7 +549,8 @@ Scheme
 		{
 			"1"
 			{
-				"name"		"Trebuchet MS"
+				"name"		"Trebuchet MS" [$WINDOWS]
+				"name"		"Noto Sans" [$LINUX]
 				"tall"		"41"
 				"weight"	"900"
 			}
@@ -552,7 +559,8 @@ Scheme
 		{
 			"1"
 			{
-				"name"		"Trebuchet MS"
+				"name"		"Trebuchet MS" [$WINDOWS]
+				"name"		"Noto Sans" [$LINUX]
 				"tall"		"42"
 				"weight"	"900"
 			}
@@ -561,7 +569,8 @@ Scheme
 		{
 			"1"
 			{
-				"name"		"Trebuchet MS"
+				"name"		"Trebuchet MS" [$WINDOWS]
+				"name"		"Noto Sans" [$LINUX]
 				"tall"		"43"
 				"weight"	"900"
 			}
@@ -570,7 +579,8 @@ Scheme
 		{
 			"1"
 			{
-				"name"		"Trebuchet MS"
+				"name"		"Trebuchet MS" [$WINDOWS]
+				"name"		"Noto Sans" [$LINUX]
 				"tall"		"44"
 				"weight"	"900"
 			}
@@ -579,7 +589,8 @@ Scheme
 		{
 			"1"
 			{
-				"name"		"Trebuchet MS"
+				"name"		"Trebuchet MS" [$WINDOWS]
+				"name"		"Noto Sans" [$LINUX]
 				"tall"		"45"
 				"weight"	"900"
 			}
@@ -590,7 +601,7 @@ Scheme
 			{
 				"name"		 "Lucida Console" [$WINDOWS]
 				"name"		 "Lucida Console" [$X360]
-				"name"		 "Verdana" [$POSIX]
+				"name"		 "Noto Mono" [$POSIX]
 				"tall"		"11" [$POSIX]
 				"tall"		"10"
 				"weight"	"0"
@@ -610,7 +621,7 @@ Scheme
 				"name"		 "Lucida Console" [$WINDOWS]
 				"name"		 "Lucida Console" [$X360]
 				"name"		 "Verdana" [$OSX]
-				"name"		 "Courier" [$LINUX]
+				"name"		 "Noto Mono" [$LINUX]
 				"tall"		"14" [$LINUX]
 				"tall"		"11" [$POSIX]
 				"tall"		"10"
