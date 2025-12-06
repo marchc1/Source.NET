@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Source.Common.Mathematics;
 using CommunityToolkit.HighPerformance;
+using Source.Common.Engine;
 
 namespace Source.Common.Formats.BSP;
 
@@ -947,6 +948,12 @@ public enum EmitType
 	SkyAmbient
 }
 
+public record struct BSPWorldLightPtr
+{
+	public readonly WorldBrushData Data;
+	public readonly nint Index;
+	public readonly ref BSPWorldLight Dereference() => ref Data.WorldLights![Index];
+}
 
 /// <summary>
 /// Analog of dworldlight_t

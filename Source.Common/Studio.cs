@@ -1853,4 +1853,7 @@ public class StudioHeader
 		autoplaySequenceList = autoplaySequenceList[..outIndex];
 	}
 
+	public int IllumPositionAttachmentIndex() {
+		return StudioHDR2Index != 0 ? StudioHdr2().IllumPositionAttachmentIndex : 0;
+	}
 }

@@ -32,12 +32,7 @@ public class ModelInstance
 
 	public LightingState CurrentLightingState;
 	public LightingState AmbientLightingState;
-}
-
-public struct LightingState
-{
-	public InlineArray6<Vector3> BoxColor;
-	public int NumLights;
+	public LightCacheHandle_t LightCacheHandle;
 }
 
 public class ModelRender : IModelRender
@@ -295,7 +290,17 @@ public class ModelRender : IModelRender
 		info.StaticLighting = false;
 
 		if ((bVertexLit || bNeedsEnvCubemap) && !bShadowDepth && !bSSAODepth) {
-			// todo
+			ref LightCacheHandle_t lightCache = ref Unsafe.NullRef<LightCacheHandle_t>();
+			if (pInfo.Instance != MODEL_INSTANCE_INVALID) {
+				if ((ModelInstances[pInfo.Instance].Flags & ModelInstanceFlags.HasStaticLighting) != 0 && ModelInstances[pInfo.Instance].LightCacheHandle != 0) {
+					lightCache = ref ModelInstances[pInfo.Instance].LightCacheHandle;
+				}
+			}
+
+			R_ComputeLightingOrigin(state.Renderable, state.StudioHdr, in state.ModelToWorld, out Vector3 entOrigin);
+
+			// Set up lighting based on the lighting origin
+			StudioSetupLighting(state, entOrigin, ref lightCache, bVertexLit, bNeedsEnvCubemap, bStaticLighting, info, pInfo, state.DrawFlags);
 		}
 
 		// Set up the camera state
@@ -337,5 +342,19 @@ public class ModelRender : IModelRender
 		// TODO: debug overlay
 
 #endif
+	}
+
+	private void StudioSetupLighting(DrawModelState state, Vector3 entOrigin, ref nint lightCache, bool bVertexLit, bool bNeedsEnvCubemap, bool bStaticLighting, DrawModelInfo info, ModelRenderInfo pInfo, StudioRenderFlags drawFlags) {
+		
+	}
+
+	private void R_ComputeLightingOrigin(IClientRenderable? renderable, StudioHeader? studioHdr, in Matrix3x4 matrix, out Vector3 center) {
+		int nAttachmentIndex = studioHdr!.IllumPositionAttachmentIndex();
+		if (nAttachmentIndex <= 0) 
+			MathLib.VectorTransform(studioHdr!.IllumPosition, matrix, out center);
+		else {
+			renderable!.GetAttachment(nAttachmentIndex, out Matrix3x4 attachment);
+			MathLib.VectorTransform(studioHdr!.IllumPosition, attachment, out center);
+		}
 	}
 }

@@ -752,6 +752,16 @@ public static class MathLib
 		dst[2, 3] = znear * zfar / (znear - zfar);
 	}
 
+	public static bool IsZero(this in Vector3 v, float tolerance = 0.01f){
+		Vector3 zero = Vector3.Zero;
+		Vector3 diff = Vector3.Abs(v - zero);
+		Vector3 toleranceVec = new(tolerance);
+
+		return diff.X <= toleranceVec.X &&
+			   diff.Y <= toleranceVec.Y &&
+			   diff.Z <= toleranceVec.Z;
+	}
+
 	public static void Init(this ref Vector2 v) => v.X = v.Y = 0;
 	public static void Init(this ref Vector3 v) => v.X = v.Y = v.Z = 0;
 	public static void Init(this ref QAngle a) => a.X = a.Y = a.Z = 0;

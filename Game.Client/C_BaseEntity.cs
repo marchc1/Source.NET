@@ -492,7 +492,6 @@ public partial class C_BaseEntity : IClientEntity
 		color[1] = ColorRender.G / 255f;
 		color[2] = ColorRender.B / 255f;
 	}
-
 	public virtual void ClientThink() { }
 
 	public bool ReadyToDraw;
