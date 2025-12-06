@@ -315,13 +315,37 @@ public class EditablePanel : Panel
 
 	public KeyValues GetDialogVariables() => DialogVariables ??= new KeyValues("DialogVariables");
 
+	private void OnCurrentDefaultButtonSet(Panel defaultButton) {
+		NavGroup.SetCurrentDefaultButton(defaultButton, false);
+
+		if (GetParent() != null) {
+			KeyValues msg = new("CurrentDefaultButtonSet");
+			msg.SetPtr("panel", defaultButton);
+			PostMessage(GetParent()!, msg);
+		}
+	}
+
+	private void OnDefaultButtonSet(Panel defaultButton) => NavGroup.SetDefaultButton(defaultButton);
+
+	static readonly KeyValues KV_FindDefaultButton = new("FindDefaultButton");
+	private void OnFindDefaultButton() {
+		if (NavGroup.GetDefaultButton() != null)
+			NavGroup.SetCurrentDefaultButton(NavGroup.GetDefaultButton());
+		else if (GetParent() != null) {
+			PostMessage(GetParent()!, KV_FindDefaultButton);
+		}
+	}
+
 	public override void OnMessage(KeyValues message, IPanel? from) {
 		switch (message.Name) {
 			case "DefaultButtonSet":
+				OnDefaultButtonSet((Panel)message.GetPtr("panel")!);
 				break;
 			case "CurrentDefaultButtonSet":
+				OnCurrentDefaultButtonSet((Panel)message.GetPtr("panel")!);
 				break;
 			case "FindDefaultButton":
+				OnFindDefaultButton();
 				break;
 			default:
 				base.OnMessage(message, from);
@@ -330,89 +354,3 @@ public class EditablePanel : Panel
 	}
 }
 
-public class FocusNavGroup
-{
-	readonly public IVGui VGui = Singleton<IVGui>();
-	readonly WeakReference<Panel?> DefaultButton = new(null);
-	readonly WeakReference<Panel?> CurrentDefaultButton = new(null);
-	readonly WeakReference<Panel?> CurrentFocus = new(null);
-	readonly Panel MainPanel;
-
-	bool TopLevelFocus;
-
-	public FocusNavGroup(Panel panel) {
-		MainPanel = panel;
-	}
-
-	public Panel? SetCurrentFocus(Panel focus, Panel? defaultPanel) {
-		CurrentFocus.SetTarget(focus);
-		if (defaultPanel == null) {
-			if (CanButtonBeDefault(focus))
-				defaultPanel = focus;
-			else if (DefaultButton.TryGetTarget(out Panel? def))
-				defaultPanel = def;
-		}
-
-		SetCurrentDefaultButton(defaultPanel);
-		return defaultPanel;
-	}
-
-	public bool CanButtonBeDefault(Panel panel) {
-		if (panel == null)
-			return false;
-
-		KeyValues data = new("CanBeDefaultButton");
-		bool result = false;
-		if (panel.RequestInfo(data))
-			result = (data.GetInt("result") == 1);
-
-		return result;
-	}
-
-	public void SetCurrentDefaultButton(Panel? panel, bool sendCurrentDefaultButtonMessage = true) {
-		CurrentDefaultButton.TryGetTarget(out Panel? currentDefaultButton);
-
-		if (panel == currentDefaultButton)
-			return;
-
-		if (sendCurrentDefaultButtonMessage && currentDefaultButton != null)
-			VGui.PostMessage(currentDefaultButton, new KeyValues("SetAsCurrentDefaultButton", "state", 0), null);
-
-		CurrentDefaultButton.SetTarget(panel);
-
-		if (sendCurrentDefaultButtonMessage && currentDefaultButton != null)
-			VGui.PostMessage(currentDefaultButton, new KeyValues("SetAsCurrentDefaultButton", "state", 1), null);
-	}
-
-	public Panel? GetCurrentFocus() => CurrentFocus.TryGetTarget(out Panel? t) ? t : null;
-
-	public void SetDefaultButton(Panel? submit) {
-		if ((DefaultButton.TryGetTarget(out Panel? d) && d == submit) || submit == null)
-			return;
-		DefaultButton.SetTarget(submit);
-		SetCurrentDefaultButton(submit);
-	}
-
-	public IPanel? GetCurrentDefaultButton() {
-		if (CurrentDefaultButton.TryGetTarget(out Panel? t))
-			return t;
-		return null;
-	}
-
-	public void SetFocusTopLevel(bool state) {
-		TopLevelFocus = state;
-	}
-
-	public Panel? GetDefaultPanel() {
-		for (int i = 0; i < MainPanel.GetChildCount(); i++) {
-			Panel? child = MainPanel.GetChild(i);
-			if (child == null)
-				continue;
-
-			if (child.GetTabPosition() == 1)
-				return child;
-		}
-
-		return null;
-	}
-}

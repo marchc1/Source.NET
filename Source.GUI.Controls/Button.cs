@@ -52,7 +52,7 @@ public class Button : Label
 				SetAsDefaultButton(message.GetBool("state", false));
 				return;
 			case "SetAsCurrentDefaultButton":
-				// SetAsCurrentDefaultButton(message.GetBool("state", false));
+				SetAsCurrentDefaultButton(message.GetBool("state", false));
 				return;
 			case "SetState":
 				OnSetState(message.GetInt("state", 0));
@@ -524,6 +524,21 @@ public class Button : Label
 	public void SetKeyFocusBorder(IBorder? border) {
 		KeyFocusBorder = border;
 		InvalidateLayout(false);
+	}
+
+	private void SetAsCurrentDefaultButton(bool state) {
+		if (ButtonFlags.DefaultButton != 0 != state) {
+			ButtonFlags ^= ButtonFlags.DefaultButton;
+
+			if (state) {
+				KeyValues msg = new("CurrentDefaultButtonSet");
+				msg.SetPtr("button", this);
+				CallParentFunction(msg);
+			}
+
+			InvalidateLayout(false);
+			Repaint();
+		}
 	}
 
 	public void SetDefaultColor(Color fgColor, Color bgColor) {

@@ -1027,6 +1027,8 @@ public class Panel : IPanel
 		SetAutoResize(pinCorner, autoResize, pinnedCornerOffsetX, pinnedCornerOffsetY, unpinnedCornerOffsetX, unpinnedCornerOffsetY);
 	}
 
+	public AutoResize GetAutoResize() => AutoResizeDirection;
+
 	PinCorner PinCorner;
 	AutoResize AutoResizeDirection;
 	int PinDeltaX;
@@ -1702,6 +1704,9 @@ public class Panel : IPanel
 	public Color GetSchemeColor(ReadOnlySpan<char> keyName, Color defaultColor, IScheme scheme) {
 		return scheme.GetColor(keyName, defaultColor);
 	}
+
+	public static ReadOnlySpan<char> GetDescription() => "string fieldName, int xpos, int ypos, int wide, int tall, bool visible, bool enabled, int tabPosition, corner pinCorner, autoresize autoResize, string tooltiptext".AsSpan();
+
 	public virtual void ApplySchemeSettings(IScheme scheme) {
 		SetFgColor(GetSchemeColor("Panel.FgColor", scheme));
 		SetBgColor(GetSchemeColor("Panel.BgColor", scheme));
@@ -2261,7 +2266,7 @@ public class Panel : IPanel
 		}
 	}
 
-	private bool IsKeyRebound(ButtonCode code, KeyModifier modifiers) {
+	virtual public bool IsKeyRebound(ButtonCode code, KeyModifier modifiers) {
 		return false;
 	}
 

@@ -176,7 +176,7 @@ public class BuildGroup
 		}
 #if DEBUG
 		else {
-			Warning($"BuildGroup::NewControl Could not create control of type '{controlKeys.GetString("ControlName")}'\n");
+			Warning($"BuildGroup::NewControl Could not create panel '{controlKeys.Name}', '{controlKeys.GetString("ControlName")}'\n");
 		}
 #endif
 		return newPanel;

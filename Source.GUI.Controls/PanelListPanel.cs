@@ -99,16 +99,14 @@ public class PanelListPanel : EditablePanel
 		return DataItems.ElementAt(SortedItems[row]).Panel;
 	}
 
-	public int AddItem(Panel labelPanel, Panel panel) {
+	public int AddItem(Panel? labelPanel, Panel? panel) {
 		Assert(panel != null);
 
-		if (labelPanel != null)
-			labelPanel.SetParent(PanelEmbedded);
-
+		labelPanel?.SetParent(PanelEmbedded);
 		panel.SetParent(PanelEmbedded);
 
 		int itemId = DataItems.Count;
-		DataItems.Add(new DataItem { Panel = panel, LabelPanel = labelPanel });
+		DataItems.Add(new() { Panel = panel, LabelPanel = labelPanel });
 		SortedItems.Add(itemId);
 
 		InvalidateLayout();

@@ -117,7 +117,6 @@ public class FocusOverlayPanel : Panel
 	public static readonly ConVar mat_drawTitleSafe = new("mat_drawTitleSafe", "0", FCvar.None, "Enable title safe overlay");
 	public static readonly ConVar vgui_drawfocus = new("vgui_drawfocus", "0", FCvar.None, "Report which panel is under the mouse.");
 	static public List<Panel> FocusPanelList = [];
-	static public Panel? DrawTreeSelectedPanel;
 
 	public IMaterialSystem materials;
 
@@ -169,8 +168,8 @@ public class FocusOverlayPanel : Panel
 
 		bool needsMoveToFront = false;
 
-		if (DrawTreeSelectedPanel != null) {
-			DrawTreeSelectedPanel.GetClipRect(out int x, out int y, out int x1, out int y1);
+		if (DrawTreeFrame.DrawTreeSelectedPanel != null) {
+			DrawTreeFrame.DrawTreeSelectedPanel.GetClipRect(out int x, out int y, out int x1, out int y1);
 			Surface.DrawSetColor(255, 0, 0, 255);
 			Surface.DrawOutlinedRect(x, y, x1, y1);
 
@@ -514,7 +513,7 @@ public class EngineVGui(
 
 		// Root -- staticPanel
 		//		staticBackgroundImagePanel (from gamui) zpos == 0
-		//      staticClientDLLPanel ( zpos == 25 )
+		//    staticClientDLLPanel ( zpos == 25 )
 		//		staticClientDLLToolsPanel ( zpos == 28
 		//		staticGameDLLPanel ( zpos == 30 )
 		//		staticEngineToolsPanel ( zpos == 75 )
@@ -595,7 +594,14 @@ public class EngineVGui(
 
 			// FogUIPanel.InstallFogUI(staticEngineToolsPanel);
 
-			// TxViewwPanel.Install(staticEngineToolsPanel);
+			// TxViewPanel.Install(staticEngineToolsPanel);
+
+			Common.TimestampedLog("Install perf tools");
+
+			EnginePerfTools.InstallPerformanceToolsUI(staticEngineToolsPanel);
+
+			// colorcorrectiontools.InstallColorCorrectionUI(staticEngineToolsPanel);
+			// colorcorrectiontools.Init();
 		}
 
 		if (CommandLine.CheckParm("-tools"))
@@ -614,13 +620,12 @@ public class EngineVGui(
 		// - DemoUIPanel (if we even do demos)
 		// - FogUIPanel
 		// - TxViewPanel
-		// - FocusOverlayPanel
-		// - VGui_CreateDrawTreePanel
 		// - CL_CreateTextureListPanel
 		// - CreateVProfPanels
 
 		if (IsPC()) {
 			Con.CreateConsolePanel(staticEngineToolsPanel);
+			VGuiDrawTree.CreateDrawTreePanel(staticEngineToolsPanel);
 			CL.CreateEntityReportPanel(staticEngineToolsPanel);
 		}
 
@@ -739,7 +744,7 @@ public class EngineVGui(
 		vgui.RunFrame();
 
 		DrawMouseFocus();
-
+		VGuiDrawTree.UpdateDrawTreePanel();
 		surface.CalculateMouseVisible();
 		VGui_ActivateMouse();
 	}

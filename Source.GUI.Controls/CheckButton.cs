@@ -45,7 +45,7 @@ public class CheckButton : ToggleButton
 {
 	public static Panel Create_CheckButton() => new CheckButton(null, null, "CheckButton");
 
-	private int CHECK_INSET = 6;
+	private const int CHECK_INSET = 6;
 
 	bool CheckButtonCheckable;
 	bool UseSmallCheckImage;
@@ -65,7 +65,7 @@ public class CheckButton : ToggleButton
 		SetImageAtIndex(0, CheckBoxImage, CHECK_INSET);
 
 		SelectedFgColor = new(196, 181, 80, 255);
-		SelectedBgColor = new(130, 130, 130, 255);
+		DisabledFgColor = new(130, 130, 130, 255);
 		DisabledBgColor = new(62, 70, 55, 255);
 	}
 
@@ -114,7 +114,11 @@ public class CheckButton : ToggleButton
 		}
 	}
 
-	public void SetCheckButtonCheckable(bool state) => CheckButtonCheckable = state;
+	public void SetCheckButtonCheckable(bool state) {
+		CheckButtonCheckable = state;
+		Repaint();
+	}
+
 	public virtual bool IsCheckButtonCheckable() => CheckButtonCheckable;
 
 	public Color GetDisabledFgColor() => DisabledFgColor;

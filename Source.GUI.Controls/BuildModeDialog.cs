@@ -33,6 +33,47 @@ class SmallTextEntry : TextEntry
 	}
 }
 
+class BuildModeNavCombo : ComboBox
+{
+	bool Parents;
+	Panel? Context;
+	public BuildModeNavCombo(Panel parent, ReadOnlySpan<char> name, int numLines, bool allowEdit, bool getParents, Panel? context) : base(parent, name, numLines, allowEdit) {
+		Parents = getParents;
+		Context = context;
+	}
+
+	public override void OnShowMenu(Menu menu) {
+		menu.DeleteAllItems();
+
+		if (Context == null)
+			return;
+
+		if (Parents) {
+			Panel? parent = Context.GetParent();
+			while (parent != null) {
+				if (parent is EditablePanel ep && ep.GetBuildGroup() != null) {
+					KeyValues kv = new("Panel");
+					kv.SetPtr("ptr", ep);
+					ReadOnlySpan<char> text = ep.GetName().IsEmpty ? "unnamed" : ep.GetName();
+					menu.AddMenuItem(text, new KeyValues("SetText", "text", text), GetParent()!, kv);
+				}
+				parent = parent.GetParent();
+			}
+		}
+		else {
+			for (int i = 0; i < Context.GetChildCount(); i++) {
+				Panel child = Context.GetChild(i);
+				if (child is EditablePanel ep && ep.IsVisible() && ep.GetBuildGroup() != null) {
+					KeyValues kv = new("Panel");
+					kv.SetPtr("ptr", ep);
+					ReadOnlySpan<char> text = ep.GetName().IsEmpty ? "unnamed" : ep.GetName();
+					menu.AddMenuItem(text, new KeyValues("SetText", "text", text), GetParent()!, kv);
+				}
+			}
+		}
+	}
+}
+
 public class BuildModeDialog : Frame
 {
 	public static Panel Create_BuildModeDialog() => new BuildModeDialog(null);
@@ -43,7 +84,7 @@ public class BuildModeDialog : Frame
 		public PanelListPanel Controls;
 		public KeyValues? ResourceData;
 
-		public void AddItem(Panel label, TextEntry edit, ComboBox combo, Button button, ReadOnlySpan<char> name, Type type) {
+		public void AddItem(Panel? label, TextEntry? edit, ComboBox? combo, Button? button, ReadOnlySpan<char> name, Type type) {
 			PanelItem item = new();
 			item.EditLabel = label;
 			item.EditPanel = edit;
@@ -107,11 +148,19 @@ public class BuildModeDialog : Frame
 
 	Menu ContextMenu;
 
-	ComboBox EditableParents;
-	ComboBox EditableChildren;
+	BuildModeNavCombo EditableParents;
+	BuildModeNavCombo EditableChildren;
 
 	Button NextChild;
 	Button PrevChild;
+
+	const int TYPE_STRING = 0;
+	const int TYPE_INTEGER = 1;
+	const int TYPE_COLOR = 2;
+	const int TYPE_ALIGNMENT = 3;
+	const int TYPE_AUTORESIZE = 4;
+	const int TYPE_CORNER = 5;
+	const int TYPE_LOCALIZEDSTRING = 6;
 
 	public BuildModeDialog(BuildGroup buildGroup) : base(buildGroup?.GetContextPanel(), "BuildModeDialog") {
 		SetMinimumSize(300, 256);
@@ -138,6 +187,7 @@ public class BuildModeDialog : Frame
 
 	}
 
+	static readonly KeyValues KV_ReloadLocalization = new("ReloadLocalization");
 	public void CreateControls() {
 		if (BuildGroup == null)
 			return;
@@ -166,11 +216,11 @@ public class BuildModeDialog : Frame
 		AddNewControlCombo.SetSize(116, buttonH);
 		AddNewControlCombo.SetOpenDirection(MenuDirection.DOWN);
 
-		EditableParents = new(this, null, 15, false); //, true, buildGroup.GetContextPanel() // CBuildMoveNavCombo
+		EditableParents = new(this, null, 15, false, true, BuildGroup.GetContextPanel());
 		EditableParents.SetSize(116, buttonH);
 		EditableParents.SetOpenDirection(MenuDirection.DOWN);
 
-		EditableChildren = new(this, null, 15, false); //, true, buildGroup.GetContextPanel() // CBuildMoveNavCombo
+		EditableChildren = new(this, null, 15, false, false, BuildGroup.GetContextPanel());
 		EditableChildren.SetSize(116, buttonH);
 		EditableChildren.SetOpenDirection(MenuDirection.DOWN);
 
@@ -206,7 +256,7 @@ public class BuildModeDialog : Frame
 		ExitButton.SetCommand("Exit");
 		SaveButton.SetCommand("Save");
 		ApplyButton.SetCommand("Apply");
-		ReloadLocalization.SetCommand(new KeyValues("ReloadLocalization"));//static
+		ReloadLocalization.SetCommand(KV_ReloadLocalization);
 
 		DeleteButton = new(this, "DeletePanelButton", "Delete");
 		DeleteButton.SetSize(64, buttonH);
@@ -310,16 +360,150 @@ public class BuildModeDialog : Frame
 		AddNewControlCombo.SetPos(xpos, ypos);
 	}
 
-	public void RemoveAllControls() {
-
-	}
+	public void RemoveAllControls() => panelList.RemoveAll();
 
 	public void OnTextKillFocus() {
-
+		if (CurrentPanel != null)
+			ApplyDataToControls();
 	}
 
-	public void SetActiveControl(Panel controlToEdit) {
+	private static ReadOnlySpan<char> ParseTokenFromString(ref ReadOnlySpan<char> s) {
+		int i = 0;
+		while (i < s.Length && !char.IsLetterOrDigit(s[i])) i++;
 
+		int start = i;
+		while (i < s.Length && char.IsLetterOrDigit(s[i])) i++;
+
+		ReadOnlySpan<char> token = s.Slice(start, i - start);
+		s = s[i..];
+
+		return token;
+	}
+
+
+	public void SetActiveControl(Panel controlToEdit) {
+		if (CurrentPanel == controlToEdit) {
+			if (CurrentPanel != null)
+				UpdateControlData(CurrentPanel);
+			return;
+		}
+
+		CurrentPanel = controlToEdit;
+		RemoveAllControls();
+		panelList.Controls.MoveScrollBarToTop();
+
+		if (CurrentPanel == null) {
+			StatusLabel.SetText("[nothing currently selected]");
+			StatusLabel.SetTextColorState(ColorState.Dull);
+			RemoveAllControls();
+			return;
+		}
+
+		ReadOnlySpan<char> controlDesc = GetDescription(); // TODO: Add missing description overrides
+
+		int tabPosition = 1;
+		while (true) {
+			ReadOnlySpan<char> dataType = ParseTokenFromString(ref controlDesc);
+
+			if (dataType.IsEmpty)
+				break;
+
+			int dt = TYPE_STRING;
+			if (dataType.Equals("int", StringComparison.OrdinalIgnoreCase)) dt = TYPE_STRING;
+			else if (dataType.Equals("alignment", StringComparison.OrdinalIgnoreCase)) dt = TYPE_ALIGNMENT;
+			else if (dataType.Equals("autoresize", StringComparison.OrdinalIgnoreCase)) dt = TYPE_AUTORESIZE;
+			else if (dataType.Equals("corner", StringComparison.OrdinalIgnoreCase)) dt = TYPE_CORNER;
+			else if (dataType.Equals("localize", StringComparison.OrdinalIgnoreCase)) dt = TYPE_LOCALIZEDSTRING;
+
+			ReadOnlySpan<char> fieldName = ParseTokenFromString(ref controlDesc);
+			int itemHeight = 18;
+
+			Label label = new(this, null, fieldName);
+			label.SetSize(96, itemHeight);
+			label.SetContentAlignment(Alignment.East);
+
+			TextEntry? edit = null;
+			ComboBox? editCombo = null;
+			Button? editButton = null;
+
+			if (dt == TYPE_ALIGNMENT) {
+				editCombo = new(this, null, 9, false);
+				editCombo.AddItem("north-west", null);
+				editCombo.AddItem("north", null);
+				editCombo.AddItem("north-east", null);
+				editCombo.AddItem("west", null);
+				editCombo.AddItem("center", null);
+				editCombo.AddItem("east", null);
+				editCombo.AddItem("south-west", null);
+				editCombo.AddItem("south", null);
+				editCombo.AddItem("south-east", null);
+
+				edit = editCombo;
+			}
+			else if (dt == TYPE_AUTORESIZE) {
+				editCombo = new(this, null, 4, false);
+				editCombo.AddItem("0 - no auto-resize", null);
+				editCombo.AddItem("1 - resize right", null);
+				editCombo.AddItem("2 - resize down", null);
+				editCombo.AddItem("3 - down & right", null);
+
+				edit = editCombo;
+			}
+			else if (dt == TYPE_CORNER) {
+				editCombo = new(this, null, 4, false);
+				editCombo.AddItem("0 - top-left", null);
+				editCombo.AddItem("1 - top-right", null);
+				editCombo.AddItem("2 - bottom-left", null);
+				editCombo.AddItem("3 - bottom-right", null);
+
+				edit = editCombo;
+			}
+			else if (dt == TYPE_LOCALIZEDSTRING) {
+				editButton = new(this, null, "...");
+				editButton.SetParent(this);
+				editButton.AddActionSignalTarget(this);
+				editButton.SetTabPosition(tabPosition++);
+				editButton.SetTall(itemHeight);
+				// label.SetAssociatedControl(editButton);
+			}
+			else
+				edit = new SmallTextEntry(this, null);
+
+			if (edit != null) {
+				edit.SetTall(itemHeight);
+				edit.SetParent(this);
+				edit.AddActionSignalTarget(this);
+				edit.SetTabPosition(tabPosition++);
+				// label.SetAssociatedControl(edit);
+			}
+
+			IFont smallFont = GetScheme()!.GetFont("DefaultVerySmall")!;
+
+			label?.SetFont(smallFont);
+			edit?.SetFont(smallFont);
+			editCombo?.SetFont(smallFont);
+			editButton?.SetFont(smallFont);
+
+			panelList.AddItem(label, edit, editCombo, editButton, fieldName, (Type)dt);
+
+			if (edit != null)
+				panelList.Controls.AddItem(label, edit);
+			else
+				panelList.Controls.AddItem(label, editButton);
+		}
+
+		if (controlToEdit.IsBuildModeDeletable())
+			DeleteButton.SetEnabled(true);
+		else
+			DeleteButton.SetEnabled(false);
+
+		UpdateControlData(controlToEdit);
+
+		// if (BuildGroup.GetResourceName())...
+
+		ApplyButton.SetEnabled(false);
+		InvalidateLayout();
+		Repaint();
 	}
 
 	public void UpdateControlData(Panel control) {
@@ -383,6 +567,47 @@ public class BuildModeDialog : Frame
 
 	public override void OnKeyCodeTyped(ButtonCode code) {
 
+	}
+
+	public override void OnTextChanged(Panel panel) {
+		if (panel == FileSelectionCombo) {
+			Span<char> newFile = stackalloc char[512];
+			FileSelectionCombo.GetText(newFile);
+
+			// GetResourceName
+		}
+
+		if (panel == AddNewControlCombo) {
+			// FIXME: Freezes program here (KV->FindKey)
+			// Span<char> buf = stackalloc char[40];
+			// AddNewControlCombo.GetText(buf);
+			// if (!buf.Equals("None", StringComparison.OrdinalIgnoreCase)) {
+			// 	OnCreateNewControl(buf);
+			// 	AddNewControlCombo.ActivateItemByRow(0);
+			// }
+		}
+
+		if (panel == EditableChildren) {
+			KeyValues? kv = EditableChildren.GetActiveItemUserData();
+			if (kv != null) {
+				EditablePanel? ep = (EditablePanel?)kv.GetPtr("ptr");
+				ep?.ActivateBuildMode();
+			}
+		}
+
+		if (panel == EditableParents) {
+			KeyValues? kv = EditableParents.GetActiveItemUserData();
+			if (kv != null) {
+				EditablePanel? ep = (EditablePanel?)kv.GetPtr("ptr");
+				ep?.ActivateBuildMode();
+			}
+		}
+
+		if (CurrentPanel != null && CurrentPanel.IsBuildModeEditable())
+			ApplyButton.SetEnabled(true);
+
+		if (AutoUpdate)
+			ApplyDataToControls();
 	}
 
 	public void ExitBuildMode() {

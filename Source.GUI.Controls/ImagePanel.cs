@@ -46,7 +46,7 @@ public class ImagePanel : Panel
 	}
 
 	public void SetImage(ReadOnlySpan<char> imageName) {
-		if (!imageName.IsEmpty && MemoryExtensions.Equals(imageName, ImageName, StringComparison.Ordinal))
+		if (!imageName.IsEmpty && streq(imageName, ImageName))
 			return;
 
 		ImageName = new(imageName);

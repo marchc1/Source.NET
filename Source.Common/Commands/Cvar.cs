@@ -39,7 +39,7 @@ public class Cvar(ICommandLine CommandLine, IServiceProvider services, ICvarQuer
 	}
 
 	public void ConsoleColorPrintf(in Color clr, ReadOnlySpan<char> format, params object?[]? args) {
-		if(DisplayFuncs.Count == 0) {
+		if (DisplayFuncs.Count == 0) {
 			TempConsoleBuffer.EnsureCapacity(TempConsoleBuffer.Count + format.Length + 3);
 
 			TempConsoleBuffer.Add((char)CONSOLE_COLOR_PRINT);
@@ -54,7 +54,7 @@ public class Cvar(ICommandLine CommandLine, IServiceProvider services, ICvarQuer
 			func.ColorPrint(in clr, format);
 	}
 
-	public void ConsoleDPrintf( ReadOnlySpan<char> format, params object?[]? args) {
+	public void ConsoleDPrintf(ReadOnlySpan<char> format, params object?[]? args) {
 		if (DisplayFuncs.Count == 0) {
 			TempConsoleBuffer.EnsureCapacity(TempConsoleBuffer.Count + format.Length + 1);
 
@@ -129,7 +129,7 @@ public class Cvar(ICommandLine CommandLine, IServiceProvider services, ICvarQuer
 
 	private void DisplayQueuedMessages() {
 		Color clr = new();
-		Span<char> tempConsoleBuffer  = TempConsoleBuffer.AsSpan();
+		Span<char> tempConsoleBuffer = TempConsoleBuffer.AsSpan();
 		while (tempConsoleBuffer.Length > 0) {
 			int nType = tempConsoleBuffer[0]; tempConsoleBuffer = tempConsoleBuffer[1..];
 			if (nType == CONSOLE_COLOR_PRINT) {
@@ -181,9 +181,9 @@ public class Cvar(ICommandLine CommandLine, IServiceProvider services, ICvarQuer
 				ConVar childVar = (ConVar)variable;
 				ConVar parentVar = (ConVar)other;
 
-				if(cvarQuery.AreConVarsLinkable(childVar, parentVar)) {
-					if(childVar.defaultValue != null && parentVar.defaultValue != null && childVar.IsFlagSet(FCvar.Replicated) && parentVar.IsFlagSet(FCvar.Replicated)) {
-						if(!childVar.defaultValue.Equals(parentVar.defaultValue, StringComparison.OrdinalIgnoreCase)) 
+				if (cvarQuery.AreConVarsLinkable(childVar, parentVar)) {
+					if (childVar.defaultValue != null && parentVar.defaultValue != null && childVar.IsFlagSet(FCvar.Replicated) && parentVar.IsFlagSet(FCvar.Replicated)) {
+						if (!childVar.defaultValue.Equals(parentVar.defaultValue, StringComparison.OrdinalIgnoreCase))
 							Dbg.Warning($"Parent and child ConVars with different default values! " +
 								$"{childVar.defaultValue} child, {childVar.defaultValue} parent (parent wins)\n");
 
@@ -194,7 +194,7 @@ public class Cvar(ICommandLine CommandLine, IServiceProvider services, ICvarQuer
 								parentVar.SyncChangeTo(childVar);
 						}
 
-						if (!string.IsNullOrEmpty(childVar.HelpString)){
+						if (!string.IsNullOrEmpty(childVar.HelpString)) {
 							if (!string.IsNullOrEmpty(parentVar.HelpString)) {
 								if (!parentVar.HelpString.Equals(childVar.HelpString, StringComparison.OrdinalIgnoreCase))
 									Dbg.Warning($"Convar {variable.GetName()} has multiple help strings (parent wins)\n");
@@ -270,14 +270,20 @@ public class Cvar(ICommandLine CommandLine, IServiceProvider services, ICvarQuer
 	}
 
 	[ConCommand(helpText: "Show the list of convars/concommands.")]
-	void cvarlist() {
-		Dbg.ConMsg("cvar list\n--------------\n");
+	void cvarlist(in TokenizedCommand args) {
+		ConMsg("cvar list\n--------------\n");
 		int count = 0;
 		ConCommandBase? command = ConCommandList;
 		List<ConCommandBase> cmds = [];
+
 		while (command != null) {
 			cmds.Add(command);
 			command = command.Next;
+		}
+
+		if (args.ArgC() == 2) {
+			string filter = args[1].ToString();
+			cmds = [.. cmds.Where(cmd => cmd.Name.StartsWith(filter, StringComparison.OrdinalIgnoreCase))];
 		}
 
 		cmds.Sort((x, y) => x.Name.CompareTo(y.Name));
@@ -289,18 +295,18 @@ public class Cvar(ICommandLine CommandLine, IServiceProvider services, ICvarQuer
 			count++;
 		}
 
-		Dbg.ConMsg($"--------------\n{count} total convars/concommands\n");
+		ConMsg($"--------------\n{count} total convars/concommands\n");
 	}
 
 	[ConCommand(helpText: "Find help about a convar/concommand.")]
 	void help(in TokenizedCommand args) {
-		if(args.ArgC() != 2) {
+		if (args.ArgC() != 2) {
 			Dbg.ConMsg("Usage:  help <cvarname>\n");
 			return;
 		}
 
 		ConCommandBase? var = FindCommandBase(args[1]);
-		if(var == null) {
+		if (var == null) {
 			Dbg.ConMsg($"help:  no cvar or command named {args[1]}\n");
 			return;
 		}
