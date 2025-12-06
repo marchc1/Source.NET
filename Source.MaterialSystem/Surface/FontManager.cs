@@ -8,6 +8,8 @@ using System.Runtime.InteropServices;
 using Source.Common.Launcher;
 using System.Text;
 using CommunityToolkit.HighPerformance;
+using Source.Common.Formats.Keyvalues;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Source.MaterialSystem.Surface;
 
@@ -128,9 +130,19 @@ public class FontAmalgam : IFont
 	}
 }
 
-// NOTE ABOUT ARG #3: Not a circular reference because it's instantiated by the ISurface implementation itself.
-public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem fileSystem, ISystem system, ISurface surface)
+public unsafe class FontManager
 {
+	readonly IMaterialSystem materialSystem;
+	readonly IFileSystem fileSystem;
+	readonly ISystem system;
+	readonly ISurface surface;
+	public FontManager(IMaterialSystem materialSystem, IFileSystem fileSystem, ISystem system, ISurface surface) {
+		this.materialSystem = materialSystem;
+		this.fileSystem = fileSystem;
+		this.system = system;
+		this.surface = surface;
+	}
+
 	List<FontAmalgam> FontAmalgams = [];
 	List<FreeTypeFont> FreeTypeFonts = [];
 
@@ -205,8 +217,10 @@ public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem file
 	}
 
 	private ReadOnlySpan<char> GetFallbackFontName(ReadOnlySpan<char> fontName) {
+		if (!FontsReady) InitFontSettings();
+
 		int i;
-		for (i = 0; FallbackFonts[i].Font != null; i++) {
+		for (i = 0; FallbackFonts![i].Font != null; i++) {
 			if (fontName.Equals(FallbackFonts[i].Font, StringComparison.OrdinalIgnoreCase))
 				return FallbackFonts[i].Fallback;
 		}
@@ -236,38 +250,12 @@ public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem file
 		}
 	}
 
-#if WIN32
-	static readonly string?[] ValidAsianFonts = ["Marlett", null];
-	static readonly FallbackFont[] FallbackFonts = [
-		new("Times New Roman", "Courier New"),
-		new("Courier New", "Courier"),
-		new("Verdana", "Arial"),
-		new("Trebuchet MS", "Arial"),
-		new("Tahoma", null),
-		new(null, "Tahoma")
-	];
-#elif OSX
-	static readonly string?[] ValidAsianFonts = ["Apple Symbols", null];
-	static readonly FallbackFont[] FallbackFonts = [
-		new("Marlett", "Apple Symbols"),
-		new("Lucida Console", "Lucida Grande"),
-		new("Tahoma", "Helvetica"),
-		new("Helvetica", "Monaco"),
-		new("Monaco", null),
-		new("null", "Monaco"),
-	];
-#elif LINUX
-	static readonly string?[] ValidAsianFonts = ["Marlett", "WenQuanYi Zen Hei", "unifont", null];
-	static readonly FallbackFont[] FallbackFonts = [
-		new("FreeSans", null),
-		new(null, "FreeSans")
-	];
-#else
-#error Please define fallback fonts for this platform
-#endif
+	string?[]? ValidAsianFonts;
+	FallbackFont[]? FallbackFonts;
 
 	private bool IsFontForeignLanguageCapable(ReadOnlySpan<char> fontName) {
-		for (int i = 0; ValidAsianFonts[i] != null; i++) {
+		if (!FontsReady) InitFontSettings();
+		for (int i = 0; ValidAsianFonts![i] != null; i++) {
 			if (fontName.Equals(ValidAsianFonts[i], StringComparison.OrdinalIgnoreCase))
 				return true;
 		}
@@ -288,6 +276,8 @@ public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem file
 	}
 
 	private FreeTypeFont? CreateOrFindFreeTypeFont(ReadOnlySpan<char> fontName, int tall, int weight, int blur, int scanlines, SurfaceFontFlags flags) {
+		if (!FontsReady) InitFontSettings();
+
 		FreeTypeFont? foundFont = null;
 		foreach (var font in FreeTypeFonts) {
 			if (font.IsEqualTo(fontName, tall, weight, blur, scanlines, flags)) {
@@ -502,5 +492,41 @@ public unsafe class FontManager(IMaterialSystem materialSystem, IFileSystem file
 			chAfter = '\0';
 
 		baseFont.GetKernedCharWidth(ch, chBefore, chAfter, out flWide, out flabcA, out flabcC);
+	}
+
+	bool FontsReady = false;
+	internal void InitFontSettings() {
+		if (FontsReady)
+			return;
+		KeyValues fontSettings = new KeyValues();
+		fontSettings.UsesConditionals(true);
+		using IFileHandle? fh = fileSystem.Open("resource/FontManager.res", FileOpenOptions.Read, "GAME");
+		if (fh == null || !fontSettings.LoadFromStream(fh.Stream)) {
+			Error("FontManager.res could not be loaded!\n");
+			return;
+		}
+
+		KeyValues? fallbackFonts = fontSettings.FindKey("FallbackFonts", false);
+		KeyValues? asianFonts = fontSettings.FindKey("ValidAsianFonts", false);
+		if (fallbackFonts == null || asianFonts == null) {
+			Error("FontManager.res was missing keys.\nEnsure that FallbackFonts and ValidAsianFonts are present, and try again.");
+			return;
+		}
+
+		// The length of valid asian fonts is +1 for the null at the end.
+		FallbackFonts = new FallbackFont[fallbackFonts.Count];
+		ValidAsianFonts = new string?[asianFonts.Count + 1];
+		int ffidx = 0, vafidx = 0;
+
+		for (KeyValues? kv = fallbackFonts.GetFirstSubKey(); kv != null; kv = kv.GetNextKey()) {
+			string? key = kv.Name == "NULL" ? null : kv.Name;
+			string? value = kv.GetString() == "NULL" ? null : new(kv.GetString());
+			FallbackFonts[ffidx++] = new(key, value);
+		}
+
+		for (KeyValues? kv = asianFonts.GetFirstSubKey(); kv != null; kv = kv.GetNextKey())
+			ValidAsianFonts[vafidx++] = new(kv.GetString());
+
+		FontsReady = true;
 	}
 }
