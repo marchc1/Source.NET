@@ -142,6 +142,9 @@ public partial class CL(IServiceProvider services, Net Net,
 		if (!cl.IsConnected())
 			return;
 
+		if (!Host.ShouldRun())
+			return;
+
 		bool sendPacket = true;
 
 		if (Net.Time < cl.NextCmdTime || !cl.NetChannel.CanSendPacket())
@@ -162,7 +165,22 @@ public partial class CL(IServiceProvider services, Net Net,
 		if (!sendPacket)
 			return;
 
-		bool hasProblem = cl.NetChannel.IsTimingOut() && cl.IsActive();
+		bool hasProblem = cl.NetChannel!.IsTimingOut() && cl.IsActive();
+		if(hasProblem){
+			Con_NPrint_s np = default;
+			np.TimeToLive = 1.0;
+			np.Index = 2;
+			np.FixedWidthFont = false;
+			np.Color[0] = 1.0f;
+			np.Color[1] = 0.2f;
+			np.Color[2] = 0.2f;
+
+			TimeUnit_t timeout = cl.NetChannel.GetTimeoutSeconds();
+			TimeUnit_t remainingTime = timeout - cl.NetChannel.GetTimeSinceLastReceived();
+			Con.NXPrintF(in np, "WARNING:  Connection Problem");
+			np.Index = 3;
+			Con.NXPrintF(in np, $"Auto-disconnect in {remainingTime} seconds");
+		}
 
 		if (cl.IsActive()) {
 			NET_Tick mymsg = new NET_Tick(cl.DeltaTick, (float)Host.FrameTimeUnbounded, (float)Host.FrameTimeStandardDeviation);
