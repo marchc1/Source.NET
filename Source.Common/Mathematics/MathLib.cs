@@ -1248,4 +1248,16 @@ public static class MathLib
 		Assert(exponent >= -128 && exponent <= 127);
 		return (float)c * power2_n[exponent + 128];
 	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorRotate(in Vector3 in1, in Matrix3x4 in2, out Vector3 outVec) {
+		outVec.X = in1.X * in2.M00 + in1.Y * in2.M01 + in1.Z * in2.M02;
+		outVec.Y = in1.X * in2.M10 + in1.Y * in2.M11 + in1.Z * in2.M12;
+		outVec.Z = in1.X * in2.M20 + in1.Y * in2.M21 + in1.Z * in2.M22;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool VectorCompare(in Vector3 v1, in Vector3 v2) {
+		return v1 == v2;
+	}
 }

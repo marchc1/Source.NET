@@ -26,6 +26,7 @@ public static class SourceDllMain
 	[Dependency] public static IModelLoader modelloader { get; private set; } = null!;
 	[Dependency] public static IMaterialSystem materials { get; private set; } = null!;
 	[Dependency] public static IFileSystem g_pFileSystem { get; private set; } = null!;
+	[Dependency] public static RenderUtils renderUtils { get; private set; } = null!;
 	[Dependency] public static CommonHostState host_state { get; private set; } = null!;
 	[Dependency] public static Render R { get; private set; } = null!;
 	[Dependency] public static ClientGlobalVariables clientGlobalVariables { get; private set; } = null!;

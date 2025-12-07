@@ -1,5 +1,8 @@
-﻿using Source.Common.MaterialSystem;
+﻿using Source.Common.Formats.Keyvalues;
+using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
+
+using System.Numerics;
 
 namespace Source.Engine;
 
@@ -138,5 +141,169 @@ public class RenderUtils(IMaterialSystem materials)
 
 		renderContext.MatrixMode(MaterialMatrixMode.Projection);
 		renderContext.PopMatrix();
+	}
+
+	internal void RenderBox(in Vector3 origin, in Vector3 angles, in Vector3 mins, in Vector3 maxs, in Color color, bool zBuffer, bool insideOut = false) {
+		IMaterial pMaterial = zBuffer ? VertexColor : VertexColorIgnoreZ;
+		RenderBox(origin, angles, mins, maxs, color, pMaterial, insideOut);
+	}
+
+	static readonly int[][] s_pBoxFaceIndices = [
+		[0, 4, 6, 2], // -x
+		[5, 1, 3, 7], // +x
+		[0, 1, 5, 4], // -y
+		[2, 6, 7, 3], // +y
+		[0, 2, 3, 1], // -z
+		[4, 5, 7, 6]  // +z
+	];
+
+	static readonly int[][] s_pBoxFaceIndicesInsideOut = [
+		[0, 2, 6, 4 ], // -x
+		[5, 7, 3, 1 ], // +x
+		[0, 4, 5, 1 ], // -y
+		[2, 3, 7, 6 ], // +y
+		[0, 1, 3, 2 ],	// -z
+		[4, 6, 7, 5 ]  // +z
+	];
+
+
+	bool MaterialsInitialized;
+	IMaterial Wireframe = null!;
+	IMaterial WireframeIgnoreZ = null!;
+	IMaterial VertexColor = null!;
+	IMaterial VertexColorIgnoreZ = null!;
+
+	private void RenderBox(Vector3 origin, Vector3 angles, Vector3 mins, Vector3 maxs, Color color, IMaterial pMaterial, bool insideOut) {
+		InitializeStandardMaterials();
+
+		using MatRenderContextPtr pRenderContext = new(materials);
+		pRenderContext.Bind(pMaterial);
+
+		Span<Vector3> p = stackalloc Vector3[8];
+		GenerateBoxVertices(origin, angles, mins, maxs, p);
+
+		byte chRed = color.R;
+		byte chGreen = color.G;
+		byte chBlue = color.B;
+		byte chAlpha = color.A;
+
+		IMesh pMesh = pRenderContext.GetDynamicMesh();
+		MeshBuilder meshBuilder = new();
+		meshBuilder.Begin(pMesh, MaterialPrimitiveType.Triangles, 12);
+
+		// Draw the box
+		Vector3 vecNormal = default;
+		for (int i = 0; i < 6; i++) {
+			vecNormal.Init();
+			vecNormal[i / 2] = (i & 0x1) != 0 ? 1.0f : -1.0f;
+
+			Span<int> ppFaceIndices = insideOut ? s_pBoxFaceIndicesInsideOut[i] : s_pBoxFaceIndices[i];
+			for (int j = 1; j < 3; ++j) {
+				int i0 = ppFaceIndices[0];
+				int i1 = ppFaceIndices[j];
+				int i2 = ppFaceIndices[j + 1];
+
+				meshBuilder.Position3fv(p[i0]);
+				meshBuilder.Color4ub(chRed, chGreen, chBlue, chAlpha);
+				meshBuilder.Normal3fv(vecNormal);
+				meshBuilder.TexCoord2f(0, 0.0f, 0.0f);
+				meshBuilder.AdvanceVertex();
+
+				meshBuilder.Position3fv(p[i2]);
+				meshBuilder.Color4ub(chRed, chGreen, chBlue, chAlpha);
+				meshBuilder.Normal3fv(vecNormal);
+				meshBuilder.TexCoord2f(0, 1.0f, (j == 1) ? 1.0f : 0.0f);
+				meshBuilder.AdvanceVertex();
+
+				meshBuilder.Position3fv(p[i1]);
+				meshBuilder.Color4ub(chRed, chGreen, chBlue, chAlpha);
+				meshBuilder.Normal3fv(vecNormal);
+				meshBuilder.TexCoord2f(0, (j == 1) ? 0.0f : 1.0f, 1.0f);
+				meshBuilder.AdvanceVertex();
+			}
+		}
+
+		meshBuilder.End();
+		pMesh.Draw();
+	}
+
+	private void GenerateBoxVertices(Vector3 origin, Vector3 angles, Vector3 mins, Vector3 maxs, Span<Vector3> verts) {
+		Matrix3x4 fRotateMatrix = default;
+		MathLib.AngleMatrix(angles, ref fRotateMatrix);
+
+		Vector3 vecPos = default;
+		for (int i = 0; i < 8; ++i) {
+			vecPos[0] = (i & 0x1) != 0 ? maxs[0] : mins[0];
+			vecPos[1] = (i & 0x2) != 0 ? maxs[1] : mins[1];
+			vecPos[2] = (i & 0x4) != 0 ? maxs[2] : mins[2];
+
+			MathLib.VectorRotate(in vecPos, in fRotateMatrix, out verts[i]);
+			verts[i] += origin;
+		}
+	}
+
+	private void InitializeStandardMaterials() {
+		if (MaterialsInitialized)
+			return;
+
+		MaterialsInitialized = true;
+
+		KeyValues pVMTKeyValues = new KeyValues("wireframe");
+		pVMTKeyValues.SetInt("$vertexcolor", 1);
+		Wireframe = materials.CreateMaterial("__utilWireframe", pVMTKeyValues);
+
+		pVMTKeyValues = new KeyValues("wireframe");
+		pVMTKeyValues.SetInt("$vertexcolor", 1);
+		pVMTKeyValues.SetInt("$vertexalpha", 1);
+		pVMTKeyValues.SetInt("$ignorez", 1);
+		WireframeIgnoreZ = materials.CreateMaterial("__utilWireframeIgnoreZ", pVMTKeyValues);
+
+		pVMTKeyValues = new KeyValues("unlitgeneric");
+		pVMTKeyValues.SetInt("$vertexcolor", 1);
+		pVMTKeyValues.SetInt("$vertexalpha", 1);
+		VertexColor = materials.CreateMaterial("__utilVertexColor", pVMTKeyValues);
+
+		pVMTKeyValues = new KeyValues("unlitgeneric");
+		pVMTKeyValues.SetInt("$vertexcolor", 1);
+		pVMTKeyValues.SetInt("$vertexalpha", 1);
+		pVMTKeyValues.SetInt("$ignorez", 1);
+		VertexColorIgnoreZ = materials.CreateMaterial("__utilVertexColorIgnoreZ", pVMTKeyValues);
+	}
+
+	internal void RenderWireframeBox(in Vector3 origin, in Vector3 angles, in Vector3 mins, in Vector3 maxs, in Color color, bool zBuffer) {
+		InitializeStandardMaterials();
+
+		using MatRenderContextPtr pRenderContext = new(materials );
+		pRenderContext.Bind(zBuffer ? Wireframe : WireframeIgnoreZ);
+
+		Span<Vector3> p = stackalloc Vector3[8];
+		GenerateBoxVertices(origin, angles, mins, maxs, p);
+
+		byte chRed = color.R;
+		byte chGreen = color.G;
+		byte chBlue = color.B;
+		byte chAlpha = color.A;
+
+		IMesh pMesh = pRenderContext.GetDynamicMesh();
+		MeshBuilder meshBuilder = new();
+		meshBuilder.Begin(pMesh, MaterialPrimitiveType.Lines, 24);
+
+		// Draw the box
+		for (int i = 0; i < 6; i++) {
+			Span<int> pFaceIndex = s_pBoxFaceIndices[i];
+
+			for (int j = 0; j < 4; ++j) {
+				meshBuilder.Position3fv(p[pFaceIndex[j]]);
+				meshBuilder.Color4ub(chRed, chGreen, chBlue, chAlpha);
+				meshBuilder.AdvanceVertex();
+
+				meshBuilder.Position3fv(p[pFaceIndex[(j == 3) ? 0 : j + 1]]);
+				meshBuilder.Color4ub(chRed, chGreen, chBlue, chAlpha);
+				meshBuilder.AdvanceVertex();
+			}
+		}
+
+		meshBuilder.End();
+		pMesh.Draw();
 	}
 }

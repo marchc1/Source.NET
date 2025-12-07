@@ -43,6 +43,7 @@ public class View(Host Host, IEngineVGuiInternal EngineVGui, IMaterialSystem mat
 		}
 	}
 
+
 	public virtual void SetMainView(in Vector3 origin, in QAngle angles) {
 		EngineRenderer.SetMainView(in origin, in angles);
 	}
@@ -111,4 +112,9 @@ public class RenderView(EngineVGui EngineVGui, Render engineRenderer) : IRenderV
 		CheckBlend();
 	}
 	public Vector3 GetColorModulation() => r_colormod;
+
+
+	public void Draw3DDebugOverlays() {
+		DebugOverlay.DrawAllOverlays();
+	}
 }

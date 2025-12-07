@@ -7,6 +7,7 @@ namespace Source.Common.Engine;
 
 public interface IVDebugOverlay
 {
+	public const double NDEBUG_PERSIST_TILL_NEXT_SERVER = 0.0;
 	void AddEntityTextOverlay(int ent_index, int line_offset, float duration, int r, int g, int b, int a, ReadOnlySpan<char> text);
 	void AddBoxOverlay(in Vector3 origin, in Vector3 mins, in Vector3 max, in QAngle orientation, int r, int g, int b, int a, float duration);
 	void AddTriangleOverlay(in Vector3 p1, in Vector3 p2, in Vector3 p3, int r, int g, int b, int a, bool noDepthTest, float duration);

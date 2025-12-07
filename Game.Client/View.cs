@@ -415,6 +415,8 @@ public class ViewRender : IViewRender
 			drawSkybox = false;
 
 		DrawWorldAndEntities(drawSkybox, in viewRender, clearFlags);
+
+		DebugViewRender.Draw3DDebuggingInfo(in viewRender);
 	}
 
 	private void DrawWorldAndEntities(bool drawSkybox, in ViewSetup viewRender, ClearFlags clearFlags) {
