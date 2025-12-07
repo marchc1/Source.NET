@@ -40,7 +40,7 @@ public interface IDebugTextureInfo
 
 
 	// This returns how much memory was used.
-	// TODO: int GetTextureMemoryUsed(TextureMemoryType textureMemory);
+	int GetTextureMemoryUsed(TextureMemoryType textureMemory);
 
 	// Use this to determine if texture debug info was computed within last numFramesAllowed frames.
 	bool IsDebugTextureListFresh(int numFramesAllowed = 1);

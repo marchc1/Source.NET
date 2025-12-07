@@ -13,7 +13,7 @@ class ColumnButton : Button
 
 class Dragger : Panel
 {
-	public Dragger(Panel parent, ReadOnlySpan<char> name) : base(parent, name) {
+	public Dragger(int column) {
 
 	}
 }
@@ -21,7 +21,7 @@ class Dragger : Panel
 
 class FastSortListPanelItem : ListPanelItem
 {
-	List<int> SortedTreeIndexes = [];
+	public List<int> SortedTreeIndexes = [];
 	public bool visible;
 	int primarySortIndexValue;
 	int secondarySortIndexValue;
@@ -59,7 +59,6 @@ public class ListPanel : Panel
 		Hidden = 0x08,
 		Unhidable = 0x10
 	}
-
 	struct IndexItem_t
 	{
 		public ListPanelItem DataItem;
@@ -68,26 +67,27 @@ public class ListPanel : Panel
 
 	public delegate int SortFunc(ListPanel panel, ListPanelItem item1, ListPanelItem item2);
 
-	struct Column
+	class Column
 	{
 		public Button Header;
 		public int MinWidth;
 		public int MaxWidth;
 		public bool ResizesWithWindow;
 		public Panel Resizer;
-		public SortFunc SortFunc;
+		public SortFunc? SortFunc;
 		public bool TypeIsText;
 		public bool Hidden;
 		public bool Unhidable;
 		public SortedDictionary<int, IndexItem_t> SortedTree;
 		public int ContentAlignment;
 	}
-	LinkedList<Column> ColumnsData = [];
-	List<byte> ColumnsHistory = [];
-	List<byte> CurrentColumns = [];
+	List<Column> ColumnsData = [];
+	List<int> ColumnsHistory = [];
+	List<int> CurrentColumns = [];
 	int ColumnDraggerMoved;
 	int LastBarWidth;
-	LinkedList<FastSortListPanelItem> DataItems = [];
+	Dictionary<int, FastSortListPanelItem> DataItems = [];
+	private int NextItemID = 0;
 	List<int> VisibleItems = [];
 	int SortColumn;
 	int SortColumnSecondary;
@@ -182,11 +182,59 @@ public class ListPanel : Panel
 	}
 
 	public void AddColumnHeader(int index, ReadOnlySpan<char> columnName, ReadOnlySpan<char> columnText, int width, int columnFlags) {
-
+		if ((columnFlags & (int)ColumnFlags.FixedSize) != 0 && (columnFlags & (int)ColumnFlags.ResizeWithWindow) == 0)
+			AddColumnHeader(index, columnName, columnText, width, width, width, (ColumnFlags)columnFlags);
+		else
+			AddColumnHeader(index, columnName, columnText, width, 20, 10000, (ColumnFlags)columnFlags);
 	}
 
-	public void AddColumnHeader(int index, ReadOnlySpan<char> columnName, ReadOnlySpan<char> columnText, int width, int minWidth, int maxWidth, int columnFlags) {
+	public void AddColumnHeader(int index, ReadOnlySpan<char> columnName, ReadOnlySpan<char> columnText, int width, int minWidth, int maxWidth, ColumnFlags columnFlags) {
+		Assert(minWidth <= width);
+		Assert(maxWidth >= width);
 
+		Column column = new();
+		ColumnsData.Add(column);
+		int columnIndex = ColumnsData.Count - 1;
+
+		ColumnsHistory.Add(columnIndex);
+
+		if (index >= 0 && index < CurrentColumns.Count)
+			CurrentColumns.Insert(index, columnIndex);
+		else
+			CurrentColumns.Add(columnIndex);
+
+		ColumnButton button = new(this, columnName, columnText);
+		button.MakeReadyForUse();
+		button.SetSize(width, 24);
+		button.AddActionSignalTarget(this);
+		button.SetContentAlignment(Alignment.West);
+		button.SetTextInset(5, 0);
+
+		column.Header = button;
+		column.MinWidth = minWidth;
+		column.MaxWidth = maxWidth;
+		column.ResizesWithWindow = (columnFlags & ColumnFlags.ResizeWithWindow) != 0;
+		column.Hidden = false;
+		column.Unhidable = (columnFlags & ColumnFlags.Unhidable) != 0;
+		column.ContentAlignment = (int)Alignment.West;
+
+		Dragger dragger = new(index);
+		dragger.SetParent(this);
+		dragger.AddActionSignalTarget(this);
+		dragger.MoveToFront();
+		// if (minWidth == maxWidth || (columnFlags & ColumnFlags.FixedSize) != 0)
+		// dragger.SetMovable(false);
+		column.Resizer = dragger;
+
+		column.SortFunc = null;
+		// column.SortedTree.SetLessFunc(RBTreeLessFunc);
+
+		ResetColumnHeaderCommands();
+		ResortColumnRBTree(index);
+		Vbar.MoveToFront();
+		SetColumnVisible(index, (columnFlags & ColumnFlags.Hidden) == 0);
+
+		InvalidateLayout();
 	}
 
 	void ResortColumnRBTree(int col) {
@@ -248,8 +296,8 @@ public class ListPanel : Panel
 		newItem.ImageIndexSelected = newItem.kv.GetInt("imageSelected");
 		newItem.Icon = (IImage?)newItem.kv.GetPtr("iconImage");
 
-		DataItems.AddLast(newItem);
-		int itemID = DataItems.Count - 1;
+		int itemID = NextItemID++;
+		DataItems.Add(itemID, newItem);
 		VisibleItems.Add(itemID);
 		int displayedRow = VisibleItems.Count - 1;
 		newItem.visible = true;
@@ -275,24 +323,20 @@ public class ListPanel : Panel
 
 	// }
 
-	// int GetItemCount() {
-
-	// }
+	public int GetItemCount() => VisibleItems.Count;
 
 	public int GetItem(ReadOnlySpan<char> itemName) {
-		int itemID = 0;
-		foreach (var item in DataItems) {
-			if (item.kv != null && item.kv.GetString("name").SequenceEqual(itemName))
-				return itemID;
-			itemID++;
+		foreach (var kvp in DataItems) {
+			if (kvp.Value.kv != null && kvp.Value.kv.GetString("name").SequenceEqual(itemName))
+				return kvp.Key;
 		}
 		return -1;
 	}
 
 	public KeyValues? GetItem(int itemID) {
-		if (itemID < 0 || itemID >= DataItems.Count)
+		if (!DataItems.TryGetValue(itemID, out var item))
 			return null;
-		return DataItems.ElementAt(itemID).kv;
+		return item.kv;
 	}
 
 	// int GetItemCurrentRow(int itemID) {
@@ -307,9 +351,11 @@ public class ListPanel : Panel
 
 	}
 
-	// int GetItemIDFromRow(int currentRow) {
-
-	// }
+	public int GetItemIDFromRow(int currentRow) {
+		if (currentRow < 0 || currentRow >= VisibleItems.Count)
+			return -1;
+		return VisibleItems[currentRow];
+	}
 
 	// int FirstItem() {
 
@@ -323,9 +369,9 @@ public class ListPanel : Panel
 
 	// }
 
-	// bool IsValidItemID(int itemID) {
-
-	// }
+	public bool IsValidItemID(int itemID) {
+		return DataItems.ContainsKey(itemID);
+	}
 
 	// ListPanelItem GetItemData(int itemID) {
 
@@ -347,21 +393,63 @@ public class ListPanel : Panel
 
 	}
 
-	void CleanupItem(FastSortListPanelItem data) {
+	void CleanupItem(FastSortListPanelItem? data) {
+		if (data == null)
+			return;
 
+		data.kv = null;
+		data.DragData = null;
 	}
 
-	void RemoveItem(int itemID) {
+	public void RemoveItem(int itemID) {
+		if (!DataItems.TryGetValue(itemID, out var data))
+			return;
 
+		for (int i = 0; i < ColumnsHistory.Count; i++) {
+			int colIndex = ColumnsHistory.ElementAt(i);
+			if (colIndex == -1 || colIndex >= ColumnsData.Count)
+				continue;
+
+			Column column = ColumnsData.ElementAt(colIndex);
+			if (data.SortedTreeIndexes == null || i >= data.SortedTreeIndexes.Count)
+				continue;
+
+			int key = data.SortedTreeIndexes[i];
+			column.SortedTree.Remove(key);
+		}
+
+		SelectedItems.Remove(itemID);
+		PostActionSignal(new KeyValues("ItemDeselected"));
+		VisibleItems.Remove(itemID);
+
+		DataItems.Remove(itemID);
+		CleanupItem(data);
+		InvalidateLayout();
 	}
 
 	public void RemoveAll() {
+		for (int i = 0; i < ColumnsHistory.Count; i++) {
+			int colIndex = ColumnsHistory[i];
+			if (colIndex < 0 || colIndex >= ColumnsData.Count)
+				continue;
 
+			Column column = ColumnsData[colIndex];
+			if (column?.SortedTree != null)
+				column.SortedTree.Clear();
+		}
+
+		foreach (var item in DataItems.Values)
+			CleanupItem(item);
+
+		DataItems.Clear();
+		NextItemID = 0;
+		VisibleItems.Clear();
+
+		InvalidateLayout();
 	}
 
-	public void DeleteAllItems() {
 
-	}
+	public void DeleteAllItems() => RemoveAll();
 
 	void ResetScrollBar() {
 
@@ -403,12 +491,323 @@ public class ListPanel : Panel
 
 	}
 
-	// Panel GetCellRenderer(int itemID, int col) {
+	Label GetCellRenderer(int itemID, int col) {
+		Assert(TextImage != null);
+		Assert(ImagePanel != null);
 
-	// }
+		Column column = ColumnsData.ElementAt(col);
+		IScheme scheme = GetScheme()!;
 
+		Label.SetContentAlignment((Alignment)column.ContentAlignment);
+
+		if (column.TypeIsText) {
+			Span<char> tempText = stackalloc char[256];
+
+			GetCellText(itemID, col, tempText, 256);
+			KeyValues item = GetItem(itemID)!;
+			TextImage.SetText(tempText);
+			TextImage.GetContentSize(out int cw, out int tall);
+
+			Panel header = column.Header;
+			int wide = header.GetWide();
+			TextImage.SetSize(Math.Min(cw, wide - 5), tall);
+
+			Label.SetTextImageIndex(0);
+			Label.SetImageAtIndex(0, TextImage, 3);
+
+			bool selected = false;
+			if (SelectedItems.Contains(itemID) && (!CanSelectIndividualCells || col == SelectedColumn)) {
+				selected = true;
+				IPanel? focus = Input.GetFocus();
+				if (HasFocus() || (focus != null && focus.HasParent(this)))
+					Label.SetBgColor(GetSchemeColor("ListPanel.SelectedBgColor", scheme));
+				else
+					Label.SetBgColor(GetSchemeColor("ListPanel.SelectedOutOfFocusBgColor", scheme));
+
+				if (item.IsEmpty("cellcolor") == false)
+					TextImage.SetColor(item.GetColor("cellcolor"));
+				else if (item.GetInt("disabled", 0) == 0)
+					TextImage.SetColor(SelectionFgColor);
+				else
+					TextImage.SetColor(DisabledSelectionFgColor);
+
+				Label.SetPaintBackgroundEnabled(true);
+			}
+			else {
+				if (item.IsEmpty("cellcolor") == false)
+					TextImage.SetColor(item.GetColor("cellcolor"));
+				else if (item.GetInt("disabled", 0) == 0)
+					TextImage.SetColor(LabelFgColor);
+				else
+					TextImage.SetColor(DisabledColor);
+				Label.SetPaintBackgroundEnabled(false);
+			}
+
+			FastSortListPanelItem listItem = DataItems[itemID];
+			if (col == 0 && listItem.Image && ImageList != null) {
+				IImage? Image = null;
+				if (listItem.Icon != null)
+					Image = listItem.Icon;
+				else {
+					int imageIndex = selected ? listItem.ImageIndexSelected : listItem.ImageIndex;
+					if (ImageList.IsValidIndex(imageIndex))
+						Image = ImageList.GetImage(imageIndex);
+				}
+
+				if (Image != null) {
+					Label.SetTextImageIndex(1);
+					Label.SetImageAtIndex(0, Image, 0);
+					Label.SetImageAtIndex(1, TextImage, 3);
+				}
+			}
+
+			return Label;
+		}
+		else {
+			if (SelectedItems.Contains(itemID) && (!CanSelectIndividualCells || col == SelectedColumn)) {
+				IPanel? focus = Input.GetFocus();
+				if (HasFocus() || (focus != null && focus.HasParent(this)))
+					Label.SetBgColor(GetSchemeColor("ListPanel.SelectedBgColor", scheme));
+				else
+					Label.SetBgColor(GetSchemeColor("ListPanel.SelectedOutOfFocusBgColor", scheme));
+				Label.SetPaintBackgroundEnabled(true);
+			}
+			else
+				Label.SetPaintBackgroundEnabled(false);
+
+			// IImage pIImage = GetCellImage(itemID, col);
+			// Label.SetImageAtIndex(0, pIImage, 0);
+
+			return Label;
+		}
+	}
+
+	const int WINDOW_BORDER_WIDTH = 2;
 	public override void PerformLayout() {
+		if (CurrentColumns.Count == 0)
+			return;
 
+		if (NeedsSort)
+			SortList();
+
+		int rowsperpage = (int)GetRowsPerPage();
+		int visibleItemCount = VisibleItems.Count;
+
+		Vbar.SetVisible(true);
+		Vbar.SetEnabled(false);
+		Vbar.SetRangeWindow(rowsperpage);
+		Vbar.SetRange(0, visibleItemCount);
+		Vbar.SetButtonPressedScrollValue(1);
+
+		GetSize(out int wide, out int tall);
+		Vbar.SetPos(wide - (Vbar.GetWide() + WINDOW_BORDER_WIDTH), 0);
+		Vbar.SetSize(Vbar.GetWide(), tall - 2);
+		Vbar.InvalidateLayout();
+
+		int buttonMaxXPos = wide - (Vbar.GetWide() + WINDOW_BORDER_WIDTH);
+
+		int columnCount = CurrentColumns.Count;
+		int numToResize = 0;
+		if (ColumnDraggerMoved != -1)
+			numToResize = 1;
+		else
+			for (int i = 0; i < columnCount; i++) {
+				Column column = ColumnsData.ElementAt(CurrentColumns.ElementAt(i));
+				if (column.ResizesWithWindow && !column.Hidden) {
+					numToResize++;
+				}
+			}
+
+		int dxPerBar;
+		int oldSizeX = 0;
+		int lastColumnIndex = columnCount - 1;
+		for (int i = columnCount - 1; i >= 0; --i) {
+			Column column = ColumnsData.ElementAt(CurrentColumns.ElementAt(i));
+			if (!column.Hidden) {
+				column.Header.GetPos(out oldSizeX, out _);
+				lastColumnIndex = i;
+				break;
+			}
+		}
+
+		bool bForceShrink = false;
+		if (numToResize == 0) {
+			int minWidth = 0;
+			for (int i = 0; i < columnCount; i++) {
+				Column column = ColumnsData.ElementAt(CurrentColumns.ElementAt(i));
+				if (!column.Hidden)
+					minWidth += column.MinWidth;
+			}
+
+			if (minWidth > buttonMaxXPos) {
+				int dx = buttonMaxXPos - minWidth;
+				dxPerBar = dx / columnCount;
+				bForceShrink = true;
+			}
+			else
+				dxPerBar = 0;
+			LastBarWidth = buttonMaxXPos;
+		}
+		else if (oldSizeX != 0) {
+			int dx = buttonMaxXPos - LastBarWidth;
+			dxPerBar = dx / numToResize;
+			LastBarWidth = buttonMaxXPos;
+		}
+		else {
+			int startingBarWidth = 0;
+			for (int i = 0; i < columnCount; i++) {
+				Column column = ColumnsData.ElementAt(CurrentColumns.ElementAt(i));
+				if (!column.Hidden)
+					startingBarWidth += column.Header.GetWide();
+			}
+			int dx = buttonMaxXPos - startingBarWidth;
+			dxPerBar = dx / numToResize;
+			LastBarWidth = buttonMaxXPos;
+		}
+
+		for (int i = 0; i < columnCount; i++) {
+			Column column = ColumnsData.ElementAt(CurrentColumns.ElementAt(i));
+			Panel header = column.Header;
+			if (header.GetWide() < column.MinWidth)
+				header.SetWide(column.MinWidth);
+		}
+
+		for (int iLoopSanityCheck = 0; iLoopSanityCheck < 1000; iLoopSanityCheck++) {
+			int x = -1;
+			int i;
+			for (i = 0; i < columnCount; i++) {
+				Column column = ColumnsData.ElementAt(CurrentColumns.ElementAt(i));
+				Panel header = column.Header;
+				if (column.Hidden) {
+					header.SetVisible(false);
+					continue;
+				}
+
+				header.SetPos(x, 0);
+				header.SetVisible(true);
+
+				if (x + column.MinWidth >= buttonMaxXPos && !bForceShrink)
+					break;
+
+				int hWide = header.GetWide();
+
+				if (i == lastColumnIndex)
+					hWide = buttonMaxXPos - x;
+				else if (i == ColumnDraggerMoved)
+					hWide += dxPerBar;
+				else if (ColumnDraggerMoved == -1) {
+					if (column.ResizesWithWindow || bForceShrink) {
+						Assert(column.MinWidth <= column.MaxWidth);
+						hWide += dxPerBar;
+					}
+				}
+
+				if (hWide < column.MinWidth && !bForceShrink)
+					hWide = column.MinWidth;
+				else if (hWide > column.MaxWidth)
+					hWide = column.MaxWidth;
+
+				header.SetSize(hWide, Vbar.GetWide());
+				x += hWide;
+
+				Panel sizer = column.Resizer;
+				if (i == lastColumnIndex)
+					sizer.SetVisible(false);
+				else
+					sizer.SetVisible(true);
+				sizer.MoveToFront();
+				sizer.SetPos(x - 4, 0);
+				sizer.SetSize(8, Vbar.GetWide());
+			}
+
+			if (i == columnCount)
+				break;
+
+			int totalDesiredWidth = 0;
+			for (i = 0; i < columnCount; i++) {
+				Column column = ColumnsData.ElementAt(CurrentColumns.ElementAt(i));
+				if (!column.Hidden) {
+					Panel header = column.Header;
+					totalDesiredWidth += header.GetWide();
+				}
+			}
+
+			Assert(totalDesiredWidth > buttonMaxXPos);
+			for (i = columnCount - 1; i >= 0; i--) {
+				Column column = ColumnsData.ElementAt(CurrentColumns.ElementAt(i));
+				if (!column.Hidden) {
+					Panel header = column.Header;
+
+					totalDesiredWidth -= header.GetWide();
+					if (totalDesiredWidth + column.MinWidth <= buttonMaxXPos) {
+						int newWidth = buttonMaxXPos - totalDesiredWidth;
+						header.SetSize(newWidth, Vbar.GetWide());
+						break;
+					}
+
+					totalDesiredWidth += column.MinWidth;
+					header.SetSize(column.MinWidth, Vbar.GetWide());
+				}
+			}
+
+			dxPerBar -= 5;
+			if (dxPerBar < 0)
+				dxPerBar = 0;
+
+			if (i == -1) {
+				break;
+			}
+		}
+
+		if (EditModePanel != null) {
+			TableStartX = 0;
+			TableStartY = HeaderHeight + 1;
+
+			int nTotalRows = VisibleItems.Count();
+			int nRowsPerPage = (int)GetRowsPerPage();
+
+			int nStartItem = 0;
+			if (nRowsPerPage <= nTotalRows)
+				nStartItem = Vbar.GetValue();
+
+			bool done = false;
+			int drawcount = 0;
+			for (int i = nStartItem; i < nTotalRows && !done; i++) {
+				int x = 0;
+				if (!VisibleItems.IsValidIndex(i))
+					continue;
+
+				int itemID = VisibleItems[i];
+
+				for (int j = 0; j < CurrentColumns.Count; j++) {
+					Panel header = ColumnsData.ElementAt(CurrentColumns.ElementAt(j)).Header;
+
+					if (!header.IsVisible())
+						continue;
+
+					wide = header.GetWide();
+
+					if (itemID == EditModeItemID && j == EditModeColumn) {
+
+						EditModePanel.SetPos(x + TableStartX + 2, (drawcount * RowHeight) + TableStartY);
+						EditModePanel.SetSize(wide, RowHeight - 1);
+
+						done = true;
+					}
+
+					x += wide;
+				}
+
+				drawcount++;
+			}
+		}
+
+		Repaint();
+		ColumnDraggerMoved = -1;
+
+		Column column0 = ColumnsData.ElementAt(0);
+		if (column0.Header != null)
+			HeaderHeight = column0.Header.GetTall();
 	}
 
 	public override void OnSizeChanged(int wide, int tall) {
@@ -418,7 +817,80 @@ public class ListPanel : Panel
 	}
 
 	public override void Paint() {
+		if (NeedsSort)
+			SortList();
 
+		GetSize(out int wide, out _);
+
+		TableStartX = 0;
+		TableStartY = HeaderHeight + 1;
+
+		int totalRows = VisibleItems.Count;
+		int rowsPerPage = (int)GetRowsPerPage();
+
+		int startItem = 0;
+		if (rowsPerPage < totalRows)
+			startItem = Vbar.GetValue();
+
+		int VbarInset = Vbar.IsVisible() ? Vbar.GetWide() : 0;
+		int maxw = wide - VbarInset - 8;
+
+		bool done = false;
+		int drawCount = 0;
+		for (int i = startItem; i < totalRows && !done; i++) {
+			int x = 0;
+			if (i < 0 || i >= VisibleItems.Count)
+				continue;
+
+			int itemID = VisibleItems[i];
+
+			for (int j = 0; j < ColumnsData.Count; j++) {
+				Column col = ColumnsData.ElementAt(j);
+				Panel header = col.Header;
+				Panel render = GetCellRenderer(itemID, j);
+
+				if (!header.IsVisible())
+					continue;
+
+				int hWide = header.GetWide();
+
+				if (render != null) {
+					if (render.GetParent() != this)
+						render.SetParent(this);
+
+					if (!render.IsVisible())
+						render.SetVisible(true);
+
+					int xpos = x + TableStartX + 2;
+					render.SetPos(xpos, (drawCount * RowHeight) + TableStartY);
+
+					int right = Math.Min(x + hWide, maxw);
+					int usew = right - xpos;
+					render.SetSize(usew, RowHeight - 1);
+					render.Repaint();
+
+					Surface.SolveTraverse(render);
+
+					render.GetClipRect(out _, out int y0, out _, out int y1);
+					if ((y1 - y0) < (RowHeight - 3)) {
+						done = true;
+						break;
+					}
+
+					Surface.PaintTraverse(render);
+				}
+				x += hWide;
+			}
+			drawCount++;
+		}
+
+		Label.SetVisible(false);
+
+		if (VisibleItems.Count < 1 && EmptyListText != null) {
+			EmptyListText.SetPos(TableStartX + 8, TableStartY + 4);
+			EmptyListText.SetSize(wide - 8, RowHeight);
+			EmptyListText.Paint();
+		}
 	}
 
 	void HandleMultselection(int itemID, int row, int column) {
@@ -530,9 +1002,7 @@ public class ListPanel : Panel
 
 	}
 
-	// float GetRowsPerPage() {
-
-	// }
+	float GetRowsPerPage() => (GetTall() - HeaderHeight) / RowHeight;
 
 	// int GetStartItem() {
 

@@ -473,6 +473,16 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		return DebugTextureList;
 	}
 
+	public int GetTextureMemoryUsed(TextureMemoryType type) {
+		return type switch {
+			TextureMemoryType.MEMORY_BOUND_LAST_FRAME => (int)TextureMemoryUsedLastFrame,
+			TextureMemoryType.MEMORY_TOTAL_LOADED => (int)TextureMemoryUsedTotal,
+			TextureMemoryType.MEMORY_ESTIMATE_PICMIP_1 => (int)TextureMemoryUsedPicMip1,
+			TextureMemoryType.MEMORY_ESTIMATE_PICMIP_2 => (int)TextureMemoryUsedPicMip2,
+			_ => 0,
+		};
+	}
+
 	bool bEnableDebugTextureList;
 	bool DebugGetAllTextures;
 	bool DebugTexturesRendering;
@@ -530,7 +540,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 					}
 				}
 
-				if (!DebugGetAllTextures && tex.LastBoundFrame != CurrentFrame)
+				if (!DebugGetAllTextures) // && tex.LastBoundFrame != CurrentFrame, todo SetTextureState
 					continue;
 
 				if (tex.LastBoundFrame != CurrentFrame)
