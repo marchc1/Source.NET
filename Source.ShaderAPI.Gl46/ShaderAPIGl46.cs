@@ -7,6 +7,7 @@ using OpenGL;
 using Source.Bitmap;
 using Source.Common;
 using Source.Common.Bitmap;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
@@ -51,7 +52,7 @@ public enum CommitFuncType
 	PerPass
 }
 
-public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
+public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 {
 	public MeshMgr MeshMgr;
 	public IShaderSystem ShaderManager;
@@ -62,6 +63,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		services.AddSingleton<IMeshMgr, MeshMgr>();
 		services.AddSingleton<IMaterialSystemHardwareConfig, HardwareConfig>();
 		services.AddSingleton<IShaderSystem, ShaderSystem>();
+		services.AddSingleton<IDebugTextureInfo, ShaderAPIGl46>();
 		services.AddSingleton<MaterialSystem_Config>();
 		services.AddSingleton<MeshMgr>();
 	}
@@ -432,7 +434,15 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 	ShaderDeviceInfo PresentParameters;
 	bool ResetRenderStateNeeded = false;
 	ulong CurrentFrame;
-	nint TextureMemoryUsedLastFrame;
+	int TextureMemoryUsedLastFrame;
+	int TextureMemoryUsedTotal;
+	int TextMemoryUsedPicMip1;
+	int TextMemoryUsedPicMip2;
+	bool DebugGetAllTextures;
+	bool enableDebugTextureList;
+	bool DebugTexturesRendering;
+	KeyValues DebugTextureList;
+	int DebugDataExportFrame;
 
 	public void BeginFrame() {
 		if (ResetRenderStateNeeded) {
@@ -449,7 +459,24 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 	}
 
 	private void ExportTextureList() {
+		if (!DebugGetAllTextures)
+			return;
 
+		// if (!BackBufferSurface || !ZBufferSurface) {
+		// 	// Device vanished...
+		// 	return;
+		// }
+
+		DebugDataExportFrame = (int)CurrentFrame;
+
+		DebugTextureList = null!;
+		// DebugTextureList = new KeyValues("TextureList");
+
+		TextureMemoryUsedTotal = 0;
+		TextMemoryUsedPicMip1 = 0;
+		TextMemoryUsedPicMip2 = 0;
+
+		// todo
 	}
 
 	public bool SetMode(IWindow window, in ShaderDeviceInfo info) {
@@ -1067,7 +1094,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		}
 	}
 
-	struct LockInfo {
+	struct LockInfo
+	{
 		public bool Locked;
 		public int Mip;
 		public int CubeID;
@@ -1108,7 +1136,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 		Lock.Format = info.Format;
 
 		Memory<byte> buffer = GetTempLockBuffer(info.Format, width, height);
-		fixed(byte* data = buffer.Span){
+		fixed (byte* data = buffer.Span) {
 			glGetTextureSubImage((uint)ModifyTextureHandle, 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
 		}
 		writer.SetPixelMemory(info.Format, buffer.Span, width * ImageLoader.SizeInBytes(info.Format));
@@ -1147,5 +1175,27 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice
 
 	public void BindStandardTexture(Sampler sampler, StandardTextureId id) {
 		ShaderUtil.BindStandardTexture(sampler, id);
+	}
+
+	public void EnableDebugTextureList(bool enable) => enableDebugTextureList = enable;
+	public void EnableGetAllTextures(bool enable) => DebugGetAllTextures = enable;
+	public KeyValues? GetDebugTextureList() => DebugTextureList;
+
+	public int GetTextureMemoryUsed(TextureMemoryType type) {
+		return type switch {
+			TextureMemoryType.MemoryBoundLastFrame => TextureMemoryUsedLastFrame,
+			TextureMemoryType.MemoryTotalLoaded => TextureMemoryUsedTotal,
+			TextureMemoryType.MemoryEstimatePicmip1 => TextMemoryUsedPicMip1,
+			TextureMemoryType.MemoryEstimatePicmip2 => TextMemoryUsedPicMip2,
+			_ => 0,
+		};
+	}
+
+	public bool IsDebugTextureListFresh(int numFramesAllowed = 1) => (DebugDataExportFrame <= (int)CurrentFrame) && (DebugDataExportFrame >= (int)(CurrentFrame - (ulong)numFramesAllowed));
+
+	public bool SetDebugTextureRendering(bool enable) {
+		bool old = DebugTexturesRendering;
+		DebugTexturesRendering = enable;
+		return old;
 	}
 }
