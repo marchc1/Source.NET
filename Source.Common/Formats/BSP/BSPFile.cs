@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Source.Common.Mathematics;
 using CommunityToolkit.HighPerformance;
+using Source.Common.Engine;
 
 namespace Source.Common.Formats.BSP;
 
@@ -635,7 +636,7 @@ public struct DispVert
 	public float Alpha;
 }
 
-public enum DispTriTags
+public enum DispTriTags : ushort
 {
 	TagSurface = 1 << 0,
 	TagWalkable = 1 << 1,
@@ -645,6 +646,7 @@ public enum DispTriTags
 	TagRemove = 1 << 5
 }
 
+[StructLayout(LayoutKind.Sequential, Pack = 2, Size = 2)]
 public struct DispTri
 {
 	public DispTriTags Tags;
@@ -653,6 +655,7 @@ public struct DispTri
 /// <summary>
 /// Analog of ddispinfo_t
 /// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 4, Size = 176)]
 public struct BSPDispInfo
 {
 	public int NumVerts() => ((1 << Power) + 1) * ((1 << Power) + 1);
@@ -670,7 +673,7 @@ public struct BSPDispInfo
 	public int LightmapSamplePositionStart;
 	public InlineArray4<DispNeighbor> EdgeNeighbors;
 	public InlineArray4<DispCornerNeighbors> CornerNeighbors;
-	InlineArray10<long> AllowedVerts;
+	InlineArray10<int> AllowedVerts;
 }
 
 /// <summary>
@@ -945,6 +948,12 @@ public enum EmitType
 	SkyAmbient
 }
 
+public record struct BSPWorldLightPtr
+{
+	public readonly WorldBrushData Data;
+	public readonly nint Index;
+	public readonly ref BSPWorldLight Dereference() => ref Data.WorldLights![Index];
+}
 
 /// <summary>
 /// Analog of dworldlight_t

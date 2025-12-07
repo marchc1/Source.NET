@@ -3,6 +3,18 @@ using System.Runtime.CompilerServices;
 
 namespace Source.Common.MaterialSystem;
 
+public struct PrimList
+{
+	public PrimList() : this(0, 0) { }
+	public PrimList(int firstIndex, int indexCount) {
+		FirstIndex = firstIndex;
+		NumIndices = indexCount;
+	}
+
+	public int FirstIndex;
+	public int NumIndices;
+}
+
 public unsafe struct VertexDesc
 {
 	public int PositionSize;
@@ -301,7 +313,7 @@ public unsafe struct VertexBuilder
 		CurrPosition = (float*)((byte*)CurrPosition + Desc.PositionSize);
 		CurrNormal = (float*)((byte*)CurrNormal + Desc.NormalSize);
 		CurrColor = CurrColor + Desc.ColorSize;
-		
+
 		CurrTexCoord0 = (float*)((byte*)CurrTexCoord0 + Desc.TexCoordSize[0]);
 		CurrTexCoord1 = (float*)((byte*)CurrTexCoord1 + Desc.TexCoordSize[1]);
 		CurrTexCoord2 = (float*)((byte*)CurrTexCoord2 + Desc.TexCoordSize[2]);
@@ -352,7 +364,7 @@ public unsafe struct VertexBuilder
 	}
 
 	internal void BoneWeight(int idx, float weight) {
-		if(idx < Desc.NumBoneWeights) {
+		if (idx < Desc.NumBoneWeights) {
 			float* boneWeight = OffsetFloatPointer(Desc.BoneWeight, CurrentVertex, Desc.BoneWeightSize);
 			boneWeight[idx] = weight;
 		}
@@ -364,6 +376,34 @@ public unsafe struct VertexBuilder
 
 		byte* boneMatrix = &Desc.BoneMatrixIndex[CurrentVertex * Desc.BoneMatrixIndexSize];
 		boneMatrix[idx] = matrixIndex;
+	}
+
+	void IncrementFloatPointer(ref float* pBufferPointer, int vertexSize) {
+		pBufferPointer = (float*)((byte*)pBufferPointer + vertexSize);
+	}
+
+	internal void AdvanceVertices(int nVerts) {
+		CurrentVertex += nVerts;
+		if (CurrentVertex > VertexCount) 
+			VertexCount = CurrentVertex;
+
+		// We may want to find a better way to error handle here.
+		// This is just to avoid heap corruption
+		if (CurrentVertex > MaxVertexCount)
+			throw new Exception();
+
+		IncrementFloatPointer(ref CurrPosition, Desc.PositionSize * nVerts);
+		IncrementFloatPointer(ref CurrNormal, Desc.NormalSize * nVerts);
+
+		IncrementFloatPointer(ref CurrTexCoord0, Desc.TexCoordSize[0] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord1,  Desc.TexCoordSize[1] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord2,  Desc.TexCoordSize[2] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord3,  Desc.TexCoordSize[3] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord4,  Desc.TexCoordSize[4] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord5,  Desc.TexCoordSize[5] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord6,  Desc.TexCoordSize[6] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord7, Desc.TexCoordSize[7] * nVerts);
+		CurrColor += Desc.ColorSize * nVerts;
 	}
 }
 
@@ -682,7 +722,7 @@ public unsafe struct MeshBuilder : IDisposable
 	public void SelectVertexFromIndex(int idx) => throw new NotImplementedException();
 	// Advances the current vertex and index by one
 	public void AdvanceVertex() => VertexBuilder.AdvanceVertex();
-	public void AdvanceVertices(int nVerts) => throw new NotImplementedException();
+	public void AdvanceVertices(int nVerts) => VertexBuilder.AdvanceVertices(nVerts);
 	public void AdvanceIndex() => IndexBuilder.AdvanceIndex();
 	public void AdvanceIndices(int indices) => IndexBuilder.AdvanceIndices(indices);
 	public int GetCurrentVertex() => VertexBuilder.CurrentVertex;

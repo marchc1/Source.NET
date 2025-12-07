@@ -1,5 +1,7 @@
 ﻿using Source.Common.Client;
 
+using System.Numerics;
+
 namespace Source.Common.Engine;
 
 public interface IModelInfo
@@ -13,6 +15,7 @@ public interface IModelInfo
 	Memory<byte> GetAnimBlock(StudioHeader studioHeader, int block);
 	int GetAutoplayList(StudioHeader studioHdr, out Span<short> autoplayList);
 	object? GetModelExtraData(Model spritemodel);
+	void GetModelRenderBounds(Model? model, out Vector3 mins, out Vector3 maxs);
 }
 
 public interface IModelInfoClient : IModelInfo

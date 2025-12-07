@@ -2,8 +2,10 @@
 using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.Mathematics;
 using Source.Engine.Client;
 
+using System.Numerics;
 using System.Reflection;
 using System.Reflection.Metadata.Ecma335;
 
@@ -164,6 +166,43 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 
 	public object? GetModelExtraData(Model model) {
 		return modelloader.GetExtraData(model);
+	}
+
+	public void GetModelRenderBounds(Model? model, out Vector3 mins, out Vector3 maxs) {
+		if (model == null) {
+			mins = default;
+			maxs = default;
+			return;
+		}
+
+		switch (model.Type) {
+			case ModelType.Studio: {
+					StudioHeader? pStudioHdr = (StudioHeader?)modelloader.GetExtraData(model);
+					Assert(pStudioHdr != null);
+
+					if (!MathLib.VectorCompare(vec3_origin, pStudioHdr.ViewBoundingBoxMin) || !MathLib.VectorCompare(in vec3_origin, in pStudioHdr.ViewBoundingBoxMax)) {
+						// clipping bounding box
+						mins = pStudioHdr.ViewBoundingBoxMin;
+						maxs = pStudioHdr.ViewBoundingBoxMax;
+					}
+					else {
+						// movement bounding box
+						mins = pStudioHdr.HullMin;
+						maxs = pStudioHdr.HullMax;
+					}
+				}
+				break;
+
+			case ModelType.Brush:
+				mins = model.Mins;
+				maxs = model.Maxs;
+				break;
+
+			default:
+				mins = default;
+				maxs = default;
+				break;
+		}
 	}
 
 	readonly List<Model> NetworkedDynamicModels = [];

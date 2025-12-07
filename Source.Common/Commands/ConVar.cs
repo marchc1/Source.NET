@@ -324,8 +324,8 @@ public class ConVar : ConCommandBase, IConVar
 
 			}
 
-			if (hasMin) Dbg.ConMsg($" min. {min:.4}");
-			if (hasMax) Dbg.ConMsg($" max. {max:.4}");
+			if (hasMin) Dbg.ConMsg($" min. {min:F4}");
+			if (hasMax) Dbg.ConMsg($" max. {max:F4}");
 
 
 			Dbg.ConMsg("\n");

@@ -9,6 +9,7 @@ using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
+using Source.Engine;
 
 using System.Numerics;
 using System.Reflection;
@@ -492,7 +493,6 @@ public partial class C_BaseEntity : IClientEntity
 		color[1] = ColorRender.G / 255f;
 		color[2] = ColorRender.B / 255f;
 	}
-
 	public virtual void ClientThink() { }
 
 	public bool ReadyToDraw;
@@ -530,8 +530,15 @@ public partial class C_BaseEntity : IClientEntity
 
 	}
 
-	public void DrawBBoxVisualizations() {
+	public CollisionProperty CollisionProp() => Collision;
 
+	static readonly ConVar r_drawrenderboxes = new("r_drawrenderboxes", "0", FCvar.Cheat);
+
+	public void DrawBBoxVisualizations() {
+		if (r_drawrenderboxes.GetInt() != 0) {
+			GetRenderBounds(out Vector3 vecRenderMins, out Vector3 vecRenderMaxs);
+			debugoverlay.AddBoxOverlay(GetRenderOrigin(), vecRenderMins, vecRenderMaxs, GetRenderAngles(), 255, 0, 255, 0, 0.01f);
+		}
 	}
 
 	private int DrawBrushModel(bool v1, StudioFlags flags, bool v2) {
@@ -601,7 +608,13 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual ref readonly Vector3 GetRenderOrigin() => ref GetAbsOrigin();
 	public virtual ref readonly QAngle GetRenderAngles() => ref GetAbsAngles();
 	public void GetRenderBounds(out Vector3 mins, out Vector3 maxs) {
-		throw new NotImplementedException();
+		ModelType nModelType = modelinfo.GetModelType(Model);
+		if (nModelType == ModelType.Studio || nModelType == ModelType.Brush) 
+			modelinfo.GetModelRenderBounds(GetModel(), out mins, out maxs);
+		else {
+			// todo
+			mins = maxs = default;
+		}
 	}
 
 	public void GetRenderBoundsWorldspace(out Vector3 mins, out Vector3 maxs) {
@@ -759,7 +772,7 @@ public partial class C_BaseEntity : IClientEntity
 
 		if (OldMoveParent != NetworkMoveParent)
 			UpdateVisibility();
-		if(OldShouldDraw != ShouldDraw())
+		if (OldShouldDraw != ShouldDraw())
 			UpdateVisibility();
 	}
 
@@ -1487,7 +1500,7 @@ public partial class C_BaseEntity : IClientEntity
 		return true;
 	}
 
-	Vector3 AbsVelocity; 
+	Vector3 AbsVelocity;
 
 	// todo
 	public ref readonly Vector3 GetAbsVelocity() {
@@ -1499,12 +1512,12 @@ public partial class C_BaseEntity : IClientEntity
 		return true;
 	}
 
-	public virtual bool GetAttachment(int number, out Matrix3x4 matrix ) {
+	public virtual bool GetAttachment(int number, out Matrix3x4 matrix) {
 		matrix = EntityToWorldTransform();
 		return true;
 	}
 
-	public virtual bool GetAttachmentVelocity(int number, out Vector3 originVel, out Quaternion angleVel ) {
+	public virtual bool GetAttachmentVelocity(int number, out Vector3 originVel, out Quaternion angleVel) {
 		originVel = GetAbsVelocity();
 		angleVel = default;
 		angleVel.Init();

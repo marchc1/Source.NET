@@ -16,6 +16,7 @@ using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
 namespace Source.Engine;
@@ -109,6 +110,14 @@ public ref struct MapLoadHelper
 		LumpVersion = lump.Version;
 	}
 
+	public readonly bool LoadLumpData<T>(int byteOffset, int bytesLength, Span<T> output) where T : unmanaged {
+		ref BSPLump lump = ref MapHeader.Lumps[(int)LumpID];
+		T[]? ret = LoadLumpData<T>();
+		if (ret == null)
+			return false;
+		ret.AsSpan().Cast<T, byte>()[byteOffset..(byteOffset + bytesLength)].Cast<byte, T>().ClampedCopyTo(output);
+		return true;
+	}
 	public readonly bool LoadLumpData<T>(Span<T> output) where T : unmanaged {
 		ref BSPLump lump = ref MapHeader.Lumps[(int)LumpID];
 		T[]? ret = LoadLumpData<T>();
@@ -118,11 +127,13 @@ public ref struct MapLoadHelper
 		return true;
 	}
 
-	public readonly T[] LoadLumpData<T>(bool throwIfNoElements = false, int maxElements = 0, bool sysErrorIfOOB = false) where T : unmanaged {
+	object? cachedData;
+	public T[] LoadLumpData<T>(bool throwIfNoElements = false, int maxElements = 0, bool sysErrorIfOOB = false) where T : unmanaged {
 		ref BSPLump lump = ref MapHeader.Lumps[(int)LumpID];
 		string? error;
 
-		T[]? data = lump.ReadBytes<T>(MapFileHandle!);
+		T[]? data = (cachedData != null && cachedData is T[] tarr) ? tarr : lump.ReadBytes<T>(MapFileHandle!);
+		cachedData = data;
 		if (data == null) {
 			error = $"ModelLoader: funny {LumpID} lump size in {LoadName}";
 			goto doError;
@@ -771,7 +782,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		lh.GetMap().PrimIndices = lh.LoadLumpData<ushort>();
 	}
 	public static ref BSPFace FaceHandleFromIndex(int surfaceIndex, WorldBrushData data) => ref data.Faces![surfaceIndex];
-	public static ref BSPMSurface2 SurfaceHandleFromIndex(int surfaceIndex, WorldBrushData data) => ref data.Surfaces2![surfaceIndex];
+	public static ref BSPMSurface2 SurfaceHandleFromIndex(int surfaceIndex, WorldBrushData? data = null) => ref (data ?? host_state.WorldBrush)!.Surfaces2![surfaceIndex];
 	public static ref CollisionPlane MSurf_Plane(ref BSPMSurface2 surfID) => ref surfID.Plane.GetReference();
 	public static int MSurf_Index(ref BSPMSurface2 surfID, WorldBrushData? data = null) => (int)surfID.SurfNum;
 	public static ref int MSurf_FirstVertIndex(ref BSPMSurface2 surfID) => ref surfID.FirstVertIndex;
@@ -1146,17 +1157,17 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		if (!MapLoadHelper.Init(model, ActiveMapName))
 			return;
 
-		DispInfo_LoadDisplacements(materialSortInfoArray, model);
+		DispInfo_LoadDisplacements(model, materialSortInfoArray);
 		MapLoadHelper.Shutdown();
 	}
 
-	private bool DispInfo_LoadDisplacements(MaterialSystem_SortInfo[] sortInfos, Model model) {
-		nint numDisplacements = MapLoadHelper.GetLumpSize(LumpIndex.DispInfo);
+	private bool DispInfo_LoadDisplacements(Model world, MaterialSystem_SortInfo[] sortInfos) {
+		nint numDisplacements = MapLoadHelper.GetLumpSize(LumpIndex.DispInfo) / Unsafe.SizeOf<BSPDispInfo>();
 		nint numLuxels = MapLoadHelper.GetLumpSize(LumpIndex.DispLightmapAlphas);
 		nint numSamplePositionBytes = MapLoadHelper.GetLumpSize(LumpIndex.DispLightmapSamplePositions);
 
-		model.Brush.Shared!.NumDispInfos = (int)numDisplacements;
-		model.Brush.Shared!.DispInfos = DispInfo_CreateArray(numDisplacements);
+		world.Brush.Shared!.NumDispInfos = (int)numDisplacements;
+		world.Brush.Shared!.DispInfos = DispInfo_CreateArray(numDisplacements);
 
 		MapLoadHelper dispInfos = new MapLoadHelper(LumpIndex.DispInfo);
 
@@ -1168,7 +1179,12 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		MapLoadHelper dispLMPositions = new MapLoadHelper(LumpIndex.DispLightmapSamplePositions);
 		dispLMAlphas.LoadLumpData(DispLMSamplePositions.AsSpan());
 
-		Span<BSPDispInfo> tempDisps = new BSPDispInfo[BSPFileCommon.MAX_MAP_DISPINFO];
+		Span<BSPDispInfo> tempDisps = stackalloc BSPDispInfo[BSPFileCommon.MAX_MAP_DISPINFO];
+		dispInfos.LoadLumpData(tempDisps);
+
+		DispInfo_LinkToParentFaces(world, tempDisps, numDisplacements);
+		DispInfo_CreateMaterialGroups(world, sortInfos);
+		DispInfo_CreateEmptyStaticBuffers(world, tempDisps);
 
 		Span<DispVert> tempVerts = stackalloc DispVert[BSPFileCommon.MAX_DISPVERTS];
 		Span<DispTri> tempTris = stackalloc DispTri[BSPFileCommon.MAX_DISPTRIS];
@@ -1185,28 +1201,244 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 			coreDisps.Add(new());
 		}
 
-		/*for (disp = 0; disp < numDisplacements; ++disp) {
+		for (disp = 0; disp < numDisplacements; ++disp) {
 			ref BSPDispInfo mapDisp = ref tempDisps[disp];
 
 			int numVerts = BSPFileCommon.NUM_DISP_POWER_VERTS(mapDisp.Power);
 			ErrorIfNot(numVerts <= BSPFileCommon.MAX_DISPVERTS, $"DispInfo_LoadDisplacements: invalid vertex count ({numVerts})");
-			dispVerts.LoadLumpData(tempVerts);
+			dispVerts.LoadLumpData(curVert * Unsafe.SizeOf<DispVert>(), numVerts * Unsafe.SizeOf<DispVert>(), tempVerts);
 			curVert += numVerts;
 
 			int numTris = BSPFileCommon.NUM_DISP_POWER_TRIS(mapDisp.Power);
 			ErrorIfNot(numTris <= BSPFileCommon.MAX_DISPTRIS, $"DispInfo_LoadDisplacements: invalid tri count ({numTris})");
-			dispTris.LoadLumpData(tempTris);
+			dispTris.LoadLumpData(curTri * Unsafe.SizeOf<DispTri>(), numTris * Unsafe.SizeOf<DispTri>(), tempTris);
 			curTri += numTris;
 
-			if (!DispInfo_CreateFromMapDisp(model, disp, ref mapDisp, coreDisps[disp], tempVerts, tempTris, sortInfos))
+			if (!DispInfo_CreateFromMapDisp(world, disp, ref mapDisp, coreDisps[disp], tempVerts, tempTris))
 				return false;
-		}*/
+		}
+
+		SmoothDispSurfNormals(coreDisps.Base(), numDisplacements);
+
+		for (disp = 0; disp < numDisplacements; ++disp) {
+			DispInfo_CreateStaticBuffersAndTags(world, disp, coreDisps[disp], tempVerts);
+
+			DispInfo pDisp = DispInfo.GetModelDisp(world, disp)!;
+			pDisp.CopyCoreDispVertData(coreDisps[disp], pDisp.BumpSTexCoordOffset);
+
+		}
+		for (disp = 0; disp < numDisplacements; disp++) {
+			DispInfo pDisp = DispInfo.GetModelDisp(world, disp)!;
+			pDisp.ActiveVerts = pDisp.AllowedVerts;
+		}
+
+		for (disp = 0; disp < numDisplacements; disp++) {
+			DispInfo pDisp = DispInfo.GetModelDisp(world, disp)!;
+			pDisp.TesselateDisplacement();
+		}
+
+		SetupMeshReaders(world, numDisplacements);
+		UpdateDispBBoxes(world, numDisplacements);
 
 		return true;
+	}
+	const int DISP_LMCOORDS_STAGE = 1;
+	private unsafe void SetupMeshReaders(Model world, nint numDisplacements) {
+		for (int iDisp = 0; iDisp < numDisplacements; iDisp++) {
+			DispInfo pDisp = DispInfo.GetModelDisp(world, iDisp)!;
+
+			MeshDesc desc = default;
+
+			desc.Vertex.PositionSize = sizeof(DispRenderVert);
+			desc.Vertex.TexCoordSize[0] = sizeof(DispRenderVert);
+			desc.Vertex.TexCoordSize[DISP_LMCOORDS_STAGE] = sizeof(DispRenderVert);
+			desc.Vertex.NormalSize = sizeof(DispRenderVert);
+			desc.Vertex.TangentSSize = sizeof(DispRenderVert);
+			desc.Vertex.TangentTSize = sizeof(DispRenderVert);
+
+			DispRenderVert[] pBaseVert = pDisp.Verts.Base();
+			// Oh goodness, these require pointers... we might need to find some way to hold onto a fixable handle,
+			// ie with GCHandle magic here... todo
+			// desc.Vertex.Position = (float*)&pBaseVert->m_vPos;
+			// desc.Vertex.TexCoord0 = (float*)&pBaseVert->m_vTexCoord;
+			// desc.Vertex.TexCoord1 = (float*)&pBaseVert->m_LMCoords;
+			// desc.Vertex.Normal = (float*)&pBaseVert->m_vNormal;
+			// desc.Vertex.TangentS = (float*)&pBaseVert->m_vSVector;
+			// desc.Vertex.TangentT = (float*)&pBaseVert->m_vTVector;
+
+			desc.Index.IndexSize = 1;
+			// desc.Index.Indices = pDisp.Indices.Base();
+
+			pDisp.MeshReader.BeginRead_Direct(desc, pDisp.NumVerts(), pDisp.NumIndices);
+		}
+	}
+
+	private void UpdateDispBBoxes(Model world, nint numDisplacements) {
+		for (int iDisp = 0; iDisp < numDisplacements; iDisp++) {
+			DispInfo pDisp = DispInfo.GetModelDisp(world, iDisp)!;
+			pDisp.UpdateBoundingBox();
+		}
+	}
+
+	private void DispInfo_CreateStaticBuffersAndTags(Model world, int disp, CoreDispInfo coreDispInfo, Span<DispVert> tempVerts) {
 
 	}
 
-	public bool DispInfo_CreateFromMapDisp(Model world, int disp, ref BSPDispInfo mapDisp, CoreDispInfo coreDisp, Span<DispVert> verts, Span<DispTri> tris, MaterialSystem_SortInfo[] sortInfos) {
+	private void SmoothDispSurfNormals(CoreDispInfo[] listBase, nint listSize) {
+		for (int iDisp = 0; iDisp < listSize; ++iDisp) 
+			listBase[iDisp].SetDispUtilsHelperInfo(listBase, listSize);
+
+		BlendSubNeighbors(listBase, listSize);
+		BlendCorners(listBase, listSize);
+		BlendEdges(listBase, listSize);
+	}
+
+	private void BlendCorners(CoreDispInfo[] listBase, nint listSize) {
+
+	}
+
+	private void BlendEdges(CoreDispInfo[] listBase, nint listSize) {
+
+	}
+
+	private void BlendSubNeighbors(CoreDispInfo[] listBase, nint listSize) {
+
+	}
+
+	public const int MAX_STATIC_BUFFER_VERTS = (8 * 1024);
+	public const int MAX_STATIC_BUFFER_INDICES = (8 * 1024);
+	private static void DispInfo_CreateEmptyStaticBuffers(Model world, Span<BSPDispInfo> mapDisps) {
+		foreach (var combo in g_DispGroups) {
+			int nTotalVerts = 0, nTotalIndices = 0;
+			int iStart = 0;
+			for (int disp = 0; disp < combo.DispInfos.Count; disp++) {
+				ref BSPDispInfo pMapDisp = ref mapDisps[combo.DispInfos[disp]];
+
+				CalcMaxNumVertsAndIndices(pMapDisp.Power, out int nVerts, out int nIndices);
+
+				// If we're going to pass our vertex buffer limit, or we're at the last one,
+				// make a static buffer and fill it up.
+				if ((nTotalVerts + nVerts) > MAX_STATIC_BUFFER_VERTS || (nTotalIndices + nIndices) > MAX_STATIC_BUFFER_INDICES) {
+					AddEmptyMesh(world, combo, mapDisps, combo.DispInfos.AsSpan()[iStart..], disp - iStart, nTotalVerts, nTotalIndices);
+					Assert(nTotalVerts > 0 && nTotalIndices > 0);
+
+					nTotalVerts = nTotalIndices = 0;
+					iStart = disp;
+					--disp;
+				}
+				else if (disp == combo.DispInfos.Count - 1) {
+					AddEmptyMesh(world, combo, mapDisps, combo.DispInfos.AsSpan()[iStart..], disp - iStart + 1, nTotalVerts + nVerts, nTotalIndices + nIndices);
+					break;
+				}
+				else {
+					nTotalVerts += nVerts;
+					nTotalIndices += nIndices;
+				}
+			}
+		}
+	}
+
+	private static void AddEmptyMesh(Model world, DispGroup combo, Span<BSPDispInfo> mapDisps, Span<int> dispInfos, int nDisps, int nTotalVerts, int nTotalIndices) {
+		MatRenderContextPtr pRenderContext = new(SourceDllMain.materials);
+
+		GroupMesh pMesh = new GroupMesh();
+		combo.Meshes.Add(pMesh);
+
+		VertexFormat vertexFormat = ComputeDisplacementStaticMeshVertexFormat(combo.Material, combo, mapDisps);
+		pMesh.Mesh = pRenderContext.CreateStaticMesh(vertexFormat, MaterialDefines.TEXTURE_GROUP_STATIC_VERTEX_BUFFER_DISP);
+		pMesh.Group = combo;
+		pMesh.NumVisible = 0;
+
+		using MeshBuilder builder = new();
+		builder.Begin(pMesh.Mesh, MaterialPrimitiveType.Triangles, nTotalVerts, nTotalIndices);
+
+		builder.AdvanceIndices(nTotalIndices);
+		builder.AdvanceVertices(nTotalVerts);
+
+		builder.End();
+
+		pMesh.DispInfos.SetSize(nDisps);
+		pMesh.Visible.SetSize(nDisps);
+		pMesh.VisibleDisps.SetSize(nDisps);
+
+		int iVertOffset = 0;
+		int iIndexOffset = 0;
+		for (int disp = 0; disp < nDisps; disp++) {
+			DispInfo pDisp = DispInfo.GetModelDisp(world, dispInfos[disp])!;
+			ref BSPDispInfo pMapDisp = ref mapDisps[dispInfos[disp]];
+
+			pDisp.Mesh = pMesh;
+			pDisp.VertOffset = iVertOffset;
+			pDisp.IndexOffset = iIndexOffset;
+
+			CalcMaxNumVertsAndIndices(pMapDisp.Power, out int nVerts, out int nIndices);
+			iVertOffset += nVerts;
+			iIndexOffset += nIndices;
+
+			pMesh.DispInfos[disp] = pDisp;
+		}
+
+		Assert(iVertOffset == nTotalVerts);
+		Assert(iIndexOffset == nTotalIndices);
+	}
+
+	private static VertexFormat ComputeDisplacementStaticMeshVertexFormat(IMaterial? material, DispGroup combo, Span<BSPDispInfo> mapDisps) {
+		VertexFormat vertexFormat = material!.GetVertexFormat();
+		return vertexFormat;
+	}
+
+	private static void CalcMaxNumVertsAndIndices(int power, out int nVerts, out int nIndices) {
+		int sideLength = (1 << power) + 1;
+		nVerts = sideLength * sideLength;
+		nIndices = (sideLength - 1) * (sideLength - 1) * 2 * 3;
+	}
+
+	private static void DispInfo_CreateMaterialGroups(Model world, MaterialSystem_SortInfo[] sortInfos) {
+		for (int disp = 0; disp < world.Brush.Shared!.NumDispInfos; disp++) {
+			DispInfo pDisp = DispInfo.GetModelDisp(world, disp)!;
+
+			int idLMPage = sortInfos[MSurf_MaterialSortID(ref pDisp.ParentSurfID)].LightmapPageID;
+
+			DispGroup? pCombo = FindCombo(g_DispGroups, idLMPage, MSurf_TexInfo(ref pDisp.ParentSurfID).Material);
+			if (pCombo == null)
+				pCombo = AddCombo(g_DispGroups, idLMPage, MSurf_TexInfo(ref pDisp.ParentSurfID).Material);
+
+			pCombo.DispInfos.Add(disp);
+		}
+	}
+
+	private static DispGroup AddCombo(List<DispGroup> combos, int idLMPage, IMaterial? material) {
+		DispGroup combo = new DispGroup();
+		combo.LightmapPageID = idLMPage;
+		combo.Material = material;
+		combo.Visible = 0;
+		combos.Add(combo);
+		return combo;
+	}
+
+	private static DispGroup? FindCombo(List<DispGroup> combos, int idLMPage, IMaterial? material) {
+		foreach (var c in combos)
+			if (c.LightmapPageID == idLMPage && c.Material == material)
+				return c;
+
+		return null;
+	}
+
+	private void DispInfo_LinkToParentFaces(Model world, Span<BSPDispInfo> mapDisps, nint numDisplacements) {
+		for (int disp = 0; disp < numDisplacements; disp++) {
+			ref readonly BSPDispInfo pMapDisp = ref mapDisps[disp];
+			DispInfo pDisp = DispInfo.GetModelDisp(world, disp);
+
+			// Set its parent.
+			ref BSPMSurface2 surfID = ref SurfaceHandleFromIndex(pMapDisp.MapFace);
+			Assert(pMapDisp.MapFace >= 0 && pMapDisp.MapFace < world.Brush.Shared.NumSurfaces);
+			Assert(MSurf_Flags(ref surfID) & SurfDraw.HasDisp);
+			surfID.DispInfo = pDisp;
+			pDisp.SetParent(ref surfID, world.Brush.Shared);
+		}
+	}
+
+	public bool DispInfo_CreateFromMapDisp(Model world, int disp, ref BSPDispInfo mapDisp, CoreDispInfo coreDisp, Span<DispVert> verts, Span<DispTri> tris) {
 		return true;
 	}
 
@@ -1268,7 +1500,41 @@ public class DispArray(nint elements)
 	public int CurTag;
 }
 
+public struct DispRenderVert{
+	public Vector3 Pos;
+	public Vector3 Normal;
+	public Vector3 SVector;
+	public Vector3 TVector;
+	public Vector2 TexCoord;
+	public Vector2 LMCoords;
+}
+
+public class GroupMesh
+{
+	public IMesh? Mesh;
+	public readonly List<DispInfo?> DispInfos = [];
+	public readonly List<DispInfo?> VisibleDisps = [];
+	public readonly List<PrimList> Visible = [];
+	public int NumVisible;
+	public DispGroup? Group;
+}
+
+public class DispGroup
+{
+	public int LightmapPageID;
+	public IMaterial? Material;
+	public readonly List<GroupMesh> Meshes = [];
+	public readonly List<int> DispInfos = [];
+	public int Visible;
+}
+
 public class CoreDispInfo
 {
-
+	public CoreDispInfo? Next;
+	public CoreDispInfo[]? ListBase;
+	public nint ListSize;
+	internal void SetDispUtilsHelperInfo(CoreDispInfo[] listBase, nint listSize) {
+		ListBase = listBase;
+		ListSize = listSize;
+	}
 }

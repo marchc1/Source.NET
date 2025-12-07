@@ -8,10 +8,12 @@ using Source.Bitmap;
 using Source.Common;
 using Source.Common.Bitmap;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 using Source.Common.ShaderAPI;
+using Source.Common.Utilities;
 
 using System.Numerics;
 using System.Text;
@@ -57,13 +59,12 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public MeshMgr MeshMgr;
 	public IShaderSystem ShaderManager;
 
-
 	public static void DLLInit(IServiceCollection services) {
+		services.AddSingleton(x => (IDebugTextureInfo)(ShaderAPIGl46)x.GetRequiredService<IShaderAPI>());
 		services.AddSingleton(x => x.GetRequiredService<IShaderAPI>().GetShaderDevice());
 		services.AddSingleton<IMeshMgr, MeshMgr>();
 		services.AddSingleton<IMaterialSystemHardwareConfig, HardwareConfig>();
 		services.AddSingleton<IShaderSystem, ShaderSystem>();
-		services.AddSingleton<IDebugTextureInfo, ShaderAPIGl46>();
 		services.AddSingleton<MaterialSystem_Config>();
 		services.AddSingleton<MeshMgr>();
 	}
@@ -434,15 +435,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	ShaderDeviceInfo PresentParameters;
 	bool ResetRenderStateNeeded = false;
 	ulong CurrentFrame;
-	int TextureMemoryUsedLastFrame;
-	int TextureMemoryUsedTotal;
-	int TextMemoryUsedPicMip1;
-	int TextMemoryUsedPicMip2;
-	bool DebugGetAllTextures;
-	bool enableDebugTextureList;
-	bool DebugTexturesRendering;
-	KeyValues DebugTextureList;
-	int DebugDataExportFrame;
+	nint TextureMemoryUsedLastFrame;
 
 	public void BeginFrame() {
 		if (ResetRenderStateNeeded) {
@@ -458,25 +451,105 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		ExportTextureList();
 	}
 
+	public bool IsDebugTextureListFresh(int numFramesAllowed = 1) {
+		return DebugDataExportFrame <= CurrentFrame && (DebugDataExportFrame >= CurrentFrame - (nuint)numFramesAllowed);
+	}
+
+	public bool SetDebugTextureRendering(bool enable) {
+		bool prev = DebugTexturesRendering;
+		DebugTexturesRendering = enable;
+		return prev;
+	}
+
+	public void EnableDebugTextureList(bool enable) {
+		bEnableDebugTextureList = enable;
+	}
+
+	public void EnableGetAllTextures(bool enable) {
+		DebugGetAllTextures = enable;
+	}
+
+	public KeyValues? GetDebugTextureList() {
+		return DebugTextureList;
+	}
+
+	bool bEnableDebugTextureList;
+	bool DebugGetAllTextures;
+	bool DebugTexturesRendering;
+	ulong DebugDataExportFrame;
+	KeyValues? DebugTextureList;
+	nuint TextureMemoryUsedTotal;
+	nuint TextureMemoryUsedPicMip1;
+	nuint TextureMemoryUsedPicMip2;
 	private void ExportTextureList() {
-		if (!DebugGetAllTextures)
+		if (!bEnableDebugTextureList)
 			return;
 
-		// if (!BackBufferSurface || !ZBufferSurface) {
-		// 	// Device vanished...
-		// 	return;
-		// }
+		DebugDataExportFrame = CurrentFrame;
 
-		DebugDataExportFrame = (int)CurrentFrame;
+		if (IsPC()) {
+			if (DebugTextureList != null)
+				DebugTextureList = null;
 
-		DebugTextureList = null!;
-		// DebugTextureList = new KeyValues("TextureList");
+			DebugTextureList = new KeyValues("TextureList");
 
-		TextureMemoryUsedTotal = 0;
-		TextMemoryUsedPicMip1 = 0;
-		TextMemoryUsedPicMip2 = 0;
+			TextureMemoryUsedTotal = 0;
+			TextureMemoryUsedPicMip1 = 0;
+			TextureMemoryUsedPicMip2 = 0;
+			foreach (var texkvp in Textures) {
+				var tex = texkvp.Value;
+				TextureMemoryUsedTotal += tex.GetMemUsage();
 
-		// todo
+				// Compute picmip memory usage
+				{
+					nuint numBytes = tex.GetMemUsage();
+
+					if (tex.Levels > 1) {
+						if (tex.GetWidth() > 4 || tex.GetHeight() > 4 || tex.GetDepth() > 4) {
+							nuint topmipsize = (nuint)ImageLoader.GetMemRequired(tex.GetWidth(), tex.GetHeight(), tex.GetDepth(), tex.GetImageFormat(), false);
+							numBytes -= topmipsize;
+
+							TextureMemoryUsedPicMip1 += numBytes;
+
+							if (tex.GetWidth() > 8 || tex.GetHeight() > 8 || tex.GetDepth() > 8) {
+								nuint othermipsizeRatio = (nuint)(((tex.GetWidth() > 8) ? 2 : 1) * ((tex.GetHeight() > 8) ? 2 : 1) * ((tex.GetDepth() > 8) ? 2 : 1));
+								nuint othermipsize = topmipsize / othermipsizeRatio;
+								numBytes -= othermipsize;
+							}
+
+							TextureMemoryUsedPicMip1 += numBytes;
+						}
+						else {
+							TextureMemoryUsedPicMip1 += numBytes;
+							TextureMemoryUsedPicMip2 += numBytes;
+						}
+					}
+					else {
+						TextureMemoryUsedPicMip1 += numBytes;
+						TextureMemoryUsedPicMip2 += numBytes;
+					}
+				}
+
+				if (!DebugGetAllTextures && tex.LastBoundFrame != CurrentFrame)
+					continue;
+
+				if (tex.LastBoundFrame != CurrentFrame)
+					tex.TimesBoundThisFrame = 0;
+
+				KeyValues pSubKey = DebugTextureList.CreateNewKey();
+				pSubKey.SetString("Name", tex.DebugName.String());
+				pSubKey.SetString("TexGroup", tex.TextureGroupName.String());
+				pSubKey.SetInt("Size", (int)tex.GetMemUsage());
+				if (tex.GetCount() > 1)
+					pSubKey.SetInt("Count", tex.GetCount());
+				pSubKey.SetString("Format", ImageLoader.GetName(tex.GetImageFormat()));
+				pSubKey.SetInt("Width", tex.GetWidth());
+				pSubKey.SetInt("Height", tex.GetHeight());
+
+				pSubKey.SetInt("BindsMax", tex.TimesBoundMax);
+				pSubKey.SetInt("BindsFrame", tex.TimesBoundThisFrame);
+			}
+		}
 	}
 
 	public bool SetMode(IWindow window, in ShaderDeviceInfo info) {
@@ -753,8 +826,38 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			ConvertDataToAcceptableGLFormat(imageFormat, null, out ImageFormat dstFormat, out _);
 			glTextureStorage2D((uint)handle, mipCount, ImageLoader.GetGLImageInternalFormat(dstFormat), width, height);
 			Textures[handle].Width = width;
-			Textures[handle].Height = width;
+			Textures[handle].Height = height;
+			Textures[handle].Depth = depth;
+			Textures[handle].Levels = mipCount;
+			Textures[handle].Count = count;
 			Textures[handle].Format = dstFormat;
+			Textures[handle].DebugName = debugName;
+			Textures[handle].TextureGroupName = textureGroup;
+
+			ComputeStatsInfo(textureHandles[i], isCubeMap, depth > 1);
+		}
+	}
+
+	InternalTextureInfo GetTexture(ShaderAPITextureHandle_t handle) => Textures[handle];
+
+	private void ComputeStatsInfo(ShaderAPITextureHandle_t hTexture, bool isCubeMap, bool isVolumeTexture) {
+		InternalTextureInfo textureData = GetTexture(hTexture);
+
+		textureData.SizeBytes = 0;
+		textureData.SizeTexels = 0;
+
+		if (isCubeMap) {
+			// todo: cubemap, info
+		}
+		else if (isVolumeTexture) {
+			// todo
+		}
+		else {
+			int numLevels = textureData.GetLevelCount();
+			for (int i = 0; i < numLevels; ++i) {
+				textureData.SizeBytes += (nuint)ImageLoader.GetMemRequired(textureData.Width >> i, textureData.Height >> i, 1, textureData.GetImageFormat(), false);
+				textureData.SizeTexels += (textureData.Width >> i) * (textureData.Height >> i);
+			}
 		}
 	}
 
@@ -768,7 +871,29 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	{
 		internal int Width;
 		internal int Height;
+		internal int Depth;
+		internal int Levels;
+		internal int Count;
 		internal ImageFormat Format;
+		internal UtlSymbol DebugName;
+		internal UtlSymbol TextureGroupName;
+
+		public nuint SizeBytes;
+		public int SizeTexels;
+		internal ulong LastBoundFrame;
+		internal int TimesBoundMax;
+		internal int TimesBoundThisFrame;
+
+		internal nuint GetMemUsage() {
+			return SizeBytes;
+		}
+
+		internal virtual int GetWidth() => Width;
+		internal virtual int GetHeight() => Height;
+		internal virtual int GetDepth() => Depth;
+		internal virtual int GetLevelCount() => Levels;
+		internal virtual int GetCount() => Count;
+		internal virtual ImageFormat GetImageFormat() => Format;
 	}
 
 	readonly Dictionary<ShaderAPITextureHandle_t, InternalTextureInfo> Textures = [];
@@ -1175,27 +1300,5 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	public void BindStandardTexture(Sampler sampler, StandardTextureId id) {
 		ShaderUtil.BindStandardTexture(sampler, id);
-	}
-
-	public void EnableDebugTextureList(bool enable) => enableDebugTextureList = enable;
-	public void EnableGetAllTextures(bool enable) => DebugGetAllTextures = enable;
-	public KeyValues? GetDebugTextureList() => DebugTextureList;
-
-	public int GetTextureMemoryUsed(TextureMemoryType type) {
-		return type switch {
-			TextureMemoryType.MemoryBoundLastFrame => TextureMemoryUsedLastFrame,
-			TextureMemoryType.MemoryTotalLoaded => TextureMemoryUsedTotal,
-			TextureMemoryType.MemoryEstimatePicmip1 => TextMemoryUsedPicMip1,
-			TextureMemoryType.MemoryEstimatePicmip2 => TextMemoryUsedPicMip2,
-			_ => 0,
-		};
-	}
-
-	public bool IsDebugTextureListFresh(int numFramesAllowed = 1) => (DebugDataExportFrame <= (int)CurrentFrame) && (DebugDataExportFrame >= (int)(CurrentFrame - (ulong)numFramesAllowed));
-
-	public bool SetDebugTextureRendering(bool enable) {
-		bool old = DebugTexturesRendering;
-		DebugTexturesRendering = enable;
-		return old;
 	}
 }

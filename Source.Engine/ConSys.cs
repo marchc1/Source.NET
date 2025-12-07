@@ -567,6 +567,11 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 #endif
 	}
 
+	public static void NXPrintF(in Con_NPrint_s info, ReadOnlySpan<char> text){
+		if (IsPC())
+			conPanel!.Con_NXPrintf(in info, text);
+	}
+
 #if !SWDS
 	public ConPanel? GetConsolePanel() => conPanel;
 #endif

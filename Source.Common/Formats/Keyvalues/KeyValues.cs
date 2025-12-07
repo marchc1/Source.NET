@@ -166,7 +166,7 @@ public class KeyValues : IEnumerable<KeyValues>
 		return true;
 	}
 
-	private bool HandleConditional(ReadOnlySpan<char> condition, bool mustMatch) {
+	private bool HandleConditional(ReadOnlySpan<char> condition, bool supported) {
 		int realStrLength = System.MemoryExtensions.IndexOf(condition, '\0');
 		if (realStrLength == -1) {
 			Debug.Assert(false, "String overflow!!!");
@@ -174,34 +174,35 @@ public class KeyValues : IEnumerable<KeyValues>
 		}
 		condition = condition[..realStrLength];
 
+		bool notSupported = !supported; // just so its more obvious
 		switch (condition) {
 #if WIN32
-			case "WIN32": return mustMatch;
-			case "WINDOWS": return mustMatch;
-			case "X360": return !mustMatch;
-			case "OSX": return !mustMatch;
-			case "POSIX": return !mustMatch;
-			case "LINUX": return !mustMatch;
+			case "WIN32": return supported;
+			case "WINDOWS": return supported;
+			case "X360": return notSupported;
+			case "OSX": return notSupported;
+			case "POSIX": return notSupported;
+			case "LINUX": return notSupported;
 #elif OSX
-			case "WIN32": return !mustMatch;
-			case "WINDOWS": return !mustMatch;
-			case "X360": return !mustMatch;
-			case "OSX": return mustMatch;
-			case "POSIX": return !mustMatch;
-			case "LINUX": return !mustMatch;
+			case "WIN32": return notSupported;
+			case "WINDOWS": return notSupported;
+			case "X360": return notSupported;
+			case "OSX": return supported;
+			case "POSIX": return notSupported;
+			case "LINUX": return notSupported;
 #elif LINUX
-			case "WIN32": return !mustMatch;
-			case "WINDOWS": return !mustMatch;
-			case "X360": return !mustMatch;
-			case "OSX": return !mustMatch;
-			case "POSIX": return mustMatch;
-			case "LINUX": return mustMatch;
+			case "WIN32": return notSupported;
+			case "WINDOWS": return notSupported;
+			case "X360": return notSupported;
+			case "OSX": return notSupported;
+			case "POSIX": return supported;
+			case "LINUX": return supported;
 #else
 #error Please define how KeyValues.HandleConditional should work on this platform.
 #endif
 		}
 		// Other platforms are not applicable and we should just throw them away
-		return !mustMatch;
+		return notSupported;
 	}
 
 	private bool ReadKV(StreamReader reader) {

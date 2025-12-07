@@ -60,6 +60,7 @@ public interface IRenderView
 	void SetMainView(in Vector3 origin, in QAngle angles);
 	void SceneBegin();
 	void SceneEnd();
+	void Draw3DDebugOverlays();
 	void ViewSetupVisEx(bool novis, ReadOnlySpan<Vector3> origins, out uint visFlags);
 	void DrawWorld(DrawWorldListFlags flags, float waterZAdjust);
 	void Push3DView(in ViewSetup viewRender, ClearFlags clearFlags, ITexture? rtColor, Frustum frustum, ITexture? rtDepth);

@@ -22,6 +22,7 @@ public interface IClientRenderable {
 	void ComputeFxBlend();
 	bool IsTwoPass();
 	public void GetColorModulation(Span<float> color) => color[0] = color[1] = color[2] = 1.0f;
+	bool GetAttachment(int attachmentIndex, out Matrix3x4 attachment);
 }
 
 public abstract class DefaultClientRenderable : IClientUnknown, IClientRenderable

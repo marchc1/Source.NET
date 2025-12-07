@@ -40,7 +40,7 @@ public static class RenderAccessors {
 	public static ref readonly Vector3 MainViewUp() => ref R.MainViewUp;
 }
 
-public class Render(
+public partial class Render(
 	CommonHostState host_state,
 	IMaterialSystem materials,
 	Host Host,

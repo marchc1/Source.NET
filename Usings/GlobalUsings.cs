@@ -19,6 +19,7 @@ global using vec_t = float;
 global using FileNameHandle_t = ulong;
 global using FileFindHandle_t = ulong;
 global using PackedEntityHandle_t = nint;
+global using LightCacheHandle_t = nint;
 global using SpatialPartitionHandle_t = ushort;
 global using TimeUnit_t = double;
 global using MDLHandle_t = uint;

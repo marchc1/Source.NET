@@ -752,6 +752,16 @@ public static class MathLib
 		dst[2, 3] = znear * zfar / (znear - zfar);
 	}
 
+	public static bool IsZero(this in Vector3 v, float tolerance = 0.01f){
+		Vector3 zero = Vector3.Zero;
+		Vector3 diff = Vector3.Abs(v - zero);
+		Vector3 toleranceVec = new(tolerance);
+
+		return diff.X <= toleranceVec.X &&
+			   diff.Y <= toleranceVec.Y &&
+			   diff.Z <= toleranceVec.Z;
+	}
+
 	public static void Init(this ref Vector2 v) => v.X = v.Y = 0;
 	public static void Init(this ref Vector3 v) => v.X = v.Y = v.Z = 0;
 	public static void Init(this ref QAngle a) => a.X = a.Y = a.Z = 0;
@@ -1237,5 +1247,17 @@ public static class MathLib
 	public static float TexLightToLinear(int c, int exponent) {
 		Assert(exponent >= -128 && exponent <= 127);
 		return (float)c * power2_n[exponent + 128];
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorRotate(in Vector3 in1, in Matrix3x4 in2, out Vector3 outVec) {
+		outVec.X = in1.X * in2.M00 + in1.Y * in2.M01 + in1.Z * in2.M02;
+		outVec.Y = in1.X * in2.M10 + in1.Y * in2.M11 + in1.Z * in2.M12;
+		outVec.Z = in1.X * in2.M20 + in1.Y * in2.M21 + in1.Z * in2.M22;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool VectorCompare(in Vector3 v1, in Vector3 v2) {
+		return v1 == v2;
 	}
 }

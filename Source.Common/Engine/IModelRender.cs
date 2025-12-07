@@ -26,7 +26,7 @@ public struct DrawModelState {
 	public StudioHeader? StudioHdr;
 	public StudioHWData StudioHWData;
 	public IClientRenderable? Renderable;
-	public Matrix4x4 ModelToWorld;
+	public Matrix3x4 ModelToWorld;
 	public StudioRenderFlags DrawFlags;
 	public int LOD;
 }
