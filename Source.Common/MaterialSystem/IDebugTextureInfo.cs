@@ -8,12 +8,12 @@ namespace Source.Common.MaterialSystem;
 
 public enum TextureMemoryType
 {
-	MEMORY_RESERVED_MIN = 0,
-	MEMORY_BOUND_LAST_FRAME,        // sums up textures bound last frame
-	MEMORY_TOTAL_LOADED,            // total texture memory used
-	MEMORY_ESTIMATE_PICMIP_1,       // estimate of running with "picmip 1"
-	MEMORY_ESTIMATE_PICMIP_2,       // estimate of running with "picmip 2"
-	MEMORY_RESERVED_MAX
+	ReservedMin = 0,
+	BoundLastFrame,        // sums up textures bound last frame
+	TotalLoaded,            // total texture memory used
+	EstimatePicmip1,       // estimate of running with "picmip 1"
+	EstimatePicmip2,       // estimate of running with "picmip 2"
+	ReservedMax
 }
 public interface IDebugTextureInfo
 {
