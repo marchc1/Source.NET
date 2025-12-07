@@ -1019,8 +1019,8 @@ class TextureListPanel : Frame
 		Span<char> kb2 = stackalloc char[20];
 		Span<char> kb3 = stackalloc char[20];
 
-		FmtCommaNumber(kb1, (uint)materialSystemDebugTextureInfo.GetTextureMemoryUsed(TextureMemoryType.MEMORY_BOUND_LAST_FRAME + 511) / 1024);
-		FmtCommaNumber(kb2, (uint)materialSystemDebugTextureInfo.GetTextureMemoryUsed(TextureMemoryType.MEMORY_TOTAL_LOADED + 511) / 1024);
+		FmtCommaNumber(kb1, (uint)materialSystemDebugTextureInfo.GetTextureMemoryUsed(TextureMemoryType.BoundLastFrame + 511) / 1024);
+		FmtCommaNumber(kb2, (uint)materialSystemDebugTextureInfo.GetTextureMemoryUsed(TextureMemoryType.TotalLoaded + 511) / 1024);
 		FmtCommaNumber(kb3, (uint)NumDisplayedSizeKB);
 
 		if (Collapse.IsSelected()) {
@@ -1031,8 +1031,8 @@ class TextureListPanel : Frame
 			ReadOnlySpan<char> title = "Texture Memory Usage";
 			Span<char> kbMip1 = stackalloc char[20];
 			Span<char> kbMip2 = stackalloc char[20];
-			FmtCommaNumber(kbMip1, (uint)materialSystemDebugTextureInfo.GetTextureMemoryUsed(TextureMemoryType.MEMORY_ESTIMATE_PICMIP_1 + 511) / 1024);
-			FmtCommaNumber(kbMip2, (uint)materialSystemDebugTextureInfo.GetTextureMemoryUsed(TextureMemoryType.MEMORY_ESTIMATE_PICMIP_2 + 511) / 1024);
+			FmtCommaNumber(kbMip1, (uint)materialSystemDebugTextureInfo.GetTextureMemoryUsed(TextureMemoryType.EstimatePicmip1 + 511) / 1024);
+			FmtCommaNumber(kbMip2, (uint)materialSystemDebugTextureInfo.GetTextureMemoryUsed(TextureMemoryType.EstimatePicmip2 + 511) / 1024);
 			sprintf(data, "%s:  frame %s Kb  /  total %s Kb ( picmip1 = %s Kb, picmip2 = %s Kb )  /  shown %s Kb")
 				.S(title).S(kb1).S(kb2).S(kbMip1).S(kbMip2).S(kb3);
 		}
@@ -1474,8 +1474,8 @@ class TextureListPanel : Frame
 			Span<char> kb1 = stackalloc char[20];
 			Span<char> kb2 = stackalloc char[20];
 
-			FmtCommaNumber(kb1, (uint)materialSystemDebugTextureInfo.GetTextureMemoryUsed(TextureMemoryType.MEMORY_BOUND_LAST_FRAME + 511) / 1024);
-			FmtCommaNumber(kb2, (uint)materialSystemDebugTextureInfo.GetTextureMemoryUsed(TextureMemoryType.MEMORY_TOTAL_LOADED + 511) / 1024);
+			FmtCommaNumber(kb1, (uint)materialSystemDebugTextureInfo.GetTextureMemoryUsed(TextureMemoryType.BoundLastFrame + 511) / 1024);
+			FmtCommaNumber(kb2, (uint)materialSystemDebugTextureInfo.GetTextureMemoryUsed(TextureMemoryType.TotalLoaded + 511) / 1024);
 
 			// todo Con_NXPrintf
 		}

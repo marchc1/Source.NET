@@ -475,10 +475,10 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	public int GetTextureMemoryUsed(TextureMemoryType type) {
 		return type switch {
-			TextureMemoryType.MEMORY_BOUND_LAST_FRAME => (int)TextureMemoryUsedLastFrame,
-			TextureMemoryType.MEMORY_TOTAL_LOADED => (int)TextureMemoryUsedTotal,
-			TextureMemoryType.MEMORY_ESTIMATE_PICMIP_1 => (int)TextureMemoryUsedPicMip1,
-			TextureMemoryType.MEMORY_ESTIMATE_PICMIP_2 => (int)TextureMemoryUsedPicMip2,
+			TextureMemoryType.BoundLastFrame => (int)TextureMemoryUsedLastFrame,
+			TextureMemoryType.TotalLoaded => (int)TextureMemoryUsedTotal,
+			TextureMemoryType.EstimatePicmip1 => (int)TextureMemoryUsedPicMip1,
+			TextureMemoryType.EstimatePicmip2 => (int)TextureMemoryUsedPicMip2,
 			_ => 0,
 		};
 	}
