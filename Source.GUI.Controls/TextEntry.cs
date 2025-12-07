@@ -1980,4 +1980,6 @@ public class TextEntry : Panel
 		FallbackFont = fallback;
 		UseFallbackFont = state;
 	}
+
+	public int GetTextLength() => TextStream.Count;
 }

@@ -594,7 +594,7 @@ public class EngineVGui(
 
 			// FogUIPanel.InstallFogUI(staticEngineToolsPanel);
 
-			// TxViewPanel.Install(staticEngineToolsPanel);
+			TxViewPanel.Install(staticEngineToolsPanel);
 
 			Common.TimestampedLog("Install perf tools");
 
@@ -619,13 +619,13 @@ public class EngineVGui(
 		// Specifically,
 		// - DemoUIPanel (if we even do demos)
 		// - FogUIPanel
-		// - TxViewPanel
 		// - CL_CreateTextureListPanel
 		// - CreateVProfPanels
 
 		if (IsPC()) {
 			Con.CreateConsolePanel(staticEngineToolsPanel);
 			VGuiDrawTree.CreateDrawTreePanel(staticEngineToolsPanel);
+			TextureListPanel.CreateTextureListPanel(staticEngineToolsPanel);
 			CL.CreateEntityReportPanel(staticEngineToolsPanel);
 		}
 
@@ -745,6 +745,8 @@ public class EngineVGui(
 
 		DrawMouseFocus();
 		VGuiDrawTree.UpdateDrawTreePanel();
+		TextureListPanel.UpdateTextureListPanel();
+
 		surface.CalculateMouseVisible();
 		VGui_ActivateMouse();
 	}
