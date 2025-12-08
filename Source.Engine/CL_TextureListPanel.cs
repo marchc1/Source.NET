@@ -255,7 +255,7 @@ class RenderTextureEditor : Frame
 
 		Materials = new(this, "Materials");
 		Materials.MakeReadyForUse();
-		// materials.SetMultiLine(true);
+		Materials.SetMultiline(true);
 		Materials.SetEditable(false);
 		Materials.SetEnabled(false);
 		Materials.SetVerticalScrollbar(true);

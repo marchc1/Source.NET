@@ -1760,7 +1760,7 @@ public class Panel : IPanel
 		Cursor = cursor;
 	}
 
-	public void SetEnabled(bool state) {
+	public virtual void SetEnabled(bool state) {
 		if (state != IsEnabled()) {
 			Enabled = state;
 			InvalidateLayout();
