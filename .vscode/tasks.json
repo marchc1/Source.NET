@@ -5,7 +5,20 @@
       "label": "build Source.Launcher",
       "command": "dotnet",
       "type": "process",
-      "args": ["build", "${workspaceFolder}/Source.Launcher/Source.Launcher.csproj"],
+      "args": [
+        "build",
+        "${workspaceFolder}/Source.Launcher/Source.Launcher.csproj"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build Source.Dedicated",
+      "command": "dotnet",
+      "type": "process",
+      "args": [
+        "build",
+        "${workspaceFolder}/Source.Dedicated/Source.Dedicated.csproj"
+      ],
       "problemMatcher": "$msCompile"
     }
   ]
