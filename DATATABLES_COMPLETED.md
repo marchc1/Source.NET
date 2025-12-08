@@ -61,9 +61,9 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #58: CFlexManipulate
 - [x] Class #59: CFogController
 - [x] Class #60: CFunc_Dust
-- [ ] Class #61: CFunc_LOD
+- [x] Class #61: CFunc_LOD
 - [x] Class #62: CFuncAreaPortalWindow
-- [ ] Class #63: CFuncConveyor
+- [x] Class #63: CFuncConveyor
 - [x] Class #64: CFuncLadder
 - [x] Class #65: CFuncMonitor
 - [x] Class #66: CFuncOccluder
