@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Source.DatatableToClassDef": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\Users\\march\\Organized Chaos\\dt\""
+    }
+  }
+}
