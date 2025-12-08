@@ -146,7 +146,7 @@ class PageTab : Button
 		if (Image != null) {
 			ClearImages();
 
-			// Image.SetImage(SchemeManager.GetImage(ImageName, false)!);
+			Image.SetImage(SchemeManager.GetImage(ImageName, false)!);
 			// AddImage(Image.GetImage(), 2);
 			Image.GetSize(out int w, out int h);
 			w += ContextLabel != null ? 10 : 0;

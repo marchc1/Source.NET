@@ -183,6 +183,22 @@ public class MenuItem : Button
 
 		SetTextInset(int.TryParse(scheme.GetResourceString("Menu.TextInset"), out int r) ? r : 0, 0);
 
+		if (CasecadeArrow != null) {
+			CasecadeArrow.SetFont(scheme.GetFont("Marlett", IsProportional()));
+			CasecadeArrow.ResizeImageToContent();
+			AddImage(CasecadeArrow, 2);
+		}
+		else if (Checkable) {
+			((MenuItemCheckImage)Check!).SetFont(scheme.GetFont("Marlett", IsProportional()));
+			SetImageAtIndex(0, Check!, CHECK_INSET);
+			((MenuItemCheckImage)Check).ResizeImageToContent();
+		}
+
+		if (CurrentKeyBinding != null) {
+			CurrentKeyBinding.SetFont(scheme.GetFont("Default", IsProportional()));
+			CurrentKeyBinding.ResizeImageToContent();
+		}
+
 		GetParentMenu()?.ForceCalculateWidth();
 	}
 

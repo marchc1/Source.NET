@@ -46,7 +46,7 @@ public class ImagePanel : Panel
 	}
 
 	public void SetImage(ReadOnlySpan<char> imageName) {
-		if (!imageName.IsEmpty && streq(imageName, ImageName))
+		if (!imageName.IsEmpty && ImageName != null && streq(imageName, ImageName))
 			return;
 
 		ImageName = new(imageName);
@@ -58,22 +58,113 @@ public class ImagePanel : Panel
 	public void SetDrawColor(Color drawColor) => DrawColor = drawColor;
 
 	public override void PaintBackground() {
+		if (FillColor[3] > 0) {
+			GetSize(out int wide, out int tall);
+			Surface.DrawSetColor(FillColor);
+			Surface.DrawFilledRect(0, 0, wide, tall);
+		}
 
+		if (Image != null) {
+			Image.SetColor(GetDrawColor());
+			// Image.SetRotation(Rotation);
+
+			if (PositionImage) {
+				if (CenterImage) {
+					GetSize(out int wide, out int tall);
+					Image.GetSize(out int imgWide, out int imgTall);
+
+					if (ScaleImage && ScaleAmount > 0.0f) {
+						imgWide = (int)(imgWide * ScaleAmount);
+						imgTall = (int)(imgTall * ScaleAmount);
+					}
+
+					Image.SetPos((wide - imgWide) / 2, (tall - imgTall) / 2);
+				}
+				else
+					Image.SetPos(0, 0);
+			}
+
+			if (ScaleImage) {
+				Image.GetSize(out int imgWide, out int imgTall);
+				if (ScaleAmount > 0.0f) {
+					imgWide = (int)(imgWide * ScaleAmount);
+					imgTall = (int)(imgTall * ScaleAmount);
+					Image.SetSize(imgWide, imgTall);
+				}
+
+				Image.Paint();
+				Image.SetSize(imgWide, imgTall);
+			}
+			else if (TileImage || TileHorizontally || TileVertically) {
+				GetSize(out int wide, out int tall);
+				Image.GetSize(out int imgWide, out int imgTall);
+
+				int y = 0;
+				while (y < tall) {
+					int x = 0;
+					while (x < wide) {
+						Image.SetPos(x, y);
+						Image.Paint();
+						x += imgWide;
+
+						if (!TileVertically)
+							break;
+					}
+
+					y += imgTall;
+
+					if (!TileHorizontally)
+						break;
+				}
+
+				if (PositionImage)
+					Image.SetPos(0, 0);
+			}
+			else {
+				Image.SetColor(GetDrawColor());
+				Image.Paint();
+			}
+		}
 	}
 
 	public override void GetSettings(KeyValues outResourceData) {
 		base.GetSettings(outResourceData);
-		//
+
+		if (ImageName != null)
+			outResourceData.SetString("image", ImageName);
+
+		if (FillColorName != null)
+			outResourceData.SetString("fillcolor", FillColorName);
+
+		if (DrawColorName != null)
+			outResourceData.SetString("drawcolor", DrawColorName);
+
+		if (GetBorder() != null)
+			outResourceData.SetString("border", GetBorder()!.GetName());
+
+		outResourceData.SetInt("positionImage", PositionImage ? 1 : 0);
+		outResourceData.SetInt("scaleImage", ScaleImage ? 1 : 0);
+		outResourceData.SetFloat("scaleAmount", ScaleAmount);
+		outResourceData.SetInt("tileImage", TileImage ? 1 : 0);
+		outResourceData.SetInt("tileHorizontally", TileHorizontally ? 1 : 0);
+		outResourceData.SetInt("tileVertically", TileVertically ? 1 : 0);
 	}
 
 	public override void ApplySettings(KeyValues resourceData) {
 		base.ApplySettings(resourceData);
-		//
+
+
+		ImageName = null;
+		FillColorName = null;
+		DrawColorName = null;
+
 	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
-		//
+
+		if (ImageName != null && ImageName.Length > 0)
+			SetImage(SchemeManager.GetImage(ImageName, ScaleImage));
 	}
 
 	public void SetShouldScaleImage(bool scale) => ScaleImage = scale;
