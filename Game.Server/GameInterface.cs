@@ -37,6 +37,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public bool DLLInit(IServiceProvider services) {
+		StaticClassIndicesHelpers.DumpDatatablesCompleted();
 		return true;
 	}
 

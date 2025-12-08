@@ -95,7 +95,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		RecvPropString(FIELD.OF(nameof(LastPlaceName))),
 		RecvPropBool(FIELD.OF(nameof(UseWeaponsInVehicle))),
 		RecvPropDataTable("localdata", DT_LocalPlayerExclusive),
-	]); public static readonly new ClientClass ClientClass = new ClientClass("BasePlayer", null, null, DT_BasePlayer);
+	]); public static readonly new ClientClass ClientClass = new ClientClass("BasePlayer", null, null, DT_BasePlayer).WithManualClassID(StaticClassIndices.CBasePlayer);
 
 
 	static C_BasePlayer? localPlayer;
