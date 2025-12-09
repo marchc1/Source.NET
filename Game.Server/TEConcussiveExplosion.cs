@@ -8,14 +8,14 @@ public class TEConcussiveExplosion : TEParticleSystem
 {
 	public static readonly SendTable DT_TEConcussiveExplosion = new(DT_TEParticleSystem, [
 		SendPropVector(FIELD.OF(nameof(Normal)), 0, PropFlags.Coord),
-		SendPropFloat(FIELD.OF(nameof(LScale)), 0, PropFlags.NoScale),
+		SendPropFloat(FIELD.OF(nameof(Scale)), 0, PropFlags.NoScale),
 		SendPropInt(FIELD.OF(nameof(Radius)), 32, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(Magnitude)), 32, PropFlags.Unsigned),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("TEConcussiveExplosion", DT_TEConcussiveExplosion).WithManualClassID(StaticClassIndices.CTEConcussiveExplosion);
 
 	public Vector3 Normal;
-	public float LScale;
+	public float Scale;
 	public int Radius;
 	public int Magnitude;
 }

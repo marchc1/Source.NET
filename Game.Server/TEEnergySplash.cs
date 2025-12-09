@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEEnergySplash>;
-public class TEEnergySplash
+public class TEEnergySplash : BaseTempEntity
 {
 	public static readonly SendTable DT_TEEnergySplash = new([
 		SendPropVector(FIELD.OF(nameof(Pos)), 0, PropFlags.Coord),

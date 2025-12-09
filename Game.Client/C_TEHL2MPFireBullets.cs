@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEHL2MPFireBullets>;
-public class C_TEHL2MPFireBullets
+public class C_TEHL2MPFireBullets : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEHL2MPFireBullets = new([
 		RecvPropVector(FIELD.OF(nameof(Origin))),
@@ -13,10 +13,10 @@ public class C_TEHL2MPFireBullets
 		RecvPropInt(FIELD.OF(nameof(Seed))),
 		RecvPropInt(FIELD.OF(nameof(Shots))),
 		RecvPropInt(FIELD.OF(nameof(Player))),
-		RecvPropFloat(FIELD.OF(nameof(LSpread))),
+		RecvPropFloat(FIELD.OF(nameof(Spread))),
 		RecvPropInt(FIELD.OF(nameof(DoImpacts))),
 		RecvPropInt(FIELD.OF(nameof(DoTracers))),
-		RecvPropFloat(FIELD.OF(nameof(LSpreadY))),
+		RecvPropFloat(FIELD.OF(nameof(SpreadY))),
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("TEHL2MPFireBullets", DT_TEHL2MPFireBullets).WithManualClassID(StaticClassIndices.CTEHL2MPFireBullets);
 
@@ -26,8 +26,8 @@ public class C_TEHL2MPFireBullets
 	public int Seed;
 	public int Shots;
 	public int Player;
-	public float LSpread;
+	public float Spread;
 	public int DoImpacts;
 	public int DoTracers;
-	public float LSpreadY;
+	public float SpreadY;
 }

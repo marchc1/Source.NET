@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEEnergySplash>;
-public class C_TEEnergySplash
+public class C_TEEnergySplash : C_BaseTempEntity
 {
 	public static readonly RecvTable DT_TEEnergySplash = new([
 		RecvPropVector(FIELD.OF(nameof(Pos))),
