@@ -8,8 +8,11 @@ using System.Diagnostics;
 while (true) {
 	Console.Write("Type a datatable in the path: ");
 	string? cppname = Console.ReadLine()?.Trim() ?? throw new Exception();
-	string file = Directory.GetFiles(args[0]).First(x => x.Contains(cppname));
-
+	string? file = Directory.GetFiles(args[0]).FirstOrDefault(x => Path.GetFileName(x).EndsWith("_" + cppname + ".txt"));
+	if (file == null) {
+		Console.WriteLine("Not found.");
+		continue;
+	}
 	using FileStream stream = File.Open(file, FileMode.Open, FileAccess.Read);
 	using StreamReader reader = new(stream);
 	Console.WriteLine("Starting...");
@@ -180,6 +183,7 @@ while (true) {
 
 	List<Field> fields = [];
 	Console.WriteLine($"Props count: {props.Count}");
+	bool exit = false;
 	foreach (var p in props) {
 		string? propFunc = null;
 
@@ -203,8 +207,15 @@ while (true) {
 		}
 		if (propFunc == null) {
 			Console.WriteLine($"Skipping prop '{p.PropName}' - unable to discern more info.");
+			clWriter.Close();
+			svWriter.Close();
+
+			File.Delete(cl_path);
+			File.Delete(sv_path);
+
 			Debugger.Break();
-			continue;
+			exit = true;
+			break;
 		}
 
 		switch (propFunc) {
@@ -231,7 +242,8 @@ while (true) {
 		}
 		svWriter.WriteLine("),");
 	}
-
+	if (exit)
+		continue;
 	writeBothLine($"\t]);");
 
 	// Write the class
