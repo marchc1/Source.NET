@@ -248,6 +248,6 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #245: MovieExplosion
 - [x] Class #246: NextBotCombatCharacter
 - [ ] Class #247: ParticleSmokeGrenade
-- [ ] Class #248: RocketTrail
-- [ ] Class #249: SmokeTrail
+- [x] Class #248: RocketTrail
+- [x] Class #249: SmokeTrail
 - [x] Class #250: SporeExplosion
