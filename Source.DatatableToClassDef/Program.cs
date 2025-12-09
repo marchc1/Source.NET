@@ -8,12 +8,26 @@ while (true) {
 	Console.Write("Type a datatable in the path: ");
 	string? cppname = Console.ReadLine()?.Trim() ?? throw new Exception();
 	string file = Directory.GetFiles(args[0]).First(x => x.Contains(cppname));
+
 	using FileStream stream = File.Open(file, FileMode.Open, FileAccess.Read);
 	using StreamReader reader = new(stream);
 	Console.WriteLine("Starting...");
 	Prop workProp = new();
 	List<Prop> props = [];
 	bool wroteOneKey = false;
+
+	ReadOnlySpan<char> CSharpifyName(ReadOnlySpan<char> name) {
+		if (name.StartsWith("m_")) {
+			name = name[2..];
+
+			if (name.StartsWith('i')) name = name[1..];
+			else if (name.StartsWith('b')) name = name[1..];
+			else if (name.StartsWith('f') || name.StartsWith("fl")) name = name[1..];
+			else if (name.StartsWith("vec")) name = name[1..];
+		}
+		string newName = $"{char.ToUpper(name[0])}{name[1..]}";
+		return newName;
+	}
 
 	while (!reader.EndOfStream) {
 		string? line = reader.ReadLine()?.Trim();
@@ -34,7 +48,7 @@ while (true) {
 
 		switch (key) {
 			case "Index": workProp.Index = int.Parse(val); goto oneKey;
-			case "PropName": workProp.PropName = new(val); goto oneKey;
+			case "PropName": workProp.PropName = new(CSharpifyName(val)); goto oneKey;
 			case "ExcludeName": workProp.ExcludeName = new(val); goto oneKey;
 			case "Flags":
 				foreach (var piece in val.Split(' '))
@@ -80,6 +94,12 @@ while (true) {
 
 	string cl_path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../Game.Client/" + clname + ".cs"));
 	string sv_path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../Game.Server/" + svname + ".cs"));
+
+	if (File.Exists(cl_path) || File.Exists(sv_path)) {
+		Console.WriteLine("Skipping, already exists.");
+		continue;
+	}
+
 
 	Console.WriteLine("Writing to:");
 	Console.WriteLine($"    CL: {cl_path}");
