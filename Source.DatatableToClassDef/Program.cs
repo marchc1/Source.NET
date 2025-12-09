@@ -211,7 +211,7 @@ while (true) {
 			case "PropInt": fields.Add(new() { Name = p.PropName, Type = "int" }); break;
 			case "PropFloat": fields.Add(new() { Name = p.PropName, Type = "float" }); break;
 			case "PropVector": fields.Add(new() { Name = p.PropName, Type = "Vector3" }); break;
-			case "PropEHandle": fields.Add(new() { Name = p.PropName, Type = "readonly EHANDLE" }); break;
+			case "PropEHandle": fields.Add(new() { Name = p.PropName + " = new()", Type = "readonly EHANDLE" }); break;
 			case "PropBool": fields.Add(new() { Name = p.PropName, Type = "bool" }); break;
 		}
 
