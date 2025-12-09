@@ -26,6 +26,7 @@ while (true) {
 			else if (name.StartsWith("f")) name = name[1..];
 			else if (name.StartsWith("fl")) name = name[2..];
 			else if (name.StartsWith("vec")) name = name[3..];
+			else if (name.StartsWith("ang")) name = name[3..];
 		}
 		string newName = $"{char.ToUpper(name[0])}{name[1..]}";
 		return newName;

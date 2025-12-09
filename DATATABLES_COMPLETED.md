@@ -154,26 +154,26 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #151: CTeam
 - [x] Class #152: CTEAntlionDust
 - [x] Class #153: CTEArmorRicochet
-- [ ] Class #154: CTEBaseBeam
-- [ ] Class #155: CTEBeamEntPoint
-- [ ] Class #156: CTEBeamEnts
-- [ ] Class #157: CTEBeamFollow
-- [ ] Class #158: CTEBeamLaser
-- [ ] Class #159: CTEBeamPoints
-- [ ] Class #160: CTEBeamRing
-- [ ] Class #161: CTEBeamRingPoint
-- [ ] Class #162: CTEBeamSpline
-- [ ] Class #163: CTEBloodSprite
-- [ ] Class #164: CTEBloodStream
-- [ ] Class #165: CTEBreakModel
-- [ ] Class #166: CTEBSPDecal
-- [ ] Class #167: CTEBubbles
-- [ ] Class #168: CTEBubbleTrail
-- [ ] Class #169: CTEClientProjectile
-- [ ] Class #170: CTEConcussiveExplosion
-- [ ] Class #171: CTEDecal
-- [ ] Class #172: CTEDust
-- [ ] Class #173: CTEDynamicLight
+- [x] Class #154: CTEBaseBeam
+- [x] Class #155: CTEBeamEntPoint
+- [x] Class #156: CTEBeamEnts
+- [x] Class #157: CTEBeamFollow
+- [x] Class #158: CTEBeamLaser
+- [x] Class #159: CTEBeamPoints
+- [x] Class #160: CTEBeamRing
+- [x] Class #161: CTEBeamRingPoint
+- [x] Class #162: CTEBeamSpline
+- [x] Class #163: CTEBloodSprite
+- [x] Class #164: CTEBloodStream
+- [x] Class #165: CTEBreakModel
+- [x] Class #166: CTEBSPDecal
+- [x] Class #167: CTEBubbles
+- [x] Class #168: CTEBubbleTrail
+- [x] Class #169: CTEClientProjectile
+- [x] Class #170: CTEConcussiveExplosion
+- [x] Class #171: CTEDecal
+- [x] Class #172: CTEDust
+- [x] Class #173: CTEDynamicLight
 - [x] Class #174: CTEEffectDispatch
 - [ ] Class #175: CTEEnergySplash
 - [ ] Class #176: CTEExplosion
