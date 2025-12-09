@@ -181,28 +181,30 @@ while (true) {
 	List<Field> fields = [];
 	Console.WriteLine($"Props count: {props.Count}");
 	foreach (var p in props) {
-		string? propFunc = p.Type switch {
-			SendPropType.Int => "PropInt",
-			SendPropType.Float => "PropFloat",
-			SendPropType.Vector => "PropVector",
-			_ => null
-		};
+		string? propFunc = null;
 
+
+		// We can identify specific functions sometimes based on values
+
+		bool isLikelyEhandle = p.Bits == Constants.NUM_NETWORKED_EHANDLE_BITS && p.Flags.Count == 1 && p.Flags[0] == PropFlags.Unsigned && p.Type == SendPropType.Int;
+		bool isLikelyBoolean = p.Bits == 1 && p.Flags.Count == 1 && p.Flags[0] == PropFlags.Unsigned && p.Type == SendPropType.Int;
+
+		if (isLikelyEhandle)
+			propFunc = "PropEHandle";
+		else if (isLikelyBoolean)
+			propFunc = "PropBool";
+		else {
+			propFunc = p.Type switch {
+				SendPropType.Int => "PropInt",
+				SendPropType.Float => "PropFloat",
+				SendPropType.Vector => "PropVector",
+				_ => null
+			};
+		}
 		if (propFunc == null) {
-			// We can identify specific functions sometimes based on values
-
-			bool isLikelyEhandle = p.Bits == Constants.NUM_NETWORKED_EHANDLE_BITS && p.Flags.Count == 1 && p.Flags[0] == PropFlags.Unsigned && p.Type == SendPropType.Int;
-			bool isLikelyBoolean = p.Bits == 1 && p.Flags.Count == 1 && p.Flags[0] == PropFlags.Unsigned && p.Type == SendPropType.Int;
-
-			if (isLikelyEhandle)
-				propFunc = "PropEHandle";
-			else if (isLikelyBoolean)
-				propFunc = "PropBool";
-			else {
-				Console.WriteLine($"Skipping prop '{p.PropName}' - unable to discern more info.");
-				Debugger.Break();
-				continue;
-			}
+			Console.WriteLine($"Skipping prop '{p.PropName}' - unable to discern more info.");
+			Debugger.Break();
+			continue;
 		}
 
 		switch (propFunc) {
