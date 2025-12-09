@@ -175,31 +175,31 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #172: CTEDust
 - [x] Class #173: CTEDynamicLight
 - [x] Class #174: CTEEffectDispatch
-- [ ] Class #175: CTEEnergySplash
-- [ ] Class #176: CTEExplosion
-- [ ] Class #177: CTEFizz
-- [ ] Class #178: CTEFootprintDecal
-- [ ] Class #179: CTEGaussExplosion
-- [ ] Class #180: CTEGlowSprite
-- [ ] Class #181: CTEHL2MPFireBullets
-- [ ] Class #182: CTEImpact
-- [ ] Class #183: CTEKillPlayerAttachments
-- [ ] Class #184: CTELargeFunnel
+- [x] Class #175: CTEEnergySplash
+- [x] Class #176: CTEExplosion
+- [x] Class #177: CTEFizz
+- [x] Class #178: CTEFootprintDecal
+- [x] Class #179: CTEGaussExplosion
+- [x] Class #180: CTEGlowSprite
+- [x] Class #181: CTEHL2MPFireBullets
+- [x] Class #182: CTEImpact
+- [x] Class #183: CTEKillPlayerAttachments
+- [x] Class #184: CTELargeFunnel
 - [x] Class #185: CTEMetalSparks
-- [ ] Class #186: CTEMuzzleFlash
+- [x] Class #186: CTEMuzzleFlash
 - [x] Class #187: CTEParticleSystem
-- [ ] Class #188: CTEPhysicsProp
+- [x] Class #188: CTEPhysicsProp
 - [x] Class #189: CTEPlayerAnimEvent
-- [ ] Class #190: CTEPlayerDecal
-- [ ] Class #191: CTEProjectedDecal
-- [ ] Class #192: CTEShatterSurface
-- [ ] Class #193: CTEShowLine
+- [x] Class #190: CTEPlayerDecal
+- [x] Class #191: CTEProjectedDecal
+- [x] Class #192: CTEShatterSurface
+- [x] Class #193: CTEShowLine
 - [ ] Class #194: CTesla
 - [x] Class #195: CTESmoke
 - [x] Class #196: CTESparks
-- [ ] Class #197: CTESprite
-- [ ] Class #198: CTESpriteSpray
-- [ ] Class #199: CTEWorldDecal
+- [x] Class #197: CTESprite
+- [x] Class #198: CTESpriteSpray
+- [x] Class #199: CTEWorldDecal
 - [ ] Class #200: CTriggerPlayerMovement
 - [ ] Class #201: CVGuiScreen
 - [ ] Class #202: CVortigauntChargeToken

@@ -3,6 +3,7 @@ using Source;
 using Source.Common;
 
 using System.Collections.Frozen;
+using System.Diagnostics;
 
 while (true) {
 	Console.Write("Type a datatable in the path: ");
@@ -199,6 +200,7 @@ while (true) {
 				propFunc = "PropBool";
 			else {
 				Console.WriteLine($"Skipping prop '{p.PropName}' - unable to discern more info.");
+				Debugger.Break();
 				continue;
 			}
 		}
