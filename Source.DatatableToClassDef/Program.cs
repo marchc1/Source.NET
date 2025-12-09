@@ -22,8 +22,10 @@ while (true) {
 
 			if (name.StartsWith('i')) name = name[1..];
 			else if (name.StartsWith('b')) name = name[1..];
-			else if (name.StartsWith('f') || name.StartsWith("fl")) name = name[1..];
-			else if (name.StartsWith("vec")) name = name[1..];
+			else if (name.StartsWith('n')) name = name[1..];
+			else if (name.StartsWith("f")) name = name[1..];
+			else if (name.StartsWith("fl")) name = name[2..];
+			else if (name.StartsWith("vec")) name = name[3..];
 		}
 		string newName = $"{char.ToUpper(name[0])}{name[1..]}";
 		return newName;
@@ -86,11 +88,19 @@ while (true) {
 
 	// Determine the name of the class without the C prefix. If there is no C prefix, we use the same name on both sides (?)
 	string noprefix = cppname.StartsWith('C') ? cppname[1..] : cppname;
-	// cl, sv names
-	string clname = $"C_" + noprefix;
-	string svname = noprefix;
-	// datatable name
-	string dtname = "DT_" + noprefix;
+	// cl, sv, dt names. The switch statements are independent for extended control
+	string clname = $"C_" + noprefix switch {
+		"TEBaseBeam" => "BaseBeam",
+		_ => noprefix
+	};
+	string svname = noprefix switch {
+		"TEBaseBeam" => "BaseBeam",
+		_ => noprefix
+	};
+	string dtname = "DT_" + noprefix switch {
+		"TEBaseBeam" => "BaseBeam",
+		_ => noprefix
+	};
 
 	string cl_path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../Game.Client/" + clname + ".cs"));
 	string sv_path = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../Game.Server/" + svname + ".cs"));
@@ -180,9 +190,12 @@ while (true) {
 			// We can identify specific functions sometimes based on values
 
 			bool isLikelyEhandle = p.Bits == Constants.NUM_NETWORKED_EHANDLE_BITS && p.Flags.Count == 1 && p.Flags[0] == PropFlags.Unsigned && p.Type == SendPropType.Int;
+			bool isLikelyBoolean = p.Bits == 1 && p.Flags.Count == 1 && p.Flags[0] == PropFlags.Unsigned && p.Type == SendPropType.Int;
 
 			if (isLikelyEhandle)
 				propFunc = "PropEHandle";
+			else if (isLikelyBoolean)
+				propFunc = "PropBool";
 			else {
 				Console.WriteLine($"Skipping prop '{p.PropName}' - unable to discern more info.");
 				continue;
@@ -194,6 +207,7 @@ while (true) {
 			case "PropFloat": fields.Add(new() { Name = p.PropName, Type = "float" }); break;
 			case "PropVector": fields.Add(new() { Name = p.PropName, Type = "Vector3" }); break;
 			case "PropEHandle": fields.Add(new() { Name = p.PropName, Type = "readonly EHANDLE" }); break;
+			case "PropBool": fields.Add(new() { Name = p.PropName, Type = "bool" }); break;
 		}
 
 		writeBoth("\t\t");
