@@ -117,13 +117,13 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #114: CPointWorldText
 - [ ] Class #115: CPoseController
 - [ ] Class #116: CPrecipitation
-- [ ] Class #117: CPrecipitationBlocker
+- [x] Class #117: CPrecipitationBlocker
 - [x] Class #118: CPredictedViewModel
 - [x] Class #119: CPropAirboat
 - [x] Class #120: CPropCombineBall
-- [ ] Class #121: CPropCrane
+- [x] Class #121: CPropCrane
 - [x] Class #122: CPropDoorRotating
-- [ ] Class #123: CPropEnergyBall
+- [x] Class #123: CPropEnergyBall
 - [x] Class #124: CPropJeep
 - [x] Class #125: CPropJeepEpisodic
 - [ ] Class #126: CPropScalable
@@ -135,7 +135,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #132: CRagdollPropAttached
 - [x] Class #133: CRopeKeyframe
 - [ ] Class #134: CRotorWashEmitter
-- [ ] Class #135: CRpgRocket
+- [x] Class #135: CRpgRocket
 - [ ] Class #136: CSceneEntity
 - [ ] Class #137: CScriptIntro
 - [x] Class #138: CSENT_AI
@@ -149,7 +149,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #146: CSprite
 - [x] Class #147: CSpriteOriented
 - [x] Class #148: CSpriteTrail
-- [ ] Class #149: CSteamJet
+- [x] Class #149: CSteamJet
 - [x] Class #150: CSun
 - [x] Class #151: CTeam
 - [x] Class #152: CTEAntlionDust
@@ -201,10 +201,10 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #198: CTESpriteSpray
 - [x] Class #199: CTEWorldDecal
 - [ ] Class #200: CTriggerPlayerMovement
-- [ ] Class #201: CVGuiScreen
+- [x] Class #201: CVGuiScreen
 - [ ] Class #202: CVortigauntChargeToken
 - [ ] Class #203: CVortigauntEffectDispel
-- [ ] Class #204: CWaterBullet
+- [x] Class #204: CWaterBullet
 - [x] Class #205: CWaterLODControl
 - [x] Class #206: CWeapon357
 - [x] Class #207: CWeapon357_HL1
@@ -250,4 +250,4 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #247: ParticleSmokeGrenade
 - [ ] Class #248: RocketTrail
 - [ ] Class #249: SmokeTrail
-- [ ] Class #250: SporeExplosion
+- [x] Class #250: SporeExplosion
