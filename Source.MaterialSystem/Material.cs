@@ -584,7 +584,7 @@ public class Material : IMaterialInternal
 					}
 
 					if (i != varCount) {
-						if (!overrides[varIdx] || parsingOverrides) {
+						if (!overrides[i] || parsingOverrides) {
 							Warning($"Error! Variable \"{var.Name}\" is multiply defined in material \"{GetName()}\"!\n");
 						}
 						goto nextVar;

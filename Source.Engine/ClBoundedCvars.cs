@@ -26,7 +26,7 @@ public class BoundedCvar_UpdateRate()
 	: ConVar_ServerBounded("cl_updaterate", NetChannel.DEFAULT_RATE.ToString(), FCvar.Archive | FCvar.UserInfo | FCvar.NotConnected, "Number of packets per second of updates you are requesting from the server")
 {
 	public override float GetFloat() {
-		return 0;
+		return Math.Clamp(GetBaseFloatValue(), sv_minupdaterate.GetFloat(), sv_maxupdaterate.GetFloat());
 	}
 }
 

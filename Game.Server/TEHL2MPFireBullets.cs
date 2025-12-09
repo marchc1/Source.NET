@@ -16,6 +16,7 @@ public class TEHL2MPFireBullets : BaseTempEntity
 		SendPropFloat(FIELD.OF(nameof(Spread)), 10, 0),
 		SendPropInt(FIELD.OF(nameof(DoImpacts)), 1, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(DoTracers)), 1, PropFlags.Unsigned),
+		SendPropString(FIELD.OF(nameof(TracerType)), 10, 0),
 		SendPropFloat(FIELD.OF(nameof(SpreadY)), 10, 0),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("TEHL2MPFireBullets", DT_TEHL2MPFireBullets).WithManualClassID(StaticClassIndices.CTEHL2MPFireBullets);
@@ -29,5 +30,6 @@ public class TEHL2MPFireBullets : BaseTempEntity
 	public float Spread;
 	public int DoImpacts;
 	public int DoTracers;
+	public InlineArray256<char> TracerType;
 	public float SpreadY;
 }

@@ -1,6 +1,9 @@
-using Source.Common;
-using Source;
 using Game.Shared;
+
+using Source;
+using Source.Common;
+using Source.Common.Engine;
+
 using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEHL2MPFireBullets>;
@@ -16,6 +19,7 @@ public class C_TEHL2MPFireBullets : C_BaseTempEntity
 		RecvPropFloat(FIELD.OF(nameof(Spread))),
 		RecvPropInt(FIELD.OF(nameof(DoImpacts))),
 		RecvPropInt(FIELD.OF(nameof(DoTracers))),
+		RecvPropString(FIELD.OF(nameof(TracerType))),
 		RecvPropFloat(FIELD.OF(nameof(SpreadY))),
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("TEHL2MPFireBullets", DT_TEHL2MPFireBullets).WithManualClassID(StaticClassIndices.CTEHL2MPFireBullets);
@@ -29,5 +33,6 @@ public class C_TEHL2MPFireBullets : C_BaseTempEntity
 	public float Spread;
 	public int DoImpacts;
 	public int DoTracers;
+	public InlineArray512<char> TracerType;
 	public float SpreadY;
 }
