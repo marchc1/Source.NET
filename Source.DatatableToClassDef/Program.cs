@@ -23,8 +23,8 @@ while (true) {
 			if (name.StartsWith('i')) name = name[1..];
 			else if (name.StartsWith('b')) name = name[1..];
 			else if (name.StartsWith('n')) name = name[1..];
-			else if (name.StartsWith("f")) name = name[1..];
 			else if (name.StartsWith("fl")) name = name[2..];
+			else if (name.StartsWith("f")) name = name[1..];
 			else if (name.StartsWith("vec")) name = name[3..];
 			else if (name.StartsWith("ang")) name = name[3..];
 		}
