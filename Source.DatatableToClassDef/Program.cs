@@ -217,6 +217,7 @@ while (true) {
 public static class PropFlagsConv
 {
 	public static readonly FrozenDictionary<string, PropFlags> ConvTable = new Dictionary<string, PropFlags>() {
+		{ "None", 0 },
 		{ "UNSIGNED", PropFlags.Unsigned },
 		{ "COORD", PropFlags.Coord },
 		{ "NOSCALE", PropFlags.NoScale },
@@ -262,7 +263,7 @@ class Prop
 
 		string[] pieces = new string[Flags.Count];
 		for (int i = 0; i < Flags.Count; i++) {
-			pieces[i] = $"PropFlags.{Enum.GetName(Flags[i])}";
+			pieces[i] = Flags[i] == 0 ? "0" : $"PropFlags.{Enum.GetName(Flags[i])}";
 		}
 
 		return string.Join(" | ", pieces);
