@@ -9,6 +9,8 @@ using Source.Common.Server;
 using Source.Engine.Client;
 using Source.Engine.Server;
 
+using System.Runtime.CompilerServices;
+
 namespace Source.Engine;
 
 // Going to be switching to this style of singleton access shortly. It's starting to get a little unmaintainable, given how many things have to cross wires,
@@ -32,7 +34,7 @@ public static class SourceDllMain
 	[Dependency] public static Render R { get; private set; } = null!;
 	[Dependency] public static ClientGlobalVariables clientGlobalVariables { get; private set; } = null!;
 	[Dependency] public static ServerGlobalVariables serverGlobalVariables { get; private set; } = null!;
-	[Dependency] public static IMaterialSystem materialSystem { get; private set; } = null!;
+	public static IMaterialSystem materialSystem { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => materials; }
 	[Dependency] public static IDebugTextureInfo materialSystemDebugTextureInfo { get; private set; } = null!;
 	[Dependency] public static IVideoMode videoMode { get; private set; } = null!;
 	[Dependency] public static Cbuf cbuf { get; private set; } = null!;
