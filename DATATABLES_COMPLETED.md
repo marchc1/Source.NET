@@ -111,7 +111,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #108: CPhysicsProp
 - [x] Class #109: CPhysicsPropMultiplayer
 - [x] Class #110: CPhysMagnet
-- [ ] Class #111: CPlasma
+- [x] Class #111: CPlasma
 - [x] Class #112: CPlayerResource
 - [x] Class #113: CPointCamera
 - [ ] Class #114: CPointWorldText
@@ -126,7 +126,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #123: CPropEnergyBall
 - [x] Class #124: CPropJeep
 - [x] Class #125: CPropJeepEpisodic
-- [ ] Class #126: CPropScalable
+- [x] Class #126: CPropScalable
 - [ ] Class #127: CPropVehicleChoreoGeneric
 - [x] Class #128: CPropVehicleDriveable
 - [x] Class #129: CPropVehiclePrisonerPod
@@ -134,7 +134,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #131: CRagdollProp
 - [ ] Class #132: CRagdollPropAttached
 - [x] Class #133: CRopeKeyframe
-- [ ] Class #134: CRotorWashEmitter
+- [x] Class #134: CRotorWashEmitter
 - [x] Class #135: CRpgRocket
 - [ ] Class #136: CSceneEntity
 - [ ] Class #137: CScriptIntro
@@ -194,7 +194,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #191: CTEProjectedDecal
 - [x] Class #192: CTEShatterSurface
 - [x] Class #193: CTEShowLine
-- [ ] Class #194: CTesla
+- [x] Class #194: CTesla
 - [x] Class #195: CTESmoke
 - [x] Class #196: CTESparks
 - [x] Class #197: CTESprite
@@ -245,9 +245,9 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #242: CWeaponTripMine
 - [x] Class #243: CWorld
 - [x] Class #244: DustTrail
-- [ ] Class #245: MovieExplosion
+- [x] Class #245: MovieExplosion
 - [x] Class #246: NextBotCombatCharacter
-- [ ] Class #247: ParticleSmokeGrenade
+- [x] Class #247: ParticleSmokeGrenade
 - [x] Class #248: RocketTrail
 - [x] Class #249: SmokeTrail
 - [x] Class #250: SporeExplosion
