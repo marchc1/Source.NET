@@ -90,19 +90,19 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #87: CLightGlow
 - [x] Class #88: CLuaNextBot
 - [ ] Class #89: CMaterialModifyControl
-- [ ] Class #90: CMortarShell
-- [ ] Class #91: CNPC_AntlionGuard
-- [ ] Class #92: CNPC_Barnacle
-- [ ] Class #93: CNPC_Barney
-- [ ] Class #94: CNPC_CombineGunship
-- [ ] Class #95: CNPC_Manhack
-- [ ] Class #96: CNPC_Portal_FloorTurret
-- [ ] Class #97: CNPC_Puppet
-- [ ] Class #98: CNPC_RocketTurret
-- [ ] Class #99: CNPC_RollerMine
-- [ ] Class #100: CNPC_Strider
-- [ ] Class #101: CNPC_Vortigaunt
-- [ ] Class #102: CParticleFire
+- [x] Class #90: CMortarShell
+- [x] Class #91: CNPC_AntlionGuard
+- [x] Class #92: CNPC_Barnacle
+- [x] Class #93: CNPC_Barney
+- [x] Class #94: CNPC_CombineGunship
+- [x] Class #95: CNPC_Manhack
+- [x] Class #96: CNPC_Portal_FloorTurret
+- [x] Class #97: CNPC_Puppet
+- [x] Class #98: CNPC_RocketTurret
+- [x] Class #99: CNPC_RollerMine
+- [x] Class #100: CNPC_Strider
+- [x] Class #101: CNPC_Vortigaunt
+- [x] Class #102: CParticleFire
 - [ ] Class #103: CParticlePerformanceMonitor
 - [x] Class #104: CParticleSystem
 - [x] Class #105: CPhysBeam
@@ -113,7 +113,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #110: CPhysMagnet
 - [ ] Class #111: CPlasma
 - [x] Class #112: CPlayerResource
-- [ ] Class #113: CPointCamera
+- [x] Class #113: CPointCamera
 - [ ] Class #114: CPointWorldText
 - [ ] Class #115: CPoseController
 - [ ] Class #116: CPrecipitation
@@ -200,10 +200,10 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #197: CTESprite
 - [x] Class #198: CTESpriteSpray
 - [x] Class #199: CTEWorldDecal
-- [ ] Class #200: CTriggerPlayerMovement
+- [x] Class #200: CTriggerPlayerMovement
 - [x] Class #201: CVGuiScreen
-- [ ] Class #202: CVortigauntChargeToken
-- [ ] Class #203: CVortigauntEffectDispel
+- [x] Class #202: CVortigauntChargeToken
+- [x] Class #203: CVortigauntEffectDispel
 - [x] Class #204: CWaterBullet
 - [x] Class #205: CWaterLODControl
 - [x] Class #206: CWeapon357
@@ -244,7 +244,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #241: CWeaponSWEP
 - [x] Class #242: CWeaponTripMine
 - [x] Class #243: CWorld
-- [ ] Class #244: DustTrail
+- [x] Class #244: DustTrail
 - [ ] Class #245: MovieExplosion
 - [x] Class #246: NextBotCombatCharacter
 - [ ] Class #247: ParticleSmokeGrenade

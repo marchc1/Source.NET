@@ -207,15 +207,17 @@ while (true) {
 		}
 		if (propFunc == null) {
 			Console.WriteLine($"Skipping prop '{p.PropName}' - unable to discern more info.");
-			clWriter.Close();
-			svWriter.Close();
+			// clWriter.Close();
+			// svWriter.Close();
 
-			File.Delete(cl_path);
-			File.Delete(sv_path);
+			// File.Delete(cl_path);
+			// File.Delete(sv_path);
 
 			Debugger.Break();
-			exit = true;
-			break;
+			writeBoth($"\t\t(write for {p.PropName}),");
+			// exit = true;
+			// break;
+			continue;
 		}
 
 		switch (propFunc) {
