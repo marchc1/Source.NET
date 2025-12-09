@@ -4,10 +4,10 @@ global using EHANDLE = Source.Common.BaseHandle; // < Intellisense compatibility
 
 global using static Game.Shared.SharedDefs;
 
-using System.Runtime.CompilerServices;
-
 using Source;
 using Source.Common;
+
+using System.Runtime.CompilerServices;
 
 namespace Game.Shared;
 
@@ -104,6 +104,7 @@ public static class SharedDefs
 
 	public const int MAX_SUIT_DEVICES = 3;
 	public const int MAX_AMMO_SLOTS = 256;
+	public const int MAX_SPLINE_POINTS = 16;
 
 	public static ClientClass WithManualClassID(this ClientClass clientClass, StaticClassIndices classID) {
 		clientClass.ClassID = (int)classID;
@@ -139,6 +140,7 @@ public enum HideHudBits
 [InlineArray(NUM_AUDIO_LOCAL_SOUNDS)] public struct InlineArrayNumLocalAudioSounds<T> { public T item; }
 [InlineArray(MAX_AMMO_SLOTS)] public struct InlineArrayMaxAmmoSlots<T> { public T item; }
 [InlineArray(NetFlow.MAX_FLOWS)] public struct InlineArrayMaxFlows<T> { public T item; }
+[InlineArray(MAX_SPLINE_POINTS)] public struct InlineArrayMaxSplinePoints<T> { public T item; }
 [InlineArray(Constants.MAX_PLAYERS)] public struct InlineArrayMaxPlayers<T> { public T item; }
 [InlineArray(Constants.MAX_PLAYERS + 1)] public struct InlineArrayMaxPlayersPlusOne<T> { public T item; }
 

@@ -75,7 +75,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		throw new NotImplementedException();
 	}
 
-	public static readonly new ServerClass ServerClass = new ServerClass("BasePlayer", DT_BasePlayer);
+	public static readonly new ServerClass ServerClass = new ServerClass("BasePlayer", DT_BasePlayer).WithManualClassID(StaticClassIndices.CBasePlayer);
 
 	bool DeadFlag;
 	readonly PlayerState pl = new();

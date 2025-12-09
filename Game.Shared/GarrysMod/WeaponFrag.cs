@@ -12,9 +12,11 @@ public class WeaponFrag : BaseHL2MPCombatWeapon
 #endif
 		DT_WeaponFrag = new(DT_BaseHL2MPCombatWeapon, [
 #if CLIENT_DLL
+			RecvPropBool(FIELD.OF(nameof(Redraw))),
 			RecvPropBool(FIELD.OF(nameof(DrawbackFinished))),
 			RecvPropInt(FIELD.OF(nameof(AttackPaused)))
 #else
+			SendPropBool(FIELD.OF(nameof(Redraw))),
 			SendPropBool(FIELD.OF(nameof(DrawbackFinished))),
 			SendPropInt(FIELD.OF(nameof(AttackPaused)))
 #endif
@@ -24,6 +26,7 @@ public class WeaponFrag : BaseHL2MPCombatWeapon
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("WeaponFrag", DT_WeaponFrag).WithManualClassID(StaticClassIndices.CWeaponFrag);
 #endif
+	public bool Redraw;
 	public bool DrawbackFinished;
 	public int AttackPaused;
 }

@@ -1,4 +1,7 @@
-﻿namespace Game.Shared;
+﻿using Source.Common;
+using Source.Common.Commands;
+
+namespace Game.Shared;
 
 /// <summary>
 /// Links a class type to a hammer name
@@ -9,6 +12,55 @@ public class LinkEntityToClassAttribute : Attribute
 	public required string LocalName;
 }
 
+public static class StaticClassIndicesHelpers
+{
+	public static void DumpDatatablesCompleted() {
+		if (Singleton<ICommandLine>().FindParm("-dumpdatatablescompleted") == 0)
+			return;
+		// Check if the file exists. If it doesn't, our path traversal probably got messed up, so don't write a file somewhere totally random.
+
+		string backPath = Path.Combine(AppContext.BaseDirectory, "../../../../DATATABLES_COMPLETED.md");
+
+		if (!File.Exists(backPath))
+			return;
+
+		using FileStream stream = File.Open(backPath, FileMode.Truncate, FileAccess.Write);
+		using StreamWriter writer = new(stream);
+
+		writer.WriteLine("This is a list of all of the important SendClasses in " +
+#if GMOD_DLL
+		"Garry's Mod"
+#else
+		"(UNKNOWN)
+#endif
+		+ ", and which ones have completed datatables.");
+
+		writer.WriteLine();
+
+		StaticClassIndices[] values = Enum.GetValues<StaticClassIndices>();
+		string[] names = new string[values.Length];
+		for (int i = 0; i < values.Length; i++)
+			names[i] = Enum.GetName(values[i])!;
+
+		values.Sort();
+		Span<bool> implemented = stackalloc bool[values.Length];
+		for (ClientClass? clc = ClientClass.Head; clc != null; clc = clc.Next)
+			if (clc.ClassID != -1)
+				implemented[clc.ClassID] = true;
+		for (ServerClass? svc = ServerClass.Head; svc != null; svc = svc.Next)
+			if (svc.ClassID != -1)
+				implemented[svc.ClassID] = true;
+
+		for (int i = 0; i < values.Length; i++)
+			writer.WriteLine($"- [{(implemented[i] ? 'x' : ' ')}] Class #{i}: {names[i]}");
+
+		Msg("-dumpdatatablescompleted present, dumped all datatables to " + backPath + "\n");
+		Msg($"  - {implemented.Count(true)}/{values.Length} datatables were marked as completed.\n");
+		Msg($"  - Around {Math.Round((implemented.Count(true) / (float)values.Length) * 100, 2)}% have been completed!\n");
+	}
+}
+
+#if GMOD_DLL
 public enum StaticClassIndices
 {
 	AR2Explosion = 0,
@@ -263,3 +315,4 @@ public enum StaticClassIndices
 	SmokeTrail = 249,
 	SporeExplosion = 250,
 }
+#endif
