@@ -1,4 +1,4 @@
-﻿using Source.Common.Formats.Keyvalues;
+using Source.Common.Formats.Keyvalues;
 
 using System;
 using System.Collections.Generic;
@@ -20,7 +20,7 @@ public interface IDebugTextureInfo
 	// Use this to turn on the mode where it builds the debug texture list.
 	// At the end of the next frame, GetDebugTextureList() will return a valid list of the textures.
 	void EnableDebugTextureList(bool enable);
-	
+
 	// If this is on, then it will return all textures that exist, not just the ones that were bound in the last frame.
 	// It is required to enable debug texture list to get this.
 	void EnableGetAllTextures(bool enable);
@@ -40,7 +40,7 @@ public interface IDebugTextureInfo
 
 
 	// This returns how much memory was used.
-	// TODO: int GetTextureMemoryUsed(TextureMemoryType textureMemory);
+	int GetTextureMemoryUsed(TextureMemoryType textureMemory);
 
 	// Use this to determine if texture debug info was computed within last numFramesAllowed frames.
 	bool IsDebugTextureListFresh(int numFramesAllowed = 1);

@@ -172,10 +172,10 @@ public static class VertexExts
 	}
 
 	public static int GetTexCoordDimensionSize(this VertexFormat format, int index) {
-		const int TEXCOORD1D_BASE = (int)VertexElement.TexCoord1D_0; 
-		const int TEXCOORD2D_BASE = (int)VertexElement.TexCoord2D_0; 
-		const int TEXCOORD3D_BASE = (int)VertexElement.TexCoord3D_0; 
-		const int TEXCOORD4D_BASE = (int)VertexElement.TexCoord4D_0; 
+		const int TEXCOORD1D_BASE = (int)VertexElement.TexCoord1D_0;
+		const int TEXCOORD2D_BASE = (int)VertexElement.TexCoord2D_0;
+		const int TEXCOORD3D_BASE = (int)VertexElement.TexCoord3D_0;
+		const int TEXCOORD4D_BASE = (int)VertexElement.TexCoord4D_0;
 
 		ulong bit1D = 1ul << (TEXCOORD1D_BASE + index);
 		ulong bit2D = 1ul << (TEXCOORD2D_BASE + index);
@@ -391,8 +391,8 @@ public enum MaterialVarFlags2
 	LightingBumpedLightmap = (1 << 3),
 	LightingMask =
 		(LightingVertexLit |
-		  LightingLightmap |
-		  LightingBumpedLightmap),
+			LightingLightmap |
+			LightingBumpedLightmap),
 
 	// FIXME: Should this be a part of the above lighting enums?
 	DiffuseBumpmappedModel = (1 << 4),
@@ -434,6 +434,8 @@ public interface IMaterial
 	VertexFormat GetVertexFormat();
 	ReadOnlySpan<char> GetName();
 	int GetEnumerationID();
+	IMaterialVar[]? GetShaderParams();
+	int ShaderParamCount();
 	bool GetPropertyFlag(MaterialPropertyTypes needsBumpedLightmaps);
 	// TODO: We need to get these working. The original plan was to use C#'s finalizers, but that's a bad idea in hindsight
 	void IncrementReferenceCount();

@@ -208,7 +208,7 @@ public interface IMaterialSystem
 	void GetSortInfo(Span<MaterialSystem_SortInfo> materialSortInfoArray);
 	void GetBackBufferDimensions(out int width, out int height);
 	IShaderUtil GetShaderUtil();
-	ITexture FindTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroupName, bool complain, int additionalCreationFlags);
+	ITexture FindTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroupName, bool complain = true, int additionalCreationFlags = 0);
 	ITexture GetErrorTexture();
 	IMaterial? FindMaterialEx(ReadOnlySpan<char> materialName, ReadOnlySpan<char> textureGroupName, MaterialFindContext isOnAModel, bool complain = true, ReadOnlySpan<char> complainPrefix = default);
 	void BeginUpdateLightmaps();

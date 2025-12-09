@@ -12,6 +12,7 @@ public class TextEntry : Panel
 	public TextEntry(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 		SetTriplePressAllowed(true);
 
+		HorizScrollingAllowed = true;
 		CursorBlinkRate = 400;
 		MaxCharCount = -1;
 		Select[0] = Select[1] = -1;
@@ -19,6 +20,9 @@ public class TextEntry : Panel
 		ResetCursorBlink();
 		SetCursor(CursorCode.IBeam);
 		SetEditable(true);
+
+		LineBreaks.Add(BUFFER_SIZE);
+
 		RecalculateBreaksIndex = 0;
 		ShouldSelectAllOnFirstFocus = false;
 		ShouldSelectAllOnFocusAlways = false;
@@ -80,33 +84,34 @@ public class TextEntry : Panel
 		bool composing = false; // todo
 		bool invertcomposition = Input.GetShouldInvertCompositionString();
 
-		bool highlight_composition = (nCompStart != -1 && nCompEnd != -1) ? true : false;
+		bool highlight_composition = nCompStart != -1 && nCompEnd != -1;
 
 		if ((!Multiline) && (!HorizScrollingAllowed)) {
 			int endIndex = TextStream.Count;
+			int i;
 			if ((!HasFocus() && IsEditable()) || (!IsEditable())) {
-				int i1 = -1;
+				i = -1;
 
-				bool addEllipses = NeedsEllipses(useFont, ref i1);
+				bool addEllipses = NeedsEllipses(useFont, ref i);
 				if (addEllipses && !IsEditable() && UseFallbackFont && FallbackFont != null) {
 					useFont = FallbackFont;
 					Surface.DrawSetTextFont(useFont);
-					addEllipses = NeedsEllipses(useFont, ref i1);
+					addEllipses = NeedsEllipses(useFont, ref i);
 				}
+
 				if (addEllipses) {
 					int elipsisWidth = 3 * getCharWidth(useFont, '.');
-					while (elipsisWidth > 0 && i1 >= 0) {
-						elipsisWidth -= getCharWidth(useFont, TextStream[i1]);
-						i1--;
+					while (elipsisWidth > 0 && i >= 0) {
+						elipsisWidth -= getCharWidth(useFont, TextStream[i]);
+						i--;
 					}
-					endIndex = i1 + 1;
+					endIndex = i + 1;
 				}
 
 				if (TextStream.Count - endIndex < 3 && TextStream.Count - endIndex > 0)
 					endIndex = TextStream.Count - 3;
 			}
 
-			int i;
 			for (i = startIndex; i < endIndex; i++) {
 				char ch = TextStream[i];
 				if (HideText)
@@ -158,7 +163,7 @@ public class TextEntry : Panel
 				bool iscompositionchar = false;
 
 				if (highlight_composition) {
-					iscompositionchar = (i >= nCompStart && i < nCompEnd) ? true : false;
+					iscompositionchar = i >= nCompStart && i < nCompEnd;
 					if (iscompositionchar) {
 						Surface.DrawSetColor(col);
 
@@ -226,7 +231,7 @@ public class TextEntry : Panel
 	}
 
 	public override void OnSizeChanged(int newWide, int newTall) {
-		FlushLineBreaks(false);
+		FlushLineBreaks(true);
 
 		if (newWide > DrawWidth)
 			ScrollLeftForResize();
@@ -1118,7 +1123,7 @@ public class TextEntry : Panel
 			return;
 
 		if (index >= TextStream.Count)
-			while (TextStream.Count <= index + 1)
+			while (TextStream.Count <= index)
 				TextStream.Add('\0');
 
 		TextStream[index] = ch;
@@ -1151,33 +1156,83 @@ public class TextEntry : Panel
 
 	private bool IsCursorOffRightSideOfWindow(int CursorPos) {
 		int wx = GetWide() - 1;
-		CursorToPixelSpace(CursorPos, out int cx, out int cy);
+		CursorToPixelSpace(CursorPos, out int cx, out _);
 		if (wx <= 0) return false;
 
-		return (cx >= wx);
+		return cx >= wx;
 	}
 
 	private bool IsCursorOffLeftSideOfWindow(int CursorPos) {
-		CursorToPixelSpace(CursorPos, out int cx, out int cy);
-		return (cx < 0);
+		CursorToPixelSpace(CursorPos, out int cx, out _);
+		return cx < 0;
 	}
 
 	private void CalcBreakIndex() {
-		// if (CursorPos == TextStream.Count) {
-		// 	RecalculateBreaksIndex = LineBreaks.Count - 2;
-		// 	return;
-		// }
+		if (CursorPos == TextStream.Count) {
+			RecalculateBreaksIndex = LineBreaks.Count - 2;
+			return;
+		}
 
-		// RecalculateBreaksIndex = 0;
-		// while (CursorPos > LineBreaks[RecalculateBreaksIndex]) // todo: fix out of range
-		// 	++RecalculateBreaksIndex;
+		RecalculateBreaksIndex = 0;
+		while (CursorPos > LineBreaks[RecalculateBreaksIndex])
+			++RecalculateBreaksIndex;
 
-		// --RecalculateBreaksIndex;
+		--RecalculateBreaksIndex;
 	}
 
 	private void LayoutVerticalScrollBarSlider() {
+		if (VertScrollBar == null)
+			return;
 
+		GetSize(out int wide, out int tall);
+		GetInset(out _, out int iRight, out int iTop, out int iBottom);
+
+		wide -= iRight;
+
+		VertScrollBar.SetPos(wide - VertScrollBar.GetWide(), iTop);
+		VertScrollBar.SetSize(VertScrollBar.GetWide(), tall - iBottom - iTop);
+
+		int displayLines = tall / (Surface.GetFontTall(Font) + DRAW_OFFSET_Y);
+		int numLines = LineBreaks.Count;
+
+		if (numLines <= displayLines) {
+			VertScrollBar.SetEnabled(false);
+			VertScrollBar.SetRange(0, numLines);
+			VertScrollBar.SetRangeWindow(numLines);
+			VertScrollBar.SetValue(0);
+		}
+		else {
+			VertScrollBar.SetRange(0, numLines);
+			VertScrollBar.SetRangeWindow(displayLines);
+			VertScrollBar.SetEnabled(true);
+			VertScrollBar.SetButtonPressedScrollValue(1);
+
+			int val = VertScrollBar.GetValue();
+			int maxVal = VertScrollBar.GetValue() + displayLines;
+
+			if (GetCursorLine() < val)
+				while (GetCursorLine() < val)
+					val--;
+			else if (GetCursorLine() >= maxVal) {
+				while (GetCursorLine() >= maxVal)
+					val++;
+				maxVal -= displayLines;
+				val = maxVal;
+			}
+
+			VertScrollBar.SetValue(val);
+			VertScrollBar.InvalidateLayout();
+			VertScrollBar.Repaint();
+		}
 	}
+
+	public override void SetEnabled(bool state) {
+		base.SetEnabled(state);
+		Repaint();
+	}
+
+	public void SetMultiline(bool state) => Multiline = state;
+	public bool IsMultiLine() => Multiline;
 
 	private void RecalculateLineBreaks() {
 		if (!Multiline || HideText)
@@ -1209,8 +1264,8 @@ public class TextEntry : Panel
 			for (int i2 = RecalculateBreaksIndex + 1; i2 < LineBreaks.Count; ++i2) {
 				LineBreaks.RemoveAt(i2);
 				i2--;
-				startChar = LineBreaks[RecalculateBreaksIndex];
 			}
+			startChar = LineBreaks[RecalculateBreaksIndex];
 		}
 
 		if (TextStream[startChar] == '\r' || TextStream[startChar] == '\n')
@@ -1980,4 +2035,6 @@ public class TextEntry : Panel
 		FallbackFont = fallback;
 		UseFallbackFont = state;
 	}
+
+	public int GetTextLength() => TextStream.Count;
 }

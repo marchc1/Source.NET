@@ -1043,11 +1043,11 @@ public class MatSystemSurface : IMatSystemSurface
 
 	int BatchedCharVertCount;
 	public void PopMakeCurrent(IPanel panel) {
-		if (BatchedCharVertCount > 0) 
+		if (BatchedCharVertCount > 0)
 			DrawFlushText();
-		if(BatchedLineCount > 0)
+		if (BatchedLineCount > 0)
 			DrawFlushLines();
-		
+
 		int top = PaintStateStack.Count - 1;
 		Assert(top >= 0);
 		Assert(PaintStateStack[top].Panel == panel);
@@ -1790,5 +1790,58 @@ public class MatSystemSurface : IMatSystemSurface
 		int totalLength = DrawTextLen(font, text);
 
 		return x + totalLength;
+	}
+
+	public void DrawColoredTextRect(IFont? font, int x, int y, int w, int h, byte r, byte g, byte b, byte a, ReadOnlySpan<char> text) {
+		DrawSetTextPos(x, y);
+		DrawSetTextColor(r, g, b, a);
+		DrawSetTextFont(font);
+
+		int yStep = GetFontTall(font);
+		int startX = x;
+		int endX = x + w;
+		int endY = y + h;
+
+		int i = 0;
+		while (i < text.Length) {
+			int chars = 0;
+			int pixels;
+			for (int j = i; j < text.Length; j++) {
+				if (text[j] == ' ' || text[j] == '\n')
+					break;
+				chars++;
+			}
+
+			if (chars == 0)
+				chars = 1;
+
+			var word = text.Slice(i, chars);
+			pixels = DrawTextLen(font, word);
+
+			if (text[i] == '\n') {
+				x = startX;
+				y += yStep;
+				i++;
+				continue;
+			}
+
+			if (x + pixels >= endX) {
+				x = startX;
+				if (pixels >= endX)
+					break;
+				y += yStep;
+			}
+
+			if (y + yStep >= endY)
+				break;
+
+			DrawSetTextPos(x, y);
+
+			ReadOnlySpan<char> localized = localize.Find(word);
+			DrawPrintText(localized.IsEmpty ? word : localized);
+
+			x += pixels;
+			i += chars;
+		}
 	}
 }

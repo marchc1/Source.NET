@@ -2,6 +2,7 @@
 
 using Source.Common;
 using Source.Common.Client;
+using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.MaterialSystem;
 using Source.Common.Server;
@@ -31,10 +32,14 @@ public static class SourceDllMain
 	[Dependency] public static Render R { get; private set; } = null!;
 	[Dependency] public static ClientGlobalVariables clientGlobalVariables { get; private set; } = null!;
 	[Dependency] public static ServerGlobalVariables serverGlobalVariables { get; private set; } = null!;
+	[Dependency] public static IMaterialSystem materialSystem { get; private set; } = null!;
+	[Dependency] public static IDebugTextureInfo materialSystemDebugTextureInfo { get; private set; } = null!;
+	[Dependency] public static IVideoMode videoMode { get; private set; } = null!;
+	[Dependency] public static Cbuf cbuf { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Client)] public static NetworkStringTableContainer networkStringTableContainerClient { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Server)] public static NetworkStringTableContainer networkStringTableContainerServer { get; private set; } = null!;
 
-	
+
 	public static TimeUnit_t TICKS_TO_TIME(int t) => host_state.IntervalPerTick * t;
 	public static int TIME_TO_TICKS(TimeUnit_t dt) => (int)(0.5f + dt / host_state.IntervalPerTick);
 

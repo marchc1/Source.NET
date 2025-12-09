@@ -451,7 +451,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		ExportTextureList();
 	}
 
-	public bool IsDebugTextureListFresh(int numFramesAllowed = 1){
+	public bool IsDebugTextureListFresh(int numFramesAllowed = 1) {
 		return DebugDataExportFrame <= CurrentFrame && (DebugDataExportFrame >= CurrentFrame - (nuint)numFramesAllowed);
 	}
 
@@ -471,6 +471,16 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	public KeyValues? GetDebugTextureList() {
 		return DebugTextureList;
+	}
+
+	public int GetTextureMemoryUsed(TextureMemoryType type) {
+		return type switch {
+			TextureMemoryType.BoundLastFrame => (int)TextureMemoryUsedLastFrame,
+			TextureMemoryType.TotalLoaded => (int)TextureMemoryUsedTotal,
+			TextureMemoryType.EstimatePicmip1 => (int)TextureMemoryUsedPicMip1,
+			TextureMemoryType.EstimatePicmip2 => (int)TextureMemoryUsedPicMip2,
+			_ => 0,
+		};
 	}
 
 	bool bEnableDebugTextureList;
@@ -496,7 +506,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			TextureMemoryUsedTotal = 0;
 			TextureMemoryUsedPicMip1 = 0;
 			TextureMemoryUsedPicMip2 = 0;
-			foreach(var texkvp in Textures){
+			foreach (var texkvp in Textures) {
 				var tex = texkvp.Value;
 				TextureMemoryUsedTotal += tex.GetMemUsage();
 
@@ -530,7 +540,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 					}
 				}
 
-				if (!DebugGetAllTextures && tex.LastBoundFrame != CurrentFrame)
+				if (!DebugGetAllTextures) // && tex.LastBoundFrame != CurrentFrame, todo SetTextureState
 					continue;
 
 				if (tex.LastBoundFrame != CurrentFrame)
@@ -545,7 +555,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				pSubKey.SetString("Format", ImageLoader.GetName(tex.GetImageFormat()));
 				pSubKey.SetInt("Width", tex.GetWidth());
 				pSubKey.SetInt("Height", tex.GetHeight());
-					   
+
 				pSubKey.SetInt("BindsMax", tex.TimesBoundMax);
 				pSubKey.SetInt("BindsFrame", tex.TimesBoundThisFrame);
 			}
@@ -850,7 +860,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			// todo: cubemap, info
 		}
 		else if (isVolumeTexture) {
-			 // todo
+			// todo
 		}
 		else {
 			int numLevels = textureData.GetLevelCount();
@@ -1219,7 +1229,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		}
 	}
 
-	struct LockInfo {
+	struct LockInfo
+	{
 		public bool Locked;
 		public int Mip;
 		public int CubeID;
@@ -1260,7 +1271,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		Lock.Format = info.Format;
 
 		Memory<byte> buffer = GetTempLockBuffer(info.Format, width, height);
-		fixed(byte* data = buffer.Span){
+		fixed (byte* data = buffer.Span) {
 			glGetTextureSubImage((uint)ModifyTextureHandle, 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
 		}
 		writer.SetPixelMemory(info.Format, buffer.Span, width * ImageLoader.SizeInBytes(info.Format));

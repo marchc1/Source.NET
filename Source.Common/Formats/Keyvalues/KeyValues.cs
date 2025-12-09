@@ -656,6 +656,24 @@ public class KeyValues : IEnumerable<KeyValues>
 		return this;
 	}
 
+	public void RemoveSubKey(KeyValues? subkey) {
+		if (subkey == null)
+			return;
+
+		if (children.First != null && children.First.Value == subkey)
+			children.RemoveFirst();
+		else {
+			var node = children.First;
+			while (node != null && node.Next != null) {
+				if (node.Next.Value == subkey) {
+					children.Remove(node.Next);
+					break;
+				}
+				node = node.Next;
+			}
+		}
+	}
+
 	public void SetPtr(object? ptr) {
 		Value = ptr;
 		Type = Types.Pointer;
@@ -676,6 +694,7 @@ public class KeyValues : IEnumerable<KeyValues>
 		return new(); // todo: proper implementation of this
 	}
 
+	public void SetName(ReadOnlySpan<char> name) => Name = name.ToString();
 	public void SetFloat(ReadOnlySpan<char> keyName, float value) {
 		KeyValues? dat = FindKey(keyName, true);
 		if (dat != null) {

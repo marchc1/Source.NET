@@ -95,6 +95,14 @@ public struct PostedMessage
 	public bool CanBeCancelled;
 }
 
+public struct RanEvent
+{
+	public UtlSymId_t SeqName;
+	public Panel Parent;
+	public override bool Equals(object? obj) => obj is RanEvent other && SeqName == other.SeqName && Parent == other.Parent;
+	public override int GetHashCode() => HashCode.Combine(SeqName, Parent);
+}
+
 public class AnimationController : Panel, IAnimationController
 {
 	List<ActiveAnimation> ActiveAnimations = [];
@@ -150,6 +158,25 @@ public class AnimationController : Panel, IAnimationController
 		StartCmd_Animate(panel, 0, in animateCmd, true);
 	}
 
+	public void RunAnimationCommand(Panel panel, ReadOnlySpan<char> variable, Color target, TimeUnit_t startDelaySeconds, TimeUnit_t durationSeconds, Interpolators interpolator, float animParameter = 0) {
+		ulong var = ScriptSymbols.AddString(variable);
+		RemoveQueuedAnimationByType(panel, var, 0);
+
+		AnimCmdAnimate animateCmd = new();
+		animateCmd.Panel = 0;
+		animateCmd.Variable = var;
+		animateCmd.Target.A = target[0];
+		animateCmd.Target.B = target[1];
+		animateCmd.Target.C = target[2];
+		animateCmd.Target.D = target[3];
+		animateCmd.InterpolationFunction = interpolator;
+		animateCmd.InterpolationParameter = animParameter;
+		animateCmd.StartTime = startDelaySeconds;
+		animateCmd.Duration = durationSeconds;
+
+		StartCmd_Animate(panel, 0, in animateCmd, true);
+	}
+
 	TimeUnit_t CurrentTime;
 
 	public void UpdateAnimations(TimeUnit_t curTime) {
@@ -159,10 +186,56 @@ public class AnimationController : Panel, IAnimationController
 		UpdateActiveAnimations(false);
 	}
 
-	// Todo
+	// todo
 	private void UpdatePostedMessages(bool runToCompletion) {
+		List<RanEvent> eventsRanThisFrame = [];
 
+		for (int i = 0; i < PostedMessages.Count; i++) {
+			Span<PostedMessage> msgs = PostedMessages.AsSpan();
+			ref PostedMessage msgRef = ref msgs[i];
+
+			if (!msgRef.CanBeCancelled && runToCompletion)
+				continue;
+
+			if (CurrentTime < msgRef.StartTime && !runToCompletion)
+				continue;
+
+			PostedMessage msg = msgRef;
+			PostedMessages.RemoveAt(i);
+			--i;
+
+			if (!msg.Parent.IsValid())
+				continue;
+
+			switch (msg.CommandType) {
+				case AnimCommandType.RunEvent:
+					break;
+				case AnimCommandType.RunEventChild:
+					break;
+				case AnimCommandType.FireCommand:
+					break;
+				case AnimCommandType.PlaySound:
+					break;
+				case AnimCommandType.SetVisible:
+					break;
+				case AnimCommandType.SetInputEnabled:
+					break;
+				case AnimCommandType.StopEvent:
+					break;
+				case AnimCommandType.StopPanelAnimations:
+					break;
+				case AnimCommandType.StopAnimation:
+					break;
+				case AnimCommandType.SetFont:
+					break;
+				case AnimCommandType.SetTexture:
+					break;
+				case AnimCommandType.SetString:
+					break;
+			}
+		}
 	}
+
 	public void CancelAllAnimations() {
 		for (int i = ActiveAnimations.Count - 1; i >= ActiveAnimations.Count; i--)
 			if (ActiveAnimations[i].CanBeCancelled)

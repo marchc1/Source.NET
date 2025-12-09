@@ -18,7 +18,8 @@ public struct SurfaceVertex
 	}
 }
 
-public record struct TextureID {
+public record struct TextureID
+{
 	public long ID;
 	public static readonly TextureID INVALID = new(-1);
 	public TextureID(long id) => ID = id;
@@ -212,10 +213,13 @@ public interface ISurface
 	void ForceScreenPosOffset(bool active, int x, int y);
 	void ForceScreenSizeOverride(bool active, int w, int h);
 	int DrawColoredText(IFont? font, int x, int y, byte r, byte g, byte b, byte a, ReadOnlySpan<char> text);
+	void DrawColoredTextRect(IFont? font, int x, int y, int w, int h, byte r, byte g, byte b, byte a, ReadOnlySpan<char> text);
 	void DrawString(ReadOnlySpan<char> str, FontDrawType drawType = FontDrawType.Default);
 }
 
-public interface IMatSystemSurface : ISurface {
+public interface IMatSystemSurface : ISurface
+{
 	void AttachToWindow(IWindow? window, bool appDrivesInput);
 	void EnableWindowsMessages(bool enabled);
+	int DrawTextLen(IFont font, ReadOnlySpan<char> text);
 }

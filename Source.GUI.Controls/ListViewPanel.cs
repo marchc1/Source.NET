@@ -103,6 +103,8 @@ public class ListViewItem : Label
 				imageIndex = Data!.GetInt("image", 0);
 
 			if (ListViewPanel.ImageList.IsValidIndex(imageIndex))
+				SetImageAtIndex(0, ListViewPanel.ImageList.GetImage(imageIndex)!, 0);
+			else
 				SetImageAtIndex(0, ListViewPanel.ImageList.GetImage(1)!, 0);
 
 			SizeToContents();

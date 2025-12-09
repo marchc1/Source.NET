@@ -981,6 +981,9 @@ public class Material : IMaterialInternal
 			flags &= ~MaterialFlags.NeedsWhiteLightmap;
 	}
 
+	public IMaterialVar[]? GetShaderParams() => ShaderParams;
+	public int ShaderParamCount() => VarCount;
+
 	public void IncrementReferenceCount() {
 		// VERY IMPORTANT TODO
 	}
@@ -997,7 +1000,7 @@ public class Material : IMaterialInternal
 				return ShaderParams![token.VarIndex];
 
 			// FIXME: Could look for flags here too...
-			if (!IMaterialVar.SymbolMatches(varName, token.Symbol)) 
+			if (!IMaterialVar.SymbolMatches(varName, token.Symbol))
 				token.Symbol = IMaterialVar.FindSymbol(varName);
 		}
 		else {
@@ -1005,7 +1008,7 @@ public class Material : IMaterialInternal
 			token.Symbol = IMaterialVar.FindSymbol(varName);
 		}
 
-		if(token.Symbol != UTL_INVAL_SYMBOL) {
+		if (token.Symbol != UTL_INVAL_SYMBOL) {
 			for (int i = VarCount; --i >= 0;) {
 				if (ShaderParams![i].GetNameAsSymbol() == token.Symbol) {
 					token.VarIndex = i;

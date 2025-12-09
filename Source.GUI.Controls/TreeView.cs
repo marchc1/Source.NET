@@ -175,7 +175,7 @@ public class TreeNode : Panel
 		ImagePanel.SetPos(TREE_INDENT_AMOUNT, 3);
 
 		Text = new(this, "TreeNodeText", treeView);
-		// Text.SetMultiline(false);
+		Text.SetMultiline(false);
 		Text.SetEditable(false);
 		Text.SetPos(TREE_INDENT_AMOUNT * 2, 0);
 		Text.AddActionSignalTarget(this);

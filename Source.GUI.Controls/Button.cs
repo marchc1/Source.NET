@@ -100,8 +100,13 @@ public class Button : Label
 
 	}
 
-	public Button(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
+	public Button(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, Panel? actionSignalTarget = null, string? cmd = null) : base(parent, name, text) {
 		Init();
+
+		if (actionSignalTarget != null && cmd != null) {
+			AddActionSignalTarget(actionSignalTarget);
+			SetCommand(cmd);
+		}
 	}
 
 	public virtual void DoClick() {
