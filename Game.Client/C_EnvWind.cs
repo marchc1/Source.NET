@@ -22,6 +22,7 @@ public class C_EnvWind : C_BaseEntity
 		RecvPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.StartTime))),
 		RecvPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.GustDuration))),
 	]);
+	public static readonly ClientClass CC_EnvWindShared = new("EnvWindShared", DT_EnvWindShared);
 
 	public static readonly RecvTable DT_EnvWind = new([
 		RecvPropDataTable(nameof(EnvWindShared), FIELD.OF(nameof(EnvWindShared)), DT_EnvWindShared, 0, RECV_GET_OBJECT_AT_FIELD(FIELD.OF(nameof(EnvWindShared))))

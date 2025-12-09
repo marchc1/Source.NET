@@ -42,23 +42,23 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #39: CEntityDissolve
 - [x] Class #40: CEntityFlame
 - [ ] Class #41: CEntityParticleTrail
-- [ ] Class #42: CEnvAmbientLight
-- [ ] Class #43: CEnvDetailController
+- [x] Class #42: CEnvAmbientLight
+- [x] Class #43: CEnvDetailController
 - [ ] Class #44: CEnvHeadcrabCanister
-- [ ] Class #45: CEnvParticleScript
+- [x] Class #45: CEnvParticleScript
 - [ ] Class #46: CEnvProjectedTexture
-- [ ] Class #47: CEnvQuadraticBeam
-- [ ] Class #48: CEnvScreenEffect
+- [x] Class #47: CEnvQuadraticBeam
+- [x] Class #48: CEnvScreenEffect
 - [ ] Class #49: CEnvScreenOverlay
-- [ ] Class #50: CEnvStarfield
+- [x] Class #50: CEnvStarfield
 - [x] Class #51: CEnvTonemapController
-- [ ] Class #52: CEnvWind
-- [ ] Class #53: CFireSmoke
-- [ ] Class #54: CFireTrail
-- [ ] Class #55: CFish
-- [ ] Class #56: CFlare
-- [ ] Class #57: CFleshEffectTarget
-- [ ] Class #58: CFlexManipulate
+- [x] Class #52: CEnvWind
+- [x] Class #53: CFireSmoke
+- [x] Class #54: CFireTrail
+- [x] Class #55: CFish
+- [x] Class #56: CFlare
+- [x] Class #57: CFleshEffectTarget
+- [x] Class #58: CFlexManipulate
 - [x] Class #59: CFogController
 - [x] Class #60: CFunc_Dust
 - [x] Class #61: CFunc_LOD
@@ -144,7 +144,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #141: CShadowControl
 - [ ] Class #142: CSlideshowDisplay
 - [ ] Class #143: CSmokeStack
-- [ ] Class #144: CSpatialEntity
+- [x] Class #144: CSpatialEntity
 - [x] Class #145: CSpotlightEnd
 - [x] Class #146: CSprite
 - [x] Class #147: CSpriteOriented

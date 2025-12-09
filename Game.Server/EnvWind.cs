@@ -22,6 +22,8 @@ public class EnvWind : BaseEntity
 		SendPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.StartTime))),
 		SendPropFloat(FIELD_EWS.OF(nameof(EnvWindShared.GustDuration))),
 	]);
+	public static readonly ServerClass CC_EnvWindShared = new("EnvWindShared", DT_EnvWindShared);
+
 	public static readonly SendTable DT_EnvWind = new([
 		SendPropDataTable(nameof(EnvWindShared), FIELD.OF(nameof(EnvWindShared)), DT_EnvWindShared),
 	]);
