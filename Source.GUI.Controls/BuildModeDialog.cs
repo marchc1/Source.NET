@@ -76,7 +76,7 @@ class BuildModeNavCombo : ComboBox
 
 public class BuildModeDialog : Frame
 {
-	public static Panel Create_BuildModeDialog() => new BuildModeDialog(null);
+	public static Panel Create_BuildModeDialog() => new BuildModeDialog(new(null, null));
 
 	class PanelList
 	{
@@ -85,13 +85,14 @@ public class BuildModeDialog : Frame
 		public KeyValues? ResourceData;
 
 		public void AddItem(Panel? label, TextEntry? edit, ComboBox? combo, Button? button, ReadOnlySpan<char> name, Type type) {
-			PanelItem item = new();
-			item.EditLabel = label;
-			item.EditPanel = edit;
-			item.Name = name.ToString();
-			item.Type = (int)type;
-			item.Combo = combo;
-			item.EditButton = button;
+			PanelItem item = new() {
+				EditLabel = label,
+				EditPanel = edit,
+				Name = name.ToString(),
+				Type = (int)type,
+				Combo = combo,
+				EditButton = button
+			};
 			panelList.Add(item);
 		}
 
@@ -105,7 +106,7 @@ public class BuildModeDialog : Frame
 			}
 
 			panelList.Clear();
-			// Controls.Clear();
+			Controls.RemoveAll();
 		}
 	}
 
@@ -184,18 +185,17 @@ public class BuildModeDialog : Frame
 	}
 
 	public override void OnClose() {
-
+		Input.SetAppModalSurface(null);
+		base.OnClose();
 	}
 
 	static readonly KeyValues KV_ReloadLocalization = new("ReloadLocalization");
 	public void CreateControls() {
-		if (BuildGroup == null)
-			return;
-
 		int i;
-		panelList = new();
-		panelList.ResourceData = new KeyValues("BuildDialog");
-		panelList.Controls = new(this, "BuildModeControls");
+		panelList = new() {
+			ResourceData = new KeyValues("BuildDialog"),
+			Controls = new(this, "BuildModeControls")
+		};
 
 		FileSelectionCombo = new(this, "FileSelectionCombo", 10, false);
 		for (i = 0; i < BuildGroup.GetRegisteredControlSettingsFileCount(); i++)
@@ -290,6 +290,19 @@ public class BuildModeDialog : Frame
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
 
+		IFont font = scheme.GetFont("DefaultVerySmall")!;
+		StatusLabel.SetFont(font);
+		ReloadLocalization.SetFont(font);
+		ExitButton.SetFont(font);
+		SaveButton.SetFont(font);
+		ApplyButton.SetFont(font);
+		AddNewControlCombo.SetFont(font);
+		EditableParents.SetFont(font);
+		EditableChildren.SetFont(font);
+		DeleteButton.SetFont(font);
+		VarsButton.SetFont(font);
+		PrevChild.SetFont(font);
+		NextChild.SetFont(font);
 	}
 
 	public override void PerformLayout() {
@@ -379,7 +392,6 @@ public class BuildModeDialog : Frame
 
 		return token;
 	}
-
 
 	public void SetActiveControl(Panel controlToEdit) {
 		if (CurrentPanel == controlToEdit) {

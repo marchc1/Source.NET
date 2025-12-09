@@ -472,7 +472,7 @@ public class Button : Label
 		if (sound.Length > 0)
 			SetReleasedSound(sound);
 
-		ActivationType = (ActivationType)resourceData.GetInt("button_activation_type", (int)ActivationType.OnPressedAndReleased);
+		ActivationType = (ActivationType)resourceData.GetInt("button_activation_type", (int)ActivationType.OnReleased);
 	}
 
 	public override bool RequestInfo(KeyValues outputData) {

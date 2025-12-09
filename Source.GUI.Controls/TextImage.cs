@@ -58,7 +58,6 @@ public class TextImage : Image
 		RecalculateTruncation = true;
 	}
 
-
 	public void SetText(ReadOnlySpan<char> text) {
 		if (text.IsEmpty)
 			text = "";
@@ -89,7 +88,25 @@ public class TextImage : Image
 	}
 
 	public void GetText(Span<char> buffer) {
-		// todo
+		// unicodetoansi
+
+		Text.CopyTo(buffer);
+
+		if (AllCaps) {
+			for (int i = 0; i < buffer.Length; i++)
+				buffer[i] = char.ToUpperInvariant(buffer[i]);
+		}
+	}
+
+	public void GetUnlocalizedText(Span<char> buffer) {
+		if (UnlocalizedTextSymbol != unchecked((ulong)-1)) {
+			// 	ReadOnlySpan<char> text = Localize.GetKeyByIndex(UnlocalizedTextSymbol);
+			// 	buffer[0] = '#';
+			// 	text.CopyTo(buffer.Slice(1));
+			// 	buffer[text.Length + 1] = '\0';
+		}
+		else
+			GetText(buffer);
 	}
 
 	public IFont? GetFont() {
@@ -214,8 +231,10 @@ public class TextImage : Image
 				ch = char.ToUpperInvariant(ch);
 
 			if (ColorChangeStream.Count > nextColorChange)
-				if (ColorChangeStream[nextColorChange].TextStreamIndex == i)
+				if (ColorChangeStream[nextColorChange].TextStreamIndex == i) {
 					DrawSetTextColor(ColorChangeStream[nextColorChange++].Color);
+					nextColorChange++;
+				}
 
 			if (ch == '\r' || ch <= 8)
 				continue;
@@ -230,9 +249,8 @@ public class TextImage : Image
 			else if (ch == '&') {
 				if (i + 1 < len && Text[(int)(i + 1)] == '&')
 					i++;
-				else {
+				else
 					continue;
-				}
 			}
 
 			if (EllipsesPosition > 0 && i == EllipsesPosition) {

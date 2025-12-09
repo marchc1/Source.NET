@@ -232,9 +232,6 @@ public class SectionedListPanel : Panel
 		ImageList = null;
 		DeleteImageListWhenDone = false;
 
-		// HeaderFont = INVALID_FONT;
-		// RowFont = INVALID_FONT;
-
 		Clickable = true;
 
 		DrawSectionHeaders = true;

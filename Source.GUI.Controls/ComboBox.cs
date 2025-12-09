@@ -21,6 +21,7 @@ class ComboBoxButton : Button
 #if OSX
 		SetTextInset(-3, 0);
 #else
+		// SetTextInset(scheme.GetProportionalScaledValueEx(3, IsProportional()), 0);
 		SetTextInset(3, 0);
 #endif
 		SetDefaultBorder(scheme.GetBorder("ScrollBarButtonBorder"));
@@ -36,12 +37,6 @@ class ComboBoxButton : Button
 	static readonly KeyValues KV_CursorExited = new("CursorExited");
 	public override void OnCursorExited() {
 		CallParentFunction(KV_CursorExited);
-	}
-
-	public override Color GetButtonFgColor() {
-		if (IsEnabled())
-			return base.GetButtonFgColor();
-		return DisabledBgColor;
 	}
 }
 
@@ -246,7 +241,7 @@ public class ComboBox : TextEntry
 	}
 
 	public override void OnSetText(ReadOnlySpan<char> text) {
-		if (text[0] == '#') {
+		if (!text.IsEmpty && text[0] == '#') {
 			ulong unlocalizedTextSymbol = Localize.FindIndex(text[1..]);
 			if (unlocalizedTextSymbol != 0 && unlocalizedTextSymbol != ulong.MaxValue)
 				text = Localize.GetValueByIndex(unlocalizedTextSymbol);

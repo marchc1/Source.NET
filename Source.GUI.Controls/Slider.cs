@@ -50,7 +50,7 @@ public class Slider : Panel
 		UseSubRange = false;
 		Inverted = false;
 
-		SetThumbWidth(0);
+		SetThumbWidth(8);
 		RecomputeNobPosFromValue();
 		AddActionSignalTarget(this);
 		// SetBlockDragChaining(true);
@@ -143,17 +143,18 @@ public class Slider : Panel
 	}
 
 	public int EstimateValueAtPos(int localMouseX) {
-		GetTrackRect(out int x, out int y, out int wide, out int tall);
+		GetTrackRect(out int x, out _, out int w, out _);
 
-		int useRangeMin = UseSubRange ? SubRangeMin : RangeMin;
-		int useRangeMax = UseSubRange ? SubRangeMax : RangeMax;
+		int[] useRange = [RangeMin, RangeMax];
+		if (UseSubRange)
+			useRange = [SubRangeMin, SubRangeMax];
 
-		float fwide = wide;
-		float fnob = localMouseX - x;
-		float freepixels = fwide - NobSize;
-		float fvalue = freepixels != 0.0f ? fnob / freepixels : 0.0f;
+		float wide = w;
+		float nob = localMouseX - x;
+		float freepixels = wide - NobSize;
+		float value = (freepixels != 0.0f) ? (nob / freepixels) : 0.0f;
 
-		return (int)(useRangeMin + fvalue * (useRangeMax - useRangeMin));
+		return (int)(useRange[0] + (useRange[1] - useRange[0]) * (value - 0.0f) / (1.0f - 0.0f));
 	}
 	public void SetInverted(bool state) => Inverted = state;
 
@@ -332,7 +333,7 @@ public class Slider : Panel
 
 		Surface.DrawFilledRect(NobPosMin, y + tall / 2 - nobHeight / 2, NobPosMax, y + tall / 2 + nobHeight / 2);
 
-		SliderBorder?.Paint(NobPosMin, y + tall / 2 - nobHeight / 2, NobPosMax - NobPosMin, nobHeight);
+		SliderBorder?.Paint(NobPosMin, y + tall / 2 - nobHeight / 2, NobPosMax - NobPosMin, nobHeight, Sides.None, 0, 0);
 	}
 
 	public void SetTickCaptions(ReadOnlySpan<char> left, ReadOnlySpan<char> right) {

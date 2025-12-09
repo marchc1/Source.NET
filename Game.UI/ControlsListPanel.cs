@@ -36,15 +36,14 @@ public class ControlsListPanel : SectionedListPanel
 	InlineEditPanel InlineEditPanel;
 	bool CaptureMode;
 	int ClickRow;
-	IFont Font;
+	IFont? Font;
 	int MouseX;
 	int MouseY;
 
-	public ControlsListPanel(Panel? parent, string? name) : base(parent, name) {
+	public ControlsListPanel(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 		CaptureMode = false;
 		ClickRow = 0;
 		InlineEditPanel = new();
-		// Font = INVALID_FONT;
 	}
 
 	// FIXME #37

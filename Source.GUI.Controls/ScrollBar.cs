@@ -6,7 +6,7 @@ namespace Source.GUI.Controls;
 
 public class ScrollBarButton : Button
 {
-	public ScrollBarButton(Panel? parent, string? name, string text) : base(parent, name, text) {
+	public ScrollBarButton(Panel? parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
 		SetButtonActivationType(ActivationType.OnPressed);
 
 		SetContentAlignment(Alignment.Center);

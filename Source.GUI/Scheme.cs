@@ -57,7 +57,7 @@ public class Scheme : IScheme
 			if (b.BorderSymbol == hash)
 				return b.Border;
 		}
-		return null;
+		return BaseBorder;
 	}
 
 	public IBorder? GetBorderAtIndex(int index) {

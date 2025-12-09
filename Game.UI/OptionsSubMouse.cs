@@ -1,5 +1,6 @@
 using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Game.UI;
@@ -84,10 +85,11 @@ public class OptionsSubMouse : PropertyPage
 			var.SetValue(MouseAccelerationCheckBox.IsSelected() ? 3 : 0);
 	}
 
+	static readonly KeyValues KV_ApplyButtonEnable = new("ApplyButtonEnable");
 	public void OnControlModified(Panel panel) {
-		PostActionSignal(new KeyValues("ApplyButtonEnable"));
+		PostActionSignal(KV_ApplyButtonEnable);
 
-		if (panel == MouseSensitivitySlider && MouseAccelExponentSlider.HasBeenModified())
+		if (panel == MouseSensitivitySlider && MouseSensitivitySlider.HasBeenModified())
 			UpdateSensitivityLabel();
 		else if (panel == MouseAccelExponentSlider && MouseAccelExponentSlider.HasBeenModified())
 			UpdateAccelerationLabel();
@@ -122,5 +124,12 @@ public class OptionsSubMouse : PropertyPage
 		JoyPitchSensitivitySlider.SetEnabled(joystickEnabled);
 		JoyYawSensitivityPreLabel.SetEnabled(joystickEnabled);
 		JoyPitchSensitivityPreLabel.SetEnabled(joystickEnabled);
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name.Equals("ControlModified"))
+			OnControlModified((Panel)from!);
+
+		base.OnMessage(message, from);
 	}
 }

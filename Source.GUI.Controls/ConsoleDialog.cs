@@ -9,7 +9,7 @@ public class NonFocusableMenu : Menu
 {
 	private Panel? FocusPanel;
 
-	public NonFocusableMenu(Panel? parent, string? panelName) : base(parent, panelName) {
+	public NonFocusableMenu(Panel? parent, ReadOnlySpan<char> panelName) : base(parent, panelName) {
 		FocusPanel = null;
 	}
 
@@ -387,7 +387,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		}
 	}
 
-	public ConsolePanel(Panel? parent, string? panelName, bool statusVersion) : base(parent, panelName) {
+	public ConsolePanel(Panel? parent, ReadOnlySpan<char> panelName, bool statusVersion) : base(parent, panelName) {
 		StatusVersion = statusVersion;
 
 		SetKeyboardInputEnabled(true);
@@ -658,7 +658,7 @@ public class ConsoleDialog : Frame
 {
 	protected ConsolePanel ConsolePanel;
 
-	public ConsoleDialog(Panel? parent, string? name, bool statusVersion) : base(parent, name) {
+	public ConsoleDialog(Panel? parent, ReadOnlySpan<char> name, bool statusVersion) : base(parent, name) {
 		SetVisible(false);
 		SetTitle("#Console_Title", true);
 

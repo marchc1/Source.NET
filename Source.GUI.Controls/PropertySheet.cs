@@ -304,7 +304,7 @@ public class PropertySheet : EditablePanel
 	static readonly KeyValues KV_FindDefaultButton = new("FindDefaultButton");
 	static readonly KeyValues KV_ApplyButtonEnable = new("ApplyButtonEnable");
 
-	public PropertySheet(Panel? parent, string? panelName, bool draggableTabs = false) : base(parent, panelName) {
+	public PropertySheet(Panel? parent, ReadOnlySpan<char> panelName, bool draggableTabs = false) : base(parent, panelName) {
 		Pages = new();
 		PageTabs = new();
 		ActivePage = null;
@@ -328,7 +328,7 @@ public class PropertySheet : EditablePanel
 		KBNavigationEnabled = true;
 	}
 
-	public PropertySheet(Panel? parent, string? panelName, ComboBox combo) : base(parent, panelName) {
+	public PropertySheet(Panel? parent, ReadOnlySpan<char> panelName, ComboBox combo) : base(parent, panelName) {
 		Pages = new();
 		PageTabs = new();
 		ActivePage = null;

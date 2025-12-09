@@ -42,7 +42,6 @@ public class MenuItem : Button
 	bool Checked;
 	TextImage? CasecadeArrow;
 	Image? Check;
-	// TextImage? BlankCheck;
 	TextImage? CurrentKeyBinding;
 	KeyValues? UserData;
 
@@ -71,7 +70,7 @@ public class MenuItem : Button
 		else if (Checkable) {
 			SetTextImageIndex(1);
 			Check = new MenuItemCheckImage(this);
-			SetImageAtIndex(0, Check, 6);
+			SetImageAtIndex(0, Check, CHECK_INSET);
 			SetChecked(false);
 		}
 
@@ -118,7 +117,7 @@ public class MenuItem : Button
 	}
 
 	public void ArmItem() {
-		GetParentMenu()!.CloseOtherMenus(null);
+		GetParentMenu()!.CloseOtherMenus(this);
 		SetArmed(true);
 
 		Menu? parent = GetParentMenu();
@@ -181,7 +180,7 @@ public class MenuItem : Button
 		SetArmedColor(GetSchemeColor("Menu.ArmedTextColor", GetFgColor(), scheme), GetSchemeColor("Menu.ArmedBgColor", GetBgColor(), scheme));
 		SetDepressedColor(GetSchemeColor("Menu.ArmedTextColor", GetFgColor(), scheme), GetSchemeColor("Menu.ArmedBgColor", GetBgColor(), scheme));
 
-		SetTextInset(int.TryParse(scheme.GetResourceString("Menu.TextInset"), out int r) ? r : 0, 0);
+		SetTextInset(int.TryParse(scheme.GetResourceString("Menu.TextInset"), out int r) ? r : 0, 0); // GetProportionalScaledValueEx
 
 		if (CasecadeArrow != null) {
 			CasecadeArrow.SetFont(scheme.GetFont("Marlett", IsProportional()));
@@ -223,7 +222,7 @@ public class MenuItem : Button
 		tall = 0;
 
 		if (Check != null) {
-			// Check.ResizeImageToContent(); todo
+			((MenuItemCheckImage)Check).ResizeImageToContent();
 			Check.GetSize(out wide, out tall);
 			wide += CHECK_INSET;
 		}

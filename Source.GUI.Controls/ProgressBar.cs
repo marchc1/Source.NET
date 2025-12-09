@@ -24,7 +24,7 @@ public class ProgressBar : Panel
 	int BarMargin;
 	string? DialogVar;
 
-	public ProgressBar(Panel? parent, string? name) : base(parent, name) {
+	public ProgressBar(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 		Progress = 0;
 		DialogVar = null;
 		SetSegmentInfo(4, 8);

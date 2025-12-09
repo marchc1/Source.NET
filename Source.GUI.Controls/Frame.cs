@@ -966,7 +966,7 @@ public class Frame : EditablePanel
 		else
 			Title?.SetColor(TitleBarDisabledFgColor);
 
-		if (HasFocus) {
+		if (HasFocus) { // TODO: gmod's fade effect is significantly less aggressive, we need to try match it
 			if (FocusTransitionEffectTime != 0 && (!DisableFadeEffect))
 				GetAnimationController().RunAnimationCommand(this, "BgColor", InFocusBgColor, 0.0f, DisableFadeEffect ? 0.0f : FocusTransitionEffectTime, Interpolators.Linear);
 			else
