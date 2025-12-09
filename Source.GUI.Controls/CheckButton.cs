@@ -103,7 +103,7 @@ public class CheckButton : ToggleButton
 		SetPaintBackgroundEnabled(false);
 	}
 
-	public override IBorder? GetBorder() => null;
+	public override IBorder? GetBorder(bool depressed, bool armed, bool selected, bool keyfocus) => null;
 
 	public override void SetSelected(bool state) {
 		if (CheckButtonCheckable) {

@@ -31,9 +31,7 @@ class ComboBoxButton : Button
 		DisabledBgColor = GetSchemeColor("ComboBoxButton.DisabledBgColor", scheme);
 	}
 
-	public override IBorder GetBorder(/*bool depressed, bool armed, bool selected, bool keyfocus*/) {
-		return null!;
-	}
+	public override IBorder? GetBorder(bool depressed, bool armed, bool selected, bool keyfocus) => null;
 
 	static readonly KeyValues KV_CursorExited = new("CursorExited");
 	public override void OnCursorExited() {

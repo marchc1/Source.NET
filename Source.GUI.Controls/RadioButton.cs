@@ -34,7 +34,7 @@ public class RadioButton : ToggleButton
 		base.ApplySchemeSettings(scheme);
 	}
 
-	public override IBorder? GetBorder() {
+	public override IBorder? GetBorder(bool depressed, bool armed, bool selected, bool keyfocus) {
 		return null;
 	}
 
