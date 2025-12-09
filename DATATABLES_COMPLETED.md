@@ -27,20 +27,20 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #24: CBaseTrigger
 - [x] Class #25: CBaseViewModel
 - [x] Class #26: CBeam
-- [ ] Class #27: CBeamSpotlight
-- [ ] Class #28: CBoneFollower
-- [ ] Class #29: CBoneManipulate
+- [x] Class #27: CBeamSpotlight
+- [x] Class #28: CBoneFollower
+- [x] Class #29: CBoneManipulate
 - [x] Class #30: CBreakableProp
-- [ ] Class #31: CBreakableSurface
-- [ ] Class #32: CCitadelEnergyCore
+- [x] Class #31: CBreakableSurface
+- [x] Class #32: CCitadelEnergyCore
 - [x] Class #33: CColorCorrection
 - [ ] Class #34: CColorCorrectionVolume
 - [x] Class #35: CCrossbowBolt
 - [x] Class #36: CDynamicLight
 - [x] Class #37: CDynamicProp
-- [ ] Class #38: CEmbers
-- [ ] Class #39: CEntityDissolve
-- [ ] Class #40: CEntityFlame
+- [x] Class #38: CEmbers
+- [x] Class #39: CEntityDissolve
+- [x] Class #40: CEntityFlame
 - [ ] Class #41: CEntityParticleTrail
 - [ ] Class #42: CEnvAmbientLight
 - [ ] Class #43: CEnvDetailController
