@@ -152,8 +152,8 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #149: CSteamJet
 - [x] Class #150: CSun
 - [x] Class #151: CTeam
-- [ ] Class #152: CTEAntlionDust
-- [ ] Class #153: CTEArmorRicochet
+- [x] Class #152: CTEAntlionDust
+- [x] Class #153: CTEArmorRicochet
 - [ ] Class #154: CTEBaseBeam
 - [ ] Class #155: CTEBeamEntPoint
 - [ ] Class #156: CTEBeamEnts
@@ -185,9 +185,9 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #182: CTEImpact
 - [ ] Class #183: CTEKillPlayerAttachments
 - [ ] Class #184: CTELargeFunnel
-- [ ] Class #185: CTEMetalSparks
+- [x] Class #185: CTEMetalSparks
 - [ ] Class #186: CTEMuzzleFlash
-- [ ] Class #187: CTEParticleSystem
+- [x] Class #187: CTEParticleSystem
 - [ ] Class #188: CTEPhysicsProp
 - [x] Class #189: CTEPlayerAnimEvent
 - [ ] Class #190: CTEPlayerDecal
@@ -195,8 +195,8 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [ ] Class #192: CTEShatterSurface
 - [ ] Class #193: CTEShowLine
 - [ ] Class #194: CTesla
-- [ ] Class #195: CTESmoke
-- [ ] Class #196: CTESparks
+- [x] Class #195: CTESmoke
+- [x] Class #196: CTESparks
 - [ ] Class #197: CTESprite
 - [ ] Class #198: CTESpriteSpray
 - [ ] Class #199: CTEWorldDecal
