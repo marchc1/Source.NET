@@ -11,7 +11,7 @@ namespace Source.Common.Client;
 /// <summary>
 /// Engine player info. (replica of player_info_s)
 /// </summary>
-public struct PlayerInfo 
+public struct PlayerInfo
 {
 	public const int SIZEOF = 132;
 
@@ -54,13 +54,14 @@ public struct PlayerInfo
 		info.IsHLTV = bytes[109] != 0;
 		info.IsReplay = bytes[110] != 0;
 
-		MemoryMarshal.Cast<byte, CRC32_t>(bytes[112..(112+16)]).CopyTo(info.CustomFiles);
+		MemoryMarshal.Cast<byte, CRC32_t>(bytes[112..(112 + 16)]).CopyTo(info.CustomFiles);
 		info.FilesDownloaded = bytes[128];
 		return true;
 	}
 }
 
-public struct AudioState {
+public struct AudioState
+{
 	public Vector3 Origin;
 	public QAngle Angles;
 	public bool IsUnderwater;
@@ -100,6 +101,7 @@ public interface IEngineClient
 	bool IsDrawingLoadingImage();
 	bool GetPlayerInfo(int playerIndex, out PlayerInfo playerInfo);
 	bool Con_IsVisible();
+	ReadOnlySpan<char> ParseFile(ReadOnlySpan<char> data, Span<char> token);
 	void GetViewAngles(out QAngle viewangles);
 	void SetViewAngles(in QAngle viewangles);
 	void GetScreenSize(out int w, out int h);

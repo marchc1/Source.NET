@@ -15,15 +15,15 @@ using System.Numerics;
 
 namespace Source.Engine;
 
-public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, 
-						  IMaterialSystem materials, MaterialSystem_Config MaterialSystemConfig, 
-						  MatSysInterface MatSys, ModelLoader modelloader) : IEngineClient
+public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
+							IMaterialSystem materials, MaterialSystem_Config MaterialSystemConfig,
+							MatSysInterface MatSys, ModelLoader modelloader) : IEngineClient
 {
 	public ReadOnlySpan<char> Key_LookupBinding(ReadOnlySpan<char> binding) {
 		return "";
 	}
 	public void GetMainMenuBackgroundName(Span<char> dest) {
-		"kagami".CopyTo(dest);
+		"background05".CopyTo(dest);
 	}
 
 	public bool IsDrawingLoadingImage() => Scr.DrawLoading;
@@ -70,13 +70,17 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 
 		Span<byte> pi = cl.UserInfoTable.GetStringUserData(playerIndex);
 		PlayerInfo.FromBytes(pi, out playerInfo);
-		return true; 
+		return true;
 	}
 
 	public bool Con_IsVisible() => Con.IsVisible();
 
+	ReadOnlySpan<char> IEngineClient.ParseFile(ReadOnlySpan<char> data, Span<char> token) {
+		throw new NotImplementedException();
+	}
+
 	public void GetViewAngles(out QAngle viewangles) {
-		viewangles = cl.ViewAngles; 
+		viewangles = cl.ViewAngles;
 	}
 
 	public void SetViewAngles(in QAngle viewangles) {
@@ -85,7 +89,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 
 	public void GetScreenSize(out int w, out int h) {
 		// Is this even right???
-		using MatRenderContextPtr renderContext = new(materials );
+		using MatRenderContextPtr renderContext = new(materials);
 		renderContext.GetWindowSize(out w, out h);
 	}
 
@@ -151,7 +155,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 			if (!PlayerInfo.FromBytes(pi, out PlayerInfo playerInfo))
 				continue;
 
-			if (playerInfo.UserID == userID) 
+			if (playerInfo.UserID == userID)
 				return (i + 1);
 		}
 
