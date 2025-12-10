@@ -224,7 +224,7 @@ public class SectionedListPanel : Panel
 		EditModeItemID = 0;
 		EditModeColumn = 0;
 		SortNeeded = false;
-		VerticalScrollbarEnabled = false;
+		VerticalScrollbarEnabled = true;
 		LineSpacing = DEFAULT_LINE_SPACING;
 		LineGap = 0;
 		SectionGap = DEFAULT_SECTION_GAP;
@@ -233,7 +233,6 @@ public class SectionedListPanel : Panel
 		DeleteImageListWhenDone = false;
 
 		Clickable = true;
-
 		DrawSectionHeaders = true;
 	}
 
@@ -303,6 +302,21 @@ public class SectionedListPanel : Panel
 	public override void ApplySettings(KeyValues resourceData) {
 		base.ApplySettings(resourceData);
 
+		LineSpacing = resourceData.GetInt("linespacing", 0);
+		if (LineSpacing == 0)
+			LineSpacing = DEFAULT_LINE_SPACING;
+
+		SectionGap = resourceData.GetInt("sectiongap", 0);
+		if (SectionGap == 0)
+			SectionGap = DEFAULT_SECTION_GAP;
+
+		LineGap = resourceData.GetInt("linegap", 0);
+
+		if (IsProportional()) {
+			LineSpacing = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, LineSpacing);
+			LineGap = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, LineGap);
+			SectionGap = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, SectionGap);
+		}
 	}
 
 	public override void SetProportional(bool state) {

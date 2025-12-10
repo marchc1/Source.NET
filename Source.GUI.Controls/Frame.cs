@@ -56,7 +56,7 @@ public class GripPanel : Panel
 		SnapRange = DEFAULT_SNAP_RANGE;
 
 		if (xdir == 1 && ydir == 1) {
-			SetPaintEnabled(false);
+			SetPaintEnabled(true);
 			SetPaintBackgroundEnabled(true);
 		}
 
@@ -803,6 +803,13 @@ public class Frame : EditablePanel
 		else
 			FinishClose();
 	}
+
+	public void DisableFadeEffects(bool state) {
+		DisableFadeEffect = state;
+		TransitionEffectTime = 0.0f;
+	}
+
+	public void SetFadeEffectDisableOverride(bool state) => DisableFadeEffect = state;
 
 	public override void ApplySettings(KeyValues resourceData) {
 		resourceData.SetInt("visible", -1);

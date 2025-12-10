@@ -46,7 +46,7 @@ public class URLButton : Label
 		MouseClickMask = 0;
 		ActionMessage = null;
 		SelectionStateSaved = false;
-		SetTextInset(6, 0);
+		SetTextInset(0, 0);
 		SetMouseClickEnabled(ButtonCode.MouseLeft, true);
 		SetButtonActivationType(ActivationType.OnPressedAndReleased);
 
@@ -233,7 +233,6 @@ public class URLButton : Label
 		Repaint();
 	}
 
-
 	public override void OnCursorEntered() {
 		if (IsEnabled())
 			SetArmed(true);
@@ -310,7 +309,7 @@ public class URLButton : Label
 		SetArmed(false);
 	}
 
-	public void SizeToContents() {
+	public override void SizeToContents() {
 		GetContentSize(out int wide, out int tall);
 		SetSize(wide + Content, tall + Content);
 	}

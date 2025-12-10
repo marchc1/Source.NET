@@ -1,3 +1,5 @@
+using CommunityToolkit.HighPerformance;
+
 using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
@@ -90,16 +92,14 @@ public class OptionsSubKeyboard : PropertyPage
 
 	readonly IEngineClient engine = Singleton<IEngineClient>();
 	public void ParseActionDescriptions() {
-		if (true) return; // TODO: Waiting for further fs implementation
-
-		Span<char> szBinding = stackalloc char[256];
-		Span<char> szDescription = stackalloc char[256];
+		Span<char> binding = stackalloc char[256];
+		Span<char> description = stackalloc char[256];
 
 		long size = fileSystem.Size("scripts/kb_act.lst");
 		if (size <= 0) return;
 
-		char[] fileData = new char[size];
-		if (!fileSystem.ReadFile("scripts/kb_act.lst", null, fileData, 0))
+		Span<char> fileData = stackalloc char[(int)size];
+		if (!fileSystem.ReadFile("scripts/kb_act.lst", null, fileData.AsBytes(), 0))
 			return;
 
 		ReadOnlySpan<char> data = fileData;
@@ -108,30 +108,30 @@ public class OptionsSubKeyboard : PropertyPage
 		Span<char> token = stackalloc char[512];
 
 		KeyValues item;
-		while (true) {
-			// data = engine.ParseFile(data, token);
+		while (false) { // todo: impl ParseFile
+			data = engine.ParseFile(data, token);
 			if (token.Length == 0)
 				break;
 
-			token.CopyTo(szBinding);
+			token.CopyTo(binding);
 
-			// data = engine.ParseFile(data, token);
+			data = engine.ParseFile(data, token);
 			if (token.Length == 0)
 				break;
 
-			token.CopyTo(szDescription);
+			token.CopyTo(description);
 
-			if (szDescription[0] == '=') {
-				if (szBinding.SequenceEqual("blank".AsSpan())) {
-					// KeyBindList.AddSection(++sectionIndex, szDescription);
-					// KeyBindList.AddColumnToSection(sectionIndex, "Action", szDescription, SectionedListPanel.ColumnBright, 286);
+			if (description[0] == '=') {
+				if (binding.SequenceEqual("blank".AsSpan())) {
+					// KeyBindList.AddSection(++sectionIndex, description);
+					// KeyBindList.AddColumnToSection(sectionIndex, "Action", description, SectionedListPanel.ColumnBright, 286);
 					// KeyBindList.AddColumnToSection(sectionIndex, "Key", "#GameUI_KeyButton", SectionedListPanel.ColumnBright, 286);
 				}
 			}
 			else {
 				item = new("Item");
-				item.SetString("Action", szDescription);
-				item.SetString("Binding", szBinding);
+				item.SetString("Action", description);
+				item.SetString("Binding", binding);
 				item.SetString("key", "");
 				// KeyBindList.AddItem(sectionIndex, item);
 			}

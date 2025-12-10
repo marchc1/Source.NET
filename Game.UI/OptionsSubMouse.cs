@@ -45,6 +45,10 @@ public class OptionsSubMouse : PropertyPage
 		JoyPitchSensitivityPreLabel = new(this, "JoystickPitchSensitivityPreLabel", "#GameUI_JoystickLookSpeedPitch");
 
 		LoadControlSettings("resource/OptionsSubMouse.res");
+
+		UpdateSensitivityLabel();
+		UpdateAccelerationLabel();
+		UpdateJoystickPanels();
 	}
 
 	public override void OnResetData() {
@@ -101,6 +105,29 @@ public class OptionsSubMouse : PropertyPage
 		}
 	}
 
+	public override void OnTextChanged(Panel from) {
+		if (from == MouseSensitivityLabel) {
+			Span<char> buf = stackalloc char[64];
+			MouseSensitivityLabel.GetText(buf);
+
+			if (float.TryParse(buf.ToString(), out float value) && value >= 0.0f) {
+				MouseSensitivitySlider.SetSliderValue(value);
+				PostActionSignal(KV_ApplyButtonEnable);
+			}
+			return;
+		}
+
+		if (from == MouseAccelExponentLabel) {
+			Span<char> buf = stackalloc char[64];
+			MouseAccelExponentLabel.GetText(buf);
+
+			if (float.TryParse(buf.ToString(), out float value) && value >= 1.0f) {
+				MouseAccelExponentSlider.SetSliderValue(value);
+				PostActionSignal(KV_ApplyButtonEnable);
+			}
+		}
+	}
+
 	private void UpdateSensitivityLabel() {
 		Span<char> buf = stackalloc char[64];
 		string formatted = $" {MouseSensitivitySlider.GetSliderValue():F2}";
@@ -129,7 +156,9 @@ public class OptionsSubMouse : PropertyPage
 	public override void OnMessage(KeyValues message, IPanel? from) {
 		if (message.Name.Equals("ControlModified"))
 			OnControlModified((Panel)from!);
-
-		base.OnMessage(message, from);
+		else if (message.Name.Equals("CheckButtonChecked"))
+			OnControlModified((Panel)from!);
+		else
+			base.OnMessage(message, from);
 	}
 }

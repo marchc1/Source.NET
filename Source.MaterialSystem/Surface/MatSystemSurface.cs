@@ -454,10 +454,7 @@ public class MatSystemSurface : IMatSystemSurface
 		if (FullyTransparent)
 			return;
 
-		Span<SurfaceVertex> verts = stackalloc SurfaceVertex[2];
-		verts[0] = new(new(x0, y0), new(0, 0));
-		verts[1] = new(new(x1, y1), new(1, 1));
-
+		Span<SurfaceVertex> verts = [new(new(x0, y0), new(0, 0)), new(new(x1, y1), new(1, 1))];
 		InternalSetMaterial();
 		DrawTexturedLineInternal(in verts[0], in verts[1]);
 	}

@@ -87,7 +87,7 @@ public enum BuildModeFlags
 	SaveWideProportionalTall = 1 << 13,
 	SaveTallProportionalWide = 1 << 14,
 	SaveXPosProportionalParent = 1 << 15,
-	SaveYposProportionalParent = 1 << 16,
+	SaveYPosProportionalParent = 1 << 16,
 	SaveWideProportionalSelf = 1 << 17,
 	SaveTallProportionalSelf = 1 << 18,
 }
@@ -717,7 +717,7 @@ public class Panel : IPanel
 		BuildModeFlags flagRightAlign = x ? BuildModeFlags.SaveXPos_RightAligned : BuildModeFlags.SaveYPos_BottomAligned;
 		BuildModeFlags nFlagCenterAlign = x ? BuildModeFlags.SaveXPos_CenterAligned : BuildModeFlags.SaveYPos_CenterAligned;
 		BuildModeFlags flagProportionalSelf = x ? BuildModeFlags.SaveXPosProportionalSelf : BuildModeFlags.SaveYPosProportionalSelf;
-		BuildModeFlags flagProportionalParent = x ? BuildModeFlags.SaveXPosProportionalParent : BuildModeFlags.SaveYposProportionalParent;
+		BuildModeFlags flagProportionalParent = x ? BuildModeFlags.SaveXPosProportionalParent : BuildModeFlags.SaveYPosProportionalParent;
 
 		BuildModeFlags flags = 0;
 		int posDelta;
@@ -811,7 +811,7 @@ public class Panel : IPanel
 							| BuildModeFlags.SaveWideProportional | BuildModeFlags.SaveTallProportional
 							| BuildModeFlags.SaveXPosProportionalSelf | BuildModeFlags.SaveYPosProportionalSelf
 							| BuildModeFlags.SaveWideProportionalTall | BuildModeFlags.SaveTallProportionalWide
-							| BuildModeFlags.SaveXPosProportionalParent | BuildModeFlags.SaveYposProportionalParent
+							| BuildModeFlags.SaveXPosProportionalParent | BuildModeFlags.SaveYPosProportionalParent
 							| BuildModeFlags.SaveWideProportionalSelf | BuildModeFlags.SaveTallProportionalSelf);
 
 		Surface.GetScreenSize(out int alignScreenWide, out int alignScreenTall);
@@ -945,9 +945,9 @@ public class Panel : IPanel
 			RoundedCorners = (RoundedCorners)roundedCorners;
 
 		// ReadOnlySpan<char> SiblingName = resourceData.GetString("pin_to_sibling", null);
-		// PinCorner pinOurCornerToSubling = GetPinCornerFromString(resourceData.GetString("pin_our_corner_to_sibling", null));
-		// PinCorner pinSublingCorner = GetPinCornerFromString(resourceData.GetString("pin_sibling_corner", null));
-		// PinToSibling(SiblingName, pinOurCornerToSubling, pinSublingCorner);
+		// PinCorner pinCornerToSibling = GetPinCornerFromString(resourceData.GetString("pin_corner_to_sibling", null));
+		// PinCorner pinSiblingCorner = GetPinCornerFromString(resourceData.GetString("pin_sibling_corner", null));
+		// PinToSibling(SiblingName, pinCornerToSibling, pinSiblingCorner);
 
 		ReadOnlySpan<char> pKeyboardInputEnabled = resourceData.GetString("keyboardinputenabled", null);
 		if (!pKeyboardInputEnabled.IsEmpty && pKeyboardInputEnabled.Length > 0) {
@@ -1647,7 +1647,7 @@ public class Panel : IPanel
 			outResourceData.SetInt("ypos", y);
 		}
 
-		//if (Toolips != null) {
+		//if (Tooltips != null) {
 
 		//}
 
@@ -2003,12 +2003,11 @@ public class Panel : IPanel
 
 		OnThink();
 	}
-
 	public void SetPanelBorderEnabled(bool enabled) => Flags = enabled ? Flags |= PanelFlags.PaintEnabled : Flags &= ~PanelFlags.PaintEnabled;
-	public void SetPaintBackgroundEnabled(bool enabled) => Flags = enabled ? Flags |= PanelFlags.PaintBackgroundEnabled : Flags &= ~PanelFlags.PaintBackgroundEnabled;
-	public void SetPaintBorderEnabled(bool enabled) => Flags = enabled ? Flags |= PanelFlags.PaintBorderEnabled : Flags &= ~PanelFlags.PaintBorderEnabled;
-	public void SetPaintEnabled(bool enabled) => Flags = enabled ? Flags |= PanelFlags.PaintEnabled : Flags &= ~PanelFlags.PaintEnabled;
-	public void SetPostChildPaintEnabled(bool enabled) => Flags = enabled ? Flags |= PanelFlags.PostChildPaintEnabled : Flags &= ~PanelFlags.PostChildPaintEnabled;
+	public void SetPaintBackgroundEnabled(bool enabled) => Flags = enabled ? Flags | PanelFlags.PaintBackgroundEnabled : Flags & ~PanelFlags.PaintBackgroundEnabled;
+	public void SetPaintBorderEnabled(bool enabled) => Flags = enabled ? Flags | PanelFlags.PaintBorderEnabled : Flags & ~PanelFlags.PaintBorderEnabled;
+	public void SetPaintEnabled(bool enabled) => Flags = enabled ? Flags | PanelFlags.PaintEnabled : Flags & ~PanelFlags.PaintEnabled;
+	public void SetPostChildPaintEnabled(bool enabled) => Flags = enabled ? Flags | PanelFlags.PostChildPaintEnabled : Flags & ~PanelFlags.PostChildPaintEnabled;
 
 	IPanel IPanel.GetChild(int index) => GetChild(index);
 
