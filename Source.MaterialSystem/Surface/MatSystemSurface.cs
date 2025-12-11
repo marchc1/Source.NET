@@ -1799,46 +1799,65 @@ public class MatSystemSurface : IMatSystemSurface
 		int endX = x + w;
 		int endY = y + h;
 
-		int i = 0;
-		while (i < text.Length) {
-			int chars = 0;
-			int pixels;
-			for (int j = i; j < text.Length; j++) {
-				if (text[j] == ' ' || text[j] == '\n')
-					break;
-				chars++;
-			}
+		int chars = 0;
 
-			if (chars == 0)
-				chars = 1;
-
-			var word = text.Slice(i, chars);
-			pixels = DrawTextLen(font, word);
+		Span<char> word = stackalloc char[512];
+		for (int i = 0; i < text.Length; i += chars) {
+			SearchForWordBreak(font, text[i..], out chars, out int pixels);
 
 			if (text[i] == '\n') {
 				x = startX;
 				y += yStep;
-				i++;
+				chars = 1;
 				continue;
 			}
 
 			if (x + pixels >= endX) {
 				x = startX;
-				if (pixels >= endX)
+				if (x + pixels >= endX)
 					break;
+
 				y += yStep;
 			}
 
 			if (y + yStep >= endY)
 				break;
 
+			if (chars <= 0) {
+				chars = 1;
+				continue;
+			}
+
+			text.Slice(i, chars).CopyTo(word);
+
 			DrawSetTextPos(x, y);
 
-			ReadOnlySpan<char> localized = localize.Find(word);
-			DrawPrintText(localized.IsEmpty ? word : localized);
+			ReadOnlySpan<char> input = localize.Find(word[..chars]);
+			DrawPrintText(input.IsEmpty ? word[..chars] : input);
 
-			x += pixels;
-			i += chars;
+			x += DrawTextLen(font, word[..chars]);
+		}
+	}
+
+	private void SearchForWordBreak(IFont? font, ReadOnlySpan<char> text, out int chars, out int pixels) {
+		chars = pixels = 0;
+		while (true) {
+			if (chars >= text.Length)
+				break;
+
+			char ch = text[chars];
+			GetCharABCwide(font, ch, out int a, out int b, out int c);
+
+			if (ch == 0 || ch <= 32) {
+				if (ch == 32 && chars == 0) {
+					pixels += b + c;
+					chars++;
+				}
+				break;
+			}
+
+			pixels += b + c;
+			chars++;
 		}
 	}
 }

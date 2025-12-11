@@ -7,24 +7,49 @@ using Source.GUI.Controls;
 class ColumnButton : Button
 {
 	public ColumnButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
+		// SetBlockDragChaining(true);
+	}
+
+	public override void ApplySchemeSettings(IScheme scheme) {
+		base.ApplySchemeSettings(scheme);
+		SetContentAlignment(Alignment.West);
+		SetFont(scheme.GetFont("DefaultSmall", IsProportional()));
+	}
+
+	public override void OnMousePressed(ButtonCode code) {
+		base.OnMousePressed(code);
+
 
 	}
 }
 
 class Dragger : Panel
 {
-	public Dragger(int column) {
+	int iDragger;
+	bool Dragging;
+	int DragPos;
+	bool Movable;
 
+	public Dragger(int column) {
+		iDragger = column;
+		SetPaintBackgroundEnabled(false);
+		SetPaintEnabled(false);
+		SetPaintBorderEnabled(false);
+		SetCursor(CursorCode.SizeWE);
+		Dragging = false;
+		Movable = true;
+		DragPos = 0;
+		// SetBlockDragChaining(true);
 	}
 }
 
 
-class FastSortListPanelItem : ListPanelItem
+public class FastSortListPanelItem : ListPanelItem
 {
 	public List<int> SortedTreeIndexes = [];
 	public bool visible;
-	int primarySortIndexValue;
-	int secondarySortIndexValue;
+	public int primarySortIndexValue;
+	public int secondarySortIndexValue;
 }
 
 public class ListPanelItem
@@ -78,7 +103,7 @@ public class ListPanel : Panel
 		public bool TypeIsText;
 		public bool Hidden;
 		public bool Unhidable;
-		public SortedDictionary<int, IndexItem_t> SortedTree;
+		public SortedDictionary<int, IndexItem_t> SortedTree = [];
 		public int ContentAlignment;
 	}
 	List<Column> ColumnsData = [];
@@ -86,7 +111,7 @@ public class ListPanel : Panel
 	List<int> CurrentColumns = [];
 	int ColumnDraggerMoved;
 	int LastBarWidth;
-	Dictionary<int, FastSortListPanelItem> DataItems = [];
+	public Dictionary<int, FastSortListPanelItem> DataItems = [];
 	private int NextItemID = 0;
 	List<int> VisibleItems = [];
 	int SortColumn;
@@ -238,11 +263,48 @@ public class ListPanel : Panel
 	}
 
 	void ResortColumnRBTree(int col) {
+		Assert(col >= 0 && col < CurrentColumns.Count);
+
+		int dataColumnIndex = CurrentColumns[col];
+		int columnHistoryIndex = ColumnsHistory.IndexOf(dataColumnIndex);
+		Column column = ColumnsData[dataColumnIndex];
+
+		SortedDictionary<int, IndexItem_t> rbtree = column.SortedTree;
+
+		rbtree.Clear();
+
+		CurrentSortingListPanel = this;
+		CurrentSortingColumnTypeIsText = column.TypeIsText;
+		SortFunc? sortFunc = column.SortFunc;
+		// sortFunc ??= DefaultSortFunc;
+		bSortAscending = true;
+		SortFuncSecondary = null;
+
+		foreach (var dataItem in DataItems.Values) {
+			IndexItem_t item = new();
+			item.DataItem = dataItem;
+			item.DuplicateIndex = 0;
+
+			FastSortListPanelItem listItem = dataItem;
+
+			if (listItem.SortedTreeIndexes.Count == ColumnsHistory.Count - 1 &&
+					columnHistoryIndex == ColumnsHistory.Count - 1) {
+				listItem.SortedTreeIndexes.Add(0);
+			}
+
+			Assert(columnHistoryIndex >= 0 && columnHistoryIndex < listItem.SortedTreeIndexes.Count);
+
+			rbtree.Add(rbtree.Count, item);
+			listItem.SortedTreeIndexes[columnHistoryIndex] = rbtree.Count - 1;
+		}
 
 	}
 
 	void ResetColumnHeaderCommands() {
-
+		for (int i = 0; i < CurrentColumns.Count; i++) {
+			Button button = ColumnsData[CurrentColumns[i]].Header;
+			button.SetCommand(new KeyValues("SetSortColumn", "column", i));
+		}
 	}
 
 	void SetColumnHeaderText(int col, ReadOnlySpan<char> text) {
@@ -312,6 +374,8 @@ public class ListPanel : Panel
 		if (scrollToItem)
 			Vbar.SetValue(displayedRow);
 
+		Console.WriteLine($"ListPanel.AddItem: Added item ID {itemID}");
+
 		return itemID;
 	}
 
@@ -327,7 +391,7 @@ public class ListPanel : Panel
 
 	public int GetItem(ReadOnlySpan<char> itemName) {
 		foreach (var kvp in DataItems) {
-			if (kvp.Value.kv != null && kvp.Value.kv.GetString("name").SequenceEqual(itemName))
+			if (kvp.Value.kv != null && kvp.Value.kv.Name.Equals(itemName, StringComparison.Ordinal))
 				return kvp.Key;
 		}
 		return -1;
@@ -381,12 +445,52 @@ public class ListPanel : Panel
 
 	// }
 
-	void ApplyItemChanges(int itemID) {
-
+	public void ApplyItemChanges(int itemID) {
+		IndexItem(itemID);
+		InvalidateLayout();
 	}
 
 	void IndexItem(int itemID) {
+		if (!DataItems.TryGetValue(itemID, out var newitem))
+			return;
 
+		int maxCount = Math.Min(ColumnsHistory.Count, newitem.SortedTreeIndexes.Count);
+		for (int i = 0; i < maxCount; i++) {
+			Column column = ColumnsData[ColumnsHistory[i]];
+			column.SortedTree.Remove(newitem.SortedTreeIndexes[i]);
+		}
+
+		newitem.SortedTreeIndexes.Clear();
+
+		for (int i = 0; i < ColumnsHistory.Count; i++)
+			newitem.SortedTreeIndexes.Add(0);
+
+		CurrentSortingListPanel = this;
+
+		for (int i = 0; i < ColumnsHistory.Count; i++) {
+			if (ColumnsHistory[i] == -1)
+				continue;
+
+			Column column = ColumnsData[ColumnsHistory[i]];
+
+			IndexItem_t item = new() {
+				DataItem = newitem,
+				DuplicateIndex = 0
+			};
+
+			SortedDictionary<int, IndexItem_t> rbtree = column.SortedTree;
+
+			CurrentSortingListPanel = this;
+			CurrentSortingColumnTypeIsText = column.TypeIsText;
+
+			SortFunc? sortFunc = column.SortFunc;
+			// sortFunc ??= DefaultSortFunc;
+			bSortAscending = true;
+			SortFuncSecondary = null;
+
+			newitem.SortedTreeIndexes[i] = rbtree.Count;
+			rbtree.Add(rbtree.Count, item); // FIXME: 'An item with the same key has already been added. Key: [19, ListPanel+IndexItem_t]'
+		}
 	}
 
 	void RereadAllItems() {
@@ -488,7 +592,29 @@ public class ListPanel : Panel
 	}
 
 	void GetCellText(int itemID, int col, Span<char> buffer, int bufferSizeInBytes) {
+		if (bufferSizeInBytes == 0)
+			return;
 
+		buffer[0] = '\0';
+
+		KeyValues? itemData = GetItem(itemID);
+		if (itemData == null)
+			return;
+
+		if (col < 0 || col >= CurrentColumns.Count)
+			return;
+
+		Column column = ColumnsData[CurrentColumns[col]];
+		ReadOnlySpan<char> key = column.Header.GetName();
+		if (key.Length == 0)
+			return;
+
+		ReadOnlySpan<char> val = itemData.GetString(key, "");
+		if (val.Length == 0)
+			return;
+
+		val[..Math.Min(val.Length, bufferSizeInBytes - 1)].CopyTo(buffer);
+		buffer[Math.Min(val.Length, bufferSizeInBytes - 1)] = '\0';
 	}
 
 	Label GetCellRenderer(int itemID, int col) {
@@ -951,7 +1077,15 @@ public class ListPanel : Panel
 	}
 
 	public void SetSortFunc(int col, SortFunc func) {
+		Assert(col < CurrentColumns.Count);
+		int dataColumnIndex = CurrentColumns[col];
 
+		Column column = ColumnsData[dataColumnIndex];
+		if (column.TypeIsText && func != null)
+			column.Header.SetMouseClickEnabled(ButtonCode.MouseLeft, true);
+
+		column.SortFunc = func;
+		ResortColumnRBTree(col);
 	}
 
 	void SetSortColumn(int column) {
@@ -963,7 +1097,9 @@ public class ListPanel : Panel
 	// }
 
 	public void SetSortColumnEx(int primarySortColumn, int secondarySortColumn, bool sortAscending) {
-
+		SortColumn = primarySortColumn;
+		SortColumnSecondary = secondarySortColumn;
+		SortAscending = sortAscending;
 	}
 
 	void GetSortColumnEx(int primarySortColumn, int secondarySortColumn, bool sortAscending) {
@@ -971,11 +1107,103 @@ public class ListPanel : Panel
 	}
 
 	void SortList() {
+		NeedsSort = false;
 
+		if (VisibleItems.Count <= 1)
+			return;
+
+		int startItem = GetStartItem();
+		int rowsPerPage = (int)GetRowsPerPage();
+		int screenPosition = 01;
+
+		if (LastSelectedItem != -1 && SelectedItems.Count > 0) {
+			int selectedItemRow = VisibleItems.IndexOf(LastSelectedItem);
+			if (selectedItemRow >= startItem && selectedItemRow <= (startItem + rowsPerPage))
+				screenPosition = selectedItemRow - startItem;
+		}
+
+		CurrentSortingListPanel = this;
+
+		pSortFunc = FastSortFunc;
+		bSortAscending = SortAscending;
+
+		SortFuncSecondary = FastSortFunc;
+		bSortAscendingSecondary = SortAscendingSecondary;
+
+		if (SortColumn >= 0 && SortColumn < ColumnsData.Count) {
+			Column column = ColumnsData.ElementAt(SortColumn);
+			SortedDictionary<int, IndexItem_t> rbtree = column.SortedTree;
+			int index = 0;
+			int lastIndex = rbtree.Count - 1;
+			int prevDuplicateIndex = 0;
+			int sortValue = 1;
+
+			foreach (var kvp in rbtree) {
+				FastSortListPanelItem dataItem = (FastSortListPanelItem)kvp.Value.DataItem;
+				if (dataItem.visible) {
+					if (prevDuplicateIndex == 0 || prevDuplicateIndex != kvp.Value.DuplicateIndex)
+						sortValue++;
+					dataItem.primarySortIndexValue = sortValue;
+					prevDuplicateIndex = kvp.Value.DuplicateIndex;
+				}
+
+				if (index == lastIndex)
+					break;
+
+				index++;
+			}
+		}
+
+		if (SortColumnSecondary >= 0 && SortColumnSecondary < ColumnsData.Count) {
+			Column column = ColumnsData.ElementAt(SortColumnSecondary);
+			SortedDictionary<int, IndexItem_t> rbtree = column.SortedTree;
+			int index = 0;
+			int lastIndex = rbtree.Count - 1;
+			int prevDuplicateIndex = 0;
+			int sortValue = 1;
+
+			foreach (var kvp in rbtree) {
+				FastSortListPanelItem dataItem = (FastSortListPanelItem)kvp.Value.DataItem;
+				if (dataItem.visible) {
+					if (prevDuplicateIndex == 0 || prevDuplicateIndex != kvp.Value.DuplicateIndex)
+						sortValue++;
+					dataItem.secondarySortIndexValue = sortValue;
+					prevDuplicateIndex = kvp.Value.DuplicateIndex;
+				}
+
+				if (index == lastIndex)
+					break;
+
+				index++;
+			}
+		}
+
+		VisibleItems.Sort((itemID1, itemID2) => {
+			FastSortListPanelItem item1 = DataItems[itemID1];
+			FastSortListPanelItem item2 = DataItems[itemID2];
+			return FastSortFunc(this, item1, item2) * (bSortAscending ? 1 : -1);
+		});
+
+		if (screenPosition != -1) {
+			int selectedItemRow = VisibleItems.IndexOf(LastSelectedItem);
+
+			if (selectedItemRow > screenPosition)
+				Vbar.SetValue(selectedItemRow - screenPosition);
+			else
+				Vbar.SetValue(0);
+		}
+
+		InvalidateLayout();
+		Repaint();
 	}
 
 	void SetFont(IFont font) {
+		Assert(font != null);
+		if (font == null)
+			return;
 
+		TextImage.SetFont(font);
+		RowHeight = Surface.GetFontTall(font) + 2;
 	}
 
 	void OnSliderMoved() {
@@ -1004,9 +1232,12 @@ public class ListPanel : Panel
 
 	float GetRowsPerPage() => (GetTall() - HeaderHeight) / RowHeight;
 
-	// int GetStartItem() {
+	int GetStartItem() {
+		if (GetRowsPerPage() < VisibleItems.Count)
+			return Vbar.GetValue();
 
-	// }
+		return 0;
+	}
 
 	void SetSelectIndividualCells(bool state) {
 
@@ -1068,4 +1299,31 @@ public class ListPanel : Panel
 	// bool IsInEditMode() {
 
 	// }
+
+	static ListPanel? CurrentSortingListPanel = null;
+	static string? CurrentSortingColumn = null;
+	static bool CurrentSortingColumnTypeIsText = false;
+	static SortFunc? pSortFunc = null;
+	static bool bSortAscending = true;
+	static SortFunc? SortFuncSecondary = null;
+	static bool bSortAscendingSecondary = true;
+	static int FastSortFunc(ListPanel panel, ListPanelItem item1, ListPanelItem item2) {
+		FastSortListPanelItem p1 = (FastSortListPanelItem)item1;
+		FastSortListPanelItem p2 = (FastSortListPanelItem)item2;
+
+		Assert(p1 != null && p2 != null);
+		Assert(CurrentSortingListPanel != null);
+
+		if (p1.primarySortIndexValue < p2.primarySortIndexValue)
+			return 1;
+		else if (p1.primarySortIndexValue > p2.primarySortIndexValue)
+			return -1;
+
+		if (p1.secondarySortIndexValue < p2.secondarySortIndexValue)
+			return 1;
+		else if (p1.secondarySortIndexValue > p2.secondarySortIndexValue)
+			return -1;
+
+		return (p1.GetHashCode() < p2.GetHashCode()) ? 1 : -1;
+	}
 }

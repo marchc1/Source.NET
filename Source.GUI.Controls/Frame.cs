@@ -890,7 +890,7 @@ public class Frame : EditablePanel
 		return SysMenu;
 	}
 
-	public void Close() {
+	public virtual void Close() {
 		OnClose();
 	}
 
