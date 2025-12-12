@@ -1076,7 +1076,12 @@ public class Frame : EditablePanel
 	}
 
 	public bool IsSizeable() => Sizeable;
-	public void SetSizeable(bool state) => Sizeable = state;
+
+	public void SetSizeable(bool state) {
+		Sizeable = state;
+		SetupResizeCursors();
+	}
+
 	public bool IsMoveable() => Moveable;
 	public void SetMoveable(bool state) => Moveable = state;
 	public bool GetClipToParent() => ClipToParent;
