@@ -79,6 +79,17 @@ public class Button : Label
 		SetPaintBackgroundEnabled(true);
 
 		paint = true;
+
+		RegisterColorAsOverridable(DefaultFgColor, "defaultFgColor_override");
+		RegisterColorAsOverridable(DefaultBgColor, "defaultBgColor_override");
+		RegisterColorAsOverridable(ArmedFgColor, "armedFgColor_override");
+		RegisterColorAsOverridable(ArmedBgColor, "armedBgColor_override");
+		RegisterColorAsOverridable(DepressedFgColor, "depressedFgColor_override");
+		RegisterColorAsOverridable(DepressedBgColor, "depressedBgColor_override");
+		RegisterColorAsOverridable(SelectedFgColor, "selectedFgColor_override");
+		RegisterColorAsOverridable(SelectedBgColor, "selectedBgColor_override");
+		RegisterColorAsOverridable(KeyboardFocusColor, "keyboardFocusColor_override");
+		RegisterColorAsOverridable(BlinkFgColor, "blinkFgColor_override");
 	}
 
 	public void SetButtonActivationType(ActivationType type) {

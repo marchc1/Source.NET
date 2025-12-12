@@ -78,6 +78,9 @@ class PageTab : Button
 		SetMouseClickEnabled(ButtonCode.MouseRight, true);
 
 		ContextLabel = ShowContextLabel ? new(this, "Context", "9") : null;
+
+		RegisterColorAsOverridable(TextColor, "selectedcolor");
+		RegisterColorAsOverridable(DimTextColor, "unselectedcolor");
 	}
 
 	public override void OnCursorEntered() {

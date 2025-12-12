@@ -80,7 +80,7 @@ public class BuildModeDialog : Frame
 
 	class PanelList
 	{
-		List<PanelItem> panelList = [];
+		public List<PanelItem> panelList = [];
 		public PanelListPanel Controls;
 		public KeyValues? ResourceData;
 
@@ -204,7 +204,7 @@ public class BuildModeDialog : Frame
 		if (FileSelectionCombo.GetItemCount() < 2)
 			FileSelectionCombo.SetEnabled(false);
 
-		int buttonH = 18;
+		const int buttonH = 18;
 
 		StatusLabel = new(this, "StatusLabel", "[nothing currently selected]");
 		StatusLabel.SetTextColorState(ColorState.Dull);
@@ -225,10 +225,10 @@ public class BuildModeDialog : Frame
 		EditableChildren.SetOpenDirection(MenuDirection.DOWN);
 
 		NextChild = new(this, "NextChild", "Next");
-		NextChild.SetCommand(new KeyValues("OnChildChanged", "direction", 1));
+		NextChild.SetCommand(new KeyValues("OnChangeChild", "direction", 1));
 
 		PrevChild = new(this, "PrevChild", "Prev");
-		PrevChild.SetCommand(new KeyValues("OnChildChanged", "direction", -1));
+		PrevChild.SetCommand(new KeyValues("OnChangeChild", "direction", -1));
 
 		int defaultItem = AddNewControlCombo.AddItem("None", null);
 
@@ -308,7 +308,7 @@ public class BuildModeDialog : Frame
 	public override void PerformLayout() {
 		base.PerformLayout();
 
-		int BORDER_GAP = 16, YGAP_SMALL = 4, YGAP_LARGE = 8, TITLE_HEIGHT = 24, BOTTOM_CONTROLS_HEIGHT = 145, XGAP = 6;
+		const int BORDER_GAP = 16, YGAP_SMALL = 4, YGAP_LARGE = 8, TITLE_HEIGHT = 24, BOTTOM_CONTROLS_HEIGHT = 145, XGAP = 6;
 
 		GetSize(out int wide, out int tall);
 
@@ -519,11 +519,38 @@ public class BuildModeDialog : Frame
 	}
 
 	public void UpdateControlData(Panel control) {
+		KeyValues dat = panelList.ResourceData!.FindKey(control.GetName(), true)!;
+		control.GetSettings(dat);
 
+		for (int i = 0; i < panelList.panelList.Count; i++) {
+			ReadOnlySpan<char> name = panelList.panelList[i].Name;
+			ReadOnlySpan<char> datString = dat.GetString(name, "");
+
+			UpdateEditControl(panelList.panelList[i], datString);
+		}
+
+		Span<char> status = stackalloc char[512];
+		sprintf(status, "%s: '%s'").S(control.GetClassName()).S(control.GetName());
+		StatusLabel.SetText(status);
+		StatusLabel.SetTextColorState(ColorState.Normal);
 	}
 
 	public void UpdateEditControl(PanelItem panelItem, ReadOnlySpan<char> datString) {
-
+		switch ((Type)panelItem.Type) {
+			case Type.AutoResize:
+			case Type.Corner:
+				// int dat = int.Parse(datString); // fixme: "" is here
+				// panelItem.Combo!.ActivateItem(dat);
+				break;
+			case Type.LocalizedString:
+				panelItem.EditButton!.SetText(datString);
+				break;
+			default:
+				Span<char> buf = stackalloc char[512];
+				datString.CopyTo(buf);//ansitounicode
+				panelItem.EditPanel!.SetText(buf);
+				break;
+		}
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
@@ -667,6 +694,51 @@ public class BuildModeDialog : Frame
 	public override bool IsBuildGroupEnabled() => false; // Don't ever edit the actual build dialog!!!
 
 	public void OnChangeChild(int direction) {
+		Assert(direction == 1 || direction == -1);
 
+		if (BuildGroup == null)
+			return;
+
+		Panel? current = CurrentPanel;
+		Panel context = BuildGroup.GetContextPanel()!;
+
+		if (current == null || current == context) {
+			current = null;
+			if (context.GetChildCount() > 0)
+				current = context.GetChild(0);
+		}
+		else {
+			int i;
+			int children = context.GetChildCount();
+
+			for (i = 0; i < children; i++) {
+				if (context.GetChild(i) == current)
+					break; Panel child = context.GetChild(i);
+				if (child == current)
+					break;
+			}
+
+			if (i < children) {
+				for (int offset = 1; offset < children; offset++) {
+					int test = (i + (direction * offset)) % children;
+					if (test < 0)
+						test += children;
+					if (test == i)
+						break;
+
+					Panel check = context.GetChild(test);
+					if (check is BuildModeDialog _)
+						continue;
+
+					current = check;
+					break;
+				}
+			}
+		}
+
+		if (current == null)
+			return;
+
+		SetActiveControl(current);
 	}
 }

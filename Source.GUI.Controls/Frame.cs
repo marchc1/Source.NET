@@ -558,6 +558,13 @@ public class Frame : EditablePanel
 		// MenuButton.SetMenu(GetSysMenu());
 
 		SetupResizeCursors();
+
+		RegisterColorAsOverridable(InFocusBgColor, "infocus_bgcolor_override");
+		RegisterColorAsOverridable(OutOfFocusBgColor, "outoffocus_bgcolor_override");
+		RegisterColorAsOverridable(TitleBarBgColor, "titlebarbgcolor_override");
+		RegisterColorAsOverridable(TitleBarDisabledBgColor, "titlebardisabledbgcolor_override");
+		RegisterColorAsOverridable(TitleBarFgColor, "titlebarfgcolor_override");
+		RegisterColorAsOverridable(TitleBarDisabledFgColor, "titlebardisabledfgcolor_override");
 	}
 
 	private void SetupResizeCursors() {
@@ -596,10 +603,10 @@ public class Frame : EditablePanel
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
 
-		SetOverridableColor(out TitleBarFgColor, GetSchemeColor("FrameTitleBar.TextColor", scheme));
-		SetOverridableColor(out TitleBarBgColor, GetSchemeColor("FrameTitleBar.BgColor", scheme));
-		SetOverridableColor(out TitleBarDisabledFgColor, GetSchemeColor("FrameTitleBar.DisabledTextColor", scheme));
-		SetOverridableColor(out TitleBarDisabledBgColor, GetSchemeColor("FrameTitleBar.DisabledBgColor", scheme));
+		SetOverridableColor(ref TitleBarFgColor, GetSchemeColor("FrameTitleBar.TextColor", scheme));
+		SetOverridableColor(ref TitleBarBgColor, GetSchemeColor("FrameTitleBar.BgColor", scheme));
+		SetOverridableColor(ref TitleBarDisabledFgColor, GetSchemeColor("FrameTitleBar.DisabledTextColor", scheme));
+		SetOverridableColor(ref TitleBarDisabledBgColor, GetSchemeColor("FrameTitleBar.DisabledBgColor", scheme));
 
 		ReadOnlySpan<char> font;
 		if (SmallCaption)
@@ -631,8 +638,8 @@ public class Frame : EditablePanel
 		TransitionEffectTime = float.TryParse(scheme.GetResourceString("Frame.TransitionEffectTime"), out float r) ? r : 0;
 		FocusTransitionEffectTime = float.TryParse(scheme.GetResourceString("Frame.FocusTransitionEffectTime"), out r) ? r : 0;
 
-		SetOverridableColor(out InFocusBgColor, scheme.GetColor("Frame.BgColor", GetBgColor()));
-		SetOverridableColor(out OutOfFocusBgColor, scheme.GetColor("Frame.OutOfFocusBgColor", InFocusBgColor));
+		SetOverridableColor(ref InFocusBgColor, scheme.GetColor("Frame.BgColor", GetBgColor()));
+		SetOverridableColor(ref OutOfFocusBgColor, scheme.GetColor("Frame.OutOfFocusBgColor", InFocusBgColor));
 
 		ReadOnlySpan<char> resourceString = scheme.GetResourceString("Frame.ClientInsetX");
 		if (!resourceString.IsEmpty)
@@ -993,10 +1000,6 @@ public class Frame : EditablePanel
 	private void FlashWindowStop() {
 		Surface.FlashWindow(this, false);
 		FlashWindow = false;
-	}
-
-	private void SetOverridableColor(out Color outColor, Color color) {
-		outColor = color; // TODO: How the hell are we going to implement this right...
 	}
 
 	public void MoveToCenterOfScreen() {

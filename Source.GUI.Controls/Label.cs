@@ -27,6 +27,8 @@ public class Label : Panel
 		TextImage.SetColor(new(0, 0, 0, 0));
 		SetText(text);
 		TextImageIndex = AddImage(TextImage, 0);
+
+		RegisterColorAsOverridable(DisabledFgColor2, "disabledfgcolor2_override");
 	}
 
 	public nint AddImage(IImage? textImage, int offset) {

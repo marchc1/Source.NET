@@ -10,22 +10,61 @@ enum Direction
 	Down = 1
 }
 
+class RadioImage : TextImage
+{
+	Color BorderColor1;
+	Color BorderColor2;
+	Color CheckColor;
+	Color BgColor;
+	RadioButton RadioButton;
+	public RadioImage(RadioButton radioButton) : base("n") {
+		RadioButton = radioButton;
+		SetSize(20, 13);
+	}
+
+	public override void Paint() {
+		DrawSetTextFont(GetFont()!);
+
+		if (RadioButton.IsEnabled())
+			DrawSetTextColor(CheckColor);
+		else
+			DrawSetTextColor(RadioButton.GetBgColor());
+		DrawPrintChar(0, 1, 'n');
+
+		DrawSetTextColor(BorderColor1);
+		DrawPrintChar(0, 1, 'j');
+		DrawSetTextColor(BorderColor2);
+		DrawPrintChar(0, 1, 'k');
+
+		if (RadioButton.IsSelected()) {
+			DrawSetTextColor(CheckColor);
+			DrawPrintChar(0, 1, 'h');
+		}
+	}
+
+	public override void SetColor(Color color) {
+		BorderColor1 = color;
+		BorderColor2 = color;
+		CheckColor = color;
+	}
+}
+
 public class RadioButton : ToggleButton
 {
-	// RadioImage RadioBoxImage;
+	RadioImage RadioBoxImage;
 	int OldTabPosition;
 	int SubTabPosition;
 
 	public RadioButton(Panel parent, string name, string text) : base(parent, name, text) {
 		SetContentAlignment(Alignment.West);
 
-		// RadioBoxImage = new(this);
+		RadioBoxImage = new(this);
 
 		OldTabPosition = 0;
 		SubTabPosition = 0;
 
-		// SetTextImageIndex(1);
-		// SetImageAtIndex(1, RadioBoxImage, 0);
+		SetTextImageIndex(1);
+		SetImageAtIndex(1, RadioBoxImage, 0);
 
 		SetButtonActivationType(ActivationType.OnPressed);
 	}
@@ -98,7 +137,7 @@ public class RadioButton : ToggleButton
 		SetTextColorState(ColorState.Normal);
 		SubTabPosition = resourceData.GetInt("SubTabPosition");
 		OldTabPosition = resourceData.GetInt("TabPosition");
-		// SetImageAtIndex(0, RadioButtonImage, 0);
+		SetImageAtIndex(0, RadioBoxImage, 0);
 	}
 
 	public override void GetSettings(KeyValues resourceData) {
@@ -133,14 +172,12 @@ public class RadioButton : ToggleButton
 			case ButtonCode.KeyDown:
 			case ButtonCode.KeyRight:
 				RadioButton? bestRadio = FindBestRadioButton((int)Direction.Down);
-				if (bestRadio != null)
-					bestRadio.SetSelected(true);
+				bestRadio?.SetSelected(true);
 				break;
 			case ButtonCode.KeyUp:
 			case ButtonCode.KeyLeft:
 				bestRadio = FindBestRadioButton((int)Direction.Up);
-				if (bestRadio != null)
-					bestRadio.SetSelected(true);
+				bestRadio?.SetSelected(true);
 				break;
 			default:
 				base.OnKeyCodeTyped(code);
@@ -172,13 +209,11 @@ public class RadioButton : ToggleButton
 						continue;
 					}
 
-					if (bestRadio == null)
-						bestRadio = child;
+					bestRadio ??= child;
 				}
 			}
 
-			if (bestRadio != null)
-				bestRadio.RequestFocus();
+			bestRadio?.RequestFocus();
 
 			InvalidateLayout();
 			Repaint();

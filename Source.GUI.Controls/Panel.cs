@@ -265,6 +265,9 @@ public class Panel : IPanel
 		RoundedCorners = RoundedCorners.All;
 
 		Cursor = CursorCode.Arrow;
+
+		RegisterColorAsOverridable(FgColor, "fgcolor_override");
+		RegisterColorAsOverridable(BgColor, "bgcolor_override");
 	}
 
 	public virtual IBorder? GetBorder() => Border;
@@ -1687,6 +1690,11 @@ public class Panel : IPanel
 		}
 	}
 
+	private void AddToOverridableColors(Color color, string scriptName) {
+
+	}
+
+	public void RegisterColorAsOverridable(Color name, string scriptName) => AddToOverridableColors(name, scriptName);
 
 	// This in theory will replicate the pointer logic?
 	private void ApplyOverridableColors() {
@@ -1696,6 +1704,20 @@ public class Panel : IPanel
 			if (entry.Overridden)
 				entry.Func = (in OverrideableColorEntry e) => e.ColorFromScript;
 		}
+	}
+
+
+	public void SetOverridableColor(ref Color outColor, in Color color) { // is this correct?
+		for (int i = 0; i < OverrideableColorEntries.Count; i++) {
+			OverrideableColorEntry entry = OverrideableColorEntries[i];
+			if (entry.Overridden) {
+				if (entry.Color() == outColor)
+					return;
+			}
+		}
+
+		// Didn't find it, or it's not been overridden.
+		outColor = color;
 	}
 
 	public Color GetSchemeColor(ReadOnlySpan<char> keyName, IScheme scheme) {

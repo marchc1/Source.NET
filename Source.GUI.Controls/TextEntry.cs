@@ -29,6 +29,12 @@ public class TextEntry : Panel
 
 		GotoTextEnd();
 		SetAllowKeyBindingChainToParent(true);
+
+		RegisterColorAsOverridable(DisabledFgColor, "disabledFgColor_override");
+		RegisterColorAsOverridable(DisabledBgColor, "disabledBgColor_override");
+		RegisterColorAsOverridable(SelectionColor, "selectionColor_override");
+		RegisterColorAsOverridable(SelectionTextColor, "selectionTextColor_override");
+		RegisterColorAsOverridable(DefaultSelectionBG2Color, "defaultSelectionBG2Color_override");
 	}
 
 	public override void OnKeyFocusTicked() {
