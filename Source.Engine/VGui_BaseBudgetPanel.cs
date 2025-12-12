@@ -5,24 +5,24 @@ using Source.GUI.Controls;
 
 class BudgetGroupInfo
 {
-	UtlSymbol Name;
-	Color Color;
+	public UtlSymbol Name;
+	public Color Color;
 }
 
 class BudgetPanelConfigData
 {
-	List<BudgetGroupInfo> BudgetGroupInfo;
-	float HistoryRange;
-	float BottomOfHistoryFraction;
-	List<float> HistoryLabelValues;
-	float BarGraphRange;
-	float TimeLabelInterval;
-	int LinesPerTimeLabel;
-	float BackgroundAlpha;
-	int XCoord;
-	int YCoord;
-	int Width;
-	int Height;
+	public List<BudgetGroupInfo> BudgetGroupInfo;
+	public float HistoryRange;
+	public float BottomOfHistoryFraction;
+	public List<float> HistoryLabelValues;
+	public float BarGraphRange;
+	public float TimeLabelInterval;
+	public int LinesPerTimeLabel;
+	public float BackgroundAlpha;
+	public int XCoord;
+	public int YCoord;
+	public int Width;
+	public int Height;
 }
 
 class BaseBudgetPanel : Panel
@@ -30,17 +30,17 @@ class BaseBudgetPanel : Panel
 	const int BUDGET_HISTORY_COUNT = 1024;
 
 	int BudgetHistoryOffset;
-	BudgetPanelConfigData ConfigData;
+	public BudgetPanelConfigData ConfigData;
 	List<Label> GraphLabels;
-	List<Label> TimeLabels;
-	List<Label> HistoryLabels;
+	public List<Label> TimeLabels;
+	public List<Label> HistoryLabels;
 	BudgetHistoryPanel BudgetHistoryPanel;
 	BudgetBarGraphPanel BudgetBarGraphPanel;
-	struct BudgetGroupTimeData()
+	public struct BudgetGroupTimeData()
 	{
 		public double[] Time = new double[BUDGET_HISTORY_COUNT];
 	}
-	List<BudgetGroupTimeData> BudgetGroupTimes;
+	public List<BudgetGroupTimeData> BudgetGroupTimes = [];
 	int CachedNumTimeLabels;
 	IFont Font;
 	bool Dedicated;

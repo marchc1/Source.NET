@@ -2,7 +2,7 @@ using Source.GUI.Controls;
 
 class BudgetPanelEngine : BudgetPanelShared
 {
-	public BudgetPanelEngine(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
+	public BudgetPanelEngine(Panel? parent, ReadOnlySpan<char> name) : base(parent, name, (int)(BudgetFlags.Client | BudgetFlags.Other | BudgetFlags.Hidden)) {
 
 	}
 
