@@ -37,6 +37,12 @@ class ComboBoxButton : Button
 	public override void OnCursorExited() {
 		CallParentFunction(KV_CursorExited);
 	}
+
+	public override Color GetButtonBgColor() {
+		if (IsEnabled())
+			return base.GetButtonBgColor();
+		return DisabledBgColor;
+	}
 }
 
 public class ComboBox : TextEntry
@@ -135,12 +141,10 @@ public class ComboBox : TextEntry
 	}
 
 	public void SetMenu(Menu menu) {
-		if (DropDown != null)
-			DropDown.MarkForDeletion();
+		DropDown?.MarkForDeletion();
 
 		DropDown = menu;
-		if (DropDown != null)
-			DropDown.SetParent(this);
+		DropDown?.SetParent(this);
 	}
 
 	public override void PerformLayout() {

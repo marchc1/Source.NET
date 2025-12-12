@@ -190,11 +190,8 @@ public class Slider : Panel
 		SliderBorder = scheme.GetBorder("ButtonBorder");
 		InsetBorder = scheme.GetBorder("ButtonDepressedBorder");
 
-		if (LeftCaption != null)
-			LeftCaption.SetFont(scheme.GetFont("DefaultVerySmall", IsProportional()));
-
-		if (RightCaption != null)
-			RightCaption.SetFont(scheme.GetFont("DefaultVerySmall", IsProportional()));
+		LeftCaption?.SetFont(scheme.GetFont("DefaultVerySmall", IsProportional()));
+		RightCaption?.SetFont(scheme.GetFont("DefaultVerySmall", IsProportional()));
 	}
 
 	public override void GetSettings(KeyValues outResourceData) {
@@ -333,7 +330,7 @@ public class Slider : Panel
 
 		Surface.DrawFilledRect(NobPosMin, y + tall / 2 - nobHeight / 2, NobPosMax, y + tall / 2 + nobHeight / 2);
 
-		SliderBorder?.Paint(NobPosMin, y + tall / 2 - nobHeight / 2, NobPosMax - NobPosMin, nobHeight, Sides.None, 0, 0);
+		SliderBorder?.Paint(NobPosMin, y + tall / 2 - nobHeight / 2, NobPosMax, y + tall / 2 + nobHeight / 2);
 	}
 
 	public void SetTickCaptions(ReadOnlySpan<char> left, ReadOnlySpan<char> right) {

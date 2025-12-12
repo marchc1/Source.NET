@@ -1,6 +1,7 @@
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Game.UI;
@@ -74,5 +75,14 @@ public class OptionsDialog : PropertyDialog
 			if (child != null && child.IsVisible())
 				PostMessage(child, KV_GameUIHidden);
 		}
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name == "GameUIHidden") {
+			OnGameUIHidden();
+			return;
+		}
+
+		base.OnMessage(message, from);
 	}
 }

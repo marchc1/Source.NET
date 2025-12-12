@@ -220,7 +220,7 @@ public class Button : Label
 		return blended;
 	}
 
-	public Color GetButtonBgColor() {
+	public virtual Color GetButtonBgColor() {
 		if (0 != (ButtonFlags & ButtonFlags.Depressed))
 			return DepressedBgColor;
 		if (0 != (ButtonFlags & ButtonFlags.Armed))

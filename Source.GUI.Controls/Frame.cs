@@ -29,6 +29,46 @@ public class FrameSystemButton : MenuButton
 		if (th > h)
 			h = th;
 	}
+
+	public override void ApplySchemeSettings(IScheme scheme) {
+		base.ApplySchemeSettings(scheme);
+
+		EnabledColor = GetSchemeColor("FrameSystemButton.FgColor", scheme);
+		DisabledColor = GetSchemeColor("FrameSystemButton.BgColor", scheme);
+
+		ReadOnlySpan<char> enabledImage = EnabledImage ?? scheme.GetResourceString("FrameSystemButton.EnabledImage");
+		ReadOnlySpan<char> disabledImage = DisabledImage ?? scheme.GetResourceString("FrameSystemButton.DisabledImage");
+		// Enabled = SchemeManager.GetImage(enabledImage, false);
+		// Disabled = SchemeManager.GetImage(disabledImage, false);
+
+		SetTextInset(0, 0);
+		SetEnabled(IsEnabled());
+	}
+
+	public override IBorder? GetBorder(bool depressed, bool armed, bool selected, bool keyfocus) => null;
+
+	public override void SetEnabled(bool state) {
+		base.SetEnabled(state);
+
+		if (IsEnabled() && Responsive) {
+			if (Enabled != null)
+				SetImageAtIndex(0, Enabled, 0);
+
+			SetBgColor(EnabledColor);
+			SetDefaultColor(EnabledColor, EnabledColor);
+			SetArmedColor(EnabledColor, EnabledColor);
+			SetDepressedColor(EnabledColor, EnabledColor);
+		}
+		else {
+			if (Disabled != null)
+				SetImageAtIndex(0, Disabled, 0);
+
+			SetBgColor(DisabledColor);
+			SetDefaultColor(DisabledColor, DisabledColor);
+			SetArmedColor(DisabledColor, DisabledColor);
+			SetDepressedColor(DisabledColor, DisabledColor);
+		}
+	}
 }
 
 public class GripPanel : Panel
@@ -554,8 +594,8 @@ public class Frame : EditablePanel
 			SetMaximizeButtonVisible(false);
 		}
 
-		// MenuButton = new FrameSystemButton(this, "frame_menu");
-		// MenuButton.SetMenu(GetSysMenu());
+		MenuButton = new FrameSystemButton(this, "frame_menu");
+		MenuButton.SetMenu(GetSysMenu());
 
 		SetupResizeCursors();
 
@@ -1099,5 +1139,50 @@ public class Frame : EditablePanel
 		}
 
 		base.OnMousePressed(code);
+	}
+
+	private void InternalSetTitle(ReadOnlySpan<char> title) => SetTitle(title, true);
+	private void OnCloseFrameButtonPressed() => OnCommand("Close");
+	private void OnMinimize() => Surface.SetMinimized(this, true);
+
+	static readonly KeyValues KV_FlashWindow = new("FlashWindow");
+	bool NextFlashState = false;
+	private void InternalFlashWindow() {
+		if (FlashWindow) {
+			NextFlashState = true;
+			Surface.FlashWindow(this, true);
+			NextFlashState = !NextFlashState;
+
+			PostMessage(this, KV_FlashWindow, 1.8f);
+		}
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		switch (message.Name) {
+			case "Close":
+				Close();
+				return;
+			case "CloseModal":
+				CloseModal();
+				return;
+			case "SetTitle":
+				InternalSetTitle(message.GetString("text", ""));
+				return;
+			case "FlashWindow":
+				InternalFlashWindow();
+				return;
+			case "DialogVariables":
+
+				return;
+			case "CloseFrameButtonPressed":
+				OnCloseFrameButtonPressed();
+				return;
+			case "Minimize":
+				OnMinimize();
+				return;
+			default:
+				base.OnMessage(message, from);
+				break;
+		}
 	}
 }

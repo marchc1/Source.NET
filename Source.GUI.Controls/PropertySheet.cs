@@ -384,8 +384,8 @@ public class PropertySheet : EditablePanel
 		tab.SetFont(TabFont);
 		if (ShowTabs)
 			tab.AddActionSignalTarget(this);
-		else if (Combo != null)
-			Combo.AddItem(title.ToString(), null);
+		else
+			Combo?.AddItem(title.ToString(), null);
 
 		if (TabKV != null)
 			tab.ApplySettings(TabKV);
@@ -407,8 +407,7 @@ public class PropertySheet : EditablePanel
 
 		if (ActivePage == null) {
 			ChangeActiveTab(0);
-			if (ActivePage != null)
-				ActivePage.RequestFocus();
+			ActivePage?.RequestFocus();
 		}
 	}
 
@@ -578,7 +577,7 @@ public class PropertySheet : EditablePanel
 			PageTransitionEffectTime = TransitionKV.GetFloat();
 	}
 
-	public void PaintBorder() {
+	public override void PaintBorder() {
 		IBorder border = GetBorder()!;
 		if (border == null)
 			return;
@@ -750,8 +749,7 @@ public class PropertySheet : EditablePanel
 		}
 
 		if (Pages[index].page == ActivePage) {
-			if (ActiveTab != null)
-				ActiveTab.RequestFocus();
+			ActiveTab?.RequestFocus();
 			TabFocus = true;
 			return;
 		}

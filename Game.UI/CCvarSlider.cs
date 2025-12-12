@@ -17,7 +17,7 @@ public class CCvarSlider : Slider
 	int iStartValue;
 	int LastSliderValue;
 	float CurrentValue;
-	string CvarName;
+	string? CvarName;
 	bool CreatedInCode;
 	float MinValue;
 	float MaxValue;

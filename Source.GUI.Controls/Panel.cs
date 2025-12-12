@@ -1395,7 +1395,7 @@ public class Panel : IPanel
 		}
 
 		for (int i = 0, childCount = Children.Count; i < childCount; i++) {
-			IPanel child = Children[i];
+			Panel child = Children[i];
 			bool bVisible = child.IsVisible();
 
 			if (Surface.ShouldPaintChildPanel(child)) {
@@ -1596,7 +1596,7 @@ public class Panel : IPanel
 		Surface.DrawGetTextureSize(BgTextureId1, out w, out h);
 	}
 
-	private void PaintBorder() {
+	public virtual void PaintBorder() {
 		Border?.Paint(this);
 	}
 
