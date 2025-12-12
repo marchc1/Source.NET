@@ -21,8 +21,7 @@ class ComboBoxButton : Button
 #if OSX
 		SetTextInset(-3, 0);
 #else
-		// SetTextInset(scheme.GetProportionalScaledValueEx(3, IsProportional()), 0);
-		SetTextInset(3, 0);
+		SetTextInset(QuickPropScale(3), 0);
 #endif
 		SetDefaultBorder(scheme.GetBorder("ScrollBarButtonBorder"));
 
@@ -469,7 +468,7 @@ public class ComboBox : TextEntry
 			case "MenuClosed":
 				OnMenuClose();
 				break;
-			case "ActiveItem":
+			case "ActivateItem":
 				ActivateItem(message.GetInt("itemID", -1));
 				break;
 			default:

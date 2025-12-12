@@ -2528,6 +2528,8 @@ public class Panel : IPanel
 
 		BuildGroup?.PanelAdded(this);
 	}
+
+	public int QuickPropScale(int x) => SchemeManager.QuickPropScaleCond(IsProportional(), GetScheme()!, x);
 }
 
 class FloatProperty : IPanelAnimationPropertyConverter

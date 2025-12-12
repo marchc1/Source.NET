@@ -2,7 +2,8 @@ using Source.Common.Formats.Keyvalues;
 
 namespace Source.Common.GUI;
 
-public interface IScheme {
+public interface IScheme
+{
 	ReadOnlySpan<char> GetResourceString(ReadOnlySpan<char> stringName);
 	IBorder? GetBorder(ReadOnlySpan<char> borderName);
 	IFont? GetFont(ReadOnlySpan<char> fontName, bool proportional = false);
@@ -22,7 +23,8 @@ public interface IScheme {
 	int GetProportionalScaledValueEx(int normalizedValue);
 }
 
-public interface ISchemeManager {
+public interface ISchemeManager
+{
 	void Init();
 	IScheme? LoadSchemeFromFile(ReadOnlySpan<char> fileName, ReadOnlySpan<char> tag);
 	void ReloadSchemes();
@@ -37,4 +39,10 @@ public interface ISchemeManager {
 	IScheme? LoadSchemeFromFileEx(IPanel? sizingPanel, ReadOnlySpan<char> fileName, ReadOnlySpan<char> tag);
 	bool DeleteImage(ReadOnlySpan<char> imageName);
 	int GetProportionalScaledValueEx(IScheme scheme, int normalizedValue);
+
+	int QuickPropScaleCond(bool scale, IScheme scheme, int normalizedValue) {
+		if (!scale)
+			return normalizedValue;
+		return GetProportionalScaledValueEx(scheme, normalizedValue);
+	}
 }

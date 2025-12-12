@@ -186,7 +186,8 @@ public class Label : Panel
 
 		tall = Math.Max((ty1 - ty0) + TextInsetY, iTall);
 	}
-	public virtual void GetText(Span<char> textOut) { }
+	public virtual void GetText(Span<char> textOut) => TextImage!.GetText(textOut);
+
 	public virtual void SetText(ReadOnlySpan<char> text) {
 		if (text.IsEmpty)
 			text = "";
