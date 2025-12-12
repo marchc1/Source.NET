@@ -1,3 +1,5 @@
+using Source.Common.Commands;
+using Source.Common.Formats.Keyvalues;
 using Source.GUI.Controls;
 
 namespace Game.UI;
@@ -51,5 +53,51 @@ public class OptionsSubAudio : PropertyPage
 		SoundMuteLoseFocusCheckButton = new(this, "snd_mute_losefocus", "#GameUI_SndMuteLoseFocus", "snd_mute_losefocus");
 
 		LoadControlSettings("resource/OptionsSubAudio.res");
+	}
+
+	public override void OnResetData() {
+		RequireRestart = false;
+		SFXSlider.Reset();
+		MusicSlider.Reset();
+
+		ConVarRef closecaption = new("closecaption");
+		ConVarRef cc_subtitles = new("cc_subtitles");
+
+		if (closecaption.GetBool()) {
+			if (cc_subtitles.GetBool())
+				CloseCaptionCombo.ActivateItem(2);
+			else
+				CloseCaptionCombo.ActivateItem(1);
+		}
+		else
+			CloseCaptionCombo.ActivateItem(0);
+
+		ConVarRef snd_surround_speakers = new("snd_surround_speakers");
+		int speakers = snd_surround_speakers.GetInt();
+
+#if POSIX
+		if (speakers == 0)
+			speakers = 2;
+#endif
+
+		if (speakers < 0)
+			speakers = 2;
+
+		for (int itemId = 0; itemId < SpeakerSetupCombo.GetItemCount(); itemId++) {
+			KeyValues? kv = SpeakerSetupCombo.GetItemUserData(itemId);
+			if (kv != null && kv.GetInt("speakers") == speakers) {
+				SpeakerSetupCombo.ActivateItem(itemId);
+				break;
+			}
+		}
+
+		// todo finish
+	}
+}
+
+class OptionsSubAudioThirdPartyCreditsDlg : Frame
+{
+	public OptionsSubAudioThirdPartyCreditsDlg(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
+
 	}
 }

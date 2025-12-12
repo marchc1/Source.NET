@@ -249,10 +249,10 @@ public class OptionsSubKeyboard : PropertyPage
 	public override void OnThink() {
 		base.OnThink();
 
-		// if (KeyBindList.IsCapturing()) {
-		// if (engine.CheckDoneKeyTrapping(ButtonCode.Invalid))
-		// 	Finish(ButtonCode.Invalid);
-		// }
+		if (KeyBindList.IsCapturing()) {
+			// if (engine.CheckDoneKeyTrapping(ButtonCode.Invalid))
+			// Finish(ButtonCode.Invalid);
+		}
 	}
 
 	public override void OnKeyCodePressed(ButtonCode code) {
