@@ -1136,13 +1136,11 @@ public class Panel : IPanel
 	}
 
 	public bool HasParent(IPanel potentialParent) {
-		IPanel? parent = this.Parent;
+		if (this == potentialParent)
+			return true;
 
-		while (parent != null) {
-			if (parent == potentialParent)
-				return true;
-			parent = parent.GetParent();
-		}
+		if (Parent != null)
+			return Parent.HasParent(potentialParent);
 
 		return false;
 	}
