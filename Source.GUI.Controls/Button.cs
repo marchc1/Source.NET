@@ -72,7 +72,7 @@ public class Button : Label
 		ArmedSoundName = null;
 		DepressedSoundName = null;
 		ReleasedSoundName = null;
-		SetTextInset(6, 0);
+		SetTextInset(QuickPropScale(6), 0);
 		SetMouseClickEnabled(ButtonCode.MouseLeft, true);
 		SetButtonActivationType(ActivationType.OnPressedAndReleased);
 
@@ -108,7 +108,6 @@ public class Button : Label
 			MouseClickMask |= unchecked(1 << unchecked((int)(code + 1)));
 		else
 			MouseClickMask &= ~unchecked(1 << unchecked((int)(code + 1)));
-
 	}
 
 	public Button(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, Panel? actionSignalTarget = null, string? cmd = null) : base(parent, name, text) {

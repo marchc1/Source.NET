@@ -92,8 +92,8 @@ public class OptionsSubKeyboard : PropertyPage
 
 	readonly IEngineClient engine = Singleton<IEngineClient>();
 	public void ParseActionDescriptions() {
-		Span<char> binding = stackalloc char[256];
-		Span<char> description = stackalloc char[256];
+		Span<char> binding = stackalloc char[512];//256
+		Span<char> description = stackalloc char[512];//256
 
 		long size = fileSystem.Size("scripts/kb_act.lst");
 		if (size <= 0) return;
@@ -107,8 +107,7 @@ public class OptionsSubKeyboard : PropertyPage
 		int sectionIndex = 0;
 		Span<char> token = stackalloc char[512];
 
-		KeyValues item;
-		while (false) { // todo: impl ParseFile
+		while (false) {
 			data = engine.ParseFile(data, token);
 			if (token.Length == 0)
 				break;
@@ -118,25 +117,25 @@ public class OptionsSubKeyboard : PropertyPage
 			data = engine.ParseFile(data, token);
 			if (token.Length == 0)
 				break;
-
 			token.CopyTo(description);
 
-			if (description[0] == '=') {
+			if (description[0] != '=') {
 				if (binding.SequenceEqual("blank".AsSpan())) {
 					// KeyBindList.AddSection(++sectionIndex, description);
 					// KeyBindList.AddColumnToSection(sectionIndex, "Action", description, SectionedListPanel.ColumnBright, 286);
-					// KeyBindList.AddColumnToSection(sectionIndex, "Key", "#GameUI_KeyButton", SectionedListPanel.ColumnBright, 286);
+					// KeyBindList.AddColumnToSection(sectionIndex, "Key", "#GameUI_KeyButton", SectionedListPanel.ColumnBright, 128);
 				}
-			}
-			else {
-				item = new("Item");
-				item.SetString("Action", description);
-				item.SetString("Binding", binding);
-				item.SetString("key", "");
-				// KeyBindList.AddItem(sectionIndex, item);
+				else {
+					KeyValues item = new("Item");
+					item.SetString("Action", description);
+					item.SetString("Binding", binding);
+					item.SetString("Key", "");
+					// KeyBindList.AddItem(sectionIndex, item);
+				}
 			}
 		}
 	}
+
 
 	public void GetItemForBinding() {
 
@@ -294,19 +293,19 @@ class OptionsSubKeyboardAdvancedDlg : Frame
 		Input.SetAppModalSurface(this);
 
 		ConVarRef con_enable = new("con_enable");
-		// if (con_enable.IsValid())
-		// SetControlInt("ConsoleCheck", con_enable.GetBool() ? 1 : 0);
+		if (con_enable.IsValid())
+			SetControlInt("ConsoleCheck", con_enable.GetBool() ? 1 : 0);
 
 		ConVarRef hud_fastswitch = new("hud_fastswitch");
-		// if (hud_fastswitch.IsValid())
-		// SetControlInt("FastSwitchCheck", hud_fastswitch.GetBool() ? 1 : 0);
+		if (hud_fastswitch.IsValid())
+			SetControlInt("FastSwitchCheck", hud_fastswitch.GetBool() ? 1 : 0);
 	}
 
 	public void OnApplyData() {
 		ConVarRef con_enable = new("con_enable");
-		// con_enable.SetValue(GetControlInt("ConsoleCheck", 0));
+		con_enable.SetValue(GetControlInt("ConsoleCheck", 0));
 		ConVarRef hud_fastswitch = new("hud_fastswitch");
-		// hud_fastswitch.SetValue(GetControlInt("FastSwitchCheck", 0));
+		hud_fastswitch.SetValue(GetControlInt("FastSwitchCheck", 0));
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {

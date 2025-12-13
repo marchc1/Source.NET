@@ -43,6 +43,14 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 		Initialized = true;
 	}
 
+	public static ReadOnlySpan<char> ParseFile(ReadOnlySpan<char> data, Span<char> token) {
+		throw new NotImplementedException();
+	}
+
+	static ReadOnlySpan<char> Parse(ReadOnlySpan<char> data) {
+		throw new NotImplementedException();
+	}
+
 	public static bool IsValidPath(ReadOnlySpan<char> filename) {
 		if (filename.IsEmpty)
 			return false;

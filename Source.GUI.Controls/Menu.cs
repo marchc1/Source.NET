@@ -983,8 +983,10 @@ public class Menu : Panel
 	public void GetItemText(int itemID, Span<char> text) {
 		if (MenuItems[itemID] != null) {
 			MenuItem menuItem = MenuItems[itemID];
-			if (menuItem != null)
+			if (menuItem != null) {
 				menuItem.GetText(text);
+				return;
+			}
 		}
 
 		text[0] = '\0';
