@@ -1518,6 +1518,28 @@ public class MatSystemSurface : IMatSystemSurface
 
 	}
 
+	public int GetTextureNumFrames(in TextureID id) {
+		IMaterial? material = TextureDictionary.GetTextureMaterial(in id);
+
+		if (material == null)
+			return 0;
+
+		return material.GetNumAnimationFrames();
+	}
+
+	public void DrawSetTextureFrame(in TextureID id, int frame, ref TokenCache frameCache) {
+		IMaterial? material = TextureDictionary.GetTextureMaterial(in id);
+		if (material == null)
+			return;
+
+		int totalFrames = material.GetNumAnimationFrames();
+		if (totalFrames == 0)
+			return;
+
+		IMaterialVar? frameVar = material.FindVarFast("$frame", ref frameCache);
+		frameVar?.SetIntValue(frame % totalFrames);
+	}
+
 	event VGuiPlayFunc? play;
 
 	public void InstallPlaySoundFunc(VGuiPlayFunc func) => play += func;
