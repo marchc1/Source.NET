@@ -202,7 +202,7 @@ public class CommandLine : ICommandLine
 		if (IsInvalidIndex(index))
 			return defaultValue;
 
-		if (IsLikelyCmdLineParameter(index))
+		if (IsLikelyCmdLineParameter(index + 1))
 			return defaultValue;
 
 		return parms[index];
