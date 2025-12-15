@@ -631,7 +631,7 @@ public class PropertySheet : EditablePanel
 				if (tab == ActiveTab)
 					tab.SetBounds(xtab, 2 + PageYOffset, tabWide, tabHeight);
 				else
-					tab.SetBounds(xtab, 4 + PageYOffset, tabWide, tabHeight);
+					tab.SetBounds(xtab, 4 + PageYOffset, tabWide, tabHeight - 2);
 				tab.SetVisible(true);
 				xtab += tabWide + 1 + TabXDelta;
 			}

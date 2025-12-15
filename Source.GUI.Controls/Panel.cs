@@ -11,9 +11,7 @@ using Source.Common.Input;
 using Source.Common.Launcher;
 using Source.Common.Utilities;
 
-using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
-using System.Numerics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
@@ -338,7 +336,7 @@ public class Panel : IPanel
 	short AbsX, AbsY;
 	short ZPos;
 
-	bool Visible;
+	public bool Visible;
 	bool Enabled;
 	bool Popup;
 	bool MouseInput;

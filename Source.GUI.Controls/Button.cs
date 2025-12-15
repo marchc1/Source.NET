@@ -110,7 +110,7 @@ public class Button : Label
 			MouseClickMask &= ~unchecked(1 << unchecked((int)(code + 1)));
 	}
 
-	public Button(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, Panel? actionSignalTarget = null, string? cmd = null) : base(parent, name, text) {
+	public Button(Panel? parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, Panel? actionSignalTarget = null, string? cmd = null) : base(parent, name, text) {
 		Init();
 
 		if (actionSignalTarget != null && cmd != null) {
@@ -486,17 +486,17 @@ public class Button : Label
 	}
 
 	public override bool RequestInfo(KeyValues outputData) {
-		if (string.Equals(outputData.Name, "CanBeDefaultButton", StringComparison.OrdinalIgnoreCase)) {
+		if (outputData.Name.Equals("CanBeDefaultButton", StringComparison.OrdinalIgnoreCase)) {
 			outputData.SetInt("result", CanBeDefaultButton() ? 1 : 0);
 			return true;
 		}
 
-		if (string.Equals(outputData.Name, "GetState", StringComparison.OrdinalIgnoreCase)) {
+		if (outputData.Name.Equals("GetState", StringComparison.OrdinalIgnoreCase)) {
 			outputData.SetInt("state", IsSelected() ? 1 : 0);
 			return true;
 		}
 
-		if (string.Equals(outputData.Name, "GetCommand", StringComparison.OrdinalIgnoreCase)) {
+		if (outputData.Name.Equals("GetCommand", StringComparison.OrdinalIgnoreCase)) {
 			if (ActionMessage != null)
 				outputData.SetString("command", ActionMessage.GetString("command", ""));
 			else
