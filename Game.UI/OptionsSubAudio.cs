@@ -106,6 +106,13 @@ public class OptionsSubAudio : PropertyPage
 		else
 			base.OnMessage(message, from);
 	}
+
+	public override void OnApplyChanges() {
+		SFXSlider.ApplyChanges();
+		MusicSlider.ApplyChanges();
+
+		// More to do
+	}
 }
 
 class OptionsSubAudioThirdPartyCreditsDlg : Frame
