@@ -72,13 +72,24 @@ public class Button : Label
 		ArmedSoundName = null;
 		DepressedSoundName = null;
 		ReleasedSoundName = null;
-		SetTextInset(6, 0);
+		SetTextInset(QuickPropScale(6), 0);
 		SetMouseClickEnabled(ButtonCode.MouseLeft, true);
 		SetButtonActivationType(ActivationType.OnPressedAndReleased);
 
 		SetPaintBackgroundEnabled(true);
 
 		paint = true;
+
+		RegisterColorAsOverridable(DefaultFgColor, "defaultFgColor_override");
+		RegisterColorAsOverridable(DefaultBgColor, "defaultBgColor_override");
+		RegisterColorAsOverridable(ArmedFgColor, "armedFgColor_override");
+		RegisterColorAsOverridable(ArmedBgColor, "armedBgColor_override");
+		RegisterColorAsOverridable(DepressedFgColor, "depressedFgColor_override");
+		RegisterColorAsOverridable(DepressedBgColor, "depressedBgColor_override");
+		RegisterColorAsOverridable(SelectedFgColor, "selectedFgColor_override");
+		RegisterColorAsOverridable(SelectedBgColor, "selectedBgColor_override");
+		RegisterColorAsOverridable(KeyboardFocusColor, "keyboardFocusColor_override");
+		RegisterColorAsOverridable(BlinkFgColor, "blinkFgColor_override");
 	}
 
 	public void SetButtonActivationType(ActivationType type) {
@@ -97,10 +108,9 @@ public class Button : Label
 			MouseClickMask |= unchecked(1 << unchecked((int)(code + 1)));
 		else
 			MouseClickMask &= ~unchecked(1 << unchecked((int)(code + 1)));
-
 	}
 
-	public Button(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, Panel? actionSignalTarget = null, string? cmd = null) : base(parent, name, text) {
+	public Button(Panel? parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, Panel? actionSignalTarget = null, string? cmd = null) : base(parent, name, text) {
 		Init();
 
 		if (actionSignalTarget != null && cmd != null) {
@@ -209,7 +219,7 @@ public class Button : Label
 		return blended;
 	}
 
-	public Color GetButtonBgColor() {
+	public virtual Color GetButtonBgColor() {
 		if (0 != (ButtonFlags & ButtonFlags.Depressed))
 			return DepressedBgColor;
 		if (0 != (ButtonFlags & ButtonFlags.Armed))
@@ -472,21 +482,21 @@ public class Button : Label
 		if (sound.Length > 0)
 			SetReleasedSound(sound);
 
-		ActivationType = (ActivationType)resourceData.GetInt("button_activation_type", (int)ActivationType.OnPressedAndReleased);
+		ActivationType = (ActivationType)resourceData.GetInt("button_activation_type", (int)ActivationType.OnReleased);
 	}
 
 	public override bool RequestInfo(KeyValues outputData) {
-		if (string.Equals(outputData.Name, "CanBeDefaultButton", StringComparison.OrdinalIgnoreCase)) {
+		if (outputData.Name.Equals("CanBeDefaultButton", StringComparison.OrdinalIgnoreCase)) {
 			outputData.SetInt("result", CanBeDefaultButton() ? 1 : 0);
 			return true;
 		}
 
-		if (string.Equals(outputData.Name, "GetState", StringComparison.OrdinalIgnoreCase)) {
+		if (outputData.Name.Equals("GetState", StringComparison.OrdinalIgnoreCase)) {
 			outputData.SetInt("state", IsSelected() ? 1 : 0);
 			return true;
 		}
 
-		if (string.Equals(outputData.Name, "GetCommand", StringComparison.OrdinalIgnoreCase)) {
+		if (outputData.Name.Equals("GetCommand", StringComparison.OrdinalIgnoreCase)) {
 			if (ActionMessage != null)
 				outputData.SetString("command", ActionMessage.GetString("command", ""));
 			else

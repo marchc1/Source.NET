@@ -6,14 +6,14 @@ namespace Source.GUI.Controls;
 
 public class MenuSeparator : Panel
 {
-	public MenuSeparator(Panel parent, string panelName) : base(parent, panelName) {
+	public MenuSeparator(Panel parent, ReadOnlySpan<char> panelName) : base(parent, panelName) {
 		SetPaintEnabled(true);
 		SetPaintBackgroundEnabled(true);
 		SetPaintBorderEnabled(false);
 	}
 
 	public override void Paint() {
-		GetSize(out int w, out int t);
+		GetSize(out int w, out _);
 
 		Surface.DrawSetColor(GetFgColor());
 		Surface.DrawFilledRect(4, 1, w - 1, 2);
@@ -100,11 +100,11 @@ public class Menu : Panel
 		}
 	}
 
-	public Menu(Panel parent, string? panelName) : base(parent, panelName) {
+	public Menu(Panel? parent, ReadOnlySpan<char> panelName) : base(parent, panelName) {
 		Alignment = Alignment.West;
 		FixedWidth = 0;
 		MinimumWidth = 0;
-		NumVisibleLines = 0;
+		NumVisibleLines = -1;
 		CurrentlySelectedItemID = -1;
 		Scroller = new ScrollBar(this, "MenuScrollBar", true);
 		Scroller.SetVisible(false);
@@ -118,6 +118,7 @@ public class Menu : Panel
 		// UseMenuManager = true;
 		CheckImageWidth = 0;
 		ActivatedItem = 0;
+		UseFallbackFont = false;
 
 		if (IsProportional())
 			MenuItemHeight = SchemeManager.GetProportionalScaledValueEx(GetScheme()!, DEFAULT_MENU_ITEM_HEIGHT);
@@ -291,7 +292,6 @@ public class Menu : Panel
 
 	MenuItem? GetParentMenuItem() => GetParent() is MenuItem mi ? mi : null;
 
-
 	public int GetMenuItemHeight() {
 		return MenuItemHeight;
 	}
@@ -400,9 +400,8 @@ public class Menu : Panel
 			if (totalTall >= workTall)
 				break;
 
-			//  if (INVALID_FONT != m_hItemFont) {
-			//  	child->SetFont(m_hItemFont);
-			//  }
+			if (ItemFont != null)
+				child.SetFont(ItemFont);
 
 			child.SetPos(0, menuTall);
 			child.SetTall(MenuItemHeight);
@@ -606,8 +605,7 @@ public class Menu : Panel
 				else
 					MoveAlongMenuItemList(MENU_UP, 0);
 
-				if (MenuItems[CurrentlySelectedItemID] != null)
-					MenuItems[CurrentlySelectedItemID].ArmItem();
+				MenuItems[CurrentlySelectedItemID]?.ArmItem();
 				break;
 			case ButtonCode.KeyPageDown:
 				if (NumVisibleLines > 1) {
@@ -619,18 +617,15 @@ public class Menu : Panel
 				else
 					MoveAlongMenuItemList(MENU_DOWN, 0);
 
-				if (MenuItems[CurrentlySelectedItemID] != null)
-					MenuItems[CurrentlySelectedItemID].ArmItem();
+				MenuItems[CurrentlySelectedItemID]?.ArmItem();
 				break;
 			case ButtonCode.KeyHome:
 				MoveAlongMenuItemList(MENU_UP * CurrentlySelectedItemID, 0);
-				if (MenuItems[CurrentlySelectedItemID] != null)
-					MenuItems[CurrentlySelectedItemID].ArmItem();
+				MenuItems[CurrentlySelectedItemID]?.ArmItem();
 				break;
 			case ButtonCode.KeyEnd:
 				MoveAlongMenuItemList(MENU_DOWN * (MenuItems.Count - CurrentlySelectedItemID - 1), 0);
-				if (MenuItems[CurrentlySelectedItemID] != null)
-					MenuItems[CurrentlySelectedItemID].ArmItem();
+				MenuItems[CurrentlySelectedItemID]?.ArmItem();
 				break;
 		}
 	}
@@ -845,7 +840,6 @@ public class Menu : Panel
 		return (int)TypeAheadMode;
 	}
 
-
 	public override void OnMouseWheeled(int delta) {
 		if (!Scroller!.IsVisible())
 			return;
@@ -989,8 +983,10 @@ public class Menu : Panel
 	public void GetItemText(int itemID, Span<char> text) {
 		if (MenuItems[itemID] != null) {
 			MenuItem menuItem = MenuItems[itemID];
-			if (menuItem != null)
+			if (menuItem != null) {
 				menuItem.GetText(text);
+				return;
+			}
 		}
 
 		text[0] = '\0';
@@ -1076,7 +1072,7 @@ public class Menu : Panel
 		Span<char> menuItemName = stackalloc char[255];
 
 		int i = itemToSelect + 1;
-		if (i > MenuItems.Count)
+		if (i >= MenuItems.Count)
 			i = 0;
 
 		while (i != itemToSelect) {

@@ -1,3 +1,5 @@
+using CommunityToolkit.HighPerformance;
+
 using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
@@ -90,16 +92,14 @@ public class OptionsSubKeyboard : PropertyPage
 
 	readonly IEngineClient engine = Singleton<IEngineClient>();
 	public void ParseActionDescriptions() {
-		if (true) return; // TODO: Waiting for further fs implementation
-
-		Span<char> szBinding = stackalloc char[256];
-		Span<char> szDescription = stackalloc char[256];
+		Span<char> binding = stackalloc char[512];//256
+		Span<char> description = stackalloc char[512];//256
 
 		long size = fileSystem.Size("scripts/kb_act.lst");
 		if (size <= 0) return;
 
-		char[] fileData = new char[size];
-		if (!fileSystem.ReadFile("scripts/kb_act.lst", null, fileData, 0))
+		Span<char> fileData = stackalloc char[(int)size];
+		if (!fileSystem.ReadFile("scripts/kb_act.lst", null, fileData.AsBytes(), 0))
 			return;
 
 		ReadOnlySpan<char> data = fileData;
@@ -107,36 +107,35 @@ public class OptionsSubKeyboard : PropertyPage
 		int sectionIndex = 0;
 		Span<char> token = stackalloc char[512];
 
-		KeyValues item;
-		while (true) {
-			// data = engine.ParseFile(data, token);
+		while (false) {
+			data = engine.ParseFile(data, token);
 			if (token.Length == 0)
 				break;
 
-			token.CopyTo(szBinding);
+			token.CopyTo(binding);
 
-			// data = engine.ParseFile(data, token);
+			data = engine.ParseFile(data, token);
 			if (token.Length == 0)
 				break;
+			token.CopyTo(description);
 
-			token.CopyTo(szDescription);
-
-			if (szDescription[0] == '=') {
-				if (szBinding.SequenceEqual("blank".AsSpan())) {
-					// KeyBindList.AddSection(++sectionIndex, szDescription);
-					// KeyBindList.AddColumnToSection(sectionIndex, "Action", szDescription, SectionedListPanel.ColumnBright, 286);
-					// KeyBindList.AddColumnToSection(sectionIndex, "Key", "#GameUI_KeyButton", SectionedListPanel.ColumnBright, 286);
+			if (description[0] != '=') {
+				if (binding.SequenceEqual("blank".AsSpan())) {
+					// KeyBindList.AddSection(++sectionIndex, description);
+					// KeyBindList.AddColumnToSection(sectionIndex, "Action", description, SectionedListPanel.ColumnBright, 286);
+					// KeyBindList.AddColumnToSection(sectionIndex, "Key", "#GameUI_KeyButton", SectionedListPanel.ColumnBright, 128);
 				}
-			}
-			else {
-				item = new("Item");
-				item.SetString("Action", szDescription);
-				item.SetString("Binding", szBinding);
-				item.SetString("key", "");
-				// KeyBindList.AddItem(sectionIndex, item);
+				else {
+					KeyValues item = new("Item");
+					item.SetString("Action", description);
+					item.SetString("Binding", binding);
+					item.SetString("Key", "");
+					// KeyBindList.AddItem(sectionIndex, item);
+				}
 			}
 		}
 	}
+
 
 	public void GetItemForBinding() {
 
@@ -249,10 +248,10 @@ public class OptionsSubKeyboard : PropertyPage
 	public override void OnThink() {
 		base.OnThink();
 
-		// if (KeyBindList.IsCapturing()) {
-		// if (engine.CheckDoneKeyTrapping(ButtonCode.Invalid))
-		// 	Finish(ButtonCode.Invalid);
-		// }
+		if (KeyBindList.IsCapturing()) {
+			// if (engine.CheckDoneKeyTrapping(ButtonCode.Invalid))
+			// Finish(ButtonCode.Invalid);
+		}
 	}
 
 	public override void OnKeyCodePressed(ButtonCode code) {
@@ -294,19 +293,19 @@ class OptionsSubKeyboardAdvancedDlg : Frame
 		Input.SetAppModalSurface(this);
 
 		ConVarRef con_enable = new("con_enable");
-		// if (con_enable.IsValid())
-		// SetControlInt("ConsoleCheck", con_enable.GetBool() ? 1 : 0);
+		if (con_enable.IsValid())
+			SetControlInt("ConsoleCheck", con_enable.GetBool() ? 1 : 0);
 
 		ConVarRef hud_fastswitch = new("hud_fastswitch");
-		// if (hud_fastswitch.IsValid())
-		// SetControlInt("FastSwitchCheck", hud_fastswitch.GetBool() ? 1 : 0);
+		if (hud_fastswitch.IsValid())
+			SetControlInt("FastSwitchCheck", hud_fastswitch.GetBool() ? 1 : 0);
 	}
 
 	public void OnApplyData() {
 		ConVarRef con_enable = new("con_enable");
-		// con_enable.SetValue(GetControlInt("ConsoleCheck", 0));
+		con_enable.SetValue(GetControlInt("ConsoleCheck", 0));
 		ConVarRef hud_fastswitch = new("hud_fastswitch");
-		// hud_fastswitch.SetValue(GetControlInt("FastSwitchCheck", 0));
+		hud_fastswitch.SetValue(GetControlInt("FastSwitchCheck", 0));
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {

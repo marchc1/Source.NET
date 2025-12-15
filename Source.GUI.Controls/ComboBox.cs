@@ -21,7 +21,7 @@ class ComboBoxButton : Button
 #if OSX
 		SetTextInset(-3, 0);
 #else
-		SetTextInset(3, 0);
+		SetTextInset(QuickPropScale(3), 0);
 #endif
 		SetDefaultBorder(scheme.GetBorder("ScrollBarButtonBorder"));
 
@@ -31,18 +31,16 @@ class ComboBoxButton : Button
 		DisabledBgColor = GetSchemeColor("ComboBoxButton.DisabledBgColor", scheme);
 	}
 
-	public override IBorder GetBorder(/*bool depressed, bool armed, bool selected, bool keyfocus*/) {
-		return null!;
-	}
+	public override IBorder? GetBorder(bool depressed, bool armed, bool selected, bool keyfocus) => null;
 
 	static readonly KeyValues KV_CursorExited = new("CursorExited");
 	public override void OnCursorExited() {
 		CallParentFunction(KV_CursorExited);
 	}
 
-	public override Color GetButtonFgColor() {
+	public override Color GetButtonBgColor() {
 		if (IsEnabled())
-			return base.GetButtonFgColor();
+			return base.GetButtonBgColor();
 		return DisabledBgColor;
 	}
 }
@@ -143,12 +141,10 @@ public class ComboBox : TextEntry
 	}
 
 	public void SetMenu(Menu menu) {
-		if (DropDown != null)
-			DropDown.MarkForDeletion();
+		DropDown?.MarkForDeletion();
 
 		DropDown = menu;
-		if (DropDown != null)
-			DropDown.SetParent(this);
+		DropDown?.SetParent(this);
 	}
 
 	public override void PerformLayout() {
@@ -248,7 +244,7 @@ public class ComboBox : TextEntry
 	}
 
 	public override void OnSetText(ReadOnlySpan<char> text) {
-		if (text[0] == '#') {
+		if (!text.IsEmpty && text[0] == '#') {
 			ulong unlocalizedTextSymbol = Localize.FindIndex(text[1..]);
 			if (unlocalizedTextSymbol != 0 && unlocalizedTextSymbol != ulong.MaxValue)
 				text = Localize.GetValueByIndex(unlocalizedTextSymbol);
@@ -476,7 +472,7 @@ public class ComboBox : TextEntry
 			case "MenuClosed":
 				OnMenuClose();
 				break;
-			case "ActiveItem":
+			case "ActivateItem":
 				ActivateItem(message.GetInt("itemID", -1));
 				break;
 			default:

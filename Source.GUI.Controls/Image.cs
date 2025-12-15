@@ -11,6 +11,12 @@ public class Image : IImage
 	int X, Y, Width, Height;
 	Color Color;
 
+	public Image() {
+		SetPos(0, 0);
+		SetSize(0, 0);
+		SetColor(new(255, 255, 255, 255));
+	}
+
 	public virtual void GetContentSize(out int wide, out int tall) {
 		GetSize(out wide, out tall);
 	}
@@ -21,6 +27,7 @@ public class Image : IImage
 		x = X;
 		y = Y;
 	}
+
 	public virtual void GetSize(out int wide, out int tall) {
 		wide = Width;
 		tall = Height;

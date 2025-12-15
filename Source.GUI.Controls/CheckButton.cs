@@ -16,6 +16,12 @@ class CheckImage : TextImage
 		SetSize(20, 13);
 	}
 
+	public override void SetColor(Color color) {
+		BorderColor1 = color;
+		BorderColor2 = color;
+		CheckColor = color;
+	}
+
 	public override void Paint() {
 		DrawSetTextFont(GetFont()!);
 
@@ -23,7 +29,7 @@ class CheckImage : TextImage
 			DrawSetTextColor(BgColor);
 		else
 			DrawSetTextColor(CheckButton.GetDisabledBgColor());
-		DrawPrintChar(0, 1, 'g');
+		// DrawPrintChar(0, 1, 'g'); // FIXME: Why does DrawSetTextColor not work above? A value like 0,0,0,128 (TransparentBlack) is pure white?
 
 		DrawSetTextColor(BorderColor1);
 		DrawPrintChar(0, 1, 'e');
@@ -103,7 +109,7 @@ public class CheckButton : ToggleButton
 		SetPaintBackgroundEnabled(false);
 	}
 
-	public override IBorder? GetBorder() => null;
+	public override IBorder? GetBorder(bool depressed, bool armed, bool selected, bool keyfocus) => null;
 
 	public override void SetSelected(bool state) {
 		if (CheckButtonCheckable) {

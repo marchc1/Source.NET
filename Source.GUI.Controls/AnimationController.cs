@@ -116,6 +116,7 @@ public class AnimationController : Panel, IAnimationController
 	ulong YPos;
 	ulong Wide;
 	ulong Tall;
+	int[] ScreenBounds = new int[4];
 
 	// Static instance
 	public AnimationController() {
@@ -127,6 +128,11 @@ public class AnimationController : Panel, IAnimationController
 	}
 
 	public void Init() {
+		ScreenBounds[0] = -1;
+		ScreenBounds[1] = -1;
+		ScreenBounds[2] = -1;
+		ScreenBounds[3] = -1;
+
 		SetVisible(false);
 		SetProportional(true);
 
@@ -684,7 +690,27 @@ public class AnimationController : Panel, IAnimationController
 		return true;
 	}
 
-	public void UpdateScreenSize() {
+	public bool UpdateScreenSize() {
+		int screenWide, screenTall;
+		int sx = 0, sy = 0;
 
+		if (SizePanel != null) {
+			SizePanel.GetSize(out screenWide, out screenTall);
+			SizePanel.GetPos(out sx, out sy);
+		}
+		else
+			Surface.GetScreenSize(out screenWide, out screenTall);
+
+		bool changed = ScreenBounds[0] != sx ||
+			ScreenBounds[1] != sy ||
+			ScreenBounds[2] != screenWide ||
+			ScreenBounds[3] != screenTall;
+
+		ScreenBounds[0] = sx;
+		ScreenBounds[1] = sy;
+		ScreenBounds[2] = screenWide;
+		ScreenBounds[3] = screenTall;
+
+		return changed;
 	}
 }

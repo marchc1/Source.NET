@@ -29,6 +29,12 @@ public class TextEntry : Panel
 
 		GotoTextEnd();
 		SetAllowKeyBindingChainToParent(true);
+
+		RegisterColorAsOverridable(DisabledFgColor, "disabledFgColor_override");
+		RegisterColorAsOverridable(DisabledBgColor, "disabledBgColor_override");
+		RegisterColorAsOverridable(SelectionColor, "selectionColor_override");
+		RegisterColorAsOverridable(SelectionTextColor, "selectionTextColor_override");
+		RegisterColorAsOverridable(DefaultSelectionBG2Color, "defaultSelectionBG2Color_override");
 	}
 
 	public override void OnKeyFocusTicked() {
@@ -1999,10 +2005,9 @@ public class TextEntry : Panel
 
 	public void SetText(ReadOnlySpan<char> text) {
 		if (text.IsEmpty)
-			text = "";
+			text = [];
 
-		int length = text.IndexOf('\0');
-		if (length > 0 && text[0] == '#') {
+		if (!text.IsEmpty && text[0] == '#') {
 			ReadOnlySpan<char> localized = Localize.Find(text);
 			if (!localized.IsEmpty) {
 				SetText(localized);
@@ -2010,16 +2015,19 @@ public class TextEntry : Panel
 			}
 		}
 
+		int textLen = text.Length;
 		TextStream.Clear();
-		TextStream.EnsureCapacity(text.Length);
+		TextStream.EnsureCapacity(textLen);
+
 		int missed_count = 0;
-		for (int i = 0; i < length; i++) {
-			if (text[i] == '\r') {
+		for (int i = 0; i < textLen; i++) {
+			char ch = text[i];
+			if (ch == '\r') {
 				missed_count++;
 				continue;
 			}
-			TextStream.Add(text[i]);
-			SetCharAt(text[i], i - missed_count);
+			TextStream.Add(ch);
+			SetCharAt(ch, i - missed_count);
 		}
 
 		GotoTextStart();

@@ -27,9 +27,11 @@ public class Label : Panel
 		TextImage.SetColor(new(0, 0, 0, 0));
 		SetText(text);
 		TextImageIndex = AddImage(TextImage, 0);
+
+		RegisterColorAsOverridable(DisabledFgColor2, "disabledfgcolor2_override");
 	}
 
-	public nint AddImage(TextImage? textImage, int offset) {
+	public nint AddImage(IImage? textImage, int offset) {
 		nint newImage = Images.Count;
 		Images.Add(new() {
 			Image = textImage,
@@ -159,7 +161,7 @@ public class Label : Panel
 		ContentAlignment = alignment;
 	}
 
-	public void SizeToContents() {
+	public virtual void SizeToContents() {
 		GetContentSize(out int wide, out int tall);
 		SetSize(wide, tall);
 	}
@@ -176,9 +178,9 @@ public class Label : Panel
 
 		wide = (tx1 - tx0) + TextInsetX;
 
-		TextImage!.GetSize(out int iWide, out int iTall);
+		TextImage!.GetSize(out int iWide, out _);
 		wide -= iWide;
-		TextImage.GetContentSize(out iWide, out iTall);
+		TextImage.GetContentSize(out iWide, out int iTall);
 		wide += iWide;
 
 		foreach (var i in Images)
@@ -186,7 +188,8 @@ public class Label : Panel
 
 		tall = Math.Max((ty1 - ty0) + TextInsetY, iTall);
 	}
-	public virtual void GetText(Span<char> textOut) { }
+	public virtual void GetText(Span<char> textOut) => TextImage!.GetText(textOut);
+
 	public virtual void SetText(ReadOnlySpan<char> text) {
 		if (text.IsEmpty)
 			text = "";
@@ -275,28 +278,28 @@ public class Label : Panel
 				SetText(labelText);
 		}
 
+
 		ReadOnlySpan<char> alignmentString = resourceData.GetString("textAlignment", "");
 		Alignment align = (Alignment)(-1);
 
-		if (!alignmentString.Equals("north-west", StringComparison.OrdinalIgnoreCase))
+		if (alignmentString.Equals("north-west", StringComparison.OrdinalIgnoreCase))
 			align = Alignment.Northwest;
-		else if (!alignmentString.Equals("north", StringComparison.OrdinalIgnoreCase))
+		else if (alignmentString.Equals("north", StringComparison.OrdinalIgnoreCase))
 			align = Alignment.North;
-		else if (!alignmentString.Equals("north-east", StringComparison.OrdinalIgnoreCase))
+		else if (alignmentString.Equals("north-east", StringComparison.OrdinalIgnoreCase))
 			align = Alignment.Northeast;
-		else if (!alignmentString.Equals("west", StringComparison.OrdinalIgnoreCase))
+		else if (alignmentString.Equals("west", StringComparison.OrdinalIgnoreCase))
 			align = Alignment.West;
-		else if (!alignmentString.Equals("center", StringComparison.OrdinalIgnoreCase))
+		else if (alignmentString.Equals("center", StringComparison.OrdinalIgnoreCase))
 			align = Alignment.Center;
-		else if (!alignmentString.Equals("east", StringComparison.OrdinalIgnoreCase))
+		else if (alignmentString.Equals("east", StringComparison.OrdinalIgnoreCase))
 			align = Alignment.East;
-		else if (!alignmentString.Equals("south-west", StringComparison.OrdinalIgnoreCase))
+		else if (alignmentString.Equals("south-west", StringComparison.OrdinalIgnoreCase))
 			align = Alignment.Southwest;
-		else if (!alignmentString.Equals("south", StringComparison.OrdinalIgnoreCase))
+		else if (alignmentString.Equals("south", StringComparison.OrdinalIgnoreCase))
 			align = Alignment.South;
-		else if (!alignmentString.Equals("south-east", StringComparison.OrdinalIgnoreCase))
+		else if (alignmentString.Equals("south-east", StringComparison.OrdinalIgnoreCase))
 			align = Alignment.Southeast;
-
 
 		if (align != (Alignment)(-1))
 			SetContentAlignment(align);

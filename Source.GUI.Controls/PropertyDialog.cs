@@ -109,7 +109,7 @@ public class PropertyDialog : Frame
 	// 	base.OnKeyCodeTyped(code);
 	// }
 
-	static readonly KeyValues KV_ApplyChanges = new("GameUIHidden");
+	static readonly KeyValues KV_ApplyChanges = new("ApplyChanges");
 	public bool OnOK(bool applyOnly) {
 		PropertySheet!.ApplyChanges();
 
@@ -154,11 +154,11 @@ public class PropertyDialog : Frame
 		InvalidateLayout();
 	}
 
-	public void OnApplyButtonEnable(bool state) {
+	public void OnApplyButtonEnable() {
 		if (ApplyButton.IsEnabled())
 			return;
 
-		EnableApplyButton(state);
+		EnableApplyButton(true);
 	}
 
 	public void EnableApplyButton(bool state) {
@@ -172,7 +172,7 @@ public class PropertyDialog : Frame
 
 	public override void OnMessage(KeyValues message, IPanel? from) {
 		if (message.Name == "ApplyButtonEnable") {
-			OnApplyButtonEnable(message.GetBool("state", false));
+			OnApplyButtonEnable();
 			return;
 		}
 

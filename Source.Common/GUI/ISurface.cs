@@ -1,5 +1,6 @@
 using Source.Common.Input;
 using Source.Common.Launcher;
+using Source.Common.MaterialSystem;
 
 using System.Drawing;
 using System.Numerics;
@@ -222,4 +223,6 @@ public interface IMatSystemSurface : ISurface
 	void AttachToWindow(IWindow? window, bool appDrivesInput);
 	void EnableWindowsMessages(bool enabled);
 	int DrawTextLen(IFont font, ReadOnlySpan<char> text);
+	int GetTextureNumFrames(in TextureID id);
+	void DrawSetTextureFrame(in TextureID id, int frame, ref TokenCache frameCache);
 }

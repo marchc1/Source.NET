@@ -7,15 +7,12 @@ namespace Source.GUI.Controls;
 class ContextLabel : Label
 {
 	private Button TabButton;
-	public ContextLabel(Button parent, string panelName, string text) : base(parent, panelName, text) {
+	public ContextLabel(Button parent, ReadOnlySpan<char> panelName, ReadOnlySpan<char> text) : base(parent, panelName, text) {
 		TabButton = parent;
 		// SetBlockDragChaining(true);
 	}
 
-	public override void OnMousePressed(ButtonCode code) {
-		if (TabButton != null)
-			TabButton.FireActionSignal();
-	}
+	public override void OnMousePressed(ButtonCode code) => TabButton?.FireActionSignal();
 
 	public override void OnMouseReleased(ButtonCode code) {
 		base.OnMouseReleased(code);
@@ -52,7 +49,7 @@ class PageTab : Button
 	char[] ImageName;
 	bool ShowContextLabel;
 	bool AttemptingDrop;
-	ContextLabel ContextLabel;
+	ContextLabel? ContextLabel;
 	long HoverActivePageTime;
 	long DropHoverTime;
 
@@ -80,7 +77,10 @@ class PageTab : Button
 
 		SetMouseClickEnabled(ButtonCode.MouseRight, true);
 
-		ContextLabel = ShowContextLabel ? new(this, "Context", "9") : null!;
+		ContextLabel = ShowContextLabel ? new(this, "Context", "9") : null;
+
+		RegisterColorAsOverridable(TextColor, "selectedcolor");
+		RegisterColorAsOverridable(DimTextColor, "unselectedcolor");
 	}
 
 	public override void OnCursorEntered() {
@@ -147,7 +147,7 @@ class PageTab : Button
 			ClearImages();
 
 			Image.SetImage(SchemeManager.GetImage(ImageName, false)!);
-			// AddImage(Image.GetImage(), 2);
+			AddImage(Image.GetImage(), 2);
 			Image.GetSize(out int w, out int h);
 			w += ContextLabel != null ? 10 : 0;
 			if (ContextLabel != null)
@@ -191,7 +191,7 @@ class PageTab : Button
 		base.OnCommand(command);
 	}
 
-	public override IBorder? GetBorder(bool depressed, bool armed, bool seleced, bool keyfocus) {
+	public override IBorder? GetBorder(bool depressed, bool armed, bool selected, bool keyfocus) {
 		if (Active)
 			return ActiveBorder;
 		return NormalBorder;
@@ -263,15 +263,10 @@ class PageTab : Button
 
 public class PropertySheet : EditablePanel
 {
-	struct Page
+	struct Page(Panel pagePnl, bool contextMenu = false)
 	{
-		public Panel page;
-		public bool ContextMenu;
-
-		public Page(Panel pagePnl, bool contextMenu = false) {
-			page = pagePnl;
-			ContextMenu = contextMenu;
-		}
+		public Panel page = pagePnl;
+		public bool ContextMenu = contextMenu;
 	}
 
 	List<Page> Pages;
@@ -286,15 +281,16 @@ public class PropertySheet : EditablePanel
 	bool TabFocus;
 	float PageTransitionEffectTime;
 	bool SmallTabs;
-	IFont TabFont;
+	IFont? TabFont;
 	bool DraggableTabs;
 	bool ContextButton;
 	bool KBNavigationEnabled;
-	[PanelAnimationVar("tabxident", "0", "int")] protected int TabXIndent;
-	[PanelAnimationVar("tabxdelta", "0", "int")] protected int TabXDelta;
-	[PanelAnimationVar("tabxfittotext", "1", "int")] protected int TabFitText;
-	[PanelAnimationVar("tabheight", "28", "int")] protected int SpecifiedTabHeight;
-	[PanelAnimationVar("tabheight_small", "14", "int")] protected int SpecifiedTabHeightSmall;
+	[PanelAnimationVarAliasType("yoffset", "0", "proportional_int")] protected int PageYOffset;
+	[PanelAnimationVarAliasType("tabxindent", "0", "int")] protected int TabXIndent;
+	[PanelAnimationVarAliasType("tabxdelta", "0", "int")] protected int TabXDelta;
+	[PanelAnimationVarAliasType("tabxfittotext", "1", "bool")] protected bool TabFitText;
+	[PanelAnimationVarAliasType("tabheight", "28", "int")] protected int SpecifiedTabHeight;
+	[PanelAnimationVarAliasType("tabheight_small", "14", "int")] protected int SpecifiedTabHeightSmall;
 	int TabHeight;
 	int TabHeightSmall;
 	KeyValues? TabKV;
@@ -304,7 +300,7 @@ public class PropertySheet : EditablePanel
 	static readonly KeyValues KV_FindDefaultButton = new("FindDefaultButton");
 	static readonly KeyValues KV_ApplyButtonEnable = new("ApplyButtonEnable");
 
-	public PropertySheet(Panel? parent, string? panelName, bool draggableTabs = false) : base(parent, panelName) {
+	public PropertySheet(Panel? parent, ReadOnlySpan<char> panelName, bool draggableTabs = false) : base(parent, panelName) {
 		Pages = new();
 		PageTabs = new();
 		ActivePage = null;
@@ -316,7 +312,7 @@ public class PropertySheet : EditablePanel
 		TabFocus = false;
 		PageTransitionEffectTime = 0.0f;
 		SmallTabs = false;
-		// TabFont = 0;
+		TabFont = null;
 		DraggableTabs = draggableTabs;
 		TabKV = null;
 		TabHeight = 0;
@@ -328,7 +324,7 @@ public class PropertySheet : EditablePanel
 		KBNavigationEnabled = true;
 	}
 
-	public PropertySheet(Panel? parent, string? panelName, ComboBox combo) : base(parent, panelName) {
+	public PropertySheet(Panel? parent, ReadOnlySpan<char> panelName, ComboBox combo) : base(parent, panelName) {
 		Pages = new();
 		PageTabs = new();
 		ActivePage = null;
@@ -341,7 +337,7 @@ public class PropertySheet : EditablePanel
 		TabFocus = false;
 		PageTransitionEffectTime = 0.0f;
 		SmallTabs = false;
-		// TabFont = 0;
+		TabFont = null;
 		DraggableTabs = false;
 		TabKV = null;
 		TabHeight = 0;
@@ -388,8 +384,8 @@ public class PropertySheet : EditablePanel
 		tab.SetFont(TabFont);
 		if (ShowTabs)
 			tab.AddActionSignalTarget(this);
-		else if (Combo != null)
-			Combo.AddItem(title.ToString(), null);
+		else
+			Combo?.AddItem(title.ToString(), null);
 
 		if (TabKV != null)
 			tab.ApplySettings(TabKV);
@@ -411,8 +407,7 @@ public class PropertySheet : EditablePanel
 
 		if (ActivePage == null) {
 			ChangeActiveTab(0);
-			if (ActivePage != null)
-				ActivePage.RequestFocus();
+			ActivePage?.RequestFocus();
 		}
 	}
 
@@ -582,19 +577,21 @@ public class PropertySheet : EditablePanel
 			PageTransitionEffectTime = TransitionKV.GetFloat();
 	}
 
-	public void PaintBorder() {
+	public override void PaintBorder() {
 		IBorder border = GetBorder()!;
 		if (border == null)
 			return;
 
+		int repeats = 1; // QuickPropScaleCond
+
 		int px = 0, py = 0, pwide = 0, ptall = 0;
 		if (ActiveTab != null) {
 			ActiveTab.GetBounds(out px, out py, out pwide, out ptall);
-			ptall -= 1;
+			ptall -= repeats;
 		}
 
 		GetSize(out int wide, out int tall);
-		border.Paint(0, py + ptall, wide, tall, Sides.Top, px + 1, px + pwide - 1);
+		border.Paint(0, py + ptall, wide, tall, Sides.Top, px + repeats, px + pwide - repeats);
 	}
 
 	public override void PerformLayout() {
@@ -604,51 +601,54 @@ public class PropertySheet : EditablePanel
 		if (ActivePage != null) {
 			int tabHeight = IsSmallTabs() ? TabHeightSmall : TabHeight;
 			if (ShowTabs)
-				ActivePage.SetBounds(0, tabHeight, wide, tall - tabHeight);
+				ActivePage.SetBounds(0, tabHeight + PageYOffset, wide, tall - tabHeight);
 			else
-				ActivePage.SetBounds(0, 0, wide, tall);
+				ActivePage.SetBounds(0, PageYOffset, wide, tall);
 
 			ActivePage.InvalidateLayout();
 
-			int limit = PageTabs.Count;
-			int xtab = TabXIndent;
+		}
 
-			if (ShowTabs) {
-				for (int i = 0; i < limit; i++) {
-					PageTab tab = PageTabs[i];
+		int limit = PageTabs.Count;
+		int xtab = TabXIndent;
 
-					tab.GetSize(out int tabWide, out _);
+		if (ShowTabs) {
+			for (int i = 0; i < limit; i++) {
+				PageTab tab = PageTabs[i];
 
-					if (TabFitText != 0) {
-						tab.SizeToContents();
-						tabWide = tab.GetWide();
+				int tabHeight = IsSmallTabs() ? (TabHeightSmall - 1) : (TabHeight - 1);
 
-						tab.GetTextInset(out int XInset, out _);
-						tabWide += XInset * 2;
-					}
+				tab.GetSize(out int tabWide, out _);
 
-					if (tab == ActiveTab)
-						tab.SetBounds(xtab, 2, tabWide, tabHeight);
-					else
-						tab.SetBounds(xtab, 4, tabWide, tabHeight);
-					tab.SetVisible(true);
-					xtab += tabWide + 1 + TabXDelta;
+				if (TabFitText) {
+					tab.SizeToContents();
+					tabWide = tab.GetWide();
+
+					tab.GetTextInset(out int XInset, out _);
+					tabWide += XInset * 2;
 				}
-			}
-			else {
-				for (int i = 0; i < limit; i++)
-					PageTabs[i].SetVisible(false);
-			}
 
-			if (ActivePage != null) {
-				ActivePage.MoveToFront();
-				ActivePage.Repaint();
+				if (tab == ActiveTab)
+					tab.SetBounds(xtab, 2 + PageYOffset, tabWide, tabHeight);
+				else
+					tab.SetBounds(xtab, 4 + PageYOffset, tabWide, tabHeight - 2);
+				tab.SetVisible(true);
+				xtab += tabWide + 1 + TabXDelta;
 			}
+		}
+		else {
+			for (int i = 0; i < limit; i++)
+				PageTabs[i].SetVisible(false);
+		}
 
-			if (ActiveTab != null) {
-				ActiveTab.MoveToFront();
-				ActiveTab.Repaint();
-			}
+		if (ActivePage != null) {
+			ActivePage.MoveToFront();
+			ActivePage.Repaint();
+		}
+
+		if (ActiveTab != null) {
+			ActiveTab.MoveToFront();
+			ActiveTab.Repaint();
 		}
 	}
 
@@ -749,8 +749,7 @@ public class PropertySheet : EditablePanel
 		}
 
 		if (Pages[index].page == ActivePage) {
-			if (ActiveTab != null)
-				ActiveTab.RequestFocus();
+			ActiveTab?.RequestFocus();
 			TabFocus = true;
 			return;
 		}

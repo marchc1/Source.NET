@@ -38,6 +38,9 @@ public class ImagePanel : Panel
 		Rotation = IImageRotation.Unrotated;
 
 		SetImage(Image);
+
+		RegisterColorAsOverridable(FillColor, "fillcolor_override");
+		RegisterColorAsOverridable(DrawColor, "drawcolor_override");
 	}
 
 	public void SetImage(IImage? image) {

@@ -16,10 +16,7 @@ public class PropertyPage : EditablePanel
 	public virtual void OnApplyChanges() { }
 	public virtual void OnPageShow() { }
 	public virtual void OnPageHide() { }
-
-	public void OnPageTabActivated(Panel pageTab) {
-		PageTab = pageTab;
-	}
+	public void OnPageTabActivated(Panel pageTab) => PageTab = pageTab;
 
 	public override void OnKeyCodeTyped(ButtonCode code) {
 		switch (code) {

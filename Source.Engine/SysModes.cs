@@ -131,8 +131,14 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 
 		using MatRenderContextPtr renderContext = new(materials);
 
+		Span<char> startupGraphicName = stackalloc char[MAX_PATH];
+		// ComputeStartupGraphicName(startupGraphicName);
+
+		if (debugstartup || true)
+			"console/background01.vtf".CopyTo(startupGraphicName);
+
 		KeyValues keyValues = new KeyValues("UnlitGeneric");
-		keyValues.SetString("$basetexture", "console/kagami.vtf");
+		keyValues.SetString("$basetexture", startupGraphicName);
 		keyValues.SetInt("$ignorez", 1);
 		keyValues.SetInt("$nofog", 1);
 		keyValues.SetInt("$no_fullbright", 1);
@@ -221,7 +227,7 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 	IVTFTexture? loadingTexture;
 
 	private void SetupStartupGraphic() {
-		string material = "materials/console/kagami.vtf";
+		string material = "materials/console/background01.vtf";
 		backgroundTexture = LoadVTF(material);
 		if (backgroundTexture == null) {
 			Error($"Can't find background image '{material}'\n");

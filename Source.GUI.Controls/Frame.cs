@@ -29,6 +29,46 @@ public class FrameSystemButton : MenuButton
 		if (th > h)
 			h = th;
 	}
+
+	public override void ApplySchemeSettings(IScheme scheme) {
+		base.ApplySchemeSettings(scheme);
+
+		EnabledColor = GetSchemeColor("FrameSystemButton.FgColor", scheme);
+		DisabledColor = GetSchemeColor("FrameSystemButton.BgColor", scheme);
+
+		ReadOnlySpan<char> enabledImage = EnabledImage ?? scheme.GetResourceString("FrameSystemButton.EnabledImage");
+		ReadOnlySpan<char> disabledImage = DisabledImage ?? scheme.GetResourceString("FrameSystemButton.DisabledImage");
+		// Enabled = SchemeManager.GetImage(enabledImage, false);
+		// Disabled = SchemeManager.GetImage(disabledImage, false);
+
+		SetTextInset(0, 0);
+		SetEnabled(IsEnabled());
+	}
+
+	public override IBorder? GetBorder(bool depressed, bool armed, bool selected, bool keyfocus) => null;
+
+	public override void SetEnabled(bool state) {
+		base.SetEnabled(state);
+
+		if (IsEnabled() && Responsive) {
+			if (Enabled != null)
+				SetImageAtIndex(0, Enabled, 0);
+
+			SetBgColor(EnabledColor);
+			SetDefaultColor(EnabledColor, EnabledColor);
+			SetArmedColor(EnabledColor, EnabledColor);
+			SetDepressedColor(EnabledColor, EnabledColor);
+		}
+		else {
+			if (Disabled != null)
+				SetImageAtIndex(0, Disabled, 0);
+
+			SetBgColor(DisabledColor);
+			SetDefaultColor(DisabledColor, DisabledColor);
+			SetArmedColor(DisabledColor, DisabledColor);
+			SetDepressedColor(DisabledColor, DisabledColor);
+		}
+	}
 }
 
 public class GripPanel : Panel
@@ -56,7 +96,7 @@ public class GripPanel : Panel
 		SnapRange = DEFAULT_SNAP_RANGE;
 
 		if (xdir == 1 && ydir == 1) {
-			SetPaintEnabled(false);
+			SetPaintEnabled(true);
 			SetPaintBackgroundEnabled(true);
 		}
 
@@ -554,10 +594,17 @@ public class Frame : EditablePanel
 			SetMaximizeButtonVisible(false);
 		}
 
-		// MenuButton = new FrameSystemButton(this, "frame_menu");
-		// MenuButton.SetMenu(GetSysMenu());
+		MenuButton = new FrameSystemButton(this, "frame_menu");
+		MenuButton.SetMenu(GetSysMenu());
 
 		SetupResizeCursors();
+
+		RegisterColorAsOverridable(InFocusBgColor, "infocus_bgcolor_override");
+		RegisterColorAsOverridable(OutOfFocusBgColor, "outoffocus_bgcolor_override");
+		RegisterColorAsOverridable(TitleBarBgColor, "titlebarbgcolor_override");
+		RegisterColorAsOverridable(TitleBarDisabledBgColor, "titlebardisabledbgcolor_override");
+		RegisterColorAsOverridable(TitleBarFgColor, "titlebarfgcolor_override");
+		RegisterColorAsOverridable(TitleBarDisabledFgColor, "titlebardisabledfgcolor_override");
 	}
 
 	private void SetupResizeCursors() {
@@ -596,10 +643,10 @@ public class Frame : EditablePanel
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
 
-		SetOverridableColor(out TitleBarFgColor, GetSchemeColor("FrameTitleBar.TextColor", scheme));
-		SetOverridableColor(out TitleBarBgColor, GetSchemeColor("FrameTitleBar.BgColor", scheme));
-		SetOverridableColor(out TitleBarDisabledFgColor, GetSchemeColor("FrameTitleBar.DisabledTextColor", scheme));
-		SetOverridableColor(out TitleBarDisabledBgColor, GetSchemeColor("FrameTitleBar.DisabledBgColor", scheme));
+		SetOverridableColor(ref TitleBarFgColor, GetSchemeColor("FrameTitleBar.TextColor", scheme));
+		SetOverridableColor(ref TitleBarBgColor, GetSchemeColor("FrameTitleBar.BgColor", scheme));
+		SetOverridableColor(ref TitleBarDisabledFgColor, GetSchemeColor("FrameTitleBar.DisabledTextColor", scheme));
+		SetOverridableColor(ref TitleBarDisabledBgColor, GetSchemeColor("FrameTitleBar.DisabledBgColor", scheme));
 
 		ReadOnlySpan<char> font;
 		if (SmallCaption)
@@ -631,8 +678,8 @@ public class Frame : EditablePanel
 		TransitionEffectTime = float.TryParse(scheme.GetResourceString("Frame.TransitionEffectTime"), out float r) ? r : 0;
 		FocusTransitionEffectTime = float.TryParse(scheme.GetResourceString("Frame.FocusTransitionEffectTime"), out r) ? r : 0;
 
-		SetOverridableColor(out InFocusBgColor, scheme.GetColor("Frame.BgColor", GetBgColor()));
-		SetOverridableColor(out OutOfFocusBgColor, scheme.GetColor("Frame.OutOfFocusBgColor", InFocusBgColor));
+		SetOverridableColor(ref InFocusBgColor, scheme.GetColor("Frame.BgColor", GetBgColor()));
+		SetOverridableColor(ref OutOfFocusBgColor, scheme.GetColor("Frame.OutOfFocusBgColor", InFocusBgColor));
 
 		ReadOnlySpan<char> resourceString = scheme.GetResourceString("Frame.ClientInsetX");
 		if (!resourceString.IsEmpty)
@@ -804,6 +851,13 @@ public class Frame : EditablePanel
 			FinishClose();
 	}
 
+	public void DisableFadeEffects(bool state) {
+		DisableFadeEffect = state;
+		TransitionEffectTime = 0.0f;
+	}
+
+	public void SetFadeEffectDisableOverride(bool state) => DisableFadeEffect = state;
+
 	public override void ApplySettings(KeyValues resourceData) {
 		resourceData.SetInt("visible", -1);
 		base.ApplySettings(resourceData);
@@ -883,7 +937,7 @@ public class Frame : EditablePanel
 		return SysMenu;
 	}
 
-	public void Close() {
+	public virtual void Close() {
 		OnClose();
 	}
 
@@ -966,7 +1020,7 @@ public class Frame : EditablePanel
 		else
 			Title?.SetColor(TitleBarDisabledFgColor);
 
-		if (HasFocus) {
+		if (HasFocus) { // TODO: gmod's fade effect is significantly less aggressive, we need to try match it
 			if (FocusTransitionEffectTime != 0 && (!DisableFadeEffect))
 				GetAnimationController().RunAnimationCommand(this, "BgColor", InFocusBgColor, 0.0f, DisableFadeEffect ? 0.0f : FocusTransitionEffectTime, Interpolators.Linear);
 			else
@@ -986,10 +1040,6 @@ public class Frame : EditablePanel
 	private void FlashWindowStop() {
 		Surface.FlashWindow(this, false);
 		FlashWindow = false;
-	}
-
-	private void SetOverridableColor(out Color outColor, Color color) {
-		outColor = color; // TODO: How the hell are we going to implement this right...
 	}
 
 	public void MoveToCenterOfScreen() {
@@ -1066,7 +1116,12 @@ public class Frame : EditablePanel
 	}
 
 	public bool IsSizeable() => Sizeable;
-	public void SetSizeable(bool state) => Sizeable = state;
+
+	public void SetSizeable(bool state) {
+		Sizeable = state;
+		SetupResizeCursors();
+	}
+
 	public bool IsMoveable() => Moveable;
 	public void SetMoveable(bool state) => Moveable = state;
 	public bool GetClipToParent() => ClipToParent;
@@ -1084,5 +1139,50 @@ public class Frame : EditablePanel
 		}
 
 		base.OnMousePressed(code);
+	}
+
+	private void InternalSetTitle(ReadOnlySpan<char> title) => SetTitle(title, true);
+	private void OnCloseFrameButtonPressed() => OnCommand("Close");
+	private void OnMinimize() => Surface.SetMinimized(this, true);
+
+	static readonly KeyValues KV_FlashWindow = new("FlashWindow");
+	bool NextFlashState = false;
+	private void InternalFlashWindow() {
+		if (FlashWindow) {
+			NextFlashState = true;
+			Surface.FlashWindow(this, true);
+			NextFlashState = !NextFlashState;
+
+			PostMessage(this, KV_FlashWindow, 1.8f);
+		}
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		switch (message.Name) {
+			case "Close":
+				Close();
+				return;
+			case "CloseModal":
+				CloseModal();
+				return;
+			case "SetTitle":
+				InternalSetTitle(message.GetString("text", ""));
+				return;
+			case "FlashWindow":
+				InternalFlashWindow();
+				return;
+			case "DialogVariables":
+
+				return;
+			case "CloseFrameButtonPressed":
+				OnCloseFrameButtonPressed();
+				return;
+			case "Minimize":
+				OnMinimize();
+				return;
+			default:
+				base.OnMessage(message, from);
+				break;
+		}
 	}
 }

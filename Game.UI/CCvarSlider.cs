@@ -15,9 +15,9 @@ public class CCvarSlider : Slider
 	bool ModifiedOnce;
 	float StartValue;
 	int iStartValue;
-	float LastSliderValue;
+	int LastSliderValue;
 	float CurrentValue;
-	InlineArray64<char> CvarName;
+	string? CvarName;
 	bool CreatedInCode;
 	float MinValue;
 	float MaxValue;
@@ -63,7 +63,7 @@ public class CCvarSlider : Slider
 
 		SetTickCaptions(min, max);
 
-		cvarName.CopyTo(CvarName);
+		CvarName = cvarName.ToString();
 
 		ModifiedOnce = false;
 		AllowOutOfRange = allowOutOfRange;
@@ -103,7 +103,7 @@ public class CCvarSlider : Slider
 	}
 
 	public void SetCVarName(ReadOnlySpan<char> cvarName) {
-		cvarName.CopyTo(CvarName);
+		CvarName = cvarName.ToString();
 		ModifiedOnce = false;
 		Reset();
 	}
@@ -125,7 +125,7 @@ public class CCvarSlider : Slider
 	}
 
 	public override void Paint() {
-		ConVarRef var = new(CvarName!, true);
+		ConVarRef var = new(CvarName, true);
 		if (!var.IsValid()) {
 			base.Paint();
 			return;
@@ -209,7 +209,7 @@ public class CCvarSlider : Slider
 		if (HasBeenModified()) {
 			if (LastSliderValue != GetValue()) {
 				LastSliderValue = GetValue();
-				CurrentValue = GetValue() / 100.0f;
+				CurrentValue = LastSliderValue / 100.0f;
 			}
 
 			PostActionSignal(KV_ControlModified);

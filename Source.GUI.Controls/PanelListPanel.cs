@@ -2,7 +2,6 @@ using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.GUI.Controls;
 
-
 public class PanelListPanel : EditablePanel
 {
 	const int DEFAULT_HEIGHT = 24;

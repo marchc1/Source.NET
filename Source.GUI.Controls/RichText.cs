@@ -1,4 +1,3 @@
-
 using CommunityToolkit.HighPerformance;
 
 using Source.Common.Formats.Keyvalues;
@@ -131,7 +130,7 @@ public class RichText : Panel
 	const int MAX_BUFFER_SIZE = 999999;
 	const int DRAW_OFFSET_X = 3;
 	const int DRAW_OFFSET_Y = 1;
-	public RichText(Panel? parent, string? name) : base(parent, name) {
+	public RichText(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 		AllTextAlphaIsZero = false;
 		Font = null;
 		FontUnderline = null;

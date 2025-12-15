@@ -38,13 +38,11 @@ public class LoadingDialog : Frame
 			GetSize(out int wide, out int tall);
 			float x, y;
 
-			if (ModInfo.IsSinglePlayerOnly())
-			{
+			if (ModInfo.IsSinglePlayerOnly()) {
 				x = (screenWide - wide) * 0.50f;
 				y = (screenTall - tall) * 0.86f;
 			}
-			else
-			{
+			else {
 				x = screenWide - (wide * 1.30f);
 				y = screenTall * 0.875f;
 			}
@@ -53,8 +51,7 @@ public class LoadingDialog : Frame
 		}
 		else if (Center)
 			MoveToCenterOfScreen();
-		else
-		{
+		else {
 			Surface.GetWorkspaceBounds(out int x, out int y, out int screenWide, out int screenTall);
 			GetSize(out int wide, out int tall);
 
@@ -83,11 +80,16 @@ public class LoadingDialog : Frame
 		else
 			base.OnCommand(command);
 	}
-	void Init() {
+
+	public LoadingDialog(Panel? parent) : base(parent, "LoadingDialog") {
 		SetDeleteSelfOnClose(true);
 
-		SetSize(416, 100);
-		SetTitle("#GameUI_Loading", true);
+		// ConsoleStyle = true;
+
+		if (!ConsoleStyle) {
+			SetSize(416, 100);
+			SetTitle("#GameUI_Loading", true);
+		}
 
 		Center = !GameUI!.HasLoadingBackgroundDialog();
 
@@ -127,17 +129,15 @@ public class LoadingDialog : Frame
 
 			ProgressFraction = 0;
 		}
-
-		InfoLabel.SetBounds(20, 32, 392, 24);
-		Progress.SetBounds(20, 64, 300, 24);
-		CancelButton.SetBounds(330, 64, 72, 24);
-		Progress2.SetVisible(false);
+		else {
+			InfoLabel.SetBounds(20, 32, 392, 24);
+			Progress.SetBounds(20, 64, 300, 24);
+			CancelButton.SetBounds(330, 64, 72, 24);
+			Progress2.SetVisible(false);
+		}
 
 		SetupControlSettings(false);
 	}
-	public LoadingDialog() : base(null, "LoadingDialog") => Init();
-	public LoadingDialog(Panel? parent) : base(parent, "LoadingDialog") => Init();
-
 
 	private void SetupControlSettings(bool forceShowProgressText) {
 		ShowingVACInfo = false;
@@ -149,6 +149,9 @@ public class LoadingDialog : Frame
 	}
 
 	internal void DisplayGenericError(ReadOnlySpan<char> failureReason, ReadOnlySpan<char> extendedReason) {
+		if (ConsoleStyle)
+			return;
+
 		Activate();
 
 		SetupControlSettingsForErrorDisplay("resource/LoadingDialogError.res");
@@ -191,17 +194,20 @@ public class LoadingDialog : Frame
 	}
 
 	internal void Open() {
-		SetTitle("#GameUI_Loading", true);
+		if (!ConsoleStyle)
+			SetTitle("#GameUI_Loading", true);
 
 		HideOtherDialogs(true);
 		base.Activate();
 
-		Progress.SetVisible(true);
-		if (ModInfo.IsSinglePlayerOnly())
-			InfoLabel.SetVisible(true);
+		if (!ConsoleStyle) {
+			Progress.SetVisible(true);
+			if (ModInfo.IsSinglePlayerOnly())
+				InfoLabel.SetVisible(true);
 
-		CancelButton.SetText("#GameUI_Cancel");
-		CancelButton.SetCommand("Cancel");
+			CancelButton.SetText("#GameUI_Cancel");
+			CancelButton.SetCommand("Cancel");
+		}
 	}
 
 	private void HideOtherDialogs(bool hide) {
@@ -225,14 +231,12 @@ public class LoadingDialog : Frame
 	}
 
 	internal bool SetProgressPoint(float progress) {
-		if (ConsoleStyle)
-		{
+		if (ConsoleStyle) {
 			if (progress >= 0.99f)
 				progress = 1.0f;
 
 			progress = Math.Clamp(progress, 0.0f, 1.0f);
-			if ((int)(progress * 25) != ProgressFraction)
-			{
+			if ((int)(progress * 25) != ProgressFraction) {
 				ProgressFraction = progress;
 				return true;
 			}
@@ -286,8 +290,7 @@ public class LoadingDialog : Frame
 			return false;
 
 		bool bret = InfoLabel.IsVisible();
-		if (bret != show)
-		{
+		if (bret != show) {
 			SetupControlSettings(show);
 			InfoLabel.SetVisible(show);
 		}

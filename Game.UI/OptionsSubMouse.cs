@@ -1,5 +1,6 @@
 using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Game.UI;
@@ -44,6 +45,10 @@ public class OptionsSubMouse : PropertyPage
 		JoyPitchSensitivityPreLabel = new(this, "JoystickPitchSensitivityPreLabel", "#GameUI_JoystickLookSpeedPitch");
 
 		LoadControlSettings("resource/OptionsSubMouse.res");
+
+		UpdateSensitivityLabel();
+		UpdateAccelerationLabel();
+		UpdateJoystickPanels();
 	}
 
 	public override void OnResetData() {
@@ -84,10 +89,11 @@ public class OptionsSubMouse : PropertyPage
 			var.SetValue(MouseAccelerationCheckBox.IsSelected() ? 3 : 0);
 	}
 
+	static readonly KeyValues KV_ApplyButtonEnable = new("ApplyButtonEnable");
 	public void OnControlModified(Panel panel) {
-		PostActionSignal(new KeyValues("ApplyButtonEnable"));
+		PostActionSignal(KV_ApplyButtonEnable);
 
-		if (panel == MouseSensitivitySlider && MouseAccelExponentSlider.HasBeenModified())
+		if (panel == MouseSensitivitySlider && MouseSensitivitySlider.HasBeenModified())
 			UpdateSensitivityLabel();
 		else if (panel == MouseAccelExponentSlider && MouseAccelExponentSlider.HasBeenModified())
 			UpdateAccelerationLabel();
@@ -96,6 +102,29 @@ public class OptionsSubMouse : PropertyPage
 		else if (panel == MouseAccelerationCheckBox) {
 			MouseAccelExponentSlider.SetEnabled(MouseAccelerationCheckBox.IsSelected());
 			MouseAccelExponentLabel.SetEnabled(MouseAccelerationCheckBox.IsSelected());
+		}
+	}
+
+	public override void OnTextChanged(Panel from) {
+		if (from == MouseSensitivityLabel) {
+			Span<char> buf = stackalloc char[64];
+			MouseSensitivityLabel.GetText(buf);
+
+			if (float.TryParse(buf.ToString(), out float value) && value >= 0.0f) {
+				MouseSensitivitySlider.SetSliderValue(value);
+				PostActionSignal(KV_ApplyButtonEnable);
+			}
+			return;
+		}
+
+		if (from == MouseAccelExponentLabel) {
+			Span<char> buf = stackalloc char[64];
+			MouseAccelExponentLabel.GetText(buf);
+
+			if (float.TryParse(buf.ToString(), out float value) && value >= 1.0f) {
+				MouseAccelExponentSlider.SetSliderValue(value);
+				PostActionSignal(KV_ApplyButtonEnable);
+			}
 		}
 	}
 
@@ -122,5 +151,14 @@ public class OptionsSubMouse : PropertyPage
 		JoyPitchSensitivitySlider.SetEnabled(joystickEnabled);
 		JoyYawSensitivityPreLabel.SetEnabled(joystickEnabled);
 		JoyPitchSensitivityPreLabel.SetEnabled(joystickEnabled);
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name.Equals("ControlModified"))
+			OnControlModified((Panel)from!);
+		else if (message.Name.Equals("CheckButtonChecked"))
+			OnControlModified((Panel)from!);
+		else
+			base.OnMessage(message, from);
 	}
 }

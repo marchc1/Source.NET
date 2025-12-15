@@ -11,9 +11,7 @@ using Source.Common.Input;
 using Source.Common.Launcher;
 using Source.Common.Utilities;
 
-using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
-using System.Numerics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
@@ -87,7 +85,7 @@ public enum BuildModeFlags
 	SaveWideProportionalTall = 1 << 13,
 	SaveTallProportionalWide = 1 << 14,
 	SaveXPosProportionalParent = 1 << 15,
-	SaveYposProportionalParent = 1 << 16,
+	SaveYPosProportionalParent = 1 << 16,
 	SaveWideProportionalSelf = 1 << 17,
 	SaveTallProportionalSelf = 1 << 18,
 }
@@ -265,6 +263,9 @@ public class Panel : IPanel
 		RoundedCorners = RoundedCorners.All;
 
 		Cursor = CursorCode.Arrow;
+
+		RegisterColorAsOverridable(FgColor, "fgcolor_override");
+		RegisterColorAsOverridable(BgColor, "bgcolor_override");
 	}
 
 	public virtual IBorder? GetBorder() => Border;
@@ -335,7 +336,7 @@ public class Panel : IPanel
 	short AbsX, AbsY;
 	short ZPos;
 
-	bool Visible;
+	public bool Visible;
 	bool Enabled;
 	bool Popup;
 	bool MouseInput;
@@ -717,7 +718,7 @@ public class Panel : IPanel
 		BuildModeFlags flagRightAlign = x ? BuildModeFlags.SaveXPos_RightAligned : BuildModeFlags.SaveYPos_BottomAligned;
 		BuildModeFlags nFlagCenterAlign = x ? BuildModeFlags.SaveXPos_CenterAligned : BuildModeFlags.SaveYPos_CenterAligned;
 		BuildModeFlags flagProportionalSelf = x ? BuildModeFlags.SaveXPosProportionalSelf : BuildModeFlags.SaveYPosProportionalSelf;
-		BuildModeFlags flagProportionalParent = x ? BuildModeFlags.SaveXPosProportionalParent : BuildModeFlags.SaveYposProportionalParent;
+		BuildModeFlags flagProportionalParent = x ? BuildModeFlags.SaveXPosProportionalParent : BuildModeFlags.SaveYPosProportionalParent;
 
 		BuildModeFlags flags = 0;
 		int posDelta;
@@ -811,7 +812,7 @@ public class Panel : IPanel
 							| BuildModeFlags.SaveWideProportional | BuildModeFlags.SaveTallProportional
 							| BuildModeFlags.SaveXPosProportionalSelf | BuildModeFlags.SaveYPosProportionalSelf
 							| BuildModeFlags.SaveWideProportionalTall | BuildModeFlags.SaveTallProportionalWide
-							| BuildModeFlags.SaveXPosProportionalParent | BuildModeFlags.SaveYposProportionalParent
+							| BuildModeFlags.SaveXPosProportionalParent | BuildModeFlags.SaveYPosProportionalParent
 							| BuildModeFlags.SaveWideProportionalSelf | BuildModeFlags.SaveTallProportionalSelf);
 
 		Surface.GetScreenSize(out int alignScreenWide, out int alignScreenTall);
@@ -945,9 +946,9 @@ public class Panel : IPanel
 			RoundedCorners = (RoundedCorners)roundedCorners;
 
 		// ReadOnlySpan<char> SiblingName = resourceData.GetString("pin_to_sibling", null);
-		// PinCorner pinOurCornerToSubling = GetPinCornerFromString(resourceData.GetString("pin_our_corner_to_sibling", null));
-		// PinCorner pinSublingCorner = GetPinCornerFromString(resourceData.GetString("pin_sibling_corner", null));
-		// PinToSibling(SiblingName, pinOurCornerToSubling, pinSublingCorner);
+		// PinCorner pinCornerToSibling = GetPinCornerFromString(resourceData.GetString("pin_corner_to_sibling", null));
+		// PinCorner pinSiblingCorner = GetPinCornerFromString(resourceData.GetString("pin_sibling_corner", null));
+		// PinToSibling(SiblingName, pinCornerToSibling, pinSiblingCorner);
 
 		ReadOnlySpan<char> pKeyboardInputEnabled = resourceData.GetString("keyboardinputenabled", null);
 		if (!pKeyboardInputEnabled.IsEmpty && pKeyboardInputEnabled.Length > 0) {
@@ -1133,13 +1134,11 @@ public class Panel : IPanel
 	}
 
 	public bool HasParent(IPanel potentialParent) {
-		IPanel? parent = this.Parent;
+		if (this == potentialParent)
+			return true;
 
-		while (parent != null) {
-			if (parent == potentialParent)
-				return true;
-			parent = parent.GetParent();
-		}
+		if (Parent != null)
+			return Parent.HasParent(potentialParent);
 
 		return false;
 	}
@@ -1394,7 +1393,7 @@ public class Panel : IPanel
 		}
 
 		for (int i = 0, childCount = Children.Count; i < childCount; i++) {
-			IPanel child = Children[i];
+			Panel child = Children[i];
 			bool bVisible = child.IsVisible();
 
 			if (Surface.ShouldPaintChildPanel(child)) {
@@ -1595,7 +1594,7 @@ public class Panel : IPanel
 		Surface.DrawGetTextureSize(BgTextureId1, out w, out h);
 	}
 
-	private void PaintBorder() {
+	public virtual void PaintBorder() {
 		Border?.Paint(this);
 	}
 
@@ -1647,7 +1646,7 @@ public class Panel : IPanel
 			outResourceData.SetInt("ypos", y);
 		}
 
-		//if (Toolips != null) {
+		//if (Tooltips != null) {
 
 		//}
 
@@ -1687,6 +1686,11 @@ public class Panel : IPanel
 		}
 	}
 
+	private void AddToOverridableColors(Color color, string scriptName) {
+
+	}
+
+	public void RegisterColorAsOverridable(Color name, string scriptName) => AddToOverridableColors(name, scriptName);
 
 	// This in theory will replicate the pointer logic?
 	private void ApplyOverridableColors() {
@@ -1696,6 +1700,20 @@ public class Panel : IPanel
 			if (entry.Overridden)
 				entry.Func = (in OverrideableColorEntry e) => e.ColorFromScript;
 		}
+	}
+
+
+	public void SetOverridableColor(ref Color outColor, in Color color) { // is this correct?
+		for (int i = 0; i < OverrideableColorEntries.Count; i++) {
+			OverrideableColorEntry entry = OverrideableColorEntries[i];
+			if (entry.Overridden) {
+				if (entry.Color() == outColor)
+					return;
+			}
+		}
+
+		// Didn't find it, or it's not been overridden.
+		outColor = color;
 	}
 
 	public Color GetSchemeColor(ReadOnlySpan<char> keyName, IScheme scheme) {
@@ -2003,12 +2021,11 @@ public class Panel : IPanel
 
 		OnThink();
 	}
-
 	public void SetPanelBorderEnabled(bool enabled) => Flags = enabled ? Flags |= PanelFlags.PaintEnabled : Flags &= ~PanelFlags.PaintEnabled;
-	public void SetPaintBackgroundEnabled(bool enabled) => Flags = enabled ? Flags |= PanelFlags.PaintBackgroundEnabled : Flags &= ~PanelFlags.PaintBackgroundEnabled;
-	public void SetPaintBorderEnabled(bool enabled) => Flags = enabled ? Flags |= PanelFlags.PaintBorderEnabled : Flags &= ~PanelFlags.PaintBorderEnabled;
-	public void SetPaintEnabled(bool enabled) => Flags = enabled ? Flags |= PanelFlags.PaintEnabled : Flags &= ~PanelFlags.PaintEnabled;
-	public void SetPostChildPaintEnabled(bool enabled) => Flags = enabled ? Flags |= PanelFlags.PostChildPaintEnabled : Flags &= ~PanelFlags.PostChildPaintEnabled;
+	public void SetPaintBackgroundEnabled(bool enabled) => Flags = enabled ? Flags | PanelFlags.PaintBackgroundEnabled : Flags & ~PanelFlags.PaintBackgroundEnabled;
+	public void SetPaintBorderEnabled(bool enabled) => Flags = enabled ? Flags | PanelFlags.PaintBorderEnabled : Flags & ~PanelFlags.PaintBorderEnabled;
+	public void SetPaintEnabled(bool enabled) => Flags = enabled ? Flags | PanelFlags.PaintEnabled : Flags & ~PanelFlags.PaintEnabled;
+	public void SetPostChildPaintEnabled(bool enabled) => Flags = enabled ? Flags | PanelFlags.PostChildPaintEnabled : Flags & ~PanelFlags.PostChildPaintEnabled;
 
 	IPanel IPanel.GetChild(int index) => GetChild(index);
 
@@ -2529,6 +2546,8 @@ public class Panel : IPanel
 
 		BuildGroup?.PanelAdded(this);
 	}
+
+	public int QuickPropScale(int x) => SchemeManager.QuickPropScaleCond(IsProportional(), GetScheme()!, x);
 }
 
 class FloatProperty : IPanelAnimationPropertyConverter
