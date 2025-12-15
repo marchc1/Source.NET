@@ -1,12 +1,13 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
+using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.MaterialSystem;
 using Source.Engine.Client;
 
 namespace Source.Engine;
 
-public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, IMaterialSystem materials, IVideoMode videomode) : IMod
+public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, ICommandLine commandLine, IMaterialSystem materials, IVideoMode videomode) : IMod
 {
 	private bool IsServerOnly(IEngineAPI api) => ((EngineAPI)api).Dedicated;
 
@@ -19,8 +20,11 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 			cl.RestrictClientCommands = false;
 		}
 
-		int width = 1600;
-		int height = 900;
+		// Temporary - we need to reconsider MaterialSystem_Config
+		int width = commandLine.ParmValue("-width", 1600);
+		width = commandLine.ParmValue("-w", width);
+		int height = commandLine.ParmValue("-height", 900); 
+		height = commandLine.ParmValue("-h", height);
 		bool windowed = true;
 
 		return videomode.CreateGameWindow(width, height, windowed);
