@@ -75,16 +75,16 @@ class HistoryItem
 		SetText(src.GetText(), src.GetExtra());
 	}
 
-	public string GetText() {
+	public ReadOnlySpan<char> GetText() {
 		if (Text != null)
 			return Text;
-		return "";
+		return null;
 	}
 
-	public string GetExtra() {
+	public ReadOnlySpan<char> GetExtra() {
 		if (ExtraText != null)
 			return ExtraText;
-		return "";
+		return null;
 	}
 
 	public void SetText(ReadOnlySpan<char> text, ReadOnlySpan<char> extra) {
@@ -160,19 +160,21 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			CompletionList.SetVisible(false);
 		else {
 			CompletionList.SetVisible(true);
-
-			const int MAX_MENU_ITEMS = 10;
 			CompletionList.DeleteAllItems();
 
+			const int MAX_MENU_ITEMS = 10;
+
 			for (int i = 0; i < CompletionItems.Count && i < MAX_MENU_ITEMS; i++) {
-				ReadOnlySpan<char> text;
+				Span<char> text = new char[256];
 
 				if (i == MAX_MENU_ITEMS - 1)
-					text = "...";
+					strcpy(text, "...");
 				else {
 					Assert(CompletionItems[i] != default);
-					text = CompletionItems[i]!.GetItemText();
+					strcpy(text, CompletionItems[i].GetItemText());
 				}
+
+				text = text.SliceNullTerminatedString();
 
 				KeyValues kv = new("CompletionCommand");
 				kv.SetString("command", text);
@@ -250,8 +252,8 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			if (!strieq(command, item.GetText()))
 				continue;
 
-			if (!extra.IsEmpty || item.GetExtra() != null) {
-				if (extra.IsEmpty || item.GetExtra() == null)
+			if (!extra.IsEmpty || !item.GetExtra().IsEmpty) {
+				if (extra.IsEmpty || item.GetExtra().IsEmpty)
 					continue;
 
 				if (!strieq(extra, item.GetExtra()))
@@ -482,7 +484,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			strcpy(CompletedText, txt);
 		}
 
-		Entry.SetText(CompletedText);
+		Entry.SetText(CompletedText.SliceNullTerminatedString());
 		Entry.GotoTextEnd();
 		Entry.SelectNone();
 
@@ -602,7 +604,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 	public void TextEntryRequestFocus() => Entry.RequestFocus();
 
 	const int MAX_HISTORY_ITEMS = 500;
-	class CompletionItem // todo: currently not 1:1
+	class CompletionItem
 	{
 		public bool IsCommand;
 		public ConCommandBase? Command;
@@ -617,7 +619,18 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		public CompletionItem(CompletionItem src) {
 			IsCommand = src.IsCommand;
 			Command = src.Command;
-			Text = src.Text == null ? null : new HistoryItem(src.Text.Text, src.Text.ExtraText);
+			Text = src.Text != null ? new HistoryItem(src.Text) : null;
+		}
+
+		public CompletionItem Assign(CompletionItem src) {
+			if (ReferenceEquals(this, src))
+				return this;
+
+			IsCommand = src.IsCommand;
+			Command = src.Command;
+			Text = src.Text != null ? new HistoryItem(src.Text) : null;
+
+			return this;
 		}
 
 		public ReadOnlySpan<char> GetName() {
@@ -627,12 +640,13 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		}
 
 		public ReadOnlySpan<char> GetItemText() {
-			string text = "";
+			Span<char> text = new char[256];
+
 			if (Text != null) {
 				if (Text.HasExtra)
-					text = Text.GetText() + " " + Text.GetExtra();
+					sprintf(text, "%s %s").S(Text.GetText()).S(Text.GetExtra());
 				else
-					text = Text.GetText();
+					strcpy(text, Text.GetText());
 			}
 
 			return text;

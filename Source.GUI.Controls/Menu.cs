@@ -100,7 +100,7 @@ public class Menu : Panel
 		}
 	}
 
-	public Menu(Panel parent, ReadOnlySpan<char> panelName) : base(parent, panelName) {
+	public Menu(Panel? parent, ReadOnlySpan<char> panelName) : base(parent, panelName) {
 		Alignment = Alignment.West;
 		FixedWidth = 0;
 		MinimumWidth = 0;
@@ -1072,7 +1072,7 @@ public class Menu : Panel
 		Span<char> menuItemName = stackalloc char[255];
 
 		int i = itemToSelect + 1;
-		if (i > MenuItems.Count)
+		if (i >= MenuItems.Count)
 			i = 0;
 
 		while (i != itemToSelect) {

@@ -374,8 +374,6 @@ public class ListPanel : Panel
 		if (scrollToItem)
 			Vbar.SetValue(displayedRow);
 
-		Console.WriteLine($"ListPanel.AddItem: Added item ID {itemID}");
-
 		return itemID;
 	}
 

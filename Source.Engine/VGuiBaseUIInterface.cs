@@ -12,8 +12,6 @@ using Source.Common.Input;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.Networking;
-using Source.Engine.Client;
-using Source.Engine.Server;
 using Source.GUI.Controls;
 
 using System.Numerics;
@@ -117,8 +115,6 @@ public class FocusOverlayPanel : Panel
 	public static readonly ConVar mat_drawTitleSafe = new("mat_drawTitleSafe", "0", FCvar.None, "Enable title safe overlay");
 	public static readonly ConVar vgui_drawfocus = new("vgui_drawfocus", "0", FCvar.None, "Report which panel is under the mouse.");
 	static public List<Panel> FocusPanelList = [];
-
-	public IMaterialSystem materials;
 
 	public FocusOverlayPanel(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 		SetPaintEnabled(false);
@@ -612,14 +608,12 @@ public class EngineVGui(
 		staticFocusOverlayPanel = new(staticPanel, "FocusOverlayPanel");
 		staticFocusOverlayPanel.SetBounds(0, 0, w, h);
 		staticFocusOverlayPanel.SetZPos(150);
-		// staticFocusOverlayPanel.MoveToFront(); // FIXME: crashes :(
-		staticFocusOverlayPanel.materials = materials;
+		staticFocusOverlayPanel.MoveToFront();
 
 		// TODO: the other panels...
 		// Specifically,
 		// - DemoUIPanel (if we even do demos)
 		// - FogUIPanel
-		// - CL_CreateTextureListPanel
 		// - CreateVProfPanels
 
 		if (IsPC()) {
@@ -650,6 +644,7 @@ public class EngineVGui(
 
 		ActivateGameUI();
 	}
+
 	void DumpPanels_r(IPanel panel, int level) {
 		int i;
 		ReadOnlySpan<char> name = panel.GetName();
