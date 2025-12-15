@@ -170,9 +170,66 @@ public unsafe class FreeTypeFont : BaseFont
 		FT_GlyphSlotRec_* slot = face->glyph;
 		FT_Render_Glyph(slot, AntiAliased ? FT_Render_Mode_.FT_RENDER_MODE_NORMAL : FT_Render_Mode_.FT_RENDER_MODE_MONO);
 		DrawBitmap(slot, rgbaWide, rgbaTall, rgba);
+
+		ApplyDropShadowToTexture(rgbaWide, rgbaTall, rgba, DropShadowOffset);
 		ApplyOutlineToTexture(rgbaWide, rgbaTall, rgba, OutlineSize);
+		ApplyGaussianBlurToTexture(rgbaWide, rgbaTall, rgba, Blur);
+		ApplyScanlineEffectToTexture(rgbaWide, rgbaTall, rgba, ScanLines);
+		ApplyRotaryEffectToTexture(rgbaWide, rgbaTall, rgba, Rotary);
 	}
 
+	private void ApplyDropShadowToTexture(int rgbaWide, int rgbaTall, Span<byte> rgba, uint dropShadowOffset) {
+		if (dropShadowOffset == 0)
+			return;
+
+		for (int y = rgbaTall - 1; y >= dropShadowOffset; y--) {
+			for (int x = rgbaWide - 1; x >= dropShadowOffset; x--) {
+				Span<byte> dest = rgba[((x + (y * rgbaWide)) * 4)..];
+				if (dest[3] == 0) {
+					Span<byte> src = rgba[(int)((x - dropShadowOffset + ((y - dropShadowOffset) * rgbaWide)) * 4)..];
+					dest[0] = 0;
+					dest[1] = 0;
+					dest[2] = 0;
+					dest[3] = src[3];
+				}
+			}
+		}
+	}
+	private void ApplyGaussianBlurToTexture(int rgbaWide, int rgbaTall, Span<byte> rgba, uint blur) { }
+	private void ApplyScanlineEffectToTexture(int rgbaWide, int rgbaTall, Span<byte> rgba, uint scanLines) {
+		if (scanLines < 2)
+			return;
+
+		const float scale = 0.7f;
+
+		for (int y = 0; y < rgbaTall; y++) {
+			if (y % scanLines == 0)
+				continue;
+
+			Span<byte> pBits = rgba[((y * rgbaWide) * 4)..];
+
+			for (int x = 0; x < rgbaWide; x++, pBits = pBits[4..]) {
+				pBits[0] = (byte)(pBits[0] * scale);
+				pBits[1] = (byte)(pBits[1] * scale);
+				pBits[2] = (byte)(pBits[2] * scale);
+			}
+		}
+	}
+	private void ApplyRotaryEffectToTexture(int rgbaWide, int rgbaTall, Span<byte> rgba, bool rotary) {
+		if (!rotary)
+			return;
+
+		int y = rgbaTall / 2;
+
+		Span<byte> line = rgba[((y * rgbaWide) * 4)..];
+
+		for (int x = 0; x < rgbaWide; x++, line = line[4..]) {
+			line[0] = 127;
+			line[1] = 127;
+			line[2] = 127;
+			line[3] = 255;
+		}
+	}
 	private void ApplyOutlineToTexture(int rgbaWide, int rgbaTall, Span<byte> rgba, uint outlineSize) {
 		if (outlineSize == 0)
 			return;
