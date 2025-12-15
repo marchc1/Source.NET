@@ -205,7 +205,7 @@ public class CommandLine : ICommandLine
 		if (IsLikelyCmdLineParameter(index + 1))
 			return defaultValue;
 
-		return parms[index];
+		return parms[index + 1];
 	}
 
 	public int ParmValue(string name, int defaultValue) => int.TryParse(ParmValue(name), out int result) ? result : defaultValue;
