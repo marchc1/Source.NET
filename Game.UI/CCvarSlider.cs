@@ -53,7 +53,7 @@ public class CCvarSlider : Slider
 		MinValue = minValue;
 		MaxValue = maxValue;
 
-		SetRange((int)(100.0f * MinValue), (int)(100.0f * MaxValue));
+		SetRange((int)(CVARSLIDER_SCALE_FACTOR * MinValue), (int)(CVARSLIDER_SCALE_FACTOR * MaxValue));
 
 		Span<char> min = stackalloc char[32];
 		Span<char> max = stackalloc char[32];
@@ -109,7 +109,7 @@ public class CCvarSlider : Slider
 	}
 
 	public void SetMinMaxValues(float minValue, float maxValue, bool setTickDisplay) {
-		SetRange((int)(100.0f * minValue), (int)(100.0f * maxValue));
+		SetRange((int)(CVARSLIDER_SCALE_FACTOR * minValue), (int)(CVARSLIDER_SCALE_FACTOR * maxValue));
 
 		if (setTickDisplay) {
 			Span<char> min = stackalloc char[32];
@@ -133,7 +133,7 @@ public class CCvarSlider : Slider
 
 		float curValue = var.GetFloat();
 		if (curValue != StartValue) {
-			int value = (int)(curValue * 100.0f);
+			int value = (int)(CVARSLIDER_SCALE_FACTOR * curValue);
 			StartValue = curValue;
 			CurrentValue = curValue;
 
@@ -149,7 +149,7 @@ public class CCvarSlider : Slider
 			if (AllowOutOfRange)
 				StartValue = CurrentValue;
 			else
-				StartValue = iStartValue / 100.0f;
+				StartValue = iStartValue / CVARSLIDER_SCALE_FACTOR;
 
 			ConVarRef var = new(CvarName!, true);
 			if (!var.IsValid())
@@ -162,11 +162,13 @@ public class CCvarSlider : Slider
 		if (AllowOutOfRange)
 			return CurrentValue;
 		else
-			return GetValue() / 100.0f;
+			return GetValue() / CVARSLIDER_SCALE_FACTOR;
 	}
 
+	public const float CVARSLIDER_SCALE_FACTOR = 100.0f;
+
 	public void SetSliderValue(float value) {
-		int val = (int)(value * 100.0f);
+		int val = (int)(CVARSLIDER_SCALE_FACTOR * value);
 		SetValue(val, false);
 
 		LastSliderValue = GetValue();
@@ -191,7 +193,7 @@ public class CCvarSlider : Slider
 		StartValue = var.GetFloat();
 		CurrentValue = StartValue;
 
-		int value = (int)(StartValue * 100.0f);
+		int value = (int)(CVARSLIDER_SCALE_FACTOR * StartValue);
 		SetValue(value, false);
 
 		iStartValue = GetValue();
@@ -209,7 +211,7 @@ public class CCvarSlider : Slider
 		if (HasBeenModified()) {
 			if (LastSliderValue != GetValue()) {
 				LastSliderValue = GetValue();
-				CurrentValue = LastSliderValue / 100.0f;
+				CurrentValue = LastSliderValue / CVARSLIDER_SCALE_FACTOR;
 			}
 
 			PostActionSignal(KV_ControlModified);
