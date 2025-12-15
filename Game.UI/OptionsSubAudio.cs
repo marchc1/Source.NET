@@ -1,5 +1,6 @@
 using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Game.UI;
@@ -92,6 +93,18 @@ public class OptionsSubAudio : PropertyPage
 		}
 
 		// todo finish
+	}
+
+
+	static readonly KeyValues KV_ApplyButtonEnable = new("ApplyButtonEnable");
+	public void OnControlModified(Panel panel) {
+		PostActionSignal(KV_ApplyButtonEnable);
+	}
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name.Equals("ControlModified"))
+			OnControlModified((Panel)from!);
+		else
+			base.OnMessage(message, from);
 	}
 }
 
