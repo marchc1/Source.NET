@@ -51,7 +51,10 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 
 	public static ReadOnlySpan<byte> ParseFile(ReadOnlySpan<byte> data, Span<char> token) {
 		ReadOnlySpan<byte> returnData = Parse(data);
-		Encoding.ASCII.GetChars(com_token, token);
+		ReadOnlySpan<byte> nullTermToken = com_token[..MemoryExtensions.IndexOf(com_token, (byte)0)];
+		token.Clear(); // todo: only set one char
+		Encoding.ASCII.GetChars(nullTermToken, token);
+
 		return returnData;
 	}
 
@@ -75,6 +78,8 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 			if (c == 0)
 				return null; 
 			data = data[1..];
+			if (data.IsEmpty)
+				return null;
 		}
 
 		if (c == '/' && data[1] == '/') {

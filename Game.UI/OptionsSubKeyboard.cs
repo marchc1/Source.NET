@@ -109,7 +109,7 @@ public class OptionsSubKeyboard : PropertyPage
 
 		while (true) {
 			data = engine.ParseFile(data, token);
-			if (token.Length == 0)
+			if (strlen(token) == 0)
 				break;
 
 			token.CopyTo(binding);
