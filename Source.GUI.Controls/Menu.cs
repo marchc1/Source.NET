@@ -408,9 +408,9 @@ public class Menu : Panel
 			menuTall += MenuItemHeight;
 			totalTall += MenuItemHeight;
 
-			if (child.IsCheckable() && CheckImageWidth > 0)
+			if (!child.IsCheckable() && CheckImageWidth > 0)
 				child.SetTextInset(CheckImageWidth, 0);
-			else
+			else if(child.IsCheckable())
 				child.SetTextInset(0, 0);
 
 			for (int j = 0; j < Separators.Count; j++) {

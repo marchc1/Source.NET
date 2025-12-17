@@ -4,6 +4,8 @@ using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 
+using System.Text;
+
 namespace Source.Engine;
 
 /// <summary>
@@ -43,12 +45,81 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 		Initialized = true;
 	}
 
-	public static ReadOnlySpan<char> ParseFile(ReadOnlySpan<char> data, Span<char> token) {
-		throw new NotImplementedException();
+	const int COM_TOKEN_MAX_LENGTH = 1024;
+	static readonly byte[] com_token = new byte[COM_TOKEN_MAX_LENGTH];
+	static bool com_ignorecolons = false;
+
+	public static ReadOnlySpan<byte> ParseFile(ReadOnlySpan<byte> data, Span<char> token) {
+		ReadOnlySpan<byte> returnData = Parse(data);
+		ReadOnlySpan<byte> nullTermToken = com_token[..MemoryExtensions.IndexOf(com_token, (byte)0)];
+		token.Clear(); // todo: only set one char
+		Encoding.ASCII.GetChars(nullTermToken, token);
+
+		return returnData;
 	}
 
-	static ReadOnlySpan<char> Parse(ReadOnlySpan<char> data) {
-		throw new NotImplementedException();
+	static ReadOnlySpan<byte> Parse(ReadOnlySpan<byte> data) {
+		byte c;
+		int len;
+		CharacterSet breaks;
+
+		breaks = BreakSetIncludingColons;
+		if (com_ignorecolons)
+			breaks = BreakSet;
+
+		len = 0;
+		com_token[0] = 0;
+
+		if (data.IsEmpty)
+			return null;
+
+		skipwhite:
+		while ((c = data[0]) <= ' ') {
+			if (c == 0)
+				return null; 
+			data = data[1..];
+			if (data.IsEmpty)
+				return null;
+		}
+
+		if (c == '/' && data[1] == '/') {
+			while (!data.IsEmpty && data[0] != '\0' && data[0] != '\n')
+				data = data[1..];
+			goto skipwhite;
+		}
+
+		if (c == '\"') {
+			data = data[1..];
+			while (true) {
+				c = data[0];
+				data = data[1..];
+				if (c == '\"' || c == '\0') {
+					com_token[len] = 0;
+					return data;
+				}
+				com_token[len] = c;
+				len++;
+			}
+		}
+
+		if (breaks.Contains((char)c)) {
+			com_token[len] = c;
+			len++;
+			com_token[len] = 0;
+			return data[1..];
+		}
+
+		do {
+			com_token[len] = c;
+			data = data[1..];
+			len++;
+			c = data[0];
+			if (breaks.Contains((char)c))
+				break;
+		} while (c > 32);
+
+		com_token[len] = 0;
+		return data;
 	}
 
 	public static bool IsValidPath(ReadOnlySpan<char> filename) {

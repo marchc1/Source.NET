@@ -707,7 +707,7 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public void DrawSetTextColor(in Color color) {
-		DrawTextColor = color;
+		DrawSetTextColor(color.R, color.G, color.B, color.A);
 	}
 
 	public void DrawSetTextFont(IFont? font) {

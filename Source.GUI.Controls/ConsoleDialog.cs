@@ -359,7 +359,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 							else
 								strValue = floatVal.ToString("F");
 
-							item.Text = new HistoryItem(strValue);
+							item.Text = new HistoryItem(var.GetName(), strValue);
 						}
 						else {
 							item.Text = new HistoryItem(var.GetName(), var.GetString());

@@ -75,7 +75,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 
 	public bool Con_IsVisible() => Con.IsVisible();
 
-	ReadOnlySpan<char> IEngineClient.ParseFile(ReadOnlySpan<char> data, Span<char> token) => Common.ParseFile(data, token);
+	ReadOnlySpan<byte> IEngineClient.ParseFile(ReadOnlySpan<byte> data, Span<char> token) => Common.ParseFile(data, token);
 
 	public void GetViewAngles(out QAngle viewangles) {
 		viewangles = cl.ViewAngles;
