@@ -133,9 +133,9 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		Array.Clear(PartialText);
 		Entry.GetText(PartialText);
 
-		int len = PartialText.IndexOf('\0');
+		nint len = strlen(PartialText);
 
-		bool hitTilde = len != 0 && (PartialText[len] == '~' || PartialText[len] == '`');
+		bool hitTilde = len > 0 && (PartialText[len - 1] == '~' || PartialText[len - 1] == '`');
 		bool altKeyDown = Input.IsKeyDown(ButtonCode.KeyLAlt) || Input.IsKeyDown(ButtonCode.KeyRAlt);
 		bool ctrlKeyDown = Input.IsKeyDown(ButtonCode.KeyLControl) || Input.IsKeyDown(ButtonCode.KeyRControl);
 
