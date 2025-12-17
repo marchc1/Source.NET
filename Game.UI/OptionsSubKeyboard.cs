@@ -98,11 +98,11 @@ public class OptionsSubKeyboard : PropertyPage
 		long size = fileSystem.Size("scripts/kb_act.lst");
 		if (size <= 0) return;
 
-		Span<char> fileData = stackalloc char[(int)size];
+		Span<byte> fileData = stackalloc byte[(int)size];
 		if (!fileSystem.ReadFile("scripts/kb_act.lst", null, fileData.AsBytes(), 0))
 			return;
 
-		ReadOnlySpan<char> data = fileData;
+		ReadOnlySpan<byte> data = fileData;
 
 		int sectionIndex = 0;
 		Span<char> token = stackalloc char[512];

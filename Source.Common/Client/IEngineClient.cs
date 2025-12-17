@@ -101,7 +101,7 @@ public interface IEngineClient
 	bool IsDrawingLoadingImage();
 	bool GetPlayerInfo(int playerIndex, out PlayerInfo playerInfo);
 	bool Con_IsVisible();
-	ReadOnlySpan<char> ParseFile(ReadOnlySpan<char> data, Span<char> token);
+	ReadOnlySpan<byte> ParseFile(ReadOnlySpan<byte> data, Span<char> token);
 	void GetViewAngles(out QAngle viewangles);
 	void SetViewAngles(in QAngle viewangles);
 	void GetScreenSize(out int w, out int h);
