@@ -180,7 +180,7 @@ public class MenuItem : Button
 		SetArmedColor(GetSchemeColor("Menu.ArmedTextColor", GetFgColor(), scheme), GetSchemeColor("Menu.ArmedBgColor", GetBgColor(), scheme));
 		SetDepressedColor(GetSchemeColor("Menu.ArmedTextColor", GetFgColor(), scheme), GetSchemeColor("Menu.ArmedBgColor", GetBgColor(), scheme));
 
-		SetTextInset(int.TryParse(scheme.GetResourceString("Menu.TextInset"), out int r) ? r : 0, 0); // GetProportionalScaledValueEx
+		SetTextInset(int.TryParse(scheme.GetResourceString("Menu.TextInset"), out int r) ? r : 0, 0);
 
 		if (CasecadeArrow != null) {
 			CasecadeArrow.SetFont(scheme.GetFont("Marlett", IsProportional()));
