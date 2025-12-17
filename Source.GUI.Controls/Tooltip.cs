@@ -234,7 +234,7 @@ class TextTooltip : BaseTooltip
 	}
 
 	public override void HideTooltip() {
-		// TooltipWindow?.SetVisible(false);
-		// base.HideTooltip();
+		TooltipWindow?.SetVisible(false);
+		base.HideTooltip();
 	}
 }

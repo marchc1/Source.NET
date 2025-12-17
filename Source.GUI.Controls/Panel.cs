@@ -1178,7 +1178,8 @@ public class Panel : IPanel
 	}
 
 	public void SetTooltip(BaseTooltip? tooltip, ReadOnlySpan<char> text) {
-		if (!ToolTipOverridden) { }
+		if (!ToolTipOverridden)
+			Tooltips?.Dispose();
 
 		Tooltips = tooltip;
 		ToolTipOverridden = true;
