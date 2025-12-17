@@ -107,7 +107,7 @@ public class OptionsSubKeyboard : PropertyPage
 		int sectionIndex = 0;
 		Span<char> token = stackalloc char[512];
 
-		while (false) {
+		while (true) {
 			data = engine.ParseFile(data, token);
 			if (token.Length == 0)
 				break;
