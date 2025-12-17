@@ -1433,7 +1433,7 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public void SetPanelVisible(IPanel panel, bool state) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public void SetTitle(IPanel panel, ReadOnlySpan<char> title) {

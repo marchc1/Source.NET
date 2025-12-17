@@ -115,17 +115,19 @@ public class OptionsSubKeyboard : PropertyPage
 			token.CopyTo(binding);
 
 			data = engine.ParseFile(data, token);
-			if (token.Length == 0)
+			if (strlen(token) == 0)
 				break;
 			token.CopyTo(description);
 
 			if (description[0] != '=') {
 				if (binding.SequenceEqual("blank".AsSpan())) {
+					Console.WriteLine($"New Section: Description: '{description.ToString()}'");
 					// KeyBindList.AddSection(++sectionIndex, description);
 					// KeyBindList.AddColumnToSection(sectionIndex, "Action", description, SectionedListPanel.ColumnBright, 286);
 					// KeyBindList.AddColumnToSection(sectionIndex, "Key", "#GameUI_KeyButton", SectionedListPanel.ColumnBright, 128);
 				}
 				else {
+					Console.WriteLine($"Binding: '{binding.ToString()}' Description: '{description.ToString()}'");
 					KeyValues item = new("Item");
 					item.SetString("Action", description);
 					item.SetString("Binding", binding);
