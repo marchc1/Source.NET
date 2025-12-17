@@ -1,11 +1,13 @@
 using Game.Shared;
 
+using Source;
 using Source.Common;
 using Source.Common.Mathematics;
 
 using System.Numerics;
 
 namespace Game.Client;
+
 public class Prediction : IPrediction
 {
 
@@ -113,14 +115,46 @@ public class Prediction : IPrediction
 		throw new NotImplementedException();
 	}
 
+
+	readonly GlobalVarsBase saveVars = new(true);
 	public void Update(int startFrame, bool validFrame, int incomingAcknowledged, int outgoingCommand) {
-		throw new NotImplementedException();
+		EnginePaused = engine.IsPaused();
+		bool receivedNewWorldUpdate = true;
+		if (PreviousStartFrame == startFrame && cl_predict.GetInt() != 0)
+			receivedNewWorldUpdate = false;
+		PreviousStartFrame = startFrame;
+
+		gpGlobals.CopyInstantiatedReferenceTo(saveVars);
+		_Update(receivedNewWorldUpdate, validFrame, incomingAcknowledged, outgoingCommand);
+		saveVars.CopyInstantiatedReferenceTo(gpGlobals);
+	}
+
+	void _Update(bool receivedNewWorldUpdate, bool validFrame, int incomingAcknowledged, int outgoingCommand) {
+		C_BasePlayer? localPlayer = C_BasePlayer.GetLocalPlayer();
+		if (localPlayer == null)
+			return;
+
+		engine.GetViewAngles(out QAngle viewangles);
+		localPlayer.SetLocalAngles(viewangles);
+
+		if (!validFrame)
+			return;
+
+		if (cl_predict.GetInt() == 0) {
+			localPlayer.SetLocalViewAngles(viewangles);
+			return;
+		}
+
+
 	}
 
 	public int GetIncomingPacketNumber() {
 		return IncomingPacketNumber;
 	}
 
+	public bool IsFirstTimePredicted() {
+		return FirstTimePredicted;
+	}
 	public bool InPrediction() {
 		return bInPrediction;
 	}

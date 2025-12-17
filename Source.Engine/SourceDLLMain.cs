@@ -32,6 +32,7 @@ public static class SourceDllMain
 	[Dependency] public static RenderUtils renderUtils { get; private set; } = null!;
 	[Dependency] public static CommonHostState host_state { get; private set; } = null!;
 	[Dependency] public static Render R { get; private set; } = null!;
+	[Dependency] public static IPrediction g_ClientSidePrediction { get; private set; } = null!;
 	[Dependency] public static ClientGlobalVariables clientGlobalVariables { get; private set; } = null!;
 	[Dependency] public static ServerGlobalVariables serverGlobalVariables { get; private set; } = null!;
 	public static IMaterialSystem materialSystem { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => materials; }

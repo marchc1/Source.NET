@@ -11,6 +11,8 @@ using Source.Common.Engine;
 using Source.Common.Networking;
 using Source.Engine.Client;
 
+using Steamworks;
+
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -108,7 +110,19 @@ public partial class CL(IServiceProvider services, Net Net,
 	}
 
 	public void RunPrediction(PredictionReason reason) {
+		if (!cl.IsActive())
+			return;
 
+		if (cl.DeltaTick < 0)
+			return;
+
+		bool valid = cl.DeltaTick > 0;
+
+		Predict(cl.DeltaTick, valid, cl.LastCommandAck, cl.LastOutgoingCommand + cl.ChokedCommands);
+	}
+
+	private void Predict(int worldStartState, bool validFrame, int startCommand, int stopCommand) {
+		g_ClientSidePrediction.Update(worldStartState, validFrame, startCommand, stopCommand);
 	}
 
 	public void SendMove() {
@@ -166,7 +180,7 @@ public partial class CL(IServiceProvider services, Net Net,
 			return;
 
 		bool hasProblem = cl.NetChannel!.IsTimingOut() && cl.IsActive();
-		if(hasProblem){
+		if (hasProblem) {
 			Con_NPrint_s np = default;
 			np.TimeToLive = 1.0;
 			np.Index = 2;
