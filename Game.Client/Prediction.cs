@@ -99,7 +99,7 @@ public class Prediction : IPrediction
 		if (current == null)
 			return;
 
-		int c = predictables->GetPredictableCount();
+		int c = predictables.GetPredictableCount();
 		int i;
 		for (i = 0; i < c; i++) {
 			C_BaseEntity? ent = predictables.GetPredictable(i);
@@ -111,6 +111,10 @@ public class Prediction : IPrediction
 
 			ent.PreEntityPacketReceived(commandsAcknowledged);
 		}
+	}
+
+	private void ShutdownPredictables() {
+		// todo
 	}
 
 	public void SetLocalViewAngles(in QAngle ang) {

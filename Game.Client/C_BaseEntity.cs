@@ -12,16 +12,13 @@ using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
-using Source.Engine;
 
 using System.Numerics;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 
 using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
 
 namespace Game.Client;
-
 
 public static class BaseEntityConsts{
 	public const int MULTIPLAYER_BACKUP = 90;
@@ -43,7 +40,7 @@ public enum EntClientFlags
 public class PredictableList : IPredictableList
 {
 	public static readonly PredictableList g_Predictables = new();
-	public C_BaseEntity? GetPrdictable(int slot) {
+	public C_BaseEntity? GetPredictable(int slot) {
 		return cl_entitylist.GetBaseEntityFromHandle(Predictables[slot]);
 	}
 
@@ -125,6 +122,11 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual bool IsCombatItem() => false;
 
 	public ReadOnlySpan<char> GetClassname() => "not_yet_implemented";
+
+
+	public virtual void PreEntityPacketReceived(int commandsAcknowledged) {
+		throw new NotImplementedException();
+	}
 
 	public static void InterpolateServerEntities() {
 		s_bInterpolate = cl_interpolate.GetBool();

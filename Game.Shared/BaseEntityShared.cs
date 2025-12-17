@@ -8,6 +8,7 @@ Server
 	.SharedBaseEntityConstants;
 
 
+
 #if CLIENT_DLL
 global using SharedBaseEntity = Game.Client.C_BaseEntity;
 using Source.Common;
@@ -142,7 +143,6 @@ public partial class
 	public virtual ref readonly Vector3 WorldSpaceCenter() {
 		return ref GetAbsOrigin(); // todo
 	}
-
 }
 
 #endif
