@@ -347,6 +347,8 @@ public class Panel : IPanel
 	IScheme? Scheme;
 	PanelFlags Flags;
 	BuildModeFlags BuildModeFlags;
+	BaseTooltip? Tooltips;
+	bool ToolTipOverridden;
 	readonly List<Panel> Children = [];
 	readonly List<OverrideableColorEntry> OverrideableColorEntries = [];
 
@@ -908,8 +910,8 @@ public class Panel : IPanel
 		SetTabPosition(resourceData.GetInt("tabPosition", 0));
 
 		ReadOnlySpan<char> tooltip = resourceData.GetString("tooltiptext", null);
-		// if (tooltip != null && tooltip.Length > 0)
-		// GetTooltip()?.SetText(tooltip);
+		if (!tooltip.IsEmpty && tooltip.Length > 0)
+			GetTooltip()?.SetText(tooltip);
 
 		int paintBackground = resourceData.GetInt("paintbackground", -1);
 		if (paintBackground >= 0)
@@ -1045,7 +1047,7 @@ public class Panel : IPanel
 		ResizeDeltaY = unpinnedCornerOffsetY;
 	}
 
-	readonly string[] PinCornerStrings = {
+	readonly string[] PinCornerStrings = [
 		"PIN_TOPLEFT",
 		"PIN_TOPRIGHT",
 		"PIN_BOTTOMLEFT",
@@ -1054,7 +1056,7 @@ public class Panel : IPanel
 		"PIN_CENTER_RIGHT",
 		"PIN_CENTER_BOTTOM",
 		"PIN_CENTER_LEFT"
-	};
+	];
 
 	private PinCorner GetPinCornerFromString(ReadOnlySpan<char> cornerName) {
 		if (cornerName.IsEmpty)
@@ -1073,8 +1075,7 @@ public class Panel : IPanel
 
 	public virtual void OnChildSettingsApplied(KeyValues resources, Panel child) {
 		Panel? parent = GetParent();
-		if (parent != null)
-			parent.OnChildSettingsApplied(resources, child);
+		parent?.OnChildSettingsApplied(resources, child);
 	}
 
 	public virtual IPanel? GetCurrentKeyFocus() {
@@ -1162,6 +1163,31 @@ public class Panel : IPanel
 		}
 
 		return true;
+	}
+
+	public BaseTooltip GetTooltip() {
+		if (Tooltips == null) {
+			Tooltips = new TextTooltip(this, null);
+			ToolTipOverridden = false;
+
+			if (IsConsoleStylePanel())
+				Tooltips.SetEnabled(false);
+		}
+
+		return Tooltips;
+	}
+
+	public void SetTooltip(BaseTooltip? tooltip, ReadOnlySpan<char> text) {
+		if (!ToolTipOverridden) { }
+
+		Tooltips = tooltip;
+		ToolTipOverridden = true;
+
+		if (TooltipText != null)
+			TooltipText = null;
+
+		if (!text.IsEmpty)
+			TooltipText = new(text.SliceNullTerminatedString());
 	}
 
 	public virtual void SetProportional(bool state) {
@@ -1646,9 +1672,8 @@ public class Panel : IPanel
 			outResourceData.SetInt("ypos", y);
 		}
 
-		//if (Tooltips != null) {
-
-		//}
+		if (Tooltips != null && Tooltips.GetText().Length > 0)
+			outResourceData.SetString("tooltiptext", Tooltips.GetText());
 
 		GetSize(out int wide, out int tall);
 		if (IsProportional()) {
@@ -1898,8 +1923,12 @@ public class Panel : IPanel
 		if (Visible == state)
 			return;
 
-		// need to tell the surface later... UGH... HOW DO WE GET THE SURFACE RELIABLY HERE??
+		Surface.SetPanelVisible(this, state);
+
 		Visible = state;
+
+		if (IsPopup())
+			Surface.CalculateMouseVisible();
 	}
 
 	public void SetZPos(int z) {
@@ -2014,7 +2043,8 @@ public class Panel : IPanel
 
 	public void Think() {
 		if (IsVisible()) {
-			// TODO: Tooltips layout
+			Tooltips?.PerformLayout();
+
 			if ((Flags & PanelFlags.NeedsLayout) != 0)
 				InternalPerformLayout();
 		}
@@ -2060,9 +2090,7 @@ public class Panel : IPanel
 		else
 			PostActionSignal(new KeyValues(command));
 	}
-	public virtual void OnMouseCaptureLost() {
-		// todo tooltips
-	}
+	public virtual void OnMouseCaptureLost() => Tooltips?.ResetDelay();
 	public virtual void OnSetFocus() {
 		Repaint();
 	}
@@ -2287,7 +2315,7 @@ public class Panel : IPanel
 		return false;
 	}
 
-	public void InternalKeyCodeReleased(ButtonCode code) {
+	private void InternalKeyCodeReleased(ButtonCode code) {
 		if (!ShouldHandleInputMessage())
 			return;
 
@@ -2295,6 +2323,64 @@ public class Panel : IPanel
 			OnKeyCodeReleased(code);
 		else
 			CallParentFunction(new KeyValues("KeyCodeReleased", "code", (int)code));
+	}
+
+	private void InternalCursorMoved(int x, int y) {
+		// dragdrop todo
+
+		if (!ShouldHandleInputMessage())
+			return;
+
+		if (IsCursorNone())
+			return;
+
+		if (!IsMouseInputEnabled())
+			return;
+
+		if (IsBuildGroupEnabled()) {
+			// if (BuildGroup.CursorMoved(x, y, this))
+			// 	return;
+		}
+
+		if (Tooltips != null) {
+			if (TooltipText != null)
+				Tooltips.SetText(TooltipText);
+			Tooltips.ShowTooltip(this);
+		}
+
+		ScreenToLocal(ref x, ref y);
+		OnCursorMoved(x, y);
+	}
+
+	private bool IsCursorNone() => GetCursor() == CursorCode.None;
+
+	private void InternalCursorEntered() {
+		if (IsCursorNone() || !IsMouseInputEnabled())
+			return;
+
+		if (IsBuildGroupEnabled())
+			return;
+
+		if (Tooltips != null) {
+			Tooltips.ResetDelay();
+			if (TooltipText != null)
+				Tooltips.SetText(TooltipText);
+			Tooltips.ShowTooltip(this);
+		}
+
+		OnCursorEntered();
+	}
+
+	private void InternalCursorExited() {
+		if (IsCursorNone() || !IsMouseInputEnabled())
+			return;
+
+		if (IsBuildGroupEnabled())
+			return;
+
+		Tooltips?.HideTooltip();
+
+		OnCursorExited();
 	}
 
 	public bool IsConsoleStylePanel() => false; // todo
@@ -2305,9 +2391,9 @@ public class Panel : IPanel
 			case "KeyCodeTyped": InternalKeyCodeTyped((ButtonCode)message.GetInt("code")); break;
 			case "KeyTyped": OnKeyTyped((char)message.GetInt("unichar")); break;
 			case "KeyCodeReleased": InternalKeyCodeReleased((ButtonCode)message.GetInt("code")); break;
-			case "CursorEntered": OnCursorEntered(); break;
-			case "CursorExited": OnCursorExited(); break;
-			case "CursorMoved": OnCursorMoved(message.GetInt("xpos"), message.GetInt("ypos")); break;
+			case "CursorEntered": InternalCursorEntered(); break;
+			case "CursorExited": InternalCursorExited(); break;
+			case "CursorMoved": InternalCursorMoved(message.GetInt("xpos"), message.GetInt("ypos")); break;
 			case "MouseFocusTicked": InternalMouseFocusTicked(); break;
 			case "KeyFocusTicked": InternalKeyFocusTicked(); break;
 			case "MouseCaptureLost": OnMouseCaptureLost(); break;
