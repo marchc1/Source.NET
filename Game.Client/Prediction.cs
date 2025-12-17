@@ -86,7 +86,31 @@ public class Prediction : IPrediction
 	}
 
 	public void PreEntityPacketReceived(int commandsAcknowledged, int currentWorldUpdatePacket) {
+		Span<char> sz = stackalloc char[32];
+		sprintf(sz, "preentitypacket%d").D(commandsAcknowledged);
+		IncomingPacketNumber = currentWorldUpdatePacket;
 
+		if (cl_predict.GetInt() == 0) {
+			ShutdownPredictables();
+			return;
+		}
+
+		C_BasePlayer? current = C_BasePlayer.GetLocalPlayer();
+		if (current == null)
+			return;
+
+		int c = predictables->GetPredictableCount();
+		int i;
+		for (i = 0; i < c; i++) {
+			C_BaseEntity? ent = predictables.GetPredictable(i);
+			if (ent == null)
+				continue;
+
+			if (!ent.GetPredictable())
+				continue;
+
+			ent.PreEntityPacketReceived(commandsAcknowledged);
+		}
 	}
 
 	public void SetLocalViewAngles(in QAngle ang) {

@@ -225,7 +225,6 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 
 	Hud Hud = null!;
 
-	public const int MULTIPLAYER_BACKUP = 90;
 	UserCmd[] Commands = new UserCmd[MULTIPLAYER_BACKUP];
 
 	public ref UserCmd GetUserCmd(int sequenceNumber) {

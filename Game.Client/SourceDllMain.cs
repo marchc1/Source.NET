@@ -8,11 +8,17 @@ using Source.Common.DataCache;
 using Source;
 using Source.Common.MaterialSystem;
 using Source.Common.GUI;
+using Game.Shared;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Game.Client;
 
 public static class SourceDllMain
 {
+	public static void Link(IServiceCollection services) {
+		services.AddSingleton<IPredictableList>(g_Predictables);
+	}
+
 	[Dependency] public static ClientGlobalVariables gpGlobals { get; private set; } = null!;
 	[Dependency] public static IViewRender view { get; private set; } = null!;
 	[Dependency] public static IRenderView render { get; private set; } = null!;
@@ -33,6 +39,7 @@ public static class SourceDllMain
 	[Dependency] public static IVDebugOverlay debugoverlay { get; private set; } = null!;
 	[Dependency] public static IClientLeafSystem clientLeafSystem { get; private set; } = null!;
 	[Dependency] public static IUniformRandomStream random { get; private set; } = null!;
+	[Dependency] public static IPredictableList predictables { get; private set; } = null!;
 	[Dependency] public static ILocalize localize { get; private set; } = null!;
 
 	public static TimeUnit_t TICK_INTERVAL => gpGlobals.IntervalPerTick;

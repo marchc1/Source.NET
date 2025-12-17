@@ -1,3 +1,6 @@
+global using static Game.Client.PredictableList;
+global using static Game.Client.BaseEntityConsts;
+
 using CommunityToolkit.HighPerformance;
 
 using Game.Shared;
@@ -19,6 +22,11 @@ using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
 
 namespace Game.Client;
 
+
+public static class BaseEntityConsts{
+	public const int MULTIPLAYER_BACKUP = 90;
+}
+
 public enum InterpolateResult
 {
 	Stop = 0,
@@ -30,6 +38,65 @@ public enum EntClientFlags
 	GettingShadowRenderBounds = 0x0001,
 	DontUseIK = 0x0002,
 	AlwaysInterpolate = 0x0004,
+}
+
+public class PredictableList : IPredictableList
+{
+	public static readonly PredictableList g_Predictables = new();
+	public C_BaseEntity? GetPrdictable(int slot) {
+		return cl_entitylist.GetBaseEntityFromHandle(Predictables[slot]);
+	}
+
+	public int GetPredictableCount() {
+		return Predictables.Count;
+	}
+
+	internal void AddToPredictableList(ClientEntityHandle? add){
+		Assert(add != null);
+
+		if (Predictables.Contains(add))
+			return;
+
+		Predictables.Add(add);
+		int count = Predictables.Count;
+		if (count < 2)
+			return;
+
+		int i, j;
+		for (i = 0; i < count; i++) {
+			for (j = i + 1; j < count; j++) {
+				ClientEntityHandle h1 =Predictables[i];
+				ClientEntityHandle h2 =Predictables[j];
+
+				C_BaseEntity? p1 = cl_entitylist.GetBaseEntityFromHandle(h1);
+				C_BaseEntity? p2 = cl_entitylist.GetBaseEntityFromHandle(h2);
+
+				if (p1 == null || p2 == null) {
+					Assert(false);
+					continue;
+				}
+
+				if (p1.EntIndex() != -1 && p2.EntIndex() != -1) {
+					if (p1.EntIndex() < p2.EntIndex())
+						continue;
+				}
+
+				if (p2.EntIndex() == -1)
+					continue;
+
+				Predictables[i] = h2;
+				Predictables[j] = h1;
+			}
+		}
+	}
+
+	internal void RemoveFromPredictablesList(ClientEntityHandle remove){
+		Assert(remove != null);
+
+		Predictables.Remove(remove);
+	}
+
+	private readonly List<ClientEntityHandle> Predictables = [];
 }
 
 public partial class C_BaseEntity : IClientEntity
@@ -609,7 +676,7 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual ref readonly QAngle GetRenderAngles() => ref GetAbsAngles();
 	public void GetRenderBounds(out Vector3 mins, out Vector3 maxs) {
 		ModelType nModelType = modelinfo.GetModelType(Model);
-		if (nModelType == ModelType.Studio || nModelType == ModelType.Brush) 
+		if (nModelType == ModelType.Studio || nModelType == ModelType.Brush)
 			modelinfo.GetModelRenderBounds(GetModel(), out mins, out maxs);
 		else {
 			// todo
@@ -774,6 +841,13 @@ public partial class C_BaseEntity : IClientEntity
 			UpdateVisibility();
 		if (OldShouldDraw != ShouldDraw())
 			UpdateVisibility();
+	}
+
+
+
+	public void InitPredictable(){
+		Assert(!GetPredictable());
+		// todo
 	}
 
 	public bool IsIntermediateDataAllocated() {
