@@ -236,7 +236,7 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	private void EnableScissor(bool v) {
-
+		scissorRect.Scissor = v;
 	}
 
 	public void DrawQuad(in SurfaceVertex ul, in SurfaceVertex lr, in Color color) {
