@@ -37,7 +37,7 @@ public class BaseHudChatLine : RichText
 		base.ApplySchemeSettings(scheme);
 
 		Font = scheme.GetFont("Default");
-		SetBgColor(new(0, 0, 0, 0));
+		SetBgColor(new(0, 0, 0, 100));
 		FontMarlett = scheme.GetFont("Marlett");
 		TextColor = scheme.GetColor("FgColor", GetFgColor());
 		SetFont(Font);
@@ -75,126 +75,118 @@ public class BaseHudChatLine : RichText
 	internal void SetNameLength(int nameLength) => NameLength = nameLength;
 
 	internal void SetNameColor(Color clrNameColor) => NameColor = clrNameColor;
-	internal unsafe void InsertAndColorizeText(ReadOnlySpan<char> buf, int playerIndex) {
-		Text = null;
+	internal void InsertAndColorizeText(ReadOnlySpan<char> buf, int playerIndex) {
 		TextRanges.Clear();
-
 		Text = new(buf);
 
-		BaseHudChat? chat = (BaseHudChat?)GetParent();
-
-		if (chat == null)
+		if (GetParent() is not BaseHudChat chat)
 			return;
 
-		// TODO: Rewrite this to be safe!!!
-		fixed (char* m_text = Text) {
-			char* txt = m_text;
-			int lineLen = Text.Length;
-			Color colCustom = default;
-			TextColor fcc = Text.Length > 0 ? (TextColor)Text[0] : 0;
-			if (fcc == HUD.TextColor.PlayerName || fcc == HUD.TextColor.Location || fcc == HUD.TextColor.Normal || fcc == HUD.TextColor.Achievement || fcc == HUD.TextColor.Custom || fcc == HUD.TextColor.HexCode || fcc == HUD.TextColor.HexCodeAlpha) {
-				while (txt != null && *txt != 0) {
-					TextRange range = default;
-					bool foundColorCode = false;
-					bool done = false;
-					int bytesIn = (int)(txt - m_text);
+		int i = 0;
+		int lineLen = Text.Length;
 
-					switch ((TextColor)(*txt)) {
-						case HUD.TextColor.Custom:
-						case HUD.TextColor.PlayerName:
-						case HUD.TextColor.Location:
-						case HUD.TextColor.Achievement:
-						case HUD.TextColor.Normal: {
-								// save this start
-								range.Start = bytesIn + 1;
-								range.Color = chat.GetTextColorForClient((TextColor)(*txt), playerIndex);
-								range.End = lineLen;
-								foundColorCode = true;
-							}
-							++txt;
-							break;
-						case HUD.TextColor.HexCode:
-						case HUD.TextColor.HexCodeAlpha: {
-								bool readAlpha = ((TextColor)(*txt) == HUD.TextColor.HexCodeAlpha);
-								int nCodeBytes = (readAlpha ? 8 : 6);
-								range.Start = bytesIn + nCodeBytes + 1;
-								range.End = lineLen;
-								range.PreserveAlpha = readAlpha;
-								++txt;
+		TextColor tc = Text.Length > 0 ? (TextColor)Text[0] : 0;
 
-								if (range.End > range.Start) {
-									int r = txt[0].Nibble() << 4 | txt[1].Nibble();
-									int g = txt[2].Nibble() << 4 | txt[3].Nibble();
-									int b = txt[4].Nibble() << 4 | txt[5].Nibble();
-									int a = readAlpha ? txt[6].Nibble() << 4 | txt[7].Nibble() : 255;
+		if (tc == HUD.TextColor.PlayerName || tc == HUD.TextColor.Location || tc == HUD.TextColor.Normal || tc == HUD.TextColor.Achievement || tc == HUD.TextColor.Custom || tc == HUD.TextColor.HexCode || tc == HUD.TextColor.HexCodeAlpha) {
+			while (i < lineLen) {
+				TextRange range = default;
+				bool foundColorCode = false;
+				bool done = false;
+				int bytesIn = i;
 
-									range.Color = new(r, g, b, a);
-									foundColorCode = true;
-
-									txt += nCodeBytes;
-								}
-								else
-									done = true;
-							}
-							break;
-						default:
-							++txt;
-							break;
-					}
-
-					if (done)
+				switch ((TextColor)Text[i]) {
+					case HUD.TextColor.Custom:
+					case HUD.TextColor.PlayerName:
+					case HUD.TextColor.Location:
+					case HUD.TextColor.Achievement:
+					case HUD.TextColor.Normal:
+						range.Start = bytesIn + 1;
+						range.Color = chat.GetTextColorForClient((TextColor)Text[i], playerIndex);
+						range.End = lineLen;
+						foundColorCode = true;
+						++i;
 						break;
+					case HUD.TextColor.HexCode:
+					case HUD.TextColor.HexCodeAlpha:
+						bool readAlpha = (TextColor)Text[i] == HUD.TextColor.HexCodeAlpha;
+						int codeBytes = readAlpha ? 8 : 6;
+						range.Start = bytesIn + codeBytes + 1;
+						range.End = lineLen;
+						range.PreserveAlpha = readAlpha;
+						++i;
 
-					if (foundColorCode) {
-						int count = TextRanges.Count;
-						if (count != 0) {
-							Span<TextRange> textRanges = TextRanges.AsSpan();
-							ref TextRange tr = ref textRanges[count - 1];
-							tr.End = bytesIn;
+						if (range.End > range.Start) {
+							int r = Text[i].Nibble() << 4 | Text[i + 1].Nibble();
+							int g = Text[i + 2].Nibble() << 4 | Text[i + 3].Nibble();
+							int b = Text[i + 4].Nibble() << 4 | Text[i + 5].Nibble();
+							int a = readAlpha ? Text[i + 6].Nibble() << 4 | Text[i + 7].Nibble() : 255;
+
+							range.Color = new(r, g, b, a);
+							foundColorCode = true;
+
+							i += codeBytes;
 						}
-						TextRanges.Add(range);
+						else
+							done = true;
+						break;
+					default:
+						++i;
+						break;
+				}
+
+				if (done)
+					break;
+
+				if (foundColorCode) {
+					int count = TextRanges.Count;
+					if (count != 0) {
+						TextRange r = TextRanges[count - 1];
+						r.End = bytesIn;
+						TextRanges[count - 1] = r;
 					}
+
+					TextRanges.Add(range);
 				}
 			}
-
-			if (TextRanges.Count == 0 && NameLength > 0 && m_text[0] == (int)HUD.TextColor.UseOldColors) {
-				TextRange range = default;
-				range.Start = 0;
-				range.End = NameStart;
-				range.Color = chat.GetTextColorForClient(HUD.TextColor.Normal, playerIndex);
-				TextRanges.Add(range);
-
-				range.Start = NameStart;
-				range.End = NameStart + NameLength;
-				range.Color = chat.GetTextColorForClient(HUD.TextColor.PlayerName, playerIndex);
-				TextRanges.Add(range);
-
-				range.Start = range.End;
-				range.End = Text.Length;
-				range.Color = chat.GetTextColorForClient(HUD.TextColor.Normal, playerIndex);
-				TextRanges.Add(range);
-			}
-
-			if (TextRanges.Count == 0) {
-				TextRange range = default;
-				range.Start = 0;
-				range.End = Text.Length;
-				range.Color = chat.GetTextColorForClient(HUD.TextColor.Normal, playerIndex);
-				TextRanges.Add(range);
-			}
-
-			for (int i = 0; i < TextRanges.Count; ++i) {
-				char* start = m_text + TextRanges[i].Start;
-				if (*start > 0 && *start < (int)HUD.TextColor.Max) {
-					Assert(*start != (int)HUD.TextColor.HexCode && *start != (int)HUD.TextColor.HexCodeAlpha);
-					Span<TextRange> textRanges2 = TextRanges.AsSpan();
-					ref TextRange tr2 = ref textRanges2[i];
-					tr2.Start += 1;
-				}
-			}
-
-			Colorize();
 		}
+
+		if (TextRanges.Count == 0 && NameLength > 0 && Text[0] == (int)HUD.TextColor.UseOldColors) {
+			TextRange range = default;
+			range.Start = 0;
+			range.End = NameStart;
+			range.Color = chat.GetTextColorForClient(HUD.TextColor.Normal, playerIndex);
+			TextRanges.Add(range);
+
+			range.Start = NameStart;
+			range.End = NameStart + NameLength;
+			range.Color = chat.GetTextColorForClient(HUD.TextColor.PlayerName, playerIndex);
+			TextRanges.Add(range);
+
+			range.Start = range.End;
+			range.End = Text.Length;
+			range.Color = chat.GetTextColorForClient(HUD.TextColor.Normal, playerIndex);
+			TextRanges.Add(range);
+		}
+
+		if (TextRanges.Count == 0) {
+			TextRange range = default;
+			range.Start = 0;
+			range.End = Text.Length;
+			range.Color = chat.GetTextColorForClient(HUD.TextColor.Normal, playerIndex);
+			TextRanges.Add(range);
+		}
+
+		for (i = 0; i < TextRanges.Count; ++i) {
+			ReadOnlySpan<char> start = Text.AsSpan()[TextRanges[i].Start..];
+			if (start.Length > 0 && start[0] < (int)HUD.TextColor.Max) {
+				Assert(start[0] != (int)HUD.TextColor.HexCode && start[0] != (int)HUD.TextColor.HexCodeAlpha);
+				TextRange tr = TextRanges[i];
+				tr.Start += 1;
+				TextRanges[i] = tr;
+			}
+		}
+
+		Colorize();
 	}
 
 	private void Colorize(int alpha = 255) {
@@ -244,7 +236,6 @@ public class HudChatHistory : RichText
 
 		InsertFade(-1, -1);
 	}
-
 
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
@@ -695,7 +686,7 @@ public class BaseHudChat : EditableHudElement
 		nameLength = playerName.Length;
 		writePtr += playerName.Length;
 
-		if(!buf.Contains(playerName, StringComparison.Ordinal)) {
+		if (!buf.Contains(playerName, StringComparison.Ordinal)) {
 			nameStart = 0;
 			nameLength = 0;
 		}
@@ -821,7 +812,7 @@ public class BaseHudChat : EditableHudElement
 	public MessageModeType GetMessageMode() => MessageMode;
 
 	public Color GetTextColorForClient(TextColor tcCur, int playerIndex) {
-		Color c = default;
+		Color c;
 		switch (tcCur) {
 			case TextColor.Custom:
 				c = ColorCustom;
