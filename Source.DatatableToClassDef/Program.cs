@@ -202,6 +202,7 @@ while (true) {
 				SendPropType.Int => "PropInt",
 				SendPropType.Float => "PropFloat",
 				SendPropType.Vector => "PropVector",
+				SendPropType.String => "PropString",
 				_ => null
 			};
 		}
@@ -226,6 +227,7 @@ while (true) {
 			case "PropVector": fields.Add(new() { Name = p.PropName, Type = "Vector3" }); break;
 			case "PropEHandle": fields.Add(new() { Name = p.PropName + " = new()", Type = "readonly EHANDLE" }); break;
 			case "PropBool": fields.Add(new() { Name = p.PropName, Type = "bool" }); break;
+			case "PropString": fields.Add(new() { Name = p.PropName, Type = "InlineArray512<char>" }); break;
 		}
 
 		writeBoth("\t\t");
