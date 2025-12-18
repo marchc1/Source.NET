@@ -115,7 +115,10 @@ public class MatSystemSurface : IMatSystemSurface
 
 		DrawColor[0] = DrawColor[1] = DrawColor[2] = DrawColor[3] = 25; ;
 		TranslateX = TranslateY = 0;
-		// Scissor rect...
+
+		EnableScissor(false);
+		SetScissorRect(0, 0, 100000, 100000);
+
 		AlphaMultiplier = 1;
 
 		KeyValues vmtKeyValues = new KeyValues("UnlitGeneric");
@@ -275,7 +278,8 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public void AddPanel(IPanel panel) {
-		throw new NotImplementedException();
+		if (panel.IsPopup())
+			CreatePopup(panel, false);
 	}
 
 	public void ApplyChanges() {
@@ -922,7 +926,7 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public void PaintTraverse(IPanel panel) {
-
+		PaintTraverseEx(panel, false);
 	}
 
 	IPanel? RestrictedPanel;
