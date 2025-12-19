@@ -16,7 +16,7 @@ public struct SourceSharedShadowState
 /// </summary>
 public struct SourceVertexSharedShadowState
 {
-
+	public int NumBones;
 }
 
 /// <summary>
@@ -134,10 +134,16 @@ public class ShadowStateGl46 : IShaderShadow
 	}
 
 	private unsafe void ReuploadBuffers() {
+		int curBones = ShaderAPI.GetCurrentNumBones();
+		if (curBones != Vertex.NumBones)
+			needsBufferUpload = true;
+
 		if (!needsBufferUpload)
 			return;
 
 		// Reupload UBO states.
+		Vertex.NumBones = curBones;
+
 		fixed (SourceSharedShadowState* pBase = &Base)
 		fixed (SourceVertexSharedShadowState* pVertex = &Vertex)
 		fixed (SourcePixelSharedShadowState* pPixel = &Pixel) {
