@@ -689,7 +689,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 		}
 
 		for (int i = 1; i < studioHdr.NumAnimBlocks; ++i) {
-			// studioHdr.GetAnimBlock(i);
+			studioHdr.GetAnimBlock(i);
 		}
 
 		// cache the vertexes
