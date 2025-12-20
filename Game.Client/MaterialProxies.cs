@@ -27,7 +27,7 @@ public static class MaterialProxies
 			ExposeMaterialProxyAttribute proxyAttr = type.GetCustomAttribute<ExposeMaterialProxyAttribute>()!;
 			UtlSymId_t nameHash = proxyAttr.Name.Hash(false);
 			if (buildProxies.TryGetValue(nameHash, out _))
-				throw new Exception($"Tried creating a material proxy ({proxyAttr.Name.}) twice");
+				throw new Exception($"Tried creating a material proxy ({proxyAttr.Name}) twice");
 
 			if (!type.IsAssignableTo(typeof(IMaterialProxy)))
 				throw new Exception($"ExposeMaterialProxyAttribute is not valid on a type that is not IMaterialProxy (got {type})");
@@ -38,6 +38,10 @@ public static class MaterialProxies
 		ProxyFns = buildProxies.ToFrozenDictionary();
 	}
 	public static IMaterialProxy? CreateProxyInterfaceFn(ReadOnlySpan<char> name) {
+		UtlSymId_t nameHash = name.Hash(false);
+		if (!ProxyFns.TryGetValue(nameHash, out CreateProxyFn? createProxyFn))
+			return null;
 
+		return createProxyFn();
 	}
 }

@@ -18,12 +18,14 @@ public enum MaterialVarType : ushort
 	Material
 }
 
-public struct MaterialVarGPU {
+public struct MaterialVarGPU
+{
 	public nint Program;
 	public int Location;
 }
 
-public struct TokenCache {
+public struct TokenCache
+{
 	public ulong Symbol;
 	public int VarIndex;
 	public bool Cached;
@@ -146,5 +148,10 @@ public abstract class IMaterialVar
 
 	public static bool SymbolMatches(ReadOnlySpan<char> varName, UtlSymId_t symbol) {
 		return varName.CompareTo(MaterialVarSymbols.String(symbol), StringComparison.InvariantCultureIgnoreCase) != 0;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public int VectorSize() {
+		return VectorSizeInternal();
 	}
 }
