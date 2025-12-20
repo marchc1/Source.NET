@@ -1,4 +1,5 @@
 #define DBGFLAG_HIDE_ASSERTS_FROM_DEBUGGING_STACK
+#define DBGFLAG_WRITE_TO_STDOUT
 using Source.Common;
 
 using System.Collections.Concurrent;
@@ -49,7 +50,7 @@ public delegate void AssertFailedNotifyFunc(string file, int line, string messag
 
 public static class Dbg
 {
-	
+
 	static SpewOutputFunc _SpewOutputFunc = DefaultSpewFunc;
 	static AssertFailedNotifyFunc? _AssertFailedNotifyFunc = null;
 
@@ -72,14 +73,16 @@ public static class Dbg
 	public static SpewOutputFunc GetSpewOutputFunc() => _SpewOutputFunc != null ? _SpewOutputFunc : DefaultSpewFunc;
 
 	public static SpewRetval DefaultSpewFunc(SpewType type, ReadOnlySpan<char> message) {
+#if DBGFLAG_WRITE_TO_STDOUT
 		foreach (char c in message) {
 			System.Console.Write(c);
 		}
+#endif
 #if DEBUG
 		if (type == SpewType.Assert) {
 			return SpewRetval.Debugger;
 		}
-		else 
+		else
 #endif
 		if (type == SpewType.Error)
 			return SpewRetval.Abort;
@@ -213,7 +216,7 @@ public static class Dbg
 	public static void Error([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args)
 		=> _SpewMessage(SpewType.Error, msgFormat, args);
 
-	
+
 	public static void ErrorIfNot([DoesNotReturnIf(false)] bool condition, ReadOnlySpan<char> msg) {
 		if (!condition) {
 			Error(msg);
