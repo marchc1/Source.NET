@@ -44,7 +44,7 @@ public class StudioData
 	public Memory<short> AutoplaySequenceList;
 
 	public int AnimBlockCount;
-	public object? AnimBlock; // todo: research what this is
+	public object?[]? AnimBlock; // todo: research what this is
 }
 
 public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
@@ -133,7 +133,39 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 	}
 
 	public Memory<byte> GetAnimBlock(MDLHandle_t handle, int block) {
-		throw new NotImplementedException();
+		if (mod_test_not_available.GetBool())
+			return null;
+
+		if (handle == MDLHANDLE_INVALID)
+			return null;
+
+		StudioData pStudioData = HandleToMDLDict[handle];
+		if (pStudioData.AnimBlock == null) {
+			StudioHeader pStudioHdr = GetStudioHdr(handle);
+			AllocateAnimBlocks(pStudioData, pStudioHdr!.NumAnimBlocks);
+		}
+
+		if (block < 0 || block >= pStudioData.AnimBlockCount)
+			return null;
+
+		Memory<byte> pData = (byte[])pStudioData.AnimBlock[block];
+		if (pData.IsEmpty) {
+			pStudioData.AnimBlock[block] = null;
+
+			// It's not in memory, read it off of disk
+			pData = UnserializeAnimBlock(handle, block);
+		}
+
+		return pData;
+	}
+
+	private Memory<byte> UnserializeAnimBlock(uint handle, int block) {
+		return null;
+	}
+
+	private void AllocateAnimBlocks(StudioData studioData, int count) {
+		studioData.AnimBlockCount = count;
+		studioData.AnimBlock = new object?[studioData.AnimBlockCount];
 	}
 
 	public bool GetAsyncLoad(MDLCacheDataType type) {
