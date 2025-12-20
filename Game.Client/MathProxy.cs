@@ -7,6 +7,7 @@ using System.Text;
 
 namespace Game.Client;
 
+[ExposeMaterialProxy(Name = "Sine")]
 public class SineProxy : ResultProxy {
 	public override bool Init(IMaterial material, KeyValues keyValues) {
 		if (!base.Init(material, keyValues))
