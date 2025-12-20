@@ -1,4 +1,6 @@
-﻿using Game.Client.HUD;
+﻿#if CLIENT_DLL
+using Game.Client.HUD;
+#endif
 
 using Source.Common.Formats.Keyvalues;
 
@@ -49,10 +51,11 @@ public class FileWeaponInfo
 	string[] ShootSounds = [];
 	int AmmoType;
 	int Ammo2Type;
-	bool bMeleeWeapon;
+	bool MeleeWeapon;
 	bool BuiltRightHanded;
 	bool AllowFlipping;
 	int SpriteCount;
+#if CLIENT_DLL
 	HudTexture? IconActive;
 	HudTexture? IconInactive;
 	HudTexture? IconAmmo;
@@ -62,6 +65,7 @@ public class FileWeaponInfo
 	HudTexture? IconZoomedCrosshair;
 	HudTexture? IconZoomedAutoaim;
 	HudTexture? IconSmall;
+#endif
 
 	FileWeaponInfo() { }
 
