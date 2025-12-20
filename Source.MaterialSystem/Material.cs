@@ -467,7 +467,7 @@ public class Material : IMaterialInternal
 	}
 
 	IMaterialProxy? ReplacementProxy;
-	readonly List<IMaterialProxy> ProxyInfo;
+	readonly List<IMaterialProxy> ProxyInfo = [];
 
 	void DetermineProxyReplacements(KeyValues fallbackKeyValues) {
 		ReplacementProxy = materials.DetermineProxyReplacements(this, fallbackKeyValues);
