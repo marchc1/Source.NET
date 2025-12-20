@@ -3,9 +3,47 @@ using Game.Shared;
 using Source;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Game.Client.HUD;
+
+struct WRect
+{
+	public int left;
+	public int right;
+	public int top;
+	public int bottom;
+}
+
+class HudTexture
+{
+	string ShortName;
+	string TextureFile;
+	bool RenderUsingFont;
+	bool Precached;
+	string CharacterInFont;
+	IFont Font;
+	int TextureId;
+	float[] TexCoords = new float[4];
+	WRect RC;
+
+	HudTexture() { }
+
+	void Precache() { }
+
+	void DrawSelf(int x, int y, Color clr) { }
+
+	void DrawSelf(int x, int y, int w, int h, Color clr) { }
+
+	void DrawSelfCropped(int x, int y, int cropx, int cropy, int cropw, int croph, int finalWidth, int finalHeight, Color clr) { }
+
+	void DrawSelfCropped(int x, int y, int cropx, int cropy, int cropw, int croph, Color clr) { }
+
+	// int EffectiveWidth(float scale) { }
+
+	// int EffectiveHeight(float scale) { }
+}
 
 [EngineComponent]
 public class Hud(HudElementHelper HudElementHelper, IFileSystem filesystem)
@@ -31,10 +69,10 @@ public class Hud(HudElementHelper HudElementHelper, IFileSystem filesystem)
 				}
 
 				KeyValues? key = kv.FindKey(panel.GetName(), false);
-				if (key == null) 
+				if (key == null)
 					Msg($"Hud element '{element.ElementName}' doesn't have an entry '{panel.GetName()}' in scripts/HudLayout.res\n");
-				
-				if (!element.IsParentedToClientDLLRootPanel && panel.GetParent() == null) 
+
+				if (!element.IsParentedToClientDLLRootPanel && panel.GetParent() == null)
 					DevMsg($"Hud element '{element.ElementName}'/'{panel.GetName()}' doesn't have a parent\n");
 			}
 
