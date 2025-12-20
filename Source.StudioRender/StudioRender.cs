@@ -119,7 +119,7 @@ public unsafe class StudioRender
 	bool SkippedMeshes;
 	bool DrawTranslucentSubModels;
 
-	private int R_StudioRenderModel(IMatRenderContext renderContext, int skin, int body, int hitboxset, object? entity,
+	public int R_StudioRenderModel(IMatRenderContext renderContext, int skin, int body, int hitboxset, object? entity,
 									Span<IMaterial> materials, Span<int> materialFlags, StudioRenderFlags flags, int boneMask, int lod, Span<ColorMeshInfo> colorMeshes) {
 		StudioRenderFlags nDrawGroup = flags & StudioRenderFlags.DrawGroupMask;
 
@@ -376,7 +376,7 @@ public unsafe class StudioRender
 		return lighting;
 	}
 
-	private int R_StudioSetupModel(int bodypart, int entity_body, out MStudioModel? subModel, StudioHeader studioHdr) {
+	public int R_StudioSetupModel(int bodypart, int entity_body, out MStudioModel? subModel, StudioHeader studioHdr) {
 		int index;
 		MStudioBodyParts pbodypart;
 

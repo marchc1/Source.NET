@@ -23,7 +23,7 @@ public class SineProxy : ResultProxy {
 
 		return true;
 	}
-	public override void OnBind(object o) {
+	public override void OnBind(object? o) {
 		float flValue;
 		float flSineTimeOffset = SineTimeOffset.GetFloat();
 		float flSineMax = SineMax.GetFloat();

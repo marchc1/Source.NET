@@ -1086,4 +1086,17 @@ public class Material : IMaterialInternal
 	private bool IsValidRenderState() {
 		return (flags & MaterialFlags.ValidRenderState) != 0;
 	}
+
+	public bool HasProxy() {
+		PrecacheVars();
+		return ProxyInfo.Count > 0;
+	}
+
+	public void CallBindProxy(object? proxydata) {
+		if (ProxyInfo.Count != 0) {
+			foreach (var proxy in ProxyInfo) {
+				proxy.OnBind(proxydata);
+			}
+		}
+	}
 }

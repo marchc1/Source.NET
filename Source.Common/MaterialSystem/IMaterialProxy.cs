@@ -9,7 +9,7 @@ namespace Source.Common.MaterialSystem;
 public interface IMaterialProxy
 {
 	bool Init(IMaterial material, KeyValues keyValues);
-	void OnBind(object o);
+	void OnBind(object? o);
 	void Release();
 	IMaterial GetMaterial();
 }

@@ -30,6 +30,15 @@ public class StudioRenderCtx
 	public Vector3 ColorMod;
 	public float AlphaMod;
 	public IMaterial? ForcedMaterial;
+	public OverrideType ForcedMaterialType;
+}
+
+public enum OverrideType
+{
+	Normal,
+	BuildShadows,
+	DepthWrite,
+	SSAODepthWrite
 }
 
 /// <summary>
@@ -586,7 +595,44 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 			results.LODMetric = flMetric;
 		}
 
+		InvokeBindProxies(ref info);
 		studioRenderImp.DrawModel(ref info, RC, boneToWorld, flags);
+	}
+
+	private void InvokeBindProxies(ref DrawModelInfo info) {
+		if (RC.ForcedMaterial != null) {
+			if (RC.ForcedMaterialType == OverrideType.Normal && RC.ForcedMaterial.HasProxy()) {
+				RC.ForcedMaterial.CallBindProxy(info.ClientEntity);
+			}
+			return;
+		}
+
+		// get skinref array
+		int nSkin = (RC.Config.Skin > 0) ? RC.Config.Skin : info.Skin;
+		Span<short> pSkinRef = info.StudioHdr.SkinRef(0);
+		if (nSkin > 0 && nSkin < info.StudioHdr.NumSkinFamilies) 
+			pSkinRef = pSkinRef[(nSkin * info.StudioHdr.NumSkinRef)..];
+
+		// This is used to ensure proxies are only called once
+		int nBufSize = info.StudioHdr.NumTextures;
+		Span<bool> pProxyCalled = stackalloc bool[nBufSize];
+
+		Span<IMaterial> ppMaterials = info.HardwareData.LODs![info.Lod].Materials;
+		MStudioModel pModel;
+		for (int i = 0; i < info.StudioHdr.NumBodyParts; ++i) {
+			studioRenderImp.R_StudioSetupModel(i, info.Body, out pModel, info.StudioHdr);
+			for (int somethingOtherThanI = 0; somethingOtherThanI < pModel.NumMeshes; ++somethingOtherThanI) {
+				MStudioMesh pMesh = pModel.Mesh(somethingOtherThanI);
+				int nMaterialIndex = pSkinRef[pMesh.Material];
+				if (pProxyCalled[nMaterialIndex])
+					continue;
+				pProxyCalled[nMaterialIndex] = true;
+				IMaterial? pMaterial = ppMaterials[nMaterialIndex];
+				if (pMaterial != null && pMaterial.HasProxy()) {
+					pMaterial.CallBindProxy(info.ClientEntity);
+				}
+			}
+		}
 	}
 
 	private int ComputeRenderLOD(MatRenderContextPtr renderContext, DrawModelInfo info, Vector3 origin, out float metric) {

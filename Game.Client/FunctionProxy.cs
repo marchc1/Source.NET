@@ -85,7 +85,7 @@ public abstract class ResultProxy : IMaterialProxy
 		Result = material.FindVar(result, out foundVar, true);
 		return foundVar;
 	}
-	public abstract void OnBind(object o);
+	public abstract void OnBind(object? o);
 	public virtual void Release() { }
 	public virtual IMaterial GetMaterial() => Result!.GetOwningMaterial();
 
