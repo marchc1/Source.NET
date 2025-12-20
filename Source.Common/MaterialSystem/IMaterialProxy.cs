@@ -14,6 +14,8 @@ public interface IMaterialProxy
 	IMaterial GetMaterial();
 }
 
+public delegate IMaterialProxy? LookupProxyInterfaceFn(ReadOnlySpan<char> proxyName);
+
 public interface IMaterialProxyFactory
 {
 	IMaterialProxy? CreateProxy(ReadOnlySpan<char> proxyName);
