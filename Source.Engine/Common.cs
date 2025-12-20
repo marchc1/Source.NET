@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-
+using static Source.Common.FilesystemHelpers;
 using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
@@ -14,9 +14,6 @@ namespace Source.Engine;
 /// <param name="providers"></param>
 public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 {
-	readonly static CharacterSet BreakSet = new("{}()");
-	readonly static CharacterSet BreakSetIncludingColons = new("{}()':");
-
 	public static string Gamedir { get; private set; }
 
 	public void InitFilesystem(ReadOnlySpan<char> fullModPath) {
@@ -47,11 +44,10 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 
 	const int COM_TOKEN_MAX_LENGTH = 1024;
 	static readonly byte[] com_token = new byte[COM_TOKEN_MAX_LENGTH];
-	static bool com_ignorecolons = false;
 
 	public static ReadOnlySpan<byte> ParseFile(ReadOnlySpan<byte> data, Span<char> token) {
 		ReadOnlySpan<byte> returnData = Parse(data);
-		ReadOnlySpan<byte> nullTermToken = com_token[..MemoryExtensions.IndexOf(com_token, (byte)0)];
+		ReadOnlySpan<byte> nullTermToken = com_token.AsSpan()[..MemoryExtensions.IndexOf(com_token, (byte)0)];
 		token.Clear(); // todo: only set one char
 		Encoding.ASCII.GetChars(nullTermToken, token);
 
