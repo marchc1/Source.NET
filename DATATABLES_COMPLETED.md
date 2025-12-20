@@ -131,7 +131,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #128: CPropVehicleDriveable
 - [x] Class #129: CPropVehiclePrisonerPod
 - [ ] Class #130: CRagdollManager
-- [ ] Class #131: CRagdollProp
+- [x] Class #131: CRagdollProp
 - [ ] Class #132: CRagdollPropAttached
 - [x] Class #133: CRopeKeyframe
 - [x] Class #134: CRotorWashEmitter
