@@ -314,6 +314,26 @@ public class Cvar(ICommandLine CommandLine, IServiceProvider services, ICvarQuer
 		ConVar.PrintDescription(var);
 	}
 
+	[ConCommand(helpText: "Find concommands with the specified string in their name/help text.")]
+	void find(in TokenizedCommand args) {
+		if (args.ArgC() != 2) {
+			Dbg.ConMsg("Usage:  find <string>\n");
+			return;
+		}
+
+		ReadOnlySpan<char> search = args[1];
+
+		foreach(var var in GetCommands()){ 
+			if (var.IsFlagSet(FCvar.DevelopmentOnly) || var.IsFlagSet(FCvar.Hidden))
+				continue;
+
+			if (!var.GetName().Contains(search, StringComparison.OrdinalIgnoreCase) && !var.GetHelpText().Contains(search, StringComparison.OrdinalIgnoreCase))
+				continue;
+
+			ConVar.PrintDescription(var);
+		}
+	}
+
 	struct ConVarFlagsDesc
 	{
 		public FCvar bit;
