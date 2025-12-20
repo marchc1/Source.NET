@@ -463,4 +463,5 @@ public interface IMaterialInternal : IMaterial
 	void SetMinLightmapPageID(int value);
 	bool GetNeedsWhiteLightmap();
 	void SetNeedsWhiteLightmap(bool value);
+	void Uncache(bool preserveVars = false);
 }

@@ -497,6 +497,25 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 
 	public void BindStandardTexture(Sampler sampler, StandardTextureId id) => GetRenderContext().BindStandardTexture(sampler, id);
 
+	public IMaterialProxy? DetermineProxyReplacements(Material material, KeyValues fallbackKeyValues) {
+		throw new NotImplementedException();
+	}
+
+	IMaterialProxyFactory? MaterialProxyFactory;
+
+	public IMaterialProxyFactory? GetMaterialProxyFactory() => MaterialProxyFactory;
+	public void SetMaterialProxyFactory(IMaterialProxyFactory? factory) {
+		UncacheAllMaterials();
+		MaterialProxyFactory = factory;
+	}
+
+	private void UncacheAllMaterials() {
+		// todo: finish me!!
+		foreach(var material in MaterialDict){
+			material.Uncache();
+		}
+	}
+
 	public event Action? Restore;
 
 	public IMaterialInternal errorMaterial;

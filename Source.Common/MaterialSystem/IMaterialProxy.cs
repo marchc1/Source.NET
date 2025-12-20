@@ -13,3 +13,9 @@ public interface IMaterialProxy
 	void Release();
 	IMaterial GetMaterial();
 }
+
+public interface IMaterialProxyFactory
+{
+	IMaterialProxy? CreateProxy(ReadOnlySpan<char> proxyName);
+	void DeleteProxy(IMaterialProxy proxy);
+}
