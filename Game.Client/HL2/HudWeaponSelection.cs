@@ -1,12 +1,27 @@
 using Game.Client.HUD;
 
 using Source;
+using Source.Common.Commands;
 using Source.Common.GUI;
 using Source.GUI.Controls;
+
+namespace Game.Client.HL2;
 
 [DeclareHudElement(Name = "CHudWeaponSelection")]
 class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 {
+	public static ConVar hud_showemptyweaponslots = new ConVar("hud_showemptyweaponslots", "1", FCvar.Archive, "Shows slots for missing weapons when recieving weapons out of order");
+
+	const float SELECTION_TIMEOUT_THRESHOLD = 0.5f;  // Seconds
+	const float SELECTION_FADEOUT_TIME = 0.75f;
+	const float PLUS_DISPLAY_TIMEOUT = 0.5f; // Seconds
+	const float PLUS_FADEOUT_TIME = 0.75f;
+	const float FASTSWITCH_DISPLAY_TIMEOUT = 1.5f;
+	const float FASTSWITCH_FADEOUT_TIME = 1.5f;
+	const float CAROUSEL_SMALL_DISPLAY_ALPHA = 200.0f;
+	const float FASTSWITCH_SMALL_DISPLAY_ALPHA = 160.0f;
+	const float MAX_CAROUSEL_SLOTS = 5;
+
 	[PanelAnimationVar("NumberFont", "HudSelectionNumbers")] protected IFont NumberFont;
 	[PanelAnimationVar("TextFont", "HudSelectionText")] protected IFont TextFont;
 	[PanelAnimationVar("Blur", "0")] protected float Blur;
@@ -44,23 +59,81 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 	BaseCombatWeapon? LastWeapon;
 	[PanelAnimationVar(nameof(WeaponBoxOffset), "WeaponBoxOffset", "0")] protected float WeaponBoxOffset;
 
-	public HudWeaponSelection(string? elementName) : base("HudWeaponSelection") {
+	IHudElement HudElement => this;
 
+	public HudWeaponSelection(string? elementName) : base("HudWeaponSelection") {
+		Panel Parent = clientMode.GetViewport();
+		SetParent(Parent);
+		FadingOut = false;
 	}
 
-	void OnWeaponPickup(BaseCombatWeapon weapon) { }
+	bool IsWeaponSelectable() => IsInSelectionMode();
+	void SetSelectedWeapon(BaseCombatWeapon? weapon) => SelectedWeapon = weapon;
+	void SetSelectedSlot(int slot) => SelectedSlot = slot;
+	void SetSelectedSlideDir(int dir) => SelectedSlideDir = dir;
 
-	public override void OnThink() { }
+	void OnWeaponPickup(BaseCombatWeapon weapon) {
+		HudHistoryResource? hr = gHUD.FindElement("CHudHistoryResource") as HudHistoryResource;
+		// hr?.AddToHistory(weapon);
+	}
 
-	// bool ShouldDraw() { }
+	public override void OnThink() {
+		float selectionTimeout = SELECTION_TIMEOUT_THRESHOLD;
+		float selectionFadeoutTime = SELECTION_FADEOUT_TIME;
 
-	void LevelInit() { }
+		if (hud_fastswitch.GetBool()) {
+			selectionTimeout = FASTSWITCH_DISPLAY_TIMEOUT;
+			selectionFadeoutTime = FASTSWITCH_FADEOUT_TIME;
+		}
+
+		if (gpGlobals.CurTime - SelectionTime > selectionTimeout) {
+			if (!FadingOut) {
+				clientMode.GetViewportAnimationController()?.StartAnimationSequence("FadeOutWeaponSelectionMenu");
+				FadingOut = true;
+			}
+			else if (gpGlobals.CurTime - SelectionTime > selectionTimeout + selectionFadeoutTime)
+				HideSelection();
+		}
+		else if (FadingOut) {
+			clientMode.GetViewportAnimationController()?.StartAnimationSequence("OpenWeaponSelectionMenu");
+			FadingOut = false;
+		}
+	}
+
+	bool ShouldDraw() {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null) {
+			if (IsInSelectionMode())
+				HideSelection();
+			return false;
+		}
+
+		bool bret = HudElement.ShouldDraw();
+		if (!bret)
+			return false;
+
+		if (hud_fastswitch.GetBool() && gpGlobals.CurTime - SelectionTime < (FASTSWITCH_DISPLAY_TIMEOUT + FASTSWITCH_FADEOUT_TIME))
+			return true;
+
+		return SelectionVisible;
+	}
+
+	void LevelInit() {
+		HudElement.LevelInit();
+		SelectedWeaponBox = -1;
+		SelectedSlideDir = 0;
+		LastWeapon = null;
+	}
 
 	void ActivateFastswitchWeaponDisplay(BaseCombatWeapon selectedWeapon) { }
 
 	void ActivateWeaponHighlight(BaseCombatWeapon selectedWeapon) { }
 
-	// float GetWeaponBoxAlpha(bool selected) { }
+	float GetWeaponBoxAlpha(bool selected) {
+		if (selected)
+			return SelectionAlphaOverride;
+		return SelectionAlphaOverride * (AlphaOverride / 255.0f);
+	}
 
 	public override void Paint() { }
 
