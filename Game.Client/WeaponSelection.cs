@@ -58,7 +58,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 
 	void OnWeaponPickup(BaseCombatWeapon pWeapon) { }
 
-	private void UserCmd_Slot(int slot) {
+	static private void UserCmd_Slot(int slot) {
 		int fastSwitchMode = hud_fastswitch.GetInt();
 		if (3 == fastSwitchMode) //HUDTYPE_CAROUSEL
 			UserCmd_LastWeapon();
@@ -66,27 +66,27 @@ public class BaseHudWeaponSelection : EditableHudElement
 			Instance?.SelectSlot(slot);
 	}
 	[ConCommand("slot1", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_Slot1() => Instance?.SelectSlot(1);
+	static void UserCmd_Slot1() => UserCmd_Slot(1);
 	[ConCommand("slot2", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_Slot2() => Instance?.SelectSlot(2);
+	static void UserCmd_Slot2() => UserCmd_Slot(2);
 	[ConCommand("slot3", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_Slot3() => Instance?.SelectSlot(3);
+	static void UserCmd_Slot3() => UserCmd_Slot(3);
 	[ConCommand("slot4", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_Slot4() => Instance?.SelectSlot(4);
+	static void UserCmd_Slot4() => UserCmd_Slot(4);
 	[ConCommand("slot5", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_Slot5() => Instance?.SelectSlot(5);
+	static void UserCmd_Slot5() => UserCmd_Slot(5);
 	[ConCommand("slot6", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_Slot6() => Instance?.SelectSlot(6);
+	static void UserCmd_Slot6() => UserCmd_Slot(6);
 	[ConCommand("slot7", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_Slot7() => Instance?.SelectSlot(7);
+	static void UserCmd_Slot7() => UserCmd_Slot(7);
 	[ConCommand("slot8", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_Slot8() => Instance?.SelectSlot(8);
+	static void UserCmd_Slot8() => UserCmd_Slot(8);
 	[ConCommand("slot9", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_Slot9() => Instance?.SelectSlot(9);
+	static void UserCmd_Slot9() => UserCmd_Slot(9);
 	[ConCommand("slot0", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_Slot0() => Instance?.SelectSlot(0);
+	static void UserCmd_Slot0() => UserCmd_Slot(0);
 	[ConCommand("slot10", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_Slot10() => Instance?.SelectSlot(10);
+	static void UserCmd_Slot10() => UserCmd_Slot(10);
 
 	// bool IsHudMenuTakingInput() { }
 
