@@ -52,7 +52,7 @@ public class WeaponsResource
 		weaponInfo.IconSmall = null!;
 
 		Span<char> sz = stackalloc char[128];
-		sprintf(sz,"scripts/%s").S(weaponInfo.ClassName);
+		sprintf(sz,"scripts/%s.txt").S(weaponInfo.ClassName);
 
 		HudTextureDict tempList = new();
 
