@@ -44,7 +44,7 @@ public class C_World : C_BaseEntity
 		WeaponParse.PrecacheFileWeaponInfoDatabase(filesystem);
 	}
 
-	void Precache() {
+	public override void Precache() {
 		// ActivityList_Free();
 		// EventList_Free();
 

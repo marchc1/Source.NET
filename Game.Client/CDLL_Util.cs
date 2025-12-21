@@ -1,5 +1,7 @@
 ﻿global using static Game.Client.CDLL_Util;
 
+using Game.Client;
+
 namespace Game.Client
 {
 	public static class CDLL_Util
@@ -20,6 +22,16 @@ namespace Game
 {
 	public static partial class Util
 	{
+		public static void PrecacheOther(ReadOnlySpan<char> classname) {
+			C_BaseEntity? entity = C_BaseEntity.CreateEntityByName(classname);
+			if (entity == null) {
+				Warning("NULL Ent in UTIL_PrecacheOther\n");
+				return;
+			}
 
+			entity.Precache();
+			// Bye bye
+			entity.Release();
+		}
 	}
 }

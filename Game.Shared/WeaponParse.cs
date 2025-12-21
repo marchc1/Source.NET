@@ -74,7 +74,7 @@ public static class WeaponParse
 		}
 	}
 
-	private static bool ReadWeaponDataFromFileForSlot(IFileSystem filesystem, ReadOnlySpan<char> weaponName, out WEAPON_FILE_INFO_HANDLE handle) {
+	public static bool ReadWeaponDataFromFileForSlot(IFileSystem filesystem, ReadOnlySpan<char> weaponName, out WEAPON_FILE_INFO_HANDLE handle) {
 		handle = FindWeaponInfoSlot(weaponName);
 		FileWeaponInfo? fileInfo = GetFileWeaponInfoFromHandle(handle);
 		Assert(fileInfo != null);
@@ -93,8 +93,14 @@ public static class WeaponParse
 		return true;
 	}
 
-	private static FileWeaponInfo? GetFileWeaponInfoFromHandle(WEAPON_FILE_INFO_HANDLE handle) {
-		return WeaponInfoDatabase.TryGetValue(handle, out var info) ? info : null;
+	public static FileWeaponInfo GetFileWeaponInfoFromHandle(WEAPON_FILE_INFO_HANDLE handle) {
+		if (handle < 0 || handle >= WeaponInfoDatabase.Count)
+			return NullWeaponInfo;
+
+		if (handle == unchecked((WEAPON_FILE_INFO_HANDLE)(-1)))
+			return NullWeaponInfo;
+
+		return WeaponInfoDatabase.TryGetValue(handle, out var info) ? info : NullWeaponInfo;
 	}	
 
 	private static WEAPON_FILE_INFO_HANDLE LookupWeaponInfoSlot(ReadOnlySpan<char> weaponName) {
