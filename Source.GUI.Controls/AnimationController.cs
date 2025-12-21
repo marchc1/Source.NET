@@ -1,10 +1,13 @@
-using Source.Common.GUI;
 using CommunityToolkit.HighPerformance;
+
+using Source.Common;
+using Source.Common.Filesystem;
+using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
 using Source.Common.Mathematics;
 using Source.Common.Utilities;
-using Source.Common.Formats.Keyvalues;
-using Source.Common.Filesystem;
-using Source.Common;
+
+using static Source.GUI.Controls.AnimationController;
 
 namespace Source.GUI.Controls;
 
@@ -683,10 +686,13 @@ public class AnimationController : Panel, IAnimationController
 			return false;
 		}
 
-		return ParseScriptFile(f);
+		byte[] data = new byte[f.Stream.Length];
+		f.Stream.ReadExactly(data);
+
+		return ParseScriptFile(data);
 	}
 
-	private bool ParseScriptFile(IFileHandle f) {
+	private bool ParseScriptFile(ReadOnlySpan<byte> mem) {
 		return true;
 	}
 

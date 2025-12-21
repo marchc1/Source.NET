@@ -6,86 +6,29 @@ using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.GUI.Controls;
 
+using System.Drawing;
+
 namespace Game.Client.HUD;
 
-struct WRect
+public class HudTexture
 {
-	public int left;
-	public int right;
-	public int top;
-	public int bottom;
-}
+	public InlineArray64<char> ShortName;
+	public InlineArray64<char> TextureFile;
 
-class HudTexture : IDisposable
-{
-	string ShortName;
-	string TextureFile;
-	bool RenderUsingFont;
-	bool Precached;
-	char CharacterInFont;
-	IFont? Font;
-	int TextureId;
-	float[] TexCoords = new float[4];
-	WRect RC;
+	public int Width() => RC.Right - RC.Left;
+	public int Height() => RC.Bottom - RC.Top;
 
-	HudTexture() {
-		RC = default;
-		TextureId = -1;
-		RenderUsingFont = false;
-		Precached = false;
-		CharacterInFont = '\0';
-		Font = null;
+	public void Precache() {
+
 	}
 
-	public void Dispose() {
-		if (TextureId != -1) {
-			// surface.DestroyTextureID(textureId); todo
-			TextureId = -1;
-		}
-	}
-
-
-	void Precache() { }
-
-	int Width() => RC.right - RC.left;
-	int Height() => RC.bottom - RC.top;
-
-	void DrawSelf(int x, int y, Color clr) => DrawSelf(x, y, Width(), Height(), clr);
-
-	void DrawSelf(int x, int y, int w, int h, Color clr) {
-		if (RenderUsingFont) {
-			surface.DrawSetTextFont(Font);
-			surface.DrawSetTextColor(clr);
-			surface.DrawSetTextPos(x, y);
-			surface.DrawChar(CharacterInFont);
-		}
-		else {
-			if (TextureId == -1)
-				return;
-
-			surface.DrawSetTexture(TextureId);
-			surface.DrawSetColor(clr);
-			// surface.DrawTexturedSubRect(x, y, x + w, y + h, TexCoords[0], TexCoords[1], TexCoords[2], TexCoords[3]); todo
-		}
-	}
-
-	void DrawSelfCropped(int x, int y, int cropx, int cropy, int cropw, int croph, int finalWidth, int finalHeight, Color clr) { }
-
-	void DrawSelfCropped(int x, int y, int cropx, int cropy, int cropw, int croph, Color clr) => DrawSelfCropped(x, y, cropx, cropy, cropw, croph, cropw, croph, clr);
-
-	int EffectiveWidth(float scale) {
-		if (!RenderUsingFont)
-			return (int)(Width() * scale);
-		else
-			return surface.GetCharacterWidth(Font, CharacterInFont);
-	}
-
-	int EffectiveHeight(float scale) {
-		if (!RenderUsingFont)
-			return (int)(Height() * scale);
-		else
-			return surface.GetFontTall(Font);
-	}
+	public bool RenderUsingFont;
+	public bool Precached;
+	public char CharacterInFont;
+	public IFont? Font;
+	public int TextureID;
+	public InlineArray4<float> TexCoords;
+	public Rectangle RC;
 }
 
 [EngineComponent]

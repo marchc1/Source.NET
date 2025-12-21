@@ -14,6 +14,10 @@ layout(std140, binding = 0) uniform source_matrices {
     mat4 modelMatrix;
 };
 
+layout(std140, binding = 2) uniform source_base_vertex {
+    int numBones;
+};
+
 layout(std140, binding = 4) uniform source_bone_matrices {
     mat4 bones[256];
 };
@@ -23,15 +27,24 @@ out vec4 vs_Color;
 
 void main()
 {
-    mat4 bone0 = bones[v_BoneIndex.x];
-    mat4 bone1 = bones[v_BoneIndex.y];
+    vec4 localPos = vec4(0.0);
+	mat4 mvp;
+	
+    if (numBones == 0) {
+		mvp = projectionMatrix * viewMatrix * modelMatrix;
+		gl_Position = mvp * vec4(v_Position, 1.0);
+	}
+	else{
+		if (numBones >= 1) {
+			localPos += (bones[v_BoneIndex.x] * vec4(v_Position, 1.0)) * v_BoneWeights.x;
+		}
 
-    vec4 localPos =
-      (bone0 * vec4(v_Position, 1.0)) * v_BoneWeights.x
-    + (bone1 * vec4(v_Position, 1.0)) * v_BoneWeights.y;
-
-    mat4 mvp = projectionMatrix * viewMatrix ;
-    gl_Position = mvp * localPos;
+		if (numBones >= 2) {
+			localPos += (bones[v_BoneIndex.y] * vec4(v_Position, 1.0)) * v_BoneWeights.y;
+		}
+		mvp = projectionMatrix * viewMatrix;
+		gl_Position = mvp * localPos;
+	}   
 
     vs_TexCoord = v_TexCoord;
     vs_Color    = v_Color;

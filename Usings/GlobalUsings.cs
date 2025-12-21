@@ -25,6 +25,7 @@ global using TimeUnit_t = double;
 global using MDLHandle_t = uint;
 global using ModelInstanceHandle_t = uint;
 global using SoundSource = int;
+global using HTOOLHANDLE = uint;
 global using QueryCvarCookie_t = int;
 global using static Source.Common.DataCache.DataCacheConsts;
 global using WorldDecalHandle_t = ushort;

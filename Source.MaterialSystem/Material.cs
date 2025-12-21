@@ -466,8 +466,44 @@ public class Material : IMaterialInternal
 		return ok;
 	}
 
-	private void InitializeMaterialProxy(KeyValues fallbackKeyValues) {
+	IMaterialProxy? ReplacementProxy;
+	readonly List<IMaterialProxy> ProxyInfo = [];
 
+	void DetermineProxyReplacements(KeyValues fallbackKeyValues) {
+		ReplacementProxy = materials.DetermineProxyReplacements(this, fallbackKeyValues);
+	}
+
+	private void InitializeMaterialProxy(KeyValues fallbackKeyValues) {
+		IMaterialProxyFactory materialProxyFactory = materials.GetMaterialProxyFactory();
+		if (materialProxyFactory == null)
+			return;
+
+		DetermineProxyReplacements(fallbackKeyValues);
+
+		if (ReplacementProxy != null)
+			ProxyInfo.Add(ReplacementProxy);
+
+		KeyValues? proxySection = fallbackKeyValues.FindKey("Proxies");
+		if (proxySection != null) {
+			KeyValues? proxyKey = proxySection.GetFirstSubKey();
+
+			for (; proxyKey != null; proxyKey = proxyKey.GetNextKey()) {
+				// Each of the proxies should themselves be databases
+				IMaterialProxy? proxy = materialProxyFactory.CreateProxy(proxyKey.Name);
+				if (proxy == null) {
+					Warning($"Error: Material \"{GetName()}\" : proxy \"{proxyKey.Name}\" not found!\n");
+					continue;
+				}
+
+				if (!proxy.Init(this, proxyKey)) {
+					materialProxyFactory.DeleteProxy(proxy);
+					Warning($"Error: Material \"{GetName()}\" : proxy \"{proxyKey.Name}\" unable to initialize!\n");
+				}
+				else {
+					ProxyInfo.Add(proxy);
+				}
+			}
+		}
 	}
 
 	private KeyValues? InitializeShader(KeyValues keyValues, KeyValues? patchKeyValues, MaterialFindContext findContext) {
@@ -907,7 +943,7 @@ public class Material : IMaterialInternal
 		}
 	}
 
-	private void Uncache(bool preserveVars = false) {
+	public void Uncache(bool preserveVars = false) {
 		if (IsPrecached()) {
 			CleanUpStateSnapshots();
 			flags &= ~MaterialFlags.ValidRenderState;
@@ -1049,5 +1085,18 @@ public class Material : IMaterialInternal
 
 	private bool IsValidRenderState() {
 		return (flags & MaterialFlags.ValidRenderState) != 0;
+	}
+
+	public bool HasProxy() {
+		PrecacheVars();
+		return ProxyInfo.Count > 0;
+	}
+
+	public void CallBindProxy(object? proxydata) {
+		if (ProxyInfo.Count != 0) {
+			foreach (var proxy in ProxyInfo) {
+				proxy.OnBind(proxydata);
+			}
+		}
 	}
 }

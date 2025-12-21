@@ -34,7 +34,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #31: CBreakableSurface
 - [x] Class #32: CCitadelEnergyCore
 - [x] Class #33: CColorCorrection
-- [ ] Class #34: CColorCorrectionVolume
+- [x] Class #34: CColorCorrectionVolume
 - [x] Class #35: CCrossbowBolt
 - [x] Class #36: CDynamicLight
 - [x] Class #37: CDynamicProp
@@ -46,7 +46,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #43: CEnvDetailController
 - [ ] Class #44: CEnvHeadcrabCanister
 - [x] Class #45: CEnvParticleScript
-- [ ] Class #46: CEnvProjectedTexture
+- [x] Class #46: CEnvProjectedTexture
 - [x] Class #47: CEnvQuadraticBeam
 - [x] Class #48: CEnvScreenEffect
 - [ ] Class #49: CEnvScreenOverlay
@@ -89,7 +89,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #86: CLaserDot_HL1
 - [x] Class #87: CLightGlow
 - [x] Class #88: CLuaNextBot
-- [ ] Class #89: CMaterialModifyControl
+- [x] Class #89: CMaterialModifyControl
 - [x] Class #90: CMortarShell
 - [x] Class #91: CNPC_AntlionGuard
 - [x] Class #92: CNPC_Barnacle
@@ -103,7 +103,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #100: CNPC_Strider
 - [x] Class #101: CNPC_Vortigaunt
 - [x] Class #102: CParticleFire
-- [ ] Class #103: CParticlePerformanceMonitor
+- [x] Class #103: CParticlePerformanceMonitor
 - [x] Class #104: CParticleSystem
 - [x] Class #105: CPhysBeam
 - [x] Class #106: CPhysBox
@@ -114,9 +114,9 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #111: CPlasma
 - [x] Class #112: CPlayerResource
 - [x] Class #113: CPointCamera
-- [ ] Class #114: CPointWorldText
-- [ ] Class #115: CPoseController
-- [ ] Class #116: CPrecipitation
+- [x] Class #114: CPointWorldText
+- [x] Class #115: CPoseController
+- [x] Class #116: CPrecipitation
 - [x] Class #117: CPrecipitationBlocker
 - [x] Class #118: CPredictedViewModel
 - [x] Class #119: CPropAirboat
@@ -131,7 +131,7 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #128: CPropVehicleDriveable
 - [x] Class #129: CPropVehiclePrisonerPod
 - [ ] Class #130: CRagdollManager
-- [ ] Class #131: CRagdollProp
+- [x] Class #131: CRagdollProp
 - [ ] Class #132: CRagdollPropAttached
 - [x] Class #133: CRopeKeyframe
 - [x] Class #134: CRotorWashEmitter
@@ -142,8 +142,8 @@ This is a list of all of the important SendClasses in Garry's Mod, and which one
 - [x] Class #139: CSENT_anim
 - [x] Class #140: CSENT_point
 - [x] Class #141: CShadowControl
-- [ ] Class #142: CSlideshowDisplay
-- [ ] Class #143: CSmokeStack
+- [x] Class #142: CSlideshowDisplay
+- [x] Class #143: CSmokeStack
 - [x] Class #144: CSpatialEntity
 - [x] Class #145: CSpotlightEnd
 - [x] Class #146: CSprite

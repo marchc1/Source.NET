@@ -9,6 +9,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Game.Server;
+
 using FIELD = Source.FIELD<BaseEntity>;
 
 public partial class BaseEntity : IServerEntity
@@ -197,6 +198,12 @@ public partial class BaseEntity : IServerEntity
 	public ICollideable? GetCollideable() {
 		throw new NotImplementedException();
 	}
+
+	public virtual ReadOnlySpan<char> GetClassname() {
+		throw new NotImplementedException();
+	}
+	public virtual void Spawn() { }
+	public virtual void Precache() { }
 
 	public int GetModelIndex() {
 		throw new NotImplementedException();

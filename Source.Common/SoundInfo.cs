@@ -199,3 +199,18 @@ public struct SoundInfo
 		ListenerOrigin.Init();
 	}
 }
+
+public enum SpatializationType
+{
+	InCreation,
+	InSpatialization
+}
+
+public ref struct SpatializationInfo
+{
+	public SpatializationType Type;
+	public SoundInfo Info;
+	public ref Vector3 Origin;
+	public ref QAngle Angles;
+	public ref float Radius;
+}

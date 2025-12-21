@@ -9,7 +9,8 @@ namespace Game.Shared;
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
 public class LinkEntityToClassAttribute : Attribute
 {
-	public required string LocalName;
+	public string LocalName;
+	public LinkEntityToClassAttribute(string localName) => LocalName = localName;
 }
 
 public static class StaticClassIndicesHelpers

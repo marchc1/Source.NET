@@ -8,7 +8,7 @@ namespace Game.Server;
 using FIELD = Source.FIELD<World>;
 
 
-[LinkEntityToClass(LocalName = "worldspawn")]
+[LinkEntityToClass("worldspawn")]
 public class World : BaseEntity
 {
 	public static SendTable DT_World = new([

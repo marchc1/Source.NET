@@ -213,6 +213,8 @@ public interface IMaterialSystem
 	IMaterial? FindMaterialEx(ReadOnlySpan<char> materialName, ReadOnlySpan<char> textureGroupName, MaterialFindContext isOnAModel, bool complain = true, ReadOnlySpan<char> complainPrefix = default);
 	void BeginUpdateLightmaps();
 	void EndUpdateLightmaps();
+	void SetMaterialProxyFactory(IMaterialProxyFactory? factory);
+	IMaterialProxyFactory? GetMaterialProxyFactory();
 }
 
 public interface IMatRenderContext

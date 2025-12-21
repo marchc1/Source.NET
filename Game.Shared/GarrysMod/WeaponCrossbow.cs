@@ -6,12 +6,15 @@ namespace Game.Shared.GarrysMod;
 using FIELD = Source.FIELD<WeaponCrossbow>;
 
 #if !CLIENT_DLL
+
+[LinkEntityToClass("crossbow_bolt")]
 public class CrossbowBolt : BaseCombatCharacter {
 	public static readonly SendTable DT_CrossbowBolt = new(DT_BaseCombatCharacter, []);
 	public static readonly new ServerClass ServerClass = new ServerClass("CrossbowBolt", DT_CrossbowBolt).WithManualClassID(StaticClassIndices.CCrossbowBolt);
 }
 #endif
 
+[LinkEntityToClass("weapon_crossbow")]
 public class WeaponCrossbow : BaseHL2MPCombatWeapon
 {
 	public static readonly

@@ -216,6 +216,24 @@ public ref struct ScanF
 
 		return this;
 	}
+
+	public unsafe ScanF Read(out float i, int max = DEFAULT_SCANF_MAX) {
+		Span<char> incoming = stackalloc char[max];
+		i = default;
+		float iAttempt;
+
+#pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+		if (TryReadVariable(incoming, out char type, out int len))
+#pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+			switch (type) {
+				case (char)VariableType.DecimalFloatingPoint:
+					i = float.TryParse(incoming[..len], out iAttempt) ? iAttempt : default;
+					break;
+				default: throw new NotImplementedException();
+			}
+
+		return this;
+	}
 }
 
 public ref struct CFormatReader

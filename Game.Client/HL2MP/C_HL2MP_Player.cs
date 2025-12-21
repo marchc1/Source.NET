@@ -12,6 +12,7 @@ namespace Game.Client.HL2MP;
 using FIELD = FIELD<C_HL2MP_Player>;
 using FIELD_RD = FIELD<C_HL2MPRagdoll>;
 
+[LinkEntityToClass("player")]
 public partial class C_HL2MP_Player : C_BaseHLPlayer
 {
 	static ConVar cl_playermodel = new("none", FCvar.UserInfo | FCvar.Archive | FCvar.ServerCanExecute, "Default Player Model");

@@ -639,7 +639,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	public int GetCurrentNumBones() {
-		return 0;
+		return numBones;
 	}
 
 	Dictionary<uint, Dictionary<ulong, int>> locs = [];

@@ -1,3 +1,5 @@
+#define DBGFLAG_WRITE_TO_STDOUT
+
 using Pastel;
 
 using Source.Common.Commands;
@@ -40,7 +42,7 @@ public struct EngineVersion
 	}
 
 	public static EngineVersion FromAssembly(Assembly assembly, string? extra = null) {
-		if (TryGetLinkerTime(assembly, out var dt)) 
+		if (TryGetLinkerTime(assembly, out var dt))
 			return new(dt, extra);
 
 		return default;
@@ -123,7 +125,9 @@ public class Sys(Host host, ICommandLine CommandLine)
 		Span<char> buffer = stackalloc char[256];
 		int bufferIdx = 0;
 		unsafe void writeTxt(ReadOnlySpan<char> sub, in Color color) {
+#if DBGFLAG_WRITE_TO_STDOUT
 			Console.Write(sub.Pastel(color));
+#endif
 			if (routeInGame) {
 				host.Con?.ColorPrintf(in color, sub);
 			}

@@ -10,6 +10,7 @@ using Source.Common.MaterialSystem;
 using Source.Common.GUI;
 using Game.Shared;
 using Microsoft.Extensions.DependencyInjection;
+using Source.Common.Filesystem;
 
 namespace Game.Client;
 
@@ -36,6 +37,7 @@ public static class SourceDllMain
 	[Dependency] public static ICenterPrint centerprint { get; private set; } = null!;
 	[Dependency] public static IMaterialSystem materials { get; private set; } = null!;
 	[Dependency] public static IModelRender modelrender { get; private set; } = null!;
+	[Dependency] public static IFileSystem filesystem { get; private set; } = null!;
 	[Dependency] public static IVDebugOverlay debugoverlay { get; private set; } = null!;
 	[Dependency] public static IClientLeafSystem clientLeafSystem { get; private set; } = null!;
 	[Dependency] public static IUniformRandomStream random { get; private set; } = null!;

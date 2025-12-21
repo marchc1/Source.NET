@@ -3,6 +3,7 @@ using CommunityToolkit.HighPerformance;
 using Game.Client.HL2;
 using Game.Client.HUD;
 using Game.Shared;
+using Game.Shared.GarrysMod;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,7 +14,10 @@ using Source.Common.Client;
 using Source.Common.Engine;
 using Source.Common.GUI;
 using Source.Common.Input;
+using Source.Common.MaterialSystem;
 using Source.Engine;
+
+using System.Runtime.CompilerServices;
 
 namespace Game.Client;
 
@@ -40,6 +44,13 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		services.AddSingleton<HudElementHelper>();
 		services.AddSingleton<ViewportClientSystem>();
 		services.AddSingleton<IViewRender>(x => x.GetRequiredService<ViewRender>());
+
+#if GMOD_DLL
+		// Dumb hack, but whatever
+		RuntimeHelpers.RunClassConstructor(typeof(GModWeaponParse).TypeHandle);
+
+		garrysmod.DLLInit(services);
+#endif
 
 		services.AddSingleton<ViewportClientSystem>();
 	}
@@ -70,6 +81,9 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public bool Init() {
+#if GMOD_DLL
+		garrysmod.InitializeMod(services);
+#endif
 		IGameSystem.Add(Singleton<ViewportClientSystem>());
 
 		clientMode ??= new ClientModeHL2MPNormal(gpGlobals, HUD, Singleton<IEngineVGui>(), surface);
@@ -273,5 +287,9 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 	public void LevelShutdown() {
 
+	}
+
+	public LookupProxyInterfaceFn GetMaterialProxyInterfaceFn() {
+		return MaterialProxies.CreateProxyInterfaceFn;
 	}
 }

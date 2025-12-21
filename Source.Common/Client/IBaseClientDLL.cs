@@ -1,5 +1,6 @@
 ﻿using Source.Common.Bitbuffers;
 using Source.Common.Input;
+using Source.Common.MaterialSystem;
 
 namespace Source.Common.Client;
 
@@ -34,4 +35,5 @@ public interface IBaseClientDLL
 	void ErrorCreatingEntity(int entityIdx, int classIdx, int serialNumber);
 	void InitSprite(EngineSprite? sprite, ReadOnlySpan<char> loadName);
 	void LevelShutdown();
+	LookupProxyInterfaceFn GetMaterialProxyInterfaceFn();
 }

@@ -443,6 +443,8 @@ public interface IMaterial
 	IMaterialVar? FindVarFast(ReadOnlySpan<char> name, ref TokenCache lightmapVarCache);
 	bool IsTranslucent();
 	int GetNumAnimationFrames();
+	bool HasProxy();
+	void CallBindProxy(object? clientEntity);
 }
 
 // Intended to only be used by the material system and not other components
@@ -463,4 +465,5 @@ public interface IMaterialInternal : IMaterial
 	void SetMinLightmapPageID(int value);
 	bool GetNeedsWhiteLightmap();
 	void SetNeedsWhiteLightmap(bool value);
+	void Uncache(bool preserveVars = false);
 }

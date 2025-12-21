@@ -98,6 +98,15 @@ public class PredictableList : IPredictableList
 
 public partial class C_BaseEntity : IClientEntity
 {
+	public static C_BaseEntity? CreateEntityByName(ReadOnlySpan<char> className) {
+		C_BaseEntity? ent = GetClassMap().CreateEntity(className);
+		if (ent != null) 
+			return ent;
+
+		Warning($"Can't find factory for entity: {className}\n");
+		return null;
+	}
+
 	static readonly LinkedList<C_BaseEntity> InterpolationList = [];
 	static readonly LinkedList<C_BaseEntity> TeleportList = [];
 	static bool s_bInterpolate = true;
@@ -1118,6 +1127,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public virtual void Spawn() { }
+	public virtual void Precache() { }
 
 	PredictableId PredictionId;
 	//PredictionContext? PredictionContext;

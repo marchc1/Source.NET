@@ -99,10 +99,13 @@ public static class SharedDefs
 	public const int MAX_VIEWMODELS = 3;
 	public const int MAX_BEAM_ENTS = 10;
 	public const int MAX_WEAPONS = 256;
+	public const int MAX_ITEMS = 5;
+	public const int WEAPON_NOCLIP = -1;
 
 	public const int NUM_AUDIO_LOCAL_SOUNDS = 8;
 
 	public const int MAX_SUIT_DEVICES = 3;
+	public const int MAX_AMMO_TYPES = 256;
 	public const int MAX_AMMO_SLOTS = 256;
 	public const int MAX_SPLINE_POINTS = 16;
 

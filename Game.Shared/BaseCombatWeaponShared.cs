@@ -141,6 +141,8 @@ public partial class
 	public virtual int DrawOverriddenViewmodel(BaseViewModel viewmodel, StudioFlags flags) => 0;
 	public virtual void ViewModelDrawn(BaseViewModel viewmodelflags) { }
 
+	
+
 	public BaseCombatCharacter? GetOwner() => ToBaseCombatCharacter(Owner.Get());
 
 	public bool SetIdealActivity(Activity ideal) {
@@ -151,6 +153,19 @@ public partial class
 	}
 	public void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
 
+	}
+
+	public override void Precache() {
+		PrimaryAmmoType = SecondaryAmmoType = -1;
+		if(WeaponParse.ReadWeaponDataFromFileForSlot(filesystem, GetClassname(), out WeaponFileInfoHandle)){
+
+		}
+	}
+
+	WEAPON_FILE_INFO_HANDLE WeaponFileInfoHandle;
+
+	public FileWeaponInfo GetWpnData(){
+		return WeaponParse.GetFileWeaponInfoFromHandle(WeaponFileInfoHandle);
 	}
 }
 #endif
