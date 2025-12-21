@@ -67,6 +67,8 @@ public class BaseViewport : EditablePanel, IViewPort
 				ActivePanel = null;
 		}
 
+
+		AnimController.UpdateAnimations(gpGlobals.CurTime);
 		int count = Panels.Count;
 
 		for (int i = 0; i < count; i++) {

@@ -2523,7 +2523,7 @@ public class Panel : IPanel
 	public Panel? FindChildByName(ReadOnlySpan<char> childName, bool recurseDown = false) {
 		for (int i = 0; i < GetChildCount(); i++) {
 			Panel child = GetChild(i);
-			if (childName.Equals(child.GetName(), StringComparison.Ordinal))
+			if (childName.Equals(child.GetName(), StringComparison.OrdinalIgnoreCase))
 				return child;
 
 			if (recurseDown) {
