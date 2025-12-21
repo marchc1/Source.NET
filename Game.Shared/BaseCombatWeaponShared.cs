@@ -163,6 +163,7 @@ public partial class
 	}
 
 	WEAPON_FILE_INFO_HANDLE WeaponFileInfoHandle;
+	public WEAPON_FILE_INFO_HANDLE GetWeaponFileInfoHandle() => WeaponFileInfoHandle;
 
 	public FileWeaponInfo GetWpnData(){
 		return WeaponParse.GetFileWeaponInfoFromHandle(WeaponFileInfoHandle);

@@ -22,8 +22,8 @@ public class BaseCombatCharacter : BaseFlex
 	]);
 
 	public double NextAttack;
-	public readonly EHANDLE ActiveWeapon = new();
-	public InlineArrayNewMaxWeapons<EHANDLE> MyWeapons = new();
+	public readonly Handle<BaseCombatWeapon> ActiveWeapon = new();
+	public InlineArrayNewMaxWeapons<Handle<BaseCombatWeapon>> MyWeapons = new();
 	public InlineArrayMaxAmmoSlots<int> Ammo;
 	public Color BloodColor;
 
