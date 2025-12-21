@@ -1,14 +1,45 @@
+global using static Game.Client.HUD.HudExtensions;
+
+global using HudTextureDict = System.Collections.Generic.Dictionary<ulong, Game.Client.HUD.HudTexture>;
+
+using CommunityToolkit.HighPerformance;
+
 using Game.Shared;
 
 using Source;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
+using Source.Common.MaterialSystem;
+using Source.Common.Utilities;
 using Source.GUI.Controls;
 
 using System.Drawing;
 
 namespace Game.Client.HUD;
+
+public static class HudExtensions
+{
+	public static T? GET_HUDELEMENT<T>() where T : IHudElement => (T?)gHUD.FindElement(typeof(T).Name);
+}
+
+struct HudTextureFileRef
+{
+	const int fileKeyLength = 64;
+	const int hudTexturePrefix = 16;
+
+	public InlineArray64<char> FileKey;
+	public InlineArray16<char> HudTexturePrefix;
+	public uint PrefixLength;
+	public UtlSymbol FileKeySymbol;
+
+	public HudTextureFileRef(ReadOnlySpan<char> fileKey, ReadOnlySpan<char> texturePrefix) {
+		strcpy(FileKey, fileKey);
+		strcpy(HudTexturePrefix, texturePrefix);
+		PrefixLength = (uint)strlen(texturePrefix);
+		FileKeySymbol = new UtlSymbol(fileKey);
+	}
+}
 
 public class HudTexture
 {
@@ -26,14 +57,15 @@ public class HudTexture
 	public bool Precached;
 	public char CharacterInFont;
 	public IFont? Font;
-	public int TextureID;
+	public TextureID TextureID;
 	public InlineArray4<float> TexCoords;
 	public Rectangle RC;
 }
 
 [EngineComponent]
-public class Hud(HudElementHelper HudElementHelper, IFileSystem filesystem)
+public class Hud(HudElementHelper HudElementHelper)
 {
+	readonly HudTextureDict Icons = [];
 	public readonly List<IHudElement> HudList = [];
 	internal InButtons KeyBits;
 
@@ -116,6 +148,124 @@ public class Hud(HudElementHelper HudElementHelper, IFileSystem filesystem)
 
 	internal bool IsRenderGroupLockedFor(IHudElement hudElement, int groupIndex) {
 		return false; // todo
+	}
+
+	internal static void LoadHudTextures(Dictionary<ulong, HudTexture> list, Span<char> filenameWithExtension) {
+		KeyValues? temp, textureSection;
+
+		KeyValues keyValuesData = new();
+		if (keyValuesData.LoadFromFile(filesystem, filenameWithExtension)) {
+			List<HudTextureFileRef> hudTextureFileRefs = [];
+			hudTextureFileRefs.Add(new HudTextureFileRef("file", ""));
+
+			KeyValues? textureFileRefs = keyValuesData.FindKey("TextureFileRefs");
+			if (textureFileRefs != null) {
+				temp = textureFileRefs.GetFirstSubKey();
+				while (temp != null) {
+					hudTextureFileRefs.Add(new HudTextureFileRef(temp.Name, temp.GetString("prefix", "")));
+					temp = temp.GetNextKey();
+				}
+			}
+
+			textureSection = keyValuesData.FindKey("TextureData");
+			if (textureSection != null) {
+				temp = textureSection.GetFirstSubKey();
+				while (temp != null) {
+					if (!temp.GetString("font", null).IsEmpty) {
+						HudTexture tex = new HudTexture();
+
+						// Key Name is the sprite name
+						strcpy(tex.ShortName, temp.Name);
+
+						// it's a font-based icon
+						tex.RenderUsingFont = true;
+						tex.CharacterInFont = temp.GetString("character", "\0")[0];
+						strcpy(tex.TextureFile, temp.GetString("font"));
+
+						list.Add(((ReadOnlySpan<char>)tex.ShortName).Hash(false), tex);
+					}
+					else {
+						int iTexLeft = temp.GetInt("x", 0),
+							iTexTop = temp.GetInt("y", 0),
+							iTexRight = temp.GetInt("width", 0) + iTexLeft,
+							iTexBottom = temp.GetInt("height", 0) + iTexTop;
+
+						for (int i = 0; i < hudTextureFileRefs.Count(); i++) {
+							ReadOnlySpan<char> fileName = temp.GetString(hudTextureFileRefs[i].FileKeySymbol, null);
+							if (!fileName.IsEmpty) {
+								HudTexture tex = new HudTexture();
+
+								tex.RenderUsingFont = false;
+								tex.RC.X = iTexLeft;
+								tex.RC.Y = iTexTop;
+								tex.RC.Width = iTexRight;
+								tex.RC.Height = iTexBottom;
+
+								strcpy(tex.ShortName, hudTextureFileRefs.AsSpan()[i].HudTexturePrefix);
+								strcpy(tex.ShortName[(int)hudTextureFileRefs[i].PrefixLength..], temp.Name.SliceNullTerminatedString());
+								strcpy(tex.TextureFile, fileName);
+
+								list.Add(((ReadOnlySpan<char>)tex.ShortName).Hash(false), tex);
+							}
+						}
+					}
+
+					temp = temp.GetNextKey();
+				}
+			}
+		}
+	}
+
+	internal HudTexture? GetIcon(ReadOnlySpan<char> icon) {
+		if (Icons.TryGetValue(icon.Hash(false), out HudTexture? tex))
+			return tex;
+
+		return null;
+	}
+
+	internal HudTexture AddUnsearchableHudIconToList(HudTexture texture) {
+		Span<char> composedName = stackalloc char[512];
+
+		if (texture.RenderUsingFont)
+			sprintf(composedName, "%s_c%i").S(texture.TextureFile).I(texture.CharacterInFont);
+		else
+			sprintf(composedName, "%s_%i_%i_%i_%i").S(texture.TextureFile).I(texture.RC.X).I(texture.RC.Y).I(texture.RC.Width).I(texture.RC.Height);
+
+
+		HudTexture? icon = GetIcon(composedName);
+		if (icon != null)
+			return icon;
+
+		HudTexture newTexture = new();
+		texture.CopyInstantiatedReferenceTo(newTexture);
+
+		SetupNewHudTexture(newTexture);
+
+		Icons.Add(composedName.Hash(false), newTexture);
+		return newTexture;
+	}
+
+	private void SetupNewHudTexture(HudTexture t) {
+		if (t.RenderUsingFont) {
+			IScheme scheme = vguiSchemeManager.GetScheme("ClientScheme")!;
+			t.Font = scheme.GetFont(t.TextureFile, true);
+			t.RC.Y = 0;
+			t.RC.X = 0;
+			t.RC.Width = surface.GetCharacterWidth(t.Font, t.CharacterInFont);
+			t.RC.Height = surface.GetFontTall(t.Font);
+		}
+		else {
+			// Set up texture id and texture coordinates
+			t.TextureID = surface.CreateNewTextureID();
+			surface.DrawSetTextureFile(t.TextureID, t.TextureFile, 0, false);
+
+			surface.DrawGetTextureSize(t.TextureID, out int wide, out int tall);
+
+			t.TexCoords[0] = (float)(t.RC.X + 0.5f) / (float)wide;
+			t.TexCoords[1] = (float)(t.RC.Y + 0.5f) / (float)tall;
+			t.TexCoords[2] = (float)(t.RC.Width - 0.5f) / (float)wide;
+			t.TexCoords[3] = (float)(t.RC.Height - 0.5f) / (float)tall;
+		}
 	}
 }
 

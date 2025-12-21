@@ -22,9 +22,11 @@ public partial class C_BaseCombatCharacter : C_BaseFlex
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("BaseCombatCharacter", null, null, DT_BaseCombatCharacter).WithManualClassID(StaticClassIndices.CBaseCombatCharacter);
 
+	public C_BaseCombatWeapon? GetWeapon(int i) => MyWeapons[i].Get();
+
 	public double NextAttack;
-	public readonly EHANDLE ActiveWeapon = new();
-	public InlineArrayNewMaxWeapons<EHANDLE> MyWeapons = new();
+	public readonly Handle<C_BaseCombatWeapon> ActiveWeapon = new();
+	public InlineArrayNewMaxWeapons<Handle<C_BaseCombatWeapon>> MyWeapons = new();
 	public InlineArrayMaxAmmoSlots<int> Ammo;
 	public Color BloodColor;
 }
