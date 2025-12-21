@@ -98,7 +98,7 @@ public class PredictableList : IPredictableList
 
 public partial class C_BaseEntity : IClientEntity
 {
-	public static C_BaseEntity CreateEntityByName(ReadOnlySpan<char> className) {
+	public static C_BaseEntity? CreateEntityByName(ReadOnlySpan<char> className) {
 		C_BaseEntity? ent = GetClassMap().CreateEntity(className);
 		if (ent != null) 
 			return ent;
