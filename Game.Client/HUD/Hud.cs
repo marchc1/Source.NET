@@ -3,9 +3,32 @@ using Game.Shared;
 using Source;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
 using Source.GUI.Controls;
 
+using System.Drawing;
+
 namespace Game.Client.HUD;
+
+public class HudTexture{
+	public InlineArray64<char> ShortName;
+	public InlineArray64<char> TextureFile;
+
+	public int Width() => RC.Right - RC.Left;
+	public int Height() => RC.Bottom - RC.Top;
+
+	public void Precache(){
+
+	}
+
+	public bool RenderUsingFont;
+	public bool Precached;
+	public char CharacterInFont;
+	public IFont? Font;
+	public int TextureID;
+	public InlineArray4<float> TexCoords;
+	public Rectangle RC;
+}
 
 [EngineComponent]
 public class Hud(HudElementHelper HudElementHelper, IFileSystem filesystem)

@@ -39,4 +39,24 @@ public class C_World : C_BaseEntity
 	float MinPropScreenSpaceWidth;
 	InlineArray256<char> DetailSpriteMaterial;
 	bool ColdWorld;
+
+	void W_Precache() {
+		WeaponParse.PrecacheFileWeaponInfoDatabase(filesystem);
+	}
+
+	void Precache() {
+		// ActivityList_Free();
+		// EventList_Free();
+
+		// RegisterSharedActivities();
+
+		// Get weapon precaches
+		W_Precache();
+
+		// Call all registered precachers.
+		// PrecacheRegister.Precache();
+	}
+	public override void Spawn() {
+		Precache();
+	}
 }

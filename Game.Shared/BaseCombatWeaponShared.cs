@@ -152,5 +152,9 @@ public partial class
 	public void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
 
 	}
+
+	public FileWeaponInfo GetWpnData(){
+		return GetFileWeaponInfoFromHandle(WeaponFileInfoHandle);
+	}
 }
 #endif
