@@ -1,9 +1,11 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 
 
 namespace Source.Common.Utilities;
 
-public interface ISymbolTable {
+public interface ISymbolTable
+{
 	UtlSymId_t AddString(ReadOnlySpan<char> str);
 	UtlSymId_t Find(ReadOnlySpan<char> str);
 	string? String(UtlSymId_t symbol);
@@ -18,11 +20,23 @@ public class UtlSymbolTable(bool caseInsensitive = false) : ISymbolTable
 	public int Count => Symbols.Count;
 	public void Clear() => Symbols.Clear();
 
-	public UtlSymId_t AddString(ReadOnlySpan<char> str) {
+	public unsafe UtlSymId_t AddString(ReadOnlySpan<char> str) {
 		str = str.SliceNullTerminatedString();
-		UtlSymId_t hash = str.Hash(invariant: caseInsensitive);
+
+		ReadOnlySpan<char> hashme;
+		if (caseInsensitive) {
+			Span<char> lowerBuffer = stackalloc char[str.Length];
+			str.ToLowerInvariant(lowerBuffer);
+#pragma warning disable CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+			hashme = lowerBuffer;
+#pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
+		}
+		else
+			hashme = str;
+
+		UtlSymId_t hash = hashme.Hash();
 		if (!Symbols.ContainsKey(hash))
-			Symbols[hash] = new(str);
+			Symbols[hash] = new(hashme);
 		return hash;
 	}
 
