@@ -4,6 +4,8 @@ using Source.Common;
 using System.Numerics;
 namespace Game.Shared.GarrysMod;
 using FIELD = Source.FIELD<WeaponRPG>;
+
+[LinkEntityToClass("weapon_rpg")]
 public class WeaponRPG : BaseHL2MPCombatWeapon
 {
 	public static readonly
@@ -39,6 +41,7 @@ public class WeaponRPG : BaseHL2MPCombatWeapon
 	public Vector3 LaserDot;
 }
 
+[LinkEntityToClass("env_laserdot")]
 public class LaserDot : SharedBaseEntity
 {
 	public static readonly

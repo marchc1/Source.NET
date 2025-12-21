@@ -26,6 +26,7 @@ using Class =
 	ServerClass;
 #endif
 
+[LinkEntityToClass("weapon_physgun")]
 public partial class
 #if CLIENT_DLL
     C_WeaponPhysGun : C_BaseHL2MPCombatWeapon

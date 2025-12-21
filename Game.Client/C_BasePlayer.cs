@@ -13,6 +13,7 @@ using FIELD = Source.FIELD<Game.Client.C_BasePlayer>;
 
 namespace Game.Client;
 
+[LinkEntityToClass("player")]
 public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 {
 	public static readonly RecvTable DT_PlayerState = new([

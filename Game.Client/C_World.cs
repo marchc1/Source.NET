@@ -9,7 +9,7 @@ using FIELD = Source.FIELD<Game.Client.C_World>;
 
 namespace Game.Client;
 
-[LinkEntityToClass(LocalName = "player")]
+[LinkEntityToClass("worldspawn")]
 public class C_World : C_BaseEntity
 {
 	public static readonly RecvTable DT_World = new(DT_BaseEntity, [

@@ -2,6 +2,8 @@
 using Source.Common;
 namespace Game.Shared.GarrysMod;
 using FIELD = Source.FIELD<WeaponSLAM>;
+
+[LinkEntityToClass("weapon_slam")]
 public class WeaponSLAM : BaseHL2MPCombatWeapon
 {
 	public static readonly
