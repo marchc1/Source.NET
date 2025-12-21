@@ -82,7 +82,7 @@ public static class WeaponParse
 			return true;
 
 		Span<char> sz = stackalloc char[128];
-		sprintf(sz, "scripts/%s").S(weaponName);
+		sprintf(sz, "scripts/%s.txt").S(weaponName);
 
 		KeyValues keyValues = new KeyValues();
 		if (!keyValues.LoadFromFile(filesystem, sz.SliceNullTerminatedString()))
