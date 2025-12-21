@@ -84,6 +84,7 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 	KeyButtonState in_break;
 	KeyButtonState in_zoom;
 	KeyButtonState in_attack3;
+	BaseCombatWeapon? SelectedWeapon;
 
 	void KeyDown(ref KeyButtonState button, ReadOnlySpan<char> code) {
 		int k = int.TryParse(code, out k) ? k : -1;
@@ -258,6 +259,14 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 		cmd.ViewAngles = curViewangles;
 		cmd.Impulse = (byte)in_impulse;
 		in_impulse = 0;
+
+		if (SelectedWeapon != null) {
+			BaseCombatWeapon weapon = SelectedWeapon;
+			cmd.WeaponSelect = weapon.EntIndex();
+			// cmd.WeaponSubtype = weapon.GetSubType();
+			SelectedWeapon = null;
+		}
+
 		if (cmd.ForwardMove > 0)
 			cmd.Buttons |= InButtons.Forward;
 		else if (cmd.ForwardMove < 0)
@@ -314,6 +323,8 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 		ref UserCmd cmd = ref Commands[MathLib.Modulo(sequenceNumber, MULTIPLAYER_BACKUP)];
 		UserCmd.ReadUsercmd(buf, ref cmd, ref UserCmd.NULL);
 	}
+
+	public void MakeWeaponSelection(BaseCombatWeapon? weapon) => SelectedWeapon = weapon;
 
 	public void Init() {
 		Hud = Singleton<Hud>();
@@ -387,7 +398,7 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 		cmd.Buttons = GetButtonBits(0);
 		cmd.ViewAngles = viewangles;
 
-		if(clientMode.CreateMove(frametime, ref cmd)) {
+		if (clientMode.CreateMove(frametime, ref cmd)) {
 			engine.SetViewAngles(cmd.ViewAngles);
 			prediction.SetLocalViewAngles(cmd.ViewAngles);
 		}

@@ -577,6 +577,13 @@ public class Label : Panel
 		}
 	}
 
+	public IImage? GetImageAtIndex(int index) {
+		if (index < 0 || index >= Images.Count)
+			return null;
+
+		return Images[index].Image;
+	}
+
 	public int GetImageCount() => Images.Count;
 
 	public nint SetTextImageIndex(int newIndex) {
@@ -587,14 +594,22 @@ public class Label : Panel
 
 		nint oldIndex = TextImageIndex;
 
-		var info = Images[newIndex];
-		if (TextImageIndex != 0) info.Image = null;
-		if (newIndex > -1) info.Image = TextImage;
-		Images[newIndex] = info;
+		if (TextImageIndex >= 0) {
+			var info = Images[(int)TextImageIndex];
+			info.Image = null;
+			Images[(int)TextImageIndex] = info;
+		}
+
+		if (newIndex >= 0) {
+			var info = Images[newIndex];
+			info.Image = TextImage;
+			Images[newIndex] = info;
+		}
 
 		TextImageIndex = newIndex;
 		return oldIndex;
 	}
+
 
 	public void EnsureImageCapacity(int maxIndex) {
 		while (Images.Count <= maxIndex)

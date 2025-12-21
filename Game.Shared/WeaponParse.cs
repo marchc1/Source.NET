@@ -1,11 +1,11 @@
 ﻿global using WEAPON_FILE_INFO_HANDLE = ushort;
-using Source.Common.Filesystem;
-using Source;
-
 
 #if CLIENT_DLL
 using Game.Client.HUD;
 #endif
+
+using Source.Common.Filesystem;
+using Source;
 
 using Source.Common.Formats.Keyvalues;
 
@@ -101,7 +101,7 @@ public static class WeaponParse
 			return NullWeaponInfo;
 
 		return WeaponInfoDatabase.TryGetValue(handle, out var info) ? info : NullWeaponInfo;
-	}	
+	}
 
 	private static WEAPON_FILE_INFO_HANDLE LookupWeaponInfoSlot(ReadOnlySpan<char> weaponName) {
 		return WeaponInfoHashDatabase.TryGetValue(weaponName.Hash(), out var handle) ? handle : unchecked((WEAPON_FILE_INFO_HANDLE)(-1));
@@ -183,7 +183,7 @@ public class FileWeaponInfo
 	// This helps cl_righthand make the decision about whether to flip the model or not.
 	public bool BuiltRightHanded;
 	public bool AllowFlipping;  // False to disallow flipping the model, regardless of whether
-								// it is built left or right handed.
+															// it is built left or right handed.
 
 #if CLIENT_DLL
 	public int SpriteCount;
@@ -197,5 +197,4 @@ public class FileWeaponInfo
 	public HudTexture IconZoomedAutoaim;
 	public HudTexture IconSmall;
 #endif
-
 }

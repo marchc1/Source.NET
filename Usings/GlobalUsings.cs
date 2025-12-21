@@ -31,6 +31,7 @@ global using static Source.Common.DataCache.DataCacheConsts;
 global using WorldDecalHandle_t = ushort;
 global using ShadowDecalHandle_t = ushort;
 global using OverlayFragmentHandle_t = ushort;
+global using WeaponInfoFileHandle_t = ushort;
 global using Trace = Source.Common.GameTrace;
 global using ViewRects = Source.Common.Utilities.RefStack<Source.Common.Engine.ViewRect>;
 global using ClientRenderHandle_t = long;
