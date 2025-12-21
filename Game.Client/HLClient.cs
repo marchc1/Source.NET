@@ -3,6 +3,7 @@ using CommunityToolkit.HighPerformance;
 using Game.Client.HL2;
 using Game.Client.HUD;
 using Game.Shared;
+using Game.Shared.GarrysMod;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,6 +16,8 @@ using Source.Common.GUI;
 using Source.Common.Input;
 using Source.Common.MaterialSystem;
 using Source.Engine;
+
+using System.Runtime.CompilerServices;
 
 namespace Game.Client;
 
@@ -43,6 +46,9 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		services.AddSingleton<IViewRender>(x => x.GetRequiredService<ViewRender>());
 
 #if GMOD_DLL
+		// Dumb hack, but whatever
+		RuntimeHelpers.RunClassConstructor(typeof(GModWeaponParse).TypeHandle);
+
 		garrysmod.DLLInit(services);
 #endif
 
