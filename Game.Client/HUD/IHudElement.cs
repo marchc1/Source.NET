@@ -4,7 +4,8 @@ namespace Game.Client.HUD;
 
 // Since C# can't do multiple inheritance, this interface acts as the bridge, with other sub-panel types "EditableHudElement" for example
 // being the actual base class
-public interface IHudElement {
+public interface IHudElement
+{
 	string? ElementName { get; }
 	HideHudBits HiddenBits { get; set; }
 	bool Active { get; set; }
@@ -20,7 +21,7 @@ public interface IHudElement {
 	void ProcessInput() { }
 	ReadOnlySpan<char> GetName() => ElementName;
 	public bool ShouldDraw() {
-		bool shouldDraw = gHUD.IsHidden(HiddenBits);
+		bool shouldDraw = !gHUD.IsHidden(HiddenBits);
 
 		if (shouldDraw) {
 			int numGroups = HudRenderGroups.Count;

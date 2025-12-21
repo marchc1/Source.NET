@@ -259,6 +259,14 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 		cmd.ViewAngles = curViewangles;
 		cmd.Impulse = (byte)in_impulse;
 		in_impulse = 0;
+
+		if (SelectedWeapon != null) {
+			BaseCombatWeapon weapon = SelectedWeapon;
+			cmd.WeaponSelect = weapon.EntIndex();
+			// cmd.WeaponSubtype = weapon.GetSubType();
+			SelectedWeapon = null;
+		}
+
 		if (cmd.ForwardMove > 0)
 			cmd.Buttons |= InButtons.Forward;
 		else if (cmd.ForwardMove < 0)
@@ -316,10 +324,7 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 		UserCmd.ReadUsercmd(buf, ref cmd, ref UserCmd.NULL);
 	}
 
-	public void MakeWeaponSelection(BaseCombatWeapon? weapon) {
-		DevMsg($"MakeWeaponSelection({weapon})\n");
-		SelectedWeapon = weapon;
-	}
+	public void MakeWeaponSelection(BaseCombatWeapon? weapon) => SelectedWeapon = weapon;
 
 	public void Init() {
 		Hud = Singleton<Hud>();

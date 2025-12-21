@@ -1,4 +1,5 @@
 using Game.Client.HUD;
+using Game.Shared;
 
 using Source;
 using Source.Common.Commands;
@@ -127,7 +128,19 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 	void ActivateFastswitchWeaponDisplay(BaseCombatWeapon selectedWeapon) { }
 
-	void ActivateWeaponHighlight(BaseCombatWeapon selectedWeapon) { }
+	void ActivateWeaponHighlight(BaseCombatWeapon selectedWeapon) {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return;
+
+		MakeReadyForUse();
+
+		BaseCombatWeapon? weapon = GetWeaponInSlot(SelectedSlot, SelectedBoxPosition);
+		if (weapon == null)
+			return;
+
+		clientMode.GetViewportAnimationController()?.StartAnimationSequence("WeaponHighlight");
+	}
 
 	float GetWeaponBoxAlpha(bool selected) {
 		if (selected)
@@ -185,7 +198,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 							if (weapon == null)
 								break;
 
-							float alpha = GetWeaponBoxAlpha(i == SelectedWeaponBox);
+							byte alpha = (byte)GetWeaponBoxAlpha(i == SelectedWeaponBox);
 							if (i == SelectedWeaponBox)
 								DrawLargeWeaponBox(weapon, true, xpos, ypos, (int)LargeBoxWide, (int)LargeBoxTall, selectedColor, alpha, -1);
 							else
@@ -202,13 +215,13 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 							if (weapon == null)
 								break;
 
-							float alpha;
+							byte alpha;
 							if (i == SelectedWeaponBox && HorizWeaponSelectOffsetPoint == 0) {
-								alpha = GetWeaponBoxAlpha(true);
+								alpha = (byte)GetWeaponBoxAlpha(true);
 								DrawLargeWeaponBox(weapon, true, xpos, ypos, largeBoxWide, largeBoxTall, selectedColor, alpha, -1);
 							}
 							else {
-								alpha = GetWeaponBoxAlpha(false);
+								alpha = (byte)GetWeaponBoxAlpha(false);
 								DrawLargeWeaponBox(weapon, false, xpos, ypos, largeBoxWide, (int)(largeBoxTall / 1.5f), BoxColor, alpha, -1);
 							}
 
@@ -231,13 +244,13 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 							if (weapon == null)
 								break;
 
-							float alpha;
+							byte alpha;
 							if (i == SelectedWeaponBox && HorizWeaponSelectOffsetPoint == 0) {
-								alpha = GetWeaponBoxAlpha(true);
+								alpha = (byte)GetWeaponBoxAlpha(true);
 								DrawLargeWeaponBox(weapon, true, xpos, ypos, largeBoxWide, largeBoxTall, selectedColor, alpha, -1);
 							}
 							else {
-								alpha = GetWeaponBoxAlpha(false);
+								alpha = (byte)GetWeaponBoxAlpha(false);
 								DrawLargeWeaponBox(weapon, false, xpos, ypos, largeBoxWide, (int)(largeBoxTall / 1.5f), BoxColor, alpha, -1);
 							}
 
@@ -289,7 +302,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 							if (i == SelectedSlot && slotPos == SelectedBoxPosition)
 								bSelectedWeapon = true;
 
-							DrawLargeWeaponBox(weapon, bSelectedWeapon, x, y, boxWide, boxTall, bSelectedWeapon ? selectedColor : BoxColor, GetWeaponBoxAlpha(bSelectedWeapon), -1);
+							DrawLargeWeaponBox(weapon, bSelectedWeapon, x, y, boxWide, boxTall, bSelectedWeapon ? selectedColor : BoxColor, (byte)GetWeaponBoxAlpha(bSelectedWeapon), -1);
 						}
 					}
 				}
@@ -315,7 +328,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 								}
 								else {
 									bool bSelected = weapon == SelectedWeapon;
-									DrawLargeWeaponBox(weapon, bSelected, xpos, ypos, largeBoxWide, largeBoxTall, bSelected ? selectedColor : BoxColor, GetWeaponBoxAlpha(bSelected), drawBucketNumber ? i + 1 : -1);
+									DrawLargeWeaponBox(weapon, bSelected, xpos, ypos, largeBoxWide, largeBoxTall, bSelected ? selectedColor : BoxColor, (byte)GetWeaponBoxAlpha(bSelected), drawBucketNumber ? i + 1 : -1);
 								}
 
 								ypos += (int)(largeBoxTall + BoxGap);
@@ -347,19 +360,185 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		}
 	}
 
-	void DrawLargeWeaponBox(BaseCombatWeapon weapon, bool bSelected, int xpos, int ypos, int boxWide, int boxTall, Color selectedColor, float alpha, int number) {
-		throw new NotImplementedException();
+	void DrawLargeWeaponBox(BaseCombatWeapon? weapon, bool bSelected, int xpos, int ypos, int boxWide, int boxTall, Color selectedColor, byte alpha, int number) {
+		Color col = bSelected ? SelectedFgColor : GetFgColor();
+
+		switch (hud_fastswitch.GetInt()) {
+			case HUDTYPE_BUCKETS: {
+					DrawBox(xpos, ypos, boxWide, boxTall, selectedColor, alpha, number);
+
+					col[3] *= (byte)(alpha / 255.0f);
+					// if (weapon.GetSpriteActive()) { // todo
+					// 	int iconWidth = weapon.GetSpriteActive().Width();
+					// 	int iconHeight = weapon.GetSpriteActive().Height();
+					// 	int x_offs = (boxWide - iconWidth) / 2;
+					// 	int y_offs;
+
+					// 	if (bSelected && hud_fastswitch.GetInt() != 0)
+					// 		y_offs = (int)(boxTall / 1.5f - iconHeight) / 2;
+					// 	else
+					// 		y_offs = (boxTall - iconHeight) / 2;
+
+					// 	if (!weapon.CanBeSelected()) // todo
+					// 		col = new(255, 0, 0, col[3]);
+					// 	else if (bSelected) {
+					// 		col[3] = alpha;
+					// 		weapon.GetSpriteActive().DrawSelf(xpos + x_offs, ypos + y_offs, col);
+					// 	}
+
+					// 	weapon.GetSpriteInactive().DrawSelf(xpos + x_offs, ypos + y_offs, col);
+					// }
+				}
+				break;
+			case HUDTYPE_PLUS:
+			case HUDTYPE_CAROUSEL: {
+					if (weapon == null) {
+						if (bSelected)
+							selectedColor.SetColor(255, 0, 0, 40);
+
+						DrawBox(xpos, ypos, boxWide, boxTall, selectedColor, alpha, number);
+						return;
+					}
+					else
+						DrawBox(xpos, ypos, boxWide, boxTall, selectedColor, alpha, number);
+
+					// int iconWidth;
+					// int iconHeight;
+					// int x_offs;
+					// int y_offs;
+
+					col[3] *= (byte)(alpha / 255.0f);
+
+					// if (weapon.GetSpriteInactive()) { // todo
+					// 	iconWidth = weapon.GetSpriteInactive().Width();
+					// 	iconHeight = weapon.GetSpriteInactive().Height();
+
+					// 	x_offs = (boxWide - iconWidth) / 2;
+					// 	if (bSelected && HUDTYPE_CAROUSEL == hud_fastswitch.GetInt())
+					// 		y_offs = (int)(boxTall / 1.5f - iconHeight) / 2;
+					// 	else
+					// 		y_offs = (boxTall - iconHeight) / 2;
+
+					// 	if (!weapon.CanBeSelected())// todo
+					// 		col = new(255, 0, 0, col[3]);
+
+					// 	weapon.GetSpriteInactive().DrawSelf(xpos + x_offs, ypos + y_offs, iconWidth, iconHeight, col);
+					// }
+
+					// if (bSelected && weapon.GetSpriteActive()) {// todo
+					// 	iconWidth = weapon.GetSpriteActive().Width();
+					// 	iconHeight = weapon.GetSpriteActive().Height();
+
+					// 	x_offs = (boxWide - iconWidth) / 2;
+					// 	if (HUDTYPE_CAROUSEL == hud_fastswitch.GetInt())
+					// 		y_offs = (int)(boxTall / 1.5f - iconHeight) / 2;
+					// 	else
+					// 		y_offs = (boxTall - iconHeight) / 2;
+
+					// 	col[3] = 255;
+					// 	for (float fl = Blur; fl > 0.0f; fl -= 1.0f) {
+					// 		if (fl >= 1.0f)
+					// 			weapon.GetSpriteActive().DrawSelf(xpos + x_offs, ypos + y_offs, col);
+					// 		else {
+					// 			col[3] *= (byte)fl;
+					// 			weapon.GetSpriteActive().DrawSelf(xpos + x_offs, ypos + y_offs, col);
+					// 		}
+					// 	}
+					// }
+				}
+				break;
+			default:
+				break;
+		}
+
+		if (HUDTYPE_PLUS == hud_fastswitch.GetInt())
+			return;
+
+		col = TextColor;
+		FileWeaponInfo weaponInfo = weapon!.GetWpnData();
+
+		if (bSelected) {
+			Span<char> text = stackalloc char[128];
+			ReadOnlySpan<char> tempString = localize.Find(weaponInfo.PrintName);
+
+			if (!tempString.IsEmpty)
+				tempString.ClampedCopyTo(text);
+			else
+				strcpy(text, weaponInfo.PrintName);
+
+			surface.DrawSetTextColor(col);
+			surface.DrawSetTextFont(TextFont);
+
+			int slen = 0, charCount = 0, maxslen = 0;
+			int firstslen = 0;
+			for (char pch = text[0]; pch != '\0'; pch = text[++charCount]) {
+				if (pch == '\n') {
+					if (slen > maxslen)
+						maxslen = slen;
+
+					if (firstslen == 0)
+						firstslen = slen;
+
+					slen = 0;
+				}
+				else if (pch != '\r') {
+					slen += surface.GetCharacterWidth(TextFont, pch);
+					charCount++;
+				}
+			}
+
+			if (slen > maxslen)
+				maxslen = slen;
+
+			if (firstslen == 0)
+				firstslen = maxslen;
+
+			int tx = xpos + (int)((LargeBoxWide - firstslen) / 2);
+			int ty = ypos + (int)TextYPos;
+			surface.DrawSetTextPos(tx, ty);
+			charCount *= (int)TextScan;
+			for (char pch = text[0]; charCount > 0; pch = text[++charCount]) {
+				if (pch == '\n')
+					surface.DrawSetTextPos(xpos + ((boxWide - slen) / 2), ty + (int)(surface.GetFontTall(TextFont) * 1.1f));
+				else if (pch != '\r') {
+					surface.DrawChar(pch);
+					charCount--;
+				}
+			}
+		}
 	}
 
 	void DrawBox(int x, int y, int wide, int tall, Color color, float normalizedAlpha, int number) {
-		throw new NotImplementedException();
+		base.DrawBox(x, y, wide, tall, color, normalizedAlpha / 255.0f);
+
+		if (number > 0) {
+			Color numberColor = NumberColor;
+			numberColor.A *= (byte)(normalizedAlpha / 255.0f);
+			Surface.DrawSetTextColor(numberColor);
+			Surface.DrawSetTextFont(NumberFont);
+			Span<char> unicode = stackalloc char[2];
+			sprintf(unicode, "%d").D(number);
+			Surface.DrawSetTextPos(x + (int)SelectionNumberXPos, y + (int)SelectionNumberYPos);
+			Surface.DrawString(unicode);
+		}
 	}
 
 	public override void ApplySchemeSettings(IScheme scheme) { }
 
-	void OpenSelection() { }
+	public override void OpenSelection() {
+		Assert(!IsInSelectionMode());
 
-	void HideSelection() { }
+		base.OpenSelection();
+		clientMode.GetViewportAnimationController()?.StartAnimationSequence("OpenWeaponSelectionMenu");
+		SelectedBoxPosition = 0;
+		SelectedSlot = -1;
+	}
+
+	public override void HideSelection() {
+		base.HideSelection();
+		clientMode.GetViewportAnimationController()?.StartAnimationSequence("CloseWeaponSelectionMenu");
+		FadingOut = false;
+	}
 
 	BaseCombatWeapon? FindNextWeaponInWeaponSelection(int currentSlot, int currentPosition) {
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
@@ -451,7 +630,9 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 			SetSelectedWeapon(nextWeapon);
 			SetSelectedSlideDir(1);
 
-			if (!IsInSelectionMode())
+			if (hud_fastswitch.GetInt() > 0)
+				SelectWeapon();
+			else if (!IsInSelectionMode())
 				OpenSelection();
 
 			// player.EmitSound("Player.WeaponSelectionMoveSlot");
@@ -485,7 +666,9 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 			SetSelectedWeapon(prevWeapon);
 			SetSelectedSlideDir(-1);
 
-			if (!IsInSelectionMode())
+			if (hud_fastswitch.GetInt() > 0)
+				SelectWeapon();
+			else if (!IsInSelectionMode())
 				OpenSelection();
 
 			// player.EmitSound("Player.WeaponSelectionMoveSlot");

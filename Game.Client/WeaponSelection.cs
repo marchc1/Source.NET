@@ -5,8 +5,6 @@ using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Input;
 
-using System.Net;
-
 namespace Game.Client;
 
 [DeclareHudElement(Name = "CBaseHudWeaponSelection")]
@@ -33,12 +31,12 @@ public class BaseHudWeaponSelection : EditableHudElement
 
 	public override void Init() {
 		Reset();
-		// weapons resource todo
+		// gWR.Init();
 		SelectionTime = gpGlobals.CurTime;
 	}
 
 	void Reset() {
-		// gwr.Reset();
+		// gWR.Reset();
 		SelectionVisible = false;
 		SelectionTime = gpGlobals.CurTime;
 		// UnlockRenderGroup todo
@@ -51,15 +49,21 @@ public class BaseHudWeaponSelection : EditableHudElement
 
 	void VidInit() { }
 
-	public override void OnThink() { }
+	public override void OnThink() { }// todo
 
 	void ProcessInput() { }
 
 	public bool IsInSelectionMode() => SelectionVisible;
 
-	void OpenSelection() { }
+	public virtual void OpenSelection() {
+		SelectionVisible = true;
+		// lockrendergroup todo
+	}
 
-	void HideSelection() { }
+	public virtual void HideSelection() {
+		SelectionVisible = false;
+		// unlockrendergroup todo
+	}
 
 	public bool CanBeSelectedInHUD(BaseCombatWeapon pWeapon) { return true; } // todo
 
@@ -71,7 +75,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 
 	static private void UserCmd_Slot(int slot) {
 		int fastSwitchMode = hud_fastswitch.GetInt();
-		if (3 == fastSwitchMode) //HUDTYPE_CAROUSEL
+		if (HUDTYPE_CAROUSEL == fastSwitchMode)
 			UserCmd_LastWeapon();
 		else
 			Instance?.SelectSlot(slot);
@@ -172,7 +176,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 		input.MakeWeaponSelection(GetSelectedWeapon());
 	}
 
-	void SelectWeapon() {
+	public void SelectWeapon() {
 		if (GetSelectedWeapon() == null) {
 			engine.ClientCmd_Unrestricted("cancelselect\n");// todo: not unrestricted
 			return;
