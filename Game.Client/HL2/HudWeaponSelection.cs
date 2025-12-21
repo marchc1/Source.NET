@@ -692,7 +692,23 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		return maxSlotPos;
 	}
 
-	BaseCombatWeapon? GetWeaponInSlot(int slot, int slotPos) { return null; }//todo
+	BaseCombatWeapon? GetWeaponInSlot(int slot, int slotPos){
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return null;
+
+		for (int i = 0; i < MAX_WEAPONS; i++) {
+			C_BaseCombatWeapon? weapon = player.GetWeapon(i);
+
+			if (weapon == null)
+				continue;
+
+			if (weapon.GetSlot() == slot && weapon.GetPosition() == slotPos)
+				return weapon;
+		}
+
+		return null;
+	}
 
 	void FastWeaponSwitch(int weaponSlot) { }
 
