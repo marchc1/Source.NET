@@ -38,6 +38,7 @@ public static class SourceDllMain
 	[Dependency] public static IMaterialSystem materials { get; private set; } = null!;
 	[Dependency] public static IModelRender modelrender { get; private set; } = null!;
 	[Dependency] public static IFileSystem filesystem { get; private set; } = null!;
+	[Dependency] public static ISchemeManager vguiSchemeManager { get; private set; } = null!;
 	[Dependency] public static IVDebugOverlay debugoverlay { get; private set; } = null!;
 	[Dependency] public static IClientLeafSystem clientLeafSystem { get; private set; } = null!;
 	[Dependency] public static IUniformRandomStream random { get; private set; } = null!;
