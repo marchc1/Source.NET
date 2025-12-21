@@ -62,7 +62,7 @@ public static class WeaponParse
 					sub.GetString().FileBase(fileBase);
 					WEAPON_FILE_INFO_HANDLE tmp;
 #if CLIENT_DLL
-					if (ReadWeaponDataFromFileForSlot(filesystem, fileBase, out tmp))
+					if (ReadWeaponDataFromFileForSlot(filesystem, fileBase.SliceNullTerminatedString(), out tmp))
 						gWR.LoadWeaponSprites(tmp);
 #else
 					ReadWeaponDataFromFileForSlot(filesystem, fileBase, out tmp);
@@ -82,7 +82,7 @@ public static class WeaponParse
 			return true;
 
 		Span<char> sz = stackalloc char[128];
-		sprintf(sz, "scripts/%s").S(weaponName);
+		sprintf(sz, "scripts/%s.txt").S(weaponName);
 
 		KeyValues keyValues = new KeyValues();
 		if (!keyValues.LoadFromFile(filesystem, sz.SliceNullTerminatedString()))
