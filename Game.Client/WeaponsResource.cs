@@ -58,7 +58,7 @@ public class WeaponsResource
 
 		Hud.LoadHudTextures(tempList, sz.SliceNullTerminatedString());
 
-		if (tempList.Count() == 0) {
+		if (tempList.Count == 0) {
 			// no sprite description file for weapon, use default small blocks
 			weaponInfo.IconActive = gHUD.GetIcon("selection")!;
 			weaponInfo.IconInactive = gHUD.GetIcon("selection")!;
