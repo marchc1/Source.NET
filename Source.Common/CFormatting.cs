@@ -146,7 +146,7 @@ public ref struct ScanF
 
 	public ScanF(ReadOnlySpan<char> input, ReadOnlySpan<char> format) {
 		Format = new(format);
-		this.input = input;
+		this.input = input.SliceNullTerminatedString();
 	}
 	public readonly bool Overflowed => Format.Overflowed();
 
