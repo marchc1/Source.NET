@@ -22,6 +22,7 @@ public class BaseCombatCharacter : BaseFlex
 	]);
 
 	public double NextAttack;
+	public readonly Handle<BaseCombatWeapon> LastWeapon = new();
 	public readonly Handle<BaseCombatWeapon> ActiveWeapon = new();
 	public InlineArrayNewMaxWeapons<Handle<BaseCombatWeapon>> MyWeapons = new();
 	public InlineArrayMaxAmmoSlots<int> Ammo;

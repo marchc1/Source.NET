@@ -24,9 +24,10 @@ public partial class C_BaseCombatCharacter : C_BaseFlex
 	public static readonly new ClientClass ClientClass = new ClientClass("BaseCombatCharacter", null, null, DT_BaseCombatCharacter).WithManualClassID(StaticClassIndices.CBaseCombatCharacter);
 
 	public C_BaseCombatWeapon? GetWeapon(int i) => MyWeapons[i].Get();
-	public BaseCombatWeapon? GetLastWeapon() => throw new NotImplementedException(); // todo
+	public BaseCombatWeapon? GetLastWeapon() => LastWeapon.Get();
 
 	public double NextAttack;
+	public readonly Handle<C_BaseCombatWeapon> LastWeapon = new();
 	public readonly Handle<C_BaseCombatWeapon> ActiveWeapon = new();
 	public InlineArrayNewMaxWeapons<Handle<C_BaseCombatWeapon>> MyWeapons = new();
 	public InlineArrayMaxAmmoSlots<int> Ammo;
