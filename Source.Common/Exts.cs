@@ -1021,6 +1021,10 @@ public static class UnmanagedUtils
 	}
 
 	public static unsafe ulong Hash(this ReadOnlySpan<char> str, bool invariant = true) {
+		// This might be a breaking change 12/21/2025
+		// But this should have been done from the start as a major consumer of potentially-not-null-terminated-strings
+		str = str.SliceNullTerminatedString();
+
 		if (str.IsEmpty || str.Length == 0)
 			return 0;
 

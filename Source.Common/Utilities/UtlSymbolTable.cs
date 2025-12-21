@@ -19,6 +19,7 @@ public class UtlSymbolTable(bool caseInsensitive = false) : ISymbolTable
 	public void Clear() => Symbols.Clear();
 
 	public UtlSymId_t AddString(ReadOnlySpan<char> str) {
+		str = str.SliceNullTerminatedString();
 		UtlSymId_t hash = str.Hash(invariant: caseInsensitive);
 		if (!Symbols.ContainsKey(hash))
 			Symbols[hash] = new(str);
@@ -26,6 +27,8 @@ public class UtlSymbolTable(bool caseInsensitive = false) : ISymbolTable
 	}
 
 	public UtlSymId_t Find(ReadOnlySpan<char> str) {
+		str = str.SliceNullTerminatedString();
+
 		UtlSymId_t hash = str.Hash(invariant: caseInsensitive);
 		if (Symbols.ContainsKey(hash))
 			return hash;
@@ -47,6 +50,8 @@ public class UtlSymbolTableMT(bool caseInsensitive = false) : ISymbolTable
 	readonly ConcurrentDictionary<UtlSymId_t, string> Symbols = [];
 
 	public UtlSymId_t AddString(ReadOnlySpan<char> str) {
+		str = str.SliceNullTerminatedString();
+
 		UtlSymId_t hash = str.Hash(invariant: caseInsensitive);
 		if (!Symbols.ContainsKey(hash))
 			Symbols[hash] = new(str);
@@ -54,6 +59,8 @@ public class UtlSymbolTableMT(bool caseInsensitive = false) : ISymbolTable
 	}
 
 	public UtlSymId_t Find(ReadOnlySpan<char> str) {
+		str = str.SliceNullTerminatedString();
+
 		UtlSymId_t hash = str.Hash(invariant: caseInsensitive);
 		if (Symbols.ContainsKey(hash))
 			return hash;

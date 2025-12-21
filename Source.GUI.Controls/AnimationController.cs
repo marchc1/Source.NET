@@ -7,6 +7,8 @@ using Source.Common.GUI;
 using Source.Common.Mathematics;
 using Source.Common.Utilities;
 
+using System.Collections.Frozen;
+
 using static Source.GUI.Controls.AnimationController;
 
 namespace Source.GUI.Controls;
@@ -55,9 +57,9 @@ public struct AnimAlign
 {
 	public bool RelativePosition;
 	public UtlSymId_t AlignPanel;
-	public Alignment RelativeAlignment;
-
+	public Alignment Alignment;
 }
+
 public struct AnimCmdAnimate
 {
 	public UtlSymId_t Panel;
@@ -69,6 +71,8 @@ public struct AnimCmdAnimate
 	public TimeUnit_t Duration;
 	public AnimAlign Align;
 }
+
+
 
 public struct ActiveAnimation
 {
@@ -390,7 +394,7 @@ public class AnimationController : Panel, IAnimationController
 		panel.GetBounds(out int x, out int y, out int w, out int h);
 
 		int offset = 0;
-		switch (align.RelativeAlignment) {
+		switch (align.Alignment) {
 			default:
 			case Alignment.Northwest:
 				offset = xcoord ? x : y;
@@ -536,11 +540,11 @@ public class AnimationController : Panel, IAnimationController
 		public AnimCmdEvent RunEvent;
 	}
 
-	public struct AnimSequence
+	public struct AnimSequence()
 	{
 		public UtlSymId_t Name;
 		public TimeUnit_t Duration;
-		public List<AnimCommand> CmdList;
+		public List<AnimCommand> CmdList = [];
 	}
 	public bool AutoReloadScript;
 	readonly List<AnimSequence> Sequences = [];
@@ -692,15 +696,400 @@ public class AnimationController : Panel, IAnimationController
 		return ParseScriptFile(data);
 	}
 
-	private bool ParseScriptFile(ReadOnlySpan<byte> mem) {
+	private bool _ParseScriptFile(ReadOnlySpan<byte> mem, Span<char> token) {
 		IScheme scheme = GetScheme()!;
+
 
 		int screenWide = ScreenBounds[2];
 		int screenTall = ScreenBounds[3];
 
+		mem = FilesystemHelpers.ParseFile(mem, token, out _);
+		while (token[0] != '\0') {
+			bool accepted = true;
 
+			if (stricmp(token, "event") != 0) {
+				Warning($"Couldn't parse script file: expected 'event', found '{token.SliceNullTerminatedString()}'\n");
+				return false;
+			}
+
+			mem = FilesystemHelpers.ParseFile(mem, token, out _);
+			if (token[0] == '\0') {
+				Warning("Couldn't parse script file: expected <event name>, found nothing\n");
+				return false;
+			}
+
+			UtlSymId_t nameIndex = ScriptSymbols.AddString(token);
+
+			int seqIndex = Sequences.Count;
+			Sequences.Add(new());
+			ref AnimSequence seq = ref Sequences.AsSpan()[seqIndex];
+			seq.Name = nameIndex;
+			seq.Duration = 0.0;
+
+			mem = FilesystemHelpers.ParseFile(mem, token, out _);
+			if (token.Contains("[$", StringComparison.OrdinalIgnoreCase) || token.Contains("[!$", StringComparison.OrdinalIgnoreCase)) {
+				accepted = KeyValues.EvaluateConditional(token);
+
+				// now get the open brace
+				mem = FilesystemHelpers.ParseFile(mem, token, out _);
+			}
+
+			if (stricmp(token, "{") != 0) {
+				Warning($"Couldn't parse script sequence '{ScriptSymbols.String(seq.Name)}': expected '{{', found '{token.SliceNullTerminatedString()}'\n");
+				return false;
+			}
+
+			while (token[0] != '\0') {
+				mem = FilesystemHelpers.ParseFile(mem, token, out _);
+
+				if (token[0] == '}')
+					break;
+
+				int cmdIndex = seq.CmdList.Count; seq.CmdList.Add(new());
+				ref AnimCommand animCmd = ref seq.CmdList.AsSpan()[cmdIndex];
+				memreset(ref animCmd);
+				if (stricmp(token, "animate") == 0) {
+					animCmd.CommandType = AnimCommandType.Animate;
+					ref AnimCmdAnimate cmdAnimate = ref animCmd.Animate;
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					cmdAnimate.Panel = ScriptSymbols.AddString(token);
+					// variable to change
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					cmdAnimate.Variable = ScriptSymbols.AddString(token);
+					// target value
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					if (cmdAnimate.Variable == Position) {
+						// Get first token
+						SetupPosition(cmdAnimate, ref cmdAnimate.Target.A, token, screenWide);
+
+						// Get second token from "token"
+						Span<char> token2 = stackalloc char[32];
+						ReadOnlySpan<char> psz = FilesystemHelpers.ParseFile(token, token2, out _);
+						psz = FilesystemHelpers.ParseFile(psz, token2, out _);
+						psz = token2;
+
+						// Position Y goes into ".b"
+						SetupPosition(cmdAnimate, ref cmdAnimate.Target.B, psz, screenTall);
+					}
+					else if (cmdAnimate.Variable == XPos) {
+						// XPos and YPos both use target ".a"
+						SetupPosition(cmdAnimate, ref cmdAnimate.Target.A, token, screenWide);
+					}
+					else if (cmdAnimate.Variable == YPos) {
+						// XPos and YPos both use target ".a"
+						SetupPosition(cmdAnimate, ref cmdAnimate.Target.A, token, screenTall);
+					}
+					else {
+						if (0 == new ScanF(token, "%f %f %f %f").Read(out cmdAnimate.Target.A).Read(out cmdAnimate.Target.B).Read(out cmdAnimate.Target.C).Read(out cmdAnimate.Target.D).ReadArguments) {
+							Color default_invisible_black = new(0, 0, 0, 0);
+							Color col = scheme.GetColor(token, default_invisible_black);
+
+							// we don't have a way of seeing if the color is not declared in the scheme, so we use this
+							// silly method of trying again with a different default to see if we get the fallback again
+							if (col == default_invisible_black) {
+								Color error_pink = new(255, 0, 255, 255); // make it extremely obvious if a scheme lookup fails
+								col = scheme.GetColor(token, error_pink);
+							}
+
+							cmdAnimate.Target.A = col[0];
+							cmdAnimate.Target.B = col[1];
+							cmdAnimate.Target.C = col[2];
+							cmdAnimate.Target.D = col[3];
+						}
+					}
+
+					if (cmdAnimate.Variable == Size) {
+						if (IsProportional()) {
+							cmdAnimate.Target.A = (float)GetScheme()!.GetProportionalScaledValueEx((int)cmdAnimate.Target.A);
+							cmdAnimate.Target.B = (float)GetScheme()!.GetProportionalScaledValueEx((int)cmdAnimate.Target.B);
+						}
+					}
+					else if (cmdAnimate.Variable == Wide || cmdAnimate.Variable == Tall) {
+						if (IsProportional()) {
+							// Wide and tall both use.a
+							cmdAnimate.Target.A = (float)GetScheme()!.GetProportionalScaledValueEx((int)cmdAnimate.Target.A);
+						}
+					}
+
+					// interpolation function
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					if (stricmp(token, "Accel") == 0)
+						cmdAnimate.InterpolationFunction = Interpolators.Accel;
+					else if (stricmp(token, "Deaccel") == 0)
+						cmdAnimate.InterpolationFunction = Interpolators.Deaccel;
+					else if (stricmp(token, "Spline") == 0)
+						cmdAnimate.InterpolationFunction = Interpolators.SimpleSpline;
+					else if (stricmp(token, "Pulse") == 0) {
+						cmdAnimate.InterpolationFunction = Interpolators.Pulse;
+						// frequencey
+						mem = FilesystemHelpers.ParseFile(mem, token, out _);
+						cmdAnimate.InterpolationParameter = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+					}
+					else if (stricmp(token, "Bias") == 0) {
+						cmdAnimate.InterpolationFunction = Interpolators.Bias;
+						// bias
+						mem = FilesystemHelpers.ParseFile(mem, token, out _);
+						cmdAnimate.InterpolationParameter = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+					}
+					else if (stricmp(token, "Gain") == 0) {
+						cmdAnimate.InterpolationFunction = Interpolators.Gain;
+						// bias
+						mem = FilesystemHelpers.ParseFile(mem, token, out _);
+						cmdAnimate.InterpolationParameter = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+					}
+					else if (stricmp(token, "Flicker") == 0) {
+						cmdAnimate.InterpolationFunction = Interpolators.Flicker;
+						// noiseamount
+						mem = FilesystemHelpers.ParseFile(mem, token, out _);
+						cmdAnimate.InterpolationParameter = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+					}
+					else if (stricmp(token, "Bounce") == 0)
+						cmdAnimate.InterpolationFunction = Interpolators.Bounce;
+					else
+						cmdAnimate.InterpolationFunction = Interpolators.Linear;
+					// start time
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					cmdAnimate.StartTime = float.TryParse(token.SliceNullTerminatedString(), out float f2) ? f2 : 0;
+					// duration
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					cmdAnimate.Duration = float.TryParse(token.SliceNullTerminatedString(), out float f3) ? f3 : 0;
+					// check max duration
+					if (cmdAnimate.StartTime + cmdAnimate.Duration > seq.Duration) {
+						seq.Duration = cmdAnimate.StartTime + cmdAnimate.Duration;
+					}
+				}
+				else if (stricmp(token, "runevent") == 0) {
+					animCmd.CommandType = AnimCommandType.RunEvent;
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Event = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.TimeDelay = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+				}
+				else if (stricmp(token, "runeventchild") == 0) {
+					animCmd.CommandType = AnimCommandType.RunEventChild;
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Variable = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Event = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.TimeDelay = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+				}
+				else if (stricmp(token, "firecommand") == 0) {
+					animCmd.CommandType = AnimCommandType.FireCommand;
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.TimeDelay = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Variable = ScriptSymbols.AddString(token);
+				}
+				else if (stricmp(token, "playsound") == 0) {
+					animCmd.CommandType = AnimCommandType.PlaySound;
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.TimeDelay = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Variable = ScriptSymbols.AddString(token);
+				}
+				else if (stricmp(token, "setvisible") == 0) {
+					animCmd.CommandType = AnimCommandType.SetVisible;
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Variable = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Variable2 = (ulong)(int.TryParse(token.SliceNullTerminatedString(), out int i) ? i : 0);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.TimeDelay = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+				}
+				else if (stricmp(token, "setinputenabled") == 0) {
+					animCmd.CommandType = AnimCommandType.SetInputEnabled;
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Variable = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Variable2 = (ulong)(int.TryParse(token.SliceNullTerminatedString(), out int i) ? i : 0);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.TimeDelay = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+				}
+				else if (stricmp(token, "stopevent") == 0) {
+					animCmd.CommandType = AnimCommandType.StopEvent;
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Event = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.TimeDelay = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+				}
+				else if (stricmp(token, "StopPanelAnimations") == 0) {
+					animCmd.CommandType = AnimCommandType.StopPanelAnimations; 
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Event = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+				}
+				else if (stricmp(token, "stopanimation") == 0) {
+					animCmd.CommandType = AnimCommandType.StopAnimation;
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Event = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Variable = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.TimeDelay = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+				}
+				else if (stricmp(token, "SetFont") == 0) {
+					animCmd.CommandType = AnimCommandType.SetFont;
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Event = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Variable = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Variable2 = ScriptSymbols.AddString(token);
+
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.TimeDelay = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+				}
+				else if (stricmp(token, "SetTexture") == 0) {
+					animCmd.CommandType = AnimCommandType.SetTexture;
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Event = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Variable = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Variable2 = ScriptSymbols.AddString(token);
+
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.TimeDelay = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+				}
+				else if (stricmp(token, "SetString") == 0) {
+					animCmd.CommandType = AnimCommandType.SetString;
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Event = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Variable = ScriptSymbols.AddString(token);
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.Variable2 = ScriptSymbols.AddString(token);
+
+					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.TimeDelay = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
+				}
+				else {
+					Warning($"Couldn't parse script sequence '{ScriptSymbols.String(seq.Name)}': expected <anim command>, found '{token.SliceNullTerminatedString()}'\n");
+					return false;
+				}
+
+				// Look ahead one token for a conditional
+				ReadOnlySpan<byte> peek = FilesystemHelpers.ParseFile(mem, token, out _);
+				if (token.Contains("[$", StringComparison.OrdinalIgnoreCase) || token.Contains("[!$", StringComparison.OrdinalIgnoreCase)) {
+					if (!KeyValues.EvaluateConditional(token)) 
+						seq.CmdList.RemoveAt(cmdIndex);
+					
+					mem = peek;
+				}
+			}
+
+			if(accepted){
+				int seqIterator;
+				for (seqIterator = 0; seqIterator < Sequences.Count - 1; seqIterator++) {
+					if (Sequences[seqIterator].Name == nameIndex) {
+						// Get rid of it, we're overriding it
+						Sequences.RemoveAt(seqIndex);
+						break;
+					}
+				}
+			}
+			else{
+				Sequences.RemoveAt(seqIndex);
+			}
+
+			mem = FilesystemHelpers.ParseFile(mem, token, out _);
+		}
 
 		return true;
+	}
+
+	private void SetupPosition(AnimCmdAnimate cmd, ref float output, ReadOnlySpan<char> token, int screendimension) {
+		bool r = false, c = false;
+		int pos;
+		if (token[0] == '(') {
+			token = token[1..];
+
+			if (token.Contains(")", StringComparison.Ordinal)) {
+				Span<char> sz = stackalloc char[256];
+				strcpy(sz, token);
+
+				int colonIdx = sz.IndexOf(":", StringComparison.Ordinal);
+				Span<char> colon = colonIdx == -1 ? null : sz[colonIdx..];
+				if (!colon.IsEmpty) {
+					colon[0] = '\0';
+
+					Alignment ra = LookupAlignment(sz);
+
+					colon = colon[1..];
+
+					Span<char> panelName = colon;
+					int panelEndIdx = panelName.IndexOf(")", StringComparison.Ordinal);
+					Span<char> panelEnd = panelEndIdx == -1 ? null : panelName[panelEndIdx..];
+					if (!panelEnd.IsEmpty) {
+						panelEnd[0] = '\0';
+
+						if (panelName.IsEmpty && strlen(panelName) > 0) {
+							cmd.Align.RelativePosition = true;
+							cmd.Align.AlignPanel = ScriptSymbols.AddString(panelName);
+							cmd.Align.Alignment = ra;
+						}
+					}
+				}
+
+				int endIdx = token.IndexOf(")", StringComparison.Ordinal);
+				token = endIdx == -1 ? null : token[endIdx..];
+			}
+		}
+		else if (token[0] == 'r' || token[0] == 'R') {
+			r = true;
+			token = token[1..];
+		}
+		else if (token[0] == 'c' || token[0] == 'C') {
+			c = true;
+			token = token[1..];
+		}
+
+		// get the number
+		pos = int.TryParse(token, null, out int i) ? i : 0;
+
+		// scale the values
+		if (IsProportional())
+			pos = GetScheme()!.GetProportionalScaledValueEx(pos);
+
+		// adjust the positions
+		if (r)
+			pos = screendimension - pos;
+		if (c)
+			pos = (screendimension / 2) + pos;
+
+		// set the value
+		output = (float)pos;
+	}
+
+	static readonly FrozenDictionary<ulong, Alignment> g_AlignmentLookup = new Dictionary<ulong, Alignment>(){
+		{ "northwest".Hash(), Alignment.Northwest },
+		{ "north".Hash(), Alignment.North },
+		{ "northeast".Hash(), Alignment.Northeast },
+		{ "west".Hash(), Alignment.West },
+		{ "center".Hash(), Alignment.Center },
+		{ "east".Hash(), Alignment.East },
+		{ "southwest".Hash(), Alignment.Southwest },
+		{ "south".Hash(), Alignment.South },
+		{ "southeast".Hash(), Alignment.Southeast },
+		{ "nw".Hash(), Alignment.Northwest },
+		{ "n".Hash(), Alignment.North },
+		{ "ne".Hash(), Alignment.Northeast },
+		{ "w".Hash(), Alignment.West },
+		{ "c".Hash(), Alignment.Center },
+		{ "e".Hash(), Alignment.East },
+		{ "sw".Hash(), Alignment.Southwest },
+		{ "s".Hash(), Alignment.South },
+		{ "se".Hash(), Alignment.Southeast },
+	}.ToFrozenDictionary();
+
+	private static Alignment LookupAlignment(ReadOnlySpan<char> sz) {
+		sz = sz.SliceNullTerminatedString();
+		return g_AlignmentLookup.TryGetValue(sz.Hash(), out Alignment al) ? al : Alignment.Northwest;
+	}
+
+	private bool ParseScriptFile(ReadOnlySpan<byte> mem) {
+		return _ParseScriptFile(mem, stackalloc char[512]);
 	}
 
 	public bool UpdateScreenSize() {
