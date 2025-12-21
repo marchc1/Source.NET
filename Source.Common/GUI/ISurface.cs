@@ -225,4 +225,7 @@ public interface IMatSystemSurface : ISurface
 	int DrawTextLen(IFont font, ReadOnlySpan<char> text);
 	int GetTextureNumFrames(in TextureID id);
 	void DrawSetTextureFrame(in TextureID id, int frame, ref TokenCache frameCache);
+	void SetFullscreenViewportAndRenderTarget(int x, int y, int w, int h, ITexture? renderTarget);
+	void PopFullscreenViewport();
+	void PushFullscreenViewport();
 }

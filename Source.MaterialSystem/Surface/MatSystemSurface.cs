@@ -1886,4 +1886,67 @@ public class MatSystemSurface : IMatSystemSurface
 			chars++;
 		}
 	}
+
+	public void DisableClipping(bool disable){
+		DrawFlushText();
+		EnableScissor(!disable);
+	}
+
+	public void PushFullscreenViewport() {
+		using MatRenderContextPtr renderContext = new(materials );
+
+		// the viewport x/y will be wrong because the render target is only for one eye. 
+		// Ask the surface for that information instead.
+		GetFullscreenViewportAndRenderTarget(out int vx, out int vy, out int vw, out int vh, out ITexture? renderTarget);
+		renderContext.PushRenderTargetAndViewport(renderTarget, null, vx, vy, vw, vh);
+					 
+		renderContext.MatrixMode(MaterialMatrixMode.Projection);
+		renderContext.PushMatrix();
+		renderContext.LoadIdentity();
+		renderContext.Scale(1, -1, 1);
+
+		renderContext.Ortho(pixelOffsetX, pixelOffsetY, vw + pixelOffsetX, vh + pixelOffsetY, -1.0f, 1.0f);
+
+		DisableClipping(true);
+	}
+
+
+	int FullscreenViewportX;
+	int FullscreenViewportY;
+	int FullscreenViewportWidth;
+	int FullscreenViewportHeight;
+	ITexture? FullscreenRenderTarget;
+	public void SetFullscreenViewportAndRenderTarget(int x, int y, int w, int h, ITexture? renderTarget) {
+		FullscreenViewportX = x;
+		FullscreenViewportY = y;
+		FullscreenViewportWidth = w; 
+		FullscreenViewportHeight = h;
+		FullscreenRenderTarget = renderTarget;
+	}
+	public void GetFullscreenViewportAndRenderTarget(out int x, out int y, out int w, out int h, out ITexture? renderTarget) {
+		if (FullscreenViewportHeight == 0) {
+			// this can't actually be zero. If it is, use the height of the screen instead
+			x = y = 0;
+			GetScreenSize(out w, out h);
+			renderTarget = null;
+		}
+		else {
+			x = FullscreenViewportX;
+			y = FullscreenViewportY;
+			w = FullscreenViewportWidth;
+			h = FullscreenViewportHeight;
+			renderTarget = FullscreenRenderTarget;
+		}
+	}
+
+	public void PopFullscreenViewport() {
+		using MatRenderContextPtr renderContext = new(materials );
+
+		renderContext.PopRenderTargetAndViewport();
+					 
+		renderContext.MatrixMode(MaterialMatrixMode.Projection);
+		renderContext.PopMatrix();
+
+		DisableClipping(false);
+	}
 }

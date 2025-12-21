@@ -173,7 +173,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		if (hud_fastswitch.GetInt() == HUDTYPE_FASTSWITCH || hud_fastswitch.GetInt() == HUDTYPE_PLUS) {
 			using MatRenderContextPtr renderContext = new(materials);
 			if (renderContext.GetRenderTarget() != null) {
-				// surface.PushFullscreenViewport();
+				surface.PushFullscreenViewport();
 				bPushedViewport = true;
 			}
 		}
@@ -356,7 +356,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		}
 
 		if (bPushedViewport) {
-			// surface.PopFullscreenViewport();
+			surface.PopFullscreenViewport();
 		}
 	}
 
