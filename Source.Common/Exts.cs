@@ -606,7 +606,7 @@ public static class StrTools
 				pch[walk] = pch[i];
 				++walk;
 			}
-			else 
+			else
 				strippedWhitespace = true;
 		}
 
@@ -619,9 +619,9 @@ public static class StrTools
 		bool isMean = false;
 
 		switch (ch) {
-			case '\x0082':	 // BREAK PERMITTED HERE
-			case '\x0083':	 // NO BREAK PERMITTED HERE
-			case '\x00A0':	 // NO-BREAK SPACE
+			case '\x0082':   // BREAK PERMITTED HERE
+			case '\x0083':   // NO BREAK PERMITTED HERE
+			case '\x00A0':   // NO-BREAK SPACE
 			case '\x034F':   // COMBINING GRAPHEME JOINER
 			case '\x2000':   // EN QUAD
 			case '\x2001':   // EM QUAD
@@ -637,7 +637,7 @@ public static class StrTools
 			case '\x200B':   // ZERO-WIDTH SPACE
 			case '\x200C':   // ZERO-WIDTH NON-JOINER
 			case '\x200D':   // ZERO WIDTH JOINER
-			case '\x200E':	 // LEFT-TO-RIGHT MARK
+			case '\x200E':   // LEFT-TO-RIGHT MARK
 			case '\x2028':   // LINE SEPARATOR
 			case '\x2029':   // PARAGRAPH SEPARATOR
 			case '\x202F':   // NARROW NO-BREAK SPACE
@@ -1533,6 +1533,13 @@ public static class ReflectionUtils
 		foreach (var type in assembly.GetTypes()) {
 			T? attr = type.GetCustomAttribute<T>();
 			if (attr != null)
+				yield return new(type, attr);
+		}
+	}
+
+	public static IEnumerable<KeyValuePair<Type, T>> GetTypesWithAttributeMulti<T>(this Assembly assembly) where T : Attribute {
+		foreach (var type in assembly.GetTypes()) {
+			foreach (var attr in type.GetCustomAttributes<T>())
 				yield return new(type, attr);
 		}
 	}

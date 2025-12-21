@@ -31,11 +31,11 @@ public class ClassMap : IClassMap
 	public static ClassMap GetClassMap() => g_ClassMap;
 	static ClassMap(){
 		// Here is where we start initializing things based on LinkEntityToClassAttribute's
-		var types = Assembly.GetExecutingAssembly().GetTypesWithAttribute< LinkEntityToClassAttribute>();
-		foreach(var type in types){
+		var typePairs = Assembly.GetExecutingAssembly().GetTypesWithAttributeMulti< LinkEntityToClassAttribute>();
+		foreach(var type in typePairs){
 			var attr = type.Value;
 
-			DynamicMethod m = new DynamicMethod("LinkEntity_Instantiate" + type.Key.Name, typeof(C_BaseEntity), []);
+			DynamicMethod m = new DynamicMethod("LinkEntity_Instantiate" + type.Key.Name + "_ToMap_" + attr.LocalName, typeof(C_BaseEntity), []);
 			ILGenerator il = m.GetILGenerator();
 
 			il.Emit(OpCodes.Newobj, type.Key.GetConstructor([]) ?? throw new Exception("no constructor for auto factory"));
