@@ -15,6 +15,7 @@ using Source.Common.Engine;
 
 
 #if CLIENT_DLL
+using Game.Client.HUD;
 namespace Game.Client;
 #else
 namespace Game.Server;
@@ -171,6 +172,39 @@ public partial class
 
 	public FileWeaponInfo GetWpnData() {
 		return WeaponParse.GetFileWeaponInfoFromHandle(WeaponFileInfoHandle);
+	}
+
+	public ReadOnlySpan<char> GetName() => GetWpnData().ClassName;
+	#if CLIENT_DLL
+	public HudTexture GetSpriteActive() => GetWpnData().IconActive;
+	public HudTexture GetSpriteInactive() => GetWpnData().IconInactive;
+	public HudTexture GetSpriteAmmo() => GetWpnData().IconAmmo;
+	public HudTexture GetSpriteAmmo2() => GetWpnData().IconAmmo2;
+	public HudTexture GetSpriteCrosshair() => GetWpnData().IconCrosshair;
+	public HudTexture GetSpriteAutoaim() => GetWpnData().IconAutoaim;
+	public HudTexture GetSpriteZoomedCrosshair() => GetWpnData().IconZoomedCrosshair;
+	public HudTexture GetSpriteZoomedAutoaim() => GetWpnData().IconZoomedAutoaim;
+#endif
+
+	public WeaponFlags GetWeaponFlags() => (WeaponFlags)GetWpnData().Flags;
+
+	public bool HasAmmo(){
+		if (PrimaryAmmoType == -1 && SecondaryAmmoType == -1)
+			return true;
+		if ((GetWeaponFlags() & WeaponFlags.SelectionEmpty) != 0)
+			return true;
+
+		BasePlayer? player = ToBasePlayer(GetOwner());
+		if (player == null)
+			return false;
+		return (Clip1 > 0 || player.GetAmmoCount(PrimaryAmmoType) != 0 || Clip2 > 0 || player.GetAmmoCount(SecondaryAmmoType) != 0);
+	}
+
+	public bool CanBeSelected(){
+		if (!VisibleInWeaponSelection())
+			return false;
+
+		return HasAmmo();
 	}
 }
 #endif

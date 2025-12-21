@@ -16,6 +16,8 @@ using Source.GUI.Controls;
 
 using System.Drawing;
 
+using Color = Source.Color;
+
 namespace Game.Client.HUD;
 
 public static class HudExtensions
@@ -51,6 +53,28 @@ public class HudTexture
 
 	public void Precache() {
 
+	}
+
+	public void DrawSelf(int x, int y, in Color clr) {
+		DrawSelf(x, y, Width(), Height(), clr);
+	}
+
+	public void DrawSelf(int x, int y, int w, int h, in Color clr) {
+		if (RenderUsingFont) {
+			surface.DrawSetTextFont(Font);
+			surface.DrawSetTextColor(clr);
+			surface.DrawSetTextPos(x, y);
+			surface.DrawChar(CharacterInFont);
+		}
+		else {
+			if (TextureID == TextureID.INVALID)
+				return;
+
+			surface.DrawSetTexture(TextureID);
+			surface.DrawSetColor(clr);
+			// todo: DrawTexturedSubRect
+			// surface.DrawTexturedSubRect(x, y, x + w, y + h, texCoords[0], texCoords[1], texCoords[2], texCoords[3]);
+		}
 	}
 
 	public bool RenderUsingFont;

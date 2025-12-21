@@ -368,26 +368,26 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 					DrawBox(xpos, ypos, boxWide, boxTall, selectedColor, alpha, number);
 
 					col[3] *= (byte)(alpha / 255.0f);
-					// if (weapon.GetSpriteActive()) { // todo
-					// 	int iconWidth = weapon.GetSpriteActive().Width();
-					// 	int iconHeight = weapon.GetSpriteActive().Height();
-					// 	int x_offs = (boxWide - iconWidth) / 2;
-					// 	int y_offs;
+					if (weapon!.GetSpriteActive() != null) { 
+						int iconWidth = weapon.GetSpriteActive().Width();
+						int iconHeight = weapon.GetSpriteActive().Height();
+						int x_offs = (boxWide - iconWidth) / 2;
+						int y_offs;
 
-					// 	if (bSelected && hud_fastswitch.GetInt() != 0)
-					// 		y_offs = (int)(boxTall / 1.5f - iconHeight) / 2;
-					// 	else
-					// 		y_offs = (boxTall - iconHeight) / 2;
+						if (bSelected && hud_fastswitch.GetInt() != 0)
+							y_offs = (int)(boxTall / 1.5f - iconHeight) / 2;
+						else
+							y_offs = (boxTall - iconHeight) / 2;
 
-					// 	if (!weapon.CanBeSelected()) // todo
-					// 		col = new(255, 0, 0, col[3]);
-					// 	else if (bSelected) {
-					// 		col[3] = alpha;
-					// 		weapon.GetSpriteActive().DrawSelf(xpos + x_offs, ypos + y_offs, col);
-					// 	}
+						if (!weapon.CanBeSelected()) // todo
+							col = new(255, 0, 0, col[3]);
+						else if (bSelected) {
+							col[3] = alpha;
+							weapon.GetSpriteActive().DrawSelf(xpos + x_offs, ypos + y_offs, col);
+						}
 
-					// 	weapon.GetSpriteInactive().DrawSelf(xpos + x_offs, ypos + y_offs, col);
-					// }
+						weapon.GetSpriteInactive().DrawSelf(xpos + x_offs, ypos + y_offs, col);
+					}
 				}
 				break;
 			case HUDTYPE_PLUS:

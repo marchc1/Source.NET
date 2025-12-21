@@ -15,7 +15,18 @@ using Source.Common.Networking;
 
 using System;
 
-
+[Flags]
+public enum WeaponFlags
+{
+	SelectionEmpty = 1 << 0,
+	NoAutoReload = 1 << 1,
+	NoAutoSwitchEmpty = 1 << 2,
+	LimitInWorld = 1 << 3,
+	Exhaustible = 1 << 4,
+	DoHitLocationDmg = 1 << 5,
+	NoAmmoPickups = 1 << 6,
+	NoItemPickup = 1 << 7,
+}
 /// <summary>
 /// BaseEntity.eflags
 /// </summary>

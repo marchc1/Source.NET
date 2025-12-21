@@ -24,7 +24,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 	public IHudElement HudElement => this;
 	IInput input => AllowDependencyInjection ? null! : Singleton<IInput>();
 
-	public BaseHudWeaponSelection(string elementName) : base(null, elementName) {
+	public BaseHudWeaponSelection(string elementName) : base(elementName, null) {
 		Instance = this;
 		HudElement.SetHiddenBits(HideHudBits.WeaponSelection | HideHudBits.NeedSuit | HideHudBits.PlayerDead | HideHudBits.InVehicle);
 	}

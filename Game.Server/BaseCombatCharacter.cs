@@ -7,7 +7,7 @@ using Source.Common.Engine;
 namespace Game.Server;
 using FIELD = Source.FIELD<BaseCombatCharacter>;
 
-public class BaseCombatCharacter : BaseFlex
+public partial class BaseCombatCharacter : BaseFlex
 {
 	public static readonly SendTable DT_BCCLocalPlayerExclusive = new([
 		SendPropTime(FIELD.OF(nameof(NextAttack))),
