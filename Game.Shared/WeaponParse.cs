@@ -62,7 +62,7 @@ public static class WeaponParse
 					sub.GetString().FileBase(fileBase);
 					WEAPON_FILE_INFO_HANDLE tmp;
 #if CLIENT_DLL
-					if (ReadWeaponDataFromFileForSlot(filesystem, fileBase, out tmp))
+					if (ReadWeaponDataFromFileForSlot(filesystem, fileBase.SliceNullTerminatedString(), out tmp))
 						gWR.LoadWeaponSprites(tmp);
 #else
 					ReadWeaponDataFromFileForSlot(filesystem, fileBase, out tmp);
