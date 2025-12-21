@@ -92,6 +92,7 @@ public class Hud(HudElementHelper HudElementHelper)
 	readonly HudTextureDict Icons = [];
 	public readonly List<IHudElement> HudList = [];
 	internal InButtons KeyBits;
+	bool HudTexturesLoaded;
 
 	public void Init() {
 		HudElementHelper.CreateAllElements(this);
@@ -117,8 +118,21 @@ public class Hud(HudElementHelper HudElementHelper)
 				if (!element.IsParentedToClientDLLRootPanel && panel.GetParent() == null)
 					DevMsg($"Hud element '{element.ElementName}'/'{panel.GetName()}' doesn't have a parent\n");
 			}
-
 		}
+
+		if (HudTexturesLoaded)
+			return;
+
+		HudTextureDict textureList = [];
+
+		Span<char> sz = stackalloc char[128];
+		strcpy(sz, "resource/hud_textures.txt");
+		LoadHudTextures(textureList, sz.SliceNullTerminatedString());
+		strcpy(sz, "resource/mod_textures.txt");
+		LoadHudTextures(textureList, sz.SliceNullTerminatedString());
+
+		foreach (var t in textureList)
+			AddSearchableHudIconToList(t.Value);
 	}
 	internal void AddHudElement(IHudElement element) {
 		HudList.Add(element);
@@ -174,7 +188,7 @@ public class Hud(HudElementHelper HudElementHelper)
 		return false; // todo
 	}
 
-	internal static void LoadHudTextures(Dictionary<ulong, HudTexture> list, Span<char> filenameWithExtension) {
+	internal static void LoadHudTextures(HudTextureDict list, Span<char> filenameWithExtension) {
 		KeyValues? temp, textureSection;
 
 		KeyValues keyValuesData = new();
@@ -266,6 +280,20 @@ public class Hud(HudElementHelper HudElementHelper)
 		SetupNewHudTexture(newTexture);
 
 		Icons.Add(composedName.Hash(false), newTexture);
+		return newTexture;
+	}
+
+	internal HudTexture AddSearchableHudIconToList(HudTexture texture) {
+		HudTexture? icon = GetIcon(texture.ShortName);
+		if (icon != null)
+			return icon;
+
+		HudTexture newTexture = new();
+		texture.CopyInstantiatedReferenceTo(newTexture);
+
+		SetupNewHudTexture(newTexture);
+
+		Icons.Add(((ReadOnlySpan<char>)newTexture.ShortName).Hash(false), newTexture);
 		return newTexture;
 	}
 
