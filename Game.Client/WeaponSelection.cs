@@ -1,7 +1,9 @@
 using Game.Client.HUD;
 using Game.Shared;
 
+using Source.Common.Client;
 using Source.Common.Commands;
+using Source.Common.Input;
 
 using System.Net;
 
@@ -10,16 +12,23 @@ namespace Game.Client;
 [DeclareHudElement(Name = "CBaseHudWeaponSelection")]
 public class BaseHudWeaponSelection : EditableHudElement
 {
+	public const int HUDTYPE_BUCKETS = 0;
+	public const int HUDTYPE_FASTSWITCH = 1;
+	public const int HUDTYPE_PLUS = 2;
+	public const int HUDTYPE_CAROUSEL = 3;
+
 	public static ConVar hud_drawhistory_time = new("hud_drawhistory_time", "5", 0);
 	public static ConVar hud_fastswitch = new("hud_fastswitch", "0", FCvar.Archive);
 	public double SelectionTime;
 	static BaseHudWeaponSelection? Instance;
 	public bool SelectionVisible;
 	public BaseCombatWeapon? SelectedWeapon;
+	public IHudElement HudElement => this;
+	IInput input => AllowDependencyInjection ? null! : Singleton<IInput>();
 
 	public BaseHudWeaponSelection(string elementName) : base(null, elementName) {
 		Instance = this;
-		((IHudElement)this).SetHiddenBits(HideHudBits.WeaponSelection | HideHudBits.NeedSuit | HideHudBits.PlayerDead | HideHudBits.InVehicle);
+		HudElement.SetHiddenBits(HideHudBits.WeaponSelection | HideHudBits.NeedSuit | HideHudBits.PlayerDead | HideHudBits.InVehicle);
 	}
 
 	public override void Init() {
@@ -52,9 +61,11 @@ public class BaseHudWeaponSelection : EditableHudElement
 
 	void HideSelection() { }
 
-	// bool CanBeSelectedInHUD(BaseCombatWeapon pWeapon) { }
+	public bool CanBeSelectedInHUD(BaseCombatWeapon pWeapon) { return true; } // todo
 
-	// int KeyInput(int down, ButtonCode keynum, ReadOnlySpan<char> currentBinding) { }
+	int KeyInput(int down, ButtonCode keynum, ReadOnlySpan<char> currentBinding) {
+		return 0;//todo
+	}
 
 	void OnWeaponPickup(BaseCombatWeapon pWeapon) { }
 
@@ -88,34 +99,157 @@ public class BaseHudWeaponSelection : EditableHudElement
 	[ConCommand("slot10", flags: FCvar.ServerCanExecute)]
 	static void UserCmd_Slot10() => UserCmd_Slot(10);
 
-	// bool IsHudMenuTakingInput() { }
+	bool IsHudMenuTakingInput() => gHUD.FindElement("CHudMenu") is HudMenu hudMenu && hudMenu.IsMenuOpen();
 
-	// bool HandleHudMenuInput(int slot) { }
+	bool HandleHudMenuInput(int slot) {
+		if (gHUD.FindElement("CHudMenu") is not HudMenu hudMenu || !hudMenu.IsMenuOpen())
+			return false;
+
+		hudMenu.SelectMenuItem(slot);
+		return true;
+	}
 
 	// bool IsHudMenuPreventingWeaponSelection() { }
 
-	void SelectSlot(int slot) { }
+	void SelectSlot(int slot) {
+		if (HandleHudMenuInput(slot))
+			return;
 
-	void UserCmd_Close() { }
+		if (!Instance!.HudElement.ShouldDraw())
+			return;
+
+		UpdateSelectionTime();
+		SelectWeaponSlot(slot);
+	}
+
+	[ConCommand("cancelselect", flags: FCvar.ServerCanExecute)]
+	static void UserCmd_Close() => Instance?.CancelWeaponSelection();
 
 	[ConCommand("invnext", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_NextWeapon() { }
+	static void UserCmd_NextWeapon() {
+		if (!Instance!.HudElement.ShouldDraw())
+			return;
+
+		int fastSwitchMode = hud_fastswitch.GetInt();
+		Instance.CycleToNextWeapon();
+
+		if (fastSwitchMode > 0)
+			Instance.SelectWeapon();
+		Instance.UpdateSelectionTime();
+	}
 
 	[ConCommand("invprev", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_PrevWeapon() { }
+	static void UserCmd_PrevWeapon() {
+		if (!Instance!.HudElement.ShouldDraw())
+			return;
+
+		int fastSwitchMode = hud_fastswitch.GetInt();
+		Instance.CycleToPrevWeapon();
+
+		if (fastSwitchMode > 0)
+			Instance.SelectWeapon();
+		Instance.UpdateSelectionTime();
+	}
 
 	[ConCommand("lastinv", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_LastWeapon() { }
+	static void UserCmd_LastWeapon() {
+		if (!Instance!.HudElement.ShouldDraw())
+			return;
 
-	void SwitchToLastWeapon() { }
+		Instance.SwitchToLastWeapon();
+	}
 
-	void SetWeaponSelected() { }
+	void SwitchToLastWeapon() {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return;
 
-	void SelectWeapon() { }
+		input.MakeWeaponSelection(player.GetLastWeapon());
+	}
+
+	void SetWeaponSelected() {
+		Assert(GetSelectedWeapon());
+		input.MakeWeaponSelection(GetSelectedWeapon());
+	}
+
+	void SelectWeapon() {
+		if (GetSelectedWeapon() == null) {
+			engine.ClientCmd_Unrestricted("cancelselect\n");// todo: not unrestricted
+			return;
+		}
+
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return;
+
+		if (false /*!GetSelectedWeapon().CanBeSelected()*/) {
+			// player.EmitSound("Player.DenyWeaponSelection");
+		}
+		else {
+			SetWeaponSelected();
+			SelectedWeapon = null;
+			engine.ClientCmd_Unrestricted("cancelselect\n"); // todo: not unrestricted
+
+			// player.EmitSound("Player.WeaponSelected");
+		}
+	}
+
+	public BaseCombatWeapon? GetSelectedWeapon() => SelectedWeapon;
 
 	void CancelWeaponSelection() { }
 
-	// BaseCombatWeapon GetFirstPos(int slot) { }
+	public BaseCombatWeapon? GetFirstPos(int slot) {
+		int lowestPosition = MAX_WEAPON_POSITIONS;
+		BaseCombatWeapon? firstWeapon = null;
 
-	// BaseCombatWeapon GetNextActivePos(int slot, int slotPos) { }
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return firstWeapon!;
+
+		for (int i = 0; i < MAX_WEAPONS; i++) {
+			BaseCombatWeapon? weapon = player.GetWeapon(i);
+			if (weapon == null)
+				continue;
+
+			if (weapon.GetSlot() == slot && weapon.VisibleInWeaponSelection()) {
+				if (weapon.GetPosition() < lowestPosition) {
+					lowestPosition = weapon.GetPosition();
+					firstWeapon = weapon;
+				}
+			}
+		}
+
+		return firstWeapon;
+	}
+
+	public BaseCombatWeapon? GetNextActivePos(int slot, int slotPos) {
+		if (slot >= MAX_WEAPON_POSITIONS || slot >= MAX_WEAPON_SLOTS)
+			return null;
+
+		int lowestPosition = MAX_WEAPON_POSITIONS;
+		BaseCombatWeapon? nextWeapon = null;
+
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return nextWeapon;
+
+		for (int i = 0; i < MAX_WEAPONS; i++) {
+			BaseCombatWeapon? weapon = player.GetWeapon(i);
+			if (weapon == null)
+				continue;
+
+			if (weapon.GetSlot() == slot && weapon.VisibleInWeaponSelection()) {
+				if (weapon.GetPosition() >= slotPos && weapon.GetPosition() < lowestPosition) {
+					lowestPosition = weapon.GetPosition();
+					nextWeapon = weapon;
+				}
+			}
+		}
+
+		return nextWeapon;
+	}
+
+	public virtual void CycleToNextWeapon() { }
+	public virtual void CycleToPrevWeapon() { }
+	public virtual void SelectWeaponSlot(int slot) { }
 }

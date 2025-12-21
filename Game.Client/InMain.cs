@@ -84,6 +84,7 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 	KeyButtonState in_break;
 	KeyButtonState in_zoom;
 	KeyButtonState in_attack3;
+	BaseCombatWeapon? SelectedWeapon;
 
 	void KeyDown(ref KeyButtonState button, ReadOnlySpan<char> code) {
 		int k = int.TryParse(code, out k) ? k : -1;
@@ -315,6 +316,11 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 		UserCmd.ReadUsercmd(buf, ref cmd, ref UserCmd.NULL);
 	}
 
+	public void MakeWeaponSelection(BaseCombatWeapon? weapon) {
+		DevMsg($"MakeWeaponSelection({weapon})\n");
+		SelectedWeapon = weapon;
+	}
+
 	public void Init() {
 		Hud = Singleton<Hud>();
 
@@ -387,7 +393,7 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 		cmd.Buttons = GetButtonBits(0);
 		cmd.ViewAngles = viewangles;
 
-		if(clientMode.CreateMove(frametime, ref cmd)) {
+		if (clientMode.CreateMove(frametime, ref cmd)) {
 			engine.SetViewAngles(cmd.ViewAngles);
 			prediction.SetLocalViewAngles(cmd.ViewAngles);
 		}

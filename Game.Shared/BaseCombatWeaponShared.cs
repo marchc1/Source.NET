@@ -39,7 +39,7 @@ using FIELD = Source.FIELD<BaseCombatWeapon>;
 
 public partial class
 #if CLIENT_DLL
-    C_BaseCombatWeapon : C_BaseAnimating
+		C_BaseCombatWeapon : C_BaseAnimating
 #elif GAME_DLL
 	BaseCombatWeapon : BaseAnimating
 #else
@@ -141,7 +141,7 @@ public partial class
 	public virtual int DrawOverriddenViewmodel(BaseViewModel viewmodel, StudioFlags flags) => 0;
 	public virtual void ViewModelDrawn(BaseViewModel viewmodelflags) { }
 
-	
+
 
 	public BaseCombatCharacter? GetOwner() => ToBaseCombatCharacter(Owner.Get());
 
@@ -157,15 +157,19 @@ public partial class
 
 	public override void Precache() {
 		PrimaryAmmoType = SecondaryAmmoType = -1;
-		if(WeaponParse.ReadWeaponDataFromFileForSlot(filesystem, GetClassname(), out WeaponFileInfoHandle)){
+		if (WeaponParse.ReadWeaponDataFromFileForSlot(filesystem, GetClassname(), out WeaponFileInfoHandle)) {
 
 		}
 	}
 
+	public bool VisibleInWeaponSelection() => true;
+	public int GetPosition() => GetWpnData().Position;
+	public int GetSlot() => GetWpnData().Slot;
+
 	WEAPON_FILE_INFO_HANDLE WeaponFileInfoHandle;
 	public WEAPON_FILE_INFO_HANDLE GetWeaponFileInfoHandle() => WeaponFileInfoHandle;
 
-	public FileWeaponInfo GetWpnData(){
+	public FileWeaponInfo GetWpnData() {
 		return WeaponParse.GetFileWeaponInfoFromHandle(WeaponFileInfoHandle);
 	}
 }

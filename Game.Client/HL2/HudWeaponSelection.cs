@@ -3,6 +3,7 @@ using Game.Client.HUD;
 using Source;
 using Source.Common.Commands;
 using Source.Common.GUI;
+using Source.Common.MaterialSystem;
 using Source.GUI.Controls;
 
 namespace Game.Client.HL2;
@@ -45,11 +46,12 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 	[PanelAnimationVar("SelectedFgColor", "BgColor")] protected Color BrightBoxColor;
 	[PanelAnimationVar("SelectionGrowTime", "0.1")] protected float WeaponPickupGrowTime;
 	[PanelAnimationVar("TextScan", "1.0")] protected float TextScan;
+	[PanelAnimationVar("WeaponBoxOffset", "0", "float")] protected float HorizWeaponSelectOffsetPoint;
 	bool FadingOut;
 	struct WeaponBox
 	{
 		public int Slot;
-		public int SplotPos;
+		public int SlotPos;
 	}
 	List<WeaponBox> WeaponBoxes = [];
 	int SelectedWeaponBox;
@@ -58,8 +60,6 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 	int SelectedSlot;
 	BaseCombatWeapon? LastWeapon;
 	[PanelAnimationVar(nameof(WeaponBoxOffset), "WeaponBoxOffset", "0")] protected float WeaponBoxOffset;
-
-	IHudElement HudElement => this;
 
 	public HudWeaponSelection(string? elementName) : base("HudWeaponSelection") {
 		Panel Parent = clientMode.GetViewport();
@@ -135,11 +135,225 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		return SelectionAlphaOverride * (AlphaOverride / 255.0f);
 	}
 
-	public override void Paint() { }
+	public override void Paint() {
+		int width;
+		int xpos;
+		int ypos;
 
-	void DrawLargeWeaponBox(BaseCombatWeapon pWeapon, bool bSelected, int xpos, int ypos, int boxWide, int boxTall, Color selectedColor, float alpha, int number) { }
+		if (!ShouldDraw())
+			return;
 
-	void DrawBox(int x, int y, int wide, int tall, Color color, float normalizedAlpha, int number) { }
+		BasePlayer? localPlayer = BasePlayer.GetLocalPlayer();
+		if (localPlayer == null)
+			return;
+
+		BaseCombatWeapon? selectedWeapon;
+		selectedWeapon = hud_fastswitch.GetInt() switch {
+			HUDTYPE_FASTSWITCH or HUDTYPE_CAROUSEL => localPlayer.GetActiveWeapon(),
+			_ => GetSelectedWeapon(),
+		};
+
+		if (selectedWeapon == null)
+			return;
+
+		bool bPushedViewport = false;
+		if (hud_fastswitch.GetInt() == HUDTYPE_FASTSWITCH || hud_fastswitch.GetInt() == HUDTYPE_PLUS) {
+			using MatRenderContextPtr renderContext = new(materials);
+			if (renderContext.GetRenderTarget() != null) {
+				// surface.PushFullscreenViewport();
+				bPushedViewport = true;
+			}
+		}
+
+		float percentageDone = 1.0f;
+		int largeBoxWide = (int)(SmallBoxSize + ((LargeBoxWide - SmallBoxSize) * percentageDone));
+		int largeBoxTall = (int)(SmallBoxSize + ((LargeBoxTall - SmallBoxSize) * percentageDone));
+		Color selectedColor = new();
+		for (int i = 0; i < 4; i++)
+			selectedColor[i] = (byte)(BoxColor[i] + ((SelectedBoxColor[i] - BoxColor[i]) * percentageDone));
+
+		switch (hud_fastswitch.GetInt()) {
+			case HUDTYPE_CAROUSEL: {
+					ypos = 0;
+					if (SelectedWeaponBox == -1 || WeaponBoxes.Count <= 1)
+						return;
+					else if (WeaponBoxes.Count < MAX_CAROUSEL_SLOTS) {
+						width = (int)((WeaponBoxes.Count - 1) * (LargeBoxWide + BoxGap) + LargeBoxWide);
+						xpos = (GetWide() - width) / 2;
+						for (int i = 0; i < WeaponBoxes.Count; i++) {
+							BaseCombatWeapon? weapon = GetWeaponInSlot(WeaponBoxes[i].Slot, WeaponBoxes[i].SlotPos);
+							if (weapon == null)
+								break;
+
+							float alpha = GetWeaponBoxAlpha(i == SelectedWeaponBox);
+							if (i == SelectedWeaponBox)
+								DrawLargeWeaponBox(weapon, true, xpos, ypos, (int)LargeBoxWide, (int)LargeBoxTall, selectedColor, alpha, -1);
+							else
+								DrawLargeWeaponBox(weapon, false, xpos, ypos, (int)LargeBoxWide, (int)(LargeBoxTall / 1.5f), BoxColor, alpha, -1);
+
+							xpos += (int)(LargeBoxWide + BoxGap);
+						}
+					}
+					else {
+						xpos = GetWide() / 2 + (int)HorizWeaponSelectOffsetPoint - largeBoxWide / 2;
+						int i = SelectedWeaponBox;
+						while (true) {
+							BaseCombatWeapon? weapon = GetWeaponInSlot(WeaponBoxes[i].Slot, WeaponBoxes[i].SlotPos);
+							if (weapon == null)
+								break;
+
+							float alpha;
+							if (i == SelectedWeaponBox && HorizWeaponSelectOffsetPoint == 0) {
+								alpha = GetWeaponBoxAlpha(true);
+								DrawLargeWeaponBox(weapon, true, xpos, ypos, largeBoxWide, largeBoxTall, selectedColor, alpha, -1);
+							}
+							else {
+								alpha = GetWeaponBoxAlpha(false);
+								DrawLargeWeaponBox(weapon, false, xpos, ypos, largeBoxWide, (int)(largeBoxTall / 1.5f), BoxColor, alpha, -1);
+							}
+
+							xpos += (int)(largeBoxWide + BoxGap);
+							if (xpos >= GetWide())
+								break;
+
+							++i;
+							if (i >= WeaponBoxes.Count)
+								i = 0;
+						}
+
+						xpos = (int)(GetWide() / 2 + HorizWeaponSelectOffsetPoint - (3 * largeBoxWide / 2 + BoxGap));
+						i = SelectedWeaponBox - 1;
+						while (true) {
+							if (i < 0)
+								i = WeaponBoxes.Count - 1;
+
+							BaseCombatWeapon? weapon = GetWeaponInSlot(WeaponBoxes[i].Slot, WeaponBoxes[i].SlotPos);
+							if (weapon == null)
+								break;
+
+							float alpha;
+							if (i == SelectedWeaponBox && HorizWeaponSelectOffsetPoint == 0) {
+								alpha = GetWeaponBoxAlpha(true);
+								DrawLargeWeaponBox(weapon, true, xpos, ypos, largeBoxWide, largeBoxTall, selectedColor, alpha, -1);
+							}
+							else {
+								alpha = GetWeaponBoxAlpha(false);
+								DrawLargeWeaponBox(weapon, false, xpos, ypos, largeBoxWide, (int)(largeBoxTall / 1.5f), BoxColor, alpha, -1);
+							}
+
+							xpos -= (int)(largeBoxWide + BoxGap);
+							if (xpos + largeBoxWide <= 0)
+								break;
+
+							--i;
+						}
+					}
+				}
+				break;
+			case HUDTYPE_PLUS: {
+					float fCenterX = 0, fCenterY = 0;
+					bool bBehindCamera = false;
+					// CHudCrosshair::GetDrawPosition(&fCenterX, &fCenterY, &bBehindCamera); TODO
+
+					if (bBehindCamera)
+						return;
+
+					int screenCenterX = (int)fCenterX;
+					int screenCenterY = (int)fCenterY - 15;
+
+					int[] xModifiers = [0, 1, 0, -1, -1, 1];
+					int[] yModifiers = [-1, 0, 1, 0, 1, 1];
+
+					for (int i = 0; i < MAX_WEAPON_SLOTS; ++i) {
+						int xPos = screenCenterX - (int)(MediumBoxWide / 2);
+						int yPos = screenCenterY - (int)(MediumBoxTall / 2);
+
+						int lastSlotPos = -1;
+						for (int slotPos = 0; slotPos < MAX_WEAPON_POSITIONS; ++slotPos) {
+							BaseCombatWeapon? weapon = GetWeaponInSlot(i, slotPos);
+							if (weapon != null)
+								lastSlotPos = slotPos;
+						}
+
+						for (int slotPos = 0; slotPos <= lastSlotPos; ++slotPos) {
+							xPos += (int)(MediumBoxWide + 5) * xModifiers[i];
+							yPos += (int)(MediumBoxTall + 5) * yModifiers[i];
+
+							int boxWide = (int)MediumBoxWide;
+							int boxTall = (int)MediumBoxTall;
+							int x = xPos;
+							int y = yPos;
+
+							BaseCombatWeapon? weapon = GetWeaponInSlot(i, slotPos);
+							bool bSelectedWeapon = false;
+							if (i == SelectedSlot && slotPos == SelectedBoxPosition)
+								bSelectedWeapon = true;
+
+							DrawLargeWeaponBox(weapon, bSelectedWeapon, x, y, boxWide, boxTall, bSelectedWeapon ? selectedColor : BoxColor, GetWeaponBoxAlpha(bSelectedWeapon), -1);
+						}
+					}
+				}
+				break;
+			case HUDTYPE_BUCKETS: {
+					width = (MAX_WEAPON_SLOTS - 1) * (int)(SmallBoxSize + BoxGap) + largeBoxWide;
+					xpos = (GetWide() - width) / 2;
+					ypos = 0;
+
+					int activeSlot = SelectedWeapon != null ? SelectedWeapon.GetSlot() : -1;
+
+					for (int i = 0; i < MAX_WEAPON_SLOTS; i++) {
+						if (i == activeSlot) {
+							bool drawBucketNumber = true;
+							int lastPos = GetLastPosInSlot(i);
+
+							for (int slotpos = 0; slotpos <= lastPos; slotpos++) {
+								BaseCombatWeapon? weapon = GetWeaponInSlot(i, slotpos);
+								if (weapon == null) {
+									if (!hud_showemptyweaponslots.GetBool())
+										continue;
+									DrawBox(xpos, ypos, largeBoxWide, largeBoxTall, EmptyBoxColor, AlphaOverride, drawBucketNumber ? i + 1 : -1);
+								}
+								else {
+									bool bSelected = weapon == SelectedWeapon;
+									DrawLargeWeaponBox(weapon, bSelected, xpos, ypos, largeBoxWide, largeBoxTall, bSelected ? selectedColor : BoxColor, GetWeaponBoxAlpha(bSelected), drawBucketNumber ? i + 1 : -1);
+								}
+
+								ypos += (int)(largeBoxTall + BoxGap);
+								drawBucketNumber = false;
+							}
+
+							xpos += largeBoxWide;
+						}
+						else {
+							if (GetFirstPos(i) != null)
+								DrawBox(xpos, ypos, (int)SmallBoxSize, (int)SmallBoxSize, BoxColor, AlphaOverride, i + 1);
+							else
+								DrawBox(xpos, ypos, (int)SmallBoxSize, (int)SmallBoxSize, EmptyBoxColor, AlphaOverride, -1);
+
+							xpos += (int)SmallBoxSize;
+						}
+
+						ypos = 0;
+						xpos += (int)BoxGap;
+					}
+				}
+				break;
+			default:
+				break;
+		}
+
+		if (bPushedViewport) {
+			// surface.PopFullscreenViewport();
+		}
+	}
+
+	void DrawLargeWeaponBox(BaseCombatWeapon weapon, bool bSelected, int xpos, int ypos, int boxWide, int boxTall, Color selectedColor, float alpha, int number) {
+		throw new NotImplementedException();
+	}
+
+	void DrawBox(int x, int y, int wide, int tall, Color color, float normalizedAlpha, int number) {
+		throw new NotImplementedException();
+	}
 
 	public override void ApplySchemeSettings(IScheme scheme) { }
 
@@ -147,21 +361,210 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 	void HideSelection() { }
 
-	// BaseCombatWeapon FindNextWeaponInWeaponSelection(int currentSlot, int currentPosition) { }
+	BaseCombatWeapon? FindNextWeaponInWeaponSelection(int currentSlot, int currentPosition) {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return null;
 
-	// BaseCombatWeapon FindPrevWeaponInWeaponSelection(int currentSlot, int currentPosition) { }
+		BaseCombatWeapon? nextWeapon = null;
+		int lowestNextSlot = MAX_WEAPON_SLOTS;
+		int lowestNextPosition = MAX_WEAPON_POSITIONS;
 
-	void CycleToNextWeapon() { }
+		for (int i = 0; i < MAX_WEAPONS; i++) {
+			BaseCombatWeapon? weapon = player.GetWeapon(i);
+			if (weapon == null)
+				continue;
 
-	void CycleToPrevWeapon() { }
+			if (CanBeSelectedInHUD(weapon)) {
+				int weaponSlot = weapon.GetSlot();
+				int weaponPosition = weapon.GetPosition();
 
-	// int GetLastPosInSlot(int slot) { }
+				if (weaponSlot > currentSlot || (weaponSlot == currentSlot && weaponPosition > currentPosition)) {
+					if (weaponSlot < lowestNextSlot || (weaponSlot == lowestNextSlot && weaponPosition < lowestNextPosition)) {
+						lowestNextSlot = weaponSlot;
+						lowestNextPosition = weaponPosition;
+						nextWeapon = weapon;
+					}
+				}
+			}
+		}
 
-	// BaseCombatWeapon GetWeaponInSlot(int slot, int slotPos) { }
+		return nextWeapon;
+	}
+
+	BaseCombatWeapon? FindPrevWeaponInWeaponSelection(int currentSlot, int currentPosition) {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return null;
+
+		BaseCombatWeapon? prevWeapon = null;
+		int highestPrevSlot = -1;
+		int highestPrevPosition = -1;
+
+		for (int i = 0; i < MAX_WEAPONS; i++) {
+			BaseCombatWeapon? weapon = player.GetWeapon(i);
+			if (weapon == null)
+				continue;
+
+			if (CanBeSelectedInHUD(weapon)) {
+				int weaponSlot = weapon.GetSlot();
+				int weaponPosition = weapon.GetPosition();
+
+				if (weaponSlot < currentSlot || (weaponSlot == currentSlot && weaponPosition < currentPosition)) {
+					if (weaponSlot > highestPrevSlot || (weaponSlot == highestPrevSlot && weaponPosition > highestPrevPosition)) {
+						highestPrevSlot = weaponSlot;
+						highestPrevPosition = weaponPosition;
+						prevWeapon = weapon;
+					}
+				}
+			}
+		}
+
+		return prevWeapon;
+	}
+
+
+	public override void CycleToNextWeapon() {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return;
+
+		LastWeapon = player.GetActiveWeapon();
+
+		BaseCombatWeapon? nextWeapon;
+		if (IsInSelectionMode()) {
+			BaseCombatWeapon? weapon = GetSelectedWeapon();
+			if (weapon == null)
+				return;
+
+			nextWeapon = FindNextWeaponInWeaponSelection(weapon.GetSlot(), weapon.GetPosition());
+		}
+		else {
+			nextWeapon = player.GetActiveWeapon();
+			if (nextWeapon != null)
+				nextWeapon = FindNextWeaponInWeaponSelection(nextWeapon.GetSlot(), nextWeapon.GetPosition());
+		}
+
+		nextWeapon ??= FindNextWeaponInWeaponSelection(-1, -1);
+
+		if (nextWeapon != null) {
+			SetSelectedWeapon(nextWeapon);
+			SetSelectedSlideDir(1);
+
+			if (!IsInSelectionMode())
+				OpenSelection();
+
+			// player.EmitSound("Player.WeaponSelectionMoveSlot");
+		}
+	}
+
+	public override void CycleToPrevWeapon() {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return;
+
+		LastWeapon = player.GetActiveWeapon();
+
+		BaseCombatWeapon? prevWeapon;
+		if (IsInSelectionMode()) {
+			BaseCombatWeapon? weapon = GetSelectedWeapon();
+			if (weapon == null)
+				return;
+
+			prevWeapon = FindPrevWeaponInWeaponSelection(weapon.GetSlot(), weapon.GetPosition());
+		}
+		else {
+			prevWeapon = player.GetActiveWeapon();
+			if (prevWeapon != null)
+				prevWeapon = FindPrevWeaponInWeaponSelection(prevWeapon.GetSlot(), prevWeapon.GetPosition());
+		}
+
+		prevWeapon ??= FindPrevWeaponInWeaponSelection(MAX_WEAPON_SLOTS, MAX_WEAPON_POSITIONS);
+
+		if (prevWeapon != null) {
+			SetSelectedWeapon(prevWeapon);
+			SetSelectedSlideDir(-1);
+
+			if (!IsInSelectionMode())
+				OpenSelection();
+
+			// player.EmitSound("Player.WeaponSelectionMoveSlot");
+		}
+	}
+
+	int GetLastPosInSlot(int slot) {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return -1;
+
+		int maxSlotPos = -1;
+		for (int i = 0; i < MAX_WEAPONS; i++) {
+			if (player.GetWeapon(i) is not BaseCombatWeapon weapon)
+				continue;
+
+			if (weapon.GetSlot() == slot && weapon.GetPosition() > maxSlotPos)
+				maxSlotPos = weapon.GetPosition();
+		}
+
+		return maxSlotPos;
+	}
+
+	BaseCombatWeapon? GetWeaponInSlot(int slot, int slotPos) { return null; }//todo
 
 	void FastWeaponSwitch(int weaponSlot) { }
 
 	void PlusTypeFastWeaponSwitch(int weaponSlot) { }
 
-	void SelectWeaponSlot(int slot) { }
+	public override void SelectWeaponSlot(int slot) {
+		--slot;
+
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return;
+
+		if (slot >= MAX_WEAPON_SLOTS)
+			return;
+
+		// if (!player.IsAllowToSwitchWeapons()) todo
+		// 	return;
+
+		switch (hud_fastswitch.GetInt()) {
+			case HUDTYPE_FASTSWITCH:
+			case HUDTYPE_CAROUSEL: {
+					FastWeaponSwitch(slot);
+					return;
+				}
+			case HUDTYPE_PLUS: {
+					if (!IsInSelectionMode())
+						OpenSelection();
+
+					PlusTypeFastWeaponSwitch(slot);
+					ActivateWeaponHighlight(GetSelectedWeapon()!);
+				}
+				break;
+			case HUDTYPE_BUCKETS: {
+					int slotPos = 0;
+					BaseCombatWeapon? activeWeapon = GetSelectedWeapon();
+
+					if (IsInSelectionMode() && activeWeapon != null && activeWeapon.GetSlot() == slot)
+						slotPos = activeWeapon.GetPosition() + 1;
+
+					activeWeapon = GetNextActivePos(slot, slotPos);
+					activeWeapon ??= GetNextActivePos(slot, 0);
+
+					if (activeWeapon != null) {
+						if (!IsInSelectionMode())
+							OpenSelection();
+
+						SetSelectedWeapon(activeWeapon);
+						SetSelectedSlideDir(0);
+					}
+				}
+				break;
+			default:
+				break;
+		}
+
+		// player.EmitSound("Player.WeaponSelectionMoveSlot");
+	}
 }

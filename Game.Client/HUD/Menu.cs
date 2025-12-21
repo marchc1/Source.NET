@@ -47,7 +47,7 @@ class HudMenu : EditableHudElement
 	[PanelAnimationVar("MenuItemColor", "ItemColor", "color")] protected Color ItemColor;
 	[PanelAnimationVar("MenuBoxColor", "MenuBoxBg", "color")] protected Color BoxColor;
 
-	public HudMenu(string elementName) : base(null, "HudMenu") {
+	public HudMenu(string elementName) : base(null, "CHudMenu") {
 		SelectedItem = -1;
 		Panel parent = clientMode.GetViewport();
 		SetParent(parent);
@@ -70,7 +70,7 @@ class HudMenu : EditableHudElement
 		WaitingForMore = 0;
 	}
 
-	bool IsMenuOpen() => MenuDisplayed && MenuTakesInput;
+	public bool IsMenuOpen() => MenuDisplayed && MenuTakesInput;
 
 	void VidInit() { }
 
@@ -160,7 +160,7 @@ class HudMenu : EditableHudElement
 		}
 	}
 
-	void SelectMenuItem(int menu_item) {
+	public void SelectMenuItem(int menu_item) {
 		if (menu_item > 0 && (BitsValidSlots & (1 << (menu_item - 1))) != 0) {
 			Span<char> buf = stackalloc char[32];
 			sprintf(buf, "menuselect %d\n").D(menu_item);

@@ -24,7 +24,8 @@ namespace Game.Server;
 
 using Source.Common.Commands;
 
-public static class BasePlayerGlobals {
+public static class BasePlayerGlobals
+{
 	public static BasePlayer? ToBasePlayer(SharedBaseEntity? entity) {
 		if (entity == null || !entity.IsPlayer())
 			return null;
@@ -47,7 +48,7 @@ public partial class
 	BasePlayer
 #endif
 {
-	public virtual void CalcView(ref Vector3 eyeOrigin, ref  QAngle eyeAngles, ref float zNear, ref float zFar, ref float fov) {
+	public virtual void CalcView(ref Vector3 eyeOrigin, ref QAngle eyeAngles, ref float zNear, ref float zFar, ref float fov) {
 		CalcPlayerView(ref eyeOrigin, ref eyeAngles, ref fov); // << TODO: There is a lot more logic here for observers, vehicles, etc!
 	}
 
@@ -66,7 +67,7 @@ public partial class
 		// NOTE: Viewangles are measured *relative* to the parent's coordinate system
 		SharedBaseEntity? pMoveParent = null; //this.GetMoveParent();
 
-		if (pMoveParent == null) 
+		if (pMoveParent == null)
 			return ref pl.ViewingAngle;
 
 		// FIXME: Cache off the angles?
@@ -104,7 +105,7 @@ public partial class
 		throw new NotImplementedException();
 	}
 
-	static ConVar sv_suppress_viewpunch = new( "sv_suppress_viewpunch", "0", FCvar.Replicated | FCvar.Cheat | FCvar.DevelopmentOnly);
+	static ConVar sv_suppress_viewpunch = new("sv_suppress_viewpunch", "0", FCvar.Replicated | FCvar.Cheat | FCvar.DevelopmentOnly);
 
 	public void ViewPunch(in QAngle angleOffset) {
 		//See if we're suppressing the view punching
@@ -126,6 +127,10 @@ public partial class
 		}
 		Local.PunchAngle = vec3_angle;
 		Local.PunchAngleVel = vec3_angle;
+	}
+
+	void Weapon_SetLast(BaseCombatWeapon pWeapon) {
+		throw new NotImplementedException();
 	}
 }
 #endif
