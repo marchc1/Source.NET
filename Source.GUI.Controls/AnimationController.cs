@@ -98,7 +98,7 @@ public struct PostedMessage
 	public UtlSymId_t Variable;
 	public UtlSymId_t Variable2;
 	public double StartTime;
-	public IPanel Parent;
+	public Panel Parent;
 	public bool CanBeCancelled;
 }
 
@@ -195,11 +195,20 @@ public class AnimationController : Panel, IAnimationController
 	public void UpdateAnimations(TimeUnit_t curTime) {
 		CurrentTime = curTime;
 
+		if (UpdateScreenSize() && ScriptFileNames.Count > 0) {
+			RunAllAnimationsToCompletion();
+			ReloadScriptFile();
+		}
+
 		UpdatePostedMessages(false);
 		UpdateActiveAnimations(false);
 	}
 
-	// todo
+	private void RunAllAnimationsToCompletion() {
+		UpdatePostedMessages(true);
+		UpdateActiveAnimations(true);
+	}
+
 	private void UpdatePostedMessages(bool runToCompletion) {
 		List<RanEvent> eventsRanThisFrame = [];
 
@@ -221,29 +230,67 @@ public class AnimationController : Panel, IAnimationController
 				continue;
 
 			switch (msg.CommandType) {
-				case AnimCommandType.RunEvent:
+				case AnimCommandType.RunEvent: {
+						RanEvent curEvent = new() {
+							SeqName = msg.Event,
+							Parent = msg.Parent
+						};
+
+						if (!eventsRanThisFrame.Contains(curEvent)) {
+							eventsRanThisFrame.Add(curEvent);
+							RunCmd_RunEvent(msg);
+						}
+					}
 					break;
-				case AnimCommandType.RunEventChild:
+				case AnimCommandType.RunEventChild: {
+						RanEvent curEvent = new() {
+							SeqName = msg.Event,
+							Parent = msg.Parent.FindChildByName(ScriptSymbols.String(msg.Variable), true)!
+						};
+
+						if (!eventsRanThisFrame.Contains(curEvent)) {
+							eventsRanThisFrame.Add(curEvent);
+							RunCmd_RunEvent(msg);
+						}
+					}
 					break;
-				case AnimCommandType.FireCommand:
+				case AnimCommandType.FireCommand: {
+						msg.Parent.OnCommand(ScriptSymbols.String(msg.Variable));
+					}
 					break;
 				case AnimCommandType.PlaySound:
+					Surface.PlaySound(ScriptSymbols.String(msg.Variable));
 					break;
-				case AnimCommandType.SetVisible:
+				case AnimCommandType.SetVisible: {
+						Panel? panel = msg.Parent.FindChildByName(ScriptSymbols.String(msg.Variable), true)!;
+						panel?.SetVisible(msg.Variable2 == 1);
+					}
 					break;
-				case AnimCommandType.SetInputEnabled:
+				case AnimCommandType.SetInputEnabled: {
+						Panel? panel = msg.Parent.FindChildByName(ScriptSymbols.String(msg.Variable), true)!;
+						if (panel != null) {
+							panel.SetMouseInputEnabled(msg.Variable2 == 1);
+							panel.SetKeyboardInputEnabled(msg.Variable2 == 1);
+						}
+					}
 					break;
 				case AnimCommandType.StopEvent:
+					RunCmd_StopEvent(msg);
 					break;
 				case AnimCommandType.StopPanelAnimations:
+					RunCmd_StopPanelAnimations(msg);
 					break;
 				case AnimCommandType.StopAnimation:
+					RunCmd_StopAnimation(msg);
 					break;
 				case AnimCommandType.SetFont:
+					RunCmd_SetFont(msg);
 					break;
 				case AnimCommandType.SetTexture:
+					RunCmd_SetTexture(msg);
 					break;
 				case AnimCommandType.SetString:
+					RunCmd_SetString(msg);
 					break;
 			}
 		}
@@ -257,7 +304,6 @@ public class AnimationController : Panel, IAnimationController
 		for (int i = PostedMessages.Count - 1; i >= PostedMessages.Count; i--)
 			if (PostedMessages[i].CanBeCancelled)
 				PostedMessages.RemoveAt(i);
-
 	}
 
 	private void UpdateActiveAnimations(bool runToCompletion) {
@@ -350,18 +396,45 @@ public class AnimationController : Panel, IAnimationController
 	private AnimValue GetValue(ActiveAnimation anim, Panel panel, ulong variable) {
 		AnimValue val = new();
 		if (variable == Position) {
-			int x, y;
-			panel.GetPos(out x, out y);
+			panel.GetPos(out int x, out int y);
 			val.A = x - GetRelativeOffset(in anim.Align, true);
 			val.B = y - GetRelativeOffset(in anim.Align, false);
 		}
-		else if (variable == Size) { }
-		else if (variable == FgColor) { }
-		else if (variable == BgColor) { }
-		else if (variable == XPos) { }
-		else if (variable == YPos) { }
-		else if (variable == Wide) { }
-		else if (variable == Tall) { }
+		else if (variable == Size) {
+			panel.GetSize(out int w, out int h);
+			val.A = w;
+			val.B = h;
+		}
+		else if (variable == FgColor) {
+			Color col = panel.GetFgColor();
+			val.A = col[0];
+			val.B = col[1];
+			val.C = col[2];
+			val.D = col[3];
+		}
+		else if (variable == BgColor) {
+			Color col = panel.GetBgColor();
+			val.A = col[0];
+			val.B = col[1];
+			val.C = col[2];
+			val.D = col[3];
+		}
+		else if (variable == XPos) {
+			panel.GetPos(out int x, out _);
+			val.A = x - GetRelativeOffset(in anim.Align, true);
+		}
+		else if (variable == YPos) {
+			panel.GetPos(out _, out int y);
+			val.A = y - GetRelativeOffset(in anim.Align, false);
+		}
+		else if (variable == Wide) {
+			panel.GetSize(out int w, out _);
+			val.A = w;
+		}
+		else if (variable == Tall) {
+			panel.GetSize(out _, out int h);
+			val.A = h;
+		}
 		else {
 			KeyValues outputData = new KeyValues(ScriptSymbols.String(variable));
 			if (panel.RequestInfo(outputData)) {
@@ -393,38 +466,18 @@ public class AnimationController : Panel, IAnimationController
 			return 0;
 		panel.GetBounds(out int x, out int y, out int w, out int h);
 
-		int offset = 0;
-		switch (align.Alignment) {
-			default:
-			case Alignment.Northwest:
-				offset = xcoord ? x : y;
-				break;
-			case Alignment.North:
-				offset = xcoord ? (x + w) / 2 : y;
-				break;
-			case Alignment.Northeast:
-				offset = xcoord ? (x + w) : y;
-				break;
-			case Alignment.West:
-				offset = xcoord ? x : (y + h) / 2;
-				break;
-			case Alignment.Center:
-				offset = xcoord ? (x + w) / 2 : (y + h) / 2;
-				break;
-			case Alignment.East:
-				offset = xcoord ? (x + w) : (y + h) / 2;
-				break;
-			case Alignment.Southwest:
-				offset = xcoord ? x : (y + h);
-				break;
-			case Alignment.South:
-				offset = xcoord ? (x + w) / 2 : (y + h);
-				break;
-			case Alignment.Southeast:
-				offset = xcoord ? (x + w) : (y + h);
-				break;
-		}
-
+		int offset;
+		offset = align.Alignment switch {
+			Alignment.North => xcoord ? (x + w) / 2 : y,
+			Alignment.Northeast => xcoord ? (x + w) : y,
+			Alignment.West => xcoord ? x : (y + h) / 2,
+			Alignment.Center => xcoord ? (x + w) / 2 : (y + h) / 2,
+			Alignment.East => xcoord ? (x + w) : (y + h) / 2,
+			Alignment.Southwest => xcoord ? x : (y + h),
+			Alignment.South => xcoord ? (x + w) / 2 : (y + h),
+			Alignment.Southeast => xcoord ? (x + w) : (y + h),
+			_ => xcoord ? x : y,
+		};
 		return offset;
 	}
 
@@ -505,6 +558,70 @@ public class AnimationController : Panel, IAnimationController
 		anim.CanBeCancelled = canBeCancelled;
 
 		anim.Align = cmd.Align;
+	}
+
+	void RunCmd_RunEvent(PostedMessage msg) => StartAnimationSequence(msg.Parent, ScriptSymbols.String(msg.Event), msg.CanBeCancelled);
+	void RunCmd_StopEvent(PostedMessage msg) => RemoveQueuedAnimationCommands(msg.Event, msg.Parent);
+
+	void RunCmd_StopPanelAnimations(PostedMessage msg) {
+		Panel? panel = msg.Parent.FindChildByName(ScriptSymbols.String(msg.Event));
+		Assert(panel != null);
+		if (panel == null)
+			return;
+
+		for (int i = 0; i < ActiveAnimations.Count; i++) {
+			Span<ActiveAnimation> anims = ActiveAnimations.AsSpan();
+			ref ActiveAnimation anim = ref anims[i];
+			if (anim.Panel == panel && anim.SeqName != msg.SeqName) {
+				ActiveAnimations.RemoveAt(i);
+				--i;
+			}
+		}
+	}
+
+	void RunCmd_StopAnimation(PostedMessage msg) {
+		Panel? panel = msg.Parent.FindChildByName(ScriptSymbols.String(msg.Event));
+		Assert(panel != null);
+		if (panel == null)
+			return;
+
+		RemoveQueuedAnimationByType(panel, msg.Variable, msg.SeqName);
+	}
+
+	void RunCmd_SetFont(PostedMessage msg) {
+		Panel parent = msg.Parent;
+		parent ??= GetParent()!;
+
+		Panel? panel = parent.FindChildByName(ScriptSymbols.String(msg.Event), true);
+		Assert(panel != null);
+		if (panel == null)
+			return;
+
+		KeyValues inputData = new(ScriptSymbols.String(msg.Variable));
+		inputData.SetString(ScriptSymbols.String(msg.Variable), ScriptSymbols.String(msg.Variable2));
+		panel.SetInfo(inputData);
+	}
+
+	void RunCmd_SetTexture(PostedMessage msg) {
+		Panel? panel = FindSiblingByName(ScriptSymbols.String(msg.Event));
+		Assert(panel != null);
+		if (panel == null)
+			return;
+
+		KeyValues inputData = new(ScriptSymbols.String(msg.Variable));
+		inputData.SetString(ScriptSymbols.String(msg.Variable), ScriptSymbols.String(msg.Variable2));
+		panel.SetInfo(inputData);
+	}
+
+	void RunCmd_SetString(PostedMessage msg) {
+		Panel? panel = FindSiblingByName(ScriptSymbols.String(msg.Event));
+		Assert(panel != null);
+		if (panel == null)
+			return;
+
+		KeyValues inputData = new(ScriptSymbols.String(msg.Variable));
+		inputData.SetString(ScriptSymbols.String(msg.Variable), ScriptSymbols.String(msg.Variable2));
+		panel.SetInfo(inputData);
 	}
 
 	private void RemoveQueuedAnimationByType(Panel panel, ulong variable, ulong sequenceToIgnore) {
@@ -914,7 +1031,7 @@ public class AnimationController : Panel, IAnimationController
 					animCmd.RunEvent.TimeDelay = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
 				}
 				else if (stricmp(token, "StopPanelAnimations") == 0) {
-					animCmd.CommandType = AnimCommandType.StopPanelAnimations; 
+					animCmd.CommandType = AnimCommandType.StopPanelAnimations;
 					mem = FilesystemHelpers.ParseFile(mem, token, out _);
 					animCmd.RunEvent.Event = ScriptSymbols.AddString(token);
 					mem = FilesystemHelpers.ParseFile(mem, token, out _);
@@ -972,14 +1089,14 @@ public class AnimationController : Panel, IAnimationController
 				// Look ahead one token for a conditional
 				ReadOnlySpan<byte> peek = FilesystemHelpers.ParseFile(mem, token, out _);
 				if (token.Contains("[$", StringComparison.OrdinalIgnoreCase) || token.Contains("[!$", StringComparison.OrdinalIgnoreCase)) {
-					if (!KeyValues.EvaluateConditional(token)) 
+					if (!KeyValues.EvaluateConditional(token))
 						seq.CmdList.RemoveAt(cmdIndex);
-					
+
 					mem = peek;
 				}
 			}
 
-			if(accepted){
+			if (accepted) {
 				int seqIterator;
 				for (seqIterator = 0; seqIterator < Sequences.Count - 1; seqIterator++) {
 					if (Sequences[seqIterator].Name == nameIndex) {
@@ -989,7 +1106,7 @@ public class AnimationController : Panel, IAnimationController
 					}
 				}
 			}
-			else{
+			else {
 				Sequences.RemoveAt(seqIndex);
 			}
 

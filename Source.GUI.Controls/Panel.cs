@@ -2536,6 +2536,20 @@ public class Panel : IPanel
 		return null;
 	}
 
+	public Panel? FindSiblingByName(ReadOnlySpan<char> siblingName) {
+		if (GetParent() == null)
+			return null;
+
+		int siblingCount = GetParent()!.GetChildCount();
+		for (int i = 0; i < siblingCount; i++) {
+			Panel sibling = GetParent()!.GetChild(i);
+			if (siblingName.Equals(sibling.GetName(), StringComparison.OrdinalIgnoreCase))
+				return sibling;
+		}
+
+		return null;
+	}
+
 	public void GetBounds(out int x, out int y, out int w, out int h) {
 		GetPos(out x, out y);
 		GetSize(out w, out h);
