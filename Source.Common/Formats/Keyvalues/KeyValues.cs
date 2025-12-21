@@ -91,7 +91,7 @@ public class KeyValues : IEnumerable<KeyValues>
 	}
 
 	// Returns true if we did anything at all to skip whitespace.
-	private bool SkipWhitespace(StreamReader reader) {
+	public static bool SkipWhitespace(StreamReader reader) {
 		bool didAnything = false;
 		while (true) {
 			int c = reader.Peek();
@@ -129,10 +129,51 @@ public class KeyValues : IEnumerable<KeyValues>
 	/// 
 	/// </summary>
 	/// <param name="reader"></param>
-	/// <param name="condition"></param>
+	/// <param name="str"></param>
 	/// <param name="match">If [$CONDITION], this value will be true, and if [!$CONDITION], this value will be false.</param>
 	/// <returns></returns>
-	private bool ReadConditional(StreamReader reader, Span<char> condition, out bool match) {
+	public static bool EvaluateConditional(Span<char> str) {
+		if (str.IsEmpty)
+			return false;
+
+		if (str[0] == '[')
+			str = str[1..];
+
+		bool bNot = false; // should we negate this command?
+		if (str[0] == '!')
+			bNot = true;
+
+		if (str.Contains("$WIN32", StringComparison.OrdinalIgnoreCase))
+			return IsPC() ^ bNot;
+
+		if (str.Contains("$WINDOWS", StringComparison.OrdinalIgnoreCase))
+#if WIN32
+			return !bNot;
+#else
+			return bNot;
+#endif
+		if (str.Contains("$OSX", StringComparison.OrdinalIgnoreCase))
+#if OSX
+			return !bNot;
+#else
+			return bNot;
+#endif
+		if (str.Contains("$LINUX", StringComparison.OrdinalIgnoreCase))
+#if LINUX
+			return !bNot;
+#else
+			return bNot;
+#endif
+		if (str.Contains("$POSIX", StringComparison.OrdinalIgnoreCase))
+#if OSX || LINUX
+			return !bNot;
+#else
+			return bNot;
+#endif
+
+		return false;
+	}
+	public static bool ReadConditional(StreamReader reader, Span<char> condition, out bool match) {
 		// Zero out if it's existing memory
 		for (int si = 0; si < condition.Length; si++)
 			condition[si] = '\0';
@@ -166,7 +207,7 @@ public class KeyValues : IEnumerable<KeyValues>
 		return true;
 	}
 
-	private bool HandleConditional(ReadOnlySpan<char> condition, bool supported) {
+	public static bool HandleConditional(ReadOnlySpan<char> condition, bool supported) {
 		int realStrLength = System.MemoryExtensions.IndexOf(condition, '\0');
 		if (realStrLength == -1) {
 			Debug.Assert(false, "String overflow!!!");
@@ -175,6 +216,9 @@ public class KeyValues : IEnumerable<KeyValues>
 		condition = condition[..realStrLength];
 
 		bool notSupported = !supported; // just so its more obvious
+
+		// NOTE: Apparently, WIN32 means IsPC
+		// Thank you Source so much
 		switch (condition) {
 #if WIN32
 			case "WIN32": return supported;
@@ -184,14 +228,14 @@ public class KeyValues : IEnumerable<KeyValues>
 			case "POSIX": return notSupported;
 			case "LINUX": return notSupported;
 #elif OSX
-			case "WIN32": return notSupported;
+			case "WIN32": return supported;
 			case "WINDOWS": return notSupported;
 			case "X360": return notSupported;
 			case "OSX": return supported;
 			case "POSIX": return notSupported;
 			case "LINUX": return notSupported;
 #elif LINUX
-			case "WIN32": return notSupported;
+			case "WIN32": return supported;
 			case "WINDOWS": return notSupported;
 			case "X360": return notSupported;
 			case "OSX": return notSupported;
@@ -274,20 +318,20 @@ public class KeyValues : IEnumerable<KeyValues>
 			KeyValues kvpair = new() { evaluateConditionals = this.evaluateConditionals, useEscapeSequences = this.useEscapeSequences };
 
 			if (kvpair.ReadKV(reader) && matches) // When conditional, still need to waste time on parsing, but we throw it away after
-																						// There's definitely a better way to handle this, but it would need more testing scenarios
-																						// The ReadKV call can also determine its condition and will return false if it doesnt want to be added.
+												  // There's definitely a better way to handle this, but it would need more testing scenarios
+												  // The ReadKV call can also determine its condition and will return false if it doesnt want to be added.
 				AddToTail(kvpair);
 		}
 	}
 
 	// Returns true if we did anything at all to skip comments.
-	private bool SkipComments(StreamReader reader) {
+	public static bool SkipComments(StreamReader reader) {
 		bool didAnything = false;
 		if (reader.Peek() == '/') {
 			// We need to check the stream for another /
 			reader.Read();
 			if (reader.Peek() == '/') { // We got //, its a comment
-																	// We read until the end of the line.
+										// We read until the end of the line.
 				didAnything = true;
 				int val;
 				while ((val = reader.Read()) != -1) {
@@ -328,7 +372,7 @@ public class KeyValues : IEnumerable<KeyValues>
 		Type = Types.String;
 	}
 
-	private string ReadWhitespaceTerminatedString(StreamReader reader) {
+	public static string ReadWhitespaceTerminatedString(StreamReader reader) {
 		Span<char> work = stackalloc char[1024];
 		int i, len;
 		for (i = 0, len = work.Length; i < len; i++) {
@@ -348,7 +392,7 @@ public class KeyValues : IEnumerable<KeyValues>
 		return new(work[..i]);
 	}
 
-	private string ReadQuoteTerminatedString(StreamReader reader, bool useEscapeSequences) {
+	public static string ReadQuoteTerminatedString(StreamReader reader, bool useEscapeSequences) {
 		int rd = reader.Read();
 		Debug.Assert(rd == '"', "invalid quote-terminated string");
 		Span<char> work = stackalloc char[1024];

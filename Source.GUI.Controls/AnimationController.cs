@@ -693,6 +693,13 @@ public class AnimationController : Panel, IAnimationController
 	}
 
 	private bool ParseScriptFile(ReadOnlySpan<byte> mem) {
+		IScheme scheme = GetScheme()!;
+
+		int screenWide = ScreenBounds[2];
+		int screenTall = ScreenBounds[3];
+
+
+
 		return true;
 	}
 
