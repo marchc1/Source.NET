@@ -129,6 +129,7 @@ public class BaseViewport : EditablePanel, IViewPort
 	}
 
 	AnimationController AnimController;
+	public new virtual AnimationController GetAnimationController() => AnimController;
 
 	public IViewPortPanel? FindPanelByName(ReadOnlySpan<char> panelName) {
 		foreach (var panel in Panels) {
