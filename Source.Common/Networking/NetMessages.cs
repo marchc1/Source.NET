@@ -636,6 +636,16 @@ public class svc_EntityMessage : NetMessage{
 	public readonly bf_read DataIn = new();
 	public readonly bf_write DataOut = new();
 
+
+	public override bool ReadFromBuffer(bf_read buffer) {
+		EntityIndex = (int)buffer.ReadUBitLong(MAX_EDICT_BITS);
+		ClassID = (int)buffer.ReadUBitLong(MAX_SERVER_CLASS_BITS);
+		Length = (int)buffer.ReadUBitLong(NETMSG_LENGTH_BITS);
+		buffer.CopyTo(DataIn);
+
+		return buffer.SeekRelative(Length);
+	}
+
 }
 public class svc_PacketEntities : NetMessage
 {
