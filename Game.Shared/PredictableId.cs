@@ -119,7 +119,10 @@ public class PredictableId
 		return HashCode.Combine(file, line);
 	}
 
-
+	static readonly char[] desc = new char[128];
+	public ReadOnlySpan<char> Describe(){
+		return sprintf(desc, "pl(%i) cmd(%i) hash(%i) inst(%i) ack(%s)").I(GetPlayer()).I(GetCommandNumber()).I(GetHash()).I(GetInstanceNumber()).S(GetAcknowledged() ? "true" : "false").ToSpan();
+	}
 
 	public bool IsActive() => PredictableID.Raw != 0;
 	public void Init(int player, int command, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0) {

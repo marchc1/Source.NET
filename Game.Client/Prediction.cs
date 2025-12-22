@@ -2,14 +2,21 @@ using Game.Shared;
 
 using Source;
 using Source.Common;
+using Source.Common.Client;
+using Source.Common.Commands;
 using Source.Common.Mathematics;
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Game.Client;
 
 public class Prediction : IPrediction
 {
+	static readonly ConVar cl_predictweapons = new("cl_predictweapons", "1", FCvar.UserInfo | FCvar.NotConnected, "Perform client side prediction of weapon effects.");
+	static readonly ConVar cl_lagcompensation = new("cl_lagcompensation", "1", FCvar.UserInfo | FCvar.NotConnected, "Perform server side lag compensation of weapon firing events.");
+	static readonly ConVar cl_showerror = new("cl_showerror", "0", 0, "Show prediction errors, 2 for above plus detailed field deltas.");
+
 
 	bool bInPrediction;
 	bool FirstTimePredicted;
@@ -174,6 +181,202 @@ public class Prediction : IPrediction
 		}
 
 
+		C_BaseAnimating.InvalidateBoneCaches();
+		using (C_BaseAnimating.AutoAllowBoneAccess boneaccess = new(true, true)) {
+
+			// Remove any purely client predicted entities that were left "dangling" because the 
+			//  server didn't acknowledge them or which can now safely be removed
+			RemoveStalePredictedEntities(incomingAcknowledged);
+
+			// Restore objects back to "pristine" state from last network/world state update
+			if (receivedNewWorldUpdate)
+				RestoreOriginalEntityState();
+
+			if (!PerformPrediction(receivedNewWorldUpdate, localPlayer, incomingAcknowledged, outgoingCommand))
+				return;
+		}
+
+
+		// Overwrite predicted angles with the actual view angles
+		localPlayer.SetLocalAngles(viewangles);
+
+		// This allows us to sample the world when it may not be ready to be sampled
+		Assert(C_BaseEntity.IsAbsQueriesValid());
+
+		// FIXME: What about hierarchy here?!?
+		SetIdealPitch(localPlayer, localPlayer.GetLocalOrigin(), localPlayer.GetLocalAngles(), localPlayer.ViewOffset);
+	}
+
+	private void RemoveStalePredictedEntities(int sequenceNumber) {
+		int oldest_allowable_command = sequenceNumber;
+
+		int c = predictables.GetPredictableCount();
+		int i;
+		for (i = c - 1; i >= 0; i--) {
+			C_BaseEntity? ent = predictables.GetPredictable(i);
+			if (ent == null)
+				continue;
+
+			// Don't do anything to truly predicted things (like player and weapons )
+			if (ent.GetPredictable())
+				continue;
+
+			// What's left should be things like projectiles that are just waiting to be "linked"
+			//  to their server counterpart and deleted
+			Assert(ent.IsClientCreated());
+			if (!ent.IsClientCreated())
+				continue;
+
+			// Snag the PredictionContext
+			PredictionContext? ctx = ent.PredictionContext;
+			if (ctx == null)
+				continue;
+
+			// If it was ack'd then the server sent us the entity.
+			// Leave it unless it wasn't made dormant this frame, in
+			//  which case it can be removed now
+			if (ent.PredictableId.GetAcknowledged()) {
+				// Hasn't become dormant yet!!!
+				if (!ent.IsDormantPredictable()) {
+					Assert(0);
+					continue;
+				}
+
+				// Still gets to live till next frame
+				if (ent.BecameDormantThisPacket())
+					continue;
+
+				C_BaseEntity? serverEntity = ctx.ServerEntity.Get();
+				if (serverEntity != null) {
+					// Notify that it's going to go away
+					serverEntity.OnPredictedEntityRemove(true, ent);
+				}
+			}
+			else {
+				// Check context to see if it's too old?
+				int command_entity_creation_happened = ctx.CreationCommandNumber;
+				// Give it more time to live...not time to kill it yet
+				if (command_entity_creation_happened > oldest_allowable_command)
+					continue;
+
+				// If the client predicted the KILLME flag it's possible
+				//  that entity had such a short life that it actually
+				//  never was sent to us.  In that case, just let it die a silent death
+				if (!ent.IsEFlagSet(EFL.KillMe)) {
+					if (cl_showerror.GetInt() != 0) {
+						// It's bogus, server doesn't have a match, destroy it:
+						Msg($"Removing unack'ed predicted entity: {ent.GetClassname()} created {ctx.CreationModule}({ctx.CreationLineNumber}) id == {ent.PredictableId.Describe()} : {ent}\n");
+					}
+				}
+
+				// FIXME:  Do we need an OnPredictedEntityRemove call with an "it's not valid"
+				// flag of some kind
+			}
+
+			// This will remove it from predictables list and will also free the entity, etc.
+			ent.Release();
+		}
+	}
+
+	private bool PerformPrediction(bool receivedNewWorldUpdate, BasePlayer localPlayer, int incomingAcknowledged, int outgoingCommand) {
+		Assert(C_BaseEntity.IsAbsQueriesValid());
+		Assert(C_BaseEntity.IsAbsRecomputationsEnabled());
+		/*
+		bInPrediction = true;
+
+		// undo interpolation changes for entities we stand on
+		C_BaseEntity? entity = localPlayer.GetGroundEntity();
+
+		while (entity != null && entity.EntIndex() > 0) {
+			entity.MoveToLastReceivedPosition();
+			// undo changes for moveparents too
+			entity = entity.GetMoveParent();
+		}
+
+		// Start at command after last one server has processed and 
+		//  go until we get to targettime or we run out of new commands
+		int i = ComputeFirstCommandToExecute(receivedNewWorldUpdate, incomingAcknowledged, outgoingCommand);
+
+		Assert(i >= 1);
+		while (true) {
+			// Incoming_acknowledged is the last usercmd the server acknowledged having acted upon
+			int current_command = incomingAcknowledged + i;
+
+			// We've caught up to the current command.
+			if (current_command > outgoingCommand)
+				break;
+
+			if (i >= MULTIPLAYER_BACKUP)
+				break;
+
+			ref UserCmd cmd = ref input.GetUserCmd(current_command);
+
+			if (Unsafe.IsNullRef(ref cmd))
+				break;
+
+			// Is this the first time predicting this
+			FirstTimePredicted = !cmd.HasBeenPredicted;
+
+			// Set globals appropriately
+			TimeUnit_t curtime = (localPlayer.TickBase) * TICK_INTERVAL;
+
+			RunSimulation(current_command, curtime, cmd, localPlayer);
+
+			gpGlobals.CurTime = curtime;
+			gpGlobals.FrameTime = EnginePaused ? 0 : TICK_INTERVAL;
+
+			// Call untouch on any entities no longer predicted to be touching
+			Untouch();
+
+			// Store intermediate data into appropriate slot
+			StorePredictionResults(i - 1); // Note that I starts at 1
+
+			CommandsPredicted = i;
+
+			if (current_command == outgoingCommand) {
+				localPlayer.FinalPredictedTick = localPlayer.TickBase;
+			}
+			// Mark that we issued any needed sounds, of not done already
+			cmd.HasBeenPredicted = true;
+
+			// Copy the state over.
+			i++;
+		}
+
+		//	Msg( "%i : predicted %i commands forward, %i ack'd last frame, had errors %s\n", 
+		//		gpGlobals->tickcount, 
+		//		m_nCommandsPredicted, 
+		//		m_nServerCommandsAcknowledged,
+		//		m_bPreviousAckHadErrors ? "true" : "false" );
+
+		bInPrediction = false;
+
+		// Somehow we looped past the end of the list (severe lag), don't predict at all
+		if (i > MULTIPLAYER_BACKUP) 
+			return false;
+		*/
+		return true;
+	}
+
+	private void RestoreOriginalEntityState() {
+		Assert(C_BaseEntity.IsAbsRecomputationsEnabled());
+
+		// Transfer intermediate data from other predictables
+		int pc = predictables.GetPredictableCount();
+		int p;
+		for (p = 0; p < pc; p++) {
+			C_BaseEntity? ent = predictables.GetPredictable(p);
+			if (ent == null)
+				continue;
+
+			if (ent.GetPredictable()) {
+				ent.RestoreData("RestoreOriginalEntityState", C_BaseEntity.SLOT_ORIGINALDATA, PredictionCopyType.Everything);
+			}
+		}
+	}
+
+	private void SetIdealPitch(C_BasePlayer localPlayer, Vector3 vector3, QAngle qAngle, Vector3 viewOffset) {
+		// todo
 	}
 
 	public int GetIncomingPacketNumber() {

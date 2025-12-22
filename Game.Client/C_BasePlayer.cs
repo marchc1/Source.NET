@@ -156,7 +156,6 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	int Flags;
 	int ObserverMode;
 	int FOV;
-	int TickBase;
 	int FOVStart;
 	float FOVTime;
 	public float DefaultFOV;
@@ -170,6 +169,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public bool OnTarget;
 	public double DeathTime;
 	public double LaggedMovementValue;
+	public int TickBase;
 	public int FinalPredictedTick;
 
 	public int GetHealth() => Health;

@@ -38,6 +38,29 @@ public enum EntClientFlags
 	AlwaysInterpolate = 0x0004,
 }
 
+public class PredictionContext : IPoolableObject
+{
+	static readonly ObjectPool<PredictionContext> instances = new();
+	public static PredictionContext Alloc() => instances.Alloc();
+	public static void Free(PredictionContext instance) => instances.Free(instance);
+
+	public void Init() { }
+
+	public void Reset() {
+		Active = false;
+		CreationCommandNumber = -1;
+		CreationModule = null;
+		CreationLineNumber = 0;
+		ServerEntity.Set(null);
+	}
+
+	public bool Active;
+	public int CreationCommandNumber;
+	public string? CreationModule;
+	public int CreationLineNumber;
+	public readonly Handle<C_BaseEntity> ServerEntity = new();
+}
+
 public class PredictableList : IPredictableList
 {
 	public static readonly PredictableList g_Predictables = new();
@@ -99,6 +122,7 @@ public class PredictableList : IPredictableList
 
 public partial class C_BaseEntity : IClientEntity
 {
+	public const int SLOT_ORIGINALDATA = -1;
 	public static C_BaseEntity? CreateEntityByName(ReadOnlySpan<char> className) {
 		C_BaseEntity? ent = GetClassMap().CreateEntity(className);
 		if (ent != null)
@@ -726,11 +750,95 @@ public partial class C_BaseEntity : IClientEntity
 		using (C_BaseAnimating.AutoAllowBoneAccess boneaccess = new(true, true))
 			UnlinkFromHierarchy();
 
-		//  if (IsIntermediateDataAllocated()) 
-		//  	DestroyIntermediateData();
+		// if (IsIntermediateDataAllocated()) 
+		// DestroyIntermediateData();
 
 		UpdateOnRemove();
 	}
+
+	public bool OnPredictedEntityRemove(bool isbeingremoved, C_BaseEntity predicted) {
+		PredictionContext? ctx = predicted.PredictionContext;
+		Assert(ctx != null);
+		if (ctx != null) {
+			// Create backlink to actual entity
+			ctx.ServerEntity.Set(this);
+		}
+
+		// If it comes through with an ID, it should be eligible
+		SetPredictionEligible(true);
+
+		// Start predicting simulation forward from here
+		CheckInitPredictable("OnPredictedEntityRemove");
+
+		// Always mark it dormant since we are the "real" entity now
+		predicted.SetDormantPredictable(true);
+
+		InvalidatePhysicsRecursive(InvalidatePhysicsBits.PositionChanged | InvalidatePhysicsBits.AnglesChanged | InvalidatePhysicsBits.VelocityChanged);
+
+		// By default, signal that it should be deleted right away
+		// If a derived class implements this method, it might chain to here but return
+		// false if it wants to keep the dormant predictable around until the chain of
+		//  DATA_UPDATE_CREATED messages passes
+		return true;
+	}
+
+	public virtual bool ShouldPredict() => false;
+
+	public int RestoreData(ReadOnlySpan<char> context, int slot, PredictionCopyType type){
+		// todo
+		return 0;
+	}
+
+	public void AddToAimEntsList(){
+		// todo
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public int GetModelIndex() => ModelIndex;
+
+	public void OnPostRestoreData(){
+		InvalidatePhysicsRecursive(InvalidatePhysicsBits.PositionChanged | InvalidatePhysicsBits.AnglesChanged | InvalidatePhysicsBits.VelocityChanged);
+
+		if (GetMoveParent() != null)
+			AddToAimEntsList();
+
+		if (GetModel() != modelinfo.GetModel(GetModelIndex())) 
+			SetModelByIndex(GetModelIndex());
+	}
+
+	private void CheckInitPredictable(ReadOnlySpan<char> context) {
+		if (cl_predict.GetInt() == 0)
+			return;
+
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+
+		if (player == null)
+			return;
+
+		if (!GetPredictionEligible()) {
+			if (PredictableId.IsActive() && (player.Index - 1) == PredictableId.GetPlayer())
+				SetPredictionEligible(true);
+			else
+				return;
+
+		}
+
+		if (IsClientCreated())
+			return;
+
+		if (!ShouldPredict())
+			return;
+
+		if (IsIntermediateDataAllocated())
+			return;
+
+		// Msg( "Predicting init %s at %s\n", GetClassname(), context );
+
+		InitPredictable();
+	}
+
+	bool PredictionEligible;
+	public bool GetPredictionEligible() => PredictionEligible;
+	public void SetPredictionEligible(bool canpredict) => PredictionEligible = canpredict;
 
 
 	public virtual bool ShouldDraw() {
@@ -864,7 +972,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public bool IsIntermediateDataAllocated() {
-		return false;
+		return false; // todo
 	}
 
 	private void OnStoreLastNetworkedValue() {
@@ -1131,21 +1239,40 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual void Spawn() { }
 	public virtual void Precache() { }
 
-	PredictableId PredictionId;
-	//PredictionContext? PredictionContext;
-	object? PredictionContext;
+	public readonly PredictableId PredictionId = new();
+	public PredictionContext? PredictionContext;
 	bool Dormant;
 	bool Predictable;
+	bool DormantPredictable;
+	long IncomingPacketEntityBecameDormant;
 
 	public bool GetPredictable() => Predictable;
 	public void SetPredictable(bool state) {
 		Predictable = state;
-		// todo: interp
+		Interp_UpdateInterpolationAmounts(ref GetVarMapping());
+	}
+
+
+	public bool BecameDormantThisPacket() {
+		Assert(IsDormantPredictable());
+		if (IncomingPacketEntityBecameDormant != prediction.GetIncomingPacketNumber())
+			return false;
+		return true;
+	}
+
+	public bool IsDormantPredictable() {
+		return DormantPredictable;
+	}
+
+	public void SetDormantPredictable(bool dormant) {
+		Assert(IsClientCreated());
+		DormantPredictable = true;
+		IncomingPacketEntityBecameDormant = prediction.GetIncomingPacketNumber();
 	}
 
 	public bool IsClientCreated() {
 		if (PredictionContext != null) {
-			Assert(GetPredictable() == null);
+			Assert(!GetPredictable());
 			return true;
 		}
 		return false;
@@ -1179,8 +1306,11 @@ public partial class C_BaseEntity : IClientEntity
 	EFL eflags = EFL.DirtyAbsTransform; // << TODO: FIGURE OUT WHAT ACTUALLY INITIALIZES THIS.
 	public Matrix3x4 CoordinateFrame;
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsMarkedForDeletion() => (eflags & EFL.KillMe) != 0;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void AddEFlags(EFL flags) => eflags |= flags;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void RemoveEFlags(EFL flags) => eflags &= ~flags;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsEFlagSet(EFL mask) => (eflags & mask) != 0;
+
 
 	readonly object CalcAbsolutePositionMutex = new();
 
@@ -1443,8 +1573,6 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
-	public bool IsMarkedForDeletion() => (eflags & EFL.KillMe) != 0;
-
 	private void Interp_SetupMappings(ref VarMapping map) {
 		if (Unsafe.IsNullRef(ref map))
 			return;
@@ -1522,6 +1650,8 @@ public partial class C_BaseEntity : IClientEntity
 
 		return true;
 	}
+
+
 
 	protected InterpolateResult BaseInterpolatePart1(ref TimeUnit_t currentTime, ref Vector3 oldOrigin, ref QAngle oldAngles, ref Vector3 oldVel, ref int noMoreChanges) {
 		noMoreChanges = 1;

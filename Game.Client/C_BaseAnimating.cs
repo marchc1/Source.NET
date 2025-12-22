@@ -65,7 +65,10 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 				return;
 			}
 			BoneAccessStack.Pop();
-			BoneAccessBase = BoneAccessStack.Peek();
+			if (lastIndex != 0)
+				BoneAccessBase = BoneAccessStack.Peek();
+			else
+				BoneAccessBase = default;
 		}
 	}
 

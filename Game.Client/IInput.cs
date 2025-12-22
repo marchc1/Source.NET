@@ -1,4 +1,6 @@
-﻿using Source.Common.Bitbuffers;
+﻿using Game.Shared;
+
+using Source.Common.Bitbuffers;
 using Source.Common.Input;
 
 namespace Source.Common.Client;
@@ -17,4 +19,5 @@ public interface IInput
 	void DeactivateMouse();
 	void ClearStates();
 	void CAM_Think();
+	ref UserCmd GetUserCmd(int sequenceNumber);
 }

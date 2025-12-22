@@ -36,6 +36,7 @@ public static class SourceDllMain
 	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;
 	[Dependency] public static ICenterPrint centerprint { get; private set; } = null!;
 	[Dependency] public static IMaterialSystem materials { get; private set; } = null!;
+	[Dependency] public static IInput input { get; private set; } = null!;
 	[Dependency] public static IModelRender modelrender { get; private set; } = null!;
 	[Dependency] public static IFileSystem filesystem { get; private set; } = null!;
 	[Dependency] public static ISchemeManager vguiSchemeManager { get; private set; } = null!;
