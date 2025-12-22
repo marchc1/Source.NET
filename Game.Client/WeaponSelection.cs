@@ -8,7 +8,6 @@ using Source.GUI.Controls;
 
 namespace Game.Client;
 
-[DeclareHudElement(Name = "CBaseHudWeaponSelection")]
 public class BaseHudWeaponSelection : EditableHudElement
 {
 	public const int HUDTYPE_BUCKETS = 0;
