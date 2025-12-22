@@ -452,7 +452,7 @@ public class KeyValues : IEnumerable<KeyValues>
 
 	public KeyValues? FindKey(ReadOnlySpan<char> searchStr, bool create = false) {
 		foreach (var child in this.children) {
-			if (searchStr.Equals(child.Name, StringComparison.InvariantCultureIgnoreCase))
+			if (stricmp(child.Name, searchStr) == 0)
 				return child;
 		}
 
