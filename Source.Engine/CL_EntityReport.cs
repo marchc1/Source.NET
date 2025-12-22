@@ -137,6 +137,10 @@ public partial class CL
 		if (entitylist != null)
 			entitylist.SetMaxEntities(Constants.MAX_EDICTS);
 	}
+
+	internal void SetupMapName(ReadOnlySpan<char> readOnlySpan, Span<char> mapname) {
+		// todo
+	}
 }
 
 enum EntitySort
