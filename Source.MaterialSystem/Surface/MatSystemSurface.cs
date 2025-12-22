@@ -171,6 +171,7 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public bool FullyTransparent => DrawColor.A <= 0;
+	public bool TextFullyTransparent => DrawTextColor.A <= 0;
 
 	public void InitVertex(ref SurfaceVertex vertex, int x, int y, float u, float v) {
 		vertex.Position = new(x + TranslateX, y + TranslateY);
@@ -1668,7 +1669,7 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public void DrawString(ReadOnlySpan<char> str, FontDrawType drawType = FontDrawType.Default) {
-		if (FullyTransparent)
+		if (TextFullyTransparent)
 			return;
 		for (int i = 0; i < str[i]; i++) {
 			char c = str[i];
