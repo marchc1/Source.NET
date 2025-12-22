@@ -392,6 +392,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		ClientDLL.FrameStageNotify(ClientFrameStage.NetUpdateEnd);
 
 		EntityReadInfo.Free(readInfo);
+		cl.FreeFrame(newFrame);
 
 		return true;
 	}
