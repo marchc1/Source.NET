@@ -34,7 +34,7 @@ public partial class C_BaseCombatWeapon : C_BaseAnimating
 
 		Color clr = gHUD.ClrNormal;
 
-		if (gHUD.FindElement("HudCrosshair") is not HudCrosshair crosshair)
+		if (gHUD.FindElement("CHudCrosshair") is not HudCrosshair crosshair)
 			return;
 
 		bool onTarget = State == 0x40; // WEAPON_IS_ONTARGET

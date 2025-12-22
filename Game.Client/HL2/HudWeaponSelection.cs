@@ -12,7 +12,7 @@ namespace Game.Client.HL2;
 [DeclareHudElement(Name = "CHudWeaponSelection")]
 class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 {
-	public static ConVar hud_showemptyweaponslots = new ConVar("hud_showemptyweaponslots", "1", FCvar.Archive, "Shows slots for missing weapons when recieving weapons out of order");
+	public static ConVar hud_showemptyweaponslots = new("hud_showemptyweaponslots", "1", FCvar.Archive, "Shows slots for missing weapons when recieving weapons out of order");
 
 	const float SELECTION_TIMEOUT_THRESHOLD = 0.5f;  // Seconds
 	const float SELECTION_FADEOUT_TIME = 0.75f;
@@ -62,7 +62,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 	BaseCombatWeapon? LastWeapon;
 	[PanelAnimationVar(nameof(WeaponBoxOffset), "WeaponBoxOffset", "0")] protected float WeaponBoxOffset;
 
-	public HudWeaponSelection(string? elementName) : base("HudWeaponSelection") {
+	public HudWeaponSelection(string elementName) : base(elementName) {
 		Panel Parent = clientMode.GetViewport();
 		SetParent(Parent);
 		FadingOut = false;
@@ -368,7 +368,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 					DrawBox(xpos, ypos, boxWide, boxTall, selectedColor, alpha, number);
 
 					col[3] *= (byte)(alpha / 255.0f);
-					if (weapon!.GetSpriteActive() != null) { 
+					if (weapon!.GetSpriteActive() != null) {
 						int iconWidth = weapon.GetSpriteActive().Width();
 						int iconHeight = weapon.GetSpriteActive().Height();
 						int x_offs = (boxWide - iconWidth) / 2;
@@ -379,7 +379,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 						else
 							y_offs = (boxTall - iconHeight) / 2;
 
-						if (!weapon.CanBeSelected()) // todo
+						if (!weapon.CanBeSelected())
 							col = new(255, 0, 0, col[3]);
 						else if (bSelected) {
 							col[3] = alpha;
@@ -402,49 +402,49 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 					else
 						DrawBox(xpos, ypos, boxWide, boxTall, selectedColor, alpha, number);
 
-					// int iconWidth;
-					// int iconHeight;
-					// int x_offs;
-					// int y_offs;
+					int iconWidth;
+					int iconHeight;
+					int x_offs;
+					int y_offs;
 
 					col[3] *= (byte)(alpha / 255.0f);
 
-					// if (weapon.GetSpriteInactive()) { // todo
-					// 	iconWidth = weapon.GetSpriteInactive().Width();
-					// 	iconHeight = weapon.GetSpriteInactive().Height();
+					if (weapon.GetSpriteInactive() != null) {
+						iconWidth = weapon.GetSpriteInactive().Width();
+						iconHeight = weapon.GetSpriteInactive().Height();
 
-					// 	x_offs = (boxWide - iconWidth) / 2;
-					// 	if (bSelected && HUDTYPE_CAROUSEL == hud_fastswitch.GetInt())
-					// 		y_offs = (int)(boxTall / 1.5f - iconHeight) / 2;
-					// 	else
-					// 		y_offs = (boxTall - iconHeight) / 2;
+						x_offs = (boxWide - iconWidth) / 2;
+						if (bSelected && HUDTYPE_CAROUSEL == hud_fastswitch.GetInt())
+							y_offs = (int)(boxTall / 1.5f - iconHeight) / 2;
+						else
+							y_offs = (boxTall - iconHeight) / 2;
 
-					// 	if (!weapon.CanBeSelected())// todo
-					// 		col = new(255, 0, 0, col[3]);
+						if (!weapon.CanBeSelected())
+							col = new(255, 0, 0, col[3]);
 
-					// 	weapon.GetSpriteInactive().DrawSelf(xpos + x_offs, ypos + y_offs, iconWidth, iconHeight, col);
-					// }
+						weapon.GetSpriteInactive().DrawSelf(xpos + x_offs, ypos + y_offs, iconWidth, iconHeight, col);
+					}
 
-					// if (bSelected && weapon.GetSpriteActive()) {// todo
-					// 	iconWidth = weapon.GetSpriteActive().Width();
-					// 	iconHeight = weapon.GetSpriteActive().Height();
+					if (bSelected && weapon.GetSpriteActive() != null) {
+						iconWidth = weapon.GetSpriteActive().Width();
+						iconHeight = weapon.GetSpriteActive().Height();
 
-					// 	x_offs = (boxWide - iconWidth) / 2;
-					// 	if (HUDTYPE_CAROUSEL == hud_fastswitch.GetInt())
-					// 		y_offs = (int)(boxTall / 1.5f - iconHeight) / 2;
-					// 	else
-					// 		y_offs = (boxTall - iconHeight) / 2;
+						x_offs = (boxWide - iconWidth) / 2;
+						if (HUDTYPE_CAROUSEL == hud_fastswitch.GetInt())
+							y_offs = (int)(boxTall / 1.5f - iconHeight) / 2;
+						else
+							y_offs = (boxTall - iconHeight) / 2;
 
-					// 	col[3] = 255;
-					// 	for (float fl = Blur; fl > 0.0f; fl -= 1.0f) {
-					// 		if (fl >= 1.0f)
-					// 			weapon.GetSpriteActive().DrawSelf(xpos + x_offs, ypos + y_offs, col);
-					// 		else {
-					// 			col[3] *= (byte)fl;
-					// 			weapon.GetSpriteActive().DrawSelf(xpos + x_offs, ypos + y_offs, col);
-					// 		}
-					// 	}
-					// }
+						col[3] = 255;
+						for (float fl = Blur; fl > 0.0f; fl -= 1.0f) {
+							if (fl >= 1.0f)
+								weapon.GetSpriteActive().DrawSelf(xpos + x_offs, ypos + y_offs, col);
+							else {
+								col[3] *= (byte)fl;
+								weapon.GetSpriteActive().DrawSelf(xpos + x_offs, ypos + y_offs, col);
+							}
+						}
+					}
 				}
 				break;
 			default:
@@ -692,7 +692,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		return maxSlotPos;
 	}
 
-	BaseCombatWeapon? GetWeaponInSlot(int slot, int slotPos){
+	BaseCombatWeapon? GetWeaponInSlot(int slot, int slotPos) {
 		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
 		if (player == null)
 			return null;

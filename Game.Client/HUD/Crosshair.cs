@@ -23,7 +23,7 @@ public class HudCrosshair : EditableHudElement, IHudElement
 	QAngle CrosshairOffsetAngle;
 	[PanelAnimationVar("never_draw", "false", "bool")] protected bool HideCrosshair;
 
-	public HudCrosshair(string? panelName) : base(null, "HudCrosshair") {
+	public HudCrosshair(string? panelName) : base(null, "CHudCrosshair") {
 		var parent = clientMode.GetViewport();
 		SetParent(parent);
 		Crosshair = null;
