@@ -2,6 +2,7 @@ using Game.Client.HUD;
 using Game.Shared;
 
 using Source;
+using Source.Common.Commands;
 using Source.Common.GUI;
 using Source.Common.Mathematics;
 using Source.GUI.Controls;
@@ -13,6 +14,9 @@ namespace Game.Client.HL2;
 [DeclareHudElement(Name = "CHudCrosshair")]
 public class HudCrosshair : EditableHudElement, IHudElement
 {
+	static ConVar crosshair = new("crosshair", "1", FCvar.Archive);
+	static ConVar cl_observercrosshair = new("cl_observercrosshair", "1", FCvar.Archive);
+
 	HudTexture? Crosshair;
 	HudTexture? DefaultCrosshair;
 	Color ClrCrosshair;
@@ -63,7 +67,7 @@ public class HudCrosshair : EditableHudElement, IHudElement
 		// 			(player.IsAlive() || (player.GetObserverMode() == ObserverMode.InEye) || (cl_observercrosshair.GetBool() && player.GetObserverMode() == OBS_MODE_ROAMING));
 
 		// so for now, ill just do this
-		needsDraw = Crosshair != null && !engine.IsDrawingLoadingImage() && !engine.IsPaused();
+		needsDraw = Crosshair != null && !engine.IsDrawingLoadingImage() && !engine.IsPaused() && crosshair.GetBool();
 		return needsDraw && ((IHudElement)this).ShouldDraw();
 	}
 
@@ -101,8 +105,6 @@ public class HudCrosshair : EditableHudElement, IHudElement
 	}
 
 	public override void Paint() {
-		Crosshair ??= DefaultCrosshair;
-
 		if (Crosshair == null)
 			return;
 
@@ -121,7 +123,7 @@ public class HudCrosshair : EditableHudElement, IHudElement
 		float weaponScale = 1.0f;
 		int textureW = Crosshair.Width();
 		int textureH = Crosshair.Height();
-		BaseCombatWeapon? weapon = player.GetActiveWeapon();
+		// BaseCombatWeapon? weapon = player.GetActiveWeapon();
 		// weapon?.GetWeaponCrosshairScale(ref weaponScale); todo
 
 		float playerScale = 1.0f;
@@ -133,9 +135,18 @@ public class HudCrosshair : EditableHudElement, IHudElement
 		int iX = (int)(x + 0.5f);
 		int iY = (int)(y + 0.5f);
 
-		Crosshair.DrawSelf(//Cropped todo
+		Crosshair.DrawSelfCropped(
 			iX - (iWidth / 2), iY - (iHeight / 2),
+			0, 0,
+			textureW, textureH,
 			iWidth, iHeight,
 			clr);
 	}
+
+	public void SetCrosshair(HudTexture texture, Color clr) {
+		Crosshair = texture;
+		ClrCrosshair = clr;
+	}
+
+	public void ResetCrosshair() => SetCrosshair(DefaultCrosshair!, new(255, 255, 255, 255));
 }

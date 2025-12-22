@@ -126,6 +126,7 @@ public interface ISurface
 	void DrawSetTexture(in TextureID id);
 	void DrawGetTextureSize(in TextureID id, out int wide, out int tall);
 	void DrawTexturedRect(int x0, int y0, int x1, int y1);
+	void DrawTexturedSubRect(int x0, int y0, int x1, int y1, float s0, float t0, float s1, float t1);
 	bool IsTextureIDValid(in TextureID id);
 	bool DeleteTextureByID(in TextureID id);
 	TextureID CreateNewTextureID(bool procedural = false);

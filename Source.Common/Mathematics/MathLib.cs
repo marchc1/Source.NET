@@ -360,6 +360,10 @@ public static class MathLib
 
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float Lerp(float percent, float start, float end) {
+		return start + (end - start) * percent;
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float Lerp(float f1, float f2, float i1, float i2, float x) {
 		return f1 + (f2 - f1) * (x - i1) / (i2 - i1);
 	}
@@ -752,14 +756,14 @@ public static class MathLib
 		dst[2, 3] = znear * zfar / (znear - zfar);
 	}
 
-	public static bool IsZero(this in Vector3 v, float tolerance = 0.01f){
+	public static bool IsZero(this in Vector3 v, float tolerance = 0.01f) {
 		Vector3 zero = Vector3.Zero;
 		Vector3 diff = Vector3.Abs(v - zero);
 		Vector3 toleranceVec = new(tolerance);
 
 		return diff.X <= toleranceVec.X &&
-			   diff.Y <= toleranceVec.Y &&
-			   diff.Z <= toleranceVec.Z;
+				 diff.Y <= toleranceVec.Y &&
+				 diff.Z <= toleranceVec.Z;
 	}
 
 	public static void Init(this ref Vector2 v) => v.X = v.Y = 0;
