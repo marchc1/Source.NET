@@ -4,10 +4,10 @@ using Game.Shared;
 using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Input;
+using Source.GUI.Controls;
 
 namespace Game.Client;
 
-[DeclareHudElement(Name = "CBaseHudWeaponSelection")]
 public class BaseHudWeaponSelection : EditableHudElement
 {
 	public const int HUDTYPE_BUCKETS = 0;
@@ -24,7 +24,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 	public IHudElement HudElement => this;
 	IInput input => AllowDependencyInjection ? null! : Singleton<IInput>();
 
-	public BaseHudWeaponSelection(string elementName) : base(elementName, null) {
+	public BaseHudWeaponSelection(string elementName, Panel? parent, string panelName) : base(elementName, parent, panelName) {
 		Instance = this;
 		HudElement.SetHiddenBits(HideHudBits.WeaponSelection | HideHudBits.NeedSuit | HideHudBits.PlayerDead | HideHudBits.InVehicle);
 	}

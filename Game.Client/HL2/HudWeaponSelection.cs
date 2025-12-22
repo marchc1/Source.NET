@@ -62,7 +62,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 	BaseCombatWeapon? LastWeapon;
 	[PanelAnimationVar(nameof(WeaponBoxOffset), "WeaponBoxOffset", "0")] protected float WeaponBoxOffset;
 
-	public HudWeaponSelection(string elementName) : base(elementName) {
+	public HudWeaponSelection(string elementName) : base(elementName, null, "HudWeaponSelection") {
 		Panel Parent = clientMode.GetViewport();
 		SetParent(Parent);
 		FadingOut = false;
