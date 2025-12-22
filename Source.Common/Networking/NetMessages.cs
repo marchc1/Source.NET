@@ -627,6 +627,16 @@ public class svc_UserMessage : NetMessage
 	}
 }
 
+public class svc_EntityMessage : NetMessage{
+	public svc_EntityMessage() : base(SVC.EntityMessage) { reliable = false; }
+	public override NetChannelGroup GetGroup() => NetChannelGroup.EntMessage;
+	public int EntityIndex;
+	public int ClassID;
+	public int Length;
+	public readonly bf_read DataIn = new();
+	public readonly bf_write DataOut = new();
+
+}
 public class svc_PacketEntities : NetMessage
 {
 	public svc_PacketEntities() : base(SVC.PacketEntities) { }

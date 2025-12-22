@@ -270,6 +270,7 @@ public abstract class BaseClientState(
 		channel.RegisterMessage<svc_FixAngle>();
 		channel.RegisterMessage<svc_SetView>();
 		channel.RegisterMessage<svc_UserMessage>();
+		channel.RegisterMessage<svc_EntityMessage>();
 		channel.RegisterMessage<svc_PacketEntities>();
 		channel.RegisterMessage<svc_TempEntities>();
 		channel.RegisterMessage<svc_GMod_ServerToClient>();
@@ -308,12 +309,18 @@ public abstract class BaseClientState(
 			case svc_FixAngle msg: return ProcessFixAngle(msg);
 			case svc_SetView msg: return ProcessSetView(msg);
 			case svc_UserMessage msg: return ProcessUserMessage(msg);
+			case svc_EntityMessage msg: return ProcessEntityMessage(msg);
 			case svc_PacketEntities msg: return ProcessPacketEntities(msg);
 			case svc_TempEntities msg: return ProcessTempEntities(msg);
 			case svc_GMod_ServerToClient msg: return ProcessGMod_ServerToClient(msg);
 		}
 		// ignore
 		return true;
+	}
+
+	protected virtual bool ProcessEntityMessage(svc_EntityMessage msg) {
+		return true;
+
 	}
 
 	protected virtual bool ProcessSounds(svc_Sounds msg) {

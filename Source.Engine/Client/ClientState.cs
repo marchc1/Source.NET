@@ -404,6 +404,22 @@ public class ClientState : BaseClientState
 		ListPool<SoundInfo>.Shared.Free(sounds);
 		return false;
 	}
+	protected override bool ProcessEntityMessage(svc_EntityMessage msg) {
+		IClientNetworkable? entity = entitylist.GetClientNetworkable(msg.EntityIndex);
+
+		if (entity == null) 
+			return true;
+
+		byte[] entityData = ArrayPool<byte>.Shared.Rent(MAX_ENTITY_MSG_DATA);
+		bf_read entMsg = new("EntityMessage(read)", entityData, entityData.Length);
+		int bitsRead = msg.DataIn.ReadBitsClamped(entityData, (uint)msg.Length);
+		entMsg.StartReading(entityData, Net.Bits2Bytes(bitsRead));
+		entity.ReceiveMessage(msg.ClassID, entMsg);
+		ArrayPool<byte>.Shared.Return(entityData, true);
+
+		return true;
+
+	}
 	protected override bool ProcessPacketEntities(svc_PacketEntities msg) {
 		if (!msg.IsDelta)
 			ClientSidePrediction.OnReceivedUncompressedPacket();
