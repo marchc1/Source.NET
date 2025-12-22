@@ -36,4 +36,5 @@ public interface IBaseClientDLL
 	void InitSprite(EngineSprite? sprite, ReadOnlySpan<char> loadName);
 	void LevelShutdown();
 	LookupProxyInterfaceFn GetMaterialProxyInterfaceFn();
+	void LevelInitPreEntity(ReadOnlySpan<char> mapname);
 }

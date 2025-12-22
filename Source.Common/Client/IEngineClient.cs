@@ -121,4 +121,5 @@ public interface IEngineClient
 	bool IsBoxVisible(in Vector3 mins, in Vector3 maxs);
 	bool CullBox(ref Vector3 mins, ref Vector3 maxs);
 	int GetPlayerForUserID(int userID);
+	void ClientCmd(ReadOnlySpan<char> cmd);
 }

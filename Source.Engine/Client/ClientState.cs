@@ -463,6 +463,12 @@ public class ClientState : BaseClientState
 			case SignOnState.Spawn:
 				EngineVGui?.UpdateProgressBar(LevelLoadingProgress.SignOnSpawn);
 
+				Span<char> mapname = stackalloc char[256];
+				CL.SetupMapName(modelloader.GetName(host_state.WorldModel!), mapname);
+				mapname = mapname.SliceNullTerminatedString();
+
+				g_ClientDLL!.LevelInitPreEntity(mapname);
+
 				break;
 			case SignOnState.Full:
 				CL.FullyConnected();

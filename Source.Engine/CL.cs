@@ -441,7 +441,8 @@ public partial class CL(IServiceProvider services, Net Net,
 	}
 
 	private void FlushEntityPacket(ClientFrame newFrame, string v) {
-		throw new NotImplementedException();
+
+		cl.FreeFrame(newFrame);
 	}
 
 	internal void PreprocessEntities() {

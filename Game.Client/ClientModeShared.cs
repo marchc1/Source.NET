@@ -22,10 +22,10 @@ public enum GameActionSet
 	Spectator
 }
 
-public class ClientModeShared(ClientGlobalVariables gpGlobals, Hud Hud, IEngineVGui enginevgui, ISurface Surface) : GameEventListener, IClientMode
+public class ClientModeShared : GameEventListener, IClientMode
 {
 	public void Init() {
-		ChatElement = (BaseHudChat?)Hud.FindElement("CHudChat");
+		ChatElement = (BaseHudChat?)gHUD.FindElement("CHudChat");
 		Assert(ChatElement != null);
 
 		ListenForGameEvent("player_connect_client");
@@ -47,7 +47,7 @@ public class ClientModeShared(ClientGlobalVariables gpGlobals, Hud Hud, IEngineV
 
 		Viewport.SetProportional(true);
 		Viewport.SetCursor(CursorCode.None);
-		Surface.SetCursor(CursorCode.None);
+		surface.SetCursor(CursorCode.None);
 
 		Viewport.SetVisible(true);
 		if (Viewport.IsKeyboardInputEnabled())
@@ -222,6 +222,11 @@ public class ClientModeShared(ClientGlobalVariables gpGlobals, Hud Hud, IEngineV
 				DevMsg(2, $"Unhandled GameEvent in ClientModeShared.FireGameEvent - {ev.GetName()}\n");
 				break;
 		}
+	}
+
+
+	public void LevelInit(ReadOnlySpan<char> newmap) {
+		Viewport.GetAnimationController().StartAnimationSequence("LevelInit");
 	}
 
 	InlineArray2<int> RootSize;

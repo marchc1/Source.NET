@@ -2,6 +2,7 @@
 
 using Source.Common;
 using Source.Common.Client;
+using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.Launcher;
@@ -43,6 +44,18 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 	public void ExecuteClientCmd(ReadOnlySpan<char> cmdString) {
 		Cbuf.AddText(cmdString);
 		Cbuf.Execute();
+	}
+
+	public void ClientCmd(ReadOnlySpan<char> cmdString) {
+		if (cl.RestrictClientCommands && !Cbuf.HasRoomForExecutionMarkers(2)) {
+			AssertMsg(false, "EngineClient.ClientCmd called but there is no room for the execution markers. Ignoring command.");
+			return;
+		}
+
+		if (cl.RestrictClientCommands)
+			Cbuf.AddTextWithMarkers(CmdExecutionMarker.EnableClientCmdCanExecute, cmdString, CmdExecutionMarker.DisableClientCmdCanExecute);
+		else
+			Cbuf.AddText(cmdString);
 	}
 
 	public bool IsLevelMainMenuBackground() => sv.IsLevelMainMenuBackground();

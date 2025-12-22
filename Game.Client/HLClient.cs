@@ -59,6 +59,21 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 	}
 
+	public void LevelInitPreEntity(ReadOnlySpan<char> mapname) {
+
+		modemanager.LevelInit(mapname);
+		IGameSystem.LevelInitPreEntityAllSystems(mapname);
+
+		if (gpGlobals.MaxClients > 1) {
+			if (cl_predict.GetInt() == 0)
+				engine.ClientCmd("cl_predict 1");
+		}
+		else {
+			if (cl_predict.GetInt() != 0)
+				engine.ClientCmd("cl_predict 0");
+		}
+	}
+
 	public void PostInit() {
 
 	}
@@ -86,10 +101,10 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 #endif
 		IGameSystem.Add(Singleton<ViewportClientSystem>());
 
-		clientMode ??= new ClientModeHL2MPNormal(gpGlobals, HUD, Singleton<IEngineVGui>(), surface);
 
+		modemanager.Init();
+		// clientMode.InitViewport();
 		HUD.Init();
-
 		clientMode.Init();
 
 		if (!IGameSystem.InitAllSystems())

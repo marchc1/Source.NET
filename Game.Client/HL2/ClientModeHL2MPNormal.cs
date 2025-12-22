@@ -1,4 +1,6 @@
-﻿using Game.Client.HUD;
+﻿global using static Game.Client.HL2.ClientModeHL2MPNormal;
+
+using Game.Client.HUD;
 
 using Source.Common;
 using Source.Common.GUI;
@@ -12,7 +14,10 @@ public class HudViewport : BaseViewport {
 
 public class ClientModeHL2MPNormal : ClientModeShared
 {
-	public ClientModeHL2MPNormal(ClientGlobalVariables gpGlobals, Hud Hud, IEngineVGui enginevgui, ISurface surface) : base(gpGlobals, Hud, enginevgui, surface) {
+	static ClientModeHL2MPNormal g_ClientModeNormal = null!;
+	public static IClientMode GetClientModeNormal() => g_ClientModeNormal ??= new();
+
+	public ClientModeHL2MPNormal() {
 		Viewport = new HudViewport();
 		Viewport.Start();
 	}

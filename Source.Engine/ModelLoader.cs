@@ -1114,7 +1114,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	}
 
 	public ReadOnlySpan<char> GetName(Model model) {
-		throw new NotImplementedException();
+		return model == null ? null : model.StrName;
 	}
 
 	public void Init() {
