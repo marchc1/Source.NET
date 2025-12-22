@@ -8,6 +8,7 @@ using Source.Common.Hashing;
 using Source.Common.Commands;
 
 namespace Source.Common.Networking;
+
 public class NetChannel : INetChannelInfo, INetChannel
 {
 	public readonly Net Net;
@@ -908,21 +909,21 @@ public class NetChannel : INetChannelInfo, INetChannel
 	}
 
 
-	public List<INetMessage> NetMessages = [];
+	public List<INetMessage?> NetMessages = [];
 
 	public INetMessage? FindMessage(int type) {
-		foreach (var netmsg in NetMessages)
-			if (netmsg.GetMessageType() == type)
-				return netmsg;
-
-		return null;
+		if (type < 0) return null;
+		if (type >= NetMessages.Count) return null;
+		return NetMessages[type];
 	}
 
 	public bool RegisterMessage(INetMessage msg) {
-		if (FindMessage(msg.GetMessageType()) != null)
+		int type = msg.GetMessageType();
+		if (FindMessage(type) != null)
 			return false;
 
-		NetMessages.Add(msg);
+		NetMessages.EnsureCountDefault(type + 1);
+		NetMessages[type] = msg;
 		msg.SetNetChannel(this);
 
 		return true;
