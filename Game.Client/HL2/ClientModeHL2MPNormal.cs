@@ -8,8 +8,13 @@ using Source.Engine;
 
 namespace Game.Client.HL2;
 
-public class HudViewport : BaseViewport {
-
+public class HudViewport : BaseViewport
+{
+	public override void ApplySchemeSettings(IScheme scheme) {
+		base.ApplySchemeSettings(scheme);
+		gHUD.InitColors(scheme);
+		SetPaintBackgroundEnabled(false);
+	}
 }
 
 public class ClientModeHL2MPNormal : ClientModeShared

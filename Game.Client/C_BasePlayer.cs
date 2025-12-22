@@ -49,8 +49,8 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		RecvPropBool(FIELD.OF(nameof(DisableWorldClicking))),
 	]);
 
-	public virtual void PreThink() {}
-	public virtual void PostThink() {}
+	public virtual void PreThink() { }
+	public virtual void PostThink() { }
 
 	public virtual bool IsOverridingViewmodel() => false;
 	public virtual int DrawOverriddenViewmodel(C_BaseViewModel viewmodel, StudioFlags flags) => 0;
@@ -116,10 +116,10 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	float OldPlayerZ;
 
 	public override void PostDataUpdate(DataUpdateType updateType) {
-		if(updateType == DataUpdateType.Created) {
+		if (updateType == DataUpdateType.Created) {
 			int localPlayerIndex = engine.GetLocalPlayer();
 
-			if(localPlayerIndex == Index) {
+			if (localPlayerIndex == Index) {
 				localPlayer = this;
 			}
 		}
@@ -150,7 +150,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	readonly EHANDLE ConstraintEntity = new();
 	readonly EHANDLE TonemapController = new();
 	readonly EHANDLE ViewEntity = new();
-	InlineArrayNewMaxViewmodels<Handle<C_BaseViewModel>> ViewModel = new(); 
+	InlineArrayNewMaxViewmodels<Handle<C_BaseViewModel>> ViewModel = new();
 	bool DisableWorldClicking;
 	float MaxSpeed;
 	int Flags;
@@ -192,4 +192,17 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 	public ref readonly QAngle GetPunchAngle() => ref Local.PunchAngle;
 	public void SetPunchAngle(in QAngle angle) => Local.PunchAngle = angle;
+
+	public BaseCombatWeapon? GetActiveWeapon() {
+		BasePlayer fromPlayer = this;
+
+		if (fromPlayer == GetLocalPlayer()) {// observer mode todo
+			C_BaseEntity? target = ObserverTarget.Get();
+
+			if (target != null && target.IsPlayer())
+				fromPlayer = (BasePlayer)target;
+		}
+
+		return fromPlayer.ActiveWeapon.Get();
+	}
 }

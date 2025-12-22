@@ -765,6 +765,35 @@ public class MatSystemSurface : IMatSystemSurface
 		DrawQuad(in clippedRect[0], in clippedRect[1], in DrawColor);
 	}
 
+	public void DrawTexturedSubRect(int x0, int y0, int x1, int y1, float s0, float t0, float s1, float t1) {
+		Assert(InDrawing);
+
+		if (DrawColor.A == 0)
+			return;
+
+		TextureDictionary.GetTextureTexCoords(in BoundTexture, out float ts0, out float tt0, out float ts1, out float tt1);
+
+		float ssize = ts1 - ts0;
+		float tsize = tt1 - tt0;
+
+		s0 = ts0 + s0 * (ssize);
+		s1 = ts0 + s1 * (ssize);
+		t0 = tt0 + t0 * (tsize);
+		t1 = tt0 + t1 * (tsize);
+
+		Span<SurfaceVertex> rect = stackalloc SurfaceVertex[2];
+		Span<SurfaceVertex> clippedRect = stackalloc SurfaceVertex[2];
+		InitVertex(ref rect[0], x0, y0, s0, t0);
+		InitVertex(ref rect[1], x1, y1, s1, t1);
+
+		if (!Clip2D.ClipRect(in scissorRect, rect[0], rect[1], out clippedRect[0], out clippedRect[1]))
+			return;
+
+		IMaterial? material = TextureDictionary.GetTextureMaterial(in BoundTexture);
+		InternalSetMaterial(material);
+		DrawQuad(in clippedRect[0], in clippedRect[1], in DrawColor);
+	}
+
 	public void EnableMouseCapture(IPanel panel, bool state) {
 
 	}
@@ -1888,19 +1917,19 @@ public class MatSystemSurface : IMatSystemSurface
 		}
 	}
 
-	public void DisableClipping(bool disable){
+	public void DisableClipping(bool disable) {
 		DrawFlushText();
 		EnableScissor(!disable);
 	}
 
 	public void PushFullscreenViewport() {
-		using MatRenderContextPtr renderContext = new(materials );
+		using MatRenderContextPtr renderContext = new(materials);
 
 		// the viewport x/y will be wrong because the render target is only for one eye. 
 		// Ask the surface for that information instead.
 		GetFullscreenViewportAndRenderTarget(out int vx, out int vy, out int vw, out int vh, out ITexture? renderTarget);
 		renderContext.PushRenderTargetAndViewport(renderTarget, null, vx, vy, vw, vh);
-					 
+
 		renderContext.MatrixMode(MaterialMatrixMode.Projection);
 		renderContext.PushMatrix();
 		renderContext.LoadIdentity();
@@ -1920,7 +1949,7 @@ public class MatSystemSurface : IMatSystemSurface
 	public void SetFullscreenViewportAndRenderTarget(int x, int y, int w, int h, ITexture? renderTarget) {
 		FullscreenViewportX = x;
 		FullscreenViewportY = y;
-		FullscreenViewportWidth = w; 
+		FullscreenViewportWidth = w;
 		FullscreenViewportHeight = h;
 		FullscreenRenderTarget = renderTarget;
 	}
@@ -1941,10 +1970,10 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public void PopFullscreenViewport() {
-		using MatRenderContextPtr renderContext = new(materials );
+		using MatRenderContextPtr renderContext = new(materials);
 
 		renderContext.PopRenderTargetAndViewport();
-					 
+
 		renderContext.MatrixMode(MaterialMatrixMode.Projection);
 		renderContext.PopMatrix();
 

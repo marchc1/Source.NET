@@ -52,10 +52,6 @@ public partial class
 		CalcPlayerView(ref eyeOrigin, ref eyeAngles, ref fov); // << TODO: There is a lot more logic here for observers, vehicles, etc!
 	}
 
-	public BaseCombatWeapon? GetActiveWeapon() {
-		return null;
-	}
-
 	public override Vector3 EyePosition() {
 		return base.EyePosition();
 	}

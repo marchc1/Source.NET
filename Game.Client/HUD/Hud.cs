@@ -11,6 +11,7 @@ using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
 using Source.Common.Utilities;
 using Source.GUI.Controls;
 
@@ -72,8 +73,56 @@ public class HudTexture
 
 			surface.DrawSetTexture(TextureID);
 			surface.DrawSetColor(clr);
-			// todo: DrawTexturedSubRect
-			// surface.DrawTexturedSubRect(x, y, x + w, y + h, texCoords[0], texCoords[1], texCoords[2], texCoords[3]);
+			surface.DrawTexturedSubRect(x, y, x + w, y + h, TexCoords[0], TexCoords[1], TexCoords[2], TexCoords[3]);
+		}
+	}
+
+	public void DrawSelfCropped(int x, int y, int cropx, int cropy, int cropw, int croph, int finalWidth, int finalHeight, in Color clr) {
+		if (RenderUsingFont) {
+			// int height = surface.GetFontTall(Font);
+			// float frac = (height - croph) / (float)height;
+			// y -= cropy;
+
+			// surface.DrawSetTextFont(Font);
+			// surface.DrawSetTextColor(clr);
+			// surface.DrawSetTextPos(x, y);
+
+			// CharRenderInfo info = new();
+			// if (surface.DrawGetCharRenderInfo(CharacterInFont, out info)) {
+			// 	if (cropy != 0) {
+			// 		info.Verts[0].Position.Y = MathLib.Lerp(frac, info.Verts[0].Position.Y, info.Verts[1].Position.Y);
+			// 		info.Verts[0].TexCoord.Y = MathLib.Lerp(frac, info.Verts[0].TexCoord.Y, info.Verts[1].TexCoord.Y);
+			// 	}
+			// 	else if (croph != height) {
+			// 		info.Verts[1].Position.Y = MathLib.Lerp(1.0f - frac, info.Verts[0].Position.Y, info.Verts[1].Position.Y);
+			// 		info.Verts[1].TexCoord.Y = MathLib.Lerp(1.0f - frac, info.Verts[0].TexCoord.Y, info.Verts[1].TexCoord.Y);
+			// 	}
+			// 	surface.DrawRenderCharFromInfo(in info);
+			// }
+		}
+		else {
+			if (TextureID == TextureID.INVALID)
+				return;
+
+			float fw = Width();
+			float fh = Height();
+
+			float twidth = TexCoords[2] - TexCoords[0];
+			float theight = TexCoords[3] - TexCoords[1];
+
+			float[] tCoords = [
+				TexCoords[0] + cropx / fw * twidth,
+				TexCoords[1] + cropy / fh * theight,
+				TexCoords[0] + (cropx + cropw) / fw * twidth,
+				TexCoords[1] + (cropy + croph) / fh * theight,
+			];
+			surface.DrawSetTexture(TextureID);
+			surface.DrawSetColor(clr);
+			surface.DrawTexturedSubRect(
+				x, y,
+				x + finalWidth, y + finalHeight,
+				tCoords[0], tCoords[1],
+				tCoords[2], tCoords[3]);
 		}
 	}
 
@@ -93,6 +142,10 @@ public class Hud(HudElementHelper HudElementHelper)
 	public readonly List<IHudElement> HudList = [];
 	internal InButtons KeyBits;
 	bool HudTexturesLoaded;
+
+	public Color ClrNormal;
+	public Color ClrCaution;
+	public Color ClrYellowish;
 
 	public void Init() {
 		HudElementHelper.CreateAllElements(this);
@@ -123,17 +176,30 @@ public class Hud(HudElementHelper HudElementHelper)
 		if (HudTexturesLoaded)
 			return;
 
+		HudTexturesLoaded = true;
+
 		HudTextureDict textureList = [];
 
 		Span<char> sz = stackalloc char[128];
-		strcpy(sz, "resource/hud_textures.txt");
+		strcpy(sz, "scripts/hud_textures.txt");
 		LoadHudTextures(textureList, sz.SliceNullTerminatedString());
-		strcpy(sz, "resource/mod_textures.txt");
+		strcpy(sz, "scripts/mod_textures.txt");
 		LoadHudTextures(textureList, sz.SliceNullTerminatedString());
 
 		foreach (var t in textureList)
 			AddSearchableHudIconToList(t.Value);
 	}
+
+	public void InitColors(IScheme scheme) {
+		ClrNormal = scheme.GetColor("Normal", new(255, 208, 64, 255));
+		ClrCaution = scheme.GetColor("Caution", new(255, 48, 0, 255));
+		ClrYellowish = scheme.GetColor("Yellowish", new(255, 160, 0, 255));
+	}
+
+	public void InitFonts() {
+
+	}
+
 	internal void AddHudElement(IHudElement element) {
 		HudList.Add(element);
 		element.NeedsRemove = true;
