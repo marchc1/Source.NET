@@ -311,7 +311,10 @@ public class ViewRender : IViewRender
 	IEngineVGui enginevgui => _enginevgui ??= Singleton<IEngineVGui>();
 
 	public void RenderView(in ViewSetup viewRender, ClearFlags clearFlags, RenderViewInfo whatToDraw) {
+		using C_BaseAnimating.AutoAllowBoneAccess boneaccess = new(true, true);
+		
 		MatRenderContextPtr renderContext;
+
 		using (renderContext = new MatRenderContextPtr(materials)) {
 			ITexture? saveRenderTarget = renderContext.GetRenderTarget();
 		}

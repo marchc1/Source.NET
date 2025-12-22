@@ -20,7 +20,8 @@ using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
 
 namespace Game.Client;
 
-public static class BaseEntityConsts{
+public static class BaseEntityConsts
+{
 	public const int MULTIPLAYER_BACKUP = 90;
 }
 
@@ -48,7 +49,7 @@ public class PredictableList : IPredictableList
 		return Predictables.Count;
 	}
 
-	internal void AddToPredictableList(ClientEntityHandle? add){
+	internal void AddToPredictableList(ClientEntityHandle? add) {
 		Assert(add != null);
 
 		if (Predictables.Contains(add))
@@ -62,8 +63,8 @@ public class PredictableList : IPredictableList
 		int i, j;
 		for (i = 0; i < count; i++) {
 			for (j = i + 1; j < count; j++) {
-				ClientEntityHandle h1 =Predictables[i];
-				ClientEntityHandle h2 =Predictables[j];
+				ClientEntityHandle h1 = Predictables[i];
+				ClientEntityHandle h2 = Predictables[j];
 
 				C_BaseEntity? p1 = cl_entitylist.GetBaseEntityFromHandle(h1);
 				C_BaseEntity? p2 = cl_entitylist.GetBaseEntityFromHandle(h2);
@@ -87,7 +88,7 @@ public class PredictableList : IPredictableList
 		}
 	}
 
-	internal void RemoveFromPredictablesList(ClientEntityHandle remove){
+	internal void RemoveFromPredictablesList(ClientEntityHandle remove) {
 		Assert(remove != null);
 
 		Predictables.Remove(remove);
@@ -100,7 +101,7 @@ public partial class C_BaseEntity : IClientEntity
 {
 	public static C_BaseEntity? CreateEntityByName(ReadOnlySpan<char> className) {
 		C_BaseEntity? ent = GetClassMap().CreateEntity(className);
-		if (ent != null) 
+		if (ent != null)
 			return ent;
 
 		Warning($"Can't find factory for entity: {className}\n");
@@ -722,7 +723,8 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public void Release() {
-		UnlinkFromHierarchy();
+		using (C_BaseAnimating.AutoAllowBoneAccess boneaccess = new(true, true))
+			UnlinkFromHierarchy();
 
 		//  if (IsIntermediateDataAllocated()) 
 		//  	DestroyIntermediateData();
@@ -856,7 +858,7 @@ public partial class C_BaseEntity : IClientEntity
 
 
 
-	public void InitPredictable(){
+	public void InitPredictable() {
 		Assert(!GetPredictable());
 		// todo
 	}

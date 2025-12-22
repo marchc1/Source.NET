@@ -31,8 +31,66 @@ public partial class C_InfoLightingRelative : C_BaseEntity
 
 public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 {
+	// They did some REALLY weird stuff for access tags...
+	public record struct BoneAccessTag
+	{
+		public nint Data;
+		public string? Str;
+
+		public static explicit operator BoneAccessTag(nint i) => new() { Data = i };
+		public static explicit operator BoneAccessTag(string str) => new() { Str = str };
+		public static implicit operator bool(BoneAccessTag tag) => tag.Data != 0 || tag.Str != null;
+		public static implicit operator ReadOnlySpan<char>(BoneAccessTag tag) => tag.Str;
+	}
 	static readonly ConVar r_drawothermodels = new("1", FCvar.Cheat, "0=Off, 1=Normal, 2=Wireframe");
 	static readonly HashSet<C_BaseAnimating> PreviousBoneSetups = [];
+
+	public static void PushAllowBoneAccess(bool allowForNormalModels, bool allowForViewModels, BoneAccessTag tag) {
+		lock (BoneAccessMutex) {
+			BoneAccess save = BoneAccessBase;
+			BoneAccessStack.Push(save);
+
+			BoneAccessBase.AllowBoneAccessForNormalModels = allowForNormalModels;
+			BoneAccessBase.AllowBoneAccessForViewModels = allowForViewModels;
+			BoneAccessBase.Tag = tag;
+		}
+	}
+
+	public static void PopAllowBoneAccess(BoneAccessTag tag) {
+		lock (BoneAccessMutex) {
+			Assert(BoneAccessBase.Tag == tag || (BoneAccessBase.Tag && BoneAccessBase.Tag != (BoneAccessTag)1 && tag && tag != (BoneAccessTag)1 && strcmp(BoneAccessBase.Tag, tag) == 0));
+			int lastIndex = BoneAccessStack.Count - 1;
+			if (lastIndex < 0) {
+				AssertMsg(false, "C_BaseAnimating.PopBoneAccess:  Stack is empty!!!");
+				return;
+			}
+			BoneAccessStack.Pop();
+			BoneAccessBase = BoneAccessStack.Peek();
+		}
+	}
+
+	public struct BoneAccess
+	{
+		public bool AllowBoneAccessForNormalModels;
+		public bool AllowBoneAccessForViewModels;
+		public BoneAccessTag Tag;
+	}
+
+	static readonly object BoneAccessMutex = new();
+	static readonly Stack<BoneAccess> BoneAccessStack = [];
+	static BoneAccess BoneAccessBase;
+
+	public ref struct AutoAllowBoneAccess : IDisposable
+	{
+		public AutoAllowBoneAccess(bool allowForNormalModes, bool allowForViewModels) {
+			C_BaseAnimating.PushAllowBoneAccess(allowForNormalModes, allowForViewModels, (BoneAccessTag)1);
+		}
+		public void Dispose() {
+			C_BaseAnimating.PopAllowBoneAccess((BoneAccessTag)1);
+		}
+	}
+
+	public bool IsBoneAccessAllowed() => IsViewModel() ? BoneAccessBase.AllowBoneAccessForViewModels : BoneAccessBase.AllowBoneAccessForNormalModels;
 
 
 	public TimeUnit_t GetPlaybackRate() => PlaybackRate;
@@ -40,7 +98,6 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public ref readonly Matrix3x4 GetBone(int bone) => ref BoneAccessor.GetBone(bone);
 	public ref Matrix3x4 GetBoneForWrite(int bone) => ref BoneAccessor.GetBoneForWrite(bone);
 
-	public bool IsBoneAccessAllowed() => true; // todo
 
 	static long ModelBoneCounter;
 	long MostRecentModelBoneCounter;

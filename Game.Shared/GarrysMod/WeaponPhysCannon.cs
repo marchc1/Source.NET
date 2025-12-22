@@ -608,6 +608,8 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 
 		if (type == DataUpdateType.Created) {
 			SetNextClientThink(CLIENT_THINK_ALWAYS);
+			using C_BaseAnimating.AutoAllowBoneAccess boneaccess = new(true, false);
+			StartEffects();
 		}
 
 		// Update effect state when out of parity with the server

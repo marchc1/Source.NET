@@ -79,6 +79,10 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public void CreateMove(int sequenceNumber, double inputSampleFrametime, bool active) {
+		Assert(C_BaseEntity.IsAbsRecomputationsEnabled());
+		Assert(C_BaseEntity.IsAbsQueriesValid());
+		using C_BaseAnimating.AutoAllowBoneAccess boneaccess = new(true, true);
+
 		input.CreateMove(sequenceNumber, inputSampleFrametime, active);
 	}
 
