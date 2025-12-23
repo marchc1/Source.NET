@@ -297,11 +297,11 @@ public class AnimationController : Panel, IAnimationController
 	}
 
 	public void CancelAllAnimations() {
-		for (int i = ActiveAnimations.Count - 1; i >= ActiveAnimations.Count; i--)
+		for (int i = ActiveAnimations.Count - 1; i >= 0; i--)
 			if (ActiveAnimations[i].CanBeCancelled)
 				ActiveAnimations.RemoveAt(i);
 
-		for (int i = PostedMessages.Count - 1; i >= PostedMessages.Count; i--)
+		for (int i = PostedMessages.Count - 1; i >= 0; i--)
 			if (PostedMessages[i].CanBeCancelled)
 				PostedMessages.RemoveAt(i);
 	}
@@ -877,7 +877,7 @@ public class AnimationController : Panel, IAnimationController
 					mem = FilesystemHelpers.ParseFile(mem, token, out _);
 					if (cmdAnimate.Variable == Position) {
 						// Get first token
-						SetupPosition(cmdAnimate, ref cmdAnimate.Target.A, token, screenWide);
+						SetupPosition(ref cmdAnimate, ref cmdAnimate.Target.A, token, screenWide);
 
 						// Get second token from "token"
 						Span<char> token2 = stackalloc char[32];
@@ -886,15 +886,15 @@ public class AnimationController : Panel, IAnimationController
 						psz = token2;
 
 						// Position Y goes into ".b"
-						SetupPosition(cmdAnimate, ref cmdAnimate.Target.B, psz, screenTall);
+						SetupPosition(ref cmdAnimate, ref cmdAnimate.Target.B, psz, screenTall);
 					}
 					else if (cmdAnimate.Variable == XPos) {
 						// XPos and YPos both use target ".a"
-						SetupPosition(cmdAnimate, ref cmdAnimate.Target.A, token, screenWide);
+						SetupPosition(ref cmdAnimate, ref cmdAnimate.Target.A, token, screenWide);
 					}
 					else if (cmdAnimate.Variable == YPos) {
 						// XPos and YPos both use target ".a"
-						SetupPosition(cmdAnimate, ref cmdAnimate.Target.A, token, screenTall);
+						SetupPosition(ref cmdAnimate, ref cmdAnimate.Target.A, token, screenTall);
 					}
 					else {
 						var scanf = new ScanF(token, "%f %f %f %f").Read(out cmdAnimate.Target.A).Read(out cmdAnimate.Target.B).Read(out cmdAnimate.Target.C).Read(out cmdAnimate.Target.D);
@@ -1117,7 +1117,7 @@ public class AnimationController : Panel, IAnimationController
 		return true;
 	}
 
-	private void SetupPosition(AnimCmdAnimate cmd, ref float output, ReadOnlySpan<char> token, int screendimension) {
+	private void SetupPosition(ref AnimCmdAnimate cmd, ref float output, ReadOnlySpan<char> token, int screendimension) {
 		bool r = false, c = false;
 		int pos;
 		if (token[0] == '(') {
@@ -1142,7 +1142,7 @@ public class AnimationController : Panel, IAnimationController
 					if (!panelEnd.IsEmpty) {
 						panelEnd[0] = '\0';
 
-						if (panelName.IsEmpty && strlen(panelName) > 0) {
+						if (!panelName.IsEmpty && strlen(panelName) > 0) {
 							cmd.Align.RelativePosition = true;
 							cmd.Align.AlignPanel = ScriptSymbols.AddString(panelName);
 							cmd.Align.Alignment = ra;
@@ -1163,7 +1163,11 @@ public class AnimationController : Panel, IAnimationController
 			token = token[1..];
 		}
 
+		int endindex = Math.Min(token.IndexOf('\0'), token.IndexOf(' '));
+		if (endindex != -1)
+			token = token[..endindex];
 		// get the number
+
 		pos = int.TryParse(token, null, out int i) ? i : 0;
 
 		// scale the values
