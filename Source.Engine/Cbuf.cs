@@ -175,7 +175,7 @@ public class CommandBuffer
 		return true;
 	}
 
-	private void GetNextCommandLength(ReadOnlySpan<char> text, int maxLen, out int commandLength, out int nextCommandOffset) {
+	private void GetNextCommandLength(ReadOnlySpan<char> text, int maxLen, out int commandLength, out int nextCommandOffset) { // FIXME!!! Multiple commands in the same input ("test;test") WILL cause this to infinitely loop!
 		commandLength = 0;
 		bool isQuoted = false;
 		bool isCommented = false;

@@ -523,7 +523,20 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		}
 	}
 
-	public override void ApplySchemeSettings(IScheme scheme) { }
+	public override void ApplySchemeSettings(IScheme scheme) {
+		base.ApplySchemeSettings(scheme);
+		SetPaintBackgroundEnabled(false);
+
+		GetPos(out int x, out int y);
+		GetHudSize(out int screenWide, out int screenTall);
+
+		if (hud_fastswitch.GetInt() == HUDTYPE_CAROUSEL) {
+			int width = (int)(MAX_CAROUSEL_SLOTS * LargeBoxWide + (MAX_CAROUSEL_SLOTS - 1) * BoxGap);
+			SetBounds((screenWide - width) / 2, y, width, screenTall - y);
+		}
+		else
+			SetBounds(x, y, screenWide - x, screenTall - y);
+	}
 
 	public override void OpenSelection() {
 		Assert(!IsInSelectionMode());

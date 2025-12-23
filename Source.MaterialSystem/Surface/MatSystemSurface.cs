@@ -1969,6 +1969,8 @@ public class MatSystemSurface : IMatSystemSurface
 		}
 	}
 
+	public void GetFullscreenViewport(out int x, out int y, out int w, out int h) => GetFullscreenViewportAndRenderTarget(out x, out y, out w, out h, out _);
+
 	public void PopFullscreenViewport() {
 		using MatRenderContextPtr renderContext = new(materials);
 

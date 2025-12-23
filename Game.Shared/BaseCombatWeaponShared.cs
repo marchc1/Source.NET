@@ -175,7 +175,8 @@ public partial class
 	}
 
 	public ReadOnlySpan<char> GetName() => GetWpnData().ClassName;
-	#if CLIENT_DLL
+	public ReadOnlySpan<char> GetPrintName() => GetWpnData().PrintName;
+#if CLIENT_DLL
 	public HudTexture GetSpriteActive() => GetWpnData().IconActive;
 	public HudTexture GetSpriteInactive() => GetWpnData().IconInactive;
 	public HudTexture GetSpriteAmmo() => GetWpnData().IconAmmo;
@@ -206,5 +207,10 @@ public partial class
 
 		return HasAmmo();
 	}
+
+	public int GetMaxClip1() => GetWpnData().MaxClip1;
+	public bool UsesClipsForAmmo1() => GetMaxClip1() != WEAPON_NOCLIP;
+	public bool UsesPrimaryAmmo() => PrimaryAmmoType >= 0;
+	public bool UsesSecondaryAmmo() => SecondaryAmmoType >= 0;
 }
 #endif

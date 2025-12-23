@@ -264,7 +264,7 @@ class HudMenu : EditableHudElement
 		SelectedItem = -1;
 
 		Span<char> menuString = stackalloc char[MAX_MENU_STRING];
-		strcpy(menuString, PrelocalisedMenuString);// todo ConvertCRtoNL( hudtextmessage.BufferedLocaliseTextString
+		strcpy(menuString, ConvertCRtoNL(PrelocalisedMenuString));//hudtextmessage.BufferedLocaliseTextString
 
 		ProcessText();
 
