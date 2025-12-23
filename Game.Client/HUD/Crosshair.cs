@@ -75,11 +75,9 @@ public class HudCrosshair : EditableHudElement, IHudElement
 		QAngle curViewAngles = CurrentViewAngles();
 		Vector3 curViewOrigin = CurrentViewOrigin();
 
-		// surface.GetFullscreenViewport(out int vx, out int vy, out int vw, out int vh); todo
-		int vw = ScreenWidth();
-		int vh = ScreenHeight();
+		surface.GetFullscreenViewport(out _, out _, out int vw, out int vh);
 
-		float screenWidth = vw; ;
+		float screenWidth = vw;
 		float screenHeight = vh;
 		float x = screenWidth / 2;
 		float y = screenHeight / 2;
@@ -99,7 +97,7 @@ public class HudCrosshair : EditableHudElement, IHudElement
 			y += 0.5f * screen.Y * screenHeight + 0.5f;
 		}
 
-		px = x; ;
+		px = x;
 		py = y;
 		behindCamera = bBehindCamera;
 	}

@@ -79,6 +79,7 @@ public class HudTexture
 
 	public void DrawSelfCropped(int x, int y, int cropx, int cropy, int cropw, int croph, int finalWidth, int finalHeight, in Color clr) {
 		if (RenderUsingFont) {
+			throw new NotImplementedException();
 			// int height = surface.GetFontTall(Font);
 			// float frac = (height - croph) / (float)height;
 			// y -= cropy;
@@ -114,7 +115,7 @@ public class HudTexture
 				TexCoords[0] + cropx / fw * twidth,
 				TexCoords[1] + cropy / fh * theight,
 				TexCoords[0] + (cropx + cropw) / fw * twidth,
-				TexCoords[1] + (cropy + croph) / fh * theight,
+				TexCoords[1] + (cropy + croph) / fh * theight
 			];
 			surface.DrawSetTexture(TextureID);
 			surface.DrawSetColor(clr);

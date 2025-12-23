@@ -26,8 +26,10 @@ class LCDPage
 
 }
 
-class LCD : IHudLCD
+class LCD
 {
+	public static Dictionary<int, string> GlobalStats = [];
+
 	LCD() { }
 
 	void Reload() { }
@@ -68,7 +70,9 @@ class LCD : IHudLCD
 
 	// bool Replace(string str, ReadOnlySpan<char> search, ReadOnlySpan<char> replace) { }
 
-	public void SetGlobalStat(ReadOnlySpan<char> name, ReadOnlySpan<char> value) { }
+	public static void SetGlobalStat(ReadOnlySpan<char> name, ReadOnlySpan<char> value) {
+		GlobalStats[name.ToString().GetHashCode()] = value.ToString();
+	}
 
 	public void AddChatLine(ReadOnlySpan<char> txt) { }
 
