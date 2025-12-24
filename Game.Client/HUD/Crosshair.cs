@@ -71,7 +71,7 @@ public class HudCrosshair : EditableHudElement, IHudElement
 		return needsDraw && ((IHudElement)this).ShouldDraw();
 	}
 
-	void GetDrawPosition(out float px, out float py, out bool behindCamera, QAngle angleCrosshairOffset) {
+	public static void GetDrawPosition(out float px, out float py, out bool behindCamera, QAngle angleCrosshairOffset = default) {
 		QAngle curViewAngles = CurrentViewAngles();
 		Vector3 curViewOrigin = CurrentViewOrigin();
 

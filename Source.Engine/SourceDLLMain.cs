@@ -2,6 +2,7 @@
 
 using Source.Common;
 using Source.Common.Client;
+using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.MaterialSystem;
@@ -39,6 +40,7 @@ public static class SourceDllMain
 	[Dependency] public static IDebugTextureInfo materialSystemDebugTextureInfo { get; private set; } = null!;
 	[Dependency] public static IVideoMode videoMode { get; private set; } = null!;
 	[Dependency] public static Cbuf cbuf { get; private set; } = null!;
+	[Dependency] public static ICvar cvar { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Client)] public static NetworkStringTableContainer networkStringTableContainerClient { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Server)] public static NetworkStringTableContainer networkStringTableContainerServer { get; private set; } = null!;
 

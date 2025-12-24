@@ -7,6 +7,8 @@ using Source.Common.GUI;
 using Source.Common.MaterialSystem;
 using Source.GUI.Controls;
 
+using System.Security.Cryptography;
+
 namespace Game.Client.HL2;
 
 [DeclareHudElement(Name = "CHudWeaponSelection")]
@@ -126,7 +128,78 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		LastWeapon = null;
 	}
 
-	void ActivateFastswitchWeaponDisplay(BaseCombatWeapon selectedWeapon) { }
+	void ActivateFastswitchWeaponDisplay(BaseCombatWeapon selectedWeapon) {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return;
+
+		MakeReadyForUse();
+
+		WeaponBoxes.Clear();
+		SelectedWeaponBox = -0;
+
+		int cWeapons = 0;
+		int lastSelectedWeaponBox = -1;
+		for (int i = 0; i < MAX_WEAPON_SLOTS; i++) {
+			for (int slotPos = 0; slotPos < MAX_WEAPON_POSITIONS; slotPos++) {
+				BaseCombatWeapon? weapon = GetWeaponInSlot(i, slotPos);
+				if (weapon == null)
+					continue;
+
+				WeaponBox box = new() {
+					Slot = i,
+					SlotPos = slotPos
+				};
+				WeaponBoxes.Add(box);
+
+				if (weapon == selectedWeapon)
+					lastSelectedWeaponBox = cWeapons;
+
+				if (weapon == LastWeapon)
+					lastSelectedWeaponBox = cWeapons;
+
+				cWeapons++;
+			}
+		}
+		if (lastSelectedWeaponBox == -1)
+			LastWeapon = null;
+
+		float fstart, stop, time;
+		if (LastWeapon == null || SelectedSlideDir == 0 || HorizWeaponSelectOffsetPoint != 0)
+			LastWeapon = selectedWeapon;
+		else {
+			int numIcons = 0;
+			int start = lastSelectedWeaponBox;
+
+			for (int i = 0; i < cWeapons; i++) {
+				if (start == SelectedWeaponBox)
+					break;
+
+				if (SelectedSlideDir < 0)
+					start--;
+				else
+					start++;
+
+				start = (start + cWeapons) % cWeapons;
+				numIcons++;
+			}
+
+			fstart = numIcons * (LargeBoxWide + BoxGap);
+			if (SelectedSlideDir < 0)
+				fstart *= -1;
+			stop = 0;
+
+			time = numIcons * 0.20f;
+			if (numIcons > 1)
+				time *= 0.5f;
+
+			HorizWeaponSelectOffsetPoint = fstart;
+			clientMode.GetViewportAnimationController()?.RunAnimationCommand(this, "WeaponBoxOffset", stop, 0, time, Interpolators.Linear);
+
+			Blur = 7.0f;
+			clientMode.GetViewportAnimationController()?.RunAnimationCommand(this, "Blur", 0, time, 0.75f, Interpolators.Deaccel);
+		}
+	}
 
 	void ActivateWeaponHighlight(BaseCombatWeapon selectedWeapon) {
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
@@ -264,9 +337,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 				}
 				break;
 			case HUDTYPE_PLUS: {
-					float fCenterX = 0, fCenterY = 0;
-					bool bBehindCamera = false;
-					// CHudCrosshair::GetDrawPosition(&fCenterX, &fCenterY, &bBehindCamera); TODO
+					HudCrosshair.GetDrawPosition(out float fCenterX, out float fCenterY, out bool bBehindCamera);
 
 					if (bBehindCamera)
 						return;
@@ -615,7 +686,6 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		return prevWeapon;
 	}
 
-
 	public override void CycleToNextWeapon() {
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
 		if (player == null)
@@ -723,9 +793,85 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		return null;
 	}
 
-	void FastWeaponSwitch(int weaponSlot) { }
+	void FastWeaponSwitch(int weaponSlot) {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return;
 
-	void PlusTypeFastWeaponSwitch(int weaponSlot) { }
+		LastWeapon = null;
+
+		int position = -1;
+		BaseCombatWeapon? activeWeapon = player.GetActiveWeapon();
+		if (activeWeapon != null && activeWeapon.GetSlot() == weaponSlot)
+			position = activeWeapon.GetPosition();
+
+		BaseCombatWeapon? nextWeapon = FindNextWeaponInWeaponSelection(weaponSlot, position);
+
+		if (nextWeapon == null || nextWeapon.GetSlot() != weaponSlot)
+			nextWeapon = FindNextWeaponInWeaponSelection(weaponSlot, -1);
+
+		if (nextWeapon != null && nextWeapon != activeWeapon && nextWeapon.GetSlot() == weaponSlot)
+			input.MakeWeaponSelection(nextWeapon);
+		else if (nextWeapon != activeWeapon) {
+			// player.EmitSound("Player.DenyWeaponSelection");
+		}
+
+		if (HUDTYPE_CAROUSEL == hud_fastswitch.GetInt())
+			SelectionTime = 0.0f;
+	}
+
+	void PlusTypeFastWeaponSwitch(int weaponSlot) {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return;
+
+		LastWeapon = null;
+		int newSlot = SelectedSlot;
+
+		if (-1 == SelectedSlot || ((SelectedSlot ^ weaponSlot) & 1) != 0) {
+			SelectedBoxPosition = 0;
+			SelectedSlot = weaponSlot;
+		}
+		else {
+			int inc = 1;
+			if (SelectedSlot != weaponSlot) {
+				inc = -1;
+				if (0 == SelectedBoxPosition) {
+					newSlot = (SelectedSlot + 2) % 4;
+					inc = 0;
+				}
+			}
+
+			int lastSlotPos = -1;
+			for (int slotPos = 0; slotPos < MAX_WEAPON_POSITIONS; ++slotPos) {
+				BaseCombatWeapon? weapon = GetWeaponInSlot(SelectedSlot, slotPos);
+				if (weapon != null)
+					lastSlotPos = slotPos;
+			}
+
+			if (SelectedBoxPosition + inc <= lastSlotPos) {
+				SelectedBoxPosition += inc;
+				SelectedSlot = newSlot;
+			}
+			else {
+				// player.EmitSound("Player.DenyWeaponSelection");
+				return;
+			}
+		}
+
+		bool weaponSelected = false;
+		BaseCombatWeapon? activeWeapon = player.GetActiveWeapon();
+		BaseCombatWeapon? pweapon = GetWeaponInSlot(SelectedSlot, SelectedBoxPosition);
+
+		if (pweapon != null && pweapon != activeWeapon) {
+			input.MakeWeaponSelection(pweapon);
+			SetSelectedWeapon(pweapon);
+			weaponSelected = true;
+		}
+
+		if (!weaponSelected)
+			SetSelectedWeapon(activeWeapon);
+	}
 
 	public override void SelectWeaponSlot(int slot) {
 		--slot;

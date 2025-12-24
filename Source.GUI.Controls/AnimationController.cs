@@ -401,7 +401,7 @@ public class AnimationController : Panel, IAnimationController
 			val.B = y - GetRelativeOffset(in anim.Align, false);
 		}
 		else if (variable == Size) {
-			panel.GetSize(out int w, out int h);
+			panel.GetSize(out int w, out int h); // FIXME: are we not getting correct height (?)
 			val.A = w;
 			val.B = h;
 		}
@@ -817,8 +817,10 @@ public class AnimationController : Panel, IAnimationController
 		IScheme scheme = GetScheme()!;
 
 
-		int screenWide = ScreenBounds[2];
-		int screenTall = ScreenBounds[3];
+		int screenWide = 1600;//ScreenBounds[2];
+		int screenTall = 900; //ScreenBounds[3]; // FIXME: can be 10x10 very early on
+
+		// Console.WriteLine($"Screen size: {screenWide}x{screenTall}");
 
 		mem = FilesystemHelpers.ParseFile(mem, token, out _);
 		while (token[0] != '\0') {
