@@ -38,7 +38,7 @@ public interface ISchemeManager
 
 	IScheme? LoadSchemeFromFileEx(IPanel? sizingPanel, ReadOnlySpan<char> fileName, ReadOnlySpan<char> tag);
 	bool DeleteImage(ReadOnlySpan<char> imageName);
-	int GetProportionalScaledValueEx(IScheme scheme, int normalizedValue);
+	int GetProportionalScaledValueEx(IScheme? scheme, int normalizedValue);
 
 	int QuickPropScaleCond(bool scale, IScheme scheme, int normalizedValue) {
 		if (!scale)

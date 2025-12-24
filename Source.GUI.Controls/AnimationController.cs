@@ -836,6 +836,7 @@ public class AnimationController : Panel, IAnimationController
 			}
 
 			UtlSymId_t nameIndex = ScriptSymbols.AddString(token);
+			// var nameOK = 0 == stricmp("WeaponUsesSecondaryAmmo", token);
 
 			int seqIndex = Sequences.Count;
 			Sequences.Add(new());
@@ -870,6 +871,8 @@ public class AnimationController : Panel, IAnimationController
 					ref AnimCmdAnimate cmdAnimate = ref animCmd.Animate;
 					mem = FilesystemHelpers.ParseFile(mem, token, out _);
 					cmdAnimate.Panel = ScriptSymbols.AddString(token);
+					// var panelNameOK = 0 == stricmp("HudAmmo", token);
+
 					// variable to change
 					mem = FilesystemHelpers.ParseFile(mem, token, out _);
 					cmdAnimate.Variable = ScriptSymbols.AddString(token);
@@ -918,14 +921,14 @@ public class AnimationController : Panel, IAnimationController
 
 					if (cmdAnimate.Variable == Size) {
 						if (IsProportional()) {
-							cmdAnimate.Target.A = (float)GetScheme()!.GetProportionalScaledValueEx((int)cmdAnimate.Target.A);
-							cmdAnimate.Target.B = (float)GetScheme()!.GetProportionalScaledValueEx((int)cmdAnimate.Target.B);
+							cmdAnimate.Target.A = SchemeManager.GetProportionalScaledValueEx(GetScheme(), (int)cmdAnimate.Target.A);
+							cmdAnimate.Target.B = SchemeManager.GetProportionalScaledValueEx(GetScheme(), (int)cmdAnimate.Target.B);
 						}
 					}
 					else if (cmdAnimate.Variable == Wide || cmdAnimate.Variable == Tall) {
 						if (IsProportional()) {
 							// Wide and tall both use.a
-							cmdAnimate.Target.A = (float)GetScheme()!.GetProportionalScaledValueEx((int)cmdAnimate.Target.A);
+							cmdAnimate.Target.A = SchemeManager.GetProportionalScaledValueEx(GetScheme(), (int)cmdAnimate.Target.A);
 						}
 					}
 
@@ -1172,7 +1175,7 @@ public class AnimationController : Panel, IAnimationController
 
 		// scale the values
 		if (IsProportional())
-			pos = GetScheme()!.GetProportionalScaledValueEx(pos);
+			pos = SchemeManager.GetProportionalScaledValueEx(GetScheme(), pos);
 
 		// adjust the positions
 		if (r)
