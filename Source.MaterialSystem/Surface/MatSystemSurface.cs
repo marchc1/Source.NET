@@ -442,7 +442,17 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public bool DrawGetTextureFile(in TextureID id, out ReadOnlySpan<char> filename) {
-		throw new NotImplementedException();
+		filename = default;
+
+		if (!TextureDictionary.IsValidId(in id, out _))
+			return false;
+
+		IMaterial? material = TextureDictionary.GetTextureMaterial(in id);
+		if (material == null)
+			return false;
+
+		filename = material.GetName();
+		return true;
 	}
 
 	public int DrawGetTextureId(ReadOnlySpan<char> filename) {
