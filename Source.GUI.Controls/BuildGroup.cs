@@ -29,7 +29,11 @@ public class BuildGroup
 	public List<Panel> Panels = [];
 	public List<UtlSymbol> RegisteredControlSettingsFiles = [];
 
-	readonly Dictionary<ulong, KeyValues?> DictCachedResFiles = [];
+	readonly static Dictionary<ulong, KeyValues?> DictCachedResFiles = [];
+	public static void ClearResFileCache(){
+		DictCachedResFiles.Clear();
+	}
+
 	static ConVar vgui_cache_res_files = new("1", 0);
 	internal void LoadControlSettings(ReadOnlySpan<char> controlResourceName, ReadOnlySpan<char> pathID, KeyValues? preloadedKeyValues, KeyValues? conditions) {
 		RegisterControlSettingsFile(controlResourceName, pathID);

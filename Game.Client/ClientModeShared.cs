@@ -129,7 +129,7 @@ public class ClientModeShared : GameEventListener, IClientMode
 	}
 
 	private void ReloadScheme(bool v) {
-		//BuildGroup.ClearResFileCache(); << needs to be done later. Also the internals for buildgroup cache data is not static!!! So do that too!!!!!!!!
+		BuildGroup.ClearResFileCache(); 
 
 		Viewport.ReloadScheme("resource/ClientScheme.res");
 	}
