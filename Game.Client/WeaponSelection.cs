@@ -1,7 +1,6 @@
 using Game.Client.HUD;
 using Game.Shared;
 
-using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Input;
 using Source.GUI.Controls;
@@ -22,7 +21,6 @@ public class BaseHudWeaponSelection : EditableHudElement
 	public bool SelectionVisible;
 	public BaseCombatWeapon? SelectedWeapon;
 	public IHudElement HudElement => this;
-	IInput input => AllowDependencyInjection ? null! : Singleton<IInput>();
 
 	public BaseHudWeaponSelection(string elementName, Panel? parent, string panelName) : base(elementName, parent, panelName) {
 		Instance = this;
@@ -45,7 +43,6 @@ public class BaseHudWeaponSelection : EditableHudElement
 	void UpdateSelectionTime() => SelectionTime = gpGlobals.CurTime;
 	BaseHudWeaponSelection GetInstance() => Instance;
 	BaseHudWeaponSelection GetHudWeaponSelection() => GetInstance();
-
 
 	void VidInit() { }
 
@@ -119,7 +116,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 		if (HandleHudMenuInput(slot))
 			return;
 
-		if (!Instance!.HudElement.ShouldDraw())
+		if (!HudElement.ShouldDraw())
 			return;
 
 		UpdateSelectionTime();
@@ -200,7 +197,20 @@ public class BaseHudWeaponSelection : EditableHudElement
 
 	public BaseCombatWeapon? GetSelectedWeapon() => SelectedWeapon;
 
-	void CancelWeaponSelection() { }
+	void CancelWeaponSelection() {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return;
+
+		if (HudElement.ShouldDraw()) {
+			HideSelection();
+			SelectedWeapon = null;
+
+			// player.EmitSound("Player.WeaponSelectionClose");
+		}
+		else
+			engine.ClientCmd_Unrestricted("escape\n"); // todo: not unrestricted
+	}
 
 	public BaseCombatWeapon? GetFirstPos(int slot) {
 		int lowestPosition = MAX_WEAPON_POSITIONS;
@@ -208,7 +218,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
 		if (player == null)
-			return firstWeapon!;
+			return firstWeapon;
 
 		for (int i = 0; i < MAX_WEAPONS; i++) {
 			BaseCombatWeapon? weapon = player.GetWeapon(i);
