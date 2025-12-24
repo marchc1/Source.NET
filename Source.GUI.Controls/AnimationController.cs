@@ -8,6 +8,7 @@ using Source.Common.Mathematics;
 using Source.Common.Utilities;
 
 using System.Collections.Frozen;
+using System.Text;
 
 using static Source.GUI.Controls.AnimationController;
 
@@ -807,13 +808,13 @@ public class AnimationController : Panel, IAnimationController
 			return false;
 		}
 
-		byte[] data = new byte[f.Stream.Length];
-		f.Stream.ReadExactly(data);
+		using var reader = new StreamReader(f.Stream, leaveOpen: true);
+		string text = reader.ReadToEnd();
 
-		return ParseScriptFile(data);
+		return ParseScriptFile(text);
 	}
 
-	private bool _ParseScriptFile(ReadOnlySpan<byte> mem, Span<char> token) {
+	private bool _ParseScriptFile(ReadOnlySpan<char> mem, Span<char> token) {
 		IScheme scheme = GetScheme()!;
 
 		int screenWide = ScreenBounds[2];
@@ -835,7 +836,7 @@ public class AnimationController : Panel, IAnimationController
 			}
 
 			UtlSymId_t nameIndex = ScriptSymbols.AddString(token);
-			// var nameOK = 0 == stricmp("WeaponUsesSecondaryAmmo", token);
+			// var nameOK = 0 == stricmp("WeaponHighlight", token);
 
 			int seqIndex = Sequences.Count;
 			Sequences.Add(new());
@@ -870,7 +871,7 @@ public class AnimationController : Panel, IAnimationController
 					ref AnimCmdAnimate cmdAnimate = ref animCmd.Animate;
 					mem = FilesystemHelpers.ParseFile(mem, token, out _);
 					cmdAnimate.Panel = ScriptSymbols.AddString(token);
-					// var panelNameOK = 0 == stricmp("HudAmmo", token);
+					// var panelNameOK = 0 == stricmp("HudWeaponSelection", token);
 
 					// variable to change
 					mem = FilesystemHelpers.ParseFile(mem, token, out _);
@@ -900,7 +901,7 @@ public class AnimationController : Panel, IAnimationController
 					}
 					else {
 						var scanf = new ScanF(token, "%f %f %f %f").Read(out cmdAnimate.Target.A).Read(out cmdAnimate.Target.B).Read(out cmdAnimate.Target.C).Read(out cmdAnimate.Target.D);
-						if (4 != scanf.ReadArguments) {
+						if (0 == scanf.ReadArguments) {
 							Color default_invisible_black = new(0, 0, 0, 0);
 							Color col = scheme.GetColor(token, default_invisible_black);
 
@@ -1090,7 +1091,7 @@ public class AnimationController : Panel, IAnimationController
 				}
 
 				// Look ahead one token for a conditional
-				ReadOnlySpan<byte> peek = FilesystemHelpers.ParseFile(mem, token, out _);
+				ReadOnlySpan<char> peek = FilesystemHelpers.ParseFile(mem, token, out _);
 				if (token.Contains("[$", StringComparison.OrdinalIgnoreCase) || token.Contains("[!$", StringComparison.OrdinalIgnoreCase)) {
 					if (!KeyValues.EvaluateConditional(token))
 						seq.CmdList.RemoveAt(cmdIndex);
@@ -1212,7 +1213,7 @@ public class AnimationController : Panel, IAnimationController
 		return g_AlignmentLookup.TryGetValue(sz.Hash(), out Alignment al) ? al : Alignment.Northwest;
 	}
 
-	private bool ParseScriptFile(ReadOnlySpan<byte> mem) {
+	private bool ParseScriptFile(ReadOnlySpan<char> mem) {
 		return _ParseScriptFile(mem, stackalloc char[512]);
 	}
 
