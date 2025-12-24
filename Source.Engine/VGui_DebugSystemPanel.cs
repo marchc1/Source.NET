@@ -1,14 +1,13 @@
 using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
+using Source.Engine;
 using Source.GUI.Controls;
-
 
 class DebugMenuButton : MenuButton
 {
 	Menu Menu;
-	public DebugMenuButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> labelText) : base(parent, name, labelText)
-	{
+	public DebugMenuButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> labelText) : base(parent, name, labelText) {
 		MakePopup();
 
 		Menu = new(this, "DebugMenu");
@@ -21,15 +20,13 @@ class DebugMenuButton : MenuButton
 
 class DebugCommandButton : Button
 {
-	public DebugCommandButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> labelText, ReadOnlySpan<char> command) : base(parent, name, labelText)
-	{
+	public DebugCommandButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> labelText, ReadOnlySpan<char> command) : base(parent, name, labelText) {
 		AddActionSignalTarget(this);
 		SetCommand(command);
 	}
 
-	public override void OnCommand(ReadOnlySpan<char> command)
-	{
-		// Cbuf.AddText(command.ToString() + "\n");
+	public override void OnCommand(ReadOnlySpan<char> command) {
+		cbuf.AddText(command.ToString() + "\n");
 	}
 
 	public override void OnTick() { }
@@ -39,19 +36,17 @@ class DebugCommandCheckbox : CheckButton
 {
 	[CvarIgnore]
 	private ConVar? Var;
-	public DebugCommandCheckbox(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> labelText, ReadOnlySpan<char> command) : base(parent, name, labelText)
-	{
-		// Var = Cvar.Find(command);
+	public DebugCommandCheckbox(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> labelText, ReadOnlySpan<char> command) : base(parent, name, labelText) {
+		Var = cvar.FindVar(command);
 		SetCommand(command);
 		AddActionSignalTarget(this);
 	}
 
-	public override void OnCommand(ReadOnlySpan<char> command)
-	{
+	public override void OnCommand(ReadOnlySpan<char> command) {
 		if (Var == null)
 			return;
 
-		// Cbuf.AddText($"{var.GetName()} {var.GetInt()}\n");
+		cbuf.AddText($"{Var.GetName()} {Var.GetInt()}\n");
 	}
 }
 
@@ -64,15 +59,13 @@ class DebugIncrementCVarButton : Button
 	float Increment;
 	float PreviousValue;
 
-	public DebugIncrementCVarButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> labelText, ReadOnlySpan<char> cvarName) : base(parent, name, labelText)
-	{
+	public DebugIncrementCVarButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> labelText, ReadOnlySpan<char> cvarName) : base(parent, name, labelText) {
 		TokenizedCommand args = new();
 		args.Tokenize(cvarName);
 
 		Var = null;
-		if (args.ArgC() >= 4)
-		{
-			// var = Cvar.Find(args.Arg(0));
+		if (args.ArgC() >= 4) {
+			Var = cvar.FindVar(args.Arg(0));
 			MinValue = args.Arg(1, 0);
 			MaxValue = args.Arg(2, 0);
 			Increment = args.Arg(3, 0);
@@ -86,8 +79,7 @@ class DebugIncrementCVarButton : Button
 		OnTick();
 	}
 
-	public override void OnCommand(ReadOnlySpan<char> command)
-	{
+	public override void OnCommand(ReadOnlySpan<char> command) {
 		if (Var == null)
 			return;
 
@@ -102,8 +94,7 @@ class DebugIncrementCVarButton : Button
 		Var.SetValue(curValue);
 	}
 
-	public override void OnTick()
-	{
+	public override void OnTick() {
 		if (Var == null)
 			return;
 
@@ -123,28 +114,24 @@ class DebugOptionsPage : PropertyPage
 {
 	List<Panel> LayoutItems = [];
 
-	public DebugOptionsPage(Panel parent, ReadOnlySpan<char> name) : base(parent, name)
-	{
+	public DebugOptionsPage(Panel parent, ReadOnlySpan<char> name) : base(parent, name) {
 		VGui.AddTickSignal(this, 250);
 	}
 
-	public override void OnTick()
-	{
+	public override void OnTick() {
 		base.OnTick();
 
 		if (!IsVisible())
 			return;
 
 		int count = LayoutItems.Count;
-		for (int i = 0; i < count; i++)
-		{
+		for (int i = 0; i < count; i++) {
 			Panel item = LayoutItems[i];
 			item.OnTick();
 		}
 	}
 
-	public override void PerformLayout()
-	{
+	public override void PerformLayout() {
 		base.PerformLayout();
 
 		int count = LayoutItems.Count;
@@ -157,43 +144,36 @@ class DebugOptionsPage : PropertyPage
 
 		int tall = GetTall();
 
-		for (int i = 0; i < count; i++)
-		{
+		for (int i = 0; i < count; i++) {
 			Panel item = LayoutItems[i];
 			item.SetBounds(x, y, w, h);
 
 			y += h + gap;
-			if (y >= tall - h)
-			{
+			if (y >= tall - h) {
 				x += w + gap;
 				y = 5;
 			}
 		}
 	}
 
-	public void Init(KeyValues kv)
-	{
-		for (KeyValues? control = kv.GetFirstSubKey(); control != null; control = control.GetNextKey())
-		{
+	public void Init(KeyValues kv) {
+		for (KeyValues? control = kv.GetFirstSubKey(); control != null; control = control.GetNextKey()) {
 			ReadOnlySpan<char> t = control.GetString("command", "");
-			if (!t.IsEmpty)
-			{
+			if (!t.IsEmpty) {
 				DebugCommandButton btn = new(this, "CommandButton", control.Name, t);
 				LayoutItems.Add(btn);
 				continue;
 			}
 
 			t = control.GetString("togglecvar", "");
-			if (!t.IsEmpty)
-			{
+			if (!t.IsEmpty) {
 				DebugCommandCheckbox checkbox = new(this, "CommandCheck", control.Name, t);
 				LayoutItems.Add(checkbox);
 				continue;
 			}
 
 			t = control.GetString("incrementcvar", "");
-			if (!t.IsEmpty)
-			{
+			if (!t.IsEmpty) {
 				DebugIncrementCVarButton increment = new(this, "IncrementCVar", control.Name, t);
 				LayoutItems.Add(increment);
 				continue;
@@ -204,23 +184,18 @@ class DebugOptionsPage : PropertyPage
 
 class DebugOptionsPanel : PropertyDialog
 {
-	public DebugOptionsPanel(Panel parent, ReadOnlySpan<char> name) : base(parent, name)
-	{
+	public DebugOptionsPanel(Panel parent, ReadOnlySpan<char> name) : base(parent, name) {
 		SetTitle("Debug Options", true);
 
 		KeyValues? kv = new("DebugOptions");
-		if (kv != null)
-		{
+		if (kv != null) {
 			kv.LoadFromFile(fileSystem, "scripts/debugoptions.txt");
-			for (KeyValues? pageKv = kv.GetFirstSubKey(); pageKv != null; pageKv = pageKv.GetNextKey())
-			{
-				if (pageKv.Name.Equals("width", StringComparison.OrdinalIgnoreCase))
-				{
+			for (KeyValues? pageKv = kv.GetFirstSubKey(); pageKv != null; pageKv = pageKv.GetNextKey()) {
+				if (pageKv.Name.Equals("width", StringComparison.OrdinalIgnoreCase)) {
 					SetWide(pageKv.GetInt());
 					continue;
 				}
-				else if (pageKv.Name.Equals("height", StringComparison.OrdinalIgnoreCase))
-				{
+				else if (pageKv.Name.Equals("height", StringComparison.OrdinalIgnoreCase)) {
 					SetTall(pageKv.GetInt());
 					continue;
 				}
@@ -233,7 +208,7 @@ class DebugOptionsPanel : PropertyDialog
 		}
 
 		GetPropertySheet().SetTabWidth(72);
-		SetPos(10, 10);
+		SetPos(((VideoMode_Common)videoMode).GetModeStereoWidth() - GetWide() - 10, 10);
 		SetVisible(true);
 
 		if (fileSystem.FileExists("resource/DebugOptionsPanel.res"))
@@ -246,10 +221,8 @@ class DebugSystemPanel : Panel
 	DebugMenuButton DebugMenu;
 	DebugOptionsPanel OptionsPanel;
 
-	public DebugSystemPanel(Panel parent, ReadOnlySpan<char> name) : base(parent, name)
-	{
-		// SetBounds(0, 0, videomode.GetModeStereoWidth(), videomode.GetModeStereoHeight());
-		SetBounds(0, 0, 1600, 900);
+	public DebugSystemPanel(Panel parent, ReadOnlySpan<char> name) : base(parent, name) {
+		SetBounds(0, 0, ((VideoMode_Common)videoMode).GetModeStereoWidth(), ((VideoMode_Common)videoMode).GetModeStereoHeight());
 
 		SetCursor(CursorCode.Arrow);
 		SetVisible(false);
@@ -264,23 +237,19 @@ class DebugSystemPanel : Panel
 		OptionsPanel = new(this, "DebugOptions");
 	}
 
-	public override void SetVisible(bool state)
-	{
+	public override void SetVisible(bool state) {
 		base.SetVisible(state);
 		if (state)
 			Surface.SetCursor(GetCursor());
 	}
 
-	public override void OnCommand(ReadOnlySpan<char> command)
-	{
-		if (command.Equals("toggledebugpanel", StringComparison.OrdinalIgnoreCase))
-		{
+	public override void OnCommand(ReadOnlySpan<char> command) {
+		if (command.Equals("toggledebugpanel", StringComparison.OrdinalIgnoreCase)) {
 			OptionsPanel?.SetVisible(!OptionsPanel.IsVisible());
 			return;
 		}
-		else if (command.Equals("quit", StringComparison.OrdinalIgnoreCase))
-		{
-			// Cbuf.AddText("quit\n");
+		else if (command.Equals("quit", StringComparison.OrdinalIgnoreCase)) {
+			cbuf.AddText("quit\n");
 			return;
 		}
 
