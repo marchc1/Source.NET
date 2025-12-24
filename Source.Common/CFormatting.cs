@@ -141,7 +141,7 @@ public ref struct ScanF
 	public CFormatReader Format;
 	ReadOnlySpan<char> input;
 	int readArguments = 0;
-	public readonly int ReadArguments => readArguments;
+	public readonly int ReadArguments => readArguments - invalidArguments;
 	public readonly bool ReadAny => readArguments > 0;
 
 	public ScanF(ReadOnlySpan<char> input, ReadOnlySpan<char> format) {
@@ -216,7 +216,7 @@ public ref struct ScanF
 
 		return this;
 	}
-
+	int invalidArguments = 0;
 	public unsafe ScanF Read(out float i, int max = DEFAULT_SCANF_MAX) {
 		Span<char> incoming = stackalloc char[max];
 		i = default;
@@ -227,7 +227,10 @@ public ref struct ScanF
 #pragma warning restore CS9080 // Use of variable in this context may expose referenced variables outside of their declaration scope
 			switch (type) {
 				case (char)VariableType.DecimalFloatingPoint:
-					i = float.TryParse(incoming[..len], out iAttempt) ? iAttempt : default;
+					if (float.TryParse(incoming[..len], out iAttempt))
+						i = iAttempt;
+					else
+						invalidArguments++;
 					break;
 				default: throw new NotImplementedException();
 			}
