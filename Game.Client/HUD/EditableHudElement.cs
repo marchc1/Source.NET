@@ -41,7 +41,7 @@ public class HudNumericDisplay : Panel
 	// which is annoying, but no multiple inheritance 
 	public string? ElementName { get; set; }
 	public HideHudBits HiddenBits { get; set; }
-	public bool Active { get; set; } 
+	public bool Active { get; set; }
 	public bool NeedsRemove { get; set; }
 	public bool IsParentedToClientDLLRootPanel { get; set; }
 	public List<int> HudRenderGroups { get; set; } = [];
@@ -123,7 +123,7 @@ public class HudNumericDisplay : Panel
 		PaintLabel();
 	}
 
-	private void PaintLabel() {
+	public void PaintLabel() {
 		Surface.DrawSetTextFont(TextFont);
 		Surface.DrawSetTextColor(GetFgColor());
 		Surface.DrawSetTextPos((int)text_xpos, (int)text_ypos);
@@ -148,12 +148,12 @@ public class HudNumericDisplay : Panel
 		}
 
 		int charWidth = Surface.GetCharacterWidth(font, '0');
-		if (value < 100 && Indent) 
+		if (value < 100 && Indent)
 			xpos += charWidth;
-		
-		if (value < 10 && Indent) 
+
+		if (value < 10 && Indent)
 			xpos += charWidth;
-		
+
 		Surface.DrawSetTextPos(xpos, ypos);
 		Surface.DrawString(unicode);
 	}
