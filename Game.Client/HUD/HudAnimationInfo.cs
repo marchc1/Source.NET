@@ -159,7 +159,7 @@ class HudAnimationInfo : EditableHudElement, IHudElement
 	// 	// todo
 	// }
 
-	[ConCommand("cl_animationinfo", "Toggles animation info for a HUD element", FCvar.None)]
+	[ConCommand("cl_animationinfo", "Hud element to examine.", FCvar.None)]
 	static void func(in TokenizedCommand args) {
 		if (gHUD.FindElement("HudAnimationInfo") is not HudAnimationInfo info)
 			return;
