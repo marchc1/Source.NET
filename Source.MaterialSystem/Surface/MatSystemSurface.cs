@@ -550,6 +550,56 @@ public class MatSystemSurface : IMatSystemSurface
 		DrawFilledRect(x1 - 1, y0 + 1, x1, y1 - 1);
 	}
 
+	public void DrawOutlinedCircle(int x, int y, int radius, int segments) {
+		Assert(InDrawing);
+		Assert(!In3DPaintMode);
+
+		if (FullyTransparent)
+			return;
+
+		InternalSetMaterial();
+		meshBuilder.Begin(Mesh!, MaterialPrimitiveType.Lines, segments);
+		SurfaceVertex[] vertex = new SurfaceVertex[2];
+		vertex[0].Position = new(x + radius + TranslateX, y + TranslateY);
+		vertex[0].TexCoord = new(1.0f, 0.5f);
+
+		float invDelta = 2.0f * MathF.PI / segments;
+		for (int i = 1; i <= segments; ++i) {
+			float flRadians = i * invDelta;
+			float ca = MathF.Cos(flRadians);
+			float sa = MathF.Sin(flRadians);
+
+			vertex[1].Position.X = x + TranslateX + (radius * ca);
+			vertex[1].Position.Y = y + TranslateY + (radius * sa);
+			vertex[1].TexCoord.X = 0.5f * (ca + 1.0f);
+			vertex[1].TexCoord.Y = 0.5f * (sa + 1.0f);
+
+			Span<SurfaceVertex> verts = [vertex[0], vertex[1]];
+			Span<SurfaceVertex> clippedVerts = [vertex[0], vertex[1]];
+
+			if (Clip2D.ClipLine(in scissorRect, verts, clippedVerts)) {
+				ref SurfaceVertex a = ref clippedVerts[0];
+				ref SurfaceVertex b = ref clippedVerts[1];
+
+				meshBuilder.Position3f(a.Position.X, a.Position.Y, zPos);
+				meshBuilder.Color4ubv(DrawColor);
+				meshBuilder.TexCoord2fv(0, a.TexCoord);
+				meshBuilder.AdvanceVertex();
+
+				meshBuilder.Position3f(b.Position.X, b.Position.Y, zPos);
+				meshBuilder.Color4ubv(DrawColor);
+				meshBuilder.TexCoord2fv(0, b.TexCoord);
+				meshBuilder.AdvanceVertex();
+			}
+
+			vertex[0].Position = vertex[1].Position;
+			vertex[0].TexCoord = vertex[1].TexCoord;
+		}
+
+		meshBuilder.End();
+		Mesh!.Draw();
+	}
+
 	public void DrawPolyLine(Span<Point> points) {
 		throw new NotImplementedException();
 	}

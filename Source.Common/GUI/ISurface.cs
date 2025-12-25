@@ -98,6 +98,7 @@ public interface ISurface
 
 	void DrawFilledRect(int x0, int y0, int x1, int y1);
 	void DrawOutlinedRect(int x0, int y0, int x1, int y1);
+	void DrawOutlinedCircle(int x, int y, int radius, int segments);
 
 	void DrawLine(int x0, int y0, int x1, int y1);
 	void DrawPolyLine(Span<Point> points);
