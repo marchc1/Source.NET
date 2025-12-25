@@ -5,6 +5,7 @@ using Source;
 using Source.Common.Bitbuffers;
 using Source.Common.GUI;
 using Source.GUI.Controls;
+
 using System.Numerics;
 
 namespace Game.Client.HL2;
@@ -16,7 +17,7 @@ public class HudBattery : HudNumericDisplay, IHudElement
 	int NewBat;
 
 	public HudBattery(string? panelName) : base(null, "HudSuit") {
-		/*(IHudElement.)*/ ElementName = panelName;
+		ElementName = panelName;
 		((IHudElement)this).SetHiddenBits(HideHudBits.Health | HideHudBits.NeedSuit);
 	}
 
@@ -32,19 +33,21 @@ public class HudBattery : HudNumericDisplay, IHudElement
 		return needsDraw && ((IHudElement)this).ShouldDraw();
 	}
 
-	public void VidReset() {
+	public void VidInit() {
 		Reset();
 	}
+
 	public void Reset() {
 		ReadOnlySpan<char> tempString = Localize.Find("#Valve_Hud_SUIT");
 
-		if (!tempString.IsEmpty) 
+		if (!tempString.IsEmpty)
 			SetLabelText(tempString);
 		else
 			SetLabelText("SUIT");
-		
+
 		SetDisplayValue(Bat);
 	}
+
 	public override void OnThink() {
 		if (Bat == NewBat)
 			return;
@@ -55,13 +58,13 @@ public class HudBattery : HudNumericDisplay, IHudElement
 		else if (NewBat < Bat) {
 			clientMode.GetViewportAnimationController()!.StartAnimationSequence("SuitDamageTaken");
 
-			if (NewBat < 20) 
+			if (NewBat < 20)
 				clientMode.GetViewportAnimationController()!.StartAnimationSequence("SuitArmorLow");
 		}
 		else {
-			if (Bat == -1 || Bat == 0 || NewBat >= 20) 
+			if (Bat == -1 || Bat == 0 || NewBat >= 20)
 				clientMode.GetViewportAnimationController()!.StartAnimationSequence("SuitPowerIncreasedAbove20");
-			else 
+			else
 				clientMode.GetViewportAnimationController()!.StartAnimationSequence("SuitPowerIncreasedBelow20");
 		}
 
@@ -69,6 +72,7 @@ public class HudBattery : HudNumericDisplay, IHudElement
 
 		SetDisplayValue(Bat);
 	}
+
 	private void Battery(bf_read msg) {
 		NewBat = msg.ReadShort();
 	}

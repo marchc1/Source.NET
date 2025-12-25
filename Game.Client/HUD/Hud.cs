@@ -386,6 +386,12 @@ public class Hud(HudElementHelper HudElementHelper)
 			t.TexCoords[3] = (float)(t.RC.Height - 0.5f) / (float)tall;
 		}
 	}
+
+	public void UpdateHud() {
+		KeyBits &= ~(InButtons.Weapon1 | InButtons.Weapon2);
+		// clientMode.Update();
+		// LCD.Update();
+	}
 }
 
 public class HudElementHelper

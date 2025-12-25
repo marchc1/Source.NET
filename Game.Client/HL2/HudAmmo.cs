@@ -84,12 +84,12 @@ public class HudAmmo : HudNumericDisplay, IHudElement
 			SetAmmo2(ammo2, false);
 
 			if (weapon.UsesClipsForAmmo1()) {
-				// SetShouldDisplaySecondaryValue(true);
+				SetShouldDisplaySecondaryValue(true);
 				clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponUsesClips");
 			}
 			else {
 				clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponDoesNotUseClips");
-				// SetShouldDisplaySecondaryValue(false);
+				SetShouldDisplaySecondaryValue(false);
 			}
 
 			clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponChanged");

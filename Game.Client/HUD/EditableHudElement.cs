@@ -84,12 +84,11 @@ public class HudNumericDisplay : Panel
 	[PanelAnimationVarAliasType("digit2_xpos", "98", "proportional_float")] protected float digit2_xpos;
 	[PanelAnimationVarAliasType("digit2_ypos", "16", "proportional_float")] protected float digit2_ypos;
 
-	public void SetDisplayValue(int value) {
-		Value = value;
-	}
-	public void SetSecondaryValue(int value) {
-		SecondaryValue = value;
-	}
+	public void SetDisplayValue(int value) => Value = value;
+	public void SetSecondaryValue(int value) => SecondaryValue = value;
+	public void SetShouldDisplayValue(bool state) => DisplayValue = state;
+	public void SetShouldDisplaySecondaryValue(bool state) => DisplaySecondaryValue = state;
+
 	public void SetLabelText(ReadOnlySpan<char> text) {
 		((Span<char>)LabelText).Clear();
 		text.ClampedCopyTo(LabelText);

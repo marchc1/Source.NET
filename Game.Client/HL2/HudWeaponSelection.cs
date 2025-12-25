@@ -136,7 +136,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		MakeReadyForUse();
 
 		WeaponBoxes.Clear();
-		SelectedWeaponBox = -0;
+		SelectedWeaponBox = 0;
 
 		int cWeapons = 0;
 		int lastSelectedWeaponBox = -1;
