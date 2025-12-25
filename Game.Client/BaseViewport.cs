@@ -198,7 +198,7 @@ public class BaseViewport : EditablePanel, IViewPort
 		if (manifest.LoadFromFile(fileSystem, file, "GAME") == false)
 			return false;
 
-		bool clearScript = false;
+		bool clearScript = true;
 
 		for (KeyValues? sub = manifest.GetFirstSubKey(); sub != null; sub = sub.GetNextKey()) {
 			if (sub.Name.Equals("file", StringComparison.Ordinal)) {

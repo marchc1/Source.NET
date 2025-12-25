@@ -2708,7 +2708,10 @@ class ColorProperty : IPanelAnimationPropertyConverter
 	}
 
 	public void InitFromDefault(Panel panel, ref PanelAnimationMapEntry entry) {
-		entry.Set(panel, (Color)(int.TryParse(entry.DefaultValue, out int r) ? r : 0));
+		IScheme? scheme = panel.GetScheme();
+		Assert(scheme != null);
+		if (scheme != null) 
+			entry.Set(panel, scheme.GetColor(entry.DefaultValue, new(0, 0, 0, 0)));
 	}
 }
 class FontProperty : IPanelAnimationPropertyConverter
