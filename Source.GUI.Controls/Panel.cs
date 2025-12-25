@@ -205,7 +205,15 @@ public class Panel : IPanel
 		AddPropertyConverter("Color", colorConverter);
 		AddPropertyConverter("HFont", fontConverter);
 		AddPropertyConverter("IFont", fontConverter);
+
 		AddPropertyConverter("proportional_float", p_floatConverter);
+		AddPropertyConverter("proportional_int", p_intConverter);
+
+		// AddPropertyConverter("proportional_xpos", p_screnspace_intConverter_X);
+		// AddPropertyConverter("proportional_ypos", p_screnspace_intConverter_Y);
+
+		// AddPropertyConverter("proportional_width", p_widthConverter);
+		// AddPropertyConverter("proportional_height", p_heightConverter);
 
 		AddPropertyConverter("textureid", textureIdConverter);
 	}
@@ -214,6 +222,7 @@ public class Panel : IPanel
 	static readonly ColorProperty colorConverter = new();
 	static readonly FontProperty fontConverter = new();
 	static readonly ProportionalFloatProperty p_floatConverter = new();
+	static readonly ProportialIntProperty p_intConverter = new();
 	static readonly TextureIdProperty textureIdConverter = new();
 
 	public static void AddPropertyConverter(ReadOnlySpan<char> typeName, IPanelAnimationPropertyConverter converter) {
@@ -2710,7 +2719,7 @@ class ColorProperty : IPanelAnimationPropertyConverter
 	public void InitFromDefault(Panel panel, ref PanelAnimationMapEntry entry) {
 		IScheme? scheme = panel.GetScheme();
 		Assert(scheme != null);
-		if (scheme != null) 
+		if (scheme != null)
 			entry.Set(panel, scheme.GetColor(entry.DefaultValue, new(0, 0, 0, 0)));
 	}
 }
@@ -2751,6 +2760,26 @@ class ProportionalFloatProperty : IPanelAnimationPropertyConverter
 		float.TryParse(entry.DefaultValue, out float f);
 		f = panel.GetScheme()?.GetProportionalScaledValueEx((int)f) ?? f;
 		entry.Set(panel, f);
+	}
+}
+class ProportialIntProperty : IPanelAnimationPropertyConverter
+{
+	public void GetData(Panel panel, KeyValues kv, ref PanelAnimationMapEntry entry) {
+		int i = (int)entry.Get(panel);
+		i = panel.GetScheme()?.GetProportionalScaledValueEx(i) ?? i;
+		kv.SetInt(entry.ScriptName, i);
+	}
+
+	public void SetData(Panel panel, KeyValues kv, ref PanelAnimationMapEntry entry) {
+		int i = kv.GetInt(entry.ScriptName);
+		i = panel.GetScheme()?.GetProportionalScaledValueEx(i) ?? i;
+		entry.Set(panel, i);
+	}
+
+	public void InitFromDefault(Panel panel, ref PanelAnimationMapEntry entry) {
+		_ = int.TryParse(entry.DefaultValue, out int i);
+		i = panel.GetScheme()?.GetProportionalScaledValueEx(i) ?? i;
+		entry.Set(panel, i);
 	}
 }
 class TextureIdProperty : IPanelAnimationPropertyConverter

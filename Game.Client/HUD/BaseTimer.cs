@@ -13,7 +13,10 @@ class HudBaseTimer : HudNumericDisplay, IHudElement
 	[PanelAnimationVar("Alpha", "255")] protected float AlphaOverride;
 	[PanelAnimationVar("SecondaryColor", "FgColor")] protected Color FlashColor;
 
-	public HudBaseTimer(Panel parent, string panelName) : base(parent, panelName) {
+	public HudBaseTimer(string panelName) : base(null, "HudBaseTimer") {
+		var parent = clientMode.GetViewport();
+		SetParent(parent);
+
 		Minutes = 0;
 		Seconds = 0;
 		SetLabelText("");

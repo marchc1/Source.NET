@@ -547,7 +547,7 @@ public class AnimationController : Panel, IAnimationController
 		ref ActiveAnimation anim = ref anims[ActiveAnimations.Count - 1];
 
 		anim.Panel = panel;
-		anim.SeqName = seqName.Hash();
+		anim.SeqName = seqName;
 		anim.Variable = cmd.Variable;
 		anim.Interpolator = cmd.InterpolationFunction;
 		anim.InterpolatorParam = cmd.InterpolationParameter;
@@ -1039,6 +1039,7 @@ public class AnimationController : Panel, IAnimationController
 					mem = FilesystemHelpers.ParseFile(mem, token, out _);
 					animCmd.RunEvent.Event = ScriptSymbols.AddString(token);
 					mem = FilesystemHelpers.ParseFile(mem, token, out _);
+					animCmd.RunEvent.TimeDelay = float.TryParse(token.SliceNullTerminatedString(), out float f) ? f : 0;
 				}
 				else if (stricmp(token, "stopanimation") == 0) {
 					animCmd.CommandType = AnimCommandType.StopAnimation;

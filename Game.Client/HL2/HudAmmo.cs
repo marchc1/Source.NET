@@ -141,13 +141,11 @@ public class HudAmmo : HudNumericDisplay, IHudElement
 	}
 
 	public override void Paint() {
-		// Console.WriteLine($"{GetName()} - {GetX()} , {GetY()}");
-
 		base.Paint();
 		if (IconPrimaryAmmo != null) {//todo && vehicle null
 			Surface.GetTextSize(TextFont, LabelText, out int labelWide, out int labelTall);
 			int x = (int)text_xpos + (labelWide - IconPrimaryAmmo.Width()) / 2;
-			int y = (int)text_ypos + labelTall + (IconPrimaryAmmo.Height() / 2);
+			int y = (int)text_ypos - (labelTall + (IconPrimaryAmmo.Height() / 2));
 			IconPrimaryAmmo.DrawSelf(x, y, GetFgColor());
 		}
 	}
