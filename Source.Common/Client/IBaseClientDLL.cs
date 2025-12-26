@@ -19,6 +19,7 @@ public interface IBaseClientDLL
 	void HudText(ReadOnlySpan<char> text);
 	bool DispatchUserMessage(int msgType, bf_read msgData);
 	bool Init();
+	int HudVidInit();
 	bool HandleUiToggle();
 	void IN_DeactivateMouse();
 	void IN_ActivateMouse();

@@ -77,11 +77,11 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 	public override void SetWeaponSelected() {
 		base.SetWeaponSelected();
-		switch(hud_fastswitch.GetInt()){
+		switch (hud_fastswitch.GetInt()) {
 			case HUDTYPE_FASTSWITCH:
 			case HUDTYPE_CAROUSEL:
-				ActivateFastswitchWeaponDisplay(GetSelectedWeapon());	
-			break;
+				ActivateFastswitchWeaponDisplay(GetSelectedWeapon());
+				break;
 			case HUDTYPE_PLUS:
 				ActivateWeaponHighlight(GetSelectedWeapon());
 				break;
@@ -115,7 +115,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 			FadingOut = false;
 		}
 	}
-	
+
 	bool ShouldDraw() {
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
 		if (player == null) {

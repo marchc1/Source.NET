@@ -407,7 +407,7 @@ public class ClientState : BaseClientState
 	protected override bool ProcessEntityMessage(svc_EntityMessage msg) {
 		IClientNetworkable? entity = entitylist.GetClientNetworkable(msg.EntityIndex);
 
-		if (entity == null) 
+		if (entity == null)
 			return true;
 
 		byte[] entityData = ArrayPool<byte>.Shared.Rent(MAX_ENTITY_MSG_DATA);
@@ -904,7 +904,7 @@ public class ClientState : BaseClientState
 
 		Assert(NumFrames > 0);
 		Frames = frame.Next; // unlink head
-							 // deleting frame will decrease global reference counter
+												 // deleting frame will decrease global reference counter
 		FreeFrame(frame);
 
 		if (--NumFrames == 0) {
@@ -1092,6 +1092,8 @@ public class ClientState : BaseClientState
 
 		// Gmod Specific - a global bool. Should we put this into the host state?
 		// g_bIsDedicated = msg->m_bIsDedicated;
+
+		g_ClientDLL?.HudVidInit();
 
 		// gHostSpawnCount = m_nServerCount;
 

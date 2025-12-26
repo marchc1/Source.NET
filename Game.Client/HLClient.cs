@@ -304,6 +304,12 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		sprite?.Init(loadName);
 	}
 
+	public int HudVidInit() {
+		gHUD.VidInit();
+		// todo voicemgr
+		return 1;
+	}
+
 	public void LevelShutdown() {
 
 	}
