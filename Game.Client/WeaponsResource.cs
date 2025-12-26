@@ -1,12 +1,9 @@
 ﻿global using static Game.Client.WeaponsResource;
+
 using Game.Client.HUD;
 using Game.Shared;
 
 using Source;
-
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Game.Client;
 
@@ -24,7 +21,7 @@ public class WeaponsResource
 				LoadWeaponSprites(player.GetWeapon(i)!.GetWeaponFileInfoHandle());
 	}
 
-	public static HudTexture? FindHudTextureInDict(HudTextureDict list, ReadOnlySpan<char> psz){
+	public static HudTexture? FindHudTextureInDict(HudTextureDict list, ReadOnlySpan<char> psz) {
 		if (list.TryGetValue(psz.Hash(false), out HudTexture? tex))
 			return tex;
 
@@ -42,7 +39,7 @@ public class WeaponsResource
 			return;
 
 		weaponInfo.LoadedHudElements = true;
-				  
+
 		weaponInfo.IconActive = null!;
 		weaponInfo.IconInactive = null!;
 		weaponInfo.IconAmmo = null!;
@@ -52,7 +49,7 @@ public class WeaponsResource
 		weaponInfo.IconSmall = null!;
 
 		Span<char> sz = stackalloc char[128];
-		sprintf(sz,"scripts/%s.txt").S(weaponInfo.ClassName);
+		sprintf(sz, "scripts/%s.txt").S(weaponInfo.ClassName);
 
 		HudTextureDict tempList = new();
 
@@ -141,4 +138,29 @@ public class WeaponsResource
 			}
 		}
 	}
+
+	public void Init() => Reset();
+	public void Reset() { }
+
+	public HudTexture? GetAmmoIconFromWeapon(int ammoId) {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return null!;
+
+		for (int i = 0; i < MAX_WEAPONS; i++) {
+			BaseCombatWeapon? weapon = player.GetWeapon(i);
+			if (weapon == null)
+				continue;
+
+			if (weapon.PrimaryAmmoType == ammoId)
+				return weapon.GetWpnData().IconAmmo;
+
+			if (weapon.SecondaryAmmoType == ammoId)
+				return weapon.GetWpnData().IconAmmo2;
+		}
+
+		return null!;
+	}
+
+	// FileWeaponInfo GetWeaponFromAmmo(int iAmmoId) { }
 }

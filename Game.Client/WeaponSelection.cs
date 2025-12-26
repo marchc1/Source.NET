@@ -29,22 +29,26 @@ public class BaseHudWeaponSelection : EditableHudElement
 
 	public override void Init() {
 		Reset();
-		// gWR.Init();
+		gWR.Init();
 		SelectionTime = gpGlobals.CurTime;
 	}
 
 	void Reset() {
-		// gWR.Reset();
+		gWR.Reset();
 		SelectionVisible = false;
 		SelectionTime = gpGlobals.CurTime;
 		// UnlockRenderGroup todo
 	}
 
 	void UpdateSelectionTime() => SelectionTime = gpGlobals.CurTime;
-	BaseHudWeaponSelection GetInstance() => Instance;
+	static BaseHudWeaponSelection GetInstance() => Instance!;
 	BaseHudWeaponSelection GetHudWeaponSelection() => GetInstance();
 
-	void VidInit() { }
+	public void VidInit() {
+		gWR.LoadAllWeaponSprites();
+
+		// todo hudhr
+	}
 
 	public override void OnThink() { }// todo
 

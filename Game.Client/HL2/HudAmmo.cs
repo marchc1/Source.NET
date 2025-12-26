@@ -60,7 +60,7 @@ public class HudAmmo : HudNumericDisplay, IHudElement
 		SetPaintEnabled(true);
 		SetPaintBackgroundEnabled(true);
 
-		// IconPrimaryAmmo = gWR.GetAmmoIconFromWeapon(weapon.PrimaryAmmoType);
+		IconPrimaryAmmo = gWR.GetAmmoIconFromWeapon(weapon.PrimaryAmmoType);
 
 		int ammo1 = weapon.Clip1;
 		int ammo2;
@@ -239,7 +239,7 @@ public class HudAmmoSecondary : HudNumericDisplay, IHudElement
 			else
 				clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponDoesNotUseSecondaryAmmo");
 			CurrentActiveWeapon = weapon;
-			// IconSecondaryAmmo = gWR.GetAmmoIconFromWeapon(weapon.GetSecondaryAmmoType());//todo
+			IconSecondaryAmmo = gWR.GetAmmoIconFromWeapon(weapon.SecondaryAmmoType);
 		}
 	}
 }
