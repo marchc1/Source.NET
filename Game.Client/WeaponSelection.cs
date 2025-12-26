@@ -168,7 +168,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 		input.MakeWeaponSelection(player.GetLastWeapon());
 	}
 
-	void SetWeaponSelected() {
+	public virtual void SetWeaponSelected() {
 		Assert(GetSelectedWeapon());
 		input.MakeWeaponSelection(GetSelectedWeapon());
 	}

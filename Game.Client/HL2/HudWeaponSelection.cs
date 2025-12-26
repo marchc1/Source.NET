@@ -75,6 +75,19 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 	void SetSelectedSlot(int slot) => SelectedSlot = slot;
 	void SetSelectedSlideDir(int dir) => SelectedSlideDir = dir;
 
+	public override void SetWeaponSelected() {
+		base.SetWeaponSelected();
+		switch(hud_fastswitch.GetInt()){
+			case HUDTYPE_FASTSWITCH:
+			case HUDTYPE_CAROUSEL:
+				ActivateFastswitchWeaponDisplay(GetSelectedWeapon());	
+			break;
+			case HUDTYPE_PLUS:
+				ActivateWeaponHighlight(GetSelectedWeapon());
+				break;
+		}
+	}
+
 	void OnWeaponPickup(BaseCombatWeapon weapon) {
 		HudHistoryResource? hr = gHUD.FindElement("CHudHistoryResource") as HudHistoryResource;
 		// hr?.AddToHistory(weapon);
@@ -102,7 +115,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 			FadingOut = false;
 		}
 	}
-
+	
 	bool ShouldDraw() {
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
 		if (player == null) {
@@ -708,12 +721,11 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		}
 
 		nextWeapon ??= FindNextWeaponInWeaponSelection(-1, -1);
-
 		if (nextWeapon != null) {
 			SetSelectedWeapon(nextWeapon);
 			SetSelectedSlideDir(1);
 
-			if (hud_fastswitch.GetInt() > 0)
+			if (hud_fastswitch.GetInt() != 0)
 				SelectWeapon();
 			else if (!IsInSelectionMode())
 				OpenSelection();
@@ -749,7 +761,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 			SetSelectedWeapon(prevWeapon);
 			SetSelectedSlideDir(-1);
 
-			if (hud_fastswitch.GetInt() > 0)
+			if (hud_fastswitch.GetInt() != 0)
 				SelectWeapon();
 			else if (!IsInSelectionMode())
 				OpenSelection();
