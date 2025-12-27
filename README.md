@@ -42,7 +42,7 @@ You need the following:
 - The .NET 9.0 SDK
 - A license for Garry's Mod on Steam
 
-You will also need to symlink the Half Life 2/Garry's Mod vpk files or copy them directly. A Powershell file is provided in Game.Assets to automatically symlink the necessary VPK's and map files - if someone wants to write an equivalent Linux script for doing this, that would be very appreciated. 
+You will also need to symlink the Half Life 2/Garry's Mod vpk files or copy them directly. There is a lua script provided which will detect your install and do it for you. Just run `lua ./Game.Assets/symlink.lua`
 
 ## Structure
 The engine is very similar to Source, with various deviations where I saw fit, to better match .NET/C# implementation details. Things like UtlVector/UtlMap/UtlLinkedList are replaced with their C# equivalents. Each "stage" described here builds on each other incrementally - ie. stage 3 can include stage 2 and stage 1 libraries, stage 2 can include stage 1 libraries, but stage 1 cannot include stage 2 libraries, etc. Libraries can include other libraries within their own stage if needed - but is done only in a few cases (VTF including Common and Bitmap, for example.)
