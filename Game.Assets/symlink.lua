@@ -147,6 +147,9 @@ if not gmodDir then
 end
 
 local links = {
+	-- Networking Compatibility
+	["hl2/steam.inf"] = gmodDir .. "/garrysmod/steam.inf",
+
 	-- Garry's Mod content
 	["hl2/garrysmod_dir.vpk"] = gmodDir .. "/garrysmod/garrysmod_dir.vpk",
 	["hl2/garrysmod_000.vpk"] = gmodDir .. "/garrysmod/garrysmod_000.vpk",
