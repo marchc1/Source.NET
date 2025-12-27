@@ -51,7 +51,7 @@ public class HudZoom : HudNumericDisplay, IHudElement
 		SetPaintBorderEnabled(false);
 		SetFgColor(scheme.GetColor("ZoomReticleColor", GetFgColor()));
 
-		// SetForceStereoRenderToFrameBuffer(true);
+		SetForceStereoRenderToFrameBuffer(true);
 
 		surface.GetFullscreenViewport(out _, out _, out int wide, out int tall);
 		SetBounds(0, 0, wide, tall);
@@ -130,7 +130,7 @@ public class HudZoom : HudNumericDisplay, IHudElement
 		}
 
 		using MatRenderContextPtr renderContext = new(materials);
-		renderContext.Bind(ZoomMaterial as IMaterial);
+		renderContext.Bind(ZoomMaterial.Get()!);
 		IMesh mesh = renderContext.GetDynamicMesh(true, null, null, null);
 
 		float x0 = 0.0f, x1 = x, x2 = wide;

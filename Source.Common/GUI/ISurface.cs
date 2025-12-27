@@ -218,6 +218,8 @@ public interface ISurface
 	int DrawColoredText(IFont? font, int x, int y, byte r, byte g, byte b, byte a, ReadOnlySpan<char> text);
 	void DrawColoredTextRect(IFont? font, int x, int y, int w, int h, byte r, byte g, byte b, byte a, ReadOnlySpan<char> text);
 	void DrawString(ReadOnlySpan<char> str, FontDrawType drawType = FontDrawType.Default);
+	void PopFullscreenViewport();
+	void PushFullscreenViewport();
 }
 
 public interface IMatSystemSurface : ISurface
@@ -229,6 +231,4 @@ public interface IMatSystemSurface : ISurface
 	void DrawSetTextureFrame(in TextureID id, int frame, ref TokenCache frameCache);
 	void SetFullscreenViewportAndRenderTarget(int x, int y, int w, int h, ITexture? renderTarget);
 	void GetFullscreenViewport(out int x, out int y, out int w, out int h);
-	void PopFullscreenViewport();
-	void PushFullscreenViewport();
 }

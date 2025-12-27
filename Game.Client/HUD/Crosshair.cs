@@ -39,7 +39,7 @@ public class HudCrosshair : EditableHudElement, IHudElement
 		SetPaintBackgroundEnabled(false);
 
 		SetSize(ScreenWidth(), ScreenHeight());
-		// SetForceStereoRenderToFrameBuffer(true);
+		SetForceStereoRenderToFrameBuffer(true);
 	}
 
 	public bool ShouldDraw() {

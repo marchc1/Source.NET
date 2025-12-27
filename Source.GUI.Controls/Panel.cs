@@ -9,6 +9,7 @@ using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Input;
 using Source.Common.Launcher;
+using Source.Common.MaterialSystem;
 using Source.Common.Utilities;
 
 using System.Drawing;
@@ -247,6 +248,7 @@ public class Panel : IPanel
 	public ILocalize Localize = AllowDependencyInjection ? null! : Singleton<ILocalize>();
 	public ILauncherManager Launcher = AllowDependencyInjection ? null! : Singleton<ILauncherManager>();
 	public ISystem System = AllowDependencyInjection ? null! : Singleton<ISystem>();
+	public IMaterialSystem Materials = AllowDependencyInjection ? null! : Singleton<IMaterialSystem>();
 
 	private AnimationController? ac;
 	public AnimationController GetAnimationController() => ac ??= EngineAPI.GetRequiredService<AnimationController>();
@@ -950,7 +952,7 @@ public class Panel : IPanel
 			AddActionSignalTarget(pActionSignalTarget);
 		}
 
-		// ForceStereoRenderToFrameBuffer = resourceData.GetBool("ForceStereoRenderToFrameBuffer", false);
+		ForceStereoRenderToFrameBuffer = resourceData.GetBool("ForceStereoRenderToFrameBuffer", false);
 
 		int roundedCorners = resourceData.GetInt("RoundedCorners", -1);
 		if (roundedCorners >= 0)
@@ -1396,6 +1398,13 @@ public class Panel : IPanel
 		}
 
 		bool bPushedViewport = false;
+		if (GetForceStereoRenderToFrameBuffer()) {
+			using MatRenderContextPtr renderContext = new(Materials);
+			if (renderContext.GetRenderTarget() != null) {
+				Surface.PushFullscreenViewport();
+				bPushedViewport = true;
+			}
+		}
 
 		Span<int> clipRect = stackalloc int[4];
 		GetClipRect(out clipRect[0], out clipRect[1], out clipRect[2], out clipRect[3]);
@@ -1464,10 +1473,8 @@ public class Panel : IPanel
 
 		Surface.SwapBuffers(this);
 
-		if (bPushedViewport) {
-			// Surface.PopFullscreenViewport();
-			// ^^ todo: later
-		}
+		if (bPushedViewport)
+			Surface.PopFullscreenViewport();
 	}
 
 	IFont? _dbgfont;
@@ -2283,6 +2290,10 @@ public class Panel : IPanel
 
 		return !childOfModal;
 	}
+
+	bool ForceStereoRenderToFrameBuffer;
+	private bool GetForceStereoRenderToFrameBuffer() => ForceStereoRenderToFrameBuffer;
+	public void SetForceStereoRenderToFrameBuffer(bool state) => ForceStereoRenderToFrameBuffer = state;
 
 	public void InternalKeyCodeTyped(ButtonCode code) {
 		if (!ShouldHandleInputMessage()) {
