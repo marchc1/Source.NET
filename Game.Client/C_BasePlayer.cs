@@ -205,4 +205,6 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 		return fromPlayer.ActiveWeapon.Get();
 	}
+
+	public bool IsPoisoned() => Local.Poisoned;
 }
