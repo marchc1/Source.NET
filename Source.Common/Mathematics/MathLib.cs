@@ -736,6 +736,8 @@ public static class MathLib
 			return DotProduct(new(pV1, 4), new(pV2, 4));
 		}
 	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static vec_t DotProduct(in Vector3 v1, in Vector3 v2) => v1.X * v2.X + v1.Y * v2.Y + v1.Z * v2.Z;
 
 
 	public static void MatrixBuildPerspectiveX(ref Matrix4x4 dst, float fovX, float aspectRatio, float zNear, float zFar) {
