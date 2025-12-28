@@ -129,7 +129,7 @@ public class ClientModeShared : GameEventListener, IClientMode
 	}
 
 	private void ReloadScheme(bool v) {
-		BuildGroup.ClearResFileCache(); 
+		BuildGroup.ClearResFileCache();
 
 		Viewport.ReloadScheme("resource/ClientScheme.res");
 	}
@@ -227,6 +227,10 @@ public class ClientModeShared : GameEventListener, IClientMode
 
 	public void LevelInit(ReadOnlySpan<char> newmap) {
 		Viewport.GetAnimationController().StartAnimationSequence("LevelInit");
+	}
+
+	public void ProcessInput(bool active) {
+		gHUD.ProcessInput(active);
 	}
 
 	InlineArray2<int> RootSize;

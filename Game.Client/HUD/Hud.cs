@@ -258,6 +258,13 @@ public class Hud(HudElementHelper HudElementHelper)
 		return (hudFlags & hideHud) != 0;
 	}
 
+	internal void ProcessInput(bool active) {
+		if (active) {
+			// KeyBits = input.GetButtonBits();
+			gHUD.Think();
+		}
+	}
+
 	internal bool IsRenderGroupLockedFor(IHudElement hudElement, int groupIndex) {
 		return false; // todo
 	}
@@ -398,6 +405,27 @@ public class Hud(HudElementHelper HudElementHelper)
 		KeyBits &= ~(InButtons.Weapon1 | InButtons.Weapon2);
 		// clientMode.Update();
 		// LCD.Update();
+	}
+
+	public void Think() {
+		foreach (var element in HudList) {
+			bool visible = element.ShouldDraw();
+			element.SetActive(visible);
+			Panel? panel = (Panel?)element;
+			if (panel != null && panel.Visible != visible)
+				panel.SetVisible(visible);
+			else if (panel == null)
+				Assert(false, "All HUD elements should derive from vgui");
+
+			// if (visible)
+			// 	panel?.ProcessInput();
+		}
+
+		// BaseCombatWeapon? weapon = GetActiveWeapon();
+		// if (weapon != null) {
+		// 	weapon.ProcessInput();
+
+		// screenshottime
 	}
 }
 

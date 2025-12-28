@@ -807,16 +807,14 @@ public class ClientDLL(IServiceProvider services, Sys Sys, EngineRecvTable RecvT
 		}
 
 		RecvTable.Init(recvTables.AsSpan()[..nRecvTables]!); // << ! is acceptable here; anything beyond recvTables is null, anything before it shouldnt be
-															 // (and if something is null before that point something else is already horribly broken)
+																												 // (and if something is null before that point something else is already horribly broken)
 	}
 
 	public void Update() {
 
 	}
 
-	public void ProcessInput() {
-
-	}
+	public void ProcessInput() => g_ClientDLL?.HudProcessInput(cl.IsConnected());
 
 	public void FrameStageNotify(ClientFrameStage stage) {
 		clientDLL.FrameStageNotify(stage);

@@ -30,7 +30,7 @@ public class HudBattery : HudNumericDisplay, IHudElement
 
 	public bool ShouldDraw() {
 		bool needsDraw = Bat != NewBat || (GetAlpha() > 0);
-		return needsDraw && ((IHudElement)this).ShouldDraw();
+		return needsDraw;//&& ((IHudElement)this).ShouldDraw(); FIXME: Stack overflow
 	}
 
 	public void VidInit() {

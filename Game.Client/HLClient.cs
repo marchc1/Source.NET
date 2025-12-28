@@ -310,6 +310,8 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		return 1;
 	}
 
+	public void HudProcessInput(bool active) => gHUD.ProcessInput(active);
+
 	public void LevelShutdown() {
 
 	}
