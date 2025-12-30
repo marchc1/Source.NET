@@ -3,8 +3,6 @@ using CommunityToolkit.HighPerformance;
 using Game.Shared;
 
 using Source;
-using Source.Common;
-using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.GUI;
 using Source.Common.Networking;
@@ -16,15 +14,6 @@ using System.Runtime.CompilerServices;
 using Color = Source.Color;
 
 namespace Game.Client;
-
-public static class NetgraphCallbacks
-{
-	public static void NetgraphFontChangeCallback(IConVar var, string pOldValue, float flOldValue) {
-		if (NetGraphPanel.g_NetGraphPanel != null) {
-			NetGraphPanel.g_NetGraphPanel.OnFontChanged();
-		}
-	}
-}
 
 /// <summary>
 /// Displays the net graph
@@ -70,6 +59,7 @@ public class NetGraphPanel : Panel
 		public Color Color2;
 	}
 
+	public static void NetgraphFontChangeCallback(IConVar conVar, in ConVarChangeContext ctx) => g_NetGraphPanel?.OnFontChanged();
 	public static readonly ConVar net_scale = new("net_scale", "5", FCvar.Archive);
 	public static readonly ConVar net_graphpos = new("net_graphpos", "1", FCvar.Archive);
 	public static readonly ConVar net_graphsolid = new("net_graphsolid", "1", FCvar.Archive);
@@ -77,9 +67,9 @@ public class NetGraphPanel : Panel
 	public static readonly ConVar net_graphmsecs = new("net_graphmsecs", "400", FCvar.Archive, "The latency graph represents this many milliseconds.");
 	public static readonly ConVar net_graphshowlatency = new("net_graphshowlatency", "1", FCvar.Archive, "Draw the ping/packet loss graph.");
 	public static readonly ConVar net_graphshowinterp = new("net_graphshowinterp", "1", FCvar.Archive, "Draw the interpolation graph.");
-	public static readonly ConVar net_graph = new("net_graph", "0", 0, "Draw the network usage graph, = 2 draws data on payload, = 3 draws payload legend.");
-	public static readonly ConVar net_graphheight = new("net_graphheight", "64", FCvar.Archive, "Height of netgraph panel");
-	public static readonly ConVar net_graphproportionalfont = new("net_graphproportionalfont", "1", FCvar.Archive, "Determines whether netgraph font is proportional or not");
+	public static readonly ConVar net_graph = new("net_graph", "0", 0, "Draw the network usage graph, = 2 draws data on payload, = 3 draws payload legend.", callback: NetgraphFontChangeCallback);
+	public static readonly ConVar net_graphheight = new("net_graphheight", "64", FCvar.Archive, "Height of netgraph panel", callback: NetgraphFontChangeCallback);
+	public static readonly ConVar net_graphproportionalfont = new("net_graphproportionalfont", "1", FCvar.Archive, "Determines whether netgraph font is proportional or not", callback: NetgraphFontChangeCallback);
 
 	public const int TIMINGS = 1024; // Number of values to track (must be power of 2) b/c of masking
 	public const float FRAMERATE_AVG_FRAC = 0.9f;
@@ -135,8 +125,7 @@ public class NetGraphPanel : Panel
 	TimeUnit_t ServerFramerateStdDeviation;
 
 	public NetGraphPanel(IPanel parent) : base((Panel?)parent, "NetGraphPanel") {
-		int w, h;
-		Surface.GetScreenSize(out w, out h);
+		Surface.GetScreenSize(out int w, out int h);
 
 		SetParent(parent);
 		SetSize(w, h);
@@ -205,11 +194,13 @@ public class NetGraphPanel : Panel
 
 		g_NetGraphPanel = this;
 	}
+
 	// FIXME #37
 	public override void Dispose() {
 		base.Dispose();
 		g_NetGraphPanel = null;
 	}
+
 	public void OnFontChanged() {
 		ReadOnlySpan<char> str = "fps:  435  ping: 533 ms lerp 112.3 ms   0/0";
 
@@ -305,8 +296,8 @@ public class NetGraphPanel : Panel
 		maxcolor[1][2] = 0;
 
 		for (int i = 0; i < 3; i++) {
-			dc[0][i] = (float)(maxcolor[0][i] - mincolor[0][i]);
-			dc[1][i] = (float)(maxcolor[1][i] - mincolor[1][i]);
+			dc[0][i] = maxcolor[0][i] - mincolor[0][i];
+			dc[1][i] = maxcolor[1][i] - mincolor[1][i];
 		}
 
 		hfrac = LERP_HEIGHT / 3;
@@ -342,7 +333,7 @@ public class NetGraphPanel : Panel
 
 		for (a = 0; a < w; a++) {
 			i = (OutgoingSequence - a) & (TIMINGS - 1);
-			h = Math.Min((int)((cmdinfo[i].CmdLerp / 3.0) * LERP_HEIGHT), LERP_HEIGHT);
+			h = Math.Min((int)(cmdinfo[i].CmdLerp / 3.0 * LERP_HEIGHT), LERP_HEIGHT);
 			if (h < 0) {
 				h = LERP_HEIGHT;
 			}
@@ -420,7 +411,7 @@ public class NetGraphPanel : Panel
 		AvgPacketIn = netchannel.GetAveragePackets(NetFlow.FLOW_INCOMING);
 		AvgPacketOut = netchannel.GetAveragePackets(NetFlow.FLOW_OUTGOING);
 
-		for (int i = 0; i < NetFlow.MAX_FLOWS; i++) 
+		for (int i = 0; i < NetFlow.MAX_FLOWS; i++)
 			netchannel.GetStreamProgress(i, out StreamRecv[i], out StreamTotal[i]);
 
 		float flAdjust = 0.0f;
@@ -437,7 +428,7 @@ public class NetGraphPanel : Panel
 
 		// Fill in frame data
 		for (int seqnr = IncomingSequence - UpdateWindowSize + 1; seqnr <= IncomingSequence; seqnr++) {
-			float frame_received_time = (float)netchannel.GetPacketTime(NetFlow.FLOW_INCOMING, seqnr);
+			// float frame_received_time = (float)netchannel.GetPacketTime(NetFlow.FLOW_INCOMING, seqnr);
 
 			ref var nbwg = ref m_Graph[seqnr & (TIMINGS - 1)];
 			ref var lat = ref m_PacketLatency[seqnr & (TIMINGS - 1)];
@@ -826,7 +817,7 @@ public class NetGraphPanel : Panel
 		int w;
 		Rectangle vrect = new();
 		int maxmsgbytes = 0;
-		float avg_message = 0.0f;
+		float avg_message;
 		float warning_threshold = 0.0f;
 
 		if ((graphtype = GraphValue()) == 0)
@@ -881,7 +872,6 @@ public class NetGraphPanel : Panel
 
 		int lastvalidh = 0;
 
-		Color color = new(255, 255, 255);
 		Rectangle rcFill = new();
 
 		int pingheight = NetGraphHeight - LERP_HEIGHT - 2;
@@ -896,16 +886,16 @@ public class NetGraphPanel : Panel
 			int h = bShowLatency ? m_PacketLatency[i].Latency : 0;
 
 			ref var pl = ref m_PacketLatency[i];
-			ColorForHeight(ref pl, out color, out int ping);
+			ColorForHeight(ref pl, out Color color, out int ping);
 
-			if (ping == 0) 
+			if (ping == 0)
 				h = lastvalidh;
 			else {
 				h = (int)(pingheight * (float)h / net_graphmsecs.GetFloat());
 				lastvalidh = h;
 			}
 
-			if (h > pingheight) 
+			if (h > pingheight)
 				h = pingheight;
 
 			rcFill.X = x + w - a - 1;
@@ -917,7 +907,7 @@ public class NetGraphPanel : Panel
 			}
 
 			if (ping == 0)
-				DrawLine2(in rcFill, color with { A = 255 }, color with { A = 31});
+				DrawLine2(in rcFill, color with { A = 255 }, color with { A = 31 });
 			else
 				DrawLine(in rcFill, color);
 
@@ -964,7 +954,7 @@ public class NetGraphPanel : Panel
 
 			if (!DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.UserMessage], 128, 128, 0))
 				continue;
-			
+
 			if (!DrawDataSegment(ref rcFill, m_Graph[i].MsgBytes[(int)NetChannelGroup.EntMessage], 0, 128, 128))
 				continue;
 

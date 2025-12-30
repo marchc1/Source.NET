@@ -51,7 +51,7 @@ public class HudSuitPower : EditableHudElement, IHudElement
 			return false;
 
 		bool needsDraw = (player.HL2Local.SuitPower != SuitPower) || AuxPowerColor[3] > 0;
-		return needsDraw && ((IHudElement)this).ShouldDraw();
+		return needsDraw;// && ((IHudElement)this).ShouldDraw();
 	}
 
 	public override void OnThink() {
