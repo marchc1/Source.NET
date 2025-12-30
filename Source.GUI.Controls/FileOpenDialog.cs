@@ -1,7 +1,8 @@
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Input;
-using Source.GUI.Controls;
+
+namespace Source.GUI.Controls;
 
 enum FileOpenDialogType
 {

@@ -1,5 +1,6 @@
 using Source.Common.GUI;
-using Source.GUI.Controls;
+
+namespace Source.GUI.Controls;
 
 class DirectoryTreeView : TreeView
 {

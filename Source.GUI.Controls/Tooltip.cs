@@ -1,6 +1,7 @@
 using Source.Common.GUI;
 using Source.Common.Launcher;
-using Source.GUI.Controls;
+
+namespace Source.GUI.Controls;
 
 public class BaseTooltip : IDisposable
 {

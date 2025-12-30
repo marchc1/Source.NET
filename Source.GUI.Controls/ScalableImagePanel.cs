@@ -1,6 +1,6 @@
-using Source;
 using Source.Common.Formats.Keyvalues;
-using Source.GUI.Controls;
+
+namespace Source.GUI.Controls;
 
 class ScalableImagePanel : Panel
 {

@@ -1,5 +1,4 @@
-using Source;
-using Source.GUI.Controls;
+namespace Source.GUI.Controls;
 
 class SubRectImage : Image
 {

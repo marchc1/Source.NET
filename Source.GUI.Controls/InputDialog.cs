@@ -1,5 +1,6 @@
 using Source.Common.Formats.Keyvalues;
-using Source.GUI.Controls;
+
+namespace Source.GUI.Controls;
 
 class BaseInputDialog : Frame
 {

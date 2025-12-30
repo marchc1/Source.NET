@@ -1,5 +1,6 @@
 using Source.Common.Input;
-using Source.GUI.Controls;
+
+namespace Source.GUI.Controls;
 
 class ToolWindow : Frame
 {

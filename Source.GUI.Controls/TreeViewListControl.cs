@@ -1,7 +1,7 @@
-using Source;
 using Source.Common.GUI;
 using Source.Common.Utilities;
-using Source.GUI.Controls;
+
+namespace Source.GUI.Controls;
 
 class TreeViewListControl : Panel
 {
