@@ -580,6 +580,8 @@ public class VGuiInput : IVGuiInput
 		throw new NotImplementedException();
 	}
 
+	readonly static KeyValues KV_KeyFocusTicked = new("KeyFocusTicked");
+	readonly static KeyValues KV_MouseFocusTicked = new("MouseFocusTicked");
 	public unsafe void RunFrame() {
 		if (DebugMessages == -1) {
 			DebugMessages = CommandLine.FindParm("-vguifocus") != 0 ? 1 : 0;
@@ -589,11 +591,11 @@ public class VGuiInput : IVGuiInput
 
 		if (context.KeyFocus != null)
 			if (IsChildOfModalPanel(context.KeyFocus))
-				vgui.PostMessage(context.KeyFocus, new KeyValues("KeyFocusTicked"), null);
+				vgui.PostMessage(context.KeyFocus, KV_KeyFocusTicked, null);
 
 		if (context.MouseFocus != null) {
 			if (IsChildOfModalPanel(context.MouseFocus))
-				vgui.PostMessage(context.MouseFocus, new KeyValues("MouseFocusTicked"), null);
+				vgui.PostMessage(context.MouseFocus, KV_MouseFocusTicked, null);
 		}
 		else if (context.AppModalPanel != null) {
 			surface.SetCursor(CursorCode.Arrow);
@@ -778,6 +780,7 @@ public class VGuiInput : IVGuiInput
 		throw new NotImplementedException();
 	}
 
+	readonly static KeyValues KV_MouseCaptureLost = new("MouseCaptureLost");
 	public void SetMouseCapture(IPanel? panel) {
 		if (!IsChildOfModalPanel(panel))
 			return;
@@ -788,7 +791,7 @@ public class VGuiInput : IVGuiInput
 		context.MouseCaptureStartCode = (ButtonCode)(-1);
 
 		if (context.MouseCapture != null && panel != context.MouseCapture)
-			vgui.PostMessage(context.MouseCapture, new KeyValues("MouseCaptureLost"), null);
+			vgui.PostMessage(context.MouseCapture, KV_MouseCaptureLost, null);
 
 		if (panel == null) {
 			if (context.MouseCapture != null)
@@ -804,6 +807,8 @@ public class VGuiInput : IVGuiInput
 		throw new NotImplementedException();
 	}
 
+	readonly static KeyValues KV_CursorExited = new("CursorExited");
+	readonly static KeyValues KV_CursorEntered = new("CursorEntered");
 	public void SetMouseFocus(IPanel? newMouseFocus) {
 		if (!IsChildOfModalPanel(newMouseFocus))
 			return;
@@ -832,11 +837,11 @@ public class VGuiInput : IVGuiInput
 
 			if (context.OldMouseFocus != null)
 				if (context.MouseCapture == null || context.OldMouseFocus == context.MouseCapture)
-					vgui.PostMessage(context.OldMouseFocus, new KeyValues("CursorExited"), null);
+					vgui.PostMessage(context.OldMouseFocus, KV_CursorExited, null);
 
 			if (context.MouseOver != null)
 				if (context.MouseCapture == null || context.MouseOver == context.MouseCapture)
-					vgui.PostMessage(context.MouseOver, new KeyValues("CursorEntered"), null);
+					vgui.PostMessage(context.MouseOver, KV_CursorEntered, null);
 
 			IPanel? newFocus = context.MouseCapture ?? context.MouseOver;
 			context.MouseFocus = newFocus;
