@@ -73,7 +73,7 @@ class FileOpenDialog : Frame
 	FileOpenDialogType DialogType;
 	bool FileSelected;
 	IPanel SaveModal;
-	// InputDialog InputDialog;
+	InputDialog InputDialog;
 
 	public FileOpenDialog(Panel? parent, ReadOnlySpan<char> panelName) : base(parent, panelName) {
 

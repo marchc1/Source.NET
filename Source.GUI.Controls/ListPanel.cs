@@ -487,7 +487,7 @@ public class ListPanel : Panel
 			SortFuncSecondary = null;
 
 			newitem.SortedTreeIndexes[i] = rbtree.Count;
-			rbtree.Add(rbtree.Count, item); // FIXME: 'An item with the same key has already been added. Key: [19, ListPanel+IndexItem_t]'
+			rbtree.Add(rbtree.Count, item);
 		}
 	}
 
