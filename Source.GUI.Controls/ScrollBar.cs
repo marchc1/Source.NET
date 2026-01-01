@@ -294,4 +294,5 @@ public class ScrollBar : Panel
 	public void SetRange(int min, int max) => Slider!.SetRange(min, max);
 	public void GetRange(out int min, out int max) => Slider!.GetRange(out min, out max);
 	public void SetRangeWindow(int range) => Slider!.SetRangeWindow(range);
+	public Button? GetButton(int index) => Button[index];
 }

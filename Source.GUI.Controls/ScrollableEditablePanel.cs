@@ -1,3 +1,4 @@
+using Source.Common.GUI;
 using Source.Common.Formats.Keyvalues;
 
 namespace Source.GUI.Controls;
@@ -5,17 +6,62 @@ namespace Source.GUI.Controls;
 class ScrollableEditablePanel : EditablePanel
 {
 	ScrollBar ScrollBar;
-	EditablePanel? Child;
+	EditablePanel Child;
 
-	public ScrollableEditablePanel(Panel? parent, EditablePanel? child, ReadOnlySpan<char> name) : base(parent, name) {
+	public ScrollableEditablePanel(Panel? parent, EditablePanel child, ReadOnlySpan<char> name) : base(parent, name) {
+		Child = child;
+		Child.SetParent(this);
 
+		ScrollBar = new(this, "VerticalScrollBar", true);
+		ScrollBar.SetWide(16);
+		ScrollBar.SetAutoResize(Common.GUI.PinCorner.TopRight, AutoResize.Down, 0, 0, -16, 0);
+		ScrollBar.AddActionSignalTarget(this);
 	}
 
-	public override void ApplySettings(KeyValues resourceData) { }
+	public override void ApplySettings(KeyValues resourceData) {
+		base.ApplySettings(resourceData);
 
-	public override void PerformLayout() { }
+		KeyValues? scrollBarData = resourceData.FindKey("ScrollBar");
+		if (scrollBarData != null)
+			ScrollBar.ApplySettings(scrollBarData);
+	}
 
-	void OnScrollBarSliderMoved() { }
+	public override void PerformLayout() {
+		base.PerformLayout();
 
-	public override void OnMouseWheeled(int delta) { }
+		Child.SetWide(GetWide() - ScrollBar.GetWide());
+		ScrollBar.SetRange(0, Child.GetTall());
+		ScrollBar.SetRangeWindow(GetTall());
+
+		if (ScrollBar.GetSlider() != null)
+			ScrollBar.GetSlider()!.SetFgColor(GetFgColor());
+
+		if (ScrollBar.GetButton(0) != null)
+			ScrollBar.GetButton(0)!.SetFgColor(GetFgColor());
+
+		if (ScrollBar.GetButton(1) != null)
+			ScrollBar.GetButton(1)!.SetFgColor(GetFgColor());
+	}
+
+	void OnScrollBarSliderMoved() {
+		InvalidateLayout();
+
+		int scrollAmount = ScrollBar.GetValue();
+		Child.SetPos(0, -scrollAmount);
+	}
+
+	public override void OnMouseWheeled(int delta) {
+		int val = ScrollBar.GetValue();
+		val -= delta * 50;
+		ScrollBar.SetValue(val);
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name == "ScrollBarSliderMoved") {
+			OnScrollBarSliderMoved();
+			return;
+		}
+
+		base.OnMessage(message, from);
+	}
 }
