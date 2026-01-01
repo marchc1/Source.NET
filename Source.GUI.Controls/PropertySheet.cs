@@ -127,11 +127,11 @@ class PageTab : Button
 
 	}
 
-	public void OnDragFailed() {
+	public override void OnDragFailed(List<KeyValues> msglist) {
 
 	}
 
-	public void OnCreateDragData() {
+	public override void OnCreateDragData(KeyValues dragData) {
 
 	}
 

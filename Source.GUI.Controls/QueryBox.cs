@@ -23,8 +23,6 @@ public class QueryBox : MessageBox
 	public override void PerformLayout() {
 		base.PerformLayout();
 
-		GetSize(out int boxWidth, out int boxTall);
-
 		GetClientArea(out int x, out int y, out int wide, out int tall);
 		wide += x;
 		tall += y;
@@ -35,8 +33,6 @@ public class QueryBox : MessageBox
 		btnWide = Math.Max(oldWide, btnWide + 10);
 		btnTall = Math.Max(oldTall, btnTall + 10);
 		CancelButton.SetSize(btnWide, btnTall);
-
-		GetSize(out boxWidth, out boxTall);
 
 		OkButton.SetPos((wide / 2) - (OkButton.GetWide()) - 1 + x, tall - OkButton.GetTall() - 15);
 		CancelButton.SetPos((wide / 2) + x + 16, tall - CancelButton.GetTall() - 15);

@@ -91,6 +91,41 @@ public enum BuildModeFlags
 	SaveTallProportionalSelf = 1 << 18,
 }
 
+struct DragDrop
+{
+	public bool DragEnabled;
+	public bool ShowDragHelper;
+	public bool Dragging;
+	public bool DragStarted;
+	public int DragStartTolerance;
+	public int[] StartPos = new int[2];
+	public int[] LastPos = new int[2];
+	public List<KeyValues> DragData = [];
+	public List<Panel> DragPanels = [];
+	public bool DropEnabled;
+	public float HoverContextTime;
+	public Panel? CurrentDrop;
+	public long DropHoverTime;
+	public bool DropMenuShown;
+	public Menu? DropContextMenu;
+	public bool PreventChaining;
+
+	public DragDrop() {
+		DragEnabled = false;
+		ShowDragHelper = true;
+		DropEnabled = false;
+		DragStarted = false;
+		DragStartTolerance = 0;
+		Dragging = false;
+		DropHoverTime = 0;
+		DropMenuShown = false;
+		PreventChaining = false;
+		StartPos[0] = StartPos[1] = 0;
+		LastPos[0] = LastPos[1] = 0;
+	}
+}
+
+
 public interface IPanelAnimationPropertyConverter
 {
 	void GetData(Panel panel, KeyValues kv, ref PanelAnimationMapEntry entry);
@@ -377,11 +412,6 @@ public class Panel : IPanel
 
 	public PaintBackgroundType GetPaintBackgroundType() => PaintBackgroundType;
 	public void SetPaintBackgroundType(PaintBackgroundType type) => PaintBackgroundType = type;
-
-	public void SetDropEnabled(bool enabled, float hoverContextTime = 0) {
-		// TODO
-	}
-
 	public void SetSilentMode(bool silent) => IsSilent = silent;
 
 	List<IPanel> ActionSignalTargets = [];
@@ -2642,8 +2672,96 @@ public class Panel : IPanel
 		return null;
 	}
 
-	public virtual IPanel? GetDragPanel() {
+	public void SetDragEnabled(bool enabled) {
+
+	}
+
+	public void IsDragEnabled() {
+
+	}
+
+	public void SetShowDragHelper(bool enabled) {
+
+	}
+
+	public void SetBlockDragChaining(bool state) {
+
+	}
+
+	public void IsBlockingDragChaining() {
+
+	}
+
+	public void GetDragStartTolerance() {
+
+	}
+
+	public void SetDragStartTolerance(int tolerance) {
+
+	}
+
+	public void SetDropEnabled(bool enabled, float hoverContextTime = 0.0f) {
+
+	}
+
+	public void IsDropEnabled() {
+
+	}
+
+	public void GetDropTarget(List<KeyValues> msgList) {
+
+	}
+
+	public virtual IPanel? GetDragPanel() { //todo
 		return GetParent()?.GetDragPanel();
+	}
+
+	private void OnStartDragging() {
+
+	}
+
+	public virtual void OnDragFailed(List<KeyValues> msgList) {
+
+	}
+
+	private void OnFinishDragging(bool mouseReleased, ButtonCode code, bool abort = false) {
+
+	}
+
+	private void OnDropContextHoverShow() {
+
+	}
+
+	private void OnDropContextHoverHide() {
+
+	}
+
+	public virtual bool IsDroppable(List<KeyValues> msgList) => false;
+
+	public void CanStartDragging(int startx, int starty, int mx, int my) {
+
+	}
+
+	public virtual CursorCode GetDropCursor(List<KeyValues> msgList) => CursorCode.Arrow;
+
+	private void OnContinueDragging() {
+
+	}
+
+	public void GetDragDropInfo() {
+
+	}
+
+	public virtual void OnGetAdditionalDragPanels(ref List<Panel> panelList) { }
+	public virtual void OnCreateDragData(KeyValues dragData) { }
+	public virtual bool GetDropContextMenu(Menu menu, List<KeyValues> msgList) => false;
+
+	public void CreateDragData() {
+
+	}
+
+	public void GetDragData() {
+
 	}
 
 	public bool IsBuildModeEditable() => true;

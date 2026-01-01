@@ -287,17 +287,17 @@ public class TreeNode : Panel
 	}
 
 	public bool IsLabelEditingAllowed() => Text.IsLabelEditingAllowed();
-	public bool GetDropContextMenu(Menu menu, List<KeyValues> msglist) => TreeView.GetItemDropContextMenu(ItemIndex, menu, msglist);
-	public bool IsDroppable(List<KeyValues> msglist) => TreeView.IsItemDroppable(ItemIndex, msglist);
+	public override bool GetDropContextMenu(Menu menu, List<KeyValues> msglist) => TreeView.GetItemDropContextMenu(ItemIndex, menu, msglist);
+	public override bool IsDroppable(List<KeyValues> msglist) => TreeView.IsItemDroppable(ItemIndex, msglist);
 	public void OnPanelDropped(List<KeyValues> msglist) => TreeView.OnItemDropped(ItemIndex, msglist);
-	public HCursor GetDropCursor(List<KeyValues> msglist) => TreeView.GetItemDropCursor(ItemIndex, msglist);
+	public override CursorCode GetDropCursor(List<KeyValues> msglist) => TreeView.GetItemDropCursor(ItemIndex, msglist);
 
-	public void OnCreateDragData(KeyValues msg) { // TODO: override
+	public override void OnCreateDragData(KeyValues msg) { // TODO: override
 		TreeView.AddSelectedItem(ItemIndex, false);
 		TreeView.GenerateDragDataForItem(ItemIndex, msg);
 	}
 
-	public void OnGetAdditionalDragPanels(ref List<Panel> draggables) { // TODO: override
+	public override void OnGetAdditionalDragPanels(ref List<Panel> draggables) {
 		List<int> list = [];
 		TreeView.GetSelectedItems(ref list);
 		for (int i = 0; i < list.Count; i++) {
@@ -1655,7 +1655,7 @@ public class TreeView : Panel
 	public bool IsItemDroppable(int itemIndex, List<KeyValues> msglist) => false;
 	public void OnItemDropped(int itemIndex, List<KeyValues> msglist) { }
 	public bool GetItemDropContextMenu(int itemIndex, Menu menu, List<KeyValues> msglist) => false;
-	public HCursor GetItemDropCursor(int itemIndex, List<KeyValues> msglist) => (HCursor)CursorCode.Arrow;
+	public CursorCode GetItemDropCursor(int itemIndex, List<KeyValues> msglist) => CursorCode.Arrow;
 
 	public void RemoveChildrenOfNode(int itemIndex) {
 		if (itemIndex < 0 || itemIndex >= NodeList.Count)
