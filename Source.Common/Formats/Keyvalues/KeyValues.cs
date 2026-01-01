@@ -82,6 +82,14 @@ public class KeyValues : IEnumerable<KeyValues>
 		SetInt(secondKey, secondValue);
 	}
 
+	public KeyValues(ReadOnlySpan<char> name, ReadOnlySpan<char> firstKey, ReadOnlySpan<char> firstValue, ReadOnlySpan<char> secondKey, ReadOnlySpan<char> secondValue) : base() {
+		node = new(this);
+		Name = new(name);
+
+		SetString(firstKey, firstValue);
+		SetString(secondKey, secondValue);
+	}
+
 	public bool LoadFromStream(Stream? stream) {
 		// Clear();
 		if (stream == null) return false;
@@ -318,8 +326,8 @@ public class KeyValues : IEnumerable<KeyValues>
 			KeyValues kvpair = new() { evaluateConditionals = this.evaluateConditionals, useEscapeSequences = this.useEscapeSequences };
 
 			if (kvpair.ReadKV(reader) && matches) // When conditional, still need to waste time on parsing, but we throw it away after
-												  // There's definitely a better way to handle this, but it would need more testing scenarios
-												  // The ReadKV call can also determine its condition and will return false if it doesnt want to be added.
+																						// There's definitely a better way to handle this, but it would need more testing scenarios
+																						// The ReadKV call can also determine its condition and will return false if it doesnt want to be added.
 				AddToTail(kvpair);
 		}
 	}
@@ -331,7 +339,7 @@ public class KeyValues : IEnumerable<KeyValues>
 			// We need to check the stream for another /
 			reader.Read();
 			if (reader.Peek() == '/') { // We got //, its a comment
-										// We read until the end of the line.
+																	// We read until the end of the line.
 				didAnything = true;
 				int val;
 				while ((val = reader.Read()) != -1) {

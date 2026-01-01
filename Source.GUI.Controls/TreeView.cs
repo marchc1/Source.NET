@@ -66,36 +66,131 @@ class TreeNodeText : TextEntry
 	}
 
 	public override void OnKeyCodeTyped(ButtonCode code) {
-
+		if (EditingInPlace) {
+			if (code == ButtonCode.KeyEnter)
+				FinishEditingInPlace();
+			else if (code == ButtonCode.KeyEscape)
+				FinishEditingInPlace(true);
+			else
+				base.OnKeyCodeTyped(code);
+			return;
+		}
+		else if (code == ButtonCode.KeyEnter && IsLabelEditingAllowed())
+			EnterEditingInPlace();
+		else
+			CallParentFunction(new("KeyCodeTyped", "code", code.ToString()));
 	}
 
 	public override void OnTick() {
+		base.OnTick();
 
+		if (ArmForEditing) {
+			long msecSinceArming = System.GetTimeMillis() - ArmingTime;
+			if (msecSinceArming >= CLICK_TO_EDIT_DELAY_MS) {
+				ArmForEditing = false;
+				WaitingForRelease = false;
+				VGui.RemoveTickSignal(this);
+				EnterEditingInPlace();
+			}
+		}
 	}
 
 	public override void OnMouseReleased(ButtonCode code) {
+		if (EditingInPlace) {
+			base.OnMouseReleased(code);
+			return;
+		}
 
+		if (WaitingForRelease /*&& !IsBeingDragged()*/) { //todo 
+			ArmForEditing = true;
+			WaitingForRelease = false;
+			ArmingTime = System.GetTimeMillis();
+			VGui.AddTickSignal(this);
+		}
+		else
+			WaitingForRelease = false;
+
+		CallParentFunction(new("MouseReleased", "code", code.ToString()));
 	}
 
-	public override void OnCursorMoved(int x, int y) => CallParentFunction(new KeyValues("OnCursorMoved", "x", x, "y", y));
+	public override void OnCursorMoved(int x, int y) => CallParentFunction(new("OnCursorMoved", "x", x, "y", y));
 
 	public override void OnMousePressed(ButtonCode code) {
+		if (EditingInPlace) {
+			base.OnMousePressed(code);
+			return;
+		}
 
+		bool shift = Input.IsKeyDown(ButtonCode.KeyLShift) || Input.IsKeyDown(ButtonCode.KeyRShift);
+		bool ctrl = Input.IsKeyDown(ButtonCode.KeyLControl) || Input.IsKeyDown(ButtonCode.KeyRControl);
+
+		List<int> list = [];
+		Tree.GetSelectedItems(ref list);
+		bool isOnlyOneItemSelected = list.Count == 1;
+
+		if (!shift && !ctrl && !ArmForEditing && IsLabelEditingAllowed() && isOnlyOneItemSelected && IsTextFullSelected() /*&& !IsBeingDragged()*/) //todo
+			WaitingForRelease = true;
+
+		CallParentFunction(new("MousePressed", "code", code.ToString()));
 	}
 
 	public void SetLabelEditingAllowed(bool allowed) => LabelEditingAllowed = allowed;
 	public bool IsLabelEditingAllowed() => LabelEditingAllowed;
 
 	public override void OnMouseDoublePressed(ButtonCode code) {
+		if (EditingInPlace) {
+			base.OnMouseDoublePressed(code);
+			return;
+		}
 
+		if (ArmForEditing) {
+			ArmForEditing = false;
+			WaitingForRelease = false;
+			VGui.RemoveTickSignal(this);
+		}
+
+		CallParentFunction(new("MouseDoublePressed", "code", code.ToString()));
 	}
 
 	public void EnterEditingInPlace() {
+		if (EditingInPlace)
+			return;
 
+		EditingInPlace = true;
+		Span<char> buf = stackalloc char[1024];
+		GetText(buf);
+		OriginalText = buf.ToString();
+		SetCursor(CursorCode.IBeam);
+		SetEditable(true);
+		SelectNone();
+		GotoTextEnd();
+		RequestFocus();
+		SelectAllText(false);
+		Tree.SetLabelBeingEdited(true);
 	}
 
 	private void FinishEditingInPlace(bool revert = false) {
+		if (!EditingInPlace)
+			return;
 
+		Tree.SetLabelBeingEdited(false);
+		SetEditable(false);
+		SetCursor(CursorCode.Arrow);
+		EditingInPlace = false;
+		Span<char> buf = stackalloc char[1024];
+		GetText(buf);
+
+		if (strcmp(buf, OriginalText) == 0)
+			return;
+
+		if (revert) {
+			SetText(OriginalText);
+			GetParent()!.InvalidateLayout();
+		}
+		else {
+			KeyValues msg = new("LabelChanged", "original", OriginalText, "changed", buf.ToString());
+			PostActionSignal(msg);
+		}
 	}
 
 	public override void OnKillFocus(Panel? newPanel) {
@@ -109,7 +204,7 @@ class TreeNodeText : TextEntry
 			return;
 		}
 
-		CallParentFunction(new KeyValues("MouseWheeled", "delta", delta));
+		CallParentFunction(new("MouseWheeled", "delta", delta));
 	}
 
 	public bool IsBeingEdited() => EditingInPlace;
@@ -121,10 +216,10 @@ public class TreeNodeImage : ImagePanel
 		// SetBlockDragChaining(true);
 	}
 
-	public override void OnMousePressed(ButtonCode code) => CallParentFunction(new KeyValues("MousePressed", "code", code.ToString()));
-	public override void OnMouseDoublePressed(ButtonCode code) => CallParentFunction(new KeyValues("MouseDoublePressed", "code", code.ToString()));
-	public override void OnMouseWheeled(int delta) => CallParentFunction(new KeyValues("MouseWheeled", "delta", delta));
-	public override void OnCursorMoved(int x, int y) => CallParentFunction(new KeyValues("OnCursorMoved", "x", x, "y", y));
+	public override void OnMousePressed(ButtonCode code) => CallParentFunction(new("MousePressed", "code", code.ToString()));
+	public override void OnMouseDoublePressed(ButtonCode code) => CallParentFunction(new("MouseDoublePressed", "code", code.ToString()));
+	public override void OnMouseWheeled(int delta) => CallParentFunction(new("MouseWheeled", "delta", delta));
+	public override void OnCursorMoved(int x, int y) => CallParentFunction(new("OnCursorMoved", "x", x, "y", y));
 }
 
 class TreeViewSubPanel : Panel
@@ -135,10 +230,10 @@ class TreeViewSubPanel : Panel
 		SetBorder(null);
 	}
 
-	public override void OnMousePressed(ButtonCode code) => CallParentFunction(new KeyValues("MousePressed", "code", code.ToString()));
-	public override void OnMouseDoublePressed(ButtonCode code) => CallParentFunction(new KeyValues("MouseDoublePressed", "code", code.ToString()));
-	public override void OnMouseWheeled(int delta) => CallParentFunction(new KeyValues("MouseWheeled", "delta", delta));
-	public override void OnCursorMoved(int x, int y) => CallParentFunction(new KeyValues("OnCursorMoved", "x", x, "y", y));
+	public override void OnMousePressed(ButtonCode code) => CallParentFunction(new("MousePressed", "code", code.ToString()));
+	public override void OnMouseDoublePressed(ButtonCode code) => CallParentFunction(new("MouseDoublePressed", "code", code.ToString()));
+	public override void OnMouseWheeled(int delta) => CallParentFunction(new("MouseWheeled", "delta", delta));
+	public override void OnCursorMoved(int x, int y) => CallParentFunction(new("OnCursorMoved", "x", x, "y", y));
 }
 
 public class TreeNode : Panel
@@ -197,13 +292,21 @@ public class TreeNode : Panel
 	public void OnPanelDropped(List<KeyValues> msglist) => TreeView.OnItemDropped(ItemIndex, msglist);
 	public HCursor GetDropCursor(List<KeyValues> msglist) => TreeView.GetItemDropCursor(ItemIndex, msglist);
 
-	private void OnCreateDragData(KeyValues msg) {
+	public void OnCreateDragData(KeyValues msg) { // TODO: override
 		TreeView.AddSelectedItem(ItemIndex, false);
 		TreeView.GenerateDragDataForItem(ItemIndex, msg);
 	}
 
-	private void OnGetAdditionalDragPanels(ref List<Panel> draggables) {
+	public void OnGetAdditionalDragPanels(ref List<Panel> draggables) { // TODO: override
+		List<int> list = [];
+		TreeView.GetSelectedItems(ref list);
+		for (int i = 0; i < list.Count; i++) {
+			int itemIndex = list[i];
+			if (itemIndex == ItemIndex)
+				continue;
 
+			draggables.Add(TreeView.GetItem(itemIndex)!);
+		}
 	}
 
 	private void OnLabelChanged(KeyValues data) {
@@ -395,7 +498,7 @@ public class TreeNode : Panel
 		if (width != MaxVisibleWidth) {
 			MaxVisibleWidth = width;
 			if (GetParentNode() != null)
-				GetParentNode().OnChildWidthChange();
+				GetParentNode()!.OnChildWidthChange();
 			else
 				TreeView.InvalidateLayout();
 		}
@@ -674,7 +777,30 @@ public class TreeNode : Panel
 	}
 
 	public override void OnCursorMoved(int x, int y) {
+		if (Input.GetMouseCapture() != this)
+			return;
 
+		LocalToScreen(ref x, ref y);
+		TreeView.ScreenToLocal(ref x, ref y);
+		int newItem = TreeView.FindItemUnderMouse(x, y);
+		if (newItem == -1)
+			return;
+
+		int startItem = ClickedItem;
+		int endItem = newItem;
+		if (startItem > endItem)
+			(endItem, startItem) = (startItem, endItem);
+
+		List<TreeNode> list = [];
+		TreeView.RootNode!.FindNodesInRange(ref list, startItem, endItem);
+
+		for (int i = 0; i < list.Count; i++) {
+			TreeNode item = list[i];
+			if (ClickedSelected)
+				TreeView.AddSelectedItem(item.ItemIndex, false);
+			else
+				TreeView.RemoveSelectedItem(item.ItemIndex);
+		}
 	}
 
 	public override void OnMousePressed(ButtonCode code) {
@@ -851,7 +977,7 @@ public class TreeView : Panel
 	int RowHeight;
 
 	ImageList? ImageList;
-	TreeNode? RootNode;
+	public TreeNode? RootNode;
 	public TreeViewSortFunc_t? SortFunc;
 	IFont? Font;
 
@@ -1051,7 +1177,7 @@ public class TreeView : Panel
 			return false;
 
 		TreeNode node = NodeList[itemIndex];
-		TreeNode parent = node.GetParentNode();
+		TreeNode? parent = node.GetParentNode();
 		bool resort = SortFunc != null && parent != null;
 		int childIndex = -1;
 		if (resort)
@@ -1336,7 +1462,6 @@ public class TreeView : Panel
 	}
 
 	public void GenerateDragDataForItem(int itemIndex, KeyValues msg) { } // Implemented by subclassed TreeView
-
 	public void SetDragEnabledItems(bool state) => DragEnabledItems = state;
 	public void OnLabelChanged(int intemIndex, ReadOnlySpan<char> oldString, ReadOnlySpan<char> newString) { }
 	public bool IsLabelEditingAllowed() => AllowLabelEditing;
@@ -1565,4 +1690,13 @@ public class TreeView : Panel
 
 	virtual public void GenerateChildrenOfNode(int itemIndex) { }
 	virtual public void GenerateContextMenu(int itemIndex, int x, int y) { }
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		if (message.Name == "SliderMoved") {
+			OnSliderMoved(message.GetInt("position", 0));
+			return;
+		}
+
+		base.OnMessage(message, from);
+	}
 }

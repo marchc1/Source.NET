@@ -2045,4 +2045,14 @@ public class TextEntry : Panel
 	}
 
 	public int GetTextLength() => TextStream.Count;
+
+	public bool IsTextFullSelected() {
+		if (Select[0] != 0)
+			return false;
+
+		if (Select[1] != TextStream.Count)
+			return false;
+
+		return true;
+	}
 }
