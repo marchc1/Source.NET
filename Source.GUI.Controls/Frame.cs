@@ -1127,9 +1127,12 @@ public class Frame : EditablePanel
 	public bool GetClipToParent() => ClipToParent;
 	public void SetClipToParent(bool state) => ClipToParent = state;
 
-	public bool IsSmallCaption() {
-		return SmallCaption;
+	public void SetSmallCaption(bool state) {
+		SmallCaption = state;
+		InvalidateLayout();
 	}
+
+	public bool IsSmallCaption() => SmallCaption;
 
 	public override void OnMousePressed(ButtonCode code) {
 		if (!IsBuildGroupEnabled()) {

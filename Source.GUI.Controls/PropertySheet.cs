@@ -369,7 +369,7 @@ public class PropertySheet : EditablePanel
 		return -1;
 	}
 
-	public void AddPage(Panel page, ReadOnlySpan<char> title, char[]? imageName = null, bool hasContextMenu = false) {
+	public void AddPage(Panel? page, ReadOnlySpan<char> title, char[]? imageName = null, bool hasContextMenu = false) {
 		if (page == null)
 			return;
 
