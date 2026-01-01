@@ -81,7 +81,7 @@ public class ScrollBar : Panel
 	ImagePanel? Box;
 	readonly Button?[] OverriddenButtons = new Button[2];
 
-	public ScrollBar(Panel parent, string panelName, bool vertical) : base(parent, panelName) {
+	public ScrollBar(Panel parent, ReadOnlySpan<char> panelName, bool vertical) : base(parent, panelName) {
 		Slider = null;
 		Button[0] = null;
 		Button[1] = null;
