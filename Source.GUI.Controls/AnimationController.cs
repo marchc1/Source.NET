@@ -158,7 +158,7 @@ public class AnimationController : Panel, IAnimationController
 
 	public void RunAnimationCommand(Panel panel, ReadOnlySpan<char> variable, float target, TimeUnit_t startDelaySeconds, TimeUnit_t durationSeconds, Interpolators interpolator, float animParameter = 0) {
 		ulong var = ScriptSymbols.AddString(variable);
-		RemoveQueuedAnimationByType(panel, var, 0);
+		RemoveQueuedAnimationByType(panel, var, UTL_INVAL_SYMBOL);
 
 		AnimCmdAnimate animateCmd = new();
 		animateCmd.Panel = 0;
@@ -174,7 +174,7 @@ public class AnimationController : Panel, IAnimationController
 
 	public void RunAnimationCommand(Panel panel, ReadOnlySpan<char> variable, Color target, TimeUnit_t startDelaySeconds, TimeUnit_t durationSeconds, Interpolators interpolator, float animParameter = 0) {
 		ulong var = ScriptSymbols.AddString(variable);
-		RemoveQueuedAnimationByType(panel, var, 0);
+		RemoveQueuedAnimationByType(panel, var, UTL_INVAL_SYMBOL);
 
 		AnimCmdAnimate animateCmd = new();
 		animateCmd.Panel = 0;
@@ -567,7 +567,7 @@ public class AnimationController : Panel, IAnimationController
 	void RunCmd_StopEvent(PostedMessage msg) => RemoveQueuedAnimationCommands(msg.Event, msg.Parent);
 
 	void RunCmd_StopPanelAnimations(PostedMessage msg) {
-		Panel? panel = msg.Parent.FindChildByName(ScriptSymbols.String(msg.Event));
+		Panel? panel = FindSiblingByName(ScriptSymbols.String(msg.Event));
 		Assert(panel != null);
 		if (panel == null)
 			return;
@@ -583,7 +583,7 @@ public class AnimationController : Panel, IAnimationController
 	}
 
 	void RunCmd_StopAnimation(PostedMessage msg) {
-		Panel? panel = msg.Parent.FindChildByName(ScriptSymbols.String(msg.Event));
+		Panel? panel = FindSiblingByName(ScriptSymbols.String(msg.Event));
 		Assert(panel != null);
 		if (panel == null)
 			return;
@@ -821,6 +821,7 @@ public class AnimationController : Panel, IAnimationController
 
 		int screenWide = ScreenBounds[2];
 		int screenTall = ScreenBounds[3];
+		Span<char> token2 = stackalloc char[32];
 
 		mem = FilesystemHelpers.ParseFile(mem, token, out _);
 		while (token[0] != '\0') {
@@ -885,7 +886,6 @@ public class AnimationController : Panel, IAnimationController
 						SetupPosition(ref cmdAnimate, ref cmdAnimate.Target.A, token, screenWide);
 
 						// Get second token from "token"
-						Span<char> token2 = stackalloc char[32];
 						ReadOnlySpan<char> psz = FilesystemHelpers.ParseFile(token, token2, out _);
 						psz = FilesystemHelpers.ParseFile(psz, token2, out _);
 						psz = token2;
