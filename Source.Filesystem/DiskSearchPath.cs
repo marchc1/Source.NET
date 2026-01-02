@@ -27,8 +27,13 @@ public class DiskSearchPath : SearchPath
 
 		IEnumerable<string> foundFiles = Directory.EnumerateFiles(directory, pattern);
 
-		if (foundFiles.Any()) 
-			return foundFiles.First();
+		if (foundFiles.Any()) {
+			string realPath = foundFiles.First();
+			cache[hash] = new() {
+				RealPath = realPath
+			};
+			return realPath;
+		}
 		else
 			return path;
 	}
