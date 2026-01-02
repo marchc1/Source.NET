@@ -225,7 +225,7 @@ public class AnimationController : Panel, IAnimationController
 
 			PostedMessage msg = msgRef;
 			PostedMessages.RemoveAt(i);
-			--i;
+			i = -1;
 
 			if (!msg.Parent.IsValid())
 				continue;
@@ -248,6 +248,8 @@ public class AnimationController : Panel, IAnimationController
 							SeqName = msg.Event,
 							Parent = msg.Parent.FindChildByName(ScriptSymbols.String(msg.Variable), true)!
 						};
+
+						msg.Parent = curEvent.Parent;
 
 						if (!eventsRanThisFrame.Contains(curEvent)) {
 							eventsRanThisFrame.Add(curEvent);
