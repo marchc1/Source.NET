@@ -289,6 +289,11 @@ public class EngineVGui(
 	EnginePanel staticGameDLLPanel;
 	DebugSystemPanel staticDebugSystemPanel;
 	FocusOverlayPanel staticFocusOverlayPanel;
+
+	// VProfPanel VProfPanel;
+	BudgetPanelEngine BudgetPanel;
+	// TextureBudgetPanel TextureBudgetPanel;
+
 	CL CL;
 	Con Con;
 
@@ -614,13 +619,13 @@ public class EngineVGui(
 		// Specifically,
 		// - DemoUIPanel (if we even do demos)
 		// - FogUIPanel
-		// - CreateVProfPanels
 
 		if (IsPC()) {
 			Con.CreateConsolePanel(staticEngineToolsPanel);
 			VGuiDrawTree.CreateDrawTreePanel(staticEngineToolsPanel);
 			TextureListPanel.CreateTextureListPanel(staticEngineToolsPanel);
 			CL.CreateEntityReportPanel(staticEngineToolsPanel);
+			CreateVProfPanels(staticEngineToolsPanel);
 		}
 
 		staticEngineToolsPanel.LoadControlSettings("scripts/EngineVGuiLayout.res");
@@ -1047,6 +1052,17 @@ public class EngineVGui(
 
 	public void HideConsole() {
 		staticGameConsole?.Hide();
+	}
+
+	void CreateVProfPanels(Panel parent) {
+		// VProfPanel = new VProfPanel(parent, "VProfPanel");
+		BudgetPanel = new BudgetPanelEngine(parent, "BudgetPanel");
+		// CreateVProfGraphPanel(parent);
+		// TextureBudgetPanel = new TextureBudgetPanel(parent, "TextureBudgetPanel");
+	}
+
+	void DestroyVProfPanels() {
+
 	}
 
 	internal void Shutdown() {

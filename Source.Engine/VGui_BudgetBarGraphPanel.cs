@@ -1,5 +1,7 @@
 using Source.GUI.Controls;
 
+namespace Source.Engine;
+
 class BudgetBarGraphPanel : Panel
 {
 	BaseBudgetPanel BudgetPanel;

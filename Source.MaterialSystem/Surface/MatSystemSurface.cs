@@ -426,6 +426,56 @@ public class MatSystemSurface : IMatSystemSurface
 		DrawQuad(in clippedRect[0], in clippedRect[1], in DrawColor);
 	}
 
+	public void DrawFilledRectArray(Span<IntRect> rects, int numRects) {
+		Assert(InDrawing);
+
+		if (FullyTransparent)
+			return;
+
+		if (Mesh == null)
+			return;
+
+		InternalSetMaterial();
+
+		meshBuilder.Begin(Mesh, MaterialPrimitiveType.Quads, numRects);
+
+		Span<SurfaceVertex> rect = stackalloc SurfaceVertex[2];
+		Span<SurfaceVertex> clippedRect = stackalloc SurfaceVertex[2];
+		for (int i = 0; i < numRects; ++i) {
+			InitVertex(ref rect[0], rects[i].X0, rects[i].Y0, 0, 0);
+			InitVertex(ref rect[1], rects[i].X1, rects[i].Y1, 1, 1);
+
+			if (!Clip2D.ClipRect(in scissorRect, in rect[0], in rect[1], out clippedRect[0], out clippedRect[1]))
+				continue;
+
+			ref SurfaceVertex ul = ref clippedRect[0];
+			ref SurfaceVertex lr = ref clippedRect[1];
+
+			meshBuilder.Position3f(ul.Position.X, ul.Position.Y, zPos);
+			meshBuilder.Color4ubv(DrawColor);
+			meshBuilder.TexCoord2f(0, ul.TexCoord.X, ul.TexCoord.Y);
+			meshBuilder.AdvanceVertex();
+
+			meshBuilder.Position3f(lr.Position.X, ul.Position.Y, zPos);
+			meshBuilder.Color4ubv(DrawColor);
+			meshBuilder.TexCoord2f(0, lr.TexCoord.X, ul.TexCoord.Y);
+			meshBuilder.AdvanceVertex();
+
+			meshBuilder.Position3f(lr.Position.X, lr.Position.Y, zPos);
+			meshBuilder.Color4ubv(DrawColor);
+			meshBuilder.TexCoord2f(0, lr.TexCoord.X, lr.TexCoord.Y);
+			meshBuilder.AdvanceVertex();
+
+			meshBuilder.Position3f(ul.Position.X, lr.Position.Y, zPos);
+			meshBuilder.Color4ubv(DrawColor);
+			meshBuilder.TexCoord2f(0, ul.TexCoord.X, lr.TexCoord.Y);
+			meshBuilder.AdvanceVertex();
+		}
+
+		meshBuilder.End();
+		Mesh.Draw();
+	}
+
 	public void DrawFlushText() {
 		if (BatchedCharVertCount <= 0)
 			return;
