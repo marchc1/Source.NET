@@ -109,7 +109,7 @@ class BaseBudgetPanel : Panel
 		InvalidateLayout(false, true);
 	}
 
-	public void ResetAll() {
+	public virtual void ResetAll() {
 		ConfigData.BudgetGroupInfo.Clear();
 
 		foreach (var label in GraphLabels) label.MarkForDeletion();
