@@ -100,8 +100,8 @@ class BudgetHistoryPanel : Panel
 		Surface.DrawFilledRect(0, top, width, bottom);
 	}
 
-	public void SetData(double data, int groups, int samplesPerGroup, int sampleOffset) {
-		Data = [data];
+	public void SetData(double[] data, int groups, int samplesPerGroup, int sampleOffset) {
+		Data = data;
 		Groups = groups;
 		SamplesPerGroup = samplesPerGroup;
 		SampleOffset = sampleOffset;

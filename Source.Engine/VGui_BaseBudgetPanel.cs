@@ -28,7 +28,7 @@ class BudgetPanelConfigData
 
 class BaseBudgetPanel : Panel
 {
-	const int BUDGET_HISTORY_COUNT = 1024;
+	public const int BUDGET_HISTORY_COUNT = 1024;
 
 	int BudgetHistoryOffset;
 	public BudgetPanelConfigData ConfigData;
@@ -62,9 +62,22 @@ class BaseBudgetPanel : Panel
 		Dedicated = false;
 	}
 
-	public float GetBudgetGroupPercent(float value) { return 0.0f; }//todo
+	public float GetBudgetGroupPercent(float value) {
+		if (ConfigData.BarGraphRange == 0.0f)
+			return 1.0f;
+		return value / ConfigData.BarGraphRange;
+	}
 
-	public double GetBudgetGroupData(int groups, int samplesPerGroup, int sampleOffset) { return 0.0; } //todo
+	public double[]? GetBudgetGroupData(out int groups, out int samplesPerGroup, out int sampleOffset) {
+		groups = ConfigData.BudgetGroupInfo.Count;
+		samplesPerGroup = BUDGET_HISTORY_COUNT;
+		sampleOffset = BudgetHistoryOffset;
+
+		if (BudgetGroupTimes.Count == 0)
+			return null;
+
+		return BudgetGroupTimes[0].Time;
+	}
 
 	void ClearTimesForAllGroupsForThisFrame() {
 		for (int i = 0; i < ConfigData.BudgetGroupInfo.Count; i++)
@@ -314,7 +327,7 @@ class BaseBudgetPanel : Panel
 	}
 
 	public override void Paint() {
-		BudgetHistoryPanel!.SetData(BudgetGroupTimes[0].Time[0], GetNumCachedBudgetGroups(), BUDGET_HISTORY_COUNT, BudgetHistoryOffset);
+		BudgetHistoryPanel!.SetData(BudgetGroupTimes[0].Time, GetNumCachedBudgetGroups(), BUDGET_HISTORY_COUNT, BudgetHistoryOffset);
 		base.Paint();
 	}
 
@@ -324,7 +337,7 @@ class BaseBudgetPanel : Panel
 		BudgetBarGraphPanel!.Repaint();
 	}
 
-	void GetGraphLabelScreenSpaceTopAndBottom(int id, out int top, out int bottom) {
+	public void GetGraphLabelScreenSpaceTopAndBottom(int id, out int top, out int bottom) {
 		int x = 0;
 		int y = 0;
 		GraphLabels[id].LocalToScreen(ref x, ref y);
@@ -334,7 +347,8 @@ class BaseBudgetPanel : Panel
 
 	public BudgetPanelConfigData GetConfigData() => ConfigData;
 	public int GetNumCachedBudgetGroups() => ConfigData.BudgetGroupInfo.Count;
-
+	public void MarkAsDedicatedServer() => Dedicated = true;
+	public bool IsDedicated() => Dedicated;
 	public virtual void SetTimeLabelText() { }
 	public virtual void SetHistoryLabelText() { }
 }
