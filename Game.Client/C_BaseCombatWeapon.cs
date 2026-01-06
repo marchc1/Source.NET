@@ -1,4 +1,4 @@
-﻿using Game.Client.HL2;
+﻿using Game.Client.HUD;
 using Game.Shared;
 
 using Source;

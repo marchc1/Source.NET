@@ -77,29 +77,29 @@ public class HudTexture
 		}
 	}
 
+	public void DrawSelfCropped(int x, int y, int cropx, int cropy, int cropw, int croph, in Color clr) => DrawSelfCropped(x, y, cropx, cropy, cropw, croph, cropw, croph, clr);
 	public void DrawSelfCropped(int x, int y, int cropx, int cropy, int cropw, int croph, int finalWidth, int finalHeight, in Color clr) {
 		if (RenderUsingFont) {
-			throw new NotImplementedException();
-			// int height = surface.GetFontTall(Font);
-			// float frac = (height - croph) / (float)height;
-			// y -= cropy;
+			int height = surface.GetFontTall(Font);
+			float frac = (height - croph) / height;
+			y -= cropy;
 
-			// surface.DrawSetTextFont(Font);
-			// surface.DrawSetTextColor(clr);
-			// surface.DrawSetTextPos(x, y);
+			surface.DrawSetTextFont(Font);
+			surface.DrawSetTextColor(clr);
+			surface.DrawSetTextPos(x, y);
 
-			// CharRenderInfo info = new();
-			// if (surface.DrawGetCharRenderInfo(CharacterInFont, out info)) {
-			// 	if (cropy != 0) {
-			// 		info.Verts[0].Position.Y = MathLib.Lerp(frac, info.Verts[0].Position.Y, info.Verts[1].Position.Y);
-			// 		info.Verts[0].TexCoord.Y = MathLib.Lerp(frac, info.Verts[0].TexCoord.Y, info.Verts[1].TexCoord.Y);
-			// 	}
-			// 	else if (croph != height) {
-			// 		info.Verts[1].Position.Y = MathLib.Lerp(1.0f - frac, info.Verts[0].Position.Y, info.Verts[1].Position.Y);
-			// 		info.Verts[1].TexCoord.Y = MathLib.Lerp(1.0f - frac, info.Verts[0].TexCoord.Y, info.Verts[1].TexCoord.Y);
-			// 	}
-			// 	surface.DrawRenderCharFromInfo(in info);
-			// }
+			CharRenderInfo info = new();
+			if (surface.DrawGetCharRenderInfo(CharacterInFont, ref info)) {
+				if (cropy != 0) {
+					info.Verts[0].Position.Y = MathLib.Lerp(frac, info.Verts[0].Position.Y, info.Verts[1].Position.Y);
+					info.Verts[0].TexCoord.Y = MathLib.Lerp(frac, info.Verts[0].TexCoord.Y, info.Verts[1].TexCoord.Y);
+				}
+				else if (croph != height) {
+					info.Verts[1].Position.Y = MathLib.Lerp(1.0f - frac, info.Verts[0].Position.Y, info.Verts[1].Position.Y);
+					info.Verts[1].TexCoord.Y = MathLib.Lerp(1.0f - frac, info.Verts[0].TexCoord.Y, info.Verts[1].TexCoord.Y);
+				}
+				surface.DrawRenderCharFromInfo(info);
+			}
 		}
 		else {
 			if (TextureID == TextureID.INVALID)
@@ -134,6 +134,13 @@ public class HudTexture
 	public TextureID TextureID;
 	public InlineArray4<float> TexCoords;
 	public Rectangle RC;
+}
+
+public enum ProgressBarType
+{
+	Horizontal = 0,
+	Vertical,
+	HorizontalInv
 }
 
 [EngineComponent]
@@ -421,11 +428,62 @@ public class Hud(HudElementHelper HudElementHelper)
 			// 	panel?.ProcessInput();
 		}
 
-		// BaseCombatWeapon? weapon = GetActiveWeapon();
-		// if (weapon != null) {
-		// 	weapon.ProcessInput();
+		// BaseCombatWeapon? weapon = BaseCombatWeapon.GetActiveWeapon();
+		// weapon?.HandleInput();
 
 		// screenshottime
+	}
+
+	public void DrawProgressBar(int x, int y, int width, int height, float percentage, Color clr, ProgressBarType type) {
+		percentage = Math.Clamp(percentage, 0.0f, 1.0f);
+
+		Color lowColor = clr;
+		lowColor[0] /= 2;
+		lowColor[1] /= 2;
+		lowColor[2] /= 2;
+
+		if (type == ProgressBarType.Vertical) {
+			int barOfs = (int)(height * percentage);
+			surface.DrawSetColor(clr);
+			surface.DrawFilledRect(x, y, x + width, y + barOfs);
+			surface.DrawSetColor(lowColor);
+			surface.DrawFilledRect(x, y + barOfs, x + width, y + height);
+		}
+		else if (type == ProgressBarType.Horizontal) {
+			int barOfs = (int)(width * percentage);
+			surface.DrawSetColor(clr);
+			surface.DrawFilledRect(x, y, x + barOfs, y + height);
+			surface.DrawSetColor(lowColor);
+			surface.DrawFilledRect(x + barOfs, y, x + width, y + height);
+		}
+		else if (type == ProgressBarType.HorizontalInv) {
+			int barOfs = (int)(width * percentage);
+			surface.DrawSetColor(lowColor);
+			surface.DrawFilledRect(x, y, x + barOfs, y + height);
+			surface.DrawSetColor(clr);
+			surface.DrawFilledRect(x + barOfs, y, x + width, y + height);
+		}
+	}
+
+	public void DrawIconProgressBar(int x, int y, HudTexture icon, HudTexture icon2, float percentage, Color clr, ProgressBarType type) {
+		if (icon == null)
+			return;
+
+		percentage = Math.Clamp(percentage, 0.0f, 1.0f);
+
+		int height = icon.Height();
+		int width = icon.Width();
+
+		if (type == ProgressBarType.Vertical) {
+			int barOfs = (int)(height * percentage);
+			icon2.DrawSelfCropped(x, y, 0, 0, width, barOfs, clr);
+			icon.DrawSelfCropped(x, y + barOfs, 0, barOfs, width, height - barOfs, clr);
+		}
+		else if (type == ProgressBarType.Horizontal) {
+			int barOfs = (int)(width * percentage);
+			icon2.DrawSelfCropped(x, y, 0, 0, barOfs, height, clr);
+			icon.DrawSelfCropped(x + barOfs, y, barOfs, 0, width - barOfs, height, clr);
+		}
 	}
 }
 

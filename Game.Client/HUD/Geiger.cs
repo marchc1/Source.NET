@@ -1,9 +1,10 @@
-using Game.Client.HUD;
 using Game.Shared;
 
 using Source.Common.Bitbuffers;
 using Source.Common.GUI;
 using Source.GUI.Controls;
+
+namespace Game.Client.HUD;
 
 [DeclareHudElement(Name = "CHudGeiger")]
 class HudGeiger : EditableHudElement, IHudElement

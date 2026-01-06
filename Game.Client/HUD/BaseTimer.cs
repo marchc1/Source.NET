@@ -1,8 +1,8 @@
-using Game.Client.HUD;
-
 using Source;
 using Source.Common.GUI;
 using Source.GUI.Controls;
+
+namespace Game.Client.HUD;
 
 [DeclareHudElement(Name = "CHudBaseTimer")]
 class HudBaseTimer : HudNumericDisplay, IHudElement

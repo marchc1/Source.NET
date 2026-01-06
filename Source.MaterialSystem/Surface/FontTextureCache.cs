@@ -80,12 +80,12 @@ public class FontTextureCache
 		Clear();
 	}
 	static int[] realSizes = [16, 32, 64, 128, 256];
-	public unsafe bool GetTextureForChar(IFont font, FontDrawType drawType, char ch, Span<TextureID> textureID, Span<CharTexCoord> texCoords) {
+	public bool GetTextureForChar(IFont font, FontDrawType drawType, char ch, Span<TextureID> textureID, Span<CharTexCoord> texCoords) {
 		Span<char> inChars = [ch];
 		return GetTextureForChars(font, drawType, inChars, textureID, texCoords);
 	}
 
-	public unsafe bool GetTextureForChars(IFont font, FontDrawType drawType, ReadOnlySpan<char> chars, Span<TextureID> textureID, Span<CharTexCoord> texCoords) {
+	public bool GetTextureForChars(IFont font, FontDrawType drawType, ReadOnlySpan<char> chars, Span<TextureID> textureID, Span<CharTexCoord> texCoords) {
 		Assert(chars.Length >= 1);
 
 		if (drawType == FontDrawType.Default)

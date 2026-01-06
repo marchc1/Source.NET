@@ -292,7 +292,7 @@ public class EngineVGui(
 
 	// VProfPanel VProfPanel;
 	BudgetPanelEngine BudgetPanel;
-	// TextureBudgetPanel TextureBudgetPanel;
+	TextureBudgetPanel TextureBudgetPanel;
 
 	CL CL;
 	Con Con;
@@ -1056,9 +1056,9 @@ public class EngineVGui(
 
 	void CreateVProfPanels(Panel parent) {
 		// VProfPanel = new VProfPanel(parent, "VProfPanel");
-		BudgetPanel = new BudgetPanelEngine(parent, "BudgetPanel");
+		BudgetPanel = new(parent, "BudgetPanel");
 		// CreateVProfGraphPanel(parent);
-		// TextureBudgetPanel = new TextureBudgetPanel(parent, "TextureBudgetPanel");
+		TextureBudgetPanel = new(parent, "TextureBudgetPanel");
 	}
 
 	void DestroyVProfPanels() {

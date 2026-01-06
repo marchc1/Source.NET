@@ -1830,7 +1830,7 @@ public class MatSystemSurface : IMatSystemSurface
 		}
 	}
 
-	private void DrawRenderCharFromInfo(CharRenderInfo info) {
+	public void DrawRenderCharFromInfo(CharRenderInfo info) {
 		if (!info.Valid)
 			return;
 
@@ -1860,7 +1860,7 @@ public class MatSystemSurface : IMatSystemSurface
 	SurfaceVertex[] BatchedCharVerts = new SurfaceVertex[MAX_BATCHED_CHAR_VERTS];
 
 
-	private bool DrawGetCharRenderInfo(char ch, ref CharRenderInfo info) {
+	public bool DrawGetCharRenderInfo(char ch, ref CharRenderInfo info) {
 		Assert(InDrawing);
 		info.Valid = false;
 

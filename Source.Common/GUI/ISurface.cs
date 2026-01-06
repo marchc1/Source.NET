@@ -216,6 +216,8 @@ public interface ISurface
 	void OffsetAbsPos(ref int x, ref int y);
 	void SetBitmapFontGlyphSet(IFont font, ReadOnlySpan<char> fontName, float scalex, float scaley, SurfaceFontFlags flags);
 	void DrawChar(char c, FontDrawType drawType = FontDrawType.Default);
+	bool DrawGetCharRenderInfo(char ch, ref CharRenderInfo info);
+	void DrawRenderCharFromInfo(CharRenderInfo info);
 	void PlaySound(ReadOnlySpan<char> fileName);
 	void DrawTexturedPolygon(Span<SurfaceVertex> verts, bool clipVertices = true);
 	bool IsCursorLocked();
