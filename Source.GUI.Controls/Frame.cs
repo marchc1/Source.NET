@@ -851,7 +851,7 @@ public class Frame : EditablePanel
 			FinishClose();
 	}
 
-	public void DisableFadeEffects(bool state) {
+	public void DisableFadeEffects(bool state = true) {
 		DisableFadeEffect = state;
 		TransitionEffectTime = 0.0f;
 	}
