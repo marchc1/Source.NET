@@ -100,7 +100,7 @@ public class GripPanel : Panel
 			SetPaintBackgroundEnabled(true);
 		}
 
-		// todo: SetBlockDragChaining
+		SetBlockDragChaining(true);
 	}
 
 	public override void Paint() {
@@ -379,7 +379,7 @@ public class FrameButton : Button
 		DisabledLook = true;
 		SetContentAlignment(Alignment.Northwest);
 		SetTextInset(2, 1);
-		// SetBlockDragChaining(true);
+		SetBlockDragChaining(true);
 	}
 
 	public virtual void SetDisabledLook(bool state) {

@@ -53,7 +53,7 @@ public class Slider : Panel
 		SetThumbWidth(8);
 		RecomputeNobPosFromValue();
 		AddActionSignalTarget(this);
-		// SetBlockDragChaining(true);
+		SetBlockDragChaining(true);
 	}
 
 	public void SetSliderThumbSubRange(bool enable, int min = 0, int max = 100) {

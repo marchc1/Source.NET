@@ -118,7 +118,7 @@ public class ScrollBar : Panel
 		SetPaintBackgroundEnabled(false);
 		SetPaintEnabled(true);
 		SetButtonPressedScrollValue(20);
-		// SetBlockDragChaining(true);
+		SetBlockDragChaining(true);
 
 		Validate();
 	}

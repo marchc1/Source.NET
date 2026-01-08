@@ -7,7 +7,7 @@ namespace Source.GUI.Controls;
 class ColumnButton : Button
 {
 	public ColumnButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
-		// SetBlockDragChaining(true);
+		SetBlockDragChaining(true);
 	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {
@@ -39,7 +39,7 @@ class Dragger : Panel
 		Dragging = false;
 		Movable = true;
 		DragPos = 0;
-		// SetBlockDragChaining(true);
+		SetBlockDragChaining(true);
 	}
 }
 

@@ -30,7 +30,7 @@ public class TabCatchingTextEntry : TextEntry
 
 	public TabCatchingTextEntry(Panel? parent, string? name, Panel comp) : base(parent, name) {
 		SetAllowNonAsciiCharacters(true);
-		//SetDragEnabled(true);
+		SetDragEnabled(true);
 
 		CompletionList = comp;
 	}

@@ -1094,7 +1094,7 @@ class TextureListPanel : Frame
 		ViewPanel = new RenderTexturesListViewPanel(this, "View Panel");
 		ViewPanel.SetVisible(mat_texture_list_view.GetBool());
 		ViewPanel.SetBgColor(new Color(0, 0, 0, 255));
-		// ViewPanel.SetDragEnabled(false);
+		ViewPanel.SetDragEnabled(false);
 		ViewPanel.SetDropEnabled(false);
 		ViewPanel.SetPaintAlpha(DefaultTxAlphaOn);
 		ViewPanel.SetDataListPanel(ListPanel);

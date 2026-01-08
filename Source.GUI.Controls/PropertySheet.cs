@@ -9,7 +9,7 @@ class ContextLabel : Label
 	private Button TabButton;
 	public ContextLabel(Button parent, ReadOnlySpan<char> panelName, ReadOnlySpan<char> text) : base(parent, panelName, text) {
 		TabButton = parent;
-		// SetBlockDragChaining(true);
+		SetBlockDragChaining(true);
 	}
 
 	public override void OnMousePressed(ButtonCode code) => TabButton?.FireActionSignal();
@@ -67,7 +67,7 @@ class PageTab : Button
 		Active = false;
 		MaxTabWidth = maxTabWidth;
 		SetDropEnabled(true);
-		// SetDragEnabled(parent.IsDraggableTab());
+		SetDragEnabled(parent.IsDraggableTab());
 
 		if (!imageName.IsEmpty) {
 			Image = new(this, text);
@@ -378,8 +378,8 @@ public class PropertySheet : EditablePanel
 
 		long hoverActivePageTime = 250;
 		PageTab tab = new(this, "Tab", title.ToString(), imageName, TabWidth, page, ContextButton && hasContextMenu, hoverActivePageTime);
-		// if (DraggableTabs)
-		// tab.SetDragEnabled(true);
+		if (DraggableTabs)
+			tab.SetDragEnabled(true);
 
 		tab.SetFont(TabFont);
 		if (ShowTabs)

@@ -27,7 +27,7 @@ public class ScrollBarSlider : Panel
 		ButtonOffset = 0;
 		ScrollBarSliderBorder = null;
 		RecomputeNobPosFromValue();
-		//SetBlockDragChaining(true);
+		SetBlockDragChaining(true);
 	}
 
 	public void SetButtonOffset(int buttonOffset) => ButtonOffset = buttonOffset;
