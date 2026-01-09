@@ -410,7 +410,7 @@ public class Menu : Panel
 
 			if (!child.IsCheckable() && CheckImageWidth > 0)
 				child.SetTextInset(CheckImageWidth, 0);
-			else if(child.IsCheckable())
+			else if (child.IsCheckable())
 				child.SetTextInset(0, 0);
 
 			for (int j = 0; j < Separators.Count; j++) {

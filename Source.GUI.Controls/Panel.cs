@@ -1384,12 +1384,8 @@ public class Panel : IPanel
 			// make all our children reload the scheme
 			Flags |= PanelFlags.NeedsSchemeUpdate;
 
-			for (int i = 0; i < GetChildCount(); i++) {
-				IPanel? panel = GetChild(i);
-				if (panel != null) {
-					panel.InvalidateLayout(layoutNow, true);
-				}
-			}
+			for (int i = 0; i < GetChildCount(); i++)
+				GetChild(i)?.InvalidateLayout(layoutNow, true);
 
 			PerformApplySchemeSettings();
 		}
