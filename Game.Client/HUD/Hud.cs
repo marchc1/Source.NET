@@ -155,6 +155,9 @@ public class Hud(HudElementHelper HudElementHelper)
 	public Color ClrCaution;
 	public Color ClrYellowish;
 
+	readonly List<string> RenderGroupNames = [];
+	readonly Dictionary<int, HudRenderGroup> RenderGroups = [];
+
 	public void Init() {
 		HudElementHelper.CreateAllElements(this);
 		foreach (var element in HudList)
@@ -270,10 +273,6 @@ public class Hud(HudElementHelper HudElementHelper)
 			// KeyBits = input.GetButtonBits();
 			gHUD.Think();
 		}
-	}
-
-	internal bool IsRenderGroupLockedFor(IHudElement hudElement, int groupIndex) {
-		return false; // todo
 	}
 
 	internal static void LoadHudTextures(HudTextureDict list, Span<char> filenameWithExtension) {
@@ -485,6 +484,104 @@ public class Hud(HudElementHelper HudElementHelper)
 			icon.DrawSelfCropped(x + barOfs, y, barOfs, 0, width - barOfs, height, clr);
 		}
 	}
+
+	bool DoesRenderGoupExist(int groupIndex) => groupIndex >= 0 && groupIndex < RenderGroupNames.Count;
+
+	int LookupRenderGroupIndexByName(ReadOnlySpan<char> groupName) {
+		for (int i = 0; i < RenderGroupNames.Count; i++) {
+			if (groupName.Equals(RenderGroupNames[i], StringComparison.OrdinalIgnoreCase))
+				return i;
+		}
+
+		return -1;
+	}
+
+	bool LockRenderGroup(int groupIndex, IHudElement? locker = null) {
+		if (!DoesRenderGroupExist(groupIndex))
+			return false;
+
+		if (!RenderGroups.TryGetValue(groupIndex, out var group) || group == null)
+			return false;
+
+		if (locker == null)
+			group.Hidden = true;
+		else {
+			bool found = false;
+			for (int i = 0; i < group.LockingElements.Count; i++) {
+				if (ReferenceEquals(group.LockingElements[i], locker)) {
+					found = true;
+					break;
+				}
+			}
+
+			if (!found) {
+				group.LockingElements.Add(locker);
+				group.LockingElements.Sort((a, b) => a.GetRenderGroupPriority().CompareTo(b.GetRenderGroupPriority()));
+			}
+		}
+
+		return true;
+	}
+
+
+	bool UnlockRenderGroup(int groupIndex, IHudElement? locker = null) {
+		if (!DoesRenderGroupExist(groupIndex))
+			return false;
+
+		if (!RenderGroups.TryGetValue(groupIndex, out var group))
+			return false;
+
+		if (group.Hidden && locker == null) {
+			group.Hidden = false;
+			return true;
+		}
+
+		for (int i = 0; i < group.LockingElements.Count; i++) {
+			if (locker == group.LockingElements[i]) {
+				group.LockingElements.RemoveAt(i);
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	public bool IsRenderGroupLockedFor(IHudElement? hudElement, int groupIndex) {
+		if (!DoesRenderGroupExist(groupIndex))
+			return false;
+
+		if (!RenderGroups.TryGetValue(groupIndex, out var group) || group == null)
+			return false;
+
+		if (group.Hidden)
+			return true;
+
+		if (group.LockingElements.Count == 0)
+			return false;
+
+		if (hudElement == null)
+			return true;
+
+		var locker = group.LockingElements[0];
+		return locker != hudElement && locker.GetRenderGroupPriority() <= hudElement.GetRenderGroupPriority();
+	}
+
+	int RegisterForRenderGroup(ReadOnlySpan<char> groupName) {
+		int index = LookupRenderGroupIndexByName(groupName);
+		if (index != -1)
+			return index;
+
+		return AddHudRenderGroup(groupName);
+	}
+
+	int AddHudRenderGroup(ReadOnlySpan<char> groupName) {
+		RenderGroupNames.Add(groupName.ToString());
+		int idx = RenderGroupNames.Count - 1;
+		RenderGroups.Add(idx, new());
+		return idx;
+	}
+
+	bool DoesRenderGroupExist(int groupIndex) => RenderGroups.ContainsKey(groupIndex);
 }
 
 public class HudElementHelper
@@ -503,4 +600,11 @@ public class HudElementHelper
 				HUD.AddHudElement(element);
 		}
 	}
+}
+
+class HudRenderGroup
+{
+	public bool Hidden;
+	public List<IHudElement> LockingElements = [];
+	public HudRenderGroup() => Hidden = false;
 }
