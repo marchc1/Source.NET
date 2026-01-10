@@ -5,6 +5,8 @@ using Source.Common.Commands;
 using Source.Common.GUI;
 using Source.GUI.Controls;
 
+using ZstdSharp.Unsafe;
+
 namespace Game.Client;
 
 public class FPSPanel : Panel
@@ -18,7 +20,7 @@ public class FPSPanel : Panel
 		int x = wide - FPS_PANEL_WIDTH;
 		int y = 0;
 		SetPos(x, y);
-		SetSize(FPS_PANEL_WIDTH, 4 * Surface.GetFontTall(Font) + 8);
+		SetSize(FPS_PANEL_WIDTH, 5 * Surface.GetFontTall(Font) + 8);
 	}
 	private void InitAverages() {
 		AverageFPS = -1;
@@ -34,7 +36,7 @@ public class FPSPanel : Panel
 	int Low;
 	bool LastDraw;
 	int BatteryPercent;
-	float LastBatteryPercent;
+	TimeUnit_t LastBatteryPercent;
 
 	public const int FPS_PANEL_WIDTH = 300;
 
@@ -102,13 +104,26 @@ public class FPSPanel : Panel
 				i++;
 				Surface.DrawColoredText(Font, x, 2 + i * fontTall, 255, 255, 255, 255, $"ang: {ang.X:F2} {ang.Y:F2} {ang.Z:F2}");
 				i++;
-				Surface.DrawColoredText(Font, x, 2 + i * fontTall, 255, 255, 255, 255, $"vel: {vel.X:F2} {vel.Y:F2} {vel.Z:F2}");
+				Surface.DrawColoredText(Font, x, 2 + i * fontTall, 255, 255, 255, 255, $"vel: {vel.Length():F2}");
 				i++;
 			}
 		}
 
-		// todo: showbattery mode
+		if (cl_showbattery.GetInt() != 0) {
+			if (LastBatteryPercent == -1.0f || (gpGlobals.RealTime - LastBatteryPercent) > 10.0f) {
+				BatteryPercent = Steamworks.SteamUtils.GetCurrentBatteryPower();
+				LastBatteryPercent = gpGlobals.RealTime;
+			}
+
+			if (BatteryPercent > 0) {
+				if (BatteryPercent == 255)
+					Surface.DrawColoredText(Font, x, 2 + i * fontTall, 255, 255, 255, 255, "battery: On AC");
+				else
+					surface.DrawColoredText(Font, x, 2 + i * fontTall, 255, 255, 255, 255, $"battery: {BatteryPercent}%");
+			}
+		}
 	}
+
 	public override void OnTick() {
 		bool visible = ShouldDraw();
 		if (IsVisible() != visible)

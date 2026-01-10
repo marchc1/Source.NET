@@ -34,7 +34,7 @@ public interface IHudElement
 		return shouldDraw;
 	}
 	bool IsActive() => Active;
-	bool SetActive(bool active) => Active = active;
+	public bool SetActive(bool active) => Active = active;
 	void SetHiddenBits(HideHudBits bits) => HiddenBits = bits;
 	public virtual int GetRenderGroupPriority() => 0;
 
