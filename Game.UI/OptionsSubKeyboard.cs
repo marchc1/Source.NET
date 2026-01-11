@@ -138,12 +138,25 @@ public class OptionsSubKeyboard : PropertyPage
 	}
 
 
-	public void GetItemForBinding() {
+	// static int bindingSymbol = KeyValuesSystem().GetSymbolForString("Binding");//TODO
+	public KeyValues? GetItemForBinding(ReadOnlySpan<char> binding) {
+		throw new NotImplementedException();
+		// for (int i = 0; i < KeyBindList.GetItemCount(); i++) {
+		// 	KeyValues? item = KeyBindList.GetItemData(KeyBindList.GetItemIDFromRow(i));
+		// 	if (item == null)
+		// 		continue;
 
+		// 	KeyValues bindingItem = item.FindKey("" /*bindingSymbol*/);
+		// 	ReadOnlySpan<char> bindString = bindingItem.GetString();
+
+		// 	if (strcmp(bindString, binding) == 0)
+		// 		return item;
+		// }
+
+		// return null;
 	}
 
 	public void AddBinding() {
-
 	}
 
 	public void ClearBindItems() {
@@ -184,7 +197,7 @@ public class OptionsSubKeyboard : PropertyPage
 			if (binding.IsEmpty)
 				continue;
 
-			// KeyValues? item = GetItemForBinding(binding);
+			KeyValues? item = GetItemForBinding(binding);
 		}
 	}
 

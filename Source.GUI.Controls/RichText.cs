@@ -500,8 +500,7 @@ public class RichText : Panel
 		for (int i = first; i <= last; i++)
 			charWide += Surface.GetCharacterWidth(font, TextStream[i]);
 
-		int selection0 = -1, selection1 = -1;
-		GetSelectedRange(out selection0, out selection1);
+		GetSelectedRange(out int selection0, out int selection1);
 
 		if (first >= selection0 && first < selection1) {
 			Surface.DrawSetColor(SelectionColor);
