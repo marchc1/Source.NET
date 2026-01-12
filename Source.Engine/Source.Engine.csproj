@@ -10,6 +10,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\Source.Common\Source.Common.csproj" />
+		<ProjectReference Include="..\Source.Bitmap\Source.Bitmap.csproj" />
 		<ProjectReference Include="..\Source.GUI.Controls\Source.GUI.Controls.csproj" />
 		<ProjectReference Include="..\Source.GUI\Source.GUI.csproj" />
 	</ItemGroup>

@@ -4,7 +4,7 @@ using Game.Shared;
 using Source.Common.GUI;
 using Source.GUI.Controls;
 
-namespace Game.Client.HL2;
+namespace Game.Client.HUD;
 
 [DeclareHudElement(Name = "CHudWeapon")]
 public class HudWeapon : EditableHudElement, IHudElement

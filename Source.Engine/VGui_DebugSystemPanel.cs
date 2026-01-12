@@ -1,8 +1,9 @@
 using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
-using Source.Engine;
 using Source.GUI.Controls;
+
+namespace Source.Engine;
 
 class DebugMenuButton : MenuButton
 {

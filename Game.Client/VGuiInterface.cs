@@ -1,5 +1,6 @@
 
 global using static Game.Client.ClientVGui;
+
 using Source.Common;
 using Source.Common.GUI;
 
@@ -15,7 +16,7 @@ public static class ClientVGui
 
 		IFPSPanel.FPS.Create(toolParent);
 		INetGraphPanel.NetGraph.Create(toolParent);
-		// DebugOverlayPanel.DebugOverlay.Create(gameToolParent);
+		IDebugOverlayPanel.DebugOverlay.Create(gameToolParent);
 	}
 
 	public static void GetHudSize(out int w, out int h) {

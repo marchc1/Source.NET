@@ -100,7 +100,7 @@ public class GripPanel : Panel
 			SetPaintBackgroundEnabled(true);
 		}
 
-		// todo: SetBlockDragChaining
+		SetBlockDragChaining(true);
 	}
 
 	public override void Paint() {
@@ -379,7 +379,7 @@ public class FrameButton : Button
 		DisabledLook = true;
 		SetContentAlignment(Alignment.Northwest);
 		SetTextInset(2, 1);
-		// SetBlockDragChaining(true);
+		SetBlockDragChaining(true);
 	}
 
 	public virtual void SetDisabledLook(bool state) {
@@ -851,7 +851,7 @@ public class Frame : EditablePanel
 			FinishClose();
 	}
 
-	public void DisableFadeEffects(bool state) {
+	public void DisableFadeEffects(bool state = true) {
 		DisableFadeEffect = state;
 		TransitionEffectTime = 0.0f;
 	}

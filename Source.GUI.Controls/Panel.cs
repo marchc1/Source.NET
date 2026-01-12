@@ -1384,12 +1384,8 @@ public class Panel : IPanel
 			// make all our children reload the scheme
 			Flags |= PanelFlags.NeedsSchemeUpdate;
 
-			for (int i = 0; i < GetChildCount(); i++) {
-				IPanel? panel = GetChild(i);
-				if (panel != null) {
-					panel.InvalidateLayout(layoutNow, true);
-				}
-			}
+			for (int i = 0; i < GetChildCount(); i++)
+				GetChild(i)?.InvalidateLayout(layoutNow, true);
 
 			PerformApplySchemeSettings();
 		}
@@ -1403,6 +1399,11 @@ public class Panel : IPanel
 	private void InternalPerformLayout() {
 		if (0 != (Flags & PanelFlags.NeedsSchemeUpdate))
 			return;
+
+#if DEBUG
+		if (sdn_vgui_visualizelayout.GetBool())
+			VisualizeLayout(this);
+#endif
 
 		Flags |= PanelFlags.InPerformLayout;
 		Flags &= ~PanelFlags.NeedsLayout;
@@ -1509,6 +1510,12 @@ public class Panel : IPanel
 
 	IFont? _dbgfont;
 	IFont dbgfont => _dbgfont ??= SchemeManager.GetDefaultScheme().GetFont("DebugFixed")!;
+
+#if DEBUG
+	public static readonly ConVar sdn_vgui_visualizelayout = new("sdn_vgui_visualizelayout", "0", FCvar.None);
+	public static readonly Dictionary<Panel, double> LayoutVisualizations = [];
+	internal void VisualizeLayout(Panel panel) => LayoutVisualizations[panel] = System.GetCurrentTime() + 0.3;
+#endif
 
 	static readonly ConVar sdn_vgui_debug = new("sdn_vgui_debug", 0, "Show debug info for panels under the mouse cursor.");
 	private void DebugVisualize() {

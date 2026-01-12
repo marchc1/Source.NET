@@ -82,6 +82,14 @@ public ref struct CharRenderInfo
 	public bool ShouldClip;
 };
 
+public struct IntRect(int x0, int y0, int x1, int y1)
+{
+	public int X0 = x0;
+	public int Y0 = y0;
+	public int X1 = x1;
+	public int Y1 = y1;
+}
+
 public delegate void VGuiPlayFunc(ReadOnlySpan<char> fileName);
 public interface ISurface
 {
@@ -97,6 +105,7 @@ public interface ISurface
 	void DrawSetColor(in Color color);
 
 	void DrawFilledRect(int x0, int y0, int x1, int y1);
+	void DrawFilledRectArray(Span<IntRect> rects, int numRects);
 	void DrawOutlinedRect(int x0, int y0, int x1, int y1);
 	void DrawOutlinedCircle(int x, int y, int radius, int segments);
 
@@ -207,6 +216,8 @@ public interface ISurface
 	void OffsetAbsPos(ref int x, ref int y);
 	void SetBitmapFontGlyphSet(IFont font, ReadOnlySpan<char> fontName, float scalex, float scaley, SurfaceFontFlags flags);
 	void DrawChar(char c, FontDrawType drawType = FontDrawType.Default);
+	bool DrawGetCharRenderInfo(char ch, ref CharRenderInfo info);
+	void DrawRenderCharFromInfo(CharRenderInfo info);
 	void PlaySound(ReadOnlySpan<char> fileName);
 	void DrawTexturedPolygon(Span<SurfaceVertex> verts, bool clipVertices = true);
 	bool IsCursorLocked();

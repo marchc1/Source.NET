@@ -1,5 +1,7 @@
 using Source;
+using Source.Bitmap;
 using Source.Common;
+using Source.Common.Bitmap;
 using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
@@ -12,7 +14,7 @@ using System.Text;
 
 class TileViewPanelEx : Panel
 {
-	enum HitTest_t
+	public enum HitTest_t
 	{
 		Nothing = 0,
 		Tile
@@ -20,8 +22,8 @@ class TileViewPanelEx : Panel
 
 	int NumTiles;
 	int NumVisibleTiles;
-	int Wide;
-	int Tall;
+	public int Wide;
+	public int Tall;
 	int WideItem;
 	int TallItem;
 	int ColVisible;
@@ -48,29 +50,29 @@ class TileViewPanelEx : Panel
 
 	public IFont GetFont() => Font;
 
-	int HitTest(int x, int y, out int tile) {
+	public HitTest_t HitTest(int x, int y, out int tile) {
 		tile = -1;
 
 		if (!ComputeLayoutInfo())
-			return (int)HitTest_t.Nothing;
+			return HitTest_t.Nothing;
 
 		int hitCol = x / WideItem;
 		int hitRow = y / TallItem;
 
 		if (hitCol >= ColVisible)
-			return (int)HitTest_t.Nothing;
+			return HitTest_t.Nothing;
 		if (hitRow > RowVisible)
-			return (int)HitTest_t.Nothing;
+			return HitTest_t.Nothing;
 
 		int hitTile = StartTile + hitCol + hitRow * ColVisible;
 		if (hitTile >= EndTile)
-			return (int)HitTest_t.Nothing;
+			return HitTest_t.Nothing;
 
 		tile = hitTile;
-		return (int)HitTest_t.Tile;
+		return HitTest_t.Tile;
 	}
 
-	bool GetTileOrg(int tile, out int x, out int y) {
+	public bool GetTileOrg(int tile, out int x, out int y) {
 		x = 0;
 		y = 0;
 		if (ColVisible <= 0)
@@ -331,7 +333,7 @@ class RenderTextureEditor : Frame
 		// 	ReadOnlySpan<char> textureName = kv.GetString(TextureListPanel.KeyName_Name);
 
 		// 	for (short hm = 0; hm != -1; ++hm) {
-		// 		IMaterial mat = materials.GetMaterial(hm); // todo!!! this is all we need!
+		// 		IMaterial? mat = materials.GetMaterial(hm); // todo!!! this is all we need!
 		// 		if (mat == null) continue;
 
 		// 		IMaterialVar[] arrVars = mat.GetShaderParams();
@@ -340,7 +342,7 @@ class RenderTextureEditor : Frame
 		// 		for (int idxParam = 0; idxParam < numParams; ++idxParam) {
 		// 			if (!arrVars[idxParam].IsTexture()) continue;
 
-		// 			ITexture tex = arrVars[idxParam].GetTextureValue();
+		// 			ITexture? tex = arrVars[idxParam].GetTextureValue();
 		// 			if (tex == null || tex.IsError()) continue;
 
 		// 			ReadOnlySpan<char> texName = tex.GetName();
@@ -513,15 +515,240 @@ class RenderTextureEditor : Frame
 		FlashBtn.SetWide(95);
 	}
 
+	IFont GetFont() => Font;
+	void SetFont(IFont font) {
+		Font = font;
+		Repaint();
+	}
+
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
-		// SetFont(scheme.GetFont("Default", IsProportional()));
+		SetFont(scheme.GetFont("Default", IsProportional())!);
 	}
 
 	public override void OnMousePressed(ButtonCode code) => Close();
 
 	public override void Paint() {
+		AutoMatSysDebugMode auto_matsysdebugmode = new();
+
+		DisableFadeEffects();
+		SetBgColor(new(10, 50, 10, 255));
 		base.Paint();
+
+		KeyValues? kv = Info;
+		if (kv == null)
+			return;
+
+		ReadOnlySpan<char> textureFile = kv.GetString(TextureListPanel.KeyName_Name);
+		// LastViewedTextureBuffer todo
+		ReadOnlySpan<char> textureGroup = kv.GetString(TextureListPanel.KeyName_Texture_Group);
+
+		ITexture? matTexture = null;
+		if (!textureFile.IsEmpty)
+			matTexture = materials.FindTexture(textureFile, textureGroup, false);
+		matTexture ??= materials.FindTexture("debugempty", "", false);
+
+		int txWidth = kv.GetInt(TextureListPanel.KeyName_Width);
+		int txHeight = kv.GetInt(TextureListPanel.KeyName_Height);
+		int txSize = kv.GetInt(TextureListPanel.KeyName_Size);
+		ReadOnlySpan<char> txFormat = kv.GetString(TextureListPanel.KeyName_Format);
+
+		int x = TileBorder;
+		int y = TileBorder;
+		int drawWidth = txWidth;
+		int drawHeight = txHeight;
+
+		if (matTexture != null && matTexture.IsCubeMap()) {
+			drawWidth = 1024;
+			drawHeight = 1024;
+		}
+
+		if (drawHeight >= drawWidth) {
+			if (drawHeight > TileTextureSize) {
+				drawWidth *= TileTextureSize / drawHeight;
+				drawHeight = TileTextureSize;
+			}
+
+			if (drawHeight < 64) {
+				drawWidth *= 64 / drawHeight;
+				drawHeight = 64;
+			}
+		}
+		else {
+			if (drawWidth > TileTextureSize) {
+				drawHeight *= TileTextureSize / drawWidth;
+				drawWidth = TileTextureSize;
+			}
+
+			if (drawWidth < 64) {
+				drawHeight *= 64 / drawWidth;
+				drawWidth = 64;
+			}
+		}
+
+		drawHeight = (int)(drawHeight * ((float)TileSize / TileTextureSize));
+		drawWidth = (int)(drawWidth * ((float)TileSize / TileTextureSize));
+		drawHeight = Math.Max(drawHeight, 4);
+		drawWidth = Math.Max(drawWidth, 4);
+
+		int tileWidth = 2 * TileBorder + TileSize;
+		int tileHeight = 3 * TileBorder + TileSize + TileText;
+
+		Surface.DrawSetColor(255, 255, 255, 255);
+		Surface.DrawOutlinedRect(x + 1, y + 1, x + tileWidth - 2, y + tileHeight - 2);
+
+		y += TileBorder;
+		x += TileBorder;
+
+		Span<char> resolveName = stackalloc char[256];
+		Span<char> resolveNameArg = stackalloc char[256];
+		sprintf(resolveNameArg, "materials/%s.vtf").S(textureFile);
+		ReadOnlySpan<char> resolvedName = fileSystem.RelativePathToFullPath(resolveNameArg, "game", resolveName);
+
+		ReadOnlySpan<char> printFilePrefix = !resolvedName.IsEmpty ? "" : "[?]/";
+		ReadOnlySpan<char> printFileName = !resolvedName.IsEmpty ? resolvedName : textureFile;
+
+		Span<char> sizeBuf = stackalloc char[20];
+		if (txSize >= 0)
+			RenderTexturesListViewPanel.FmtCommaNumber(sizeBuf, (uint)txSize);
+		else
+			sizeBuf[0] = '-';
+
+		Span<char> fullText = stackalloc char[512];
+		int written = sprintf(fullText, "%s%s\n%s Kb    %dx%d    %s")
+			.S(printFilePrefix)
+			.S(printFileName)
+			.S(sizeBuf)
+			.I(txWidth)
+			.I(txHeight)
+			.S(txFormat);
+		Surface.DrawColoredTextRect(GetFont(), x, y, TileSize, TileText / 2, 255, 255, 255, 255, fullText);
+
+		if (BufInfoText.Length == 0) {
+			BufInfoText.AppendFormat(
+				"{0}{1}\r\n{2} Kb    {3}x{4}    {5}",
+				printFilePrefix.ToString(),
+				printFileName.ToString(),
+				sizeBuf.ToString(),
+				txWidth,
+				txHeight,
+				txFormat.ToString());
+		}
+
+		if (kv.GetInt("SpecialTx") == 0) {
+			Span<char> line1 = stackalloc char[256];
+			Span<char> line2 = stackalloc char[256];
+
+			// Line 1
+			if (txSize > TextureListPanel.WarnTxListSize)
+				sprintf(line1, "  Size(%s Kb)").S(sizeBuf);
+			if (txWidth > TextureListPanel.WarnTextDimensions || txHeight > TextureListPanel.WarnTextDimensions)
+				sprintf(line1, "%s  Dimensions(%dx%d)").S(line1).I(txWidth).I(txHeight);
+			if (!txFormat.Equals("DXT1", StringComparison.OrdinalIgnoreCase) &&
+				!txFormat.Equals("DXT5", StringComparison.OrdinalIgnoreCase))
+				sprintf(line1, "%s  Format(%s)").S(line1).S(txFormat);
+			if (((TextureFlags)matTexture!.GetFlags() & TextureFlags.NoLOD) != 0)
+				sprintf(line1, "%s  NoLod").S(line1);
+			if (((TextureFlags)matTexture.GetFlags() & TextureFlags.NoMip) != 0)
+				sprintf(line1, "%s  NoMip").S(line1);
+			if (((TextureFlags)matTexture.GetFlags() & TextureFlags.OneBitAlpha) != 0)
+				sprintf(line1, "%s  OneBitAlpha").S(line1);
+
+			// Line 2
+			int wmap = matTexture.GetMappingWidth(), hmap = matTexture.GetMappingHeight(), dmap = matTexture.GetMappingDepth();
+			int wact = matTexture.GetActualWidth(), hact = matTexture.GetActualHeight(), dact = matTexture.GetActualDepth();
+			ImageFormat fmt = matTexture.GetImageFormat();
+
+			if (wact > 4 || hact > 4) {
+				Span<char> buf = stackalloc char[50];
+				int mem = ImageLoader.GetMemRequired(Math.Max(Math.Min(wact, 4), wact / 2), Math.Max(Math.Min(hact, 4), hact / 2), Math.Max(1, dact / 2), fmt, true);
+				mem = (mem + 511) / 1024;
+				RenderTexturesListViewPanel.FmtCommaNumber(buf, (uint)mem);
+				sprintf(line2, "  %s Kb @ lower mip").S(buf);
+			}
+
+			if (wmap > wact || hmap > hact || dmap > dact) {
+				Span<char> buf = stackalloc char[50];
+				int mem = ImageLoader.GetMemRequired(Math.Min(wmap, wact * 2), Math.Min(hmap, hact * 2), Math.Min(dmap, dact * 2), fmt, true);
+				mem = (mem + 511) / 1024;
+				RenderTexturesListViewPanel.FmtCommaNumber(buf, (uint)mem);
+				sprintf(line2, "%s      %s Kb @ higher mip").S(line2).S(buf);
+			}
+
+			if (!line1.IsEmpty) {
+				Surface.DrawSetColor(200, 0, 0, 255);
+				Surface.DrawFilledRect(x - TileBorder / 2, y + TileText / 2, (int)(x + TileBorder / 2 + (TileSize * 0.5)), y + TileText / 2 + TileText / 4);
+				Surface.DrawColoredTextRect(GetFont(), x, y + TileText / 2, TileSize, TileText / 4, 255, 255, 255, 255, line1.SliceNullTerminatedString());
+			}
+
+			if (!line2.IsEmpty)
+				Surface.DrawColoredTextRect(GetFont(), x, y + TileText / 2 + TileText / 4, TileSize, TileText / 4, 255, 255, 255, 255, line2.SliceNullTerminatedString());
+		}
+
+		y += TileText;
+
+		bool hasAlpha = !txFormat.Equals("DXT1", StringComparison.OrdinalIgnoreCase);
+
+		int extTxWidth = TileSize;
+		int extTxHeight = TileSize;
+		int orgTxX = 0, orgTxXA = 0;
+		int orgTxY = 0, orgTxYA = 0;
+
+		if (hasAlpha) {
+			if (txWidth >= txHeight * 2) {
+				extTxHeight /= 2;
+				orgTxYA = extTxHeight + TileBorder / 2;
+				extTxHeight -= 1;
+			}
+			else if (txHeight >= txWidth * 2) {
+				extTxWidth /= 2;
+				orgTxXA = extTxWidth + TileBorder / 2;
+				extTxWidth -= 3;
+			}
+			else {
+				extTxHeight /= 2;
+				orgTxYA = extTxHeight + TileBorder / 2;
+				orgTxX = extTxWidth / 4;
+				extTxWidth /= 2;
+
+				if (drawWidth > extTxWidth) {
+					drawWidth /= 2;
+					drawHeight /= 2;
+				}
+				extTxWidth -= 1;
+				extTxHeight -= 1;
+			}
+		}
+
+		const int imgFrameOff = 2;
+		IMaterial? mat = RenderTexturesListViewPanel.UseDebugMaterial("debug/debugtexturecolor", matTexture, auto_matsysdebugmode);
+		if (mat != null) {
+			Surface.DrawSetColor(255, 255, 255, 255);
+			Surface.DrawOutlinedRect(x + orgTxX + (extTxWidth - drawWidth) / 2 - imgFrameOff, y + orgTxY + (extTxHeight - drawHeight) / 2 - imgFrameOff,
+				x + orgTxX + (extTxWidth + drawWidth) / 2 + imgFrameOff, y + orgTxY + (extTxHeight + drawHeight) / 2 + imgFrameOff);
+			RenderTexturesListViewPanel.RenderTexturedRect(this, mat,
+				x + orgTxX + (extTxWidth - drawWidth) / 2, y + orgTxY + (extTxHeight - drawHeight) / 2,
+				x + orgTxX + (extTxWidth + drawWidth) / 2, y + orgTxY + (extTxHeight + drawHeight) / 2);
+
+			if (hasAlpha) {
+				orgTxX += orgTxXA;
+				orgTxY += orgTxYA;
+				IMaterial? matDebug = RenderTexturesListViewPanel.UseDebugMaterial("debug/debugtexturealpha", matTexture, auto_matsysdebugmode);
+				if (matDebug != null) {
+					Surface.DrawOutlinedRect(x + orgTxX + (extTxWidth - drawWidth) / 2 - imgFrameOff, y + orgTxY + (extTxHeight - drawHeight) / 2 - imgFrameOff,
+						x + orgTxX + (extTxWidth + drawWidth) / 2 + imgFrameOff, y + orgTxY + (extTxHeight + drawHeight) / 2 + imgFrameOff);
+					RenderTexturesListViewPanel.RenderTexturedRect(this, matDebug,
+						x + orgTxX + (extTxWidth - drawWidth) / 2, y + orgTxY + (extTxHeight - drawHeight) / 2,
+						x + orgTxX + (extTxWidth + drawWidth) / 2, y + orgTxY + (extTxHeight + drawHeight) / 2);
+				}
+			}
+		}
+		else {
+			Surface.DrawSetColor(255, 0, 255, 100);
+			Surface.DrawFilledRect(
+				x + orgTxX + (extTxWidth - drawWidth) / 2, y + orgTxY + (extTxWidth - drawHeight) / 2,
+				x + orgTxX + (extTxWidth + drawWidth) / 2, y + orgTxY + (extTxWidth + drawHeight) / 2);
+		}
 	}
 }
 
@@ -553,7 +780,48 @@ class RenderTexturesListViewPanel : TileViewPanelEx
 	public override void OnMousePressed(ButtonCode code) {
 		base.OnMousePressed(code);
 
+		RenderTxEditor.Close();
 
+		if (ListPanel == null)
+			return;
+
+		Input.GetCursorPos(out int x, out int y);
+		ScreenToLocal(ref x, ref y);
+
+		HitTest_t htResult = HitTest(x, y, out int tile);
+
+		if (htResult == HitTest_t.Nothing)
+			return;
+
+		if (!GetTileOrg(tile, out int tileX, out int tileY))
+			return;
+
+		int itemId = ListPanel.GetItemIDFromRow(tile);
+		if (itemId < 0)
+			return;
+
+		KeyValues? kv = ListPanel.GetItem(itemId);
+		if (kv == null)
+			return;
+
+		RenderTxEditor.SetDispInfo(kv, itemId);
+
+		if (tileX + RenderTxEditor.GetWide() > Wide - 2)
+			tileX -= tileX + RenderTxEditor.GetWide() - (Wide - 2);
+		if (tileY + RenderTxEditor.GetTall() > Tall - 2)
+			tileY -= tileY + RenderTxEditor.GetTall() - (Tall - 2);
+
+		int topLeftX = 0;
+		int topLeftY = 0;
+		for (Panel? p = this; p != null; p = p.GetParent())
+			p.LocalToScreen(ref tileX, ref tileY);
+
+		LocalToScreen(ref tileX, ref tileY);
+		if (tileX < topLeftX) tileX = topLeftX;
+		if (tileY < topLeftY) tileY = topLeftY;
+
+		RenderTxEditor.SetPos(tileX, tileY);
+		RenderTxEditor.Activate();
 	}
 
 	public int GetNumTiles() => ListPanel != null ? ListPanel.GetItemCount() : 0;
@@ -573,7 +841,7 @@ class RenderTexturesListViewPanel : TileViewPanelEx
 	public void RenderTile(int tile, int x, int y) {
 		AutoMatSysDebugMode auto_matsysdebugmode = new();
 
-		KeyValues kv = GetTileData(tile);
+		KeyValues? kv = GetTileData(tile);
 		if (kv == null) return;
 
 		ReadOnlySpan<char> TextureFile = kv.GetString(TextureListPanel.KeyName_Name);
@@ -820,7 +1088,7 @@ class RenderTexturesListViewPanel : TileViewPanelEx
 		return false;
 	}
 
-	static void FmtCommaNumber(Span<char> buffer, uint number) {
+	public static void FmtCommaNumber(Span<char> buffer, uint number) {
 		buffer.Clear();
 		int offset = 0;
 		for (uint divisor = 1_000_000_000; divisor > 0; divisor /= 1000) {
@@ -843,11 +1111,11 @@ class RenderTexturesListViewPanel : TileViewPanelEx
 	}
 
 
-	static void RenderTexturedRect(Panel pPanel, IMaterial Material, int x, int y, int x1, int y1, int xoff = 0, int yoff = 0) {
+	public static void RenderTexturedRect(Panel pPanel, IMaterial Material, int x, int y, int x1, int y1, int xoff = 0, int yoff = 0) {
 		int tall = pPanel.GetTall();
 		float fHeightUV = 1.0f;
 		if (y1 > tall) {
-			fHeightUV = (float)(tall - y) / (float)(y1 - y);
+			fHeightUV = (tall - y) / (y1 - y);
 			y1 = tall;
 		}
 		if (y1 <= y)
@@ -886,7 +1154,7 @@ class RenderTexturesListViewPanel : TileViewPanelEx
 	}
 
 
-	static IMaterial? UseDebugMaterial(ReadOnlySpan<char> material, ITexture matTexture, AutoMatSysDebugMode restoreVars) {
+	public static IMaterial? UseDebugMaterial(ReadOnlySpan<char> material, ITexture? matTexture, AutoMatSysDebugMode restoreVars) {
 		if (material.IsEmpty || matTexture == null)
 			return null;
 
@@ -915,7 +1183,6 @@ class RenderTexturesListViewPanel : TileViewPanelEx
 		return Material;
 	}
 
-
 	public void SetDataListPanel(ListPanel panel) {
 		ListPanel = panel;
 		InvalidateLayout();
@@ -937,6 +1204,7 @@ class TextureListPanel : Frame
 	public static int WarnTextDimensions = 1024;
 	public static bool WarnEnable = true;
 	static bool CursorSet = false;
+
 	static ConVar mat_texture_list = new("mat_texture_list", "0", FCvar.Cheat, "For debugging, show a list of used textures per frame");
 	static ConVar mat_texture_list_all = new("mat_texture_list_all", "0", FCvar.NeverAsString | FCvar.Cheat, "If this is nonzero, then the texture list panel will show all currently-loaded textures.");
 	static ConVar mat_texture_list_view = new("mat_texture_list_view", "1", FCvar.NeverAsString | FCvar.Cheat, "If this is nonzero, then the texture list panel will render thumbnails of currently-loaded textures.");
@@ -1094,7 +1362,7 @@ class TextureListPanel : Frame
 		ViewPanel = new RenderTexturesListViewPanel(this, "View Panel");
 		ViewPanel.SetVisible(mat_texture_list_view.GetBool());
 		ViewPanel.SetBgColor(new Color(0, 0, 0, 255));
-		// ViewPanel.SetDragEnabled(false);
+		ViewPanel.SetDragEnabled(false);
 		ViewPanel.SetDropEnabled(false);
 		ViewPanel.SetPaintAlpha(DefaultTxAlphaOn);
 		ViewPanel.SetDataListPanel(ListPanel);
@@ -1145,8 +1413,6 @@ class TextureListPanel : Frame
 			sprintf(data, "%s:  frame %s Kb  /  total %s Kb ( picmip1 = %s Kb, picmip2 = %s Kb )  /  shown %s Kb")
 				.S(title).S(kb1).S(kb2).S(kbMip1).S(kbMip2).S(kb3);
 		}
-
-		// ansitounicode
 
 		TotalUsageLabel.SetText(data);
 	}
@@ -1223,7 +1489,8 @@ class TextureListPanel : Frame
 			dispData.GetInt(KeyName_Height) != kv.GetInt(KeyName_Height) ||
 			!dispData.GetString(KeyName_Format).Equals(kv.GetString(KeyName_Format), StringComparison.OrdinalIgnoreCase) ||
 			!dispData.GetString(KeyName_Path).Equals(kv.GetString(KeyName_Path), StringComparison.OrdinalIgnoreCase) ||
-			!dispData.GetString(KeyName_Texture_Group).Equals(kv.GetString(KeyName_Texture_Group), StringComparison.OrdinalIgnoreCase)) {
+			!dispData.GetString(KeyName_Texture_Group).Equals(kv.GetString(KeyName_Texture_Group), StringComparison.OrdinalIgnoreCase)
+		) {
 			dispData.SetInt(KeyName_Size, kv.GetInt(KeyName_Size));
 			dispData.SetInt(KeyName_Width, kv.GetInt(KeyName_Width));
 			dispData.SetInt(KeyName_Height, kv.GetInt(KeyName_Height));

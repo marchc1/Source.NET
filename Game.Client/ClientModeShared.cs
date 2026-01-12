@@ -1,11 +1,8 @@
 ﻿using Game.Client.HUD;
 using Game.Shared;
 
-using Microsoft.Extensions.DependencyInjection;
-
 using Source;
 using Source.Common;
-using Source.Common.Client;
 using Source.Common.GUI;
 using Source.Common.Input;
 using Source.Engine;
@@ -27,6 +24,9 @@ public class ClientModeShared : GameEventListener, IClientMode
 	public void Init() {
 		ChatElement = (BaseHudChat?)gHUD.FindElement("CHudChat");
 		Assert(ChatElement != null);
+
+		WeaponSelection = (BaseHudWeaponSelection?)gHUD.FindElement("CHudWeaponSelection");
+		Assert(WeaponSelection != null);
 
 		ListenForGameEvent("player_connect_client");
 		ListenForGameEvent("player_disconnect");
@@ -81,8 +81,19 @@ public class ClientModeShared : GameEventListener, IClientMode
 		}
 
 		// In-game spectator
-		// Hud element key input
 		// Weapon input
+
+		if (HudElementKeyInput(down, keynum, currentBinding) == 0)
+			return 0;
+
+		return 1;
+	}
+
+	private int HudElementKeyInput(int down, ButtonCode keynum, ReadOnlySpan<char> currentBinding) {
+		if (WeaponSelection != null) {
+			if (WeaponSelection.KeyInput(down, keynum, currentBinding) == 0)
+				return 0;
+		}
 
 		return 1;
 	}
@@ -236,4 +247,5 @@ public class ClientModeShared : GameEventListener, IClientMode
 	InlineArray2<int> RootSize;
 
 	public BaseHudChat? ChatElement;
+	public BaseHudWeaponSelection? WeaponSelection;
 }

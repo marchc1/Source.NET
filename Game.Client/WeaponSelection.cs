@@ -52,7 +52,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 
 	public override void OnThink() { }// todo
 
-	void ProcessInput() { }
+	public void ProcessInput() { } //todo
 
 	public bool IsInSelectionMode() => SelectionVisible;
 
@@ -68,11 +68,21 @@ public class BaseHudWeaponSelection : EditableHudElement
 
 	public bool CanBeSelectedInHUD(BaseCombatWeapon pWeapon) { return true; } // todo
 
-	int KeyInput(int down, ButtonCode keynum, ReadOnlySpan<char> currentBinding) {
-		return 0;//todo
+	public int KeyInput(int down, ButtonCode keynum, ReadOnlySpan<char> currentBinding) {
+		if (IsInSelectionMode() && !currentBinding.IsEmpty && currentBinding == "cancelselect") {
+			CancelWeaponSelection();
+			return 0;
+		}
+
+		if (down >= 1 && keynum > ButtonCode.Key1 && keynum <= ButtonCode.Key9) {
+			if (HandleHudMenuInput((int)keynum - (int)ButtonCode.Key0))
+				return 0;
+		}
+
+		return 1;
 	}
 
-	void OnWeaponPickup(BaseCombatWeapon pWeapon) { }
+	void OnWeaponPickup(BaseCombatWeapon weapon) { }
 
 	static private void UserCmd_Slot(int slot) {
 		int fastSwitchMode = hud_fastswitch.GetInt();
@@ -187,8 +197,9 @@ public class BaseHudWeaponSelection : EditableHudElement
 		if (player == null)
 			return;
 
-		if (false /*!GetSelectedWeapon().CanBeSelected()*/) {
+		if (!GetSelectedWeapon()!.CanBeSelected()) {
 			// player.EmitSound("Player.DenyWeaponSelection");
+			DevMsg("Player.DenyWeaponSelection\n");
 		}
 		else {
 			SetWeaponSelected();

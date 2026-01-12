@@ -223,6 +223,55 @@ public class FocusOverlayPanel : Panel
 }
 
 
+#if DEBUG
+public class VisualizeLayoutPanel : Panel
+{
+	public VisualizeLayoutPanel(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
+		SetPaintEnabled(false);
+		SetPaintBorderEnabled(false);
+		SetPaintBackgroundEnabled(false);
+
+		MakePopup();
+
+		SetPostChildPaintEnabled(true);
+		SetKeyboardInputEnabled(false);
+		SetMouseInputEnabled(false);
+	}
+
+	public override void PostChildPaint() {
+		if (!sdn_vgui_visualizelayout.GetBool())
+			return;
+
+		if (LayoutVisualizations.Count == 0) return;
+
+		double time = System.GetCurrentTime();
+		List<Panel> toRemove = [];
+
+		foreach (var (panel, expireTime) in LayoutVisualizations) {
+			if (expireTime < time) {
+				toRemove.Add(panel);
+				continue;
+			}
+
+			if (!panel.IsVisible())
+				continue;
+
+			panel.GetAbsPos(out int x, out int y);
+			panel.GetSize(out int w, out int h);
+
+			float alpha = (float)Math.Clamp((expireTime - time) / 0.3, 0, 1);
+			Surface.DrawSetColor(255, 0, 0, (int)(alpha * 100));
+			Surface.DrawFilledRect(x, y, x + w, y + h);
+			Surface.DrawSetColor(0, 255, 0, (int)(alpha * 255));
+			Surface.DrawOutlinedRect(x, y, x + w, y + h);
+		}
+
+		foreach (var p in toRemove)
+			LayoutVisualizations.Remove(p);
+	}
+}
+#endif
+
 public class EngineVGui(
 	Sys Sys, Net Net, IEngineAPI engineAPI, ISurface surface,
 	IMaterialSystem materials, ILauncherManager launcherMgr,
@@ -289,6 +338,14 @@ public class EngineVGui(
 	EnginePanel staticGameDLLPanel;
 	DebugSystemPanel staticDebugSystemPanel;
 	FocusOverlayPanel staticFocusOverlayPanel;
+#if DEBUG
+	VisualizeLayoutPanel staticVisualizeLayoutPanel;
+#endif
+
+	// VProfPanel VProfPanel;
+	BudgetPanelEngine BudgetPanel;
+	TextureBudgetPanel TextureBudgetPanel;
+
 	CL CL;
 	Con Con;
 
@@ -610,17 +667,24 @@ public class EngineVGui(
 		staticFocusOverlayPanel.SetZPos(150);
 		staticFocusOverlayPanel.MoveToFront();
 
+#if DEBUG
+		staticVisualizeLayoutPanel = new(staticPanel, "VisualizeLayoutPanel");
+		staticVisualizeLayoutPanel.SetBounds(0, 0, w, h);
+		staticVisualizeLayoutPanel.SetZPos(160);
+		staticVisualizeLayoutPanel.MoveToFront();
+#endif
+
 		// TODO: the other panels...
 		// Specifically,
 		// - DemoUIPanel (if we even do demos)
 		// - FogUIPanel
-		// - CreateVProfPanels
 
 		if (IsPC()) {
 			Con.CreateConsolePanel(staticEngineToolsPanel);
 			VGuiDrawTree.CreateDrawTreePanel(staticEngineToolsPanel);
 			TextureListPanel.CreateTextureListPanel(staticEngineToolsPanel);
 			CL.CreateEntityReportPanel(staticEngineToolsPanel);
+			CreateVProfPanels(staticEngineToolsPanel);
 		}
 
 		staticEngineToolsPanel.LoadControlSettings("scripts/EngineVGuiLayout.res");
@@ -1047,6 +1111,17 @@ public class EngineVGui(
 
 	public void HideConsole() {
 		staticGameConsole?.Hide();
+	}
+
+	void CreateVProfPanels(Panel parent) {
+		// VProfPanel = new VProfPanel(parent, "VProfPanel");
+		BudgetPanel = new(parent, "BudgetPanel");
+		// CreateVProfGraphPanel(parent);
+		TextureBudgetPanel = new(parent, "TextureBudgetPanel");
+	}
+
+	void DestroyVProfPanels() {
+
 	}
 
 	internal void Shutdown() {

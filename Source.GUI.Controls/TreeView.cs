@@ -20,7 +20,7 @@ class TreeNodeText : TextEntry
 		Tree = tree;
 		EditingInPlace = false;
 		LabelEditingAllowed = false;
-		// SetDragEnabled(false);
+		SetDragEnabled(false);
 		SetDropEnabled(false);
 		AddActionSignalTarget(this);
 		ArmForEditing = false;
@@ -213,7 +213,7 @@ class TreeNodeText : TextEntry
 public class TreeNodeImage : ImagePanel
 {
 	public TreeNodeImage(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
-		// SetBlockDragChaining(true);
+		SetBlockDragChaining(true);
 	}
 
 	public override void OnMousePressed(ButtonCode code) => CallParentFunction(new("MousePressed", "code", code.ToString()));
@@ -1048,7 +1048,7 @@ public class TreeView : Panel
 		Assert(parentIndex == -1 || (parentIndex >= 0 && parentIndex < NodeList.Count));
 
 		TreeNode treeNode = new(SubPanel, this);
-		// treeNode.SetDragEnabled(DragEnabledItems);
+		treeNode.SetDragEnabled(DragEnabledItems);
 		treeNode.ItemIndex = NodeList.Count;
 		NodeList.Add(treeNode);
 		treeNode.SetKeyValues(data);

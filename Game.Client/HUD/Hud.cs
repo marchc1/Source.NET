@@ -77,29 +77,29 @@ public class HudTexture
 		}
 	}
 
+	public void DrawSelfCropped(int x, int y, int cropx, int cropy, int cropw, int croph, in Color clr) => DrawSelfCropped(x, y, cropx, cropy, cropw, croph, cropw, croph, clr);
 	public void DrawSelfCropped(int x, int y, int cropx, int cropy, int cropw, int croph, int finalWidth, int finalHeight, in Color clr) {
 		if (RenderUsingFont) {
-			throw new NotImplementedException();
-			// int height = surface.GetFontTall(Font);
-			// float frac = (height - croph) / (float)height;
-			// y -= cropy;
+			int height = surface.GetFontTall(Font);
+			float frac = (height - croph) / height;
+			y -= cropy;
 
-			// surface.DrawSetTextFont(Font);
-			// surface.DrawSetTextColor(clr);
-			// surface.DrawSetTextPos(x, y);
+			surface.DrawSetTextFont(Font);
+			surface.DrawSetTextColor(clr);
+			surface.DrawSetTextPos(x, y);
 
-			// CharRenderInfo info = new();
-			// if (surface.DrawGetCharRenderInfo(CharacterInFont, out info)) {
-			// 	if (cropy != 0) {
-			// 		info.Verts[0].Position.Y = MathLib.Lerp(frac, info.Verts[0].Position.Y, info.Verts[1].Position.Y);
-			// 		info.Verts[0].TexCoord.Y = MathLib.Lerp(frac, info.Verts[0].TexCoord.Y, info.Verts[1].TexCoord.Y);
-			// 	}
-			// 	else if (croph != height) {
-			// 		info.Verts[1].Position.Y = MathLib.Lerp(1.0f - frac, info.Verts[0].Position.Y, info.Verts[1].Position.Y);
-			// 		info.Verts[1].TexCoord.Y = MathLib.Lerp(1.0f - frac, info.Verts[0].TexCoord.Y, info.Verts[1].TexCoord.Y);
-			// 	}
-			// 	surface.DrawRenderCharFromInfo(in info);
-			// }
+			CharRenderInfo info = new();
+			if (surface.DrawGetCharRenderInfo(CharacterInFont, ref info)) {
+				if (cropy != 0) {
+					info.Verts[0].Position.Y = MathLib.Lerp(frac, info.Verts[0].Position.Y, info.Verts[1].Position.Y);
+					info.Verts[0].TexCoord.Y = MathLib.Lerp(frac, info.Verts[0].TexCoord.Y, info.Verts[1].TexCoord.Y);
+				}
+				else if (croph != height) {
+					info.Verts[1].Position.Y = MathLib.Lerp(1.0f - frac, info.Verts[0].Position.Y, info.Verts[1].Position.Y);
+					info.Verts[1].TexCoord.Y = MathLib.Lerp(1.0f - frac, info.Verts[0].TexCoord.Y, info.Verts[1].TexCoord.Y);
+				}
+				surface.DrawRenderCharFromInfo(info);
+			}
 		}
 		else {
 			if (TextureID == TextureID.INVALID)
@@ -136,6 +136,13 @@ public class HudTexture
 	public Rectangle RC;
 }
 
+public enum ProgressBarType
+{
+	Horizontal = 0,
+	Vertical,
+	HorizontalInv
+}
+
 [EngineComponent]
 public class Hud(HudElementHelper HudElementHelper)
 {
@@ -147,6 +154,9 @@ public class Hud(HudElementHelper HudElementHelper)
 	public Color ClrNormal;
 	public Color ClrCaution;
 	public Color ClrYellowish;
+
+	readonly List<string> RenderGroupNames = [];
+	readonly Dictionary<int, HudRenderGroup> RenderGroups = [];
 
 	public void Init() {
 		HudElementHelper.CreateAllElements(this);
@@ -263,10 +273,6 @@ public class Hud(HudElementHelper HudElementHelper)
 			// KeyBits = input.GetButtonBits();
 			gHUD.Think();
 		}
-	}
-
-	internal bool IsRenderGroupLockedFor(IHudElement hudElement, int groupIndex) {
-		return false; // todo
 	}
 
 	internal static void LoadHudTextures(HudTextureDict list, Span<char> filenameWithExtension) {
@@ -421,12 +427,161 @@ public class Hud(HudElementHelper HudElementHelper)
 			// 	panel?.ProcessInput();
 		}
 
-		// BaseCombatWeapon? weapon = GetActiveWeapon();
-		// if (weapon != null) {
-		// 	weapon.ProcessInput();
+		// BaseCombatWeapon? weapon = BaseCombatWeapon.GetActiveWeapon();
+		// weapon?.HandleInput();
 
 		// screenshottime
 	}
+
+	public void DrawProgressBar(int x, int y, int width, int height, float percentage, Color clr, ProgressBarType type) {
+		percentage = Math.Clamp(percentage, 0.0f, 1.0f);
+
+		Color lowColor = clr;
+		lowColor[0] /= 2;
+		lowColor[1] /= 2;
+		lowColor[2] /= 2;
+
+		if (type == ProgressBarType.Vertical) {
+			int barOfs = (int)(height * percentage);
+			surface.DrawSetColor(clr);
+			surface.DrawFilledRect(x, y, x + width, y + barOfs);
+			surface.DrawSetColor(lowColor);
+			surface.DrawFilledRect(x, y + barOfs, x + width, y + height);
+		}
+		else if (type == ProgressBarType.Horizontal) {
+			int barOfs = (int)(width * percentage);
+			surface.DrawSetColor(clr);
+			surface.DrawFilledRect(x, y, x + barOfs, y + height);
+			surface.DrawSetColor(lowColor);
+			surface.DrawFilledRect(x + barOfs, y, x + width, y + height);
+		}
+		else if (type == ProgressBarType.HorizontalInv) {
+			int barOfs = (int)(width * percentage);
+			surface.DrawSetColor(lowColor);
+			surface.DrawFilledRect(x, y, x + barOfs, y + height);
+			surface.DrawSetColor(clr);
+			surface.DrawFilledRect(x + barOfs, y, x + width, y + height);
+		}
+	}
+
+	public void DrawIconProgressBar(int x, int y, HudTexture icon, HudTexture icon2, float percentage, Color clr, ProgressBarType type) {
+		if (icon == null)
+			return;
+
+		percentage = Math.Clamp(percentage, 0.0f, 1.0f);
+
+		int height = icon.Height();
+		int width = icon.Width();
+
+		if (type == ProgressBarType.Vertical) {
+			int barOfs = (int)(height * percentage);
+			icon2.DrawSelfCropped(x, y, 0, 0, width, barOfs, clr);
+			icon.DrawSelfCropped(x, y + barOfs, 0, barOfs, width, height - barOfs, clr);
+		}
+		else if (type == ProgressBarType.Horizontal) {
+			int barOfs = (int)(width * percentage);
+			icon2.DrawSelfCropped(x, y, 0, 0, barOfs, height, clr);
+			icon.DrawSelfCropped(x + barOfs, y, barOfs, 0, width - barOfs, height, clr);
+		}
+	}
+
+	bool DoesRenderGoupExist(int groupIndex) => groupIndex >= 0 && groupIndex < RenderGroupNames.Count;
+
+	int LookupRenderGroupIndexByName(ReadOnlySpan<char> groupName) {
+		for (int i = 0; i < RenderGroupNames.Count; i++) {
+			if (groupName.Equals(RenderGroupNames[i], StringComparison.OrdinalIgnoreCase))
+				return i;
+		}
+
+		return -1;
+	}
+
+	bool LockRenderGroup(int groupIndex, IHudElement? locker = null) {
+		if (!DoesRenderGroupExist(groupIndex))
+			return false;
+
+		if (!RenderGroups.TryGetValue(groupIndex, out var group) || group == null)
+			return false;
+
+		if (locker == null)
+			group.Hidden = true;
+		else {
+			bool found = false;
+			for (int i = 0; i < group.LockingElements.Count; i++) {
+				if (ReferenceEquals(group.LockingElements[i], locker)) {
+					found = true;
+					break;
+				}
+			}
+
+			if (!found) {
+				group.LockingElements.Add(locker);
+				group.LockingElements.Sort((a, b) => a.GetRenderGroupPriority().CompareTo(b.GetRenderGroupPriority()));
+			}
+		}
+
+		return true;
+	}
+
+
+	bool UnlockRenderGroup(int groupIndex, IHudElement? locker = null) {
+		if (!DoesRenderGroupExist(groupIndex))
+			return false;
+
+		if (!RenderGroups.TryGetValue(groupIndex, out var group))
+			return false;
+
+		if (group.Hidden && locker == null) {
+			group.Hidden = false;
+			return true;
+		}
+
+		for (int i = 0; i < group.LockingElements.Count; i++) {
+			if (locker == group.LockingElements[i]) {
+				group.LockingElements.RemoveAt(i);
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	public bool IsRenderGroupLockedFor(IHudElement? hudElement, int groupIndex) {
+		if (!DoesRenderGroupExist(groupIndex))
+			return false;
+
+		if (!RenderGroups.TryGetValue(groupIndex, out var group) || group == null)
+			return false;
+
+		if (group.Hidden)
+			return true;
+
+		if (group.LockingElements.Count == 0)
+			return false;
+
+		if (hudElement == null)
+			return true;
+
+		var locker = group.LockingElements[0];
+		return locker != hudElement && locker.GetRenderGroupPriority() <= hudElement.GetRenderGroupPriority();
+	}
+
+	int RegisterForRenderGroup(ReadOnlySpan<char> groupName) {
+		int index = LookupRenderGroupIndexByName(groupName);
+		if (index != -1)
+			return index;
+
+		return AddHudRenderGroup(groupName);
+	}
+
+	int AddHudRenderGroup(ReadOnlySpan<char> groupName) {
+		RenderGroupNames.Add(groupName.ToString());
+		int idx = RenderGroupNames.Count - 1;
+		RenderGroups.Add(idx, new());
+		return idx;
+	}
+
+	bool DoesRenderGroupExist(int groupIndex) => RenderGroups.ContainsKey(groupIndex);
 }
 
 public class HudElementHelper
@@ -445,4 +600,11 @@ public class HudElementHelper
 				HUD.AddHudElement(element);
 		}
 	}
+}
+
+class HudRenderGroup
+{
+	public bool Hidden;
+	public List<IHudElement> LockingElements = [];
+	public HudRenderGroup() => Hidden = false;
 }

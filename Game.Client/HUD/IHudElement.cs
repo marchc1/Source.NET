@@ -36,6 +36,7 @@ public interface IHudElement
 	bool IsActive() => Active;
 	bool SetActive(bool active) => Active = active;
 	void SetHiddenBits(HideHudBits bits) => HiddenBits = bits;
+	public virtual int GetRenderGroupPriority() => 0;
 
 	public static void HookMessage(ReadOnlySpan<char> message, UserMessageHook hookFn) => Singleton<UserMessages>().HookMessage(message, hookFn);
 }

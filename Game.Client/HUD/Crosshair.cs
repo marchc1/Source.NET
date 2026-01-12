@@ -9,12 +9,12 @@ using Source.GUI.Controls;
 
 using System.Numerics;
 
-namespace Game.Client.HL2;
+namespace Game.Client.HUD;
 
 [DeclareHudElement(Name = "CHudCrosshair")]
 public class HudCrosshair : EditableHudElement, IHudElement
 {
-	static ConVar crosshair = new("crosshair", "1", FCvar.Archive);
+	public static ConVar crosshair = new("crosshair", "1", FCvar.Archive);
 	static ConVar cl_observercrosshair = new("cl_observercrosshair", "1", FCvar.Archive);
 
 	HudTexture? Crosshair;

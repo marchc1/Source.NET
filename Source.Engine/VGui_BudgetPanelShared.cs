@@ -2,6 +2,8 @@ using Source.Common.Commands;
 using Source.Common.GUI;
 using Source.GUI.Controls;
 
+namespace Source.Engine;
+
 [Flags]
 public enum BudgetFlags : ushort
 {
@@ -28,7 +30,7 @@ class BudgetPanelShared : BaseBudgetPanel
 
 	static BudgetPanelShared? g_BudgetPanelShared;
 	static double FrameTimeLessBudget;
-	static double FrameRate;
+	public static double FrameRate;
 	public BudgetPanelShared(Panel? parent, ReadOnlySpan<char> name, int budgetFlagsFilter) : base(parent, name) {
 		Assert(g_BudgetPanelShared == null);
 		g_BudgetPanelShared = this;
@@ -88,7 +90,7 @@ class BudgetPanelShared : BaseBudgetPanel
 		data.BackgroundAlpha = budget_background_alpha.GetFloat();
 
 		SetupCustomConfigData(data);
-		// OnConfigDataChanged(data);
+		OnConfigDataChanged(data);
 	}
 
 	void DrawColoredText(IFont font, int x, int y, int r, int g, int b, int a, ReadOnlySpan<char> text) { }
@@ -126,7 +128,7 @@ class BudgetPanelShared : BaseBudgetPanel
 
 	void SnapshotVProfHistory(float filteredtime) { }
 
-	void SetTimeLabelText() {
+	public override void SetTimeLabelText() {
 		Span<char> text = stackalloc char[512];
 		for (int i = 0; i < TimeLabels.Count; i++) {
 			text.Clear();
@@ -135,12 +137,10 @@ class BudgetPanelShared : BaseBudgetPanel
 		}
 	}
 
-	void SetHistoryLabelText() {
+	public override void SetHistoryLabelText() {
 		Assert(HistoryLabels.Count == 3);
 		HistoryLabels[0].SetText("20 fps (50 ms)");
 		HistoryLabels[1].SetText("30 fps (33 1/3 ms)");
 		HistoryLabels[2].SetText("60 fps (16 2/3 ms)");
 	}
-
-	private BudgetPanelConfigData GetConfigData() => ConfigData;
 }
