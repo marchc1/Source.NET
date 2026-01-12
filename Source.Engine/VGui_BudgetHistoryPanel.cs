@@ -2,6 +2,8 @@ using Source.Common.Commands;
 using Source.Common.GUI;
 using Source.GUI.Controls;
 
+using System.Drawing;
+
 namespace Source.Engine;
 
 class BudgetHistoryPanel : Panel
@@ -52,8 +54,8 @@ class BudgetHistoryPanel : Panel
 		}
 
 		int rectCount = endId - startId;
-		var rects = new IntRect[rectCount];
-		var currentHeight = new float[rectCount];
+		Span<Rectangle> rects = new Rectangle[rectCount];
+		Span<float> currentHeight = new float[rectCount];
 
 		float oneOverRange = 1.0f / (RangeMax - RangeMin);
 
@@ -72,7 +74,7 @@ class BudgetHistoryPanel : Panel
 				bottom = height - bottom - 1;
 				top = height - top - 1;
 
-				ref IntRect rect = ref rects[i - startId];
+				ref Rectangle rect = ref rects[i - startId];
 				rect.X0 = left;
 				rect.X1 = right;
 				rect.Y0 = top;
