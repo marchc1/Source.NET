@@ -1609,6 +1609,16 @@ public unsafe ref struct ASCIIStringView : IDisposable
 	}
 }
 
+public static class StructExts
+{
+	extension(Rectangle rect)
+	{
+		public int X0{ get => rect.X; set => rect.X = value; }
+		public int Y0{ get => rect.Y; set => rect.Y = value; }
+		public int X1{ get => rect.X + rect.Width; set => rect.Width = (value - rect.X); }
+		public int Y1{ get => rect.Y + rect.Height; set => rect.Height = (value - rect.Y); }
+	}
+}
 public static class SpanExts
 {
 	public static int ClampedCopyTo<T>(this ReadOnlySpan<T> source, Span<T> dest) {

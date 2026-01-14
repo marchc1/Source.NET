@@ -82,14 +82,6 @@ public ref struct CharRenderInfo
 	public bool ShouldClip;
 };
 
-public struct IntRect(int x0, int y0, int x1, int y1)
-{
-	public int X0 = x0;
-	public int Y0 = y0;
-	public int X1 = x1;
-	public int Y1 = y1;
-}
-
 public delegate void VGuiPlayFunc(ReadOnlySpan<char> fileName);
 public interface ISurface
 {
@@ -105,7 +97,7 @@ public interface ISurface
 	void DrawSetColor(in Color color);
 
 	void DrawFilledRect(int x0, int y0, int x1, int y1);
-	void DrawFilledRectArray(Span<IntRect> rects, int numRects);
+	void DrawFilledRectArray(Span<Rectangle> rects, int numRects);
 	void DrawOutlinedRect(int x0, int y0, int x1, int y1);
 	void DrawOutlinedCircle(int x, int y, int radius, int segments);
 

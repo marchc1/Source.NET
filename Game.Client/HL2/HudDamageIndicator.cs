@@ -31,33 +31,32 @@ class HudDamageIndicator : EditableHudElement, IHudElement
 	const int DAMAGE_HIGH = 2;
 
 	const float ANGLE_ANY = -1.0f;
-	const int DMG_ANY = 0;
 
-	struct DamageAnimation(string? name, int bitsDamage, float angleMinimum, float angleMaximum, int damage)
+	struct DamageAnimation(string? name, DamageType bitsDamage, float angleMinimum, float angleMaximum, int damage)
 	{
 		public string? Name = name;
-		public int BitsDamage = bitsDamage;
+		public DamageType BitsDamage = bitsDamage;
 		public float AngleMinimum = angleMinimum;
 		public float AngleMaximum = angleMaximum;
 		public int Damage = damage;
 	}
 
 	static readonly DamageAnimation[] DamageAnimations = [
-		new("HudTakeDamageDrown",      DMG_DROWN,      ANGLE_ANY, ANGLE_ANY, DAMAGE_ANY),
-		new("HudTakeDamagePoison",     DMG_POISON,     ANGLE_ANY, ANGLE_ANY, DAMAGE_ANY),
-		new("HudTakeDamageBurn",       DMG_BURN,       ANGLE_ANY, ANGLE_ANY, DAMAGE_ANY),
-		new("HudTakeDamageRadiation",  DMG_RADIATION,  ANGLE_ANY, ANGLE_ANY, DAMAGE_ANY),
-		new("HudTakeDamageRadiation",  DMG_ACID,       ANGLE_ANY, ANGLE_ANY, DAMAGE_ANY),
+		new("HudTakeDamageDrown",      DamageType.Drown,      ANGLE_ANY, ANGLE_ANY, DAMAGE_ANY),
+		new("HudTakeDamagePoison",     DamageType.Poison,     ANGLE_ANY, ANGLE_ANY, DAMAGE_ANY),
+		new("HudTakeDamageBurn",       DamageType.Burn,       ANGLE_ANY, ANGLE_ANY, DAMAGE_ANY),
+		new("HudTakeDamageRadiation",  DamageType.Radiation,  ANGLE_ANY, ANGLE_ANY, DAMAGE_ANY),
+		new("HudTakeDamageRadiation",  DamageType.Acid,       ANGLE_ANY, ANGLE_ANY, DAMAGE_ANY),
 
-		new("HudTakeDamageHighLeft",   DMG_ANY,        45.0f,    135.0f,    DAMAGE_HIGH),
-		new("HudTakeDamageHighRight",  DMG_ANY,        225.0f,   315.0f,    DAMAGE_HIGH),
-		new("HudTakeDamageHigh",       DMG_ANY,        ANGLE_ANY, ANGLE_ANY, DAMAGE_HIGH),
+		new("HudTakeDamageHighLeft",   DamageType.Any,        45.0f,    135.0f,    DAMAGE_HIGH),
+		new("HudTakeDamageHighRight",  DamageType.Any,        225.0f,   315.0f,    DAMAGE_HIGH),
+		new("HudTakeDamageHigh",       DamageType.Any,        ANGLE_ANY, ANGLE_ANY, DAMAGE_HIGH),
 
-		new("HudTakeDamageLeft",       DMG_ANY,        45.0f,    135.0f,    DAMAGE_ANY),
-		new("HudTakeDamageRight",      DMG_ANY,        225.0f,   315.0f,    DAMAGE_ANY),
-		new("HudTakeDamageBehind",     DMG_ANY,        135.0f,   225.0f,    DAMAGE_ANY),
+		new("HudTakeDamageLeft",       DamageType.Any,        45.0f,    135.0f,    DAMAGE_ANY),
+		new("HudTakeDamageRight",      DamageType.Any,        225.0f,   315.0f,    DAMAGE_ANY),
+		new("HudTakeDamageBehind",     DamageType.Any,        135.0f,   225.0f,    DAMAGE_ANY),
 
-		new("HudTakeDamageFront",      DMG_ANY,        ANGLE_ANY, ANGLE_ANY, DAMAGE_ANY),
+		new("HudTakeDamageFront",      DamageType.Any,        ANGLE_ANY, ANGLE_ANY, DAMAGE_ANY),
 
 		new(null, 0, 0, 0, 0)
 	];
@@ -241,7 +240,7 @@ class HudDamageIndicator : EditableHudElement, IHudElement
 	private void MsgFunc_Damage(bf_read msg) {
 		int armor = msg.ReadByte();
 		int damageTaken = msg.ReadByte();
-		long bitsDamage = msg.ReadLong();
+		DamageType bitsDamage = (DamageType)msg.ReadLong();
 
 		Vector3 vecFrom;
 
@@ -258,7 +257,7 @@ class HudDamageIndicator : EditableHudElement, IHudElement
 			return;
 		}
 
-		if (vecFrom == vec3_origin && ((bitsDamage & DMG_DROWN) == 0))
+		if (vecFrom == vec3_origin && ((bitsDamage & DamageType.Drown) == 0))
 			return;
 
 		Vector3 vecDelta = vecFrom - MainViewOrigin();

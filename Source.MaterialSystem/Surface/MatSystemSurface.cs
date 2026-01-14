@@ -426,7 +426,7 @@ public class MatSystemSurface : IMatSystemSurface
 		DrawQuad(in clippedRect[0], in clippedRect[1], in DrawColor);
 	}
 
-	public void DrawFilledRectArray(Span<IntRect> rects, int numRects) {
+	public void DrawFilledRectArray(Span<Rectangle> rects, int numRects) {
 		Assert(InDrawing);
 
 		if (FullyTransparent)

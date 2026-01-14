@@ -1,4 +1,7 @@
 ﻿// TODO: Logging calls when things go wrong, ie. try/catches
+#if !WIN32
+#define FORCE_CASE_INSENSITIVE_ON_DISK
+#endif
 
 
 using Source.Common.Filesystem;
@@ -7,6 +10,39 @@ namespace Source.FileSystem;
 
 public class DiskSearchPath : SearchPath
 {
+#if FORCE_CASE_INSENSITIVE_ON_DISK
+	class CaseInsensitiveCache {
+		public required string RealPath;
+	}
+	static readonly Dictionary<ulong, CaseInsensitiveCache> cache = [];
+	static string ResolveDiskPath(string path) {
+		ulong hash = path.Hash(invariant: true);
+		if(cache.TryGetValue(hash, out CaseInsensitiveCache? found))
+			return found.RealPath;
+
+		string directory = Path.GetDirectoryName(path) ?? throw new Exception();
+		string pattern = Path.GetFileName(path);
+		if (!Directory.Exists(directory))
+			return path;
+
+		IEnumerable<string> foundFiles = Directory.EnumerateFiles(directory, pattern);
+
+		if (foundFiles.Any()) {
+			string realPath = foundFiles.First();
+			cache[hash] = new() {
+				RealPath = realPath
+			};
+			return realPath;
+		}
+		else
+			return path;
+	}
+#else
+	static string ResolveDiskPath(string path) {
+		return path;
+	}
+#endif
+
 	private IFileSystem parent;
 	public DiskSearchPath(IFileSystem filesystem, string absPath) {
 		parent = filesystem;
@@ -17,7 +53,7 @@ public class DiskSearchPath : SearchPath
 		SetPath(absPath);
 	}
 
-	private string GetAbsPath(ReadOnlySpan<char> relPath) => Path.Combine(DiskPath!, new(relPath));
+	private string GetAbsPath(ReadOnlySpan<char> relPath) => ResolveDiskPath(Path.Combine(DiskPath!, new(relPath)));
 
 	public override bool Exists(ReadOnlySpan<char> path) => Path.Exists(GetAbsPath(path));
 	public override bool IsDirectory(ReadOnlySpan<char> path) => Directory.Exists(GetAbsPath(path));
