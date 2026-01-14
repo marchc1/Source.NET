@@ -84,14 +84,14 @@ public class LoadingDialog : Frame
 	public LoadingDialog(Panel? parent) : base(parent, "LoadingDialog") {
 		SetDeleteSelfOnClose(true);
 
-		// ConsoleStyle = true;
+		ConsoleStyle = GameUI.IsConsoleUI();
 
 		if (!ConsoleStyle) {
 			SetSize(416, 100);
 			SetTitle("#GameUI_Loading", true);
 		}
 
-		Center = !GameUI!.HasLoadingBackgroundDialog();
+		Center = !GameUI.HasLoadingBackgroundDialog();
 
 		ShowingSecondaryProgress = false;
 		SecondaryProgress = 0.0f;
@@ -105,7 +105,7 @@ public class LoadingDialog : Frame
 		TimeRemainingLabel = new Label(this, "TimeRemainingLabel", "");
 		CancelButton.SetCommand("Cancel");
 
-		if (ModInfo!.IsSinglePlayerOnly() == false && ConsoleStyle == true)
+		if (ModInfo.IsSinglePlayerOnly() == false && ConsoleStyle == true)
 			LoadingBackground = new Panel(this, "LoadingDialogBG");
 		else
 			LoadingBackground = null;
@@ -142,6 +142,12 @@ public class LoadingDialog : Frame
 	private void SetupControlSettings(bool forceShowProgressText) {
 		ShowingVACInfo = false;
 
+		if (GameUI.IsConsoleUI()) {
+			// KeyValues controlSettings = BasePanel.GetConsoleControlSettings().FindKey("LoadingDialogNoBanner.res");
+			// LoadControlSettings("null", null, controlSettings);
+			// return;
+		}
+
 		if (ModInfo.IsSinglePlayerOnly() && !forceShowProgressText)
 			LoadControlSettings("resource/LoadingDialogNoBannerSingle.res");
 		else
@@ -175,6 +181,30 @@ public class LoadingDialog : Frame
 
 		InfoLabel.InvalidateLayout();
 		SetSizeable(true);
+	}
+
+	internal void DisplayNoSteamConnectionError() {
+		if (ConsoleStyle)
+			return;
+
+		SetupControlSettingsForErrorDisplay("resource/LoadingDialogErrorNoSteamConnection.res");
+	}
+
+	internal void DisplayVACBannedError() {
+		if (ConsoleStyle)
+			return;
+
+		SetupControlSettingsForErrorDisplay("resource/LoadingDialogErrorVACBanned.res");
+		SetTitle("#VAC_ConnectionRefusedTitle", true);
+	}
+
+	internal void DisplayLoggedInElsewhereError() {
+		if (ConsoleStyle)
+			return;
+
+		SetupControlSettingsForErrorDisplay("resource/LoadingDialogErrorLoggedInElsewhere.res");
+		CancelButton.SetText("#GameUI_RefreshLogin_Login");
+		CancelButton.SetCommand("Login");
 	}
 
 	private void SetupControlSettingsForErrorDisplay(ReadOnlySpan<char> settingsFile) {
@@ -241,16 +271,16 @@ public class LoadingDialog : Frame
 				return true;
 			}
 
-			return false;//IsX360();
+			return false;
 		}
 
 		if (!ShowingVACInfo)
 			SetupControlSettings(false);
 
-		int nOldDrawnSegments = Progress.GetDrawnSegmentCount();
+		int oldDrawnSegments = Progress.GetDrawnSegmentCount();
 		Progress.SetProgress(progress);
-		int nNewDrawSegments = Progress.GetDrawnSegmentCount();
-		return nOldDrawnSegments != nNewDrawSegments;
+		int newDrawSegments = Progress.GetDrawnSegmentCount();
+		return oldDrawnSegments != newDrawSegments;
 	}
 
 	internal void SetSecondaryProgress(float progress) {
@@ -282,6 +312,9 @@ public class LoadingDialog : Frame
 	}
 
 	internal void SetStatusText(ReadOnlySpan<char> statusText) {
+		if (ConsoleStyle)
+			return;
+
 		InfoLabel.SetText(statusText);
 	}
 
@@ -304,7 +337,7 @@ public class LoadingDialog : Frame
 			Span<char> unicode = stackalloc char[512];
 			if (SecondaryProgress >= 1.0f)
 				TimeRemainingLabel.SetText("complete");
-			else if (ProgressBar.ConstructTimeRemainingString(unicode, (float)SecondaryProgressStartTime, (float)System.GetFrameTime(), SecondaryProgress, (float)LastSecondaryProgressUpdateTime, true))
+			else if (ProgressBar.ConstructTimeRemainingString(unicode, SecondaryProgressStartTime, System.GetFrameTime(), SecondaryProgress, (float)LastSecondaryProgressUpdateTime, true))
 				TimeRemainingLabel.SetText(unicode);
 			else
 				TimeRemainingLabel.SetText("");

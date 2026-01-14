@@ -1,12 +1,7 @@
-using CommunityToolkit.HighPerformance;
-
 using Source.Common;
-using Source.Common.Audio;
 using Source.Common.Commands;
 using Source.Common.GUI;
 using Source.GUI.Controls;
-
-using Color = Source.Color;
 
 namespace Source.Engine;
 
@@ -33,7 +28,7 @@ public partial class CL
 	internal const float BITCOUNT_AVERAGE = 0.95f;
 	internal const float EFFECT_TIME = 1.5f;
 	internal const float PEAK_LATCH_TIME = 2.0f;
-	
+
 	internal const int FENTITYBITS_ADD = 0x01;
 	internal const int FENTITYBITS_LEAVEPVS = 0x02;
 	internal const int FENTITYBITS_DELETE = 0x04;

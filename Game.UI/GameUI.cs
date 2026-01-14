@@ -36,11 +36,19 @@ public class GameUI(IEngineClient engine) : IGameUI
 		GameQueryPort = queryPort;
 	}
 
-	public void OnDisconnectFromServer(byte steamLoginFailure) {
+	public void OnDisconnectFromServer(SteamLoginFailure steamLoginFailure) {
 		GameIP = null;
 		GameConnectionPort = 0;
 		GameQueryPort = 0;
 
+		if (LoadingDialog != null) {
+			if (steamLoginFailure == SteamLoginFailure.NoSteamLogin)
+				LoadingDialog.DisplayNoSteamConnectionError();
+			else if (steamLoginFailure == SteamLoginFailure.VacBanned)
+				LoadingDialog.DisplayVACBannedError();
+			else if (steamLoginFailure == SteamLoginFailure.LoggedInElseWhere)
+				LoadingDialog.DisplayLoggedInElsewhereError();
+		}
 	}
 
 	bool ActivatedUI;
@@ -122,7 +130,7 @@ public class GameUI(IEngineClient engine) : IGameUI
 	public void SetMainMenuOverride(IPanel panel) {
 		//BasePanel? basePanel = BasePanel();
 		//if (basePanel != null)
-			// basePanel.SetMainMenuOverride(panel); // todo
+		// basePanel.SetMainMenuOverride(panel); // todo
 	}
 
 	public bool SetShowProgressText(bool show) {
@@ -143,10 +151,10 @@ public class GameUI(IEngineClient engine) : IGameUI
 	public bool UpdateProgressBar(float progress, ReadOnlySpan<char> statusText) {
 		bool redraw = false;
 
-		if (ContinueProgressBar(progress)) 
+		if (ContinueProgressBar(progress))
 			redraw = true;
 
-		if (SetProgressBarStatusText(statusText)) 
+		if (SetProgressBarStatusText(statusText))
 			redraw = true;
 
 		return redraw;
@@ -186,7 +194,7 @@ public class GameUI(IEngineClient engine) : IGameUI
 	}
 
 	public void StopProgressBar(bool error, ReadOnlySpan<char> failureReason, ReadOnlySpan<char> extendedReason) {
-		if (LoadingDialog == null && error) 
+		if (LoadingDialog == null && error)
 			LoadingDialog = new LoadingDialog(staticPanel);
 
 		if (LoadingDialog == null)

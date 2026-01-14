@@ -60,26 +60,26 @@ public class ProgressBar : Panel
 		SetBorder(scheme.GetBorder("ButtonDepressedBorder"));
 	}
 
-	public static bool ConstructTimeRemainingString(Span<char> output, float startTime, float currentTime, float currentProgress, float lastProgressUpdateTime, bool addRemainingSuffix) {
+	public static bool ConstructTimeRemainingString(Span<char> output, TimeUnit_t startTime, TimeUnit_t currentTime, float currentProgress, float lastProgressUpdateTime, bool addRemainingSuffix) {
 		Assert(lastProgressUpdateTime <= currentTime);
 
 		output[0] = '\0';
 
-		float timeElapsed = lastProgressUpdateTime - startTime;
-		float totalTime = timeElapsed / currentProgress;
+		TimeUnit_t timeElapsed = lastProgressUpdateTime - startTime;
+		TimeUnit_t totalTime = timeElapsed / currentProgress;
 
 		int secondsRemaining = (int)(totalTime - timeElapsed);
 		if (lastProgressUpdateTime < currentTime) {
-			float progressRate = currentProgress / timeElapsed;
-			float extrapolatedProgress = progressRate * (currentTime - lastProgressUpdateTime);
-			float extrapolatedTotalTimee = (currentTime - startTime) / extrapolatedProgress;
+			float progressRate = (float)(currentProgress / timeElapsed);
+			float extrapolatedProgress = (float)(progressRate * (currentTime - lastProgressUpdateTime));
+			float extrapolatedTotalTimee = (float)((currentTime - startTime) / extrapolatedProgress);
 			secondsRemaining = (int)(extrapolatedTotalTimee - timeElapsed);
 		}
 
 		if (secondsRemaining == 0 && (totalTime - timeElapsed) > 0)
 			secondsRemaining = 1;
 
-		int minutesRemaining = (secondsRemaining / 60);
+		int minutesRemaining = secondsRemaining / 60;
 		secondsRemaining %= 60;
 
 		Span<char> minutesBuf = stackalloc char[16];
