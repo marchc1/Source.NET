@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 
+using Source;
 using Source.Common;
 using Source.Common.Client;
 using Source.Common.Engine;
+using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GameUI;
 using Source.Common.GUI;
@@ -90,12 +92,14 @@ public class GameUI(IEngineClient engine) : IGameUI
 	ISurface Surface;
 	ILocalize localize;
 	IEngineAPI EngineAPI;
+	IFileSystem fileSystem;
 
 	public void Initialize(IEngineAPI engineAPI) {
 		enginevguifuncs = engineAPI.GetRequiredService<IEngineVGui>();
 		Surface = engineAPI.GetRequiredService<ISurface>();
 		localize = engineAPI.GetRequiredService<ILocalize>();
 		EngineAPI = engineAPI.GetRequiredService<IEngineAPI>();
+		fileSystem = engineAPI.GetRequiredService<IFileSystem>();
 
 		localize.AddFile("Resource/gameui_%language%.txt", "GAME", true);
 		engineAPI.GetRequiredService<ModInfo>().LoadCurrentGameInfo();
@@ -140,12 +144,50 @@ public class GameUI(IEngineClient engine) : IGameUI
 		return LoadingDialog.SetShowProgressText(show);
 	}
 
+	private bool FindPlatformDirectory(out ReadOnlySpan<char> platformDir) {
+		platformDir = string.Empty;
+
+#if WIN32
+		var location = System.Reflection.Assembly.GetExecutingAssembly().Location;
+		if (string.IsNullOrEmpty(location))
+			return false;
+
+		var dir = Path.GetDirectoryName(location);
+		if (dir == null)
+			return false;
+
+		platformDir = Path.Combine(dir, "platform") + Path.DirectorySeparatorChar;
+		return true;
+#else
+
+#endif
+	}
+
 	public void Shutdown() {
 		throw new NotImplementedException();
 	}
 
 	public void Start() {
+		if (!FindPlatformDirectory(out ReadOnlySpan<char> platformDir))
+			return;
 
+		if (IsPC()) {
+			Span<char> configDir = stackalloc char[512];
+			strcpy(configDir, platformDir);
+			strcat(configDir, "config");
+
+			Msg($"Steam config directory: {configDir} \n");
+
+			fileSystem.AddSearchPath(configDir.SliceNullTerminatedString(), "CONFIG");
+			fileSystem.CreateDirHierarchy("", "CONFIG");
+
+			// todo SetUserConfigFile
+
+			fileSystem.AddSearchPath("platform", "PLATFORM");
+		}
+
+		localize.AddFile("Resource/platform_%language%.txt");
+		localize.AddFile("Resource/vgui_%language%.txt");
 	}
 
 	public bool UpdateProgressBar(float progress, ReadOnlySpan<char> statusText) {
