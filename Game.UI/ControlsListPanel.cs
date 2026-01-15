@@ -59,7 +59,7 @@ public class ControlsListPanel : SectionedListPanel
 
 	public void StartCaptureMode(CursorCode? cursor) {
 		CaptureMode = true;
-		// EnterEditMode(ClickRow, 1, InlineEditPanel);
+		EnterEditMode(ClickRow, 1, InlineEditPanel);
 		Input.SetMouseFocus(InlineEditPanel);
 		Input.SetMouseCapture(InlineEditPanel);
 
@@ -105,9 +105,9 @@ public class ControlsListPanel : SectionedListPanel
 	}
 
 	public override void OnMouseDoublePressed(ButtonCode code) {
-		// if (IsItemIDValid(GetSelectedItem()))
-		// OnKeyCodePressed(ButtonCode.KeyEnter);
-		// else
-		// base.OnMouseDoublePressed(code);
+		if (IsItemIDValid(GetSelectedItem()))
+			OnKeyCodePressed(ButtonCode.KeyEnter);
+		else
+			base.OnMouseDoublePressed(code);
 	}
 }

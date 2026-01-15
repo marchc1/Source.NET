@@ -5,8 +5,6 @@ using Source.Common.Commands;
 using Source.Common.GUI;
 using Source.GUI.Controls;
 
-using ZstdSharp.Unsafe;
-
 namespace Game.Client;
 
 public class FPSPanel : Panel
@@ -16,7 +14,7 @@ public class FPSPanel : Panel
 	static readonly ConVar cl_showbattery = new("0", 0, "Draw current battery level at top of screen when on battery power");
 
 	private void ComputeSize() {
-		GetParent()!.GetSize(out int wide, out int tall);
+		GetParent()!.GetSize(out int wide, out _);
 		int x = wide - FPS_PANEL_WIDTH;
 		int y = 0;
 		SetPos(x, y);
