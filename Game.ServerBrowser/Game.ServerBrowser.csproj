@@ -12,7 +12,6 @@
     <ProjectReference Include="..\Source.Common\Source.Common.csproj" />
     <ProjectReference Include="..\Source.Engine\Source.Engine.csproj" />
     <ProjectReference Include="..\Source.GUI.Controls\Source.GUI.Controls.csproj" />
-    <ProjectReference Include="..\Game.ServerBrowser\Game.ServerBrowser.csproj" />
   </ItemGroup>
 
 </Project>

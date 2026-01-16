@@ -54,7 +54,7 @@ class FileCompletionEdit : TextEntry
 	void OnMenuItemHighlight(int itemID) { }
 }
 
-class FileOpenDialog : Frame
+public class FileOpenDialog : Frame
 {
 	ComboBox FullPathEdit;
 	ListPanel FileList;

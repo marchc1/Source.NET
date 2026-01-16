@@ -53,7 +53,7 @@ class PageTab : Button
 	long HoverActivePageTime;
 	long DropHoverTime;
 
-	public PageTab(PropertySheet parent, string panelName, string text, ReadOnlySpan<char> imageName, int maxTabWidth, Panel page, bool showContextButton, long hoverActivePageTime = -1)
+	public PageTab(PropertySheet parent, ReadOnlySpan<char> panelName, ReadOnlySpan<char> text, ReadOnlySpan<char> imageName, int maxTabWidth, Panel page, bool showContextButton, long hoverActivePageTime = -1)
 		: base(parent, panelName, text) {
 		Parent = parent;
 		Page = page;
@@ -377,7 +377,7 @@ public class PropertySheet : EditablePanel
 			return;
 
 		long hoverActivePageTime = 250;
-		PageTab tab = new(this, "Tab", title.ToString(), imageName, TabWidth, page, ContextButton && hasContextMenu, hoverActivePageTime);
+		PageTab tab = new(this, "Tab", title, imageName, TabWidth, page, ContextButton && hasContextMenu, hoverActivePageTime);
 		if (DraggableTabs)
 			tab.SetDragEnabled(true);
 
@@ -385,7 +385,7 @@ public class PropertySheet : EditablePanel
 		if (ShowTabs)
 			tab.AddActionSignalTarget(this);
 		else
-			Combo?.AddItem(title.ToString(), null);
+			Combo?.AddItem(title, null);
 
 		if (TabKV != null)
 			tab.ApplySettings(TabKV);
@@ -481,7 +481,7 @@ public class PropertySheet : EditablePanel
 		return -1;
 	}
 
-	public override void RequestFocus(int direction) {
+	public override void RequestFocus(int direction = 0) {
 		if (direction == -1 || direction == 0) {
 			if (ActivePage != null) {
 				ActivePage.RequestFocus(direction);

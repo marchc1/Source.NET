@@ -135,6 +135,11 @@ public interface IPanelAnimationPropertyConverter
 
 [AttributeUsage(AttributeTargets.Field)]
 public class PanelAnimationVarAliasTypeAttribute(string scriptName, string defaultValue, string typeAlias) : PanelAnimationVarAttribute(scriptName, defaultValue, typeAlias);
+[AttributeUsage(AttributeTargets.Class)]
+public class PanelAliasAttribute(string alias) : Attribute
+{
+	public readonly string Alias = alias;
+}
 public class PanelAnimationVarAttribute : Attribute
 {
 	public readonly string? Name;
@@ -2662,6 +2667,12 @@ public class Panel : IPanel
 				PanelFactories[nameSymbol] = method.CreateDelegate<CreatePanelFactoryFn>();
 
 			PanelNames[nameSymbol] = type;
+
+			PanelAliasAttribute? aliasAttr = type.GetCustomAttribute<PanelAliasAttribute>();
+			if (aliasAttr != null) {
+				UtlSymbol aliasSymbol = new(aliasAttr.Alias);
+				PanelNames[aliasSymbol] = type;
+			}
 
 			count++;
 		}

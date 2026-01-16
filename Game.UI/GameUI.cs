@@ -188,6 +188,10 @@ public class GameUI(IEngineClient engine) : IGameUI
 
 		localize.AddFile("Resource/platform_%language%.txt");
 		localize.AddFile("Resource/vgui_%language%.txt");
+
+		PlayGameStartupSound = true;
+		// TryingToLoadFriends = true;
+		// FriendsLoadPauseFrames = 1;
 	}
 
 	public bool UpdateProgressBar(float progress, ReadOnlySpan<char> statusText) {

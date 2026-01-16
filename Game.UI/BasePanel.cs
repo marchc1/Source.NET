@@ -1,6 +1,7 @@
 using Source;
 using Source.Common;
 using Source.Common.Client;
+using Source.Common.Commands;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GameUI;
@@ -249,10 +250,19 @@ public class BasePanel : Panel
 	TextureID BackgroundImageID = TextureID.INVALID;
 
 	OptionsDialog? OptionsDialog;
+	static BasePanel? g_BasePanel;
 
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
 		RunMenuCommand(command);
+	}
+
+	[ConCommand("gamemenucommand")]
+	static void Gamemenucommand(in TokenizedCommand args) {
+		if (args.ArgC() < 2)
+			return;
+
+		g_BasePanel?.RunMenuCommand(args[1]);
 	}
 
 	private void RunMenuCommand(ReadOnlySpan<char> command) {
@@ -267,7 +277,7 @@ public class BasePanel : Panel
 			case "OpenOptionsDialog": OnOpenOptionsDialog(); break;
 			case "OpenControllerDialog": break;
 			case "OpenBenchmarkDialog": break;
-			case "OpenServerBrowser": break;
+			case "OpenServerBrowser": OnOpenServerBrowser(); break;
 			case "OpenFriendsDialog": break;
 			case "OpenLoadDemoDialog": break;
 			case "OpenCreateMultiplayerGameDialog": break;
@@ -315,6 +325,16 @@ public class BasePanel : Panel
 		OptionsDialog.Activate();
 	}
 
+	// FIXME: This is meant to be done through some ModuleLoader system, but that doesn't exist yet,
+	// 				so for now I'm cheating
+	static ServerBrowser.ServerBrowser? ServerBrowser;
+	private void OnOpenServerBrowser() {
+		ServerBrowser ??= new();
+		if (ServerBrowser.Initialize())
+			if (ServerBrowser.PostInitialize())
+				ServerBrowser.Activate();
+	}
+
 	public void PositionDialog(Panel? dialog) {
 		if (!dialog.IsValid())
 			return;
@@ -352,6 +372,7 @@ public class BasePanel : Panel
 
 	public BasePanel(GameUI gameUI) : base(null, "BaseGameUIPanel") {
 		GameUI = gameUI;
+		g_BasePanel = this;
 		CreateGameMenu();
 		CreateGameLogo();
 
@@ -366,7 +387,7 @@ public class BasePanel : Panel
 	IFont? FontTest;
 
 	public override void PaintBackground() {
-		if(!GameUI.IsInLevel() || GameUI.LoadingDialog != null || ExitingFrameCount > 0)
+		if (!GameUI.IsInLevel() || GameUI.LoadingDialog != null || ExitingFrameCount > 0)
 			DrawBackgroundImage();
 
 		if (BackgroundFillAlpha > 0) {
@@ -416,17 +437,17 @@ public class BasePanel : Panel
 	}
 
 	public void UpdateBackgroundState() {
-		if (ExitingFrameCount != 0) 
+		if (ExitingFrameCount != 0)
 			SetBackgroundRenderState(BackgroundState.Exiting);
-		else if (GameUI.IsInLevel()) 
+		else if (GameUI.IsInLevel())
 			SetBackgroundRenderState(BackgroundState.Level);
-		else if (GameUI.IsInBackgroundLevel() && !LevelLoading) 
+		else if (GameUI.IsInBackgroundLevel() && !LevelLoading)
 			SetBackgroundRenderState(BackgroundState.MainMenu);
-		else if (LevelLoading) 
+		else if (LevelLoading)
 			SetBackgroundRenderState(BackgroundState.Loading);
-		else if (EverActivated && PlatformMenuInitialized) 
+		else if (EverActivated && PlatformMenuInitialized)
 			SetBackgroundRenderState(BackgroundState.Disconnected);
-		
+
 		if (!PlatformMenuInitialized)
 			return;
 
@@ -435,14 +456,14 @@ public class BasePanel : Panel
 		bool bIsInLevel = GameUI.IsInLevel();
 		for (i = 0; i < GetChildCount(); ++i) {
 			IPanel? child = GetChild(i);
-			if (child != null && child.IsVisible() && child.IsPopup() && child != GameMenu) 
+			if (child != null && child.IsVisible() && child.IsPopup() && child != GameMenu)
 				haveActiveDialogs = true;
 		}
 
 		IPanel? parent = GetParent();
 		for (i = 0; i < (parent?.GetChildCount() ?? 0); ++i) {
 			IPanel? child = parent?.GetChild(i);
-			if (child != null && child.IsVisible() && child.IsPopup() && child != this) 
+			if (child != null && child.IsVisible() && child.IsPopup() && child != this)
 				haveActiveDialogs = true;
 		}
 

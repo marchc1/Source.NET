@@ -14,6 +14,13 @@
 		"InGameOrder" "40"
 		"notmulti" "1"
 	}
+	"5_1"
+	{
+		"label" "#GameUI_GameMenu_FindServers"
+		"command" "OpenServerBrowser"
+		"InGameOrder" "41"
+		"notmulti" "1"
+	}
 	"6"
 	{
 		"label" "#GameUI_GameMenu_LoadGame"
