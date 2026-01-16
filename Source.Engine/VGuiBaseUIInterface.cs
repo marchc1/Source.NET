@@ -32,7 +32,6 @@ public enum LevelLoadingProgress
 	LevelInit,
 	Precache,
 	ActivateServer,
-
 	BeginConnect,
 	SignOnChallenge,
 	SignOnConnect,
@@ -320,7 +319,6 @@ public class EngineVGui(
 
 	LoadingProgressDescription[]? activeDescriptions = null;
 
-
 	Common Common;
 	IGameUI staticGameUIFuncs;
 	IGameConsole staticGameConsole;
@@ -367,9 +365,8 @@ public class EngineVGui(
 
 	LoadingProgressDescription def = new(LevelLoadingProgress.None, 0, 0, null);
 	public ref LoadingProgressDescription GetProgressDescription(LevelLoadingProgress progress) {
-		if (activeDescriptions == null) {
+		if (activeDescriptions == null)
 			return ref def;
-		}
 
 		int i = 0;
 		while (i < activeDescriptions.Length) {
@@ -438,8 +435,17 @@ public class EngineVGui(
 		return true;
 	}
 
-	public void NotifyOfServerConnect(ReadOnlySpan<char> game, int IP, int connectionPort, int queryPort) { }
-	public void NotifyOfServerDisconnect() { }
+	public void NotifyOfServerConnect(ReadOnlySpan<char> game, int IP, int connectionPort, int queryPort) {
+
+	}
+
+	public void NotifyOfServerDisconnect() {
+		if (staticGameUIFuncs == null)
+			return;
+
+		staticGameUIFuncs.OnDisconnectFromServer(SteamLoginFailure.None);//g_eSteamLoginFailure
+	}
+
 	public void UpdateProgressBar(LevelLoadingProgress progress) {
 		if (!Sys.InMainThread())
 			return;
@@ -749,10 +755,7 @@ public class EngineVGui(
 	[ConCommand()] void gameui_hide() => HideGameUI();
 	[ConCommand()] void gameui_activate() => ActivateGameUI();
 	[ConCommand()] void gameui_preventescape() => SetNotAllowedToHideGameUI(true);
-
 	[ConCommand()] void gameui_allowescapetoshow() => SetNotAllowedToShowGameUI(false);
-
-
 	[ConCommand()] void gameui_preventescapetoshow() => SetNotAllowedToShowGameUI(true);
 	[ConCommand()] void gameui_allowescape() => SetNotAllowedToHideGameUI(false);
 	[ConCommand(helpText: "Dump panel tree.")]
@@ -782,11 +785,7 @@ public class EngineVGui(
 		staticGameUIFuncs.OnGameUIActivated();
 	}
 
-	private void SetEngineVisible(bool state) {
-		if (staticClientDLLPanel != null) {
-			staticClientDLLPanel.SetVisible(state);
-		}
-	}
+	private void SetEngineVisible(bool state) => staticClientDLLPanel?.SetVisible(state);
 
 	private void CreateAskConnectPanel(Panel staticPanel) {
 

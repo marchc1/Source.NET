@@ -39,7 +39,7 @@ public class SchemeManager : ISchemeManager
 	bool initializedFirstScheme;
 
 	public IImage GetImage(ReadOnlySpan<char> imageName, bool hardwareFiltered) {
-		throw new NotImplementedException();
+		return null!;// TODO todo
 	}
 
 	public int GetProportionalNormalizedValue(int scaled) {

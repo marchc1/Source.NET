@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 
 namespace Source.Common;
+
 public enum VariableType
 {
 	NotApplicable = '\0',
@@ -125,7 +126,7 @@ public ref struct PrintF
 		WriteAnyLiterals();
 		return this;
 	}
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]public unsafe PrintF I(int i) => D(i);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public PrintF I(int i) => D(i);
 	public PrintF S(ReadOnlySpan<char> str) {
 		if (reader.ReadVariable(out char type, out int variableIdx)) {
 			input.Write(str.SliceNullTerminatedString());
@@ -434,6 +435,19 @@ public static class CFormatting
 		int len = Math.Min(target.Length, str.Length);
 		str[..len].CopyTo(target);
 		target[Math.Min(target.Length - 1, str.Length)] = '\0';
+		return len;
+	}
+	public static int strcat(Span<char> target, ReadOnlySpan<char> str) {
+		int targetLen;
+		for (targetLen = 0; targetLen < target.Length; targetLen++) {
+			if (target[targetLen] == '\0')
+				break;
+		}
+
+		str = str.SliceNullTerminatedString();
+		int len = Math.Min(target.Length - targetLen, str.Length);
+		str[..len].CopyTo(target[targetLen..]);
+		target[Math.Min(target.Length - 1, targetLen + str.Length)] = '\0';
 		return len;
 	}
 	// This needs to go in the future, but Dbg currently relies on it.

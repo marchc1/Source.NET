@@ -182,6 +182,8 @@ public class PanelListPanel : EditablePanel
 		InvalidateLayout();
 	}
 
+	public List<int> GetSortedVector() => SortedItems;
+
 	public override void OnSizeChanged(int newWide, int newTall) {
 		base.OnSizeChanged(newWide, newTall);
 		InvalidateLayout();

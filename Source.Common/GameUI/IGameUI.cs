@@ -3,6 +3,15 @@ using Source.Common.GUI;
 
 namespace Source.Common.GameUI;
 
+public enum SteamLoginFailure : byte
+{
+	None,
+	BadTicket,
+	NoSteamLogin,
+	VacBanned,
+	LoggedInElseWhere
+}
+
 public interface IGameUI
 {
 	public void Initialize(IEngineAPI engineAPI);
@@ -19,7 +28,7 @@ public interface IGameUI
 	public bool SetShowProgressText(bool show);
 
 	public void OnConnectToServer(ReadOnlySpan<char> game, int ip, int connectionPort, int queryPort);
-	public void OnDisconnectFromServer(byte steamLoginFailure);
+	public void OnDisconnectFromServer(SteamLoginFailure steamLoginFailure);
 	public void OnConfirmQuit();
 	public bool IsMainMenuVisible();
 

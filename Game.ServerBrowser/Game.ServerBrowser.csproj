@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+	<ItemGroup>
+		<Compile Include="..\Usings\GlobalUsings.cs" Link="Usings/GlobalUsings.cs" />
+	</ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Source.Common\Source.Common.csproj" />
+    <ProjectReference Include="..\Source.Engine\Source.Engine.csproj" />
+    <ProjectReference Include="..\Source.GUI.Controls\Source.GUI.Controls.csproj" />
+  </ItemGroup>
+
+</Project>

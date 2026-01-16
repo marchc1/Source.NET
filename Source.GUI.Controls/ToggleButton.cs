@@ -6,6 +6,8 @@ namespace Source.GUI.Controls;
 
 public class ToggleButton : Button
 {
+	public static Panel Create_ToggleButton() => new ToggleButton(null, null, null);
+
 	Color SelectedColor;
 
 	public ToggleButton(Panel? parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {

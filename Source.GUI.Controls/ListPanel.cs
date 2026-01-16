@@ -146,7 +146,7 @@ public class ListPanel : Panel
 	Panel? EditModePanel;
 	int EditModeItemID;
 	int EditModeColumn;
-	int UserConfigFileVersion;
+	public int UserConfigFileVersion;
 
 	public ListPanel(Panel parent, ReadOnlySpan<char> name) : base(parent, name) {
 		IgnoreDoubleClick = false;
@@ -198,22 +198,21 @@ public class ListPanel : Panel
 
 	// }
 
-	void SetImageList(ImageList imageList, bool deleteImageListWhenDone) {
-
+	public void SetImageList(ImageList imageList, bool deleteImageListWhenDone) {
+		DeleteImageListWhenDone = deleteImageListWhenDone;
+		ImageList = imageList;
 	}
 
-	void SetColumnHeaderHeight(int height) {
+	void SetColumnHeaderHeight(int height) => HeaderHeight = height;
 
-	}
-
-	public void AddColumnHeader(int index, ReadOnlySpan<char> columnName, ReadOnlySpan<char> columnText, int width, int columnFlags) {
+	public void AddColumnHeader(int index, ReadOnlySpan<char> columnName, ReadOnlySpan<char> columnText, int width, int columnFlags = 0) {
 		if ((columnFlags & (int)ColumnFlags.FixedSize) != 0 && (columnFlags & (int)ColumnFlags.ResizeWithWindow) == 0)
 			AddColumnHeader(index, columnName, columnText, width, width, width, (ColumnFlags)columnFlags);
 		else
 			AddColumnHeader(index, columnName, columnText, width, 20, 10000, (ColumnFlags)columnFlags);
 	}
 
-	public void AddColumnHeader(int index, ReadOnlySpan<char> columnName, ReadOnlySpan<char> columnText, int width, int minWidth, int maxWidth, ColumnFlags columnFlags) {
+	public void AddColumnHeader(int index, ReadOnlySpan<char> columnName, ReadOnlySpan<char> columnText, int width, int minWidth, int maxWidth, ColumnFlags columnFlags = 0) {
 		Assert(minWidth <= width);
 		Assert(maxWidth >= width);
 
@@ -307,37 +306,58 @@ public class ListPanel : Panel
 		}
 	}
 
-	void SetColumnHeaderText(int col, ReadOnlySpan<char> text) {
+	public void SetColumnHeaderText(int col, ReadOnlySpan<char> text) => ColumnsData[CurrentColumns[col]].Header.SetText(text);
+	void SetColumnTextAlignment(int col, int align) => ColumnsData[CurrentColumns[col]].ContentAlignment = align;
 
+	public void SetColumnHeaderImage(int column, int imageListIndex) {
+		Assert(ImageList != null);
+		Column col = ColumnsData[CurrentColumns[column]];
+		col.Header.SetTextImageIndex(-1);
+		col.Header.SetImageAtIndex(0, ImageList.GetImage(imageListIndex), 0);
 	}
 
-
-	void SetColumnTextAlignment(int col, int align) {
-
+	public void SetColumnHeaderTooltip(int column, ReadOnlySpan<char> tooltipText) {
+		Column col = ColumnsData[CurrentColumns[column]];
+		BaseTooltip tooltip = col.Header.GetTooltip();
+		tooltip.SetText(tooltipText);
+		tooltip.SetTooltipFormatToSingleLine();
+		tooltip.SetTooltipDelay(0);
 	}
 
-	void SetColumnHeaderImage(int column, int imageListIndex) {
-
-	}
-
-	void SetColumnHeaderTooltip(int column, ReadOnlySpan<char> tooltipText) {
-
-	}
-
-	// int GetNumColumnHeaders() {
-
-	// }
+	int GetNumColumnHeaders() => CurrentColumns.Count;
 
 	// bool GetColumnHeaderText(int index, char pOut, int maxLen) {
 
 	// }
 
 	void SetColumnSortable(int col, bool sortable) {
-
+		Column column = ColumnsData[CurrentColumns[col]];
+		if (sortable)
+			column.Header.SetCommand(new KeyValues("SetSortColumn", "column", col));
+		else
+			column.Header.SetCommand((ReadOnlySpan<char>)null);
 	}
 
 	void SetColumnVisible(int col, bool visible) {
+		Column column = ColumnsData[CurrentColumns[col]];
+		bool hidden = !visible;
+		if (column.Hidden == hidden)
+			return;
 
+		if (column.Unhidable)
+			return;
+
+		column.Hidden = hidden;
+		if (hidden) {
+			column.Header.SetVisible(false);
+			column.Resizer.SetVisible(false);
+		}
+		else {
+			column.Header.SetVisible(true);
+			column.Resizer.SetVisible(true);
+		}
+
+		InvalidateLayout();
 	}
 
 	void RemoveColumn(int col) {
@@ -409,7 +429,7 @@ public class ListPanel : Panel
 
 	}
 
-	void OnCreateDragData(KeyValues msg) {
+	public override void OnCreateDragData(KeyValues msg) {
 
 	}
 
@@ -431,9 +451,7 @@ public class ListPanel : Panel
 
 	// }
 
-	public bool IsValidItemID(int itemID) {
-		return DataItems.ContainsKey(itemID);
-	}
+	public bool IsValidItemID(int itemID) => DataItems.ContainsKey(itemID);
 
 	// ListPanelItem GetItemData(int itemID) {
 
@@ -557,9 +575,7 @@ public class ListPanel : Panel
 
 	}
 
-	// int GetSelectedItemsCount() {
-
-	// }
+	public int GetSelectedItemsCount() => SelectedItems.Count;
 
 	// int GetSelectedItem(int selectionIndex) {
 
@@ -569,9 +585,9 @@ public class ListPanel : Panel
 
 	// }
 
-	// void ClearSelectedItems() {
+	void ClearSelectedItems() {
 
-	// }
+	}
 
 	// bool IsItemSelected(int itemID) {
 
@@ -1026,11 +1042,58 @@ public class ListPanel : Panel
 	}
 
 	void UpdateSelection(ButtonCode code, int x, int y, int row, int column) {
+		if (row < 0 || row >= VisibleItems.Count) {
+			ClearSelectedItems();
+			return;
+		}
 
+		int itemID = VisibleItems[row];
+
+		if (code == ButtonCode.MouseRight && SelectedItems.Contains(itemID))
+			return;
+
+		if (CanSelectIndividualCells) {
+			if (Input.IsKeyDown(ButtonCode.KeyLControl) || Input.IsKeyDown(ButtonCode.KeyRControl)) {
+				if (LastSelectedItem == itemID && SelectedColumn == column && SelectedItems.Count == 1)
+					ClearSelectedItems();
+				else
+					SetSelectedCell(itemID, column);
+			}
+			else
+				SetSelectedCell(itemID, column);
+			return;
+		}
+
+		if (!MultiselectEnabled) {
+			SetSingleSelectedItem(itemID);
+			return;
+		}
+
+		if (Input.IsKeyDown(ButtonCode.KeyLShift) || Input.IsKeyDown(ButtonCode.KeyRShift))
+			HandleMultselection(itemID, row, column);
+		else if (Input.IsKeyDown(ButtonCode.KeyLControl) || Input.IsKeyDown(ButtonCode.KeyRControl))
+			HandleAddSelection(itemID, row, column);
+		else
+			SetSingleSelectedItem(itemID);
 	}
 
 	public override void OnMousePressed(ButtonCode code) {
+		if (code == ButtonCode.MouseLeft || code == ButtonCode.MouseRight) {
+			if (VisibleItems.Count > 0) {
+				Input.GetCursorPos(out int x, out int y);
+				GetCellAtPos(x, y, out int row, out int col);
+				UpdateSelection(code, x, y, row, col);
+			}
 
+			RequestFocus();
+		}
+
+		if (code == ButtonCode.MouseRight) {
+			if (SelectedItems.Count > 0)
+				PostActionSignal(new KeyValues("OpenContextMenu", "itemID", SelectedItems.First()));
+			else
+				PostActionSignal(new KeyValues("OpenContextMenu", "itemID", -1));
+		}
 	}
 
 	public override void OnMouseWheeled(int delta) {
@@ -1049,9 +1112,33 @@ public class ListPanel : Panel
 
 	// }
 
-	// bool GetCellAtPos(int x, int y, int row, int col) {
+	bool GetCellAtPos(int x, int y, out int row, out int col) {
+		ScreenToLocal(ref x, ref y);
 
-	// }
+		x -= TableStartX;
+		y -= TableStartY;
+
+		int startItem = GetStartItem();
+		if (x >= 0 && y >= 0) {
+			for (row = startItem; row < VisibleItems.Count; row++)
+				if (y < ((row - startItem + 1) * RowHeight))
+					break;
+
+			int startx = 0;
+			for (col = 0; col < CurrentColumns.Count; col++) {
+				startx += ColumnsData[CurrentColumns[col]].Header.GetWide();
+
+				if (x < startx)
+					break;
+			}
+
+			if (!(row == VisibleItems.Count && col == CurrentColumns.Count))
+				return true;
+		}
+
+		row = col = -1;
+		return false;
+	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {
 		Label.InvalidateLayout(true);
@@ -1086,13 +1173,8 @@ public class ListPanel : Panel
 		ResortColumnRBTree(col);
 	}
 
-	void SetSortColumn(int column) {
-
-	}
-
-	// int GetSortColumn() {
-
-	// }
+	public void SetSortColumn(int column) => SortColumn = column;
+	int GetSortColumn() => SortColumn;
 
 	public void SetSortColumnEx(int primarySortColumn, int secondarySortColumn, bool sortAscending) {
 		SortColumn = primarySortColumn;
@@ -1100,11 +1182,13 @@ public class ListPanel : Panel
 		SortAscending = sortAscending;
 	}
 
-	void GetSortColumnEx(int primarySortColumn, int secondarySortColumn, bool sortAscending) {
-
+	void GetSortColumnEx(out int primarySortColumn, out int secondarySortColumn, out bool sortAscending) {
+		primarySortColumn = SortColumn;
+		secondarySortColumn = SortColumnSecondary;
+		sortAscending = SortAscending;
 	}
 
-	void SortList() {
+	public void SortList() {
 		NeedsSort = false;
 
 		if (VisibleItems.Count <= 1)
@@ -1195,7 +1279,7 @@ public class ListPanel : Panel
 		Repaint();
 	}
 
-	void SetFont(IFont font) {
+	public void SetFont(IFont font) {
 		Assert(font != null);
 		if (font == null)
 			return;
@@ -1216,7 +1300,7 @@ public class ListPanel : Panel
 
 	}
 
-	void SetItemVisible(int itemID, bool state) {
+	public void SetItemVisible(int itemID, bool state) {
 
 	}
 
@@ -1249,8 +1333,9 @@ public class ListPanel : Panel
 
 	// }
 
-	void SetEmptyListText(ReadOnlySpan<char> text) {
-
+	public void SetEmptyListText(ReadOnlySpan<char> text) {
+		EmptyListText.SetText(text);
+		Repaint();
 	}
 
 
@@ -1278,13 +1363,8 @@ public class ListPanel : Panel
 
 	// }
 
-	void SetAllowUserModificationOfColumns(bool allowed) {
-
-	}
-
-	void SetIgnoreDoubleClick(bool state) {
-
-	}
+	public void SetAllowUserModificationOfColumns(bool allowed) => AllowUserAddDeleteColumns = allowed;
+	void SetIgnoreDoubleClick(bool state) => IgnoreDoubleClick = state;
 
 	void EnterEditMode(int itemID, int column, Panel editPanel) {
 
@@ -1294,9 +1374,7 @@ public class ListPanel : Panel
 
 	}
 
-	// bool IsInEditMode() {
-
-	// }
+	bool IsInEditMode() => EditModePanel != null;
 
 	static ListPanel? CurrentSortingListPanel = null;
 	static string? CurrentSortingColumn = null;

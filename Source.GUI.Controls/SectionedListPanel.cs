@@ -1100,7 +1100,7 @@ public class SectionedListPanel : Panel
 		Items[itemID].Repaint();
 	}
 
-	public void EnterEditMode() {
+	public void EnterEditMode(int itemID, int column, Panel editPanel) {
 
 	}
 

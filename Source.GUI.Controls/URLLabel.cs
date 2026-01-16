@@ -4,7 +4,7 @@ using Source.Common.Input;
 
 namespace Source.GUI.Controls;
 
-class URLLabel : Label
+public class URLLabel : Label
 {
 	string? URL;
 	bool Underline;

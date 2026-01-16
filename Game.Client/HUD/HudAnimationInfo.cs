@@ -25,7 +25,7 @@ class HudAnimationInfo : EditableHudElement, IHudElement
 		Panel parent = clientMode.GetViewport();
 		SetParent(parent);
 
-		// SetActive(true); todo
+		((IHudElement)this).SetActive(true);
 
 		Watch = null;
 
@@ -33,7 +33,7 @@ class HudAnimationInfo : EditableHudElement, IHudElement
 	}
 
 	public bool ShouldDraw() {
-		return Watch != null && ((IHudElement)this).ShouldDraw();
+		return Watch != null; /*&& ((IHudElement)this).ShouldDraw();*/
 	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {
