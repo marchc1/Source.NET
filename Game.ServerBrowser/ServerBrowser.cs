@@ -11,8 +11,8 @@ public class ServerBrowser : IServerBrowser
 {
 	ServerBrowserDialog? InternetDialog;
 	bool WorkshopEnabled;
-	List<string> WorkshopSubscribedMaps = [];
-	List<GameType> GameTypes = [];
+	readonly List<string> WorkshopSubscribedMaps = [];
+	readonly List<GameType> GameTypes = [];
 
 	public static ServerBrowser? Instance;
 	public ServerBrowser() => Instance = this;
