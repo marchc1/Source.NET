@@ -238,6 +238,7 @@ public class ListPanel : Panel
 		column.MinWidth = minWidth;
 		column.MaxWidth = maxWidth;
 		column.ResizesWithWindow = (columnFlags & ColumnFlags.ResizeWithWindow) != 0;
+		column.TypeIsText = (columnFlags & ColumnFlags.Image) == 0;
 		column.Hidden = false;
 		column.Unhidable = (columnFlags & ColumnFlags.Unhidable) != 0;
 		column.ContentAlignment = (int)Alignment.West;
