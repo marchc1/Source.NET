@@ -76,7 +76,7 @@ class ServerBrowserDialog : Frame
 
 		StatusLabel.SetText("");
 
-		TabPanel.SetActivePage(LanGames);//todo saveddata
+		TabPanel.SetActivePage(InternetGames);//todo saveddata
 
 		VGui.AddTickSignal(this);
 
@@ -107,6 +107,8 @@ class ServerBrowserDialog : Frame
 		base.OnTick();
 		GetAnimationController().UpdateAnimations(System.GetFrameTime());
 		SetAlpha(255);// FIXME ^ is not working :(
+
+		SteamAPI.RunCallbacks(); // FIXME: should not be here
 	}
 
 	public void LoadUserData() {
@@ -162,7 +164,8 @@ class ServerBrowserDialog : Frame
 	void AddServerToBlacklist(gameserveritem_t server) { }
 
 	public bool IsServerBlacklisted(gameserveritem_t server) {
-		throw new NotImplementedException();
+		// todo
+		return false;
 	}
 
 	public ServerContextMenu GetContextMenu(Panel panel) {

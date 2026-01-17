@@ -4,6 +4,8 @@ using Source.Common.GUI;
 using Steamworks;
 using Source.GUI.Controls;
 using Source.Common;
+using Source.Common.Formats.Keyvalues;
+using Source.Common.Filesystem;
 
 namespace Game.ServerBrowser;
 
@@ -25,6 +27,8 @@ public class ServerBrowser : IServerBrowser
 	}
 
 	readonly ILocalize Localize = Singleton<ILocalize>();
+	readonly IFileSystem fileSystem = Singleton<IFileSystem>();
+
 	public bool Initialize() {
 		SteamAPI.Init();
 		Localize.AddFile("servers/serverbrowser_%language%.txt");
@@ -108,15 +112,67 @@ public class ServerBrowser : IServerBrowser
 	}
 
 	private void LoadGameTypes() {
-		throw new NotImplementedException();
+		if (GameTypes.Count > 0)
+			return;
+
+		const string GAMETYPES_FILE = "servers/ServerBrowserGameTypes.txt";
+
+		KeyValues kvs = new();
+		if (!kvs.LoadFromFile(fileSystem, GAMETYPES_FILE, "MOD"))
+			return;
+
+		GameTypes.Clear();
+
+		for (KeyValues? sub = kvs.GetFirstSubKey(); sub != null; sub = sub.GetNextKey()) {
+			GameType gt = new(
+				prefix: sub.GetString("prefix", "").ToString(),
+				gameTypeName: sub.GetString("name", "").ToString()
+			);
+
+			GameTypes.Add(gt);
+		}
 	}
 
-	private void GetGameTypeName(ReadOnlySpan<char> mapName) {
-		throw new NotImplementedException();
+	private ReadOnlySpan<char> GetGameTypeName(ReadOnlySpan<char> mapName) {
+		LoadGameTypes();
+
+		foreach (GameType gt in GameTypes)
+			if (mapName.StartsWith(gt.Prefix, StringComparison.OrdinalIgnoreCase))
+				return gt.GameTypeName;
+
+		return "";
 	}
 
 	public ReadOnlySpan<char> GetMapFriendlyNameAndGameType(ReadOnlySpan<char> MapName, out ReadOnlySpan<char> friendlyMapName) {
-		throw new NotImplementedException();
+		LoadGameTypes();
+
+		ReadOnlySpan<char> friendlyGameTypeName = "";
+		foreach (GameType gt in GameTypes) {
+			int prefixLength = gt.Prefix.Length;
+			if (MapName.StartsWith(gt.Prefix, StringComparison.OrdinalIgnoreCase)) {
+				MapName = MapName[prefixLength..];
+				friendlyGameTypeName = gt.GameTypeName;
+				break;
+			}
+		}
+
+		int l = MapName.Length;
+		ReadOnlySpan<char> finalStr = "_final"; ;
+		int finalIndex = MapName.IndexOf(finalStr, StringComparison.OrdinalIgnoreCase);
+		if (finalIndex != -1) {
+			int nextCharIndex = finalIndex + finalStr.Length;
+			if (nextCharIndex >= MapName.Length || (MapName[nextCharIndex] == '1' && nextCharIndex + 1 == MapName.Length)) {
+				l = finalIndex;
+			}
+		}
+
+		if (l >= 256) {
+			Assert("Map name too long for buffer!");
+			l = 255;
+		}
+
+		friendlyMapName = MapName[..l];
+		return friendlyGameTypeName;
 	}
 
 	private class GameType(string prefix, string gameTypeName)

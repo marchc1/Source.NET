@@ -142,10 +142,24 @@ static class ServerListCompare
 static class ServerListSort
 {
 	public static int Quality(in ServerQualitySort left, in ServerQualitySort right) {
-		throw new NotImplementedException();
+		int iMaxP = BaseGamesPage.sb_mod_suggested_maxplayers.GetInt();
+		if (iMaxP != 0 && left.MaxPlayerCount != right.MaxPlayerCount) {
+			if (left.MaxPlayerCount > iMaxP)
+				return 1;
+			if (right.MaxPlayerCount > iMaxP)
+				return -1;
+		}
+
+		if (left.Ping <= 100 && right.Ping <= 100 && left.PlayerCount != right.PlayerCount)
+			return right.PlayerCount - left.PlayerCount;
+
+		return left.Ping - right.Ping;
 	}
 
 	public static int MapNames(ServerMaps left, ServerMaps right) {
-		throw new NotImplementedException();
+		if ((left.OnDisk && right.OnDisk) || (!left.OnDisk && !right.OnDisk))
+			return stricmp(left.FriendlyName, right.FriendlyName);
+
+		return right.OnDisk.CompareTo(left.OnDisk);
 	}
 }

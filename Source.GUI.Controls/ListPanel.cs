@@ -280,9 +280,10 @@ public class ListPanel : Panel
 		SortFuncSecondary = null;
 
 		foreach (var dataItem in DataItems.Values) {
-			IndexItem_t item = new();
-			item.DataItem = dataItem;
-			item.DuplicateIndex = 0;
+			IndexItem_t item = new() {
+				DataItem = dataItem,
+				DuplicateIndex = 0
+			};
 
 			FastSortListPanelItem listItem = dataItem;
 
@@ -397,8 +398,11 @@ public class ListPanel : Panel
 		return itemID;
 	}
 
-	void SetUserData(int itemID, uint userData) {
+	public void SetUserData(int itemID, uint userData) {
+		if (itemID < 0 || itemID >= DataItems.Count)
+			return;
 
+		DataItems[itemID].UserData = userData;
 	}
 
 	// int GetItemIDFromUserData(uint userData) {
@@ -577,38 +581,44 @@ public class ListPanel : Panel
 
 	public int GetSelectedItemsCount() => SelectedItems.Count;
 
-	// int GetSelectedItem(int selectionIndex) {
-
-	// }
-
-	// int GetSelectedColumn() {
-
-	// }
-
-	void ClearSelectedItems() {
-
+	int GetSelectedItem(int selectionIndex) {
+		if (selectionIndex < 0 || selectionIndex >= SelectedItems.Count)
+			return -1;
+		return SelectedItems[selectionIndex];
 	}
 
-	// bool IsItemSelected(int itemID) {
+	int GetSelectedColumn() => SelectedColumn;
 
-	// }
+	void ClearSelectedItems() {
+		int prevCount = SelectedItems.Count;
+		SelectedItems.Clear();
+		if (prevCount > 0)
+			PostActionSignal(new KeyValues("ItemDeselected"));//static kv
+		LastSelectedItem = -1;
+		SelectedColumn = -1;
+	}
 
-	void AddSelectedItem(int itemID) {
+	bool IsItemSelected(int itemID) => SelectedItems.Contains(itemID);
 
+	public void AddSelectedItem(int itemID) {
+		Assert(!SelectedItems.Contains(itemID));
+
+		LastSelectedItem = itemID;
+		SelectedItems.Add(itemID);
+		PostActionSignal(new KeyValues("ItemSelected"));//static kv
+		Repaint();
 	}
 
 	void SetSingleSelectedItem(int itemID) {
-
+		ClearSelectedItems();
+		AddSelectedItem(itemID);
 	}
 
 	void SetSelectedCell(int itemID, int col) {
 
 	}
 
-	void GetCellText(int itemID, int col, Span<char> buffer, int bufferSizeInBytes) {
-		if (bufferSizeInBytes == 0)
-			return;
-
+	void GetCellText(int itemID, int col, Span<char> buffer) {
 		buffer[0] = '\0';
 
 		KeyValues? itemData = GetItem(itemID);
@@ -627,15 +637,39 @@ public class ListPanel : Panel
 		if (val.Length == 0)
 			return;
 
-		val[..Math.Min(val.Length, bufferSizeInBytes - 1)].CopyTo(buffer);
-		buffer[Math.Min(val.Length, bufferSizeInBytes - 1)] = '\0';
+		val.CopyTo(buffer);
+		buffer[val.Length] = '\0';
+	}
+
+	IImage? GetCellImage(int itemID, int col) {
+		if (!DataItems.TryGetValue(itemID, out var itemData))
+			return null;
+
+		if (col < 0 || col >= CurrentColumns.Count)
+			return null;
+
+		Column column = ColumnsData[CurrentColumns[col]];
+		ReadOnlySpan<char> key = column.Header.GetName();
+		if (key.Length == 0)
+			return null;
+
+		int imageIndex = 0;
+		if (itemData.kv != null)
+			imageIndex = itemData.kv.GetInt(key, 0);
+
+		if (ImageList != null && ImageList.IsValidIndex(imageIndex)) {
+			if (imageIndex > 0)
+				return ImageList.GetImage(imageIndex);
+		}
+
+		return null;
 	}
 
 	Label GetCellRenderer(int itemID, int col) {
 		Assert(TextImage != null);
 		Assert(ImagePanel != null);
 
-		Column column = ColumnsData.ElementAt(col);
+		Column column = ColumnsData[CurrentColumns[col]];
 		IScheme scheme = GetScheme()!;
 
 		Label.SetContentAlignment((Alignment)column.ContentAlignment);
@@ -643,7 +677,7 @@ public class ListPanel : Panel
 		if (column.TypeIsText) {
 			Span<char> tempText = stackalloc char[256];
 
-			GetCellText(itemID, col, tempText, 256);
+			GetCellText(itemID, col, tempText);
 			KeyValues item = GetItem(itemID)!;
 			TextImage.SetText(tempText);
 			TextImage.GetContentSize(out int cw, out int tall);
@@ -715,8 +749,7 @@ public class ListPanel : Panel
 			else
 				Label.SetPaintBackgroundEnabled(false);
 
-			// IImage pIImage = GetCellImage(itemID, col);
-			// Label.SetImageAtIndex(0, pIImage, 0);
+			Label.SetImageAtIndex(0, GetCellImage(itemID, col), 0);
 
 			return Label;
 		}
@@ -984,8 +1017,8 @@ public class ListPanel : Panel
 
 			int itemID = VisibleItems[i];
 
-			for (int j = 0; j < ColumnsData.Count; j++) {
-				Column col = ColumnsData.ElementAt(j);
+			for (int j = 0; j < CurrentColumns.Count; j++) {
+				Column col = ColumnsData[CurrentColumns[j]];
 				Panel header = col.Header;
 				Panel render = GetCellRenderer(itemID, j);
 
@@ -1004,7 +1037,7 @@ public class ListPanel : Panel
 					int xpos = x + TableStartX + 2;
 					render.SetPos(xpos, (drawCount * RowHeight) + TableStartY);
 
-					int right = Math.Min(x + hWide, maxw);
+					int right = Math.Min(xpos + hWide, maxw);
 					int usew = right - xpos;
 					render.SetSize(usew, RowHeight - 1);
 					render.Repaint();

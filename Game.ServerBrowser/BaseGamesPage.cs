@@ -89,7 +89,7 @@ public class BaseGamesPage : PropertyPage, IGameList
 {
 	const int MAX_MAP_NAME = 128;
 
-	static ConVar sb_mod_suggested_maxplayers = new("sb_mod_suggested_maxplayers", "0", FCvar.Hidden);
+	public static ConVar sb_mod_suggested_maxplayers = new("sb_mod_suggested_maxplayers", "0", FCvar.Hidden);
 	static ConVar sb_filter_incompatible_versions = new("sb_filter_incompatible_versions",
 #if DEBUG
 		"0",
@@ -166,7 +166,7 @@ public class BaseGamesPage : PropertyPage, IGameList
 	public int ServerRefreshCount;
 	List<ServerMaps> MapNamesFound = [];
 	PageType MatchMakingType;
-	HServerListRequest? Request;
+	HServerListRequest Request;
 	string? CustomResFilename;
 	int ImageIndexPassword;
 	int ImageIndexSecure;
@@ -185,12 +185,11 @@ public class BaseGamesPage : PropertyPage, IGameList
 	CGameID LimitToAppID;
 
 	private ISteamMatchmakingServerListResponse _steamResponse;
-	// ISteamMatchmakingPingResponse (needed?)
 
 	public BaseGamesPage(Panel parent, ReadOnlySpan<char> panelName, PageType type, string? customResFilename = null) : base(parent, panelName) {
 		_steamResponse = new ISteamMatchmakingServerListResponse(ServerResponded, ServerFailedToRespond, RefreshComplete);
 
-		Request = null;
+		Request = HServerListRequest.Invalid;
 		CustomResFilename = customResFilename;
 
 		SetSize(624, 278);
@@ -282,9 +281,9 @@ public class BaseGamesPage : PropertyPage, IGameList
 	// FIXME #37
 	public override void Dispose() {
 		base.Dispose();
-		if (Request.HasValue) {
-			SteamMatchmakingServers.ReleaseRequest(Request.Value);
-			Request = null;
+		if (Request != HServerListRequest.Invalid) {
+			SteamMatchmakingServers.ReleaseRequest(Request);
+			Request = HServerListRequest.Invalid;
 		}
 	}
 
@@ -556,11 +555,11 @@ public class BaseGamesPage : PropertyPage, IGameList
 		ServerResponded(index, server);
 	}
 
-
 	public virtual void ServerResponded(HServerListRequest request, int serverIndex) {
+		Console.WriteLine($"{this}::ServerResponded(request={request}, serverIndex={serverIndex})");
 		var serverItem = SteamMatchmakingServers.GetServerDetails(request, serverIndex);
 		if (serverItem == null) {
-			Assert(false, "Missing server response");
+			AssertMsg(false, "Missing server response");
 			return;
 		}
 
@@ -573,7 +572,116 @@ public class BaseGamesPage : PropertyPage, IGameList
 		ServerResponded(serverIndex, serverItem);
 	}
 
-	public virtual void ServerResponded(int server, gameserveritem_t serverItem) { }
+	public virtual void ServerResponded(int server, gameserveritem_t serverItem) {
+		if (!Servers.TryGetValue(server, out ServerDisplay serverDis)) {
+			servernetadr_t netAdr = new();
+			netAdr.Init(serverItem.m_NetAdr.GetIP(), serverItem.m_NetAdr.GetQueryPort(), serverItem.m_NetAdr.GetConnectionPort());
+			if (ServerIp.TryGetValue(netAdr, out int existingServer)) {
+				Servers.Remove(existingServer);
+				ServerIp.Remove(netAdr);
+			}
+
+			ServerDisplay serverDisplay = new() {
+				ListID = -1,
+				DoNotRefresh = false,
+			};
+			serverDis = serverDisplay;
+			Servers.Add(server, serverDis);
+			ServerIp.Add(netAdr, server);
+		}
+
+		serverDis.ServerID = server;
+		Assert(serverItem.m_NetAdr.GetIP() != 0);
+
+		bool removeItem = false;
+		if (!CheckPrimaryFilters(serverItem)) {
+			serverDis.DoNotRefresh = true;
+			removeItem = true;
+
+			if (GameList.IsValidItemID(serverDis.ListID)) {
+				GameList.RemoveItem(serverDis.ListID);
+				serverDis.ListID = GetInvalidServerListID();
+			}
+
+			return;
+		}
+		else if (!CheckSecondaryFilters(serverItem))
+			removeItem = true;
+
+		KeyValues? kv;
+		if (GameList.IsValidItemID(serverDis.ListID)) {
+			kv = GameList.GetItem(serverDis.ListID);
+			GameList.SetUserData(serverDis.ListID, (uint)serverDis.ServerID);
+		}
+		else
+			kv = new("Server");
+
+		kv!.SetString("name", serverItem.GetServerName());
+		kv.SetString("map", serverItem.GetMap());
+		kv.SetString("GameDir", serverItem.GetGameDir());
+		kv.SetString("GameDesc", serverItem.GetGameDescription());
+		kv.SetInt("password", serverItem.m_bPassword ? ImageIndexPassword : 0);
+
+		if (serverItem.m_nBotPlayers > 0)
+			kv.SetInt("bots", serverItem.m_nBotPlayers);
+		else
+			kv.SetString("bots", "");
+
+		if (serverItem.m_bSecure)
+			kv.SetInt("secure", ServerBrowser.Instance!.IsVACBannedFromGame((int)serverItem.m_nAppID) ? ImageIndexSecureVacBanned : ImageIndexSecure);
+		else
+			kv.SetInt("secure", 0);
+
+		kv.SetString("IPAddr", serverItem.m_NetAdr.GetConnectionAddressString());
+
+		int adjustedForBotsPlayers = Math.Max(0, serverItem.m_nPlayers - serverItem.m_nBotPlayers);
+
+		Span<char> buf = stackalloc char[32];
+		sprintf(buf, "%d / %d").D(adjustedForBotsPlayers).D(serverItem.m_nMaxPlayers);
+		kv.SetString("Players", buf.SliceNullTerminatedString());
+
+		kv.SetInt("PlayerCount", adjustedForBotsPlayers);
+		kv.SetInt("MaxPlayerCount", serverItem.m_nMaxPlayers);
+
+		kv.SetInt("Ping", serverItem.m_nPing);
+
+		kv.SetString("Tags", serverItem.GetGameTags());
+
+		kv.SetInt("Replay", 0);// IsReplayServer(serverItem) ? ImageIndexReplay : 0);
+
+		if (serverItem.m_ulTimeLastPlayed != 0) {
+			DateTime time = DateTimeOffset.FromUnixTimeSeconds(serverItem.m_ulTimeLastPlayed).LocalDateTime;
+			Span<char> timeBuf = stackalloc char[64];
+			time.ToString("ddd dd MMM hh:mmtt").AsSpan().CopyTo(timeBuf);
+			for (int i = timeBuf.Length - 4; i < timeBuf.Length; i++)
+				timeBuf[i] = char.ToLowerInvariant(timeBuf[i]);
+
+			kv.SetString("LastPlayed", timeBuf.SliceNullTerminatedString());
+		}
+
+		if (serverDis.DoNotRefresh) {
+			kv.SetString("Ping", "");
+			kv.SetString("GameDesc", Localize.Find("#ServerBrowser_NotResponding"));
+			kv.SetString("Players", "");
+			kv.SetString("map", "");
+		}
+
+		if (!GameList.IsValidItemID(serverDis.ListID)) {
+			serverDis.ListID = GameList.AddItem(kv, (uint)serverDis.ServerID, false, false);
+			if (AutoSelectFirstItemInGameList && GameList.GetItemCount() == 1)
+				GameList.AddSelectedItem(serverDis.ListID);
+
+			GameList.SetItemVisible(serverDis.ListID, !removeItem);
+		}
+		else {
+			GameList.ApplyItemChanges(serverDis.ListID);
+			GameList.SetItemVisible(serverDis.ListID, !removeItem);
+		}
+
+		PrepareQuickListMap(serverItem.GetMap(), serverDis.ListID);
+		UpdateStatus();
+		ServerRefreshCount++;
+	}
 
 	void UpdateFilterAndQuickListVisibility() {
 		bool showQuickList = QuickListCheckButton.IsSelected();
@@ -690,8 +798,8 @@ public class BaseGamesPage : PropertyPage, IGameList
 	void RecalculateFilterString() { }
 
 	bool CheckPrimaryFilters(gameserveritem_t server) {
-		if (GameFilterText.Length > 0 && (server.GetGameDir().Length > 0 || server.m_nPing > 0) && stricmp(GameFilterText, server.GetGameDir()) != 0)
-			return false;
+		// if (GameFilterText.Length > 0 && (server.GetGameDir().Length > 0 || server.m_nPing > 0) && !GameFilterText.Equals(server.GetGameDir(), StringComparison.OrdinalIgnoreCase))
+		// 	return false;
 
 		if (ServerBrowserDialog.Instance!.IsServerBlacklisted(server)) {
 			ServersBlacklisted++;
@@ -782,7 +890,7 @@ public class BaseGamesPage : PropertyPage, IGameList
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
-		Console.WriteLine($"{this}::OnCommand({command.ToString()})");
+		Console.WriteLine($"{this}::OnCommand({command.ToString()}) request={Request}");
 		switch (command) {
 			case "Connect":
 				OnBeginConnect();
@@ -791,7 +899,7 @@ public class BaseGamesPage : PropertyPage, IGameList
 				StopRefresh();
 				break;
 			case "refresh":
-				SteamMatchmakingServers.RefreshQuery(Request ?? HServerListRequest.Invalid);
+				SteamMatchmakingServers.RefreshQuery(Request);
 				SetRefreshing(true);
 				ServerRefreshCount = 0;
 				ClearQuickList();
@@ -822,9 +930,9 @@ public class BaseGamesPage : PropertyPage, IGameList
 	public bool OnGameListEnterPressed() => false;
 	int GetSelectedItemsCount() => GameList.GetSelectedItemsCount();
 
-	void OnAddToFavorites() { }
+	public virtual void OnAddToFavorites() { }
 
-	void OnAddToBlacklist() { }
+	public virtual void OnAddToBlacklist() { }
 
 	public virtual void ServerFailedToRespond(HServerListRequest req, int server) => ServerResponded(req, server);
 
@@ -835,15 +943,19 @@ public class BaseGamesPage : PropertyPage, IGameList
 		UpdateStatus();
 	}
 
-	void OnRefreshServer(int serverID) { }
+	void OnRefreshServer(int serverID) {
+		throw new NotImplementedException();
+	}
 
 	public virtual void StartRefresh() {
 		ClearServerList();
 
 		uint filterCount = GetServerFilters(out MatchMakingKeyValuePair_t[] filters);
 
-		if (Request.HasValue)
-			SteamMatchmakingServers.ReleaseRequest(Request.Value);
+		if (Request != HServerListRequest.Invalid) {
+			SteamMatchmakingServers.ReleaseRequest(Request);
+			Request = HServerListRequest.Invalid;
+		}
 
 		Console.WriteLine($"{this}::StartRefresh() MatchMakingType={MatchMakingType} AppID={LimitToAppID.AppID()} filters={filterCount}");
 
@@ -890,16 +1002,16 @@ public class BaseGamesPage : PropertyPage, IGameList
 	public virtual void StopRefresh() {
 		ServerRefreshCount = 0;
 
-		if (Request.HasValue)
-			SteamMatchmakingServers.ReleaseRequest(Request.Value);
+		if (Request != HServerListRequest.Invalid)
+			SteamMatchmakingServers.ReleaseRequest(Request);
 
-		RefreshComplete(Request ?? HServerListRequest.Invalid, EMatchMakingServerResponse.eServerResponded);
+		RefreshComplete(Request, EMatchMakingServerResponse.eServerResponded);
 
 		ApplyGameFilters();
 	}
 
 	public virtual void RefreshComplete(HServerListRequest request, EMatchMakingServerResponse response) => SelectQuickListServers();
-	public bool IsRefreshing() => SteamMatchmakingServers.IsRefreshing(Request ?? HServerListRequest.Invalid);
+	public bool IsRefreshing() => SteamMatchmakingServers.IsRefreshing(Request);
 	public override void OnPageShow() => StartRefresh();
 	public override void OnPageHide() => StopRefresh();
 	public Panel GetActiveList() => QuickList.IsVisible() ? QuickList : GameList;
