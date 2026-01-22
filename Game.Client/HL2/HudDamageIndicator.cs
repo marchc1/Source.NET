@@ -82,7 +82,7 @@ class HudDamageIndicator : EditableHudElement, IHudElement
 
 	public bool ShouldDraw() {
 		bool needsDraw = (DmgColorLeft[3] != 0) || (DmgColorRight[3] != 0) || (DmgHighColorLeft[3] != 0) || (DmgHighColorRight[3] != 0) || (DmgFullscreenColor[3] != 0);
-		return needsDraw && ((IHudElement)this).ShouldDraw();
+		return needsDraw && IHudElement.DefaultShouldDraw(this);
 	}
 
 	private void DrawDamageIndicator(int side) {

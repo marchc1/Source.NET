@@ -81,7 +81,7 @@ class HudMenu : EditableHudElement
 	}
 
 	bool ShouldDraw() {
-		bool draw = ((IHudElement)this).ShouldDraw() && MenuDisplayed;
+		bool draw = IHudElement.DefaultShouldDraw(this) && MenuDisplayed;
 		if (!draw)
 			return false;
 

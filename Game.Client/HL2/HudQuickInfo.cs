@@ -105,7 +105,7 @@ public class HUDQuickInfo : HudNumericDisplay, IHudElement
 		if (!HudCrosshair.crosshair.GetBool())
 			return false;
 
-		return /*((IHudElement)this).ShouldDraw() &&*/ !engine.IsDrawingLoadingImage();
+		return IHudElement.DefaultShouldDraw(this) && !engine.IsDrawingLoadingImage();
 	}
 
 	public override void OnThink() {

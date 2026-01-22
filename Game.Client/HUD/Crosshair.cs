@@ -68,7 +68,7 @@ public class HudCrosshair : EditableHudElement, IHudElement
 
 		// so for now, ill just do this
 		needsDraw = Crosshair != null && !engine.IsDrawingLoadingImage() && !engine.IsPaused() && crosshair.GetBool();
-		return needsDraw && ((IHudElement)this).ShouldDraw();
+		return needsDraw && IHudElement.DefaultShouldDraw(this);
 	}
 
 	public static void GetDrawPosition(out float px, out float py, out bool behindCamera, QAngle angleCrosshairOffset = default) {

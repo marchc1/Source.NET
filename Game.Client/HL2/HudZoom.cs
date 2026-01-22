@@ -69,7 +69,7 @@ public class HudZoom : HudNumericDisplay, IHudElement
 		else if (Painted)
 			needsDraw = true;
 
-		return needsDraw && ((IHudElement)this).ShouldDraw();
+		return needsDraw && IHudElement.DefaultShouldDraw(this);
 	}
 
 	public override void Paint() {

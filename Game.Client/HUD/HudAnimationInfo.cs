@@ -33,7 +33,7 @@ class HudAnimationInfo : EditableHudElement, IHudElement
 	}
 
 	public bool ShouldDraw() {
-		return Watch != null; /*&& ((IHudElement)this).ShouldDraw();*/
+		return Watch != null && IHudElement.DefaultShouldDraw(this);
 	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {
