@@ -1102,7 +1102,11 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	private void RemoveFromLeafSystem() {
-		// todo
+		if(renderHandle != INVALID_CLIENT_RENDER_HANDLE){
+			clientLeafSystem.RemoveRenderable(renderHandle);
+			renderHandle = INVALID_CLIENT_RENDER_HANDLE;
+		}
+		// DestroyShadow();
 	}
 
 
