@@ -18,6 +18,7 @@ using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 
 using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
+using DEFINE = Source.Common.DEFINE<Game.Client.C_BaseEntity>;
 
 namespace Game.Client;
 
@@ -172,7 +173,23 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual bool IsBaseCombatWeapon() => false;
 	public virtual bool IsCombatItem() => false;
 
-	public ReadOnlySpan<char> GetClassname() => "not_yet_implemented";
+	static readonly char[] GetClassname__outstr = new char[256];
+	public ReadOnlySpan<char> GetClassname() {
+		GetClassname__outstr[0] = '\0';
+		bool gotname = false;
+		if (GetPredDescMap() != null) {
+			ReadOnlySpan<char> mapname = GetClassMap().Lookup(GetPredDescMap()!.DataClassName);
+			if (!mapname.IsEmpty) {
+				strcpy(GetClassname__outstr, mapname);
+				gotname = true;
+			}
+		}
+
+		if (!gotname)
+			strcpy(GetClassname__outstr, GetType().Name);
+
+		return GetClassname__outstr.SliceNullTerminatedString();
+	}
 
 
 	public virtual void PreEntityPacketReceived(int commandsAcknowledged) {
@@ -518,9 +535,44 @@ public partial class C_BaseEntity : IClientEntity
 
 	public static readonly ClientClass ClientClass = new ClientClass("BaseEntity", null, null, DT_BaseEntity)
 																		.WithManualClassID(StaticClassIndices.CBaseEntity);
+	const float coordTolerance = 2.0f / (float)(1 << (int)BitBuffer.COORD_FRACTIONAL_BITS);
+
+
+	public static readonly DataMap PredMap = new([
+		DEFINE.PRED_FIELD(nameof(MoveType), FieldType.Character, FieldTypeDescFlags.InSendTable),
+		DEFINE.PRED_FIELD(nameof(MoveCollide), FieldType.Character, FieldTypeDescFlags.InSendTable),
+		DEFINE.FIELD(nameof(AbsVelocity), FieldType.Vector),
+		DEFINE.PRED_FIELD_TOL(nameof(Velocity), FieldType.Vector, FieldTypeDescFlags.InSendTable, 0.5f),
+		DEFINE.PRED_FIELD(nameof(RenderMode), FieldType.Character, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD(nameof(RenderFX), FieldType.Character, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD(nameof(flags), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD_TOL(nameof(ViewOffset), FieldType.Vector, FieldTypeDescFlags.InSendTable, 0.25f ),
+		DEFINE.PRED_FIELD(nameof(ModelIndex), FieldType.Short, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.ModelIndex ),
+		DEFINE.PRED_FIELD(nameof(Friction), FieldType.Float, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD(nameof(TeamNum), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD(nameof(OwnerEntity), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD(nameof(NetworkMoveParent), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD_TOL(nameof(NetworkOrigin), FieldType.Vector, FieldTypeDescFlags.InSendTable, coordTolerance ),
+		DEFINE.PRED_FIELD(nameof(NetworkAngles), FieldType.Vector, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.NoErrorCheck ),
+		DEFINE.FIELD(nameof(AbsOrigin), FieldType.Vector ),
+		DEFINE.FIELD(nameof(AbsRotation), FieldType.Vector ),
+		DEFINE.FIELD(nameof(Origin), FieldType.Vector ),
+		DEFINE.FIELD(nameof(Rotation), FieldType.Vector ),
+		DEFINE.FIELD(nameof(WaterLevel), FieldType.Character ),
+		DEFINE.FIELD(nameof(WaterType), FieldType.Character ),
+		DEFINE.FIELD(nameof(AngVelocity), FieldType.Vector ),
+		DEFINE.FIELD(nameof(Dormant), FieldType.Boolean ),
+		DEFINE.FIELD(nameof(BaseVelocity), FieldType.Vector ),
+		DEFINE.FIELD(nameof(eflags), FieldType.Integer ),
+		DEFINE.FIELD(nameof(Gravity), FieldType.Float ),
+		DEFINE.FIELD(nameof(ProxyRandomValue), FieldType.Float ),
+	], nameof(C_BaseEntity), null); public virtual DataMap? GetPredDescMap() => PredMap;
+
 
 	static readonly DynamicAccessor DA_Origin = FIELD.OF(nameof(Origin));
 	static readonly DynamicAccessor DA_Rotation = FIELD.OF(nameof(Rotation));
+
+	public float Gravity;
 
 	public C_BaseEntity() {
 		AddVar(DA_Origin, IV_Origin, LatchFlags.LatchSimulationVar);
@@ -1845,7 +1897,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	Vector3 AbsVelocity;
-
+	QAngle AngVelocity;
 	// todo
 	public ref readonly Vector3 GetAbsVelocity() {
 		return ref AbsVelocity;
