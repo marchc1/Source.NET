@@ -1504,7 +1504,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	private void RemoveAllDecals() {
-		throw new NotImplementedException();
+
 	}
 
 	public void SetDestroyedOnRecreateEntities() {
