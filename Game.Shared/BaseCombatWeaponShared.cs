@@ -396,8 +396,8 @@ public partial class
 		return WeaponParse.GetFileWeaponInfoFromHandle(WeaponFileInfoHandle);
 	}
 
-	public ReadOnlySpan<char> GetName() => GetWpnData().ClassName;
-	public ReadOnlySpan<char> GetPrintName() => GetWpnData().PrintName;
+	public ReadOnlySpan<char> GetName() => GetWpnData().ClassName.SliceNullTerminatedString();
+	public ReadOnlySpan<char> GetPrintName() => GetWpnData().PrintName.SliceNullTerminatedString();
 #if CLIENT_DLL
 	public HudTexture GetSpriteActive() => GetWpnData().IconActive;
 	public HudTexture GetSpriteInactive() => GetWpnData().IconInactive;
