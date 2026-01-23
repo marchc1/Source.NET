@@ -1,4 +1,6 @@
+using Game.Client.HL2;
 using Game.Shared;
+using Game.Shared.HL2;
 
 using Source;
 using Source.Common;
@@ -119,6 +121,207 @@ public class Prediction : IPrediction
 
 			ent.PreEntityPacketReceived(commandsAcknowledged);
 		}
+	}
+
+	public void StartCommand(C_BasePlayer player, AnonymousSafeFieldPointer<UserCmd> cmd) {
+		PredictableId.ResetInstanceCounters();
+
+		player.CurrentCommand = cmd;
+		C_BaseEntity.SetPredictionRandomSeed(in cmd.Get());
+		C_BaseEntity.SetPredictionPlayer(player);
+	}
+
+	public void RunCommand(C_BasePlayer player, AnonymousSafeFieldPointer<UserCmd> ucmdptr, IMoveHelper moveHelper) {
+		StartCommand(player, ucmdptr);
+
+		// Set globals appropriately
+		gpGlobals.CurTime = player.TickBase * TICK_INTERVAL;
+		gpGlobals.FrameTime = EnginePaused ? 0 : TICK_INTERVAL;
+
+		g_pGameMovement.StartTrackPredictionErrors(player);
+
+		// TODO
+		// TODO:  Check for impulse predicted?
+
+		ref UserCmd ucmd = ref ucmdptr.Get();
+
+		// Do weapon selection
+		if (ucmd.WeaponSelect != 0) {
+			C_BaseCombatWeapon? weapon = (C_BaseCombatWeapon?)(SharedBaseEntity.Instance(ucmd.WeaponSelect));
+			if (weapon != null)
+				player.SelectItem(weapon.GetName(), ucmd.WeaponSubtype);
+		}
+
+		// Latch in impulse.
+		IClientVehicle? vehicle = player.GetVehicle();
+		if (ucmd.Impulse != 0) {
+			// Discard impulse commands unless the vehicle allows them.
+			// FIXME: UsingStandardWeapons seems like a bad filter for this. 
+			// The flashlight is an impulse command, for example.
+			if (vehicle == null || player.UsingStandardWeaponsInVehicle()) {
+				player.Impulse = ucmd.Impulse;
+			}
+		}
+
+		// Get button states
+		player.UpdateButtonState(ucmd.Buttons);
+
+		// TODO
+		//	CheckMovingGround( player, ucmd->frametime );
+
+		// TODO
+		//	g_pMoveData->m_vecOldAngles = player->pl.v_angle;
+
+		// Copy from command to player unless game .dll has set angle using fixangle
+		// if ( !player->pl.fixangle )
+		{
+			player.SetLocalViewAngles(ucmd.ViewAngles);
+		}
+
+		// Call standard client pre-think
+		RunPreThink(player);
+
+		// Call Think if one is set
+		RunThink(player, TICK_INTERVAL);
+
+		// Setup input.
+		{
+
+			SetupMove(player, ucmd, moveHelper, g_pMoveData);
+		}
+
+		// RUN MOVEMENT
+		if (vehicle == null) {
+			Assert(g_pGameMovement);
+			g_pGameMovement.ProcessMovement(player, g_pMoveData);
+		}
+		else {
+			vehicle.ProcessMovement(player, g_pMoveData);
+		}
+
+		FinishMove(player, ref ucmd, g_pMoveData);
+
+		RunPostThink(player);
+
+		g_pGameMovement.FinishTrackPredictionErrors(player);
+
+		FinishCommand(player);
+
+		if (gpGlobals.FrameTime > 0)
+			player.TickBase++;
+	}
+
+	private void FinishCommand(BasePlayer player) {
+		player.CurrentCommand = AnonymousSafeFieldPointer<UserCmd>.Null;
+		C_BaseEntity.SetPredictionRandomSeed(in Unsafe.NullRef<UserCmd>());
+		C_BaseEntity.SetPredictionPlayer(null);
+	}
+
+	private void RunPostThink(BasePlayer player) {
+		player.PostThink();
+	}
+
+	private void FinishMove(BasePlayer player, ref UserCmd ucmd, MoveData move) {
+		player.RefEHandle.Index = move.PlayerHandle.Index;
+		player.Velocity = move.Velocity;
+		player.NetworkOrigin = move.GetAbsOrigin();
+		player.Local.OldButtons = move.Buttons;
+
+		// NOTE: Don't copy this.  the movement code modifies its local copy but is not expecting to be authoritative
+		//player->m_flMaxspeed = move->m_flClientMaxSpeed;
+
+		LastGround.Set(player.GetGroundEntity());
+
+		player.SetLocalOrigin(move.GetAbsOrigin());
+
+		IClientVehicle? vehicle = player.GetVehicle();
+		if (vehicle != null) 
+			vehicle.FinishMove(player, ref ucmd, move);
+	}
+
+	protected readonly EHANDLE LastGround = new();
+
+	private void SetupMove(BasePlayer player, UserCmd ucmd, IMoveHelper helper, MoveData move) {
+		move.FirstRunOfFunctions = IsFirstTimePredicted();
+
+		move.PlayerHandle.Index = player.GetClientHandle()!.Index;
+		move.Velocity = player.GetAbsVelocity();
+		move.SetAbsOrigin(player.GetNetworkOrigin());
+		move.OldAngles = move.Angles;
+		move.Buttons = player.Local.OldButtons;
+		move.OldForwardMove = player.Local.OldForwardMove;
+		move.ClientMaxSpeed = player.MaxSpeed;
+
+		move.Angles = ucmd.ViewAngles;
+		move.ViewAngles = ucmd.ViewAngles;
+		move.ImpulseCommand = ucmd.Impulse;
+		move.Buttons = (int)ucmd.Buttons;
+
+		C_BaseEntity? moveParent = player.GetMoveParent();
+		if (moveParent == null)
+			move.AbsViewAngles = move.ViewAngles;
+		else {
+			Matrix3x4 viewToParent, viewToWorld;
+			MathLib.AngleMatrix(move.ViewAngles, out viewToParent);
+			MathLib.ConcatTransforms(moveParent.EntityToWorldTransform(), viewToParent, out viewToWorld);
+			MathLib.MatrixAngles(viewToWorld, out move.AbsViewAngles);
+		}
+
+		// Ingore buttons for movement if at controls
+		if ((player.GetFlags() & EntityFlags.AtControls) != 0) {
+			move.ForwardMove = 0;
+			move.SideMove = 0;
+			move.UpMove = 0;
+		}
+		else {
+			move.ForwardMove = ucmd.ForwardMove;
+			move.SideMove = ucmd.SideMove;
+			move.UpMove = ucmd.UpMove;
+		}
+
+		IClientVehicle? pVehicle = player.GetVehicle();
+		if (pVehicle != null)
+			pVehicle.SetupMove(player, ref ucmd, helper, move);
+
+		// Copy constraint information
+		if (player.ConstraintEntity.Get() != null)
+			move.ConstraintCenter = player.ConstraintEntity.Get()!.GetAbsOrigin();
+		else
+			move.ConstraintCenter = player.ConstraintCenter;
+
+		move.ConstraintRadius = player.ConstraintRadius;
+		move.ConstraintWidth = player.ConstraintWidth;
+		move.ConstraintSpeedFactor = player.ConstraintSpeedFactor;
+
+#if HL2_DLL
+		// Convert to HL2 data.
+		C_BaseHLPlayer? hlPlayer = (C_BaseHLPlayer?)player;
+		Assert(hlPlayer != null);
+
+		HLMoveData? hlMove = (HLMoveData?)move;
+		Assert(hlMove != null);
+
+		hlMove.IsSprinting = hlPlayer.IsSprinting();
+#endif
+	}
+
+	private void RunThink(BasePlayer player, TimeUnit_t frametime) {
+		long thinktick = player.GetNextThinkTick();
+
+		if (thinktick <= 0 || thinktick > player.TickBase)
+			return;
+
+		player.SetNextThink(TICK_NEVER_THINK);
+
+		// Think
+		player.Think();
+	}
+
+	private void RunPreThink(BasePlayer player) {
+		if (!player.PhysicsRunThink())
+			return;
+
+		player.PreThink();
 	}
 
 	private void ShutdownPredictables() {
@@ -360,7 +563,7 @@ public class Prediction : IPrediction
 	}
 
 	private void RunSimulation(int current_command, double curtime, ref UserCmd cmd, C_BasePlayer localPlayer) {
-		ref C_CommandContext ctx = ref localPlayer.GetCommandContext();
+		C_CommandContext ctx = localPlayer.GetCommandContext();
 		Assert(ctx);
 
 		ctx.NeedsProcessing = true;
@@ -397,14 +600,14 @@ public class Prediction : IPrediction
 			}
 
 			// Player can't be this so cull other entities here
-			if ((entity.GetFlags() & EntityFlags.StaticProp) != 0) 
-				continue;
-			
-			// Player is not actually in the m_SimulatedByThisPlayer list, of course
-			if (entity.IsPlayerSimulated()) 
+			if ((entity.GetFlags() & EntityFlags.StaticProp) != 0)
 				continue;
 
-			if (AddDataChangeEvent(entity, DataUpdateType.DataTableChanged, entity.DataChangeEventRef)) 
+			// Player is not actually in the m_SimulatedByThisPlayer list, of course
+			if (entity.IsPlayerSimulated())
+				continue;
+
+			if (AddDataChangeEvent(entity, DataUpdateType.DataTableChanged, entity.DataChangeEventRef))
 				entity.OnPreDataChanged(DataUpdateType.DataTableChanged);
 
 			// Certain entities can be created locally and if so created, should be 

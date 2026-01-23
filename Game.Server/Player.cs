@@ -111,6 +111,11 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	public bool IsInAVehicle() => Vehicle.Get() != null;
 
+	public InButtons AfButtonLast;
+	public InButtons AfButtonPressed;
+	public InButtons AfButtonReleased;
+	public InButtons Buttons;
+
 	public BaseViewModel? GetViewModel(int index = 0, bool observerOK = true){
 		return ViewModel[index].Get();
 	}
@@ -121,4 +126,8 @@ public partial class BasePlayer : BaseCombatCharacter
 	}
 
 	public BaseCombatWeapon? GetLastWeapon() => LastWeapon.Get();
+	public BaseCombatWeapon? GetActiveWeapon() => ActiveWeapon.Get();
+	public void ResetAutoaim() => OnTarget = false;
+
+	public ObserverMode GetObserverMode() => (ObserverMode)ObserverMode;
 }

@@ -71,7 +71,7 @@ public partial class
 
 		// FIXME: Cache off the angles?
 		Matrix3x4 eyesToParent = default, eyesToWorld = default;
-		MathLib.AngleMatrix(pl.ViewingAngle, ref eyesToParent);
+		MathLib.AngleMatrix(pl.ViewingAngle, out eyesToParent);
 		MathLib.ConcatTransforms(pMoveParent.EntityToWorldTransform(), eyesToParent, out eyesToWorld);
 
 		MathLib.MatrixAngles(in eyesToWorld, out angEyeWorld);
@@ -105,6 +105,46 @@ public partial class
 	}
 
 	static ConVar sv_suppress_viewpunch = new("sv_suppress_viewpunch", "0", FCvar.Replicated | FCvar.Cheat | FCvar.DevelopmentOnly);
+
+	public void SelectItem(ReadOnlySpan<char> str, int subtype) {
+		if (str.IsEmpty)
+			return;
+
+		BaseCombatWeapon? item = Weapon_OwnsThisType(str, subtype);
+
+		if (item == null)
+			return;
+
+		if (GetObserverMode() != Shared.ObserverMode.None)
+			return;// Observers can't select things.
+
+		if (!Weapon_ShouldSelectItem(item))
+			return;
+
+		// FIX, this needs to queue them up and delay
+		// Make sure the current weapon can be holstered
+		if (GetActiveWeapon() != null) {
+			if (!GetActiveWeapon()!.CanHolster() && !item.ForceWeaponSwitch())
+				return;
+
+			ResetAutoaim();
+		}
+
+		Weapon_Switch(item);
+	}
+
+	public virtual bool Weapon_ShouldSelectItem(BaseCombatWeapon weapon) => weapon != GetActiveWeapon();
+
+	public virtual void UpdateButtonState(InButtons userCmdButtonMask){
+		AfButtonLast = Buttons;
+		Buttons = userCmdButtonMask;
+		InButtons buttonsChanged = AfButtonLast ^ Buttons;
+
+		// Debounced button codes for pressed/released
+		// UNDONE: Do we need auto-repeat?
+		AfButtonPressed = buttonsChanged & Buttons;        // The changed ones still down are "pressed"
+		AfButtonReleased = buttonsChanged & (~Buttons);    // The ones not down are "released"
+	}
 
 	public void ViewPunch(in QAngle angleOffset) {
 		//See if we're suppressing the view punching

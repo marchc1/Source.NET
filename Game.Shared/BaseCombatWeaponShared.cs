@@ -435,6 +435,10 @@ public partial class
 	public int GetDefaultClip2() => GetWpnData().DefaultClip2;
 	public bool IsMeleeWeapon() => GetWpnData().MeleeWeapon;
 
+	public int SubType;
+	public int GetSubType() => SubType;
+	public void SetSubType(int subtype) => SubType = subtype;
+
 	public bool UsesClipsForAmmo1() => GetMaxClip1() != WEAPON_NOCLIP;
 	public bool UsesClipsForAmmo2() => GetMaxClip2() != WEAPON_NOCLIP;
 	public int GetWeight() => GetWpnData().Weight;

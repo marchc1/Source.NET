@@ -458,8 +458,8 @@ public static class MathLib
 	public static float AngleMod(float a) => (360f / 65536) * ((int)(a * (65536f / 360.0f)) & 65535);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static void AngleMatrix(in QAngle angles, in Vector3 position, ref Matrix3x4 matrix) {
-		AngleMatrix(in angles, ref matrix);
+	public static void AngleMatrix(in QAngle angles, in Vector3 position, out Matrix3x4 matrix) {
+		AngleMatrix(in angles, out matrix);
 		MatrixSetColumn(in position, 3, ref matrix);
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -523,7 +523,9 @@ public static class MathLib
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static void AngleMatrix(in QAngle angles, ref Matrix3x4 matrix) {
+	public static void AngleMatrix(in QAngle angles, out Matrix3x4 matrix) {
+		matrix = default;
+
 		float radiansX = angles.X * (MathF.PI / 180.0f);
 		float radiansY = angles.Y * (MathF.PI / 180.0f);
 		float radiansZ = angles.Z * (MathF.PI / 180.0f);

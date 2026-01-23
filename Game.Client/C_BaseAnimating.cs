@@ -229,7 +229,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 				return false;
 
 			Matrix3x4 parentTransform = default;
-			MathLib.AngleMatrix(GetRenderAngles(), GetRenderOrigin(), ref parentTransform);
+			MathLib.AngleMatrix(GetRenderAngles(), GetRenderOrigin(), out parentTransform);
 			// MathLib.AngleMatrix(new(19.56f, -145.89f, 0), new(-767, 143.9f, -12650), ref parentTransform);
 
 			boneMask |= PrevBoneMask;
@@ -843,7 +843,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			return 0;
 
 		// Turns the origin + angles into a matrix
-		MathLib.AngleMatrix(info.Angles, info.Origin, ref info.ModelToWorld);
+		MathLib.AngleMatrix(info.Angles, info.Origin, out info.ModelToWorld);
 
 		DrawModelState state = default;
 		bool markAsDrawn = modelrender.DrawModelSetup(ref info, ref state, default, out Span<Matrix3x4> boneToWorld);

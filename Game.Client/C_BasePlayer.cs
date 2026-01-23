@@ -13,11 +13,14 @@ using FIELD = Source.FIELD<Game.Client.C_BasePlayer>;
 
 namespace Game.Client;
 
-public struct C_CommandContext
+public class C_CommandContext
 {
 	public bool NeedsProcessing;
 	public UserCmd Cmd;
 	public int CommandNumber;
+
+	public static AnonymousSafeFieldPointer<UserCmd> SafeCmdPointer(C_CommandContext ctx) => new(ctx, FetchCmdRef);
+	static ref UserCmd FetchCmdRef(object owner) => ref ((C_CommandContext)owner).Cmd;
 }
 
 public struct C_PredictionError
@@ -41,6 +44,13 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public static bool ShouldDrawLocalPlayer() {
 		return false; // todo
 	}
+
+	public InButtons AfButtonLast;
+	public InButtons AfButtonPressed;
+	public InButtons AfButtonReleased;
+	public InButtons Buttons;
+	public AnonymousSafeFieldPointer<UserCmd> CurrentCommand;
+	public int Impulse;
 
 	public static readonly RecvTable DT_LocalPlayerExclusive = new([
 		RecvPropDataTable(nameof(Local), FIELD.OF(nameof(Local)), PlayerLocalData.DT_Local, 0, DataTableRecvProxy_PointerDataTable),
@@ -121,10 +131,48 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		throw new NotImplementedException();
 	}
 
-	C_CommandContext CommandContext;
+	public override void PhysicsSimulate() {
+		SharedBaseEntity? pMoveParent = GetMoveParent();
+		if (pMoveParent != null) 
+			pMoveParent.PhysicsSimulate();
 
-	public ref C_CommandContext GetCommandContext(){
-		return ref CommandContext;
+		// Make sure not to simulate this guy twice per frame
+		if (SimulationTick == gpGlobals.TickCount)
+			return;
+
+		SimulationTick = gpGlobals.TickCount;
+
+		if (!IsLocalPlayer())
+			return;
+
+		C_CommandContext ctx = GetCommandContext();
+		Assert(ctx.NeedsProcessing);
+		if (!ctx.NeedsProcessing)
+			return;
+
+		ctx.NeedsProcessing = false;
+
+		// Handle FL_FROZEN.
+		if ((GetFlags() & EntityFlags.Frozen) != 0) {
+			ctx.Cmd.ForwardMove = 0;
+			ctx.Cmd.SideMove = 0;
+			ctx.Cmd.UpMove = 0;
+			ctx.Cmd.Buttons = 0;
+			ctx.Cmd.Impulse = 0;
+			//VectorCopy ( pl.v_angle, ctx->cmd.viewangles );
+		}
+
+		// Run the next command
+		prediction.RunCommand(
+			this,
+			C_CommandContext.SafeCmdPointer(ctx),
+			MoveHelper());
+	}
+
+	readonly C_CommandContext CommandContext = new();
+
+	public C_CommandContext GetCommandContext(){
+		return CommandContext;
 	}
 
 	public override void Dispose() {
@@ -168,22 +216,22 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	readonly EHANDLE UseEntity = new();
 	readonly EHANDLE ObserverTarget = new();
 	readonly EHANDLE ZoomOwner = new();
-	readonly EHANDLE ConstraintEntity = new();
+	public readonly EHANDLE ConstraintEntity = new();
 	readonly EHANDLE TonemapController = new();
 	readonly EHANDLE ViewEntity = new();
 	InlineArrayNewMaxViewmodels<Handle<C_BaseViewModel>> ViewModel = new();
 	bool DisableWorldClicking;
-	float MaxSpeed;
-	int Flags;
-	int ObserverMode;
-	int FOV;
-	int FOVStart;
-	float FOVTime;
+	public float MaxSpeed;
+	public int Flags;
+	public int ObserverMode;
+	public int FOV;
+	public int FOVStart;
+	public float FOVTime;
 	public float DefaultFOV;
-	Vector3 ConstraintCenter;
-	float ConstraintRadius;
-	float ConstraintWidth;
-	float ConstraintSpeedFactor;
+	public Vector3 ConstraintCenter;
+	public float ConstraintRadius;
+	public float ConstraintWidth;
+	public float ConstraintSpeedFactor;
 	InlineArray18<char> LastPlaceName;
 	readonly EHANDLE ColorCorrectionCtrl = new();
 	bool UseWeaponsInVehicle;
@@ -191,7 +239,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public double DeathTime;
 	public double LaggedMovementValue;
 	public int TickBase;
-	public int FinalPredictedTick;
+	public long FinalPredictedTick;
 	InlineArray32<char> AnimExtension;
 
 	public int GetHealth() => Health;
@@ -234,4 +282,8 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	}
 
 	public bool IsPoisoned() => Local.Poisoned;
+
+	public void ResetAutoaim() => OnTarget = false;
+	public ObserverMode GetObserverMode() => (ObserverMode)ObserverMode;
+
 }

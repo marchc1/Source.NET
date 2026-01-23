@@ -11,9 +11,22 @@ using System.Runtime.CompilerServices;
 namespace Game.Server;
 
 using FIELD = Source.FIELD<BaseEntity>;
-
+public struct ThinkFunc
+{
+	public BaseEntity.BASEPTR? Think;
+	public string? Context;
+	public long NextThinkTick;
+	public long LastThinkTick;
+}
 public partial class BaseEntity : IServerEntity
 {
+	public delegate void BASEPTR();
+	public delegate void ENTITYFUNCPTR(BaseEntity? other);
+	public delegate void USEPTR(BaseEntity? activator, BaseEntity? caller, UseType useType, float value);
+
+	static int PredictionRandomSeed = -1;
+	static BasePlayer? PredictionPlayer;
+
 	public static bool DisableTouchFuncs = false;
 	public static bool AccurateTriggerBboxChecks = true;
 
@@ -155,6 +168,9 @@ public partial class BaseEntity : IServerEntity
 	public int CreationID;
 	public int MapCreatedID;
 
+	public readonly List<ThinkFunc> ThinkFunctions = [];
+	public int CurrentThinkContext = NO_THINK_CONTEXT;
+
 	public readonly PredictableId PredictableId = new();
 
 	public readonly GModTable GMOD_DataTable = new();
@@ -195,6 +211,13 @@ public partial class BaseEntity : IServerEntity
 	public CollisionProperty Collision = new();
 	public float Friction;
 	public long SimulationTick;
+
+	public bool FClassnameIs(BaseEntity? entity, ReadOnlySpan<char> classname) {
+		if (entity == null)
+			return false;
+
+		return 0 == strcmp(entity.GetClassname(), classname);
+	}
 
 	void PhysicsStep() { }
 	void PhysicsPusher() { }

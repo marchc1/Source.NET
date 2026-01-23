@@ -9,30 +9,25 @@ Server
 
 
 
-
-
-
-
-
 #if CLIENT_DLL
 global using SharedBaseEntity = Game.Client.C_BaseEntity;
-using Source.Common;
-using Source;
-using System.Numerics;
-using Source.Common.Mathematics;
 
-using Game.Shared;
+using Source.Common;
+
 namespace Game.Client;
 #else
 global using SharedBaseEntity = Game.Server.BaseEntity;
 using Source.Common;
+
+namespace Game.Server;
+#endif
+
+using CommunityToolkit.HighPerformance;
 using Source;
 using System.Numerics;
 using Source.Common.Mathematics;
-
 using Game.Shared;
-namespace Game.Server;
-#endif
+
 
 using Table =
 #if CLIENT_DLL
@@ -49,6 +44,7 @@ using Class =
 #endif
 
 using FIELD = Source.FIELD<SharedBaseEntity>;
+using System.Runtime.CompilerServices;
 
 public static class SharedBaseEntityConstants
 {
@@ -143,6 +139,103 @@ public partial class
 	public void RemoveFlag(EntityFlags flag) => flags &= (int)~flag;
 	public void ClearFlags() => flags = 0;
 	public void ToggleFlag(EntityFlags flag) => flags ^= (int)flag;
+
+	public long GetNextThinkTick(ReadOnlySpan<char> context = default) {
+		// todo
+		return (long)TICK_NEVER_THINK;
+	}
+
+	public bool WillThink() {
+		if (NextThinkTick > 0)
+			return true;
+
+		for (int i = 0; i < ThinkFunctions.Count; i++)
+			if (ThinkFunctions[i].NextThinkTick > 0)
+				return true;
+
+		return false;
+	}
+
+	public void CheckHasThinkFunction(bool isThinking) {
+		if (IsEFlagSet(EFL.NoThinkFunction) && isThinking) {
+			RemoveEFlags(EFL.NoThinkFunction);
+		}
+		else if (!isThinking && !IsEFlagSet(EFL.NoThinkFunction) && !WillThink()) {
+			AddEFlags(EFL.NoThinkFunction);
+		}
+	}
+
+	public void SetNextThink(TimeUnit_t thinkTime, ReadOnlySpan<char> context = default) {
+		int thinkTick = (thinkTime == TICK_NEVER_THINK) ? TICK_NEVER_THINK : TIME_TO_TICKS(thinkTime);
+
+		// Are we currently in a think function with a context?
+		int iIndex = 0;
+		if (context.IsEmpty) {
+			if (CurrentThinkContext != NO_THINK_CONTEXT) {
+				Msg($"Warning: Setting base think function within think context {ThinkFunctions[CurrentThinkContext].Context}\n");
+			}
+			// Old system
+			NextThinkTick = thinkTick;
+			CheckHasThinkFunction(thinkTick == TICK_NEVER_THINK ? false : true);
+			return;
+		}
+		else {
+			// Find the think function in our list, and if we couldn't find it, register it
+			iIndex = GetIndexForThinkContext(context);
+			if (iIndex == NO_THINK_CONTEXT) {
+				iIndex = RegisterThinkContext(context);
+			}
+		}
+
+		// Old system
+		ThinkFunctions.AsSpan()[iIndex].NextThinkTick = thinkTick;
+		CheckHasThinkFunction(thinkTick == TICK_NEVER_THINK ? false : true);
+	}
+
+	public int RegisterThinkContext(ReadOnlySpan<char> context) {
+		int iIndex = GetIndexForThinkContext(context);
+		if (iIndex != NO_THINK_CONTEXT)
+			return iIndex;
+
+		// Make a new think func
+		ThinkFunc sNewFunc = new();
+		sNewFunc.Think = null;
+		sNewFunc.NextThinkTick = 0;
+		sNewFunc.Context = new string(context);
+
+		// Insert it into our list
+		ThinkFunctions.Add(sNewFunc);
+		return ThinkFunctions.Count - 1;
+	}
+
+	public int GetIndexForThinkContext(ReadOnlySpan<char> context) {
+		var thinkFunctions = ThinkFunctions.AsSpan();
+		for (int i = 0; i < thinkFunctions.Length; i++)
+			if (0 == strncmp(thinkFunctions[i].Context, context, MAX_CONTEXT_LENGTH))
+				return i;
+
+		return NO_THINK_CONTEXT;
+	}
+
+
+	public static BasePlayer? GetPredictionPlayer() => PredictionPlayer;
+	public static void SetPredictionPlayer(BasePlayer? player) => PredictionPlayer = player;
+	public static int GetPredictionRandomSeed()
+#if GAME_DLL
+		=> PredictionRandomSeed; // todo: this is more complex
+#else
+		=> PredictionRandomSeed;
+#endif
+	public static void SetPredictionRandomSeed(in UserCmd cmd) {
+		if (Unsafe.IsNullRef(in cmd)) {
+			PredictionRandomSeed = -1;
+		}
+
+		PredictionRandomSeed = cmd.RandomSeed;
+#if GAME_DLL
+		// todo: predictionrandomseedserver, ServerRandomSeed, etc
+#endif
+	}
 
 
 	public virtual ref readonly Vector3 WorldSpaceCenter() {

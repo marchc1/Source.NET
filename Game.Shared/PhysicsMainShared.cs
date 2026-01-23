@@ -99,6 +99,24 @@ namespace Game.Server
 			}
 		}
 
+
+		public bool PhysicsRunThink(ThinkMethods thinkMethod = ThinkMethods.FireAllFunctions) {
+			if (IsEFlagSet(EFL.NoThinkFunction))
+				return true;
+
+			// todo
+			return true;
+		}
+	}
+}
+
+namespace Game.Shared
+{
+	public enum ThinkMethods
+	{
+		FireAllFunctions,
+		FireBaseOnly,
+		FireAllButBase,
 	}
 }
 #endif

@@ -29,6 +29,17 @@ public partial class
 #endif
 	}
 
+	public virtual BaseCombatWeapon? Weapon_OwnsThisType(ReadOnlySpan<char> weapon, int subtype){
+		for (int i = 0; i < MAX_WEAPONS; i++) {
+			if (MyWeapons[i].Get() != null && FClassnameIs(MyWeapons[i].Get(), weapon)) {
+				// Make sure it matches the subtype
+				if (MyWeapons[i].Get()!.GetSubType() == subtype)
+					return MyWeapons[i].Get();
+			}
+		}
+		return null;
+	}
+
 	public virtual bool Weapon_Switch(BaseCombatWeapon? weapon, int viewmodelindex = 0){
 		if (weapon == null)
 			return false;

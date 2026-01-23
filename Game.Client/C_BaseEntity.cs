@@ -1,5 +1,5 @@
-global using static Game.Client.PredictableList;
 global using static Game.Client.BaseEntityConsts;
+global using static Game.Client.PredictableList;
 
 using CommunityToolkit.HighPerformance;
 
@@ -14,6 +14,7 @@ using Source.Common.Mathematics;
 using Source.Common.Networking;
 
 using System.Numerics;
+using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 
 using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
@@ -59,6 +60,15 @@ public class PredictionContext : IPoolableObject
 	public string? CreationModule;
 	public int CreationLineNumber;
 	public readonly Handle<C_BaseEntity> ServerEntity = new();
+}
+
+
+public struct ThinkFunc
+{
+	public C_BaseEntity.BASEPTR? Think;
+	public string Context;
+	public long NextThinkTick;
+	public long LastThinkTick;
 }
 
 public class PredictableList : IPredictableList
@@ -122,6 +132,9 @@ public class PredictableList : IPredictableList
 
 public partial class C_BaseEntity : IClientEntity
 {
+	public delegate void BASEPTR();
+	public delegate void ENTITYFUNCPTR(C_BaseEntity? other);
+
 	public const int SLOT_ORIGINALDATA = -1;
 	public static C_BaseEntity? CreateEntityByName(ReadOnlySpan<char> className) {
 		C_BaseEntity? ent = GetClassMap().CreateEntity(className);
@@ -144,6 +157,10 @@ public partial class C_BaseEntity : IClientEntity
 	ClientThinkHandle_t thinkHandle;
 	public ClientThinkHandle_t GetThinkHandle() => thinkHandle;
 	public void SetThinkHandle(ClientThinkHandle_t handle) => thinkHandle = handle;
+
+	static int PredictionRandomSeed = -1;
+	static C_BasePlayer? PredictionPlayer;
+
 
 	public virtual C_BaseAnimating? GetBaseAnimating() => null;
 
@@ -273,6 +290,11 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	static readonly List<C_BaseEntity> AimEntsList = [];
+	public Action? FnThink;
+	public virtual void Think(){
+		if (FnThink != null)
+			this.FnThink();
+	}
 
 	internal static void CalcAimEntPositions() {
 		foreach (var ent in AimEntsList) {
@@ -589,6 +611,16 @@ public partial class C_BaseEntity : IClientEntity
 
 	public readonly Handle<C_BasePlayer> PlayerSimulationOwner = new();
 	public readonly ReusableBox<ulong> DataChangeEventRef = new();
+
+	public static C_BaseEntity? Instance(BaseHandle handle) => cl_entitylist.GetBaseEntityFromHandle(handle);
+	public static C_BaseEntity? Instance(int ent) => cl_entitylist.GetBaseEntity(ent);
+
+	public bool FClassnameIs(C_BaseEntity? entity, ReadOnlySpan<char> classname) {
+		if (entity == null)
+			return false;
+
+		return 0 == strcmp(entity.GetClassname(), classname);
+	}
 
 	public int GetFxBlend() => RenderFXBlend;
 	public void GetColorModulation(Span<float> color) {
@@ -1331,7 +1363,7 @@ public partial class C_BaseEntity : IClientEntity
 			RemoveEFlags(EFL.DirtyAbsTransform);
 
 			if (!MoveParent.IsValid()) {
-				MathLib.AngleMatrix(GetLocalAngles(), GetLocalOrigin(), ref CoordinateFrame);
+				MathLib.AngleMatrix(GetLocalAngles(), GetLocalOrigin(), out CoordinateFrame);
 				AbsOrigin = GetLocalOrigin();
 				AbsRotation = GetLocalAngles();
 				MathLib.NormalizeAngles(ref AbsRotation);
@@ -1356,6 +1388,8 @@ public partial class C_BaseEntity : IClientEntity
 			eflags &= ~EFL.KillMe;
 	}
 
+	public readonly List<ThinkFunc> ThinkFunctions = [];
+	public int CurrentThinkContext = NO_THINK_CONTEXT;
 	public void SetNextClientThink(TimeUnit_t nextThinkTime) {
 		Assert(GetClientHandle() != INVALID_CLIENTENTITY_HANDLE);
 		ClientThinkList().SetNextClientThink(GetClientHandle()!, nextThinkTime);
@@ -1438,7 +1472,7 @@ public partial class C_BaseEntity : IClientEntity
 		return RefEHandle;
 	}
 	public virtual void SetRefEHandle(BaseHandle handle) {
-		RefEHandle = handle;
+		RefEHandle.Index = handle.Index;
 	}
 
 
@@ -1464,7 +1498,7 @@ public partial class C_BaseEntity : IClientEntity
 		return this;
 	}
 
-	BaseHandle? RefEHandle;
+	public readonly BaseHandle RefEHandle = new();
 
 	static double AdjustInterpolationAmount(C_BaseEntity entity, double baseInterpolation) {
 		// We don't have cl_interp_npcs yet so this isn't needed
@@ -1737,7 +1771,7 @@ public partial class C_BaseEntity : IClientEntity
 	public ref readonly Vector3 GetAbsVelocity() {
 		return ref AbsVelocity;
 	}
-	public void SetAbsVelocity(in Vector3 absVelocity){
+	public void SetAbsVelocity(in Vector3 absVelocity) {
 		if (AbsVelocity == absVelocity)
 			return;
 

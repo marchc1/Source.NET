@@ -229,7 +229,7 @@ public class RenderUtils(IMaterialSystem materials)
 
 	private void GenerateBoxVertices(Vector3 origin, Vector3 angles, Vector3 mins, Vector3 maxs, Span<Vector3> verts) {
 		Matrix3x4 fRotateMatrix = default;
-		MathLib.AngleMatrix(angles, ref fRotateMatrix);
+		MathLib.AngleMatrix(angles, out fRotateMatrix);
 
 		Vector3 vecPos = default;
 		for (int i = 0; i < 8; ++i) {

@@ -263,13 +263,41 @@ public enum DamageType : int
 }
 
 
+public enum ObserverMode
+{
+	None,
+	DeathCam,
+	FreezeCam,
+	Fixed,
+	InEye,
+	Chase,
+	PointOfInterest,
+	Roaming,
+	Num
+}
+
+public enum UseType
+{
+	Off,
+	On,
+	Set,
+	Toggle
+}
+
 public static class SharedDefs
 {
+	public const int MAX_CONTEXT_LENGTH = 32;
+	public const int NO_THINK_CONTEXT = -1;
+
 	public const int SIMULATION_TIME_WINDOW_BITS = 8;
 
 	public const int NOINTERP_PARITY_MAX = 4;
 	public const int NOINTERP_PARITY_MAX_BITS = 2;
 	public const int ANIMATION_CYCLE_BITS = 15;
+
+	public const int MAX_CLIMB_SPEED = 200;
+
+	public const int TICK_NEVER_THINK = -1;
 
 	public const int MAX_VIEWMODELS = 3;
 	public const int MAX_BEAM_ENTS = 10;
@@ -309,6 +337,35 @@ public enum PassengerRole
 	Driver = 0,
 	LastSharedVehicleRole
 }
+
+
+public enum HitGroup
+{
+	Generic = 0,
+	Head = 1,
+	Chest = 2,
+	Stomach = 3,
+	LeftArm = 4,
+	RightArm = 5,
+	LeftLeg = 6,
+	RightLeg = 7,
+	Gear = 10
+}
+
+public enum PlayerAnim
+{
+	Idle,
+	Walk,
+	Jump,
+	SuperJump,
+	Die,
+	Attack1,
+	InVehicle,
+	Reload,
+	StartAiming,
+	LeaveAiming,
+}
+
 
 public enum HideHudBits
 {
