@@ -130,6 +130,9 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public void FireGameEvent(IGameEvent ev) {
 		throw new NotImplementedException();
 	}
+	public override bool ShouldPredict() {
+		return IsLocalPlayer();
+	}
 
 	public override void PhysicsSimulate() {
 		SharedBaseEntity? pMoveParent = GetMoveParent();

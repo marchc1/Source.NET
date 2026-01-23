@@ -88,5 +88,19 @@ public partial class
 		}
 		return false;
 	}
+
+#if CLIENT_DLL
+	public override void OnDataChanged(DataUpdateType updateType) {
+		base.OnDataChanged(updateType);
+		if (GetPredictable() && !ShouldPredict())
+			ShutdownPredictable();
+	}
+
+	public override bool ShouldPredict() {
+		if (GetOwner() != null && GetOwner() == C_BasePlayer.GetLocalPlayer())
+			return true;
+		return base.ShouldPredict();
+	}
+#endif
 }
 #endif

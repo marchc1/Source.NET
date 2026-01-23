@@ -104,6 +104,8 @@ public partial class
 
 	public int ViewModelIndex() => _ViewModelIndex;
 
+	public SharedBaseEntity? GetOwner() => Owner.Get();
+
 #if CLIENT_DLL
 	public static void FormatViewModelAttachment(ref Vector3 origin, bool inverse) {
 		// Presumably, SetUpView has been called so we know our FOV and render origin.

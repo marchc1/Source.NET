@@ -291,7 +291,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	static readonly List<C_BaseEntity> AimEntsList = [];
 	public Action? FnThink;
-	public virtual void Think(){
+	public virtual void Think() {
 		if (FnThink != null)
 			this.FnThink();
 	}
@@ -782,8 +782,8 @@ public partial class C_BaseEntity : IClientEntity
 		using (C_BaseAnimating.AutoAllowBoneAccess boneaccess = new(true, true))
 			UnlinkFromHierarchy();
 
-		// if (IsIntermediateDataAllocated()) 
-		// DestroyIntermediateData();
+		if (IsIntermediateDataAllocated())
+			DestroyIntermediateData();
 
 		UpdateOnRemove();
 	}
@@ -993,11 +993,11 @@ public partial class C_BaseEntity : IClientEntity
 			UpdateVisibility();
 	}
 
-	public void AllocateIntermediateData(){
+	public void AllocateIntermediateData() {
 
 	}
 
-	public virtual bool PostNetworkDataReceived(int commandsAcknowledged){
+	public virtual bool PostNetworkDataReceived(int commandsAcknowledged) {
 		return false; // todo
 	}
 
@@ -1017,12 +1017,16 @@ public partial class C_BaseEntity : IClientEntity
 		// Copy original data into all prediction slots, so we don't get an error saying we "mispredicted" any
 		//  values which are still at their initial values
 		// for (int i = 0; i < MULTIPLAYER_BACKUP; i++) {
-			// SaveData("InitPredictable", i, PC_EVERYTHING);
+		// SaveData("InitPredictable", i, PC_EVERYTHING);
 		// }
 	}
 
 	public bool IsIntermediateDataAllocated() {
 		return false; // todo
+	}
+
+	public void DestroyIntermediateData() {
+
 	}
 
 	private void OnStoreLastNetworkedValue() {
@@ -1305,6 +1309,14 @@ public partial class C_BaseEntity : IClientEntity
 	public void SetPredictable(bool state) {
 		Predictable = state;
 		Interp_UpdateInterpolationAmounts(ref GetVarMapping());
+	}
+
+	public void ShutdownPredictable() {
+		Assert(GetPredictable());
+
+		g_Predictables.RemoveFromPredictablesList(GetClientHandle());
+		DestroyIntermediateData();
+		SetPredictable(false);
 	}
 
 
