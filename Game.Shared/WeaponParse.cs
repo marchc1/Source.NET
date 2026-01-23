@@ -130,6 +130,30 @@ public static class WeaponParse
 
 public class FileWeaponInfo
 {
+	public FileWeaponInfo() {
+		for (int i = 0; i < ShootSounds.Length; i++) {
+			ShootSounds[i] = new char[WeaponParse.MAX_WEAPON_STRING];
+		}
+	}
+	public static readonly string[] WeaponSoundCategories =[
+		"empty",
+		"single_shot",
+		"single_shot_npc",
+		"double_shot",
+		"double_shot_npc",
+		"burst",
+		"reload",
+		"reload_npc",
+		"melee_miss",
+		"melee_hit",
+		"melee_hit_world",
+		"special1",
+		"special2",
+		"special3",
+		"taunt",
+		"deploy"
+	];
+
 	public virtual void Parse(KeyValues keyValuesData, ReadOnlySpan<char> weaponName) {
 		ParsedScript = true;
 
@@ -152,7 +176,37 @@ public class FileWeaponInfo
 		DefaultClip2 = keyValuesData.GetInt("default_clip2", MaxClip2);
 		Weight = keyValuesData.GetInt("weight", 0);
 
-		// todo: the rest of this!
+		Flags = (WeaponFlags)keyValuesData.GetInt("item_flags", (int)WeaponFlags.LimitInWorld);
+
+		AutoSwitchTo = (keyValuesData.GetInt("autoswitchto", 1) != 0) ? true : false;
+		AutoSwitchFrom = (keyValuesData.GetInt("autoswitchfrom", 1) != 0) ? true : false;
+		BuiltRightHanded = (keyValuesData.GetInt("BuiltRightHanded", 1) != 0) ? true : false;
+		AllowFlipping = (keyValuesData.GetInt("AllowFlipping", 1) != 0) ? true : false;
+		MeleeWeapon = (keyValuesData.GetInt("MeleeWeapon", 0) != 0) ? true : false;
+
+		// Primary ammo used
+#if CLIENT_DLL || GAME_DLL // Annoying but needed to avoid errors (IntelliSense freaks out thinking its going to build Shared independently)
+		ReadOnlySpan<char> pAmmo = keyValuesData.GetString("primary_ammo", "None");
+		strcpy(Ammo1, strcmp("None", pAmmo) == 0 ? "" : pAmmo);
+		AmmoType = GetAmmoDef().Index(Ammo1);
+
+		// Secondary ammo used
+		pAmmo = keyValuesData.GetString("secondary_ammo", "None");
+		strcpy(Ammo2, strcmp("None", pAmmo) == 0 ? "" : pAmmo);
+		Ammo2Type = GetAmmoDef().Index(Ammo2);
+#endif
+
+		for (int i = 0; i < ShootSounds.Length; i++)
+			memreset(ShootSounds[i]);
+
+		KeyValues? soundData = keyValuesData.FindKey("SoundData");
+		if (soundData != null) {
+			for (WeaponSound i = WeaponSound.Empty; i < WeaponSound.Num; i++) {
+				ReadOnlySpan<char> soundname = soundData.GetString(WeaponSoundCategories[(int)i]);
+				if (!soundname.IsEmpty)
+					strcpy(ShootSounds[(int)i], soundname);
+			}
+		}
 	}
 
 	public bool ParsedScript;
@@ -172,10 +226,10 @@ public class FileWeaponInfo
 	public int RumbleEffect;                          // Which rumble effect to use when fired? (xbox)
 	public bool AutoSwitchTo;                         // whether this weapon should be considered for autoswitching to
 	public bool AutoSwitchFrom;                       // whether this weapon can be autoswitched away from when picking up another weapon or ammo
-	public int Flags;                                 // miscellaneous weapon flags
+	public WeaponFlags Flags;                                 // miscellaneous weapon flags
 	public readonly char[] Ammo1 = new char[WeaponParse.MAX_WEAPON_AMMO_NAME];         // "primary" ammo type
 	public readonly char[] Ammo2 = new char[WeaponParse.MAX_WEAPON_AMMO_NAME];         // "secondary" ammo type
-	public readonly char[,] ShootSounds = new char[(int)WeaponSound.Num, WeaponParse.MAX_WEAPON_STRING];
+	public readonly char[][] ShootSounds = new char[(int)WeaponSound.Num][];
 	public int AmmoType;
 	public int Ammo2Type;
 	public bool MeleeWeapon;
@@ -183,7 +237,7 @@ public class FileWeaponInfo
 	// This helps cl_righthand make the decision about whether to flip the model or not.
 	public bool BuiltRightHanded;
 	public bool AllowFlipping;  // False to disallow flipping the model, regardless of whether
-															// it is built left or right handed.
+								// it is built left or right handed.
 
 #if CLIENT_DLL
 	public int SpriteCount;

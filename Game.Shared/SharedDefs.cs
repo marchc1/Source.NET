@@ -387,6 +387,7 @@ public enum HideHudBits
 
 
 [InlineArray(NUM_AUDIO_LOCAL_SOUNDS)] public struct InlineArrayNumLocalAudioSounds<T> { public T item; }
+[InlineArray(MAX_AMMO_TYPES)] public struct InlineArrayMaxAmmoTypes<T> { public T item; }
 [InlineArray(MAX_AMMO_SLOTS)] public struct InlineArrayMaxAmmoSlots<T> { public T item; }
 [InlineArray(NetFlow.MAX_FLOWS)] public struct InlineArrayMaxFlows<T> { public T item; }
 [InlineArray(MAX_SPLINE_POINTS)] public struct InlineArrayMaxSplinePoints<T> { public T item; }

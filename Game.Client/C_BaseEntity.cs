@@ -374,7 +374,7 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public static RecvTable DT_PredictableId = new(nameof(DT_PredictableId), [
-		RecvPropPredictableId(FIELD.OF(nameof(PredictableId))),
+		RecvPropPredictableId(FIELD.OF(nameof(PredictableID))),
 		RecvPropInt(FIELD.OF(nameof(b_IsPlayerSimulated))),
 	]);
 	public static readonly ClientClass CC_PredictableId = new ClientClass("PredictableId", null, null, DT_PredictableId);
@@ -534,7 +534,7 @@ public partial class C_BaseEntity : IClientEntity
 	public bool AnimatedEveryTick;
 	public bool AlternateSorting;
 
-	public readonly PredictableId PredictableId = new();
+	public readonly PredictableId PredictableID = new();
 
 	public byte TakeDamage;
 	public ushort RealClassName;
@@ -847,7 +847,7 @@ public partial class C_BaseEntity : IClientEntity
 			return;
 
 		if (!GetPredictionEligible()) {
-			if (PredictableId.IsActive() && (player.Index - 1) == PredictableId.GetPlayer())
+			if (PredictableID.IsActive() && (player.Index - 1) == PredictableID.GetPlayer())
 				SetPredictionEligible(true);
 			else
 				return;
@@ -1172,13 +1172,13 @@ public partial class C_BaseEntity : IClientEntity
 			case ShouldTransmiteState.Start: {
 					SetDormant(false);
 
-					if (PredictableId.IsActive()) {
-						PredictableId.SetAcknowledged(true);
+					if (PredictableID.IsActive()) {
+						PredictableID.SetAcknowledged(true);
 
-						C_BaseEntity? otherEntity = FindPreviouslyCreatedEntity(PredictableId);
+						C_BaseEntity? otherEntity = FindPreviouslyCreatedEntity(PredictableID);
 						if (otherEntity != null) {
 							Assert(otherEntity.IsClientCreated());
-							Assert(otherEntity.PredictableId.IsActive());
+							Assert(otherEntity.PredictableID.IsActive());
 							// We need IsHandleValid/GetClientHandle stuff.
 							// Assert(cl_entitylist.IsHandleValid(otherEntity.GetClientHandle()));
 
@@ -1298,7 +1298,6 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual void Spawn() { }
 	public virtual void Precache() { }
 
-	public readonly PredictableId PredictionId = new();
 	public PredictionContext? PredictionContext;
 	bool Dormant;
 	bool Predictable;

@@ -284,7 +284,8 @@ public partial class
 		}
 	}
 
-
+	public int GetPrimaryAmmoType() => PrimaryAmmoType;
+	public int GetSecondaryAmmoType() => SecondaryAmmoType;
 
 	public void PoseParameterOverride(bool reset) {
 		BaseCombatCharacter? owner = GetOwner();

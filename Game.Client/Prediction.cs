@@ -439,7 +439,7 @@ public class Prediction : IPrediction
 			// If it was ack'd then the server sent us the entity.
 			// Leave it unless it wasn't made dormant this frame, in
 			//  which case it can be removed now
-			if (ent.PredictableId.GetAcknowledged()) {
+			if (ent.PredictableID.GetAcknowledged()) {
 				// Hasn't become dormant yet!!!
 				if (!ent.IsDormantPredictable()) {
 					Assert(0);
@@ -469,7 +469,7 @@ public class Prediction : IPrediction
 				if (!ent.IsEFlagSet(EFL.KillMe)) {
 					if (cl_showerror.GetInt() != 0) {
 						// It's bogus, server doesn't have a match, destroy it:
-						Msg($"Removing unack'ed predicted entity: {ent.GetClassname()} created {ctx.CreationModule}({ctx.CreationLineNumber}) id == {ent.PredictableId.Describe()} : {ent}\n");
+						Msg($"Removing unack'ed predicted entity: {ent.GetClassname()} created {ctx.CreationModule}({ctx.CreationLineNumber}) id == {ent.PredictableID.Describe()} : {ent}\n");
 					}
 				}
 

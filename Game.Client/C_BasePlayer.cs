@@ -77,9 +77,44 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public virtual void PreThink() { }
 	public virtual void PostThink() { }
 
+	InlineArrayMaxAmmoSlots<int> OldAmmo;
+
 	public virtual bool IsOverridingViewmodel() => false;
 	public virtual int DrawOverriddenViewmodel(C_BaseViewModel viewmodel, StudioFlags flags) => 0;
+	public override void OnDataChanged(DataUpdateType updateType) {
+		if (IsLocalPlayer())
+			SetPredictionEligible(true);
 
+		base.OnDataChanged(updateType);
+
+		// Only care about this for local player
+		if (IsLocalPlayer()) {
+			// Reset engine areabits pointer (TODO)
+
+			// Check for Ammo pickups.
+			for (int i = 0; i < MAX_AMMO_TYPES; i++) {
+				if (GetAmmoCount(i) > OldAmmo[i]) {
+					// Don't add to ammo pickup if the ammo doesn't do it
+					FileWeaponInfo? pWeaponData = gWR.GetWeaponFromAmmo(i);
+
+					if (pWeaponData == null || (pWeaponData.Flags & WeaponFlags.NoAmmoPickups) == 0) {
+						// We got more ammo for this ammo index. Add it to the ammo history
+						HudHistoryResource? pHudHR = GET_HUDELEMENT<HudHistoryResource>();
+						// if (pHudHR != null) 
+							//pHudHR.AddToHistory(HISTSLOT_AMMO, i, abs(GetAmmoCount(i) - m_iOldAmmo[i]));
+						
+					}
+				}
+			}
+
+			// Soundscape_Update(m_Local.m_audio);
+			// ^^ todo
+
+			// todo
+			// if (OldFogController != Local.PlayerFog.Ctrl) 
+			// 	FogControllerChanged(updateType == DataUpdateType.Created);
+		}
+	}
 	public void SetViewAngles(in QAngle angles) {
 		SetLocalAngles(angles);
 		SetNetworkAngles(angles);
@@ -136,7 +171,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 	public override void PhysicsSimulate() {
 		SharedBaseEntity? pMoveParent = GetMoveParent();
-		if (pMoveParent != null) 
+		if (pMoveParent != null)
 			pMoveParent.PhysicsSimulate();
 
 		// Make sure not to simulate this guy twice per frame
@@ -174,7 +209,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 	readonly C_CommandContext CommandContext = new();
 
-	public C_CommandContext GetCommandContext(){
+	public C_CommandContext GetCommandContext() {
 		return CommandContext;
 	}
 

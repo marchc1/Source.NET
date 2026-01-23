@@ -28,7 +28,7 @@ using Class =
 
 public partial class
 #if CLIENT_DLL
-    C_WeaponHL2MPBase
+	C_WeaponHL2MPBase
 #else
 	WeaponHL2MPBase
 #endif
@@ -45,6 +45,16 @@ public partial class
 		= new Class("WeaponHL2MPBase", DT_WeaponHL2MPBase).WithManualClassID(StaticClassIndices.CWeaponHL2MPBase);
 
 
+	public
+#if CLIENT_DLL
+C_WeaponHL2MPBase
+#else
+	WeaponHL2MPBase
+#endif
+	() {
+		SetPredictionEligible(true);
+	}
+
 	public new void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
 #if CLIENT_DLL
 
@@ -60,7 +70,7 @@ public partial class
 
 public partial class
 #if CLIENT_DLL
-    C_BaseHL2MPCombatWeapon
+	C_BaseHL2MPCombatWeapon
 #else
 	BaseHL2MPCombatWeapon
 #endif
@@ -81,7 +91,7 @@ public partial class
 	protected TimeUnit_t HolsterTime;
 
 	public override bool Holster(BaseCombatWeapon switchingTo) {
-		if(base.Holster(switchingTo)){
+		if (base.Holster(switchingTo)) {
 			SetWeaponVisible(false);
 			HolsterTime = gpGlobals.CurTime;
 			return true;
