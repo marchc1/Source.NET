@@ -294,10 +294,10 @@ public class ClientState : BaseClientState
 
 	GameEventManager? gem;
 	GameEventManager gameEventManager => gem ??= (GameEventManager)Singleton<IGameEventManager2>();
-	protected override bool ProcessGameEventList(svc_GameEventList msg) {
+	protected override bool ProcessGameEventList(SVC_GameEventList msg) {
 		return gameEventManager.ParseEventList(msg);
 	}
-	protected override bool ProcessGameEvent(svc_GameEvent msg) {
+	protected override bool ProcessGameEvent(SVC_GameEvent msg) {
 		int startbit = msg.DataIn.BitsRead;
 
 		IGameEvent? ev = gameEventManager.UnserializeEvent(msg.DataIn);
@@ -317,7 +317,7 @@ public class ClientState : BaseClientState
 		gameEventManager.FireEventClientSide(ev);
 		return true;
 	}
-	public override bool ProcessClassInfo(svc_ClassInfo msg) {
+	public override bool ProcessClassInfo(SVC_ClassInfo msg) {
 		if (msg.CreateOnClient) {
 			DtCommonEng.CreateClientTablesFromServerTables();
 			DtCommonEng.CreateClientClassInfosFromServerClasses(this);
@@ -334,7 +334,7 @@ public class ClientState : BaseClientState
 		}
 		return true;
 	}
-	void ProcessSoundsWithProtoVersion(svc_Sounds msg, List<SoundInfo> sounds, int protoVersion) {
+	void ProcessSoundsWithProtoVersion(SVC_Sounds msg, List<SoundInfo> sounds, int protoVersion) {
 		SoundInfo defaultSound = default;
 		defaultSound.SetDefault();
 		ref SoundInfo pDeltaSound = ref defaultSound;
@@ -356,7 +356,7 @@ public class ClientState : BaseClientState
 			}
 		}
 	}
-	protected override bool ProcessSounds(svc_Sounds msg) {
+	protected override bool ProcessSounds(SVC_Sounds msg) {
 		if (msg.DataIn.Overflowed)
 			return false;
 
@@ -404,7 +404,7 @@ public class ClientState : BaseClientState
 		ListPool<SoundInfo>.Shared.Free(sounds);
 		return false;
 	}
-	protected override bool ProcessEntityMessage(svc_EntityMessage msg) {
+	protected override bool ProcessEntityMessage(SVC_EntityMessage msg) {
 		IClientNetworkable? entity = entitylist.GetClientNetworkable(msg.EntityIndex);
 
 		if (entity == null)
@@ -420,7 +420,7 @@ public class ClientState : BaseClientState
 		return true;
 
 	}
-	protected override bool ProcessPacketEntities(svc_PacketEntities msg) {
+	protected override bool ProcessPacketEntities(SVC_PacketEntities msg) {
 		if (!msg.IsDelta)
 			ClientSidePrediction.OnReceivedUncompressedPacket();
 		else {
@@ -532,7 +532,7 @@ public class ClientState : BaseClientState
 	}
 	readonly LinkedList<EventInfo> Events = [];
 
-	protected override bool ProcessTempEntities(svc_TempEntities msg) {
+	protected override bool ProcessTempEntities(SVC_TempEntities msg) {
 		bool reliable = false;
 
 		TimeUnit_t fire_time = GetTime();
@@ -1052,7 +1052,7 @@ public class ClientState : BaseClientState
 		}
 	}
 
-	public override bool ProcessServerInfo(svc_ServerInfo msg) {
+	public override bool ProcessServerInfo(SVC_ServerInfo msg) {
 		// Reset client state
 		Clear();
 

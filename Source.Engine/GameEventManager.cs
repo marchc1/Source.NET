@@ -425,7 +425,7 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 			GameEvents[i].EventID = i;
 	}
 
-	public bool ParseEventList(svc_GameEventList msg) {
+	public bool ParseEventList(SVC_GameEventList msg) {
 		foreach (var descriptor in GameEvents)
 			descriptor.EventID = -1;
 

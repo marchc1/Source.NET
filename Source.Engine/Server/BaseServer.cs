@@ -418,7 +418,7 @@ public abstract class BaseServer : IServer
 
 	}
 
-	public virtual void FillServerInfo(svc_ServerInfo serverinfo) {
+	public virtual void FillServerInfo(SVC_ServerInfo serverinfo) {
 
 	}
 
