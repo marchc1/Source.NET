@@ -3,6 +3,7 @@
 using Source;
 using Source.Common;
 using Source.Common.Engine;
+using Source.Common.Physics;
 
 using System.Numerics;
 
@@ -67,6 +68,10 @@ public partial class BasePlayer : BaseCombatCharacter
 	public void SetMaxSpeed(float maxSpeed) => Maxspeed = maxSpeed;
 	public TimeUnit_t GetLaggedMovementValue() => LaggedMovementValue;
 
+	public int SurfaceProps;
+	public SurfaceData_ptr? SurfaceData;
+	public float SurfaceFriction;
+
 	public static void SendProxy_CropFlagsToPlayerFlagBitsLength(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		throw new NotImplementedException();
 	}
@@ -81,15 +86,15 @@ public partial class BasePlayer : BaseCombatCharacter
 	public static readonly new ServerClass ServerClass = new ServerClass("BasePlayer", DT_BasePlayer).WithManualClassID(StaticClassIndices.CBasePlayer);
 
 	bool DeadFlag;
-	readonly PlayerState pl = new();
-	readonly PlayerLocalData Local = new();
-	readonly EHANDLE Vehicle = new();
-	readonly EHANDLE UseEntity = new();
-	readonly EHANDLE ObserverTarget = new();
-	readonly EHANDLE ZoomOwner = new();
-	readonly EHANDLE ConstraintEntity = new();
-	readonly EHANDLE TonemapController = new();
-	readonly EHANDLE ViewEntity = new();
+	public readonly PlayerState pl = new();
+	public readonly PlayerLocalData Local = new();
+	public readonly EHANDLE Vehicle = new();
+	public readonly EHANDLE UseEntity = new();
+	public readonly EHANDLE ObserverTarget = new();
+	public readonly EHANDLE ZoomOwner = new();
+	public readonly EHANDLE ConstraintEntity = new();
+	public readonly EHANDLE TonemapController = new();
+	public readonly EHANDLE ViewEntity = new();
 	InlineArrayNewMaxViewmodels<Handle<BaseViewModel>> ViewModel = new(); 
 	bool DisableWorldClicking;
 	float Maxspeed;

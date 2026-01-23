@@ -36,7 +36,7 @@ public enum EntityFlags
 	UnblockableByPlayer = 1 << 31
 }
 
-public enum MoveType
+public enum MoveType : byte
 {
 	None = 0,
 	Isometric,
@@ -55,7 +55,7 @@ public enum MoveType
 	MaxBits = 4
 }
 
-public enum MoveCollide
+public enum MoveCollide : byte
 {
 	Default = 0,
 	FlyBounce,

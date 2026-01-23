@@ -107,6 +107,10 @@ namespace Game.Server
 			// todo
 			return true;
 		}
+
+		public void UpdateWaterState() {
+			// todo
+		}
 	}
 }
 

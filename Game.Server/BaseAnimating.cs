@@ -79,7 +79,7 @@ public class BaseAnimating : BaseEntity
 	public int Body;
 	public int HitboxSet;
 
-	public Vector3 ModelScale;
+	public float ModelScale;
 	public InlineArrayMaxStudioPoseParam<float> PoseParameter;
 	public InlineArrayMaxStudioPoseParam<float> OldPoseParameters;
 	public float PrevEventCycle;
@@ -102,6 +102,10 @@ public class BaseAnimating : BaseEntity
 	public float FadeScale;
 	public TimeUnit_t Cycle;
 	public Vector3 OverrideViewTarget;
+
+	public bool IsModelScaleFractional() => ModelScale < 1.0f;
+	public bool IsModelScaled() => ModelScale > 1.0f + float.Epsilon || ModelScale < 1.0f - float.Epsilon;
+	public float GetModelScale() => ModelScale;
 
 	// todo...
 	public StudioHdr? GetModelPtr() => null!;

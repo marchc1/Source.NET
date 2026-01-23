@@ -1,16 +1,20 @@
 ﻿#if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
 #if CLIENT_DLL
 global using GameRules = Game.Client.C_GameRules;
+global using static Game.Client.C_GameRules;
 global using GameRulesProxy = Game.Client.C_GameRulesProxy;
 namespace Game.Client;
 #else
+global using  static Game.Server.GameRules;
+
 global using GameRules = Game.Server.GameRules;
 global using GameRulesProxy = Game.Server.GameRulesProxy;
 namespace Game.Server;
 #endif
 
-using Source.Common;
 using Game.Shared;
+using System.Numerics;
+using Source.Common;
 
 public class
 #if CLIENT_DLL
@@ -48,8 +52,35 @@ public class
 #else
 	GameRules
 #endif
+: AutoGameSystemPerFrame
 // TODO: AutoGameSystemPerFrame
 {
-	public virtual ReadOnlySpan<char> Name() => "GameRules";
+	public static GameRules g_pGameRules = null!;
+	public
+#if CLIENT_DLL
+	C_GameRules
+#else
+	GameRules
+#endif
+	() : base("GameRules"){
+		g_pGameRules = this;
+	}
+
+	public static readonly ViewVectors g_DefaultViewVectors = new(
+		new Vector3(0, 0, 64),          //VEC_VIEW (View)
+
+		new Vector3(-16, -16, 0),       //VEC_HULL_MIN (HullMin)
+		new Vector3(16, 16, 72),		//VEC_HULL_MAX (HullMax)
+
+		new Vector3(-16, -16, 0),       //VEC_DUCK_HULL_MIN (DuckHullMin)
+		new Vector3(16, 16, 36),		//VEC_DUCK_HULL_MAX	(DuckHullMax)
+		new Vector3(0, 0, 28),          //VEC_DUCK_VIEW		(DuckView)
+
+		new Vector3(-10, -10, -10),     //VEC_OBS_HULL_MIN	(ObsHullMin)
+		new Vector3(10, 10, 10),		//VEC_OBS_HULL_MAX	(ObsHullMax)
+
+		new Vector3(0, 0, 14)           //VEC_DEAD_VIEWHEIGHT (DeadViewHeight)
+	);
+	public virtual ViewVectors GetViewVectors() => g_DefaultViewVectors;
 }
 #endif

@@ -14,6 +14,7 @@ namespace Game.Shared;
 using Source.Common.Networking;
 
 using System;
+using System.Numerics;
 
 [Flags]
 public enum WeaponFlags
@@ -284,8 +285,55 @@ public enum UseType
 	Toggle
 }
 
+public class ViewVectors
+{
+	public ViewVectors() { }
+	public ViewVectors(
+	 Vector3 view,
+	 Vector3 hullMin,
+	 Vector3 hullMax,
+	 Vector3 duckHullMin,
+	 Vector3 duckHullMax,
+	 Vector3 duckView,
+	 Vector3 obsHullMin,
+	 Vector3 obsHullMax,
+	 Vector3 deadViewHeight
+	) {
+		View = view;
+		HullMin = hullMin;
+		HullMax = hullMax;
+		DuckHullMin = duckHullMin;
+		DuckHullMax = duckHullMax;
+		DuckView = duckView;
+		ObsHullMin = obsHullMin;
+		ObsHullMax = obsHullMax;
+		DeadViewHeight = deadViewHeight;
+	}
+	public Vector3 View;
+	public Vector3 HullMin;
+	public Vector3 HullMax;
+	public Vector3 DuckHullMin;
+	public Vector3 DuckHullMax;
+	public Vector3 DuckView;
+	public Vector3 ObsHullMin;
+	public Vector3 ObsHullMax;
+	public Vector3 DeadViewHeight;
+}
+
 public static class SharedDefs
 {
+#if CLIENT_DLL || GAME_DLL
+	public static Vector3 VEC_VIEW_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().View * player.GetModelScale());
+	public static Vector3 VEC_HULL_MIN_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().HullMin * player.GetModelScale());
+	public static Vector3 VEC_HULL_MAX_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().HullMax * player.GetModelScale());
+	public static Vector3 VEC_DUCK_HULL_MIN_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().DuckHullMin * player.GetModelScale());
+	public static Vector3 VEC_DUCK_HULL_MAX_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().DuckHullMax * player.GetModelScale());
+	public static Vector3 VEC_DUCK_VIEW_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().DuckView * player.GetModelScale());
+	public static Vector3 VEC_OBS_HULL_MIN_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().ObsHullMin * player.GetModelScale());
+	public static Vector3 VEC_OBS_HULL_MAX_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().ObsHullMax * player.GetModelScale());
+	public static Vector3 VEC_DEAD_VIEWHEIGHT_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().DeadViewHeight * player.GetModelScale());
+#endif
+
 	public const int MAX_CONTEXT_LENGTH = 32;
 	public const int NO_THINK_CONTEXT = -1;
 

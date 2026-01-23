@@ -17,6 +17,7 @@ using Source.Common;
 namespace Game.Client;
 #else
 global using SharedBaseEntity = Game.Server.BaseEntity;
+
 using Source.Common;
 
 namespace Game.Server;
@@ -124,12 +125,6 @@ public partial class
 	}
 
 
-	public TimeUnit_t GetAnimTime() => AnimTime;
-	public TimeUnit_t GetSimulationTime() => SimulationTime;
-
-	public void SetAnimTime(TimeUnit_t time) => AnimTime = time;
-	public void SetSimulationTime(TimeUnit_t time) => SimulationTime = time;
-
 	public static bool IsSimulatingOnAlternateTicks() => false; // TODO
 
 	public bool IsAlive() => LifeState == (int)Source.LifeState.Alive;
@@ -166,6 +161,8 @@ public partial class
 			AddEFlags(EFL.NoThinkFunction);
 		}
 	}
+
+	public void SetViewOffset(in Vector3 v) => ViewOffset = v;
 
 	public void SetNextThink(TimeUnit_t thinkTime, ReadOnlySpan<char> context = default) {
 		int thinkTick = (thinkTime == TICK_NEVER_THINK) ? TICK_NEVER_THINK : TIME_TO_TICKS(thinkTime);
@@ -285,6 +282,35 @@ public partial class
 	public EntityFlags GetFlags() => (EntityFlags)flags;
 	public MoveType GetMoveType() => (MoveType)MoveType;
 
+	public void CollisionRulesChanged() { } // TODO
+
+	public void SetSimulatedEveryTick(bool sim) {
+		if (SimulatedEveryTick != sim) {
+			SimulatedEveryTick = sim;
+#if CLIENT_DLL
+			Interp_UpdateInterpolationAmounts(ref GetVarMapping());
+#endif
+		}
+	}
+
+	public void SetAnimatedEveryTick(bool anim) {
+		if (AnimatedEveryTick != anim) {
+			AnimatedEveryTick = anim;
+#if CLIENT_DLL
+			Interp_UpdateInterpolationAmounts(ref GetVarMapping());
+#endif
+		}
+	}
+
+	public TimeUnit_t GetAnimTime() => AnimTime;
+	public TimeUnit_t GetSimulationTime() => SimulationTime;
+
+	public void SetAnimTime(TimeUnit_t time) => AnimTime = time;
+	public void SetSimulationTime(TimeUnit_t time) => SimulationTime = time;
+
+	public void CheckHasGamePhysicsSimulation() {
+		// todo
+	}
 }
 
 #endif

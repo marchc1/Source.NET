@@ -5,6 +5,7 @@ using Source.Common;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Mathematics;
+using Source.Common.Physics;
 using Source.Engine;
 
 using System;
@@ -194,6 +195,10 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public override bool ShouldPredict() {
 		return IsLocalPlayer();
 	}
+
+	public int SurfaceProps;
+	public SurfaceData_ptr? SurfaceData;
+	public float SurfaceFriction;
 
 	public override void PhysicsSimulate() {
 		SharedBaseEntity? pMoveParent = GetMoveParent();

@@ -2,6 +2,7 @@
 
 using Source;
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
 using Source.Engine;
@@ -20,6 +21,7 @@ public enum SpeedCropped
 }
 public class GameMovement : IGameMovement
 {
+	static bool g_bMovementOptimizations = true;
 	public void FinishTrackPredictionErrors(BasePlayer player) {
 
 	}
@@ -83,8 +85,109 @@ public class GameMovement : IGameMovement
 	protected Vector3 Forward;
 	protected Vector3 Right;
 	protected Vector3 Up;
+	public static readonly ConVar sv_optimizedmovement = new("sv_optimizedmovement", "1", FCvar.Replicated | FCvar.DevelopmentOnly);
 
-	protected virtual void PlayerMove() { throw new NotImplementedException(); }
+
+
+	protected virtual void PlayerMove() {
+		CheckParameters();
+
+		// clear output applied velocity
+		mv!.WishVel.Init();
+		mv!.JumpVel.Init();
+
+		MoveHelper().ResetTouchList();                    // Assume we don't touch anything
+
+		ReduceTimers();
+
+		MathLib.AngleVectors(mv.ViewAngles, out Forward, out Right, out Up);  // Determine movement angles
+
+		// Always try and unstick us unless we are using a couple of the movement modes
+		if (Player.GetMoveType() != MoveType.Noclip &&
+			 Player.GetMoveType() != MoveType.None &&
+			 Player.GetMoveType() != MoveType.Isometric &&
+			 Player.GetMoveType() != MoveType.Observer &&
+			 !Player.pl.DeadFlag) {
+			if (CheckInterval(IntervalType.STUCK)) {
+				if (CheckStuck()) {
+					// Can't move, we're stuck
+					return;
+				}
+			}
+		}
+
+		// Now that we are "unstuck", see where we are (player->GetWaterLevel() and type, player->GetGroundEntity()).
+		if (Player.GetMoveType() != MoveType.Walk ||
+			mv.GameCodeMovedPlayer ||
+			!sv_optimizedmovement.GetBool()) {
+			CategorizePosition();
+		}
+		else {
+			if (mv.Velocity.Z > 250.0f) 
+				SetGroundEntity(ref Trace.NULL);
+		}
+
+		// Store off the starting water level
+		OldWaterLevel = Player.GetWaterLevel();
+
+		// If we are not on ground, store off how fast we are moving down
+		if (Player.GetGroundEntity() == null) 
+			Player.Local.FallVelocity = -mv.Velocity[2];
+
+		iOnLadder = 0;
+
+		Player.UpdateStepSound(Player.SurfaceData, mv.GetAbsOrigin(), mv.Velocity);
+
+		UpdateDuckJumpEyeOffset();
+		Duck();
+
+		// Don't run ladder code if dead on on a train
+		if (!Player.pl.DeadFlag && 0 == (Player.GetFlags() & EntityFlags.OnTrain)) {
+			// If was not on a ladder now, but was on one before, 
+			//  get off of the ladder
+			if (!LadderMove() && (Player.GetMoveType() == MoveType.Ladder)) {
+				Player.SetMoveType(MoveType.Walk);
+				Player.SetMoveCollide(MoveCollide.Default);
+			}
+		}
+
+		// Handle movement modes.
+		switch (Player.GetMoveType()) {
+			case MoveType.None:
+				break;
+
+			case MoveType.Noclip:
+				FullNoClipMove(sv_noclipspeed.GetFloat(), sv_noclipaccelerate.GetFloat());
+				break;
+
+			case MoveType.Fly:
+			case MoveType.FlyGravity:
+				FullTossMove();
+				break;
+
+			case MoveType.Ladder:
+				FullLadderMove();
+				break;
+
+			case MoveType.Walk:
+				FullWalkMove();
+				break;
+
+			case MoveType.Isometric:
+				//IsometricMove();
+				// Could also try:  FullTossMove();
+				FullWalkMove();
+				break;
+
+			case MoveType.Observer:
+				FullObserverMove(); // clips against world&players
+				break;
+
+			default:
+				DevMsg(1, $"Bogus pmove player movetype {Player.GetMoveType()} on ({(Player.IsServer() ? '1' : '0')}) 0=cl 1=sv\n");
+				break;
+		}
+	}
 	protected void FinishMove() { throw new NotImplementedException(); }
 	protected virtual float CalcRoll(in QAngle angles, in Vector3 velocity, float rollangle, float rollspeed) { throw new NotImplementedException(); }
 
@@ -107,13 +210,13 @@ public class GameMovement : IGameMovement
 	protected virtual bool CanAccelerate() { throw new NotImplementedException(); }
 	protected virtual void Accelerate(ref Vector3 wishdir, float wishspeed, float accel) { throw new NotImplementedException(); }
 
-	// Only used by players.  Moves along the ground when player is a MOVETYPE_WALK.
+	// Only used by players.  Moves along the ground when player is a MoveType.Walk.
 	protected virtual void WalkMove() { throw new NotImplementedException(); }
 
 	// Try to keep a walking player on the ground when running down slopes etc
 	protected void StayOnGround() { throw new NotImplementedException(); }
 
-	// Handle MOVETYPE_WALK.
+	// Handle MoveType.Walk.
 	protected virtual void FullWalkMove() { throw new NotImplementedException(); }
 
 	// allow overridden versions to respond to jumping
@@ -160,7 +263,7 @@ public class GameMovement : IGameMovement
 	// Player is a Observer chasing another player
 	protected void FullObserverMove() { throw new NotImplementedException(); }
 
-	// Handle movement when in MOVETYPE_LADDER mode.
+	// Handle movement when in MoveType.Ladder mode.
 	protected virtual void FullLadderMove() { throw new NotImplementedException(); }
 
 	// The basic solid body movement clip that slides along multiple planes
@@ -188,7 +291,7 @@ public class GameMovement : IGameMovement
 	// If pmove.origin is in a solid position,
 	// try nudging slightly on all axis to
 	// allow for the cut precision of the net coordinates
-	protected virtual int CheckStuck() { throw new NotImplementedException(); }
+	protected virtual bool CheckStuck() { return false; /* TODO */ }
 
 	// Check if the point is in water.
 	// Sets refWaterLevel and refWaterType appropriately.
@@ -198,7 +301,95 @@ public class GameMovement : IGameMovement
 	// Determine if player is in water, on ground, etc.
 	protected virtual void CategorizePosition() { throw new NotImplementedException(); }
 
-	protected virtual void CheckParameters() { throw new NotImplementedException(); }
+	protected virtual void CheckParameters() {
+		ArgumentNullException.ThrowIfNull(mv);
+		QAngle v_angle;
+
+		if (Player.GetMoveType() != MoveType.Isometric &&
+			 Player.GetMoveType() != MoveType.Noclip &&
+			 Player.GetMoveType() != MoveType.Observer) {
+			float spd;
+			float maxspeed;
+
+			spd = (mv.ForwardMove * mv.ForwardMove) +
+				  (mv.SideMove * mv.SideMove) +
+				  (mv.UpMove * mv.UpMove);
+
+			maxspeed = mv.ClientMaxSpeed;
+			if (maxspeed != 0.0)
+				mv.MaxSpeed = Math.Min(maxspeed, mv.MaxSpeed);
+
+			// Slow down by the speed factor
+			float speedFactor = 1.0f;
+			if (Player.SurfaceData != null)
+				speedFactor = Player.SurfaceData.Game.MaxSpeedFactor;
+
+			// If we have a constraint, slow down because of that too.
+			float constraintSpeedFactor = ComputeConstraintSpeedFactor();
+			if (constraintSpeedFactor < speedFactor)
+				speedFactor = constraintSpeedFactor;
+
+			mv.MaxSpeed *= speedFactor;
+
+			if (g_bMovementOptimizations) {
+				// Same thing but only do the sqrt if we have to.
+				if ((spd != 0.0) && (spd > mv.MaxSpeed * mv.MaxSpeed)) {
+					float fRatio = mv.MaxSpeed / MathF.Sqrt(spd);
+					mv.ForwardMove *= fRatio;
+					mv.SideMove *= fRatio;
+					mv.UpMove *= fRatio;
+				}
+			}
+			else {
+				spd = MathF.Sqrt(spd);
+				if ((spd != 0.0) && (spd > mv.MaxSpeed)) {
+					float fRatio = mv.MaxSpeed / spd;
+					mv.ForwardMove *= fRatio;
+					mv.SideMove *= fRatio;
+					mv.UpMove *= fRatio;
+				}
+			}
+		}
+
+		if ((Player.GetFlags() & EntityFlags.OnTrain) != 0 ||
+			 (Player.GetFlags() & EntityFlags.OnTrain) != 0 ||
+			 IsDead()) {
+			mv.ForwardMove = 0;
+			mv.SideMove = 0;
+			mv.UpMove = 0;
+		}
+
+		DecayPunchAngle();
+
+		// Take angles from command.
+		if (!IsDead()) {
+			v_angle = mv.Angles;
+			v_angle = v_angle + Player.Local.PunchAngle;
+
+			// Now adjust roll angle
+			if (Player.GetMoveType() != MoveType.Isometric &&
+				 Player.GetMoveType() != MoveType.Noclip) {
+				mv.Angles[ROLL] = CalcRoll(v_angle, mv.Velocity, sv_rollangle.GetFloat(), sv_rollspeed.GetFloat());
+			}
+			else {
+				mv.Angles[ROLL] = 0.0f; // v_angle[ ROLL ];
+			}
+			mv.Angles[PITCH] = v_angle[PITCH];
+			mv.Angles[YAW] = v_angle[YAW];
+		}
+		else {
+			mv.Angles = mv.OldAngles;
+		}
+
+		// Set dead player view_offset
+		if (IsDead())
+			Player.SetViewOffset(VEC_DEAD_VIEWHEIGHT_SCALED(Player));
+
+
+		// Adjust client view angles to match values used on server.
+		if (mv.Angles[YAW] > 180.0f)
+			mv.Angles[YAW] -= 360.0f;
+	}
 
 	protected virtual void ReduceTimers() { throw new NotImplementedException(); }
 
@@ -208,7 +399,11 @@ public class GameMovement : IGameMovement
 
 	protected void PlayerWaterSounds() { throw new NotImplementedException(); }
 
-	protected void ResetGetPointContentsCache() { throw new NotImplementedException(); }
+	protected void ResetGetPointContentsCache() {
+		for (int slot = 0; slot < MAX_PC_CACHE_SLOTS; ++slot)
+			for (int i = 0; i < Constants.MAX_PLAYERS; ++i)
+				CachedGetPointContents[i, slot] = -9999;
+	}
 	protected int GetPointContentsCached(in Vector3 point, int slot) { throw new NotImplementedException(); }
 
 	// Ducking

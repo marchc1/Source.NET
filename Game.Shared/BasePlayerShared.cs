@@ -25,6 +25,7 @@ namespace Game.Server;
 #endif
 
 using Source.Common.Commands;
+using Source.Common.Physics;
 
 public static class BasePlayerGlobals
 {
@@ -136,7 +137,7 @@ public partial class
 
 	public virtual bool Weapon_ShouldSelectItem(BaseCombatWeapon weapon) => weapon != GetActiveWeapon();
 
-	public virtual void UpdateButtonState(InButtons userCmdButtonMask){
+	public virtual void UpdateButtonState(InButtons userCmdButtonMask) {
 		AfButtonLast = Buttons;
 		Buttons = userCmdButtonMask;
 		InButtons buttonsChanged = AfButtonLast ^ Buttons;
@@ -147,11 +148,15 @@ public partial class
 		AfButtonReleased = buttonsChanged & (~Buttons);    // The ones not down are "released"
 	}
 
-	public float GetPlayerMaxSpeed(){
+	public float GetPlayerMaxSpeed() {
 		float maxSpeed = sv_maxspeed.GetFloat();
 		if (MaxSpeed() > 0.0f && MaxSpeed() < maxSpeed)
 			maxSpeed = MaxSpeed();
 		return maxSpeed;
+	}
+
+	public void UpdateStepSound(SurfaceData_ptr surface, in Vector3 origin, in Vector3 velocity) {
+		// todo
 	}
 
 	public void ViewPunch(in QAngle angleOffset) {

@@ -220,6 +220,59 @@ public partial class BaseEntity : IServerEntity
 
 		return 0 == strcmp(entity.GetClassname(), classname);
 	}
+	
+	public bool IsServer() => true;
+	public bool IsClient() => false;
+	public ReadOnlySpan<char> GetDLLType() => "server";
+
+	public int GetWaterLevel() => WaterLevel;
+	public void SetWaterLevel(int level) => WaterLevel = (byte)level;
+	public void SetMoveCollide(MoveCollide moveCollide) => MoveCollide = (byte)moveCollide;
+	public void SetMoveType(MoveType val, MoveCollide moveCollide = Source.MoveCollide.Default) {
+		if (MoveType == (byte)val) {
+			MoveCollide = (byte)moveCollide;
+			return;
+		}
+
+		// This is needed to the removal of MOVETYPE_FOLLOW:
+		// We can't transition from follow to a different movetype directly
+		// or the leaf code will break.
+		Assert(!IsEffectActive(EntityEffects.BoneMerge));
+		MoveType = (byte)val;
+		MoveCollide = (byte)moveCollide;
+
+		CollisionRulesChanged();
+
+		switch ((MoveType)MoveType) {
+			case Source.MoveType.Walk: {
+					SetSimulatedEveryTick(true);
+					SetAnimatedEveryTick(true);
+				}
+				break;
+			case Source.MoveType.Step: {
+					// This will probably go away once I remove the cvar that controls the test code
+					SetSimulatedEveryTick(g_bTestMoveTypeStepSimulation ? true : false);
+					SetAnimatedEveryTick(false);
+				}
+				break;
+			case Source.MoveType.Fly:
+			case Source.MoveType.FlyGravity: {
+					// Initialize our water state, because these movetypes care about transitions in/out of water
+					UpdateWaterState();
+				}
+				break;
+			default: {
+					SetSimulatedEveryTick(true);
+					SetAnimatedEveryTick(false);
+				}
+				break;
+		}
+
+		// This will probably go away or be handled in a better way once I remove the cvar that controls the test code
+		CheckStepSimulationChanged();
+		CheckHasGamePhysicsSimulation();
+	}
+
 
 	void PhysicsStep() { }
 	void PhysicsPusher() { }

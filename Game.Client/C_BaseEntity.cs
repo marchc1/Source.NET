@@ -238,6 +238,22 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
+	public bool IsServer() => false;
+	public bool IsClient() => true;
+	public ReadOnlySpan<char> GetDLLType() => "client";
+
+	public void SetMoveType(MoveType val, MoveCollide moveCollide = Source.MoveCollide.Default) {
+		MoveType = (byte)val;
+		SetMoveCollide(moveCollide);
+	}
+
+	public void SetMoveCollide(MoveCollide val) {
+		MoveCollide = (byte)val;
+	}
+
+	public int GetWaterLevel() => WaterLevel;
+	public void SetWaterLevel(int level) => WaterLevel = (byte)level;
+
 	public void ResetLatched() {
 		if (IsClientCreated())
 			return;
