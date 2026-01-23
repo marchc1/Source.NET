@@ -55,6 +55,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public Vector3 WaterJumpVel;
 	public float WaterJumpTime;
 	public float SwimSoundTime;
+	public Vector3 LadderNormal;
 	public int Impulse;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
 

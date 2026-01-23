@@ -269,8 +269,8 @@ public partial class C_BaseEntity : IClientEntity
 		MoveCollide = (byte)val;
 	}
 
-	public int GetWaterLevel() => WaterLevel;
-	public void SetWaterLevel(int level) => WaterLevel = (byte)level;
+	public WaterLevel GetWaterLevel() => (WaterLevel)WaterLevel;
+	public void SetWaterLevel(WaterLevel level) => WaterLevel = (byte)level;
 
 	public void ResetLatched() {
 		if (IsClientCreated())
@@ -622,6 +622,7 @@ public partial class C_BaseEntity : IClientEntity
 	public Vector3 BaseVelocity;
 	public int NextThinkTick;
 	public byte WaterLevel;
+	public byte WaterType;
 
 	public long CreationTick;
 

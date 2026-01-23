@@ -3,6 +3,7 @@
 using Source;
 using Source.Common;
 using Source.Common.Commands;
+using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
@@ -28,15 +29,15 @@ public class GameMovement : IGameMovement
 	}
 
 	public Vector3 GetPlayerMaxs(bool ducked) {
-		throw new NotImplementedException();
+		return ducked ? VEC_DUCK_HULL_MAX_SCALED(Player) : VEC_HULL_MAX_SCALED(Player);
 	}
 
 	public Vector3 GetPlayerMins(bool ducked) {
-		throw new NotImplementedException();
+		return ducked ? VEC_DUCK_HULL_MIN_SCALED(Player) : VEC_HULL_MIN_SCALED(Player);
 	}
 
 	public Vector3 GetPlayerViewOffset(bool ducked) {
-		throw new NotImplementedException();
+		return ducked ? VEC_DUCK_VIEW_SCALED(Player) : VEC_VIEW_SCALED(Player);
 	}
 
 	SpeedCropped SpeedCropped;
@@ -79,8 +80,8 @@ public class GameMovement : IGameMovement
 
 	protected MoveData? mv;
 
-	protected int OldWaterLevel;
-	protected float WaterEntryTime;
+	protected WaterLevel OldWaterLevel;
+	protected TimeUnit_t WaterEntryTime;
 	protected int iOnLadder;
 
 	protected Vector3 Forward;
@@ -189,7 +190,10 @@ public class GameMovement : IGameMovement
 				break;
 		}
 	}
-	protected void FinishMove() { throw new NotImplementedException(); }
+	protected void FinishMove() {
+		mv!.OldButtons = mv.Buttons;
+		mv!.OldForwardMove = mv.ForwardMove;
+	}
 	protected virtual float CalcRoll(in QAngle angles, in Vector3 velocity, float rollangle, float rollspeed) {
 		float sign;
 		float side;
@@ -275,8 +279,18 @@ public class GameMovement : IGameMovement
 	// Implement this if you want to know when the player collides during OnPlayerMove
 	protected virtual void OnTryPlayerMoveCollision(ref Trace tr) { }
 
-	protected virtual Vector3 GetPlayerMins() { throw new NotImplementedException(); } // uses local player
-	protected virtual Vector3 GetPlayerMaxs() { throw new NotImplementedException(); } // uses local player
+	protected virtual Vector3 GetPlayerMins() {
+		if (Player.IsObserver()) 
+			return VEC_OBS_HULL_MIN_SCALED(Player);
+		else 
+			return Player.Local.Ducked ? VEC_DUCK_HULL_MIN_SCALED(Player) : VEC_HULL_MIN_SCALED(Player);
+	}
+	protected virtual Vector3 GetPlayerMaxs() {
+		if (Player.IsObserver()) 
+			return VEC_OBS_HULL_MAX_SCALED(Player);
+		else 
+			return Player.Local.Ducked ? VEC_DUCK_HULL_MAX_SCALED(Player) : VEC_HULL_MAX_SCALED(Player);
+	} 
 
 	protected enum IntervalType
 	{
@@ -318,7 +332,38 @@ public class GameMovement : IGameMovement
 	// The basic solid body movement clip that slides along multiple planes
 	protected virtual int TryPlayerMove(ref Vector3 firstDest, ref Trace firstTrace) { throw new NotImplementedException(); }
 
-	protected virtual bool LadderMove() { throw new NotImplementedException(); }
+	protected virtual bool LadderMove() {
+		Trace pm;
+		bool onFloor;
+		Vector3 floor = default;
+		Vector3 wishdir = default;
+		Vector3 end = default;
+
+		if (Player.GetMoveType() == MoveType.Noclip)
+			return false;
+
+		if (!GameHasLadders())
+			return false;
+
+		// If I'm already moving on a ladder, use the previous ladder direction
+		if (Player.GetMoveType() == MoveType.Ladder) 
+			wishdir = -Player.LadderNormal;
+		else {
+			// otherwise, use the direction player is attempting to move
+			if (mv!.ForwardMove != 0 || mv.SideMove != 0) {
+				for (int i = 0; i < 3; i++)       // Determine x and y parts of velocity
+					wishdir[i] = Forward[i] * mv.ForwardMove + Right[i] * mv.SideMove;
+
+				MathLib.VectorNormalize(ref wishdir);
+			}
+			else {
+				// Player is not attempting to move, no ladder behavior
+				return false;
+			}
+		}
+
+		return false; // todo
+	}
 	protected virtual bool OnLadder(ref Trace trace) { throw new NotImplementedException(); }
 	protected virtual float LadderDistance() { return 2.0f; }   ///< Returns the distance a player can be from a ladder and still attach to it
 	protected virtual Mask LadderMask() { return Mask.PlayerSolid; }
@@ -345,7 +390,77 @@ public class GameMovement : IGameMovement
 	// Check if the point is in water.
 	// Sets refWaterLevel and refWaterType appropriately.
 	// If in water, applies current to baseVelocity, and returns true.
-	protected virtual bool CheckWater() { throw new NotImplementedException(); }
+	protected virtual bool CheckWater() {
+		Vector3 point = default;
+		Contents cont;
+
+		Vector3 vPlayerMins = GetPlayerMins();
+		Vector3 vPlayerMaxs = GetPlayerMaxs();
+
+		// Pick a spot just above the players feet.
+		point[0] = mv!.GetAbsOrigin()[0] + (vPlayerMins[0] + vPlayerMaxs[0]) * 0.5f;
+		point[1] = mv!.GetAbsOrigin()[1] + (vPlayerMins[1] + vPlayerMaxs[1]) * 0.5f;
+		point[2] = mv!.GetAbsOrigin()[2] + vPlayerMins[2] + 1;
+
+		// Assume that we are not in water at all.
+		Player.SetWaterLevel(WaterLevel.NotInWater);
+		Player.SetWaterType(Contents.Empty);
+
+		// Grab point contents.
+		cont = GetPointContentsCached(point, 0);
+
+		// Are we under water? (not solid and not empty?)
+		if ((cont & (Contents)Mask.Water) != 0) {
+			// Set water type
+			Player.SetWaterType(cont);
+
+			// We are at least at level one
+			Player.SetWaterLevel(WaterLevel.Feet);
+
+			// Now check a point that is at the player hull midpoint.
+			point[2] = mv.GetAbsOrigin()[2] + (vPlayerMins[2] + vPlayerMaxs[2]) * 0.5f;
+			cont = GetPointContentsCached(point, 1);
+			// If that point is also under water...
+			if ((cont & (Contents)Mask.Water) != 0) {
+				// Set a higher water level.
+				Player.SetWaterLevel(WaterLevel.Waist);
+
+				// Now check the eye position.  (view_ofs is relative to the origin)
+				point[2] = Player.GetAbsOrigin()[2] + Player.GetViewOffset()[2];
+				cont = GetPointContentsCached(point, 2);
+				if ((cont & (Contents)Mask.Water) != 0)
+					Player.SetWaterLevel(WaterLevel.Eyes);  // In over our eyes
+			}
+
+			// Adjust velocity based on water current, if any.
+			if ((cont & (Contents)Mask.Current) != 0) {
+				Vector3 v = default;
+				if ((cont & Contents.Current0) != 0)
+					v[0] += 1;
+				if ((cont & Contents.Current90) != 0)
+					v[1] += 1;
+				if ((cont & Contents.Current180) != 0)
+					v[0] -= 1;
+				if ((cont & Contents.Current270) != 0)
+					v[1] -= 1;
+				if ((cont & Contents.CurrentUp) != 0)
+					v[2] += 1;
+				if ((cont & Contents.CurrentDown) != 0)
+					v[2] -= 1;
+
+				// BUGBUG -- this depends on the value of an unspecified enumerated type
+				// The deeper we are, the stronger the current.
+				MathLib.VectorMA(Player.GetBaseVelocity(), 50.0f * (int)Player.GetWaterLevel(), v, out Vector3 temp);
+				Player.SetBaseVelocity(temp);
+			}
+		}
+
+		// if we just transitioned from not in water to in water, record the time it happened
+		if ((WaterLevel.NotInWater == OldWaterLevel) && (Player.GetWaterLevel() > WaterLevel.NotInWater)) 
+			WaterEntryTime = gpGlobals.CurTime;
+
+		return (Player.GetWaterLevel() > WaterLevel.Feet);
+	}
 
 	// Determine if player is in water, on ground, etc.
 	protected virtual void CategorizePosition() {
@@ -551,7 +666,7 @@ public class GameMovement : IGameMovement
 			for (int i = 0; i < Constants.MAX_PLAYERS; ++i)
 				CachedGetPointContents[i, slot] = -9999;
 	}
-	protected int GetPointContentsCached(in Vector3 point, int slot) { throw new NotImplementedException(); }
+	protected Contents GetPointContentsCached(in Vector3 point, int slot) { return Contents.Empty; /* todo */ }
 
 
 	public const float GAMEMOVEMENT_DUCK_TIME = 1000.0f;    // ms
@@ -724,7 +839,15 @@ public class GameMovement : IGameMovement
 			}
 		}
 	}
-	protected virtual void HandleDuckingSpeedCrop() { throw new NotImplementedException(); }
+	protected virtual void HandleDuckingSpeedCrop() {
+		if ((SpeedCropped & SpeedCropped.Duck) == 0 && (Player.GetFlags() & EntityFlags.Ducking) != 0 && (Player.GetGroundEntity() != null)) {
+			float frac = 0.33333333f;
+			mv.ForwardMove *= frac;
+			mv.SideMove *= frac;
+			mv.UpMove *= frac;
+			SpeedCropped |= SpeedCropped.Duck;
+		}
+	}
 	protected virtual void FinishUnDuck() { throw new NotImplementedException(); }
 	protected virtual void FinishDuck() { throw new NotImplementedException(); }
 	protected virtual bool CanUnduck() { throw new NotImplementedException(); }
