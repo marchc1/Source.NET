@@ -147,6 +147,13 @@ public partial class
 		AfButtonReleased = buttonsChanged & (~Buttons);    // The ones not down are "released"
 	}
 
+	public float GetPlayerMaxSpeed(){
+		float maxSpeed = sv_maxspeed.GetFloat();
+		if (MaxSpeed() > 0.0f && MaxSpeed() < maxSpeed)
+			maxSpeed = MaxSpeed();
+		return maxSpeed;
+	}
+
 	public void ViewPunch(in QAngle angleOffset) {
 		//See if we're suppressing the view punching
 		if (sv_suppress_viewpunch.GetBool())

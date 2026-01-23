@@ -45,7 +45,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		SendPropEHandle(FIELD.OF(nameof(UseEntity))),
 		SendPropInt(FIELD.OF(nameof(LifeState)), 3, PropFlags.Unsigned ),
 		SendPropEHandle(FIELD.OF(nameof(ColorCorrectionCtrl))), // << gmod specific
-		SendPropFloat(FIELD.OF(nameof(MaxSpeed)), 12, PropFlags.RoundDown, 0.0f, 2048.0f ),
+		SendPropFloat(FIELD.OF(nameof(Maxspeed)), 12, PropFlags.RoundDown, 0.0f, 2048.0f ),
 		SendPropInt(FIELD.OF(nameof(Flags)), Constants.PLAYER_FLAG_BITS, PropFlags.Unsigned|PropFlags.ChangesOften, SendProxy_CropFlagsToPlayerFlagBitsLength),
 		SendPropInt(FIELD.OF(nameof(ObserverMode)), 3, PropFlags.Unsigned),
 		SendPropEHandle(FIELD.OF(nameof(ObserverTarget))),
@@ -63,7 +63,10 @@ public partial class BasePlayer : BaseCombatCharacter
 		SendPropDataTable( "localdata", DT_LocalPlayerExclusive, SendProxy_SendLocalDataTable),
 	]);
 
-	
+	public float MaxSpeed() => Maxspeed;
+	public void SetMaxSpeed(float maxSpeed) => Maxspeed = maxSpeed;
+	public TimeUnit_t GetLaggedMovementValue() => LaggedMovementValue;
+
 	public static void SendProxy_CropFlagsToPlayerFlagBitsLength(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		throw new NotImplementedException();
 	}
@@ -89,7 +92,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	readonly EHANDLE ViewEntity = new();
 	InlineArrayNewMaxViewmodels<Handle<BaseViewModel>> ViewModel = new(); 
 	bool DisableWorldClicking;
-	float MaxSpeed;
+	float Maxspeed;
 	int Flags;
 	int ObserverMode;
 	int FOV;

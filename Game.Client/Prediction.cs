@@ -250,7 +250,7 @@ public class Prediction : IPrediction
 		move.OldAngles = move.Angles;
 		move.Buttons = player.Local.OldButtons;
 		move.OldForwardMove = player.Local.OldForwardMove;
-		move.ClientMaxSpeed = player.MaxSpeed;
+		move.ClientMaxSpeed = player.Maxspeed;
 
 		move.Angles = ucmd.ViewAngles;
 		move.ViewAngles = ucmd.ViewAngles;

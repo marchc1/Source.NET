@@ -162,7 +162,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		RecvPropEHandle(FIELD.OF(nameof(UseEntity))),
 		RecvPropInt(FIELD.OF(nameof(LifeState))),
 		RecvPropEHandle(FIELD.OF(nameof(ColorCorrectionCtrl))), // << gmod specific
-		RecvPropFloat(FIELD.OF(nameof(MaxSpeed))),
+		RecvPropFloat(FIELD.OF(nameof(Maxspeed))),
 		RecvPropInt(FIELD.OF(nameof(Flags))),
 		RecvPropInt(FIELD.OF(nameof(ObserverMode))),
 		RecvPropEHandle(FIELD.OF(nameof(ObserverTarget))),
@@ -187,6 +187,10 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public void FireGameEvent(IGameEvent ev) {
 		throw new NotImplementedException();
 	}
+
+	public float MaxSpeed() => Maxspeed;
+	public void SetMaxSpeed(float maxSpeed) => Maxspeed = maxSpeed;
+
 	public override bool ShouldPredict() {
 		return IsLocalPlayer();
 	}
@@ -281,7 +285,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	readonly EHANDLE ViewEntity = new();
 	InlineArrayNewMaxViewmodels<Handle<C_BaseViewModel>> ViewModel = new();
 	bool DisableWorldClicking;
-	public float MaxSpeed;
+	public float Maxspeed;
 	public int Flags;
 	public int ObserverMode;
 	public int FOV;
@@ -304,6 +308,8 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 	public int GetHealth() => Health;
 	public bool IsSuitEquipped() => Local.WearingSuit;
+
+	public TimeUnit_t GetLaggedMovementValue() => LaggedMovementValue;
 
 	public C_BaseViewModel? GetViewModel(int index = 0, bool observerOK = true) {
 		C_BaseViewModel? vm = ViewModel[index].Get();

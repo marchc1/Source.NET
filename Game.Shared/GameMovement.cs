@@ -11,10 +11,17 @@ using System.Numerics;
 
 namespace Game.Shared;
 
+
+public enum SpeedCropped
+{
+	Reset,
+	Duck,
+	Weapon
+}
 public class GameMovement : IGameMovement
 {
 	public void FinishTrackPredictionErrors(BasePlayer player) {
-		throw new NotImplementedException();
+
 	}
 
 	public Vector3 GetPlayerMaxs(bool ducked) {
@@ -29,12 +36,42 @@ public class GameMovement : IGameMovement
 		throw new NotImplementedException();
 	}
 
+	SpeedCropped SpeedCropped;
+
 	public void ProcessMovement(BasePlayer player, MoveData pMove) {
-		throw new NotImplementedException();
+		TimeUnit_t storeFrametime = gpGlobals.FrameTime;
+
+		//!!HACK HACK: Adrian - slow down all player movement by this factor.
+		//!!Blame Yahn for this one.
+		gpGlobals.FrameTime *= player.GetLaggedMovementValue();
+
+		ResetGetPointContentsCache();
+
+		// Cropping movement speed scales mv->m_fForwardSpeed etc. globally
+		// Once we crop, we don't want to recursively crop again, so we set the crop
+		//  flag globally here once per usercmd cycle.
+		SpeedCropped = SpeedCropped.Reset;
+
+		// StartTrackPredictionErrors should have set this
+		Assert(Player == player);
+		Player = player;
+		mv = pMove;
+
+		mv.MaxSpeed = player.GetPlayerMaxSpeed();
+
+		// Run the command.
+		PlayerMove();
+
+		FinishMove();
+
+		// CheckV( player->CurrentCommandNumber(), "EndPos", mv->GetAbsOrigin() );
+
+		//This is probably not needed, but just in case.
+		gpGlobals.FrameTime = storeFrametime;
 	}
 
 	public void StartTrackPredictionErrors(BasePlayer player) {
-		throw new NotImplementedException();
+		Player = player;
 	}
 
 	protected MoveData? mv;
