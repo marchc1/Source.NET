@@ -237,7 +237,7 @@ public ref struct BoneSetup
 		return bResult;
 	}
 
-	private static void Studio_SeqAnims(StudioHdr studioHdr, MStudioSeqDesc seqdesc, int sequence, Span<float> poseParameter, Span<MStudioAnimDesc> panim, Span<float> weight) {
+	private static void Studio_SeqAnims(StudioHdr studioHdr, MStudioSeqDesc seqdesc, int sequence, ReadOnlySpan<float> poseParameter, Span<MStudioAnimDesc> panim, Span<float> weight) {
 		if (studioHdr == null || sequence >= studioHdr.GetNumSeq()) {
 			weight[0] = weight[1] = weight[2] = weight[3] = 0.0f;
 			return;
@@ -264,7 +264,7 @@ public ref struct BoneSetup
 		Assert(weight[0] >= 0.0f && weight[1] >= 0.0f && weight[2] >= 0.0f && weight[3] >= 0.0f);
 	}
 
-	private static float Studio_CPS(StudioHdr studioHdr, MStudioSeqDesc seqdesc, int sequence, Span<float> poseParameter) {
+	private static float Studio_CPS(StudioHdr studioHdr, MStudioSeqDesc seqdesc, int sequence, ReadOnlySpan<float> poseParameter) {
 		MStudioAnimDesc[] panim = ArrayPool<MStudioAnimDesc>.Shared.Rent(4);
 		Span<float> weight = stackalloc float[4];
 
@@ -831,7 +831,7 @@ public ref struct BoneSetup
 		}
 	}
 
-	private static void Studio_LocalPoseParameter(StudioHdr studioHdr, Span<float> poseParameter, MStudioSeqDesc seqdesc, int sequence, int localIndex, ref float flSetting, ref int index) {
+	private static void Studio_LocalPoseParameter(StudioHdr studioHdr, ReadOnlySpan<float> poseParameter, MStudioSeqDesc seqdesc, int sequence, int localIndex, ref float flSetting, ref int index) {
 		if (studioHdr == null) {
 			flSetting = 0;
 			index = 0;
@@ -1095,7 +1095,7 @@ public ref struct BoneSetup
 		}
 	}
 
-	public static double Studio_Duration(StudioHdr studioHdr, int sequence, Span<float> poseParameter) {
+	public static double Studio_Duration(StudioHdr studioHdr, int sequence, ReadOnlySpan<float> poseParameter) {
 		MStudioSeqDesc seqdesc = studioHdr.Seqdesc(sequence);
 		float cps = Studio_CPS(studioHdr, seqdesc, sequence, poseParameter);
 

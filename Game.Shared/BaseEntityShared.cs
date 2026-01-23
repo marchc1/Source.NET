@@ -146,6 +146,39 @@ public partial class
 	public virtual ref readonly Vector3 WorldSpaceCenter() {
 		return ref GetAbsOrigin(); // todo
 	}
+
+
+	public virtual void SetEffects(EntityEffects effects) {
+		if (Effects != (int)effects) {
+			Effects = (int)effects;
+#if !CLIENT_DLL
+			// DispatchUpdateTransmitState();
+#else
+			UpdateVisibility();
+#endif
+		}
+	}
+	public virtual void AddEffects(EntityEffects effects) {
+		Effects |= (int)effects;
+		if ((effects & EntityEffects.NoDraw) != 0) {
+#if !CLIENT_DLL
+			// DispatchUpdateTransmitState();
+#else
+			UpdateVisibility();
+#endif
+		}
+	}
+	public virtual void RemoveEffects(EntityEffects effects) {
+		Effects &= ~(int)effects;
+		if ((effects & EntityEffects.NoDraw) != 0) {
+#if !CLIENT_DLL
+			// NetworkProp().MarkPVSInformationDirty();
+			// DispatchUpdateTransmitState();
+#else
+			UpdateVisibility();
+#endif
+		}
+	}
 }
 
 #endif

@@ -87,7 +87,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	readonly EHANDLE ConstraintEntity = new();
 	readonly EHANDLE TonemapController = new();
 	readonly EHANDLE ViewEntity = new();
-	InlineArrayNewMaxViewmodels<EHANDLE> ViewModel = new(); 
+	InlineArrayNewMaxViewmodels<Handle<BaseViewModel>> ViewModel = new(); 
 	bool DisableWorldClicking;
 	float MaxSpeed;
 	int Flags;
@@ -107,6 +107,11 @@ public partial class BasePlayer : BaseCombatCharacter
 	public bool OnTarget;
 	public double DeathTime;
 	public double LaggedMovementValue;
+	InlineArray32<char> AnimExtension;
 
 	public bool IsInAVehicle() => Vehicle.Get() != null;
+
+	public BaseViewModel? GetViewModel(int index = 0, bool observerOK = true){
+		return ViewModel[index].Get();
+	}
 }

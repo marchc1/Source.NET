@@ -102,4 +102,29 @@ public class BaseAnimating : BaseEntity
 	public float FadeScale;
 	public TimeUnit_t Cycle;
 	public Vector3 OverrideViewTarget;
+
+	// todo...
+	public StudioHdr? GetModelPtr() => null!;
+
+	public ReadOnlySpan<float> GetPoseParameterArray() => PoseParameter;
+
+	public int GetSequence() => Sequence;
+
+	public TimeUnit_t SequenceDuration(StudioHdr? studioHdr, int sequence){
+		if (studioHdr == null) {
+			DevWarning(2, $"BaseAnimating.SequenceDuration( {sequence} ) NULL pstudiohdr on {GetClassname()}!\n");
+			return 0.1;
+		}
+		if (studioHdr.SequencesAvailable()) {
+			return 0.1;
+		}
+		if (sequence >= studioHdr.GetNumSeq() || sequence < 0) {
+			DevWarning(2, $"BaseAnimating.SequenceDuration( {sequence} ) out of range\n");
+			return 0.1;
+		}
+
+		return BoneSetup.Studio_Duration(studioHdr, sequence, GetPoseParameterArray());
+	}
+	public TimeUnit_t SequenceDuration(int sequence) => SequenceDuration(GetModelPtr(), sequence);
+	public TimeUnit_t SequenceDuration() => SequenceDuration(GetSequence());
 }

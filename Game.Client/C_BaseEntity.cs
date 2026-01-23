@@ -784,24 +784,24 @@ public partial class C_BaseEntity : IClientEntity
 
 	public virtual bool ShouldPredict() => false;
 
-	public int RestoreData(ReadOnlySpan<char> context, int slot, PredictionCopyType type){
+	public int RestoreData(ReadOnlySpan<char> context, int slot, PredictionCopyType type) {
 		// todo
 		return 0;
 	}
 
-	public void AddToAimEntsList(){
+	public void AddToAimEntsList() {
 		// todo
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public int GetModelIndex() => ModelIndex;
 
-	public void OnPostRestoreData(){
+	public void OnPostRestoreData() {
 		InvalidatePhysicsRecursive(InvalidatePhysicsBits.PositionChanged | InvalidatePhysicsBits.AnglesChanged | InvalidatePhysicsBits.VelocityChanged);
 
 		if (GetMoveParent() != null)
 			AddToAimEntsList();
 
-		if (GetModel() != modelinfo.GetModel(GetModelIndex())) 
+		if (GetModel() != modelinfo.GetModel(GetModelIndex()))
 			SetModelByIndex(GetModelIndex());
 	}
 
@@ -1102,7 +1102,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	private void RemoveFromLeafSystem() {
-		if(renderHandle != INVALID_CLIENT_RENDER_HANDLE){
+		if (renderHandle != INVALID_CLIENT_RENDER_HANDLE) {
 			clientLeafSystem.RemoveRenderable(renderHandle);
 			renderHandle = INVALID_CLIENT_RENDER_HANDLE;
 		}

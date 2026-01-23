@@ -441,6 +441,8 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return cycle;
 	}
 
+	public TimeUnit_t SequenceDuration() => SequenceDuration(GetSequence());
+	public TimeUnit_t SequenceDuration(int sequence) => SequenceDuration(GetModelPtr(), sequence);
 	public TimeUnit_t SequenceDuration(StudioHdr? studioHdr, int sequence) {
 		if (studioHdr == null)
 			return 0.1f;

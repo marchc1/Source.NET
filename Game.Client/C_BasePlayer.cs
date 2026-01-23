@@ -171,6 +171,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public double LaggedMovementValue;
 	public int TickBase;
 	public int FinalPredictedTick;
+	InlineArray32<char> AnimExtension;
 
 	public int GetHealth() => Health;
 	public bool IsSuitEquipped() => Local.WearingSuit;

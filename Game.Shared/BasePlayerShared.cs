@@ -12,11 +12,12 @@ global using BasePlayer = Game.Server.BasePlayer;
 
 #endif
 using Source.Common.Mathematics;
-
+using Source;
 using System.Numerics;
 
 #if CLIENT_DLL
 namespace Game.Client;
+
 
 #else
 namespace Game.Server;
@@ -127,6 +128,10 @@ public partial class
 
 	void Weapon_SetLast(BaseCombatWeapon pWeapon) {
 		throw new NotImplementedException();
+	}
+
+	public void SetAnimationExtension(ReadOnlySpan<char> extension){
+		strcpy(AnimExtension, extension);
 	}
 }
 #endif

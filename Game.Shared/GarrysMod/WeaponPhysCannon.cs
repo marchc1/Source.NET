@@ -517,6 +517,8 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		}
 #endif
 	}
+
+	
 #if CLIENT_DLL
 	public bool IsEffectVisible(EffectType effectID) {
 		return Parameters[(int)effectID].IsVisible();
@@ -603,6 +605,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 			}
 		}
 	}
+
 	public override void OnDataChanged(DataUpdateType type) {
 		base.OnDataChanged(type);
 

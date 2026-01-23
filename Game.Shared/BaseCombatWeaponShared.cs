@@ -10,12 +10,18 @@ global using BaseHL2MPCombatWeapon = Game.Server.BaseHL2MPCombatWeapon;
 #endif
 
 using Source.Common;
+using Source;
+
 using Game.Shared;
+
 using Source.Common.Engine;
 
 
 #if CLIENT_DLL
 using Game.Client.HUD;
+
+using System.Diagnostics;
+using System.Reflection;
 namespace Game.Client;
 #else
 namespace Game.Server;
@@ -138,11 +144,206 @@ public partial class
 	public int State;
 	public readonly EHANDLE Owner = new();
 
+	Activity Activity;
+	int IdealSequence;
+	Activity IdealActivity;
+	bool Removable;
+	int PrimaryAmmoCount;
+	int SecondaryAmmoCount;
+
+	int AltFireHudHintCount;
+	int ReloadHudHintCount;
+	bool AltFireHudHintDisplayed;
+	bool ReloadHudHintDisplayed;
+	TimeUnit_t HudHintPollTime;
+	TimeUnit_t HudHintMinDisplayTime;
+
 	public virtual bool IsOverridingViewmodel() => false;
 	public virtual int DrawOverriddenViewmodel(BaseViewModel viewmodel, StudioFlags flags) => 0;
 	public virtual void ViewModelDrawn(BaseViewModel viewmodelflags) { }
 
 
+	public int GetPrimaryAmmoCount() => PrimaryAmmoCount;
+	public void SetPrimaryAmmoCount(int count) => PrimaryAmmoCount = count;
+
+	public int GetSecondaryAmmoCount() => SecondaryAmmoCount;
+	public void SetSecondaryAmmoCount(int count) => SecondaryAmmoCount = count;
+
+	public bool HasAnyAmmo() {
+		if (!UsesPrimaryAmmo() && !UsesSecondaryAmmo())
+			return true;
+
+		return HasPrimaryAmmo() || HasSecondaryAmmo();
+	}
+
+
+
+	public bool HasPrimaryAmmo() {
+		// If I use a clip, and have some ammo in it, then I have ammo
+		if (UsesClipsForAmmo1()) {
+			if (Clip1 > 0)
+				return true;
+		}
+
+		// Otherwise, I have ammo if I have some in my ammo counts
+		BaseCombatCharacter? owner = GetOwner();
+		if (owner != null) {
+			if (owner.GetAmmoCount(PrimaryAmmoType) > 0)
+				return true;
+		}
+		else {
+			// No owner, so return how much primary ammo I have along with me.
+			if (GetPrimaryAmmoCount() > 0)
+				return true;
+		}
+
+		return false;
+	}
+	public bool HasSecondaryAmmo() {
+		// If I use a clip, and have some ammo in it, then I have ammo
+		if (UsesClipsForAmmo2()) {
+			if (Clip2 > 0)
+				return true;
+		}
+
+		// Otherwise, I have ammo if I have some in my ammo counts
+		BaseCombatCharacter? owner = GetOwner();
+		if (owner != null) {
+			if (owner.GetAmmoCount(SecondaryAmmoType) > 0)
+				return true;
+		}
+
+		return false;
+	}
+
+	bool DefaultDeploy(ReadOnlySpan<char> viewModel, ReadOnlySpan<char> weaponModel, Activity activity, ReadOnlySpan<char> animExt) {
+		if (!HasAnyAmmo() && AllowsAutoSwitchFrom())
+			return false;
+
+		BasePlayer? owner = ToBasePlayer(GetOwner());
+		if (owner != null) {
+			// Dead men deploy no weapons
+			if (owner.IsAlive() == false)
+				return false;
+
+			owner.SetAnimationExtension(animExt);
+
+			SetViewModel();
+			SendWeaponAnim(activity);
+
+			owner.SetNextAttack(gpGlobals.CurTime + SequenceDuration());
+		}
+
+		// Can't shoot again until we've finished deploying
+		NextPrimaryAttack = gpGlobals.CurTime + SequenceDuration();
+		NextSecondaryAttack = gpGlobals.CurTime + SequenceDuration();
+		HudHintMinDisplayTime = 0;
+
+		AltFireHudHintDisplayed = false;
+		ReloadHudHintDisplayed = false;
+		HudHintPollTime = gpGlobals.CurTime + 5.0;
+
+		WeaponSound(Shared.WeaponSound.Deploy);
+
+		SetWeaponVisible(true);
+
+		return true;
+	}
+
+	public void SetWeaponVisible(bool visible) {
+		BaseViewModel? vm = null;
+
+		BasePlayer? owner = ToBasePlayer(GetOwner());
+		if (owner != null)
+			vm = owner.GetViewModel(ViewModelIndex);
+
+		if (visible) {
+			RemoveEffects(EntityEffects.NoDraw);
+			vm?.RemoveEffects(EntityEffects.NoDraw);
+		}
+		else {
+			AddEffects(EntityEffects.NoDraw);
+			vm?.AddEffects(EntityEffects.NoDraw);
+		}
+	}
+
+
+
+	public void PoseParameterOverride(bool reset) {
+		BaseCombatCharacter? owner = GetOwner();
+		if (owner == null)
+			return;
+
+		StudioHdr? studioHdr = owner.GetModelPtr();
+		if (studioHdr == null)
+			return;
+
+		// todo
+	}
+
+	public void SetViewModel() {
+		BasePlayer? owner = ToBasePlayer(GetOwner());
+		if (owner == null)
+			return;
+		BaseViewModel? vm = owner.GetViewModel(ViewModelIndex, false);
+		if (vm == null)
+			return;
+		Assert(vm.ViewModelIndex() == ViewModelIndex);
+		vm.SetWeaponModel(GetViewModel(ViewModelIndex), this);
+	}
+
+	public virtual Activity GetDrawActivity() => Activity.ACT_VM_DRAW;
+	public Activity GetActivity() => this.Activity;
+
+	public virtual bool Deploy() {
+		bool bResult = DefaultDeploy(GetViewModel(), GetWorldModel(), GetDrawActivity(), GetAnimPrefix());
+
+		// override pose parameters
+		PoseParameterOverride(false);
+
+		return bResult;
+	}
+
+	public bool InReload;
+	public bool FireOnEmpty;
+	public bool FiringWholeClip;
+
+	public virtual bool Holster(BaseCombatWeapon switchingTo) {
+		InReload = false;
+		FiringWholeClip = false;
+
+		// todo: think function
+
+		// Send holster animation
+		SendWeaponAnim(Activity.ACT_VM_HOLSTER);
+
+		// Some weapon's don't have holster anims yet, so detect that
+		TimeUnit_t sequenceDuration = 0;
+		if (GetActivity() == Activity.ACT_VM_HOLSTER) 
+			sequenceDuration = SequenceDuration();
+		
+		BaseCombatCharacter? owner = GetOwner();
+		if (owner != null) 
+			owner.SetNextAttack(gpGlobals.CurTime + sequenceDuration);
+
+		// If we don't have a holster anim, hide immediately to avoid timing issues
+		if (sequenceDuration == 0) 
+			SetWeaponVisible(false);
+		// else 
+			// Hide the weapon when the holster animation's finished todo
+		
+
+		// if we were displaying a hud hint, squelch it.
+		if (HudHintMinDisplayTime != 0 && gpGlobals.CurTime < HudHintMinDisplayTime) {
+			// if (AltFireHudHintDisplayed)				RescindAltFireHudHint();
+			// if (ReloadHudHintDisplayed)				RescindReloadHudHint();
+		}
+
+		// reset pose parameters
+		PoseParameterOverride(true);
+
+		return true;
+	}
 
 	public BaseCombatCharacter? GetOwner() => ToBaseCombatCharacter(Owner.Get());
 
@@ -189,7 +390,7 @@ public partial class
 
 	public WeaponFlags GetWeaponFlags() => (WeaponFlags)GetWpnData().Flags;
 
-	public bool HasAmmo(){
+	public bool HasAmmo() {
 		if (PrimaryAmmoType == -1 && SecondaryAmmoType == -1)
 			return true;
 		if ((GetWeaponFlags() & WeaponFlags.SelectionEmpty) != 0)
@@ -201,7 +402,7 @@ public partial class
 		return (Clip1 > 0 || player.GetAmmoCount(PrimaryAmmoType) != 0 || Clip2 > 0 || player.GetAmmoCount(SecondaryAmmoType) != 0);
 	}
 
-	public bool CanBeSelected(){
+	public bool CanBeSelected() {
 		if (!VisibleInWeaponSelection())
 			return false;
 
@@ -209,8 +410,20 @@ public partial class
 	}
 
 	public int GetMaxClip1() => GetWpnData().MaxClip1;
+	public int GetMaxClip2() => GetWpnData().MaxClip2;
+	public int GetDefaultClip1() => GetWpnData().DefaultClip1;
+	public int GetDefaultClip2() => GetWpnData().DefaultClip2;
+	public bool IsMeleeWeapon() => GetWpnData().MeleeWeapon;
+
 	public bool UsesClipsForAmmo1() => GetMaxClip1() != WEAPON_NOCLIP;
+	public bool UsesClipsForAmmo2() => GetMaxClip2() != WEAPON_NOCLIP;
+	public int GetWeight() => GetWpnData().Weight;
+	public bool AllowsAutoSwitchTo() => GetWpnData().AutoSwitchTo;
+	public bool AllowsAutoSwitchFrom() => GetWpnData().AutoSwitchFrom;
 	public bool UsesPrimaryAmmo() => PrimaryAmmoType >= 0;
 	public bool UsesSecondaryAmmo() => SecondaryAmmoType >= 0;
+	public ReadOnlySpan<char> GetViewModel(int _ = 0) => GetWpnData().ViewModel;
+	public ReadOnlySpan<char> GetWorldModel() => GetWpnData().WorldModel;
+	public ReadOnlySpan<char> GetAnimPrefix() => GetWpnData().AnimationPrefix;
 }
 #endif

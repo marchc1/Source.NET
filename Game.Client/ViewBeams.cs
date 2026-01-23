@@ -796,9 +796,9 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 			}
 
 			// Specify the next segment.
-			if (endWidth == startWidth) 
+			if (endWidth == startWidth)
 				curSeg.Width = startWidth * 2;
-			else 
+			else
 				curSeg.Width = ((fraction * (endWidth - startWidth)) + startWidth) * 2;
 
 			curSeg.TexCoord = vLast;
@@ -824,7 +824,7 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 		EngineSprite? psprite;
 		IMaterial? material;
 
-		psprite =(EngineSprite?)modelinfo.GetModelExtraData(spritemodel);
+		psprite = (EngineSprite?)modelinfo.GetModelExtraData(spritemodel);
 		Assert(psprite);
 
 		material = psprite!.GetMaterial(rendermode, frame);
@@ -857,7 +857,7 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 	}
 
 	public void FreeBeam(Beam pBeam) {
-		throw new NotImplementedException();
+		BeamFree(pBeam);
 	}
 
 	public void InitBeams() {
@@ -896,6 +896,19 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 		pBeam.B = beamInfo.Blue;
 	}
 
+	public int TotalBeams {
+		get {
+			int c = 0;
+			var beam = ActiveBeams;
+			while(beam != null){
+				c++;
+				beam = beam.Next;
+			}
+
+			return c;
+		}
+	}
+
 	public void UpdateTempEntBeams() {
 		if (ActiveBeams == null)
 			return;
@@ -916,9 +929,9 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 			// Retire old beams
 			if ((pBeam.Flags & BeamFlags.Forever) == 0 && pBeam.Die <= gpGlobals.CurTime) {
 				// Reset links
-				if (pPrev != null) 
+				if (pPrev != null)
 					pPrev.Next = pNext;
-				else 
+				else
 					ActiveBeams = pNext;
 
 				// Free the beam
@@ -935,7 +948,7 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 			pBeam.ComputeBounds();
 
 			// Indicates the beam moved
-			if (pBeam.m_RenderHandle != INVALID_CLIENT_RENDER_HANDLE) 
+			if (pBeam.m_RenderHandle != INVALID_CLIENT_RENDER_HANDLE)
 				clientLeafSystem.RenderableChanged(pBeam.m_RenderHandle);
 
 			pPrev = pBeam;
