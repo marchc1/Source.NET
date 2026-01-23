@@ -123,7 +123,7 @@ public class GameMovement : IGameMovement
 			CategorizePosition();
 		}
 		else {
-			if (mv.Velocity.Z > 250.0f) 
+			if (mv.Velocity.Z > 250.0f)
 				SetGroundEntity(ref Trace.NULL);
 		}
 
@@ -131,7 +131,7 @@ public class GameMovement : IGameMovement
 		OldWaterLevel = Player.GetWaterLevel();
 
 		// If we are not on ground, store off how fast we are moving down
-		if (Player.GetGroundEntity() == null) 
+		if (Player.GetGroundEntity() == null)
 			Player.Local.FallVelocity = -mv.Velocity[2];
 
 		iOnLadder = 0;
@@ -189,9 +189,57 @@ public class GameMovement : IGameMovement
 		}
 	}
 	protected void FinishMove() { throw new NotImplementedException(); }
-	protected virtual float CalcRoll(in QAngle angles, in Vector3 velocity, float rollangle, float rollspeed) { throw new NotImplementedException(); }
+	protected virtual float CalcRoll(in QAngle angles, in Vector3 velocity, float rollangle, float rollspeed) {
+		float sign;
+		float side;
+		float value;
+		Vector3 forward, right, up;
 
-	protected virtual void DecayPunchAngle() { throw new NotImplementedException(); }
+		MathLib.AngleVectors(angles, out forward, out right, out up);
+
+		side = MathLib.DotProduct(velocity, right);
+		sign = side < 0 ? -1 : 1;
+		side = MathF.Abs(side);
+		value = rollangle;
+		if (side < rollspeed) 
+			side = side * value / rollspeed;
+		else 
+			side = value;
+		
+		return side * sign;
+	}
+
+	public const float PUNCH_DAMPING = 9.0f;            // bigger number makes the response more damped, smaller is less damped
+														// currently the system will overshoot, with larger damping values it won't
+	public const float PUNCH_SPRING_CONSTANT = 65.0f;   // bigger number increases the speed at which the view corrects
+
+	protected virtual void DecayPunchAngle() {
+		if (Player.Local.PunchAngle.LengthSqr() > 0.001 || Player.Local.PunchAngleVel.LengthSqr() > 0.001) {
+			Player.Local.PunchAngle += Player.Local.PunchAngleVel * gpGlobals.FrameCount;
+			float damping = 1 - (PUNCH_DAMPING * (float)gpGlobals.FrameTime);
+
+			if (damping < 0) 
+				damping = 0;
+			
+			Player.Local.PunchAngleVel *= damping;
+
+			// torsional spring
+			// UNDONE: Per-axis spring constant?
+			float springForceMagnitude = PUNCH_SPRING_CONSTANT * (float)gpGlobals.FrameTime;
+			springForceMagnitude = Math.Clamp(springForceMagnitude, 0f, 2f);
+			Player.Local.PunchAngleVel -= Player.Local.PunchAngle * springForceMagnitude;
+
+			// don't wrap around
+			Player.Local.PunchAngle.Init(
+				Math.Clamp(Player.Local.PunchAngle.X, -89f, 89f),
+				Math.Clamp(Player.Local.PunchAngle.Y, -179f, 179f),
+				Math.Clamp(Player.Local.PunchAngle.Z, -89f, 89f));
+		}
+		else {
+			Player.Local.PunchAngle.Init(0, 0, 0);
+			Player.Local.PunchAngleVel.Init(0, 0, 0);
+		}
+	}
 
 	protected virtual void CheckWaterJump() { throw new NotImplementedException(); }
 
