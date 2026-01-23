@@ -21,6 +21,8 @@ public class WeaponCrowbar : BaseHL2MPBludgeonWeapon
 		]);
 #if CLIENT_DLL
 	public static readonly new ClientClass ClientClass = new ClientClass("WeaponCrowbar", null, null, DT_WeaponCrowbar).WithManualClassID(StaticClassIndices.CWeaponCrowbar);
+	public static readonly new DataMap PredMap = new([], nameof(WeaponCrowbar), BaseHL2MPBludgeonWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
+
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("WeaponCrowbar", DT_WeaponCrowbar).WithManualClassID(StaticClassIndices.CWeaponCrowbar);
 #endif

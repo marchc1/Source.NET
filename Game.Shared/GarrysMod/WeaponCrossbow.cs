@@ -34,6 +34,7 @@ public class WeaponCrossbow : BaseHL2MPCombatWeapon
 		]);
 #if CLIENT_DLL
 	public static readonly new ClientClass ClientClass = new ClientClass("WeaponCrossbow", null, null, DT_WeaponCrossbow).WithManualClassID(StaticClassIndices.CWeaponCrossbow);
+	public static readonly new DataMap PredMap = new([], nameof(WeaponCrossbow), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("WeaponCrossbow", DT_WeaponCrossbow).WithManualClassID(StaticClassIndices.CWeaponCrossbow);
 #endif

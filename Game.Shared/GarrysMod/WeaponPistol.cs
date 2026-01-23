@@ -1,4 +1,5 @@
 #if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
+
 using Source.Common;
 namespace Game.Shared.GarrysMod;
 using FIELD = Source.FIELD<WeaponPistol>;
@@ -27,6 +28,7 @@ public class WeaponPistol : HL2MPMachineGun
 		]);
 #if CLIENT_DLL
 	public static readonly new ClientClass ClientClass = new ClientClass("WeaponPistol", null, null, DT_WeaponPistol).WithManualClassID(StaticClassIndices.CWeaponPistol);
+	public static readonly new DataMap PredMap = new([], nameof(WeaponPistol), HL2MPMachineGun.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("WeaponPistol", DT_WeaponPistol).WithManualClassID(StaticClassIndices.CWeaponPistol);
 #endif

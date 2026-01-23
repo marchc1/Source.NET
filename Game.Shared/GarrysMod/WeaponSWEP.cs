@@ -1,7 +1,8 @@
 ﻿#if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
-using Source.Common;
 using Game.Shared;
+
 using Source;
+using Source.Common;
 
 #if CLIENT_DLL
 namespace Game.Client;
@@ -49,6 +50,10 @@ public partial class
 		ServerClass
 #endif
 		= new Class("WeaponSWEP", DT_WeaponSWEP).WithManualClassID(StaticClassIndices.CWeaponSWEP);
+
+#if CLIENT_DLL
+	public static readonly new DataMap PredMap = new([], "WeaponSWEP", BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
+#endif
 
 	public InlineArray64<char> HoldType;
 

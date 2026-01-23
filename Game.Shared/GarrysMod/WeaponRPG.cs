@@ -31,6 +31,7 @@ public class WeaponRPG : BaseHL2MPCombatWeapon
 		]);
 #if CLIENT_DLL
 	public static readonly new ClientClass ClientClass = new ClientClass("WeaponRPG", null, null, DT_WeaponRPG).WithManualClassID(StaticClassIndices.CWeaponRPG);
+	public static readonly new DataMap PredMap = new([], nameof(WeaponRPG), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("WeaponRPG", DT_WeaponRPG).WithManualClassID(StaticClassIndices.CWeaponRPG);
 #endif

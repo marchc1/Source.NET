@@ -21,6 +21,7 @@ public class WeaponSMG1 : HL2MPMachineGun
 		]);
 #if CLIENT_DLL
 	public static readonly new ClientClass ClientClass = new ClientClass("WeaponSMG1", null, null, DT_WeaponSMG1).WithManualClassID(StaticClassIndices.CWeaponSMG1);
+	public static readonly new DataMap PredMap = new([], nameof(WeaponSMG1), HL2MPMachineGun.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("WeaponSMG1", DT_WeaponSMG1).WithManualClassID(StaticClassIndices.CWeaponSMG1);
 #endif

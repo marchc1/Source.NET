@@ -1,7 +1,9 @@
 ﻿#if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
-using Source.Common;
 using Game.Shared;
+
 using Source;
+using Source.Common;
+
 using System.Numerics;
 
 #if CLIENT_DLL
@@ -53,6 +55,10 @@ public partial class
 		ServerClass
 #endif
 		= new Class("WeaponPhysGun", DT_WeaponPhysGun).WithManualClassID(StaticClassIndices.CWeaponPhysGun);
+
+#if CLIENT_DLL
+	public static readonly new DataMap PredMap = new([], "WeaponPhysGun", BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
+#endif
 
 	public readonly EHANDLE PhysBeam = new();
 	public Vector3 HitPosLocal;

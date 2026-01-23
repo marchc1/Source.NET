@@ -18,7 +18,7 @@ using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 
 using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
-using DEFINE = Source.Common.DEFINE<Game.Client.C_BaseEntity>;
+using DEFINE = Source.DEFINE<Game.Client.C_BaseEntity>;
 
 namespace Game.Client;
 

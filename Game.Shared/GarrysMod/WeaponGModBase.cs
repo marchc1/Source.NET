@@ -1,6 +1,7 @@
 ﻿#if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
-using Source.Common;
 using Game.Shared;
+
+using Source.Common;
 
 #if CLIENT_DLL
 namespace Game.Client;
@@ -44,6 +45,10 @@ public partial class
 #endif
 		= new Class("WeaponHL2MPBase", DT_WeaponHL2MPBase).WithManualClassID(StaticClassIndices.CWeaponHL2MPBase);
 
+#if CLIENT_DLL
+	public static readonly new DataMap PredMap = new([], "WeaponHL2MPBase", BaseCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
+
+#endif
 
 	public
 #if CLIENT_DLL
@@ -98,6 +103,10 @@ public partial class
 		}
 		return false;
 	}
+
+#if CLIENT_DLL
+	public static readonly new DataMap PredMap = new([], "BaseHL2MPCombatWeapon", BaseCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
+#endif
 
 #if CLIENT_DLL
 	public override void OnDataChanged(DataUpdateType updateType) {
