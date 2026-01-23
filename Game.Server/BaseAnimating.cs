@@ -79,7 +79,7 @@ public class BaseAnimating : BaseEntity
 	public int Body;
 	public int HitboxSet;
 
-	public Vector3 ModelScale;
+	public float ModelScale;
 	public InlineArrayMaxStudioPoseParam<float> PoseParameter;
 	public InlineArrayMaxStudioPoseParam<float> OldPoseParameters;
 	public float PrevEventCycle;
@@ -102,4 +102,33 @@ public class BaseAnimating : BaseEntity
 	public float FadeScale;
 	public TimeUnit_t Cycle;
 	public Vector3 OverrideViewTarget;
+
+	public bool IsModelScaleFractional() => ModelScale < 1.0f;
+	public bool IsModelScaled() => ModelScale > 1.0f + float.Epsilon || ModelScale < 1.0f - float.Epsilon;
+	public float GetModelScale() => ModelScale;
+
+	// todo...
+	public StudioHdr? GetModelPtr() => null!;
+
+	public ReadOnlySpan<float> GetPoseParameterArray() => PoseParameter;
+
+	public int GetSequence() => Sequence;
+
+	public TimeUnit_t SequenceDuration(StudioHdr? studioHdr, int sequence){
+		if (studioHdr == null) {
+			DevWarning(2, $"BaseAnimating.SequenceDuration( {sequence} ) NULL pstudiohdr on {GetClassname()}!\n");
+			return 0.1;
+		}
+		if (studioHdr.SequencesAvailable()) {
+			return 0.1;
+		}
+		if (sequence >= studioHdr.GetNumSeq() || sequence < 0) {
+			DevWarning(2, $"BaseAnimating.SequenceDuration( {sequence} ) out of range\n");
+			return 0.1;
+		}
+
+		return BoneSetup.Studio_Duration(studioHdr, sequence, GetPoseParameterArray());
+	}
+	public TimeUnit_t SequenceDuration(int sequence) => SequenceDuration(GetModelPtr(), sequence);
+	public TimeUnit_t SequenceDuration() => SequenceDuration(GetSequence());
 }

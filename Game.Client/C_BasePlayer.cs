@@ -2,8 +2,10 @@ using Game.Shared;
 
 using Source;
 using Source.Common;
+using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Mathematics;
+using Source.Common.Physics;
 using Source.Engine;
 
 using System;
@@ -12,6 +14,24 @@ using System.Numerics;
 using FIELD = Source.FIELD<Game.Client.C_BasePlayer>;
 
 namespace Game.Client;
+
+public class C_CommandContext
+{
+	public bool NeedsProcessing;
+	public UserCmd Cmd;
+	public int CommandNumber;
+
+	public static AnonymousSafeFieldPointer<UserCmd> SafeCmdPointer(C_CommandContext ctx) => new(ctx, FetchCmdRef);
+	static ref UserCmd FetchCmdRef(object owner) => ref ((C_CommandContext)owner).Cmd;
+}
+
+public struct C_PredictionError
+{
+	public TimeUnit_t Time;
+	public Vector3 Error;
+}
+
+
 
 [LinkEntityToClass("player")]
 public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
@@ -26,6 +46,17 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public static bool ShouldDrawLocalPlayer() {
 		return false; // todo
 	}
+
+	public InButtons AfButtonLast;
+	public InButtons AfButtonPressed;
+	public InButtons AfButtonReleased;
+	public InButtons Buttons;
+	public AnonymousSafeFieldPointer<UserCmd> CurrentCommand;
+	public Vector3 WaterJumpVel;
+	public float WaterJumpTime;
+	public float SwimSoundTime;
+	public int Impulse;
+	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
 
 	public static readonly RecvTable DT_LocalPlayerExclusive = new([
 		RecvPropDataTable(nameof(Local), FIELD.OF(nameof(Local)), PlayerLocalData.DT_Local, 0, DataTableRecvProxy_PointerDataTable),
@@ -52,12 +83,68 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public virtual void PreThink() { }
 	public virtual void PostThink() { }
 
+	InlineArrayMaxAmmoSlots<int> OldAmmo;
+
 	public virtual bool IsOverridingViewmodel() => false;
 	public virtual int DrawOverriddenViewmodel(C_BaseViewModel viewmodel, StudioFlags flags) => 0;
+	public override void OnDataChanged(DataUpdateType updateType) {
+		if (IsLocalPlayer())
+			SetPredictionEligible(true);
 
+		base.OnDataChanged(updateType);
+
+		// Only care about this for local player
+		if (IsLocalPlayer()) {
+			// Reset engine areabits pointer (TODO)
+
+			// Check for Ammo pickups.
+			for (int i = 0; i < MAX_AMMO_TYPES; i++) {
+				if (GetAmmoCount(i) > OldAmmo[i]) {
+					// Don't add to ammo pickup if the ammo doesn't do it
+					FileWeaponInfo? pWeaponData = gWR.GetWeaponFromAmmo(i);
+
+					if (pWeaponData == null || (pWeaponData.Flags & WeaponFlags.NoAmmoPickups) == 0) {
+						// We got more ammo for this ammo index. Add it to the ammo history
+						HudHistoryResource? pHudHR = GET_HUDELEMENT<HudHistoryResource>();
+						// if (pHudHR != null) 
+							//pHudHR.AddToHistory(HISTSLOT_AMMO, i, abs(GetAmmoCount(i) - m_iOldAmmo[i]));
+						
+					}
+				}
+			}
+
+			// Soundscape_Update(m_Local.m_audio);
+			// ^^ todo
+
+			// todo
+			// if (OldFogController != Local.PlayerFog.Ctrl) 
+			// 	FogControllerChanged(updateType == DataUpdateType.Created);
+		}
+	}
 	public void SetViewAngles(in QAngle angles) {
 		SetLocalAngles(angles);
 		SetNetworkAngles(angles);
+	}
+
+	public override void ReceiveMessage(int classID, bf_read msg) {
+		if (classID != GetClientClass().ClassID) {
+			// message is for subclass
+			
+			base.ReceiveMessage(classID, msg);
+			return;
+		}
+
+		int messageType = msg.ReadByte();
+
+		switch (messageType) {
+			case PLAY_PLAYER_JINGLE:
+				PlayPlayerJingle();
+				break;
+		}
+	}
+
+	private void PlayPlayerJingle() {
+
 	}
 
 	private static void RecvProxy_LocalVelocityX(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
@@ -80,7 +167,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		RecvPropEHandle(FIELD.OF(nameof(UseEntity))),
 		RecvPropInt(FIELD.OF(nameof(LifeState))),
 		RecvPropEHandle(FIELD.OF(nameof(ColorCorrectionCtrl))), // << gmod specific
-		RecvPropFloat(FIELD.OF(nameof(MaxSpeed))),
+		RecvPropFloat(FIELD.OF(nameof(Maxspeed))),
 		RecvPropInt(FIELD.OF(nameof(Flags))),
 		RecvPropInt(FIELD.OF(nameof(ObserverMode))),
 		RecvPropEHandle(FIELD.OF(nameof(ObserverTarget))),
@@ -104,6 +191,61 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 	public void FireGameEvent(IGameEvent ev) {
 		throw new NotImplementedException();
+	}
+
+	public float MaxSpeed() => Maxspeed;
+	public void SetMaxSpeed(float maxSpeed) => Maxspeed = maxSpeed;
+
+	public override bool ShouldPredict() {
+		return IsLocalPlayer();
+	}
+
+	public int SurfaceProps;
+	public SurfaceData_ptr? SurfaceData;
+	public float SurfaceFriction;
+
+	public override void PhysicsSimulate() {
+		SharedBaseEntity? pMoveParent = GetMoveParent();
+		if (pMoveParent != null)
+			pMoveParent.PhysicsSimulate();
+
+		// Make sure not to simulate this guy twice per frame
+		if (SimulationTick == gpGlobals.TickCount)
+			return;
+
+		SimulationTick = gpGlobals.TickCount;
+
+		if (!IsLocalPlayer())
+			return;
+
+		C_CommandContext ctx = GetCommandContext();
+		Assert(ctx.NeedsProcessing);
+		if (!ctx.NeedsProcessing)
+			return;
+
+		ctx.NeedsProcessing = false;
+
+		// Handle FL_FROZEN.
+		if ((GetFlags() & EntityFlags.Frozen) != 0) {
+			ctx.Cmd.ForwardMove = 0;
+			ctx.Cmd.SideMove = 0;
+			ctx.Cmd.UpMove = 0;
+			ctx.Cmd.Buttons = 0;
+			ctx.Cmd.Impulse = 0;
+			//VectorCopy ( pl.v_angle, ctx->cmd.viewangles );
+		}
+
+		// Run the next command
+		prediction.RunCommand(
+			this,
+			C_CommandContext.SafeCmdPointer(ctx),
+			MoveHelper());
+	}
+
+	readonly C_CommandContext CommandContext = new();
+
+	public C_CommandContext GetCommandContext() {
+		return CommandContext;
 	}
 
 	public override void Dispose() {
@@ -147,22 +289,22 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	readonly EHANDLE UseEntity = new();
 	readonly EHANDLE ObserverTarget = new();
 	readonly EHANDLE ZoomOwner = new();
-	readonly EHANDLE ConstraintEntity = new();
+	public readonly EHANDLE ConstraintEntity = new();
 	readonly EHANDLE TonemapController = new();
 	readonly EHANDLE ViewEntity = new();
 	InlineArrayNewMaxViewmodels<Handle<C_BaseViewModel>> ViewModel = new();
 	bool DisableWorldClicking;
-	float MaxSpeed;
-	int Flags;
-	int ObserverMode;
-	int FOV;
-	int FOVStart;
-	float FOVTime;
+	public float Maxspeed;
+	public int Flags;
+	public int ObserverMode;
+	public int FOV;
+	public int FOVStart;
+	public float FOVTime;
 	public float DefaultFOV;
-	Vector3 ConstraintCenter;
-	float ConstraintRadius;
-	float ConstraintWidth;
-	float ConstraintSpeedFactor;
+	public Vector3 ConstraintCenter;
+	public float ConstraintRadius;
+	public float ConstraintWidth;
+	public float ConstraintSpeedFactor;
 	InlineArray18<char> LastPlaceName;
 	readonly EHANDLE ColorCorrectionCtrl = new();
 	bool UseWeaponsInVehicle;
@@ -170,10 +312,13 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public double DeathTime;
 	public double LaggedMovementValue;
 	public int TickBase;
-	public int FinalPredictedTick;
+	public long FinalPredictedTick;
+	InlineArray32<char> AnimExtension;
 
 	public int GetHealth() => Health;
 	public bool IsSuitEquipped() => Local.WearingSuit;
+
+	public TimeUnit_t GetLaggedMovementValue() => LaggedMovementValue;
 
 	public C_BaseViewModel? GetViewModel(int index = 0, bool observerOK = true) {
 		C_BaseViewModel? vm = ViewModel[index].Get();
@@ -182,6 +327,11 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		return vm;
 	}
 
+	public IClientVehicle? GetVehicle() {
+		C_BaseEntity? vehicleEnt = Vehicle.Get();
+		return vehicleEnt?.GetClientVehicle();
+	}
+	public BaseCombatWeapon? GetLastWeapon() => LastWeapon.Get();
 
 
 	public virtual bool CreateMove(TimeUnit_t inputSampleTime, ref UserCmd cmd) {
@@ -207,4 +357,8 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	}
 
 	public bool IsPoisoned() => Local.Poisoned;
+
+	public void ResetAutoaim() => OnTarget = false;
+	public ObserverMode GetObserverMode() => (ObserverMode)ObserverMode;
+
 }

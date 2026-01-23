@@ -1,4 +1,5 @@
-﻿#if CLIENT_DLL
+﻿#if CLIENT_DLL || GAME_DLL
+#if CLIENT_DLL
 global using PredictedViewModel = Game.Client.C_PredictedViewModel;
 namespace Game.Client;
 #else
@@ -32,4 +33,15 @@ public class
 	public static readonly new ServerClass ServerClass = new ServerClass("PredictedViewModel", DT_PredictedViewModel).WithManualClassID(StaticClassIndices.CPredictedViewModel);
 #pragma warning restore CS0109 // Member does not hide an inherited member; new keyword is not required
 #endif
+
+
+#if CLIENT_DLL
+	public override bool ShouldPredict() {
+		if (GetOwner() != null && GetOwner() == C_BasePlayer.GetLocalPlayer())
+			return true;
+
+		return base.ShouldPredict();
+	}
+#endif
 }
+#endif

@@ -229,7 +229,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 				return false;
 
 			Matrix3x4 parentTransform = default;
-			MathLib.AngleMatrix(GetRenderAngles(), GetRenderOrigin(), ref parentTransform);
+			MathLib.AngleMatrix(GetRenderAngles(), GetRenderOrigin(), out parentTransform);
 			// MathLib.AngleMatrix(new(19.56f, -145.89f, 0), new(-767, 143.9f, -12650), ref parentTransform);
 
 			boneMask |= PrevBoneMask;
@@ -243,7 +243,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			else {
 				CdllExts.TrackBoneSetupEnt(this);
 
-				AddFlag((int)EFL.SettingUpBones);
+				AddFlag((EntityFlags)EFL.SettingUpBones);
 
 				Span<Vector3> pos = stackalloc Vector3[Studio.MAXSTUDIOBONES];
 				Span<Quaternion> q = stackalloc Quaternion[Studio.MAXSTUDIOBONES];
@@ -257,7 +257,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 				BoneBitList boneComputed = new();
 				BuildTransformations(hdr, pos, q, parentTransform, bonesMaskNeedRecalc, ref boneComputed);
 
-				RemoveFlag((int)EFL.SettingUpBones);
+				RemoveFlag((EntityFlags)EFL.SettingUpBones);
 			}
 
 			if ((oldReadableBones & Studio.BONE_USED_BY_ATTACHMENT) == 0 && (boneMask & Studio.BONE_USED_BY_ATTACHMENT) != 0) {
@@ -441,6 +441,8 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return cycle;
 	}
 
+	public TimeUnit_t SequenceDuration() => SequenceDuration(GetSequence());
+	public TimeUnit_t SequenceDuration(int sequence) => SequenceDuration(GetModelPtr(), sequence);
 	public TimeUnit_t SequenceDuration(StudioHdr? studioHdr, int sequence) {
 		if (studioHdr == null)
 			return 0.1f;
@@ -461,7 +463,6 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			return 1.0 / t;
 		return t;
 	}
-	bool PredictionEligible;
 	public string GetSequenceName(int sequence) {
 		if (sequence == -1)
 			return "Not Found!";
@@ -472,7 +473,6 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return Animation.GetSequenceName(GetModelPtr(), sequence);
 	}
 
-	public void SetPredictionEligible(bool canpredict) => PredictionEligible = canpredict;
 	public bool IsSequenceLooping(int sequence) => IsSequenceLooping(GetModelPtr(), sequence);
 	public bool IsSequenceLooping(StudioHdr? studioHdr, int sequence) {
 		return (Animation.GetSequenceFlags(studioHdr, sequence) & StudioAnimSeqFlags.Looping) != 0;
@@ -841,7 +841,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			return 0;
 
 		// Turns the origin + angles into a matrix
-		MathLib.AngleMatrix(info.Angles, info.Origin, ref info.ModelToWorld);
+		MathLib.AngleMatrix(info.Angles, info.Origin, out info.ModelToWorld);
 
 		DrawModelState state = default;
 		bool markAsDrawn = modelrender.DrawModelSetup(ref info, ref state, default, out Span<Matrix3x4> boneToWorld);

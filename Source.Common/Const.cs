@@ -36,7 +36,7 @@ public enum EntityFlags
 	UnblockableByPlayer = 1 << 31
 }
 
-public enum MoveType
+public enum MoveType : byte
 {
 	None = 0,
 	Isometric,
@@ -55,7 +55,7 @@ public enum MoveType
 	MaxBits = 4
 }
 
-public enum MoveCollide
+public enum MoveCollide : byte
 {
 	Default = 0,
 	FlyBounce,
@@ -240,7 +240,7 @@ public static class Constants
 	public const int MAX_PLAYER_NAME_LENGTH = 32;
 
 	public const int MAX_SERVER_CLASSES = 1 << MAX_SERVER_CLASS_BITS;
-	public const int MAX_SERVER_CLASS_BITS = 13;
+	public const int MAX_SERVER_CLASS_BITS = 9;
 
 	public const int MAX_CUSTOM_FILES = 4;
 	public const int MAX_CUSTOM_FILE_SIZE = 524288;

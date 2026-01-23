@@ -3,6 +3,8 @@ using Game.Shared;
 
 using Source;
 
+using System.Runtime.CompilerServices;
+
 namespace Game.Client;
 
 public partial class C_BaseCombatWeapon : C_BaseAnimating
@@ -25,6 +27,60 @@ public partial class C_BaseCombatWeapon : C_BaseAnimating
 	public void Redraw() {
 		// if (clientMode.ShouldDrawCrosshair()) todo
 		DrawCrosshair();
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool ShouldDrawLocalPlayerViewModel() => C_BasePlayer.ShouldDrawLocalPlayer();
+
+	public override bool ShouldDraw() {
+		if (WorldModelIndex == 0)
+			return false;
+
+		// FIXME: All weapons with owners are set to transmit in CBaseCombatWeapon::UpdateTransmitState,
+		// even if they have EF_NODRAW set, so we have to check this here. Ideally they would never
+		// transmit except for the weapons owned by the local player.
+		if (IsEffectActive(EntityEffects.NoDraw))
+			return false;
+
+		C_BaseCombatCharacter? owner = GetOwner();
+
+		// weapon has no owner, always draw it
+		if (owner == null)
+			return true;
+
+		bool isActive = (State == WEAPON_IS_ACTIVE);
+
+		C_BasePlayer? localPlayer = C_BasePlayer.GetLocalPlayer();
+
+		// carried by local player?
+		if (owner == localPlayer) {
+			// Only ever show the active weapon
+			if (!isActive)
+				return false;
+
+			if (!owner.ShouldDraw()) {
+				// Our owner is invisible.
+				// This also tests whether the player is zoomed in, in which case you don't want to draw the weapon.
+				return false;
+			}
+
+			// 3rd person mode?
+			if (!ShouldDrawLocalPlayerViewModel())
+				return true;
+
+			// don't draw active weapon if not in some kind of 3rd person mode, the viewmodel will do that
+			return false;
+		}
+
+		// If it's a player, then only show active weapons
+		if (owner.IsPlayer()) {
+			// Show it if it's active...
+			return isActive;
+		}
+
+		// FIXME: We may want to only show active weapons on NPCs
+		// These are carried by AIs; always show them
+		return true;
 	}
 
 	void DrawCrosshair() {

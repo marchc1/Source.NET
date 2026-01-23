@@ -35,7 +35,7 @@ public class HudPoisonDamageIndicator : EditableHudElement, IHudElement
 			return false;
 
 		bool needsDraw = player.IsPoisoned() != DamageIndicatorVisible || (GetAlpha() > 0);
-		return needsDraw;// && ((IHudElement)this).ShouldDraw(); FIXME: Stack overflow
+		return needsDraw && IHudElement.DefaultShouldDraw(this);
 	}
 
 	public override void OnThink() {

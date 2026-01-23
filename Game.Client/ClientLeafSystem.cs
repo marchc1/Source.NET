@@ -261,17 +261,16 @@ public class ClientLeafSystem : IClientLeafSystem
 		if (!ValidHandles.Contains(handle))
 			return;
 
-		IClientRenderable renderable = Renderables[handle].Info.Renderable!;
-		renderable.RenderHandle() = INVALID_CLIENT_RENDER_HANDLE;
-
-		if ((Renderables[handle].Info.Flags & RenderFlags.HasChanged) != 0) {
-			var i = DirtyRenderables.IndexOf(handle);
-			Assert(i != -1);
-			DirtyRenderables.RemoveAt(i);
+		if ((Renderables[handle].Info.Flags & RenderFlags.HasChanged) == 0) {
+			Renderables[handle].Info.Flags |= RenderFlags.HasChanged;
+			DirtyRenderables.Add(handle);
+		}
+		else{
+			Assert(DirtyRenderables.IndexOf(handle) != -1);
 		}
 	}
 
-	private void RemoveFromViewModelList(long handle) {
+	private void RemoveFromViewModelList(ClientRenderHandle_t handle) {
 		int i = ViewModels.IndexOf(handle);
 		Assert(i != -1);
 		ViewModels.RemoveAt(i);

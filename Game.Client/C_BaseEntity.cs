@@ -1,5 +1,5 @@
-global using static Game.Client.PredictableList;
 global using static Game.Client.BaseEntityConsts;
+global using static Game.Client.PredictableList;
 
 using CommunityToolkit.HighPerformance;
 
@@ -14,6 +14,7 @@ using Source.Common.Mathematics;
 using Source.Common.Networking;
 
 using System.Numerics;
+using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 
 using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
@@ -61,6 +62,15 @@ public class PredictionContext : IPoolableObject
 	public readonly Handle<C_BaseEntity> ServerEntity = new();
 }
 
+
+public struct ThinkFunc
+{
+	public C_BaseEntity.BASEPTR? Think;
+	public string Context;
+	public long NextThinkTick;
+	public long LastThinkTick;
+}
+
 public class PredictableList : IPredictableList
 {
 	public static readonly PredictableList g_Predictables = new();
@@ -72,7 +82,7 @@ public class PredictableList : IPredictableList
 		return Predictables.Count;
 	}
 
-	internal void AddToPredictableList(ClientEntityHandle? add) {
+	public void AddToPredictableList(ClientEntityHandle? add) {
 		Assert(add != null);
 
 		if (Predictables.Contains(add))
@@ -122,6 +132,9 @@ public class PredictableList : IPredictableList
 
 public partial class C_BaseEntity : IClientEntity
 {
+	public delegate void BASEPTR();
+	public delegate void ENTITYFUNCPTR(C_BaseEntity? other);
+
 	public const int SLOT_ORIGINALDATA = -1;
 	public static C_BaseEntity? CreateEntityByName(ReadOnlySpan<char> className) {
 		C_BaseEntity? ent = GetClassMap().CreateEntity(className);
@@ -145,6 +158,10 @@ public partial class C_BaseEntity : IClientEntity
 	public ClientThinkHandle_t GetThinkHandle() => thinkHandle;
 	public void SetThinkHandle(ClientThinkHandle_t handle) => thinkHandle = handle;
 
+	static int PredictionRandomSeed = -1;
+	static C_BasePlayer? PredictionPlayer;
+
+
 	public virtual C_BaseAnimating? GetBaseAnimating() => null;
 
 	public virtual bool IsWorld() => EntIndex() == 0;
@@ -159,7 +176,25 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public virtual void PreEntityPacketReceived(int commandsAcknowledged) {
-		throw new NotImplementedException();
+		bool copyintermediate = (commandsAcknowledged > 0) ? true : false;
+
+		Assert(GetPredictable());
+		Assert(cl_predict.GetInt() != 0);
+
+		// First copy in any intermediate predicted data for non-networked fields
+		if (copyintermediate) {
+			RestoreData("PreEntityPacketReceived", commandsAcknowledged - 1, PredictionCopyType.NonNetworkedOnly);
+			RestoreData("PreEntityPacketReceived", SLOT_ORIGINALDATA, PredictionCopyType.NetworkedOnly);
+		}
+		else {
+			RestoreData("PreEntityPacketReceived(no commands ack)", SLOT_ORIGINALDATA, PredictionCopyType.Everything);
+		}
+
+		// At this point the entity has original network data restored as of the last time the 
+		// networking was updated, and it has any intermediate predicted values properly copied over
+		// Unpacked and OnDataChanged will fill in any changed, networked fields.
+
+		// That networked data will be copied forward into the starting slot for the next prediction round
 	}
 
 	public static void InterpolateServerEntities() {
@@ -221,7 +256,23 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
-	private void ResetLatched() {
+	public bool IsServer() => false;
+	public bool IsClient() => true;
+	public ReadOnlySpan<char> GetDLLType() => "client";
+
+	public void SetMoveType(MoveType val, MoveCollide moveCollide = Source.MoveCollide.Default) {
+		MoveType = (byte)val;
+		SetMoveCollide(moveCollide);
+	}
+
+	public void SetMoveCollide(MoveCollide val) {
+		MoveCollide = (byte)val;
+	}
+
+	public int GetWaterLevel() => WaterLevel;
+	public void SetWaterLevel(int level) => WaterLevel = (byte)level;
+
+	public void ResetLatched() {
 		if (IsClientCreated())
 			return;
 
@@ -273,6 +324,11 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	static readonly List<C_BaseEntity> AimEntsList = [];
+	public Action? FnThink;
+	public virtual void Think() {
+		if (FnThink != null)
+			this.FnThink();
+	}
 
 	internal static void CalcAimEntPositions() {
 		foreach (var ent in AimEntsList) {
@@ -352,7 +408,7 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public static RecvTable DT_PredictableId = new(nameof(DT_PredictableId), [
-		RecvPropPredictableId(FIELD.OF(nameof(PredictableId))),
+		RecvPropPredictableId(FIELD.OF(nameof(PredictableID))),
 		RecvPropInt(FIELD.OF(nameof(b_IsPlayerSimulated))),
 	]);
 	public static readonly ClientClass CC_PredictableId = new ClientClass("PredictableId", null, null, DT_PredictableId);
@@ -512,7 +568,7 @@ public partial class C_BaseEntity : IClientEntity
 	public bool AnimatedEveryTick;
 	public bool AlternateSorting;
 
-	public readonly PredictableId PredictableId = new();
+	public readonly PredictableId PredictableID = new();
 
 	public byte TakeDamage;
 	public ushort RealClassName;
@@ -589,6 +645,16 @@ public partial class C_BaseEntity : IClientEntity
 
 	public readonly Handle<C_BasePlayer> PlayerSimulationOwner = new();
 	public readonly ReusableBox<ulong> DataChangeEventRef = new();
+
+	public static C_BaseEntity? Instance(BaseHandle handle) => cl_entitylist.GetBaseEntityFromHandle(handle);
+	public static C_BaseEntity? Instance(int ent) => cl_entitylist.GetBaseEntity(ent);
+
+	public bool FClassnameIs(C_BaseEntity? entity, ReadOnlySpan<char> classname) {
+		if (entity == null)
+			return false;
+
+		return 0 == strcmp(entity.GetClassname(), classname);
+	}
 
 	public int GetFxBlend() => RenderFXBlend;
 	public void GetColorModulation(Span<float> color) {
@@ -750,8 +816,8 @@ public partial class C_BaseEntity : IClientEntity
 		using (C_BaseAnimating.AutoAllowBoneAccess boneaccess = new(true, true))
 			UnlinkFromHierarchy();
 
-		// if (IsIntermediateDataAllocated()) 
-		// DestroyIntermediateData();
+		if (IsIntermediateDataAllocated())
+			DestroyIntermediateData();
 
 		UpdateOnRemove();
 	}
@@ -784,24 +850,24 @@ public partial class C_BaseEntity : IClientEntity
 
 	public virtual bool ShouldPredict() => false;
 
-	public int RestoreData(ReadOnlySpan<char> context, int slot, PredictionCopyType type){
+	public int RestoreData(ReadOnlySpan<char> context, int slot, PredictionCopyType type) {
 		// todo
 		return 0;
 	}
 
-	public void AddToAimEntsList(){
+	public void AddToAimEntsList() {
 		// todo
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public int GetModelIndex() => ModelIndex;
 
-	public void OnPostRestoreData(){
+	public void OnPostRestoreData() {
 		InvalidatePhysicsRecursive(InvalidatePhysicsBits.PositionChanged | InvalidatePhysicsBits.AnglesChanged | InvalidatePhysicsBits.VelocityChanged);
 
 		if (GetMoveParent() != null)
 			AddToAimEntsList();
 
-		if (GetModel() != modelinfo.GetModel(GetModelIndex())) 
+		if (GetModel() != modelinfo.GetModel(GetModelIndex()))
 			SetModelByIndex(GetModelIndex());
 	}
 
@@ -815,7 +881,7 @@ public partial class C_BaseEntity : IClientEntity
 			return;
 
 		if (!GetPredictionEligible()) {
-			if (PredictableId.IsActive() && (player.Index - 1) == PredictableId.GetPlayer())
+			if (PredictableID.IsActive() && (player.Index - 1) == PredictableID.GetPlayer())
 				SetPredictionEligible(true);
 			else
 				return;
@@ -837,6 +903,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	bool PredictionEligible;
+	public long SimulationTick;
 	public bool GetPredictionEligible() => PredictionEligible;
 	public void SetPredictionEligible(bool canpredict) => PredictionEligible = canpredict;
 
@@ -846,10 +913,6 @@ public partial class C_BaseEntity : IClientEntity
 			return false;
 
 		return Model != null && !IsEffectActive(EntityEffects.NoDraw) && Index != 0;
-	}
-
-	public bool IsEffectActive(EntityEffects fx) {
-		return ((EntityEffects)Effects & fx) != 0;
 	}
 
 	public virtual bool Init(int entNum, int serialNum) {
@@ -950,7 +1013,7 @@ public partial class C_BaseEntity : IClientEntity
 			CreationTick = gpGlobals.TickCount;
 		}
 
-		// CheckInitPredictable("PostDataUpdate");
+		CheckInitPredictable("PostDataUpdate");
 		// TODO: Some stuff involving localplayer and ownage
 		// TODO: Partition/leaf stuff
 
@@ -964,15 +1027,40 @@ public partial class C_BaseEntity : IClientEntity
 			UpdateVisibility();
 	}
 
+	public void AllocateIntermediateData() {
 
+	}
+
+	public virtual bool PostNetworkDataReceived(int commandsAcknowledged) {
+		return false; // todo
+	}
 
 	public void InitPredictable() {
 		Assert(!GetPredictable());
-		// todo
+		SetPredictable(true);
+		// Allocate buffers into which we copy data
+		AllocateIntermediateData();
+		// Add to list of predictables
+		g_Predictables.AddToPredictableList(GetClientHandle());
+		// Copy everything from "this" into the original_state_data
+		//  object.  Don't care about client local stuff, so pull from slot 0 which
+
+		//  should be empty anyway...
+		PostNetworkDataReceived(0);
+
+		// Copy original data into all prediction slots, so we don't get an error saying we "mispredicted" any
+		//  values which are still at their initial values
+		// for (int i = 0; i < MULTIPLAYER_BACKUP; i++) {
+		// SaveData("InitPredictable", i, PC_EVERYTHING);
+		// }
 	}
 
 	public bool IsIntermediateDataAllocated() {
 		return false; // todo
+	}
+
+	public void DestroyIntermediateData() {
+
 	}
 
 	private void OnStoreLastNetworkedValue() {
@@ -1102,7 +1190,11 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	private void RemoveFromLeafSystem() {
-		// todo
+		if (renderHandle != INVALID_CLIENT_RENDER_HANDLE) {
+			clientLeafSystem.RemoveRenderable(renderHandle);
+			renderHandle = INVALID_CLIENT_RENDER_HANDLE;
+		}
+		// DestroyShadow();
 	}
 
 
@@ -1114,13 +1206,13 @@ public partial class C_BaseEntity : IClientEntity
 			case ShouldTransmiteState.Start: {
 					SetDormant(false);
 
-					if (PredictableId.IsActive()) {
-						PredictableId.SetAcknowledged(true);
+					if (PredictableID.IsActive()) {
+						PredictableID.SetAcknowledged(true);
 
-						C_BaseEntity? otherEntity = FindPreviouslyCreatedEntity(PredictableId);
+						C_BaseEntity? otherEntity = FindPreviouslyCreatedEntity(PredictableID);
 						if (otherEntity != null) {
 							Assert(otherEntity.IsClientCreated());
-							Assert(otherEntity.PredictableId.IsActive());
+							Assert(otherEntity.PredictableID.IsActive());
 							// We need IsHandleValid/GetClientHandle stuff.
 							// Assert(cl_entitylist.IsHandleValid(otherEntity.GetClientHandle()));
 
@@ -1178,13 +1270,14 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public virtual void OnDataChanged(DataUpdateType updateType) {
+		CheckInitPredictable("OnDataChanged");
 		CreateShadow();
 
 		if (updateType == DataUpdateType.Created)
 			UpdateVisibility();
 	}
 
-	protected virtual void OnLatchInterpolatedVariables(LatchFlags flags) {
+	public virtual void OnLatchInterpolatedVariables(LatchFlags flags) {
 		TimeUnit_t changetime = GetLastChangeTime(flags);
 
 		bool updateLastNetworkedValue = (flags & LatchFlags.InteroplateOmitUpdateLastNetworked) == 0;
@@ -1239,7 +1332,6 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual void Spawn() { }
 	public virtual void Precache() { }
 
-	public readonly PredictableId PredictionId = new();
 	public PredictionContext? PredictionContext;
 	bool Dormant;
 	bool Predictable;
@@ -1250,6 +1342,14 @@ public partial class C_BaseEntity : IClientEntity
 	public void SetPredictable(bool state) {
 		Predictable = state;
 		Interp_UpdateInterpolationAmounts(ref GetVarMapping());
+	}
+
+	public void ShutdownPredictable() {
+		Assert(GetPredictable());
+
+		g_Predictables.RemoveFromPredictablesList(GetClientHandle());
+		DestroyIntermediateData();
+		SetPredictable(false);
 	}
 
 
@@ -1330,7 +1430,7 @@ public partial class C_BaseEntity : IClientEntity
 			RemoveEFlags(EFL.DirtyAbsTransform);
 
 			if (!MoveParent.IsValid()) {
-				MathLib.AngleMatrix(GetLocalAngles(), GetLocalOrigin(), ref CoordinateFrame);
+				MathLib.AngleMatrix(GetLocalAngles(), GetLocalOrigin(), out CoordinateFrame);
 				AbsOrigin = GetLocalOrigin();
 				AbsRotation = GetLocalAngles();
 				MathLib.NormalizeAngles(ref AbsRotation);
@@ -1346,6 +1446,8 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
+	public virtual IClientVehicle? GetClientVehicle() => null;
+
 	public void SetRemovalFlag(bool remove) {
 		if (remove)
 			eflags |= EFL.KillMe;
@@ -1353,6 +1455,8 @@ public partial class C_BaseEntity : IClientEntity
 			eflags &= ~EFL.KillMe;
 	}
 
+	public readonly List<ThinkFunc> ThinkFunctions = [];
+	public int CurrentThinkContext = NO_THINK_CONTEXT;
 	public void SetNextClientThink(TimeUnit_t nextThinkTime) {
 		Assert(GetClientHandle() != INVALID_CLIENTENTITY_HANDLE);
 		ClientThinkList().SetNextClientThink(GetClientHandle()!, nextThinkTime);
@@ -1422,8 +1526,19 @@ public partial class C_BaseEntity : IClientEntity
 		return Index;
 	}
 
-	public void ReceiveMessage(int classID, bf_read msg) {
-		throw new NotImplementedException();
+	public virtual void ReceiveMessage(int classID, bf_read msg) {
+		Assert(classID == GetClientClass().ClassID);
+
+		int messageType = msg.ReadByte();
+		switch (messageType) {
+			case BASEENTITY_MSG_REMOVE_DECALS:
+				RemoveAllDecals();
+				break;
+		}
+	}
+
+	private void RemoveAllDecals() {
+
 	}
 
 	public void SetDestroyedOnRecreateEntities() {
@@ -1435,7 +1550,7 @@ public partial class C_BaseEntity : IClientEntity
 		return RefEHandle;
 	}
 	public virtual void SetRefEHandle(BaseHandle handle) {
-		RefEHandle = handle;
+		RefEHandle.Index = handle.Index;
 	}
 
 
@@ -1461,7 +1576,7 @@ public partial class C_BaseEntity : IClientEntity
 		return this;
 	}
 
-	BaseHandle? RefEHandle;
+	public readonly BaseHandle RefEHandle = new();
 
 	static double AdjustInterpolationAmount(C_BaseEntity entity, double baseInterpolation) {
 		// We don't have cl_interp_npcs yet so this isn't needed
@@ -1682,7 +1797,17 @@ public partial class C_BaseEntity : IClientEntity
 		return InterpolateResult.Continue;
 	}
 
-	public MoveType GetMoveType() => (MoveType)MoveType;
+	void PhysicsStep() { }
+	void PhysicsPusher() { }
+	void PhysicsNone() { }
+	void PhysicsRigidChild() { }
+	void PhysicsNoclip() { }
+	void PhysicsStepRunTimestep(TimeUnit_t timestep) { }
+	void PhysicsToss() { }
+	void PhysicsCustom() { }
+	void PerformPush(TimeUnit_t movetime) { }
+	void UpdateBaseVelocity() { }
+
 
 	private static bool IsInterpolationEnabled() => s_bInterpolate;
 	public C_BaseEntity? GetMoveParent() => MoveParent.Get();
@@ -1724,6 +1849,34 @@ public partial class C_BaseEntity : IClientEntity
 	public ref readonly Vector3 GetAbsVelocity() {
 		return ref AbsVelocity;
 	}
+	public void SetAbsVelocity(in Vector3 absVelocity) {
+		if (AbsVelocity == absVelocity)
+			return;
+
+		// The abs velocity won't be dirty since we're setting it here
+		InvalidatePhysicsRecursive(InvalidatePhysicsBits.VelocityChanged);
+		eflags &= ~EFL.DirtyAbsVelocity;
+
+		AbsVelocity = absVelocity;
+
+		C_BaseEntity? moveParent = GetMoveParent();
+
+		if (moveParent == null) {
+			Velocity = absVelocity;
+			return;
+		}
+
+		// First subtract out the parent's abs velocity to get a relative
+		// velocity measured in world space
+		Vector3 relVelocity;
+		MathLib.VectorSubtract(absVelocity, moveParent.GetAbsVelocity(), out relVelocity);
+
+		// Transform velocity into parent space
+		MathLib.VectorIRotate(relVelocity, moveParent.EntityToWorldTransform(), out Velocity);
+	}
+
+	public ref readonly Vector3 GetBaseVelocity() => ref BaseVelocity;
+	public void SetBaseVelocity(in Vector3 v) => BaseVelocity = v;
 
 	public virtual bool GetAttachment(int number, out Vector3 origin) {
 		origin = GetAbsOrigin();
@@ -1799,6 +1952,13 @@ public partial class C_BaseEntity : IClientEntity
 	private void Interp_HierarchyUpdateInterpolationAmounts() {
 
 	}
+
+
+	public void ShiftIntermediateDataForward(int slots_to_remove, int number_of_commands_run) {
+		// todo
+	}
+
+	public bool GetCheckUntouch() => IsEFlagSet(EFL.CheckUntouch);
 }
 
 public class VarMapEntry

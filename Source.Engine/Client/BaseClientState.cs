@@ -257,23 +257,23 @@ public abstract class BaseClientState(
 		channel.RegisterMessage<NET_SignonState>();
 		channel.RegisterMessage<NET_SetConVar>();
 		channel.RegisterMessage<NET_StringCmd>();
-		channel.RegisterMessage<svc_Print>();
-		channel.RegisterMessage<svc_ServerInfo>();
-		channel.RegisterMessage<svc_CreateStringTable>();
-		channel.RegisterMessage<svc_UpdateStringTable>();
-		channel.RegisterMessage<svc_ClassInfo>();
-		channel.RegisterMessage<svc_BSPDecal>();
-		channel.RegisterMessage<svc_GameEvent>();
-		channel.RegisterMessage<svc_VoiceInit>();
-		channel.RegisterMessage<svc_Sounds>();
-		channel.RegisterMessage<svc_GameEventList>();
-		channel.RegisterMessage<svc_FixAngle>();
-		channel.RegisterMessage<svc_SetView>();
-		channel.RegisterMessage<svc_UserMessage>();
-		channel.RegisterMessage<svc_EntityMessage>();
-		channel.RegisterMessage<svc_PacketEntities>();
-		channel.RegisterMessage<svc_TempEntities>();
-		channel.RegisterMessage<svc_GMod_ServerToClient>();
+		channel.RegisterMessage<SVC_Print>();
+		channel.RegisterMessage<SVC_ServerInfo>();
+		channel.RegisterMessage<SVC_CreateStringTable>();
+		channel.RegisterMessage<SVC_UpdateStringTable>();
+		channel.RegisterMessage<SVC_ClassInfo>();
+		channel.RegisterMessage<SVC_BSPDecal>();
+		channel.RegisterMessage<SVC_GameEvent>();
+		channel.RegisterMessage<SVC_VoiceInit>();
+		channel.RegisterMessage<SVC_Sounds>();
+		channel.RegisterMessage<SVC_GameEventList>();
+		channel.RegisterMessage<SVC_FixAngle>();
+		channel.RegisterMessage<SVC_SetView>();
+		channel.RegisterMessage<SVC_UserMessage>();
+		channel.RegisterMessage<SVC_EntityMessage>();
+		channel.RegisterMessage<SVC_PacketEntities>();
+		channel.RegisterMessage<SVC_TempEntities>();
+		channel.RegisterMessage<SVC_GMod_ServerToClient>();
 	}
 	public virtual void ConnectionClosing(ReadOnlySpan<char> reason) {
 		Disconnect(reason, true);
@@ -296,46 +296,46 @@ public abstract class BaseClientState(
 			case NET_SignonState msg: return ProcessSignonState(msg);
 			case NET_SetConVar msg: return ProcessSetConVar(msg);
 			case NET_StringCmd msg: return ProcessStringCmd(msg);
-			case svc_Print msg: return ProcessPrint(msg);
-			case svc_ServerInfo msg: return ProcessServerInfo(msg);
-			case svc_CreateStringTable msg: return ProcessCreateStringTable(msg);
-			case svc_UpdateStringTable msg: return ProcessUpdateStringTable(msg);
-			case svc_ClassInfo msg: return ProcessClassInfo(msg);
-			case svc_BSPDecal msg: return ProcessBSPDecal(msg);
-			case svc_VoiceInit msg: return ProcessVoiceInit(msg);
-			case svc_Sounds msg: return ProcessSounds(msg);
-			case svc_GameEvent msg: return ProcessGameEvent(msg);
-			case svc_GameEventList msg: return ProcessGameEventList(msg);
-			case svc_FixAngle msg: return ProcessFixAngle(msg);
-			case svc_SetView msg: return ProcessSetView(msg);
-			case svc_UserMessage msg: return ProcessUserMessage(msg);
-			case svc_EntityMessage msg: return ProcessEntityMessage(msg);
-			case svc_PacketEntities msg: return ProcessPacketEntities(msg);
-			case svc_TempEntities msg: return ProcessTempEntities(msg);
-			case svc_GMod_ServerToClient msg: return ProcessGMod_ServerToClient(msg);
+			case SVC_Print msg: return ProcessPrint(msg);
+			case SVC_ServerInfo msg: return ProcessServerInfo(msg);
+			case SVC_CreateStringTable msg: return ProcessCreateStringTable(msg);
+			case SVC_UpdateStringTable msg: return ProcessUpdateStringTable(msg);
+			case SVC_ClassInfo msg: return ProcessClassInfo(msg);
+			case SVC_BSPDecal msg: return ProcessBSPDecal(msg);
+			case SVC_VoiceInit msg: return ProcessVoiceInit(msg);
+			case SVC_Sounds msg: return ProcessSounds(msg);
+			case SVC_GameEvent msg: return ProcessGameEvent(msg);
+			case SVC_GameEventList msg: return ProcessGameEventList(msg);
+			case SVC_FixAngle msg: return ProcessFixAngle(msg);
+			case SVC_SetView msg: return ProcessSetView(msg);
+			case SVC_UserMessage msg: return ProcessUserMessage(msg);
+			case SVC_EntityMessage msg: return ProcessEntityMessage(msg);
+			case SVC_PacketEntities msg: return ProcessPacketEntities(msg);
+			case SVC_TempEntities msg: return ProcessTempEntities(msg);
+			case SVC_GMod_ServerToClient msg: return ProcessGMod_ServerToClient(msg);
 		}
 		// ignore
 		return true;
 	}
 
-	protected virtual bool ProcessEntityMessage(svc_EntityMessage msg) {
+	protected virtual bool ProcessEntityMessage(SVC_EntityMessage msg) {
 		return true;
 
 	}
 
-	protected virtual bool ProcessSounds(svc_Sounds msg) {
+	protected virtual bool ProcessSounds(SVC_Sounds msg) {
 		return true;
 	}
 
-	protected virtual bool ProcessGMod_ServerToClient(svc_GMod_ServerToClient msg) {
+	protected virtual bool ProcessGMod_ServerToClient(SVC_GMod_ServerToClient msg) {
 		return true;
 	}
 
-	protected virtual bool ProcessTempEntities(svc_TempEntities msg) {
+	protected virtual bool ProcessTempEntities(SVC_TempEntities msg) {
 		return true;
 	}
 
-	protected virtual bool ProcessPacketEntities(svc_PacketEntities msg) {
+	protected virtual bool ProcessPacketEntities(SVC_PacketEntities msg) {
 		if (SignOnState < SignOnState.Spawn) {
 			ConMsg("Received packet entities while connecting!\n");
 			return false;
@@ -356,7 +356,7 @@ public abstract class BaseClientState(
 		return true;
 	}
 
-	private bool ProcessUserMessage(svc_UserMessage msg) {
+	private bool ProcessUserMessage(SVC_UserMessage msg) {
 		byte[] userdata = new byte[Constants.MAX_USER_MSG_DATA];
 
 		bf_read userMsg = new bf_read("UserMessage(read)", userdata, Constants.MAX_USER_MSG_DATA);
@@ -371,41 +371,41 @@ public abstract class BaseClientState(
 		return true;
 	}
 
-	protected virtual bool ProcessSetView(svc_SetView msg) {
+	protected virtual bool ProcessSetView(SVC_SetView msg) {
 		return true;
 	}
 
-	protected virtual bool ProcessFixAngle(svc_FixAngle msg) {
+	protected virtual bool ProcessFixAngle(SVC_FixAngle msg) {
 		return true;
 	}
 
-	protected virtual bool ProcessGameEvent(svc_GameEvent msg) {
+	protected virtual bool ProcessGameEvent(SVC_GameEvent msg) {
 		return false;
 	}
 
-	protected virtual bool ProcessGameEventList(svc_GameEventList msg) {
+	protected virtual bool ProcessGameEventList(SVC_GameEventList msg) {
 		return true;
 	}
 
-	protected virtual bool ProcessBSPDecal(svc_BSPDecal msg) {
+	protected virtual bool ProcessBSPDecal(SVC_BSPDecal msg) {
 		return true;
 	}
 
-	protected virtual bool ProcessVoiceInit(svc_VoiceInit msg) {
+	protected virtual bool ProcessVoiceInit(SVC_VoiceInit msg) {
 		return true;
 	}
 
-	public virtual bool ProcessClassInfo(svc_ClassInfo msg) {
+	public virtual bool ProcessClassInfo(SVC_ClassInfo msg) {
 		if (msg.CreateOnClient) {
 			ConMsg("Can't create class tables.\n");
 			Assert(false);
 			return false;
 		}
 
-		Span<svc_ClassInfo.Class> classes = msg.Classes.AsSpan();
+		Span<SVC_ClassInfo.Class> classes = msg.Classes.AsSpan();
 		ServerClasses = new C_ServerClassInfo[classes.Length];
 		for (int i = 0; i < classes.Length; i++) {
-			ref svc_ClassInfo.Class svclass = ref classes[i];
+			ref SVC_ClassInfo.Class svclass = ref classes[i];
 			if (svclass.ClassID >= classes.Length) {
 				Host.EndGame(true, $"ProcessClassInfo: invalid class index ({svclass.ClassID}).\n");
 				return false;
@@ -416,7 +416,7 @@ public abstract class BaseClientState(
 		return true;
 	}
 
-	private bool ProcessUpdateStringTable(svc_UpdateStringTable msg) {
+	private bool ProcessUpdateStringTable(SVC_UpdateStringTable msg) {
 		int startbit = msg.DataIn.BitsRead;
 		if (StringTableContainer != null) // RaphaelIT7: In the Source Engine during level transmission in rare cases the svc_UpdateStringTable could be received before the server info.
 		{
@@ -433,7 +433,7 @@ public abstract class BaseClientState(
 		return (endbit - startbit) == msg.Length;
 	}
 
-	private bool ProcessCreateStringTable(svc_CreateStringTable msg) {
+	private bool ProcessCreateStringTable(SVC_CreateStringTable msg) {
 #if !SWDS
 		EngineVGui?.UpdateProgressBar(LevelLoadingProgress.ProcessStringTable);
 #endif
@@ -490,7 +490,7 @@ public abstract class BaseClientState(
 		return true;
 	}
 
-	public virtual bool ProcessServerInfo(svc_ServerInfo msg) {
+	public virtual bool ProcessServerInfo(SVC_ServerInfo msg) {
 #if !SWDS
 		EngineVGui?.UpdateProgressBar(LevelLoadingProgress.ProcessServerInfo);
 #endif
@@ -553,7 +553,7 @@ public abstract class BaseClientState(
 		return true;
 	}
 
-	private bool ProcessPrint(svc_Print msg) {
+	private bool ProcessPrint(SVC_Print msg) {
 		Dbg.ConMsg(msg.Text);
 		return true;
 	}

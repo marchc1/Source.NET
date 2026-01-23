@@ -45,7 +45,7 @@ public class
 #endif
 		DT_BeamPredictableId = new(nameof(DT_BeamPredictableId), [
 #if CLIENT_DLL
-		RecvPropPredictableId(FIELD.OF(nameof(PredictableId))),
+		RecvPropPredictableId(FIELD.OF(nameof(PredictableID))),
 		RecvPropBool(FIELD.OF(nameof(b_IsPlayerSimulated)))
 #else
 		SendPropPredictableId(FIELD.OF(nameof(PredictableId))),

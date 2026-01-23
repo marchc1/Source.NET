@@ -1740,7 +1740,7 @@ public struct AnonymousSafeFieldPointer<TType>
 {
 	public delegate ref TType GetRefFn(object owner);
 
-	public static readonly SafeFieldPointer<object, TType> Null = new();
+	public static readonly AnonymousSafeFieldPointer<TType> Null = new();
 
 	object? owner;
 	GetRefFn? refFn;

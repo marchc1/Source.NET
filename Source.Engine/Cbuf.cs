@@ -195,8 +195,10 @@ public class CommandBuffer
 					}
 				}
 
-				if (!isQuoted && c == ';')
+				if (!isQuoted && c == ';') {
+					++nextCommandOffset;
 					break;
+				}
 			}
 
 			if (c == '\n') {

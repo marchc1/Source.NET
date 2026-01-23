@@ -162,5 +162,24 @@ public class WeaponsResource
 		return null!;
 	}
 
+	public FileWeaponInfo? GetWeaponFromAmmo(int ammoId) {
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return null;
+
+		for (int i = 0; i < MAX_WEAPONS; i++) {
+			C_BaseCombatWeapon? weapon = player.GetWeapon(i);
+			if (weapon == null)
+				continue;
+
+			if (weapon.GetPrimaryAmmoType() == ammoId) 
+				return weapon.GetWpnData();
+			else if (weapon.GetSecondaryAmmoType() == ammoId) 
+				return weapon.GetWpnData();
+		}
+
+		return null;
+	}
+
 	// FileWeaponInfo GetWeaponFromAmmo(int iAmmoId) { }
 }

@@ -20,13 +20,14 @@ public interface IHudElement
 	void Reset() { }
 	void ProcessInput() { }
 	ReadOnlySpan<char> GetName() => ElementName;
-	public bool ShouldDraw() {
-		bool shouldDraw = !gHUD.IsHidden(HiddenBits);
+	public bool ShouldDraw() => DefaultShouldDraw(this);
+	public static bool DefaultShouldDraw(IHudElement self) {
+		bool shouldDraw = !gHUD.IsHidden(self.HiddenBits);
 
 		if (shouldDraw) {
-			int numGroups = HudRenderGroups.Count;
+			int numGroups = self.HudRenderGroups.Count;
 			for (int i = 0; i < numGroups; i++) {
-				if (gHUD.IsRenderGroupLockedFor(this, HudRenderGroups[i]))
+				if (gHUD.IsRenderGroupLockedFor(self, self.HudRenderGroups[i]))
 					return false;
 			}
 		}

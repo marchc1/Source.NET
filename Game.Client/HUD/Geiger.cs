@@ -38,7 +38,7 @@ class HudGeiger : EditableHudElement, IHudElement
 		GeigerRange <<= 2;
 	}
 
-	public bool ShouldDraw() => GeigerRange > 0 && GeigerRange < 1000 && ((IHudElement)this).ShouldDraw();
+	public bool ShouldDraw() => GeigerRange > 0 && GeigerRange < 1000 && IHudElement.DefaultShouldDraw(this);
 
 	public override void Paint() {
 		int pct;

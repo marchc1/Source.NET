@@ -435,8 +435,8 @@ public class MatRenderContext : IMatRenderContextInternal
 		// but I want to make sure it exactly matches the current matrices, so
 		// for now, I do it this conservative way
 		Vector4 testPoint1 = default, testPoint2 = default;
-		MathLib.VectorMA(in absOrigin, radius, in VecViewUp, ref testPoint1.AsVector3D());
-		MathLib.VectorMA(in absOrigin, -radius, in VecViewUp, ref testPoint2.AsVector3D());
+		MathLib.VectorMA(in absOrigin, radius, in VecViewUp, out testPoint1.AsVector3D());
+		MathLib.VectorMA(in absOrigin, -radius, in VecViewUp, out testPoint2.AsVector3D());
 		testPoint1.W = testPoint2.W = 1.0f;
 
 		Vector4 clipPos1 = default, clipPos2 = default;

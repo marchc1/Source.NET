@@ -67,6 +67,11 @@ public struct QAngle
 		Y = 0;
 		Z = 0;
 	}
+	public void Init(float x, float y, float z) {
+		X = x;
+		Y = y;
+		Z = z;
+	}
 	const float TORADS = MathF.PI / 180f;
 	// TODO: is there a C# + SIMD way to do this?
 	public void Vectors(out Vector3 forward, out Vector3 right, out Vector3 up)

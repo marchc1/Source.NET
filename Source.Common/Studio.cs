@@ -15,7 +15,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 namespace Source.Common;
 
-using static Source.Common.Networking.svc_ClassInfo;
+using static Source.Common.Networking.SVC_ClassInfo;
 using static StudioDeps;
 
 [EngineComponent]

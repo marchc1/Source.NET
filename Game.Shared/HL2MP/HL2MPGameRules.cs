@@ -1,5 +1,10 @@
 ﻿#if CLIENT_DLL || GAME_DLL
 #if CLIENT_DLL
+global using static Game.Client.GarrysMod.HL2MP_GameRules_Globals;
+#else
+global using static Game.Server.GarrysMod.HL2MP_GameRules_Globals;
+#endif
+#if CLIENT_DLL
 global using HL2MPGameRules = Game.Client.GarrysMod.C_HL2MPGameRules;
 global using HL2MPGameRulesProxy = Game.Client.GarrysMod.C_HL2MPGameRulesProxy;
 namespace Game.Client.GarrysMod;
@@ -40,7 +45,7 @@ public class
 	]);
 
 	public static readonly
-	#if CLIENT_DLL
+#if CLIENT_DLL
 		RecvTable
 #else
 		SendTable
@@ -71,4 +76,37 @@ public class
 	public override ReadOnlySpan<char> Name() => "HL2MPGameRules";
 	public bool TeamPlayEnabled;
 }
+
+public static class HL2MP_GameRules_Globals
+{
+	static readonly AmmoDef def = new();
+	static bool initted = false;
+
+	public static float BULLET_MASS_GRAINS_TO_LB(int grains) => 0.002285f * (grains) / 16.0f;
+	public static float BULLET_MASS_GRAINS_TO_KG(int grains) => lbs2kg(BULLET_MASS_GRAINS_TO_LB(grains));
+	public const float BULLET_IMPULSE_EXAGGERATION = 3.5f;
+	public static float BULLET_IMPULSE(int grains, float ftpersec)
+		=> ((ftpersec) * 12 * BULLET_MASS_GRAINS_TO_KG(grains) * BULLET_IMPULSE_EXAGGERATION);
+
+	public static AmmoDef GetAmmoDef() {
+		if (!initted) {
+			initted = true;
+
+			def.AddAmmoType("AR2", DamageType.Bullet, AmmoTracer.LineAndWhiz, 0, 0, 60, BULLET_IMPULSE(200, 1225), 0);
+			def.AddAmmoType("AR2AltFire", DamageType.Dissolve, AmmoTracer.None, 0, 0, 3, 0, 0);
+			def.AddAmmoType("Pistol", DamageType.Bullet, AmmoTracer.LineAndWhiz, 0, 0, 150, BULLET_IMPULSE(200, 1225), 0);
+			def.AddAmmoType("SMG1", DamageType.Bullet, AmmoTracer.LineAndWhiz, 0, 0, 225, BULLET_IMPULSE(200, 1225), 0);
+			def.AddAmmoType("357", DamageType.Bullet, AmmoTracer.LineAndWhiz, 0, 0, 12, BULLET_IMPULSE(800, 5000), 0);
+			def.AddAmmoType("XBowBolt", DamageType.Bullet, AmmoTracer.Line, 0, 0, 10, BULLET_IMPULSE(800, 8000), 0);
+			def.AddAmmoType("Buckshot", DamageType.Bullet | DamageType.Buckshot, AmmoTracer.Line, 0, 0, 30, BULLET_IMPULSE(400, 1200), 0);
+			def.AddAmmoType("RPG_Round", DamageType.Burn, AmmoTracer.None, 0, 0, 3, 0, 0);
+			def.AddAmmoType("SMG1_Grenade", DamageType.Burn, AmmoTracer.None, 0, 0, 3, 0, 0);
+			def.AddAmmoType("Grenade", DamageType.Burn, AmmoTracer.None, 0, 0, 5, 0, 0);
+			def.AddAmmoType("slam", DamageType.Burn, AmmoTracer.None, 0, 0, 5, 0, 0);
+		}
+
+		return def;
+	}
+}
+
 #endif

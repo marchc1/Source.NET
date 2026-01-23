@@ -5,7 +5,7 @@ using Game.Shared;
 
 namespace Game.Server;
 
-using static Source.Common.Networking.svc_ClassInfo;
+using static Source.Common.Networking.SVC_ClassInfo;
 
 using FIELD = FIELD<DynamicLight>;
 

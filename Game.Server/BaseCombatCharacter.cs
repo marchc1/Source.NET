@@ -21,7 +21,10 @@ public partial class BaseCombatCharacter : BaseFlex
 		SendPropInt(FIELD.OF(nameof(BloodColor)), 32, 0)
 	]);
 
-	public double NextAttack;
+	public TimeUnit_t GetNextAttack() => NextAttack;
+	public void SetNextAttack(TimeUnit_t wait) => NextAttack = wait;
+
+	public TimeUnit_t NextAttack;
 	public readonly Handle<BaseCombatWeapon> LastWeapon = new();
 	public readonly Handle<BaseCombatWeapon> ActiveWeapon = new();
 	public InlineArrayNewMaxWeapons<Handle<BaseCombatWeapon>> MyWeapons = new();

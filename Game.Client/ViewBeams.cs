@@ -779,26 +779,26 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 			MathLib.VectorScale(color, brightness, out curSeg.Color);
 
 			// UNDONE: Make this a spline instead of just a line?
-			MathLib.VectorMA(source, fraction, delta, ref curSeg.Pos);
+			MathLib.VectorMA(source, fraction, delta, out curSeg.Pos);
 
 			// Distort using noise
 			if (scale != 0) {
 				factor = noise[noiseIndex >> 16] * scale;
 				if ((flags & BeamFlags.SineNoise) != 0) {
 					MathLib.SinCos((float)(fraction * Math.PI * length + freq), out float s, out float c);
-					MathLib.VectorMA(curSeg.Pos, factor * s, CurrentViewUp(), ref curSeg.Pos);
+					MathLib.VectorMA(curSeg.Pos, factor * s, CurrentViewUp(), out curSeg.Pos);
 					// Rotate the noise along the perpendicluar axis a bit to keep the bolt from looking diagonal
-					MathLib.VectorMA(curSeg.Pos, factor * c, CurrentViewRight(), ref curSeg.Pos);
+					MathLib.VectorMA(curSeg.Pos, factor * c, CurrentViewRight(), out curSeg.Pos);
 				}
 				else {
-					MathLib.VectorMA(curSeg.Pos, factor, perp1, ref curSeg.Pos);
+					MathLib.VectorMA(curSeg.Pos, factor, perp1, out curSeg.Pos);
 				}
 			}
 
 			// Specify the next segment.
-			if (endWidth == startWidth) 
+			if (endWidth == startWidth)
 				curSeg.Width = startWidth * 2;
-			else 
+			else
 				curSeg.Width = ((fraction * (endWidth - startWidth)) + startWidth) * 2;
 
 			curSeg.TexCoord = vLast;
@@ -824,7 +824,7 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 		EngineSprite? psprite;
 		IMaterial? material;
 
-		psprite =(EngineSprite?)modelinfo.GetModelExtraData(spritemodel);
+		psprite = (EngineSprite?)modelinfo.GetModelExtraData(spritemodel);
 		Assert(psprite);
 
 		material = psprite!.GetMaterial(rendermode, frame);
@@ -857,7 +857,7 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 	}
 
 	public void FreeBeam(Beam pBeam) {
-		throw new NotImplementedException();
+		BeamFree(pBeam);
 	}
 
 	public void InitBeams() {
@@ -896,6 +896,19 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 		pBeam.B = beamInfo.Blue;
 	}
 
+	public int TotalBeams {
+		get {
+			int c = 0;
+			var beam = ActiveBeams;
+			while(beam != null){
+				c++;
+				beam = beam.Next;
+			}
+
+			return c;
+		}
+	}
+
 	public void UpdateTempEntBeams() {
 		if (ActiveBeams == null)
 			return;
@@ -916,9 +929,9 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 			// Retire old beams
 			if ((pBeam.Flags & BeamFlags.Forever) == 0 && pBeam.Die <= gpGlobals.CurTime) {
 				// Reset links
-				if (pPrev != null) 
+				if (pPrev != null)
 					pPrev.Next = pNext;
-				else 
+				else
 					ActiveBeams = pNext;
 
 				// Free the beam
@@ -935,7 +948,7 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 			pBeam.ComputeBounds();
 
 			// Indicates the beam moved
-			if (pBeam.m_RenderHandle != INVALID_CLIENT_RENDER_HANDLE) 
+			if (pBeam.m_RenderHandle != INVALID_CLIENT_RENDER_HANDLE)
 				clientLeafSystem.RenderableChanged(pBeam.m_RenderHandle);
 
 			pPrev = pBeam;

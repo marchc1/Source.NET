@@ -180,10 +180,10 @@ public class NET_SignonState : NetMessage
 
 	public override string ToString() => $"{GetName()}: state {SignOnState}, count {SpawnCount}";
 }
-public class svc_Print : NetMessage
+public class SVC_Print : NetMessage
 {
 	public string? Text;
-	public svc_Print() : base(SVC.Print) { }
+	public SVC_Print() : base(SVC.Print) { }
 
 	public override bool WriteToBuffer(bf_write buffer) {
 		buffer.WriteNetMessageType(this);
@@ -198,10 +198,10 @@ public class svc_Print : NetMessage
 		return Text ?? "NULL";
 	}
 }
-public class svc_ServerInfo : NetMessage
+public class SVC_ServerInfo : NetMessage
 {
 	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
-	public svc_ServerInfo() : base(SVC.ServerInfo) { }
+	public SVC_ServerInfo() : base(SVC.ServerInfo) { }
 
 	public int Protocol;
 	public int ServerCount;
@@ -269,7 +269,7 @@ public class svc_ServerInfo : NetMessage
 		return !buffer.Overflowed;
 	}
 }
-public class svc_ClassInfo : NetMessage
+public class SVC_ClassInfo : NetMessage
 {
 	public struct Class
 	{
@@ -281,7 +281,7 @@ public class svc_ClassInfo : NetMessage
 	public bool CreateOnClient;
 	public List<Class> Classes = [];
 	public int NumServerClasses = 0;
-	public svc_ClassInfo() : base(SVC.ClassInfo) { }
+	public SVC_ClassInfo() : base(SVC.ClassInfo) { }
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		Classes.Clear();
@@ -312,9 +312,9 @@ public class svc_ClassInfo : NetMessage
 		throw new Exception();
 	}
 }
-public class svc_CreateStringTable : NetMessage
+public class SVC_CreateStringTable : NetMessage
 {
-	public svc_CreateStringTable() : base(SVC.CreateStringTable) { }
+	public SVC_CreateStringTable() : base(SVC.CreateStringTable) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
 
 
@@ -375,9 +375,9 @@ public class svc_CreateStringTable : NetMessage
 		return buffer.SeekRelative(Length);
 	}
 }
-public class svc_UpdateStringTable : NetMessage
+public class SVC_UpdateStringTable : NetMessage
 {
-	public svc_UpdateStringTable() : base(SVC.UpdateStringTable) { }
+	public SVC_UpdateStringTable() : base(SVC.UpdateStringTable) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.StringTable;
 
 	public int TableID;
@@ -408,9 +408,9 @@ public class svc_UpdateStringTable : NetMessage
 		return $"table {TableID}, changed {ChangedEntries}, bytes {Bits2Bytes(Length)}";
 	}
 }
-public class svc_VoiceInit : NetMessage
+public class SVC_VoiceInit : NetMessage
 {
-	public svc_VoiceInit() : base(SVC.VoiceInit) { }
+	public SVC_VoiceInit() : base(SVC.VoiceInit) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
 
 	public string VoiceCodec = "";
@@ -434,9 +434,9 @@ public class svc_VoiceInit : NetMessage
 		throw new Exception();
 	}
 }
-public class svc_Sounds : NetMessage
+public class SVC_Sounds : NetMessage
 {
-	public svc_Sounds() : base(SVC.Sounds) { }
+	public SVC_Sounds() : base(SVC.Sounds) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.Sounds;
 	public bool ReliableSound;
 	public int NumSounds;
@@ -466,16 +466,16 @@ public class svc_Sounds : NetMessage
 	}
 }
 
-public class svc_Prefetch : NetMessage {
-	public svc_Prefetch() : base(SVC.Sounds) { }
+public class SVC_Prefetch : NetMessage {
+	public SVC_Prefetch() : base(SVC.Sounds) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.Sounds;
 
 	public ushort Type;
 	public ushort SoundIndex;
 }
-public class svc_BSPDecal : NetMessage
+public class SVC_BSPDecal : NetMessage
 {
-	public svc_BSPDecal() : base(SVC.BSPDecal) { }
+	public SVC_BSPDecal() : base(SVC.BSPDecal) { }
 
 	public Vector3 Pos;
 	public int DecalTextureIndex;
@@ -504,9 +504,9 @@ public class svc_BSPDecal : NetMessage
 		throw new Exception();
 	}
 }
-public class svc_GameEvent : NetMessage
+public class SVC_GameEvent : NetMessage
 {
-	public svc_GameEvent() : base(SVC.GameEvent) { }
+	public SVC_GameEvent() : base(SVC.GameEvent) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.Events;
 
 	public int Length;
@@ -529,9 +529,9 @@ public class svc_GameEvent : NetMessage
 		return buffer.WriteBits(DataOut.BaseArray, Length);
 	}
 }
-public class svc_GameEventList : NetMessage
+public class SVC_GameEventList : NetMessage
 {
-	public svc_GameEventList() : base(SVC.GameEventList) { }
+	public SVC_GameEventList() : base(SVC.GameEventList) { }
 
 	public int NumEvents;
 	public int Length;
@@ -554,9 +554,9 @@ public class svc_GameEventList : NetMessage
 		throw new Exception();
 	}
 }
-public class svc_SetView : NetMessage
+public class SVC_SetView : NetMessage
 {
-	public svc_SetView() : base(SVC.SetView) { }
+	public SVC_SetView() : base(SVC.SetView) { }
 
 	public int EntityIndex;
 
@@ -565,11 +565,11 @@ public class svc_SetView : NetMessage
 		return !buffer.Overflowed;
 	}
 }
-public class svc_FixAngle : NetMessage
+public class SVC_FixAngle : NetMessage
 {
 	public bool Relative;
 	public QAngle Angle;
-	public svc_FixAngle() : base(SVC.FixAngle) { }
+	public SVC_FixAngle() : base(SVC.FixAngle) { }
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		Relative = buffer.ReadBool();
@@ -590,9 +590,9 @@ public class svc_FixAngle : NetMessage
 		return !buffer.Overflowed;
 	}
 }
-public class svc_UserMessage : NetMessage
+public class SVC_UserMessage : NetMessage
 {
-	public svc_UserMessage() : base(SVC.UserMessage) { }
+	public SVC_UserMessage() : base(SVC.UserMessage) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.UserMessage;
 
 	public int MessageType;
@@ -627,8 +627,8 @@ public class svc_UserMessage : NetMessage
 	}
 }
 
-public class svc_EntityMessage : NetMessage{
-	public svc_EntityMessage() : base(SVC.EntityMessage) { reliable = false; }
+public class SVC_EntityMessage : NetMessage{
+	public SVC_EntityMessage() : base(SVC.EntityMessage) { reliable = false; }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.EntMessage;
 	public int EntityIndex;
 	public int ClassID;
@@ -647,9 +647,9 @@ public class svc_EntityMessage : NetMessage{
 	}
 
 }
-public class svc_PacketEntities : NetMessage
+public class SVC_PacketEntities : NetMessage
 {
-	public svc_PacketEntities() : base(SVC.PacketEntities) { }
+	public SVC_PacketEntities() : base(SVC.PacketEntities) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.Entities;
 	public int MaxEntries;
 	public int UpdatedEntries;
@@ -688,9 +688,9 @@ public class svc_PacketEntities : NetMessage
 	}
 }
 
-public class svc_GMod_ServerToClient : NetMessage
+public class SVC_GMod_ServerToClient : NetMessage
 {
-	public svc_GMod_ServerToClient() : base(SVC.GMod_ServerToClient) { }
+	public SVC_GMod_ServerToClient() : base(SVC.GMod_ServerToClient) { }
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		int bits = (int)buffer.ReadUBitLong(20);
@@ -846,10 +846,10 @@ public class CLC_GMod_ClientToServer : NetMessage
 	}
 }
 
-public class clc_BaselineAck : NetMessage
+public class CLC_BaselineAck : NetMessage
 {
-	public clc_BaselineAck() : base(CLC.BaselineAck) { }
-	public clc_BaselineAck(int tick, int baseline) : base(CLC.BaselineAck) {
+	public CLC_BaselineAck() : base(CLC.BaselineAck) { }
+	public CLC_BaselineAck(int tick, int baseline) : base(CLC.BaselineAck) {
 		BaselineTick = tick;
 		BaselineNumber = baseline;
 	}
@@ -866,9 +866,9 @@ public class clc_BaselineAck : NetMessage
 		return !buffer.Overflowed;
 	}
 }
-public class svc_TempEntities : NetMessage
+public class SVC_TempEntities : NetMessage
 {
-	public svc_TempEntities() : base(SVC.TempEntities) { }
+	public SVC_TempEntities() : base(SVC.TempEntities) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.Events;
 	public int NumEntries;
 	public int Length;

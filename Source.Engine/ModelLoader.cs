@@ -243,7 +243,16 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		}
 
 		if (mod.Type == ModelType.Studio && 0 == (mod.LoadFlags & ModelLoaderFlags.LoadedByPreload)) {
-			throw new Exception("Studiomodels still need work");
+			Assert(MDLCache.GetStudioHdr(mod.Studio) != null);
+			Assert((mod.LoadFlags & ModelLoaderFlags.Loaded) != 0);
+
+			if (touchAllData) {
+				// Touch all related .ani files and sub/dependent models
+				// only touches once, when server changes
+				Mod_TouchAllData(mod, serverCount);
+			}
+
+			return mod;
 		}
 
 		if ((mod.LoadFlags & ModelLoaderFlags.Loaded) != 0)

@@ -14,6 +14,7 @@ namespace Game.Shared;
 using Source.Common.Networking;
 
 using System;
+using System.Numerics;
 
 [Flags]
 public enum WeaponFlags
@@ -263,13 +264,88 @@ public enum DamageType : int
 }
 
 
+public enum ObserverMode
+{
+	None,
+	DeathCam,
+	FreezeCam,
+	Fixed,
+	InEye,
+	Chase,
+	PointOfInterest,
+	Roaming,
+	Num
+}
+
+public enum UseType
+{
+	Off,
+	On,
+	Set,
+	Toggle
+}
+
+public class ViewVectors
+{
+	public ViewVectors() { }
+	public ViewVectors(
+	 Vector3 view,
+	 Vector3 hullMin,
+	 Vector3 hullMax,
+	 Vector3 duckHullMin,
+	 Vector3 duckHullMax,
+	 Vector3 duckView,
+	 Vector3 obsHullMin,
+	 Vector3 obsHullMax,
+	 Vector3 deadViewHeight
+	) {
+		View = view;
+		HullMin = hullMin;
+		HullMax = hullMax;
+		DuckHullMin = duckHullMin;
+		DuckHullMax = duckHullMax;
+		DuckView = duckView;
+		ObsHullMin = obsHullMin;
+		ObsHullMax = obsHullMax;
+		DeadViewHeight = deadViewHeight;
+	}
+	public Vector3 View;
+	public Vector3 HullMin;
+	public Vector3 HullMax;
+	public Vector3 DuckHullMin;
+	public Vector3 DuckHullMax;
+	public Vector3 DuckView;
+	public Vector3 ObsHullMin;
+	public Vector3 ObsHullMax;
+	public Vector3 DeadViewHeight;
+}
+
 public static class SharedDefs
 {
+#if CLIENT_DLL || GAME_DLL
+	public static Vector3 VEC_VIEW_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().View * player.GetModelScale());
+	public static Vector3 VEC_HULL_MIN_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().HullMin * player.GetModelScale());
+	public static Vector3 VEC_HULL_MAX_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().HullMax * player.GetModelScale());
+	public static Vector3 VEC_DUCK_HULL_MIN_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().DuckHullMin * player.GetModelScale());
+	public static Vector3 VEC_DUCK_HULL_MAX_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().DuckHullMax * player.GetModelScale());
+	public static Vector3 VEC_DUCK_VIEW_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().DuckView * player.GetModelScale());
+	public static Vector3 VEC_OBS_HULL_MIN_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().ObsHullMin * player.GetModelScale());
+	public static Vector3 VEC_OBS_HULL_MAX_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().ObsHullMax * player.GetModelScale());
+	public static Vector3 VEC_DEAD_VIEWHEIGHT_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().DeadViewHeight * player.GetModelScale());
+#endif
+
+	public const int MAX_CONTEXT_LENGTH = 32;
+	public const int NO_THINK_CONTEXT = -1;
+
 	public const int SIMULATION_TIME_WINDOW_BITS = 8;
 
 	public const int NOINTERP_PARITY_MAX = 4;
 	public const int NOINTERP_PARITY_MAX_BITS = 2;
 	public const int ANIMATION_CYCLE_BITS = 15;
+
+	public const int MAX_CLIMB_SPEED = 200;
+
+	public const int TICK_NEVER_THINK = -1;
 
 	public const int MAX_VIEWMODELS = 3;
 	public const int MAX_BEAM_ENTS = 10;
@@ -279,12 +355,23 @@ public static class SharedDefs
 	public const int MAX_ITEMS = 5;
 	public const int WEAPON_NOCLIP = -1;
 
+	public const float TIME_TO_DUCK = 0.4f;
+	public const float TIME_TO_UNDUCK = 0.2f;
+	public const float TIME_TO_UNDUCK_MS = 200.0f;
+
+
 	public const int NUM_AUDIO_LOCAL_SOUNDS = 8;
 
 	public const int MAX_SUIT_DEVICES = 3;
 	public const int MAX_AMMO_TYPES = 256;
 	public const int MAX_AMMO_SLOTS = 256;
 	public const int MAX_SPLINE_POINTS = 16;
+
+	public const int WEAPON_IS_ONTARGET = 0x40;
+	public const int WEAPON_NOT_CARRIED = 0;          // Weapon is on the ground
+	public const int WEAPON_IS_CARRIED_BY_PLAYER = 1; // This client is carrying this weapon.
+	public const int WEAPON_IS_ACTIVE = 2;            // This client is carrying this weapon and it's the currently held weapon
+
 
 	public static ClientClass WithManualClassID(this ClientClass clientClass, StaticClassIndices classID) {
 		clientClass.ClassID = (int)classID;
@@ -295,6 +382,41 @@ public static class SharedDefs
 		clientClass.ClassID = (int)classID;
 		return clientClass;
 	}
+}
+
+public enum PassengerRole
+{
+	None = -1,
+	Driver = 0,
+	LastSharedVehicleRole
+}
+
+
+public enum HitGroup
+{
+	Generic = 0,
+	Head = 1,
+	Chest = 2,
+	Stomach = 3,
+	LeftArm = 4,
+	RightArm = 5,
+	LeftLeg = 6,
+	RightLeg = 7,
+	Gear = 10
+}
+
+public enum PlayerAnim
+{
+	Idle,
+	Walk,
+	Jump,
+	SuperJump,
+	Die,
+	Attack1,
+	InVehicle,
+	Reload,
+	StartAiming,
+	LeaveAiming,
 }
 
 
@@ -318,6 +440,7 @@ public enum HideHudBits
 
 
 [InlineArray(NUM_AUDIO_LOCAL_SOUNDS)] public struct InlineArrayNumLocalAudioSounds<T> { public T item; }
+[InlineArray(MAX_AMMO_TYPES)] public struct InlineArrayMaxAmmoTypes<T> { public T item; }
 [InlineArray(MAX_AMMO_SLOTS)] public struct InlineArrayMaxAmmoSlots<T> { public T item; }
 [InlineArray(NetFlow.MAX_FLOWS)] public struct InlineArrayMaxFlows<T> { public T item; }
 [InlineArray(MAX_SPLINE_POINTS)] public struct InlineArrayMaxSplinePoints<T> { public T item; }

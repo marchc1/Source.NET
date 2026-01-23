@@ -3,6 +3,7 @@
 using Source;
 using Source.Common;
 using Source.Common.Engine;
+using Source.Common.Physics;
 
 using System.Numerics;
 
@@ -45,7 +46,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		SendPropEHandle(FIELD.OF(nameof(UseEntity))),
 		SendPropInt(FIELD.OF(nameof(LifeState)), 3, PropFlags.Unsigned ),
 		SendPropEHandle(FIELD.OF(nameof(ColorCorrectionCtrl))), // << gmod specific
-		SendPropFloat(FIELD.OF(nameof(MaxSpeed)), 12, PropFlags.RoundDown, 0.0f, 2048.0f ),
+		SendPropFloat(FIELD.OF(nameof(Maxspeed)), 12, PropFlags.RoundDown, 0.0f, 2048.0f ),
 		SendPropInt(FIELD.OF(nameof(Flags)), Constants.PLAYER_FLAG_BITS, PropFlags.Unsigned|PropFlags.ChangesOften, SendProxy_CropFlagsToPlayerFlagBitsLength),
 		SendPropInt(FIELD.OF(nameof(ObserverMode)), 3, PropFlags.Unsigned),
 		SendPropEHandle(FIELD.OF(nameof(ObserverTarget))),
@@ -63,7 +64,14 @@ public partial class BasePlayer : BaseCombatCharacter
 		SendPropDataTable( "localdata", DT_LocalPlayerExclusive, SendProxy_SendLocalDataTable),
 	]);
 
-	
+	public float MaxSpeed() => Maxspeed;
+	public void SetMaxSpeed(float maxSpeed) => Maxspeed = maxSpeed;
+	public TimeUnit_t GetLaggedMovementValue() => LaggedMovementValue;
+
+	public int SurfaceProps;
+	public SurfaceData_ptr? SurfaceData;
+	public float SurfaceFriction;
+
 	public static void SendProxy_CropFlagsToPlayerFlagBitsLength(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		throw new NotImplementedException();
 	}
@@ -78,18 +86,18 @@ public partial class BasePlayer : BaseCombatCharacter
 	public static readonly new ServerClass ServerClass = new ServerClass("BasePlayer", DT_BasePlayer).WithManualClassID(StaticClassIndices.CBasePlayer);
 
 	bool DeadFlag;
-	readonly PlayerState pl = new();
-	readonly PlayerLocalData Local = new();
-	readonly EHANDLE Vehicle = new();
-	readonly EHANDLE UseEntity = new();
-	readonly EHANDLE ObserverTarget = new();
-	readonly EHANDLE ZoomOwner = new();
-	readonly EHANDLE ConstraintEntity = new();
-	readonly EHANDLE TonemapController = new();
-	readonly EHANDLE ViewEntity = new();
-	InlineArrayNewMaxViewmodels<EHANDLE> ViewModel = new(); 
+	public readonly PlayerState pl = new();
+	public readonly PlayerLocalData Local = new();
+	public readonly EHANDLE Vehicle = new();
+	public readonly EHANDLE UseEntity = new();
+	public readonly EHANDLE ObserverTarget = new();
+	public readonly EHANDLE ZoomOwner = new();
+	public readonly EHANDLE ConstraintEntity = new();
+	public readonly EHANDLE TonemapController = new();
+	public readonly EHANDLE ViewEntity = new();
+	InlineArrayNewMaxViewmodels<Handle<BaseViewModel>> ViewModel = new(); 
 	bool DisableWorldClicking;
-	float MaxSpeed;
+	float Maxspeed;
 	int Flags;
 	int ObserverMode;
 	int FOV;
@@ -107,6 +115,29 @@ public partial class BasePlayer : BaseCombatCharacter
 	public bool OnTarget;
 	public double DeathTime;
 	public double LaggedMovementValue;
-
+	InlineArray32<char> AnimExtension;
+	public Vector3 WaterJumpVel;
+	public float SwimSoundTime;
+	public float WaterJumpTime;
 	public bool IsInAVehicle() => Vehicle.Get() != null;
+	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
+	public InButtons AfButtonLast;
+	public InButtons AfButtonPressed;
+	public InButtons AfButtonReleased;
+	public InButtons Buttons;
+
+	public BaseViewModel? GetViewModel(int index = 0, bool observerOK = true){
+		return ViewModel[index].Get();
+	}
+
+	public IServerVehicle? GetVehicle() {
+		BaseEntity? vehicleEnt = Vehicle.Get();
+		return vehicleEnt?.GetServerVehicle();
+	}
+
+	public BaseCombatWeapon? GetLastWeapon() => LastWeapon.Get();
+	public BaseCombatWeapon? GetActiveWeapon() => ActiveWeapon.Get();
+	public void ResetAutoaim() => OnTarget = false;
+
+	public ObserverMode GetObserverMode() => (ObserverMode)ObserverMode;
 }

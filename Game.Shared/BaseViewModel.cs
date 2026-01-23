@@ -46,7 +46,7 @@ public partial class
 			RecvPropInt(FIELD.OF(nameof(Body))),
 			RecvPropInt(FIELD.OF(nameof(Skin))),
 			RecvPropInt(FIELD.OF(nameof(Sequence)), 0, RecvProxy_SequenceNum),
-			RecvPropInt(FIELD.OF(nameof(ViewModelIndex))),
+			RecvPropInt(FIELD.OF(nameof(_ViewModelIndex))),
 			RecvPropFloat(FIELD.OF(nameof(PlaybackRate))),
 			RecvPropInt(FIELD.OF(nameof(Effects))),
 			RecvPropInt(FIELD.OF(nameof(AnimationParity))),
@@ -64,7 +64,7 @@ public partial class
 			SendPropInt(FIELD.OF(nameof(Body)), 32),
 			SendPropInt(FIELD.OF(nameof(Skin)), 10),
 			SendPropInt(FIELD.OF(nameof(Sequence)), 12, PropFlags.Unsigned),
-			SendPropInt(FIELD.OF(nameof(ViewModelIndex)), VIEWMODEL_INDEX_BITS, PropFlags.Unsigned),
+			SendPropInt(FIELD.OF(nameof(_ViewModelIndex)), VIEWMODEL_INDEX_BITS, PropFlags.Unsigned),
 			SendPropFloat(FIELD.OF(nameof(PlaybackRate)), 8, PropFlags.RoundUp, -4.0f, 12.0f),
 			SendPropInt(FIELD.OF(nameof(Effects)), 10, PropFlags.Unsigned),
 			SendPropInt(FIELD.OF(nameof(AnimationParity)), 3, PropFlags.Unsigned),
@@ -95,12 +95,16 @@ public partial class
 	public static readonly new ServerClass ServerClass = new ServerClass("BaseViewModel", DT_BaseViewModel).WithManualClassID(StaticClassIndices.CBaseViewModel);
 #pragma warning restore CS0109 // Member does not hide an inherited member; new keyword is not required
 #endif
-	public int ViewModelIndex;
+	public int _ViewModelIndex;
 	public readonly EHANDLE Owner = new();
 	public readonly Handle<BaseCombatWeapon> Weapon = new();
 	public int AnimationParity;
 
 	public BaseCombatWeapon? GetOwningWeapon() => Weapon.Get();
+
+	public int ViewModelIndex() => _ViewModelIndex;
+
+	public SharedBaseEntity? GetOwner() => Owner.Get();
 
 #if CLIENT_DLL
 	public static void FormatViewModelAttachment(ref Vector3 origin, bool inverse) {
@@ -182,6 +186,31 @@ public partial class
 #if CLIENT_DLL
 		OldAnimationParity = 0;
 		EntClientFlags |= EntClientFlags.AlwaysInterpolate;
+#endif
+	}
+
+	void SetControlPanelsActive(bool state){ } // todo
+
+	public override void AddEffects(EntityEffects effects) {
+		if ((effects & EntityEffects.NoDraw) != 0)
+			SetControlPanelsActive(false);
+		base.AddEffects(effects);
+	}
+
+	public override void RemoveEffects(EntityEffects effects) {
+		if ((effects & EntityEffects.NoDraw) != 0)
+			SetControlPanelsActive(true);
+		base.RemoveEffects(effects);
+	}
+
+
+	public void SetWeaponModel(ReadOnlySpan<char> modelname, BaseCombatWeapon? weapon = null) {
+		Weapon.Set(weapon);
+
+#if CLIENT_DLL
+		SetModel(modelname);
+#else
+
 #endif
 	}
 }

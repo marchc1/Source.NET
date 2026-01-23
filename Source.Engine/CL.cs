@@ -321,7 +321,7 @@ public partial class CL(IServiceProvider services, Net Net,
 
 	public int PropsDecoded;
 
-	public bool ProcessPacketEntities(svc_PacketEntities entmsg) {
+	public bool ProcessPacketEntities(SVC_PacketEntities entmsg) {
 		ClientFrame newFrame = cl.AllocateFrame();
 		newFrame.Init(cl.GetServerTickCount());
 		ClientFrame? oldFrame = null;
@@ -357,7 +357,7 @@ public partial class CL(IServiceProvider services, Net Net,
 			int updateBaseline = (entmsg.Baseline == 0) ? 1 : 0;
 			cl.CopyEntityBaseline(entmsg.Baseline, updateBaseline);
 
-			var msg = new clc_BaselineAck(cl.GetServerTickCount(), entmsg.Baseline);
+			var msg = new CLC_BaselineAck(cl.GetServerTickCount(), entmsg.Baseline);
 			cl.NetChannel!.SendNetMsg(msg, true);
 		}
 

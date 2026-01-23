@@ -86,8 +86,8 @@ public ref struct BeamSegDraw
 
 		// Build the endpoints.
 		Vector3 vPoint1 = default, vPoint2 = default;
-		MathLib.VectorMA(Seg.Pos, Seg.Width * 0.5f, vNormal, ref vPoint1);
-		MathLib.VectorMA(Seg.Pos, -Seg.Width * 0.5f, vNormal, ref vPoint2);
+		MathLib.VectorMA(Seg.Pos, Seg.Width * 0.5f, vNormal, out vPoint1);
+		MathLib.VectorMA(Seg.Pos, -Seg.Width * 0.5f, vNormal, out vPoint2);
 
 
 		// Specify the points.

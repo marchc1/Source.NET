@@ -31,7 +31,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 		channel.RegisterMessage<CLC_ClientInfo>();
 		channel.RegisterMessage<CLC_Move>();
-		channel.RegisterMessage<clc_BaselineAck>();
+		channel.RegisterMessage<CLC_BaselineAck>();
 		channel.RegisterMessage<CLC_ListenEvents>();
 	}
 	public void ConnectionClosing(ReadOnlySpan<char> reason) { }
@@ -51,7 +51,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			case NET_SignonState m: return ProcessSignonState(m);
 			case CLC_ClientInfo m: return ProcessClientInfo(m);
 			case CLC_Move m: return ProcessMove(m);
-			case clc_BaselineAck m: return ProcessBaselineAck(m);
+			case CLC_BaselineAck m: return ProcessBaselineAck(m);
 			case CLC_ListenEvents m: return ProcessListenEvents(m);
 		}
 		return false;
@@ -143,7 +143,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		throw new NotImplementedException();
 	}
 
-	protected virtual bool ProcessBaselineAck(clc_BaselineAck m) {
+	protected virtual bool ProcessBaselineAck(CLC_BaselineAck m) {
 		throw new NotImplementedException();
 	}
 

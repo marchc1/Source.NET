@@ -11,9 +11,22 @@ using System.Runtime.CompilerServices;
 namespace Game.Server;
 
 using FIELD = Source.FIELD<BaseEntity>;
-
+public struct ThinkFunc
+{
+	public BaseEntity.BASEPTR? Think;
+	public string? Context;
+	public long NextThinkTick;
+	public long LastThinkTick;
+}
 public partial class BaseEntity : IServerEntity
 {
+	public delegate void BASEPTR();
+	public delegate void ENTITYFUNCPTR(BaseEntity? other);
+	public delegate void USEPTR(BaseEntity? activator, BaseEntity? caller, UseType useType, float value);
+
+	static int PredictionRandomSeed = -1;
+	static BasePlayer? PredictionPlayer;
+
 	public static bool DisableTouchFuncs = false;
 	public static bool AccurateTriggerBboxChecks = true;
 
@@ -108,6 +121,8 @@ public partial class BaseEntity : IServerEntity
 		SendPropInt(FIELD.OF(nameof(MapCreatedID)), 16),
 	]);
 
+
+	public void SetPredictionEligible(bool canpredict) { } // nothing in game code
 	public ref readonly Vector3 GetLocalOrigin() => ref AbsOrigin;
 	private static void SendProxy_OverrideMaterial(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		Warning("SendProxy_OverrideMaterial not yet implemented\n");
@@ -155,6 +170,9 @@ public partial class BaseEntity : IServerEntity
 	public int CreationID;
 	public int MapCreatedID;
 
+	public readonly List<ThinkFunc> ThinkFunctions = [];
+	public int CurrentThinkContext = NO_THINK_CONTEXT;
+
 	public readonly PredictableId PredictableId = new();
 
 	public readonly GModTable GMOD_DataTable = new();
@@ -194,7 +212,103 @@ public partial class BaseEntity : IServerEntity
 	public int ModelIndex;
 	public CollisionProperty Collision = new();
 	public float Friction;
+	public long SimulationTick;
 
+	public bool FClassnameIs(BaseEntity? entity, ReadOnlySpan<char> classname) {
+		if (entity == null)
+			return false;
+
+		return 0 == strcmp(entity.GetClassname(), classname);
+	}
+	
+	public bool IsServer() => true;
+	public bool IsClient() => false;
+	public ReadOnlySpan<char> GetDLLType() => "server";
+
+	public int GetWaterLevel() => WaterLevel;
+	public void SetWaterLevel(int level) => WaterLevel = (byte)level;
+	public void SetMoveCollide(MoveCollide moveCollide) => MoveCollide = (byte)moveCollide;
+	public void SetMoveType(MoveType val, MoveCollide moveCollide = Source.MoveCollide.Default) {
+		if (MoveType == (byte)val) {
+			MoveCollide = (byte)moveCollide;
+			return;
+		}
+
+		// This is needed to the removal of MOVETYPE_FOLLOW:
+		// We can't transition from follow to a different movetype directly
+		// or the leaf code will break.
+		Assert(!IsEffectActive(EntityEffects.BoneMerge));
+		MoveType = (byte)val;
+		MoveCollide = (byte)moveCollide;
+
+		CollisionRulesChanged();
+
+		switch ((MoveType)MoveType) {
+			case Source.MoveType.Walk: {
+					SetSimulatedEveryTick(true);
+					SetAnimatedEveryTick(true);
+				}
+				break;
+			case Source.MoveType.Step: {
+					// This will probably go away once I remove the cvar that controls the test code
+					SetSimulatedEveryTick(g_bTestMoveTypeStepSimulation ? true : false);
+					SetAnimatedEveryTick(false);
+				}
+				break;
+			case Source.MoveType.Fly:
+			case Source.MoveType.FlyGravity: {
+					// Initialize our water state, because these movetypes care about transitions in/out of water
+					UpdateWaterState();
+				}
+				break;
+			default: {
+					SetSimulatedEveryTick(true);
+					SetAnimatedEveryTick(false);
+				}
+				break;
+		}
+
+		// This will probably go away or be handled in a better way once I remove the cvar that controls the test code
+		CheckStepSimulationChanged();
+		CheckHasGamePhysicsSimulation();
+	}
+
+
+	void PhysicsStep() { }
+	void PhysicsPusher() { }
+	void PhysicsNone() { }
+	void PhysicsRigidChild() { }
+	void PhysicsNoclip() { }
+	void PhysicsStepRunTimestep(TimeUnit_t timestep) { }
+	void PhysicsToss() { }
+	void PhysicsCustom() { }
+	void PerformPush(TimeUnit_t movetime) { }
+	void UpdateBaseVelocity() { }
+	public void DispatchUpdateTransmitState() { }
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsMarkedForDeletion() => (eflags & EFL.KillMe) != 0;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public void AddEFlags(EFL flags) {
+		eflags |= flags;
+		if ((flags & (EFL.ForceCheckTransmit | EFL.InSkybox)) != 0)
+			DispatchUpdateTransmitState();
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public void RemoveEFlags(EFL flags) {
+		eflags &= ~flags;
+		if ((flags & (EFL.ForceCheckTransmit | EFL.InSkybox)) != 0)
+			DispatchUpdateTransmitState();
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsEFlagSet(EFL mask) => (eflags & mask) != 0;
+
+	Vector3 AbsVelocity;
+
+	public ref readonly Vector3 GetAbsVelocity() {
+		return ref AbsVelocity;
+	}
+
+
+	public BaseEntity? GetMoveParent() => MoveParent.Get();
+	public virtual IServerVehicle? GetServerVehicle() => null;
 	public ICollideable? GetCollideable() {
 		throw new NotImplementedException();
 	}
@@ -234,9 +348,39 @@ public partial class BaseEntity : IServerEntity
 	EFL eflags;
 	public Matrix3x4 CoordinateFrame;
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void AddEFlags(EFL flags) => eflags |= flags;
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void RemoveEFlags(EFL flags) => eflags &= ~flags;
 
+	public ref readonly Vector3 GetBaseVelocity() => ref BaseVelocity;
+	public void SetBaseVelocity(in Vector3 v) => BaseVelocity = v;
+
+	public void SetAbsVelocity(in Vector3 absVelocity) {
+		if (AbsVelocity == absVelocity)
+			return;
+
+		// The abs velocity won't be dirty since we're setting it here
+		// All children are invalid, but we are not
+		InvalidatePhysicsRecursive(InvalidatePhysicsBits.VelocityChanged);
+		RemoveEFlags(EFL.DirtyAbsVelocity);
+
+		AbsVelocity = absVelocity;
+
+		// NOTE: Do *not* do a network state change in this case.
+		// m_vecVelocity is only networked for the player, which is not manual mode
+		BaseEntity? moveParent = GetMoveParent();
+		if (moveParent == null) {
+			Velocity = absVelocity;
+			return;
+		}
+
+		// First subtract out the parent's abs velocity to get a relative
+		// velocity measured in world space
+		Vector3 relVelocity;
+		MathLib.VectorSubtract(AbsVelocity, moveParent.GetAbsVelocity(), out relVelocity);
+
+		// Transform relative velocity into parent space
+		Vector3 vNew;
+		MathLib.VectorIRotate(relVelocity, moveParent.EntityToWorldTransform(), out vNew);
+		Velocity = vNew;
+	}
 
 	public ref readonly Vector3 GetAbsOrigin() => ref AbsOrigin;
 	public ref readonly Vector3 GetViewOffset() => ref ViewOffset;

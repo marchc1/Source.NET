@@ -11,6 +11,7 @@ global using static Source.Common.SendPropHelpers;
 global using static Source.Common.GameEventConstants;
 global using static Source.Common.RandomGlobals;
 global using static Source.Common.Utilities.UtlSymbolGlobals;
+global using static Source.Common.Physics.PhysicsConversions;
 global using static Source.Common.Filesystem.FilesystemGlobals;
 global using CRC32_t = uint;
 global using HCursor = nint;

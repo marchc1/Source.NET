@@ -1,10 +1,10 @@
 ﻿#if CLIENT_DLL || GAME_DLL
+
 #if CLIENT_DLL
 global using static Game.Client.BasePlayerGlobals;
 
 global using BasePlayer = Game.Client.C_BasePlayer;
 
-using Game.Shared;
 
 #else
 global using static Game.Server.BasePlayerGlobals;
@@ -12,17 +12,20 @@ global using BasePlayer = Game.Server.BasePlayer;
 
 #endif
 using Source.Common.Mathematics;
-
+using Source;
+using Game.Shared;
 using System.Numerics;
 
 #if CLIENT_DLL
 namespace Game.Client;
+
 
 #else
 namespace Game.Server;
 #endif
 
 using Source.Common.Commands;
+using Source.Common.Physics;
 
 public static class BasePlayerGlobals
 {
@@ -48,6 +51,7 @@ public partial class
 	BasePlayer
 #endif
 {
+	public TimeUnit_t GetTimeBase() => TickBase * TICK_INTERVAL;
 	public virtual void CalcView(ref Vector3 eyeOrigin, ref QAngle eyeAngles, ref float zNear, ref float zFar, ref float fov) {
 		CalcPlayerView(ref eyeOrigin, ref eyeAngles, ref fov); // << TODO: There is a lot more logic here for observers, vehicles, etc!
 	}
@@ -68,7 +72,7 @@ public partial class
 
 		// FIXME: Cache off the angles?
 		Matrix3x4 eyesToParent = default, eyesToWorld = default;
-		MathLib.AngleMatrix(pl.ViewingAngle, ref eyesToParent);
+		MathLib.AngleMatrix(pl.ViewingAngle, out eyesToParent);
 		MathLib.ConcatTransforms(pMoveParent.EntityToWorldTransform(), eyesToParent, out eyesToWorld);
 
 		MathLib.MatrixAngles(in eyesToWorld, out angEyeWorld);
@@ -102,6 +106,58 @@ public partial class
 	}
 
 	static ConVar sv_suppress_viewpunch = new("sv_suppress_viewpunch", "0", FCvar.Replicated | FCvar.Cheat | FCvar.DevelopmentOnly);
+	public const int PLAY_PLAYER_JINGLE = 1;
+	public const int UPDATE_PLAYER_RADAR = 2;
+	public void SelectItem(ReadOnlySpan<char> str, int subtype) {
+		if (str.IsEmpty)
+			return;
+
+		BaseCombatWeapon? item = Weapon_OwnsThisType(str, subtype);
+
+		if (item == null)
+			return;
+
+		if (GetObserverMode() != Shared.ObserverMode.None)
+			return;// Observers can't select things.
+
+		if (!Weapon_ShouldSelectItem(item))
+			return;
+
+		// FIX, this needs to queue them up and delay
+		// Make sure the current weapon can be holstered
+		if (GetActiveWeapon() != null) {
+			if (!GetActiveWeapon()!.CanHolster() && !item.ForceWeaponSwitch())
+				return;
+
+			ResetAutoaim();
+		}
+
+		Weapon_Switch(item);
+	}
+
+	public virtual bool Weapon_ShouldSelectItem(BaseCombatWeapon weapon) => weapon != GetActiveWeapon();
+
+	public virtual void UpdateButtonState(InButtons userCmdButtonMask) {
+		AfButtonLast = Buttons;
+		Buttons = userCmdButtonMask;
+		InButtons buttonsChanged = AfButtonLast ^ Buttons;
+
+		// Debounced button codes for pressed/released
+		// UNDONE: Do we need auto-repeat?
+		AfButtonPressed = buttonsChanged & Buttons;        // The changed ones still down are "pressed"
+		AfButtonReleased = buttonsChanged & (~Buttons);    // The ones not down are "released"
+	}
+
+	public float GetPlayerMaxSpeed() {
+		float maxSpeed = sv_maxspeed.GetFloat();
+		if (MaxSpeed() > 0.0f && MaxSpeed() < maxSpeed)
+			maxSpeed = MaxSpeed();
+		return maxSpeed;
+	}
+
+	public void UpdateStepSound(SurfaceData_ptr surface, in Vector3 origin, in Vector3 velocity) {
+		// todo
+	}
 
 	public void ViewPunch(in QAngle angleOffset) {
 		//See if we're suppressing the view punching
@@ -127,6 +183,31 @@ public partial class
 
 	void Weapon_SetLast(BaseCombatWeapon pWeapon) {
 		throw new NotImplementedException();
+	}
+
+	public void SetAnimationExtension(ReadOnlySpan<char> extension) {
+		strcpy(AnimExtension, extension);
+	}
+
+	public bool UsingStandardWeaponsInVehicle() {
+		Assert(IsInAVehicle());
+#if !CLIENT_DLL
+		IServerVehicle? vehicle = GetVehicle();
+#else
+		IClientVehicle? vehicle = GetVehicle();
+#endif
+
+		if (vehicle == null)
+			return true;
+
+		PassengerRole role = vehicle.GetPassengerRole(this);
+		bool bUsingStandardWeapons = vehicle.IsPassengerUsingStandardWeapons(role);
+
+		// Fall through and check weapons, etc. if we're using them 
+		if (!bUsingStandardWeapons)
+			return false;
+
+		return true;
 	}
 }
 #endif

@@ -14,8 +14,34 @@ using Source.Common.Filesystem;
 
 namespace Game.Client;
 
+public struct DataChangedEvent
+{
+	public DataChangedEvent() { }
+	public DataChangedEvent(IClientNetworkable? entity, DataUpdateType updateType, ReusableBox<ulong> storedEvent) {
+		Entity = entity;
+		UpdateType = updateType;
+		StoredEvent = storedEvent;
+	}
+
+	public IClientNetworkable? Entity;
+	public DataUpdateType UpdateType;
+	public ReusableBox<ulong>? StoredEvent;
+}
+
 public static class SourceDllMain
 {
+
+	static readonly Dictionary<ulong, DataChangedEvent> g_DataChangedEvents = [];
+	static ulong datachangedevent = 0;
+	public static ref DataChangedEvent g_GetDataChangedEvent(ulong idx) => ref g_DataChangedEvents.TryGetRef(idx, out _);
+	public static ulong g_AddDataChangedEvent(in DataChangedEvent data) {
+		var t = Interlocked.Increment(ref datachangedevent);
+		lock (g_DataChangedEvents) {
+			g_DataChangedEvents.Add(t, data);
+		}
+		return t;
+	}
+
 	public static void Link(IServiceCollection services) {
 		services.AddSingleton<IPredictableList>(g_Predictables);
 	}

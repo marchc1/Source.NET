@@ -3,7 +3,7 @@ using CommunityToolkit.HighPerformance;
 
 using System.Runtime.InteropServices;
 
-using static Source.Common.Networking.svc_ClassInfo;
+using static Source.Common.Networking.SVC_ClassInfo;
 using static Source.Common.OptimizedModel;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
