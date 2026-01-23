@@ -463,7 +463,6 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			return 1.0 / t;
 		return t;
 	}
-	bool PredictionEligible;
 	public string GetSequenceName(int sequence) {
 		if (sequence == -1)
 			return "Not Found!";
@@ -474,7 +473,6 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return Animation.GetSequenceName(GetModelPtr(), sequence);
 	}
 
-	public void SetPredictionEligible(bool canpredict) => PredictionEligible = canpredict;
 	public bool IsSequenceLooping(int sequence) => IsSequenceLooping(GetModelPtr(), sequence);
 	public bool IsSequenceLooping(StudioHdr? studioHdr, int sequence) {
 		return (Animation.GetSequenceFlags(studioHdr, sequence) & StudioAnimSeqFlags.Looping) != 0;
