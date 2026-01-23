@@ -92,7 +92,7 @@ public class Prediction : IPrediction
 	}
 
 	public void PostNetworkDataReceived(int commandsAcknowledged) {
-		throw new NotImplementedException();
+
 	}
 
 	public void PreEntityPacketReceived(int commandsAcknowledged, int currentWorldUpdatePacket) {

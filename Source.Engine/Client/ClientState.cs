@@ -517,7 +517,8 @@ public class ClientState : BaseClientState
 	}
 
 	public override void PacketStart(int incomingSequence, int outgoingAcknowledged) {
-		base.PacketStart(incomingSequence, outgoingAcknowledged);
+		CurrentSequence = incomingSequence;
+		CommandAck = outgoingAcknowledged;
 	}
 
 	public override void PacketEnd() {
@@ -527,6 +528,7 @@ public class ClientState : BaseClientState
 		int commandsAcknowledged = CommandAck - LastCommandAck;
 		LastCommandAck = CommandAck;
 		// clientside prediction todo
+		g_ClientSidePrediction.PostNetworkDataReceived(commandsAcknowledged);
 	}
 	readonly LinkedList<EventInfo> Events = [];
 
