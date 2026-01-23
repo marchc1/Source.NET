@@ -205,11 +205,11 @@ public class ListPanel : Panel
 
 	void SetColumnHeaderHeight(int height) => HeaderHeight = height;
 
-	public void AddColumnHeader(int index, ReadOnlySpan<char> columnName, ReadOnlySpan<char> columnText, int width, int columnFlags = 0) {
-		if ((columnFlags & (int)ColumnFlags.FixedSize) != 0 && (columnFlags & (int)ColumnFlags.ResizeWithWindow) == 0)
-			AddColumnHeader(index, columnName, columnText, width, width, width, (ColumnFlags)columnFlags);
+	public void AddColumnHeader(int index, ReadOnlySpan<char> columnName, ReadOnlySpan<char> columnText, int width, ColumnFlags columnFlags = 0) {
+		if ((columnFlags & ColumnFlags.FixedSize) != 0 && (columnFlags & ColumnFlags.ResizeWithWindow) == 0)
+			AddColumnHeader(index, columnName, columnText, width, width, width, columnFlags);
 		else
-			AddColumnHeader(index, columnName, columnText, width, 20, 10000, (ColumnFlags)columnFlags);
+			AddColumnHeader(index, columnName, columnText, width, 20, 10000, columnFlags);
 	}
 
 	public void AddColumnHeader(int index, ReadOnlySpan<char> columnName, ReadOnlySpan<char> columnText, int width, int minWidth, int maxWidth, ColumnFlags columnFlags = 0) {

@@ -155,7 +155,6 @@ public class BaseGamesPage : PropertyPage, IGameList
 	Label FilterString;
 	string ComboAllText;
 	CheckButton ReplayFilterCheck;
-	KeyValues Filters;
 	public bool FiltersVisible;
 	IFont? Font;
 	Dictionary<ulong, int> GamesFilterItem = [];
@@ -230,21 +229,19 @@ public class BaseGamesPage : PropertyPage, IGameList
 
 		GameList.UserConfigFileVersion = 2;
 
-		// FIXME: Update ListPanel func params to use enums, and just cast there if needed...
-
-		GameList.AddColumnHeader((int)Column.Password, "Password", "#ServerBrowser_Password", 16, (int)(ListPanel.ColumnFlags.FixedSize | ListPanel.ColumnFlags.Image));
-		GameList.AddColumnHeader((int)Column.Secure, "Secure", "#ServerBrowser_Secure", 16, (int)(ListPanel.ColumnFlags.FixedSize | ListPanel.ColumnFlags.Image));
+		GameList.AddColumnHeader((int)Column.Password, "Password", "#ServerBrowser_Password", 16, ListPanel.ColumnFlags.FixedSize | ListPanel.ColumnFlags.Image);
+		GameList.AddColumnHeader((int)Column.Secure, "Secure", "#ServerBrowser_Secure", 16, ListPanel.ColumnFlags.FixedSize | ListPanel.ColumnFlags.Image);
 
 		int replayWidth = runningTF2 ? 16 : 0;
 
-		GameList.AddColumnHeader((int)Column.Replay, "Replay", "#ServerBrowser_Replay", replayWidth, (int)(ListPanel.ColumnFlags.FixedSize | ListPanel.ColumnFlags.Image));
-		GameList.AddColumnHeader((int)Column.Name, "Name", "#ServerBrowser_Servers", 50, (int)(ListPanel.ColumnFlags.ResizeWithWindow | ListPanel.ColumnFlags.Unhidable));
-		GameList.AddColumnHeader((int)Column.IPAddress, "IPAddr", "#ServerBrowser_IPAddress", 64, (int)ListPanel.ColumnFlags.Hidden);
+		GameList.AddColumnHeader((int)Column.Replay, "Replay", "#ServerBrowser_Replay", replayWidth, ListPanel.ColumnFlags.FixedSize | ListPanel.ColumnFlags.Image);
+		GameList.AddColumnHeader((int)Column.Name, "Name", "#ServerBrowser_Servers", 50, ListPanel.ColumnFlags.ResizeWithWindow | ListPanel.ColumnFlags.Unhidable);
+		GameList.AddColumnHeader((int)Column.IPAddress, "IPAddr", "#ServerBrowser_IPAddress", 64, ListPanel.ColumnFlags.Hidden);
 		GameList.AddColumnHeader((int)Column.GameDesc, "GameDesc", "#ServerBrowser_Game", 112, 112, 300, 0);
-		GameList.AddColumnHeader((int)Column.Players, "Players", "#ServerBrowser_Players", 55, (int)ListPanel.ColumnFlags.FixedSize);
-		GameList.AddColumnHeader((int)Column.Bots, "Bots", "#ServerBrowser_Bots", 40, (int)ListPanel.ColumnFlags.FixedSize);
+		GameList.AddColumnHeader((int)Column.Players, "Players", "#ServerBrowser_Players", 55, ListPanel.ColumnFlags.FixedSize);
+		GameList.AddColumnHeader((int)Column.Bots, "Bots", "#ServerBrowser_Bots", 40, ListPanel.ColumnFlags.FixedSize);
 		GameList.AddColumnHeader((int)Column.Map, "Map", "#ServerBrowser_Map", 90, 90, 300, 0);
-		GameList.AddColumnHeader((int)Column.Ping, "Ping", "#ServerBrowser_Latency", 55, (int)ListPanel.ColumnFlags.FixedSize);
+		GameList.AddColumnHeader((int)Column.Ping, "Ping", "#ServerBrowser_Latency", 55, ListPanel.ColumnFlags.FixedSize);
 
 		GameList.SetColumnHeaderTooltip((int)Column.Password, "#ServerBrowser_PasswordColumn_Tooltip");
 		GameList.SetColumnHeaderTooltip((int)Column.Bots, "#ServerBrowser_BotColumn_Tooltip");
@@ -429,7 +426,7 @@ public class BaseGamesPage : PropertyPage, IGameList
 	}
 
 	void CreateFilters() {
-		Filter = new(this, "FilterButton", "#ServerBrowser_Filters");
+		Filter = new(this, "Filter", "#ServerBrowser_Filters");
 		FilterString = new(this, "FilterString", "");
 
 		if (false) { //cstrike

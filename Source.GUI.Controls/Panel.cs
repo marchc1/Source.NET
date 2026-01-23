@@ -458,7 +458,7 @@ public class Panel : IPanel
 		}
 	}
 
-	public void PostMessage(IPanel target, KeyValues message, double delay = 0) {
+	public void PostMessage(IPanel? target, KeyValues message, double delay = 0) {
 		VGui.PostMessage(target, message, this, delay);
 	}
 

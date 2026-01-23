@@ -81,7 +81,7 @@ public class Image : IImage
 		}
 		Surface.DrawPolyLine(positions);
 	}
-	protected virtual void DrawSetTextFont(IFont font) {
+	protected virtual void DrawSetTextFont(IFont? font) {
 		Surface.DrawSetTextFont(font);
 	}
 	protected virtual void DrawSetTextColor(Color color) => Surface.DrawSetTextColor(color.R, color.G, color.B, color.A);

@@ -70,7 +70,7 @@ public class HudSuitPower : EditableHudElement, IHudElement
 
 		// todo!
 		bool flashlightActive = false;//player.IsFlashLightActive();
-		bool sprintActive = player._IsSprinting;//()
+		bool sprintActive = player.IsSprinting();
 		bool breatherActive = false;//player.IsBreatherActive();
 		int activeDevices = (flashlightActive ? 1 : 0) + (sprintActive ? 1 : 0) + (breatherActive ? 1 : 0);
 
@@ -174,7 +174,7 @@ public class HudSuitPower : EditableHudElement, IHudElement
 				ypos += (int)text2_gap;
 			}
 
-			if (player._IsSprinting) {//()
+			if (player.IsSprinting()) {
 				tempString = localize.Find("#Valve_Hud_SPRINT");
 
 				surface.DrawSetTextPos((int)text2_xpos, ypos);

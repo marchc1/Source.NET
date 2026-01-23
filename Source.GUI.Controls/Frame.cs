@@ -204,7 +204,7 @@ public class GripPanel : Panel
 	}
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
-		bool issmall = ((Frame)GetParent()).IsSmallCaption();
+		bool issmall = ((Frame)GetParent()!).IsSmallCaption();
 
 		MarlettFont = scheme.GetFont(issmall ? "MarlettSmall" : "Marlett", IsProportional());
 		SetFgColor(GetSchemeColor("FrameGrip.Color1", scheme));
