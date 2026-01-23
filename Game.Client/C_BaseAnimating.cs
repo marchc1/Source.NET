@@ -243,7 +243,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			else {
 				CdllExts.TrackBoneSetupEnt(this);
 
-				AddFlag((int)EFL.SettingUpBones);
+				AddFlag((EntityFlags)EFL.SettingUpBones);
 
 				Span<Vector3> pos = stackalloc Vector3[Studio.MAXSTUDIOBONES];
 				Span<Quaternion> q = stackalloc Quaternion[Studio.MAXSTUDIOBONES];
@@ -257,7 +257,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 				BoneBitList boneComputed = new();
 				BuildTransformations(hdr, pos, q, parentTransform, bonesMaskNeedRecalc, ref boneComputed);
 
-				RemoveFlag((int)EFL.SettingUpBones);
+				RemoveFlag((EntityFlags)EFL.SettingUpBones);
 			}
 
 			if ((oldReadableBones & Studio.BONE_USED_BY_ATTACHMENT) == 0 && (boneMask & Studio.BONE_USED_BY_ATTACHMENT) != 0) {

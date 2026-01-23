@@ -29,6 +29,27 @@ public partial class
 #endif
 	}
 
+	public virtual bool Weapon_Switch(BaseCombatWeapon? weapon, int viewmodelindex = 0){
+		if (weapon == null)
+			return false;
+
+		if (ActiveWeapon.Get() == weapon) {
+			if (!ActiveWeapon.Get()!.IsWeaponVisible() || ActiveWeapon.Get()!.IsHolstered())
+				return ActiveWeapon.Get()!.Deploy();
+			return false;
+		}
+
+		if (!Weapon_CanSwitchTo(weapon)) 
+			return false;
+
+		if (ActiveWeapon.Get() != null) 
+			if (!ActiveWeapon.Get()!.Holster(weapon))
+				return false;
+
+		ActiveWeapon.Set(weapon);
+		return weapon.Deploy();
+	}
+
 	public virtual bool Weapon_CanSwitchTo(BaseCombatWeapon weapon) {
 		if (IsPlayer()) {
 			BasePlayer player = (BasePlayer)this!;

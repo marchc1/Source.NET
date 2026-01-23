@@ -618,7 +618,7 @@ public static class MathLib
 		qt[3] = p1[3];
 	}
 
-	public static void VectorMA(in Vector3 start, float scale, in Vector3 direction, ref Vector3 dest) {
+	public static void VectorMA(in Vector3 start, float scale, in Vector3 direction, out Vector3 dest) {
 		dest.X = start.X + direction.X * scale;
 		dest.Y = start.Y + direction.Y * scale;
 		dest.Z = start.Z + direction.Z * scale;
@@ -1035,9 +1035,9 @@ public static class MathLib
 		float b4 = tCube - tSqr;
 
 		VectorScale(p1, b1, out output);
-		VectorMA(output, b2, p2, ref output);
-		VectorMA(output, b3, d1, ref output);
-		VectorMA(output, b4, d2, ref output);
+		VectorMA(output, b2, p2, out output);
+		VectorMA(output, b3, d1, out output);
+		VectorMA(output, b4, d2, out output);
 	}
 	public static void Hermite_Spline(in Vector3 p0, in Vector3 p1, in Vector3 p2, float t, out Vector3 output) {
 		Vector3 e10 = p1 - p0, e21 = p2 - p1;
@@ -1265,5 +1265,20 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bool VectorCompare(in Vector3 v1, in Vector3 v2) {
 		return v1 == v2;
+	}
+
+
+
+	public static void VectorIRotate(ReadOnlySpan<float> in1, in Matrix3x4 in2, Span<float> @out) {
+		@out[0] = in1[0] * in2[0][0] + in1[1] * in2[1][0] + in1[2] * in2[2][0];
+		@out[1] = in1[0] * in2[0][1] + in1[1] * in2[1][1] + in1[2] * in2[2][1];
+		@out[2] = in1[0] * in2[0][2] + in1[1] * in2[1][2] + in1[2] * in2[2][2];
+	}
+
+	public static unsafe void VectorIRotate(in Vector3 relVelocity, in Matrix3x4 in2, out Vector3 @out) {
+		fixed(Vector3* pin1 = &relVelocity)
+		fixed(Vector3* pout = &@out){
+			VectorIRotate(new ReadOnlySpan<float>(pin1, 3), in in2, new Span<float>(pout, 3));
+		}
 	}
 }

@@ -50,6 +50,7 @@ public partial class
 	BasePlayer
 #endif
 {
+	public TimeUnit_t GetTimeBase() => TickBase * TICK_INTERVAL;
 	public virtual void CalcView(ref Vector3 eyeOrigin, ref QAngle eyeAngles, ref float zNear, ref float zFar, ref float fov) {
 		CalcPlayerView(ref eyeOrigin, ref eyeAngles, ref fov); // << TODO: There is a lot more logic here for observers, vehicles, etc!
 	}

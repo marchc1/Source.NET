@@ -5,6 +5,7 @@ using Source.Common;
 using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Mathematics;
+using Source.Common.Networking;
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -281,7 +282,7 @@ public class Prediction : IPrediction
 	private bool PerformPrediction(bool receivedNewWorldUpdate, BasePlayer localPlayer, int incomingAcknowledged, int outgoingCommand) {
 		Assert(C_BaseEntity.IsAbsQueriesValid());
 		Assert(C_BaseEntity.IsAbsRecomputationsEnabled());
-		/*
+
 		bInPrediction = true;
 
 		// undo interpolation changes for entities we stand on
@@ -320,7 +321,7 @@ public class Prediction : IPrediction
 			// Set globals appropriately
 			TimeUnit_t curtime = (localPlayer.TickBase) * TICK_INTERVAL;
 
-			RunSimulation(current_command, curtime, cmd, localPlayer);
+			RunSimulation(current_command, curtime, ref cmd, localPlayer);
 
 			gpGlobals.CurTime = curtime;
 			gpGlobals.FrameTime = EnginePaused ? 0 : TICK_INTERVAL;
@@ -352,10 +353,256 @@ public class Prediction : IPrediction
 		bInPrediction = false;
 
 		// Somehow we looped past the end of the list (severe lag), don't predict at all
-		if (i > MULTIPLAYER_BACKUP) 
+		if (i > MULTIPLAYER_BACKUP)
 			return false;
-		*/
+
 		return true;
+	}
+
+	private void RunSimulation(int current_command, double curtime, ref UserCmd cmd, C_BasePlayer localPlayer) {
+		ref C_CommandContext ctx = ref localPlayer.GetCommandContext();
+		Assert(ctx);
+
+		ctx.NeedsProcessing = true;
+		ctx.Cmd = cmd;
+		ctx.CommandNumber = current_command;
+
+		IPredictionSystem.SuppressEvents(!IsFirstTimePredicted());
+
+		int i;
+
+		// Make sure simulation occurs at most once per entity per usercmd
+		for (i = 0; i < predictables.GetPredictableCount(); i++) {
+			C_BaseEntity? entity = predictables.GetPredictable(i);
+			entity?.SimulationTick = -1;
+		}
+
+		// Don't used cached numpredictables since entities can be created mid-prediction by the player
+		for (i = 0; i < predictables.GetPredictableCount(); i++) {
+			// Always reset
+			gpGlobals.CurTime = curtime;
+			gpGlobals.FrameTime = EnginePaused ? 0 : TICK_INTERVAL;
+
+			C_BaseEntity? entity = predictables.GetPredictable(i);
+
+			if (entity == null)
+				continue;
+
+			bool islocal = (localPlayer == entity) ? true : false;
+
+			// Local player simulates first, if this assert fires then the predictables list isn't sorted 
+			//  correctly (or we started predicting C_World???)
+			if (islocal) {
+				Assert(i == 0);
+			}
+
+			// Player can't be this so cull other entities here
+			if ((entity.GetFlags() & EntityFlags.StaticProp) != 0) 
+				continue;
+			
+			// Player is not actually in the m_SimulatedByThisPlayer list, of course
+			if (entity.IsPlayerSimulated()) 
+				continue;
+
+			if (AddDataChangeEvent(entity, DataUpdateType.DataTableChanged, entity.DataChangeEventRef)) 
+				entity.OnPreDataChanged(DataUpdateType.DataTableChanged);
+
+			// Certain entities can be created locally and if so created, should be 
+			//  simulated until a network update arrives
+			if (entity.IsClientCreated()) {
+				// Only simulate these on new usercmds
+				if (!IsFirstTimePredicted())
+					continue;
+
+				entity.PhysicsSimulate();
+			}
+			else {
+				entity.PhysicsSimulate();
+			}
+
+			// Don't update last networked data here!!!
+			entity.OnLatchInterpolatedVariables(LatchFlags.LatchSimulationVar | LatchFlags.LatchAnimationVar | LatchFlags.InteroplateOmitUpdateLastNetworked);
+		}
+
+		// Always reset after running command
+		IPredictionSystem.SuppressEvents(false);
+	}
+
+	private bool AddDataChangeEvent(IClientNetworkable ent, DataUpdateType updateType, ReusableBox<ulong> storedEvent) {
+		Assert(ent);
+		// Make sure we don't already have an event queued for this guy.
+		if (storedEvent.Struct >= 0) {
+			Assert(g_GetDataChangedEvent(storedEvent.Struct).Entity == ent);
+
+			// DATA_UPDATE_CREATED always overrides DATA_UPDATE_CHANGED.
+			if (updateType == DataUpdateType.Created)
+				g_GetDataChangedEvent(storedEvent.Struct).UpdateType = updateType;
+
+			return false;
+		}
+		else {
+			storedEvent.Struct = g_AddDataChangedEvent(new DataChangedEvent(ent, updateType, storedEvent));
+			return true;
+		}
+	}
+
+	private void StorePredictionResults(int predicted_frame) {
+		// todo
+	}
+
+	private void Untouch() {
+		int numpredictables = predictables.GetPredictableCount();
+
+		// Loop through all entities again, checking their untouch if flagged to do so
+		int i;
+		for (i = 0; i < numpredictables; i++) {
+			C_BaseEntity? entity = predictables.GetPredictable(i);
+			if (entity == null)
+				continue;
+
+			if (!entity.GetCheckUntouch())
+				continue;
+
+			entity.PhysicsCheckForEntityUntouch();
+		}
+	}
+
+	static readonly ConVar cl_pred_optimize = new("cl_pred_optimize", "2", 0, "Optimize for not copying data if didn't receive a network update (1), and also for not repredicting if there were no errors (2).");
+
+	private int ComputeFirstCommandToExecute(bool receivedNewWorldUpdate, int incomingAcknowledged, int outgoingCommand) {
+		int destination_slot = 1;
+#if !NO_ENTITY_PREDICTION
+		int skipahead = 0;
+
+		// If we didn't receive a new update ( or we received an update that didn't ack any new CUserCmds -- 
+		//  so for the player it should be just like receiving no update ), just jump right up to the very 
+		//  last command we created for this very frame since we probably wouldn't have had any errors without 
+		//  being notified by the server of such a case.
+		// NOTE:  received_new_world_update only gets set to false if cl_pred_optimize >= 1
+		if (!receivedNewWorldUpdate || 0 == ServerCommandsAcknowledged) {
+			// this is where we would normally start
+			int start = incomingAcknowledged + 1;
+			// outgoing_command is where we really want to start
+			skipahead = Math.Max(0, (outgoingCommand - start));
+			// Don't start past the last predicted command, though, or we'll get prediction errors
+			skipahead = Math.Min(skipahead, CommandsPredicted);
+
+			// Always restore since otherwise we might start prediction using an "interpolated" value instead of a purely predicted value
+			RestoreEntityToPredictedFrame(skipahead - 1);
+
+			//Msg( "%i/%i no world, skip to %i restore from slot %i\n", 
+			//	gpGlobals->framecount,
+			//	gpGlobals->tickcount,
+			//	skipahead,
+			//	skipahead - 1 );
+		}
+		else {
+			int nPredictedLimit = CommandsPredicted;
+			// Otherwise, there is a second optimization, wherein if we did receive an update, but no
+			//  values differed (or were outside their epsilon) and the server actually acknowledged running
+			//  one or more commands, then we can revert the entity to the predicted state from last frame, 
+			//  shift the # of commands worth of intermediate state off of front the intermediate state array, and
+			//  only predict the usercmd from the latest render frame.
+			if (cl_pred_optimize.GetInt() >= 2 &&
+				0 == PreviousAckHadErrors &&
+				CommandsPredicted > 0 &&
+				ServerCommandsAcknowledged <= nPredictedLimit) {
+				// Copy all of the previously predicted data back into entity so we can skip repredicting it
+				// This is the final slot that we previously predicted
+				RestoreEntityToPredictedFrame(CommandsPredicted - 1);
+
+				// Shift intermediate state blocks down by # of commands ack'd
+				ShiftIntermediateDataForward(ServerCommandsAcknowledged, CommandsPredicted);
+
+				// Only predict new commands (note, this should be the same number that we could compute
+				//  above based on outgoing_command - incoming_acknowledged - 1
+				skipahead = (CommandsPredicted - ServerCommandsAcknowledged);
+
+				//Msg( "%i/%i optimize2, skip to %i restore from slot %i\n", 
+				//	gpGlobals->framecount,
+				//	gpGlobals->tickcount,
+				//	skipahead,
+				//	m_nCommandsPredicted - 1 );
+			}
+			else {
+				if (0 != PreviousAckHadErrors) {
+					C_BasePlayer? localPlayer = C_BasePlayer.GetLocalPlayer();
+
+					// If an entity gets a prediction error, then we want to clear out its interpolated variables
+					// so we don't mix different samples at the same timestamps. We subtract 1 tick interval here because
+					// if we don't, we'll have 3 interpolation entries with the same timestamp as this predicted
+					// frame, so we won't be able to interpolate (which leads to jerky movement in the player when
+					// ANY entity like your gun gets a prediction error).
+					TimeUnit_t prev = gpGlobals.CurTime;
+					gpGlobals.CurTime = localPlayer!.GetTimeBase() - TICK_INTERVAL;
+
+					for (int i = 0; i < predictables.GetPredictableCount(); i++) {
+						C_BaseEntity? entity = predictables.GetPredictable(i);
+						entity?.ResetLatched();
+					}
+
+					gpGlobals.CurTime = prev;
+				}
+			}
+		}
+
+		destination_slot += skipahead;
+
+		// Always reset these values now that we handled them
+		CommandsPredicted = 0;
+		PreviousAckHadErrors = 0;
+		ServerCommandsAcknowledged = 0;
+#endif
+		return destination_slot;
+	}
+
+	private void ShiftIntermediateDataForward(int slots_to_remove, int number_of_commands_run) {
+		C_BasePlayer? current = C_BasePlayer.GetLocalPlayer();
+		// No local player object?
+		if (current == null)
+			return;
+
+		// Don't screw up memory of current player from history buffers if not filling in history buffers
+		//  during prediction!!!
+		if (0 == cl_predict.GetInt())
+			return;
+
+		int c = predictables.GetPredictableCount();
+		int i;
+		for (i = 0; i < c; i++) {
+			C_BaseEntity? ent = predictables.GetPredictable(i);
+			if (ent == null)
+				continue;
+
+			if (!ent.GetPredictable())
+				continue;
+
+			ent.ShiftIntermediateDataForward(slots_to_remove, number_of_commands_run);
+		}
+	}
+	private void RestoreEntityToPredictedFrame(int predicted_frame) {
+		C_BasePlayer? current = C_BasePlayer.GetLocalPlayer();
+		// No local player object?
+		if (current == null)
+			return;
+
+		// Don't screw up memory of current player from history buffers if not filling in history buffers
+		//  during prediction!!!
+		if (0 == cl_predict.GetInt())
+			return;
+
+		int c = predictables.GetPredictableCount();
+		int i;
+		for (i = 0; i < c; i++) {
+			C_BaseEntity? ent = predictables.GetPredictable(i);
+			if (ent == null)
+				continue;
+
+			if (!ent.GetPredictable())
+				continue;
+
+			ent.RestoreData("RestoreEntityToPredictedFrame", predicted_frame, PredictionCopyType.Everything);
+		}
 	}
 
 	private void RestoreOriginalEntityState() {

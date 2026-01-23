@@ -995,13 +995,13 @@ public ref struct BoneSetup
 					MathLib.QuaternionMA(q1[i], s2, q2[i], ref q1[i]);
 
 					// FIXME: are these correct?
-					MathLib.VectorMA(pos1[i], s2, pos2[i], ref pos1[i]);
+					MathLib.VectorMA(pos1[i], s2, pos2[i], out pos1[i]);
 				}
 				else {
 					MathLib.QuaternionSM(s2, q2[i], q1[i], ref q1[i]);
 
 					// FIXME: are these correct?
-					MathLib.VectorMA(pos1[i], s2, pos2[i], ref pos1[i]);
+					MathLib.VectorMA(pos1[i], s2, pos2[i], out pos1[i]);
 				}
 			}
 			return;

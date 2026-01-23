@@ -13,6 +13,7 @@ Server
 
 
 
+
 #if CLIENT_DLL
 global using SharedBaseEntity = Game.Client.C_BaseEntity;
 using Source.Common;
@@ -138,10 +139,10 @@ public partial class
 	protected bool b_IsPlayerSimulated;
 	public bool IsPlayerSimulated() => b_IsPlayerSimulated;
 
-	public void AddFlag(int flag) => flags |= flag;
-	public void RemoveFlag(int flag) => flags &= ~flag;
-	public void ClearFlags(int flag) => flags= 0;
-	public void ToggleFlag(int flag) => flags ^= flag;
+	public void AddFlag(EntityFlags flag) => flags |= (int)flag;
+	public void RemoveFlag(EntityFlags flag) => flags &= (int)~flag;
+	public void ClearFlags() => flags = 0;
+	public void ToggleFlag(EntityFlags flag) => flags ^= (int)flag;
 
 
 	public virtual ref readonly Vector3 WorldSpaceCenter() {
@@ -180,6 +181,15 @@ public partial class
 #endif
 		}
 	}
+
+
+	public bool IsEffectActive(EntityEffects fx) {
+		return ((EntityEffects)Effects & fx) != 0;
+	}
+
+	public EntityFlags GetFlags() => (EntityFlags)flags;
+	public MoveType GetMoveType() => (MoveType)MoveType;
+
 }
 
 #endif

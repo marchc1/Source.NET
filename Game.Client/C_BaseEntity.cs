@@ -221,7 +221,7 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
-	private void ResetLatched() {
+	public void ResetLatched() {
 		if (IsClientCreated())
 			return;
 
@@ -837,6 +837,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	bool PredictionEligible;
+	public long SimulationTick;
 	public bool GetPredictionEligible() => PredictionEligible;
 	public void SetPredictionEligible(bool canpredict) => PredictionEligible = canpredict;
 
@@ -846,10 +847,6 @@ public partial class C_BaseEntity : IClientEntity
 			return false;
 
 		return Model != null && !IsEffectActive(EntityEffects.NoDraw) && Index != 0;
-	}
-
-	public bool IsEffectActive(EntityEffects fx) {
-		return ((EntityEffects)Effects & fx) != 0;
 	}
 
 	public virtual bool Init(int entNum, int serialNum) {
@@ -1188,7 +1185,7 @@ public partial class C_BaseEntity : IClientEntity
 			UpdateVisibility();
 	}
 
-	protected virtual void OnLatchInterpolatedVariables(LatchFlags flags) {
+	public virtual void OnLatchInterpolatedVariables(LatchFlags flags) {
 		TimeUnit_t changetime = GetLastChangeTime(flags);
 
 		bool updateLastNetworkedValue = (flags & LatchFlags.InteroplateOmitUpdateLastNetworked) == 0;
@@ -1688,7 +1685,17 @@ public partial class C_BaseEntity : IClientEntity
 		return InterpolateResult.Continue;
 	}
 
-	public MoveType GetMoveType() => (MoveType)MoveType;
+	void PhysicsStep() { }
+	void PhysicsPusher() { }
+	void PhysicsNone() { }
+	void PhysicsRigidChild() { }
+	void PhysicsNoclip() { }
+	void PhysicsStepRunTimestep(TimeUnit_t timestep) { }
+	void PhysicsToss() { }
+	void PhysicsCustom() { }
+	void PerformPush(TimeUnit_t movetime) { }
+	void UpdateBaseVelocity() { }
+
 
 	private static bool IsInterpolationEnabled() => s_bInterpolate;
 	public C_BaseEntity? GetMoveParent() => MoveParent.Get();
@@ -1730,6 +1737,34 @@ public partial class C_BaseEntity : IClientEntity
 	public ref readonly Vector3 GetAbsVelocity() {
 		return ref AbsVelocity;
 	}
+	public void SetAbsVelocity(in Vector3 absVelocity){
+		if (AbsVelocity == absVelocity)
+			return;
+
+		// The abs velocity won't be dirty since we're setting it here
+		InvalidatePhysicsRecursive(InvalidatePhysicsBits.VelocityChanged);
+		eflags &= ~EFL.DirtyAbsVelocity;
+
+		AbsVelocity = absVelocity;
+
+		C_BaseEntity? moveParent = GetMoveParent();
+
+		if (moveParent == null) {
+			Velocity = absVelocity;
+			return;
+		}
+
+		// First subtract out the parent's abs velocity to get a relative
+		// velocity measured in world space
+		Vector3 relVelocity;
+		MathLib.VectorSubtract(absVelocity, moveParent.GetAbsVelocity(), out relVelocity);
+
+		// Transform velocity into parent space
+		MathLib.VectorIRotate(relVelocity, moveParent.EntityToWorldTransform(), out Velocity);
+	}
+
+	public ref readonly Vector3 GetBaseVelocity() => ref BaseVelocity;
+	public void SetBaseVelocity(in Vector3 v) => BaseVelocity = v;
 
 	public virtual bool GetAttachment(int number, out Vector3 origin) {
 		origin = GetAbsOrigin();
@@ -1805,6 +1840,13 @@ public partial class C_BaseEntity : IClientEntity
 	private void Interp_HierarchyUpdateInterpolationAmounts() {
 
 	}
+
+
+	public void ShiftIntermediateDataForward(int slots_to_remove, int number_of_commands_run) {
+		// todo
+	}
+
+	public bool GetCheckUntouch() => IsEFlagSet(EFL.CheckUntouch);
 }
 
 public class VarMapEntry

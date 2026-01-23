@@ -162,6 +162,21 @@ public partial class
 	public virtual int DrawOverriddenViewmodel(BaseViewModel viewmodel, StudioFlags flags) => 0;
 	public virtual void ViewModelDrawn(BaseViewModel viewmodelflags) { }
 
+	public virtual bool IsWeaponVisible() {
+		BaseViewModel? vm = null;
+		BasePlayer? owner = ToBasePlayer(GetOwner());
+		if (owner != null) {
+			vm = owner.GetViewModel(ViewModelIndex);
+			if (vm != null)
+				return (!vm.IsEffectActive(EntityEffects.NoDraw));
+		}
+
+		return false;
+	}
+
+	public virtual bool IsHolstered() {
+		return false;
+	}
 
 	public int GetPrimaryAmmoCount() => PrimaryAmmoCount;
 	public void SetPrimaryAmmoCount(int count) => PrimaryAmmoCount = count;

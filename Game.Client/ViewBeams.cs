@@ -779,19 +779,19 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 			MathLib.VectorScale(color, brightness, out curSeg.Color);
 
 			// UNDONE: Make this a spline instead of just a line?
-			MathLib.VectorMA(source, fraction, delta, ref curSeg.Pos);
+			MathLib.VectorMA(source, fraction, delta, out curSeg.Pos);
 
 			// Distort using noise
 			if (scale != 0) {
 				factor = noise[noiseIndex >> 16] * scale;
 				if ((flags & BeamFlags.SineNoise) != 0) {
 					MathLib.SinCos((float)(fraction * Math.PI * length + freq), out float s, out float c);
-					MathLib.VectorMA(curSeg.Pos, factor * s, CurrentViewUp(), ref curSeg.Pos);
+					MathLib.VectorMA(curSeg.Pos, factor * s, CurrentViewUp(), out curSeg.Pos);
 					// Rotate the noise along the perpendicluar axis a bit to keep the bolt from looking diagonal
-					MathLib.VectorMA(curSeg.Pos, factor * c, CurrentViewRight(), ref curSeg.Pos);
+					MathLib.VectorMA(curSeg.Pos, factor * c, CurrentViewRight(), out curSeg.Pos);
 				}
 				else {
-					MathLib.VectorMA(curSeg.Pos, factor, perp1, ref curSeg.Pos);
+					MathLib.VectorMA(curSeg.Pos, factor, perp1, out curSeg.Pos);
 				}
 			}
 

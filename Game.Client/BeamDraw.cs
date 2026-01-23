@@ -215,29 +215,29 @@ public static class BeamDraw
 
 		meshBuilder.Color4ubv(color);
 		meshBuilder.TexCoord2f(0, 0, 1);
-		MathLib.VectorMA(origin, -height, up, ref point);
-		MathLib.VectorMA(point, -width, right, ref point);
+		MathLib.VectorMA(origin, -height, up, out point);
+		MathLib.VectorMA(point, -width, right, out point);
 		meshBuilder.Position3fv(point);
 		meshBuilder.AdvanceVertex();
 
 		meshBuilder.Color4ubv(color);
 		meshBuilder.TexCoord2f(0, 0, 0);
-		MathLib.VectorMA(origin, height, up, ref point);
-		MathLib.VectorMA(point, -width, right, ref point);
+		MathLib.VectorMA(origin, height, up, out point);
+		MathLib.VectorMA(point, -width, right, out point);
 		meshBuilder.Position3fv(point);
 		meshBuilder.AdvanceVertex();
 
 		meshBuilder.Color4ubv(color);
 		meshBuilder.TexCoord2f(0, 1, 0);
-		MathLib.VectorMA(origin, height, up, ref point);
-		MathLib.VectorMA(point, width, right, ref point);
+		MathLib.VectorMA(origin, height, up, out point);
+		MathLib.VectorMA(point, width, right, out point);
 		meshBuilder.Position3fv(point);
 		meshBuilder.AdvanceVertex();
 
 		meshBuilder.Color4ubv(color);
 		meshBuilder.TexCoord2f(0, 1, 1);
-		MathLib.VectorMA(origin, -height, up, ref point);
-		MathLib.VectorMA(point, width, right, ref point);
+		MathLib.VectorMA(origin, -height, up, out point);
+		MathLib.VectorMA(point, width, right, out point);
 		meshBuilder.Position3fv(point);
 		meshBuilder.AdvanceVertex();
 

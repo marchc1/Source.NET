@@ -13,6 +13,21 @@ using FIELD = Source.FIELD<Game.Client.C_BasePlayer>;
 
 namespace Game.Client;
 
+public struct C_CommandContext
+{
+	public bool NeedsProcessing;
+	public UserCmd Cmd;
+	public int CommandNumber;
+}
+
+public struct C_PredictionError
+{
+	public TimeUnit_t Time;
+	public Vector3 Error;
+}
+
+
+
 [LinkEntityToClass("player")]
 public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 {
@@ -104,6 +119,12 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 	public void FireGameEvent(IGameEvent ev) {
 		throw new NotImplementedException();
+	}
+
+	C_CommandContext CommandContext;
+
+	public ref C_CommandContext GetCommandContext(){
+		return ref CommandContext;
 	}
 
 	public override void Dispose() {
