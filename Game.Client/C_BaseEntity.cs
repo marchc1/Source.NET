@@ -82,7 +82,7 @@ public class PredictableList : IPredictableList
 		return Predictables.Count;
 	}
 
-	internal void AddToPredictableList(ClientEntityHandle? add) {
+	public void AddToPredictableList(ClientEntityHandle? add) {
 		Assert(add != null);
 
 		if (Predictables.Contains(add))
@@ -979,7 +979,7 @@ public partial class C_BaseEntity : IClientEntity
 			CreationTick = gpGlobals.TickCount;
 		}
 
-		// CheckInitPredictable("PostDataUpdate");
+		CheckInitPredictable("PostDataUpdate");
 		// TODO: Some stuff involving localplayer and ownage
 		// TODO: Partition/leaf stuff
 
@@ -993,11 +993,32 @@ public partial class C_BaseEntity : IClientEntity
 			UpdateVisibility();
 	}
 
+	public void AllocateIntermediateData(){
 
+	}
+
+	public virtual bool PostNetworkDataReceived(int commandsAcknowledged){
+		return false; // todo
+	}
 
 	public void InitPredictable() {
 		Assert(!GetPredictable());
-		// todo
+		SetPredictable(true);
+		// Allocate buffers into which we copy data
+		AllocateIntermediateData();
+		// Add to list of predictables
+		g_Predictables.AddToPredictableList(GetClientHandle());
+		// Copy everything from "this" into the original_state_data
+		//  object.  Don't care about client local stuff, so pull from slot 0 which
+
+		//  should be empty anyway...
+		PostNetworkDataReceived(0);
+
+		// Copy original data into all prediction slots, so we don't get an error saying we "mispredicted" any
+		//  values which are still at their initial values
+		// for (int i = 0; i < MULTIPLAYER_BACKUP; i++) {
+			// SaveData("InitPredictable", i, PC_EVERYTHING);
+		// }
 	}
 
 	public bool IsIntermediateDataAllocated() {
@@ -1211,6 +1232,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public virtual void OnDataChanged(DataUpdateType updateType) {
+		CheckInitPredictable("OnDataChanged");
 		CreateShadow();
 
 		if (updateType == DataUpdateType.Created)
