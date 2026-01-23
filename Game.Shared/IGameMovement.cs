@@ -22,8 +22,8 @@ public class MoveData
 	public int ImpulseCommand;  // Impulse command issued.
 	public QAngle ViewAngles; // Command view angles (local space)
 	public QAngle AbsViewAngles;  // Command view angles (world space)
-	public int Buttons;         // Attack buttons.
-	public int OldButtons;      // From host_client->oldbuttons;
+	public InButtons Buttons;         // Attack buttons.
+	public InButtons OldButtons;      // From host_client->oldbuttons;
 	public float ForwardMove;
 	public float OldForwardMove;
 	public float SideMove;

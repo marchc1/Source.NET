@@ -355,6 +355,11 @@ public static class SharedDefs
 	public const int MAX_ITEMS = 5;
 	public const int WEAPON_NOCLIP = -1;
 
+	public const float TIME_TO_DUCK = 0.4f;
+	public const float TIME_TO_UNDUCK = 0.2f;
+	public const float TIME_TO_UNDUCK_MS = 200.0f;
+
+
 	public const int NUM_AUDIO_LOCAL_SOUNDS = 8;
 
 	public const int MAX_SUIT_DEVICES = 3;

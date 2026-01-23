@@ -225,7 +225,7 @@ public class Prediction : IPrediction
 		player.RefEHandle.Index = move.PlayerHandle.Index;
 		player.Velocity = move.Velocity;
 		player.NetworkOrigin = move.GetAbsOrigin();
-		player.Local.OldButtons = move.Buttons;
+		player.Local.OldButtons = (int)move.Buttons;
 
 		// NOTE: Don't copy this.  the movement code modifies its local copy but is not expecting to be authoritative
 		//player->m_flMaxspeed = move->m_flClientMaxSpeed;
@@ -248,14 +248,14 @@ public class Prediction : IPrediction
 		move.Velocity = player.GetAbsVelocity();
 		move.SetAbsOrigin(player.GetNetworkOrigin());
 		move.OldAngles = move.Angles;
-		move.Buttons = player.Local.OldButtons;
+		move.Buttons = (InButtons)player.Local.OldButtons;
 		move.OldForwardMove = player.Local.OldForwardMove;
 		move.ClientMaxSpeed = player.Maxspeed;
 
 		move.Angles = ucmd.ViewAngles;
 		move.ViewAngles = ucmd.ViewAngles;
 		move.ImpulseCommand = ucmd.Impulse;
-		move.Buttons = (int)ucmd.Buttons;
+		move.Buttons = ucmd.Buttons;
 
 		C_BaseEntity? moveParent = player.GetMoveParent();
 		if (moveParent == null)

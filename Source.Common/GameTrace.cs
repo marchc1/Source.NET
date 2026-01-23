@@ -10,6 +10,8 @@ namespace Source.Common;
 public struct GameTrace
 {
 	public static ref GameTrace NULL => ref Unsafe.NullRef<GameTrace>();
+
+	public float Fraction;
 }
 
 public static class GameTraceExts{

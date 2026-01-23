@@ -5,6 +5,7 @@ using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
+using Source.Common.Physics;
 using Source.Engine;
 
 using System.Diagnostics;
@@ -66,7 +67,7 @@ public class GameMovement : IGameMovement
 
 		FinishMove();
 
-		// CheckV( player->CurrentCommandNumber(), "EndPos", mv->GetAbsOrigin() );
+		// CheckV( Player.CurrentCommandNumber(), "EndPos", mv->GetAbsOrigin() );
 
 		//This is probably not needed, but just in case.
 		gpGlobals.FrameTime = storeFrametime;
@@ -116,7 +117,7 @@ public class GameMovement : IGameMovement
 			}
 		}
 
-		// Now that we are "unstuck", see where we are (player->GetWaterLevel() and type, player->GetGroundEntity()).
+		// Now that we are "unstuck", see where we are (Player.GetWaterLevel() and type, Player.GetGroundEntity()).
 		if (Player.GetMoveType() != MoveType.Walk ||
 			mv.GameCodeMovedPlayer ||
 			!sv_optimizedmovement.GetBool()) {
@@ -347,7 +348,79 @@ public class GameMovement : IGameMovement
 	protected virtual bool CheckWater() { throw new NotImplementedException(); }
 
 	// Determine if player is in water, on ground, etc.
-	protected virtual void CategorizePosition() { throw new NotImplementedException(); }
+	protected virtual void CategorizePosition() {
+		Vector3 point = default;
+		Trace pm;
+
+		// Reset this each time we-recategorize, otherwise we have bogus friction when we jump into water and plunge downward really quickly
+		Player.SurfaceFriction = 1.0f;
+
+		// if the player hull point one unit down is solid, the player
+		// is on ground
+
+		// see if standing on something solid	
+
+		// Doing this before we move may introduce a potential latency in water detection, but
+		// doing it after can get us stuck on the bottom in water if the amount we move up
+		// is less than the 1 pixel 'threshold' we're about to snap to.	Also, we'll call
+		// this several times per frame, so we really need to avoid sticking to the bottom of
+		// water on each call, and the converse case will correct itself if called twice.
+		CheckWater();
+
+		// observers don't have a ground entity
+		if (Player.IsObserver())
+			return;
+
+		float flOffset = 2.0f;
+
+		point[0] = mv!.GetAbsOrigin()[0];
+		point[1] = mv!.GetAbsOrigin()[1];
+		point[2] = mv!.GetAbsOrigin()[2] - flOffset;
+
+		Vector3 bumpOrigin = mv!.GetAbsOrigin();
+
+		// Shooting up really fast.  Definitely not on ground.
+		// On ladder moving up, so not on ground either
+		// NOTE: 145 is a jump.
+		const float NON_JUMP_VELOCITY = 140.0f;
+
+		float zvel = mv.Velocity[2];
+		bool bMovingUp = zvel > 0.0f;
+		bool bMovingUpRapidly = zvel > NON_JUMP_VELOCITY;
+		float flGroundEntityVelZ = 0.0f;
+		if (bMovingUpRapidly) {
+			// Tracker 73219, 75878:  ywb 8/2/07
+			// After save/restore (and maybe at other times), we can get a case where we were saved on a lift and 
+			//  after restore we'll have a high local velocity due to the lift making our abs velocity appear high.  
+			// We need to account for standing on a moving ground object in that case in order to determine if we really 
+			//  are moving away from the object we are standing on at too rapid a speed.  Note that CheckJump already sets
+			//  ground entity to NULL, so this wouldn't have any effect unless we are moving up rapidly not from the jump button.
+			SharedBaseEntity? ground = Player.GetGroundEntity();
+			if (ground != null) {
+				flGroundEntityVelZ = ground.GetAbsVelocity().Z;
+				bMovingUpRapidly = (zvel - flGroundEntityVelZ) > NON_JUMP_VELOCITY;
+			}
+		}
+
+		// Was on ground, but now suddenly am not
+		if (bMovingUpRapidly ||
+			(bMovingUp && Player.GetMoveType() == MoveType.Ladder)) {
+			SetGroundEntity(ref Trace.NULL);
+		}
+		else {
+			// Try and move down.
+			// TryTouchGround(bumpOrigin, point, GetPlayerMins(), GetPlayerMaxs(), Mask.PlayerSolid, CollisionGroup.PlayerMovement, out pm);
+			// todo
+
+#if !CLIENT_DLL
+
+			//Adrian: vehicle code handles for us.
+			if (Player.IsInAVehicle() == false) {
+				// todo
+			}
+#endif
+		}
+	}
 
 	protected virtual void CheckParameters() {
 		ArgumentNullException.ThrowIfNull(mv);
@@ -439,7 +512,33 @@ public class GameMovement : IGameMovement
 			mv.Angles[YAW] -= 360.0f;
 	}
 
-	protected virtual void ReduceTimers() { throw new NotImplementedException(); }
+	protected virtual void ReduceTimers() {
+		float frame_msec = 1000.0f * (float)gpGlobals.FrameTime;
+
+		if (Player.Local.DuckTime > 0) {
+			Player.Local.DuckTime -= frame_msec;
+			if (Player.Local.DuckTime < 0) {
+				Player.Local.DuckTime = 0;
+			}
+		}
+		if (Player.Local.DuckJumpTime > 0) {
+			Player.Local.DuckJumpTime -= frame_msec;
+			if (Player.Local.DuckJumpTime < 0) {
+				Player.Local.DuckJumpTime = 0;
+			}
+		}
+		if (Player.Local.JumpTime > 0) {
+			Player.Local.JumpTime -= frame_msec;
+			if (Player.Local.JumpTime < 0) {
+				Player.Local.JumpTime = 0;
+			}
+		}
+		if (Player.SwimSoundTime > 0) {
+			Player.SwimSoundTime -= frame_msec;
+			if (Player.SwimSoundTime < 0) 
+				Player.SwimSoundTime = 0;
+		}
+	}
 
 	protected virtual void CheckFalling() { throw new NotImplementedException(); }
 
@@ -454,14 +553,196 @@ public class GameMovement : IGameMovement
 	}
 	protected int GetPointContentsCached(in Vector3 point, int slot) { throw new NotImplementedException(); }
 
+
+	public const float GAMEMOVEMENT_DUCK_TIME = 1000.0f;    // ms
+	public const float GAMEMOVEMENT_JUMP_TIME = 510.0f; // ms approx - based on the 21 unit height jump
+	public const float GAMEMOVEMENT_JUMP_HEIGHT = 21.0f;  // units
+	public const float GAMEMOVEMENT_TIME_TO_UNDUCK = (TIME_TO_UNDUCK * 1000.0f);     // ms
+	public const float GAMEMOVEMENT_TIME_TO_UNDUCK_INV = (GAMEMOVEMENT_DUCK_TIME - GAMEMOVEMENT_TIME_TO_UNDUCK);
+
+
 	// Ducking
-	protected virtual void Duck() { throw new NotImplementedException(); }
+	protected virtual void Duck() {
+		InButtons buttonsChanged = (mv!.OldButtons ^ mv.Buttons);  // These buttons have changed this frame
+		InButtons buttonsPressed = buttonsChanged & mv.Buttons;           // The changed ones still down are "pressed"
+		InButtons buttonsReleased = buttonsChanged & mv.OldButtons;       // The changed ones which were previously down are "released"
+
+		// Check to see if we are in the air.
+		bool bInAir = (Player.GetGroundEntity() == null);
+		bool bInDuck = (Player.GetFlags() & EntityFlags.Ducking) != 0;
+		bool bDuckJump = (Player.Local.JumpTime > 0.0f);
+		bool bDuckJumpTime = (Player.Local.DuckJumpTime > 0.0f);
+
+		if ((mv.Buttons & InButtons.Duck) != 0) 
+			mv.OldButtons |= InButtons.Duck;
+		else 
+			mv.OldButtons &= ~InButtons.Duck;
+		
+		// Handle death.
+		if (IsDead())
+			return;
+
+		// Slow down ducked players.
+		HandleDuckingSpeedCrop();
+
+		// If the player is holding down the duck button, the player is in duck transition, ducking, or duck-jumping.
+		if ((mv.Buttons & InButtons.Duck) != 0 || Player.Local.Ducking || bInDuck || bDuckJump) {
+			// DUCK
+			if ((mv.Buttons & InButtons.Duck) != 0 || bDuckJump) {
+				// Have the duck button pressed, but the player currently isn't in the duck position.
+				if ((buttonsPressed & InButtons.Duck) != 0 && !bInDuck && !bDuckJump && !bDuckJumpTime) {
+					Player.Local.DuckTime = GAMEMOVEMENT_DUCK_TIME;
+					Player.Local.Ducking = true;
+				}
+
+				// The player is in duck transition and not duck-jumping.
+				if (Player.Local.Ducking && !bDuckJump && !bDuckJumpTime) {
+					float flDuckMilliseconds = Math.Max(0.0f, GAMEMOVEMENT_DUCK_TIME - (float)Player.Local.DuckTime);
+					float flDuckSeconds = flDuckMilliseconds * 0.001f;
+
+					// Finish in duck transition when transition time is over, in "duck", in air.
+					if ((flDuckSeconds > TIME_TO_DUCK) || bInDuck || bInAir) {
+						FinishDuck();
+					}
+					else {
+						// Calc parametric time
+						float flDuckFraction = MathLib.SimpleSpline(flDuckSeconds / TIME_TO_DUCK);
+						SetDuckedEyeOffset(flDuckFraction);
+					}
+				}
+
+				if (bDuckJump) {
+					// Make the bounding box small immediately.
+					if (!bInDuck) {
+						StartUnDuckJump();
+					}
+					else {
+						// Check for a crouch override.
+						if ((mv.Buttons & InButtons.Duck) == 0) {
+							Trace trace = default;
+							if (CanUnDuckJump(ref trace)) {
+								FinishUnDuckJump(ref trace);
+								Player.Local.DuckJumpTime = (GAMEMOVEMENT_TIME_TO_UNDUCK * (1.0f - trace.Fraction)) + GAMEMOVEMENT_TIME_TO_UNDUCK_INV;
+							}
+						}
+					}
+				}
+			}
+			// UNDUCK (or attempt to...)
+			else {
+				if (Player.Local.InDuckJump) {
+					// Check for a crouch override.
+					if ((mv.Buttons & InButtons.Duck) == 0) {
+						Trace trace = default;
+						if (CanUnDuckJump(ref trace)) {
+							FinishUnDuckJump(ref trace);
+
+							if (trace.Fraction < 1.0f) 
+								Player.Local.DuckJumpTime = (GAMEMOVEMENT_TIME_TO_UNDUCK * (1.0f - trace.Fraction)) + GAMEMOVEMENT_TIME_TO_UNDUCK_INV;
+						}
+					}
+					else {
+						Player.Local.InDuckJump = false;
+					}
+				}
+
+				if (bDuckJumpTime)
+					return;
+
+				// Try to unduck unless automovement is not allowed
+				// NOTE: When not onground, you can always unduck
+				if (Player.Local.AllowAutoMovement || bInAir || Player.Local.Ducking) {
+					// We released the duck button, we aren't in "duck" and we are not in the air - start unduck transition.
+					if ((buttonsReleased & InButtons.Duck) != 0) {
+						if (bInDuck && !bDuckJump) {
+							Player.Local.DuckTime = GAMEMOVEMENT_DUCK_TIME;
+						}
+						else if (Player.Local.Ducking && !Player.Local.Ducked) {
+							// Invert time if release before fully ducked!!!
+							float unduckMilliseconds = 1000.0f * TIME_TO_UNDUCK;
+							float duckMilliseconds = 1000.0f * TIME_TO_DUCK;
+							float elapsedMilliseconds = (float)(GAMEMOVEMENT_DUCK_TIME - Player.Local.DuckTime);
+
+							float fracDucked = elapsedMilliseconds / duckMilliseconds;
+							float remainingUnduckMilliseconds = fracDucked * unduckMilliseconds;
+
+							Player.Local.DuckTime = GAMEMOVEMENT_DUCK_TIME - unduckMilliseconds + remainingUnduckMilliseconds;
+						}
+					}
+
+
+					// Check to see if we are capable of unducking.
+					if (CanUnduck()) {
+						// or unducking
+						if ((Player.Local.Ducking || Player.Local.Ducked)) {
+							float flDuckMilliseconds = Math.Max(0.0f, GAMEMOVEMENT_DUCK_TIME - (float)Player.Local.DuckTime);
+							float flDuckSeconds = flDuckMilliseconds * 0.001f;
+
+							// Finish ducking immediately if duck time is over or not on ground
+							if (flDuckSeconds > TIME_TO_UNDUCK || (bInAir && !bDuckJump)) {
+								FinishUnDuck();
+							}
+							else {
+								// Calc parametric time
+								float flDuckFraction = MathLib.SimpleSpline(1.0f - (flDuckSeconds / TIME_TO_UNDUCK));
+								SetDuckedEyeOffset(flDuckFraction);
+								Player.Local.Ducking = true;
+							}
+						}
+					}
+					else {
+						// Still under something where we can't unduck, so make sure we reset this timer so
+						//  that we'll unduck once we exit the tunnel, etc.
+						if (Player.Local.DuckTime != GAMEMOVEMENT_DUCK_TIME) {
+							SetDuckedEyeOffset(1.0f);
+							Player.Local.DuckTime = GAMEMOVEMENT_DUCK_TIME;
+							Player.Local.Ducked = true;
+							Player.Local.Ducking = false;
+							Player.AddFlag(EntityFlags.Ducking);
+						}
+					}
+				}
+			}
+		}
+		// HACK: (jimd 5/25/2006) we have a reoccuring bug (#50063 in Tracker) where the player's
+		// view height gets left at the ducked height while the player is standing, but we haven't
+		// been  able to repro it to find the cause.  It may be fixed now due to a change I'm
+		// also making in UpdateDuckJumpEyeOffset but just in case, this code will sense the 
+		// problem and restore the eye to the proper position.  It doesn't smooth the transition,
+		// but it is preferable to leaving the player's view too low.
+		//
+		// If the player is still alive and not an observer, check to make sure that
+		// his view height is at the standing height.
+		else if (!IsDead() && !Player.IsObserver() && !Player.IsInAVehicle()) {
+			if ((Player.Local.DuckJumpTime == 0.0f) && (MathF.Abs(Player.GetViewOffset().Z - GetPlayerViewOffset(false).Z) > 0.1)) {
+				// we should rarely ever get here, so assert so a coder knows when it happens
+				Assert(false);
+				DevMsg(1, "Restoring player view height\n");
+
+				// set the eye height to the non-ducked height
+				SetDuckedEyeOffset(0.0f);
+			}
+		}
+	}
 	protected virtual void HandleDuckingSpeedCrop() { throw new NotImplementedException(); }
 	protected virtual void FinishUnDuck() { throw new NotImplementedException(); }
 	protected virtual void FinishDuck() { throw new NotImplementedException(); }
 	protected virtual bool CanUnduck() { throw new NotImplementedException(); }
-	protected void UpdateDuckJumpEyeOffset() { throw new NotImplementedException(); }
-	protected bool CanUnDuckJump(ref Trace trace) { throw new NotImplementedException(); }
+	protected void UpdateDuckJumpEyeOffset() {
+		if (Player.Local.DuckJumpTime != 0.0f) {
+			float flDuckMilliseconds = Math.Max(0.0f, GAMEMOVEMENT_DUCK_TIME - (float)Player.Local.DuckJumpTime);
+			float flDuckSeconds = flDuckMilliseconds / GAMEMOVEMENT_DUCK_TIME;
+			if (flDuckSeconds > TIME_TO_UNDUCK) {
+				Player.Local.DuckJumpTime = 0.0f;
+				SetDuckedEyeOffset(0.0f);
+			}
+			else {
+				float flDuckFraction = MathLib.SimpleSpline(1.0f - (flDuckSeconds / TIME_TO_UNDUCK));
+				SetDuckedEyeOffset(flDuckFraction);
+			}
+		}
+	}
+	protected bool CanUnDuckJump(ref Trace trace) { return false; }
 	protected void StartUnDuckJump() { throw new NotImplementedException(); }
 	protected void FinishUnDuckJump(ref Trace trace) { throw new NotImplementedException(); }
 	protected void SetDuckedEyeOffset(float duckFraction) { throw new NotImplementedException(); }

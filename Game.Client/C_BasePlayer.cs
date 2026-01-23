@@ -52,7 +52,11 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public InButtons AfButtonReleased;
 	public InButtons Buttons;
 	public AnonymousSafeFieldPointer<UserCmd> CurrentCommand;
+	public Vector3 WaterJumpVel;
+	public float WaterJumpTime;
+	public float SwimSoundTime;
 	public int Impulse;
+	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
 
 	public static readonly RecvTable DT_LocalPlayerExclusive = new([
 		RecvPropDataTable(nameof(Local), FIELD.OF(nameof(Local)), PlayerLocalData.DT_Local, 0, DataTableRecvProxy_PointerDataTable),

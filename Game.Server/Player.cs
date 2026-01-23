@@ -116,9 +116,11 @@ public partial class BasePlayer : BaseCombatCharacter
 	public double DeathTime;
 	public double LaggedMovementValue;
 	InlineArray32<char> AnimExtension;
-
+	public Vector3 WaterJumpVel;
+	public float SwimSoundTime;
+	public float WaterJumpTime;
 	public bool IsInAVehicle() => Vehicle.Get() != null;
-
+	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
 	public InButtons AfButtonLast;
 	public InButtons AfButtonPressed;
 	public InButtons AfButtonReleased;

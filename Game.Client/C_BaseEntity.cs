@@ -176,7 +176,25 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public virtual void PreEntityPacketReceived(int commandsAcknowledged) {
-		throw new NotImplementedException();
+		bool copyintermediate = (commandsAcknowledged > 0) ? true : false;
+
+		Assert(GetPredictable());
+		Assert(cl_predict.GetInt() != 0);
+
+		// First copy in any intermediate predicted data for non-networked fields
+		if (copyintermediate) {
+			RestoreData("PreEntityPacketReceived", commandsAcknowledged - 1, PredictionCopyType.NonNetworkedOnly);
+			RestoreData("PreEntityPacketReceived", SLOT_ORIGINALDATA, PredictionCopyType.NetworkedOnly);
+		}
+		else {
+			RestoreData("PreEntityPacketReceived(no commands ack)", SLOT_ORIGINALDATA, PredictionCopyType.Everything);
+		}
+
+		// At this point the entity has original network data restored as of the last time the 
+		// networking was updated, and it has any intermediate predicted values properly copied over
+		// Unpacked and OnDataChanged will fill in any changed, networked fields.
+
+		// That networked data will be copied forward into the starting slot for the next prediction round
 	}
 
 	public static void InterpolateServerEntities() {
