@@ -195,6 +195,7 @@ public partial class BaseEntity : IServerEntity
 	public CollisionProperty Collision = new();
 	public float Friction;
 
+	public virtual IServerVehicle? GetServerVehicle() => null;
 	public ICollideable? GetCollideable() {
 		throw new NotImplementedException();
 	}

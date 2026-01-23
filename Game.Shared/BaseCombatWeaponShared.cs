@@ -169,6 +169,8 @@ public partial class
 	public int GetSecondaryAmmoCount() => SecondaryAmmoCount;
 	public void SetSecondaryAmmoCount(int count) => SecondaryAmmoCount = count;
 
+	public virtual bool ForceWeaponSwitch() => false;
+
 	public bool HasAnyAmmo() {
 		if (!UsesPrimaryAmmo() && !UsesSecondaryAmmo())
 			return true;

@@ -183,6 +183,11 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		return vm;
 	}
 
+	public IClientVehicle? GetVehicle() {
+		C_BaseEntity? vehicleEnt = Vehicle.Get();
+		return vehicleEnt?.GetClientVehicle();
+	}
+	public BaseCombatWeapon? GetLastWeapon() => LastWeapon.Get();
 
 
 	public virtual bool CreateMove(TimeUnit_t inputSampleTime, ref UserCmd cmd) {

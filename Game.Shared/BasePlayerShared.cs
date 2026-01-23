@@ -1,10 +1,10 @@
 ﻿#if CLIENT_DLL || GAME_DLL
+
 #if CLIENT_DLL
 global using static Game.Client.BasePlayerGlobals;
 
 global using BasePlayer = Game.Client.C_BasePlayer;
 
-using Game.Shared;
 
 #else
 global using static Game.Server.BasePlayerGlobals;
@@ -13,6 +13,7 @@ global using BasePlayer = Game.Server.BasePlayer;
 #endif
 using Source.Common.Mathematics;
 using Source;
+using Game.Shared;
 using System.Numerics;
 
 #if CLIENT_DLL
@@ -130,8 +131,29 @@ public partial class
 		throw new NotImplementedException();
 	}
 
-	public void SetAnimationExtension(ReadOnlySpan<char> extension){
+	public void SetAnimationExtension(ReadOnlySpan<char> extension) {
 		strcpy(AnimExtension, extension);
+	}
+
+	public bool UsingStandardWeaponsInVehicle() {
+		Assert(IsInAVehicle());
+#if !CLIENT_DLL
+		IServerVehicle? vehicle = GetVehicle();
+#else
+		IClientVehicle? vehicle = GetVehicle();
+#endif
+
+		if (vehicle == null)
+			return true;
+
+		PassengerRole role = vehicle.GetPassengerRole(this);
+		bool bUsingStandardWeapons = vehicle.IsPassengerUsingStandardWeapons(role);
+
+		// Fall through and check weapons, etc. if we're using them 
+		if (!bUsingStandardWeapons)
+			return false;
+
+		return true;
 	}
 }
 #endif

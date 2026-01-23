@@ -1350,6 +1350,8 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
+	public virtual IClientVehicle? GetClientVehicle() => null;
+
 	public void SetRemovalFlag(bool remove) {
 		if (remove)
 			eflags |= EFL.KillMe;

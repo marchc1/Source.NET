@@ -24,7 +24,6 @@ public partial class C_BaseCombatCharacter : C_BaseFlex
 	public static readonly new ClientClass ClientClass = new ClientClass("BaseCombatCharacter", null, null, DT_BaseCombatCharacter).WithManualClassID(StaticClassIndices.CBaseCombatCharacter);
 
 	public C_BaseCombatWeapon? GetWeapon(int i) => MyWeapons[i].Get();
-	public BaseCombatWeapon? GetLastWeapon() => LastWeapon.Get();
 
 	public TimeUnit_t GetNextAttack() => NextAttack;
 	public void SetNextAttack(TimeUnit_t wait) => NextAttack = wait;

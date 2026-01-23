@@ -303,6 +303,12 @@ public static class SharedDefs
 	}
 }
 
+public enum PassengerRole
+{
+	None = -1,
+	Driver = 0,
+	LastSharedVehicleRole
+}
 
 public enum HideHudBits
 {

@@ -114,4 +114,11 @@ public partial class BasePlayer : BaseCombatCharacter
 	public BaseViewModel? GetViewModel(int index = 0, bool observerOK = true){
 		return ViewModel[index].Get();
 	}
+
+	public IServerVehicle? GetVehicle() {
+		BaseEntity? vehicleEnt = Vehicle.Get();
+		return vehicleEnt?.GetServerVehicle();
+	}
+
+	public BaseCombatWeapon? GetLastWeapon() => LastWeapon.Get();
 }
