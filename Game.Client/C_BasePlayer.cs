@@ -139,7 +139,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	}
 
 	private void PlayPlayerJingle() {
-		throw new NotImplementedException();
+
 	}
 
 	private static void RecvProxy_LocalVelocityX(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
