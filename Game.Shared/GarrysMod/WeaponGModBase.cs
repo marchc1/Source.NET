@@ -75,5 +75,18 @@ public partial class
 		ServerClass
 #endif
 		= new Class("BaseHL2MPCombatWeapon", DT_BaseHL2MPCombatWeapon).WithManualClassID(StaticClassIndices.CBaseHL2MPCombatWeapon);
+
+	protected bool Lowered;
+	protected TimeUnit_t RaiseTime;
+	protected TimeUnit_t HolsterTime;
+
+	public override bool Holster(BaseCombatWeapon switchingTo) {
+		if(base.Holster(switchingTo)){
+			SetWeaponVisible(false);
+			HolsterTime = gpGlobals.CurTime;
+			return true;
+		}
+		return false;
+	}
 }
 #endif

@@ -216,7 +216,7 @@ public partial class
 		return false;
 	}
 
-	bool DefaultDeploy(ReadOnlySpan<char> viewModel, ReadOnlySpan<char> weaponModel, Activity activity, ReadOnlySpan<char> animExt) {
+	public virtual bool DefaultDeploy(ReadOnlySpan<char> viewModel, ReadOnlySpan<char> weaponModel, Activity activity, ReadOnlySpan<char> animExt) {
 		if (!HasAnyAmmo() && AllowsAutoSwitchFrom())
 			return false;
 
@@ -294,6 +294,9 @@ public partial class
 
 	public virtual Activity GetDrawActivity() => Activity.ACT_VM_DRAW;
 	public Activity GetActivity() => this.Activity;
+
+	public virtual bool CanDeploy() => true;
+	public virtual bool CanHolster() => true;
 
 	public virtual bool Deploy() {
 		bool bResult = DefaultDeploy(GetViewModel(), GetWorldModel(), GetDrawActivity(), GetAnimPrefix());

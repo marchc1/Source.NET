@@ -16,6 +16,7 @@ using Steamworks;
 using System;
 using System.Numerics;
 namespace Game.Shared.GarrysMod;
+
 using FIELD = Source.FIELD<WeaponPhysCannon>;
 
 [LinkEntityToClass("weapon_physcannon")]
@@ -32,11 +33,12 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	}
 
 #if CLIENT_DLL
-	public enum EffectType {
+	public enum EffectType
+	{
 		Core,
-		
+
 		Blast,
-		
+
 		Glow1,
 		Glow2,
 		Glow3,
@@ -51,10 +53,11 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		NumPhyscannonParameters
 	}
 	public const int NUM_GLOW_SPRITES = (int)(EffectType.Glow6 - EffectType.Glow1) + 1;
-	public const int NUM_ENDCAP_SPRITES = (int)(EffectType.EndCap3- EffectType.EndCap1) + 1;
+	public const int NUM_ENDCAP_SPRITES = (int)(EffectType.EndCap3 - EffectType.EndCap1) + 1;
 	public const int NUM_PHYSCANNON_BEAMS = 3;
 
-	public class PhysCannonEffect {
+	public class PhysCannonEffect
+	{
 		public PhysCannonEffect() {
 			Color = new(255, 255, 255);
 			Visible = true;
@@ -87,7 +90,8 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		readonly MaterialReference Material = new();
 	}
 
-	public class PhysCannonEffectBeam {
+	public class PhysCannonEffectBeam
+	{
 		Beam? Beam;
 
 		public void Init(int startAttachment, int endAttachment, SharedBaseEntity? entity, bool firstPerson) {
@@ -328,7 +332,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		// ------------------------------------------
 		// Glows
 		// ------------------------------------------
-		
+
 		//Create the glow sprites
 		for (int i = (int)EffectType.Glow1; i < ((int)EffectType.Glow1 + NUM_GLOW_SPRITES); i++) {
 			if (Parameters[i].GetMaterial().IsNotNull)
@@ -338,9 +342,9 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 			Parameters[i].GetAlpha().SetAbsolute(64.0f);
 
 			// Different for different views
-			if (ShouldDrawUsingViewModel()) 
+			if (ShouldDrawUsingViewModel())
 				Parameters[i].SetAttachment(LookupAttachment(attachNamesGlow[i - (int)EffectType.Glow1]));
-			else 
+			else
 				Parameters[i].SetAttachment(LookupAttachment(attachNamesGlowThirdPerson[i - (int)EffectType.Glow1]));
 			Parameters[i].SetColor(new(255, 128, 0));
 
@@ -412,7 +416,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 			// NOTE: The last glow is left off for first-person
 			for (EffectType i = EffectType.EndCap1; i < (EffectType.EndCap1 + NUM_ENDCAP_SPRITES); i++)
 				Parameters[(int)i].SetVisible();
-			
+
 			// Create our beams
 			BasePlayer pOwner = ToBasePlayer(GetOwner())!;
 			SharedBaseEntity? pBeamEnt = pOwner.GetViewModel();
@@ -457,7 +461,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	}
 	public void DoEffectClosed() {
 #if CLIENT_DLL
-		for (int i = (int)EffectType.EndCap1; i < ((int)EffectType.EndCap1 + NUM_ENDCAP_SPRITES); i++) 
+		for (int i = (int)EffectType.EndCap1; i < ((int)EffectType.EndCap1 + NUM_ENDCAP_SPRITES); i++)
 			Parameters[i].SetVisible(false);
 #endif
 	}
@@ -518,7 +522,46 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 #endif
 	}
 
-	
+	public void DetachObject(bool playSound = true, bool wasLaunched = false){
+		// todo
+	}
+
+	public override bool Deploy() {
+		CloseElements();
+		DoEffect(EffectState_t.Ready);
+
+		bool @return = base.Deploy();
+
+		NextSecondaryAttack = NextPrimaryAttack = gpGlobals.CurTime;
+		BasePlayer? owner = ToBasePlayer(GetOwner());
+		if (owner != null)
+			owner.SetNextAttack(gpGlobals.CurTime);
+
+		return @return;
+	}
+
+	public void ForceDrop(){
+		CloseElements();
+		DetachObject();
+		StopEffects();
+	}
+
+	public override bool CanHolster() {
+		if (Active)
+			return false;
+
+		return base.CanHolster();
+	}
+
+	public override bool Holster(BaseCombatWeapon switchingTo) {
+		if (Active)
+			return false;
+
+		ForceDrop();
+		DestroyEffects();
+		return base.Holster(switchingTo);
+	}
+
 #if CLIENT_DLL
 	public bool IsEffectVisible(EffectType effectID) {
 		return Parameters[(int)effectID].IsVisible();
@@ -547,7 +590,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		color.G = (byte)(int)Parameters[(int)effectID].GetColor().Y;
 		color.B = (byte)(int)Parameters[(int)effectID].GetColor().Z;
 		color.A = (byte)(int)alpha;
-		int attachmentIdx = Parameters[(int)effectID].GetAttachment(); 
+		int attachmentIdx = Parameters[(int)effectID].GetAttachment();
 
 		// Format for first-person
 		if (ShouldDrawUsingViewModel()) {
@@ -581,7 +624,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	}
 
 	public override int DrawModel(StudioFlags flags) {
-		if((flags & StudioFlags.Transparency) != 0) {
+		if ((flags & StudioFlags.Transparency) != 0) {
 			return 1;
 		}
 		// TODO: MOVE THIS NEXT LINE UP TO ONLY TRANSPARENCY!!!
@@ -598,7 +641,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		float elementPosition = ElementParameter.Interp(gpGlobals.CurTime);
 
 		if (ShouldDrawUsingViewModel()) {
-			if(owner != null) {
+			if (owner != null) {
 				BaseViewModel? vm = owner.GetViewModel();
 				if (vm != null)
 					vm.SetPoseParameter("active", elementPosition);
@@ -623,9 +666,9 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 
 		// Update element state when out of parity
 		if (OldOpen != Open) {
-			if (Open) 
+			if (Open)
 				ElementParameter.InitFromCurrent(1.0f, 0.2f, InterpType.Spline);
-			else 
+			else
 				ElementParameter.InitFromCurrent(0.0f, 0.5f, InterpType.Spline);
 
 			OldOpen = (bool)Open;
