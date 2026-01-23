@@ -105,7 +105,8 @@ public partial class
 	}
 
 	static ConVar sv_suppress_viewpunch = new("sv_suppress_viewpunch", "0", FCvar.Replicated | FCvar.Cheat | FCvar.DevelopmentOnly);
-
+	public const int PLAY_PLAYER_JINGLE = 1;
+	public const int UPDATE_PLAYER_RADAR = 2;
 	public void SelectItem(ReadOnlySpan<char> str, int subtype) {
 		if (str.IsEmpty)
 			return;

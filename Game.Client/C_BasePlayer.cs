@@ -2,6 +2,7 @@ using Game.Shared;
 
 using Source;
 using Source.Common;
+using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Mathematics;
 using Source.Engine;
@@ -118,6 +119,27 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public void SetViewAngles(in QAngle angles) {
 		SetLocalAngles(angles);
 		SetNetworkAngles(angles);
+	}
+
+	public override void ReceiveMessage(int classID, bf_read msg) {
+		if (classID != GetClientClass().ClassID) {
+			// message is for subclass
+			
+			base.ReceiveMessage(classID, msg);
+			return;
+		}
+
+		int messageType = msg.ReadByte();
+
+		switch (messageType) {
+			case PLAY_PLAYER_JINGLE:
+				PlayPlayerJingle();
+				break;
+		}
+	}
+
+	private void PlayPlayerJingle() {
+		throw new NotImplementedException();
 	}
 
 	private static void RecvProxy_LocalVelocityX(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {

@@ -1492,7 +1492,18 @@ public partial class C_BaseEntity : IClientEntity
 		return Index;
 	}
 
-	public void ReceiveMessage(int classID, bf_read msg) {
+	public virtual void ReceiveMessage(int classID, bf_read msg) {
+		Assert(classID == GetClientClass().ClassID);
+
+		int messageType = msg.ReadByte();
+		switch (messageType) {
+			case BASEENTITY_MSG_REMOVE_DECALS:
+				RemoveAllDecals();
+				break;
+		}
+	}
+
+	private void RemoveAllDecals() {
 		throw new NotImplementedException();
 	}
 

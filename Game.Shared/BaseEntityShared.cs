@@ -85,6 +85,8 @@ public partial class
 	BaseEntity
 #endif
 {
+	public const int BASEENTITY_MSG_REMOVE_DECALS = 1;
+
 	// TODO FIXME REVIEW: SHOULD THIS ACTUALLY GO HERE?
 	public static Table DT_ScriptedEntity = new(nameof(DT_ScriptedEntity), [
 #if CLIENT_DLL
