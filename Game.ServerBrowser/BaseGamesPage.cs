@@ -134,13 +134,13 @@ public class BaseGamesPage : PropertyPage, IGameList
 	public GameListPanel GameList;
 	PanelListPanel QuickList;
 	public ComboBox LocationFilter;
-	Button Connect;
-	Button RefreshAll;
+	public Button Connect;
+	public Button RefreshAll;
 	Button RefreshQuick;
 	Button AddServer;
 	Button AddCurrentServer;
 	Button AddToFavoritesButton;
-	ToggleButton Filter;
+	public ToggleButton Filter;
 	ComboBox GameFilter;
 	TextEntry MapFilter;
 	TextEntry MaxPlayerFilterEntry;
@@ -403,7 +403,7 @@ public class BaseGamesPage : PropertyPage, IGameList
 	}
 
 	public gameserveritem_t GetServer(uint serverID) {
-		throw new NotImplementedException();
+		return SteamMatchmakingServers.GetServerDetails(Request, (int)serverID);
 	}
 
 	bool TagsExclude() {
@@ -553,7 +553,6 @@ public class BaseGamesPage : PropertyPage, IGameList
 	}
 
 	public virtual void ServerResponded(HServerListRequest request, int serverIndex) {
-		Console.WriteLine($"{this}::ServerResponded(request={request}, serverIndex={serverIndex})");
 		var serverItem = SteamMatchmakingServers.GetServerDetails(request, serverIndex);
 		if (serverItem == null) {
 			AssertMsg(false, "Missing server response");
@@ -887,7 +886,6 @@ public class BaseGamesPage : PropertyPage, IGameList
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
-		Console.WriteLine($"{this}::OnCommand({command.ToString()}) request={Request}");
 		switch (command) {
 			case "Connect":
 				OnBeginConnect();
@@ -941,7 +939,12 @@ public class BaseGamesPage : PropertyPage, IGameList
 	}
 
 	void OnRefreshServer(int serverID) {
-		throw new NotImplementedException();
+		for (int i = 0; i < GameList.GetSelectedItemsCount(); i++) {
+			int serverId = GameList.GetItemUserData(GameList.GetSelectedItem(i));
+			SteamMatchmakingServers.RefreshServer(Request, serverId);
+		}
+
+		SetRefreshing(IsRefreshing());
 	}
 
 	public virtual void StartRefresh() {
@@ -953,8 +956,6 @@ public class BaseGamesPage : PropertyPage, IGameList
 			SteamMatchmakingServers.ReleaseRequest(Request);
 			Request = HServerListRequest.Invalid;
 		}
-
-		Console.WriteLine($"{this}::StartRefresh() MatchMakingType={MatchMakingType} AppID={LimitToAppID.AppID()} filters={filterCount}");
 
 		switch (MatchMakingType) {
 			case PageType.FavoritesServer:
@@ -984,7 +985,15 @@ public class BaseGamesPage : PropertyPage, IGameList
 		ServerRefreshCount = 0;
 	}
 
-	void ClearQuickList() { }
+	void ClearQuickList() {
+		QuickList.RemoveAll();
+		MapNamesFound.Clear();
+
+		foreach (var serverList in QuicklistServerList.Values)
+			serverList.Clear();
+
+		QuicklistServerList.Clear();
+	}
 
 	void ClearServerList() {
 		Servers.Clear();
@@ -1013,11 +1022,77 @@ public class BaseGamesPage : PropertyPage, IGameList
 	public override void OnPageHide() => StopRefresh();
 	public Panel GetActiveList() => QuickList.IsVisible() ? QuickList : GameList;
 
-	public int GetSelectedServerID(KeyValues? kv = null) {
-		return -1;// TODO
+	public int GetSelectedServerID() {
+		KeyValues? _ = null;
+		return GetSelectedServerID(ref _);
 	}
 
-	public void OnBeginConnect() { }
+	public int GetSelectedServerID(ref KeyValues? kv) {
+		int serverId = -1;
+
+		if (QuickList.IsVisible()) {
+			if (IsRefreshing())
+				return -1;
+
+			if (QuickList.GetSelectedPanel() != null) {
+				QuickListPanel? quickPanel = (QuickListPanel?)QuickList.GetSelectedPanel();
+				if (quickPanel != null) {
+					serverId = GameList.GetItemUserData(quickPanel.GetListID());
+					if (kv != null)
+						kv = GameList.GetItem(quickPanel.GetListID());
+				}
+			}
+		}
+		else {
+			if (GameList.GetSelectedItemsCount() == 0)
+				return -1;
+
+			serverId = GameList.GetItemUserData(GameList.GetSelectedItem(0));
+
+			if (kv != null)
+				kv = GameList.GetItem(GameList.GetSelectedItem(0));
+		}
+
+		return serverId;
+	}
+
+	public void OnBeginConnect() {
+		KeyValues? kv = null;
+		int serverID = GetSelectedServerID(ref kv);
+
+		if (serverID == -1)
+			return;
+
+		StopRefresh();
+
+		ConVarRef sb_dontshow_maxplayer_warning = new("sb_dontshow_maxplayer_warning", true);
+
+		if (sb_dontshow_maxplayer_warning.IsValid()) {
+			int maxPlayers = sb_mod_suggested_maxplayers.GetInt();
+			if (maxPlayers != 0 && kv != null && !sb_dontshow_maxplayer_warning.GetBool()) {
+				int maxCount = kv.GetInt("MaxPlayerCount", 0);
+				if (maxCount > maxPlayers) {
+					DialogServerWarning dlg = new(this, this, serverID);
+					dlg.MakeReadyForUse();
+					dlg.MoveToCenterOfScreen();
+					dlg.DoModal();
+
+					Span<char> warning = stackalloc char[512];
+					Span<char> serverMaxPlayers = stackalloc char[12];
+					Span<char> designedMaxPlayers = stackalloc char[12];
+					Span<char> gameName = stackalloc char[256];
+					sprintf(serverMaxPlayers, "%d").D(maxCount);
+					sprintf(designedMaxPlayers, "%d").D(maxPlayers);
+					sprintf(gameName, "%s").S(ModList.Instance!.GetModNameForModDir(LimitToAppID));
+					Localize.ConstructString(warning, Localize.Find("#ServerBrowser_ServerWarning_MaxPlayers"), serverMaxPlayers, gameName, designedMaxPlayers, designedMaxPlayers);
+					dlg.SetDialogVariable("warning", warning.SliceNullTerminatedString());
+					return;
+				}
+			}
+		}
+
+		ServerBrowserDialog.Instance!.JoinGame(this, (uint)serverID);
+	}
 
 	void OnViewGameInfo() {
 		int serverID = GetSelectedServerID();
@@ -1121,9 +1196,10 @@ class DialogServerWarning : Frame
 		LoadControlSettings("servers/DialogServerWarning.res");
 	}
 
+	readonly static KeyValues KV_Close = new("Close");
 	public override void OnCommand(ReadOnlySpan<char> command) {
 		if (command.Equals("OK", StringComparison.Ordinal)) {
-			PostMessage(this, new("Close"));//static kv
+			PostMessage(this, KV_Close);
 			ServerBrowserDialog.Instance!.JoinGame(GameList, (uint)ServerID);
 		}
 

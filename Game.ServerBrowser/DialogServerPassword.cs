@@ -39,6 +39,7 @@ class DialogServerPassword : Frame
 		base.Activate();
 	}
 
+	readonly static KeyValues KV_Close = new("Close");
 	public override void OnCommand(ReadOnlySpan<char> command) {
 		bool close = false;
 
@@ -57,6 +58,6 @@ class DialogServerPassword : Frame
 			base.OnCommand(command);
 
 		if (close)
-			PostMessage(this, new KeyValues("Close"));//static kv
+			PostMessage(this, KV_Close);
 	}
 }

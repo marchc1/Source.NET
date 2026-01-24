@@ -100,4 +100,6 @@ class QuickListPanel : EditablePanel
 	public override void OnMousePressed(ButtonCode code) { }
 
 	public override void OnMouseDoublePressed(ButtonCode code) { }
+
+	public int GetListID() => ListID;
 }

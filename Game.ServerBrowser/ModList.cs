@@ -18,8 +18,10 @@ class ModList
 	List<Mod> Modlist = [];
 	List<Panel> VGUIListeners;
 
-	public ModList() {
+	public static ModList? Instance;
 
+	public ModList() {
+		Instance = this;
 	}
 
 	int ModCount() {
@@ -42,7 +44,7 @@ class ModList
 		throw new NotImplementedException();
 	}
 
-	ReadOnlySpan<char> GetModNameForModDir(CGameID gameID) {
+	public ReadOnlySpan<char> GetModNameForModDir(CGameID gameID) {
 		throw new NotImplementedException();
 	}
 

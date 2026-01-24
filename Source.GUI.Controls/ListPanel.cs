@@ -462,9 +462,12 @@ public class ListPanel : Panel
 
 	// }
 
-	// uint GetItemUserData(int itemID) {
+	public int GetItemUserData(int itemID) {
+		if (itemID < 0 || itemID >= DataItems.Count)
+			return 0;
 
-	// }
+		return (int)DataItems[itemID].UserData;
+	}
 
 	public void ApplyItemChanges(int itemID) {
 		IndexItem(itemID);
@@ -582,7 +585,7 @@ public class ListPanel : Panel
 
 	public int GetSelectedItemsCount() => SelectedItems.Count;
 
-	int GetSelectedItem(int selectionIndex) {
+	public int GetSelectedItem(int selectionIndex) {
 		if (selectionIndex < 0 || selectionIndex >= SelectedItems.Count)
 			return -1;
 		return SelectedItems[selectionIndex];

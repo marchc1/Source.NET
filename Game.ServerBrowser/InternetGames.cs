@@ -58,10 +58,11 @@ class InternetGames : BaseGamesPage
 		VGui.AddTickSignal(this, 250);
 	}
 
+	readonly static KeyValues KV_GetNewServerList = new("GetNewServerList");
 	public override void PerformLayout() {
 		if (!OfflineMode && RequireUpdate && ServerBrowserDialog.Instance!.IsVisible()) {
 			RequireUpdate = false;
-			PostMessage(this, new KeyValues("GetNewServerList"), 0.01f);//static kv
+			PostMessage(this, KV_GetNewServerList, 0.01f);
 		}
 
 		if (OfflineMode) {
