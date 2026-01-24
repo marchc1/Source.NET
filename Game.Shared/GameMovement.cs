@@ -848,9 +848,82 @@ public class GameMovement : IGameMovement
 			SpeedCropped |= SpeedCropped.Duck;
 		}
 	}
-	protected virtual void FinishUnDuck() { throw new NotImplementedException(); }
-	protected virtual void FinishDuck() { throw new NotImplementedException(); }
-	protected virtual bool CanUnduck() { throw new NotImplementedException(); }
+	protected virtual void FinishUnDuck() {
+		int i;
+		Trace trace;
+		Vector3 newOrigin = mv!.GetAbsOrigin();
+
+		if (Player.GetGroundEntity() != null) 
+			for (i = 0; i < 3; i++) 
+				newOrigin[i] += (VEC_DUCK_HULL_MIN_SCALED(Player)[i] - VEC_HULL_MIN_SCALED(Player)[i]);
+		else {
+			// If in air an letting go of crouch, make sure we can offset origin to make
+			//  up for uncrouching
+			Vector3 hullSizeNormal = VEC_HULL_MAX_SCALED(Player) - VEC_HULL_MIN_SCALED(Player);
+			Vector3 hullSizeCrouch = VEC_DUCK_HULL_MAX_SCALED(Player) - VEC_DUCK_HULL_MIN_SCALED(Player);
+			Vector3 viewDelta = (hullSizeNormal - hullSizeCrouch);
+			viewDelta = Vector3.Negate(viewDelta);
+			MathLib.VectorAdd(newOrigin, viewDelta, out newOrigin);
+		}
+
+		Player.Local.Ducked = false;
+		Player.RemoveFlag(EntityFlags.Ducking);
+		Player.Local.Ducking = false;
+		Player.Local.InDuckJump = false;
+		Player.SetViewOffset(GetPlayerViewOffset(false));
+		Player.Local.DuckTime = 0;
+
+		mv.SetAbsOrigin(newOrigin);
+
+#if CLIENT_DLL
+
+		Player.ResetLatched();
+#endif // CLIENT_DLL
+
+		// Recategorize position since ducking can change origin
+		CategorizePosition();
+	}
+	protected virtual void FinishDuck() {
+		if ((Player.GetFlags() & EntityFlags.Ducking) != 0)
+			return;
+
+		Player.AddFlag(EntityFlags.Ducking);
+		Player.Local.Ducked = true;
+		Player.Local.Ducking = false;
+
+		Player.SetViewOffset(GetPlayerViewOffset(true));
+
+		// HACKHACK - Fudge for collision bug - no time to fix this properly
+		if (Player.GetGroundEntity() != null) {
+			for (int i = 0; i < 3; i++) {
+				Vector3 org = mv!.GetAbsOrigin();
+				org[i] -= (VEC_DUCK_HULL_MIN_SCALED(Player)[i] - VEC_HULL_MIN_SCALED(Player)[i]);
+				mv.SetAbsOrigin(org);
+			}
+		}
+		else {
+			Vector3 hullSizeNormal = VEC_HULL_MAX_SCALED(Player) - VEC_HULL_MIN_SCALED(Player);
+			Vector3 hullSizeCrouch = VEC_DUCK_HULL_MAX_SCALED(Player) - VEC_DUCK_HULL_MIN_SCALED(Player);
+			Vector3 viewDelta = (hullSizeNormal - hullSizeCrouch);
+			Vector3 @out;
+			MathLib.VectorAdd(mv!.GetAbsOrigin(), viewDelta, out @out);
+			mv.SetAbsOrigin(@out );
+
+#if CLIENT_DLL
+		Player.ResetLatched();
+#endif 
+		}
+
+		// See if we are stuck?
+		FixPlayerCrouchStuck(true);
+
+		// Recategorize position since ducking can change origin
+		CategorizePosition();
+	}
+	protected virtual bool CanUnduck() {
+		// todo
+		return true;
+	}
 	protected void UpdateDuckJumpEyeOffset() {
 		if (Player.Local.DuckJumpTime != 0.0f) {
 			float flDuckMilliseconds = Math.Max(0.0f, GAMEMOVEMENT_DUCK_TIME - (float)Player.Local.DuckJumpTime);
@@ -868,8 +941,22 @@ public class GameMovement : IGameMovement
 	protected bool CanUnDuckJump(ref Trace trace) { return false; }
 	protected void StartUnDuckJump() { throw new NotImplementedException(); }
 	protected void FinishUnDuckJump(ref Trace trace) { throw new NotImplementedException(); }
-	protected void SetDuckedEyeOffset(float duckFraction) { throw new NotImplementedException(); }
-	protected void FixPlayerCrouchStuck(bool moveup) { throw new NotImplementedException(); }
+	protected void SetDuckedEyeOffset(float duckFraction) {
+		Vector3 vDuckHullMin = GetPlayerMins(true);
+		Vector3 vStandHullMin = GetPlayerMins(false);
+
+		float fMore = (vDuckHullMin.Z - vStandHullMin.Z);
+
+		Vector3 vecDuckViewOffset = GetPlayerViewOffset(true);
+		Vector3 vecStandViewOffset = GetPlayerViewOffset(false);
+		Vector3 temp = Player.GetViewOffset();
+		temp.Z = ((vecDuckViewOffset.Z - fMore) * duckFraction) +
+					(vecStandViewOffset.Z * (1 - duckFraction));
+		Player.SetViewOffset(temp);
+	}
+	protected void FixPlayerCrouchStuck(bool moveup) {
+		// todo
+	}
 
 	protected float SplineFraction(float value, float scale) { throw new NotImplementedException(); }
 
