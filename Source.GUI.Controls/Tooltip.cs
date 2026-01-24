@@ -1,3 +1,4 @@
+using Source.Common.Commands;
 using Source.Common.GUI;
 using Source.Common.Launcher;
 
@@ -12,11 +13,17 @@ public class BaseTooltip : IDisposable
 	Panel Parent;
 	public string Text;
 	long Delay;
-	int TooltipDelay;
+	static int TooltipDelay;
+	int TooltipDelayOverride;
 	public bool MakeVisible;
 	public bool DisplayOnOneLine;
 	public bool IsDirty;
 	bool Enabled;
+
+	// TODO: gmod creates a cvar for this in lua, so for non-lua panels, we should rename this at some point
+	static ConVar tooltip_delay = new("tooltip_delay", "0.5", FCvar.Archive, "Delay (in seconds) between hovering over a panel, and a tooltip appearing, if it has one.", callback: TooltipDelayChangeCallback);
+	static void TooltipDelayChangeCallback(IConVar var, in ConVarChangeContext ctx) => TooltipDelay = (int)(tooltip_delay.GetFloat() * 1000);
+
 
 	public BaseTooltip(Panel parent, ReadOnlySpan<char> text) {
 		SetText(text);
@@ -26,7 +33,8 @@ public class BaseTooltip : IDisposable
 		IsDirty = false;
 		Enabled = true;
 
-		TooltipDelay = 500; // TODO: tooltip_delay from gmod
+		TooltipDelay = (int)(tooltip_delay.GetFloat() * 1000);
+		TooltipDelayOverride = 0;
 		Delay = 0;
 	}
 
@@ -36,12 +44,12 @@ public class BaseTooltip : IDisposable
 
 	public void ResetDelay() {
 		IsDirty = true;
-		Delay = System.GetTimeMillis() + TooltipDelay;
+		Delay = System.GetTimeMillis() + GetTooltipDelay();
 	}
 
-	public void SetTooltipDelay(int tooltipDelay) => TooltipDelay = tooltipDelay;
+	public void SetTooltipDelay(int tooltipDelay) => TooltipDelayOverride = tooltipDelay;
 
-	public int GetTooltipDelay() => TooltipDelay;
+	public int GetTooltipDelay() => TooltipDelayOverride != 0 ? TooltipDelayOverride : TooltipDelay;
 
 	public void SetTooltipFormatToSingleLine() {
 		DisplayOnOneLine = true;
