@@ -211,19 +211,23 @@ public class ConPanel : BasePanel
 		int y = 20;
 
 		for (int i = 0; i < MAX_DBG_NOTIFY; i++) {
-			if (Host.RealTime < da_notify[i].Expire || da_notify[i].Expire == -1) {
-				if (da_notify[i].Expire == -1 && draw) {
-					da_notify[i].Expire = Host.RealTime - 1;
-				}
+			da_notify_t Notify = da_notify[i];
+
+			if (Host.RealTime < Notify.Expire || Notify.Expire == -1) {
+				if (Notify.Expire == -1 && draw)
+					Notify.Expire = Host.RealTime - 1;
 
 				int len;
 				int x;
 
-				IFont? font = da_notify[i].FixedWidthFont ? FontFixed : Font;
+				IFont? font = Notify.FixedWidthFont ? FontFixed : Font;
 
 				int fontTall = Surface.GetFontTall(FontFixed) + 1;
 
-				len = DrawTextLen(font, da_notify[i].Notify);
+				ReadOnlySpan<char> NotifyText = Notify.Notify;
+				NotifyText = NotifyText.SliceNullTerminatedString();
+
+				len = DrawTextLen(font, NotifyText);
 				x = videomode.GetModeStereoWidth() - 10 - len;
 
 				if (y + fontTall > videomode.GetModeStereoHeight() - 20)
@@ -234,14 +238,14 @@ public class ConPanel : BasePanel
 
 				if (draw) {
 					DrawColoredText(font, x, y,
-						(byte)(int)(da_notify[i].Color[0] * 255),
-						(byte)(int)(da_notify[i].Color[1] * 255),
-						(byte)(int)(da_notify[i].Color[2] * 255),
+						(byte)(int)(Notify.Color[0] * 255),
+						(byte)(int)(Notify.Color[1] * 255),
+						(byte)(int)(Notify.Color[2] * 255),
 						255,
-						da_notify[i].Notify);
+						NotifyText);
 				}
 
-				if (da_notify[i].Notify[0] != '\0') {
+				if (NotifyText[0] != '\0') {
 					left = Math.Min(left, x);
 					top = Math.Min(top, y);
 					right = Math.Max(right, x + len);
@@ -567,7 +571,7 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 #endif
 	}
 
-	public static void NXPrintF(in Con_NPrint_s info, ReadOnlySpan<char> text){
+	public static void NXPrintF(in Con_NPrint_s info, ReadOnlySpan<char> text) {
 		if (IsPC())
 			conPanel!.Con_NXPrintf(in info, text);
 	}
