@@ -87,8 +87,8 @@ public class Prediction : IPrediction
 			return;
 
 		Vector3 origin = player.GetNetworkOrigin();
-		DataFrame slot = player.GetPredictedFrame(commandsAcknowledged - 1);
-		if (slot.IsEmpty)
+		DataFrame? slot = player.GetPredictedFrame(commandsAcknowledged - 1);
+		if (slot == null)
 			return;
 
 		// Find the origin field in the database
@@ -97,7 +97,7 @@ public class Prediction : IPrediction
 		if (td == null)
 			return;
 
-		Vector3 predicted_origin = slot.GetValueField<Vector3>(td.PackedOffset);
+		Vector3 predicted_origin = slot.Get<Vector3>(td);
 
 		// Compare what the server returned with what we had predicted it to be
 		MathLib.VectorSubtract(predicted_origin, origin, out delta);
@@ -194,12 +194,9 @@ public class Prediction : IPrediction
 
 					if (showlist >= 2) {
 						nint size = GetClassMap().GetClassSize(ent.GetClassname());
-						nuint intermediate_size = ent.GetIntermediateDataSize() * (MULTIPLAYER_BACKUP + 1);
-
-						engine.Con_NXPrintf(np, $"{sz.SliceNullTerminatedString()} {ent.GetClassname()} ({size} / {intermediate_size} bytes): {(ent.GetPredictable() ? "predicted" : "client created")}");
+						ent.ComputePackedOffsets();
 
 						totalsize += (nuint)size;
-						totalsize_intermediate += intermediate_size;
 					}
 					else {
 						engine.Con_NXPrintf(in np, $"{sz.SliceNullTerminatedString()} {ent.GetClassname()}: {(ent.GetPredictable() ? "predicted" : "client created")}");

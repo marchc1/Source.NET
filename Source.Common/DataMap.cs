@@ -1,5 +1,8 @@
-﻿using Source.Common;
+﻿using SharpCompress.Common;
 
+using Source.Common;
+
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -61,7 +64,7 @@ namespace Source.Common
 		public readonly FieldType FieldType;
 		public readonly string FieldName = "";
 		public readonly IDynamicAccessor FieldAccessor;
-		public nuint PackedOffset;
+		public nuint PackedOffset = nuint.MaxValue;
 		public readonly ushort FieldSize;
 		public readonly FieldTypeDescFlags Flags;
 		public readonly string ExternalName = "";
@@ -127,7 +130,8 @@ namespace Source.Common
 	}
 }
 
-namespace Source {
+namespace Source
+{
 	public static class DEFINE<T>
 	{
 		static TypeDescription _FIELD(ReadOnlySpan<char> name, FieldType fieldType, int count, FieldTypeDescFlags flags, ReadOnlySpan<char> mapname, float tolerance) {
@@ -156,45 +160,67 @@ namespace Source {
 		}
 	}
 
-	/// <summary>
-	/// Source Engine deviation. Used mostly in prediction. Just a general helper ref struct that can write structs/class instances
-	/// to a byte array
-	/// </summary>
-	public readonly ref struct DataFrame
+	public interface IDataFrameContainer;
+	public interface IDataFrameContainer<T>
 	{
-		public readonly byte[]? FrameData;
-		public DataFrame(byte[] framedata) {
-			FrameData = framedata;
-		}
-		public readonly bool IsEmpty => FrameData == null || FrameData.Length == 0;
+		public T? Get(int offset = 0);
+		public void Set(in T? v, int offset = 0);
+	}
 
-		/// <summary>
-		/// Attempts to get a reference to a value out of the binary data. The struct must not have managed members.
-		/// </summary>
-		/// <typeparam name="T"></typeparam>
-		/// <param name="fieldoffset"></param>
-		/// <returns></returns>
-		public readonly ref T GetValueField<T>(nuint fieldoffset) where T : struct => ref MemoryMarshal.Cast<byte, T>(FrameData.AsSpan()[(int)fieldoffset..])[0];
+	public class DataFrameContainer<T> : IDataFrameContainer, IDataFrameContainer<T>
+	{
+		public readonly T?[] v;
 
+		public DataFrameContainer(int count = 1) => v = new T?[count];
+		public DataFrameContainer(T? val, int count = 1) : this(count) => v[0] = val;
 
-		public readonly T? GetRefField<T>(nuint fieldoffset) where T : class {
-			nint addr = (nint)GetValueField<nuint>(fieldoffset);
-			if (addr == 0x0) return null;
-			GCHandle handle = GCHandle.FromIntPtr(addr);
-			if (!handle.IsAllocated)
-				return null;
-			return (T?)handle.Target;
-		}
+		public virtual T? Get(int offset = 0) => v[offset];
+		public virtual void Set(in T? val, int offset = 0) => v[offset] = val;
+	}
 
+	/// <summary>
+	/// Source Engine deviation. Used mostly in prediction. 
+	/// </summary>
+	public class DataFrame
+	{
+		readonly IDataFrameContainer[] Data;
+		readonly DataMap DataMap;
 
-		public readonly void SetRefField<T>(nuint fieldoffset, T? value) where T : class {
-			ref nuint addr = ref GetValueField<nuint>(fieldoffset);
-			if (addr != 0x0) {
-				GCHandle oldHandle = GCHandle.FromIntPtr((nint)addr);
-				oldHandle.Free();
+		public T? Get<T>(TypeDescription td, int offset = 0) => ((DataFrameContainer<T>)Data[td.PackedOffset]).Get(offset);
+		public void Set<T>(TypeDescription td, T? value, int offset = 0) => ((DataFrameContainer<T>)Data[td.PackedOffset]).Set(value, offset);
+
+		public DataFrame(DataMap? map) {
+			ArgumentNullException.ThrowIfNull(map);
+
+			DataMap = map;
+			Assert(map.PackedOffsetsComputed);
+
+			Data = new IDataFrameContainer[map.PackedSize];
+			for (nuint i = 0; i < (nuint)map.DataNumFields; i++) {
+				TypeDescription td = map.DataDesc[i];
+				if (td.PackedOffset == nuint.MaxValue)
+					continue;
+
+				IDataFrameContainer framecontainer;
+				switch (td.FieldType) {
+					case FieldType.Embedded: framecontainer = new DataFrameContainer<DataFrame>(new DataFrame(td.TD)); break;
+					case FieldType.Float: framecontainer = new DataFrameContainer<float>(); break;
+					case FieldType.Vector: framecontainer = new DataFrameContainer<Vector3>(); break;
+					case FieldType.Quaternion: framecontainer = new DataFrameContainer<Quaternion>(); break;
+					case FieldType.Integer: framecontainer = new DataFrameContainer<int>(); break;
+					case FieldType.EHandle: framecontainer = new DataFrameContainer<BaseHandle>(new BaseHandle()); break;
+					case FieldType.Short: framecontainer = new DataFrameContainer<short>(); break;
+					case FieldType.String: framecontainer = new DataFrameContainer<char[]>(); break;
+					case FieldType.Color32: framecontainer = new DataFrameContainer<Color>(); break;
+					case FieldType.Boolean: framecontainer = new DataFrameContainer<bool>(); break;
+					case FieldType.Character: framecontainer = new DataFrameContainer<byte>(); break;
+
+					default:
+						continue;
+				}
+
+				Data[td.PackedOffset] = framecontainer;
 			}
-
-			addr = value == null ? 0x0 : (nuint)GCHandle.ToIntPtr(GCHandle.Alloc(value, GCHandleType.WeakTrackResurrection));
 		}
 	}
 }

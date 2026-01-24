@@ -1087,12 +1087,11 @@ public partial class C_BaseEntity : IClientEntity
 		if (OriginalData != null)
 			return;
 
-		nuint allocsize = GetIntermediateDataSize();
-		Assert(allocsize > 0);
+		ComputePackedOffsets();
 
-		OriginalData = new byte[allocsize];
+		OriginalData = new DataFrame(GetPredDescMap());
 		for (int i = 0; i < MULTIPLAYER_BACKUP; i++)
-			IntermediateData[i] = new byte[allocsize];
+			IntermediateData[i] = new DataFrame(GetPredDescMap());
 
 		IntermediateDataCount = 0;
 	}
@@ -1121,14 +1120,14 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public int SaveData(ReadOnlySpan<char> context, int slot, PredictionCopyType type){
-		DataFrame dest = slot == SLOT_ORIGINALDATA ? GetOriginalNetworkDataObject() : GetPredictedFrame(slot);
+		DataFrame? dest = slot == SLOT_ORIGINALDATA ? GetOriginalNetworkDataObject() : GetPredictedFrame(slot);
 		Span<char> sz = stackalloc char[64];
 
 		if (slot != SLOT_ORIGINALDATA) 
 			// Remember high water mark so that we can detect below if we are reading from a slot not yet predicted into...
 			IntermediateDataCount = slot;
 
-		PredictionCopy copyHelper = new(type, dest, this);
+		PredictionCopy copyHelper = new(type, dest!, this);
 		//int errorCount = copyHelper.TransferData(sz, EntIndex(), GetPredDescMap());
 		return 0; //errorCount;
 	}
@@ -2041,7 +2040,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public void ShiftIntermediateDataForward(int slots_to_remove, int number_of_commands_run) {
 		// Just moving pointers, yeah
-		List<byte[]> saved = ListPool<byte[]>.Shared.Alloc();
+		List<DataFrame> saved = ListPool<DataFrame>.Shared.Alloc();
 
 		// Remember first slots
 		int i = 0;
@@ -2059,30 +2058,30 @@ public partial class C_BaseEntity : IClientEntity
 			IntermediateData[slot] = saved[i];
 		}
 
-		ListPool<byte[]>.Shared.Free(saved);
+		ListPool<DataFrame>.Shared.Free(saved);
 	}
 
 	public bool GetCheckUntouch() => IsEFlagSet(EFL.CheckUntouch);
 
-	public readonly byte[][] IntermediateData = new byte[MULTIPLAYER_BACKUP][];
-	public byte[]? OriginalData;
+	public readonly DataFrame[] IntermediateData = new DataFrame[MULTIPLAYER_BACKUP];
+	public DataFrame? OriginalData;
 	public int IntermediateDataCount;
 
-	public DataFrame GetPredictedFrame(int framenumber) {
+	public DataFrame? GetPredictedFrame(int framenumber) {
 		if (OriginalData == null) {
 			Assert(false);
 			return default;
 		}
 
-		return new(IntermediateData[framenumber % MULTIPLAYER_BACKUP]);
+		return IntermediateData[framenumber % MULTIPLAYER_BACKUP];
 	}
 
-	public DataFrame GetOriginalNetworkDataObject() {
+	public DataFrame? GetOriginalNetworkDataObject() {
 		if (OriginalData == null) {
 			Assert(false);
 			return default;
 		}
-		return new(OriginalData);
+		return OriginalData;
 	}
 
 
@@ -2152,7 +2151,7 @@ public partial class C_BaseEntity : IClientEntity
 				if ((field.Flags & FieldTypeDescFlags.Private) != 0)
 					continue;
 
-
+			field.PackedOffset = currentPosition++;
 			switch (field.FieldType) {
 				default:
 				case FieldType.ModelIndex:
@@ -2165,47 +2164,20 @@ public partial class C_BaseEntity : IClientEntity
 				case FieldType.EDict:
 				case FieldType.PositionVector:
 				case FieldType.Function:
-					Assert(0);
+					Assert(false);
 					break;
-				case FieldType.Embedded: {
-						Assert(field.TD != null);
-						nuint embeddedsize = ComputePackedSize_R(field.TD);
-						field.PackedOffset = currentPosition;
-
-						currentPosition += embeddedsize;
-					}
-					break;
-
+				case FieldType.Embedded:
 				case FieldType.Float:
 				case FieldType.Vector:
 				case FieldType.Quaternion:
 				case FieldType.Integer:
-				case FieldType.EHandle: {
-						// These should be dword aligned
-						currentPosition = (currentPosition + 3) & ~3u;
-						field.PackedOffset = currentPosition;
-						Assert(field.FieldSize >= 1);
-						currentPosition += g_FieldSizes[(int)field.FieldType] * field.FieldSize;
-					}
-					break;
-
-				case FieldType.Short: {
-						// This should be word aligned
-						currentPosition = (currentPosition + 1) & ~1u;
-						field.PackedOffset = currentPosition;
-						Assert(field.FieldSize >= 1);
-						currentPosition += g_FieldSizes[(int)field.FieldType] * field.FieldSize;
-					}
-					break;
-
+				case FieldType.EHandle:
+				case FieldType.Short: 
 				case FieldType.String:
 				case FieldType.Color32:
 				case FieldType.Boolean:
-				case FieldType.Character: {
-						field.PackedOffset = currentPosition;
-						Assert(field.FieldSize >= 1);
-						currentPosition += g_FieldSizes[(int)field.FieldType] * field.FieldSize;
-					}
+				case FieldType.Character:
+					field.PackedOffset = currentPosition++;
 					break;
 				case FieldType.Void: {
 						// Special case, just skip it
@@ -2230,15 +2202,6 @@ public partial class C_BaseEntity : IClientEntity
 
 		ComputePackedSize_R(map);
 		Assert(map.PackedOffsetsComputed);
-	}
-
-	public nuint GetIntermediateDataSize() {
-		ComputePackedOffsets();
-		DataMap map = GetPredDescMap()!;
-		Assert(map.PackedOffsetsComputed);
-		nuint size = map.PackedSize;
-		Assert(size > 0);
-		return Math.Max(size, 8);
 	}
 }
 
