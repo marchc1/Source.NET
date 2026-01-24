@@ -84,7 +84,7 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 	KeyButtonState in_break;
 	KeyButtonState in_zoom;
 	KeyButtonState in_attack3;
-	BaseCombatWeapon? SelectedWeapon;
+	readonly Handle<BaseCombatWeapon> SelectedWeapon = new();
 
 	void KeyDown(ref KeyButtonState button, ReadOnlySpan<char> code) {
 		int k = int.TryParse(code, out k) ? k : -1;
@@ -260,11 +260,11 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 		cmd.Impulse = (byte)in_impulse;
 		in_impulse = 0;
 
-		if (SelectedWeapon != null) {
-			BaseCombatWeapon weapon = SelectedWeapon;
+		if (SelectedWeapon.Get() != null) {
+			BaseCombatWeapon weapon = SelectedWeapon.Get()!;
 			cmd.WeaponSelect = weapon.EntIndex();
-			// cmd.WeaponSubtype = weapon.GetSubType();
-			SelectedWeapon = null;
+			cmd.WeaponSubtype = weapon.GetSubType();
+			SelectedWeapon.Set(null);
 		}
 
 		if (cmd.ForwardMove > 0)
@@ -324,7 +324,7 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 		UserCmd.ReadUsercmd(buf, ref cmd, ref UserCmd.NULL);
 	}
 
-	public void MakeWeaponSelection(BaseCombatWeapon? weapon) => SelectedWeapon = weapon;
+	public void MakeWeaponSelection(BaseCombatWeapon? weapon) => SelectedWeapon.Set(weapon);
 
 	public void Init() {
 		Hud = Singleton<Hud>();
