@@ -1,6 +1,7 @@
 ﻿using Source.Common;
 
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Source.Common
 {
@@ -152,6 +153,48 @@ namespace Source {
 		}
 		public static TypeDescription PRED_ARRAY_TOL(ReadOnlySpan<char> name, FieldType fieldType, int count, FieldTypeDescFlags flags, float tolerance) {
 			return _FIELD_ARRAY(name, fieldType, count, flags, null, tolerance);
+		}
+	}
+
+	/// <summary>
+	/// Source Engine deviation. Used mostly in prediction. Just a general helper ref struct that can write structs/class instances
+	/// to a byte array
+	/// </summary>
+	public readonly ref struct DataFrame
+	{
+		public readonly byte[]? FrameData;
+		public DataFrame(byte[] framedata) {
+			FrameData = framedata;
+		}
+		public readonly bool IsEmpty => FrameData == null || FrameData.Length == 0;
+
+		/// <summary>
+		/// Attempts to get a reference to a value out of the binary data. The struct must not have managed members.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="fieldoffset"></param>
+		/// <returns></returns>
+		public readonly ref T GetValueField<T>(nuint fieldoffset) where T : struct => ref MemoryMarshal.Cast<byte, T>(FrameData.AsSpan()[(int)fieldoffset..])[0];
+
+
+		public readonly T? GetRefField<T>(nuint fieldoffset) where T : class {
+			nint addr = (nint)GetValueField<nuint>(fieldoffset);
+			if (addr == 0x0) return null;
+			GCHandle handle = GCHandle.FromIntPtr(addr);
+			if (!handle.IsAllocated)
+				return null;
+			return (T?)handle.Target;
+		}
+
+
+		public readonly void SetRefField<T>(nuint fieldoffset, T? value) where T : class {
+			ref nuint addr = ref GetValueField<nuint>(fieldoffset);
+			if (addr != 0x0) {
+				GCHandle oldHandle = GCHandle.FromIntPtr((nint)addr);
+				oldHandle.Free();
+			}
+
+			addr = value == null ? 0x0 : (nuint)GCHandle.ToIntPtr(GCHandle.Alloc(value, GCHandleType.WeakTrackResurrection));
 		}
 	}
 }

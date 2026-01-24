@@ -1116,9 +1116,21 @@ public partial class C_BaseEntity : IClientEntity
 
 		// Copy original data into all prediction slots, so we don't get an error saying we "mispredicted" any
 		//  values which are still at their initial values
-		// for (int i = 0; i < MULTIPLAYER_BACKUP; i++) {
-		// SaveData("InitPredictable", i, PC_EVERYTHING);
-		// }
+		for (int i = 0; i < MULTIPLAYER_BACKUP; i++) 
+			SaveData("InitPredictable", i, PredictionCopyType.Everything);
+	}
+
+	public int SaveData(ReadOnlySpan<char> context, int slot, PredictionCopyType type){
+		DataFrame dest = slot == SLOT_ORIGINALDATA ? GetOriginalNetworkDataObject() : GetPredictedFrame(slot);
+		Span<char> sz = stackalloc char[64];
+
+		if (slot != SLOT_ORIGINALDATA) 
+			// Remember high water mark so that we can detect below if we are reading from a slot not yet predicted into...
+			IntermediateDataCount = slot;
+
+		PredictionCopy copyHelper = new(type, dest, this);
+		int errorCount = copyHelper.TransferData(sz, EntIndex(), GetPredDescMap());
+		return errorCount;
 	}
 
 	public bool IsIntermediateDataAllocated() {
@@ -2056,7 +2068,7 @@ public partial class C_BaseEntity : IClientEntity
 	public byte[]? OriginalData;
 	public int IntermediateDataCount;
 
-	public PredictedFrame GetPredictedFrame(int framenumber) {
+	public DataFrame GetPredictedFrame(int framenumber) {
 		if (OriginalData == null) {
 			Assert(false);
 			return default;
@@ -2065,7 +2077,7 @@ public partial class C_BaseEntity : IClientEntity
 		return new(IntermediateData[framenumber % MULTIPLAYER_BACKUP]);
 	}
 
-	public PredictedFrame GetOriginalNetworkDataObject() {
+	public DataFrame GetOriginalNetworkDataObject() {
 		if (OriginalData == null) {
 			Assert(false);
 			return default;
@@ -2246,13 +2258,4 @@ public struct VarMapping
 	public VarMapping() {
 		InterpolatedEntries = 0;
 	}
-}
-public ref struct PredictedFrame
-{
-	public readonly byte[]? FrameData;
-	public PredictedFrame(byte[] framedata) {
-		FrameData = framedata;
-	}
-	public readonly bool IsEmpty => FrameData == null || FrameData.Length == 0;
-	public readonly ref T PackedField<T>(nuint fieldoffset) where T : struct => ref MemoryMarshal.Cast<byte, T>(FrameData.AsSpan()[(int)fieldoffset..])[0];
 }

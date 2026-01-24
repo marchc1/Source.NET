@@ -87,7 +87,7 @@ public class Prediction : IPrediction
 			return;
 
 		Vector3 origin = player.GetNetworkOrigin();
-		PredictedFrame slot = player.GetPredictedFrame(commandsAcknowledged - 1);
+		DataFrame slot = player.GetPredictedFrame(commandsAcknowledged - 1);
 		if (slot.IsEmpty)
 			return;
 
@@ -97,17 +97,19 @@ public class Prediction : IPrediction
 		if (td == null)
 			return;
 
-		Vector3 predicted_origin = slot.PackedField<Vector3>(td.PackedOffset);
+		Vector3 predicted_origin = slot.GetValueField<Vector3>(td.PackedOffset);
 
 		// Compare what the server returned with what we had predicted it to be
 		MathLib.VectorSubtract(predicted_origin, origin, out delta);
 
 		len = MathLib.VectorLength(delta);
-		if (len > MAX_PREDICTION_ERROR) {
+		// temporary TODO: disabling this until I have packed fields working
+		//if (len > MAX_PREDICTION_ERROR) {
 			// A teleport or something, clear out error
-			len = 0;
-		}
-		else {
+			//len = 0;
+		//}
+		//else 
+		{
 			if (len > MIN_PREDICTION_EPSILON) {
 				player.NotePredictionError(delta);
 

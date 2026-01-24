@@ -1,5 +1,6 @@
 ﻿global using static Game.Shared.PredictionCopy;
 
+using Source;
 using Source.Common;
 
 using System;
@@ -15,8 +16,94 @@ public enum PredictionCopyType
 	NetworkedOnly
 }
 
-public static class PredictionCopy
+public enum PredictionCopyRelationship
 {
+	DataFrameToObject,
+	ObjectToDataFrame,
+
+	// Will these even be used?
+	DataFrameToDataFrame,
+	ObjectToObject
+}
+
+public delegate void FN_FIELD_COMPARE(ReadOnlySpan<char> classname, ReadOnlySpan<char> fieldname, ReadOnlySpan<char> fieldtype, bool networked, bool noterrorchecked, bool differs, bool withintolerance, ReadOnlySpan<byte> value);
+
+public ref struct PredictionCopy
+{
+	public const bool PC_DATA_NORMAL = false;
+	public const bool PC_DATA_PACKED = true;
+
+	public readonly PredictionCopyType Type;
+	public readonly DataFrame Dest_DataFrame;
+	public readonly DataFrame Src_DataFrame;
+	public readonly object? Dest_Object;
+	public readonly object? Src_Object;
+	public readonly PredictionCopyRelationship Relationship;
+	public readonly bool CountErrors;
+	public readonly bool ReportErrors;
+	public readonly bool PerformCopy;
+	public readonly bool DescribeFields;
+	public readonly FN_FIELD_COMPARE? Func;
+
+
+	public PredictionCopy(PredictionCopyType type, DataFrame dest, object src,
+		bool countErrors = false, bool reportErrors = false, bool performCopy = true, bool describeFields = false, FN_FIELD_COMPARE? func = null) {
+		Type = type;
+		Dest_DataFrame = dest;
+		Src_Object = src;
+		Relationship = PredictionCopyRelationship.ObjectToDataFrame;
+
+		CountErrors = countErrors;
+		ReportErrors = reportErrors;
+		PerformCopy = performCopy;
+		DescribeFields = describeFields;
+		Func = func;
+	}
+
+	public PredictionCopy(PredictionCopyType type, object dest, DataFrame src,
+		bool countErrors = false, bool reportErrors = false, bool performCopy = true, bool describeFields = false, FN_FIELD_COMPARE? func = null) {
+		Type = type;
+		Dest_Object = dest;
+		Src_DataFrame = src;
+		Relationship = PredictionCopyRelationship.DataFrameToObject;
+
+		CountErrors = countErrors;
+		ReportErrors = reportErrors;
+		PerformCopy = performCopy;
+		DescribeFields = describeFields;
+		Func = func;
+	}
+
+	public PredictionCopy(PredictionCopyType type, DataFrame dest, DataFrame src,
+		bool countErrors = false, bool reportErrors = false, bool performCopy = true, bool describeFields = false, FN_FIELD_COMPARE? func = null) {
+		Type = type;
+		Dest_DataFrame = dest;
+		Src_DataFrame = src;
+		Relationship = PredictionCopyRelationship.DataFrameToDataFrame;
+
+		CountErrors = countErrors;
+		ReportErrors = reportErrors;
+		PerformCopy = performCopy;
+		DescribeFields = describeFields;
+		Func = func;
+	}
+
+	public PredictionCopy(PredictionCopyType type, object dest, object src,
+		bool countErrors = false, bool reportErrors = false, bool performCopy = true, bool describeFields = false, FN_FIELD_COMPARE? func = null) {
+		Type = type;
+		Dest_Object = dest;
+		Src_Object = src;
+		Relationship = PredictionCopyRelationship.ObjectToObject;
+
+		CountErrors = countErrors;
+		ReportErrors = reportErrors;
+		PerformCopy = performCopy;
+		DescribeFields = describeFields;
+		Func = func;
+	}
+
+
+
 	static TypeDescription? FindFieldByName_R(ReadOnlySpan<char> fieldname, DataMap? dmap) {
 		if (dmap == null)
 			throw new NullReferenceException("Do not pass a null DataMap into FindFieldByName.");
