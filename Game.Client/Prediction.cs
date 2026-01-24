@@ -135,9 +135,99 @@ public class Prediction : IPrediction
 	public void PostEntityPacketReceived() {
 		throw new NotImplementedException();
 	}
+	public static readonly ConVar cl_predictionlist = new("cl_predictionlist", "0", FCvar.Cheat, "Show which entities are predicting\n");
+
 
 	public void PostNetworkDataReceived(int commandsAcknowledged) {
+		bool error_check = (commandsAcknowledged > 0) ? true : false;
 
+		// PDumpPanel dump = GetPDumpPanel();
+
+		ServerCommandsAcknowledged += commandsAcknowledged;
+		PreviousAckHadErrors = 0;
+
+		bool entityDumped = false;
+
+		C_BasePlayer? current = C_BasePlayer.GetLocalPlayer();
+		// No local player object?
+		if (current == null)
+			return;
+
+		// Don't screw up memory of current player from history buffers if not filling in history buffers
+		//  during prediction!!!
+		if (cl_predict.GetInt() != 0) {
+			int showlist = cl_predictionlist.GetInt();
+			nuint totalsize = 0;
+			nuint totalsize_intermediate = 0;
+
+			Con_NPrint_s np = default;
+			np.FixedWidthFont = true;
+			np.Color[0] = 0.8f;
+			np.Color[1] = 1.0f;
+			np.Color[2] = 1.0f;
+			np.TimeToLive = 2.0f;
+
+			// Transfer intermediate data from other predictables
+			int c = predictables.GetPredictableCount();
+			int i;
+			for (i = 0; i < c; i++) {
+				C_BaseEntity? ent = predictables.GetPredictable(i);
+				if (ent == null)
+					continue;
+
+				if (ent.GetPredictable())
+					if (ent.PostNetworkDataReceived(ServerCommandsAcknowledged))
+						PreviousAckHadErrors = 1;
+
+				if (showlist != 0) {
+					Span<char> sz = stackalloc char[32];
+					if (ent.EntIndex() == -1) {
+						sprintf(sz, $"handle {(uint)(ent.GetClientHandle()?.Index ?? 0)}");
+					}
+					else {
+						sprintf(sz, $"{ent.EntIndex()}");
+					}
+
+					np.Index = i;
+
+					if (showlist >= 2) {
+						nint size = GetClassMap().GetClassSize(ent.GetClassname());
+						nuint intermediate_size = ent.GetIntermediateDataSize() * (MULTIPLAYER_BACKUP + 1);
+
+						engine.Con_NXPrintf(np, $"{sz.SliceNullTerminatedString()} {ent.GetClassname()} ({size} / {intermediate_size} bytes): {(ent.GetPredictable() ? "predicted" : "client created")}");
+
+						totalsize += (nuint)size;
+						totalsize_intermediate += intermediate_size;
+					}
+					else {
+						engine.Con_NXPrintf(in np, $"{sz.SliceNullTerminatedString()} {ent.GetClassname()}: {(ent.GetPredictable() ? "predicted" : "client created")}");
+					}
+				}
+			}
+
+			// Zero out rest of list
+			if (showlist != 0) {
+				while (i < 20) {
+					// engine.Con_NPrintf(i, "");
+					i++;
+				}
+			}
+
+			if (error_check)
+				CheckError(ServerCommandsAcknowledged);
+		}
+		// Can also look at regular entities
+		
+		if (cl_predict.GetBool() != OldCLPredictValue) {
+			// if (!OldCLPredictValue) 
+			// 	ReinitPredictables();
+
+			CommandsPredicted = 0;
+			ServerCommandsAcknowledged = 0;
+			PreviousStartFrame = -1;
+		}
+
+		OldCLPredictValue = cl_predict.GetInt() != 0;
 	}
 
 	public void PreEntityPacketReceived(int commandsAcknowledged, int currentWorldUpdatePacket) {

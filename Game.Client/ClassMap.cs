@@ -8,6 +8,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Game.Client;
@@ -23,6 +25,7 @@ class ClassEntry
 
 	public DispatchFunction Factory = null!;
 	private InlineArray40<char> MapName;
+	public nint Size;
 }
 
 public class ClassMap : IClassMap
@@ -44,14 +47,14 @@ public class ClassMap : IClassMap
 
 			DispatchFunction dispatch = m.CreateDelegate<DispatchFunction>();
 
-			GetClassMap().Add(attr.LocalName, type.Key.Name, dispatch);
+			GetClassMap().Add(type.Key, attr.LocalName, type.Key.Name, dispatch);
 		}
 	}
 
 
 	readonly Dictionary<ulong, ClassEntry> ClassDict = [];
 
-	public void Add(ReadOnlySpan<char> mapname, ReadOnlySpan<char> classname, DispatchFunction? factory = null) {
+	public void Add(Type type, ReadOnlySpan<char> mapname, ReadOnlySpan<char> classname, DispatchFunction? factory = null) {
 		ReadOnlySpan<char> map = Lookup(classname);
 		if (!map.IsEmpty && map.Equals(mapname, StringComparison.Ordinal))
 			return;
@@ -62,6 +65,7 @@ public class ClassMap : IClassMap
 		ClassEntry element = new();
 		element.SetMapName(mapname);
 		element.Factory = factory!;
+		element.Size = 0; // This isn't really relevant at the moment. Implementing it is also easier said than done in .NET-land
 		ClassDict[classname.Hash(false)] = element;
 	}
 
@@ -89,5 +93,12 @@ public class ClassMap : IClassMap
 			return null;
 
 		return entry.GetMapName();
+	}
+
+	public nint GetClassSize(ReadOnlySpan<char> classname) {
+		if (!ClassDict.TryGetValue(classname.Hash(false), out var entry))
+			return -1;
+
+		return entry.Size;
 	}
 }
