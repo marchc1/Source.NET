@@ -60,7 +60,7 @@ namespace Source.Common
 	{
 		public readonly FieldType FieldType;
 		public readonly string FieldName = "";
-		public readonly IFieldAccessor FieldAccessor;
+		public readonly IDynamicAccessor FieldAccessor;
 		public nuint PackedOffset;
 		public readonly ushort FieldSize;
 		public readonly FieldTypeDescFlags Flags;
@@ -68,11 +68,11 @@ namespace Source.Common
 		public readonly ISaveRestoreOps? SaveRestoreOps;
 		// InputFunc?
 		public readonly DataMap? TD;
-		public readonly TypeDescription? OverrideField;
-		public readonly int OverrideCount;
+		public TypeDescription? OverrideField;
+		public int OverrideCount;
 		public readonly float FieldTolerance;
 
-		public TypeDescription(FieldType type, ReadOnlySpan<char> fieldName, IFieldAccessor accessor, ushort fieldSize, FieldTypeDescFlags flags, ReadOnlySpan<char> externalName, ISaveRestoreOps? saveRestoreOps, float fieldTolerance) {
+		public TypeDescription(FieldType type, ReadOnlySpan<char> fieldName, IDynamicAccessor accessor, ushort fieldSize, FieldTypeDescFlags flags, ReadOnlySpan<char> externalName, ISaveRestoreOps? saveRestoreOps, float fieldTolerance) {
 			FieldType = type;
 			FieldName = new(fieldName);
 			FieldAccessor = accessor;
