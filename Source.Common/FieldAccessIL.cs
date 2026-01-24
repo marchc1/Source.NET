@@ -15,6 +15,7 @@ namespace Source.Common
 	/// <summary>
 	/// Define how to build IL methods for types.
 	/// </summary>
+
 	public interface IFieldAccessor
 	{
 		public string Name { get; }
@@ -27,6 +28,13 @@ namespace Source.Common
 		public void CopyFrom<T>(object instance, Span<T> target);
 		public void CopyTo<T>(object instance, Span<T> target);
 	}
+
+	public interface IFieldAccessorIndexable
+	{
+		public IFieldAccessor AtIndex(int idx);
+	}
+
+	public interface IDynamicAccessor : IFieldAccessor, IFieldAccessorIndexable;
 
 	file static class ILCast<From, To>
 	{
@@ -297,8 +305,10 @@ namespace Source.Common
 		}.ToFrozenDictionary();
 	}
 
-	public class DynamicArrayAccessor : DynamicAccessor
+	public class DynamicArrayAccessor : DynamicAccessor, IFieldAccessorIndexable
 	{
+		IFieldAccessor IFieldAccessorIndexable.AtIndex(int idx) => AtIndex(idx)!;
+
 		public readonly DynamicArrayIndexAccessor?[] ArrayIndexers;
 		public readonly DynamicArrayInfo Info;
 
@@ -422,8 +432,10 @@ namespace Source.Common
 		public override bool IsDefined(Type attributeType, bool inherit) => throw new NotImplementedException();
 	}
 
-	public class DynamicAccessor : IFieldAccessor
+	public class DynamicAccessor : IDynamicAccessor
 	{
+		IFieldAccessor IFieldAccessorIndexable.AtIndex(int idx) => this;
+
 		public readonly List<MemberInfo> Members = [];
 
 		/// <summary>
