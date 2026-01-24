@@ -22,9 +22,9 @@ class CircularProgressBar : ProgressBar
 	int StartSegment;
 	bool ReverseProgress;
 
-	int[] TextureIds = new int[(int)ProgressTextures.NumProgressTextures];
-	string[] ImageName = new string[(int)ProgressTextures.NumProgressTextures];
-	int[] LenImageName = new int[(int)ProgressTextures.NumProgressTextures];
+	readonly int[] TextureIds = new int[(int)ProgressTextures.NumProgressTextures];
+	readonly string[] ImageName = new string[(int)ProgressTextures.NumProgressTextures];
+	readonly int[] LenImageName = new int[(int)ProgressTextures.NumProgressTextures];
 
 	public CircularProgressBar(Panel? parent, ReadOnlySpan<char> panelName) : base(parent, panelName) {
 

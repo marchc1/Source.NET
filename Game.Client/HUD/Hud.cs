@@ -270,7 +270,7 @@ public class Hud(HudElementHelper HudElementHelper)
 
 	internal void ProcessInput(bool active) {
 		if (active) {
-			// KeyBits = input.GetButtonBits();
+			KeyBits = input.GetButtonBits(0);
 			gHUD.Think();
 		}
 	}
@@ -414,7 +414,7 @@ public class Hud(HudElementHelper HudElementHelper)
 	}
 
 	public void Think() {
-		foreach (var element in HudList) {
+		foreach (IHudElement element in HudList) {
 			bool visible = element.ShouldDraw();
 			element.SetActive(visible);
 			Panel? panel = (Panel?)element;
@@ -423,8 +423,8 @@ public class Hud(HudElementHelper HudElementHelper)
 			else if (panel == null)
 				Assert(false, "All HUD elements should derive from vgui");
 
-			// if (visible)
-			// 	panel?.ProcessInput();
+			if (visible)
+				element.ProcessInput();
 		}
 
 		// BaseCombatWeapon? weapon = BaseCombatWeapon.GetActiveWeapon();

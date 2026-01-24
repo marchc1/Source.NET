@@ -39,7 +39,7 @@ class ExpandButton : ToggleButton
 	}
 
 	public override void Paint() {
-		Surface.DrawSetTextFont(Font!);
+		Surface.DrawSetTextFont(Font);
 
 		char ch = IsSelected() ? '6' : '4';
 

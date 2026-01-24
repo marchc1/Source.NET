@@ -38,8 +38,8 @@ public class FrameSystemButton : MenuButton
 
 		ReadOnlySpan<char> enabledImage = EnabledImage ?? scheme.GetResourceString("FrameSystemButton.EnabledImage");
 		ReadOnlySpan<char> disabledImage = DisabledImage ?? scheme.GetResourceString("FrameSystemButton.DisabledImage");
-		// Enabled = SchemeManager.GetImage(enabledImage, false);
-		// Disabled = SchemeManager.GetImage(disabledImage, false);
+		Enabled = SchemeManager.GetImage(enabledImage, false);
+		Disabled = SchemeManager.GetImage(disabledImage, false);
 
 		SetTextInset(0, 0);
 		SetEnabled(IsEnabled());
@@ -204,7 +204,7 @@ public class GripPanel : Panel
 	}
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
-		bool issmall = ((Frame)GetParent()).IsSmallCaption();
+		bool issmall = ((Frame)GetParent()!).IsSmallCaption();
 
 		MarlettFont = scheme.GetFont(issmall ? "MarlettSmall" : "Marlett", IsProportional());
 		SetFgColor(GetSchemeColor("FrameGrip.Color1", scheme));
@@ -408,7 +408,7 @@ public class FrameButton : Button
 		if (!IsMouseClickEnabled(code))
 			return;
 
-		if (!IsUseCaptureMouseEnabled()) {
+		if (IsUseCaptureMouseEnabled()) {
 			SetSelected(true);
 			Repaint();
 			Input.SetMouseCapture(this);
@@ -699,7 +699,6 @@ public class Frame : EditablePanel
 		OnFrameFocusChanged(HasFocus);
 	}
 
-	const int DEFAULT_SNAP_RANGE = 10;
 	const int CAPTION_TITLE_BORDER = 7;
 	const int CAPTION_TITLE_BORDER_SMALL = 0;
 
@@ -1000,8 +999,7 @@ public class Frame : EditablePanel
 			Primed = false;
 	}
 
-	private void OnFinishedClose() {
-	}
+	private void OnFinishedClose() { }
 
 	private void OnFrameFocusChanged(bool hasFocus) {
 		MinimizeButton?.SetDisabledLook(!hasFocus);

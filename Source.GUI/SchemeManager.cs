@@ -37,9 +37,36 @@ public class SchemeManager : ISchemeManager
 	}
 
 	bool initializedFirstScheme;
+	struct CachedBitmapHandle
+	{
+		public Bitmap? Bitmap;
+	}
 
-	public IImage GetImage(ReadOnlySpan<char> imageName, bool hardwareFiltered) {
-		return null!;// TODO todo
+	readonly List<CachedBitmapHandle> Bitmaps = [];
+
+	public IImage? GetImage(ReadOnlySpan<char> imageName, bool hardwareFiltered) {
+		if (imageName.IsEmpty)
+			return null;
+
+		CachedBitmapHandle searchBitmap = new() { Bitmap = null };
+
+		Span<char> fileName = stackalloc char[MAX_PATH];
+		if (imageName.IndexOf(".pic", StringComparison.OrdinalIgnoreCase) != -1)
+			sprintf(fileName, "%s").S(imageName);
+		else
+			sprintf(fileName, "vgui/%s").S(imageName);
+
+		int index = Bitmaps.FindIndex(b => BitmapHandleSearchFunc(searchBitmap, b));
+		if (index >= 0)
+			return Bitmaps[index].Bitmap;
+
+		CachedBitmapHandle bitmap = new() { Bitmap = new(fileName, hardwareFiltered) };
+		Bitmaps.Add(bitmap);
+		return bitmap.Bitmap;
+	}
+
+	static bool BitmapHandleSearchFunc(CachedBitmapHandle lhs, CachedBitmapHandle rhs) {
+		return lhs.Bitmap == rhs.Bitmap; // TODO
 	}
 
 	public int GetProportionalNormalizedValue(int scaled) {
@@ -83,7 +110,7 @@ public class SchemeManager : ISchemeManager
 		return LoadSchemeFromFileEx(null, fileName, tag);
 	}
 
-	public int GetProportionalScaledValueEx(IScheme scheme, int normalizedValue) {
+	public int GetProportionalScaledValueEx(IScheme? scheme, int normalizedValue) {
 		if (scheme == null) {
 			Assert(false);
 			return GetProportionalScaledValue(normalizedValue);

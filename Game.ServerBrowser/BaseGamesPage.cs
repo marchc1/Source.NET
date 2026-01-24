@@ -89,7 +89,7 @@ public class BaseGamesPage : PropertyPage, IGameList
 {
 	const int MAX_MAP_NAME = 128;
 
-	static ConVar sb_mod_suggested_maxplayers = new("sb_mod_suggested_maxplayers", "0", FCvar.Hidden);
+	public static ConVar sb_mod_suggested_maxplayers = new("sb_mod_suggested_maxplayers", "0", FCvar.Hidden);
 	static ConVar sb_filter_incompatible_versions = new("sb_filter_incompatible_versions",
 #if DEBUG
 		"0",
@@ -134,13 +134,13 @@ public class BaseGamesPage : PropertyPage, IGameList
 	public GameListPanel GameList;
 	PanelListPanel QuickList;
 	public ComboBox LocationFilter;
-	Button Connect;
-	Button RefreshAll;
+	public Button Connect;
+	public Button RefreshAll;
 	Button RefreshQuick;
 	Button AddServer;
 	Button AddCurrentServer;
 	Button AddToFavoritesButton;
-	ToggleButton Filter;
+	public ToggleButton Filter;
 	ComboBox GameFilter;
 	TextEntry MapFilter;
 	TextEntry MaxPlayerFilterEntry;
@@ -155,7 +155,6 @@ public class BaseGamesPage : PropertyPage, IGameList
 	Label FilterString;
 	string ComboAllText;
 	CheckButton ReplayFilterCheck;
-	KeyValues Filters;
 	public bool FiltersVisible;
 	IFont? Font;
 	Dictionary<ulong, int> GamesFilterItem = [];
@@ -166,7 +165,7 @@ public class BaseGamesPage : PropertyPage, IGameList
 	public int ServerRefreshCount;
 	List<ServerMaps> MapNamesFound = [];
 	PageType MatchMakingType;
-	HServerListRequest? Request;
+	HServerListRequest Request;
 	string? CustomResFilename;
 	int ImageIndexPassword;
 	int ImageIndexSecure;
@@ -185,12 +184,11 @@ public class BaseGamesPage : PropertyPage, IGameList
 	CGameID LimitToAppID;
 
 	private ISteamMatchmakingServerListResponse _steamResponse;
-	// ISteamMatchmakingPingResponse (needed?)
 
 	public BaseGamesPage(Panel parent, ReadOnlySpan<char> panelName, PageType type, string? customResFilename = null) : base(parent, panelName) {
 		_steamResponse = new ISteamMatchmakingServerListResponse(ServerResponded, ServerFailedToRespond, RefreshComplete);
 
-		Request = null;
+		Request = HServerListRequest.Invalid;
 		CustomResFilename = customResFilename;
 
 		SetSize(624, 278);
@@ -231,21 +229,19 @@ public class BaseGamesPage : PropertyPage, IGameList
 
 		GameList.UserConfigFileVersion = 2;
 
-		// FIXME: Update ListPanel func params to use enums, and just cast there if needed...
-
-		GameList.AddColumnHeader((int)Column.Password, "Password", "#ServerBrowser_Password", 16, (int)(ListPanel.ColumnFlags.FixedSize | ListPanel.ColumnFlags.Image));
-		GameList.AddColumnHeader((int)Column.Secure, "Secure", "#ServerBrowser_Secure", 16, (int)(ListPanel.ColumnFlags.FixedSize | ListPanel.ColumnFlags.Image));
+		GameList.AddColumnHeader((int)Column.Password, "Password", "#ServerBrowser_Password", 16, ListPanel.ColumnFlags.FixedSize | ListPanel.ColumnFlags.Image);
+		GameList.AddColumnHeader((int)Column.Secure, "Secure", "#ServerBrowser_Secure", 16, ListPanel.ColumnFlags.FixedSize | ListPanel.ColumnFlags.Image);
 
 		int replayWidth = runningTF2 ? 16 : 0;
 
-		GameList.AddColumnHeader((int)Column.Replay, "Replay", "#ServerBrowser_Replay", replayWidth, (int)(ListPanel.ColumnFlags.FixedSize | ListPanel.ColumnFlags.Image));
-		GameList.AddColumnHeader((int)Column.Name, "Name", "#ServerBrowser_Servers", 50, (int)(ListPanel.ColumnFlags.ResizeWithWindow | ListPanel.ColumnFlags.Unhidable));
-		GameList.AddColumnHeader((int)Column.IPAddress, "IPAddr", "#ServerBrowser_IPAddress", 64, (int)ListPanel.ColumnFlags.Hidden);
+		GameList.AddColumnHeader((int)Column.Replay, "Replay", "#ServerBrowser_Replay", replayWidth, ListPanel.ColumnFlags.FixedSize | ListPanel.ColumnFlags.Image);
+		GameList.AddColumnHeader((int)Column.Name, "Name", "#ServerBrowser_Servers", 50, ListPanel.ColumnFlags.ResizeWithWindow | ListPanel.ColumnFlags.Unhidable);
+		GameList.AddColumnHeader((int)Column.IPAddress, "IPAddr", "#ServerBrowser_IPAddress", 64, ListPanel.ColumnFlags.Hidden);
 		GameList.AddColumnHeader((int)Column.GameDesc, "GameDesc", "#ServerBrowser_Game", 112, 112, 300, 0);
-		GameList.AddColumnHeader((int)Column.Players, "Players", "#ServerBrowser_Players", 55, (int)ListPanel.ColumnFlags.FixedSize);
-		GameList.AddColumnHeader((int)Column.Bots, "Bots", "#ServerBrowser_Bots", 40, (int)ListPanel.ColumnFlags.FixedSize);
+		GameList.AddColumnHeader((int)Column.Players, "Players", "#ServerBrowser_Players", 55, ListPanel.ColumnFlags.FixedSize);
+		GameList.AddColumnHeader((int)Column.Bots, "Bots", "#ServerBrowser_Bots", 40, ListPanel.ColumnFlags.FixedSize);
 		GameList.AddColumnHeader((int)Column.Map, "Map", "#ServerBrowser_Map", 90, 90, 300, 0);
-		GameList.AddColumnHeader((int)Column.Ping, "Ping", "#ServerBrowser_Latency", 55, (int)ListPanel.ColumnFlags.FixedSize);
+		GameList.AddColumnHeader((int)Column.Ping, "Ping", "#ServerBrowser_Latency", 55, ListPanel.ColumnFlags.FixedSize);
 
 		GameList.SetColumnHeaderTooltip((int)Column.Password, "#ServerBrowser_PasswordColumn_Tooltip");
 		GameList.SetColumnHeaderTooltip((int)Column.Bots, "#ServerBrowser_BotColumn_Tooltip");
@@ -282,9 +278,9 @@ public class BaseGamesPage : PropertyPage, IGameList
 	// FIXME #37
 	public override void Dispose() {
 		base.Dispose();
-		if (Request.HasValue) {
-			SteamMatchmakingServers.ReleaseRequest(Request.Value);
-			Request = null;
+		if (Request != HServerListRequest.Invalid) {
+			SteamMatchmakingServers.ReleaseRequest(Request);
+			Request = HServerListRequest.Invalid;
 		}
 	}
 
@@ -407,7 +403,7 @@ public class BaseGamesPage : PropertyPage, IGameList
 	}
 
 	public gameserveritem_t GetServer(uint serverID) {
-		throw new NotImplementedException();
+		return SteamMatchmakingServers.GetServerDetails(Request, (int)serverID);
 	}
 
 	bool TagsExclude() {
@@ -430,7 +426,7 @@ public class BaseGamesPage : PropertyPage, IGameList
 	}
 
 	void CreateFilters() {
-		Filter = new(this, "FilterButton", "#ServerBrowser_Filters");
+		Filter = new(this, "Filter", "#ServerBrowser_Filters");
 		FilterString = new(this, "FilterString", "");
 
 		if (false) { //cstrike
@@ -556,11 +552,10 @@ public class BaseGamesPage : PropertyPage, IGameList
 		ServerResponded(index, server);
 	}
 
-
 	public virtual void ServerResponded(HServerListRequest request, int serverIndex) {
 		var serverItem = SteamMatchmakingServers.GetServerDetails(request, serverIndex);
 		if (serverItem == null) {
-			Assert(false, "Missing server response");
+			AssertMsg(false, "Missing server response");
 			return;
 		}
 
@@ -573,7 +568,116 @@ public class BaseGamesPage : PropertyPage, IGameList
 		ServerResponded(serverIndex, serverItem);
 	}
 
-	public virtual void ServerResponded(int server, gameserveritem_t serverItem) { }
+	public virtual void ServerResponded(int server, gameserveritem_t serverItem) {
+		if (!Servers.TryGetValue(server, out ServerDisplay serverDis)) {
+			servernetadr_t netAdr = new();
+			netAdr.Init(serverItem.m_NetAdr.GetIP(), serverItem.m_NetAdr.GetQueryPort(), serverItem.m_NetAdr.GetConnectionPort());
+			if (ServerIp.TryGetValue(netAdr, out int existingServer)) {
+				Servers.Remove(existingServer);
+				ServerIp.Remove(netAdr);
+			}
+
+			ServerDisplay serverDisplay = new() {
+				ListID = -1,
+				DoNotRefresh = false,
+			};
+			serverDis = serverDisplay;
+			Servers.Add(server, serverDis);
+			ServerIp.Add(netAdr, server);
+		}
+
+		serverDis.ServerID = server;
+		Assert(serverItem.m_NetAdr.GetIP() != 0);
+
+		bool removeItem = false;
+		if (!CheckPrimaryFilters(serverItem)) {
+			serverDis.DoNotRefresh = true;
+			removeItem = true;
+
+			if (GameList.IsValidItemID(serverDis.ListID)) {
+				GameList.RemoveItem(serverDis.ListID);
+				serverDis.ListID = GetInvalidServerListID();
+			}
+
+			return;
+		}
+		else if (!CheckSecondaryFilters(serverItem))
+			removeItem = true;
+
+		KeyValues? kv;
+		if (GameList.IsValidItemID(serverDis.ListID)) {
+			kv = GameList.GetItem(serverDis.ListID);
+			GameList.SetUserData(serverDis.ListID, (uint)serverDis.ServerID);
+		}
+		else
+			kv = new("Server");
+
+		kv!.SetString("name", serverItem.GetServerName());
+		kv.SetString("map", serverItem.GetMap());
+		kv.SetString("GameDir", serverItem.GetGameDir());
+		kv.SetString("GameDesc", serverItem.GetGameDescription());
+		kv.SetInt("password", serverItem.m_bPassword ? ImageIndexPassword : 0);
+
+		if (serverItem.m_nBotPlayers > 0)
+			kv.SetInt("bots", serverItem.m_nBotPlayers);
+		else
+			kv.SetString("bots", "");
+
+		if (serverItem.m_bSecure)
+			kv.SetInt("secure", ServerBrowser.Instance!.IsVACBannedFromGame((int)serverItem.m_nAppID) ? ImageIndexSecureVacBanned : ImageIndexSecure);
+		else
+			kv.SetInt("secure", 0);
+
+		kv.SetString("IPAddr", serverItem.m_NetAdr.GetConnectionAddressString());
+
+		int adjustedForBotsPlayers = Math.Max(0, serverItem.m_nPlayers - serverItem.m_nBotPlayers);
+
+		Span<char> buf = stackalloc char[32];
+		sprintf(buf, "%d / %d").D(adjustedForBotsPlayers).D(serverItem.m_nMaxPlayers);
+		kv.SetString("Players", buf.SliceNullTerminatedString());
+
+		kv.SetInt("PlayerCount", adjustedForBotsPlayers);
+		kv.SetInt("MaxPlayerCount", serverItem.m_nMaxPlayers);
+
+		kv.SetInt("Ping", serverItem.m_nPing);
+
+		kv.SetString("Tags", serverItem.GetGameTags());
+
+		kv.SetInt("Replay", 0);// IsReplayServer(serverItem) ? ImageIndexReplay : 0);
+
+		if (serverItem.m_ulTimeLastPlayed != 0) {
+			DateTime time = DateTimeOffset.FromUnixTimeSeconds(serverItem.m_ulTimeLastPlayed).LocalDateTime;
+			Span<char> timeBuf = stackalloc char[64];
+			time.ToString("ddd dd MMM hh:mmtt").AsSpan().CopyTo(timeBuf);
+			for (int i = timeBuf.Length - 4; i < timeBuf.Length; i++)
+				timeBuf[i] = char.ToLowerInvariant(timeBuf[i]);
+
+			kv.SetString("LastPlayed", timeBuf.SliceNullTerminatedString());
+		}
+
+		if (serverDis.DoNotRefresh) {
+			kv.SetString("Ping", "");
+			kv.SetString("GameDesc", Localize.Find("#ServerBrowser_NotResponding"));
+			kv.SetString("Players", "");
+			kv.SetString("map", "");
+		}
+
+		if (!GameList.IsValidItemID(serverDis.ListID)) {
+			serverDis.ListID = GameList.AddItem(kv, (uint)serverDis.ServerID, false, false);
+			if (AutoSelectFirstItemInGameList && GameList.GetItemCount() == 1)
+				GameList.AddSelectedItem(serverDis.ListID);
+
+			GameList.SetItemVisible(serverDis.ListID, !removeItem);
+		}
+		else {
+			GameList.ApplyItemChanges(serverDis.ListID);
+			GameList.SetItemVisible(serverDis.ListID, !removeItem);
+		}
+
+		PrepareQuickListMap(serverItem.GetMap(), serverDis.ListID);
+		UpdateStatus();
+		ServerRefreshCount++;
+	}
 
 	void UpdateFilterAndQuickListVisibility() {
 		bool showQuickList = QuickListCheckButton.IsSelected();
@@ -690,8 +794,8 @@ public class BaseGamesPage : PropertyPage, IGameList
 	void RecalculateFilterString() { }
 
 	bool CheckPrimaryFilters(gameserveritem_t server) {
-		if (GameFilterText.Length > 0 && (server.GetGameDir().Length > 0 || server.m_nPing > 0) && stricmp(GameFilterText, server.GetGameDir()) != 0)
-			return false;
+		// if (GameFilterText.Length > 0 && (server.GetGameDir().Length > 0 || server.m_nPing > 0) && !GameFilterText.Equals(server.GetGameDir(), StringComparison.OrdinalIgnoreCase))
+		// 	return false;
 
 		if (ServerBrowserDialog.Instance!.IsServerBlacklisted(server)) {
 			ServersBlacklisted++;
@@ -782,7 +886,6 @@ public class BaseGamesPage : PropertyPage, IGameList
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
-		Console.WriteLine($"{this}::OnCommand({command.ToString()})");
 		switch (command) {
 			case "Connect":
 				OnBeginConnect();
@@ -791,7 +894,7 @@ public class BaseGamesPage : PropertyPage, IGameList
 				StopRefresh();
 				break;
 			case "refresh":
-				SteamMatchmakingServers.RefreshQuery(Request ?? HServerListRequest.Invalid);
+				SteamMatchmakingServers.RefreshQuery(Request);
 				SetRefreshing(true);
 				ServerRefreshCount = 0;
 				ClearQuickList();
@@ -822,9 +925,9 @@ public class BaseGamesPage : PropertyPage, IGameList
 	public bool OnGameListEnterPressed() => false;
 	int GetSelectedItemsCount() => GameList.GetSelectedItemsCount();
 
-	void OnAddToFavorites() { }
+	public virtual void OnAddToFavorites() { }
 
-	void OnAddToBlacklist() { }
+	public virtual void OnAddToBlacklist() { }
 
 	public virtual void ServerFailedToRespond(HServerListRequest req, int server) => ServerResponded(req, server);
 
@@ -835,17 +938,24 @@ public class BaseGamesPage : PropertyPage, IGameList
 		UpdateStatus();
 	}
 
-	void OnRefreshServer(int serverID) { }
+	void OnRefreshServer(int serverID) {
+		for (int i = 0; i < GameList.GetSelectedItemsCount(); i++) {
+			int serverId = GameList.GetItemUserData(GameList.GetSelectedItem(i));
+			SteamMatchmakingServers.RefreshServer(Request, serverId);
+		}
+
+		SetRefreshing(IsRefreshing());
+	}
 
 	public virtual void StartRefresh() {
 		ClearServerList();
 
 		uint filterCount = GetServerFilters(out MatchMakingKeyValuePair_t[] filters);
 
-		if (Request.HasValue)
-			SteamMatchmakingServers.ReleaseRequest(Request.Value);
-
-		Console.WriteLine($"{this}::StartRefresh() MatchMakingType={MatchMakingType} AppID={LimitToAppID.AppID()} filters={filterCount}");
+		if (Request != HServerListRequest.Invalid) {
+			SteamMatchmakingServers.ReleaseRequest(Request);
+			Request = HServerListRequest.Invalid;
+		}
 
 		switch (MatchMakingType) {
 			case PageType.FavoritesServer:
@@ -875,7 +985,15 @@ public class BaseGamesPage : PropertyPage, IGameList
 		ServerRefreshCount = 0;
 	}
 
-	void ClearQuickList() { }
+	void ClearQuickList() {
+		QuickList.RemoveAll();
+		MapNamesFound.Clear();
+
+		foreach (var serverList in QuicklistServerList.Values)
+			serverList.Clear();
+
+		QuicklistServerList.Clear();
+	}
 
 	void ClearServerList() {
 		Servers.Clear();
@@ -890,25 +1008,91 @@ public class BaseGamesPage : PropertyPage, IGameList
 	public virtual void StopRefresh() {
 		ServerRefreshCount = 0;
 
-		if (Request.HasValue)
-			SteamMatchmakingServers.ReleaseRequest(Request.Value);
+		if (Request != HServerListRequest.Invalid)
+			SteamMatchmakingServers.ReleaseRequest(Request);
 
-		RefreshComplete(Request ?? HServerListRequest.Invalid, EMatchMakingServerResponse.eServerResponded);
+		RefreshComplete(Request, EMatchMakingServerResponse.eServerResponded);
 
 		ApplyGameFilters();
 	}
 
 	public virtual void RefreshComplete(HServerListRequest request, EMatchMakingServerResponse response) => SelectQuickListServers();
-	public bool IsRefreshing() => SteamMatchmakingServers.IsRefreshing(Request ?? HServerListRequest.Invalid);
+	public bool IsRefreshing() => SteamMatchmakingServers.IsRefreshing(Request);
 	public override void OnPageShow() => StartRefresh();
 	public override void OnPageHide() => StopRefresh();
 	public Panel GetActiveList() => QuickList.IsVisible() ? QuickList : GameList;
 
-	public int GetSelectedServerID(KeyValues? kv = null) {
-		return -1;// TODO
+	public int GetSelectedServerID() {
+		KeyValues? _ = null;
+		return GetSelectedServerID(ref _);
 	}
 
-	public void OnBeginConnect() { }
+	public int GetSelectedServerID(ref KeyValues? kv) {
+		int serverId = -1;
+
+		if (QuickList.IsVisible()) {
+			if (IsRefreshing())
+				return -1;
+
+			if (QuickList.GetSelectedPanel() != null) {
+				QuickListPanel? quickPanel = (QuickListPanel?)QuickList.GetSelectedPanel();
+				if (quickPanel != null) {
+					serverId = GameList.GetItemUserData(quickPanel.GetListID());
+					if (kv != null)
+						kv = GameList.GetItem(quickPanel.GetListID());
+				}
+			}
+		}
+		else {
+			if (GameList.GetSelectedItemsCount() == 0)
+				return -1;
+
+			serverId = GameList.GetItemUserData(GameList.GetSelectedItem(0));
+
+			if (kv != null)
+				kv = GameList.GetItem(GameList.GetSelectedItem(0));
+		}
+
+		return serverId;
+	}
+
+	public void OnBeginConnect() {
+		KeyValues? kv = null;
+		int serverID = GetSelectedServerID(ref kv);
+
+		if (serverID == -1)
+			return;
+
+		StopRefresh();
+
+		ConVarRef sb_dontshow_maxplayer_warning = new("sb_dontshow_maxplayer_warning", true);
+
+		if (sb_dontshow_maxplayer_warning.IsValid()) {
+			int maxPlayers = sb_mod_suggested_maxplayers.GetInt();
+			if (maxPlayers != 0 && kv != null && !sb_dontshow_maxplayer_warning.GetBool()) {
+				int maxCount = kv.GetInt("MaxPlayerCount", 0);
+				if (maxCount > maxPlayers) {
+					DialogServerWarning dlg = new(this, this, serverID);
+					dlg.MakeReadyForUse();
+					dlg.MoveToCenterOfScreen();
+					dlg.DoModal();
+
+					Span<char> warning = stackalloc char[512];
+					Span<char> serverMaxPlayers = stackalloc char[12];
+					Span<char> designedMaxPlayers = stackalloc char[12];
+					Span<char> gameName = stackalloc char[256];
+					sprintf(serverMaxPlayers, "%d").D(maxCount);
+					sprintf(designedMaxPlayers, "%d").D(maxPlayers);
+					sprintf(gameName, "%s").S(ModList.Instance!.GetModNameForModDir(LimitToAppID));
+					Localize.ConstructString(warning, Localize.Find("#ServerBrowser_ServerWarning_MaxPlayers"), serverMaxPlayers, gameName, designedMaxPlayers, designedMaxPlayers);
+					dlg.SetDialogVariable("warning", warning.SliceNullTerminatedString());
+					return;
+				}
+			}
+		}
+
+		ServerBrowserDialog.Instance!.JoinGame(this, (uint)serverID);
+	}
 
 	void OnViewGameInfo() {
 		int serverID = GetSelectedServerID();
@@ -1012,9 +1196,10 @@ class DialogServerWarning : Frame
 		LoadControlSettings("servers/DialogServerWarning.res");
 	}
 
+	readonly static KeyValues KV_Close = new("Close");
 	public override void OnCommand(ReadOnlySpan<char> command) {
 		if (command.Equals("OK", StringComparison.Ordinal)) {
-			PostMessage(this, new("Close"));//static kv
+			PostMessage(this, KV_Close);
 			ServerBrowserDialog.Instance!.JoinGame(GameList, (uint)ServerID);
 		}
 

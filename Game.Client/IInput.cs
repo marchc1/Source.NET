@@ -20,4 +20,6 @@ public interface IInput
 	void ClearStates();
 	void CAM_Think();
 	ref UserCmd GetUserCmd(int sequenceNumber);
+	InButtons GetButtonBits(int resetState);
+	void ClearInputButton(InButtons bits);
 }

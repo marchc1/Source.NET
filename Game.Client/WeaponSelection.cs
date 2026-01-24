@@ -1,6 +1,7 @@
 using Game.Client.HUD;
 using Game.Shared;
 
+using Source;
 using Source.Common.Commands;
 using Source.Common.Input;
 using Source.GUI.Controls;
@@ -50,9 +51,48 @@ public class BaseHudWeaponSelection : EditableHudElement
 		// todo hudhr
 	}
 
-	public override void OnThink() { }// todo
+	public override void OnThink() {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return;
 
-	public void ProcessInput() { } //todo
+		if ((player.GetFlags() & EntityFlags.Frozen) != 0/* || player.IsPlayerDead()*/) { //todo
+			if (IsInSelectionMode())
+				CancelWeaponSelection();
+		}
+	}
+
+	public void ProcessInput() {
+		BasePlayer? player = BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return;
+
+		int fastSwitchMode = hud_fastswitch.GetInt();
+
+		if (/*player.IsInVGuiInputMode() && !player.IsInViewModelVGuiInputMode()*/ false) {
+			if ((gHUD.KeyBits & InButtons.Attack) != 0) {
+				if (HUDTYPE_PLUS != fastSwitchMode) {
+					gHUD.KeyBits &= ~InButtons.Attack;
+					input.ClearInputButton(InButtons.Attack);
+				}
+
+				engine.ClientCmd("cancelselect\n");
+			}
+
+			return;
+		}
+
+		if ((gHUD.KeyBits & (InButtons.Attack | InButtons.Attack2)) != 0) {
+			if (IsWeaponSelectable()) {
+				if (HUDTYPE_PLUS != fastSwitchMode) {
+					gHUD.KeyBits &= ~(InButtons.Attack | InButtons.Attack2);
+					input.ClearInputButton(InButtons.Attack);
+					input.ClearInputButton(InButtons.Attack2);
+				}
+				SelectWeapon();
+			}
+		}
+	}
 
 	public bool IsInSelectionMode() => SelectionVisible;
 
@@ -65,6 +105,8 @@ public class BaseHudWeaponSelection : EditableHudElement
 		SelectionVisible = false;
 		// unlockrendergroup todo
 	}
+
+	private bool IsWeaponSelectable() => IsInSelectionMode();
 
 	public bool CanBeSelectedInHUD(BaseCombatWeapon pWeapon) { return true; } // todo
 
@@ -189,7 +231,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 
 	public void SelectWeapon() {
 		if (GetSelectedWeapon() == null) {
-			engine.ClientCmd_Unrestricted("cancelselect\n");// todo: not unrestricted
+			engine.ClientCmd("cancelselect\n");
 			return;
 		}
 
@@ -204,7 +246,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 		else {
 			SetWeaponSelected();
 			SelectedWeapon = null;
-			engine.ClientCmd_Unrestricted("cancelselect\n"); // todo: not unrestricted
+			engine.ClientCmd("cancelselect\n");
 
 			// player.EmitSound("Player.WeaponSelected");
 		}
@@ -224,7 +266,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 			// player.EmitSound("Player.WeaponSelectionClose");
 		}
 		else
-			engine.ClientCmd_Unrestricted("escape\n"); // todo: not unrestricted
+			engine.ClientCmd("escape\n");
 	}
 
 	public BaseCombatWeapon? GetFirstPos(int slot) {

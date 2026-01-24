@@ -34,7 +34,11 @@ class LanGames : BaseGamesPage
 		// RequestTime
 	}
 
-	void ManualShowButtons(bool showConnect, bool showRefreshAll, bool showFilter) { }
+	void ManualShowButtons(bool showConnect, bool showRefreshAll, bool showFilter) {
+		Connect.SetVisible(showConnect);
+		RefreshAll.SetVisible(showRefreshAll);
+		Filter.SetVisible(showFilter);
+	}
 
 	public override void StopRefresh() {
 		base.StopRefresh();
@@ -48,7 +52,8 @@ class LanGames : BaseGamesPage
 	}
 
 	public override void ServerFailedToRespond(HServerListRequest req, int server) {
-
+		if (Servers.TryGetValue(server, out ServerDisplay display))
+			RemoveServer(display);
 	}
 
 	public override void RefreshComplete(HServerListRequest req, EMatchMakingServerResponse response) {

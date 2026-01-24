@@ -23,7 +23,7 @@ class RadioImage : TextImage
 	}
 
 	public override void Paint() {
-		DrawSetTextFont(GetFont()!);
+		DrawSetTextFont(GetFont());
 
 		if (RadioButton.IsEnabled())
 			DrawSetTextColor(CheckColor);

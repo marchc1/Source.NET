@@ -11,7 +11,7 @@ class CheckButtonList : EditablePanel
 		public KeyValues UserData;
 	}
 
-	List<CheckItem> CheckItems = [];
+	readonly List<CheckItem> CheckItems = [];
 	ScrollBar ScrollBar;
 
 	public CheckButtonList(Panel? parent, ReadOnlySpan<char> panelName) : base(parent, panelName) => ScrollBar = new(this, null, true);

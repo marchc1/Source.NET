@@ -633,7 +633,7 @@ public class Button : Label
 		DrawDashedLine(tx1 - 1, ty0, tx1, ty1, 1, 1); // Right
 	}
 
-	public void SizeToContents() {
+	public override void SizeToContents() {
 		GetContentSize(out int wide, out int tall);
 		SetSize(wide + Content, tall + Content);
 	}

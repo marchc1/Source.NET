@@ -38,7 +38,7 @@ class InternetGames : BaseGamesPage
 		LocationFilter.RemoveAll();
 
 		KeyValues kv = new("Regions");
-		if (kv.LoadFromFile(fileSystem, "servers/Regions.cdf", null)) {
+		if (kv.LoadFromFile(fileSystem, "servers/Regions.vdf", null)) {
 			for (KeyValues? sub = kv.GetFirstSubKey(); sub != null; sub = sub.GetNextKey()) {
 				Region region = new() {
 					Name = sub.GetString("name", ""),
@@ -51,17 +51,18 @@ class InternetGames : BaseGamesPage
 			}
 		}
 		else
-			Assert("Could not load file servesr/Regions.cdf; server brrowser will not function.");
+			Assert("Could not load file servers/Regions.vdf; server browser will not function.");
 
 		LoadFilterSettings();
 
 		VGui.AddTickSignal(this, 250);
 	}
 
+	readonly static KeyValues KV_GetNewServerList = new("GetNewServerList");
 	public override void PerformLayout() {
 		if (!OfflineMode && RequireUpdate && ServerBrowserDialog.Instance!.IsVisible()) {
 			RequireUpdate = false;
-			PostMessage(this, new KeyValues("GetNewServerList"), 0.01f);//static kv
+			PostMessage(this, KV_GetNewServerList, 0.01f);
 		}
 
 		if (OfflineMode) {
@@ -162,6 +163,6 @@ class InternetGames : BaseGamesPage
 	}
 
 	public override bool CheckTagFilter(gameserveritem_t server) {
-		throw new NotImplementedException();
+		return false;//todo
 	}
 }
