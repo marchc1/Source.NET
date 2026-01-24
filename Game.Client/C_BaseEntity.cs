@@ -1129,8 +1129,8 @@ public partial class C_BaseEntity : IClientEntity
 			IntermediateDataCount = slot;
 
 		PredictionCopy copyHelper = new(type, dest, this);
-		int errorCount = copyHelper.TransferData(sz, EntIndex(), GetPredDescMap());
-		return errorCount;
+		//int errorCount = copyHelper.TransferData(sz, EntIndex(), GetPredDescMap());
+		return 0; //errorCount;
 	}
 
 	public bool IsIntermediateDataAllocated() {
