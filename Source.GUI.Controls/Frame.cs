@@ -408,7 +408,7 @@ public class FrameButton : Button
 		if (!IsMouseClickEnabled(code))
 			return;
 
-		if (!IsUseCaptureMouseEnabled()) {
+		if (IsUseCaptureMouseEnabled()) {
 			SetSelected(true);
 			Repaint();
 			Input.SetMouseCapture(this);
