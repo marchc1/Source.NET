@@ -555,8 +555,8 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 			int slen = 0, charCount = 0, maxslen = 0;
 			int firstslen = 0;
-			for (char pch = text[0]; pch != '\0'; pch = text[++charCount]) {
-				if (pch == '\n') {
+			for (ReadOnlySpan<char> pch = text; pch[0] != '\0'; pch = pch[1..]) {
+				if (pch[0] == '\n') {
 					if (slen > maxslen)
 						maxslen = slen;
 
@@ -565,8 +565,8 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 					slen = 0;
 				}
-				else if (pch != '\r') {
-					slen += surface.GetCharacterWidth(TextFont, pch);
+				else if (pch[0] != '\r') {
+					slen += surface.GetCharacterWidth(TextFont, pch[0]);
 					charCount++;
 				}
 			}
@@ -581,11 +581,11 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 			int ty = ypos + (int)TextYPos;
 			surface.DrawSetTextPos(tx, ty);
 			charCount *= (int)TextScan;
-			for (char pch = text[0]; charCount > 0; pch = text[++charCount]) {
-				if (pch == '\n')
+			for (ReadOnlySpan<char> pch = text; charCount > 0; pch = pch[1..]) {
+				if (pch[0] == '\n')
 					surface.DrawSetTextPos(xpos + ((boxWide - slen) / 2), ty + (int)(surface.GetFontTall(TextFont) * 1.1f));
-				else if (pch != '\r') {
-					surface.DrawChar(pch);
+				else if (pch[0] != '\r') {
+					surface.DrawChar(pch[0]);
 					charCount--;
 				}
 			}

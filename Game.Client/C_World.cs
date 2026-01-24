@@ -54,7 +54,7 @@ public class C_World : C_BaseEntity
 		W_Precache();
 
 		// Call all registered precachers.
-		// PrecacheRegister.Precache();
+		PrecacheRegister.Precache();
 	}
 	public override void Spawn() {
 		Precache();

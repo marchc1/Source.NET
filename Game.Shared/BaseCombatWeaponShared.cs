@@ -22,6 +22,8 @@ using Game.Client.HUD;
 
 using System.Diagnostics;
 using System.Reflection;
+
+using Microsoft.VisualBasic;
 namespace Game.Client;
 #else
 namespace Game.Server;
@@ -62,14 +64,14 @@ public partial class
 		RecvPropIntWithMinusOneFlag(FIELD.OF(nameof(Clip1))),
 		RecvPropInt(FIELD.OF(nameof(PrimaryAmmoType))),
 		RecvPropInt(FIELD.OF(nameof(SecondaryAmmoType))),
-		RecvPropInt(FIELD.OF(nameof(ViewModelIndex))),
+		RecvPropInt(FIELD.OF(nameof(nViewModelIndex))),
 		RecvPropInt(FIELD.OF(nameof(FlipViewModel))),
 #elif GAME_DLL
 		SendPropIntWithMinusOneFlag(FIELD.OF(nameof(Clip1)), 16),
 		SendPropIntWithMinusOneFlag(FIELD.OF(nameof(Clip1)), 16),
 		SendPropInt(FIELD.OF(nameof(PrimaryAmmoType)), 8),
 		SendPropInt(FIELD.OF(nameof(SecondaryAmmoType)), 8),
-		SendPropInt(FIELD.OF(nameof(ViewModelIndex)), BaseViewModel.VIEWMODEL_INDEX_BITS, PropFlags.Unsigned),
+		SendPropInt(FIELD.OF(nameof(nViewModelIndex)), BaseViewModel.VIEWMODEL_INDEX_BITS, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(FlipViewModel)), 8),
 #endif
 	]); public static readonly Class SC_LocalWeaponData = new Class("LocalWeaponData", DT_LocalWeaponData);
@@ -92,14 +94,14 @@ public partial class
 #if CLIENT_DLL
 		RecvPropDataTable("LocalWeaponData", DT_LocalWeaponData),
 		RecvPropDataTable("LocalActiveWeaponData", DT_LocalActiveWeaponData),
-		RecvPropInt(FIELD.OF(nameof(ViewModelIndex))),
+		RecvPropInt(FIELD.OF(nameof(iViewModelIndex))),
 		RecvPropInt(FIELD.OF(nameof(WorldModelIndex))),
 		RecvPropInt(FIELD.OF(nameof(State)), 0, RecvProxy_WeaponState),
 		RecvPropEHandle(FIELD.OF(nameof(Owner))),
 #elif GAME_DLL
 		SendPropDataTable("LocalWeaponData", DT_LocalWeaponData, SendProxy_SendLocalWeaponDataTable),
 		SendPropDataTable("LocalActiveWeaponData", DT_LocalActiveWeaponData, SendProxy_SendActiveLocalWeaponDataTable ),
-		SendPropModelIndex(FIELD.OF(nameof(ViewModelIndex))),
+		SendPropModelIndex(FIELD.OF(nameof(iViewModelIndex))),
 		SendPropModelIndex(FIELD.OF(nameof(WorldModelIndex))),
 		SendPropInt(FIELD.OF(nameof(State)), 8, PropFlags.Unsigned),
 		SendPropEHandle(FIELD.OF(nameof(Owner))),
@@ -133,7 +135,10 @@ public partial class
 	public int Clip2;
 	public int PrimaryAmmoType;
 	public int SecondaryAmmoType;
-	public int ViewModelIndex;
+	// View model index (entity offset)
+	public int nViewModelIndex;
+	// View model index (art)
+	public int iViewModelIndex;
 	public int WorldModelIndex;
 	public bool FlipViewModel;
 
@@ -166,7 +171,7 @@ public partial class
 		BaseViewModel? vm = null;
 		BasePlayer? owner = ToBasePlayer(GetOwner());
 		if (owner != null) {
-			vm = owner.GetViewModel(ViewModelIndex);
+			vm = owner.GetViewModel(nViewModelIndex);
 			if (vm != null)
 				return (!vm.IsEffectActive(EntityEffects.NoDraw));
 		}
@@ -272,7 +277,7 @@ public partial class
 
 		BasePlayer? owner = ToBasePlayer(GetOwner());
 		if (owner != null)
-			vm = owner.GetViewModel(ViewModelIndex);
+			vm = owner.GetViewModel(nViewModelIndex);
 
 		if (visible) {
 			RemoveEffects(EntityEffects.NoDraw);
@@ -303,11 +308,11 @@ public partial class
 		BasePlayer? owner = ToBasePlayer(GetOwner());
 		if (owner == null)
 			return;
-		BaseViewModel? vm = owner.GetViewModel(ViewModelIndex, false);
+		BaseViewModel? vm = owner.GetViewModel(nViewModelIndex, false);
 		if (vm == null)
 			return;
-		Assert(vm.ViewModelIndex() == ViewModelIndex);
-		vm.SetWeaponModel(GetViewModel(ViewModelIndex), this);
+		Assert(vm.ViewModelIndex() == nViewModelIndex);
+		vm.SetWeaponModel(GetViewModel(nViewModelIndex), this);
 	}
 
 	public virtual Activity GetDrawActivity() => Activity.ACT_VM_DRAW;
@@ -385,6 +390,53 @@ public partial class
 		}
 	}
 
+	TimeUnit_t NextEmptySoundTime;
+
+	public override void Spawn() {
+		Precache();
+		base.Spawn();
+
+		SetSolid(SolidType.BBox);
+		NextEmptySoundTime = 0.0;
+
+		// Weapons won't show up in trace calls if they are being carried...
+		RemoveEFlags(EFL.UsePartitionWhenNotSolid);
+
+		State = (int)WeaponState.NotCarried;
+		// Assume 
+		nViewModelIndex = 0;
+
+		// GiveDefaultAmmo();
+
+		if (!GetWorldModel() .IsEmpty) 
+			SetModel(GetWorldModel());
+
+#if !CLIENT_DLL // todo
+		// FallInit();
+		// SetCollisionGroup(COLLISION_GROUP_WEAPON);
+		// m_takedamage = DAMAGE_EVENTS_ONLY;
+
+		// SetBlocksLOS(false);
+
+		// Default to non-removeable, because we don't want the
+		// game_weapon_manager entity to remove weapons that have
+		// been hand-placed by level designers. We only want to remove
+		// weapons that have been dropped by NPC's.
+		// SetRemoveable(false);
+#endif
+
+		// Bloat the box for player pickup
+		CollisionProp().UseTriggerBounds(true, 36);
+
+		// Use more efficient bbox culling on the client. Otherwise, it'll setup bones for most
+		// characters even when they're not in the frustum.
+		AddEffects(EntityEffects.BoneMergeFastCull);
+
+		ReloadHudHintCount = 0;
+		AltFireHudHintCount = 0;
+		HudHintMinDisplayTime = 0;
+	}
+
 	public bool VisibleInWeaponSelection() => true;
 	public int GetPosition() => GetWpnData().Position;
 	public int GetSlot() => GetWpnData().Slot;
@@ -396,8 +448,8 @@ public partial class
 		return WeaponParse.GetFileWeaponInfoFromHandle(WeaponFileInfoHandle);
 	}
 
-	public ReadOnlySpan<char> GetName() => GetWpnData().ClassName;
-	public ReadOnlySpan<char> GetPrintName() => GetWpnData().PrintName;
+	public ReadOnlySpan<char> GetName() => GetWpnData().ClassName.SliceNullTerminatedString();
+	public ReadOnlySpan<char> GetPrintName() => GetWpnData().PrintName.SliceNullTerminatedString();
 #if CLIENT_DLL
 	public HudTexture GetSpriteActive() => GetWpnData().IconActive;
 	public HudTexture GetSpriteInactive() => GetWpnData().IconInactive;

@@ -46,6 +46,7 @@ using Class =
 
 using FIELD = Source.FIELD<SharedBaseEntity>;
 using System.Runtime.CompilerServices;
+using Source.Common.Formats.BSP;
 
 public static class SharedBaseEntityConstants
 {
@@ -228,6 +229,7 @@ public partial class
 	public static void SetPredictionRandomSeed(in UserCmd cmd) {
 		if (Unsafe.IsNullRef(in cmd)) {
 			PredictionRandomSeed = -1;
+			return;
 		}
 
 		PredictionRandomSeed = cmd.RandomSeed;
@@ -262,6 +264,13 @@ public partial class
 #endif
 		}
 	}
+
+	public void SetWaterType(Contents contents) {
+		WaterType = 0;
+		if ((contents & Contents.Water) != 0) WaterType |= 1;
+		if ((contents & Contents.Slime) != 0) WaterType |= 2;
+	}
+
 	public virtual void RemoveEffects(EntityEffects effects) {
 		Effects &= ~(int)effects;
 		if ((effects & EntityEffects.NoDraw) != 0) {

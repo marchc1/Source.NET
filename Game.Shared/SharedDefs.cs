@@ -367,11 +367,6 @@ public static class SharedDefs
 	public const int MAX_AMMO_SLOTS = 256;
 	public const int MAX_SPLINE_POINTS = 16;
 
-	public const int WEAPON_IS_ONTARGET = 0x40;
-	public const int WEAPON_NOT_CARRIED = 0;          // Weapon is on the ground
-	public const int WEAPON_IS_CARRIED_BY_PLAYER = 1; // This client is carrying this weapon.
-	public const int WEAPON_IS_ACTIVE = 2;            // This client is carrying this weapon and it's the currently held weapon
-
 
 	public static ClientClass WithManualClassID(this ClientClass clientClass, StaticClassIndices classID) {
 		clientClass.ClassID = (int)classID;
@@ -382,6 +377,14 @@ public static class SharedDefs
 		clientClass.ClassID = (int)classID;
 		return clientClass;
 	}
+}
+
+public enum WeaponState
+{
+	NotCarried = 0,
+	IsCarriedByPlayer = 1,
+	IsActive = 2,
+	IsOnTarget = 0x40
 }
 
 public enum PassengerRole

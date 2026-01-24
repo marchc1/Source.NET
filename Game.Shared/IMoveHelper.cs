@@ -9,9 +9,18 @@ using System.Numerics;
 
 namespace Game.Shared;
 
-public static class MoveHelperExts {
+public static class MoveHelperExts
+{
 	public static IMoveHelper MoveHelper() => IMoveHelper.GetSingleton()!;
 
+}
+
+public enum WaterLevel : byte
+{
+	NotInWater = 0,
+	Feet,
+	Waist,
+	Eyes
 }
 public interface IMoveHelper
 {

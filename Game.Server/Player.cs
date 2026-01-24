@@ -118,6 +118,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	InlineArray32<char> AnimExtension;
 	public Vector3 WaterJumpVel;
 	public float SwimSoundTime;
+	public Vector3 LadderNormal;
 	public float WaterJumpTime;
 	public bool IsInAVehicle() => Vehicle.Get() != null;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;

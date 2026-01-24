@@ -188,6 +188,7 @@ public partial class BaseEntity : IServerEntity
 	public Vector3 BaseVelocity;
 	public int NextThinkTick;
 	public byte WaterLevel;
+	public byte WaterType;
 
 	InlineArray32<bool> GMOD_bool;
 	InlineArray32<float> GMOD_float;
@@ -225,9 +226,17 @@ public partial class BaseEntity : IServerEntity
 	public bool IsClient() => false;
 	public ReadOnlySpan<char> GetDLLType() => "server";
 
-	public int GetWaterLevel() => WaterLevel;
-	public void SetWaterLevel(int level) => WaterLevel = (byte)level;
-	public void SetMoveCollide(MoveCollide moveCollide) => MoveCollide = (byte)moveCollide;
+	public WaterLevel GetWaterLevel() => (WaterLevel)WaterLevel;
+	public void SetWaterLevel(WaterLevel level) => WaterLevel = (byte)level;
+	public void SetMoveCollide(MoveCollide moveCollide) => MoveCollide = (byte)moveCollide; 
+	public CollisionProperty CollisionProp() => Collision;
+
+	public bool SetModel(ReadOnlySpan<char> modelName) {
+		return false; // TODO
+	}
+
+	public void SetSolid(SolidType val) => CollisionProp().SetSolid(val);
+
 	public void SetMoveType(MoveType val, MoveCollide moveCollide = Source.MoveCollide.Default) {
 		if (MoveType == (byte)val) {
 			MoveCollide = (byte)moveCollide;

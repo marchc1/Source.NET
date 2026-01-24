@@ -4,6 +4,7 @@ namespace Game.Shared.GarrysMod;
 using FIELD = Source.FIELD<WeaponSMG1>;
 
 [LinkEntityToClass("weapon_smg1")]
+[PrecacheWeaponRegister("weapon_smg1")]
 public class WeaponSMG1 : HL2MPMachineGun
 {
 	public static readonly
@@ -21,6 +22,7 @@ public class WeaponSMG1 : HL2MPMachineGun
 		]);
 #if CLIENT_DLL
 	public static readonly new ClientClass ClientClass = new ClientClass("WeaponSMG1", null, null, DT_WeaponSMG1).WithManualClassID(StaticClassIndices.CWeaponSMG1);
+	public static readonly new DataMap PredMap = new([], nameof(WeaponSMG1), HL2MPMachineGun.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("WeaponSMG1", DT_WeaponSMG1).WithManualClassID(StaticClassIndices.CWeaponSMG1);
 #endif
