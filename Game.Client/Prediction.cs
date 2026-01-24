@@ -97,7 +97,7 @@ public class Prediction : IPrediction
 		if (td == null)
 			return;
 
-		Vector3 predicted_origin = slot.Field<Vector3>(td.PackedOffset);
+		Vector3 predicted_origin = slot.PackedField<Vector3>(td.PackedOffset);
 
 		// Compare what the server returned with what we had predicted it to be
 		MathLib.VectorSubtract(predicted_origin, origin, out delta);

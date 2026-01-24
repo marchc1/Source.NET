@@ -2254,5 +2254,5 @@ public ref struct PredictedFrame
 		FrameData = framedata;
 	}
 	public readonly bool IsEmpty => FrameData == null || FrameData.Length == 0;
-	public readonly ref T Field<T>(nuint fieldoffset) where T : struct => ref MemoryMarshal.Cast<byte, T>(FrameData.AsSpan()[(int)fieldoffset..])[0];
+	public readonly ref T PackedField<T>(nuint fieldoffset) where T : struct => ref MemoryMarshal.Cast<byte, T>(FrameData.AsSpan()[(int)fieldoffset..])[0];
 }
