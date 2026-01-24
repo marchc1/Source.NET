@@ -193,7 +193,7 @@ public partial class CL(IServiceProvider services, Net Net,
 			TimeUnit_t remainingTime = timeout - cl.NetChannel.GetTimeSinceLastReceived();
 			Con.NXPrintF(in np, "WARNING:  Connection Problem");
 			np.Index = 3;
-			Con.NXPrintF(in np, $"Auto-disconnect in {remainingTime:D2} seconds");
+			Con.NXPrintF(in np, $"Auto-disconnect in {remainingTime:F2} seconds");
 		}
 
 		if (cl.IsActive()) {
