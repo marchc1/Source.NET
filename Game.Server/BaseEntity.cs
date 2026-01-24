@@ -228,7 +228,15 @@ public partial class BaseEntity : IServerEntity
 
 	public WaterLevel GetWaterLevel() => (WaterLevel)WaterLevel;
 	public void SetWaterLevel(WaterLevel level) => WaterLevel = (byte)level;
-	public void SetMoveCollide(MoveCollide moveCollide) => MoveCollide = (byte)moveCollide;
+	public void SetMoveCollide(MoveCollide moveCollide) => MoveCollide = (byte)moveCollide; 
+	public CollisionProperty CollisionProp() => Collision;
+
+	public bool SetModel(ReadOnlySpan<char> modelName) {
+		return false; // TODO
+	}
+
+	public void SetSolid(SolidType val) => CollisionProp().SetSolid(val);
+
 	public void SetMoveType(MoveType val, MoveCollide moveCollide = Source.MoveCollide.Default) {
 		if (MoveType == (byte)val) {
 			MoveCollide = (byte)moveCollide;

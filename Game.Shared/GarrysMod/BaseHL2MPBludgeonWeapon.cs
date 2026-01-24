@@ -22,5 +22,10 @@ public class BaseHL2MPBludgeonWeapon : BaseHL2MPCombatWeapon
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("BaseHL2MPBludgeonWeapon", DT_BaseHL2MPBludgeonWeapon).WithManualClassID(StaticClassIndices.CBaseHL2MPBludgeonWeapon);
 #endif
+
+	public override void Spawn() {
+		
+		base.Spawn();
+	}
 }
 #endif

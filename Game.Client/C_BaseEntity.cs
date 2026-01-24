@@ -812,6 +812,7 @@ public partial class C_BaseEntity : IClientEntity
 		Model? model = modelinfo.GetModel(ModelIndex);
 		SetModelPointer(model);
 	}
+	public void SetSolid(SolidType val) => CollisionProp().SetSolid(val);
 	public void SetModelByIndex(int modelIndex) {
 		SetModelIndex(modelIndex);
 	}

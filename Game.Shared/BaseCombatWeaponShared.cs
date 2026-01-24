@@ -22,6 +22,8 @@ using Game.Client.HUD;
 
 using System.Diagnostics;
 using System.Reflection;
+
+using Microsoft.VisualBasic;
 namespace Game.Client;
 #else
 namespace Game.Server;
@@ -386,6 +388,53 @@ public partial class
 		if (WeaponParse.ReadWeaponDataFromFileForSlot(filesystem, GetClassname(), out WeaponFileInfoHandle)) {
 
 		}
+	}
+
+	TimeUnit_t NextEmptySoundTime;
+
+	public override void Spawn() {
+		Precache();
+		base.Spawn();
+
+		SetSolid(SolidType.BBox);
+		NextEmptySoundTime = 0.0;
+
+		// Weapons won't show up in trace calls if they are being carried...
+		RemoveEFlags(EFL.UsePartitionWhenNotSolid);
+
+		State = (int)WeaponState.NotCarried;
+		// Assume 
+		nViewModelIndex = 0;
+
+		// GiveDefaultAmmo();
+
+		if (!GetWorldModel() .IsEmpty) 
+			SetModel(GetWorldModel());
+
+#if !CLIENT_DLL // todo
+		// FallInit();
+		// SetCollisionGroup(COLLISION_GROUP_WEAPON);
+		// m_takedamage = DAMAGE_EVENTS_ONLY;
+
+		// SetBlocksLOS(false);
+
+		// Default to non-removeable, because we don't want the
+		// game_weapon_manager entity to remove weapons that have
+		// been hand-placed by level designers. We only want to remove
+		// weapons that have been dropped by NPC's.
+		// SetRemoveable(false);
+#endif
+
+		// Bloat the box for player pickup
+		CollisionProp().UseTriggerBounds(true, 36);
+
+		// Use more efficient bbox culling on the client. Otherwise, it'll setup bones for most
+		// characters even when they're not in the frustum.
+		AddEffects(EntityEffects.BoneMergeFastCull);
+
+		ReloadHudHintCount = 0;
+		AltFireHudHintCount = 0;
+		HudHintMinDisplayTime = 0;
 	}
 
 	public bool VisibleInWeaponSelection() => true;

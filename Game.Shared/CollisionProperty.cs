@@ -1,3 +1,4 @@
+#if CLIENT_DLL || GAME_DLL
 #if CLIENT_DLL
 using Game.Client;
 
@@ -91,6 +92,14 @@ public class CollisionProperty
 	Vector3 SpecifiedSurroundingMins;
 	Vector3 SpecifiedSurroundingMaxs;
 
+	public void UseTriggerBounds(bool enable, float bloat){
+		TriggerBloat = (byte)bloat;
+		// todo
+	}
+	public void SetSolid(SolidType val) {
+		// todo
+	}
+
 
 	private void MarkSurroundingBoundsDirty() {
 
@@ -133,3 +142,4 @@ public class CollisionProperty
 	public static readonly ServerClass CC_CollisionProperty = new("CollisionProperty", DT_CollisionProperty);
 #endif
 }
+#endif
