@@ -1009,7 +1009,7 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public bool IsTextureIDValid(in TextureID id) {
-		throw new NotImplementedException();
+		return true;//todo
 	}
 
 	public bool IsWithin(int x, int y) {
