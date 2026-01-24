@@ -714,7 +714,7 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 		cmd.UpMove -= cl_upspeed.GetFloat() * KeyState(ref in_down);
 	}
 
-	private InButtons GetButtonBits(int resetState) {
+	public InButtons GetButtonBits(int resetState) {
 		InButtons bits = 0;
 
 		CalcButtonBits(ref bits, InButtons.Speed, ClearInputState, ref in_speed, resetState);
@@ -753,6 +753,8 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 
 		return bits;
 	}
+
+	public void ClearInputButton(InButtons bits) => ClearInputState |= bits;
 
 	private void CalcButtonBits(ref InButtons bits, InButtons in_button, InButtons in_ignore, ref KeyButtonState button, int reset) {
 		if ((button.State & (KeyButtonStateFlags.Down | KeyButtonStateFlags.ImpulseDown)) != 0)
