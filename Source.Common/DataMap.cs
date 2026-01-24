@@ -1,5 +1,7 @@
 ﻿using Source.Common;
 
+using System.Runtime.CompilerServices;
+
 namespace Source.Common
 {
 
@@ -58,6 +60,7 @@ namespace Source.Common
 		public readonly FieldType FieldType;
 		public readonly string FieldName = "";
 		public readonly IFieldAccessor FieldAccessor;
+		public nuint PackedOffset;
 		public readonly ushort FieldSize;
 		public readonly FieldTypeDescFlags Flags;
 		public readonly string ExternalName = "";
@@ -105,17 +108,18 @@ namespace Source.Common
 	{
 		public DataMap() { }
 		public DataMap(TypeDescription[]? dataDesc, ReadOnlySpan<char> dataClassName, DataMap? baseMap) {
-			DataDesc = dataDesc;
+			DataDesc = dataDesc ?? [];
 			DataClassName = new(dataClassName);
 			BaseMap = baseMap;
 		}
 
-		public TypeDescription[]? DataDesc;
+		public TypeDescription[] DataDesc = [];
+		public int DataNumFields => DataDesc?.Length ?? 0;
 		public string DataClassName = "";
 		public DataMap? BaseMap;
 		public bool ChainsValidated;
 		public bool PackedOffsetsComputed;
-		public int PackedSize;
+		public nuint PackedSize;
 #if DEBUG
 		public bool ValidityChecked = false;
 #endif

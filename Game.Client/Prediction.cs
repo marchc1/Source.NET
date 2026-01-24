@@ -16,6 +16,12 @@ namespace Game.Client;
 
 public class Prediction : IPrediction
 {
+	public const float ON_EPSILON = 0.1f;
+	public const float MAX_FORWARD = 6f;
+	public const float MIN_CORRECTION_DISTANCE = 0.25f;
+	public const float MIN_PREDICTION_EPSILON = 0.5f;
+	public const float MAX_PREDICTION_ERROR = 64.0f;
+
 	static readonly ConVar cl_predictweapons = new("cl_predictweapons", "1", FCvar.UserInfo | FCvar.NotConnected, "Perform client side prediction of weapon effects.");
 	static readonly ConVar cl_lagcompensation = new("cl_lagcompensation", "1", FCvar.UserInfo | FCvar.NotConnected, "Perform server side lag compensation of weapon firing events.");
 	static readonly ConVar cl_showerror = new("cl_showerror", "0", 0, "Show prediction errors, 2 for above plus detailed field deltas.");
@@ -63,7 +69,10 @@ public class Prediction : IPrediction
 		OldCLPredictValue = cl_predict.GetInt() != 0;
 	}
 
+	static int pos = 0;
 	public void CheckError(int commandsAcknowledged) {
+		Vector3 delta;
+		float len;
 		if (!engine.IsInGame())
 			return;
 
@@ -78,7 +87,43 @@ public class Prediction : IPrediction
 			return;
 
 		Vector3 origin = player.GetNetworkOrigin();
+		PredictedFrame slot = player.GetPredictedFrame(commandsAcknowledged - 1);
+		if (slot.IsEmpty)
+			return;
 
+		// Find the origin field in the database
+		TypeDescription? td = FindFieldByName(nameof(C_BaseEntity.NetworkOrigin), player.GetPredDescMap());
+		Assert(td != null);
+		if (td == null)
+			return;
+
+		Vector3 predicted_origin = slot.Field<Vector3>(td.PackedOffset);
+
+		// Compare what the server returned with what we had predicted it to be
+		MathLib.VectorSubtract(predicted_origin, origin, out delta);
+
+		len = MathLib.VectorLength(delta);
+		if (len > MAX_PREDICTION_ERROR) {
+			// A teleport or something, clear out error
+			len = 0;
+		}
+		else {
+			if (len > MIN_PREDICTION_EPSILON) {
+				player.NotePredictionError(delta);
+
+				if (cl_showerror.GetInt() >= 1) {
+					Con_NPrint_s np = default;
+					np.FixedWidthFont = true;
+					np.Color[0] = 1.0f;
+					np.Color[1] = 0.95f;
+					np.Color[2] = 0.7f;
+					np.Index = 20 + (++pos % 20);
+					np.TimeToLive = 2.0f;
+
+					engine.Con_NXPrintf(in np, $"pred error {len} units ({delta.X} {delta.Y} {delta.Z})");
+				}
+			}
+		}
 	}
 
 	public void OnReceivedUncompressedPacket() {
@@ -235,7 +280,7 @@ public class Prediction : IPrediction
 		player.SetLocalOrigin(move.GetAbsOrigin());
 
 		IClientVehicle? vehicle = player.GetVehicle();
-		if (vehicle != null) 
+		if (vehicle != null)
 			vehicle.FinishMove(player, ref ucmd, move);
 	}
 

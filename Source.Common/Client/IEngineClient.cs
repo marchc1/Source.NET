@@ -122,4 +122,5 @@ public interface IEngineClient
 	bool CullBox(ref Vector3 mins, ref Vector3 maxs);
 	int GetPlayerForUserID(int userID);
 	void ClientCmd(ReadOnlySpan<char> cmd);
+	void Con_NXPrintf(in Con_NPrint_s np, ReadOnlySpan<char> text);
 }

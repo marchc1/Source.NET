@@ -4,6 +4,7 @@ using Source;
 using Source.Common;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
+using Source.Common.Commands;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
 using Source.Engine;
@@ -334,9 +335,50 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	}
 	public BaseCombatWeapon? GetLastWeapon() => LastWeapon.Get();
 
+	public static readonly ConVar cl_customsounds = new( "cl_customsounds", "0", 0, "Enable customized player sound playback" );
+	public static readonly ConVar spec_track = new( "spec_track", "0", 0, "Tracks an entity in spec mode" );
+	public static readonly ConVar cl_smooth = new( "cl_smooth", "1", 0, "Smooth view/eye origin after prediction errors" );
+	public static readonly ConVar cl_smoothtime = new( 
+	"cl_smoothtime",
+		"0.1",
+		0,
+		"Smooth client's view after prediction error over this many seconds",
+		0.01, // min/max is 0.01/2.0
+		2.0
+	 );
 
 	public virtual bool CreateMove(TimeUnit_t inputSampleTime, ref UserCmd cmd) {
 		return true;
+	}
+	public void GetPredictionErrorSmoothingVector(out Vector3 offset){
+		if (engine.IsPlayingDemo() || cl_smooth.GetInt() == 0 || cl_predict.GetInt() == 0 || engine.IsPaused()) {
+			offset = default;
+			return;
+		}
+
+		// TODO: Evaluate how changing cast order affects this accuracy
+		float errorAmount = ((float)gpGlobals.CurTime - (float)PredictionErrorTime) / cl_smoothtime.GetFloat();
+
+		if (errorAmount >= 1.0f) {
+			offset = default;
+			return;
+		}
+
+		errorAmount = 1.0f - errorAmount;
+
+		offset = PredictionError * errorAmount;
+	}
+	public Vector3 PredictionError;
+	public Vector3 PreviouslyPredictedOrigin;
+	public TimeUnit_t PredictionErrorTime;
+	public void NotePredictionError(in Vector3 delta){
+		if (!IsAlive())
+			return;
+
+		GetPredictionErrorSmoothingVector(out Vector3 oldDelta);
+		PredictionError = delta + oldDelta;
+		PredictionErrorTime = gpGlobals.CurTime;
+		ResetLatched();
 	}
 
 	public bool IsInAVehicle() => Vehicle.Get() != null;

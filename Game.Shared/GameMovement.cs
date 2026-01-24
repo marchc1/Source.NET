@@ -220,7 +220,7 @@ public class GameMovement : IGameMovement
 
 	protected virtual void DecayPunchAngle() {
 		if (Player.Local.PunchAngle.LengthSqr() > 0.001 || Player.Local.PunchAngleVel.LengthSqr() > 0.001) {
-			Player.Local.PunchAngle += Player.Local.PunchAngleVel * gpGlobals.FrameTime;
+			Player.Local.PunchAngle += Player.Local.PunchAngleVel * (float)gpGlobals.FrameTime;
 			float damping = 1 - (PUNCH_DAMPING * (float)gpGlobals.FrameTime);
 
 			if (damping < 0) 

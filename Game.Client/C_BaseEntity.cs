@@ -19,6 +19,7 @@ using System.Runtime.CompilerServices;
 
 using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
 using DEFINE = Source.DEFINE<Game.Client.C_BaseEntity>;
+using System.Runtime.InteropServices;
 
 namespace Game.Client;
 
@@ -2013,6 +2014,174 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public bool GetCheckUntouch() => IsEFlagSet(EFL.CheckUntouch);
+
+	public readonly byte[][] IntermediateData = new byte[MULTIPLAYER_BACKUP][];
+	public byte[]? OriginalData;
+	public int IntermediateDataCount;
+
+	public PredictedFrame GetPredictedFrame(int framenumber) {
+		if (OriginalData == null) {
+			Assert(false);
+			return default;
+		}
+
+		return new(IntermediateData[framenumber % MULTIPLAYER_BACKUP]);
+	}
+
+	public static readonly nuint SIZEOF_MANAGED = nuint.MaxValue - 16;
+
+	static unsafe readonly nuint[] g_FieldSizes = [
+		0,							// FIELD_VOID
+		sizeof(float),				// FIELD_FLOAT
+		SIZEOF_MANAGED,				// FIELD_STRING
+		(nuint)sizeof(Vector3),		// FIELD_VECTOR
+		(nuint)sizeof(Quaternion),	// FIELD_QUATERNION
+		sizeof(int),				// FIELD_INTEGER
+		sizeof(char),				// FIELD_BOOLEAN
+		sizeof(short),				// FIELD_SHORT
+		sizeof(char),				// FIELD_CHARACTER
+		(nuint)sizeof(Color),		// FIELD_COLOR32
+		sizeof(int),				// FIELD_EMBEDDED	(handled specially)
+		sizeof(int),				// FIELD_CUSTOM		(handled specially)
+	
+		//---------------------------------
+
+		SIZEOF_MANAGED,				// FIELD_CLASSPTR
+		sizeof(uint),				// FIELD_EHANDLE
+		SIZEOF_MANAGED,				// FIELD_EDICT
+
+		(nuint)sizeof(Vector3),		// FIELD_POSITION_VECTOR
+		sizeof(float),				// FIELD_TIME
+		sizeof(int),				// FIELD_TICK
+		SIZEOF_MANAGED,				// FIELD_MODELNAME
+		SIZEOF_MANAGED,				// FIELD_SOUNDNAME
+
+		SIZEOF_MANAGED,				// FIELD_INPUT		(uses custom type)
+		SIZEOF_MANAGED,				// FIELD_FUNCTION
+		(nuint)sizeof(Matrix4x4),	// FIELD_VMATRIX
+		(nuint)sizeof(Matrix4x4),	// FIELD_VMATRIX_WORLDSPACE
+		(nuint)sizeof(Matrix3x4),	// FIELD_MATRIX3X4_WORLDSPACE	// NOTE: Use array(FIELD_FLOAT, 12) for matrix3x4_t NOT in worldspace
+		(nuint)sizeof(Interval),	// FIELD_INTERVAL
+		sizeof(int),				// FIELD_MODELINDEX
+	];
+
+	public nuint ComputePackedSize_R(DataMap? map) {
+		if (map == null) {
+			Assert(false);
+			return 0;
+		}
+
+		// Already computed
+		if (map.PackedOffsetsComputed)
+			return map.PackedSize;
+
+		nuint currentPosition = 0;
+
+		// Recurse to base classes first...
+		if (map.BaseMap != null)
+			currentPosition += ComputePackedSize_R(map.BaseMap);
+
+		int c = map.DataNumFields;
+		int i;
+		TypeDescription field;
+
+		for (i = 0; i < c; i++) {
+			field = map.DataDesc[i];
+
+			// Always descend into embedded types...
+			if (field.FieldType != FieldType.Embedded)
+				// Skip all private fields
+				if ((field.Flags & FieldTypeDescFlags.Private) != 0)
+					continue;
+
+
+			switch (field.FieldType) {
+				default:
+				case FieldType.ModelIndex:
+				case FieldType.ModelName:
+				case FieldType.SoundName:
+				case FieldType.Time:
+				case FieldType.Tick:
+				case FieldType.Custom:
+				case FieldType.ClassPtr:
+				case FieldType.EDict:
+				case FieldType.PositionVector:
+				case FieldType.Function:
+					Assert(0);
+					break;
+				case FieldType.Embedded: {
+						Assert(field.TD != null);
+						nuint embeddedsize = ComputePackedSize_R(field.TD);
+						field.PackedOffset = currentPosition;
+
+						currentPosition += embeddedsize;
+					}
+					break;
+
+				case FieldType.Float:
+				case FieldType.Vector:
+				case FieldType.Quaternion:
+				case FieldType.Integer:
+				case FieldType.EHandle: {
+						// These should be dword aligned
+						currentPosition = (currentPosition + 3) & ~3u;
+						field.PackedOffset = currentPosition;
+						Assert(field.FieldSize >= 1);
+						currentPosition += g_FieldSizes[(int)field.FieldType] * field.FieldSize;
+					}
+					break;
+
+				case FieldType.Short: {
+						// This should be word aligned
+						currentPosition = (currentPosition + 1) & ~1u;
+						field.PackedOffset = currentPosition;
+						Assert(field.FieldSize >= 1);
+						currentPosition += g_FieldSizes[(int)field.FieldType] * field.FieldSize;
+					}
+					break;
+
+				case FieldType.String:
+				case FieldType.Color32:
+				case FieldType.Boolean:
+				case FieldType.Character: {
+						field.PackedOffset = currentPosition;
+						Assert(field.FieldSize >= 1);
+						currentPosition += g_FieldSizes[(int)field.FieldType] * field.FieldSize;
+					}
+					break;
+				case FieldType.Void: {
+						// Special case, just skip it
+					}
+					break;
+			}
+		}
+
+		map.PackedSize = currentPosition;
+		map.PackedOffsetsComputed = true;
+
+		return currentPosition;
+	}
+
+	public void ComputePackedOffsets() {
+		DataMap? map = GetPredDescMap();
+		if (map == null)
+			return;
+
+		if (map.PackedOffsetsComputed)
+			return;
+
+		ComputePackedSize_R(map);
+		Assert(map.PackedOffsetsComputed);
+	}
+
+	public nuint GetIntermediateDataSize() {
+		ComputePackedOffsets();
+		DataMap map = GetPredDescMap()!;
+		Assert(map.PackedOffsetsComputed);
+		nuint size = map.PackedSize;
+		Assert(size > 0);
+		return Math.Max(size, 8);
+	}
 }
 
 public class VarMapEntry
@@ -2031,4 +2200,13 @@ public struct VarMapping
 	public VarMapping() {
 		InterpolatedEntries = 0;
 	}
+}
+public ref struct PredictedFrame
+{
+	public readonly byte[]? FrameData;
+	public PredictedFrame(byte[] framedata) {
+		FrameData = framedata;
+	}
+	public readonly bool IsEmpty => FrameData == null || FrameData.Length == 0;
+	public readonly ref T Field<T>(nuint fieldoffset) where T : struct => ref MemoryMarshal.Cast<byte, T>(FrameData.AsSpan()[(int)fieldoffset..])[0];
 }

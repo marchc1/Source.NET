@@ -27,6 +27,8 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 		"background05".CopyTo(dest);
 	}
 
+	public void Con_NXPrintf(in Con_NPrint_s np, ReadOnlySpan<char> text) => Con.NXPrintF(in np, text);
+
 	public bool IsDrawingLoadingImage() => Scr.DrawLoading;
 
 	public int GetMaxClients() => cl.MaxClients;
