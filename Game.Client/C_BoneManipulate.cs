@@ -11,7 +11,7 @@ public class C_BoneManipulate : C_BaseEntity
 		RecvPropArray3(FIELD.OF_ARRAY(nameof(BonePos)), RecvPropVector(null!)),
 		RecvPropArray3(FIELD.OF_ARRAY(nameof(BoneAng)), RecvPropVector(null!)),
 		RecvPropArray3(FIELD.OF_ARRAY(nameof(BoneScale)), RecvPropVector(null!)),
-		RecvPropArray3(FIELD.OF_ARRAY(nameof(BoneJiggle)), RecvPropInt(null!, null!)),
+		RecvPropArray3(FIELD.OF_ARRAY(nameof(BoneJiggle)), RecvPropInt(null!, null!, sizeOfVar: sizeof(int))),
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("BoneManipulate", DT_BoneManipulate).WithManualClassID(StaticClassIndices.CBoneManipulate);
 

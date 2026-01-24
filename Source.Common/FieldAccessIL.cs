@@ -390,7 +390,7 @@ namespace Source.Common
 				return;
 			}
 
-			insideType = container.GetCustomAttribute<InlineArrayAttribute>() == null ? null : container.GetFields()[0].FieldType;
+			insideType = container.GetCustomAttribute<InlineArrayAttribute>() == null ? null : (container.GetFields((BindingFlags)~0).FirstOrDefault() ?? container.GetFields().FirstOrDefault() ?? throw new NullReferenceException("Container had no fields..?")).FieldType;
 			if (insideType != null) {
 				behavior = IndexInfoBehavior.InlineArray;
 				return;
