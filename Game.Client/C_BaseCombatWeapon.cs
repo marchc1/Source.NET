@@ -48,7 +48,7 @@ public partial class C_BaseCombatWeapon : C_BaseAnimating
 		if (owner == null)
 			return true;
 
-		bool isActive = (State == WEAPON_IS_ACTIVE);
+		bool isActive = (State == (int)WeaponState.IsActive);
 
 		C_BasePlayer? localPlayer = C_BasePlayer.GetLocalPlayer();
 
