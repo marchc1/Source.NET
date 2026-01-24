@@ -167,6 +167,7 @@ public enum StudioHdrFlags
 
 
 [InlineArray(Studio.MAX_NUM_LODS)] public struct InlineArrayMaxNumLODs<T> { T first; }
+[InlineArray(Studio.MAXSTUDIOBONES)] public struct InlineArrayMaxStudioBones<T> { T first; }
 [InlineArray(Studio.MAX_NUM_BONES_PER_VERT)] public struct InlineArrayMaxNumBonesPerVert<T> { T first; }
 
 public class VirtualGroup
