@@ -13,13 +13,14 @@ using Source.Common.Engine;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
 
+using System;
 using System.Numerics;
 using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
-
-using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
-using DEFINE = Source.DEFINE<Game.Client.C_BaseEntity>;
 using System.Runtime.InteropServices;
+
+using DEFINE = Source.DEFINE<Game.Client.C_BaseEntity>;
+using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
 
 namespace Game.Client;
 
@@ -1083,7 +1084,17 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public void AllocateIntermediateData() {
+		if (OriginalData != null)
+			return;
 
+		nuint allocsize = GetIntermediateDataSize();
+		Assert(allocsize > 0);
+
+		OriginalData = new byte[allocsize];
+		for (int i = 0; i < MULTIPLAYER_BACKUP; i++)
+			IntermediateData[i] = new byte[allocsize];
+
+		IntermediateDataCount = 0;
 	}
 
 	public virtual bool PostNetworkDataReceived(int commandsAcknowledged) {
@@ -1111,11 +1122,18 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public bool IsIntermediateDataAllocated() {
-		return false; // todo
+		return OriginalData != null; // todo
 	}
 
 	public void DestroyIntermediateData() {
+		if (OriginalData == null)
+			return;
 
+		for (int i = 0; i < MULTIPLAYER_BACKUP; i++)
+			IntermediateData[i] = null!;
+
+		OriginalData = null!;
+		IntermediateDataCount = 0;
 	}
 
 	private void OnStoreLastNetworkedValue() {
@@ -2010,7 +2028,26 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public void ShiftIntermediateDataForward(int slots_to_remove, int number_of_commands_run) {
-		// todo
+		// Just moving pointers, yeah
+		List<byte[]> saved = ListPool<byte[]>.Shared.Alloc();
+
+		// Remember first slots
+		int i = 0;
+		for (; i < slots_to_remove; i++)
+			saved.Add(IntermediateData[i]);
+
+		// Move rest of slots forward up to last slot
+		for (; i < number_of_commands_run; i++)
+			IntermediateData[i - slots_to_remove] = IntermediateData[i];
+
+		// Put remembered slots onto end
+		for (i = 0; i < slots_to_remove; i++) {
+			int slot = number_of_commands_run - slots_to_remove + i;
+
+			IntermediateData[slot] = saved[i];
+		}
+
+		ListPool<byte[]>.Shared.Free(saved);
 	}
 
 	public bool GetCheckUntouch() => IsEFlagSet(EFL.CheckUntouch);
@@ -2027,6 +2064,15 @@ public partial class C_BaseEntity : IClientEntity
 
 		return new(IntermediateData[framenumber % MULTIPLAYER_BACKUP]);
 	}
+
+	public PredictedFrame GetOriginalNetworkDataObject() {
+		if (OriginalData == null) {
+			Assert(false);
+			return default;
+		}
+		return new(OriginalData);
+	}
+
 
 	public static readonly nuint SIZEOF_MANAGED = nuint.MaxValue - 16;
 
