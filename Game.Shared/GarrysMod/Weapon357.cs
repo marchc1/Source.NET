@@ -6,6 +6,7 @@ using FIELD = Source.FIELD<Weapon357>;
 using DEFINE = Source.DEFINE<Weapon357>;
 
 [LinkEntityToClass("weapon_357")]
+[PrecacheWeaponRegister("weapon_357")]
 public class Weapon357 : BaseHL2MPCombatWeapon
 {
 	public static readonly

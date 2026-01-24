@@ -4,6 +4,7 @@ namespace Game.Shared.GarrysMod;
 using FIELD = Source.FIELD<WeaponStunStick>;
 
 [LinkEntityToClass("weapon_stunstick")]
+[PrecacheWeaponRegister("weapon_stunstick")]
 public class WeaponStunStick : BaseHL2MPBludgeonWeapon
 {
 	public static readonly

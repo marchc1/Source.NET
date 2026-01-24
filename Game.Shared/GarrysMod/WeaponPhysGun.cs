@@ -29,6 +29,7 @@ using Class =
 #endif
 
 [LinkEntityToClass("weapon_physgun")]
+[PrecacheWeaponRegister("weapon_physgun")]
 public partial class
 #if CLIENT_DLL
     C_WeaponPhysGun : C_BaseHL2MPCombatWeapon

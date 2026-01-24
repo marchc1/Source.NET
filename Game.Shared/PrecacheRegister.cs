@@ -12,7 +12,7 @@ public delegate void PrecacheFn(object? userdata);
 public class PrecacheRegisterAttribute(string classname) : Attribute{
 	public string ClassName => classname;
 }
-public class PrecacheWeaaponRegisterAttribute(string classname) : PrecacheRegisterAttribute(classname);
+public class PrecacheWeaponRegisterAttribute(string classname) : PrecacheRegisterAttribute(classname);
 
 public class PrecacheRegister
 {

@@ -4,6 +4,7 @@ namespace Game.Shared.GarrysMod;
 using FIELD = Source.FIELD<WeaponBugBait>;
 
 [LinkEntityToClass("weapon_bugbait")]
+[PrecacheWeaponRegister("weapon_bugbait")]
 public class WeaponBugBait : BaseHL2MPCombatWeapon
 {
 	public static readonly

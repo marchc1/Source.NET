@@ -4,6 +4,7 @@ namespace Game.Shared.GarrysMod;
 using FIELD = Source.FIELD<WeaponSMG1>;
 
 [LinkEntityToClass("weapon_smg1")]
+[PrecacheWeaponRegister("weapon_smg1")]
 public class WeaponSMG1 : HL2MPMachineGun
 {
 	public static readonly

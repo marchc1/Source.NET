@@ -4,6 +4,7 @@ namespace Game.Shared.GarrysMod;
 using FIELD = Source.FIELD<WeaponCrowbar>;
 
 [LinkEntityToClass("weapon_crowbar")]
+[PrecacheWeaponRegister("weapon_crowbar")]
 public class WeaponCrowbar : BaseHL2MPBludgeonWeapon
 {
 	public static readonly

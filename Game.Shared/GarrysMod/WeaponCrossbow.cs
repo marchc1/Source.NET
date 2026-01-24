@@ -15,6 +15,7 @@ public class CrossbowBolt : BaseCombatCharacter {
 #endif
 
 [LinkEntityToClass("weapon_crossbow")]
+[PrecacheWeaponRegister("weapon_crossbow")]
 public class WeaponCrossbow : BaseHL2MPCombatWeapon
 {
 	public static readonly

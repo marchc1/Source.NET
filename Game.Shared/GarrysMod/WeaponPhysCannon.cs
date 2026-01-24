@@ -20,6 +20,7 @@ namespace Game.Shared.GarrysMod;
 using FIELD = Source.FIELD<WeaponPhysCannon>;
 
 [LinkEntityToClass("weapon_physcannon")]
+[PrecacheWeaponRegister("weapon_physcannon")]
 public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 {
 
