@@ -255,7 +255,52 @@ public class GameMovement : IGameMovement
 	protected void WaterJump() { throw new NotImplementedException(); }
 
 	// Handles both ground friction and water friction
-	protected void Friction() { throw new NotImplementedException(); }
+	protected void Friction() {
+		float speed, newspeed, control;
+		float friction;
+		float drop;
+
+		// If we are in water jump cycle, don't apply friction
+		if (Player.WaterJumpTime != 0)
+			return;
+
+		// Calculate speed
+		speed = MathLib.VectorLength(mv.Velocity);
+
+		// If too slow, return
+		if (speed < 0.1f) {
+			return;
+		}
+
+		drop = 0;
+
+		// apply ground friction
+		if (Player.GetGroundEntity() != null)  // On an entity that is the ground
+		{
+			friction = sv_friction.GetFloat() * Player.SurfaceFriction;
+
+			// Bleed off some speed, but if we have less than the bleed
+			//  threshold, bleed the threshold amount.
+			control = (speed < sv_stopspeed.GetFloat()) ? sv_stopspeed.GetFloat() : speed;
+
+			// Add the amount to the drop amount.
+			drop += control * friction * (float)gpGlobals.FrameTime;
+		}
+
+		// scale the velocity
+		newspeed = speed - drop;
+		if (newspeed < 0)
+			newspeed = 0;
+
+		if (newspeed != speed) {
+			// Determine proportion of old speed we are using.
+			newspeed /= speed;
+			// Adjust velocity according to proportion.
+			MathLib.VectorScale(mv.Velocity, newspeed, out mv.Velocity);
+		}
+
+		mv.WishVel -= (1f - newspeed) * mv.Velocity;
+	}
 
 	protected virtual void AirAccelerate(ref Vector3 wishdir, float wishspeed, float accel) {
 		int i;
@@ -285,7 +330,7 @@ public class GameMovement : IGameMovement
 			return;
 
 		// Determine acceleration speed after acceleration
-		accelspeed = accel * wishspeed * (float)gpGlobals.FrameTime* Player.SurfaceFriction;
+		accelspeed = accel * wishspeed * (float)gpGlobals.FrameTime * Player.SurfaceFriction;
 
 		// Cap it
 		if (accelspeed > addspeed)
@@ -388,10 +433,126 @@ public class GameMovement : IGameMovement
 	}
 
 	// Only used by players.  Moves along the ground when player is a MoveType.Walk.
-	protected virtual void WalkMove() { throw new NotImplementedException(); }
+	readonly Handle<SharedBaseEntity> WalkMove__oldground = new();
+	protected virtual void WalkMove() {
+		int i;
+
+		Vector3 wishvel = default;
+		float spd;
+		float fmove, smove;
+		Vector3 wishdir = default;
+		float wishspeed;
+
+		Vector3 dest = default;
+		Trace pm;
+		Vector3 forward, right, up;
+
+		MathLib.AngleVectors(mv!.ViewAngles, out forward, out right, out up);  // Determine movement angles
+
+		WalkMove__oldground.Set(Player.GetGroundEntity());
+
+		// Copy movement amounts
+		fmove = mv.ForwardMove;
+		smove = mv.SideMove;
+
+		// Zero out z components of movement vectors
+		if (g_bMovementOptimizations) {
+			if (forward[2] != 0) {
+				forward[2] = 0;
+				MathLib.VectorNormalize(ref forward);
+			}
+
+			if (right[2] != 0) {
+				right[2] = 0;
+				MathLib.VectorNormalize(ref right);
+			}
+		}
+		else {
+			forward[2] = 0;
+			right[2] = 0;
+
+			MathLib.VectorNormalize(ref forward);  // Normalize remainder of vectors.
+			MathLib.VectorNormalize(ref right);    // 
+		}
+
+		for (i = 0; i < 2; i++)       // Determine x and y parts of velocity
+			wishvel[i] = forward[i] * fmove + right[i] * smove;
+
+		wishvel[2] = 0;             // Zero out z part of velocity
+
+		MathLib.VectorCopy(wishvel, out wishdir);   // Determine maginitude of speed of move
+		wishspeed = MathLib.VectorNormalize(ref wishdir);
+
+		//
+		// Clamp to server defined max speed
+		//
+		if ((wishspeed != 0.0f) && (wishspeed > mv.MaxSpeed)) {
+			MathLib.VectorScale(wishvel, mv.MaxSpeed / wishspeed, out wishvel);
+			wishspeed = mv.MaxSpeed;
+		}
+
+		// Set pmove velocity
+		mv.Velocity[2] = 0;
+		Accelerate(ref wishdir, wishspeed, sv_accelerate.GetFloat());
+		mv.Velocity[2] = 0;
+
+		// Add in any base velocity to the current velocity.
+		MathLib.VectorAdd(mv.Velocity, Player.GetBaseVelocity(), out mv.Velocity);
+
+		spd = MathLib.VectorLength(mv.Velocity);
+
+		if (spd < 1.0f) {
+			mv.Velocity.Init();
+			// Now pull the base velocity back out.   Base velocity is set if you are on a moving object, like a conveyor (or maybe another monster?)
+			MathLib.VectorSubtract(mv.Velocity, Player.GetBaseVelocity(), out mv.Velocity);
+			return;
+		}
+
+		// first try just moving to the destination	
+		dest[0] = mv.GetAbsOrigin()[0] + mv.Velocity[0] * (float)gpGlobals.FrameTime;
+		dest[1] = mv.GetAbsOrigin()[1] + mv.Velocity[1] * (float)gpGlobals.FrameTime;
+		dest[2] = mv.GetAbsOrigin()[2];
+
+		// first try moving directly to the next spot
+		// TODO: TracePlayerBBox(mv.GetAbsOrigin(), dest, PlayerSolidMask(), COLLISION_GROUP_PLAYER_MOVEMENT, pm);
+		pm = default;
+
+		// If we made it all the way, then copy trace end as new player position.
+		mv.WishVel += wishdir * wishspeed;
+
+		if (pm.Fraction == 1) {
+			mv.SetAbsOrigin(pm.EndPos);
+			// Now pull the base velocity back out.   Base velocity is set if you are on a moving object, like a conveyor (or maybe another monster?)
+			MathLib.VectorSubtract(mv.Velocity, Player.GetBaseVelocity(), out mv.Velocity);
+
+			StayOnGround();
+			return;
+		}
+
+		// Don't walk up stairs if not on ground.
+		if (WalkMove__oldground.Get() == null && Player.GetWaterLevel() == 0) {
+			// Now pull the base velocity back out.   Base velocity is set if you are on a moving object, like a conveyor (or maybe another monster?)
+			MathLib.VectorSubtract(mv.Velocity, Player.GetBaseVelocity(), out mv.Velocity);
+			return;
+		}
+
+		// If we are jumping out of water, don't do anything more.
+		if (Player.WaterJumpTime != 0) {
+			// Now pull the base velocity back out.   Base velocity is set if you are on a moving object, like a conveyor (or maybe another monster?)
+			MathLib.VectorSubtract(mv.Velocity, Player.GetBaseVelocity(), out mv.Velocity);
+			return;
+		}
+
+		StepMove(ref dest, ref pm);
+
+		// Now pull the base velocity back out.   Base velocity is set if you are on a moving object, like a conveyor (or maybe another monster?)
+		MathLib.VectorSubtract(mv.Velocity, Player.GetBaseVelocity(), out mv.Velocity);
+
+		StayOnGround();
+	}
 
 	// Try to keep a walking player on the ground when running down slopes etc
-	protected void StayOnGround() { throw new NotImplementedException(); }
+	protected void StayOnGround() { /* todo */ }
 
 	// Handle MoveType.Walk.
 	protected virtual void FullWalkMove() {
@@ -688,7 +849,116 @@ public class GameMovement : IGameMovement
 	}
 
 	// Returns true if he started a jump (ie: should he play the jump animation)?
-	protected virtual bool CheckJumpButton() { throw new NotImplementedException(); }    // Overridden by each game.
+	protected virtual bool CheckJumpButton() {
+		if (Player.pl.DeadFlag) {
+			mv!.OldButtons |= InButtons.Jump;   // don't jump again until released
+			return false;
+		}
+
+		// See if we are waterjumping.  If so, decrement count and return.
+		if (Player.WaterJumpTime != 0) {
+			Player.WaterJumpTime -= (float)gpGlobals.FrameTime;
+			if (Player.WaterJumpTime < 0)
+				Player.WaterJumpTime = 0;
+
+			return false;
+		}
+
+		// If we are in the water most of the way...
+		if ((int)Player.GetWaterLevel() >= 2) {
+			// swimming, not jumping
+			SetGroundEntity(ref Trace.NULL);
+
+			if (Player.GetWaterType() == Contents.Water)    // We move up a certain amount
+				mv!.Velocity[2] = 100;
+			else if (Player.GetWaterType() == Contents.Slime)
+				mv!.Velocity[2] = 80;
+
+			// play swiming sound
+			if (Player.SwimSoundTime <= 0) {
+				// Don't play sound again for 1 second
+				Player.SwimSoundTime = 1000;
+				PlaySwimSound();
+			}
+
+			return false;
+		}
+
+		// No more effect
+		if (Player.GetGroundEntity() == null) {
+			mv.OldButtons |= InButtons.Jump;
+			return false;       // in air, so no effect
+		}
+
+		// Don't allow jumping when the player is in a stasis field.
+#if !HL2_EPISODIC
+		if (Player.Local.SlowMovement)
+			return false;
+#endif
+
+		if ((mv.OldButtons & InButtons.Jump) != 0)
+			return false;       // don't pogo stick
+
+		// Cannot jump will in the unduck transition.
+		if (Player.Local.Ducking && (Player.GetFlags() & EntityFlags.Ducking) != 0)
+			return false;
+
+		// Still updating the eye position.
+		if (Player.Local.DuckJumpTime > 0.0f)
+			return false;
+
+
+		// In the air now.
+		SetGroundEntity(ref Trace.NULL);
+
+		// Player.PlayStepSound(mv.GetAbsOrigin(), player.SurfaceData, 1.0f, true);
+
+		MoveHelper().PlayerSetAnimation(PlayerAnim.Jump);
+
+		float flGroundFactor = 1.0f;
+		if (Player.SurfaceData != null)
+			flGroundFactor = Player.SurfaceData.Game.JumpFactor;
+
+		float flMul;
+		if (g_bMovementOptimizations) {
+			flMul = 160.0f; // approx. 21 units.
+		}
+		else
+			flMul = MathF.Sqrt(2 * GetCurrentGravity() * GAMEMOVEMENT_JUMP_HEIGHT);
+
+		// Acclerate upward
+		// If we are ducking...
+		float startz = mv.Velocity[2];
+		if ((Player.Local.Ducking) || (Player.GetFlags() & EntityFlags.Ducking) != 0) {
+			// d = 0.5 * g * t^2		- distance traveled with linear accel
+			// t = sqrt(2.0 * 45 / g)	- how long to fall 45 units
+			// v = g * t				- velocity at the end (just invert it to jump up that high)
+			// v = g * sqrt(2.0 * 45 / g )
+			// v^2 = g * g * 2.0 * 45 / g
+			// v = sqrt( g * 2.0 * 45 )
+			mv.Velocity[2] = flGroundFactor * flMul;  // 2 * gravity * height
+		}
+		else {
+			mv.Velocity[2] += flGroundFactor * flMul;  // 2 * gravity * height
+		}
+
+		FinishGravity();
+
+		mv.JumpVel.Z += mv.Velocity[2] - startz;
+		mv.StepHeight += 0.15f;
+
+		OnJump(mv.JumpVel.Z);
+
+		// Set jump time.
+		if (gpGlobals.MaxClients == 1) {
+			Player.Local.JumpTime = GAMEMOVEMENT_JUMP_TIME;
+			Player.Local.InDuckJump = true;
+		}
+
+		// Flag that we jumped.
+		mv.OldButtons |= InButtons.Jump;   // don't jump again until released
+		return true;
+	}    // Overridden by each game.
 
 	// Dead player flying through air., e.g.
 	protected virtual void FullTossMove() { throw new NotImplementedException(); }
@@ -699,8 +969,205 @@ public class GameMovement : IGameMovement
 	// Handle movement when in MoveType.Ladder mode.
 	protected virtual void FullLadderMove() { throw new NotImplementedException(); }
 
+	public const float STOP_EPSILON = 0.1f;
+	public const int MAX_CLIP_PLANES = 5;
+
+
 	// The basic solid body movement clip that slides along multiple planes
-	protected virtual int TryPlayerMove(ref Vector3 firstDest, ref Trace firstTrace) { throw new NotImplementedException(); }
+	protected virtual int TryPlayerMove(ref Vector3 firstDest, ref Trace firstTrace) {
+		int bumpcount, numbumps;
+		Vector3 dir;
+		float d;
+		int numplanes;
+		Span<Vector3> planes = stackalloc Vector3[MAX_CLIP_PLANES];
+		Vector3 primal_velocity, original_velocity;
+		Vector3 new_velocity = default;
+		int i, j;
+		Trace pm = default;
+		Vector3 end;
+		float time_left, allFraction;
+		int blocked;
+
+		numbumps = 4;           // Bump up to four times
+
+		blocked = 0;           // Assume not blocked
+		numplanes = 0;           //  and not sliding along any planes
+
+		MathLib.VectorCopy(mv!.Velocity, out original_velocity);  // Store original velocity
+		MathLib.VectorCopy(mv!.Velocity, out primal_velocity);
+
+		allFraction = 0;
+		time_left = (float)gpGlobals.FrameTime;   // Total time for this movement operation.
+
+		new_velocity.Init();
+
+		for (bumpcount = 0; bumpcount < numbumps; bumpcount++) {
+			if (mv.Velocity.Length() == 0.0)
+				break;
+
+			// Assume we can move all the way from the current origin to the
+			//  end point.
+			MathLib.VectorMA(mv.GetAbsOrigin(), time_left, mv.Velocity, out end);
+
+			// See if we can make it from origin to end point.
+			if (g_bMovementOptimizations) {
+				// If their velocity Z is 0, then we can avoid an extra trace here during WalkMove.
+				if (!Unsafe.IsNullRef(ref firstDest) && end == firstDest)
+					pm = firstTrace;
+				// else
+				// TODO: TracePlayerBBox(mv.GetAbsOrigin(), end, PlayerSolidMask(), COLLISION_GROUP_PLAYER_MOVEMENT, pm);
+			}
+			// else
+			// TODO: TracePlayerBBox(mv.GetAbsOrigin(), end, PlayerSolidMask(), COLLISION_GROUP_PLAYER_MOVEMENT, pm);
+
+
+			allFraction += pm.Fraction;
+
+			// If we started in a solid object, or we were in solid space
+			//  the whole way, zero out our velocity and return that we
+			//  are blocked by floor and wall.
+			if (pm.AllSolid) {
+				// entity is trapped in another solid
+				MathLib.VectorCopy(vec3_origin, out mv.Velocity);
+				return 4;
+			}
+
+			// If we moved some portion of the total distance, then
+			//  copy the end position into the pmove.origin and 
+			//  zero the plane counter.
+			if (pm.Fraction > 0) {
+				if (numbumps > 0 && pm.Fraction == 1) {
+					// There's a precision issue with terrain tracing that can cause a swept box to successfully trace
+					// when the end position is stuck in the triangle.  Re-run the test with an uswept box to catch that
+					// case until the bug is fixed.
+					// If we detect getting stuck, don't allow the movement
+					// todo
+					throw new NotImplementedException();
+				}
+
+				// actually covered some distance
+				mv.SetAbsOrigin(pm.EndPos);
+				MathLib.VectorCopy(mv.Velocity, out original_velocity);
+				numplanes = 0;
+			}
+
+			// If we covered the entire distance, we are done
+			//  and can return.
+			if (pm.Fraction == 1)
+				break;      // moved the entire distance
+
+			// Save entity that blocked us (since fraction was < 1.0)
+			//  for contact
+			// Add it if it's not already in the list!!!
+			MoveHelper().AddToTouched(pm, mv.Velocity);
+
+			// If the plane we hit has a high z component in the normal, then
+			//  it's probably a floor
+			if (pm.Plane.Normal[2] > 0.7)
+				blocked |= 1;       // floor
+
+			// If the plane has a zero z component in the normal, then it's a 
+			//  step or wall
+			if (0 == pm.Plane.Normal[2])
+				blocked |= 2;       // step / wall
+
+			// Reduce amount of m_flFrameTime left by total time left * fraction
+			//  that we covered.
+			time_left -= time_left * pm.Fraction;
+
+			// Did we run out of planes to clip against?
+			if (numplanes >= MAX_CLIP_PLANES) {
+				// this shouldn't really happen
+				//  Stop our movement if so.
+				MathLib.VectorCopy(vec3_origin, out mv.Velocity);
+				//Con_DPrintf("Too many planes 4\n");
+
+				break;
+			}
+
+			// Set up next clipping plane
+			MathLib.VectorCopy(pm.Plane.Normal, out planes[numplanes]);
+			numplanes++;
+
+			// modify original_velocity so it parallels all of the clip planes
+			//
+
+			// reflect player velocity 
+			// Only give this a try for first impact plane because you can get yourself stuck in an acute corner by jumping in place
+			//  and pressing forward and nobody was really using this bounce/reflection feature anyway...
+			if (numplanes == 1 && Player.GetMoveType() == MoveType.Walk && Player.GetGroundEntity() == null) {
+				for (i = 0; i < numplanes; i++) {
+					if (planes[i][2] > 0.7f) {
+						// floor or slope
+						ClipVelocity(original_velocity, planes[i], out new_velocity, 1);
+						MathLib.VectorCopy(new_velocity, out original_velocity);
+					}
+					else
+						ClipVelocity(original_velocity, planes[i], out new_velocity, 1.0f + sv_bounce.GetFloat() * (1 - Player.SurfaceFriction));
+				}
+
+				MathLib.VectorCopy(new_velocity, out mv.Velocity);
+				MathLib.VectorCopy(new_velocity, out original_velocity);
+			}
+			else {
+				for (i = 0; i < numplanes; i++) {
+					ClipVelocity(original_velocity, planes[i], out mv.Velocity, 1);
+
+					for (j = 0; j < numplanes; j++)
+						if (j != i) {
+							// Are we now moving against this plane?
+							if (mv.Velocity.Dot(planes[j]) < 0)
+								break;  // not ok
+						}
+					if (j == numplanes)  // Didn't have to clip, so we're ok
+						break;
+				}
+
+				// Did we go all the way through plane set
+				if (i != numplanes) {   // go along this plane
+										// pmove.velocity is set in clipping call, no need to set again.
+					;
+				}
+				else {  // go along the crease
+					if (numplanes != 2) {
+						MathLib.VectorCopy(vec3_origin, out mv.Velocity);
+						break;
+					}
+					MathLib.CrossProduct(planes[0], planes[1], out dir);
+					dir.NormalizeInPlace();
+					d = dir.Dot(mv.Velocity);
+					MathLib.VectorScale(dir, d, out mv.Velocity);
+				}
+
+				//
+				// if original velocity is against the original velocity, stop dead
+				// to avoid tiny occilations in sloping corners
+				//
+				d = mv.Velocity.Dot(primal_velocity);
+				if (d <= 0) {
+					//Con_DPrintf("Back\n");
+					MathLib.VectorCopy(vec3_origin, out mv.Velocity);
+					break;
+				}
+			}
+		}
+
+		if (allFraction == 0)
+			MathLib.VectorCopy(vec3_origin, out mv.Velocity);
+
+		// Check if they slammed into a wall
+		float fSlamVol = 0.0f;
+
+		float fLateralStoppingAmount = primal_velocity.Length2D() - mv.Velocity.Length2D();
+		if (fLateralStoppingAmount > PLAYER_MAX_SAFE_FALL_SPEED * 2.0f)
+			fSlamVol = 1.0f;
+		else if (fLateralStoppingAmount > PLAYER_MAX_SAFE_FALL_SPEED)
+			fSlamVol = 0.85f;
+
+		PlayerRoughLandingEffects(fSlamVol);
+
+		return blocked;
+	}
 	protected int TryPlayerMove(ref Vector3 firstDest) => TryPlayerMove(ref firstDest, ref Unsafe.NullRef<Trace>());
 	protected int TryPlayerMove() => TryPlayerMove(ref Unsafe.NullRef<Vector3>(), ref Unsafe.NullRef<Trace>());
 
@@ -796,7 +1263,40 @@ public class GameMovement : IGameMovement
 	// returns the blocked flags:
 	// 0x01 == floor
 	// 0x02 == step / wall
-	protected int ClipVelocity(in Vector3 inVec, in Vector3 normal, out Vector3 outVec, float overbounce) { throw new NotImplementedException(); }
+	protected int ClipVelocity(in Vector3 inVec, in Vector3 normal, out Vector3 outVec, float overbounce) {
+		float backoff;
+		float change;
+		float angle;
+		int i, blocked;
+
+		angle = normal[2];
+		outVec = default;
+
+		blocked = 0x00;         // Assume unblocked.
+		if (angle > 0)          // If the plane that is blocking us has a positive z component, then assume it's a floor.
+			blocked |= 0x01;    // 
+		if (angle == 0)             // If the plane has no Z, it is vertical (wall/step)
+			blocked |= 0x02;    // 
+
+
+		// Determine how far along plane to slide based on incoming direction.
+		backoff = MathLib.DotProduct(inVec, normal) * overbounce;
+
+		for (i = 0; i < 3; i++) {
+			change = normal[i] * backoff;
+			outVec[i] = inVec[i] - change;
+		}
+
+		// iterate once to make sure we aren't still moving through the plane
+		float adjust = MathLib.DotProduct(outVec, normal);
+		if (adjust < 0.0f) {
+			outVec -= (normal * adjust);
+			//		Msg( "Adjustment = %lf\n", adjust );
+		}
+
+		// Return blocking flags.
+		return blocked;
+	}
 
 	// If pmove.origin is in a solid position,
 	// try nudging slightly on all axis to
@@ -1071,9 +1571,9 @@ public class GameMovement : IGameMovement
 		}
 	}
 
-	protected virtual void CheckFalling() { throw new NotImplementedException(); }
+	protected virtual void CheckFalling() { }
 
-	protected virtual void PlayerRoughLandingEffects(float fvol) { throw new NotImplementedException(); }
+	protected virtual void PlayerRoughLandingEffects(float fvol) { }
 
 	protected void PlayerWaterSounds() { throw new NotImplementedException(); }
 

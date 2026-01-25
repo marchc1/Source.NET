@@ -343,6 +343,13 @@ public static class SharedDefs
 	public const int NOINTERP_PARITY_MAX_BITS = 2;
 	public const int ANIMATION_CYCLE_BITS = 15;
 
+	public const float PLAYER_FATAL_FALL_SPEED = 1024;        // approx 60 feet
+	public const float PLAYER_MAX_SAFE_FALL_SPEED = 580;      // approx 20 feet
+	public const float PLAYER_LAND_ON_FLOATING_OBJECT = 200;  // Can go another 200 units without getting hurt
+	public const float PLAYER_MIN_BOUNCE_SPEED = 200;
+	public const float PLAYER_FALL_PUNCH_THRESHOLD = 350;     // won't punch player's screen/make scrape noise unless player falling at least this fast.
+	public const float DAMAGE_FOR_FALL_SPEED = 100.0f / (PLAYER_FATAL_FALL_SPEED - PLAYER_MAX_SAFE_FALL_SPEED); // damage per unit per second.
+
 	public const int MAX_CLIMB_SPEED = 200;
 
 	public const int TICK_NEVER_THINK = -1;

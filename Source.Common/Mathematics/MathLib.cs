@@ -261,6 +261,10 @@ public struct CollisionNode
 	public InlineArray2<int> Children;
 }
 
+
+/// <summary>
+/// Analog of cplane_t
+/// </summary>
 public struct CollisionPlane
 {
 	public Vector3 Normal;
@@ -777,6 +781,7 @@ public static class MathLib
 	public static void Init(this ref Vector4 v) => v.X = v.Y = v.Z = v.W = 0;
 	public static void Init(this ref Quaternion v) => v.X = v.Y = v.Z = v.W = 0;
 	public static vec_t Dot(this in Vector3 a, in Vector3 b) => Vector3.Dot(a, b);
+	public static vec_t NormalizeInPlace(this ref Vector3 self) => VectorNormalize(ref self);
 
 
 	public static void Init(this ref Vector3 m, float x, float y, float z) {

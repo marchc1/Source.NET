@@ -218,6 +218,15 @@ public partial class
 	}
 
 
+	public Contents GetWaterType() {
+		Contents outVal = 0;
+		if ((WaterType & 1) != 0)
+			outVal |= Contents.Water;
+		if ((WaterType & 2) != 0)
+			outVal |= Contents.Slime;
+		return outVal;
+	}
+
 	public static BasePlayer? GetPredictionPlayer() => PredictionPlayer;
 	public static void SetPredictionPlayer(BasePlayer? player) => PredictionPlayer = player;
 	public static int GetPredictionRandomSeed()
