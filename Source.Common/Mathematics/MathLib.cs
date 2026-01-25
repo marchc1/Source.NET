@@ -1149,6 +1149,7 @@ public static class MathLib
 		}
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out Vector3 outV) => outV = inV;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out QAngle outV) => outV = inV;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float VectorNormalize(ref Vector3 fwd) {
 		float len = fwd.Length();

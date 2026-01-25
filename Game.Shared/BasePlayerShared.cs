@@ -99,6 +99,15 @@ public partial class
 
 		CalcViewRoll(ref eyeAngles);
 		eyeAngles += Local.PunchAngle;
+
+		#if CLIENT_DLL
+		if(!prediction.InPrediction()){ } // vieweffects
+		#endif
+
+		#if CLIENT_DLL
+		GetPredictionErrorSmoothingVector(out Vector3 smoothOffset);
+		eyeOrigin += smoothOffset;
+		#endif
 	}
 
 	internal ReadOnlySpan<char> GetPlayerName() {

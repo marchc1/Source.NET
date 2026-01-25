@@ -1060,7 +1060,6 @@ public partial class C_BaseEntity : IClientEntity
 
 			if (simulationChanged)
 				OnLatchInterpolatedVariables(LatchFlags.LatchSimulationVar);
-
 		}
 		else if (predictable)
 			OnStoreLastNetworkedValue();
@@ -1511,9 +1510,9 @@ public partial class C_BaseEntity : IClientEntity
 		return false;
 	}
 
-	public Matrix3x4 EntityToWorldTransform() {
+	public ref Matrix3x4 EntityToWorldTransform() {
 		CalcAbsolutePosition();
-		return CoordinateFrame;
+		return ref CoordinateFrame;
 	}
 
 	public ref Vector3 GetNetworkOrigin() => ref NetworkOrigin;
@@ -1552,8 +1551,6 @@ public partial class C_BaseEntity : IClientEntity
 		if (!s_bAbsRecomputationEnabled)
 			return;
 
-		eflags |= EFL.DirtyAbsTransform;
-
 		if ((eflags & EFL.DirtyAbsTransform) == 0)
 			return;
 
@@ -1576,8 +1573,54 @@ public partial class C_BaseEntity : IClientEntity
 				return;
 			}
 
-			// todo
+			MathLib.AngleMatrix(GetLocalAngles(), out Matrix3x4 matEntityToParent);
+			MathLib.MatrixSetColumn(GetLocalOrigin(), 3, ref matEntityToParent);
+
+			// concatenate with our parent's transform
+			Matrix3x4 scratchMatrix = default;
+			MathLib.ConcatTransforms(GetParentToWorldTransform(ref scratchMatrix), matEntityToParent, out CoordinateFrame);
+
+			// pull our absolute position out of the matrix
+			MathLib.MatrixGetColumn(CoordinateFrame, 3, out AbsOrigin);
+
+			// if we have any angles, we have to extract our absolute angles from our matrix
+			if (Rotation == vec3_angle && ParentAttachment == 0)
+				// just copy our parent's absolute angles
+				MathLib.VectorCopy(MoveParent.Get()!.GetAbsAngles(), out AbsRotation);
+			else
+				MathLib.MatrixAngles(CoordinateFrame, out AbsRotation);
+			
+
+			// This is necessary because it's possible that our moveparent's CalculateIKLocks will trigger its move children 
+			// (ie: this entity) to call GetAbsOrigin(), and they'll use the moveparent's OLD bone transforms to get their attachments
+			// since the moveparent is right in the middle of setting up new transforms. 
+			//
+			// So here, we keep our absorigin invalidated. It means we're returning an origin that is a frame old to CalculateIKLocks,
+			// but we'll still render with the right origin.
+			if (ParentAttachment != 0 && (MoveParent.Get()!.GetEFlags() & EFL.SettingUpBones) != 0) 
+				eflags |= EFL.DirtyAbsTransform;
 		}
+	}
+
+	public ref Matrix3x4 GetParentToWorldTransform(ref Matrix3x4 tempMatrix){
+		C_BaseEntity? moveParent = GetMoveParent();
+		if (moveParent == null) {
+			Assert(false);
+			MathLib.SetIdentityMatrix(out tempMatrix);
+			return ref tempMatrix;
+		}
+
+		if (ParentAttachment != 0) {
+			Vector3 origin;
+			QAngle angles;
+			if (moveParent.GetAttachment(ParentAttachment, out origin, out angles)) {
+				MathLib.AngleMatrix(angles, origin, out tempMatrix);
+				return ref tempMatrix;
+			}
+		}
+
+		// If we fall through to here, then just use the move parent's abs origin and angles.
+		return ref moveParent.EntityToWorldTransform();
 	}
 
 	public virtual IClientVehicle? GetClientVehicle() => null;
@@ -2030,7 +2073,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 
-	protected bool ShouldInterpolate() {
+	protected virtual bool ShouldInterpolate() {
 		if (render.GetViewEntity() == Index)
 			return true;
 

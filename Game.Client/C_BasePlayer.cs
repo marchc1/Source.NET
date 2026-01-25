@@ -42,7 +42,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	]); public static readonly ClientClass CC_PlayerState = new("PlayerState", null, null, DT_PlayerState);
 
 	public override bool IsPlayer() => true;
-	public TimeUnit_t GetFinalPredictedTime() => gpGlobals.TickCount * TICK_INTERVAL; // TEMPORARY //  FinalPredictedTick * TICK_INTERVAL;
+	public TimeUnit_t GetFinalPredictedTime() => FinalPredictedTick * TICK_INTERVAL;
 	public bool IsLocalPlayer() => GetLocalPlayer() == this;
 	public static bool ShouldDrawLocalPlayer() {
 		return false; // todo
@@ -82,16 +82,16 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		RecvPropBool(FIELD.OF(nameof(DisableWorldClicking))),
 	]);
 
-	public virtual void ItemPreFrame() { } 
-	public virtual void ItemPostFrame() { } 
+	public virtual void ItemPreFrame() { }
+	public virtual void ItemPostFrame() { }
 	public virtual void UpdateClientData() {
 		for (int i = 0; i < WeaponCount(); i++) {
 			if (GetWeapon(i) != null)  // each item updates it's successors
 				GetWeapon(i).UpdateClientData(this);
 		}
-	} 
-	public virtual void UpdateUnderwaterState() { } 
-	public virtual void UpdateFogController() { } 
+	}
+	public virtual void UpdateUnderwaterState() { }
+	public virtual void UpdateFogController() { }
 	public virtual void PreThink() {
 		ItemPreFrame();
 
@@ -105,7 +105,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 			return;
 
 		// If we're not on the ground, we're falling. Update our falling velocity.
-		if (0 == (GetFlags() & EntityFlags.OnGround)) 
+		if (0 == (GetFlags() & EntityFlags.OnGround))
 			Local.FallVelocity = -GetAbsVelocity().Z;
 	}
 	public virtual void PostThink() {
@@ -115,17 +115,17 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 			// 	SetCollisionBounds(VEC_DUCK_HULL_MIN, VEC_DUCK_HULL_MAX);
 			// else 
 			// 	SetCollisionBounds(VEC_HULL_MIN, VEC_HULL_MAX);
-			
+
 			// if (!CommentaryModeShouldSwallowInput(this)) {
 			// 	// do weapon stuff
 			// 	ItemPostFrame();
 			// }
 
-			if ((GetFlags() & EntityFlags.OnGround) != 0) 
+			if ((GetFlags() & EntityFlags.OnGround) != 0)
 				Local.FallVelocity = 0;
 
 			// Don't allow bogus sequence on player
-			if (GetSequence() == -1) 
+			if (GetSequence() == -1)
 				SetSequence(0);
 
 			StudioFrameAdvance();
@@ -159,8 +159,8 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 						// We got more ammo for this ammo index. Add it to the ammo history
 						HudHistoryResource? pHudHR = GET_HUDELEMENT<HudHistoryResource>();
 						// if (pHudHR != null) 
-							//pHudHR.AddToHistory(HISTSLOT_AMMO, i, abs(GetAmmoCount(i) - m_iOldAmmo[i]));
-						
+						//pHudHR.AddToHistory(HISTSLOT_AMMO, i, abs(GetAmmoCount(i) - m_iOldAmmo[i]));
+
 					}
 				}
 			}
@@ -181,7 +181,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public override void ReceiveMessage(int classID, bf_read msg) {
 		if (classID != GetClientClass().ClassID) {
 			// message is for subclass
-			
+
 			base.ReceiveMessage(classID, msg);
 			return;
 		}
@@ -320,7 +320,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 		bool forceEFNoInterp = IsNoInterpolationFrame();
 
-		if (IsLocalPlayer()) 
+		if (IsLocalPlayer())
 			SetSimulatedEveryTick(true);
 		else {
 			SetSimulatedEveryTick(false);
@@ -348,7 +348,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 		// If we are updated while paused, allow the player origin to be snapped by the
 		//  server if we receive a packet from the server
-		if (engine.IsPaused() || forceEFNoInterp) 
+		if (engine.IsPaused() || forceEFNoInterp)
 			ResetLatched();
 	}
 
@@ -407,10 +407,10 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	}
 	public BaseCombatWeapon? GetLastWeapon() => LastWeapon.Get();
 
-	public static readonly ConVar cl_customsounds = new( "cl_customsounds", "0", 0, "Enable customized player sound playback" );
-	public static readonly ConVar spec_track = new( "spec_track", "0", 0, "Tracks an entity in spec mode" );
-	public static readonly ConVar cl_smooth = new( "cl_smooth", "1", 0, "Smooth view/eye origin after prediction errors" );
-	public static readonly ConVar cl_smoothtime = new( 
+	public static readonly ConVar cl_customsounds = new("cl_customsounds", "0", 0, "Enable customized player sound playback");
+	public static readonly ConVar spec_track = new("spec_track", "0", 0, "Tracks an entity in spec mode");
+	public static readonly ConVar cl_smooth = new("cl_smooth", "1", 0, "Smooth view/eye origin after prediction errors");
+	public static readonly ConVar cl_smoothtime = new(
 	"cl_smoothtime",
 		"0.1",
 		0,
@@ -422,7 +422,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public virtual bool CreateMove(TimeUnit_t inputSampleTime, ref UserCmd cmd) {
 		return true;
 	}
-	public void GetPredictionErrorSmoothingVector(out Vector3 offset){
+	public void GetPredictionErrorSmoothingVector(out Vector3 offset) {
 		if (engine.IsPlayingDemo() || cl_smooth.GetInt() == 0 || cl_predict.GetInt() == 0 || engine.IsPaused()) {
 			offset = default;
 			return;
@@ -443,7 +443,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public Vector3 PredictionError;
 	public Vector3 PreviouslyPredictedOrigin;
 	public TimeUnit_t PredictionErrorTime;
-	public void NotePredictionError(in Vector3 delta){
+	public void NotePredictionError(in Vector3 delta) {
 		if (!IsAlive())
 			return;
 
@@ -454,6 +454,13 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	}
 
 	public bool IsInAVehicle() => Vehicle.Get() != null;
+
+	protected override bool ShouldInterpolate() {
+		if (IsLocalPlayer())
+			return true;
+
+		return base.ShouldInterpolate();
+	}
 
 	public ref readonly QAngle GetPunchAngle() => ref Local.PunchAngle;
 	public void SetPunchAngle(in QAngle angle) => Local.PunchAngle = angle;
