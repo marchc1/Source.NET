@@ -2672,6 +2672,8 @@ public class Panel : IPanel
 			if (aliasAttr != null) {
 				UtlSymbol aliasSymbol = new(aliasAttr.Alias);
 				PanelNames[aliasSymbol] = type;
+				if (method != null)
+					PanelFactories[aliasSymbol] = method.CreateDelegate<CreatePanelFactoryFn>();
 			}
 
 			count++;
