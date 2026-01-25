@@ -1146,7 +1146,8 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float VectorNormalize(ref Vector3 fwd) {
 		float len = fwd.Length();
-		fwd = Vector3.Normalize(fwd);
+		if (len != 0)
+			fwd = Vector3.Normalize(fwd);
 		return len;
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
