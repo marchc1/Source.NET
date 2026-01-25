@@ -1142,6 +1142,7 @@ public static class MathLib
 			up = new(cr * sp * cy + -sr * -sy, cr * sp * sy + -sr * cy, cr * cp);
 		}
 	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out Vector3 outV) => outV = inV;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float VectorNormalize(ref Vector3 fwd) {
 		float len = fwd.Length();
@@ -1278,8 +1279,8 @@ public static class MathLib
 	}
 
 	public static unsafe void VectorIRotate(in Vector3 relVelocity, in Matrix3x4 in2, out Vector3 @out) {
-		fixed(Vector3* pin1 = &relVelocity)
-		fixed(Vector3* pout = &@out){
+		fixed (Vector3* pin1 = &relVelocity)
+		fixed (Vector3* pout = &@out) {
 			VectorIRotate(new ReadOnlySpan<float>(pin1, 3), in in2, new Span<float>(pout, 3));
 		}
 	}

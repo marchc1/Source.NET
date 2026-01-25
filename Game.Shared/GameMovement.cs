@@ -11,6 +11,7 @@ using Source.Engine;
 
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
 namespace Game.Shared;
@@ -207,11 +208,11 @@ public class GameMovement : IGameMovement
 		sign = side < 0 ? -1 : 1;
 		side = MathF.Abs(side);
 		value = rollangle;
-		if (side < rollspeed) 
+		if (side < rollspeed)
 			side = side * value / rollspeed;
-		else 
+		else
 			side = value;
-		
+
 		return side * sign;
 	}
 
@@ -224,9 +225,9 @@ public class GameMovement : IGameMovement
 			Player.Local.PunchAngle += Player.Local.PunchAngleVel * (float)gpGlobals.FrameTime;
 			float damping = 1 - (PUNCH_DAMPING * (float)gpGlobals.FrameTime);
 
-			if (damping < 0) 
+			if (damping < 0)
 				damping = 0;
-			
+
 			Player.Local.PunchAngleVel *= damping;
 
 			// torsional spring
@@ -271,7 +272,93 @@ public class GameMovement : IGameMovement
 	protected void StayOnGround() { throw new NotImplementedException(); }
 
 	// Handle MoveType.Walk.
-	protected virtual void FullWalkMove() { throw new NotImplementedException(); }
+	protected virtual void FullWalkMove() {
+		if (!CheckWater()) {
+			StartGravity();
+		}
+
+		// If we are leaping out of the water, just update the counters.
+		if (Player.WaterJumpTime != 0) {
+			WaterJump();
+			TryPlayerMove();
+			// See if we are still in water?
+			CheckWater();
+			return;
+		}
+
+		// If we are swimming in the water, see if we are nudging against a place we can jump up out
+		//  of, and, if so, start out jump.  Otherwise, if we are not moving up, then reset jump timer to 0
+		if (Player.GetWaterLevel() >= WaterLevel.Waist) {
+			if (Player.GetWaterLevel() == WaterLevel.Waist)
+				CheckWaterJump();
+
+			// If we are falling again, then we must not trying to jump out of water any more.
+			if (mv!.Velocity[2] < 0 && Player.WaterJumpTime != 0)
+				Player.WaterJumpTime = 0;
+
+			// Was jump button pressed?
+			if ((mv.Buttons & InButtons.Jump) != 0)
+				CheckJumpButton();
+			else
+				mv.OldButtons &= ~InButtons.Jump;
+
+
+			// Perform regular water movement
+			WaterMove();
+
+			// Redetermine position vars
+			CategorizePosition();
+
+			// If we are on ground, no downward velocity.
+			if (Player.GetGroundEntity() != null)
+				mv.Velocity[2] = 0;
+		}
+		else { // Not fully underwater
+			// Was jump button pressed?
+			if ((mv!.Buttons & InButtons.Jump) != 0) 
+				CheckJumpButton();
+			else 
+				mv.OldButtons &= ~InButtons.Jump;
+
+			// Fricion is handled before we add in any base velocity. That way, if we are on a conveyor, 
+			//  we don't slow when standing still, relative to the conveyor.
+			if (Player.GetGroundEntity() != null) {
+				mv.Velocity[2] = 0.0f;
+				Friction();
+			}
+
+			// Make sure velocity is valid.
+			CheckVelocity();
+
+			if (Player.GetGroundEntity() != null)
+				WalkMove();
+			else
+				AirMove();  // Take into account movement when in air.
+
+			// Set final flags.
+			CategorizePosition();
+
+			// Make sure velocity is valid.
+			CheckVelocity();
+
+			// Add any remaining gravitational component.
+			if (!CheckWater())
+				FinishGravity();
+
+			// If we are on ground, no downward velocity.
+			if (Player.GetGroundEntity() != null)
+				mv.Velocity[2] = 0;
+			CheckFalling();
+		}
+
+		if ((OldWaterLevel == WaterLevel.NotInWater && Player.GetWaterLevel() != WaterLevel.NotInWater) ||
+			  (OldWaterLevel != WaterLevel.NotInWater && Player.GetWaterLevel() == WaterLevel.NotInWater)) {
+			PlaySwimSound();
+#if !CLIENT_DLL
+			// todo: player.Splash();
+#endif
+		}
+	}
 
 	// allow overridden versions to respond to jumping
 	protected virtual void OnJump(float fImpulse) { }
@@ -281,17 +368,17 @@ public class GameMovement : IGameMovement
 	protected virtual void OnTryPlayerMoveCollision(ref Trace tr) { }
 
 	protected virtual Vector3 GetPlayerMins() {
-		if (Player.IsObserver()) 
+		if (Player.IsObserver())
 			return VEC_OBS_HULL_MIN_SCALED(Player);
-		else 
+		else
 			return Player.Local.Ducked ? VEC_DUCK_HULL_MIN_SCALED(Player) : VEC_HULL_MIN_SCALED(Player);
 	}
 	protected virtual Vector3 GetPlayerMaxs() {
-		if (Player.IsObserver()) 
+		if (Player.IsObserver())
 			return VEC_OBS_HULL_MAX_SCALED(Player);
-		else 
+		else
 			return Player.Local.Ducked ? VEC_DUCK_HULL_MAX_SCALED(Player) : VEC_HULL_MAX_SCALED(Player);
-	} 
+	}
 
 	protected enum IntervalType
 	{
@@ -325,9 +412,9 @@ public class GameMovement : IGameMovement
 	protected bool CheckInterval(IntervalType type) {
 		int tickInterval = GetCheckInterval(type);
 
-		if (g_bMovementOptimizations) 
+		if (g_bMovementOptimizations)
 			return (Player!.CurrentCommandNumber() + Player.EntIndex()) % tickInterval == 0;
-		else 
+		else
 			return true;
 	}
 
@@ -363,14 +450,120 @@ public class GameMovement : IGameMovement
 
 
 	// Decompoosed gravity
-	protected void StartGravity() { throw new NotImplementedException(); }
-	protected void FinishGravity() { throw new NotImplementedException(); }
+	protected void StartGravity() {
+		float ent_gravity;
+
+		if (Player.GetGravity() != 0)
+			ent_gravity = Player.GetGravity();
+		else
+			ent_gravity = 1.0F;
+
+		// Add gravity so they'll be in the correct position during movement
+		// yes, this 0.5 looks wrong, but it's not.  
+		mv!.Velocity[2] -= (ent_gravity * GetCurrentGravity() * 0.5F * (float)gpGlobals.FrameTime);
+		mv!.Velocity[2] += Player.GetBaseVelocity()[2] * (float)gpGlobals.FrameTime;
+
+		Vector3 temp = Player.GetBaseVelocity();
+		temp[2] = 0;
+		Player.SetBaseVelocity(temp);
+
+		CheckVelocity();
+	}
+	protected void FinishGravity() {
+		float ent_gravity;
+
+		if (Player.WaterJumpTime != 0)
+			return;
+
+		if (Player.GetGravity() != 0)
+			ent_gravity = Player.GetGravity();
+		else
+			ent_gravity = 1.0F;
+
+		// Get the correct velocity for the end of the dt 
+		mv!.Velocity[2] -= (ent_gravity * GetCurrentGravity() * (float)gpGlobals.FrameTime * 0.5F);
+
+		CheckVelocity();
+	}
 
 	// Apply normal ( undecomposed ) gravity
 	protected void AddGravity() { throw new NotImplementedException(); }
 
 	// Handle movement in noclip mode.
-	protected void FullNoClipMove(float factor, float maxacceleration) {  }
+	protected void FullNoClipMove(float factor, float maxacceleration) {
+		Vector3 wishvel = default;
+		Vector3 forward, right, up;
+		Vector3 wishdir;
+		float wishspeed;
+		float maxspeed = sv_maxspeed.GetFloat() * factor;
+
+		MathLib.AngleVectors(mv.ViewAngles, out forward, out right, out up);  // Determine movement angles
+
+		if ((mv.Buttons & InButtons.Speed) != 0)
+			factor /= 2.0f;
+
+		// Copy movement amounts
+		float fmove = mv.ForwardMove * factor;
+		float smove = mv.SideMove * factor;
+
+		MathLib.VectorNormalize(ref forward);  // Normalize remainder of vectors
+		MathLib.VectorNormalize(ref right);    // 
+
+		for (int i = 0; i < 3; i++)       // Determine x and y parts of velocity
+			wishvel[i] = forward[i] * fmove + right[i] * smove;
+		wishvel[2] += mv.UpMove * factor;
+
+		MathLib.VectorCopy(in wishvel, out wishdir);   // Determine maginitude of speed of move
+		wishspeed = MathLib.VectorNormalize(ref wishdir);
+
+		//
+		// Clamp to server defined max speed
+		//
+		if (wishspeed > maxspeed) {
+			MathLib.VectorScale(wishvel, maxspeed / wishspeed, out wishvel);
+			wishspeed = maxspeed;
+		}
+
+		if (maxacceleration > 0.0f) {
+			// Set pmove velocity
+			Accelerate(ref wishdir, wishspeed, maxacceleration);
+
+			float spd = MathLib.VectorLength(mv.Velocity);
+			if (spd < 1.0f) {
+				mv.Velocity.Init();
+				return;
+			}
+
+			float onequadspeed = maxspeed / 4.0f;
+			// Bleed off some speed, but if we have less than the bleed
+			//  threshhold, bleed the theshold amount.
+			float control = (spd < onequadspeed) ? onequadspeed : spd;
+
+			float friction = sv_friction.GetFloat() * Player.SurfaceFriction;
+
+			// Add the amount to the drop amount.
+			float drop = control * friction * (float)gpGlobals.FrameTime;
+
+			// scale the velocity
+			float newspeed = spd - drop;
+			if (newspeed < 0)
+				newspeed = 0;
+
+			// Determine proportion of old speed we are using.
+			newspeed /= spd;
+			MathLib.VectorScale(mv.Velocity, newspeed, out mv.Velocity);
+		}
+		else 
+			MathLib.VectorCopy(wishvel, out mv.Velocity);
+
+		// Just move ( don't clip or anything )
+		MathLib.VectorMA(mv.GetAbsOrigin(), (float)gpGlobals.FrameTime, mv.Velocity, out Vector3 outVec);
+		mv.SetAbsOrigin(outVec);
+
+		// Zero out velocity if in noaccel mode
+		if (maxacceleration < 0.0f) 
+			mv.Velocity.Init();
+	}
 
 	// Returns true if he started a jump (ie: should he play the jump animation)?
 	protected virtual bool CheckJumpButton() { throw new NotImplementedException(); }    // Overridden by each game.
@@ -386,6 +579,8 @@ public class GameMovement : IGameMovement
 
 	// The basic solid body movement clip that slides along multiple planes
 	protected virtual int TryPlayerMove(ref Vector3 firstDest, ref Trace firstTrace) { throw new NotImplementedException(); }
+	protected int TryPlayerMove(ref Vector3 firstDest) => TryPlayerMove(ref firstDest, ref Unsafe.NullRef<Trace>());
+	protected int TryPlayerMove() => TryPlayerMove(ref Unsafe.NullRef<Vector3>(), ref Unsafe.NullRef<Trace>());
 
 	protected virtual bool LadderMove() {
 		Trace pm;
@@ -401,7 +596,7 @@ public class GameMovement : IGameMovement
 			return false;
 
 		// If I'm already moving on a ladder, use the previous ladder direction
-		if (Player.GetMoveType() == MoveType.Ladder) 
+		if (Player.GetMoveType() == MoveType.Ladder)
 			wishdir = -Player.LadderNormal;
 		else {
 			// otherwise, use the direction player is attempting to move
@@ -511,7 +706,7 @@ public class GameMovement : IGameMovement
 		}
 
 		// if we just transitioned from not in water to in water, record the time it happened
-		if ((WaterLevel.NotInWater == OldWaterLevel) && (Player.GetWaterLevel() > WaterLevel.NotInWater)) 
+		if ((WaterLevel.NotInWater == OldWaterLevel) && (Player.GetWaterLevel() > WaterLevel.NotInWater))
 			WaterEntryTime = gpGlobals.CurTime;
 
 		return (Player.GetWaterLevel() > WaterLevel.Feet);
@@ -705,7 +900,7 @@ public class GameMovement : IGameMovement
 		}
 		if (Player.SwimSoundTime > 0) {
 			Player.SwimSoundTime -= frame_msec;
-			if (Player.SwimSoundTime < 0) 
+			if (Player.SwimSoundTime < 0)
 				Player.SwimSoundTime = 0;
 		}
 	}
@@ -743,11 +938,11 @@ public class GameMovement : IGameMovement
 		bool bDuckJump = (Player.Local.JumpTime > 0.0f);
 		bool bDuckJumpTime = (Player.Local.DuckJumpTime > 0.0f);
 
-		if ((mv.Buttons & InButtons.Duck) != 0) 
+		if ((mv.Buttons & InButtons.Duck) != 0)
 			mv.OldButtons |= InButtons.Duck;
-		else 
+		else
 			mv.OldButtons &= ~InButtons.Duck;
-		
+
 		// Handle death.
 		if (IsDead())
 			return;
@@ -807,7 +1002,7 @@ public class GameMovement : IGameMovement
 						if (CanUnDuckJump(ref trace)) {
 							FinishUnDuckJump(ref trace);
 
-							if (trace.Fraction < 1.0f) 
+							if (trace.Fraction < 1.0f)
 								Player.Local.DuckJumpTime = (GAMEMOVEMENT_TIME_TO_UNDUCK * (1.0f - trace.Fraction)) + GAMEMOVEMENT_TIME_TO_UNDUCK_INV;
 						}
 					}
@@ -908,8 +1103,8 @@ public class GameMovement : IGameMovement
 		Trace trace;
 		Vector3 newOrigin = mv!.GetAbsOrigin();
 
-		if (Player.GetGroundEntity() != null) 
-			for (i = 0; i < 3; i++) 
+		if (Player.GetGroundEntity() != null)
+			for (i = 0; i < 3; i++)
 				newOrigin[i] += (VEC_DUCK_HULL_MIN_SCALED(Player)[i] - VEC_HULL_MIN_SCALED(Player)[i]);
 		else {
 			// If in air an letting go of crouch, make sure we can offset origin to make
@@ -962,11 +1157,11 @@ public class GameMovement : IGameMovement
 			Vector3 viewDelta = (hullSizeNormal - hullSizeCrouch);
 			Vector3 @out;
 			MathLib.VectorAdd(mv!.GetAbsOrigin(), viewDelta, out @out);
-			mv.SetAbsOrigin(@out );
+			mv.SetAbsOrigin(@out);
 
 #if CLIENT_DLL
-		Player.ResetLatched();
-#endif 
+			Player.ResetLatched();
+#endif
 		}
 
 		// See if we are stuck?

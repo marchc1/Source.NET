@@ -405,4 +405,6 @@ public partial class BaseEntity : IServerEntity
 
 	readonly ServerNetworkProperty Network = new();
 	public int EntIndex() => Network.EntIndex();
+	public float GetGravity() => Gravity;
+	public void SetGravity(float gravity) => Gravity = gravity;
 }

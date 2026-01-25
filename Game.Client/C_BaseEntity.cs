@@ -547,6 +547,9 @@ public partial class C_BaseEntity : IClientEntity
 																		.WithManualClassID(StaticClassIndices.CBaseEntity);
 	const float coordTolerance = 2.0f / (float)(1 << (int)BitBuffer.COORD_FRACTIONAL_BITS);
 
+	public float GetGravity() => Gravity;
+	public void SetGravity(float gravity) => Gravity = gravity;
+
 
 	public static readonly DataMap PredMap = new([
 		DEFINE.PRED_FIELD(nameof(MoveType), FieldType.Character, FieldTypeDescFlags.InSendTable),
