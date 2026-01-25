@@ -121,7 +121,7 @@ public partial class BaseEntity : IServerEntity
 		SendPropInt(FIELD.OF(nameof(MapCreatedID)), 16),
 	]);
 
-
+	public float Gravity;
 	public void SetPredictionEligible(bool canpredict) { } // nothing in game code
 	public ref readonly Vector3 GetLocalOrigin() => ref AbsOrigin;
 	private static void SendProxy_OverrideMaterial(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
