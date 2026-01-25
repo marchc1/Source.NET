@@ -216,6 +216,14 @@ public partial class C_BaseEntity : IClientEntity
 		// That networked data will be copied forward into the starting slot for the next prediction round
 	}
 
+	public void PostEntityPacketReceived(){
+		// Always mark as changed
+		HLClient.AddDataChangeEvent(this, DataUpdateType.DataTableChanged, DataChangeEventRef);
+
+		// Save networked fields into "original data" store
+		SaveData("PostEntityPacketReceived", SLOT_ORIGINALDATA, PredictionCopyType.NetworkedOnly);
+	}
+
 	public static void InterpolateServerEntities() {
 		s_bInterpolate = cl_interpolate.GetBool();
 
@@ -1791,7 +1799,7 @@ public partial class C_BaseEntity : IClientEntity
 	public VarMapping VarMap = new();
 	static double LastValue_Interp = -1;
 	static double LastValue_InterpNPCs = -1;
-	void CheckCLInterpChanged() {
+	public static void CheckCLInterpChanged() {
 		double curValue_Interp = CdllBoundedCVars.GetClientInterpAmount();
 		if (LastValue_Interp == -1) LastValue_Interp = curValue_Interp;
 

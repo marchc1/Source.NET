@@ -135,8 +135,29 @@ public class Prediction : IPrediction
 	}
 
 	public void PostEntityPacketReceived() {
-		throw new NotImplementedException();
+		if (cl_predict.GetInt() == 0)
+			return;
+
+		C_BasePlayer? current = C_BasePlayer.GetLocalPlayer();
+		// No local player object?
+		if (current == null)
+			return;
+
+		// Transfer intermediate data from other predictables
+		int c = predictables.GetPredictableCount();
+		int i;
+		for (i = 0; i < c; i++) {
+			C_BaseEntity? ent = predictables.GetPredictable(i);
+			if (ent == null)
+				continue;
+
+			if (!ent.GetPredictable())
+				continue;
+
+			ent.PostEntityPacketReceived();
+		}
 	}
+
 	public static readonly ConVar cl_predictionlist = new("cl_predictionlist", "0", FCvar.Cheat, "Show which entities are predicting\n");
 
 
