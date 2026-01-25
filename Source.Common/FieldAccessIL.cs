@@ -170,9 +170,7 @@ namespace Source.Common
 
 			MethodInfo? implicitCheck = ILAssembler.TryGetImplicitConversion(accessor.StoringType, typeof(T));
 			if (implicitCheck != null) {
-				il.LoggedEmit(OpCodes.Ldobj, accessor.StoringType);
 				il.LoggedEmit(OpCodes.Call, implicitCheck);
-				il.LoggedEmit(OpCodes.Stobj);
 			}
 			else if (ILAssembler.GetConvOpcode(accessor.StoringType, typeof(T), out OpCode convCode, out _))
 				il.LoggedEmit(convCode);
