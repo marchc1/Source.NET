@@ -262,8 +262,47 @@ public class GameMovement : IGameMovement
 	protected virtual void AirMove() { throw new NotImplementedException(); }
 	protected virtual float GetAirSpeedCap() { return 30f; }
 
-	protected virtual bool CanAccelerate() { throw new NotImplementedException(); }
-	protected virtual void Accelerate(ref Vector3 wishdir, float wishspeed, float accel) { throw new NotImplementedException(); }
+	protected virtual bool CanAccelerate() {
+		// Dead players don't accelerate.
+		if (Player.pl.DeadFlag)
+			return false;
+
+		// If waterjumping, don't accelerate
+		if (Player.WaterJumpTime != 0)
+			return false;
+
+		return true;
+	}
+	protected virtual void Accelerate(ref Vector3 wishdir, float wishspeed, float accel) {
+		int i;
+		float addspeed, accelspeed, currentspeed;
+
+		// This gets overridden because some games (CSPort) want to allow dead (observer) players
+		// to be able to move around.
+		if (!CanAccelerate())
+			return;
+
+		// See if we are changing direction a bit
+		currentspeed = mv!.Velocity.Dot(wishdir);
+
+		// Reduce wishspeed by the amount of veer.
+		addspeed = wishspeed - currentspeed;
+
+		// If not going to add any speed, done.
+		if (addspeed <= 0)
+			return;
+
+		// Determine amount of accleration.
+		accelspeed = accel * (float)gpGlobals.FrameTime * wishspeed * Player.SurfaceFriction;
+
+		// Cap at addspeed
+		if (accelspeed > addspeed)
+			accelspeed = addspeed;
+
+		// Adjust velocity.
+		for (i = 0; i < 3; i++) 
+			mv.Velocity[i] += accelspeed * wishdir[i];
+	}
 
 	// Only used by players.  Moves along the ground when player is a MoveType.Walk.
 	protected virtual void WalkMove() { throw new NotImplementedException(); }
