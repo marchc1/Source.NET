@@ -175,8 +175,25 @@ namespace Source.Common
 			else if (ILAssembler.GetConvOpcode(accessor.StoringType, typeof(T), out OpCode convCode, out _))
 				il.LoggedEmit(convCode);
 
-			else if (typeof(T) != accessor.StoringType)
-				il.LoggedEmit(OpCodes.Castclass, typeof(T));
+			else if (typeof(T) != accessor.StoringType) {
+				if (accessor.StoringType.IsAssignableTo(typeof(Enum)) && typeof(T).IsValueType) {
+					var enumTypeUnderflying = Enum.GetUnderlyingType(accessor.StoringType);
+					if (typeof(T) == typeof(bool))    il.LoggedEmit(OpCodes.Conv_I1);
+					else if (typeof(T) == typeof(sbyte))   il.LoggedEmit(OpCodes.Conv_I1);
+					else if (typeof(T) == typeof(byte))    il.LoggedEmit(OpCodes.Conv_U1);
+					else if (typeof(T) == typeof(short))   il.LoggedEmit(OpCodes.Conv_I2);
+					else if (typeof(T) == typeof(ushort))  il.LoggedEmit(OpCodes.Conv_U2);
+					else if (typeof(T) == typeof(int))     il.LoggedEmit(OpCodes.Conv_I4);
+					else if (typeof(T) == typeof(uint))    il.LoggedEmit(OpCodes.Conv_U4);
+					else if (typeof(T) == typeof(ulong))   il.LoggedEmit(OpCodes.Conv_I8);
+					else if (typeof(T) == typeof(long))    il.LoggedEmit(OpCodes.Conv_I8);
+					else if (typeof(T) == typeof(float))   il.LoggedEmit(OpCodes.Conv_R4);
+					else if (typeof(T) == typeof(double))  il.LoggedEmit(OpCodes.Conv_R8);
+					else il.LoggedEmit(OpCodes.Castclass, enumTypeUnderflying);
+				}
+				else
+					il.LoggedEmit(OpCodes.Castclass, typeof(T));
+			}
 
 			il.LoggedEmit(OpCodes.Ret);
 

@@ -783,8 +783,33 @@ public class Prediction : IPrediction
 		}
 	}
 
+	private void InvalidateEFlagsRecursive(C_BaseEntity ent, EFL dirtyFlags, EFL childFlags = 0) {
+		ent.AddEFlags(dirtyFlags);
+		dirtyFlags |= childFlags;
+		for (C_BaseEntity? child = ent.FirstMoveChild(); child != null; child = child.NextMovePeer()) 
+			InvalidateEFlagsRecursive(child, dirtyFlags);
+	}
+
 	private void StorePredictionResults(int predicted_frame) {
-		// todo
+		int i;
+		int numpredictables = predictables.GetPredictableCount();
+
+		// Now save off all of the results
+		for (i = 0; i < numpredictables; i++) {
+			C_BaseEntity? entity = predictables.GetPredictable(i);
+			if (entity == null)
+				continue;
+
+			// Certain entities can be created locally and if so created, should be 
+			//  simulated until a network update arrives
+			if (!entity.GetPredictable())
+				continue;
+
+			// FIXME: The lack of this call inexplicably actually creates prediction errors
+			InvalidateEFlagsRecursive(entity, EFL.DirtyAbsTransform | EFL.DirtyAbsVelocity| EFL.DirtyAbsAngVelocity);
+
+			entity.SaveData("StorePredictionResults", predicted_frame, PredictionCopyType.Everything);
+		}
 	}
 
 	private void Untouch() {
