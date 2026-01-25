@@ -1305,7 +1305,7 @@ public class Menu : Panel
 		SeparatorPanels.Add(new MenuSeparator(this, "MenuSeparator"));
 	}
 
-	public void MoveMenuitem(int itemID, int moveBeforeThisItemID) {
+	public void MoveMenuItem(int itemID, int moveBeforeThisItemID) {
 		int count = SortedItems.Count;
 		int i;
 		for (i = 0; i < count; i++)
