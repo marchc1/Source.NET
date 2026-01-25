@@ -100,14 +100,14 @@ public partial class
 		CalcViewRoll(ref eyeAngles);
 		eyeAngles += Local.PunchAngle;
 
-		#if CLIENT_DLL
-		if(!prediction.InPrediction()){ } // vieweffects
-		#endif
+#if CLIENT_DLL
+		if (!prediction.InPrediction()) { } // vieweffects
+#endif
 
-		#if CLIENT_DLL
+#if CLIENT_DLL
 		GetPredictionErrorSmoothingVector(out Vector3 smoothOffset);
 		eyeOrigin += smoothOffset;
-		#endif
+#endif
 	}
 
 	internal ReadOnlySpan<char> GetPlayerName() {
@@ -198,8 +198,94 @@ public partial class
 		strcpy(AnimExtension, extension);
 	}
 
+
+	public void AddToPlayerSimulationList(SharedBaseEntity other) {
+		// Already in list
+		foreach (var entry in SimulatedByThisPlayer)
+			if (entry.Get() == other) return;
+
+		Assert(other.IsPlayerSimulated());
+
+		Handle<SharedBaseEntity> h = new();
+		h.Set(other);
+		SimulatedByThisPlayer.Add(h);
+	}
+
+	public void RemoveFromPlayerSimulationList(SharedBaseEntity? other) {
+		if (other == null)
+			return;
+
+		Assert(other.IsPlayerSimulated());
+		Assert(other.GetSimulatingPlayer() == this);
+
+		foreach (var entry in SimulatedByThisPlayer)
+			if (entry.Get() == other){
+				SimulatedByThisPlayer.Remove(entry);
+				return;
+			}
+	}
+
+	public void ClearPlayerSimulationList() {
+		int c = SimulatedByThisPlayer.Count;
+		int i;
+
+		for (i = c - 1; i >= 0; i--) {
+			Handle<SharedBaseEntity> h = SimulatedByThisPlayer[i];
+			SharedBaseEntity? e = h.Get();
+			e?.UnsetPlayerSimulated();
+		}
+
+		SimulatedByThisPlayer.Clear();
+	}
+
 	public void SimulatePlayerSimulatedEntities() {
-		// todo
+		int c = SimulatedByThisPlayer.Count;
+		int i;
+
+		for (i = c - 1; i >= 0; i--) {
+			Handle<SharedBaseEntity> h = SimulatedByThisPlayer[i];
+			SharedBaseEntity? e = h.Get();
+
+			if (e == null || !e.IsPlayerSimulated()) {
+				SimulatedByThisPlayer.RemoveAt(i);
+				continue;
+			}
+
+#if CLIENT_DLL
+			if (e.IsClientCreated() && prediction.InPrediction() && !prediction.IsFirstTimePredicted())
+				continue;
+#endif
+			Assert(e.IsPlayerSimulated());
+			Assert(e.GetSimulatingPlayer() == this);
+
+			e.PhysicsSimulate();
+		}
+
+		// Loop through all entities again, checking their untouch if flagged to do so
+		c = SimulatedByThisPlayer.Count;
+
+		for (i = c - 1; i >= 0; i--) {
+			Handle<SharedBaseEntity> h = SimulatedByThisPlayer[i];
+			SharedBaseEntity? e = h.Get();
+
+			if (e == null || !e.IsPlayerSimulated()) {
+				SimulatedByThisPlayer.RemoveAt(i);
+				continue;
+			}
+
+#if CLIENT_DLL
+			if (e.IsClientCreated() && prediction.InPrediction() && !prediction.IsFirstTimePredicted())
+				continue;
+#endif
+
+			Assert(e.IsPlayerSimulated());
+			Assert(e.GetSimulatingPlayer() == this);
+
+			if (!e.GetCheckUntouch())
+				continue;
+
+			PhysicsCheckForEntityUntouch();
+		}
 	}
 
 	public bool UsingStandardWeaponsInVehicle() {

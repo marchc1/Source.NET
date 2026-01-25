@@ -247,11 +247,22 @@ public partial class
 #endif
 	}
 
-
+	public BasePlayer? GetSimulatingPlayer() => PlayerSimulationOwner.Get();
 	public virtual ref readonly Vector3 WorldSpaceCenter() {
 		return ref GetAbsOrigin(); // todo
 	}
 
+	public void SetPlayerSimulated(BasePlayer owner){
+		b_IsPlayerSimulated = true;
+		owner.AddToPlayerSimulationList(owner);
+		PlayerSimulationOwner.Set(owner);
+	}
+
+	public void UnsetPlayerSimulated() {
+		PlayerSimulationOwner.Get()?.RemoveFromPlayerSimulationList(this);
+		PlayerSimulationOwner.Set(null);
+		b_IsPlayerSimulated = false;
+	}
 
 	public virtual void SetEffects(EntityEffects effects) {
 		if (Effects != (int)effects) {

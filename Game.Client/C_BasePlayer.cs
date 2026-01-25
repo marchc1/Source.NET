@@ -178,6 +178,8 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		SetNetworkAngles(angles);
 	}
 
+	readonly List<Handle<SharedBaseEntity>> SimulatedByThisPlayer = [];
+
 	public override void ReceiveMessage(int classID, bf_read msg) {
 		if (classID != GetClientClass().ClassID) {
 			// message is for subclass

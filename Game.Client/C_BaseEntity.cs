@@ -216,7 +216,7 @@ public partial class C_BaseEntity : IClientEntity
 		// That networked data will be copied forward into the starting slot for the next prediction round
 	}
 
-	public void PostEntityPacketReceived(){
+	public void PostEntityPacketReceived() {
 		// Always mark as changed
 		HLClient.AddDataChangeEvent(this, DataUpdateType.DataTableChanged, DataChangeEventRef);
 
@@ -1077,7 +1077,11 @@ public partial class C_BaseEntity : IClientEntity
 		}
 
 		CheckInitPredictable("PostDataUpdate");
-		// TODO: Some stuff involving localplayer and ownage
+		C_BasePlayer? local = C_BasePlayer.GetLocalPlayer();
+		if (IsPlayerSimulated() && (null != local) && (local == OwnerEntity.Get()))
+			// Make sure player is driving simulation (field is only ever sent to local player)
+			SetPlayerSimulated(local);
+
 		// TODO: Partition/leaf stuff
 
 		if (!IsClientCreated())
@@ -1157,7 +1161,7 @@ public partial class C_BaseEntity : IClientEntity
 		int overrideModelIndex = CalcOverrideModelIndex();
 		if (overrideModelIndex != -1)
 			newModelIndex = overrideModelIndex;
-		if (oldModelIndex != newModelIndex) 
+		if (oldModelIndex != newModelIndex)
 			SetModelIndex(newModelIndex);
 
 		OnPostRestoreData();
@@ -1589,7 +1593,7 @@ public partial class C_BaseEntity : IClientEntity
 				MathLib.VectorCopy(MoveParent.Get()!.GetAbsAngles(), out AbsRotation);
 			else
 				MathLib.MatrixAngles(CoordinateFrame, out AbsRotation);
-			
+
 
 			// This is necessary because it's possible that our moveparent's CalculateIKLocks will trigger its move children 
 			// (ie: this entity) to call GetAbsOrigin(), and they'll use the moveparent's OLD bone transforms to get their attachments
@@ -1597,12 +1601,12 @@ public partial class C_BaseEntity : IClientEntity
 			//
 			// So here, we keep our absorigin invalidated. It means we're returning an origin that is a frame old to CalculateIKLocks,
 			// but we'll still render with the right origin.
-			if (ParentAttachment != 0 && (MoveParent.Get()!.GetEFlags() & EFL.SettingUpBones) != 0) 
+			if (ParentAttachment != 0 && (MoveParent.Get()!.GetEFlags() & EFL.SettingUpBones) != 0)
 				eflags |= EFL.DirtyAbsTransform;
 		}
 	}
 
-	public ref Matrix3x4 GetParentToWorldTransform(ref Matrix3x4 tempMatrix){
+	public ref Matrix3x4 GetParentToWorldTransform(ref Matrix3x4 tempMatrix) {
 		C_BaseEntity? moveParent = GetMoveParent();
 		if (moveParent == null) {
 			Assert(false);

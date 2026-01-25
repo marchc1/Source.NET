@@ -282,6 +282,8 @@ public partial class BaseEntity : IServerEntity
 		CheckHasGamePhysicsSimulation();
 	}
 
+	public bool GetCheckUntouch() => IsEFlagSet(EFL.CheckUntouch);
+	public readonly Handle<BasePlayer> PlayerSimulationOwner = new();
 
 	void PhysicsStep() { }
 	void PhysicsPusher() { }

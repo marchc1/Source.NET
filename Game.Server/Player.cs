@@ -96,7 +96,9 @@ public partial class BasePlayer : BaseCombatCharacter
 	public readonly EHANDLE ConstraintEntity = new();
 	public readonly EHANDLE TonemapController = new();
 	public readonly EHANDLE ViewEntity = new();
-	InlineArrayNewMaxViewmodels<Handle<BaseViewModel>> ViewModel = new(); 
+	InlineArrayNewMaxViewmodels<Handle<BaseViewModel>> ViewModel = new();
+	readonly List<Handle<SharedBaseEntity>> SimulatedByThisPlayer = [];
+
 	bool DisableWorldClicking;
 	float Maxspeed;
 	int Flags;
