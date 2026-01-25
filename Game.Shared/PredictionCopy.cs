@@ -5,6 +5,7 @@ using Source.Common;
 
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Text;
 
 namespace Game.Shared;
@@ -28,6 +29,37 @@ public enum PredictionCopyRelationship
 
 public delegate void FN_FIELD_COMPARE(ReadOnlySpan<char> classname, ReadOnlySpan<char> fieldname, ReadOnlySpan<char> fieldtype, bool networked, bool noterrorchecked, bool differs, bool withintolerance, ReadOnlySpan<byte> value);
 
+public ref struct PredictionIO
+{
+	IDynamicAccessor? dynaccess;
+	object? dynowner;
+
+	TypeDescription? typedesc;
+	DataFrame? dataowner;
+
+	public static PredictionIO FromDynamicAccessor(IDynamicAccessor accessor, object owner)
+		=> new() { dynaccess = accessor, dynowner = owner };
+
+	public static PredictionIO FromDataMap(TypeDescription typedesc, DataFrame dataowner)
+		=> new() { typedesc = typedesc, dataowner = dataowner };
+
+	public T? Get<T>(int offset = 0) {
+		if (dynaccess != null)
+			return dynaccess.AtIndex(offset).GetValue<T>(dynowner!);
+		else if (dataowner != null)
+			return dataowner.Get<T>(typedesc!, offset);
+		else throw new NullReferenceException();
+	}
+
+	public void Set<T>(T? value, int offset = 0) {
+		if (dynaccess != null)
+			dynaccess.AtIndex(offset).SetValue<T>(dynowner!, value!);
+		else if (dataowner != null)
+			dataowner.Set<T>(typedesc!, value, offset);
+		else throw new NullReferenceException();
+	}
+}
+
 public ref struct PredictionCopy
 {
 	public const bool PC_DATA_NORMAL = false;
@@ -44,6 +76,13 @@ public ref struct PredictionCopy
 	public readonly bool PerformCopy;
 	public readonly bool DescribeFields;
 	public readonly FN_FIELD_COMPARE? Func;
+
+	public int ErrorCount;
+
+	DataMap? CurrentMap;
+	TypeDescription? WatchField;
+	TypeDescription? CurrentField;
+	ReadOnlySpan<char> CurrentClassName;
 
 
 	public PredictionCopy(PredictionCopyType type, DataFrame dest, object src,
@@ -133,5 +172,295 @@ public ref struct PredictionCopy
 	}
 	public static TypeDescription? FindFieldByName(ReadOnlySpan<char> fieldname, DataMap? dmap) {
 		return FindFieldByName_R(fieldname, dmap);
+	}
+
+	static int g_nChainCount = 1;
+	public static void ValidateChains_R(DataMap dmap) {
+
+	}
+
+	bool ShouldReport;
+	bool ShouldDescribe;
+
+	public enum DiffType
+	{
+		Differs,
+		Identical,
+		WithinTolerance
+	}
+
+	DiffType CompareShort(in PredictionIO output, in PredictionIO input, int count ) {
+		throw new NotImplementedException();
+	}
+	DiffType CompareInt(in PredictionIO output, in PredictionIO input, int count) {
+		throw new NotImplementedException();
+	}
+	DiffType CompareByte(in PredictionIO output, in PredictionIO input, int count) {
+		throw new NotImplementedException();
+	}
+	DiffType CompareBool(in PredictionIO output,   in PredictionIO input, int count ) {
+		throw new NotImplementedException();
+	}
+	DiffType CompareFloat(in PredictionIO output,  in PredictionIO input, int count ) {
+		throw new NotImplementedException();
+	}
+	DiffType CompareString(in PredictionIO output, in PredictionIO input ) {
+		throw new NotImplementedException();
+	}
+	DiffType CompareVector(in PredictionIO output, in PredictionIO input ) => CompareVector(output, input, 1);	
+	DiffType CompareVector(in PredictionIO output, in PredictionIO input, int count ) {
+		throw new NotImplementedException();
+	}
+	DiffType CompareQuaternion(in PredictionIO output, in PredictionIO input) => CompareQuaternion(output, input, 1);
+	DiffType CompareQuaternion(in PredictionIO output, in PredictionIO input, int count ) {
+		throw new NotImplementedException();
+	}
+	DiffType CompareColor(in PredictionIO output, in PredictionIO input, int count) {
+		throw new NotImplementedException();
+	}
+	DiffType CompareEHandle(in PredictionIO output, in PredictionIO input, int count) {
+		throw new NotImplementedException();
+	}
+
+
+
+	void CopyShort(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
+		throw new NotImplementedException();
+	}
+	void CopyInt(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
+		throw new NotImplementedException();
+	}
+	void CopyByte(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
+		throw new NotImplementedException();
+	}
+	void CopyBool(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
+		throw new NotImplementedException();
+	}
+	void CopyFloat(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
+		throw new NotImplementedException();
+	}
+	void CopyString(DiffType dt, in PredictionIO output, in PredictionIO input) {
+		throw new NotImplementedException();
+	}
+	void CopyVector(DiffType dt, in PredictionIO output, in PredictionIO input) => CopyVector(dt, output, input, 1);
+	void CopyVector(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
+		throw new NotImplementedException();
+	}
+	void CopyQuaternion(DiffType dt, in PredictionIO output, in PredictionIO input) => CopyQuaternion(dt, output, input, 1);
+	void CopyQuaternion(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
+		throw new NotImplementedException();
+	}
+	void CopyColor(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
+		throw new NotImplementedException();
+	}
+	void CopyEHandle(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
+		throw new NotImplementedException();
+	}
+
+	void CopyFields(int chaincount, DataMap pRootMap, TypeDescription[] pFields) {
+		int i;
+		FieldTypeDescFlags flags;
+		int fieldCount = pFields.Length;
+		int fieldSize;
+
+		CurrentMap = pRootMap;
+		if (CurrentClassName.IsEmpty)
+			CurrentClassName = pRootMap.DataClassName;
+
+		for (i = 0; i < fieldCount; i++) {
+			CurrentField = pFields[i];
+			flags = CurrentField.Flags;
+
+			// Mark any subchains first
+			if (CurrentField.OverrideField != null)
+				CurrentField.OverrideField.OverrideCount = chaincount;
+
+			// Skip this field?
+			if (CurrentField.OverrideCount == chaincount)
+				continue;
+
+			// Always recurse into embeddeds
+			if (CurrentField.FieldType != FieldType.Embedded) {
+				// Don't copy fields that are private to server or client
+				if ((flags & FieldTypeDescFlags.Private) != 0)
+					continue;
+
+				// For PC_NON_NETWORKED_ONLYs skip any fields that are present in the network send tables
+				if (Type == PredictionCopyType.NonNetworkedOnly && (flags & FieldTypeDescFlags.InSendTable) != 0)
+					continue;
+
+				// For PC_NETWORKED_ONLYs skip any fields that are not present in the network send tables
+				if (Type == PredictionCopyType.NetworkedOnly && (flags & FieldTypeDescFlags.InSendTable) == 0)
+					continue;
+			}
+
+			PredictionIO pOutputData;
+			PredictionIO pInputData;
+
+			switch (Relationship) {
+				case PredictionCopyRelationship.DataFrameToObject:
+					pInputData = PredictionIO.FromDataMap(CurrentField, Src_DataFrame);
+					pOutputData = PredictionIO.FromDynamicAccessor(CurrentField.FieldAccessor, Dest_Object!);
+					break;
+				case PredictionCopyRelationship.ObjectToDataFrame:
+					pInputData = PredictionIO.FromDynamicAccessor(CurrentField.FieldAccessor, Src_Object!);
+					pOutputData = PredictionIO.FromDataMap(CurrentField, Dest_DataFrame!);
+					break;
+				case PredictionCopyRelationship.DataFrameToDataFrame:
+					pInputData = PredictionIO.FromDataMap(CurrentField, Src_DataFrame);
+					pOutputData = PredictionIO.FromDataMap(CurrentField, Dest_DataFrame!);
+					break;
+				case PredictionCopyRelationship.ObjectToObject:
+					pInputData = PredictionIO.FromDynamicAccessor(CurrentField.FieldAccessor, Src_Object!);
+					pOutputData = PredictionIO.FromDynamicAccessor(CurrentField.FieldAccessor, Dest_Object!);
+					break;
+				default:
+					throw new Exception();
+			}
+
+			// Assume we can report
+			ShouldReport = ReportErrors;
+			ShouldDescribe = true;
+			fieldSize = CurrentField.FieldSize;
+
+			bool bShouldWatch = WatchField == CurrentField;
+
+			DiffType difftype;
+
+			switch (CurrentField.FieldType) {
+				case FieldType.Embedded: {
+						// todo
+					}
+					break;
+				case FieldType.Float: {
+						difftype = CompareFloat(pOutputData, pInputData, fieldSize);
+						CopyFloat(difftype, pOutputData, pInputData, fieldSize);
+						// if (ErrorCheck && ShouldDescribe) DescribeFloat(difftype, pOutputData, pInputData, fieldSize);
+						// if (bShouldWatch) WatchFloat(difftype, pOutputData, pInputData, fieldSize);
+					}
+					break;
+
+				case FieldType.Time:
+				case FieldType.Tick:
+					Assert(false);
+					break;
+
+				case FieldType.String: {
+						difftype = CompareString(pOutputData, pInputData);
+						CopyString(difftype, pOutputData, pInputData);
+						// if (ErrorCheck && ShouldDescribe) DescribeString(difftype, pOutputData, pInputData);
+						// if (bShouldWatch) WatchString(difftype, pOutputData, pInputData);
+					}
+					break;
+
+				case FieldType.ModelIndex:
+				case FieldType.ModelName:
+				case FieldType.SoundName:
+				case FieldType.Custom:
+				case FieldType.ClassPtr:
+				case FieldType.EDict:
+				case FieldType.PositionVector:
+					Assert(false);
+					break;
+
+				case FieldType.Vector: {
+						difftype = CompareVector(pOutputData, pInputData, fieldSize);
+						CopyVector(difftype, pOutputData, pInputData, fieldSize);
+						// if (ErrorCheck && ShouldDescribe) DescribeVector(difftype, pOutputData, pInputData, fieldSize);
+						// if (bShouldWatch) WatchVector(difftype, pOutputData, pInputData, fieldSize);
+					}
+					break;
+
+				case FieldType.Quaternion: {
+						difftype = CompareQuaternion(pOutputData, pInputData, fieldSize);
+						CopyQuaternion(difftype, pOutputData, pInputData, fieldSize);
+						// if (ErrorCheck && ShouldDescribe) DescribeQuaternion(difftype, pOutputData, pInputData, fieldSize);
+						// if (bShouldWatch) WatchQuaternion(difftype, pOutputData, pInputData, fieldSize);
+					}
+					break;
+
+				case FieldType.Color32: {
+						difftype = CompareColor(pOutputData, pInputData, fieldSize);
+						CopyColor(difftype, pOutputData, pInputData, fieldSize);
+						// if (ErrorCheck && ShouldDescribe) DescribeData(difftype, 4 * fieldSize, pOutputData, pInputData);
+						// if (bShouldWatch) WatchData(difftype, 4 * fieldSize, pOutputData, pInputData);
+					}
+					break;
+
+				case FieldType.Boolean: {
+						difftype = CompareBool(pOutputData, pInputData, fieldSize);
+						CopyBool(difftype, pOutputData, pInputData, fieldSize);
+						// if (ErrorCheck && ShouldDescribe) DescribeBool(difftype, pOutputData, pInputData, fieldSize);
+						// if (bShouldWatch) WatchBool(difftype, pOutputData, pInputData, fieldSize);
+					}
+					break;
+
+				case FieldType.Integer: {
+						difftype = CompareInt(pOutputData, pInputData, fieldSize);
+						CopyInt(difftype, pOutputData, pInputData, fieldSize);
+						// if (ErrorCheck && ShouldDescribe) DescribeInt(difftype, pOutputData, pInputData, fieldSize);
+						// if (bShouldWatch) WatchInt(difftype, pOutputData, pInputData, fieldSize);
+					}
+					break;
+
+				case FieldType.Short: {
+						difftype = CompareShort(pOutputData, pInputData, fieldSize);
+						CopyShort(difftype, pOutputData, pInputData, fieldSize);
+						// if (ErrorCheck && ShouldDescribe) DescribeShort(difftype, pOutputData, pInputData, fieldSize);
+						// if (bShouldWatch) WatchShort(difftype, pOutputData, pInputData, fieldSize);
+					}
+					break;
+
+				case FieldType.Character: {
+						difftype = CompareByte(pOutputData, pInputData, fieldSize);
+						CopyByte(difftype, pOutputData, pInputData, fieldSize);
+						// if (ErrorCheck && ShouldDescribe) DescribeInt(difftype, &valOut, &valIn, fieldSize);
+						// if (bShouldWatch) WatchData(difftype, fieldSize, (pOutputData), pInputData);
+					}
+					break;
+				case FieldType.EHandle: {
+						difftype = CompareEHandle(pOutputData, pInputData, fieldSize);
+						CopyEHandle(difftype, pOutputData, pInputData, fieldSize);
+						// if (ErrorCheck && ShouldDescribe) DescribeEHandle(difftype, pOutputData, pInputData, fieldSize);
+						// if (bShouldWatch) WatchEHandle(difftype, pOutputData, pInputData, fieldSize);
+					}
+					break;
+				case FieldType.Function: {
+						Assert(false);
+					}
+					break;
+				case FieldType.Void: {
+						// Don't do anything, it's an empty data description
+					}
+					break;
+				default: {
+						Warning("Bad field type\n");
+						Assert(false);
+					}
+					break;
+			}
+		}
+
+		CurrentClassName = null;
+	}
+
+	void TransferData_R(int chaincount, DataMap dmap) {
+		CopyFields(chaincount, dmap, dmap.DataDesc);
+
+		if (dmap.BaseMap != null) {
+			TransferData_R(chaincount, dmap.BaseMap);
+		}
+	}
+
+	public int TransferData(scoped ReadOnlySpan<char> operation, int entindex, DataMap? dmap) {
+		Assert(dmap != null);
+		++g_nChainCount;
+
+		if (!dmap.ChainsValidated)
+			ValidateChains_R(dmap);
+
+		TransferData_R(g_nChainCount, dmap);
+
+		return ErrorCount;
 	}
 }

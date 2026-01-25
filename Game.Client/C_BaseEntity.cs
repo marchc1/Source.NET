@@ -906,10 +906,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public virtual bool ShouldPredict() => false;
 
-	public int RestoreData(ReadOnlySpan<char> context, int slot, PredictionCopyType type) {
-		// todo
-		return 0;
-	}
+
 
 	public void AddToAimEntsList() {
 		// todo
@@ -1115,21 +1112,62 @@ public partial class C_BaseEntity : IClientEntity
 
 		// Copy original data into all prediction slots, so we don't get an error saying we "mispredicted" any
 		//  values which are still at their initial values
-		for (int i = 0; i < MULTIPLAYER_BACKUP; i++) 
+		for (int i = 0; i < MULTIPLAYER_BACKUP; i++)
 			SaveData("InitPredictable", i, PredictionCopyType.Everything);
 	}
 
-	public int SaveData(ReadOnlySpan<char> context, int slot, PredictionCopyType type){
+	public EFL GetEFlags() => eflags;
+
+	public int RestoreData(ReadOnlySpan<char> context, int slot, PredictionCopyType type) {
+		DataFrame? src = slot == SLOT_ORIGINALDATA ? GetOriginalNetworkDataObject() : GetPredictedFrame(slot);
+
+		// This assert will fire if the server ack'd a CUserCmd which we hadn't predicted yet...
+		// In that case, we'd be comparing "old" data from this "unused" slot with the networked data and reporting all kinds of prediction errors possibly.
+		Assert(slot == SLOT_ORIGINALDATA || slot <= IntermediateDataCount);
+
+		Span<char> sz = stackalloc char[64];
+
+		// some flags shouldn't be predicted - as we find them, add them to the savedEFlagsMask
+		const EFL savedEFlagsMask = EFL.DirtyShadowUpdate;
+		EFL savedEFlags = GetEFlags() & savedEFlagsMask;
+
+		// model index needs to be set manually for dynamic model refcounting purposes
+		int oldModelIndex = ModelIndex;
+
+		PredictionCopy copyHelper = new(type, this, src!);
+		int error_count = copyHelper.TransferData(sz, EntIndex(), GetPredDescMap());
+
+		// set non-predicting flags back to their prior state
+		RemoveEFlags(savedEFlagsMask);
+		AddEFlags(savedEFlags);
+
+		// restore original model index and change via SetModelIndex
+		int newModelIndex = ModelIndex;
+		ModelIndex = oldModelIndex;
+		int overrideModelIndex = CalcOverrideModelIndex();
+		if (overrideModelIndex != -1)
+			newModelIndex = overrideModelIndex;
+		if (oldModelIndex != newModelIndex) 
+			SetModelIndex(newModelIndex);
+
+		OnPostRestoreData();
+
+		return error_count;
+	}
+
+	public virtual int CalcOverrideModelIndex() => -1;
+
+	public int SaveData(ReadOnlySpan<char> context, int slot, PredictionCopyType type) {
 		DataFrame? dest = slot == SLOT_ORIGINALDATA ? GetOriginalNetworkDataObject() : GetPredictedFrame(slot);
 		Span<char> sz = stackalloc char[64];
 
-		if (slot != SLOT_ORIGINALDATA) 
+		if (slot != SLOT_ORIGINALDATA)
 			// Remember high water mark so that we can detect below if we are reading from a slot not yet predicted into...
 			IntermediateDataCount = slot;
 
 		PredictionCopy copyHelper = new(type, dest!, this);
-		//int errorCount = copyHelper.TransferData(sz, EntIndex(), GetPredDescMap());
-		return 0; //errorCount;
+		int errorCount = copyHelper.TransferData(sz, EntIndex(), GetPredDescMap());
+		return errorCount;
 	}
 
 	public bool IsIntermediateDataAllocated() {
@@ -2172,7 +2210,7 @@ public partial class C_BaseEntity : IClientEntity
 				case FieldType.Quaternion:
 				case FieldType.Integer:
 				case FieldType.EHandle:
-				case FieldType.Short: 
+				case FieldType.Short:
 				case FieldType.String:
 				case FieldType.Color32:
 				case FieldType.Boolean:
