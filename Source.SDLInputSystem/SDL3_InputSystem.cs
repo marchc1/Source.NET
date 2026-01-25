@@ -99,7 +99,7 @@ public class SDL3_InputSystem(IServiceProvider services) : IInputSystem
 	}
 
 	public bool IsButtonDown(ButtonCode code) {
-		throw new NotImplementedException();
+		return InputState.ButtonState.IsBitSet((int)code);
 	}
 
 	public void ClearInputState() {
