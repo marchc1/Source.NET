@@ -536,11 +536,11 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	private static void RecvProxy_MoveCollide(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		// Warning("RecvProxy_MoveCollide not implemented yet\n");
+		((C_BaseEntity)instance).SetMoveCollide((MoveCollide)data.Value.Int);
 	}
 
 	private static void RecvProxy_MoveType(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		// Warning("RecvProxy_MoveType not implemented yet\n");
+		((C_BaseEntity)instance).SetMoveType((MoveType)data.Value.Int);
 	}
 
 	public static readonly ClientClass ClientClass = new ClientClass("BaseEntity", null, null, DT_BaseEntity)
