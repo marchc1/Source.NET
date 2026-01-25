@@ -780,30 +780,40 @@ public class GameMovement : IGameMovement
 	protected void FullNoClipMove_NoAcceleration(float speed, float maxacceleration) {
 		Vector3 forward, right, up;
 		MathLib.AngleVectors(mv.ViewAngles, out forward, out right, out up);
-		Vector3 wishdir = new( 0, 0, 0 );
+		bool isValidMode = Player.GetMoveType() == MoveType.Noclip;
 
-		wishdir += forward * mv.ForwardMove;
-		wishdir += right * mv.SideMove;
-		wishdir += up * mv.UpMove;
+		Vector3 forwardScaled = forward * mv.ForwardMove;
+		Vector3 rightScaled = right * mv.SideMove;
+		Vector3 upScaled = up * mv.UpMove;
 
-		if ((mv.Buttons & InButtons.Speed) != 0)
-			speed *= 3;
-		if ((mv.Buttons & InButtons.Duck) != 0)
-			speed /= 3;
+		float wantsUp;
+		if (isValidMode && (mv.Buttons & InButtons.Jump) != 0)
+			wantsUp = 1.0f;
+		else
+			wantsUp = 0.0f;
 
-		bool wantsUp = ((mv.Buttons & InButtons.Jump) != 0);
+		Vector3 forwardRight = forwardScaled + rightScaled;
+		MathLib.VectorNormalize(ref forwardRight);
 
-		if (wishdir.LengthSqr() > 0.0f || wantsUp) {
-			MathLib.VectorNormalize(ref wishdir);
-			Vector3 velocity = wishdir * speed * 100;
-			if (wantsUp)
-				velocity += new Vector3(0, 0, speed * 100);
-			mv.Velocity = velocity;
+		Vector3 upMove = upScaled;
+		MathLib.VectorNormalize(ref upMove);
+
+		Vector3 worldUp = new Vector3(0, 0, 1);
+		Vector3 wishdir = forwardRight + upMove + (worldUp * wantsUp);
+		MathLib.VectorNormalize(ref wishdir);
+
+		float multiplier = speed * 100.0f;
+		Vector3 velocity = wishdir * multiplier;
+
+		if (isValidMode) {
+			if ((mv.Buttons & InButtons.Speed) != 0)
+				velocity *= 3.0f;
+			if ((mv.Buttons & InButtons.Duck) != 0)
+				velocity *= 0.1f;
 		}
-		else 
-			mv.Velocity.Init(); // hard stop
 
-		// Move player directly
+		mv.Velocity = velocity;
+
 		Vector3 newPos = mv.GetAbsOrigin() + mv.Velocity * (float)gpGlobals.FrameTime;
 		mv.SetAbsOrigin(newPos);
 	}
