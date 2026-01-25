@@ -6,6 +6,7 @@ using Source.Common;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Game.Shared;
@@ -71,7 +72,7 @@ public ref struct PredictionCopy
 	public readonly object? Dest_Object;
 	public readonly object? Src_Object;
 	public readonly PredictionCopyRelationship Relationship;
-	public readonly bool CountErrors;
+	public readonly bool ErrorCheck;
 	public readonly bool ReportErrors;
 	public readonly bool PerformCopy;
 	public readonly bool DescribeFields;
@@ -92,7 +93,7 @@ public ref struct PredictionCopy
 		Src_Object = src;
 		Relationship = PredictionCopyRelationship.ObjectToDataFrame;
 
-		CountErrors = countErrors;
+		ErrorCheck = countErrors;
 		ReportErrors = reportErrors;
 		PerformCopy = performCopy;
 		DescribeFields = describeFields;
@@ -106,7 +107,7 @@ public ref struct PredictionCopy
 		Src_DataFrame = src;
 		Relationship = PredictionCopyRelationship.DataFrameToObject;
 
-		CountErrors = countErrors;
+		ErrorCheck = countErrors;
 		ReportErrors = reportErrors;
 		PerformCopy = performCopy;
 		DescribeFields = describeFields;
@@ -120,7 +121,7 @@ public ref struct PredictionCopy
 		Src_DataFrame = src;
 		Relationship = PredictionCopyRelationship.DataFrameToDataFrame;
 
-		CountErrors = countErrors;
+		ErrorCheck = countErrors;
 		ReportErrors = reportErrors;
 		PerformCopy = performCopy;
 		DescribeFields = describeFields;
@@ -134,7 +135,7 @@ public ref struct PredictionCopy
 		Src_Object = src;
 		Relationship = PredictionCopyRelationship.ObjectToObject;
 
-		CountErrors = countErrors;
+		ErrorCheck = countErrors;
 		ReportErrors = reportErrors;
 		PerformCopy = performCopy;
 		DescribeFields = describeFields;
@@ -189,38 +190,121 @@ public ref struct PredictionCopy
 		WithinTolerance
 	}
 
-	DiffType CompareShort(in PredictionIO output, in PredictionIO input, int count ) {
-		throw new NotImplementedException();
+	public bool CanCheck() => (CurrentField!.Flags & FieldTypeDescFlags.NoErrorCheck) == 0;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	DiffType BASIC_COMPARE<T>(in PredictionIO output, in PredictionIO input, int count) where T : IEquatable<T> {
+		if (!ErrorCheck) return DiffType.Differs;
+
+		if (CanCheck()) {
+			for (int i = 0; i < count; i++) {
+				T? op = output.Get<T>(i);
+				T? ip = input.Get<T>(i);
+				if ((op == null && ip == null) || (op != null && op.Equals(ip)))
+					continue;
+
+				return DiffType.Differs;
+			}
+		}
+
+		return DiffType.Identical;
 	}
-	DiffType CompareInt(in PredictionIO output, in PredictionIO input, int count) {
-		throw new NotImplementedException();
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	DiffType BASIC_COMPARE<T>(in PredictionIO output, in PredictionIO input, int count, COMPARE_FUNC<T> fn) {
+		if (!ErrorCheck) return DiffType.Differs;
+
+		if (CanCheck()) {
+			for (int i = 0; i < count; i++) {
+				T? op = output.Get<T>(i);
+				T? ip = input.Get<T>(i);
+				DiffType dt = fn(op, ip);
+				if (dt == DiffType.Identical)
+					continue;
+
+				return DiffType.Differs;
+			}
+		}
+
+		return DiffType.Identical;
 	}
-	DiffType CompareByte(in PredictionIO output, in PredictionIO input, int count) {
-		throw new NotImplementedException();
+
+	delegate DiffType COMPARE_FUNC<T>(T? o, T? i);
+	delegate DiffType COMPARE_FUNC_TOL<T>(bool usetolerance, float tolerance, T? o, T? i);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	DiffType BASIC_COMPARE_TOLERANCE<T>(in PredictionIO output, in PredictionIO input, int count, COMPARE_FUNC_TOL<T> fn) where T : IEquatable<T> {
+		if (!ErrorCheck) return DiffType.Differs;
+
+		DiffType retval = DiffType.Identical;
+		if (CanCheck()) {
+			float tolerance = CurrentField.FieldTolerance;
+			Assert(tolerance >= 0.0f);
+			bool usetolerance = tolerance > 0.0f;
+
+			for (int i = 0; i < count; i++) {
+				T? op = output.Get<T>(i);
+				T? ip = input.Get<T>(i);
+				if ((op == null && ip == null) || (op != null && op.Equals(ip)))
+					continue;
+
+				DiffType dt = fn(usetolerance, tolerance, op, ip);
+				if (dt == DiffType.Identical)
+					continue;
+				else if (dt == DiffType.WithinTolerance) {
+					retval = DiffType.WithinTolerance;
+					continue;
+				}
+
+				return DiffType.Differs;
+			}
+		}
+
+		return retval;
 	}
-	DiffType CompareBool(in PredictionIO output,   in PredictionIO input, int count ) {
-		throw new NotImplementedException();
+
+	DiffType CompareShort(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<short>(in output, in input, count);
+	DiffType CompareInt(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<int>(in output, in input, count);
+	DiffType CompareByte(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<byte>(in output, in input, count);
+	DiffType CompareBool(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<bool>(in output, in input, count);
+	DiffType CompareFloat(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE_TOLERANCE<float>(in output, in input, count, static (usetolerance, tolerance, op, ip) => {
+		if (usetolerance && MathF.Abs(op - ip) <= tolerance)
+			return DiffType.WithinTolerance;
+		return DiffType.Differs;
+	});
+	DiffType CompareString(in PredictionIO output, in PredictionIO input) {
+		if (!ErrorCheck) return DiffType.Differs;
+
+		int i = 0;
+		if (CanCheck())
+			while (true) {
+				char oc = output.Get<char>(i);	
+				char ic = input.Get<char>(i);
+				if (oc == '\0' || ic == '\0')
+					return oc == ic ? DiffType.Identical : DiffType.Differs;
+				if (oc != ic)
+					return DiffType.Differs;
+				i++;
+			}
+
+		return DiffType.Identical;
 	}
-	DiffType CompareFloat(in PredictionIO output,  in PredictionIO input, int count ) {
-		throw new NotImplementedException();
-	}
-	DiffType CompareString(in PredictionIO output, in PredictionIO input ) {
-		throw new NotImplementedException();
-	}
-	DiffType CompareVector(in PredictionIO output, in PredictionIO input ) => CompareVector(output, input, 1);	
-	DiffType CompareVector(in PredictionIO output, in PredictionIO input, int count ) {
-		throw new NotImplementedException();
-	}
+	DiffType CompareVector(in PredictionIO output, in PredictionIO input) => CompareVector(output, input, 1);
+	DiffType CompareVector(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE_TOLERANCE<Vector3>(in output, in input, count, static (usetolerance, tolerance, op, ip) => {
+		var delta = op - ip;
+		if (usetolerance && MathF.Abs(delta.X) <= tolerance && MathF.Abs(delta.Y) <= tolerance && MathF.Abs(delta.Z) <= tolerance)
+			return DiffType.WithinTolerance;
+		return DiffType.Differs;
+	});
 	DiffType CompareQuaternion(in PredictionIO output, in PredictionIO input) => CompareQuaternion(output, input, 1);
-	DiffType CompareQuaternion(in PredictionIO output, in PredictionIO input, int count ) {
-		throw new NotImplementedException();
-	}
-	DiffType CompareColor(in PredictionIO output, in PredictionIO input, int count) {
-		throw new NotImplementedException();
-	}
-	DiffType CompareEHandle(in PredictionIO output, in PredictionIO input, int count) {
-		throw new NotImplementedException();
-	}
+	DiffType CompareQuaternion(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE_TOLERANCE<Quaternion>(in output, in input, count, static (usetolerance, tolerance, op, ip) => {
+		var delta = op - ip;
+		if (usetolerance && MathF.Abs(delta.X) <= tolerance && MathF.Abs(delta.Y) <= tolerance && MathF.Abs(delta.Z) <= tolerance && MathF.Abs(delta.W) <= tolerance)
+			return DiffType.WithinTolerance;
+		return DiffType.Differs;
+	});
+	DiffType CompareColor(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<Color>(in output, in input, count);
+	DiffType CompareEHandle(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<EHANDLE>(in output, in input, count, static(ov, iv) => ov?.Get() == iv?.Get() ? DiffType.Identical : DiffType.Differs);
 
 
 

@@ -13,7 +13,7 @@ public struct ColorRGBExp32 {
 	public byte R, G, B;
 	public sbyte Exponent;
 }
-public struct Color
+public struct Color : IEquatable<Color>
 {
 	public ColorType R, G, B, A;
 
@@ -78,6 +78,8 @@ public struct Color
 	public override readonly bool Equals([NotNullWhen(true)] object? obj) {
 		return obj is Color color && this == color;
 	}
+
+	public bool Equals(Color c) => c == this;
 
 	public override int GetHashCode() => HashCode.Combine(GetRawColor());
 }
