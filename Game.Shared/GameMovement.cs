@@ -786,14 +786,23 @@ public class GameMovement : IGameMovement
 		wishdir += right * mv.SideMove;
 		wishdir += up * mv.UpMove;
 
-		if (wishdir.LengthSqr() > 0.0f) {
+		if ((mv.Buttons & InButtons.Speed) != 0)
+			speed *= 3;
+		if ((mv.Buttons & InButtons.Duck) != 0)
+			speed /= 3;
+
+		bool wantsUp = ((mv.Buttons & InButtons.Jump) != 0);
+
+		if (wishdir.LengthSqr() > 0.0f || wantsUp) {
 			MathLib.VectorNormalize(ref wishdir);
-			Vector3 velocity = wishdir * speed * maxacceleration;
+			Vector3 velocity = wishdir * speed * 100;
+			if (wantsUp)
+				velocity += new Vector3(0, 0, speed * 100);
 			mv.Velocity = velocity;
 		}
 		else 
 			mv.Velocity.Init(); // hard stop
-		
+
 		// Move player directly
 		Vector3 newPos = mv.GetAbsOrigin() + mv.Velocity * (float)gpGlobals.FrameTime;
 		mv.SetAbsOrigin(newPos);
