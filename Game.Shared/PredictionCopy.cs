@@ -278,7 +278,7 @@ public ref struct PredictionCopy
 		int i = 0;
 		if (CanCheck())
 			while (true) {
-				char oc = output.Get<char>(i);	
+				char oc = output.Get<char>(i);
 				char ic = input.Get<char>(i);
 				if (oc == '\0' || ic == '\0')
 					return oc == ic ? DiffType.Identical : DiffType.Differs;
@@ -304,41 +304,70 @@ public ref struct PredictionCopy
 		return DiffType.Differs;
 	});
 	DiffType CompareColor(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<Color>(in output, in input, count);
-	DiffType CompareEHandle(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<EHANDLE>(in output, in input, count, static(ov, iv) => ov?.Get() == iv?.Get() ? DiffType.Identical : DiffType.Differs);
+	DiffType CompareEHandle(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<EHANDLE>(in output, in input, count, static (ov, iv) => ov?.Get() == iv?.Get() ? DiffType.Identical : DiffType.Differs);
 
 
 
 	void CopyShort(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
-		throw new NotImplementedException();
+		if (!PerformCopy) return;
+		if (dt == DiffType.Identical) return;
+		for (int i = 0; i < count; i++) output.Set<short>(input.Get<short>(i));
 	}
 	void CopyInt(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
-		throw new NotImplementedException();
+		if (!PerformCopy) return;
+		if (dt == DiffType.Identical) return;
+		for (int i = 0; i < count; i++) output.Set<int>(input.Get<int>(i));
 	}
 	void CopyByte(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
-		throw new NotImplementedException();
+		if (!PerformCopy) return;
+		if (dt == DiffType.Identical) return;
+		for (int i = 0; i < count; i++) output.Set<byte>(input.Get<byte>(i));
 	}
 	void CopyBool(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
-		throw new NotImplementedException();
+		if (!PerformCopy) return;
+		if (dt == DiffType.Identical) return;
+		for (int i = 0; i < count; i++) output.Set<bool>(input.Get<bool>(i));
 	}
 	void CopyFloat(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
-		throw new NotImplementedException();
+		if (!PerformCopy) return;
+		if (dt == DiffType.Identical) return;
+		for (int i = 0; i < count; i++) output.Set<float>(input.Get<float>(i));
 	}
 	void CopyString(DiffType dt, in PredictionIO output, in PredictionIO input) {
-		throw new NotImplementedException();
+		if (!PerformCopy) return;
+		if (dt == DiffType.Identical) return;
+
+		int i = 0;
+		while (true) {
+			char ic = input.Get<char>(i);
+			output.Set<char>(ic, i);
+			if (ic == '\0')
+				break;
+			
+			i++;
+		}
 	}
 	void CopyVector(DiffType dt, in PredictionIO output, in PredictionIO input) => CopyVector(dt, output, input, 1);
 	void CopyVector(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
-		throw new NotImplementedException();
+		if (!PerformCopy) return;
+		if (dt == DiffType.Identical) return;
+		for (int i = 0; i < count; i++) output.Set<Vector3>(input.Get<Vector3>(i));
 	}
 	void CopyQuaternion(DiffType dt, in PredictionIO output, in PredictionIO input) => CopyQuaternion(dt, output, input, 1);
 	void CopyQuaternion(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
-		throw new NotImplementedException();
+		if (!PerformCopy) return;
+		if (dt == DiffType.Identical) return;
+		for (int i = 0; i < count; i++) output.Set<Quaternion>(input.Get<Quaternion>(i));
 	}
 	void CopyColor(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
-		throw new NotImplementedException();
+		if (!PerformCopy) return;
+		if (dt == DiffType.Identical) return;
+		for (int i = 0; i < count; i++) output.Set<Color>(input.Get<Color>(i));
 	}
 	void CopyEHandle(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
-		throw new NotImplementedException();
+		if (!PerformCopy) return;
+		if (dt == DiffType.Identical) return;
+		for (int i = 0; i < count; i++) output.Get<BaseHandle>()!.Index = input.Get<BaseHandle>(i)!.Index;
 	}
 
 	void CopyFields(int chaincount, DataMap pRootMap, TypeDescription[] pFields) {
