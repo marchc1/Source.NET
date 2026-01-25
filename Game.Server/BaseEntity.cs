@@ -402,4 +402,7 @@ public partial class BaseEntity : IServerEntity
 
 		return ref CoordinateFrame;
 	}
+
+	readonly ServerNetworkProperty Network = new();
+	public int EntIndex() => Network.EntIndex();
 }

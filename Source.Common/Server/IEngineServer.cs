@@ -64,7 +64,7 @@ public interface IEngineServer
 	// Return the current number of used edict slots
 	int GetEntityCount();
 	// Given an edict, returns the entity index
-	int IndexOfEdict(Edict edict);
+	int IndexOfEdict(Edict? edict);
 	// Given and entity index, returns the corresponding edict pointer
 	Edict PEntityOfEntIndex(int iEntIndex);
 

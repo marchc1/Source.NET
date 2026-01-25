@@ -64,6 +64,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		SendPropDataTable( "localdata", DT_LocalPlayerExclusive, SendProxy_SendLocalDataTable),
 	]);
 
+	public int StuckLast;
 	public float MaxSpeed() => Maxspeed;
 	public void SetMaxSpeed(float maxSpeed) => Maxspeed = maxSpeed;
 	public TimeUnit_t GetLaggedMovementValue() => LaggedMovementValue;
@@ -141,4 +142,6 @@ public partial class BasePlayer : BaseCombatCharacter
 	public void ResetAutoaim() => OnTarget = false;
 
 	public ObserverMode GetObserverMode() => (ObserverMode)ObserverMode;
+	public AnonymousSafeFieldPointer<UserCmd> CurrentCommand;
+	public int CurrentCommandNumber() => CurrentCommand.Get().CommandNumber;
 }

@@ -11,6 +11,7 @@ using Source.Engine;
 
 using System.Diagnostics;
 using System.Numerics;
+using System.Text.RegularExpressions;
 
 namespace Game.Shared;
 
@@ -110,7 +111,7 @@ public class GameMovement : IGameMovement
 			 Player.GetMoveType() != MoveType.Isometric &&
 			 Player.GetMoveType() != MoveType.Observer &&
 			 !Player.pl.DeadFlag) {
-			if (CheckInterval(IntervalType.STUCK)) {
+			if (CheckInterval(IntervalType.Stuck)) {
 				if (CheckStuck()) {
 					// Can't move, we're stuck
 					return;
@@ -294,17 +295,71 @@ public class GameMovement : IGameMovement
 
 	protected enum IntervalType
 	{
-		GROUND = 0,
-		STUCK,
-		LADDER
+		Ground = 0,
+		Stuck,
+		Ladder
 	}
 
-	protected virtual int GetCheckInterval(IntervalType type) { throw new NotImplementedException(); }
+
+	// Roughly how often we want to update the info about the ground surface we're on.
+	// We don't need to do this very often.
+	public const float CATEGORIZE_GROUND_SURFACE_INTERVAL = 0.3f;
+	public static int CATEGORIZE_GROUND_SURFACE_TICK_INTERVAL => ((int)(CATEGORIZE_GROUND_SURFACE_INTERVAL / TICK_INTERVAL));
+
+
+	public const float CHECK_STUCK_INTERVAL = 1.0f;
+	public static int CHECK_STUCK_TICK_INTERVAL => ((int)(CHECK_STUCK_INTERVAL / TICK_INTERVAL));
+
+
+	public const float CHECK_STUCK_INTERVAL_SP = 0.2f;
+	public static int CHECK_STUCK_TICK_INTERVAL_SP => ((int)(CHECK_STUCK_INTERVAL_SP / TICK_INTERVAL));
+
+
+	public const float CHECK_LADDER_INTERVAL = 0.2f;
+	public static int CHECK_LADDER_TICK_INTERVAL => ((int)(CHECK_LADDER_INTERVAL / TICK_INTERVAL));
+
 
 	// Useful for things that happen periodically. This lets things happen on the specified interval, but
 	// spaces the events onto different frames for different players so they don't all hit their spikes
 	// simultaneously.
-	protected bool CheckInterval(IntervalType type) { throw new NotImplementedException(); }
+	protected bool CheckInterval(IntervalType type) {
+		int tickInterval = GetCheckInterval(type);
+
+		if (g_bMovementOptimizations) 
+			return (Player!.CurrentCommandNumber() + Player.EntIndex()) % tickInterval == 0;
+		else 
+			return true;
+	}
+
+	protected virtual int GetCheckInterval(IntervalType type) {
+		int tickInterval = 1;
+		switch (type) {
+			default:
+				tickInterval = 1;
+				break;
+			case IntervalType.Ground:
+				tickInterval = CATEGORIZE_GROUND_SURFACE_TICK_INTERVAL;
+				break;
+			case IntervalType.Stuck:
+				// If we are in the process of being "stuck", then try a new position every command tick until m_StuckLast gets reset back down to zero
+				if (Player!.StuckLast != 0) {
+					tickInterval = 1;
+				}
+				else {
+					if (gpGlobals.MaxClients == 1) {
+						tickInterval = CHECK_STUCK_TICK_INTERVAL_SP;
+					}
+					else {
+						tickInterval = CHECK_STUCK_TICK_INTERVAL;
+					}
+				}
+				break;
+			case IntervalType.Ladder:
+				tickInterval = CHECK_LADDER_TICK_INTERVAL;
+				break;
+		}
+		return tickInterval;
+	}
 
 
 	// Decompoosed gravity
@@ -315,7 +370,7 @@ public class GameMovement : IGameMovement
 	protected void AddGravity() { throw new NotImplementedException(); }
 
 	// Handle movement in noclip mode.
-	protected void FullNoClipMove(float factor, float maxacceleration) { throw new NotImplementedException(); }
+	protected void FullNoClipMove(float factor, float maxacceleration) {  }
 
 	// Returns true if he started a jump (ie: should he play the jump animation)?
 	protected virtual bool CheckJumpButton() { throw new NotImplementedException(); }    // Overridden by each game.

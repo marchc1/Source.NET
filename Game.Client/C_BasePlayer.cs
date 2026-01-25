@@ -86,7 +86,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public virtual void PostThink() { }
 
 	InlineArrayMaxAmmoSlots<int> OldAmmo;
-
+	public int StuckLast;
 	public virtual bool IsOverridingViewmodel() => false;
 	public virtual int DrawOverriddenViewmodel(C_BaseViewModel viewmodel, StudioFlags flags) => 0;
 	public override void OnDataChanged(DataUpdateType updateType) {
@@ -404,4 +404,5 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public void ResetAutoaim() => OnTarget = false;
 	public ObserverMode GetObserverMode() => (ObserverMode)ObserverMode;
 
+	public int CurrentCommandNumber() => CurrentCommand.Get().CommandNumber;
 }

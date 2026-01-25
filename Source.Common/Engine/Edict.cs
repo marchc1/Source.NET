@@ -55,8 +55,12 @@ public class BaseEdict
 		return null;
 	}
 
-	public void SetEdict(IServerUnknown unk, bool fullEdict) {
-
+	public void SetEdict(IServerUnknown? unk, bool fullEdict) {
+		Unk = unk;
+		if (unk != null && fullEdict) 
+			StateFlags = EdictFlags.Full;
+		else 
+			StateFlags = 0;
 	}
 
 	public int AreaNum() => Unk == null ? 0 : Networkable!.AreaNum();
