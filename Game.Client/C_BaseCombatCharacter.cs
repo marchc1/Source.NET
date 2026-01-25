@@ -34,4 +34,6 @@ public partial class C_BaseCombatCharacter : C_BaseFlex
 	public InlineArrayNewMaxWeapons<Handle<C_BaseCombatWeapon>> MyWeapons = new();
 	public InlineArrayMaxAmmoSlots<int> Ammo;
 	public Color BloodColor;
+
+	public int WeaponCount() => MAX_WEAPONS;
 }

@@ -56,6 +56,74 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 	}
 
+	float GroundSpeed;
+	const TimeUnit_t MAX_ANIMTIME_INTERVAL = 0.2;
+	public TimeUnit_t GetAnimTimeInterval() => Math.Min(gpGlobals.CurTime - AnimTime, MAX_ANIMTIME_INTERVAL);
+
+	public void StudioFrameAdvance(){
+		if (ClientSideAnimation)
+			return;
+
+		StudioHdr? hdr = GetModelPtr();
+		if (hdr == null)
+			return;
+
+		//if (!anim.prevanimtime)
+		//{
+		//anim.prevanimtime = m_flAnimTime = gpGlobals->curtime;
+		//}
+
+		// How long since last animtime
+		TimeUnit_t flInterval = GetAnimTimeInterval();
+
+		if (flInterval <= 0.001) {
+			// Msg("%s : %s : %5.3f (skip)\n", STRING(pev->classname), GetSequenceName( GetSequence() ), GetCycle() );
+			return;
+		}
+
+		UpdateModelScale();
+
+		//anim.prevanimtime = m_flAnimTime;
+		TimeUnit_t cycleAdvance = flInterval * GetSequenceCycleRate(hdr, GetSequence()) * PlaybackRate;
+		TimeUnit_t flNewCycle = GetCycle() + cycleAdvance;
+		AnimTime = gpGlobals.CurTime;
+
+		if (flNewCycle < 0.0f || flNewCycle >= 1.0f) {
+			if (IsSequenceLooping(hdr, GetSequence())) {
+				flNewCycle -= (int)(flNewCycle);
+			}
+			else {
+				flNewCycle = (flNewCycle < 0.0f) ? 0.0f : 1.0f;
+			}
+
+			SequenceFinished = true; // just in case it wasn't caught in GetEvents
+		}
+
+		SetCycle(flNewCycle);
+
+		// todo: eval
+		GroundSpeed = (float)GetSequenceGroundSpeed(hdr, GetSequence()) * GetModelScale();
+	}
+
+	public TimeUnit_t GetSequenceMoveDist(StudioHdr studioHdr, int sequence) {
+		Animation.GetSequenceLinearMotion(studioHdr, Sequence, PoseParameter, out Vector3 vecReturn);
+
+		return vecReturn.Length();
+	}
+	public TimeUnit_t GetSequenceGroundSpeed(StudioHdr studioHdr, int sequence){
+		TimeUnit_t t = SequenceDuration(studioHdr, sequence);
+		if (t > 0)
+			return GetSequenceMoveDist(studioHdr, sequence) / t;
+		else
+			return 0;
+	}
+
+	public virtual void UpdateModelScale(){
+		// todo
+	}
+
+	bool SequenceFinished;
+
 	public static void PopAllowBoneAccess(BoneAccessTag tag) {
 		lock (BoneAccessMutex) {
 			Assert(BoneAccessBase.Tag == tag || (BoneAccessBase.Tag && BoneAccessBase.Tag != (BoneAccessTag)1 && tag && tag != (BoneAccessTag)1 && strcmp(BoneAccessBase.Tag, tag) == 0));

@@ -611,9 +611,9 @@ public ref struct BoneSetup
 			return;
 		}
 		else if ((anim.Flags & StudioAnimFlags.AnimPos) == 0) {
-			if ((anim.Flags & StudioAnimFlags.Delta) != 0) 
+			if ((anim.Flags & StudioAnimFlags.Delta) != 0)
 				pos.Init(0.0f, 0.0f, 0.0f);
-			else 
+			else
 				pos = basePos;
 			return;
 		}
@@ -632,7 +632,7 @@ public ref struct BoneSetup
 			ExtractAnimValue(frame, pPosV.Animvalue(0), baseBoneScale[0], out pos.X);
 			ExtractAnimValue(frame, pPosV.Animvalue(1), baseBoneScale[1], out pos.Y);
 			ExtractAnimValue(frame, pPosV.Animvalue(2), baseBoneScale[2], out pos.Z);
-		}											
+		}
 
 		if ((anim.Flags & StudioAnimFlags.Delta) == 0) {
 			pos.X = pos.X + basePos.X;
@@ -900,7 +900,7 @@ public ref struct BoneSetup
 	}
 
 	private void AddLocalLayers(Span<Vector3> pos, Span<Quaternion> q, MStudioSeqDesc seqdesc, int sequence, double cycle, double weight, double time, object? ikContext) {
-		if ((seqdesc.Flags & StudioAnimSeqFlags.Local) == 0) 
+		if ((seqdesc.Flags & StudioAnimSeqFlags.Local) == 0)
 			return;
 
 		for (int i = 0; i < seqdesc.NumAutoLayers; i++) {
@@ -930,11 +930,11 @@ public ref struct BoneSetup
 				if ((pLayer.Flags & StudioAutolayerFlags.Spline) != 0)
 					s = MathLib.SimpleSpline(s);
 
-				if ((pLayer.Flags & StudioAutolayerFlags.XFade) != 0 && (cycle > pLayer.Tail)) 
+				if ((pLayer.Flags & StudioAutolayerFlags.XFade) != 0 && (cycle > pLayer.Tail))
 					layerWeight = (float)((s * weight) / (1 - weight + s * weight));
-				else if ((pLayer.Flags & StudioAutolayerFlags.NoBlend) != 0) 
+				else if ((pLayer.Flags & StudioAutolayerFlags.NoBlend) != 0)
 					layerWeight = s;
-				else 
+				else
 					layerWeight = (float)weight * s;
 
 				layerCycle = (float)(cycle - pLayer.Start) / (pLayer.End - pLayer.Start);
@@ -1158,5 +1158,82 @@ public ref struct BoneSetup
 		}
 
 		return -1;
+	}
+
+	public static bool Studio_SeqMovement(StudioHdr studioHdr, int sequence, float cycleFrom, float cycleTo, InlineArrayMaxStudioPoseParam<float> poseParameter, out Vector3 deltaPos, out QAngle deltaAngles) {
+		MStudioAnimDesc[] panim = ArrayPool<MStudioAnimDesc>.Shared.Rent(4);
+		Span<float> weight = stackalloc float[4];
+
+		MStudioSeqDesc seqdesc = studioHdr.Seqdesc(sequence);
+
+		Studio_SeqAnims(studioHdr, seqdesc, sequence, poseParameter, panim, weight);
+
+		deltaPos = default;
+		deltaAngles = default;
+
+		bool found = false;
+
+		for (int i = 0; i < 4; i++) {
+			if (weight[i] != 0) {
+				if (Studio_AnimMovement(panim[i], cycleFrom, cycleTo, out Vector3 localPos, out QAngle localAngles)) {
+					found = true;
+					deltaPos = deltaPos + localPos * weight[i];
+					// FIXME: this makes no sense
+					deltaAngles = deltaAngles + localAngles * weight[i];
+				}
+				else if (0 == (panim[i].Flags & StudioAnimSeqFlags.Delta) && panim[i].NumMovements == 0 && seqdesc.Weight(0) > 0.0) {
+					found = true;
+				}
+			}
+		}
+
+		ArrayPool<MStudioAnimDesc>.Shared.Return(panim, true);
+		return found;
+	}
+
+	private static bool Studio_AnimMovement(MStudioAnimDesc anim, float cycleFrom, float cycleTo, out Vector3 deltaPos, out QAngle deltaAngle) {
+		deltaPos = default;
+		deltaAngle = default;
+		if (anim.NumMovements == 0)
+			return false;
+
+		Vector3 startPos;
+		QAngle startA;
+		Studio_AnimPosition(anim, cycleFrom, out startPos, out startA);
+
+		Vector3 endPos;
+		QAngle endA;
+		Studio_AnimPosition(anim, cycleTo, out endPos, out endA);
+
+		Vector3 tmp = endPos - startPos;
+		deltaAngle.Y = endA.Y - startA.Y;
+		MathLib.VectorYawRotate(tmp, -startA.Y, out deltaPos);
+
+		return true;
+	}
+
+	private static bool Studio_AnimPosition(MStudioAnimDesc anim, float cycle, out Vector3 vecPos, out QAngle vecAngle) {
+		float prevframe = 0;
+		vecPos = default;
+		vecAngle = default;
+
+		if (anim.NumMovements == 0)
+			return false;
+
+		int iLoops = 0;
+		if (cycle > 1.0)
+			iLoops = (int)cycle;
+		else if (cycle < 0.0)
+			iLoops = (int)cycle - 1;
+
+		cycle = cycle - iLoops;
+
+		float flFrame = cycle * (anim.NumFrames - 1);
+
+		for (int i = 0; i < anim.NumMovements; i++) {
+			// todo
+		}
+
+		return false;
 	}
 }

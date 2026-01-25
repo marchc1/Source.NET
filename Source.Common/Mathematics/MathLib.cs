@@ -782,6 +782,7 @@ public static class MathLib
 	public static void Init(this ref Quaternion v) => v.X = v.Y = v.Z = v.W = 0;
 	public static vec_t Dot(this in Vector3 a, in Vector3 b) => Vector3.Dot(a, b);
 	public static vec_t NormalizeInPlace(this ref Vector3 self) => VectorNormalize(ref self);
+	public static vec_t LengthSqr(this in Vector3 self) => self.LengthSquared();
 
 
 	public static void Init(this ref Vector3 m, float x, float y, float z) {
@@ -1289,5 +1290,25 @@ public static class MathLib
 		fixed (Vector3* pout = &@out) {
 			VectorIRotate(new ReadOnlySpan<float>(pin1, 3), in in2, new Span<float>(pout, 3));
 		}
+	}
+
+	public static unsafe void VectorYawRotate(in Vector3 @in, float yaw, out Vector3 @out) {
+		fixed (Vector3* inAddr = &@in)
+		fixed (Vector3* outAddr = &@out) {
+			if (inAddr == outAddr) {
+				Vector3 tmp;
+				tmp = @in;
+				VectorYawRotate(tmp, yaw, out @out);
+				return;
+			}
+		}
+
+		float sy, cy;
+
+		SinCos(DEG2RAD(yaw), out sy, out cy);
+
+		@out.X = @in.X * cy - @in.Y * sy;
+		@out.Y = @in.X * sy + @in.Y * cy;
+		@out.Z = @in.Z;
 	}
 }

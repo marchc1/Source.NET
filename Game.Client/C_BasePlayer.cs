@@ -82,8 +82,58 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		RecvPropBool(FIELD.OF(nameof(DisableWorldClicking))),
 	]);
 
-	public virtual void PreThink() { }
-	public virtual void PostThink() { }
+	public virtual void ItemPreFrame() { } 
+	public virtual void ItemPostFrame() { } 
+	public virtual void UpdateClientData() {
+		for (int i = 0; i < WeaponCount(); i++) {
+			if (GetWeapon(i) != null)  // each item updates it's successors
+				GetWeapon(i).UpdateClientData(this);
+		}
+	} 
+	public virtual void UpdateUnderwaterState() { } 
+	public virtual void UpdateFogController() { } 
+	public virtual void PreThink() {
+		ItemPreFrame();
+
+		UpdateClientData();
+
+		UpdateUnderwaterState();
+
+		UpdateFogController();
+
+		if (LifeState >= (int)Source.LifeState.Dying)
+			return;
+
+		// If we're not on the ground, we're falling. Update our falling velocity.
+		if (0 == (GetFlags() & EntityFlags.OnGround)) 
+			Local.FallVelocity = -GetAbsVelocity().Z;
+	}
+	public virtual void PostThink() {
+		if (IsAlive()) {
+			// Need to do this on the client to avoid prediction errors
+			// if ((GetFlags() & EntityFlags.Ducking) != 0) 
+			// 	SetCollisionBounds(VEC_DUCK_HULL_MIN, VEC_DUCK_HULL_MAX);
+			// else 
+			// 	SetCollisionBounds(VEC_HULL_MIN, VEC_HULL_MAX);
+			
+			// if (!CommentaryModeShouldSwallowInput(this)) {
+			// 	// do weapon stuff
+			// 	ItemPostFrame();
+			// }
+
+			if ((GetFlags() & EntityFlags.OnGround) != 0) 
+				Local.FallVelocity = 0;
+
+			// Don't allow bogus sequence on player
+			if (GetSequence() == -1) 
+				SetSequence(0);
+
+			StudioFrameAdvance();
+		}
+
+		// Even if dead simulate entities
+		SimulatePlayerSimulatedEntities();
+	}
 
 	InlineArrayMaxAmmoSlots<int> OldAmmo;
 	public int StuckLast;
@@ -268,16 +318,38 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 			}
 		}
 
-		if (IsLocalPlayer()) {
-			engine.GetViewAngles(out QAngle angles);
-			if (updateType == DataUpdateType.Created) {
-				SetLocalViewAngles(in angles);
-				OldPlayerZ = GetLocalOrigin().Z;
+		bool forceEFNoInterp = IsNoInterpolationFrame();
+
+		if (IsLocalPlayer()) 
+			SetSimulatedEveryTick(true);
+		else {
+			SetSimulatedEveryTick(false);
+
+			// estimate velocity for non local players
+			TimeUnit_t flTimeDelta = SimulationTime - OldSimulationTime;
+			if (flTimeDelta > 0 && !(IsNoInterpolationFrame() || forceEFNoInterp)) {
+				Vector3 newVelo = (GetNetworkOrigin() - GetOldOrigin()) / (float)flTimeDelta;
+				SetAbsVelocity(newVelo);
 			}
-			SetLocalAngles(angles);
 		}
 
 		base.PostDataUpdate(updateType);
+
+		if (IsLocalPlayer()) {
+			QAngle angles;
+			engine.GetViewAngles(out angles);
+			if (updateType == DataUpdateType.Created) {
+				SetLocalViewAngles(angles);
+				OldPlayerZ = GetLocalOrigin().Z;
+			}
+
+			SetLocalAngles(angles);
+		}
+
+		// If we are updated while paused, allow the player origin to be snapped by the
+		//  server if we receive a packet from the server
+		if (engine.IsPaused() || forceEFNoInterp) 
+			ResetLatched();
 	}
 
 	public void SetLocalViewAngles(in QAngle angles) {

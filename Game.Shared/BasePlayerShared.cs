@@ -189,6 +189,10 @@ public partial class
 		strcpy(AnimExtension, extension);
 	}
 
+	public void SimulatePlayerSimulatedEntities() {
+		// todo
+	}
+
 	public bool UsingStandardWeaponsInVehicle() {
 		Assert(IsInAVehicle());
 #if !CLIENT_DLL

@@ -1517,6 +1517,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public ref Vector3 GetNetworkOrigin() => ref NetworkOrigin;
+	public ref readonly Vector3 GetOldOrigin() => ref OldOrigin;
 	public ref QAngle GetNetworkAngles() => ref NetworkAngles;
 
 	public void SetLocalOrigin(in Vector3 origin) {

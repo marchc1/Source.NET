@@ -161,7 +161,11 @@ public class GameMovement : IGameMovement
 				break;
 
 			case MoveType.Noclip:
+#if GMOD_DLL
+				FullNoClipMove_NoAcceleration(sv_noclipspeed.GetFloat(), sv_noclipaccelerate.GetFloat());
+#else
 				FullNoClipMove(sv_noclipspeed.GetFloat(), sv_noclipaccelerate.GetFloat());
+#endif
 				break;
 
 			case MoveType.Fly:
@@ -773,6 +777,27 @@ public class GameMovement : IGameMovement
 	protected void AddGravity() { throw new NotImplementedException(); }
 
 	// Handle movement in noclip mode.
+	protected void FullNoClipMove_NoAcceleration(float speed, float maxacceleration) {
+		Vector3 forward, right, up;
+		MathLib.AngleVectors(mv.ViewAngles, out forward, out right, out up);
+		Vector3 wishdir = new( 0, 0, 0 );
+
+		wishdir += forward * mv.ForwardMove;
+		wishdir += right * mv.SideMove;
+		wishdir += up * mv.UpMove;
+
+		if (wishdir.LengthSqr() > 0.0f) {
+			MathLib.VectorNormalize(ref wishdir);
+			Vector3 velocity = wishdir * speed * maxacceleration;
+			mv.Velocity = velocity;
+		}
+		else 
+			mv.Velocity.Init(); // hard stop
+		
+		// Move player directly
+		Vector3 newPos = mv.GetAbsOrigin() + mv.Velocity * (float)gpGlobals.FrameTime;
+		mv.SetAbsOrigin(newPos);
+	}
 	protected void FullNoClipMove(float factor, float maxacceleration) {
 		Vector3 wishvel = default;
 		Vector3 forward, right, up;

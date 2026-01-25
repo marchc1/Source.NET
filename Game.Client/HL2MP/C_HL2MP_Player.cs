@@ -49,6 +49,7 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	readonly InterpolatedVar<QAngle> IV_AngEyeAngles = new(nameof(AngEyeAngles));
 	public EHANDLE Ragdoll = new();
 	public int SpawnInterpCounter;
+	public int SpawnInterpCounterCache;
 	public int PlayerSoundType;
 	public bool IsWalking;
 
@@ -57,6 +58,11 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	}
 
 	public override void PostDataUpdate(DataUpdateType updateType) {
+	if(SpawnInterpCounter != SpawnInterpCounterCache){
+			MoveToLastReceivedPosition(true);
+			ResetLatched();
+			SpawnInterpCounterCache = SpawnInterpCounter;
+	}
 		base.PostDataUpdate(updateType);
 	}
 
