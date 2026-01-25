@@ -300,7 +300,7 @@ public class GameMovement : IGameMovement
 			accelspeed = addspeed;
 
 		// Adjust velocity.
-		for (i = 0; i < 3; i++) 
+		for (i = 0; i < 3; i++)
 			mv.Velocity[i] += accelspeed * wishdir[i];
 	}
 
@@ -353,10 +353,10 @@ public class GameMovement : IGameMovement
 				mv.Velocity[2] = 0;
 		}
 		else { // Not fully underwater
-			// Was jump button pressed?
-			if ((mv!.Buttons & InButtons.Jump) != 0) 
+			   // Was jump button pressed?
+			if ((mv!.Buttons & InButtons.Jump) != 0)
 				CheckJumpButton();
-			else 
+			else
 				mv.OldButtons &= ~InButtons.Jump;
 
 			// Fricion is handled before we add in any base velocity. That way, if we are on a conveyor, 
@@ -592,7 +592,7 @@ public class GameMovement : IGameMovement
 			newspeed /= spd;
 			MathLib.VectorScale(mv.Velocity, newspeed, out mv.Velocity);
 		}
-		else 
+		else
 			MathLib.VectorCopy(wishvel, out mv.Velocity);
 
 		// Just move ( don't clip or anything )
@@ -600,7 +600,7 @@ public class GameMovement : IGameMovement
 		mv.SetAbsOrigin(outVec);
 
 		// Zero out velocity if in noaccel mode
-		if (maxacceleration < 0.0f) 
+		if (maxacceleration < 0.0f)
 			mv.Velocity.Init();
 	}
 
@@ -659,8 +659,52 @@ public class GameMovement : IGameMovement
 	protected virtual float ClimbSpeed() { return MAX_CLIMB_SPEED; }
 	protected virtual float LadderLateralMultiplier() { return 1.0f; }
 
+	static ReadOnlySpan<char> DescribeAxis(int axis) {
+		switch (axis) {
+			case 0:
+				return "X";
+			case 1:
+				return "Y";
+			case 2:
+			default:
+				return "Z";
+		}
+	}
 	// See if the player has a bogus velocity value.
-	protected void CheckVelocity() { throw new NotImplementedException(); }
+	protected void CheckVelocity() {
+
+		int i;
+
+		//
+		// bound velocity
+		//
+
+		Vector3 org = mv!.GetAbsOrigin();
+
+		for (i = 0; i < 3; i++) {
+			// See if it's bogus.
+			if (float.IsNaN(mv.Velocity[i])) {
+				DevMsg(1, $"PM  Got a NaN velocity {DescribeAxis(i)}\n");
+				mv.Velocity[i] = 0;
+			}
+
+			if (float.IsNaN(org[i])) {
+				DevMsg(1, $"PM  Got a NaN origin on {DescribeAxis(i)}\n");
+				org[i] = 0;
+				mv.SetAbsOrigin(org);
+			}
+
+			// Bound it.
+			if (mv.Velocity[i] > sv_maxvelocity.GetFloat()) {
+				DevMsg(1, $"PM  Got a velocity too high on {DescribeAxis(i)}\n");
+				mv.Velocity[i] = sv_maxvelocity.GetFloat();
+			}
+			else if (mv.Velocity[i] < -sv_maxvelocity.GetFloat()) {
+				DevMsg(1, $"PM  Got a velocity too low on {DescribeAxis(i)}\n");
+				mv.Velocity[i] = -sv_maxvelocity.GetFloat();
+			}
+		}
+	}
 
 	// Does not change the entities velocity at all
 	protected void PushEntity(ref Vector3 push, ref Trace trace) { throw new NotImplementedException(); }
