@@ -2247,7 +2247,6 @@ public partial class C_BaseEntity : IClientEntity
 				if ((field.Flags & FieldTypeDescFlags.Private) != 0)
 					continue;
 
-			field.PackedOffset = currentPosition++;
 			switch (field.FieldType) {
 				default:
 				case FieldType.ModelIndex:

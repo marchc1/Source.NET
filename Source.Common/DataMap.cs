@@ -196,6 +196,14 @@ namespace Source
 			Assert(map.PackedOffsetsComputed);
 
 			Data = new IDataFrameContainer[map.PackedSize];
+			SetupDataFrame_R(map);
+		}
+
+		private void SetupDataFrame_R(DataMap map) {
+			// Recurse through basemaps first
+			if (map.BaseMap != null)
+				SetupDataFrame_R(map.BaseMap);
+
 			for (nuint i = 0; i < (nuint)map.DataNumFields; i++) {
 				TypeDescription td = map.DataDesc[i];
 				if (td.PackedOffset == nuint.MaxValue)
