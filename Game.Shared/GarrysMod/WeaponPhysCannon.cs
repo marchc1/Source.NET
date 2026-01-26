@@ -677,6 +677,15 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 			SendWeaponAnim(Activity.ACT_VM_SECONDARYATTACK);
 			return;
 		}
+
+		NextPrimaryAttack = gpGlobals.CurTime + 0.5;
+		DryFire();
+	}
+
+	public void DryFire(){
+		SendWeaponAnim(Activity.ACT_VM_PRIMARYATTACK);
+
+		WeaponSound(Shared.WeaponSound.Empty);
 	}
 
 	public override void SecondaryAttack() {
