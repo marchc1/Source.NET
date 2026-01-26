@@ -108,9 +108,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 					if (pWeaponData == null || (pWeaponData.Flags & WeaponFlags.NoAmmoPickups) == 0) {
 						// We got more ammo for this ammo index. Add it to the ammo history
 						HudHistoryResource? pHudHR = GET_HUDELEMENT<HudHistoryResource>();
-						// if (pHudHR != null) 
-							//pHudHR.AddToHistory(HISTSLOT_AMMO, i, abs(GetAmmoCount(i) - m_iOldAmmo[i]));
-						
+						pHudHR?.AddToHistory(HRType.Ammo, i, Math.Abs(GetAmmoCount(i) - OldAmmo[i]));
 					}
 				}
 			}
@@ -131,7 +129,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public override void ReceiveMessage(int classID, bf_read msg) {
 		if (classID != GetClientClass().ClassID) {
 			// message is for subclass
-			
+
 			base.ReceiveMessage(classID, msg);
 			return;
 		}
@@ -335,10 +333,10 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	}
 	public BaseCombatWeapon? GetLastWeapon() => LastWeapon.Get();
 
-	public static readonly ConVar cl_customsounds = new( "cl_customsounds", "0", 0, "Enable customized player sound playback" );
-	public static readonly ConVar spec_track = new( "spec_track", "0", 0, "Tracks an entity in spec mode" );
-	public static readonly ConVar cl_smooth = new( "cl_smooth", "1", 0, "Smooth view/eye origin after prediction errors" );
-	public static readonly ConVar cl_smoothtime = new( 
+	public static readonly ConVar cl_customsounds = new("cl_customsounds", "0", 0, "Enable customized player sound playback");
+	public static readonly ConVar spec_track = new("spec_track", "0", 0, "Tracks an entity in spec mode");
+	public static readonly ConVar cl_smooth = new("cl_smooth", "1", 0, "Smooth view/eye origin after prediction errors");
+	public static readonly ConVar cl_smoothtime = new(
 	"cl_smoothtime",
 		"0.1",
 		0,
@@ -350,7 +348,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public virtual bool CreateMove(TimeUnit_t inputSampleTime, ref UserCmd cmd) {
 		return true;
 	}
-	public void GetPredictionErrorSmoothingVector(out Vector3 offset){
+	public void GetPredictionErrorSmoothingVector(out Vector3 offset) {
 		if (engine.IsPlayingDemo() || cl_smooth.GetInt() == 0 || cl_predict.GetInt() == 0 || engine.IsPaused()) {
 			offset = default;
 			return;
@@ -371,7 +369,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public Vector3 PredictionError;
 	public Vector3 PreviouslyPredictedOrigin;
 	public TimeUnit_t PredictionErrorTime;
-	public void NotePredictionError(in Vector3 delta){
+	public void NotePredictionError(in Vector3 delta) {
 		if (!IsAlive())
 			return;
 

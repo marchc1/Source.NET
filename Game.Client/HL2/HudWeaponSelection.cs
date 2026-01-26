@@ -7,8 +7,6 @@ using Source.Common.GUI;
 using Source.Common.MaterialSystem;
 using Source.GUI.Controls;
 
-using System.Security.Cryptography;
-
 namespace Game.Client.HL2;
 
 [DeclareHudElement(Name = "CHudWeaponSelection")]
@@ -90,7 +88,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 	void OnWeaponPickup(BaseCombatWeapon weapon) {
 		HudHistoryResource? hr = gHUD.FindElement("CHudHistoryResource") as HudHistoryResource;
-		// hr?.AddToHistory(weapon);
+		hr?.AddToHistory(weapon);
 	}
 
 	public override void OnThink() {
@@ -174,6 +172,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 				cWeapons++;
 			}
 		}
+
 		if (lastSelectedWeaponBox == -1)
 			LastWeapon = null;
 
