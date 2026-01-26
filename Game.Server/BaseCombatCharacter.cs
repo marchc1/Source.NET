@@ -31,7 +31,7 @@ public partial class BaseCombatCharacter : BaseFlex
 	public readonly Handle<BaseCombatWeapon> LastWeapon = new();
 	public readonly Handle<BaseCombatWeapon> ActiveWeapon = new();
 	public InlineArrayNewMaxWeapons<Handle<BaseCombatWeapon>> MyWeapons = new();
-	public InlineArrayMaxAmmoSlots<int> Ammo;
+	public readonly NetworkArray<int> Ammo = new(MAX_AMMO_TYPES);
 	public Color BloodColor;
 
 	private static object? SendProxy_SendBaseCombatCharacterLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {

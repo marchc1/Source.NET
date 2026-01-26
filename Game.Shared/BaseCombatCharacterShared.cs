@@ -111,7 +111,7 @@ public partial class
 			return;
 
 		// Ammo pickup sound
-		// Ammo.Set(ammoIndex, Math.Max(Ammo[ammoIndex] - count, 0));
+		Ammo.Set(ammoIndex, Math.Max(Ammo[ammoIndex] - count, 0));
 	}
 	public void RemoveAmmo(int count, ReadOnlySpan<char> name) => RemoveAmmo(count, GetAmmoDef().Index(name));
 
