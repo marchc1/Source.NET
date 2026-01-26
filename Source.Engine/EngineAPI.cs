@@ -10,6 +10,7 @@ using Source.Common.MaterialSystem;
 using System.Reflection;
 
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 
 namespace Source.Engine;
 
@@ -126,8 +127,15 @@ public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sy
 				var methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
 
 				// If any props/fields exist, run the cctor so we can pull out static cvars/concmds
-				if ((props.Length + fields.Length) > 0)
-					RuntimeHelpers.RunClassConstructor(type.TypeHandle);
+				if ((props.Length + fields.Length) > 0) {
+					try {
+						RuntimeHelpers.RunClassConstructor(type.TypeHandle);
+					}
+					catch (TypeInitializationException tie) when (tie.InnerException != null) {
+						ExceptionDispatchInfo.Capture(tie.InnerException).Throw();
+						throw;
+					}
+				}
 
 				for (int i = 0; i < props.Length; i++) {
 					PropertyInfo prop = props[i];
