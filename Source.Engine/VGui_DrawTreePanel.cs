@@ -268,7 +268,11 @@ public class VGuiDrawTree
 		if (!inputName.IsEmpty)
 			sprintf(name, "%s").S(inputName);
 		else
+#if DEBUG
+			sprintf(name, "%s").S(current.GetClassName());
+#else
 			sprintf(name, "%s").S("<no name>");
+#endif
 
 		if (current.IsMouseInputEnabled()) sprintf(name, "%s, +m").S(name);
 		if (current.IsKeyboardInputEnabled()) sprintf(name, "%s, +k").S(name);

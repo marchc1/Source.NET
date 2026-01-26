@@ -1522,7 +1522,7 @@ public class Panel : IPanel
 	internal void VisualizeLayout(Panel panel) => LayoutVisualizations[panel] = System.GetCurrentTime() + 0.3;
 #endif
 
-	static readonly ConVar sdn_vgui_debug = new("sdn_vgui_debug", 0, "Show debug info for panels under the mouse cursor.");
+	static readonly ConVar sdn_vgui_debug = new("0", FCvar.None, "Show debug info for panels under the mouse cursor.");
 	private void DebugVisualize() {
 		if (sdn_vgui_debug.GetInt() == 0)
 			return;
