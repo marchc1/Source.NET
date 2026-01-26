@@ -6,6 +6,7 @@ using Source.Common;
 using System.Numerics;
 
 namespace Game.Server;
+
 using FIELD = Source.FIELD<Game.Server.BaseAnimating>;
 using FIELD_ILR = Source.FIELD<Game.Server.InfoLightingRelative>;
 
@@ -87,7 +88,7 @@ public class BaseAnimating : BaseEntity
 	public InlineArrayMaxStudioBoneCtrls<float> EncodedController;
 	public InlineArrayMaxStudioBoneCtrls<float> OldEncodedController;
 	public int Sequence;
-	public float PlaybackRate;
+	public TimeUnit_t PlaybackRate;
 	public bool ClientSideAnimation;
 	public bool ClientSideFrameReset;
 	public int NewSequenceParity;
@@ -114,7 +115,7 @@ public class BaseAnimating : BaseEntity
 
 	public int GetSequence() => Sequence;
 
-	public TimeUnit_t SequenceDuration(StudioHdr? studioHdr, int sequence){
+	public TimeUnit_t SequenceDuration(StudioHdr? studioHdr, int sequence) {
 		if (studioHdr == null) {
 			DevWarning(2, $"BaseAnimating.SequenceDuration( {sequence} ) NULL pstudiohdr on {GetClassname()}!\n");
 			return 0.1;
@@ -132,4 +133,71 @@ public class BaseAnimating : BaseEntity
 	public TimeUnit_t SequenceDuration(int sequence) => SequenceDuration(GetModelPtr(), sequence);
 	public TimeUnit_t SequenceDuration() => SequenceDuration(GetSequence());
 	public virtual void DoMuzzleFlash() => MuzzleFlashParity = unchecked((byte)((MuzzleFlashParity + 1) & ((1 << (int)EntityEffects.MuzzleflashBits) - 1)));
+	public virtual void SetSequence(int sequence) {
+		Sequence = sequence;
+	}
+	public int SelectWeightedSequence(Activity activity) {
+		return Animation.SelectWeightedSequence(GetModelPtr(), activity, GetSequence());
+	}
+	public float GroundSpeed;
+	public bool SequenceLoops;
+	public bool ResetSequenceInfoOnLoad;
+	public bool DynamicModelLoading;
+	public bool SequenceFinished;
+	public TimeUnit_t LastEventCheck;
+	public TimeUnit_t GetCycle() => Cycle;
+	public void SetCycle(TimeUnit_t cycle) => Cycle = cycle;
+	public float GetSequenceMoveDist(StudioHdr? studioHdr, int sequence) {
+		Animation.GetSequenceLinearMotion(studioHdr, sequence, GetPoseParameterArray(), out Vector3 ret);
+
+		return ret.Length();
+	}
+	public bool IsDynamicModelLoading() => DynamicModelLoading;
+	public float GetSequenceGroundSpeed(StudioHdr? studioHdr, int sequence) {
+		TimeUnit_t t = SequenceDuration(studioHdr, sequence);
+
+		if (t > 0) 
+			return (GetSequenceMoveDist(studioHdr, sequence) / (float)t);
+		else 
+			return 0;
+	}
+	public void ResetSequenceInfo() {
+		if (GetSequence() == -1)
+			// This shouldn't happen.  Setting m_nSequence blindly is a horrible coding practice.
+			SetSequence(0);
+
+		if (IsDynamicModelLoading()) {
+			ResetSequenceInfoOnLoad = true;
+			return;
+		}
+
+		StudioHdr? studioHdr = GetModelPtr();
+		GroundSpeed = GetSequenceGroundSpeed(studioHdr, GetSequence()) * GetModelScale();
+		SequenceLoops = ((Animation.GetSequenceFlags(studioHdr, GetSequence()) & StudioAnimSeqFlags.Looping) != 0);
+		// m_flAnimTime = gpGlobals->time;
+		PlaybackRate = 1.0;
+		SequenceFinished = false;
+		LastEventCheck = 0;
+
+		NewSequenceParity = (NewSequenceParity + 1) & (int)EntityEffects.ParityMask;
+		ResetEventsParity = (ResetEventsParity + 1) & (int)EntityEffects.ParityMask;
+
+		// FIXME: why is this called here?  Nothing should have changed to make this necessary
+		if (studioHdr != null)
+			Animation.SetEventIndexForSequence(studioHdr.Seqdesc(GetSequence()));
+	}
+
+	public int FindTransitionSequence(int currentSequence, int goalSequence) {
+		StudioHdr? hdr = GetModelPtr();
+		if (hdr == null) {
+			return -1;
+		}
+
+		int dir = 1;
+		int sequence = Animation.FindTransitionSequence(hdr, currentSequence, goalSequence, ref dir);
+		if (dir != 1)
+			return -1;
+		else
+			return sequence;
+	}
 }

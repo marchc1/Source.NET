@@ -28,6 +28,12 @@ public class C_World : C_BaseEntity
 	public static new readonly ClientClass ClientClass = new ClientClass("World", null, null, DT_World)
 																		.WithManualClassID(StaticClassIndices.CWorld);
 
+	public override bool Init(int entNum, int serialNum) {
+		WaveHeight = 0.0f;
+		ActivityList.Init();
+
+		return base.Init(entNum, serialNum);
+	}
 
 	float WaveHeight;
 	Vector3 WorldMins;
@@ -44,11 +50,16 @@ public class C_World : C_BaseEntity
 		WeaponParse.PrecacheFileWeaponInfoDatabase(filesystem);
 	}
 
+	public void RegisterSharedActivities(){
+		ActivityList.RegisterSharedActivities();
+		// EventList.RegisterSharedEvents();
+	}
+
 	public override void Precache() {
 		// ActivityList_Free();
 		// EventList_Free();
 
-		// RegisterSharedActivities();
+		RegisterSharedActivities();
 
 		// Get weapon precaches
 		W_Precache();

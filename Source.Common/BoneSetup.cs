@@ -1160,7 +1160,7 @@ public ref struct BoneSetup
 		return -1;
 	}
 
-	public static bool Studio_SeqMovement(StudioHdr studioHdr, int sequence, float cycleFrom, float cycleTo, InlineArrayMaxStudioPoseParam<float> poseParameter, out Vector3 deltaPos, out QAngle deltaAngles) {
+	public static bool Studio_SeqMovement(StudioHdr studioHdr, int sequence, float cycleFrom, float cycleTo, ReadOnlySpan<float> poseParameter, out Vector3 deltaPos, out QAngle deltaAngles) {
 		MStudioAnimDesc[] panim = ArrayPool<MStudioAnimDesc>.Shared.Rent(4);
 		Span<float> weight = stackalloc float[4];
 

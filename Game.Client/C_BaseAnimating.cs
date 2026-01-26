@@ -60,7 +60,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	const TimeUnit_t MAX_ANIMTIME_INTERVAL = 0.2;
 	public TimeUnit_t GetAnimTimeInterval() => Math.Min(gpGlobals.CurTime - AnimTime, MAX_ANIMTIME_INTERVAL);
 
-	public void StudioFrameAdvance(){
+	public void StudioFrameAdvance() {
 		if (ClientSideAnimation)
 			return;
 
@@ -110,7 +110,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		return vecReturn.Length();
 	}
-	public TimeUnit_t GetSequenceGroundSpeed(StudioHdr studioHdr, int sequence){
+	public TimeUnit_t GetSequenceGroundSpeed(StudioHdr studioHdr, int sequence) {
 		TimeUnit_t t = SequenceDuration(studioHdr, sequence);
 		if (t > 0)
 			return GetSequenceMoveDist(studioHdr, sequence) / t;
@@ -118,7 +118,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			return 0;
 	}
 
-	public virtual void UpdateModelScale(){
+	public virtual void UpdateModelScale() {
 		// todo
 	}
 
@@ -668,6 +668,32 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 	public void ResetSequenceInfo() {
 
+	}
+
+	public int SelectWeightedSequence(Activity activity) {
+		return Animation.SelectWeightedSequence(GetModelPtr(), activity);
+	}
+	public int FindTransitionSequence(int currentSequence, int goalSequence) {
+		StudioHdr? hdr = GetModelPtr();
+		if (hdr == null) {
+			return -1;
+		}
+
+		int dir = 1;
+		int sequence = Animation.FindTransitionSequence(hdr, currentSequence, goalSequence, ref dir);
+		if (dir != 1)
+			return -1;
+		else
+			return sequence;
+	}
+	public int FindTransitionSequence(int currentSequence, int goalSequence, ref int dir) {
+		StudioHdr? hdr = GetModelPtr();
+		if (hdr == null) {
+			dir = 0;
+			return -1;
+		}
+
+		return Animation.FindTransitionSequence(hdr, currentSequence, goalSequence, ref dir);
 	}
 
 	public bool ReceivedSequence;

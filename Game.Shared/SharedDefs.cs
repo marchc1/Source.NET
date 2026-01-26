@@ -422,6 +422,8 @@ public static class SharedDefs
 	public static readonly Vector3 VECTOR_CONE_15DEGREES = new Vector3(0.13053f, 0.13053f, 0.13053f);
 	public static readonly Vector3 VECTOR_CONE_20DEGREES = new Vector3(0.17365f, 0.17365f, 0.17365f);
 
+	public const int kActivityLookup_Unknown = -2;          // hasn't been searched for
+	public const int kActivityLookup_Missing = -1;			// has been searched for but wasn't found
 
 
 	public static ClientClass WithManualClassID(this ClientClass clientClass, StaticClassIndices classID) {

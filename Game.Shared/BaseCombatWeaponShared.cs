@@ -811,8 +811,61 @@ public partial class
 	public BaseCombatCharacter? GetOwner() => ToBaseCombatCharacter(Owner.Get());
 
 	public bool SetIdealActivity(Activity ideal) {
-		return false; // todo
+		int idealSequence = SelectWeightedSequence(ideal);
+
+		if (idealSequence == -1)
+			return false;
+
+		//Take the new activity
+		IdealActivity = ideal;
+		IdealSequence = idealSequence;
+
+		//Find the next sequence in the potential chain of sequences leading to our ideal one
+		int nextSequence = FindTransitionSequence(GetSequence(), IdealSequence);
+
+		// Don't use transitions when we're deploying
+		if (ideal != Activity.ACT_VM_DRAW && IsWeaponVisible() && nextSequence != IdealSequence) {
+			//Set our activity to the next transitional animation
+			SetActivity(Activity.ACT_TRANSITION);
+			SetSequence(nextSequence);
+			SendViewModelAnim(nextSequence);
+		}
+		else {
+			//Set our activity to the ideal
+			SetActivity(IdealActivity);
+			SetSequence(IdealSequence);
+			SendViewModelAnim(IdealSequence);
+		}
+
+		//Set the next time the weapon will idle
+		SetWeaponIdleTime(gpGlobals.CurTime + SequenceDuration());
+		return true;
 	}
+	public void SetWeaponIdleTime(TimeUnit_t time) => TimeWeaponIdle = time;
+	public void SendViewModelAnim(int sequence) {
+#if CLIENT_DLL
+		if (!IsPredicted())
+			return;
+#endif
+
+		if (sequence < 0)
+			return;
+
+		BasePlayer? owner = ToBasePlayer(GetOwner());
+
+		if (owner == null)
+			return;
+
+		BaseViewModel? vm = owner.GetViewModel(nViewModelIndex, false);
+
+		if (vm == null)
+			return;
+
+		SetViewModel();
+		Assert(vm.ViewModelIndex() == nViewModelIndex);
+		vm.SendViewModelMatchingSequence(sequence);
+	}
+	public void SetActivity(Activity activity) => Activity = activity;
 	public bool SendWeaponAnim(Activity act) {
 		return SetIdealActivity(act);
 	}

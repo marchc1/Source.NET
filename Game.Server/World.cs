@@ -26,6 +26,14 @@ public class World : BaseEntity
 		SendPropInt(FIELD.OF(nameof(ColdWorld)), 1, PropFlags.Unsigned),
 	]);
 
+	public World(){
+		AddEFlags(EFL.NoAutoEdictAttach | EFL.KeepOnRecreateEntities);
+		ActivityList.Init();
+		SetSolid(Source.SolidType.BSP);
+		SetMoveType(Source.MoveType.None);
+		ColdWorld = false;
+	}
+
 	public static readonly new ServerClass ServerClass = new ServerClass("World", DT_World)
 																		.WithManualClassID(StaticClassIndices.CWorld);
 	float WaveHeight;
