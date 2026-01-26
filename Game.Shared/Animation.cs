@@ -71,7 +71,7 @@ public static class Animation
 		seqdesc.Flags |= StudioAnimSeqFlags.Activity;
 
 		activityName = GetSequenceActivityName(studiohdr, i);
-		if (activityName[0] != '\0') {
+		if (!activityName.IsEmpty && activityName[0] != '\0') {
 			activityIndex = ActivityList.IndexForName(activityName);
 
 			if (activityIndex == -1) {
