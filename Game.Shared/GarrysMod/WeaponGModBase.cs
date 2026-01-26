@@ -83,7 +83,7 @@ public partial class
 #else
 	BaseHL2MPCombatWeapon
 #endif
-	: BaseCombatWeapon
+	: WeaponHL2MPBase
 {
 	public static readonly Table DT_BaseHL2MPCombatWeapon = new(DT_BaseCombatWeapon, []);
 
