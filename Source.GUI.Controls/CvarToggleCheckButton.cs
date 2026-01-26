@@ -1,8 +1,7 @@
 using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
-using Source.GUI.Controls;
 
-namespace Game.UI;
+namespace Source.GUI.Controls;
 
 [PanelAlias("CCvarToggleCheckButton")]
 public class CvarToggleCheckButton : CheckButton
