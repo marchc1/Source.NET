@@ -36,4 +36,12 @@ public partial class C_BaseCombatCharacter : C_BaseFlex
 	public Color BloodColor;
 
 	public int WeaponCount() => MAX_WEAPONS;
+
+	public override void DoMuzzleFlash() {
+		C_BaseCombatWeapon? weapon = GetActiveWeapon();
+		if (weapon != null)
+			weapon.DoMuzzleFlash();
+		else
+			base.DoMuzzleFlash();
+	}
 }

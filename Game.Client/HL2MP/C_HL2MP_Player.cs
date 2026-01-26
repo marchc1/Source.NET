@@ -9,6 +9,7 @@ using Source.Common.Mathematics;
 using System.Numerics;
 
 namespace Game.Client.HL2MP;
+
 using FIELD = FIELD<C_HL2MP_Player>;
 using FIELD_RD = FIELD<C_HL2MPRagdoll>;
 
@@ -58,11 +59,11 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	}
 
 	public override void PostDataUpdate(DataUpdateType updateType) {
-	if(SpawnInterpCounter != SpawnInterpCounterCache){
+		if (SpawnInterpCounter != SpawnInterpCounterCache) {
 			MoveToLastReceivedPosition(true);
 			ResetLatched();
 			SpawnInterpCounterCache = SpawnInterpCounter;
-	}
+		}
 		base.PostDataUpdate(updateType);
 	}
 
@@ -73,9 +74,15 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 			return ref AngEyeAngles;
 	}
 
+	public override void ItemPostFrame() {
+		if ((GetFlags() & EntityFlags.Frozen) != 0)
+			return;
+		base.ItemPostFrame();
+	}
+
 	public override void CalcView(ref Vector3 eyeOrigin, ref QAngle eyeAngles, ref float zNear, ref float zFar, ref float fov) {
 		if ((LifeState)LifeState != Source.LifeState.Alive) {
-			
+
 		}
 		base.CalcView(ref eyeOrigin, ref eyeAngles, ref zNear, ref zFar, ref fov);
 	}

@@ -215,6 +215,7 @@ public partial class C_BaseEntity : IClientEntity
 
 		// That networked data will be copied forward into the starting slot for the next prediction round
 	}
+	public virtual bool IsPredicted() => false;
 
 	public void PostEntityPacketReceived() {
 		// Always mark as changed
@@ -538,6 +539,8 @@ public partial class C_BaseEntity : IClientEntity
 	private static void RecvProxy_MoveType(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
 		((C_BaseEntity)instance).SetMoveType((MoveType)data.Value.Int);
 	}
+
+	public void SetCollisionBounds(in Vector3 mins, in Vector3 maxs) { } // todo: => CollisionProp().SetCollisionBounds(in mins, in maxs);
 
 	public static readonly ClientClass ClientClass = new ClientClass("BaseEntity", null, null, DT_BaseEntity)
 																		.WithManualClassID(StaticClassIndices.CBaseEntity);

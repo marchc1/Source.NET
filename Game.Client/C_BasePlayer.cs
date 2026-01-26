@@ -11,6 +11,7 @@ using Source.Engine;
 
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 using FIELD = Source.FIELD<Game.Client.C_BasePlayer>;
 
@@ -58,6 +59,10 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public float SwimSoundTime;
 	public Vector3 LadderNormal;
 	public int Impulse;
+
+	bool FiredWeapon;
+	public bool HasFiredWeapon() => FiredWeapon;
+	public void SetFiredWeapon(bool flag) => FiredWeapon = flag;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
 
 	public static readonly RecvTable DT_LocalPlayerExclusive = new([
@@ -83,7 +88,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	]);
 
 	public virtual void ItemPreFrame() { }
-	public virtual void ItemPostFrame() { }
+
 	public virtual void UpdateClientData() {
 		for (int i = 0; i < WeaponCount(); i++) {
 			if (GetWeapon(i) != null)  // each item updates it's successors
@@ -108,17 +113,31 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		if (0 == (GetFlags() & EntityFlags.OnGround))
 			Local.FallVelocity = -GetAbsVelocity().Z;
 	}
+	public C_BaseEntity? GetVehicleEntity() => Vehicle.Get();
+	public bool IsInAVehicle() => Vehicle.Get() != null;
+	public virtual void SetAnimation(PlayerAnim playerAnim) { } // todo
+
+	public virtual Vector3 GetAutoaimVector(float scale){
+		MathLib.AngleVectors(GetAbsAngles(), out Vector3 forward, out _, out _);
+		return forward;
+	}
+	public virtual void SetSuitUpdate(ReadOnlySpan<char> name, int fgroup, int noRepeat) { }
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, bool fgroup, int noRepeat) => SetSuitUpdate(name, fgroup ? 1 : 0, noRepeat);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, int fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup, noRepeat ? 1 : 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, bool fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup ? 1 : 0, noRepeat ? 1 : 0);
+	
 	public virtual void PostThink() {
 		if (IsAlive()) {
 			// Need to do this on the client to avoid prediction errors
-			// if ((GetFlags() & EntityFlags.Ducking) != 0) 
-			// 	SetCollisionBounds(VEC_DUCK_HULL_MIN, VEC_DUCK_HULL_MAX);
-			// else 
-			// 	SetCollisionBounds(VEC_HULL_MIN, VEC_HULL_MAX);
+			if ((GetFlags() & EntityFlags.Ducking) != 0)
+				SetCollisionBounds(VEC_DUCK_HULL_MIN, VEC_DUCK_HULL_MAX);
+			else
+				SetCollisionBounds(VEC_HULL_MIN, VEC_HULL_MAX);
 
 			// if (!CommentaryModeShouldSwallowInput(this)) {
 			// 	// do weapon stuff
-			// 	ItemPostFrame();
+			ItemPostFrame();
 			// }
 
 			if ((GetFlags() & EntityFlags.OnGround) != 0)
@@ -442,8 +461,6 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		PredictionErrorTime = gpGlobals.CurTime;
 		ResetLatched();
 	}
-
-	public bool IsInAVehicle() => Vehicle.Get() != null;
 
 	protected override bool ShouldInterpolate() {
 		if (IsLocalPlayer())

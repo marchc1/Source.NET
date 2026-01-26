@@ -3,11 +3,14 @@
 using Source;
 using Source.Common;
 using Source.Common.Engine;
+using Source.Common.Mathematics;
 using Source.Common.Physics;
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Game.Server;
+
 using FIELD = Source.FIELD<BasePlayer>;
 
 public partial class BasePlayer : BaseCombatCharacter
@@ -17,7 +20,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	]); public static readonly ServerClass CC_PlayerState = new("PlayerState", DT_PlayerState);
 	public override bool IsPlayer() => true;
 	public BaseViewModel GetViewModel(int index) => throw new NotImplementedException();
-	
+
 	public static readonly SendTable DT_LocalPlayerExclusive = new([
 		SendPropDataTable(nameof(Local), PlayerLocalData.DT_Local),
 		SendPropFloat(FIELD.OF(nameof(Friction)), 0, PropFlags.NoScale | PropFlags.RoundDown, 0.0f, 4.0f),
@@ -99,6 +102,11 @@ public partial class BasePlayer : BaseCombatCharacter
 	InlineArrayNewMaxViewmodels<Handle<BaseViewModel>> ViewModel = new();
 	readonly List<Handle<SharedBaseEntity>> SimulatedByThisPlayer = [];
 
+	public IServerVehicle? GetVehicle() => Vehicle.Get()?.GetServerVehicle();
+	public BaseEntity? GetVehicleEntity() => Vehicle.Get();
+	public bool IsInAVehicle() => Vehicle.Get() != null;
+
+
 	bool DisableWorldClicking;
 	float Maxspeed;
 	int Flags;
@@ -123,20 +131,14 @@ public partial class BasePlayer : BaseCombatCharacter
 	public float SwimSoundTime;
 	public Vector3 LadderNormal;
 	public float WaterJumpTime;
-	public bool IsInAVehicle() => Vehicle.Get() != null;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
 	public InButtons AfButtonLast;
 	public InButtons AfButtonPressed;
 	public InButtons AfButtonReleased;
 	public InButtons Buttons;
 
-	public BaseViewModel? GetViewModel(int index = 0, bool observerOK = true){
+	public BaseViewModel? GetViewModel(int index = 0, bool observerOK = true) {
 		return ViewModel[index].Get();
-	}
-
-	public IServerVehicle? GetVehicle() {
-		BaseEntity? vehicleEnt = Vehicle.Get();
-		return vehicleEnt?.GetServerVehicle();
 	}
 
 	public BaseCombatWeapon? GetLastWeapon() => LastWeapon.Get();
@@ -146,4 +148,22 @@ public partial class BasePlayer : BaseCombatCharacter
 	public ObserverMode GetObserverMode() => (ObserverMode)ObserverMode;
 	public AnonymousSafeFieldPointer<UserCmd> CurrentCommand;
 	public int CurrentCommandNumber() => CurrentCommand.Get().CommandNumber;
+
+	public void ImpulseCommands() {
+		// todo
+	}
+
+	public virtual void SetAnimation(PlayerAnim playerAnim){ } // todo
+
+	public virtual Vector3 GetAutoaimVector(float scale) {
+		MathLib.AngleVectors(GetAbsAngles(), out Vector3 forward, out _, out _);
+		return forward;
+	}
+
+	// todo
+	public virtual void SetSuitUpdate(ReadOnlySpan<char> name, int fgroup, int noRepeat){ }
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, bool fgroup, int noRepeat) => SetSuitUpdate(name, fgroup ? 1 : 0, noRepeat);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, int fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup, noRepeat ? 1 : 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, bool fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup ? 1 : 0, noRepeat ? 1 : 0);
+
 }

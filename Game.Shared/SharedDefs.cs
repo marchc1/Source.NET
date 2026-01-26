@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 
 namespace Game.Shared;
 
+using Source.Common.Mathematics;
 using Source.Common.Networking;
 
 using System;
@@ -332,6 +333,34 @@ public static class SharedDefs
 	public static Vector3 VEC_OBS_HULL_MIN_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().ObsHullMin * player.GetModelScale());
 	public static Vector3 VEC_OBS_HULL_MAX_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().ObsHullMax * player.GetModelScale());
 	public static Vector3 VEC_DEAD_VIEWHEIGHT_SCALED(BasePlayer player) => (g_pGameRules.GetViewVectors().DeadViewHeight * player.GetModelScale());
+
+	public static ref Vector3 VEC_VIEW => ref g_pGameRules.GetViewVectors().View;
+	public static ref Vector3 VEC_HULL_MIN => ref g_pGameRules.GetViewVectors().HullMin;
+	public static ref Vector3 VEC_HULL_MAX => ref g_pGameRules.GetViewVectors().HullMax;
+	public static ref Vector3 VEC_DUCK_HULL_MIN => ref g_pGameRules.GetViewVectors().DuckHullMin;
+	public static ref Vector3 VEC_DUCK_HULL_MAX => ref g_pGameRules.GetViewVectors().DuckHullMax;
+	public static ref Vector3 VEC_DUCK_VIEW => ref g_pGameRules.GetViewVectors().DuckView;
+	public static ref Vector3 VEC_OBS_HULL_MIN => ref g_pGameRules.GetViewVectors().ObsHullMin;
+	public static ref Vector3 VEC_OBS_HULL_MAX => ref g_pGameRules.GetViewVectors().ObsHullMax;
+#else
+	public static Vector3 VEC_VIEW_SCALED(object player) => throw new NotImplementedException();
+	public static Vector3 VEC_HULL_MIN_SCALED(object player) => throw new NotImplementedException();
+	public static Vector3 VEC_HULL_MAX_SCALED(object player) => throw new NotImplementedException();
+	public static Vector3 VEC_DUCK_HULL_MIN_SCALED(object player) => throw new NotImplementedException();
+	public static Vector3 VEC_DUCK_HULL_MAX_SCALED(object player) => throw new NotImplementedException();
+	public static Vector3 VEC_DUCK_VIEW_SCALED(object player) => throw new NotImplementedException();
+	public static Vector3 VEC_OBS_HULL_MIN_SCALED(object player) => throw new NotImplementedException();
+	public static Vector3 VEC_OBS_HULL_MAX_SCALED(object player) => throw new NotImplementedException();
+	public static Vector3 VEC_DEAD_VIEWHEIGHT_SCALED(object player) => throw new NotImplementedException();
+
+	public static ref Vector3 VEC_VIEW => throw new NotImplementedException();
+	public static ref Vector3 VEC_HULL_MIN => throw new NotImplementedException();
+	public static ref Vector3 VEC_HULL_MAX => throw new NotImplementedException();
+	public static ref Vector3 VEC_DUCK_HULL_MIN => throw new NotImplementedException();
+	public static ref Vector3 VEC_DUCK_HULL_MAX => throw new NotImplementedException();
+	public static ref Vector3 VEC_DUCK_VIEW => throw new NotImplementedException();
+	public static ref Vector3 VEC_OBS_HULL_MIN => throw new NotImplementedException();
+	public static ref Vector3 VEC_OBS_HULL_MAX => throw new NotImplementedException();
 #endif
 
 	public const int MAX_CONTEXT_LENGTH = 32;
@@ -354,6 +383,11 @@ public static class SharedDefs
 
 	public const int TICK_NEVER_THINK = -1;
 
+
+	public const float AUTOAIM_SCALE_DEFAULT = 1.0f;
+	public const float AUTOAIM_SCALE_DIRECT_ONLY = 0.0f;
+
+
 	public const int MAX_VIEWMODELS = 3;
 	public const int MAX_BEAM_ENTS = 10;
 	public const int MAX_WEAPONS = 256;
@@ -373,6 +407,21 @@ public static class SharedDefs
 	public const int MAX_AMMO_TYPES = 256;
 	public const int MAX_AMMO_SLOTS = 256;
 	public const int MAX_SPLINE_POINTS = 16;
+
+	public static readonly Vector3 VECTOR_CONE_PRECALCULATED = vec3_origin;
+	public static readonly Vector3 VECTOR_CONE_1DEGREES = new Vector3(0.00873f, 0.00873f, 0.00873f);
+	public static readonly Vector3 VECTOR_CONE_2DEGREES = new Vector3(0.01745f, 0.01745f, 0.01745f);
+	public static readonly Vector3 VECTOR_CONE_3DEGREES = new Vector3(0.02618f, 0.02618f, 0.02618f);
+	public static readonly Vector3 VECTOR_CONE_4DEGREES = new Vector3(0.03490f, 0.03490f, 0.03490f);
+	public static readonly Vector3 VECTOR_CONE_5DEGREES = new Vector3(0.04362f, 0.04362f, 0.04362f);
+	public static readonly Vector3 VECTOR_CONE_6DEGREES = new Vector3(0.05234f, 0.05234f, 0.05234f);
+	public static readonly Vector3 VECTOR_CONE_7DEGREES = new Vector3(0.06105f, 0.06105f, 0.06105f);
+	public static readonly Vector3 VECTOR_CONE_8DEGREES = new Vector3(0.06976f, 0.06976f, 0.06976f);
+	public static readonly Vector3 VECTOR_CONE_9DEGREES = new Vector3(0.07846f, 0.07846f, 0.07846f);
+	public static readonly Vector3 VECTOR_CONE_10DEGREES = new Vector3(0.08716f, 0.08716f, 0.08716f);
+	public static readonly Vector3 VECTOR_CONE_15DEGREES = new Vector3(0.13053f, 0.13053f, 0.13053f);
+	public static readonly Vector3 VECTOR_CONE_20DEGREES = new Vector3(0.17365f, 0.17365f, 0.17365f);
+
 
 
 	public static ClientClass WithManualClassID(this ClientClass clientClass, StaticClassIndices classID) {
@@ -427,6 +476,74 @@ public enum PlayerAnim
 	Reload,
 	StartAiming,
 	LeaveAiming,
+}
+
+public enum FireBulletsFlags
+{
+
+}
+
+public struct FireBulletsInfo
+{
+	public FireBulletsInfo() {
+		Shots = 1;
+		Spread.Init(0, 0, 0);
+		Distance = 8192;
+		TracerFreq = 4;
+		Damage = 0;
+		PlayerDamage = 0;
+		Attacker = null;
+		Flags = 0;
+		AdditionalIgnoreEnt = null;
+		DamageForceScale = 1.0f;
+
+#if DEBUG
+		AmmoType = -1;
+		Src.Init(float.NaN, float.NaN, float.NaN);
+		DirShooting.Init(float.NaN, float.NaN, float.NaN);
+#endif
+		PrimaryAttack = true;
+		UseServerRandomSeed = false;
+	}
+
+	public FireBulletsInfo(int shots, in Vector3 src, in Vector3 dir, in Vector3 spread, float distance, int ammoType, bool primaryAttack = true) { 
+		Shots = shots;
+		Src = src;
+		DirShooting = dir;
+		Spread = spread;
+		Distance = distance;
+		AmmoType = ammoType;
+		TracerFreq = 4;
+		Damage = 0;
+		PlayerDamage = 0;
+		Attacker = null;
+		Flags = 0;
+		AdditionalIgnoreEnt = null;
+		DamageForceScale = 1.0f;
+		PrimaryAttack = primaryAttack;
+		UseServerRandomSeed = false;
+	}
+
+	public int Shots;
+	public Vector3 Src;
+	public Vector3 DirShooting;
+	public Vector3 Spread;
+	public float Distance;
+	public int AmmoType;
+	public int TracerFreq;
+	public float Damage;
+	public int PlayerDamage;    // Damage to be used instead of m_flDamage if we hit a player
+	public FireBulletsFlags Flags;           // See FireBulletsFlags_t
+	public float DamageForceScale;
+#if CLIENT_DLL || GAME_DLL
+	public SharedBaseEntity? Attacker;
+	public SharedBaseEntity? AdditionalIgnoreEnt;
+#else
+	public object? Attacker;
+	public object? AdditionalIgnoreEnt;
+#endif
+	public bool PrimaryAttack;
+	public bool UseServerRandomSeed;
 }
 
 

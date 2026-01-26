@@ -219,10 +219,64 @@ public partial class
 		Assert(other.GetSimulatingPlayer() == this);
 
 		foreach (var entry in SimulatedByThisPlayer)
-			if (entry.Get() == other){
+			if (entry.Get() == other) {
 				SimulatedByThisPlayer.Remove(entry);
 				return;
 			}
+	}
+
+	public virtual void ItemPostFrame() {
+		// Put viewmodels into basically correct place based on new player origin
+		CalcViewModelView(EyePosition(), EyeAngles());
+
+		// Don't process items while in a vehicle.
+		if (GetVehicle() != null) {
+#if CLIENT_DLL
+			IClientVehicle vehicle = GetVehicle()!;
+#else
+			IServerVehicle vehicle = GetVehicle()!;
+#endif
+
+			bool usingStandardWeapons = UsingStandardWeaponsInVehicle();
+
+#if CLIENT_DLL
+			if (vehicle.IsPredicted())
+#endif
+				vehicle.ItemPostFrame(this);
+
+			if (!usingStandardWeapons || GetVehicle() == null)
+				return;
+		}
+
+
+		// check if the player is using something
+		if (UseEntity.Get() != null) {
+#if !CLIENT_DLL
+			// Assert(!IsInAVehicle());
+			ImpulseCommands();// this will call playerUse
+#endif
+			return;
+		}
+
+		if (gpGlobals.CurTime < NextAttack)
+			GetActiveWeapon()?.ItemBusyFrame();
+		else {
+			if (GetActiveWeapon() != null && (!IsInAVehicle() || UsingStandardWeaponsInVehicle())) {
+#if CLIENT_DLL
+				// Not predicting this weapon
+				if (GetActiveWeapon()!.IsPredicted())
+#endif
+					GetActiveWeapon()!.ItemPostFrame();
+			}
+		}
+
+#if !CLIENT_DLL
+		ImpulseCommands();
+#else
+		// NOTE: If we ever support full impulse commands on the client,
+		// remove this line and call ImpulseCommands instead.
+		Impulse = 0;
+#endif
 	}
 
 	public void ClearPlayerSimulationList() {

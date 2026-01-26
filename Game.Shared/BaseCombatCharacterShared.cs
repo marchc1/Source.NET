@@ -2,6 +2,7 @@
 
 using Source.Common;
 using Game.Shared;
+using System.Numerics;
 
 #if CLIENT_DLL
 namespace Game.Client;
@@ -98,5 +99,22 @@ public partial class
 
 		return true;
 	}
+
+	public BaseCombatWeapon? GetActiveWeapon() => ActiveWeapon.Get();
+
+	public void RemoveAmmo(int count, int ammoIndex){
+		if (count <= 0)
+			return;
+
+		// Infinite ammo?
+		if (GetAmmoDef().MaxCarry(ammoIndex) == AmmoDef.INFINITE_AMMO)
+			return;
+
+		// Ammo pickup sound
+		// Ammo.Set(ammoIndex, Math.Max(Ammo[ammoIndex] - count, 0));
+	}
+	public void RemoveAmmo(int count, ReadOnlySpan<char> name) => RemoveAmmo(count, GetAmmoDef().Index(name));
+
+	public virtual Vector3 Weapon_ShootPosition() => EyePosition();
 }
 #endif

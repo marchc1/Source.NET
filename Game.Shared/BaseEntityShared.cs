@@ -103,6 +103,10 @@ public partial class
 	public bool IsAnimatedEveryTick() => AnimatedEveryTick;
 	public bool IsSimulatedEveryTick() => SimulatedEveryTick;
 
+	static int FireBullets__tracerCount;
+	public virtual void FireBullets(in FireBulletsInfo info){
+		// todo
+	}
 	public virtual Vector3 EyePosition() => GetAbsOrigin() + GetViewOffset();
 	public virtual ref readonly QAngle EyeAngles() => ref GetAbsAngles();
 	public void InvalidatePhysicsRecursive(InvalidatePhysicsBits changeFlags) {
@@ -263,6 +267,8 @@ public partial class
 		PlayerSimulationOwner.Set(null);
 		b_IsPlayerSimulated = false;
 	}
+
+	
 
 	public virtual void SetEffects(EntityEffects effects) {
 		if (Effects != (int)effects) {

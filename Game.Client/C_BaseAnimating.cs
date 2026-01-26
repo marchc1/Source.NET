@@ -598,6 +598,8 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		animating.SetReceivedSequence();
 		animating.UpdateVisibility();
 	}
+	public virtual void DoMuzzleFlash() => MuzzleFlashParity = unchecked((byte)((MuzzleFlashParity + 1) & ((1 << (int)EntityEffects.MuzzleflashBits) - 1)));
+
 
 	public static readonly new ClientClass ClientClass = new ClientClass("BaseAnimating", null, null, DT_BaseAnimating).WithManualClassID(StaticClassIndices.CBaseAnimating);
 	protected override StudioHdr? OnNewModel() {

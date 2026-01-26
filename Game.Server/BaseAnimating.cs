@@ -131,4 +131,5 @@ public class BaseAnimating : BaseEntity
 	}
 	public TimeUnit_t SequenceDuration(int sequence) => SequenceDuration(GetModelPtr(), sequence);
 	public TimeUnit_t SequenceDuration() => SequenceDuration(GetSequence());
+	public virtual void DoMuzzleFlash() => MuzzleFlashParity = unchecked((byte)((MuzzleFlashParity + 1) & ((1 << (int)EntityEffects.MuzzleflashBits) - 1)));
 }

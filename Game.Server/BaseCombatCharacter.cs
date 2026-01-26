@@ -4,7 +4,10 @@ using Source;
 using Source.Common;
 using Source.Common.Engine;
 
+using System.Numerics;
+
 namespace Game.Server;
+
 using FIELD = Source.FIELD<BaseCombatCharacter>;
 
 public partial class BaseCombatCharacter : BaseFlex
@@ -36,4 +39,22 @@ public partial class BaseCombatCharacter : BaseFlex
 	}
 
 	public static readonly new ServerClass ServerClass = new ServerClass("BaseCombatCharacter", DT_BaseCombatCharacter).WithManualClassID(StaticClassIndices.CBaseCombatCharacter);
+
+	public override void DoMuzzleFlash() {
+		BaseCombatWeapon? weapon = GetActiveWeapon();
+		if (weapon != null)
+			weapon.DoMuzzleFlash();
+		else
+			base.DoMuzzleFlash();
+	}
+
+	WeaponProficiency CurrentWeaponProficiency;
+
+	public WeaponProficiency GetCurrentWeaponProficiency() => CurrentWeaponProficiency;
+
+	public Vector3 GetAttackSpread(BaseCombatWeapon? weapon, BaseEntity? target = null) {
+		if (weapon != null)
+			return weapon.GetBulletSpread(GetCurrentWeaponProficiency());
+		return VECTOR_CONE_15DEGREES;
+	}
 }

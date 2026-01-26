@@ -50,6 +50,10 @@ public partial class
 
 #endif
 
+	public override bool IsPredicted() {
+		return true;
+	}
+
 	public
 #if CLIENT_DLL
 C_WeaponHL2MPBase

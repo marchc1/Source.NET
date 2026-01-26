@@ -37,6 +37,8 @@ public partial class BaseEntity : IServerEntity
 	public virtual bool IsNextBot() => false;
 	public virtual bool IsBaseCombatWeapon() => false;
 	public virtual bool IsCombatItem() => false;
+	public bool ClassMatches(ReadOnlySpan<char> classOrWildcard) => false; // todo
+	public virtual bool IsPredicted() => false;
 	private static void SendProxy_AnimTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID)
 		=> throw new NotImplementedException();
 	private static void SendProxy_SimulationTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID)
@@ -281,6 +283,7 @@ public partial class BaseEntity : IServerEntity
 		CheckStepSimulationChanged();
 		CheckHasGamePhysicsSimulation();
 	}
+
 
 	public bool GetCheckUntouch() => IsEFlagSet(EFL.CheckUntouch);
 	public readonly Handle<BasePlayer> PlayerSimulationOwner = new();
