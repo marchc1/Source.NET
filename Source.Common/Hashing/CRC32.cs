@@ -1,4 +1,6 @@
-﻿namespace Source.Common.Hashing;
+﻿using CommunityToolkit.HighPerformance;
+
+namespace Source.Common.Hashing;
 public static class CRC32
 {
 	public const CRC32_t CRC32_INIT_VALUE = 0xFFFFFFFF;
@@ -75,6 +77,18 @@ public static class CRC32
 	public static void Final(ref CRC32_t pulCRC) => pulCRC ^= CRC32_XOR_VALUE;
 
 	public static CRC32_t GetTableEntry(uint slot) => pulCRCTable[(byte)slot];
+
+	public static unsafe void ProcessBuffer<T>(ref CRC32_t pulCRC, ReadOnlySpan<T> data, nint maxSize = -1) where T : unmanaged {
+		ReadOnlySpan<byte> cast = (maxSize == -1 ? data : data[..(int)maxSize]).Cast<T, byte>();
+		fixed (byte* b = cast)
+			ProcessBuffer(ref pulCRC, b, cast.Length);
+	}
+
+	public static unsafe void ProcessBuffer<T>(ref CRC32_t pulCRC, in T data) where T : unmanaged {
+		ReadOnlySpan<byte> cast = new ReadOnlySpan<T>(in data).Cast<T, byte>();
+		fixed (byte* b = cast)
+			ProcessBuffer(ref pulCRC, b, cast.Length);
+	}
 
 	public static unsafe void ProcessBuffer(ref CRC32_t pulCRC, void* pBuffer, int nBuffer) {
 		CRC32_t ulCrc = pulCRC;

@@ -27,6 +27,8 @@ namespace Game.Server;
 using Source.Common.Commands;
 using Source.Common.Physics;
 
+using System.Runtime.CompilerServices;
+
 public static class BasePlayerGlobals
 {
 	public static BasePlayer? ToBasePlayer(SharedBaseEntity? entity) {
@@ -279,6 +281,18 @@ public partial class
 #endif
 	}
 
+	public void EyeVectors(out Vector3 forward, out Vector3 right, out Vector3 up) {
+		if (GetVehicle() != null) {
+			// TODO: Cache or retrieve our calculated position in the vehicle
+			// CacheVehicleView();
+			//AngleVectors(m_vecVehicleViewAngles, pForward, pRight, pUp);
+			forward = right = up = default;
+		}
+		else 
+			MathLib.AngleVectors(EyeAngles(), out forward, out right, out up);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void EyeVectors(out Vector3 forward, out Vector3 right) => EyeVectors(out forward, out right, out _);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void EyeVectors(out Vector3 forward) => EyeVectors(out forward, out _, out _);
 	public void ClearPlayerSimulationList() {
 		int c = SimulatedByThisPlayer.Count;
 		int i;
