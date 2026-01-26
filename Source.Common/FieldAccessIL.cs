@@ -128,6 +128,34 @@ namespace Source.Common
 								else
 									il.LoggedEmit(OpCodes.Call, getter);
 								break;
+							case IndexInfoBehavior.NetworkArray:
+								il.LoggedEmit(OpCodes.Ldfld, (accessor.Members[^2] as FieldInfo)!.FieldType!.GetField("Value")!);
+								il.LoggedEmit(OpCodes.Ldc_I4, index.Index);
+
+								if (index.ElementType.IsValueType && !index.ElementType.IsPrimitive) {
+									il.Emit(OpCodes.Ldelema, index.ElementType);
+
+									il.Emit(OpCodes.Ldobj, index.ElementType);
+								}
+								else {
+									LoadValue(accessor, il);
+									PerformAutocast(accessor, il);
+
+									if (index.ElementType == typeof(bool)) il.LoggedEmit(OpCodes.Ldelem_I1);
+									else if (index.ElementType == typeof(sbyte)) il.LoggedEmit(OpCodes.Ldelem_I1);
+									else if (index.ElementType == typeof(byte)) il.LoggedEmit(OpCodes.Ldelem_I1);
+									else if (index.ElementType == typeof(short)) il.LoggedEmit(OpCodes.Ldelem_I2);
+									else if (index.ElementType == typeof(ushort)) il.LoggedEmit(OpCodes.Ldelem_I2);
+									else if (index.ElementType == typeof(int)) il.LoggedEmit(OpCodes.Ldelem_I4);
+									else if (index.ElementType == typeof(uint)) il.LoggedEmit(OpCodes.Ldelem_I4);
+									else if (index.ElementType == typeof(ulong)) il.LoggedEmit(OpCodes.Ldelem_I8);
+									else if (index.ElementType == typeof(long)) il.LoggedEmit(OpCodes.Ldelem_I8);
+									else if (index.ElementType == typeof(float)) il.LoggedEmit(OpCodes.Ldelem_R4);
+									else if (index.ElementType == typeof(double)) il.LoggedEmit(OpCodes.Ldelem_R8);
+									else if (index.ElementType.IsClass) il.LoggedEmit(OpCodes.Ldelem_Ref);
+									else throw new NotSupportedException($"Unsupported element type: {index.ElementType}");
+								}
+								break;
 							case IndexInfoBehavior.InlineArray:
 								if (index.Index > 0) {
 									// Push the index
