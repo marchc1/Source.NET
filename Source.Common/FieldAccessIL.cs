@@ -178,17 +178,17 @@ namespace Source.Common
 			else if (typeof(T) != accessor.StoringType) {
 				if (accessor.StoringType.IsAssignableTo(typeof(Enum)) && typeof(T).IsValueType) {
 					var enumTypeUnderflying = Enum.GetUnderlyingType(accessor.StoringType);
-					if (typeof(T) == typeof(bool))    il.LoggedEmit(OpCodes.Conv_I1);
-					else if (typeof(T) == typeof(sbyte))   il.LoggedEmit(OpCodes.Conv_I1);
-					else if (typeof(T) == typeof(byte))    il.LoggedEmit(OpCodes.Conv_U1);
-					else if (typeof(T) == typeof(short))   il.LoggedEmit(OpCodes.Conv_I2);
-					else if (typeof(T) == typeof(ushort))  il.LoggedEmit(OpCodes.Conv_U2);
-					else if (typeof(T) == typeof(int))     il.LoggedEmit(OpCodes.Conv_I4);
-					else if (typeof(T) == typeof(uint))    il.LoggedEmit(OpCodes.Conv_U4);
-					else if (typeof(T) == typeof(ulong))   il.LoggedEmit(OpCodes.Conv_I8);
-					else if (typeof(T) == typeof(long))    il.LoggedEmit(OpCodes.Conv_I8);
-					else if (typeof(T) == typeof(float))   il.LoggedEmit(OpCodes.Conv_R4);
-					else if (typeof(T) == typeof(double))  il.LoggedEmit(OpCodes.Conv_R8);
+					if (typeof(T) == typeof(bool)) il.LoggedEmit(OpCodes.Conv_I1);
+					else if (typeof(T) == typeof(sbyte)) il.LoggedEmit(OpCodes.Conv_I1);
+					else if (typeof(T) == typeof(byte)) il.LoggedEmit(OpCodes.Conv_U1);
+					else if (typeof(T) == typeof(short)) il.LoggedEmit(OpCodes.Conv_I2);
+					else if (typeof(T) == typeof(ushort)) il.LoggedEmit(OpCodes.Conv_U2);
+					else if (typeof(T) == typeof(int)) il.LoggedEmit(OpCodes.Conv_I4);
+					else if (typeof(T) == typeof(uint)) il.LoggedEmit(OpCodes.Conv_U4);
+					else if (typeof(T) == typeof(ulong)) il.LoggedEmit(OpCodes.Conv_I8);
+					else if (typeof(T) == typeof(long)) il.LoggedEmit(OpCodes.Conv_I8);
+					else if (typeof(T) == typeof(float)) il.LoggedEmit(OpCodes.Conv_R4);
+					else if (typeof(T) == typeof(double)) il.LoggedEmit(OpCodes.Conv_R8);
 					else il.LoggedEmit(OpCodes.Castclass, enumTypeUnderflying);
 				}
 				else
@@ -235,6 +235,38 @@ namespace Source.Common
 					break;
 				case IndexInfo index:
 					switch (index.Behavior) {
+						case IndexInfoBehavior.NetworkArray:
+							il.LoggedEmit(OpCodes.Ldfld, (accessor.Members[^2] as FieldInfo)!.FieldType!.GetField("Value")!);
+							il.LoggedEmit(OpCodes.Ldc_I4, index.Index);
+
+
+							if (index.ElementType.IsValueType && !index.ElementType.IsPrimitive) {
+								il.Emit(OpCodes.Ldelema, index.ElementType);
+
+								LoadValue(accessor, il);
+								PerformAutocast(accessor, il);
+
+								il.Emit(OpCodes.Stobj, index.ElementType);
+							}
+							else {
+								LoadValue(accessor, il);
+								PerformAutocast(accessor, il);
+
+								if (index.ElementType == typeof(bool)) il.LoggedEmit(OpCodes.Stelem_I1);
+								else if (index.ElementType == typeof(sbyte)) il.LoggedEmit(OpCodes.Stelem_I1);
+								else if (index.ElementType == typeof(byte)) il.LoggedEmit(OpCodes.Stelem_I1);
+								else if (index.ElementType == typeof(short)) il.LoggedEmit(OpCodes.Stelem_I2);
+								else if (index.ElementType == typeof(ushort)) il.LoggedEmit(OpCodes.Stelem_I2);
+								else if (index.ElementType == typeof(int)) il.LoggedEmit(OpCodes.Stelem_I4);
+								else if (index.ElementType == typeof(uint)) il.LoggedEmit(OpCodes.Stelem_I4);
+								else if (index.ElementType == typeof(ulong)) il.LoggedEmit(OpCodes.Stelem_I8);
+								else if (index.ElementType == typeof(long)) il.LoggedEmit(OpCodes.Stelem_I8);
+								else if (index.ElementType == typeof(float)) il.LoggedEmit(OpCodes.Stelem_R4);
+								else if (index.ElementType == typeof(double)) il.LoggedEmit(OpCodes.Stelem_R8);
+								else if (index.ElementType.IsClass) il.LoggedEmit(OpCodes.Stelem_Ref);
+								else throw new NotSupportedException($"Unsupported element type: {index.ElementType}");
+							}
+							break;
 						case IndexInfoBehavior.InlineArray:
 							if (index.Index > 0) {
 								// Push the index
@@ -267,6 +299,7 @@ namespace Source.Common
 							else throw new NotSupportedException($"Unsupported element type: {index.ElementType}");
 
 							break;
+						default: throw new NotImplementedException("Cannot support the current index behavior");
 					}
 					break;
 				default: throw new NotImplementedException("Cannot support the current member info");
@@ -336,7 +369,10 @@ namespace Source.Common
 			for (int i = 0; i < Math.Min(Length, target.Length); i++)
 				target[i] = AtIndex(i)!.GetValue<T>(instanceFrom);
 		}
-		public DynamicArrayAccessor(Type targetType, ReadOnlySpan<char> expression, int isList = -1) : base(targetType, expression) {
+		const int IS_LIST = -1;
+		const int IS_NETWORK_ARRAY = -2;
+
+		public DynamicArrayAccessor(Type targetType, ReadOnlySpan<char> expression, int isList = IS_LIST) : base(targetType, expression) {
 			var arrayAttr = StoringType.GetCustomAttribute<InlineArrayAttribute>();
 			if (arrayAttr != null) {
 				Info = new(StoringType.GetGenericArguments()[0], () => arrayAttr.Length);
@@ -345,7 +381,12 @@ namespace Source.Common
 				Info = new(StoringType.GetGenericArguments()[0], () => isList, true);
 			}
 			else {
-				if (!DynamicArrayHelp.AcceptableTypes.TryGetValue(StoringType, out Info!))
+				var lastType = Members.Last();
+				NetworkArraySizeAttribute? netArraySize;
+				if (lastType is FieldInfo field && StoringType.IsGenericType && StoringType.GetGenericTypeDefinition() == typeof(NetworkArray<>) && (netArraySize = field.GetCustomAttribute<NetworkArraySizeAttribute>()) != null) {
+					Info = new(StoringType.GetGenericArguments()[0], () => netArraySize.Size);
+				}
+				else if (!DynamicArrayHelp.AcceptableTypes.TryGetValue(StoringType, out Info!))
 					throw new Exception("Uh oh, we need a type def override");
 			}
 
@@ -381,7 +422,8 @@ namespace Source.Common
 	{
 		DirectElement,
 		InlineArray,
-		GenericArrayType
+		GenericArrayType,
+		NetworkArray
 	}
 
 	public sealed class IndexInfo : MemberInfo
@@ -423,7 +465,10 @@ namespace Source.Common
 
 			insideType = container.GetGenericArguments().FirstOrDefault();
 			if (insideType != null) {
-				behavior = IndexInfoBehavior.GenericArrayType;
+				if (container.GetGenericTypeDefinition() == typeof(NetworkArray<>))
+					behavior = IndexInfoBehavior.NetworkArray;
+				else
+					behavior = IndexInfoBehavior.GenericArrayType;
 				return;
 			}
 

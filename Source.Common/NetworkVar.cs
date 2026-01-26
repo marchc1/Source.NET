@@ -8,10 +8,18 @@ public struct NetworkVarBase<Type>
 	public NetworkVarChanged<Type>? VarChanged;
 }
 
+// TODO: Can we make this a source generator of some kind. It is ridiculous I have to double define the count.
+[AttributeUsage(AttributeTargets.Field)]
+public class NetworkArraySizeAttribute(int size) : Attribute{
+	public int Size => size;
+}
+
 public struct NetworkArray<Type>(int count) where Type : unmanaged
 {
 	public readonly Type[] Value = new Type[count];
 	public NetworkVarChanged<Type>? VarChanged;
+
+	public static implicit operator Type[](NetworkArray<Type> netArray) => netArray.Value;
 
 	public readonly ref readonly Type this[int i] => ref Get(i);
 
