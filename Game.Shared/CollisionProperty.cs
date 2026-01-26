@@ -21,9 +21,10 @@ using FIELD = Source.FIELD<Game.Shared.CollisionProperty>;
 
 namespace Game.Shared;
 
-public enum SurroundingBoundsType {
+public enum SurroundingBoundsType
+{
 	UseOBBCollisionBounds = 0,
-	UseBestCollisionBounds,      
+	UseBestCollisionBounds,
 	UseHitboxes,
 	UseSpecifiedBounds,
 	UseGameCode,
@@ -56,15 +57,22 @@ public class CollisionProperty
 	}
 
 	private static void RecvProxy_OBBMinsPreScaled(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		//Warning($"RecvProxy_OBBMinsPreScaled not yet implemented\n");
+		CollisionProperty prop = (CollisionProperty)instance;
+		Vector3 vecMins = data.Value.Vector;
+		// prop.SetCollisionBounds(vecMins, prop.OBBMaxsPreScaled());
 	}
 
 	private static void RecvProxy_OBBMaxPreScaled(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		//Warning($"RecvProxy_OBBMaxPreScaled not yet implemented\n");
+		CollisionProperty prop = (CollisionProperty)instance;
+		Vector3 vecMaxs = data.Value.Vector;
+		// prop.SetCollisionBounds(prop.OBBMinsPreScaled(), vecMaxs);
 	}
 
 	private static void RecvProxy_IntDirtySurround(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		//Warning($"RecvProxy_IntDirtySurround not yet implemented\n");
+		if (field.GetValue<byte>(instance) != (byte)data.Value.Int) {
+			field.SetValue<int>(instance, data.Value.Int);
+			((CollisionProperty)instance).MarkSurroundingBoundsDirty();
+		}
 	}
 #else
 	private static void SendProxy_SolidFlags(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
@@ -92,7 +100,7 @@ public class CollisionProperty
 	Vector3 SpecifiedSurroundingMins;
 	Vector3 SpecifiedSurroundingMaxs;
 
-	public void UseTriggerBounds(bool enable, float bloat){
+	public void UseTriggerBounds(bool enable, float bloat) {
 		TriggerBloat = (byte)bloat;
 		// todo
 	}

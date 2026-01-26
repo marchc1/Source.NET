@@ -201,18 +201,6 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 	}
 
-	private static void RecvProxy_LocalVelocityX(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		throw new NotImplementedException();
-	}
-
-	private static void RecvProxy_LocalVelocityY(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		throw new NotImplementedException();
-	}
-
-	private static void RecvProxy_LocalVelocityZ(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		throw new NotImplementedException();
-	}
-
 	public static readonly ClientClass CC_LocalPlayerExclusive = new ClientClass("LocalPlayerExclusive", null, null, DT_LocalPlayerExclusive);
 
 	public static readonly RecvTable DT_BasePlayer = new(DT_BaseCombatCharacter, [

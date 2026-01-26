@@ -424,7 +424,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	private static void RecvProxy_EffectFlags(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		// ((C_BaseEntity)instance).SetEffects(data.Value.Int);
+		((C_BaseEntity)instance).SetEffects((EntityEffects)data.Value.Int);
 	}
 
 
@@ -530,10 +530,6 @@ public partial class C_BaseEntity : IClientEntity
 		RecvPropInt(FIELD.OF(nameof(CreationID))),
 		RecvPropInt(FIELD.OF(nameof(MapCreatedID))),
 	]);
-
-	private static void RecvProxy_OverrideMaterial(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		// Warning("RecvProxy_OverrideMaterial not implemented yet\n");
-	}
 
 	private static void RecvProxy_MoveCollide(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
 		((C_BaseEntity)instance).SetMoveCollide((MoveCollide)data.Value.Int);
