@@ -46,8 +46,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 		ChallengeNumber = 0;
 
 		// Set up ReceiveList
-		ReceiveList[FRAG_NORMAL_STREAM] = new();
-		ReceiveList[FRAG_FILE_STREAM] = new();
+		ReceiveList[(int)FragmentStream.Normal] = new();
+		ReceiveList[(int)FragmentStream.File] = new();
 
 		StreamSocket = null;
 		StreamActive = false;
@@ -93,9 +93,6 @@ public class NetChannel : INetChannelInfo, INetChannel
 	/// </summary>
 	public NetAddress? RemoteAddress { get; set; }
 
-	public const int FRAG_NORMAL_STREAM = 0;
-	public const int FRAG_FILE_STREAM = 1;
-	public const int MAX_STREAMS = 2;
 
 	public const int CONNECTION_PROBLEM_TIME = 4;
 
@@ -107,7 +104,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public void Clear() {
 		int i;
 
-		for (i = 0; i < MAX_STREAMS; i++) {
+		for (i = 0; i < (int)FragmentStream.Max; i++) {
 			while (WaitingList[i].Count > 0)
 				WaitingList[i].RemoveAt(WaitingList[i].Count - 1);
 		}
@@ -147,7 +144,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public uint ChallengeNumber { get; set; }
 
 	public List<DataFragments>[] WaitingList = [new(), new()];
-	public DataFragments[] ReceiveList = new DataFragments[MAX_STREAMS];
+	public DataFragments[] ReceiveList = new DataFragments[(int)FragmentStream.Max];
 	public SubChannel[] SubChannels = new SubChannel[SubChannel.MAX];
 
 	public void Setup(NetSocketType socketType, NetAddress? address, string name, INetChannelHandler handler, int protocol) {
@@ -313,7 +310,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		Clear();
 
 		if (!reason.IsEmpty) {
-			StreamUnreliable.WriteUBitLong(Net.Disconnect, NETMSG_TYPE_BITS);
+			StreamUnreliable.WriteUBitLong(NET.Disconnect, NETMSG_TYPE_BITS);
 			StreamUnreliable.WriteString(reason);
 			Transmit();
 		}
@@ -359,14 +356,6 @@ public class NetChannel : INetChannelInfo, INetChannel
 		else
 			DoBufferThings(StreamUnreliable, ref UnreliableDataBuffer, out UnreliableDataBuffer, bytes);
 	}
-
-	// todo: move following 3 functions to Protocol.cs
-	public static int Bits2Bytes(int b) {
-		return b + 7 >> 3;
-	}
-
-	public static int PAD_NUMBER(int number, int boundary) => (number + (boundary - 1)) / boundary * boundary;
-	public static int BYTES2FRAGMENTS(int i) => (i + FRAGMENT_SIZE - 1) / FRAGMENT_SIZE;
 
 
 	public int IncrementSplitPacketSequence() {
@@ -510,7 +499,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 					Assert(false);
 				}
 				else if (subchan.State == SubChannelState.Waiting) {
-					for (j = 0; j < MAX_STREAMS; j++) {
+					for (j = 0; j < (int)FragmentStream.Max; j++) {
 						if (subchan.NumFragments[j] == 0)
 							continue;
 
@@ -547,7 +536,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		InSequence = sequence;
 		OutSequenceAck = sequenceAck;
 
-		for (i = 0; i < MAX_STREAMS; i++)
+		for (i = 0; i < (int)FragmentStream.Max; i++)
 			CheckWaitingList(i);
 
 		FlowNewPacket(NetFlow.FLOW_INCOMING, InSequence, OutSequenceAck, choked, packetDrop, packet.WireSize + UDP_HEADER_SIZE);
@@ -695,10 +684,10 @@ public class NetChannel : INetChannelInfo, INetChannel
 		MessageHandler.PacketStart(InSequence, OutSequenceAck);
 
 		if ((flags & PacketFlag.Reliable) != 0) {
-			int i = 0;
+			FragmentStream i = 0;
 			int bit = 1 << (int)msg.ReadUBitLong(3);
 
-			for (i = 0; i < MAX_STREAMS; i++) {
+			for (i = 0; i < FragmentStream.Max; i++) {
 				if (msg.ReadOneBit() != 0) {
 					if (!ReadSubChannelData(msg, i))
 						return; // Error reading fragments; drop whole packet
@@ -707,7 +696,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 			InReliableState = FLIPBIT(InReliableState, bit);
 
-			for (i = 0; i < MAX_STREAMS; i++) {
+			for (i = 0; i < FragmentStream.Max; i++) {
 				if (!CheckReceivingList(i))
 					return;
 			}
@@ -721,8 +710,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 		MessageHandler.PacketEnd();
 	}
 
-	public unsafe bool CheckReceivingList(int list) {
-		DataFragments data = ReceiveList[list];
+	public unsafe bool CheckReceivingList(FragmentStream list) {
+		DataFragments data = ReceiveList[(int)list];
 
 		if (data.Buffer == null)
 			return true;
@@ -786,16 +775,16 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 	public bool ProcessControlMessage(uint cmd, bf_read buf) {
 		string? str = null;
-		if (cmd == Net.NOP)
+		if (cmd == NET.NOP)
 			return true;
 
-		if (cmd == Net.Disconnect) {
+		if (cmd == NET.Disconnect) {
 			buf.ReadString(out str, 1024);
 			MessageHandler?.ConnectionClosing(str ?? "Forced disconnect");
 			return false;
 		}
 
-		if (cmd == Net.File) {
+		if (cmd == NET.File) {
 			uint transferID = buf.ReadUBitLong(32);
 			buf.ReadString(out str, 1024);
 			if (buf.ReadOneBit() != 0 && false) {
@@ -825,7 +814,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 			uint cmd = buf.ReadUBitLong(NETMSG_TYPE_BITS);
 
-			if (cmd <= Net.File) {
+			if (cmd <= NET.File) {
 				if (!ProcessControlMessage(cmd, buf))
 					return false;
 
@@ -909,7 +898,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return NetMessages[type];
 	}
 
-	public bool RegisterMessage(INetMessage msg) {
+	public bool RegisterMessage<T>() where T : INetMessage, new() {
+		INetMessage msg = new T();
 		int type = msg.GetMessageType();
 		if (FindMessage(type) != null)
 			return false;
@@ -920,9 +910,6 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 		return true;
 	}
-
-	public void RegisterMessage<T>() where T : INetMessage, new() => RegisterMessage(new T());
-
 
 	public bool SendNetMsg(INetMessage msg, bool forceReliable = false, bool voice = false) {
 		if (RemoteAddress == null || RemoteAddress.Type == NetAddressType.Null)
@@ -994,7 +981,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 		bool bSendData = false;
 
-		for (i = 0; i < MAX_STREAMS; i++) {
+		for (i = 0; i < (int)FragmentStream.Max; i++) {
 			if (WaitingList[i].Count <= 0)
 				continue;
 
@@ -1062,7 +1049,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 		buf.WriteUBitLong((uint)i, 3);
 
-		for (i = 0; i < MAX_STREAMS; i++) {
+		for (i = 0; i < (int)FragmentStream.Max; i++) {
 			if (subChan.NumFragments[i] == 0) {
 				buf.WriteOneBit(0); // no data for this stream
 				continue;
@@ -1179,7 +1166,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			return 0;
 		}
 		else if (StreamReliable.BitsWritten > 0) {
-			CreateFragmentsFromBuffer(StreamReliable, FRAG_NORMAL_STREAM);
+			CreateFragmentsFromBuffer(StreamReliable, FragmentStream.Normal);
 			StreamReliable.Reset();
 		}
 
@@ -1237,11 +1224,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 			minRoutable = net_minroutable.GetInt();
 
 		while (send.BytesWritten < minRoutable)
-			send.WriteUBitLong(Net.NOP, NETMSG_TYPE_BITS);
+			send.WriteUBitLong(NET.NOP, NETMSG_TYPE_BITS);
 
 		int remainingBits = send.BitsWritten % 8;
 		if (remainingBits > 0 && remainingBits <= 8 - NETMSG_TYPE_BITS)
-			send.WriteUBitLong(Net.NOP, NETMSG_TYPE_BITS);
+			send.WriteUBitLong(NET.NOP, NETMSG_TYPE_BITS);
 
 		{
 			remainingBits = send.BitsWritten % 8;
@@ -1312,7 +1299,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 	public int GetMaxRoutablePayloadSize() => MaxRoutablePayloadSize;
 
-	public unsafe bool CreateFragmentsFromBuffer(bf_write buffer, int stream) {
+	public unsafe bool CreateFragmentsFromBuffer(bf_write buffer, FragmentStream stream) {
 		bf_write bfwrite = new();
 		DataFragments? data = null;
 
@@ -1320,11 +1307,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 		// reliable data to the last item. that doesn't work with the first item
 		// since it may have been already send and is waiting for acknowledge
 
-		int count = WaitingList[stream].Count;
+		int count = WaitingList[(int)stream].Count;
 
 		if (count > 1) {
 			// get last item in waiting list
-			data = WaitingList[stream][count - 1];
+			data = WaitingList[(int)stream][count - 1];
 
 			int totalBytes = Bits2Bytes((int)(data.Bits + (uint)buffer.BitsWritten));
 
@@ -1361,7 +1348,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			data.Filename = null;
 
 			bfwrite.StartWriting(data.Buffer, totalBytes, 0);
-			WaitingList[stream].Add(data);  // that's it for now
+			WaitingList[(int)stream].Add(data);  // that's it for now
 		}
 
 		// update bit length
@@ -1374,7 +1361,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		// fill last bits in last byte with NOP if necessary
 		int nRemainingBits = bfwrite.BitsWritten % 8;
 		if (nRemainingBits > 0 && nRemainingBits <= 8 - NETMSG_TYPE_BITS) {
-			bfwrite.WriteUBitLong(Net.NOP, NETMSG_TYPE_BITS);
+			bfwrite.WriteUBitLong(NET.NOP, NETMSG_TYPE_BITS);
 		}
 
 		// check if send as stream or with snapshot
@@ -1461,8 +1448,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 		InterpolationAmount = interpolationAmount;
 	}
 
-	public unsafe bool ReadSubChannelData(bf_read buf, int stream) {
-		DataFragments data = ReceiveList[stream]; // get list
+	public unsafe bool ReadSubChannelData(bf_read buf, FragmentStream stream) {
+		DataFragments data = ReceiveList[(int)stream]; // get list
 		int startFragment = 0;
 		int numFragments = 0;
 		uint offset = 0;
@@ -1702,7 +1689,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		received = 0;
 
 		if (flow == NetFlow.FLOW_INCOMING) {
-			for (int i = 0; i < MAX_STREAMS; i++) {
+			for (int i = 0; i < (int)FragmentStream.Max; i++) {
 				if (ReceiveList[i].Buffer != null) {
 					total += ReceiveList[i].NumFragments * FRAGMENT_SIZE;
 					received += ReceiveList[i].AckedFragments * FRAGMENT_SIZE;
@@ -1713,7 +1700,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		}
 
 		if (flow == NetFlow.FLOW_OUTGOING) {
-			for (int i = 0; i < MAX_STREAMS; i++) {
+			for (int i = 0; i < (int)FragmentStream.Max; i++) {
 				if (WaitingList[i].Count > 0) {
 					total += WaitingList[i][0].NumFragments * FRAGMENT_SIZE;
 					received += WaitingList[i][0].AckedFragments * FRAGMENT_SIZE;
@@ -1879,7 +1866,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		if (!IsValidFileForTransfer(sendfile))
 			return false;
 
-		if (!CreateFragmentsFromFile(sendfile, FRAG_FILE_STREAM, transferID)) {
+		if (!CreateFragmentsFromFile(sendfile, FragmentStream.File, transferID)) {
 			DenyFile(sendfile, transferID); // send host a deny message
 			return false;
 		}
@@ -1890,7 +1877,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return true;
 	}
 
-	public bool CreateFragmentsFromFile(ReadOnlySpan<char> filename, int stream, uint transferID) {
+	public bool CreateFragmentsFromFile(ReadOnlySpan<char> filename, FragmentStream stream, uint transferID) {
 		throw new Exception(); // Need to move netchan to engine...
 	}
 
@@ -1898,7 +1885,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		if (Net.net_showfragments.GetInt() == 2) 
 			DevMsg($"DenyFile: {filename} (ID {transferID})\n");
 
-		StreamReliable.WriteUBitLong(Net.File, NETMSG_TYPE_BITS);
+		StreamReliable.WriteUBitLong(NET.File, NETMSG_TYPE_BITS);
 		StreamReliable.WriteUBitLong(transferID, 32);
 		StreamReliable.WriteString(filename);
 		StreamReliable.WriteOneBit(0); // deny this file
@@ -1947,7 +1934,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 	}
 
 	public bool HasPendingReliableData() {
-		return StreamReliable.BitsWritten > 0 || WaitingList[FRAG_NORMAL_STREAM].Count > 0 || WaitingList[FRAG_FILE_STREAM].Count > 0;
+		return StreamReliable.BitsWritten > 0 || WaitingList[(int)FragmentStream.Normal].Count > 0 || WaitingList[(int)FragmentStream.File].Count > 0;
 	}
 
 	public void SetFileTransmissionMode(bool backgroundMode) => FileBackgroundTransmission = backgroundMode;
@@ -1961,7 +1948,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		if (Net.net_showfragments.GetInt() == 2)
 			DevMsg($"RequestFile: {filename} (ID {FileRequestCounter})\n");
 
-		StreamReliable.WriteUBitLong(Net.File, NETMSG_TYPE_BITS);
+		StreamReliable.WriteUBitLong(NET.File, NETMSG_TYPE_BITS);
 		StreamReliable.WriteUBitLong(FileRequestCounter, 32);
 		StreamReliable.WriteString(filename);
 		StreamReliable.WriteOneBit(1); // reqest this file

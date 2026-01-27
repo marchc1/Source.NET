@@ -22,7 +22,7 @@ public class PackedEntity
 	bool ShouldCheckCreationTick;
 
 	public bool AllocAndCopyPadded(Span<byte> data) {
-		int bytes = NetChannel.PAD_NUMBER(data.Length, 4);
+		int bytes = PAD_NUMBER(data.Length, 4);
 		Data = new byte[bytes];
 
 		data.ClampedCopyTo(Data);

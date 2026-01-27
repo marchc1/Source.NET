@@ -23,7 +23,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 	}
 
-	public void ConnectionStart(NetChannel channel) {
+	public void ConnectionStart(INetChannel channel) {
 		channel.RegisterMessage<NET_Tick>();
 		channel.RegisterMessage<NET_StringCmd>();
 		channel.RegisterMessage<NET_SetConVar>();

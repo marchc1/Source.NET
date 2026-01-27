@@ -549,7 +549,7 @@ public partial class CL(IServiceProvider services, Net Net,
 			fromBits *= 8;
 		}
 
-		bf_read fromBuf = new("CL.CopyNewEntity->fromBuf", fromData, NetChannel.Bits2Bytes(fromBits), fromBits);
+		bf_read fromBuf = new("CL.CopyNewEntity->fromBuf", fromData, Bits2Bytes(fromBits), fromBits);
 
 		RecvTable? recvTable = GetEntRecvTable(u.NewEntity);
 

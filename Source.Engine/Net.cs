@@ -414,13 +414,13 @@ public class Net
 	public static uint LZSS_ID = 'S' << 24 | 'S' << 16 | 'Z' << 8 | 'L';
 	public static uint SNAPPY_ID = 'P' << 24 | 'A' << 16 | 'N' << 8 | 'S';
 	public static unsafe int GetUncompressedSize(byte* compressedData, uint compressedLen) {
-		lzss_header* pHeader = (lzss_header*)compressedData;
+		LZSSHeader* pHeader = (LZSSHeader*)compressedData;
 
-		if (compressedLen >= sizeof(lzss_header) && pHeader->id == LZSS_ID) {
-			return (int)pHeader->actualSize; // LZSS size
+		if (compressedLen >= sizeof(LZSSHeader) && pHeader->ID == LZSS_ID) {
+			return (int)pHeader->ActualSize; // LZSS size
 		}
 
-		if (compressedLen > 4 && pHeader->id == SNAPPY_ID) {
+		if (compressedLen > 4 && pHeader->ID == SNAPPY_ID) {
 			Span<byte> d = new Span<byte>(compressedData, (int)(compressedLen - 4));
 			int snappySize = Snappy.GetUncompressedLength(d);
 			if (snappySize > 0)
@@ -432,10 +432,10 @@ public class Net
 	public const int LZSS_LOOKSHIFT = 4;
 	public const int LZSS_LOOKAHEAD = 1 << LZSS_LOOKSHIFT;
 	public unsafe uint GetActualSize(byte* pInput) {
-		lzss_header* asU = (lzss_header*)pInput;
+		LZSSHeader* asU = (LZSSHeader*)pInput;
 
-		if (asU != null && asU->id == LZSS_ID)
-			return asU->actualSize;
+		if (asU != null && asU->ID == LZSS_ID)
+			return asU->ActualSize;
 
 		return 0;
 	}
@@ -486,9 +486,9 @@ public class Net
 		return totalBytes;
 	}
 	public unsafe uint LZSS_GetActualSize(byte* pInput) {
-		lzss_header* pHeader = (lzss_header*)pInput;
-		if (pHeader != null && pHeader->id == LZSS_ID)
-			return pHeader->actualSize;
+		LZSSHeader* pHeader = (LZSSHeader*)pInput;
+		if (pHeader != null && pHeader->ID == LZSS_ID)
+			return pHeader->ActualSize;
 
 		return 0;
 	}

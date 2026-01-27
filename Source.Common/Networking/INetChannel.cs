@@ -5,7 +5,7 @@ namespace Source.Common.Networking;
 public interface INetChannel : INetChannelInfo
 {
 	void SetDataRate(float rate);
-	bool RegisterMessage(INetMessage msg);
+	bool RegisterMessage<T>() where T : INetMessage, new();
 	bool StartStreaming(uint challengeNr);
 	void ResetStreaming();
 	void SetTimeout(TimeUnit_t seconds);
