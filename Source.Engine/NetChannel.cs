@@ -2,6 +2,7 @@ using Source.Common.Bitbuffers;
 using Source.Common.Commands;
 using Source.Common.Hashing;
 using Source.Common.Networking;
+using Source.Engine;
 
 using System.Buffers;
 using System.Diagnostics;
@@ -1759,9 +1760,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 		if (filename.IsEmpty || filename[0] == '\0')
 			return false;
 
-		// if (!Common.IsValidPath(filename) || Path.IsPathFullyQualified(filename))
-		// 	return false;
-		// ^^ IMPORTANT: Need to move to engine for this for full safety here!!!!!!!!
+		if (!Source.Engine.Common.IsValidPath(filename) || Path.IsPathFullyQualified(filename))
+			return false;
 
 		int len = (int)strlen(filename);
 		if (len >= MAX_PATH)
@@ -1877,8 +1877,73 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return true;
 	}
 
+	public bool IsFileInWaitingList(ReadOnlySpan<char> filename) {
+		if (filename.IsStringEmpty)
+			return true;
+
+		for (FragmentStream stream = 0; stream < FragmentStream.Max; stream++) {
+			for (int i = 0; i < WaitingList[(int)stream].Count; i++) {
+				DataFragments data = WaitingList[(int)stream][i];
+
+				if (0 == strcmp(data.Filename, filename))
+					return true; // alread in list
+			}
+		}
+
+		return false; // file not found
+	}
+
 	public bool CreateFragmentsFromFile(ReadOnlySpan<char> filename, FragmentStream stream, uint transferID) {
-		throw new Exception(); // Need to move netchan to engine...
+		filename = filename.SliceNullTerminatedString();
+		if (IsFileInWaitingList(filename))
+			return true; // already scheduled for upload
+
+		ReadOnlySpan<char> pathID = "GAME";
+
+		if (!g_pFileSystem.FileExists(filename, pathID)) {
+			ConMsg($"CreateFragmentsFromFile: '{filename}' doesn't exist.\n");
+			return false;
+		}
+
+		long totalBytes = g_pFileSystem.Size(filename, pathID);
+
+		if (totalBytes >= (Net.net_maxfilesize.GetInt() * 1024 * 1024)) {
+			ConMsg($"CreateFragmentsFromFile: '{filename}' size exceeds net_maxfilesize limit ({Net.net_maxfilesize.GetInt()} MiB).\n");
+			return false;
+		}
+
+		if (totalBytes >= MAX_FILE_SIZE) {
+			ConMsg($"CreateFragmentsFromFile: '{filename}' too big (max {MAX_FILE_SIZE} bytes).\n");
+			return false;
+		}
+
+		DataFragments data = new();
+		data.Bytes = (uint)totalBytes;
+		data.Bits = data.Bytes * 8;
+		data.Buffer = null;
+		data.Compressed  = false;
+		data.UncompressedSize = 0;
+		data.File = g_pFileSystem.Open(filename, Filesystem.FileOpenOptions.Read | Filesystem.FileOpenOptions.Binary, pathID);
+
+		if (data.File == null) {
+			ConMsg($"CreateFragmentsFromFile: couldn't open '{filename}'.\n");
+			return false;
+		}
+
+		data.TransferID = transferID;
+		data.Filename = new(filename.SliceNullTerminatedString());
+
+		WaitingList[(int)stream].Add(data);  // that's it for now
+
+		// check if send as stream or with snapshot
+		data.AsTCP = false; // m_StreamActive && ( Bits2Bytes(data->length) > m_MaxReliablePayloadSize );
+
+		// calc number of fragments needed
+		data.NumFragments = (int)BYTES2FRAGMENTS(data.Bytes);
+		data.AckedFragments = 0;
+		data.PendingFragments = 0;
+
+		return true;
 	}
 
 	public void DenyFile(ReadOnlySpan<char> filename, uint transferID) {

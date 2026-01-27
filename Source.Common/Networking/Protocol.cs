@@ -231,6 +231,7 @@ public static class Protocol
 
 	public static int Bits2Bytes(int b) => b + 7 >> 3;
 	public static int BYTES2FRAGMENTS(int i) => (i + FRAGMENT_SIZE - 1) / FRAGMENT_SIZE;
+	public static uint BYTES2FRAGMENTS(uint i) => (i + FRAGMENT_SIZE - 1) / FRAGMENT_SIZE;
 
 
 	public const string INSTANCE_BASELINE_TABLENAME = "instancebaseline";
