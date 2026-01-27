@@ -381,6 +381,19 @@ public static class StrTools
 
 	public static bool IsPathSeparator(this char c) => c == CORRECT_PATH_SEPARATOR || c == INCORRECT_PATH_SEPARATOR;
 
+	public static void FixDoubleSlashes(Span<char> str) {
+		int len = (int)strlen(str);
+
+		for (int i = 1; i < len - 1; i++) {
+			if ((str[i] == '/' || str[i] == '\\') && (str[i + 1] == '/' || str[i + 1] == '\\')) {
+				// This means there's a double slash somewhere past the start of the filename. That 
+				// can happen in Hammer if they use a material in the root directory. You'll get a filename 
+				// that looks like 'materials\\blah.vmt'
+				memmove(str[i..], str[(i + 1)..], len - i);
+				--len;
+			}
+		}
+	}
 	public static void FixSlashes(Span<char> name) {
 		for (int i = 0; i < name.Length; i++) {
 			if (name[i] == INCORRECT_PATH_SEPARATOR)

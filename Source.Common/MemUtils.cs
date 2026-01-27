@@ -82,6 +82,14 @@ public static unsafe class MemUtils
 	public static void memcpy<T>(Span<T> dest, ReadOnlySpan<T> src) where T : unmanaged {
 		src.CopyTo(dest);
 	}
+
+	public static void memmove<T>(Span<T> dest, ReadOnlySpan<T> src, int count){
+		ArgumentOutOfRangeException.ThrowIfNegative(count);
+		ArgumentOutOfRangeException.ThrowIfGreaterThan(count, src.Length);
+		ArgumentOutOfRangeException.ThrowIfGreaterThan(count, dest.Length);
+
+		src[..count].CopyTo(dest);
+	}
 }
 
 public unsafe class UnmanagedHeapMemory : IDisposable

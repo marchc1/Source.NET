@@ -1,11 +1,15 @@
+using Source.Common.Bitbuffers;
+using Source.Common.Commands;
+using Source.Common.Hashing;
+using Source.Common.Networking;
+
 using System.Buffers;
 using System.Diagnostics;
+using System.Drawing.Imaging;
+using System.IO;
 using System.Net.Sockets;
 
 using static Source.Common.Networking.Protocol;
-using Source.Common.Bitbuffers;
-using Source.Common.Hashing;
-using Source.Common.Commands;
 
 namespace Source.Common.Networking;
 
@@ -75,13 +79,13 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public INetChannelHandler? MessageHandler;
 	public int ProtocolVersion;
 
-	public bf_write StreamReliable = new();
+	public readonly bf_write StreamReliable = new();
 	public byte[]? ReliableDataBuffer;
 
-	public bf_write StreamUnreliable = new();
+	public readonly bf_write StreamUnreliable = new();
 	public byte[]? UnreliableDataBuffer;
 
-	public bf_write StreamVoice = new();
+	public readonly bf_write StreamVoice = new();
 	public byte[]? VoiceDataBuffer;
 
 	/// <summary>
@@ -349,11 +353,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 		bytes = Math.Clamp(bytes, MAX_DATAGRAM_PAYLOAD, MAX_PAYLOAD);
 
 		if (reliable)
-			DoBufferThings(ref StreamReliable, ref ReliableDataBuffer, out ReliableDataBuffer, bytes);
+			DoBufferThings(StreamReliable, ref ReliableDataBuffer, out ReliableDataBuffer, bytes);
 		else if (voice)
-			DoBufferThings(ref StreamVoice, ref VoiceDataBuffer, out VoiceDataBuffer, bytes);
+			DoBufferThings(StreamVoice, ref VoiceDataBuffer, out VoiceDataBuffer, bytes);
 		else
-			DoBufferThings(ref StreamUnreliable, ref UnreliableDataBuffer, out UnreliableDataBuffer, bytes);
+			DoBufferThings(StreamUnreliable, ref UnreliableDataBuffer, out UnreliableDataBuffer, bytes);
 	}
 
 	// todo: move following 3 functions to Protocol.cs
@@ -369,7 +373,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return ++SplitPacketSequence;
 	}
 
-	private unsafe void DoBufferThings(ref bf_write stream, ref byte[]? bufferIn, out byte[] bufferOut, int bytes) {
+	private unsafe void DoBufferThings(bf_write stream, ref byte[]? bufferIn, out byte[] bufferOut, int bytes) {
 		bufferOut = bufferIn!;
 
 		if (bufferIn != null && bufferIn.Length == bytes)
@@ -895,18 +899,6 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public bool ClearedDuringProcessing { get; private set; }
 
 	readonly int[] MsgStats = new int[(int)NetChannelGroup.Total];
-
-	public void UpdateMessageStats(NetChannelGroup group, int bits) {
-		NetFlow flow = DataFlow[NetFlow.FLOW_INCOMING];
-		NetFrame? frame = flow.CurrentFrame;
-
-		Assert((group >= NetChannelGroup.Generic) && (group < NetChannelGroup.Total));
-
-		MsgStats[(int)group] += bits;
-
-		if (frame != null)
-			frame.MessageGroups[(int)group] += (ushort)bits;
-	}
 
 
 	public List<INetMessage?> NetMessages = [];
@@ -1763,19 +1755,153 @@ public class NetChannel : INetChannelInfo, INetChannel
 	}
 
 	public void ProcessPlayback() {
+		// TODO
+		// This requires two things:
+		// 1. This properly gets moved into the engine code (wasnt at the time, and I don't remember why)
+		// 2. Demoplayer subsystem/interface/etc...
+		throw new NotImplementedException();
+	}
+	public bool ProcessStream() {
+		// If I remember correctly, Garry's Mod removed the TCP	socket entirely, and we currently dont support it in SDN anyway.
+		// I'm not sure if other Source games even really use it...
+		// Might be worth tearing out of the engine entirely later
 		throw new NotImplementedException();
 	}
 
-	public bool ProcessStream() {
-		throw new NotImplementedException();
+	public bool IsValidFileForTransfer(ReadOnlySpan<char> filename) {
+		if (filename.IsEmpty || filename[0] == '\0')
+			return false;
+
+		// if (!Common.IsValidPath(filename) || Path.IsPathFullyQualified(filename))
+		// 	return false;
+		// ^^ IMPORTANT: Need to move to engine for this for full safety here!!!!!!!!
+
+		int len = (int)strlen(filename);
+		if (len >= MAX_PATH)
+			return false;
+
+		Span<char> szTemp = stackalloc char[MAX_PATH];
+		strcpy(szTemp, filename);
+
+		// Convert so we've got all forward slashes in the path.
+		StrTools.FixSlashes(szTemp);
+		StrTools.FixDoubleSlashes(szTemp);
+		if (szTemp[len - 1] == '/')
+			return false;
+
+		int slash_count = 0;
+		for (ReadOnlySpan<char> psz = szTemp; !psz.IsEmpty && psz[0] != '\0'; psz = psz[1..]) {
+			if (psz[0] == '/')
+				slash_count++;
+		}
+
+		// Really no reason to have deeper directory than this?
+		if (slash_count >= 32)
+			return false;
+
+		// Don't allow filenames with unicode whitespace in them.
+		if (StrTools.RemoveAllEvilCharacters(szTemp))
+			return false;
+
+		if (!stristr(szTemp, "lua/").IsStringEmpty ||
+			 !stristr(szTemp, "gamemodes/").IsStringEmpty ||
+			 !stristr(szTemp, "addons/").IsStringEmpty ||
+			 !stristr(szTemp, "~/").IsStringEmpty ||
+			 !stristr(szTemp, "./././").IsStringEmpty || // Don't allow folks to make crazy long paths with ././././ stuff.
+			 !stristr(szTemp, "   ").IsStringEmpty ||        // Don't allow multiple spaces or tab (was being used for an exploit).
+			!stristr(szTemp, "\t").IsStringEmpty) {
+			return false;
+		}
+
+		// If .exe or .EXE or these other strings exist _anywhere_ in the filename, reject it.
+		if (!stristr(szTemp, ".cfg").IsStringEmpty ||
+			 !stristr(szTemp, ".lst").IsStringEmpty ||
+			 !stristr(szTemp, ".exe").IsStringEmpty ||
+			 !stristr(szTemp, ".vbs").IsStringEmpty ||
+			 !stristr(szTemp, ".com").IsStringEmpty ||
+			 !stristr(szTemp, ".bat").IsStringEmpty ||
+			 !stristr(szTemp, ".cmd").IsStringEmpty ||
+			 !stristr(szTemp, ".dll").IsStringEmpty ||
+			 !stristr(szTemp, ".so").IsStringEmpty ||
+			 !stristr(szTemp, ".dylib").IsStringEmpty ||
+			 !stristr(szTemp, ".ini").IsStringEmpty ||
+			 !stristr(szTemp, ".log").IsStringEmpty ||
+			 !stristr(szTemp, ".lua").IsStringEmpty ||
+			 !stristr(szTemp, ".vdf").IsStringEmpty ||
+			 !stristr(szTemp, ".smx").IsStringEmpty ||
+			 !stristr(szTemp, ".gcf").IsStringEmpty ||
+			 !stristr(szTemp, ".lmp").IsStringEmpty ||
+			 !stristr(szTemp, ".sys").IsStringEmpty) {
+			return false;
+		}
+
+		// Search for the first . in the base filename, and bail if not found.
+		// We don't want people passing in things like 'cfg/.wp.so'...
+		ReadOnlySpan<char> basename = strrchr(szTemp, '/');
+		if (basename.IsEmpty)
+			basename = szTemp;
+		ReadOnlySpan<char> extension = strchr(basename, '.');
+		if (extension.IsEmpty)
+			return false;
+
+		// If the extension is not exactly 3 or 4 characters, bail.
+		int extension_len = (int)strlen(extension);
+		if ((extension_len != 3) &&
+			 (extension_len != 4) &&
+			 stricmp(extension, ".bsp.bz2") != 0 &&
+			 stricmp(extension, ".xbox.vtx") != 0 &&
+			 stricmp(extension, ".dx80.vtx") != 0 &&
+			 stricmp(extension, ".dx90.vtx") != 0 &&
+			 stricmp(extension, ".sw.vtx") != 0) {
+			return false;
+		}
+
+		// If there are any spaces in the extension, bail. (Windows exploit).
+		if (!strchr(extension, ' ').IsStringEmpty)
+			return false;
+
+		return true;
 	}
 
 	public bool SendFile(ReadOnlySpan<char> filename, uint transferID) {
-		throw new NotImplementedException();
+		// add file to waiting list
+		if (RemoteAddress!.Type == NetAddressType.Null)
+			return true;
+
+		if (filename.IsEmpty || filename[0] == '\0')
+			return false;
+
+		ReadOnlySpan<char> sendfile = filename;
+		while (sendfile[0] != '\0' && sendfile[0].IsPathSeparator())
+			sendfile = sendfile[1..];
+
+		// Don't transfer exe, vbs, com, bat-type files.
+		if (!IsValidFileForTransfer(sendfile))
+			return false;
+
+		if (!CreateFragmentsFromFile(sendfile, FRAG_FILE_STREAM, transferID)) {
+			DenyFile(sendfile, transferID); // send host a deny message
+			return false;
+		}
+
+		if (Net.net_showfragments.GetInt() == 2)
+			DevMsg($"SendFile: {sendfile} (ID {transferID})\n");
+
+		return true;
+	}
+
+	public bool CreateFragmentsFromFile(ReadOnlySpan<char> filename, int stream, uint transferID) {
+		throw new Exception(); // Need to move netchan to engine...
 	}
 
 	public void DenyFile(ReadOnlySpan<char> filename, uint transferID) {
-		throw new NotImplementedException();
+		if (Net.net_showfragments.GetInt() == 2) 
+			DevMsg($"DenyFile: {filename} (ID {transferID})\n");
+
+		StreamReliable.WriteUBitLong(Net.File, NETMSG_TYPE_BITS);
+		StreamReliable.WriteUBitLong(transferID, 32);
+		StreamReliable.WriteString(filename);
+		StreamReliable.WriteOneBit(0); // deny this file
 	}
 
 	public NetAddress? GetRemoteAddress() {
@@ -1798,36 +1924,56 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return ChallengeNumber;
 	}
 
-	public void UpdateMessageStats(int msggroup, int bits) {
-		throw new NotImplementedException();
+	public void UpdateMessageStats(NetChannelGroup msggroup, int bits) {
+		NetFlow flow = DataFlow[NetFlow.FLOW_INCOMING];
+		NetFrame? frame = flow.CurrentFrame;
+
+		Assert((msggroup >= NetChannelGroup.Generic) && (msggroup < NetChannelGroup.Total));
+
+		MessageStats[(int)msggroup] += bits;
+
+		if (frame != null)
+			frame.MessageGroups[(int)msggroup] += unchecked((ushort)bits);
 	}
 
 	public bool CanPacket() {
-		throw new NotImplementedException();
+		if (Net.net_chokeloopback.GetInt() == 0 && RemoteAddress!.IsLoopback())
+			return true;
+
+		if (HasQueuedPackets())
+			return false;
+
+		return ClearTime < Net.Time;
 	}
 
 	public bool HasPendingReliableData() {
 		return StreamReliable.BitsWritten > 0 || WaitingList[FRAG_NORMAL_STREAM].Count > 0 || WaitingList[FRAG_FILE_STREAM].Count > 0;
 	}
 
-	public void SetFileTransmissionMode(bool backgroundMode) {
-		throw new NotImplementedException();
-	}
+	public void SetFileTransmissionMode(bool backgroundMode) => FileBackgroundTransmission = backgroundMode;
 
-	public void SetCompressionMode(bool useCompression) {
-		throw new NotImplementedException();
-	}
+	public void SetCompressionMode(bool useCompression) => UseCompression = useCompression;
 
 	public uint RequestFile(ReadOnlySpan<char> filename) {
-		throw new NotImplementedException();
+		filename = filename.SliceNullTerminatedString();
+		FileRequestCounter++;
+
+		if (Net.net_showfragments.GetInt() == 2)
+			DevMsg($"RequestFile: {filename} (ID {FileRequestCounter})\n");
+
+		StreamReliable.WriteUBitLong(Net.File, NETMSG_TYPE_BITS);
+		StreamReliable.WriteUBitLong(FileRequestCounter, 32);
+		StreamReliable.WriteString(filename);
+		StreamReliable.WriteOneBit(1); // reqest this file
+
+		return FileRequestCounter;
 	}
 
-	public bool IsNull() {
-		return RemoteAddress?.Type == NetAddressType.Null; ;
-	}
+	public bool IsNull() => RemoteAddress?.Type == NetAddressType.Null;
 
 	public int GetNumBitsWritten(bool reliable) {
-		throw new NotImplementedException();
+		bf_write stream = reliable ? StreamReliable : StreamUnreliable;
+		return stream.BitsWritten;
 	}
 
 	public int GetProtocolVersion() {

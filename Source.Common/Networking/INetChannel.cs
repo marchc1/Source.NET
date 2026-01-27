@@ -35,7 +35,7 @@ public interface INetChannel : INetChannelInfo
 	void GetSequenceData(out int outSequenceNr, out int inSequenceNr, out int outSequenceNrAck);
 	void SetSequenceData(int outSequenceNr, int inSequenceNr, int outSequenceNrAck);
 
-	void UpdateMessageStats(int msggroup, int bits);
+	void UpdateMessageStats(NetChannelGroup msggroup, int bits);
 	bool CanPacket();
 	bool IsOverflowed();
 	bool IsTimedOut();

@@ -367,6 +367,27 @@ public static class CFormatUtils
 	}
 }
 
+public static class CharSpExts
+{
+	extension(ReadOnlySpan<char> text)
+	{
+		/// <summary>
+		/// A better method than purely <see cref="ReadOnlySpan{T}.IsEmpty"/> - which only validates that the length of the buffer is zero. This method
+		/// checks both the buffer length being greater than zero, and if the first character is a null ('\0') or not.
+		/// </summary>
+		public bool IsStringEmpty => text.IsEmpty || text[0] == '\0';
+	}
+
+	extension(Span<char> text)
+	{
+		/// <summary>
+		/// A better method than purely <see cref="Span{T}.IsEmpty"/> - which only validates that the length of the buffer is zero. This method
+		/// checks both the buffer length being greater than zero, and if the first character is a null ('\0') or not.
+		/// </summary>
+		public bool IsStringEmpty => text.IsEmpty || text[0] == '\0';
+	}
+}
+
 public static class CFormatting
 {
 	/// <summary>
@@ -400,14 +421,14 @@ public static class CFormatting
 		return 0;
 	}
 
-	public static int strcmp(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.SliceNullTerminatedString().CompareTo(b.SliceNullTerminatedString(), StringComparison.Ordinal);
-	public static int strncmp(ReadOnlySpan<char> a, ReadOnlySpan<char> b, int c) => a.SliceNullTerminatedString().SliceSafe(c).CompareTo(b.SliceNullTerminatedString().SliceSafe(c), StringComparison.Ordinal);
-	public static int stricmp(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.SliceNullTerminatedString().CompareTo(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);
+	public static int strcmp(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b) => a.SliceNullTerminatedString().CompareTo(b.SliceNullTerminatedString(), StringComparison.Ordinal);
+	public static int strncmp(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b, int c) => a.SliceNullTerminatedString().SliceSafe(c).CompareTo(b.SliceNullTerminatedString().SliceSafe(c), StringComparison.Ordinal);
+	public static int stricmp(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b) => a.SliceNullTerminatedString().CompareTo(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);
 
-	public static bool streq(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.SliceNullTerminatedString().Equals(b.SliceNullTerminatedString(), StringComparison.Ordinal);
-	public static bool strieq(ReadOnlySpan<char> a, ReadOnlySpan<char> b) => a.SliceNullTerminatedString().Equals(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);
+	public static bool streq(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b) => a.SliceNullTerminatedString().Equals(b.SliceNullTerminatedString(), StringComparison.Ordinal);
+	public static bool strieq(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b) => a.SliceNullTerminatedString().Equals(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);
 
-	public static nint strlen(ReadOnlySpan<char> str) {
+	public static nint strlen(scoped ReadOnlySpan<char> str) {
 		int i = 0;
 		for (i = 0; i < str.Length; i++) {
 			if (str[i] == '\0')
@@ -415,7 +436,8 @@ public static class CFormatting
 		}
 		return i;
 	}
-	public static nint strlen(ReadOnlySpan<byte> str) {
+
+	public static nint strlen(scoped ReadOnlySpan<byte> str) {
 		int i = 0;
 		for (i = 0; i < str.Length; i++) {
 			if (str[i] == '\0')
@@ -423,21 +445,121 @@ public static class CFormatting
 		}
 		return i;
 	}
-	public static int strcpy(Span<byte> target, ReadOnlySpan<byte> str) {
+	public static int strcpy(scoped Span<byte> target, scoped ReadOnlySpan<byte> str) {
 		str = str.SliceNullTerminatedString();
 		int len = Math.Min(target.Length, str.Length);
 		str[..len].CopyTo(target);
 		target[Math.Min(target.Length - 1, str.Length)] = 0;
 		return len;
 	}
-	public static int strcpy(Span<char> target, ReadOnlySpan<char> str) {
+	public static ReadOnlySpan<char> strstr(ReadOnlySpan<char> target, scoped ReadOnlySpan<char> str) {
+		if (str.Length == 0) return target;
+		if (str.Length > target.Length) return ReadOnlySpan<char>.Empty;
+
+		char first = str[0];
+
+		for (int i = 0; i <= target.Length - str.Length; i++) {
+			if (target[i] != first)
+				continue;
+
+			if (target.Slice(i, str.Length).Equals(str, StringComparison.Ordinal))
+				return target.Slice(i);
+		}
+
+		return ReadOnlySpan<char>.Empty;
+	}
+	public static Span<char> strstr(Span<char> target, scoped ReadOnlySpan<char> str) {
+		if (str.Length == 0) return target;
+		if (str.Length > target.Length) return Span<char>.Empty;
+
+		char first = str[0];
+
+		for (int i = 0; i <= target.Length - str.Length; i++) {
+			if (target[i] != first)
+				continue;
+
+			if (target.Slice(i, str.Length).Equals(str, StringComparison.Ordinal))
+				return target.Slice(i);
+		}
+
+		return Span<char>.Empty;
+	}
+	public static ReadOnlySpan<char> stristr(ReadOnlySpan<char> target, scoped ReadOnlySpan<char> str) {
+		if (str.Length == 0) return target;
+		if (str.Length > target.Length) return ReadOnlySpan<char>.Empty;
+
+		char first = char.ToUpperInvariant(str[0]);
+
+		for (int i = 0; i <= target.Length - str.Length; i++) {
+			if (char.ToUpperInvariant(target[i]) != first)
+				continue;
+
+			if (target.Slice(i, str.Length).Equals(str, StringComparison.OrdinalIgnoreCase))
+				return target.Slice(i);
+		}
+
+		return ReadOnlySpan<char>.Empty;
+	}
+	public static ReadOnlySpan<char> strchr(ReadOnlySpan<char> target, char c) {
+		for (int i = 0; i < target.Length; i++) {
+			if (target[i] == c)
+				return target.Slice(i);
+		}
+
+
+		return ReadOnlySpan<char>.Empty;
+	}
+	public static Span<char> strchr(Span<char> target, char c) {
+		for (int i = 0; i < target.Length; i++) {
+			if (target[i] == c)
+				return target.Slice(i);
+		}
+
+
+		return Span<char>.Empty;
+	}
+	public static ReadOnlySpan<char> strrchr(ReadOnlySpan<char> target, char c) {
+		for (int i = target.Length - 1; i >= 0; i--) {
+			if (target[i] == c)
+				return target.Slice(i);
+		}
+
+
+		return ReadOnlySpan<char>.Empty;
+	}
+	public static Span<char> strrchr(Span<char> target, char c) {
+		for (int i = target.Length - 1; i >= 0; i--) {
+			if (target[i] == c)
+				return target.Slice(i);
+		}
+
+
+		return Span<char>.Empty;
+	}
+	public static Span<char> stristr(Span<char> target, scoped ReadOnlySpan<char> str) {
+		if (str.Length == 0) return target;
+		if (str.Length > target.Length) return Span<char>.Empty;
+
+		char first = char.ToUpperInvariant(str[0]);
+
+		for (int i = 0; i <= target.Length - str.Length; i++) {
+			if (char.ToUpperInvariant(target[i]) != first)
+				continue;
+
+			if (target.Slice(i, str.Length).Equals(str, StringComparison.OrdinalIgnoreCase))
+				return target.Slice(i);
+		}
+
+		return Span<char>.Empty;
+	}
+	public static int strcpy(scoped Span<char> target, scoped ReadOnlySpan<char> str) {
 		str = str.SliceNullTerminatedString();
 		int len = Math.Min(target.Length, str.Length);
 		str[..len].CopyTo(target);
 		target[Math.Min(target.Length - 1, str.Length)] = '\0';
 		return len;
 	}
-	public static int strcat(Span<char> target, ReadOnlySpan<char> str) {
+	public static int strcat(scoped Span<char> target, scoped ReadOnlySpan<char> str) {
 		int targetLen;
 		for (targetLen = 0; targetLen < target.Length; targetLen++) {
 			if (target[targetLen] == '\0')
@@ -451,7 +573,7 @@ public static class CFormatting
 		return len;
 	}
 	// This needs to go in the future, but Dbg currently relies on it.
-	public static unsafe int sprintf(Span<char> target, ref CFormatReader reader, params object?[] args) {
+	public static unsafe int sprintf(scoped Span<char> target, ref CFormatReader reader, params object?[] args) {
 		int originalSize = target.Length;
 
 		Span<char> buffer = stackalloc char[256];
