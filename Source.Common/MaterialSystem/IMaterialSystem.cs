@@ -190,6 +190,7 @@ public interface IMaterialSystem
 	void EndFrame();
 	void SwapBuffers();
 	MaterialSystem_Config GetCurrentConfigForVideoCard();
+	bool OverrideConfig(MaterialSystem_Config config, bool forceUpdate);
 	bool SetMode(IWindow window, MaterialSystem_Config config);
 	IMaterial CreateMaterial(ReadOnlySpan<char> name, ReadOnlySpan<char> textureGroupName, KeyValues keyValues);
 	IMaterial CreateMaterial(ReadOnlySpan<char> name, KeyValues keyValues);
