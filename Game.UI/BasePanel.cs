@@ -278,7 +278,7 @@ public class BasePanel : Panel
 	TimeUnit_t TransitionStartTime;
 	TimeUnit_t TransitionEndTime;
 
-	static BasePanel? g_BasePanel;
+	public static BasePanel? g_BasePanel;
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
 		RunMenuCommand(command);

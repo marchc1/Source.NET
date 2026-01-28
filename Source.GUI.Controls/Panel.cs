@@ -2471,6 +2471,11 @@ public class Panel : IPanel
 			case "Close": OnClose(); break;
 			case "OnRequestFocus": OnRequestFocus(message.GetPtr<Panel>("subFocus")!, message.GetPtr<Panel>("defaultPanel")); break;
 			case "Command": OnCommand(message.GetString("command")); break;
+#if DEBUG
+			default:
+				DevMsg(3, $"Unhandled message '{message.Name}' from {from}");
+				break;
+#endif
 		}
 		if (vgui_print_messages.GetBool())
 			if (vgui_print_messages.GetInt() == 2 || (!message.Name.Contains("Ticked") && !message.Name.Contains("Moved")))

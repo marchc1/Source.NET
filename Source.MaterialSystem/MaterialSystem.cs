@@ -180,6 +180,8 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		FrameNum++;
 	}
 
+	public MaterialSystem_Config GetCurrentConfigForVideoCard() => Config;
+
 	ThreadLocal<MatRenderContext> matContext;
 	public IMatRenderContext GetRenderContext() => matContext!.Value!;
 
@@ -207,7 +209,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 	}
 
 	private void AllocateStandardTextures() {
-		
+
 	}
 
 	private void ConvertModeStruct(MaterialSystem_Config config, out ShaderDeviceInfo mode) {
@@ -511,7 +513,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 
 	private void UncacheAllMaterials() {
 		// todo: finish me!!
-		foreach(var material in MaterialDict){
+		foreach (var material in MaterialDict) {
 			material.Uncache();
 		}
 	}
