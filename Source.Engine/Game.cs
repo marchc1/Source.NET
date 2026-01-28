@@ -161,8 +161,6 @@ public class Game : IGame
 		}
 	}
 
-	
-
 	public void GetDesktopInfo(out int width, out int height, out int refreshrate) {
 		throw new NotImplementedException();
 	}

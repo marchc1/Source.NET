@@ -15,6 +15,11 @@ namespace Source.Engine;
 
 public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fileSystem, IMaterialSystem materials, RenderUtils renderUtils, ICommandLine CommandLine) : IVideoMode
 {
+	public const int MAX_MODE_LIST = 512;
+	const int VIDEO_MODE_DEFAULT = -1;
+	const int VIDEO_MODE_REQUESTED_WINDOW_SIZE = -2;
+	const int CUSTOM_VIDEO_MODES = 2;
+
 	VMode mode = new();
 	bool Windowed;
 	bool ClientViewRectDirty = true;
@@ -26,8 +31,16 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 	int StereoWidth;
 	int StereoHeight;
 
+	public int NumModes;
+	public readonly VMode[] ModeList = new VMode[MAX_MODE_LIST];
+	readonly VMode[] CustomModeList = new VMode[CUSTOM_VIDEO_MODES];
+	bool Initialized;
+	public bool PlayedStartupVideo;
+
 	// View rects. Never shrinks
 	readonly ViewRects ClientViewRect = new([new()]);
+
+	public virtual bool Init() => true;
 
 	public ViewRects GetClientViewRect() {
 		RecomputeClientViewRect();
@@ -55,9 +68,8 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 			ClientViewRectDirty = true;
 	}
 
-	public ref VMode RequestedWindowVideoMode() {
-		return ref mode;
-	}
+	public ref VMode DefaultVideoMode() => ref ModeList[-VIDEO_MODE_DEFAULT - 1];
+	public ref VMode RequestedWindowVideoMode() => ref mode;
 
 	public void ResetCurrentModeForNewResolution(int width, int height, bool windowed) {
 		ref VMode mode = ref RequestedWindowVideoMode();
@@ -77,6 +89,73 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 	public int GetModeStereoHeight() => StereoHeight;
 	public int GetModeUIWidth() => UIWidth;
 	public int GetModeUIHeight() => UIHeight;
+
+	public VMode GetMode(int num) {
+		if (num < 0)
+			return CustomModeList[-num - 1];
+
+		if (num >= NumModes)
+			return DefaultVideoMode();
+
+		return ModeList[num];
+	}
+
+	public int GetModeCount() => NumModes;
+
+	static int VideModeCompare(in VMode m1, in VMode m2) {
+		if (m1.Width < m2.Width)
+			return -1;
+
+		if (m1.Width == m2.Width) {
+			if (m1.Height < m2.Height)
+				return -1;
+
+			if (m1.Height > m2.Height)
+				return 1;
+
+			return 0;
+		}
+
+		return 1;
+	}
+
+	int FindVideoMode(int desiredWidth, int desiredHeight, bool windowed) {
+		VMode defaultMode = DefaultVideoMode();
+
+		if (desiredWidth == defaultMode.Width && desiredHeight == defaultMode.Height)
+			return VIDEO_MODE_DEFAULT;
+
+		if (windowed) {
+			if (desiredWidth == mode.Width && desiredHeight == mode.Height)
+				return VIDEO_MODE_REQUESTED_WINDOW_SIZE;
+		}
+
+		int i;
+		int iOK = VIDEO_MODE_DEFAULT;
+
+		for (i = 0; i < NumModes; i++) {
+			VMode mode = ModeList[i];
+
+			if (mode.Width != desiredWidth)
+				continue;
+
+			iOK = i;
+
+			if (mode.Height != desiredHeight)
+				continue;
+
+			break;
+		}
+
+		if (i >= NumModes) {
+			if (iOK != VIDEO_MODE_DEFAULT)
+				i = iOK;
+			else
+				i = 0;
+		}
+
+		return i;
+	}
 
 	public void AdjustWindow(int width, int height, int bpp, bool windowed) {
 		IGame game = services.GetRequiredService<IGame>();
@@ -248,7 +327,7 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 			if (!texture.Unserialize(handle)) {
 				Error($"Invalid or corrupt texture {material}\n");
 			}
-			// texture.ConvertImageFormat(ImageFormat.RGBA8888, false);
+			// FIXME texture.ConvertImageFormat(ImageFormat.RGBA8888, false);
 			return texture;
 		}
 
@@ -262,22 +341,99 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 	public virtual bool SetMode(int width, int height, bool windowed) {
 		return false;
 	}
+
+	public void SetInitialized(bool initialized) => Initialized = initialized;
+	public bool GetInitialized() => Initialized;
 }
 public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame game, IServiceProvider services, IFileSystem fileSystem, RenderUtils renderUtils, ICommandLine commandLine)
 	: VideoMode_Common(Sys, services, fileSystem, materials, renderUtils, commandLine)
 {
+	MaterialSystem_Config config = services.GetRequiredService<MaterialSystem_Config>();
+
 	bool SetModeOnce;
+
+#if WIN32
+	int LastCDSWidth = 0;
+	int LastCDSHeight = 0;
+	int LastCDSBPP = 0;
+	int LastCDSFreq = 0;
+#endif
+
+	public override bool Init() {
+		SetModeOnce = false;
+		PlayedStartupVideo = false;
+
+		int bitsPerPixel = 32;
+		bool allowSmallModes = false;
+
+		if (commandLine.FindParm("-small") != 0)
+			allowSmallModes = true;
+
+		int adapter = 0;//materials.GetCurrentAdapter();
+		int modeCount = 1;//materials.GetModeCount(adapter);
+
+#if false // TODO v
+		game.GetDesktopInfo(out int desktopWidth, out int desktopHeight, out int desktopRefresh);
+
+		for (int i = 0; i < modeCount; i++) {
+			MaterialVideoMode info = new();
+			// materials.GetModeInfo(adapter, i, out info);
+
+			if (info.Width < 640 || info.Height < 480) {
+				if (!allowSmallModes)
+					continue;
+			}
+
+			bool alreadyInList = false;
+			for (int j = 0; j < NumModes; j++) {
+				VMode mode = ModeList[j];
+				if (mode.Width == info.Width && mode.Height == info.Height) {
+					if (info.RefreshRate <= desktopRefresh && (mode.RefreshRate > desktopRefresh || mode.RefreshRate < info.RefreshRate))
+						mode.RefreshRate = info.RefreshRate;
+
+					alreadyInList = true;
+					break;
+				}
+			}
+
+			if (alreadyInList)
+				continue;
+
+			ModeList[NumModes].Width = info.Width;
+			ModeList[NumModes].Height = info.Height;
+			ModeList[NumModes].BitsPerPixel = bitsPerPixel;
+			ModeList[NumModes].RefreshRate = info.RefreshRate;
+
+			if (++NumModes >= MAX_MODE_LIST)
+				break;
+		}
+
+		if (NumModes > 1) {
+			// todo sort
+		}
+
+		// materials.AddModeChangeCallBack(VideoMode_AdjustForModeChange);
+		SetInitialized(true);
+#endif
+
+		return true;
+	}
+
 	public override bool SetMode(int width, int height, bool windowed) {
-		ref VMode mode = ref RequestedWindowVideoMode();
-		MaterialSystem_Config config = services.GetRequiredService<MaterialSystem_Config>();
+		ref VMode mode = ref RequestedWindowVideoMode(); // todo FindVideoMode/GetMode
 		config.VideoMode.Width = mode.Width;
 		config.VideoMode.Height = mode.Height;
+
+#if SWDS
+		config.VideoMode.RefreshRate = 60;
+#else
 		config.VideoMode.RefreshRate = mode.RefreshRate;
+#endif
 
 		if (!SetModeOnce) {
-			if (!materials.SetMode(game.GetMainDeviceWindow(), config)) {
+			if (!materials.SetMode(game.GetMainDeviceWindow(), config))
+				return false;
 
-			}
 			SetModeOnce = true;
 
 			InitStartupScreen();
@@ -287,7 +443,52 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 		return true;
 	}
 
-	private void InitStartupScreen() {
+	private void InitStartupScreen() { }
+
+	void AdjustForModeChange() {
+		int oldUIWidth = GetModeUIWidth();
+		int oldUIHeight = GetModeUIHeight();
+
+		int newWidth = config.VideoMode.Width;
+		int newHeight = config.VideoMode.Height;
+		bool windowed = config.Windowed();
+
+		using MatRenderContextPtr renderContext = new(materials);
+
+		ResetCurrentModeForNewResolution(newWidth, newHeight, windowed);
+		AdjustWindow(GetModeWidth(), GetModeHeight(), GetModeBPP(), IsWindowedMode());
+		MarkClientViewRectDirty();
+		renderContext.Viewport(0, 0, GetModeStereoWidth(), GetModeStereoHeight());
+
+		// Surface.OnScreenSizeChanged(oldUIWidth, oldUIHeight) TODO
+
+		g_ClientDLL!.HudVidInit();
+	}
+
+	void SetGameWindow() {
+
+	}
+
+	void ReleaseVideo() {
+		if (IsWindowedMode())
+			return;
+
+		ReleaseFullScreen();
+	}
+
+	void RestoreVideo() {
+
+	}
+
+	void ReleaseFullScreen() {
+
+	}
+
+	void ChangeDisplaySettingsToFullscreen() {
+
+	}
+
+	void ReadScreenPixels() {
 
 	}
 }
