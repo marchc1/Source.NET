@@ -1,8 +1,10 @@
 using Source.Common;
+using Source.Common.Client;
 using Source.Common.Engine;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Input;
 using Source.Common.MaterialSystem;
+using Source.Common.Networking;
 using Source.Engine;
 using Source.GUI.Controls;
 
@@ -27,9 +29,9 @@ class GammaDialog : Frame
 	}
 }
 
-class OptionsSubVideoAvancedDlg : Frame
+class OptionsSubVideoAdvancedDlg : Frame
 {
-	public OptionsSubVideoAvancedDlg(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
+	public OptionsSubVideoAdvancedDlg(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 
 	}
 }
@@ -42,7 +44,7 @@ public class OptionsSubVideo : PropertyPage
 		new () { Anamorphic = 0, AspectRatio = 4.0f / 3.0f },
 		new () { Anamorphic = 1, AspectRatio = 16.0f / 9.0f },
 		new () { Anamorphic = 2, AspectRatio = 16.0f / 10.0f },
-		new () { Anamorphic = 3, AspectRatio = 1.0f }
+		new () { Anamorphic = 2, AspectRatio = 1.0f }
 	];
 
 	int[] DirectXLevels = [
@@ -65,7 +67,7 @@ public class OptionsSubVideo : PropertyPage
 	Button Benchmark;
 	CheckButton HDContent;
 
-	OptionsSubKeyboardAdvancedDlg OptionsSubKeyboardAdvancedDlg;
+	OptionsSubVideoAdvancedDlg OptionsSubVideoAdvancedDlg;
 	OptionsSubVideoThirdPartyCreditsDlg OptionsSubVideoThirdPartyCreditsDlg;
 	GammaDialog GammaDialog;
 
@@ -142,8 +144,8 @@ public class OptionsSubVideo : PropertyPage
 		AspectRatio.SetItemEnabled(1, false);
 		AspectRatio.SetItemEnabled(2, false);
 
-		VMode[] list = [];
-		// gameuifuncs.GetVideoModes // todo
+		VMode[] list = ((VideoMode_Common)Singleton<IVideoMode>()).ModeList;
+		// gameuifuncs.GetVideoModes // todo ^
 
 		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 
@@ -159,6 +161,9 @@ public class OptionsSubVideo : PropertyPage
 		bool foundWidescreen = false;
 		int selectedItemID = -1;
 		foreach (VMode mode in list) {
+			if (mode.Width == 0 || mode.Height == 0)
+				continue;
+
 			if (mode.Width > desktopWidth || mode.Height > desktopHeight)
 				continue;
 
@@ -216,9 +221,61 @@ public class OptionsSubVideo : PropertyPage
 		throw new NotImplementedException();
 	}
 
+	readonly IEngineClient engine = Singleton<IEngineClient>();
 	public override void OnApplyChanges() {
+		if (RequiresRestart()) {
+			INetChannelInfo? nci = engine.GetNetChannelInfo();
+			if (nci != null) {
+				ReadOnlySpan<char> addr = nci.GetAddress();
+				if (addr.Length > 0) {
+					if (strncmp(addr, "127.0.0.1", 9) != 0 && strncmp(addr, "localhost", 9) != 0) {
+						engine.ClientCmd_Unrestricted("retry\n");
+					}
+					else {
+						engine.ClientCmd_Unrestricted("disconnect\n");
+					}
+				}
+			}
+		}
 
+		// OptionsSubVideoAdvancedDlg?.ApplyChanges();
+
+		Span<char> sz = stackalloc char[256];
+		if (SelectedMode == -1)
+			Mode.GetText(sz);
+		else
+			Mode.GetItemText(SelectedMode, sz);
+
+		new ScanF(sz, "%i x %i").Read(out int width).Read(out int height);
+
+		bool configChanged = false;
+		bool windowed = Windowed.GetActiveItem() == (Windowed.GetItemCount() - 1);
+		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
+
+		bool vrMode = VRMode.GetActiveItem() != 0;
+		// todo vr mode
+
+		if (config.VideoMode.Width != width || config.VideoMode.Height != height || config.Windowed() != windowed)
+			configChanged = true;
+
+		if (configChanged) {
+			Span<char> cmd = stackalloc char[256];
+			sprintf(cmd, "mat_setvideomode %i %i %i\n").I(width).I(height).I(windowed ? 1 : 0);
+			engine.ClientCmd_Unrestricted(cmd);
+		}
+
+		if (ModInfo.HasHDContent()) {
+			if (BUseHDContent() != HDContent.IsSelected()) {
+				SetUseHDContent(HDContent.IsSelected());
+				MessageBox box = new("#GameUI_OptionsRestartRequired_Title", "#GameUI_HDRestartRequired_Info");
+				box.DoModal();
+				box.MoveToFront();
+			}
+		}
+
+		engine.ClientCmd_Unrestricted("mat_savechanges\n");
 	}
+
 
 	public override void PerformLayout() {
 		base.PerformLayout();
@@ -230,18 +287,24 @@ public class OptionsSubVideo : PropertyPage
 	}
 
 	public override void OnTextChanged(Panel from) {
-
+		// TODO
+		if (from == Mode) {
+			SelectedMode = Mode.GetActiveItem();
+		}
 	}
 
 	private void OnDataChanged() => PostActionSignal(new KeyValues("ApplyButtonEnabled"));//static
 
 	private bool RequiresRestart() {
-		throw new NotImplementedException();
+		// if (OptionsSubVideoAdvancedDlg != null && OptionsSubVideoAdvancedDlg.RequiresRestart())
+		// 	return true;
+
+		return RequiredRestart;
 	}
 
 	private void OpenAdvanced() {
-		OptionsSubKeyboardAdvancedDlg ??= new(BasePanel.g_BasePanel!.FindChildByName("OptionsDialog"));
-		OptionsSubKeyboardAdvancedDlg.Activate();
+		// OptionsSubVideoAdvancedDlg ??= new(BasePanel.g_BasePanel!.FindChildByName("OptionsDialog"));
+		// OptionsSubVideoAdvancedDlg.Activate();
 	}
 
 	private void OpenGammaDialog() {

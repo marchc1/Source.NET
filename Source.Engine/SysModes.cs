@@ -119,7 +119,7 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 		return 1;
 	}
 
-	int FindVideoMode(int desiredWidth, int desiredHeight, bool windowed) {
+	public int FindVideoMode(int desiredWidth, int desiredHeight, bool windowed) {
 		VMode defaultMode = DefaultVideoMode();
 
 		if (desiredWidth == defaultMode.Width && desiredHeight == defaultMode.Height)
@@ -338,9 +338,7 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 		throw new NotImplementedException();
 	}
 
-	public virtual bool SetMode(int width, int height, bool windowed) {
-		return false;
-	}
+	public virtual bool SetMode(int width, int height, bool windowed) => false;
 
 	public void SetInitialized(bool initialized) => Initialized = initialized;
 	public bool GetInitialized() => Initialized;
@@ -372,11 +370,24 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 		int adapter = 0;//materials.GetCurrentAdapter();
 		int modeCount = 1;//materials.GetModeCount(adapter);
 
-#if false // TODO v
-		game.GetDesktopInfo(out int desktopWidth, out int desktopHeight, out int desktopRefresh);
+		// game.GetDesktopInfo(out int desktopWidth, out int desktopHeight, out int desktopRefresh);
+		// TODO ^
+		int desktopRefresh = 60;
+
+		// // testing
+		MaterialVideoMode[] test = [
+			new () { Width = 1920, Height = 1080, RefreshRate = 60 },
+			new () { Width = 1600, Height = 900, RefreshRate = 60 },
+			new () { Width = 1366, Height = 768, RefreshRate = 60 },
+			new () { Width = 1280, Height = 720, RefreshRate = 60 },
+			new () { Width = 1024, Height = 576, RefreshRate = 60 },
+		];
+		modeCount = test.Length;
 
 		for (int i = 0; i < modeCount; i++) {
-			MaterialVideoMode info = new();
+			// MaterialVideoMode info = new();
+			MaterialVideoMode info = test[i];
+
 			// materials.GetModeInfo(adapter, i, out info);
 
 			if (info.Width < 640 || info.Height < 480) {
@@ -414,13 +425,18 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 
 		// materials.AddModeChangeCallBack(VideoMode_AdjustForModeChange);
 		SetInitialized(true);
-#endif
 
 		return true;
 	}
 
+	static void VideoMode_AdjustForModeChange() {
+
+	}
+
 	public override bool SetMode(int width, int height, bool windowed) {
-		ref VMode mode = ref RequestedWindowVideoMode(); // todo FindVideoMode/GetMode
+		int foundMode = FindVideoMode(width, height, windowed);
+		VMode mode = GetMode(foundMode);
+
 		config.VideoMode.Width = mode.Width;
 		config.VideoMode.Height = mode.Height;
 
@@ -429,6 +445,8 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 #else
 		config.VideoMode.RefreshRate = mode.RefreshRate;
 #endif
+
+		config.SetFlag(MaterialSystem_Config_Flags.Windowed, windowed);
 
 		if (!SetModeOnce) {
 			if (!materials.SetMode(game.GetMainDeviceWindow(), config))
@@ -440,7 +458,16 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 			return true;
 		}
 
+		OverrideMaterialSystemConfig(config);
+
 		return true;
+	}
+
+	private void OverrideMaterialSystemConfig(MaterialSystem_Config config) {
+		bool lightmapsNeedReloading = materials.OverrideConfig(config, false);
+		if (lightmapsNeedReloading) {
+
+		}
 	}
 
 	private void InitStartupScreen() { }

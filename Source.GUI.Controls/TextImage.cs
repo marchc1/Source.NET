@@ -90,7 +90,7 @@ public class TextImage : Image
 	public void GetText(Span<char> buffer) {
 		// unicodetoansi
 
-		Text.CopyTo(buffer);
+		Text.SliceNullTerminatedString().CopyTo(buffer);
 
 		if (AllCaps) {
 			for (int i = 0; i < buffer.Length; i++)
