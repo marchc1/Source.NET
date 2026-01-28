@@ -6,7 +6,7 @@ using Source.Common.Formats.BSP;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
-using System.Diagnostics;
+using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Mail;
 using System.Numerics;
@@ -167,6 +167,7 @@ public enum StudioHdrFlags
 
 
 [InlineArray(Studio.MAX_NUM_LODS)] public struct InlineArrayMaxNumLODs<T> { T first; }
+[InlineArray(Studio.MAXSTUDIOBONES)] public struct InlineArrayMaxStudioBones<T> { T first; }
 [InlineArray(Studio.MAX_NUM_BONES_PER_VERT)] public struct InlineArrayMaxNumBonesPerVert<T> { T first; }
 
 public class VirtualGroup
@@ -1148,7 +1149,10 @@ public class MStudioSeqDesc
 	public string ActivityName() => Studio.ProduceASCIIString(ref activityNameCache, Data.Span[ActivityNameIndex..]);
 
 	private int flags;
-	public StudioAnimSeqFlags Flags => (StudioAnimSeqFlags)flags;
+	public StudioAnimSeqFlags Flags {
+		get => (StudioAnimSeqFlags)flags;
+		set => flags = (int)value;
+	}
 
 	public int Activity;
 	public int ActWeight;
@@ -1376,6 +1380,35 @@ public class StudioHdr
 		return studioHdr.LocalSeqdesc(vModel.Seq[i].Index);
 	}
 
+	public int GetActivityListVersion() {
+		if (vModel == null)
+			return studioHdr!.ActivityListVersion;
+
+		int version = studioHdr!.ActivityListVersion;
+
+		int i;
+		for (i = 1; i < vModel.Group.Count; i++) {
+			StudioHeader studioHdr = GroupStudioHdr(i);
+			Assert(studioHdr != null);
+			version = Math.Min(version, studioHdr.ActivityListVersion);
+		}
+
+		return version;
+	}
+	public void SetActivityListVersion(int version) {
+		studioHdr!.ActivityListVersion = version;
+
+		if (vModel == null)
+			return;
+
+		int i;
+		for (i = 1; i < vModel.Group.Count; i++) {
+			StudioHeader studioHdr = GroupStudioHdr(i);
+			Assert(studioHdr);
+			studioHdr.SetActivityListVersion(version);
+		}
+	}
+
 	public MStudioAnimDesc Animdesc(int i) {
 		if (vModel == null)
 			return this.studioHdr!.LocalAnimdesc(i);
@@ -1424,6 +1457,49 @@ public class StudioHdr
 	public string Name() {
 		return studioHdr!.GetName();
 	}
+	public const int ACTIVITY_NOT_AVAILABLE = -1;
+	public class ActivityToSequenceMapping
+	{
+		public bool Initialized;
+		public bool IsInitialized() {
+			return Initialized;
+		}
+
+		readonly Dictionary<int, int> LOOKUP = [];
+
+		public void Initialize(StudioHdr studiohdr) {
+			if (!studiohdr.SequencesAvailable())
+				return;
+
+			Initialized = true;
+
+			// Some studio headers have no activities at all. In those
+			// cases we can avoid a lot of this effort.
+			bool bFoundOne = false;
+
+			// for each sequence in the header...
+			int NumSeq = studiohdr.GetNumSeq();
+			for (int i = 0; i < NumSeq; ++i) {
+				MStudioSeqDesc seqdesc = studiohdr.Seqdesc(i);
+
+				// TODO: Finish this
+			}
+		}
+
+		public int SelectWeightedSequence(StudioHdr studiohdr, int activity, int curSequence) {
+			return ACTIVITY_NOT_AVAILABLE; // todo
+		}
+	}
+
+
+	public readonly ActivityToSequenceMapping ActivityToSequence = new();
+
+	public int SelectWeightedSequence(int activity, int curSequence) {
+		if (!ActivityToSequence.IsInitialized())
+			ActivityToSequence.Initialize(this);
+
+		return ActivityToSequence.SelectWeightedSequence(this, activity, curSequence);
+	}
 
 	public int GetNumPoseParameters() {
 		if (vModel == null) {
@@ -1434,6 +1510,37 @@ public class StudioHdr
 		}
 
 		return vModel.Pose.Count;
+	}
+
+	public int GetTransition(int from, int to) {
+		if (vModel == null)
+			return studioHdr!.LocalTransition((from - 1) * studioHdr!.NumLocalNodes + (to - 1));
+		return to;
+	}
+	public int EntryNode(int sequence) {
+		MStudioSeqDesc seqdesc = Seqdesc(sequence);
+
+		if (vModel == null || seqdesc.LocalEntryNode == 0) 
+			return seqdesc.LocalEntryNode;
+		
+		Assert(vModel != null);
+
+		VirtualGroup group = vModel.Group[vModel.Seq[sequence].Group];
+
+		return group.MasterNode[seqdesc.LocalEntryNode - 1] + 1;
+	}
+
+	public int ExitNode(int sequence) {
+		MStudioSeqDesc seqdesc = Seqdesc(sequence);
+
+		if (vModel == null || seqdesc.LocalExitNode == 0) 
+			return seqdesc.LocalExitNode;
+
+		Assert(vModel != null);
+
+		VirtualGroup group = vModel.Group[vModel.Seq[sequence].Group];
+
+		return group.MasterNode[seqdesc.LocalExitNode - 1] + 1;
 	}
 
 	internal int RelativeSeq(int baseseq, int relseq) {
@@ -1800,6 +1907,11 @@ public class StudioHeader
 			return null;
 		return modelinfo.GetVirtualModel(this);
 	}
+	
+	public ref byte LocalTransition(int i){
+		return ref Data.Span[LocalNodeIndex..][i];
+	}
+
 
 	public int GetAutoplayList(out Span<short> pList) {
 		return modelinfo.GetAutoplayList(this, out pList);
@@ -1855,5 +1967,23 @@ public class StudioHeader
 
 	public int IllumPositionAttachmentIndex() {
 		return StudioHDR2Index != 0 ? StudioHdr2().IllumPositionAttachmentIndex : 0;
+	}
+
+	internal void SetActivityListVersion(int actVersion) {
+		ActivityListVersion = actVersion;
+
+		if (NumIncludeModels == 0)
+			return;
+
+		VirtualModel? vModel = GetVirtualModel();
+		Assert(vModel != null);
+
+		int i;
+		for (i = 1; i < vModel.Group.Count; i++) {
+			VirtualGroup group = vModel.Group[i];
+			StudioHeader? studioHdr = group.GetStudioHdr();
+			Assert(studioHdr != null);
+			studioHdr.SetActivityListVersion(actVersion);
+		}
 	}
 }

@@ -20,11 +20,15 @@ public class C_Team : C_BaseEntity
 	]);
 
 	private static void RecvProxyArrayLength_PlayerArray(object instance, int objectID, int currentArrayLength) {
+		C_Team team = (C_Team)instance;
 
+		if (team.Players.Count != currentArrayLength)
+			team.Players.SetSize(currentArrayLength);
 	}
 
 	private static void RecvProxy_PlayerList(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-
+		C_Team team = (C_Team)instance;
+		team.Players[data.Element] = data.Value.Int;
 	}
 
 	public static readonly new ClientClass ClientClass = new ClientClass("Team", null, null, DT_Team).WithManualClassID(StaticClassIndices.CTeam);

@@ -1,4 +1,7 @@
-﻿using System;
+﻿using CommunityToolkit.HighPerformance;
+
+using System;
+using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
@@ -44,21 +47,15 @@ public static unsafe class MemUtils
 	/// <summary>
 	/// Performs C-style memory comparison on two unmanaged types.
 	/// </summary>
-	public static int memcmp<T>(in T buf1, in T buf2, nint size) where T : unmanaged {
-		fixed (T* pBuf1 = &buf1) {
-			fixed (T* pBuf2 = &buf2) {
-				byte* b1 = (byte*)pBuf1;
-				byte* b2 = (byte*)pBuf2;
-
-				for (nint i = 0; i < size; i++) {
-					int diff = b1[i] - b2[i];
-					if (diff != 0)
-						return diff;
-				}
-
-				return 0;
-			}
+	public static int memcmp<T>(in T buf1, in T buf2) where T : unmanaged {
+		ReadOnlySpan<byte> b1 = new ReadOnlySpan<T>(in buf1).Cast<T, byte>();
+		ReadOnlySpan<byte> b2 = new ReadOnlySpan<T>(in buf2).Cast<T, byte>();
+		for (int i = 0; i < b1.Length; i++) {
+			int diff = b1[i] - b2[i];
+			if (diff != 0)
+				return diff;
 		}
+		return 0;
 	}
 	/// <summary>
 	/// Performs C-style memory comparison on two unmanaged types, returning a boolean instead of an integer.
@@ -84,6 +81,14 @@ public static unsafe class MemUtils
 	}
 	public static void memcpy<T>(Span<T> dest, ReadOnlySpan<T> src) where T : unmanaged {
 		src.CopyTo(dest);
+	}
+
+	public static void memmove<T>(Span<T> dest, ReadOnlySpan<T> src, int count){
+		ArgumentOutOfRangeException.ThrowIfNegative(count);
+		ArgumentOutOfRangeException.ThrowIfGreaterThan(count, src.Length);
+		ArgumentOutOfRangeException.ThrowIfGreaterThan(count, dest.Length);
+
+		src[..count].CopyTo(dest);
 	}
 }
 

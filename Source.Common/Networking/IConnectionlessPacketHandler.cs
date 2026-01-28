@@ -14,8 +14,8 @@ public class SubChannel
 {
 	public const int MAX = 8;
 
-	public int[] StartFragment = new int[NetChannel.MAX_STREAMS];
-	public int[] NumFragments = new int[NetChannel.MAX_STREAMS];
+	public int[] StartFragment = new int[(int)FragmentStream.Max];
+	public int[] NumFragments = new int[(int)FragmentStream.Max];
 	public int SendSeqNumber;
 	public SubChannelState State;
 	public int Index;
@@ -23,7 +23,7 @@ public class SubChannel
 	public void Free() {
 		State = SubChannelState.Free;
 		SendSeqNumber = -1;
-		for (int i = 0; i < NetChannel.MAX_STREAMS; i++) {
+		for (int i = 0; i < (int)FragmentStream.Max; i++) {
 			StartFragment[i] = 0;
 			NumFragments[i] = 0;
 		}
@@ -284,7 +284,7 @@ public abstract class NetMessage : INetMessage
 	private int type;
 	protected bool reliable;
 	private string typename;
-	private NetChannel? netchan;
+	private INetChannel? netchan;
 
 	public NetMessage(int type) {
 		typename = GetType().Name;
@@ -294,8 +294,8 @@ public abstract class NetMessage : INetMessage
 
 	// Implement interface
 
-	public NetChannel? GetNetChannel() => netchan;
-	public void SetNetChannel(NetChannel? netchan) => this.netchan = netchan;
+	public INetChannel? GetNetChannel() => netchan;
+	public void SetNetChannel(INetChannel? netchan) => this.netchan = netchan;
 
 	public bool IsReliable() => reliable;
 	public void SetReliable(bool state) => reliable = state;
@@ -304,7 +304,7 @@ public abstract class NetMessage : INetMessage
 	public string GetName() => typename;
 
 	public virtual bool Process() {
-		return netchan?.MessageHandler?.ProcessMessage(this) ?? false;
+		return netchan?.GetMsgHandler()?.ProcessMessage(this) ?? false;
 	}
 
 	public virtual bool ReadFromBuffer(bf_read buffer) => false;

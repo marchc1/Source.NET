@@ -103,6 +103,10 @@ public partial class
 	public bool IsAnimatedEveryTick() => AnimatedEveryTick;
 	public bool IsSimulatedEveryTick() => SimulatedEveryTick;
 
+	static int FireBullets__tracerCount;
+	public virtual void FireBullets(in FireBulletsInfo info){
+		// todo
+	}
 	public virtual Vector3 EyePosition() => GetAbsOrigin() + GetViewOffset();
 	public virtual ref readonly QAngle EyeAngles() => ref GetAbsAngles();
 	public void InvalidatePhysicsRecursive(InvalidatePhysicsBits changeFlags) {
@@ -218,6 +222,15 @@ public partial class
 	}
 
 
+	public Contents GetWaterType() {
+		Contents outVal = 0;
+		if ((WaterType & 1) != 0)
+			outVal |= Contents.Water;
+		if ((WaterType & 2) != 0)
+			outVal |= Contents.Slime;
+		return outVal;
+	}
+
 	public static BasePlayer? GetPredictionPlayer() => PredictionPlayer;
 	public static void SetPredictionPlayer(BasePlayer? player) => PredictionPlayer = player;
 	public static int GetPredictionRandomSeed()
@@ -238,11 +251,24 @@ public partial class
 #endif
 	}
 
-
+	public BasePlayer? GetSimulatingPlayer() => PlayerSimulationOwner.Get();
 	public virtual ref readonly Vector3 WorldSpaceCenter() {
 		return ref GetAbsOrigin(); // todo
 	}
 
+	public void SetPlayerSimulated(BasePlayer owner){
+		b_IsPlayerSimulated = true;
+		owner.AddToPlayerSimulationList(owner);
+		PlayerSimulationOwner.Set(owner);
+	}
+
+	public void UnsetPlayerSimulated() {
+		PlayerSimulationOwner.Get()?.RemoveFromPlayerSimulationList(this);
+		PlayerSimulationOwner.Set(null);
+		b_IsPlayerSimulated = false;
+	}
+
+	
 
 	public virtual void SetEffects(EntityEffects effects) {
 		if (Effects != (int)effects) {

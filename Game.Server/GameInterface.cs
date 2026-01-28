@@ -63,11 +63,11 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void GameServerSteamAPIActivated() {
-		throw new NotImplementedException();
+
 	}
 
 	public void GameServerSteamAPIShutdown() {
-		throw new NotImplementedException();
+
 	}
 
 	public void GameShutdown() {

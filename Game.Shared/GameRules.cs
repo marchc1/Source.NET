@@ -82,5 +82,12 @@ public class
 		new Vector3(0, 0, 14)           //VEC_DEAD_VIEWHEIGHT (DeadViewHeight)
 	);
 	public virtual ViewVectors GetViewVectors() => g_DefaultViewVectors;
+
+	public virtual bool SwitchToNextBestWeapon(BaseCombatCharacter? player, BaseCombatWeapon? currentWeapon) {
+		return false;
+	}
+	public virtual BaseCombatWeapon? GetNextBestWeapon(BaseCombatCharacter? player, BaseCombatWeapon? currentWeapon) {
+		return null;
+	}
 }
 #endif

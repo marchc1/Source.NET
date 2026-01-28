@@ -50,6 +50,10 @@ public partial class
 
 #endif
 
+	public override bool IsPredicted() {
+		return true;
+	}
+
 	public
 #if CLIENT_DLL
 C_WeaponHL2MPBase
@@ -79,7 +83,7 @@ public partial class
 #else
 	BaseHL2MPCombatWeapon
 #endif
-	: BaseCombatWeapon
+	: WeaponHL2MPBase
 {
 	public static readonly Table DT_BaseHL2MPCombatWeapon = new(DT_BaseCombatWeapon, []);
 

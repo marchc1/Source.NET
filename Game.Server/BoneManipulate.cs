@@ -7,15 +7,15 @@ using FIELD = FIELD<BoneManipulate>;
 public class BoneManipulate : BaseEntity
 {
 	public static readonly SendTable DT_BoneManipulate = new(DT_BaseEntity, [
-		SendPropVector(FIELD.OF(nameof(BonePos)), 0, PropFlags.ProxyAlwaysYes | PropFlags.NoScale),
-		SendPropVector(FIELD.OF(nameof(BoneAng)), 0, PropFlags.ProxyAlwaysYes | PropFlags.NoScale),
-		SendPropVector(FIELD.OF(nameof(BoneScale)), 0, PropFlags.ProxyAlwaysYes | PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(BoneJiggle)), 4, PropFlags.ProxyAlwaysYes | PropFlags.Unsigned),
+		SendPropArray3(FIELD.OF_ARRAY(nameof(BonePos)), SendPropVector(null!, 0, PropFlags.ProxyAlwaysYes | PropFlags.NoScale)),
+		SendPropArray3(FIELD.OF_ARRAY(nameof(BoneAng)), SendPropVector(null!, 0, PropFlags.ProxyAlwaysYes | PropFlags.NoScale)),
+		SendPropArray3(FIELD.OF_ARRAY(nameof(BoneScale)), SendPropVector(null!, 0, PropFlags.ProxyAlwaysYes | PropFlags.NoScale)),
+		SendPropArray3(FIELD.OF_ARRAY(nameof(BoneJiggle)), SendPropInt((IFieldAccessor)null!, 4, PropFlags.ProxyAlwaysYes | PropFlags.Unsigned, sizeOfVar: sizeof(int))),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("BoneManipulate", DT_BoneManipulate).WithManualClassID(StaticClassIndices.CBoneManipulate);
 
-	public Vector3 BonePos;
-	public Vector3 BoneAng;
-	public Vector3 BoneScale;
-	public int BoneJiggle;
+	public InlineArrayMaxStudioBones<Vector3> BonePos;
+	public InlineArrayMaxStudioBones<Vector3> BoneAng;
+	public InlineArrayMaxStudioBones<Vector3> BoneScale;
+	public InlineArrayMaxStudioBones<int> BoneJiggle;
 }

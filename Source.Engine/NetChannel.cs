@@ -1,11 +1,16 @@
+using Source.Common.Bitbuffers;
+using Source.Common.Commands;
+using Source.Common.Hashing;
+using Source.Common.Networking;
+using Source.Engine;
+
 using System.Buffers;
 using System.Diagnostics;
+using System.Drawing.Imaging;
+using System.IO;
 using System.Net.Sockets;
 
 using static Source.Common.Networking.Protocol;
-using Source.Common.Bitbuffers;
-using Source.Common.Hashing;
-using Source.Common.Commands;
 
 namespace Source.Common.Networking;
 
@@ -42,8 +47,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 		ChallengeNumber = 0;
 
 		// Set up ReceiveList
-		ReceiveList[FRAG_NORMAL_STREAM] = new();
-		ReceiveList[FRAG_FILE_STREAM] = new();
+		ReceiveList[(int)FragmentStream.Normal] = new();
+		ReceiveList[(int)FragmentStream.File] = new();
 
 		StreamSocket = null;
 		StreamActive = false;
@@ -75,13 +80,13 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public INetChannelHandler? MessageHandler;
 	public int ProtocolVersion;
 
-	public bf_write StreamReliable = new();
+	public readonly bf_write StreamReliable = new();
 	public byte[]? ReliableDataBuffer;
 
-	public bf_write StreamUnreliable = new();
+	public readonly bf_write StreamUnreliable = new();
 	public byte[]? UnreliableDataBuffer;
 
-	public bf_write StreamVoice = new();
+	public readonly bf_write StreamVoice = new();
 	public byte[]? VoiceDataBuffer;
 
 	/// <summary>
@@ -89,9 +94,6 @@ public class NetChannel : INetChannelInfo, INetChannel
 	/// </summary>
 	public NetAddress? RemoteAddress { get; set; }
 
-	public const int FRAG_NORMAL_STREAM = 0;
-	public const int FRAG_FILE_STREAM = 1;
-	public const int MAX_STREAMS = 2;
 
 	public const int CONNECTION_PROBLEM_TIME = 4;
 
@@ -103,7 +105,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public void Clear() {
 		int i;
 
-		for (i = 0; i < MAX_STREAMS; i++) {
+		for (i = 0; i < (int)FragmentStream.Max; i++) {
 			while (WaitingList[i].Count > 0)
 				WaitingList[i].RemoveAt(WaitingList[i].Count - 1);
 		}
@@ -143,7 +145,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 	public uint ChallengeNumber { get; set; }
 
 	public List<DataFragments>[] WaitingList = [new(), new()];
-	public DataFragments[] ReceiveList = new DataFragments[MAX_STREAMS];
+	public DataFragments[] ReceiveList = new DataFragments[(int)FragmentStream.Max];
 	public SubChannel[] SubChannels = new SubChannel[SubChannel.MAX];
 
 	public void Setup(NetSocketType socketType, NetAddress? address, string name, INetChannelHandler handler, int protocol) {
@@ -309,7 +311,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		Clear();
 
 		if (!reason.IsEmpty) {
-			StreamUnreliable.WriteUBitLong(Net.Disconnect, NETMSG_TYPE_BITS);
+			StreamUnreliable.WriteUBitLong(NET.Disconnect, NETMSG_TYPE_BITS);
 			StreamUnreliable.WriteString(reason);
 			Transmit();
 		}
@@ -349,27 +351,19 @@ public class NetChannel : INetChannelInfo, INetChannel
 		bytes = Math.Clamp(bytes, MAX_DATAGRAM_PAYLOAD, MAX_PAYLOAD);
 
 		if (reliable)
-			DoBufferThings(ref StreamReliable, ref ReliableDataBuffer, out ReliableDataBuffer, bytes);
+			DoBufferThings(StreamReliable, ref ReliableDataBuffer, out ReliableDataBuffer, bytes);
 		else if (voice)
-			DoBufferThings(ref StreamVoice, ref VoiceDataBuffer, out VoiceDataBuffer, bytes);
+			DoBufferThings(StreamVoice, ref VoiceDataBuffer, out VoiceDataBuffer, bytes);
 		else
-			DoBufferThings(ref StreamUnreliable, ref UnreliableDataBuffer, out UnreliableDataBuffer, bytes);
+			DoBufferThings(StreamUnreliable, ref UnreliableDataBuffer, out UnreliableDataBuffer, bytes);
 	}
-
-	// todo: move following 3 functions to Protocol.cs
-	public static int Bits2Bytes(int b) {
-		return b + 7 >> 3;
-	}
-
-	public static int PAD_NUMBER(int number, int boundary) => (number + (boundary - 1)) / boundary * boundary;
-	public static int BYTES2FRAGMENTS(int i) => (i + FRAGMENT_SIZE - 1) / FRAGMENT_SIZE;
 
 
 	public int IncrementSplitPacketSequence() {
 		return ++SplitPacketSequence;
 	}
 
-	private unsafe void DoBufferThings(ref bf_write stream, ref byte[]? bufferIn, out byte[] bufferOut, int bytes) {
+	private unsafe void DoBufferThings(bf_write stream, ref byte[]? bufferIn, out byte[] bufferOut, int bytes) {
 		bufferOut = bufferIn!;
 
 		if (bufferIn != null && bufferIn.Length == bytes)
@@ -506,7 +500,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 					Assert(false);
 				}
 				else if (subchan.State == SubChannelState.Waiting) {
-					for (j = 0; j < MAX_STREAMS; j++) {
+					for (j = 0; j < (int)FragmentStream.Max; j++) {
 						if (subchan.NumFragments[j] == 0)
 							continue;
 
@@ -543,7 +537,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		InSequence = sequence;
 		OutSequenceAck = sequenceAck;
 
-		for (i = 0; i < MAX_STREAMS; i++)
+		for (i = 0; i < (int)FragmentStream.Max; i++)
 			CheckWaitingList(i);
 
 		FlowNewPacket(NetFlow.FLOW_INCOMING, InSequence, OutSequenceAck, choked, packetDrop, packet.WireSize + UDP_HEADER_SIZE);
@@ -691,10 +685,10 @@ public class NetChannel : INetChannelInfo, INetChannel
 		MessageHandler.PacketStart(InSequence, OutSequenceAck);
 
 		if ((flags & PacketFlag.Reliable) != 0) {
-			int i = 0;
+			FragmentStream i = 0;
 			int bit = 1 << (int)msg.ReadUBitLong(3);
 
-			for (i = 0; i < MAX_STREAMS; i++) {
+			for (i = 0; i < FragmentStream.Max; i++) {
 				if (msg.ReadOneBit() != 0) {
 					if (!ReadSubChannelData(msg, i))
 						return; // Error reading fragments; drop whole packet
@@ -703,7 +697,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 			InReliableState = FLIPBIT(InReliableState, bit);
 
-			for (i = 0; i < MAX_STREAMS; i++) {
+			for (i = 0; i < FragmentStream.Max; i++) {
 				if (!CheckReceivingList(i))
 					return;
 			}
@@ -717,8 +711,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 		MessageHandler.PacketEnd();
 	}
 
-	public unsafe bool CheckReceivingList(int list) {
-		DataFragments data = ReceiveList[list];
+	public unsafe bool CheckReceivingList(FragmentStream list) {
+		DataFragments data = ReceiveList[(int)list];
 
 		if (data.Buffer == null)
 			return true;
@@ -782,16 +776,16 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 	public bool ProcessControlMessage(uint cmd, bf_read buf) {
 		string? str = null;
-		if (cmd == Net.NOP)
+		if (cmd == NET.NOP)
 			return true;
 
-		if (cmd == Net.Disconnect) {
+		if (cmd == NET.Disconnect) {
 			buf.ReadString(out str, 1024);
 			MessageHandler?.ConnectionClosing(str ?? "Forced disconnect");
 			return false;
 		}
 
-		if (cmd == Net.File) {
+		if (cmd == NET.File) {
 			uint transferID = buf.ReadUBitLong(32);
 			buf.ReadString(out str, 1024);
 			if (buf.ReadOneBit() != 0 && false) {
@@ -821,7 +815,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 			uint cmd = buf.ReadUBitLong(NETMSG_TYPE_BITS);
 
-			if (cmd <= Net.File) {
+			if (cmd <= NET.File) {
 				if (!ProcessControlMessage(cmd, buf))
 					return false;
 
@@ -896,18 +890,6 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 	readonly int[] MsgStats = new int[(int)NetChannelGroup.Total];
 
-	public void UpdateMessageStats(NetChannelGroup group, int bits) {
-		NetFlow flow = DataFlow[NetFlow.FLOW_INCOMING];
-		NetFrame? frame = flow.CurrentFrame;
-
-		Assert((group >= NetChannelGroup.Generic) && (group < NetChannelGroup.Total));
-
-		MsgStats[(int)group] += bits;
-
-		if (frame != null)
-			frame.MessageGroups[(int)group] += (ushort)bits;
-	}
-
 
 	public List<INetMessage?> NetMessages = [];
 
@@ -917,7 +899,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return NetMessages[type];
 	}
 
-	public bool RegisterMessage(INetMessage msg) {
+	public bool RegisterMessage<T>() where T : INetMessage, new() {
+		INetMessage msg = new T();
 		int type = msg.GetMessageType();
 		if (FindMessage(type) != null)
 			return false;
@@ -928,9 +911,6 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 		return true;
 	}
-
-	public void RegisterMessage<T>() where T : INetMessage, new() => RegisterMessage(new T());
-
 
 	public bool SendNetMsg(INetMessage msg, bool forceReliable = false, bool voice = false) {
 		if (RemoteAddress == null || RemoteAddress.Type == NetAddressType.Null)
@@ -1002,7 +982,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 		bool bSendData = false;
 
-		for (i = 0; i < MAX_STREAMS; i++) {
+		for (i = 0; i < (int)FragmentStream.Max; i++) {
 			if (WaitingList[i].Count <= 0)
 				continue;
 
@@ -1070,7 +1050,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 		buf.WriteUBitLong((uint)i, 3);
 
-		for (i = 0; i < MAX_STREAMS; i++) {
+		for (i = 0; i < (int)FragmentStream.Max; i++) {
 			if (subChan.NumFragments[i] == 0) {
 				buf.WriteOneBit(0); // no data for this stream
 				continue;
@@ -1187,7 +1167,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			return 0;
 		}
 		else if (StreamReliable.BitsWritten > 0) {
-			CreateFragmentsFromBuffer(StreamReliable, FRAG_NORMAL_STREAM);
+			CreateFragmentsFromBuffer(StreamReliable, FragmentStream.Normal);
 			StreamReliable.Reset();
 		}
 
@@ -1245,11 +1225,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 			minRoutable = net_minroutable.GetInt();
 
 		while (send.BytesWritten < minRoutable)
-			send.WriteUBitLong(Net.NOP, NETMSG_TYPE_BITS);
+			send.WriteUBitLong(NET.NOP, NETMSG_TYPE_BITS);
 
 		int remainingBits = send.BitsWritten % 8;
 		if (remainingBits > 0 && remainingBits <= 8 - NETMSG_TYPE_BITS)
-			send.WriteUBitLong(Net.NOP, NETMSG_TYPE_BITS);
+			send.WriteUBitLong(NET.NOP, NETMSG_TYPE_BITS);
 
 		{
 			remainingBits = send.BitsWritten % 8;
@@ -1320,7 +1300,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 	public int GetMaxRoutablePayloadSize() => MaxRoutablePayloadSize;
 
-	public unsafe bool CreateFragmentsFromBuffer(bf_write buffer, int stream) {
+	public unsafe bool CreateFragmentsFromBuffer(bf_write buffer, FragmentStream stream) {
 		bf_write bfwrite = new();
 		DataFragments? data = null;
 
@@ -1328,11 +1308,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 		// reliable data to the last item. that doesn't work with the first item
 		// since it may have been already send and is waiting for acknowledge
 
-		int count = WaitingList[stream].Count;
+		int count = WaitingList[(int)stream].Count;
 
 		if (count > 1) {
 			// get last item in waiting list
-			data = WaitingList[stream][count - 1];
+			data = WaitingList[(int)stream][count - 1];
 
 			int totalBytes = Bits2Bytes((int)(data.Bits + (uint)buffer.BitsWritten));
 
@@ -1369,7 +1349,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			data.Filename = null;
 
 			bfwrite.StartWriting(data.Buffer, totalBytes, 0);
-			WaitingList[stream].Add(data);  // that's it for now
+			WaitingList[(int)stream].Add(data);  // that's it for now
 		}
 
 		// update bit length
@@ -1382,7 +1362,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		// fill last bits in last byte with NOP if necessary
 		int nRemainingBits = bfwrite.BitsWritten % 8;
 		if (nRemainingBits > 0 && nRemainingBits <= 8 - NETMSG_TYPE_BITS) {
-			bfwrite.WriteUBitLong(Net.NOP, NETMSG_TYPE_BITS);
+			bfwrite.WriteUBitLong(NET.NOP, NETMSG_TYPE_BITS);
 		}
 
 		// check if send as stream or with snapshot
@@ -1469,8 +1449,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 		InterpolationAmount = interpolationAmount;
 	}
 
-	public unsafe bool ReadSubChannelData(bf_read buf, int stream) {
-		DataFragments data = ReceiveList[stream]; // get list
+	public unsafe bool ReadSubChannelData(bf_read buf, FragmentStream stream) {
+		DataFragments data = ReceiveList[(int)stream]; // get list
 		int startFragment = 0;
 		int numFragments = 0;
 		uint offset = 0;
@@ -1710,7 +1690,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		received = 0;
 
 		if (flow == NetFlow.FLOW_INCOMING) {
-			for (int i = 0; i < MAX_STREAMS; i++) {
+			for (int i = 0; i < (int)FragmentStream.Max; i++) {
 				if (ReceiveList[i].Buffer != null) {
 					total += ReceiveList[i].NumFragments * FRAGMENT_SIZE;
 					received += ReceiveList[i].AckedFragments * FRAGMENT_SIZE;
@@ -1721,7 +1701,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		}
 
 		if (flow == NetFlow.FLOW_OUTGOING) {
-			for (int i = 0; i < MAX_STREAMS; i++) {
+			for (int i = 0; i < (int)FragmentStream.Max; i++) {
 				if (WaitingList[i].Count > 0) {
 					total += WaitingList[i][0].NumFragments * FRAGMENT_SIZE;
 					received += WaitingList[i][0].AckedFragments * FRAGMENT_SIZE;
@@ -1763,19 +1743,217 @@ public class NetChannel : INetChannelInfo, INetChannel
 	}
 
 	public void ProcessPlayback() {
+		// TODO
+		// This requires two things:
+		// 1. This properly gets moved into the engine code (wasnt at the time, and I don't remember why)
+		// 2. Demoplayer subsystem/interface/etc...
+		throw new NotImplementedException();
+	}
+	public bool ProcessStream() {
+		// If I remember correctly, Garry's Mod removed the TCP	socket entirely, and we currently dont support it in SDN anyway.
+		// I'm not sure if other Source games even really use it...
+		// Might be worth tearing out of the engine entirely later
 		throw new NotImplementedException();
 	}
 
-	public bool ProcessStream() {
-		throw new NotImplementedException();
+	public bool IsValidFileForTransfer(ReadOnlySpan<char> filename) {
+		if (filename.IsEmpty || filename[0] == '\0')
+			return false;
+
+		if (!Source.Engine.Common.IsValidPath(filename) || Path.IsPathFullyQualified(filename))
+			return false;
+
+		int len = (int)strlen(filename);
+		if (len >= MAX_PATH)
+			return false;
+
+		Span<char> szTemp = stackalloc char[MAX_PATH];
+		strcpy(szTemp, filename);
+
+		// Convert so we've got all forward slashes in the path.
+		StrTools.FixSlashes(szTemp);
+		StrTools.FixDoubleSlashes(szTemp);
+		if (szTemp[len - 1] == '/')
+			return false;
+
+		int slash_count = 0;
+		for (ReadOnlySpan<char> psz = szTemp; !psz.IsEmpty && psz[0] != '\0'; psz = psz[1..]) {
+			if (psz[0] == '/')
+				slash_count++;
+		}
+
+		// Really no reason to have deeper directory than this?
+		if (slash_count >= 32)
+			return false;
+
+		// Don't allow filenames with unicode whitespace in them.
+		if (StrTools.RemoveAllEvilCharacters(szTemp))
+			return false;
+
+		if (!stristr(szTemp, "lua/").IsStringEmpty ||
+			 !stristr(szTemp, "gamemodes/").IsStringEmpty ||
+			 !stristr(szTemp, "addons/").IsStringEmpty ||
+			 !stristr(szTemp, "~/").IsStringEmpty ||
+			 !stristr(szTemp, "./././").IsStringEmpty || // Don't allow folks to make crazy long paths with ././././ stuff.
+			 !stristr(szTemp, "   ").IsStringEmpty ||        // Don't allow multiple spaces or tab (was being used for an exploit).
+			!stristr(szTemp, "\t").IsStringEmpty) {
+			return false;
+		}
+
+		// If .exe or .EXE or these other strings exist _anywhere_ in the filename, reject it.
+		if (!stristr(szTemp, ".cfg").IsStringEmpty ||
+			 !stristr(szTemp, ".lst").IsStringEmpty ||
+			 !stristr(szTemp, ".exe").IsStringEmpty ||
+			 !stristr(szTemp, ".vbs").IsStringEmpty ||
+			 !stristr(szTemp, ".com").IsStringEmpty ||
+			 !stristr(szTemp, ".bat").IsStringEmpty ||
+			 !stristr(szTemp, ".cmd").IsStringEmpty ||
+			 !stristr(szTemp, ".dll").IsStringEmpty ||
+			 !stristr(szTemp, ".so").IsStringEmpty ||
+			 !stristr(szTemp, ".dylib").IsStringEmpty ||
+			 !stristr(szTemp, ".ini").IsStringEmpty ||
+			 !stristr(szTemp, ".log").IsStringEmpty ||
+			 !stristr(szTemp, ".lua").IsStringEmpty ||
+			 !stristr(szTemp, ".vdf").IsStringEmpty ||
+			 !stristr(szTemp, ".smx").IsStringEmpty ||
+			 !stristr(szTemp, ".gcf").IsStringEmpty ||
+			 !stristr(szTemp, ".lmp").IsStringEmpty ||
+			 !stristr(szTemp, ".sys").IsStringEmpty) {
+			return false;
+		}
+
+		// Search for the first . in the base filename, and bail if not found.
+		// We don't want people passing in things like 'cfg/.wp.so'...
+		ReadOnlySpan<char> basename = strrchr(szTemp, '/');
+		if (basename.IsEmpty)
+			basename = szTemp;
+		ReadOnlySpan<char> extension = strchr(basename, '.');
+		if (extension.IsEmpty)
+			return false;
+
+		// If the extension is not exactly 3 or 4 characters, bail.
+		int extension_len = (int)strlen(extension);
+		if ((extension_len != 3) &&
+			 (extension_len != 4) &&
+			 stricmp(extension, ".bsp.bz2") != 0 &&
+			 stricmp(extension, ".xbox.vtx") != 0 &&
+			 stricmp(extension, ".dx80.vtx") != 0 &&
+			 stricmp(extension, ".dx90.vtx") != 0 &&
+			 stricmp(extension, ".sw.vtx") != 0) {
+			return false;
+		}
+
+		// If there are any spaces in the extension, bail. (Windows exploit).
+		if (!strchr(extension, ' ').IsStringEmpty)
+			return false;
+
+		return true;
 	}
 
 	public bool SendFile(ReadOnlySpan<char> filename, uint transferID) {
-		throw new NotImplementedException();
+		// add file to waiting list
+		if (RemoteAddress!.Type == NetAddressType.Null)
+			return true;
+
+		if (filename.IsEmpty || filename[0] == '\0')
+			return false;
+
+		ReadOnlySpan<char> sendfile = filename;
+		while (sendfile[0] != '\0' && sendfile[0].IsPathSeparator())
+			sendfile = sendfile[1..];
+
+		// Don't transfer exe, vbs, com, bat-type files.
+		if (!IsValidFileForTransfer(sendfile))
+			return false;
+
+		if (!CreateFragmentsFromFile(sendfile, FragmentStream.File, transferID)) {
+			DenyFile(sendfile, transferID); // send host a deny message
+			return false;
+		}
+
+		if (Net.net_showfragments.GetInt() == 2)
+			DevMsg($"SendFile: {sendfile} (ID {transferID})\n");
+
+		return true;
+	}
+
+	public bool IsFileInWaitingList(ReadOnlySpan<char> filename) {
+		if (filename.IsStringEmpty)
+			return true;
+
+		for (FragmentStream stream = 0; stream < FragmentStream.Max; stream++) {
+			for (int i = 0; i < WaitingList[(int)stream].Count; i++) {
+				DataFragments data = WaitingList[(int)stream][i];
+
+				if (0 == strcmp(data.Filename, filename))
+					return true; // alread in list
+			}
+		}
+
+		return false; // file not found
+	}
+
+	public bool CreateFragmentsFromFile(ReadOnlySpan<char> filename, FragmentStream stream, uint transferID) {
+		filename = filename.SliceNullTerminatedString();
+		if (IsFileInWaitingList(filename))
+			return true; // already scheduled for upload
+
+		ReadOnlySpan<char> pathID = "GAME";
+
+		if (!g_pFileSystem.FileExists(filename, pathID)) {
+			ConMsg($"CreateFragmentsFromFile: '{filename}' doesn't exist.\n");
+			return false;
+		}
+
+		long totalBytes = g_pFileSystem.Size(filename, pathID);
+
+		if (totalBytes >= (Net.net_maxfilesize.GetInt() * 1024 * 1024)) {
+			ConMsg($"CreateFragmentsFromFile: '{filename}' size exceeds net_maxfilesize limit ({Net.net_maxfilesize.GetInt()} MiB).\n");
+			return false;
+		}
+
+		if (totalBytes >= MAX_FILE_SIZE) {
+			ConMsg($"CreateFragmentsFromFile: '{filename}' too big (max {MAX_FILE_SIZE} bytes).\n");
+			return false;
+		}
+
+		DataFragments data = new();
+		data.Bytes = (uint)totalBytes;
+		data.Bits = data.Bytes * 8;
+		data.Buffer = null;
+		data.Compressed  = false;
+		data.UncompressedSize = 0;
+		data.File = g_pFileSystem.Open(filename, Filesystem.FileOpenOptions.Read | Filesystem.FileOpenOptions.Binary, pathID);
+
+		if (data.File == null) {
+			ConMsg($"CreateFragmentsFromFile: couldn't open '{filename}'.\n");
+			return false;
+		}
+
+		data.TransferID = transferID;
+		data.Filename = new(filename.SliceNullTerminatedString());
+
+		WaitingList[(int)stream].Add(data);  // that's it for now
+
+		// check if send as stream or with snapshot
+		data.AsTCP = false; // m_StreamActive && ( Bits2Bytes(data->length) > m_MaxReliablePayloadSize );
+
+		// calc number of fragments needed
+		data.NumFragments = (int)BYTES2FRAGMENTS(data.Bytes);
+		data.AckedFragments = 0;
+		data.PendingFragments = 0;
+
+		return true;
 	}
 
 	public void DenyFile(ReadOnlySpan<char> filename, uint transferID) {
-		throw new NotImplementedException();
+		if (Net.net_showfragments.GetInt() == 2) 
+			DevMsg($"DenyFile: {filename} (ID {transferID})\n");
+
+		StreamReliable.WriteUBitLong(NET.File, NETMSG_TYPE_BITS);
+		StreamReliable.WriteUBitLong(transferID, 32);
+		StreamReliable.WriteString(filename);
+		StreamReliable.WriteOneBit(0); // deny this file
 	}
 
 	public NetAddress? GetRemoteAddress() {
@@ -1798,36 +1976,56 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return ChallengeNumber;
 	}
 
-	public void UpdateMessageStats(int msggroup, int bits) {
-		throw new NotImplementedException();
+	public void UpdateMessageStats(NetChannelGroup msggroup, int bits) {
+		NetFlow flow = DataFlow[NetFlow.FLOW_INCOMING];
+		NetFrame? frame = flow.CurrentFrame;
+
+		Assert((msggroup >= NetChannelGroup.Generic) && (msggroup < NetChannelGroup.Total));
+
+		MessageStats[(int)msggroup] += bits;
+
+		if (frame != null)
+			frame.MessageGroups[(int)msggroup] += unchecked((ushort)bits);
 	}
 
 	public bool CanPacket() {
-		throw new NotImplementedException();
+		if (Net.net_chokeloopback.GetInt() == 0 && RemoteAddress!.IsLoopback())
+			return true;
+
+		if (HasQueuedPackets())
+			return false;
+
+		return ClearTime < Net.Time;
 	}
 
 	public bool HasPendingReliableData() {
-		return StreamReliable.BitsWritten > 0 || WaitingList[FRAG_NORMAL_STREAM].Count > 0 || WaitingList[FRAG_FILE_STREAM].Count > 0;
+		return StreamReliable.BitsWritten > 0 || WaitingList[(int)FragmentStream.Normal].Count > 0 || WaitingList[(int)FragmentStream.File].Count > 0;
 	}
 
-	public void SetFileTransmissionMode(bool backgroundMode) {
-		throw new NotImplementedException();
-	}
+	public void SetFileTransmissionMode(bool backgroundMode) => FileBackgroundTransmission = backgroundMode;
 
-	public void SetCompressionMode(bool useCompression) {
-		throw new NotImplementedException();
-	}
+	public void SetCompressionMode(bool useCompression) => UseCompression = useCompression;
 
 	public uint RequestFile(ReadOnlySpan<char> filename) {
-		throw new NotImplementedException();
+		filename = filename.SliceNullTerminatedString();
+		FileRequestCounter++;
+
+		if (Net.net_showfragments.GetInt() == 2)
+			DevMsg($"RequestFile: {filename} (ID {FileRequestCounter})\n");
+
+		StreamReliable.WriteUBitLong(NET.File, NETMSG_TYPE_BITS);
+		StreamReliable.WriteUBitLong(FileRequestCounter, 32);
+		StreamReliable.WriteString(filename);
+		StreamReliable.WriteOneBit(1); // reqest this file
+
+		return FileRequestCounter;
 	}
 
-	public bool IsNull() {
-		return RemoteAddress?.Type == NetAddressType.Null; ;
-	}
+	public bool IsNull() => RemoteAddress?.Type == NetAddressType.Null;
 
 	public int GetNumBitsWritten(bool reliable) {
-		throw new NotImplementedException();
+		bf_write stream = reliable ? StreamReliable : StreamUnreliable;
+		return stream.BitsWritten;
 	}
 
 	public int GetProtocolVersion() {

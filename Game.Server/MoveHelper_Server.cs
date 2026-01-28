@@ -19,7 +19,7 @@ public class MoveHelperServer : IMoveHelperServer
 	}
 
 	public bool AddToTouched(in Trace tr, in Vector3 impactvelocity) {
-		throw new NotImplementedException();
+		return false; // TODO
 	}
 
 	public ReadOnlySpan<char> GetName(EntityHandle_t handle) {
@@ -43,7 +43,7 @@ public class MoveHelperServer : IMoveHelperServer
 	}
 
 	public void PlayerSetAnimation(PlayerAnim playerAnim) {
-		throw new NotImplementedException();
+
 	}
 
 	public void ProcessImpacts() {

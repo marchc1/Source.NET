@@ -24,7 +24,6 @@ namespace Source.Common.Networking;
 
 public class Net
 {
-
 	const int LOOPBACK_SOCKETS = 2;
 	InlineArray2<Queue<Loopback>> Loopbacks = new();
 	public Net() {
@@ -54,34 +53,7 @@ public class Net
 
 	public readonly NetAddress LocalAdr = new();
 
-	/// <summary>
-	/// NOP command used for padding.
-	/// </summary>
-	public const int NOP = 0;
-	/// <summary>
-	/// Disconnect, last message in connection.
-	/// </summary>
-	public const int Disconnect = 1;
-	/// <summary>
-	/// File transmission message request/denial.
-	/// </summary>
-	public const int File = 2;
-	/// <summary>
-	/// Send the last world tick.
-	/// </summary>
-	public const int Tick = 3;
-	/// <summary>
-	/// A string command
-	/// </summary>
-	public const int StringCmd = 4;
-	/// <summary>
-	/// Sends one or more convar settings
-	/// </summary>
-	public const int SetConVar = 5;
-	/// <summary>
-	/// Signals current signon state.
-	/// </summary>
-	public const int SignOnState = 6;
+	
 
 	public List<VecSplitPacketEntries> SplitPackets = [];
 
@@ -442,13 +414,13 @@ public class Net
 	public static uint LZSS_ID = 'S' << 24 | 'S' << 16 | 'Z' << 8 | 'L';
 	public static uint SNAPPY_ID = 'P' << 24 | 'A' << 16 | 'N' << 8 | 'S';
 	public static unsafe int GetUncompressedSize(byte* compressedData, uint compressedLen) {
-		lzss_header* pHeader = (lzss_header*)compressedData;
+		LZSSHeader* pHeader = (LZSSHeader*)compressedData;
 
-		if (compressedLen >= sizeof(lzss_header) && pHeader->id == LZSS_ID) {
-			return (int)pHeader->actualSize; // LZSS size
+		if (compressedLen >= sizeof(LZSSHeader) && pHeader->ID == LZSS_ID) {
+			return (int)pHeader->ActualSize; // LZSS size
 		}
 
-		if (compressedLen > 4 && pHeader->id == SNAPPY_ID) {
+		if (compressedLen > 4 && pHeader->ID == SNAPPY_ID) {
 			Span<byte> d = new Span<byte>(compressedData, (int)(compressedLen - 4));
 			int snappySize = Snappy.GetUncompressedLength(d);
 			if (snappySize > 0)
@@ -460,10 +432,10 @@ public class Net
 	public const int LZSS_LOOKSHIFT = 4;
 	public const int LZSS_LOOKAHEAD = 1 << LZSS_LOOKSHIFT;
 	public unsafe uint GetActualSize(byte* pInput) {
-		lzss_header* asU = (lzss_header*)pInput;
+		LZSSHeader* asU = (LZSSHeader*)pInput;
 
-		if (asU != null && asU->id == LZSS_ID)
-			return asU->actualSize;
+		if (asU != null && asU->ID == LZSS_ID)
+			return asU->ActualSize;
 
 		return 0;
 	}
@@ -514,9 +486,9 @@ public class Net
 		return totalBytes;
 	}
 	public unsafe uint LZSS_GetActualSize(byte* pInput) {
-		lzss_header* pHeader = (lzss_header*)pInput;
-		if (pHeader != null && pHeader->id == LZSS_ID)
-			return pHeader->actualSize;
+		LZSSHeader* pHeader = (LZSSHeader*)pInput;
+		if (pHeader != null && pHeader->ID == LZSS_ID)
+			return pHeader->ActualSize;
 
 		return 0;
 	}

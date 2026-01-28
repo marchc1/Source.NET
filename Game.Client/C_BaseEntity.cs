@@ -215,6 +215,15 @@ public partial class C_BaseEntity : IClientEntity
 
 		// That networked data will be copied forward into the starting slot for the next prediction round
 	}
+	public virtual bool IsPredicted() => false;
+
+	public void PostEntityPacketReceived() {
+		// Always mark as changed
+		HLClient.AddDataChangeEvent(this, DataUpdateType.DataTableChanged, DataChangeEventRef);
+
+		// Save networked fields into "original data" store
+		SaveData("PostEntityPacketReceived", SLOT_ORIGINALDATA, PredictionCopyType.NetworkedOnly);
+	}
 
 	public static void InterpolateServerEntities() {
 		s_bInterpolate = cl_interpolate.GetBool();
@@ -416,7 +425,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	private static void RecvProxy_EffectFlags(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		// ((C_BaseEntity)instance).SetEffects(data.Value.Int);
+		((C_BaseEntity)instance).SetEffects((EntityEffects)data.Value.Int);
 	}
 
 
@@ -523,21 +532,22 @@ public partial class C_BaseEntity : IClientEntity
 		RecvPropInt(FIELD.OF(nameof(MapCreatedID))),
 	]);
 
-	private static void RecvProxy_OverrideMaterial(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		// Warning("RecvProxy_OverrideMaterial not implemented yet\n");
-	}
-
 	private static void RecvProxy_MoveCollide(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		// Warning("RecvProxy_MoveCollide not implemented yet\n");
+		((C_BaseEntity)instance).SetMoveCollide((MoveCollide)data.Value.Int);
 	}
 
 	private static void RecvProxy_MoveType(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
-		// Warning("RecvProxy_MoveType not implemented yet\n");
+		((C_BaseEntity)instance).SetMoveType((MoveType)data.Value.Int);
 	}
+
+	public void SetCollisionBounds(in Vector3 mins, in Vector3 maxs) { } // todo: => CollisionProp().SetCollisionBounds(in mins, in maxs);
 
 	public static readonly ClientClass ClientClass = new ClientClass("BaseEntity", null, null, DT_BaseEntity)
 																		.WithManualClassID(StaticClassIndices.CBaseEntity);
 	const float coordTolerance = 2.0f / (float)(1 << (int)BitBuffer.COORD_FRACTIONAL_BITS);
+
+	public float GetGravity() => Gravity;
+	public void SetGravity(float gravity) => Gravity = gravity;
 
 
 	public static readonly DataMap PredMap = new([
@@ -906,10 +916,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public virtual bool ShouldPredict() => false;
 
-	public int RestoreData(ReadOnlySpan<char> context, int slot, PredictionCopyType type) {
-		// todo
-		return 0;
-	}
+
 
 	public void AddToAimEntsList() {
 		// todo
@@ -1052,7 +1059,6 @@ public partial class C_BaseEntity : IClientEntity
 
 			if (simulationChanged)
 				OnLatchInterpolatedVariables(LatchFlags.LatchSimulationVar);
-
 		}
 		else if (predictable)
 			OnStoreLastNetworkedValue();
@@ -1070,7 +1076,11 @@ public partial class C_BaseEntity : IClientEntity
 		}
 
 		CheckInitPredictable("PostDataUpdate");
-		// TODO: Some stuff involving localplayer and ownage
+		C_BasePlayer? local = C_BasePlayer.GetLocalPlayer();
+		if (IsPlayerSimulated() && (null != local) && (local == OwnerEntity.Get()))
+			// Make sure player is driving simulation (field is only ever sent to local player)
+			SetPlayerSimulated(local);
+
 		// TODO: Partition/leaf stuff
 
 		if (!IsClientCreated())
@@ -1087,12 +1097,11 @@ public partial class C_BaseEntity : IClientEntity
 		if (OriginalData != null)
 			return;
 
-		nuint allocsize = GetIntermediateDataSize();
-		Assert(allocsize > 0);
+		ComputePackedOffsets();
 
-		OriginalData = new byte[allocsize];
+		OriginalData = new DataFrame(GetPredDescMap());
 		for (int i = 0; i < MULTIPLAYER_BACKUP; i++)
-			IntermediateData[i] = new byte[allocsize];
+			IntermediateData[i] = new DataFrame(GetPredDescMap());
 
 		IntermediateDataCount = 0;
 	}
@@ -1116,9 +1125,62 @@ public partial class C_BaseEntity : IClientEntity
 
 		// Copy original data into all prediction slots, so we don't get an error saying we "mispredicted" any
 		//  values which are still at their initial values
-		// for (int i = 0; i < MULTIPLAYER_BACKUP; i++) {
-		// SaveData("InitPredictable", i, PC_EVERYTHING);
-		// }
+		for (int i = 0; i < MULTIPLAYER_BACKUP; i++)
+			SaveData("InitPredictable", i, PredictionCopyType.Everything);
+	}
+
+	public EFL GetEFlags() => eflags;
+
+	public int RestoreData(ReadOnlySpan<char> context, int slot, PredictionCopyType type) {
+		DataFrame? src = slot == SLOT_ORIGINALDATA ? GetOriginalNetworkDataObject() : GetPredictedFrame(slot);
+
+		// This assert will fire if the server ack'd a CUserCmd which we hadn't predicted yet...
+		// In that case, we'd be comparing "old" data from this "unused" slot with the networked data and reporting all kinds of prediction errors possibly.
+		Assert(slot == SLOT_ORIGINALDATA || slot <= IntermediateDataCount);
+
+		Span<char> sz = stackalloc char[64];
+
+		// some flags shouldn't be predicted - as we find them, add them to the savedEFlagsMask
+		const EFL savedEFlagsMask = EFL.DirtyShadowUpdate;
+		EFL savedEFlags = GetEFlags() & savedEFlagsMask;
+
+		// model index needs to be set manually for dynamic model refcounting purposes
+		int oldModelIndex = ModelIndex;
+
+		PredictionCopy copyHelper = new(type, this, src!);
+		int error_count = copyHelper.TransferData(sz, EntIndex(), GetPredDescMap());
+
+		// set non-predicting flags back to their prior state
+		RemoveEFlags(savedEFlagsMask);
+		AddEFlags(savedEFlags);
+
+		// restore original model index and change via SetModelIndex
+		int newModelIndex = ModelIndex;
+		ModelIndex = oldModelIndex;
+		int overrideModelIndex = CalcOverrideModelIndex();
+		if (overrideModelIndex != -1)
+			newModelIndex = overrideModelIndex;
+		if (oldModelIndex != newModelIndex)
+			SetModelIndex(newModelIndex);
+
+		OnPostRestoreData();
+
+		return error_count;
+	}
+
+	public virtual int CalcOverrideModelIndex() => -1;
+
+	public int SaveData(ReadOnlySpan<char> context, int slot, PredictionCopyType type) {
+		DataFrame? dest = slot == SLOT_ORIGINALDATA ? GetOriginalNetworkDataObject() : GetPredictedFrame(slot);
+		Span<char> sz = stackalloc char[64];
+
+		if (slot != SLOT_ORIGINALDATA)
+			// Remember high water mark so that we can detect below if we are reading from a slot not yet predicted into...
+			IntermediateDataCount = slot;
+
+		PredictionCopy copyHelper = new(type, dest!, this);
+		int errorCount = copyHelper.TransferData(sz, EntIndex(), GetPredDescMap());
+		return errorCount;
 	}
 
 	public bool IsIntermediateDataAllocated() {
@@ -1451,12 +1513,13 @@ public partial class C_BaseEntity : IClientEntity
 		return false;
 	}
 
-	public Matrix3x4 EntityToWorldTransform() {
+	public ref Matrix3x4 EntityToWorldTransform() {
 		CalcAbsolutePosition();
-		return CoordinateFrame;
+		return ref CoordinateFrame;
 	}
 
 	public ref Vector3 GetNetworkOrigin() => ref NetworkOrigin;
+	public ref readonly Vector3 GetOldOrigin() => ref OldOrigin;
 	public ref QAngle GetNetworkAngles() => ref NetworkAngles;
 
 	public void SetLocalOrigin(in Vector3 origin) {
@@ -1491,8 +1554,6 @@ public partial class C_BaseEntity : IClientEntity
 		if (!s_bAbsRecomputationEnabled)
 			return;
 
-		eflags |= EFL.DirtyAbsTransform;
-
 		if ((eflags & EFL.DirtyAbsTransform) == 0)
 			return;
 
@@ -1515,8 +1576,54 @@ public partial class C_BaseEntity : IClientEntity
 				return;
 			}
 
-			// todo
+			MathLib.AngleMatrix(GetLocalAngles(), out Matrix3x4 matEntityToParent);
+			MathLib.MatrixSetColumn(GetLocalOrigin(), 3, ref matEntityToParent);
+
+			// concatenate with our parent's transform
+			Matrix3x4 scratchMatrix = default;
+			MathLib.ConcatTransforms(GetParentToWorldTransform(ref scratchMatrix), matEntityToParent, out CoordinateFrame);
+
+			// pull our absolute position out of the matrix
+			MathLib.MatrixGetColumn(CoordinateFrame, 3, out AbsOrigin);
+
+			// if we have any angles, we have to extract our absolute angles from our matrix
+			if (Rotation == vec3_angle && ParentAttachment == 0)
+				// just copy our parent's absolute angles
+				MathLib.VectorCopy(MoveParent.Get()!.GetAbsAngles(), out AbsRotation);
+			else
+				MathLib.MatrixAngles(CoordinateFrame, out AbsRotation);
+
+
+			// This is necessary because it's possible that our moveparent's CalculateIKLocks will trigger its move children 
+			// (ie: this entity) to call GetAbsOrigin(), and they'll use the moveparent's OLD bone transforms to get their attachments
+			// since the moveparent is right in the middle of setting up new transforms. 
+			//
+			// So here, we keep our absorigin invalidated. It means we're returning an origin that is a frame old to CalculateIKLocks,
+			// but we'll still render with the right origin.
+			if (ParentAttachment != 0 && (MoveParent.Get()!.GetEFlags() & EFL.SettingUpBones) != 0)
+				eflags |= EFL.DirtyAbsTransform;
 		}
+	}
+
+	public ref Matrix3x4 GetParentToWorldTransform(ref Matrix3x4 tempMatrix) {
+		C_BaseEntity? moveParent = GetMoveParent();
+		if (moveParent == null) {
+			Assert(false);
+			MathLib.SetIdentityMatrix(out tempMatrix);
+			return ref tempMatrix;
+		}
+
+		if (ParentAttachment != 0) {
+			Vector3 origin;
+			QAngle angles;
+			if (moveParent.GetAttachment(ParentAttachment, out origin, out angles)) {
+				MathLib.AngleMatrix(angles, origin, out tempMatrix);
+				return ref tempMatrix;
+			}
+		}
+
+		// If we fall through to here, then just use the move parent's abs origin and angles.
+		return ref moveParent.EntityToWorldTransform();
 	}
 
 	public virtual IClientVehicle? GetClientVehicle() => null;
@@ -1742,7 +1849,7 @@ public partial class C_BaseEntity : IClientEntity
 	public VarMapping VarMap = new();
 	static double LastValue_Interp = -1;
 	static double LastValue_InterpNPCs = -1;
-	void CheckCLInterpChanged() {
+	public static void CheckCLInterpChanged() {
 		double curValue_Interp = CdllBoundedCVars.GetClientInterpAmount();
 		if (LastValue_Interp == -1) LastValue_Interp = curValue_Interp;
 
@@ -1969,7 +2076,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 
-	protected bool ShouldInterpolate() {
+	protected virtual bool ShouldInterpolate() {
 		if (render.GetViewEntity() == Index)
 			return true;
 
@@ -2029,7 +2136,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public void ShiftIntermediateDataForward(int slots_to_remove, int number_of_commands_run) {
 		// Just moving pointers, yeah
-		List<byte[]> saved = ListPool<byte[]>.Shared.Alloc();
+		List<DataFrame> saved = ListPool<DataFrame>.Shared.Alloc();
 
 		// Remember first slots
 		int i = 0;
@@ -2047,30 +2154,30 @@ public partial class C_BaseEntity : IClientEntity
 			IntermediateData[slot] = saved[i];
 		}
 
-		ListPool<byte[]>.Shared.Free(saved);
+		ListPool<DataFrame>.Shared.Free(saved);
 	}
 
 	public bool GetCheckUntouch() => IsEFlagSet(EFL.CheckUntouch);
 
-	public readonly byte[][] IntermediateData = new byte[MULTIPLAYER_BACKUP][];
-	public byte[]? OriginalData;
+	public readonly DataFrame[] IntermediateData = new DataFrame[MULTIPLAYER_BACKUP];
+	public DataFrame? OriginalData;
 	public int IntermediateDataCount;
 
-	public PredictedFrame GetPredictedFrame(int framenumber) {
+	public DataFrame? GetPredictedFrame(int framenumber) {
 		if (OriginalData == null) {
 			Assert(false);
 			return default;
 		}
 
-		return new(IntermediateData[framenumber % MULTIPLAYER_BACKUP]);
+		return IntermediateData[framenumber % MULTIPLAYER_BACKUP];
 	}
 
-	public PredictedFrame GetOriginalNetworkDataObject() {
+	public DataFrame? GetOriginalNetworkDataObject() {
 		if (OriginalData == null) {
 			Assert(false);
 			return default;
 		}
-		return new(OriginalData);
+		return OriginalData;
 	}
 
 
@@ -2140,7 +2247,6 @@ public partial class C_BaseEntity : IClientEntity
 				if ((field.Flags & FieldTypeDescFlags.Private) != 0)
 					continue;
 
-
 			switch (field.FieldType) {
 				default:
 				case FieldType.ModelIndex:
@@ -2153,47 +2259,20 @@ public partial class C_BaseEntity : IClientEntity
 				case FieldType.EDict:
 				case FieldType.PositionVector:
 				case FieldType.Function:
-					Assert(0);
+					Assert(false);
 					break;
-				case FieldType.Embedded: {
-						Assert(field.TD != null);
-						nuint embeddedsize = ComputePackedSize_R(field.TD);
-						field.PackedOffset = currentPosition;
-
-						currentPosition += embeddedsize;
-					}
-					break;
-
+				case FieldType.Embedded:
 				case FieldType.Float:
 				case FieldType.Vector:
 				case FieldType.Quaternion:
 				case FieldType.Integer:
-				case FieldType.EHandle: {
-						// These should be dword aligned
-						currentPosition = (currentPosition + 3) & ~3u;
-						field.PackedOffset = currentPosition;
-						Assert(field.FieldSize >= 1);
-						currentPosition += g_FieldSizes[(int)field.FieldType] * field.FieldSize;
-					}
-					break;
-
-				case FieldType.Short: {
-						// This should be word aligned
-						currentPosition = (currentPosition + 1) & ~1u;
-						field.PackedOffset = currentPosition;
-						Assert(field.FieldSize >= 1);
-						currentPosition += g_FieldSizes[(int)field.FieldType] * field.FieldSize;
-					}
-					break;
-
+				case FieldType.EHandle:
+				case FieldType.Short:
 				case FieldType.String:
 				case FieldType.Color32:
 				case FieldType.Boolean:
-				case FieldType.Character: {
-						field.PackedOffset = currentPosition;
-						Assert(field.FieldSize >= 1);
-						currentPosition += g_FieldSizes[(int)field.FieldType] * field.FieldSize;
-					}
+				case FieldType.Character:
+					field.PackedOffset = currentPosition++;
 					break;
 				case FieldType.Void: {
 						// Special case, just skip it
@@ -2219,15 +2298,6 @@ public partial class C_BaseEntity : IClientEntity
 		ComputePackedSize_R(map);
 		Assert(map.PackedOffsetsComputed);
 	}
-
-	public nuint GetIntermediateDataSize() {
-		ComputePackedOffsets();
-		DataMap map = GetPredDescMap()!;
-		Assert(map.PackedOffsetsComputed);
-		nuint size = map.PackedSize;
-		Assert(size > 0);
-		return Math.Max(size, 8);
-	}
 }
 
 public class VarMapEntry
@@ -2246,13 +2316,4 @@ public struct VarMapping
 	public VarMapping() {
 		InterpolatedEntries = 0;
 	}
-}
-public ref struct PredictedFrame
-{
-	public readonly byte[]? FrameData;
-	public PredictedFrame(byte[] framedata) {
-		FrameData = framedata;
-	}
-	public readonly bool IsEmpty => FrameData == null || FrameData.Length == 0;
-	public readonly ref T PackedField<T>(nuint fieldoffset) where T : struct => ref MemoryMarshal.Cast<byte, T>(FrameData.AsSpan()[(int)fieldoffset..])[0];
 }

@@ -1,5 +1,5 @@
 ﻿namespace Source.Common.Networking;
-public interface IClientMessageHandler
+public interface IClientMessageHandler : INetMessageHandler
 {
 
 }

@@ -154,17 +154,14 @@ public abstract class BaseClientState(
 		LevelBaseName = "";
 		MaxClients = 0;
 
-		if (StringTableContainer != null) {
-			StringTableContainer.RemoveAllTables();
-			StringTableContainer = null;
-		}
+		StringTableContainer?.RemoveAllTables();
+		StringTableContainer = null;
 
 		FreeEntityBaselines();
 
-		// RecvTable_Term(false);
+		// ?? review RecvTable.Term(false);
 
-		if (NetChannel != null)
-			NetChannel.Reset();
+		NetChannel?.Reset();
 
 		Paused = false;
 		PausedExpireTime = -1.0;
@@ -252,7 +249,7 @@ public abstract class BaseClientState(
 	internal PackedEntity? GetEntityBaseline(int baseline, int newEntity) => EntityBaselines[baseline][newEntity];
 
 
-	public virtual void ConnectionStart(NetChannel channel) {
+	public virtual void ConnectionStart(INetChannel channel) {
 		channel.RegisterMessage<NET_Tick>();
 		channel.RegisterMessage<NET_SignonState>();
 		channel.RegisterMessage<NET_SetConVar>();
@@ -461,8 +458,8 @@ public abstract class BaseClientState(
 				 msgCompressedSize <= (uint)msg.DataIn.BytesAvailable &&
 				 msgCompressedSize < uint.MaxValue / 2 &&
 				 msgUncompressedSize < uint.MaxValue / 2) {
-				byte[] uncompressedBuffer = new byte[NetChannel.PAD_NUMBER(msgUncompressedSize, 4)];
-				byte[] compressedBuffer = new byte[NetChannel.PAD_NUMBER(msgCompressedSize, 4)];
+				byte[] uncompressedBuffer = new byte[PAD_NUMBER(msgUncompressedSize, 4)];
+				byte[] compressedBuffer = new byte[PAD_NUMBER(msgCompressedSize, 4)];
 				msg.DataIn.ReadBits(compressedBuffer, msgCompressedSize * 8);
 
 				unsafe {

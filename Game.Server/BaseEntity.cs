@@ -37,6 +37,8 @@ public partial class BaseEntity : IServerEntity
 	public virtual bool IsNextBot() => false;
 	public virtual bool IsBaseCombatWeapon() => false;
 	public virtual bool IsCombatItem() => false;
+	public bool ClassMatches(ReadOnlySpan<char> classOrWildcard) => false; // todo
+	public virtual bool IsPredicted() => false;
 	private static void SendProxy_AnimTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID)
 		=> throw new NotImplementedException();
 	private static void SendProxy_SimulationTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID)
@@ -121,7 +123,7 @@ public partial class BaseEntity : IServerEntity
 		SendPropInt(FIELD.OF(nameof(MapCreatedID)), 16),
 	]);
 
-
+	public float Gravity;
 	public void SetPredictionEligible(bool canpredict) { } // nothing in game code
 	public ref readonly Vector3 GetLocalOrigin() => ref AbsOrigin;
 	private static void SendProxy_OverrideMaterial(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
@@ -283,6 +285,9 @@ public partial class BaseEntity : IServerEntity
 	}
 
 
+	public bool GetCheckUntouch() => IsEFlagSet(EFL.CheckUntouch);
+	public readonly Handle<BasePlayer> PlayerSimulationOwner = new();
+
 	void PhysicsStep() { }
 	void PhysicsPusher() { }
 	void PhysicsNone() { }
@@ -402,4 +407,9 @@ public partial class BaseEntity : IServerEntity
 
 		return ref CoordinateFrame;
 	}
+
+	readonly ServerNetworkProperty Network = new();
+	public int EntIndex() => Network.EntIndex();
+	public float GetGravity() => Gravity;
+	public void SetGravity(float gravity) => Gravity = gravity;
 }

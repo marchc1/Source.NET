@@ -525,7 +525,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 #endif
 	}
 
-	public void DetachObject(bool playSound = true, bool wasLaunched = false){
+	public void DetachObject(bool playSound = true, bool wasLaunched = false) {
 		// todo
 	}
 
@@ -543,7 +543,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		return @return;
 	}
 
-	public void ForceDrop(){
+	public void ForceDrop() {
 		CloseElements();
 		DetachObject();
 		StopEffects();
@@ -564,6 +564,136 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 		DestroyEffects();
 		return base.Holster(switchingTo);
 	}
+
+	public bool ResetOwnerEntity;
+	public TimeUnit_t ElementDebounce;
+	public TimeUnit_t CheckSuppressTime;
+	public TimeUnit_t RepuntObjectTime;
+	public bool LastDenySoundPlayed;
+	public InButtons Attack2Debounce;
+
+	public void CheckForTarget() {
+
+	}
+
+	public enum ElementState
+	{
+		None,
+		Open,
+		Closed
+	}
+
+	public ElementState ChangeState;
+
+	public override void ItemPostFrame() {
+		BasePlayer? owner = ToBasePlayer(GetOwner());
+		if (owner == null) {
+			// We found an object. Debounce the button
+			Attack2Debounce = 0;
+			return;
+		}
+
+		//Check for object in pickup range
+		if (Active == false) {
+			CheckForTarget();
+
+			if ((ElementDebounce < gpGlobals.CurTime) && (ChangeState != ElementState.None)) {
+				if (ChangeState == ElementState.Open)
+					OpenElements();
+				else if (ChangeState == ElementState.Closed)
+					CloseElements();
+
+				ChangeState = ElementState.None;
+			}
+		}
+
+		// NOTE: Attack2 will be considered to be pressed until the first item is picked up.
+		InButtons nAttack2Mask = owner.Buttons & (~Attack2Debounce);
+		if ((nAttack2Mask & InButtons.Attack2) != 0)
+			SecondaryAttack();
+		else {
+			// Reset our debouncer
+			LastDenySoundPlayed = false;
+
+			if (Active == false)
+				DoEffect(EffectState_t.Ready);
+		}
+
+		if ((owner.Buttons & InButtons.Attack2) == 0)
+			Attack2Debounce = 0;
+
+		if ((owner.Buttons & InButtons.Attack) != 0)
+			PrimaryAttack();
+		else
+			WeaponIdle();
+	}
+	public void PrimaryFireEffect() {
+		BasePlayer? owner = ToBasePlayer(GetOwner());
+
+		if (owner == null)
+			return;
+
+		owner.ViewPunch(new QAngle(-6, SharedRandomInt("physcannonfire", -2, 2), 0));
+
+#if !CLIENT_DLL
+		// Color white = new(245, 245, 255, 32);
+		// Util.ScreenFade(owner, white, 0.1f, 0.0f, FFADE_IN);
+#endif
+
+		WeaponSound(Shared.WeaponSound.Single);
+	}
+
+	public override void PrimaryAttack() {
+		if (NextPrimaryAttack > gpGlobals.CurTime)
+			return;
+
+		BasePlayer? owner = ToBasePlayer(GetOwner());
+
+		if (owner == null)
+			return;
+
+		if (Active) {
+			// Punch the object being held!!
+			Vector3 forward;
+			owner.EyeVectors(out forward);
+
+			// Validate the item is within punt range
+			// BaseEntity? held = m_grabController.GetAttached();
+			// Assert(held != NULL);
+
+			// if (held != null) {
+			// 	float heldDist = (held.WorldSpaceCenter() - owner.WorldSpaceCenter()).Length();
+			// 
+			// 	if (heldDist > physcannon_tracelength.GetFloat()) {
+			// 		// We can't punt this yet
+			// 		DryFire();
+			// 		return;
+			// 	}
+			// }
+
+			// LaunchObject(forward, physcannon_maxforce.GetFloat());
+
+			PrimaryFireEffect();
+			SendWeaponAnim(Activity.ACT_VM_SECONDARYATTACK);
+			return;
+		}
+
+		NextPrimaryAttack = gpGlobals.CurTime + 0.5;
+		DryFire();
+	}
+
+	public void DryFire(){
+		SendWeaponAnim(Activity.ACT_VM_PRIMARYATTACK);
+
+		WeaponSound(Shared.WeaponSound.Empty);
+	}
+
+	public override void SecondaryAttack() {
+		#if !CLIENT_DLL
+			// todo
+		#endif
+	}
+
 
 #if CLIENT_DLL
 	public bool IsEffectVisible(EffectType effectID) {

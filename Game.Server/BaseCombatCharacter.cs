@@ -4,7 +4,10 @@ using Source;
 using Source.Common;
 using Source.Common.Engine;
 
+using System.Numerics;
+
 namespace Game.Server;
+
 using FIELD = Source.FIELD<BaseCombatCharacter>;
 
 public partial class BaseCombatCharacter : BaseFlex
@@ -28,7 +31,7 @@ public partial class BaseCombatCharacter : BaseFlex
 	public readonly Handle<BaseCombatWeapon> LastWeapon = new();
 	public readonly Handle<BaseCombatWeapon> ActiveWeapon = new();
 	public InlineArrayNewMaxWeapons<Handle<BaseCombatWeapon>> MyWeapons = new();
-	public InlineArrayMaxAmmoSlots<int> Ammo;
+	[NetworkArraySize(MAX_AMMO_TYPES)] public readonly NetworkArray<int> Ammo = new(MAX_AMMO_TYPES);
 	public Color BloodColor;
 
 	private static object? SendProxy_SendBaseCombatCharacterLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
@@ -36,4 +39,22 @@ public partial class BaseCombatCharacter : BaseFlex
 	}
 
 	public static readonly new ServerClass ServerClass = new ServerClass("BaseCombatCharacter", DT_BaseCombatCharacter).WithManualClassID(StaticClassIndices.CBaseCombatCharacter);
+
+	public override void DoMuzzleFlash() {
+		BaseCombatWeapon? weapon = GetActiveWeapon();
+		if (weapon != null)
+			weapon.DoMuzzleFlash();
+		else
+			base.DoMuzzleFlash();
+	}
+
+	WeaponProficiency CurrentWeaponProficiency;
+
+	public WeaponProficiency GetCurrentWeaponProficiency() => CurrentWeaponProficiency;
+
+	public Vector3 GetAttackSpread(BaseCombatWeapon? weapon, BaseEntity? target = null) {
+		if (weapon != null)
+			return weapon.GetBulletSpread(GetCurrentWeaponProficiency());
+		return VECTOR_CONE_15DEGREES;
+	}
 }

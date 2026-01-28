@@ -17,6 +17,7 @@ using Source.Common.Mathematics;
 using Source.Engine;
 
 using System.Numerics;
+using Source.Common.Input;
 
 namespace Game.Client;
 
@@ -172,7 +173,7 @@ public class ViewRender : IViewRender
 		SetUpViews();
 
 		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
-		if(player != null) {
+		if (player != null) {
 			default_fov.SetValue(player.DefaultFOV);
 		}
 	}
@@ -259,7 +260,7 @@ public class ViewRender : IViewRender
 		for (StereoEye eye = GetFirstEye(); eye <= GetLastEye(); eye = eye + 1) {
 			ref ViewSetup viewEye = ref GetView(eye);
 
-			float aspectRatio = engine.GetScreenAspectRatio() * 0.75f; 
+			float aspectRatio = engine.GetScreenAspectRatio() * 0.75f;
 			float limitedAspectRatio = aspectRatio;
 			viewEye.FOV = ScaleFOVByWidthRatio(viewEye.FOV, limitedAspectRatio);
 			viewEye.FOVViewmodel = ScaleFOVByWidthRatio(viewEye.FOVViewmodel, limitedAspectRatio);
@@ -304,6 +305,28 @@ public class ViewRender : IViewRender
 
 		render.Push2DView(View2D, 0, null, GetFrustum());
 		render.VGui_Paint(PaintMode.UIPanels | PaintMode.Cursor);
+		// This is dumb and I just needed it to show a prediction thing and was super lazy.
+		// var i = Singleton<IInputSystem>();
+		// int btnsize = 32;
+		// int padsize = 8;
+		// bool cond;
+		// {
+		// 	cond = i.IsButtonDown(ButtonCode.KeyW);
+		// 	surface.DrawSetColor(cond ? 0 : 255, cond ? 255 : 0, 0, 255);
+		// 	surface.DrawFilledRect(300, 800, 300 + btnsize, 800 + btnsize);
+		// 
+		// 	cond = i.IsButtonDown(ButtonCode.KeyS);
+		// 	surface.DrawSetColor(cond ? 0 : 255, cond ? 255 : 0, 0, 255);
+		// 	surface.DrawFilledRect(300, 800 + btnsize + padsize, 300 + btnsize, 800 + btnsize + padsize + btnsize);
+		// 
+		// 	cond = i.IsButtonDown(ButtonCode.KeyA);
+		// 	surface.DrawSetColor(cond ? 0 : 255, cond ? 255 : 0, 0, 255);
+		// 	surface.DrawFilledRect(300 - btnsize - padsize, 800 + btnsize + padsize, (300 - btnsize - padsize) + btnsize, 800 + btnsize + padsize + btnsize);
+		// 
+		// 	cond = i.IsButtonDown(ButtonCode.KeyD);
+		// 	surface.DrawSetColor(cond ? 0 : 255, cond ? 255 : 0, 0, 255);
+		// 	surface.DrawFilledRect(300 + btnsize + padsize, 800 + btnsize + padsize, 300 + btnsize + padsize + btnsize, 800 + btnsize + padsize + btnsize);
+		// }
 		render.PopView(GetFrustum());
 	}
 
@@ -312,7 +335,7 @@ public class ViewRender : IViewRender
 
 	public void RenderView(in ViewSetup viewRender, ClearFlags clearFlags, RenderViewInfo whatToDraw) {
 		using C_BaseAnimating.AutoAllowBoneAccess boneaccess = new(true, true);
-		
+
 		MatRenderContextPtr renderContext;
 
 		using (renderContext = new MatRenderContextPtr(materials)) {

@@ -1,4 +1,6 @@
-﻿using System.Numerics;
+﻿using Source.Common.Engine;
+
+using System.Numerics;
 
 namespace Source.Common;
 
@@ -6,6 +8,7 @@ public interface IServerNetworkable
 {
 	IHandleEntity? GetEntityHandle();
 	ServerClass GetServerClass();
+	Edict? GetEdict();
 	ReadOnlySpan<char> GetClassName();
 	void Release();
 	int AreaNum();

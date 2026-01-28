@@ -1,6 +1,10 @@
-﻿using Source.Common;
+﻿using SharpCompress.Common;
 
+using Source.Common;
+
+using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Source.Common
 {
@@ -59,19 +63,19 @@ namespace Source.Common
 	{
 		public readonly FieldType FieldType;
 		public readonly string FieldName = "";
-		public readonly IFieldAccessor FieldAccessor;
-		public nuint PackedOffset;
+		public readonly IDynamicAccessor FieldAccessor;
+		public nuint PackedOffset = nuint.MaxValue;
 		public readonly ushort FieldSize;
 		public readonly FieldTypeDescFlags Flags;
 		public readonly string ExternalName = "";
 		public readonly ISaveRestoreOps? SaveRestoreOps;
 		// InputFunc?
 		public readonly DataMap? TD;
-		public readonly TypeDescription? OverrideField;
-		public readonly int OverrideCount;
+		public TypeDescription? OverrideField;
+		public int OverrideCount;
 		public readonly float FieldTolerance;
 
-		public TypeDescription(FieldType type, ReadOnlySpan<char> fieldName, IFieldAccessor accessor, ushort fieldSize, FieldTypeDescFlags flags, ReadOnlySpan<char> externalName, ISaveRestoreOps? saveRestoreOps, float fieldTolerance) {
+		public TypeDescription(FieldType type, ReadOnlySpan<char> fieldName, IDynamicAccessor accessor, ushort fieldSize, FieldTypeDescFlags flags, ReadOnlySpan<char> externalName, ISaveRestoreOps? saveRestoreOps, float fieldTolerance) {
 			FieldType = type;
 			FieldName = new(fieldName);
 			FieldAccessor = accessor;
@@ -126,7 +130,8 @@ namespace Source.Common
 	}
 }
 
-namespace Source {
+namespace Source
+{
 	public static class DEFINE<T>
 	{
 		static TypeDescription _FIELD(ReadOnlySpan<char> name, FieldType fieldType, int count, FieldTypeDescFlags flags, ReadOnlySpan<char> mapname, float tolerance) {
@@ -152,6 +157,78 @@ namespace Source {
 		}
 		public static TypeDescription PRED_ARRAY_TOL(ReadOnlySpan<char> name, FieldType fieldType, int count, FieldTypeDescFlags flags, float tolerance) {
 			return _FIELD_ARRAY(name, fieldType, count, flags, null, tolerance);
+		}
+	}
+
+	public interface IDataFrameContainer;
+	public interface IDataFrameContainer<T>
+	{
+		public T? Get(int offset = 0);
+		public void Set(in T? v, int offset = 0);
+	}
+
+	public class DataFrameContainer<T> : IDataFrameContainer, IDataFrameContainer<T>
+	{
+		public readonly T?[] v;
+
+		public DataFrameContainer(int count = 1) => v = new T?[count];
+		public DataFrameContainer(T? val, int count = 1) : this(count) => v[0] = val;
+
+		public virtual T? Get(int offset = 0) => v[offset];
+		public virtual void Set(in T? val, int offset = 0) => v[offset] = val;
+	}
+
+	/// <summary>
+	/// Source Engine deviation. Used mostly in prediction. 
+	/// </summary>
+	public class DataFrame
+	{
+		readonly IDataFrameContainer[] Data;
+		readonly DataMap DataMap;
+
+		public T? Get<T>(TypeDescription td, int offset = 0) => ((DataFrameContainer<T>)Data[td.PackedOffset]).Get(offset);
+		public void Set<T>(TypeDescription td, T? value, int offset = 0) => ((DataFrameContainer<T>)Data[td.PackedOffset]).Set(value, offset);
+
+		public DataFrame(DataMap? map) {
+			ArgumentNullException.ThrowIfNull(map);
+
+			DataMap = map;
+			Assert(map.PackedOffsetsComputed);
+
+			Data = new IDataFrameContainer[map.PackedSize];
+			SetupDataFrame_R(map);
+		}
+
+		private void SetupDataFrame_R(DataMap map) {
+			// Recurse through basemaps first
+			if (map.BaseMap != null)
+				SetupDataFrame_R(map.BaseMap);
+
+			for (nuint i = 0; i < (nuint)map.DataNumFields; i++) {
+				TypeDescription td = map.DataDesc[i];
+				if (td.PackedOffset == nuint.MaxValue)
+					continue;
+
+				IDataFrameContainer framecontainer;
+				switch (td.FieldType) {
+					case FieldType.Embedded: framecontainer = new DataFrameContainer<DataFrame>(new DataFrame(td.TD)); break;
+					case FieldType.Float: framecontainer = new DataFrameContainer<float>(); break;
+					case FieldType.Vector: framecontainer = new DataFrameContainer<Vector3>(); break;
+					case FieldType.Quaternion: framecontainer = new DataFrameContainer<Quaternion>(); break;
+					case FieldType.Integer: framecontainer = new DataFrameContainer<int>(); break;
+					case FieldType.EHandle: framecontainer = new DataFrameContainer<BaseHandle>(new BaseHandle()); break;
+					case FieldType.Short: framecontainer = new DataFrameContainer<short>(); break;
+					case FieldType.String: framecontainer = new DataFrameContainer<char[]>(); break;
+					case FieldType.Color32: framecontainer = new DataFrameContainer<Color>(); break;
+					case FieldType.Boolean: framecontainer = new DataFrameContainer<bool>(); break;
+					case FieldType.Character: framecontainer = new DataFrameContainer<byte>(); break;
+
+					default:
+						continue;
+				}
+
+				Data[td.PackedOffset] = framecontainer;
+			}
 		}
 	}
 }

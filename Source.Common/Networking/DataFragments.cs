@@ -1,3 +1,5 @@
+using Source.Common.Filesystem;
+
 using System.Buffers;
 
 namespace Source.Common.Networking;
@@ -15,7 +17,7 @@ public unsafe class DataFragments
 	public int NumFragments;
 	public int AckedFragments;
 	public int PendingFragments;
-
+	public IFileHandle? File;
 	public int Count;
 
 	public void Return() {

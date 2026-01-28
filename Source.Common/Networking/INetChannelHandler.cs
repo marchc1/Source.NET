@@ -2,7 +2,7 @@ namespace Source.Common.Networking;
 
 public interface INetChannelHandler
 {
-	void ConnectionStart(NetChannel channel);
+	void ConnectionStart(INetChannel channel);
 	void ConnectionClosing(ReadOnlySpan<char> reason);
 	void ConnectionCrashed(ReadOnlySpan<char> reason);
 	void PacketStart(int incomingSequence, int outgoingAcknowledged);

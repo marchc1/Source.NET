@@ -86,6 +86,69 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		services.GetRequiredService<EngineSendTable>().Init(tables.AsSpan()[..numTables]);
 	}
 
+	readonly ConVar tv_enable = new( "tv_enable", "0", FCvar.Notify, "Activates SourceTV on server." );
+
+
+	[ConCommand(helpText: "Change the maximum number of players allowed on this server.")]
+	void maxplayers(in TokenizedCommand args){
+		if (args.ArgC() != 2) {
+			ConMsg("\"maxplayers\" is \"%u\"\n", sv.GetMaxClients());
+			return;
+		}
+
+		if (sv.IsActive()) {
+			ConMsg("Cannot change maxplayers while the server is running\n");
+			return;
+		}
+
+		SetupMaxPlayers(int.TryParse(args[1], out int i) ? i : 0);
+	}
+
+	public void SetupMaxPlayers(int desiredMaxPlayers){
+		int minmaxplayers = 1;
+		int maxmaxplayers = Constants.ABSOLUTE_PLAYER_LIMIT;
+		int defaultmaxplayers = 1;
+
+		if (ServerGameClients != null) {
+			ServerGameClients.GetPlayerLimits(out minmaxplayers, out maxmaxplayers, out defaultmaxplayers);
+
+			if (minmaxplayers < 1) 
+				Sys.Error($"GetPlayerLimits:  min maxplayers must be >= 1 ({minmaxplayers})");
+			else if (defaultmaxplayers < 1) 
+				Sys.Error($"GetPlayerLimits:  default maxplayers must be >= 1 ({minmaxplayers})");
+
+			if (minmaxplayers > maxmaxplayers || defaultmaxplayers > maxmaxplayers) 
+				Sys.Error($"GetPlayerLimits:  min maxplayers {minmaxplayers} > max {maxmaxplayers}");
+			if (maxmaxplayers > Constants.ABSOLUTE_PLAYER_LIMIT) 
+				Sys.Error($"GetPlayerLimits:  max players limited to {Constants.ABSOLUTE_PLAYER_LIMIT}");
+		}
+
+		// Determine absolute limit
+		sv.MaxClientsLimit = maxmaxplayers;
+
+		// Check for command line override
+		int newmaxplayers = desiredMaxPlayers;
+
+		if (newmaxplayers >= 1) {
+			// Never go above what the game .dll can handle
+			newmaxplayers = Math.Min(newmaxplayers, maxmaxplayers);
+			sv.MaxClientsLimit = newmaxplayers;
+		}
+		else {
+			newmaxplayers = defaultmaxplayers;
+		}
+
+		if (tv_enable.GetBool()) {
+			newmaxplayers += 1;
+			sv.MaxClientsLimit += 1;
+		}
+
+		newmaxplayers = Math.Clamp(newmaxplayers, minmaxplayers, sv.MaxClientsLimit);
+
+		if (sv.GetMaxClients() < newmaxplayers || !tv_enable.GetBool())
+			sv.SetMaxClients(newmaxplayers);
+	}
+
 	private int BuildSendTablesArray(ServerClass? classes, SendTable[] tables) {
 		int i = 0;
 		while (classes != null) {

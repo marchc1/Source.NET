@@ -193,7 +193,7 @@ public partial class CL(IServiceProvider services, Net Net,
 			TimeUnit_t remainingTime = timeout - cl.NetChannel.GetTimeSinceLastReceived();
 			Con.NXPrintF(in np, "WARNING:  Connection Problem");
 			np.Index = 3;
-			Con.NXPrintF(in np, $"Auto-disconnect in {remainingTime} seconds");
+			Con.NXPrintF(in np, $"Auto-disconnect in {remainingTime:F2} seconds");
 		}
 
 		if (cl.IsActive()) {
@@ -549,7 +549,7 @@ public partial class CL(IServiceProvider services, Net Net,
 			fromBits *= 8;
 		}
 
-		bf_read fromBuf = new("CL.CopyNewEntity->fromBuf", fromData, NetChannel.Bits2Bytes(fromBits), fromBits);
+		bf_read fromBuf = new("CL.CopyNewEntity->fromBuf", fromData, Bits2Bytes(fromBits), fromBits);
 
 		RecvTable? recvTable = GetEntRecvTable(u.NewEntity);
 

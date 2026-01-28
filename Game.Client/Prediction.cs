@@ -87,8 +87,8 @@ public class Prediction : IPrediction
 			return;
 
 		Vector3 origin = player.GetNetworkOrigin();
-		PredictedFrame slot = player.GetPredictedFrame(commandsAcknowledged - 1);
-		if (slot.IsEmpty)
+		DataFrame? slot = player.GetPredictedFrame(commandsAcknowledged - 1);
+		if (slot == null)
 			return;
 
 		// Find the origin field in the database
@@ -97,17 +97,19 @@ public class Prediction : IPrediction
 		if (td == null)
 			return;
 
-		Vector3 predicted_origin = slot.PackedField<Vector3>(td.PackedOffset);
+		Vector3 predicted_origin = slot.Get<Vector3>(td);
 
 		// Compare what the server returned with what we had predicted it to be
 		MathLib.VectorSubtract(predicted_origin, origin, out delta);
 
 		len = MathLib.VectorLength(delta);
-		if (len > MAX_PREDICTION_ERROR) {
+		// temporary TODO: disabling this until I have packed fields working
+		//if (len > MAX_PREDICTION_ERROR) {
 			// A teleport or something, clear out error
-			len = 0;
-		}
-		else {
+			//len = 0;
+		//}
+		//else 
+		{
 			if (len > MIN_PREDICTION_EPSILON) {
 				player.NotePredictionError(delta);
 
@@ -133,8 +135,29 @@ public class Prediction : IPrediction
 	}
 
 	public void PostEntityPacketReceived() {
-		throw new NotImplementedException();
+		if (cl_predict.GetInt() == 0)
+			return;
+
+		C_BasePlayer? current = C_BasePlayer.GetLocalPlayer();
+		// No local player object?
+		if (current == null)
+			return;
+
+		// Transfer intermediate data from other predictables
+		int c = predictables.GetPredictableCount();
+		int i;
+		for (i = 0; i < c; i++) {
+			C_BaseEntity? ent = predictables.GetPredictable(i);
+			if (ent == null)
+				continue;
+
+			if (!ent.GetPredictable())
+				continue;
+
+			ent.PostEntityPacketReceived();
+		}
 	}
+
 	public static readonly ConVar cl_predictionlist = new("cl_predictionlist", "0", FCvar.Cheat, "Show which entities are predicting\n");
 
 
@@ -192,12 +215,9 @@ public class Prediction : IPrediction
 
 					if (showlist >= 2) {
 						nint size = GetClassMap().GetClassSize(ent.GetClassname());
-						nuint intermediate_size = ent.GetIntermediateDataSize() * (MULTIPLAYER_BACKUP + 1);
-
-						engine.Con_NXPrintf(np, $"{sz.SliceNullTerminatedString()} {ent.GetClassname()} ({size} / {intermediate_size} bytes): {(ent.GetPredictable() ? "predicted" : "client created")}");
+						ent.ComputePackedOffsets();
 
 						totalsize += (nuint)size;
-						totalsize_intermediate += intermediate_size;
 					}
 					else {
 						engine.Con_NXPrintf(in np, $"{sz.SliceNullTerminatedString()} {ent.GetClassname()}: {(ent.GetPredictable() ? "predicted" : "client created")}");
@@ -784,8 +804,33 @@ public class Prediction : IPrediction
 		}
 	}
 
+	private void InvalidateEFlagsRecursive(C_BaseEntity ent, EFL dirtyFlags, EFL childFlags = 0) {
+		ent.AddEFlags(dirtyFlags);
+		dirtyFlags |= childFlags;
+		for (C_BaseEntity? child = ent.FirstMoveChild(); child != null; child = child.NextMovePeer()) 
+			InvalidateEFlagsRecursive(child, dirtyFlags);
+	}
+
 	private void StorePredictionResults(int predicted_frame) {
-		// todo
+		int i;
+		int numpredictables = predictables.GetPredictableCount();
+
+		// Now save off all of the results
+		for (i = 0; i < numpredictables; i++) {
+			C_BaseEntity? entity = predictables.GetPredictable(i);
+			if (entity == null)
+				continue;
+
+			// Certain entities can be created locally and if so created, should be 
+			//  simulated until a network update arrives
+			if (!entity.GetPredictable())
+				continue;
+
+			// FIXME: The lack of this call inexplicably actually creates prediction errors
+			InvalidateEFlagsRecursive(entity, EFL.DirtyAbsTransform | EFL.DirtyAbsVelocity| EFL.DirtyAbsAngVelocity);
+
+			entity.SaveData("StorePredictionResults", predicted_frame, PredictionCopyType.Everything);
+		}
 	}
 
 	private void Untouch() {

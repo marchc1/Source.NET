@@ -232,7 +232,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public int IndexOfEdict(Edict edict) {
+	public int IndexOfEdict(Edict? edict) {
 		throw new NotImplementedException();
 	}
 

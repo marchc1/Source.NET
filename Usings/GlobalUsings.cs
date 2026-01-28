@@ -13,6 +13,7 @@ global using static Source.Common.RandomGlobals;
 global using static Source.Common.Utilities.UtlSymbolGlobals;
 global using static Source.Common.Physics.PhysicsConversions;
 global using static Source.Common.Filesystem.FilesystemGlobals;
+global using static Source.Common.BaseTypesGlobals;
 global using CRC32_t = uint;
 global using HCursor = nint;
 global using UtlSymId_t = ulong;

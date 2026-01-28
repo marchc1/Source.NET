@@ -334,7 +334,7 @@ public class ConPanel : BasePanel
 		if (info.Index < 0 || info.Index >= MAX_DBG_NOTIFY)
 			return;
 
-		msg.ClampedCopyTo(da_notify[info.Index].Notify);
+		strcpy(da_notify[info.Index].Notify, msg);
 		if (info.TimeToLive == -1)
 			da_notify[info.Index].Expire = -1;
 		else

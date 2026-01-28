@@ -591,7 +591,7 @@ public class ClientState : BaseClientState
 			else {
 				Assert(ei != null);
 
-				uint buffer_size = (uint)NetChannel.PAD_NUMBER(NetChannel.Bits2Bytes(ei.Bits), 4);
+				uint buffer_size = (uint)PAD_NUMBER(Protocol.Bits2Bytes(ei.Bits), 4);
 				bf_read fromBuf = new(ei.Data!, buffer_size);
 
 				RecvTable.MergeDeltas(clientClass!.RecvTable!, fromBuf, buffer, toBuf);
@@ -600,7 +600,7 @@ public class ClientState : BaseClientState
 			ei = new();
 			Events.AddLast(ei);
 
-			int size = NetChannel.Bits2Bytes(toBuf.BitsWritten);
+			int size = Protocol.Bits2Bytes(toBuf.BitsWritten);
 
 			ei.ClassID = (short)classID;
 			ei.FireDelay = fire_time + delay;

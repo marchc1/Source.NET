@@ -27,6 +27,8 @@ namespace Game.Server;
 using Source.Common.Commands;
 using Source.Common.Physics;
 
+using System.Runtime.CompilerServices;
+
 public static class BasePlayerGlobals
 {
 	public static BasePlayer? ToBasePlayer(SharedBaseEntity? entity) {
@@ -99,6 +101,15 @@ public partial class
 
 		CalcViewRoll(ref eyeAngles);
 		eyeAngles += Local.PunchAngle;
+
+#if CLIENT_DLL
+		if (!prediction.InPrediction()) { } // vieweffects
+#endif
+
+#if CLIENT_DLL
+		GetPredictionErrorSmoothingVector(out Vector3 smoothOffset);
+		eyeOrigin += smoothOffset;
+#endif
 	}
 
 	internal ReadOnlySpan<char> GetPlayerName() {
@@ -187,6 +198,162 @@ public partial class
 
 	public void SetAnimationExtension(ReadOnlySpan<char> extension) {
 		strcpy(AnimExtension, extension);
+	}
+
+
+	public void AddToPlayerSimulationList(SharedBaseEntity other) {
+		// Already in list
+		foreach (var entry in SimulatedByThisPlayer)
+			if (entry.Get() == other) return;
+
+		Assert(other.IsPlayerSimulated());
+
+		Handle<SharedBaseEntity> h = new();
+		h.Set(other);
+		SimulatedByThisPlayer.Add(h);
+	}
+
+	public void RemoveFromPlayerSimulationList(SharedBaseEntity? other) {
+		if (other == null)
+			return;
+
+		Assert(other.IsPlayerSimulated());
+		Assert(other.GetSimulatingPlayer() == this);
+
+		foreach (var entry in SimulatedByThisPlayer)
+			if (entry.Get() == other) {
+				SimulatedByThisPlayer.Remove(entry);
+				return;
+			}
+	}
+
+	public virtual void ItemPostFrame() {
+		// Put viewmodels into basically correct place based on new player origin
+		CalcViewModelView(EyePosition(), EyeAngles());
+
+		// Don't process items while in a vehicle.
+		if (GetVehicle() != null) {
+#if CLIENT_DLL
+			IClientVehicle vehicle = GetVehicle()!;
+#else
+			IServerVehicle vehicle = GetVehicle()!;
+#endif
+
+			bool usingStandardWeapons = UsingStandardWeaponsInVehicle();
+
+#if CLIENT_DLL
+			if (vehicle.IsPredicted())
+#endif
+				vehicle.ItemPostFrame(this);
+
+			if (!usingStandardWeapons || GetVehicle() == null)
+				return;
+		}
+
+
+		// check if the player is using something
+		if (UseEntity.Get() != null) {
+#if !CLIENT_DLL
+			// Assert(!IsInAVehicle());
+			ImpulseCommands();// this will call playerUse
+#endif
+			return;
+		}
+
+		if (gpGlobals.CurTime < NextAttack)
+			GetActiveWeapon()?.ItemBusyFrame();
+		else {
+			if (GetActiveWeapon() != null && (!IsInAVehicle() || UsingStandardWeaponsInVehicle())) {
+#if CLIENT_DLL
+				// Not predicting this weapon
+				if (GetActiveWeapon()!.IsPredicted())
+#endif
+					GetActiveWeapon()!.ItemPostFrame();
+			}
+		}
+
+#if !CLIENT_DLL
+		ImpulseCommands();
+#else
+		// NOTE: If we ever support full impulse commands on the client,
+		// remove this line and call ImpulseCommands instead.
+		Impulse = 0;
+#endif
+	}
+
+	public void EyeVectors(out Vector3 forward, out Vector3 right, out Vector3 up) {
+		if (GetVehicle() != null) {
+			// TODO: Cache or retrieve our calculated position in the vehicle
+			// CacheVehicleView();
+			//AngleVectors(m_vecVehicleViewAngles, pForward, pRight, pUp);
+			forward = right = up = default;
+		}
+		else 
+			MathLib.AngleVectors(EyeAngles(), out forward, out right, out up);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void EyeVectors(out Vector3 forward, out Vector3 right) => EyeVectors(out forward, out right, out _);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void EyeVectors(out Vector3 forward) => EyeVectors(out forward, out _, out _);
+	public void ClearPlayerSimulationList() {
+		int c = SimulatedByThisPlayer.Count;
+		int i;
+
+		for (i = c - 1; i >= 0; i--) {
+			Handle<SharedBaseEntity> h = SimulatedByThisPlayer[i];
+			SharedBaseEntity? e = h.Get();
+			e?.UnsetPlayerSimulated();
+		}
+
+		SimulatedByThisPlayer.Clear();
+	}
+
+	public void SimulatePlayerSimulatedEntities() {
+		int c = SimulatedByThisPlayer.Count;
+		int i;
+
+		for (i = c - 1; i >= 0; i--) {
+			Handle<SharedBaseEntity> h = SimulatedByThisPlayer[i];
+			SharedBaseEntity? e = h.Get();
+
+			if (e == null || !e.IsPlayerSimulated()) {
+				SimulatedByThisPlayer.RemoveAt(i);
+				continue;
+			}
+
+#if CLIENT_DLL
+			if (e.IsClientCreated() && prediction.InPrediction() && !prediction.IsFirstTimePredicted())
+				continue;
+#endif
+			Assert(e.IsPlayerSimulated());
+			Assert(e.GetSimulatingPlayer() == this);
+
+			e.PhysicsSimulate();
+		}
+
+		// Loop through all entities again, checking their untouch if flagged to do so
+		c = SimulatedByThisPlayer.Count;
+
+		for (i = c - 1; i >= 0; i--) {
+			Handle<SharedBaseEntity> h = SimulatedByThisPlayer[i];
+			SharedBaseEntity? e = h.Get();
+
+			if (e == null || !e.IsPlayerSimulated()) {
+				SimulatedByThisPlayer.RemoveAt(i);
+				continue;
+			}
+
+#if CLIENT_DLL
+			if (e.IsClientCreated() && prediction.InPrediction() && !prediction.IsFirstTimePredicted())
+				continue;
+#endif
+
+			Assert(e.IsPlayerSimulated());
+			Assert(e.GetSimulatingPlayer() == this);
+
+			if (!e.GetCheckUntouch())
+				continue;
+
+			PhysicsCheckForEntityUntouch();
+		}
 	}
 
 	public bool UsingStandardWeaponsInVehicle() {

@@ -6,7 +6,6 @@ using System.Numerics;
 
 using static Dbg;
 using static Protocol;
-using static Net;
 using static Constants;
 using Source.Common.Bitbuffers;
 using Source.Common.Hashing;
@@ -43,8 +42,8 @@ public enum ServerOS : byte
 
 public class NET_Tick : NetMessage
 {
-	public NET_Tick() : base(Net.Tick) { reliable = false; }
-	public NET_Tick(int tick, float frametime, float framedev) : base(Net.Tick) {
+	public NET_Tick() : base(NET.Tick) { reliable = false; }
+	public NET_Tick(int tick, float frametime, float framedev) : base(NET.Tick) {
 		reliable = false;
 		Tick = tick;
 		HostFrameTime = frametime;
@@ -56,7 +55,7 @@ public class NET_Tick : NetMessage
 	public float HostFrameDeviation;
 	public const float NET_TICK_SCALEUP = 100000.0f;
 	public override bool ReadFromBuffer(bf_read buffer) {
-		NetChannel netchan = GetNetChannel() ?? throw new Exception("No net channel found!");
+		INetChannel netchan = GetNetChannel() ?? throw new Exception("No net channel found!");
 		Tick = buffer.ReadLong();
 		HostFrameTime = buffer.ReadUBitLong(16) / NET_TICK_SCALEUP;
 		HostFrameDeviation = buffer.ReadUBitLong(16) / NET_TICK_SCALEUP;
@@ -76,7 +75,7 @@ public class NET_SetConVar : NetMessage
 {
 	public List<cvar_s> ConVars;
 	public override NetChannelGroup GetGroup() => NetChannelGroup.StringCmd;
-	public NET_SetConVar() : base(SetConVar) {
+	public NET_SetConVar() : base(NET.SetConVar) {
 		ConVars = [];
 	}
 
@@ -131,7 +130,7 @@ public class NET_SetConVar : NetMessage
 }
 public class NET_StringCmd : NetMessage
 {
-	public NET_StringCmd() : base(StringCmd) { }
+	public NET_StringCmd() : base(NET.StringCmd) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.StringCmd;
 
 	public string Command = "";
@@ -154,11 +153,11 @@ public class NET_SignonState : NetMessage
 	public SignOnState SignOnState { get; set; }
 	public int SpawnCount { get; set; }
 
-	public NET_SignonState() : base(Net.SignOnState) {
+	public NET_SignonState() : base(NET.SignOnState) {
 
 	}
 	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
-	public NET_SignonState(SignOnState signOnState, int spawnCount) : base(Net.SignOnState) {
+	public NET_SignonState(SignOnState signOnState, int spawnCount) : base(NET.SignOnState) {
 		SignOnState = signOnState;
 		SpawnCount = spawnCount;
 	}

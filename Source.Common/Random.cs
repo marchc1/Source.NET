@@ -15,6 +15,8 @@ public interface IUniformRandomStream
 
 public static class RandomGlobals {
 	static readonly UniformRandomStream s_UniformStream = new();
+	public static void RandomSeed(int seed) => s_UniformStream.SetSeed(seed);
+	public static float RandomFloat(int min, int max) => s_UniformStream.RandomFloat(min, max);
 	public static int RandomInt(int min, int max) => s_UniformStream.RandomInt(min, max);
 }
 

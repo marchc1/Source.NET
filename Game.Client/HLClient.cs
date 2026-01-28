@@ -186,13 +186,24 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 				OnRenderStart();
 				break;
 			case ClientFrameStage.NetUpdateStart:
-				// TODO: AbsRecomputations/AbsQueriesValid stuff in C_BaseEntity
+				C_BaseEntity.EnableAbsRecomputations(false);
+				C_BaseEntity.SetAbsQueriesValid(false);
 				Interpolation.SetLastPacketTimeStamp(engine.GetLastTimeStamp());
 				break;
 			case ClientFrameStage.NetUpdateEnd:
+				C_BaseEntity.EnableAbsRecomputations(true);
+				C_BaseEntity.SetAbsQueriesValid(true);
 				break;
 			case ClientFrameStage.RenderEnd:
 				OnRenderEnd();
+				break;
+			case ClientFrameStage.NetUpdatePostDataUpdateStart:
+				break;
+			case ClientFrameStage.NetUpdatePostDataUpdateEnd:
+				prediction.PostEntityPacketReceived();
+				break;
+			case ClientFrameStage.Start:
+				C_BaseEntity.CheckCLInterpChanged();
 				break;
 		}
 	}

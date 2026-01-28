@@ -104,6 +104,29 @@ public partial class
 
 	public int ViewModelIndex() => _ViewModelIndex;
 
+	public const int VIEWMODEL_ANIMATION_PARITY_BITS = 3;
+
+	public virtual void SendViewModelMatchingSequence(int sequence){
+		SetSequence(sequence);
+
+		AnimationParity = (AnimationParity + 1) & ((1 << VIEWMODEL_ANIMATION_PARITY_BITS) - 1);
+
+#if CLIENT_DLL
+	OldAnimationParity = AnimationParity;
+
+	// Force frame interpolation to start at exactly frame zero
+	AnimTime			= gpGlobals.CurTime;
+#else
+		BaseCombatWeapon? weapon = Weapon.Get();
+		// TODO: bool showControlPanels = weapon != null && weapon.ShouldShowControlPanels();
+		// TODO: SetControlPanelsActive(showControlPanels);
+#endif
+
+		// Restart animation at frame 0
+		SetCycle(0);
+		ResetSequenceInfo();
+	}
+
 	public SharedBaseEntity? GetOwner() => Owner.Get();
 
 #if CLIENT_DLL

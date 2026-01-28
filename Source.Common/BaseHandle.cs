@@ -1,7 +1,8 @@
 ﻿namespace Source.Common;
 
-public class BaseHandle
+public class BaseHandle : IEquatable<BaseHandle>
 {
+	public bool Equals(BaseHandle? otherHandle) => otherHandle != null && Index == otherHandle.Index;
 	public uint Index;
 
 	public void Invalidate() => Index = (uint)Constants.INVALID_EHANDLE_INDEX;
