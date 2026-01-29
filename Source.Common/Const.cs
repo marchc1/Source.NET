@@ -237,7 +237,7 @@ public static class Constants
 	public const int MAX_EVENT_BITS = 9;
 	public const int MAX_EVENT_NUMBER = 1 << MAX_EVENT_BITS;
 
-	public const int MAX_PLAYER_NAME_LENGTH = 32;
+	public const int MAX_PLAYER_NAME_LENGTH = 128;
 
 	public const int MAX_SERVER_CLASSES = 1 << MAX_SERVER_CLASS_BITS;
 	public const int MAX_SERVER_CLASS_BITS = 9;
