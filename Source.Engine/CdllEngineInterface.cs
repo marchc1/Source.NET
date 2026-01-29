@@ -164,7 +164,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 
 		int maxClients = Math.Min(cl.MaxClients, cl.UserInfoTable.GetNumStrings());
 		for (int i = 0; i < maxClients; i++) {
-			Span<byte> pi = cl.UserInfoTable.GetStringUserData(userID);
+			Span<byte> pi = cl.UserInfoTable.GetStringUserData(i);
 			if (!PlayerInfo.FromBytes(pi, out PlayerInfo playerInfo))
 				continue;
 
