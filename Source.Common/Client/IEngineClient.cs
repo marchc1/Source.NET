@@ -13,9 +13,9 @@ namespace Source.Common.Client;
 /// </summary>
 public struct PlayerInfo
 {
-	public const int SIZEOF = 132;
+	public const int SIZEOF = 228;
 
-	public InlineArray32<char> Name;
+	public InlineArray128<char> Name;
 	public int UserID;
 	public InlineArray33<byte> GUID;
 	public uint FriendsID;
@@ -34,28 +34,28 @@ public struct PlayerInfo
 
 		info = new();
 
-		ReadOnlySpan<byte> asciiName = bytes[0..32];
+		ReadOnlySpan<byte> asciiName = bytes[0..128];
 		int asciiNull = asciiName.IndexOf<byte>(0);
 		if (asciiNull != -1)
 			asciiName = asciiName[..asciiNull];
 		Encoding.ASCII.GetChars(asciiName, info.Name);
 
-		info.UserID = MemoryMarshal.Cast<byte, int>(bytes[32..36])[0];
-		bytes[36..69].CopyTo(info.GUID);
-		info.FriendsID = MemoryMarshal.Cast<byte, uint>(bytes[72..76])[0];
+		info.UserID = MemoryMarshal.Cast<byte, int>(bytes[128..132])[0];
+		bytes[132..165].CopyTo(info.GUID);
+		info.FriendsID = MemoryMarshal.Cast<byte, uint>(bytes[168..172])[0];
 
-		ReadOnlySpan<byte> friendsName = bytes[76..108];
+		ReadOnlySpan<byte> friendsName = bytes[172..204];
 		int friendsNull = friendsName.IndexOf<byte>(0);
 		if (friendsNull != -1)
 			friendsName = friendsName[..];
 		Encoding.ASCII.GetChars(friendsName, info.FriendsName);
 
-		info.FakePlayer = bytes[108] != 0;
-		info.IsHLTV = bytes[109] != 0;
-		info.IsReplay = bytes[110] != 0;
+		info.FakePlayer = bytes[204] != 0;
+		info.IsHLTV = bytes[205] != 0;
+		info.IsReplay = bytes[206] != 0;
 
-		MemoryMarshal.Cast<byte, CRC32_t>(bytes[112..(112 + 16)]).CopyTo(info.CustomFiles);
-		info.FilesDownloaded = bytes[128];
+		MemoryMarshal.Cast<byte, CRC32_t>(bytes[208..(208 + 16)]).CopyTo(info.CustomFiles);
+		info.FilesDownloaded = bytes[224];
 		return true;
 	}
 }
