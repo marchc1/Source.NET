@@ -1,6 +1,11 @@
 ﻿using CommunityToolkit.HighPerformance;
 
+using SDL;
+
+using SharpCompress.Common;
+
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Networking;
 using Source.Common.Server;
@@ -69,13 +74,118 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		throw new NotImplementedException();
 	}
 
-	protected virtual bool ProcessSetConVar(NET_SetConVar m) {
-		throw new NotImplementedException();
+	public void ClientRequestNameChange(ReadOnlySpan<char> newName){
+		bool showStatusMessage = (PendingNameChange[0] == '\0');
+
+		strcpy(PendingNameChange, newName);
+		CheckFlushNameChange(showStatusMessage);
+	}
+
+	private void CheckFlushNameChange(bool showStatusMessage) {
+		if (!IsConnected())
+			return;
+
+		if (PendingNameChange[0] == '\0')
+			return;
+
+		if (PlayerNameLocked)
+			return;
+
+		// Did they change it back to the original?
+		if (0 == strcmp(PendingNameChange, Name)) {
+
+			// Nothing really pending, they already changed it back
+			// we had a chance to apply the other one!
+			PendingNameChange[0] = '\0';
+			return;
+		}
+
+		// Check for throttling name changes
+		// Don't do it on bots
+		if (!IsFakeClient() && IsNameChangeOnCooldown(showStatusMessage)) 
+			return;
+
+		// Set the new name
+		TimeLastNameChange = Platform.Time;
+		SetName(PendingNameChange);
+	}
+
+	public static readonly ConVar sv_namechange_cooldown_seconds = new( "sv_namechange_cooldown_seconds", "30.0", 0, "When a client name change is received, wait N seconds before allowing another name change" );
+	public static readonly ConVar sv_netspike_on_reliable_snapshot_overflow = new( "sv_netspike_on_reliable_snapshot_overflow", "0", 0, "If nonzero, the server will dump a netspike trace if a client is dropped due to reliable snapshot overflow" );
+	public static readonly ConVar sv_netspike_sendtime_ms = new( "sv_netspike_sendtime_ms", "0", 0, "If nonzero, the server will dump a netspike trace if it takes more than N ms to prepare a snapshot to a single client.  This feature does take some CPU cycles, so it should be left off when not in use." );
+	public static readonly ConVar sv_netspike_output = new( "sv_netspike_output", "1", 0, "Where the netspike data be written?  Sum of the following values: 1=netspike.txt, 2=ordinary server log" );
+
+	public bool IsNameChangeOnCooldown(bool showStatusMessage = false){
+		if (TimeLastNameChange > 0.0) {
+			// Too recent?
+			double timeNow = Platform.Time;
+			double dNextChangeTime = TimeLastNameChange + sv_namechange_cooldown_seconds.GetFloat();
+			if (timeNow < dNextChangeTime) {
+				// Cooldown period still active; throttle the name change
+				if (showStatusMessage) 
+					ClientPrintf($"You have changed your name recently, and must wait {(int)Math.Abs(timeNow - dNextChangeTime)} seconds.\n");
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	static double s_dblLastWarned = 0.0;
+	protected virtual bool ProcessSetConVar(NET_SetConVar msg) {
+		for (int i = 0; i < msg.ConVars.Count; i++) {
+			ReadOnlySpan<char> name = msg.ConVars[i].Name;
+			ReadOnlySpan<char> value = msg.ConVars[i].Value;
+
+			// Discard any convar change request if contains funky characters
+			bool funky = false;
+			for (ReadOnlySpan<char> s = name; s[0] != '\0'; s = s[1..]) {
+				if (!char.IsAsciiLetterOrDigit(s[0]) && s[0] != '_') {
+					funky = true;
+					break;
+				}
+			}
+			if (funky) {
+				Msg($"Ignoring convar change request for variable '{name}' from client {GetClientName()}; invalid characters in the variable name\n");
+				continue;
+			}
+
+			// "name" convar is handled differently
+			if (stricmp(name, "name") == 0) {
+				ClientRequestNameChange(value);
+				continue;
+			}
+
+			// The initial set of convars must contain all client convars that are flagged userinfo. This is a simple fix to
+			// exploits that send bogus data later, and catches bugs (why are new userinfo convars appearing later?)
+			if (InitialConVarsSet && ConVars!.FindKey(name) == null) {
+#if !DEBUG    // warn all the time in debug build                                     
+				double dblTimeNow = Platform.Time;
+				if (dblTimeNow - s_dblLastWarned > 10)
+#endif
+				{
+#if !DEBUG
+					s_dblLastWarned = dblTimeNow;
+#endif
+					Warning($"Client \"{this.GetClientName()}\" userinfo ignored: \"{name}\" = \"{value}\"\n");
+				}
+				continue;
+			}
+
+			ConVars!.SetString(name, value);
+
+			// DevMsg( 1, " UserInfo update %s: %s = %s\n", m_Client->m_Name, name, value );
+		}
+
+		ConVarsChanged = true;
+		InitialConVarsSet = true;
+
+		return true;
 	}
 
 	protected virtual bool ProcessSignonState(NET_SignonState msg) {
-		if (msg.SignOnState == SignOnState.ChangeLevel) 
-			return true; 
+		if (msg.SignOnState == SignOnState.ChangeLevel)
+			return true;
 
 		if (msg.SignOnState > SignOnState.Connected) {
 			if (msg.SpawnCount != Server.GetSpawnCount()) {
@@ -196,8 +306,8 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			NetChannel = null!;
 		}
 
-		//  if (ConVars) 
-		//  	ConVars = NULL;
+		if (ConVars != null)
+			ConVars = null;
 
 		FreeBaselines();
 
