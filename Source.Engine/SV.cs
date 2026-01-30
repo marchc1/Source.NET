@@ -92,7 +92,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 	[ConCommand(helpText: "Change the maximum number of players allowed on this server.")]
 	void maxplayers(in TokenizedCommand args){
 		if (args.ArgC() != 2) {
-			ConMsg("\"maxplayers\" is \"%u\"\n", sv.GetMaxClients());
+			ConMsg($"\"maxplayers\" is \"{sv.GetMaxClients()}\"\n");
 			return;
 		}
 

@@ -355,7 +355,11 @@ public class NetworkStringTable : INetworkStringTable
 		}
 
 		NetworkStringTableItem p = dict.Element(stringNumber);
-		return p.GetUserData(out int length)[..length];
+		byte[]? bytes = p.GetUserData(out int length);
+		if (bytes == null)
+			return null;
+
+		return bytes[..length];
 	}
 
 	public int FindStringIndex(ReadOnlySpan<char> value) {
