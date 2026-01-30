@@ -139,7 +139,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 			// Discard any convar change request if contains funky characters
 			bool funky = false;
-			for (ReadOnlySpan<char> s = name; s[0] != '\0'; s = s[1..]) {
+			for (ReadOnlySpan<char> s = name; !s.IsStringEmpty; s = s[1..]) {
 				if (!char.IsAsciiLetterOrDigit(s[0]) && s[0] != '_') {
 					funky = true;
 					break;
