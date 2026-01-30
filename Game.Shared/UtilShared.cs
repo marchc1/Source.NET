@@ -42,6 +42,10 @@ public static partial class Util_Globals {
 
 public static partial class Util
 {
+
+#if CLIENT_DLL
+	public static BasePlayer PlayerByIndex(int entindex) => ToBasePlayer(cl_entitylist.GetEnt(entindex));
+#endif
 	public static float VecToYaw(in Vector3 vec) {
 		if (vec.Y == 0 && vec.X == 0)
 			return 0;

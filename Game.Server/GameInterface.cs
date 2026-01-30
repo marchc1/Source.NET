@@ -1,4 +1,6 @@
-﻿using Game.Shared;
+﻿global using static Game.Server.EngineCallbacks;
+
+using Game.Shared;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -9,6 +11,7 @@ using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.Mathematics;
 using Source.Common.Server;
 
 using System.Numerics;
@@ -18,7 +21,168 @@ namespace Game.Server;
 [EngineComponent]
 public static class GameInterface
 {
+	public static bf_write? g_pMsgBuffer;
+	public static void UserMessageBegin(in IRecipientFilter filter, ReadOnlySpan<char> messagename) {
+		Assert(g_pMsgBuffer == null);
+		Assert(!messagename.IsStringEmpty);
 
+		int msg_type = usermessages.LookupUserMessage(messagename);
+
+		if (msg_type == -1)
+			Error($"UserMessageBegin: Unregistered message '{messagename}'\n");
+
+		g_pMsgBuffer = engine.UserMessageBegin(in filter, msg_type);
+	}
+
+	public static void MessageEnd() {
+		Assert(g_pMsgBuffer != null);
+
+		engine.MessageEnd();
+
+		g_pMsgBuffer = null;
+	}
+
+	public static void MessageWriteByte(int iValue) {
+		if (g_pMsgBuffer == null)
+			Error("WRITE_BYTE called with no active message\n");
+
+		g_pMsgBuffer.WriteByte(iValue);
+	}
+
+	public static void MessageWriteChar(int iValue) {
+		if (g_pMsgBuffer == null)
+			Error("WRITE_CHAR called with no active message\n");
+
+		g_pMsgBuffer.WriteChar(iValue);
+	}
+
+	public static void MessageWriteShort(int iValue) {
+		if (g_pMsgBuffer == null)
+			Error("WRITE_SHORT called with no active message\n");
+
+		g_pMsgBuffer.WriteShort(iValue);
+	}
+
+	public static void MessageWriteWord(int iValue) {
+		if (g_pMsgBuffer == null)
+			Error("WRITE_WORD called with no active message\n");
+
+		g_pMsgBuffer.WriteWord(iValue);
+	}
+
+	public static void MessageWriteLong(int iValue) {
+		if (g_pMsgBuffer == null)
+			Error("WriteLong called with no active message\n");
+
+		g_pMsgBuffer.WriteLong(iValue);
+	}
+
+	public static void MessageWriteFloat(float flValue) {
+		if (g_pMsgBuffer == null)
+			Error("WriteFloat called with no active message\n");
+
+		g_pMsgBuffer.WriteFloat(flValue);
+	}
+
+	public static void MessageWriteAngle(float flValue) {
+		if (g_pMsgBuffer == null)
+			Error("WriteAngle called with no active message\n");
+
+		g_pMsgBuffer.WriteBitAngle(flValue, 8);
+	}
+
+	public static void MessageWriteCoord(float flValue) {
+		if (g_pMsgBuffer == null)
+			Error("WriteCoord called with no active message\n");
+
+		g_pMsgBuffer.WriteBitCoord(flValue);
+	}
+
+	public static void MessageWriteVec3Coord(in Vector3 rgflValue) {
+		if (g_pMsgBuffer == null)
+			Error("WriteVec3Coord called with no active message\n");
+
+		g_pMsgBuffer.WriteBitVec3Coord(rgflValue);
+	}
+
+	public static void MessageWriteVec3Normal(in Vector3 rgflValue) {
+		if (g_pMsgBuffer == null)
+			Error("WriteVec3Normal called with no active message\n");
+
+		g_pMsgBuffer.WriteBitVec3Normal(rgflValue);
+	}
+
+	public static void MessageWriteAngles(in QAngle rgflValue) {
+		if (g_pMsgBuffer == null)
+			Error("WriteVec3Normal called with no active message\n");
+
+		g_pMsgBuffer.WriteBitAngles(rgflValue);
+	}
+
+	public static void MessageWriteString(ReadOnlySpan<char> sz) {
+		if (g_pMsgBuffer == null)
+			Error("WriteString called with no active message\n");
+
+		g_pMsgBuffer.WriteString(sz);
+	}
+
+	public static void MessageWriteEntity(int iValue) {
+		if (g_pMsgBuffer == null)
+			Error("WriteEntity called with no active message\n");
+
+		g_pMsgBuffer.WriteShort(iValue);
+	}
+
+	static readonly EHANDLE hEnt = new();
+	public static void MessageWriteEHandle(BaseEntity? entity) {
+		if (g_pMsgBuffer == null)
+			Error("WriteEHandle called with no active message\n");
+
+		uint iEncodedEHandle;
+
+		if (entity != null) {
+			hEnt.Set(entity);
+
+			int iSerialNum = hEnt.GetSerialNumber() & ((1 << Constants.NUM_NETWORKED_EHANDLE_SERIAL_NUMBER_BITS) - 1);
+			iEncodedEHandle = (uint)hEnt.GetEntryIndex() | (uint)(iSerialNum << Constants.MAX_EDICT_BITS);
+
+			hEnt.Set(null);
+		}
+		else {
+			iEncodedEHandle = Constants.INVALID_NETWORKED_EHANDLE_VALUE;
+		}
+
+		g_pMsgBuffer.WriteLong((int)iEncodedEHandle);
+	}
+
+	// bitwise
+	public static void MessageWriteBool(bool bValue) {
+		if (g_pMsgBuffer == null)
+			Error("WriteBool called with no active message\n");
+
+		g_pMsgBuffer.WriteOneBit(bValue ? 1 : 0);
+	}
+
+	public static void MessageWriteUBitLong(uint data, int numbits) {
+		if (g_pMsgBuffer == null)
+			Error("WriteUBitLong called with no active message\n");
+
+		g_pMsgBuffer.WriteUBitLong(data, numbits);
+	}
+
+	public static void MessageWriteSBitLong(int data, int numbits) {
+		if (g_pMsgBuffer == null)
+			Error("WriteSBitLong called with no active message\n");
+
+		g_pMsgBuffer.WriteSBitLong(data, numbits);
+	}
+
+	public static void MessageWriteBits(ReadOnlySpan<byte> pIn, int nBits) {
+		if (g_pMsgBuffer == null)
+			Error("WriteBits called with no active message\n");
+
+		g_pMsgBuffer.WriteBits(pIn, nBits);
+	}
 }
 
 public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : IServerGameDLL
@@ -106,8 +270,15 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		return tickinterval;
 	}
 
-	public bool GetUserMessageInfo(int msg_type, Span<char> name, out ReadOnlySpan<char> sized) {
-		throw new NotImplementedException();
+	public bool GetUserMessageInfo(int msg_type, Span<char> name, out int size) {
+		if (!usermessages.IsValidIndex(msg_type)) {
+			size = 0;
+			return false;
+		}
+
+		strcpy(name, usermessages.GetUserMessageName(msg_type));
+		size = usermessages.GetUserMessageSize(msg_type);
+		return true;
 	}
 
 	public void InvalidateMdlCache() {
@@ -129,7 +300,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	public void PreClientUpdate(bool simulating) {
 		if (!simulating)
 			return;
-		
+
 		IGameSystem.PreClientUpdateAllSystems();
 	}
 

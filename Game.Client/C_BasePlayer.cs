@@ -156,6 +156,9 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 	InlineArrayMaxAmmoSlots<int> OldAmmo;
 	public int StuckLast;
+
+	public TimeUnit_t GetDeathTime() => DeathTime;
+
 	public virtual bool IsOverridingViewmodel() => false;
 	public virtual int DrawOverriddenViewmodel(C_BaseViewModel viewmodel, StudioFlags flags) => 0;
 	public override void OnDataChanged(DataUpdateType updateType) {

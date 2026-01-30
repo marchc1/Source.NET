@@ -312,7 +312,7 @@ public unsafe class bf_write : BitBuffer
 	}
 	private void memcpy(void* dst, void* src, int len) => NativeMemory.Copy(src, dst, (nuint)len);
 	private void memcpy(void* dst, void* src, nuint len) => NativeMemory.Copy(src, dst, len);
-	public bool WriteBits(Span<byte> pInData, int bits) {
+	public bool WriteBits(ReadOnlySpan<byte> pInData, int bits) {
 		fixed (byte* ptr = pInData)
 			return WriteBits(ptr, bits);
 	}

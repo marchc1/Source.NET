@@ -1,7 +1,12 @@
+using Game.Shared;
+
+using Microsoft.Extensions.DependencyInjection;
+
 using Source;
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.DataCache;
+using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Server;
 
@@ -9,6 +14,10 @@ namespace Game.Server;
 
 public static class SourceDllMain
 {
+	public static void Link(IServiceCollection services) {
+		ClassMap.Init();
+	}
+
 	[Dependency] public static IEngineServer engine { get; private set; } = null!;
 	[Dependency] public static IFileSystem filesystem { get; private set; } = null!;
 	[Dependency] public static ServerGlobalVariables gpGlobals { get; private set; } = null!;
@@ -16,6 +25,9 @@ public static class SourceDllMain
 	[Dependency] public static IUniformRandomStream random { get; private set; } = null!;
 	[Dependency] public static IGameEventManager2 gameeventmanager { get; private set; } = null!;
 	[Dependency] public static IDataCache datacache { get; private set; } = null!;
+	[Dependency] public static UserMessages usermessages { get; private set; } = null!;
+
+	[KeyedDependency(Key = Realm.Server)] public static INetworkStringTableContainer networkstringtable { get; private set; } = null!;
 
 	public static TimeUnit_t TICK_INTERVAL => gpGlobals.IntervalPerTick;
 

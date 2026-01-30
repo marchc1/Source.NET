@@ -12,6 +12,7 @@ public interface IServerNetworkable
 	ReadOnlySpan<char> GetClassName();
 	void Release();
 	int AreaNum();
+	object? GetBaseEntity();
 }
 
 public struct PVSInfo {

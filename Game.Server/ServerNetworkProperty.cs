@@ -24,9 +24,10 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 
 	public int EntIndex() => ENTINDEX(Pev);
 
-	public Edict? GetEdict() {
+	public virtual Edict? GetEdict() {
 		return Pev;
 	}
+	public Edict Edict() => Pev;
 
 	public IHandleEntity? GetEntityHandle() {
 		return Outer;
@@ -39,6 +40,8 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 	public void Release() {
 		throw new NotImplementedException();
 	}
+
+	object? IServerNetworkable.GetBaseEntity() => Outer;
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public BaseEntity? GetBaseEntity() => Outer;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public BaseEntity? GetOuter() => Outer;

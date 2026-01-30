@@ -114,7 +114,7 @@ public interface IEngineServer
 	// Begin a message from a server side entity to its client side counterpart (func_breakable glass, e.g.)
 	bf_write EntityMessageBegin(int ent_index, ServerClass ent_class, bool reliable);
 	// Begin a usermessage from the server to the client .dll
-	bf_write UserMessageBegin(IRecipientFilter filter, int msg_type);
+	bf_write UserMessageBegin(in IRecipientFilter filter, int msg_type);
 	// Finish the Entity or UserMessage and dispatch to network layer
 	void MessageEnd();
 
