@@ -454,7 +454,7 @@ public interface IPhysicsEnvironment
 	// Manage the timestep (period) of the simulator.  The main functions are all integrated with
 	// this period as dt.
 	float GetSimulationTimestep();
-	void SetSimulationTimestep(float timestep);
+	void SetSimulationTimestep(TimeUnit_t timestep);
 
 	// returns the current simulation clock's value.  This is an absolute time.
 	float GetSimulationTime();
@@ -836,15 +836,17 @@ public ref struct SpringParams
 	public bool OnlyStretch;        // only apply forces when the length is greater than the natural length
 }
 
-public ref struct ObjectParams
+public delegate ref Vector3 GetMassCenterOverrideFn();
+public struct ObjectParams
 {
-	public ref Vector3 MassCenterOverride;
+	public GetMassCenterOverrideFn? MassCenterOverrideFn;
+	public readonly ref Vector3 MassCenterOverride => ref MassCenterOverrideFn!();
 	public float Mass;
 	public float Inertia;
 	public float Damping;
 	public float RotDamping;
 	public float RotInertiaLimit;
-	public ReadOnlySpan<char> Name;
+	public string? Name;
 	public object? GameData;
 	public float Volume;
 	public float DragCoefficient;

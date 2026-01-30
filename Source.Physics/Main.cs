@@ -1,9 +1,18 @@
-﻿using Source.Common.Physics;
+﻿using Microsoft.Extensions.DependencyInjection;
+
+using Source.Common.GUI;
+using Source.Common.MaterialSystem;
+using Source.Common.Physics;
 
 namespace Source.Physics;
 
 public class PhysicsInterface : IPhysics
 {
+	public static void DLLInit(IServiceCollection services) {
+		services.AddSingleton<IPhysicsCollision, PhysicsCollide>();
+		services.AddSingleton<IPhysicsSurfaceProps, PhysicsSurfaceProps>();
+	}
+
 	public IPhysicsEnvironment CreateEnvironment() {
 		throw new NotImplementedException();
 	}
