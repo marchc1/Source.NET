@@ -472,7 +472,12 @@ public abstract class BaseServer : IServer
 
 	}
 	public void SendPendingServerInfo() {
+		for (int i = 0; i < Clients.Count; i++) {
+			BaseClient? cl = Clients[i];
 
+			if (cl.NeedSendServerInfo) 
+				cl.SendServerInfo();
+		}
 	}
 
 	public ReadOnlySpan<char> CompressPackedEntity(ServerClass pServerClass, ReadOnlySpan<byte> data, out int bits) {

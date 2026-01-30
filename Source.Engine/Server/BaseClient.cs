@@ -5,6 +5,7 @@ using SDL;
 using SharpCompress.Common;
 
 using Source.Common;
+using Source.Common.Bitbuffers;
 using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Networking;
@@ -206,7 +207,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	protected virtual bool SetSignOnState(SignOnState signOnState, int spawnCount) {
 		switch (signOnState) {
 			case SignOnState.Connected:
-				SendServerInfo = true;
+				NeedSendServerInfo = true;
 				break;
 
 			case SignOnState.New:
@@ -333,7 +334,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		BaselineUsed = 0;
 		FilesDownloaded = 0;
 		ConVarsChanged = false;
-		SendServerInfo = false;
+		NeedSendServerInfo = false;
 		FullyAuthenticated = false;
 		TimeLastNameChange = 0.0;
 		PendingNameChange[0] = '\0';
@@ -395,7 +396,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	KeyValues? ConVars;
 	bool InitialConVarsSet;
 	public bool ConVarsChanged;
-	public bool SendServerInfo;
+	public bool NeedSendServerInfo;
 	public BaseServer Server;
 	public bool HLTV;
 	public bool Replay;
@@ -410,7 +411,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public SignOnState SignOnState;
 	public int DeltaTick;
 	public int StringTableAckTick;
-	public int SignOnTick;
+	public long SignOnTick;
 	// CSmartPtr<CFrameSnapshot, CRefCountAccessorLongName>
 	// CFrameSnapshot baseline
 	public int BaselineUpdateTick;
@@ -566,6 +567,8 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		throw new NotImplementedException();
 	}
 
+	readonly Host Host = Singleton<Host>();
+
 	public void Reconnect() {
 		throw new NotImplementedException();
 	}
@@ -628,5 +631,78 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 	internal void SetSteamID(in CSteamID steamID) {
 		SteamID = steamID;
+	}
+
+	static readonly ThreadLocal<byte[]> NetPayloadBuffer = new(() => new byte[Protocol.MAX_PAYLOAD]);
+
+	public bool SendServerInfo() {
+		Common.TimestampedLog(" BaseClient.SendServerInfo");
+
+		// supporting smaller stack
+		byte[] buffer = NetPayloadBuffer.Value!;
+		bf_write msg = new(buffer, Protocol.MAX_PAYLOAD );
+
+		// Only send this message to developer console, or multiplayer clients.
+		if (Host.developer.GetBool() || Server.IsMultiplayer()) {
+			Span<char> devtext = stackalloc char[2048];
+			int curplayers = Server.GetNumClients();
+
+			sprintf(devtext, "\n%s\nMap: %s\nPlayers: %i / %i\nBuild: %d\nServer Number: %i\n\n")
+				.S(serverGameDLL.GetGameDescription())
+				.S(Server.GetMapName())
+				.I(curplayers)
+				.I(Server.GetMaxClients())
+				.I(build_number())
+				.I(Server.GetSpawnCount());
+
+			SVC_Print printMsg = new();
+			printMsg.Text = new(devtext.SliceNullTerminatedString());
+
+			printMsg.WriteToBuffer(msg);
+		}
+
+		SVC_ServerInfo serverinfo = new();  // create serverinfo message
+
+		serverinfo.PlayerSlot = ClientSlot; // own slot number
+
+		Server.FillServerInfo(serverinfo); // fill rest of info message
+
+		serverinfo.WriteToBuffer(msg);
+
+		// send first tick
+		SignOnTick = Server.TickCount;
+
+		NET_Tick signonTick = new(SignOnTick, 0, 0 );
+		signonTick.WriteToBuffer(msg);
+
+		// write stringtable baselines
+#if !SHARED_NET_STRING_TABLES
+		Server.StringTables.WriteBaselines(msg);
+#endif
+
+		// Write replicated ConVars to non-listen server clients only
+		if (!NetChannel.IsLoopback()) {
+			NET_SetConVar convars = new();
+			Host.BuildConVarUpdateMessage(convars, FCvar.Replicated, true);
+
+			convars.WriteToBuffer(msg);
+		}
+
+		NeedSendServerInfo = false;
+
+		// send signon state
+		SignOnState = SignOnState.New;
+		NET_SignonState signonMsg = new(SignOnState, Server.GetSpawnCount() );
+		signonMsg.WriteToBuffer(msg);
+
+		// send server info as one data block
+		if (!NetChannel.SendData(msg)) {
+			Disconnect("Server info data overflow");
+			return false;
+		}
+
+		Common.TimestampedLog(" BaseClient.SendServerInfo(finished)");
+
+		return true;
 	}
 }

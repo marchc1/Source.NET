@@ -1,10 +1,19 @@
+using CommunityToolkit.HighPerformance;
+
 using Microsoft.Extensions.DependencyInjection;
-using static Source.Common.FilesystemHelpers;
+
+using Snappier;
+
 using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 
+using System;
+using System.Buffers;
+using System.Runtime.InteropServices;
 using System.Text;
+
+using static Source.Common.FilesystemHelpers;
 
 namespace Source.Engine;
 
@@ -15,6 +24,74 @@ namespace Source.Engine;
 public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 {
 	public static string Gamedir { get; private set; }
+	const uint SNAPPY_ID = ('P' << 24) | ('A' << 16) | ('N' << 8) | ('S');
+
+	// TODO: make safe. I'm lazy right now
+	static unsafe byte* CompressBuffer_Snappy(byte* source, uint sourceLen, uint* compressedLen, uint maxCompressedLen) {
+		Assert(source != null);
+		Assert(compressedLen != null);
+
+		// Allocate a buffer big enough to hold the worst case.
+		uint nMaxCompressedSize = GetIdealDestinationCompressionBufferSize_Snappy(sourceLen);
+		byte* pCompressed = (byte*)NativeMemory.Alloc(nMaxCompressedSize);
+		if (pCompressed == null)
+			return null;
+
+		// Do the compression
+		*(uint*)pCompressed = SNAPPY_ID;
+		int compressed_length = Snappy.Compress(new Span<byte>(source, (int)sourceLen), new(pCompressed + sizeof(uint), (int)nMaxCompressedSize - sizeof(uint)));
+		compressed_length += 4;
+		Assert(compressed_length <= nMaxCompressedSize);
+
+		// Check if this result is OK
+		if (maxCompressedLen != 0 && compressed_length > maxCompressedLen) {
+			NativeMemory.Free(pCompressed);
+			return null;
+		}
+
+		*compressedLen = (uint)compressed_length;
+		return pCompressed;
+	}
+	static uint GetIdealDestinationCompressionBufferSize_Snappy(uint uncompressed) => 4 + (uint)Snappy.GetMaxCompressedLength((int)uncompressed);
+	static unsafe bool BufferToBufferCompress_Snappy(byte* dest, uint* destLen, byte* source, uint sourceLen) {
+		Assert(dest != null);
+		Assert(destLen != null);
+		Assert(source != null);
+
+		// Check if we need to use a temporary buffer
+		uint nMaxCompressedSize = GetIdealDestinationCompressionBufferSize_Snappy(sourceLen);
+		uint compressedLen = *destLen;
+		if (compressedLen < nMaxCompressedSize) {
+			// Yep.  Use the other function to allocate the buffer of the right size and comrpess into it
+			byte* temp = CompressBuffer_Snappy(source, sourceLen, &compressedLen, compressedLen);
+			if (temp == null)
+				return false;
+
+			// Copy over the data
+			memcpy(dest, temp, compressedLen);
+			*destLen = compressedLen;
+			NativeMemory.Free(temp);
+			return true;
+		}
+
+		// We have room and should be able to compress directly
+		*(uint*)dest = SNAPPY_ID;
+		int compressed_length = Snappy.Compress(new Span<byte>(source, (int)sourceLen), new(dest + sizeof(uint), (int)(destLen - sizeof(uint))));
+		compressed_length += 4;
+		Assert(compressed_length <= nMaxCompressedSize);
+		*destLen = (uint)compressed_length;
+		return true;
+	}
+
+	public static unsafe bool BufferToBufferCompress_Snappy(ref Span<byte> destinationBuffer, ReadOnlySpan<byte> sourceBuffer) {
+		fixed (byte* dest = destinationBuffer)
+		fixed (byte* src = sourceBuffer) {
+			uint destLen = (uint)destinationBuffer.Length;
+			bool result = BufferToBufferCompress_Snappy(dest, &destLen, src, (uint)sourceBuffer.Length);
+			destinationBuffer = new(dest, (int)destLen);
+			return result;
+		}
+	}
 
 	public void InitFilesystem(ReadOnlySpan<char> fullModPath) {
 		CFSSearchPathsInit initInfo = new();
@@ -47,7 +124,7 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 
 	public static ReadOnlySpan<byte> ParseFile(ReadOnlySpan<byte> data, Span<char> token) {
 		ReadOnlySpan<byte> returnData = Parse(data);
-		ReadOnlySpan<byte> nullTermToken = com_token.AsSpan()[..MemoryExtensions.IndexOf(com_token, (byte)0)];
+		ReadOnlySpan<byte> nullTermToken = com_token.AsSpan()[..System.MemoryExtensions.IndexOf(com_token, (byte)0)];
 		token.Clear(); // todo: only set one char
 		Encoding.ASCII.GetChars(nullTermToken, token);
 
@@ -72,7 +149,7 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 		skipwhite:
 		while ((c = data[0]) <= ' ') {
 			if (c == 0)
-				return null; 
+				return null;
 			data = data[1..];
 			if (data.IsEmpty)
 				return null;

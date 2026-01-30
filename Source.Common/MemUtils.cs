@@ -79,6 +79,12 @@ public static unsafe class MemUtils
 	public static void memcpy<T>(ref T dest, ref T src) where T : unmanaged {
 		dest = src;
 	}
+
+	public static void memcpy<T>(T* dest, T* src, int size) where T : unmanaged => NativeMemory.Copy(src, dest, (nuint)size);
+	public static void memcpy<T>(T* dest, T* src, uint size) where T : unmanaged => NativeMemory.Copy(src, dest, (nuint)size);
+	public static void memcpy<T>(T* dest, T* src, nint size) where T : unmanaged => NativeMemory.Copy(src, dest, (nuint)size);
+	public static void memcpy<T>(T* dest, T* src, nuint size) where T : unmanaged => NativeMemory.Copy(src, dest, size);
+
 	public static void memcpy<T>(Span<T> dest, ReadOnlySpan<T> src) where T : unmanaged {
 		src.CopyTo(dest);
 	}
