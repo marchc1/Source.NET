@@ -62,9 +62,11 @@ public interface IShaderDevice
 	IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material);
 	bool IsDeactivated();
 	bool IsUsingGraphics();
+	int GetCurrentAdapter();
 	void Present();
 	void ReacquireResources();
 	void ReleaseResources();
+	int GetModeCount(int adapter);
 }
 public struct ShaderDisplayMode
 {

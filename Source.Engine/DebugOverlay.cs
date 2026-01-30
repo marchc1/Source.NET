@@ -1,10 +1,8 @@
 ﻿using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Engine;
-using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
 
-using System;
 using System.Numerics;
 
 namespace Source.Engine;
@@ -235,7 +233,7 @@ public class DebugOverlay : IVDebugOverlay
 			DrawAllOverlays();
 
 			// if (s_bDrawGrid) 
-				// DrawGridOverlay();
+			// DrawGridOverlay();
 		}
 	}
 	public static void DrawAllOverlays() {

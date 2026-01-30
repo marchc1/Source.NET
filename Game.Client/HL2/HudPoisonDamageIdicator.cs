@@ -7,10 +7,10 @@ using Source.GUI.Controls;
 
 namespace Game.Client.HL2;
 
-[DeclareHudElement(Name = "CHudPoisonDamageIndicator")]
+// [DeclareHudElement(Name = "CHudPoisonDamageIndicator")] // FIXME: Animations
 public class HudPoisonDamageIndicator : EditableHudElement, IHudElement
 {
-	[PanelAnimationVar("TextFont", "Default", "Font")] protected IFont Font;
+	[PanelAnimationVar("TextFont", "Default", "HFont")] protected IFont Font;
 	[PanelAnimationVar("TextColor", "FgColor", "Color")] protected Color TextColor;
 	[PanelAnimationVar("text_xpos", "8", "proportional_float")] protected float TextXPos;
 	[PanelAnimationVar("text_ypos", "8", "proportional_float")] protected float TextYPos;

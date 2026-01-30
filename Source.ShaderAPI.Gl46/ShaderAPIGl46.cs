@@ -607,6 +607,15 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public bool IsUsingGraphics() => IsActive();
 
 
+	public int GetCurrentAdapter() {
+		return 0; // TODO
+	}
+
+	public int GetModeCount(int adapter) {
+		return 1; // TODO
+	}
+
+
 	public void Present() {
 		FlushBufferedPrimitives();
 		bool validPresent = true;

@@ -1522,7 +1522,7 @@ public class Panel : IPanel
 	internal void VisualizeLayout(Panel panel) => LayoutVisualizations[panel] = System.GetCurrentTime() + 0.3;
 #endif
 
-	static readonly ConVar sdn_vgui_debug = new("sdn_vgui_debug", 0, "Show debug info for panels under the mouse cursor.");
+	static readonly ConVar sdn_vgui_debug = new("0", FCvar.None, "Show debug info for panels under the mouse cursor.");
 	private void DebugVisualize() {
 		if (sdn_vgui_debug.GetInt() == 0)
 			return;
@@ -2471,6 +2471,11 @@ public class Panel : IPanel
 			case "Close": OnClose(); break;
 			case "OnRequestFocus": OnRequestFocus(message.GetPtr<Panel>("subFocus")!, message.GetPtr<Panel>("defaultPanel")); break;
 			case "Command": OnCommand(message.GetString("command")); break;
+#if DEBUG
+			default:
+				DevMsg(3, $"Unhandled message '{message.Name}' from {from}");
+				break;
+#endif
 		}
 		if (vgui_print_messages.GetBool())
 			if (vgui_print_messages.GetInt() == 2 || (!message.Name.Contains("Ticked") && !message.Name.Contains("Moved")))
@@ -2672,6 +2677,8 @@ public class Panel : IPanel
 			if (aliasAttr != null) {
 				UtlSymbol aliasSymbol = new(aliasAttr.Alias);
 				PanelNames[aliasSymbol] = type;
+				if (method != null)
+					PanelFactories[aliasSymbol] = method.CreateDelegate<CreatePanelFactoryFn>();
 			}
 
 			count++;

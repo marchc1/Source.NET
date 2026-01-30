@@ -4,7 +4,8 @@ using Source.GUI.Controls;
 
 namespace Game.UI;
 
-public class CLabeledCommandComboBox : ComboBox
+[PanelAlias("CLabeledCommandComboBox")]
+public class LabeledCommandComboBox : ComboBox
 {
 	const int MAX_NAME_LEN = 256;
 	const int MAX_COMMAND_LEN = 256;
@@ -20,9 +21,9 @@ public class CLabeledCommandComboBox : ComboBox
 	int CurrentSelection;
 	int StartSelection;
 
-	public static Panel Create_CLabeledCommandComboBox() => new CLabeledCommandComboBox(null, null);
+	public static Panel Create_LabeledCommandComboBox() => new LabeledCommandComboBox(null, null);
 
-	public CLabeledCommandComboBox(Panel parent, ReadOnlySpan<char> name) : base(parent, name, 0, false) {
+	public LabeledCommandComboBox(Panel? parent, ReadOnlySpan<char> name) : base(parent, name, 0, false) {
 		AddActionSignalTarget(this);
 		CurrentSelection = -1;
 		StartSelection = -1;

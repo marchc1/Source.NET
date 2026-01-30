@@ -21,21 +21,30 @@ public class OptionsDialog : PropertyDialog
 
 		SetTitle("#GameUI_Options", true);
 
+#if GMOD_DLL // gmod's page order is different
+		OptionsSubMultiplayer = new OptionsSubMultiplayer(this, "OptionsSubMultiplayer");
+		AddPage(OptionsSubMultiplayer, "#GameUI_Multiplayer");
+		AddPage(new OptionsSubKeyboard(this, null), "#GameUI_Keyboard");
+		AddPage(new OptionsSubMouse(this, null), "#GameUI_Mouse");
+		OptionsSubAudio = new(this, null);
+		AddPage(OptionsSubAudio, "#GameUI_Audio");
+		OptionsSubVideo = new(this, null);
+		AddPage(OptionsSubVideo, "#GameUI_Video");
+		AddPage(new OptionsSubVoice(this, null), "#GameUI_Voice");
+		// AddPage(new OptionsSubLegal(this, null), "#GameUI_Legal");
+#else
 #if WIN32
 		ConVarRef hap_HasDevice = new("hap_HasDevice");
 		hap_HasDevice.Init("hap_HasDevice", true);
-		if (hap_HasDevice.GetBool()) {
+		// if (hap_HasDevice.GetBool())
 			// AddPage(new OptionsSubHaptics(this), "#GameUI_Haptics_TabTitle");
-		}
 #endif
 
-		if (ModInfo.IsSinglePlayerOnly() && !ModInfo.NoDifficulty()) {
+		// if (ModInfo.IsSinglePlayerOnly() && !ModInfo.NoDifficulty())
 			// AddPage(new OptionsSubDifficulty(this), "#GameUI_Difficulty");
-		}
 
-		if (ModInfo.HasPortals()) {
+		// if (ModInfo.HasPortals())
 			// AddPage(new OptionsSubPortal(this), "#GameUI_Portal");
-		}
 
 		AddPage(new OptionsSubKeyboard(this, null), "#GameUI_Keyboard");
 		AddPage(new OptionsSubMouse(this, null), "#GameUI_Mouse");
@@ -53,6 +62,7 @@ public class OptionsDialog : PropertyDialog
 			OptionsSubMultiplayer = new OptionsSubMultiplayer(this, "OptionsSubMultiplayer");
 			AddPage(OptionsSubMultiplayer, "#GameUI_Multiplayer");
 		}
+#endif
 
 		SetApplyButtonVisible(true);
 		GetPropertySheet().SetTabWidth(84);
