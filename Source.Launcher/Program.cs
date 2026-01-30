@@ -15,11 +15,13 @@ using Source.Common.Filesystem;
 using Source.Common.Input;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
+using Source.Common.Physics;
 using Source.Common.ShaderAPI;
 using Source.DataCache;
 using Source.Engine;
 using Source.FileSystem;
 using Source.GUI.Controls;
+using Source.Physics;
 using Source.SDLManager;
 using Source.ShaderAPI.Gl46;
 using Source.StdShader.Gl46;
@@ -63,6 +65,8 @@ public class Bootloader : IDisposable
 				.WithComponent<ISystem, SDL3_System>()
 				// SDL3 input system
 				.WithComponent<IInputSystem, SDL3_InputSystem>()
+				// Physics
+				.WithComponent<IPhysics, PhysicsInterface>()
 				// Rendering abstraction
 				.WithComponent<IMaterialSystem, MaterialSystem.MaterialSystem>()
 				.WithComponent<IShaderAPI, ShaderAPIGl46>()

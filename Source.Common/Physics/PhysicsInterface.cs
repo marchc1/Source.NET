@@ -325,7 +325,7 @@ public interface IPhysicsShadowController
 
 public interface IMotionEvent
 {
-	public enum SimResult { Nothing = 0, LocalAcceleration, LocalForce, GlobalAcceleration, GlobalForce };
+	public enum SimResult { Nothing = 0, LocalAcceleration, LocalForce, GlobalAcceleration, GlobalForce }
 	SimResult Simulate(IPhysicsMotionController? controller, IPhysicsObject? obj, TimeUnit_t deltaTime, out Vector3 linear, out AngularImpulse angular);
 }
 public interface IPhysicsMotionController
@@ -856,7 +856,7 @@ public struct PhysSaveParams
 	public ISave Save;
 	public object? Object;
 	public PhysInterfaceId Type;
-};
+}
 
 public struct PhysRestoreParams
 {

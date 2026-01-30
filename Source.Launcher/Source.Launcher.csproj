@@ -19,6 +19,7 @@
 		<ProjectReference Include="..\Source.DataCache\Source.DataCache.csproj" />
 		<ProjectReference Include="..\Source.Engine\Source.Engine.csproj" />
 		<ProjectReference Include="..\Source.Filesystem\Source.Filesystem.csproj" />
+		<ProjectReference Include="..\Source.Physics\Source.Physics.csproj" />
 		<ProjectReference Include="..\Source.SDLInputSystem\Source.SDLInputSystem.csproj" />
 		<ProjectReference Include="..\Source.SDLManager\Source.SDLManager.csproj" />
 		<ProjectReference Include="..\Source.MaterialSystem\Source.MaterialSystem.csproj" />

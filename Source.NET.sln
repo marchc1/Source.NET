@@ -98,6 +98,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Source.DatatableToClassDef"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Game.ServerBrowser", "Game.ServerBrowser\Game.ServerBrowser.csproj", "{C6CC57C0-0961-46BE-ADFA-5FC356D1892F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Source.Physics", "Source.Physics\Source.Physics.csproj", "{19D1DF3E-3FFA-406E-9F2F-4B793A3C6F09}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -226,6 +228,10 @@ Global
 		{C6CC57C0-0961-46BE-ADFA-5FC356D1892F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C6CC57C0-0961-46BE-ADFA-5FC356D1892F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C6CC57C0-0961-46BE-ADFA-5FC356D1892F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{19D1DF3E-3FFA-406E-9F2F-4B793A3C6F09}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{19D1DF3E-3FFA-406E-9F2F-4B793A3C6F09}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{19D1DF3E-3FFA-406E-9F2F-4B793A3C6F09}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{19D1DF3E-3FFA-406E-9F2F-4B793A3C6F09}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -265,6 +271,7 @@ Global
 		{7F028127-FA5B-2B39-0B64-4294104414DE} = {ED68CF4A-63CA-458C-8391-EBE23B835B76}
 		{42D354BA-9639-422A-B62C-80F60EBEDE66} = {B06FF25C-015D-472F-9F7C-89C5A4201719}
 		{C6CC57C0-0961-46BE-ADFA-5FC356D1892F} = {9D95D703-BE2E-44A7-A9B3-106E4FC16631}
+		{19D1DF3E-3FFA-406E-9F2F-4B793A3C6F09} = {4B578BC3-0E56-46A4-9316-23258535813E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {34D1284B-2CD3-4934-84C5-15F7C8604501}
