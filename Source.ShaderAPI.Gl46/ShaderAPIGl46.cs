@@ -605,8 +605,14 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	public bool IsActive() => Device != null;
 	public bool IsUsingGraphics() => IsActive();
+
+
 	public int GetCurrentAdapter() {
-		throw new NotImplementedException();
+		return 0; // TODO
+	}
+
+	public int GetModeCount(int adapter) {
+		return 1; // TODO
 	}
 
 

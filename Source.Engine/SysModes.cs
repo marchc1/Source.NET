@@ -367,12 +367,10 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 		if (commandLine.FindParm("-small") != 0)
 			allowSmallModes = true;
 
-		int adapter = 0;//materials.GetCurrentAdapter();
-		int modeCount = 1;//materials.GetModeCount(adapter);
+		int adapter = materials.GetCurrentAdapter();
+		int modeCount = materials.GetModeCount(adapter);
 
-		// game.GetDesktopInfo(out int desktopWidth, out int desktopHeight, out int desktopRefresh);
-		// TODO ^
-		int desktopRefresh = 60;
+		game.GetDesktopInfo(out int desktopWidth, out int desktopHeight, out int desktopRefresh);
 
 		// // testing
 		MaterialVideoMode[] test = [

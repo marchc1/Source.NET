@@ -130,7 +130,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		UpdateConfig(false);
 	}
 
-	private bool UpdateConfig(bool forceUpdate) {
+	public bool UpdateConfig(bool forceUpdate) {
 		MaterialSystem_Config config = new();
 		Config.CopyInstantiatedReferenceTo(config);
 		ReadConfigFromConVars(config);
@@ -366,7 +366,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 
 	public int GetCurrentAdapter() => ShaderDevice.GetCurrentAdapter();
 
-	public int GetModeCount(int adapter) => throw new NotImplementedException();
+	public int GetModeCount(int adapter) => ShaderDevice.GetModeCount(adapter);
 
 	public void ModShutdown() {
 
@@ -389,7 +389,18 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 	[ConCommand("mat_savechanges", "saves current video configuration to the registry")]
 	static void mat_savechanges(in TokenizedCommand args) {
 		// commandLine.RemoveParm("-safe");
-		// UpdateMaterialSystemConfig();
+		UpdateMaterialSystemConfig();
+	}
+
+	static void UpdateMaterialSystemConfig() {
+		// if (host_state.worldbrush && !host_state.worldbrush->lightdata) {
+		// 	mat_fullbright.SetValue(1);
+		// }
+
+		bool lightmapsNeedReloading = Singleton<IMaterialSystem>().UpdateConfig(false); //fixme
+		if (lightmapsNeedReloading) {
+
+		}
 	}
 
 
@@ -683,7 +694,11 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		throw new NotImplementedException();
 	}
 
-	public void RestoreShaderObjects(IServiceProvider services, int changeFlags) {
+	void ReleaseShaderObjects() {
+		// todo
+	}
+
+	public void RestoreShaderObjects(IServiceProvider? services, int changeFlags) {
 		if (services != null) {
 			ShaderAPI = services.GetRequiredService<IShaderAPI>();
 			ShaderDevice = services.GetRequiredService<IShaderDevice>();
@@ -802,15 +817,15 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 	}
 
 	void ReloadTextures() {
-		throw new NotImplementedException();
+		// todo
 	}
 
-	void ReloadMaterials() {
-		throw new NotImplementedException();
+	void ReloadMaterials(ReadOnlySpan<char> subString = default) {
+		// todo
 	}
 
 	void RecomputeAllStateSnapshots() {
-		throw new NotImplementedException();
+		// todo
 	}
 
 	public event Action? Restore;
