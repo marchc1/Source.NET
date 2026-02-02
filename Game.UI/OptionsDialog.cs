@@ -23,7 +23,7 @@ public class OptionsDialog : PropertyDialog
 
 #if GMOD_DLL // gmod's page order is different
 		OptionsSubMultiplayer = new OptionsSubMultiplayer(this, "OptionsSubMultiplayer");
-		AddPage(OptionsSubMultiplayer, "#GameUI_Multiplayer");
+		AddPage(OptionsSubMultiplayer, "#GameUI_Game");
 		AddPage(new OptionsSubKeyboard(this, null), "#GameUI_Keyboard");
 		AddPage(new OptionsSubMouse(this, null), "#GameUI_Mouse");
 		OptionsSubAudio = new(this, null);

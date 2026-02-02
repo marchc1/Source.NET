@@ -1,3 +1,4 @@
+using Source.Common.Client;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.GUI.Controls;
@@ -7,6 +8,8 @@ namespace Game.UI;
 [PanelAlias("CLabeledCommandComboBox")]
 public class LabeledCommandComboBox : ComboBox
 {
+	readonly public IEngineClient engine = Singleton<IEngineClient>();
+
 	const int MAX_NAME_LEN = 256;
 	const int MAX_COMMAND_LEN = 256;
 
@@ -38,18 +41,16 @@ public class LabeledCommandComboBox : ComboBox
 		CommandItem newItem = new CommandItem {
 			name = new char[MAX_NAME_LEN],
 			command = new char[MAX_COMMAND_LEN],
+			comboBoxID = base.AddItem(text, null)
 		};
-		newItem.comboBoxID = base.AddItem(text, null);
 		items.Add(newItem);
 
 		text.CopyTo(newItem.name);
 
 		if (text[0] == '#') {
 			ReadOnlySpan<char> localized = Localize.Find(text);
-			if (!localized.IsEmpty) {
-				// todo UnicodeToANSI
+			if (!localized.IsEmpty)
 				localized.CopyTo(newItem.name);
-			}
 		}
 
 		command.CopyTo(newItem.command);
@@ -95,7 +96,7 @@ public class LabeledCommandComboBox : ComboBox
 
 		Assert(CurrentSelection < items.Count);
 		CommandItem item = items[CurrentSelection];
-		// engine.ClientCmd_Unrestricted(item.command);
+		engine.ClientCmd_Unrestricted(item.command);
 		StartSelection = CurrentSelection;
 	}
 
