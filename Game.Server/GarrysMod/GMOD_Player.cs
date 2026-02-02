@@ -1,16 +1,34 @@
-﻿
+﻿global using static Game.Server.GarrysMod.GMOD_PlayerGlobals;
+
 using Game.Server.HL2MP;
 using Game.Shared;
 
 using Source;
 using Source.Common;
+using Source.Common.Engine;
 
 using System.Numerics;
 
 namespace Game.Server.GarrysMod;
+
 using FIELD = FIELD<GMOD_Player>;
+
+public static class GMOD_PlayerGlobals
+{
+	public static GMOD_Player? ToGMODPlayer(BaseEntity? entity) {
+		if (entity == null || !entity.IsPlayer())
+			return null;
+		return (GMOD_Player?)entity;
+	}
+}
+
 public class GMOD_Player : HL2MP_Player
 {
+	static Edict? s_PlayerEdict;
+	public static GMOD_Player CreatePlayer(ReadOnlySpan<char> classname, Edict ed) {
+		s_PlayerEdict = ed;
+		return (GMOD_Player?)CreateEntityByName(classname);
+	}
 	public static readonly SendTable DT_GMOD_Player = new(DT_HL2MP_Player, [
 		SendPropInt(FIELD.OF(nameof(GModPlayerFlags)), 5, 0),
 		SendPropEHandle(FIELD.OF(nameof(HoveredWidget))),
@@ -36,6 +54,10 @@ public class GMOD_Player : HL2MP_Player
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("GMOD_Player", DT_GMOD_Player)
 															.WithManualClassID(StaticClassIndices.CGMOD_Player);
+
+	public override void InitialSpawn() {
+		base.InitialSpawn();
+	}
 
 	public int GModPlayerFlags;
 	public readonly EHANDLE HoveredWidget = new();

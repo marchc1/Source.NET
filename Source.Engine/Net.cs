@@ -125,7 +125,7 @@ public class Net
 
 	public readonly List<NetSocket> NetSockets = [];
 	public readonly List<NetPacket> NetPackets = [];
-	public readonly ConcurrentBag<NetChannel> NetChannels = [];
+	public readonly List<NetChannel> NetChannels = [];
 	public readonly Stack<NetScratchBuffer> NetScratchBuffers = [];
 
 	public NetScratchBuffer ObtainScratchBuffer() {
@@ -229,7 +229,7 @@ public class Net
 	public NetChannel? FindNetChannel(NetSocketType socket, NetAddress address) {
 		lock (NetChannels) {
 			foreach (var chan in NetChannels) {
-				if (chan.Socket != chan.Socket)
+				if (socket != chan.Socket)
 					continue;
 
 				if (address.CompareAddress(chan.RemoteAddress)) {

@@ -213,6 +213,8 @@ public static class Dbg
 		if (!IsSpewActive(groupName, level)) return;
 		_SpewMessage(SpewType.Log, groupName, level, in DefaultOutputColor, msgFormat, args);
 	}
+
+	[DoesNotReturn]
 	public static void Error([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args)
 		=> _SpewMessage(SpewType.Error, msgFormat, args);
 

@@ -44,6 +44,8 @@ public static class BasePlayerGlobals
 
 		return (BaseCombatCharacter?)entity;
 	}
+
+	public const TimeUnit_t DEATH_ANIMATION_TIME = 3.0f;
 }
 
 public partial class
@@ -112,8 +114,13 @@ public partial class
 #endif
 	}
 
-	internal ReadOnlySpan<char> GetPlayerName() {
-		throw new NotImplementedException();
+	public InlineArrayMaxPlayerNameLength<char> Netname;
+
+	public ReadOnlySpan<char> GetPlayerName() {
+		return ((Span<char>)Netname).SliceNullTerminatedString();
+	}
+	public void SetPlayerName(ReadOnlySpan<char> name){
+		strcpy(Netname, name);
 	}
 
 	static ConVar sv_suppress_viewpunch = new("sv_suppress_viewpunch", "0", FCvar.Replicated | FCvar.Cheat | FCvar.DevelopmentOnly);

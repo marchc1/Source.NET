@@ -3,3 +3,5 @@
 public interface IPhysCollide {
 
 }
+
+public class PhysCollide : IPhysCollide;

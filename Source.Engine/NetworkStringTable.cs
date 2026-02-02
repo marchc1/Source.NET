@@ -1,7 +1,10 @@
 namespace Source.Engine;
 
 using Source.Common.Bitbuffers;
+using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.Networking;
+using Source.Engine.Server;
 
 using System;
 using System.Diagnostics;
@@ -234,7 +237,7 @@ public class NetworkStringTable : INetworkStringTable
 	}
 
 	public int AddString(bool isServer, ReadOnlySpan<char> value, int length, ReadOnlySpan<byte> userData = default) {
-		if (Locked) 
+		if (Locked)
 			DevMsg($"Warning! CNetworkStringTable::AddString: adding '{value}' while locked.\n");
 		value = value.SliceNullTerminatedString();
 		string tempStrValueOhMyGodThisNeedsToUseROS = new(value);
@@ -331,7 +334,7 @@ public class NetworkStringTable : INetworkStringTable
 	}
 
 	public void SetStringUserData(int stringNumber, int length, ReadOnlySpan<byte> userData) {
-		if (Locked) 
+		if (Locked)
 			DevMsg($"Warning! CNetworkStringTable::SetStringUserData ({GetTableName()}): changing entry {stringNumber} while locked.\n");
 
 		INetworkStringDict dict = Items;
@@ -355,7 +358,11 @@ public class NetworkStringTable : INetworkStringTable
 		}
 
 		NetworkStringTableItem p = dict.Element(stringNumber);
-		return p.GetUserData(out int length)[..length];
+		byte[]? bytes = p.GetUserData(out int length);
+		if (bytes == null)
+			return null;
+
+		return bytes[..length];
 	}
 
 	public int FindStringIndex(ReadOnlySpan<char> value) {
@@ -507,11 +514,31 @@ public class NetworkStringTable : INetworkStringTable
 				AddString(true, pEntry, nBytes, pUserData);
 			}
 
-			if (history.Count > 31) 
+			if (history.Count > 31)
 				history.RemoveAt(0);
 
 			history.Add(pEntry ?? "");
 		}
+	}
+
+	public int WriteUpdate(BaseClient? client, bf_write buf, int tickAck){
+		return 0; // todo
+	}
+
+	public bool WriteBaselines(SVC_CreateStringTable msg, byte[] msg_buffer, nint msg_buffer_size) {
+		msg.DataOut.StartWriting(msg_buffer, (int)msg_buffer_size, 0);
+
+		msg.IsFilenames = IsFilenames;
+		msg.TableName = TableName;
+		msg.NumEntries = GetNumStrings();
+		msg.UserDataFixedSize = IsUserDataFixedSize();
+		msg.UserDataSize = GetUserDataSize();
+		msg.UserDataSizeBits = GetUserDataSizeBits();
+
+		// tick = -1 ensures that all entries are updated = baseline
+		int entries = WriteUpdate(null, msg.DataOut, -1);
+
+		return entries == msg.NumEntries;
 	}
 }
 
@@ -595,6 +622,52 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 	public void Dump() {
 		foreach (NetworkStringTable pTable in Tables) {
 			pTable.Dump();
+		}
+	}
+	public static readonly ConVar sv_dumpstringtables = new("sv_dumpstringtables", "0", FCvar.Cheat);
+	public static readonly ConVar sv_compressstringtablebaselines_threshhold = new("sv_compressstringtablebaselines_threshold", "2048", 0, "Minimum size (in bytes) for stringtablebaseline buffer to be compressed.");
+
+
+	public void WriteBaselines(bf_write buf) {
+		SVC_CreateStringTable msg = new();
+
+		nint msg_buffer_size = 2 * Protocol.MAX_PAYLOAD;
+		byte[] msg_buffer = new byte[msg_buffer_size];
+
+		for (int i = 0; i < Tables.Count; i++) {
+			NetworkStringTable table = (NetworkStringTable)GetTable(i)!;
+
+			int before = buf.BytesWritten;
+			if (!table.WriteBaselines(msg, msg_buffer, msg_buffer_size))
+				Host.Error($"Index error writing string table baseline {table.GetTableName()}\n");
+
+			if (msg.DataOut.Overflowed)
+				Warning($"Warning:  Overflowed writing uncompressed string table data for {table.GetTableName()}\n");
+
+			msg.DataCompressed = false;
+			if (msg.DataOut.BytesWritten >= sv_compressstringtablebaselines_threshhold.GetInt()) {
+
+				// TERROR: bzip-compress the stringtable before adding it to the packet.  Yes, the whole packet will be bzip'd,
+				// but the uncompressed data also has to be under the NET_MAX_PAYLOAD limit.
+				int numBytes = msg.DataOut.BytesWritten;
+				uint compressedSize = (uint)numBytes;
+				Span<byte> compressedData = new byte[numBytes];
+
+				if (Common.BufferToBufferCompress_Snappy(ref compressedData, msg.DataOut.GetData()![..numBytes])) {
+					msg.DataCompressed = true;
+					msg.DataOut.Reset();
+					msg.DataOut.WriteLong(numBytes);  // uncompressed size
+					msg.DataOut.WriteLong((int)compressedSize);    // compressed size
+					msg.DataOut.WriteBits(compressedData, (int)compressedSize * 8);    // compressed data
+				}
+			}
+
+			if (!msg.WriteToBuffer(buf))
+				Host.Error($"Overflow error writing string table baseline {table.GetTableName()}\n");
+
+			int after = buf.BytesWritten;
+			if (sv_dumpstringtables.GetBool()) 
+				DevMsg($"NetworkStringTableContainer.WriteBaselines wrote {after - before} bytes for table {table.GetTableName()} [space remaining {buf.BytesLeft} bytes]\n");
 		}
 	}
 

@@ -46,9 +46,9 @@ public class Host(
 	public string GetCurrentGame() => host_parms.Game;
 	public string GetBaseDirectory() => host_parms.BaseDir;
 
-	public ConVar host_name = new("hostname", "", 0, "Hostname for server.");
-	public ConVar host_map = new("host_map", "", 0, "Current map name.");
-	public ConVar developer = new("developer", "0", 0, "Set developer message level");
+	public static readonly ConVar host_name = new("hostname", "", 0, "Hostname for server.");
+	public static readonly ConVar host_map = new("host_map", "", 0, "Current map name.");
+	public static readonly ConVar developer = new("developer", "0", 0, "Set developer message level");
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 	public ClientGlobalVariables clientGlobalVariables;

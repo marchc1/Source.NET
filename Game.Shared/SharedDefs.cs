@@ -101,6 +101,14 @@ public enum EFL : uint
 	NoDamageForces = 1u << 31
 }
 
+public enum HudPrint
+{
+	Notify = 1,
+	Console = 2,
+	Talk = 3,
+	Center = 4
+}
+
 [Flags]
 public enum DamageType : int
 {
@@ -423,7 +431,7 @@ public static class SharedDefs
 	public static readonly Vector3 VECTOR_CONE_20DEGREES = new Vector3(0.17365f, 0.17365f, 0.17365f);
 
 	public const int kActivityLookup_Unknown = -2;          // hasn't been searched for
-	public const int kActivityLookup_Missing = -1;			// has been searched for but wasn't found
+	public const int kActivityLookup_Missing = -1;          // has been searched for but wasn't found
 
 
 	public static ClientClass WithManualClassID(this ClientClass clientClass, StaticClassIndices classID) {
@@ -508,7 +516,7 @@ public struct FireBulletsInfo
 		UseServerRandomSeed = false;
 	}
 
-	public FireBulletsInfo(int shots, in Vector3 src, in Vector3 dir, in Vector3 spread, float distance, int ammoType, bool primaryAttack = true) { 
+	public FireBulletsInfo(int shots, in Vector3 src, in Vector3 dir, in Vector3 spread, float distance, int ammoType, bool primaryAttack = true) {
 		Shots = shots;
 		Src = src;
 		DirShooting = dir;

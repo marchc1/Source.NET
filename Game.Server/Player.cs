@@ -13,6 +13,13 @@ namespace Game.Server;
 
 using FIELD = Source.FIELD<BasePlayer>;
 
+public enum PlayerConnectedState
+{
+	Connected,
+	Disconnecting,
+	Disconnected
+}
+
 public partial class BasePlayer : BaseCombatCharacter
 {
 	public static readonly SendTable DT_PlayerState = new([
@@ -131,6 +138,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	public float SwimSoundTime;
 	public Vector3 LadderNormal;
 	public float WaterJumpTime;
+	public PlayerConnectedState Connected;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
 	public InButtons AfButtonLast;
 	public InButtons AfButtonPressed;
@@ -153,7 +161,14 @@ public partial class BasePlayer : BaseCombatCharacter
 		// todo
 	}
 
-	public virtual void SetAnimation(PlayerAnim playerAnim){ } // todo
+	public virtual void InitialSpawn() {
+		Connected = PlayerConnectedState.Connected;
+		// gamestats todo
+	}
+
+	public TimeUnit_t GetDeathTime() => DeathTime;
+
+	public virtual void SetAnimation(PlayerAnim playerAnim) { } // todo
 
 	public virtual Vector3 GetAutoaimVector(float scale) {
 		MathLib.AngleVectors(GetAbsAngles(), out Vector3 forward, out _, out _);
@@ -161,7 +176,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	}
 
 	// todo
-	public virtual void SetSuitUpdate(ReadOnlySpan<char> name, int fgroup, int noRepeat){ }
+	public virtual void SetSuitUpdate(ReadOnlySpan<char> name, int fgroup, int noRepeat) { }
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, bool fgroup, int noRepeat) => SetSuitUpdate(name, fgroup ? 1 : 0, noRepeat);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, int fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup, noRepeat ? 1 : 0);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, bool fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup ? 1 : 0, noRepeat ? 1 : 0);

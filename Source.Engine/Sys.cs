@@ -78,7 +78,7 @@ public class Sys(Host host, ICommandLine CommandLine)
 	public bool InitGame(bool dedicated, string rootDirectory) {
 		MainThread = Thread.CurrentThread;
 		Dbg.SpewActivate("console", 1);
-		host.developer.Changed += DeveloperChangeCallback;
+		Host.developer.Changed += DeveloperChangeCallback;
 		Dbg.SpewOutputFunc(SpewFunc);
 		host.Initialized = false;
 		Dedicated = dedicated;
@@ -106,7 +106,7 @@ public class Sys(Host host, ICommandLine CommandLine)
 	public void ShutdownGame() {
 		host.Shutdown();
 		Shutdown();
-		host.developer.Changed -= DeveloperChangeCallback;
+		Host.developer.Changed -= DeveloperChangeCallback;
 		Dbg.SpewOutputFunc(null);
 	}
 

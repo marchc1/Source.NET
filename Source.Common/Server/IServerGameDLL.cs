@@ -68,7 +68,7 @@ public interface IServerGameDLL
 	void BuildAdjacentMapList();
 
 	// Retrieve info needed for parsing the specified user message
-	bool GetUserMessageInfo(int msg_type, Span<char> name, out ReadOnlySpan<char> sized);
+	bool GetUserMessageInfo(int msg_type, Span<char> name, out int size);
 
 	// GetStandardSendProxies todo
 

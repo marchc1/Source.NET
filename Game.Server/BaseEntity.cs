@@ -20,6 +20,8 @@ public struct ThinkFunc
 }
 public partial class BaseEntity : IServerEntity
 {
+	public static Edict? g_pForceAttachEdict;
+
 	public delegate void BASEPTR();
 	public delegate void ENTITYFUNCPTR(BaseEntity? other);
 	public delegate void USEPTR(BaseEntity? activator, BaseEntity? caller, UseType useType, float value);
@@ -136,6 +138,16 @@ public partial class BaseEntity : IServerEntity
 		Warning("SendProxy_SendPredictableId not yet implemented\n");
 		return null;
 	}
+
+	public static BaseEntity? GetContainingEntity(Edict ent) {
+		if (ent != null && ent.GetUnknown() != null)
+			return (BaseEntity?)ent.GetUnknown()!.GetBaseEntity();
+		return null;
+	}
+
+	public Team? GetTeam() => GetGlobalTeam(TeamNum);
+
+	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent); 
 
 	public byte RenderFX;
 	public byte RenderMode;
@@ -320,6 +332,44 @@ public partial class BaseEntity : IServerEntity
 		return ref AbsVelocity;
 	}
 
+	string? Classname;
+	public void SetClassname(ReadOnlySpan<char> classname){
+		Classname = new(classname);
+	}
+
+	public Edict Edict() => NetworkProp().Edict();
+
+	public void PostConstructor(ReadOnlySpan<char> classname){
+		if (!classname.IsEmpty)
+			SetClassname(classname);
+
+		Assert(Classname != null);
+
+		// Possibly get an edict, and add self to global list of entites.
+		if (IsEFlagSet(EFL.ServerOnly))
+			gEntList.AddNonNetworkableEntity(this);
+		else {
+			// Certain entities set up their edicts in the constructor
+			if (!IsEFlagSet(EFL.NoAutoEdictAttach)) {
+				NetworkProp().AttachEdict(g_pForceAttachEdict);
+				g_pForceAttachEdict = null;
+			}
+
+			// Some ents like the player override the AttachEdict function and do it at a different time.
+			// While precaching, they don't ever have an edict, so we don't need to add them to
+			// the entity list in that case.
+			if (Edict() != null) {
+				gEntList.AddNetworkableEntity(this, EntIndex());
+
+				// Cache our IServerNetworkable pointer for the engine for fast access.
+				if (Edict() != null)
+					Edict().Networkable = NetworkProp();
+			}
+		}
+
+		CheckHasThinkFunction(false);
+		CheckHasGamePhysicsSimulation();
+	}
 
 	public BaseEntity? GetMoveParent() => MoveParent.Get();
 	public virtual IServerVehicle? GetServerVehicle() => null;
@@ -328,7 +378,7 @@ public partial class BaseEntity : IServerEntity
 	}
 
 	public virtual ReadOnlySpan<char> GetClassname() {
-		throw new NotImplementedException();
+		return Classname;
 	}
 	public virtual void Spawn() { }
 	public virtual void Precache() { }
@@ -409,7 +459,12 @@ public partial class BaseEntity : IServerEntity
 	}
 
 	readonly ServerNetworkProperty Network = new();
+	public ServerNetworkProperty NetworkProp() => Network;
 	public int EntIndex() => Network.EntIndex();
 	public float GetGravity() => Gravity;
 	public void SetGravity(float gravity) => Gravity = gravity;
+
+	public object? GetBaseEntity() {
+		return this;
+	}
 }

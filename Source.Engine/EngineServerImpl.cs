@@ -304,8 +304,74 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
+	int Message_CheckMessageLength() {
+		if (s_MsgData.CurrentMsg == s_MsgData.UserMsg) {
+			Span<char> msgname = stackalloc char[256];
+			int msgsize = -1;
+			int msgtype = s_MsgData.UserMsg.MessageType;
+
+			if (!serverGameDLL.GetUserMessageInfo(msgtype, msgname, out msgsize)) {
+				Warning($"Unable to find user message for index {msgtype}\n");
+				return -1;
+			}
+
+			int bytesWritten = s_MsgData.UserMsg.DataOut.BytesWritten;
+
+			if (msgsize == -1) {
+				if (bytesWritten > Constants.MAX_USER_MSG_DATA) {
+					Warning($"DLL_MessageEnd:  Refusing to send user message {msgname} of {bytesWritten} bytes to client, user message size limit is {Constants.MAX_USER_MSG_DATA} bytes\n");
+					return -1;
+				}
+			}
+			else if (msgsize != bytesWritten) {
+				Warning($"User Msg '{msgname}': {bytesWritten} bytes written, expected {msgsize}\n");
+				return -1;
+			}
+
+			return bytesWritten; // all checks passed, estimated final length
+		}
+
+		if (s_MsgData.CurrentMsg == s_MsgData.EntityMsg) {
+			int bytesWritten = s_MsgData.EntityMsg.DataOut.BytesWritten;
+
+			if (bytesWritten > Constants.MAX_ENTITY_MSG_DATA) // TODO use a define or so
+			{
+				Warning($"Entity Message to {s_MsgData.EntityMsg.EntityIndex}, {bytesWritten} bytes written (max is {Constants.MAX_ENTITY_MSG_DATA})\n");
+				return -1;
+			}
+
+			return bytesWritten; // all checks passed, estimated final length
+		}
+
+		Warning("MessageEnd unknown message type.\n");
+		return -1;
+
+	}
+
 	public void MessageEnd() {
-		throw new NotImplementedException();
+		if (!s_MsgData.Started) {
+			Sys.Error("MESSAGE_END called with no active message\n");
+			return;
+		}
+
+		int length = Message_CheckMessageLength();
+
+		// check to see if it's a valid message
+		if (length < 0) {
+			s_MsgData.Reset(); // clear message data
+			return;
+		}
+
+		if (s_MsgData.Filter != null) {
+			// send entity/user messages only to full connected clients in filter
+			sv.BroadcastMessage(s_MsgData.CurrentMsg!, s_MsgData.Filter);
+		}
+		else {
+			// send entity messages to all full connected clients 
+			sv.BroadcastMessage(s_MsgData.CurrentMsg!, true, s_MsgData.Reliable);
+		}
+
+		s_MsgData.Reset(); // clear message data
 	}
 
 	public void Message_DetermineMulticastRecipients(bool usepas, in Vector3 origin, ref AbsolutePlayerLimitBitVec playerbits) {
@@ -442,8 +508,51 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	public void TriggerMoved(Edict pTriggerEnt, bool testSurroundingBoundsOnly) {
 		throw new NotImplementedException();
 	}
+	class MsgData {
+		public MsgData(){
+			Reset();
+		}
 
-	public bf_write UserMessageBegin(IRecipientFilter filter, int msg_type) {
-		throw new NotImplementedException();
+		public void Reset(){
+
+		}
+
+		public readonly byte[] UserData = new byte[PAD_NUMBER(Constants.MAX_USER_MSG_DATA, 4)];    // buffer for outgoing user messages
+		public readonly byte[] EntityDAta = new byte[PAD_NUMBER(Constants.MAX_ENTITY_MSG_DATA, 4)]; // buffer for outgoing entity messages
+
+		public IRecipientFilter? Filter;       // clients who get this message
+		public bool Reliable;
+
+		public INetMessage? CurrentMsg;                // pointer to entityMsg or userMessage
+		public int SubType;            // usermessage index
+		public bool Started;           // IS THERE A MESSAGE IN THE PROCESS OF BEING SENT?
+		public int UserMessageSize;
+		public string UserMessageName;
+
+		public readonly SVC_EntityMessage EntityMsg = new();
+		public readonly SVC_UserMessage UserMsg = new();
+	}
+	static readonly MsgData s_MsgData = new();
+
+	public bf_write UserMessageBegin(in IRecipientFilter filter, int msg_index) {
+		if (s_MsgData.Started) {
+			Sys.Error("UserMessageBegin:  New message started before matching call to EndMessage.\n");
+			return null!;
+		}
+
+		s_MsgData.Reset();
+
+		Assert(filter);
+
+		s_MsgData.Filter = filter;
+		s_MsgData.Reliable = filter.IsReliable();
+		s_MsgData.Started = true;
+
+		s_MsgData.CurrentMsg = s_MsgData.UserMsg;
+
+		s_MsgData.UserMsg.MessageType = msg_index;
+
+		s_MsgData.UserMsg.DataOut.Reset();
+		return s_MsgData.UserMsg.DataOut;
 	}
 }

@@ -16,7 +16,6 @@ public struct lzss_header_t
 public class CLZSS
 {
 	public const uint LZSS_ID = 'S' << 24 | 'S' << 16 | 'Z' << 8 | 'L';
-	public const uint SNAPPY_ID = 'P' << 24 | 'A' << 16 | 'N' << 8 | 'S';
 
 	public static uint WordSwap(uint value) {
 		ushort temp = BitConverter.ToUInt16(BitConverter.GetBytes(value), 0);

@@ -82,6 +82,8 @@ public static class HL2MP_GameRules_Globals
 	static readonly AmmoDef def = new();
 	static bool initted = false;
 
+	public static HL2MPGameRules HL2MPRules() => (HL2MPGameRules)g_pGameRules;
+
 	public static float BULLET_MASS_GRAINS_TO_LB(int grains) => 0.002285f * (grains) / 16.0f;
 	public static float BULLET_MASS_GRAINS_TO_KG(int grains) => lbs2kg(BULLET_MASS_GRAINS_TO_LB(grains));
 	public const float BULLET_IMPULSE_EXAGGERATION = 3.5f;

@@ -140,6 +140,8 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<Net>();
 		this.AddKeyedSingleton<NetworkStringTableContainer>(Realm.Client);
 		this.AddKeyedSingleton<NetworkStringTableContainer>(Realm.Server);
+		this.AddKeyedSingleton(typeof(INetworkStringTableContainer), Realm.Client, (x, _) => x.GetRequiredKeyedService<NetworkStringTableContainer>(Realm.Client));
+		this.AddKeyedSingleton(typeof(INetworkStringTableContainer), Realm.Server, (x, _) => x.GetRequiredKeyedService<NetworkStringTableContainer>(Realm.Server));
 		this.AddSingleton<Render>();
 		this.AddSingleton<RenderUtils>();
 		this.AddSingleton<Scr>();

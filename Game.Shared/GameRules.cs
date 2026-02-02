@@ -46,14 +46,13 @@ public class
 
 }
 
-public class
+public abstract class
 #if CLIENT_DLL
 	C_GameRules
 #else
 	GameRules
 #endif
 : AutoGameSystemPerFrame
-// TODO: AutoGameSystemPerFrame
 {
 	public static GameRules g_pGameRules = null!;
 	public
@@ -89,5 +88,10 @@ public class
 	public virtual BaseCombatWeapon? GetNextBestWeapon(BaseCombatCharacter? player, BaseCombatWeapon? currentWeapon) {
 		return null;
 	}
+
+	public virtual ReadOnlySpan<char> GetGameDescription() => "";
+
+	public virtual void CreateCustomNetworkStringTables() { }
+
 }
 #endif

@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Game.Shared;
 
-public abstract class IPredictionSystem
+public class IPredictionSystem
 {
 	public IPredictionSystem? NextSystem;
 	public static IPredictionSystem? PredictionSystems;

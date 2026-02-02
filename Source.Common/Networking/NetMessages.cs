@@ -43,9 +43,9 @@ public enum ServerOS : byte
 public class NET_Tick : NetMessage
 {
 	public NET_Tick() : base(NET.Tick) { reliable = false; }
-	public NET_Tick(int tick, float frametime, float framedev) : base(NET.Tick) {
+	public NET_Tick(long tick, float frametime, float framedev) : base(NET.Tick) {
 		reliable = false;
-		Tick = tick;
+		Tick = (int)tick;
 		HostFrameTime = frametime;
 		HostFrameDeviation = framedev;
 	}
