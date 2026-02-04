@@ -1,9 +1,7 @@
 ﻿using Source;
 using Source.Common;
 using Source.Common.Commands;
-using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
-using Source.GUI;
 using Source.GUI.Controls;
 
 namespace Game.Client;
@@ -28,8 +26,14 @@ public class CenterStringLabel : Label
 
 		VGui.AddTickSignal(this, 100);
 	}
-	// TODO: OnScreenSizeChanged
+
+	public override void OnScreenSizeChanged(int oldWide, int oldTall) {
+		base.OnScreenSizeChanged(oldWide, oldTall);
+		ComputeSize();
+	}
+
 	public void Clear() => CentertimeOff = 0;
+
 	private void ComputeSize() {
 		int w, h;
 		w = ScreenWidth();
@@ -40,6 +44,7 @@ public class CenterStringLabel : Label
 		SetSize(w, iHeight);
 		SetPos(0, (int)((h * 0.35f) - (iHeight / 2f)));
 	}
+
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
 		Font = scheme.GetFont("Trebuchet24");
@@ -53,7 +58,9 @@ public class CenterStringLabel : Label
 		SetSize(w, iHeight);
 		SetPos(0, (int)((h * 0.35f) - (iHeight / 2)));
 	}
+
 	public void SetTextColor(int r, int g, int b, int a) => SetFgColor(new(r, g, b, a));
+
 	public bool ShouldDraw() {
 		if (engine.IsDrawingLoadingImage())
 			return false;
@@ -64,6 +71,7 @@ public class CenterStringLabel : Label
 
 		return true;
 	}
+
 	public override void OnTick() {
 		bool visible = ShouldDraw();
 		if (IsVisible() != visible)

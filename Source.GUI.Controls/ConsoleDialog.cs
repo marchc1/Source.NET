@@ -870,6 +870,23 @@ public class ConsoleDialog : Frame
 #endif
 	}
 
+	public override void OnScreenSizeChanged(int oldWide, int oldTall) {
+		base.OnScreenSizeChanged(oldWide, oldTall);
+
+		Surface.GetScreenSize(out int sx, out int sy);
+		GetSize(out int w, out int h);
+
+		if (w > sx || h > sy) {
+			if (w > sx)
+				w = sx;
+
+			if (h > sy)
+				h = sy;
+
+			SetSize(w, h);
+		}
+	}
+
 	public override void Activate() {
 		base.Activate();
 		ConsolePanel.Entry.RequestFocus();

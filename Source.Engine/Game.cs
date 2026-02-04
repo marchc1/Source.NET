@@ -216,7 +216,13 @@ public class Game : IGame
 		if (!ExternallySuppliedWindow)
 			return true;
 
+#if !SWDS
+		surface.OnScreenSizeChanged(((VideoMode_Common)videoMode).GetModeStereoWidth(), ((VideoMode_Common)videoMode).GetModeHeight());
+#endif
+
 		AttachToWindow();
+		AppActivate(true);
+
 		return true;
 	}
 

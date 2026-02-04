@@ -421,7 +421,7 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 			// todo sort
 		}
 
-		// materials.AddModeChangeCallBack(VideoMode_AdjustForModeChange);
+		// materials.AddModeChangeCallBack(VideoMode_AdjustForModeChange); // TODO
 		SetInitialized(true);
 
 		return true;
@@ -485,7 +485,7 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 		MarkClientViewRectDirty();
 		renderContext.Viewport(0, 0, GetModeStereoWidth(), GetModeStereoHeight());
 
-		// Surface.OnScreenSizeChanged(oldUIWidth, oldUIHeight) TODO
+		surface.OnScreenSizeChanged(oldUIWidth, oldUIHeight);
 
 		g_ClientDLL!.HudVidInit();
 	}

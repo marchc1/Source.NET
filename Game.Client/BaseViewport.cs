@@ -46,6 +46,15 @@ public class BaseViewport : EditablePanel, IViewPort
 	bool HasParent;
 	InlineArray2<int> OldSize;
 
+	public override void OnScreenSizeChanged(int oldWide, int oldTall) {
+		base.OnScreenSizeChanged(oldWide, oldTall);
+
+		ReloadScheme(null);
+
+		// RemoveAllPanels();
+
+		// CreateDefaultPanels();
+	}
 
 	public override void SetParent(IPanel? newParent) {
 		base.SetParent(newParent);
