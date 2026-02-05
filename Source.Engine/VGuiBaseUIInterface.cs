@@ -319,6 +319,7 @@ public class EngineVGui(
 
 	LoadingProgressDescription[]? activeDescriptions = null;
 
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 	Common Common;
 	IGameUI staticGameUIFuncs;
 	IGameConsole staticGameConsole;
@@ -348,6 +349,7 @@ public class EngineVGui(
 	Con Con;
 
 	EnginePanel staticEngineToolsPanel;
+#pragma warning restore CS8618
 
 	bool ShowProgressDialog;
 	LevelLoadingProgress LastProgressPoint;
@@ -436,7 +438,10 @@ public class EngineVGui(
 	}
 
 	public void NotifyOfServerConnect(ReadOnlySpan<char> game, int IP, int connectionPort, int queryPort) {
+		if (staticGameUIFuncs == null)
+			return;
 
+		staticGameUIFuncs.OnConnectToServer(game, IP, connectionPort, queryPort);
 	}
 
 	public void NotifyOfServerDisconnect() {
@@ -695,7 +700,7 @@ public class EngineVGui(
 
 		staticEngineToolsPanel.LoadControlSettings("scripts/EngineVGuiLayout.res");
 
-		// cacheusedmaterials
+		// materials.CacheUsedMaterials(); todo
 
 		localize.AddFile($"resource/valve_%language%.txt");
 		localize.AddFile($"resource/{engineAPI.GetRequiredService<EngineParms>().Mod}_%language%.txt");
@@ -713,6 +718,8 @@ public class EngineVGui(
 		}
 
 		ActivateGameUI();
+
+		NoShaderAPI = CommandLine.CheckParm("-noshaderapi");
 	}
 
 	void DumpPanels_r(IPanel panel, int level) {
@@ -787,9 +794,7 @@ public class EngineVGui(
 
 	private void SetEngineVisible(bool state) => staticClientDLLPanel?.SetVisible(state);
 
-	private void CreateAskConnectPanel(Panel staticPanel) {
-
-	}
+	private Panel CreateAskConnectPanel(Panel staticPanel) => new AskConnectPanel(staticPanel);
 
 	public void Simulate() {
 		vgui.GetAnimationController().UpdateAnimations(Sys.Time);
@@ -835,7 +840,7 @@ public class EngineVGui(
 			return;
 
 		bool drawGui = r_drawvgui.GetBool();
-		if (!drawGui)
+		if (!drawGui || NoShaderAPI)
 			return;
 
 		Panel panel = staticPanel;
@@ -970,21 +975,14 @@ public class EngineVGui(
 		if (sv.IsDedicated())
 			return null;
 
-		switch (type) {
-			default:
-			case VGuiPanelType.Root:
-				return staticPanel;
-			case VGuiPanelType.ClientDll:
-				return staticClientDLLPanel;
-			case VGuiPanelType.GameUIDll:
-				return staticGameUIPanel;
-			case VGuiPanelType.Tools:
-				return staticEngineToolsPanel;
-			case VGuiPanelType.GameDll:
-				return staticGameDLLPanel;
-			case VGuiPanelType.ClientDllTools:
-				return staticClientDLLToolsPanel;
-		}
+		return type switch {
+			VGuiPanelType.ClientDll => staticClientDLLPanel,
+			VGuiPanelType.GameUIDll => staticGameUIPanel,
+			VGuiPanelType.Tools => staticEngineToolsPanel,
+			VGuiPanelType.GameDll => staticGameDLLPanel,
+			VGuiPanelType.ClientDllTools => staticClientDLLToolsPanel,
+			_ => staticPanel,
+		};
 	}
 
 	public void UpdateButtonState(in InputEvent ev) {
@@ -1124,7 +1122,15 @@ public class EngineVGui(
 	}
 
 	internal void Shutdown() {
+		DestroyVProfPanels();
 
+		// Give panels a chance to settle so things
+		// Marked for deletion will actually get deleted
+		vgui.RunFrame();
+		// unload the gameUI
+		staticGameUIFuncs.Shutdown();
+		// stop the App running
+		vgui.Stop();
 	}
 
 	public bool ShouldPause() {
