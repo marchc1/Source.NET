@@ -5,7 +5,8 @@ using System.Runtime.CompilerServices;
 
 namespace Source.Common.Commands;
 
-public class EmptyConVar() : ConVar("", "0", 0) {
+public class EmptyConVar() : ConVar("", "0", 0)
+{
 	public override void SetValue(double value) { }
 	public override void SetValue(float value) { }
 	public override void SetValue(int value) { }
@@ -19,7 +20,7 @@ public struct ConVarRef
 	static readonly EmptyConVar EmptyConVar = new();
 	static ICvar? cvar;
 	static ICvar CVar => cvar ??= Singleton<ICvar>();
-	
+
 	ConVar ConVar;
 
 	public readonly bool IsEmpty => ConVar == null;
@@ -33,14 +34,17 @@ public struct ConVarRef
 	}
 
 	static readonly HashSet<ulong> warned = [];
+	static readonly string Root = Path.GetFullPath(AppContext.BaseDirectory);
 	static void CVarWarn(ReadOnlySpan<char> name, string? file, int line) {
 		ulong hash;
-		if(file == null) // Shouldn't happen but could I guess
+		if (file == null) // Shouldn't happen but could I guess
 			hash = new PrintF(stackalloc char[name.Length + 1 + 4 + 13], "cvar%s_%i").S(name).I(line).ToSpan().Hash();
-		else
+		else {
+			file = Path.GetRelativePath(Root, Path.GetFullPath(file)).Replace("..\\", ""); // Relative to project root, less noise
 			hash = new PrintF(stackalloc char[file.Length + 1 + 4 + 13], "file%s_%i").S(file).I(line).ToSpan().Hash();
+		}
 
-		if(warned.Add(hash))
+		if (warned.Add(hash))
 			Warning($"ConVarRef {name} doesn't point to an existing ConVar (at {file}:{line})\n");
 	}
 
