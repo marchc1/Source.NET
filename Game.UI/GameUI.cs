@@ -164,7 +164,7 @@ public class GameUI(IEngineClient engine) : IGameUI
 	}
 
 	public void Shutdown() {
-		throw new NotImplementedException();
+		// TODO
 	}
 
 	public void Start() {
