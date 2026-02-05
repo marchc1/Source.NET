@@ -5,7 +5,6 @@ using Source.Common.Mathematics;
 using Source.Common.ShaderAPI;
 
 using System.Numerics;
-using System.Runtime.Intrinsics;
 
 namespace Source.Common.MaterialSystem;
 
@@ -196,6 +195,7 @@ public interface IMaterialSystem
 	int GetCurrentAdapter();
 	int GetModeCount(int adapter);
 	bool SetMode(IWindow window, MaterialSystem_Config config);
+	void AddModeChangeCallBack(Action func);
 	IMaterial CreateMaterial(ReadOnlySpan<char> name, ReadOnlySpan<char> textureGroupName, KeyValues keyValues);
 	IMaterial CreateMaterial(ReadOnlySpan<char> name, KeyValues keyValues);
 	bool CanUseEditorMaterials();

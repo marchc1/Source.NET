@@ -421,14 +421,10 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 			// todo sort
 		}
 
-		// materials.AddModeChangeCallBack(VideoMode_AdjustForModeChange); // TODO
+		materials.AddModeChangeCallBack(AdjustForModeChange);
 		SetInitialized(true);
 
 		return true;
-	}
-
-	static void VideoMode_AdjustForModeChange() {
-
 	}
 
 	public override bool SetMode(int width, int height, bool windowed) {

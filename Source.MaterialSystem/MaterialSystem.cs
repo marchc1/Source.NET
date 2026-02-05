@@ -502,6 +502,8 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		return true;
 	}
 
+	public void AddModeChangeCallBack(Action func) => ShaderAPI.AddModeChangeCallBack(func);
+
 	private void AllocateStandardTextures() {
 
 	}

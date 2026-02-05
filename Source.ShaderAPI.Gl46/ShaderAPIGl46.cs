@@ -615,6 +615,16 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		return 1; // TODO
 	}
 
+	private List<Action> ModeChangeCallbacks = [];
+	public void AddModeChangeCallBack(Action func) {
+		if (!ModeChangeCallbacks.Contains(func))
+			ModeChangeCallbacks.Add(func);
+	}
+
+	public void InvokeModeChangeCallbacks() {
+		foreach (Action func in ModeChangeCallbacks)
+			func();
+	}
 
 	public void Present() {
 		FlushBufferedPrimitives();
