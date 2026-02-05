@@ -67,6 +67,7 @@ public interface IShaderDevice
 	void ReacquireResources();
 	void ReleaseResources();
 	int GetModeCount(int adapter);
+	void GetModeInfo(int adapter, int mode, out ShaderDisplayMode info);
 }
 public struct ShaderDisplayMode
 {

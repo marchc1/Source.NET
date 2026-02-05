@@ -372,21 +372,9 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 
 		game.GetDesktopInfo(out int desktopWidth, out int desktopHeight, out int desktopRefresh);
 
-		// // testing
-		MaterialVideoMode[] test = [
-			new () { Width = 1920, Height = 1080, RefreshRate = 60 },
-			new () { Width = 1600, Height = 900, RefreshRate = 60 },
-			new () { Width = 1366, Height = 768, RefreshRate = 60 },
-			new () { Width = 1280, Height = 720, RefreshRate = 60 },
-			new () { Width = 1024, Height = 576, RefreshRate = 60 },
-		];
-		modeCount = test.Length;
-
 		for (int i = 0; i < modeCount; i++) {
-			// MaterialVideoMode info = new();
-			MaterialVideoMode info = test[i];
-
-			// materials.GetModeInfo(adapter, i, out info);
+			MaterialVideoMode info = new();
+			materials.GetModeInfo(adapter, i, out info);
 
 			if (info.Width < 640 || info.Height < 480) {
 				if (!allowSmallModes)
@@ -431,28 +419,32 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 		int foundMode = FindVideoMode(width, height, windowed);
 		VMode mode = GetMode(foundMode);
 
-		config.VideoMode.Width = mode.Width;
-		config.VideoMode.Height = mode.Height;
+		MaterialSystem_Config newConfig = new();
+		config.CopyInstantiatedReferenceTo(newConfig);
+
+		newConfig.VideoMode.Width = mode.Width;
+		newConfig.VideoMode.Height = mode.Height;
 
 #if SWDS
-		config.VideoMode.RefreshRate = 60;
+		newConfig.VideoMode.RefreshRate = 60;
 #else
-		config.VideoMode.RefreshRate = mode.RefreshRate;
+		newConfig.VideoMode.RefreshRate = mode.RefreshRate;
 #endif
 
-		config.SetFlag(MaterialSystem_Config_Flags.Windowed, windowed);
+		newConfig.SetFlag(MaterialSystem_Config_Flags.Windowed, windowed);
 
 		if (!SetModeOnce) {
-			if (!materials.SetMode(game.GetMainDeviceWindow(), config))
+			if (!materials.SetMode(game.GetMainDeviceWindow(), newConfig))
 				return false;
 
+			newConfig.CopyInstantiatedReferenceTo(config);
 			SetModeOnce = true;
 
 			InitStartupScreen();
 			return true;
 		}
 
-		OverrideMaterialSystemConfig(config);
+		OverrideMaterialSystemConfig(newConfig);
 
 		return true;
 	}

@@ -117,5 +117,6 @@ public interface IShaderAPI : IShaderDynamicAPI
 	bool TexLock(int level, int cubeFaceID, int xOffset, int yOffset, int width, int height, ref PixelWriter writer);
 	bool TexLock(int level, int cubeFaceID, int xOffset, int yOffset, int width, int height, ref PixelWriterMem writer);
 	void TexUnlock();
+	bool ChangeVideoMode(in ShaderDeviceInfo info);
 	void AddModeChangeCallBack(Action func);
 }

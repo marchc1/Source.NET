@@ -194,6 +194,7 @@ public interface IMaterialSystem
 	int GetDisplayAdapterCount();
 	int GetCurrentAdapter();
 	int GetModeCount(int adapter);
+	void GetModeInfo(int adapter, int mode, out MaterialVideoMode info);
 	bool SetMode(IWindow window, MaterialSystem_Config config);
 	void AddModeChangeCallBack(Action func);
 	IMaterial CreateMaterial(ReadOnlySpan<char> name, ReadOnlySpan<char> textureGroupName, KeyValues keyValues);

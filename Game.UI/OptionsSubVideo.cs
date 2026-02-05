@@ -167,6 +167,7 @@ public class OptionsSubVideo : PropertyPage
 			if (mode.Width > desktopWidth || mode.Height > desktopHeight)
 				continue;
 
+			sz.Clear();
 			GetResolutionName(mode, sz, desktopWidth, desktopHeight);
 
 			int itemID = -1;

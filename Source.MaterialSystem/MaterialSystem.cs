@@ -151,6 +151,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 
 		if (!ShaderDevice.IsUsingGraphics()) {
 			// Config = config;
+			config.CopyInstantiatedReferenceTo(Config);
 
 			ColorSpace.SetGamma(2.2f, 2.2f, IMaterialSystem.OVERBRIGHT, Config.AllowCheats, false);
 
@@ -302,8 +303,10 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 
 		if (videoModeChange) {
 			ConvertModeStruct(config, out ShaderDeviceInfo info);
-			// ShaderAPI.ChangeVideoMode(info);
+			ShaderAPI.ChangeVideoMode(info);
 		}
+
+		config.CopyInstantiatedReferenceTo(Config);
 
 		// if (videoModeChange)
 		// ForceSingleThreaded();
@@ -367,6 +370,13 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 	public int GetCurrentAdapter() => ShaderDevice.GetCurrentAdapter();
 
 	public int GetModeCount(int adapter) => ShaderDevice.GetModeCount(adapter);
+	public void GetModeInfo(int adapter, int mode, out MaterialVideoMode info) {
+		ShaderDevice.GetModeInfo(adapter, mode, out ShaderDisplayMode shaderInfo);
+		info.Width = shaderInfo.Width;
+		info.Height = shaderInfo.Height;
+		info.Format = shaderInfo.Format;
+		info.RefreshRate = (int)(shaderInfo.RefreshRateNumerator / (double)shaderInfo.RefreshRateDenominator);
+	}
 
 	public void ModShutdown() {
 

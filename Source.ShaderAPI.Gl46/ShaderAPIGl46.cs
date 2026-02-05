@@ -574,6 +574,21 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		return true;
 	}
 
+	public bool ChangeVideoMode(in ShaderDeviceInfo info) {
+		if (!info.Windowed) {
+			LauncherManager.SetWindowFullScreen(true, info.DisplayMode.Width, info.DisplayMode.Height);
+		}
+		else {
+			if (LauncherManager.IsWindowFullScreen())
+				LauncherManager.SetWindowFullScreen(false, info.DisplayMode.Width, info.DisplayMode.Height);
+			else
+				LauncherManager.SizeWindow(info.DisplayMode.Width, info.DisplayMode.Height);
+		}
+
+		SetPresentParameters(in info);
+		return true;
+	}
+
 	internal IServiceProvider services;
 	internal IGraphicsContext? Device;
 	internal GraphicsDriver Driver;
@@ -606,14 +621,11 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public bool IsActive() => Device != null;
 	public bool IsUsingGraphics() => IsActive();
 
+	private ILauncherManager LauncherManager => services.GetRequiredService<ILauncherManager>();
+	public int GetCurrentAdapter() => LauncherManager.GetCurrentDisplayIndex();
+	public int GetModeCount(int adapter) => LauncherManager.GetDisplayModeCount(adapter);
 
-	public int GetCurrentAdapter() {
-		return 0; // TODO
-	}
-
-	public int GetModeCount(int adapter) {
-		return 1; // TODO
-	}
+	public void GetModeInfo(int adapter, int mode, out ShaderDisplayMode info) => LauncherManager.GetDisplayMode(adapter, mode, out info);
 
 	private List<Action> ModeChangeCallbacks = [];
 	public void AddModeChangeCallBack(Action func) {
@@ -982,7 +994,9 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			glTextureSubImage2D((uint)ModifyTextureHandle, mip, x, y, width >> mip, height >> mip, ImageLoader.GetGLImageUploadFormat(srcFormat), GL_UNSIGNED_BYTE, data);
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		var err = glGetError();
-		System.Diagnostics.Debug.Assert(err == 0);
+		// System.Diagnostics.Debug.Assert(err == 0);
+		if (err != 0)
+			Warning($"glTextureSubImage2D error: {err}\n");
 	}
 
 	readonly ThreadLocal<byte[]> tempTransformBuffers = new ThreadLocal<byte[]>(() => new byte[1024 * 1024]);
