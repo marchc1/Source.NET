@@ -121,6 +121,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		input.Init();
 
 		VGui_CreateGlobalPanels();
+		materials.AddModeChangeCallBack(VGui_VideoMode_AdjustForModeChange);
 
 		return true;
 	}

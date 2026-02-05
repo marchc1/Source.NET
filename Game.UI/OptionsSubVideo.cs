@@ -71,7 +71,7 @@ public class OptionsSubVideo : PropertyPage
 	OptionsSubVideoThirdPartyCreditsDlg OptionsSubVideoThirdPartyCreditsDlg;
 	GammaDialog GammaDialog;
 
-	bool RequiredRestart;
+	bool RequireRestart;
 	URLButton ThirdPartyCredits;
 
 	// Messages -> ControlModified, TextChanged, OpenAdvanced, LaunchBenchmark, OpenGammDialog, OpenThirdPartVideoCreditsDialog
@@ -114,10 +114,10 @@ public class OptionsSubVideo : PropertyPage
 				break;
 		}
 
-
 		Windowed = new(this, "DisplayModeCombo", 5, false);
 		Windowed.AddItem("#GameUI_Fullscreen", null);
 		Windowed.AddItem("#GameUI_Windowed", null);
+		// Windowed.AddItem("Borderless Window", null); // TODO: ugh
 
 		PrepareResolutionList();
 
@@ -150,13 +150,7 @@ public class OptionsSubVideo : PropertyPage
 		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 
 		bool windowed = Windowed.GetActiveItem() >= (Windowed.GetItemCount() - 1);
-		int desktopWidth = 1920, desktopHeight = 1080; // todo gameuifuncs.GetDesktopResolution
-
-		bool newFullscreenDisplay = !windowed && (/*todo*/ 0 != Windowed.GetActiveItem());
-		if (newFullscreenDisplay) {
-			currentWidth = desktopWidth;
-			currentHeight = desktopHeight;
-		}
+		int desktopWidth = 4096, desktopHeight = 2160; // todo gameuifuncs.GetDesktopResolution
 
 		bool foundWidescreen = false;
 		int selectedItemID = -1;
@@ -164,8 +158,10 @@ public class OptionsSubVideo : PropertyPage
 			if (mode.Width == 0 || mode.Height == 0)
 				continue;
 
-			if (mode.Width > desktopWidth || mode.Height > desktopHeight)
-				continue;
+			if (windowed) {
+				if (mode.Width > desktopWidth || mode.Height > desktopHeight)
+					continue;
+			}
 
 			sz.Clear();
 			GetResolutionName(mode, sz, desktopWidth, desktopHeight);
@@ -196,7 +192,7 @@ public class OptionsSubVideo : PropertyPage
 			int width = config.VideoMode.Width;
 			int height = config.VideoMode.Height;
 
-			if (newFullscreenDisplay || (width > desktopWidth) || (height > desktopHeight)) {
+			if ((width > desktopWidth) || (height > desktopHeight)) {
 				width = desktopWidth;
 				height = desktopHeight;
 			}
@@ -207,19 +203,27 @@ public class OptionsSubVideo : PropertyPage
 	}
 
 	private bool BUseHDContent() {
-		throw new NotImplementedException();
+		return false; //todo
 	}
 
 	private void SetUseHDContent(bool use) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public override void OnResetData() {
+		RequireRestart = false;
 
+		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
+
+		Windowed.ActivateItem(config.Windowed() ? 1 : 0);
+		GammaButton.SetEnabled(!config.Windowed());
+		HDContent.SetSelected(BUseHDContent());
+
+		SetCurrentResolutionComboItem();
 	}
 
 	private void SetCurrentResolutionComboItem() {
-		throw new NotImplementedException();
+		// todo
 	}
 
 	readonly IEngineClient engine = Singleton<IEngineClient>();
@@ -288,9 +292,21 @@ public class OptionsSubVideo : PropertyPage
 	}
 
 	public override void OnTextChanged(Panel from) {
-		// TODO
 		if (from == Mode) {
+			MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 			SelectedMode = Mode.GetActiveItem();
+
+			Span<char> text = stackalloc char[256];
+			Mode.GetText(text);
+			new ScanF(text, "%i x %i").Read(out int w).Read(out int h);
+			if (w != config.VideoMode.Width || h != config.VideoMode.Height)
+				OnDataChanged();
+		}
+		else if (from == AspectRatio)
+			PrepareResolutionList();
+		else if (from == Windowed) {
+			PrepareResolutionList();
+			OnDataChanged();
 		}
 	}
 
@@ -300,7 +316,7 @@ public class OptionsSubVideo : PropertyPage
 		// if (OptionsSubVideoAdvancedDlg != null && OptionsSubVideoAdvancedDlg.RequiresRestart())
 		// 	return true;
 
-		return RequiredRestart;
+		return RequireRestart;
 	}
 
 	private void OpenAdvanced() {

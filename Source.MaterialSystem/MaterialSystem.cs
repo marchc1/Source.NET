@@ -506,7 +506,10 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 			TextureSystem.RestoreNonRenderTargetTextures();
 		}
 
-
+		Config.VideoMode = config.VideoMode;
+		Config.SetFlag(MaterialSystem_Config_Flags.Windowed, config.Windowed());
+		Config.SetFlag(MaterialSystem_Config_Flags.Stencil, config.Stencil());
+		// WriteConfigIntoConVars(config); todo
 
 		launcherMgr.RenderedSize(true, ref width, ref height);
 		return true;
@@ -736,12 +739,10 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		AllocatingRenderTargets = false;
 
 		// I believe this step is unnecessary (and breaks how textures work rn)
-		/*
 		if (ShaderAPI.CanDownloadTextures()) {
 			ShaderDevice.ReleaseResources();
 			ShaderDevice.ReacquireResources();
 		}
-		*/
 	}
 
 	public ITexture CreateProceduralTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroup, int wide, int tall, ImageFormat format, TextureFlags flags) {
