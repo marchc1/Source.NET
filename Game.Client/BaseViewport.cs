@@ -51,9 +51,9 @@ public class BaseViewport : EditablePanel, IViewPort
 
 		ReloadScheme(null);
 
-		// RemoveAllPanels();
+		RemoveAllPanels();
 
-		// CreateDefaultPanels();
+		CreateDefaultPanels();
 	}
 
 	public override void SetParent(IPanel? newParent) {
@@ -234,6 +234,18 @@ public class BaseViewport : EditablePanel, IViewPort
 
 	public override void Paint() {
 
+	}
+
+	private void RemoveAllPanels() {
+		LastPanel = null;
+
+		foreach (var panel in Panels)
+			((Panel)panel).DeletePanel();
+
+		Panels.Clear();
+
+		ActivePanel = null;
+		LastActivePanel = null;
 	}
 
 	private void CreateDefaultPanels() {

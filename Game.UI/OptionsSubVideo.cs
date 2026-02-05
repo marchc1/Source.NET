@@ -150,7 +150,7 @@ public class OptionsSubVideo : PropertyPage
 		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 
 		bool windowed = Windowed.GetActiveItem() >= (Windowed.GetItemCount() - 1);
-		int desktopWidth = 1600, desktopHeight = 900; // todo gameuifuncs.GetDesktopResolution
+		int desktopWidth = 1920, desktopHeight = 1080; // todo gameuifuncs.GetDesktopResolution
 
 		bool newFullscreenDisplay = !windowed && (/*todo*/ 0 != Windowed.GetActiveItem());
 		if (newFullscreenDisplay) {

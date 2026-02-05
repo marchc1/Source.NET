@@ -586,6 +586,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		}
 
 		SetPresentParameters(in info);
+		InvokeModeChangeCallbacks();
 		return true;
 	}
 
@@ -624,7 +625,6 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	private ILauncherManager LauncherManager => services.GetRequiredService<ILauncherManager>();
 	public int GetCurrentAdapter() => LauncherManager.GetCurrentDisplayIndex();
 	public int GetModeCount(int adapter) => LauncherManager.GetDisplayModeCount(adapter);
-
 	public void GetModeInfo(int adapter, int mode, out ShaderDisplayMode info) => LauncherManager.GetDisplayMode(adapter, mode, out info);
 
 	private List<Action> ModeChangeCallbacks = [];
