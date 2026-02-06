@@ -1,7 +1,10 @@
 using Source.Common;
 using Source.Common.Client;
+using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GameUI;
+using Source.Common.GUI;
 using Source.Common.Input;
 using Source.Common.MaterialSystem;
 using Source.Common.Networking;
@@ -18,8 +21,8 @@ struct RatioToAspectMode
 
 struct AAMode
 {
-	int NumSamples;
-	int QualityLevel;
+	public int NumSamples;
+	public int QualityLevel;
 }
 
 class GammaDialog : Frame
@@ -31,8 +34,573 @@ class GammaDialog : Frame
 
 class OptionsSubVideoAdvancedDlg : Frame
 {
-	public OptionsSubVideoAdvancedDlg(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
+	bool UseChanges;
+	ComboBox ModelDetail, TextureDetail, AntialiasingMode, FilteringMode;
+	ComboBox ShadowDetail, HDR, WaterDetail, VSync, Multicore, ShaderDetail;
+	ComboBox ColorCorrection;
+	ComboBox MotionBlur;
+	ComboBox DXLevel;
+	int NumAAModes;
+	AAMode[] AAModes = new AAMode[16];
 
+	ICvar cvar = Singleton<ICvar>();
+	IGameUI GameUI => Singleton<IGameUI>();
+
+	public OptionsSubVideoAdvancedDlg(Panel? parent) : base(parent, "OptionsSubVideoAdvancedDlg") {
+		SetTitle("#GameUI_VideoAdvanced_Title", true);
+		SetSize(260, 400);
+
+		DXLevel = new(this, "dxlevel", 6, false);
+
+		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
+		// KeyValues kv = new("config");
+		// Materials.GetRecommendedConfigurationInfo(0, kv);
+
+		DXLevel.RemoveAll();
+		DXLevel.AddItem("maybe", null);
+
+		ModelDetail = new ComboBox(this, "ModelDetail", 6, false);
+		ModelDetail.AddItem("#gameui_low", null);
+		ModelDetail.AddItem("#gameui_medium", null);
+		ModelDetail.AddItem("#gameui_high", null);
+
+		TextureDetail = new ComboBox(this, "TextureDetail", 6, false);
+		TextureDetail.AddItem("#gameui_low", null);
+		TextureDetail.AddItem("#gameui_medium", null);
+		TextureDetail.AddItem("#gameui_high", null);
+		TextureDetail.AddItem("#gameui_ultra", null);
+
+		NumAAModes = 0;
+		AntialiasingMode = new ComboBox(this, "AntialiasingMode", 10, false);
+		AntialiasingMode.AddItem("#GameUI_None", null);
+		AAModes[NumAAModes].NumSamples = 1;
+		AAModes[NumAAModes].QualityLevel = 0;
+		NumAAModes++;
+
+		// if (materials.SupportsMSAAMode(2)) {
+		AntialiasingMode.AddItem("#GameUI_2X", null);
+		AAModes[NumAAModes].NumSamples = 2;
+		AAModes[NumAAModes].QualityLevel = 0;
+		NumAAModes++;
+		// }
+
+		// if (materials.SupportsMSAAMode(4)) {
+		AntialiasingMode.AddItem("#GameUI_4X", null);
+		AAModes[NumAAModes].NumSamples = 4;
+		AAModes[NumAAModes].QualityLevel = 0;
+		NumAAModes++;
+		// }
+
+		// if (materials.SupportsMSAAMode(6)) {
+		AntialiasingMode.AddItem("#GameUI_6X", null);
+		AAModes[NumAAModes].NumSamples = 6;
+		AAModes[NumAAModes].QualityLevel = 0;
+		NumAAModes++;
+		// }
+
+		// if (materials.SupportsCSAAMode(4, 2)) // nVidia CSAA			"8x"
+		// {
+		AntialiasingMode.AddItem("#GameUI_8X_CSAA", null);
+		AAModes[NumAAModes].NumSamples = 4;
+		AAModes[NumAAModes].QualityLevel = 2;
+		NumAAModes++;
+		// }
+
+		// if (materials.SupportsCSAAMode(4, 4)) // nVidia CSAA			"16x"
+		// {
+		AntialiasingMode.AddItem("#GameUI_16X_CSAA", null);
+		AAModes[NumAAModes].NumSamples = 4;
+		AAModes[NumAAModes].QualityLevel = 4;
+		NumAAModes++;
+		// }
+
+		// if (materials.SupportsMSAAMode(8)) {
+		AntialiasingMode.AddItem("#GameUI_8X", null);
+		AAModes[NumAAModes].NumSamples = 8;
+		AAModes[NumAAModes].QualityLevel = 0;
+		NumAAModes++;
+		// }
+
+		// if (materials.SupportsCSAAMode(8, 2)) // nVidia CSAA			"16xQ"
+		// {
+		AntialiasingMode.AddItem("#GameUI_16XQ_CSAA", null);
+		AAModes[NumAAModes].NumSamples = 8;
+		AAModes[NumAAModes].QualityLevel = 2;
+		NumAAModes++;
+		// }
+
+		FilteringMode = new ComboBox(this, "FilteringMode", 6, false);
+		FilteringMode.AddItem("#GameUI_Bilinear", null);
+		FilteringMode.AddItem("#GameUI_Trilinear", null);
+		FilteringMode.AddItem("#GameUI_Anisotropic2X", null);
+		FilteringMode.AddItem("#GameUI_Anisotropic4X", null);
+		FilteringMode.AddItem("#GameUI_Anisotropic8X", null);
+		FilteringMode.AddItem("#GameUI_Anisotropic16X", null);
+
+		ShadowDetail = new ComboBox(this, "ShadowDetail", 6, false);
+		ShadowDetail.AddItem("#gameui_low", null);
+		ShadowDetail.AddItem("#gameui_medium", null);
+		// if (materials.SupportsShadowDepthTextures())
+		ShadowDetail.AddItem("#gameui_high", null);
+
+		ConVarRef mat_dxlevel = new("mat_dxlevel");
+
+		HDR = new ComboBox(this, "HDR", 6, false);
+		HDR.AddItem("#GameUI_hdr_level0", null);
+		HDR.AddItem("#GameUI_hdr_level1", null);
+
+		// if (materials.SupportsHDRMode(HDR_TYPE_INTEGER))
+		HDR.AddItem("#GameUI_hdr_level2", null);
+
+		HDR.SetEnabled(mat_dxlevel.GetInt() >= 80);
+
+		WaterDetail = new ComboBox(this, "WaterDetail", 6, false);
+		WaterDetail.AddItem("#gameui_noreflections", null);
+		WaterDetail.AddItem("#gameui_reflectonlyworld", null);
+		WaterDetail.AddItem("#gameui_reflectall", null);
+
+		VSync = new ComboBox(this, "VSync", 2, false);
+		VSync.AddItem("#gameui_disabled", null);
+		VSync.AddItem("#gameui_enabled", null);
+
+		Multicore = new ComboBox(this, "Multicore", 2, false);
+		Multicore.AddItem("#gameui_disabled", null);
+		Multicore.AddItem("#gameui_enabled", null);
+
+		ShaderDetail = new ComboBox(this, "ShaderDetail", 6, false);
+		ShaderDetail.AddItem("#gameui_low", null);
+		ShaderDetail.AddItem("#gameui_high", null);
+
+		ColorCorrection = new ComboBox(this, "ColorCorrection", 2, false);
+		ColorCorrection.AddItem("#gameui_disabled", null);
+		ColorCorrection.AddItem("#gameui_enabled", null);
+
+		MotionBlur = new ComboBox(this, "MotionBlur", 2, false);
+		MotionBlur.AddItem("#gameui_disabled", null);
+		MotionBlur.AddItem("#gameui_enabled", null);
+
+		LoadControlSettings("resource/OptionsSubVideoAdvancedDlg.res");
+		MoveToCenterOfScreen();
+		SetSizeable(false);
+
+		DXLevel.SetEnabled(false);
+
+		ColorCorrection.SetEnabled(mat_dxlevel.GetInt() >= 90);
+		MotionBlur.SetEnabled(mat_dxlevel.GetInt() >= 90);
+
+		if (cvar.FindVar("fov_desired") == null) {
+			Panel? fov = FindChildByName("FovSlider");
+			fov?.SetVisible(false);
+			fov = FindChildByName("FovLabel");
+			fov?.SetVisible(false);
+		}
+
+		MarkDefaultSettingsAsRecommended();
+
+		UseChanges = false;
+	}
+
+	public override void Activate() {
+		base.Activate();
+
+		Input.SetAppModalSurface(this);
+
+		if (!UseChanges)
+			OnResetData();
+	}
+
+	void SetComboItemAsRecommended(ComboBox combo, int item) {
+		Span<char> text = stackalloc char[512];
+		combo.GetItemText(item, text);
+		sprintf(text, "%s *").S(text);
+		combo.UpdateItem(item, text, null);
+	}
+
+	int FindMSAAMode(int samples, int quality) {
+		for (int i = 0; i < NumAAModes; i++) {
+			if (AAModes[i].NumSamples == samples && AAModes[i].QualityLevel == quality)
+				return i;
+		}
+
+		return 0;
+	}
+
+	public override void OnTextChanged(Panel from) {
+		if (from == DXLevel && RequiresRestart()) {
+			QueryBox box = new("#GameUI_SettingRequiresDisconnect_Title", "#GameUI_SettingRequiresDisconnect_Info");
+			box.AddActionSignalTarget(this);
+			box.SetCancelCommand(new KeyValues("ResetDXLevelCombo"));
+			box.DoModal();
+		}
+	}
+
+	private void OnGameUIHidden() => Close();
+
+	private void ResetDXLevelCombo() {
+		ConVarRef mat_dxlevel = new("mat_dxlevel");
+		if (!mat_dxlevel.IsValid())
+			return;
+
+		for (int i = 0; i < DXLevel.GetItemCount(); i++) {
+			KeyValues kv = DXLevel.GetItemUserData(i)!;
+			if (kv.GetInt("dxlevel") == mat_dxlevel.GetInt()) {
+				DXLevel.ActivateItem(i);
+				break;
+			}
+		}
+
+		if (HDR.IsEnabled()) {
+			ConVarRef mat_hdr_level = new("mat_hdr_level");
+			Assert(mat_hdr_level.IsValid());
+			HDR.ActivateItem(Math.Clamp(mat_hdr_level.GetInt(), 0, 2));
+		}
+	}
+
+	private void OK_Confirmed() {
+		UseChanges = true;
+		Close();
+	}
+
+	private void MarkDefaultSettingsAsRecommended() {
+		KeyValues config = new("config");
+		// Materials.GetRecommendedConfigurationInfo(0, kv);
+
+		int skipLevels = config.GetInt("ConVar.mat_picmip", 0);
+		int anisotropicLevel = config.GetInt("ConVar.mat_forceaniso", 1);
+		int forceTrilinear = config.GetInt("ConVar.mat_trilinear", 0);
+		int aASamples = config.GetInt("ConVar.mat_antialias", 0);
+		int aAQuality = config.GetInt("ConVar.mat_aaquality", 0);
+		int renderToTextureShadows = config.GetInt("ConVar.r_shadowrendertotexture", 0);
+		int shadowDepthTextureShadows = config.GetInt("ConVar.r_flashlightdepthtexture", 0);
+		int waterUseRealtimeReflection = config.GetInt("ConVar.r_waterforceexpensive", 0);
+		int waterUseEntityReflection = config.GetInt("ConVar.r_waterforcereflectentities", 0);
+		int matVSync = config.GetInt("ConVar.mat_vsync", 1);
+		int rootLOD = config.GetInt("ConVar.r_rootlod", 0);
+		int reduceFillRate = config.GetInt("ConVar.mat_reducefillrate", 0);
+		int dxLevel = config.GetInt("ConVar.mat_dxlevel", 0);
+		int colorCorrection = config.GetInt("ConVar.mat_colorcorrection", 0);
+		int motionBlur = config.GetInt("ConVar.mat_motion_blur_enabled", 0);
+		int multicore = 1;//GetCPUInformation().PhysicalProcessors >= 2;
+
+		if (DXLevel.GetItemCount() > 1) {
+			for (int i = 0; i < DXLevel.GetItemCount(); i++) {
+				KeyValues kv = DXLevel.GetItemUserData(i)!;
+				if (kv.GetInt("dxlevel") == config.GetInt("ConVar.mat_dxlevel")) {
+					SetComboItemAsRecommended(DXLevel, i);
+					break;
+				}
+			}
+		}
+
+		SetComboItemAsRecommended(ModelDetail, 2 - rootLOD);
+		SetComboItemAsRecommended(TextureDetail, 2 - skipLevels);
+
+		switch (anisotropicLevel) {
+			case 2:
+				SetComboItemAsRecommended(FilteringMode, 2);
+				break;
+			case 4:
+				SetComboItemAsRecommended(FilteringMode, 3);
+				break;
+			case 8:
+				SetComboItemAsRecommended(FilteringMode, 4);
+				break;
+			case 16:
+				SetComboItemAsRecommended(FilteringMode, 5);
+				break;
+			case 0:
+			default:
+				if (forceTrilinear != 0)
+					SetComboItemAsRecommended(FilteringMode, 1);
+				else
+					SetComboItemAsRecommended(FilteringMode, 0);
+				break;
+		}
+
+		int MSAAMode = FindMSAAMode(aASamples, aAQuality);
+		SetComboItemAsRecommended(AntialiasingMode, MSAAMode);
+
+		if (shadowDepthTextureShadows != 0)
+			SetComboItemAsRecommended(ShadowDetail, 2); // Shadow depth mapping (in addition to RTT shadows)
+		else if (renderToTextureShadows != 0)
+			SetComboItemAsRecommended(ShadowDetail, 1); // RTT shadows
+		else
+			SetComboItemAsRecommended(ShadowDetail, 0); // Blobbies
+
+		SetComboItemAsRecommended(ShaderDetail, reduceFillRate == 1 ? 0 : 1);
+
+		if (waterUseRealtimeReflection != 0) {
+			if (waterUseEntityReflection != 0)
+				SetComboItemAsRecommended(WaterDetail, 2);
+			else
+				SetComboItemAsRecommended(WaterDetail, 1);
+		}
+		else
+			SetComboItemAsRecommended(WaterDetail, 0);
+
+		SetComboItemAsRecommended(VSync, (matVSync != 0) ? 1 : 0);
+		SetComboItemAsRecommended(Multicore, (multicore != 0) ? 1 : 0);
+		SetComboItemAsRecommended(HDR, dxLevel >= 90 ? 2 : 0);
+		SetComboItemAsRecommended(ColorCorrection, colorCorrection);
+		SetComboItemAsRecommended(MotionBlur, motionBlur);
+	}
+
+	private void ApplyChangesToConVar(ReadOnlySpan<char> cvarName, int value) {
+		Assert(cvar.FindVar(cvarName) != null);
+		Span<char> cmd = stackalloc char[256];
+		sprintf(cmd, "%s %d\n").S(cvarName).I(value);
+		Singleton<IEngineClient>().ClientCmd_Unrestricted(cmd);
+	}
+
+	public void ApplyChanges() {
+		if (!UseChanges)
+			return;
+
+		KeyValues? activeItem = DXLevel.GetActiveItemUserData();
+		if (activeItem != null)
+			ApplyChangesToConVar("mat_dxlevel", activeItem.GetInt("dxlevel"));
+
+		ApplyChangesToConVar("r_rootlod", 2 - ModelDetail.GetActiveItem());
+		ApplyChangesToConVar("mat_picmip", 2 - TextureDetail.GetActiveItem());
+
+		ApplyChangesToConVar("mat_trilinear", 0);
+		ApplyChangesToConVar("mat_forceaniso", 1);
+		switch (FilteringMode.GetActiveItem()) {
+			case 0:
+				break;
+			case 1:
+				ApplyChangesToConVar("mat_trilinear", 1);
+				break;
+			case 2:
+				ApplyChangesToConVar("mat_forceaniso", 2);
+				break;
+			case 3:
+				ApplyChangesToConVar("mat_forceaniso", 4);
+				break;
+			case 4:
+				ApplyChangesToConVar("mat_forceaniso", 8);
+				break;
+			case 5:
+				ApplyChangesToConVar("mat_forceaniso", 16);
+				break;
+			default:
+				// Trilinear.
+				ApplyChangesToConVar("mat_forceaniso", 1);
+				break;
+		}
+
+		// Set the AA convars according to the menu item chosen
+		int activeAAItem = AntialiasingMode.GetActiveItem();
+		ApplyChangesToConVar("mat_antialias", AAModes[activeAAItem].NumSamples);
+		ApplyChangesToConVar("mat_aaquality", AAModes[activeAAItem].QualityLevel);
+
+		if (HDR.IsEnabled()) {
+			ConVarRef mat_hdr_level = new("mat_hdr_level");
+			Assert(mat_hdr_level.IsValid());
+			mat_hdr_level.SetValue(HDR.GetActiveItem());
+		}
+
+		if (ShadowDetail.GetActiveItem() == 0) { // Blobby shadows
+			ApplyChangesToConVar("r_shadowrendertotexture", 0);  // Turn off RTT shadows
+			ApplyChangesToConVar("r_flashlightdepthtexture", 0); // Turn off shadow depth textures
+		}
+		else if (ShadowDetail.GetActiveItem() == 1) { // RTT shadows only
+			ApplyChangesToConVar("r_shadowrendertotexture", 1);  // Turn on RTT shadows
+			ApplyChangesToConVar("r_flashlightdepthtexture", 0); // Turn off shadow depth textures
+		}
+		else if (ShadowDetail.GetActiveItem() == 2) { // Shadow depth textures
+			ApplyChangesToConVar("r_shadowrendertotexture", 1);  // Turn on RTT shadows
+			ApplyChangesToConVar("r_flashlightdepthtexture", 1); // Turn on shadow depth textures
+		}
+
+		ApplyChangesToConVar("mat_reducefillrate", (ShaderDetail.GetActiveItem() > 0) ? 0 : 1);
+
+		switch (WaterDetail.GetActiveItem()) {
+			default:
+			case 0:
+				ApplyChangesToConVar("r_waterforceexpensive", 0);
+				ApplyChangesToConVar("r_waterforcereflectentities", 0);
+				break;
+			case 1:
+				ApplyChangesToConVar("r_waterforceexpensive", 1);
+				ApplyChangesToConVar("r_waterforcereflectentities", 0);
+				break;
+			case 2:
+				ApplyChangesToConVar("r_waterforceexpensive", 1);
+				ApplyChangesToConVar("r_waterforcereflectentities", 1);
+				break;
+		}
+
+		ApplyChangesToConVar("mat_vsync", VSync.GetActiveItem());
+
+		int mc = Multicore.GetActiveItem();
+		ApplyChangesToConVar("mat_queue_mode", (mc == 0) ? 0 : -1);
+		ApplyChangesToConVar("mat_colorcorrection", ColorCorrection.GetActiveItem());
+		ApplyChangesToConVar("mat_motion_blur_enabled", MotionBlur.GetActiveItem());
+
+		CvarSlider? FOV = (CvarSlider?)FindChildByName("FOVSlider");
+		FOV?.ApplyChanges();
+	}
+
+	public void OnResetData() {
+		ConVarRef mat_dxlevel = new("mat_dxlevel");
+		ConVarRef r_rootlod = new("r_rootlod");
+		ConVarRef mat_picmip = new("mat_picmip");
+		ConVarRef mat_trilinear = new("mat_trilinear");
+		ConVarRef mat_forceaniso = new("mat_forceaniso");
+		ConVarRef mat_antialias = new("mat_antialias");
+		ConVarRef mat_aaquality = new("mat_aaquality");
+		ConVarRef mat_vsync = new("mat_vsync");
+		ConVarRef mat_queue_mode = new("mat_queue_mode");
+		ConVarRef r_flashlightdepthtexture = new("r_flashlightdepthtexture");
+		ConVarRef r_waterforceexpensive = new("r_waterforceexpensive");
+		ConVarRef r_waterforcereflectentities = new("r_waterforcereflectentities");
+		ConVarRef mat_reducefillrate = new("mat_reducefillrate");
+		ConVarRef mat_hdr_level = new("mat_hdr_level");
+		ConVarRef mat_colorcorrection = new("mat_colorcorrection");
+		ConVarRef mat_motion_blur_enabled = new("mat_motion_blur_enabled");
+		ConVarRef r_shadowrendertotexture = new("r_shadowrendertotexture");
+
+		ResetDXLevelCombo();
+
+		ModelDetail.ActivateItem(2 - Math.Clamp(r_rootlod.GetInt(), 0, 2));
+		TextureDetail.ActivateItem(2 - Math.Clamp(mat_picmip.GetInt(), -1, 2));
+
+		if (r_flashlightdepthtexture.GetBool()) { // If we're doing flashlight shadow depth texturing...
+			r_shadowrendertotexture.SetValue(1); // ...be sure render to texture shadows are also on
+			ShadowDetail.ActivateItem(2);
+		}
+		else if (r_shadowrendertotexture.GetBool()) // RTT shadows, but not shadow depth texturing
+			ShadowDetail.ActivateItem(1);
+		else // Lowest shadow quality
+			ShadowDetail.ActivateItem(0);
+
+		ShaderDetail.ActivateItem(mat_reducefillrate.GetBool() ? 0 : 1);
+		HDR.ActivateItem(Math.Clamp(mat_hdr_level.GetInt(), 0, 2));
+
+		switch (mat_forceaniso.GetInt()) {
+			case 2:
+				FilteringMode.ActivateItem(2);
+				break;
+			case 4:
+				FilteringMode.ActivateItem(3);
+				break;
+			case 8:
+				FilteringMode.ActivateItem(4);
+				break;
+			case 16:
+				FilteringMode.ActivateItem(5);
+				break;
+			case 0:
+			default:
+				if (mat_trilinear.GetBool())
+					FilteringMode.ActivateItem(1);
+				else
+					FilteringMode.ActivateItem(0);
+				break;
+		}
+
+		int AASamples = mat_antialias.GetInt();
+		int AAQuality = mat_aaquality.GetInt();
+		int MSAAMode = FindMSAAMode(AASamples, AAQuality);
+		AntialiasingMode.ActivateItem(MSAAMode);
+		AntialiasingMode.SetEnabled(NumAAModes > 1);
+
+		if (r_waterforceexpensive.GetBool()) {
+			if (r_waterforcereflectentities.GetBool())
+				WaterDetail.ActivateItem(2);
+			else
+				WaterDetail.ActivateItem(1);
+		}
+		else
+			WaterDetail.ActivateItem(0);
+
+		VSync.ActivateItem(mat_vsync.GetInt());
+
+		int mc = mat_queue_mode.GetInt();
+
+		Multicore.ActivateItem((mc == 0) ? 0 : 1);
+		ColorCorrection.ActivateItem(mat_colorcorrection.GetInt());
+		MotionBlur.ActivateItem(mat_motion_blur_enabled.GetInt());
+
+		Span<char> dxVer = stackalloc char[64];
+		strcpy(dxVer, "DirectX v9.0+");
+		SetControlString("dxlabel", dxVer);
+		SetControlString("dxinstalledlabel", dxVer);
+	}
+
+	public override void OnCommand(ReadOnlySpan<char> command) {
+		if (command == "OK") {
+			if (RequiresRestart()) {
+				QueryBox box = new("#GameUI_SettingRequiresDisconnect_Title", "#GameUI_SettingRequiresDisconnect_Info");
+				box.AddActionSignalTarget(this);
+				box.SetOKCommand(new KeyValues("OK_Confirmed"));
+				box.SetCancelCommand(new KeyValues("ResetDXLevelCombo"));
+				box.DoModal();
+				box.MoveToFront();
+				return;
+			}
+
+			UseChanges = true;
+			Close();
+		}
+		else
+			base.OnCommand(command);
+	}
+
+	public override void OnKeyCodeTyped(ButtonCode code) {
+		if (code == ButtonCode.KeyEscape)
+			Close();
+		else
+			base.OnKeyCodeTyped(code);
+	}
+
+	public bool RequiresRestart() {
+		if (GameUI.IsInLevel()) {
+			if (GameUI.IsInBackgroundLevel())
+				return false;
+
+			// if (!GameUI.IsInMultiplayer()) //todo
+			// 	return false;
+
+			ConVarRef mat_dxlevel = new("mat_dxlevel");
+			if (!mat_dxlevel.IsValid())
+				return false;
+
+			KeyValues userData = DXLevel.GetActiveItemUserData()!;
+			Assert(userData != null);
+			if (userData != null && mat_dxlevel.GetInt() != userData.GetInt("dxlevel"))
+				return true;
+
+			if (HDR.IsEnabled()) {
+				ConVarRef mat_hdr_level = new("mat_hdr_level");
+				Assert(mat_hdr_level.IsValid());
+				if (mat_hdr_level.GetInt() != HDR.GetActiveItem())
+					return true;
+			}
+		}
+
+		return false;
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		switch (message.Name) {
+			case "TextChanged":
+				OnTextChanged((Panel)from!);
+				break;
+			case "GameUIHidden":
+				OnGameUIHidden();
+				break;
+			case "ResetDXLevelCombo":
+				ResetDXLevelCombo();
+				break;
+			case "OK_Confirmed":
+				OK_Confirmed();
+				break;
+			default:
+				base.OnMessage(message, from);
+				break;
+		}
 	}
 }
 
@@ -73,8 +641,6 @@ public class OptionsSubVideo : PropertyPage
 
 	bool RequireRestart;
 	URLButton ThirdPartyCredits;
-
-	// Messages -> ControlModified, TextChanged, OpenAdvanced, LaunchBenchmark, OpenGammDialog, OpenThirdPartVideoCreditsDialog
 
 	readonly static KeyValues KV_LaunchBenchmark = new("LaunchBenchmark");
 	readonly static KeyValues KV_OpenAdvanced = new("OpenAdvanced");
@@ -243,7 +809,7 @@ public class OptionsSubVideo : PropertyPage
 			}
 		}
 
-		// OptionsSubVideoAdvancedDlg?.ApplyChanges();
+		OptionsSubVideoAdvancedDlg?.ApplyChanges();
 
 		Span<char> sz = stackalloc char[256];
 		if (SelectedMode == -1)
@@ -313,15 +879,15 @@ public class OptionsSubVideo : PropertyPage
 	private void OnDataChanged() => PostActionSignal(new KeyValues("ApplyButtonEnabled"));//static
 
 	private bool RequiresRestart() {
-		// if (OptionsSubVideoAdvancedDlg != null && OptionsSubVideoAdvancedDlg.RequiresRestart())
-		// 	return true;
+		if (OptionsSubVideoAdvancedDlg != null && OptionsSubVideoAdvancedDlg.RequiresRestart())
+			return true;
 
 		return RequireRestart;
 	}
 
 	private void OpenAdvanced() {
-		// OptionsSubVideoAdvancedDlg ??= new(BasePanel.g_BasePanel!.FindChildByName("OptionsDialog"));
-		// OptionsSubVideoAdvancedDlg.Activate();
+		OptionsSubVideoAdvancedDlg ??= new(BasePanel.g_BasePanel!.FindChildByName("OptionsDialog"));
+		OptionsSubVideoAdvancedDlg.Activate();
 	}
 
 	private void OpenGammaDialog() {
@@ -374,6 +940,32 @@ public class OptionsSubVideo : PropertyPage
 		// return File.Open(modSteamInfPath.ToString(), mode);
 
 		throw new NotImplementedException();
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		switch (message.Name) {
+			case "ControlModified":
+				OnDataChanged();
+				break;
+			case "TextChanged":
+				OnTextChanged((Panel)from!);
+				break;
+			case "OpenAdvanced":
+				OpenAdvanced();
+				break;
+			case "LaunchBenchmark":
+				LaunchBenchmark();
+				break;
+			case "OpenGammaDialog":
+				OpenGammaDialog();
+				break;
+			case "OpenThirdPartyVideoCreditsDialog":
+				OpenThirdPartyVideoCreditsDialog();
+				break;
+			default:
+				base.OnMessage(message, from);
+				break;
+		}
 	}
 }
 

@@ -230,7 +230,13 @@ public class EditablePanel : Panel
 		Panel? control = FindChildByName(controlName, false);
 		if (control != null) {
 			if (str[0] == '#') {
-				// todo localize
+				ReadOnlySpan<char> text = Localize.Find(str);
+				if (!text.IsEmpty)
+					PostMessage(control, new KeyValues("SetText", "text", text));
+#if DEBUG
+				else
+					PostMessage(control, new KeyValues("SetText", "text", str));
+#endif
 			}
 			else
 				PostMessage(control, new KeyValues("SetText", "text", str));
