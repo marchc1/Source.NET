@@ -183,6 +183,10 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		SetViewports(new(ref viewport));
 	}
 
+	public void SetDefaultState() {
+
+	}
+
 	public IShaderShadow NewShaderShadow(ReadOnlySpan<char> materialName) => new ShadowStateGl46(this, (IShaderSystemInternal)ShaderManager, materialName);
 
 	private void InitVertexAndPixelShaders() {
@@ -563,13 +567,23 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	public bool SetMode(IWindow window, in ShaderDeviceInfo info) {
-		ShaderDeviceInfo actualInfo = info;
-		if (!InitDevice(window, in actualInfo)) {
-			return false;
+		bool restoreNeeded = false;
+
+		if (IsActive()) {
+			ReleaseResources();
+			// DeviceShutdown
+			restoreNeeded = true;
 		}
+
+		ShaderDeviceInfo actualInfo = info;
+		if (!InitDevice(window, in actualInfo))
+			return false;
 
 		if (!OnDeviceInit())
 			return false;
+
+		if (restoreNeeded)
+			ReacquireResources();
 
 		return true;
 	}
@@ -1065,7 +1079,16 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	public void ReleaseResources() {
-		releaseResourcesCount++;
+		if (releaseResourcesCount++ != 0) {
+			Warning($"ReleaseResources has no effect, now at level {releaseResourcesCount}.\n");
+			DevWarning("ReleaseResources being discarded is a bug: use IsDeactivated to check for a valid device.\n");
+			Assert(false);
+			return;
+		}
+
+		// ShaderUtil.ReleaseShaderObjects();
+		// MeshMgr.ReleaseBuffers();
+		// ReleaseShaderObjects();
 	}
 
 	public void SetShaderUniform(IMaterialVar textureVar) {

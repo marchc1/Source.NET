@@ -119,4 +119,5 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void TexUnlock();
 	bool ChangeVideoMode(in ShaderDeviceInfo info);
 	void AddModeChangeCallBack(Action func);
+	void SetDefaultState();
 }

@@ -158,7 +158,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 			return redownloadLightmaps;
 		}
 
-		// ShaderAPI.SetDefaultState();
+		ShaderAPI.SetDefaultState();
 
 		// if (config.HDREnabled() != Config.HDREnabled()) {
 		// 	forceUpdate = true;
