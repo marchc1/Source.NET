@@ -1,11 +1,15 @@
+using Source.Common.Client;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Game.UI;
 
-public class CLabeledCommandComboBox : ComboBox
+[PanelAlias("CLabeledCommandComboBox")]
+public class LabeledCommandComboBox : ComboBox
 {
+	readonly public IEngineClient engine = Singleton<IEngineClient>();
+
 	const int MAX_NAME_LEN = 256;
 	const int MAX_COMMAND_LEN = 256;
 
@@ -20,9 +24,9 @@ public class CLabeledCommandComboBox : ComboBox
 	int CurrentSelection;
 	int StartSelection;
 
-	public static Panel Create_CLabeledCommandComboBox() => new CLabeledCommandComboBox(null, null);
+	public static Panel Create_LabeledCommandComboBox() => new LabeledCommandComboBox(null, null);
 
-	public CLabeledCommandComboBox(Panel parent, ReadOnlySpan<char> name) : base(parent, name, 0, false) {
+	public LabeledCommandComboBox(Panel? parent, ReadOnlySpan<char> name) : base(parent, name, 0, false) {
 		AddActionSignalTarget(this);
 		CurrentSelection = -1;
 		StartSelection = -1;
@@ -37,18 +41,16 @@ public class CLabeledCommandComboBox : ComboBox
 		CommandItem newItem = new CommandItem {
 			name = new char[MAX_NAME_LEN],
 			command = new char[MAX_COMMAND_LEN],
+			comboBoxID = base.AddItem(text, null)
 		};
-		newItem.comboBoxID = base.AddItem(text, null);
 		items.Add(newItem);
 
 		text.CopyTo(newItem.name);
 
 		if (text[0] == '#') {
 			ReadOnlySpan<char> localized = Localize.Find(text);
-			if (!localized.IsEmpty) {
-				// todo UnicodeToANSI
+			if (!localized.IsEmpty)
 				localized.CopyTo(newItem.name);
-			}
 		}
 
 		command.CopyTo(newItem.command);
@@ -94,7 +96,7 @@ public class CLabeledCommandComboBox : ComboBox
 
 		Assert(CurrentSelection < items.Count);
 		CommandItem item = items[CurrentSelection];
-		// engine.ClientCmd_Unrestricted(item.command);
+		engine.ClientCmd_Unrestricted(item.command);
 		StartSelection = CurrentSelection;
 	}
 

@@ -999,6 +999,27 @@ public class Frame : EditablePanel
 			Primed = false;
 	}
 
+	public override void OnScreenSizeChanged(int oldWide, int oldTall) {
+		base.OnScreenSizeChanged(oldWide, oldTall);
+
+		if (IsProportional())
+			return;
+
+		Surface.GetScreenSize(out int newWide, out int newTall);
+		GetBounds(out int x, out int y, out int wide, out int tall);
+
+		if (x + wide > newWide)
+			x = newWide - wide;
+
+		if (y + tall > newTall)
+			y = newTall - tall;
+
+		x = Math.Max(0, x);
+		y = Math.Max(0, y);
+
+		SetPos(x, y);
+	}
+
 	private void OnFinishedClose() { }
 
 	private void OnFrameFocusChanged(bool hasFocus) {

@@ -1150,6 +1150,22 @@ public class Panel : IPanel
 	public Panel? GetParent() => Parent;
 	IPanel? IPanel.GetParent() => Parent;
 
+	public virtual void OnScreenSizeChanged(int oldWide, int oldTall) {
+		for (int i = 0; i < GetChildCount(); i++) {
+			IPanel child = GetChild(i);
+			PostMessage(child, new("OnScreenSizeChanged", "oldwide", oldWide, "oldtall", oldTall));
+		}
+
+		GetBounds(out int x, out int y, out int wide, out int tall);
+		Surface.GetScreenSize(out int screenWide, out int screenTall);
+
+		if (x == 0 && y == 0 && wide == oldWide && tall == oldTall)
+			SetBounds(0, 0, screenWide, screenTall);
+
+		Flags |= PanelFlags.NeedsLayout;
+
+		InvalidateLayout();
+	}
 
 	public void GetPos(out int x, out int y) {
 		x = this.X;
@@ -1522,7 +1538,7 @@ public class Panel : IPanel
 	internal void VisualizeLayout(Panel panel) => LayoutVisualizations[panel] = System.GetCurrentTime() + 0.3;
 #endif
 
-	static readonly ConVar sdn_vgui_debug = new("sdn_vgui_debug", 0, "Show debug info for panels under the mouse cursor.");
+	static readonly ConVar sdn_vgui_debug = new("0", FCvar.None, "Show debug info for panels under the mouse cursor.");
 	private void DebugVisualize() {
 		if (sdn_vgui_debug.GetInt() == 0)
 			return;
@@ -2470,7 +2486,13 @@ public class Panel : IPanel
 			case "Delete": OnDelete(); break;
 			case "Close": OnClose(); break;
 			case "OnRequestFocus": OnRequestFocus(message.GetPtr<Panel>("subFocus")!, message.GetPtr<Panel>("defaultPanel")); break;
+			case "OnScreenSizeChanged": OnScreenSizeChanged(message.GetInt("oldwide"), message.GetInt("oldtall")); break;
 			case "Command": OnCommand(message.GetString("command")); break;
+#if DEBUG
+			default:
+				DevMsg(3, $"Unhandled message '{message.Name}' from {from}");
+				break;
+#endif
 		}
 		if (vgui_print_messages.GetBool())
 			if (vgui_print_messages.GetInt() == 2 || (!message.Name.Contains("Ticked") && !message.Name.Contains("Moved")))
@@ -2672,6 +2694,8 @@ public class Panel : IPanel
 			if (aliasAttr != null) {
 				UtlSymbol aliasSymbol = new(aliasAttr.Alias);
 				PanelNames[aliasSymbol] = type;
+				if (method != null)
+					PanelFactories[aliasSymbol] = method.CreateDelegate<CreatePanelFactoryFn>();
 			}
 
 			count++;

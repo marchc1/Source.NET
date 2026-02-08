@@ -152,6 +152,13 @@ public unsafe class FontManager
 	Dictionary<ulong, nint> FontBinaryLengths = [];
 	Dictionary<ulong, string> CustomFontFiles = [];
 
+	public void ClearAllFonts() {
+		FreeTypeFonts.Clear();
+
+		for (int i = 0; i < FontAmalgams.Count; i++)
+			FontAmalgams[i].RemoveAll();
+	}
+
 	internal IFont CreateFont() {
 		FontAmalgam font = new();
 		FontAmalgams.Add(font);

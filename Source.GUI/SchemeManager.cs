@@ -162,14 +162,21 @@ public class SchemeManager : ISchemeManager
 	}
 
 	public void ReloadFonts() {
-		throw new NotImplementedException();
+		foreach (Scheme scheme in Schemes)
+			scheme.ReloadFontGlyphs();
 	}
 
 	public void ReloadSchemes() {
-		throw new NotImplementedException();
+		int count = Schemes.Count;
+		Shutdown(false);
+
+		for (int i = 0; i < count; i++) {
+			Scheme scheme = Schemes[i];
+			LoadSchemeFromFile(scheme.fileName, scheme.tag);
+		}
 	}
 
 	public void Shutdown(bool full = true) {
-		throw new NotImplementedException();
+		// todo
 	}
 }

@@ -4,7 +4,7 @@ using Source.GUI.Controls;
 
 namespace Game.Client.HUD;
 
-[DeclareHudElement(Name = "CHudBaseTimer")]
+// [DeclareHudElement(Name = "CHudBaseTimer")]
 class HudBaseTimer : HudNumericDisplay, IHudElement
 {
 	int Minutes;

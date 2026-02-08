@@ -6,6 +6,7 @@ using Source.Common.GUI;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.ShaderAPI;
+using Source.Common.Bitmap;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -92,6 +93,7 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 		this.services = services;
 		SDL3_State.InitializeIfRequired();
 		InitCursors();
+		window = null!;
 	}
 	SDL3_Window window;
 	public unsafe bool CreateGameWindow(string title, bool windowed, int width, int height) {
@@ -130,9 +132,7 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 		throw new NotImplementedException();
 	}
 
-	public bool IsWindowFullScreen() {
-		throw new NotImplementedException();
-	}
+	public bool IsWindowFullScreen() => (SDL3.SDL_GetWindowFlags(window.HardwareHandle) & SDL_WindowFlags.SDL_WINDOW_FULLSCREEN) != 0;
 
 	public bool MakeContextCurrent(nint context) {
 		return false;
@@ -158,11 +158,60 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 	}
 
 	public void SetWindowFullScreen(bool fullscreen, int width, int height) {
-		throw new NotImplementedException();
+		SDL3.SDL_SetWindowFullscreen(window.HardwareHandle, fullscreen);
+		SizeWindow(width, height);
 	}
 
-	public void SizeWindow(int width, int tall) {
-		throw new NotImplementedException();
+	public void SizeWindow(int width, int tall) => SDL3.SDL_SetWindowSize(window.HardwareHandle, width, tall);
+
+	public int GetDisplayModeCount(int displayIndex) {
+		int count = 0;
+		SDL_DisplayID* displaysPtr = SDL3.SDL_GetDisplays(&count);
+		if (displaysPtr == null) return 0;
+
+		if (displayIndex < 0 || displayIndex >= count)
+			return 0;
+
+		int modeCount = 0;
+		SDL3.SDL_GetFullscreenDisplayModes(displaysPtr[displayIndex], &modeCount);
+		return modeCount;
+	}
+
+	public void GetDisplayMode(int displayIndex, int modeIndex, out ShaderDisplayMode info) {
+		info = default;
+		int count = 0;
+		SDL_DisplayID* displaysPtr = SDL3.SDL_GetDisplays(&count);
+		if (displaysPtr == null) return;
+
+		if (displayIndex < 0 || displayIndex >= count)
+			return;
+
+		int modeCount = 0;
+		SDL_DisplayMode** modesPtr = SDL3.SDL_GetFullscreenDisplayModes(displaysPtr[displayIndex], &modeCount);
+		if (modesPtr == null) return;
+
+		if (modeIndex < 0 || modeIndex >= modeCount)
+			return;
+
+		SDL_DisplayMode* mode = modesPtr[modeIndex];
+		info.Width = mode->w;
+		info.Height = mode->h;
+		info.Format = ImageFormat.RGBA8888;
+		info.RefreshRateNumerator = (int)(mode->refresh_rate * 1000);
+		info.RefreshRateDenominator = 1000;
+	}
+
+	public int GetCurrentDisplayIndex() {
+		if (window == null) return 0;
+		SDL_DisplayID displayID = SDL3.SDL_GetDisplayForWindow(window.HardwareHandle);
+		int count = 0;
+		SDL_DisplayID* displaysPtr = SDL3.SDL_GetDisplays(&count);
+		if (displaysPtr == null) return 0;
+		for (int i = 0; i < count; i++) {
+			if (displaysPtr[i] == displayID)
+				return i;
+		}
+		return 0;
 	}
 
 	public IWindow GetWindow() => window;

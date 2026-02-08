@@ -7,21 +7,21 @@ namespace Game.UI;
 
 public class OptionsSubMouse : PropertyPage
 {
-	CCvarNegateCheckButton ReverseMouseCheckBox;
-	CCvarToggleCheckButton MouseFilterCheckBox;
-	CCvarToggleCheckButton MouseRawCheckBox;
+	CvarNegateCheckButton ReverseMouseCheckBox;
+	CvarToggleCheckButton MouseFilterCheckBox;
+	CvarToggleCheckButton MouseRawCheckBox;
 	CheckButton MouseAccelerationCheckBox;
-	CCvarToggleCheckButton JoystickCheckBox;
-	CCvarToggleCheckButton JoystickSouthpawCheckBox;
-	CCvarToggleCheckButton QuickInfoCheckBox;
-	CCvarToggleCheckButton ReverseJoystickCheckBox;
-	CCvarSlider MouseSensitivitySlider;
+	CvarToggleCheckButton JoystickCheckBox;
+	CvarToggleCheckButton JoystickSouthpawCheckBox;
+	CvarToggleCheckButton QuickInfoCheckBox;
+	CvarToggleCheckButton ReverseJoystickCheckBox;
+	CvarSlider MouseSensitivitySlider;
 	TextEntry MouseSensitivityLabel;
-	CCvarSlider MouseAccelExponentSlider;
+	CvarSlider MouseAccelExponentSlider;
 	TextEntry MouseAccelExponentLabel;
-	CCvarSlider JoyYawSensitivitySlider;
+	CvarSlider JoyYawSensitivitySlider;
 	Label JoyYawSensitivityPreLabel;
-	CCvarSlider JoyPitchSensitivitySlider;
+	CvarSlider JoyPitchSensitivitySlider;
 	Label JoyPitchSensitivityPreLabel;
 
 	public OptionsSubMouse(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {

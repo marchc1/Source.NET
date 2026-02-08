@@ -1,8 +1,10 @@
-﻿using Source.Common.Engine;
+﻿using Source.Common.Commands;
+using Source.Common.Engine;
 using Source.Common.GameUI;
 using Source.Common.GUI;
 
 namespace Game.UI;
+
 public class GameConsole(IEngineAPI engineAPI, ISurface Surface, ISchemeManager Scheme) : IGameConsole
 {
 	bool Initialized;
@@ -52,4 +54,7 @@ public class GameConsole(IEngineAPI engineAPI, ISurface Surface, ISchemeManager 
 
 		Console!.SetParent(parent);
 	}
+
+	[ConCommand("condump", "dump the text currently in the console to condumpXX.log")]
+	static void condump() => Msg("not implemented\n");
 }

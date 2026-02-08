@@ -7,17 +7,16 @@ using Source.Common.Formats.Keyvalues;
 using Source.Common.GameUI;
 using Source.Common.GUI;
 using Source.Common.Input;
+using Source.Engine;
 using Source.GUI.Controls;
 
 namespace Game.UI;
 
 public class GameMenuItem : MenuItem
 {
-	public GameMenuItem(Menu panel, string name, string text) : base(panel, name, text) {
-		RightAligned = false;
-	}
-
 	bool RightAligned;
+
+	public GameMenuItem(Menu panel, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(panel, name, text) => RightAligned = false;
 
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
@@ -60,14 +59,14 @@ public enum BackgroundState
 	MainMenu,
 	Level,
 	Disconnected,
-	Exiting,
+	Exiting
 }
 
-public class GameMenu(Panel parent, string name) : Menu(parent, name)
+public class GameMenu(Panel parent, ReadOnlySpan<char> name) : Menu(parent, name)
 {
 	protected override void LayoutMenuBorder() { }
 	public override int AddMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, ReadOnlySpan<char> command, Panel? target, KeyValues? userData = null) {
-		MenuItem item = new GameMenuItem(this, new string(itemName), new string(itemText));
+		MenuItem item = new GameMenuItem(this, itemName, itemText);
 		item.AddActionSignalTarget(target);
 		item.SetCommand(command);
 		item.SetText(itemText);
@@ -75,7 +74,7 @@ public class GameMenu(Panel parent, string name) : Menu(parent, name)
 		return base.AddMenuItem(item);
 	}
 	public override int AddMenuItem(ReadOnlySpan<char> itemName, ReadOnlySpan<char> itemText, KeyValues command, Panel? target, KeyValues? userData = null) {
-		MenuItem item = new GameMenuItem(this, new string(itemName), new string(itemText));
+		MenuItem item = new GameMenuItem(this, itemName, itemText);
 		item.AddActionSignalTarget(target);
 		item.SetCommand(command);
 		item.SetText(itemText);
@@ -105,6 +104,27 @@ public class GameMenu(Panel parent, string name) : Menu(parent, name)
 			}
 		}
 
+		if (!isInGame) {
+			for (int j = 0; j < GetChildCount() - 2; j++)
+				MoveMenuItem(j, j + 1);
+		}
+		else {
+			for (int i = 0; i < GetChildCount(); i++) {
+				for (int j = i; j < GetChildCount() - 2; j++) {
+					int id1 = GetMenuID(j);
+					int id2 = GetMenuID(j + 1);
+
+					MenuItem menuItem1 = GetMenuItem(id1)!;
+					MenuItem menuItem2 = GetMenuItem(id2)!;
+					KeyValues kv1 = menuItem1.GetUserData()!;
+					KeyValues kv2 = menuItem2.GetUserData()!;
+
+					if (kv1.GetInt("InGameOrder") > kv2.GetInt("InGameOrder"))
+						MoveMenuItem(id2, id1);
+				}
+			}
+		}
+
 		InvalidateLayout();
 	}
 
@@ -123,6 +143,7 @@ public class GameMenu(Panel parent, string name) : Menu(parent, name)
 		if (!state)
 			MoveToBack();
 	}
+
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
 
@@ -130,9 +151,11 @@ public class GameMenu(Panel parent, string name) : Menu(parent, name)
 		SetBgColor(new(0, 0, 0, 0));
 		SetBorder(null);
 	}
+
 	public override void OnSetFocus() {
 		base.OnSetFocus();
 	}
+
 	public override void OnKeyCodePressed(ButtonCode code) {
 		int dir = 0;
 		switch (code) {
@@ -168,9 +191,7 @@ public class MainMenuGameLogo : EditablePanel
 	int OffsetX;
 	int OffsetY;
 
-	public MainMenuGameLogo(Panel? parent, string name) : base(parent, name) {
-
-	}
+	public MainMenuGameLogo(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) { }
 	public override void ApplySettings(KeyValues resourceData) {
 		base.ApplySettings(resourceData);
 
@@ -189,12 +210,14 @@ public class MainMenuGameLogo : EditablePanel
 
 		LoadControlSettings("resource/GameLogo.res", null, null, conditions);
 	}
+
+	public int GetOffsetX() => OffsetX;
+	public int GetOffsetY() => OffsetY;
 }
 public class BackgroundMenuButton : Button
 {
-	public BackgroundMenuButton(Panel parent, string name) : base(parent, name, "") {
+	public BackgroundMenuButton(Panel parent, ReadOnlySpan<char> name) : base(parent, name, "") { }
 
-	}
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
 
@@ -213,9 +236,7 @@ public class BackgroundMenuButton : Button
 }
 public class QuitQueryBox : QueryBox
 {
-	public QuitQueryBox(string title, string queryText, Panel? parent = null) : base(title, queryText, parent) {
-
-	}
+	public QuitQueryBox(ReadOnlySpan<char> title, ReadOnlySpan<char> queryText, Panel? parent = null) : base(title, queryText, parent) { }
 
 	IGameUI GameUI = Singleton<IGameUI>();
 
@@ -240,18 +261,24 @@ public class BasePanel : Panel
 {
 	GameMenu? GameMenu;
 
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 	readonly public IFileSystem FileSystem = Singleton<IFileSystem>();
 	readonly public GameUI GameUI;
 	readonly public IEngineClient engine = Singleton<IEngineClient>();
 	readonly public ModInfo ModInfo = Singleton<ModInfo>();
-#pragma warning restore CS8618
 
 	TextureID BackgroundImageID = TextureID.INVALID;
+	TextureID LoadingImageID = TextureID.INVALID;
 
 	OptionsDialog? OptionsDialog;
-	static BasePanel? g_BasePanel;
 
+	bool FadingInMenus;
+	TimeUnit_t FadeMenuStartTime;
+	TimeUnit_t FadeMenuEndTime;
+	bool RenderingBackgroundTransition;
+	TimeUnit_t TransitionStartTime;
+	TimeUnit_t TransitionEndTime;
+
+	public static BasePanel? g_BasePanel;
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
 		RunMenuCommand(command);
@@ -259,8 +286,10 @@ public class BasePanel : Panel
 
 	[ConCommand("gamemenucommand")]
 	static void Gamemenucommand(in TokenizedCommand args) {
-		if (args.ArgC() < 2)
+		if (args.ArgC() < 2) {
+			Msg("Usage:  gamemenucommand <commandname>\n");
 			return;
+		}
 
 		g_BasePanel?.RunMenuCommand(args[1]);
 	}
@@ -268,7 +297,7 @@ public class BasePanel : Panel
 	private void RunMenuCommand(ReadOnlySpan<char> command) {
 		DevMsg($"Incoming BasePanel message '{command}'\n");
 		switch (command) {
-			case "OpenGameMenu": break;
+			case "OpenGameMenu": PostMessage(GameMenu, new("Command", "command", "open")); break;
 			case "OpenPlayerListDialog": break;
 			case "OpenNewGameDialog": break;
 			case "OpenLoadGameDialog": break;
@@ -363,7 +392,7 @@ public class BasePanel : Panel
 	}
 
 	static BackgroundMenuButton CreateMenuButton(BasePanel parent, ReadOnlySpan<char> panelName, ReadOnlySpan<char> panelText) {
-		BackgroundMenuButton button = new BackgroundMenuButton(parent, new string(panelName));
+		BackgroundMenuButton button = new BackgroundMenuButton(parent, panelName);
 		button.SetProportional(true);
 		button.SetCommand("OpenGameMenu");
 		button.SetText(panelText);
@@ -382,7 +411,7 @@ public class BasePanel : Panel
 		GameMenuButtons.Add(CreateMenuButton(this, "GameMenuButton2", ModInfo!.GetGameTitle2()));
 	}
 
-	[PanelAnimationVar("0")] float BackgroundFillAlpha;
+	[PanelAnimationVar("0")] protected float BackgroundFillAlpha;
 
 	IFont? FontTest;
 
@@ -403,8 +432,8 @@ public class BasePanel : Panel
 	public override void PerformLayout() {
 		base.PerformLayout();
 
-		Surface.GetScreenSize(out int wide, out int tall);
-		GameMenu!.GetSize(out int menuWide, out int menuTall);
+		Surface.GetScreenSize(out _, out int tall);
+		GameMenu!.GetSize(out _, out int menuTall);
 		int idealMenuY = GameMenuPos.Y;
 		if (idealMenuY + menuTall + GameMenuInset > tall)
 			idealMenuY = tall - menuTall - GameMenuInset;
@@ -416,10 +445,7 @@ public class BasePanel : Panel
 			GameMenuButtons[i].SetPos(GameTitlePos[i].X, GameTitlePos[i].Y + yDiff);
 		}
 
-		for (int i = 0; i < GameMenuButtons.Count; i++) {
-			GameMenuButtons[i].SizeToContents();
-		}
-
+		GameLogo?.SetPos(GameMenuPos.X + GameLogo.GetOffsetX(), idealMenuY - GameLogo.GetTall() + GameLogo.GetOffsetY());
 		GameMenu.SetPos(GameMenuPos.X, idealMenuY);
 
 		UpdateGameMenus();
@@ -433,6 +459,33 @@ public class BasePanel : Panel
 	BackgroundState BackgroundState;
 
 	public void SetBackgroundRenderState(BackgroundState state) {
+		if (state == BackgroundState)
+			return;
+
+		double frametime = Sys.Time;
+
+		RenderingBackgroundTransition = false;
+		FadingInMenus = false;
+
+		if (state == BackgroundState.Exiting) {
+			// todo
+		}
+		else if (state == BackgroundState.Disconnected || state == BackgroundState.MainMenu) {
+			FadingInMenus = true;
+			FadeMenuStartTime = frametime;
+			FadeMenuEndTime = frametime + 3.0f;
+
+			if (state == BackgroundState.MainMenu) {
+				RenderingBackgroundTransition = true;
+				TransitionStartTime = frametime;
+				TransitionEndTime = frametime + 3.0f;
+			}
+		}
+		else if (state == BackgroundState.Loading)
+			SetMenuAlpha(0);
+		else if (state == BackgroundState.Level)
+			SetMenuAlpha(255);
+
 		BackgroundState = state;
 	}
 
@@ -453,9 +506,9 @@ public class BasePanel : Panel
 
 		int i;
 		bool haveActiveDialogs = false;
-		bool bIsInLevel = GameUI.IsInLevel();
+		bool isInLevel = GameUI.IsInLevel();
 		for (i = 0; i < GetChildCount(); ++i) {
-			IPanel? child = GetChild(i);
+			Panel? child = GetChild(i);
 			if (child != null && child.IsVisible() && child.IsPopup() && child != GameMenu)
 				haveActiveDialogs = true;
 		}
@@ -467,7 +520,7 @@ public class BasePanel : Panel
 				haveActiveDialogs = true;
 		}
 
-		bool needDarkenedBackground = (haveActiveDialogs || bIsInLevel);
+		bool needDarkenedBackground = haveActiveDialogs || isInLevel;
 		if (HaveDarkenedBackground != needDarkenedBackground) {
 			float targetAlpha, duration;
 			if (needDarkenedBackground) {
@@ -501,9 +554,9 @@ public class BasePanel : Panel
 			if (GameLogo != null)
 				GetAnimationController().RunAnimationCommand(GameLogo, "alpha", targetTitleAlpha, 0.0f, duration, Interpolators.Linear);
 
-			for (i = 0; i < GameMenuButtons.Count; ++i) {
+			for (i = 0; i < GameMenuButtons.Count; ++i)
 				GetAnimationController().RunAnimationCommand(GameMenuButtons[i], "alpha", targetTitleAlpha, 0.0f, duration, Interpolators.Linear);
-			}
+
 			HaveDarkenedTitleText = bNeedDarkenedTitleText;
 			ForceTitleTextUpdate = false;
 		}
@@ -517,6 +570,7 @@ public class BasePanel : Panel
 
 	public void RunFrame() {
 		InvalidateLayout();
+		GetAnimationController().UpdateAnimations(Sys.Time);
 
 		UpdateBackgroundState();
 
@@ -584,22 +638,59 @@ public class BasePanel : Panel
 			BackgroundImageID = Surface.CreateNewTextureID();
 
 		Surface.DrawSetTextureFile(BackgroundImageID, finalFilename, 0, false);
+
+		if (LoadingImageID == TextureID.INVALID)
+			LoadingImageID = Surface.CreateNewTextureID();
+
+		Surface.DrawSetTextureFile(LoadingImageID, "Console/startup_loading", 0, false);
 	}
 
 	private void DrawBackgroundImage() {
+		GetSize(out int wide, out int tall);
+		double frametime = Sys.Time;
+
 		int alpha = 255;
 
-		GetSize(out int wide, out int tall);
+		if (RenderingBackgroundTransition) {
+			alpha = (int)((TransitionEndTime - frametime) / (TransitionEndTime - TransitionStartTime) * 255);
+			alpha = Math.Clamp(alpha, 0, 255);
+		}
 
-		TextureID imageID = BackgroundImageID;
+		if (ExitingFrameCount != 0) {
+			alpha = (int)((TransitionEndTime - frametime) / (TransitionEndTime - TransitionStartTime) * 255);
+			alpha = 255 - Math.Clamp(alpha, 0, 255);
+		}
 
+		if (RenderingBackgroundTransition || BackgroundState == BackgroundState.Loading) {
+			Surface.DrawSetColor(255, 255, 255, alpha);
+			Surface.DrawSetTexture(LoadingImageID);
+			Surface.DrawGetTextureSize(LoadingImageID, out int twide, out int ttall);
+			Surface.DrawTexturedRect(wide - twide, tall - ttall, wide, tall);
+		}
+
+#if !GMOD_DLL
+		if (FadingInMenus) {
+			alpha = (int)((frametime - FadeMenuStartTime) / (FadeMenuEndTime - FadeMenuStartTime) * 255);
+			alpha = Math.Clamp(alpha, 0, 255);
+			GameMenu!.SetAlpha(alpha);
+			if (alpha == 255)
+				FadingInMenus = false;
+		}
+#else
 		Surface.DrawSetColor(255, 255, 255, alpha);
-		Surface.DrawSetTexture(imageID);
+		Surface.DrawSetTexture(BackgroundImageID);
 		Surface.DrawTexturedRect(0, 0, wide, tall);
+#endif
 	}
 
 	private void SetMenuAlpha(int alpha) {
 		GameMenu!.SetAlpha(alpha);
+		GameLogo?.SetAlpha(alpha);
+
+		for (int i = 0; i < GameMenuButtons.Count; ++i)
+			GameMenuButtons[i].SetAlpha(alpha);
+
+		ForceTitleTextUpdate = true;
 	}
 
 	private void CreateGameMenu() {
@@ -617,11 +708,12 @@ public class BasePanel : Panel
 	}
 
 	public override void OnThink() {
+		// KeyRepeat todo
 		base.OnThink();
 	}
 
 	private GameMenu RecursiveLoadGameMenu(KeyValues datafile) {
-		GameMenu menu = new GameMenu(this, new string(datafile.Name));
+		GameMenu menu = new GameMenu(this, datafile.Name);
 		for (KeyValues? dat = datafile.GetFirstSubKey(); dat != null; dat = dat.GetNextKey()) {
 			ReadOnlySpan<char> label = dat.GetString("label", "<unknown>");
 			ReadOnlySpan<char> cmd = dat.GetString("command", null);
@@ -640,6 +732,7 @@ public class BasePanel : Panel
 
 			GameLogo.MakeReadyForUse();
 			GameLogo.InvalidateLayout(true, true);
+			GameLogo.SetAlpha(0);
 		}
 	}
 
@@ -671,11 +764,11 @@ public class BasePanel : Panel
 		LevelLoading = false;
 	}
 
+	readonly static KeyValues KV_GameUIHidden = new("GameUIHidden");
 	internal void OnGameUIHidden() {
-
+		if (OptionsDialog.IsValid())
+			PostMessage(OptionsDialog, KV_GameUIHidden);
 	}
 
-	public int GetMenuAlpha() {
-		return GameMenu!.GetAlpha();
-	}
+	public int GetMenuAlpha() => GameMenu!.GetAlpha();
 }

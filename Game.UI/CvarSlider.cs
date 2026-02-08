@@ -6,11 +6,12 @@ using Source.GUI.Controls;
 
 namespace Game.UI;
 
-public class CCvarSlider : Slider
+[PanelAlias("CCvarSlider")]
+public class CvarSlider : Slider
 {
-	public static Panel Create_CCvarSlider() => new CCvarSlider(null, null);
+	public static Panel Create_CvarSlider() => new CvarSlider(null, null);
 
-	[PanelAnimationVar("use_convar_minmax", "0", "bool")] bool UseCvarMinMax;
+	[PanelAnimationVar("use_convar_minmax", "0", "bool")] protected bool UseCvarMinMax;
 	bool AllowOutOfRange;
 	bool ModifiedOnce;
 	float StartValue;
@@ -21,13 +22,13 @@ public class CCvarSlider : Slider
 	bool CreatedInCode;
 	float MinValue;
 	float MaxValue;
-	public CCvarSlider(Panel? panel, ReadOnlySpan<char> name) : base(panel, name) {
+	public CvarSlider(Panel? panel, ReadOnlySpan<char> name) : base(panel, name) {
 		SetupSlider(0, 1, "", false);
 		CreatedInCode = false;
 		AddActionSignalTarget(this);
 	}
 
-	public CCvarSlider(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, float minValue, float maxValue, ReadOnlySpan<char> cvarName, bool allowOutOfRange = false) : base(parent, name) {
+	public CvarSlider(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, float minValue, float maxValue, ReadOnlySpan<char> cvarName, bool allowOutOfRange = false) : base(parent, name) {
 		AddActionSignalTarget(this);
 		SetupSlider(minValue, maxValue, cvarName, allowOutOfRange);
 		CreatedInCode = true;

@@ -12,6 +12,7 @@ public class LoadingDialog : Frame
 {
 	readonly public IGameUI GameUI = Singleton<IGameUI>();
 	readonly public ModInfo ModInfo = Singleton<ModInfo>();
+	readonly IEngineClient engine = Singleton<IEngineClient>();
 
 	ProgressBar Progress;
 	ProgressBar Progress2;
@@ -29,8 +30,8 @@ public class LoadingDialog : Frame
 	bool ConsoleStyle;
 	float ProgressFraction;
 
-	[PanelAnimationVar("0")] int AdditionalIndentX;
-	[PanelAnimationVar("0")] int AdditionalIndentY;
+	[PanelAnimationVar("0")] protected int AdditionalIndentX;
+	[PanelAnimationVar("0")] protected int AdditionalIndentY;
 
 	public override void PerformLayout() {
 		if (ConsoleStyle) {
@@ -52,11 +53,11 @@ public class LoadingDialog : Frame
 		else if (Center)
 			MoveToCenterOfScreen();
 		else {
-			Surface.GetWorkspaceBounds(out int x, out int y, out int screenWide, out int screenTall);
+			Surface.GetWorkspaceBounds(out _, out _, out int screenWide, out int screenTall);
 			GetSize(out int wide, out int tall);
 
-			x = screenWide - (wide + 10);
-			y = screenTall - (tall + 10);
+			int x = screenWide - (wide + 10);
+			int y = screenTall - (tall + 10);
 
 			x -= AdditionalIndentX;
 			y -= AdditionalIndentY;
@@ -71,7 +72,6 @@ public class LoadingDialog : Frame
 		HideOtherDialogs(false);
 		base.OnClose();
 	}
-	IEngineClient engine = Singleton<IEngineClient>();
 	public override void OnCommand(ReadOnlySpan<char> command) {
 		if (command.Equals("Cancel", StringComparison.OrdinalIgnoreCase)) {
 			engine.ClientCmd_Unrestricted("disconnect\n");

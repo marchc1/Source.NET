@@ -183,6 +183,10 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		SetViewports(new(ref viewport));
 	}
 
+	public void SetDefaultState() {
+
+	}
+
 	public IShaderShadow NewShaderShadow(ReadOnlySpan<char> materialName) => new ShadowStateGl46(this, (IShaderSystemInternal)ShaderManager, materialName);
 
 	private void InitVertexAndPixelShaders() {
@@ -563,14 +567,40 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	public bool SetMode(IWindow window, in ShaderDeviceInfo info) {
-		ShaderDeviceInfo actualInfo = info;
-		if (!InitDevice(window, in actualInfo)) {
-			return false;
+		bool restoreNeeded = false;
+
+		if (IsActive()) {
+			ReleaseResources();
+			// DeviceShutdown
+			restoreNeeded = true;
 		}
+
+		ShaderDeviceInfo actualInfo = info;
+		if (!InitDevice(window, in actualInfo))
+			return false;
 
 		if (!OnDeviceInit())
 			return false;
 
+		if (restoreNeeded)
+			ReacquireResources();
+
+		return true;
+	}
+
+	public bool ChangeVideoMode(in ShaderDeviceInfo info) {
+		if (!info.Windowed) {
+			LauncherManager.SetWindowFullScreen(true, info.DisplayMode.Width, info.DisplayMode.Height);
+		}
+		else {
+			if (LauncherManager.IsWindowFullScreen())
+				LauncherManager.SetWindowFullScreen(false, info.DisplayMode.Width, info.DisplayMode.Height);
+			else
+				LauncherManager.SizeWindow(info.DisplayMode.Width, info.DisplayMode.Height);
+		}
+
+		SetPresentParameters(in info);
+		InvokeModeChangeCallbacks();
 		return true;
 	}
 
@@ -606,6 +636,21 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public bool IsActive() => Device != null;
 	public bool IsUsingGraphics() => IsActive();
 
+	private ILauncherManager LauncherManager => services.GetRequiredService<ILauncherManager>();
+	public int GetCurrentAdapter() => LauncherManager.GetCurrentDisplayIndex();
+	public int GetModeCount(int adapter) => LauncherManager.GetDisplayModeCount(adapter);
+	public void GetModeInfo(int adapter, int mode, out ShaderDisplayMode info) => LauncherManager.GetDisplayMode(adapter, mode, out info);
+
+	private List<Action> ModeChangeCallbacks = [];
+	public void AddModeChangeCallBack(Action func) {
+		if (!ModeChangeCallbacks.Contains(func))
+			ModeChangeCallbacks.Add(func);
+	}
+
+	public void InvokeModeChangeCallbacks() {
+		foreach (Action func in ModeChangeCallbacks)
+			func();
+	}
 
 	public void Present() {
 		FlushBufferedPrimitives();
@@ -963,7 +1008,9 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			glTextureSubImage2D((uint)ModifyTextureHandle, mip, x, y, width >> mip, height >> mip, ImageLoader.GetGLImageUploadFormat(srcFormat), GL_UNSIGNED_BYTE, data);
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		var err = glGetError();
-		System.Diagnostics.Debug.Assert(err == 0);
+		// System.Diagnostics.Debug.Assert(err == 0);
+		if (err != 0)
+			Warning($"glTextureSubImage2D error: {err}\n");
 	}
 
 	readonly ThreadLocal<byte[]> tempTransformBuffers = new ThreadLocal<byte[]>(() => new byte[1024 * 1024]);
@@ -1032,7 +1079,16 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	public void ReleaseResources() {
-		releaseResourcesCount++;
+		if (releaseResourcesCount++ != 0) {
+			Warning($"ReleaseResources has no effect, now at level {releaseResourcesCount}.\n");
+			DevWarning("ReleaseResources being discarded is a bug: use IsDeactivated to check for a valid device.\n");
+			Assert(false);
+			return;
+		}
+
+		// ShaderUtil.ReleaseShaderObjects();
+		// MeshMgr.ReleaseBuffers();
+		// ReleaseShaderObjects();
 	}
 
 	public void SetShaderUniform(IMaterialVar textureVar) {

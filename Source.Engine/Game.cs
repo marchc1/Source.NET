@@ -9,6 +9,7 @@ using Source.Common.Input;
 using Source.Common.Launcher;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 
 namespace Source.Engine;
 
@@ -161,10 +162,38 @@ public class Game : IGame
 		}
 	}
 
-	
+	int DesktopWidth;
+	int DesktopHeight;
+	int DesktopRefreshRate;
+	public void GetDesktopInfo(out int width, out int height, out int refreshRate) {
+		// order of initialization means that this might get called early.  In that case go ahead and grab the current
+		// screen window and setup based on that.
+		// we need to do this when initializing the base list of video modes, for example
+		if (DesktopWidth == 0) {
+			IntPtr dc = GetDC(IntPtr.Zero);
+			width = GetDeviceCaps(dc, 8); // HORZRES
+			height = GetDeviceCaps(dc, 10); // VERTRES
+			refreshRate = GetDeviceCaps(dc, 116); // VREFRESH
+			return;
+		}
 
-	public void GetDesktopInfo(out int width, out int height, out int refreshrate) {
-		throw new NotImplementedException();
+		width = DesktopWidth;
+		height = DesktopHeight;
+		refreshRate = DesktopRefreshRate;
+	}
+
+	// FIXME: Probably shouldn't be here
+	[DllImport("user32.dll")]
+	static extern IntPtr GetDC(IntPtr hWnd);
+
+	[DllImport("gdi32.dll")]
+	static extern int GetDeviceCaps(IntPtr hdc, int index);
+
+	void UpdateDesktopInformation() {
+		IntPtr dc = GetDC(window.GetHandle());
+		DesktopWidth = GetDeviceCaps(dc, 8); // HORZRES
+		DesktopHeight = GetDeviceCaps(dc, 10); // VERTRES
+		DesktopRefreshRate = GetDeviceCaps(dc, 116); // VREFRESH
 	}
 
 	public IWindow GetMainDeviceWindow() {
@@ -187,7 +216,13 @@ public class Game : IGame
 		if (!ExternallySuppliedWindow)
 			return true;
 
+#if !SWDS
+		surface.OnScreenSizeChanged(((VideoMode_Common)videoMode).GetModeStereoWidth(), ((VideoMode_Common)videoMode).GetModeHeight());
+#endif
+
 		AttachToWindow();
+		AppActivate(true);
+
 		return true;
 	}
 
@@ -207,6 +242,9 @@ public class Game : IGame
 
 	public void SetGameWindow(IWindow window) {
 		this.window = window;
+
+		if (DesktopWidth == 0 || DesktopHeight == 0)
+			UpdateDesktopInformation();
 	}
 
 	public void SetWindowSize(int w, int h) {

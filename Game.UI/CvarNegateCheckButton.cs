@@ -5,14 +5,15 @@ using Source.GUI.Controls;
 
 namespace Game.UI;
 
-public class CCvarNegateCheckButton : CheckButton
+[PanelAlias("CCvarNegateCheckButton")]
+public class CvarNegateCheckButton : CheckButton
 {
-	public static Panel Create_CCvarNegateCheckButton() => new CCvarNegateCheckButton(null, null, null, null);
+	public static Panel Create_CvarNegateCheckButton() => new CvarNegateCheckButton(null, null, null, null);
 
 	string? CvarName;
 	bool StartState;
 
-	public CCvarNegateCheckButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, ReadOnlySpan<char> cvarName) : base(parent, name, text) {
+	public CvarNegateCheckButton(Panel? parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, ReadOnlySpan<char> cvarName) : base(parent, name, text) {
 		CvarName = cvarName.Length > 0 ? new(cvarName) : null;
 		Reset();
 		AddActionSignalTarget(this);

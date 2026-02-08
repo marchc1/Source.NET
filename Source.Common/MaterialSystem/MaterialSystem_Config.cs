@@ -82,7 +82,7 @@ public class MaterialSystem_Config
 	public bool MotionBlur;
 	public bool SupportFlashlight;
 
-	void SetFlag(MaterialSystem_Config_Flags flag, bool val) {
+	public void SetFlag(MaterialSystem_Config_Flags flag, bool val) {
 		if (val) {
 			Flags |= (uint)flag;
 		}

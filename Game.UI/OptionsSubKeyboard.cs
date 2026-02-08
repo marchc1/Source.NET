@@ -13,7 +13,7 @@ public class OptionsSubKeyboard : PropertyPage
 {
 	struct KeyBinding
 	{
-		public char[]? Binding;
+		public string? Binding;
 	}
 
 	OptionsSubKeyboardAdvancedDlg? OptionsSubKeyboardAdvancedDlg;
@@ -21,9 +21,8 @@ public class OptionsSubKeyboard : PropertyPage
 	Button SetBindingButton;
 	Button ClearBindingButton;
 
-	KeyBinding[] KeyBindings = new KeyBinding[(int)ButtonCode.Last];
-
-	List<string> KeysToUnbind = new();
+	readonly KeyBinding[] KeyBindings = new KeyBinding[(int)ButtonCode.Last];
+	readonly List<string> KeysToUnbind = [];
 
 	public OptionsSubKeyboard(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 		for (int i = 0; i < KeyBindings.Length; i++)
@@ -92,8 +91,8 @@ public class OptionsSubKeyboard : PropertyPage
 
 	readonly IEngineClient engine = Singleton<IEngineClient>();
 	public void ParseActionDescriptions() {
-		Span<char> binding = stackalloc char[512];//256
-		Span<char> description = stackalloc char[512];//256
+		Span<char> binding = stackalloc char[256];
+		Span<char> description = stackalloc char[256];
 
 		long size = fileSystem.Size("scripts/kb_act.lst");
 		if (size <= 0) return;
@@ -112,13 +111,13 @@ public class OptionsSubKeyboard : PropertyPage
 			if (strlen(token) == 0)
 				break;
 
-			token.CopyTo(binding);
+			strcpy(binding, token);
 
 			data = engine.ParseFile(data, token);
 			if (strlen(token) == 0)
 				break;
 
-			token.CopyTo(description);
+			strcpy(description, token);
 
 			if (description[0] != '=') {
 				if (streq(binding, "blank")) {
@@ -216,7 +215,7 @@ public class OptionsSubKeyboard : PropertyPage
 			if (!binding.IsEmpty)
 				continue;
 
-			KeyBindings[i].Binding = binding.ToArray();
+			KeyBindings[i].Binding = new(binding);
 		}
 	}
 
@@ -245,7 +244,7 @@ public class OptionsSubKeyboard : PropertyPage
 		int r = KeyBindList.GetItemOfInterest();
 		KeyBindList.EndCaptureMode(CursorCode.Arrow);
 
-		KeyValues item = KeyBindList.GetItemData(r);
+		KeyValues? item = KeyBindList.GetItemData(r);
 		if (item != null) {
 			if (code != ButtonCode.None && code != ButtonCode.KeyEscape && code != ButtonCode.Invalid) {
 				// AddBinding(item, inputSystem.ButtonCodeToString(code));

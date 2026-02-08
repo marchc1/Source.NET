@@ -1,13 +1,25 @@
 
 global using static Game.Client.ClientVGui;
 
-using Source.Common;
 using Source.Common.GUI;
 
 namespace Game.Client;
 
 public static class ClientVGui
 {
+	public static void VGui_VideoMode_AdjustForModeChange() {
+		INetGraphPanel.NetGraph.Destroy();
+		IDebugOverlayPanel.DebugOverlay.Destroy();
+		IFPSPanel.FPS.Destroy();
+
+		IPanel gameToolParent = enginevgui.GetPanel(Source.Engine.VGuiPanelType.ClientDllTools);
+		IPanel toolParent = enginevgui.GetPanel(Source.Engine.VGuiPanelType.Tools);
+
+		IFPSPanel.FPS.Create(toolParent);
+		INetGraphPanel.NetGraph.Create(toolParent);
+		IDebugOverlayPanel.DebugOverlay.Create(gameToolParent);
+	}
+
 	internal static void VGui_CreateGlobalPanels() {
 		IPanel gameToolParent = enginevgui.GetPanel(Source.Engine.VGuiPanelType.ClientDllTools);
 		IPanel toolParent = enginevgui.GetPanel(Source.Engine.VGuiPanelType.Tools);

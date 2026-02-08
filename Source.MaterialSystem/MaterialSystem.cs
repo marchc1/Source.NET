@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Source.Common;
 using Source.Common.Bitmap;
 using Source.Common.Commands;
+using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
@@ -35,6 +36,57 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 	public readonly IMeshMgr MeshMgr;
 	public readonly IMaterialSystemHardwareConfig HardwareConfig;
 	public readonly MaterialSystem_Config Config;
+
+	readonly static ConVar mat_vsync = new("mat_vsync", "0", 0, "Force sync to vertical retrace", 0, 1);
+	readonly static ConVar mat_forcehardwaresync = new(IsPC() ? "1" : "0", 0);
+	readonly static ConVar mat_trilinear = new("0", 0);
+	readonly static ConVar mat_forceaniso = new("1", FCvar.Archive); // 0 = Bilinear, 1 = Trilinear, 2+ = Aniso
+	readonly static ConVar mat_filterlightmaps = new("1", 0);
+	readonly static ConVar mat_filtertextures = new("1", 0);
+	readonly static ConVar mat_mipmaptextures = new("1", 0);
+	readonly static ConVar mat_vrmode_adapter = new("-1", 0);
+	readonly static ConVar mat_showmiplevels = new("0", FCvar.Cheat, "color-code miplevels 2: normalmaps, 1: everything else"); // , callback: mat_showmiplevels_Callback_f
+	readonly static ConVar mat_specular = new("1", 0, "Enable/Disable specularity for perf testing.  Will cause a material reload upon change.");
+	readonly static ConVar mat_bumpmap = new("1", 0);
+	readonly static ConVar mat_phong = new("1", 0);
+	readonly static ConVar mat_parallaxmap = new("1", FCvar.Hidden | 0);
+	readonly static ConVar mat_reducefillrate = new("0", 0);
+	readonly static ConVar mat_picmip = new("0", FCvar.Archive, "", -1, 4);
+	readonly static ConVar mat_slopescaledepthbias_normal = new("0.0f", FCvar.Cheat);
+	readonly static ConVar mat_depthbias_normal = new("0.0f", FCvar.Cheat | 0);
+	readonly static ConVar mat_slopescaledepthbias_decal = new("-0.5", FCvar.Cheat); // Reciprocals of these biases sent to API
+	readonly static ConVar mat_depthbias_decal = new("-262144", FCvar.Cheat | 0);
+	readonly static ConVar mat_slopescaledepthbias_shadowmap = new("16", FCvar.Cheat);
+	readonly static ConVar mat_depthbias_shadowmap = new("0.0005", FCvar.Cheat);
+	readonly static ConVar mat_monitorgamma = new("2.2", FCvar.Archive, "monitor gamma (typically 2.2 for CRT and 1.7 for LCD)", 1.6f, 2.6f);
+	readonly static ConVar mat_monitorgamma_tv_range_min = new("16", 0);
+	readonly static ConVar mat_monitorgamma_tv_range_max = new("255", 0);
+	readonly static ConVar mat_monitorgamma_tv_exp = new("2.5", 0, "", 1.0f, 4.0f);
+	readonly static ConVar mat_monitorgamma_tv_enabled = new("0", FCvar.Archive, "");
+	readonly static ConVar mat_antialias = new("0", FCvar.Archive);
+	readonly static ConVar mat_aaquality = new("0", FCvar.Archive);
+	readonly static ConVar mat_diffuse = new("1", FCvar.Cheat);
+	readonly static ConVar mat_showlowresimage = new("0", FCvar.Cheat);
+	readonly static ConVar mat_fullbright = new("0", FCvar.Cheat);
+	readonly static ConVar mat_normalmaps = new("0", FCvar.Cheat);
+	readonly static ConVar mat_measurefillrate = new("0", FCvar.Cheat);
+	readonly static ConVar mat_fillrate = new("0", FCvar.Cheat);
+	readonly static ConVar mat_reversedepth = new("0", FCvar.Cheat);
+	readonly static ConVar mat_bufferprimitives = new("1", 0);
+	readonly static ConVar mat_drawflat = new("0", FCvar.Cheat);
+	readonly static ConVar mat_softwarelighting = new("0", 0);
+	readonly static ConVar mat_proxy = new("0", FCvar.Cheat, ""); // , callback: MatProxyCallback
+	readonly static ConVar mat_norendering = new("0", FCvar.Cheat);
+	readonly static ConVar mat_compressedtextures = new("1", 0);
+	readonly static ConVar mat_fastspecular = new("1", 0, "Enable/Disable specularity for visual testing.  Will not reload materials and will not affect perf.");
+	readonly static ConVar mat_fastnobump = new("0", FCvar.Cheat); // Binds 1-texel normal map for quick internal testing
+
+	// These are not controlled by the material system, but are limited by settings in the material system
+	readonly static ConVar r_shadowrendertotexture = new("0", FCvar.Archive);
+	readonly static ConVar r_flashlightdepthtexture = new("1", 0);
+	readonly static ConVar r_waterforceexpensive = new("0", FCvar.Archive);
+	readonly static ConVar r_waterforcereflectentities = new("0", 0);
+	readonly static ConVar mat_motion_blur_enabled = new("0", FCvar.Archive);
 
 	public static void DLLInit(IServiceCollection services) {
 		services.AddSingleton<MatSystemSurface>();
@@ -78,27 +130,289 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		UpdateConfig(false);
 	}
 
-	private bool UpdateConfig(bool forceUpdate) {
+	public bool UpdateConfig(bool forceUpdate) {
 		MaterialSystem_Config config = new();
 		Config.CopyInstantiatedReferenceTo(config);
 		ReadConfigFromConVars(config);
 		return OverrideConfig(config, forceUpdate);
 	}
 
-	private bool OverrideConfig(MaterialSystem_Config config, bool forceUpdate) {
+	public bool OverrideConfig(MaterialSystem_Config config, bool forceUpdate) {
+		bool redownloadLightmaps = false;
+		bool redownloadTextures = false;
+		bool recomputeSnapshots = false;
+		bool reloadMaterials = false;
+		bool resetAnisotropy = false;
+		bool setStandardVertexShaderConstants = false;
+		bool monitorGammaChanged = false;
+		bool videoModeChange = false;
+		bool resetTextureFilter = false;
+
+
 		if (!ShaderDevice.IsUsingGraphics()) {
+			// Config = config;
+			config.CopyInstantiatedReferenceTo(Config);
+
 			ColorSpace.SetGamma(2.2f, 2.2f, IMaterialSystem.OVERBRIGHT, Config.AllowCheats, false);
+
+			return redownloadLightmaps;
 		}
-		return true;
+
+		ShaderAPI.SetDefaultState();
+
+		// if (config.HDREnabled() != Config.HDREnabled()) {
+		// 	forceUpdate = true;
+		// 	reloadMaterials = true;
+		// }
+
+		if (config.ShadowDepthTexture != Config.ShadowDepthTexture) {
+			forceUpdate = true;
+			reloadMaterials = true;
+			recomputeSnapshots = true;
+		}
+
+		// Don't use compressed textures for the moment if we don't support them
+		if (!HardwareConfig.SupportsCompressedTextures())
+			config.CompressedTextures = false;
+
+		if (forceUpdate) {
+			MatLightmaps.EnableLightmapFiltering(config.FilterLightmaps);
+			recomputeSnapshots = true;
+			redownloadLightmaps = true;
+			redownloadTextures = true;
+			resetAnisotropy = true;
+			setStandardVertexShaderConstants = true;
+		}
+
+		// toggle bump mapping
+		if (config.DisableSpecular() != Config.DisableSpecular() || config.DisablePhong() != Config.DisablePhong()) {
+			recomputeSnapshots = true;
+			reloadMaterials = true;
+			resetAnisotropy = true;
+		}
+
+		// toggle specularity
+		if (config.DisableSpecular() != Config.DisableSpecular()) {
+			recomputeSnapshots = true;
+			reloadMaterials = true;
+			resetAnisotropy = true;
+		}
+
+		// toggle parallax mapping
+		if (config.EnableParallaxMapping() != Config.EnableParallaxMapping())
+			reloadMaterials = true;
+
+		// Reload materials if we want reduced fillrate
+		if (config.ReduceFillrate() != Config.ReduceFillrate())
+			reloadMaterials = true;
+
+		// toggle reverse depth
+		if (config.ReverseDepth != Config.ReverseDepth) {
+			recomputeSnapshots = true;
+			resetAnisotropy = true;
+		}
+
+		// toggle no transparency
+		if (config.NoTransparency != Config.NoTransparency) {
+			recomputeSnapshots = true;
+			resetAnisotropy = true;
+		}
+
+		// toggle lightmap filtering
+		if (config.FilterLightmaps != Config.FilterLightmaps)
+			MatLightmaps.EnableLightmapFiltering(config.FilterLightmaps);
+
+		// toggle software lighting
+		if (config.SoftwareLighting != Config.SoftwareLighting)
+			reloadMaterials = true;
+
+		// generic things that cause us to redownload textures
+		if (config.AllowCheats != Config.AllowCheats ||
+				config.SkipMipLevels != Config.SkipMipLevels ||
+				config.ShowMipLevels != Config.ShowMipLevels ||
+				((config.CompressedTextures != Config.CompressedTextures) && HardwareConfig.SupportsCompressedTextures()) ||
+				config.ShowLowResImage != Config.ShowLowResImage) {
+
+			redownloadTextures = true;
+			recomputeSnapshots = true;
+			resetAnisotropy = true;
+		}
+
+		if (config.ForceTrilinear() != Config.ForceTrilinear())
+			resetTextureFilter = true;
+
+		if (config.ForceAnisotropicLevel != Config.ForceAnisotropicLevel) {
+			resetAnisotropy = true;
+			resetTextureFilter = true;
+		}
+
+		if (config.MonitorGamma != Config.MonitorGamma || config.GammaTVRangeMin != Config.GammaTVRangeMin ||
+				config.GammaTVRangeMax != Config.GammaTVRangeMax || config.GammaTVExponent != Config.GammaTVExponent ||
+				config.GammaTVEnabled != Config.GammaTVEnabled)
+			monitorGammaChanged = true;
+
+		if (config.VideoMode.Width != Config.VideoMode.Width ||
+				config.VideoMode.Height != Config.VideoMode.Height ||
+				config.VideoMode.RefreshRate != Config.VideoMode.RefreshRate ||
+				config.AASamples != Config.AASamples ||
+				config.AAQuality != Config.AAQuality ||
+				config.Windowed() != Config.Windowed() ||
+				config.Stencil() != Config.Stencil())
+			videoModeChange = true;
+
+		if (!config.Windowed() && (config.WaitForVSync() != Config.WaitForVSync()))
+			videoModeChange = true;
+
+		// Config = config;
+
+		if (redownloadTextures || redownloadLightmaps)
+			ColorSpace.SetGamma(2.2f, 2.2f, IMaterialSystem.OVERBRIGHT, Config.AllowCheats, false);
+
+		if (resetAnisotropy || recomputeSnapshots || redownloadLightmaps ||
+				redownloadTextures || resetAnisotropy || videoModeChange ||
+				setStandardVertexShaderConstants || resetTextureFilter) {
+			// ForceSingleThreaded();
+		}
+
+		if (reloadMaterials)
+			ReloadMaterials();
+
+		if (redownloadTextures) {
+			if (ShaderAPI.CanDownloadTextures()) {
+				TextureSystem.RestoreRenderTargets();
+				TextureSystem.RestoreNonRenderTargetTextures();
+			}
+		}
+		else if (resetTextureFilter) {
+			// TextureSystem.ResetTextureFilteringState();
+		}
+
+		// Recompute all state snapshots
+		if (recomputeSnapshots)
+			RecomputeAllStateSnapshots();
+
+		// if (resetAnisotropy)
+		// ShaderAPI.SetAnisotropicLevel(config.ForceAnisotropicLevel);
+
+		// if (setStandardVertexShaderConstants)
+		// ShaderAPI.SetStandardVertexShaderConstants(IMaterialSystem.OVERBRIGHT);
+
+		if (monitorGammaChanged) {
+			// 	ShaderDevice.SetHardwareGammaRamp(config.MonitorGamma, config.GammaTVRangeMin, config.GammaTVRangeMax, config.GammaTVExponent, config.GammaTVEnabled);
+		}
+
+		if (videoModeChange) {
+			ConvertModeStruct(config, out ShaderDeviceInfo info);
+			ShaderAPI.ChangeVideoMode(info);
+		}
+
+		config.CopyInstantiatedReferenceTo(Config);
+
+		// if (videoModeChange)
+		// ForceSingleThreaded();
+
+		return redownloadLightmaps;
 	}
 
 	private void ReadConfigFromConVars(MaterialSystem_Config config) {
+		config.SetFlag(MaterialSystem_Config_Flags.NoWaitForVSync, !mat_vsync.GetBool());
+		config.SetFlag(MaterialSystem_Config_Flags.ForceTrilinear, mat_trilinear.GetBool());
+		config.SetFlag(MaterialSystem_Config_Flags.DisableSpecular, !mat_specular.GetBool());
+		config.SetFlag(MaterialSystem_Config_Flags.DisableBumpmap, !mat_bumpmap.GetBool());
+		config.SetFlag(MaterialSystem_Config_Flags.DisableBumpmap, !mat_phong.GetBool());
+		config.SetFlag(MaterialSystem_Config_Flags.EnableParallaxMapping, mat_parallaxmap.GetBool());
+		config.SetFlag(MaterialSystem_Config_Flags.ReduceFillrate, mat_reducefillrate.GetBool());
+		config.ForceAnisotropicLevel = Math.Max(mat_forceaniso.GetInt(), 1);
+		config.SkipMipLevels = mat_picmip.GetInt();
+		config.SetFlag(MaterialSystem_Config_Flags.ForceHardwareSync, mat_forcehardwaresync.GetBool());
+		config.SlopeScaleDepthBias_Decal = mat_slopescaledepthbias_decal.GetFloat();
+		config.DepthBias_Decal = mat_depthbias_decal.GetFloat();
+		config.SlopeScaleDepthBias_Normal = mat_slopescaledepthbias_normal.GetFloat();
+		config.DepthBias_Normal = mat_depthbias_normal.GetFloat();
+		config.SlopeScaleDepthBias_ShadowMap = mat_slopescaledepthbias_shadowmap.GetFloat();
+		config.DepthBias_ShadowMap = mat_depthbias_shadowmap.GetFloat();
+		config.MonitorGamma = mat_monitorgamma.GetFloat();
+		config.GammaTVRangeMin = mat_monitorgamma_tv_range_min.GetFloat();
+		config.GammaTVRangeMax = mat_monitorgamma_tv_range_max.GetFloat();
+		config.GammaTVExponent = mat_monitorgamma_tv_exp.GetFloat();
+		config.GammaTVEnabled = mat_monitorgamma_tv_enabled.GetBool();
+		config.AASamples = mat_antialias.GetInt();
+		config.AAQuality = mat_aaquality.GetInt();
+		config.ShowDiffuse = mat_diffuse.GetBool();
+		config.ShowNormalMap = mat_normalmaps.GetBool();
+		config.ShowLowResImage = mat_showlowresimage.GetBool();
+		config.MeasureFillRate = mat_measurefillrate.GetBool();
+		config.VisualizeFillRate = mat_fillrate.GetBool();
+		config.FilterLightmaps = mat_filterlightmaps.GetBool();
+		config.FilterTextures = mat_filtertextures.GetBool();
+		config.MipMapTextures = mat_mipmaptextures.GetBool();
+		config.ShowMipLevels = (sbyte)mat_showmiplevels.GetInt();
+		config.ReverseDepth = mat_reversedepth.GetBool();
+		config.BufferPrimitives = mat_bufferprimitives.GetBool();
+		config.DrawFlat = mat_drawflat.GetBool();
+		config.SoftwareLighting = mat_softwarelighting.GetBool();
+		config.ProxiesTestMode = (byte)mat_proxy.GetInt();
+		config.SuppressRendering = mat_norendering.GetInt() != 0;
+		config.CompressedTextures = mat_compressedtextures.GetBool();
+		config.ShowSpecular = mat_fastspecular.GetBool();
+		config.Fullbright = (byte)mat_fullbright.GetInt();
+		config.FastNoBump = mat_fastnobump.GetInt() != 0;
+		config.MotionBlur = mat_motion_blur_enabled.GetBool();
+		config.SupportFlashlight = true; // mat_supportflashlight.GetBool();
+		config.ShadowDepthTexture = r_flashlightdepthtexture.GetBool();
+		config.SetFlag(MaterialSystem_Config_Flags.ENABLE_HDR, HardwareConfig.GetHDREnabled());
+	}
 
+	public int GetDisplayAdapterCount() {
+		throw new NotImplementedException();
+	}
+
+	public int GetCurrentAdapter() => ShaderDevice.GetCurrentAdapter();
+
+	public int GetModeCount(int adapter) => ShaderDevice.GetModeCount(adapter);
+	public void GetModeInfo(int adapter, int mode, out MaterialVideoMode info) {
+		ShaderDevice.GetModeInfo(adapter, mode, out ShaderDisplayMode shaderInfo);
+		info.Width = shaderInfo.Width;
+		info.Height = shaderInfo.Height;
+		info.Format = shaderInfo.Format;
+		info.RefreshRate = (int)(shaderInfo.RefreshRateNumerator / (double)shaderInfo.RefreshRateDenominator);
 	}
 
 	public void ModShutdown() {
 
 	}
+
+#if !SWDS
+	[ConCommand("mat_setvideomode", "sets the width, height, windowed state of the material system")]
+	static void mat_setvideomode(in TokenizedCommand args) {
+		if (args.ArgC() != 4)
+			return;
+
+		int width = args.Arg(1, 0);
+		int height = args.Arg(2, 0);
+		int windowed = args.Arg(3, 0);
+
+		Singleton<IVideoMode>().SetMode(width, height, windowed != 0);
+	}
+#endif
+
+	[ConCommand("mat_savechanges", "saves current video configuration to the registry")]
+	static void mat_savechanges(in TokenizedCommand args) {
+		// commandLine.RemoveParm("-safe");
+		UpdateMaterialSystemConfig();
+	}
+
+	static void UpdateMaterialSystemConfig() {
+		// if (host_state.worldbrush && !host_state.worldbrush->lightdata) {
+		// 	mat_fullbright.SetValue(1);
+		// }
+
+		bool lightmapsNeedReloading = Singleton<IMaterialSystem>().UpdateConfig(false); //fixme
+		if (lightmapsNeedReloading) {
+
+		}
+	}
+
 
 	[UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
 	unsafe static void raylibSpew(int logLevel, sbyte* text, sbyte* args) {
@@ -115,20 +429,10 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		}, "raylib", 1, new Color(255, 255, 255), message + "\n");*/
 	}
 
-	public static ConVar mat_fullbright = new("0", FCvar.Cheat);
-	public static ConVar mat_normalmaps = new("0", FCvar.Cheat);
-
-
-	public static ConVar mat_specular = new("1", 0, "Enable/Disable specularity for perf testing.  Will cause a material reload upon change.");
-	public static ConVar mat_bumpmap = new("1", 0);
-	public static ConVar mat_phong = new("1", 0);
-	public static ConVar mat_parallaxmap = new("1", FCvar.Hidden);
-	public static ConVar mat_reducefillrate = new("0", 0);
-
 	public uint DebugVarsSignature;
 
 	public ITexture GetErrorTexture() => TextureSystem.ErrorTexture();
-	public unsafe void BeginFrame(double frameTime) {
+	public void BeginFrame(double frameTime) {
 		if (!ThreadInMainThread() || IsInFrame())
 			return;
 
@@ -180,6 +484,8 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		FrameNum++;
 	}
 
+	public MaterialSystem_Config GetCurrentConfigForVideoCard() => Config;
+
 	ThreadLocal<MatRenderContext> matContext;
 	public IMatRenderContext GetRenderContext() => matContext!.Value!;
 
@@ -200,14 +506,19 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 			TextureSystem.RestoreNonRenderTargetTextures();
 		}
 
-
+		Config.VideoMode = config.VideoMode;
+		Config.SetFlag(MaterialSystem_Config_Flags.Windowed, config.Windowed());
+		Config.SetFlag(MaterialSystem_Config_Flags.Stencil, config.Stencil());
+		// WriteConfigIntoConVars(config); todo
 
 		launcherMgr.RenderedSize(true, ref width, ref height);
 		return true;
 	}
 
+	public void AddModeChangeCallBack(Action func) => ShaderAPI.AddModeChangeCallBack(func);
+
 	private void AllocateStandardTextures() {
-		
+
 	}
 
 	private void ConvertModeStruct(MaterialSystem_Config config, out ShaderDeviceInfo mode) {
@@ -398,7 +709,11 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		throw new NotImplementedException();
 	}
 
-	public void RestoreShaderObjects(IServiceProvider services, int changeFlags) {
+	void ReleaseShaderObjects() {
+		// todo
+	}
+
+	public void RestoreShaderObjects(IServiceProvider? services, int changeFlags) {
 		if (services != null) {
 			ShaderAPI = services.GetRequiredService<IShaderAPI>();
 			ShaderDevice = services.GetRequiredService<IShaderDevice>();
@@ -424,12 +739,10 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		AllocatingRenderTargets = false;
 
 		// I believe this step is unnecessary (and breaks how textures work rn)
-		/*
 		if (ShaderAPI.CanDownloadTextures()) {
 			ShaderDevice.ReleaseResources();
 			ShaderDevice.ReacquireResources();
 		}
-		*/
 	}
 
 	public ITexture CreateProceduralTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroup, int wide, int tall, ImageFormat format, TextureFlags flags) {
@@ -511,9 +824,21 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 
 	private void UncacheAllMaterials() {
 		// todo: finish me!!
-		foreach(var material in MaterialDict){
+		foreach (var material in MaterialDict) {
 			material.Uncache();
 		}
+	}
+
+	void ReloadTextures() {
+		// todo
+	}
+
+	void ReloadMaterials(ReadOnlySpan<char> subString = default) {
+		// todo
+	}
+
+	void RecomputeAllStateSnapshots() {
+		// todo
 	}
 
 	public event Action? Restore;

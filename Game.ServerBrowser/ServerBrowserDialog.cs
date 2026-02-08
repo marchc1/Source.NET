@@ -2,6 +2,7 @@ using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Input;
 using Source.Common.ServerBrowser;
+using Source.Engine;
 using Source.GUI.Controls;
 
 using Steamworks;
@@ -105,8 +106,7 @@ class ServerBrowserDialog : Frame
 
 	public override void OnTick() {
 		base.OnTick();
-		GetAnimationController().UpdateAnimations(System.GetFrameTime());
-		SetAlpha(255);// FIXME ^ is not working :(
+		GetAnimationController().UpdateAnimations(Sys.Time);
 
 		SteamAPI.RunCallbacks(); // FIXME: should not be here
 	}
