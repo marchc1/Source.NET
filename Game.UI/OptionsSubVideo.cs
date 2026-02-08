@@ -143,8 +143,6 @@ class OptionsSubVideoAdvancedDlg : Frame
 		// if (materials.SupportsShadowDepthTextures())
 		ShadowDetail.AddItem("#gameui_high", null);
 
-		ConVarRef mat_dxlevel = new("mat_dxlevel");
-
 		HDR = new ComboBox(this, "HDR", 6, false);
 		HDR.AddItem("#GameUI_hdr_level0", null);
 		HDR.AddItem("#GameUI_hdr_level1", null);
@@ -152,7 +150,7 @@ class OptionsSubVideoAdvancedDlg : Frame
 		// if (materials.SupportsHDRMode(HDR_TYPE_INTEGER))
 		HDR.AddItem("#GameUI_hdr_level2", null);
 
-		HDR.SetEnabled(mat_dxlevel.GetInt() >= 80);
+		HDR.SetEnabled(true);
 
 		WaterDetail = new ComboBox(this, "WaterDetail", 6, false);
 		WaterDetail.AddItem("#gameui_noreflections", null);
@@ -185,8 +183,19 @@ class OptionsSubVideoAdvancedDlg : Frame
 
 		DXLevel.SetEnabled(false);
 
-		ColorCorrection.SetEnabled(mat_dxlevel.GetInt() >= 90);
-		MotionBlur.SetEnabled(mat_dxlevel.GetInt() >= 90);
+		Label? dxLabel = FindChildByName("Label1") as Label;
+		dxLabel?.SetText("Hardware OpenGL level:");
+
+		dxLabel = FindChildByName("Label2") as Label;
+		dxLabel?.SetText("Software OpenGL level:");
+
+		ReadOnlySpan<char> version = OpenGL.Gl46.glGetStringSafe(OpenGL.Gl46.GL_VERSION).Split(' ')[0];
+		dxLabel = FindChildByName("dxinstalledlabel") as Label;
+		dxLabel?.SetText(version);
+		SetControlString("dxlabel", version);
+
+		ColorCorrection.SetEnabled(true);
+		MotionBlur.SetEnabled(true);
 
 		if (cvar.FindVar("fov_desired") == null) {
 			Panel? fov = FindChildByName("FovSlider");
@@ -237,18 +246,6 @@ class OptionsSubVideoAdvancedDlg : Frame
 	private void OnGameUIHidden() => Close();
 
 	private void ResetDXLevelCombo() {
-		ConVarRef mat_dxlevel = new("mat_dxlevel");
-		if (!mat_dxlevel.IsValid())
-			return;
-
-		for (int i = 0; i < DXLevel.GetItemCount(); i++) {
-			KeyValues kv = DXLevel.GetItemUserData(i)!;
-			if (kv.GetInt("dxlevel") == mat_dxlevel.GetInt()) {
-				DXLevel.ActivateItem(i);
-				break;
-			}
-		}
-
 		if (HDR.IsEnabled()) {
 			ConVarRef mat_hdr_level = new("mat_hdr_level");
 			Assert(mat_hdr_level.IsValid());
@@ -277,20 +274,10 @@ class OptionsSubVideoAdvancedDlg : Frame
 		int matVSync = config.GetInt("ConVar.mat_vsync", 1);
 		int rootLOD = config.GetInt("ConVar.r_rootlod", 0);
 		int reduceFillRate = config.GetInt("ConVar.mat_reducefillrate", 0);
-		int dxLevel = config.GetInt("ConVar.mat_dxlevel", 0);
 		int colorCorrection = config.GetInt("ConVar.mat_colorcorrection", 0);
 		int motionBlur = config.GetInt("ConVar.mat_motion_blur_enabled", 0);
 		int multicore = 1;//GetCPUInformation().PhysicalProcessors >= 2;
 
-		if (DXLevel.GetItemCount() > 1) {
-			for (int i = 0; i < DXLevel.GetItemCount(); i++) {
-				KeyValues kv = DXLevel.GetItemUserData(i)!;
-				if (kv.GetInt("dxlevel") == config.GetInt("ConVar.mat_dxlevel")) {
-					SetComboItemAsRecommended(DXLevel, i);
-					break;
-				}
-			}
-		}
 
 		SetComboItemAsRecommended(ModelDetail, 2 - rootLOD);
 		SetComboItemAsRecommended(TextureDetail, 2 - skipLevels);
@@ -340,7 +327,7 @@ class OptionsSubVideoAdvancedDlg : Frame
 
 		SetComboItemAsRecommended(VSync, (matVSync != 0) ? 1 : 0);
 		SetComboItemAsRecommended(Multicore, (multicore != 0) ? 1 : 0);
-		SetComboItemAsRecommended(HDR, dxLevel >= 90 ? 2 : 0);
+		SetComboItemAsRecommended(HDR, 2);
 		SetComboItemAsRecommended(ColorCorrection, colorCorrection);
 		SetComboItemAsRecommended(MotionBlur, motionBlur);
 	}
@@ -355,10 +342,6 @@ class OptionsSubVideoAdvancedDlg : Frame
 	public void ApplyChanges() {
 		if (!UseChanges)
 			return;
-
-		KeyValues? activeItem = DXLevel.GetActiveItemUserData();
-		if (activeItem != null)
-			ApplyChangesToConVar("mat_dxlevel", activeItem.GetInt("dxlevel"));
 
 		ApplyChangesToConVar("r_rootlod", 2 - ModelDetail.GetActiveItem());
 		ApplyChangesToConVar("mat_picmip", 2 - TextureDetail.GetActiveItem());
@@ -443,7 +426,6 @@ class OptionsSubVideoAdvancedDlg : Frame
 	}
 
 	public void OnResetData() {
-		ConVarRef mat_dxlevel = new("mat_dxlevel");
 		ConVarRef r_rootlod = new("r_rootlod");
 		ConVarRef mat_picmip = new("mat_picmip");
 		ConVarRef mat_trilinear = new("mat_trilinear");
@@ -522,11 +504,6 @@ class OptionsSubVideoAdvancedDlg : Frame
 		Multicore.ActivateItem((mc == 0) ? 0 : 1);
 		ColorCorrection.ActivateItem(mat_colorcorrection.GetInt());
 		MotionBlur.ActivateItem(mat_motion_blur_enabled.GetInt());
-
-		Span<char> dxVer = stackalloc char[64];
-		strcpy(dxVer, "DirectX v9.0+");
-		SetControlString("dxlabel", dxVer);
-		SetControlString("dxinstalledlabel", dxVer);
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
@@ -562,15 +539,6 @@ class OptionsSubVideoAdvancedDlg : Frame
 
 			// if (!GameUI.IsInMultiplayer()) //todo
 			// 	return false;
-
-			ConVarRef mat_dxlevel = new("mat_dxlevel");
-			if (!mat_dxlevel.IsValid())
-				return false;
-
-			KeyValues userData = DXLevel.GetActiveItemUserData()!;
-			Assert(userData != null);
-			if (userData != null && mat_dxlevel.GetInt() != userData.GetInt("dxlevel"))
-				return true;
 
 			if (HDR.IsEnabled()) {
 				ConVarRef mat_hdr_level = new("mat_hdr_level");
@@ -902,14 +870,6 @@ public class OptionsSubVideo : PropertyPage
 	private void OpenThirdPartyVideoCreditsDialog() {
 		OptionsSubVideoThirdPartyCreditsDlg ??= new(this);
 		OptionsSubVideoThirdPartyCreditsDlg.Activate();
-	}
-
-	private void GetNameForDXLevel(int level, Span<char> name) {
-		if (level >= 92 && level <= 95)
-			strcpy(name, "DirectX v9.0+");
-		else {
-			strcpy(name, $"DirectX v{level / 10.0f:F1}");
-		}
 	}
 
 	private int GetScreenAspectMode(int width, int height) {
