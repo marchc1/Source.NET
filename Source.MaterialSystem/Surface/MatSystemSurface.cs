@@ -74,6 +74,7 @@ public class MatSystemSurface : IMatSystemSurface
 	float AlphaMultiplier;
 
 	readonly ICommandLine CommandLine;
+	readonly ISchemeManager SchemeManager;
 	readonly IFileSystem FileSystem;
 	readonly FontManager FontManager;
 	readonly FontTextureCache FontTextureCache;
@@ -112,6 +113,7 @@ public class MatSystemSurface : IMatSystemSurface
 		this.InputSystem = inputSystem;
 		this.globals = globals;
 		CommandLine = commandLine;
+		SchemeManager = schemeManager;
 
 		DrawColor[0] = DrawColor[1] = DrawColor[2] = DrawColor[3] = 25; ;
 		TranslateX = TranslateY = 0;
@@ -1925,6 +1927,30 @@ public class MatSystemSurface : IMatSystemSurface
 		ScreenSizeOverride.Active = active;
 		ScreenSizeOverride.X = w;
 		ScreenSizeOverride.Y = h;
+	}
+
+	public void OnScreenSizeChanged(int oldWidth, int oldHeight) {
+		GetScreenSize(out int newWidth, out int newHeight);
+
+		Msg($"Changing resolutions from ({oldWidth}, {oldHeight}) -> ({newWidth}, {newHeight})\n");
+
+		IPanel panel = GetEmbeddedPanel();
+		panel.SetSize(newWidth, newHeight);
+
+		VGui.PostMessage(panel, new("OnScreenSizeChanged", "oldwide", oldWidth, "oldtall", oldHeight), null);
+		VGui.RunFrame();
+
+		ResetFontCaches();
+	}
+
+	private void ResetFontCaches() {
+		FontTextureCache.Clear();
+
+		BoundTexture = -1;
+
+		FontManager.ClearAllFonts();
+		SchemeManager.ReloadFonts();
+		VGui.RunFrame();
 	}
 
 	readonly ILocalize localize = Singleton<ILocalize>();

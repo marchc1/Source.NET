@@ -174,6 +174,8 @@ public class NetAddress
 		return data.AsSpan().Cast<byte, uint>()[0];
 	}
 
+	public short GetPort() => (short)(Endpoint?.Port ?? 0);
+
 	public NetAddress() {
 
 	}

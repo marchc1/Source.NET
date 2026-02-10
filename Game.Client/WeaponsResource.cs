@@ -91,32 +91,27 @@ public class WeaponsResource
 			weaponInfo.IconZoomedAutoaim = weaponInfo.IconZoomedCrosshair;  //default to zoomed crosshair
 		}
 
-		// HudHistoryResource? pHudHR = GET_HUDELEMENT<HudHistoryResource>();
-		object? pHudHR = null; // ^^ Todo, when HudHistoryResource is available...
-		if (pHudHR != null) {
+		HudHistoryResource? hudHR = GET_HUDELEMENT<HudHistoryResource>();
+		if (hudHR != null) {
 			p = FindHudTextureInDict(tempList, "weapon");
 			if (p != null) {
 				weaponInfo.IconInactive = gHUD.AddUnsearchableHudIconToList(p);
 				if (weaponInfo.IconInactive != null) {
 					weaponInfo.IconInactive.Precache();
-					// pHudHR.SetHistoryGap(weaponInfo.IconInactive.Height());
+					hudHR.SetHistoryGap(weaponInfo.IconInactive.Height());
 				}
 			}
 
 			p = FindHudTextureInDict(tempList, "weapon_s");
 			if (p != null) {
 				weaponInfo.IconActive = gHUD.AddUnsearchableHudIconToList(p);
-				if (weaponInfo.IconActive != null) {
-					weaponInfo.IconActive.Precache();
-				}
+				weaponInfo.IconActive?.Precache();
 			}
 
 			p = FindHudTextureInDict(tempList, "weapon_small");
 			if (p != null) {
 				weaponInfo.IconSmall = gHUD.AddUnsearchableHudIconToList(p);
-				if (weaponInfo.IconSmall != null) {
-					weaponInfo.IconSmall.Precache();
-				}
+				weaponInfo.IconSmall?.Precache();
 			}
 
 			p = FindHudTextureInDict(tempList, "ammo");
@@ -124,7 +119,7 @@ public class WeaponsResource
 				weaponInfo.IconAmmo = gHUD.AddUnsearchableHudIconToList(p);
 				if (weaponInfo.IconAmmo != null) {
 					weaponInfo.IconAmmo.Precache();
-					// pHudHR.SetHistoryGap(weaponInfo.IconAmmo.Height());
+					hudHR.SetHistoryGap(weaponInfo.IconAmmo.Height());
 				}
 			}
 
@@ -133,7 +128,7 @@ public class WeaponsResource
 				weaponInfo.IconAmmo2 = gHUD.AddUnsearchableHudIconToList(p);
 				if (weaponInfo.IconAmmo2 != null) {
 					weaponInfo.IconAmmo2.Precache();
-					// pHudHR.SetHistoryGap(weaponInfo.IconAmmo2.Height());
+					hudHR.SetHistoryGap(weaponInfo.IconAmmo2.Height());
 				}
 			}
 		}
@@ -172,9 +167,9 @@ public class WeaponsResource
 			if (weapon == null)
 				continue;
 
-			if (weapon.GetPrimaryAmmoType() == ammoId) 
+			if (weapon.GetPrimaryAmmoType() == ammoId)
 				return weapon.GetWpnData();
-			else if (weapon.GetSecondaryAmmoType() == ammoId) 
+			else if (weapon.GetSecondaryAmmoType() == ammoId)
 				return weapon.GetWpnData();
 		}
 

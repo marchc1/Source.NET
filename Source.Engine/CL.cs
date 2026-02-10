@@ -11,8 +11,6 @@ using Source.Common.Engine;
 using Source.Common.Networking;
 using Source.Engine.Client;
 
-using Steamworks;
-
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -219,23 +217,46 @@ public partial class CL(IServiceProvider services, Net Net,
 	public void FullyConnected() {
 		EngineVGui?.UpdateProgressBar(LevelLoadingProgress.FullyConnected);
 		// Static prop manager level init client
+
 		// Flush dynamic models
+		// modelloader.FlushDynamicModels();
+
 		// Purge unused models
+		// modelloader.PurgeUnusedModels();
+
 		// Shutdown preload data
+		// MDLCache.ShutdownPreloadData();
+
 		// Pending pure file reloads
+
 		// Level init post entity
+		// clientDLL.LevelInitPostEntity();
 
 		// Start notifying dependencies
-		int ip = 0;
-		short port = 0;
-		int queryPort = 0;
-		// TODO ^^^^^^^ requires some changes in netchannels.
-		EngineVGui!.NotifyOfServerConnect(Common.Gamedir, ip, port, queryPort);
+		uint ip = cl.NetChannel.GetRemoteAddress().GetIPHostByteOrder();
+		short port = cl.NetChannel.GetRemoteAddress().GetPort();
+
+		if (port == 0) {
+			ip = Net.LocalAdr.GetIPHostByteOrder();
+			port = Net.LocalAdr.GetPort();
+		}
+
+		int queryPort = 0; // TODO
+
+		EngineVGui!.NotifyOfServerConnect(Common.Gamedir, (int)ip, port, queryPort);
 		EngineVGui!.UpdateProgressBar(LevelLoadingProgress.ReadyToPlay);
 		// MDL cache end map load
 
+		if (Host.developer.GetInt() > 0)
+			ConDMsg("Signon traffic \"%s\":  incoming %s, outgoing %s\n", cl.NetChannel.GetName().ToString(), cl.NetChannel.GetTotalData(1 /*FLOW_INCOMING*/), cl.NetChannel.GetTotalData(0 /*FLOW_OUTGOING*/));
+
 		Scr.EndLoadingPlaque();
 		// EndLoadingUpdates();
+
+		// commandline checks todo
+
+		if (!engineClient.IsLevelMainMenuBackground())
+			Host.AllowQueuedMaterialSystem(true);
 	}
 
 	public void Connect(ReadOnlySpan<char> address, string sourceTag) {
@@ -366,7 +387,22 @@ public partial class CL(IServiceProvider services, Net Net,
 		}
 	}
 
-	private void FlushEntityPacket(ClientFrame newFrame, string v) {
+	private void FlushEntityPacket(ClientFrame newFrame, ReadOnlySpan<char> v) {
+		ConMsg(v);
+
+		Span<char> str = stackalloc char[2048];
+		sprintf(str, "WARNING:  CL_FlushEntityPacket, %s").S(v);
+
+		Con_NPrint_s np = new() {
+			FixedWidthFont = false,
+			TimeToLive = 1.0,
+			Index = 1
+		};
+
+		np.Color[0] = 1.0f;
+		np.Color[1] = 0.2f;
+		np.Color[2] = 0.0f;
+		Con.NXPrintF(in np, str);
 
 		cl.FreeFrame(newFrame);
 	}

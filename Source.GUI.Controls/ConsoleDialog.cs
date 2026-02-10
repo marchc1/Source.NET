@@ -672,13 +672,133 @@ public class ConsoleDialog : Frame
 {
 	protected ConsolePanel ConsolePanel;
 
+#if GMOD_DLL
+	internal TextEntry ConsoleFilter;
+	internal CvarToggleCheckButton ConsoleFilterToggle;
+	internal Button ClearConsoleButton;
+	internal Button ExtraConsoleSettingsBtn;
+#endif
+
 	public ConsoleDialog(Panel? parent, ReadOnlySpan<char> name, bool statusVersion) : base(parent, name) {
 		SetVisible(false);
 		SetTitle("#Console_Title", true);
 
 		ConsolePanel = new ConsolePanel(this, "ConsolePage", statusVersion);
 		ConsolePanel.AddActionSignalTarget(this);
+
+#if GMOD_DLL
+		ConsoleFilter = new(this, "ConsoleFilter");
+		ConsoleFilter.SetMaximumCharCount(128);
+
+		ConVarRef filterCvar = new("con_filter_text");
+		if (filterCvar.IsValid()) {
+			ReadOnlySpan<char> text = filterCvar.GetString();
+			ConsoleFilter.SetText(text[..Math.Min(text.Length, 128)]);
+		}
+
+		ConsoleFilterToggle = new(this, "ConsoleFilterToggle", "Remove new entries containing:", "con_filter_enable");
+
+		ClearConsoleButton = new(this, "ClearConsoleButton", "Clear All");
+
+		ClearConsoleButton.SetCommand("Clear");
+
+		ExtraConsoleSettingsBtn = new(this, "ExtraConsoleSettingsBtn", "Extra");
+		ExtraConsoleSettingsBtn.SetCommand("OpenExtra");
+#endif
 	}
+
+#if GMOD_DLL
+	private enum ExtraItemType
+	{
+		Cvar,
+		Command,
+		Separator
+	}
+
+	private struct ExtraItem
+	{
+		public ExtraItemType Type;
+		public string Text;
+		public string Cmd;
+		public int? Value;
+	}
+
+	private List<ExtraItem>? ExtraItems = null;
+
+	private void OnOpenExtra() {
+		Menu menu = new(this, "ConsoleExtraOptions");
+		menu.AddActionSignalTarget(this);
+
+		if (ExtraItems == null) {
+			ExtraItems = [];
+			KeyValues kv = new();
+			if (kv.LoadFromFile(fileSystem, "resource/ConsoleExtraItems.res", "GAME")) {
+				for (KeyValues? itemKv = kv.GetFirstSubKey(); itemKv != null; itemKv = itemKv.GetNextKey()) {
+					ExtraItem item = new();
+					ReadOnlySpan<char> type = itemKv.GetString("type");
+
+					if (type == "Cvar") item.Type = ExtraItemType.Cvar;
+					else if (type == "Command") item.Type = ExtraItemType.Command;
+					else if (type == "Separator") item.Type = ExtraItemType.Separator;
+
+					item.Text = itemKv.GetString("text").ToString();
+					item.Cmd = itemKv.GetString("cmd").ToString();
+
+					ReadOnlySpan<char> val = itemKv.GetString("value");
+					if (!val.IsEmpty) item.Value = int.Parse(val);
+
+					ExtraItems.Add(item);
+				}
+			}
+		}
+
+		foreach (ExtraItem item in ExtraItems) {
+			if (item.Type == ExtraItemType.Separator)
+				menu.AddSeparator();
+			else if (item.Type == ExtraItemType.Cvar) {
+				KeyValues kv = new("ExtraCmd");
+				kv.SetString("cvar", item.Cmd);
+				kv.SetInt("value", item.Value ?? -1);
+
+				int itemId = menu.AddCheckableMenuItem(item.Text, kv, this);
+
+				ConVarRef cvar = new(item.Cmd);
+				if (cvar.IsValid())
+					menu.SetMenuItemChecked(itemId, cvar.GetInt() == (item.Value ?? 1));
+			}
+			else
+				menu.AddMenuItem(item.Text, new KeyValues("ExtraCmd", "cmd", item.Cmd), this, null);
+		}
+
+		menu.SetPos(GetX() + ExtraConsoleSettingsBtn.GetX(), GetY() + ExtraConsoleSettingsBtn.GetY() + ExtraConsoleSettingsBtn.GetTall());
+		menu.SetVisible(true);
+		menu.MoveToFront();
+	}
+
+	private void OnExtraCmd(KeyValues msg) {
+		if (!msg.GetString("cvar").IsEmpty) {
+			ReadOnlySpan<char> cvarName = msg.GetString("cvar");
+			ConVarRef var = new(cvarName);
+			if (!var.IsValid())
+				return;
+
+			int value = msg.GetInt("value", -1);
+			int curValue = var.GetInt();
+
+			// This is for cases where the cvar is not just a 0/1 toggle
+			if (value != -1) {
+				if (curValue != value) var.SetValue(value);
+				else var.SetValue(0);
+			}
+			else {
+				if (curValue == 0) var.SetValue(1);
+				else var.SetValue(0);
+			}
+		}
+		else if (!msg.GetString("cmd").IsEmpty)
+			PostActionSignal(new("CommandSubmitted", "command", msg.GetString("cmd")));
+	}
+#endif
 
 	public override void OnMessage(KeyValues message, IPanel? from) {
 		switch (message.Name) {
@@ -688,10 +808,42 @@ public class ConsoleDialog : Frame
 			case "Activate":
 				Activate();
 				return;
+#if GMOD_DLL
+			case "ExtraCmd":
+				OnExtraCmd(message);
+				break;
+#endif
 		}
 
 		base.OnMessage(message, from);
 	}
+
+#if GMOD_DLL
+	public override void OnCommand(ReadOnlySpan<char> command) {
+		switch (command.ToString()) {
+			case "Clear":
+				ConsolePanel.Clear();
+				return;
+			case "OpenExtra":
+				OnOpenExtra();
+				return;
+		}
+		base.OnCommand(command);
+	}
+
+	public override void OnKeyCodeTyped(ButtonCode code) {
+		if (Input.GetFocus() == ConsoleFilter && code == ButtonCode.KeyEnter) {
+			ConVarRef filterText = new("con_filter_text");
+			Span<char> filterValue = stackalloc char[128];
+			ConsoleFilter.GetText(filterValue);
+			filterText.SetValue(filterValue.SliceNullTerminatedString());
+			ConsoleFilterToggle.SetSelected(true);
+			return;
+		}
+
+		base.OnKeyCodeTyped(code);
+	}
+#endif
 
 	protected virtual void OnCommandSubmitted(ReadOnlySpan<char> command) {
 		PostActionSignal(new KeyValues("CommandSubmitted", "command", command));
@@ -702,6 +854,37 @@ public class ConsoleDialog : Frame
 
 		GetClientArea(out int x, out int y, out int w, out int h);
 		ConsolePanel.SetBounds(x, y, w, h);
+
+#if GMOD_DLL
+		ConsoleFilter.SetSize(200, 20);
+		ConsoleFilter.SetPos(w - 218, 9);
+
+		ConsoleFilterToggle.SetSize(210, 20);
+		ConsoleFilterToggle.SetPos(w - 432, 8);
+
+		ClearConsoleButton.SetSize(64, 20);
+		ClearConsoleButton.SetPos(w - 500, 9);
+
+		ExtraConsoleSettingsBtn.SetSize(48, 20);
+		ExtraConsoleSettingsBtn.SetPos(w - 556, 9);
+#endif
+	}
+
+	public override void OnScreenSizeChanged(int oldWide, int oldTall) {
+		base.OnScreenSizeChanged(oldWide, oldTall);
+
+		Surface.GetScreenSize(out int sx, out int sy);
+		GetSize(out int w, out int h);
+
+		if (w > sx || h > sy) {
+			if (w > sx)
+				w = sx;
+
+			if (h > sy)
+				h = sy;
+
+			SetSize(w, h);
+		}
 	}
 
 	public override void Activate() {
@@ -717,12 +900,8 @@ public class ConsoleDialog : Frame
 		ConsolePanel.Hide();
 	}
 
-	public void Print(ReadOnlySpan<char> msg) { }
-	public void DPrint(ReadOnlySpan<char> msg) { }
-	public void ColorPrint(in Color clr, ReadOnlySpan<char> msg) { }
-	public void DumpConsoleTextToFile() { }
-
-	public override void OnKeyCodePressed(ButtonCode code) {
-		base.OnKeyCodePressed(code);
-	}
+	public void Print(ReadOnlySpan<char> msg) => ConsolePanel.Print(msg);
+	public void DPrint(ReadOnlySpan<char> msg) => ConsolePanel.DPrint(msg);
+	public void ColorPrint(in Color clr, ReadOnlySpan<char> msg) => ConsolePanel.ColorPrint(in clr, msg);
+	public void DumpConsoleTextToFile() => throw new NotImplementedException();
 }

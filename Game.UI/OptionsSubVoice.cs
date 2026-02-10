@@ -31,8 +31,8 @@ public class OptionsSubVoice : PropertyPage
 	Label MicrophoneSliderLabel;
 	Slider MicrophoneVolume;
 	Label ReceiveSliderLabel;
-	CCvarSlider ReceiveVolume;
-	CCvarToggleCheckButton VoiceEnableCheckButton;
+	CvarSlider ReceiveVolume;
+	CvarToggleCheckButton VoiceEnableCheckButton;
 
 	int MicVolumeValue;
 	bool MicBoostSelected;
@@ -54,7 +54,7 @@ public class OptionsSubVoice : PropertyPage
 		MicrophoneVolume.SetRange(0, 100);
 		MicrophoneVolume.AddActionSignalTarget(this);
 
-		VoiceEnableCheckButton = new CCvarToggleCheckButton(this, "voice_modenable", "#GameUI_EnableVoice", "voice_modenable");
+		VoiceEnableCheckButton = new CvarToggleCheckButton(this, "voice_modenable", "#GameUI_EnableVoice", "voice_modenable");
 
 		MicBoost = new CheckButton(this, "MicBoost", "#GameUI_BoostMicrophone");
 		MicBoost.AddActionSignalTarget(this);

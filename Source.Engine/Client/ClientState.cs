@@ -1099,7 +1099,7 @@ public class ClientState : BaseClientState
 
 		// gHostSpawnCount = m_nServerCount;
 
-		// videomode->MarkClientViewRectDirty();
+		((VideoMode_Common)videoMode).MarkClientViewRectDirty();
 		return true;
 	}
 

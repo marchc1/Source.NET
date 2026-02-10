@@ -261,7 +261,7 @@ public class Scheme : IScheme
 
 	int ScreenWide, ScreenTall;
 
-	private void ReloadFontGlyphs() {
+	public void ReloadFontGlyphs() {
 		if (SizingPanel != null) {
 			SizingPanel.GetSize(out ScreenWide, out ScreenTall);
 		}

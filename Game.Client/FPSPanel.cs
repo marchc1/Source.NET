@@ -127,7 +127,12 @@ public class FPSPanel : Panel
 		if (IsVisible() != visible)
 			SetVisible(visible);
 	}
-	// todo: ScreenSizeChanged
+
+	public override void OnScreenSizeChanged(int oldWide, int oldTall) {
+		base.OnScreenSizeChanged(oldWide, oldTall);
+		ComputeSize();
+	}
+
 	public virtual bool ShouldDraw() {
 		if ((cl_showfps.GetInt() == 0 || (gpGlobals.AbsoluteFrameTime <= 0)) && (cl_showpos.GetInt() == 0)) {
 			LastDraw = false;
@@ -141,6 +146,7 @@ public class FPSPanel : Panel
 
 		return true;
 	}
+
 	public void GetFPSColor(int fps, out Color color) {
 		color = default;
 		color[0] = color[3] = 255;
@@ -172,6 +178,7 @@ public class FPSPanel : Panel
 			color[1] = 220;
 		}
 	}
+
 	public FPSPanel(Panel? parent) : base(null, "FPSPanel") {
 		SetParent(parent);
 		SetVisible(false);

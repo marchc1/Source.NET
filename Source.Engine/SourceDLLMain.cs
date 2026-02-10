@@ -5,6 +5,7 @@ using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.GUI;
 using Source.Common.MaterialSystem;
 using Source.Common.Server;
 using Source.Engine.Client;
@@ -42,6 +43,8 @@ public static class SourceDllMain
 	[Dependency] public static Cbuf cbuf { get; private set; } = null!;
 	[Dependency] public static ICvar cvar { get; private set; } = null!;
 	[Dependency] public static IMaterialSystemHardwareConfig HardwareConfig { get; private set; } = null!;
+	[Dependency] public static ICommandLine commandLine { get; private set; } = null!;
+	[Dependency] public static IMatSystemSurface surface { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Client)] public static NetworkStringTableContainer networkStringTableContainerClient { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Server)] public static NetworkStringTableContainer networkStringTableContainerServer { get; private set; } = null!;
 

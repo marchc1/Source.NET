@@ -3,9 +3,8 @@ using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
-using System.Numerics;
-
 namespace Source.Common.ShaderAPI;
+
 public enum CreateTextureFlags
 {
 	Cubemap = 0x0001,
@@ -42,7 +41,8 @@ public struct GraphicsBoardState
 	public ShaderDepthFunc DepthFunc;
 }
 
-public interface IMeshMgr {
+public interface IMeshMgr
+{
 
 }
 
@@ -117,4 +117,7 @@ public interface IShaderAPI : IShaderDynamicAPI
 	bool TexLock(int level, int cubeFaceID, int xOffset, int yOffset, int width, int height, ref PixelWriter writer);
 	bool TexLock(int level, int cubeFaceID, int xOffset, int yOffset, int width, int height, ref PixelWriterMem writer);
 	void TexUnlock();
+	bool ChangeVideoMode(in ShaderDeviceInfo info);
+	void AddModeChangeCallBack(Action func);
+	void SetDefaultState();
 }

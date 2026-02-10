@@ -57,7 +57,7 @@ public class ComboBox : TextEntry
 	int OpenOffsetY;
 	char[] BorderOverride = new char[64];
 
-	public ComboBox(Panel parent, ReadOnlySpan<char> name, int numLines, bool allowEdit) : base(parent, name) {
+	public ComboBox(Panel? parent, ReadOnlySpan<char> name, int numLines, bool allowEdit) : base(parent, name) {
 		SetEditable(allowEdit);
 		SetHorizontalScrolling(false);
 

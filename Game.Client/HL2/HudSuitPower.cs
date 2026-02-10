@@ -7,7 +7,7 @@ using Source.GUI.Controls;
 
 namespace Game.Client.HL2;
 
-[DeclareHudElement(Name = "CHudSuitPower")]
+// [DeclareHudElement(Name = "CHudSuitPower")] // FIXME: Animations are not working here? just sits at the topleft of the screen :(
 public class HudSuitPower : EditableHudElement, IHudElement
 {
 	[PanelAnimationVar("AuxPowerColor", "255 0 0 255", "Color")] protected Color AuxPowerColor;
@@ -18,7 +18,7 @@ public class HudSuitPower : EditableHudElement, IHudElement
 	[PanelAnimationVarAliasType("BarHeight", "10", "proportional_float")] protected float BarHeight;
 	[PanelAnimationVarAliasType("BarChunkWidth", "10", "proportional_float")] protected float BarChunkWidth;
 	[PanelAnimationVarAliasType("BarChunkGap", "2", "proportional_float")] protected float BarChunkGap;
-	[PanelAnimationVar("TextFont", "Default", "Font")] protected IFont TextFont;
+	[PanelAnimationVar("TextFont", "Default", "HFont")] protected IFont TextFont;
 	[PanelAnimationVarAliasType("text_xpos", "8", "proportional_float")] protected float text_xpos;
 	[PanelAnimationVarAliasType("text_ypos", "20", "proportional_float")] protected float text_ypos;
 	[PanelAnimationVarAliasType("text2_xpos", "8", "proportional_float")] protected float text2_xpos;
@@ -31,9 +31,8 @@ public class HudSuitPower : EditableHudElement, IHudElement
 	const int SUIT_POWER_INIT = -1;
 
 	public HudSuitPower(string? panelName) : base(null, "HudSuitPower") {
-		var parent = clientMode.GetViewport();
-		SetParent(parent);
-
+		ElementName = panelName;
+		SetParent(clientMode.GetViewport());
 		((IHudElement)this).SetHiddenBits(HideHudBits.Health | HideHudBits.NeedSuit | HideHudBits.PlayerDead);
 	}
 
@@ -50,7 +49,7 @@ public class HudSuitPower : EditableHudElement, IHudElement
 		if (player == null)
 			return false;
 
-		bool needsDraw = (player.HL2Local.SuitPower != SuitPower) || AuxPowerColor[3] > 0;
+		bool needsDraw = (player.HL2Local.SuitPower != SuitPower) || AuxPowerColor.A > 0;
 		return needsDraw && IHudElement.DefaultShouldDraw(this);
 	}
 

@@ -16,14 +16,14 @@ public class OptionsSubAudio : PropertyPage
 {
 	ComboBox SpeakerSetupCombo;
 	ComboBox SoundQualityCombo;
-	CCvarSlider SFXSlider;
-	CCvarSlider MusicSlider;
+	CvarSlider SFXSlider;
+	CvarSlider MusicSlider;
 	ComboBox CloseCaptionCombo;
 	bool RequireRestart;
 	ComboBox SpokenLanguageCombo;
 	// ELanguage CurrentAudioLanguage;
 	// char[] UpdatedAudioLanguage;
-	CCvarToggleCheckButton SoundMuteLoseFocusCheckButton;
+	CvarToggleCheckButton SoundMuteLoseFocusCheckButton;
 
 	public OptionsSubAudio(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 		SFXSlider = new(this, "SFXSlider", "#GameUI_SoundEffectVolume", 0.0f, 1.0f, "volume");

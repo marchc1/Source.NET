@@ -60,7 +60,7 @@ public class CheckButton : ToggleButton
 	Color DisabledBgColor;
 	Color HighlightFgColor;
 
-	public CheckButton(Panel parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
+	public CheckButton(Panel? parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text) : base(parent, name, text) {
 		SetContentAlignment(Alignment.West);
 		CheckButtonCheckable = true;
 		UseSmallCheckImage = false;

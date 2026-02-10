@@ -117,7 +117,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public bool IsInAVehicle() => Vehicle.Get() != null;
 	public virtual void SetAnimation(PlayerAnim playerAnim) { } // todo
 
-	public virtual Vector3 GetAutoaimVector(float scale){
+	public virtual Vector3 GetAutoaimVector(float scale) {
 		MathLib.AngleVectors(GetAbsAngles(), out Vector3 forward, out _, out _);
 		return forward;
 	}
@@ -126,7 +126,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, bool fgroup, int noRepeat) => SetSuitUpdate(name, fgroup ? 1 : 0, noRepeat);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, int fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup, noRepeat ? 1 : 0);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, bool fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup ? 1 : 0, noRepeat ? 1 : 0);
-	
+
 	public virtual void PostThink() {
 		if (IsAlive()) {
 			// Need to do this on the client to avoid prediction errors
@@ -180,9 +180,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 					if (pWeaponData == null || (pWeaponData.Flags & WeaponFlags.NoAmmoPickups) == 0) {
 						// We got more ammo for this ammo index. Add it to the ammo history
 						HudHistoryResource? pHudHR = GET_HUDELEMENT<HudHistoryResource>();
-						// if (pHudHR != null) 
-						//pHudHR.AddToHistory(HISTSLOT_AMMO, i, abs(GetAmmoCount(i) - m_iOldAmmo[i]));
-
+						pHudHR?.AddToHistory(HRType.Ammo, i, Math.Abs(GetAmmoCount(i) - OldAmmo[i]));
 					}
 				}
 			}

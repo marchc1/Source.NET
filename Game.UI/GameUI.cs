@@ -104,7 +104,7 @@ public class GameUI(IEngineClient engine) : IGameUI
 		localize.AddFile("Resource/gameui_%language%.txt", "GAME", true);
 		engineAPI.GetRequiredService<ModInfo>().LoadCurrentGameInfo();
 		localize.AddFile("Resource/valve_%language%.txt", "GAME", true);
-		// I have no idea why this one defines needed resource strings...
+		// I have no idea why this one defines needed resource strings... TODO: Is this still needed?
 		localize.AddFile("Resource/itemtest_%language%.txt", "GAME", true);
 
 		staticPanel = new BasePanel(this);
@@ -164,7 +164,7 @@ public class GameUI(IEngineClient engine) : IGameUI
 	}
 
 	public void Shutdown() {
-		throw new NotImplementedException();
+		// TODO
 	}
 
 	public void Start() {

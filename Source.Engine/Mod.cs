@@ -15,7 +15,7 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 		host_parms.Mod = initialMod;
 		host_parms.Game = initialGame;
 
-		if(cl != null) {
+		if (cl != null) {
 			cl.RestrictServerCommands = false;
 			cl.RestrictClientCommands = false;
 		}
@@ -23,9 +23,11 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 		// Temporary - we need to reconsider MaterialSystem_Config
 		int width = commandLine.ParmValue("-width", 1600);
 		width = commandLine.ParmValue("-w", width);
-		int height = commandLine.ParmValue("-height", 900); 
+		int height = commandLine.ParmValue("-height", 900);
 		height = commandLine.ParmValue("-h", height);
 		bool windowed = true;
+
+		videomode.Init();
 
 		return videomode.CreateGameWindow(width, height, windowed);
 	}
@@ -43,7 +45,7 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 		else {
 			eng.SetQuitting(IEngine.Quit.NotQuitting);
 
-			if(eng.Load(false, host_parms.BaseDir)) {
+			if (eng.Load(false, host_parms.BaseDir)) {
 #if !SWDS
 				if (engineAPI.MainLoop())
 					res = IMod.Result.RunRestart;

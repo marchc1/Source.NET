@@ -643,9 +643,9 @@ public class Host(
 #endif
 		Common = engineAPI.InitSubsystem<Common>()!;
 		Key = engineAPI.InitSubsystem<Key>()!;
-		//engineAPI.InitSubsystem<Filter>();
+		engineAPI.InitSubsystem<Filter>();
 #if !SWDS
-		//engineAPI.InitSubsystem<Key>();
+		engineAPI.InitSubsystem<Key>();
 #endif
 		Net = engineAPI.InitSubsystem<Net>(dedicated)!;
 		GameEventManager = engineAPI.InitSubsystem<IGameEventManager2>()!;
@@ -675,6 +675,8 @@ public class Host(
 #endif
 		Cbuf.AddText("exec valve.rc");
 
+		AllowQueuedMaterialSystem(false);
+
 		Initialized = true;
 		hostState.Init();
 
@@ -697,7 +699,7 @@ public class Host(
 			ClientDLL.Shutdown();
 			// TextMessageShutdown();
 			EngineVGui.Shutdown();
-			//StaticPropMgr.Shutdown();
+			// StaticPropMgr.Shutdown();
 			modelloader.Shutdown();
 			// ShutdownStudioRender();
 			// ShutdownMaterialSystem();
@@ -865,7 +867,7 @@ public class Host(
 			int len = (int)strlen(Line);
 
 			if (CurPosition > len) {
-				for (int i = len; i < CurPosition; i++) 
+				for (int i = len; i < CurPosition; i++)
 					Line[i] = ' ';
 
 				Line[CurPosition] = '\0';
@@ -915,7 +917,8 @@ public class Host(
 		if (host_name.GetString().Length == 0)
 			host_name.SetValue(serverDLL!.GetGameDescription());
 
-		if(!sv.SpawnServer(mapName, _mapFile, null))
+		if (!sv.SpawnServer(mapName, _mapFile, null))
+			return false;
 
 		sv.LevelMainMenuBackground = backgroundLevel;
 		serverGlobalVariables.CurTime = sv.GetTime();
@@ -1009,19 +1012,19 @@ public class Host(
 			// todo
 		}
 
-		ConVarRef sv_registration_successful = new("sv_registration_successful", true );
+		ConVarRef sv_registration_successful = new("sv_registration_successful", true);
 		if (sv_registration_successful.IsValid()) {
 			Span<char> sExtraInfo = stackalloc char[256];
-			ConVarRef sv_registration_message = new( "sv_registration_message", true );
+			ConVarRef sv_registration_message = new("sv_registration_message", true);
 			if (sv_registration_message.IsValid()) {
 				ReadOnlySpan<char> msg = sv_registration_message.GetString();
 				if (!msg.IsEmpty)
 					sprintf(sExtraInfo, "  (%s)").S(msg);
 			}
 
-			if (sv_registration_successful.GetBool()) 
+			if (sv_registration_successful.GetBool())
 				print($"account : logged in{sExtraInfo}\n");
-			else 
+			else
 				print($"account : not logged in{sExtraInfo}\n");
 		}
 

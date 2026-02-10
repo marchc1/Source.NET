@@ -5,7 +5,6 @@ using Source.Common.Mathematics;
 using Source.Common.ShaderAPI;
 
 using System.Numerics;
-using System.Runtime.Intrinsics;
 
 namespace Source.Common.MaterialSystem;
 
@@ -153,14 +152,16 @@ public enum MaterialRenderTargetDepth
 	Only
 }
 
-public enum MaterialPropertyTypes {
+public enum MaterialPropertyTypes
+{
 	NeedsLightmap,
 	Opacity,
 	Reflectivity,
 	NeedsBumpedLightmaps
 }
 
-public struct StandardLightmap {
+public struct StandardLightmap
+{
 	public const int White = -1;
 	public const int WhiteBump = -2;
 	public const int UserDefined = -3;
@@ -187,7 +188,15 @@ public interface IMaterialSystem
 	void BeginFrame(double frameTime);
 	void EndFrame();
 	void SwapBuffers();
+	MaterialSystem_Config GetCurrentConfigForVideoCard();
+	bool UpdateConfig(bool forceUpdate);
+	bool OverrideConfig(MaterialSystem_Config config, bool forceUpdate);
+	int GetDisplayAdapterCount();
+	int GetCurrentAdapter();
+	int GetModeCount(int adapter);
+	void GetModeInfo(int adapter, int mode, out MaterialVideoMode info);
 	bool SetMode(IWindow window, MaterialSystem_Config config);
+	void AddModeChangeCallBack(Action func);
 	IMaterial CreateMaterial(ReadOnlySpan<char> name, ReadOnlySpan<char> textureGroupName, KeyValues keyValues);
 	IMaterial CreateMaterial(ReadOnlySpan<char> name, KeyValues keyValues);
 	bool CanUseEditorMaterials();

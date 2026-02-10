@@ -16,7 +16,7 @@ public class MenuItemCheckImage : TextImage
 		DrawSetTextFont(GetFont());
 
 		DrawSetTextColor(MenuItem.GetBgColor());
-		DrawPrintChar(0, 0, 'g');
+		// DrawPrintChar(0, 0, 'g');
 
 		if (MenuItem.IsChecked()) {
 			if (MenuItem.IsEnabled()) {
