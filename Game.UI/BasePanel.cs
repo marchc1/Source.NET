@@ -184,6 +184,267 @@ public class GameMenu(Panel parent, ReadOnlySpan<char> name) : Menu(parent, name
 	}
 }
 
+public class FooterPanel : EditablePanel
+{
+	struct ButtonLabel
+	{
+		public bool Visible;
+		public InlineArrayMaxPath<char> Name;
+		public InlineArrayMaxPath<char> Text;
+		public char Icon;
+	}
+	readonly List<ButtonLabel> ButtonLabels = [];
+
+	Label SizingLabel;
+	bool bPaintBackground;
+	bool CenterHorizontal;
+	int ButtonPinRight;
+	int ButtonGap;
+	int ButtonGapDefault;
+	int FooterTall;
+	int ButtonOffsetFromTop;
+	int ButtonSeparator;
+	int TextAdjust;
+	InlineArray64<char> TextFont;
+	InlineArray64<char> ButtonFont;
+	InlineArray64<char> FGColor;
+	InlineArray64<char> BGColor;
+	IFont? FButtonFont;
+	IFont? FTextFont;
+	string? HelpName;
+
+	public FooterPanel(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
+		SetVisible(true);
+		SetAlpha(0);
+		HelpName = null;
+
+		SizingLabel = new(this, "SizingLabel", "");
+		SizingLabel.SetVisible(false);
+
+		ButtonGap = 32;
+		ButtonGapDefault = 32;
+		ButtonPinRight = 100;
+		FooterTall = 80;
+
+		Surface.GetScreenSize(out int wide, out int tall);
+
+		if (tall <= 480)
+			FooterTall = 60;
+
+		ButtonOffsetFromTop = 0;
+		ButtonSeparator = 4;
+		TextAdjust = 0;
+
+		bPaintBackground = false;
+		CenterHorizontal = false;
+
+		ButtonFont[0] = '\0';
+		TextFont[0] = '\0';
+		FGColor[0] = '\0';
+		BGColor[0] = '\0';
+	}
+
+	// FIXME #37
+	public override void Dispose() {
+		base.Dispose();
+		SetHelpNameAndReset(null);
+	}
+
+	public override void ApplySchemeSettings(IScheme scheme) {
+		base.ApplySchemeSettings(scheme);
+
+		FButtonFont = scheme.GetFont((ButtonFont[0] != '\0') ? ButtonFont : "GameUIButtons");
+		FTextFont = scheme.GetFont((TextFont[0] != '\0') ? TextFont : "MenuLarge");
+
+		SetFgColor(scheme.GetColor(FGColor, new(255, 255, 255, 255)));
+		SetBgColor(scheme.GetColor(BGColor, new(0, 0, 0, 255)));
+
+		GetParent()!.GetBounds(out int x, out _, out int w, out int h);
+		SetBounds(x, h - FooterTall, w, FooterTall);
+	}
+
+	public override void ApplySettings(KeyValues resourceData) {
+		throw new NotImplementedException();
+	}
+
+	void SetStandardDialogButtons() {
+		SetHelpNameAndReset("Dialog");
+		AddNewButtonLabel("#GameUI_Action", "#GameUI_Icons_A_BUTTON");
+		AddNewButtonLabel("#GameUI_Close", "#GameUI_Icons_B_BUTTON");
+	}
+
+	void SetHelpNameAndReset(ReadOnlySpan<char> name) {
+		if (HelpName != null)
+			HelpName = null;
+
+		if (!name.IsEmpty)
+			HelpName = new(name);
+
+		ClearButtons();
+	}
+
+	ReadOnlySpan<char> GetHelpName() => HelpName;
+
+	void ClearButtons() => ButtonLabels.Clear();
+
+	void AddNewButtonLabel(ReadOnlySpan<char> text, ReadOnlySpan<char> icon) {
+		ButtonLabel button = new();
+		strcpy(button.Name, text);
+		button.Visible = true;
+
+		ReadOnlySpan<char> lIcon = Localize.Find(icon);
+		if (!lIcon.IsEmpty)
+			button.Icon = lIcon[0];
+		else
+			button.Icon = '\0';
+
+		ReadOnlySpan<char> lText = Localize.Find(text);
+		if (!lText.IsEmpty)
+			strcpy(button.Text, lText);
+		else
+			button.Text[0] = '\0';
+
+		ButtonLabels.Add(button);
+	}
+
+	void ShowButtonLabel(ReadOnlySpan<char> name, bool show) {
+		for (int i = 0; i < ButtonLabels.Count; ++i) {
+			ButtonLabel button = ButtonLabels[i];
+			if (strcmp(button.Name, name) == 0) {
+				button.Visible = show;
+				ButtonLabels[i] = button;
+				return;
+			}
+		}
+	}
+
+	void SetButtonText(ReadOnlySpan<char> name, ReadOnlySpan<char> text) {
+		for (int i = 0; i < ButtonLabels.Count; ++i) {
+			ButtonLabel button = ButtonLabels[i];
+			if (strcmp(button.Name, name) == 0) {
+				ReadOnlySpan<char> lText = Localize.Find(text);
+				if (!lText.IsEmpty)
+					strcpy(button.Text, lText);
+				else
+					button.Text[0] = '\0';
+
+				ButtonLabels[i] = button;
+				return;
+			}
+		}
+	}
+
+	public override void PaintBackground() {
+		if (!bPaintBackground)
+			return;
+
+		base.PaintBackground();
+	}
+
+	public override void Paint() {
+		int wide = GetWide();
+		int right = wide - ButtonPinRight;
+
+		int buttonHeight = Surface.GetFontTall(FButtonFont);
+		int fontHeight = Surface.GetFontTall(FTextFont);
+		int textY = (buttonHeight - fontHeight) / 2 + TextAdjust;
+
+		if (textY < 0)
+			textY = 0;
+
+		int y = ButtonOffsetFromTop;
+
+		Span<char> icon = stackalloc char[2];
+		if (!CenterHorizontal) {
+			int x = right;
+
+			for (int i = 0; i < ButtonLabels.Count; ++i) {
+				ButtonLabel button = ButtonLabels[i];
+				if (!button.Visible)
+					continue;
+
+				SizingLabel.SetFont(FTextFont);
+				SizingLabel.SetText(button.Text);
+				SizingLabel.SizeToContents();
+
+				int textWidth = SizingLabel.GetWide();
+
+				if (textWidth == 0)
+					x += ButtonGap;
+				else
+					x -= textWidth;
+
+				Surface.DrawSetTextFont(FTextFont);
+				Surface.DrawSetTextColor(GetFgColor());
+				Surface.DrawSetTextPos(x, y + textY);
+				Surface.DrawPrintText(button.Text);
+
+				icon[0] = button.Icon;
+
+				x -= Surface.GetCharacterWidth(FButtonFont, button.Icon) + ButtonSeparator;
+				Surface.DrawSetTextFont(FButtonFont);
+				Surface.DrawSetTextColor(255, 255, 255, 255);
+				Surface.DrawSetTextPos(x, y);
+				Surface.DrawPrintText(icon);
+
+				x -= ButtonGap;
+			}
+		}
+		else {
+			int x = wide / 2;
+			int totalWidth = 0;
+			int i = 0;
+			int nButtonCount = 0;
+
+			for (i = 0; i < ButtonLabels.Count; ++i) {
+				ButtonLabel button = ButtonLabels[i];
+				if (!button.Visible)
+					continue;
+
+				SizingLabel.SetFont(FTextFont);
+				SizingLabel.SetText(button.Text);
+				SizingLabel.SizeToContents();
+
+				totalWidth += Surface.GetCharacterWidth(FButtonFont, button.Icon);
+				totalWidth += ButtonSeparator;
+				totalWidth += SizingLabel.GetWide();
+
+				nButtonCount++;
+			}
+
+			totalWidth += (nButtonCount - 1) * ButtonGap;
+			x -= totalWidth / 2;
+
+			for (i = 0; i < ButtonLabels.Count; ++i) {
+				ButtonLabel button = ButtonLabels[i];
+				if (!button.Visible)
+					continue;
+
+				SizingLabel.SetFont(FTextFont);
+				SizingLabel.SetText(button.Text);
+				SizingLabel.SizeToContents();
+
+				int textWidth = SizingLabel.GetWide();
+
+				icon[0] = button.Icon;
+
+				Surface.DrawSetTextFont(FButtonFont);
+				Surface.DrawSetTextColor(255, 255, 255, 255);
+				Surface.DrawSetTextPos(x, y);
+				Surface.DrawPrintText(icon);
+				x += Surface.GetCharacterWidth(FButtonFont, button.Icon) + ButtonSeparator;
+
+				Surface.DrawSetTextFont(FTextFont);
+				Surface.DrawSetTextColor(GetFgColor());
+				Surface.DrawSetTextPos(x, y + textY);
+				Surface.DrawPrintText(button.Text);
+
+				x += textWidth + ButtonGap;
+			}
+		}
+	}
+}
+
 public class MainMenuGameLogo : EditablePanel
 {
 	readonly public IEngineClient engine = Singleton<IEngineClient>();
@@ -214,6 +475,7 @@ public class MainMenuGameLogo : EditablePanel
 	public int GetOffsetX() => OffsetX;
 	public int GetOffsetY() => OffsetY;
 }
+
 public class BackgroundMenuButton : Button
 {
 	public BackgroundMenuButton(Panel parent, ReadOnlySpan<char> name) : base(parent, name, "") { }
