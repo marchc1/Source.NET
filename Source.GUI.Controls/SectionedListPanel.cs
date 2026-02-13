@@ -161,7 +161,7 @@ public class ItemButton : Label
 		HorizFillInset = 0;
 	}
 
-	private void Clear() {
+	public void Clear() {
 		Selected = false;
 		OverrideColors = false;
 		SectionID = -1;
@@ -747,7 +747,19 @@ public class SectionedListPanel : Panel
 	}
 
 	public void RemoveAllSections() {
+		for (int i = 0; i < Sections.Count; i++) {
+			if (!Sections.IsValidIndex(i))
+				continue;
 
+			Sections[i].Header!.SetVisible(false);
+			Sections[i].Header!.MarkForDeletion();
+		}
+
+		Sections.Clear();
+		SortedItems.Clear();
+
+		InvalidateLayout();
+		ReSortList();
 	}
 
 	public bool AddColumnToSection(int sectionID, ReadOnlySpan<char> columnName, ReadOnlySpan<char> columnText, int columnFlags, int width, IFont? fallbackFont = null) {
@@ -1021,7 +1033,17 @@ public class SectionedListPanel : Panel
 	}
 
 	public void DeleteAllItems() {
+		for (int i = 0; i < Items.Count; i++) {
+			Items[i].SetVisible(false);
+			Items[i].Clear();
+			FreeItems.Add(Items[i]);
+		}
 
+		Items.Clear();
+		SortedItems.Clear();
+		SelectedItem = null;
+		InvalidateLayout();
+		SortNeeded = true;
 	}
 
 	public void SetSelectedItem(ItemButton? item) {
