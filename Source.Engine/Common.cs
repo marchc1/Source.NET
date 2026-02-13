@@ -15,6 +15,8 @@ using System.Text;
 
 using static Source.Common.FilesystemHelpers;
 
+using Game.Assets;
+
 namespace Source.Engine;
 
 /// <summary>
@@ -109,6 +111,8 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 		initInfo.LowViolence = Host.LowViolence;
 		initInfo.MountHDContent = false; // Study this further
 
+		AssetLinker.CheckRequired();
+
 		FileSystem.LoadSearchPaths(in initInfo);
 
 		Gamedir = initInfo.ModPath ?? "";
@@ -146,7 +150,7 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 		if (data.IsEmpty)
 			return null;
 
-		skipwhite:
+	skipwhite:
 		while ((c = data[0]) <= ' ') {
 			if (c == 0)
 				return null;

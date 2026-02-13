@@ -13,6 +13,7 @@
 		<ProjectReference Include="..\Source.Bitmap\Source.Bitmap.csproj" />
 		<ProjectReference Include="..\Source.GUI.Controls\Source.GUI.Controls.csproj" />
 		<ProjectReference Include="..\Source.GUI\Source.GUI.csproj" />
+		<ProjectReference Include="..\Game.Assets\Game.Assets.csproj" />
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="ppy.SDL3-CS" Version="2025.703.0" />
