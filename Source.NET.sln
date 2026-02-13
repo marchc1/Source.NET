@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.0.11217.181
@@ -99,6 +99,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Game.ServerBrowser", "Game.ServerBrowser\Game.ServerBrowser.csproj", "{C6CC57C0-0961-46BE-ADFA-5FC356D1892F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Source.Physics", "Source.Physics\Source.Physics.csproj", "{19D1DF3E-3FFA-406E-9F2F-4B793A3C6F09}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Game.Assets", "Game.Assets\Game.Assets.csproj", "{97CBBC21-0181-4ED2-9CA6-115179E73290}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -232,6 +234,10 @@ Global
 		{19D1DF3E-3FFA-406E-9F2F-4B793A3C6F09}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{19D1DF3E-3FFA-406E-9F2F-4B793A3C6F09}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{19D1DF3E-3FFA-406E-9F2F-4B793A3C6F09}.Release|Any CPU.Build.0 = Release|Any CPU
+		{97CBBC21-0181-4ED2-9CA6-115179E73290}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{97CBBC21-0181-4ED2-9CA6-115179E73290}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{97CBBC21-0181-4ED2-9CA6-115179E73290}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{97CBBC21-0181-4ED2-9CA6-115179E73290}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

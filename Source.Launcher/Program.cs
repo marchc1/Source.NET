@@ -87,11 +87,11 @@ public class Bootloader : IDisposable
 				// Let the engine builder take over and inject engine-specific dependencies
 				.Build(dedicated: false);
 
-			// Generate our startup information
-			PreInit();
-
 			// Start using this provider for the engine
 			using ServiceLocatorScope locatorScope = new(engineAPI);
+
+			// Generate our startup information
+			PreInit();
 
 			// Run the game
 			var res = engineAPI.Run();
