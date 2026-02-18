@@ -22,9 +22,15 @@ public class Prediction : IPrediction
 	public const float MIN_PREDICTION_EPSILON = 0.5f;
 	public const float MAX_PREDICTION_ERROR = 64.0f;
 
-	static readonly ConVar cl_predictweapons = new("cl_predictweapons", "1", FCvar.UserInfo | FCvar.NotConnected, "Perform client side prediction of weapon effects.");
-	static readonly ConVar cl_lagcompensation = new("cl_lagcompensation", "1", FCvar.UserInfo | FCvar.NotConnected, "Perform server side lag compensation of weapon firing events.");
-	static readonly ConVar cl_showerror = new("cl_showerror", "0", 0, "Show prediction errors, 2 for above plus detailed field deltas.");
+
+	public static readonly ConVar cl_predictweapons = new("cl_predictweapons", "1", FCvar.UserInfo | FCvar.NotConnected, "Perform client side prediction of weapon effects.");
+	public static readonly ConVar cl_lagcompensation = new("cl_lagcompensation", "1", FCvar.UserInfo | FCvar.NotConnected, "Perform server side lag compensation of weapon firing events.");
+	public static readonly ConVar cl_showerror = new("cl_showerror", "0", 0, "Show prediction errors, 2 for above plus detailed field deltas.");
+	public static readonly ConVar cl_idealpitchscale = new("cl_idealpitchscale", "0.8", FCvar.Archive);
+	public static readonly ConVar cl_predictionlist = new("cl_predictionlist", "0", FCvar.Cheat, "Show which entities are predicting\n");
+	public static readonly ConVar cl_predictionentitydump = new("cl_pdump", "-1", FCvar.Cheat, "Dump info about this entity to screen.");
+	public static readonly ConVar cl_predictionentitydumpbyclass = new("cl_pclass", "", FCvar.Cheat, "Dump entity by prediction classname.");
+	public static readonly ConVar cl_pred_optimize = new("cl_pred_optimize", "2", 0, "Optimize for not copying data if didn't receive a network update (1), and also for not repredicting if there were no errors (2).");
 
 
 	bool bInPrediction;
@@ -103,12 +109,9 @@ public class Prediction : IPrediction
 		MathLib.VectorSubtract(predicted_origin, origin, out delta);
 
 		len = MathLib.VectorLength(delta);
-		// temporary TODO: disabling this until I have packed fields working
-		//if (len > MAX_PREDICTION_ERROR) {
-			// A teleport or something, clear out error
-			//len = 0;
-		//}
-		//else 
+		if (len > MAX_PREDICTION_ERROR) 
+		   len = 0;
+		else 
 		{
 			if (len > MIN_PREDICTION_EPSILON) {
 				player.NotePredictionError(delta);
@@ -157,8 +160,6 @@ public class Prediction : IPrediction
 			ent.PostEntityPacketReceived();
 		}
 	}
-
-	public static readonly ConVar cl_predictionlist = new("cl_predictionlist", "0", FCvar.Cheat, "Show which entities are predicting\n");
 
 
 	public void PostNetworkDataReceived(int commandsAcknowledged) {
@@ -403,7 +404,7 @@ public class Prediction : IPrediction
 		move.Velocity = player.GetAbsVelocity();
 		move.SetAbsOrigin(player.GetNetworkOrigin());
 		move.OldAngles = move.Angles;
-		move.Buttons = (InButtons)player.Local.OldButtons;
+		move.OldButtons = (InButtons)player.Local.OldButtons;
 		move.OldForwardMove = player.Local.OldForwardMove;
 		move.ClientMaxSpeed = player.Maxspeed;
 
@@ -513,9 +514,11 @@ public class Prediction : IPrediction
 	readonly GlobalVarsBase saveVars = new(true);
 	public void Update(int startFrame, bool validFrame, int incomingAcknowledged, int outgoingCommand) {
 		EnginePaused = engine.IsPaused();
+
 		bool receivedNewWorldUpdate = true;
-		if (PreviousStartFrame == startFrame && cl_predict.GetInt() != 0)
+		if (PreviousStartFrame == startFrame && cl_pred_optimize.GetBool() && cl_predict.GetInt() != 0)
 			receivedNewWorldUpdate = false;
+
 		PreviousStartFrame = startFrame;
 
 		gpGlobals.CopyInstantiatedReferenceTo(saveVars);
@@ -762,7 +765,7 @@ public class Prediction : IPrediction
 			if (entity.IsPlayerSimulated())
 				continue;
 
-			if (AddDataChangeEvent(entity, DataUpdateType.DataTableChanged, entity.DataChangeEventRef))
+			if (HLClient.AddDataChangeEvent(entity, DataUpdateType.DataTableChanged, entity.DataChangeEventRef))
 				entity.OnPreDataChanged(DataUpdateType.DataTableChanged);
 
 			// Certain entities can be created locally and if so created, should be 
@@ -784,24 +787,6 @@ public class Prediction : IPrediction
 
 		// Always reset after running command
 		IPredictionSystem.SuppressEvents(false);
-	}
-
-	private bool AddDataChangeEvent(IClientNetworkable ent, DataUpdateType updateType, ReusableBox<ulong> storedEvent) {
-		Assert(ent);
-		// Make sure we don't already have an event queued for this guy.
-		if (storedEvent.Struct >= 0) {
-			Assert(g_GetDataChangedEvent(storedEvent.Struct).Entity == ent);
-
-			// DATA_UPDATE_CREATED always overrides DATA_UPDATE_CHANGED.
-			if (updateType == DataUpdateType.Created)
-				g_GetDataChangedEvent(storedEvent.Struct).UpdateType = updateType;
-
-			return false;
-		}
-		else {
-			storedEvent.Struct = g_AddDataChangedEvent(new DataChangedEvent(ent, updateType, storedEvent));
-			return true;
-		}
 	}
 
 	private void InvalidateEFlagsRecursive(C_BaseEntity ent, EFL dirtyFlags, EFL childFlags = 0) {
@@ -849,8 +834,6 @@ public class Prediction : IPrediction
 			entity.PhysicsCheckForEntityUntouch();
 		}
 	}
-
-	static readonly ConVar cl_pred_optimize = new("cl_pred_optimize", "2", 0, "Optimize for not copying data if didn't receive a network update (1), and also for not repredicting if there were no errors (2).");
 
 	private int ComputeFirstCommandToExecute(bool receivedNewWorldUpdate, int incomingAcknowledged, int outgoingCommand) {
 		int destination_slot = 1;

@@ -188,6 +188,7 @@ public partial class
 
 		Local.PunchAngleVel += angleOffset * 20;
 	}
+
 	public void ViewPunchReset(float tolerance) {
 		if (tolerance != 0) {
 			tolerance *= tolerance; // square
