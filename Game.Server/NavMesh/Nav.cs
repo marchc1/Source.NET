@@ -25,7 +25,7 @@ public static class Nav
 	public const uint NavMagicNumber = 0xFEEDFACE;       // to help identify nav files
 
 	public const uint UndefinedPlace = 0;
-	const uint AnyPlace = 0xFFFF;
+	public const uint AnyPlace = 0xFFFF;
 
 	public static NavDirType OppositeDirection(NavDirType dir) => dir switch {
 		NavDirType.North => NavDirType.South,

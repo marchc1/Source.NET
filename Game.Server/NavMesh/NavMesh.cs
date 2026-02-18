@@ -1,4 +1,5 @@
 using Source.Common;
+using Source.Engine;
 
 using System.Numerics;
 
@@ -6,6 +7,60 @@ namespace Game.Server.NavMesh;
 
 public partial class NavMesh
 {
+	enum EditModeType
+	{
+		Normal,
+		PlacePainting,
+		CreatingArea,
+		CreatingLadder,
+		DragSelecting,
+		ShiftingXY,
+		ShiftingZ
+	}
+
+	// List<NavAreaVector> Grid;
+	float GridCellSize;
+	int GridSizeX;
+	int GridSizeY;
+	uint AreaCount;
+	bool IsLoaded;
+	bool IsOutOfDate;
+	bool IsAnalyzed;
+	const int HASH_TABLE_SIZE = 256;
+	readonly NavArea[] HashTable = new NavArea[HASH_TABLE_SIZE];
+	string PlaceName;
+	uint PlaceCount;
+	EditModeType EditMode;
+	bool IsEditing;
+	uint NavPlace;
+	Vector3 EditCursorPos;
+	NavArea MarkedArea;
+	NavArea SelectedArea;
+	NavArea LastSelectedArea;
+	NavCornerType MarkedCorner;
+	Vector3 Anchor;
+	bool IsPlacePainting;
+	bool SplitAlongX;
+	float SplitEdge;
+	bool ClimbableSurface;
+	Vector3 SurfaceNormal;
+	Vector3 LadderAnchor;
+	Vector3 LadderNormal;
+	NavLadder SelectedLadder;
+	NavLadder LastSelectedLadder;
+	NavLadder MarkedLadder;
+	// CountdownTimer ShowAreaInfoTimer;
+	// NavAreaVector SelectedSet;
+	// NavAreaVector DragSelectionSet;
+	bool ContinuouslySelecting;
+	bool ContinuouslyDeselecting;
+	int DragSelectionVolumeZMax;
+	int DragSelectionVolumeZMin;
+	// NavMode CurrentMode;
+	NavDirType GenerationDir;
+	// NavLadderVector Ladders;
+	// todo finish this..
+
 	public static NavMesh? Instance;
 
 	public NavMesh() { }
@@ -74,11 +129,11 @@ public partial class NavMesh
 		throw new NotImplementedException();
 	}
 
-	NavPlace NameToPlace(char name) {
-		throw new NotImplementedException();
+	public NavPlace NameToPlace(ReadOnlySpan<char> name) {
+		return Nav.AnyPlace; // todo
 	}
 
-	NavPlace PartialNameToPlace(char name) {
+	NavPlace PartialNameToPlace(ReadOnlySpan<char> name) {
 		throw new NotImplementedException();
 	}
 
