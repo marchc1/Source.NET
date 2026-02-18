@@ -57,7 +57,7 @@ namespace Source.Common
 			if (implicitCheck != null) {
 				generator.Emit(OpCodes.Ldobj, typeof(From));
 				generator.Emit(OpCodes.Call, implicitCheck);
-				generator.Emit(OpCodes.Stobj);
+				generator.Emit(OpCodes.Stobj, typeof(To));
 				goto compile;
 			}
 
