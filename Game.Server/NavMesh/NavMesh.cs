@@ -1,0 +1,136 @@
+using Source.Common;
+
+using System.Numerics;
+
+namespace Game.Server.NavMesh;
+
+public partial class NavMesh
+{
+	NavMesh() { }
+
+	void Reset() { }
+
+	NavArea GetMarkedArea() {
+		throw new NotImplementedException();
+	}
+
+	void DestroyNavigationMesh(bool incremental) { }
+
+	void Update() { }
+
+	void FireGameEvent(IGameEvent gameEvent) { }
+
+	void AllocateGrid(float minX, float maxX, float minY, float maxY) { }
+
+	void AddNavArea(NavArea area) { }
+
+	void RemoveNavArea(NavArea area) { }
+
+	void OnServerActivate() { }
+
+	void TestAllAreasForBlockedStatus() { }
+
+	void OnRoundRestart() { }
+
+	void OnRoundRestartPreEntity() { }
+
+	void BuildTransientAreaList() { }
+
+	void GridToWorld(int gridX, int gridY, Vector3 pos) { }
+
+	NavArea GetNavArea(Vector3 pos, float beneathLimit) {
+		throw new NotImplementedException();
+	}
+
+	NavArea GetNavArea(BaseEntity pEntity, int nFlags, float flBeneathLimit) {
+		throw new NotImplementedException();
+	}
+
+	NavArea GetNearestNavArea(Vector3 pos, bool anyZ, float maxDist, bool checkLOS, bool checkGround, int team) {
+		throw new NotImplementedException();
+	}
+
+	NavArea GetNearestNavArea(BaseEntity pEntity, int nFlags, float maxDist) {
+		throw new NotImplementedException();
+	}
+
+	NavArea GetNavAreaByID(uint id) {
+		throw new NotImplementedException();
+	}
+
+	NavLadder GetLadderByID(uint id) {
+		throw new NotImplementedException();
+	}
+
+	uint GetPlace(Vector3 pos) {
+		throw new NotImplementedException();
+	}
+
+	void LoadPlaceDatabase() { }
+
+	string PlaceToName(NavPlace place) {
+		throw new NotImplementedException();
+	}
+
+	NavPlace NameToPlace(char name) {
+		throw new NotImplementedException();
+	}
+
+	NavPlace PartialNameToPlace(char name) {
+		throw new NotImplementedException();
+	}
+
+	void PrintAllPlaces() { }
+
+	bool GetGroundHeight(Vector3 pos, float height, Vector3 normal) {
+		throw new NotImplementedException();
+	}
+
+	bool GetSimpleGroundHeight(Vector3 pos, float height, Vector3 normal) {
+		throw new NotImplementedException();
+	}
+
+	void DrawDanger() { }
+
+	void DrawPlayerCounts() { }
+
+	void DrawFuncNavAvoid() { }
+
+	void DrawFuncNavPrefer() { }
+
+	void DrawFuncNavPrerequisite() { }
+
+	void IncreaseDangerNearby(int teamID, float amount, NavArea startArea, Vector3 pos, float maxRadius, float dangerLimit) { }
+
+	void CommandNavMarkWalkable() { }
+
+	void DestroyLadders() { }
+
+	void StripNavigationAreas() { }
+
+	HidingSpot CreateHidingSpot() {
+		throw new NotImplementedException();
+	}
+
+	void DestroyHidingSpots() { }
+
+	void OnAreaBlocked(NavArea area) { }
+
+	void OnAreaUnblocked(NavArea area) { }
+
+	void UpdateBlockedAreas() { }
+
+	// void RegisterAvoidanceObstacle(INavAvoidanceObstacle obstruction) { }
+
+	// void UnregisterAvoidanceObstacle(INavAvoidanceObstacle obstruction) { }
+
+	void OnAvoidanceObstacleEnteredArea(NavArea area) { }
+
+	void OnAvoidanceObstacleLeftArea(NavArea area) { }
+
+	void UpdateAvoidanceObstacleAreas() { }
+
+	void BeginVisibilityComputations() { }
+
+	void EndVisibilityComputations() { }
+}
