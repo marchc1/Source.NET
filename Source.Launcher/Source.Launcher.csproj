@@ -15,6 +15,7 @@
 		<ProjectReference Include="..\Game.Client\Game.Client.csproj" />
 		<ProjectReference Include="..\Game.Server\Game.Server.csproj" />
 		<ProjectReference Include="..\Game.UI\Game.UI.csproj" />
+		<ProjectReference Include="..\Game.Assets\Game.Assets.csproj" />
 		<ProjectReference Include="..\Source.AudioSystem\Source.AudioSystem.csproj" />
 		<ProjectReference Include="..\Source.DataCache\Source.DataCache.csproj" />
 		<ProjectReference Include="..\Source.Engine\Source.Engine.csproj" />
@@ -33,7 +34,7 @@
 	<!-- Copy Game.Assets -->
 	<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
 		<ItemGroup>
-			<GameAssets Include="$(MSBuildThisFileDirectory)..\Game.Assets\**\*" />
+			<GameAssets Include="$(MSBuildThisFileDirectory)..\Game.Assets\**\*" Exclude="$(MSBuildThisFileDirectory)..\Game.Assets\**\*.cs;$(MSBuildThisFileDirectory)..\Game.Assets\**\*.csproj;$(MSBuildThisFileDirectory)..\Game.Assets\obj\**;$(MSBuildThisFileDirectory)..\Game.Assets\bin\**" />
 		</ItemGroup>
 	
 		<Copy SourceFiles="@(GameAssets)" DestinationFolder="$(OutDir)%(RecursiveDir)" SkipUnchangedFiles="true" UseSymboliclinksIfPossible="true" UseHardlinksIfPossible="true" />
