@@ -12,13 +12,11 @@ global using BasePlayer = Game.Server.BasePlayer;
 
 #endif
 using Source.Common.Mathematics;
-using Source;
 using Game.Shared;
 using System.Numerics;
 
 #if CLIENT_DLL
 namespace Game.Client;
-
 
 #else
 namespace Game.Server;
@@ -26,6 +24,8 @@ namespace Game.Server;
 
 using Source.Common.Commands;
 using Source.Common.Physics;
+using Source;
+using Source.Common;
 
 using System.Runtime.CompilerServices;
 

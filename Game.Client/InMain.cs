@@ -2,6 +2,7 @@ using Game.Client.HUD;
 using Game.Shared;
 
 using Source;
+using Source.Common;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Commands;
