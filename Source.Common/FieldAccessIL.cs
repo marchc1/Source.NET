@@ -43,6 +43,9 @@ namespace Source.Common
 
 
 		static ILCast() {
+			if (typeof(From) == typeof(To))
+				AssertMsg(false, "Tried to ILCast<From, To> where From == To. Re-evaluate.");
+			
 			DynamicMethod method = new DynamicMethod($"ILCast<{typeof(From)}, {typeof(To)}", typeof(void), [typeof(From).MakeByRefType(), typeof(To).MakeByRefType()]);
 			ILGenerator generator = method.GetILGenerator();
 
@@ -68,7 +71,7 @@ namespace Source.Common
 					generator.Emit(OpCodes.Stobj, to);
 					goto compile;
 				}
-				else{
+				else {
 					throw new NotImplementedException("Could not find a way to cast these two types.");
 				}
 			}
@@ -718,6 +721,11 @@ namespace Source.Common
 				TypeCode.Boolean or TypeCode.Byte or TypeCode.UInt16 or TypeCode.UInt32 or TypeCode.UInt64 => true,
 				_ => false
 			};
+
+			if (from == to) 
+				return true;
+			
+
 			if (!from.IsPrimitive || !to.IsPrimitive)
 				return false;
 

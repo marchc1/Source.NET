@@ -173,13 +173,20 @@ namespace Source
 		public DataFrameContainer(int count = 1) => v = new T?[count];
 		public DataFrameContainer(T? val, int count = 1) : this(count) => v[0] = val;
 
-		public virtual TC? Get<TC>(int offset = 0){
-			ILAssembler.DynamicCast(in v[offset]!, out TC ret);
-			return ret;
+		public virtual TC? Get<TC>(int offset = 0) {
+			if (typeof(TC) == typeof(T))
+				return (TC?)(object?)v[offset];
+			else {
+				ILAssembler.DynamicCast(in v[offset]!, out TC ret);
+				return ret;
+			}
 		}
 
 		public virtual void Set<TC>(in TC? val, int offset = 0) {
-			ILAssembler.DynamicCast(in val, out v[offset]!);
+			if (typeof(TC) == typeof(T))
+				v[offset] = (T?)(object?)val;
+			else
+				ILAssembler.DynamicCast(in val, out v[offset]!);
 		}
 	}
 
