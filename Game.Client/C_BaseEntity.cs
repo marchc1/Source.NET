@@ -934,7 +934,7 @@ public partial class C_BaseEntity : IClientEntity
 			SetModelByIndex(GetModelIndex());
 	}
 
-	private void CheckInitPredictable(ReadOnlySpan<char> context) {
+	public void CheckInitPredictable(ReadOnlySpan<char> context) {
 		if (cl_predict.GetInt() == 0)
 			return;
 
@@ -1107,7 +1107,41 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public virtual bool PostNetworkDataReceived(int commandsAcknowledged) {
-		return false; // todo
+		bool haderrors = false;
+
+		Assert(GetPredictable());
+
+		bool errorcheck = (commandsAcknowledged > 0) ? true : false;
+
+		// Store network data into post networking pristine state slot (slot 64) 
+		SaveData("PostNetworkDataReceived", SLOT_ORIGINALDATA, PredictionCopyType.Everything);
+
+		// Show any networked fields that are different
+		bool showthis = cl_showerror.GetInt() >= 2;
+
+		if (cl_showerror.GetInt() < 0) 
+			showthis = EntIndex() == -cl_showerror.GetInt();
+
+		if (errorcheck) {
+			DataFrame? predictedStateData = GetPredictedFrame(commandsAcknowledged - 1);
+			Assert(predictedStateData != null);
+			DataFrame? originalStateData = GetOriginalNetworkDataObject();
+			Assert(originalStateData != null);
+
+			bool counterrors = true;
+			bool reporterrors = showthis;
+			bool copydata = false;
+
+			PredictionCopy errorCheckHelper = new(PredictionCopyType.NetworkedOnly, predictedStateData, originalStateData, counterrors, reporterrors, copydata);
+			// Suppress debugging output
+			int ecount = errorCheckHelper.TransferData("", -1, GetPredDescMap());
+			if (ecount > 0) {
+				haderrors = true;
+				//	Msg( "%i errors %i on entity %i %s\n", gpGlobals->tickcount, ecount, index, IsClientCreated() ? "true" : "false" );
+			}
+		}
+
+		return haderrors;
 	}
 
 	public void InitPredictable() {

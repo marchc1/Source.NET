@@ -160,7 +160,12 @@ namespace Source
 		}
 	}
 
-	public interface IDataFrameContainer;
+	public interface IDataFrameContainer
+	{
+		public T? Get<T>(int offset = 0);
+		public void Set<T>(in T? v, int offset = 0);
+	}
+
 	public interface IDataFrameContainer<T>
 	{
 		public T? Get(int offset = 0);
@@ -176,6 +181,9 @@ namespace Source
 
 		public virtual T? Get(int offset = 0) => v[offset];
 		public virtual void Set(in T? val, int offset = 0) => v[offset] = val;
+
+		public virtual TC? Get<TC>(int offset = 0) => (TC?)(object?)v[offset];
+		public virtual void Set<TC>(in TC? val, int offset = 0) => v[offset] = (T?)(object?)val;
 	}
 
 	/// <summary>
@@ -186,8 +194,8 @@ namespace Source
 		readonly IDataFrameContainer[] Data;
 		readonly DataMap DataMap;
 
-		public T? Get<T>(TypeDescription td, int offset = 0) => ((DataFrameContainer<T>)Data[td.PackedOffset]).Get(offset);
-		public void Set<T>(TypeDescription td, T? value, int offset = 0) => ((DataFrameContainer<T>)Data[td.PackedOffset]).Set(value, offset);
+		public T? Get<T>(TypeDescription td, int offset = 0) => (Data[td.PackedOffset]).Get<T>(offset);
+		public void Set<T>(TypeDescription td, T? value, int offset = 0) => (Data[td.PackedOffset]).Set<T>(value, offset);
 
 		public DataFrame(DataMap? map) {
 			ArgumentNullException.ThrowIfNull(map);

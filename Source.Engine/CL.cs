@@ -753,6 +753,8 @@ public class ClientDLL(IServiceProvider services, Sys Sys, EngineRecvTable RecvT
 			Sys.Error("Client.dll Init() in library client failed.");
 
 		ClientSidePrediction = services.GetRequiredService<IPrediction>();
+		ClientSidePrediction.Init();
+
 		EntityList = services.GetRequiredService<IClientEntityList>();
 		CenterPrint = services.GetRequiredService<ICenterPrint>();
 		ClientLeafSystem = services.GetRequiredService<IClientLeafSystemEngine>();
