@@ -28,8 +28,8 @@ public partial class BaseCombatCharacter : BaseFlex
 	public void SetNextAttack(TimeUnit_t wait) => NextAttack = wait;
 
 	public TimeUnit_t NextAttack;
-	public readonly Handle<BaseCombatWeapon> LastWeapon = new();
-	public readonly Handle<BaseCombatWeapon> ActiveWeapon = new();
+	public Handle<BaseCombatWeapon> LastWeapon = new();
+	public Handle<BaseCombatWeapon> ActiveWeapon = new();
 	public InlineArrayNewMaxWeapons<Handle<BaseCombatWeapon>> MyWeapons = new();
 	[NetworkArraySize(MAX_AMMO_TYPES)] public readonly NetworkArray<int> Ammo = new(MAX_AMMO_TYPES);
 	public Color BloodColor;

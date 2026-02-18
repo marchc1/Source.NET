@@ -195,7 +195,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	public static readonly new ServerClass ServerClass = new ServerClass("WeaponPhysCannon", DT_WeaponPhysCannon).WithManualClassID(StaticClassIndices.CWeaponPhysCannon);
 #endif
 	public bool Active;
-	public readonly EHANDLE AttachedObject = new();
+	public EHANDLE AttachedObject = new();
 	public Vector3 AttachedPositionObjectSpace;
 	public QAngle AttachedAnglesPlayerSpace;
 	public int EffectState;

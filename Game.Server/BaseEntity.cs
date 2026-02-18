@@ -193,10 +193,10 @@ public partial class BaseEntity : IServerEntity
 
 	public int Speed;
 
-	public readonly EHANDLE OwnerEntity = new();
-	public readonly EHANDLE EffectEntity = new();
-	public readonly EHANDLE MoveParent = new();
-	public readonly EHANDLE GroundEntity = new();
+	public EHANDLE OwnerEntity = new();
+	public EHANDLE EffectEntity = new();
+	public EHANDLE MoveParent = new();
+	public EHANDLE GroundEntity = new();
 
 	public int LifeState;
 	public Vector3 BaseVelocity;
@@ -298,7 +298,7 @@ public partial class BaseEntity : IServerEntity
 
 
 	public bool GetCheckUntouch() => IsEFlagSet(EFL.CheckUntouch);
-	public readonly Handle<BasePlayer> PlayerSimulationOwner = new();
+	public Handle<BasePlayer> PlayerSimulationOwner = new();
 
 	void PhysicsStep() { }
 	void PhysicsPusher() { }

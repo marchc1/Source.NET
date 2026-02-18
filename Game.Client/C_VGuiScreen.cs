@@ -23,5 +23,5 @@ public class C_VGuiScreen : C_BaseEntity
 	public int PanelName;
 	public int ScreenFlags;
 	public int OverlayMaterial;
-	public readonly EHANDLE HPlayerOwner = new();
+	public EHANDLE HPlayerOwner = new();
 }

@@ -1,9 +1,12 @@
 ﻿namespace Source.Common;
 
-public struct BaseHandle : IEquatable<BaseHandle>
+public struct BaseHandle : IEquatable<BaseHandle>, IBaseHandle
 {
-	public bool Equals(BaseHandle otherHandle) => otherHandle != null && Index == otherHandle.Index;
+	public bool Equals(BaseHandle otherHandle) => Index == otherHandle.Index;
 	public uint Index;
+
+	public uint Unpack() => Index;
+
 
 	public void Invalidate() => Index = (uint)Constants.INVALID_EHANDLE_INDEX;
 	public BaseHandle() => Invalidate();

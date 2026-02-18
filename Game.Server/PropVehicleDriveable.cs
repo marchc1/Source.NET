@@ -27,7 +27,7 @@ public class PropVehicleDriveable : BaseAnimating
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("PropVehicleDriveable", DT_PropVehicleDriveable).WithManualClassID(StaticClassIndices.CPropVehicleDriveable);
 
-	public readonly EHANDLE Player = new();
+	public EHANDLE Player = new();
 	public int RPM;
 	public float Throttle;
 	public int BoostTimeLeft;

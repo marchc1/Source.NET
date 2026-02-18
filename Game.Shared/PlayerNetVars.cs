@@ -36,7 +36,7 @@ public struct FogParams()
 
 public struct FogPlayerParams()
 {
-	public readonly Handle<SharedBaseEntity> Ctrl = new();
+	public Handle<SharedBaseEntity> Ctrl = new();
 	public float TransitionTime;
 
 	public Color OldColor;

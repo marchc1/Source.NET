@@ -62,7 +62,7 @@ public class PredictionContext : IPoolableObject
 	public int CreationCommandNumber;
 	public string? CreationModule;
 	public int CreationLineNumber;
-	public readonly Handle<C_BaseEntity> ServerEntity = new();
+	public Handle<C_BaseEntity> ServerEntity = new();
 }
 
 
@@ -677,11 +677,11 @@ public partial class C_BaseEntity : IClientEntity
 	public int Speed;
 	public int TeamNum;
 
-	public readonly EHANDLE OwnerEntity = new();
-	public readonly EHANDLE EffectEntity = new();
-	public readonly EHANDLE GroundEntity = new();
-	public readonly EHANDLE NetworkMoveParent = new();
-	public readonly EHANDLE OldMoveParent = new();
+	public EHANDLE OwnerEntity = new();
+	public EHANDLE EffectEntity = new();
+	public EHANDLE GroundEntity = new();
+	public EHANDLE NetworkMoveParent = new();
+	public EHANDLE OldMoveParent = new();
 	public int LifeState;
 	public Vector3 BaseVelocity;
 	public int NextThinkTick;
@@ -708,7 +708,7 @@ public partial class C_BaseEntity : IClientEntity
 	public readonly InterpolatedVar<QAngle> IV_Rotation = new("Rotation");
 
 
-	public readonly Handle<C_BasePlayer> PlayerSimulationOwner = new();
+	public Handle<C_BasePlayer> PlayerSimulationOwner = new();
 	public readonly ReusableBox<ulong> DataChangeEventRef = new();
 
 	public static C_BaseEntity? Instance(BaseHandle handle) => cl_entitylist.GetBaseEntityFromHandle(handle);
@@ -869,10 +869,10 @@ public partial class C_BaseEntity : IClientEntity
 		// SetGroundEntity(NULL);
 	}
 
-	public readonly EHANDLE MoveParent = new();
-	public readonly EHANDLE MoveChild = new();
-	public readonly EHANDLE MovePeer = new();
-	public readonly EHANDLE MovePrevPeer = new();
+	public EHANDLE MoveParent = new();
+	public EHANDLE MoveChild = new();
+	public EHANDLE MovePeer = new();
+	public EHANDLE MovePrevPeer = new();
 
 	public void UnlinkFromHierarchy() {
 		// todo

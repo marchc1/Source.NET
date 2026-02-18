@@ -61,8 +61,8 @@ public partial class
 	public static readonly new DataMap PredMap = new([], "WeaponPhysGun", BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #endif
 
-	public readonly EHANDLE PhysBeam = new();
+	public EHANDLE PhysBeam = new();
 	public Vector3 HitPosLocal;
-	public readonly EHANDLE GrabbedEntity = new();
+	public EHANDLE GrabbedEntity = new();
 }
 #endif

@@ -101,6 +101,6 @@ public class C_HL2MPRagdoll : C_BaseAnimatingOverlay
 	public static readonly new ClientClass ClientClass = new ClientClass("HL2MPRagdoll", null, null, DT_HL2MPRagdoll).WithManualClassID(StaticClassIndices.CHL2MPRagdoll);
 
 	public Vector3 RagdollOrigin;
-	public readonly EHANDLE Player = new();
+	public EHANDLE Player = new();
 	public Vector3 RagdollVelocity;
 }

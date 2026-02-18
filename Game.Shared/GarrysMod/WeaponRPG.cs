@@ -39,7 +39,7 @@ public class WeaponRPG : BaseHL2MPCombatWeapon
 	public bool InitialStateUpdate;
 	public bool Guiding;
 	public bool HideGuiding;
-	public readonly EHANDLE Missile = new();
+	public EHANDLE Missile = new();
 	public Vector3 LaserDot;
 }
 

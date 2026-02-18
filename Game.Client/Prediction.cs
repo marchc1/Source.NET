@@ -218,7 +218,7 @@ public class Prediction : IPrediction
 				if (showlist != 0) {
 					Span<char> sz = stackalloc char[32];
 					if (ent.EntIndex() == -1) {
-						sprintf(sz, $"handle {(uint)(ent.GetClientHandle()?.Index ?? 0)}");
+						sprintf(sz, $"handle {(uint)(ent.GetClientHandle().Index)}");
 					}
 					else {
 						sprintf(sz, $"{ent.EntIndex()}");
@@ -424,7 +424,7 @@ public class Prediction : IPrediction
 			vehicle.FinishMove(player, ref ucmd, move);
 	}
 
-	protected readonly EHANDLE LastGround = new();
+	protected EHANDLE LastGround = new();
 
 	private void SetupMove(BasePlayer player, UserCmd ucmd, IMoveHelper helper, MoveData move) {
 		move.FirstRunOfFunctions = IsFirstTimePredicted();

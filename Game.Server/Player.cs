@@ -99,13 +99,13 @@ public partial class BasePlayer : BaseCombatCharacter
 	bool DeadFlag;
 	public readonly PlayerState pl = new();
 	public readonly PlayerLocalData Local = new();
-	public readonly EHANDLE Vehicle = new();
-	public readonly EHANDLE UseEntity = new();
-	public readonly EHANDLE ObserverTarget = new();
-	public readonly EHANDLE ZoomOwner = new();
-	public readonly EHANDLE ConstraintEntity = new();
-	public readonly EHANDLE TonemapController = new();
-	public readonly EHANDLE ViewEntity = new();
+	public EHANDLE Vehicle = new();
+	public EHANDLE UseEntity = new();
+	public EHANDLE ObserverTarget = new();
+	public EHANDLE ZoomOwner = new();
+	public EHANDLE ConstraintEntity = new();
+	public EHANDLE TonemapController = new();
+	public EHANDLE ViewEntity = new();
 	InlineArrayNewMaxViewmodels<Handle<BaseViewModel>> ViewModel = new();
 	readonly List<Handle<SharedBaseEntity>> SimulatedByThisPlayer = [];
 
@@ -128,7 +128,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	float ConstraintWidth;
 	float ConstraintSpeedFactor;
 	InlineArray18<char> LastPlaceName;
-	readonly EHANDLE ColorCorrectionCtrl = new();
+	EHANDLE ColorCorrectionCtrl = new();
 	bool UseWeaponsInVehicle;
 	public bool OnTarget;
 	public double DeathTime;

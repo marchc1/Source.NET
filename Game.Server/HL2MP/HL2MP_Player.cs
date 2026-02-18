@@ -58,7 +58,7 @@ public class HL2MP_Player : HL2_Player
 															.WithManualClassID(StaticClassIndices.CHL2MP_Player);
 
 	public QAngle AngEyeAngles;
-	public readonly EHANDLE Ragdoll = new();
+	public EHANDLE Ragdoll = new();
 	public int SpawnInterpCounter;
 	public int PlayerSoundType;
 	public bool IsWalking;
@@ -76,6 +76,6 @@ public class HL2MPRagdoll : BaseAnimatingOverlay {
 	public static readonly new ServerClass ServerClass = new ServerClass("HL2MPRagdoll", DT_HL2MPRagdoll).WithManualClassID(StaticClassIndices.CHL2MPRagdoll);
 
 	public Vector3 RagdollOrigin;
-	public readonly EHANDLE Player = new();
+	public EHANDLE Player = new();
 	public Vector3 RagdollVelocity;
 }

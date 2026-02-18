@@ -42,9 +42,9 @@ public class C_GMOD_Player() : C_HL2MP_Player()
 															.WithManualClassID(StaticClassIndices.CGMOD_Player);
 
 	public int GModPlayerFlags;
-	public readonly EHANDLE HoveredWidget = new();
-	public readonly EHANDLE PressedWidget = new();
-	public readonly EHANDLE Driving = new();
+	public EHANDLE HoveredWidget = new();
+	public EHANDLE PressedWidget = new();
+	public EHANDLE Driving = new();
 	public int DrivingMode;
 	public int PlayerClass;
 	public bool CanZoom;
@@ -56,7 +56,7 @@ public class C_GMOD_Player() : C_HL2MP_Player()
 	public float GestureEndTime;
 	public Vector3 PlayerColor;
 	public Vector3 WeaponColor;
-	public readonly EHANDLE Hands = new();
+	public EHANDLE Hands = new();
 	public int MaxArmor;
 	public float Gravity;
 	public bool SprintEnabled;
