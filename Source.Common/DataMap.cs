@@ -160,22 +160,34 @@ namespace Source
 		}
 	}
 
-	public interface IDataFrameContainer;
-	public interface IDataFrameContainer<T>
+	public interface IDataFrameContainer
 	{
-		public T? Get(int offset = 0);
-		public void Set(in T? v, int offset = 0);
+		public T? Get<T>(int offset = 0);
+		public void Set<T>(in T? v, int offset = 0);
 	}
 
-	public class DataFrameContainer<T> : IDataFrameContainer, IDataFrameContainer<T>
+	public class DataFrameContainer<T> : IDataFrameContainer
 	{
 		public readonly T?[] v;
-
+		readonly object?[] tempHandleArgsHack = [0u];
 		public DataFrameContainer(int count = 1) => v = new T?[count];
 		public DataFrameContainer(T? val, int count = 1) : this(count) => v[0] = val;
 
-		public virtual T? Get(int offset = 0) => v[offset];
-		public virtual void Set(in T? val, int offset = 0) => v[offset] = val;
+		public virtual TC? Get<TC>(int offset = 0) {
+			if (typeof(TC) == typeof(T))
+				return (TC?)(object?)v[offset];
+			else {
+				ILAssembler.DynamicCast(in v[offset]!, out TC ret);
+				return ret;
+			}
+		}
+
+		public virtual void Set<TC>(in TC? val, int offset = 0) {
+			if (typeof(TC) == typeof(T))
+				v[offset] = (T?)(object?)val;
+			else
+				ILAssembler.DynamicCast(in val, out v[offset]!);
+		}
 	}
 
 	/// <summary>
@@ -186,8 +198,8 @@ namespace Source
 		readonly IDataFrameContainer[] Data;
 		readonly DataMap DataMap;
 
-		public T? Get<T>(TypeDescription td, int offset = 0) => ((DataFrameContainer<T>)Data[td.PackedOffset]).Get(offset);
-		public void Set<T>(TypeDescription td, T? value, int offset = 0) => ((DataFrameContainer<T>)Data[td.PackedOffset]).Set(value, offset);
+		public T? Get<T>(TypeDescription td, int offset = 0) => (Data[td.PackedOffset]).Get<T>(offset);
+		public void Set<T>(TypeDescription td, T? value, int offset = 0) => (Data[td.PackedOffset]).Set<T>(value, offset);
 
 		public DataFrame(DataMap? map) {
 			ArgumentNullException.ThrowIfNull(map);
@@ -216,7 +228,7 @@ namespace Source
 					case FieldType.Vector: framecontainer = new DataFrameContainer<Vector3>(); break;
 					case FieldType.Quaternion: framecontainer = new DataFrameContainer<Quaternion>(); break;
 					case FieldType.Integer: framecontainer = new DataFrameContainer<int>(); break;
-					case FieldType.EHandle: framecontainer = new DataFrameContainer<BaseHandle>(new BaseHandle()); break;
+					case FieldType.EHandle: framecontainer = new DataFrameContainer<BaseHandle>(); break;
 					case FieldType.Short: framecontainer = new DataFrameContainer<short>(); break;
 					case FieldType.String: framecontainer = new DataFrameContainer<char[]>(); break;
 					case FieldType.Color32: framecontainer = new DataFrameContainer<Color>(); break;

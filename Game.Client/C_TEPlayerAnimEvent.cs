@@ -14,7 +14,7 @@ public class C_TEPlayerAnimEvent : C_BaseTempEntity
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("TEPlayerAnimEvent", DT_TEPlayerAnimEvent).WithManualClassID(StaticClassIndices.CTEPlayerAnimEvent);
 
-	public readonly EHANDLE Player = new();
+	public EHANDLE Player = new();
 	public readonly int Event;
 	public readonly int Data;
 }

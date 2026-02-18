@@ -56,6 +56,8 @@ public static class RecvPropHelpers
 
 			ehandle.Init(entity, serialNum);
 		}
+
+		field.SetValue(instance, ehandle);
 	}
 	public static RecvProp RecvPropEHandle(IFieldAccessor field, RecvVarProxyFn? proxyFn = null) {
 		proxyFn ??= RecvProxy_IntToEHandle;

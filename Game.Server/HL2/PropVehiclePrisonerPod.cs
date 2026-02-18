@@ -18,7 +18,7 @@ public class PropVehiclePrisonerPod : PhysicsProp
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("PropVehiclePrisonerPod", DT_PropVehiclePrisonerPod).WithManualClassID(StaticClassIndices.CPropVehiclePrisonerPod);
 
-	public readonly EHANDLE Player = new();
+	public EHANDLE Player = new();
 	public bool EnterAnimOn = new();
 	public bool ExitAnimOn = new();
 	public Vector3 EyeExitEndpoint = new();

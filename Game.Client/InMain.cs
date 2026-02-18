@@ -2,6 +2,7 @@ using Game.Client.HUD;
 using Game.Shared;
 
 using Source;
+using Source.Common;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Commands;
@@ -84,7 +85,7 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 	KeyButtonState in_break;
 	KeyButtonState in_zoom;
 	KeyButtonState in_attack3;
-	readonly Handle<BaseCombatWeapon> SelectedWeapon = new();
+	Handle<BaseCombatWeapon> SelectedWeapon = new();
 
 	void KeyDown(ref KeyButtonState button, ReadOnlySpan<char> code) {
 		int k = int.TryParse(code, out k) ? k : -1;

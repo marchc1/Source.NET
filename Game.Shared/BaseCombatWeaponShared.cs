@@ -143,7 +143,7 @@ public partial class
 	public TimeUnit_t TimeWeaponIdle;
 
 	public int State;
-	public readonly EHANDLE Owner = new();
+	public EHANDLE Owner = new();
 
 	Activity Activity;
 	int IdealSequence;

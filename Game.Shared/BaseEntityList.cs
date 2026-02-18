@@ -52,7 +52,7 @@ public class BaseEntityList
 	}
 
 
-	public IHandleEntity? LookupEntity(BaseHandle handle) {
+	public IHandleEntity? LookupEntity(in BaseHandle handle) {
 		if (handle.Index == Constants.INVALID_EHANDLE_INDEX)
 			return null;
 

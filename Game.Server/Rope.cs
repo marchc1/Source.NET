@@ -38,8 +38,8 @@ public class RopeKeyframe : BaseEntity
 		SendPropInt(FIELD.OF(nameof(ParentAttachment)), 8, PropFlags.Unsigned),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("RopeKeyframe", DT_RopeKeyframe).WithManualClassID(StaticClassIndices.CRopeKeyframe);
-	public readonly EHANDLE StartPoint = new();
-	public readonly EHANDLE EndPoint = new();
+	public EHANDLE StartPoint = new();
+	public EHANDLE EndPoint = new();
 	public int StartAttachment;
 	public int EndAttachment;
 	public int StartBone;

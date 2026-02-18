@@ -17,7 +17,7 @@ public class MoveData
 	public bool FirstRunOfFunctions;
 	public bool GameCodeMovedPlayer;
 
-	public readonly EntityHandle_t PlayerHandle = new(); // edict index on server, client entity handle on client
+	public EntityHandle_t PlayerHandle = new(); // edict index on server, client entity handle on client
 
 	public int ImpulseCommand;  // Impulse command issued.
 	public QAngle ViewAngles; // Command view angles (local space)

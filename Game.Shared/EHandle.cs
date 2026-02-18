@@ -1,4 +1,5 @@
-﻿using Source.Common;
+﻿using Source;
+using Source.Common;
 
 using System.Runtime.CompilerServices;
 
@@ -24,5 +25,3 @@ public static class HandleExts {
 		handle.Index = entity.Index;
 	}
 }
-
-public class Handle<T> : BaseHandle;

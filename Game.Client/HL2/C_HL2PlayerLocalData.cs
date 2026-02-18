@@ -32,11 +32,11 @@ public class C_HL2PlayerLocalData {
 	public int SquadMedicCount;
 	public bool SquadInFollowMode;
 	public bool WeaponLowered;
-	public readonly EHANDLE AutoAimTargetHandle = new();
+	public EHANDLE AutoAimTargetHandle = new();
 	public Vector3 AutoAimPoint;
 	public bool DisplayReticle;
 	public bool StickyAutoAim;
 	public bool AutoAimTarget;
-	public readonly EHANDLE Ladder = new();
+	public EHANDLE Ladder = new();
 	public LadderMove LadderMove = new();
 }

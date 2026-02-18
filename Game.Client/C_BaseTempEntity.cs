@@ -4,6 +4,7 @@ using Source.Common.Bitbuffers;
 using Source.Common.Engine;
 
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace Game.Client;
 
@@ -55,10 +56,10 @@ public class C_BaseTempEntity : IClientUnknown, IClientNetworkable
 	public IClientEntity GetIClientEntity() => null!;
 	public IClientUnknown GetIClientUnknown() => this;
 
-	public BaseHandle? GetRefEHandle() {
+	public ref readonly BaseHandle GetRefEHandle() {
 		Debugger.Break();
 		Environment.Exit(0);
-		return null;
+		return ref Unsafe.NullRef<BaseHandle>();
 	}
 
 	public bool IsDormant() {
@@ -74,7 +75,7 @@ public class C_BaseTempEntity : IClientUnknown, IClientNetworkable
 		throw new NotImplementedException();
 	}
 
-	public void SetRefEHandle(BaseHandle handle) {
+	public void SetRefEHandle(in BaseHandle handle) {
 		throw new NotImplementedException();
 	}
 

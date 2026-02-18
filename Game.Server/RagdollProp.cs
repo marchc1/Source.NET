@@ -21,7 +21,7 @@ public class RagdollProp : BaseAnimating
 
 	public InlineArray32<Vector3> RagPos;
 	public InlineArray32<Vector3> RagAngles;
-	public readonly EHANDLE HUnragdoll = new();
+	public EHANDLE HUnragdoll = new();
 	public float BlendWeight;
 	public int OverlaySequence;
 }
