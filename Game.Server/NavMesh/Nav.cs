@@ -22,7 +22,10 @@ public static class Nav
 	const float HumanEyeHeight = 62.0f;
 	const float HumanCrouchHeight = 55.0f;
 	const float HumanCrouchEyeHeight = 37.0f;
-	const uint NavMagicNumber = 0xFEEDFACE;       // to help identify nav files
+	public const uint NavMagicNumber = 0xFEEDFACE;       // to help identify nav files
+
+	public const uint UndefinedPlace = 0;
+	const uint AnyPlace = 0xFFFF;
 
 	public static NavDirType OppositeDirection(NavDirType dir) => dir switch {
 		NavDirType.North => NavDirType.South,

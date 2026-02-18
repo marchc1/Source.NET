@@ -6,7 +6,9 @@ namespace Game.Server.NavMesh;
 
 public partial class NavMesh
 {
-	NavMesh() { }
+	public static NavMesh? Instance;
+
+	public NavMesh() { }
 
 	void Reset() { }
 

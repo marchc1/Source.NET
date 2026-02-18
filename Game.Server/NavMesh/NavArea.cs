@@ -53,7 +53,7 @@ public partial class NavArea
 	const int MAX_NAV_TEAMS = 2;
 
 	static bool IsReset;
-	static uint NextKD;
+	public static uint NextID;
 	uint ID;
 	uint DebugID;
 	NavPlace Place;
@@ -139,9 +139,9 @@ public partial class NavArea
 		throw new NotImplementedException();
 	}
 
-	// bool IsConnected(NavLadder ladder, NavLadder.LadderDirectionType dir) {
-	// 	throw new NotImplementedException();
-	// }
+	bool IsConnected(NavLadder ladder, NavLadder.LadderDirectionType dir) {
+		throw new NotImplementedException();
+	}
 
 	bool IsConnected(NavArea area, NavDirType dir) {
 		throw new NotImplementedException();
