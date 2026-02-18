@@ -45,12 +45,13 @@ public static class SendProxy
 		outData.Int = field.GetValue<short>(instance) + 1;
 	}
 	public static void SendProxy_EHandleToInt(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
-		BaseHandle? handle = field.GetValue<BaseHandle?>(instance);
-		if (handle != null && handle.Get() != null) {
+		BaseHandle handle = field.GetValue<BaseHandle>(instance);
+		if (handle.Get() != null) {
 			int iSerialNum = handle.GetSerialNumber() & ((1 << Constants.NUM_NETWORKED_EHANDLE_SERIAL_NUMBER_BITS) - 1);
 			outData.Int = handle.GetEntryIndex() | (iSerialNum << Constants.MAX_EDICT_BITS);
 		}
 		else
 			outData.Int = Constants.INVALID_NETWORKED_EHANDLE_VALUE;
+		field.SetValue<BaseHandle>(instance, handle);
 	}
 }

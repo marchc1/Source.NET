@@ -32,7 +32,7 @@ public class EffectData
 	public QAngle Angles;
 	public int Flags;
 #if CLIENT_DLL
-	public readonly BaseHandle Entity = new();
+	public BaseHandle Entity = new();
 #else
 #endif
 	public int EntIndex;

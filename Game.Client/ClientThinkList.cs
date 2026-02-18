@@ -45,7 +45,7 @@ public class CClientThinkList : IGameSystemPerFrame
 	// These are poolable objects for memory efficiency rather than a linked list esque system
 	class ThinkEntry : IPoolableObject
 	{
-		public readonly ClientEntityHandle Ent = new();
+		public ClientEntityHandle Ent = new();
 		public TimeUnit_t NextClientThink;
 		public TimeUnit_t LastClientThink;
 		public int IterEnum;
@@ -61,7 +61,7 @@ public class CClientThinkList : IGameSystemPerFrame
 
 	class ThinkListChanges : IPoolableObject
 	{
-		public readonly ClientEntityHandle Ent = new();
+		public ClientEntityHandle Ent = new();
 		public ClientThinkHandle_t Think;
 		public TimeUnit_t NextTime;
 
@@ -280,7 +280,7 @@ public class CClientThinkList : IGameSystemPerFrame
 	private void CleanUpDeleteList() {
 		int nThinkCount = DeleteList.Count;
 		for (int iThink = 0; iThink < nThinkCount; ++iThink) {
-			ClientEntityHandle? handle = DeleteList[iThink];
+			ClientEntityHandle handle = DeleteList[iThink];
 			if (handle != cl_entitylist.InvalidHandle()) {
 				C_BaseEntity? pEntity = cl_entitylist.GetBaseEntityFromHandle(handle);
 				if (pEntity != null)
@@ -321,7 +321,7 @@ public class CClientThinkList : IGameSystemPerFrame
 	}
 
 	private readonly PooledValueDictionary<ThinkEntry> ThinkEntries = new();
-	private readonly List<ClientEntityHandle?> DeleteList = new();
+	private readonly List<ClientEntityHandle> DeleteList = new();
 	private readonly PooledValueList<ThinkListChanges> ChangeList = new();
 
 	private int IterEnum;

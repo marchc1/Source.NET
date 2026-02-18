@@ -12,7 +12,7 @@ public interface IStaticPropMgr
 	void TraceRayAgainstStaticProp(Ray ray, int staticPropIndex, Trace tr);
 
 	bool IsStaticProp(IHandleEntity handleEntity);
-	bool IsStaticProp(BaseHandle handle);
+	bool IsStaticProp(in BaseHandle handle);
 	ICollideable GetStaticPropByIndex(int propIndex);
 }
 

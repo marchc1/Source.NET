@@ -1,6 +1,6 @@
 ﻿namespace Source.Common;
 
 public interface IHandleEntity {
-	void SetRefEHandle(BaseHandle handle);
-	BaseHandle? GetRefEHandle();
+	void SetRefEHandle(in BaseHandle handle);
+	ref readonly BaseHandle GetRefEHandle();
 }

@@ -85,8 +85,8 @@ public class PredictableList : IPredictableList
 		return Predictables.Count;
 	}
 
-	public void AddToPredictableList(ClientEntityHandle? add) {
-		Assert(add != null);
+	public void AddToPredictableList(in ClientEntityHandle add) {
+		Assert(!Unsafe.IsNullRef(in add));
 
 		if (Predictables.Contains(add))
 			return;
@@ -124,8 +124,8 @@ public class PredictableList : IPredictableList
 		}
 	}
 
-	internal void RemoveFromPredictablesList(ClientEntityHandle remove) {
-		Assert(remove != null);
+	internal void RemoveFromPredictablesList(in ClientEntityHandle remove) {
+		Assert(!Unsafe.IsNullRef(in remove));
 
 		Predictables.Remove(remove);
 	}
@@ -1279,7 +1279,7 @@ public partial class C_BaseEntity : IClientEntity
 		UpdateVisibility();
 	}
 
-	public BaseHandle? GetClientHandle() => RefEHandle;
+	public ref readonly BaseHandle GetClientHandle() => ref RefEHandle;
 
 	public bool InitializeAsClientEntity(ReadOnlySpan<char> modelName, RenderGroup renderGroup) {
 		int modelIndex;
@@ -1760,10 +1760,10 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public virtual ICollideable GetCollideable() => throw new NotImplementedException();
-	public virtual BaseHandle GetRefEHandle() {
-		return RefEHandle;
+	public virtual ref readonly BaseHandle GetRefEHandle() {
+		return ref RefEHandle;
 	}
-	public virtual void SetRefEHandle(BaseHandle handle) {
+	public virtual void SetRefEHandle(in BaseHandle handle) {
 		RefEHandle.Index = handle.Index;
 	}
 
@@ -1790,7 +1790,7 @@ public partial class C_BaseEntity : IClientEntity
 		return this;
 	}
 
-	public readonly BaseHandle RefEHandle = new();
+	public BaseHandle RefEHandle = new();
 
 	static double AdjustInterpolationAmount(C_BaseEntity entity, double baseInterpolation) {
 		// We don't have cl_interp_npcs yet so this isn't needed
