@@ -68,8 +68,9 @@ namespace Source.Common
 					generator.Emit(OpCodes.Stobj, to);
 					goto compile;
 				}
-				else
-					throw new Exception();
+				else{
+					throw new NotImplementedException("Could not find a way to cast these two types.");
+				}
 			}
 
 
@@ -729,6 +730,7 @@ namespace Source.Common
 				default:
 					opcode = code switch {
 						TypeCode.SByte => OpCodes.Conv_I1,
+						TypeCode.Boolean => OpCodes.Conv_U1,
 						TypeCode.Byte => OpCodes.Conv_U1,
 						TypeCode.Int16 => OpCodes.Conv_I2,
 						TypeCode.UInt16 => OpCodes.Conv_U2,

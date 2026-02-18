@@ -166,24 +166,21 @@ namespace Source
 		public void Set<T>(in T? v, int offset = 0);
 	}
 
-	public interface IDataFrameContainer<T>
-	{
-		public T? Get(int offset = 0);
-		public void Set(in T? v, int offset = 0);
-	}
-
-	public class DataFrameContainer<T> : IDataFrameContainer, IDataFrameContainer<T>
+	public class DataFrameContainer<T> : IDataFrameContainer
 	{
 		public readonly T?[] v;
-
+		readonly object?[] tempHandleArgsHack = [0u];
 		public DataFrameContainer(int count = 1) => v = new T?[count];
 		public DataFrameContainer(T? val, int count = 1) : this(count) => v[0] = val;
 
-		public virtual T? Get(int offset = 0) => v[offset];
-		public virtual void Set(in T? val, int offset = 0) => v[offset] = val;
+		public virtual TC? Get<TC>(int offset = 0){
+			ILAssembler.DynamicCast(in v[offset]!, out TC ret);
+			return ret;
+		}
 
-		public virtual TC? Get<TC>(int offset = 0) => (TC?)(object?)v[offset];
-		public virtual void Set<TC>(in TC? val, int offset = 0) => v[offset] = (T?)(object?)val;
+		public virtual void Set<TC>(in TC? val, int offset = 0) {
+			ILAssembler.DynamicCast(in val, out v[offset]!);
+		}
 	}
 
 	/// <summary>
@@ -224,7 +221,7 @@ namespace Source
 					case FieldType.Vector: framecontainer = new DataFrameContainer<Vector3>(); break;
 					case FieldType.Quaternion: framecontainer = new DataFrameContainer<Quaternion>(); break;
 					case FieldType.Integer: framecontainer = new DataFrameContainer<int>(); break;
-					case FieldType.EHandle: framecontainer = new DataFrameContainer<BaseHandle>(new BaseHandle()); break;
+					case FieldType.EHandle: framecontainer = new DataFrameContainer<BaseHandle>(); break;
 					case FieldType.Short: framecontainer = new DataFrameContainer<short>(); break;
 					case FieldType.String: framecontainer = new DataFrameContainer<char[]>(); break;
 					case FieldType.Color32: framecontainer = new DataFrameContainer<Color>(); break;
