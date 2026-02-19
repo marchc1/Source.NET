@@ -1,4 +1,5 @@
 using Source.Common;
+using Source.Common.Formats.BSP;
 using Source.Engine;
 
 using System.Numerics;
@@ -22,6 +23,8 @@ public partial class NavMesh
 	float GridCellSize;
 	int GridSizeX;
 	int GridSizeY;
+	float MinX;
+	float MinY;
 	uint AreaCount;
 	bool IsLoaded;
 	bool IsOutOfDate;
@@ -95,7 +98,7 @@ public partial class NavMesh
 
 	void GridToWorld(int gridX, int gridY, Vector3 pos) { }
 
-	NavArea GetNavArea(Vector3 pos, float beneathLimit) {
+	public NavArea GetNavArea(Vector3 pos, float beneathLimit = 120.0f) {
 		throw new NotImplementedException();
 	}
 
@@ -165,9 +168,7 @@ public partial class NavMesh
 
 	void StripNavigationAreas() { }
 
-	HidingSpot CreateHidingSpot() {
-		throw new NotImplementedException();
-	}
+	public HidingSpot CreateHidingSpot() => new();
 
 	void DestroyHidingSpots() { }
 
@@ -190,4 +191,40 @@ public partial class NavMesh
 	void BeginVisibilityComputations() { }
 
 	void EndVisibilityComputations() { }
+
+	bool IsEditMode(EditModeType mode) => EditMode == mode;
+
+	EditModeType GetEditMode() => EditMode;
+
+	uint GetSubVersionNumber() => 0;
+
+	NavArea CreateArea() => new();
+
+	void DestroyArea(NavArea area) { }
+
+	int ComputeHashKey(uint id) => (int)(id & 0xFF);
+
+	int WorldToGridX(float wx) {
+		int x = (int)((wx - MinX) / GridCellSize);
+
+		if (x < 0)
+			x = 0;
+		else if (x >= GridSizeX)
+			x = GridSizeX - 1;
+
+		return x;
+	}
+
+	int WorldToGridY(float wy) {
+		int y = (int)((wy - MinY) / GridCellSize);
+
+		if (y < 0)
+			y = 0;
+		else if (y >= GridSizeY)
+			y = GridSizeY - 1;
+
+		return y;
+	}
+
+	static Mask GetGenerationTraceMask() => Mask.NPCSolidBrushOnly;
 }

@@ -46,6 +46,9 @@ public partial class NavMesh
 
 	void SetMarkedArea(NavArea area) { }
 
+	public uint GetNavPlace() => NavPlace;
+	public void SetNavPlace(uint place) => NavPlace = place;
+
 	void CommandNavDelete() { }
 
 	void CommandNavDeleteMarked() { }

@@ -4,7 +4,7 @@ using System.Numerics;
 
 namespace Game.Server.NavMesh;
 
-class NavLadder
+public class NavLadder
 {
 	public enum LadderDirectionType
 	{

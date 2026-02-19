@@ -1,4 +1,10 @@
 global using NavPlace = System.UInt32;
+global using HidingSpotVector = System.Collections.Generic.List<Game.Server.NavMesh.HidingSpot>;
+global using SpotEncounterVector = System.Collections.Generic.List<Game.Server.NavMesh.SpotEncounter>;
+global using SpotOrderVector = System.Collections.Generic.List<Game.Server.NavMesh.SpotOrder>;
+global using NavConnectVector = System.Collections.Generic.List<Game.Server.NavMesh.NavConnect>;
+global using NavLadderConnectVector = System.Collections.Generic.List<Game.Server.NavMesh.NavLadderConnect>;
+global using AreaBindInfoArray = System.Collections.Generic.List<Game.Server.NavMesh.NavArea.AreaBindInfo>;
 
 using Source.Common;
 using Source.Common.Mathematics;
@@ -17,7 +23,7 @@ public static class Nav
 	const float CliffHeight = 300.0f;       // height which we consider a significant cliff which we would not want to fall off of
 
 	const int HalfHumanWidth = 16;
-	const float HalfHumanHeight = 35.5f;
+	public const float HalfHumanHeight = 35.5f;
 	const float HumanHeight = 71.0f;
 	const float HumanEyeHeight = 62.0f;
 	const float HumanCrouchHeight = 55.0f;

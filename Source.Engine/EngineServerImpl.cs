@@ -248,9 +248,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public bool IsDedicatedServer() {
-		throw new NotImplementedException();
-	}
+	public bool IsDedicatedServer() => sv.IsDedicated();
 
 	public bool IsGenericPrecached(ReadOnlySpan<char> s) {
 		throw new NotImplementedException();
@@ -508,12 +506,13 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	public void TriggerMoved(Edict pTriggerEnt, bool testSurroundingBoundsOnly) {
 		throw new NotImplementedException();
 	}
-	class MsgData {
-		public MsgData(){
+	class MsgData
+	{
+		public MsgData() {
 			Reset();
 		}
 
-		public void Reset(){
+		public void Reset() {
 
 		}
 

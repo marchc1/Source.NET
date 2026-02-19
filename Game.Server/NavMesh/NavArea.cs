@@ -1,16 +1,10 @@
 namespace Game.Server.NavMesh;
 
-using HidingSpotVector = List<HidingSpot>;
-using SpotEncounterVector = List<SpotEncounter>;
-using SpotOrderVector = List<SpotOrder>;
-using NavConnectVector = List<NavConnect>;
-using NavLadderConnectVector = List<NavLadderConnect>;
-
 using System.Numerics;
 
 using Source;
 
-struct NavConnect()
+public struct NavConnect()
 {
 	public uint ID = 0;
 	public NavArea? Area;
@@ -18,39 +12,146 @@ struct NavConnect()
 	public readonly bool Equals(NavConnect other) => Area == other.Area;
 }
 
-struct NavLadderConnect()
+public struct NavLadderConnect()
 {
-	public uint IDs;
+	public uint ID;
 	public NavLadder? Ladder;
 	public readonly bool Equals(NavLadderConnect other) => Ladder == other.Ladder;
 }
 
-struct SpotOrder
+public struct SpotOrder
 {
 	public float T;
 	public HidingSpot Spot;
 	public uint ID;
 }
 
-struct SpotEncounter
+struct SpotEncounter()
 {
 	public NavConnect From;
 	public NavDirType FromDir;
 	public NavConnect To;
 	public NavDirType ToDir;
 	public Ray Path;
-	public SpotOrderVector Spots;
+	public SpotOrderVector Spots = [];
 }
 
-
-class HidingSpot
+[Flags]
+public enum HidingSpotFlags : byte
 {
+	/// <summary>in a corner with good hard cover nearby </summary>
+	InCover = 0x01,
+	/// <summary>had at least one decent sniping corridor </summary>
+	GoodSniperSpot = 0x02,
+	/// <summary>can see either very far, or a large area, or both </summary>
+	IdealSniperSpot = 0x04,
+	/// <summary>spot in the open, usually on a ledge or cliff </summary>
+	Exposed = 0x08
+};
 
+public class HidingSpot
+{
+	public static HidingSpotVector TheHidingSpots = [];
+
+	Vector3 Pos;
+	uint ID;
+	uint Marker;
+	NavArea? Area;
+	byte Flags;
+	static uint NextID = 1;
+	static uint MasterMarker = 0;
+
+	public HidingSpot() {
+		Pos = Vector3.Zero;
+		ID = NextID++;
+		Flags = 0;
+		Area = null;
+		TheHidingSpots.Add(this);
+	}
+
+	public void Save(object? fileBuffer, uint version) { }
+	public void Load(BinaryReader fileBuffer, uint version) {
+		ID = fileBuffer.ReadUInt32();
+		Pos.X = fileBuffer.ReadSingle();
+		Pos.Y = fileBuffer.ReadSingle();
+		Pos.Z = fileBuffer.ReadSingle();
+		Flags = fileBuffer.ReadByte();
+
+		if (ID >= NextID)
+			NextID = ID + 1;
+	}
+
+	NavErrorType PostLoad() {
+		Area = NavMesh.Instance!.GetNavArea(Pos with { Z = Pos.Z + Nav.HalfHumanHeight });
+
+		if (Area == null)
+			DevWarning($"A Hiding Spot is off of the Nav Mesh at setpos {Pos.X} {Pos.Y} {Pos.Z}\n");
+
+		return NavErrorType.Ok;
+	}
+
+	bool HasGoodCover() => (Flags & (byte)HidingSpotFlags.InCover) != 0;
+	bool IsGoodSniperSpot() => (Flags & (byte)HidingSpotFlags.GoodSniperSpot) != 0;
+	bool IsIdealSniperSpot() => (Flags & (byte)HidingSpotFlags.IdealSniperSpot) != 0;
+	bool IsExposed() => (Flags & (byte)HidingSpotFlags.Exposed) != 0;
+	int GetFlags() => Flags;
+	Vector3 GetPosition() => Pos;
+	uint GetID() => ID;
+	NavArea? GetArea() => Area;
+	void Mark() => Marker = MasterMarker;
+	bool IsMarked() => Marker == MasterMarker;
+	static void ChangeMasterMarker() => ++MasterMarker;
+	public void SetFlags(HidingSpotFlags flags) => Flags = (byte)flags;
+	public void SetPosition(Vector3 pos) => Pos = pos;
 }
 
-public partial class NavArea
+public class NavAreaCriticalData
 {
-	const int MAX_NAV_TEAMS = 2;
+	public const int MAX_NAV_TEAMS = 2;
+
+	public Vector3 NWCorner;
+	public Vector3 SECorner;
+	public float InvDXCorners;
+	public float InvDYCorners;
+	public float NEZ;
+	public float SWZ;
+	public Vector3 Center;
+
+	public byte[] PlayerCount = new byte[MAX_NAV_TEAMS];
+	public bool[] _IsBlocked = new bool[MAX_NAV_TEAMS];
+
+	public uint Marker;
+	public float TotalCost;
+	public float CostSoFar;
+
+	public NavArea? NextOpen, PrevOpen;
+	public uint OpenMarker;
+	public int AttributeFlags;
+
+	public readonly NavConnectVector[] Connect = new NavConnectVector[(int)NavDirType.NumDirections];
+	public readonly NavLadderConnectVector[] Ladder = new NavLadderConnectVector[(int)NavLadder.LadderDirectionType.NumLadderDirections];
+	public NavConnectVector ElevatorAreas;
+
+	public uint NearNavSearchMarker;
+
+	public NavArea? Parent;
+	public NavTraverseType ParentHow;
+
+	public float PathLengthSoFar;
+
+	// FuncElevator? Elevator;
+}
+
+public partial class NavArea : NavAreaCriticalData
+{
+	public struct AreaBindInfo
+	{
+		public NavArea? Area;
+		public uint ID;
+		public byte Attributes;
+
+		public readonly bool Equals(AreaBindInfo other) => Area == other.Area;
+	}
 
 	static bool IsReset;
 	public static uint NextID;
@@ -62,30 +163,87 @@ public partial class NavArea
 	bool IsBattlefront;
 	float AvoidanceObstacleHeight;
 	// CountdownTimer AvoidanceObstacleTimer;
-	float[] ClearedTimestamp = new float[MAX_NAV_TEAMS];
-	float[] Danger = new float[MAX_NAV_TEAMS];
-	float[] DangerTimestamp = new float[MAX_NAV_TEAMS];
-	HidingSpotVector HidingSpots = [];
-	SpotEncounterVector SpotEncounters = [];
-	float[] EarliestOccupyTime = new float[MAX_NAV_TEAMS];
-	float[] LightIntensity = new float[(int)NavCornerType.NumCorners];
+	readonly float[] ClearedTimestamp = new float[MAX_NAV_TEAMS];
+	readonly float[] Danger = new float[MAX_NAV_TEAMS];
+	readonly float[] DangerTimestamp = new float[MAX_NAV_TEAMS];
+	readonly HidingSpotVector HidingSpots = [];
+	readonly SpotEncounterVector SpotEncounters = [];
+	readonly float[] EarliestOccupyTime = new float[MAX_NAV_TEAMS];
+	readonly float[] LightIntensity = new float[(int)NavCornerType.NumCorners];
 	static uint MasterMarker;
 	static NavArea OpenList;
 	static NavArea OpenListTail;
-	NavConnectVector[] IncomingConnect = new NavConnectVector[(int)NavDirType.NumDirections];
-	NavNode[] Node = new NavNode[(int)NavCornerType.NumCorners];
+	readonly NavConnectVector[] IncomingConnect = new NavConnectVector[(int)NavDirType.NumDirections];
+	readonly NavNode?[] Node = new NavNode[(int)NavCornerType.NumCorners];
 	// List<Handle<FuncNavPrerequisite>> PrerequisiteVector;   // list of prerequisites that must be met before this area can be traversed
-	NavArea PrevHash, NextHash;
+	NavArea? PrevHash, NextHash;
 	int DamagingTickCount;
-	// AreaBindInfo InheritVisibilityFrom;
-	// AreaBindInfoArray PotentiallyVisibleAreas;
+	AreaBindInfo InheritVisibilityFrom;
+	readonly AreaBindInfoArray PotentiallyVisibleAreas = [];
 	bool IsInheritedFrom;
 	UInt32 VisTestCounter;
 	static UInt32 CurrVisTestCounter;
 
 	void CompressIDs() { }
 
-	NavArea() { }
+	public NavArea() {
+		Marker = 0;
+		NearNavSearchMarker = 0;
+		DamagingTickCount = 0;
+		OpenMarker = 0;
+
+		Parent = null;
+		ParentHow = NavTraverseType.North;
+		AttributeFlags = 0;
+		Place = NavMesh.Instance!.GetNavPlace();
+		IsUnderwater = false;
+		AvoidanceObstacleHeight = 0.0f;
+
+		TotalCost = 0.0f;
+		CostSoFar = 0.0f;
+		PathLengthSoFar = 0.0f;
+
+		ResetNodes();
+
+		for (int i = 0; i < MAX_NAV_TEAMS; i++) {
+			_IsBlocked[i] = false;
+			Danger[i] = 0.0f;
+			DangerTimestamp[i] = 0.0f;
+			ClearedTimestamp[i] = 0.0f;
+			EarliestOccupyTime[i] = 0.0f;
+			PlayerCount[i] = 0;
+		}
+
+		ID = NextID++;
+		DebugID = ID;
+
+		PrevHash = null;
+		NextHash = null;
+
+		IsBattlefront = false;
+
+		for (int i = 0; i < (int)NavDirType.NumDirections; i++)
+			Connect[i] = [];
+
+		for (int i = 0; i < (int)NavLadder.LadderDirectionType.NumLadderDirections; i++)
+			Ladder[i] = [];
+
+		for (int i = 0; i < (int)NavCornerType.NumCorners; i++)
+			LightIntensity[i] = 1.0f;
+
+		// Elevator = null;
+		ElevatorAreas = [];
+
+		InvDXCorners = 0;
+		InvDYCorners = 0;
+
+		InheritVisibilityFrom.Area = null;
+		IsInheritedFrom = false;
+
+		// FuncNavCostVector = [];
+
+		VisTestCounter = UInt32.MaxValue - 1;
+	}
 
 	void Build(Vector3 corner, Vector3 otherCorner) { }
 
@@ -107,7 +265,10 @@ public partial class NavArea
 
 	void OnRoundRestart() { }
 
-	void ResetNodes() { }
+	void ResetNodes() {
+		for (int i = 0; i < (int)NavCornerType.NumCorners; i++)
+			Node[i] = null;
+	}
 
 	bool HasNodes() {
 		throw new NotImplementedException();
@@ -124,6 +285,14 @@ public partial class NavArea
 	void Disconnect(NavArea area) { }
 
 	void Disconnect(NavLadder ladder) { }
+
+	uint GetID() => ID;
+	void SetAttributes(int bits) => AttributeFlags = bits;
+	int GetAttributes() => AttributeFlags;
+	bool HasAttributes(int bits) => (AttributeFlags & bits) != 0;
+	void RemoveAttributes(int bits) => AttributeFlags &= ~bits;
+	void SetPlace(NavPlace place) => Place = place;
+	NavPlace GetPlace() => Place;
 
 	void AddLadderUp(NavLadder ladder) { }
 

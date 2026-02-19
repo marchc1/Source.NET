@@ -1,5 +1,7 @@
 using Source.Common.Commands;
 
+using System.Numerics;
+
 namespace Game.Server.NavMesh;
 
 static class NavFile
@@ -8,7 +10,7 @@ static class NavFile
 	public const int NavCurrentVersion = 16;
 }
 
-class PlaceDirectory
+public class PlaceDirectory
 {
 	List<NavPlace> Directory = [];
 	bool HasUnnamedAreas;
@@ -35,10 +37,30 @@ class PlaceDirectory
 		return (ushort)(index + 1);
 	}
 
-	void AddPlace(NavPlace place) { }
+	void AddPlace(NavPlace place) {
+		if (place == Nav.UndefinedPlace) {
+			HasUnnamedAreas = true;
+			return;
+		}
 
-	NavPlace IndexToPlace(ushort entry) {
-		throw new NotImplementedException();
+
+		Assert(place < 1000);
+
+		if (!IsKnown(place))
+			Directory.Add(place);
+	}
+
+	public NavPlace IndexToPlace(ushort entry) {
+		if (entry == 0)
+			return Nav.UndefinedPlace;
+
+		int index = entry - 1;
+		if (index < 0 || index >= Directory.Count) {
+			AssertMsg(false, "PlaceDirectory::IndexToPlace: Invalid entry");
+			return Nav.UndefinedPlace;
+		}
+
+		return Directory[index];
 	}
 
 	void Save(ReadOnlySpan<char> fileBuffer) { }
@@ -85,13 +107,188 @@ struct OneWayLink
 	}
 }
 
-
 public partial class NavArea
 {
 	void Save(ReadOnlySpan<char> fileBuffer, uint version) { }
 
-	NavErrorType Load(ReadOnlySpan<char> fileBuffer, uint version, uint subVersion) {
-		throw new NotImplementedException();
+	public NavErrorType Load(BinaryReader fileBuffer, uint version, uint subVersion) {
+		ID = fileBuffer.ReadUInt32();
+
+		if (ID >= NextID)
+			NextID = ID + 1;
+
+		if (version <= 8)
+			AttributeFlags = fileBuffer.ReadByte();
+		else if (version < 13)
+			AttributeFlags = fileBuffer.ReadUInt16();
+		else
+			AttributeFlags = fileBuffer.ReadInt32();
+
+		NWCorner = new Vector3(fileBuffer.ReadSingle(), fileBuffer.ReadSingle(), fileBuffer.ReadSingle());
+		SECorner = new Vector3(fileBuffer.ReadSingle(), fileBuffer.ReadSingle(), fileBuffer.ReadSingle());
+
+		Center.X = (NWCorner.X + SECorner.X) / 2.0f;
+		Center.Y = (NWCorner.Y + SECorner.Y) / 2.0f;
+		Center.Z = (NWCorner.Z + SECorner.Z) / 2.0f;
+
+		if ((SECorner.X - NWCorner.X) > 0.0f && (SECorner.Y - NWCorner.Y) > 0.0f) {
+			InvDXCorners = 1.0f / (SECorner.X - NWCorner.X);
+			InvDYCorners = 1.0f / (SECorner.Y - NWCorner.Y);
+		}
+		else {
+			InvDXCorners = InvDYCorners = 0;
+
+			DevWarning($"Degenerate Navigation Area #{ID} at setpos {Center.X} {Center.Y} {Center.Z}\n");
+		}
+
+		NEZ = fileBuffer.ReadSingle();
+		SWZ = fileBuffer.ReadSingle();
+
+		CheckWaterLevel();
+
+		for (int d = 0; d < (int)NavDirType.NumDirections; d++) {
+			uint count = fileBuffer.ReadUInt32();
+
+			for (uint i = 0; i < count; ++i) {
+				NavConnect connect = new() {
+					ID = fileBuffer.ReadUInt32()
+				};
+
+				if (connect.ID != ID)
+					Connect[d].Add(connect);
+			}
+		}
+
+		byte hidingSpotCount = fileBuffer.ReadByte();
+		if (version == 1) {
+			for (int h = 0; h < hidingSpotCount; ++h) {
+				Vector3 pos = new Vector3(fileBuffer.ReadSingle(), fileBuffer.ReadSingle(), fileBuffer.ReadSingle());
+				HidingSpot spot = NavMesh.Instance!.CreateHidingSpot();
+				spot.SetPosition(pos);
+				spot.SetFlags(HidingSpotFlags.InCover);
+				HidingSpots.Add(spot);
+			}
+		}
+		else {
+			for (int h = 0; h < hidingSpotCount; ++h) {
+				HidingSpot spot = NavMesh.Instance!.CreateHidingSpot();
+				spot.Load(fileBuffer, version);
+				HidingSpots.Add(spot);
+			}
+		}
+
+		if (version < 15) {
+			int nToEat = fileBuffer.ReadByte();
+
+			for (int a = 0; a < nToEat; ++a) {
+				fileBuffer.ReadUInt32();
+				fileBuffer.ReadUInt32();
+				fileBuffer.ReadByte();
+				fileBuffer.ReadUInt32();
+				fileBuffer.ReadByte();
+			}
+		}
+
+		uint encounterCount = fileBuffer.ReadUInt32();
+		if (version < 3) {
+			for (uint e = 0; e < encounterCount; ++e) {
+				SpotEncounter encounter = new();
+
+				encounter.From.ID = fileBuffer.ReadUInt32();
+				encounter.To.ID = fileBuffer.ReadUInt32();
+
+				encounter.Path.From = new Vector3(fileBuffer.ReadSingle(), fileBuffer.ReadSingle(), fileBuffer.ReadSingle());
+				encounter.Path.To = new Vector3(fileBuffer.ReadSingle(), fileBuffer.ReadSingle(), fileBuffer.ReadSingle());
+
+				byte spotCount = fileBuffer.ReadByte();
+				for (int s = 0; s < spotCount; ++s) {
+					fileBuffer.ReadSingle();
+					fileBuffer.ReadSingle();
+					fileBuffer.ReadSingle();
+					fileBuffer.ReadSingle();
+				}
+			}
+
+			return NavErrorType.Ok;
+		}
+
+		for (uint e = 0; e < encounterCount; ++e) {
+			SpotEncounter encounter = new();
+
+			encounter.From.ID = fileBuffer.ReadUInt32();
+			encounter.FromDir = (NavDirType)fileBuffer.ReadByte();
+			encounter.To.ID = fileBuffer.ReadUInt32();
+			encounter.ToDir = (NavDirType)fileBuffer.ReadByte();
+
+			byte spotCount = fileBuffer.ReadByte();
+
+			SpotOrder order = new();
+			for (int s = 0; s < spotCount; ++s) {
+				order.ID = fileBuffer.ReadUInt32();
+				order.T = fileBuffer.ReadByte() / 255.0f;
+				encounter.Spots.Add(order);
+			}
+
+			SpotEncounters.Add(encounter);
+		}
+
+		if (version < 5)
+			return NavErrorType.Ok;
+
+		ushort entry = fileBuffer.ReadUInt16();
+		SetPlace(NavMesh.placeDirectory.IndexToPlace(entry));
+
+		if (version < 7)
+			return NavErrorType.Ok;
+
+		for (int dir = 0; dir < (int)NavLadder.LadderDirectionType.NumLadderDirections; ++dir) {
+			uint count = fileBuffer.ReadUInt32();
+			for (uint i = 0; i < count; ++i) {
+				NavLadderConnect connect = new() {
+					ID = fileBuffer.ReadUInt32()
+				};
+
+				bool alreadyConnected = false;
+				foreach (var ladder in Ladder[dir]) {
+					if (ladder.ID == connect.ID) {
+						alreadyConnected = true;
+						break;
+					}
+				}
+
+				if (!alreadyConnected)
+					Ladder[dir].Add(connect);
+			}
+		}
+
+		if (version < 8)
+			return NavErrorType.Ok;
+
+		for (int i = 0; i < MAX_NAV_TEAMS; ++i)
+			EarliestOccupyTime[i] = fileBuffer.ReadSingle();
+
+		if (version < 11)
+			return NavErrorType.Ok;
+
+		for (int i = 0; i < (int)NavCornerType.NumCorners; ++i)
+			LightIntensity[i] = fileBuffer.ReadSingle();
+
+		if (version < 16)
+			return NavErrorType.Ok;
+
+		uint visibleAreaCount = fileBuffer.ReadUInt32();
+		for (uint j = 0; j < visibleAreaCount; ++j) {
+			AreaBindInfo info = new() {
+				ID = fileBuffer.ReadUInt32(),
+				Attributes = fileBuffer.ReadByte()
+			};
+
+			PotentiallyVisibleAreas.Add(info);
+		}
+
+		InheritVisibilityFrom.ID = fileBuffer.ReadUInt32();
+
+		return NavErrorType.Ok;
 	}
 
 	NavErrorType PostLoad() {
@@ -103,7 +300,7 @@ public partial class NavArea
 
 public partial class NavMesh
 {
-	static PlaceDirectory placeDirectory = new();
+	public static PlaceDirectory placeDirectory = new();
 	void ComputeBattlefrontAreas() { }
 
 	ReadOnlySpan<char> GetFilename() {
@@ -181,7 +378,7 @@ public partial class NavMesh
 			uint bspSize = (uint)filesystem.Size(bspFilename);
 
 			if (bspSize != saveBspSize && !navIsInBsp) {
-				if (/*engine.IsDedicatedServer()*/ false) // todo
+				if (engine.IsDedicatedServer())
 					DevMsg("The Navigation Mesh was built using a different version of this map.\n");
 				else
 					DevWarning("The Navigation Mesh was built using a different version of this map.\n");
@@ -198,7 +395,7 @@ public partial class NavMesh
 		if (version >= 5)
 			placeDirectory.Load(buffer, version);
 
-		ushort count = buffer.ReadUInt16();
+		uint count = buffer.ReadUInt32();
 
 		if (count == 0)
 			return NavErrorType.InvalidFile;
@@ -209,12 +406,10 @@ public partial class NavMesh
 		extent.Hi.X = -9999999999.9f;
 		extent.Hi.Y = -9999999999.9f;
 
-		// Instance.PreLoadAreas(count);
-
 		Extent areaExtent = new();
 		for (int i = 0; i < count; ++i) {
-			// NavArea area = Instance.CreateArea();
-			// area.Load(buffer, version, subVersion);
+			NavArea area = Instance!.CreateArea();
+			area.Load(buffer, version, subVersion);
 		}
 
 		AllocateGrid(extent.Lo.X, extent.Hi.X, extent.Lo.Y, extent.Hi.Y);
@@ -222,7 +417,7 @@ public partial class NavMesh
 		// foreach
 
 		if (version >= 6) {
-			count = buffer.ReadUInt16();
+			count = buffer.ReadUInt32();
 			// ladders
 		}
 		else {
