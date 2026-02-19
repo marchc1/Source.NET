@@ -98,11 +98,11 @@ static class DebugOverlay
 		debugoverlay.AddTriangleOverlay(p1, p2, p3, r, g, b, a, noDepthTest, duration);
 	}
 
-	public static void EntityText(int entityID, int text_offset, char text, float duration, int r, int g, int b, int a) {
+	public static void EntityText(int entityID, int text_offset, ReadOnlySpan<char> text, float duration, int r, int g, int b, int a) {
 		throw new NotImplementedException();
 	}
 
-	public static void EntityTextAtPosition(in Vector3 origin, int text_offset, char text, float duration, int r, int g, int b, int a) {
+	public static void EntityTextAtPosition(in Vector3 origin, int text_offset, ReadOnlySpan<char> text, float duration, int r, int g, int b, int a) {
 		throw new NotImplementedException();
 	}
 
@@ -110,13 +110,37 @@ static class DebugOverlay
 		throw new NotImplementedException();
 	}
 
-	public static void Text(in Vector3 origin, char text, bool viewCheck, float duration) {
-		throw new NotImplementedException();
+	public static void Text(in Vector3 origin, ReadOnlySpan<char> text, bool viewCheck, float duration) {
+		BasePlayer? player = GetLocalPlayer();
+		if (player == null)
+			return;
+
+		// Clip text that is far away
+		if ((player.GetAbsOrigin() - origin).LengthSqr() > MAX_OVERLAY_DIST_SQR)
+			return;
+
+		// Clip text that is behind the client
+		player.EyeVectors(out AngularImpulse clientForward);
+
+		Vector3 toText = origin - player.GetAbsOrigin();
+		float dotPr = MathLib.DotProduct(clientForward, toText);
+
+		if (dotPr < 0)
+			return;
+
+		// Clip text that is obscured
+		if (viewCheck) {
+			Trace tr = default;
+			// Util.TraceLine(player.GetAbsOrigin(), origin, MASK_OPAQUE, NULL, COLLISION_GROUP_NONE, &tr); TODO TODO TODO
+
+			if ((tr.EndPos - origin).Length() > 10)
+				return;
+		}
+
+		debugoverlay.AddTextOverlay(origin, duration, text);
 	}
 
-	public static void ScreenText(float flXpos, float flYpos, char text, int r, int g, int b, int a, float duration) {
-		throw new NotImplementedException();
-	}
+	public static void ScreenText(float flXpos, float flYpos, ReadOnlySpan<char> text, int r, int g, int b, int a, float duration) => debugoverlay.AddScreenTextOverlay(flXpos, flYpos, duration, r, g, b, a, text);
 
 	public static void Cross3D(in Vector3 position, in Vector3 mins, in Vector3 maxs, int r, int g, int b, bool noDepthTest, float duration) {
 		throw new NotImplementedException();

@@ -1,3 +1,5 @@
+using Game.Shared;
+
 using Source;
 using Source.Common;
 using Source.Common.Commands;
@@ -124,7 +126,7 @@ public partial class NavMesh
 			const float cursorSize = 10.0f;
 
 			if (ClimbableSurface) {
-				// NDebugOverlay::Cross3D(EditCursorPos, cursorSize, 0, 255, 0, true, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+				DebugOverlay.Cross3D(EditCursorPos, cursorSize, 0, 255, 0, true, DebugOverlay.Persist);
 			}
 			else {
 				NavColors.NavDrawLine(EditCursorPos + new Vector3(0, 0, cursorSize), EditCursorPos, NavColors.NavEditColor.NavCursorColor);
@@ -137,19 +139,19 @@ public partial class NavMesh
 
 					pos = EditCursorPos;
 					Nav.AddDirectionVector(ref pos, NavDirType.North, offset);
-					// NDebugOverlay::Text(pos, "N", false, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+					DebugOverlay.Text(pos, "N", false, DebugOverlay.Persist);
 
 					pos = EditCursorPos;
 					Nav.AddDirectionVector(ref pos, NavDirType.South, offset);
-					// NDebugOverlay::Text(pos, "S", false, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+					DebugOverlay.Text(pos, "S", false, DebugOverlay.Persist);
 
 					pos = EditCursorPos;
 					Nav.AddDirectionVector(ref pos, NavDirType.East, offset);
-					// NDebugOverlay::Text(pos, "E", false, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+					DebugOverlay.Text(pos, "E", false, DebugOverlay.Persist);
 
 					pos = EditCursorPos;
 					Nav.AddDirectionVector(ref pos, NavDirType.West, offset);
-					// NDebugOverlay::Text(pos, "W", false, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+					DebugOverlay.Text(pos, "W", false, DebugOverlay.Persist);
 				}
 			}
 
@@ -202,7 +204,7 @@ public partial class NavMesh
 						sprintf(buffer, "Ladder #%d (Team %d)\n").D(SelectedLadder.GetID()).D(/*ladderEntity.GetTeamNumber()*/0);
 					else
 						sprintf(buffer, "Ladder #%d\n").D(SelectedLadder.GetID());
-					// NDebugOverlay::ScreenText(0.5, 0.53, buffer, 255, 255, 0, 128, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+					DebugOverlay.ScreenText(0.5f, 0.53f, buffer, 255, 255, 0, 128, DebugOverlay.Persist);
 				}
 
 				SelectedLadder.DrawLadder();
@@ -272,7 +274,7 @@ public partial class NavMesh
 					}
 
 					sprintf(buffer, "Area #%d %s %s\n").D(SelectedArea.GetID()).S(locName).S(attrib);
-					// NDebugOverlay::ScreenText(0.5, 0.53, buffer, 255, 255, 0, 128, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+					DebugOverlay.ScreenText(0.5f, 0.53f, buffer, 255, 255, 0, 128, DebugOverlay.Persist);
 
 					if (IsPlacePainting) {
 						if (SelectedArea.GetPlace() != Instance!.GetNavPlace()) {
