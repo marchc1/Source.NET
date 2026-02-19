@@ -1,3 +1,5 @@
+using Game.Shared;
+
 using Source;
 
 using System.Numerics;
@@ -114,8 +116,8 @@ public static class NavColors
 		Vector3 offset = new Vector3(0f, 0f, 1f);
 		Color color = Colors[(int)navColor];
 
-		//NDebugOverlay.Line(from + offset, to + offset, color[0], color[1], color[2], false, NDEBUG_PERSIST_TILL_NEXT_SERVER);
-		//NDebugOverlay.Line(from + offset, to + offset, color[0] / 2, color[1] / 2, color[2] / 2, true, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+		DebugOverlay.Line(from + offset, to + offset, color[0], color[1], color[2], false, DebugOverlay.Persist);
+		DebugOverlay.Line(from + offset, to + offset, color[0] / 2, color[1] / 2, color[2] / 2, true, DebugOverlay.Persist);
 	}
 
 	public static void NavDrawTriangle(in Vector3 p1, in Vector3 p2, in Vector3 p3, NavEditColor navColor) {
@@ -133,15 +135,15 @@ public static class NavColors
 			color[2] = (byte)(color[2] / 2);
 		}
 
-		//NDebugOverlay.Triangle(p1, p2, p3, color[0], color[1], color[2], 255, true, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+		DebugOverlay.Triangle(p1, p2, p3, color[0], color[1], color[2], 255, true, DebugOverlay.Persist);
 	}
 
 	public static void NavDrawHorizontalArrow(in Vector3 from, in Vector3 to, float width, NavEditColor navColor) {
 		Vector3 offset = new Vector3(0f, 0f, 1f);
 		Color color = Colors[(int)navColor];
 
-		//NDebugOverlay.HorzArrow(from + offset, to + offset, width, color[0], color[1], color[2], 255, false, NDEBUG_PERSIST_TILL_NEXT_SERVER);
-		//NDebugOverlay.HorzArrow(from + offset, to + offset, width, color[0] / 2, color[1] / 2, color[2] / 2, 255, true, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+		DebugOverlay.HorzArrow(from + offset, to + offset, width, color[0], color[1], color[2], 255, false, DebugOverlay.Persist);
+		DebugOverlay.HorzArrow(from + offset, to + offset, width, color[0] / 2, color[1] / 2, color[2] / 2, 255, true, DebugOverlay.Persist);
 	}
 
 	public static void NavDrawDashedLine(in Vector3 from, in Vector3 to, NavEditColor navColor) {
@@ -163,8 +165,8 @@ public static class NavColors
 
 			distance += solidLen + gapLen;
 
-			//NDebugOverlay.Line(start + offset, end + offset, color[0], color[1], color[2], false, NDEBUG_PERSIST_TILL_NEXT_SERVER);
-			//NDebugOverlay.Line(start + offset, end + offset, color[0] / 2, color[1] / 2, color[2] / 2, true, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+			DebugOverlay.Line(start + offset, end + offset, color[0], color[1], color[2], false, DebugOverlay.Persist);
+			DebugOverlay.Line(start + offset, end + offset, color[0] / 2, color[1] / 2, color[2] / 2, true, DebugOverlay.Persist);
 		}
 	}
 

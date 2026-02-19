@@ -14,6 +14,8 @@ public struct QAngle
 {
 	public float X, Y, Z;
 
+	public static readonly QAngle Zero = new(0, 0, 0);
+
 	public QAngle() {
 		X = 0;
 		Y = 0;
@@ -32,7 +34,7 @@ public struct QAngle
 	}
 
 	public unsafe vec_t LengthSqr() {
-		fixed(QAngle* qptr = &this) {
+		fixed (QAngle* qptr = &this) {
 			return ((Vector3*)qptr)->LengthSquared();
 		}
 	}
