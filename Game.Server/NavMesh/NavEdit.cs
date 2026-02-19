@@ -1,4 +1,7 @@
+using Source;
+using Source.Common;
 using Source.Common.Commands;
+using Source.Common.Mathematics;
 
 using System.Numerics;
 
@@ -6,6 +9,16 @@ namespace Game.Server.NavMesh;
 
 public partial class NavMesh
 {
+	static readonly ConVar nav_show_area_info = new("0.5", FCvar.Cheat, "Duration in seconds to show nav area ID and attributes while editing");
+	static readonly ConVar nav_snap_to_grid = new("0", FCvar.Cheat, "Snap to the nav generation grid when creating new nav areas");
+	static readonly ConVar nav_create_place_on_ground = new("0", FCvar.Cheat, "If true, nav areas will be placed flush with the ground when created by hand.");
+	public static readonly ConVar nav_draw_limit = new("500", FCvar.Cheat, "The maximum number of areas to draw in edit mode");
+	static readonly ConVar nav_solid_props = new("0", FCvar.Cheat, "Make props solid to nav generation/editing");
+	static readonly ConVar nav_create_area_at_feet = new("0", FCvar.Cheat, "Anchor nav_begin_area Z to editing player's feet");
+	static readonly ConVar nav_drag_selection_volume_zmax_offset = new("32", FCvar.Replicated, "The offset of the nav drag volume top from center");
+	static readonly ConVar nav_drag_selection_volume_zmin_offset = new("32", FCvar.Replicated, "The offset of the nav drag volume bottom from center");
+	static readonly ConVar nav_show_compass = new("0", FCvar.Cheat);
+
 	Vector3 SnapToGrid(Vector3 vec, bool snapX, bool snapY, bool forceGrid) {
 		throw new NotImplementedException();
 	}
@@ -14,11 +27,21 @@ public partial class NavMesh
 		throw new NotImplementedException();
 	}
 
-	void GetEditVectors(Vector3 pos, Vector3 forward) { }
+	public void GetEditVectors(out Vector3 pos, out Vector3 forward) {
+		pos = default;
+		forward = default;
 
-	// void SetEditMode(EditModeType mode) {
-	// 	throw new NotImplementedException();
-	// }
+		BasePlayer? player = Util.GetListenServerHost();
+		if (player == null)
+			return;
+
+		MathLib.AngleVectors(player.EyeAngles() /*+ player.GetPunchAngle()*/, out forward); // todo punch angles
+		pos = player.EyePosition();
+	}
+
+	void SetEditMode(EditModeType mode) {
+
+	}
 
 	bool FindNavAreaOrLadderAlongRay(Vector3 start, Vector3 end, NavArea bestArea, NavLadder bestLadder, NavArea ignore) {
 		throw new NotImplementedException();
@@ -28,9 +51,46 @@ public partial class NavMesh
 		throw new NotImplementedException();
 	}
 
-	bool FindLadderCorners(Vector3 corner1, Vector3 corner2, Vector3 corner3) {
-		throw new NotImplementedException();
+	public bool FindLadderCorners(out Vector3 corner1, out Vector3 corner2, out Vector3 corner3) {
+		corner1 = default;
+		corner2 = default;
+		corner3 = default;
+
+		MathLib.VectorVectors(LadderNormal, out AngularImpulse ladderRight, out AngularImpulse ladderUp);
+		GetEditVectors(out AngularImpulse from, out AngularImpulse dir);
+
+		const float maxDist = 100000f;
+
+		Source.Common.Ray ray = new();//from, from + dir * maxDist
+
+		corner1 = LadderAnchor + ladderUp * maxDist + ladderRight * maxDist;
+		corner2 = LadderAnchor + ladderUp * maxDist - ladderRight * maxDist;
+		corner3 = LadderAnchor - ladderUp * maxDist - ladderRight * maxDist;
+
+		float dist = CollisionUtils.IntersectRayWithTriangle(ray, corner1, corner2, corner3, false);
+
+		if (dist < 0f) {
+			corner2 = LadderAnchor - ladderUp * maxDist + ladderRight * maxDist;
+			dist = CollisionUtils.IntersectRayWithTriangle(ray, corner1, corner2, corner3, false);
+		}
+
+		corner3 = EditCursorPos;
+
+		if (dist > 0f && dist < maxDist) {
+			corner3 = from + dir * (dist * maxDist);
+
+			float vertDistance = corner3.Z - LadderAnchor.Z;
+			float val = vertDistance / ladderUp.Z;
+
+			corner1 = LadderAnchor + ladderUp * val;
+			corner2 = corner3 - ladderUp * val;
+
+			return true;
+		}
+
+		return false;
 	}
+
 
 	void CommandNavBuildLadder() { }
 
@@ -40,7 +100,264 @@ public partial class NavMesh
 
 	void UpdateDragSelectionSet() { }
 
-	void DrawEditMode() { }
+	static Color DragSelectionSetAddColor = new(100, 255, 100, 96);
+	static Color DragSelectionSetDeleteColor = new(255, 100, 100, 96);
+
+	void DrawEditMode() {
+		BasePlayer? player = Util.GetListenServerHost();
+		if (player == null)
+			return;
+
+		// if (IsGenerating())
+		// 	return;
+
+		// host_thread_mode
+
+		const float maxRange = 1000.0f;
+
+		Vector3 from, dir;
+		GetEditVectors(out from, out dir);
+
+		Vector3 to = from + maxRange * dir;
+
+		if (FindActiveNavArea() || MarkedArea != null || MarkedLadder != null || !IsSelectedSetEmpty() || IsEditMode(EditModeType.CreatingArea) || IsEditMode(EditModeType.CreatingLadder)) {
+			const float cursorSize = 10.0f;
+
+			if (ClimbableSurface) {
+				// NDebugOverlay::Cross3D(EditCursorPos, cursorSize, 0, 255, 0, true, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+			}
+			else {
+				NavColors.NavDrawLine(EditCursorPos + new Vector3(0, 0, cursorSize), EditCursorPos, NavColors.NavEditColor.NavCursorColor);
+				NavColors.NavDrawLine(EditCursorPos + new Vector3(cursorSize, 0, 0), EditCursorPos + new Vector3(-cursorSize, 0, 0), NavColors.NavEditColor.NavCursorColor);
+				NavColors.NavDrawLine(EditCursorPos + new Vector3(0, cursorSize, 0), EditCursorPos + new Vector3(0, -cursorSize, 0), NavColors.NavEditColor.NavCursorColor);
+
+				if (nav_show_compass.GetBool()) {
+					const float offset = cursorSize * 1.5f;
+					Vector3 pos;
+
+					pos = EditCursorPos;
+					Nav.AddDirectionVector(ref pos, NavDirType.North, offset);
+					// NDebugOverlay::Text(pos, "N", false, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+
+					pos = EditCursorPos;
+					Nav.AddDirectionVector(ref pos, NavDirType.South, offset);
+					// NDebugOverlay::Text(pos, "S", false, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+
+					pos = EditCursorPos;
+					Nav.AddDirectionVector(ref pos, NavDirType.East, offset);
+					// NDebugOverlay::Text(pos, "E", false, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+
+					pos = EditCursorPos;
+					Nav.AddDirectionVector(ref pos, NavDirType.West, offset);
+					// NDebugOverlay::Text(pos, "W", false, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+				}
+			}
+
+			if (IsEditMode(EditModeType.CreatingArea)) {
+				float z = Anchor.Z + 2.0f;
+				NavColors.NavDrawLine(new Vector3(EditCursorPos.X, EditCursorPos.Y, z), new Vector3(Anchor.X, EditCursorPos.Y, z), NavColors.NavEditColor.NavCreationColor);
+				NavColors.NavDrawLine(new Vector3(Anchor.X, Anchor.Y, z), new Vector3(Anchor.X, EditCursorPos.Y, z), NavColors.NavEditColor.NavCreationColor);
+				NavColors.NavDrawLine(new Vector3(Anchor.X, Anchor.Y, z), new Vector3(EditCursorPos.X, Anchor.Y, z), NavColors.NavEditColor.NavCreationColor);
+				NavColors.NavDrawLine(new Vector3(EditCursorPos.X, EditCursorPos.Y, z), new Vector3(EditCursorPos.X, Anchor.Y, z), NavColors.NavEditColor.NavCreationColor);
+			}
+			else if (IsEditMode(EditModeType.DragSelecting)) {
+				float z1 = Anchor.Z + DragSelectionVolumeZMax;
+				float z2 = Anchor.Z - DragSelectionVolumeZMin;
+
+				Vector3 vMin = new(Anchor.X, Anchor.Y, z1);
+				Vector3 vMax = new(EditCursorPos.X, EditCursorPos.Y, z2);
+				NavColors.NavDrawVolume(vMin, vMax, Anchor.Z, NavColors.NavEditColor.NavDragSelectionColor);
+
+				UpdateDragSelectionSet();
+
+				Color dragSelectionColor = IsDragDeselecting ? DragSelectionSetDeleteColor : DragSelectionSetAddColor;
+
+				foreach (NavArea area in DragSelectionSet)
+					area.DrawDragSelectionSet(dragSelectionColor);
+			}
+			else if (IsEditMode(EditModeType.CreatingLadder)) {
+				if (FindLadderCorners(out AngularImpulse corner1, out AngularImpulse corner2, out AngularImpulse corner3)) {
+					NavColors.NavEditColor color = NavColors.NavEditColor.NavCreationColor;
+					if (!ClimbableSurface) {
+						color = NavColors.NavEditColor.NavInvalidCreationColor;
+					}
+
+					NavColors.NavDrawLine(LadderAnchor, corner1, color);
+					NavColors.NavDrawLine(corner1, corner3, color);
+					NavColors.NavDrawLine(corner3, corner2, color);
+					NavColors.NavDrawLine(corner2, LadderAnchor, color);
+				}
+			}
+
+			if (SelectedLadder != null) {
+				LastSelectedArea = null;
+
+				if (SelectedLadder != LastSelectedLadder || nav_show_area_info.GetBool()) {
+					LastSelectedLadder = SelectedLadder;
+
+					Span<char> buffer = stackalloc char[80];
+
+					BaseEntity? ladderEntity = SelectedLadder.GetLadderEntity();
+					if (ladderEntity != null)
+						sprintf(buffer, "Ladder #%d (Team %d)\n").D(SelectedLadder.GetID()).D(/*ladderEntity.GetTeamNumber()*/0);
+					else
+						sprintf(buffer, "Ladder #%d\n").D(SelectedLadder.GetID());
+					// NDebugOverlay::ScreenText(0.5, 0.53, buffer, 255, 255, 0, 128, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+				}
+
+				SelectedLadder.DrawLadder();
+				SelectedLadder.DrawConnectedAreas();
+			}
+
+			if (MarkedLadder != null && !IsEditMode(EditModeType.PlacePainting))
+				MarkedLadder.DrawLadder();
+
+			if (MarkedArea != null && !IsEditMode(EditModeType.PlacePainting))
+				MarkedArea.Draw();
+
+			if (SelectedArea != null) {
+				LastSelectedLadder = null;
+
+				if (SelectedArea != LastSelectedArea) {
+					ShowAreaInfoTimer.Start(nav_show_area_info.GetFloat());
+					LastSelectedArea = SelectedArea;
+				}
+
+				if (ShowAreaInfoTimer.HasStarted() && !ShowAreaInfoTimer.IsElapsed()) {
+					Span<char> buffer = stackalloc char[80];
+					Span<char> attrib = stackalloc char[80];
+					Span<char> locName = stackalloc char[80];
+
+					if (SelectedArea.GetPlace() != 0) {
+						ReadOnlySpan<char> name = Instance!.PlaceToName(SelectedArea.GetPlace());
+						if (!name.IsEmpty)
+							strcpy(locName, name);
+						else
+							strcpy(locName, "ERROR");
+					}
+					else
+						locName[0] = '\0';
+
+					if (IsEditMode(EditModeType.PlacePainting))
+						attrib[0] = '\0';
+					else {
+						attrib[0] = '\0';
+						NavAttributeType attributes = (NavAttributeType)SelectedArea.GetAttributes();
+						if ((attributes & NavAttributeType.Crouch) != 0) strcat(attrib, "CROUCH ");
+						if ((attributes & NavAttributeType.Jump) != 0) strcat(attrib, "JUMP ");
+						if ((attributes & NavAttributeType.Precice) != 0) strcat(attrib, "PRECISE ");
+						if ((attributes & NavAttributeType.NoJump) != 0) strcat(attrib, "NO_JUMP ");
+						if ((attributes & NavAttributeType.Stop) != 0) strcat(attrib, "STOP ");
+						if ((attributes & NavAttributeType.Run) != 0) strcat(attrib, "RUN ");
+						if ((attributes & NavAttributeType.Walk) != 0) strcat(attrib, "WALK ");
+						if ((attributes & NavAttributeType.Avoid) != 0) strcat(attrib, "AVOID ");
+						if ((attributes & NavAttributeType.Transient) != 0) strcat(attrib, "TRANSIENT ");
+						if ((attributes & NavAttributeType.DontHide) != 0) strcat(attrib, "DONT_HIDE ");
+						if ((attributes & NavAttributeType.Stand) != 0) strcat(attrib, "STAND ");
+						if ((attributes & NavAttributeType.NoHostages) != 0) strcat(attrib, "NO HOSTAGES ");
+						if ((attributes & NavAttributeType.Stairs) != 0) strcat(attrib, "STAIRS ");
+						if ((attributes & NavAttributeType.ObstacleTop) != 0) strcat(attrib, "OBSTACLE ");
+						if ((attributes & NavAttributeType.Cliff) != 0) strcat(attrib, "CLIFF ");
+						if (SelectedArea.IsBlocked(-2 /*TEAM_ANY*/)) strcat(attrib, "BLOCKED ");
+						if (SelectedArea.HasAvoidanceObstacle()) strcat(attrib, "OBSTRUCTED ");
+						if (SelectedArea.IsDamaging()) strcat(attrib, "DAMAGING ");
+						if (SelectedArea.IsUnderwater) strcat(attrib, "UNDERWATER ");
+
+						int connected = 0;
+						connected += SelectedArea.GetAdjacentCount(NavDirType.North);
+						connected += SelectedArea.GetAdjacentCount(NavDirType.South);
+						connected += SelectedArea.GetAdjacentCount(NavDirType.East);
+						connected += SelectedArea.GetAdjacentCount(NavDirType.West);
+						strcat(attrib, connected + " Connections ");
+					}
+
+					sprintf(buffer, "Area #%d %s %s\n").D(SelectedArea.GetID()).S(locName).S(attrib);
+					// NDebugOverlay::ScreenText(0.5, 0.53, buffer, 255, 255, 0, 128, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+
+					if (IsPlacePainting) {
+						if (SelectedArea.GetPlace() != Instance!.GetNavPlace()) {
+							SelectedArea.SetPlace(Instance!.GetNavPlace());
+							// player.EmitSound("Bot.EditSwitchOn");
+						}
+					}
+				}
+
+
+				if (ContinuouslySelecting)
+					AddToSelectedSet(SelectedArea);
+				else if (ContinuouslyDeselecting)
+					RemoveFromSelectedSet(SelectedArea);
+
+				if (IsEditMode(EditModeType.PlacePainting))
+					SelectedArea.DrawConnectedAreas();
+				else {
+					Extent extent = default;
+					SelectedArea.GetExtent(ref extent);
+
+					float yaw = player.EyeAngles().Y;
+					while (yaw > 360.0f)
+						yaw -= 360.0f;
+
+					while (yaw < 0.0f)
+						yaw += 360.0f;
+
+					if (SplitAlongX) {
+						from.X = extent.Lo.X;
+						from.Y = SplitEdge;
+						from.Z = SelectedArea.GetZ(from);
+
+						to.X = extent.Hi.X;
+						to.Y = SplitEdge;
+						to.Z = SelectedArea.GetZ(to);
+					}
+					else {
+						from.X = SplitEdge;
+						from.Y = extent.Lo.Y;
+						from.Z = SelectedArea.GetZ(from);
+
+						to.X = SplitEdge;
+						to.Y = extent.Hi.Y;
+						to.Z = SelectedArea.GetZ(to);
+					}
+
+					NavColors.NavDrawLine(from, to, NavColors.NavEditColor.NavSplitLineColor);
+
+					SelectedArea.DrawConnectedAreas();
+				}
+			}
+
+			if (!IsSelectedSetEmpty()) {
+				Vector3 shift = new(0, 0, 0);
+
+				if (IsEditMode(EditModeType.ShiftingXY)) {
+					shift = EditCursorPos - Anchor;
+					shift.Z = 0.0f;
+				}
+
+				DrawSelectedSet draw = new(shift);
+
+				if (SelectedSet.Count < nav_draw_limit.GetInt()) {
+					foreach (NavArea area in SelectedSet) {
+						draw.Invoke(area);
+					}
+				}
+				else {
+					NavArea? nearest = null;
+					float nearRange = 9999999999.9f;
+
+					foreach (var area in SelectedSet) {
+						float range = (player.GetAbsOrigin() - area.GetCenter()).LengthSqr();
+						if (range < nearRange) {
+							nearRange = range;
+							nearest = area;
+						}
+					}
+
+					// SearchSurroundingAreas(nearest, nearest.GetCenter(), draw, -1, INCLUDE_INCOMING_CONNECTIONS | INCLUDE_BLOCKED_AREAS);
+				}
+			}
+		}
+	}
 
 	void SetMarkedLadder(NavLadder ladder) { }
 
@@ -187,11 +504,11 @@ public partial class NavMesh
 		throw new NotImplementedException();
 	}
 
-	// NavAreaVector GetSelectedSet() {
-	// 	throw new NotImplementedException();
-	// }
+	NavAreaVector GetSelectedSet() {
+		throw new NotImplementedException();
+	}
 
-	bool IsInSelectedSet(NavArea area) {
+	public bool IsInSelectedSet(NavArea area) {
 		throw new NotImplementedException();
 	}
 
@@ -201,5 +518,20 @@ public partial class NavMesh
 
 	void OnEditDestroyNotify(NavLadder deadLadder) {
 		throw new NotImplementedException();
+	}
+}
+
+public class DrawSelectedSet(Vector3 shift)
+{
+	public int Count = 0;
+	public Vector3 Shift = shift;
+
+	public bool Invoke(NavArea area) {
+		if (NavMesh.Instance!.IsInSelectedSet(area)) {
+			area.DrawSelectedSet(Shift);
+			Count++;
+		}
+
+		return Count < NavMesh.nav_draw_limit.GetInt();
 	}
 }

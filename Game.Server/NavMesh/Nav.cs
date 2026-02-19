@@ -5,6 +5,8 @@ global using SpotOrderVector = System.Collections.Generic.List<Game.Server.NavMe
 global using NavConnectVector = System.Collections.Generic.List<Game.Server.NavMesh.NavConnect>;
 global using NavLadderConnectVector = System.Collections.Generic.List<Game.Server.NavMesh.NavLadderConnect>;
 global using AreaBindInfoArray = System.Collections.Generic.List<Game.Server.NavMesh.NavArea.AreaBindInfo>;
+global using NavAreaVector = System.Collections.Generic.List<Game.Server.NavMesh.NavArea>;
+global using NavLadderVector = System.Collections.Generic.List<Game.Server.NavMesh.NavLadder>;
 
 using Source.Common;
 using Source.Common.Mathematics;

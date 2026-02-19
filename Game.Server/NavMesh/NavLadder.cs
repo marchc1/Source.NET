@@ -49,6 +49,8 @@ public class NavLadder
 
 	void Shift(Vector3 shift) { }
 
+	public uint GetID() => ID;
+
 	void CompressIDs() { }
 
 	NavArea GetConnection(LadderConnectionType dir) {
@@ -69,9 +71,9 @@ public class NavLadder
 
 	void SetDir(NavDirType dir) { }
 
-	void DrawLadder() { }
+	public void DrawLadder() { }
 
-	void DrawConnectedAreas() { }
+	public void DrawConnectedAreas() { }
 
 	void OnRoundRestart() { }
 
@@ -93,7 +95,7 @@ public class NavLadder
 		throw new NotImplementedException();
 	}
 
-	BaseEntity GetLadderEntity() {
+	public BaseEntity GetLadderEntity() {
 		throw new NotImplementedException();
 	}
 

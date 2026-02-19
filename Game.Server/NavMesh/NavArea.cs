@@ -158,11 +158,11 @@ public partial class NavArea : NavAreaCriticalData
 	uint ID;
 	uint DebugID;
 	NavPlace Place;
-	// CountdownTimer BlockedTimer;
-	bool IsUnderwater;
+	CountdownTimer BlockedTimer;
+	public bool IsUnderwater;
 	bool IsBattlefront;
 	float AvoidanceObstacleHeight;
-	// CountdownTimer AvoidanceObstacleTimer;
+	CountdownTimer AvoidanceObstacleTimer;
 	readonly float[] ClearedTimestamp = new float[MAX_NAV_TEAMS];
 	readonly float[] Danger = new float[MAX_NAV_TEAMS];
 	readonly float[] DangerTimestamp = new float[MAX_NAV_TEAMS];
@@ -251,7 +251,9 @@ public partial class NavArea : NavAreaCriticalData
 
 	void Build(NavNode nwNode, NavNode neNode, NavNode seNode, NavNode swNode) { }
 
-	void GetExtent(Extent extent) { }
+	public void GetExtent(ref Extent extent) { }
+
+	public Vector3 GetCenter() => Center;
 
 	NavNode FindClosestNode(Vector3 pos, NavDirType dir) {
 		throw new NotImplementedException();
@@ -286,13 +288,13 @@ public partial class NavArea : NavAreaCriticalData
 
 	void Disconnect(NavLadder ladder) { }
 
-	uint GetID() => ID;
+	public uint GetID() => ID;
 	void SetAttributes(int bits) => AttributeFlags = bits;
-	int GetAttributes() => AttributeFlags;
+	public int GetAttributes() => AttributeFlags;
 	bool HasAttributes(int bits) => (AttributeFlags & bits) != 0;
 	void RemoveAttributes(int bits) => AttributeFlags &= ~bits;
-	void SetPlace(NavPlace place) => Place = place;
-	NavPlace GetPlace() => Place;
+	public void SetPlace(NavPlace place) => Place = place;
+	public NavPlace GetPlace() => Place;
 
 	void AddLadderUp(NavLadder ladder) { }
 
@@ -432,17 +434,17 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	void Draw() { }
+	public void Draw() { }
 
 	void DrawFilled(int r, int g, int b, int a, float deltaT, bool noDepthTest, float margin) { }
 
-	void DrawSelectedSet(Vector3 shift) { }
+	public void DrawSelectedSet(Vector3 shift) { }
 
-	void DrawDragSelectionSet(Color dragSelectionSetColor) { }
+	public void DrawDragSelectionSet(Color dragSelectionSetColor) { }
 
 	void DrawHidingSpots() { }
 
-	void DrawConnectedAreas() { }
+	public void DrawConnectedAreas() { }
 
 	void AddToOpenList() { }
 
@@ -502,7 +504,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	void Shift(Vector3 shift) { }
 
-	bool IsBlocked(int teamID, bool ignoreNavBlockers) {
+	public bool IsBlocked(int teamID, bool ignoreNavBlockers = false) {
 		throw new NotImplementedException();
 	}
 
@@ -608,6 +610,8 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
+	public int GetAdjacentCount(NavDirType dir) => Connect[(int)dir].Count;
+
 	NavArea GetAdjacentArea(NavDirType dir, int i) {
 		throw new NotImplementedException();
 	}
@@ -642,13 +646,13 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	bool IsDamaging() {
+	public bool IsDamaging() {
 		throw new NotImplementedException();
 	}
 
 	void MarkAsDamaging(float duration) { }
 
-	bool HasAvoidanceObstacle(float maxObstructionHeight) {
+	public bool HasAvoidanceObstacle(float maxObstructionHeight = 0) {
 		throw new NotImplementedException();
 	}
 
@@ -672,7 +676,7 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	float GetZ(Vector3 pos) {
+	public float GetZ(Vector3 pos) {
 		throw new NotImplementedException();
 	}
 

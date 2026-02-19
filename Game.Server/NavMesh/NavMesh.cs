@@ -1,4 +1,5 @@
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Formats.BSP;
 using Source.Engine;
 
@@ -8,6 +9,16 @@ namespace Game.Server.NavMesh;
 
 public partial class NavMesh
 {
+	static readonly ConVar nav_edit = new("0", FCvar.GameDLL | FCvar.Cheat, "Set to one to interactively edit the Navigation Mesh. Set to zero to leave edit mode.");
+	static readonly ConVar nav_quicksave = new("1", FCvar.GameDLL | FCvar.Cheat, "Set to one to skip the time consuming phases of the analysis.  Useful for data collection and testing."); // TERROR: defaulting to 1, since we don't need the other data
+	static readonly ConVar nav_show_approach_points = new("0", FCvar.GameDLL | FCvar.Cheat, "Show Approach Points in the Navigation Mesh.");
+	static readonly ConVar nav_show_danger = new("0", FCvar.GameDLL | FCvar.Cheat, "Show current 'danger' levels.");
+	static readonly ConVar nav_show_player_counts = new("0", FCvar.GameDLL | FCvar.Cheat, "Show current player counts in each area.");
+	static readonly ConVar nav_show_func_nav_avoid = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot avoidance due to func_nav_avoid entities");
+	static readonly ConVar nav_show_func_nav_prefer = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot preference due to func_nav_prefer entities");
+	static readonly ConVar nav_show_func_nav_prerequisite = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot preference due to func_nav_prerequisite entities");
+	static readonly ConVar nav_max_vis_delta_list_length = new("64", FCvar.Cheat);
+
 	enum EditModeType
 	{
 		Normal,
@@ -19,7 +30,37 @@ public partial class NavMesh
 		ShiftingZ
 	}
 
-	// List<NavAreaVector> Grid;
+	enum GenerationStateType
+	{
+		SampleWalkableSpace,
+		CreateAreasFromSamples,
+		FindHidingSpots,
+		FindEncounterSpots,
+		FindSniperSpots,
+		FindEarliestOccupyTimes,
+		FindLightIntensity,
+		ComputeMeshVisibility,
+		Custom,
+		SaveNavMesh,
+		NumGenerationStates
+	}
+
+	enum GenerationModeType
+	{
+		None,
+		Full,
+		Incremental,
+		Simplify,
+		AnalysisOnly
+	}
+
+	struct WalkableSeedSpot
+	{
+		public Vector3 Pos;
+		public Vector3 Normal;
+	}
+
+	List<NavAreaVector> Grid = [];
 	float GridCellSize;
 	int GridSizeX;
 	int GridSizeY;
@@ -39,7 +80,7 @@ public partial class NavMesh
 	Vector3 EditCursorPos;
 	NavArea MarkedArea;
 	NavArea SelectedArea;
-	NavArea LastSelectedArea;
+	NavArea? LastSelectedArea;
 	NavCornerType MarkedCorner;
 	Vector3 Anchor;
 	bool IsPlacePainting;
@@ -50,19 +91,36 @@ public partial class NavMesh
 	Vector3 LadderAnchor;
 	Vector3 LadderNormal;
 	NavLadder SelectedLadder;
-	NavLadder LastSelectedLadder;
+	NavLadder? LastSelectedLadder;
 	NavLadder MarkedLadder;
-	// CountdownTimer ShowAreaInfoTimer;
-	// NavAreaVector SelectedSet;
-	// NavAreaVector DragSelectionSet;
+	CountdownTimer ShowAreaInfoTimer;
+	NavAreaVector SelectedSet = [];
+	NavAreaVector DragSelectionSet = [];
 	bool ContinuouslySelecting;
 	bool ContinuouslyDeselecting;
+	bool IsDragDeselecting;
 	int DragSelectionVolumeZMax;
 	int DragSelectionVolumeZMin;
-	// NavMode CurrentMode;
+	NavNode CurrentMode;
 	NavDirType GenerationDir;
-	// NavLadderVector Ladders;
-	// todo finish this..
+	NavLadderVector Ladders;
+	GenerationStateType GenerationState;
+	GenerationModeType GenerationMode;
+	int GenerationIndex;
+	int SampleTick;
+	bool QuitWhenFinished;
+	float GenerationStartTime;
+	Extent SimplifyGenerationExtent;
+	string SpawnName;
+	readonly List<WalkableSeedSpot> WalkableSeeds = [];
+	int SeedIdx;
+	int HostThreatModeRestoreValue;
+	readonly List<NavArea> TransientAreas = [];
+	readonly List<NavArea> AvoidanceObstacleAreas = [];
+	// readonly List<INavAvoidanceObstacle> AvoidanceObstacles = [];
+	readonly List<NavArea> BlockedAreas = [];
+	readonly List<int> StoredSelectedSet = [];
+	CountdownTimer UpdateBlockedAreasTimer;
 
 	public static NavMesh? Instance;
 

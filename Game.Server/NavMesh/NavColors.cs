@@ -1,11 +1,13 @@
 using Source;
 
+using System.Numerics;
+
 namespace Game.Server.NavMesh;
 
-public partial class NavArea
+public static class NavColors
 {
 
-	enum NavEditColor
+	public enum NavEditColor
 	{
 		// Degenerate area colors
 		NavDegenerateFirstColor = 0,
@@ -57,7 +59,7 @@ public partial class NavArea
 		NavAttributeStairColor
 	}
 
-	Color[] NavColors = [
+	static Color[] Colors = [
 		// Degenerate area colors
 		new(255, 255, 0),	// NavDegenerateFirstColor
 		new(255, 0, 0),		// NavDegenerateSecondColor
@@ -107,4 +109,84 @@ public partial class NavArea
 		new(255, 0, 0),		// NavAttributeAvoidColor
 		new(0, 200, 0),   // NavAttributeStairColor
 	];
+
+	public static void NavDrawLine(in Vector3 from, in Vector3 to, NavEditColor navColor) {
+		Vector3 offset = new Vector3(0f, 0f, 1f);
+		Color color = Colors[(int)navColor];
+
+		//NDebugOverlay.Line(from + offset, to + offset, color[0], color[1], color[2], false, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+		//NDebugOverlay.Line(from + offset, to + offset, color[0] / 2, color[1] / 2, color[2] / 2, true, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+	}
+
+	public static void NavDrawTriangle(in Vector3 p1, in Vector3 p2, in Vector3 p3, NavEditColor navColor) {
+		NavDrawLine(p1, p2, navColor);
+		NavDrawLine(p2, p3, navColor);
+		NavDrawLine(p1, p3, navColor);
+	}
+
+	public static void NavDrawFilledTriangle(in Vector3 p1, in Vector3 p2, in Vector3 p3, NavEditColor navColor, bool dark) {
+		Color color = Colors[(int)navColor];
+
+		if (dark) {
+			color[0] = (byte)(color[0] / 2);
+			color[1] = (byte)(color[1] / 2);
+			color[2] = (byte)(color[2] / 2);
+		}
+
+		//NDebugOverlay.Triangle(p1, p2, p3, color[0], color[1], color[2], 255, true, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+	}
+
+	public static void NavDrawHorizontalArrow(in Vector3 from, in Vector3 to, float width, NavEditColor navColor) {
+		Vector3 offset = new Vector3(0f, 0f, 1f);
+		Color color = Colors[(int)navColor];
+
+		//NDebugOverlay.HorzArrow(from + offset, to + offset, width, color[0], color[1], color[2], 255, false, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+		//NDebugOverlay.HorzArrow(from + offset, to + offset, width, color[0] / 2, color[1] / 2, color[2] / 2, 255, true, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+	}
+
+	public static void NavDrawDashedLine(in Vector3 from, in Vector3 to, NavEditColor navColor) {
+		Vector3 offset = new Vector3(0f, 0f, 1f);
+		Color color = Colors[(int)navColor];
+
+		const float solidLen = 7f;
+		const float gapLen = 3f;
+
+		Vector3 unit = Vector3.Normalize(to - from);
+		float totalDistance = Vector3.Distance(from, to);
+
+		float distance = 0f;
+
+		while (distance < totalDistance) {
+			Vector3 start = from + unit * distance;
+			float endDistance = MathF.Min(distance + solidLen, totalDistance);
+			Vector3 end = from + unit * endDistance;
+
+			distance += solidLen + gapLen;
+
+			//NDebugOverlay.Line(start + offset, end + offset, color[0], color[1], color[2], false, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+			//NDebugOverlay.Line(start + offset, end + offset, color[0] / 2, color[1] / 2, color[2] / 2, true, NDEBUG_PERSIST_TILL_NEXT_SERVER);
+		}
+	}
+
+	public static void NavDrawVolume(in Vector3 vMin, in Vector3 vMax, float zMidline, NavEditColor navColor) {
+		NavDrawLine(new Vector3(vMax.X, vMax.Y, zMidline), new Vector3(vMin.X, vMax.Y, zMidline), navColor);
+		NavDrawLine(new Vector3(vMin.X, vMin.Y, zMidline), new Vector3(vMin.X, vMax.Y, zMidline), navColor);
+		NavDrawLine(new Vector3(vMin.X, vMin.Y, zMidline), new Vector3(vMax.X, vMin.Y, zMidline), navColor);
+		NavDrawLine(new Vector3(vMax.X, vMax.Y, zMidline), new Vector3(vMax.X, vMin.Y, zMidline), navColor);
+
+		NavDrawLine(new Vector3(vMax.X, vMax.Y, vMin.Z), new Vector3(vMin.X, vMax.Y, vMin.Z), navColor);
+		NavDrawLine(new Vector3(vMin.X, vMin.Y, vMin.Z), new Vector3(vMin.X, vMax.Y, vMin.Z), navColor);
+		NavDrawLine(new Vector3(vMin.X, vMin.Y, vMin.Z), new Vector3(vMax.X, vMin.Y, vMin.Z), navColor);
+		NavDrawLine(new Vector3(vMax.X, vMax.Y, vMin.Z), new Vector3(vMax.X, vMin.Y, vMin.Z), navColor);
+
+		NavDrawLine(new Vector3(vMax.X, vMax.Y, vMax.Z), new Vector3(vMin.X, vMax.Y, vMax.Z), navColor);
+		NavDrawLine(new Vector3(vMin.X, vMin.Y, vMax.Z), new Vector3(vMin.X, vMax.Y, vMax.Z), navColor);
+		NavDrawLine(new Vector3(vMin.X, vMin.Y, vMax.Z), new Vector3(vMax.X, vMin.Y, vMax.Z), navColor);
+		NavDrawLine(new Vector3(vMax.X, vMax.Y, vMax.Z), new Vector3(vMax.X, vMin.Y, vMax.Z), navColor);
+
+		NavDrawLine(new Vector3(vMax.X, vMax.Y, vMin.Z), new Vector3(vMax.X, vMax.Y, vMax.Z), navColor);
+		NavDrawLine(new Vector3(vMin.X, vMin.Y, vMin.Z), new Vector3(vMin.X, vMin.Y, vMax.Z), navColor);
+		NavDrawLine(new Vector3(vMax.X, vMin.Y, vMin.Z), new Vector3(vMax.X, vMin.Y, vMax.Z), navColor);
+		NavDrawLine(new Vector3(vMin.X, vMax.Y, vMin.Z), new Vector3(vMin.X, vMax.Y, vMax.Z), navColor);
+	}
 }
