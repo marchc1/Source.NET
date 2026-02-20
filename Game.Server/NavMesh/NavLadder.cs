@@ -38,7 +38,7 @@ public class NavLadder
 	static uint NextID;
 	uint ID;
 
-	NavLadder() {
+	public NavLadder() {
 		TopForwardArea = null;
 		TopRightArea = null;
 		TopLeftArea = null;
@@ -57,7 +57,7 @@ public class NavLadder
 		throw new NotImplementedException();
 	}
 
-	void OnSplit(NavArea original, NavArea alpha, NavArea beta) { }
+	public void OnSplit(NavArea original, NavArea alpha, NavArea beta) { }
 
 	void ConnectTo(NavArea area) { }
 
@@ -81,7 +81,7 @@ public class NavLadder
 
 	void Save(ReadOnlySpan<char> fileBuffer, uint version) { }
 
-	void Load(ReadOnlySpan<char> fileBuffer, uint version) { }
+	public void Load(BinaryReader fileBuffer, uint version) { }
 
 	bool IsInUse(BasePlayer ignore) {
 		throw new NotImplementedException();

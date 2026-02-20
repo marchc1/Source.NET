@@ -291,11 +291,102 @@ public partial class NavArea
 		return NavErrorType.Ok;
 	}
 
-	NavErrorType PostLoad() {
-		throw new NotImplementedException();
+	public NavErrorType PostLoad() {
+		NavErrorType error = NavErrorType.Ok;
+
+		for (int dir = 0; dir < (int)NavLadder.LadderDirectionType.NumLadderDirections; ++dir) {
+			for (int it = 0; it < Ladder[dir].Count; ++it) {
+				NavLadderConnect connect = Ladder[dir][it];
+
+				uint id = connect.ID;
+
+				if (NavMesh.Instance!.GetLadders().Find(x => x == connect.Ladder) == null)
+					connect.Ladder = NavMesh.Instance!.GetLadderByID(id);
+
+				if (id != 0 && connect.Ladder == null) {
+					Msg("NavArea::PostLoad: Corrupt navigation ladder data. Cannot connect Navigation Areas.\n");
+					error = NavErrorType.CorruptData;
+				}
+			}
+		}
+
+		for (int d = 0; d < (int)NavDirType.NumDirections; d++) {
+			for (int it = 0; it < Connect[d].Count; ++it) {
+				NavConnect connect = Connect[d][it];
+
+				uint id = connect.ID;
+				connect.Area = NavMesh.Instance!.GetNavAreaByID(id);
+				if (id != 0 && connect.Area == null) {
+					Msg("NavArea::PostLoad: Corrupt navigation data. Cannot connect Navigation Areas.\n");
+					error = NavErrorType.CorruptData;
+				}
+				connect.Length = (connect.Area!.GetCenter() - GetCenter()).Length();
+			}
+		}
+
+		SpotEncounter e;
+		for (int it = 0; it < SpotEncounters.Count; ++it) {
+			e = SpotEncounters[it];
+
+			e.From.Area = NavMesh.Instance!.GetNavAreaByID(e.From.ID);
+			if (e.From.Area == null) {
+				Msg("NavArea::PostLoad: Corrupt navigation data. Missing \"from\" Navigation Area for Encounter Spot.\n");
+				error = NavErrorType.CorruptData;
+			}
+
+			e.To.Area = NavMesh.Instance!.GetNavAreaByID(e.To.ID);
+			if (e.To.Area == null) {
+				Msg("NavArea::PostLoad: Corrupt navigation data. Missing \"to\" Navigation Area for Encounter Spot.\n");
+				error = NavErrorType.CorruptData;
+			}
+
+			if (e.From.Area != null && e.To.Area != null) {
+				float halfWidth = 0;
+				ComputePortal(e.To.Area, e.ToDir, e.Path.To, halfWidth);
+				ComputePortal(e.From.Area, e.FromDir, e.Path.From, halfWidth);
+
+				const float eyeHeight = Nav.HalfHumanHeight;
+				e.Path.From.Z = e.From.Area.GetZ(e.Path.From) + eyeHeight;
+				e.Path.To.Z = e.To.Area.GetZ(e.Path.To) + eyeHeight;
+			}
+
+			for (int sit = 0; sit < e.Spots.Count; ++sit) {
+				SpotOrder order = e.Spots[sit];
+
+				order.Spot = NavMesh.GetHidingSpotByID(order.ID);
+				if (order.Spot == null) {
+					Msg("NavArea::PostLoad: Corrupt navigation data. Missing Hiding Spot\n");
+					error = NavErrorType.CorruptData;
+				}
+			}
+		}
+
+		for (int it = 0; it < PotentiallyVisibleAreas.Count; ++it) {
+			AreaBindInfo info = PotentiallyVisibleAreas[it];
+
+			info.Area = NavMesh.Instance!.GetNavAreaByID(info.ID);
+			if (info.Area == null)
+				Warning("Invalid area in visible set for area #%d\n", GetID());
+		}
+
+		InheritVisibilityFrom.Area = NavMesh.Instance!.GetNavAreaByID(InheritVisibilityFrom.ID);
+		Assert(InheritVisibilityFrom.Area != this);
+
+		PotentiallyVisibleAreas.RemoveAll(info => info.Area == null);
+
+		ClearAllNavCostEntities();
+
+#if DEBUG
+		Console.WriteLine($"NavArea #{ID} (Connects: {Connect[0].Count} forward, {Connect[1].Count} left, {Connect[2].Count} back, {Connect[3].Count} right)");
+#endif
+
+		return error;
 	}
 
-	void ComputeEarliestOccupyTimes() { }
+	public void ComputeEarliestOccupyTimes() {
+		for (int team = 0; team < MAX_NAV_TEAMS; ++team)
+			EarliestOccupyTime[team] = 0.0f;
+	}
 }
 
 public partial class NavMesh
@@ -315,8 +406,20 @@ public partial class NavMesh
 		throw new NotImplementedException();
 	}
 
+	private void GetNavSizeFromFile(out long size) { // HACK, we don't have a growable buffer
+		Span<char> filename = stackalloc char[MAX_PATH];  // FIXME: Awaiting singleplayer
+
+		// sprintf(filename, "maps/%s.nav").S(gpGlobals.MapName);
+		sprintf(filename, "maps/gm_flatgrass.nav");//.S(gpGlobals.MapName);
+
+		size = filesystem.Size(filename, "MOD");
+		if (size == -1) size = filesystem.Size(filename, "BSP");
+		if (size == -1) size = filesystem.Size("maps\\embed.nav", "BSP");
+	}
+
 	NavErrorType GetNavDataFromFile(Span<byte> outBuffer, ref bool navDataFromBSP) {
-		Span<char> filename = stackalloc char[MAX_PATH];
+		Span<char> filename = stackalloc char[MAX_PATH];  // FIXME: Awaiting singleplayer
+
 		// sprintf(filename, "maps/%s.nav").S(gpGlobals.MapName);
 		sprintf(filename, "maps/gm_flatgrass.nav");//.S(gpGlobals.MapName);
 
@@ -339,20 +442,20 @@ public partial class NavMesh
 		Reset();
 		placeDirectory.Reset();
 
-		// NavVectorNoEditAllocator.Reset();
-
-		// GameRules.OnNavMeshLoad();
-
 		NavArea.NextID = 1;
 
 		bool navIsInBsp = false;
 
-		Span<byte> fileBuffer = stackalloc byte[272 * 1024]; // FIXME: needs to grow if needed
+		GetNavSizeFromFile(out long navSize);
+		if (navSize <= 0)
+			return NavErrorType.CantAccessFile;
+
+		Span<byte> fileBuffer = stackalloc byte[(int)navSize];
 		NavErrorType readResult = GetNavDataFromFile(fileBuffer, ref navIsInBsp);
 		if (readResult != NavErrorType.Ok)
 			return readResult;
 
-		using var buffer = new BinaryReader(new MemoryStream(fileBuffer.ToArray()));
+		using var buffer = new BinaryReader(new MemoryStream(fileBuffer.ToArray(), false));
 
 		uint magic = buffer.ReadUInt32();
 		if (magic != Nav.NavMagicNumber)
@@ -372,16 +475,22 @@ public partial class NavMesh
 		if (version >= 4) {
 			uint saveBspSize = buffer.ReadUInt32();
 
-			Span<char> bspFilename = stackalloc char[260];
-			sprintf(bspFilename, "maps/%s.bsp").S(gpGlobals.MapName);
+			Span<char> bspFilename = stackalloc char[260]; // FIXME: Awaiting singleplayer
 
-			uint bspSize = (uint)filesystem.Size(bspFilename);
+			// sprintf(bspFilename, "maps/%s.bsp").S(gpGlobals.MapName);
+			sprintf(bspFilename, "maps/gm_flatgrass.bsp");//.S(gpGlobals.MapName);
+
+			long bspSize = filesystem.Size(bspFilename);
 
 			if (bspSize != saveBspSize && !navIsInBsp) {
 				if (engine.IsDedicatedServer())
 					DevMsg("The Navigation Mesh was built using a different version of this map.\n");
 				else
 					DevWarning("The Navigation Mesh was built using a different version of this map.\n");
+
+#if DEBUG
+				Console.WriteLine($"BSP size: {bspSize:N0} bytes, expected {saveBspSize:N0} bytes");
+#endif
 
 				IsOutOfDate = true;
 			}
@@ -410,21 +519,37 @@ public partial class NavMesh
 		for (int i = 0; i < count; ++i) {
 			NavArea area = Instance!.CreateArea();
 			area.Load(buffer, version, subVersion);
+			NavArea.TheNavAreas.Add(area);
+
+			area.GetExtent(ref areaExtent);
+
+			if (areaExtent.Lo.X < extent.Lo.X)
+				extent.Lo.X = areaExtent.Lo.X;
+			if (areaExtent.Lo.Y < extent.Lo.Y)
+				extent.Lo.Y = areaExtent.Lo.Y;
+			if (areaExtent.Hi.X > extent.Hi.X)
+				extent.Hi.X = areaExtent.Hi.X;
+			if (areaExtent.Hi.Y > extent.Hi.Y)
+				extent.Hi.Y = areaExtent.Hi.Y;
 		}
 
 		AllocateGrid(extent.Lo.X, extent.Hi.X, extent.Lo.Y, extent.Hi.Y);
 
-		// foreach
+		foreach (NavArea area in NavArea.TheNavAreas)
+			AddNavArea(area);
 
 		if (version >= 6) {
 			count = buffer.ReadUInt32();
-			// ladders
+			for (uint i = 0; i < count; ++i) {
+				NavLadder ladder = new();
+				ladder.Load(buffer, version);
+				Ladders.Add(ladder);
+			}
 		}
-		else {
-			// buildladders
-		}
+		else
+			BuildLadders();
 
-		// MarkStairAreas();
+		MarkStairAreas();
 
 		NavErrorType loadResult = PostLoad(version);
 
@@ -434,7 +559,35 @@ public partial class NavMesh
 	}
 
 	NavErrorType PostLoad(uint version) {
-		throw new NotImplementedException();
+		foreach (NavArea area in NavArea.TheNavAreas)
+			area.PostLoad();
+
+		foreach (HidingSpot spot in HidingSpot.TheHidingSpots)
+			spot.PostLoad();
+
+		if (version < 8) {
+			foreach (NavArea area in NavArea.TheNavAreas)
+				area.ComputeEarliestOccupyTimes();
+		}
+
+		ComputeBattlefrontAreas();
+
+		OneWayLink oneWayLink = new();
+		List<OneWayLink> oneWayLinks = [];
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			// todo
+		}
+
+		// todo
+
+		ValidateNavAreaConnections();
+
+		// for (int i = 0; i < AvoidanceObstacles.Count; ++i)
+		// AvoidanceObstacles[i].OnNavMeshLoaded();
+
+		IsLoaded = true;
+
+		return NavErrorType.Ok;
 	}
 
 #if DEBUG
@@ -442,6 +595,7 @@ public partial class NavMesh
 		Console.WriteLine("Loading nav mesh...");
 		Instance ??= new NavMesh();
 		Instance?.Load();
+		Instance?.Update();
 	});
 #endif
 }

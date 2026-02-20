@@ -13,12 +13,17 @@ class ShortedPathCost
 
 }
 
-class NavPathfind
+class ISearchSurroundingAreasFunctor
 {
 
 }
 
 class FarAwayFunctor
+{
+
+}
+
+class FarAwayFromPositionFunctor
 {
 
 }

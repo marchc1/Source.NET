@@ -2,6 +2,9 @@ namespace Game.Server.NavMesh;
 
 using System.Numerics;
 
+using Game.Server.NextBot;
+using Game.Shared;
+
 using Source;
 
 public struct NavConnect()
@@ -22,7 +25,7 @@ public struct NavLadderConnect()
 public struct SpotOrder
 {
 	public float T;
-	public HidingSpot Spot;
+	public HidingSpot? Spot;
 	public uint ID;
 }
 
@@ -33,76 +36,18 @@ struct SpotEncounter()
 	public NavConnect To;
 	public NavDirType ToDir;
 	public Ray Path;
-	public SpotOrderVector Spots = [];
+	public List<SpotOrder> Spots = [];
 }
 
-[Flags]
-public enum HidingSpotFlags : byte
+class SplitNotification(NavArea originalArea, NavArea alphaArea, NavArea betaArea)
 {
-	/// <summary>in a corner with good hard cover nearby </summary>
-	InCover = 0x01,
-	/// <summary>had at least one decent sniping corridor </summary>
-	GoodSniperSpot = 0x02,
-	/// <summary>can see either very far, or a large area, or both </summary>
-	IdealSniperSpot = 0x04,
-	/// <summary>spot in the open, usually on a ledge or cliff </summary>
-	Exposed = 0x08
-};
-
-public class HidingSpot
-{
-	public static HidingSpotVector TheHidingSpots = [];
-
-	Vector3 Pos;
-	uint ID;
-	uint Marker;
-	NavArea? Area;
-	byte Flags;
-	static uint NextID = 1;
-	static uint MasterMarker = 0;
-
-	public HidingSpot() {
-		Pos = Vector3.Zero;
-		ID = NextID++;
-		Flags = 0;
-		Area = null;
-		TheHidingSpots.Add(this);
+	private NavArea OriginalArea = originalArea;
+	private NavArea AlphaArea = alphaArea;
+	private NavArea BetaArea = betaArea;
+	public bool Invoke(NavLadder ladder) {
+		ladder.OnSplit(OriginalArea, AlphaArea, BetaArea);
+		return true;
 	}
-
-	public void Save(object? fileBuffer, uint version) { }
-	public void Load(BinaryReader fileBuffer, uint version) {
-		ID = fileBuffer.ReadUInt32();
-		Pos.X = fileBuffer.ReadSingle();
-		Pos.Y = fileBuffer.ReadSingle();
-		Pos.Z = fileBuffer.ReadSingle();
-		Flags = fileBuffer.ReadByte();
-
-		if (ID >= NextID)
-			NextID = ID + 1;
-	}
-
-	NavErrorType PostLoad() {
-		Area = NavMesh.Instance!.GetNavArea(Pos with { Z = Pos.Z + Nav.HalfHumanHeight });
-
-		if (Area == null)
-			DevWarning($"A Hiding Spot is off of the Nav Mesh at setpos {Pos.X} {Pos.Y} {Pos.Z}\n");
-
-		return NavErrorType.Ok;
-	}
-
-	bool HasGoodCover() => (Flags & (byte)HidingSpotFlags.InCover) != 0;
-	bool IsGoodSniperSpot() => (Flags & (byte)HidingSpotFlags.GoodSniperSpot) != 0;
-	bool IsIdealSniperSpot() => (Flags & (byte)HidingSpotFlags.IdealSniperSpot) != 0;
-	bool IsExposed() => (Flags & (byte)HidingSpotFlags.Exposed) != 0;
-	int GetFlags() => Flags;
-	Vector3 GetPosition() => Pos;
-	uint GetID() => ID;
-	NavArea? GetArea() => Area;
-	void Mark() => Marker = MasterMarker;
-	bool IsMarked() => Marker == MasterMarker;
-	static void ChangeMasterMarker() => ++MasterMarker;
-	public void SetFlags(HidingSpotFlags flags) => Flags = (byte)flags;
-	public void SetPosition(Vector3 pos) => Pos = pos;
 }
 
 public class NavAreaCriticalData
@@ -128,9 +73,9 @@ public class NavAreaCriticalData
 	public uint OpenMarker;
 	public int AttributeFlags;
 
-	public readonly NavConnectVector[] Connect = new NavConnectVector[(int)NavDirType.NumDirections];
-	public readonly NavLadderConnectVector[] Ladder = new NavLadderConnectVector[(int)NavLadder.LadderDirectionType.NumLadderDirections];
-	public NavConnectVector ElevatorAreas;
+	public readonly List<NavConnect>[] Connect = new List<NavConnect>[(int)NavDirType.NumDirections];
+	public readonly List<NavLadderConnect>[] Ladder = new List<NavLadderConnect>[(int)NavLadder.LadderDirectionType.NumLadderDirections];
+	public List<NavConnect> ElevatorAreas;
 
 	public uint NearNavSearchMarker;
 
@@ -144,6 +89,8 @@ public class NavAreaCriticalData
 
 public partial class NavArea : NavAreaCriticalData
 {
+	public static List<NavArea> TheNavAreas = [];
+
 	public struct AreaBindInfo
 	{
 		public NavArea? Area;
@@ -166,25 +113,33 @@ public partial class NavArea : NavAreaCriticalData
 	readonly float[] ClearedTimestamp = new float[MAX_NAV_TEAMS];
 	readonly float[] Danger = new float[MAX_NAV_TEAMS];
 	readonly float[] DangerTimestamp = new float[MAX_NAV_TEAMS];
-	readonly HidingSpotVector HidingSpots = [];
-	readonly SpotEncounterVector SpotEncounters = [];
+	readonly List<HidingSpot> HidingSpots = [];
+	readonly List<SpotEncounter> SpotEncounters = [];
 	readonly float[] EarliestOccupyTime = new float[MAX_NAV_TEAMS];
 	readonly float[] LightIntensity = new float[(int)NavCornerType.NumCorners];
 	static uint MasterMarker;
 	static NavArea OpenList;
 	static NavArea OpenListTail;
-	readonly NavConnectVector[] IncomingConnect = new NavConnectVector[(int)NavDirType.NumDirections];
+	readonly List<NavConnect>[] IncomingConnect = new List<NavConnect>[(int)NavDirType.NumDirections];
 	readonly NavNode?[] Node = new NavNode[(int)NavCornerType.NumCorners];
-	// List<Handle<FuncNavPrerequisite>> PrerequisiteVector;   // list of prerequisites that must be met before this area can be traversed
-	NavArea? PrevHash, NextHash;
+	List<Handle<FuncNavPrerequisite>> PrerequisiteVector;   // list of prerequisites that must be met before this area can be traversed
+	public NavArea? PrevHash, NextHash;
 	int DamagingTickCount;
 	AreaBindInfo InheritVisibilityFrom;
-	readonly AreaBindInfoArray PotentiallyVisibleAreas = [];
+	readonly List<AreaBindInfo> PotentiallyVisibleAreas = [];
 	bool IsInheritedFrom;
 	UInt32 VisTestCounter;
 	static UInt32 CurrVisTestCounter;
 
-	void CompressIDs() { }
+	void CompressIDs() {
+		NextID = 1;
+
+		foreach (NavArea area in TheNavAreas) {
+			area.ID = NextID++;
+			NavMesh.Instance!.RemoveNavArea(area);
+			NavMesh.Instance.AddNavArea(area);
+		}
+	}
 
 	public NavArea() {
 		Marker = 0;
@@ -251,7 +206,20 @@ public partial class NavArea : NavAreaCriticalData
 
 	void Build(NavNode nwNode, NavNode neNode, NavNode seNode, NavNode swNode) { }
 
-	public void GetExtent(ref Extent extent) { }
+	public void GetExtent(ref Extent extent) {
+		extent.Lo = NWCorner;
+		extent.Hi = SECorner;
+
+		extent.Lo.Z = MathF.Min(extent.Lo.Z, NWCorner.Z);
+		extent.Lo.Z = MathF.Min(extent.Lo.Z, SECorner.Z);
+		extent.Lo.Z = MathF.Min(extent.Lo.Z, NEZ);
+		extent.Lo.Z = MathF.Min(extent.Lo.Z, SWZ);
+
+		extent.Hi.Z = MathF.Max(extent.Hi.Z, NWCorner.Z);
+		extent.Hi.Z = MathF.Max(extent.Hi.Z, SECorner.Z);
+		extent.Hi.Z = MathF.Max(extent.Hi.Z, NEZ);
+		extent.Hi.Z = MathF.Max(extent.Hi.Z, SWZ);
+	}
 
 	public Vector3 GetCenter() => Center;
 
@@ -306,7 +274,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	void AssignNodes(NavArea area) { }
 
-	bool SplitEdit(bool splitAlongX, float splitEdge, NavArea outAlpha, NavArea outBeta) {
+	public bool SplitEdit(bool splitAlongX, float splitEdge, out NavArea outAlpha, out NavArea outBeta) {
 		throw new NotImplementedException();
 	}
 
@@ -344,17 +312,11 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	bool IsOverlapping(Vector3 pos, float tolerance) {
-		throw new NotImplementedException();
-	}
+	public bool IsOverlapping(Vector3 pos, float tolerance = 0.0f) => pos.X + tolerance >= NWCorner.X && pos.X - tolerance <= SECorner.X && pos.Y + tolerance >= NWCorner.Y && pos.Y - tolerance <= SECorner.Y;
 
-	bool IsOverlapping(NavArea area) {
-		throw new NotImplementedException();
-	}
+	bool IsOverlapping(NavArea area) => area.NWCorner.X < SECorner.X && area.SECorner.X > NWCorner.X && area.NWCorner.Y < SECorner.Y && area.SECorner.Y > NWCorner.Y;
 
-	bool IsOverlapping(Extent extent) {
-		throw new NotImplementedException();
-	}
+	bool IsOverlapping(Extent extent) => extent.Lo.X < SECorner.X && extent.Hi.X > NWCorner.X && extent.Lo.Y < SECorner.Y && extent.Hi.Y > NWCorner.Y;
 
 	bool IsOverlappingX(NavArea area) {
 		throw new NotImplementedException();
@@ -385,7 +347,21 @@ public partial class NavArea : NavAreaCriticalData
 	}
 
 	float GetZ(float x, float y) {
-		throw new NotImplementedException();
+		if (InvDXCorners == 0 || InvDYCorners == 0)
+			return NEZ;
+
+		float u = (x - NWCorner.X) * InvDXCorners;
+		float v = (y - NWCorner.Y) * InvDYCorners;
+
+		u = u >= 0 ? u : 0;
+		u = u >= 1 ? 1 : u;
+		v = v >= 0 ? v : 0;
+		v = v >= 1 ? 1 : v;
+
+		float northZ = NWCorner.Z + u * (NEZ - NWCorner.Z);
+		float southZ = SWZ + u * (SECorner.Z - SWZ);
+
+		return northZ + v * (southZ - northZ);
 	}
 
 	void GetClosestPointOnArea(Vector3 pos, Vector3 close) { }
@@ -514,13 +490,13 @@ public partial class NavArea : NavAreaCriticalData
 
 	void UnblockArea(int teamID) { }
 
-	void UpdateBlocked(bool force, int teamID) { }
+	public void UpdateBlocked(bool force = false, int teamID = -2) { }
 
 	void CheckFloor(BaseEntity ignore) { }
 
-	void MarkObstacleToAvoid(float obstructionHeight) { }
+	public void MarkObstacleToAvoid(float obstructionHeight) { }
 
-	void UpdateAvoidanceObstacles() { }
+	public void UpdateAvoidanceObstacles() { }
 
 	void ClearAllNavCostEntities() { }
 
@@ -538,7 +514,16 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	void CheckWaterLevel() { }
+	void CheckWaterLevel() {
+		Vector3 pos = GetCenter();
+		if (!NavMesh.Instance!.GetGroundHeight(pos, out float z)) {
+			IsUnderwater = false;
+			return;
+		}
+
+		pos.Z = z + 1;
+		// enginetrace todo
+	}
 
 	void SetupPVS() { }
 
@@ -550,9 +535,9 @@ public partial class NavArea : NavAreaCriticalData
 	// 	throw new NotImplementedException();
 	// }
 
-	// AreaBindInfoArray ComputeVisibilityDelta(NavArea other) {
-	// 	throw new NotImplementedException();
-	// }
+	List<AreaBindInfo> ComputeVisibilityDelta(NavArea other) {
+		throw new NotImplementedException();
+	}
 
 	void ResetPotentiallyVisibleAreas() { }
 
@@ -605,6 +590,9 @@ public partial class NavArea : NavAreaCriticalData
 	float GetDangerDecayRate() {
 		throw new NotImplementedException();
 	}
+
+	public float GetSizeX() => SECorner.X - NWCorner.X;
+	public float GetSizeY() => SECorner.Y - NWCorner.Y;
 
 	bool IsDegenerate() {
 		throw new NotImplementedException();
@@ -676,11 +664,15 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	public float GetZ(Vector3 pos) {
-		throw new NotImplementedException();
-	}
+	public float GetZ(Vector3 pos) => GetZ(pos.X, pos.Y);
 
-	Vector3 GetCorner(NavCornerType corner) {
-		throw new NotImplementedException();
+	public Vector3 GetCorner(NavCornerType corner) {
+		return corner switch {
+			NavCornerType.NorthWest => NWCorner,
+			NavCornerType.NorthEast => new Vector3(SECorner.X, NWCorner.Y, NEZ),
+			NavCornerType.SouthEast => SECorner,
+			NavCornerType.SouthWest => new Vector3(NWCorner.X, SECorner.Y, SWZ),
+			_ => throw new ArgumentOutOfRangeException(nameof(corner), corner, null)
+		};
 	}
 }

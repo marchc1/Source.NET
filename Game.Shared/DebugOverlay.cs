@@ -56,7 +56,7 @@ static class DebugOverlay
 			return;
 
 		// Clip line that is behind the client
-		player.EyeVectors(out AngularImpulse clientForward);
+		player.EyeVectors(out Vector3 clientForward);
 
 		Vector3 toOrigin = origin - player.GetAbsOrigin();
 		Vector3 toTarget = target - player.GetAbsOrigin();
@@ -120,7 +120,7 @@ static class DebugOverlay
 			return;
 
 		// Clip text that is behind the client
-		player.EyeVectors(out AngularImpulse clientForward);
+		player.EyeVectors(out Vector3 clientForward);
 
 		Vector3 toText = origin - player.GetAbsOrigin();
 		float dotPr = MathLib.DotProduct(clientForward, toText);
@@ -173,7 +173,7 @@ static class DebugOverlay
 
 		float radius = (float)(width / 2.0);
 
-		MathLib.CrossProduct(lineDir, upVec, out AngularImpulse sideDir);
+		MathLib.CrossProduct(lineDir, upVec, out Vector3 sideDir);
 
 		Vector3 p1 = startPos - sideDir * radius;
 		Vector3 p2 = endPos - lineDir * width - sideDir * radius;

@@ -42,7 +42,15 @@ public partial class NavMesh
 	}
 
 	void SetEditMode(EditModeType mode) {
+		MarkedLadder = null;
+		MarkedArea = null;
+		MarkedCorner = NavCornerType.NumCorners;
 
+		EditMode = mode;
+
+		ContinuouslySelecting = false;
+		ContinuouslyDeselecting = false;
+		IsDragDeselecting = false;
 	}
 
 	bool FindNavAreaOrLadderAlongRay(Vector3 start, Vector3 end, NavArea bestArea, NavLadder bestLadder, NavArea ignore) {
@@ -58,8 +66,8 @@ public partial class NavMesh
 		corner2 = default;
 		corner3 = default;
 
-		MathLib.VectorVectors(LadderNormal, out AngularImpulse ladderRight, out AngularImpulse ladderUp);
-		GetEditVectors(out AngularImpulse from, out AngularImpulse dir);
+		MathLib.VectorVectors(LadderNormal, out Vector3 ladderRight, out Vector3 ladderUp);
+		GetEditVectors(out Vector3 from, out Vector3 dir);
 
 		const float maxDist = 100000f;
 
@@ -96,7 +104,11 @@ public partial class NavMesh
 
 	void CommandNavBuildLadder() { }
 
-	void OnEditModeStart() { }
+	void OnEditModeStart() {
+		ClearSelectedSet();
+		ContinuouslySelecting = false;
+		ContinuouslyDeselecting = false;
+	}
 
 	void OnEditModeEnd() { }
 
@@ -110,24 +122,22 @@ public partial class NavMesh
 		if (player == null)
 			return;
 
-		// if (IsGenerating())
-		// 	return;
+		if (IsGenerating())
+			return;
 
 		// host_thread_mode
 
 		const float maxRange = 1000.0f;
 
-		Vector3 from, dir;
-		GetEditVectors(out from, out dir);
+		GetEditVectors(out Vector3 from, out Vector3 dir);
 
 		Vector3 to = from + maxRange * dir;
 
 		if (FindActiveNavArea() || MarkedArea != null || MarkedLadder != null || !IsSelectedSetEmpty() || IsEditMode(EditModeType.CreatingArea) || IsEditMode(EditModeType.CreatingLadder)) {
 			const float cursorSize = 10.0f;
 
-			if (ClimbableSurface) {
+			if (ClimbableSurface)
 				DebugOverlay.Cross3D(EditCursorPos, cursorSize, 0, 255, 0, true, DebugOverlay.Persist);
-			}
 			else {
 				NavColors.NavDrawLine(EditCursorPos + new Vector3(0, 0, cursorSize), EditCursorPos, NavColors.NavEditColor.NavCursorColor);
 				NavColors.NavDrawLine(EditCursorPos + new Vector3(cursorSize, 0, 0), EditCursorPos + new Vector3(-cursorSize, 0, 0), NavColors.NavEditColor.NavCursorColor);
@@ -178,7 +188,7 @@ public partial class NavMesh
 					area.DrawDragSelectionSet(dragSelectionColor);
 			}
 			else if (IsEditMode(EditModeType.CreatingLadder)) {
-				if (FindLadderCorners(out AngularImpulse corner1, out AngularImpulse corner2, out AngularImpulse corner3)) {
+				if (FindLadderCorners(out Vector3 corner1, out Vector3 corner2, out Vector3 corner3)) {
 					NavColors.NavEditColor color = NavColors.NavEditColor.NavCreationColor;
 					if (!ClimbableSurface) {
 						color = NavColors.NavEditColor.NavInvalidCreationColor;
@@ -361,9 +371,17 @@ public partial class NavMesh
 		}
 	}
 
-	void SetMarkedLadder(NavLadder ladder) { }
+	void SetMarkedLadder(NavLadder ladder) {
+		MarkedArea = null;
+		MarkedLadder = ladder;
+		MarkedCorner = NavCornerType.NumCorners;
+	}
 
-	void SetMarkedArea(NavArea area) { }
+	void SetMarkedArea(NavArea area) {
+		MarkedLadder = null;
+		MarkedArea = area;
+		MarkedCorner = NavCornerType.NumCorners;
+	}
 
 	public uint GetNavPlace() => NavPlace;
 	public void SetNavPlace(uint place) => NavPlace = place;
@@ -486,33 +504,25 @@ public partial class NavMesh
 
 	void CommandNavLadderFlip() { }
 
-	void AddToSelectedSet(NavArea area) { }
+	public void AddToSelectedSet(NavArea area) { }
 
-	void RemoveFromSelectedSet(NavArea area) { }
+	void RemoveFromSelectedSet(NavArea area) => SelectedSet.Remove(area);
 
 	void AddToDragSelectionSet(NavArea area) { }
 
-	void RemoveFromDragSelectionSet(NavArea area) { }
+	void RemoveFromDragSelectionSet(NavArea area) => DragSelectionSet.Remove(area);
 
-	void ClearDragSelectionSet() { }
+	void ClearDragSelectionSet() => DragSelectionSet.Clear();
 
-	void ClearSelectedSet() { }
+	void ClearSelectedSet() => SelectedSet.Clear();
 
-	bool IsSelectedSetEmpty() {
-		throw new NotImplementedException();
-	}
+	bool IsSelectedSetEmpty() => SelectedSet.Count == 0;
 
-	int GetSelecteSetSize() {
-		throw new NotImplementedException();
-	}
+	int GetSelecteSetSize() => SelectedSet.Count;
 
-	NavAreaVector GetSelectedSet() {
-		throw new NotImplementedException();
-	}
+	List<NavArea> GetSelectedSet() => SelectedSet;
 
-	public bool IsInSelectedSet(NavArea area) {
-		throw new NotImplementedException();
-	}
+	public bool IsInSelectedSet(NavArea area) => SelectedSet.Contains(area);
 
 	void OnEditCreateNotify(NavArea newArea) { }
 

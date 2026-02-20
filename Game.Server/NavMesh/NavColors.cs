@@ -8,7 +8,6 @@ namespace Game.Server.NavMesh;
 
 public static class NavColors
 {
-
 	public enum NavEditColor
 	{
 		// Degenerate area colors
@@ -97,7 +96,7 @@ public static class NavColors
 		new(255, 255, 0),	// NavSplitLineColor
 		new(0, 255, 0),		// NavCreationColor
 		new(255, 0, 0),		// NavInvalidCreationColor
-		new(0, 64, 64 ),	// NavGridColor
+		new(0, 64, 64),	  // NavGridColor
 		new(255, 255, 0),	// NavDragSelectionColor
 
 		// Nav attribute colors

@@ -214,6 +214,8 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 	public void GameFrame(bool simulating) {
 
+		NavMesh.NavMesh.Instance?.Update();
+
 	}
 
 	public bool GameInit() {

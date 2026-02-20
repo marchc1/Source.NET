@@ -1,12 +1,4 @@
 global using NavPlace = System.UInt32;
-global using HidingSpotVector = System.Collections.Generic.List<Game.Server.NavMesh.HidingSpot>;
-global using SpotEncounterVector = System.Collections.Generic.List<Game.Server.NavMesh.SpotEncounter>;
-global using SpotOrderVector = System.Collections.Generic.List<Game.Server.NavMesh.SpotOrder>;
-global using NavConnectVector = System.Collections.Generic.List<Game.Server.NavMesh.NavConnect>;
-global using NavLadderConnectVector = System.Collections.Generic.List<Game.Server.NavMesh.NavLadderConnect>;
-global using AreaBindInfoArray = System.Collections.Generic.List<Game.Server.NavMesh.NavArea.AreaBindInfo>;
-global using NavAreaVector = System.Collections.Generic.List<Game.Server.NavMesh.NavArea>;
-global using NavLadderVector = System.Collections.Generic.List<Game.Server.NavMesh.NavLadder>;
 
 using Source.Common;
 using Source.Common.Mathematics;
@@ -16,9 +8,9 @@ namespace Game.Server.NavMesh;
 
 public static class Nav
 {
-	const float GenerationStepSize = 25.0f;     // (30) was 20, but bots can't fit always fit
+	public const float GenerationStepSize = 25.0f;     // (30) was 20, but bots can't fit always fit
 	const float JumpHeight = 41.8f;         // if delta Z is less than this, we can jump up on it
-	const float JumpCrouchHeight = 64.0f;     // (48) if delta Z is less than or equal to this, we can jumpcrouch up on it
+	public const float JumpCrouchHeight = 64.0f;     // (48) if delta Z is less than or equal to this, we can jumpcrouch up on it
 	const float StepHeight = 18.0f;         // if delta Z is greater than this, we have to jump to get up
 	const float DeathDrop = 400.0f;         // (300) distance at which we will die if we fall - should be about 600, and pay attention to fall damage during pathfind
 	const float ClimbUpHeight = 200.0f;       // height to check for climbing up
@@ -98,7 +90,7 @@ public static class Nav
 
 	public static Vector2 CornerToVector2D(NavCornerType dir) {
 		Vector2 v = dir switch {
-			NavCornerType.NorthWeset => new Vector2(-1f, -1f),
+			NavCornerType.NorthWest => new Vector2(-1f, -1f),
 			NavCornerType.NorthEast => new Vector2(1f, -1f),
 			NavCornerType.SouthEast => new Vector2(1f, 1f),
 			NavCornerType.SouthWest => new Vector2(-1f, 1f),
@@ -115,7 +107,7 @@ public static class Nav
 		switch (dir) {
 			default:
 			case NavDirType.North:
-				first = NavCornerType.NorthWeset;
+				first = NavCornerType.NorthWest;
 				second = NavCornerType.NorthEast;
 				break;
 			case NavDirType.South:
@@ -127,7 +119,7 @@ public static class Nav
 				second = NavCornerType.SouthEast;
 				break;
 			case NavDirType.West:
-				first = NavCornerType.NorthWeset;
+				first = NavCornerType.NorthWest;
 				second = NavCornerType.SouthWest;
 				break;
 		}
@@ -302,7 +294,7 @@ public enum NavTraverseType
 [Flags]
 public enum NavCornerType
 {
-	NorthWeset = 0,
+	NorthWest = 0,
 	NorthEast = 1,
 	SouthEast = 2,
 	SouthWest = 3,
@@ -392,3 +384,21 @@ public class TraceFilterWalkableEntities //: TraceFilterNoNPCsOrPlayer
 		return false;
 	}
 }
+
+public interface INavAvoidanceObstacle
+{
+	/// <summary>
+	/// // could we at some future time obstruct nav?
+	/// </summary>
+	bool IsPotentiallyAbleToObstructNavAreas();
+	/// <summary>
+	/// height at which to obstruct nav areas
+	/// </summary>
+	float GetNavObstructionHeight();
+	/// <summary>
+	/// can we obstruct nav right this instant?
+	/// </summary>
+	bool CanObstructNavAreas();
+	BaseEntity GetObstructingEntity();
+	void OnNavMeshLoaded();
+};

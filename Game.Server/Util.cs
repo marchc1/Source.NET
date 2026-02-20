@@ -187,6 +187,16 @@ public static partial class Util
 		return PlayerByIndex(1);
 	}
 
+	public static bool IsCommandUssuedByServerAdmin() {
+		// int issuingPlayerIndex = GetCommandClientIndex();
+		int issuingPlayerIndex = 0; // TODO TODO
+
+		if (engine.IsDedicatedServer() && issuingPlayerIndex > 0)
+			return false;
+
+		return issuingPlayerIndex < 1;
+	}
+
 	public static void ClientPrintAll(HudPrint dest, ReadOnlySpan<char> msgName, ReadOnlySpan<char> param1 = default, ReadOnlySpan<char> param2 = default, ReadOnlySpan<char> param3 = default, ReadOnlySpan<char> param4 = default) {
 		ReliableBroadcastRecipientFilter filter = new();
 		ClientPrintFilter(filter, dest, msgName, param1, param2, param3, param4);
