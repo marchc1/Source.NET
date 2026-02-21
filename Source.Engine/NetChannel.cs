@@ -1291,7 +1291,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 	public void SetMaxRoutablePayloadSize(int splitSize) {
 		if (MaxRoutablePayloadSize != splitSize) {
-			DevMsg($"Setting max routable payload size from {MaxRoutablePayloadSize} to {splitSize} for {GetName()}");
+			DevMsg($"Setting max routable payload size from {MaxRoutablePayloadSize} to {splitSize} for {GetName()}\n");
 		}
 		MaxRoutablePayloadSize = splitSize;
 	}
@@ -1921,7 +1921,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		data.Bytes = (uint)totalBytes;
 		data.Bits = data.Bytes * 8;
 		data.Buffer = null;
-		data.Compressed  = false;
+		data.Compressed = false;
 		data.UncompressedSize = 0;
 		data.File = g_pFileSystem.Open(filename, Filesystem.FileOpenOptions.Read | Filesystem.FileOpenOptions.Binary, pathID);
 
@@ -1947,7 +1947,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 	}
 
 	public void DenyFile(ReadOnlySpan<char> filename, uint transferID) {
-		if (Net.net_showfragments.GetInt() == 2) 
+		if (Net.net_showfragments.GetInt() == 2)
 			DevMsg($"DenyFile: {filename} (ID {transferID})\n");
 
 		StreamReliable.WriteUBitLong(NET.File, NETMSG_TYPE_BITS);

@@ -51,8 +51,9 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public virtual void FileSent(ReadOnlySpan<char> fileName, uint transferID) { }
 
 	public bool ProcessMessage<T>(T message) where T : INetMessage {
-		if (message is not NET_Tick)
-			Common.TimestampedLog($"BaseClient.ProcessMessage: {typeof(T).Name}");
+		if (message is not NET_Tick && message is not CLC_Move)
+			Common.TimestampedLog($"BaseClient.ProcessMessage: {message.GetType().Name} (IsReliable: {message.IsReliable()})");
+
 		switch (message) {
 			case NET_Tick m: return ProcessTick(m);
 			case NET_StringCmd m: return ProcessStringCmd(m);
@@ -244,11 +245,35 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	protected virtual void SpawnPlayer() {
-		ConMsg("SpawnPlayer called\n");
+		Common.TimestampedLog("CBaseClient::SpawnPlayer");
+
+		if (!IsFakeClient()) {
+			FreeBaselines();
+
+			// baseline = todo
+		}
+
+		NET_Tick msg = new(Server.GetTick(), (int)Host.FrameTime, (int)Host.FrameTimeStandardDeviation);
+		SendNetMsg(msg);
+
+		SignOnState = SignOnState.Spawn;
+
+		NET_SignonState signonState = new(SignOnState, Server.GetSpawnCount());
+		SendNetMsg(signonState);
 	}
 
 	protected virtual void ActivatePlayer() {
-		ConMsg("ActivatePlayer called\n");
+		Common.TimestampedLog("CBaseClient::ActivatePlayer");
+
+		Server.UserInfoChanged(ClientSlot);
+
+		SignOnState = SignOnState.Full;
+
+		// MapReslistGenerator().OnPlayerSpawn();
+		// NotifyDedicatedServerUI("UpdatePlayers");
+
+		NET_SignonState signonState = new(SignOnState, Server.GetSpawnCount()); // FIXME: This message should need to be sent here?
+		NetChannel.SendNetMsg(signonState);
 	}
 
 	protected virtual void OnSignonStateFull() { }
@@ -273,8 +298,9 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	protected virtual bool ProcessClientInfo(CLC_ClientInfo msg) {
+		Common.TimestampedLog($"BaseClient.ProcessClientInfo: SignOnState={SignOnState}");
 		if (SignOnState != SignOnState.New) {
-			Warning("Dropping ClientInfo packet from client not in appropriate state\n");
+			Warning($"Dropping ClientInfo packet from client not in appropriate state (State: {SignOnState})\n");
 			return false;
 		}
 
@@ -295,18 +321,25 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			// CustomFiles[i].ReqID = 0;
 		}
 
-		if (msg.ServerCount != Server.GetSpawnCount())
+		if (msg.ServerCount != Server.GetSpawnCount()) {
+			Common.TimestampedLog($"BaseClient.ProcessClientInfo: ServerCount mismatch (msg={msg.ServerCount}, sv={Server.GetSpawnCount()}). Reconnecting.");
 			Reconnect();  // client still in old game, reconnect
+		}
 
 		return true;
 	}
 
 	protected virtual bool ProcessBaselineAck(CLC_BaselineAck m) {
+		Common.TimestampedLog($"BaseClient.ProcessBaselineAck: BaselineTick={m.BaselineTick}");
 		return true;// todo
 	}
 
 	protected virtual bool ProcessListenEvents(CLC_ListenEvents m) {
 		return true;// todo
+	}
+
+	protected virtual void SendSnapshot(ClientFrame frame) {
+		// todo
 	}
 
 	public int GetClientChallenge() => ClientChallenge;

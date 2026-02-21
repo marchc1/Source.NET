@@ -46,7 +46,7 @@ public class GameClient : BaseClient
 	public ClientFrame? CurrentFrame;
 	// public CheckTransmitInfo PackInfo;
 	public bool IsInReplayMode;
-	// public CheckTransmitInfo PrevPackInfo;     
+	// public CheckTransmitInfo PrevPackInfo;
 	public MaxEdictsBitVec PrevTransmitEdict;
 
 	protected override bool ProcessClientInfo(CLC_ClientInfo msg) {
@@ -63,10 +63,45 @@ public class GameClient : BaseClient
 		return true;
 	}
 
-	protected override bool ProcessMove(CLC_Move msg) {
+	protected override bool ProcessMove(CLC_Move m) {
 		if (!IsActive())
 			return true;
 
+		if (LastMovementTick == sv.TickCount) {
+			// Only one movement command per frame, someone is cheating.
+			return true;
+		}
+
+
+		LastMovementTick = (int)sv.TickCount;
+
+		int totalCmds = m.NewCommands + m.BackupCommands;
+		int netDrop = NetChannel.GetDropNumber();
+
+		bool ignore = !sv.IsActive();
+#if SWDS
+	bool paused = sv.IsPaused();
+#else
+		bool paused = sv.IsPaused() || (!sv.IsMultiplayer() && false /*Con_IsVisible todo*/);
+#endif
+
+		serverGlobalVariables.CurTime = sv.GetTime();
+		serverGlobalVariables.FrameTime = host_state.IntervalPerTick;
+
+		int startBit = m.DataIn.BitsRead;
+
+		// processusercmds
+
+		if (m.DataIn.Overflowed) {
+			// Disconnect("ProcessUsercmds:  Overflowed reading usercmd data (check sending and receiving code for mismatches)!\n");
+			// return false;
+		}
+
+		int endBit = m.DataIn.BitsRead;
+		if (m.Length != (endBit - startBit)) {
+			// Disconnect("ProcessUsercmds:  Incorrect reading frame (check sending and receiving code for mismatches)!\n");
+			// return false;
+		}
 
 		return true;
 	}
@@ -85,15 +120,15 @@ public class GameClient : BaseClient
 
 	// void DownloadCustomizations() { }
 
-	// void Connect(ReadOnlySpan<char> name, int nUserID, INetChannel netChannel, bool bFakePlayer, int clientChallenge) { }
+	// void Connect(ReadOnlySpan<char> name, int userID, INetChannel netChannel, bool fakePlayer, int clientChallenge) { }
 
-	void SetupPackInfo(FrameSnapshot pSnapshot) { }
+	void SetupPackInfo(FrameSnapshot snapshot) { }
 
 	void SetupPrevPackInfo() { }
 
-	// void SetRate(int nRate, bool bForce) { }
+	// void SetRate(int nRate, bool force) { }
 
-	// void SetUpdateRate(int udpaterate, bool bForce) { }
+	// void SetUpdateRate(int udpaterate, bool force) { }
 
 	void UpdateUserSettings() { }
 
@@ -126,7 +161,38 @@ public class GameClient : BaseClient
 
 	// bool CheckConnect() { }
 
-	// protected override void ActivatePlayer() { }
+	protected override void ActivatePlayer() {
+		base.ActivatePlayer();
+
+		Common.TimestampedLog("CGameClient::ActivatePlayer -start");
+
+		if (!sv.LoadGame) {
+			serverGlobalVariables.CurTime = sv.GetTime();
+			Common.TimestampedLog("g_pServerPluginHandler->ClientPutInServer");
+			// g_pServerPluginHandler->ClientPutInServer( edict, m_Name );
+		}
+
+		Common.TimestampedLog("g_pServerPluginHandler->ClientActivate");
+
+		// g_pServerPluginHandler->ClientActive(edict, sv.m_bLoadgame);
+
+		Common.TimestampedLog("g_pServerPluginHandler->ClientSettingsChanged");
+
+		// g_pServerPluginHandler->ClientSettingsChanged(edict);
+
+		Common.TimestampedLog("GetTestScriptMgr()->CheckPoint");
+
+		// GetTestScriptMgr()->CheckPoint("client_connected");
+
+		IGameEvent? evnt = gameEventManager.CreateEvent("player_activate");
+
+		if (evnt != null) {
+			evnt.SetInt("userid", GetUserID());
+			gameEventManager.FireEvent(evnt);
+		}
+
+		Common.TimestampedLog("CGameClient::ActivatePlayer -end");
+	}
 
 	protected override bool SendSignonData() {
 		bool clientHasDirrentTables = false;
@@ -155,7 +221,7 @@ public class GameClient : BaseClient
 			sv.SetPaused(false);
 		else {
 			// Assert(SV.ServerGameEnts);
-			Edict.InitializeEntityDLLFields();
+			// Edict.InitializeEntityDLLFields();
 		}
 
 		EntityIndex = ClientSlot + 1;
@@ -165,11 +231,17 @@ public class GameClient : BaseClient
 			EntityIndex = EntityIndex
 		};
 		SendNetMsg(msg);
+
+		base.SpawnPlayer();
+
+		// serverGameClient.ClientSpawned(edict);
 	}
 
 	// ClientFrame GetDeltaFrame(int tick) { }
 
-	// void WriteViewAngleUpdate() { }
+	void WriteViewAngleUpdate() {
+
+	}
 
 	// bool IsEngineClientCommand(in TokenizedCommand args) { }
 
@@ -177,7 +249,15 @@ public class GameClient : BaseClient
 
 	// bool ExecuteStringCommand(ReadOnlySpan<char> pCommandString) { }
 
-	// void SendSnapshot(ClientFrame pFrame) { }
+	protected override void SendSnapshot(ClientFrame frame) {
+		if (HLTV) {
+
+		}
+
+		WriteViewAngleUpdate();
+
+		base.SendSnapshot(frame);
+	}
 
 	// bool ShouldSendMessages() { }
 

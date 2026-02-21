@@ -891,11 +891,12 @@ public class CLC_GMod_ClientToServer : NetMessage
 
 	public override bool WriteToBuffer(bf_write buffer) {
 		buffer.WriteNetMessageType(this);
-		buffer.WriteUBitLong(24, 20);
+		buffer.WriteUBitLong(16, 20);
+
 		buffer.WriteByte(4);
 		buffer.WriteUBitLong(0, 16);
 
-		return base.WriteToBuffer(buffer);
+		return true;
 	}
 }
 
