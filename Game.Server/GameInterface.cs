@@ -197,7 +197,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void CreateNetworkStringTables() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public bool DLLInit(IServiceProvider services) {

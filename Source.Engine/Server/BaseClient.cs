@@ -39,17 +39,20 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		channel.RegisterMessage<CLC_Move>();
 		channel.RegisterMessage<CLC_BaselineAck>();
 		channel.RegisterMessage<CLC_ListenEvents>();
+		channel.RegisterMessage<CLC_GMod_ClientToServer>();
 	}
-	public void ConnectionClosing(ReadOnlySpan<char> reason) { }
-	public void ConnectionCrashed(ReadOnlySpan<char> reason) { }
-	public void PacketStart(int incomingSequence, int outgoingAcknowledged) { }
-	public void PacketEnd() { }
-	public void FileRequested(ReadOnlySpan<char> fileName, uint transferID) { }
-	public void FileReceived(ReadOnlySpan<char> fileName, uint transferID) { }
-	public void FileDenied(ReadOnlySpan<char> fileName, uint transferID) { }
-	public void FileSent(ReadOnlySpan<char> fileName, uint transferID) { }
+	public virtual void ConnectionClosing(ReadOnlySpan<char> reason) { }
+	public virtual void ConnectionCrashed(ReadOnlySpan<char> reason) { }
+	public virtual void PacketStart(int incomingSequence, int outgoingAcknowledged) { }
+	public virtual void PacketEnd() { }
+	public virtual void FileRequested(ReadOnlySpan<char> fileName, uint transferID) { }
+	public virtual void FileReceived(ReadOnlySpan<char> fileName, uint transferID) { }
+	public virtual void FileDenied(ReadOnlySpan<char> fileName, uint transferID) { }
+	public virtual void FileSent(ReadOnlySpan<char> fileName, uint transferID) { }
 
 	public bool ProcessMessage<T>(T message) where T : INetMessage {
+		if (message is not NET_Tick)
+			Common.TimestampedLog($"BaseClient.ProcessMessage: {typeof(T).Name}");
 		switch (message) {
 			case NET_Tick m: return ProcessTick(m);
 			case NET_StringCmd m: return ProcessStringCmd(m);
@@ -59,23 +62,28 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			case CLC_Move m: return ProcessMove(m);
 			case CLC_BaselineAck m: return ProcessBaselineAck(m);
 			case CLC_ListenEvents m: return ProcessListenEvents(m);
+			case CLC_GMod_ClientToServer m: return ProcessGMod_ClientToServer(m);
 		}
 		return false;
 	}
 
+	protected virtual bool ProcessGMod_ClientToServer(CLC_GMod_ClientToServer m) {
+		return true;// todo
+	}
+
 	protected virtual bool ProcessMove(CLC_Move m) {
-		throw new NotImplementedException();
+		return true;// todo
 	}
 
 	protected virtual bool ProcessTick(NET_Tick m) {
-		throw new NotImplementedException();
+		return true;// todo
 	}
 
 	protected virtual bool ProcessStringCmd(NET_StringCmd m) {
-		throw new NotImplementedException();
+		return true; // todo
 	}
 
-	public void ClientRequestNameChange(ReadOnlySpan<char> newName){
+	public void ClientRequestNameChange(ReadOnlySpan<char> newName) {
 		bool showStatusMessage = (PendingNameChange[0] == '\0');
 
 		strcpy(PendingNameChange, newName);
@@ -103,7 +111,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 		// Check for throttling name changes
 		// Don't do it on bots
-		if (!IsFakeClient() && IsNameChangeOnCooldown(showStatusMessage)) 
+		if (!IsFakeClient() && IsNameChangeOnCooldown(showStatusMessage))
 			return;
 
 		// Set the new name
@@ -111,19 +119,19 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		SetName(PendingNameChange);
 	}
 
-	public static readonly ConVar sv_namechange_cooldown_seconds = new( "sv_namechange_cooldown_seconds", "30.0", 0, "When a client name change is received, wait N seconds before allowing another name change" );
-	public static readonly ConVar sv_netspike_on_reliable_snapshot_overflow = new( "sv_netspike_on_reliable_snapshot_overflow", "0", 0, "If nonzero, the server will dump a netspike trace if a client is dropped due to reliable snapshot overflow" );
-	public static readonly ConVar sv_netspike_sendtime_ms = new( "sv_netspike_sendtime_ms", "0", 0, "If nonzero, the server will dump a netspike trace if it takes more than N ms to prepare a snapshot to a single client.  This feature does take some CPU cycles, so it should be left off when not in use." );
-	public static readonly ConVar sv_netspike_output = new( "sv_netspike_output", "1", 0, "Where the netspike data be written?  Sum of the following values: 1=netspike.txt, 2=ordinary server log" );
+	public static readonly ConVar sv_namechange_cooldown_seconds = new("sv_namechange_cooldown_seconds", "30.0", 0, "When a client name change is received, wait N seconds before allowing another name change");
+	public static readonly ConVar sv_netspike_on_reliable_snapshot_overflow = new("sv_netspike_on_reliable_snapshot_overflow", "0", 0, "If nonzero, the server will dump a netspike trace if a client is dropped due to reliable snapshot overflow");
+	public static readonly ConVar sv_netspike_sendtime_ms = new("sv_netspike_sendtime_ms", "0", 0, "If nonzero, the server will dump a netspike trace if it takes more than N ms to prepare a snapshot to a single client.  This feature does take some CPU cycles, so it should be left off when not in use.");
+	public static readonly ConVar sv_netspike_output = new("sv_netspike_output", "1", 0, "Where the netspike data be written?  Sum of the following values: 1=netspike.txt, 2=ordinary server log");
 
-	public bool IsNameChangeOnCooldown(bool showStatusMessage = false){
+	public bool IsNameChangeOnCooldown(bool showStatusMessage = false) {
 		if (TimeLastNameChange > 0.0) {
 			// Too recent?
 			double timeNow = Platform.Time;
 			double dNextChangeTime = TimeLastNameChange + sv_namechange_cooldown_seconds.GetFloat();
 			if (timeNow < dNextChangeTime) {
 				// Cooldown period still active; throttle the name change
-				if (showStatusMessage) 
+				if (showStatusMessage)
 					ClientPrintf($"You have changed your name recently, and must wait {(int)Math.Abs(timeNow - dNextChangeTime)} seconds.\n");
 				return true;
 			}
@@ -185,6 +193,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	protected virtual bool ProcessSignonState(NET_SignonState msg) {
+		Common.TimestampedLog($"BaseClient.ProcessSignonState: {msg.SignOnState} (Current: {SignOnState})");
 		if (msg.SignOnState == SignOnState.ChangeLevel)
 			return true;
 
@@ -205,7 +214,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	protected virtual bool SetSignOnState(SignOnState signOnState, int spawnCount) {
-		switch (signOnState) {
+		switch (SignOnState) {
 			case SignOnState.Connected:
 				NeedSendServerInfo = true;
 				break;
@@ -235,31 +244,69 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	protected virtual void SpawnPlayer() {
-		throw new NotImplementedException();
+		ConMsg("SpawnPlayer called\n");
 	}
 
 	protected virtual void ActivatePlayer() {
-		throw new NotImplementedException();
+		ConMsg("ActivatePlayer called\n");
 	}
 
-	protected virtual void OnSignonStateFull() {
-		throw new NotImplementedException();
-	}
+	protected virtual void OnSignonStateFull() { }
 
 	protected virtual bool SendSignonData() {
-		throw new NotImplementedException();
+		Common.TimestampedLog("CBaseClient::SendSignonData");
+#if !SWDS
+		EngineVGui().UpdateProgressBar(LevelLoadingProgress.SendSignonData);
+#endif
+
+		if (Server.Signon.Overflowed) {
+			Host.Error($"Signon buffer overflowed {Server.Signon.BytesWritten} bytes!!!\n");
+			return false;
+		}
+
+		NetChannel.SendData(Server.Signon);
+
+		SignOnState = SignOnState.PreSpawn;
+		NET_SignonState signonState = new(SignOnState, Server.GetSpawnCount());
+
+		return NetChannel.SendNetMsg(signonState);
 	}
 
-	protected virtual bool ProcessClientInfo(CLC_ClientInfo m) {
-		throw new NotImplementedException();
+	protected virtual bool ProcessClientInfo(CLC_ClientInfo msg) {
+		if (SignOnState != SignOnState.New) {
+			Warning("Dropping ClientInfo packet from client not in appropriate state\n");
+			return false;
+		}
+
+		SendTableCRC = (uint)msg.SendTableCRC;
+
+		// Protect against spoofed packets claiming to be HLTV clients
+		// if ((hltv && hltv.IsTVRelay()) || tv_enable.GetBool()) {
+		// 	HLTV = msg.IsHLTV;
+		// else
+		// 	HLTV = false;
+
+		FilesDownloaded = 0;
+		FriendsID = (uint)msg.FriendsID;
+		// strcpy(FriendsName, msg.FriendsName);
+
+		for (int i = 0; i < Constants.MAX_CUSTOM_FILES; i++) {
+			// CustomFiles[i].CRC = msg.CustomFiles[i];
+			// CustomFiles[i].ReqID = 0;
+		}
+
+		if (msg.ServerCount != Server.GetSpawnCount())
+			Reconnect();  // client still in old game, reconnect
+
+		return true;
 	}
 
 	protected virtual bool ProcessBaselineAck(CLC_BaselineAck m) {
-		throw new NotImplementedException();
+		return true;// todo
 	}
 
 	protected virtual bool ProcessListenEvents(CLC_ListenEvents m) {
-		throw new NotImplementedException();
+		return true;// todo
 	}
 
 	public int GetClientChallenge() => ClientChallenge;
@@ -569,8 +616,15 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 	readonly Host Host = Singleton<Host>();
 
-	public void Reconnect() {
-		throw new NotImplementedException();
+	public virtual void Reconnect() {
+		ConMsg("Forcing client reconnect (%i)\n", SignOnState);
+
+		NetChannel.Clear();
+
+		SignOnState = SignOnState.Connected;
+
+		NET_SignonState msg = new(SignOnState - 1, Server.GetSpawnCount());
+		NetChannel.SendNetMsg(msg);
 	}
 
 	public IServer? GetServer() {
@@ -606,7 +660,8 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	public void ClientPrintf(ReadOnlySpan<char> fmt) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		DevMsg($"ClientPrintf: {fmt}\n");
 	}
 
 	public bool IsHearingClient(int index) {
@@ -640,7 +695,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 		// supporting smaller stack
 		byte[] buffer = NetPayloadBuffer.Value!;
-		bf_write msg = new(buffer, Protocol.MAX_PAYLOAD );
+		bf_write msg = new(buffer, Protocol.MAX_PAYLOAD);
 
 		// Only send this message to developer console, or multiplayer clients.
 		if (Host.developer.GetBool() || Server.IsMultiplayer()) {
@@ -672,7 +727,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		// send first tick
 		SignOnTick = Server.TickCount;
 
-		NET_Tick signonTick = new(SignOnTick, 0, 0 );
+		NET_Tick signonTick = new(SignOnTick, 0, 0);
 		signonTick.WriteToBuffer(msg);
 
 		// write stringtable baselines
@@ -692,7 +747,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 		// send signon state
 		SignOnState = SignOnState.New;
-		NET_SignonState signonMsg = new(SignOnState, Server.GetSpawnCount() );
+		NET_SignonState signonMsg = new(SignOnState, Server.GetSpawnCount());
 		signonMsg.WriteToBuffer(msg);
 
 		// send server info as one data block

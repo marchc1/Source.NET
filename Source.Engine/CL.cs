@@ -326,7 +326,14 @@ public partial class CL(IServiceProvider services, Net Net,
 	}
 
 	internal void RegisterResources() {
-		host_state.SetWorldModel(cl.GetModel(1));
+		Model? model = cl.GetModel(1);
+
+#if DEBUG // TODO TODO Remove once stringables are done
+		if (model == null && !string.IsNullOrEmpty(cl.LevelFileName))
+			model = modelloader.GetModelForName(cl.LevelFileName, ModelLoaderFlags.Client);
+#endif
+
+		host_state.SetWorldModel(model);
 		if (host_state.WorldModel == null)
 			Host.Error("CL.RegisterResources: host_state.WorldModel/cl.GetModel(1) == NULL\n");
 	}
