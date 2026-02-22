@@ -369,6 +369,7 @@ public abstract class BaseClientState(
 	}
 
 	protected virtual bool ProcessSetView(SVC_SetView msg) {
+		ViewEntity = msg.EntityIndex;
 		return true;
 	}
 

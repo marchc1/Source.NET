@@ -17,15 +17,15 @@ namespace Source.Engine;
 /// </summary>
 public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHostState host_state, IEngineVGuiInternal EngineVGui, ICvar cvar, IModelLoader modelloader, ServerGlobalVariables serverGlobalVariables, Con Con, [FromKeyedServices(Realm.Server)] NetworkStringTableContainer networkStringTableContainerServer, IHostState HostState, ServerPlugin serverPluginHandler)
 {
-	public IServerGameDLL? ServerGameDLL;
-	public IServerGameEnts? ServerGameEnts;
-	public IServerGameClients? ServerGameClients;
+	public static IServerGameDLL? ServerGameDLL;
+	public static IServerGameEnts? ServerGameEnts;
+	public static IServerGameClients? ServerGameClients;
 
-	public static readonly ConVar sv_pure_kick_clients = new( "sv_pure_kick_clients", "1", 0, "If set to 1, the server will kick clients with mismatching files. Otherwise, it will issue a warning to the client." );
-	public static readonly ConVar sv_pure_trace = new( "sv_pure_trace", "0", 0, "If set to 1, the server will print a message whenever a client is verifying a CRC for a file." );
-	public static readonly ConVar sv_pure_consensus = new( "sv_pure_consensus", "5", 0, "Minimum number of file hashes to agree to form a consensus." );
-	public static readonly ConVar sv_pure_retiretime = new( "sv_pure_retiretime", "900", 0, "Seconds of server idle time to flush the sv_pure file hash cache." );
-	public static readonly ConVar sv_lan = new( "sv_lan", "0", 0, "Server is a lan server ( no heartbeat, no authentication, no non-class C addresses )" );
+	public static readonly ConVar sv_pure_kick_clients = new("sv_pure_kick_clients", "1", 0, "If set to 1, the server will kick clients with mismatching files. Otherwise, it will issue a warning to the client.");
+	public static readonly ConVar sv_pure_trace = new("sv_pure_trace", "0", 0, "If set to 1, the server will print a message whenever a client is verifying a CRC for a file.");
+	public static readonly ConVar sv_pure_consensus = new("sv_pure_consensus", "5", 0, "Minimum number of file hashes to agree to form a consensus.");
+	public static readonly ConVar sv_pure_retiretime = new("sv_pure_retiretime", "900", 0, "Seconds of server idle time to flush the sv_pure file hash cache.");
+	public static readonly ConVar sv_lan = new("sv_lan", "0", 0, "Server is a lan server ( no heartbeat, no authentication, no non-class C addresses )");
 
 	public static ConVar sv_cheats = new(nameof(sv_cheats), "0", FCvar.Notify | FCvar.Replicated, "Allow cheats on server", callback: SV_CheatsChanged);
 
@@ -86,11 +86,11 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		services.GetRequiredService<EngineSendTable>().Init(tables.AsSpan()[..numTables]);
 	}
 
-	readonly ConVar tv_enable = new( "tv_enable", "0", FCvar.Notify, "Activates SourceTV on server." );
+	readonly ConVar tv_enable = new("tv_enable", "0", FCvar.Notify, "Activates SourceTV on server.");
 
 
 	[ConCommand(helpText: "Change the maximum number of players allowed on this server.")]
-	void maxplayers(in TokenizedCommand args){
+	void maxplayers(in TokenizedCommand args) {
 		if (args.ArgC() != 2) {
 			ConMsg($"\"maxplayers\" is \"{sv.GetMaxClients()}\"\n");
 			return;
@@ -104,7 +104,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		SetupMaxPlayers(int.TryParse(args[1], out int i) ? i : 0);
 	}
 
-	public void SetupMaxPlayers(int desiredMaxPlayers){
+	public void SetupMaxPlayers(int desiredMaxPlayers) {
 		int minmaxplayers = 1;
 		int maxmaxplayers = Constants.ABSOLUTE_PLAYER_LIMIT;
 		int defaultmaxplayers = 1;
@@ -112,14 +112,14 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		if (ServerGameClients != null) {
 			ServerGameClients.GetPlayerLimits(out minmaxplayers, out maxmaxplayers, out defaultmaxplayers);
 
-			if (minmaxplayers < 1) 
+			if (minmaxplayers < 1)
 				Sys.Error($"GetPlayerLimits:  min maxplayers must be >= 1 ({minmaxplayers})");
-			else if (defaultmaxplayers < 1) 
+			else if (defaultmaxplayers < 1)
 				Sys.Error($"GetPlayerLimits:  default maxplayers must be >= 1 ({minmaxplayers})");
 
-			if (minmaxplayers > maxmaxplayers || defaultmaxplayers > maxmaxplayers) 
+			if (minmaxplayers > maxmaxplayers || defaultmaxplayers > maxmaxplayers)
 				Sys.Error($"GetPlayerLimits:  min maxplayers {minmaxplayers} > max {maxmaxplayers}");
-			if (maxmaxplayers > Constants.ABSOLUTE_PLAYER_LIMIT) 
+			if (maxmaxplayers > Constants.ABSOLUTE_PLAYER_LIMIT)
 				Sys.Error($"GetPlayerLimits:  max players limited to {Constants.ABSOLUTE_PLAYER_LIMIT}");
 		}
 
@@ -246,17 +246,17 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		if (sv.IsPaused())
 			return false;
 
-# if !SWDS
+#if !SWDS
 		if (!sv.IsMultiplayer()) {
 			if (cl.IsActive() && (Con.IsVisible() || EngineVGui.ShouldPause()))
 				return false;
 		}
-#endif 
+#endif
 		return true;
 	}
 	ConVar? sv_noclipduringpause;
 	internal void Frame(bool finalTick) {
-		if (ServerGameDLL!= null && finalTick) 
+		if (ServerGameDLL != null && finalTick)
 			ServerGameDLL.Think(finalTick);
 
 		if (!sv.IsActive() || !Host.ShouldRun()) {
@@ -266,7 +266,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		serverGlobalVariables.FrameTime = host_state.IntervalPerTick;
 
 		bool isSimulating = IsSimulating();
-		bool sendDuringPause = sv_noclipduringpause != null? sv_noclipduringpause.GetBool() : false;
+		bool sendDuringPause = sv_noclipduringpause != null ? sv_noclipduringpause.GetBool() : false;
 
 		sv.RunFrame();
 
@@ -283,7 +283,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 			Think(isSimulating);
 		}
 		else if (sv.IsMultiplayer()) {
-			Think(false);  
+			Think(false);
 		}
 
 		sv.SimulatingTicks = simulated;
@@ -292,11 +292,11 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 			if (!EngineThreads.IsEngineThreaded() || sv.IsMultiplayer())
 				SendClientUpdates(isSimulating, sendDuringPause);
 			// else
-				// DeferredServerWork = CreateFunctor(SendClientUpdates, isSimulating, sendDuringPause);
+			// DeferredServerWork = CreateFunctor(SendClientUpdates, isSimulating, sendDuringPause);
 
 		}
 
-		if (IsPC() && sv.IsMultiplayer()) 
+		if (IsPC() && sv.IsMultiplayer())
 			Steam3Server().RunFrame();
 	}
 

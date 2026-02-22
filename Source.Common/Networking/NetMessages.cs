@@ -577,6 +577,12 @@ public class SVC_SetView : NetMessage
 
 	public int EntityIndex;
 
+	public override bool WriteToBuffer(bf_write buffer) {
+		buffer.WriteNetMessageType(this);
+		buffer.WriteUBitLong((uint)EntityIndex, MAX_EDICT_BITS);
+		return !buffer.Overflowed;
+	}
+
 	public override bool ReadFromBuffer(bf_read buffer) {
 		EntityIndex = (int)buffer.ReadUBitLong(MAX_EDICT_BITS);
 		return !buffer.Overflowed;
@@ -587,6 +593,10 @@ public class SVC_FixAngle : NetMessage
 	public bool Relative;
 	public QAngle Angle;
 	public SVC_FixAngle() : base(SVC.FixAngle) { }
+	public SVC_FixAngle(bool relative, QAngle angle) : base(SVC.FixAngle) {
+		Relative = relative;
+		Angle = angle;
+	}
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		Relative = buffer.ReadBool();

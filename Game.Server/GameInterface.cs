@@ -390,8 +390,49 @@ public class ServerGameClients : IServerGameClients
 		throw new NotImplementedException();
 	}
 
-	public double ProcessUsercmds(Edict player, bf_read buf, int numCmds, int totalCmds, int droppedPackets, bool ignore, bool paused) {
-		throw new NotImplementedException();
+	public TimeUnit_t ProcessUsercmds(Edict player, bf_read buf, int numCmds, int totalCmds, int droppedPackets, bool ignore, bool paused) {
+		int i;
+
+		UserCmd from, to;
+
+		UserCmd[] cmds = new UserCmd[64]; // CMD_MAXBACKUP
+
+		UserCmd cmdNull = new();
+
+		Assert(numCmds >= 0);
+		Assert((totalCmds - numCmds) >= 0);
+
+		BasePlayer? pl = null;
+		BaseEntity? ent = BaseEntity.Instance(player);
+
+		if (ent != null && ent.IsPlayer())
+			pl = (BasePlayer)ent;
+
+		if (totalCmds < 0 || totalCmds >= (64 /*CMD_MAXBACKUP*/ - 1)) {
+			ReadOnlySpan<char> name = "unknown";
+			if (pl != null)
+				name = pl.GetPlayerName();
+
+			Msg($"CBasePlayer::ProcessUsercmds: too many cmds {totalCmds} sent for player {name}\n");
+			buf.SetOverflowFlag();
+			return 0.0f;
+		}
+
+		cmdNull.Reset();
+		from = cmdNull;
+
+		for (i = totalCmds - 1; i >= 0; i--) {
+			to = cmds[i];
+			UserCmd.ReadUsercmd(buf, ref to, ref from);
+			from = to;
+		}
+
+		if (ignore || pl == null)
+			return 0.0f;
+
+		// pl.ProcessUsercmds(cmds, numCmds, totalCmds, droppedPackets, paused); TODO
+
+		return TICK_INTERVAL;
 	}
 
 	public void SetCommandClient(int index) {

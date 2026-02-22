@@ -90,17 +90,17 @@ public class GameClient : BaseClient
 
 		int startBit = m.DataIn.BitsRead;
 
-		// processusercmds
+		SV.ServerGameClients!.ProcessUsercmds(Edict, m.DataIn, m.NewCommands, totalCmds, netDrop, ignore, paused);
 
 		if (m.DataIn.Overflowed) {
-			// Disconnect("ProcessUsercmds:  Overflowed reading usercmd data (check sending and receiving code for mismatches)!\n");
-			// return false;
+			Disconnect("ProcessUsercmds:  Overflowed reading usercmd data (check sending and receiving code for mismatches)!\n");
+			return false;
 		}
 
 		int endBit = m.DataIn.BitsRead;
 		if (m.Length != (endBit - startBit)) {
-			// Disconnect("ProcessUsercmds:  Incorrect reading frame (check sending and receiving code for mismatches)!\n");
-			// return false;
+			Disconnect("ProcessUsercmds:  Incorrect reading frame (check sending and receiving code for mismatches)!\n");
+			return false;
 		}
 
 		return true;
@@ -195,7 +195,7 @@ public class GameClient : BaseClient
 	}
 
 	protected override bool SendSignonData() {
-		bool clientHasDirrentTables = false;
+		bool clientHasDifferentTables = false;
 
 		if (false) {
 
@@ -234,13 +234,31 @@ public class GameClient : BaseClient
 
 		base.SpawnPlayer();
 
-		// serverGameClient.ClientSpawned(edict);
+		// SV.ServerGameClients!.ClientSpawned(Edict);
 	}
 
 	// ClientFrame GetDeltaFrame(int tick) { }
 
 	void WriteViewAngleUpdate() {
+		if (IsFakeClient())
+			return;
 
+		PlayerState pl = SV.ServerGameClients!.GetPlayerState(Edict);
+		Assert(pl != null);
+
+		if (pl != null && pl.FixAngle != (int)FixAngle.None) {
+			if (pl.FixAngle == (int)FixAngle.Relative) {
+				SVC_FixAngle fixAngle = new(true, pl.AngleChange);
+				NetChannel.SendNetMsg(fixAngle);
+				pl.AngleChange.Init();
+			}
+			else {
+				SVC_FixAngle fixAngle = new(false, pl.ViewingAngle);
+				NetChannel.SendNetMsg(fixAngle);
+			}
+
+			pl.FixAngle = (int)FixAngle.None;
+		}
 	}
 
 	// bool IsEngineClientCommand(in TokenizedCommand args) { }
