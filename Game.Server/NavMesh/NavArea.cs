@@ -6,6 +6,7 @@ using Game.Server.NextBot;
 using Game.Shared;
 
 using Source;
+using Source.Common;
 
 public struct NavConnect()
 {
