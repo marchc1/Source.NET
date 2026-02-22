@@ -11,7 +11,8 @@ using System.Numerics;
 namespace Game;
 #if CLIENT_DLL || GAME_DLL
 
-public static partial class Util_Globals {
+public static partial class Util_Globals
+{
 	public static int SeedFileLineHash(int seedvalue, ReadOnlySpan<char> sharedname, int additionalSeed) {
 		CRC32_t retval = default;
 
@@ -125,3 +126,29 @@ public static partial class Util
 	}
 }
 #endif
+
+public class CountdownTimer
+{
+	private TimeUnit_t Duration;
+	private TimeUnit_t Timestamp;
+
+	public CountdownTimer() {
+		Timestamp = -1f;
+		Duration = 0f;
+	}
+
+	public void Start(float duration) {
+		Timestamp = Now() + duration;
+		Duration = duration;
+	}
+
+	public void Reset() => Timestamp = Now() + Duration;
+	public void Invalidate() => Timestamp = -1f;
+	public bool HasStarted() => Timestamp > 0f;
+	public bool IsElapsed() => Now() > Timestamp;
+	public TimeUnit_t GetElapsedTime() => Now() - Timestamp + Duration;
+	public TimeUnit_t GetRemainingTime() => Timestamp - Now();
+	public TimeUnit_t GetCountdownDuration() => Timestamp > 0f ? Duration : 0f;
+	protected virtual TimeUnit_t Now() => gpGlobals.CurTime;
+}
+

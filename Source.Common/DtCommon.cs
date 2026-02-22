@@ -4,7 +4,8 @@ using System.Numerics;
 
 namespace Source.Common;
 
-public static class DtCommon {
+public static class DtCommon
+{
 	public static int NumBitsForCount(int maxElements) {
 		int bits = 0;
 		while (maxElements > 0) {

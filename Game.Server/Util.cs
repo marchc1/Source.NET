@@ -177,6 +177,26 @@ public static partial class Util
 		return player;
 	}
 
+	public static BasePlayer? GetListenServerHost() {
+		if (engine.IsDedicatedServer()) {
+			Assert("UTIL_GetListenServerHost");
+			Warning("UTIL_GetListenServerHost() called from a dedicated server or single-player game.\n");
+			return null;
+		}
+
+		return PlayerByIndex(1);
+	}
+
+	public static bool IsCommandIssuedByServerAdmin() {
+		// int issuingPlayerIndex = GetCommandClientIndex();
+		int issuingPlayerIndex = 0; // TODO TODO
+
+		if (engine.IsDedicatedServer() && issuingPlayerIndex > 0)
+			return false;
+
+		return issuingPlayerIndex < 1;
+	}
+
 	public static void ClientPrintAll(HudPrint dest, ReadOnlySpan<char> msgName, ReadOnlySpan<char> param1 = default, ReadOnlySpan<char> param2 = default, ReadOnlySpan<char> param3 = default, ReadOnlySpan<char> param4 = default) {
 		ReliableBroadcastRecipientFilter filter = new();
 		ClientPrintFilter(filter, dest, msgName, param1, param2, param3, param4);

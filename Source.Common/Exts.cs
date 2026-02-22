@@ -43,6 +43,10 @@ public static class BitVecBase
 	public static uint GetDWord(this Span<byte> bytes, int i) {
 		return bytes.Cast<byte, uint>()[i];
 	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void SetDWord(this Span<byte> bytes, int i, uint val) {
+		bytes.Cast<byte, uint>()[i] = val;
+	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static byte ByteMask(int bit) => (byte)(1 << (bit % 8));
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static bool IsBitSet(this Span<byte> bytes, int bit) {
@@ -140,6 +144,7 @@ public struct MaxEventNumberBitVec
 {
 	public byte bytes;
 	public uint GetDWord(int i) => BitVecBase.GetDWord(this, i);
+	public void SetDWord(int i, uint val) => BitVecBase.SetDWord(this, i, val);
 	public int Get(int bit) => BitVecBase.IsBitSet(this, bit) ? 1 : 0;
 	public bool IsBitSet(int bit) => BitVecBase.IsBitSet(this, bit);
 	public void Set(int bit) => BitVecBase.Set(this, bit);
@@ -1626,10 +1631,10 @@ public static class StructExts
 {
 	extension(Rectangle rect)
 	{
-		public int X0{ get => rect.X; set => rect.X = value; }
-		public int Y0{ get => rect.Y; set => rect.Y = value; }
-		public int X1{ get => rect.X + rect.Width; set => rect.Width = (value - rect.X); }
-		public int Y1{ get => rect.Y + rect.Height; set => rect.Height = (value - rect.Y); }
+		public int X0 { get => rect.X; set => rect.X = value; }
+		public int Y0 { get => rect.Y; set => rect.Y = value; }
+		public int X1 { get => rect.X + rect.Width; set => rect.Width = (value - rect.X); }
+		public int Y1 { get => rect.Y + rect.Height; set => rect.Height = (value - rect.Y); }
 	}
 }
 public static class SpanExts

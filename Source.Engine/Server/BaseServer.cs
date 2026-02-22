@@ -1,8 +1,5 @@
 ﻿using CommunityToolkit.HighPerformance;
 
-using SDL;
-
-using Source;
 using Source.Common;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
@@ -12,8 +9,6 @@ using Source.Common.Hashing;
 using Source.Common.Networking;
 using Source.Common.Server;
 using Source.Common.Utilities;
-using Source.Engine;
-using Source.Engine.Server;
 
 using Steamworks;
 
@@ -415,11 +410,34 @@ public abstract class BaseServer : IServer
 	}
 	public virtual void RemoveClientFromGame(BaseClient cl) { }
 	public virtual void SendClientMessages(bool bSendSnapshots) {
+		for (int i = 0; i < Clients.Count; i++) {
+			BaseClient cl = Clients[i];
 
+			// if (!cl.ShouldSendMessages()) todo
+			// 	continue;
+
+			if (cl.NetChannel != null) {
+				cl.NetChannel.Transmit();
+				// cl.UpdateSendState(); todo
+			}
+			else
+				Msg("Client has no netchannel.\n");
+		}
 	}
 
 	public virtual void FillServerInfo(SVC_ServerInfo serverinfo) {
-
+		serverinfo.Protocol = Protocol.VERSION;
+		serverinfo.ServerCount = GetSpawnCount();
+		// serverinfo.MapMD5 = WorldmapMD5;
+		serverinfo.MaxClients = GetMaxClients();
+		serverinfo.MaxClasses = 2;//ServerClasses;
+		serverinfo.IsDedicated = IsDedicated();
+		serverinfo.TickInterval = GetTickInterval();
+		serverinfo.GameDirectory = Common.Gamedir;
+		serverinfo.MapName = new(GetMapName());
+		serverinfo.SkyName = new(((ReadOnlySpan<char>)Skyname).SliceNullTerminatedString());
+		serverinfo.HostName = new(GetName());
+		serverinfo.IsHLTV = IsHLTV();
 	}
 
 	public virtual void UserInfoChanged(int nClientIndex) {
@@ -475,7 +493,7 @@ public abstract class BaseServer : IServer
 		for (int i = 0; i < Clients.Count; i++) {
 			BaseClient? cl = Clients[i];
 
-			if (cl.NeedSendServerInfo) 
+			if (cl.NeedSendServerInfo)
 				cl.SendServerInfo();
 		}
 	}
@@ -785,14 +803,14 @@ public abstract class BaseServer : IServer
 			Assert(!client.SteamID.IsValid());
 		}
 		else if (nAuthProtocol == Protocol.PROTOCOL_STEAM) {
-			client.SetSteamID(new()); 
+			client.SetSteamID(new());
 			if (cbCookie <= 0 || cbCookie >= Protocol.STEAM_KEYSIZE) {
 				RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectInvalidSteamCertLen");
 				return false;
 			}
 
 			NetAddress checkAdr = adr.Copy();
-			if (adr.Type == NetAddressType.Loopback || adr.IsLocalhost()) 
+			if (adr.Type == NetAddressType.Loopback || adr.IsLocalhost())
 				checkAdr.SetIP(Net.LocalAdr.GetIPHostByteOrder());
 
 			if (!Steam3Server().NotifyClientConnect(client, nNewUserID, checkAdr, pchLogonCookie, cbCookie) && !Steam3Server().BLanOnly()) {
@@ -949,8 +967,8 @@ public abstract class BaseServer : IServer
 
 	protected int MaxClients;         // Current max #
 	protected int SpawnCount;          // Number of servers spawned since start,
-									   // used to check late spawns (e.g., when d/l'ing lots of
-									   // data)
+																		 // used to check late spawns (e.g., when d/l'ing lots of
+																		 // data)
 	protected TimeUnit_t TickInterval;     // time for 1 tick in seconds
 
 

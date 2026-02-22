@@ -146,7 +146,7 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 		if (data.IsEmpty)
 			return null;
 
-		skipwhite:
+	skipwhite:
 		while ((c = data[0]) <= ' ') {
 			if (c == 0)
 				return null;
@@ -237,7 +237,21 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 
 	}
 
-	public static ReadOnlySpan<char> FormatSeconds(double v) {
-		throw new NotImplementedException();
+	public static ReadOnlySpan<char> FormatSeconds(double seconds) {
+		int hours = 0;
+		int minutes = (int)(seconds / 60);
+
+		if (minutes > 0) {
+			seconds -= minutes * 60;
+			hours = minutes / 60;
+
+			if (hours > 0)
+				minutes -= hours * 60;
+		}
+
+		if (hours > 0)
+			return $"{hours}:{minutes:00}:{(int)seconds:00}";
+		else
+			return $"{minutes}:{(int)seconds:00}";
 	}
 }

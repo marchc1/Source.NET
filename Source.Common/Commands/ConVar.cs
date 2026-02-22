@@ -235,7 +235,7 @@ public class ConVar : ConCommandBase, IConVar
 		string? oldValue = value;
 
 		value = new(tempValue);
-		if (oldValue?.Equals(value) ?? (oldValue != value)) {
+		if (!Equals(oldValue, value)) {
 			Changed?.Invoke(this, new() {
 				Old = oldValue,
 				New = value

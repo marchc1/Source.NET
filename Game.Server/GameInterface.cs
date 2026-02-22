@@ -197,11 +197,14 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void CreateNetworkStringTables() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public bool DLLInit(IServiceProvider services) {
 		StaticClassIndicesHelpers.DumpDatatablesCompleted();
+
+		NavMesh.NavMesh.Instance = new();
+
 		return true;
 	}
 
@@ -210,6 +213,8 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void GameFrame(bool simulating) {
+
+		NavMesh.NavMesh.Instance?.Update();
 
 	}
 

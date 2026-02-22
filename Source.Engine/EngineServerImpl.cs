@@ -248,9 +248,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public bool IsDedicatedServer() {
-		throw new NotImplementedException();
-	}
+	public bool IsDedicatedServer() => sv.IsDedicated();
 
 	public bool IsGenericPrecached(ReadOnlySpan<char> s) {
 		throw new NotImplementedException();
@@ -390,8 +388,14 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public Edict PEntityOfEntIndex(int iEntIndex) {
-		throw new NotImplementedException();
+	public Edict? PEntityOfEntIndex(int iEntIndex) {
+		if (iEntIndex >= 0 && iEntIndex < sv.MaxEdicts) {
+			Edict? edict = sv.Edicts![iEntIndex];
+			if (edict.IsFree())
+				return edict;
+		}
+
+		return null;
 	}
 
 	public void PlaybackTempEntity(IRecipientFilter filter, float delay, object sender, SendTable st, int classID) {
@@ -508,12 +512,13 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	public void TriggerMoved(Edict pTriggerEnt, bool testSurroundingBoundsOnly) {
 		throw new NotImplementedException();
 	}
-	class MsgData {
-		public MsgData(){
+	class MsgData
+	{
+		public MsgData() {
 			Reset();
 		}
 
-		public void Reset(){
+		public void Reset() {
 
 		}
 

@@ -238,6 +238,8 @@ public class SVC_ServerInfo : NetMessage
 		buffer.WriteString(MapName);
 		buffer.WriteString(SkyName);
 		buffer.WriteString(HostName);
+		buffer.WriteString(LoadingURL);
+		buffer.WriteString(Gamemode);
 
 		return !buffer.Overflowed;
 	}
@@ -308,7 +310,22 @@ public class SVC_ClassInfo : NetMessage
 	}
 
 	public override bool WriteToBuffer(bf_write buffer) {
-		throw new Exception();
+		buffer.WriteNetMessageType(this);
+		buffer.WriteShort(NumServerClasses);
+		buffer.WriteBool(CreateOnClient);
+
+		if (CreateOnClient)
+			return !buffer.Overflowed;
+
+		int serverClassBits = (int)MathF.Log2(NumServerClasses) + 1;
+
+		foreach (var serverclass in Classes) {
+			buffer.WriteUBitLong((uint)serverclass.ClassID, serverClassBits);
+			buffer.WriteString(serverclass.ClassName, true, 256);
+			buffer.WriteString(serverclass.DataTableName, true, 256);
+		}
+
+		return !buffer.Overflowed;
 	}
 }
 public class SVC_CreateStringTable : NetMessage
@@ -465,7 +482,8 @@ public class SVC_Sounds : NetMessage
 	}
 }
 
-public class SVC_Prefetch : NetMessage {
+public class SVC_Prefetch : NetMessage
+{
 	public SVC_Prefetch() : base(SVC.Sounds) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.Sounds;
 
@@ -626,7 +644,8 @@ public class SVC_UserMessage : NetMessage
 	}
 }
 
-public class SVC_EntityMessage : NetMessage{
+public class SVC_EntityMessage : NetMessage
+{
 	public SVC_EntityMessage() : base(SVC.EntityMessage) { reliable = false; }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.EntMessage;
 	public int EntityIndex;
@@ -748,6 +767,14 @@ public class CLC_Move : NetMessage
 	public readonly bf_read DataIn = new();
 	public readonly bf_write DataOut = new();
 
+	public override bool ReadFromBuffer(bf_read buffer) {
+		NewCommands = (int)buffer.ReadUBitLong(NUM_NEW_COMMAND_BITS);
+		BackupCommands = (int)buffer.ReadUBitLong(NUM_BACKUP_COMMAND_BITS);
+		Length = buffer.ReadWord();
+		buffer.CopyTo(DataIn);
+		return buffer.SeekRelative(Length);
+	}
+
 	public override bool WriteToBuffer(bf_write buffer) {
 		buffer.WriteNetMessageType(this);
 		Length = DataOut.BitsWritten;
@@ -762,7 +789,7 @@ public class CLC_Move : NetMessage
 }
 public class CLC_ListenEvents : NetMessage, IPoolableObject
 {
-	public CLC_ListenEvents() : base(CLC.ListenEvents) {}
+	public CLC_ListenEvents() : base(CLC.ListenEvents) { }
 	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
 	public MaxEventNumberBitVec EventArray = new();
 
@@ -774,8 +801,16 @@ public class CLC_ListenEvents : NetMessage, IPoolableObject
 	public override bool WriteToBuffer(bf_write buffer) {
 		buffer.WriteNetMessageType(this);
 		int count = MAX_EVENT_NUMBER / 32;
-		for (int i = 0; i < count; i++) 
+		for (int i = 0; i < count; i++)
 			buffer.WriteUBitLong(EventArray.GetDWord(i), 32);
+
+		return !buffer.Overflowed;
+	}
+
+	public override bool ReadFromBuffer(bf_read buffer) {
+		int count = MAX_EVENT_NUMBER / 32;
+		for (int i = 0; i < count; i++)
+			EventArray.SetDWord(i, buffer.ReadUBitLong(32));
 
 		return !buffer.Overflowed;
 	}
@@ -818,6 +853,22 @@ public class CLC_ClientInfo : NetMessage
 		return !buffer.Overflowed;
 	}
 
+	public override bool ReadFromBuffer(bf_read buffer) {
+		ServerCount = buffer.ReadLong();
+		SendTableCRC = buffer.ReadLong();
+		IsHLTV = buffer.ReadBool();
+		FriendsID = (ulong)buffer.ReadLong();
+		buffer.ReadString(out FriendsName, 256);
+		for (int i = 0; i < MAX_CUSTOM_FILES; i++) {
+			if (buffer.ReadBool()) {
+				CustomFiles[i] = buffer.ReadUBitLong(32);
+			}
+			else CustomFiles[i] = 0;
+		}
+
+		return !buffer.Overflowed;
+	}
+
 	public override string ToString() {
 		return $"ServerCount: {ServerCount}, SendTableCRC: {SendTableCRC}";
 	}
@@ -832,16 +883,20 @@ public class CLC_GMod_ClientToServer : NetMessage
 	public readonly bf_read DataIn = new();
 
 	public override bool ReadFromBuffer(bf_read buffer) {
-		return base.ReadFromBuffer(buffer);
+		Length = (int)buffer.ReadUBitLong(20);
+		int type = buffer.ReadByte();
+		buffer.CopyTo(DataIn);
+		return buffer.SeekRelative(Length);
 	}
 
 	public override bool WriteToBuffer(bf_write buffer) {
 		buffer.WriteNetMessageType(this);
-		buffer.WriteUBitLong(24, 20);
+		buffer.WriteUBitLong(16, 20);
+
 		buffer.WriteByte(4);
 		buffer.WriteUBitLong(0, 16);
 
-		return base.WriteToBuffer(buffer);
+		return true;
 	}
 }
 
@@ -862,6 +917,12 @@ public class CLC_BaselineAck : NetMessage
 		buffer.WriteLong(BaselineTick);
 		buffer.WriteUBitLong((uint)BaselineNumber, 1);
 
+		return !buffer.Overflowed;
+	}
+
+	public override bool ReadFromBuffer(bf_read buffer) {
+		BaselineTick = buffer.ReadLong();
+		BaselineNumber = (int)buffer.ReadUBitLong(1);
 		return !buffer.Overflowed;
 	}
 }
