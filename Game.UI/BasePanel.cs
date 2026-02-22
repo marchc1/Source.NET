@@ -475,7 +475,6 @@ public class MainMenuGameLogo : EditablePanel
 	public int GetOffsetX() => OffsetX;
 	public int GetOffsetY() => OffsetY;
 }
-
 public class BackgroundMenuButton : Button
 {
 	public BackgroundMenuButton(Panel parent, ReadOnlySpan<char> name) : base(parent, name, "") { }
@@ -667,7 +666,7 @@ public class BasePanel : Panel
 		CreateGameMenu();
 		CreateGameLogo();
 
-		SetMenuAlpha(255);
+		SetMenuAlpha(0);
 
 		GameMenuButtons.Add(CreateMenuButton(this, "GameMenuButton", ModInfo!.GetGameTitle()));
 		GameMenuButtons.Add(CreateMenuButton(this, "GameMenuButton2", ModInfo!.GetGameTitle2()));
@@ -938,10 +937,15 @@ public class BasePanel : Panel
 			if (alpha == 255)
 				FadingInMenus = false;
 		}
-#else
+#else // gmod has no fade, since it's menu is html based
 		Surface.DrawSetColor(255, 255, 255, alpha);
 		Surface.DrawSetTexture(BackgroundImageID);
 		Surface.DrawTexturedRect(0, 0, wide, tall);
+
+		if (FadingInMenus) {
+			FadingInMenus = false;
+			SetMenuAlpha(255);
+		}
 #endif
 	}
 
