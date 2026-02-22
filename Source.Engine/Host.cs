@@ -882,7 +882,7 @@ public class Host(
 		internal void Reset() { CurPosition = 0; Line[0] = '\0'; }
 		internal void InsertEmptyColumn(int columnWidth) => CurPosition += columnWidth + 1;
 		internal unsafe ReadOnlySpan<char> GetLine() {
-			return Line;
+			return ((ReadOnlySpan<char>)Line).SliceNullTerminatedString();
 		}
 	}
 
