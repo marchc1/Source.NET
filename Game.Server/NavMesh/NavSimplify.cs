@@ -83,7 +83,7 @@ public partial class NavMesh
 
 	[ConCommand("nav_simplify_selected", "Chops all selected areas into their component 1x1 areas and re-merges them together into larger areas", FCvar.Cheat)]
 	static void nav_simplify_selected() {
-		if (!Util.IsCommandUssuedByServerAdmin() || engine.IsDedicatedServer())
+		if (!Util.IsCommandIssuedByServerAdmin() || engine.IsDedicatedServer())
 			return;
 
 		int selectedSetSize = Instance!.GetSelecteSetSize();

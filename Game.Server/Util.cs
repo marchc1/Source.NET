@@ -187,7 +187,7 @@ public static partial class Util
 		return PlayerByIndex(1);
 	}
 
-	public static bool IsCommandUssuedByServerAdmin() {
+	public static bool IsCommandIssuedByServerAdmin() {
 		// int issuingPlayerIndex = GetCommandClientIndex();
 		int issuingPlayerIndex = 0; // TODO TODO
 

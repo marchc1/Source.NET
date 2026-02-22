@@ -407,10 +407,8 @@ public partial class NavMesh
 	}
 
 	private void GetNavSizeFromFile(out long size) { // HACK, we don't have a growable buffer
-		Span<char> filename = stackalloc char[MAX_PATH];  // FIXME: Awaiting singleplayer
-
-		// sprintf(filename, "maps/%s.nav").S(gpGlobals.MapName);
-		sprintf(filename, "maps/gm_flatgrass.nav");//.S(gpGlobals.MapName);
+		Span<char> filename = stackalloc char[MAX_PATH];
+		sprintf(filename, "maps/%s.nav").S(gpGlobals.MapName);
 
 		size = filesystem.Size(filename, "MOD");
 		if (size == -1) size = filesystem.Size(filename, "BSP");
@@ -418,10 +416,8 @@ public partial class NavMesh
 	}
 
 	NavErrorType GetNavDataFromFile(Span<byte> outBuffer, ref bool navDataFromBSP) {
-		Span<char> filename = stackalloc char[MAX_PATH];  // FIXME: Awaiting singleplayer
-
-		// sprintf(filename, "maps/%s.nav").S(gpGlobals.MapName);
-		sprintf(filename, "maps/gm_flatgrass.nav");//.S(gpGlobals.MapName);
+		Span<char> filename = stackalloc char[MAX_PATH];
+		sprintf(filename, "maps/%s.nav").S(gpGlobals.MapName);
 
 		// this ignores .nav files embedded in the .bsp ...
 		if (!filesystem.ReadFile(filename, "MOD", outBuffer, 0)) {
@@ -475,14 +471,12 @@ public partial class NavMesh
 		if (version >= 4) {
 			uint saveBspSize = buffer.ReadUInt32();
 
-			Span<char> bspFilename = stackalloc char[260]; // FIXME: Awaiting singleplayer
-
-			// sprintf(bspFilename, "maps/%s.bsp").S(gpGlobals.MapName);
-			sprintf(bspFilename, "maps/gm_flatgrass.bsp");//.S(gpGlobals.MapName);
+			Span<char> bspFilename = stackalloc char[260];
+			sprintf(bspFilename, "maps/%s.bsp").S(gpGlobals.MapName);
 
 			long bspSize = filesystem.Size(bspFilename);
 
-			if (bspSize != saveBspSize && !navIsInBsp) {
+			if (bspSize != saveBspSize && !navIsInBsp) { // FIXME: Something still isn't being read correctly?
 				if (engine.IsDedicatedServer())
 					DevMsg("The Navigation Mesh was built using a different version of this map.\n");
 				else
