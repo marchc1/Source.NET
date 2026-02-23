@@ -1,2 +1,2 @@
-﻿global using EHANDLE = Game.Shared.Handle<Game.Server.BaseEntity>;
+﻿global using EHANDLE = Source.Common.Handle<Game.Server.BaseEntity>;
 global using static Game.Server.SourceDllMain;

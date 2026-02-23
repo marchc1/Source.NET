@@ -437,7 +437,7 @@ public class GameMovement : IGameMovement
 	}
 
 	// Only used by players.  Moves along the ground when player is a MoveType.Walk.
-	readonly Handle<SharedBaseEntity> WalkMove__oldground = new();
+	Handle<SharedBaseEntity> WalkMove__oldground = new();
 	protected virtual void WalkMove() {
 		int i;
 

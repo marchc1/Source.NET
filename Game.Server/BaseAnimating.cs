@@ -17,7 +17,7 @@ public partial class InfoLightingRelative : BaseEntity
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("InfoLightingRelative", DT_InfoLightingRelative).WithManualClassID(StaticClassIndices.CInfoLightingRelative);
 
-	public readonly EHANDLE LightingLandmark = new();
+	public EHANDLE LightingLandmark = new();
 }
 
 public class BaseAnimating : BaseEntity
@@ -94,10 +94,10 @@ public class BaseAnimating : BaseEntity
 	public int NewSequenceParity;
 	public int ResetEventsParity;
 	public int MuzzleFlashParity;
-	public readonly EHANDLE LightingOrigin = new();
-	public readonly EHANDLE LightingOriginRelative = new();
-	public readonly EHANDLE BoneManipulator = new();
-	public readonly EHANDLE FlexManipulator = new();
+	public EHANDLE LightingOrigin = new();
+	public EHANDLE LightingOriginRelative = new();
+	public EHANDLE BoneManipulator = new();
+	public EHANDLE FlexManipulator = new();
 	public float FadeMinDist;
 	public float FadeMaxDist;
 	public float FadeScale;

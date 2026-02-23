@@ -61,7 +61,7 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 	private Edict Pev;
 	private PVSInfo PVSInfo;
 	private ServerClass? ServerClass;
-	private readonly EHANDLE Parent = new();
+	private EHANDLE Parent = new();
 	// event register later
 	bool PendingStateChange;
 }

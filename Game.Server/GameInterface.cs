@@ -133,7 +133,7 @@ public static class GameInterface
 		g_pMsgBuffer.WriteShort(iValue);
 	}
 
-	static readonly EHANDLE hEnt = new();
+	static EHANDLE hEnt = new();
 	public static void MessageWriteEHandle(BaseEntity? entity) {
 		if (g_pMsgBuffer == null)
 			Error("WriteEHandle called with no active message\n");

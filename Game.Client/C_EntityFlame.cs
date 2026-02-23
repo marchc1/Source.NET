@@ -11,5 +11,5 @@ public class C_EntityFlame : C_BaseEntity
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("EntityFlame", DT_EntityFlame).WithManualClassID(StaticClassIndices.CEntityFlame);
 
-	public readonly EHANDLE EntAttached = new();
+	public EHANDLE EntAttached = new();
 }

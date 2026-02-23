@@ -15,7 +15,7 @@ public class PropCrane : BaseAnimating
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("PropCrane", DT_PropCrane).WithManualClassID(StaticClassIndices.CPropCrane);
 
-	public readonly EHANDLE Player = new();
+	public EHANDLE Player = new();
 	public bool MagnetOn;
 	public bool EnterAnimOn;
 	public bool ExitAnimOn;

@@ -44,7 +44,7 @@ public class Sprite : SharedBaseEntity
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("Sprite", DT_Sprite).WithManualClassID(StaticClassIndices.CSprite);
 #endif
-	public readonly EHANDLE AttachedToEntity = new();
+	public EHANDLE AttachedToEntity = new();
 	public int Attachment;
 	public TimeUnit_t ScaleTime;
 	public float SpriteScale;

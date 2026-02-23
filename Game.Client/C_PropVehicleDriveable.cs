@@ -27,7 +27,7 @@ public class C_PropVehicleDriveable : C_BaseAnimating
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("PropVehicleDriveable", DT_PropVehicleDriveable).WithManualClassID(StaticClassIndices.CPropVehicleDriveable);
 
-	public readonly EHANDLE Player = new();
+	public EHANDLE Player = new();
 	public int RPM;
 	public float Throttle;
 	public int BoostTimeLeft;

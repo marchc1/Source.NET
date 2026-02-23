@@ -18,7 +18,7 @@ public class C_PropVehiclePrisonerPod : C_PhysicsProp
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("PropVehiclePrisonerPod", DT_PropVehiclePrisonerPod).WithManualClassID(StaticClassIndices.CPropVehiclePrisonerPod);
 
-	public readonly EHANDLE Player = new();
+	public EHANDLE Player = new();
 	public bool EnterAnimOn = new();
 	public bool ExitAnimOn = new();
 	public Vector3 EyeExitEndpoint = new();

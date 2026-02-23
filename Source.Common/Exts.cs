@@ -628,7 +628,7 @@ public static class StrTools
 				strippedWhitespace = true;
 		}
 
-		pch[walk - 1] = '\0';
+		pch[walk] = '\0';
 
 		return strippedWhitespace;
 	}

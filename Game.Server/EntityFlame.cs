@@ -11,5 +11,5 @@ public class EntityFlame : BaseEntity
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("EntityFlame", DT_EntityFlame).WithManualClassID(StaticClassIndices.CEntityFlame);
 
-	public readonly EHANDLE EntAttached = new();
+	public EHANDLE EntAttached = new();
 }
