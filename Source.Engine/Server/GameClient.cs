@@ -5,6 +5,7 @@ using Source.Common.Bitbuffers;
 using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Networking;
+using Source.GUI.Controls;
 
 namespace Source.Engine.Server;
 
@@ -140,9 +141,88 @@ public class GameClient : BaseClient
 
 	// void Inactivate() { }
 
-	// bool UpdateAcknowledgedFramecount(int tick) { }
+	protected override bool UpdateAcknowledgedFramecount(int tick) {
+		if (IsFakeClient()) {
+			DeltaTick = tick;
+			StringTableAckTick = tick;
+			return true;
+		}
 
-	// void Clear() { }
+		if (ForceWaitForTick > 0) {
+			if (tick > ForceWaitForTick)
+				// we should never get here since full updates are transmitted as reliable data now
+				return true;
+			else if (tick == -1) {
+				if (!NetChannel!.HasPendingReliableData()) {
+					// that's strange: we sent the client a full update, and it was fully received ( no reliable data in waiting buffers )
+					// but the client is requesting another full update.
+					//
+					// This can happen if they request full updates in succession really quickly (using cl_fullupdate or "record X;stop" quickly).
+					// There was a bug here where if we just return out, the client will have nuked its entities and we'd send it
+					// a supposedly uncompressed update but DeltaTick was not -1, so it was delta'd and it'd miss lots of stuff.
+					// Led to clients getting full spectator mode radar while their player was not a spectator.
+					ConDMsg("Client forced immediate full update.\n");
+					ForceWaitForTick = DeltaTick = -1;
+					// OnRequestFullUpdate(); TODO
+					return true;
+				}
+			}
+			else if (tick < ForceWaitForTick)
+				return true;
+			else
+				ForceWaitForTick = -1;
+		}
+		else {
+			if (DeltaTick == -1)
+				return true;
+
+			if (tick == -1) {
+				// OnRequestFullUpdate();
+			}
+			else {
+				if (DeltaTick > tick) {
+					// client already acknowledged new tick and now switch back to older
+					// thats not allowed since we always delete older frames
+					Disconnect("Client delta ticks out of order.\n");
+					return false;
+				}
+			}
+		}
+
+		DeltaTick = tick;
+
+		if (DeltaTick > -1)
+			StringTableAckTick = DeltaTick;
+
+		if ((BaselineUpdateTick > -1) && (DeltaTick > BaselineUpdateTick))
+			// server sent a baseline update, but it wasn't acknowledged yet so it was probably lost.
+			BaselineUpdateTick = -1;
+
+		return true;
+	}
+
+	public override void Clear() {
+		if (HLTV) {
+
+		}
+
+		if (Replay) {
+
+		}
+
+		base.Clear();
+
+		cl.DeleteClientFrames(-1);
+
+		Sounds.Clear();
+		VoiceStreams.ClearAll();
+		VoiceProximity.ClearAll();
+		Edict = null!;
+		ViewEntity = null;
+		VoiceLoopback = false;
+		LastMovementTick = 0;
+		SoundSequence = 0;
+	}
 
 	public override void Reconnect() {
 		sv.RemoveClientFromGame(this);
@@ -151,15 +231,91 @@ public class GameClient : BaseClient
 
 	// void Disconnect(ReadOnlySpan<char> fmt) { }
 
-	// bool SetSignonState(int state, int spawncount) { }
+	protected override bool SetSignOnState(SignOnState state, int spawncount) {
+		if (state == SignOnState.Connected) {
+			if (!CheckConnect())
+				return false;
+
+			NetChannel!.SetTimeout(Source.Common.Networking.NetChannel.SIGNON_TIME_OUT);
+			NetChannel.SetFileTransmissionMode(false);
+			NetChannel.SetMaxBufferSize(true, Protocol.MAX_PAYLOAD);
+		}
+		else if (state == SignOnState.New) {
+			if (!sv.IsMultiplayer())
+				sv.InstallClientStringTableMirrors();
+		}
+		else if (state == SignOnState.Full) {
+			if (sv.LoadGame) {
+				// sv.FinishRestore();
+			}
+
+			NetChannel!.SetTimeout(sv_timeout.GetFloat());
+			NetChannel.SetFileTransmissionMode(true);
+		}
+
+		return base.SetSignOnState(state, spawncount);
+	}
 
 	// void SendSound(SoundInfo sound, bool isReliable) { }
 
-	// void WriteGameSounds(bf_write buf) { }
+	void WriteGameSounds(bf_write buf) {
+		if (Sounds.Count == 0)
+			return;
 
-	// int FillSoundsMessage(SVC_Sounds msg) { }
+		byte[] data = new byte[Protocol.MAX_PAYLOAD];
+		SVC_Sounds msg = new();
+		msg.DataOut.StartWriting(data, Protocol.MAX_PAYLOAD, 0);
 
-	// bool CheckConnect() { }
+		int soundCount = FillSoundsMessage(msg);
+		msg.WriteToBuffer(buf);
+	}
+
+	int FillSoundsMessage(SVC_Sounds msg) {
+		int i, count = Sounds.Count;
+
+		int max = Server.IsMultiplayer() ? 32 : 255;
+
+		if (count > max)
+			count = max;
+
+		if (count == 0)
+			return 0;
+
+		SoundInfo defaultSound = new();
+		defaultSound.SetDefault();
+
+		SoundInfo deltaSound = defaultSound;
+
+		msg.NumSounds = count;
+		msg.ReliableSound = false;
+		msg.SetReliable(false);
+
+		Assert(msg.DataOut.BitsLeft > 0);
+
+		for (i = 0; i < count; i++) {
+			SoundInfo sound = Sounds[i];
+			sound.WriteDelta(ref deltaSound, msg.DataOut, Protocol.VERSION); // FIXME proto version
+			deltaSound = sound;
+		}
+
+		int remove = Sounds.Count - (count + max);
+
+		if (remove > 0) {
+			DevMsg($"Warning! Dropped {remove} unreliable sounds for client {Name}.\n");
+			count += remove;
+		}
+
+		if (count > 0)
+			Sounds.RemoveRange(0, count);
+
+		Assert(Sounds.Count <= max);
+
+		return msg.NumSounds;
+	}
+
+	bool CheckConnect() {
+		return true; // todo
+	}
 
 	protected override void ActivatePlayer() {
 		base.ActivatePlayer();
@@ -179,10 +335,6 @@ public class GameClient : BaseClient
 		Common.TimestampedLog("g_pServerPluginHandler->ClientSettingsChanged");
 
 		// g_pServerPluginHandler->ClientSettingsChanged(edict);
-
-		Common.TimestampedLog("GetTestScriptMgr()->CheckPoint");
-
-		// GetTestScriptMgr()->CheckPoint("client_connected");
 
 		IGameEvent? evnt = gameEventManager.CreateEvent("player_activate");
 
@@ -261,11 +413,84 @@ public class GameClient : BaseClient
 		}
 	}
 
-	// bool IsEngineClientCommand(in TokenizedCommand args) { }
+	static readonly string[] CLCommands = [ // Shouldn't be here
+		"status",
+		"pause",
+		"setpause",
+		"unpause",
+		"ping",
+		"rpt_server_enable",
+		"rpt_client_enable",
+#if !SWDS
+		"rpt",
+		"rpt_connect",
+		"rpt_password",
+		"rpt_screenshot",
+		"rpt_download_log",
+#endif
+	];
+
+	bool IsEngineClientCommand(in TokenizedCommand args) {
+		if (args.ArgC() == 0)
+			return false;
+
+		for (int i = 0; i < CLCommands.Length; i++) {
+			if (args[0].Equals(CLCommands[i], StringComparison.OrdinalIgnoreCase))
+				return true;
+		}
+
+		return false;
+	}
 
 	// bool SendNetMsg(INetMessage msg, bool forceReliable) { }
 
-	// bool ExecuteStringCommand(ReadOnlySpan<char> pCommandString) { }
+
+	public override bool ExecuteStringCommand(ReadOnlySpan<char> c) {
+		if (base.ExecuteStringCommand(c))
+			return true;
+
+		TokenizedCommand args = new();
+
+		if (!args.Tokenize(c))
+			return false;
+
+		if (args.ArgC() == 0)
+			return false;
+
+		if (IsEngineClientCommand(args)) {
+			cmd.ExecuteCommand(ref args, CommandSource.Client, ClientSlot);
+			return true;
+		}
+
+		ConCommandBase? command = cvar.FindCommandBase(args[0]);
+
+		if (command != null && command.IsCommand() && command.IsFlagSet(FCvar.GameDLL)) {
+			// Allow cheat commands in singleplayer, debug, or multiplayer with sv_cheats on
+			// NOTE: Don't bother with rpt stuff; commands that matter there shouldn't have FCVAR_GAMEDLL set
+			if (command.IsFlagSet(FCvar.Cheat)) {
+				if (sv.IsMultiplayer() && !Host.CanCheat())
+					return false;
+			}
+
+			if (command.IsFlagSet(FCvar.SingleplayerOnly)) {
+				if (sv.IsMultiplayer())
+					return false;
+			}
+
+			// Don't allow clients to execute commands marked as development only.
+			if (command.IsFlagSet(FCvar.DevelopmentOnly))
+				return false;
+
+			// serverPluginHandler.SetCommandClient(ClientSlot);
+
+			cmd.Dispatch(command, args);
+		}
+		else {
+			// serverPluginHandler.ClientCommand(edict, args);
+		}
+
+		return true;
+	}
 
 	protected override void SendSnapshot(ClientFrame frame) {
 		if (HLTV) {

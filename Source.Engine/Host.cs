@@ -797,7 +797,59 @@ public class Host(
 		}
 	}
 
-	public bool CanCheat() {
+	[ConCommand("pause", "Toggle the server pause state.")]
+	void pause(in TokenizedCommand args, CommandSource source, int clientSlot) {
+#if !SWDS
+		if (!sv.IsDedicated()) {
+			if (cl.LevelFileName == null || cl.LevelFileName.Length == 0)
+				return;
+		}
+#endif
+
+		if (source == CommandSource.Command) {
+			Cmd.ForwardToServer(args);
+			return;
+		}
+
+		if (!sv.IsPausable())
+			return;
+
+		sv.SetPaused(!sv.IsPaused());
+
+		// sv.BroadcastPrintf( "%s %s the game\n", host_client->GetClientName(), sv.IsPaused() ? "paused" : "unpaused" );
+	}
+
+	[ConCommand("setpause", "Set the pause state of the server.")]
+	void setpause(in TokenizedCommand args, CommandSource source, int clientSlot) {
+#if !SWDS
+		if (cl.LevelFileName == null || cl.LevelFileName.Length == 0)
+			return;
+#endif
+
+		if (source == CommandSource.Command) {
+			Cmd.ForwardToServer(args);
+			return;
+		}
+
+		sv.SetPaused(true);
+	}
+
+	[ConCommand("unpause", "Unpause the game.")]
+	void unpause(in TokenizedCommand args, CommandSource source, int clientSlot) {
+#if !SWDS
+		if (cl.LevelFileName == null || cl.LevelFileName.Length == 0)
+			return;
+#endif
+
+		if (source == CommandSource.Command) {
+			Cmd.ForwardToServer(args);
+			return;
+		}
+
+		sv.SetPaused(false);
+	}
+
+	static public bool CanCheat() {
 		return SV.sv_cheats.GetBool();
 	}
 

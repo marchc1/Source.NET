@@ -197,12 +197,12 @@ public class GameServer : BaseServer
 
 	internal void InitMaxClients() {
 		int newmaxplayers = CommandLine.ParmValue("-maxplayers", -1);
-		if (newmaxplayers == -1) 
+		if (newmaxplayers == -1)
 			newmaxplayers = CommandLine.ParmValue("+maxplayers", -1);
 
 		SetupMaxPlayers(newmaxplayers);
 	}
-	static readonly ConVar tv_enable = new( "tv_enable", "0", FCvar.NotConnected, "Activates SourceTV on server. not implemented!");
+	static readonly ConVar tv_enable = new("tv_enable", "0", FCvar.NotConnected, "Activates SourceTV on server. not implemented!");
 
 	private void SetupMaxPlayers(int iDesiredMaxPlayers) {
 		int minmaxplayers = 1;
@@ -212,15 +212,15 @@ public class GameServer : BaseServer
 		if (SV.ServerGameClients != null) {
 			SV.ServerGameClients.GetPlayerLimits(out minmaxplayers, out maxmaxplayers, out defaultmaxplayers);
 
-			if (minmaxplayers < 1) 
+			if (minmaxplayers < 1)
 				Sys.Error($"GetPlayerLimits:  min maxplayers must be >= 1 ({minmaxplayers})");
-			else if (defaultmaxplayers < 1) 
+			else if (defaultmaxplayers < 1)
 				Sys.Error($"GetPlayerLimits:  default maxplayers must be >= 1 ({minmaxplayers})");
-			
 
-			if (minmaxplayers > maxmaxplayers || defaultmaxplayers > maxmaxplayers) 
+
+			if (minmaxplayers > maxmaxplayers || defaultmaxplayers > maxmaxplayers)
 				Sys.Error($"GetPlayerLimits:  min maxplayers {minmaxplayers} > max {maxmaxplayers}");
-			if (maxmaxplayers > Constants.ABSOLUTE_PLAYER_LIMIT) 
+			if (maxmaxplayers > Constants.ABSOLUTE_PLAYER_LIMIT)
 				Sys.Error($"GetPlayerLimits:  max players limited to {Constants.ABSOLUTE_PLAYER_LIMIT}");
 		}
 
@@ -492,4 +492,24 @@ public class GameServer : BaseServer
 	INetworkStringTable? DynamicModelsTable;
 
 	bool Hibernating;    // Are we hibernating.  Hibernation makes server process consume approx 0 CPU when no clients are connected
+
+	public void InstallClientStringTableMirrors() {
+#if !SWDS && !SHARED_NET_STRING_TABLES
+		int numTables = networkStringTableContainerServer.GetNumTables();
+		for (int i = 0; i < numTables; i++) {
+			NetworkStringTable? serverTable = (NetworkStringTable?)networkStringTableContainerServer.GetTable(i);
+			if (serverTable == null)
+				continue;
+
+			NetworkStringTable? clientTable = (NetworkStringTable?)networkStringTableContainerClient.FindTable(serverTable.GetTableName());
+
+			if (clientTable == null) {
+				DevMsg($"SV_InstallClientStringTableMirrors! Missing client table \"{serverTable.GetTableName()}\".\n ");
+				continue;
+			}
+
+			clientTable.SetMirrorTable(serverTable);
+		}
+#endif
+	}
 }

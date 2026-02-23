@@ -72,17 +72,19 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		return true;// todo
 	}
 
-	protected virtual bool ProcessMove(CLC_Move m) {
-		return true;// todo
-	}
+	protected virtual bool ProcessMove(CLC_Move m) => true;
 
 	protected virtual bool ProcessTick(NET_Tick m) {
-		return true;// todo
+		NetChannel!.SetRemoteFramerate(m.HostFrameTime, m.HostFrameDeviation);
+		return UpdateAcknowledgedFramecount(m.Tick);
 	}
 
 	protected virtual bool ProcessStringCmd(NET_StringCmd m) {
-		return true; // todo
+		ExecuteStringCommand(m.Command);
+		return true;
 	}
+
+	protected virtual bool UpdateAcknowledgedFramecount(int tick) => true;
 
 	public void ClientRequestNameChange(ReadOnlySpan<char> newName) {
 		bool showStatusMessage = (PendingNameChange[0] == '\0');
@@ -272,7 +274,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		// MapReslistGenerator().OnPlayerSpawn();
 		// NotifyDedicatedServerUI("UpdatePlayers");
 
-		NET_SignonState signonState = new(SignOnState, Server.GetSpawnCount()); // FIXME: This message should need to be sent here?
+		NET_SignonState signonState = new(SignOnState, Server.GetSpawnCount()); // FIXME: This message shouldn't need to be sent here?
 		NetChannel.SendNetMsg(signonState);
 	}
 
@@ -317,8 +319,8 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		// strcpy(FriendsName, msg.FriendsName);
 
 		for (int i = 0; i < Constants.MAX_CUSTOM_FILES; i++) {
-			// CustomFiles[i].CRC = msg.CustomFiles[i];
-			// CustomFiles[i].ReqID = 0;
+			CustomFiles[i].CRC = msg.CustomFiles[i];
+			CustomFiles[i].ReqID = 0;
 		}
 
 		if (msg.ServerCount != Server.GetSpawnCount()) {
@@ -335,11 +337,33 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	protected virtual bool ProcessListenEvents(CLC_ListenEvents m) {
-		return true;// todo
+		gameEventManager.RemoveListener(this);
+
+		for (int i = 0; i < Constants.MAX_EVENT_NUMBER; i++) {
+			if (m.EventArray.Get(i) != 0) {
+				GameEventDescriptor? desc = gameEventManager.GetEventDescriptor(i);
+				if (desc != null)
+					gameEventManager.AddListener(this, desc, GameEventListenerType.Clientstub);
+				else {
+					DevMsg($"ProcessListenEvents: game event {i} not found.\n");
+					return false;
+				}
+			}
+		}
+
+		return true;
 	}
 
 	protected virtual void SendSnapshot(ClientFrame frame) {
+		if (ForceWaitForTick > 0 || LastSnapshot == frame.GetSnapshot()) {
+			NetChannel.Transmit();
+			return;
+		}
+
+		bool failedOnce;
 		// todo
+
+		LastSnapshot = frame.GetSnapshot();
 	}
 
 	public int GetClientChallenge() => ClientChallenge;
@@ -381,7 +405,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		return GetUserIDString(GetNetworkID());
 	}
 
-	public void Clear() {
+	public virtual void Clear() {
 		if (NetChannel != null) {
 			NetChannel.Shutdown("Disconnect by server.\n");
 			NetChannel = null!;
@@ -398,7 +422,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		DeltaTick = -1;
 		SignOnTick = 0;
 		StringTableAckTick = 0;
-		// LastSnapshot = NULL;
+		LastSnapshot = null;
 		ForceWaitForTick = -1;
 		FakePlayer = false;
 		HLTV = false;
@@ -422,7 +446,12 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	private void FreeBaselines() {
+		Baseline?.ReleaseReference();
+		Baseline = null;
 
+		BaselineUpdateTick = -1;
+		BaselineUsed = 0;
+		BaselinesSent.ClearAll();
 	}
 
 	public bool IsConnected() => SignOnState >= SignOnState.Connected;
@@ -484,7 +513,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 	public uint SendTableCRC;
 
-	public CustomFile[] CustomFiles;
+	public readonly CustomFile[] CustomFiles = new CustomFile[Constants.MAX_CUSTOM_FILES];
 	public int FilesDownloaded;
 
 	public INetChannel NetChannel;
@@ -493,7 +522,8 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public int StringTableAckTick;
 	public long SignOnTick;
 	// CSmartPtr<CFrameSnapshot, CRefCountAccessorLongName>
-	// CFrameSnapshot baseline
+	FrameSnapshot? LastSnapshot; // todo? ^
+	FrameSnapshot? Baseline;
 	public int BaselineUpdateTick;
 	MaxEdictsBitVec BaselinesSent;
 	public int BaselineUsed;
@@ -516,7 +546,20 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public bool IsPlayerNameLocked() => PlayerNameLocked;
 
 	public void FireGameEvent(IGameEvent ev) {
-		throw new NotImplementedException();
+		byte[] buffer = new byte[Constants.MAX_EVENT_BITS];
+
+		SVC_GameEvent msg = new();
+		msg.DataOut.StartWriting(buffer, Constants.MAX_EVENT_BITS, 0);
+
+		if (gameEventManager.SerializeEvent(ev, msg.DataOut)) {
+			if (NetChannel != null) {
+				bool sent = NetChannel.SendNetMsg(msg);
+				if (!sent)
+					DevMsg($"GameEventManager: failed to send event '{ev.GetName()}'.\n");
+			}
+		}
+		else
+			DevMsg($"GameEventManager: failed to serialize event '{ev.GetName()}'.\n");
 	}
 	static bool BIgnoreCharInName(char cChar, bool bIsFirstCharacter) {
 		return cChar == '%' || cChar == '~' || cChar < 0x09 || (bIsFirstCharacter && cChar == '#');
@@ -681,15 +724,34 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	public int GetUpdateRate() {
-		throw new NotImplementedException();
+		if (SnapshotInterval > 0)
+			return (int)(1.0f / SnapshotInterval);
+		else
+			return 0;
 	}
 
 	public int GetMaxAckTickCount() {
-		throw new NotImplementedException();
+		long maxTick = SignOnTick;
+
+		if (DeltaTick > maxTick)
+			maxTick = DeltaTick;
+
+		if (StringTableAckTick > maxTick)
+			maxTick = StringTableAckTick;
+
+		return (int)maxTick;
 	}
 
-	public bool ExecuteStringCommand(ReadOnlySpan<char> s) {
-		throw new NotImplementedException();
+	public virtual bool ExecuteStringCommand(ReadOnlySpan<char> cmd) {
+		if (cmd.IsEmpty)
+			return false;
+
+		if (strcmp(cmd, "demorestart") == 0) {
+			// DemoRestart();
+			return false;
+		}
+
+		return false;
 	}
 
 	public void ClientPrintf(ReadOnlySpan<char> fmt) {
@@ -705,9 +767,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		throw new NotImplementedException();
 	}
 
-	public void SetMaxRoutablePayloadSize(int nMaxRoutablePayloadSize) {
-		throw new NotImplementedException();
-	}
+	public void SetMaxRoutablePayloadSize(int nMaxRoutablePayloadSize) => NetChannel?.SetMaxRoutablePayloadSize(nMaxRoutablePayloadSize);
 
 	public bool IsReplay() {
 		return false;

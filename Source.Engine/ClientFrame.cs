@@ -17,10 +17,16 @@ public class ClientFrame
 	public MaxEdictsBitVec TransmitAlways;
 	public ClientFrame? Next;
 
+	public FrameSnapshot Snapshot;
+
 	internal void Init(int tickcount) {
 		TickCount = tickcount;
 	}
 	internal void Init(FrameSnapshot snapshot) {
 		TickCount = snapshot.TickCount;
 	}
+
+	internal FrameSnapshot GetSnapshot() => Snapshot;
+
+	internal void SetSnapshot(FrameSnapshot snapshot) => Snapshot = snapshot;
 }

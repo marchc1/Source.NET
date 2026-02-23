@@ -384,6 +384,8 @@ public class NetworkStringTable : INetworkStringTable
 			ChangeHistoryEnabled = true;
 	}
 
+	public void SetMirrorTable(INetworkStringTable mirrorTable) => MirrorTable = mirrorTable;
+
 	private void DataChanged(int stringNumber, NetworkStringTableItem item) {
 		LastChangedTick = TickCount;
 
@@ -521,7 +523,7 @@ public class NetworkStringTable : INetworkStringTable
 		}
 	}
 
-	public int WriteUpdate(BaseClient? client, bf_write buf, int tickAck){
+	public int WriteUpdate(BaseClient? client, bf_write buf, int tickAck) {
 		return 0; // todo
 	}
 
@@ -568,12 +570,12 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 			return null;
 		}
 
-		if (Tables.Count() >= INetworkStringTable.MAX_TABLES) {
+		if (Tables.Count >= INetworkStringTable.MAX_TABLES) {
 			Host.Error($"Only {INetworkStringTable.MAX_TABLES} string tables allowed, can't create '{tableName}'");
 			return null;
 		}
 
-		int id = Tables.Count();
+		int id = Tables.Count;
 		pTable = new NetworkStringTable(id, tableName, maxEntries, userDataFixedSize, userDataNetworkBits, isFilenames);
 
 		if (EnableRollback) {
@@ -605,7 +607,7 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 	}
 
 	public int GetNumTables() {
-		return Tables.Count();
+		return Tables.Count;
 	}
 
 	public void SetTick(long tick) { }
@@ -666,7 +668,7 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 				Host.Error($"Overflow error writing string table baseline {table.GetTableName()}\n");
 
 			int after = buf.BytesWritten;
-			if (sv_dumpstringtables.GetBool()) 
+			if (sv_dumpstringtables.GetBool())
 				DevMsg($"NetworkStringTableContainer.WriteBaselines wrote {after - before} bytes for table {table.GetTableName()} [space remaining {buf.BytesLeft} bytes]\n");
 		}
 	}

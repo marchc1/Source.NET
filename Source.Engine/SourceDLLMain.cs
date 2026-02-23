@@ -42,6 +42,7 @@ public static class SourceDllMain
 	[Dependency] public static IVideoMode videoMode { get; private set; } = null!;
 	[Dependency] public static Cbuf cbuf { get; private set; } = null!;
 	[Dependency] public static ICvar cvar { get; private set; } = null!;
+	[Dependency] public static Cmd cmd { get; private set; } = null!;
 	[Dependency] public static IMaterialSystemHardwareConfig HardwareConfig { get; private set; } = null!;
 	[Dependency] public static ICommandLine commandLine { get; private set; } = null!;
 	[Dependency] public static IMatSystemSurface surface { get; private set; } = null!;

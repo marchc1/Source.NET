@@ -458,6 +458,7 @@ public class SVC_Sounds : NetMessage
 	public int NumSounds;
 	public int Length;
 	public readonly bf_read DataIn = new();
+	public readonly bf_write DataOut = new();
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		ReliableSound = buffer.ReadOneBit() != 0;
@@ -475,7 +476,18 @@ public class SVC_Sounds : NetMessage
 	}
 
 	public override bool WriteToBuffer(bf_write buffer) {
-		throw new Exception();
+		buffer.WriteNetMessageType(this);
+		if (ReliableSound) {
+			buffer.WriteOneBit(1);
+			buffer.WriteUBitLong((uint)Length, 8);
+		}
+		else {
+			buffer.WriteOneBit(0);
+			buffer.WriteUBitLong((uint)NumSounds, 8);
+			buffer.WriteUBitLong((uint)Length, 16);
+		}
+
+		return buffer.WriteBits(DataOut.BaseArray, Length);
 	}
 	public override string ToString() {
 		return $"number {NumSounds},{(ReliableSound ? " reliable" : " ")} bytes {Bits2Bytes(Length)}";
@@ -518,7 +530,21 @@ public class SVC_BSPDecal : NetMessage
 	}
 
 	public override bool WriteToBuffer(bf_write buffer) {
-		throw new Exception();
+		buffer.WriteNetMessageType(this);
+		buffer.WriteBitVec3Coord(Pos);
+		buffer.WriteUBitLong((uint)DecalTextureIndex, MAX_DECAL_INDEX_BITS);
+
+		if (EntityIndex != 0 || ModelIndex != 0) {
+			buffer.WriteBool(true);
+			buffer.WriteUBitLong((uint)EntityIndex, MAX_EDICT_BITS);
+			buffer.WriteUBitLong((uint)ModelIndex, SP_MODEL_INDEX_BITS);
+		}
+		else
+			buffer.WriteBool(false);
+
+		buffer.WriteBool(LowPriority);
+
+		return !buffer.Overflowed;
 	}
 }
 public class SVC_GameEvent : NetMessage
