@@ -141,7 +141,7 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 #endif
 	}
 
-	private void Dispatch(ConCommandBase commandBase, in TokenizedCommand command) {
+	public void Dispatch(ConCommandBase commandBase, in TokenizedCommand command) {
 		ConCommand conCommand = (ConCommand)commandBase;
 		conCommand.Dispatch(in command, Source, ClientSlot);
 	}
@@ -150,7 +150,7 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 		if (filterCommandsByClientCmdCanExecute > 0 && cmd != null && cmd.IsFlagSet(FCvar.ClientCmdCanExecute)) {
 			// If this command is in the game DLL, don't mention it because we're going to forward this
 			// request to the server and let the server handle it.
-			if (!cmd.IsFlagSet(FCvar.GameDLL)) 
+			if (!cmd.IsFlagSet(FCvar.GameDLL))
 				Dbg.Warning($"FCvar.ServerCanExecute prevented server running command: {cmd.GetName()}\n");
 
 			return true;
