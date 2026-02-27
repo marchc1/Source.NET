@@ -48,18 +48,18 @@ public class BaseEdict
 			return null;
 	}
 	public IServerNetworkable? GetNetworkable() {
-		return null;
+		return Networkable;
 	}
 
 	public IServerUnknown? GetUnknown() {
-		return null;
+		return Unk;
 	}
 
 	public void SetEdict(IServerUnknown? unk, bool fullEdict) {
 		Unk = unk;
-		if (unk != null && fullEdict) 
+		if (unk != null && fullEdict)
 			StateFlags = EdictFlags.Full;
-		else 
+		else
 			StateFlags = 0;
 	}
 

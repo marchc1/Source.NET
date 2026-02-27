@@ -523,8 +523,112 @@ public class NetworkStringTable : INetworkStringTable
 		}
 	}
 
+
+	private static int CountSimilarCharacters(string str1, string str2) {
+		int c = 0;
+		int maxLen = Math.Min(str1.Length, str2.Length);
+		int limit = (1 << SUBSTRING_BITS) - 1;
+		while (c < maxLen && str1[c] == str2[c] && c < limit) {
+			c++;
+		}
+		return c;
+	}
+
+	private static int GetBestPreviousString(List<string> history, string newstring, out int substringsize) {
+		int bestindex = -1;
+		int bestcount = 0;
+		int c = history.Count;
+		for (int i = 0; i < c; i++) {
+			string prev = history[i];
+			int similar = CountSimilarCharacters(prev, newstring);
+
+			if (similar < 3)
+				continue;
+
+			if (similar > bestcount) {
+				bestcount = similar;
+				bestindex = i;
+			}
+		}
+
+		substringsize = bestcount;
+		return bestindex;
+	}
+
 	public int WriteUpdate(BaseClient? client, bf_write buf, int tickAck) {
-		return 0; // todo
+		List<string> history = []; // StringHistoryEntry
+
+		int entriesUpdated = 0;
+		int lastEntry = -1;
+
+		int count = Items.Count();
+
+		for (int i = 0; i < count; i++) {
+			NetworkStringTableItem p = Items.Element(i);
+
+			// Client is up to date
+			if (p.TickChanged <= tickAck)
+				continue;
+
+			// Write Entry index
+			if ((lastEntry + 1) == i)
+				buf.WriteOneBit(1);
+			else {
+				buf.WriteOneBit(0);
+				buf.WriteUBitLong((uint)i, EntryBits);
+			}
+
+			// check if string can use older string as base eg "models/weapons/gun1" & "models/weapons/gun2"
+			string pEntry = Items.String(i);
+
+			if (p.TickCreated > tickAck) {
+				// this item has just been created, send string itself
+				buf.WriteOneBit(1);
+
+				int bestprevious = GetBestPreviousString(history, pEntry, out int substringsize);
+				if (bestprevious != -1) {
+					buf.WriteOneBit(1);
+					buf.WriteUBitLong((uint)bestprevious, 5); // history never has more than 32 entries
+					buf.WriteUBitLong((uint)substringsize, SUBSTRING_BITS);
+					buf.WriteString(pEntry.AsSpan(substringsize));
+				}
+				else {
+					buf.WriteOneBit(0);
+					buf.WriteString(pEntry);
+				}
+			}
+			else
+				buf.WriteOneBit(0);
+
+			// Write the item's user data.
+			byte[]? pUserData = p.GetUserData(out int len);
+			if (pUserData != null && len > 0) {
+				buf.WriteOneBit(1);
+
+				if (IsUserDataFixedSize()) {
+					// Don't have to send length, it was sent as part of the table definition
+					buf.WriteBits(pUserData, GetUserDataSizeBits());
+				}
+				else {
+					buf.WriteUBitLong((uint)len, NetworkStringTableItem.MAX_USERDATA_BITS);
+					buf.WriteBits(pUserData, len * 8);
+				}
+			}
+			else
+				buf.WriteOneBit(0);
+
+			// limit string history to 32 entries
+			if (history.Count > 31)
+				history.RemoveAt(0);
+
+			// add string to string history
+			history.Add(pEntry.Length > (1 << SUBSTRING_BITS) ? pEntry[..(1 << SUBSTRING_BITS)] : pEntry);
+
+			entriesUpdated++;
+			lastEntry = i;
+		}
+
+		return entriesUpdated;
 	}
 
 	public bool WriteBaselines(SVC_CreateStringTable msg, byte[] msg_buffer, nint msg_buffer_size) {
@@ -532,6 +636,7 @@ public class NetworkStringTable : INetworkStringTable
 
 		msg.IsFilenames = IsFilenames;
 		msg.TableName = TableName;
+		msg.MaxEntries = GetMaxStrings();
 		msg.NumEntries = GetNumStrings();
 		msg.UserDataFixedSize = IsUserDataFixedSize();
 		msg.UserDataSize = GetUserDataSize();
@@ -552,7 +657,7 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 	private bool EnableRollback;
 	private List<NetworkStringTable> Tables = new List<NetworkStringTable>();
 
-	public INetworkStringTable? CreateStringTable(ReadOnlySpan<char> tableName, int maxEntries, int userDataFixedSize, int userDataNetworkBits) {
+	public INetworkStringTable? CreateStringTable(ReadOnlySpan<char> tableName, int maxEntries, int userDataFixedSize = 0, int userDataNetworkBits = 0) {
 		return CreateStringTableEx(tableName, maxEntries, userDataFixedSize, userDataNetworkBits, false);
 	}
 

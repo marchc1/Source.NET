@@ -54,12 +54,13 @@ public class GameClient : BaseClient
 		base.ProcessClientInfo(msg);
 
 		if (HLTV) {
-
+			HLTV = false;
+			Disconnect("ProcessClientInfo: SourceTV can not connect to game directly.\n");
+			return false;
 		}
 
-		if (sv_allowupload.GetBool()) {
-
-		}
+		if (sv_allowupload.GetBool())
+			DownloadCustomizations();
 
 		return true;
 	}
@@ -72,7 +73,6 @@ public class GameClient : BaseClient
 			// Only one movement command per frame, someone is cheating.
 			return true;
 		}
-
 
 		LastMovementTick = (int)sv.TickCount;
 
@@ -109,7 +109,10 @@ public class GameClient : BaseClient
 
 	// bool ProcessVoiceData(CLC_VoiceData msg) { }
 
-	// bool ProcessCmdKeyValues(CLC_CmdKeyValues msg) { }
+	// bool ProcessCmdKeyValues(CLC_CmdKeyValues msg) {
+	// 	SV.ServerGameClients.ClientCommandKeyValues(Edict, msg.KeyValues);
+	// 	return true;
+	// }
 
 	// bool ProcessRespondCvarValue(CLC_RespondCvarValue msg) { }
 
@@ -119,9 +122,36 @@ public class GameClient : BaseClient
 
 	// bool ProcessSaveReplay(CLC_SaveReplay pMsg) { }
 
-	// void DownloadCustomizations() { }
+	void DownloadCustomizations() { }
 
-	// void Connect(ReadOnlySpan<char> name, int userID, INetChannel netChannel, bool fakePlayer, int clientChallenge) { }
+	public override void Connect(ReadOnlySpan<char> name, int userID, INetChannel netChannel, bool fakePlayer, int clientChallenge) {
+		base.Connect(name, userID, netChannel, fakePlayer, clientChallenge);
+
+		Edict = sv.Edicts![EntityIndex];
+
+		// packinfo todo
+
+		IGameEvent? evnt = gameEventManager.CreateEvent("player_connect");
+		if (evnt != null) {
+			evnt.SetInt("userid", GetUserID());
+			evnt.SetInt("index", ClientSlot);
+			evnt.SetString("name", name);
+			evnt.SetString("networkid", GetNetworkIDString());
+			evnt.SetString("address", netChannel != null ? netChannel.GetAddress() : "none");
+			evnt.SetInt("bot", fakePlayer ? 1 : 0);
+			gameEventManager.FireEvent(evnt);
+		}
+
+		evnt = gameEventManager.CreateEvent("player_connect_client");
+		if (evnt != null) {
+			evnt.SetInt("userid", GetUserID());
+			evnt.SetInt("index", ClientSlot);
+			evnt.SetString("name", name);
+			evnt.SetString("networkid", GetNetworkIDString());
+			evnt.SetInt("bot", fakePlayer ? 1 : 0);
+			gameEventManager.FireEvent(evnt);
+		}
+	}
 
 	void SetupPackInfo(FrameSnapshot snapshot) { }
 
@@ -133,13 +163,24 @@ public class GameClient : BaseClient
 
 	void UpdateUserSettings() { }
 
-	// bool ProcessIncomingLogo(ReadOnlySpan<char> filename) { }
-
 	// bool IsHearingClient(int index) { }
 
 	// bool IsProximityHearingClient(int index) { }
 
-	// void Inactivate() { }
+	public override void Inactivate() {
+		if (Edict != null && !Edict.IsFree())
+			Server.RemoveClientFromGame(this);
+
+		if (IsHLTV()) {
+
+		}
+
+		base.Inactivate();
+
+		Sounds.Clear();
+		VoiceStreams.ClearAll();
+		VoiceProximity.ClearAll();
+	}
 
 	protected override bool UpdateAcknowledgedFramecount(int tick) {
 		if (IsFakeClient()) {
@@ -372,8 +413,8 @@ public class GameClient : BaseClient
 		if (sv.LoadGame)
 			sv.SetPaused(false);
 		else {
-			// Assert(SV.ServerGameEnts);
-			// Edict.InitializeEntityDLLFields();
+			Assert(SV.ServerGameEnts);
+			Edict.InitializeEntityDLLFields();
 		}
 
 		EntityIndex = ClientSlot + 1;
@@ -443,7 +484,6 @@ public class GameClient : BaseClient
 	}
 
 	// bool SendNetMsg(INetMessage msg, bool forceReliable) { }
-
 
 	public override bool ExecuteStringCommand(ReadOnlySpan<char> c) {
 		if (base.ExecuteStringCommand(c))

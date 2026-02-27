@@ -248,7 +248,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		// MDL cache end map load
 
 		if (Host.developer.GetInt() > 0)
-			ConDMsg("Signon traffic \"%s\":  incoming %s, outgoing %s\n", cl.NetChannel.GetName().ToString(), cl.NetChannel.GetTotalData(1 /*FLOW_INCOMING*/), cl.NetChannel.GetTotalData(0 /*FLOW_OUTGOING*/));
+			ConDMsg($"Signon traffic \"{cl.NetChannel.GetName()}\":  incoming {cl.NetChannel.GetTotalData(1 /*FLOW_INCOMING*/)}, outgoing {cl.NetChannel.GetTotalData(0 /*FLOW_OUTGOING*/)}\n");
 
 		Scr.EndLoadingPlaque();
 		// EndLoadingUpdates();
@@ -326,14 +326,7 @@ public partial class CL(IServiceProvider services, Net Net,
 	}
 
 	internal void RegisterResources() {
-		Model? model = cl.GetModel(1);
-
-#if DEBUG // TODO TODO Remove once stringables are done
-		if (model == null && !string.IsNullOrEmpty(cl.LevelFileName))
-			model = modelloader.GetModelForName(cl.LevelFileName, ModelLoaderFlags.Client);
-#endif
-
-		host_state.SetWorldModel(model);
+		host_state.SetWorldModel(cl.GetModel(1));
 		if (host_state.WorldModel == null)
 			Host.Error("CL.RegisterResources: host_state.WorldModel/cl.GetModel(1) == NULL\n");
 	}

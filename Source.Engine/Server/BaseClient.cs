@@ -657,7 +657,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		}
 	}
 
-	public void Connect(ReadOnlySpan<char> name, int userID, INetChannel netChannel, bool fakePlayer, int clientChallenge) {
+	public virtual void Connect(ReadOnlySpan<char> name, int userID, INetChannel netChannel, bool fakePlayer, int clientChallenge) {
 		Common.TimestampedLog("CBaseClient::Connect");
 #if !SWDS
 		EngineVGui().UpdateProgressBar(LevelLoadingProgress.SignOnConnect);
@@ -686,8 +686,28 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			Steam3Server().NotifyLocalClientConnect(this);
 	}
 
-	public void Inactivate() {
-		throw new NotImplementedException();
+	public virtual void Inactivate() {
+		FreeBaselines();
+
+		DeltaTick = -1;
+		SignOnTick = 0;
+		StringTableAckTick = 0;
+		LastSnapshot = null;
+		ForceWaitForTick = -1;
+
+		SignOnState = SignOnState.ChangeLevel;
+
+		if (NetChannel != null) {
+			NetChannel.Clear();
+
+			// if (Net.IsMultiplayer()) {
+			// 	NET_SignonState signonState = new(SignOnState, Server.GetSpawnCount());
+			// 	NetChannel.SendNetMsg(signonState);
+			// 	NetChannel.Transmit();
+			// }
+		}
+
+		gameEventManager.RemoveListener(this);
 	}
 
 	readonly Host Host = Singleton<Host>();
@@ -711,16 +731,13 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		throw new NotImplementedException();
 	}
 
-	public void SetRate(int nRate, bool bForce) {
-		throw new NotImplementedException();
-	}
+	public void SetRate(int nRate, bool force) => NetChannel?.SetDataRate(nRate);
 
-	public int GetRate() {
-		throw new NotImplementedException();
-	}
+	public int GetRate() => NetChannel?.GetDataRate() ?? 0;
 
-	public void SetUpdateRate(int nUpdateRate, bool bForce) {
-		throw new NotImplementedException();
+	public void SetUpdateRate(int updateRate, bool force) {
+		updateRate = Math.Clamp(updateRate, 1, 100);
+		SnapshotInterval = 1.0f / updateRate;
 	}
 
 	public int GetUpdateRate() {

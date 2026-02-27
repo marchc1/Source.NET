@@ -336,7 +336,15 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 	}
 
 	internal void CreateNetworkStringTables() {
+		networkStringTableContainerServer.RemoveAllTables();
 
+		networkStringTableContainerServer.SetAllowCreation(true);
+
+		sv.CreateEngineStringTables();
+
+		serverGameDLL.CreateNetworkStringTables();
+
+		networkStringTableContainerServer.SetAllowCreation(false);
 	}
 
 	internal void ClearWorld() {

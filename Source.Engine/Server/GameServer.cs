@@ -1,12 +1,16 @@
 ﻿using Source.Common;
 using Source.Common.Bitbuffers;
-using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.Formats.BSP;
 using Source.Common.Networking;
-using Source.Common.Server;
 using Source.Common.Utilities;
+
+using System.Runtime.InteropServices;
+
+using CommunityToolkit.HighPerformance;
+using System.Runtime.CompilerServices;
 
 namespace Source.Engine.Server;
 
@@ -78,7 +82,52 @@ public class GameServer : BaseServer
 	public bool LoadedPlugins;
 
 	public void CreateEngineStringTables() {
+		StringTables!.SetTick(TickCount);
 
+		int size = Unsafe.SizeOf<PrecacheUserData>();
+		DownloadableFileTable = StringTables.CreateStringTable("downloadables", 8192, 0, 0); // DOWNLOADABLE_FILE_TABLENAME, MAX_DOWNLOADABLE_FILES
+		ModelPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.MODEL_PRECACHE_TABLENAME, PrecacheItem.MAX_MODELS, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
+		GenericPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.GENERIC_PRECACHE_TABLENAME, PrecacheItem.MAX_GENERIC, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
+		SoundPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.SOUND_PRECACHE_TABLENAME, PrecacheItem.MAX_SOUNDS, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
+		DecalPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.DECAL_PRECACHE_TABLENAME, PrecacheItem.MAX_BASE_DECAL, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
+		InstanceBaselineTable = StringTables.CreateStringTable(Protocol.INSTANCE_BASELINE_TABLENAME, Constants.MAX_DATATABLES);
+		LightStyleTable = StringTables.CreateStringTable(Protocol.LIGHT_STYLES_TABLENAME, BSPFileCommon.MAX_LIGHTSTYLES);
+		UserInfoTable = StringTables.CreateStringTable(Protocol.USER_INFO_TABLENAME, 1 << Constants.ABSOLUTE_PLAYER_LIMIT_DW);
+		DynamicModelsTable = StringTables.CreateStringTable("DynamicModels", 2048, 1, 1);
+		// ServerStartupDataTable = StringTables.CreateStringTable(Protocol.SERVER_STARTUP_DATA_TABLENAME, 4);
+
+		SetQueryPortFromSteamServer();
+		// CopyPureServerWhitelistToStringTable();
+
+		Assert(
+			DownloadableFileTable != null &&
+			ModelPrecacheTable != null &&
+			GenericPrecacheTable != null &&
+			SoundPrecacheTable != null &&
+			DecalPrecacheTable != null &&
+			InstanceBaselineTable != null &&
+			LightStyleTable != null &&
+			UserInfoTable != null &&
+			DynamicModelsTable != null
+		);
+
+		int j;
+
+		for (int i = 0; i < BSPFileCommon.MAX_LIGHTSTYLES; i++) {
+			Span<char> name = stackalloc char[8];
+			sprintf(name, "%i").I(i);
+			j = LightStyleTable.AddString(true, name);
+			Assert(j == i);
+		}
+
+		for (int i = 0; i < GetMaxClients(); i++) {
+			Span<char> name = stackalloc char[8];
+			sprintf(name, "%i").I(i);
+			j = UserInfoTable.AddString(true, name);
+			Assert(j == i);
+		}
+
+		// DownloadListGenerator.SetStringTable(DownloadableFileTable);
 	}
 
 	public INetworkStringTable? GetModelPrecacheTable() => ModelPrecacheTable;
@@ -95,14 +144,35 @@ public class GameServer : BaseServer
 		int idx = ModelPrecacheTable.AddString(true, name);
 		if (idx == INetworkStringTable.INVALID_STRING_INDEX)
 			return -1;
-		throw new NotImplementedException();
+
+		PrecacheUserData p = new();
+		Span<PrecacheUserData> existing = ModelPrecacheTable.GetStringUserData(idx).AsSpan().Cast<byte, PrecacheUserData>();
+
+		if (existing.IsEmpty)
+			p.Flags = flags;
+		else {
+			p = existing[0];
+			p.Flags |= flags;
+		}
+
+		ModelPrecacheTable.SetStringUserData(idx, Unsafe.SizeOf<PrecacheUserData>(), MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref p, 1)));
+
+		PrecacheItem slot = ModelPrecache[idx];
+		slot ??= ModelPrecache[idx] = new PrecacheItem();
+
+		if (model != null)
+			slot.SetModel(model);
+
+		// todo finish
+
+		return idx;
 	}
 	public Model? GetModel(int index) {
 		if (index <= 0 || ModelPrecacheTable == null)
 			return null;
 		if (index >= ModelPrecacheTable.GetNumStrings())
 			return null;
-		PrecacheItem slot = ModelPrecache![index];
+		PrecacheItem slot = ModelPrecache[index];
 		return slot.GetModel();
 	}
 	public int LookupModelIndex(ReadOnlySpan<char> name) {
@@ -119,7 +189,24 @@ public class GameServer : BaseServer
 		int idx = SoundPrecacheTable.AddString(true, name);
 		if (idx == INetworkStringTable.INVALID_STRING_INDEX)
 			return -1;
-		throw new NotImplementedException();
+
+		PrecacheUserData p = new();
+		Span<PrecacheUserData> existing = SoundPrecacheTable.GetStringUserData(idx).AsSpan().Cast<byte, PrecacheUserData>();
+
+		if (existing.IsEmpty)
+			p.Flags = flags;
+		else {
+			p = existing[0];
+			p.Flags |= flags;
+		}
+
+		SoundPrecacheTable.SetStringUserData(idx, Unsafe.SizeOf<PrecacheUserData>(), MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref p, 1)));
+
+		PrecacheItem slot = SoundPrecache[idx];
+		slot ??= SoundPrecache[idx] = new PrecacheItem();
+		slot.SetName(new(name));
+
+		return idx;
 	}
 	public ReadOnlySpan<char> GetSound(int index) {
 		if (index <= 0 || SoundPrecacheTable == null)
@@ -142,7 +229,24 @@ public class GameServer : BaseServer
 		int idx = GenericPrecacheTable.AddString(true, name);
 		if (idx == INetworkStringTable.INVALID_STRING_INDEX)
 			return -1;
-		throw new NotImplementedException();
+
+		PrecacheUserData p = new();
+		Span<PrecacheUserData> existing = GenericPrecacheTable.GetStringUserData(idx).AsSpan().Cast<byte, PrecacheUserData>();
+
+		if (existing.IsEmpty)
+			p.Flags = flags;
+		else {
+			p = existing[0];
+			p.Flags |= flags;
+		}
+
+		GenericPrecacheTable.SetStringUserData(idx, Unsafe.SizeOf<PrecacheUserData>(), MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref p, 1)));
+
+		PrecacheItem slot = GenericPrecache[idx];
+		slot ??= GenericPrecache[idx] = new PrecacheItem();
+		slot.SetGeneric(new(name));
+
+		return idx;
 	}
 	public ReadOnlySpan<char> GetGeneric(int index) {
 		if (index <= 0 || GenericPrecacheTable == null)
@@ -184,10 +288,10 @@ public class GameServer : BaseServer
 	}
 
 
-	public PrecacheItem[]? ModelPrecache;
-	public PrecacheItem[]? GenericPrecache;
-	public PrecacheItem[]? SoundPrecache;
-	public PrecacheItem[]? DecalPrecache;
+	public PrecacheItem[] ModelPrecache = new PrecacheItem[PrecacheItem.MAX_MODELS];
+	public PrecacheItem[] GenericPrecache = new PrecacheItem[PrecacheItem.MAX_GENERIC];
+	public PrecacheItem[] SoundPrecache = new PrecacheItem[PrecacheItem.MAX_SOUNDS];
+	public PrecacheItem[] DecalPrecache = new PrecacheItem[PrecacheItem.MAX_BASE_DECAL];
 
 	public GameClient Client(int i) => (GameClient)Clients[i];
 

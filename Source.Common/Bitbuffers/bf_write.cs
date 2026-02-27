@@ -118,42 +118,44 @@ public unsafe class bf_write : BitBuffer
 
 	public void WriteVarInt32(uint data) {
 		if ((curBit & 7) == 0 && curBit + (nint)MaxVarInt32Bytes * 8 <= dataBits) {
-			byte* target = (byte*)data + (curBit >> 3);
+			fixed (byte* pBuf = this.data) {
+				byte* target = pBuf + (curBit >> 3);
 
-			target[0] = (byte)(data | 0x80);
-			if (data >= 1 << 7) {
-				target[1] = (byte)(data >> 7 | 0x80);
-				if (data >= 1 << 14) {
-					target[2] = (byte)(data >> 14 | 0x80);
-					if (data >= 1 << 21) {
-						target[3] = (byte)(data >> 21 | 0x80);
-						if (data >= 1 << 28) {
-							target[4] = (byte)(data >> 28);
-							curBit += 5 * 8;
-							return;
+				target[0] = (byte)(data | 0x80);
+				if (data >= 1 << 7) {
+					target[1] = (byte)(data >> 7 | 0x80);
+					if (data >= 1 << 14) {
+						target[2] = (byte)(data >> 14 | 0x80);
+						if (data >= 1 << 21) {
+							target[3] = (byte)(data >> 21 | 0x80);
+							if (data >= 1 << 28) {
+								target[4] = (byte)(data >> 28);
+								curBit += 5 * 8;
+								return;
+							}
+							else {
+								target[3] &= 0x7F;
+								curBit += 4 * 8;
+								return;
+							}
 						}
 						else {
-							target[3] &= 0x7F;
-							curBit += 4 * 8;
+							target[2] &= 0x7F;
+							curBit += 3 * 8;
 							return;
 						}
 					}
 					else {
-						target[2] &= 0x7F;
-						curBit += 3 * 8;
+						target[1] &= 0x7F;
+						curBit += 2 * 8;
 						return;
 					}
 				}
 				else {
-					target[1] &= 0x7F;
-					curBit += 2 * 8;
+					target[0] &= 0x7F;
+					curBit += 1 * 8;
 					return;
 				}
-			}
-			else {
-				target[0] &= 0x7F;
-				curBit += 1 * 8;
-				return;
 			}
 		}
 		else // Slow path

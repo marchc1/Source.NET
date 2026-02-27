@@ -21,6 +21,8 @@ public class PrecacheItem
 	public const string SOUND_PRECACHE_TABLENAME = "soundprecache";
 	public const string DECAL_PRECACHE_TABLENAME = "decalprecache";
 
+	public const int PRECACHE_USER_DATA_NUMBITS = 2;
+
 	public const int MAX_MODEL_INDEX_BITS = 12;
 	public const int MAX_MODELS = (1 << MAX_MODEL_INDEX_BITS);
 
