@@ -27,6 +27,7 @@ public static class SourceDllMain
 	[Dependency] public static GameServer sv { get; private set; } = null!;
 	[Dependency(Required = false)] public static IBaseClientDLL? g_ClientDLL { get; private set; } = null!;
 	[Dependency] public static IServerGameDLL serverGameDLL { get; private set; } = null!;
+	[Dependency] public static ServerPlugin serverPluginHandler { get; private set; } = null!;
 	[Dependency] public static IClientEntityList entitylist { get; private set; } = null!;
 	[Dependency] public static IModelLoader modelloader { get; private set; } = null!;
 	[Dependency] public static IMaterialSystem materials { get; private set; } = null!;

@@ -1,5 +1,6 @@
 ﻿global using static Game.Server.EngineCallbacks;
 
+using Game.Server.GarrysMod;
 using Game.Shared;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -358,7 +359,8 @@ public class ServerGameClients : IServerGameClients
 	}
 
 	public void ClientPutInServer(Edict entity, ReadOnlySpan<char> playerName) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		GMODClient.ClientPutInServer(entity, playerName);
 	}
 
 	public void ClientSettingsChanged(Edict edict) {

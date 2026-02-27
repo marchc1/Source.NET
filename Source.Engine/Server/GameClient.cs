@@ -366,16 +366,16 @@ public class GameClient : BaseClient
 		if (!sv.LoadGame) {
 			serverGlobalVariables.CurTime = sv.GetTime();
 			Common.TimestampedLog("g_pServerPluginHandler->ClientPutInServer");
-			// g_pServerPluginHandler->ClientPutInServer( edict, m_Name );
+			serverPluginHandler.ClientPutInServer(Edict, Name);
 		}
 
 		Common.TimestampedLog("g_pServerPluginHandler->ClientActivate");
 
-		// g_pServerPluginHandler->ClientActive(edict, sv.m_bLoadgame);
+		serverPluginHandler.ClientActive(Edict, sv.LoadGame);
 
 		Common.TimestampedLog("g_pServerPluginHandler->ClientSettingsChanged");
 
-		// g_pServerPluginHandler->ClientSettingsChanged(edict);
+		serverPluginHandler.ClientSettingsChanged(Edict);
 
 		IGameEvent? evnt = gameEventManager.CreateEvent("player_activate");
 
@@ -521,13 +521,12 @@ public class GameClient : BaseClient
 			if (command.IsFlagSet(FCvar.DevelopmentOnly))
 				return false;
 
-			// serverPluginHandler.SetCommandClient(ClientSlot);
+			serverPluginHandler.SetCommandClient(ClientSlot);
 
 			cmd.Dispatch(command, args);
 		}
-		else {
-			// serverPluginHandler.ClientCommand(edict, args);
-		}
+		else
+			serverPluginHandler.ClientCommand(Edict, args);
 
 		return true;
 	}
