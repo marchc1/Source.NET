@@ -1,5 +1,7 @@
 ﻿global using static Game.Server.EngineCallbacks;
 
+using CommunityToolkit.HighPerformance;
+
 using Game.Server.GarrysMod;
 using Game.Shared;
 
@@ -292,7 +294,85 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public bool LevelInit(ReadOnlySpan<char> pMapName, ReadOnlySpan<char> pMapEntities, ReadOnlySpan<char> pOldLevel, ReadOnlySpan<char> pLandmarkName, bool loadGame, bool background) {
-		throw new NotImplementedException();
+		// ResetWindspeed();
+		// UpdateChapterRestrictions(pMapName);
+
+		//Tony; parse custom manifest if exists!
+		// ParseParticleEffectsMap(pMapName, false);
+
+		// IGameSystem::LevelInitPreEntityAllSystems() is called when the world is precached
+		// That happens either in LoadGameState() or in MapEntity_ParseAllEntities()
+		if (loadGame) {
+			if (!pOldLevel.IsEmpty)
+				gpGlobals.LoadType = MapLoadType.Transition;
+			else
+				gpGlobals.LoadType = MapLoadType.LoadGame;
+
+			// BeginRestoreEntities();
+			if (!engine.LoadGameState(pMapName, true)) {
+				if (!pOldLevel.IsEmpty)
+					ParseAllEntities(pMapEntities);
+				else
+					// Regular save load case
+					return false;
+			}
+
+			if (!pOldLevel.IsEmpty)
+				engine.LoadAdjacentEnts(pOldLevel, pLandmarkName);
+
+			// if (g_OneWayTransition)
+			// 	engine.ClearSaveDirAfterClientLoad();
+
+			// if (pOldLevel && sv_autosave.GetBool() == true) {
+			// 	// This is a single-player style level transition.
+			// 	// Queue up an autosave one second into the level
+			// 	BaseEntity? pAutosave = BaseEntity::Create("logic_autosave", vec3_origin, vec3_angle, NULL);
+			// 	if (pAutosave != null) {
+			// 		g_EventQueue.AddEvent(pAutosave, "Save", 1.0, NULL, NULL);
+			// 		g_EventQueue.AddEvent(pAutosave, "Kill", 1.1, NULL, NULL);
+			// 	}
+			// }
+		}
+		else {
+			if (background)
+				gpGlobals.LoadType = MapLoadType.Background;
+
+			else
+				gpGlobals.LoadType = MapLoadType.NewGame;
+
+			// Clear out entity references, and parse the entities into it.
+			// g_MapEntityRefs.Purge();
+			MapLoadEntityFilter filter = new();
+			ParseAllEntities(pMapEntities, filter);
+
+			// g_pServerBenchmark.StartBenchmark();
+
+			// Now call the mod specific parse
+			// LevelInit_ParseAllEntities(pMapEntities);
+		}
+
+		// Check low violence settings for this map
+		// g_RagdollLVManager.SetLowViolence(pMapName);
+
+		// Now that all of the active entities have been loaded in, precache any entities who need point_template parameters
+		//  to be parsed (the above code has loaded all point_template entities)
+		// PrecachePointTemplates();
+
+		// load MOTD from file into stringtable
+		// LoadMessageOfTheDay();
+
+		// Sometimes an ent will Remove() itself during its precache, so RemoveImmediate won't happen.
+		// This makes sure those ents get cleaned up.
+		gEntList.CleanupDeleteList();
+
+		// g_AIFriendliesTalkSemaphore.Release();
+		// g_AIFoesTalkSemaphore.Release();
+		// g_OneWayTransition = false;
+
+		// clear any pending autosavedangerous
+		// m_fAutoSaveDangerousTime = 0.0f;
+		// m_fAutoSaveDangerousMinHealthToCommit = 0.0f;
+		return true;
 	}
 
 	public void LevelShutdown() {
@@ -462,5 +542,33 @@ public class ServerGameEnts : IServerGameEnts
 
 	public void SetDebugEdictBase(Edict[] edict) {
 
+	}
+}
+
+struct MapEntityRef
+{
+	public int Edict;         // Which edict slot this entity got. -1 if CreateEntityByName failed.
+	public int SerialNumber;  // The edict serial number. TODO used anywhere ?
+};
+
+
+class MapLoadEntityFilter : IMapEntityFilter
+{
+	public bool ShouldCreateEntity(ReadOnlySpan<char> className) => true;
+
+	public BaseEntity? CreateNextEntity(ReadOnlySpan<char> className) {
+		BaseEntity? ret = CreateEntityByName(className);
+		MapEntityRef entref = new() {
+			Edict = -1,
+			SerialNumber = 0
+		};
+
+		if (ret != null) {
+			entref.Edict = ret.EntIndex();
+			if (ret.Edict() != null)
+				entref.SerialNumber = ret.Edict()!.NetworkSerialNumber;
+		}
+
+		return ret;
 	}
 }

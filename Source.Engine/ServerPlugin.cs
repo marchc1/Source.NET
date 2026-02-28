@@ -47,8 +47,10 @@ public class ServerPlugin : IServerPluginHelpers
 		throw new NotImplementedException();
 	}
 
-	void LevelInit(ReadOnlySpan<char> mapName, ReadOnlySpan<char> maxEntities, ReadOnlySpan<char> oldLevel, ReadOnlySpan<char> landmarkName, bool loadGame, bool background) {
-		throw new NotImplementedException();
+	public void LevelInit(ReadOnlySpan<char> mapName, ReadOnlySpan<char> mapEntities, ReadOnlySpan<char> oldLevel, ReadOnlySpan<char> landmarkName, bool loadGame, bool background) {
+
+		serverGameDLL.LevelInit(mapName, mapEntities, oldLevel, landmarkName, loadGame, background);
+
 	}
 
 	void ServerActivate(Edict[] edictList, int edictCount, int clientMax) {

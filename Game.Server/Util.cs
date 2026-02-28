@@ -201,4 +201,43 @@ public static partial class Util
 		ReliableBroadcastRecipientFilter filter = new();
 		ClientPrintFilter(filter, dest, msgName, param1, param2, param3, param4);
 	}
+
+	public static int DispatchSpawn(BaseEntity entity) {
+		if (entity != null) {
+			// keep a smart pointer that will know if the object gets deleted
+			EHANDLE pEntSafe = new();
+			pEntSafe.Set(entity);
+
+			// TODO: GetBaseAnimating / SetBoneCacheFlags(BCF_IS_IN_SPAWN)
+			entity.Spawn();
+			// TODO: ClearBoneCacheFlags(BCF_IS_IN_SPAWN)
+
+			// Try to get the pointer again, in case the spawn function deleted the entity.
+			if (!pEntSafe.IsValid() || entity.IsMarkedForDeletion())
+				return -1;
+
+			// TODO
+			// if (entity.m_iGlobalname != NULL_STRING) {
+			// 	int globalIndex = GlobalEntity_GetIndex(entity.m_iGlobalname);
+			// 	if (globalIndex >= 0) {
+			// 		if (GlobalEntity_GetState(globalIndex) == GLOBAL_DEAD) {
+			// 			entity.Remove();
+			// 			return -1;
+			// 		} else if (!FStrEq(STRING(gpGlobals.mapname), GlobalEntity_GetMap(globalIndex))) {
+			// 			entity.MakeDormant();
+			// 		}
+			// 	} else {
+			// 		GlobalEntity_Add(entity.m_iGlobalname, gpGlobals.mapname, GLOBAL_ON);
+			// 	}
+			// }
+
+			// TODO: gEntList.NotifySpawn(entity);
+		}
+
+		return 0;
+	}
+
+	public static void Remove(BaseEntity entity) {
+		throw new NotImplementedException();
+	}
 }

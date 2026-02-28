@@ -28,6 +28,7 @@ public class CollisionBSPData
 	public readonly List<CollisionLeaf> MapLeafs = [];
 	public readonly List<ushort> MapLeafBrushes = [];
 	public readonly List<string?> TextureNames = [];
+	public string? MapEntityString;
 
 	IMaterialSystem? materials;
 
@@ -162,9 +163,9 @@ public class CollisionBSPData
 
 		}
 
-		if (mapLeafs[0].Contents != Contents.Solid) 
+		if (mapLeafs[0].Contents != Contents.Solid)
 			Sys.Error("Map leaf 0 is not Contents.Solid");
-		
+
 
 		SolidLeaf = 0;
 		EmptyLeaf = NumLeafs;
@@ -245,7 +246,9 @@ public class CollisionBSPData
 
 	}
 	internal void LoadEntityString() {
-
+		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Entities);
+		byte[] inData = lh.LoadLumpData<byte>(throwIfNoElements: true, sysErrorIfOOB: true);
+		MapEntityString = Encoding.ASCII.GetString(inData);
 	}
 	internal void LoadPhysics() {
 

@@ -136,6 +136,25 @@ public class GlobalEntityList : BaseEntityList
 
 		return null;
 	}
+
+	public void CleanupDeleteList() {
+		// todo
+	}
+
+	public BaseEntity? FindEntityByName(BaseEntity startEntity, ReadOnlySpan<char> name, BaseEntity? searchingEntity, BaseEntity? activator, BaseEntity? caller, int/*IEntityFindFilter*/? filter) {
+		if (name.IsEmpty)
+			return null;
+
+		if (name[0] == '!') { // todo
+
+			// if (startEntity == null)
+			// 	return FindEntityProcedural(name, searchingEntity, activator, caller);
+
+			return null;
+		}
+
+		return null; // TODO
+	}
 }
 
 public enum NotifySystemEvent
