@@ -125,6 +125,23 @@ public partial class BaseEntity : IServerEntity
 		SendPropInt(FIELD.OF(nameof(MapCreatedID)), 16),
 	]);
 
+	public BaseEntity() {
+		// todo todo
+
+		// CollisionProp().Init(this);
+		NetworkProp().Init(this);
+
+		AddEFlags(EFL.NoThinkFunction | EFL.NoGamePhysicsSimulation | EFL.UsePartitionWhenNotSolid);
+
+		SetSolid(SolidType.None);
+		// ClearSolidFlags();
+
+		SetMoveType(Source.MoveType.None);
+		// SetModelIndex(0);
+
+		ClearFlags();
+	}
+
 	public float Gravity;
 	public void SetPredictionEligible(bool canpredict) { } // nothing in game code
 	public ref readonly Vector3 GetLocalOrigin() => ref AbsOrigin;
@@ -147,7 +164,7 @@ public partial class BaseEntity : IServerEntity
 
 	public Team? GetTeam() => GetGlobalTeam(TeamNum);
 
-	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent); 
+	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent);
 
 	public byte RenderFX;
 	public byte RenderMode;
@@ -235,14 +252,14 @@ public partial class BaseEntity : IServerEntity
 
 		return 0 == strcmp(entity.GetClassname(), classname);
 	}
-	
+
 	public bool IsServer() => true;
 	public bool IsClient() => false;
 	public ReadOnlySpan<char> GetDLLType() => "server";
 
 	public WaterLevel GetWaterLevel() => (WaterLevel)WaterLevel;
 	public void SetWaterLevel(WaterLevel level) => WaterLevel = (byte)level;
-	public void SetMoveCollide(MoveCollide moveCollide) => MoveCollide = (byte)moveCollide; 
+	public void SetMoveCollide(MoveCollide moveCollide) => MoveCollide = (byte)moveCollide;
 	public CollisionProperty CollisionProp() => Collision;
 
 	public bool SetModel(ReadOnlySpan<char> modelName) {
@@ -333,13 +350,13 @@ public partial class BaseEntity : IServerEntity
 	}
 
 	string? Classname;
-	public void SetClassname(ReadOnlySpan<char> classname){
+	public void SetClassname(ReadOnlySpan<char> classname) {
 		Classname = new(classname);
 	}
 
 	public Edict Edict() => NetworkProp().Edict();
 
-	public void PostConstructor(ReadOnlySpan<char> classname){
+	public void PostConstructor(ReadOnlySpan<char> classname) {
 		if (!classname.IsEmpty)
 			SetClassname(classname);
 
@@ -404,7 +421,7 @@ public partial class BaseEntity : IServerEntity
 	}
 
 	public void SetRefEHandle(in BaseHandle handle) {
-		throw new NotImplementedException();
+		// todo
 	}
 
 

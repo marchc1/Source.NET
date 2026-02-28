@@ -19,6 +19,7 @@ namespace Source.Engine;
 // to constantly be polling for dependencies
 public static class SourceDllMain
 {
+	[Dependency] public static IEngineServer engine { get; private set; } = null!;
 	[Dependency] public static IGameEventManager2 gameEventManager { get; private set; } = null!;
 	[Dependency] public static IEngineVGui __EngineVGui { get; private set; } = null!;
 	public static GameEventManager g_GameEventManager => (GameEventManager)gameEventManager;

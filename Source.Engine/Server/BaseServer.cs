@@ -171,8 +171,51 @@ public abstract class BaseServer : IServer
 		}
 	}
 	public virtual void BroadcastMessage(INetMessage msg, IRecipientFilter filter) {
-		throw new NotImplementedException();
+		if (filter.IsInitMessage()) {
+			// This really only applies to the first player to connect, but that works in single player well enought
+			if (IsActive())
+				ConDMsg("SV_BroadcastMessage: Init message being created after signon buffer has been transmitted\n");
+
+			if (!msg.WriteToBuffer(Signon)) {
+				Sys.Error("SV_BroadcastMessage: Init message would overflow signon buffer!\n");
+				return;
+			}
+		}
+		else {
+			msg.SetReliable(filter.IsReliable());
+
+			int num = filter.GetRecipientCount();
+
+			for (int i = 0; i < num; i++) {
+				int index = filter.GetRecipientIndex(i);
+
+				if (index < 1 || index > Clients.Count) {
+					Msg("SV_BroadcastMessage:  Recipient Filter for message type %i (reliable: %s, init: %s) with bogus client index (%i) in list of %i clients\n",
+							msg.GetType(),
+							filter.IsReliable() ? "yes" : "no",
+							filter.IsInitMessage() ? "yes" : "no",
+							index, num);
+
+					if (msg.IsReliable())
+						Host.Error($"Reliable message (type {msg.GetType()}) discarded.");
+
+					continue;
+				}
+
+				BaseClient cl = Clients[index - 1];
+
+				if (!cl.IsSpawned())
+					continue;
+
+				if (!cl.SendNetMsg(msg)) {
+					if (msg.IsReliable()) {
+						DevMsg($"BroadcastMessage: Reliable filter message overflow for client {cl.GetClientName()}");
+					}
+				}
+			}
+		}
 	}
+
 	public virtual void BroadcastPrintf(ReadOnlySpan<char> msg) {
 		throw new NotImplementedException();
 	}

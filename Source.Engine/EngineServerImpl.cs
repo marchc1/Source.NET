@@ -92,8 +92,12 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public Edict CreateEdict(int iForceEdictIndex = -1) {
-		throw new NotImplementedException();
+	public Edict? CreateEdict(int forceEdictIndex = -1) {
+		Edict? edict = ED.Alloc(forceEdictIndex);
+
+		serverPluginHandler.OnEdictAllocated(edict);
+
+		return edict;
 	}
 
 	public Edict CreateFakeClient(ReadOnlySpan<char> netname) {

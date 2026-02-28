@@ -335,11 +335,19 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 public class ServerGameClients : IServerGameClients
 {
 	public void ClientActive(Edict entity, bool loadGame) {
-		throw new NotImplementedException();
+		GMODClient.ClientActive(entity, loadGame);
+
+		if (gpGlobals.LoadType == MapLoadType.LoadGame) {
+			// todo
+		}
+
+		BasePlayer player = (BasePlayer)BaseEntity.Instance(entity)!;
+		// CSoundEnvelopeController::GetController().CheckLoopingSoundsForPlayer(pPlayer);
+		// SceneManager_ClientActive(pPlayer);
 	}
 
 	public void ClientCommand(Edict entity, in TokenizedCommand args) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public void ClientCommandKeyValues(Edict entity, KeyValues keyValues) {
@@ -364,7 +372,7 @@ public class ServerGameClients : IServerGameClients
 	}
 
 	public void ClientSettingsChanged(Edict edict) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public void ClientSetupVisibility(Edict viewEntity, Edict client, Span<byte> pvs) {

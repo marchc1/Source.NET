@@ -103,8 +103,8 @@ public class ServerPlugin : IServerPluginHelpers
 		throw new NotImplementedException();
 	}
 
-	void OnEdictAllocated(Edict edict) {
-		throw new NotImplementedException();
+	public void OnEdictAllocated(Edict edict) {
+		// throw new NotImplementedException();
 	}
 
 	void OnEdictFreed(Edict edict) {

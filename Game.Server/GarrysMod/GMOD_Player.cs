@@ -24,7 +24,6 @@ public static class GMOD_PlayerGlobals
 
 public class GMOD_Player : HL2MP_Player
 {
-	static Edict? s_PlayerEdict;
 	public static GMOD_Player CreatePlayer(ReadOnlySpan<char> classname, Edict ed) {
 		s_PlayerEdict = ed;
 		return (GMOD_Player?)CreateEntityByName(classname);

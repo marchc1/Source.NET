@@ -2,6 +2,7 @@
 
 using Source;
 using Source.Common;
+using Source.Common.Client;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
@@ -74,6 +75,8 @@ public partial class BasePlayer : BaseCombatCharacter
 		SendPropDataTable( "localdata", DT_LocalPlayerExclusive, SendProxy_SendLocalDataTable),
 	]);
 
+	public static Edict? s_PlayerEdict;
+
 	public int StuckLast;
 	public float MaxSpeed() => Maxspeed;
 	public void SetMaxSpeed(float maxSpeed) => Maxspeed = maxSpeed;
@@ -95,6 +98,84 @@ public partial class BasePlayer : BaseCombatCharacter
 	}
 
 	public static readonly new ServerClass ServerClass = new ServerClass("BasePlayer", DT_BasePlayer).WithManualClassID(StaticClassIndices.CBasePlayer);
+
+	public BasePlayer() {
+		AddEFlags(EFL.NoAutoEdictAttach);
+
+		if (s_PlayerEdict != null) {
+			NetworkProp().AttachEdict(s_PlayerEdict);
+			s_PlayerEdict = null;
+		}
+
+		pl.FixAngle = (int)FixAngle.Absolute;
+		pl.HLTV = false;
+		pl.Replay = false;
+		pl.Frags = 0;
+		pl.Deaths = 0;
+
+		Netname[0] = '\0';
+
+		Health = 0;
+		Weapon_SetLast(null);
+		// BitsDamageType = 0;
+
+		// ForceOrigin = false;
+		Vehicle.Set(null);
+		// CurrentCommand = null;
+		// LockViewanglesTickNumber = 0;
+		// AngLockViewangles.Init();
+
+		// Setup our default FOV
+		// DefaultFOV = GameRules.DefaultFOV();
+
+		ZoomOwner.Set(null);
+
+		// UpdateRate = 20;  // cl_updaterate defualt
+		// LerpTime = 0.1f; // cl_interp default
+		// PredictWeapons = true;
+		// LagCompensation = false;
+		LaggedMovementValue = 1.0f;
+		StuckLast = 0;
+		// ImpactEnergyScale = 1.0f;
+		// LastPlayerTalkTime = 0.0f;
+		// PlayerInfo.SetParent(this);
+
+		// ResetObserverMode();
+
+		SurfaceProps = 0;
+		SurfaceData = null;
+		SurfaceFriction = 1.0f;
+		// TextureType = 0;
+		// PreviousTextureType = 0;
+
+		// SuicideCustomKillFlags = 0;
+		// Delay = 0.0f;
+		// ReplayEnd = -1;
+		// ReplayEntity = 0;
+
+		// AutoKickDisabled = false;
+
+		// NumCrouches = 0;
+		// DuckToggled = false;
+		// PhysicsWasFrozen = false;
+
+		// ButtonDisabled = 0;
+		// ButtonForced = 0;
+
+		// BodyPitchPoseParam = -1;
+		// ForwardMove = 0;
+		// SideMove = 0;
+
+		// // NVNT default to no haptics
+		// HasHaptics = false;
+
+		ConstraintCenter = vec3_origin;
+
+		// LastUserCommandTime = 0.0f;
+		// MovementTimeForUserCmdProcessingRemaining = 0.0f;
+
+		// LastObjectiveTime = -1.0f;
+	}
 
 	bool DeadFlag;
 	public readonly PlayerState pl = new();
