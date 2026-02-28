@@ -4,13 +4,10 @@ using Game.Server;
 using Game.Shared;
 
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Mathematics;
 
-using System;
-using System.Collections.Generic;
 using System.Numerics;
-using System.Runtime.InteropServices;
-using System.Text;
 
 namespace Game.Server;
 
@@ -18,6 +15,89 @@ public static class EntityListGlobals
 {
 	public static readonly GlobalEntityList gEntList = new();
 	public static BaseEntityList g_pEntityList = gEntList;
+
+	[ConCommand("report_entities", "List all entities")]
+	static void report_entities() {
+		if (!Util.IsCommandIssuedByServerAdmin())
+			return;
+
+		SortedEntityList list = new();
+		BaseEntity? ent = gEntList.FirstEnt();
+		while (ent != null) {
+			list.AddEntityToList(ent);
+			ent = gEntList.NextEnt(ent);
+		}
+
+		list.ReportEntityList();
+	}
+}
+
+class SortedEntityList
+{
+	private readonly List<BaseEntity?> SortedList = new();
+	private readonly EntityReportLess Comparer = new();
+	private int EmptyCount;
+
+	private sealed class EntityReportLess : IComparer<BaseEntity?>
+	{
+		public int Compare(BaseEntity? src1, BaseEntity? src2) {
+			if (src1 == null && src2 == null)
+				return 0;
+			if (src1 == null)
+				return -1;
+			if (src2 == null)
+				return 1;
+
+			return src1.GetClassname().CompareTo(src2.GetClassname(), StringComparison.Ordinal);
+		}
+	}
+
+	public void AddEntityToList(BaseEntity? entity) {
+		if (entity == null) {
+			EmptyCount++;
+			return;
+		}
+
+		int index = SortedList.BinarySearch(entity, Comparer);
+		if (index < 0)
+			index = ~index;
+
+		SortedList.Insert(index, entity);
+	}
+
+	public void ReportEntityList() {
+		ReadOnlySpan<char> lastClass = default;
+		int count = 0;
+		int edicts = 0;
+
+		for (int i = 0; i < SortedList.Count; i++) {
+			var entity = SortedList[i];
+			if (entity == null)
+				continue;
+
+			if (entity.Edict() != null)
+				edicts++;
+
+			ReadOnlySpan<char> className = entity.GetClassname();
+
+			if (!className.Equals(lastClass, StringComparison.Ordinal)) {
+				if (count > 0)
+					Msg($"Class: {lastClass} ({count})\n");
+
+				lastClass = className;
+				count = 1;
+			}
+			else {
+				count++;
+			}
+		}
+
+		if (!lastClass.IsEmpty && count > 0)
+			Msg($"Class: {lastClass} ({count})\n");
+
+		if (SortedList.Count > 0)
+			Msg($"Total {SortedList.Count} entities ({EmptyCount} empty, {edicts} edicts)\n");
+	}
 }
 
 public class GlobalEntityList : BaseEntityList
@@ -32,6 +112,29 @@ public class GlobalEntityList : BaseEntityList
 	public BaseEntity? GetBaseEntity(BaseHandle ent) {
 		IServerUnknown? unk = (IServerUnknown?)LookupEntity(ent);
 		return unk == null ? null : (BaseEntity?)unk.GetBaseEntity();
+	}
+
+	public BaseEntity FirstEnt() => NextEnt(null);
+
+	public BaseEntity? NextEnt(BaseEntity? currentEnt) {
+		if (currentEnt == null) {
+			EntInfo? info = FirstEntInfo();
+			if (info == null)
+				return null;
+
+			return (BaseEntity?)info.Entity;
+		}
+
+		EntInfo? list = GetEntInfoPtr(currentEnt.GetRefEHandle());
+		if (list != null)
+			list = NextEntInfo(list);
+
+		while (list != null) {
+			return (BaseEntity?)list.Entity;
+			list = NextEntInfo(list); //??
+		}
+
+		return null;
 	}
 }
 

@@ -412,18 +412,14 @@ public partial class BaseEntity : IServerEntity
 		throw new NotImplementedException();
 	}
 
-	public ref readonly BaseHandle GetRefEHandle() {
-		throw new NotImplementedException();
-	}
+	public ref readonly BaseHandle GetRefEHandle() => ref RefEHandle;
 
 	public void SetModelIndex(int index) {
 		throw new NotImplementedException();
 	}
 
-	public void SetRefEHandle(in BaseHandle handle) {
-		// todo
-	}
-
+	BaseHandle RefEHandle;
+	public void SetRefEHandle(in BaseHandle handle) => RefEHandle = handle;
 
 	int flags;
 	EFL eflags;

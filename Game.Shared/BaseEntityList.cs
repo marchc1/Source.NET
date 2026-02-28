@@ -3,7 +3,8 @@ using Source.Common;
 
 namespace Game.Shared;
 
-public class EntInfo {
+public class EntInfo
+{
 	public IHandleEntity? Entity;
 	public int SerialNumber;
 	public EntInfo? Prev;
@@ -26,7 +27,7 @@ public class BaseEntityList
 		Assert(entSlot.Entity == null);
 		entSlot.Entity = ent;
 
-		if(forcedSerialNum != -1) 
+		if (forcedSerialNum != -1)
 			entSlot.SerialNumber = forcedSerialNum;
 
 		ActiveList.AddLast(entSlot);
@@ -70,6 +71,14 @@ public class BaseEntityList
 	protected virtual void OnRemoveEntity(IHandleEntity? pEnt, BaseHandle handle) { }
 
 	InlineArrayNumEntEntries<EntInfo> EntPtrArray;
-	EntInfoList ActiveList = [];
+	public EntInfoList ActiveList = [];
 	EntInfoList FreeNonNetworkableList = [];
+
+	public EntInfo? FirstEntInfo() => ActiveList.First?.Value;
+	public EntInfo? NextEntInfo(EntInfo? current) => current?.Next;
+
+	public EntInfo GetEntInfoPtr(BaseHandle ent) {
+		int slot = ent.GetEntryIndex();
+		return EntPtrArray[slot];
+	}
 }
