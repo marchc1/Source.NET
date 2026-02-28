@@ -141,22 +141,22 @@ public static partial class Util
 		WRITE_BYTE((byte)dest);
 		WRITE_STRING(msgName);
 
-		if (param1.IsEmpty)
+		if (!param1.IsEmpty)
 			WRITE_STRING(param1);
 		else
 			WRITE_STRING("");
 
-		if (param2.IsEmpty)
+		if (!param2.IsEmpty)
 			WRITE_STRING(param2);
 		else
 			WRITE_STRING("");
 
-		if (param3.IsEmpty)
+		if (!param3.IsEmpty)
 			WRITE_STRING(param3);
 		else
 			WRITE_STRING("");
 
-		if (param4.IsEmpty)
+		if (!param4.IsEmpty)
 			WRITE_STRING(param4);
 		else
 			WRITE_STRING("");
