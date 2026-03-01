@@ -11,7 +11,8 @@ namespace Game.Server;
 using FIELD = Source.FIELD<World>;
 
 
-public static class WorldGlobals {
+public static class WorldGlobals
+{
 	public static bool g_fGameOver = false;
 	public static World? GetWorldEntity() => World.g_WorldEntity;
 }
@@ -49,11 +50,11 @@ public class World : BaseEntity
 		g_fGameOver = false;
 
 		Assert(g_pGameRules == null);
-		InstallGameRules();
-		Assert(g_pGameRules != null);
-		g_pGameRules.Init();
+		// InstallGameRules(); // fixme
+		// Assert(g_pGameRules != null);
+		// g_pGameRules.Init();
 
-		IGameSystem.LevelInitPreEntityAllSystems(GetModelName());
+		// IGameSystem.LevelInitPreEntityAllSystems(GetModelName());
 	}
 
 	public override void Spawn() {

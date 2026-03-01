@@ -417,7 +417,7 @@ public partial class BaseEntity : IServerEntity
 	public ref readonly BaseHandle GetRefEHandle() => ref RefEHandle;
 
 	public void SetModelIndex(int index) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	BaseHandle RefEHandle;

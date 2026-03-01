@@ -919,20 +919,19 @@ public class CLC_GMod_ClientToServer : NetMessage
 	public readonly bf_read DataIn = new();
 
 	public override bool ReadFromBuffer(bf_read buffer) {
-		Length = (int)buffer.ReadUBitLong(20);
-		int type = buffer.ReadByte();
-		buffer.CopyTo(DataIn);
-		return buffer.SeekRelative(Length);
+		buffer.ReadUBitLong(20);
+		buffer.ReadByte();
+		buffer.ReadUBitLong(16);
+		return true;
 	}
 
 	public override bool WriteToBuffer(bf_write buffer) {
 		buffer.WriteNetMessageType(this);
-		buffer.WriteUBitLong(16, 20);
-
+		buffer.WriteUBitLong(24, 20);
 		buffer.WriteByte(4);
 		buffer.WriteUBitLong(0, 16);
 
-		return true;
+		return base.WriteToBuffer(buffer);
 	}
 }
 
