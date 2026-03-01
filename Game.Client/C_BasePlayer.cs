@@ -179,7 +179,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 					if (pWeaponData == null || (pWeaponData.Flags & WeaponFlags.NoAmmoPickups) == 0) {
 						// We got more ammo for this ammo index. Add it to the ammo history
-						HudHistoryResource? pHudHR = GET_HUDELEMENT<HudHistoryResource>();
+						HudHistoryResource? pHudHR = gHUD.FindElement("CHudHistoryResource") as HudHistoryResource;
 						pHudHR?.AddToHistory(HRType.Ammo, i, Math.Abs(GetAmmoCount(i) - OldAmmo[i]));
 					}
 				}
