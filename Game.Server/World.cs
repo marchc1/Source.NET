@@ -50,9 +50,9 @@ public class World : BaseEntity
 		g_fGameOver = false;
 
 		Assert(g_pGameRules == null);
-		// InstallGameRules(); // fixme
-		// Assert(g_pGameRules != null);
-		// g_pGameRules.Init();
+		InstallGameRules();
+		Assert(g_pGameRules != null);
+		g_pGameRules.Init();
 
 		// IGameSystem.LevelInitPreEntityAllSystems(GetModelName());
 	}

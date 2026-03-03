@@ -15,6 +15,9 @@ using Source;
 using FIELD = Source.FIELD<GMODGameRulesProxy>;
 using Game.Shared;
 
+#if GAME_DLL
+[LinkEntityToClass("gmod_gamerules")]
+#endif
 public class
 #if CLIENT_DLL
 	C_GMODGameRulesProxy

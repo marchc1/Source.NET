@@ -67,7 +67,7 @@ public class GameRulesRegister
 #elif GAME_DLL
 	static INetworkStringTable? g_StringTableGameRules = null;
 
-	void CreateNetworkStringTables_GameRules() {
+	public static void CreateNetworkStringTables_GameRules() {
 		// Create the string tables
 		g_StringTableGameRules = networkstringtable.CreateStringTable(GAMERULES_STRINGTABLE_NAME, 1);
 	}
