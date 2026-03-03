@@ -36,7 +36,7 @@ public class ED
 		Edict edict;
 		for (; ; )
 		{
-			bit = FreeEdicts.FindNextSetBit(bit + 1) - 1; // FIXME: This is returning 8192, so we must -1 otherwise we are 1 over the limit?
+			bit = FreeEdicts.FindNextSetBit(bit + 1);
 			if (bit < 0)
 				break;
 

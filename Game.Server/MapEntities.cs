@@ -312,6 +312,13 @@ public static class MapEntities
 			}
 			else
 				Warning($"Can't init {className}\n");
+
+#if true // TODO: remove this once ParseMapData is implemented.
+			Span<char> keyName = new char[EntityMapData.MAPKEY_MAXLENGTH];
+			Span<char> value = new char[EntityMapData.MAPKEY_MAXLENGTH];
+			if (entData.GetFirstKey(keyName, value))
+				do { } while (entData.GetNextKey(keyName, value));
+#endif
 		}
 		else {
 			// Just skip past all the keys.

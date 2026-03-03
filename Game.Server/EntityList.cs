@@ -102,19 +102,33 @@ class SortedEntityList
 
 public class GlobalEntityList : BaseEntityList
 {
-	public int HighestEnt; // the topmost used array index
-	public int NumEnts;
-	public int NumEdicts;
+	int HighestEnt;
+	int NumEnts;
+	int NumEdicts;
 
-	public bool ClearingEntities;
-	public readonly List<IEntityListener> EntityListeners = [];
+	bool ClearingEntities;
+	readonly List<IEntityListener> EntityListeners = [];
+
+	public GlobalEntityList() {
+		HighestEnt = NumEnts = NumEdicts = 0;
+		ClearingEntities = false;
+	}
+
+	public IServerNetworkable? GetServerNetworkable(BaseHandle hEnt) {
+		IServerUnknown? unk = (IServerUnknown?)LookupEntity(hEnt);
+		return unk?.GetNetworkable();
+	}
 
 	public BaseEntity? GetBaseEntity(BaseHandle ent) {
 		IServerUnknown? unk = (IServerUnknown?)LookupEntity(ent);
 		return unk == null ? null : (BaseEntity?)unk.GetBaseEntity();
 	}
 
-	public BaseEntity FirstEnt() => NextEnt(null);
+	public int NumberOfEntities() => NumEnts;
+	public int NumberOfEdicts() => NumEdicts;
+	public bool IsClearingEntities() => ClearingEntities;
+
+	public BaseEntity? FirstEnt() => NextEnt(null);
 
 	public BaseEntity? NextEnt(BaseEntity? currentEnt) {
 		if (currentEnt == null) {
@@ -137,23 +151,146 @@ public class GlobalEntityList : BaseEntityList
 		return null;
 	}
 
+	public void AddListenerEntity(IEntityListener listener) {
+		if (EntityListeners.Contains(listener)) {
+			Assert(false, "Can't add listeners multiple times\n");
+			return;
+		}
+		EntityListeners.Add(listener);
+	}
+
+	public void RemoveListenerEntity(IEntityListener listener) => EntityListeners.Remove(listener);
+
 	public void CleanupDeleteList() {
 		// todo
 	}
 
-	public BaseEntity? FindEntityByName(BaseEntity startEntity, ReadOnlySpan<char> name, BaseEntity? searchingEntity, BaseEntity? activator, BaseEntity? caller, int/*IEntityFindFilter*/? filter) {
+	public BaseEntity? FindEntityByClassname(BaseEntity? startEntity, ReadOnlySpan<char> className) {
+		EntInfo? info = startEntity != null ? GetEntInfoPtr(startEntity.GetRefEHandle()).Next : FirstEntInfo();
+
+		for (; info != null; info = info.Next) {
+			BaseEntity? ent = (BaseEntity?)info.Entity;
+			if (ent == null) {
+				DevWarning("NULL entity in global entity list!\n");
+				continue;
+			}
+
+			if (ent.ClassMatches(className))
+				return ent;
+		}
+
+		return null;
+	}
+
+	public BaseEntity? FindEntityByName(BaseEntity? startEntity, ReadOnlySpan<char> name, BaseEntity? searchingEntity = null, BaseEntity? activator = null, BaseEntity? caller = null, int/*IEntityFindFilter*/? filter = null) {
 		if (name.IsEmpty)
 			return null;
 
-		if (name[0] == '!') { // todo
-
-			// if (startEntity == null)
-			// 	return FindEntityProcedural(name, searchingEntity, activator, caller);
+		if (name[0] == '!') {
+			if (startEntity == null)
+				return FindEntityProcedural(name, searchingEntity, activator, caller);
 
 			return null;
 		}
 
-		return null; // TODO
+		EntInfo? info = startEntity != null ? GetEntInfoPtr(startEntity.GetRefEHandle()).Next : FirstEntInfo();
+
+		for (; info != null; info = info.Next) {
+			BaseEntity? ent = (BaseEntity?)info.Entity;
+			if (ent == null) {
+				DevWarning("NULL entity in global entity list!\n");
+				continue;
+			}
+
+			if (ent.Name == null)
+				continue;
+
+			if (ent.NameMatches(name)) {
+				// if (filter != null && !filter.ShouldFindEntity(ent))
+				// 	continue;
+
+				return ent;
+			}
+		}
+
+		return null;
+	}
+
+	public BaseEntity? FindEntityProcedural(ReadOnlySpan<char> name, BaseEntity? searchingEntity = null, BaseEntity? activator = null, BaseEntity? caller = null) {
+		if (name[0] == '!') {
+			ReadOnlySpan<char> pName = name[1..];
+
+			if (pName.SequenceEqual("player"))
+				return (BaseEntity?)Util.PlayerByIndex(1);
+			else if (pName.SequenceEqual("activator"))
+				return activator;
+			else if (pName.SequenceEqual("caller"))
+				return caller;
+			else if (pName.SequenceEqual("self"))
+				return searchingEntity;
+			else {
+				Warning($"Invalid entity search name {name}\n");
+				Assert(false);
+			}
+		}
+
+		return null;
+	}
+
+	public BaseEntity? FindEntityGeneric(BaseEntity? startEntity, ReadOnlySpan<char> name, BaseEntity? searchingEntity = null, BaseEntity? activator = null, BaseEntity? caller = null) {
+		BaseEntity? entity = FindEntityByName(startEntity, name, searchingEntity, activator, caller);
+		entity ??= FindEntityByClassname(startEntity, name);
+
+		return entity;
+	}
+
+	public void NotifyCreateEntity(BaseEntity? ent) {
+		if (ent == null)
+			return;
+
+		for (int i = EntityListeners.Count - 1; i >= 0; i--)
+			EntityListeners[i].OnEntityCreated(ent);
+	}
+
+	public void NotifySpawn(BaseEntity? ent) {
+		if (ent == null)
+			return;
+
+		for (int i = EntityListeners.Count - 1; i >= 0; i--)
+			EntityListeners[i].OnEntitySpawned(ent);
+	}
+
+	public void NotifyRemoveEntity(BaseHandle hEnt) {
+		BaseEntity? ent = GetBaseEntity(hEnt);
+		if (ent == null)
+			return;
+
+		for (int i = EntityListeners.Count - 1; i >= 0; i--)
+			EntityListeners[i].OnEntityDeleted(ent);
+	}
+
+	protected override void OnAddEntity(IHandleEntity? pEnt, BaseHandle handle) {
+		int i = handle.GetEntryIndex();
+
+		NumEnts++;
+		if (i > HighestEnt)
+			HighestEnt = i;
+
+		BaseEntity? ent = (BaseEntity?)((IServerUnknown?)pEnt)?.GetBaseEntity();
+		if (ent?.Edict() != null)
+			NumEdicts++;
+
+		Assert(ent != null);
+		for (i = EntityListeners.Count - 1; i >= 0; i--)
+			EntityListeners[i].OnEntityCreated(ent!);
+	}
+
+	protected override void OnRemoveEntity(IHandleEntity? pEnt, BaseHandle handle) {
+		BaseEntity? ent = (BaseEntity?)((IServerUnknown?)pEnt)?.GetBaseEntity();
+		if (ent?.Edict() != null)
+			NumEdicts--;
+
+		NumEnts--;
 	}
 }
 
