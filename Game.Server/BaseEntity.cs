@@ -39,7 +39,8 @@ public partial class BaseEntity : IServerEntity
 	public virtual bool IsNextBot() => false;
 	public virtual bool IsBaseCombatWeapon() => false;
 	public virtual bool IsCombatItem() => false;
-	public bool ClassMatches(ReadOnlySpan<char> classOrWildcard) => false; // todo
+	public bool ClassMatches(ReadOnlySpan<char> classOrWildcard) => Classname.AsSpan().SequenceEqual(classOrWildcard);
+	public bool NameMatches(ReadOnlySpan<char> name) => false; // todo
 	public virtual bool IsPredicted() => false;
 	public virtual bool IsTemplate() => false;
 	private static void SendProxy_AnimTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID)
@@ -401,6 +402,8 @@ public partial class BaseEntity : IServerEntity
 	}
 	public virtual void Spawn() { }
 	public virtual void Precache() { }
+
+	public bool HasSpawnFlags(int flags) => (SpawnFlags & flags) != 0;
 
 	public int GetModelIndex() {
 		throw new NotImplementedException();

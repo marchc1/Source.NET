@@ -5,7 +5,7 @@ global using static Game.Client.C_GameRules;
 global using GameRulesProxy = Game.Client.C_GameRulesProxy;
 namespace Game.Client;
 #else
-global using  static Game.Server.GameRules;
+global using static Game.Server.GameRules;
 
 global using GameRules = Game.Server.GameRules;
 global using GameRulesProxy = Game.Server.GameRulesProxy;
@@ -13,7 +13,9 @@ namespace Game.Server;
 #endif
 
 using Game.Shared;
+
 using System.Numerics;
+
 using Source.Common;
 
 public class
@@ -30,7 +32,7 @@ public class
 	public static GameRulesProxy? s_GameRulesProxy;
 
 	public static readonly
-	#if CLIENT_DLL
+#if CLIENT_DLL
 		RecvTable
 #else
 		SendTable
@@ -61,7 +63,7 @@ public abstract class
 #else
 	GameRules
 #endif
-	() : base("GameRules"){
+	() : base("GameRules") {
 		g_pGameRules = this;
 	}
 
@@ -69,14 +71,14 @@ public abstract class
 		new Vector3(0, 0, 64),          //VEC_VIEW (View)
 
 		new Vector3(-16, -16, 0),       //VEC_HULL_MIN (HullMin)
-		new Vector3(16, 16, 72),		//VEC_HULL_MAX (HullMax)
+		new Vector3(16, 16, 72),    //VEC_HULL_MAX (HullMax)
 
 		new Vector3(-16, -16, 0),       //VEC_DUCK_HULL_MIN (DuckHullMin)
-		new Vector3(16, 16, 36),		//VEC_DUCK_HULL_MAX	(DuckHullMax)
+		new Vector3(16, 16, 36),    //VEC_DUCK_HULL_MAX	(DuckHullMax)
 		new Vector3(0, 0, 28),          //VEC_DUCK_VIEW		(DuckView)
 
 		new Vector3(-10, -10, -10),     //VEC_OBS_HULL_MIN	(ObsHullMin)
-		new Vector3(10, 10, 10),		//VEC_OBS_HULL_MAX	(ObsHullMax)
+		new Vector3(10, 10, 10),    //VEC_OBS_HULL_MAX	(ObsHullMax)
 
 		new Vector3(0, 0, 14)           //VEC_DEAD_VIEWHEIGHT (DeadViewHeight)
 	);
@@ -93,5 +95,22 @@ public abstract class
 
 	public virtual void CreateCustomNetworkStringTables() { }
 
+#if CLIENT_DLL
+
+#else
+	public static BaseEntity? GetPlayerSpawnSpot(BasePlayer player) {
+		BaseEntity? spawnSpot = player.EntSelectSpawnPoint();
+		Assert(spawnSpot != null);
+
+		player.SetLocalOrigin(spawnSpot!.GetAbsOrigin() + new Vector3(0, 0, 1));
+		player.SetAbsVelocity(vec3_origin);
+		player.SetLocalAngles(spawnSpot.GetAbsAngles());
+		player.Local.PunchAngle = vec3_angle;
+		player.Local.PunchAngleVel = vec3_angle;
+		// player.SnapEyeAngles(spawnSpot.GetLocalAngles());
+
+		return spawnSpot;
+	}
+#endif
 }
 #endif

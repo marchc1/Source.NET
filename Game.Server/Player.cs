@@ -247,6 +247,125 @@ public partial class BasePlayer : BaseCombatCharacter
 		// gamestats todo
 	}
 
+	BaseEntity? FindPlayerStart(ReadOnlySpan<char> className) {
+		BaseEntity? start = gEntList.FindEntityByClassname(null, className);
+		BaseEntity? startFirst = start;
+
+		while (start != null) {
+			if (start.HasSpawnFlags(1))
+				return start;
+
+			start = gEntList.FindEntityByClassname(start, className);
+		}
+
+		return startFirst;
+	}
+
+	public BaseEntity? EntSelectSpawnPoint() {
+		BaseEntity? spot;
+		Edict player = Edict();
+
+		// if coop
+		// elseif deathmatch todo
+
+		if (gpGlobals.StartSpot == null || gpGlobals.StartSpot.Length == 0) {
+			spot = FindPlayerStart("info_player_start");
+			if (spot != null)
+				goto ReturnSpawn;
+		}
+		else {
+			spot = gEntList.FindEntityByName(null, gpGlobals.StartSpot);
+			if (spot != null)
+				goto ReturnSpawn;
+		}
+
+	ReturnSpawn:
+		if (spot == null) {
+			Warning("PutClientInServer: no info_player_start on level\n");
+			return Instance(engine.PEntityOfEntIndex(0)!);
+		}
+
+		// LastSpawn = spot; todo
+		return spot;
+	}
+
+	public override void Spawn() {
+		// if (Hints()) Hints().ResetHints();
+
+		SetClassname("player");
+
+		// SharedSpawn();
+
+		SetSimulatedEveryTick(true);
+		SetAnimatedEveryTick(true);
+
+		// ArmorValue = SpawnArmorValue();
+		// SetBlockLOS(false);
+		MaxHealth = Health;
+
+		if ((GetFlags() & EntityFlags.FakeClient) != 0) {
+			ClearFlags();
+			AddFlag(EntityFlags.Client | EntityFlags.FakeClient);
+		}
+		else {
+			ClearFlags();
+			AddFlag(EntityFlags.Client);
+		}
+
+		AddFlag(EntityFlags.AimTarget);
+
+		EntityEffects effects = (EntityEffects)Effects & EntityEffects.NoShadow;
+		SetEffects(effects);
+
+		// IncrementInterpolationFrame();
+
+		// InitFogController();
+
+		// DmgTake = 0;
+		// DmgSave = 0;
+		// HUDDamage = -1;
+		// DamageType = 0;
+		// PhysicsFlags = 0;
+		// DrownRestored = DrownDmg;
+
+		// SetFOV(this, 0);
+
+		// NextDecalTime = 0;
+
+		// GeigerDelay = gpGlobals.CurTime + 2.0f;
+
+		// FieldOfView = 0.766;
+
+		// AdditionPVSOrigin = vec3_origin;
+		// CameraPVSOrigin = vec3_origin;
+
+		// if (!GameHUDInitialized)
+		// 	GameRules.SetDefaultPlayerTeam(this);
+
+		GameRules.GetPlayerSpawnSpot(this);
+
+		Local.Ducked = false;
+		Local.Ducking = false;
+		SetViewOffset(VEC_VIEW_SCALED(this));
+		Precache();
+
+		// SetPlayerUnderwater(false);
+
+		// Train = TRAIN_NEW;
+
+		// HackedGunPos = new Vector3(0, 32, 0);
+		// BonusChallenge;
+
+		// SetThink(null);
+
+		// more todo
+
+		// GameRules.PlayerSpawn(this);
+		LaggedMovementValue = 1.0f;
+
+		base.Spawn();
+	}
+
 	public TimeUnit_t GetDeathTime() => DeathTime;
 
 	public virtual void SetAnimation(PlayerAnim playerAnim) { } // todo
