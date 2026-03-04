@@ -37,6 +37,7 @@ public class FrameSnapshot(FrameSnapshotManager frameSnapshotManager) : IDisposa
 	public ushort[]? ValidEntities;
 	public int NumValidEntities;
 	public EventInfo[]? TempEntities;
+	public int NumTempEntities;
 	public readonly List<int> ExplicitDeleteSlots = [];
 
 	volatile int References;
