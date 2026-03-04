@@ -21,6 +21,10 @@ struct PackWork
 
 static class PackedEntities
 {
+	static readonly Host Host = Singleton<Host>();
+	static readonly EngineSendTable EngSendTable = Singleton<EngineSendTable>();
+	static readonly FrameSnapshotManager frameSnapshotManager = Singleton<FrameSnapshotManager>();
+
 	static readonly ConVar sv_debugmanualmode = new("sv_debugmanualmode", "0", FCvar.None, "Make sure entities correctly report whether or not their network data has changed.");
 	static readonly ConVar sv_parallel_packentities = new("sv_parallel_packentities", "0", FCvar.None); // SDN: Defaulted to 0 for now ~Callum
 
@@ -40,7 +44,11 @@ static class PackedEntities
 	public static void PackEntity(int edictId, Edict edict, ServerClass serverClass, FrameSnapshot snapshot) {
 		Assert(edictId < snapshot.NumEntities);
 
-#if false // TODO TODO SendTable, ChangeFrameList, SendProxyRecipients, SV.EnsureInstanceBaseline, AllocChangeFrameList
+#if DEBUG // HACK remove once transmit stuff is done!
+		if (serverClass == null) {
+			return;
+		}
+#endif
 
 		int serialNum = snapshot.Entities![edictId].SerialNumber;
 
@@ -50,7 +58,7 @@ static class PackedEntities
 		if (!edict.HasStateChanged()) {
 			// Now this may not work if we didn't previously send a packet;
 			// if not, then we gotta compute it
-			usedPrev = framesnapshotmanager.UsePreviouslySentPacket(snapshot, edictId, serialNum);
+			usedPrev = frameSnapshotManager.UsePreviouslySentPacket(snapshot, edictId, serialNum);
 		}
 
 		if (usedPrev && !sv_debugmanualmode.GetBool()) {
@@ -64,39 +72,28 @@ static class PackedEntities
 
 		SendTable sendTable = serverClass.Table;
 
-		// (avoid constructor overhead).
-		Span<byte> tempData = stackalloc byte[Unsafe.SizeOf<SendProxyRecipients>() * Constants.MAX_DATATABLE_PROXIES];
-		Span<SendProxyRecipients> recip = MemoryMarshal.Cast<byte, SendProxyRecipients>(tempData);
+		SendProxyRecipients[] recip = new SendProxyRecipients[SendProxyRecipients.MAX_DATATABLE_PROXIES];
 
-		if (!SendTable_Encode(sendTable, edict.GetUnknown(), &writeBuf, edictId, &recip, false)) {
-			Host_Error("SV_PackEntity: SendTable_Encode returned false (ent %d).\n", edictId);
-		}
+		if (!EngSendTable.Encode(sendTable, edict.GetUnknown(), writeBuf, edictId, recip, false))
+			Host.Error($"SV_PackEntity: SendTable_Encode returned false (ent {edictId}).\n");
 
-		SV_EnsureInstanceBaseline(serverClass, edictId, packedData, writeBuf.BytesWritten);
+		// SV.EnsureInstanceBaseline(serverClass, edictId, packedData, writeBuf.BytesWritten); TODO TODO
 
-		int nFlatProps = SendTable_GetNumFlatProps(sendTable);
-		IChangeFrameList? changeFrame = null;
+		int flatProps = EngSendTable.GetNumFlatProps(sendTable);
+		IChangeFrameList? changeFrame;
 
 		// If this entity was previously in there, then it should have a valid IChangeFrameList
 		// which we can delta against to figure out which properties have changed.
 		//
 		// If not, then we want to setup a new IChangeFrameList.
-		PackedEntity? prevFrame = framesnapshotmanager.GetPreviouslySentPacket(edictId, snapshot.Entities[edictId].SerialNumber);
+		PackedEntity? prevFrame = frameSnapshotManager.GetPreviouslySentPacket(edictId, snapshot.Entities[edictId].SerialNumber);
 		if (prevFrame != null) {
 			// Calculate a delta.
 			Assert(!prevFrame.IsCompressed());
 
 			int[] deltaProps = new int[Constants.MAX_DATATABLE_PROPS];
 
-			int changes = SendTable_CalcDelta(
-					sendTable,
-					prevFrame.GetData(), prevFrame.GetNumBits(),
-					packedData, writeBuf.GetNumBitsWritten(),
-
-					deltaProps,
-					ARRAYSIZE(deltaProps),
-
-					edictId);
+			int changes = EngSendTable.CalcDelta(sendTable, prevFrame.GetData(), prevFrame.GetNumBits(), packedData, writeBuf.BitsWritten, deltaProps, Constants.MAX_DATATABLE_PROPS, edictId);
 
 			// If it's non-manual-mode, but we detect that there are no changes here, then just
 			// use the previous snapshot if it's available (as though the entity were manual mode).
@@ -104,7 +101,7 @@ static class PackedEntities
 			// are winding up with no changes.
 			if (changes == 0) {
 				if (prevFrame.CompareRecipients(recip)) {
-					if (framesnapshotmanager.UsePreviouslySentPacket(snapshot, edictId, serialNum)) {
+					if (frameSnapshotManager.UsePreviouslySentPacket(snapshot, edictId, serialNum)) {
 						edict.ClearStateChanged();
 						return;
 					}
@@ -122,10 +119,7 @@ static class PackedEntities
 						if ((prop.GetFlags() & PropFlags.EncodedAgainstTickCount) != 0)
 							continue;
 
-						Msg("Entity %d (class '%s') reported ENTITY_CHANGE_NONE but '%s' changed.\n",
-								edictId,
-								edict.GetClassName(),
-								prop.GetName());
+						Msg($"Entity {edictId} (class '{edict.GetClassName()}') reported ENTITY_CHANGE_NONE but '{prop.GetName()}' changed.\n");
 					}
 				}
 			}
@@ -142,33 +136,32 @@ static class PackedEntities
 				changeFrame = prevFrame.SnagChangeFrameList();
 			}
 
-			ErrorIfNot(changeFrame, ("SV_PackEntity: SnagChangeFrameList returned null"));
-			ErrorIfNot(changeFrame.GetNumProps() == nFlatProps, ("SV_PackEntity: SnagChangeFrameList mismatched number of props[%d vs %d]", nFlatProps, changeFrame.GetNumProps()));
+			ErrorIfNot(changeFrame != null, "SV_PackEntity: SnagChangeFrameList returned null");
+			ErrorIfNot(changeFrame.GetNumProps() == flatProps, $"SV_PackEntity: SnagChangeFrameList mismatched number of props[{flatProps} vs {changeFrame.GetNumProps()}]");
 
 			changeFrame.SetChangeTick(deltaProps, changes, snapshot.TickCount);
 		}
 		else {
 			// Ok, init the change frames for the first time.
-			changeFrame = AllocChangeFrameList(nFlatProps, snapshot.TickCount);
+			changeFrame = ChangeFrameList.AllocChangeFrameList(flatProps, snapshot.TickCount);
 		}
 
 		// Now make a PackedEntity and store the new packed data in there.
-		PackedEntity packedEntity = framesnapshotmanager.CreatePackedEntity(snapshot, edictId);
+		PackedEntity packedEntity = frameSnapshotManager.CreatePackedEntity(snapshot, edictId);
 		packedEntity.SetChangeFrameList(changeFrame);
 		packedEntity.SetServerAndClientClass(serverClass, null);
 		packedEntity.AllocAndCopyPadded(packedData);
 		packedEntity.SetRecipients(recip);
 
 		edict.ClearStateChanged();
-#endif
 	}
 
 	static void FillHLTVData(FrameSnapshot snapshot, Edict edict, int validEdict) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	static void FillReplayData(FrameSnapshot snapshot, Edict edict, int validEdict) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	static SendTable GetEntSendTable(Edict edict) {
@@ -186,6 +179,7 @@ static class PackedEntities
 
 		// check for all active entities, if they are seen by at least on client, if
 		// so, bit pack them
+		// Console.WriteLine($"Packing entities for snapshot {snapshot.TickCount} with {snapshot.NumValidEntities} valid entities.");
 		for (int iValidEdict = 0; iValidEdict < snapshot.NumValidEntities; ++iValidEdict) {
 			int index = snapshot.ValidEntities![iValidEdict];
 
@@ -224,7 +218,7 @@ static class PackedEntities
 			Debugger.Break();
 		}
 		else {
-			int c = workItems.Count();
+			int c = workItems.Count;
 			for (int i = 0; i < c; ++i) {
 				PackWork w = workItems[i];
 				PackEntity(w.Id, w.Edict, w.Snapshot.Entities![w.Id].Class!, w.Snapshot);
@@ -234,14 +228,26 @@ static class PackedEntities
 		// InvalidateSharedEdictChangeInfos(); todo
 	}
 
-	// todo call from CGameServer::SendClientMessages
-	static void ComputeClientPacks(int clientCount, GameClient[] clients, FrameSnapshot snapshot) {
+	public static void ComputeClientPacks(int clientCount, GameClient[] clients, FrameSnapshot snapshot) {
 		for (int i = 0; i < clientCount; i++) {
 			// todo transmit info
+
+			clients[i].SetupPackInfo(snapshot);
+
+#if DEBUG // HACK until transmit stuff is done!
+			for (int j = 0; j < snapshot.NumValidEntities; j++) {
+				int index = snapshot.ValidEntities![j];
+				Edict edict = sv.Edicts![index];
+
+				if (clients[i].CurrentFrame!.TransmitEntity.Get(index) == 0) {
+					clients[i].CurrentFrame!.TransmitEntity.Set(index);
+				}
+			}
+#endif
+
 		}
 
 		if (false /* g_LocalNetworkBackdoor */) {
-
 
 		}
 		else

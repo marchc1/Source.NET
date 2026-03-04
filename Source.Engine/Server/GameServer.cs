@@ -28,6 +28,7 @@ public class GameServer : BaseServer
 	protected readonly Scr Scr = Singleton<Scr>();
 	protected readonly SV SV = Singleton<SV>();
 	protected readonly ICommandLine CommandLine = Singleton<ICommandLine>();
+	protected readonly FrameSnapshotManager FrameSnapshotManager = Singleton<FrameSnapshotManager>();
 	public override void SetMaxClients(int number) {
 		MaxClients = Math.Clamp(number, 1, MaxClientsLimit);
 		Host.deathmatch.SetValue(MaxClients > 1);
@@ -348,6 +349,60 @@ public class GameServer : BaseServer
 
 		if (sv.GetMaxClients() < newmaxplayers || !tv_enable.GetBool())
 			sv.SetMaxClients(newmaxplayers);
+	}
+
+	public override void SendClientMessages(bool bSendSnapshots) {
+		int receivingClientCount = 0;
+		GameClient[] receivingClients = new GameClient[Constants.ABSOLUTE_PLAYER_LIMIT];
+
+		for (int i = 0; i < GetClientCount(); i++) {
+			GameClient client = Client(i);
+
+			// if (!client.ShouldSendMessages()) todo
+			// 	continue;
+
+			if (bSendSnapshots && client.IsActive()) {
+				receivingClients[receivingClientCount] = client;
+				receivingClientCount++;
+			}
+			else {
+				if (client.IsFakeClient())
+					continue;
+
+				if (Net.IsMultiplayer() && client.NetChannel!.GetSequenceNumber(1) == 0) {
+					// Net.OutOfBandPrintf(client.NetChannel.RemoteAddress, $"{(char)Protocol.S2C_CONNECTION}00000000000000");
+				}
+
+#if SHARED_NET_STRING_TABLES
+				StringTables!.TriggerCallbacks(client.DeltaTick);
+#endif
+
+				client.NetChannel!.Transmit();
+				// client.UpdateSendState();
+			}
+		}
+
+		if (receivingClientCount > 0) {
+			FrameSnapshot snapshot = FrameSnapshotManager.TakeTickSnapshot((int)TickCount);
+			// CopyTempEntities(snapshot);
+
+			PackedEntities.ComputeClientPacks(receivingClientCount, receivingClients, snapshot);
+
+			// if (receivingClientCount > 1 && sv_parallel_sendsnapshot.GetBool()) {
+			// 
+			// }
+
+			for (int i = 0; i < receivingClientCount; i++) {
+				GameClient client = receivingClients[i];
+				if (client == null)
+					continue;
+				ClientFrame frame = client.GetSendFrame()!;
+				client.SendSnapshot(frame);
+				// client.UpdateSendState();
+			}
+
+			snapshot.ReleaseReference();
+		}
 	}
 
 	int CurrentSkill;

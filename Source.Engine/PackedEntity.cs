@@ -58,7 +58,7 @@ public class PackedEntity
 
 	public int GetPropsChangedAfterTick(int tick, Span<int> outProps) {
 		if (ChangeFrameList != null)
-			return ChangeFrameList.GetPropsChangedAfterTick(tick, outProps);
+			return ChangeFrameList.GetPropsChangedAfterTick(tick, outProps, Constants.MAX_DATATABLE_PROPS);
 
 		return -1;
 	}

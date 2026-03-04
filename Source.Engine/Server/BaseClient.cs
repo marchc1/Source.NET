@@ -10,6 +10,7 @@ using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Networking;
 using Source.Common.Server;
+using Source.GUI.Controls;
 
 using Steamworks;
 
@@ -354,16 +355,70 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		return true;
 	}
 
-	protected virtual void SendSnapshot(ClientFrame frame) {
+	const int SNAPSHOT_SCRATCH_BUFFER_SIZE = 16000;
+	byte[] SnapshotScratchBuffer = new byte[SNAPSHOT_SCRATCH_BUFFER_SIZE / 4];
+
+	public virtual void SendSnapshot(ClientFrame frame) { // TODO This has a lot more to it
 		if (ForceWaitForTick > 0 || LastSnapshot == frame.GetSnapshot()) {
 			NetChannel.Transmit();
 			return;
 		}
 
 		bool failedOnce;
-		// todo
+
+	write_again:
+		bf_write msg = new(SnapshotScratchBuffer, SNAPSHOT_SCRATCH_BUFFER_SIZE);
+
+		ClientFrame? deltaFrame = null;// GetDeltaFrame(DeltaTick);
+		if (deltaFrame == null) {
+			// OnRequestFullUpdate();
+		}
+
+		NET_Tick tickmsg = new(frame.TickCount, (int)Host.FrameTime, (int)Host.FrameTimeStandardDeviation);
+		SendNetMsg(tickmsg);
+
+#if !SHARED_NET_STRING_TABLES
+
+#endif
+
+		int deltaStartBit = 0;
+
+		// Server.WriteDeltaEntities(this, frame, deltaFrame, msg); // TODO
+
+		int maxTempEnts = Server.IsMultiplayer() ? 64 : 255;
+
+		// WriteGameSounds();
+
+		if (msg.Overflowed) {//todo
+			Disconnect($"Snapshot overflowed\n");
+		}
 
 		LastSnapshot = frame.GetSnapshot();
+
+		if (FakePlayer && NetChannel == null) {
+			DeltaTick = (int)frame.TickCount;
+			StringTableAckTick = DeltaTick;
+			return;
+		}
+
+		bool sendOK;
+
+		if (deltaFrame == null) {
+			sendOK = NetChannel.SendData(msg);
+			sendOK = sendOK && NetChannel.Transmit();
+
+			ForceWaitForTick = (int)frame.TickCount;
+		}
+		else {
+			sendOK = NetChannel.SendDatagram(msg) > 0;
+		}
+
+		if (sendOK) {
+
+		}
+		else {
+			Disconnect($"ERROR! Couldn't send snapshot.\n");
+		}
 	}
 
 	public int GetClientChallenge() => ClientChallenge;
@@ -523,9 +578,9 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public long SignOnTick;
 	// CSmartPtr<CFrameSnapshot, CRefCountAccessorLongName>
 	FrameSnapshot? LastSnapshot; // todo? ^
-	FrameSnapshot? Baseline;
+	public FrameSnapshot? Baseline;
 	public int BaselineUpdateTick;
-	MaxEdictsBitVec BaselinesSent;
+	public MaxEdictsBitVec BaselinesSent;
 	public int BaselineUsed;
 
 	public int ForceWaitForTick;

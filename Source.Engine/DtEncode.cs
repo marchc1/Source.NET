@@ -55,7 +55,7 @@ public struct PropTypeFns
 	public SkipPropFn SkipProp;
 
 	public PropTypeFns(EncodeFn encode, DecodeFn decode, CompareDeltasFn compareDeltas, FastCopyFn fastCopy, GetTypeNameStringFn getTypeNameString,
-					   IsZeroFn isZero, DecodeZeroFn decodeZero, IsEncodedZeroFn isEncodedZero, SkipPropFn skipProp) {
+						 IsZeroFn isZero, DecodeZeroFn decodeZero, IsEncodedZeroFn isEncodedZero, SkipPropFn skipProp) {
 		Encode = encode;
 		Decode = decode;
 		CompareDeltas = compareDeltas;
@@ -202,7 +202,7 @@ public struct PropTypeFns
 	/// <summary>
 	/// Indices correlate to <see cref="SendPropType"/> enum values.
 	/// </summary>
-	static readonly PropTypeFns[] g_PropTypeFns = [
+	public static readonly PropTypeFns[] g_PropTypeFns = [
 		new(Int_Encode, Int_Decode, Int_CompareDeltas, Generic_FastCopy, Int_GetTypeNameString, Int_IsZero, Int_DecodeZero, Int_IsEncodedZero, Int_SkipProp),
 		new(Float_Encode, Float_Decode, Float_CompareDeltas, Generic_FastCopy, Float_GetTypeNameString, Float_IsZero, Float_DecodeZero, Float_IsEncodedZero, Float_SkipProp),
 		new(Vector_Encode, Vector_Decode, Vector_CompareDeltas, Generic_FastCopy, Vector_GetTypeNameString, Vector_IsZero, Vector_DecodeZero, Vector_IsEncodedZero, Vector_SkipProp),
@@ -543,9 +543,9 @@ public struct PropTypeFns
 			lengthProxy = decodeInfo.RecvProxyData.RecvProp.GetArrayLengthProxy()!;
 			targetField = subDecodeInfo.FieldInfo;
 		}
-		else 
+		else
 			targetField = arrayProp.FieldInfo;
-		
+
 		if (targetField is not DynamicArrayAccessor arrayFieldInfo) {
 			if (targetField is not DynamicArrayIndexAccessor arrayFieldindexInfo) {
 				Warning("Cannot Array_Decode on a non-ArrayFieldInfo target!\n");
@@ -563,7 +563,7 @@ public struct PropTypeFns
 
 		for (subDecodeInfo.RecvProxyData.Element = 0; subDecodeInfo.RecvProxyData.Element < nElements; subDecodeInfo.RecvProxyData.Element++) {
 			var element = arrayFieldInfo.AtIndex(subDecodeInfo.RecvProxyData.Element);
-			if(element == null) {
+			if (element == null) {
 				Warning($"Invalid element at {subDecodeInfo.RecvProxyData.Element}\n");
 				continue;
 			}
@@ -629,7 +629,7 @@ public struct PropTypeFns
 		for (int i = 0; i < len; i++) {
 			int key = (int)decodeInfo.In.ReadUBitLong(GModTable.ENTRY_KEY_BITS);
 			int valueType = (int)decodeInfo.In.ReadUBitLong(GModTable.ENTRY_VALUE_TYPE_BITS);
-			if (valueType != 0) 
+			if (valueType != 0)
 				GmodTableTypeFns.Get(valueType).Read(decodeInfo.In, ref gmodtable[key]);
 		}
 	}

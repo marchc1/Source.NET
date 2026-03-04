@@ -474,8 +474,12 @@ public class ServerGameClients : IServerGameClients
 		maxPlayers = Constants.MAX_PLAYERS;
 	}
 
-	public PlayerState GetPlayerState(Edict player) {
-		throw new NotImplementedException();
+	public PlayerState? GetPlayerState(Edict player) {
+		if (player == null || player.GetUnknown() == null)
+			return null;
+
+		BasePlayer? pl = BaseEntity.Instance(player) as BasePlayer;
+		return pl?.pl;
 	}
 
 	public void NetworkIDValidated(ReadOnlySpan<char> userName, ReadOnlySpan<char> networkID) {

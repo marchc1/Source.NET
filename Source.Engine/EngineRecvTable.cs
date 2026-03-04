@@ -2,6 +2,7 @@
 
 using Source.Common;
 using Source.Common.Bitbuffers;
+using Source.Common.Engine;
 
 using System.Collections;
 using System.Diagnostics;
@@ -57,7 +58,7 @@ public struct DeltaBitsReader : IDisposable
 		Buffer!.Seek(start);
 		outWrite.WriteBitsFromBuffer(Buffer!, len);
 	}
-	public void ComparePropData(ref DeltaBitsReader inReader, SendProp prop) => PropTypeFns.Get(prop.Type).CompareDeltas(prop, Buffer!, inReader.Buffer!);
+	public int ComparePropData(ref DeltaBitsReader inReader, SendProp prop) => PropTypeFns.Get(prop.Type).CompareDeltas(prop, Buffer!, inReader.Buffer!);
 
 	public void Dispose() {
 		Assert(Buffer == null);
@@ -119,6 +120,7 @@ public class PropVisitor<TableType, PropType>(TableType table) : IEnumerable<Key
 public abstract class DatatableStack
 {
 	public SendTablePrecalc Precalc;
+	public SendProxyRecipients[]? Recipients;
 	public InlineArray256<object?> Proxies;
 	public object Instance;
 	protected int CurPropIndex;
@@ -143,6 +145,8 @@ public abstract class DatatableStack
 
 	public abstract void RecurseAndCallProxies(SendNode node, object instance);
 
+	public SendProp? GetCurProp() => CurProp;
+	public bool IsPropProxyValid(int iProp) => Proxies[Precalc.PropProxyIndices[iProp]] != null;
 	public bool IsCurProxyValid() => Proxies[Precalc.PropProxyIndices[CurPropIndex]] != null;
 	public object? GetCurStructBase() => Proxies[Precalc.PropProxyIndices[CurPropIndex]];
 	public void SeekToProp(uint iProp) {

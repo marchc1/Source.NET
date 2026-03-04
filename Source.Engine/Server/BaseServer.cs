@@ -31,6 +31,7 @@ public abstract class BaseServer : IServer
 	protected readonly Net Net = Singleton<Net>();
 	protected readonly Host Host = Singleton<Host>();
 	protected readonly Filter Filter = Singleton<Filter>();
+	protected readonly FrameSnapshotManager framesnapshotmanager = Singleton<FrameSnapshotManager>();
 	internal static readonly ConVar sv_region = new("sv_region", "-1", FCvar.None, "The region of the world to report this server in.");
 	internal static readonly ConVar sv_instancebaselines = new("sv_instancebaselines", "1", FCvar.DevelopmentOnly, "Enable instanced baselines. Saves network overhead.");
 	internal static readonly ConVar sv_stats = new("sv_stats", "1", 0, "Collect CPU usage stats");
@@ -256,8 +257,165 @@ public abstract class BaseServer : IServer
 
 	public virtual void DisconnectClient(IClient client, ReadOnlySpan<char> reason) => client.Disconnect(reason);
 
+	class EntityWriteInfo : EntityInfo // TODO Move this
+	{
+		public bf_write Buffer;
+		public int ClientEntity;
+		public PackedEntity OldPack;
+		public PackedEntity NewPack;
+		public FrameSnapshot? FromSnapshot; // = From->GetSnapshot();
+		public FrameSnapshot ToSnapshot; // = m_pTo->GetSnapshot();
+		public FrameSnapshot Baseline; // the clients baseline
+		public BaseServer Server; // the server who writes this entity
+		public int FullProps; // number of properties send as full update (Enter PVS)
+		public bool CullProps;  // filter props by clients in recipient lists
+	};
+
 	public virtual void WriteDeltaEntities(BaseClient client, ClientFrame to, ClientFrame from, bf_write pBuf) {
-		throw new NotImplementedException();
+		EntityWriteInfo u = new();
+		u.Buffer = pBuf;
+		u.To = to;
+		u.ToSnapshot = to.GetSnapshot();
+		u.Baseline = client.Baseline;
+		u.FullProps = 0;
+		u.Server = this;
+		u.ClientEntity = client.EntityIndex;
+		if (IsHLTV() || IsReplay()) {
+			// cull props only on master proxy
+			u.CullProps = sv.IsActive();
+		}
+		else {
+			u.CullProps = true;  // always cull props for players
+		}
+
+		if (from != null) {
+			u.AsDelta = true;
+			u.From = from;
+			u.FromSnapshot = from.GetSnapshot();
+			Assert(u.FromSnapshot);
+		}
+		else {
+			u.AsDelta = false;
+			u.From = null;
+			u.FromSnapshot = null;
+		}
+
+		u.HeaderCount = 0;
+
+		// set FromBaseline pointer if this snapshot may become a baseline update
+		if (client.BaselineUpdateTick == -1) {
+			client.BaselinesSent.ClearAll();
+			to.FromBaseline = client.BaselinesSent;
+		}
+
+		// Write the header
+
+		// TRACE_PACKET(("WriteDeltaEntities (%d)\n", u.ToSnapshot.NumEntities));
+
+		u.Buffer.WriteUBitLong(26, Protocol.NETMSG_TYPE_BITS);
+
+		u.Buffer.WriteUBitLong((uint)u.ToSnapshot.NumEntities, Constants.MAX_EDICT_BITS);
+
+		if (u.AsDelta) {
+			u.Buffer.WriteOneBit(1); // use delta sequence
+
+			u.Buffer.WriteLong((int)u.From.TickCount);    // This is the sequence # that we are updating from.
+		}
+		else {
+			u.Buffer.WriteOneBit(0); // use baseline
+		}
+
+		u.Buffer.WriteUBitLong((uint)client.BaselineUsed, 1);  // tell client what baseline we are using
+
+		// Store off current position 
+		bf_write savepos = u.Buffer;
+
+		// Save room for number of headers to parse, too
+		u.Buffer.WriteUBitLong(0, Constants.MAX_EDICT_BITS + Constants.DELTASIZE_BITS + 1);
+
+		int startbit = u.Buffer.BitsWritten;
+
+		bool bIsTracing = false;//client.IsTracing();
+		if (bIsTracing) {
+			// client.TraceNetworkData(pBuf, "Delta Entities Overhead");
+		}
+
+		// Don't work too hard if we're using the optimized single-player mode.
+		if (true /*!g_pLocalNetworkBackdoor*/) { // todo
+
+			// Iterate through the in PVS bitfields until we find an entity 
+			// that was either in the old pack or the new pack
+			u.NextOldEntity();
+			u.NextNewEntity();
+
+			// 9999 = ENTITY_SENTINEL
+			while ((u.OldEntity != 9999) || (u.NewEntity != 9999)) {
+				u.NewPack = (u.NewEntity != 9999) ? framesnapshotmanager.GetPackedEntity(u.ToSnapshot, u.NewEntity) : null;
+				u.OldPack = (u.OldEntity != 9999) ? framesnapshotmanager.GetPackedEntity(u.FromSnapshot, u.OldEntity) : null;
+				int nEntityStartBit = pBuf.BitsWritten;
+
+				// Figure out how we want to write this entity.
+				// SV_DetermineUpdateType(u);
+				// SV_WriteEntityUpdate(u);
+
+				if (!bIsTracing)
+					continue;
+
+				switch (u.UpdateType) {
+					default:
+					case UpdateType.PreserveEnt:
+						break;
+					case UpdateType.EnterPVS: {
+							ReadOnlySpan<char> eString = sv.Edicts[u.NewPack.EntityIndex].GetNetworkable().GetClassName();
+							// client.TraceNetworkData(pBuf, "enter [%s]", eString);
+							// ETWMark1I(eString, pBuf.BitsWritten - nEntityStartBit);
+						}
+						break;
+					case UpdateType.LeavePVS: {
+							// Note, can't use GetNetworkable() since the edict has been freed at this point
+							ReadOnlySpan<char> eString = u.OldPack.ServerClass.NetworkName;
+							// client.TraceNetworkData(pBuf, "leave [%s]", eString);
+							// ETWMark1I(eString, pBuf.BitsWritten - nEntityStartBit);
+						}
+						break;
+					case UpdateType.DeltaEnt: {
+							ReadOnlySpan<char> eString = sv.Edicts[u.OldPack.EntityIndex].GetNetworkable().GetClassName();
+							// client.TraceNetworkData(pBuf, "delta [%s]", eString);
+							// ETWMark1I(eString, pBuf.BitsWritten - nEntityStartBit);
+						}
+						break;
+				}
+			}
+
+			// Now write out the express deletions
+			int nNumDeletions = 0;//SV_WriteDeletions(u);
+			if (bIsTracing) {
+				// client.TraceNetworkData(pBuf, "Delta: [%d] deletions", nNumDeletions);
+			}
+		}
+
+		// get number of written bits
+		int length = u.Buffer.BitsWritten - startbit;
+
+		// go back to header and fill in correct length now
+		savepos.WriteUBitLong((uint)u.HeaderCount, Constants.MAX_EDICT_BITS);
+		savepos.WriteUBitLong((uint)length, Constants.DELTASIZE_BITS);
+
+		bool bUpdateBaseline = ((client.BaselineUpdateTick == -1) &&
+			(u.FullProps > 0 || !u.AsDelta));
+
+		if (bUpdateBaseline && u.Baseline != null) {
+			// tell client to use this snapshot as baseline update
+			savepos.WriteOneBit(1);
+			client.BaselineUpdateTick = (int)to.TickCount;
+		}
+		else
+			savepos.WriteOneBit(0);
+
+		if (bIsTracing) {
+			// client.TraceNetworkData(pBuf, "Delta Finish");
+		}
+
 	}
 	public virtual void WriteTempEntities(BaseClient client, FrameSnapshot to, FrameSnapshot from, bf_write pBuf, int nMaxEnts) {
 		throw new NotImplementedException();
@@ -452,6 +610,7 @@ public abstract class BaseServer : IServer
 		throw new NotImplementedException();
 	}
 	public virtual void RemoveClientFromGame(BaseClient cl) { }
+
 	public virtual void SendClientMessages(bool bSendSnapshots) {
 		for (int i = 0; i < Clients.Count; i++) {
 			BaseClient cl = Clients[i];

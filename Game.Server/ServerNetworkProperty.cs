@@ -34,7 +34,10 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 	}
 
 	public ServerClass GetServerClass() {
-		throw new NotImplementedException();
+		// if (ServerClass == null) todo
+		// 	ServerClass = Outer.GetServerClass();
+
+		return ServerClass;
 	}
 
 	public void Release() {

@@ -24,6 +24,7 @@ public class ClientFrame
 	}
 	internal void Init(FrameSnapshot snapshot) {
 		TickCount = snapshot.TickCount;
+		Snapshot = snapshot;
 	}
 
 	internal FrameSnapshot GetSnapshot() => Snapshot;

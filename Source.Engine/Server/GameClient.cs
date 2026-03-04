@@ -153,7 +153,12 @@ public class GameClient : BaseClient
 		}
 	}
 
-	void SetupPackInfo(FrameSnapshot snapshot) { }
+	public void SetupPackInfo(FrameSnapshot snapshot) {
+
+		CurrentFrame = cl.AllocateFrame();
+		CurrentFrame.Init(snapshot);
+
+	}
 
 	void SetupPrevPackInfo() { }
 
@@ -531,7 +536,7 @@ public class GameClient : BaseClient
 		return true;
 	}
 
-	protected override void SendSnapshot(ClientFrame frame) {
+	public override void SendSnapshot(ClientFrame frame) {
 		if (HLTV) {
 
 		}
@@ -559,11 +564,10 @@ public class GameClient : BaseClient
 
 	public override void PacketEnd() => serverGlobalVariables.FrameTime = host_state.IntervalPerTick;
 
-	// void ConnectionClosing(ReadOnlySpan<char> reason) { }
-
-	// void ConnectionCrashed(ReadOnlySpan<char> reason) { }
-
-	// ClientFrame GetSendFrame() { }
+	public ClientFrame GetSendFrame() {
+		ClientFrame? frame = CurrentFrame;
+		return frame;
+	}
 
 	// bool IgnoreTempEntity(EventInfo evnt) { }
 

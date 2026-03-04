@@ -468,8 +468,15 @@ public partial class BaseEntity : IServerEntity
 	public ref readonly Vector3 GetViewOffset() => ref ViewOffset;
 	public ref readonly QAngle GetAbsAngles() => ref AbsRotation;
 
-	public void SetLocalOrigin(in Vector3 origin) { } // todo
-	public void SetLocalAngles(in QAngle origin) { } // todo
+	public void SetLocalOrigin(in Vector3 origin) {
+		// This has a lot more logic thats needed later TODO FIXME
+		Origin = origin;
+	}
+
+	public void SetLocalAngles(in QAngle angles) {
+		// This has a lot more logic thats needed later TODO FIXME
+		Rotation = angles;
+	}
 
 	public ref Matrix3x4 EntityToWorldTransform() {
 
