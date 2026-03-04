@@ -248,7 +248,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		// MDL cache end map load
 
 		if (Host.developer.GetInt() > 0)
-			ConDMsg($"Signon traffic \"{cl.NetChannel.GetName()}\":  incoming {cl.NetChannel.GetTotalData(1 /*FLOW_INCOMING*/)}, outgoing {cl.NetChannel.GetTotalData(0 /*FLOW_OUTGOING*/)}\n");
+			ConDMsg($"Signon traffic \"{cl.NetChannel.GetName()}\":  incoming {cl.NetChannel.GetTotalData(NetFlow.FLOW_INCOMING)}, outgoing {cl.NetChannel.GetTotalData(NetFlow.FLOW_OUTGOING)}\n");
 
 		Scr.EndLoadingPlaque();
 		// EndLoadingUpdates();

@@ -416,6 +416,8 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 public class ServerGameClients : IServerGameClients
 {
+	const int CMD_MAXBACKUP = 64;
+
 	public void ClientActive(Edict entity, bool loadGame) {
 		GMODClient.ClientActive(entity, loadGame);
 
@@ -491,7 +493,7 @@ public class ServerGameClients : IServerGameClients
 
 		UserCmd from, to;
 
-		UserCmd[] cmds = new UserCmd[64]; // CMD_MAXBACKUP
+		UserCmd[] cmds = new UserCmd[CMD_MAXBACKUP];
 
 		UserCmd cmdNull = new();
 
@@ -504,7 +506,7 @@ public class ServerGameClients : IServerGameClients
 		if (ent != null && ent.IsPlayer())
 			pl = (BasePlayer)ent;
 
-		if (totalCmds < 0 || totalCmds >= (64 /*CMD_MAXBACKUP*/ - 1)) {
+		if (totalCmds < 0 || totalCmds >= (CMD_MAXBACKUP - 1)) {
 			ReadOnlySpan<char> name = "unknown";
 			if (pl != null)
 				name = pl.GetPlayerName();
@@ -553,8 +555,10 @@ public class ServerGameEnts : IServerGameEnts
 
 struct MapEntityRef
 {
-	public int Edict;         // Which edict slot this entity got. -1 if CreateEntityByName failed.
-	public int SerialNumber;  // The edict serial number. TODO used anywhere ?
+	/// <summary>Which edict slot this entity got. -1 if CreateEntityByName failed.</summary>
+	public int Edict;
+	/// <summary>The edict serial number.</summary>
+	public int SerialNumber;
 };
 
 

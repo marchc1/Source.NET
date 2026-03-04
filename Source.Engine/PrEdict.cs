@@ -5,6 +5,7 @@ namespace Source.Engine;
 
 public class ED
 {
+	const float EDICT_FREETIME = 1.0f;
 
 	static readonly ConVar sv_useexplicitdelete = new("1", FCvar.DevelopmentOnly, "Explicitly delete dormant client entities caused by AllowImmediateReuse().");
 	static readonly ConVar sv_lowEdicthreshold = new("8", FCvar.None, "When only this many edicts are free, take the action specified by sv_lowedict_action.", 0, Constants.MAX_EDICTS);
@@ -45,7 +46,7 @@ public class ED
 			// If this assert goes off, someone most likely called pedict.ClearFree() and not ED_ClearFreeFlag()?
 			Assert(edict.IsFree());
 			Assert(bit == edict.EdictIndex);
-			if ((edict.FreeTime < 2) || (sv.GetTime() - edict.FreeTime >= 1.0 /*EDICT_FREETIME*/)) {
+			if ((edict.FreeTime < 2) || (sv.GetTime() - edict.FreeTime >= EDICT_FREETIME)) {
 				// If we have no freetime, we've had AllowImmediateReuse() called. We need
 				// to explicitly delete this old entity.
 				if (edict.FreeTime == 0 && sv_useexplicitdelete.GetBool()) {

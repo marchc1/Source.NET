@@ -257,29 +257,17 @@ public abstract class BaseServer : IServer
 
 	public virtual void DisconnectClient(IClient client, ReadOnlySpan<char> reason) => client.Disconnect(reason);
 
-	class EntityWriteInfo : EntityInfo // TODO Move this
-	{
-		public bf_write Buffer;
-		public int ClientEntity;
-		public PackedEntity OldPack;
-		public PackedEntity NewPack;
-		public FrameSnapshot? FromSnapshot; // = From->GetSnapshot();
-		public FrameSnapshot ToSnapshot; // = m_pTo->GetSnapshot();
-		public FrameSnapshot Baseline; // the clients baseline
-		public BaseServer Server; // the server who writes this entity
-		public int FullProps; // number of properties send as full update (Enter PVS)
-		public bool CullProps;  // filter props by clients in recipient lists
-	};
-
 	public virtual void WriteDeltaEntities(BaseClient client, ClientFrame to, ClientFrame from, bf_write pBuf) {
-		EntityWriteInfo u = new();
-		u.Buffer = pBuf;
-		u.To = to;
-		u.ToSnapshot = to.GetSnapshot();
-		u.Baseline = client.Baseline;
-		u.FullProps = 0;
-		u.Server = this;
-		u.ClientEntity = client.EntityIndex;
+		EntityWriteInfo u = new() {
+			Buffer = pBuf,
+			To = to,
+			ToSnapshot = to.GetSnapshot(),
+			Baseline = client.Baseline,
+			FullProps = 0,
+			Server = this,
+			ClientEntity = client.EntityIndex
+		};
+
 		if (IsHLTV() || IsReplay()) {
 			// cull props only on master proxy
 			u.CullProps = sv.IsActive();
