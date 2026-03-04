@@ -649,7 +649,7 @@ public class SendTable : IDataTableBase<SendProp>
 
 	protected bool Initialized;
 	protected bool HasBeenWritten;
-	protected bool HasPropsEncodedAgainstCurrentTickCount;
+	public bool HasPropsEncodedAgainstCurrentTickCount;
 
 	public ReadOnlySpan<char> GetName() => NetTableName;
 
