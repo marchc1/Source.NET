@@ -280,7 +280,11 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		Span<char> command = stackalloc char[256];
 		strcpy(command, text);
 
-		ConCommand? cmd = Cvar.FindCommand(command);
+		int space = command.IndexOf(' ');
+		if (space != -1)
+			command[space] = '\0';
+
+		ConCommand? cmd = Cvar.FindCommand(command.SliceNullTerminatedString());
 		if (cmd == null)
 			return null;
 
@@ -316,7 +320,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 
 			NormalBuild = false;
 
-			IEnumerable<string> commands = cmd.AutoCompleteSuggest(text.ToString());
+			IEnumerable<string> commands = cmd.AutoCompleteSuggest(text[..len].ToString());
 			int count = commands.Count();
 			//Assert(count <= COMMAND_COMPLETION_MAXITEMS);
 			Assert(count <= 64);
