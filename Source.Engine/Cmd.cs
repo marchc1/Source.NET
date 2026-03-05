@@ -77,7 +77,11 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 				bool isServerCommand = commandBase.IsFlagSet(FCvar.GameDLL) && source == CommandSource.Command && !sv.IsDedicated();
 
 				if (sv.IsActive()) {
-					//todo: all that command stuff for servers one day
+					serverPluginHandler.SetCommandClient(source == CommandSource.Client ? clientSlot : -1);
+#if !SWDS
+					if (isServerCommand)
+						serverPluginHandler.SetCommandClient(cl.PlayerSlot);
+#endif
 				}
 				else if (isServerCommand) {
 					// We're not the server, but we are connected - so we'll try to forward it
@@ -121,11 +125,8 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 		if (cv.IsCommand(command))
 			return commandBase;
 
-		if (source == CommandSource.Command) {
-			if (cl.IsConnected()) {
-				ForwardToServer(command);
-			}
-		}
+		if (source == CommandSource.Command && cl.IsConnected())
+			ForwardToServer(command);
 
 		Dbg.Msg($"Unknown command \"{command[0]}\"\n");
 		return null;

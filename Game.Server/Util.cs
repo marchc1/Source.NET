@@ -188,8 +188,7 @@ public static partial class Util
 	}
 
 	public static bool IsCommandIssuedByServerAdmin() {
-		// int issuingPlayerIndex = GetCommandClientIndex();
-		int issuingPlayerIndex = 0; // TODO TODO
+		int issuingPlayerIndex = GetCommandClientIndex();
 
 		if (engine.IsDedicatedServer() && issuingPlayerIndex > 0)
 			return false;
@@ -239,5 +238,15 @@ public static partial class Util
 
 	public static void Remove(BaseEntity entity) {
 		throw new NotImplementedException();
+	}
+
+	public static int GetCommandClientIndex() => ServerGameClients.CommandClientIndex;
+
+	public static BasePlayer? GetCommandClient() {
+		int id = GetCommandClientIndex();
+		if (id > 0)
+			return PlayerByIndex(id)!;
+
+		return null;
 	}
 }

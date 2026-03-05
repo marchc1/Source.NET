@@ -533,9 +533,8 @@ public class ServerGameClients : IServerGameClients
 		return TICK_INTERVAL;
 	}
 
-	public void SetCommandClient(int index) {
-		throw new NotImplementedException();
-	}
+	public static int CommandClientIndex = 0;
+	public void SetCommandClient(int index) => CommandClientIndex = index;
 }
 
 public class ServerGameEnts : IServerGameEnts
