@@ -92,9 +92,10 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 
 				if (commandBase.IsFlagSet(FCvar.Cheat)) {
 					if (!Host.IsSinglePlayerGame() && !Host.CanCheat()) {
-						// TODO; allow server to run it...
-						Dbg.Msg($"Can't use cheat command {commandBase.GetName()} in multiplayer, unless the server has sv_cheats set to 1.\n");
-						return null;
+						if (filterCommandsByServerCanExecute == 0 || !commandBase.IsFlagSet(FCvar.ServerCanExecute)) {
+							Dbg.Msg($"Can't use cheat command {commandBase.GetName()} in multiplayer, unless the server has sv_cheats set to 1.\n");
+							return null;
+						}
 					}
 				}
 
