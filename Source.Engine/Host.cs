@@ -873,9 +873,26 @@ public class Host(
 		return true;
 	}
 
-	[ConCommand("map", "Start playing on specified map.", FCvar.DontRecord)]
+	[ConCommand("map", "Start playing on specified map.", FCvar.DontRecord, autoCompleteMethod: nameof(Map_CompletionFunc))]
 	public void Map_f(in TokenizedCommand args, CommandSource source, int clientSlot = -1) {
 		Map_Helper(in args, source, false, false, false);
+	}
+
+	IEnumerable<string> Map_CompletionFunc(string partial) { // todo: properly implement this once host maplist stuff is done
+		int space = partial.IndexOf(' ');
+		string prefix = space >= 0 ? partial[..(space + 1)] : "map ";
+		string arg = space >= 0 ? partial[(space + 1)..] : "";
+
+		ReadOnlySpan<char> filename = fileSystem.FindFirstEx("maps/*.bsp", null, out FileFindHandle_t findHandle);
+		while (!filename.IsEmpty) {
+			Span<char> mapName = stackalloc char[256];
+			filename.StripExtension(mapName);
+			string name = mapName.SliceNullTerminatedString().ToString();
+			if (name.StartsWith(arg, StringComparison.OrdinalIgnoreCase))
+				yield return prefix + name;
+			filename = fileSystem.FindNext(findHandle);
+		}
+		fileSystem.FindClose(findHandle);
 	}
 
 	private void Map_Helper(in TokenizedCommand args, CommandSource source, bool editmode, bool background, bool commentary) {
