@@ -2,8 +2,10 @@
 using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
+using Source.Common.Bitbuffers;
 using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.Networking;
 using Source.Common.Server;
 using Source.Engine.Server;
 
@@ -237,8 +239,75 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		return true;
 	}
 
+	static readonly EngineSendTable EngSendTable = Singleton<EngineSendTable>();
 	private void CreateBaseline() {
+		// WriteVoiceCodec(sv.Signon);
 
+		ServerClass? pClasses = serverGameDLL.GetAllServerClasses();
+
+		if (sv_sendtables.GetBool()) {
+			sv.FullSendTablesBuffer.EnsureCapacity(288000 /*NET_MAX_PAYLOAD*/);
+			sv.FullSendTables.StartWriting(sv.FullSendTablesBuffer.Base(), sv.FullSendTablesBuffer.Count());
+
+			// WriteSendTables(pClasses, sv.FullSendTables);
+
+			if (sv.FullSendTables.Overflowed) {
+				Host.Error("SV_CreateBaseline: WriteSendTables overflow.\n");
+				return;
+			}
+
+			// WriteClassInfos(pClasses, sv.FullSendTables);
+
+			if (sv.FullSendTables.Overflowed) {
+				Host.Error("SV_CreateBaseline: WriteClassInfos overflow.\n");
+				return;
+			}
+		}
+
+		if (true /*!g_pLocalNetworkBackdoor*/) {
+			int count = 0;
+			int bytes = 0;
+
+			for (int entnum = 0; entnum < sv.NumEdicts; entnum++) {
+				Edict edict = sv.Edicts![entnum];
+
+				if (edict.IsFree() || edict.GetUnknown() == null)
+					continue;
+
+				ServerClass? pClass = edict.GetNetworkable()?.GetServerClass();
+
+				if (pClass == null) {
+					Assert(pClass);
+					continue;
+				}
+
+				if (pClass.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX)
+					continue;
+
+				SendTable pSendTable = pClass.Table;
+
+				byte[] packedData = new byte[Constants.MAX_PACKEDENTITY_DATA];
+				bf_write writeBuf = new(packedData, Constants.MAX_PACKEDENTITY_DATA);
+
+				if (!EngSendTable.Encode(pSendTable, edict.GetUnknown(), writeBuf, entnum, null, false))
+					Host.Error($"SV_CreateBaseline: SendTable_Encode returned false (ent {entnum}).\n");
+
+				PackedEntities.EnsureInstanceBaseline(pClass, entnum, packedData, writeBuf.BytesWritten);
+
+				bytes += writeBuf.BytesWritten;
+				count++;
+			}
+			DevMsg("Created class baseline: %i classes, %i bytes.\n", count, bytes);
+		}
+
+		g_GameEventManager.ReloadEventDefinitions();
+
+		SVC_GameEventList gameevents = new();
+		byte[] data = new byte[288000 /*NET_MAX_PAYLOAD*/];
+		gameevents.DataOut.StartWriting(data, 288000);
+
+		// gameEventManager.WriteEventList(&gameevents);
+		gameevents.WriteToBuffer(sv.Signon);
 	}
 	public bool HasPlayers() => sv.GetClientCount() > 0;
 

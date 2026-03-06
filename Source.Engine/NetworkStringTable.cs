@@ -781,4 +781,30 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 	public void SetAllowCreation(bool state) {
 		AllowCreation = state;
 	}
+
+	public void WriteUpdateMessage(BaseClient? client, int tickAck, bf_write buf) {
+		byte[] msg_buffer = new byte[Protocol.MAX_PAYLOAD];
+
+		for (int i = 0; i < Tables.Count; i++) {
+			NetworkStringTable table = (NetworkStringTable)GetTable(i)!;
+
+			if (!table.ChangedSinceTick(tickAck))
+				continue;
+
+			SVC_UpdateStringTable msg = new() {
+				TableID = table.GetTableId()
+			};
+			msg.ChangedEntries = table.WriteUpdate(client, msg.DataOut, tickAck);
+
+			if (msg.ChangedEntries <= 0)
+				continue;
+
+			msg.DataOut.StartWriting(msg_buffer, Protocol.MAX_PAYLOAD, 0);
+			if (!msg.WriteToBuffer(buf))
+				Host.Error($"Overflow error writing string table update for {table.GetTableName()}\n");
+
+			if (client != null && client.Tracing != 0)
+				client.TraceNetworkMsg(0, $"Sent update for string table {table.GetTableName()} with {msg.ChangedEntries} changed entries\n");
+		}
+	}
 }

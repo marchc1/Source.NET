@@ -319,14 +319,17 @@ public abstract class BaseServer : IServer
 		bf_write savepos = u.Buffer;
 
 		// Save room for number of headers to parse, too
-		u.Buffer.WriteUBitLong(0, Constants.MAX_EDICT_BITS + Constants.DELTASIZE_BITS + 1);
+
+		// u.Buffer.WriteUBitLong(0, Constants.MAX_EDICT_BITS + Constants.DELTASIZE_BITS + 1);
+		int bits = Constants.MAX_EDICT_BITS + Constants.DELTASIZE_BITS + 1;
+		Span<byte> headerBits = stackalloc byte[Net.Bits2Bytes(bits)];
+		u.Buffer.WriteBits(headerBits, bits);
 
 		int startbit = u.Buffer.BitsWritten;
 
-		bool bIsTracing = false;//client.IsTracing();
-		if (bIsTracing) {
-			// client.TraceNetworkData(pBuf, "Delta Entities Overhead");
-		}
+		bool isTracing = client.Tracing != 0;
+		if (isTracing)
+			client.TraceNetworkData(pBuf, "Delta Entities Overhead");
 
 		// Don't work too hard if we're using the optimized single-player mode.
 		if (true /*!g_pLocalNetworkBackdoor*/) { // todo
@@ -336,17 +339,17 @@ public abstract class BaseServer : IServer
 			u.NextOldEntity();
 			u.NextNewEntity();
 
-			// 9999 = ENTITY_SENTINEL
-			while ((u.OldEntity != 9999) || (u.NewEntity != 9999)) {
-				u.NewPack = (u.NewEntity != 9999) ? framesnapshotmanager.GetPackedEntity(u.ToSnapshot, u.NewEntity) : null;
-				u.OldPack = (u.OldEntity != 9999) ? framesnapshotmanager.GetPackedEntity(u.FromSnapshot, u.OldEntity) : null;
-				int nEntityStartBit = pBuf.BitsWritten;
+			while ((u.OldEntity != PackedEntity.ENTITY_SENTINEL) || (u.NewEntity != PackedEntity.ENTITY_SENTINEL)) {
+				u.NewPack = (u.NewEntity != PackedEntity.ENTITY_SENTINEL) ? framesnapshotmanager.GetPackedEntity(u.ToSnapshot, u.NewEntity) : null;
+				u.OldPack = (u.OldEntity != PackedEntity.ENTITY_SENTINEL) ? framesnapshotmanager.GetPackedEntity(u.FromSnapshot, u.OldEntity) : null;
+
+				int entStartBit = pBuf.BitsWritten;
 
 				// Figure out how we want to write this entity.
-				// SV_DetermineUpdateType(u);
-				// SV_WriteEntityUpdate(u);
+				EntsWrite.DetermineUpdateType(u);
+				EntsWrite.WriteEntityUpdate(u);
 
-				if (!bIsTracing)
+				if (!isTracing)
 					continue;
 
 				switch (u.UpdateType) {
@@ -355,31 +358,27 @@ public abstract class BaseServer : IServer
 						break;
 					case UpdateType.EnterPVS: {
 							ReadOnlySpan<char> eString = sv.Edicts[u.NewPack.EntityIndex].GetNetworkable().GetClassName();
-							// client.TraceNetworkData(pBuf, "enter [%s]", eString);
-							// ETWMark1I(eString, pBuf.BitsWritten - nEntityStartBit);
+							client.TraceNetworkData(pBuf, $"enter [{eString}]");
 						}
 						break;
 					case UpdateType.LeavePVS: {
 							// Note, can't use GetNetworkable() since the edict has been freed at this point
 							ReadOnlySpan<char> eString = u.OldPack.ServerClass.NetworkName;
-							// client.TraceNetworkData(pBuf, "leave [%s]", eString);
-							// ETWMark1I(eString, pBuf.BitsWritten - nEntityStartBit);
+							client.TraceNetworkData(pBuf, $"leave [{eString}]");
 						}
 						break;
 					case UpdateType.DeltaEnt: {
 							ReadOnlySpan<char> eString = sv.Edicts[u.OldPack.EntityIndex].GetNetworkable().GetClassName();
-							// client.TraceNetworkData(pBuf, "delta [%s]", eString);
-							// ETWMark1I(eString, pBuf.BitsWritten - nEntityStartBit);
+							client.TraceNetworkData(pBuf, $"delta [{eString}]");
 						}
 						break;
 				}
 			}
 
 			// Now write out the express deletions
-			int nNumDeletions = 0;//SV_WriteDeletions(u);
-			if (bIsTracing) {
-				// client.TraceNetworkData(pBuf, "Delta: [%d] deletions", nNumDeletions);
-			}
+			int nNumDeletions = EntsWrite.WriteDeletions(u);
+			if (isTracing)
+				client.TraceNetworkData(pBuf, $"Delta: [{nNumDeletions}] deletions");
 		}
 
 		// get number of written bits
@@ -400,13 +399,13 @@ public abstract class BaseServer : IServer
 		else
 			savepos.WriteOneBit(0);
 
-		if (bIsTracing) {
-			// client.TraceNetworkData(pBuf, "Delta Finish");
-		}
+		if (isTracing)
+			client.TraceNetworkData(pBuf, "Delta Finish");
 
 	}
 	public virtual void WriteTempEntities(BaseClient client, FrameSnapshot to, FrameSnapshot from, bf_write pBuf, int nMaxEnts) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		// todo
 	}
 
 
@@ -635,7 +634,21 @@ public abstract class BaseServer : IServer
 	}
 
 	public bool GetClassBaseline(ServerClass pClass, out ReadOnlySpan<byte> pData) {
-		throw new NotImplementedException();
+		if (sv_instancebaselines.GetBool()) {
+			if (pClass.InstanceBaselineIndex == INetworkStringTable.INVALID_STRING_INDEX) {
+				Host.Error($"SV_GetInstanceBaseline: missing instance baseline for class '{pClass.NetworkName}'\n");
+				pData = default;
+				return false;
+			}
+
+			pData = GetInstanceBaselineTable()!.GetStringUserData(pClass.InstanceBaselineIndex);
+			if (pData.IsEmpty) pData = [0];
+			return true;
+		}
+		else {
+			pData = [0];
+			return true;
+		}
 	}
 
 	public const double CHALLENGE_NONCE_LIFETIME = 6d;
@@ -696,7 +709,8 @@ public abstract class BaseServer : IServer
 	}
 
 	public INetworkStringTable? GetInstanceBaselineTable() {
-		throw new NotImplementedException();
+		InstanceBaselineTable ??= StringTables!.FindTable(Protocol.INSTANCE_BASELINE_TABLENAME);
+		return InstanceBaselineTable;
 	}
 	public INetworkStringTable? GetLightStyleTable() {
 		throw new NotImplementedException();

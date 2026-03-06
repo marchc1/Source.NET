@@ -96,10 +96,10 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 		}
 	}
 
-	public bool Encode(SendTable table, object data, bf_write dataOut, int objectId, SendProxyRecipients[] recipients, bool nonZeroOnly) {
+	public bool Encode(SendTable table, object data, bf_write dataOut, int objectId, SendProxyRecipients[]? recipients, bool nonZeroOnly) {
 		SendTablePrecalc precalc = table.Precalc!;
 		ErrorIfNot(precalc != null, $"SendTable_Encode: Missing precalc for table {table.NetTableName}.");
-		if (recipients.Length > 0)
+		if (recipients?.Length > 0)
 			ErrorIfNot(recipients.Length >= precalc.GetNumDataTableProxies(), $"SendTable_Encode: recipients array too small (got {recipients.Length}, need {precalc.GetNumDataTableProxies()}).");
 
 		EncodeInfo info = new(precalc, data, objectId, dataOut) {
@@ -123,6 +123,9 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 		return !dataOut.Overflowed;
 	}
 
+	public void WritePropList(SendTable table, byte[]? fromState, int nFromBits, byte[] toState, int nToBits, bf_write dataOut, int objectId, int[] checkProps) {
+		DevMsg($"TODO: WritePropList: table={table.NetTableName}\n");
+	}
 
 	bool IsPropZero(EncodeInfo info, int _) {
 		SendProp p = info.GetCurProp()!;

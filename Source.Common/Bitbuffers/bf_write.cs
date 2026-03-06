@@ -116,6 +116,19 @@ public unsafe class bf_write : BitBuffer
 #endif
 	}
 
+	public void WriteUBitVar(uint data) {
+		if (data < 0x10u)
+			WriteUBitLong((data << 2) | 0, 6);
+		else if (data < 0x100u)
+			WriteUBitLong((data << 2) | 1, 10);
+		else if (data < 0x1000u)
+			WriteUBitLong((data << 2) | 2, 14);
+		else {
+			WriteUBitLong(3, 2);
+			WriteUBitLong(data, 32);
+		}
+	}
+
 	public void WriteVarInt32(uint data) {
 		if ((curBit & 7) == 0 && curBit + (nint)MaxVarInt32Bytes * 8 <= dataBits) {
 			fixed (byte* pBuf = this.data) {

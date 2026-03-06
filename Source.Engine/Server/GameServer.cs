@@ -639,9 +639,24 @@ public class GameServer : BaseServer
 	}
 
 	private void AssignClassIds() {
+		ServerClass classes = serverGameDLL.GetAllServerClasses();
 
+		int nClasses = 0;
+		for (ServerClass count = classes; count != null; count = count.Next)
+			nClasses++;
+
+		ErrorIfNot(nClasses <= Constants.MAX_SERVER_CLASSES, $"CGameServer::AssignClassIds: too many server classes ({nClasses}, MAX = {Constants.MAX_SERVER_CLASSES}).\n");
+
+		ServerClasses = nClasses;
+		ServerClassBits = (int)(Math.Log2(ServerClasses) + 1);
+
+		int curID = 0;
+		for (ServerClass c = classes; c != null; c = c.Next) {
+			c.ClassID = curID++;
+
+			// Msg($"{c.ClassID} == '{c.NetworkName}'\n");
+		}
 	}
-
 
 	INetworkStringTable? ModelPrecacheTable;
 	INetworkStringTable? SoundPrecacheTable;

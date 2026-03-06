@@ -7,6 +7,7 @@ namespace Source.Engine;
 
 public class PackedEntity
 {
+	public const int ENTITY_SENTINEL = 9999;
 	public const int FLAG_IS_COMPRESSED = 1 << 31;
 	public ServerClass? ServerClass;
 	public ClientClass? ClientClass;

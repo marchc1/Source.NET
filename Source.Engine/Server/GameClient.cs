@@ -158,6 +158,10 @@ public class GameClient : BaseClient
 		CurrentFrame = cl.AllocateFrame();
 		CurrentFrame.Init(snapshot);
 
+		int maxFrames = MAX_CLIENT_FRAMES;
+		if (maxFrames < cl.AddClientFrame(CurrentFrame))
+			cl.RemoveOldestFrame();
+
 	}
 
 	void SetupPrevPackInfo() { }
@@ -188,63 +192,14 @@ public class GameClient : BaseClient
 	}
 
 	protected override bool UpdateAcknowledgedFramecount(int tick) {
-		if (IsFakeClient()) {
-			DeltaTick = tick;
-			StringTableAckTick = tick;
-			return true;
+		if (tick != DeltaTick) {
+			int removeTick = tick;
+
+			if (removeTick > 0)
+				cl.DeleteClientFrames(removeTick);
 		}
 
-		if (ForceWaitForTick > 0) {
-			if (tick > ForceWaitForTick)
-				// we should never get here since full updates are transmitted as reliable data now
-				return true;
-			else if (tick == -1) {
-				if (!NetChannel!.HasPendingReliableData()) {
-					// that's strange: we sent the client a full update, and it was fully received ( no reliable data in waiting buffers )
-					// but the client is requesting another full update.
-					//
-					// This can happen if they request full updates in succession really quickly (using cl_fullupdate or "record X;stop" quickly).
-					// There was a bug here where if we just return out, the client will have nuked its entities and we'd send it
-					// a supposedly uncompressed update but DeltaTick was not -1, so it was delta'd and it'd miss lots of stuff.
-					// Led to clients getting full spectator mode radar while their player was not a spectator.
-					ConDMsg("Client forced immediate full update.\n");
-					ForceWaitForTick = DeltaTick = -1;
-					// OnRequestFullUpdate(); TODO
-					return true;
-				}
-			}
-			else if (tick < ForceWaitForTick)
-				return true;
-			else
-				ForceWaitForTick = -1;
-		}
-		else {
-			if (DeltaTick == -1)
-				return true;
-
-			if (tick == -1) {
-				// OnRequestFullUpdate();
-			}
-			else {
-				if (DeltaTick > tick) {
-					// client already acknowledged new tick and now switch back to older
-					// thats not allowed since we always delete older frames
-					Disconnect("Client delta ticks out of order.\n");
-					return false;
-				}
-			}
-		}
-
-		DeltaTick = tick;
-
-		if (DeltaTick > -1)
-			StringTableAckTick = DeltaTick;
-
-		if ((BaselineUpdateTick > -1) && (DeltaTick > BaselineUpdateTick))
-			// server sent a baseline update, but it wasn't acknowledged yet so it was probably lost.
-			BaselineUpdateTick = -1;
-
-		return true;
+		return base.UpdateAcknowledgedFramecount(tick);
 	}
 
 	public override void Clear() {
@@ -435,7 +390,10 @@ public class GameClient : BaseClient
 		// SV.ServerGameClients!.ClientSpawned(Edict);
 	}
 
-	// ClientFrame GetDeltaFrame(int tick) { }
+	protected override ClientFrame? GetDeltaFrame(int tick) {
+		Assert(!IsHLTV());
+		return cl.GetClientFrame(tick);
+	}
 
 	void WriteViewAngleUpdate() {
 		if (IsFakeClient())

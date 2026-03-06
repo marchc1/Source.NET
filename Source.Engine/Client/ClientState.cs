@@ -158,7 +158,7 @@ public class ClientState : BaseClientState
 		DownloadResources = false;
 		PrepareClientDLL = false;
 
-		// DeleteClientFrames(-1);
+		DeleteClientFrames(-1);
 		ViewAngles.Init();
 		LastServerTickTime = 0.0;
 		OldTickCount = 0;
@@ -898,7 +898,7 @@ public class ClientState : BaseClientState
 		}
 	}
 
-	private void RemoveOldestFrame() {
+	public void RemoveOldestFrame() {
 		ClientFrame? frame = Frames;
 
 		if (frame == null)

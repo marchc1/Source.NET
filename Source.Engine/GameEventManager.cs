@@ -447,7 +447,8 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 				continue;
 
 			if (descriptor.EventID == -1) {
-				DevMsg($"Warning! Client listens to event '{descriptor.Name}' unknown by server.\n");
+				ReadOnlySpan<char> name = descriptor.Name;
+				DevMsg($"Warning! Client listens to event '{name.SliceNullTerminatedString()}' unknown by server.\n");
 				continue;
 			}
 

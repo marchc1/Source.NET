@@ -67,7 +67,7 @@ public abstract class BaseClientState(
 
 	public InlineArray2<InlineArrayMaxEdicts<PackedEntity?>> EntityBaselines;
 
-	public C_ServerClassInfo[] ServerClasses = new C_ServerClassInfo[Constants.TEMP_TOTAL_SERVER_CLASSES];
+	public C_ServerClassInfo[]? ServerClasses = new C_ServerClassInfo[Constants.TEMP_TOTAL_SERVER_CLASSES];
 	public int NumServerClasses = Constants.TEMP_TOTAL_SERVER_CLASSES;
 	public int ServerClassBits;
 	public InlineArraySteamKeysize<char> EncryptionKey;

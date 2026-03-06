@@ -6,7 +6,7 @@ public static class C2S
 }
 public static class S2C
 {
-	public const uint MagicVersion = 1515145523; 
+	public const uint MagicVersion = 1515145523;
 
 	public const byte Challenge = (byte)'A';
 	public const byte Connection = (byte)'B';
@@ -248,4 +248,9 @@ public static class Protocol
 	public const int PROTOCOL_VERSION_17 = 17;
 	public const int PROTOCOL_VERSION_14 = 14;
 	public const int PROTOCOL_VERSION_12 = 12;
+
+	public const int FHDR_ZERO = 0x0000;
+	public const int FHDR_LEAVEPVS = 0x0001;
+	public const int FHDR_DELETE = 0x0002;
+	public const int FHDR_ENTERPVS = 0x0004;
 }

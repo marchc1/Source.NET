@@ -19,16 +19,16 @@ public class EntityInfo {
 			OldEntity = From.TransmitEntity.FindNextSetBit(OldEntity + 1);
 
 			if (OldEntity < 0)
-				OldEntity = int.MaxValue;
+				OldEntity = PackedEntity.ENTITY_SENTINEL;
 		}
 		else
-			OldEntity = int.MaxValue;
+			OldEntity = PackedEntity.ENTITY_SENTINEL;
 	}
 
 	public void NextNewEntity() {
 		NewEntity = To!.TransmitEntity.FindNextSetBit(NewEntity + 1);
 		if (NewEntity < 0)
-			NewEntity = int.MaxValue;
+			NewEntity = PackedEntity.ENTITY_SENTINEL;
 	}
 
 	public virtual void Reset() {

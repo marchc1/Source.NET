@@ -37,8 +37,20 @@ static class PackedEntities
 		}
 	}
 
-	static void EnsureInstanceBasline(ServerClass serverClass, int edictId, ReadOnlySpan<byte> data, int bytes) {
-		throw new NotImplementedException();
+	public static void EnsureInstanceBaseline(ServerClass serverClass, int edictId, ReadOnlySpan<byte> data, int bytes) {
+		Edict ent = sv.Edicts![edictId];
+		ErrorIfNot(EnsurePrivateData(ent), $"SV_EnsureInstanceBaseline: EnsurePrivateData failed for ent {edictId}.");
+
+		ServerClass entClass = ent.GetNetworkable()?.GetServerClass();
+
+		if (entClass.InstanceBaselineIndex == INetworkStringTable.INVALID_STRING_INDEX) {
+			Span<char> idString = stackalloc char[32];
+			sprintf(idString, "%d").D(entClass.ClassID);
+			int storeBytes = Math.Max(bytes, 1);
+			int temp = sv.InstanceBaselineTable!.AddString(true, idString, storeBytes, data);
+			entClass.InstanceBaselineIndex = temp;
+			Assert(entClass.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX);
+		}
 	}
 
 	public static void PackEntity(int edictId, Edict edict, ServerClass serverClass, FrameSnapshot snapshot) {
@@ -77,7 +89,7 @@ static class PackedEntities
 		if (!EngSendTable.Encode(sendTable, edict.GetUnknown(), writeBuf, edictId, recip, false))
 			Host.Error($"SV_PackEntity: SendTable_Encode returned false (ent {edictId}).\n");
 
-		// SV.EnsureInstanceBaseline(serverClass, edictId, packedData, writeBuf.BytesWritten); TODO TODO
+		EnsureInstanceBaseline(serverClass, edictId, packedData, writeBuf.BytesWritten);
 
 		int flatProps = EngSendTable.GetNumFlatProps(sendTable);
 		IChangeFrameList? changeFrame;

@@ -594,7 +594,14 @@ public class SVC_GameEventList : NetMessage
 	}
 
 	public override bool WriteToBuffer(bf_write buffer) {
-		throw new Exception();
+		Length = DataOut.BitsWritten;
+		if (Length >= (1 << 20))
+			return false;
+
+		buffer.WriteNetMessageType(this);
+		buffer.WriteUBitLong((uint)NumEvents, MAX_EVENT_BITS);
+		buffer.WriteUBitLong((uint)Length, 20);
+		return buffer.WriteBits(DataOut.BaseArray, Length);
 	}
 }
 public class SVC_SetView : NetMessage
