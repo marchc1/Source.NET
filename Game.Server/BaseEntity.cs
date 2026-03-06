@@ -43,16 +43,52 @@ public partial class BaseEntity : IServerEntity
 	public bool NameMatches(ReadOnlySpan<char> name) => false; // todo
 	public virtual bool IsPredicted() => false;
 	public virtual bool IsTemplate() => false;
-	private static void SendProxy_AnimTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID)
-		=> throw new NotImplementedException();
-	private static void SendProxy_SimulationTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID)
-		=> throw new NotImplementedException();
+
+	private static void SendProxy_AnimTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
+		BaseEntity entity = (BaseEntity)instance;
+
+#if false
+		BaseAnimating? animating = entity.GetBaseAnimating();
+		Assert(animating != null);
+		if (animating != null)
+			Assert(!animating.IsUsingClientSideAnimation());
+#endif
+
+		int tickNumber = TIME_TO_TICKS(entity.AnimTime);
+		long tickBase = gpGlobals.GetNetworkBase(gpGlobals.TickCount, entity.EntIndex());
+
+		int addt = 0;
+		if (tickNumber >= tickBase)
+			addt = (int)((tickNumber - tickBase) & 0xff);
+
+		outData.Int = addt;
+	}
+
+	private static void SendProxy_SimulationTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
+		BaseEntity entity = (BaseEntity)instance;
+
+		int tickNumber = TIME_TO_TICKS(entity.SimulationTime);
+		long tickBase = gpGlobals.GetNetworkBase(gpGlobals.TickCount, entity.EntIndex());
+
+		int addt = 0;
+		if (tickNumber >= tickBase)
+			addt = (int)((tickNumber - tickBase) & 0xff);
+
+		outData.Int = addt;
+	}
 
 	public static SendTable DT_AnimTimeMustBeFirst = new(nameof(DT_AnimTimeMustBeFirst), [
 		SendPropInt (FIELD.OF(nameof(AnimTime)), 8, PropFlags.Unsigned|PropFlags.ChangesOften|PropFlags.EncodedAgainstTickCount, proxyFn: SendProxy_AnimTime),
 	]);
+
 	public static object? SendProxy_ClientSideAnimation(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		throw new NotImplementedException();
+		BaseEntity entity = (BaseEntity)instance;
+		BaseAnimating? animating = entity.GetBaseAnimating();
+
+		if (animating != null /*&& !animating.IsUsingClientSideAnimation()*/)
+			return data.GetValue<object>(instance);
+		else
+			return null;
 	}
 	public static SendTable DT_PredictableId = new(nameof(DT_PredictableId), [
 		SendPropPredictableId(FIELD.OF(nameof(PredictableId))),
@@ -148,15 +184,32 @@ public partial class BaseEntity : IServerEntity
 	public float Gravity;
 	public void SetPredictionEligible(bool canpredict) { } // nothing in game code
 	public ref readonly Vector3 GetLocalOrigin() => ref AbsOrigin;
+	public ref readonly QAngle GetLocalAngles() => ref AbsRotation;
 	private static void SendProxy_OverrideMaterial(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
-		Warning("SendProxy_OverrideMaterial not yet implemented\n");
+		BaseEntity entity = (BaseEntity)instance;
+		outData.Int = entity.OverrideMaterial;
 	}
 	private static void SendProxy_Angles(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
-		Warning("SendProxy_Angles not yet implemented\n");
+		BaseEntity entity = (BaseEntity)instance;
+		Assert(entity != null);
+
+		QAngle angles;
+		if (true /*entity.UseStepSimulationNetworkAngles*/)
+			angles = entity.GetLocalAngles();
+
+		outData.Vector[0] = MathLib.AngleMod(angles.X);
+		outData.Vector[1] = MathLib.AngleMod(angles.Y);
+		outData.Vector[2] = MathLib.AngleMod(angles.Z);
 	}
 	protected static object? SendProxy_SendPredictableId(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		Warning("SendProxy_SendPredictableId not yet implemented\n");
-		return null;
+		BaseEntity entity = (BaseEntity)instance;
+		if (entity == null || !entity.PredictableId.IsActive())
+			return null;
+
+		int id_player_index = entity.PredictableId.GetPlayer();
+		// recipients.SetOnly(id_player_index);
+
+		return data.GetValue<object>(instance);
 	}
 
 	public static BaseEntity? GetContainingEntity(Edict ent) {
@@ -489,7 +542,6 @@ public partial class BaseEntity : IServerEntity
 	public float GetGravity() => Gravity;
 	public void SetGravity(float gravity) => Gravity = gravity;
 
-	public object? GetBaseEntity() {
-		return this;
-	}
+	public object? GetBaseEntity() => this;
+	public virtual BaseAnimating? GetBaseAnimating() => null;
 }

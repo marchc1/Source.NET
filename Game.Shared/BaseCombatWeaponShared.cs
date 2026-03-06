@@ -113,10 +113,28 @@ public partial class
 #else
 
 	private static object? SendProxy_SendLocalWeaponDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		throw new NotImplementedException();
+		BaseCombatWeapon weapon = (BaseCombatWeapon)instance;
+		if (weapon != null) {
+			BasePlayer? player = ToBasePlayer(weapon.GetOwner());
+			if (player != null) {
+				// recipients.SetOnly(player.GetClientIndex());
+				return data;
+			}
+		}
+
+		return null;
 	}
 	private static object? SendProxy_SendActiveLocalWeaponDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		throw new NotImplementedException();
+		BaseCombatWeapon weapon = (BaseCombatWeapon)instance;
+		if (weapon != null) {
+			BasePlayer? player = ToBasePlayer(weapon.GetOwner());
+			if (player != null) {
+				// recipients.SetOnly(player.GetClientIndex());
+				return data;
+			}
+		}
+
+		return null;
 	}
 #endif
 	public static readonly new Class

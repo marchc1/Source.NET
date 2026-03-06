@@ -13,6 +13,7 @@ using Source.Common;
 using Source;
 
 using FIELD = Source.FIELD<GMODGameRulesProxy>;
+
 using Game.Shared;
 
 #if GAME_DLL
@@ -54,7 +55,7 @@ public class
 #if CLIENT_DLL
 			RecvPropDataTable(nameof(gmod_gamerules_data), FIELD.OF(nameof(gmod_gamerules_data)), DT_GMODRules, 0, DataTableRecvProxy_PointerDataTable)
 #else
-			SendPropDataTable(nameof(gmod_gamerules_data), DT_GMODRules)
+			SendPropDataTable(nameof(gmod_gamerules_data), FIELD.OF(nameof(gmod_gamerules_data)), DT_GMODRules)
 #endif
 		]);
 #if CLIENT_DLL

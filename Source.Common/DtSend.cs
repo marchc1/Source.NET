@@ -524,6 +524,7 @@ public class SendProp : IDataTableProp
 	public T GetValue<T>(object instance) {
 #if DEBUG
 		ErrorIfNot(FieldInfo != null, $"SendProp.GetValue: FieldInfo is null for prop {GetName()}");
+		Msg($"SendProp.GetValue for Field '{GetName()}' - '{FieldInfo.Name}' - '{FieldInfo.DeclaringType}' ({Type})\n");
 #endif
 		return FieldInfo.GetValue<T>(instance);
 	}

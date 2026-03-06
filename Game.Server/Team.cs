@@ -1,15 +1,19 @@
 ﻿global using static Game.Server.TeamGlobals;
+
 using Source.Common;
 using Source;
+
 using Game.Shared;
 
 namespace Game.Server;
+
 using FIELD = Source.FIELD<Team>;
 
-public static class TeamGlobals {
+public static class TeamGlobals
+{
 	public static readonly List<Team> g_Teams = [];
 	public static int GetNumberOfTeams() => g_Teams.Count;
-	public static Team? GetGlobalTeam(int index){
+	public static Team? GetGlobalTeam(int index) {
 		if (index < 0 || index >= GetNumberOfTeams())
 			return null;
 
@@ -31,6 +35,11 @@ public class Team : BaseEntity
 
 	private static int SendProxyArrayLength_PlayerArray(object instance, int objectID) => ((Team)instance).Players.Count;
 	private static void SendProxy_PlayerList(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
+		Team team = (Team)instance;
+		Assert(element < team.Players.Count);
+
+		BasePlayer player = team.Players[element];
+		outData.Int = player.EntIndex();
 	}
 	public static readonly new ServerClass ServerClass = new ServerClass("Team", DT_Team).WithManualClassID(StaticClassIndices.CTeam);
 

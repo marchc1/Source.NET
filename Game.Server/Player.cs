@@ -87,11 +87,14 @@ public partial class BasePlayer : BaseCombatCharacter
 	public float SurfaceFriction;
 
 	public static void SendProxy_CropFlagsToPlayerFlagBitsLength(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
-		throw new NotImplementedException();
+		int mask = (1 << Constants.PLAYER_FLAG_BITS) - 1;
+		int data = field.GetValue<int>(instance);
+		outData.Int = data & mask;
 	}
 
 	public static object? SendProxy_SendLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		throw new NotImplementedException();
+		// recipients.SetOnly(objectID - 1);
+		return data;
 	}
 	public static object? SendProxy_SendNonLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
 		throw new NotImplementedException();

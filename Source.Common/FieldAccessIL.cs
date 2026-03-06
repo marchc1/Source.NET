@@ -45,7 +45,7 @@ namespace Source.Common
 		static ILCast() {
 			if (typeof(From) == typeof(To))
 				AssertMsg(false, "Tried to ILCast<From, To> where From == To. Re-evaluate.");
-			
+
 			DynamicMethod method = new DynamicMethod($"ILCast<{typeof(From)}, {typeof(To)}", typeof(void), [typeof(From).MakeByRefType(), typeof(To).MakeByRefType()]);
 			ILGenerator generator = method.GetILGenerator();
 
@@ -223,8 +223,12 @@ namespace Source.Common
 					else if (typeof(T) == typeof(double)) il.LoggedEmit(OpCodes.Conv_R8);
 					else il.LoggedEmit(OpCodes.Castclass, enumTypeUnderflying);
 				}
-				else
-					il.LoggedEmit(OpCodes.Castclass, typeof(T));
+				else {
+					if (accessor.StoringType.IsValueType && typeof(T) == typeof(object))
+						il.LoggedEmit(OpCodes.Box, accessor.StoringType);
+					else
+						il.LoggedEmit(OpCodes.Castclass, typeof(T));
+				}
 			}
 
 			il.LoggedEmit(OpCodes.Ret);
@@ -722,9 +726,9 @@ namespace Source.Common
 				_ => false
 			};
 
-			if (from == to) 
+			if (from == to)
 				return true;
-			
+
 
 			if (!from.IsPrimitive || !to.IsPrimitive)
 				return false;
