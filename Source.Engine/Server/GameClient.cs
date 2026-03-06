@@ -161,7 +161,6 @@ public class GameClient : BaseClient
 		int maxFrames = MAX_CLIENT_FRAMES;
 		if (maxFrames < cl.AddClientFrame(CurrentFrame))
 			cl.RemoveOldestFrame();
-
 	}
 
 	void SetupPrevPackInfo() { }

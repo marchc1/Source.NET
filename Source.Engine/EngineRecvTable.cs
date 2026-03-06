@@ -143,7 +143,35 @@ public abstract class DatatableStack
 		Initted = true;
 	}
 
-	public abstract void RecurseAndCallProxies(SendNode node, object instance);
+	public virtual void RecurseAndCallProxies(SendNode node, object? instance) {
+		Proxies[node.GetRecursiveProxyIndex()] = instance;
+
+		for (int iChild = 0; iChild < node.GetNumChildren(); iChild++) {
+			SendNode? curChild = node.GetChild(iChild);
+
+			object? newStructBase = null;
+			if (instance != null)
+				newStructBase = CallPropProxy(curChild, curChild.DataTableProp, instance);
+
+			RecurseAndCallProxies(curChild, newStructBase);
+		}
+	}
+
+	public object? CallPropProxy(SendNode curChild, int prop, object instance) {
+		SendProp sendprop = Precalc.GetDatatableProp(prop)!;
+
+		SendProxyRecipients? recipients = default;
+		if (Recipients != null && curChild.GetRecursiveProxyIndex() != Constants.DATATABLE_PROXY_INDEX_NOPROXY)
+			recipients = Recipients[curChild.GetRecursiveProxyIndex()];
+
+		return sendprop.GetDataTableProxyFn()(
+			sendprop,
+			instance,
+			sendprop.FieldInfo,
+			recipients,
+			GetObjectID()
+		);
+	}
 
 	public SendProp? GetCurProp() => CurProp;
 	public bool IsPropProxyValid(int iProp) => Proxies[Precalc.PropProxyIndices[iProp]] != null;

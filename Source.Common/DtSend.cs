@@ -521,7 +521,12 @@ public class SendProp : IDataTableProp
 	SendTable? DataTable;
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public T GetValue<T>(object instance) => FieldInfo.GetValue<T>(instance);
+	public T GetValue<T>(object instance) {
+#if DEBUG
+		ErrorIfNot(FieldInfo != null, $"SendProp.GetValue: FieldInfo is null for prop {GetName()}");
+#endif
+		return FieldInfo.GetValue<T>(instance);
+	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void SetValue<T>(object instance, in T value) => FieldInfo.SetValue(instance, in value);
 

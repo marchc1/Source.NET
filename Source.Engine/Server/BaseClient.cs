@@ -55,8 +55,8 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public virtual void FileSent(ReadOnlySpan<char> fileName, uint transferID) { }
 
 	public bool ProcessMessage<T>(T message) where T : INetMessage {
-		if (message is not NET_Tick && message is not CLC_Move)
-			Common.TimestampedLog($"BaseClient.ProcessMessage: {message.GetType().Name} (IsReliable: {message.IsReliable()})");
+		// if (message is not NET_Tick && message is not CLC_Move)
+		// 	Common.TimestampedLog($"BaseClient.ProcessMessage: {message.GetType().Name} (IsReliable: {message.IsReliable()})");
 
 		switch (message) {
 			case NET_Tick m: return ProcessTick(m);
@@ -383,7 +383,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		// if ((hltv && hltv.IsTVRelay()) || tv_enable.GetBool()) {
 		// 	HLTV = msg.IsHLTV;
 		// else
-		// 	HLTV = false;
+		HLTV = false;
 
 		FilesDownloaded = 0;
 		FriendsID = (uint)msg.FriendsID;
@@ -475,9 +475,9 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	const int SNAPSHOT_SCRATCH_BUFFER_SIZE = 160000;
-	byte[] SnapshotScratchBuffer = new byte[SNAPSHOT_SCRATCH_BUFFER_SIZE / 4];
+	readonly byte[] SnapshotScratchBuffer = new byte[SNAPSHOT_SCRATCH_BUFFER_SIZE / 4];
 
-	public virtual void SendSnapshot(ClientFrame frame) { // TODO This has a lot more to it
+	public virtual void SendSnapshot(ClientFrame frame) {
 		if (ForceWaitForTick > 0 || LastSnapshot == frame.GetSnapshot()) {
 			NetChannel.Transmit();
 			return;

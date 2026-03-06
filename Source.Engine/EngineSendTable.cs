@@ -123,8 +123,13 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 		return !dataOut.Overflowed;
 	}
 
-	public void WritePropList(SendTable table, byte[]? fromState, int nFromBits, byte[] toState, int nToBits, bf_write dataOut, int objectId, int[] checkProps) {
-		DevMsg($"TODO: WritePropList: table={table.NetTableName}\n");
+	public void WritePropList(SendTable table, byte[]? state, int nBits, bf_write outBuf, int objectId, Span<int> checkProps, int nCheckProps) {
+		if (nCheckProps == 0) {
+			outBuf.WriteOneBit(0);
+			return;
+		}
+
+		DevMsg($"TODO: WritePropList: table={table.NetTableName} checkProps={nCheckProps} objectId={objectId}\n");
 	}
 
 	bool IsPropZero(EncodeInfo info, int _) {
@@ -227,5 +232,4 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 class EncodeInfo(SendTablePrecalc precalc, object structData, int objectId, bf_write dataOut) : DatatableStack(precalc, structData, objectId)
 {
 	public DeltaBitsWriter DeltaBitsWriter = new(dataOut);
-	public override void RecurseAndCallProxies(SendNode node, object instance) { }
 }

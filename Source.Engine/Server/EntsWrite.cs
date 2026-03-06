@@ -275,6 +275,12 @@ static class EntsWrite
 		FrameSnapshot toSnapshot = u.ToSnapshot;
 
 		// fixme: why is fromSnapshot null here?
+#if DEBUG
+		if (fromSnapshot == null) {
+			u.Buffer.WriteOneBit(0);
+			return 0;
+		}
+#endif
 		int last = Math.Max(fromSnapshot.NumEntities, toSnapshot.NumEntities);
 		for (int i = 0; i < last; i++) {
 			if (u.DeletionFlags.Get(i) != 0)
@@ -304,7 +310,7 @@ static class EntsWrite
 
 		int nDeltaProps = EngSendTable.CalcDelta(table, fromData, nFromBits, toData, nToBits, deltaProps, deltaProps.Length, objectId);
 
-		EngSendTable.WritePropList(table, fromData, nFromBits, toData, nToBits, bufOut, objectId, deltaProps);
+		EngSendTable.WritePropList(table, toData, nToBits, bufOut, objectId, deltaProps, nDeltaProps);
 
 		return nDeltaProps;
 	}
