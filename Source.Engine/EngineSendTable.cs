@@ -129,7 +129,35 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 			return;
 		}
 
-		DevMsg($"TODO: WritePropList: table={table.NetTableName} checkProps={nCheckProps} objectId={objectId}\n");
+		SendTablePrecalc precalc = table.Precalc!;
+		DeltaBitsWriter bitsWriter = new(outBuf);
+
+		bf_read inputBuf = new("SendTable_WritePropList->inputBuffer", state, BitBuffer.BitByte(nBits), nBits);
+		DeltaBitsReader bitsReader = new(inputBuf);
+
+		uint prop = bitsReader.ReadNextPropIndex();
+
+		int i = 0;
+		while (i < nCheckProps) {
+			while (prop < (uint)checkProps[i]) {
+				bitsReader.SkipPropData(precalc.GetProp((int)prop)!);
+				prop = bitsReader.ReadNextPropIndex();
+			}
+
+			if (prop >= Constants.MAX_DATATABLE_PROPS)
+				break;
+
+			if (prop == (uint)checkProps[i]) {
+				SendProp p = precalc.GetProp((int)prop)!;
+				bitsWriter.WritePropIndex((int)prop);
+				bitsReader.CopyPropData(bitsWriter.GetBitBuf(), p);
+				prop = bitsReader.ReadNextPropIndex();
+			}
+
+			i++;
+		}
+
+		// inputBuf.ForceFinished();
 	}
 
 	bool IsPropZero(EncodeInfo info, int _) {
@@ -156,12 +184,20 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 		SendProp p = info.GetCurProp()!;
 		object baseData = info.GetCurStructBase()!;
 
-		IFieldAccessor accessor = p.FieldInfo;
-		p.GetProxyFn()(p, baseData, accessor, ref var, 0, info.GetObjectID());
+#if DEBUG
+		try {
+#endif
+			p.GetProxyFn()(p, baseData, p.FieldInfo, ref var, 0, info.GetObjectID());
 
-		info.DeltaBitsWriter.WritePropIndex(prop);
+			info.DeltaBitsWriter.WritePropIndex(prop);
 
-		PropTypeFns.g_PropTypeFns[(int)p.Type].Encode(baseData, ref var, p, info.DeltaBitsWriter.GetBitBuf(), info.GetObjectID());
+			PropTypeFns.g_PropTypeFns[(int)p.Type].Encode(baseData, ref var, p, info.DeltaBitsWriter.GetBitBuf(), info.GetObjectID());
+#if DEBUG
+		}
+		catch (Exception ex) {
+			DevMsg($"EncodeProp: skipping prop '{p.GetName()}' on '{p.FieldInfo?.DeclaringType?.Name}' ({p.Type}): {ex.GetType().Name}: {ex.Message}\n");
+		}
+#endif
 	}
 
 	public int CalcDelta(SendTable table, byte[]? fromState, int nFromBits, byte[] toState, int nToBits, Span<int> deltaProps, int maxDeltaProps, int objectId) {
@@ -227,9 +263,124 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 
 		return nDeltaProps;
 	}
+
+	public int CullPropsFromProxies(SendTable table, int[] startProps, int nStartProps, int client, List<SendProxyRecipients>? oldStateProxies, int numOldStateProxies, List<SendProxyRecipients>? newStateProxies, int numNewStateProxies, int[] outProps, int maxOutProps) {
+		PropCullStack stack = new(table.Precalc!, client, oldStateProxies, numOldStateProxies, newStateProxies, numNewStateProxies);
+
+		stack.CullPropsFromProxies(startProps, nStartProps, outProps, maxOutProps);
+
+		ErrorIfNot(stack.NumOutProps <= maxOutProps, $"CullPropsFromProxies: overflow in '{table.NetTableName}'.");
+
+		return stack.NumOutProps;
+	}
 }
 
 class EncodeInfo(SendTablePrecalc precalc, object structData, int objectId, bf_write dataOut) : DatatableStack(precalc, structData, objectId)
 {
 	public DeltaBitsWriter DeltaBitsWriter = new(dataOut);
+}
+
+class PropCullStack : DatatableStack
+{
+	SendTablePrecalc Precalc;
+	int Client;
+	List<SendProxyRecipients>? OldStateProxies;
+	int NumOldStateProxies;
+
+	List<SendProxyRecipients>? NewStateProxies;
+	int NumNewStateProxies;
+
+	int[]? OutProps;
+	int MaxOutProps;
+	public int NumOutProps;
+
+	readonly int[] NewProxyProps = new int[Constants.MAX_DATATABLE_PROPS + 1];
+	int NumNewProxyProps;
+
+	public PropCullStack(SendTablePrecalc precalc, int client, List<SendProxyRecipients>? oldStateProxies, int numOldStateProxies, List<SendProxyRecipients>? newStateProxies, int numNewStateProxies) : base(precalc, (byte)1, -1) {
+		Precalc = precalc;
+		Client = client;
+		OldStateProxies = oldStateProxies;
+		NumOldStateProxies = numOldStateProxies;
+		NewStateProxies = newStateProxies;
+		NumNewStateProxies = numNewStateProxies;
+	}
+
+	public void CullPropsFromProxies(int[] startProps, int numStartProps, int[] outProps, int maxOutProps) {
+		OutProps = outProps;
+		MaxOutProps = maxOutProps;
+		NumOutProps = 0;
+		NumNewProxyProps = 0;
+
+		for (int i = 0; i < numStartProps; i++) {
+			int prop = startProps[i];
+
+			while (NumNewProxyProps < Constants.MAX_DATATABLE_PROPS && NewProxyProps[NumNewProxyProps] < prop)
+				AddProp(NewProxyProps[NumNewProxyProps++]);
+
+			if (IsPropProxyValid(prop)) {
+				AddProp(prop);
+
+				if (NumNewProxyProps < Constants.MAX_DATATABLE_PROPS && NewProxyProps[NumNewProxyProps] == prop)
+					NumNewProxyProps++;
+			}
+		}
+
+		while (NumNewProxyProps < Constants.MAX_DATATABLE_PROPS)
+			AddProp(NewProxyProps[NumNewProxyProps++]);
+	}
+
+	void AddProp(int prop) {
+		if (NumOutProps < MaxOutProps)
+			OutProps![NumOutProps++] = prop;
+		else
+			Error("PropCullStack::AddProp - m_pOutProps overflowed");
+	}
+
+	public override object? CallPropProxy(SendNode curChild, int prop, object instance) {
+		if (curChild.GetDataTableProxyIndex() == Constants.DATATABLE_PROXY_INDEX_NOPROXY)
+			return (byte)1;
+
+		if (NewStateProxies == null || curChild.GetDataTableProxyIndex() >= NumNewStateProxies)
+			Error($"PropCullStack::CallPropProxy - invalid new state proxy index {curChild.GetDataTableProxyIndex()} (num new state proxies: {NumNewStateProxies})");
+
+		bool cur = NewStateProxies[curChild.GetDataTableProxyIndex()].Bits.Get(Client);
+
+		if (OldStateProxies != null) {
+			if (curChild.GetDataTableProxyIndex() >= NumOldStateProxies)
+				Error($"PropCullStack::CallPropProxy - invalid old state proxy index {curChild.GetDataTableProxyIndex()} (num old state proxies: {NumOldStateProxies})");
+
+			bool prev = OldStateProxies[curChild.GetDataTableProxyIndex()].Bits.Get(Client);
+			if (prev != cur) {
+				if (prev)
+					return null;
+				else {
+					for (int i = 0; i < curChild.RecursiveProps; i++) {
+						if (NumNewProxyProps < NewProxyProps.Length)
+							NewProxyProps[NumNewProxyProps++] = curChild.FirstRecursiveProp + i;
+						else
+							Error("PropCullStack::CallPropProxy - overflowed m_NewProxyProps");
+					}
+
+					return null;
+				}
+			}
+		}
+
+		return cur ? 1 : null;
+	}
+
+	public override void RecurseAndCallProxies(SendNode node, object? instance) {
+		Proxies[node.GetRecursiveProxyIndex()] = instance;
+
+		for (int i = 0; i < node.GetNumChildren(); i++) {
+			SendNode child = node.GetChild(i);
+
+			object? newInstance = null;
+			if (instance != null)
+				newInstance = CallPropProxy(child, child.DataTableProp, instance);
+
+			RecurseAndCallProxies(child, newInstance);
+		}
+	}
 }
