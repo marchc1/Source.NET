@@ -308,7 +308,7 @@ public class Net
 		loop.Length = 0;
 
 		if (loop.Data != loop.DefBuffer) {
-			ArrayPool<byte>.Shared.Return(loop.Data!, true); // FIXME: 'The buffer is not associated with this pool and may not be returned to it.'
+			ArrayPool<byte>.Shared.Return(loop.Data!, true);
 			loop.Data = loop.DefBuffer;
 		}
 
@@ -1122,7 +1122,7 @@ public class Net
 		if (length <= DEF_LOOPBACK_SIZE)
 			loop.Data = loop.DefBuffer;
 		else
-			loop.Data = new byte[length];
+			loop.Data = ArrayPool<byte>.Shared.Rent(length);
 
 		memcpy(loop.Data, data.AsSpan()[..length]);
 		loop.Length = length;
