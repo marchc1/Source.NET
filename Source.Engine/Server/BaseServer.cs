@@ -315,12 +315,10 @@ public abstract class BaseServer : IServer
 
 		u.Buffer.WriteUBitLong((uint)client.BaselineUsed, 1);  // tell client what baseline we are using
 
-		// Store off current position 
-		bf_write savepos = u.Buffer;
+		// Store off current position
+		int savepos = u.Buffer.BitsWritten;
 
 		// Save room for number of headers to parse, too
-
-		// u.Buffer.WriteUBitLong(0, Constants.MAX_EDICT_BITS + Constants.DELTASIZE_BITS + 1);
 		int bits = Constants.MAX_EDICT_BITS + Constants.DELTASIZE_BITS + 1;
 		Span<byte> headerBits = stackalloc byte[Net.Bits2Bytes(bits)];
 		u.Buffer.WriteBits(headerBits, bits);
@@ -385,19 +383,23 @@ public abstract class BaseServer : IServer
 		int length = u.Buffer.BitsWritten - startbit;
 
 		// go back to header and fill in correct length now
-		savepos.WriteUBitLong((uint)u.HeaderCount, Constants.MAX_EDICT_BITS);
-		savepos.WriteUBitLong((uint)length, Constants.DELTASIZE_BITS);
+		int endbitpos = u.Buffer.BitsWritten;
+		u.Buffer.Seek(savepos);
+		u.Buffer.WriteUBitLong((uint)u.HeaderCount, Constants.MAX_EDICT_BITS);
+		u.Buffer.WriteUBitLong((uint)length, Constants.DELTASIZE_BITS);
 
 		bool bUpdateBaseline = ((client.BaselineUpdateTick == -1) &&
 			(u.FullProps > 0 || !u.AsDelta));
 
 		if (bUpdateBaseline && u.Baseline != null) {
 			// tell client to use this snapshot as baseline update
-			savepos.WriteOneBit(1);
+			u.Buffer.WriteOneBit(1);
 			client.BaselineUpdateTick = (int)to.TickCount;
 		}
 		else
-			savepos.WriteOneBit(0);
+			u.Buffer.WriteOneBit(0);
+
+		u.Buffer.Seek(endbitpos);
 
 		if (isTracing)
 			client.TraceNetworkData(pBuf, "Delta Finish");
@@ -602,12 +604,12 @@ public abstract class BaseServer : IServer
 		for (int i = 0; i < Clients.Count; i++) {
 			BaseClient cl = Clients[i];
 
-			// if (!cl.ShouldSendMessages()) todo
-			// 	continue;
+			if (!cl.ShouldSendMessages())
+				continue;
 
 			if (cl.NetChannel != null) {
 				cl.NetChannel.Transmit();
-				// cl.UpdateSendState(); todo
+				cl.UpdateSendState();
 			}
 			else
 				Msg("Client has no netchannel.\n");
@@ -619,7 +621,7 @@ public abstract class BaseServer : IServer
 		serverinfo.ServerCount = GetSpawnCount();
 		// serverinfo.MapMD5 = WorldmapMD5;
 		serverinfo.MaxClients = GetMaxClients();
-		serverinfo.MaxClasses = 2;//ServerClasses;
+		serverinfo.MaxClasses = ServerClasses;
 		serverinfo.IsDedicated = IsDedicated();
 		serverinfo.TickInterval = GetTickInterval();
 		serverinfo.GameDirectory = Common.Gamedir;
@@ -635,11 +637,7 @@ public abstract class BaseServer : IServer
 
 	public bool GetClassBaseline(ServerClass pClass, out ReadOnlySpan<byte> pData) {
 		if (sv_instancebaselines.GetBool()) {
-			if (pClass.InstanceBaselineIndex == INetworkStringTable.INVALID_STRING_INDEX) {
-				Host.Error($"SV_GetInstanceBaseline: missing instance baseline for class '{pClass.NetworkName}'\n");
-				pData = default;
-				return false;
-			}
+			ErrorIfNot(pClass.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX, $"SV_GetInstanceBaseline: missing instance baseline for class '{pClass.NetworkName}'\n");
 
 			pData = GetInstanceBaselineTable()!.GetStringUserData(pClass.InstanceBaselineIndex);
 			if (pData.IsEmpty) pData = [0];
