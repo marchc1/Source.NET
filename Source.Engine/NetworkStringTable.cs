@@ -156,7 +156,7 @@ public class NetworkStringTable : INetworkStringTable
 	private int MaxEntries;
 	private int EntryBits;
 	private int TickCount;
-	private int LastChangedTick;
+	internal int LastChangedTick;
 
 	private bool ChangeHistoryEnabled;
 	private bool Locked;
@@ -523,6 +523,26 @@ public class NetworkStringTable : INetworkStringTable
 		}
 	}
 
+	public void TriggerCallbacks(int tickAck) {
+		if (ChangeFunc == null)
+			return;
+
+		Common.TimestampedLog($"Change({GetTableName()}):Start");
+
+		int count = Items.Count();
+
+		for (int i = 0; i < count; i++) {
+			NetworkStringTableItem item = Items.Element(i);
+			if (item.TickChanged <= tickAck)
+				continue;
+
+			byte[]? userData = item.GetUserData(out int userDataSize);
+			ChangeFunc(CallbackObject, this, i, GetString(i), userData);
+		}
+
+		Common.TimestampedLog($"Change({GetTableName()}):End");
+	}
+
 
 	private static int CountSimilarCharacters(string str1, string str2) {
 		int c = 0;
@@ -715,7 +735,19 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 		return Tables.Count;
 	}
 
-	public void SetTick(long tick) { }
+	public void SetTick(long tick) {
+		Assert(tick >= 0);
+
+		TickCount = (int)tick;
+
+		for (int i = 0; i < Tables.Count; i++) {
+			NetworkStringTable pTable = (NetworkStringTable)GetTable(i)!;
+
+			Assert(pTable != null);
+
+			pTable.SetTick(TickCount);
+		}
+	}
 
 	public void SetAllowClientSideAddString(INetworkStringTable table, bool allowClientSideAddString) {
 		foreach (NetworkStringTable pTable in Tables) {
@@ -794,12 +826,12 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 			SVC_UpdateStringTable msg = new() {
 				TableID = table.GetTableId()
 			};
+			msg.DataOut.StartWriting(msg_buffer, Protocol.MAX_PAYLOAD, 0);
 			msg.ChangedEntries = table.WriteUpdate(client, msg.DataOut, tickAck);
 
 			if (msg.ChangedEntries <= 0)
 				continue;
 
-			msg.DataOut.StartWriting(msg_buffer, Protocol.MAX_PAYLOAD, 0);
 			if (!msg.WriteToBuffer(buf))
 				Host.Error($"Overflow error writing string table update for {table.GetTableName()}\n");
 

@@ -404,7 +404,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		np.Color[2] = 0.0f;
 		Con.NXPrintF(in np, str);
 
-		cl.FreeFrame(newFrame);
+		cl.FrameManager.FreeFrame(newFrame);
 	}
 
 	internal void PreprocessEntities() {
@@ -467,7 +467,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		IClientNetworkable? ent = EntityList.GetClientNetworkable(u.NewEntity);
 
 		if (iClass >= cl.NumServerClasses) {
-			Host.Error($"CL.CopyNewEntity: invalid class index ({iClass}).\n");
+			Host.Error($"CL.CopyNewEntity: invalid class index ({iClass}, max {cl.NumServerClasses}).\n");
 			return;
 		}
 

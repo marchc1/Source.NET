@@ -284,7 +284,7 @@ public partial class NavMesh
 
 	public void RemoveNavArea(NavArea area) { }
 
-	void OnServerActivate() { }
+	public void OnServerActivate() { }
 
 	void TestAllAreasForBlockedStatus() {
 		foreach (NavArea area in NavArea.TheNavAreas)

@@ -53,7 +53,7 @@ public class ServerPlugin : IServerPluginHelpers
 
 	}
 
-	void ServerActivate(Edict[] edictList, int edictCount, int clientMax) {
+	public void ServerActivate(Edict[] edictList, int edictCount, int clientMax) {
 		serverGameDLL.ServerActivate(edictList, edictCount, clientMax);
 	}
 

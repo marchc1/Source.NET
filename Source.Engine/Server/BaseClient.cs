@@ -322,8 +322,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 		if (!IsFakeClient()) {
 			FreeBaselines();
-
-			// baseline = todo
+			Baseline = framesnapshotmanager.CreateEmptySnapshot(0, Constants.MAX_EDICTS);
 		}
 
 		NET_Tick msg = new(Server.GetTick(), (int)Host.FrameTime, (int)Host.FrameTimeStandardDeviation);
@@ -344,9 +343,6 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 		// MapReslistGenerator().OnPlayerSpawn();
 		// NotifyDedicatedServerUI("UpdatePlayers");
-
-		NET_SignonState signonState = new(SignOnState, Server.GetSpawnCount()); // FIXME: This message shouldn't need to be sent here?
-		NetChannel.SendNetMsg(signonState);
 	}
 
 	protected virtual void OnSignonStateFull() { }
@@ -501,10 +497,8 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		if (Tracing != 0)
 			TraceNetworkData(msg, "NET_Tick");
 
-#if !SHARED_NET_STRING_TABLES
 		// if (LocalNetworkBackdoor == null)
 		Server.StringTables!.WriteUpdateMessage(this, GetMaxAckTickCount(), msg);
-#endif
 
 		int deltaStartBit = 0;
 		if (Tracing != 0)
@@ -935,7 +929,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 		SignOnState = SignOnState.Connected;
 
-		NET_SignonState msg = new(SignOnState - 1, Server.GetSpawnCount());
+		NET_SignonState msg = new(SignOnState, -1);
 		NetChannel.SendNetMsg(msg);
 	}
 
@@ -985,6 +979,51 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		}
 
 		return false;
+	}
+
+	public virtual bool ShouldSendMessages() {
+		if (!IsConnected())
+			return false;
+
+		if (NetChannel != null && NetChannel.IsOverflowed()) {
+			NetChannel.Reset();
+			Disconnect($"{Name} overflowed reliable buffer\n");
+			return false;
+		}
+
+		bool sendMessage = NextMessageTime <= Net.Time;
+
+		if (!sendMessage && !IsActive()) {
+			if (ReceivedPacket && NetChannel != null && NetChannel.HasPendingReliableData())
+				sendMessage = true;
+		}
+
+		if (sendMessage && NetChannel != null && !NetChannel.CanPacket()) {
+			NetChannel.SetChoked();
+			sendMessage = false;
+		}
+
+		return sendMessage;
+	}
+
+	public void UpdateSendState() {
+		ReceivedPacket = false;
+
+		if (!Server.IsMultiplayer() /*&& !host_limitlocal.GetBool()*/) {
+			NextMessageTime = Net.Time;
+			ReceivedPacket = true;
+		}
+		else if (IsActive()) {
+			float maxDelta = (float)Math.Min(Server.GetTickInterval(), SnapshotInterval);
+			float delta = Math.Clamp((float)(Net.Time - NextMessageTime), 0, maxDelta);
+			NextMessageTime = Net.Time + SnapshotInterval - delta;
+		}
+		else {
+			if (NetChannel != null && NetChannel.HasPendingReliableData() && NetChannel.GetTimeSinceLastReceived() < 1.0f)
+				NextMessageTime = Net.Time;
+			else
+				NextMessageTime = Net.Time + 1.0f;
+		}
 	}
 
 	public void ClientPrintf(ReadOnlySpan<char> fmt) {
@@ -1057,9 +1096,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		signonTick.WriteToBuffer(msg);
 
 		// write stringtable baselines
-#if !SHARED_NET_STRING_TABLES
 		Server.StringTables.WriteBaselines(msg);
-#endif
 
 		// Write replicated ConVars to non-listen server clients only
 		if (!NetChannel.IsLoopback()) {

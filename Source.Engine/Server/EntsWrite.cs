@@ -67,8 +67,46 @@ static class EntsWrite
 		throw new NotImplementedException();
 	}
 
-	static void WritePropsFromPackedEntity(EntityWriteInfo u, Span<int> checkProps, int nCheckProps) {
-		throw new NotImplementedException();
+	static void WritePropsFromPackedEntity(EntityWriteInfo u, int[] checkProps, int nCheckProps) {
+		PackedEntity? to = u.NewPack;
+		PackedEntity? from = u.OldPack;
+		SendTable? sendTable = to!.ServerClass!.Table;
+
+		byte[]? toData;
+		int toBits;
+
+		if (to.IsCompressed())
+			throw new NotImplementedException();
+		else {
+			toData = to.GetData();
+			toBits = to.GetNumBits();
+		}
+
+		Assert(toData != null);
+
+		int[] sendProps = new int[Constants.MAX_DATATABLE_PROPS];
+		byte[]? sendData;
+		int nSendProps;
+
+		bf_write bufStart = new();
+
+		if (u.CullProps)
+			nSendProps = EngSendTable.CullPropsFromProxies(sendTable, checkProps, nCheckProps, u.ClientEntity - 1, from.GetRecipients(), from.GetNumRecipients(), to.GetRecipients(), to.GetNumRecipients(), sendProps, sendProps.Length);
+		else
+			bufStart = u.Buffer;
+
+		EngSendTable.WritePropList(
+			sendTable!,
+			toData,
+			toBits,
+			u.Buffer,
+			to.EntityIndex,
+			sendProps,
+			nCheckProps);
+
+		if (!u.CullProps && u.Server.IsHLTV()) {
+			throw new NotImplementedException();
+		}
 	}
 
 	static bool NeedsExplicitCreate(EntityWriteInfo u) {
@@ -274,13 +312,6 @@ static class EntsWrite
 		FrameSnapshot fromSnapshot = u.FromSnapshot!;
 		FrameSnapshot toSnapshot = u.ToSnapshot;
 
-		// fixme: why is fromSnapshot null here?
-#if DEBUG
-		if (fromSnapshot == null) {
-			u.Buffer.WriteOneBit(0);
-			return 0;
-		}
-#endif
 		int last = Math.Max(fromSnapshot.NumEntities, toSnapshot.NumEntities);
 		for (int i = 0; i < last; i++) {
 			if (u.DeletionFlags.Get(i) != 0)

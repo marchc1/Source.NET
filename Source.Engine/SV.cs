@@ -191,6 +191,8 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 
 		Common.TimestampedLog("serverGameDLL.ServerActivate");
 
+		serverPluginHandler.ServerActivate(sv.Edicts!, sv.NumEdicts, sv.GetMaxClients());
+
 		host_state.IntervalPerTick = ServerGameDLL!.GetTickInterval();
 		if (host_state.IntervalPerTick < Constants.MINIMUM_TICK_INTERVAL || host_state.IntervalPerTick > Constants.MAXIMUM_TICK_INTERVAL) {
 			Sys.Error($"GetTickInterval returned bogus tick interval ({host_state.IntervalPerTick})[{Constants.MINIMUM_TICK_INTERVAL} to {Constants.MAXIMUM_TICK_INTERVAL} is valid range]");

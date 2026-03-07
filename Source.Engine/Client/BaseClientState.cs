@@ -122,7 +122,7 @@ public abstract class BaseClientState(
 
 				Assert(false);
 			}
-			ErrorIfNot(pInfo.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX, $"GetDynamicBaseline: FindStringIndex({str}-{pInfo.ClassName}) failed.");
+			ErrorIfNot(pInfo.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX, $"GetDynamicBaseline: FindStringIndex({str.SliceNullTerminatedString()}-{pInfo.ClassName}) failed.");
 		}
 		fromData = pBaselineTable.GetStringUserData(pInfo.InstanceBaselineIndex);
 		fromBits = fromData.Length;

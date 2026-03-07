@@ -35,7 +35,25 @@ public partial class BaseCombatCharacter : BaseFlex
 	public Color BloodColor;
 
 	private static object? SendProxy_SendBaseCombatCharacterLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		throw new NotImplementedException();
+		// recipients.ClearAllRecipients();
+
+		BaseCombatCharacter character = (BaseCombatCharacter)instance;
+		if (character != null) {
+			if (character.IsPlayer()) {
+				// recipients.SetOnly(character.EntIndex() - 1);
+			}
+			else {
+				IServerVehicle vehicle = character.GetServerVehicle();
+				if (vehicle != null) {
+					BaseCombatCharacter driver = vehicle.GetPassenger();
+					if (driver != null) {
+						// recipients.SetOnly(driver.EntIndex() - 1);
+					}
+				}
+			}
+		}
+
+		return data;
 	}
 
 	public static readonly new ServerClass ServerClass = new ServerClass("BaseCombatCharacter", DT_BaseCombatCharacter).WithManualClassID(StaticClassIndices.CBaseCombatCharacter);

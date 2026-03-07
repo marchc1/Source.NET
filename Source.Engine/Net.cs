@@ -118,7 +118,7 @@ public class Net
 	public static int Bits2Bytes(int b) {
 		return b + 7 >> 3;
 	}
-	public TimeUnit_t Time { get; private set; }
+	public static TimeUnit_t Time { get; private set; }
 
 	public bool IsMultiplayer() => Multiplayer; // its always going to be true; listen servers don't exist yet (if ever)
 

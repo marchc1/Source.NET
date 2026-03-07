@@ -18,9 +18,7 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 		throw new NotImplementedException();
 	}
 
-	public ReadOnlySpan<char> GetClassName() {
-		throw new NotImplementedException();
-	}
+	public ReadOnlySpan<char> GetClassName() => Outer.GetClassname();
 
 	public int EntIndex() => ENTINDEX(Pev);
 

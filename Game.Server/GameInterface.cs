@@ -397,7 +397,24 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void ServerActivate(Edict[] pEdictList, int edictCount, int clientMax) {
-		throw new NotImplementedException();
+		// if (InRestore)
+		// 	return;
+
+		if (gEntList.ResetDeleteList() != 0)
+			Msg("ERROR: Entity delete queue not empty on level start!\n");
+
+		for (BaseEntity? ent = gEntList.FirstEnt(); ent != null; ent = gEntList.NextEnt(ent)) {
+			// if (ent != null && !ent.IsDormant())
+			// ent.Activate();
+		}
+
+		IGameSystem.LevelInitPostEntityAllSystems();
+		// BaseEntity.SetAllowPrecache(false);
+
+		NavMesh.NavMesh.Instance.Load();
+		NavMesh.NavMesh.Instance.OnServerActivate();
+
+		// todo nextbots
 	}
 
 	public void SetServerHibernation(bool bHibernating) {

@@ -29,6 +29,8 @@ public class GameServer : BaseServer
 	protected readonly SV SV = Singleton<SV>();
 	protected readonly ICommandLine CommandLine = Singleton<ICommandLine>();
 	protected readonly FrameSnapshotManager FrameSnapshotManager = Singleton<FrameSnapshotManager>();
+	public readonly ClientFrameManager FrameManager = new();
+
 	public override void SetMaxClients(int number) {
 		MaxClients = Math.Clamp(number, 1, MaxClientsLimit);
 		Host.deathmatch.SetValue(MaxClients > 1);
@@ -81,6 +83,17 @@ public class GameServer : BaseServer
 	public readonly UtlMemory<byte> FullSendTablesBuffer = new();
 
 	public bool LoadedPlugins;
+
+	public override void Clear() {
+		host_state.SetWorldModel(null);
+
+		for (ServerClass? cls = serverGameDLL.GetAllServerClasses(); cls != null; cls = cls.Next)
+			cls.InstanceBaselineIndex = INetworkStringTable.INVALID_STRING_INDEX;
+
+		TempEntities.Clear();
+
+		base.Clear();
+	}
 
 	public void CreateEngineStringTables() {
 		StringTables!.SetTick(TickCount);
@@ -135,7 +148,6 @@ public class GameServer : BaseServer
 	public INetworkStringTable? GetGenericPrecacheTable() => GenericPrecacheTable;
 	public INetworkStringTable? GetSoundPrecacheTable() => SoundPrecacheTable;
 	public INetworkStringTable? GetDecalPrecacheTable() => DecalPrecacheTable;
-
 	public INetworkStringTable? GetDynamicModelsTable() => DynamicModelsTable;
 
 
@@ -358,8 +370,8 @@ public class GameServer : BaseServer
 		for (int i = 0; i < GetClientCount(); i++) {
 			GameClient client = Client(i);
 
-			// if (!client.ShouldSendMessages()) todo
-			// 	continue;
+			if (!client.ShouldSendMessages())
+				continue;
 
 			if (bSendSnapshots && client.IsActive()) {
 				receivingClients[receivingClientCount] = client;
@@ -373,18 +385,14 @@ public class GameServer : BaseServer
 					// Net.OutOfBandPrintf(client.NetChannel.RemoteAddress, $"{(char)Protocol.S2C_CONNECTION}00000000000000");
 				}
 
-#if SHARED_NET_STRING_TABLES
-				StringTables!.TriggerCallbacks(client.DeltaTick);
-#endif
-
 				client.NetChannel!.Transmit();
-				// client.UpdateSendState();
+				client.UpdateSendState();
 			}
 		}
 
 		if (receivingClientCount > 0) {
 			FrameSnapshot snapshot = FrameSnapshotManager.TakeTickSnapshot((int)TickCount);
-			// CopyTempEntities(snapshot);
+			CopyTempEntities(snapshot);
 
 			PackedEntities.ComputeClientPacks(receivingClientCount, receivingClients, snapshot);
 
@@ -398,10 +406,22 @@ public class GameServer : BaseServer
 					continue;
 				ClientFrame frame = client.GetSendFrame()!;
 				client.SendSnapshot(frame);
-				// client.UpdateSendState();
+				client.UpdateSendState();
 			}
 
 			snapshot.ReleaseReference();
+		}
+	}
+
+	void CopyTempEntities(FrameSnapshot snapshot) {
+		Assert(snapshot.TempEntities == null);
+
+		if (TempEntities.Count > 0) {
+			snapshot.NumTempEntities = TempEntities.Count;
+			snapshot.TempEntities = new EventInfo[TempEntities.Count];
+			for (int i = 0; i < TempEntities.Count; i++)
+				snapshot.TempEntities[i] = TempEntities[i];
+			TempEntities.Clear();
 		}
 	}
 
@@ -668,7 +688,7 @@ public class GameServer : BaseServer
 	bool Hibernating;    // Are we hibernating.  Hibernation makes server process consume approx 0 CPU when no clients are connected
 
 	public void InstallClientStringTableMirrors() {
-#if !SWDS && !SHARED_NET_STRING_TABLES
+#if !SWDS
 		int numTables = networkStringTableContainerServer.GetNumTables();
 		for (int i = 0; i < numTables; i++) {
 			NetworkStringTable? serverTable = (NetworkStringTable?)networkStringTableContainerServer.GetTable(i);

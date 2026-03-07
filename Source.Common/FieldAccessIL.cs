@@ -226,6 +226,12 @@ namespace Source.Common
 				else {
 					if (accessor.StoringType.IsValueType && typeof(T) == typeof(object))
 						il.LoggedEmit(OpCodes.Box, accessor.StoringType);
+#if true
+					if (accessor.StoringType.IsValueType) {
+						il.LoggedEmit(OpCodes.Box, accessor.StoringType);
+						il.LoggedEmit(OpCodes.Castclass, typeof(T));
+					}
+#endif
 					else
 						il.LoggedEmit(OpCodes.Castclass, typeof(T));
 				}
@@ -367,8 +373,17 @@ namespace Source.Common
 				il.LoggedEmit(convCode);
 			}
 			else {
-				if (typeof(T).IsValueType)
+				if (typeof(T).IsValueType) {
 					il.LoggedEmit(OpCodes.Ldobj, typeof(T));
+#if true
+					if (typeof(T) != accessor.StoringType) {
+						LocalBuilder local = il.DeclareLocal(typeof(T));
+						il.Emit(OpCodes.Stloc, local);
+						il.Emit(OpCodes.Ldloca, local);
+						il.LoggedEmit(OpCodes.Ldobj, accessor.StoringType);
+					}
+#endif
+				}
 				else
 					il.LoggedEmit(OpCodes.Ldind_Ref);
 			}

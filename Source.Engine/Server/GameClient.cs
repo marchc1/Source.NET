@@ -155,12 +155,12 @@ public class GameClient : BaseClient
 
 	public void SetupPackInfo(FrameSnapshot snapshot) {
 
-		CurrentFrame = cl.AllocateFrame();
+		CurrentFrame = sv.FrameManager.AllocateFrame();
 		CurrentFrame.Init(snapshot);
 
 		int maxFrames = MAX_CLIENT_FRAMES;
-		if (maxFrames < cl.AddClientFrame(CurrentFrame))
-			cl.RemoveOldestFrame();
+		if (maxFrames < sv.FrameManager.AddClientFrame(CurrentFrame))
+			sv.FrameManager.RemoveOldestFrame();
 	}
 
 	void SetupPrevPackInfo() { }
@@ -188,6 +188,8 @@ public class GameClient : BaseClient
 		Sounds.Clear();
 		VoiceStreams.ClearAll();
 		VoiceProximity.ClearAll();
+
+		sv.FrameManager.DeleteClientFrames(-1);
 	}
 
 	protected override bool UpdateAcknowledgedFramecount(int tick) {
@@ -195,7 +197,7 @@ public class GameClient : BaseClient
 			int removeTick = tick;
 
 			if (removeTick > 0)
-				cl.DeleteClientFrames(removeTick);
+				sv.FrameManager.DeleteClientFrames(removeTick);
 		}
 
 		return base.UpdateAcknowledgedFramecount(tick);
@@ -212,7 +214,7 @@ public class GameClient : BaseClient
 
 		base.Clear();
 
-		cl.DeleteClientFrames(-1);
+		sv.FrameManager.DeleteClientFrames(-1);
 
 		Sounds.Clear();
 		VoiceStreams.ClearAll();
@@ -349,16 +351,24 @@ public class GameClient : BaseClient
 	protected override bool SendSignonData() {
 		bool clientHasDifferentTables = false;
 
-		if (false) {
+		if (sv.FullSendTables.Overflowed) {
+			// Host.Error($"Send Table signon buffer overflowed {sv.FullSendTables.BytesWritten} bytes!!!\n");
+			return false;
+		}
+
+		if (SendTableCRC != 0) {
 
 		}
-		else {
-			SVC_ClassInfo msg = new() {
-				NumServerClasses = Server.ServerClasses,
-				CreateOnClient = true
-			};
-			SendNetMsg(msg);
+
+		if (clientHasDifferentTables) {
+
 		}
+
+		SVC_ClassInfo msg = new() {
+			NumServerClasses = Server.ServerClasses,
+			CreateOnClient = true
+		};
+		NetChannel.SendNetMsg(msg);
 
 		if (!base.SendSignonData())
 			return false;
@@ -391,7 +401,7 @@ public class GameClient : BaseClient
 
 	protected override ClientFrame? GetDeltaFrame(int tick) {
 		Assert(!IsHLTV());
-		return cl.GetClientFrame(tick);
+		return sv.FrameManager.GetClientFrame(tick);
 	}
 
 	void WriteViewAngleUpdate() {
@@ -503,7 +513,16 @@ public class GameClient : BaseClient
 		base.SendSnapshot(frame);
 	}
 
-	// bool ShouldSendMessages() { }
+	public override bool ShouldSendMessages() {
+		if (HLTV) {
+
+		}
+
+		if (IsFakeClient())
+			return sv_stressbots.GetBool();
+
+		return base.ShouldSendMessages();
+	}
 
 	// void FileReceived(ReadOnlySpan<char> fileName, uint transferID) { }
 

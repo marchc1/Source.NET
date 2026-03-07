@@ -52,7 +52,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	]); public static readonly ServerClass PlayerExclusive = new("LocalPlayerExclusive", DT_LocalPlayerExclusive);
 
 	public static readonly SendTable DT_BasePlayer = new(DT_BaseCombatCharacter, [
-		SendPropDataTable(nameof(pl), DT_PlayerState, SendProxy_DataTableToDataTable),
+		SendPropDataTable(nameof(pl), FIELD.OF(nameof(pl)), DT_PlayerState, SendProxy_DataTableToDataTable),
 		SendPropEHandle(FIELD.OF(nameof(Vehicle))),
 		SendPropEHandle(FIELD.OF(nameof(UseEntity))),
 		SendPropInt(FIELD.OF(nameof(LifeState)), 3, PropFlags.Unsigned ),
@@ -97,7 +97,8 @@ public partial class BasePlayer : BaseCombatCharacter
 		return data;
 	}
 	public static object? SendProxy_SendNonLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		return data;
 	}
 
 	public static readonly new ServerClass ServerClass = new ServerClass("BasePlayer", DT_BasePlayer).WithManualClassID(StaticClassIndices.CBasePlayer);

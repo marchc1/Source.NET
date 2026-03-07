@@ -50,17 +50,12 @@ static class PackedEntities
 			int temp = sv.InstanceBaselineTable!.AddString(true, idString, storeBytes, data);
 			entClass.InstanceBaselineIndex = temp;
 			Assert(entClass.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX);
+			// DevMsg(1, $"EnsureInstanceBaseline: ADDED '{entClass.NetworkName}' classID={entClass.ClassID} tableIdx={temp} svTick={sv.TickCount}\n");
 		}
 	}
 
 	public static void PackEntity(int edictId, Edict edict, ServerClass serverClass, FrameSnapshot snapshot) {
 		Assert(edictId < snapshot.NumEntities);
-
-#if DEBUG // HACK remove once transmit stuff is done!
-		if (serverClass == null) {
-			return;
-		}
-#endif
 
 		int serialNum = snapshot.Entities![edictId].SerialNumber;
 

@@ -403,7 +403,17 @@ public class SVC_UpdateStringTable : NetMessage
 	public readonly bf_write DataOut = new();
 
 	public override bool WriteToBuffer(bf_write buffer) {
-		return false;
+		buffer.WriteNetMessageType(this);
+		Length = DataOut.BitsWritten;
+		buffer.WriteUBitLong((uint)TableID, MAX_TABLES_BITS);
+		if (ChangedEntries == 1)
+			buffer.WriteBool(false);
+		else {
+			buffer.WriteBool(true);
+			buffer.WriteWord(ChangedEntries);
+		}
+		buffer.WriteUBitLong((uint)Length, 20);
+		return buffer.WriteBits(DataOut.BaseArray, Length);
 	}
 
 	public override bool ReadFromBuffer(bf_read buffer) {

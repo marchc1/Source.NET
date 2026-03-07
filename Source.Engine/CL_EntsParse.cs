@@ -1,16 +1,12 @@
 ﻿using Source.Common.Client;
 using Source.Common.Networking;
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace Source.Engine;
 
 public partial class CL
 {
 	public bool ProcessPacketEntities(SVC_PacketEntities entmsg) {
-		ClientFrame newFrame = cl.AllocateFrame();
+		ClientFrame newFrame = cl.FrameManager.AllocateFrame();
 		newFrame.Init(cl.GetServerTickCount());
 		ClientFrame? oldFrame = null;
 
@@ -22,7 +18,7 @@ public partial class CL
 				return false;
 			}
 
-			oldFrame = cl.GetClientFrame(entmsg.DeltaFrom);
+			oldFrame = cl.FrameManager.GetClientFrame(entmsg.DeltaFrom);
 
 			if (oldFrame == null) {
 				FlushEntityPacket(newFrame, "Update delta not found.\n");
@@ -72,10 +68,10 @@ public partial class CL
 		cl.NetChannel?.UpdateMessageStats(NetChannelGroup.OtherPlayers, readInfo.OtherPlayerBits);
 		cl.NetChannel?.UpdateMessageStats(NetChannelGroup.Entities, -(readInfo.LocalPlayerBits + readInfo.OtherPlayerBits));
 
-		cl.DeleteClientFrames(entmsg.DeltaFrom);
+		cl.FrameManager.DeleteClientFrames(entmsg.DeltaFrom);
 
-		if (ClientFrame.MAX_CLIENT_FRAMES < cl.AddClientFrame(newFrame))
-			DevMsg(1, "CL.ProcessPacketEntities: frame window too big (>%i)\n", ClientFrame.MAX_CLIENT_FRAMES);
+		if (MAX_CLIENT_FRAMES < cl.FrameManager.AddClientFrame(newFrame))
+			DevMsg(1, "CL.ProcessPacketEntities: frame window too big (>%i)\n", MAX_CLIENT_FRAMES);
 
 		ClientDLL.FrameStageNotify(ClientFrameStage.NetUpdateEnd);
 

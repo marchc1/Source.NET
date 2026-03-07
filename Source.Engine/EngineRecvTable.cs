@@ -157,7 +157,7 @@ public abstract class DatatableStack
 		}
 	}
 
-	public object? CallPropProxy(SendNode curChild, int prop, object instance) {
+	public virtual object? CallPropProxy(SendNode curChild, int prop, object instance) {
 		SendProp sendprop = Precalc.GetDatatableProp(prop)!;
 
 		SendProxyRecipients? recipients = default;

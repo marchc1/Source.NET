@@ -165,6 +165,12 @@ public class GlobalEntityList : BaseEntityList
 		// todo
 	}
 
+	public int ResetDeleteList() {
+		int count = 0;
+		// todo
+		return count;
+	}
+
 	public BaseEntity? FindEntityByClassname(BaseEntity? startEntity, ReadOnlySpan<char> className) {
 		EntInfo? info = startEntity != null ? GetEntInfoPtr(startEntity.GetRefEHandle()).Next : FirstEntInfo();
 
