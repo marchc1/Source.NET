@@ -201,7 +201,8 @@ public static partial class Util
 		ClientPrintFilter(filter, dest, msgName, param1, param2, param3, param4);
 	}
 
-	public static int DispatchSpawn(BaseEntity entity) {
+	public static int DispatchSpawn(BaseEntity? entity) {
+		Console.WriteLine($"Dispatching spawn for {entity}");
 		if (entity != null) {
 			// keep a smart pointer that will know if the object gets deleted
 			EHANDLE pEntSafe = new();
@@ -230,13 +231,17 @@ public static partial class Util
 			// 	}
 			// }
 
-			// TODO: gEntList.NotifySpawn(entity);
+			gEntList.NotifySpawn(entity);
 		}
 
 		return 0;
 	}
 
 	public static void Remove(BaseEntity entity) {
+		throw new NotImplementedException();
+	}
+
+	public static void Remove(IServerNetworkable entity) {
 		throw new NotImplementedException();
 	}
 

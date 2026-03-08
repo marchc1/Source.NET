@@ -101,7 +101,7 @@ public static class MapEntities
 
 			// To
 			if (entity is World) {
-				// TODO entity.Parent = NULL_STRING; // don't allow a parent on the first entity (worldspawn)
+				entity.ParentName = null; // don't allow a parent on the first entity (worldspawn)
 
 				Util.DispatchSpawn(entity);
 				continue;
@@ -119,7 +119,7 @@ public static class MapEntities
 			// 	//		 To ensure keys are copied over into the new entity, we pass the mapdata into the
 			// 	//		 node spawn function.
 			// 	if (ne.Spawn(curMapData) < 0) {
-			// 		gEntList.CleanupDeleteList();
+			// gEntList.CleanupDeleteList();
 			// 	}
 			// 	continue;
 			// }
@@ -196,29 +196,36 @@ public static class MapEntities
 		SpawnHierarchicalList(numEntities, spawnList, activateEntities);
 	}
 
+	static string ExtractParentName(string parentName) {
+		if (strstr(parentName, ",").IsEmpty)
+			return parentName;
+
+		throw new NotImplementedException();
+	}
+
 	static int ComputeSpawnHierarchyDepth_r(BaseEntity? entity) {
 		if (entity == null)
 			return 1;
 
-		// if (entity.Parent == NULL_STRING)
-		// 	return 1;
+		if (entity.ParentName == null)
+			return 1;
 
-		// BaseEntity parent = gEntList.FindEntityByName(null, ExtractParentName(entity.Parent));
-		// if (parent == null)
-		return 1;
+		BaseEntity? parent = gEntList.FindEntityByName(null, ExtractParentName(entity.ParentName));
+		if (parent == null)
+			return 1;
 
-		// if (parent == entity) {
-		// 	Warning("LEVEL DESIGN ERROR: Entity %s is parented to itself!\n", entity.GetDebugName());
-		// 	return 1;
-		// }
+		if (parent == entity) {
+			Warning("LEVEL DESIGN ERROR: Entity %s is parented to itself!\n", entity.GetDebugName());
+			return 1;
+		}
 
-		// return 1 + ComputeSpawnHierarchyDepth_r(parent);
+		return 1 + ComputeSpawnHierarchyDepth_r(parent);
 	}
 
 	static void ComputeSpawnHierarchyDepth(int entities, HierarchicalSpawn_t[] spawnList) {
 		for (int nEntity = 0; nEntity < entities; nEntity++) {
 			BaseEntity? entity = spawnList[nEntity].Entity;
-			if (entity != null /* && !entity.IsDormant() */)//todo
+			if (entity != null && !entity.IsDormant())
 				spawnList[nEntity].Depth = ComputeSpawnHierarchyDepth_r(entity);
 			else
 				spawnList[nEntity].Depth = 1;
@@ -230,16 +237,15 @@ public static class MapEntities
 		for (nEntity = 0; nEntity < numEntities; nEntity++) {
 			BaseEntity? entity = spawnList[nEntity].Entity;
 
-			// TODO
-			// if (spawnList[nEntity].DeferredParent != null) {
-			// 	BaseEntity pParent = spawnList[nEntity].DeferredParent;
-			// 	int iAttachment = -1;
-			// 	BaseAnimating pAnim = pParent.GetBaseAnimating();
-			// 	if (pAnim != null) {
-			// 		iAttachment = pAnim.LookupAttachment(spawnList[nEntity].DeferredParentAttachment);
-			// 	}
-			// 	entity.SetParent(pParent, iAttachment);
-			// }
+			if (spawnList[nEntity].DeferredParent != null) {
+				BaseEntity parent = spawnList[nEntity].DeferredParent;
+				int attachment = -1;
+				BaseAnimating? anim = parent.GetBaseAnimating();
+				// if (anim != null)
+				// 	attachment = anim.LookupAttachment(spawnList[nEntity].DeferredParentAttachment);
+
+				entity!.SetParent(parent, attachment);
+			}
 
 			if (entity != null) {
 				if (Util.DispatchSpawn(entity) < 0) {
@@ -261,10 +267,18 @@ public static class MapEntities
 			// bool asyncAnims = mdlcache.SetAsyncLoad(MDLCACHE_ANIMBLOCK, false);
 			for (nEntity = 0; nEntity < numEntities; nEntity++) {
 				BaseEntity? entity = spawnList[nEntity].Entity;
-				// entity?.Activate(); todo
+				entity?.Activate();
 			}
 			// mdlcache.SetAsyncLoad(MDLCACHE_ANIMBLOCK, asyncAnims);
 		}
+	}
+
+	static void SortSpawnListByHierarchy(int entities, HierarchicalSpawn_t[] spawnList) {
+
+	}
+
+	static void SetupParentsForSpawnList(int entities, HierarchicalSpawn_t[] spawnList) {
+
 	}
 
 	static void SpawnHierarchicalList(int entities, HierarchicalSpawn_t[] spawnList, bool activateEntities) {
@@ -274,7 +288,7 @@ public static class MapEntities
 		// Sort the entities (other than the world) by hierarchy depth, in order to spawn them in
 		// that order. This insures that each entity's parent spawns before it does so that
 		// it can properly set up anything that relies on hierarchy.
-		// SortSpawnListByHierarchy(entities, spawnList); TODO
+		SortSpawnListByHierarchy(entities, spawnList);
 
 		// save off entity positions if in edit mode
 		// if (engine.IsInEditMode()) // TODO
@@ -282,7 +296,7 @@ public static class MapEntities
 
 		// Set up entity movement hierarchy in reverse hierarchy depth order. This allows each entity
 		// to use its parent's world spawn origin to calculate its local origin.
-		// SetupParentsForSpawnList(entities, spawnList); TODO
+		SetupParentsForSpawnList(entities, spawnList);
 
 		// Spawn all the entities in hierarchy depth order so that parents spawn before their children.
 		SpawnAllEntities(entities, spawnList, activateEntities);

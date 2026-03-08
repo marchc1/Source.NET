@@ -140,7 +140,7 @@ public partial class NavMesh
 		Reset();
 	}
 
-	void Reset() {
+	public void Reset() {
 		DestroyNavigationMesh();
 	}
 

@@ -298,6 +298,25 @@ public class GlobalEntityList : BaseEntityList
 
 		NumEnts--;
 	}
+
+	public void Clear() {
+		ClearingEntities = true;
+
+		BaseHandle cur = FirstHandle();
+		while (cur.IsValid()) {
+			IServerNetworkable? ent = GetServerNetworkable(cur);
+			if (ent != null)
+				Util.Remove(ent);
+			cur = NextHandle(cur);
+		}
+
+		CleanupDeleteList();
+		// DeleteList.Clear();
+
+		HighestEnt = 0;
+		NumEnts = 0;
+		ClearingEntities = false;
+	}
 }
 
 public enum NotifySystemEvent

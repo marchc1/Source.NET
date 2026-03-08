@@ -43,6 +43,7 @@ public partial class BaseEntity : IServerEntity
 	public bool NameMatches(ReadOnlySpan<char> name) => false; // todo
 	public virtual bool IsPredicted() => false;
 	public virtual bool IsTemplate() => false;
+	public bool IsDormant() => IsEFlagSet(EFL.Dormant);
 
 	private static void SendProxy_AnimTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		BaseEntity entity = (BaseEntity)instance;
@@ -180,7 +181,21 @@ public partial class BaseEntity : IServerEntity
 		ClearFlags();
 	}
 
+	public virtual void Activate() {
+
+	}
+
 	public string? Name;
+	public string GetDebugName() {
+		if (this == null)
+			return "<<null>>";
+
+		return Name ?? Classname ?? "<<no name>>";
+	}
+
+	EHANDLE Parent;
+	public string? ParentName
+;
 	public float Gravity;
 	public void SetPredictionEligible(bool canpredict) { } // nothing in game code
 	public ref readonly Vector3 GetLocalOrigin() => ref AbsOrigin;
@@ -212,6 +227,38 @@ public partial class BaseEntity : IServerEntity
 		return data;
 	}
 
+	public void SetParent(string newParent, BaseEntity activator, int attachment = -1) {
+
+	}
+
+	public void SetParent(BaseEntity parentEnt, int attachment = -1) {
+		if (attachment == -1)
+			attachment = ParentAttachment;
+
+		bool wasNotParented = GetParent() == null;
+		BaseEntity? oldParent = GetParent();
+
+		Parent.Set(parentEnt);
+
+		if (parentEnt == this) {
+			Assert(false);
+			Parent.Set(null);
+		}
+
+		if (Parent.Get() == null) {
+			ParentName = null;
+			// TransformStepData_ParentToWorld(oldParent);
+			return;
+		}
+
+		ParentName = parentEnt.Name;
+		// RemoveSolidFlags(SolidFlags.RootParentAligned);
+
+		// todo
+	}
+
+	public BaseEntity? GetParent() => Parent.Get();
+
 	public static BaseEntity? GetContainingEntity(Edict ent) {
 		if (ent != null && ent.GetUnknown() != null)
 			return (BaseEntity?)ent.GetUnknown()!.GetBaseEntity();
@@ -221,6 +268,28 @@ public partial class BaseEntity : IServerEntity
 	public Team? GetTeam() => GetGlobalTeam(TeamNum);
 
 	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent);
+
+	public static BaseEntity? Create(ReadOnlySpan<char> name, Vector3 origin, QAngle angles, BaseEntity? owner = null) {
+		BaseEntity? ent = CreateNoSpawn(name, origin, angles, owner);
+		Util.DispatchSpawn(ent);
+		return ent;
+	}
+
+	public static BaseEntity? CreateNoSpawn(ReadOnlySpan<char> name, Vector3 origin, QAngle angles, BaseEntity? owner = null) {
+		BaseEntity? ent = CreateEntityByName(name);
+		if (ent == null) {
+			AssertMsg(false, "CreateNoSpawn: only works for CBaseEntities");
+			return null;
+		}
+
+		ent.SetLocalOrigin(origin);
+		ent.SetLocalAngles(angles);
+		// ent.SetOwnerEntity(owner);
+
+		gEntList.NotifyCreateEntity(ent);
+
+		return ent;
+	}
 
 	public byte RenderFX;
 	public byte RenderMode;
@@ -435,8 +504,7 @@ public partial class BaseEntity : IServerEntity
 				gEntList.AddNetworkableEntity(this, EntIndex());
 
 				// Cache our IServerNetworkable pointer for the engine for fast access.
-				if (Edict() != null)
-					Edict().Networkable = NetworkProp();
+				Edict()?.Networkable = NetworkProp();
 			}
 		}
 
@@ -462,12 +530,15 @@ public partial class BaseEntity : IServerEntity
 		throw new NotImplementedException();
 	}
 
-	public ReadOnlySpan<char> GetModelName() {
-		throw new NotImplementedException();
+	string? ModelName;
+	public ReadOnlySpan<char> GetModelName() => ModelName;
+	public void SetModelName(ReadOnlySpan<char> modelName) {
+		ModelName = new(modelName);
+		DispatchUpdateTransmitState();
 	}
 
 	public IServerNetworkable? GetNetworkable() {
-		throw new NotImplementedException();
+		return null; // todo
 	}
 
 	public ref readonly BaseHandle GetRefEHandle() => ref RefEHandle;

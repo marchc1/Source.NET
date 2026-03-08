@@ -2,6 +2,7 @@ using Source.Common;
 using Source.Common.Bitbuffers;
 using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.Networking;
 
 using System.Buffers;
 using System.Diagnostics;
@@ -281,8 +282,21 @@ static class PackedEntities
 		throw new NotImplementedException();
 	}
 
-	static void WriteClassInfos(ServerClass clases, bf_write buffer) {
-		throw new NotImplementedException();
+	public static void WriteClassInfos(ServerClass clases, bf_write buffer) {
+		SVC_ClassInfo msg = new() {
+			CreateOnClient = false
+		};
+
+		for (ServerClass? serverClass = clases; serverClass != null; serverClass = serverClass.Next) {
+			SVC_ClassInfo.Class svclass = new() {
+				ClassID = serverClass.ClassID,
+				DataTableName = serverClass.Table.GetName().ToString(),
+				ClassName = serverClass.NetworkName.ToString()
+			};
+			msg.Classes.Add(svclass);
+		}
+
+		msg.WriteToBuffer(buffer);
 	}
 
 	static ReadOnlySpan<char> GetOjectClassName(int objectId) {

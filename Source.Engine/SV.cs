@@ -258,7 +258,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 				return;
 			}
 
-			// WriteClassInfos(pClasses, sv.FullSendTables);
+			PackedEntities.WriteClassInfos(pClasses!, sv.FullSendTables);
 
 			if (sv.FullSendTables.Overflowed) {
 				Host.Error("SV_CreateBaseline: WriteClassInfos overflow.\n");
@@ -299,7 +299,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 				bytes += writeBuf.BytesWritten;
 				count++;
 			}
-			DevMsg("Created class baseline: %i classes, %i bytes.\n", count, bytes);
+			DevMsg($"Created class baseline: {count} classes, {bytes} bytes.\n");
 		}
 
 		g_GameEventManager.ReloadEventDefinitions();

@@ -751,7 +751,16 @@ public class SVC_PacketEntities : NetMessage
 	}
 
 	public override bool WriteToBuffer(bf_write buffer) {
-		return base.WriteToBuffer(buffer);
+		buffer.WriteNetMessageType(this);
+		buffer.WriteUBitLong((uint)MaxEntries, MAX_EDICT_BITS);
+		buffer.WriteBool(IsDelta);
+		if (IsDelta)
+			buffer.WriteLong(DeltaFrom);
+		buffer.WriteUBitLong((uint)Baseline, 1);
+		buffer.WriteUBitLong((uint)UpdatedEntries, MAX_EDICT_BITS);
+		buffer.WriteUBitLong((uint)Length, DELTASIZE_BITS);
+		buffer.WriteBool(UpdateBaseline);
+		return buffer.WriteBits(DataOut.BaseArray, Length);
 	}
 
 	public override string ToString() {

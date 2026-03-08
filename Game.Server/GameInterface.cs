@@ -1,7 +1,5 @@
 ﻿global using static Game.Server.EngineCallbacks;
 
-using CommunityToolkit.HighPerformance;
-
 using Game.Server.GarrysMod;
 using Game.Shared;
 
@@ -378,7 +376,20 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void LevelShutdown() {
-		throw new NotImplementedException();
+		IGameSystem.LevelShutdownPreClearSteamAPIContextAllSystems();
+		// steamgameserverapicontext.Clear();
+
+		IGameSystem.LevelShutdownPreEntityAllSystems();
+
+		// SoundEnt.ShutdownSoundEnt()
+
+		gEntList.Clear();
+
+		// InvalidateQueryCache();
+
+		IGameSystem.LevelShutdownPostEntityAllSystems();
+
+		NavMesh.NavMesh.Instance!.Reset();
 	}
 
 	public void PostInit() {
@@ -404,8 +415,8 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 			Msg("ERROR: Entity delete queue not empty on level start!\n");
 
 		for (BaseEntity? ent = gEntList.FirstEnt(); ent != null; ent = gEntList.NextEnt(ent)) {
-			// if (ent != null && !ent.IsDormant())
-			// ent.Activate();
+			if (ent != null && !ent.IsDormant())
+				ent.Activate();
 		}
 
 		IGameSystem.LevelInitPostEntityAllSystems();

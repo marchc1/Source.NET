@@ -300,7 +300,7 @@ public abstract class BaseServer : IServer
 
 		// TRACE_PACKET(("WriteDeltaEntities (%d)\n", u.ToSnapshot.NumEntities));
 
-		u.Buffer.WriteUBitLong(26, Protocol.NETMSG_TYPE_BITS);
+		u.Buffer.WriteUBitLong(SVC.PacketEntities, Protocol.NETMSG_TYPE_BITS);
 
 		u.Buffer.WriteUBitLong((uint)u.ToSnapshot.NumEntities, Constants.MAX_EDICT_BITS);
 
@@ -670,9 +670,23 @@ public abstract class BaseServer : IServer
 		if (PausedTimeEnd >= 0 && State == ServerState.Paused && Sys.Time >= PausedTimeEnd)
 			SetPausedForced(false);
 	}
-	public void InactivateClients() {
 
+	public void InactivateClients() {
+		for (int i = 0; i < Clients.Count; i++) {
+			BaseClient cl = Clients[i];
+
+			if (cl.IsFakeClient() && !cl.IsHLTV()) {
+				Steam3Server().NotifyClientDisconnect(cl);
+				cl.Clear();
+				continue;
+			}
+			else if (!cl.IsConnected())
+				continue;
+
+			cl.Inactivate();
+		}
 	}
+
 	public void ReconnectClients() {
 		for (int i = 0; i < Clients.Count; i++) {
 			BaseClient cl = Clients[i];

@@ -3,6 +3,8 @@
 using Game.Shared;
 
 using Source.Common;
+using Source.Common.Commands;
+using Source.Engine;
 
 using System.Numerics;
 
@@ -49,19 +51,27 @@ public class World : BaseEntity
 		g_WorldEntity = this;
 		g_fGameOver = false;
 
+		ConVarRef stepsize = new("sv_stepsize");
+		stepsize.SetValue(18);
+
+		// ConVarRef roomtype = new("room_type");
+		// roomtype.SetValue(0);
+
 		Assert(g_pGameRules == null);
 		InstallGameRules();
 		Assert(g_pGameRules != null);
 		g_pGameRules.Init();
 
-		// IGameSystem.LevelInitPreEntityAllSystems(GetModelName());
+		IGameSystem.LevelInitPreEntityAllSystems(GetModelName());
+
+		g_pGameRules.CreateStandardEntities();
 	}
 
 	public override void Spawn() {
 		SetLocalOrigin(vec3_origin);
 		SetLocalAngles(vec3_angle);
 		SetModelIndex(1);
-		// SetModelName todo
+		// SetModelName(modelinfo.GetModelName(GetModel()));
 		AddFlag(Source.EntityFlags.WorldBrush);
 
 		// EventQueue.Init();

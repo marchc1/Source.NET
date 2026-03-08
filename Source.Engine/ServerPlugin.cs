@@ -61,7 +61,7 @@ public class ServerPlugin : IServerPluginHelpers
 		serverGameDLL.GameFrame(simulating);
 	}
 
-	void LevelShutdown() {
+	public void LevelShutdown() {
 		serverGameDLL.LevelShutdown();
 	}
 

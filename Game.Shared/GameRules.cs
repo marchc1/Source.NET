@@ -111,6 +111,11 @@ public abstract class
 
 		return spawnSpot;
 	}
+
+	public void CreateStandardEntities() {
+		PlayerResource g_pPlayerResource = (PlayerResource)BaseEntity.Create("player_manager", vec3_origin, vec3_angle); // todo, should be global
+		g_pPlayerResource.AddEFlags(EFL.KeepOnRecreateEntities);
+	}
 #endif
 }
 #endif
