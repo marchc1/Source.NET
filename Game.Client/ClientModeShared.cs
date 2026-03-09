@@ -238,6 +238,15 @@ public class ClientModeShared : GameEventListener, IClientMode
 
 	public void LevelInit(ReadOnlySpan<char> newmap) {
 		Viewport.GetAnimationController().StartAnimationSequence("LevelInit");
+
+		// if (ChatElement != null)
+		// 	ChatElement.LevelInit(newmap);
+
+		IGameEvent? evnt = gameeventmanager.CreateEvent("game_newmap");
+		if (evnt != null) {
+			evnt.SetString("mapname", newmap);
+			gameeventmanager.FireEventClientSide(evnt);
+		}
 	}
 
 	public void ProcessInput(bool active) {

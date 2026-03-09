@@ -255,8 +255,8 @@ static class PackedEntities
 
 		}
 
-		if (false /* g_LocalNetworkBackdoor */) {
-
+		if (CL.LocalNetworkBackdoor != null) {
+			throw new NotImplementedException();
 		}
 		else
 			Normal(clientCount, clients, snapshot);

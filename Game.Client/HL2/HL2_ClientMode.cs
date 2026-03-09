@@ -12,9 +12,10 @@ public static class HL2_ClientMode_Globals
 	public static IClientMode clientMode { get; set; } = null!;
 }
 
-public class HLModeManager : IVModeManager {
+public class HLModeManager : IVModeManager
+{
 	public static readonly HLModeManager g_HLModeManager = new();
-	static HLModeManager(){
+	static HLModeManager() {
 		modemanager = g_HLModeManager;
 	}
 
@@ -27,6 +28,6 @@ public class HLModeManager : IVModeManager {
 	}
 
 	public void LevelShutdown() {
-		throw new NotImplementedException();
+		// clientMode.LevelShutdown(); todo
 	}
 }

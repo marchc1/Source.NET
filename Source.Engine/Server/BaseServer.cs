@@ -330,7 +330,7 @@ public abstract class BaseServer : IServer
 			client.TraceNetworkData(pBuf, "Delta Entities Overhead");
 
 		// Don't work too hard if we're using the optimized single-player mode.
-		if (true /*!g_pLocalNetworkBackdoor*/) { // todo
+		if (CL.LocalNetworkBackdoor == null) {
 
 			// Iterate through the in PVS bitfields until we find an entity 
 			// that was either in the old pack or the new pack

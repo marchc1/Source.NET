@@ -324,8 +324,60 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 	public void HudProcessInput(bool active) => gHUD.ProcessInput(active);
 
-	public void LevelShutdown() {
+	public void HudUpdate(bool active) {
+		TimeUnit_t frameTime = gpGlobals.FrameTime;
 
+		// GetClientVoiceMgr().Frame(frameTime);
+
+		gHUD.UpdateHud(active);
+
+		BaseAnimating.AutoAllowBoneAccess boneAccess = new(true, true);
+		IGameSystem.UpdateAllSystems(frameTime);
+
+		// vgui.GetAnimationController().UpdateAnimations(gpGlobals.CurTime);
+
+		C_BaseTempEntity.CheckDynamicTempEnts();
+	}
+
+	public void HudReset() {
+		gHUD.VidInit();
+		// PhysicsReset();
+	}
+
+	public void LevelShutdown() {
+		// if (!LevelInitialized)
+		// 	return;
+
+		// LevelInitialized = false;
+
+		C_BaseEntity.EnableAbsRecomputations(false);
+
+		IGameSystem.LevelShutdownPreEntityAllSystems();
+
+		// C_PhysPropClientside.DestroyAll();
+
+		modemanager.LevelShutdown();
+		// tempents.LevelShutdown();
+		// cl_entitylist.Release()
+
+		// C_BaseEntityClassList classList = s_pClassLists;
+		// while (classList != null) {
+		// 	classList.LevelShutdown();
+		// 	classList = classList.NextClassList;
+		// }
+
+		IGameSystem.LevelShutdownPostEntityAllSystems();
+
+		view.LevelShutdown();
+		beams.ClearBeams();
+
+		// ParticleMgr().RemoveAllEffects();
+
+		// StopAllRumbleEffects();
+
+		// gHUD.LevelShutdown();
+
+		// todo
 	}
 
 	public LookupProxyInterfaceFn GetMaterialProxyInterfaceFn() {

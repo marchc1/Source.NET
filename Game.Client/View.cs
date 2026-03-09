@@ -166,7 +166,7 @@ public class ViewRender : IViewRender
 	}
 
 	public void LevelShutdown() {
-		throw new NotImplementedException();
+		// ScreenSpaceEffects.ShutdownScreenSpaceEffects();
 	}
 
 	public void OnRenderStart() {

@@ -16,11 +16,13 @@ public interface IBaseClientDLL
 	public void EncodeUserCmdToBuffer(bf_write buf, int slot);
 	public void DecodeUserCmdFromBuffer(bf_read buf, int slot);
 	bool DisconnectAttempt();
-	void HudText(ReadOnlySpan<char> text);
 	bool DispatchUserMessage(int msgType, bf_read msgData);
 	bool Init();
 	int HudVidInit();
 	void HudProcessInput(bool active);
+	void HudUpdate(bool active);
+	void HudReset();
+	void HudText(ReadOnlySpan<char> text);
 	bool HandleUiToggle();
 	void IN_DeactivateMouse();
 	void IN_ActivateMouse();

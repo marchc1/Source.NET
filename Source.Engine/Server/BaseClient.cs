@@ -497,8 +497,8 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		if (Tracing != 0)
 			TraceNetworkData(msg, "NET_Tick");
 
-		// if (LocalNetworkBackdoor == null)
-		Server.StringTables!.WriteUpdateMessage(this, GetMaxAckTickCount(), msg);
+		if (CL.LocalNetworkBackdoor == null)
+			Server.StringTables!.WriteUpdateMessage(this, GetMaxAckTickCount(), msg);
 
 		int deltaStartBit = 0;
 		if (Tracing != 0)

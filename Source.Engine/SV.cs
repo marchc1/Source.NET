@@ -266,7 +266,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 			}
 		}
 
-		if (true /*!g_pLocalNetworkBackdoor*/) {
+		if (CL.LocalNetworkBackdoor == null) {
 			int count = 0;
 			int bytes = 0;
 

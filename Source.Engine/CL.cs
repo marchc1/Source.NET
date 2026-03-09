@@ -54,7 +54,7 @@ public partial class CL(IServiceProvider services, Net Net,
 	}
 
 	readonly LocalNetworkBackdoor localNetworkBackdoor = new();
-	public LocalNetworkBackdoor? LocalNetworkBackdoor;
+	public static LocalNetworkBackdoor? LocalNetworkBackdoor;
 
 	public void SetupLocalNetworkBackDoor(bool useBackdoor) {
 		if (useBackdoor) {
@@ -241,7 +241,7 @@ public partial class CL(IServiceProvider services, Net Net,
 			port = Net.LocalAdr.GetPort();
 		}
 
-		int queryPort = 0; // TODO
+		int queryPort = GetServerQueryPort();
 
 		EngineVGui!.NotifyOfServerConnect(Common.Gamedir, (int)ip, port, queryPort);
 		EngineVGui!.UpdateProgressBar(LevelLoadingProgress.ReadyToPlay);
@@ -272,6 +272,10 @@ public partial class CL(IServiceProvider services, Net Net,
 		}
 
 		cl.Connect(address, sourceTag);
+	}
+
+	int GetServerQueryPort() {
+		return 0; // TODO
 	}
 
 	[ConCommand]
@@ -775,7 +779,13 @@ public class ClientDLL(IServiceProvider services, Sys Sys, EngineRecvTable RecvT
 	}
 
 	public void Update() {
+		if (sv.IsDedicated())
+			return;
 
+		if (clientDLL == null)
+			return;
+
+		clientDLL.HudUpdate(true);
 	}
 
 	public void ProcessInput() => g_ClientDLL?.HudProcessInput(cl.IsConnected());
