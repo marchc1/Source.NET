@@ -841,8 +841,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 					bool invert = showmsgname.StartsWith('!');
 					if (invert) showmsgname = showmsgname[1..];
 					if (showmsgname == "1" || (showmsgname.Equals(netMsg.GetName(), StringComparison.OrdinalIgnoreCase) ^ invert))
-						Msg($"Msg from {RemoteAddress}: {netMsg.ToString()?.Trim('\n')}\n");
-
+#if DEBUG
+						_ColorSpewMessage(SpewType.Message, new Color(255, 128, 0), $"Msg from {RemoteAddress}: {netMsg.ToString()?.Trim('\n')}\n");
+#else
+						Msg($"Msg from {RemoteAddress}: {netMsg.GetName()}\n");
+#endif
 				}
 
 				string blockmsgname = Net.net_blockmsg.GetString();
