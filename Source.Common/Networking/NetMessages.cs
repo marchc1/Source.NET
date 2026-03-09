@@ -70,6 +70,8 @@ public class NET_Tick : NetMessage
 		buffer.WriteUBitLong((uint)Math.Clamp((int)(NET_TICK_SCALEUP * HostFrameDeviation), 0, 65535), 16);
 		return !buffer.Overflowed;
 	}
+
+	public override string ToString() => $"NET_Tick: tick {Tick}";
 }
 public class NET_SetConVar : NetMessage
 {
@@ -269,6 +271,8 @@ public class SVC_ServerInfo : NetMessage
 
 		return !buffer.Overflowed;
 	}
+
+	public override string ToString() => $"SVC_ServerInfo: game \"{GameDirectory}\", map \"{MapName}\", max {MaxClients}";
 }
 public class SVC_ClassInfo : NetMessage
 {
@@ -390,6 +394,8 @@ public class SVC_CreateStringTable : NetMessage
 		Msg($"svc_CreateStringTable: {TableName}, contains {NumEntries}/{MaxEntries}\n");
 		return buffer.SeekRelative(Length);
 	}
+
+	public override string ToString() => $"SVC_CreateStringTable: table {TableName}, entries {NumEntries}, bytes {Bits2Bytes(Length)} userdatasize {UserDataSize} userdatabits {UserDataSizeBits}";
 }
 public class SVC_UpdateStringTable : NetMessage
 {
@@ -556,6 +562,8 @@ public class SVC_BSPDecal : NetMessage
 
 		return !buffer.Overflowed;
 	}
+
+	public override string ToString() => $"SVC_BSPDecal: tex {DecalTextureIndex}, ent {EntityIndex}, mod {ModelIndex}, lowpriority {(LowPriority ? "1" : "0")}";
 }
 public class SVC_GameEvent : NetMessage
 {
@@ -581,6 +589,8 @@ public class SVC_GameEvent : NetMessage
 		buffer.WriteUBitLong((uint)Length, Protocol.NETMSG_LENGTH_BITS);
 		return buffer.WriteBits(DataOut.BaseArray, Length);
 	}
+
+	public override string ToString() => $"SVC_GameEvent: bytes {Bits2Bytes(Length)}";
 }
 public class SVC_GameEventList : NetMessage
 {
@@ -630,6 +640,8 @@ public class SVC_SetView : NetMessage
 		EntityIndex = (int)buffer.ReadUBitLong(MAX_EDICT_BITS);
 		return !buffer.Overflowed;
 	}
+
+	public override string ToString() => $"SVC_SetView: view entity {EntityIndex}";
 }
 public class SVC_FixAngle : NetMessage
 {
@@ -659,6 +671,8 @@ public class SVC_FixAngle : NetMessage
 		buffer.WriteBitAngle(Angle.Z, 16);
 		return !buffer.Overflowed;
 	}
+
+	public override string ToString() => $"SVC_FixAngle: {(Relative ? "relative" : "absolute")} {Angle.X}, {Angle.Y}, {Angle.Z}";
 }
 public class SVC_UserMessage : NetMessage
 {
@@ -717,7 +731,24 @@ public class SVC_EntityMessage : NetMessage
 		return buffer.SeekRelative(Length);
 	}
 
+	public override bool WriteToBuffer(bf_write buffer) {
+		Length = DataOut.BitsWritten;
+
+		Debug.Assert(Length < 1 << NETMSG_LENGTH_BITS);
+		if (Length >= 1 << NETMSG_LENGTH_BITS)
+			return false;
+
+		buffer.WriteNetMessageType(this);
+		buffer.WriteUBitLong((uint)EntityIndex, MAX_EDICT_BITS);
+		buffer.WriteUBitLong((uint)ClassID, MAX_SERVER_CLASS_BITS);
+		buffer.WriteUBitLong((uint)Length, NETMSG_LENGTH_BITS);
+
+		return buffer.WriteBits(DataOut.BaseArray, Length);
+	}
+
+	public override string ToString() => $"SVC_EntityMessage: entity {EntityIndex}, class {ClassID}, bytes {Bits2Bytes(Length)}";
 }
+
 public class SVC_PacketEntities : NetMessage
 {
 	public SVC_PacketEntities() : base(SVC.PacketEntities) { }
@@ -848,6 +879,8 @@ public class CLC_Move : NetMessage
 
 		return buffer.WriteBits(DataOut.BaseArray, Length);
 	}
+
+	public override string ToString() => $"CLC_Move: backup {BackupCommands}, new {NewCommands}, bytes {Bits2Bytes(Length)}";
 }
 public class CLC_ListenEvents : NetMessage, IPoolableObject
 {
@@ -875,6 +908,15 @@ public class CLC_ListenEvents : NetMessage, IPoolableObject
 			EventArray.SetDWord(i, buffer.ReadUBitLong(32));
 
 		return !buffer.Overflowed;
+	}
+
+	public override string ToString() {
+		int count = 0;
+		for (int i = 0; i < MAX_EVENT_NUMBER; i++) {
+			if (EventArray.Get(i) != 0)
+				count++;
+		}
+		return $"CLC_ListenEvents: registered events {count}";
 	}
 }
 public class CLC_ClientInfo : NetMessage
@@ -959,6 +1001,8 @@ public class CLC_GMod_ClientToServer : NetMessage
 
 		return base.WriteToBuffer(buffer);
 	}
+
+	public override string ToString() => $"CLC_GMod_ClientToServer: bytes {Bits2Bytes(Length)}";
 }
 
 public class CLC_BaselineAck : NetMessage
@@ -986,6 +1030,8 @@ public class CLC_BaselineAck : NetMessage
 		BaselineNumber = (int)buffer.ReadUBitLong(1);
 		return !buffer.Overflowed;
 	}
+
+	public override string ToString() => $"CLC_BaselineAck: tick {BaselineTick}";
 }
 public class SVC_TempEntities : NetMessage
 {
