@@ -87,7 +87,11 @@ public class GameRulesRegister
 
 		// Make sure the client gets notification to make a new game rules object.
 		Assert(g_StringTableGameRules != null);
-		g_StringTableGameRules.AddString(true, "classname", ((int)strlen(className) + 1) * sizeof(char), className.Cast<char, byte>());
+
+		Span<byte> classNameBytes = stackalloc byte[(int)strlen(className) + 1];
+		for (int i = 0; i < classNameBytes.Length - 1; i++) classNameBytes[i] = (byte)className[i];
+
+		g_StringTableGameRules.AddString(true, "classname", classNameBytes.Length, classNameBytes);
 
 		g_pGameRules?.CreateCustomNetworkStringTables();
 	}

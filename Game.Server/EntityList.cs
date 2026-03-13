@@ -188,7 +188,7 @@ public class GlobalEntityList : BaseEntityList
 		return null;
 	}
 
-	public BaseEntity? FindEntityByName(BaseEntity? startEntity, ReadOnlySpan<char> name, BaseEntity? searchingEntity = null, BaseEntity? activator = null, BaseEntity? caller = null, int/*IEntityFindFilter*/? filter = null) {
+	public BaseEntity? FindEntityByName(BaseEntity? startEntity, ReadOnlySpan<char> name, BaseEntity? searchingEntity = null, BaseEntity? activator = null, BaseEntity? caller = null, IEntityFindFilter filter = null) {
 		if (name.IsEmpty)
 			return null;
 
@@ -212,8 +212,8 @@ public class GlobalEntityList : BaseEntityList
 				continue;
 
 			if (ent.NameMatches(name)) {
-				// if (filter != null && !filter.ShouldFindEntity(ent))
-				// 	continue;
+				if (filter != null && !filter.ShouldFindEntity(ent))
+					continue;
 
 				return ent;
 			}
@@ -377,4 +377,10 @@ public interface IEntityListener
 	void OnEntityCreated(BaseEntity ent) { }
 	void OnEntitySpawned(BaseEntity ent) { }
 	void OnEntityDeleted(BaseEntity ent) { }
+}
+
+public interface IEntityFindFilter
+{
+	bool ShouldFindEntity(BaseEntity ent);
+	BaseEntity? GetFilterResult();
 }

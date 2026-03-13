@@ -195,7 +195,7 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 #if DEBUG
 		}
 		catch (Exception ex) {
-			DevMsg($"EncodeProp: skipping prop '{p.GetName()}' on '{p.FieldInfo?.DeclaringType?.Name}' ({p.Type}): {ex.GetType().Name}: {ex.Message}\n");
+			// DevMsg($"EncodeProp: skipping prop '{p.GetName()}' on '{p.FieldInfo?.DeclaringType?.Name}' ({p.Type}): {ex.GetType().Name}: {ex.Message}\n");
 		}
 #endif
 	}

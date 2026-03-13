@@ -248,7 +248,6 @@ public abstract class BaseClientState(
 
 	internal PackedEntity? GetEntityBaseline(int baseline, int newEntity) => EntityBaselines[baseline][newEntity];
 
-
 	public virtual void ConnectionStart(INetChannel channel) {
 		channel.RegisterMessage<NET_Tick>();
 		channel.RegisterMessage<NET_SignonState>();
@@ -382,7 +381,7 @@ public abstract class BaseClientState(
 	}
 
 	protected virtual bool ProcessGameEventList(SVC_GameEventList msg) {
-		return true;
+		return gameEventManager.ParseEventList(msg);
 	}
 
 	protected virtual bool ProcessBSPDecal(SVC_BSPDecal msg) {
@@ -573,7 +572,9 @@ public abstract class BaseClientState(
 
 	private bool ProcessSetConVar(NET_SetConVar msg) {
 		if (NetChannel == null) return false;
-		// TODO: loopback netchannels
+
+		if (NetChannel.IsLoopback())
+			return true;
 
 		foreach (var var in msg.ConVars) {
 			ConVar? cv = cvar.FindVar(var.Name);
@@ -605,7 +606,8 @@ public abstract class BaseClientState(
 		NetChannel.SetRemoteFramerate(msg.HostFrameTime, msg.HostFrameDeviation);
 		SetClientTickCount(msg.Tick);
 		SetServerTickCount(msg.Tick);
-		// string tables?
+
+		StringTableContainer?.SetTick(GetServerTickCount());
 
 		return GetServerTickCount() > 0;
 	}
@@ -847,7 +849,10 @@ public abstract class BaseClientState(
 	}
 
 	private void FreeEntityBaselines() {
-
+		for (int i = 0; i < 2; i++)
+			for (int j = 0; j < Constants.MAX_EDICTS; j++)
+				if (EntityBaselines[i][j] != null)
+					EntityBaselines[i][j] = null;
 	}
 
 	public void SendStringCmd(ReadOnlySpan<char> str) {

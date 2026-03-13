@@ -159,7 +159,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		}
 
 		if (address != null) {
-			RemoteAddress = address;
+			RemoteAddress = address.Copy(); // fixme?
 		}
 		else if (RemoteAddress != null) {
 			RemoteAddress.Type = NetAddressType.Null;

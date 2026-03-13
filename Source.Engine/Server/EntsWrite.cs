@@ -84,14 +84,16 @@ static class EntsWrite
 
 		Assert(toData != null);
 
-		int[] sendProps = new int[Constants.MAX_DATATABLE_PROPS];
-		byte[]? sendData;
-		int nSendProps;
-
+		int[] pSendProps = new int[Constants.MAX_DATATABLE_PROPS];
+		int[] sendProps = checkProps;
+		int nSendProps = nCheckProps;
 		bf_write bufStart = new();
 
-		if (u.CullProps)
-			nSendProps = EngSendTable.CullPropsFromProxies(sendTable, checkProps, nCheckProps, u.ClientEntity - 1, from.GetRecipients(), from.GetNumRecipients(), to.GetRecipients(), to.GetNumRecipients(), sendProps, sendProps.Length);
+		if (u.CullProps) {
+			sendProps = pSendProps;
+
+			nSendProps = EngSendTable.CullPropsFromProxies(sendTable, checkProps, nCheckProps, u.ClientEntity - 1, from.GetRecipients(), from.GetNumRecipients(), to.GetRecipients(), to.GetNumRecipients(), pSendProps, pSendProps.Length);
+		}
 		else
 			bufStart = u.Buffer;
 
@@ -102,7 +104,7 @@ static class EntsWrite
 			u.Buffer,
 			to.EntityIndex,
 			sendProps,
-			nCheckProps);
+			nSendProps);
 
 		if (!u.CullProps && u.Server.IsHLTV()) {
 			throw new NotImplementedException();
@@ -178,7 +180,7 @@ static class EntsWrite
 			}
 
 			nCheckProps = EngSendTable.CalcDelta(
-				u.OldPack.ServerClass!.Table,
+				u.NewPack.ServerClass!.Table,
 				oldData,
 				nOldBits,
 				newData!,

@@ -238,20 +238,9 @@ static class PackedEntities
 
 	public static void ComputeClientPacks(int clientCount, GameClient[] clients, FrameSnapshot snapshot) {
 		for (int i = 0; i < clientCount; i++) {
-			// todo transmit info
+			// todo transmit info todo todo todo todo todo maybe possibly todo
 
 			clients[i].SetupPackInfo(snapshot);
-
-#if DEBUG // HACK until transmit stuff is done!
-			for (int j = 0; j < snapshot.NumValidEntities; j++) {
-				int index = snapshot.ValidEntities![j];
-				Edict edict = sv.Edicts![index];
-
-				if (clients[i].CurrentFrame!.TransmitEntity.Get(index) == 0) {
-					clients[i].CurrentFrame!.TransmitEntity.Set(index);
-				}
-			}
-#endif
 
 		}
 

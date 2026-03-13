@@ -164,7 +164,7 @@ public partial class BaseEntity : IServerEntity
 		SendPropInt(FIELD.OF(nameof(MapCreatedID)), 16),
 	]);
 
-	public BaseEntity() {
+	public BaseEntity(bool serverOnly = false) {
 		// todo todo
 
 		// CollisionProp().Init(this);
@@ -176,9 +176,14 @@ public partial class BaseEntity : IServerEntity
 		// ClearSolidFlags();
 
 		SetMoveType(Source.MoveType.None);
-		// SetModelIndex(0);
+		SetModelIndex(0);
 
 		ClearFlags();
+
+		if (serverOnly)
+			AddEFlags(EFL.ServerOnly);
+
+		AddEFlags(EFL.UsePartitionWhenNotSolid);
 	}
 
 	public virtual void Activate() {
