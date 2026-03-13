@@ -562,9 +562,14 @@ public class GameServer : BaseServer
 #if !SWDS
 			EngineVGui().UpdateProgressBar(LevelLoadingProgress.CrcMap);
 #endif
-			// Server map CRC check.
 			memreset(ref WorldmapMD5);
-			// todo
+
+			if (!ChecksumEngine.MD5_MapFile(out WorldmapMD5, mapFile)) {
+				ConMsg($"Couldn't CRC server map: {mapFile.SliceNullTerminatedString()}\n");
+				State = ServerState.Dead;
+				g_pFileSystem.EndMapAccess();
+				return false;
+			}
 #if !SWDS
 			EngineVGui().UpdateProgressBar(LevelLoadingProgress.CrcClientDll);
 #endif

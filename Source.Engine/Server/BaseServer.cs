@@ -619,7 +619,8 @@ public abstract class BaseServer : IServer
 	public virtual void FillServerInfo(SVC_ServerInfo serverinfo) {
 		serverinfo.Protocol = Protocol.VERSION;
 		serverinfo.ServerCount = GetSpawnCount();
-		// serverinfo.MapMD5 = WorldmapMD5;
+		if (WorldmapMD5.Bits != default) // FIXME: singleplayer crash
+			serverinfo.MapMD5 = WorldmapMD5;
 		serverinfo.MaxClients = GetMaxClients();
 		serverinfo.MaxClasses = ServerClasses;
 		serverinfo.IsDedicated = IsDedicated();
