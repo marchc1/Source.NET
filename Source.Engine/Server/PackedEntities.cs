@@ -288,7 +288,7 @@ static class PackedEntities
 		msg.WriteToBuffer(buffer);
 	}
 
-	static ReadOnlySpan<char> GetOjectClassName(int objectId) {
+	static ReadOnlySpan<char> GetObjectClassName(int objectId) {
 		throw new NotImplementedException();
 	}
 }

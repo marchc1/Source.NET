@@ -30,6 +30,8 @@ public static class CdllExts
 
 public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals, ISurface surface, ViewRender view, IInput input, Hud HUD, UserMessages usermessages, Interpolation Interpolation) : IBaseClientDLL
 {
+	IVGui? vgui;
+
 	public static void DLLInit(IServiceCollection services) {
 		services.AddSingleton<IInput, HLInput>();
 		services.AddSingleton<ClientEntityList>();
@@ -105,6 +107,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 #endif
 		IGameSystem.Add(Singleton<ViewportClientSystem>());
 
+		vgui = services.GetService<IVGui>();
 
 		modemanager.Init();
 		// clientMode.InitViewport();
@@ -334,7 +337,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		BaseAnimating.AutoAllowBoneAccess boneAccess = new(true, true);
 		IGameSystem.UpdateAllSystems(frameTime);
 
-		// vgui.GetAnimationController().UpdateAnimations(gpGlobals.CurTime);
+		vgui!.GetAnimationController().UpdateAnimations(gpGlobals.CurTime);
 
 		C_BaseTempEntity.CheckDynamicTempEnts();
 	}

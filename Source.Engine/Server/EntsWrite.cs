@@ -42,7 +42,7 @@ static class EntsWrite
 		u.HeaderBase = entnum;
 	}
 
-	public static void WriteDeltaHeader(EntityWriteInfo u, int entnum, int flags) {
+	public static void WriteDeltaHeader(EntityWriteInfo u, int entnum, DeltaEncodingFlags flags) {
 		bf_write buffer = u.Buffer;
 
 		int offset = entnum - u.HeaderBase - 1;
@@ -51,13 +51,13 @@ static class EntsWrite
 
 		buffer.WriteUBitVar((uint)offset);
 
-		if ((flags & Protocol.FHDR_LEAVEPVS) != 0) {
+		if ((flags & DeltaEncodingFlags.LeavePVS) != 0) {
 			buffer.WriteOneBit(1);
-			buffer.WriteOneBit(flags & Protocol.FHDR_DELETE);
+			buffer.WriteOneBit((flags & DeltaEncodingFlags.Delete) != 0 ? 1 : 0);
 		}
 		else {
 			buffer.WriteOneBit(0);
-			buffer.WriteOneBit(flags & Protocol.FHDR_ENTERPVS);
+			buffer.WriteOneBit((flags & DeltaEncodingFlags.EnterPVS) != 0 ? 1 : 0);
 		}
 
 		UpdateHeaderDelta(u, entnum);
@@ -191,7 +191,7 @@ static class EntsWrite
 		}
 
 		if (nCheckProps > 0) {
-			WriteDeltaHeader(u, u.NewEntity, Protocol.FHDR_ZERO);
+			WriteDeltaHeader(u, u.NewEntity, DeltaEncodingFlags.Zero);
 
 			WritePropsFromPackedEntity(u, checkProps, nCheckProps);
 
@@ -202,7 +202,7 @@ static class EntsWrite
 	}
 
 	static void WriteEnterPVS(EntityWriteInfo u) {
-		WriteDeltaHeader(u, u.NewEntity, Protocol.FHDR_ENTERPVS);
+		WriteDeltaHeader(u, u.NewEntity, DeltaEncodingFlags.EnterPVS);
 
 		Assert(u.NewEntity < u.ToSnapshot.NumEntities);
 
@@ -262,7 +262,7 @@ static class EntsWrite
 	}
 
 	static void WriteLeavePVS(EntityWriteInfo u) {
-		int headerflags = Protocol.FHDR_LEAVEPVS;
+		DeltaEncodingFlags headerflags = DeltaEncodingFlags.LeavePVS;
 		bool deleteentity = false;
 
 		if (u.AsDelta)
@@ -270,7 +270,7 @@ static class EntsWrite
 
 		if (deleteentity) {
 			u.DeletionFlags.Set(u.OldEntity);
-			headerflags |= Protocol.FHDR_DELETE;
+			headerflags |= DeltaEncodingFlags.Delete;
 		}
 
 		WriteDeltaHeader(u, u.OldEntity, headerflags);
