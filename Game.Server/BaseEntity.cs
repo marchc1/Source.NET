@@ -39,18 +39,57 @@ public partial class BaseEntity : IServerEntity
 	public virtual bool IsNextBot() => false;
 	public virtual bool IsBaseCombatWeapon() => false;
 	public virtual bool IsCombatItem() => false;
-	public bool ClassMatches(ReadOnlySpan<char> classOrWildcard) => false; // todo
+	public bool ClassMatches(ReadOnlySpan<char> classOrWildcard) => Classname.AsSpan().SequenceEqual(classOrWildcard);
+	public bool NameMatches(ReadOnlySpan<char> name) => false; // todo
 	public virtual bool IsPredicted() => false;
-	private static void SendProxy_AnimTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID)
-		=> throw new NotImplementedException();
-	private static void SendProxy_SimulationTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID)
-		=> throw new NotImplementedException();
+	public virtual bool IsTemplate() => false;
+	public bool IsDormant() => IsEFlagSet(EFL.Dormant);
+
+	private static void SendProxy_AnimTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
+		BaseEntity entity = (BaseEntity)instance;
+
+#if false
+		BaseAnimating? animating = entity.GetBaseAnimating();
+		Assert(animating != null);
+		if (animating != null)
+			Assert(!animating.IsUsingClientSideAnimation());
+#endif
+
+		int tickNumber = TIME_TO_TICKS(entity.AnimTime);
+		long tickBase = gpGlobals.GetNetworkBase(gpGlobals.TickCount, entity.EntIndex());
+
+		int addt = 0;
+		if (tickNumber >= tickBase)
+			addt = (int)((tickNumber - tickBase) & 0xff);
+
+		outData.Int = addt;
+	}
+
+	private static void SendProxy_SimulationTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
+		BaseEntity entity = (BaseEntity)instance;
+
+		int tickNumber = TIME_TO_TICKS(entity.SimulationTime);
+		long tickBase = gpGlobals.GetNetworkBase(gpGlobals.TickCount, entity.EntIndex());
+
+		int addt = 0;
+		if (tickNumber >= tickBase)
+			addt = (int)((tickNumber - tickBase) & 0xff);
+
+		outData.Int = addt;
+	}
 
 	public static SendTable DT_AnimTimeMustBeFirst = new(nameof(DT_AnimTimeMustBeFirst), [
 		SendPropInt (FIELD.OF(nameof(AnimTime)), 8, PropFlags.Unsigned|PropFlags.ChangesOften|PropFlags.EncodedAgainstTickCount, proxyFn: SendProxy_AnimTime),
 	]);
+
 	public static object? SendProxy_ClientSideAnimation(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		throw new NotImplementedException();
+		BaseEntity entity = (BaseEntity)instance;
+		BaseAnimating? animating = entity.GetBaseAnimating();
+
+		if (animating != null /*&& !animating.IsUsingClientSideAnimation()*/)
+			return data;
+		else
+			return null;
 	}
 	public static SendTable DT_PredictableId = new(nameof(DT_PredictableId), [
 		SendPropPredictableId(FIELD.OF(nameof(PredictableId))),
@@ -125,19 +164,105 @@ public partial class BaseEntity : IServerEntity
 		SendPropInt(FIELD.OF(nameof(MapCreatedID)), 16),
 	]);
 
+	public BaseEntity(bool serverOnly = false) {
+		// todo todo
+
+		// CollisionProp().Init(this);
+		NetworkProp().Init(this);
+
+		AddEFlags(EFL.NoThinkFunction | EFL.NoGamePhysicsSimulation | EFL.UsePartitionWhenNotSolid);
+
+		SetSolid(SolidType.None);
+		// ClearSolidFlags();
+
+		SetMoveType(Source.MoveType.None);
+		SetModelIndex(0);
+
+		ClearFlags();
+
+		if (serverOnly)
+			AddEFlags(EFL.ServerOnly);
+
+		AddEFlags(EFL.UsePartitionWhenNotSolid);
+	}
+
+	public virtual void Activate() {
+
+	}
+
+	public string? Name;
+	public string GetDebugName() {
+		if (this == null)
+			return "<<null>>";
+
+		return Name ?? Classname ?? "<<no name>>";
+	}
+
+	EHANDLE Parent;
+	public string? ParentName
+;
 	public float Gravity;
 	public void SetPredictionEligible(bool canpredict) { } // nothing in game code
 	public ref readonly Vector3 GetLocalOrigin() => ref AbsOrigin;
+	public ref readonly QAngle GetLocalAngles() => ref AbsRotation;
 	private static void SendProxy_OverrideMaterial(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
-		Warning("SendProxy_OverrideMaterial not yet implemented\n");
+		BaseEntity entity = (BaseEntity)instance;
+		outData.Int = entity.OverrideMaterial;
 	}
 	private static void SendProxy_Angles(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
-		Warning("SendProxy_Angles not yet implemented\n");
+		BaseEntity entity = (BaseEntity)instance;
+		Assert(entity != null);
+
+		QAngle angles;
+		if (true /*entity.UseStepSimulationNetworkAngles*/)
+			angles = entity.GetLocalAngles();
+
+		outData.Vector[0] = MathLib.AngleMod(angles.X);
+		outData.Vector[1] = MathLib.AngleMod(angles.Y);
+		outData.Vector[2] = MathLib.AngleMod(angles.Z);
 	}
 	protected static object? SendProxy_SendPredictableId(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		Warning("SendProxy_SendPredictableId not yet implemented\n");
-		return null;
+		BaseEntity entity = (BaseEntity)instance;
+		if (entity == null || !entity.PredictableId.IsActive())
+			return null;
+
+		int id_player_index = entity.PredictableId.GetPlayer();
+		// recipients.SetOnly(id_player_index);
+
+		return data;
 	}
+
+	public void SetParent(string newParent, BaseEntity activator, int attachment = -1) {
+
+	}
+
+	public void SetParent(BaseEntity parentEnt, int attachment = -1) {
+		if (attachment == -1)
+			attachment = ParentAttachment;
+
+		bool wasNotParented = GetParent() == null;
+		BaseEntity? oldParent = GetParent();
+
+		Parent.Set(parentEnt);
+
+		if (parentEnt == this) {
+			Assert(false);
+			Parent.Set(null);
+		}
+
+		if (Parent.Get() == null) {
+			ParentName = null;
+			// TransformStepData_ParentToWorld(oldParent);
+			return;
+		}
+
+		ParentName = parentEnt.Name;
+		// RemoveSolidFlags(SolidFlags.RootParentAligned);
+
+		// todo
+	}
+
+	public BaseEntity? GetParent() => Parent.Get();
 
 	public static BaseEntity? GetContainingEntity(Edict ent) {
 		if (ent != null && ent.GetUnknown() != null)
@@ -147,7 +272,29 @@ public partial class BaseEntity : IServerEntity
 
 	public Team? GetTeam() => GetGlobalTeam(TeamNum);
 
-	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent); 
+	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent);
+
+	public static BaseEntity? Create(ReadOnlySpan<char> name, Vector3 origin, QAngle angles, BaseEntity? owner = null) {
+		BaseEntity? ent = CreateNoSpawn(name, origin, angles, owner);
+		Util.DispatchSpawn(ent);
+		return ent;
+	}
+
+	public static BaseEntity? CreateNoSpawn(ReadOnlySpan<char> name, Vector3 origin, QAngle angles, BaseEntity? owner = null) {
+		BaseEntity? ent = CreateEntityByName(name);
+		if (ent == null) {
+			AssertMsg(false, "CreateNoSpawn: only works for CBaseEntities");
+			return null;
+		}
+
+		ent.SetLocalOrigin(origin);
+		ent.SetLocalAngles(angles);
+		// ent.SetOwnerEntity(owner);
+
+		gEntList.NotifyCreateEntity(ent);
+
+		return ent;
+	}
 
 	public byte RenderFX;
 	public byte RenderMode;
@@ -235,14 +382,14 @@ public partial class BaseEntity : IServerEntity
 
 		return 0 == strcmp(entity.GetClassname(), classname);
 	}
-	
+
 	public bool IsServer() => true;
 	public bool IsClient() => false;
 	public ReadOnlySpan<char> GetDLLType() => "server";
 
 	public WaterLevel GetWaterLevel() => (WaterLevel)WaterLevel;
 	public void SetWaterLevel(WaterLevel level) => WaterLevel = (byte)level;
-	public void SetMoveCollide(MoveCollide moveCollide) => MoveCollide = (byte)moveCollide; 
+	public void SetMoveCollide(MoveCollide moveCollide) => MoveCollide = (byte)moveCollide;
 	public CollisionProperty CollisionProp() => Collision;
 
 	public bool SetModel(ReadOnlySpan<char> modelName) {
@@ -333,13 +480,13 @@ public partial class BaseEntity : IServerEntity
 	}
 
 	string? Classname;
-	public void SetClassname(ReadOnlySpan<char> classname){
+	public void SetClassname(ReadOnlySpan<char> classname) {
 		Classname = new(classname);
 	}
 
 	public Edict Edict() => NetworkProp().Edict();
 
-	public void PostConstructor(ReadOnlySpan<char> classname){
+	public void PostConstructor(ReadOnlySpan<char> classname) {
 		if (!classname.IsEmpty)
 			SetClassname(classname);
 
@@ -362,8 +509,7 @@ public partial class BaseEntity : IServerEntity
 				gEntList.AddNetworkableEntity(this, EntIndex());
 
 				// Cache our IServerNetworkable pointer for the engine for fast access.
-				if (Edict() != null)
-					Edict().Networkable = NetworkProp();
+				Edict()?.Networkable = NetworkProp();
 			}
 		}
 
@@ -383,30 +529,31 @@ public partial class BaseEntity : IServerEntity
 	public virtual void Spawn() { }
 	public virtual void Precache() { }
 
+	public bool HasSpawnFlags(int flags) => (SpawnFlags & flags) != 0;
+
 	public int GetModelIndex() {
 		throw new NotImplementedException();
 	}
 
-	public ReadOnlySpan<char> GetModelName() {
-		throw new NotImplementedException();
+	string? ModelName;
+	public ReadOnlySpan<char> GetModelName() => ModelName;
+	public void SetModelName(ReadOnlySpan<char> modelName) {
+		ModelName = new(modelName);
+		DispatchUpdateTransmitState();
 	}
 
 	public IServerNetworkable? GetNetworkable() {
-		throw new NotImplementedException();
+		return null; // todo
 	}
 
-	public ref readonly BaseHandle GetRefEHandle() {
-		throw new NotImplementedException();
-	}
+	public ref readonly BaseHandle GetRefEHandle() => ref RefEHandle;
 
 	public void SetModelIndex(int index) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
-	public void SetRefEHandle(in BaseHandle handle) {
-		throw new NotImplementedException();
-	}
-
+	BaseHandle RefEHandle;
+	public void SetRefEHandle(in BaseHandle handle) => RefEHandle = handle;
 
 	int flags;
 	EFL eflags;
@@ -450,8 +597,15 @@ public partial class BaseEntity : IServerEntity
 	public ref readonly Vector3 GetViewOffset() => ref ViewOffset;
 	public ref readonly QAngle GetAbsAngles() => ref AbsRotation;
 
-	public void SetLocalOrigin(in Vector3 origin) { } // todo
-	public void SetLocalAngles(in QAngle origin) { } // todo
+	public void SetLocalOrigin(in Vector3 origin) {
+		// This has a lot more logic thats needed later TODO FIXME
+		Origin = origin;
+	}
+
+	public void SetLocalAngles(in QAngle angles) {
+		// This has a lot more logic thats needed later TODO FIXME
+		Rotation = angles;
+	}
 
 	public ref Matrix3x4 EntityToWorldTransform() {
 
@@ -464,7 +618,6 @@ public partial class BaseEntity : IServerEntity
 	public float GetGravity() => Gravity;
 	public void SetGravity(float gravity) => Gravity = gravity;
 
-	public object? GetBaseEntity() {
-		return this;
-	}
+	public object? GetBaseEntity() => this;
+	public virtual BaseAnimating? GetBaseAnimating() => null;
 }

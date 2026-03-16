@@ -50,6 +50,8 @@ public class ClientState : BaseClientState
 	readonly ICommandLine CommandLine;
 	readonly Scr Scr;
 
+	public readonly ClientFrameManager FrameManager = new();
+
 	public TimeUnit_t LastServerTickTime;
 	public bool InSimulation;
 
@@ -158,7 +160,8 @@ public class ClientState : BaseClientState
 		DownloadResources = false;
 		PrepareClientDLL = false;
 
-		// DeleteClientFrames(-1);
+		FrameManager.DeleteClientFrames(-1);
+
 		ViewAngles.Init();
 		LastServerTickTime = 0.0;
 		OldTickCount = 0;
@@ -804,117 +807,6 @@ public class ClientState : BaseClientState
 			p.SetModel(null);
 	}
 
-	public ClientFrame AllocateFrame() {
-		return ClientFramePool.Alloc();
-	}
-
-	public void FreeFrame(ClientFrame frame) {
-		if (ClientFramePool.IsMemoryPoolAllocated(frame))
-			ClientFramePool.Free(frame);
-	}
-
-	public ClientFrame? GetClientFrame(int tick, bool exact = true) {
-		if (tick < 0)
-			return null;
-
-		ClientFrame? frame = Frames;
-		ClientFrame? lastFrame = frame;
-
-		while (frame != null) {
-			if (frame.TickCount >= tick) {
-				if (frame.TickCount == tick)
-					return frame;
-
-				if (exact)
-					return null;
-
-				return lastFrame;
-			}
-
-			lastFrame = frame;
-			frame = frame.Next;
-		}
-
-		if (exact)
-			return null;
-
-		return lastFrame;
-	}
-
-	ClientFrame? Frames;
-	ClientFrame? LastFrame;
-	int NumFrames;
-	readonly ClassMemoryPool<ClientFrame> ClientFramePool = new();
-
-	internal int AddClientFrame(ClientFrame frame) {
-		Assert(frame.TickCount > 0);
-
-		if (Frames == null) {
-			Assert(LastFrame == null && NumFrames == 0);
-			Frames = frame;
-			LastFrame = frame;
-			NumFrames = 1;
-			return 1;
-		}
-
-		Assert(Frames != null && NumFrames > 0);
-		Assert(LastFrame!.Next == null);
-		LastFrame.Next = frame;
-		LastFrame = frame;
-		return ++NumFrames;
-	}
-
-	internal void DeleteClientFrames(int tick) {
-		if (tick < 0) {
-			while (NumFrames > 0) {
-				RemoveOldestFrame();
-			}
-		}
-		else {
-			ClientFrame? frame = Frames;
-			LastFrame = null;
-			while (frame != null) {
-				if (frame.TickCount < tick) {
-					ClientFrame? next = frame.Next;
-					if (Frames == frame)
-						Frames = next;
-					FreeFrame(frame);
-					if (--NumFrames == 0) {
-						Assert(next == null);
-						LastFrame = Frames = null;
-						break;
-					}
-					Assert(LastFrame != frame && NumFrames > 0);
-					frame = next;
-					if (LastFrame != null)
-						LastFrame.Next = next;
-				}
-				else {
-					Assert(LastFrame == null || LastFrame.Next == frame);
-					LastFrame = frame;
-					frame = frame.Next;
-				}
-			}
-		}
-	}
-
-	private void RemoveOldestFrame() {
-		ClientFrame? frame = Frames;
-
-		if (frame == null)
-			return;
-
-		Assert(NumFrames > 0);
-		Frames = frame.Next; // unlink head
-												 // deleting frame will decrease global reference counter
-		FreeFrame(frame);
-
-		if (--NumFrames == 0) {
-			Assert(LastFrame == frame && Frames == null);
-			LastFrame = null;
-		}
-	}
-
 	internal void ReadPacketEntities(EntityReadInfo u) {
 		u.NextOldEntity();
 
@@ -974,7 +866,7 @@ public class ClientState : BaseClientState
 	protected override void ReadPreserveEnt(EntityReadInfo u) {
 		if (!u.AsDelta) {
 			Assert(false);
-			ConMsg("WARNING: PreserveEnt on full update");
+			ConMsg("WARNING: PreserveEnt on full update\n");
 			u.UpdateType = UpdateType.Failed;
 			return;
 		}
@@ -1001,7 +893,7 @@ public class ClientState : BaseClientState
 	protected override void ReadLeavePVS(EntityReadInfo u) {
 		if (!u.AsDelta) {
 			Assert(false);
-			ConMsg("WARNING: LeavePVS on full update");
+			ConMsg("WARNING: LeavePVS on full update\n");
 			u.UpdateType = UpdateType.Failed;
 			return;
 		}

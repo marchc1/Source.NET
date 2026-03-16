@@ -19,6 +19,7 @@ namespace Source.Engine;
 // to constantly be polling for dependencies
 public static class SourceDllMain
 {
+	[Dependency] public static IEngineServer engine { get; private set; } = null!;
 	[Dependency] public static IGameEventManager2 gameEventManager { get; private set; } = null!;
 	[Dependency] public static IEngineVGui __EngineVGui { get; private set; } = null!;
 	public static GameEventManager g_GameEventManager => (GameEventManager)gameEventManager;
@@ -27,6 +28,7 @@ public static class SourceDllMain
 	[Dependency] public static GameServer sv { get; private set; } = null!;
 	[Dependency(Required = false)] public static IBaseClientDLL? g_ClientDLL { get; private set; } = null!;
 	[Dependency] public static IServerGameDLL serverGameDLL { get; private set; } = null!;
+	[Dependency] public static ServerPlugin serverPluginHandler { get; private set; } = null!;
 	[Dependency] public static IClientEntityList entitylist { get; private set; } = null!;
 	[Dependency] public static IModelLoader modelloader { get; private set; } = null!;
 	[Dependency] public static IMaterialSystem materials { get; private set; } = null!;
@@ -42,6 +44,7 @@ public static class SourceDllMain
 	[Dependency] public static IVideoMode videoMode { get; private set; } = null!;
 	[Dependency] public static Cbuf cbuf { get; private set; } = null!;
 	[Dependency] public static ICvar cvar { get; private set; } = null!;
+	[Dependency] public static Cmd cmd { get; private set; } = null!;
 	[Dependency] public static IMaterialSystemHardwareConfig HardwareConfig { get; private set; } = null!;
 	[Dependency] public static ICommandLine commandLine { get; private set; } = null!;
 	[Dependency] public static IMatSystemSurface surface { get; private set; } = null!;

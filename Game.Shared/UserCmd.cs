@@ -30,14 +30,14 @@ public struct UserCmd
 
 		HasBeenPredicted = false;
 
-		for (int i = 0; i < MAX_BUTTONS_PRESSED; i++) 
+		for (int i = 0; i < MAX_BUTTONS_PRESSED; i++)
 			ButtonsPressed[i] = 0;
 
 		ScrollWheelSpeed = 0;
 		WorldClicking = false;
 		WorldClickDirection = new(0);
 		IsTyping = false;
-		for (int i = 0; i < MAX_MOTION_SENSOR_POSITIONS; i++) 
+		for (int i = 0; i < MAX_MOTION_SENSOR_POSITIONS; i++)
 			MotionSensorPositions[i] = new(0);
 		Forced = false;
 	}
@@ -146,7 +146,78 @@ public struct UserCmd
 	public bool Forced;
 
 	public static void ReadUsercmd(bf_read buf, ref UserCmd move, ref UserCmd from) {
-		// TODO: implement
+		move = from;
+
+		if (buf.ReadOneBit() != 0)
+			move.CommandNumber = (int)buf.ReadUBitLong(32);
+		else
+			move.CommandNumber = from.CommandNumber + 1;
+
+		if (buf.ReadOneBit() != 0)
+			move.TickCount = (int)buf.ReadUBitLong(32);
+		else
+			move.TickCount = from.TickCount + 1;
+
+		if (buf.ReadOneBit() != 0)
+			move.ViewAngles.X = buf.ReadFloat();
+
+		if (buf.ReadOneBit() != 0)
+			move.ViewAngles.Y = buf.ReadFloat();
+
+		if (buf.ReadOneBit() != 0)
+			move.ViewAngles.Z = buf.ReadFloat();
+
+		if (buf.ReadOneBit() != 0)
+			move.ForwardMove = buf.ReadFloat();
+
+		if (buf.ReadOneBit() != 0)
+			move.SideMove = buf.ReadFloat();
+
+		if (buf.ReadOneBit() != 0)
+			move.UpMove = buf.ReadFloat();
+
+		if (buf.ReadOneBit() != 0)
+			move.Buttons = (InButtons)buf.ReadUBitLong(32);
+
+		if (buf.ReadOneBit() != 0)
+			move.Impulse = (byte)buf.ReadUBitLong(8);
+
+		if (buf.ReadOneBit() != 0) {
+			move.WeaponSelect = (int)buf.ReadUBitLong(MAX_EDICT_BITS);
+			if (buf.ReadOneBit() != 0)
+				move.WeaponSubtype = (int)buf.ReadUBitLong(WEAPON_SUBTYPE_BITS);
+		}
+
+		move.RandomSeed = move.CommandNumber & 0x7fffffff; // TODO MD5_PseudoRandom
+
+		if (buf.ReadOneBit() != 0)
+			move.MouseDeltaX = buf.ReadShort();
+
+		if (buf.ReadOneBit() != 0)
+			move.MouseDeltaY = buf.ReadShort();
+
+		if (buf.ReadOneBit() != 0) {
+			for (int i = 0; i < MAX_BUTTONS_PRESSED; i++)
+				move.ButtonsPressed[i] = (byte)buf.ReadUBitLong(8);
+		}
+
+		if (buf.ReadOneBit() != 0)
+			move.ScrollWheelSpeed = (sbyte)buf.ReadSBitLong(8);
+
+		if (buf.ReadOneBit() != 0)
+			move.WorldClicking = buf.ReadOneBit() != 0;
+
+		if (buf.ReadOneBit() != 0)
+			move.WorldClickDirection = buf.ReadBitVec3Normal();
+
+		move.IsTyping = buf.ReadOneBit() != 0;
+
+		if (buf.ReadOneBit() != 0) {
+			for (int i = 0; i < MAX_MOTION_SENSOR_POSITIONS; i++)
+				move.MotionSensorPositions[i] = buf.ReadBitVec3Coord();
+		}
+
+		move.Forced = buf.ReadOneBit() != 0;
 	}
 
 	static bool HasChanged<T>(Source.InlineArray5<T> from, Source.InlineArray5<T> to) where T : IEquatable<T> {
@@ -319,7 +390,7 @@ public struct UserCmd
 
 		if (HasChanged(to.MotionSensorPositions, from.MotionSensorPositions)) {
 			buf.WriteOneBit(1);
-			for (int i = 0; i < MAX_MOTION_SENSOR_POSITIONS; i++) { 
+			for (int i = 0; i < MAX_MOTION_SENSOR_POSITIONS; i++) {
 				buf.WriteBitVec3Coord(to.MotionSensorPositions[i]);
 			}
 		}

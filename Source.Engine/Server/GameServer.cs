@@ -1,12 +1,16 @@
 ﻿using Source.Common;
 using Source.Common.Bitbuffers;
-using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.Formats.BSP;
 using Source.Common.Networking;
-using Source.Common.Server;
 using Source.Common.Utilities;
+
+using System.Runtime.InteropServices;
+
+using CommunityToolkit.HighPerformance;
+using System.Runtime.CompilerServices;
 
 namespace Source.Engine.Server;
 
@@ -24,6 +28,9 @@ public class GameServer : BaseServer
 	protected readonly Scr Scr = Singleton<Scr>();
 	protected readonly SV SV = Singleton<SV>();
 	protected readonly ICommandLine CommandLine = Singleton<ICommandLine>();
+	protected readonly FrameSnapshotManager FrameSnapshotManager = Singleton<FrameSnapshotManager>();
+	public readonly ClientFrameManager FrameManager = new();
+
 	public override void SetMaxClients(int number) {
 		MaxClients = Math.Clamp(number, 1, MaxClientsLimit);
 		Host.deathmatch.SetValue(MaxClients > 1);
@@ -77,15 +84,70 @@ public class GameServer : BaseServer
 
 	public bool LoadedPlugins;
 
-	public void CreateEngineStringTables() {
+	public override void Clear() {
+		host_state.SetWorldModel(null);
 
+		for (ServerClass? cls = serverGameDLL.GetAllServerClasses(); cls != null; cls = cls.Next)
+			cls.InstanceBaselineIndex = INetworkStringTable.INVALID_STRING_INDEX;
+
+		TempEntities.Clear();
+
+		base.Clear();
+	}
+
+	public void CreateEngineStringTables() {
+		StringTables!.SetTick(TickCount);
+
+		int size = Unsafe.SizeOf<PrecacheUserData>();
+		DownloadableFileTable = StringTables.CreateStringTable("downloadables", 8192, 0, 0); // DOWNLOADABLE_FILE_TABLENAME, MAX_DOWNLOADABLE_FILES
+		ModelPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.MODEL_PRECACHE_TABLENAME, PrecacheItem.MAX_MODELS, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
+		GenericPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.GENERIC_PRECACHE_TABLENAME, PrecacheItem.MAX_GENERIC, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
+		SoundPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.SOUND_PRECACHE_TABLENAME, PrecacheItem.MAX_SOUNDS, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
+		DecalPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.DECAL_PRECACHE_TABLENAME, PrecacheItem.MAX_BASE_DECAL, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
+		InstanceBaselineTable = StringTables.CreateStringTable(Protocol.INSTANCE_BASELINE_TABLENAME, Constants.MAX_DATATABLES);
+		LightStyleTable = StringTables.CreateStringTable(Protocol.LIGHT_STYLES_TABLENAME, BSPFileCommon.MAX_LIGHTSTYLES);
+		UserInfoTable = StringTables.CreateStringTable(Protocol.USER_INFO_TABLENAME, 1 << Constants.ABSOLUTE_PLAYER_LIMIT_DW);
+		DynamicModelsTable = StringTables.CreateStringTable("DynamicModels", 2048, 1, 1);
+		// ServerStartupDataTable = StringTables.CreateStringTable(Protocol.SERVER_STARTUP_DATA_TABLENAME, 4);
+
+		SetQueryPortFromSteamServer();
+		// CopyPureServerWhitelistToStringTable();
+
+		Assert(
+			DownloadableFileTable != null &&
+			ModelPrecacheTable != null &&
+			GenericPrecacheTable != null &&
+			SoundPrecacheTable != null &&
+			DecalPrecacheTable != null &&
+			InstanceBaselineTable != null &&
+			LightStyleTable != null &&
+			UserInfoTable != null &&
+			DynamicModelsTable != null
+		);
+
+		int j;
+
+		for (int i = 0; i < BSPFileCommon.MAX_LIGHTSTYLES; i++) {
+			Span<char> name = stackalloc char[8];
+			sprintf(name, "%i").I(i);
+			j = LightStyleTable.AddString(true, name);
+			Assert(j == i);
+		}
+
+		for (int i = 0; i < GetMaxClients(); i++) {
+			Span<char> name = stackalloc char[8];
+			sprintf(name, "%i").I(i);
+			j = UserInfoTable.AddString(true, name);
+			Assert(j == i);
+		}
+
+		// DownloadListGenerator.SetStringTable(DownloadableFileTable);
 	}
 
 	public INetworkStringTable? GetModelPrecacheTable() => ModelPrecacheTable;
 	public INetworkStringTable? GetGenericPrecacheTable() => GenericPrecacheTable;
 	public INetworkStringTable? GetSoundPrecacheTable() => SoundPrecacheTable;
 	public INetworkStringTable? GetDecalPrecacheTable() => DecalPrecacheTable;
-
 	public INetworkStringTable? GetDynamicModelsTable() => DynamicModelsTable;
 
 
@@ -95,14 +157,35 @@ public class GameServer : BaseServer
 		int idx = ModelPrecacheTable.AddString(true, name);
 		if (idx == INetworkStringTable.INVALID_STRING_INDEX)
 			return -1;
-		throw new NotImplementedException();
+
+		PrecacheUserData p = new();
+		Span<PrecacheUserData> existing = ModelPrecacheTable.GetStringUserData(idx).AsSpan().Cast<byte, PrecacheUserData>();
+
+		if (existing.IsEmpty)
+			p.Flags = flags;
+		else {
+			p = existing[0];
+			p.Flags |= flags;
+		}
+
+		ModelPrecacheTable.SetStringUserData(idx, Unsafe.SizeOf<PrecacheUserData>(), MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref p, 1)));
+
+		PrecacheItem slot = ModelPrecache[idx];
+		slot ??= ModelPrecache[idx] = new PrecacheItem();
+
+		if (model != null)
+			slot.SetModel(model);
+
+		// todo finish
+
+		return idx;
 	}
 	public Model? GetModel(int index) {
 		if (index <= 0 || ModelPrecacheTable == null)
 			return null;
 		if (index >= ModelPrecacheTable.GetNumStrings())
 			return null;
-		PrecacheItem slot = ModelPrecache![index];
+		PrecacheItem slot = ModelPrecache[index];
 		return slot.GetModel();
 	}
 	public int LookupModelIndex(ReadOnlySpan<char> name) {
@@ -119,7 +202,24 @@ public class GameServer : BaseServer
 		int idx = SoundPrecacheTable.AddString(true, name);
 		if (idx == INetworkStringTable.INVALID_STRING_INDEX)
 			return -1;
-		throw new NotImplementedException();
+
+		PrecacheUserData p = new();
+		Span<PrecacheUserData> existing = SoundPrecacheTable.GetStringUserData(idx).AsSpan().Cast<byte, PrecacheUserData>();
+
+		if (existing.IsEmpty)
+			p.Flags = flags;
+		else {
+			p = existing[0];
+			p.Flags |= flags;
+		}
+
+		SoundPrecacheTable.SetStringUserData(idx, Unsafe.SizeOf<PrecacheUserData>(), MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref p, 1)));
+
+		PrecacheItem slot = SoundPrecache[idx];
+		slot ??= SoundPrecache[idx] = new PrecacheItem();
+		slot.SetName(new(name));
+
+		return idx;
 	}
 	public ReadOnlySpan<char> GetSound(int index) {
 		if (index <= 0 || SoundPrecacheTable == null)
@@ -142,7 +242,24 @@ public class GameServer : BaseServer
 		int idx = GenericPrecacheTable.AddString(true, name);
 		if (idx == INetworkStringTable.INVALID_STRING_INDEX)
 			return -1;
-		throw new NotImplementedException();
+
+		PrecacheUserData p = new();
+		Span<PrecacheUserData> existing = GenericPrecacheTable.GetStringUserData(idx).AsSpan().Cast<byte, PrecacheUserData>();
+
+		if (existing.IsEmpty)
+			p.Flags = flags;
+		else {
+			p = existing[0];
+			p.Flags |= flags;
+		}
+
+		GenericPrecacheTable.SetStringUserData(idx, Unsafe.SizeOf<PrecacheUserData>(), MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref p, 1)));
+
+		PrecacheItem slot = GenericPrecache[idx];
+		slot ??= GenericPrecache[idx] = new PrecacheItem();
+		slot.SetGeneric(new(name));
+
+		return idx;
 	}
 	public ReadOnlySpan<char> GetGeneric(int index) {
 		if (index <= 0 || GenericPrecacheTable == null)
@@ -184,10 +301,10 @@ public class GameServer : BaseServer
 	}
 
 
-	public PrecacheItem[]? ModelPrecache;
-	public PrecacheItem[]? GenericPrecache;
-	public PrecacheItem[]? SoundPrecache;
-	public PrecacheItem[]? DecalPrecache;
+	public PrecacheItem[] ModelPrecache = new PrecacheItem[PrecacheItem.MAX_MODELS];
+	public PrecacheItem[] GenericPrecache = new PrecacheItem[PrecacheItem.MAX_GENERIC];
+	public PrecacheItem[] SoundPrecache = new PrecacheItem[PrecacheItem.MAX_SOUNDS];
+	public PrecacheItem[] DecalPrecache = new PrecacheItem[PrecacheItem.MAX_BASE_DECAL];
 
 	public GameClient Client(int i) => (GameClient)Clients[i];
 
@@ -197,12 +314,12 @@ public class GameServer : BaseServer
 
 	internal void InitMaxClients() {
 		int newmaxplayers = CommandLine.ParmValue("-maxplayers", -1);
-		if (newmaxplayers == -1) 
+		if (newmaxplayers == -1)
 			newmaxplayers = CommandLine.ParmValue("+maxplayers", -1);
 
 		SetupMaxPlayers(newmaxplayers);
 	}
-	static readonly ConVar tv_enable = new( "tv_enable", "0", FCvar.NotConnected, "Activates SourceTV on server. not implemented!");
+	static readonly ConVar tv_enable = new("tv_enable", "0", FCvar.NotConnected, "Activates SourceTV on server. not implemented!");
 
 	private void SetupMaxPlayers(int iDesiredMaxPlayers) {
 		int minmaxplayers = 1;
@@ -212,15 +329,15 @@ public class GameServer : BaseServer
 		if (SV.ServerGameClients != null) {
 			SV.ServerGameClients.GetPlayerLimits(out minmaxplayers, out maxmaxplayers, out defaultmaxplayers);
 
-			if (minmaxplayers < 1) 
+			if (minmaxplayers < 1)
 				Sys.Error($"GetPlayerLimits:  min maxplayers must be >= 1 ({minmaxplayers})");
-			else if (defaultmaxplayers < 1) 
+			else if (defaultmaxplayers < 1)
 				Sys.Error($"GetPlayerLimits:  default maxplayers must be >= 1 ({minmaxplayers})");
-			
 
-			if (minmaxplayers > maxmaxplayers || defaultmaxplayers > maxmaxplayers) 
+
+			if (minmaxplayers > maxmaxplayers || defaultmaxplayers > maxmaxplayers)
 				Sys.Error($"GetPlayerLimits:  min maxplayers {minmaxplayers} > max {maxmaxplayers}");
-			if (maxmaxplayers > Constants.ABSOLUTE_PLAYER_LIMIT) 
+			if (maxmaxplayers > Constants.ABSOLUTE_PLAYER_LIMIT)
 				Sys.Error($"GetPlayerLimits:  max players limited to {Constants.ABSOLUTE_PLAYER_LIMIT}");
 		}
 
@@ -244,6 +361,68 @@ public class GameServer : BaseServer
 
 		if (sv.GetMaxClients() < newmaxplayers || !tv_enable.GetBool())
 			sv.SetMaxClients(newmaxplayers);
+	}
+
+	public override void SendClientMessages(bool bSendSnapshots) {
+		int receivingClientCount = 0;
+		GameClient[] receivingClients = new GameClient[Constants.ABSOLUTE_PLAYER_LIMIT];
+
+		for (int i = 0; i < GetClientCount(); i++) {
+			GameClient client = Client(i);
+
+			if (!client.ShouldSendMessages())
+				continue;
+
+			if (bSendSnapshots && client.IsActive()) {
+				receivingClients[receivingClientCount] = client;
+				receivingClientCount++;
+			}
+			else {
+				if (client.IsFakeClient())
+					continue;
+
+				if (Net.IsMultiplayer() && client.NetChannel!.GetSequenceNumber(1) == 0) {
+					// Net.OutOfBandPrintf(client.NetChannel.RemoteAddress, $"{(char)Protocol.S2C_CONNECTION}00000000000000");
+				}
+
+				client.NetChannel!.Transmit();
+				client.UpdateSendState();
+			}
+		}
+
+		if (receivingClientCount > 0) {
+			FrameSnapshot snapshot = FrameSnapshotManager.TakeTickSnapshot((int)TickCount);
+			CopyTempEntities(snapshot);
+
+			PackedEntities.ComputeClientPacks(receivingClientCount, receivingClients, snapshot);
+
+			// if (receivingClientCount > 1 && sv_parallel_sendsnapshot.GetBool()) {
+			// 
+			// }
+
+			for (int i = 0; i < receivingClientCount; i++) {
+				GameClient client = receivingClients[i];
+				if (client == null)
+					continue;
+				ClientFrame frame = client.GetSendFrame()!;
+				client.SendSnapshot(frame);
+				client.UpdateSendState();
+			}
+
+			snapshot.ReleaseReference();
+		}
+	}
+
+	void CopyTempEntities(FrameSnapshot snapshot) {
+		Assert(snapshot.TempEntities == null);
+
+		if (TempEntities.Count > 0) {
+			snapshot.NumTempEntities = TempEntities.Count;
+			snapshot.TempEntities = new EventInfo[TempEntities.Count];
+			for (int i = 0; i < TempEntities.Count; i++)
+				snapshot.TempEntities[i] = TempEntities[i];
+			TempEntities.Clear();
+		}
 	}
 
 	int CurrentSkill;
@@ -383,9 +562,14 @@ public class GameServer : BaseServer
 #if !SWDS
 			EngineVGui().UpdateProgressBar(LevelLoadingProgress.CrcMap);
 #endif
-			// Server map CRC check.
 			memreset(ref WorldmapMD5);
-			// todo
+
+			if (!ChecksumEngine.MD5_MapFile(out WorldmapMD5, mapFile)) {
+				ConMsg($"Couldn't CRC server map: {mapFile.SliceNullTerminatedString()}\n");
+				State = ServerState.Dead;
+				g_pFileSystem.EndMapAccess();
+				return false;
+			}
 #if !SWDS
 			EngineVGui().UpdateProgressBar(LevelLoadingProgress.CrcClientDll);
 #endif
@@ -480,9 +664,24 @@ public class GameServer : BaseServer
 	}
 
 	private void AssignClassIds() {
+		ServerClass classes = serverGameDLL.GetAllServerClasses();
 
+		int nClasses = 0;
+		for (ServerClass count = classes; count != null; count = count.Next)
+			nClasses++;
+
+		ErrorIfNot(nClasses <= Constants.MAX_SERVER_CLASSES, $"CGameServer::AssignClassIds: too many server classes ({nClasses}, MAX = {Constants.MAX_SERVER_CLASSES}).\n");
+
+		ServerClasses = nClasses;
+		ServerClassBits = (int)(Math.Log2(ServerClasses) + 1);
+
+		int curID = 0;
+		for (ServerClass c = classes; c != null; c = c.Next) {
+			c.ClassID = curID++;
+
+			// Msg($"{c.ClassID} == '{c.NetworkName}'\n");
+		}
 	}
-
 
 	INetworkStringTable? ModelPrecacheTable;
 	INetworkStringTable? SoundPrecacheTable;
@@ -492,4 +691,24 @@ public class GameServer : BaseServer
 	INetworkStringTable? DynamicModelsTable;
 
 	bool Hibernating;    // Are we hibernating.  Hibernation makes server process consume approx 0 CPU when no clients are connected
+
+	public void InstallClientStringTableMirrors() {
+#if !SWDS
+		int numTables = networkStringTableContainerServer.GetNumTables();
+		for (int i = 0; i < numTables; i++) {
+			NetworkStringTable? serverTable = (NetworkStringTable?)networkStringTableContainerServer.GetTable(i);
+			if (serverTable == null)
+				continue;
+
+			NetworkStringTable? clientTable = (NetworkStringTable?)networkStringTableContainerClient.FindTable(serverTable.GetTableName());
+
+			if (clientTable == null) {
+				DevMsg($"SV_InstallClientStringTableMirrors! Missing client table \"{serverTable.GetTableName()}\".\n ");
+				continue;
+			}
+
+			clientTable.SetMirrorTable(serverTable);
+		}
+#endif
+	}
 }

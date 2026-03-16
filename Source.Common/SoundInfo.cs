@@ -22,6 +22,8 @@ public static class SoundConstants
 	public const float SOUND_DELAY_OFFSET = 0.1f;
 	public const int MAX_SOUND_DELAY_MSEC_ENCODE_BITS = 13;
 
+	public const int MAX_SOUND_DELAY_MSEC = (1 << (MAX_SOUND_DELAY_MSEC_ENCODE_BITS - 1)) - 1;
+
 	public const int SND_FLAG_BITS_ENCODE = 12;
 
 	public const int PITCH_NORM = 100;
@@ -155,6 +157,132 @@ public struct SoundInfo
 				SpeakerEntity = buffer.ReadSBitLong(Constants.MAX_EDICT_BITS + 1);
 			else
 				SpeakerEntity = delta.SpeakerEntity;
+		}
+		else {
+			ClearStopFields();
+		}
+	}
+
+	public void WriteDelta(ref SoundInfo delta, bf_write buffer, int nProtoVersion) {
+		if (EntityIndex == delta.EntityIndex)
+			buffer.WriteOneBit(0);
+		else {
+			buffer.WriteOneBit(1);
+			if (EntityIndex <= 31) {
+				buffer.WriteOneBit(1);
+				buffer.WriteUBitLong((uint)EntityIndex, 5);
+			}
+			else {
+				buffer.WriteOneBit(0);
+				buffer.WriteUBitLong((uint)EntityIndex, Constants.MAX_EDICT_BITS);
+			}
+		}
+
+		if (nProtoVersion > 22) {
+			if (SoundNum == delta.SoundNum)
+				buffer.WriteOneBit(0);
+			else {
+				buffer.WriteOneBit(1);
+				buffer.WriteUBitLong((uint)SoundNum, StringTableBits.MaxSoundIndexBits);
+			}
+		}
+		else {
+			if (SoundNum == delta.SoundNum)
+				buffer.WriteOneBit(0);
+			else {
+				buffer.WriteOneBit(1);
+				buffer.WriteUBitLong((uint)SoundNum, 13);
+			}
+		}
+
+		if (nProtoVersion > 18) {
+			if (Flags == delta.Flags)
+				buffer.WriteOneBit(0);
+			else {
+				buffer.WriteOneBit(1);
+				buffer.WriteUBitLong((uint)Flags, SND_FLAG_BITS_ENCODE);
+			}
+		}
+		else {
+			if (Flags == delta.Flags)
+				buffer.WriteOneBit(0);
+			else {
+				buffer.WriteOneBit(1);
+				buffer.WriteUBitLong((uint)Flags, 9);
+			}
+		}
+
+		if (Channel == delta.Channel)
+			buffer.WriteOneBit(0);
+		else {
+			buffer.WriteOneBit(1);
+			buffer.WriteUBitLong((uint)Channel, 3);
+		}
+
+		buffer.WriteOneBit(IsAmbient ? 1 : 0);
+		buffer.WriteOneBit(IsSentence ? 1 : 0);
+
+		if (Flags != SoundFlags.Stop) {
+			if (SequenceNumber == delta.SequenceNumber)
+				buffer.WriteOneBit(1);
+			else if (SequenceNumber == delta.SequenceNumber + 1) {
+				buffer.WriteOneBit(0);
+				buffer.WriteOneBit(1);
+			}
+			else {
+				buffer.WriteUBitLong(0, 2);
+				buffer.WriteUBitLong((uint)SequenceNumber, SOUND_SEQNUMBER_BITS);
+			}
+
+			if (Volume == delta.Volume)
+				buffer.WriteOneBit(0);
+			else {
+				buffer.WriteOneBit(1);
+				buffer.WriteUBitLong((uint)(Volume * 127.0f), 7);
+			}
+
+			if (Soundlevel == delta.Soundlevel)
+				buffer.WriteOneBit(0);
+			else {
+				buffer.WriteOneBit(1);
+				buffer.WriteUBitLong((uint)Soundlevel, MAX_SNDLVL_BITS);
+			}
+
+			if (Pitch == delta.Pitch)
+				buffer.WriteOneBit(0);
+			else {
+				buffer.WriteOneBit(1);
+				buffer.WriteUBitLong((uint)Pitch, 8);
+			}
+
+			if (nProtoVersion > 21) {
+				if (SpecialDSP == delta.SpecialDSP)
+					buffer.WriteOneBit(0);
+				else {
+					buffer.WriteOneBit(1);
+					buffer.WriteUBitLong((uint)SpecialDSP, 8);
+				}
+			}
+
+			if (Delay == delta.Delay)
+				buffer.WriteOneBit(0);
+			else {
+				buffer.WriteOneBit(1);
+				float d = Delay + SOUND_DELAY_OFFSET;
+				int iDelay = (int)(d * 1000.0f);
+				iDelay = Math.Clamp(iDelay, -10 * MAX_SOUND_DELAY_MSEC, MAX_SOUND_DELAY_MSEC);
+				if (iDelay < 0) iDelay /= 10;
+				buffer.WriteSBitLong(iDelay, MAX_SOUND_DELAY_MSEC_ENCODE_BITS);
+			}
+
+			const float SCALE = 8.0f;
+			const int BITS = (int)(BitBuffer.COORD_INTEGER_BITS - 2);
+			if (Origin.X == delta.Origin.X) buffer.WriteOneBit(0); else { buffer.WriteOneBit(1); buffer.WriteSBitLong((int)(Origin.X / SCALE), BITS); }
+			if (Origin.Y == delta.Origin.Y) buffer.WriteOneBit(0); else { buffer.WriteOneBit(1); buffer.WriteSBitLong((int)(Origin.Y / SCALE), BITS); }
+			if (Origin.Z == delta.Origin.Z) buffer.WriteOneBit(0); else { buffer.WriteOneBit(1); buffer.WriteSBitLong((int)(Origin.Z / SCALE), BITS); }
+
+			if (SpeakerEntity == delta.SpeakerEntity) buffer.WriteOneBit(0);
+			else { buffer.WriteOneBit(1); buffer.WriteSBitLong(SpeakerEntity, Constants.MAX_EDICT_BITS + 1); }
 		}
 		else {
 			ClearStopFields();

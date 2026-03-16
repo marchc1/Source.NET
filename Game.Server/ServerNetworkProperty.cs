@@ -18,9 +18,7 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 		throw new NotImplementedException();
 	}
 
-	public ReadOnlySpan<char> GetClassName() {
-		throw new NotImplementedException();
-	}
+	public ReadOnlySpan<char> GetClassName() => Outer.GetClassname();
 
 	public int EntIndex() => ENTINDEX(Pev);
 
@@ -34,7 +32,9 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 	}
 
 	public ServerClass GetServerClass() {
-		throw new NotImplementedException();
+		ServerClass ??= ServerClassRetriever.GetOrError(Outer.GetType());
+
+		return ServerClass;
 	}
 
 	public void Release() {
@@ -48,7 +48,7 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ref PVSInfo GetPVSInfo() => ref PVSInfo;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetNetworkParent(EHANDLE parent) => Parent.Index = parent.Index;
 
-	public void AttachEdict(Edict? requiredEdict){
+	public void AttachEdict(Edict? requiredEdict) {
 		if (requiredEdict == null)
 			requiredEdict = engine.CreateEdict();
 
@@ -64,4 +64,13 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 	private EHANDLE Parent = new();
 	// event register later
 	bool PendingStateChange;
+
+	public void Init(BaseEntity entity) {
+		Pev = null;
+		Outer = entity;
+		ServerClass = null;
+		PendingStateChange = false;
+		PVSInfo.ClusterCount = 0;
+		// timerevent todo
+	}
 }

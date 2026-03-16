@@ -434,7 +434,7 @@ public partial class NavMesh
 		return NavErrorType.Ok;
 	}
 
-	NavErrorType Load() {
+	public NavErrorType Load() {
 		Reset();
 		placeDirectory.Reset();
 

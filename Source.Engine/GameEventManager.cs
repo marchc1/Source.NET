@@ -23,7 +23,7 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 		return true;
 	}
 
-	bool AddListener(object listener, GameEventDescriptor descriptor, GameEventListenerType listenerType) {
+	public bool AddListener(object listener, GameEventDescriptor descriptor, GameEventListenerType listenerType) {
 		if (listener == null || descriptor == null)
 			return false;
 
@@ -88,7 +88,7 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 		return gameevent.Descriptor;
 	}
 
-	private GameEventDescriptor? GetEventDescriptor(int eventid) {
+	public GameEventDescriptor? GetEventDescriptor(int eventid) {
 		if (eventid < 0)
 			return null;
 
@@ -162,9 +162,20 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 	}
 	static ConVar net_showevents = new("net_showevents", "0", FCvar.Cheat, "Dump game events to console (1=client only, 2=all).");
 
-
 	public void RemoveListener(IGameEventListener2 listener) {
-		throw new NotImplementedException();
+		GameEventCallback? callback = FindEventListener(listener);
+		if (callback == null)
+			return;
+
+		for (int i = 0; i < GameEvents.Count; i++) {
+			GameEventDescriptor descriptor = GameEvents[i];
+			descriptor.Listeners.Remove(callback);
+		}
+
+		Listeners.Remove(callback);
+
+		if (callback.ListenerType == GameEventListenerType.Clientside)
+			ClientListenersChanged = true;
 	}
 
 	public void Reset() {
@@ -176,7 +187,38 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 	}
 
 	public bool SerializeEvent(IGameEvent ev, bf_write buf) {
-		throw new NotImplementedException();
+		GameEventDescriptor? descriptor = GetEventDescriptor(ev);
+		Assert(descriptor != null);
+
+		buf.WriteUBitLong((uint)descriptor!.EventID, MAX_EVENT_BITS);
+
+		KeyValues? key = descriptor.Keys?.GetFirstSubKey();
+
+		if (net_showevents.GetInt() > 1)
+			ConMsg($"Serializing event '{descriptor.Name}' ({descriptor.EventID}):\n");
+
+		while (key != null) {
+			ReadOnlySpan<char> keyName = key.Name;
+			GameEventType type = (GameEventType)key.GetInt();
+
+			if (net_showevents.GetInt() > 2)
+				ConMsg($" - {keyName} ({(int)type})\n");
+
+			switch (type) {
+				case GameEventType.Local: break; // don't network this guy
+				case GameEventType.String: buf.WriteString(ev.GetString(keyName, "")); break;
+				case GameEventType.Float: buf.WriteFloat(ev.GetFloat(keyName, 0.0f)); break;
+				case GameEventType.Long: buf.WriteLong(ev.GetInt(keyName, 0)); break;
+				case GameEventType.Short: buf.WriteShort(ev.GetInt(keyName, 0)); break;
+				case GameEventType.Byte: buf.WriteByte(ev.GetInt(keyName, 0)); break;
+				case GameEventType.Bool: buf.WriteOneBit(ev.GetInt(keyName, 0)); break;
+				default: DevMsg(1, $"GameEventManager: unkown type {type} for key '{key.Name}'.\n"); break;
+			}
+
+			key = key.GetNextKey();
+		}
+
+		return !buf.Overflowed;
 	}
 
 	public IGameEvent? UnserializeEvent(bf_read buf) {
@@ -405,7 +447,8 @@ public class GameEventManager(IFileSystem fileSystem) : IGameEventManager2
 				continue;
 
 			if (descriptor.EventID == -1) {
-				DevMsg($"Warning! Client listens to event '{descriptor.Name}' unknown by server.\n");
+				ReadOnlySpan<char> name = descriptor.Name;
+				DevMsg($"Warning! Client listens to event '{name.SliceNullTerminatedString()}' unknown by server.\n");
 				continue;
 			}
 

@@ -45,7 +45,7 @@ namespace Source.Common
 		static ILCast() {
 			if (typeof(From) == typeof(To))
 				AssertMsg(false, "Tried to ILCast<From, To> where From == To. Re-evaluate.");
-			
+
 			DynamicMethod method = new DynamicMethod($"ILCast<{typeof(From)}, {typeof(To)}", typeof(void), [typeof(From).MakeByRefType(), typeof(To).MakeByRefType()]);
 			ILGenerator generator = method.GetILGenerator();
 
@@ -722,9 +722,9 @@ namespace Source.Common
 				_ => false
 			};
 
-			if (from == to) 
+			if (from == to)
 				return true;
-			
+
 
 			if (!from.IsPrimitive || !to.IsPrimitive)
 				return false;

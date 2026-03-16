@@ -53,6 +53,7 @@ public struct Color : IEquatable<Color>
 
 	public static implicit operator System.Drawing.Color(Color self) => System.Drawing.Color.FromArgb(self.A, self.R, self.G, self.B);
 	public static implicit operator int(Color self) => self.GetRawColor();
+	public static implicit operator uint(Color self) => (uint)self.GetRawColor();
 	public static implicit operator Color(int raw) {
 		Color color = new Color();
 		color.SetRawColor(raw);

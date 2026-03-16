@@ -164,7 +164,7 @@ class HudMenu : EditableHudElement
 		if (menu_item > 0 && (BitsValidSlots & (1 << (menu_item - 1))) != 0) {
 			Span<char> buf = stackalloc char[32];
 			sprintf(buf, "menuselect %d\n").D(menu_item);
-			engine.ClientCmd_Unrestricted(buf); // TODO: This should not be unrestricted
+			engine.ClientCmd(buf);
 
 			SelectedItem = menu_item;
 			clientMode.GetViewportAnimationController()?.StartAnimationSequence("MenuPulse");

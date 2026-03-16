@@ -797,7 +797,59 @@ public class Host(
 		}
 	}
 
-	public bool CanCheat() {
+	[ConCommand("pause", "Toggle the server pause state.")]
+	void pause(in TokenizedCommand args, CommandSource source, int clientSlot) {
+#if !SWDS
+		if (!sv.IsDedicated()) {
+			if (cl.LevelFileName == null || cl.LevelFileName.Length == 0)
+				return;
+		}
+#endif
+
+		if (source == CommandSource.Command) {
+			Cmd.ForwardToServer(args);
+			return;
+		}
+
+		if (!sv.IsPausable())
+			return;
+
+		sv.SetPaused(!sv.IsPaused());
+
+		// sv.BroadcastPrintf( "%s %s the game\n", host_client->GetClientName(), sv.IsPaused() ? "paused" : "unpaused" );
+	}
+
+	[ConCommand("setpause", "Set the pause state of the server.")]
+	void setpause(in TokenizedCommand args, CommandSource source, int clientSlot) {
+#if !SWDS
+		if (cl.LevelFileName == null || cl.LevelFileName.Length == 0)
+			return;
+#endif
+
+		if (source == CommandSource.Command) {
+			Cmd.ForwardToServer(args);
+			return;
+		}
+
+		sv.SetPaused(true);
+	}
+
+	[ConCommand("unpause", "Unpause the game.")]
+	void unpause(in TokenizedCommand args, CommandSource source, int clientSlot) {
+#if !SWDS
+		if (cl.LevelFileName == null || cl.LevelFileName.Length == 0)
+			return;
+#endif
+
+		if (source == CommandSource.Command) {
+			Cmd.ForwardToServer(args);
+			return;
+		}
+
+		sv.SetPaused(false);
+	}
+
+	static public bool CanCheat() {
 		return SV.sv_cheats.GetBool();
 	}
 
@@ -821,9 +873,26 @@ public class Host(
 		return true;
 	}
 
-	[ConCommand("map", "Start playing on specified map.", FCvar.DontRecord)]
+	[ConCommand("map", "Start playing on specified map.", FCvar.DontRecord, autoCompleteMethod: nameof(Map_CompletionFunc))]
 	public void Map_f(in TokenizedCommand args, CommandSource source, int clientSlot = -1) {
 		Map_Helper(in args, source, false, false, false);
+	}
+
+	IEnumerable<string> Map_CompletionFunc(string partial) { // todo: properly implement this once host maplist stuff is done
+		int space = partial.IndexOf(' ');
+		string prefix = space >= 0 ? partial[..(space + 1)] : "map ";
+		string arg = space >= 0 ? partial[(space + 1)..] : "";
+
+		ReadOnlySpan<char> filename = fileSystem.FindFirstEx("maps/*.bsp", null, out FileFindHandle_t findHandle);
+		while (!filename.IsEmpty) {
+			Span<char> mapName = stackalloc char[256];
+			filename.StripExtension(mapName);
+			string name = mapName.SliceNullTerminatedString().ToString();
+			if (name.StartsWith(arg, StringComparison.OrdinalIgnoreCase))
+				yield return prefix + name;
+			filename = fileSystem.FindNext(findHandle);
+		}
+		fileSystem.FindClose(findHandle);
 	}
 
 	private void Map_Helper(in TokenizedCommand args, CommandSource source, bool editmode, bool background, bool commentary) {
@@ -927,6 +996,8 @@ public class Host(
 #if !SWDS
 		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LevelInit);
 #endif
+
+		serverPluginHandler.LevelInit(mapName, GetCollisionBSPData().MapEntityString, oldMap, landmark, loadGame && !oldSave, backgroundLevel);
 
 		if (loadGame && !oldSave) {
 			sv.SetPaused(true);

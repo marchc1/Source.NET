@@ -80,6 +80,8 @@ public static class BitVecBase
 	public static int FindNextSetBit(this Span<byte> bytes, int startBit) {
 		while ((startBit >> 3) < bytes.Length && !IsBitSet(bytes, startBit))
 			startBit++;
+		if ((startBit >> 3) >= bytes.Length)
+			return -1;
 		return startBit;
 	}
 }

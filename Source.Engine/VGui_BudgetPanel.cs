@@ -45,8 +45,8 @@ class BudgetPanelEngine : BudgetPanelShared
 	}
 
 	public override void OnTick() {
-		// if (ShowBudgetPanelHeld && !CanCheat()) // todo
-		// 	UserCmd_HideBudgetPanel();
+		if (ShowBudgetPanelHeld && !Host.CanCheat())
+			UserCmd_HideBudgetPanel();
 
 		base.OnTick();
 		SetVisible(ShowBudgetPanelHeld);

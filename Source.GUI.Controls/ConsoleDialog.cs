@@ -140,7 +140,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		bool ctrlKeyDown = Input.IsKeyDown(ButtonCode.KeyLControl) || Input.IsKeyDown(ButtonCode.KeyRControl);
 
 		if (len > 0 && hitTilde) {
-			PreviousPartialText[len - 1] = '\0';
+			PartialText[len - 1] = '\0';
 
 			if (!altKeyDown && !ctrlKeyDown) {
 				Entry.SetText("");
@@ -150,6 +150,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			else {
 				Entry.SetText(PartialText);
 			}
+			return;
 		}
 
 		AutoCompleteMode = false;
@@ -268,7 +269,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		item.SetText(command.ToString(), extra.IsEmpty ? null : extra.ToString());
 
 		NextCompletion = 0;
-		RebuildCompletionList(command);
+		RebuildCompletionList(PartialText);
 	}
 
 	private void ClearCompletionList() {
@@ -279,7 +280,11 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		Span<char> command = stackalloc char[256];
 		strcpy(command, text);
 
-		ConCommand? cmd = Cvar.FindCommand(command);
+		int space = command.IndexOf(' ');
+		if (space != -1)
+			command[space] = '\0';
+
+		ConCommand? cmd = Cvar.FindCommand(command.SliceNullTerminatedString());
 		if (cmd == null)
 			return null;
 
@@ -298,7 +303,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 				HistoryItem item = CommandHistory[i];
 				CompletionItem comp = new();
 				CompletionItems.Add(comp);
-				comp.IsCommand = true;
+				comp.IsCommand = false;
 				comp.Command = null;
 				comp.Text = new HistoryItem(item);
 			}
@@ -315,7 +320,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 
 			NormalBuild = false;
 
-			IEnumerable<string> commands = cmd.AutoCompleteSuggest(text.ToString());
+			IEnumerable<string> commands = cmd.AutoCompleteSuggest(text[..len].ToString());
 			int count = commands.Count();
 			//Assert(count <= COMMAND_COMPLETION_MAXITEMS);
 			Assert(count <= 64);
@@ -375,11 +380,11 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 
 		if (CompletionItems.Count >= 2) {
 			for (int i = 0; i < CompletionItems.Count; i++) {
-				for (int j = 0; j < CompletionItems.Count; j++) {
+				for (int j = i + 1; j < CompletionItems.Count; j++) {
 					CompletionItem item1 = CompletionItems[i];
 					CompletionItem item2 = CompletionItems[j];
 
-					if (item1.GetName().CompareTo(item2.GetName(), StringComparison.Ordinal) > 0) {
+					if (item1.GetName().CompareTo(item2.GetName(), StringComparison.OrdinalIgnoreCase) > 0) {
 						CompletionItem temp = CompletionItems[i];
 						CompletionItems[i] = CompletionItems[j];
 						CompletionItems[j] = temp;
@@ -475,7 +480,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		CompletionItem item = CompletionItems[NextCompletion];
 		Assert(item != default);
 
-		if (item.IsCommand && item.Command != null) {
+		if (!item.IsCommand && item.Command != null) {
 			ReadOnlySpan<char> cmd = item.GetCommand();
 			strcpy(CompletedText, cmd);
 		}
@@ -483,6 +488,9 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			ReadOnlySpan<char> txt = item.GetItemText();
 			strcpy(CompletedText, txt);
 		}
+
+		if (!CompletedText.SliceNullTerminatedString().Contains(' '))
+			strcat(CompletedText, " ");
 
 		Entry.SetText(CompletedText.SliceNullTerminatedString());
 		Entry.GotoTextEnd();

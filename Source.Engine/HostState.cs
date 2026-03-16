@@ -241,7 +241,11 @@ public class HostState : IHostState
 	}
 	protected void State_GameShutdown() {
 		if (Host.serverDLL != null) {
-			// todo
+			// Steam3Server().NotifyOfLevelChange();
+			serverPluginHandler.LevelShutdown();
+#if !SWDS
+
+#endif
 		}
 
 		GameShutdown();

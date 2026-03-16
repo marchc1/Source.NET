@@ -10,16 +10,20 @@ using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Networking;
 using Source.Common.Server;
+using Source.GUI.Controls;
 
 using Steamworks;
 
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Source.Engine.Server;
 
 
 public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageHandler, IDisposable
 {
+	protected readonly FrameSnapshotManager framesnapshotmanager = Singleton<FrameSnapshotManager>();
+
 	public int GetPlayerSlot() => ClientSlot;
 	public int GetUserID() => UserID;
 	// NetworkID?
@@ -51,8 +55,8 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public virtual void FileSent(ReadOnlySpan<char> fileName, uint transferID) { }
 
 	public bool ProcessMessage<T>(T message) where T : INetMessage {
-		if (message is not NET_Tick && message is not CLC_Move)
-			Common.TimestampedLog($"BaseClient.ProcessMessage: {message.GetType().Name} (IsReliable: {message.IsReliable()})");
+		// if (message is not NET_Tick && message is not CLC_Move)
+		// 	Common.TimestampedLog($"BaseClient.ProcessMessage: {message.GetType().Name} (IsReliable: {message.IsReliable()})");
 
 		switch (message) {
 			case NET_Tick m: return ProcessTick(m);
@@ -72,16 +76,85 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		return true;// todo
 	}
 
-	protected virtual bool ProcessMove(CLC_Move m) {
-		return true;// todo
-	}
+	protected virtual bool ProcessMove(CLC_Move m) => true;
 
 	protected virtual bool ProcessTick(NET_Tick m) {
-		return true;// todo
+		NetChannel!.SetRemoteFramerate(m.HostFrameTime, m.HostFrameDeviation);
+		return UpdateAcknowledgedFramecount(m.Tick);
 	}
 
 	protected virtual bool ProcessStringCmd(NET_StringCmd m) {
-		return true; // todo
+		ExecuteStringCommand(m.Command);
+		return true;
+	}
+
+	protected void OnRequestFullUpdate() {
+		LastSnapshot = null;
+
+		FreeBaselines();
+
+		Baseline = framesnapshotmanager.CreateEmptySnapshot(0, Constants.MAX_EDICTS);
+
+		DevMsg($"Sending full update to Client {GetClientName()}\n");
+	}
+
+	protected virtual bool UpdateAcknowledgedFramecount(int tick) {
+		if (IsFakeClient()) {
+			DeltaTick = tick;
+			StringTableAckTick = tick;
+			return true;
+		}
+
+		if (ForceWaitForTick > 0) {
+			if (tick > ForceWaitForTick)
+				// we should never get here since full updates are transmitted as reliable data now
+				return true;
+			else if (tick == -1) {
+				if (!NetChannel.HasPendingReliableData()) {
+					// that's strange: we sent the client a full update, and it was fully received ( no reliable data in waiting buffers )
+					// but the client is requesting another full update.
+					//
+					// This can happen if they request full updates in succession really quickly (using cl_fullupdate or "record X;stop" quickly).
+					// There was a bug here where if we just return out, the client will have nuked its entities and we'd send it
+					// a supposedly uncompressed update but DeltaTick was not -1, so it was delta'd and it'd miss lots of stuff.
+					// Led to clients getting full spectator mode radar while their player was not a spectator.
+					ConDMsg("Client forced immediate full update.\n");
+					ForceWaitForTick = DeltaTick = -1;
+					OnRequestFullUpdate();
+					return true;
+				}
+			}
+			else if (tick < ForceWaitForTick)
+				return true;
+			else
+				ForceWaitForTick = -1;
+		}
+		else {
+			if (DeltaTick == -1)
+				return true;
+
+			if (tick == -1)
+				OnRequestFullUpdate();
+			else {
+				if (DeltaTick > tick) {
+					// client already acknowledged new tick and now switch back to older
+					// thats not allowed since we always delete older frames
+					Disconnect("Client delta ticks out of order.\n");
+					return false;
+				}
+			}
+		}
+
+		DeltaTick = tick;
+
+		if (DeltaTick > -1)
+			StringTableAckTick = DeltaTick;
+
+		if ((BaselineUpdateTick > -1) && (DeltaTick > BaselineUpdateTick))
+			// server sent a baseline update, but it wasn't acknowledged yet so it was probably lost.
+			BaselineUpdateTick = -1;
+
+		return true;
 	}
 
 	public void ClientRequestNameChange(ReadOnlySpan<char> newName) {
@@ -249,8 +322,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 		if (!IsFakeClient()) {
 			FreeBaselines();
-
-			// baseline = todo
+			Baseline = framesnapshotmanager.CreateEmptySnapshot(0, Constants.MAX_EDICTS);
 		}
 
 		NET_Tick msg = new(Server.GetTick(), (int)Host.FrameTime, (int)Host.FrameTimeStandardDeviation);
@@ -271,9 +343,6 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 		// MapReslistGenerator().OnPlayerSpawn();
 		// NotifyDedicatedServerUI("UpdatePlayers");
-
-		NET_SignonState signonState = new(SignOnState, Server.GetSpawnCount()); // FIXME: This message should need to be sent here?
-		NetChannel.SendNetMsg(signonState);
 	}
 
 	protected virtual void OnSignonStateFull() { }
@@ -310,15 +379,15 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		// if ((hltv && hltv.IsTVRelay()) || tv_enable.GetBool()) {
 		// 	HLTV = msg.IsHLTV;
 		// else
-		// 	HLTV = false;
+		HLTV = false;
 
 		FilesDownloaded = 0;
 		FriendsID = (uint)msg.FriendsID;
 		// strcpy(FriendsName, msg.FriendsName);
 
 		for (int i = 0; i < Constants.MAX_CUSTOM_FILES; i++) {
-			// CustomFiles[i].CRC = msg.CustomFiles[i];
-			// CustomFiles[i].ReqID = 0;
+			CustomFiles[i].CRC = msg.CustomFiles[i];
+			CustomFiles[i].ReqID = 0;
 		}
 
 		if (msg.ServerCount != Server.GetSpawnCount()) {
@@ -329,17 +398,182 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		return true;
 	}
 
-	protected virtual bool ProcessBaselineAck(CLC_BaselineAck m) {
-		Common.TimestampedLog($"BaseClient.ProcessBaselineAck: BaselineTick={m.BaselineTick}");
-		return true;// todo
+	protected virtual bool ProcessBaselineAck(CLC_BaselineAck msg) {
+		if (msg.BaselineTick != BaselineUpdateTick)
+			return true;
+
+		if (msg.BaselineNumber != BaselineUsed) {
+			DevMsg($"CBaseClient::ProcessBaselineAck: wrong baseline nr received ({msg.BaselineTick})\n");
+			return true;
+		}
+
+		Assert(Baseline != null);
+
+		ClientFrame? frame = GetDeltaFrame(BaselineUpdateTick);
+		if (frame == null)
+			return true;
+
+		FrameSnapshot? snapshot = frame.GetSnapshot();
+		if (snapshot == null) {
+			DevMsg($"CBaseClient::ProcessBaselineAck: invalid frame snapshot ({BaselineUpdateTick})\n");
+			return true;
+		}
+
+		int index = BaselinesSent.FindNextSetBit(0);
+		while (index > 0) {
+			PackedEntityHandle_t newEntity = snapshot.Entities![index].PackedData;
+			if (newEntity == FrameSnapshotManager.INVALID_PACKED_ENTITY_HANDLE) {
+				DevMsg($"CBaseClient::ProcessBaselineAck: invalid packet handle ({index})\n");
+				return false;
+			}
+
+			PackedEntityHandle_t oldEntity = Baseline.Entities![index].PackedData;
+
+			if (oldEntity != FrameSnapshotManager.INVALID_PACKED_ENTITY_HANDLE)
+				framesnapshotmanager.RemoveEntityReference(oldEntity);
+
+			framesnapshotmanager.AddEntityReference(newEntity);
+
+			Baseline.Entities[index] = snapshot.Entities[index];
+
+			index = BaselinesSent.FindNextSetBit(index + 1);
+		}
+
+		Baseline.TickCount = BaselineUpdateTick;
+
+		BaselineUsed = (BaselineUsed == 1) ? 0 : 1;
+		BaselineUpdateTick = -1;
+
+		return true;
 	}
 
 	protected virtual bool ProcessListenEvents(CLC_ListenEvents m) {
-		return true;// todo
+		gameEventManager.RemoveListener(this);
+
+		for (int i = 0; i < Constants.MAX_EVENT_NUMBER; i++) {
+			if (m.EventArray.Get(i) != 0) {
+				GameEventDescriptor? desc = gameEventManager.GetEventDescriptor(i);
+				if (desc != null)
+					gameEventManager.AddListener(this, desc, GameEventListenerType.Clientstub);
+				else {
+					DevMsg($"ProcessListenEvents: game event {i} not found.\n");
+					return false;
+				}
+			}
+		}
+
+		return true;
 	}
 
-	protected virtual void SendSnapshot(ClientFrame frame) {
-		// todo
+	protected virtual ClientFrame? GetDeltaFrame(int tick) {
+		Assert(false);
+		return null;
+	}
+
+	const int SNAPSHOT_SCRATCH_BUFFER_SIZE = 160000;
+	readonly byte[] SnapshotScratchBuffer = new byte[SNAPSHOT_SCRATCH_BUFFER_SIZE / 4];
+
+	public virtual void SendSnapshot(ClientFrame frame) {
+		if (ForceWaitForTick > 0 || LastSnapshot == frame.GetSnapshot()) {
+			NetChannel.Transmit();
+			return;
+		}
+
+		bool failedOnce = false;
+
+	write_again:
+		bf_write msg = new(SnapshotScratchBuffer, SNAPSHOT_SCRATCH_BUFFER_SIZE);
+
+		ClientFrame? deltaFrame = GetDeltaFrame(DeltaTick);
+		if (deltaFrame == null)
+			OnRequestFullUpdate();
+
+		NET_Tick tickmsg = new(frame.TickCount, (int)Host.FrameTime, (int)Host.FrameTimeStandardDeviation);
+
+		StartTrace(msg);
+
+		tickmsg.WriteToBuffer(msg);
+
+		if (Tracing != 0)
+			TraceNetworkData(msg, "NET_Tick");
+
+		if (CL.LocalNetworkBackdoor == null)
+			Server.StringTables!.WriteUpdateMessage(this, GetMaxAckTickCount(), msg);
+
+		int deltaStartBit = 0;
+		if (Tracing != 0)
+			deltaStartBit = msg.BitsWritten;
+
+		Server.WriteDeltaEntities(this, frame, deltaFrame, msg);
+
+		if (Tracing != 0) {
+			int bits = msg.BitsWritten - deltaStartBit;
+			TraceNetworkData(msg, "Total Delta");
+		}
+
+		int maxTempEnts = Server.IsMultiplayer() ? 64 : 255;
+		Server.WriteTempEntities(this, frame.GetSnapshot(), LastSnapshot, msg, maxTempEnts);
+
+		// WriteGameSounds();
+
+		if (msg.Overflowed) {
+			bool wasTracing = Tracing != 0;
+			if (wasTracing) {
+				TraceNetworkMsg(0, $"Finished [delta {(deltaFrame != null ? "yes" : "no")}]");
+				EndTrace(msg);
+			}
+
+			if (deltaFrame == null) {
+				if (!wasTracing) {
+
+					if (sv_netspike_on_reliable_snapshot_overflow.GetBool()) {
+						if (!failedOnce) {
+							Warning(" RELIABLE SNAPSHOT OVERFLOW!  Triggering trace to see what is so large\n");
+							failedOnce = true;
+							Tracing = 2;
+							goto write_again;
+						}
+
+						Tracing = 0;
+					}
+
+					Disconnect("ERROR! Reliable snapshot overflow.\n");
+					return;
+				}
+				else {
+					ConMsg($"WARNING: msg overflowed for {Name}\n");
+					msg.Reset();
+				}
+			}
+		}
+
+		LastSnapshot = frame.GetSnapshot();
+
+		if (FakePlayer && NetChannel == null) {
+			DeltaTick = (int)frame.TickCount;
+			StringTableAckTick = DeltaTick;
+			return;
+		}
+
+		bool sendOK;
+
+		if (deltaFrame == null) {
+			sendOK = NetChannel.SendData(msg);
+			sendOK = sendOK && NetChannel.Transmit();
+
+			ForceWaitForTick = (int)frame.TickCount;
+		}
+		else
+			sendOK = NetChannel.SendDatagram(msg) > 0;
+
+		if (sendOK) {
+			if (Tracing != 0) {
+				TraceNetworkMsg(0, $"Finished [delta {(deltaFrame != null ? "yes" : "no")}]");
+				EndTrace(msg);
+			}
+		}
+		else
+			Disconnect($"ERROR! Couldn't send snapshot.\n");
 	}
 
 	public int GetClientChallenge() => ClientChallenge;
@@ -381,7 +615,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		return GetUserIDString(GetNetworkID());
 	}
 
-	public void Clear() {
+	public virtual void Clear() {
 		if (NetChannel != null) {
 			NetChannel.Shutdown("Disconnect by server.\n");
 			NetChannel = null!;
@@ -398,7 +632,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		DeltaTick = -1;
 		SignOnTick = 0;
 		StringTableAckTick = 0;
-		// LastSnapshot = NULL;
+		LastSnapshot = null;
 		ForceWaitForTick = -1;
 		FakePlayer = false;
 		HLTV = false;
@@ -422,7 +656,12 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	private void FreeBaselines() {
+		Baseline?.ReleaseReference();
+		Baseline = null;
 
+		BaselineUpdateTick = -1;
+		BaselineUsed = 0;
+		BaselinesSent.ClearAll();
 	}
 
 	public bool IsConnected() => SignOnState >= SignOnState.Connected;
@@ -484,7 +723,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 	public uint SendTableCRC;
 
-	public CustomFile[] CustomFiles;
+	public readonly CustomFile[] CustomFiles = new CustomFile[Constants.MAX_CUSTOM_FILES];
 	public int FilesDownloaded;
 
 	public INetChannel NetChannel;
@@ -493,9 +732,10 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public int StringTableAckTick;
 	public long SignOnTick;
 	// CSmartPtr<CFrameSnapshot, CRefCountAccessorLongName>
-	// CFrameSnapshot baseline
+	FrameSnapshot? LastSnapshot; // todo? ^
+	public FrameSnapshot? Baseline;
 	public int BaselineUpdateTick;
-	MaxEdictsBitVec BaselinesSent;
+	public MaxEdictsBitVec BaselinesSent;
 	public int BaselineUsed;
 
 	public int ForceWaitForTick;
@@ -516,7 +756,20 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public bool IsPlayerNameLocked() => PlayerNameLocked;
 
 	public void FireGameEvent(IGameEvent ev) {
-		throw new NotImplementedException();
+		byte[] buffer = new byte[Constants.MAX_EVENT_BITS];
+
+		SVC_GameEvent msg = new();
+		msg.DataOut.StartWriting(buffer, Constants.MAX_EVENT_BITS, 0);
+
+		if (gameEventManager.SerializeEvent(ev, msg.DataOut)) {
+			if (NetChannel != null) {
+				bool sent = NetChannel.SendNetMsg(msg);
+				if (!sent)
+					DevMsg($"GameEventManager: failed to send event '{ev.GetName()}'.\n");
+			}
+		}
+		else
+			DevMsg($"GameEventManager: failed to serialize event '{ev.GetName()}'.\n");
 	}
 	static bool BIgnoreCharInName(char cChar, bool bIsFirstCharacter) {
 		return cChar == '%' || cChar == '~' || cChar < 0x09 || (bIsFirstCharacter && cChar == '#');
@@ -614,7 +867,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		}
 	}
 
-	public void Connect(ReadOnlySpan<char> name, int userID, INetChannel netChannel, bool fakePlayer, int clientChallenge) {
+	public virtual void Connect(ReadOnlySpan<char> name, int userID, INetChannel netChannel, bool fakePlayer, int clientChallenge) {
 		Common.TimestampedLog("CBaseClient::Connect");
 #if !SWDS
 		EngineVGui().UpdateProgressBar(LevelLoadingProgress.SignOnConnect);
@@ -643,8 +896,28 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			Steam3Server().NotifyLocalClientConnect(this);
 	}
 
-	public void Inactivate() {
-		throw new NotImplementedException();
+	public virtual void Inactivate() {
+		FreeBaselines();
+
+		DeltaTick = -1;
+		SignOnTick = 0;
+		StringTableAckTick = 0;
+		LastSnapshot = null;
+		ForceWaitForTick = -1;
+
+		SignOnState = SignOnState.ChangeLevel;
+
+		if (NetChannel != null) {
+			NetChannel.Clear();
+
+			// if (Net.IsMultiplayer()) {
+			// 	NET_SignonState signonState = new(SignOnState, Server.GetSpawnCount());
+			// 	NetChannel.SendNetMsg(signonState);
+			// 	NetChannel.Transmit();
+			// }
+		}
+
+		gameEventManager.RemoveListener(this);
 	}
 
 	readonly Host Host = Singleton<Host>();
@@ -656,7 +929,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 		SignOnState = SignOnState.Connected;
 
-		NET_SignonState msg = new(SignOnState - 1, Server.GetSpawnCount());
+		NET_SignonState msg = new(SignOnState, -1);
 		NetChannel.SendNetMsg(msg);
 	}
 
@@ -668,28 +941,89 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		throw new NotImplementedException();
 	}
 
-	public void SetRate(int nRate, bool bForce) {
-		throw new NotImplementedException();
-	}
+	public void SetRate(int nRate, bool force) => NetChannel?.SetDataRate(nRate);
 
-	public int GetRate() {
-		throw new NotImplementedException();
-	}
+	public int GetRate() => NetChannel?.GetDataRate() ?? 0;
 
-	public void SetUpdateRate(int nUpdateRate, bool bForce) {
-		throw new NotImplementedException();
+	public void SetUpdateRate(int updateRate, bool force) {
+		updateRate = Math.Clamp(updateRate, 1, 100);
+		SnapshotInterval = 1.0f / updateRate;
 	}
 
 	public int GetUpdateRate() {
-		throw new NotImplementedException();
+		if (SnapshotInterval > 0)
+			return (int)(1.0f / SnapshotInterval);
+		else
+			return 0;
 	}
 
 	public int GetMaxAckTickCount() {
-		throw new NotImplementedException();
+		long maxTick = SignOnTick;
+
+		if (DeltaTick > maxTick)
+			maxTick = DeltaTick;
+
+		if (StringTableAckTick > maxTick)
+			maxTick = StringTableAckTick;
+
+		return (int)maxTick;
 	}
 
-	public bool ExecuteStringCommand(ReadOnlySpan<char> s) {
-		throw new NotImplementedException();
+	public virtual bool ExecuteStringCommand(ReadOnlySpan<char> cmd) {
+		if (cmd.IsEmpty)
+			return false;
+
+		if (strcmp(cmd, "demorestart") == 0) {
+			// DemoRestart();
+			return false;
+		}
+
+		return false;
+	}
+
+	public virtual bool ShouldSendMessages() {
+		if (!IsConnected())
+			return false;
+
+		if (NetChannel != null && NetChannel.IsOverflowed()) {
+			NetChannel.Reset();
+			Disconnect($"{Name} overflowed reliable buffer\n");
+			return false;
+		}
+
+		bool sendMessage = NextMessageTime <= Net.Time;
+
+		if (!sendMessage && !IsActive()) {
+			if (ReceivedPacket && NetChannel != null && NetChannel.HasPendingReliableData())
+				sendMessage = true;
+		}
+
+		if (sendMessage && NetChannel != null && !NetChannel.CanPacket()) {
+			NetChannel.SetChoked();
+			sendMessage = false;
+		}
+
+		return sendMessage;
+	}
+
+	public void UpdateSendState() {
+		ReceivedPacket = false;
+
+		if (!Server.IsMultiplayer() /*&& !host_limitlocal.GetBool()*/) {
+			NextMessageTime = Net.Time;
+			ReceivedPacket = true;
+		}
+		else if (IsActive()) {
+			float maxDelta = (float)Math.Min(Server.GetTickInterval(), SnapshotInterval);
+			float delta = Math.Clamp((float)(Net.Time - NextMessageTime), 0, maxDelta);
+			NextMessageTime = Net.Time + SnapshotInterval - delta;
+		}
+		else {
+			if (NetChannel != null && NetChannel.HasPendingReliableData() && NetChannel.GetTimeSinceLastReceived() < 1.0f)
+				NextMessageTime = Net.Time;
+			else
+				NextMessageTime = Net.Time + 1.0f;
+		}
 	}
 
 	public void ClientPrintf(ReadOnlySpan<char> fmt) {
@@ -705,9 +1039,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		throw new NotImplementedException();
 	}
 
-	public void SetMaxRoutablePayloadSize(int nMaxRoutablePayloadSize) {
-		throw new NotImplementedException();
-	}
+	public void SetMaxRoutablePayloadSize(int nMaxRoutablePayloadSize) => NetChannel?.SetMaxRoutablePayloadSize(nMaxRoutablePayloadSize);
 
 	public bool IsReplay() {
 		return false;
@@ -764,9 +1096,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		signonTick.WriteToBuffer(msg);
 
 		// write stringtable baselines
-#if !SHARED_NET_STRING_TABLES
 		Server.StringTables.WriteBaselines(msg);
-#endif
 
 		// Write replicated ConVars to non-listen server clients only
 		if (!NetChannel.IsLoopback()) {
@@ -792,5 +1122,98 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		Common.TimestampedLog(" BaseClient.SendServerInfo(finished)");
 
 		return true;
+	}
+
+	struct Spike()
+	{
+		public InlineArray64<char> Desc;
+		public int Bits = 0;
+	}
+
+	struct NetworkStatTrace()
+	{
+		public int MinWarningBytes = 0;
+		public int StartBit = 0;
+		public int CurBit = 0;
+		public readonly List<Spike> Records = [];
+		public double StartSendTime = 0.0;
+	}
+
+	public int Tracing;
+	NetworkStatTrace Trace = new();
+
+	void StartTrace(bf_write msg) {
+		Trace.MinWarningBytes = 0;
+		if (!IsHLTV() && !IsReplay() && !IsFakeClient())
+			Trace.MinWarningBytes = -1;
+
+		if (Tracing < 2) {
+			if (Trace.MinWarningBytes <= 0 && sv_netspike_sendtime_ms.GetFloat() <= 0.0f) {
+				Tracing = 0;
+				return;
+			}
+			Tracing = 1;
+		}
+		Trace.StartBit = msg.BitsWritten;
+		Trace.CurBit = Trace.StartBit;
+		Trace.StartSendTime = Platform.Time;
+	}
+
+	void EndTrace(bf_write msg) {
+		if (Tracing == 0)
+			return;
+
+		int bits = Trace.CurBit - Trace.StartBit;
+		float elapsedMs = (float)((Platform.Time - Trace.StartSendTime) * 1000.0);
+		int threshold = Trace.MinWarningBytes << 3;
+		if (Tracing < 2                                                                                       // not forced
+				&& (threshold <= 0 || bits < threshold)                                                      // didn't exceed data threshold
+				&& (sv_netspike_sendtime_ms.GetFloat() <= 0.0f || elapsedMs < sv_netspike_sendtime_ms.GetFloat())) // didn't exceed time threshold
+		{
+			Trace.Records.Clear();
+			Tracing = 0;
+			return;
+		}
+
+		StringBuilder logData = new();
+		logData.Append($"{Platform.Time}/{Host.TickCount} Player [{GetClientName()}][{GetPlayerSlot()}][adr:{NetChannel.GetAddress()}] was sent a datagram {bits} bits ({(float)bits / 8.0f} bytes), took {elapsedMs:F2}ms\n");
+
+		if ((sv_netspike_output.GetInt() & 2) == 0)
+			Log("netspike: %s", logData.ToString());
+
+		for (int i = 0; i < Trace.Records.Count; ++i) {
+			Spike sp = Trace.Records[i];
+			logData.Append($"{sp.Desc} : {sp.Bits} bits ({(float)sp.Bits / 8.0f} bytes)\n");
+		}
+
+		if ((sv_netspike_output.GetInt() & 1) != 0)
+			// COM_LogString(SERVER_PACKETS_LOG, logData.String());
+
+			if ((sv_netspike_output.GetInt() & 2) != 0)
+				Log("%s", logData.ToString());
+
+		Trace.Records.Clear();
+		Tracing = 0;
+	}
+
+	public void TraceNetworkData(bf_write msg, ReadOnlySpan<char> fmt) {
+		if (Tracing == 0)
+			return;
+
+		Spike sp = new();
+		fmt.CopyTo(sp.Desc);
+		sp.Bits = msg.BitsWritten - Trace.CurBit;
+		Trace.Records.Add(sp);
+		Trace.CurBit = msg.BitsWritten;
+	}
+
+	public void TraceNetworkMsg(int bits, ReadOnlySpan<char> fmt) {
+		if (Tracing == 0)
+			return;
+
+		Spike sp = new();
+		fmt.CopyTo(sp.Desc);
+		sp.Bits = bits;
+		Trace.Records.Add(sp);
 	}
 }

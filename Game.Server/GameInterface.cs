@@ -1,5 +1,6 @@
 ﻿global using static Game.Server.EngineCallbacks;
 
+using Game.Server.GarrysMod;
 using Game.Shared;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -198,6 +199,8 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 	public void CreateNetworkStringTables() {
 		// throw new NotImplementedException();
+
+		GameRulesRegister.CreateNetworkStringTables_GameRules();
 	}
 
 	public bool DLLInit(IServiceProvider services) {
@@ -291,11 +294,102 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public bool LevelInit(ReadOnlySpan<char> pMapName, ReadOnlySpan<char> pMapEntities, ReadOnlySpan<char> pOldLevel, ReadOnlySpan<char> pLandmarkName, bool loadGame, bool background) {
-		throw new NotImplementedException();
+		// ResetWindspeed();
+		// UpdateChapterRestrictions(pMapName);
+
+		//Tony; parse custom manifest if exists!
+		// ParseParticleEffectsMap(pMapName, false);
+
+		// IGameSystem::LevelInitPreEntityAllSystems() is called when the world is precached
+		// That happens either in LoadGameState() or in MapEntity_ParseAllEntities()
+		if (loadGame) {
+			if (!pOldLevel.IsEmpty)
+				gpGlobals.LoadType = MapLoadType.Transition;
+			else
+				gpGlobals.LoadType = MapLoadType.LoadGame;
+
+			// BeginRestoreEntities();
+			if (!engine.LoadGameState(pMapName, true)) {
+				if (!pOldLevel.IsEmpty)
+					ParseAllEntities(pMapEntities);
+				else
+					// Regular save load case
+					return false;
+			}
+
+			if (!pOldLevel.IsEmpty)
+				engine.LoadAdjacentEnts(pOldLevel, pLandmarkName);
+
+			// if (g_OneWayTransition)
+			// 	engine.ClearSaveDirAfterClientLoad();
+
+			// if (pOldLevel && sv_autosave.GetBool() == true) {
+			// 	// This is a single-player style level transition.
+			// 	// Queue up an autosave one second into the level
+			// 	BaseEntity? pAutosave = BaseEntity::Create("logic_autosave", vec3_origin, vec3_angle, NULL);
+			// 	if (pAutosave != null) {
+			// 		g_EventQueue.AddEvent(pAutosave, "Save", 1.0, NULL, NULL);
+			// 		g_EventQueue.AddEvent(pAutosave, "Kill", 1.1, NULL, NULL);
+			// 	}
+			// }
+		}
+		else {
+			if (background)
+				gpGlobals.LoadType = MapLoadType.Background;
+
+			else
+				gpGlobals.LoadType = MapLoadType.NewGame;
+
+			// Clear out entity references, and parse the entities into it.
+			// g_MapEntityRefs.Purge();
+			MapLoadEntityFilter filter = new();
+			ParseAllEntities(pMapEntities, filter);
+
+			// g_pServerBenchmark.StartBenchmark();
+
+			// Now call the mod specific parse
+			// LevelInit_ParseAllEntities(pMapEntities);
+		}
+
+		// Check low violence settings for this map
+		// g_RagdollLVManager.SetLowViolence(pMapName);
+
+		// Now that all of the active entities have been loaded in, precache any entities who need point_template parameters
+		//  to be parsed (the above code has loaded all point_template entities)
+		// PrecachePointTemplates();
+
+		// load MOTD from file into stringtable
+		// LoadMessageOfTheDay();
+
+		// Sometimes an ent will Remove() itself during its precache, so RemoveImmediate won't happen.
+		// This makes sure those ents get cleaned up.
+		gEntList.CleanupDeleteList();
+
+		// g_AIFriendliesTalkSemaphore.Release();
+		// g_AIFoesTalkSemaphore.Release();
+		// g_OneWayTransition = false;
+
+		// clear any pending autosavedangerous
+		// m_fAutoSaveDangerousTime = 0.0f;
+		// m_fAutoSaveDangerousMinHealthToCommit = 0.0f;
+		return true;
 	}
 
 	public void LevelShutdown() {
-		throw new NotImplementedException();
+		IGameSystem.LevelShutdownPreClearSteamAPIContextAllSystems();
+		// steamgameserverapicontext.Clear();
+
+		IGameSystem.LevelShutdownPreEntityAllSystems();
+
+		// SoundEnt.ShutdownSoundEnt()
+
+		gEntList.Clear();
+
+		// InvalidateQueryCache();
+
+		IGameSystem.LevelShutdownPostEntityAllSystems();
+
+		NavMesh.NavMesh.Instance!.Reset();
 	}
 
 	public void PostInit() {
@@ -314,7 +408,24 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void ServerActivate(Edict[] pEdictList, int edictCount, int clientMax) {
-		throw new NotImplementedException();
+		// if (InRestore)
+		// 	return;
+
+		if (gEntList.ResetDeleteList() != 0)
+			Msg("ERROR: Entity delete queue not empty on level start!\n");
+
+		for (BaseEntity? ent = gEntList.FirstEnt(); ent != null; ent = gEntList.NextEnt(ent)) {
+			if (ent != null && !ent.IsDormant())
+				ent.Activate();
+		}
+
+		IGameSystem.LevelInitPostEntityAllSystems();
+		// BaseEntity.SetAllowPrecache(false);
+
+		NavMesh.NavMesh.Instance.Load();
+		NavMesh.NavMesh.Instance.OnServerActivate();
+
+		// todo nextbots
 	}
 
 	public void SetServerHibernation(bool bHibernating) {
@@ -333,12 +444,22 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 public class ServerGameClients : IServerGameClients
 {
+	const int CMD_MAXBACKUP = 64;
+
 	public void ClientActive(Edict entity, bool loadGame) {
-		throw new NotImplementedException();
+		GMODClient.ClientActive(entity, loadGame);
+
+		if (gpGlobals.LoadType == MapLoadType.LoadGame) {
+			// todo
+		}
+
+		BasePlayer player = (BasePlayer)BaseEntity.Instance(entity)!;
+		// CSoundEnvelopeController::GetController().CheckLoopingSoundsForPlayer(pPlayer);
+		// SceneManager_ClientActive(pPlayer);
 	}
 
 	public void ClientCommand(Edict entity, in TokenizedCommand args) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public void ClientCommandKeyValues(Edict entity, KeyValues keyValues) {
@@ -358,11 +479,12 @@ public class ServerGameClients : IServerGameClients
 	}
 
 	public void ClientPutInServer(Edict entity, ReadOnlySpan<char> playerName) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		GMODClient.ClientPutInServer(entity, playerName);
 	}
 
 	public void ClientSettingsChanged(Edict edict) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public void ClientSetupVisibility(Edict viewEntity, Edict client, Span<byte> pvs) {
@@ -382,21 +504,65 @@ public class ServerGameClients : IServerGameClients
 		maxPlayers = Constants.MAX_PLAYERS;
 	}
 
-	public PlayerState GetPlayerState(Edict player) {
-		throw new NotImplementedException();
+	public PlayerState? GetPlayerState(Edict player) {
+		if (player == null || player.GetUnknown() == null)
+			return null;
+
+		BasePlayer? pl = BaseEntity.Instance(player) as BasePlayer;
+		return pl?.pl;
 	}
 
 	public void NetworkIDValidated(ReadOnlySpan<char> userName, ReadOnlySpan<char> networkID) {
 		throw new NotImplementedException();
 	}
 
-	public double ProcessUsercmds(Edict player, bf_read buf, int numCmds, int totalCmds, int droppedPackets, bool ignore, bool paused) {
-		throw new NotImplementedException();
+	public TimeUnit_t ProcessUsercmds(Edict player, bf_read buf, int numCmds, int totalCmds, int droppedPackets, bool ignore, bool paused) {
+		int i;
+
+		UserCmd from, to;
+
+		UserCmd[] cmds = new UserCmd[CMD_MAXBACKUP];
+
+		UserCmd cmdNull = new();
+
+		Assert(numCmds >= 0);
+		Assert((totalCmds - numCmds) >= 0);
+
+		BasePlayer? pl = null;
+		BaseEntity? ent = BaseEntity.Instance(player);
+
+		if (ent != null && ent.IsPlayer())
+			pl = (BasePlayer)ent;
+
+		if (totalCmds < 0 || totalCmds >= (CMD_MAXBACKUP - 1)) {
+			ReadOnlySpan<char> name = "unknown";
+			if (pl != null)
+				name = pl.GetPlayerName();
+
+			Msg($"CBasePlayer::ProcessUsercmds: too many cmds {totalCmds} sent for player {name}\n");
+			buf.SetOverflowFlag();
+			return 0.0f;
+		}
+
+		cmdNull.Reset();
+		from = cmdNull;
+
+		for (i = totalCmds - 1; i >= 0; i--) {
+			to = cmds[i];
+			UserCmd.ReadUsercmd(buf, ref to, ref from);
+			from = to;
+		}
+
+		if (ignore || pl == null)
+			return 0.0f;
+
+		// pl.ProcessUsercmds(cmds, numCmds, totalCmds, droppedPackets, paused); TODO
+
+		return TICK_INTERVAL;
 	}
 
-	public void SetCommandClient(int index) {
-		throw new NotImplementedException();
-	}
+	public static int CommandClientIndex = 0;
+	public void SetCommandClient(int index) => CommandClientIndex = index;
 }
 
 public class ServerGameEnts : IServerGameEnts
@@ -411,5 +577,35 @@ public class ServerGameEnts : IServerGameEnts
 
 	public void SetDebugEdictBase(Edict[] edict) {
 
+	}
+}
+
+struct MapEntityRef
+{
+	/// <summary>Which edict slot this entity got. -1 if CreateEntityByName failed.</summary>
+	public int Edict;
+	/// <summary>The edict serial number.</summary>
+	public int SerialNumber;
+};
+
+
+class MapLoadEntityFilter : IMapEntityFilter
+{
+	public bool ShouldCreateEntity(ReadOnlySpan<char> className) => true;
+
+	public BaseEntity? CreateNextEntity(ReadOnlySpan<char> className) {
+		BaseEntity? ret = CreateEntityByName(className);
+		MapEntityRef entref = new() {
+			Edict = -1,
+			SerialNumber = 0
+		};
+
+		if (ret != null) {
+			entref.Edict = ret.EntIndex();
+			if (ret.Edict() != null)
+				entref.SerialNumber = ret.Edict()!.NetworkSerialNumber;
+		}
+
+		return ret;
 	}
 }

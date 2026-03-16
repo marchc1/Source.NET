@@ -156,9 +156,9 @@ public class BaseAnimating : BaseEntity
 	public float GetSequenceGroundSpeed(StudioHdr? studioHdr, int sequence) {
 		TimeUnit_t t = SequenceDuration(studioHdr, sequence);
 
-		if (t > 0) 
+		if (t > 0)
 			return (GetSequenceMoveDist(studioHdr, sequence) / (float)t);
-		else 
+		else
 			return 0;
 	}
 	public void ResetSequenceInfo() {
@@ -200,4 +200,6 @@ public class BaseAnimating : BaseEntity
 		else
 			return sequence;
 	}
+
+	public override BaseAnimating? GetBaseAnimating() => this;
 }

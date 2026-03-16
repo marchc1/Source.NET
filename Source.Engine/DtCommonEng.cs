@@ -152,13 +152,27 @@ public class DtCommonEng(Host Host, Sys Sys, IServerGameDLL serverGameDLL, IBase
 	internal void CreateClientClassInfosFromServerClasses(BaseClientState state) {
 		ServerClass? classes = serverGameDLL.GetAllServerClasses();
 
-		state.NumServerClasses = Constants.TEMP_TOTAL_SERVER_CLASSES;
+		int nClasses = 0;
+		for (ServerClass? cur = classes; cur != null; cur = cur.Next)
+			nClasses++;
+
+		state.ServerClasses = null;
+
+		Assert(nClasses > 0);
+
+		state.NumServerClasses = nClasses;
 		state.ServerClasses = new C_ServerClassInfo[state.NumServerClasses];
 
+		if (state.ServerClasses == null) {
+			Host.EndGame(true, $"CL_ParseClassInfo: can't allocate {state.NumServerClasses} C_ServerClassInfos.\n");
+			return;
+		}
+
 		for (ServerClass? svclass = classes; svclass != null; svclass = svclass.Next) {
-			state.ServerClasses[svclass.ClassID] = new();
-			state.ServerClasses[svclass.ClassID].ClassName = svclass.NetworkName;
-			state.ServerClasses[svclass.ClassID].DatatableName = new(svclass.Table.GetName());
+			state.ServerClasses[svclass.ClassID] = new() {
+				ClassName = svclass.NetworkName,
+				DatatableName = new(svclass.Table.GetName())
+			};
 		}
 	}
 }

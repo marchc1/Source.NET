@@ -1,4 +1,6 @@
-﻿using System.Reflection;
+﻿using Source.Common.Engine;
+
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Source.Common;
@@ -11,7 +13,7 @@ public static class ServerClassRetriever
 		if (ClassList.TryGetValue(t, out ServerClass? c))
 			return c;
 
-		FieldInfo? field = t.GetField(nameof(ServerClass), BindingFlags.Static | BindingFlags.Public);
+		FieldInfo? field = t.GetField(nameof(ServerClass), BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
 		if (field == null)
 			throw new NullReferenceException(nameof(field));
 
@@ -28,7 +30,7 @@ public class ServerClass
 	public SendTable Table;
 	public ServerClass? Next;
 	public int ClassID;
-	public int InstanceBaselineIndex;
+	public int InstanceBaselineIndex = INetworkStringTable.INVALID_STRING_INDEX;
 	public ServerClass(ReadOnlySpan<char> networkName, SendTable table, [CallerArgumentExpression(nameof(table))] string? nameOfTable = null) {
 		NetworkName = new(networkName);
 		Table = table;

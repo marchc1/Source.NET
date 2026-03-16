@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Source.Common;
 
@@ -55,6 +56,8 @@ public static class SendPropHelpers
 		=> outData.String = prop.GetValue<string>(instance);
 	public static object SendProxy_DataTableToDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID)
 		=> prop.GetValue<object>(instance);
+	public static object SendProxy_DataTablePtrToDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID)
+		=> instance;
 	public static void SendProxy_Empty(SendProp prop, object instance, IFieldAccessor data, ref DVariant outData, int element, int objectID) { }
 
 
@@ -108,7 +111,7 @@ public static class SendPropHelpers
 		return InternalSendPropArray(elementCount, arrayName, proxyFn);
 	}
 	public static SendProp SendPropArray3(DynamicArrayAccessor field, SendProp arrayProp, SendTableProxyFn? proxyFn = null) {
-		proxyFn ??= SendProxy_DataTableToDataTable;
+		proxyFn ??= field.StoringType.IsValueType ? SendProxy_DataTablePtrToDataTable : SendProxy_DataTableToDataTable;
 
 		SendProp ret = new();
 		int elements = field.Length;
@@ -121,7 +124,7 @@ public static class SendPropHelpers
 		ret.SetDataTableProxyFn(proxyFn);
 		ret.SetArrayProp(arrayProp);
 
-		if (proxyFn == SendProxy_DataTableToDataTable)
+		if (proxyFn == SendProxy_DataTableToDataTable || proxyFn == SendProxy_DataTablePtrToDataTable)
 			ret.SetFlags(PropFlags.ProxyAlwaysYes);
 
 		SendProp[] props = new SendProp[elements];
@@ -521,7 +524,13 @@ public class SendProp : IDataTableProp
 	SendTable? DataTable;
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public T GetValue<T>(object instance) => FieldInfo.GetValue<T>(instance);
+	public T GetValue<T>(object instance) {
+#if DEBUG
+		ErrorIfNot(FieldInfo != null, $"SendProp.GetValue: FieldInfo is null for prop {GetName()}");
+		// Msg($"SendProp.GetValue for Field '{GetName()}' - '{FieldInfo.Name}' - '{FieldInfo.DeclaringType}' ({Type})\n");
+#endif
+		return FieldInfo.GetValue<T>(instance);
+	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void SetValue<T>(object instance, in T value) => FieldInfo.SetValue(instance, in value);
 
@@ -649,7 +658,7 @@ public class SendTable : IDataTableBase<SendProp>
 
 	protected bool Initialized;
 	protected bool HasBeenWritten;
-	protected bool HasPropsEncodedAgainstCurrentTickCount;
+	public bool HasPropsEncodedAgainstCurrentTickCount;
 
 	public ReadOnlySpan<char> GetName() => NetTableName;
 
