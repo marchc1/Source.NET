@@ -629,6 +629,10 @@ public abstract class BaseClientState(
 		SetSignonState(SignOnState.Connected, -1);
 	}
 	public virtual void Connect(ReadOnlySpan<char> adr, string sourceTag) {
+		IConVar? var = cvar.FindVar("name");
+		if (var != null)
+			SetNameToSteamIDName(var);
+
 		RetryAddress = new(adr);
 		RetryChallenge = (Random.Shared.Next(0, 0x0FFF) << 16) | (Random.Shared.Next(0, 0xFFFF));
 		GameServerSteamID = 0;
@@ -830,7 +834,32 @@ public abstract class BaseClientState(
 
 	public virtual int GetConnectionRetryNumber() => CL_CONNECTION_RETRIES;
 
-	public ConVar cl_name = new("name", "unnamed", FCvar.Archive | FCvar.UserInfo | FCvar.PrintableOnly | FCvar.ServerCanExecute, "Current user name");
+	public ConVar cl_name = new("name", "unnamed", FCvar.Archive | FCvar.UserInfo | FCvar.PrintableOnly | FCvar.ServerCanExecute, "Current user name", callback: CL_NameCvarChanged);
+
+	static bool preventNameChange = false;
+	private static void CL_NameCvarChanged(IConVar var, in ConVarChangeContext ctx) {
+		if (!preventNameChange) {
+			preventNameChange = true;
+			SetNameToSteamIDName(var);
+
+			Span<char> name = stackalloc char[Constants.MAX_PLAYER_NAME_LENGTH];
+			strcpy(name, var.GetString());
+			StrTools.RemoveAllEvilCharacters(name);
+			var.SetValue(name.SliceNullTerminatedString());
+
+			preventNameChange = false;
+		}
+	}
+
+	private static void SetNameToSteamIDName(IConVar var) {
+		CSteamID steamID = SteamUser.GetSteamID();
+		UpdateNameFromSteamID(var, steamID);
+	}
+
+	private static void UpdateNameFromSteamID(IConVar var, CSteamID steamID) {
+		var name = SteamFriends.GetFriendPersonaName(steamID);
+		var.SetValue(name);
+	}
 
 	public virtual string GetClientName() => cl_name.GetString();
 
