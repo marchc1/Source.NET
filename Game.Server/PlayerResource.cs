@@ -6,6 +6,7 @@ using Source.Common;
 
 using FIELD = Source.FIELD<PlayerResource>;
 
+[LinkEntityToClass("player_manager")]
 public class PlayerResource : BaseEntity
 {
 	public static readonly SendTable DT_PlayerResource = new([

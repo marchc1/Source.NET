@@ -53,7 +53,7 @@ public class Net
 
 	public readonly NetAddress LocalAdr = new();
 
-	
+
 
 	public List<VecSplitPacketEntries> SplitPackets = [];
 
@@ -118,7 +118,7 @@ public class Net
 	public static int Bits2Bytes(int b) {
 		return b + 7 >> 3;
 	}
-	public TimeUnit_t Time { get; private set; }
+	public static TimeUnit_t Time { get; private set; }
 
 	public bool IsMultiplayer() => Multiplayer; // its always going to be true; listen servers don't exist yet (if ever)
 
@@ -293,7 +293,7 @@ public class Net
 		if (packet.Source > NetSocketType.Server)
 			return false;
 
-		if (!Loopbacks[(int)packet.Source].TryDequeue(out Loopback? loop)) 
+		if (!Loopbacks[(int)packet.Source].TryDequeue(out Loopback? loop))
 			return false;
 
 		if (loop.Length == 0) {
@@ -305,7 +305,7 @@ public class Net
 		packet.Size = loop.Length;
 		packet.WireSize = loop.Length;
 		memcpy(packet.Data, loop.Data.AsSpan()[..packet.Size]);
-		loop.Length = 0; 
+		loop.Length = 0;
 
 		if (loop.Data != loop.DefBuffer) {
 			ArrayPool<byte>.Shared.Return(loop.Data!, true);
@@ -1013,7 +1013,7 @@ public class Net
 		else
 			ret = -1;
 
-		end:
+	end:
 		if (ret == -1) {
 			Warning("Net.SendPacket went wrong!!!\n");
 			ret = length;
@@ -1119,10 +1119,10 @@ public class Net
 
 		Loopback loop = ObjectPool<Loopback>.Shared.Alloc();
 
-		if (length <= DEF_LOOPBACK_SIZE) 
+		if (length <= DEF_LOOPBACK_SIZE)
 			loop.Data = loop.DefBuffer;
 		else
-			loop.Data = new byte[length];
+			loop.Data = ArrayPool<byte>.Shared.Rent(length);
 
 		memcpy(loop.Data, data.AsSpan()[..length]);
 		loop.Length = length;

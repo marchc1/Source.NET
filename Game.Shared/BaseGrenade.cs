@@ -42,7 +42,7 @@ public partial class BaseGrenade : BaseProjectile
 	public float Damage;
 	public float DmgRadius;
 	public bool IsLive;
-	public readonly EHANDLE Thrower = new();
+	public EHANDLE Thrower = new();
 	public int Flags;
 }
 #endif

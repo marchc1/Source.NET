@@ -17,7 +17,7 @@ public partial class InfoLightingRelative : BaseEntity
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("InfoLightingRelative", DT_InfoLightingRelative).WithManualClassID(StaticClassIndices.CInfoLightingRelative);
 
-	public readonly EHANDLE LightingLandmark = new();
+	public EHANDLE LightingLandmark = new();
 }
 
 public class BaseAnimating : BaseEntity
@@ -94,10 +94,10 @@ public class BaseAnimating : BaseEntity
 	public int NewSequenceParity;
 	public int ResetEventsParity;
 	public int MuzzleFlashParity;
-	public readonly EHANDLE LightingOrigin = new();
-	public readonly EHANDLE LightingOriginRelative = new();
-	public readonly EHANDLE BoneManipulator = new();
-	public readonly EHANDLE FlexManipulator = new();
+	public EHANDLE LightingOrigin = new();
+	public EHANDLE LightingOriginRelative = new();
+	public EHANDLE BoneManipulator = new();
+	public EHANDLE FlexManipulator = new();
 	public float FadeMinDist;
 	public float FadeMaxDist;
 	public float FadeScale;
@@ -156,9 +156,9 @@ public class BaseAnimating : BaseEntity
 	public float GetSequenceGroundSpeed(StudioHdr? studioHdr, int sequence) {
 		TimeUnit_t t = SequenceDuration(studioHdr, sequence);
 
-		if (t > 0) 
+		if (t > 0)
 			return (GetSequenceMoveDist(studioHdr, sequence) / (float)t);
-		else 
+		else
 			return 0;
 	}
 	public void ResetSequenceInfo() {
@@ -200,4 +200,6 @@ public class BaseAnimating : BaseEntity
 		else
 			return sequence;
 	}
+
+	public override BaseAnimating? GetBaseAnimating() => this;
 }

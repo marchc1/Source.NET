@@ -29,8 +29,8 @@ public partial class C_BaseCombatCharacter : C_BaseFlex
 	public void SetNextAttack(TimeUnit_t wait) => NextAttack = wait;
 
 	public TimeUnit_t NextAttack;
-	public readonly Handle<C_BaseCombatWeapon> LastWeapon = new();
-	public readonly Handle<C_BaseCombatWeapon> ActiveWeapon = new();
+	public Handle<C_BaseCombatWeapon> LastWeapon = new();
+	public Handle<C_BaseCombatWeapon> ActiveWeapon = new();
 	public InlineArrayNewMaxWeapons<Handle<C_BaseCombatWeapon>> MyWeapons = new();
 
 	[NetworkArraySize(MAX_AMMO_TYPES)] public readonly NetworkArray<int> Ammo = new(MAX_AMMO_TYPES);

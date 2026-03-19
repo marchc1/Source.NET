@@ -3,6 +3,7 @@ using Source.Common.Mathematics;
 
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Source.Common;
 
@@ -31,7 +32,7 @@ public abstract class DefaultClientRenderable : IClientUnknown, IClientRenderabl
 	public virtual int DrawModel(StudioFlags flags) => 0;
 	public virtual Model? GetModel() => null;
 	public virtual IPVSNotify? GetPVSNotifyInterface() => null;
-	public virtual ClientEntityHandle? GetRefEHandle() { Debugger.Break(); Environment.Exit(-1); return null; }
+	public virtual ref readonly ClientEntityHandle GetRefEHandle() { Debugger.Break(); Environment.Exit(-1); return ref Unsafe.NullRef<ClientEntityHandle>(); }
 	public abstract ref readonly QAngle GetRenderAngles();
 	public abstract void GetRenderBounds(out Vector3 mins, out Vector3 maxs);
 	public virtual void GetRenderBoundsWorldspace(out Vector3 mins, out Vector3 maxs) => IClientLeafSystemEngine.DefaultRenderBoundsWorldspace(this, out mins, out maxs);
@@ -40,7 +41,7 @@ public abstract class DefaultClientRenderable : IClientUnknown, IClientRenderabl
 	public virtual bool IsTwoPass() => false;
 	public virtual int GetFxBlend() => 255;
 	public virtual ref ClientRenderHandle_t RenderHandle() => ref m_RenderHandle;
-	public virtual void SetRefEHandle(ClientEntityHandle handle) => Assert(false);
+	public virtual void SetRefEHandle(in ClientEntityHandle handle) => Assert(false);
 	public virtual bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, double currentTime) => true;
 	public abstract bool ShouldDraw();
 

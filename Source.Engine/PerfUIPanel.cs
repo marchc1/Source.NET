@@ -1,4 +1,5 @@
 using Source.Common.Commands;
+using Source.Engine;
 using Source.GUI.Controls;
 
 // TODO: Remove uses of ConVarRef when those cvars exist
@@ -279,10 +280,10 @@ class PerfUIPanel : Frame
 
 		int w = 250;
 		int h = 400;
-		// int x = videomode->GetModeStereoWidth() - w - 10;
-		// int y = (videomode->GetModeStereoHeight() - h) / 2 + videomode->GetModeStereoHeight() * 0.2;
-		int x = 1600 - w - 10;
-		int y = (int)((900 - h) / 2 + 900 * 0.2);
+		VideoMode_Common vm = (VideoMode_Common)videoMode;
+		int x = vm.GetModeStereoWidth() - w - 10;
+		int y = (int)((vm.GetModeStereoHeight() - h) / 2 + vm.GetModeStereoHeight() * 0.2);
+
 		SetBounds(x, y, w, h);
 
 		ToolPanels[(int)PerformanceTool_t.PERF_TOOL_NONE] = new PerfUIChildPanel(this, "PerfNone");
@@ -326,8 +327,9 @@ class PerfUIPanel : Frame
 	}
 
 	public override void OnTick() {
-		// if (!CanCheat())
-		// Shutdown();
+		if (!Host.CanCheat())
+			Shutdown();
+
 		base.OnTick();
 	}
 
@@ -353,8 +355,8 @@ class PerfUIPanel : Frame
 	}
 
 	public override void Activate() {
-		// if (!CanCheat())
-		// return;
+		if (!Host.CanCheat())
+			return;
 
 		Init();
 		base.Activate();

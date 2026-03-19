@@ -7,7 +7,7 @@ using Source.Common;
 namespace Game.Client;
 
 public static class ClientEntityGlobals {
-	public static readonly BaseHandle? INVALID_CLIENTENTITY_HANDLE = null;
+	public static readonly BaseHandle INVALID_CLIENTENTITY_HANDLE = new(Constants.INVALID_EHANDLE_INDEX);
 }
 public static class ClientEntityExts
 {
@@ -29,7 +29,7 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 
 	public IClientUnknown? GetListedEntity(int entNum) => (IClientUnknown?)LookupEntityByNetworkIndex(entNum);
 
-	public IClientEntity? GetClientEntityFromHandle(BaseHandle ent) {
+	public IClientEntity? GetClientEntityFromHandle(in BaseHandle ent) {
 		throw new NotImplementedException();
 	}
 
@@ -37,11 +37,11 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 		return EntityCacheInfo[entnNum].Networkable;
 	}
 
-	public IClientNetworkable? GetClientNetworkableFromHandle(BaseHandle ent) {
+	public IClientNetworkable? GetClientNetworkableFromHandle(in BaseHandle ent) {
 		throw new NotImplementedException();
 	}
 
-	public IClientUnknown? GetClientUnknownFromHandle(BaseHandle ent) {
+	public IClientUnknown? GetClientUnknownFromHandle(in BaseHandle ent) {
 		return (IClientUnknown?)LookupEntity(ent);
 	}
 
@@ -153,9 +153,9 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 
 	}
 
-	public BaseHandle? InvalidHandle() => null;
+	public BaseHandle InvalidHandle() => new(Constants.INVALID_EHANDLE_INDEX);
 
-	public IClientThinkable? GetClientThinkableFromHandle(BaseHandle hEnt) {
+	public IClientThinkable? GetClientThinkableFromHandle(in BaseHandle hEnt) {
 		IClientUnknown? pEnt = GetClientUnknownFromHandle(hEnt);
 		return pEnt == null ? null : pEnt.GetClientThinkable();
 	}

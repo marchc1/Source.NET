@@ -26,6 +26,7 @@ public static class SourceDllMain
 	[Dependency] public static IGameEventManager2 gameeventmanager { get; private set; } = null!;
 	[Dependency] public static IDataCache datacache { get; private set; } = null!;
 	[Dependency] public static UserMessages usermessages { get; private set; } = null!;
+	[Dependency] public static IModelInfo modelinfo { get; private set; } = null!;
 
 	[KeyedDependency(Key = Realm.Server)] public static INetworkStringTableContainer networkstringtable { get; private set; } = null!;
 

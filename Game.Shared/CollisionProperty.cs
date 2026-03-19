@@ -76,11 +76,11 @@ public class CollisionProperty
 	}
 #else
 	private static void SendProxy_SolidFlags(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
-		throw new NotImplementedException();
+		outData.Int = ((CollisionProperty)(instance)).SolidFlags;
 	}
 
 	private static void SendProxy_Solid(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
-		throw new NotImplementedException();
+		outData.Int = ((CollisionProperty)(instance)).SolidType;
 	}
 #endif
 

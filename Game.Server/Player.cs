@@ -2,6 +2,7 @@
 
 using Source;
 using Source.Common;
+using Source.Common.Client;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
@@ -51,7 +52,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	]); public static readonly ServerClass PlayerExclusive = new("LocalPlayerExclusive", DT_LocalPlayerExclusive);
 
 	public static readonly SendTable DT_BasePlayer = new(DT_BaseCombatCharacter, [
-		SendPropDataTable(nameof(pl), DT_PlayerState, SendProxy_DataTableToDataTable),
+		SendPropDataTable(nameof(pl), FIELD.OF(nameof(pl)), DT_PlayerState, SendProxy_DataTableToDataTable),
 		SendPropEHandle(FIELD.OF(nameof(Vehicle))),
 		SendPropEHandle(FIELD.OF(nameof(UseEntity))),
 		SendPropInt(FIELD.OF(nameof(LifeState)), 3, PropFlags.Unsigned ),
@@ -74,6 +75,8 @@ public partial class BasePlayer : BaseCombatCharacter
 		SendPropDataTable( "localdata", DT_LocalPlayerExclusive, SendProxy_SendLocalDataTable),
 	]);
 
+	public static Edict? s_PlayerEdict;
+
 	public int StuckLast;
 	public float MaxSpeed() => Maxspeed;
 	public void SetMaxSpeed(float maxSpeed) => Maxspeed = maxSpeed;
@@ -84,28 +87,110 @@ public partial class BasePlayer : BaseCombatCharacter
 	public float SurfaceFriction;
 
 	public static void SendProxy_CropFlagsToPlayerFlagBitsLength(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
-		throw new NotImplementedException();
+		int mask = (1 << Constants.PLAYER_FLAG_BITS) - 1;
+		int data = field.GetValue<int>(instance);
+		outData.Int = data & mask;
 	}
 
 	public static object? SendProxy_SendLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		throw new NotImplementedException();
+		// recipients.SetOnly(objectID - 1);
+		return data;
 	}
 	public static object? SendProxy_SendNonLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		return data;
 	}
 
 	public static readonly new ServerClass ServerClass = new ServerClass("BasePlayer", DT_BasePlayer).WithManualClassID(StaticClassIndices.CBasePlayer);
 
+	public BasePlayer() {
+		AddEFlags(EFL.NoAutoEdictAttach);
+
+		if (s_PlayerEdict != null) {
+			NetworkProp().AttachEdict(s_PlayerEdict);
+			s_PlayerEdict = null;
+		}
+
+		pl.FixAngle = (int)FixAngle.Absolute;
+		pl.HLTV = false;
+		pl.Replay = false;
+		pl.Frags = 0;
+		pl.Deaths = 0;
+
+		Netname[0] = '\0';
+
+		Health = 0;
+		Weapon_SetLast(null);
+		// BitsDamageType = 0;
+
+		// ForceOrigin = false;
+		Vehicle.Set(null);
+		// CurrentCommand = null;
+		// LockViewanglesTickNumber = 0;
+		// AngLockViewangles.Init();
+
+		// Setup our default FOV
+		// DefaultFOV = GameRules.DefaultFOV();
+
+		ZoomOwner.Set(null);
+
+		// UpdateRate = 20;  // cl_updaterate defualt
+		// LerpTime = 0.1f; // cl_interp default
+		// PredictWeapons = true;
+		// LagCompensation = false;
+		LaggedMovementValue = 1.0f;
+		StuckLast = 0;
+		// ImpactEnergyScale = 1.0f;
+		// LastPlayerTalkTime = 0.0f;
+		// PlayerInfo.SetParent(this);
+
+		// ResetObserverMode();
+
+		SurfaceProps = 0;
+		SurfaceData = null;
+		SurfaceFriction = 1.0f;
+		// TextureType = 0;
+		// PreviousTextureType = 0;
+
+		// SuicideCustomKillFlags = 0;
+		// Delay = 0.0f;
+		// ReplayEnd = -1;
+		// ReplayEntity = 0;
+
+		// AutoKickDisabled = false;
+
+		// NumCrouches = 0;
+		// DuckToggled = false;
+		// PhysicsWasFrozen = false;
+
+		// ButtonDisabled = 0;
+		// ButtonForced = 0;
+
+		// BodyPitchPoseParam = -1;
+		// ForwardMove = 0;
+		// SideMove = 0;
+
+		// // NVNT default to no haptics
+		// HasHaptics = false;
+
+		ConstraintCenter = vec3_origin;
+
+		// LastUserCommandTime = 0.0f;
+		// MovementTimeForUserCmdProcessingRemaining = 0.0f;
+
+		// LastObjectiveTime = -1.0f;
+	}
+
 	bool DeadFlag;
 	public readonly PlayerState pl = new();
 	public readonly PlayerLocalData Local = new();
-	public readonly EHANDLE Vehicle = new();
-	public readonly EHANDLE UseEntity = new();
-	public readonly EHANDLE ObserverTarget = new();
-	public readonly EHANDLE ZoomOwner = new();
-	public readonly EHANDLE ConstraintEntity = new();
-	public readonly EHANDLE TonemapController = new();
-	public readonly EHANDLE ViewEntity = new();
+	public EHANDLE Vehicle = new();
+	public EHANDLE UseEntity = new();
+	public EHANDLE ObserverTarget = new();
+	public EHANDLE ZoomOwner = new();
+	public EHANDLE ConstraintEntity = new();
+	public EHANDLE TonemapController = new();
+	public EHANDLE ViewEntity = new();
 	InlineArrayNewMaxViewmodels<Handle<BaseViewModel>> ViewModel = new();
 	readonly List<Handle<SharedBaseEntity>> SimulatedByThisPlayer = [];
 
@@ -128,7 +213,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	float ConstraintWidth;
 	float ConstraintSpeedFactor;
 	InlineArray18<char> LastPlaceName;
-	readonly EHANDLE ColorCorrectionCtrl = new();
+	EHANDLE ColorCorrectionCtrl = new();
 	bool UseWeaponsInVehicle;
 	public bool OnTarget;
 	public double DeathTime;
@@ -164,6 +249,125 @@ public partial class BasePlayer : BaseCombatCharacter
 	public virtual void InitialSpawn() {
 		Connected = PlayerConnectedState.Connected;
 		// gamestats todo
+	}
+
+	BaseEntity? FindPlayerStart(ReadOnlySpan<char> className) {
+		BaseEntity? start = gEntList.FindEntityByClassname(null, className);
+		BaseEntity? startFirst = start;
+
+		while (start != null) {
+			if (start.HasSpawnFlags(1))
+				return start;
+
+			start = gEntList.FindEntityByClassname(start, className);
+		}
+
+		return startFirst;
+	}
+
+	public BaseEntity? EntSelectSpawnPoint() {
+		BaseEntity? spot;
+		Edict player = Edict();
+
+		// if coop
+		// elseif deathmatch todo
+
+		if (gpGlobals.StartSpot == null || gpGlobals.StartSpot.Length == 0) {
+			spot = FindPlayerStart("info_player_start");
+			if (spot != null)
+				goto ReturnSpawn;
+		}
+		else {
+			spot = gEntList.FindEntityByName(null, gpGlobals.StartSpot);
+			if (spot != null)
+				goto ReturnSpawn;
+		}
+
+	ReturnSpawn:
+		if (spot == null) {
+			Warning("PutClientInServer: no info_player_start on level\n");
+			return Instance(engine.PEntityOfEntIndex(0)!);
+		}
+
+		// LastSpawn = spot; todo
+		return spot;
+	}
+
+	public override void Spawn() {
+		// if (Hints()) Hints().ResetHints();
+
+		SetClassname("player");
+
+		// SharedSpawn();
+
+		SetSimulatedEveryTick(true);
+		SetAnimatedEveryTick(true);
+
+		// ArmorValue = SpawnArmorValue();
+		// SetBlockLOS(false);
+		MaxHealth = Health;
+
+		if ((GetFlags() & EntityFlags.FakeClient) != 0) {
+			ClearFlags();
+			AddFlag(EntityFlags.Client | EntityFlags.FakeClient);
+		}
+		else {
+			ClearFlags();
+			AddFlag(EntityFlags.Client);
+		}
+
+		AddFlag(EntityFlags.AimTarget);
+
+		EntityEffects effects = (EntityEffects)Effects & EntityEffects.NoShadow;
+		SetEffects(effects);
+
+		// IncrementInterpolationFrame();
+
+		// InitFogController();
+
+		// DmgTake = 0;
+		// DmgSave = 0;
+		// HUDDamage = -1;
+		// DamageType = 0;
+		// PhysicsFlags = 0;
+		// DrownRestored = DrownDmg;
+
+		// SetFOV(this, 0);
+
+		// NextDecalTime = 0;
+
+		// GeigerDelay = gpGlobals.CurTime + 2.0f;
+
+		// FieldOfView = 0.766;
+
+		// AdditionPVSOrigin = vec3_origin;
+		// CameraPVSOrigin = vec3_origin;
+
+		// if (!GameHUDInitialized)
+		// 	GameRules.SetDefaultPlayerTeam(this);
+
+		GameRules.GetPlayerSpawnSpot(this);
+
+		Local.Ducked = false;
+		Local.Ducking = false;
+		SetViewOffset(VEC_VIEW_SCALED(this));
+		Precache();
+
+		// SetPlayerUnderwater(false);
+
+		// Train = TRAIN_NEW;
+
+		// HackedGunPos = new Vector3(0, 32, 0);
+		// BonusChallenge;
+
+		// SetThink(null);
+
+		// more todo
+
+		// GameRules.PlayerSpawn(this);
+		LaggedMovementValue = 1.0f;
+
+		base.Spawn();
 	}
 
 	public TimeUnit_t GetDeathTime() => DeathTime;

@@ -141,22 +141,22 @@ public static partial class Util
 		WRITE_BYTE((byte)dest);
 		WRITE_STRING(msgName);
 
-		if (param1.IsEmpty)
+		if (!param1.IsEmpty)
 			WRITE_STRING(param1);
 		else
 			WRITE_STRING("");
 
-		if (param2.IsEmpty)
+		if (!param2.IsEmpty)
 			WRITE_STRING(param2);
 		else
 			WRITE_STRING("");
 
-		if (param3.IsEmpty)
+		if (!param3.IsEmpty)
 			WRITE_STRING(param3);
 		else
 			WRITE_STRING("");
 
-		if (param4.IsEmpty)
+		if (!param4.IsEmpty)
 			WRITE_STRING(param4);
 		else
 			WRITE_STRING("");
@@ -177,8 +177,81 @@ public static partial class Util
 		return player;
 	}
 
+	public static BasePlayer? GetListenServerHost() {
+		if (engine.IsDedicatedServer()) {
+			Assert("UTIL_GetListenServerHost");
+			Warning("UTIL_GetListenServerHost() called from a dedicated server or single-player game.\n");
+			return null;
+		}
+
+		return PlayerByIndex(1);
+	}
+
+	public static bool IsCommandIssuedByServerAdmin() {
+		int issuingPlayerIndex = GetCommandClientIndex();
+
+		if (engine.IsDedicatedServer() && issuingPlayerIndex > 0)
+			return false;
+
+		return issuingPlayerIndex < 1;
+	}
+
 	public static void ClientPrintAll(HudPrint dest, ReadOnlySpan<char> msgName, ReadOnlySpan<char> param1 = default, ReadOnlySpan<char> param2 = default, ReadOnlySpan<char> param3 = default, ReadOnlySpan<char> param4 = default) {
 		ReliableBroadcastRecipientFilter filter = new();
 		ClientPrintFilter(filter, dest, msgName, param1, param2, param3, param4);
+	}
+
+	public static int DispatchSpawn(BaseEntity? entity) {
+		Console.WriteLine($"Dispatching spawn for {entity}");
+		if (entity != null) {
+			// keep a smart pointer that will know if the object gets deleted
+			EHANDLE pEntSafe = new();
+			pEntSafe.Set(entity);
+
+			// TODO: GetBaseAnimating / SetBoneCacheFlags(BCF_IS_IN_SPAWN)
+			entity.Spawn();
+			// TODO: ClearBoneCacheFlags(BCF_IS_IN_SPAWN)
+
+			// Try to get the pointer again, in case the spawn function deleted the entity.
+			if (!pEntSafe.IsValid() || entity.IsMarkedForDeletion())
+				return -1;
+
+			// TODO
+			// if (entity.m_iGlobalname != NULL_STRING) {
+			// 	int globalIndex = GlobalEntity_GetIndex(entity.m_iGlobalname);
+			// 	if (globalIndex >= 0) {
+			// 		if (GlobalEntity_GetState(globalIndex) == GLOBAL_DEAD) {
+			// 			entity.Remove();
+			// 			return -1;
+			// 		} else if (!FStrEq(STRING(gpGlobals.mapname), GlobalEntity_GetMap(globalIndex))) {
+			// 			entity.MakeDormant();
+			// 		}
+			// 	} else {
+			// 		GlobalEntity_Add(entity.m_iGlobalname, gpGlobals.mapname, GLOBAL_ON);
+			// 	}
+			// }
+
+			gEntList.NotifySpawn(entity);
+		}
+
+		return 0;
+	}
+
+	public static void Remove(BaseEntity entity) {
+		throw new NotImplementedException();
+	}
+
+	public static void Remove(IServerNetworkable entity) {
+		throw new NotImplementedException();
+	}
+
+	public static int GetCommandClientIndex() => ServerGameClients.CommandClientIndex;
+
+	public static BasePlayer? GetCommandClient() {
+		int id = GetCommandClientIndex();
+		if (id > 0)
+			return PlayerByIndex(id)!;
+
+		return null;
 	}
 }

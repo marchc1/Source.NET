@@ -96,8 +96,8 @@ public partial class
 #pragma warning restore CS0109 // Member does not hide an inherited member; new keyword is not required
 #endif
 	public int _ViewModelIndex;
-	public readonly EHANDLE Owner = new();
-	public readonly Handle<BaseCombatWeapon> Weapon = new();
+	public EHANDLE Owner = new();
+	public  Handle<BaseCombatWeapon> Weapon = new();
 	public int AnimationParity;
 
 	public BaseCombatWeapon? GetOwningWeapon() => Weapon.Get();

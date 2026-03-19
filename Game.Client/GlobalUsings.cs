@@ -1,4 +1,4 @@
-global using EHANDLE = Game.Shared.Handle<Game.Client.C_BaseEntity>;
+global using EHANDLE = Source.Common.Handle<Game.Client.C_BaseEntity>;
 global using static Game.Client.SourceDllMain;
 global using static Game.Client.BeamDraw;
 

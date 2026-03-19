@@ -10,6 +10,6 @@ public struct LadderMove()
 	public float ArrivalTime;
 	public Vector3 GoalPosition;
 	public Vector3 StartPosition;
-	public readonly EHANDLE ForceLadder = new();
-	public readonly EHANDLE ReservedSpot = new();
+	public EHANDLE ForceLadder = new();
+	public EHANDLE ReservedSpot = new();
 }

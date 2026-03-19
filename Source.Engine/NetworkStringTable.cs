@@ -160,7 +160,7 @@ public class NetworkStringTable : INetworkStringTable
 	private int MaxEntries;
 	private int EntryBits;
 	private int TickCount;
-	private int LastChangedTick;
+	internal int LastChangedTick;
 
 	private bool ChangeHistoryEnabled;
 	private bool Locked;
@@ -388,6 +388,8 @@ public class NetworkStringTable : INetworkStringTable
 			ChangeHistoryEnabled = true;
 	}
 
+	public void SetMirrorTable(INetworkStringTable mirrorTable) => MirrorTable = mirrorTable;
+
 	private void DataChanged(int stringNumber, NetworkStringTableItem item) {
 		LastChangedTick = TickCount;
 
@@ -525,8 +527,132 @@ public class NetworkStringTable : INetworkStringTable
 		}
 	}
 
+	public void TriggerCallbacks(int tickAck) {
+		if (ChangeFunc == null)
+			return;
+
+		Common.TimestampedLog($"Change({GetTableName()}):Start");
+
+		int count = Items.Count();
+
+		for (int i = 0; i < count; i++) {
+			NetworkStringTableItem item = Items.Element(i);
+			if (item.TickChanged <= tickAck)
+				continue;
+
+			byte[]? userData = item.GetUserData(out int userDataSize);
+			ChangeFunc(CallbackObject, this, i, GetString(i), userData);
+		}
+
+		Common.TimestampedLog($"Change({GetTableName()}):End");
+	}
+
+
+	private static int CountSimilarCharacters(string str1, string str2) {
+		int c = 0;
+		int maxLen = Math.Min(str1.Length, str2.Length);
+		int limit = (1 << SUBSTRING_BITS) - 1;
+		while (c < maxLen && str1[c] == str2[c] && c < limit) {
+			c++;
+		}
+		return c;
+	}
+
+	private static int GetBestPreviousString(List<string> history, string newstring, out int substringsize) {
+		int bestindex = -1;
+		int bestcount = 0;
+		int c = history.Count;
+		for (int i = 0; i < c; i++) {
+			string prev = history[i];
+			int similar = CountSimilarCharacters(prev, newstring);
+
+			if (similar < 3)
+				continue;
+
+			if (similar > bestcount) {
+				bestcount = similar;
+				bestindex = i;
+			}
+		}
+
+		substringsize = bestcount;
+		return bestindex;
+	}
+
 	public int WriteUpdate(BaseClient? client, bf_write buf, int tickAck) {
-		return 0; // todo
+		List<string> history = []; // StringHistoryEntry
+
+		int entriesUpdated = 0;
+		int lastEntry = -1;
+
+		int count = Items.Count();
+
+		for (int i = 0; i < count; i++) {
+			NetworkStringTableItem p = Items.Element(i);
+
+			// Client is up to date
+			if (p.TickChanged <= tickAck)
+				continue;
+
+			// Write Entry index
+			if ((lastEntry + 1) == i)
+				buf.WriteOneBit(1);
+			else {
+				buf.WriteOneBit(0);
+				buf.WriteUBitLong((uint)i, EntryBits);
+			}
+
+			// check if string can use older string as base eg "models/weapons/gun1" & "models/weapons/gun2"
+			string pEntry = Items.String(i);
+
+			if (p.TickCreated > tickAck) {
+				// this item has just been created, send string itself
+				buf.WriteOneBit(1);
+
+				int bestprevious = GetBestPreviousString(history, pEntry, out int substringsize);
+				if (bestprevious != -1) {
+					buf.WriteOneBit(1);
+					buf.WriteUBitLong((uint)bestprevious, 5); // history never has more than 32 entries
+					buf.WriteUBitLong((uint)substringsize, SUBSTRING_BITS);
+					buf.WriteString(pEntry.AsSpan(substringsize));
+				}
+				else {
+					buf.WriteOneBit(0);
+					buf.WriteString(pEntry);
+				}
+			}
+			else
+				buf.WriteOneBit(0);
+
+			// Write the item's user data.
+			byte[]? pUserData = p.GetUserData(out int len);
+			if (pUserData != null && len > 0) {
+				buf.WriteOneBit(1);
+
+				if (IsUserDataFixedSize()) {
+					// Don't have to send length, it was sent as part of the table definition
+					buf.WriteBits(pUserData, GetUserDataSizeBits());
+				}
+				else {
+					buf.WriteUBitLong((uint)len, NetworkStringTableItem.MAX_USERDATA_BITS);
+					buf.WriteBits(pUserData, len * 8);
+				}
+			}
+			else
+				buf.WriteOneBit(0);
+
+			// limit string history to 32 entries
+			if (history.Count > 31)
+				history.RemoveAt(0);
+
+			// add string to string history
+			history.Add(pEntry.Length > (1 << SUBSTRING_BITS) ? pEntry[..(1 << SUBSTRING_BITS)] : pEntry);
+
+			entriesUpdated++;
+			lastEntry = i;
+		}
+
+		return entriesUpdated;
 	}
 
 	public bool WriteBaselines(SVC_CreateStringTable msg, byte[] msg_buffer, nint msg_buffer_size) {
@@ -534,6 +660,7 @@ public class NetworkStringTable : INetworkStringTable
 
 		msg.IsFilenames = IsFilenames;
 		msg.TableName = TableName;
+		msg.MaxEntries = GetMaxStrings();
 		msg.NumEntries = GetNumStrings();
 		msg.UserDataFixedSize = IsUserDataFixedSize();
 		msg.UserDataSize = GetUserDataSize();
@@ -554,7 +681,7 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 	private bool EnableRollback;
 	private List<NetworkStringTable> Tables = new List<NetworkStringTable>();
 
-	public INetworkStringTable? CreateStringTable(ReadOnlySpan<char> tableName, int maxEntries, int userDataFixedSize, int userDataNetworkBits) {
+	public INetworkStringTable? CreateStringTable(ReadOnlySpan<char> tableName, int maxEntries, int userDataFixedSize = 0, int userDataNetworkBits = 0) {
 		return CreateStringTableEx(tableName, maxEntries, userDataFixedSize, userDataNetworkBits, false);
 	}
 
@@ -572,12 +699,12 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 			return null;
 		}
 
-		if (Tables.Count() >= INetworkStringTable.MAX_TABLES) {
+		if (Tables.Count >= INetworkStringTable.MAX_TABLES) {
 			Host.Error($"Only {INetworkStringTable.MAX_TABLES} string tables allowed, can't create '{tableName}'");
 			return null;
 		}
 
-		int id = Tables.Count();
+		int id = Tables.Count;
 		pTable = new NetworkStringTable(id, tableName, maxEntries, userDataFixedSize, userDataNetworkBits, isFilenames);
 
 		if (EnableRollback) {
@@ -609,10 +736,22 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 	}
 
 	public int GetNumTables() {
-		return Tables.Count();
+		return Tables.Count;
 	}
 
-	public void SetTick(long tick) { }
+	public void SetTick(long tick) {
+		Assert(tick >= 0);
+
+		TickCount = (int)tick;
+
+		for (int i = 0; i < Tables.Count; i++) {
+			NetworkStringTable pTable = (NetworkStringTable)GetTable(i)!;
+
+			Assert(pTable != null);
+
+			pTable.SetTick(TickCount);
+		}
+	}
 
 	public void SetAllowClientSideAddString(INetworkStringTable table, bool allowClientSideAddString) {
 		foreach (NetworkStringTable pTable in Tables) {
@@ -677,5 +816,31 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 
 	public void SetAllowCreation(bool state) {
 		AllowCreation = state;
+	}
+
+	public void WriteUpdateMessage(BaseClient? client, int tickAck, bf_write buf) {
+		byte[] msg_buffer = new byte[Protocol.MAX_PAYLOAD];
+
+		for (int i = 0; i < Tables.Count; i++) {
+			NetworkStringTable table = (NetworkStringTable)GetTable(i)!;
+
+			if (!table.ChangedSinceTick(tickAck))
+				continue;
+
+			SVC_UpdateStringTable msg = new() {
+				TableID = table.GetTableId()
+			};
+			msg.DataOut.StartWriting(msg_buffer, Protocol.MAX_PAYLOAD, 0);
+			msg.ChangedEntries = table.WriteUpdate(client, msg.DataOut, tickAck);
+
+			if (msg.ChangedEntries <= 0)
+				continue;
+
+			if (!msg.WriteToBuffer(buf))
+				Host.Error($"Overflow error writing string table update for {table.GetTableName()}\n");
+
+			if (client != null && client.Tracing != 0)
+				client.TraceNetworkMsg(0, $"Sent update for string table {table.GetTableName()} with {msg.ChangedEntries} changed entries\n");
+		}
 	}
 }

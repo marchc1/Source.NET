@@ -54,7 +54,7 @@ public partial class CL(IServiceProvider services, Net Net,
 	}
 
 	readonly LocalNetworkBackdoor localNetworkBackdoor = new();
-	public LocalNetworkBackdoor? LocalNetworkBackdoor;
+	public static LocalNetworkBackdoor? LocalNetworkBackdoor;
 
 	public void SetupLocalNetworkBackDoor(bool useBackdoor) {
 		if (useBackdoor) {
@@ -241,14 +241,14 @@ public partial class CL(IServiceProvider services, Net Net,
 			port = Net.LocalAdr.GetPort();
 		}
 
-		int queryPort = 0; // TODO
+		int queryPort = GetServerQueryPort();
 
 		EngineVGui!.NotifyOfServerConnect(Common.Gamedir, (int)ip, port, queryPort);
 		EngineVGui!.UpdateProgressBar(LevelLoadingProgress.ReadyToPlay);
 		// MDL cache end map load
 
 		if (Host.developer.GetInt() > 0)
-			ConDMsg("Signon traffic \"%s\":  incoming %s, outgoing %s\n", cl.NetChannel.GetName().ToString(), cl.NetChannel.GetTotalData(1 /*FLOW_INCOMING*/), cl.NetChannel.GetTotalData(0 /*FLOW_OUTGOING*/));
+			ConDMsg($"Signon traffic \"{cl.NetChannel.GetName()}\":  incoming {cl.NetChannel.GetTotalData(NetFlow.FLOW_INCOMING)}, outgoing {cl.NetChannel.GetTotalData(NetFlow.FLOW_OUTGOING)}\n");
 
 		Scr.EndLoadingPlaque();
 		// EndLoadingUpdates();
@@ -272,6 +272,10 @@ public partial class CL(IServiceProvider services, Net Net,
 		}
 
 		cl.Connect(address, sourceTag);
+	}
+
+	int GetServerQueryPort() {
+		return 0; // TODO
 	}
 
 	[ConCommand]
@@ -404,7 +408,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		np.Color[2] = 0.0f;
 		Con.NXPrintF(in np, str);
 
-		cl.FreeFrame(newFrame);
+		cl.FrameManager.FreeFrame(newFrame);
 	}
 
 	internal void PreprocessEntities() {
@@ -467,7 +471,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		IClientNetworkable? ent = EntityList.GetClientNetworkable(u.NewEntity);
 
 		if (iClass >= cl.NumServerClasses) {
-			Host.Error($"CL.CopyNewEntity: invalid class index ({iClass}).\n");
+			Host.Error($"CL.CopyNewEntity: invalid class index ({iClass}, max {cl.NumServerClasses}).\n");
 			return;
 		}
 
@@ -753,6 +757,8 @@ public class ClientDLL(IServiceProvider services, Sys Sys, EngineRecvTable RecvT
 			Sys.Error("Client.dll Init() in library client failed.");
 
 		ClientSidePrediction = services.GetRequiredService<IPrediction>();
+		ClientSidePrediction.Init();
+
 		EntityList = services.GetRequiredService<IClientEntityList>();
 		CenterPrint = services.GetRequiredService<ICenterPrint>();
 		ClientLeafSystem = services.GetRequiredService<IClientLeafSystemEngine>();
@@ -773,7 +779,13 @@ public class ClientDLL(IServiceProvider services, Sys Sys, EngineRecvTable RecvT
 	}
 
 	public void Update() {
+		if (sv.IsDedicated())
+			return;
 
+		if (clientDLL == null)
+			return;
+
+		clientDLL.HudUpdate(true);
 	}
 
 	public void ProcessInput() => g_ClientDLL?.HudProcessInput(cl.IsConnected());

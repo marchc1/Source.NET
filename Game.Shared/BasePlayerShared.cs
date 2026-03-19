@@ -8,17 +8,18 @@ global using BasePlayer = Game.Client.C_BasePlayer;
 
 #else
 global using static Game.Server.BasePlayerGlobals;
+
 global using BasePlayer = Game.Server.BasePlayer;
 
 #endif
 using Source.Common.Mathematics;
-using Source;
+
 using Game.Shared;
+
 using System.Numerics;
 
 #if CLIENT_DLL
 namespace Game.Client;
-
 
 #else
 namespace Game.Server;
@@ -26,6 +27,8 @@ namespace Game.Server;
 
 using Source.Common.Commands;
 using Source.Common.Physics;
+using Source;
+using Source.Common;
 
 using System.Runtime.CompilerServices;
 
@@ -119,7 +122,7 @@ public partial class
 	public ReadOnlySpan<char> GetPlayerName() {
 		return ((Span<char>)Netname).SliceNullTerminatedString();
 	}
-	public void SetPlayerName(ReadOnlySpan<char> name){
+	public void SetPlayerName(ReadOnlySpan<char> name) {
 		strcpy(Netname, name);
 	}
 
@@ -188,6 +191,7 @@ public partial class
 
 		Local.PunchAngleVel += angleOffset * 20;
 	}
+
 	public void ViewPunchReset(float tolerance) {
 		if (tolerance != 0) {
 			tolerance *= tolerance; // square
@@ -199,8 +203,8 @@ public partial class
 		Local.PunchAngleVel = vec3_angle;
 	}
 
-	void Weapon_SetLast(BaseCombatWeapon pWeapon) {
-		throw new NotImplementedException();
+	void Weapon_SetLast(BaseCombatWeapon? pWeapon) {
+		LastWeapon.Set(pWeapon);
 	}
 
 	public void SetAnimationExtension(ReadOnlySpan<char> extension) {
@@ -251,7 +255,7 @@ public partial class
 #if CLIENT_DLL
 			if (vehicle.IsPredicted())
 #endif
-				vehicle.ItemPostFrame(this);
+			vehicle.ItemPostFrame(this);
 
 			if (!usingStandardWeapons || GetVehicle() == null)
 				return;
@@ -275,7 +279,7 @@ public partial class
 				// Not predicting this weapon
 				if (GetActiveWeapon()!.IsPredicted())
 #endif
-					GetActiveWeapon()!.ItemPostFrame();
+				GetActiveWeapon()!.ItemPostFrame();
 			}
 		}
 
@@ -295,7 +299,7 @@ public partial class
 			//AngleVectors(m_vecVehicleViewAngles, pForward, pRight, pUp);
 			forward = right = up = default;
 		}
-		else 
+		else
 			MathLib.AngleVectors(EyeAngles(), out forward, out right, out up);
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void EyeVectors(out Vector3 forward, out Vector3 right) => EyeVectors(out forward, out right, out _);

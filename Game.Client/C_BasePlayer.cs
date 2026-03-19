@@ -179,7 +179,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 					if (pWeaponData == null || (pWeaponData.Flags & WeaponFlags.NoAmmoPickups) == 0) {
 						// We got more ammo for this ammo index. Add it to the ammo history
-						HudHistoryResource? pHudHR = GET_HUDELEMENT<HudHistoryResource>();
+						HudHistoryResource? pHudHR = gHUD.FindElement("CHudHistoryResource") as HudHistoryResource;
 						pHudHR?.AddToHistory(HRType.Ammo, i, Math.Abs(GetAmmoCount(i) - OldAmmo[i]));
 					}
 				}
@@ -369,13 +369,13 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	bool DeadFlag;
 	internal readonly PlayerState pl = new();
 	public readonly PlayerLocalData Local = new();
-	readonly EHANDLE Vehicle = new();
-	readonly EHANDLE UseEntity = new();
-	readonly EHANDLE ObserverTarget = new();
-	readonly EHANDLE ZoomOwner = new();
-	public readonly EHANDLE ConstraintEntity = new();
-	readonly EHANDLE TonemapController = new();
-	readonly EHANDLE ViewEntity = new();
+	EHANDLE Vehicle = new();
+	EHANDLE UseEntity = new();
+	EHANDLE ObserverTarget = new();
+	EHANDLE ZoomOwner = new();
+	public EHANDLE ConstraintEntity = new();
+	EHANDLE TonemapController = new();
+	EHANDLE ViewEntity = new();
 	InlineArrayNewMaxViewmodels<Handle<C_BaseViewModel>> ViewModel = new();
 	bool DisableWorldClicking;
 	public float Maxspeed;
@@ -390,7 +390,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public float ConstraintWidth;
 	public float ConstraintSpeedFactor;
 	InlineArray18<char> LastPlaceName;
-	readonly EHANDLE ColorCorrectionCtrl = new();
+	EHANDLE ColorCorrectionCtrl = new();
 	bool UseWeaponsInVehicle;
 	public bool OnTarget;
 	public double DeathTime;

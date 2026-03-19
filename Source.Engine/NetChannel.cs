@@ -159,7 +159,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		}
 
 		if (address != null) {
-			RemoteAddress = address;
+			RemoteAddress = address.Copy(); // fixme?
 		}
 		else if (RemoteAddress != null) {
 			RemoteAddress.Type = NetAddressType.Null;
@@ -841,8 +841,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 					bool invert = showmsgname.StartsWith('!');
 					if (invert) showmsgname = showmsgname[1..];
 					if (showmsgname == "1" || (showmsgname.Equals(netMsg.GetName(), StringComparison.OrdinalIgnoreCase) ^ invert))
-						Msg($"Msg from {RemoteAddress}: {netMsg.ToString()?.Trim('\n')}\n");
-
+#if DEBUG
+						_ColorSpewMessage(SpewType.Message, new Color(255, 128, 0), $"Msg from {RemoteAddress}: {netMsg.ToString()?.Trim('\n')}\n");
+#else
+						Msg($"Msg from {RemoteAddress}: {netMsg.GetName()}\n");
+#endif
 				}
 
 				string blockmsgname = Net.net_blockmsg.GetString();
@@ -1291,7 +1294,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 	public void SetMaxRoutablePayloadSize(int splitSize) {
 		if (MaxRoutablePayloadSize != splitSize) {
-			DevMsg($"Setting max routable payload size from {MaxRoutablePayloadSize} to {splitSize} for {GetName()}");
+			DevMsg($"Setting max routable payload size from {MaxRoutablePayloadSize} to {splitSize} for {GetName()}\n");
 		}
 		MaxRoutablePayloadSize = splitSize;
 	}
@@ -1921,7 +1924,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		data.Bytes = (uint)totalBytes;
 		data.Bits = data.Bytes * 8;
 		data.Buffer = null;
-		data.Compressed  = false;
+		data.Compressed = false;
 		data.UncompressedSize = 0;
 		data.File = g_pFileSystem.Open(filename, Filesystem.FileOpenOptions.Read | Filesystem.FileOpenOptions.Binary, pathID);
 
@@ -1947,7 +1950,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 	}
 
 	public void DenyFile(ReadOnlySpan<char> filename, uint transferID) {
-		if (Net.net_showfragments.GetInt() == 2) 
+		if (Net.net_showfragments.GetInt() == 2)
 			DevMsg($"DenyFile: {filename} (ID {transferID})\n");
 
 		StreamReliable.WriteUBitLong(NET.File, NETMSG_TYPE_BITS);

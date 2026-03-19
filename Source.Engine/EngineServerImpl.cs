@@ -92,8 +92,12 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public Edict CreateEdict(int iForceEdictIndex = -1) {
-		throw new NotImplementedException();
+	public Edict? CreateEdict(int forceEdictIndex = -1) {
+		Edict? edict = ED.Alloc(forceEdictIndex);
+
+		serverPluginHandler.OnEdictAllocated(edict);
+
+		return edict;
 	}
 
 	public Edict CreateFakeClient(ReadOnlySpan<char> netname) {
@@ -248,9 +252,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public bool IsDedicatedServer() {
-		throw new NotImplementedException();
-	}
+	public bool IsDedicatedServer() => sv.IsDedicated();
 
 	public bool IsGenericPrecached(ReadOnlySpan<char> s) {
 		throw new NotImplementedException();
@@ -390,8 +392,14 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public Edict PEntityOfEntIndex(int iEntIndex) {
-		throw new NotImplementedException();
+	public Edict? PEntityOfEntIndex(int iEntIndex) {
+		if (iEntIndex >= 0 && iEntIndex < sv.MaxEdicts) {
+			Edict? edict = sv.Edicts![iEntIndex];
+			if (edict.IsFree())
+				return edict;
+		}
+
+		return null;
 	}
 
 	public void PlaybackTempEntity(IRecipientFilter filter, float delay, object sender, SendTable st, int classID) {
@@ -508,17 +516,30 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	public void TriggerMoved(Edict pTriggerEnt, bool testSurroundingBoundsOnly) {
 		throw new NotImplementedException();
 	}
-	class MsgData {
-		public MsgData(){
+	class MsgData
+	{
+		public MsgData() {
 			Reset();
+
+			EntityMsg.DataOut.StartWriting(EntityData, EntityData.Length);
+			EntityMsg.DataOut.DebugName = "s_MsgData.EntityMsg.DataOut";
+
+			UserMsg.DataOut.StartWriting(UserData, UserData.Length);
+			UserMsg.DataOut.DebugName = "s_MsgData.UserMsg.DataOut";
 		}
 
-		public void Reset(){
-
+		public void Reset() {
+			Filter = null;
+			Reliable = false;
+			SubType = 0;
+			Started = false;
+			UserMessageSize = -1;
+			UserMessageName = null;
+			CurrentMsg = null;
 		}
 
 		public readonly byte[] UserData = new byte[PAD_NUMBER(Constants.MAX_USER_MSG_DATA, 4)];    // buffer for outgoing user messages
-		public readonly byte[] EntityDAta = new byte[PAD_NUMBER(Constants.MAX_ENTITY_MSG_DATA, 4)]; // buffer for outgoing entity messages
+		public readonly byte[] EntityData = new byte[PAD_NUMBER(Constants.MAX_ENTITY_MSG_DATA, 4)]; // buffer for outgoing entity messages
 
 		public IRecipientFilter? Filter;       // clients who get this message
 		public bool Reliable;

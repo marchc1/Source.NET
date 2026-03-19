@@ -12,6 +12,7 @@ namespace Game.Server.HL2MP;
 using FIELD = FIELD<HL2MP_Player>;
 using FIELD_RD = FIELD<HL2MPRagdoll>;
 
+[LinkEntityToClass("player")]
 public class HL2MP_Player : HL2_Player
 {
 	public static readonly SendTable DT_HL2MPLocalPlayerExclusive = new([
@@ -58,13 +59,14 @@ public class HL2MP_Player : HL2_Player
 															.WithManualClassID(StaticClassIndices.CHL2MP_Player);
 
 	public QAngle AngEyeAngles;
-	public readonly EHANDLE Ragdoll = new();
+	public EHANDLE Ragdoll = new();
 	public int SpawnInterpCounter;
 	public int PlayerSoundType;
 	public bool IsWalking;
 }
 
-public class HL2MPRagdoll : BaseAnimatingOverlay {
+public class HL2MPRagdoll : BaseAnimatingOverlay
+{
 	public static readonly SendTable DT_HL2MPRagdoll = new([
 		SendPropVector(FIELD_RD.OF(nameof(RagdollOrigin)), 0, PropFlags.Coord),
 		SendPropEHandle(FIELD_RD.OF(nameof(Player))),
@@ -76,6 +78,6 @@ public class HL2MPRagdoll : BaseAnimatingOverlay {
 	public static readonly new ServerClass ServerClass = new ServerClass("HL2MPRagdoll", DT_HL2MPRagdoll).WithManualClassID(StaticClassIndices.CHL2MPRagdoll);
 
 	public Vector3 RagdollOrigin;
-	public readonly EHANDLE Player = new();
+	public EHANDLE Player = new();
 	public Vector3 RagdollVelocity;
 }

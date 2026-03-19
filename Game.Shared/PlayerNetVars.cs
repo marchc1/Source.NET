@@ -1,4 +1,5 @@
 ﻿using Source;
+using Source.Common;
 
 using System.Numerics;
 
@@ -36,7 +37,9 @@ public struct FogParams()
 
 public struct FogPlayerParams()
 {
-	public readonly Handle<SharedBaseEntity> Ctrl = new();
+#if CLIENT_DLL || GAME_DLL
+	public Handle<SharedBaseEntity> Ctrl = new();
+	#endif
 	public float TransitionTime;
 
 	public Color OldColor;

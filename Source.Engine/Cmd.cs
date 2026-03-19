@@ -77,7 +77,11 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 				bool isServerCommand = commandBase.IsFlagSet(FCvar.GameDLL) && source == CommandSource.Command && !sv.IsDedicated();
 
 				if (sv.IsActive()) {
-					//todo: all that command stuff for servers one day
+					serverPluginHandler.SetCommandClient(source == CommandSource.Client ? clientSlot : -1);
+#if !SWDS
+					if (isServerCommand)
+						serverPluginHandler.SetCommandClient(cl.PlayerSlot);
+#endif
 				}
 				else if (isServerCommand) {
 					// We're not the server, but we are connected - so we'll try to forward it
@@ -92,9 +96,10 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 
 				if (commandBase.IsFlagSet(FCvar.Cheat)) {
 					if (!Host.IsSinglePlayerGame() && !Host.CanCheat()) {
-						// TODO; allow server to run it...
-						Dbg.Msg($"Can't use cheat command {commandBase.GetName()} in multiplayer, unless the server has sv_cheats set to 1.\n");
-						return null;
+						if (filterCommandsByServerCanExecute == 0 || !commandBase.IsFlagSet(FCvar.ServerCanExecute)) {
+							Dbg.Msg($"Can't use cheat command {commandBase.GetName()} in multiplayer, unless the server has sv_cheats set to 1.\n");
+							return null;
+						}
 					}
 				}
 
@@ -120,11 +125,8 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 		if (cv.IsCommand(command))
 			return commandBase;
 
-		if (source == CommandSource.Command) {
-			if (cl.IsConnected()) {
-				ForwardToServer(command);
-			}
-		}
+		if (source == CommandSource.Command && cl.IsConnected())
+			ForwardToServer(command);
 
 		Dbg.Msg($"Unknown command \"{command[0]}\"\n");
 		return null;
@@ -141,7 +143,7 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 #endif
 	}
 
-	private void Dispatch(ConCommandBase commandBase, in TokenizedCommand command) {
+	public void Dispatch(ConCommandBase commandBase, in TokenizedCommand command) {
 		ConCommand conCommand = (ConCommand)commandBase;
 		conCommand.Dispatch(in command, Source, ClientSlot);
 	}
@@ -150,7 +152,7 @@ public class Cmd(IEngineAPI provider, IFileSystem fileSystem)
 		if (filterCommandsByClientCmdCanExecute > 0 && cmd != null && cmd.IsFlagSet(FCvar.ClientCmdCanExecute)) {
 			// If this command is in the game DLL, don't mention it because we're going to forward this
 			// request to the server and let the server handle it.
-			if (!cmd.IsFlagSet(FCvar.GameDLL)) 
+			if (!cmd.IsFlagSet(FCvar.GameDLL))
 				Dbg.Warning($"FCvar.ServerCanExecute prevented server running command: {cmd.GetName()}\n");
 
 			return true;

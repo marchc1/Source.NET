@@ -25,7 +25,7 @@ public partial class C_InfoLightingRelative : C_BaseEntity
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("InfoLightingRelative", DT_InfoLightingRelative).WithManualClassID(StaticClassIndices.CInfoLightingRelative);
 
-	public readonly EHANDLE LightingLandmark = new();
+	public EHANDLE LightingLandmark = new();
 }
 
 
@@ -182,7 +182,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	int BoneIndexAttached;
 	Vector3 BonePosition;
 	QAngle BoneAngles;
-	readonly Handle<C_BaseAnimating> AttachedTo = new();
+	Handle<C_BaseAnimating> AttachedTo = new();
 	readonly List<Matrix3x4> CachedBoneData = [];
 
 	public void InvalidateBoneCache() {
@@ -1229,10 +1229,10 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public int NewSequenceParity;
 	public int ResetEventsParity;
 	public byte MuzzleFlashParity;
-	public readonly EHANDLE LightingOrigin = new();
-	public readonly EHANDLE LightingOriginRelative = new();
-	public readonly EHANDLE BoneManipulator = new();
-	public readonly EHANDLE FlexManipulator = new();
+	public EHANDLE LightingOrigin = new();
+	public EHANDLE LightingOriginRelative = new();
+	public EHANDLE BoneManipulator = new();
+	public EHANDLE FlexManipulator = new();
 	public Vector3 OverrideViewTarget;
 	public float FadeMinDist;
 	public float FadeMaxDist;

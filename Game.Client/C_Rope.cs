@@ -39,8 +39,8 @@ public class C_RopeKeyframe : C_BaseEntity
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("RopeKeyframe", DT_RopeKeyframe).WithManualClassID(StaticClassIndices.CRopeKeyframe);
 
-	public readonly EHANDLE StartPoint = new();
-	public readonly EHANDLE EndPoint = new();
+	public EHANDLE StartPoint = new();
+	public EHANDLE EndPoint = new();
 	public int StartAttachment;
 	public int EndAttachment;
 	public int StartBone;

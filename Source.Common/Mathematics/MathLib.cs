@@ -1135,6 +1135,12 @@ public static class MathLib
 		return C + (D - C) * SimpleSpline(cVal);
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void AngleVectors(in QAngle angles, out Vector3 forward) {
+		SinCos(DEG2RAD(angles.X), out float sp, out float cp);
+		SinCos(DEG2RAD(angles.Y), out float sy, out float cy);
+		forward = new(cp * cy, cp * sy, -sp);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe void AngleVectors(in QAngle angles, out Vector3 forward, out Vector3 right, out Vector3 up) {
 		fixed (QAngle* aptr = &angles) {
 			Vector3 radians = Vector3.Multiply(*(Vector3*)aptr, MathF.PI / 180f);
@@ -1160,6 +1166,27 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void CrossProduct(in Vector3 a, in Vector3 b, out Vector3 result) {
 		result = Vector3.Cross(a, b);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void VectorVectors(in Vector3 forward, out Vector3 right, out Vector3 up) {
+		right = default;
+		up = default;
+		if (forward[0] == 0 && forward[1] == 0) {
+			right[0] = 0;
+			right[1] = -1;
+			right[2] = 0;
+			up[0] = -forward[2];
+			up[1] = 0;
+			up[2] = 0;
+		}
+		else {
+			Vector3 tmp = default;
+			tmp[0] = 0; tmp[1] = 0; tmp[2] = 1;
+			CrossProduct(forward, tmp, out right);
+			VectorNormalize(ref right);
+			CrossProduct(right, forward, out up);
+			VectorNormalize(ref up);
+		}
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void MatrixGetColumn(in Matrix3x4 inMatrix, int column, out Vector3 outVec) {

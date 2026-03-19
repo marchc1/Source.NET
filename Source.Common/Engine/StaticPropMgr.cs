@@ -23,7 +23,7 @@ public interface IStaticPropMgrEngine
 	public LightCacheHandle_t GetLightCacheHandleForStaticProp( IHandleEntity pHandleEntity );
 
 	public bool IsStaticProp( IHandleEntity pHandleEntity );
-	public bool IsStaticProp( BaseHandle handle );
+	public bool IsStaticProp( in BaseHandle handle );
 
 	public int GetStaticPropIndex( IHandleEntity pHandleEntity );
 	public bool PropHasBakedLightingDisabled( IHandleEntity pHandleEntity);
