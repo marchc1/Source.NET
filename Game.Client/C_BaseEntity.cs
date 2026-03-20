@@ -312,7 +312,7 @@ public partial class C_BaseEntity : IClientEntity
 		if (!ThreadInMainThread())
 			return;
 
-		s_bAbsQueriesValid = !valid;
+		s_bAbsQueriesValid = valid;
 	}
 
 	public static bool IsAbsRecomputationsEnabled() => !ThreadInMainThread() || s_bAbsRecomputationEnabled;
@@ -2224,7 +2224,7 @@ public partial class C_BaseEntity : IClientEntity
 		(nuint)sizeof(Vector3),		// FIELD_VECTOR
 		(nuint)sizeof(Quaternion),	// FIELD_QUATERNION
 		sizeof(int),				// FIELD_INTEGER
-		sizeof(char),				// FIELD_BOOLEAN
+		sizeof(bool),				// FIELD_BOOLEAN
 		sizeof(short),				// FIELD_SHORT
 		sizeof(char),				// FIELD_CHARACTER
 		(nuint)sizeof(Color),		// FIELD_COLOR32
