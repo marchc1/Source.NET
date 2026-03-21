@@ -384,4 +384,9 @@ public partial class BasePlayer : BaseCombatCharacter
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, int fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup, noRepeat ? 1 : 0);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, bool fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup ? 1 : 0, noRepeat ? 1 : 0);
 
+	double LastPlayerTalkTime;
+	public TimeUnit_t LastTimePlayerTalked() => LastPlayerTalkTime;
+	public void NotePlayerTalked() => LastPlayerTalkTime = gpGlobals.CurTime;
+
+	public bool CanSpeak() => true;
 }
