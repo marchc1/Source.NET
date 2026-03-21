@@ -57,7 +57,7 @@ public static class SourceDllMain
 	[Dependency] public static ICvar cvar { get; private set; } = null!;
 	[Dependency] public static ClientEntityList cl_entitylist { get; private set; } = null!;
 	[Dependency] public static UserMessages usermessages { get; private set; } = null!;
-	[Dependency] public static IModelInfoClient modelinfo { get; private set; } = null!;
+	[Dependency] public static IVModelInfoClient modelinfo { get; private set; } = null!;
 	[Dependency] public static IGameEventManager2 gameeventmanager { get; private set; } = null!;
 	[Dependency] public static IDataCache datacache { get; private set; } = null!;
 	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;

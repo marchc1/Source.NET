@@ -179,8 +179,8 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<ISoundServices, EngineSoundServices>();
 		// Engine datacache
 		this.AddSingleton<IModelRender, ModelRender>();
-		this.AddSingleton<IModelInfoClient, ModelInfoClient>();
-		this.AddSingleton<IModelInfo>(x => x.GetRequiredService<IModelInfoClient>());
+		this.AddSingleton<IVModelInfoClient, ModelInfoClient>();
+		this.AddSingleton<IVModelInfo>(x => x.GetRequiredService<IVModelInfoClient>());
 		// Engine VGUI and how to read it later
 		this.AddSingleton<EngineVGui>();
 		this.AddSingleton<IEngineVGuiInternal, EngineVGui>(x => x.GetRequiredService<EngineVGui>());

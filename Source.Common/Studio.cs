@@ -22,7 +22,7 @@ using static StudioDeps;
 public static class StudioDeps
 {
 	[Dependency] public static IMDLCache MDLCache { get; private set; } = null!;
-	[Dependency] public static IModelInfo modelinfo { get; private set; } = null!;
+	[Dependency] public static IVModelInfo modelinfo { get; private set; } = null!;
 }
 
 public delegate T FactoryFn<T>(object caller, Memory<byte> data);
