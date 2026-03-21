@@ -4,6 +4,7 @@ using Source;
 using Source.Common.Physics;
 namespace Game.Shared;
 
+[EngineComponent]
 public static class PhysicsSharedGlobals
 {
 	[Dependency] public static IPhysics physics { get; set; } = null!;
