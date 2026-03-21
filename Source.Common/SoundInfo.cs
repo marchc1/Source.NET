@@ -69,7 +69,7 @@ public struct SoundInfo
 
 		if (nProtoVersion > 22) {
 			if (buffer.ReadOneBit() != 0)
-				SoundNum = (int)buffer.ReadUBitLong(StringTableBits.MaxSoundIndexBits);
+				SoundNum = (int)buffer.ReadUBitLong(StringTableBits.g_MaxSoundIndexBits);
 			else
 				SoundNum = delta.SoundNum;
 		}
@@ -183,7 +183,7 @@ public struct SoundInfo
 				buffer.WriteOneBit(0);
 			else {
 				buffer.WriteOneBit(1);
-				buffer.WriteUBitLong((uint)SoundNum, StringTableBits.MaxSoundIndexBits);
+				buffer.WriteUBitLong((uint)SoundNum, StringTableBits.g_MaxSoundIndexBits);
 			}
 		}
 		else {

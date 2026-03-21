@@ -217,7 +217,7 @@ public class ClientState : BaseClientState
 			return false;
 		}
 
-		StringTableBits.CL_SetupNetworkStringTableBits(StringTableContainer!, tableName);
+		CL_SetupNetworkStringTableBits(StringTableContainer!, tableName);
 
 		switch (tableName) {
 			case PrecacheItem.MODEL_PRECACHE_TABLENAME:

@@ -16,6 +16,7 @@ global using static Source.Common.Physics.PhysicsPerformanceConstants;
 global using static Source.Common.Physics.PhysicsConstants;
 global using static Source.Common.Filesystem.FilesystemGlobals;
 global using static Source.Common.BaseTypesGlobals;
+global using static Source.Common.StringTableBits;
 global using CRC32_t = uint;
 global using HCursor = nint;
 global using UtlSymId_t = ulong;

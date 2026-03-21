@@ -330,4 +330,22 @@ public class CollisionModelSubsystem()
 	private void DispTreeLeafnum(CollisionBSPData bspData) {
 
 	}
+
+	public static VCollide? GetVCollide(int modelIndex) {
+		CollisionModel? model = InlineModelNumber(modelIndex);
+		if (model == null)
+			return null;
+
+		// return the model's collision data
+		return model.VCollisionData;
+	}
+
+	private static CollisionModel? InlineModelNumber(int index) {
+		CollisionBSPData bspData = GetCollisionBSPData();
+
+		if ((index < 0) || (index > bspData.MapCollisionModels.Count))
+			return null;
+
+		return (bspData.MapCollisionModels[index]);
+	}
 }

@@ -219,8 +219,29 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException();
 	}
 
-	public VCollide? GetVCollide(int modelindex) {
-		throw new NotImplementedException();
+	public VCollide? GetVCollide(int modelIndex) {
+		// First model (index 0 )is is empty
+		// Second model( index 1 ) is the world, then brushes/submodels, then players, etc.
+		// So, we must subtract 1 from the model index to map modelindex to CM_ index
+		// in cmodels, 0 is the world, then brushes, etc.
+		if (modelIndex < g_MaxModels) {
+			Model? model = GetModel(modelIndex);
+			if (model != null) {
+				switch (model.Type) {
+					case ModelType.Brush:
+						return CollisionModelSubsystem.GetVCollide(modelIndex - 1);
+					case ModelType.Studio: {
+							VCollide? col = mdlcache.GetVCollide(model.Studio);
+							return col;
+						}
+				}
+			}
+			else {
+				// we may have the cmodels loaded and not know the model/mod->type yet
+				return CollisionModelSubsystem.GetVCollide(modelIndex - 1);
+			}
+		}
+		return null;
 	}
 
 	public void GetModelBounds(Model? model, out AngularImpulse mins, out AngularImpulse maxs) {

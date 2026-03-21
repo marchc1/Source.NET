@@ -4,12 +4,11 @@ using System.Numerics;
 namespace Source.Common;
 
 [DebuggerDisplay("Source BSP Collision Model @ {Origin} [{Mins} -> {Maxs}] (head-node {HeadNode})")]
-public struct CollisionModel
+public class CollisionModel
 {
 	public Vector3 Mins, Maxs, Origin;
 	public int HeadNode;
-
-	// vcollide_t research todo
+	public readonly VCollide VCollisionData = new();
 }
 
 [DebuggerDisplay("Source BSP Collision Surface '{Name}' (props: {SurfaceProps}, flags: {Flags})")]
