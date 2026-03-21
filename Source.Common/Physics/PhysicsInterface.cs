@@ -507,7 +507,7 @@ public interface IPhysicsEnvironment
 	void DebugCheckContacts();
 }
 
-public enum CallbackFlags
+public enum CallbackFlags : ushort
 {
 	GlobalCollision = 0x0001,
 	GlobalFriction = 0x0002,
@@ -564,9 +564,9 @@ public interface IPhysicsObject
 	ushort GetGameIndex();
 
 	// setup various callbacks for this object
-	void SetCallbackFlags(ushort callbackflags);
+	void SetCallbackFlags(CallbackFlags callbackflags);
 	// get the current callback state for this object
-	ushort GetCallbackFlags();
+	CallbackFlags GetCallbackFlags();
 
 	// "wakes up" an object
 	// NOTE: ALL OBJECTS ARE "Asleep" WHEN CREATED
@@ -812,7 +812,7 @@ public struct ConvertConvexParams
 
 }
 
-public ref struct FluidParams
+public struct FluidParams
 {
 	public Vector4 SurfacePlane;        // x,y,z normal, dist (plane constant) fluid surface
 	public Vector3 CurrentVelocity;     // velocity of the current in inches/second
@@ -824,7 +824,7 @@ public ref struct FluidParams
 	public Contents Contents;
 }
 
-public ref struct SpringParams
+public struct SpringParams
 {
 	public float Constant;          // spring constant
 	public float NaturalLength;     // relaxed length

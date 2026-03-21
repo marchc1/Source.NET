@@ -89,7 +89,7 @@ internal class PhysicsObject : IPhysicsObject
 		throw new NotImplementedException();
 	}
 
-	public ushort GetCallbackFlags() {
+	public CallbackFlags GetCallbackFlags() {
 		throw new NotImplementedException();
 	}
 
@@ -263,7 +263,7 @@ internal class PhysicsObject : IPhysicsObject
 		throw new NotImplementedException();
 	}
 
-	public void SetCallbackFlags(ushort callbackflags) {
+	public void SetCallbackFlags(CallbackFlags callbackflags) {
 		throw new NotImplementedException();
 	}
 

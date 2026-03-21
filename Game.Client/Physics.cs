@@ -80,7 +80,7 @@ public class PhysicsSystem : AutoGameSystemPerFrame
 		// TODO: physenv.SetCollisionEventHandler(g_Collisions);
 		// TODO: physenv.SetCollisionSolver(g_Collisions);
 
-		// TODO: g_PhysWorldObject = PhysCreateWorld_Shared(C_World.GetClientWorldEntity(), modelinfo.GetVCollide(1), g_PhysDefaultObjectParams);
+		g_PhysWorldObject = PhysCreateWorld_Shared(C_World.GetClientWorldEntity(), modelinfo.GetVCollide(1), g_PhysDefaultObjectParams)!;
 
 		// TODO: staticpropmgr.CreateVPhysicsRepresentations(physenv, g_SolidSetup, NULL);
 	}

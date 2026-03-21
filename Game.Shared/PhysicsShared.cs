@@ -1,6 +1,7 @@
 ﻿global using static Game.Shared.PhysicsSharedGlobals;
 
 using Source;
+using Source.Common;
 using Source.Common.Physics;
 namespace Game.Shared;
 
@@ -37,4 +38,22 @@ public static class PhysicsSharedGlobals
 	static IGameSystem physicsGameSystem = null!;
 	public static void SetPhysicsGameSystem(IGameSystem system) => physicsGameSystem = system;
 	public static IGameSystem PhysicsGameSystem() => physicsGameSystem;
+
+#if CLIENT_DLL || GAME_DLL
+	public static IPhysicsObject? PhysCreateWorld_Shared(BaseEntity world, VCollide? worldCollide, in ObjectParams defaultParams) {
+		Solid solid;
+		Fluid fluid;
+
+		if (physenv == null)
+			return null;
+
+		// int surfaceData = (int)physprops.GetSurfaceIndex("default");
+
+		ObjectParams oparams = defaultParams;
+		oparams.GameData = world;
+		oparams.Name = "world";
+
+		return null;
+	}
+#endif
 }
