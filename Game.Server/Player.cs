@@ -24,7 +24,7 @@ public enum PlayerConnectedState
 public partial class BasePlayer : BaseCombatCharacter
 {
 	public static readonly SendTable DT_PlayerState = new([
-		SendPropInt(FIELD.OF(nameof(DeadFlag)), 1, PropFlags.Unsigned)
+		SendPropInt(FIELD<PlayerState>.OF(nameof(PlayerState.DeadFlag)), 1, PropFlags.Unsigned)
 	]); public static readonly ServerClass CC_PlayerState = new("PlayerState", DT_PlayerState);
 	public override bool IsPlayer() => true;
 	public BaseViewModel GetViewModel(int index) => throw new NotImplementedException();
@@ -181,7 +181,6 @@ public partial class BasePlayer : BaseCombatCharacter
 		// LastObjectiveTime = -1.0f;
 	}
 
-	bool DeadFlag;
 	public readonly PlayerState pl = new();
 	public readonly PlayerLocalData Local = new();
 	public EHANDLE Vehicle = new();

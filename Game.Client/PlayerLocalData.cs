@@ -5,10 +5,35 @@ using Source.Common;
 using Source.Common.Mathematics;
 
 namespace Game.Client;
+
 using FIELD = FIELD<PlayerLocalData>;
+using DEFINE = Source.DEFINE<Game.Client.PlayerLocalData>;
+
 
 public class PlayerLocalData
 {
+	public static readonly DataMap PredMap = new(nameof(PlayerLocalData), [
+		DEFINE.FIELD( nameof(StepSide), FieldType.Integer ),
+		DEFINE.PRED_FIELD( nameof(HideHUD), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD_TOL( nameof(PunchAngle), FieldType.Vector, FieldTypeDescFlags.InSendTable, 0.125f ),
+		DEFINE.PRED_FIELD_TOL( nameof(PunchAngleVel), FieldType.Vector, FieldTypeDescFlags.InSendTable, 0.125f ),
+		DEFINE.PRED_FIELD( nameof(DrawViewmodel), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(WearingSuit), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(Poisoned), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(AllowAutoMovement), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(Ducked), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(Ducking), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(InDuckJump), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(DuckTime), FieldType.Float, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(DuckJumpTime), FieldType.Float, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(JumpTime), FieldType.Float, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD_TOL( nameof(FallVelocity), FieldType.Float, FieldTypeDescFlags.InSendTable, 0.5f ),
+		DEFINE.FIELD( nameof(OldButtons), FieldType.Integer ),
+		DEFINE.FIELD( nameof(OldForwardMove), FieldType.Float ),
+		DEFINE.PRED_FIELD( nameof(StepSize), FieldType.Float, FieldTypeDescFlags.InSendTable ),
+		DEFINE.FIELD( nameof(FOVRate), FieldType.Float ),
+	]);
+
 	public static readonly RecvTable DT_Local = new([
 		RecvPropArray3(FIELD.OF_ARRAY(nameof(AreaBits)), RecvPropInt(FIELD.OF_ARRAYINDEX(nameof(AreaBits)))),
 		RecvPropArray3(FIELD.OF_ARRAY(nameof(AreaPortalBits)), RecvPropInt(FIELD.OF_ARRAYINDEX(nameof(AreaPortalBits)))),
