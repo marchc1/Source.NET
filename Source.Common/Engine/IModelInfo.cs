@@ -19,7 +19,7 @@ public interface IVModelInfo
 	void GetModelBounds(Model? model, out Vector3 mins, out Vector3 maxs);
 	void GetModelRenderBounds(Model? model, out Vector3 mins, out Vector3 maxs);
 	int GetModelFrameCount(Model? model);
-	int GetModelType(Model? model);
+	ModelType GetModelType(Model? model);
 	object? GetModelExtraData(Model? model);
 	bool ModelHasMaterialProxy(Model? model);
 	bool IsTranslucent(Model? model);
@@ -35,8 +35,8 @@ public interface IVModelInfo
 
 	StudioHeader? FindModel(StudioHeader? studioHdr, ref object? cache, ReadOnlySpan<char> modelname);
 	StudioHeader? FindModel(object? cache);
-	Model? GetModel(StudioHeader? studioHdr);
-	Span<byte> GetAnimBlock(StudioHeader? studioHdr, int block);
+	VirtualModel? GetVirtualModel(StudioHeader? studioHdr);
+	Memory<byte> GetAnimBlock(StudioHeader? studioHdr, int block);
 
 	// Available on client only!!!
 	void GetModelMaterialColorAndLighting(Model? model, in Vector3 origin, in QAngle angles, out Trace trace, out Vector3 lighting, out Vector3 matColor);
@@ -59,7 +59,7 @@ public interface IVModelInfo
 	byte ComputeViewScreenFade(in Vector3 absOrigin, float radius, float fadeScale);
 
 	// both client and server
-	// TODO: How to implement GetAutoplayList in a C# way...
+	int GetAutoplayList(StudioHeader studioHdr, out Span<short> autoplayList);
 
 	// Gets a  terrain collision model (creates if necessary)
 	// NOTE: This may return NULL if the terrain model cannot be ized

@@ -70,7 +70,7 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 
 	protected readonly Dictionary<FileNameHandle_t, Model> ClientDynamicModels = [];
 
-	private int GetModelClientSideIndex(ReadOnlySpan<char> name) {
+	public int GetModelClientSideIndex(ReadOnlySpan<char> name) {
 		if (ClientDynamicModels.Count != 0) {
 			FileNameHandle_t file = filesystem.FindFileName(name);
 			if (file != FILENAMEHANDLE_INVALID && ClientDynamicModels.TryGetValue(file, out var model)) {
@@ -227,10 +227,6 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException();
 	}
 
-	int IVModelInfo.GetModelType(Model? model) {
-		throw new NotImplementedException();
-	}
-
 	public bool ModelHasMaterialProxy(Model? model) {
 		throw new NotImplementedException();
 	}
@@ -268,14 +264,6 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 	}
 
 	public StudioHeader? FindModel(object? cache) {
-		throw new NotImplementedException();
-	}
-
-	public Model? GetModel(StudioHeader? studioHdr) {
-		throw new NotImplementedException();
-	}
-
-	Span<byte> IVModelInfo.GetAnimBlock(StudioHeader? studioHdr, int block) {
 		throw new NotImplementedException();
 	}
 
@@ -333,10 +321,6 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 
 	public void OnLevelChange() {
 		throw new NotImplementedException();
-	}
-
-	int IVModelInfo.GetModelClientSideIndex(ReadOnlySpan<char> name) {
-		return GetModelClientSideIndex(name);
 	}
 
 	public int RegisterDynamicModel(ReadOnlySpan<char> name, bool bClientSide) {
