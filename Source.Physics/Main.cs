@@ -16,9 +16,8 @@ public class PhysicsInterface : IPhysics
 	}
 
 	public IPhysicsEnvironment CreateEnvironment() {
-		// IPhysicsEnvironment environment = CreatePhysicsEnvironment();
-		// return environment;
-		throw new NotImplementedException();
+		IPhysicsEnvironment environment = CreatePhysicsEnvironment();
+		return environment;
 	}
 
 	public IPhysicsObjectPairHash CreateObjectPairHash() {
