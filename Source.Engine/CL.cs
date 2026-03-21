@@ -159,7 +159,7 @@ public partial class CL(IServiceProvider services, Net Net,
 
 		bool sendPacket = true;
 
-		if (Net.Time < cl.NextCmdTime || !cl.NetChannel.CanSendPacket())
+		if (Net.Time < cl.NextCmdTime || !cl.NetChannel.CanPacket())
 			sendPacket = false;
 
 		if (cl.IsActive()) {

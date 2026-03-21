@@ -44,7 +44,7 @@ public abstract class BaseClientState(
 
 	public ClockDriftMgr ClockDriftMgr;
 	public NetSocketType Socket;
-	public NetChannel? NetChannel;
+	public INetChannel? NetChannel;
 	public uint ChallengeNumber;
 	public double ConnectTime;
 	public int RetryNumber;
