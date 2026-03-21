@@ -378,6 +378,17 @@ public struct BSPDModel
 	public int FirstFace, NumFaces;
 }
 
+/// <summary>
+/// Analog of dphysmodel_t
+/// </summary>
+public struct BSPDPhysModel
+{
+	public int ModelIndex;
+	public int DataSize;
+	public int KeyDataSize;
+	public int SolidCount;
+}
+
 
 /// <summary>
 /// Analog of mmodel_t

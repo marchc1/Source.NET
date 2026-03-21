@@ -127,6 +127,12 @@ public ref struct MapLoadHelper
 		return true;
 	}
 
+	public byte[] LoadLumpBaseRaw() {
+		ref BSPLump lump = ref MapHeader.Lumps[(int)LumpID];
+		byte[]? data = (cachedData != null && cachedData is byte[] tarr) ? tarr : lump.ReadBytes<byte>(MapFileHandle!);
+		return data ?? [];
+	}
+
 	object? cachedData;
 	public T[] LoadLumpData<T>(bool throwIfNoElements = false, int maxElements = 0, bool sysErrorIfOOB = false) where T : unmanaged {
 		ref BSPLump lump = ref MapHeader.Lumps[(int)LumpID];
@@ -1294,7 +1300,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	}
 
 	private void SmoothDispSurfNormals(CoreDispInfo[] listBase, nint listSize) {
-		for (int iDisp = 0; iDisp < listSize; ++iDisp) 
+		for (int iDisp = 0; iDisp < listSize; ++iDisp)
 			listBase[iDisp].SetDispUtilsHelperInfo(listBase, listSize);
 
 		BlendSubNeighbors(listBase, listSize);
@@ -1509,7 +1515,8 @@ public class DispArray(nint elements)
 	public int CurTag;
 }
 
-public struct DispRenderVert{
+public struct DispRenderVert
+{
 	public Vector3 Pos;
 	public Vector3 Normal;
 	public Vector3 SVector;

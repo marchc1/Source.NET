@@ -234,8 +234,35 @@ public class CollisionBSPData
 			for (int j = 0; j < 2; j++)
 				_out.Children[j] = _in.Children[j];
 		}
-
 	}
+
+	internal unsafe void LoadPhysics() {
+		MapLoadHelper lh = new MapLoadHelper(LumpIndex.PhysCollide);
+		if (lh.LumpSize == 0)
+			return;
+
+		Span<byte> ptr = lh.LoadLumpBaseRaw();
+		Span<byte> basePtr = ptr;
+
+		BSPDPhysModel physModel;
+		do {
+			physModel = ptr.Cast<byte, BSPDPhysModel>()[0];
+			ptr = ptr[sizeof(BSPDPhysModel)..];
+
+			if (physModel.DataSize > 0) {
+				CollisionModel model = MapCollisionModels[physModel.ModelIndex];
+				physcollision.VCollideLoad(model.VCollisionData, physModel.SolidCount, ptr[..(physModel.DataSize + physModel.KeyDataSize)]);
+				ptr = ptr[physModel.DataSize..];
+				ptr = ptr[physModel.KeyDataSize..];
+			}
+
+			// avoid infinite loop on badly formed file
+			if (ptr.Length <= 0)
+				break;
+
+		} while (physModel.DataSize > 0);
+	}
+
 	internal void LoadAreas() {
 
 	}
@@ -249,9 +276,6 @@ public class CollisionBSPData
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Entities);
 		byte[] inData = lh.LoadLumpData<byte>(throwIfNoElements: true, sysErrorIfOOB: true);
 		MapEntityString = Encoding.ASCII.GetString(inData);
-	}
-	internal void LoadPhysics() {
-
 	}
 	internal void LoadDispInfo() {
 
@@ -343,7 +367,7 @@ public class CollisionModelSubsystem()
 	private static CollisionModel? InlineModelNumber(int index) {
 		CollisionBSPData bspData = GetCollisionBSPData();
 
-		if ((index < 0) || (index > bspData.MapCollisionModels.Count))
+		if ((index < 0) || (index >= bspData.MapCollisionModels.Count))
 			return null;
 
 		return (bspData.MapCollisionModels[index]);

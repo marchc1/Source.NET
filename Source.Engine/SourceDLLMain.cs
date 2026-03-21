@@ -8,6 +8,7 @@ using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.GUI;
 using Source.Common.MaterialSystem;
+using Source.Common.Physics;
 using Source.Common.Server;
 using Source.Engine.Client;
 using Source.Engine.Server;
@@ -30,6 +31,7 @@ public static class SourceDllMain
 	[Dependency(Required = false)] public static IBaseClientDLL? g_ClientDLL { get; private set; } = null!;
 	[Dependency] public static IServerGameDLL serverGameDLL { get; private set; } = null!;
 	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;
+	[Dependency] public static IPhysicsCollision physcollision { get; private set; } = null!;
 	[Dependency] public static ServerPlugin serverPluginHandler { get; private set; } = null!;
 	[Dependency] public static IClientEntityList entitylist { get; private set; } = null!;
 	[Dependency] public static IModelLoader modelloader { get; private set; } = null!;
