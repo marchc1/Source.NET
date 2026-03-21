@@ -21,7 +21,7 @@ public class PhysicsInterface : IPhysics
 	}
 
 	public IPhysicsObjectPairHash CreateObjectPairHash() {
-		throw new NotImplementedException();
+		return PhysicsEnvironmentGlobals.CreateObjectPairHash();
 	}
 
 	public void DestroyAllCollisionSets() {

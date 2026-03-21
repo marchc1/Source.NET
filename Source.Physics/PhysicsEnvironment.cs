@@ -9,6 +9,8 @@ namespace Source.Physics;
 internal static class PhysicsEnvironmentGlobals
 {
 	public static IPhysicsEnvironment CreatePhysicsEnvironment() => new PhysicsEnvironment();
+
+	internal static IPhysicsObjectPairHash CreateObjectPairHash() => new ObjectPairHash();
 }
 
 internal class PhysicsEnvironment : IPhysicsEnvironment
@@ -275,6 +277,37 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	}
 
 	public IPhysicsObject UnserializeObjectFromBuffer(object gameData, ReadOnlySpan<byte> buffer, bool enableCollisions) {
+		throw new NotImplementedException();
+	}
+}
+
+public class ObjectPairHash : IPhysicsObjectPairHash
+{
+	public void AddObjectPair(object object0, object obj1) {
+		throw new NotImplementedException();
+	}
+
+	public int GetPairCountForObject(object obj0) {
+		throw new NotImplementedException();
+	}
+
+	public int GetPairListForObject(object obj0, int maxCount, Span<object> objectList) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsObjectInHash(object obj0) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsObjectPairInHash(object obj0, object obj1) {
+		throw new NotImplementedException();
+	}
+
+	public void RemoveAllPairsForObject(object obj0) {
+		throw new NotImplementedException();
+	}
+
+	public void RemoveObjectPair(object obj0, object obj1) {
 		throw new NotImplementedException();
 	}
 }
