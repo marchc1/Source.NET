@@ -214,7 +214,22 @@ public class CollisionBSPData
 
 	}
 	internal void LoadSubmodels() {
+		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Models);
+		BSPDModel[] inData = lh.LoadLumpData<BSPDModel>(throwIfNoElements: true, BSPFileCommon.MAX_MAP_MODELS, sysErrorIfOOB: true);
 
+		MapCollisionModels.EnsureCountNew(inData.Length);
+
+		for (int i = 0; i < inData.Length; i++) {
+			CollisionModel outModel = MapCollisionModels[i];
+			ref BSPDModel inModel = ref inData[i];
+
+			for (int j = 0; j < 3; j++) {   // spread the mins / maxs by a pixel
+				outModel.Mins[j] = inModel.Mins[j] - 1;
+				outModel.Maxs[j] = inModel.Maxs[j] + 1;
+				outModel.Origin[j] = inModel.Origin[j];
+			}
+			outModel.HeadNode = inModel.HeadNode;
+		}
 	}
 	internal void LoadNodes() {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Nodes);
