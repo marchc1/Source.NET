@@ -37,6 +37,9 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		public nint Data;
 		public string? Str;
 
+		public BoneAccessTag(){ }
+		public BoneAccessTag(ReadOnlySpan<char> text){ Str = new(text); }
+
 		public static explicit operator BoneAccessTag(nint i) => new() { Data = i };
 		public static explicit operator BoneAccessTag(string str) => new() { Str = str };
 		public static implicit operator bool(BoneAccessTag tag) => tag.Data != 0 || tag.Str != null;

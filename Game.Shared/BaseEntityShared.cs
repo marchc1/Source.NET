@@ -47,6 +47,7 @@ using Class =
 using FIELD = Source.FIELD<SharedBaseEntity>;
 using System.Runtime.CompilerServices;
 using Source.Common.Formats.BSP;
+using Source.Common.Physics;
 
 public static class SharedBaseEntityConstants
 {
@@ -345,6 +346,10 @@ public partial class
 
 	public void CheckHasGamePhysicsSimulation() {
 		// todo
+	}
+
+	public virtual void PhysicsUpdate(IPhysicsObject? physicsObject) {
+
 	}
 }
 

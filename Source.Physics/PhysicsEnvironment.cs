@@ -26,6 +26,8 @@ internal static class PhysicsEnvironmentGlobals
 
 internal struct PhysicsNarrowPhaseCallbacks(PhysicsEnvironment env) : INarrowPhaseCallbacks
 {
+	private readonly PhysicsEnvironment env = env;
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public bool AllowContactGeneration(int workerIndex, CollidableReference a, CollidableReference b, ref float speculativeMargin) {
 		return a.Mobility == CollidableMobility.Dynamic || b.Mobility == CollidableMobility.Dynamic;
@@ -64,10 +66,6 @@ internal struct PhysicsPoseIntegratorCallbacks(PhysicsEnvironment env) : IPoseIn
 
 	}
 
-	// TODO: All of this is copy pasted from a bepuphysics example. Make this work closer to Source...
-	public float LinearDamping = 0.03f;
-	public float AngularDamping = 0.03f;
-
 	Vector3Wide gravityWideDt;
 	Vector<float> linearDampingDt;
 	Vector<float> angularDampingDt;
@@ -78,8 +76,10 @@ internal struct PhysicsPoseIntegratorCallbacks(PhysicsEnvironment env) : IPoseIn
 	}
 
 	public void PrepareForIntegration(float dt) {
-		linearDampingDt = new Vector<float>(MathF.Pow(MathHelper.Clamp(1 - LinearDamping, 0, 1), dt));
-		angularDampingDt = new Vector<float>(MathF.Pow(MathHelper.Clamp(1 - AngularDamping, 0, 1), dt));
+		var damping = env.GetLinearDamping();
+		var angDamping = env.GetAngularDamping();
+		linearDampingDt = new Vector<float>(MathF.Pow(MathHelper.Clamp(1 - damping, 0, 1), dt));
+		angularDampingDt = new Vector<float>(MathF.Pow(MathHelper.Clamp(1 - angDamping, 0, 1), dt));
 		env.GetGravity(out var grav);
 		gravityWideDt = Vector3Wide.Broadcast(grav * dt);
 	}
@@ -87,25 +87,232 @@ internal struct PhysicsPoseIntegratorCallbacks(PhysicsEnvironment env) : IPoseIn
 
 internal class PhysicsEnvironment : IPhysicsEnvironment
 {
-	readonly PhysicsNarrowPhaseCallbacks narrowPhaseCallbacks;
-	readonly PhysicsPoseIntegratorCallbacks poseIntegratorCallbacks;
-	readonly Simulation Simulation;
+	readonly Simulation PhysEnv;
 	readonly BufferPool BufferPool;
-	readonly SolveDescription SolveDescription;
+
+	Vector3 Gravity;
+	float AirDensity = 2.0f;
+	TimeUnit_t SimulationTimestep = 1.0 / 60.0;
+	TimeUnit_t SimulationTime;
+	TimeUnit_t NextFrameTime;
+	bool InSimulation;
+	bool DeleteQueueEnabled = true;
+	bool QuickDeleteEnabled;
+
+	PhysicsPerformanceParams PerformanceSettings;
+	PhysicsStats Stats;
+
+	readonly List<IPhysicsObject> Objects = [];
+	readonly List<IPhysicsObject> DeleteQueue = [];
+
+	IPhysicsCollisionEvent? CollisionEventHandler;
+	IPhysicsObjectEvent? ObjectEventHandler;
+	IPhysicsConstraintEvent? ConstraintEventHandler;
+	IPhysicsCollisionSolver? CollisionSolver;
+	IVPhysicsDebugOverlay? DebugOverlay;
+	bool ConstraintNotifyEnabled;
 
 	public PhysicsEnvironment() {
 		BufferPool = new();
-		narrowPhaseCallbacks = new(this);
-		poseIntegratorCallbacks = new(this);
-		SolveDescription = new SolveDescription();
-		Simulation = Simulation.Create(BufferPool, narrowPhaseCallbacks, poseIntegratorCallbacks, SolveDescription);
+		var narrowPhaseCallbacks = new PhysicsNarrowPhaseCallbacks(this);
+		var poseIntegratorCallbacks = new PhysicsPoseIntegratorCallbacks(this);
+		var solveDescription = new SolveDescription() {
+			SubstepCount = 2,
+			VelocityIterationCount = 2
+		};
+		PhysEnv = Simulation.Create(BufferPool, narrowPhaseCallbacks, poseIntegratorCallbacks, solveDescription);
+
+		PerformanceSettings.Defaults();
+	}
+
+	internal float GetLinearDamping() => 0.03f;
+	internal float GetAngularDamping() => 0.03f;
+
+	public void GetGravity(out Vector3 gravityVector) {
+		gravityVector = Gravity;
+	}
+
+	public void SetGravity(in Vector3 gravityVector) {
+		Gravity = gravityVector;
+	}
+
+	public void SetAirDensity(float density) {
+		AirDensity = density;
+	}
+
+	public float GetAirDensity() {
+		return AirDensity;
+	}
+
+	public void SetSimulationTimestep(TimeUnit_t timestep) {
+		SimulationTimestep = timestep;
+	}
+
+	public TimeUnit_t GetSimulationTimestep() {
+		return SimulationTimestep;
+	}
+
+	public TimeUnit_t GetSimulationTime() {
+		return SimulationTime;
+	}
+
+	public void ResetSimulationClock() {
+		SimulationTime = default;
+		NextFrameTime = default;
+	}
+
+	public TimeUnit_t GetNextFrameTime() {
+		return NextFrameTime;
+	}
+
+	public void Simulate(TimeUnit_t deltaTime) {
+		InSimulation = true;
+
+		float dt = (float)SimulationTimestep;
+		float remaining = (float)deltaTime;
+
+		while (remaining >= dt) {
+			PhysEnv.Timestep(dt);
+			SimulationTime += SimulationTimestep;
+			remaining -= dt;
+		}
+
+		NextFrameTime = SimulationTime + SimulationTimestep;
+
+		CollisionEventHandler?.PostSimulationFrame();
+
+		if (DeleteQueueEnabled) 
+			CleanupDeleteList();
+
+		InSimulation = false;
+	}
+
+	public bool IsInSimulation() {
+		return InSimulation;
+	}
+
+	public int GetActiveObjectCount() {
+		return PhysEnv.Bodies.ActiveSet.Count;
+	}
+
+	public void GetActiveObjects(Span<IPhysicsObject> outputObjectList) {
+	}
+
+	public ReadOnlySpan<IPhysicsObject> GetObjectList() {
+		return Objects.ToArray();
+	}
+
+	public void GetPerformanceSettings(out PhysicsPerformanceParams output) {
+		output = PerformanceSettings;
+	}
+
+	public void SetPerformanceSettings(in PhysicsPerformanceParams settings) {
+		PerformanceSettings = settings;
+	}
+
+	public bool TransferObject(IPhysicsObject obj, IPhysicsEnvironment destinationEnvironment) {
+		if (obj == null || destinationEnvironment == null)
+			return false;
+
+		Objects.Remove(obj);
+		return true;
+	}
+
+	public void SetCollisionEventHandler(IPhysicsCollisionEvent collisionEvents) {
+		CollisionEventHandler = collisionEvents;
+	}
+
+	public void SetObjectEventHandler(IPhysicsObjectEvent objectEvents) {
+		ObjectEventHandler = objectEvents;
+	}
+
+	public void SetConstraintEventHandler(IPhysicsConstraintEvent constraintEvents) {
+		ConstraintEventHandler = constraintEvents;
+	}
+
+	public void SetCollisionSolver(IPhysicsCollisionSolver solver) {
+		CollisionSolver = solver;
+	}
+
+	public void SetQuickDelete(bool quick) {
+		QuickDeleteEnabled = quick;
+	}
+
+	public void EnableDeleteQueue(bool enable) {
+		DeleteQueueEnabled = enable;
 	}
 
 	public void CleanupDeleteList() {
-		throw new NotImplementedException();
+		for (int i = DeleteQueue.Count - 1; i >= 0; i--) {
+			DestroyObject(DeleteQueue[i]);
+		}
+		DeleteQueue.Clear();
+	}
+
+	public void EnableConstraintNotify(bool enable) {
+		ConstraintNotifyEnabled = enable;
+	}
+
+	public void SetDebugOverlay(IServiceProvider debugOverlayFactory) {
+		DebugOverlay = debugOverlayFactory.GetService(typeof(IVPhysicsDebugOverlay)) as IVPhysicsDebugOverlay;
+	}
+
+	public IVPhysicsDebugOverlay? GetDebugOverlay() {
+		return DebugOverlay;
+	}
+
+	public void ReadStats(out PhysicsStats output) {
+		output = Stats;
 	}
 
 	public void ClearStats() {
+		Stats = default;
+	}
+
+	public bool IsCollisionModelUsed(PhysCollide collide) {
+		for (int i = 0; i < Objects.Count; i++) {
+			if (Objects[i].GetCollide() == collide)
+				return true;
+		}
+		return false;
+	}
+
+	public void DebugCheckContacts() {
+	}
+
+	public uint GetObjectSerializeSize(IPhysicsObject obj) {
+		throw new NotImplementedException();
+	}
+
+	public void SerializeObjectToBuffer(IPhysicsObject obj, Span<byte> buffer) {
+		throw new NotImplementedException();
+	}
+
+	public IPhysicsObject UnserializeObjectFromBuffer(object gameData, ReadOnlySpan<byte> buffer, bool enableCollisions) {
+		throw new NotImplementedException();
+	}
+
+	public bool Save(in PhysSaveParams parms) {
+		throw new NotImplementedException();
+	}
+
+	public void PreRestore(in PhysPreRestoreParams parms) {
+		throw new NotImplementedException();
+	}
+
+	public bool Restore(in PhysRestoreParams parms) {
+		throw new NotImplementedException();
+	}
+
+	public void PostRestore() {
+		throw new NotImplementedException();
+	}
+
+	public void TraceRay<Filter>(in Ray ray, uint fMask, in Filter traceFilter, out Trace trace) where Filter : IPhysicsTraceFilter {
+		throw new NotImplementedException();
+	}
+
+	public void SweepCollideable<Filter>(PhysCollide collide, in Vector3 absStart, in Vector3 absEnd, in QAngle angles, uint fMask, in Filter traceFilter, out Trace trace) where Filter : IPhysicsTraceFilter {
 		throw new NotImplementedException();
 	}
 
@@ -141,11 +348,11 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 		throw new NotImplementedException();
 	}
 
-	public IPhysicsObject CreatePolyObject(PhysCollide pCollisionModel, int materialIndex, in AngularImpulse position, in QAngle angles, ref ObjectParams objParams) {
+	public IPhysicsObject CreatePolyObject(PhysCollide pCollisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams) {
 		throw new NotImplementedException();
 	}
 
-	public IPhysicsObject CreatePolyObjectStatic(PhysCollide pCollisionModel, int materialIndex, in AngularImpulse position, in QAngle angles, ref ObjectParams objParams) {
+	public IPhysicsObject CreatePolyObjectStatic(PhysCollide pCollisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams) {
 		throw new NotImplementedException();
 	}
 
@@ -165,7 +372,7 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 		throw new NotImplementedException();
 	}
 
-	public IPhysicsObject CreateSphereObject(float radius, int materialIndex, in AngularImpulse position, in QAngle angles, ref ObjectParams objParams, bool isStatic) {
+	public IPhysicsObject CreateSphereObject(float radius, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams, bool isStatic) {
 		throw new NotImplementedException();
 	}
 
@@ -174,10 +381,6 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	}
 
 	public IPhysicsVehicleController CreateVehicleController(IPhysicsObject pVehicleBodyObject, in VehicleParams parms, VehicleType vehicleType, IPhysicsGameTrace gameTrace) {
-		throw new NotImplementedException();
-	}
-
-	public void DebugCheckContacts() {
 		throw new NotImplementedException();
 	}
 
@@ -216,183 +419,68 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	public void DestroyVehicleController(IPhysicsVehicleController controller) {
 		throw new NotImplementedException();
 	}
-
-	public void EnableConstraintNotify(bool enable) {
-		throw new NotImplementedException();
-	}
-
-	public void EnableDeleteQueue(bool enable) {
-		throw new NotImplementedException();
-	}
-
-	public int GetActiveObjectCount() {
-		throw new NotImplementedException();
-	}
-
-	public void GetActiveObjects(Span<IPhysicsObject> outputObjectList) {
-		throw new NotImplementedException();
-	}
-
-	public float GetAirDensity() {
-		throw new NotImplementedException();
-	}
-
-	public IVPhysicsDebugOverlay? GetDebugOverlay() {
-		throw new NotImplementedException();
-	}
-
-	public void GetGravity(out AngularImpulse gravityVector) {
-		throw new NotImplementedException();
-	}
-
-	public float GetNextFrameTime() {
-		throw new NotImplementedException();
-	}
-
-	public ReadOnlySpan<IPhysicsObject> GetObjectList() {
-		throw new NotImplementedException();
-	}
-
-	public uint GetObjectSerializeSize(IPhysicsObject obj) {
-		throw new NotImplementedException();
-	}
-
-	public void GetPerformanceSettings(out PhysicsPerformanceParams output) {
-		throw new NotImplementedException();
-	}
-
-	public float GetSimulationTime() {
-		throw new NotImplementedException();
-	}
-
-	public float GetSimulationTimestep() {
-		throw new NotImplementedException();
-	}
-
-	public bool IsCollisionModelUsed(PhysCollide collide) {
-		throw new NotImplementedException();
-	}
-
-	public bool IsInSimulation() {
-		throw new NotImplementedException();
-	}
-
-	public void PostRestore() {
-		throw new NotImplementedException();
-	}
-
-	public void PreRestore(in PhysPreRestoreParams parms) {
-		throw new NotImplementedException();
-	}
-
-	public void ReadStats(out PhysicsStats output) {
-		throw new NotImplementedException();
-	}
-
-	public void ResetSimulationClock() {
-		throw new NotImplementedException();
-	}
-
-	public bool Restore(in PhysRestoreParams parms) {
-		throw new NotImplementedException();
-	}
-
-	public bool Save(in PhysSaveParams parms) {
-		throw new NotImplementedException();
-	}
-
-	public void SerializeObjectToBuffer(IPhysicsObject obj, Span<byte> buffer) {
-		throw new NotImplementedException();
-	}
-
-	public void SetAirDensity(float density) {
-		throw new NotImplementedException();
-	}
-
-	public void SetCollisionEventHandler(IPhysicsCollisionEvent collisionEvents) {
-		throw new NotImplementedException();
-	}
-
-	public void SetCollisionSolver(IPhysicsCollisionSolver solver) {
-		throw new NotImplementedException();
-	}
-
-	public void SetConstraintEventHandler(IPhysicsConstraintEvent constraintEvents) {
-		throw new NotImplementedException();
-	}
-
-	public void SetDebugOverlay(IServiceProvider debugOverlayFactory) {
-		throw new NotImplementedException();
-	}
-
-	public void SetGravity(in AngularImpulse gravityVector) {
-		throw new NotImplementedException();
-	}
-
-	public void SetObjectEventHandler(IPhysicsObjectEvent objectEvents) {
-		throw new NotImplementedException();
-	}
-
-	public void SetPerformanceSettings(in PhysicsPerformanceParams settings) {
-		throw new NotImplementedException();
-	}
-
-	public void SetQuickDelete(bool quick) {
-		throw new NotImplementedException();
-	}
-
-	public void SetSimulationTimestep(double timestep) {
-		throw new NotImplementedException();
-	}
-
-	public void Simulate(double deltaTime) {
-		throw new NotImplementedException();
-	}
-
-	public void SweepCollideable<Filter>(PhysCollide collide, in AngularImpulse absStart, in AngularImpulse absEnd, in QAngle angles, uint fMask, in Filter traceFilter, out Trace trace) where Filter : IPhysicsTraceFilter {
-		throw new NotImplementedException();
-	}
-
-	public void TraceRay<Filter>(in Ray ray, uint fMask, in Filter traceFilter, out Trace trace) where Filter : IPhysicsTraceFilter {
-		throw new NotImplementedException();
-	}
-
-	public bool TransferObject(IPhysicsObject obj, IPhysicsEnvironment destinationEnvironment) {
-		throw new NotImplementedException();
-	}
-
-	public IPhysicsObject UnserializeObjectFromBuffer(object gameData, ReadOnlySpan<byte> buffer, bool enableCollisions) {
-		throw new NotImplementedException();
-	}
 }
 
 public class ObjectPairHash : IPhysicsObjectPairHash
 {
-	public void AddObjectPair(object object0, object obj1) {
-		throw new NotImplementedException();
+	readonly Dictionary<object, HashSet<object>> PairMap = [];
+
+	public void AddObjectPair(object obj0, object obj1) {
+		if (!PairMap.TryGetValue(obj0, out var set0)) {
+			set0 = [];
+			PairMap[obj0] = set0;
+		}
+		set0.Add(obj1);
+
+		if (!PairMap.TryGetValue(obj1, out var set1)) {
+			set1 = [];
+			PairMap[obj1] = set1;
+		}
+		set1.Add(obj0);
 	}
 
 	public int GetPairCountForObject(object obj0) {
-		throw new NotImplementedException();
+		if (PairMap.TryGetValue(obj0, out var set))
+			return set.Count;
+		return 0;
 	}
 
 	public int GetPairListForObject(object obj0, int maxCount, Span<object> objectList) {
-		throw new NotImplementedException();
+		if (!PairMap.TryGetValue(obj0, out var set))
+			return 0;
+
+		int count = 0;
+		foreach (var item in set) {
+			if (count >= maxCount)
+				break;
+			objectList[count++] = item;
+		}
+		return count;
 	}
 
 	public bool IsObjectInHash(object obj0) {
-		throw new NotImplementedException();
+		return PairMap.ContainsKey(obj0);
 	}
 
 	public bool IsObjectPairInHash(object obj0, object obj1) {
-		throw new NotImplementedException();
+		return PairMap.TryGetValue(obj0, out var set) && set.Contains(obj1);
 	}
 
 	public void RemoveAllPairsForObject(object obj0) {
-		throw new NotImplementedException();
+		if (!PairMap.TryGetValue(obj0, out var set))
+			return;
+
+		foreach (var other in set) {
+			if (PairMap.TryGetValue(other, out var otherSet))
+				otherSet.Remove(obj0);
+		}
+		PairMap.Remove(obj0);
 	}
 
 	public void RemoveObjectPair(object obj0, object obj1) {
-		throw new NotImplementedException();
+		if (PairMap.TryGetValue(obj0, out var set0))
+			set0.Remove(obj1);
+		if (PairMap.TryGetValue(obj1, out var set1))
+			set1.Remove(obj0);
 	}
 }

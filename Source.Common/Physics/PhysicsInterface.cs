@@ -453,14 +453,14 @@ public interface IPhysicsEnvironment
 
 	// Manage the timestep (period) of the simulator.  The main functions are all integrated with
 	// this period as dt.
-	float GetSimulationTimestep();
+	TimeUnit_t GetSimulationTimestep();
 	void SetSimulationTimestep(TimeUnit_t timestep);
 
 	// returns the current simulation clock's value.  This is an absolute time.
-	float GetSimulationTime();
+	TimeUnit_t GetSimulationTime();
 	void ResetSimulationClock();
 	// returns the current simulation clock's value at the next frame.  This is an absolute time.
-	float GetNextFrameTime();
+	TimeUnit_t GetNextFrameTime();
 
 	// Collision callbacks (game code collision response)
 	void SetCollisionEventHandler(IPhysicsCollisionEvent collisionEvents);

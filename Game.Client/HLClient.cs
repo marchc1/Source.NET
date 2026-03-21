@@ -219,10 +219,12 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	private void OnRenderStart() {
 		// TODO: the rest of this, as features get implemented
 
+		C_BaseEntity.SetAbsQueriesValid(false);
 		C_BaseEntity.InterpolateServerEntities();
 		C_BaseAnimating.InvalidateBoneCaches();
 		C_BaseEntity.SetAbsQueriesValid(true);
 		C_BaseEntity.EnableAbsRecomputations(true);
+		C_BaseAnimating.PushAllowBoneAccess(true, false, new("OnRenderStart->ViewRender.SetUpView"));
 
 		input.CAM_Think();
 		view.OnRenderStart();
@@ -291,7 +293,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	private void PhysicsSimulate() {
-
+		g_PhysicsSystem.PhysicsSimulate();
 	}
 
 	private void SimulateEntities() {

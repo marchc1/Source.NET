@@ -3,9 +3,12 @@
 using Game.Shared;
 
 using Source;
+using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.Physics;
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Text;
 
@@ -26,6 +29,40 @@ public class PhysicsSystem : AutoGameSystemPerFrame
 
 	public override void LevelInitPostEntity() {
 		PhysicsLevelInit();
+	}
+
+	static readonly ConVar cl_phys_timescale = new( "cl_phys_timescale", "1.0", FCvar.Cheat, "Sets the scale of time for client-side physics (ragdolls)" );
+
+
+	internal void PhysicsSimulate() {
+		TimeUnit_t frametime = gpGlobals.FrameTime;
+		if(physenv != null){
+			physenv.DebugCheckContacts();
+			physenv.Simulate(frametime * cl_phys_timescale.GetDouble());
+
+			int activeCount = physenv.GetActiveObjectCount();
+			IPhysicsObject?[]? activeList = null;
+			if (activeCount != 0) {
+				activeList = ArrayPool<IPhysicsObject>.Shared.Rent(activeCount);
+				physenv.GetActiveObjects(activeList);
+
+				for (int i = 0; i < activeCount; i++) {
+					C_BaseEntity? entity = (C_BaseEntity?)(activeList[i]?.GetGameData());
+					if (entity != null) {
+						//  TODO:   if (entity.CollisionProp().DoesVPhysicsInvalidateSurroundingBox()) {
+						//  TODO:   	entity.CollisionProp().MarkSurroundingBoundsDirty();
+						//  TODO:   }
+						entity.PhysicsUpdate(activeList[i]);
+					}
+				}
+
+				ArrayPool<IPhysicsObject>.Shared.Return(activeList, true);
+			}
+
+			// g_Collisions.BufferTouchEvents(false);
+			// g_Collisions.FrameUpdate();
+		}
+		// play impact sounds
 	}
 
 	private void PhysicsLevelInit() {
