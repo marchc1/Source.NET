@@ -241,7 +241,7 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	}
 
 	public void SetGravity(in AngularImpulse gravityVector) {
-		throw new NotImplementedException();
+
 	}
 
 	public void SetObjectEventHandler(IPhysicsObjectEvent objectEvents) {
@@ -257,7 +257,7 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	}
 
 	public void SetSimulationTimestep(double timestep) {
-		throw new NotImplementedException();
+
 	}
 
 	public void Simulate(double deltaTime) {
