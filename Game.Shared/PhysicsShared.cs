@@ -32,4 +32,8 @@ public static class PhysicsSharedGlobals
 		DragCoefficient = 1.0f,
 		EnableCollisions = true
 	};
+
+	static IGameSystem physicsGameSystem = null!;
+	public static void SetPhysicsGameSystem(IGameSystem system) => physicsGameSystem = system;
+	public static IGameSystem PhysicsGameSystem() => physicsGameSystem;
 }

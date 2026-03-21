@@ -8,12 +8,16 @@ namespace Source.Physics;
 
 public class PhysicsInterface : IPhysics
 {
+	readonly List<IPhysicsEnvironment> envList = [];
+
 	public static void DLLInit(IServiceCollection services) {
 		services.AddSingleton<IPhysicsCollision, PhysicsCollide>();
 		services.AddSingleton<IPhysicsSurfaceProps, PhysicsSurfaceProps>();
 	}
 
 	public IPhysicsEnvironment CreateEnvironment() {
+		// IPhysicsEnvironment environment = CreatePhysicsEnvironment();
+		// return environment;
 		throw new NotImplementedException();
 	}
 

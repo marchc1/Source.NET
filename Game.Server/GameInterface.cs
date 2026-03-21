@@ -206,6 +206,13 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	public bool DLLInit(IServiceProvider services) {
 		StaticClassIndicesHelpers.DumpDatatablesCompleted();
 
+		gameeventmanager.LoadEventsFromFile("resource/gameevents.res");
+
+		IGameSystem.Add(PhysicsGameSystem());
+
+		if (!IGameSystem.InitAllSystems())
+			return false;
+
 		NavMesh.NavMesh.Instance = new();
 
 		return true;

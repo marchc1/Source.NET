@@ -1,5 +1,7 @@
-﻿using Game.Shared;
+﻿
+using Game.Shared;
 
+using Source;
 using Source.Common.Engine;
 using Source.Common.Physics;
 
@@ -9,6 +11,14 @@ using System.Numerics;
 using System.Text;
 
 namespace Game.Server;
+
+[EngineComponent]
+public static class PhysicsHookGlobals {
+	public static readonly PhysicsHook g_PhysicsHook = new();
+	static PhysicsHookGlobals(){
+		SetPhysicsGameSystem(g_PhysicsHook);
+	}
+}
 
 public class PhysicsHook : BaseGameSystemPerFrame
 {
