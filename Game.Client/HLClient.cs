@@ -76,6 +76,10 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		}
 	}
 
+	public void LevelInitPostEntity(){
+		IGameSystem.LevelInitPostEntityAllSystems();
+	}
+
 	public void PostInit() {
 
 	}

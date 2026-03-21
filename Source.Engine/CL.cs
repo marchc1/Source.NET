@@ -230,11 +230,11 @@ public partial class CL(IServiceProvider services, Net Net,
 		// Pending pure file reloads
 
 		// Level init post entity
-		// clientDLL.LevelInitPostEntity();
+		clientDLL.LevelInitPostEntity();
 
 		// Start notifying dependencies
-		uint ip = cl.NetChannel.GetRemoteAddress().GetIPHostByteOrder();
-		short port = cl.NetChannel.GetRemoteAddress().GetPort();
+		uint ip = cl.NetChannel.GetRemoteAddress()!.GetIPHostByteOrder();
+		short port = cl.NetChannel.GetRemoteAddress()!.GetPort();
 
 		if (port == 0) {
 			ip = Net.LocalAdr.GetIPHostByteOrder();
