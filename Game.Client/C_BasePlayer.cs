@@ -240,7 +240,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		SetNetworkAngles(angles);
 	}
 
-	readonly List<Handle<SharedBaseEntity>> SimulatedByThisPlayer = [];
+	readonly List<Handle<BaseEntity>> SimulatedByThisPlayer = [];
 
 	public override void ReceiveMessage(int classID, bf_read msg) {
 		if (classID != GetClientClass().ClassID) {
@@ -309,7 +309,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public float SurfaceFriction;
 
 	public override void PhysicsSimulate() {
-		SharedBaseEntity? pMoveParent = GetMoveParent();
+		BaseEntity? pMoveParent = GetMoveParent();
 		if (pMoveParent != null)
 			pMoveParent.PhysicsSimulate();
 

@@ -95,7 +95,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 	{
 		Beam? Beam;
 
-		public void Init(int startAttachment, int endAttachment, SharedBaseEntity? entity, bool firstPerson) {
+		public void Init(int startAttachment, int endAttachment, BaseEntity? entity, bool firstPerson) {
 			if (Beam != null)
 				return;
 
@@ -422,7 +422,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 
 			// Create our beams
 			BasePlayer pOwner = ToBasePlayer(GetOwner())!;
-			SharedBaseEntity? pBeamEnt = pOwner.GetViewModel();
+			BaseEntity? pBeamEnt = pOwner.GetViewModel();
 
 			Beams[0].Init(LookupAttachment("fork1t"), 1, pBeamEnt, true);
 			Beams[1].Init(LookupAttachment("fork2t"), 1, pBeamEnt, true);

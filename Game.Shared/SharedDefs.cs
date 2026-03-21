@@ -546,8 +546,8 @@ public struct FireBulletsInfo
 	public FireBulletsFlags Flags;           // See FireBulletsFlags_t
 	public float DamageForceScale;
 #if CLIENT_DLL || GAME_DLL
-	public SharedBaseEntity? Attacker;
-	public SharedBaseEntity? AdditionalIgnoreEnt;
+	public BaseEntity? Attacker;
+	public BaseEntity? AdditionalIgnoreEnt;
 #else
 	public object? Attacker;
 	public object? AdditionalIgnoreEnt;

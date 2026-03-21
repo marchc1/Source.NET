@@ -191,7 +191,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	public EHANDLE TonemapController = new();
 	public EHANDLE ViewEntity = new();
 	InlineArrayNewMaxViewmodels<Handle<BaseViewModel>> ViewModel = new();
-	readonly List<Handle<SharedBaseEntity>> SimulatedByThisPlayer = [];
+	readonly List<Handle<BaseEntity>> SimulatedByThisPlayer = [];
 
 	public IServerVehicle? GetVehicle() => Vehicle.Get()?.GetServerVehicle();
 	public BaseEntity? GetVehicleEntity() => Vehicle.Get();

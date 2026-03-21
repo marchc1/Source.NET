@@ -38,7 +38,7 @@ public struct FogParams()
 public struct FogPlayerParams()
 {
 #if CLIENT_DLL || GAME_DLL
-	public Handle<SharedBaseEntity> Ctrl = new();
+	public Handle<BaseEntity> Ctrl = new();
 	#endif
 	public float TransitionTime;
 

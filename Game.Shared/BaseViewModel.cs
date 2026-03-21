@@ -127,7 +127,7 @@ public partial class
 		ResetSequenceInfo();
 	}
 
-	public SharedBaseEntity? GetOwner() => Owner.Get();
+	public BaseEntity? GetOwner() => Owner.Get();
 
 #if CLIENT_DLL
 	public static void FormatViewModelAttachment(ref Vector3 origin, bool inverse) {

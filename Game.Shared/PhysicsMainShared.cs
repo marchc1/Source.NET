@@ -27,7 +27,7 @@ namespace Game.Server
 		BaseEntity
 #endif
 	{
-		public SharedBaseEntity? GetGroundEntity() => GroundEntity.Get();
+		public BaseEntity? GetGroundEntity() => GroundEntity.Get();
 
 		public void PhysicsCheckForEntityUntouch() {
 			// todo
@@ -42,7 +42,7 @@ namespace Game.Server
 			SimulationTick = gpGlobals.TickCount;
 
 			Assert(!IsPlayer());
-			SharedBaseEntity? moveParent = GetMoveParent();
+			BaseEntity? moveParent = GetMoveParent();
 
 			if ((GetMoveType() == Source.MoveType.None && moveParent == null) || (GetMoveType() == Source.MoveType.VPhysics)) {
 				PhysicsNone();

@@ -28,13 +28,13 @@ public static partial class Util_Globals
 	}
 
 	public static float SharedRandomFloat(ReadOnlySpan<char> sharedname, int minVal, int maxVal, int additionalSeed = 0) {
-		int seed = SeedFileLineHash(SharedBaseEntity.GetPredictionRandomSeed(), sharedname, additionalSeed);
+		int seed = SeedFileLineHash(BaseEntity.GetPredictionRandomSeed(), sharedname, additionalSeed);
 		RandomSeed(seed);
 		return RandomFloat(minVal, maxVal);
 	}
 
 	public static int SharedRandomInt(ReadOnlySpan<char> sharedname, int minVal, int maxVal, int additionalSeed = 0) {
-		int seed = SeedFileLineHash(SharedBaseEntity.GetPredictionRandomSeed(), sharedname, additionalSeed);
+		int seed = SeedFileLineHash(BaseEntity.GetPredictionRandomSeed(), sharedname, additionalSeed);
 		RandomSeed(seed);
 		return RandomInt(minVal, maxVal);
 	}

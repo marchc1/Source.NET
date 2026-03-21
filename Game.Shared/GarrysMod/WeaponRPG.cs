@@ -44,7 +44,7 @@ public class WeaponRPG : BaseHL2MPCombatWeapon
 }
 
 [LinkEntityToClass("env_laserdot")]
-public class LaserDot : SharedBaseEntity
+public class LaserDot : BaseEntity
 {
 	public static readonly
 #if CLIENT_DLL

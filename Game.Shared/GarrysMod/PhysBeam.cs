@@ -32,7 +32,7 @@ public partial class
 #else
 	PhysBeam
 #endif
-	: SharedBaseEntity
+	: BaseEntity
 {
 	public static readonly Table DT_PhysBeam = new(DT_BaseEntity, [
 #if CLIENT_DLL

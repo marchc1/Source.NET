@@ -160,7 +160,7 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 		return pEnt == null ? null : pEnt.GetClientThinkable();
 	}
 
-	public SharedBaseEntity? GetBaseEntityFromHandle(ClientEntityHandle hEnt) {
+	public BaseEntity? GetBaseEntityFromHandle(ClientEntityHandle hEnt) {
 		IClientUnknown? pEnt = GetClientUnknownFromHandle(hEnt);
 		return pEnt != null ? pEnt.GetBaseEntity() : null;
 	}

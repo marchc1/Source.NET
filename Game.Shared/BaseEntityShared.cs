@@ -5,18 +5,18 @@ Client
 #else
 Server
 #endif
-	.SharedBaseEntityConstants;
+	.BaseEntityConstants;
 
 
 
 #if CLIENT_DLL
-global using SharedBaseEntity = Game.Client.C_BaseEntity;
+global using BaseEntity = Game.Client.C_BaseEntity;
 
 using Source.Common;
 
 namespace Game.Client;
 #else
-global using SharedBaseEntity = Game.Server.BaseEntity;
+global using BaseEntity = Game.Server.BaseEntity;
 
 using Source.Common;
 
@@ -44,12 +44,12 @@ using Class =
 	ServerClass;
 #endif
 
-using FIELD = Source.FIELD<SharedBaseEntity>;
+using FIELD = Source.FIELD<BaseEntity>;
 using System.Runtime.CompilerServices;
 using Source.Common.Formats.BSP;
 using Source.Common.Physics;
 
-public static class SharedBaseEntityConstants
+public static class BaseEntityConstants
 {
 	public const int NUM_PARENTATTACHMENT_BITS = 8; // < gmod increased 6 -> 8
 }

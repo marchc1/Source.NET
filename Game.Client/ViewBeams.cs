@@ -868,7 +868,7 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 		ClearBeams();
 	}
 
-	public void KillDeadBeams(SharedBaseEntity? ent) {
+	public void KillDeadBeams(BaseEntity? ent) {
 		throw new NotImplementedException();
 	}
 

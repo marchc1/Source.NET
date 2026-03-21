@@ -437,7 +437,7 @@ public class GameMovement : IGameMovement
 	}
 
 	// Only used by players.  Moves along the ground when player is a MoveType.Walk.
-	Handle<SharedBaseEntity> WalkMove__oldground = new();
+	Handle<BaseEntity> WalkMove__oldground = new();
 	protected virtual void WalkMove() {
 		int i;
 
@@ -1470,7 +1470,7 @@ public class GameMovement : IGameMovement
 			// We need to account for standing on a moving ground object in that case in order to determine if we really 
 			//  are moving away from the object we are standing on at too rapid a speed.  Note that CheckJump already sets
 			//  ground entity to NULL, so this wouldn't have any effect unless we are moving up rapidly not from the jump button.
-			SharedBaseEntity? ground = Player.GetGroundEntity();
+			BaseEntity? ground = Player.GetGroundEntity();
 			if (ground != null) {
 				flGroundEntityVelZ = ground.GetAbsVelocity().Z;
 				bMovingUpRapidly = (zvel - flGroundEntityVelZ) > NON_JUMP_VELOCITY;
