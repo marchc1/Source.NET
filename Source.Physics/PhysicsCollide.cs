@@ -9,6 +9,7 @@ using Source.Common.Physics;
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -283,13 +284,32 @@ public class PhysicsCollide : IPhysicsCollision
 
 public class PhysCollideCompactSurface : PhysCollide
 {
-	public PhysCollideCompactSurface( ReadOnlySpan<byte> buffer, int index, bool swap = false ) {
+	ReusableBox<IVP_Compact_Surface>? CompactSurface;
+	Vector3 OrthoAreas;
+	ReusableBox<CollideMap>? CollideMap;
 
+	private void Init(ReadOnlySpan<byte> buffer, int index, bool swap) {
+		CompactSurface = new();
+		memcpy(new Span<IVP_Compact_Surface>(ref CompactSurface.Ref()).Cast<IVP_Compact_Surface, byte>(), buffer);
+		if (swap) 
+			CompactSurface.Ref().ByteSwapAll();
+		
+		CompactSurface.Ref().dummy[0] = index;
+		OrthoAreas.Init(1, 1, 1);
+		InitCollideMap();
+	}
+
+	private void InitCollideMap() {
+
+	}
+
+	public PhysCollideCompactSurface( ReadOnlySpan<byte> buffer, int index, bool swap = false ) {
+		Init(buffer, index, swap);
 	}
 	public PhysCollideCompactSurface(in CompactSurfaceHeader header, int index, bool swap = false ) {
-
+		Init(new ReadOnlySpan<CompactSurfaceHeader>(in header).Cast<CompactSurfaceHeader, byte>()[1..], index, swap);
 	}
 	public PhysCollideCompactSurface(ref IVP_Compact_Surface surface){
-
+		throw new NotImplementedException();
 	}
 }

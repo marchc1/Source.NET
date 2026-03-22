@@ -2,6 +2,7 @@
 using IVP_DOUBLE = double;
 using IVP_INT32 = int;
 using IVP_UINT32 = uint;
+using IVP_BOOL = bool;
 
 using System;
 using System.Collections.Generic;
@@ -42,5 +43,9 @@ public struct IVP_Compact_Surface
 			bitfield[1..].CopyTo(ret[1..]);
 			return ret.Cast<byte, int>()[0];
 		}
+	}
+
+	internal void ByteSwapAll(IVP_BOOL swapPoints = true, int pointEstimate = 100) {
+		throw new NotImplementedException();
 	}
 }
