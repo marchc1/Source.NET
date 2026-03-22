@@ -12,6 +12,6 @@ public class VCollide
 	public bool IsPacked;
 	public short DescSize;
 
-	public PhysCollide[]? Solids;
+	public PhysCollide?[]? Solids;
 	public byte[]? KeyValues;
 }

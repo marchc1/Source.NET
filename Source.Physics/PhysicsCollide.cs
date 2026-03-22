@@ -4,6 +4,7 @@ using CommunityToolkit.HighPerformance;
 
 using Source.Common;
 using Source.Common.Formats.BSP;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
 
@@ -15,33 +16,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Source.Physics;
-
-public enum CollideType : short
-{
-	Poly,
-	MOPP,
-	Ball,
-	Virtual
-}
-
-[StructLayout(LayoutKind.Explicit)]
-public struct PhysCollideHeader
-{
-	[FieldOffset(0)] public int VPhysicsID;
-	[FieldOffset(4)] public short Version;
-	[FieldOffset(6)] public CollideType ModelType;
-}
-
-[StructLayout(LayoutKind.Explicit)]
-public struct CompactSurfaceHeader
-{
-	[FieldOffset(0)] public int VPhysicsID;
-	[FieldOffset(4)] public short Version;
-	[FieldOffset(6)] public CollideType ModelType;
-	[FieldOffset(8)] public int SurfaceSize;
-	[FieldOffset(12)] public Vector3 DragAxisAreas;
-	[FieldOffset(24)] public int AxisMapSize;
-}
 
 public class PhysicsCollide : IPhysicsCollision
 {
@@ -233,13 +207,6 @@ public class PhysicsCollide : IPhysicsCollision
 		throw new NotImplementedException();
 	}
 
-	Span<byte> reallocIfNeeded(ref byte[]? tmpbuf, int requiredBytes) {
-		if (tmpbuf == null || tmpbuf.Length < requiredBytes)
-			tmpbuf = new byte[requiredBytes];
-
-		return tmpbuf[..requiredBytes];
-	}
-
 	public void VCollideLoad(VCollide output, int solidCount, ReadOnlySpan<byte> buffer, bool swap = false) {
 		output.ClearInstantiatedReference();
 		int position = 0;
@@ -247,18 +214,8 @@ public class PhysicsCollide : IPhysicsCollision
 		output.SolidCount = (ushort)solidCount;
 		output.Solids = new PhysCollide[solidCount];
 
-		int currentSize = 0;
-		byte[]? tmpbuf = null;
-
 		for (int i = 0; i < solidCount; i++) {
-			int size = 0;
-			memcpy<byte>(new Span<int>(ref size).Cast<int, byte>(), buffer[position..(position + sizeof(int))]);
-			position += sizeof(int);
-
-			Span<byte> tmp = reallocIfNeeded(ref tmpbuf, size);
-			memcpy(tmp, buffer[position..(position + size)]);
-
-			output.Solids[i] = PhysCollideParse.UnserializeFromBuffer(tmp, i, swap);
+			output.Solids[i] = PhysCollideParse.UnserializeFromBuffer(buffer[position..], i, swap, out int size);
 			position += size;
 		}
 
@@ -284,32 +241,12 @@ public class PhysicsCollide : IPhysicsCollision
 
 public class PhysCollideCompactSurface : PhysCollide
 {
-	ReusableBox<IVP_Compact_Surface>? CompactSurface;
-	Vector3 OrthoAreas;
-	ReusableBox<CollideMap>? CollideMap;
-
-	private void Init(ReadOnlySpan<byte> buffer, int index, bool swap) {
-		CompactSurface = new();
-		memcpy(new Span<IVP_Compact_Surface>(ref CompactSurface.Ref()).Cast<IVP_Compact_Surface, byte>(), buffer);
-		if (swap) 
-			CompactSurface.Ref().ByteSwapAll();
-		
-		CompactSurface.Ref().dummy[0] = index;
-		OrthoAreas.Init(1, 1, 1);
-		InitCollideMap();
+	public readonly List<Vector3[]> ConvexHulls = [];
+	private unsafe void Init(PhyParser parser, int index, bool swap) {
+		parser.ParseSurfaces(ConvexHulls);
 	}
 
-	private void InitCollideMap() {
-
-	}
-
-	public PhysCollideCompactSurface( ReadOnlySpan<byte> buffer, int index, bool swap = false ) {
-		Init(buffer, index, swap);
-	}
-	public PhysCollideCompactSurface(in CompactSurfaceHeader header, int index, bool swap = false ) {
-		Init(new ReadOnlySpan<CompactSurfaceHeader>(in header).Cast<CompactSurfaceHeader, byte>()[1..], index, swap);
-	}
-	public PhysCollideCompactSurface(ref IVP_Compact_Surface surface){
-		throw new NotImplementedException();
+	public PhysCollideCompactSurface(PhyParser parser, int index, bool swap = false) {
+		Init(parser, index, swap);
 	}
 }
