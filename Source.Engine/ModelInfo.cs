@@ -320,7 +320,7 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException();
 	}
 
-	public PhysCollide? GetCollideForTerrain(int index) {
+	public PhysCollide? GetCollideForVirtualTerrain(int index) {
 		throw new NotImplementedException();
 	}
 

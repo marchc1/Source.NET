@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Source.Common.Physics;
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -9,5 +11,7 @@ public class VCollide
 	public ushort SolidCount;
 	public bool IsPacked;
 	public short DescSize;
-	// todo: physcollide info
+
+	public PhysCollide[]? Solids;
+	public byte[]? KeyValues;
 }

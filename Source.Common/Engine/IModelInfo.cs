@@ -63,7 +63,7 @@ public interface IVModelInfo
 
 	// Gets a  terrain collision model (creates if necessary)
 	// NOTE: This may return NULL if the terrain model cannot be ized
-	PhysCollide? GetCollideForTerrain(int index);
+	PhysCollide? GetCollideForVirtualTerrain(int index);
 
 	bool IsUsingFBTexture(Model? model, int nSkin, int nBody, object? /*IClientRenderable*/  pClientRenderable);
 

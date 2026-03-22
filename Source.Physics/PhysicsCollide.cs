@@ -1,13 +1,46 @@
-﻿using Source.Common;
+﻿using BepuUtilities;
+
+using CommunityToolkit.HighPerformance;
+
+using Source.Common;
 using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
 
 using System;
 using System.Collections.Generic;
+using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Source.Physics;
+
+public enum CollideType : short
+{
+	Poly,
+	MOPP,
+	Ball,
+	Virtual
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public struct PhysCollideHeader
+{
+	[FieldOffset(0)] public int VPhysicsID;
+	[FieldOffset(4)] public short Version;
+	[FieldOffset(6)] public CollideType ModelType;
+}
+
+[StructLayout(LayoutKind.Explicit)]
+public struct CompactSurfaceHeader
+{
+	[FieldOffset(0)] public int VPhysicsID;
+	[FieldOffset(4)] public short Version;
+	[FieldOffset(6)] public CollideType ModelType;
+	[FieldOffset(8)] public int SurfaceSize;
+	[FieldOffset(12)] public Vector3 DragAxisAreas;
+	[FieldOffset(24)] public int AxisMapSize;
+}
 
 public class PhysicsCollide : IPhysicsCollision
 {
@@ -199,8 +232,40 @@ public class PhysicsCollide : IPhysicsCollision
 		throw new NotImplementedException();
 	}
 
+	Span<byte> reallocIfNeeded(ref byte[]? tmpbuf, int requiredBytes) {
+		if (tmpbuf == null || tmpbuf.Length < requiredBytes)
+			tmpbuf = new byte[requiredBytes];
+
+		return tmpbuf[..requiredBytes];
+	}
+
 	public void VCollideLoad(VCollide output, int solidCount, ReadOnlySpan<byte> buffer, bool swap = false) {
-		throw new NotImplementedException();
+		output.ClearInstantiatedReference();
+		int position = 0;
+
+		output.SolidCount = (ushort)solidCount;
+		output.Solids = new PhysCollide[solidCount];
+
+		int currentSize = 0;
+		byte[]? tmpbuf = null;
+
+		for (int i = 0; i < solidCount; i++) {
+			int size = 0;
+			memcpy<byte>(new Span<int>(ref size).Cast<int, byte>(), buffer[position..(position + sizeof(int))]);
+			position += sizeof(int);
+
+			Span<byte> tmp = reallocIfNeeded(ref tmpbuf, size);
+			memcpy(tmp, buffer[position..(position + size)]);
+
+			output.Solids[i] = PhysCollideParse.UnserializeFromBuffer(tmp, i, swap);
+			position += size;
+		}
+
+		output.IsPacked = false;
+		int keySize = buffer.Length - position;
+		output.KeyValues = new byte[keySize];
+		memcpy(output.KeyValues, buffer[position..(position + keySize)]);
+		output.DescSize = 0;
 	}
 
 	public void VCollideUnload(VCollide vCollide) {
@@ -213,5 +278,18 @@ public class PhysicsCollide : IPhysicsCollision
 
 	public void VPhysicsKeyParserDestroy(IVPhysicsKeyParser parser) {
 		throw new NotImplementedException();
+	}
+}
+
+public class PhysCollideCompactSurface : PhysCollide
+{
+	public PhysCollideCompactSurface( ReadOnlySpan<byte> buffer, int index, bool swap = false ) {
+
+	}
+	public PhysCollideCompactSurface(in CompactSurfaceHeader header, int index, bool swap = false ) {
+
+	}
+	public PhysCollideCompactSurface(ref IVP_Compact_Surface surface){
+
 	}
 }
