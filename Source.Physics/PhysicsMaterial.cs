@@ -1,4 +1,7 @@
-﻿using Source.Common.Physics;
+﻿using Microsoft.VisualBasic;
+
+using Source.Common.Physics;
+using Source.Common.Utilities;
 
 using System;
 using System.Collections.Generic;
@@ -28,8 +31,29 @@ public class PhysicsSurfaceProps : IPhysicsSurfaceProps
 		throw new NotImplementedException();
 	}
 
+	public const int MATERIAL_INDEX_SHADOW = 0xF000;
+
+	public nint GetReservedSurfaceIndex(ReadOnlySpan<char> propName) {
+		if (stricmp(propName, "$MATERIAL_INDEX_SHADOW") == 0)
+			return MATERIAL_INDEX_SHADOW;
+
+		return -1;
+	}
+
 	public nint GetSurfaceIndex(ReadOnlySpan<char> surfacePropName) {
-		throw new NotImplementedException();
+		if (surfacePropName[0] == '$') {
+			nint index = GetReservedSurfaceIndex(surfacePropName);
+			if (index >= 0)
+				return index;
+		}
+
+		UtlSymId_t id = Strings.Find(surfacePropName);
+		if (id != 0)
+			for (int i = 0; i < Props.Count; i++)
+				if (Props[i].Name == id)
+					return i;
+
+		return -1;
 	}
 
 	public nint ParseSurfaceData(ReadOnlySpan<char> filename, ReadOnlySpan<char> textfile) {
@@ -43,4 +67,16 @@ public class PhysicsSurfaceProps : IPhysicsSurfaceProps
 	public nint SurfacePropCount() {
 		throw new NotImplementedException();
 	}
+
+	readonly UtlSymbolTableMT Strings = new();
+	readonly List<Surface> Props = new();
+	readonly List<UtlSymbol> FileList = new();
+}
+
+
+public class Surface
+{
+	public UtlSymbol Name;
+	public ushort Pad;
+	public SurfaceData Data;
 }

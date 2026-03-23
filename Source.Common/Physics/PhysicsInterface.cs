@@ -399,13 +399,13 @@ public interface IPhysicsEnvironment
 
 	// object creation
 	// create a polygonal object.  pCollisionModel was created by the physics builder DLL in a pre-process.
-	IPhysicsObject CreatePolyObject(PhysCollide pCollisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams);
+	IPhysicsObject? CreatePolyObject(PhysCollide pCollisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams);
 	// same as above, but this one cannot move or rotate (infinite mass/inertia)
-	IPhysicsObject CreatePolyObjectStatic(PhysCollide pCollisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams);
+	IPhysicsObject? CreatePolyObjectStatic(PhysCollide pCollisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams);
 	// Create a perfectly spherical object
-	IPhysicsObject CreateSphereObject(float radius, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams, bool isStatic);
+	IPhysicsObject? CreateSphereObject(float radius, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams, bool isStatic);
 	// destroy an object created with CreatePolyObject() or CreatePolyObjectStatic()
-	void DestroyObject(IPhysicsObject obj);
+	void DestroyObject(IPhysicsObject? obj);
 
 	// Create a polygonal fluid body out of the specified collision model
 	// This object will affect any other objects that collide with the collision model

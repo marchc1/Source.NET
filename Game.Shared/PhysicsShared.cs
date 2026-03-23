@@ -44,14 +44,16 @@ public static class PhysicsSharedGlobals
 		Solid solid;
 		Fluid fluid;
 
-		if (physenv == null)
-			return null;
+		if (physenv == null) return null;
+		if (worldCollide == null) return null;
 
-		// int surfaceData = (int)physprops.GetSurfaceIndex("default");
+		int surfaceData = (int)physprops.GetSurfaceIndex("default");
 
 		ObjectParams oparams = defaultParams;
 		oparams.GameData = world;
 		oparams.Name = "world";
+
+		IPhysicsObject? worldPhysics = physenv.CreatePolyObjectStatic(worldCollide.Solids![0]!, surfaceData, vec3_origin, vec3_angle, ref oparams);
 
 		return null;
 	}

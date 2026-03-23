@@ -56,11 +56,11 @@ public interface IEngineTrace
 	Contents GetPointContents_Collideable(ICollideable? collide, in Vector3 absPosition);
 	void ClipRayToEntity(in Ray ray, uint mask, IHandleEntity ent, ref Trace trace);
 	void ClipRayToCollideable(in Ray ray, uint mask, ICollideable collide, ref Trace trace);
-	void TraceRay(in Ray ray, uint mask, ITraceFilter traceFilter, ref Trace trace);
+	void TraceRay<Filter>(in Ray ray, uint mask, in Filter traceFilter, ref Trace trace) where Filter : ITraceFilter;
 	void SetupLeafAndEntityListRay(in Ray ray, TraceListData traceData);
 	void SetupLeafAndEntityListBox(in Vector3 boxMin, in Vector3 boxMax, TraceListData traceData);
-	void TraceRayAgainstLeafAndEntityList(in Ray ray, TraceListData traceData, uint mask, ITraceFilter? traceFilter, ref Trace trace);
-	void SweepCollideable(ICollideable? collide, in Vector3 absStart, in Vector3 absEnd, in QAngle angles, uint mask, ITraceFilter? traceFilter, ref Trace trace);
+	void TraceRayAgainstLeafAndEntityList<Filter>(in Ray ray, TraceListData traceData, uint mask, in Filter traceFilter, ref Trace trace) where Filter : ITraceFilter;
+	void SweepCollideable<Filter>(ICollideable? collide, in Vector3 absStart, in Vector3 absEnd, in QAngle angles, uint mask, in Filter traceFilter, ref Trace trace) where Filter : ITraceFilter;
 	void EnumerateEntities(in Ray ray, bool triggers, IEntityEnumerator enumerator);
 	void EnumerateEntities(in Vector3 absMins, in Vector3 absMaxs, IEntityEnumerator enumerator);
 	ICollideable? GetCollideable(IHandleEntity? entity);

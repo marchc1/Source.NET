@@ -99,7 +99,7 @@ public class PhysicsCollide : IPhysicsCollision
 		throw new NotImplementedException();
 	}
 
-	public PhysConvex ConvexFromVerts(Span<AngularImpulse> verts) {
+	public PhysConvex ConvexFromVerts(Span<Vector3> verts) {
 		throw new NotImplementedException();
 	}
 

@@ -67,15 +67,15 @@ public class EngineTrace : IEngineTrace
 		throw new NotImplementedException();
 	}
 
-	public void SweepCollideable(ICollideable? collide, in Vector3 absStart, in Vector3 absEnd, in QAngle angles, uint mask, ITraceFilter? traceFilter, ref Trace trace) {
+	public void SweepCollideable<Filter>(ICollideable? collide, in Vector3 absStart, in Vector3 absEnd, in QAngle angles, uint mask, in Filter traceFilter, ref Trace trace) where Filter : ITraceFilter {
 		throw new NotImplementedException();
 	}
 
-	public void TraceRay(in Ray ray, uint mask, ITraceFilter traceFilter, ref Trace trace) {
+	public void TraceRay<Filter>(in Ray ray, uint mask, in Filter traceFilter, ref Trace trace) where Filter : ITraceFilter {
 		throw new NotImplementedException();
 	}
 
-	public void TraceRayAgainstLeafAndEntityList(in Ray ray, TraceListData traceData, uint mask, ITraceFilter? traceFilter, ref Trace trace) {
+	public void TraceRayAgainstLeafAndEntityList<Filter>(in Ray ray, TraceListData traceData, uint mask, in Filter traceFilter, ref Trace trace) where Filter : ITraceFilter {
 		throw new NotImplementedException();
 	}
 }

@@ -1,10 +1,19 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿global using static Source.Physics.SourceDllMain;
+
+using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common.GUI;
 using Source.Common.MaterialSystem;
 using Source.Common.Physics;
 
 namespace Source.Physics;
+
+
+public static class SourceDllMain
+{
+	[Dependency] public static IPhysicsSurfaceProps physprops { get; private set; } = null!;
+}
+
 
 public class PhysicsInterface : IPhysics
 {

@@ -88,7 +88,9 @@ internal struct PhysicsPoseIntegratorCallbacks(PhysicsEnvironment env) : IPoseIn
 internal class PhysicsEnvironment : IPhysicsEnvironment
 {
 	readonly Simulation PhysEnv;
-	readonly BufferPool BufferPool;
+	readonly static BufferPool BufferPool = new();
+
+	public Simulation GetBepuEnvironment() => PhysEnv;
 
 	Vector3 Gravity;
 	float AirDensity = 2.0f;
@@ -113,7 +115,6 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 	bool ConstraintNotifyEnabled;
 
 	public PhysicsEnvironment() {
-		BufferPool = new();
 		var narrowPhaseCallbacks = new PhysicsNarrowPhaseCallbacks(this);
 		var poseIntegratorCallbacks = new PhysicsPoseIntegratorCallbacks(this);
 		var solveDescription = new SolveDescription() {
@@ -181,7 +182,7 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 
 		CollisionEventHandler?.PostSimulationFrame();
 
-		if (DeleteQueueEnabled) 
+		if (DeleteQueueEnabled)
 			CleanupDeleteList();
 
 		InSimulation = false;
@@ -348,12 +349,15 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 		throw new NotImplementedException();
 	}
 
-	public IPhysicsObject CreatePolyObject(PhysCollide pCollisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams) {
+	public IPhysicsObject? CreatePolyObject(PhysCollide collisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams) {
 		throw new NotImplementedException();
 	}
 
-	public IPhysicsObject CreatePolyObjectStatic(PhysCollide pCollisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams) {
-		throw new NotImplementedException();
+	public IPhysicsObject? CreatePolyObjectStatic(PhysCollide collisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams) {
+		IPhysicsObject? obj = PhysicsObject.CreatePhysicsObject(this, collisionModel, materialIndex, in position, in angles, ref objParams, true);
+		if (obj != null)
+			Objects.Add(obj);
+		return obj;
 	}
 
 	public IPhysicsConstraint CreatePulleyConstraint(IPhysicsObject pReferenceObject, IPhysicsObject pAttachedObject, IPhysicsConstraintGroup group, in ConstraintPulleyParams pulley) {
@@ -372,7 +376,7 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 		throw new NotImplementedException();
 	}
 
-	public IPhysicsObject CreateSphereObject(float radius, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams, bool isStatic) {
+	public IPhysicsObject? CreateSphereObject(float radius, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams, bool isStatic) {
 		throw new NotImplementedException();
 	}
 
@@ -400,7 +404,7 @@ internal class PhysicsEnvironment : IPhysicsEnvironment
 		throw new NotImplementedException();
 	}
 
-	public void DestroyObject(IPhysicsObject obj) {
+	public void DestroyObject(IPhysicsObject? obj) {
 		throw new NotImplementedException();
 	}
 
