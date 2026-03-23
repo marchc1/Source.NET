@@ -446,7 +446,7 @@ public partial class NavMesh
 		if (navSize <= 0)
 			return NavErrorType.CantAccessFile;
 
-		Span<byte> fileBuffer = stackalloc byte[(int)navSize];
+		Span<byte> fileBuffer = new byte[(int)navSize];
 		NavErrorType readResult = GetNavDataFromFile(fileBuffer, ref navIsInBsp);
 		if (readResult != NavErrorType.Ok)
 			return readResult;
