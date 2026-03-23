@@ -426,7 +426,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public int ObserverMode;
 	public int FOV;
 	public int FOVStart;
-	public float FOVTime;
+	public TimeUnit_t FOVTime;
 	public float DefaultFOV;
 	public Vector3 ConstraintCenter;
 	public float ConstraintRadius;

@@ -356,6 +356,9 @@ public static class SharedDefs
 	public static ref Vector3 VEC_DUCK_VIEW => ref g_pGameRules.GetViewVectors().DuckView;
 	public static ref Vector3 VEC_OBS_HULL_MIN => ref g_pGameRules.GetViewVectors().ObsHullMin;
 	public static ref Vector3 VEC_OBS_HULL_MAX => ref g_pGameRules.GetViewVectors().ObsHullMax;
+
+	public const float WATERJUMP_HEIGHT = 8;
+
 #else
 	public static Vector3 VEC_VIEW_SCALED(object player) => throw new NotImplementedException();
 	public static Vector3 VEC_HULL_MIN_SCALED(object player) => throw new NotImplementedException();

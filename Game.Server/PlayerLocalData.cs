@@ -91,7 +91,7 @@ public class PlayerLocalData
 	public double DuckJumpTime;
 	public double JumpTime;
 	public int StepSide;
-	public double FallVelocity;
+	public float FallVelocity;
 	public int OldButtons;
 	public int OldForwardMove;
 	public QAngle PunchAngle;

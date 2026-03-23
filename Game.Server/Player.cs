@@ -205,7 +205,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	int FOV;
 	int TickBase;
 	int FOVStart;
-	float FOVTime;
+	TimeUnit_t FOVTime;
 	float DefaultFOV;
 	Vector3 ConstraintCenter;
 	float ConstraintRadius;
@@ -215,13 +215,15 @@ public partial class BasePlayer : BaseCombatCharacter
 	EHANDLE ColorCorrectionCtrl = new();
 	bool UseWeaponsInVehicle;
 	public bool OnTarget;
-	public double DeathTime;
+	public TimeUnit_t DeathTime;
 	public double LaggedMovementValue;
+	public TimeUnit_t StepSoundTime;
+
 	InlineArray32<char> AnimExtension;
 	public Vector3 WaterJumpVel;
-	public float SwimSoundTime;
+	public TimeUnit_t SwimSoundTime;
 	public Vector3 LadderNormal;
-	public float WaterJumpTime;
+	public TimeUnit_t WaterJumpTime;
 	public PlayerConnectedState Connected;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
 	public InButtons AfButtonLast;

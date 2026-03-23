@@ -156,6 +156,10 @@ public partial class
 		Weapon_Switch(item);
 	}
 
+	public void PlayStepSound(in Vector3 origin, SurfaceData_ptr? surface, float fvol, bool force) {
+		// todo
+	}
+
 	public virtual bool Weapon_ShouldSelectItem(BaseCombatWeapon weapon) => weapon != GetActiveWeapon();
 
 	public virtual void UpdateButtonState(InButtons userCmdButtonMask) {
@@ -255,7 +259,7 @@ public partial class
 #if CLIENT_DLL
 			if (vehicle.IsPredicted())
 #endif
-			vehicle.ItemPostFrame(this);
+				vehicle.ItemPostFrame(this);
 
 			if (!usingStandardWeapons || GetVehicle() == null)
 				return;
@@ -279,7 +283,7 @@ public partial class
 				// Not predicting this weapon
 				if (GetActiveWeapon()!.IsPredicted())
 #endif
-				GetActiveWeapon()!.ItemPostFrame();
+					GetActiveWeapon()!.ItemPostFrame();
 			}
 		}
 

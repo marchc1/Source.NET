@@ -4,6 +4,7 @@ using Source;
 using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
+using Source.Common.Physics;
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -271,6 +272,13 @@ public partial class BaseEntity : IServerEntity
 	}
 
 	public Team? GetTeam() => GetGlobalTeam(TeamNum);
+
+	IPhysicsObject? PhysicsObject = null!;
+	public void VPhysicsUpdate(IPhysicsObject physics) { }
+	public IPhysicsObject? VPhysicsGetObject() => PhysicsObject;
+	public int VPhysicsGetObjectList(Span<IPhysicsObject> list) => throw new NotImplementedException();
+
+	public bool IsFloating() => false; // TODO
 
 	public void SetGroundEntity(BaseEntity? ent) { /* todo */ }
 

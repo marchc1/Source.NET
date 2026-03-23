@@ -23,6 +23,7 @@ using DEFINE = Source.DEFINE<Game.Client.C_BaseEntity>;
 using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
 
 using AimEntsListHandle_t = int;
+using Source.Common.Physics;
 
 namespace Game.Client;
 
@@ -679,6 +680,13 @@ public partial class C_BaseEntity : IClientEntity
 
 	public int Speed;
 	public int TeamNum;
+
+	IPhysicsObject? PhysicsObject = null!;
+	public void VPhysicsUpdate(IPhysicsObject physics){ }
+	public IPhysicsObject? VPhysicsGetObject() => PhysicsObject;
+	public int VPhysicsGetObjectList(Span<IPhysicsObject> list) => throw new NotImplementedException();
+
+	public bool IsFloating() => false;
 
 	public EHANDLE OwnerEntity = new();
 	public EHANDLE EffectEntity = new();

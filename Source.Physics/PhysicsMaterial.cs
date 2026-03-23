@@ -27,7 +27,7 @@ public class PhysicsSurfaceProps : IPhysicsSurfaceProps
 		throw new NotImplementedException();
 	}
 
-	public ref SurfaceData GetSurfaceData(nint surfaceDataIndex) {
+	public SurfaceData_ptr GetSurfaceData(nint surfaceDataIndex) {
 		throw new NotImplementedException();
 	}
 

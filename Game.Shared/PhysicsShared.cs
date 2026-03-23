@@ -59,3 +59,46 @@ public static class PhysicsSharedGlobals
 	}
 #endif
 }
+
+public enum PhysicsFlags : ushort
+{
+	///<summary> does slice damage, not just blunt damage </summary>
+	DamageSlice = 0x0001,
+
+	///<summary> object is constrained to the world, so it should behave like a static </summary>
+	ConstraintStatic = 0x0002,
+
+	///<summary> object is held by the player, so have a very inelastic collision response </summary>
+	PlayerHeld = 0x0004,
+
+	///<summary> object is part of a client or server ragdoll </summary>
+	PartOfRagdoll = 0x0008,
+
+	///<summary> object is part of a multi-object entity </summary>
+	MultiObjectEntity = 0x0010,
+
+	///<summary> HULK SMASH! (Do large damage even if the mass is small) </summary>
+	HeavyObject = 0x0020,
+
+	///<summary> This object is currently stuck inside another object </summary>
+	Penetrating = 0x0040,
+
+	///<summary> Player can't pick this up for some game rule reason </summary>
+	NoPlayerPickup = 0x0080,
+
+	///<summary> Player threw this object </summary>
+	WasThrown = 0x0100,
+
+	///<summary> does dissolve damage, not just blunt damage </summary>
+	DamageDissolve = 0x0200,
+
+	///<summary> don't do impact damage to anything </summary>
+	NoImpactDamage = 0x0400,
+
+	///<summary> Don't do impact damage to NPC's. This is temporary for NPC's shooting combine balls (sjb) </summary>
+	NoNPCImpactDamage = 0x0800,
+
+	///<summary> don't collide with other objects that are part of the same entity </summary>
+	NoSelfCollisions = 0x8000, 
+
+}
