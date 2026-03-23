@@ -8,14 +8,15 @@ using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
 
+using System;
 using System.Net.NetworkInformation;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
 using ClientModelRenderInfo = Source.Common.Engine.ModelRenderInfo;
-using FIELD = Source.FIELD<Game.Client.C_BaseAnimating>;
 using DEFINE = Source.DEFINE<Game.Client.C_BaseAnimating>;
+using FIELD = Source.FIELD<Game.Client.C_BaseAnimating>;
 using FIELD_ILR = Source.FIELD<Game.Client.C_InfoLightingRelative>;
 namespace Game.Client;
 
@@ -545,6 +546,74 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return Animation.GetSequenceName(GetModelPtr(), sequence);
 	}
 
+	public object? Ragdoll; // TODO
+
+	public override void OnDataChanged(DataUpdateType updateType) {
+		if (Ragdoll  != null&& GetSequence() != PrevSequence) {
+			SetSequence(PrevSequence);
+			PlaybackRate = 0;
+		}
+
+		if (Ragdoll == null && RestoreSequence != -1) {
+			SetSequence(RestoreSequence);
+			RestoreSequence = -1;
+		}
+
+		if (updateType == DataUpdateType.Created) {
+			PrevSequence = -1;
+			RestoreSequence = -1;
+		}
+
+		bool modelchanged = false;
+
+		// UNDONE: The base class does this as well.  So this is kind of ugly
+		// but getting a model by index is pretty cheap...
+		Model? model = modelinfo.GetModel(GetModelIndex());
+
+		if (model != GetModel()) 
+			modelchanged = true;
+
+		base.OnDataChanged(updateType);
+
+		if ((updateType == DataUpdateType.Created) || modelchanged) {
+			ResetLatched();
+			// if you have this pose parameter, activate HL1-style lipsync/wave envelope tracking
+		}
+
+		// If there's a significant change, make sure the shadow updates
+		if (modelchanged || (GetSequence() != PrevSequence)) {
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnimationChanged);
+			PrevSequence = GetSequence();
+		}
+
+		// Only need to think if animating client side
+		if (ClientSideAnimation) {
+			// Check to see if we should reset our frame
+			if (ClientSideFrameReset != LastClientSideFrameReset) 
+				ResetClientsideFrame();
+			
+		}
+		// build a ragdoll if necessary
+		if (RenderFX == (byte)RenderFx.Ragdoll && !BuiltRagdoll) 
+			BecomeRagdollOnClient();
+
+		//HACKHACK!!!
+		if (RenderFX == (byte)RenderFx.Ragdoll && BuiltRagdoll == true) 
+			if (Ragdoll == null)
+				AddEffects(EntityEffects.NoDraw);
+
+		// todo: ragdoll stuff here
+	}
+
+	protected virtual void ResetClientsideFrame() {
+		SetCycle(0);
+	}
+
+	public bool BuiltRagdoll;
+	private void BecomeRagdollOnClient() {
+
+	}
+
 	public bool IsSequenceLooping(int sequence) => IsSequenceLooping(GetModelPtr(), sequence);
 	public bool IsSequenceLooping(StudioHdr? studioHdr, int sequence) {
 		return (Animation.GetSequenceFlags(studioHdr, sequence) & StudioAnimSeqFlags.Looping) != 0;
@@ -681,6 +750,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return hdr;
 	}
 	public int PrevSequence = -1;
+	public int RestoreSequence = -1;
 	bool ResetSequenceInfoOnLoad = false;
 
 	public void ResetSequenceInfo() {
@@ -751,16 +821,65 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		BaseInterpolatePart2(oldOrigin, oldAngles, oldVel, nChangeFlags);
 		return true;
 	}
+
+	public static int g_PreviousBoneCounter = 0;
+
 	public C_BaseAnimating() {
 		iv_Cycle = new($"{nameof(C_BaseAnimating)}.{nameof(iv_Cycle)}");
 		iv_flPoseParameter = new(Studio.MAXSTUDIOPOSEPARAM, $"{nameof(C_BaseAnimating)}.{nameof(iv_flPoseParameter)}");
 
+		Force.Init();
+		ForceBone = -1;
+
+		PrevSequence = -1;
+		RestoreSequence = -1;
+
+		AddBaseAnimatingInterpolatedVars();
+
+		MostRecentModelBoneCounter = 0xFFFFFFFF;
+		MostRecentBoneSetupRequest = g_PreviousBoneCounter - 1;
+		LastBoneSetupTime = -float.MaxValue;
+
+		PlaybackRate = 1.0f;
+
+		EventSequence = -1;
+
+		// Assume false. Derived classes might fill in a receive table entry
+		// and in that case this would show up as true
+		ClientSideAnimation = false;
+
+		PrevNewSequenceParity = -1;
+		PrevResetEventsParity = -1;
+
+		OldMuzzleFlashParity = 0;
+		MuzzleFlashParity = 0;
+
+		ModelScale = 1.0f;
+
 		pStudioHdr = null;
 		hStudioHdr = MDLHANDLE_INVALID;
 
-		AddBaseAnimatingInterpolatedVars();
+		ReceivedSequence = false;
+
+		BoneIndexAttached = -1;
+		OldModelScale = 0.0f;
+
+		AttachedTo.Set(null);
+
+		DynamicModelAllowed = false;
+		DynamicModelPending = false;
+		ResetSequenceInfoOnLoad = false;
+
+		InitModelEffects = false;
+		DelayInitModelEffects = false;
+
+		Cycle = 0;
+		OldCycle = 0;
 	}
 
+	bool DelayInitModelEffects;
+	bool InitModelEffects;
+	bool DynamicModelAllowed;
 	bool DynamicModelPending;
 
 	public void OnModelLoadComplete(Model model) {
@@ -1242,9 +1361,11 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public float ModelScale;
 	public float PlaybackRate;
 	public bool ClientSideAnimation;
+	public bool LastClientSideFrameReset;
 	public bool ClientSideFrameReset;
 	public int NewSequenceParity;
 	public int ResetEventsParity;
+	public byte OldMuzzleFlashParity;
 	public byte MuzzleFlashParity;
 	public EHANDLE LightingOrigin = new();
 	public EHANDLE LightingOriginRelative = new();
