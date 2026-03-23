@@ -32,6 +32,21 @@ public struct GameTrace
 
 	public bool AllSolid;
 	public bool StartSolid;
+
+	public IHandleEntity? EntHandle;
+	// It is up to respective game realms to implement their Ent field as an extension method.
+	// This deviates from Source, but is necessary given this architecture.
+
+	public float FractionLeftSolid;
+	public CollisionSurface Surface;
+
+	public int HitGroup;
+	public short PhysicsBone;
+
+	public int HitBox;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public readonly bool DidHit() => Fraction < 1 || AllSolid || StartSolid;
 }
 
 public static class GameTraceExts{

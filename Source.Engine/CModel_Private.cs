@@ -1,5 +1,7 @@
 ﻿using CommunityToolkit.HighPerformance;
 
+using Source.Common;
+using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
 
 using System.Numerics;
@@ -7,7 +9,7 @@ using System.Runtime.CompilerServices;
 
 namespace Source.Engine;
 
-public static class CM
+public static partial class CM
 {
 	public static int PointLeafnum(in Vector3 point) {
 		CollisionBSPData bspData = GetCollisionBSPData();
@@ -37,5 +39,9 @@ public static class CM
 		}
 
 		return -1 - num;
+	}
+
+	public static void BoxTrace(in Ray ray, int headnode, Mask brushmask, bool computeEndPt, ref Trace trace) {
+		// todo
 	}
 }

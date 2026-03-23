@@ -3,6 +3,9 @@ using System.Numerics;
 
 namespace Source.Common;
 
+/// <summary>
+/// Analog of cmodel_t
+/// </summary>
 [DebuggerDisplay("Source BSP Collision Model @ {Origin} [{Mins} -> {Maxs}] (head-node {HeadNode})")]
 public class CollisionModel
 {
@@ -11,6 +14,9 @@ public class CollisionModel
 	public readonly VCollide VCollisionData = new();
 }
 
+/// <summary>
+/// Analog of csurface_t
+/// </summary>
 [DebuggerDisplay("Source BSP Collision Surface '{Name}' (props: {SurfaceProps}, flags: {Flags})")]
 public struct CollisionSurface
 {

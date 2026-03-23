@@ -180,7 +180,7 @@ public class MDLCacheNotify : IMDLCacheNotify
 
 public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 						 IEngineVGuiInternal EngineVGui, MatSysInterface materials,
-						 CollisionModelSubsystem CM, IMaterialSystemHardwareConfig materialSystemHardwareConfig,
+						 IMaterialSystemHardwareConfig materialSystemHardwareConfig,
 						 IMDLCache MDLCache, IStudioRender StudioRender, IBaseClientDLL g_ClientDLL, MatSysInterface matSys, ICommandLine CommandLine) : IModelLoader
 {
 	public int GetCount() {

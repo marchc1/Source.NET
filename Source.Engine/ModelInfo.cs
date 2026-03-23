@@ -229,7 +229,7 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 			if (model != null) {
 				switch (model.Type) {
 					case ModelType.Brush:
-						return CollisionModelSubsystem.GetVCollide(modelIndex - 1);
+						return CM.GetVCollide(modelIndex - 1);
 					case ModelType.Studio: {
 							VCollide? col = mdlcache.GetVCollide(model.Studio);
 							return col;
@@ -238,7 +238,7 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 			}
 			else {
 				// we may have the cmodels loaded and not know the model/mod->type yet
-				return CollisionModelSubsystem.GetVCollide(modelIndex - 1);
+				return CM.GetVCollide(modelIndex - 1);
 			}
 		}
 		return null;

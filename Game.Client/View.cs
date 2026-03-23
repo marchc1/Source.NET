@@ -96,7 +96,7 @@ public class ViewRender : IViewRender
 	readonly IServiceProvider services;
 	readonly IEngineTrace enginetrace;
 	readonly Render engineRenderer;
-	public ViewRender(IMaterialSystem materials, IServiceProvider services, Render engineRenderer, IEngineTrace enginetrace) {
+	public ViewRender(IMaterialSystem materials, IServiceProvider services, Render engineRenderer, [FromKeyedServices(Realm.Client)] IEngineTrace enginetrace) {
 		this.materials = materials;
 		this.services = services;
 		this.engineRenderer = engineRenderer;

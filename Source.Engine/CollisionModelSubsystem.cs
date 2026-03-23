@@ -28,6 +28,7 @@ public class CollisionBSPData
 	public readonly List<CollisionLeaf> MapLeafs = [];
 	public readonly List<ushort> MapLeafBrushes = [];
 	public readonly List<string?> TextureNames = [];
+	public static readonly CollisionSurface NullSurface = new() { Name = "**empty**", Flags = 0, SurfaceProps = 0 };
 	public string? MapEntityString;
 
 	IMaterialSystem? materials;
@@ -322,14 +323,10 @@ public class CollisionBSPData
 	}
 }
 
-/// <summary>
-/// Analog of the CM_ methods.
-/// </summary>
-[EngineComponent]
-public class CollisionModelSubsystem()
+public static partial class CM
 {
 	static uint last_checksum = uint.MaxValue;
-	public void LoadMap(ReadOnlySpan<char> name, bool allowReusePrevious, out uint checksum) {
+	public static void LoadMap(ReadOnlySpan<char> name, bool allowReusePrevious, out uint checksum) {
 		CollisionBSPData bspData = GetCollisionBSPData();
 		if (name.Equals(bspData.MapName, StringComparison.OrdinalIgnoreCase) && allowReusePrevious) {
 			checksum = last_checksum;
@@ -358,15 +355,15 @@ public class CollisionModelSubsystem()
 		return;
 	}
 
-	private void FloodAreaConnections(CollisionBSPData bspData) {
+	private static void FloodAreaConnections(CollisionBSPData bspData) {
 
 	}
 
-	private void InitPortalOpenState(CollisionBSPData bspData) {
+	private static void InitPortalOpenState(CollisionBSPData bspData) {
 
 	}
 
-	private void DispTreeLeafnum(CollisionBSPData bspData) {
+	private static void DispTreeLeafnum(CollisionBSPData bspData) {
 
 	}
 
@@ -386,5 +383,12 @@ public class CollisionModelSubsystem()
 			return null;
 
 		return (bspData.MapCollisionModels[index]);
+	}
+
+	internal static void ClearTrace(ref Trace trace) {
+		trace = default;
+		trace.Fraction = 1;
+		trace.FractionLeftSolid = 1;
+		trace.Surface = CollisionBSPData.NullSurface;
 	}
 }

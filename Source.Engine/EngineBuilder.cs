@@ -161,7 +161,13 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<IRenderView, RenderView>();
 		this.AddSingleton<ModelLoader>();
 		this.AddSingleton<IModelLoader>(x => x.GetRequiredService<ModelLoader>());
-		this.AddSingleton<IEngineTrace, EngineTrace>();
+
+		this.AddKeyedSingleton<EngineTraceClient>(Realm.Client);
+		this.AddKeyedSingleton<EngineTraceServer>(Realm.Server);
+		this.AddKeyedSingleton(typeof(IEngineTrace), Realm.Client, (x, _) => x.GetRequiredKeyedService<EngineTraceClient>(Realm.Client));
+		this.AddKeyedSingleton(typeof(IEngineTrace), Realm.Server, (x, _) => x.GetRequiredKeyedService<EngineTraceServer>(Realm.Server));
+
+
 		this.AddSingleton<IMod, BaseMod>();
 		this.AddSingleton<IGame, Game>();
 		this.AddSingleton<IVDebugOverlay, DebugOverlay>();

@@ -11,6 +11,12 @@ using System.Runtime.CompilerServices;
 
 namespace Game.Shared;
 
+#if CLIENT_DLL
+using Game.Client;
+#elif GAME_DLL
+using Game.Server;
+#endif
+
 using Source.Common.Mathematics;
 using Source.Common.Networking;
 
@@ -627,4 +633,18 @@ public struct InlineArrayNewMaxControlPoints<T> where T : new()
 	public const int kMAXCONTROLPOINTS = 63;
 	public T item;
 	public InlineArrayNewMaxControlPoints() { for (int i = 0; i < kMAXCONTROLPOINTS; i++) this[i] = new(); }
+}
+
+public static class TraceFieldProps
+{
+	extension(ref Trace tr)
+	{
+#if CLIENT_DLL
+
+		public C_BaseEntity? Ent { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (C_BaseEntity?)tr.EntHandle; }
+#elif GAME_DLL
+		public BaseEntity? Ent { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (BaseEntity?)tr.EntHandle; }
+
+#endif
+	}
 }
