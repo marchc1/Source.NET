@@ -820,7 +820,16 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public void DrawSetTextColor(int r, int g, int b, int a) {
-		DrawTextColor.SetColor(r, g, b, (int)(a * AlphaMultiplier));
+		int adjustedAlpha = (int)(a * AlphaMultiplier);
+
+		if (r != DrawTextColor[0] || g != DrawTextColor[1] || b != DrawTextColor[2] || adjustedAlpha != DrawTextColor[3]) {
+			DrawFlushText();
+
+			DrawTextColor[0] = (byte)r;
+			DrawTextColor[1] = (byte)g;
+			DrawTextColor[2] = (byte)b;
+			DrawTextColor[3] = (byte)adjustedAlpha;
+		}
 	}
 
 	public void DrawSetTextColor(in Color color) {
