@@ -108,7 +108,10 @@ public partial class
 		eyeAngles += Local.PunchAngle;
 
 #if CLIENT_DLL
-		if (!prediction.InPrediction()) { } // vieweffects
+		if (!prediction.InPrediction()) {
+			vieweffects.CalcShake();
+			vieweffects.ApplyShake(ref eyeOrigin, ref eyeAngles, 1.0f);
+		}
 #endif
 
 #if CLIENT_DLL

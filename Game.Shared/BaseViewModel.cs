@@ -190,10 +190,10 @@ public partial class
 		// todo: AddViewModelBob(owner, vmorigin, vmangles);
 		// todo: CalcViewModelLag
 #if CLIENT_DLL
-		if (!prediction.InPrediction()) {
-			// Let the viewmodel shake at about 10% of the amplitude of the player's view
-			// TODO: vieweffects.ApplyShake( vmorigin, vmangles, 0.1 );	
-		}
+		#if CLIENT_DLL
+		if (!prediction.InPrediction())  // Let the viewmodel shake at about 10% of the amplitude of the player's view
+			vieweffects.ApplyShake(ref vmorigin, ref vmangles, 0.1f);
+#endif
 #endif
 		SetLocalOrigin(in vmorigin);
 		SetLocalAngles(in vmangles);

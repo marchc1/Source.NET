@@ -37,6 +37,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		services.AddSingleton<ClientEntityList>();
 		services.AddSingleton<IClientEntityList>(x => x.GetRequiredService<ClientEntityList>());
 		services.AddSingleton<IPrediction, Prediction>();
+		services.AddSingleton<IViewEffects, ViewEffects>(x => ViewEffects.g_ViewEffects);
 		services.AddSingleton<ICenterPrint, CenterPrint>(x => CenterPrint.CenterString);
 		services.AddSingleton<ClientLeafSystem>();
 		services.AddSingleton<IClientLeafSystem>(x => x.GetRequiredService<ClientLeafSystem>());
@@ -124,6 +125,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		clientMode.Enable();
 
 		view.Init();
+		vieweffects.Init();
 
 		input.Init();
 
