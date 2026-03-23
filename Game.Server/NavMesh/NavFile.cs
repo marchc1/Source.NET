@@ -12,7 +12,7 @@ static class NavFile
 
 public class PlaceDirectory
 {
-	List<NavPlace> Directory = [];
+	readonly List<NavPlace> Directory = [];
 	bool HasUnnamedAreas;
 
 	public PlaceDirectory() => Reset();
