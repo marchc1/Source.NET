@@ -9,6 +9,9 @@ using System.Runtime.InteropServices;
 
 namespace Source.Common
 {
+	public static class DataMapConstants {
+		public const float TD_MSECTOLERANCE = 0.001f;
+	}
 
 	public enum FieldType
 	{
@@ -115,7 +118,7 @@ namespace Source.Common
 		Make sure that DEFINE is defined in the C# file as using DEFINE = Source.DEFINE<YOURCLASSHERE>;
 
 			BEGIN_PREDICTION_DATA_NO_BASE:	public static readonly DataMap PredMap = new(nameof(THISCLASS), [
-			BEGIN_PREDICTION_DATA:			public static readonly DataMap PredMap = new(nameof(THISCLASS), BaseDataMap, [
+			BEGIN_PREDICTION_DATA:			public static readonly new DataMap PredMap = new(nameof(THISCLASS), BaseDataMap, [
 			DEFINE_PRED_FIELD:					DEFINE.PRED_FIELD(nameof(FIELD), FieldType, FieldTypeDescFlags),
 			DEFINE_FIELD:						DEFINE.FIELD(nameof(FIELD), FieldType),
 			END_PREDICTION_DATA:			]);

@@ -15,10 +15,15 @@ using Source;
 using Game.Shared;
 
 using System.Numerics;
+
 using Source.Common.Engine;
 
 #if CLIENT_DLL
 using Game.Client.HUD;
+
+using System.Diagnostics;
+
+using Microsoft.VisualBasic;
 
 namespace Game.Client;
 #else
@@ -40,6 +45,7 @@ using Class =
 #endif
 #if CLIENT_DLL || GAME_DLL
 using FIELD = Source.FIELD<BaseCombatWeapon>;
+using DEFINE = Source.DEFINE<BaseCombatWeapon>;
 #endif
 
 public partial class
@@ -51,6 +57,42 @@ public partial class
 	SHUT_UP_ABOUT_GAME_SHARED_INTELLISENSE
 #endif
 {
+#if CLIENT_DLL
+	public static readonly new DataMap PredMap = new(nameof(C_BaseCombatWeapon), C_BaseAnimating.PredMap, [
+
+	DEFINE.PRED_FIELD(nameof(NextThinkTick), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+	DEFINE.PRED_FIELD(nameof(Owner), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
+	DEFINE.PRED_FIELD(nameof(State), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+	DEFINE.PRED_FIELD(nameof(iViewModelIndex), FieldType.Integer, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.ModelIndex ),
+	DEFINE.PRED_FIELD(nameof(WorldModelIndex), FieldType.Integer, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.ModelIndex ),
+	DEFINE.PRED_FIELD_TOL(nameof(NextPrimaryAttack), FieldType.Float, FieldTypeDescFlags.InSendTable, TD_MSECTOLERANCE ),
+	DEFINE.PRED_FIELD_TOL(nameof(NextSecondaryAttack), FieldType.Float, FieldTypeDescFlags.InSendTable, TD_MSECTOLERANCE ),
+	DEFINE.PRED_FIELD_TOL(nameof(TimeWeaponIdle), FieldType.Float, FieldTypeDescFlags.InSendTable, TD_MSECTOLERANCE ),
+	DEFINE.PRED_FIELD(nameof(PrimaryAmmoType), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+	DEFINE.PRED_FIELD(nameof(SecondaryAmmoType), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+	DEFINE.PRED_FIELD(nameof(iClip1), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+	DEFINE.PRED_FIELD(nameof(iClip2), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+	DEFINE.PRED_FIELD(nameof(nViewModelIndex), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+	DEFINE.PRED_FIELD(nameof(TimeWeaponIdle), FieldType.Float, FieldTypeDescFlags.InSendTable ),
+	DEFINE.FIELD(nameof(InReload), FieldType.Boolean ),
+	DEFINE.FIELD(nameof(FireOnEmpty), FieldType.Boolean ),
+	DEFINE.FIELD(nameof(FiringWholeClip), FieldType.Boolean ),
+	DEFINE.FIELD(nameof(NextEmptySoundTime), FieldType.Float ),
+	DEFINE.FIELD(nameof(Activity), FieldType.Integer ),
+	DEFINE.FIELD(nameof(FireDuration), FieldType.Float ),
+	DEFINE.FIELD(nameof(WeaponName), FieldType.Integer ),
+	DEFINE.FIELD(nameof(FiresUnderwater), FieldType.Boolean ),
+	DEFINE.FIELD(nameof(AltFiresUnderwater), FieldType.Boolean ),
+	DEFINE.FIELD(nameof(MinRange1), FieldType.Float ),
+	DEFINE.FIELD(nameof(MinRange2), FieldType.Float ),
+	DEFINE.FIELD(nameof(MaxRange1), FieldType.Float ),
+	DEFINE.FIELD(nameof(MaxRange2), FieldType.Float ),
+	DEFINE.FIELD(nameof(ReloadsSingly), FieldType.Boolean ),
+	DEFINE.FIELD(nameof(Removable), FieldType.Boolean ),
+	DEFINE.FIELD(nameof(PrimaryAmmoCount), FieldType.Integer ),
+	DEFINE.FIELD(nameof(SecondaryAmmoCount), FieldType.Integer ),
+]); public override DataMap? GetPredDescMap() => PredMap;
+#endif
 #if !CLIENT_DLL && !GAME_DLL // God intellisense is annoying me. Fixme when we can get Intellisense to shut up about Game.Shared (it never gets built)
 	public static readonly Table DT_BaseAnimating = new();
 #endif
@@ -150,9 +192,13 @@ public partial class
 	public int iClip2;
 	public int PrimaryAmmoType;
 	public int SecondaryAmmoType;
-	// View model index (entity offset)
+	/// <summary>
+	/// View model index (entity offset)
+	/// </summary>
 	public int nViewModelIndex;
-	// View model index (art)
+	/// <summary>
+	/// View model index (art)
+	/// </summary>
 	public int iViewModelIndex;
 	public int WorldModelIndex;
 	public bool FlipViewModel;
@@ -162,6 +208,7 @@ public partial class
 	public TimeUnit_t TimeWeaponIdle;
 
 	public int State;
+	public string? WeaponName; // Equiv of m_iszName in SDK
 	public EHANDLE Owner = new();
 
 	Activity Activity;
@@ -356,10 +403,14 @@ public partial class
 		}
 	}
 
-	public TimeUnit_t FireDuration;
 	public bool FiresUnderwater;
 	public bool AltFiresUnderwater;
+	public float MinRange1;
+	public float MinRange2;
+	public float MaxRange1;
+	public float MaxRange2;
 	public bool ReloadsSingly;
+	public TimeUnit_t FireDuration;
 
 	public virtual void FinishReload() {
 		BaseCombatCharacter? owner = GetOwner();
