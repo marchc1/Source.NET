@@ -56,15 +56,15 @@ public partial class
 #endif
 	public static readonly Table DT_LocalWeaponData = new([
 #if CLIENT_DLL
-		RecvPropIntWithMinusOneFlag(FIELD.OF(nameof(Clip1))),
-		RecvPropIntWithMinusOneFlag(FIELD.OF(nameof(Clip1))),
+		RecvPropIntWithMinusOneFlag(FIELD.OF(nameof(iClip1))),
+		RecvPropIntWithMinusOneFlag(FIELD.OF(nameof(iClip2))),
 		RecvPropInt(FIELD.OF(nameof(PrimaryAmmoType))),
 		RecvPropInt(FIELD.OF(nameof(SecondaryAmmoType))),
 		RecvPropInt(FIELD.OF(nameof(nViewModelIndex))),
 		RecvPropInt(FIELD.OF(nameof(FlipViewModel))),
 #elif GAME_DLL
-		SendPropIntWithMinusOneFlag(FIELD.OF(nameof(Clip1)), 16),
-		SendPropIntWithMinusOneFlag(FIELD.OF(nameof(Clip1)), 16),
+		SendPropIntWithMinusOneFlag(FIELD.OF(nameof(iClip1)), 16),
+		SendPropIntWithMinusOneFlag(FIELD.OF(nameof(iClip2)), 16),
 		SendPropInt(FIELD.OF(nameof(PrimaryAmmoType)), 8),
 		SendPropInt(FIELD.OF(nameof(SecondaryAmmoType)), 8),
 		SendPropInt(FIELD.OF(nameof(nViewModelIndex)), BaseViewModel.VIEWMODEL_INDEX_BITS, PropFlags.Unsigned),
@@ -145,8 +145,9 @@ public partial class
 #endif
 		= new Class("BaseCombatWeapon", DT_BaseCombatWeapon).WithManualClassID(StaticClassIndices.CBaseCombatWeapon);
 
-	public int Clip1;
-	public int Clip2;
+
+	public int iClip1;
+	public int iClip2;
 	public int PrimaryAmmoType;
 	public int SecondaryAmmoType;
 	// View model index (entity offset)
@@ -237,7 +238,7 @@ public partial class
 
 	public virtual void PrimaryAttack() {
 		// If my clip is empty (and I use clips) start reload
-		if (UsesClipsForAmmo1() && Clip1 == 0) {
+		if (UsesClipsForAmmo1() && iClip1 == 0) {
 			Reload();
 			return;
 		}
@@ -276,8 +277,8 @@ public partial class
 
 		// Make sure we don't fire more than the amount in the clip
 		if (UsesClipsForAmmo1()) {
-			info.Shots = Math.Min(info.Shots, Clip1);
-			Clip1 -= info.Shots;
+			info.Shots = Math.Min(info.Shots, iClip1);
+			iClip1 -= info.Shots;
 		}
 		else {
 			info.Shots = Math.Min(info.Shots, player.GetAmmoCount(PrimaryAmmoType));
@@ -298,7 +299,7 @@ public partial class
 
 		player.FireBullets(in info);
 
-		if (Clip1 == 0 && player.GetAmmoCount(PrimaryAmmoType) <= 0) {
+		if (iClip1 == 0 && player.GetAmmoCount(PrimaryAmmoType) <= 0) {
 			// HEV suit - indicate out of ammo condition
 			player.SetSuitUpdate("!HEV_AMO0", false, 0);
 		}
@@ -324,7 +325,7 @@ public partial class
 		if (owner == null)
 			return;
 
-		if (Clip1 == 0)
+		if (iClip1 == 0)
 			// Ready to reload again
 			FiringWholeClip = false;
 
@@ -338,7 +339,7 @@ public partial class
 			owner.Buttons &= ~InButtons.Reload;
 
 		// Try to fire if there's ammo in the clip and we're not holding the button
-		bool releaseClip = Clip1 > 0 && 0 == (owner.Buttons & InButtons.Attack);
+		bool releaseClip = iClip1 > 0 && 0 == (owner.Buttons & InButtons.Attack);
 
 		if (!releaseClip) {
 			if (CanReload() && (owner.Buttons & InButtons.Attack) != 0) {
@@ -366,15 +367,15 @@ public partial class
 		if (owner != null) {
 			// If I use primary clips, reload primary
 			if (UsesClipsForAmmo1()) {
-				int primary = Math.Min(GetMaxClip1() - Clip1, owner.GetAmmoCount(PrimaryAmmoType));
-				Clip1 += primary;
+				int primary = Math.Min(GetMaxClip1() - iClip1, owner.GetAmmoCount(PrimaryAmmoType));
+				iClip1 += primary;
 				owner.RemoveAmmo(primary, PrimaryAmmoType);
 			}
 
 			// If I use secondary clips, reload secondary
 			if (UsesClipsForAmmo2()) {
-				int secondary = Math.Min(GetMaxClip2() - Clip2, owner.GetAmmoCount(SecondaryAmmoType));
-				Clip2 += secondary;
+				int secondary = Math.Min(GetMaxClip2() - iClip2, owner.GetAmmoCount(SecondaryAmmoType));
+				iClip2 += secondary;
 				owner.RemoveAmmo(secondary, SecondaryAmmoType);
 			}
 
@@ -389,7 +390,7 @@ public partial class
 				return;
 
 			if (InReload && (NextPrimaryAttack <= gpGlobals.CurTime)) {
-				if ((owner.Buttons & (InButtons.Attack | InButtons.Attack2)) != 0 && Clip1 > 0) {
+				if ((owner.Buttons & (InButtons.Attack | InButtons.Attack2)) != 0 && iClip1 > 0) {
 					InReload = false;
 					return;
 				}
@@ -400,9 +401,9 @@ public partial class
 					return;
 				}
 				// If clip not full reload again
-				else if (Clip1 < GetMaxClip1()) {
+				else if (iClip1 < GetMaxClip1()) {
 					// Add them to the clip
-					Clip1 += 1;
+					iClip1 += 1;
 					owner.RemoveAmmo(1, PrimaryAmmoType);
 
 					Reload();
@@ -442,7 +443,7 @@ public partial class
 		}
 		else {
 			// Weapon is useable. Reload if empty and weapon has waited as long as it has to after firing
-			if (UsesClipsForAmmo1() && !AutoFiresFullClip() && (Clip1 == 0) &&
+			if (UsesClipsForAmmo1() && !AutoFiresFullClip() && (iClip1 == 0) &&
 				 (GetWeaponFlags() & WeaponFlags.NoAutoReload) == 0 &&
 				 NextPrimaryAttack < gpGlobals.CurTime &&
 				 NextSecondaryAttack < gpGlobals.CurTime) {
@@ -518,9 +519,9 @@ public partial class
 				// Secondary ammo doesn't have a reload animation
 				if (UsesClipsForAmmo2()) {
 					// reload clip2 if empty
-					if (Clip2 < 1) {
+					if (iClip2 < 1) {
 						owner.RemoveAmmo(1, SecondaryAmmoType);
-						Clip2 = Clip2 + 1;
+						iClip2 = iClip2 + 1;
 					}
 				}
 			}
@@ -529,7 +530,7 @@ public partial class
 		if (!bFired && (owner.Buttons & InButtons.Attack) != 0 && (NextPrimaryAttack <= gpGlobals.CurTime)) {
 			// Clip empty? Or out of ammo on a no-clip weapon?
 			if (!IsMeleeWeapon() &&
-				((UsesClipsForAmmo1() && Clip1 <= 0) || (!UsesClipsForAmmo1() && owner.GetAmmoCount(PrimaryAmmoType) <= 0))) {
+				((UsesClipsForAmmo1() && iClip1 <= 0) || (!UsesClipsForAmmo1() && owner.GetAmmoCount(PrimaryAmmoType) <= 0))) {
 				HandleFireOnEmpty();
 			}
 			else if (owner.GetWaterLevel() == Shared.WaterLevel.Eyes && FiresUnderwater == false) {
@@ -619,14 +620,14 @@ public partial class
 		// If you don't have clips, then don't try to reload them.
 		if (UsesClipsForAmmo1()) {
 			// need to reload primary clip?
-			int primary = Math.Min(clipSize1 - Clip1, owner.GetAmmoCount(PrimaryAmmoType));
+			int primary = Math.Min(clipSize1 - iClip1, owner.GetAmmoCount(PrimaryAmmoType));
 			if (primary != 0)
 				reload = true;
 		}
 
 		if (UsesClipsForAmmo2()) {
 			// need to reload secondary clip?
-			int secondary = Math.Min(clipSize2 - Clip2, owner.GetAmmoCount(SecondaryAmmoType));
+			int secondary = Math.Min(clipSize2 - iClip2, owner.GetAmmoCount(SecondaryAmmoType));
 			if (secondary != 0)
 				reload = true;
 		}
@@ -658,7 +659,7 @@ public partial class
 	public bool HasPrimaryAmmo() {
 		// If I use a clip, and have some ammo in it, then I have ammo
 		if (UsesClipsForAmmo1()) {
-			if (Clip1 > 0)
+			if (iClip1 > 0)
 				return true;
 		}
 
@@ -679,7 +680,7 @@ public partial class
 	public bool HasSecondaryAmmo() {
 		// If I use a clip, and have some ammo in it, then I have ammo
 		if (UsesClipsForAmmo2()) {
-			if (Clip2 > 0)
+			if (iClip2 > 0)
 				return true;
 		}
 
@@ -744,8 +745,10 @@ public partial class
 		}
 	}
 
-	public int GetPrimaryAmmoType() => PrimaryAmmoType;
-	public int GetSecondaryAmmoType() => SecondaryAmmoType;
+	public virtual int Clip1() => iClip1;
+	public virtual int Clip2() => iClip2;
+	public virtual int GetPrimaryAmmoType() => PrimaryAmmoType;
+	public virtual int GetSecondaryAmmoType() => SecondaryAmmoType;
 
 	public void PoseParameterOverride(bool reset) {
 		BaseCombatCharacter? owner = GetOwner();
@@ -980,7 +983,7 @@ public partial class
 		BasePlayer? player = ToBasePlayer(GetOwner());
 		if (player == null)
 			return false;
-		return (Clip1 > 0 || player.GetAmmoCount(PrimaryAmmoType) != 0 || Clip2 > 0 || player.GetAmmoCount(SecondaryAmmoType) != 0);
+		return (iClip1 > 0 || player.GetAmmoCount(PrimaryAmmoType) != 0 || iClip2 > 0 || player.GetAmmoCount(SecondaryAmmoType) != 0);
 	}
 
 	public bool CanBeSelected() {

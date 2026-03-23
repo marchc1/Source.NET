@@ -178,7 +178,7 @@ public class HUDQuickInfo : HudNumericDisplay, IHudElement
 				WarnHealth = false;
 		}
 
-		int ammo = weapon.Clip1;//();
+		int ammo = weapon.iClip1;//();
 		if (ammo != LastAmmo) {
 			UpdateEventTime();
 			LastAmmo = ammo;
