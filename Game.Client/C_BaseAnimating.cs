@@ -15,6 +15,7 @@ using System.Runtime.CompilerServices;
 
 using ClientModelRenderInfo = Source.Common.Engine.ModelRenderInfo;
 using FIELD = Source.FIELD<Game.Client.C_BaseAnimating>;
+using DEFINE = Source.DEFINE<Game.Client.C_BaseAnimating>;
 using FIELD_ILR = Source.FIELD<Game.Client.C_InfoLightingRelative>;
 namespace Game.Client;
 
@@ -37,8 +38,8 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		public nint Data;
 		public string? Str;
 
-		public BoneAccessTag(){ }
-		public BoneAccessTag(ReadOnlySpan<char> text){ Str = new(text); }
+		public BoneAccessTag() { }
+		public BoneAccessTag(ReadOnlySpan<char> text) { Str = new(text); }
 
 		public static explicit operator BoneAccessTag(nint i) => new() { Data = i };
 		public static explicit operator BoneAccessTag(string str) => new() { Str = str };
@@ -553,6 +554,18 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		RecvPropFloat(FIELD.OF(nameof(Cycle))),
 	]);
 	public static readonly ClientClass CC_ServerAnimationData = new ClientClass("ServerAnimationData", null, null, DT_ServerAnimationData);
+	public static readonly new DataMap PredMap = new(nameof(C_BaseAnimating), C_BaseEntity.PredMap, [
+		DEFINE.PRED_FIELD( nameof(Skin), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(Body), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(Sequence), FieldType.Integer, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.NoErrorCheck ),
+		DEFINE.PRED_FIELD( nameof(PlaybackRate), FieldType.Float, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.NoErrorCheck ),
+		DEFINE.PRED_FIELD( nameof(Cycle), FieldType.Float, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.NoErrorCheck ),
+		DEFINE.PRED_ARRAY_TOL( nameof(EncodedController), FieldType.Float, Studio.MAXSTUDIOBONECTRLS, FieldTypeDescFlags.InSendTable, 0.02f ),
+		DEFINE.FIELD( nameof(PrevSequence), FieldType.Integer ),
+		DEFINE.PRED_FIELD( nameof(NewSequenceParity), FieldType.Integer, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.NoErrorCheck ),
+		DEFINE.PRED_FIELD( nameof(ResetEventsParity), FieldType.Integer, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.NoErrorCheck ),
+		DEFINE.PRED_FIELD( nameof(MuzzleFlashParity), FieldType.Character, FieldTypeDescFlags.InSendTable ),
+	]); public override DataMap? GetPredDescMap() => PredMap;
 	public static readonly RecvTable DT_BaseAnimating = new(DT_BaseEntity, [
 		RecvPropInt( FIELD.OF(nameof(ForceBone))),
 		RecvPropVector( FIELD.OF(nameof(Force))),
@@ -667,6 +680,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		return hdr;
 	}
+	public int PrevSequence = -1;
 	bool ResetSequenceInfoOnLoad = false;
 
 	public void ResetSequenceInfo() {
