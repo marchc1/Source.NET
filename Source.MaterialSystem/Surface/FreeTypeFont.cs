@@ -195,7 +195,78 @@ public unsafe class FreeTypeFont : BaseFont
 			}
 		}
 	}
-	private void ApplyGaussianBlurToTexture(int rgbaWide, int rgbaTall, Span<byte> rgba, uint blur) { }
+	private void ApplyGaussianBlurToTexture(int rgbaWide, int rgbaTall, Span<byte> rgba, uint nBlur) {
+		if (nBlur == 0)
+			return;
+
+		int filterWidth = (int)(nBlur * 2 + 1);
+		Span<float> pGaussianDistribution = stackalloc float[filterWidth];
+		float sigma = 0.683f * nBlur;
+		for (int x = 0; x <= nBlur * 2; x++) {
+			int val = x - (int)nBlur;
+			pGaussianDistribution[x] = (1.0f / MathF.Sqrt(2 * 3.14f * sigma * sigma)) * MathF.Pow(2.7f, -1.0f * (val * val) / (2 * sigma * sigma));
+		}
+
+		int totalBytes = rgbaWide * rgbaTall * 4;
+		Span<byte> src = new byte[totalBytes];
+		rgba[..totalBytes].CopyTo(src);
+
+		for (int x = 0; x < rgbaWide; x++) {
+			int distOffset = 0;
+			int nValues = filterWidth;
+			int nOffset = 0;
+			if (x < nBlur) {
+				nOffset += (int)nBlur - x;
+				distOffset += nOffset;
+				nValues -= nOffset;
+			}
+			if (x >= rgbaWide - nBlur) {
+				nValues = rgbaWide - (x - nOffset);
+			}
+
+			for (int y = 0; y < rgbaTall; y++) {
+				int readIndex = (y * rgbaWide + x + nOffset - (int)nBlur) * 4 + 3;
+				float accum = 0.0f;
+				for (int n = 0; n < nValues; n++) {
+					accum += pGaussianDistribution[distOffset + n] * src[readIndex + n * 4];
+				}
+				byte alpha = (byte)accum;
+
+				int dstIndex = (y * rgbaWide + x) * 4;
+				rgba[dstIndex + 0] = rgba[dstIndex + 1] = rgba[dstIndex + 2] = alpha > 0 ? (byte)255 : (byte)0;
+				rgba[dstIndex + 3] = alpha;
+			}
+		}
+
+		rgba[..totalBytes].CopyTo(src);
+
+		for (int y = 0; y < rgbaTall; y++) {
+			int distOffset = 0;
+			int nValues = filterWidth;
+			int nOffset = 0;
+			if (y < nBlur) {
+				nOffset += (int)nBlur - y;
+				distOffset += nOffset;
+				nValues -= nOffset;
+			}
+			if (y >= rgbaTall - nBlur) {
+				nValues = rgbaTall - (y - nOffset);
+			}
+
+			for (int x = 0; x < rgbaWide; x++) {
+				int readIndex = ((y + nOffset - (int)nBlur) * rgbaWide + x) * 4 + 3;
+				float accum = 0.0f;
+				for (int n = 0; n < nValues; n++) {
+					accum += pGaussianDistribution[distOffset + n] * src[readIndex + n * 4 * rgbaWide];
+				}
+				byte alpha = (byte)accum;
+
+				int dstIndex = (y * rgbaWide + x) * 4;
+				rgba[dstIndex + 0] = rgba[dstIndex + 1] = rgba[dstIndex + 2] = alpha > 0 ? (byte)255 : (byte)0;
+				rgba[dstIndex + 3] = alpha;
+			}
+		}
+	}
 	private void ApplyScanlineEffectToTexture(int rgbaWide, int rgbaTall, Span<byte> rgba, uint scanLines) {
 		if (scanLines < 2)
 			return;
