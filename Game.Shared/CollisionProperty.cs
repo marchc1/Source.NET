@@ -14,6 +14,9 @@ using Source;
 #endif
 
 using Source.Common;
+using Source.Common.Engine;
+using Source.Common.Formats.BSP;
+using Source.Common.Mathematics;
 
 using System.Numerics;
 
@@ -34,7 +37,7 @@ public enum SurroundingBoundsType
 	BitCount = 3
 }
 
-public class CollisionProperty
+public class CollisionProperty : ICollideable
 {
 #if CLIENT_DLL
 
@@ -115,6 +118,86 @@ public class CollisionProperty
 
 	internal void DestroyPartitionHandle() {
 	// todo
+	}
+
+	public IHandleEntity? GetEntityHandle() {
+		throw new NotImplementedException();
+	}
+
+	public ref Vector3 OBBMinsPreScaled() {
+		throw new NotImplementedException();
+	}
+
+	public ref Vector3 OBBMaxsPreScaled() {
+		throw new NotImplementedException();
+	}
+
+	public ref Vector3 OBBMins() {
+		throw new NotImplementedException();
+	}
+
+	public ref Vector3 OBBMaxs() {
+		throw new NotImplementedException();
+	}
+
+	public void WorldSpaceTriggerBounds(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) {
+		throw new NotImplementedException();
+	}
+
+	public bool TestCollision(in Ray ray, Contents contentsMask, ref Trace tr) {
+		throw new NotImplementedException();
+	}
+
+	public bool TestHitboxes(in Ray ray, Contents contentsMask, ref Trace tr) {
+		throw new NotImplementedException();
+	}
+
+	public int GetCollisionModelIndex() {
+		throw new NotImplementedException();
+	}
+
+	public Model? GetCollisionModel() {
+		throw new NotImplementedException();
+	}
+
+	public ref readonly Vector3 GetCollisionOrigin() {
+		throw new NotImplementedException();
+	}
+
+	public ref readonly QAngle GetCollisionAngles() {
+		throw new NotImplementedException();
+	}
+
+	public ref readonly Matrix3x4 CollisionToWorldTransform() {
+		throw new NotImplementedException();
+	}
+
+	public SolidType GetSolid() {
+		throw new NotImplementedException();
+	}
+
+	public int GetSolidFlags() {
+		throw new NotImplementedException();
+	}
+
+	public IClientUnknown? GetIClientUnknown() {
+		throw new NotImplementedException();
+	}
+
+	public int GetCollisionGroup() {
+		throw new NotImplementedException();
+	}
+
+	public void WorldSpaceSurroundingBounds(out Vector3 vecMins, out Vector3 vecMaxs) {
+		throw new NotImplementedException();
+	}
+
+	public bool ShouldTouchTrigger(int triggerSolidFlags) {
+		throw new NotImplementedException();
+	}
+
+	public ref readonly Matrix3x4 GetRootParentToWorldTransform() {
+		throw new NotImplementedException();
 	}
 
 #if CLIENT_DLL

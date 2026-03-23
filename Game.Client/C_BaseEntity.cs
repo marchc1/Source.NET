@@ -1867,7 +1867,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	}
 
-	public virtual ICollideable GetCollideable() => throw new NotImplementedException();
+	public virtual ICollideable GetCollideable() => Collision;
 	public virtual ref readonly BaseHandle GetRefEHandle() {
 		return ref RefEHandle;
 	}
