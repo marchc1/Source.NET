@@ -511,11 +511,14 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe void AngleQuaternion(in QAngle angles, out Quaternion outQuat) {
 		fixed (QAngle* pQ = &angles) {
-			Vector4 radians = new(*(Vector3*)pQ, 0.5f);
+			Vector4 radians = new(*(Vector3*)pQ, 0);
+			radians = Vector4.Multiply(radians, MathF.PI / 360.0f);
 			(Vector4 sine, Vector4 cosine) = Vector4.SinCos(radians);
 
-			float sr = SubFloat(ref sine, 0), sp = SubFloat(ref sine, 1), sy = SubFloat(ref sine, 2);
-			float cr = SubFloat(ref cosine, 0), cp = SubFloat(ref cosine, 1), cy = SubFloat(ref cosine, 2);
+			// NOTE: The ordering here is *different* from the RadianEuler AngleQuaternion above
+			// because p, y, r are not in the same locations in QAngle + RadianEuler. Yay!
+			float sp = SubFloat(ref sine, 0), sy = SubFloat(ref sine, 1), sr = SubFloat(ref sine, 2);
+			float cp = SubFloat(ref cosine, 0), cy = SubFloat(ref cosine, 1), cr = SubFloat(ref cosine, 2);
 
 			float srXcp = sr * cp, crXsp = cr * sp;
 			outQuat.X = srXcp * cy - crXsp * sy;
@@ -677,11 +680,45 @@ public static class MathLib
 	}
 
 	public static void QuaternionSlerp(in Quaternion p, in Quaternion q, float t, out Quaternion qt) {
-		qt = Quaternion.Slerp(p, q, t);
+		QuaternionAlign(p, q, out Quaternion q2);
+		QuaternionSlerpNoAlign(p, q2, t, out qt);
 	}
 
 	public static void QuaternionSlerpNoAlign(in Quaternion p, in Quaternion q, float t, out Quaternion qt) {
-		qt = Quaternion.Slerp(p, q, t);
+		qt = default;
+		float cosom = p.X * q.X + p.Y * q.Y + p.Z * q.Z + p.W * q.W;
+
+		if ((1.0f + cosom) > 0.000001f) {
+			float sclp, sclq;
+			if ((1.0f - cosom) > 0.000001f) {
+				float omega = MathF.Acos(cosom);
+				float sinom = MathF.Sin(omega);
+				sclp = MathF.Sin((1.0f - t) * omega) / sinom;
+				sclq = MathF.Sin(t * omega) / sinom;
+			}
+			else {
+				sclp = 1.0f - t;
+				sclq = t;
+			}
+
+			qt.X = sclp * p.X + sclq * q.X;
+			qt.Y = sclp * p.Y + sclq * q.Y;
+			qt.Z = sclp * p.Z + sclq * q.Z;
+			qt.W = sclp * p.W + sclq * q.W;
+		}
+		else {
+			qt.X = -q.Y;
+			qt.Y = q.X;
+			qt.Z = -q.W;
+			qt.W = q.Z;
+
+			float sclp = MathF.Sin((1.0f - t) * (0.5f * MathF.PI));
+			float sclq = MathF.Sin(t * (0.5f * MathF.PI));
+
+			qt.X = sclp * p.X + sclq * qt.X;
+			qt.Y = sclp * p.Y + sclq * qt.Y;
+			qt.Z = sclp * p.Z + sclq * qt.Z;
+		}
 	}
 
 	public static void QuaternionMatrix(in Quaternion q, out Matrix3x4 m) {
@@ -1155,7 +1192,7 @@ public static class MathLib
 			up = new(cr * sp * cy + -sr * -sy, cr * sp * sy + -sr * cy, cr * cp);
 		}
 	}
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorClear(out Vector3 v) => v = default; 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorClear(out Vector3 v) => v = default;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out Vector3 outV) => outV = inV;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out QAngle outV) => outV = inV;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1340,5 +1377,10 @@ public static class MathLib
 		@out.X = @in.X * cy - @in.Y * sy;
 		@out.Y = @in.X * sy + @in.Y * cy;
 		@out.Z = @in.Z;
+	}
+
+	public static void QuaternionAngles(in Quaternion q, out QAngle angles) {
+		QuaternionMatrix(q, out Matrix3x4 matrix);
+		MatrixAngles(matrix, out angles);
 	}
 }
