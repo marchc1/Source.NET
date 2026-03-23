@@ -1173,7 +1173,13 @@ public class GameMovement : IGameMovement
 					// case until the bug is fixed.
 					// If we detect getting stuck, don't allow the movement
 					// todo
-					throw new NotImplementedException();
+					Trace stuck;
+					TracePlayerBBox(pm.EndPos, pm.EndPos, PlayerSolidMask(), CollisionGroup.PlayerMovement, out stuck);
+					if (stuck.StartSolid || stuck.Fraction != 1.0f) {
+						//Msg( "Player will become stuck!!!\n" );
+						MathLib.VectorCopy(vec3_origin, out mv.Velocity);
+						break;
+					}
 				}
 
 				// actually covered some distance
