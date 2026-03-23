@@ -1810,7 +1810,7 @@ public class MatSystemSurface : IMatSystemSurface
 	public void DrawString(ReadOnlySpan<char> str, FontDrawType drawType = FontDrawType.Default) {
 		if (TextFullyTransparent)
 			return;
-		for (int i = 0; i < str[i]; i++) {
+		for (int i = 0; i < str.Length; i++) {
 			char c = str[i];
 			if (c == '\0')
 				break;
