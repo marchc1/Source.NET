@@ -910,9 +910,7 @@ public class MatSystemSurface : IMatSystemSurface
 
 	}
 
-	public void FlashWindow(IPanel panel, bool state) {
-
-	}
+	public void FlashWindow(IPanel panel, bool state) => launcherMgr.FlashWindow(state);
 
 	public void GetAbsoluteWindowBounds(out int x, out int y, out int wide, out int tall) {
 		throw new NotImplementedException();
