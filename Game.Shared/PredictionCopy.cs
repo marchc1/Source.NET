@@ -614,14 +614,14 @@ public ref struct PredictionCopy
 					}
 					break;
 
-				case FieldType.Byte: {
+				case FieldType.Character: {
 						difftype = CompareByte(pOutputData, pInputData, fieldSize);
 						CopyByte(difftype, pOutputData, pInputData, fieldSize);
 						// if (ErrorCheck && ShouldDescribe) DescribeInt(difftype, &valOut, &valIn, fieldSize);
 						// if (bShouldWatch) WatchData(difftype, fieldSize, (pOutputData), pInputData);
 					}
 					break;
-				case FieldType.Character: {
+				case FieldType.StringCharacter: {
 						difftype = CompareChar(pOutputData, pInputData, fieldSize);
 						CopyChar(difftype, pOutputData, pInputData, fieldSize);
 						// if (ErrorCheck && ShouldDescribe) DescribeInt(difftype, &valOut, &valIn, fieldSize);

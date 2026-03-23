@@ -22,9 +22,10 @@ namespace Source.Common
 		Quaternion,       // A quaternion
 		Integer,          // Any integer or enum
 		Boolean,          // boolean, implemented as an int, I may use this as a hint for compression
-		Byte,             // 1 byte integer
+		Character,        // 1 byte integer
+		Byte = Character, // 1 byte integer
 		Short,            // 2 byte integer
-		Character,        // a utf16 character
+		StringCharacter,  // a utf16 character
 		Color32,          // 8-bit per channel r,g,b,a (32bit color)
 		Embedded,         // an embedded object with a datadesc, recursively traverse and embedded class/structure based on an additional typedescription
 		Custom,           // special type that contains function pointers to it's read/write/parse functions
@@ -283,8 +284,8 @@ namespace Source
 					case FieldType.String: framecontainer = new DataFrameContainer<char[]>(td.FieldSize); break;
 					case FieldType.Color32: framecontainer = new DataFrameContainer<Color>(td.FieldSize); break;
 					case FieldType.Boolean: framecontainer = new DataFrameContainer<bool>(td.FieldSize); break;
-					case FieldType.Byte: framecontainer = new DataFrameContainer<byte>(td.FieldSize); break;
-					case FieldType.Character: framecontainer = new DataFrameContainer<char>(td.FieldSize); break;
+					case FieldType.Character: framecontainer = new DataFrameContainer<byte>(td.FieldSize); break;
+					case FieldType.StringCharacter: framecontainer = new DataFrameContainer<char>(td.FieldSize); break;
 
 					default:
 						continue;

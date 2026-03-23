@@ -555,12 +555,12 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public static readonly DataMap PredMap = new(nameof(C_BaseEntity), [
-		DEFINE.PRED_FIELD(nameof(MoveType), FieldType.Byte, FieldTypeDescFlags.InSendTable),
-		DEFINE.PRED_FIELD(nameof(MoveCollide), FieldType.Byte, FieldTypeDescFlags.InSendTable),
+		DEFINE.PRED_FIELD(nameof(MoveType), FieldType.Character, FieldTypeDescFlags.InSendTable),
+		DEFINE.PRED_FIELD(nameof(MoveCollide), FieldType.Character, FieldTypeDescFlags.InSendTable),
 		DEFINE.FIELD(nameof(AbsVelocity), FieldType.Vector),
 		DEFINE.PRED_FIELD_TOL(nameof(Velocity), FieldType.Vector, FieldTypeDescFlags.InSendTable, 0.5f),
-		DEFINE.PRED_FIELD(nameof(RenderMode), FieldType.Byte, FieldTypeDescFlags.InSendTable ),
-		DEFINE.PRED_FIELD(nameof(RenderFX), FieldType.Byte, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD(nameof(RenderMode), FieldType.Character, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD(nameof(RenderFX), FieldType.Character, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD(nameof(flags), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD_TOL(nameof(ViewOffset), FieldType.Vector, FieldTypeDescFlags.InSendTable, 0.25f ),
 		DEFINE.PRED_FIELD(nameof(ModelIndex), FieldType.Short, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.ModelIndex ),
@@ -574,8 +574,8 @@ public partial class C_BaseEntity : IClientEntity
 		DEFINE.FIELD(nameof(AbsRotation), FieldType.Vector ),
 		DEFINE.FIELD(nameof(Origin), FieldType.Vector ),
 		DEFINE.FIELD(nameof(Rotation), FieldType.Vector ),
-		DEFINE.FIELD(nameof(WaterLevel), FieldType.Byte ),
-		DEFINE.FIELD(nameof(WaterType), FieldType.Byte ),
+		DEFINE.FIELD(nameof(WaterLevel), FieldType.Character ),
+		DEFINE.FIELD(nameof(WaterType), FieldType.Character ),
 		DEFINE.FIELD(nameof(AngVelocity), FieldType.Vector ),
 		DEFINE.FIELD(nameof(Dormant), FieldType.Boolean ),
 		DEFINE.FIELD(nameof(BaseVelocity), FieldType.Vector ),
@@ -2429,8 +2429,8 @@ public partial class C_BaseEntity : IClientEntity
 				case FieldType.String:
 				case FieldType.Color32:
 				case FieldType.Boolean:
-				case FieldType.Byte:
 				case FieldType.Character:
+				case FieldType.StringCharacter:
 					field.PackedOffset = currentPosition++;
 					break;
 				case FieldType.Void: {
