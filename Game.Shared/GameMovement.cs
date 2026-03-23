@@ -957,7 +957,26 @@ public class GameMovement : IGameMovement
 	}
 
 	// Apply normal ( undecomposed ) gravity
-	protected void AddGravity() { throw new NotImplementedException(); }
+	protected void AddGravity() {
+		float ent_gravity;
+
+		if (Player.WaterJumpTime != 0)
+			return;
+
+		if (Player.GetGravity() != 0)
+			ent_gravity = Player.GetGravity();
+		else
+			ent_gravity = 1.0f;
+
+		// Add gravity incorrectly
+		mv!.Velocity[2] -= (ent_gravity * GetCurrentGravity() * (float)gpGlobals.FrameTime);
+		mv!.Velocity[2] += Player.GetBaseVelocity()[2] * (float)gpGlobals.FrameTime;
+		Vector3 temp = Player.GetBaseVelocity();
+		temp[2] = 0;
+		Player.SetBaseVelocity(temp);
+
+		CheckVelocity();
+	}
 
 	// Handle movement in noclip mode.
 	protected void FullNoClipMove_NoAcceleration(float speed, float maxacceleration) {
@@ -1577,7 +1596,18 @@ public class GameMovement : IGameMovement
 	}
 
 	// Does not change the entities velocity at all
-	protected void PushEntity(ref Vector3 push, ref Trace trace) { throw new NotImplementedException(); }
+	protected void PushEntity(ref Vector3 push, ref Trace trace) {
+		Vector3 end;
+
+		MathLib.VectorAdd(mv!.GetAbsOrigin(), push, out end);
+		TracePlayerBBox(mv.GetAbsOrigin(), end, PlayerSolidMask(), CollisionGroup.PlayerMovement, out trace);
+		mv!.SetAbsOrigin(trace.EndPos);
+
+		// So we can run impact function afterwards.
+		// If
+		if (trace.Fraction < 1.0 && !trace.AllSolid) 
+			MoveHelper().AddToTouched(in trace, in mv!.Velocity);
+	}
 
 	// Slide off of the impacting object
 	// returns the blocked flags:
