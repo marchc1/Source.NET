@@ -22,6 +22,8 @@ using System.Runtime.InteropServices;
 using DEFINE = Source.DEFINE<Game.Client.C_BaseEntity>;
 using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
 
+using AimEntsListHandle_t = int;
+
 namespace Game.Client;
 
 public static class BaseEntityConsts
@@ -329,6 +331,7 @@ public partial class C_BaseEntity : IClientEntity
 		ModelInstance = MODEL_INSTANCE_INVALID;
 		renderHandle = INVALID_CLIENT_RENDER_HANDLE;
 		thinkHandle = INVALID_THINK_HANDLE;
+		AimEntsListHandle = INVALID_AIMENTS_LIST_HANDLE;
 		Index = -1;
 		SetLocalOrigin(vec3_origin);
 		SetLocalAngles(vec3_angle);
@@ -861,12 +864,22 @@ public partial class C_BaseEntity : IClientEntity
 		return false;
 	}
 
-	public void UpdateOnRemove() {
-		// VPhysicsDestroyObject();
+	public void VPhysicsDestroyObject(){
 
-		// Assert(GetMoveParent() == null);
-		// UnlinkFromHierarchy();
-		// SetGroundEntity(NULL);
+	}
+	public void SetGroundEntity(C_BaseEntity? ground) {
+		if (GroundEntity.Get() == ground)
+			return;
+
+			// todo
+	}
+
+	public void UpdateOnRemove() {
+		VPhysicsDestroyObject();
+
+		Assert(GetMoveParent() == null);
+		UnlinkFromHierarchy();
+		SetGroundEntity(null);
 	}
 
 	public EHANDLE MoveParent = new();
@@ -875,7 +888,74 @@ public partial class C_BaseEntity : IClientEntity
 	public EHANDLE MovePrevPeer = new();
 
 	public void UnlinkFromHierarchy() {
-		// todo
+		if (MoveParent.IsValid()) 
+			UnlinkChild(MoveParent.Get(), this);
+	}
+
+	public void UnlinkChild(C_BaseEntity? parent, C_BaseEntity? child){
+		Assert(child != null);
+		Assert(parent != child);
+		Assert(child.GetMoveParent() == parent);
+
+		if (parent != null && (parent.MoveChild.Get() == child)) {
+			Assert(!(child.MovePrevPeer.IsValid()));
+			parent.MoveChild.Set(child.MovePeer);
+		}
+
+		if (child.MovePrevPeer.IsValid())
+			child.MovePrevPeer.Get()!.MovePeer.Set(child.MovePeer.Get());
+
+		if (child.MovePeer.IsValid())
+			child.MovePeer.Get()!.MovePrevPeer.Set(child.MovePrevPeer.Get());
+
+		child.MovePeer.Set(null);
+		child.MovePrevPeer.Set(null);
+		child.MoveParent.Set(null);
+		child.RemoveFromAimEntsList();
+
+		Interp_HierarchyUpdateInterpolationAmounts();
+	}
+
+	static readonly List<C_BaseEntity> g_AimEntsList = [];
+
+	AimEntsListHandle_t AimEntsListHandle;
+
+	const AimEntsListHandle_t INVALID_AIMENTS_LIST_HANDLE = unchecked((AimEntsListHandle_t)~0);
+
+	public void AddToAimEntsList() {
+		if (AimEntsListHandle != INVALID_AIMENTS_LIST_HANDLE)
+			return;
+
+		AimEntsListHandle = g_AimEntsList.Count;
+		g_AimEntsList.Add(this);
+	}
+
+	public void RemoveFromAimEntsList(){
+		if (AimEntsListHandle == INVALID_AIMENTS_LIST_HANDLE) 
+			return;
+
+		int c = g_AimEntsList.Count;
+
+		Assert(AimEntsListHandle < c);
+
+		var last = c - 1;
+
+		if (last == AimEntsListHandle) {
+			// Just wipe the final entry
+			g_AimEntsList.RemoveAt(last);
+		}
+		else {
+			C_BaseEntity lastEntity = g_AimEntsList[last];
+			// Remove the last entry
+			g_AimEntsList.RemoveAt(last);
+
+			// And update it's handle to point to this slot.
+			lastEntity.AimEntsListHandle = AimEntsListHandle;
+			g_AimEntsList[AimEntsListHandle] = lastEntity;
+		}
+
+		// Invalidate our handle no matter what.
+		AimEntsListHandle = INVALID_AIMENTS_LIST_HANDLE;
 	}
 
 	public void Release() {
@@ -886,6 +966,38 @@ public partial class C_BaseEntity : IClientEntity
 			DestroyIntermediateData();
 
 		UpdateOnRemove();
+		Term();
+	}
+
+	public int DataObjectTypes;
+
+	public virtual void Term(){
+		DestroyAllDataObjects();
+
+		if (GetPredictable() || IsClientCreated())
+			g_Predictables.RemoveFromPredictablesList(GetClientHandle());
+
+		if (IsPlayerSimulated() && C_BasePlayer.GetLocalPlayer() != null)
+			C_BasePlayer.GetLocalPlayer()!.RemoveFromPlayerSimulationList(this);
+
+		if (GetClientHandle() != INVALID_CLIENTENTITY_HANDLE) {
+			if (GetThinkHandle() != INVALID_THINK_HANDLE) 
+				ClientThinkList().RemoveThinkable(GetClientHandle());
+
+			// Remove from the client entity list.
+			cl_entitylist.RemoveEntity(GetClientHandle());
+
+			RefEHandle = INVALID_CLIENTENTITY_HANDLE;
+		}
+
+		CollisionProp().DestroyPartitionHandle();
+
+		if (Index != -1)
+			beams.KillDeadBeams(this);
+
+		DestroyModelInstance();
+		RemoveFromLeafSystem();
+		RemoveFromAimEntsList();
 	}
 
 	public bool OnPredictedEntityRemove(bool isbeingremoved, C_BaseEntity predicted) {
@@ -917,10 +1029,6 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual bool ShouldPredict() => false;
 
 
-
-	public void AddToAimEntsList() {
-		// todo
-	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public int GetModelIndex() => ModelIndex;
 
@@ -2164,7 +2272,10 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 	private void Interp_HierarchyUpdateInterpolationAmounts() {
+		Interp_UpdateInterpolationAmounts(ref GetVarMapping());
 
+		for (C_BaseEntity? child = FirstMoveChild(); child != null; child = child.NextMovePeer())
+			child.Interp_HierarchyUpdateInterpolationAmounts();
 	}
 
 

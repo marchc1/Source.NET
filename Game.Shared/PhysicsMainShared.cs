@@ -1,5 +1,7 @@
 ﻿#if CLIENT_DLL || GAME_DLL
 
+global using static Game.Shared.DataObjectAccessSystemGlobals;
+
 using Game.Shared;
 
 using Source.Common.Mathematics;
@@ -33,6 +35,34 @@ namespace Game.Server
 			// todo
 
 			// SetCheckUntouch(false);
+		}
+
+		public bool HasDataObjectType(DataObjectType type) => (DataObjectTypes & (1 << (int)type)) != 0;
+		public void AddDataObjectType(DataObjectType type) => DataObjectTypes |= (1 << (int)type);
+		public void RemoveDataObjectType(DataObjectType type) => DataObjectTypes &= ~(1 << (int)type);
+
+		public object? GetDataObject(DataObjectType type) {
+			if (!HasDataObjectType(type))
+				return null;
+			return g_DataObjectAccessSystem.GetDataObject(type, this);
+		}
+
+		public object? CreateDataObject(DataObjectType type) {
+			AddDataObjectType(type);
+			return g_DataObjectAccessSystem.CreateDataObject(type, this);
+		}
+
+		public void DestroyDataObject(DataObjectType type) {
+			if (!HasDataObjectType(type))
+				return;
+			RemoveDataObjectType(type);
+			g_DataObjectAccessSystem.DestroyDataObject(type, this);
+		}
+
+		public void DestroyAllDataObjects() {
+			for (DataObjectType i = 0; i < DataObjectType.NumTypes; i++)
+				if (HasDataObjectType(i))
+					DestroyDataObject(i);
 		}
 
 		public virtual void PhysicsSimulate() {
@@ -121,6 +151,18 @@ namespace Game.Shared
 		FireAllFunctions,
 		FireBaseOnly,
 		FireAllButBase,
+	}
+
+	public class DataObjectAccessSystem : AutoGameSystem {
+		// Blank for now
+
+		public object? GetDataObject(DataObjectType type, BaseEntity? instance) => null;
+		public object? CreateDataObject(DataObjectType type, BaseEntity? instance) => null;
+		public void DestroyDataObject(DataObjectType type, BaseEntity? instance){ }
+	}
+
+	public static class DataObjectAccessSystemGlobals {
+		public static readonly DataObjectAccessSystem g_DataObjectAccessSystem = new();
 	}
 }
 #endif

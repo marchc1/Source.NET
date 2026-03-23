@@ -362,6 +362,7 @@ public partial class BaseEntity : IServerEntity
 	InlineArray512<char> GMOD_String2;
 	InlineArray512<char> GMOD_String3;
 
+	public int DataObjectTypes;
 
 	public static readonly ServerClass ServerClass = new ServerClass("BaseEntity", DT_BaseEntity)
 																		.WithManualClassID(StaticClassIndices.CBaseEntity);

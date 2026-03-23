@@ -635,6 +635,18 @@ public struct InlineArrayNewMaxControlPoints<T> where T : new()
 	public InlineArrayNewMaxControlPoints() { for (int i = 0; i < kMAXCONTROLPOINTS; i++) this[i] = new(); }
 }
 
+public enum DataObjectType {
+	GroundLink,
+	TouchLink,
+	StepSimulation,
+	ModelScale,
+	PositionWatcher,
+	PhysicsPushList,
+	VPhysicsUpdateAI,
+	VPhysicsWatcher,
+	NumTypes
+}
+
 public static class TraceFieldProps
 {
 	extension(ref Trace tr)

@@ -113,6 +113,10 @@ public class CollisionProperty
 
 	}
 
+	internal void DestroyPartitionHandle() {
+	// todo
+	}
+
 #if CLIENT_DLL
 	public static RecvTable DT_CollisionProperty = new([
 		RecvPropVector(FIELD.OF(nameof(MinsPreScaled)), 0, RecvProxy_OBBMinsPreScaled),
