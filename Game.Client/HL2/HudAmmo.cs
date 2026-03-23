@@ -210,7 +210,7 @@ public class HudAmmoSecondary : HudNumericDisplay, IHudElement
 		if (IconSecondaryAmmo != null) {
 			Surface.GetTextSize(TextFont, LabelText, out int labelWide, out int labelTall);
 			int x = (int)text_xpos + (labelWide - IconSecondaryAmmo.Width()) / 2;
-			int y = (int)text_ypos - labelTall + (IconSecondaryAmmo.Height() / 2);
+			int y = (int)text_ypos - (labelTall + (IconSecondaryAmmo.Height() / 2));
 			IconSecondaryAmmo.DrawSelf(x, y, GetFgColor());
 		}
 	}
