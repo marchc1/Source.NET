@@ -60,8 +60,8 @@ public class C_World : C_BaseEntity
 	}
 
 	public override void Precache() {
-		// ActivityList_Free();
-		// EventList_Free();
+		ActivityList.Free();
+		// EventList.Free();
 
 		RegisterSharedActivities();
 
