@@ -200,6 +200,19 @@ public class CollisionProperty : ICollideable
 		throw new NotImplementedException();
 	}
 
+	internal void SetSolidFlags(SolidFlags flags) => SolidFlags = (ushort)flags;
+
+	internal bool IsSolidFlagSet(SolidFlags flagMask) => (SolidFlags & (ushort)flagMask) != 0;
+
+	internal void RemoveSolidFlags(SolidFlags flags) {
+		throw new NotImplementedException();
+	}
+
+	internal bool IsSolid() => Constants.IsSolid((SolidType)SolidType, SolidFlags);
+
+	internal void AddSolidFlags(SolidFlags flags) => SetSolidFlags((SolidFlags)SolidFlags | flags);
+	internal void ClearSolidFlags(SolidFlags flags) => SetSolidFlags(0);
+
 #if CLIENT_DLL
 	public static RecvTable DT_CollisionProperty = new([
 		RecvPropVector(FIELD.OF(nameof(MinsPreScaled)), 0, RecvProxy_OBBMinsPreScaled),

@@ -65,6 +65,8 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	const TimeUnit_t MAX_ANIMTIME_INTERVAL = 0.2;
 	public TimeUnit_t GetAnimTimeInterval() => Math.Min(gpGlobals.CurTime - AnimTime, MAX_ANIMTIME_INTERVAL);
 
+	public bool IsSequenceFinished() => SequenceFinished;
+
 	public void StudioFrameAdvance() {
 		if (ClientSideAnimation)
 			return;

@@ -315,6 +315,26 @@ public partial class
 		return ((EntityEffects)Effects & fx) != 0;
 	}
 
+	public void FollowEntity(BaseEntity? baseEntity, bool boneMerge =true){
+		if (baseEntity != null) {
+			SetParent(baseEntity);
+			SetMoveType(Source.MoveType.None);
+
+			if (boneMerge)
+				AddEffects(EntityEffects.BoneMerge);
+
+			AddSolidFlags(SolidFlags.NotSolid);
+			SetLocalOrigin(vec3_origin);
+			SetLocalAngles(vec3_angle);
+		}
+		else 
+			StopFollowingEntity();
+	}
+
+	public void StopFollowingEntity(){
+
+	}
+
 	public EntityFlags GetFlags() => (EntityFlags)flags;
 	public MoveType GetMoveType() => (MoveType)MoveType;
 	public MoveCollide GetMoveCollide() => (MoveCollide)MoveCollide;

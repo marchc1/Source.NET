@@ -25,6 +25,8 @@ using System.Diagnostics;
 
 using Microsoft.VisualBasic;
 
+using System.Reflection;
+
 namespace Game.Client;
 #else
 namespace Game.Server;
@@ -73,7 +75,6 @@ public partial class
 	DEFINE.PRED_FIELD(nameof(iClip1), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 	DEFINE.PRED_FIELD(nameof(iClip2), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 	DEFINE.PRED_FIELD(nameof(nViewModelIndex), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
-	DEFINE.PRED_FIELD(nameof(TimeWeaponIdle), FieldType.Float, FieldTypeDescFlags.InSendTable ),
 	DEFINE.FIELD(nameof(InReload), FieldType.Boolean ),
 	DEFINE.FIELD(nameof(FireOnEmpty), FieldType.Boolean ),
 	DEFINE.FIELD(nameof(FiringWholeClip), FieldType.Boolean ),
@@ -248,8 +249,49 @@ public partial class
 
 		return 1;
 	}
-	public virtual void OnActiveStateChanged(WeaponState state) { }
+	public bool IsViewModelSequenceFinished() {
+		if (GetActivity() == Activity.ACT_RESET || GetActivity() == Activity.ACT_INVALID)
+			return true;
 
+		BasePlayer? owner = ToBasePlayer(GetOwner());
+		if (owner == null) {
+			Assert(false);
+			return false;
+		}
+
+		BaseViewModel? vm = owner.GetViewModel(nViewModelIndex);
+		if (vm == null) {
+			Assert(false);
+			return false;
+		}
+
+		return vm.IsSequenceFinished();
+	}
+	public void MaintainIdealActivity() {
+		if (GetActivity() != Activity.ACT_TRANSITION)
+			return;
+
+		// Must not be at our ideal already 
+		if ((GetActivity() == IdealActivity) && (GetSequence() == IdealSequence))
+			return;
+
+		// Must be finished with the current animation
+		if (IsViewModelSequenceFinished() == false)
+			return;
+
+		// Move to the next animation towards our ideal
+		SendWeaponAnim(IdealActivity);
+	}
+	public virtual void OnActiveStateChanged(WeaponState state) { }
+	public virtual void ItemPreFrame() {
+		MaintainIdealActivity();
+	}
+	public virtual void ItemBusyFrame() {
+		UpdateAutoFire();
+	}
+	public virtual void ItemHolsterFrame() {
+
+	}
 	public virtual bool IsWeaponVisible() {
 		BaseViewModel? vm = null;
 		BasePlayer? owner = ToBasePlayer(GetOwner());
@@ -353,9 +395,6 @@ public partial class
 
 		//Add our view kick in
 		AddViewKick();
-	}
-	public virtual void ItemBusyFrame() {
-		UpdateAutoFire();
 	}
 	public virtual bool CanReload() {
 		if (AutoFiresFullClip() && FiringWholeClip)
@@ -939,7 +978,7 @@ public partial class
 	}
 	public void SetActivity(Activity activity) => Activity = activity;
 	public bool SendWeaponAnim(Activity act) {
-		return SetIdealActivity(act);
+		return SetIdealActivity((Activity)act);
 	}
 	public void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
 
@@ -953,6 +992,64 @@ public partial class
 	}
 
 	TimeUnit_t NextEmptySoundTime;
+
+	public void SetOwner(BaseCombatCharacter? owner) {
+		if (owner == null) {
+			// todo
+		}
+
+		Owner.Set(owner);
+#if !CLIENT_DLL
+		// DispatchUpdateTransmitState(); todo
+#else
+		UpdateVisibility();
+#endif
+	}
+
+	
+
+	public virtual void Equip(BaseCombatCharacter owner) {
+		SetAbsVelocity(vec3_origin);
+		RemoveSolidFlags(SolidFlags.Trigger);
+		FollowEntity(owner);
+		SetOwner(owner);
+		SetOwnerEntity(owner);
+
+		// Break any constraint I might have to the world.
+		RemoveEffects(EntityEffects.ItemBlink);
+
+		NextPrimaryAttack = gpGlobals.CurTime;
+		NextSecondaryAttack = gpGlobals.CurTime;
+		
+		if (owner.IsPlayer())
+			SetModel(GetViewModel());
+		else {
+			// Make the weapon ready as soon as any NPC picks it up.
+			NextPrimaryAttack = gpGlobals.CurTime;
+			NextSecondaryAttack = gpGlobals.CurTime;
+			SetModel(GetWorldModel());
+		}
+	}
+
+	public virtual void Drop(in Vector3 velocity) {
+
+	}
+
+	public void GiveDefaultAmmo() {
+		// If I use clips, set my clips to the default
+		if (UsesClipsForAmmo1())
+			iClip1 = AutoFiresFullClip() ? 0 : GetDefaultClip1();
+		else {
+			SetPrimaryAmmoCount(GetDefaultClip1());
+			iClip1 = WEAPON_NOCLIP;
+		}
+		if (UsesClipsForAmmo2())
+			iClip2 = GetDefaultClip2();
+		else {
+			SetSecondaryAmmoCount(GetDefaultClip2());
+			iClip2 = WEAPON_NOCLIP;
+		}
+	}
 
 	public override void Spawn() {
 		Precache();
@@ -968,7 +1065,7 @@ public partial class
 		// Assume 
 		nViewModelIndex = 0;
 
-		// GiveDefaultAmmo();
+		GiveDefaultAmmo();
 
 		if (!GetWorldModel().IsEmpty)
 			SetModel(GetWorldModel());

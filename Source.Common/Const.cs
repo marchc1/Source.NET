@@ -1,4 +1,7 @@
-﻿namespace Source;
+﻿
+using System.Runtime.CompilerServices;
+
+namespace Source;
 
 public enum EntityFlags
 {
@@ -302,4 +305,9 @@ public static class Constants
 
 	public const int PLAYER_FLAG_BITS = 16; // gmod changed from 11 > 16
 	public const int MAX_NETWORKID_LENGTH = 64;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool IsSolid(SolidType solidType, ushort solidFlags) {
+		return solidType != SolidType.None && ((solidFlags & (ushort)SolidFlags.NotSolid) != 0);
+	}
 }

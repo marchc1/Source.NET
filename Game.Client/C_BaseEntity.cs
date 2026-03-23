@@ -682,7 +682,7 @@ public partial class C_BaseEntity : IClientEntity
 	public int TeamNum;
 
 	IPhysicsObject? PhysicsObject = null!;
-	public void VPhysicsUpdate(IPhysicsObject physics){ }
+	public void VPhysicsUpdate(IPhysicsObject physics) { }
 	public IPhysicsObject? VPhysicsGetObject() => PhysicsObject;
 	public int VPhysicsGetObjectList(Span<IPhysicsObject> list) => throw new NotImplementedException();
 
@@ -731,6 +731,49 @@ public partial class C_BaseEntity : IClientEntity
 
 		return 0 == strcmp(entity.GetClassname(), classname);
 	}
+
+	public void SetParent(C_BaseEntity parentEntity, int parentAttachment = 0){
+		EHANDLE newParentHandle = default;
+		newParentHandle.Set(parentEntity);
+		if (newParentHandle.Index == MoveParent.Index)
+			return;
+
+		// NOTE: Have to do this before the unlink to ensure local coords are valid
+		Vector3 vecAbsOrigin = GetAbsOrigin();
+		QAngle angAbsRotation = GetAbsAngles();
+		Vector3 vecAbsVelocity = GetAbsVelocity();
+
+		// First deal with unlinking
+		if (MoveParent.IsValid()) 
+			UnlinkChild(MoveParent.Get(), this);
+
+		if (parentEntity != null) 
+			LinkChild(parentEntity, this);
+
+		if (!IsServerEntity()) 
+			NetworkMoveParent.Set(parentEntity);
+
+		ParentAttachment = (byte)parentAttachment;
+
+		AbsOrigin.Init(float.MaxValue, float.MaxValue, float.MaxValue);
+		AbsRotation.Init(float.MaxValue, float.MaxValue, float.MaxValue);
+		AbsVelocity.Init(float.MaxValue, float.MaxValue, float.MaxValue);
+
+		SetAbsOrigin(vecAbsOrigin);
+		SetAbsAngles(angAbsRotation);
+		SetAbsVelocity(vecAbsVelocity);
+	}
+
+	public void SetOwnerEntity(C_BaseEntity? owner) => OwnerEntity.Set(owner);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSolidFlags(SolidFlags flags) => CollisionProp().SetSolidFlags(flags);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsSolidFlagSet(SolidFlags flagMask) => CollisionProp().IsSolidFlagSet(flagMask);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public SolidFlags GetSolidFlags() => (SolidFlags)CollisionProp().GetSolidFlags();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void AddSolidFlags(SolidFlags flags) => CollisionProp().AddSolidFlags(flags);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void RemoveSolidFlags(SolidFlags flags) => CollisionProp().RemoveSolidFlags(flags);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsSolid() => CollisionProp().IsSolid();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSolid(SolidType val) => CollisionProp().SetSolid(val);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public SolidType GetSolid() => CollisionProp().GetSolid();
 
 	public int GetFxBlend() => RenderFXBlend;
 	public void GetColorModulation(Span<float> color) {
@@ -835,7 +878,6 @@ public partial class C_BaseEntity : IClientEntity
 		Model? model = modelinfo.GetModel(ModelIndex);
 		SetModelPointer(model);
 	}
-	public void SetSolid(SolidType val) => CollisionProp().SetSolid(val);
 	public void SetModelByIndex(int modelIndex) {
 		SetModelIndex(modelIndex);
 	}
@@ -872,14 +914,14 @@ public partial class C_BaseEntity : IClientEntity
 		return false;
 	}
 
-	public void VPhysicsDestroyObject(){
+	public void VPhysicsDestroyObject() {
 
 	}
 	public void SetGroundEntity(C_BaseEntity? ground) {
 		if (GroundEntity.Get() == ground)
 			return;
 
-			// todo
+		// todo
 	}
 
 	public void UpdateOnRemove() {
@@ -896,11 +938,35 @@ public partial class C_BaseEntity : IClientEntity
 	public EHANDLE MovePrevPeer = new();
 
 	public void UnlinkFromHierarchy() {
-		if (MoveParent.IsValid()) 
+		if (MoveParent.IsValid())
 			UnlinkChild(MoveParent.Get(), this);
 	}
 
-	public void UnlinkChild(C_BaseEntity? parent, C_BaseEntity? child){
+	public void LinkChild(C_BaseEntity parent, C_BaseEntity child) {
+		Assert(!child.MovePeer.IsValid());
+		Assert(!child.MovePrevPeer.IsValid());
+		Assert(!child.MoveParent.IsValid());
+		Assert(parent != child);
+
+#if DEBUG
+		// Make sure the child isn't already in this list
+		C_BaseEntity? existingChild;
+		for (existingChild = parent.FirstMoveChild(); existingChild != null; existingChild = existingChild.NextMovePeer()) 
+			Assert(child != existingChild);
+#endif
+
+		child.MovePrevPeer.Set(null);
+		child.MovePeer.Set(parent.MoveChild);
+		if (child.MovePeer.Get() != null) 
+			child.MovePeer.Get()!.MovePrevPeer.Set(child);
+		
+		parent.MoveChild.Set(child);
+		child.MoveParent.Set(parent);
+		child.AddToAimEntsList();
+
+		Interp_HierarchyUpdateInterpolationAmounts();
+	}
+	public void UnlinkChild(C_BaseEntity? parent, C_BaseEntity? child) {
 		Assert(child != null);
 		Assert(parent != child);
 		Assert(child.GetMoveParent() == parent);
@@ -938,8 +1004,8 @@ public partial class C_BaseEntity : IClientEntity
 		g_AimEntsList.Add(this);
 	}
 
-	public void RemoveFromAimEntsList(){
-		if (AimEntsListHandle == INVALID_AIMENTS_LIST_HANDLE) 
+	public void RemoveFromAimEntsList() {
+		if (AimEntsListHandle == INVALID_AIMENTS_LIST_HANDLE)
 			return;
 
 		int c = g_AimEntsList.Count;
@@ -979,7 +1045,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public int DataObjectTypes;
 
-	public virtual void Term(){
+	public virtual void Term() {
 		DestroyAllDataObjects();
 
 		if (GetPredictable() || IsClientCreated())
@@ -989,7 +1055,7 @@ public partial class C_BaseEntity : IClientEntity
 			C_BasePlayer.GetLocalPlayer()!.RemoveFromPlayerSimulationList(this);
 
 		if (GetClientHandle() != INVALID_CLIENTENTITY_HANDLE) {
-			if (GetThinkHandle() != INVALID_THINK_HANDLE) 
+			if (GetThinkHandle() != INVALID_THINK_HANDLE)
 				ClientThinkList().RemoveThinkable(GetClientHandle());
 
 			// Remove from the client entity list.
@@ -1235,7 +1301,7 @@ public partial class C_BaseEntity : IClientEntity
 		// Show any networked fields that are different
 		bool showthis = cl_showerror.GetInt() >= 2;
 
-		if (cl_showerror.GetInt() < 0) 
+		if (cl_showerror.GetInt() < 0)
 			showthis = EntIndex() == -cl_showerror.GetInt();
 
 		if (errorcheck) {

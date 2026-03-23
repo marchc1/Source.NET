@@ -271,6 +271,16 @@ public partial class BaseEntity : IServerEntity
 		return null;
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSolidFlags(SolidFlags flags) => CollisionProp().SetSolidFlags(flags);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsSolidFlagSet(SolidFlags flagMask) => CollisionProp().IsSolidFlagSet(flagMask);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public SolidFlags GetSolidFlags() => (SolidFlags)CollisionProp().GetSolidFlags();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void AddSolidFlags(SolidFlags flags) => CollisionProp().AddSolidFlags(flags);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void RemoveSolidFlags(SolidFlags flags) => CollisionProp().RemoveSolidFlags(flags);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsSolid() => CollisionProp().IsSolid();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSolid(SolidType val) => CollisionProp().SetSolid(val);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public SolidType GetSolid() => CollisionProp().GetSolid();
+
+
 	public Team? GetTeam() => GetGlobalTeam(TeamNum);
 
 	IPhysicsObject? PhysicsObject = null!;
@@ -406,8 +416,7 @@ public partial class BaseEntity : IServerEntity
 	public bool SetModel(ReadOnlySpan<char> modelName) {
 		return false; // TODO
 	}
-
-	public void SetSolid(SolidType val) => CollisionProp().SetSolid(val);
+	public void SetOwnerEntity(BaseEntity? owner) => OwnerEntity.Set(owner);
 
 	public void SetMoveType(MoveType val, MoveCollide moveCollide = Source.MoveCollide.Default) {
 		if (MoveType == (byte)val) {
