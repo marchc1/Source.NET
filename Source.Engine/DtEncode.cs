@@ -159,7 +159,7 @@ public struct PropTypeFns
 			EncodeFloat(prop, incoming[2], outBuffer, objectID);
 		else {
 			// writing a sign bit for Z instead
-			outBuffer.WriteBool(incoming[2] <= -BitBuffer.NORMAL_RESOLUTION);
+			outBuffer.WriteBool(incoming[2] <= -NORMAL_RESOLUTION);
 		}
 	}
 
@@ -325,9 +325,9 @@ public struct PropTypeFns
 				int seekDist = 1;
 
 				if ((val & 1) != 0)
-					seekDist += (int)BitBuffer.COORD_INTEGER_BITS;
+					seekDist += (int)COORD_INTEGER_BITS;
 				if ((val & 2) != 0)
-					seekDist += (int)BitBuffer.COORD_FRACTIONAL_BITS;
+					seekDist += (int)COORD_FRACTIONAL_BITS;
 
 				p.SeekRelative(seekDist);
 			}
@@ -341,7 +341,7 @@ public struct PropTypeFns
 		else if ((prop.GetFlags() & PropFlags.NoScale) != 0)
 			p.SeekRelative(32);
 		else if ((prop.GetFlags() & PropFlags.Normal) != 0)
-			p.SeekRelative(BitBuffer.NORMAL_FRACTIONAL_BITS + 1);
+			p.SeekRelative(NORMAL_FRACTIONAL_BITS + 1);
 		else
 			p.SeekRelative(prop.Bits);
 	}

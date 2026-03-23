@@ -126,7 +126,7 @@ public class PlayerLocalData
 	public bool DrawViewmodel;
 	public bool WearingSuit;
 	public bool Poisoned;
-	public bool StepSize;
+	public float StepSize;
 	public bool AllowAutoMovement;
 	public bool SlowMovement;
 

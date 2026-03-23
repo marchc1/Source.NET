@@ -147,7 +147,7 @@ public struct SoundInfo
 
 			{
 				const float SCALE = 8.0f;
-				const int BITS = (int)BitBuffer.COORD_INTEGER_BITS - 2;
+				const int BITS = (int)COORD_INTEGER_BITS - 2;
 				if (buffer.ReadOneBit() != 0) Origin.X = SCALE * buffer.ReadSBitLong(BITS); else Origin.X = delta.Origin.X;
 				if (buffer.ReadOneBit() != 0) Origin.Y = SCALE * buffer.ReadSBitLong(BITS); else Origin.Y = delta.Origin.Y;
 				if (buffer.ReadOneBit() != 0) Origin.Z = SCALE * buffer.ReadSBitLong(BITS); else Origin.Z = delta.Origin.Z;
@@ -276,7 +276,7 @@ public struct SoundInfo
 			}
 
 			const float SCALE = 8.0f;
-			const int BITS = (int)(BitBuffer.COORD_INTEGER_BITS - 2);
+			const int BITS = (int)(COORD_INTEGER_BITS - 2);
 			if (Origin.X == delta.Origin.X) buffer.WriteOneBit(0); else { buffer.WriteOneBit(1); buffer.WriteSBitLong((int)(Origin.X / SCALE), BITS); }
 			if (Origin.Y == delta.Origin.Y) buffer.WriteOneBit(0); else { buffer.WriteOneBit(1); buffer.WriteSBitLong((int)(Origin.Y / SCALE), BITS); }
 			if (Origin.Z == delta.Origin.Z) buffer.WriteOneBit(0); else { buffer.WriteOneBit(1); buffer.WriteSBitLong((int)(Origin.Z / SCALE), BITS); }

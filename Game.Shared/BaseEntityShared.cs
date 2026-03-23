@@ -317,6 +317,8 @@ public partial class
 
 	public EntityFlags GetFlags() => (EntityFlags)flags;
 	public MoveType GetMoveType() => (MoveType)MoveType;
+	public MoveCollide GetMoveCollide() => (MoveCollide)MoveCollide;
+	public CollisionGroup GetCollisionGroup() => (CollisionGroup)CollisionGroup;
 
 	public void CollisionRulesChanged() { } // TODO
 

@@ -17,7 +17,8 @@ public static class ClientEntityExts
 public class ClientEntityList : BaseEntityList, IClientEntityList
 {
 	public IClientEntity? GetClientEntity(int entNum) {
-		throw new NotImplementedException();
+		IClientUnknown? ent = GetListedEntity(entNum);
+		return ent?.GetIClientEntity();
 	}
 
 	public C_BaseEntity? GetEnt(int entNum) => GetBaseEntity(entNum);

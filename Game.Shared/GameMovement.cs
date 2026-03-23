@@ -518,7 +518,7 @@ public class GameMovement : IGameMovement
 		dest[2] = mv.GetAbsOrigin()[2];
 
 		// first try moving directly to the next spot
-		// TODO: TracePlayerBBox(mv.GetAbsOrigin(), dest, PlayerSolidMask(), COLLISION_GROUP_PLAYER_MOVEMENT, pm);
+		TracePlayerBBox(mv.GetAbsOrigin(), dest, PlayerSolidMask(), CollisionGroup.PlayerMovement, out pm);
 		pm = default;
 
 		// If we made it all the way, then copy trace end as new player position.
@@ -1050,7 +1050,7 @@ public class GameMovement : IGameMovement
 			Accelerate(ref wishdir, wishspeed, sv_accelerate.GetFloat());
 		}
 
-		if (mv.Velocity[2] > 0) 
+		if (mv.Velocity[2] > 0)
 			SetGroundEntity();
 
 		// If on ground and not moving, return.
@@ -1087,7 +1087,7 @@ public class GameMovement : IGameMovement
 			return;
 		}
 
-		if (pm.Fraction != 1) 
+		if (pm.Fraction != 1)
 			PerformFlyCollisionResolution(ref pm, ref move);
 
 		// check for in water
@@ -1145,11 +1145,11 @@ public class GameMovement : IGameMovement
 				// If their velocity Z is 0, then we can avoid an extra trace here during WalkMove.
 				if (!Unsafe.IsNullRef(ref firstDest) && end == firstDest)
 					pm = firstTrace;
-				// else
-				// TODO: TracePlayerBBox(mv.GetAbsOrigin(), end, PlayerSolidMask(), COLLISION_GROUP_PLAYER_MOVEMENT, pm);
+				else
+					TracePlayerBBox(mv.GetAbsOrigin(), end, PlayerSolidMask(), CollisionGroup.PlayerMovement, out pm);
 			}
-			// else
-			// TODO: TracePlayerBBox(mv.GetAbsOrigin(), end, PlayerSolidMask(), COLLISION_GROUP_PLAYER_MOVEMENT, pm);
+			else
+				TracePlayerBBox(mv.GetAbsOrigin(), end, PlayerSolidMask(), CollisionGroup.PlayerMovement, out pm);
 
 
 			allFraction += pm.Fraction;
@@ -1571,7 +1571,7 @@ public class GameMovement : IGameMovement
 		}
 		else {
 			// Try and move down.
-			// TryTouchGround(bumpOrigin, point, GetPlayerMins(), GetPlayerMaxs(), Mask.PlayerSolid, CollisionGroup.PlayerMovement, out pm);
+			TryTouchGround(bumpOrigin, point, GetPlayerMins(), GetPlayerMaxs(), Mask.PlayerSolid, CollisionGroup.PlayerMovement, out pm);
 			// todo
 
 #if !CLIENT_DLL
@@ -1582,6 +1582,12 @@ public class GameMovement : IGameMovement
 			}
 #endif
 		}
+	}
+
+	public void TryTouchGround(in Vector3 start, in Vector3 end, in Vector3 mins, in Vector3 maxs, Mask mask, CollisionGroup collisionGroup, out Trace pm) {
+		Ray ray = default;
+		ray.Init(start, end, mins, maxs);
+		Util.TraceRay(ray, mask, mv!.PlayerHandle.Get(), collisionGroup, out pm);
 	}
 
 	protected virtual void CheckParameters() {
@@ -2002,7 +2008,7 @@ public class GameMovement : IGameMovement
 		return true;
 	}
 
-	public void TracePlayerBBox(in Vector3 start, in Vector3 end, Mask mask, CollisionGroup collisionGroup, out Trace pm){
+	public void TracePlayerBBox(in Vector3 start, in Vector3 end, Mask mask, CollisionGroup collisionGroup, out Trace pm) {
 		Ray ray = default;
 		ray.Init(start, end, GetPlayerMins(), GetPlayerMaxs());
 		Util.TraceRay(in ray, mask, mv!.PlayerHandle.Get(), collisionGroup, out pm);
@@ -2120,16 +2126,195 @@ public class GameMovement : IGameMovement
 			Player.WaterJumpTime = 0;
 
 			// Standing on an entity other than the world, so signal that we are touching something.
-			if (!pm.DidHitWorld()) 
+			if (!pm.DidHitWorld())
 				MoveHelper().AddToTouched(in pm, mv!.Velocity);
 
 			mv!.Velocity.Z = 0.0f;
 		}
 	}
-	protected virtual void StepMove(ref Vector3 Destination, ref Trace trace) { }
+	protected virtual void StepMove(ref Vector3 destination, ref Trace trace) {
+		Vector3 vecEndPos;
+		MathLib.VectorCopy(destination, out vecEndPos);
+
+		// Try sliding forward both on ground and up 16 pixels
+		//  take the move that goes farthest
+		Vector3 vecPos, vecVel;
+		MathLib.VectorCopy(mv!.GetAbsOrigin(), out vecPos);
+		MathLib.VectorCopy(mv!.Velocity, out vecVel);
+
+		// Slide move down.
+		TryPlayerMove(ref vecEndPos, ref trace);
+
+		// Down results.
+		Vector3 vecDownPos, vecDownVel;
+		MathLib.VectorCopy(mv.GetAbsOrigin(), out vecDownPos);
+		MathLib.VectorCopy(mv.Velocity, out vecDownVel);
+
+		// Reset original values.
+		mv.SetAbsOrigin(vecPos);
+		MathLib.VectorCopy(vecVel, out mv!.Velocity);
+
+		// Move up a stair height.
+		MathLib.VectorCopy(mv.GetAbsOrigin(), out vecEndPos);
+		if (Player.Local.AllowAutoMovement)
+			vecEndPos.Z += Player.Local.StepSize + DIST_EPSILON;
+
+		TracePlayerBBox(mv.GetAbsOrigin(), vecEndPos, PlayerSolidMask(), CollisionGroup.PlayerMovement, out trace);
+		if (!trace.StartSolid && !trace.AllSolid)
+			mv.SetAbsOrigin(trace.EndPos);
+
+		// Slide move up.
+		TryPlayerMove();
+
+		// Move down a stair (attempt to).
+		MathLib.VectorCopy(mv.GetAbsOrigin(), out vecEndPos);
+		if (Player.Local.AllowAutoMovement)
+			vecEndPos.Z -= Player.Local.StepSize + DIST_EPSILON;
+
+		TracePlayerBBox(mv.GetAbsOrigin(), vecEndPos, PlayerSolidMask(), CollisionGroup.PlayerMovement, out trace);
+
+		// If we are not on the ground any more then use the original movement attempt.
+		if (trace.Plane.Normal[2] < 0.7) {
+			mv.SetAbsOrigin(vecDownPos);
+			MathLib.VectorCopy(vecDownVel, out mv!.Velocity);
+			float stepDist = mv!.GetAbsOrigin().Z - vecPos.Z;
+			if (stepDist > 0.0f) 
+				mv!.StepHeight += stepDist;
+			
+			return;
+		}
+
+		// If the trace ended up in empty space, copy the end over to the origin.
+		if (!trace.StartSolid && !trace.AllSolid)
+			mv!.SetAbsOrigin(trace.EndPos);
+
+		// Copy this origin to up.
+		Vector3 vecUpPos;
+		MathLib.VectorCopy(mv!.GetAbsOrigin(), out vecUpPos);
+
+		// decide which one went farther
+		float flDownDist = (vecDownPos.X - vecPos.X) * (vecDownPos.X - vecPos.X) + (vecDownPos.Y - vecPos.Y) * (vecDownPos.Y - vecPos.Y);
+		float flUpDist = (vecUpPos.X - vecPos.X) * (vecUpPos.X - vecPos.X) + (vecUpPos.Y - vecPos.Y) * (vecUpPos.Y - vecPos.Y);
+		if (flDownDist > flUpDist) {
+			mv.SetAbsOrigin(vecDownPos);
+			MathLib.VectorCopy(vecDownVel, out mv!.Velocity);
+		}
+		else
+			// copy z value from slide move
+			mv.Velocity.Z = vecDownVel.Z;
+
+		float flStepDist = mv!.GetAbsOrigin().Z - vecPos.Z;
+		if (flStepDist > 0)
+			mv.StepHeight += flStepDist;
+	}
 	// when we step on ground that's too steep, search to see if there's any ground nearby that isn't too steep
-	protected void TryTouchGroundInQuadrants(in Vector3 start, in Vector3 end, Mask mask, CollisionGroup collisionGroup, ref Trace pm) { }
-	protected void PerformFlyCollisionResolution(ref Trace pm, ref Vector3 move) { }
+	protected void TryTouchGroundInQuadrants(in Vector3 start, in Vector3 end, Mask mask, CollisionGroup collisionGroup, ref Trace pm) {
+		Vector3 mins = default, maxs = default;
+		Vector3 minsSrc = GetPlayerMins();
+		Vector3 maxsSrc = GetPlayerMaxs();
+
+		float fraction = pm.Fraction;
+		Vector3 endpos = pm.EndPos;
+
+		// Check the -x, -y quadrant
+		mins = minsSrc;
+		maxs.Init(MathF.Min(0, maxsSrc.X), MathF.Min(0, maxsSrc.Y), maxsSrc.Z);
+		TryTouchGround(start, end, mins, maxs, mask, collisionGroup, out pm);
+		if (pm.Ent != null && pm.Plane.Normal[2] >= 0.7) {
+			pm.Fraction = fraction;
+			pm.EndPos
+			= endpos;
+			return;
+		}
+
+		// Check the +x, +y quadrant
+		mins.Init(MathF.Max(0, minsSrc.X), MathF.Max(0, minsSrc.Y), minsSrc.Z);
+		maxs = maxsSrc;
+		TryTouchGround(start, end, mins, maxs, mask, collisionGroup, out pm);
+		if (pm.Ent != null && pm.Plane.Normal[2] >= 0.7) {
+			pm.Fraction = fraction;
+			pm.EndPos = endpos;
+			return;
+		}
+
+		// Check the -x, +y quadrant
+		mins.Init(minsSrc.X, MathF.Max(0, minsSrc.Y), minsSrc.Z);
+		maxs.Init(MathF.Min(0, maxsSrc.X), maxsSrc.Y, maxsSrc.Z);
+		TryTouchGround(start, end, mins, maxs, mask, collisionGroup, out pm);
+		if (pm.Ent != null && pm.Plane.Normal[2] >= 0.7) {
+			pm.Fraction = fraction;
+			pm.EndPos = endpos;
+			return;
+		}
+
+		// Check the +x, -y quadrant
+		mins.Init(MathF.Max(0, minsSrc.X), minsSrc.Y, minsSrc.Z);
+		maxs.Init(maxsSrc.X, MathF.Min(0, maxsSrc.Y), maxsSrc.Z);
+		TryTouchGround(start, end, mins, maxs, mask, collisionGroup, out pm);
+		if (pm.Ent != null && pm.Plane.Normal[2] >= 0.7) {
+			pm.Fraction = fraction;
+			pm.EndPos = endpos;
+			return;
+		}
+
+		pm.Fraction = fraction;
+		pm.EndPos = endpos;
+	}
+	protected void PerformFlyCollisionResolution(ref Trace pm, ref Vector3 move) {
+		Vector3 @base = default;
+		float vel;
+		float backoff;
+
+		switch (Player.GetMoveCollide()) {
+			case MoveCollide.FlyCustom:
+				// Do nothing; the velocity should have been modified by touch
+				// FIXME: It seems wrong for touch to modify velocity
+				// given that it can be called in a number of places
+				// where collision resolution do *not* in fact occur
+
+				// Should this ever occur for players!?
+				Assert(false);
+				break;
+
+			case MoveCollide.FlyBounce:
+			case MoveCollide.Default: {
+					if (Player.GetMoveCollide() == MoveCollide.FlyBounce)
+						backoff = 2.0f - Player.SurfaceFriction;
+					else
+						backoff = 1;
+
+					ClipVelocity(mv!.Velocity, pm.Plane.Normal, out mv!.Velocity, backoff);
+				}
+				break;
+
+			default:
+				// Invalid collide type!
+				Assert(0);
+				break;
+		}
+
+		// stop if on ground
+		if (pm.Plane.Normal[2] > 0.7) {
+			@base.Init();
+			if (mv!.Velocity[2] < GetCurrentGravity() * (float)gpGlobals.FrameTime) {
+				// we're rolling on the ground, add static friction.
+				SetGroundEntity(ref pm);
+				mv!.Velocity[2] = 0;
+			}
+
+			vel = MathLib.DotProduct(mv.Velocity, mv.Velocity);
+
+			if (vel < (30 * 30) || (Player.GetMoveCollide() != MoveCollide.FlyBounce)) {
+				SetGroundEntity(ref pm);
+				mv!.Velocity.Init();
+			}
+			else {
+				MathLib.VectorScale(mv.Velocity, (1.0f - pm.Fraction) * (float)gpGlobals.FrameTime * 0.9f, out move);
+				PushEntity(ref move, ref pm);
+			}
+			MathLib.VectorSubtract(mv.Velocity, @base, out mv.Velocity);
+		}
+	}
 	protected virtual bool GameHasLadders() => true;
 
 

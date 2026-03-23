@@ -547,7 +547,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public static readonly ClientClass ClientClass = new ClientClass("BaseEntity", null, null, DT_BaseEntity)
 																		.WithManualClassID(StaticClassIndices.CBaseEntity);
-	const float coordTolerance = 2.0f / (float)(1 << (int)BitBuffer.COORD_FRACTIONAL_BITS);
+	const float coordTolerance = 2.0f / (float)(1 << (int)COORD_FRACTIONAL_BITS);
 
 	public float GetGravity() => Gravity;
 	public void SetGravity(float gravity) => Gravity = gravity;
