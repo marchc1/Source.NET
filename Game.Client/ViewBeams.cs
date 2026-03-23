@@ -868,8 +868,51 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 		ClearBeams();
 	}
 
-	public void KillDeadBeams(BaseEntity? ent) {
-		throw new NotImplementedException();
+	public void KillDeadBeams(BaseEntity? deadEntity) {
+		Beam? beam;
+		Beam? newlist;
+		Beam? next;
+		BeamTrail? head;  // Build a new list to replace m_pActiveBeams.
+
+		beam = ActiveBeams;  // Old list.
+		newlist = null;           // New list.
+
+		while (beam != null) {
+			next = beam.Next;
+			if (beam.Entity[0].Get() != deadEntity)   // Link into new list.
+			{
+				beam.Next = newlist;
+				newlist = beam;
+
+				beam = next;
+				continue;
+			}
+
+			beam.Flags &= ~(BeamFlags.StartEntity | BeamFlags.EndEntity);
+			if (beam.Type != TempEntType.BeamFollow) {
+				// Die Die Die!
+				beam.Die = gpGlobals.CurTime - 0.1;
+
+				// Kill off particles
+				head = beam.Trail;
+				while (head != null) {
+					head.Die = gpGlobals.CurTime - 0.1;
+					head = head.Next;
+				}
+
+				// Free the beam
+				BeamFree(beam);
+			}
+			else {
+				// Stay active
+				beam.Next = newlist;
+				newlist = beam;
+			}
+			beam = next;
+		}
+
+		// We now have a new list with the bogus stuff released.
+		ActiveBeams = newlist;
 	}
 
 	public void ShutdownBeams() {
