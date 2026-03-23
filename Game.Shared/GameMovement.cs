@@ -1005,7 +1005,9 @@ public class GameMovement : IGameMovement
 	}    // Overridden by each game.
 
 	// Dead player flying through air., e.g.
-	protected virtual void FullTossMove() { throw new NotImplementedException(); }
+	protected virtual void FullTossMove() { 
+	
+	}
 
 	// Player is a Observer chasing another player
 	protected void FullObserverMove() { throw new NotImplementedException(); }
