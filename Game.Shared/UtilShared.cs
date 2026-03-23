@@ -1,9 +1,17 @@
 ﻿#if CLIENT_DLL || GAME_DLL
 global using static Game.Util_Globals;
+
+using Source;
+using Source.Common;
+using Source.Common.Engine;
+using Source.Common.Formats.BSP;
+
+
 #endif
 
 using Source.Common.Hashing;
 using Source.Common.Mathematics;
+using Source.Engine;
 
 using System.Drawing.Drawing2D;
 using System.Numerics;
@@ -124,7 +132,19 @@ public static partial class Util
 
 		return ret;
 	}
+
+	public static void TraceRay(in Ray ray, Mask mask, IHandleEntity? ignore, CollisionGroup collisionGroup, out Trace ptr){
+		TraceFilterSimple traceFilter = new(ignore, collisionGroup);
+
+		enginetrace.TraceRay(ray, mask, in traceFilter, out ptr);
+		// todo: visualize
+	}
 }
+
+public class TraceFilterSimple(IHandleEntity? passentity, CollisionGroup collisionGroup) : TraceFilter {
+	
+}
+
 #endif
 
 public class CountdownTimer
@@ -149,6 +169,11 @@ public class CountdownTimer
 	public TimeUnit_t GetElapsedTime() => Now() - Timestamp + Duration;
 	public TimeUnit_t GetRemainingTime() => Timestamp - Now();
 	public TimeUnit_t GetCountdownDuration() => Timestamp > 0f ? Duration : 0f;
-	protected virtual TimeUnit_t Now() => gpGlobals.CurTime;
+	protected virtual TimeUnit_t Now()
+#if CLIENT_DLL || GAME_DLL
+		=> gpGlobals.CurTime;
+#else
+		=> 0;
+#endif
 }
 

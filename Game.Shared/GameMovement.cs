@@ -1005,8 +1005,93 @@ public class GameMovement : IGameMovement
 	}    // Overridden by each game.
 
 	// Dead player flying through air., e.g.
-	protected virtual void FullTossMove() { 
-	
+	protected virtual void FullTossMove() {
+		Trace pm = default;
+		Vector3 move;
+
+		CheckWater();
+
+		Assert(mv != null);
+
+		// add velocity if player is moving 
+		if ((mv.ForwardMove != 0.0f) || (mv.SideMove != 0.0f) || (mv.UpMove != 0.0f)) {
+			Vector3 forward, right, up;
+			float fmove, smove;
+			Vector3 wishdir = default, wishvel = default;
+			float wishspeed;
+			int i;
+
+			MathLib.AngleVectors(mv.ViewAngles, out forward, out right, out up);  // Determine movement angles
+
+			// Copy movement amounts
+			fmove = mv.ForwardMove;
+			smove = mv.SideMove;
+
+			MathLib.VectorNormalize(ref forward);  // Normalize remainder of vectors.
+			MathLib.VectorNormalize(ref right);    // 
+
+			for (i = 0; i < 3; i++)       // Determine x and y parts of velocity
+				wishvel[i] = forward[i] * fmove + right[i] * smove;
+
+			wishvel[2] += mv.UpMove;
+
+			MathLib.VectorCopy(wishvel, out wishdir);   // Determine maginitude of speed of move
+			wishspeed = MathLib.VectorNormalize(ref wishdir);
+
+			//
+			// Clamp to server defined max speed
+			//
+			if (wishspeed > mv.MaxSpeed) {
+				MathLib.VectorScale(wishvel, mv.MaxSpeed / wishspeed, out wishvel);
+				wishspeed = mv.MaxSpeed;
+			}
+
+			// Set pmove velocity
+			Accelerate(ref wishdir, wishspeed, sv_accelerate.GetFloat());
+		}
+
+		if (mv.Velocity[2] > 0) 
+			SetGroundEntity();
+
+		// If on ground and not moving, return.
+		if (Player.GetGroundEntity() != null) {
+			if (MathLib.VectorCompare(Player.GetBaseVelocity(), vec3_origin) && MathLib.VectorCompare(mv!.Velocity, vec3_origin))
+				return;
+		}
+
+		CheckVelocity();
+
+		// add gravity
+		if (Player.GetMoveType() == MoveType.FlyGravity) {
+			AddGravity();
+		}
+
+		// move origin
+		// Base velocity is not properly accounted for since this entity will move again after the bounce without
+		// taking it into account
+		MathLib.VectorAdd(mv!.Velocity, Player.GetBaseVelocity(), out mv.Velocity);
+
+		CheckVelocity();
+
+		MathLib.VectorScale(mv!.Velocity, (float)gpGlobals.FrameTime, out move);
+		MathLib.VectorSubtract(mv!.Velocity, Player.GetBaseVelocity(), out mv.Velocity);
+
+		PushEntity(ref move, ref pm);  // Should this clear basevelocity
+
+		CheckVelocity();
+
+		if (pm.AllSolid) {
+			// entity is trapped in another solid
+			SetGroundEntity(ref pm);
+			mv.Velocity.Init();
+			return;
+		}
+
+		if (pm.Fraction != 1) 
+			PerformFlyCollisionResolution(ref pm, ref move);
+
+		// check for in water
+		CheckWater();
 	}
 
 	// Player is a Observer chasing another player
@@ -1882,10 +1967,47 @@ public class GameMovement : IGameMovement
 		// Recategorize position since ducking can change origin
 		CategorizePosition();
 	}
+
+	public Mask PlayerSolidMask(bool brushOnly = false) => brushOnly ? Mask.PlayerSolidBrushOnly : Mask.PlayerSolid;
+
 	protected virtual bool CanUnduck() {
-		// todo
+		int i;
+		Trace trace;
+		Vector3 newOrigin;
+
+		MathLib.VectorCopy(mv!.GetAbsOrigin(), out newOrigin);
+
+		if (Player.GetGroundEntity() != null) {
+			for (i = 0; i < 3; i++) {
+				newOrigin[i] += (VEC_DUCK_HULL_MIN_SCALED(Player)[i] - VEC_HULL_MIN_SCALED(Player)[i]);
+			}
+		}
+		else {
+			// If in air an letting go of crouch, make sure we can offset origin to make
+			//  up for uncrouching
+			Vector3 hullSizeNormal = VEC_HULL_MAX_SCALED(Player) - VEC_HULL_MIN_SCALED(Player);
+			Vector3 hullSizeCrouch = VEC_DUCK_HULL_MAX_SCALED(Player) - VEC_DUCK_HULL_MIN_SCALED(Player);
+			Vector3 viewDelta = (hullSizeNormal - hullSizeCrouch);
+			viewDelta.Negate();
+			MathLib.VectorAdd(newOrigin, viewDelta, out newOrigin);
+		}
+
+		bool saveducked = Player.Local.Ducked;
+		Player.Local.Ducked = false;
+		TracePlayerBBox(mv.GetAbsOrigin(), newOrigin, PlayerSolidMask(), CollisionGroup.PlayerMovement, out trace);
+		Player.Local.Ducked = saveducked;
+		if (trace.StartSolid || (trace.Fraction != 1.0))
+			return false;
+
 		return true;
 	}
+
+	public void TracePlayerBBox(in Vector3 start, in Vector3 end, Mask mask, CollisionGroup collisionGroup, out Trace pm){
+		Ray ray = default;
+		ray.Init(start, end, GetPlayerMins(), GetPlayerMaxs());
+		Util.TraceRay(in ray, mask, mv!.PlayerHandle.Get(), collisionGroup, out pm);
+	}
+
 	protected void UpdateDuckJumpEyeOffset() {
 		if (Player.Local.DuckJumpTime != 0.0f) {
 			float flDuckMilliseconds = Math.Max(0.0f, GAMEMOVEMENT_DUCK_TIME - (float)Player.Local.DuckJumpTime);
@@ -1968,7 +2090,42 @@ public class GameMovement : IGameMovement
 		float flSpeedFactor = float.Lerp(flFrac, 1.0f, mv.ConstraintSpeedFactor);
 		return flSpeedFactor;
 	}
-	protected virtual void SetGroundEntity(ref Trace pm) { }
+	protected virtual void SetGroundEntity() => SetGroundEntity(ref Unsafe.NullRef<Trace>());
+	protected virtual void SetGroundEntity(ref Trace pm) {
+		BaseEntity? newGround = Unsafe.IsNullRef(ref pm) ? null : pm.Ent;
+
+		BaseEntity? oldGround = Player.GetGroundEntity();
+		Vector3 vecBaseVelocity = Player.GetBaseVelocity();
+
+		if (oldGround == null && newGround != null) {
+			// Subtract ground velocity at instant we hit ground jumping
+			vecBaseVelocity -= newGround.GetAbsVelocity();
+			vecBaseVelocity.Z = newGround.GetAbsVelocity().Z;
+		}
+		else if (oldGround != null && newGround == null) {
+			// Add in ground velocity at instant we started jumping
+			vecBaseVelocity += oldGround.GetAbsVelocity();
+			vecBaseVelocity.Z = oldGround.GetAbsVelocity().Z;
+		}
+
+		Player.SetBaseVelocity(vecBaseVelocity);
+		Player.SetGroundEntity(newGround);
+
+		// If we are on something...
+
+		if (newGround != null) {
+			CategorizeGroundSurface(ref pm);
+
+			// Then we are not in water jump sequence
+			Player.WaterJumpTime = 0;
+
+			// Standing on an entity other than the world, so signal that we are touching something.
+			if (!pm.DidHitWorld()) 
+				MoveHelper().AddToTouched(in pm, mv!.Velocity);
+
+			mv!.Velocity.Z = 0.0f;
+		}
+	}
 	protected virtual void StepMove(ref Vector3 Destination, ref Trace trace) { }
 	// when we step on ground that's too steep, search to see if there's any ground nearby that isn't too steep
 	protected void TryTouchGroundInQuadrants(in Vector3 start, in Vector3 end, Mask mask, CollisionGroup collisionGroup, ref Trace pm) { }

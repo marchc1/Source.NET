@@ -29,6 +29,7 @@ public static class SourceDllMain
 	[Dependency] public static IVModelInfo modelinfo { get; private set; } = null!;
 
 	[KeyedDependency(Key = Realm.Server)] public static INetworkStringTableContainer networkstringtable { get; private set; } = null!;
+	[KeyedDependency(Key = Realm.Server)] public static IEngineTrace enginetrace { get; private set; } = null!;
 
 	public static TimeUnit_t TICK_INTERVAL => gpGlobals.IntervalPerTick;
 

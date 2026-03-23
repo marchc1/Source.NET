@@ -272,6 +272,8 @@ public partial class BaseEntity : IServerEntity
 
 	public Team? GetTeam() => GetGlobalTeam(TeamNum);
 
+	public void SetGroundEntity(BaseEntity? ent) { /* todo */ }
+
 	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent);
 
 	public static BaseEntity? Create(ReadOnlySpan<char> name, Vector3 origin, QAngle angles, BaseEntity? owner = null) {

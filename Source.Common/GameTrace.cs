@@ -45,8 +45,7 @@ public struct GameTrace
 
 	public int HitBox;
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public readonly bool DidHit() => Fraction < 1 || AllSolid || StartSolid;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public readonly bool DidHit() => Fraction < 1 || AllSolid || StartSolid;
 }
 
 public static class GameTraceExts{

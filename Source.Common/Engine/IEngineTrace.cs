@@ -56,7 +56,7 @@ public interface IEngineTrace
 	Contents GetPointContents_Collideable(ICollideable? collide, in Vector3 absPosition);
 	void ClipRayToEntity(in Ray ray, Mask mask, IHandleEntity ent, ref Trace trace);
 	void ClipRayToCollideable(in Ray ray, Mask mask, ICollideable collide, ref Trace trace);
-	void TraceRay<Filter>(in Ray ray, Mask mask, Filter traceFilter, ref Trace trace) where Filter : ITraceFilter;
+	void TraceRay<Filter>(in Ray ray, Mask mask, scoped in Filter traceFilter, out Trace trace) where Filter : ITraceFilter;
 	void SetupLeafAndEntityListRay(in Ray ray, TraceListData traceData);
 	void SetupLeafAndEntityListBox(in Vector3 boxMin, in Vector3 boxMax, TraceListData traceData);
 	void TraceRayAgainstLeafAndEntityList<Filter>(in Ray ray, TraceListData traceData, Mask mask, Filter traceFilter, ref Trace trace) where Filter : ITraceFilter;

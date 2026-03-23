@@ -75,10 +75,10 @@ public abstract class EngineTrace : IEngineTrace
 	}
 
 	static readonly TraceFilterHitAll hitAllTraceFilter = new();
-	public void TraceRay<Filter>(in Ray ray, Mask mask, Filter inTraceFilter, ref Trace trace) where Filter : ITraceFilter {
+	public void TraceRay<Filter>(in Ray ray, Mask mask, scoped in Filter inTraceFilter, out Trace trace) where Filter : ITraceFilter {
 		ITraceFilter traceFilter = inTraceFilter;
 		traceFilter ??= hitAllTraceFilter;
-
+		trace = default;
 		CM.ClearTrace(ref trace);
 
 		if(traceFilter.GetTraceType() != TraceType.EntitiesOnly){
