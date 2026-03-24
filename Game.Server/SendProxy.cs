@@ -14,11 +14,8 @@ public static class SendProxy
 		=> SendPropInt(field, PREDICTABLE_ID_BITS, PropFlags.Unsigned, SendProxy_PredictableIdToInt);
 
 	private static void SendProxy_PredictableIdToInt(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
-		PredictableId? pId = field.GetValue<PredictableId?>(instance);
-		if (pId != null)
-			outData.Int = pId.GetRaw();
-		else
-			outData.Int = 0;
+		PredictableId pId = field.GetValue<PredictableId>(instance);
+		outData.Int = pId.GetRaw();
 	}
 
 	public static SendProp SendPropBool(IFieldAccessor field) {

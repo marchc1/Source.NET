@@ -237,9 +237,7 @@ public class CollisionProperty : ICollideable
 
 	}
 
-	public IHandleEntity? GetEntityHandle() {
-		throw new NotImplementedException();
-	}
+	public IHandleEntity? GetEntityHandle() => Outer;
 
 	public ref readonly Vector3 OBBMinsPreScaled() {
 		throw new NotImplementedException();

@@ -636,7 +636,7 @@ public partial class C_BaseEntity : IClientEntity
 	public bool AnimatedEveryTick;
 	public bool AlternateSorting;
 
-	public readonly PredictableId PredictableID = new();
+	public PredictableId PredictableID = new();
 
 	public byte TakeDamage;
 	public ushort RealClassName;
@@ -1163,9 +1163,9 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual bool Init(int entNum, int serialNum) {
 		Index = entNum;
 		cl_entitylist.AddNetworkableEntity(GetIClientUnknown(), entNum, serialNum);
+		CollisionProp().CreatePartitionHandle();
 		Interp_SetupMappings(ref GetVarMapping());
 		CreationTick = gpGlobals.TickCount;
-
 		return true;
 	}
 
@@ -1496,7 +1496,7 @@ public partial class C_BaseEntity : IClientEntity
 		AddToLeafSystem(renderGroup);
 
 		// Add the client entity to the spatial partition. (Collidable)
-		// CollisionProp()->CreatePartitionHandle();
+		CollisionProp().CreatePartitionHandle();
 
 		SpawnClientEntity();
 
@@ -1505,6 +1505,81 @@ public partial class C_BaseEntity : IClientEntity
 
 	public virtual void SpawnClientEntity() {
 
+	}
+
+	public static C_BaseEntity? CreatePredictedEntityByName(ReadOnlySpan<char> classname, [CallerFilePath] string? module = null, [CallerLineNumber] int line = -1, bool persist = false){
+		C_BasePlayer? player = C_BaseEntity.GetPredictionPlayer();
+
+		Assert(player != null);
+		Assert(!player.CurrentCommand.IsNull);
+		Assert(prediction.InPrediction());
+
+		C_BaseEntity? ent = null;
+
+		// What's my birthday (should match server)
+		int command_number = player.CurrentCommand.Get().CommandNumber;
+		// Who's my daddy?
+		int player_index = player.EntIndex() - 1;
+
+		// Create id/context
+		PredictableId testId = default;
+		testId.Init(player_index, command_number, classname, module, line);
+
+		// If repredicting, should be able to find the entity in the previously created list
+		if (!prediction.IsFirstTimePredicted()) {
+			// Only find previous instance if entity was created with persist set
+			if (persist) {
+				ent = FindPreviouslyCreatedEntity(testId);
+				if (ent != null)
+					return ent;
+			}
+
+			return null;
+		}
+
+		ent = CreateEntityByName(classname);
+		if (ent == null) 
+			return null;
+
+		// It's predictable
+		ent.SetPredictionEligible(true);
+
+		// Set up "shared" id number
+		ent.PredictableID.SetRaw(testId.GetRaw());
+
+		// Get a context (mostly for debugging purposes)
+		PredictionContext context = new PredictionContext();
+		context.Active = true;
+		context.CreationCommandNumber = command_number;
+		context.CreationLineNumber = line;
+		context.CreationModule = new(module.SliceNullTerminatedString());
+
+		// Attach to entity
+		ent.PredictionContext = context;
+
+		// Add to client entity list
+		cl_entitylist.AddNonNetworkableEntity(ent);
+
+		//  and predictables
+		g_Predictables.AddToPredictableList(ent.GetClientHandle());
+
+		// Duhhhh..., but might as well be safe
+		Assert(!ent.GetPredictable());
+		Assert(ent.IsClientCreated());
+
+		// Add the client entity to the spatial partition. (Collidable)
+		ent.CollisionProp().CreatePartitionHandle();
+
+		// CLIENT ONLY FOR NOW!!!
+		ent.Index = -1;
+
+		if (HLClient.AddDataChangeEvent(ent, DataUpdateType.Created, ent.DataChangeEventRef)) 
+			ent.OnPreDataChanged(DataUpdateType.Created);
+		
+
+		ent.Interp_UpdateInterpolationAmounts(ref ent.GetVarMapping());
+
+		return ent;
 	}
 
 	protected virtual void UpdateVisibility() {
