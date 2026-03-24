@@ -640,4 +640,7 @@ public partial class BaseEntity : IServerEntity
 
 	public object? GetBaseEntity() => this;
 	public virtual BaseAnimating? GetBaseAnimating() => null;
+
+	public void NetworkStateChanged() => NetworkProp().NetworkStateChanged();
+	public void NetworkStateChanged(IFieldAccessor field) => NetworkProp().NetworkStateChanged(field);
 }

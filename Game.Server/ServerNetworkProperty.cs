@@ -73,4 +73,12 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 		PVSInfo.ClusterCount = 0;
 		// timerevent todo
 	}
+
+	internal void NetworkStateChanged() {
+		Pev?.StateChanged();
+	}
+
+	internal void NetworkStateChanged(IFieldAccessor field) {
+		Pev?.StateChanged(field);
+	}
 }
