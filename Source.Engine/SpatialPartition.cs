@@ -113,6 +113,9 @@ public sealed class HandleList
 	readonly object _lock = new();
 
 	public HandleList() {
+		for (int i = 0; i < _items.Length; i++) 
+			_items[i] = new();
+		
 		_capacity = SPHASH_HANDLELIST_BLOCK;
 		_next = new int[_capacity];
 		for (int i = _capacity - 1; i >= 0; --i) {
@@ -133,7 +136,6 @@ public sealed class HandleList
 			if (_freeHead == -1) Grow();
 			int idx = _freeHead;
 			_freeHead = _next[idx];
-			_items[idx] = new SpatialEntityInfo();
 			_count++;
 			return (ushort)idx;
 		}
@@ -141,7 +143,7 @@ public sealed class HandleList
 
 	public void Free(ushort handle) {
 		lock (_lock) {
-			_items[handle] = null;
+			_items[handle].ClearInstantiatedReference();
 			_next[handle] = _freeHead;
 			_freeHead = handle;
 			_count--;
@@ -1312,7 +1314,7 @@ public sealed class SpatialPartitionImpl : ISpatialPartitionInternal
 	}
 
 	void RemoveFromTree(ushort hPartition) {
-		SpatialEntityInfo info = _handles[hPartition];
+		SpatialEntityInfo info = EntityInfo(hPartition);
 
 		if ((info.Flags & EntityInfoFlags.InClientTree) != 0) {
 			_voxelTrees[(int)PartitionTrees.ClientTree].RemoveFromTree(hPartition);
