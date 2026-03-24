@@ -510,7 +510,7 @@ public partial class NavMesh
 
 	bool IsSelectedSetEmpty() => SelectedSet.Count == 0;
 
-	int GetSelecteSetSize() => SelectedSet.Count;
+	int GetSelectedSetSize() => SelectedSet.Count;
 
 	public List<NavArea> GetSelectedSet() => SelectedSet;
 

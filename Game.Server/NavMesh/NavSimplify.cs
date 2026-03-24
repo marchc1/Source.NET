@@ -86,7 +86,7 @@ public partial class NavMesh
 		if (!Util.IsCommandIssuedByServerAdmin() || engine.IsDedicatedServer())
 			return;
 
-		int selectedSetSize = Instance!.GetSelecteSetSize();
+		int selectedSetSize = Instance!.GetSelectedSetSize();
 		if (selectedSetSize == 0) {
 			Msg("nav_simplify_selected only works on the selected set\n");
 			return;
@@ -94,6 +94,6 @@ public partial class NavMesh
 
 		Instance!.SimplifySelectedAreas();
 
-		Msg($"{selectedSetSize} areas simplified - {Instance!.GetSelecteSetSize()} remain\n");
+		Msg($"{selectedSetSize} areas simplified - {Instance!.GetSelectedSetSize()} remain\n");
 	}
 }
