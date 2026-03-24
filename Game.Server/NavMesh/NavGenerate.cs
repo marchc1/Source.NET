@@ -69,7 +69,7 @@ public partial class NavMesh
 
 	void RemoveJumpAreas() { }
 
-	void CommandNavRemoveJumpAreas() { }
+	public void CommandNavRemoveJumpAreas() { }
 
 	void SquareUpAreas() { }
 
@@ -109,9 +109,11 @@ public partial class NavMesh
 
 	void AddWalkableSeeds() { }
 
-	void BeginGeneration(bool incremental) { }
+	public void BeginGeneration(bool incremental = false) {
+		throw new NotImplementedException();
+	}
 
-	void BeginAnalysis(bool quitWhenFinished) { }
+	public void BeginAnalysis(bool quitWhenFinished = false) { }
 
 	bool UpdateGeneration(float maxTime) {
 		throw new NotImplementedException();

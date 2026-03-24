@@ -51,7 +51,9 @@ public class NavLadder
 
 	public uint GetID() => ID;
 
-	void CompressIDs() { }
+	public static void CompressIDs() {
+		throw new NotImplementedException();
+	}
 
 	NavArea GetConnection(LadderConnectionType dir) {
 		throw new NotImplementedException();

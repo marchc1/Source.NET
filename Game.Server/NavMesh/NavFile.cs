@@ -394,11 +394,11 @@ public partial class NavMesh
 	public static PlaceDirectory placeDirectory = new();
 	void ComputeBattlefrontAreas() { }
 
-	ReadOnlySpan<char> GetFilename() {
+	public ReadOnlySpan<char> GetFilename() {
 		throw new NotImplementedException();
 	}
 
-	bool Save() {
+	public bool Save() {
 		throw new NotImplementedException();
 	}
 

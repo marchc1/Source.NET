@@ -132,7 +132,7 @@ public partial class NavArea : NavAreaCriticalData
 	UInt32 VisTestCounter;
 	static UInt32 CurrVisTestCounter;
 
-	void CompressIDs() {
+	public static void CompressIDs() {
 		NextID = 1;
 
 		foreach (NavArea area in TheNavAreas) {

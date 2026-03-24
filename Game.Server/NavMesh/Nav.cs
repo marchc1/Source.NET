@@ -1,6 +1,7 @@
 global using NavPlace = System.UInt32;
 
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Mathematics;
 
 using System.Numerics;
@@ -8,6 +9,25 @@ namespace Game.Server.NavMesh;
 
 public static class Nav
 {
+	public static readonly ConVar nav_edit = new("0", FCvar.GameDLL | FCvar.Cheat, "Set to one to interactively edit the Navigation Mesh. Set to zero to leave edit mode.");
+	public static readonly ConVar nav_quicksave = new("1", FCvar.GameDLL | FCvar.Cheat, "Set to one to skip the time consuming phases of the analysis.  Useful for data collection and testing."); // TERROR: defaulting to 1, since we don't need the other data
+	public static readonly ConVar nav_show_approach_points = new("0", FCvar.GameDLL | FCvar.Cheat, "Show Approach Points in the Navigation Mesh.");
+	public static readonly ConVar nav_show_danger = new("0", FCvar.GameDLL | FCvar.Cheat, "Show current 'danger' levels.");
+	public static readonly ConVar nav_show_player_counts = new("0", FCvar.GameDLL | FCvar.Cheat, "Show current player counts in each area.");
+	public static readonly ConVar nav_show_func_nav_avoid = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot avoidance due to func_nav_avoid entities");
+	public static readonly ConVar nav_show_func_nav_prefer = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot preference due to func_nav_prefer entities");
+	public static readonly ConVar nav_show_func_nav_prerequisite = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot preference due to func_nav_prerequisite entities");
+	public static readonly ConVar nav_max_vis_delta_list_length = new("64", FCvar.Cheat);
+	public static readonly ConVar nav_show_area_info = new("0.5", FCvar.Cheat, "Duration in seconds to show nav area ID and attributes while editing");
+	public static readonly ConVar nav_snap_to_grid = new("0", FCvar.Cheat, "Snap to the nav generation grid when creating new nav areas");
+	public static readonly ConVar nav_create_place_on_ground = new("0", FCvar.Cheat, "If true, nav areas will be placed flush with the ground when created by hand.");
+	public static readonly ConVar nav_draw_limit = new("500", FCvar.Cheat, "The maximum number of areas to draw in edit mode");
+	public static readonly ConVar nav_solid_props = new("0", FCvar.Cheat, "Make props solid to nav generation/editing");
+	public static readonly ConVar nav_create_area_at_feet = new("0", FCvar.Cheat, "Anchor nav_begin_area Z to editing player's feet");
+	public static readonly ConVar nav_drag_selection_volume_zmax_offset = new("32", FCvar.Replicated, "The offset of the nav drag volume top from center");
+	public static readonly ConVar nav_drag_selection_volume_zmin_offset = new("32", FCvar.Replicated, "The offset of the nav drag volume bottom from center");
+	public static readonly ConVar nav_show_compass = new("0", FCvar.Cheat);
+
 	public const float GenerationStepSize = 25.0f;     // (30) was 20, but bots can't fit always fit
 	const float JumpHeight = 41.8f;         // if delta Z is less than this, we can jump up on it
 	public const float JumpCrouchHeight = 64.0f;     // (48) if delta Z is less than or equal to this, we can jumpcrouch up on it

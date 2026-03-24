@@ -1,3 +1,5 @@
+using static Game.Server.NavMesh.Nav;
+
 using Game.Shared;
 
 using Source;
@@ -11,16 +13,6 @@ namespace Game.Server.NavMesh;
 
 public partial class NavMesh
 {
-	static readonly ConVar nav_show_area_info = new("0.5", FCvar.Cheat, "Duration in seconds to show nav area ID and attributes while editing");
-	static readonly ConVar nav_snap_to_grid = new("0", FCvar.Cheat, "Snap to the nav generation grid when creating new nav areas");
-	static readonly ConVar nav_create_place_on_ground = new("0", FCvar.Cheat, "If true, nav areas will be placed flush with the ground when created by hand.");
-	public static readonly ConVar nav_draw_limit = new("500", FCvar.Cheat, "The maximum number of areas to draw in edit mode");
-	static readonly ConVar nav_solid_props = new("0", FCvar.Cheat, "Make props solid to nav generation/editing");
-	static readonly ConVar nav_create_area_at_feet = new("0", FCvar.Cheat, "Anchor nav_begin_area Z to editing player's feet");
-	static readonly ConVar nav_drag_selection_volume_zmax_offset = new("32", FCvar.Replicated, "The offset of the nav drag volume top from center");
-	static readonly ConVar nav_drag_selection_volume_zmin_offset = new("32", FCvar.Replicated, "The offset of the nav drag volume bottom from center");
-	static readonly ConVar nav_show_compass = new("0", FCvar.Cheat);
-
 	Vector3 SnapToGrid(Vector3 vec, bool snapX, bool snapY, bool forceGrid) {
 		throw new NotImplementedException();
 	}
@@ -102,7 +94,7 @@ public partial class NavMesh
 	}
 
 
-	void CommandNavBuildLadder() { }
+	public void CommandNavBuildLadder() { }
 
 	void OnEditModeStart() {
 		ClearSelectedSet();
@@ -386,123 +378,123 @@ public partial class NavMesh
 	public uint GetNavPlace() => NavPlace;
 	public void SetNavPlace(uint place) => NavPlace = place;
 
-	void CommandNavDelete() { }
+	public void CommandNavDelete() { }
 
-	void CommandNavDeleteMarked() { }
+	public void CommandNavDeleteMarked() { }
 
-	void CommandNavFloodSelect(in TokenizedCommand args) { }
+	public void CommandNavFloodSelect(in TokenizedCommand args) { }
 
-	void CommandNavToggleSelectedSet() { }
+	public void CommandNavToggleSelectedSet() { }
 
-	void CommandNavStoreSelectedSet() { }
+	public void CommandNavStoreSelectedSet() { }
 
-	void CommandNavRecallSelectedSet() { }
+	public void CommandNavRecallSelectedSet() { }
 
-	void CommandNavAddToSelectedSet() { }
+	public void CommandNavAddToSelectedSet() { }
 
-	void CommandNavAddToSelectedSetByID(in TokenizedCommand args) { }
+	public void CommandNavAddToSelectedSetByID(in TokenizedCommand args) { }
 
-	void CommandNavRemoveFromSelectedSet() { }
+	public void CommandNavRemoveFromSelectedSet() { }
 
-	void CommandNavToggleInSelectedSet() { }
+	public void CommandNavToggleInSelectedSet() { }
 
-	void CommandNavClearSelectedSet() { }
+	public void CommandNavClearSelectedSet() { }
 
-	void CommandNavBeginSelecting() { }
+	public void CommandNavBeginSelecting() { }
 
-	void CommandNavEndSelecting() { }
+	public void CommandNavEndSelecting() { }
 
-	void CommandNavBeginDragSelecting() { }
+	public void CommandNavBeginDragSelecting() { }
 
-	void CommandNavEndDragSelecting() { }
+	public void CommandNavEndDragSelecting() { }
 
-	void CommandNavBeginDragDeselecting() { }
+	public void CommandNavBeginDragDeselecting() { }
 
-	void CommandNavEndDragDeselecting() { }
+	public void CommandNavEndDragDeselecting() { }
 
-	void CommandNavRaiseDragVolumeMax() { }
+	public void CommandNavRaiseDragVolumeMax() { }
 
-	void CommandNavLowerDragVolumeMax() { }
+	public void CommandNavLowerDragVolumeMax() { }
 
-	void CommandNavRaiseDragVolumeMin() { }
+	public void CommandNavRaiseDragVolumeMin() { }
 
-	void CommandNavLowerDragVolumeMin() { }
+	public void CommandNavLowerDragVolumeMin() { }
 
-	void CommandNavToggleSelecting(bool playSound) { }
+	public void CommandNavToggleSelecting(bool playSound = true) { }
 
-	void CommandNavBeginDeselecting() { }
+	public void CommandNavBeginDeselecting() { }
 
-	void CommandNavEndDeselecting() { }
+	public void CommandNavEndDeselecting() { }
 
-	void CommandNavToggleDeselecting(bool playSound) { }
+	public void CommandNavToggleDeselecting(bool playSound = true) { }
 
-	void CommandNavSelectHalfSpace(in TokenizedCommand args) { }
+	public void CommandNavSelectHalfSpace(in TokenizedCommand args) { }
 
-	void CommandNavBeginShiftXY() { }
+	public void CommandNavBeginShiftXY() { }
 
-	void CommandNavEndShiftXY() { }
+	public void CommandNavEndShiftXY() { }
 
-	void CommandNavSelectInvalidAreas() { }
+	public void CommandNavSelectInvalidAreas() { }
 
-	void CommandNavSelectBlockedAreas() { }
+	public void CommandNavSelectBlockedAreas() { }
 
-	void CommandNavSelectObstructedAreas() { }
+	public void CommandNavSelectObstructedAreas() { }
 
-	void CommandNavSelectDamagingAreas() { }
+	public void CommandNavSelectDamagingAreas() { }
 
-	void CommandNavSelectStairs() { }
+	public void CommandNavSelectStairs() { }
 
-	void CommandNavSelectOrphans() { }
+	public void CommandNavSelectOrphans() { }
 
-	void CommandNavSplit() { }
+	public void CommandNavSplit() { }
 
-	void CommandNavMakeSniperSpots() { }
+	public void CommandNavMakeSniperSpots() { }
 
-	void CommandNavMerge() { }
+	public void CommandNavMerge() { }
 
-	void CommandNavMark(in TokenizedCommand args) { }
+	public void CommandNavMark(in TokenizedCommand args) { }
 
-	void CommandNavUnmark() { }
+	public void CommandNavUnmark() { }
 
-	void CommandNavBeginArea() { }
+	public void CommandNavBeginArea() { }
 
-	void CommandNavEndArea() { }
+	public void CommandNavEndArea() { }
 
-	void CommandNavConnect() { }
+	public void CommandNavConnect() { }
 
-	void CommandNavDisconnect() { }
+	public void CommandNavDisconnect() { }
 
-	void CommandNavDisconnectOutgoingOneWays() { }
+	public void CommandNavDisconnectOutgoingOneWays() { }
 
-	void CommandNavSplice() { }
+	public void CommandNavSplice() { }
 
 	void DoToggleAttribute(NavArea area, NavAttributeType attribute) { }
 
-	void CommandNavToggleAttribute(NavAttributeType attribute) { }
+	public void CommandNavToggleAttribute(NavAttributeType attribute) { }
 
-	void CommandNavTogglePlaceMode() { }
+	public void CommandNavTogglePlaceMode() { }
 
-	void CommandNavPlaceFloodFill() { }
+	public void CommandNavPlaceFloodFill() { }
 
-	void CommandNavPlaceSet() { }
+	public void CommandNavPlaceSet() { }
 
-	void CommandNavPlacePick() { }
+	public void CommandNavPlacePick() { }
 
-	void CommandNavTogglePlacePainting() { }
+	public void CommandNavTogglePlacePainting() { }
 
-	void CommandNavMarkUnnamed() { }
+	public void CommandNavMarkUnnamed() { }
 
-	void CommandNavCornerSelect() { }
+	public void CommandNavCornerSelect() { }
 
-	void CommandNavCornerRaise(in TokenizedCommand args) { }
+	public void CommandNavCornerRaise(in TokenizedCommand args) { }
 
-	void CommandNavCornerLower(in TokenizedCommand args) { }
+	public void CommandNavCornerLower(in TokenizedCommand args) { }
 
-	void CommandNavCornerPlaceOnGround(in TokenizedCommand args) { }
+	public void CommandNavCornerPlaceOnGround(in TokenizedCommand args) { }
 
-	void CommandNavWarpToMark() { }
+	public void CommandNavWarpToMark() { }
 
-	void CommandNavLadderFlip() { }
+	public void CommandNavLadderFlip() { }
 
 	public void AddToSelectedSet(NavArea area) { }
 
@@ -520,7 +512,7 @@ public partial class NavMesh
 
 	int GetSelecteSetSize() => SelectedSet.Count;
 
-	List<NavArea> GetSelectedSet() => SelectedSet;
+	public List<NavArea> GetSelectedSet() => SelectedSet;
 
 	public bool IsInSelectedSet(NavArea area) => SelectedSet.Contains(area);
 
@@ -544,6 +536,6 @@ public class DrawSelectedSet(Vector3 shift)
 			Count++;
 		}
 
-		return Count < NavMesh.nav_draw_limit.GetInt();
+		return Count < nav_draw_limit.GetInt();
 	}
 }

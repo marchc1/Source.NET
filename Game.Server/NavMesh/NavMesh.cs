@@ -1,3 +1,5 @@
+using static Game.Server.NavMesh.Nav;
+
 using Source;
 using Source.Common;
 using Source.Common.Commands;
@@ -9,16 +11,6 @@ namespace Game.Server.NavMesh;
 
 public partial class NavMesh
 {
-	static readonly ConVar nav_edit = new("0", FCvar.GameDLL | FCvar.Cheat, "Set to one to interactively edit the Navigation Mesh. Set to zero to leave edit mode.");
-	static readonly ConVar nav_quicksave = new("1", FCvar.GameDLL | FCvar.Cheat, "Set to one to skip the time consuming phases of the analysis.  Useful for data collection and testing."); // TERROR: defaulting to 1, since we don't need the other data
-	static readonly ConVar nav_show_approach_points = new("0", FCvar.GameDLL | FCvar.Cheat, "Show Approach Points in the Navigation Mesh.");
-	static readonly ConVar nav_show_danger = new("0", FCvar.GameDLL | FCvar.Cheat, "Show current 'danger' levels.");
-	static readonly ConVar nav_show_player_counts = new("0", FCvar.GameDLL | FCvar.Cheat, "Show current player counts in each area.");
-	static readonly ConVar nav_show_func_nav_avoid = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot avoidance due to func_nav_avoid entities");
-	static readonly ConVar nav_show_func_nav_prefer = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot preference due to func_nav_prefer entities");
-	static readonly ConVar nav_show_func_nav_prerequisite = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot preference due to func_nav_prerequisite entities");
-	static readonly ConVar nav_max_vis_delta_list_length = new("64", FCvar.Cheat);
-
 	enum EditModeType
 	{
 		Normal,
@@ -437,11 +429,11 @@ public partial class NavMesh
 
 	void IncreaseDangerNearby(int teamID, float amount, NavArea startArea, Vector3 pos, float maxRadius, float dangerLimit) { }
 
-	void CommandNavMarkWalkable() { }
+	public void CommandNavMarkWalkable() { }
 
 	void DestroyLadders() { }
 
-	void StripNavigationAreas() { }
+	public void StripNavigationAreas() { }
 
 	public HidingSpot CreateHidingSpot() => new();
 
