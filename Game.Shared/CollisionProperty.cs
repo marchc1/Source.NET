@@ -424,10 +424,10 @@ public class CollisionProperty : ICollideable
 	public void Init(BaseEntity entity) {
 		Outer = entity;
 
-		MinsPreScaled.GetForModify().Init();
-		MaxsPreScaled.GetForModify().Init();
-		Mins.GetForModify().Init();
-		Maxs.GetForModify().Init();
+		MinsPreScaled.Init();
+		MaxsPreScaled.Init();
+		Mins.Init();
+		Maxs.Init();
 		Radius = 0.0f;
 		TriggerBloat = 0;
 		SolidFlags = 0;
@@ -436,10 +436,10 @@ public class CollisionProperty : ICollideable
 		SurroundType = (int)SurroundingBoundsType.UseOBBCollisionBounds;
 		SurroundingMins = vec3_origin;
 		SurroundingMaxs = vec3_origin;
-		SpecifiedSurroundingMinsPreScaled.GetForModify().Init();
-		SpecifiedSurroundingMaxsPreScaled.GetForModify().Init();
-		SpecifiedSurroundingMins.GetForModify().Init();
-		SpecifiedSurroundingMaxs.GetForModify().Init();
+		SpecifiedSurroundingMinsPreScaled.Init();
+		SpecifiedSurroundingMaxsPreScaled.Init();
+		SpecifiedSurroundingMins.Init();
+		SpecifiedSurroundingMaxs.Init();
 	}
 
 	BaseEntity Outer = null!;
