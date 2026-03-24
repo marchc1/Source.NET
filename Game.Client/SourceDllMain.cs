@@ -52,6 +52,7 @@ public static class SourceDllMain
 	[Dependency] public static IEngineClient engine { get; private set; } = null!;
 	[Dependency] public static IMatSystemSurface surface { get; private set; } = null!;
 	[Dependency] public static IEngineVGui enginevgui { get; private set; } = null!;
+	[Dependency] public static ISpatialPartition partition { get; private set; } = null!;
 	[Dependency] public static Hud gHUD { get; private set; } = null!;
 	[Dependency<IPrediction>] public static Prediction prediction { get; private set; } = null!;
 	[Dependency] public static ICvar cvar { get; private set; } = null!;

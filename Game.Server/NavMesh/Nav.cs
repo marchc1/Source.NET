@@ -369,7 +369,7 @@ public struct Ray
 	public Vector3 From, To;
 }
 
-public class TraceFilterWalkableEntities //: TraceFilterNoNPCsOrPlayer
+public struct TraceFilterWalkableEntities //: TraceFilterNoNPCsOrPlayer
 {
 	readonly WalkThruFlags flags;
 

@@ -226,6 +226,13 @@ public partial class Render(
 		LoadSkys();
 		InitStudio();
 
+		// FIXME: Is this the best place to initialize the kd tree when we're client-only?
+		if (!sv.IsActive()){
+			StaticPropMgr().LevelShutdown();
+			SpatialPartition().Init(host_state.WorldModel!.Mins, host_state.WorldModel!.Maxs);
+			StaticPropMgr().LevelInit();
+		}
+
 		LoadWorldGeometry();
 
 		Surface_LevelInit();

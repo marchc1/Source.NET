@@ -16,51 +16,47 @@ public enum TraceType
 
 public interface ITraceFilter
 {
-	bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask);
-	TraceType GetTraceType();
-}
-
-public class TraceFilter : ITraceFilter
-{
-	public virtual bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask) => throw new NotImplementedException();
+	public bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask);
 	public TraceType GetTraceType() => TraceType.Everything;
 }
 
-public class TraceFilterEntitiesOnly : ITraceFilter
+public struct TraceFilterEntitiesOnly : ITraceFilter
 {
 	public bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask) => throw new NotImplementedException();
 	public TraceType GetTraceType() => TraceType.EntitiesOnly;
 }
 
-public class TraceFilterWorldOnly : ITraceFilter
+public struct TraceFilterWorldOnly : ITraceFilter
 {
 	public bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask) => false;
 	public TraceType GetTraceType() => TraceType.WorldOnly;
 }
 
-public class TraceFilterWorldAndPropsOnly : ITraceFilter
+public struct TraceFilterWorldAndPropsOnly : ITraceFilter
 {
 	public bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask) => false;
 	public TraceType GetTraceType() => TraceType.Everything;
 }
 
-public class TraceFilterHitAll : TraceFilter
+public struct TraceFilterHitAll : ITraceFilter
 {
-	public override bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask) => true;
+	public bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask) => true;
 }
 
 public interface IEntityEnumerator; // todo
 public interface IEngineTrace
 {
+	public void TraceRay(in Ray ray, Mask mask, object? nulled, out Trace trace) => TraceRay(in ray, mask, new TraceFilterHitAll(), out trace);
+
 	Contents GetPointContents(in Vector3 absPosition, out IHandleEntity? entity);
 	Contents GetPointContents_Collideable(ICollideable? collide, in Vector3 absPosition);
 	void ClipRayToEntity(in Ray ray, Mask mask, IHandleEntity ent, ref Trace trace);
 	void ClipRayToCollideable(in Ray ray, Mask mask, ICollideable collide, ref Trace trace);
-	void TraceRay<Filter>(in Ray ray, Mask mask, scoped in Filter traceFilter, out Trace trace) where Filter : ITraceFilter;
+	void TraceRay<Filter>(in Ray ray, Mask mask, scoped in Filter traceFilter, out Trace trace) where Filter : struct, ITraceFilter;
 	void SetupLeafAndEntityListRay(in Ray ray, TraceListData traceData);
 	void SetupLeafAndEntityListBox(in Vector3 boxMin, in Vector3 boxMax, TraceListData traceData);
-	void TraceRayAgainstLeafAndEntityList<Filter>(in Ray ray, TraceListData traceData, Mask mask, Filter traceFilter, ref Trace trace) where Filter : ITraceFilter;
-	void SweepCollideable<Filter>(ICollideable? collide, in Vector3 absStart, in Vector3 absEnd, in QAngle angles, Mask mask, in Filter traceFilter, ref Trace trace) where Filter : ITraceFilter;
+	void TraceRayAgainstLeafAndEntityList<Filter>(in Ray ray, TraceListData traceData, Mask mask, Filter traceFilter, ref Trace trace) where Filter : struct, ITraceFilter;
+	void SweepCollideable<Filter>(ICollideable? collide, in Vector3 absStart, in Vector3 absEnd, in QAngle angles, Mask mask, in Filter traceFilter, ref Trace trace) where Filter : struct, ITraceFilter;
 	void EnumerateEntities(in Ray ray, bool triggers, IEntityEnumerator enumerator);
 	void EnumerateEntities(in Vector3 absMins, in Vector3 absMaxs, IEntityEnumerator enumerator);
 	ICollideable? GetCollideable(IHandleEntity? entity);

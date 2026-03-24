@@ -12,10 +12,10 @@ public interface ICollideable
 	// These methods return the bounds of an OBB measured in "collision" space
 	// which can be retreived through the CollisionToWorldTransform or
 	// GetCollisionOrigin/GetCollisionAngles methods
-	ref Vector3 OBBMinsPreScaled();
-	ref Vector3 OBBMaxsPreScaled();
-	ref Vector3 OBBMins();
-	ref Vector3 OBBMaxs();
+	ref readonly Vector3 OBBMinsPreScaled();
+	ref readonly Vector3 OBBMaxsPreScaled();
+	ref readonly Vector3 OBBMins();
+	ref readonly Vector3 OBBMaxs();
 
 	// Returns the bounds of a world-space box used when the collideable is being traced
 	// against as a trigger. It's only valid to call these methods if the solid flags

@@ -5,6 +5,9 @@ using Source.Common.Formats.BSP;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.Arm;
+using System.Runtime.Intrinsics.X86;
 using System.Security.Cryptography;
 
 namespace Source.Common.Mathematics;
@@ -275,6 +278,22 @@ public struct CollisionPlane
 }
 public static class MathLib
 {
+	public static readonly Vector128<float> Four_PointFives = Vector128.Create(0.5f, 0.5f, 0.5f, 0.5f);
+	public static readonly Vector128<float> Four_Zeros = Vector128.Create(0.0f, 0.0f, 0.0f, 0.0f);
+	public static readonly Vector128<float> Four_Ones = Vector128.Create(1.0f, 1.0f, 1.0f, 1.0f);
+	public static readonly Vector128<float> Four_Twos = Vector128.Create(2.0f, 2.0f, 2.0f, 2.0f);
+	public static readonly Vector128<float> Four_Threes = Vector128.Create(3.0f, 3.0f, 3.0f, 3.0f);
+	public static readonly Vector128<float> Four_Fours = Vector128.Create(4.0f, 4.0f, 4.0f, 4.0f);
+	public static readonly Vector128<float> Four_Origin = Vector128.Create(0f, 0f, 0f, 1f);
+	public static readonly Vector128<float> Four_NegativeOnes = Vector128.Create(-1f, -1f, -1f, -1f);
+	public static readonly Vector128<float> Four_2ToThe21s = Vector128.Create((float)(1 << 21), (float)(1 << 21), (float)(1 << 21), (float)(1 << 21));
+	public static readonly Vector128<float> Four_2ToThe22s = Vector128.Create((float)(1 << 22), (float)(1 << 22), (float)(1 << 22), (float)(1 << 22));
+	public static readonly Vector128<float> Four_2ToThe23s = Vector128.Create((float)(1 << 23), (float)(1 << 23), (float)(1 << 23), (float)(1 << 23));
+	public static readonly Vector128<float> Four_2ToThe24s = Vector128.Create((float)(1 << 24), (float)(1 << 24), (float)(1 << 24), (float)(1 << 24));
+	public static readonly Vector128<float> Four_Point225s = Vector128.Create(.225f, .225f, .225f, .225f);
+	public static readonly Vector128<float> Four_Epsilons = Vector128.Create(float.Epsilon, float.Epsilon, float.Epsilon, float.Epsilon);
+	public static readonly Vector128<float> Four_FLT_MAX = Vector128.Create(float.MaxValue, float.MaxValue, float.MaxValue, float.MaxValue);
+	public static readonly Vector128<float> Four_Negative_FLT_MAX = Vector128.Create(-float.MaxValue, -float.MaxValue, -float.MaxValue, -float.MaxValue);
 	public static Vector3 AsVector3(this ReadOnlySpan<float> span) => new(span[0], span[1], span[2]);
 	static MathLib() {
 
@@ -1383,4 +1402,194 @@ public static class MathLib
 		QuaternionMatrix(q, out Matrix3x4 matrix);
 		MatrixAngles(matrix, out angles);
 	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> SubSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.Subtract(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.Subtract(a, b);
+		return Vector128.Subtract(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> AddSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.Add(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.Add(a, b);
+		return Vector128.Add(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> MulSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.Multiply(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.Multiply(a, b);
+		return Vector128.Multiply(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> CmpLtSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.CompareLessThan(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.CompareLessThan(a, b).AsSingle();
+		return Vector128.LessThan(a, b).AsSingle();
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> CmpGtSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.CompareGreaterThan(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.CompareGreaterThan(a, b).AsSingle();
+		return Vector128.GreaterThan(a, b).AsSingle();
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> AndSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.And(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.And(a.AsUInt32(), b.AsUInt32()).AsSingle();
+		return Vector128.BitwiseAnd(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> OrSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.Or(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.Or(a.AsUInt32(), b.AsUInt32()).AsSingle();
+		return Vector128.BitwiseOr(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> XorSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.Xor(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.Xor(a.AsUInt32(), b.AsUInt32()).AsSingle();
+		return Vector128.Xor(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> MinSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.Min(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.Min(a, b);
+		return Vector128.Min(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> MaxSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.Max(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.Max(a, b);
+		return Vector128.Max(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> ReplicateX4(float value) => Vector128.Create(value);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> SetWToZeroSIMD(Vector128<float> v) {
+		if (Sse.IsSupported) 
+			return Sse.And(v, Vector128.Create(~0u, ~0u, ~0u, 0u).AsSingle());
+		
+		if (AdvSimd.IsSupported) 
+			return AdvSimd.And(
+				v.AsUInt32(),
+				Vector128.Create(~0u, ~0u, ~0u, 0u)
+			).AsSingle();
+		
+		return Vector128.AndNot(Vector128.Create(0u, 0u, 0u, ~0u).AsSingle(), v);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool IsAnyNegative(Vector128<float> v) {
+		if (Sse.IsSupported)
+			return Sse.MoveMask(v) != 0;
+		if (AdvSimd.Arm64.IsSupported) {
+			Vector128<uint> signs = AdvSimd.ShiftRightLogical(v.AsUInt32(), 31);
+			return AdvSimd.Arm64.MaxAcross(signs).ToScalar() != 0;
+		}
+		return (v.GetElement(0) < 0) | (v.GetElement(1) < 0) |
+			   (v.GetElement(2) < 0) | (v.GetElement(3) < 0);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool IsAllZeros(Vector128<float> v) {
+		if (Sse.IsSupported)
+			return Sse.MoveMask(v) == 0;
+		if (AdvSimd.Arm64.IsSupported) {
+			Vector128<uint> signs = AdvSimd.ShiftRightLogical(v.AsUInt32(), 31);
+			return AdvSimd.Arm64.MaxAcross(signs).ToScalar() == 0;
+		}
+		return v.AsUInt32().GetElement(0) == 0 && v.AsUInt32().GetElement(1) == 0 &&
+			   v.AsUInt32().GetElement(2) == 0 && v.AsUInt32().GetElement(3) == 0;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> MaskedAssign(Vector128<float> mask, Vector128<float> yes, Vector128<float> no) {
+		if (Sse41.IsSupported)
+			return Sse41.BlendVariable(no, yes, mask);
+		if (Sse.IsSupported) 
+			return Sse.Or(Sse.And(mask, yes), Sse.AndNot(mask, no));
+		if (AdvSimd.IsSupported) 
+			return AdvSimd.BitwiseSelect(mask.AsUInt32(), yes.AsUInt32(), no.AsUInt32()).AsSingle();
+		
+		return Vector128.ConditionalSelect(mask.AsInt32(), yes.AsInt32(), no.AsInt32()).AsSingle();
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> FindLowestSIMD3(Vector128<float> v) {
+		if (Sse.IsSupported) {
+			Vector128<float> y = Sse.Shuffle(v, v, 0x55);
+			Vector128<float> z = Sse.Shuffle(v, v, 0xAA);
+			Vector128<float> xy = Sse.Min(v, y);
+			return Sse.Min(xy, z);
+		}
+		if (AdvSimd.Arm64.IsSupported) {
+			float x = v.GetElement(0);
+			float yf = v.GetElement(1);
+			float zf = v.GetElement(2);
+			float m = MathF.Min(MathF.Min(x, yf), zf);
+			return Vector128.Create(m);
+		}
+
+		{
+			float m = MathF.Min(MathF.Min(v.GetElement(0), v.GetElement(1)), v.GetElement(2));
+			return Vector128.Create(m);
+		}
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> FindHighestSIMD3(Vector128<float> v) {
+		if (Sse.IsSupported) {
+			Vector128<float> y = Sse.Shuffle(v, v, 0x55);
+			Vector128<float> z = Sse.Shuffle(v, v, 0xAA);
+			Vector128<float> xy = Sse.Max(v, y);
+			return Sse.Max(xy, z);
+		}
+		if (AdvSimd.Arm64.IsSupported) {
+			float x = v.GetElement(0);
+			float yf = v.GetElement(1);
+			float zf = v.GetElement(2);
+			float m = MathF.Max(MathF.Max(x, yf), zf);
+			return Vector128.Create(m);
+		}
+
+		{
+			float m = MathF.Max(MathF.Max(v.GetElement(0), v.GetElement(1)), v.GetElement(2));
+			return Vector128.Create(m);
+		}
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat2(in Vector2 v2) => Vector128.Create([v2.X, v2.Y, 0, 0]);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat3(in Vector3 v3) => Vector128.Create([v3.X, v3.Y, v3.Z, 0]);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat4(in Vector4 v4) => Vector128.Create([v4.X, v4.Y, v4.Z, v4.W]);
 }

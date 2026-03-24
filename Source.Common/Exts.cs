@@ -324,6 +324,94 @@ public class ClassMemoryPool<T> where T : class, new()
 	}
 }
 
+public sealed class PooledLinkedList<T> where T : struct
+{
+	struct Node
+	{
+		public T Data;
+		public int Prev;
+		public int Next;
+	}
+
+	Node[] _nodes;
+	int _freeHead = -1;
+	int _capacity;
+	int _count;
+
+	public const int INVALID_INDEX = -1;
+
+	public PooledLinkedList(int initialCapacity = 256) {
+		_capacity = initialCapacity;
+		_nodes = new Node[_capacity];
+		for (int i = _capacity - 1; i >= 0; --i) {
+			_nodes[i].Next = _freeHead;
+			_nodes[i].Prev = -1;
+			_freeHead = i;
+		}
+	}
+
+	public ref T this[int index] {
+		[MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref _nodes[index].Data;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public int Next(int index) => _nodes[index].Next;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public int Prev(int index) => _nodes[index].Prev;
+
+	public int Alloc() {
+		if (_freeHead == -1) Grow();
+		int idx = _freeHead;
+		_freeHead = _nodes[idx].Next;
+		_nodes[idx].Next = -1;
+		_nodes[idx].Prev = -1;
+		_nodes[idx].Data = default;
+		_count++;
+		return idx;
+	}
+
+	public void LinkBefore(int beforeIdx, int newIdx) {
+		int prev = _nodes[beforeIdx].Prev;
+		_nodes[newIdx].Next = beforeIdx;
+		_nodes[newIdx].Prev = prev;
+		_nodes[beforeIdx].Prev = newIdx;
+		if (prev != -1)
+			_nodes[prev].Next = newIdx;
+	}
+
+	public void Remove(int index) {
+		int prev = _nodes[index].Prev;
+		int next = _nodes[index].Next;
+		if (prev != -1) _nodes[prev].Next = next;
+		if (next != -1) _nodes[next].Prev = prev;
+		_nodes[index].Next = _freeHead;
+		_nodes[index].Prev = -1;
+		_nodes[index].Data = default;
+		_freeHead = index;
+		_count--;
+	}
+
+	public void Clear() {
+		_count = 0;
+		_freeHead = -1;
+		for (int i = _capacity - 1; i >= 0; --i) {
+			_nodes[i] = default;
+			_nodes[i].Next = _freeHead;
+			_nodes[i].Prev = -1;
+			_freeHead = i;
+		}
+	}
+
+	void Grow() {
+		int newCap = _capacity * 2;
+		Array.Resize(ref _nodes, newCap);
+		for (int i = newCap - 1; i >= _capacity; --i) {
+			_nodes[i].Next = _freeHead;
+			_nodes[i].Prev = -1;
+			_freeHead = i;
+		}
+		_capacity = newCap;
+	}
+}
+
 public class StructMemoryPool<T> where T : struct
 {
 	public static readonly StructMemoryPool<T> Shared = new();

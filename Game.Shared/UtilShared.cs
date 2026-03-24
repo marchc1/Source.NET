@@ -141,8 +141,11 @@ public static partial class Util
 	}
 }
 
-public class TraceFilterSimple(IHandleEntity? passentity, CollisionGroup collisionGroup) : TraceFilter {
-	
+public struct TraceFilterSimple(IHandleEntity? passentity, CollisionGroup collisionGroup) : ITraceFilter
+{
+	public bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask) {
+		throw new NotImplementedException();
+	}
 }
 
 #endif

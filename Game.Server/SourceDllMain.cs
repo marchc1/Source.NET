@@ -22,6 +22,7 @@ public static class SourceDllMain
 	[Dependency] public static IFileSystem filesystem { get; private set; } = null!;
 	[Dependency] public static ServerGlobalVariables gpGlobals { get; private set; } = null!;
 	[Dependency] public static ICvar cvar { get; private set; } = null!;
+	[Dependency] public static ISpatialPartition partition { get; private set; } = null!;
 	[Dependency] public static IUniformRandomStream random { get; private set; } = null!;
 	[Dependency] public static IGameEventManager2 gameeventmanager { get; private set; } = null!;
 	[Dependency] public static IDataCache datacache { get; private set; } = null!;
