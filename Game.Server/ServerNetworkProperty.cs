@@ -73,4 +73,16 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 		PVSInfo.ClusterCount = 0;
 		// timerevent todo
 	}
+
+	internal bool IsInPVS(CheckTransmitInfo info) {
+		throw new NotImplementedException();
+	}
+
+	internal ServerNetworkProperty GetNetworkParent() {
+		throw new NotImplementedException();
+	}
+
+	internal void RecomputePVSInformation() {
+		throw new NotImplementedException();
+	}
 }

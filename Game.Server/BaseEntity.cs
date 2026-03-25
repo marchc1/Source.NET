@@ -640,4 +640,12 @@ public partial class BaseEntity : IServerEntity
 
 	public object? GetBaseEntity() => this;
 	public virtual BaseAnimating? GetBaseAnimating() => null;
+
+	internal void SetTransmit(CheckTransmitInfo info, bool v) {
+		throw new NotImplementedException();
+	}
+
+	internal EdictFlags ShouldTransmit(CheckTransmitInfo info) {
+		throw new NotImplementedException();
+	}
 }
