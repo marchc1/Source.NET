@@ -30,6 +30,9 @@ public class GameClient : BaseClient
 	public GameClient(int slot, BaseServer server) {
 		Clear();
 
+		PackInfo = new();
+		PrevPackInfo = new();
+
 		ClientSlot = slot;
 		EntityIndex = slot + 1;
 		Server = server;
@@ -45,9 +48,9 @@ public class GameClient : BaseClient
 	public readonly List<SoundInfo> Sounds = [];
 	public Edict? ViewEntity;
 	public ClientFrame? CurrentFrame;
-	// public CheckTransmitInfo PackInfo;
+	public CheckTransmitInfo PackInfo;
 	public bool IsInReplayMode;
-	// public CheckTransmitInfo PrevPackInfo;
+	public CheckTransmitInfo PrevPackInfo;
 	public MaxEdictsBitVec PrevTransmitEdict;
 
 	protected override bool ProcessClientInfo(CLC_ClientInfo msg) {
@@ -163,7 +166,18 @@ public class GameClient : BaseClient
 			sv.FrameManager.RemoveOldestFrame();
 	}
 
-	void SetupPrevPackInfo() { }
+	public void SetupPrevPackInfo() {
+		memcpy(ref PrevTransmitEdict, ref PackInfo.TransmitEdict);
+
+		PrevPackInfo.AreasNetworked = PackInfo.AreasNetworked;
+		memcpy(PrevPackInfo.Areas, PackInfo.Areas);
+
+		PrevPackInfo.PVSSize = PackInfo.PVSSize;
+		memcpy(PrevPackInfo.PVS, PackInfo.PVS);
+
+		PrevPackInfo.MapAreas = PackInfo.MapAreas;
+		memcpy(PrevPackInfo.AreaFloodNums, PackInfo.AreaFloodNums);
+	}
 
 	// void SetRate(int nRate, bool force) { }
 
@@ -540,12 +554,11 @@ public class GameClient : BaseClient
 
 	public override void PacketEnd() => serverGlobalVariables.FrameTime = host_state.IntervalPerTick;
 
-	public ClientFrame GetSendFrame() {
-		ClientFrame? frame = CurrentFrame;
-		return frame;
-	}
+	public ClientFrame? GetSendFrame() => CurrentFrame;
 
 	// bool IgnoreTempEntity(EventInfo evnt) { }
 
-	// CheckTransmitInfo GetPrevPackInfo() { }
+	CheckTransmitInfo GetPrevPackInfo() {
+		throw new NotImplementedException();
+	}
 }
