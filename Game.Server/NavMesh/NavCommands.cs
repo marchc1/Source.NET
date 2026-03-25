@@ -666,8 +666,7 @@ static class NavCommands
 		if (!Util.IsCommandIssuedByServerAdmin())
 			return;
 
-		// TheNavMesh.ClearWalkableSeeds();
-		throw new NotImplementedException();
+		TheNavMesh.ClearWalkableSeeds();
 	}
 
 	[ConCommand("nav_compress_id", "Re-orders area and ladder ID's so they are continuous.", FCvar.GameDLL | FCvar.Cheat)]

@@ -341,9 +341,8 @@ public partial class NavArea
 			}
 
 			if (e.From.Area != null && e.To.Area != null) {
-				float halfWidth = 0;
-				ComputePortal(e.To.Area, e.ToDir, e.Path.To, halfWidth);
-				ComputePortal(e.From.Area, e.FromDir, e.Path.From, halfWidth);
+				ComputePortal(e.To.Area, e.ToDir, ref e.Path.To, out float halfWidth);
+				ComputePortal(e.From.Area, e.FromDir, ref e.Path.From, out halfWidth);
 
 				const float eyeHeight = Nav.HalfHumanHeight;
 				e.Path.From.Z = e.From.Area.GetZ(e.Path.From) + eyeHeight;

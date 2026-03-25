@@ -64,7 +64,7 @@ public partial class NavMesh
 	bool IsAnalyzed;
 	const int HASH_TABLE_SIZE = 256;
 	readonly NavArea[] HashTable = new NavArea[HASH_TABLE_SIZE];
-	string?[] PlaceName;
+	string[]? PlaceName;
 	uint PlaceCount;
 	EditModeType EditMode;
 	bool IsEditing;
@@ -143,7 +143,7 @@ public partial class NavMesh
 	void DestroyNavigationMesh(bool incremental = false) {
 		GenerationMode = GenerationModeType.None;
 		CurrentNode = null;
-		// ClearWalkableSeeds();
+		ClearWalkableSeeds();
 
 		IsAnalyzed = false;
 		IsOutOfDate = false;

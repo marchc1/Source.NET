@@ -3,10 +3,11 @@ namespace Game.Server.NavMesh;
 using System.Numerics;
 
 using Game.Server.NextBot;
-using Game.Shared;
 
 using Source;
 using Source.Common;
+
+public class FuncElevator;
 
 public struct NavConnect()
 {
@@ -85,7 +86,7 @@ public class NavAreaCriticalData
 
 	public float PathLengthSoFar;
 
-	// FuncElevator? Elevator;
+	public FuncElevator? Elevator;
 }
 
 public partial class NavArea : NavAreaCriticalData
@@ -187,7 +188,7 @@ public partial class NavArea : NavAreaCriticalData
 		for (int i = 0; i < (int)NavCornerType.NumCorners; i++)
 			LightIntensity[i] = 1.0f;
 
-		// Elevator = null;
+		Elevator = null;
 		ElevatorAreas = [];
 
 		InvDXCorners = 0;
@@ -241,7 +242,7 @@ public partial class NavArea : NavAreaCriticalData
 			Node[i] = null;
 	}
 
-	bool HasNodes() {
+	public bool HasNodes() {
 		throw new NotImplementedException();
 	}
 
@@ -249,7 +250,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	void OnDestroyNotify(NavLadder dead) { }
 
-	void ConnectTo(NavArea area, NavDirType dir) { }
+	public void ConnectTo(NavArea area, NavDirType dir) { }
 
 	void ConnectTo(NavLadder ladder) { }
 
@@ -258,11 +259,19 @@ public partial class NavArea : NavAreaCriticalData
 	void Disconnect(NavLadder ladder) { }
 
 	public uint GetID() => ID;
+
 	void SetAttributes(int bits) => AttributeFlags = bits;
+
 	public int GetAttributes() => AttributeFlags;
-	bool HasAttributes(int bits) => (AttributeFlags & bits) != 0;
+
+	public bool HasAttributes(int bits) => (AttributeFlags & bits) != 0;
+
+	public bool HasAttributes(NavAttributeType attr) => (AttributeFlags & (int)attr) != 0;
+
 	void RemoveAttributes(int bits) => AttributeFlags &= ~bits;
+
 	public void SetPlace(NavPlace place) => Place = place;
+
 	public NavPlace GetPlace() => Place;
 
 	void AddLadderUp(NavLadder ladder) { }
@@ -283,13 +292,15 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	bool IsConnected(NavArea area, NavDirType dir) {
+	public bool IsConnected(NavArea area, NavDirType dir) {
 		throw new NotImplementedException();
 	}
 
 	float ComputeGroundHeightChange(NavArea area) {
 		throw new NotImplementedException();
 	}
+
+	public List<NavConnect> GetIncomingConnections(NavDirType dir) => IncomingConnect[(int)dir];
 
 	void AddIncomingConnection(NavArea source, NavDirType incomingEdgeDir) { }
 
@@ -365,7 +376,17 @@ public partial class NavArea : NavAreaCriticalData
 		return northZ + v * (southZ - northZ);
 	}
 
-	void GetClosestPointOnArea(Vector3 pos, Vector3 close) { }
+	public void GetClosestPointOnArea(ref Vector3 pos, out Vector3 close) {
+		float x = pos.X >= NWCorner.X ? pos.X : NWCorner.X;
+		x = x <= SECorner.X ? x : SECorner.X;
+
+		float y = pos.Y >= NWCorner.Y ? pos.Y : NWCorner.Y;
+		y = y <= SECorner.Y ? y : SECorner.Y;
+
+		float z = GetZ(x, y);
+
+		close = new(x, y, z);
+	}
 
 	float GetDistanceSquaredToPoint(Vector3 pos) {
 		throw new NotImplementedException();
@@ -379,7 +400,51 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	void ComputePortal(NavArea to, NavDirType dir, Vector3 center, float halfWidth) { }
+	public List<NavConnect> GetAdjacentAreas(NavDirType dir) => Connect[(int)dir];
+
+	public void ComputePortal(NavArea to, NavDirType dir, ref Vector3 center, out float halfWidth) {
+		if (dir == NavDirType.North || dir == NavDirType.South) {
+			center.Y = dir == NavDirType.North ? NWCorner.Y : SECorner.Y;
+
+			float left = Math.Max(NWCorner.X, to.NWCorner.X);
+			float right = Math.Min(SECorner.X, to.SECorner.X);
+
+			if (left < NWCorner.X)
+				left = NWCorner.X;
+			else if (left > SECorner.X)
+				left = SECorner.X;
+
+			if (right < NWCorner.X)
+				right = NWCorner.X;
+			else if (right > SECorner.X)
+				right = SECorner.X;
+
+			center.X = (left + right) / 2.0f;
+			halfWidth = (right - left) / 2.0f;
+		}
+		else {
+			center.X = dir == NavDirType.West ? NWCorner.X : SECorner.X;
+
+			float top = Math.Max(NWCorner.Y, to.NWCorner.Y);
+			float bottom = Math.Min(SECorner.Y, to.SECorner.Y);
+
+			if (top < NWCorner.Y)
+				top = NWCorner.Y;
+			else
+				if (top > SECorner.Y)
+					top = SECorner.Y;
+
+			if (bottom < NWCorner.Y)
+				bottom = NWCorner.Y;
+			else if (bottom > SECorner.Y)
+				bottom = SECorner.Y;
+
+			center.Y = (top + bottom) / 2.0f;
+			halfWidth = (bottom - top) / 2.0f;
+		}
+
+		center.Z = GetZ(center.X, center.Y);
+	}
 
 	NavDirType ComputeLargestPortal(NavArea to, Vector3 center, float halfWidth) {
 		throw new NotImplementedException();
@@ -432,6 +497,27 @@ public partial class NavArea : NavAreaCriticalData
 	void RemoveFromOpenList() { }
 
 	void ClearSearchLists() { }
+
+	void SetTotalCost(float value) {
+		Assert(value >= 0);
+		TotalCost = value;
+	}
+
+	float GetTotalCost() => TotalCost;
+
+	void SetCostSoFar(float value) {
+		Assert(value >= 0);
+		CostSoFar = value;
+	}
+
+	public float GetCostSoFar() => CostSoFar;
+
+	void SetPathLengthSoFar(float value) {
+		Assert(value >= 0);
+		PathLengthSoFar = value;
+	}
+
+	float GetPathLengthSoFar() => PathLengthSoFar;
 
 	void SetCorner(NavCornerType corner, Vector3 newPosition) { }
 
@@ -578,15 +664,15 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	// List<Handle<FuncNavPrerequisite>> GetPrerequisiteVector() {
-	// 	throw new NotImplementedException();
-	// }
+	List<Handle<FuncNavPrerequisite>> GetPrerequisiteVector() {
+		throw new NotImplementedException();
+	}
 
 	void RemoveAllPrerequisites() { }
 
-	// void AddPrerequisite(FuncNavPrerequisite prereq) {
-	// 	throw new NotImplementedException();
-	// }
+	void AddPrerequisite(FuncNavPrerequisite prereq) {
+		throw new NotImplementedException();
+	}
 
 	float GetDangerDecayRate() {
 		throw new NotImplementedException();
@@ -670,9 +756,9 @@ public partial class NavArea : NavAreaCriticalData
 	public Vector3 GetCorner(NavCornerType corner) {
 		return corner switch {
 			NavCornerType.NorthWest => NWCorner,
-			NavCornerType.NorthEast => new Vector3(SECorner.X, NWCorner.Y, NEZ),
+			NavCornerType.NorthEast => new(SECorner.X, NWCorner.Y, NEZ),
 			NavCornerType.SouthEast => SECorner,
-			NavCornerType.SouthWest => new Vector3(NWCorner.X, SECorner.Y, SWZ),
+			NavCornerType.SouthWest => new(NWCorner.X, SECorner.Y, SWZ),
 			_ => throw new ArgumentOutOfRangeException(nameof(corner), corner, null)
 		};
 	}

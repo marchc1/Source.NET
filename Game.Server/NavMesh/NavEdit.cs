@@ -13,11 +13,11 @@ namespace Game.Server.NavMesh;
 
 public partial class NavMesh
 {
-	Vector3 SnapToGrid(Vector3 vec, bool snapX, bool snapY, bool forceGrid) {
+	Vector3 SnapToGrid(Vector3 vec, bool snapX = true, bool snapY = true, bool forceGrid = false) {
 		throw new NotImplementedException();
 	}
 
-	float SnapToGrid(float x, bool forceGrid) {
+	public float SnapToGrid(float x, bool forceGrid = false) {
 		throw new NotImplementedException();
 	}
 
@@ -45,7 +45,7 @@ public partial class NavMesh
 		IsDragDeselecting = false;
 	}
 
-	bool FindNavAreaOrLadderAlongRay(Vector3 start, Vector3 end, NavArea bestArea, NavLadder bestLadder, NavArea ignore) {
+	public bool FindNavAreaOrLadderAlongRay(Vector3 start, Vector3 end, out NavArea bestArea, out NavLadder bestLadder, NavArea? ignore) {
 		throw new NotImplementedException();
 	}
 

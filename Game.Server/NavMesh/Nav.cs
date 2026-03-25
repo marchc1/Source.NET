@@ -27,11 +27,21 @@ public static class Nav
 	public static readonly ConVar nav_drag_selection_volume_zmax_offset = new("32", FCvar.Replicated, "The offset of the nav drag volume top from center");
 	public static readonly ConVar nav_drag_selection_volume_zmin_offset = new("32", FCvar.Replicated, "The offset of the nav drag volume bottom from center");
 	public static readonly ConVar nav_show_compass = new("0", FCvar.Cheat);
+	public static readonly ConVar nav_slope_limit = new("0.7", FCvar.Cheat, "The ground unit normal's Z component must be greater than this for nav areas to be generated.");
+	public static readonly ConVar nav_slope_tolerance = new("0.1", FCvar.Cheat, "The ground unit normal's Z component must be this close to the nav area's Z component to be generated.");
+	public static readonly ConVar nav_displacement_test = new("10000", FCvar.Cheat, "Checks for nodes embedded in displacements (useful for in-development maps)");
+	public static readonly ConVar nav_generate_fencetops = new("1", FCvar.Cheat, "Autogenerate nav areas on fence and obstacle tops");
+	public static readonly ConVar nav_generate_fixup_jump_areas = new("1", FCvar.Cheat, "Convert obsolete jump areas into 2-way connections");
+	public static readonly ConVar nav_generate_jump_connections = new("1", FCvar.Cheat, "If disabled, don't generate jump connections from jump areas");
+	public static readonly ConVar nav_generate_incremental_range = new("2000", FCvar.Cheat, "Range to consider when generating nav incrementally");
+	public static readonly ConVar nav_generate_incremental_tolerance = new("0", FCvar.Cheat, "Z tolerance for adding new nav areas during incremental generation.");
+	public static readonly ConVar nav_area_max_size = new("50", FCvar.Cheat, "Max area size created in nav generation");
+
 
 	public const float GenerationStepSize = 25.0f;     // (30) was 20, but bots can't fit always fit
 	const float JumpHeight = 41.8f;         // if delta Z is less than this, we can jump up on it
 	public const float JumpCrouchHeight = 64.0f;     // (48) if delta Z is less than or equal to this, we can jumpcrouch up on it
-	const float StepHeight = 18.0f;         // if delta Z is greater than this, we have to jump to get up
+	public const float StepHeight = 18.0f;         // if delta Z is greater than this, we have to jump to get up
 	const float DeathDrop = 400.0f;         // (300) distance at which we will die if we fall - should be about 600, and pay attention to fall damage during pathfind
 	const float ClimbUpHeight = 200.0f;       // height to check for climbing up
 	const float CliffHeight = 300.0f;       // height which we consider a significant cliff which we would not want to fall off of
@@ -40,7 +50,7 @@ public static class Nav
 	public const float HalfHumanHeight = 35.5f;
 	const float HumanHeight = 71.0f;
 	const float HumanEyeHeight = 62.0f;
-	const float HumanCrouchHeight = 55.0f;
+	public const float HumanCrouchHeight = 55.0f;
 	const float HumanCrouchEyeHeight = 37.0f;
 	public const uint NavMagicNumber = 0xFEEDFACE;       // to help identify nav files
 
@@ -185,9 +195,8 @@ public static class Nav
 		if (entity.ClassMatches("func_playerinfected_clip"))
 			return true;
 
-		// todo
-		// if (nav_solid_props.GetBool() && entity.ClassMatches("prop_*"))
-		// 	return true;
+		if (nav_solid_props.GetBool() && entity.ClassMatches("prop_*"))
+			return true;
 
 		return false;
 	}
@@ -408,7 +417,7 @@ public class TraceFilterWalkableEntities //: TraceFilterNoNPCsOrPlayer
 public interface INavAvoidanceObstacle
 {
 	/// <summary>
-	/// // could we at some future time obstruct nav?
+	/// could we at some future time obstruct nav?
 	/// </summary>
 	bool IsPotentiallyAbleToObstructNavAreas();
 	/// <summary>

@@ -14,7 +14,7 @@ public class NavLadder
 	}
 	Vector3 Top;
 	Vector3 Bottom;
-	float Length;
+	public float Length;
 	float Width;
 	NavArea? TopForwardArea;
 	NavArea? TopLeftArea;
