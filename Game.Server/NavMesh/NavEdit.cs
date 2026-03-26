@@ -413,7 +413,7 @@ public partial class NavMesh
 		MarkedCorner = NavCornerType.NumCorners;
 	}
 
-	void SetMarkedArea(NavArea area) {
+	void SetMarkedArea(NavArea? area) {
 		MarkedLadder = null;
 		MarkedArea = area;
 		MarkedCorner = NavCornerType.NumCorners;

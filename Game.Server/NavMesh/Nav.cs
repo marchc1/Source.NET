@@ -37,7 +37,18 @@ public static class Nav
 	public static readonly ConVar nav_generate_incremental_range = new("2000", FCvar.Cheat, "Range to consider when generating nav incrementally");
 	public static readonly ConVar nav_generate_incremental_tolerance = new("0", FCvar.Cheat, "Z tolerance for adding new nav areas during incremental generation.");
 	public static readonly ConVar nav_area_max_size = new("50", FCvar.Cheat, "Max area size created in nav generation");
-
+	public static readonly ConVar nav_coplanar_slope_limit = new("nav_coplanar_slope_limit", "0.99", FCvar.Cheat);
+	public static readonly ConVar nav_coplanar_slope_limit_displacement = new("nav_coplanar_slope_limit_displacement", "0.7", FCvar.Cheat);
+	public static readonly ConVar nav_split_place_on_ground = new("nav_split_place_on_ground", "0", FCvar.Cheat, "If true, nav areas will be placed flush with the ground when split.");
+	public static readonly ConVar nav_area_bgcolor = new("nav_area_bgcolor", "0 0 0 30", FCvar.Cheat, "RGBA color to draw as the background color for nav areas while editing.");
+	public static readonly ConVar nav_corner_adjust_adjacent = new("nav_corner_adjust_adjacent", "18", FCvar.Cheat, "radius used to raise/lower corners in nearby areas when raising/lowering corners.");
+	public static readonly ConVar nav_show_light_intensity = new("nav_show_light_intensity", "0", FCvar.Cheat);
+	public static readonly ConVar nav_debug_blocked = new("nav_debug_blocked", "0", FCvar.Cheat);
+	public static readonly ConVar nav_show_contiguous = new("nav_show_continguous", "0", FCvar.Cheat, "Highlight non-contiguous connections");
+	public static readonly ConVar nav_max_view_distance = new("nav_max_view_distance", "6000", FCvar.Cheat, "Maximum range for precomputed nav mesh visibility (0 = default 1500 units)");
+	public static readonly ConVar nav_update_visibility_on_edit = new("nav_update_visibility_on_edit", "0", FCvar.Cheat, "If nonzero editing the mesh will incrementally recompue visibility");
+	public static readonly ConVar nav_potentially_visible_dot_tolerance = new("nav_potentially_visible_dot_tolerance", "0.98", FCvar.Cheat);
+	public static readonly ConVar nav_show_potentially_visible = new("nav_show_potentially_visible", "0", FCvar.Cheat, "Show areas that are potentially visible from the current nav area");
 
 	public const float GenerationStepSize = 25.0f;     // (30) was 20, but bots can't fit always fit
 	const float JumpHeight = 41.8f;         // if delta Z is less than this, we can jump up on it

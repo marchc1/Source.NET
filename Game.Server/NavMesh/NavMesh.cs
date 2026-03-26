@@ -165,6 +165,12 @@ public partial class NavMesh
 		throw new NotImplementedException();
 	}
 
+	NavLadder? GetMarkedLadder() => MarkedLadder;
+
+	NavArea? GetSelectedArea() => SelectedArea;
+
+	NavLadder? GetSelectedLadder() => SelectedLadder;
+
 	void DestroyNavigationMesh(bool incremental = false) {
 		BlockedAreas.Clear();
 		AvoidanceObstacleAreas.Clear();
@@ -573,6 +579,290 @@ public partial class NavMesh
 
 		return null;
 	}
+
+	public bool ForAllSelectedAreas(Func<NavArea, bool> func) {
+		if (IsSelectedSetEmpty()) {
+			NavArea? area = GetSelectedArea();
+			if (area != null && !func(area))
+				return false;
+		}
+		else {
+			foreach (NavArea area in SelectedSet) {
+				if (!func(area))
+					return false;
+			}
+		}
+
+		return true;
+	}
+
+	static int SearchMarker = RandomInt(0, 1024 * 1024);
+
+	public bool ForAllAreas(Func<NavArea, bool> func) {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if (!func(area))
+				return false;
+		}
+		return true;
+	}
+
+	public bool ForAllAreasOverlappingExtent(Func<NavArea, bool> func, Extent extent) {
+		if (Grid.Count == 0)
+			return true;
+
+		SearchMarker++;
+		if (SearchMarker == 0)
+			SearchMarker++;
+
+		Extent areaExtent = default;
+
+		int startX = WorldToGridX(extent.Lo.X);
+		int endX = WorldToGridX(extent.Hi.X);
+		int startY = WorldToGridY(extent.Lo.Y);
+		int endY = WorldToGridY(extent.Hi.Y);
+
+		for (int x = startX; x <= endX; ++x) {
+			for (int y = startY; y <= endY; ++y) {
+				int grid = x + y * GridSizeX;
+				if (grid >= Grid.Count)
+					return true;
+
+				List<NavArea> areaVector = Grid[grid];
+
+				foreach (NavArea area in areaVector) {
+					if (area.NearNavSearchMarker == SearchMarker)
+						continue;
+
+					area.NearNavSearchMarker = (uint)SearchMarker;
+					area.GetExtent(ref areaExtent);
+
+					if (extent.IsOverlapping(areaExtent)) {
+						if (!func(area))
+							return false;
+					}
+				}
+			}
+		}
+
+		return true;
+	}
+
+	public void CollectAreasOverlappingExtent(Extent extent, List<NavArea> outList) {
+		if (Grid.Count == 0)
+			return;
+
+		SearchMarker++;
+		if (SearchMarker == 0)
+			SearchMarker++;
+
+		Extent areaExtent = default;
+
+		int startX = WorldToGridX(extent.Lo.X);
+		int endX = WorldToGridX(extent.Hi.X);
+		int startY = WorldToGridY(extent.Lo.Y);
+		int endY = WorldToGridY(extent.Hi.Y);
+
+		for (int x = startX; x <= endX; ++x) {
+			for (int y = startY; y <= endY; ++y) {
+				int grid = x + y * GridSizeX;
+				if (grid >= Grid.Count)
+					return;
+
+				List<NavArea> areaVector = Grid[grid];
+
+				foreach (NavArea area in areaVector) {
+					if (area.NearNavSearchMarker == SearchMarker)
+						continue;
+
+					area.NearNavSearchMarker = (uint)SearchMarker;
+					area.GetExtent(ref areaExtent);
+
+					if (extent.IsOverlapping(areaExtent))
+						outList.Add(area);
+				}
+			}
+		}
+	}
+
+	public bool ForAllAreasInRadius(Func<NavArea, bool> func, Vector3 pos, float radius) {
+		SearchMarker++;
+		if (SearchMarker == 0)
+			SearchMarker++;
+
+		int originX = WorldToGridX(pos.X);
+		int originY = WorldToGridY(pos.Y);
+
+		int shiftLimit = (int)MathF.Ceiling(radius / GridCellSize);
+		float radiusSq = radius * radius;
+
+		if (radius == 0.0f)
+			shiftLimit = Math.Max(GridSizeX, GridSizeY);
+
+		for (int x = originX - shiftLimit; x <= originX + shiftLimit; ++x) {
+			if (x < 0 || x >= GridSizeX)
+				continue;
+
+			for (int y = originY - shiftLimit; y <= originY + shiftLimit; ++y) {
+				if (y < 0 || y >= GridSizeY)
+					continue;
+
+				List<NavArea> areaVector = Grid[x + y * GridSizeX];
+
+				foreach (NavArea area in areaVector) {
+					if (area.NearNavSearchMarker == SearchMarker)
+						continue;
+
+					area.NearNavSearchMarker = (uint)SearchMarker;
+
+					float distSq = Vector3.DistanceSquared(area.GetCenter(), pos);
+
+					if (distSq <= radiusSq || radiusSq == 0) {
+						if (!func(area))
+							return false;
+					}
+				}
+			}
+		}
+
+		return true;
+	}
+
+	public bool ForAllAreasAlongLine(Func<NavArea, bool> func, NavArea startArea, NavArea endArea) {
+		if (startArea == null || endArea == null)
+			return false;
+
+		if (startArea == endArea) {
+			func(startArea);
+			return true;
+		}
+
+		Vector3 start = startArea.GetCenter();
+		Vector3 end = endArea.GetCenter();
+
+		Vector3 to = end - start;
+		float range = to.Length();
+		to /= range;
+
+		const float epsilon = 0.00001f;
+
+		if (range < epsilon) {
+			func(startArea);
+			return true;
+		}
+
+		NavArea area = startArea;
+
+		while (area != null) {
+			func(area);
+
+			if (area == endArea)
+				return true;
+
+			Vector3 origin = area.GetCorner(NavCornerType.NorthWest);
+			float xMin = origin.X;
+			float xMax = xMin + area.GetSizeX();
+			float yMin = origin.Y;
+			float yMax = yMin + area.GetSizeY();
+
+			Vector3 exit = default;
+			NavDirType edge = NavDirType.NumDirections;
+
+			if (to.X < 0.0f) {
+				float t = (xMin - start.X) / (end.X - start.X);
+				if (t > 0.0f && t < 1.0f) {
+					float y = start.Y + t * (end.Y - start.Y);
+					if (y >= yMin && y <= yMax) {
+						exit.X = xMin;
+						exit.Y = y;
+						edge = NavDirType.West;
+					}
+				}
+			}
+			else {
+				float t = (xMax - start.X) / (end.X - start.X);
+				if (t > 0.0f && t < 1.0f) {
+					float y = start.Y + t * (end.Y - start.Y);
+					if (y >= yMin && y <= yMax) {
+						exit.X = xMax;
+						exit.Y = y;
+						edge = NavDirType.East;
+					}
+				}
+			}
+
+			if (edge == NavDirType.NumDirections) {
+				if (to.Y < 0.0f) {
+					float t = (yMin - start.Y) / (end.Y - start.Y);
+					if (t > 0.0f && t < 1.0f) {
+						float x = start.X + t * (end.X - start.X);
+						if (x >= xMin && x <= xMax) {
+							exit.X = x;
+							exit.Y = yMin;
+							edge = NavDirType.North;
+						}
+					}
+				}
+				else {
+					float t = (yMax - start.Y) / (end.Y - start.Y);
+					if (t > 0.0f && t < 1.0f) {
+						float x = start.X + t * (end.X - start.X);
+						if (x >= xMin && x <= xMax) {
+							exit.X = x;
+							exit.Y = yMax;
+							edge = NavDirType.South;
+						}
+					}
+				}
+			}
+
+			if (edge == NavDirType.NumDirections)
+				break;
+
+			List<NavConnect> adjVector = area.GetAdjacentAreas(edge);
+
+			area = null;
+
+			foreach (var conn in adjVector) {
+				NavArea adjArea = conn.Area!;
+				Vector3 adjOrigin = adjArea.GetCorner(NavCornerType.NorthWest);
+
+				if (edge == NavDirType.North || edge == NavDirType.South) {
+					if (adjOrigin.X <= exit.X && adjOrigin.X + adjArea.GetSizeX() >= exit.X) {
+						area = adjArea;
+						break;
+					}
+				}
+				else {
+					if (adjOrigin.Y <= exit.Y && adjOrigin.Y + adjArea.GetSizeY() >= exit.Y) {
+						area = adjArea;
+						break;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+	public bool ForAllLadders(Func<NavLadder, bool> func) {
+		foreach (NavLadder ladder in Ladders) {
+			if (!func(ladder))
+				return false;
+		}
+		return true;
+	}
+
+	public bool StitchMesh(Func<NavArea, bool> func) {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if (func(area)) {
+				StitchAreaIntoMesh(area, NavDirType.North, func);
+				StitchAreaIntoMesh(area, NavDirType.South, func);
+				StitchAreaIntoMesh(area, NavDirType.East, func);
+				StitchAreaIntoMesh(area, NavDirType.West, func);
+			}
+		}
+		return true;
+	}
 }
 
 [Flags]
@@ -642,4 +932,17 @@ public class HidingSpot
 	static void ChangeMasterMarker() => ++MasterMarker;
 	public void SetFlags(HidingSpotFlags flags) => Flags = (byte)flags;
 	public void SetPosition(Vector3 pos) => Pos = pos;
+}
+
+public class NavAreaCollector(bool checkForDuplicates = false)
+{
+	readonly bool CheckForDuplicates = checkForDuplicates;
+	readonly List<NavArea> Areas = [];
+	public bool Invoke(NavArea area) {
+		if (CheckForDuplicates && Areas.Contains(area))
+			return true;
+
+		Areas.Add(area);
+		return true;
+	}
 }
