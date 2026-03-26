@@ -395,7 +395,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	public Edict? PEntityOfEntIndex(int iEntIndex) {
 		if (iEntIndex >= 0 && iEntIndex < sv.MaxEdicts) {
 			Edict? edict = sv.Edicts![iEntIndex];
-			if (edict.IsFree())
+			if (!edict.IsFree())
 				return edict;
 		}
 
