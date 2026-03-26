@@ -101,7 +101,7 @@ public class BaseViewport : EditablePanel, IViewPort
 		base.OnParentChanged(oldParent, newParent);
 	}
 
-	public bool AddNewPanel(IViewPortPanel panel, ReadOnlySpan<char> debugName) {
+	public bool AddNewPanel(IViewPortPanel? panel, ReadOnlySpan<char> debugName) {
 		if (panel == null) {
 			DevMsg($"BaseViewport.AddNewPanel({debugName}): NULL panel.\n");
 			return false;
@@ -118,8 +118,10 @@ public class BaseViewport : EditablePanel, IViewPort
 		return true;
 	}
 
+	public static IViewPort? g_ViewPortInterface = null;
 	public BaseViewport() : base(null, "CBaseViewport") {
 		SetSize(10, 10);
+		g_ViewPortInterface = this;
 		Initialized = false;
 		SetKeyboardInputEnabled(false);
 		SetMouseInputEnabled(false);
@@ -159,7 +161,7 @@ public class BaseViewport : EditablePanel, IViewPort
 	}
 
 	public void ShowBackGround(bool show) {
-		throw new NotImplementedException();
+		// todo
 	}
 
 	public void ShowPanel(ReadOnlySpan<char> name, bool state) {
@@ -248,7 +250,37 @@ public class BaseViewport : EditablePanel, IViewPort
 		LastActivePanel = null;
 	}
 
-	private void CreateDefaultPanels() {
+	private IViewPortPanel? CreatePanelByName(ReadOnlySpan<char> name) {
+		IViewPortPanel? panel = null;
 
+#if false
+		if (strcmp(name, "scoreboard") == 0)
+			panel = new Scoreboard(this);
+		else if (strcmp(name, "info") == 0)
+			panel = new TextWindow(this);
+		else if (strcmp(name, "team") == 0)
+			panel = new TeamMenu(this);
+		else if (strcmp(name, "specmenu") == 0)
+			panel = new SpectatorMenu(this);
+		else if (strcmp(name, "specgui") == 0)
+			panel = new SpectatorGUI(this);
+		else
+#endif
+		if (strcmp(name, "nav_progress") == 0)
+			panel = new NavProgress(this);
+#if false
+		else if (strcmp(name, "commentary_modelviewer") == 0)
+			panel = new CommentaryModelViewer(this);
+#endif
+
+		return panel;
+	}
+
+	private void CreateDefaultPanels() {
+		AddNewPanel(CreatePanelByName("scores"), "PANEL_SCOREBOARD");
+		AddNewPanel(CreatePanelByName("info"), "PANEL_INFO");
+		AddNewPanel(CreatePanelByName("specgui"), "PANEL_SPECGUI");
+		AddNewPanel(CreatePanelByName("specmenu"), "PANEL_SPECMENU");
+		AddNewPanel(CreatePanelByName("nav_progress"), "PANEL_NAV_PROGRESS");
 	}
 }
