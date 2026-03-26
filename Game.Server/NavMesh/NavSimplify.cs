@@ -1,12 +1,17 @@
+using static Game.Server.NavMesh.Nav;
+using static Game.Server.NavMesh.NavSimplify;
+
+
 using Source.Common.Commands;
 
 using System.Numerics;
+using Source.Common.Mathematics;
 
 namespace Game.Server.NavMesh;
 
 static class NavSimplify
 {
-	static bool ReduceToComponentAreas(NavArea area, bool addToSelectedSet) {
+	public static bool ReduceToComponentAreas(NavArea area, bool addToSelectedSet) {
 		if (area == null)
 			return false;
 
@@ -25,24 +30,24 @@ static class NavSimplify
 
 		bool didSplit = false;
 
-		if (sizeX > Nav.GenerationStepSize) {
+		if (sizeX > GenerationStepSize) {
 			Vector3 nwCorner = area.GetCorner(NavCornerType.NorthWest);
-			splitEdge = Nav.RoundToUnits(nwCorner.X, Nav.GenerationStepSize);
+			splitEdge = RoundToUnits(nwCorner.X, GenerationStepSize);
 
 			if (splitEdge < nwCorner.X + minSplitSize)
-				splitEdge += Nav.GenerationStepSize;
+				splitEdge += GenerationStepSize;
 
 			splitAlongX = false;
 
 			didSplit = area.SplitEdit(splitAlongX, splitEdge, out first, out second);
 		}
 
-		if (sizeY > Nav.GenerationStepSize) {
+		if (sizeY > GenerationStepSize) {
 			Vector3 nwCorner = area.GetCorner(NavCornerType.NorthWest);
-			splitEdge = Nav.RoundToUnits(nwCorner.Y, Nav.GenerationStepSize);
+			splitEdge = RoundToUnits(nwCorner.Y, GenerationStepSize);
 
 			if (splitEdge < nwCorner.Y + minSplitSize)
-				splitEdge += Nav.GenerationStepSize;
+				splitEdge += GenerationStepSize;
 
 			splitAlongX = true;
 
@@ -75,11 +80,127 @@ static class NavSimplify
 
 public partial class NavMesh
 {
-	void RemoveNodes() { }
+	void RemoveNodes() {
+		foreach (NavArea area in NavArea.TheNavAreas)
+			area.ResetNodes();
 
-	void GenerateNodes(in Extent bounds) { }
+		NavNode.CleanupGeneration();
+	}
 
-	void SimplifySelectedAreas() { }
+	void GenerateNodes(in Extent bounds) {
+		SimplifyGenerationExtent = bounds;
+		SeedIdx = 0;
+
+		Assert(GenerationMode == GenerationModeType.Simplify);
+		while (SampleStep()) {
+			// do nothing
+		}
+	}
+
+	void SimplifySelectedAreas() {
+		GenerationMode = GenerationModeType.Simplify;
+
+		bool savedSplitPlaceOnGround = nav_split_place_on_ground.GetBool();
+		nav_split_place_on_ground.SetValue(1);
+
+		float savedCoplanarSlopeDisplacementLimit = nav_coplanar_slope_limit_displacement.GetFloat();
+		nav_coplanar_slope_limit_displacement.SetValue(Math.Min(0.5f, savedCoplanarSlopeDisplacementLimit));
+
+		float savedCoplanarSlopeLimit = nav_coplanar_slope_limit.GetFloat();
+		nav_coplanar_slope_limit.SetValue(Math.Min(0.5f, savedCoplanarSlopeLimit));
+
+		int savedGrid = nav_snap_to_grid.GetInt();
+		nav_snap_to_grid.SetValue(1);
+
+		StripNavigationAreas();
+		SetMarkedArea(null);
+
+		NavAreaCollector collector = new();
+		ForAllSelectedAreas(collector.Invoke);
+
+		ClearWalkableSeeds();
+
+		Extent bounds = default;
+
+		bounds.Lo.Init(float.MaxValue, float.MaxValue, float.MaxValue);
+		bounds.Hi.Init(-float.MaxValue, -float.MaxValue, -float.MaxValue);
+
+		for (int i = 0; i < collector.Areas.Count; ++i) {
+			Extent areaExtent = default;
+
+			NavArea area = collector.Areas[i];
+			area.GetExtent(ref areaExtent);
+			areaExtent.Lo.Z -= HalfHumanHeight;
+			areaExtent.Hi.Z += 2 * HalfHumanHeight;
+			bounds.Encompass(areaExtent);
+
+			Vector3 center = area.GetCenter();
+			center.X = SnapToGrid(center.X);
+			center.Y = SnapToGrid(center.Y);
+
+			{
+				if (FindGroundForNode(center, out Vector3 normal)) {
+					AddWalkableSeed(center, normal);
+					center.Z += HalfHumanHeight;
+					bounds.Encompass(center);
+				}
+			}
+
+			RemoveNodes();
+			GenerateNodes(bounds);
+			ClearWalkableSeeds();
+
+			for (int j = 0; j < collector.Areas.Count; ++j)
+				ReduceToComponentAreas(collector.Areas[j], true);
+
+			foreach (NavArea navArea in SelectedSet) {
+				Vector3 corner = area.GetCorner(NavCornerType.NorthEast);
+				if (FindGroundForNode(corner, out Vector3 normal)) {
+					area.Node[(int)NavCornerType.NorthEast] = NavNode.GetNode(corner);
+					NavNode? node = area.Node[(int)NavCornerType.NorthEast];
+					if (node != null) {
+						area.Node[(int)NavCornerType.NorthWest] = node!.GetConnectedNode(NavDirType.West);
+						area.Node[(int)NavCornerType.SouthEast] = node!.GetConnectedNode(NavDirType.South);
+						if (area.Node[(int)NavCornerType.SouthEast] != null) {
+							area.Node[(int)NavCornerType.SouthWest] = area.Node[(int)NavCornerType.SouthEast]!.GetConnectedNode(NavDirType.West);
+
+							if (area.Node[(int)NavCornerType.NorthWest] != null && area.Node[(int)NavCornerType.SouthWest] != null)
+								area.AssignNodes(area);
+						}
+					}
+				}
+			}
+
+			bool allValid = area.Node[(int)NavCornerType.NorthEast] != null && area.Node[(int)NavCornerType.NorthWest] != null && area.Node[(int)NavCornerType.SouthEast] != null && area.Node[(int)NavCornerType.SouthWest] != null;
+
+			Assert(allValid);
+			if (!allValid)
+				Warning($"Area {area.GetID()} didn't get any nodes!\n");
+
+			MergeGeneratedAreas();
+			SquareUpAreas();
+			MarkJumpAreas();
+			SplitAreasUnderOverhangs();
+			MarkStairAreas();
+			StichAndRemoveJumpAreas();
+			HandleObstacleTopAreas();
+			FixUpGeneratedAreas();
+			ClearSelectedSet();
+
+			foreach (NavArea newArea in NavArea.TheNavAreas) {
+				if (newArea.HasNodes())
+					AddToSelectedSet(newArea);
+			}
+
+			RemoveNodes();
+
+			GenerationMode = GenerationModeType.None;
+			nav_split_place_on_ground.SetValue(savedSplitPlaceOnGround);
+			nav_coplanar_slope_limit_displacement.SetValue(savedCoplanarSlopeDisplacementLimit);
+			nav_coplanar_slope_limit.SetValue(savedCoplanarSlopeLimit);
+			nav_snap_to_grid.SetValue(savedGrid);
+		}
+	}
 
 	[ConCommand("nav_simplify_selected", "Chops all selected areas into their component 1x1 areas and re-merges them together into larger areas", FCvar.Cheat)]
 	static void nav_simplify_selected() {

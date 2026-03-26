@@ -123,7 +123,7 @@ public partial class NavArea : NavAreaCriticalData
 	static NavArea OpenList;
 	static NavArea OpenListTail;
 	readonly List<NavConnect>[] IncomingConnect = new List<NavConnect>[(int)NavDirType.NumDirections];
-	readonly NavNode?[] Node = new NavNode[(int)NavCornerType.NumCorners];
+	public readonly NavNode?[] Node = new NavNode[(int)NavCornerType.NumCorners];
 	List<Handle<FuncNavPrerequisite>> PrerequisiteVector;   // list of prerequisites that must be met before this area can be traversed
 	public NavArea? PrevHash, NextHash;
 	int DamagingTickCount;
@@ -282,7 +282,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	void MergeAdjacentConnections(NavArea adjArea) { }
 
-	void AssignNodes(NavArea area) { }
+	public void AssignNodes(NavArea area) { }
 
 	public bool SplitEdit(bool splitAlongX, float splitEdge, out NavArea outAlpha, out NavArea outBeta) {
 		throw new NotImplementedException();

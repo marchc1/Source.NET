@@ -330,9 +330,8 @@ public partial class NavMesh
 			Vector3 pos = spawn.GetAbsOrigin();
 			pos.X = SnapToGrid(pos.X);
 			pos.Y = SnapToGrid(pos.Y);
-			Vector3 normal = Vector3.Zero;
 
-			if (FindGroundForNode(pos, normal))
+			if (FindGroundForNode(pos, out Vector3 normal))
 				AddWalkableSeed(pos, normal);
 		}
 	}
@@ -600,7 +599,7 @@ public partial class NavMesh
 		throw new NotImplementedException();
 	}
 
-	bool FindGroundForNode(Vector3 pos, Vector3 normal) {
+	bool FindGroundForNode(Vector3 pos, out Vector3 normal) {
 		TraceFilterWalkableEntities filter = new(null, CollisionGroup.PlayerMovement, WalkThruFlags.Everything);
 		Trace tr = new();
 		Vector3 start = new(pos.X, pos.Y, pos.Z + VEC_DUCK_HULL_MAX.Z - 0.1f);
@@ -608,7 +607,7 @@ public partial class NavMesh
 
 		// todo tracehull
 
-		return true;
+		throw new NotImplementedException();
 	}
 
 	bool SampleStep() {

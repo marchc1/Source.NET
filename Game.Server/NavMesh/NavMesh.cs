@@ -937,7 +937,7 @@ public class HidingSpot
 public class NavAreaCollector(bool checkForDuplicates = false)
 {
 	readonly bool CheckForDuplicates = checkForDuplicates;
-	readonly List<NavArea> Areas = [];
+	public readonly List<NavArea> Areas = [];
 	public bool Invoke(NavArea area) {
 		if (CheckForDuplicates && Areas.Contains(area))
 			return true;

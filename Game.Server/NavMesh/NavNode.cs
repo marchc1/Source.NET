@@ -114,7 +114,7 @@ public class NavNode
 
 	void ConnectTo(NavNode node, NavDirType dir, float obstacleHeight, float obstacleStartDist, float obstacleEndDist) { }
 
-	NavNode GetNode(Vector3 pos) {
+	public static NavNode GetNode(Vector3 pos) {
 		throw new NotImplementedException();
 	}
 
@@ -126,7 +126,7 @@ public class NavNode
 		throw new NotImplementedException();
 	}
 
-	NavNode GetConnectedNode(NavDirType dir) => To[(int)dir];
+	public NavNode GetConnectedNode(NavDirType dir) => To[(int)dir];
 	Vector3 GetPosition() => Pos;
 	Vector3 GetNormal() => Normal;
 	uint GetID() => ID;
