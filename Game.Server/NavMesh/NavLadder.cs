@@ -52,7 +52,10 @@ public class NavLadder
 	public uint GetID() => ID;
 
 	public static void CompressIDs() {
-		throw new NotImplementedException();
+		NextID = 0;
+		List<NavLadder> ladders = NavMesh.Instance!.GetLadders();
+		for (int i = 0; i < ladders.Count; i++)
+			ladders[i].ID = NextID++;
 	}
 
 	NavArea GetConnection(LadderConnectionType dir) {

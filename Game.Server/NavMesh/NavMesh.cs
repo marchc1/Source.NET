@@ -63,7 +63,7 @@ public partial class NavMesh
 	bool IsOutOfDate;
 	bool IsAnalyzed;
 	const int HASH_TABLE_SIZE = 256;
-	readonly NavArea[] HashTable = new NavArea[HASH_TABLE_SIZE];
+	readonly NavArea?[] HashTable = new NavArea[HASH_TABLE_SIZE];
 	string[]? PlaceName;
 	uint PlaceCount;
 	EditModeType EditMode;
@@ -101,7 +101,7 @@ public partial class NavMesh
 	int GenerationIndex;
 	int SampleTick;
 	bool QuitWhenFinished;
-	float GenerationStartTime;
+	TimeUnit_t GenerationStartTime;
 	Extent SimplifyGenerationExtent;
 	string? SpawnName;
 	readonly List<WalkableSeedSpot> WalkableSeeds = [];
@@ -133,14 +133,6 @@ public partial class NavMesh
 	}
 
 	public void Reset() {
-		DestroyNavigationMesh();
-	}
-
-	NavArea GetMarkedArea() {
-		throw new NotImplementedException();
-	}
-
-	void DestroyNavigationMesh(bool incremental = false) {
 		GenerationMode = GenerationModeType.None;
 		CurrentNode = null;
 		ClearWalkableSeeds();
@@ -167,6 +159,68 @@ public partial class NavMesh
 		SpawnName = null;
 
 		WalkableSeeds.Clear();
+	}
+
+	NavArea GetMarkedArea() {
+		throw new NotImplementedException();
+	}
+
+	void DestroyNavigationMesh(bool incremental = false) {
+		BlockedAreas.Clear();
+		AvoidanceObstacleAreas.Clear();
+		TransientAreas.Clear();
+
+		if (!incremental) {
+			NavArea.IsReset = true;
+			foreach (NavArea area in NavArea.TheNavAreas) {
+				// todo
+			}
+
+			foreach (NavArea area in NavArea.TheNavAreas)
+				DestroyArea(area);
+
+			NavArea.TheNavAreas.Clear();
+
+			NavArea.IsReset = false;
+
+			DestroyLadders();
+		}
+		else {
+			foreach (NavArea area in NavArea.TheNavAreas)
+				area.ResetNodes();
+		}
+
+		DestroyHidingSpots();
+
+		NavNode.CleanupGeneration();
+
+		if (!incremental) {
+			Grid.Clear();
+			GridSizeX = 0;
+			GridSizeY = 0;
+		}
+
+		for (int i = 0; i < HASH_TABLE_SIZE; i++)
+			HashTable[i] = null;
+
+		if (!incremental) {
+			AreaCount = 0;
+
+			NavArea.CompressIDs();
+			NavLadder.CompressIDs();
+		}
+
+		SetEditMode(EditModeType.Normal);
+
+		MarkedArea = null;
+		SelectedArea = null;
+		LastSelectedArea = null;
+		ClimbableSurface = false;
+		MarkedLadder = null;
+		SelectedLadder = null;
+
+		if (!incremental)
+			IsLoaded = false;
 	}
 
 	public void Update() {
@@ -431,7 +485,17 @@ public partial class NavMesh
 
 	public void CommandNavMarkWalkable() { }
 
-	void DestroyLadders() { }
+	void DestroyLadders() {
+		for (int i = 0; i < Ladders.Count; i++) {
+			OnEditDestroyNotify(Ladders[i]);
+			Ladders[i] = null!;
+		}
+
+		Ladders.Clear();
+
+		MarkedLadder = null;
+		SelectedLadder = null;
+	}
 
 	public void StripNavigationAreas() { }
 

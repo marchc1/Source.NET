@@ -4,6 +4,9 @@ using static Game.Server.NavMesh.Nav;
 using Source.Common.Commands;
 
 using System.Numerics;
+using Source.Common;
+using Source;
+using Source.Common.Formats.Keyvalues;
 
 namespace Game.Server.NavMesh;
 
@@ -17,7 +20,7 @@ static class NavGenerate
 	public static uint[] BlockedID = new uint[MAX_BLOCKED_AREAS];
 	public static int BlockedIDCount = 0;
 
-	public static float LastMsgTime = 0.0f;
+	public static double LastMsgTime = 0.0f;
 
 	public static Vector3 NavTraceMins = new(-0.45f, -0.45f, 0);
 	public static Vector3 NavTraceMaxs = new(0.45f, 0.45f, HumanCrouchHeight);
@@ -253,7 +256,7 @@ class Subdivider(int depth)
 public partial class NavMesh
 {
 	void BuildLadders() {
-
+		DestroyLadders();
 	}
 
 	void CreateLadder(Vector3 absMin, Vector3 absMax, float maxHeightAboveTopArea) { }
@@ -320,39 +323,307 @@ public partial class NavMesh
 
 	void CreateNavAreasFromNodes() { }
 
-	void AddWalkableSeeds() { }
+	void AddWalkableSeeds() {
+		BaseEntity? spawn = gEntList.FindEntityByClassname(null, GetPlayerSpawnName());
+
+		if (spawn != null) {
+			Vector3 pos = spawn.GetAbsOrigin();
+			pos.X = SnapToGrid(pos.X);
+			pos.Y = SnapToGrid(pos.Y);
+			Vector3 normal = Vector3.Zero;
+
+			if (FindGroundForNode(pos, normal))
+				AddWalkableSeed(pos, normal);
+		}
+	}
 
 	public void ClearWalkableSeeds() => WalkableSeeds.Clear();
 
 	public void BeginGeneration(bool incremental = false) {
-		throw new NotImplementedException();
+		IGameEvent? evnt = gameeventmanager.CreateEvent("nav_generate");
+		if (evnt != null)
+			gameeventmanager.FireEvent(evnt);
+
+		engine.ServerCommand("bot_kick\n");
+
+		if (incremental)
+			nav_quicksave.SetValue(1);
+
+		GenerationState = GenerationStateType.SampleWalkableSpace;
+		SampleTick = 0;
+		GenerationMode = incremental ? GenerationModeType.Incremental : GenerationModeType.Full;
+		LastMsgTime = 0.0f;
+
+		DestroyNavigationMesh(incremental);
+		SetNavPlace(UndefinedPlace);
+
+		if (!incremental) {
+			BuildLadders();
+			AddWalkableSeeds();
+		}
+
+		CurrentNode = null;
+
+		if (WalkableSeeds.Count == 0) {
+			GenerationMode = GenerationModeType.None;
+			Msg("No valid walkable seed positions.  Cannot generate Navigation Mesh.\n");
+			return;
+		}
+
+		SeedIdx = 0;
+
+		Msg("Generating Navigation Mesh...\n");
+		GenerationStartTime = Platform.Time;
 	}
 
 	public void BeginAnalysis(bool quitWhenFinished = false) { }
 
+	static uint MovedPlayerToArea;
+	static CountdownTimer PlayerSettleTimer;
+	static readonly List<NavArea> UnlitAreas = [];
+	static readonly List<NavArea> UnlitSeedAreas = [];
+	static ConVarRef host_thread_mode = new("host_thread_mode");
 	bool UpdateGeneration(float maxTime) {
-		throw new NotImplementedException();
+		double startTime = Platform.Time;
+		PlayerSettleTimer ??= new();
+
+		switch (GenerationState) {
+			case GenerationStateType.SampleWalkableSpace:
+				AnalysisProgress("Sampling walkable space...", 100, SampleTick / 10, false);
+				SampleTick = (SampleTick + 1) % 1000;
+
+				// while (SampleStep()) { // todo
+				// 	if (Platform.Time - startTime > maxTime)
+				// 		return true;
+				// }
+
+				GenerationState = GenerationStateType.CreateAreasFromSamples;
+				return true;
+			case GenerationStateType.CreateAreasFromSamples:
+				Msg("Creating navigation areas from sampled data...\n");
+				if (GenerationMode == GenerationModeType.Incremental) {
+					ClearSelectedSet();
+					foreach (NavArea area in NavArea.TheNavAreas)
+						AddToSelectedSet(area);
+				}
+
+				CreateNavAreasFromNodes();
+
+				if (GenerationMode == GenerationModeType.Incremental)
+					CommandNavToggleSelectedSet();
+
+				DestroyHidingSpots();
+
+				List<NavArea> tmpSet = [];
+				foreach (NavArea area in NavArea.TheNavAreas) tmpSet.Add(area);
+				NavArea.TheNavAreas.Clear();
+				foreach (NavArea area in tmpSet) NavArea.TheNavAreas.Add(area);
+
+				GenerationState = GenerationStateType.FindHidingSpots;
+				GenerationIndex = 0;
+				return true;
+			case GenerationStateType.FindHidingSpots:
+				while (GenerationIndex < NavArea.TheNavAreas.Count) {
+					NavArea area = NavArea.TheNavAreas[GenerationIndex];
+					GenerationIndex++;
+
+					area.ComputeHidingSpots();
+
+					if (Platform.Time - startTime > maxTime) {
+						AnalysisProgress("Finding hiding spots...", 100, 100 * GenerationIndex / NavArea.TheNavAreas.Count);
+						return true;
+					}
+				}
+
+				Msg("Finding hiding spots...DONE\n");
+
+				GenerationState = GenerationStateType.FindSniperSpots;
+				GenerationIndex = 0;
+				return true;
+			case GenerationStateType.FindEncounterSpots:
+				while (GenerationIndex < NavArea.TheNavAreas.Count) {
+					NavArea area = NavArea.TheNavAreas[GenerationIndex];
+					GenerationIndex++;
+
+					area.ComputeSpotEncounters();
+
+					if (Platform.Time - startTime > maxTime) {
+						AnalysisProgress("Finding encounter spots...", 100, 100 * GenerationIndex / NavArea.TheNavAreas.Count);
+						return true;
+					}
+				}
+
+				Msg("Finding encounter spots...DONE\n");
+
+				GenerationState = GenerationStateType.FindSniperSpots;
+				GenerationIndex = 0;
+				return true;
+			case GenerationStateType.FindSniperSpots:
+				while (GenerationIndex < NavArea.TheNavAreas.Count) {
+					NavArea area = NavArea.TheNavAreas[GenerationIndex];
+					GenerationIndex++;
+
+					area.ComputeSniperSpots();
+
+					if (Platform.Time - startTime > maxTime) {
+						AnalysisProgress("Finding sniper spots...", 100, 100 * GenerationIndex / NavArea.TheNavAreas.Count);
+						return true;
+					}
+				}
+
+				Msg("Finding sniper spots...DONE\n");
+
+				GenerationState = GenerationStateType.ComputeMeshVisibility;
+				GenerationIndex = 0;
+				BeginVisibilityComputations();
+				Msg("Computing mesh visibility...\n");
+				return true;
+			case GenerationStateType.ComputeMeshVisibility:
+				while (GenerationIndex < NavArea.TheNavAreas.Count) {
+					NavArea area = NavArea.TheNavAreas[GenerationIndex];
+					GenerationIndex++;
+
+					area.ComputeVisibilityToMesh();
+
+					if (Platform.Time - startTime > maxTime) {
+						AnalysisProgress("Computing mesh visibility...", 100, 100 * GenerationIndex / NavArea.TheNavAreas.Count);
+						return true;
+					}
+				}
+
+				Msg("Optimizing mesh visibility...\n");
+				EndVisibilityComputations();
+				Msg("Computing mesh visibility...DONE\n");
+
+				GenerationState = GenerationStateType.FindEarliestOccupyTimes;
+				GenerationIndex = 0;
+				return true;
+			case GenerationStateType.FindEarliestOccupyTimes:
+				while (GenerationIndex < NavArea.TheNavAreas.Count) {
+					NavArea area = NavArea.TheNavAreas[GenerationIndex];
+					GenerationIndex++;
+
+					area.ComputeEarliestOccupyTimes();
+
+					if (Platform.Time - startTime > maxTime) {
+						AnalysisProgress("Finding earliest occupy times...", 100, 100 * GenerationIndex / NavArea.TheNavAreas.Count);
+						return true;
+					}
+				}
+
+				Msg("Finding earliest occupy times...DONE\n");
+
+				bool shouldSkipLightComputation = GenerationMode == GenerationModeType.Incremental || engine.IsDedicatedServer();
+
+				if (shouldSkipLightComputation)
+					GenerationState = GenerationStateType.Custom;
+				else {
+					GenerationState = GenerationStateType.FindLightIntensity;
+					PlayerSettleTimer.Invalidate();
+					// NavArea.MakeNewMarker();
+					UnlitAreas.Clear();
+					foreach (NavArea nit in NavArea.TheNavAreas) {
+						UnlitAreas.Add(nit);
+						UnlitSeedAreas.Add(nit);
+					}
+				}
+
+				GenerationIndex = 0;
+				return true;
+			case GenerationStateType.FindLightIntensity:
+				break;
+			case GenerationStateType.Custom:
+				break;
+			case GenerationStateType.SaveNavMesh:
+				break;
+		}
+
+		return false;
 	}
 
-	void SetPlayerSpawnName(char name) { }
+	static void AnalysisProgress(ReadOnlySpan<char> msg, int ticks, int current, bool showPercent = true) {
+		const double MsgInterval = 10.0f;
+		double now = Platform.Time;
+		if (now > LastMsgTime + MsgInterval) {
+			if (showPercent && ticks != 0)
+				Msg($"{msg} {current * 100.0f / ticks:0}%\n");
+			else
+				Msg($"{msg}\n");
 
-	char GetPlayerSpawnName() {
-		throw new NotImplementedException();
+			LastMsgTime = now;
+		}
+
+		KeyValues data = new("data");
+		data.SetString("msg", msg);
+		data.SetInt("total", ticks);
+		data.SetInt("current", current);
+
+		ShowViewPortPanelToAll("nav_progress", true, data);
 	}
+
+	static void HideAnalysisProgress() => ShowViewPortPanelToAll("nav_progress", false, null);
+
+	static void ShowViewPortPanelToAll(ReadOnlySpan<char> panelName, bool show, KeyValues? data) {
+		RecipientFilter filter = new();
+		filter.AddAllPlayers();
+		filter.MakeReliable();
+
+		int count = 0;
+		KeyValues? subkey = null;
+
+		if (data != null) {
+			subkey = data.GetFirstSubKey();
+			while (subkey != null) {
+				count++;
+				subkey = subkey.GetNextKey();
+			}
+			subkey = data.GetFirstSubKey();
+		}
+
+		UserMessageBegin(filter, "VGUIMenu");
+		MessageWriteString(panelName);
+		MessageWriteByte(show ? 1 : 0);
+		MessageWriteByte(count);
+		while (subkey != null) {
+			MessageWriteString(subkey.Name);
+			MessageWriteString(subkey.GetString());
+			subkey = subkey.GetNextKey();
+		}
+		MessageEnd();
+	}
+
+	void SetPlayerSpawnName(ReadOnlySpan<char> name) => SpawnName = name.ToString();
+
+	ReadOnlySpan<char> GetPlayerSpawnName() => SpawnName ?? "info_player_start";
 
 	NavNode AddNode(Vector3 destPos, Vector3 normal, NavDirType dir, NavNode source, bool isOnDisplacement, float obstacleHeight, float obstacleStartDist, float obstacleEndDist) {
 		throw new NotImplementedException();
 	}
 
 	bool FindGroundForNode(Vector3 pos, Vector3 normal) {
-		throw new NotImplementedException();
+		TraceFilterWalkableEntities filter = new(null, CollisionGroup.PlayerMovement, WalkThruFlags.Everything);
+		Trace tr = new();
+		Vector3 start = new(pos.X, pos.Y, pos.Z + VEC_DUCK_HULL_MAX.Z - 0.1f);
+		Vector3 end = new(pos.X, pos.Y, pos.Z - DeathDrop);
+
+		// todo tracehull
+
+		return true;
 	}
 
 	bool SampleStep() {
 		throw new NotImplementedException();
 	}
 
-	void AddWalkableSeed(Vector3 pos, Vector3 normal) { }
+	void AddWalkableSeed(Vector3 pos, Vector3 normal) {
+		WalkableSeedSpot seed = new();
+		seed.Pos.X = RoundToUnits(pos.X, GenerationStepSize);
+		seed.Pos.Y = RoundToUnits(pos.Y, GenerationStepSize);
+		seed.Pos.Z = pos.Z;
+		seed.Normal = normal;
+
+		WalkableSeeds.Add(seed);
+	}
 
 	NavNode GetNextWalkableSeedNode() {
 		throw new NotImplementedException();

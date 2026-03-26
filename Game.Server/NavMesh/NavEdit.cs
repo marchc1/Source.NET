@@ -14,11 +14,55 @@ namespace Game.Server.NavMesh;
 public partial class NavMesh
 {
 	Vector3 SnapToGrid(Vector3 vec, bool snapX = true, bool snapY = true, bool forceGrid = false) {
-		throw new NotImplementedException();
+		int scale = GetGridSize(forceGrid);
+		if (scale == 0)
+			return vec;
+
+		Vector3 res = vec;
+
+		if (snapX)
+			res.X = RoundToUnits(vec.X, scale);
+
+		if (snapY)
+			res.Y = RoundToUnits(vec.Y, scale);
+
+		return res;
 	}
 
 	public float SnapToGrid(float x, bool forceGrid = false) {
-		throw new NotImplementedException();
+		int scale = GetGridSize();
+		if (scale == 0)
+			return x;
+
+		return RoundToUnits(x, scale);
+	}
+
+	int GetGridSize(bool forceGrid = false) {
+		if (Instance!.IsGenerating())
+			return (int)GenerationStepSize;
+
+		int snapVal = nav_snap_to_grid.GetInt();
+		if (forceGrid && snapVal == 0)
+			snapVal = 1;
+
+		if (snapVal == 0)
+			return 0;
+
+		int scale = (int)GenerationStepSize;
+
+		switch (snapVal) {
+			case 3:
+				scale = 1;
+				break;
+			case 2:
+				scale = 5;
+				break;
+			case 1:
+			default:
+				break;
+		}
+
+		return scale;
 	}
 
 	public void GetEditVectors(out Vector3 pos, out Vector3 forward) {

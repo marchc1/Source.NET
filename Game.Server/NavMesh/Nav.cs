@@ -1,5 +1,6 @@
 global using NavPlace = System.UInt32;
 
+using Source;
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Mathematics;
@@ -42,7 +43,7 @@ public static class Nav
 	const float JumpHeight = 41.8f;         // if delta Z is less than this, we can jump up on it
 	public const float JumpCrouchHeight = 64.0f;     // (48) if delta Z is less than or equal to this, we can jumpcrouch up on it
 	public const float StepHeight = 18.0f;         // if delta Z is greater than this, we have to jump to get up
-	const float DeathDrop = 400.0f;         // (300) distance at which we will die if we fall - should be about 600, and pay attention to fall damage during pathfind
+	public const float DeathDrop = 400.0f;         // (300) distance at which we will die if we fall - should be about 600, and pay attention to fall damage during pathfind
 	const float ClimbUpHeight = 200.0f;       // height to check for climbing up
 	const float CliffHeight = 300.0f;       // height which we consider a significant cliff which we would not want to fall off of
 
@@ -402,7 +403,7 @@ public class TraceFilterWalkableEntities //: TraceFilterNoNPCsOrPlayer
 {
 	readonly WalkThruFlags flags;
 
-	public TraceFilterWalkableEntities(IHandleEntity passEntity, int collisionGroup, WalkThruFlags flags) /*: base(passEntity, collisionGroup)*/ => this.flags = flags;
+	public TraceFilterWalkableEntities(IHandleEntity? passEntity, CollisionGroup collisionGroup, WalkThruFlags flags) /*: base(passEntity, collisionGroup)*/ => this.flags = flags;
 
 	public /*override*/ bool ShouldHitEntity(IHandleEntity serverEntity, int contentsMask) {
 		// if (base.ShouldHitEntity(serverEntity, contentsMask)) {

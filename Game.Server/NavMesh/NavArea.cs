@@ -102,7 +102,7 @@ public partial class NavArea : NavAreaCriticalData
 		public readonly bool Equals(AreaBindInfo other) => Area == other.Area;
 	}
 
-	static bool IsReset;
+	public static bool IsReset;
 	public static uint NextID;
 	uint ID;
 	uint DebugID;
@@ -237,7 +237,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	void OnRoundRestart() { }
 
-	void ResetNodes() {
+	public void ResetNodes() {
 		for (int i = 0; i < (int)NavCornerType.NumCorners; i++)
 			Node[i] = null;
 	}
@@ -525,9 +525,9 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	void ComputeHidingSpots() { }
+	public void ComputeHidingSpots() { }
 
-	void ComputeSniperSpots() { }
+	public void ComputeSniperSpots() { }
 
 	SpotEncounter GetSpotEncounter(NavArea from, NavArea to) {
 		throw new NotImplementedException();
@@ -535,7 +535,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	void AddSpotEncounters(NavArea from, NavDirType fromDir, NavArea to, NavDirType toDir) { }
 
-	void ComputeSpotEncounters() { }
+	public void ComputeSpotEncounters() { }
 
 	void DecayDanger() { }
 
@@ -630,7 +630,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	void ComputeVisToArea(NavArea OtherArea) { }
 
-	void ComputeVisibilityToMesh() { }
+	public void ComputeVisibilityToMesh() { }
 
 	bool IsEntirelyVisible(Vector3 eye, BaseEntity ignore) {
 		throw new NotImplementedException();
