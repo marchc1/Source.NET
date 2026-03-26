@@ -63,4 +63,15 @@ public struct Ray {
 		MathLib.VectorAdd(start, StartOffset, out Start);
 		StartOffset *= -1.0f;
 	}
+
+	public readonly Vector3 InvDelta() {
+		Vector3 vecInvDelta = default;
+		for (int iAxis = 0; iAxis < 3; ++iAxis) {
+			if (Delta[iAxis] != 0.0f) 
+				vecInvDelta[iAxis] = 1.0f / Delta[iAxis];
+			else 
+				vecInvDelta[iAxis] = float.MaxValue;
+		}
+		return vecInvDelta;
+	}
 }

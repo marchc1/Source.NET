@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
+using Source.Common.Mathematics;
 using Source.Common.Utilities;
 
 using System.Buffers;
@@ -84,6 +85,49 @@ public static class BitVecBase
 			return -1;
 		return startBit;
 	}
+}
+
+/// <summary>
+/// No idea if this works as it should... this is just simpler than porting the C++ right now
+/// review later
+/// </summary>
+public struct VarBitVec
+{
+	public byte[] bytes;
+	public void ReallocateIfNecessary(nint bitSet) {
+		if (bytes == null || Overflows(bitSet))
+			Array.Resize(ref bytes, 1 + MathLib.CeilPow2((int)(bitSet >> 3)));
+	}
+
+	public readonly bool Overflows(nint bit) {
+		return bytes == null || bit < 0 || (bit >> 3) >= bytes.Length;
+	}
+
+	public uint GetDWord(int i) => BitVecBase.GetDWord(bytes, i);
+	public int Get(int bit) {
+		if (Overflows(bit)) return 0;
+		return BitVecBase.IsBitSet(bytes, bit) ? 1 : 0;
+	}
+	public bool IsBitSet(int bit) {
+		if (Overflows(bit)) return false;
+		return BitVecBase.IsBitSet(bytes, bit);
+	}
+	public void Set(int bit) {
+		ReallocateIfNecessary(bit);
+		BitVecBase.Set(bytes, bit);
+	}
+	public void Clear(int bit) {
+		if (Overflows(bit)) return;
+		BitVecBase.Clear(bytes, bit);
+	}
+	public void Set(int bit, bool newVal){
+		if (newVal == false && Overflows(bit))
+			return;
+		ReallocateIfNecessary(bit);
+		BitVecBase.Set(bytes, bit, newVal);
+	}
+	public int FindNextSetBit(int startBit) => BitVecBase.FindNextSetBit(bytes, startBit);
+	public void ClearAll() => BitVecBase.ClearAll(bytes);
 }
 
 /// <summary>
@@ -351,7 +395,8 @@ public sealed class PooledLinkedList<T> where T : struct
 	}
 
 	public ref T this[int index] {
-		[MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref _nodes[index].Data;
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => ref _nodes[index].Data;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public int Next(int index) => _nodes[index].Next;
@@ -1106,6 +1151,13 @@ public static class UnmanagedUtils
 	public static void EnsureCountNew<T>(this List<T> list, int ensureTo) where T : new() {
 		list.EnsureCapacity(ensureTo);
 
+		while (list.Count < ensureTo)
+			list.Add(new());
+	}
+
+	public static void SetCount<T>(this List<T> list, int ensureTo) where T : struct {
+		list.Clear();
+		list.EnsureCapacity(ensureTo);
 		while (list.Count < ensureTo)
 			list.Add(new());
 	}

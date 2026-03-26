@@ -19,7 +19,7 @@ public static class ChecksumEngine
 		Stream stream = fp.Stream;
 		long startOfs = stream.Position;
 
-		BSPHeader header = default;
+		BSPDHeader header = default;
 		if (stream.Read(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref header, 1))) == 0) {
 			ConMsg($"Could not read BSP header for map [{fileName}].\n");
 			return false;

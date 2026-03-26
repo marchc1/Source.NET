@@ -236,6 +236,49 @@ public enum PlaneType : byte
 	Pad1 = 19
 }
 
+
+public struct CollisionBrushSide
+{
+	public Memory<CollisionPlane> PlaneBackingMemory;
+	public int PlaneIdx;
+	public ref CollisionPlane Plane => ref PlaneBackingMemory.Span[PlaneIdx];
+
+	public ushort SurfaceIndex;
+	public bool Bevel;
+
+	public void SetPlanePointer(CollisionPlane[] collisionPlanes, ushort planeNum) {
+		PlaneBackingMemory = collisionPlanes;
+		PlaneIdx = planeNum;
+	}
+}
+
+public struct CollisionBrush
+{
+	public const int NUMSIDES_BOXBRUSH = -1;
+	public Contents Contents;
+	public int NumSides;
+	public int FirstBrushSide;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public int GetBox() => FirstBrushSide;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public void SetBox(int boxID) {
+		NumSides = NUMSIDES_BOXBRUSH;
+		FirstBrushSide = boxID;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsBox() => NumSides == NUMSIDES_BOXBRUSH;
+}
+
+public struct CollisionBoxBrush
+{
+	public Vector3 Mins;
+	public Vector3 Maxs;
+
+	public InlineArray6<ushort> SurfaceIndex;
+	public InlineArray2<ushort> Pad2;
+}
+
 public struct CollisionLeaf
 {
 	public Contents Contents;
