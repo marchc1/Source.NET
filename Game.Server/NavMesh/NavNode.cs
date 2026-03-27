@@ -1,12 +1,45 @@
-using System.Net.NetworkInformation;
+using static Game.Server.NavMesh.Nav;
+
 using System.Numerics;
 
 namespace Game.Server.NavMesh;
+
+class NodeHashFuncs : IEqualityComparer<NavNode>
+{
+	public bool Equals(NavNode? lhs, NavNode? rhs) {
+		if (lhs is null || rhs is null) return false;
+		return lhs.GetPosition().AsVector2() == rhs.GetPosition().AsVector2();
+	}
+
+	public int GetHashCode(NavNode obj) {
+		var v = obj.GetPosition().AsVector2();
+		return Hash8(v);
+	}
+
+	private static int Hash8(Vector2 v) {
+		unchecked {
+			int hash = 17;
+			hash = hash * 31 + v.X.GetHashCode();
+			hash = hash * 31 + v.Y.GetHashCode();
+			return hash;
+		}
+	}
+}
+
 
 public class NavNode
 {
 	Vector3 Pos;
 	Vector3 Normal;
+
+	static readonly NavDirType[] Opposite = [
+		NavDirType.South,
+		NavDirType.West,
+		NavDirType.North,
+		NavDirType.East
+	];
+
+	public static HashSet<NavNode>? g_NavNodeHash;
 
 	readonly NavNode[] To = new NavNode[(int)NavDirType.NumDirections];
 	readonly NavNode[] Connections = new NavNode[(int)NavDirType.NumDirections];
@@ -19,11 +52,11 @@ public class NavNode
 
 	NavNode? Next;
 	NavNode? NextAtXY;
-	NavNode Parent;
+	NavNode? Parent;
 	NavArea? Area;
 
 	uint ID;
-	int AttributeFlags;
+	NavAttributeType AttributeFlags;
 	byte Visited;
 	bool IsCovered;
 	bool IsOnDisplacement;
@@ -32,9 +65,7 @@ public class NavNode
 	static uint ListLength;
 	static uint NextID;
 
-	static Dictionary<Vector2, NavNode>? NavNodeHash = new(16 * 1024);
-
-	public NavNode(Vector3 pos, Vector3 normal, NavNode parent, bool isOnDisplacement) {
+	public NavNode(Vector3 pos, Vector3 normal, NavNode? parent, bool isOnDisplacement) {
 		Pos = pos;
 		Normal = normal;
 
@@ -67,19 +98,21 @@ public class NavNode
 
 		IsOnDisplacement = isOnDisplacement;
 
-		Vector2 key = Pos.AsVector2();
-		if (NavNodeHash!.TryGetValue(key, out NavNode? existingNode)) {
+		g_NavNodeHash ??= new(new NodeHashFuncs());
+
+		bool didInsert = g_NavNodeHash.Add(this);
+		if (!didInsert) {
+			NavNode existingNode = g_NavNodeHash.First(n => n.Equals(this));
 			NextAtXY = existingNode;
-			NavNodeHash[key] = this;
+			g_NavNodeHash.Remove(existingNode);
+			g_NavNodeHash.Add(this);
 		}
-		else {
+		else
 			NextAtXY = null;
-			NavNodeHash.Add(key, this);
-		}
 	}
 
 	public static void CleanupGeneration() {
-		NavNodeHash = null;
+		g_NavNodeHash = null;
 
 		NavNode? node = List;
 		while (node != null) {
@@ -110,35 +143,114 @@ public class NavNode
 		throw new NotImplementedException();
 	}
 
-	void CheckCrouch() { }
+	void CheckCrouch() {
+		for (int i = 0; i < (int)NavCornerType.NumCorners; i++) {
+			NavCornerType cornerType = (NavCornerType)i;
+			Vector2 cornerVec = CornerToVector2D(cornerType);
 
-	void ConnectTo(NavNode node, NavDirType dir, float obstacleHeight, float obstacleStartDist, float obstacleEndDist) { }
+			Vector3 mins = new(0, 0, 0);
+			Vector3 maxs = new(0, 0, 0);
 
-	public static NavNode GetNode(Vector3 pos) {
-		throw new NotImplementedException();
+			if (cornerVec.X < 0)
+				mins.X = -HalfHumanHeight;
+			else if (cornerVec.X > 0)
+				maxs.X = HalfHumanHeight;
+
+			if (cornerVec.Y < 0)
+				mins.Y = -HalfHumanHeight;
+			else if (cornerVec.Y > 0)
+				maxs.Y = HalfHumanHeight;
+
+			maxs.Z = HumanHeight;
+
+			for (int j = 0; j < 3; j++) {
+				if (mins[j] > maxs[j])
+					(maxs[j], mins[j]) = (mins[j], maxs[j]);
+			}
+
+			if (!TestForCrouchArea(cornerType, mins, maxs, GroundHeightAboveNode[i])) {
+				SetAttribute(NavAttributeType.Crouch);
+				Crouch[i] = true;
+			}
+		}
 	}
 
-	bool IsBiLinked(NavDirType dir) {
-		throw new NotImplementedException();
+	void ConnectTo(NavNode node, NavDirType dir, float obstacleHeight, float obstacleStartDist, float obstacleEndDist) {
+		Assert(obstacleStartDist >= 0 && obstacleStartDist <= GenerationStepSize);
+		Assert(obstacleEndDist >= 0 && obstacleStartDist <= GenerationStepSize);
+		Assert(obstacleStartDist < obstacleEndDist);
+
+		To[(int)dir] = node;
+		ObstacleHeight[(int)dir] = obstacleHeight;
+		ObstacleStartDist[(int)dir] = obstacleStartDist;
+		ObstacleEndDist[(int)dir] = obstacleEndDist;
 	}
 
-	bool IsClosedCell() {
-		throw new NotImplementedException();
+	private static readonly NavNode lookup = new NavNode(default, default, null, false);
+	public static NavNode? GetNode(Vector3 pos) {
+		const float tolerance = 0.45f * GenerationStepSize;
+
+		NavNode? node = null;
+
+		if (g_NavNodeHash != null) {
+			lookup.Pos = pos;
+
+			NavNode? existingNode = g_NavNodeHash.FirstOrDefault(n => n.Equals(lookup));
+			if (existingNode != null) {
+				for (node = existingNode; node != null; node = node.NextAtXY) {
+					float dz = Math.Abs(node.Pos.Z - pos.Z);
+					if (dz < tolerance)
+						break;
+				}
+			}
+		}
+
+		return node;
 	}
+
+	bool IsBiLinked(NavDirType dir) => To[(int)dir] != null && To[(int)dir].To[(int)Opposite[(int)dir]] == this;
+
+	bool IsClosedCell() => IsBiLinked(NavDirType.South)
+			&& IsBiLinked(NavDirType.East)
+			&& To[(int)NavDirType.East].IsBiLinked(NavDirType.South)
+			&& To[(int)NavDirType.South].IsBiLinked(NavDirType.East)
+			&& To[(int)NavDirType.East].To[(int)NavDirType.South] == To[(int)NavDirType.South].To[(int)NavDirType.East];
 
 	public NavNode GetConnectedNode(NavDirType dir) => To[(int)dir];
-	Vector3 GetPosition() => Pos;
+
+	public Vector3 GetPosition() => Pos;
+
 	Vector3 GetNormal() => Normal;
+
 	uint GetID() => ID;
-	static NavNode GetFirst() => List;
+
+	static NavNode? GetFirst() => List;
+
 	static uint GetListLength() => ListLength;
-	NavNode GetNext() => Next;
-	NavNode GetParent() => Parent;
+
+	NavNode? GetNext() => Next;
+
+	public NavNode GetParent() => Parent;
+
 	void MarkAsVisited(NavDirType dir) => Visited |= (byte)(1 << (int)dir);
+
 	bool HasVisited(NavDirType dir) => (Visited & (1 << (int)dir)) != 0;
+
+	void Cover() => IsCovered = true;
+
+	bool IsNodeCovered() => IsCovered;
+
 	void AssignArea(NavArea area) => Area = area;
-	NavArea GetArea() => Area;
+
+	NavArea? GetArea() => Area;
+
+	public void SetAttribute(NavAttributeType attr) => AttributeFlags |= attr;
+
+	public NavAttributeType GetAttributes() => AttributeFlags;
+
 	bool IsBlockedInAnyDirection() => IsBlocked[(int)NavCornerType.NorthEast] || IsBlocked[(int)NavCornerType.NorthWest] || IsBlocked[(int)NavCornerType.SouthEast] || IsBlocked[(int)NavCornerType.SouthWest];
+
+	bool IsOnDisplacementSurface() => IsOnDisplacement;
 }
 
 public class NavNodeHashComparer : IEqualityComparer<NavNode>
@@ -146,14 +258,11 @@ public class NavNodeHashComparer : IEqualityComparer<NavNode>
 	public bool Equals(NavNode? x, NavNode? y) {
 		if (ReferenceEquals(x, y)) return true;
 		if (x is null || y is null) return false;
-
-		// return x.GetPosition().AsVector2D() == y.GetPosition().AsVector2D();
-		throw new NotImplementedException();
+		return x.GetPosition().AsVector2() == y.GetPosition().AsVector2();
 	}
 
 	public int GetHashCode(NavNode obj) {
-		// var v = obj.GetPosition().AsVector2D();
-		// return HashCode.Combine(v.X, v.Y);
-		throw new NotImplementedException();
+		Vector2 v = obj.GetPosition().AsVector2();
+		return HashCode.Combine(v.X, v.Y);
 	}
 }

@@ -61,7 +61,7 @@ class JumpConnector
 		if (!nav_generate_jump_connections.GetBool())
 			return true;
 
-		if ((jumpArea.GetAttributes() & (int)NavAttributeType.Jump) == 0)
+		if ((jumpArea.GetAttributes() & NavAttributeType.Jump) == 0)
 			return true;
 
 		for (int i = 0; i < (int)NavDirType.NumDirections; i++) {
@@ -85,7 +85,7 @@ class JumpConnector
 			if (!sourceArea.IsConnected(jumpArea, outgoingDir))
 				continue;
 
-			if ((sourceArea.GetAttributes() & (int)NavAttributeType.Jump) != 0) {
+			if ((sourceArea.GetAttributes() & NavAttributeType.Jump) != 0) {
 				NavDirType incomingDir = OppositeDirection(outgoingDir);
 				List<NavConnect> in1 = sourceArea.GetIncomingConnections(incomingDir);
 				List<NavConnect> in2 = sourceArea.GetAdjacentAreas(incomingDir);
@@ -104,7 +104,7 @@ class JumpConnector
 		foreach (NavConnect destConnect in dest) {
 			NavArea destArea = destConnect.Area!;
 
-			if ((destArea.GetAttributes() & (int)NavAttributeType.Jump) != 0)
+			if ((destArea.GetAttributes() & NavAttributeType.Jump) != 0)
 				continue;
 
 			Vector3 center = Vector3.Zero;
@@ -378,7 +378,7 @@ public partial class NavMesh
 	public void BeginAnalysis(bool quitWhenFinished = false) { }
 
 	static uint MovedPlayerToArea;
-	static CountdownTimer PlayerSettleTimer;
+	static CountdownTimer? PlayerSettleTimer;
 	static readonly List<NavArea> UnlitAreas = [];
 	static readonly List<NavArea> UnlitSeedAreas = [];
 	static ConVarRef host_thread_mode = new("host_thread_mode");
@@ -391,10 +391,10 @@ public partial class NavMesh
 				AnalysisProgress("Sampling walkable space...", 100, SampleTick / 10, false);
 				SampleTick = (SampleTick + 1) % 1000;
 
-				// while (SampleStep()) { // todo
-				// 	if (Platform.Time - startTime > maxTime)
-				// 		return true;
-				// }
+				while (SampleStep()) {
+					if (Platform.Time - startTime > maxTime)
+						return true;
+				}
 
 				GenerationState = GenerationStateType.CreateAreasFromSamples;
 				return true;
@@ -519,7 +519,7 @@ public partial class NavMesh
 				else {
 					GenerationState = GenerationStateType.FindLightIntensity;
 					PlayerSettleTimer.Invalidate();
-					// NavArea.MakeNewMarker();
+					NavArea.MakeNewMarker();
 					UnlitAreas.Clear();
 					foreach (NavArea nit in NavArea.TheNavAreas) {
 						UnlitAreas.Add(nit);
@@ -530,7 +530,70 @@ public partial class NavMesh
 				GenerationIndex = 0;
 				return true;
 			case GenerationStateType.FindLightIntensity:
-				break;
+				// host_thread_mode 0
+
+				BasePlayer? host = Util.GetListenServerHost();
+
+				if (UnlitAreas.Count == 0 || host == null) {
+					Msg("Finding light intensity...DONE\n");
+					GenerationState = GenerationStateType.Custom;
+					GenerationIndex = 0;
+					return true;
+				}
+
+				if (!PlayerSettleTimer.IsElapsed())
+					return true;
+
+				int sit = 0;
+				while (sit < UnlitAreas.Count) {
+					NavArea area = UnlitAreas[sit];
+
+					if (area.ComputeLighting()) {
+						UnlitSeedAreas.Remove(area);
+						UnlitAreas.RemoveAt(sit);
+						continue;
+					}
+					else
+						sit++;
+				}
+
+				if (UnlitAreas.Count > 0) {
+					if (UnlitSeedAreas.Count > 0) {
+						NavArea moveArea = UnlitSeedAreas[0];
+						UnlitSeedAreas.RemoveAt(0);
+
+						Vector3 eyePos = moveArea.GetCenter();
+						if (GetGroundHeight(eyePos, out float height))
+							eyePos.Z = height + HalfHumanHeight - StepHeight;
+						else
+							eyePos.Z += HalfHumanHeight - StepHeight;
+
+						// host.SetAbsOrigin(eyePos); // todo
+						AnalysisProgress("Finding light intensity...", 100, 100 * (NavArea.TheNavAreas.Count - UnlitAreas.Count) / NavArea.TheNavAreas.Count);
+						MovedPlayerToArea = moveArea.GetID();
+						PlayerSettleTimer.Start(0.1f);
+						return true;
+					}
+					else {
+						Msg($"Finding light intensity...DONE ({UnlitAreas.Count} unlit areas)\n");
+						if (UnlitAreas.Count > 0) {
+							Warning($"To see unlit areas:\n");
+							for (int i = 0; i < UnlitAreas.Count; i++) {
+								NavArea area = UnlitAreas[i];
+								Warning($"nav_unmark; nav_mark {area.GetID()}; nav_warp_to_mark;\n");
+							}
+						}
+
+						GenerationState = GenerationStateType.Custom;
+						GenerationIndex = 0;
+					}
+				}
+
+				Msg("Finding light intensity...DONE\n");
+
+				GenerationState = GenerationStateType.Custom;
+				GenerationIndex = 0;
+				return true;
 			case GenerationStateType.Custom:
 				break;
 			case GenerationStateType.SaveNavMesh:
@@ -607,11 +670,36 @@ public partial class NavMesh
 
 		// todo tracehull
 
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		normal = Vector3.Zero;
+		return true;
 	}
 
 	bool SampleStep() {
-		throw new NotImplementedException();
+		while (true) {
+			if (CurrentNode == null) {
+				CurrentNode = GetNextWalkableSeedNode();
+
+				if (CurrentNode == null) {
+					if (GenerationMode == GenerationModeType.Incremental || GenerationMode == GenerationModeType.Simplify)
+						return false;
+
+					// for (int i = 0; i < Ladders.Count; i++) {
+					// 	NavLadder ladder = Ladders[i];
+
+					// }
+
+					if (CurrentNode == null)
+						return false;
+				}
+			}
+
+			for (NavDirType dir = NavDirType.North; dir < NavDirType.NumDirections; dir++) {
+
+			}
+
+			CurrentNode = CurrentNode.GetParent();
+		}
 	}
 
 	void AddWalkableSeed(Vector3 pos, Vector3 normal) {
@@ -624,8 +712,18 @@ public partial class NavMesh
 		WalkableSeeds.Add(seed);
 	}
 
-	NavNode GetNextWalkableSeedNode() {
-		throw new NotImplementedException();
+	NavNode? GetNextWalkableSeedNode() {
+		if (SeedIdx >= WalkableSeeds.Count)
+			return null;
+
+		WalkableSeedSpot seed = WalkableSeeds[SeedIdx];
+		++SeedIdx;
+
+		NavNode? node = NavNode.GetNode(seed.Pos);
+		if (node != null)
+			return null;
+
+		return new NavNode(seed.Pos, seed.Normal, null, false);
 	}
 
 	void CommandNavSubdivide(in TokenizedCommand args) { }

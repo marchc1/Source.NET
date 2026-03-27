@@ -58,7 +58,7 @@ public class FuncNavObstruction : BaseEntity, INavAvoidanceObstacle
 	void ObstructNavAreas() {
 		Extent extent = default;
 		extent.Init(this);
-		// NavMesh.Instance!.ForAllAreasOverlappingExtent(this, extent); todo
+		NavMesh.Instance!.ForAllAreasOverlappingExtent(Invoke, extent);
 	}
 
 	bool Invoke(NavArea area) {

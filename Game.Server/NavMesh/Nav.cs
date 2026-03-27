@@ -60,7 +60,7 @@ public static class Nav
 
 	const int HalfHumanWidth = 16;
 	public const float HalfHumanHeight = 35.5f;
-	const float HumanHeight = 71.0f;
+	public const float HumanHeight = 71.0f;
 	const float HumanEyeHeight = 62.0f;
 	public const float HumanCrouchHeight = 55.0f;
 	const float HumanCrouchEyeHeight = 37.0f;

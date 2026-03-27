@@ -73,7 +73,7 @@ public class NavAreaCriticalData
 
 	public NavArea? NextOpen, PrevOpen;
 	public uint OpenMarker;
-	public int AttributeFlags;
+	public NavAttributeType AttributeFlags;
 
 	public readonly List<NavConnect>[] Connect = new List<NavConnect>[(int)NavDirType.NumDirections];
 	public readonly List<NavLadderConnect>[] Ladder = new List<NavLadderConnect>[(int)NavLadder.LadderDirectionType.NumLadderDirections];
@@ -260,15 +260,13 @@ public partial class NavArea : NavAreaCriticalData
 
 	public uint GetID() => ID;
 
-	void SetAttributes(int bits) => AttributeFlags = bits;
+	public void SetAttributes(NavAttributeType bits) => AttributeFlags = bits;
 
-	public int GetAttributes() => AttributeFlags;
+	public NavAttributeType GetAttributes() => AttributeFlags;
 
-	public bool HasAttributes(int bits) => (AttributeFlags & bits) != 0;
+	public bool HasAttributes(NavAttributeType bits) => (AttributeFlags & bits) != 0;
 
-	public bool HasAttributes(NavAttributeType attr) => (AttributeFlags & (int)attr) != 0;
-
-	void RemoveAttributes(int bits) => AttributeFlags &= ~bits;
+	void RemoveAttributes(NavAttributeType bits) => AttributeFlags &= ~bits;
 
 	public void SetPlace(NavPlace place) => Place = place;
 
@@ -304,6 +302,12 @@ public partial class NavArea : NavAreaCriticalData
 
 	void AddIncomingConnection(NavArea source, NavDirType incomingEdgeDir) { }
 
+	public List<NavLadderConnect> GetLadders(NavLadder.LadderDirectionType dir) => Ladder[(int)dir];
+
+	public FuncElevator? GetElevator() => Elevator;
+
+	public List<NavConnect> GetElevatorAreas() => ElevatorAreas;
+
 	void FinishSplitEdit(NavArea newArea, NavDirType ignoreEdge) { }
 
 	bool SpliceEdit(NavArea other) {
@@ -328,7 +332,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	bool IsOverlapping(NavArea area) => area.NWCorner.X < SECorner.X && area.SECorner.X > NWCorner.X && area.NWCorner.Y < SECorner.Y && area.SECorner.Y > NWCorner.Y;
 
-	bool IsOverlapping(Extent extent) => extent.Lo.X < SECorner.X && extent.Hi.X > NWCorner.X && extent.Lo.Y < SECorner.Y && extent.Hi.Y > NWCorner.Y;
+	public bool IsOverlapping(Extent extent) => extent.Lo.X < SECorner.X && extent.Hi.X > NWCorner.X && extent.Lo.Y < SECorner.Y && extent.Hi.Y > NWCorner.Y;
 
 	bool IsOverlappingX(NavArea area) {
 		throw new NotImplementedException();
@@ -338,7 +342,7 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	bool Contains(Vector3 pos) {
+	public bool Contains(Vector3 pos) {
 		throw new NotImplementedException();
 	}
 
@@ -456,7 +460,7 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	float ComputeAdjacentConnectionHeightChange(NavArea destinationArea) {
+	public float ComputeAdjacentConnectionHeightChange(NavArea destinationArea) {
 		throw new NotImplementedException();
 	}
 
@@ -488,31 +492,31 @@ public partial class NavArea : NavAreaCriticalData
 
 	public void DrawConnectedAreas() { }
 
-	void AddToOpenList() { }
+	public void AddToOpenList() { }
 
 	void AddToOpenListTail() { }
 
-	void UpdateOnOpenList() { }
+	public void UpdateOnOpenList() { }
 
 	void RemoveFromOpenList() { }
 
-	void ClearSearchLists() { }
+	public static void ClearSearchLists() { }
 
-	void SetTotalCost(float value) {
+	public void SetTotalCost(float value) {
 		Assert(value >= 0);
 		TotalCost = value;
 	}
 
-	float GetTotalCost() => TotalCost;
+	public float GetTotalCost() => TotalCost;
 
-	void SetCostSoFar(float value) {
+	public void SetCostSoFar(float value) {
 		Assert(value >= 0);
 		CostSoFar = value;
 	}
 
 	public float GetCostSoFar() => CostSoFar;
 
-	void SetPathLengthSoFar(float value) {
+	public void SetPathLengthSoFar(float value) {
 		Assert(value >= 0);
 		PathLengthSoFar = value;
 	}
@@ -557,7 +561,26 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	bool ComputeLighting() {
+	public static void MakeNewMarker() {
+		++MasterMarker;
+		if (MasterMarker == 0)
+			MasterMarker = 1;
+	}
+
+	public void Mark() => Marker = MasterMarker;
+
+	public bool IsMarked() => Marker == MasterMarker;
+
+	public void SetParent(NavArea? parent, NavTraverseType how = NavTraverseType.NumTraverseTypes) {
+		Parent = parent;
+		ParentHow = how;
+	}
+
+	public NavArea? GetParent() => Parent;
+
+	public NavTraverseType GetParentHow() => ParentHow;
+
+	public bool ComputeLighting() {
 		throw new NotImplementedException();
 	}
 
@@ -687,29 +710,29 @@ public partial class NavArea : NavAreaCriticalData
 
 	public int GetAdjacentCount(NavDirType dir) => Connect[(int)dir].Count;
 
-	NavArea GetAdjacentArea(NavDirType dir, int i) {
+	public NavArea GetAdjacentArea(NavDirType dir, int i) {
 		throw new NotImplementedException();
 	}
 
-	bool IsOpen() {
+	public bool IsOpen() {
 		throw new NotImplementedException();
 	}
 
-	bool IsOpenListEmpty() {
+	public static bool IsOpenListEmpty() {
 		throw new NotImplementedException();
 	}
 
-	NavArea PopOpenList() {
+	public static NavArea PopOpenList() {
 		throw new NotImplementedException();
 	}
 
-	bool IsClosed() {
+	public bool IsClosed() {
 		throw new NotImplementedException();
 	}
 
-	void AddToClosedList() { }
+	public void AddToClosedList() { }
 
-	void RemoveFromClosedList() { }
+	public void RemoveFromClosedList() { }
 
 	void SetClearedTimestamp(int teamID) { }
 

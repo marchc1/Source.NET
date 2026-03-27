@@ -1,6 +1,8 @@
+using Source;
 using Source.Common.Commands;
 
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace Game.Server.NavMesh;
 
@@ -118,11 +120,11 @@ public partial class NavArea
 			NextID = ID + 1;
 
 		if (version <= 8)
-			AttributeFlags = fileBuffer.ReadByte();
+			AttributeFlags = (NavAttributeType)fileBuffer.ReadByte();
 		else if (version < 13)
-			AttributeFlags = fileBuffer.ReadUInt16();
+			AttributeFlags = (NavAttributeType)fileBuffer.ReadUInt16();
 		else
-			AttributeFlags = fileBuffer.ReadInt32();
+			AttributeFlags = (NavAttributeType)fileBuffer.ReadInt32();
 
 		NWCorner = new Vector3(fileBuffer.ReadSingle(), fileBuffer.ReadSingle(), fileBuffer.ReadSingle());
 		SECorner = new Vector3(fileBuffer.ReadSingle(), fileBuffer.ReadSingle(), fileBuffer.ReadSingle());
@@ -391,10 +393,18 @@ public partial class NavArea
 public partial class NavMesh
 {
 	public static PlaceDirectory placeDirectory = new();
-	void ComputeBattlefrontAreas() { }
+	static InlineArray256<char> Filename;
 
 	public ReadOnlySpan<char> GetFilename() {
-		throw new NotImplementedException();
+		Span<char> gamePath = stackalloc char[256];
+		engine.GetGameDir(gamePath);
+
+		Span<char> path = stackalloc char[256];
+		sprintf(path, "%s\\maps\\%s.nav").S(gamePath).S(gpGlobals.MapName);
+
+		path.CopyTo(Filename);
+
+		return Filename;
 	}
 
 	public bool Save() {
@@ -562,8 +572,6 @@ public partial class NavMesh
 			foreach (NavArea area in NavArea.TheNavAreas)
 				area.ComputeEarliestOccupyTimes();
 		}
-
-		ComputeBattlefrontAreas();
 
 		OneWayLink oneWayLink = new();
 		List<OneWayLink> oneWayLinks = [];

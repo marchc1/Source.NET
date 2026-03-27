@@ -148,7 +148,25 @@ public partial class NavMesh
 
 	void OnEditModeEnd() { }
 
-	void UpdateDragSelectionSet() { }
+	void UpdateDragSelectionSet() {
+		BasePlayer? player = Util.GetListenServerHost();
+		if (player == null)
+			return;
+
+		Extent dragArea = default;
+		int xmin = (int)Math.Min(Anchor.X, EditCursorPos.X);
+		int xmax = (int)Math.Max(Anchor.X, EditCursorPos.X);
+		int ymin = (int)Math.Min(Anchor.Y, EditCursorPos.Y);
+		int ymax = (int)Math.Max(Anchor.Y, EditCursorPos.Y);
+
+		dragArea.Lo = new Vector3(xmin, ymin, Anchor.Z);
+		dragArea.Hi = new Vector3(xmax, ymax, Anchor.Z);
+
+		ClearDragSelectionSet();
+
+		AddToDragSet add = new(dragArea, (int)Anchor.Z - DragSelectionVolumeZMin, (int)Anchor.Z + DragSelectionVolumeZMax, IsDragDeselecting);
+		ForAllAreas(add.Invoke);
+	}
 
 	static Color DragSelectionSetAddColor = new(100, 255, 100, 96);
 	static Color DragSelectionSetDeleteColor = new(255, 100, 100, 96);
@@ -184,19 +202,19 @@ public partial class NavMesh
 					Vector3 pos;
 
 					pos = EditCursorPos;
-					Nav.AddDirectionVector(ref pos, NavDirType.North, offset);
+					AddDirectionVector(ref pos, NavDirType.North, offset);
 					DebugOverlay.Text(pos, "N", false, DebugOverlay.Persist);
 
 					pos = EditCursorPos;
-					Nav.AddDirectionVector(ref pos, NavDirType.South, offset);
+					AddDirectionVector(ref pos, NavDirType.South, offset);
 					DebugOverlay.Text(pos, "S", false, DebugOverlay.Persist);
 
 					pos = EditCursorPos;
-					Nav.AddDirectionVector(ref pos, NavDirType.East, offset);
+					AddDirectionVector(ref pos, NavDirType.East, offset);
 					DebugOverlay.Text(pos, "E", false, DebugOverlay.Persist);
 
 					pos = EditCursorPos;
-					Nav.AddDirectionVector(ref pos, NavDirType.West, offset);
+					AddDirectionVector(ref pos, NavDirType.West, offset);
 					DebugOverlay.Text(pos, "W", false, DebugOverlay.Persist);
 				}
 			}
@@ -290,7 +308,7 @@ public partial class NavMesh
 						attrib[0] = '\0';
 					else {
 						attrib[0] = '\0';
-						NavAttributeType attributes = (NavAttributeType)SelectedArea.GetAttributes();
+						NavAttributeType attributes = SelectedArea.GetAttributes();
 						if ((attributes & NavAttributeType.Crouch) != 0) strcat(attrib, "CROUCH ");
 						if ((attributes & NavAttributeType.Jump) != 0) strcat(attrib, "JUMP ");
 						if ((attributes & NavAttributeType.Precice) != 0) strcat(attrib, "PRECISE ");
@@ -512,7 +530,16 @@ public partial class NavMesh
 
 	public void CommandNavSplice() { }
 
-	void DoToggleAttribute(NavArea area, NavAttributeType attribute) { }
+	void DoToggleAttribute(NavArea area, NavAttributeType attribute) {
+		area.SetAttributes(area.GetAttributes() ^ attribute);
+
+		if (attribute == NavAttributeType.Transient) {
+			if ((area.GetAttributes() & NavAttributeType.Transient) != 0)
+				TransientAreas.Add(area);
+			else
+				TransientAreas.Remove(area);
+		}
+	}
 
 	public void CommandNavToggleAttribute(NavAttributeType attribute) { }
 
@@ -581,5 +608,37 @@ public class DrawSelectedSet(Vector3 shift)
 		}
 
 		return Count < nav_draw_limit.GetInt();
+	}
+}
+
+class AddToDragSet(Extent area, int zMin, int zMax, bool dragDeselecting)
+{
+	Extent DragArea = area;
+	int ZMin = zMin - 1;
+	int ZMax = zMax + 1;
+	bool DragDeselecting = dragDeselecting;
+
+	public bool Invoke(NavArea area) {
+		bool shouldBeInSelectedSet = DragDeselecting;
+
+		if ((NavMesh.Instance!.IsInSelectedSet(area) == shouldBeInSelectedSet) && area.IsOverlapping(DragArea) && area.GetCenter().Z >= ZMin && area.GetCenter().Z <= ZMax)
+			NavMesh.Instance.AddToSelectedSet(area);
+
+		return true;
+	}
+}
+
+public class SelectCollector(int count)
+{
+	public int Count = count;
+
+	public bool Invoke(NavArea area) {
+		if (NavMesh.Instance!.IsInSelectedSet(area))
+			return false;
+
+		NavMesh.Instance.AddToSelectedSet(area);
+		++Count;
+
+		return true;
 	}
 }

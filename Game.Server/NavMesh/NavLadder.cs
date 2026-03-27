@@ -16,11 +16,11 @@ public class NavLadder
 	Vector3 Bottom;
 	public float Length;
 	float Width;
-	NavArea? TopForwardArea;
-	NavArea? TopLeftArea;
-	NavArea? TopRightArea;
-	NavArea? TopBehindArea;
-	NavArea? BottomArea;
+	public NavArea? TopForwardArea;
+	public NavArea? TopLeftArea;
+	public NavArea? TopRightArea;
+	public NavArea? TopBehindArea;
+	public NavArea? BottomArea;
 	EHANDLE LadderEntity;
 	NavDirType dIR;
 	Vector3 Normal;

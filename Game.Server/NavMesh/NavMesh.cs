@@ -328,7 +328,7 @@ public partial class NavMesh
 			area.PrevHash = null;
 		}
 
-		if ((area.GetAttributes() & (int)NavAttributeType.Transient) != 0)
+		if ((area.GetAttributes() & NavAttributeType.Transient) != 0)
 			TransientAreas.Add(area);
 
 		++AreaCount;
