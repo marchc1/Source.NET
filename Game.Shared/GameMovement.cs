@@ -701,7 +701,6 @@ public class GameMovement : IGameMovement
 
 		// first try moving directly to the next spot
 		TracePlayerBBox(mv.GetAbsOrigin(), dest, PlayerSolidMask(), CollisionGroup.PlayerMovement, out pm);
-		pm = default;
 
 		// If we made it all the way, then copy trace end as new player position.
 		mv.WishVel += wishdir * wishspeed;
