@@ -874,6 +874,7 @@ public struct BSPDLeafAmbientIndex
 /// <summary>
 /// Analog of dbrushside_t
 /// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 2, Size = sizeof(short) * 4)]
 public struct BSPDBrushSide
 {
 	public ushort PlaneNum;

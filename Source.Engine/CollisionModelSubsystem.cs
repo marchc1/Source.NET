@@ -522,7 +522,7 @@ public static partial class CM
 	internal static void ClearTrace(ref Trace trace) {
 		trace = default;
 		trace.Fraction = 1;
-		trace.FractionLeftSolid = 1;
+		trace.FractionLeftSolid = 0;
 		trace.Surface = CollisionBSPData.NullSurface;
 	}
 }
