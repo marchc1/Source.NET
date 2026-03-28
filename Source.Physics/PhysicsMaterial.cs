@@ -56,7 +56,7 @@ public class PhysicsSurfaceProps : IPhysicsSurfaceProps
 		surface ??= GetInternalSurface(0); // Zero is always the "default" property
 
 		Assert(surface != null);
-		return surface.Data;
+		return surface?.Data;
 	}
 
 	public const int MATERIAL_INDEX_SHADOW = 0xF000;

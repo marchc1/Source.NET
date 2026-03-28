@@ -1192,9 +1192,8 @@ public class GameMovement : IGameMovement
 			flGroundFactor = Player.SurfaceData.Game.JumpFactor;
 
 		float flMul;
-		if (g_bMovementOptimizations) {
-			flMul = 160.0f; // approx. 21 units.
-		}
+		if (g_bMovementOptimizations)
+			flMul = 268.3281572999747f;
 		else
 			flMul = MathF.Sqrt(2 * GetCurrentGravity() * GAMEMOVEMENT_JUMP_HEIGHT);
 

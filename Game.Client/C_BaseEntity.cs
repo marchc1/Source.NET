@@ -2314,10 +2314,46 @@ public partial class C_BaseEntity : IClientEntity
 		return true;
 	}
 
+	readonly object m_CalcAbsoluteVelocityMutex = new();
+
+	public void CalcAbsoluteVelocity() {
+		if ((eflags & EFL.DirtyAbsVelocity) == 0)
+			return;
+		lock (m_CalcAbsoluteVelocityMutex) {
+			if ((eflags & EFL.DirtyAbsVelocity) == 0) // need second check in event another thread grabbed mutex and did the calculation
+				return;
+			
+			eflags &= ~EFL.DirtyAbsVelocity;
+
+			BaseEntity? moveParent = GetMoveParent();
+			if (moveParent == null) {
+				AbsVelocity = Velocity;
+				return;
+			}
+
+			MathLib.VectorRotate(Velocity, moveParent.EntityToWorldTransform(), out AbsVelocity);
+
+
+			// Add in the attachments velocity if it exists
+			if (ParentAttachment != 0) {
+				Vector3 vOriginVel;
+				Quaternion vAngleVel;
+				if (moveParent.GetAttachmentVelocity(ParentAttachment, out vOriginVel, out vAngleVel)) {
+					AbsVelocity += vOriginVel;
+					return;
+				}
+			}
+
+			// Now add in the parent abs velocity
+			AbsVelocity += moveParent.GetAbsVelocity();
+		}
+	}
+
 	Vector3 AbsVelocity;
 	QAngle AngVelocity;
 	// todo
 	public ref readonly Vector3 GetAbsVelocity() {
+		CalcAbsoluteVelocity();
 		return ref AbsVelocity;
 	}
 	public void SetAbsVelocity(in Vector3 absVelocity) {
