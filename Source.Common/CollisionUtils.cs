@@ -111,4 +111,14 @@ public static class CollisionUtils
 
 		return offset + 1e-3f;
 	}
+
+	public static bool IsBoxIntersectingBox(in Vector3 boxMin1, in Vector3 boxMax1, in Vector3 boxMin2, in Vector3 boxMax2) {
+		if ((boxMin1[0] > boxMax2[0]) || (boxMax1[0] < boxMin2[0]))
+			return false;
+		if ((boxMin1[1] > boxMax2[1]) || (boxMax1[1] < boxMin2[1]))
+			return false;
+		if ((boxMin1[2] > boxMax2[2]) || (boxMax1[2] < boxMin2[2]))
+			return false;
+		return true;
+	}
 }

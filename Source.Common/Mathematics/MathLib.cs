@@ -543,12 +543,38 @@ public static class MathLib
 
 		return ref new Span<Vector3>(ref a).Cast<Vector3, float>()[idx];
 	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe ref float SubFloat(ref fltx4 a, int idx) {
+		ArgumentOutOfRangeException.ThrowIfNegative(idx);
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(idx, 4);
+		fixed (fltx4* ap = &a) {
+			// This is probably terrible!
+			return ref ((float*)ap)[idx];
+		}
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static ref float SubFloat(ref Vector4 a, int idx) {
 		ArgumentOutOfRangeException.ThrowIfNegative(idx);
 		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(idx, 4);
 
 		return ref new Span<Vector4>(ref a).Cast<Vector4, float>()[idx];
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static uint SubInt(in Vector3 a, int idx) {
+		return (uint)a[idx];
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe uint SubInt(in fltx4 a, int idx) {
+		return (uint)Vector128.GetElement(a, idx);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static uint SubInt(in Vector4 a, int idx) {
+		return (uint)a[idx];
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -830,10 +856,16 @@ public static class MathLib
 		outM[2, 3] = -DotProduct(tmp, outM[2]);
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static vec_t DotProduct(ReadOnlySpan<vec_t> v1, ReadOnlySpan<vec_t> v2) {
-		return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
-	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProduct(ReadOnlySpan<vec_t> v1, ReadOnlySpan<vec_t> v2) => v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProduct(ReadOnlySpan<vec_t> v1, in Vector3 v2) => v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProduct(in Vector3 v1, ReadOnlySpan<vec_t> v2) => v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProduct(in Vector3 v1, in Vector3 v2) => v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProductAbs(ReadOnlySpan<vec_t> v1, ReadOnlySpan<vec_t> v2) => MathF.Abs(v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProductAbs(ReadOnlySpan<vec_t> v1, in Vector3 v2) => MathF.Abs(v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProductAbs(in Vector3 v1, ReadOnlySpan<vec_t> v2) => MathF.Abs(v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProductAbs(in Vector3 v1, in Vector3 v2) => MathF.Abs(v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]);
+
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe vec_t DotProduct(in Quaternion v1, in Quaternion v2) {
@@ -842,9 +874,6 @@ public static class MathLib
 			return DotProduct(new(pV1, 4), new(pV2, 4));
 		}
 	}
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static vec_t DotProduct(in Vector3 v1, in Vector3 v2) => v1.X * v2.X + v1.Y * v2.Y + v1.Z * v2.Z;
-
 
 	public static void MatrixBuildPerspectiveX(ref Matrix4x4 dst, float fovX, float aspectRatio, float zNear, float zFar) {
 		float flWidthScale = 1.0f / MathF.Tan(fovX * MathF.PI / 360.0f);
@@ -1474,24 +1503,6 @@ public static class MathLib
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static Vector128<float> CmpLtSIMD(Vector128<float> a, Vector128<float> b) {
-		if (Sse.IsSupported)
-			return Sse.CompareLessThan(a, b);
-		if (AdvSimd.IsSupported)
-			return AdvSimd.CompareLessThan(a, b).AsSingle();
-		return Vector128.LessThan(a, b).AsSingle();
-	}
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static Vector128<float> CmpGtSIMD(Vector128<float> a, Vector128<float> b) {
-		if (Sse.IsSupported)
-			return Sse.CompareGreaterThan(a, b);
-		if (AdvSimd.IsSupported)
-			return AdvSimd.CompareGreaterThan(a, b).AsSingle();
-		return Vector128.GreaterThan(a, b).AsSingle();
-	}
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Vector128<float> AndSIMD(Vector128<float> a, Vector128<float> b) {
 		if (Sse.IsSupported)
 			return Sse.And(a, b);
@@ -1541,15 +1552,15 @@ public static class MathLib
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Vector128<float> SetWToZeroSIMD(Vector128<float> v) {
-		if (Sse.IsSupported) 
+		if (Sse.IsSupported)
 			return Sse.And(v, Vector128.Create(~0u, ~0u, ~0u, 0u).AsSingle());
-		
-		if (AdvSimd.IsSupported) 
+
+		if (AdvSimd.IsSupported)
 			return AdvSimd.And(
 				v.AsUInt32(),
 				Vector128.Create(~0u, ~0u, ~0u, 0u)
 			).AsSingle();
-		
+
 		return Vector128.AndNot(Vector128.Create(0u, 0u, 0u, ~0u).AsSingle(), v);
 	}
 
@@ -1581,11 +1592,11 @@ public static class MathLib
 	public static Vector128<float> MaskedAssign(Vector128<float> mask, Vector128<float> yes, Vector128<float> no) {
 		if (Sse41.IsSupported)
 			return Sse41.BlendVariable(no, yes, mask);
-		if (Sse.IsSupported) 
+		if (Sse.IsSupported)
 			return Sse.Or(Sse.And(mask, yes), Sse.AndNot(mask, no));
-		if (AdvSimd.IsSupported) 
+		if (AdvSimd.IsSupported)
 			return AdvSimd.BitwiseSelect(mask.AsUInt32(), yes.AsUInt32(), no.AsUInt32()).AsSingle();
-		
+
 		return Vector128.ConditionalSelect(mask.AsInt32(), yes.AsInt32(), no.AsInt32()).AsSingle();
 	}
 
@@ -1632,7 +1643,93 @@ public static class MathLib
 			return Vector128.Create(m);
 		}
 	}
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat2(in Vector2 v2) => Vector128.Create([v2.X, v2.Y, 0, 0]);
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat3(in Vector3 v3) => Vector128.Create([v3.X, v3.Y, v3.Z, 0]);
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat4(in Vector4 v4) => Vector128.Create([v4.X, v4.Y, v4.Z, v4.W]);
+
+	public const uint PERMUTE_0X = 0;
+	public const uint PERMUTE_0Y = 1;
+	public const uint PERMUTE_0Z = 2;
+	public const uint PERMUTE_0W = 3;
+	public const uint PERMUTE_1X = 4;
+	public const uint PERMUTE_1Y = 5;
+	public const uint PERMUTE_1Z = 6;
+	public const uint PERMUTE_1W = 7;
+
+	public const uint AXIS_X = 0;
+	public const uint AXIS_Y = 1;
+	public const uint AXIS_Z = 2;
+	public const uint AXIS_W = 3;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat2(in Vector2 v2) => Vector128.Create(v2.X, v2.Y, 0, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat3(in Vector3 v3) => Vector128.Create(v3.X, v3.Y, v3.Z, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat4(in Vector4 v4) => Vector128.Create(v4.X, v4.Y, v4.Z, v4.W);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt2(in Vector2 v2) => Vector128.Create((int)v2.X, (int)v2.Y, 0, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt3(in Vector3 v3) => Vector128.Create((int)v3.X, (int)v3.Y, (int)v3.Z, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt4(in Vector4 v4) => Vector128.Create((int)v4.X, (int)v4.Y, (int)v4.Z, (int)v4.W);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat2(ReadOnlySpan<float> a) => Vector128.Create(a[0], a[1], 0, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat3(ReadOnlySpan<float> a) => Vector128.Create(a[0], a[1], a[2], 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat4(ReadOnlySpan<float> a) => Vector128.Create(a[0], a[1], a[2], a[3]);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt2(ReadOnlySpan<int> a) => Vector128.Create((int)a[0], (int)a[1], 0, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt3(ReadOnlySpan<int> a) => Vector128.Create((int)a[0], (int)a[1], (int)a[2], 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt4(ReadOnlySpan<int> a) => Vector128.Create((int)a[0], (int)a[1], (int)a[2], (int)a[3]);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat2(Span<float> a) => Vector128.Create(a[0], a[1], 0, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat3(Span<float> a) => Vector128.Create(a[0], a[1], a[2], 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat4(Span<float> a) => Vector128.Create(a[0], a[1], a[2], a[3]);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt2(Span<int> a) => Vector128.Create((int)a[0], (int)a[1], 0, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt3(Span<int> a) => Vector128.Create((int)a[0], (int)a[1], (int)a[2], 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt4(Span<int> a) => Vector128.Create((int)a[0], (int)a[1], (int)a[2], (int)a[3]);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static fltx4 SplatXSIMD(fltx4 a) {
+		var v = a[(int)AXIS_X];
+		return Vector128.Create(v,v,v,v);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static fltx4 SplatYSIMD(fltx4 a) {
+		var v = a[(int)AXIS_Y];
+		return Vector128.Create(v, v, v, v);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static fltx4 SplatZSIMD(fltx4 a) {
+		var v = a[(int)AXIS_Z];
+		return Vector128.Create(v, v, v, v);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static fltx4 SplatWSIMD(fltx4 a) {
+		var v = a[(int)AXIS_W];
+		return Vector128.Create(v, v, v, v);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> RotateLeft(fltx4 a) {
+		Vector128<int> control = Vector128.Create((int)AXIS_Y, (int)AXIS_Z, (int)AXIS_W, (int)AXIS_X);
+		return Vector128.Shuffle(a, control);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> RotateLeft2(fltx4 a) {
+		Vector128<int> control = Vector128.Create((int)AXIS_Z, (int)AXIS_W, (int)AXIS_X, (int)AXIS_Y);
+		return Vector128.Shuffle(a, control);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> RotateRight(fltx4 a) {
+		Vector128<int> control = Vector128.Create((int)AXIS_W, (int)AXIS_X, (int)AXIS_Y, (int)AXIS_Z);
+		return Vector128.Shuffle(a, control);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> RotateRight2(fltx4 a) {
+		Vector128<int> control = Vector128.Create((int)AXIS_Z, (int)AXIS_W, (int)AXIS_X, (int)AXIS_Y);
+		return Vector128.Shuffle(a, control);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> CmpGtSIMD(fltx4 a, fltx4 b) => Vector128.GreaterThan(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> CmpGeSIMD(fltx4 a, fltx4 b) => Vector128.GreaterThanOrEqual(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> CmpLtSIMD(fltx4 a, fltx4 b) => Vector128.LessThan(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> CmpLeSIMD(fltx4 a, fltx4 b) => Vector128.LessThanOrEqual(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsAllGreaterThan(fltx4 a, fltx4 b) => Vector128.GreaterThanAll(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsAllGreaterThanOrEq(fltx4 a, fltx4 b) => Vector128.GreaterThanOrEqualAll(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsAllEqual(fltx4 a, fltx4 b) => Vector128.EqualsAll(a, b);
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 16, Size = sizeof(float) * 4 * 3)]
+public struct FourVectors
+{
+	public Vector4 x, y, z;
 }

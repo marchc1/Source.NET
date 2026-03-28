@@ -33,6 +33,7 @@ public class CollisionBSPData
 	public readonly List<CollisionBoxBrush> MapBoxBrushes = [];
 	public readonly List<CollisionNode> MapNodes = [];
 	public readonly List<CollisionLeaf> MapLeafs = [];
+	public readonly List<ushort> MapDispList = [];
 	public readonly List<ushort> MapLeafBrushes = [];
 	public readonly List<string?> TextureNames = [];
 	public static readonly CollisionSurface NullSurface = new() { Name = "**empty**", Flags = 0, SurfaceProps = 0 };
@@ -57,6 +58,12 @@ public class CollisionBSPData
 	public int NumTextures;
 	public int NumBrushSides;
 	public int NumBoxBrushes;
+
+	public ref readonly CollisionSurface GetSurfaceAtIndex(ushort surfaceIndex) {
+		if (surfaceIndex == SURFACE_INDEX_INVALID)
+			return ref NullSurface;
+		return ref MapSurfaces.AsSpan()[surfaceIndex];
+	}
 
 	internal bool Init() {
 		NumLeafs = 1;
@@ -288,9 +295,9 @@ public class CollisionBSPData
 					ref BSPDBrushSide inputSide = ref inData[firstInputSide + j];
 					side.SetPlanePointer(MapPlanes.Base(), inputSide.PlaneNum);
 					int t = inputSide.TexInfo;
-					if (t >= map_texinfo.Count) 
+					if (t >= map_texinfo.Count)
 						Sys.Error("Bad brushside texinfo");
-					
+
 
 					// BUGBUG: Why is vbsp writing out -1 as the texinfo id?  (TEXINFO_NODE ?)
 					side.SurfaceIndex = (ushort)((t < 0) ? SURFACE_INDEX_INVALID : map_texinfo[t]);
@@ -320,7 +327,7 @@ public class CollisionBSPData
 				box.Mins[axis] = -plane.Dist;
 				box.SurfaceIndex[axis] = (ushort)surfaceIndex;
 			}
-			else 
+			else
 				Assert(false);
 		}
 		box.Pad2[0] = 0;

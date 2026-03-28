@@ -20,6 +20,7 @@ global using static Source.Common.StringTableBits;
 global using static Source.Common.CoordSize;
 global using static Source.Common.DataMapConstants;
 global using static Source.Common.PartitionConstants;
+global using static Source.Common.DispCollCommon;
 global using CRC32_t = uint;
 global using HCursor = nint;
 global using UtlSymId_t = ulong;
@@ -48,6 +49,7 @@ global using ViewRects = Source.Common.Utilities.RefStack<Source.Common.Engine.V
 global using ClientRenderHandle_t = long;
 global using ClientEntityHandle = Source.Common.BaseHandle;
 global using ClientThinkHandle_t = ulong;
+global using fltx4 = System.Runtime.Intrinsics.Vector128<float>;
 global using static Source.Common.ClientRenderHandleGlobals;
 global using static Source.Common.Audio.AudioConstants;
 global using static Source.Common.Engine.EdictGlobals;
