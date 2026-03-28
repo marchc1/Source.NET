@@ -36,7 +36,7 @@ public class NavLadder
 	}
 
 	static uint NextID;
-	uint ID;
+	public uint ID;
 
 	public NavLadder() {
 		TopForwardArea = null;
@@ -84,7 +84,9 @@ public class NavLadder
 
 	void FindLadderEntity() { }
 
-	void Save(ReadOnlySpan<char> fileBuffer, uint version) { }
+	public void Save(BinaryWriter fileBuffer, uint version) {
+		DevWarning("NavLadder::Save: not implemented\n");
+	}
 
 	public void Load(BinaryReader fileBuffer, uint version) { }
 

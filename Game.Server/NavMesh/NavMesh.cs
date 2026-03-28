@@ -59,9 +59,9 @@ public partial class NavMesh
 	float MinX;
 	float MinY;
 	uint AreaCount;
-	bool IsLoaded;
+	bool bIsLoaded;
 	bool IsOutOfDate;
-	bool IsAnalyzed;
+	bool bIsAnalyzed;
 	const int HASH_TABLE_SIZE = 256;
 	readonly NavArea?[] HashTable = new NavArea[HASH_TABLE_SIZE];
 	string[]? PlaceName;
@@ -109,7 +109,7 @@ public partial class NavMesh
 	int HostThreatModeRestoreValue;
 	readonly List<NavArea> TransientAreas = [];
 	readonly List<NavArea> AvoidanceObstacleAreas = [];
-	// readonly List<INavAvoidanceObstacle> AvoidanceObstacles = [];
+	readonly List<INavAvoidanceObstacle> AvoidanceObstacles = [];
 	readonly List<NavArea> BlockedAreas = [];
 	readonly List<int> StoredSelectedSet = [];
 	CountdownTimer UpdateBlockedAreasTimer = new();
@@ -137,7 +137,7 @@ public partial class NavMesh
 		CurrentNode = null;
 		ClearWalkableSeeds();
 
-		IsAnalyzed = false;
+		bIsAnalyzed = false;
 		IsOutOfDate = false;
 		IsEditing = false;
 		NavPlace = Nav.UndefinedPlace;
@@ -226,7 +226,7 @@ public partial class NavMesh
 		SelectedLadder = null;
 
 		if (!incremental)
-			IsLoaded = false;
+			bIsLoaded = false;
 	}
 
 	public void Update() {
@@ -264,9 +264,9 @@ public partial class NavMesh
 		if (nav_show_func_nav_prefer.GetBool()) DrawFuncNavPrefer();
 		if (nav_show_func_nav_prerequisite.GetBool()) DrawFuncNavPrerequisite();
 
-		// if (nav_show_potentially_visible.GetBool()) {
-		// todo
-		// }
+		if (nav_show_potentially_visible.GetBool()) {
+			// todo
+		}
 
 		for (int i = 0; i < WalkableSeeds.Count; i++) {
 			WalkableSeedSpot spot = WalkableSeeds[i];
@@ -285,6 +285,10 @@ public partial class NavMesh
 	static void DrawLine(in Vector3 from, in Vector3 to, float _, int r, int g, int b) => Shared.DebugOverlay.Line(from, to, r, g, b, true, Shared.DebugOverlay.Persist);
 
 	void FireGameEvent(IGameEvent gameEvent) { }
+
+	public bool IsLoaded() => bIsLoaded;
+
+	public bool IsAnalyzed() => bIsAnalyzed;
 
 	void AllocateGrid(float minX, float maxX, float minY, float maxY) {
 		Grid.Clear();
@@ -336,7 +340,10 @@ public partial class NavMesh
 
 	public void RemoveNavArea(NavArea area) { }
 
-	public void OnServerActivate() { }
+	public void OnServerActivate() {
+		foreach (NavArea area in NavArea.TheNavAreas)
+			area.OnServerActivate();
+	}
 
 	void TestAllAreasForBlockedStatus() {
 		foreach (NavArea area in NavArea.TheNavAreas)
@@ -398,6 +405,9 @@ public partial class NavMesh
 	}
 
 	public NavArea? GetNavAreaByID(uint id) {
+		if (id == 0)
+			return null;
+
 		int key = ComputeHashKey(id);
 
 		for (NavArea? area = HashTable[key]; area != null; area = area.NextHash) {
@@ -420,7 +430,7 @@ public partial class NavMesh
 
 	void LoadPlaceDatabase() { }
 
-	string? PlaceToName(NavPlace place) {
+	public string? PlaceToName(NavPlace place) {
 		if (place >= 1 && place <= PlaceCount)
 			return PlaceName[place];
 
@@ -503,7 +513,12 @@ public partial class NavMesh
 		SelectedLadder = null;
 	}
 
-	public void StripNavigationAreas() { }
+	public void StripNavigationAreas() {
+		foreach (NavArea area in NavArea.TheNavAreas)
+			area.Strip();
+
+		bIsAnalyzed = false;
+	}
 
 	public HidingSpot CreateHidingSpot() => new();
 
@@ -518,13 +533,19 @@ public partial class NavMesh
 			area.UpdateBlocked();
 	}
 
-	public void RegisterAvoidanceObstacle(INavAvoidanceObstacle obstruction) { }
+	public void RegisterAvoidanceObstacle(INavAvoidanceObstacle obstruction) {
+		if (!AvoidanceObstacles.Contains(obstruction))
+			AvoidanceObstacles.Add(obstruction);
+	}
 
-	void UnregisterAvoidanceObstacle(INavAvoidanceObstacle obstruction) { }
+	void UnregisterAvoidanceObstacle(INavAvoidanceObstacle obstruction) => AvoidanceObstacles.Remove(obstruction);
 
-	void OnAvoidanceObstacleEnteredArea(NavArea area) { }
+	public void OnAvoidanceObstacleEnteredArea(NavArea area) {
+		if (!AvoidanceObstacleAreas.Contains(area))
+			AvoidanceObstacleAreas.Add(area);
+	}
 
-	void OnAvoidanceObstacleLeftArea(NavArea area) { }
+	void OnAvoidanceObstacleLeftArea(NavArea area) => AvoidanceObstacleAreas.Remove(area);
 
 	void UpdateAvoidanceObstacleAreas() {
 		foreach (NavArea area in AvoidanceObstacleAreas)
@@ -540,6 +561,12 @@ public partial class NavMesh
 	EditModeType GetEditMode() => EditMode;
 
 	uint GetSubVersionNumber() => 0;
+
+	public virtual void SaveCustomData(BinaryWriter buffer) { }
+	public virtual void LoadCustomData(BinaryReader buffer, uint version) { }
+
+	public virtual void SaveCustomDataPreArea(BinaryWriter buffer) { }
+	public virtual void LoadCustomDataPreArea(BinaryReader buffer, uint version) { }
 
 	NavArea CreateArea() => new();
 
@@ -750,7 +777,7 @@ public partial class NavMesh
 			return true;
 		}
 
-		NavArea area = startArea;
+		NavArea? area = startArea;
 
 		while (area != null) {
 			func(area);
@@ -883,7 +910,7 @@ public class HidingSpot
 	public static List<HidingSpot> TheHidingSpots = [];
 
 	Vector3 Pos;
-	uint ID;
+	public uint ID;
 	uint Marker;
 	NavArea? Area;
 	byte Flags;

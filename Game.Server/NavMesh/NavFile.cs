@@ -1,3 +1,5 @@
+using CommunityToolkit.HighPerformance;
+
 using Source;
 using Source.Common.Commands;
 
@@ -8,8 +10,36 @@ namespace Game.Server.NavMesh;
 
 static class NavFile
 {
+	// 1 = hiding spots as plain vector array
+	// 2 = hiding spots as HidingSpot objects
+	// 3 = Encounter spots use HidingSpot ID's instead of storing vector again
+	// 4 = Includes size of source bsp file to verify nav data correlation
+	// ---- Beta Release at V4 -----
+	// 5 = Added Place info
+	// ---- Conversion to Src ------
+	// 6 = Added Ladder info
+	// 7 = Areas store ladder ID's so ladders can have one-way connections
+	// 8 = Added earliest occupy times (2 floats) to each area
+	// 9 = Promoted CNavArea's attribute flags to a short
+	// 10 - Added sub-version number to allow derived classes to have custom area data
+	// 11 - Added light intensity to each area
+	// 12 - Storing presence of unnamed areas in the PlaceDirectory
+	// 13 - Widened NavArea attribute bits from unsigned short to int
+	// 14 - Added a bool for if the nav needs analysis
+	// 15 - removed approach areas
+	// 16 - Added visibility data to the base mesh
+
 	/// IMPORTANT: If this version changes, the swap function in makegamedata must be updated to match.
 	public const int NavCurrentVersion = 16;
+
+	public static void WarnIfMeshNeedsAnalysis(uint version) {
+		if (version >= 14) {
+			if (!NavMesh.Instance!.IsAnalyzed()) {
+				Warning("The nav mesh needs a full nav_analyze\n");
+				return;
+			}
+		}
+	}
 }
 
 public class PlaceDirectory
@@ -26,7 +56,7 @@ public class PlaceDirectory
 
 	bool IsKnown(NavPlace place) => Directory.Contains(place);
 
-	ushort GetIndex(NavPlace place) { // todo IndexType
+	public ushort GetIndex(NavPlace place) { // todo IndexType
 		if (place == Nav.UndefinedPlace)
 			return 0;
 
@@ -39,12 +69,11 @@ public class PlaceDirectory
 		return (ushort)(index + 1);
 	}
 
-	void AddPlace(NavPlace place) {
+	public void AddPlace(NavPlace place) {
 		if (place == Nav.UndefinedPlace) {
 			HasUnnamedAreas = true;
 			return;
 		}
-
 
 		Assert(place < 1000);
 
@@ -65,7 +94,27 @@ public class PlaceDirectory
 		return Directory[index];
 	}
 
-	void Save(ReadOnlySpan<char> fileBuffer) { }
+	public void Save(BinaryWriter buffer) {
+		ushort count = (ushort)Directory.Count;
+		buffer.Write(count);
+
+		foreach (NavPlace place in Directory) {
+			ReadOnlySpan<char> placeName = NavMesh.Instance!.PlaceToName(place);
+
+			int byteCount = System.Text.Encoding.ASCII.GetByteCount(placeName);
+			ushort len = (ushort)(byteCount + 1);
+
+			buffer.Write(len);
+
+			Span<byte> tmp = stackalloc byte[byteCount];
+			System.Text.Encoding.ASCII.GetBytes(placeName, tmp);
+
+			buffer.Write(tmp);
+			buffer.Write((byte)0);
+		}
+
+		buffer.Write((byte)(HasUnnamedAreas ? 1 : 0));
+	}
 
 	public void Load(BinaryReader fileBuffer, uint version) {
 		ushort count = fileBuffer.ReadUInt16();
@@ -111,7 +160,121 @@ struct OneWayLink
 
 public partial class NavArea
 {
-	void Save(ReadOnlySpan<char> fileBuffer, uint version) { }
+	public void Save(BinaryWriter buffer, uint version) {
+		buffer.Write(ID);
+		buffer.Write((int)AttributeFlags);
+
+		buffer.Write(NWCorner.X);
+		buffer.Write(NWCorner.Y);
+		buffer.Write(NWCorner.Z);
+
+		buffer.Write(SECorner.X);
+		buffer.Write(SECorner.Y);
+		buffer.Write(SECorner.Z);
+
+		buffer.Write(NEZ);
+		buffer.Write(SWZ);
+
+		for (int d = 0; d < (int)NavDirType.NumDirections; d++) {
+			uint c = (uint)Connect[d].Count;
+			buffer.Write(c);
+
+			for (int i = 0; i < Connect[d].Count; i++) {
+				NavConnect connect = Connect[d][i];
+				buffer.Write(connect.Area!.ID);
+			}
+		}
+
+		byte count;
+		if (HidingSpots.Count > 255) count = 255;
+		else count = (byte)HidingSpots.Count;
+		buffer.Write(count);
+
+		uint saveCount = 0;
+		for (int i = 0; i < HidingSpots.Count; i++) {
+			HidingSpot spot = HidingSpots[i];
+			spot.Save(buffer, version);
+			if (++saveCount == count) break;
+		}
+
+		uint count2 = (uint)SpotEncounters.Count;
+		buffer.Write(count2);
+
+		for (int i = 0; i < SpotEncounters.Count; i++) {
+			SpotEncounter e = SpotEncounters[i];
+
+			if (e.From.Area != null) buffer.Write(e.From.Area.ID);
+			else buffer.Write(0u);
+
+			byte dir = (byte)e.FromDir;
+			buffer.Write(dir);
+
+			if (e.To.Area != null) buffer.Write(e.To.Area.ID);
+			else buffer.Write(0u);
+
+			dir = (byte)e.ToDir;
+			buffer.Write(dir);
+
+			byte spotCount;
+			if (e.Spots.Count > 255) spotCount = 255;
+			else spotCount = (byte)e.Spots.Count;
+			buffer.Write(spotCount);
+
+			saveCount = 0;
+			for (int j = 0; j < e.Spots.Count; j++) {
+				SpotOrder order = e.Spots[j];
+
+				uint id;
+				if (order.Spot != null) id = order.Spot.ID;
+				else id = 0u;
+				buffer.Write(id);
+
+				byte t = (byte)(255 * order.T);
+				buffer.Write(t);
+
+				if (++saveCount == spotCount) break;
+			}
+		}
+
+		ushort entry = NavMesh.placeDirectory.GetIndex(GetPlace());
+		buffer.Write(entry);
+
+		for (int i = 0; i < (int)NavLadder.LadderDirectionType.NumLadderDirections; i++) {
+			uint count3 = (uint)Ladder[i].Count;
+			buffer.Write(count3);
+
+			for (int j = 0; j < Ladder[i].Count; j++) {
+				NavLadderConnect ladder = Ladder[i][j];
+				uint id = ladder.Ladder!.ID;
+				buffer.Write(id);
+			}
+		}
+
+		for (int i = 0; i < MAX_NAV_TEAMS; i++)
+			buffer.Write(EarliestOccupyTime[i]);
+
+		for (int i = 0; i < (int)NavCornerType.NumCorners; i++)
+			buffer.Write(LightIntensity[i]);
+
+		uint visibleAreaCount = (uint)PotentiallyVisibleAreas.Count;
+		buffer.Write(visibleAreaCount);
+
+		for (int i = 0; i < PotentiallyVisibleAreas.Count; i++) {
+			AreaBindInfo v = PotentiallyVisibleAreas[i];
+
+			uint id;
+			if (v.Area != null) id = v.Area.ID;
+			else id = 0u;
+
+			buffer.Write(id);
+			buffer.Write(v.Attributes);
+		}
+
+		uint inheritID;
+		if (InheritVisibilityFrom.Area != null) inheritID = InheritVisibilityFrom.Area.ID;
+		else inheritID = 0u;
+		buffer.Write(inheritID);
+	}
 
 	public NavErrorType Load(BinaryReader fileBuffer, uint version, uint subVersion) {
 		ID = fileBuffer.ReadUInt32();
@@ -309,6 +472,7 @@ public partial class NavArea
 					Msg("NavArea::PostLoad: Corrupt navigation ladder data. Cannot connect Navigation Areas.\n");
 					error = NavErrorType.CorruptData;
 				}
+				Ladder[dir][it] = connect;
 			}
 		}
 
@@ -323,6 +487,7 @@ public partial class NavArea
 					error = NavErrorType.CorruptData;
 				}
 				connect.Length = (connect.Area!.GetCenter() - GetCenter()).Length();
+				Connect[d][it] = connect;
 			}
 		}
 
@@ -359,7 +524,9 @@ public partial class NavArea
 					Msg("NavArea::PostLoad: Corrupt navigation data. Missing Hiding Spot\n");
 					error = NavErrorType.CorruptData;
 				}
+				e.Spots[sit] = order;
 			}
+			SpotEncounters[it] = e;
 		}
 
 		for (int it = 0; it < PotentiallyVisibleAreas.Count; ++it) {
@@ -368,6 +535,7 @@ public partial class NavArea
 			info.Area = NavMesh.Instance!.GetNavAreaByID(info.ID);
 			if (info.Area == null)
 				Warning("Invalid area in visible set for area #%d\n", GetID());
+			PotentiallyVisibleAreas[it] = info;
 		}
 
 		InheritVisibilityFrom.Area = NavMesh.Instance!.GetNavAreaByID(InheritVisibilityFrom.ID);
@@ -388,27 +556,91 @@ public partial class NavArea
 		for (int team = 0; team < MAX_NAV_TEAMS; ++team)
 			EarliestOccupyTime[team] = 0.0f;
 	}
+
+	public virtual void CustomAnalysis(bool incremental) { }
 }
 
 public partial class NavMesh
 {
 	public static PlaceDirectory placeDirectory = new();
 	static InlineArray256<char> Filename;
+	static InlineArray256<char> BspFilename;
 
-	public ReadOnlySpan<char> GetFilename() {
+	public Span<char> GetFilename() {
 		Span<char> gamePath = stackalloc char[256];
 		engine.GetGameDir(gamePath);
 
 		Span<char> path = stackalloc char[256];
-		sprintf(path, "%s\\maps\\%s.nav").S(gamePath).S(gpGlobals.MapName);
+		sprintf(path, "%smaps\\%s.nav").S(gamePath).S(gpGlobals.MapName);
 
 		path.CopyTo(Filename);
 
-		return Filename;
+		Span<char> filename = Filename;
+		return filename.SliceNullTerminatedString();
+	}
+
+	ReadOnlySpan<char> GetBspFilename(ReadOnlySpan<char> navFilename) {
+		sprintf(BspFilename, "maps\\%s.bsp").S(gpGlobals.MapName);
+		ReadOnlySpan<char> filename = BspFilename;
+		return filename.SliceNullTerminatedString();
 	}
 
 	public bool Save() {
-		throw new NotImplementedException();
+		NavFile.WarnIfMeshNeedsAnalysis(NavFile.NavCurrentVersion);
+
+		Span<char> filename = GetFilename();
+		StrTools.FixSlashes(filename);
+
+		ReadOnlySpan<char> bspFilename = GetBspFilename(filename);
+
+		using MemoryStream memStream = new();
+		using BinaryWriter buffer = new(memStream);
+
+		uint magic = Nav.NavMagicNumber;
+		buffer.Write(magic);
+		buffer.Write(NavFile.NavCurrentVersion);
+		buffer.Write(GetSubVersionNumber());
+
+		long bspSize = filesystem.Size(bspFilename);
+		DevMsg($"Size of bsp file '{bspFilename}' is {bspSize} bytes.\n");
+
+		buffer.Write((uint)bspSize);
+		buffer.Write((byte)(IsAnalyzed() ? 1 : 0));
+
+		placeDirectory.Reset();
+
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			NavPlace place = area.GetPlace();
+			placeDirectory.AddPlace(place);
+		}
+
+		placeDirectory.Save(buffer);
+
+		SaveCustomDataPreArea(buffer);
+
+		uint count = (uint)NavArea.TheNavAreas.Count;
+		buffer.Write(count);
+
+		foreach (NavArea area in NavArea.TheNavAreas)
+			area.Save(buffer, NavFile.NavCurrentVersion);
+
+		uint ladderCount = (uint)GetLadders().Count;
+		buffer.Write(ladderCount);
+
+		foreach (NavLadder ladder in GetLadders())
+			ladder.Save(buffer, NavFile.NavCurrentVersion);
+
+		SaveCustomData(buffer);
+
+		if (true /*!filesystem.WriteFile(filename, "MOD", memStream.ToArray(), 0)*/) {
+			Warning($"Unable to save {memStream.Length} bytes to {filename}\n");
+			return false;
+		}
+
+		long navSize = filesystem.Size(filename);
+		DevMsg($"Size of nav file '{filename}' is {navSize} bytes.\n");
+
+		return true;
 	}
 
 	List<NavPlace> GetPlacesFromNavFile(bool hasUnnamedPlaces) {
@@ -500,9 +732,9 @@ public partial class NavMesh
 		}
 
 		if (version >= 14)
-			IsAnalyzed = buffer.ReadByte() != 0;
+			bIsAnalyzed = buffer.ReadByte() != 0;
 		else
-			IsAnalyzed = false;
+			bIsAnalyzed = false;
 
 		if (version >= 5)
 			placeDirectory.Load(buffer, version);
@@ -556,7 +788,7 @@ public partial class NavMesh
 
 		NavErrorType loadResult = PostLoad(version);
 
-		// WarnIfMeshNeedsAnalysis();
+		NavFile.WarnIfMeshNeedsAnalysis(version);
 
 		return loadResult;
 	}
@@ -573,30 +805,47 @@ public partial class NavMesh
 				area.ComputeEarliestOccupyTimes();
 		}
 
-		OneWayLink oneWayLink = new();
 		List<OneWayLink> oneWayLinks = [];
+
 		foreach (NavArea area in NavArea.TheNavAreas) {
-			// todo
+			for (int d = 0; d < (int)NavDirType.NumDirections; ++d) {
+				List<NavConnect> connectList = area.GetAdjacentAreas((NavDirType)d);
+
+				foreach (NavConnect connect in connectList) {
+					OneWayLink oneWayLink = new() {
+						Area = area,
+						DestArea = connect.Area!,
+						BackD = (int)Nav.OppositeDirection((NavDirType)d)
+					};
+
+					List<NavConnect> backConnectList = oneWayLink.DestArea.GetAdjacentAreas((NavDirType)oneWayLink.BackD);
+					bool isOneWay = true;
+
+					foreach (NavConnect backConnect in backConnectList) {
+						if (backConnect.Area.GetID() == oneWayLink.Area.GetID()) {
+							isOneWay = false;
+							break;
+						}
+					}
+
+					if (isOneWay)
+						oneWayLinks.Add(oneWayLink);
+				}
+			}
 		}
 
-		// todo
+		// todo sort oneway
+
+		foreach (OneWayLink link in oneWayLinks)
+			link.DestArea.AddIncomingConnection(link.Area, (NavDirType)link.BackD);
 
 		ValidateNavAreaConnections();
 
-		// for (int i = 0; i < AvoidanceObstacles.Count; ++i)
-		// AvoidanceObstacles[i].OnNavMeshLoaded();
+		for (int i = 0; i < AvoidanceObstacles.Count; ++i)
+			AvoidanceObstacles[i].OnNavMeshLoaded();
 
-		IsLoaded = true;
+		bIsLoaded = true;
 
 		return NavErrorType.Ok;
 	}
-
-#if DEBUG
-	static ConVar loadthenavrightnowplease = new("0", 0, "", callback: (_, in _) => {
-		Console.WriteLine("Loading nav mesh...");
-		Instance ??= new NavMesh();
-		Instance?.Load();
-		Instance?.Update();
-	});
-#endif
 }

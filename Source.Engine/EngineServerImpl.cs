@@ -29,7 +29,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	}
 
 	public void ChangeLevel(ReadOnlySpan<char> s1, ReadOnlySpan<char> s2) {
-		throw new NotImplementedException();
+		DevWarning("ChangeLevel not implemented\n");
 	}
 
 	public void ChangeTeam(ReadOnlySpan<char> pTeamName) {
@@ -192,9 +192,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public void GetGameDir(Span<char> getGameDir) {
-		throw new NotImplementedException();
-	}
+	public void GetGameDir(Span<char> getGameDir) => strcpy(getGameDir, Common.Gamedir);
 
 	public ref readonly CSteamID GetGameServerSteamID() {
 		throw new NotImplementedException();

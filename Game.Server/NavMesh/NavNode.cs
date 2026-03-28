@@ -240,7 +240,7 @@ public class NavNode
 
 	bool IsNodeCovered() => IsCovered;
 
-	void AssignArea(NavArea area) => Area = area;
+	public void AssignArea(NavArea area) => Area = area;
 
 	NavArea? GetArea() => Area;
 

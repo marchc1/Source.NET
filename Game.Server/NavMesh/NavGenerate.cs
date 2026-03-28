@@ -595,13 +595,74 @@ public partial class NavMesh
 				GenerationIndex = 0;
 				return true;
 			case GenerationStateType.Custom:
-				break;
+				if (GenerationIndex == 0) {
+					BeginCustomAnalysis(GenerationMode == GenerationModeType.Incremental);
+					Msg("Start custom...\n");
+				}
+
+				while (GenerationIndex < NavArea.TheNavAreas.Count) {
+					NavArea area = NavArea.TheNavAreas[GenerationIndex];
+					++GenerationIndex;
+
+					area.CustomAnalysis(GenerationMode == GenerationModeType.Incremental);
+
+					if (Platform.Time - startTime > maxTime) {
+						AnalysisProgress("Custom game-specific analysis...", 100, 100 * GenerationIndex / NavArea.TheNavAreas.Count);
+						return true;
+					}
+				}
+
+				Msg("Post custom...\n");
+				PostCustomAnalysis();
+				EndCustomAnalysis();
+
+				Msg("Custom game-specific analysis...DONE\n");
+
+				GenerationState = GenerationStateType.SaveNavMesh;
+				GenerationIndex = 0;
+
+				ConVarRef mat_queue_mode = new("mat_queue_mode");
+				mat_queue_mode.SetValue(-1);
+				host_thread_mode.SetValue(HostThreatModeRestoreValue);
+				return true;
 			case GenerationStateType.SaveNavMesh:
-				break;
+				if (GenerationMode == GenerationModeType.AnalysisOnly || GenerationMode == GenerationModeType.Full)
+					bIsAnalyzed = true;
+
+				float generationTime = (float)(Platform.Time - GenerationStartTime);
+				Msg($"Generation complete! {generationTime:F1} seconds elapsed.\n");
+
+				bool restart = GenerationMode != GenerationModeType.Incremental;
+				GenerationMode = GenerationModeType.None;
+				bIsLoaded = true;
+
+				ClearWalkableSeeds();
+				HideAnalysisProgress();
+
+				if (Save())
+					Msg($"Navigation map '{GetFilename()}' saved.\n");
+				else {
+					ReadOnlySpan<char> filename = GetFilename();
+					Msg($"ERROR: Cannot save navigation map '{(filename.IsEmpty ? "" : filename)}'.\n");
+				}
+
+				if (QuitWhenFinished)
+					engine.ServerCommand("quit\n");
+				else if (restart)
+					engine.ChangeLevel(gpGlobals.MapName, null);
+				else {
+					foreach (NavArea area in NavArea.TheNavAreas)
+						area.ResetNodes();
+				}
+				return false;
 		}
 
 		return false;
 	}
+
+	public virtual void BeginCustomAnalysis(bool incremental) { }
+	public virtual void PostCustomAnalysis() { }
+	public virtual void EndCustomAnalysis() { }
 
 	static void AnalysisProgress(ReadOnlySpan<char> msg, int ticks, int current, bool showPercent = true) {
 		const double MsgInterval = 10.0f;
@@ -728,7 +789,64 @@ public partial class NavMesh
 
 	void CommandNavSubdivide(in TokenizedCommand args) { }
 
-	void ValidateNavAreaConnections() { }
+	void ValidateNavAreaConnections() {
+		NavConnect connect = new();
+
+		for (int it = 0; it < NavArea.TheNavAreas.Count; it++) {
+			NavArea area = NavArea.TheNavAreas[it];
+
+			for (NavDirType dir = NavDirType.North; dir < NavDirType.NumDirections; dir = (NavDirType)(((int)dir) + 1)) {
+				List<NavConnect> outgoing = area.GetAdjacentAreas(dir);
+				List<NavConnect> incoming = area.GetIncomingConnections(dir);
+
+				for (int con = 0; con < outgoing.Count; con++) {
+					NavArea areaOther = outgoing[con].Area!;
+					connect.Area = areaOther;
+					if (incoming.Contains(connect)) {
+						Msg("Area %d has area %d on both 2-way and incoming list, should only be on one\n", area.GetID(), areaOther.GetID());
+						Assert(false);
+					}
+
+					for (int connectCheck = con + 1; connectCheck < outgoing.Count; connectCheck++) {
+						NavArea areaCheck = outgoing[connectCheck].Area!;
+						if (areaOther == areaCheck) {
+							Msg("Area %d has multiple outgoing connections to area %d in direction %d\n", area.GetID(), areaOther.GetID(), dir);
+							Assert(false);
+						}
+					}
+
+					List<NavConnect> outgoingOther = areaOther.GetAdjacentAreas(OppositeDirection(dir));
+					List<NavConnect> incomingOther = areaOther.GetIncomingConnections(OppositeDirection(dir));
+
+					connect.Area = area;
+					if (!outgoingOther.Contains(connect)) {
+						connect.Area = area;
+						if (!incomingOther.Contains(connect))
+							Msg("Area %d has one-way connect to area %d but does not appear on the latter's incoming list\n", area.GetID(), areaOther.GetID());
+					}
+				}
+
+				for (int con = 0; con < incoming.Count; con++) {
+					NavArea areaOther = incoming[con].Area!;
+
+					for (int connectCheck = con + 1; connectCheck < incoming.Count; connectCheck++) {
+						NavArea areaCheck = incoming[connectCheck].Area!;
+						if (areaOther == areaCheck) {
+							Msg("Area %d has multiple incoming connections to area %d in direction %d\n", area.GetID(), areaOther.GetID(), dir);
+							Assert(false);
+						}
+					}
+
+					List<NavConnect> outgoingOther = areaOther.GetAdjacentAreas(OppositeDirection(dir));
+					connect.Area = area;
+					if (!outgoingOther.Contains(connect)) {
+						Msg("Area %d has incoming connection from area %d but does not appear on latter's outgoing connection list\n", area.GetID(), areaOther.GetID());
+						Assert(false);
+					}
+				}
+			}
+		}
+	}
 
 	void PostProcessCliffAreas() { }
 }

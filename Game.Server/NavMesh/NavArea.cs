@@ -9,19 +9,23 @@ using Source.Common;
 
 public class FuncElevator;
 
-public struct NavConnect()
+public struct NavConnect() : IEquatable<NavConnect>
 {
 	public uint ID = 0;
 	public NavArea? Area;
 	public float Length = -1;
 	public readonly bool Equals(NavConnect other) => Area == other.Area;
+	public override readonly bool Equals(object? obj) => obj is NavConnect other && Equals(other);
+	public override readonly int GetHashCode() => Area?.GetHashCode() ?? 0;
 }
 
-public struct NavLadderConnect()
+public struct NavLadderConnect() : IEquatable<NavLadderConnect>
 {
 	public uint ID;
 	public NavLadder? Ladder;
 	public readonly bool Equals(NavLadderConnect other) => Ladder == other.Ladder;
+	public override readonly bool Equals(object? obj) => obj is NavLadderConnect other && Equals(other);
+	public override readonly int GetHashCode() => Ladder?.GetHashCode() ?? 0;
 }
 
 public struct SpotOrder
@@ -120,8 +124,8 @@ public partial class NavArea : NavAreaCriticalData
 	readonly float[] EarliestOccupyTime = new float[MAX_NAV_TEAMS];
 	readonly float[] LightIntensity = new float[(int)NavCornerType.NumCorners];
 	static uint MasterMarker;
-	static NavArea OpenList;
-	static NavArea OpenListTail;
+	static NavArea? OpenList;
+	static NavArea? OpenListTail;
 	readonly List<NavConnect>[] IncomingConnect = new List<NavConnect>[(int)NavDirType.NumDirections];
 	public readonly NavNode?[] Node = new NavNode[(int)NavCornerType.NumCorners];
 	List<Handle<FuncNavPrerequisite>> PrerequisiteVector;   // list of prerequisites that must be met before this area can be traversed
@@ -132,6 +136,7 @@ public partial class NavArea : NavAreaCriticalData
 	bool IsInheritedFrom;
 	UInt32 VisTestCounter;
 	static UInt32 CurrVisTestCounter;
+	readonly List<FuncNavCost> FuncNavCostVector = [];
 
 	public static void CompressIDs() {
 		NextID = 1;
@@ -170,6 +175,8 @@ public partial class NavArea : NavAreaCriticalData
 			EarliestOccupyTime[i] = 0.0f;
 			PlayerCount[i] = 0;
 		}
+
+		for (int i = 0; i < IncomingConnect.Length; i++) IncomingConnect[i] = [];
 
 		ID = NextID++;
 		DebugID = ID;
@@ -233,7 +240,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	void ConnectElevators() { }
 
-	void OnServerActivate() { }
+	public void OnServerActivate() { }
 
 	void OnRoundRestart() { }
 
@@ -250,7 +257,27 @@ public partial class NavArea : NavAreaCriticalData
 
 	void OnDestroyNotify(NavLadder dead) { }
 
-	public void ConnectTo(NavArea area, NavDirType dir) { }
+	public void ConnectTo(NavArea area, NavDirType dir) {
+		if (area == this)
+			return;
+
+		foreach (NavConnect connect in Connect[(int)dir])
+			if (connect.Area == area)
+				return;
+
+		NavConnect con = new() {
+			Area = area,
+			Length = (area.GetCenter() - GetCenter()).Length()
+		};
+		Connect[(int)dir].Add(con);
+		IncomingConnect[(int)dir].RemoveAll(c => c.Area == area);
+
+		NavDirType opposite = Nav.OppositeDirection(dir);
+		con.Area = this;
+
+		if (area.Connect[(int)opposite].FindIndex(c => c.Area == this) == -1)
+			area.AddIncomingConnection(this, opposite);
+	}
 
 	void ConnectTo(NavLadder ladder) { }
 
@@ -280,7 +307,15 @@ public partial class NavArea : NavAreaCriticalData
 
 	void MergeAdjacentConnections(NavArea adjArea) { }
 
-	public void AssignNodes(NavArea area) { }
+	public void AssignNodes(NavArea area) {
+		NavNode? horizLast = Node[(int)NavCornerType.NorthEast];
+		for (NavNode? vertNode = Node[(int)NavCornerType.NorthWest]; vertNode != Node[(int)NavCornerType.SouthWest]; vertNode = vertNode!.GetConnectedNode(NavDirType.South)) {
+			for (NavNode? horizNode = vertNode; horizNode != horizLast; horizNode = horizNode!.GetConnectedNode(NavDirType.East))
+				horizNode!.AssignArea(area);
+
+			horizLast = horizLast!.GetConnectedNode(NavDirType.South);
+		}
+	}
 
 	public bool SplitEdit(bool splitAlongX, float splitEdge, out NavArea outAlpha, out NavArea outBeta) {
 		throw new NotImplementedException();
@@ -300,7 +335,16 @@ public partial class NavArea : NavAreaCriticalData
 
 	public List<NavConnect> GetIncomingConnections(NavDirType dir) => IncomingConnect[(int)dir];
 
-	void AddIncomingConnection(NavArea source, NavDirType incomingEdgeDir) { }
+	public void AddIncomingConnection(NavArea source, NavDirType incomingEdgeDir) {
+		NavConnect connect = new() {
+			Area = source
+		};
+
+		if (!IncomingConnect[(int)incomingEdgeDir].Contains(connect)) {
+			connect.Length = (source.GetCenter() - GetCenter()).Length();
+			IncomingConnect[(int)incomingEdgeDir].Add(connect);
+		}
+	}
 
 	public List<NavLadderConnect> GetLadders(NavLadder.LadderDirectionType dir) => Ladder[(int)dir];
 
@@ -322,7 +366,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	void InheritAttributes(NavArea first, NavArea second) { }
 
-	void Strip() { }
+	public void Strip() { }
 
 	bool IsRoughlySquare() {
 		throw new NotImplementedException();
@@ -492,15 +536,87 @@ public partial class NavArea : NavAreaCriticalData
 
 	public void DrawConnectedAreas() { }
 
-	public void AddToOpenList() { }
+	public void AddToOpenList() {
+		Assert((OpenList != null && OpenList.PrevOpen == null) || OpenList == null);
+
+		if (IsOpen())
+			return;
+
+		OpenMarker = MasterMarker;
+
+		if (OpenList == null) {
+			OpenList = this;
+			OpenListTail = this;
+			PrevOpen = null;
+			NextOpen = null;
+			return;
+		}
+
+		NavArea? area, last = null;
+
+		for (area = OpenList; area != null; area = area.NextOpen) {
+			if (GetTotalCost() < area.GetTotalCost())
+				break;
+
+			last = area;
+		}
+
+		if (area != null) {
+			PrevOpen = area.PrevOpen;
+
+			if (PrevOpen != null)
+				PrevOpen.NextOpen = this;
+			else
+				OpenList = this;
+
+			NextOpen = area;
+			area.PrevOpen = this;
+		}
+		else {
+			last!.NextOpen = this;
+			PrevOpen = last;
+
+			NextOpen = null;
+
+			OpenListTail = this;
+		}
+
+		Assert((OpenList != null && OpenList.PrevOpen == null) || OpenList == null);
+	}
 
 	void AddToOpenListTail() { }
 
-	public void UpdateOnOpenList() { }
+	public void UpdateOnOpenList() {
+		while (PrevOpen != null && GetTotalCost() < PrevOpen.GetTotalCost()) {
+			NavArea other = PrevOpen;
+			NavArea? before = other.PrevOpen;
+			NavArea? after = NextOpen;
+
+			NextOpen = other;
+			PrevOpen = before;
+
+			other.PrevOpen = this;
+			other.NextOpen = after;
+
+			if (before != null)
+				before.NextOpen = this;
+			else
+				OpenList = this;
+
+			if (after != null)
+				after.PrevOpen = other;
+			else
+				OpenListTail = other;
+		}
+	}
 
 	void RemoveFromOpenList() { }
 
-	public static void ClearSearchLists() { }
+	public static void ClearSearchLists() {
+		MakeNewMarker();
+		OpenList = null;
+		OpenListTail = null;
+	}
 
 	public void SetTotalCost(float value) {
 		Assert(value >= 0);
@@ -604,13 +720,26 @@ public partial class NavArea : NavAreaCriticalData
 
 	void CheckFloor(BaseEntity ignore) { }
 
-	public void MarkObstacleToAvoid(float obstructionHeight) { }
+	public void MarkObstacleToAvoid(float obstructionHeight) {
+		if (AvoidanceObstacleHeight < obstructionHeight) {
+			if (AvoidanceObstacleHeight == 0)
+				NavMesh.Instance!.OnAvoidanceObstacleEnteredArea(this);
+
+			AvoidanceObstacleHeight = obstructionHeight;
+		}
+	}
 
 	public void UpdateAvoidanceObstacles() { }
 
-	void ClearAllNavCostEntities() { }
+	void ClearAllNavCostEntities() {
+		RemoveAttributes(NavAttributeType.FuncCost);
+		FuncNavCostVector.Clear();
+	}
 
-	void AddFuncNavCostEntity(FuncNavCost cost) { }
+	void AddFuncNavCostEntity(FuncNavCost cost) {
+		SetAttributes(NavAttributeType.FuncCost);
+		FuncNavCostVector.Add(cost);
+	}
 
 	float ComputeFuncNavCost(BaseCombatCharacter who) {
 		throw new NotImplementedException();
@@ -730,7 +859,7 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	public void AddToClosedList() { }
+	public void AddToClosedList() => Mark();
 
 	public void RemoveFromClosedList() { }
 
