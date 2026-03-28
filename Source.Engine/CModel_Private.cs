@@ -50,10 +50,10 @@ internal class TraceInfo : IPoolableObject
 	public int DispHit;             // hit displacement surface last
 
 	public bool CheckPrimary;
-	public int CheckDepth;
+	public int CheckDepth = -1;
 	public readonly TraceCounter_t[] Count = new TraceCounter_t[MAX_CHECK_COUNT_DEPTH];
-	public readonly TraceCounterVec[] BrushCounters = new TraceCounterVec[MAX_CHECK_COUNT_DEPTH];
-	public readonly TraceCounterVec[] DispCounters = new TraceCounterVec[MAX_CHECK_COUNT_DEPTH];
+	public readonly TraceCounterVec[] BrushCounters = new TraceCounterVec[MAX_CHECK_COUNT_DEPTH].InstantiateArray();
+	public readonly TraceCounterVec[] DispCounters = new TraceCounterVec[MAX_CHECK_COUNT_DEPTH].InstantiateArray();
 
 	public TraceCounter_t GetCount() => Count[CheckDepth];
 	public Span<TraceCounter_t> GetBrushCounters() => BrushCounters[CheckDepth].AsSpan();
@@ -171,7 +171,7 @@ public static partial class CM
 			}
 		}
 
-
+		PushTraceVisits(traceInfo);
 		return traceInfo;
 	}
 
@@ -815,7 +815,7 @@ public static partial class CM
 				f = f / (d1 - d2);
 				if (f > enterfrac) {
 					enterfrac = f;
-					leadside = side;
+					leadside = ref side;
 				}
 			}
 			else {  // leave
@@ -1127,6 +1127,7 @@ public static partial class CM
 	}
 
 	private static void EndTrace(TraceInfo traceInfo) {
+		PopTraceVisits(traceInfo);
 		g_TraceInfoPool.Free(traceInfo);
 	}
 }

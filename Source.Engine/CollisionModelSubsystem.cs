@@ -12,6 +12,7 @@ using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Xml.Linq;
 
 namespace Source.Engine;
 
@@ -50,7 +51,7 @@ public class CollisionBSPData
 	// More of these should just be explicit Count's into their respective lists, honestly
 	public int NumSurfaces;
 	public int NumLeafs;
-	public int NumBrushes;
+	public int NumBrushes => MapBrushes.Count;
 	public int NumAreas;
 	public int NumPlanes => MapPlanes.Count;
 	public int NumClusters;
