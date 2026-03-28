@@ -307,6 +307,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public int SurfaceProps;
 	public SurfaceData_ptr? SurfaceData;
 	public float SurfaceFriction;
+	public ushort TextureType;
 
 	public override void PhysicsSimulate() {
 		BaseEntity? pMoveParent = GetMoveParent();
@@ -358,6 +359,8 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 			localPlayer = null;
 		}
 	}
+
+	public float GetStepSize() => Local.StepSize;
 
 	float OldPlayerZ;
 

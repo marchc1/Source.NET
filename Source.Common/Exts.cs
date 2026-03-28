@@ -877,6 +877,12 @@ public static class ClassUtils
 		return array;
 	}
 
+	public static T[][] Instantiate2DArray<T>(this T[][] array, int size) where T : new() {
+		for (int i = 0; i < array.Length; i++)
+			array[i] ??= new T[size];
+		return array;
+	}
+
 	public static bool IsValidIndex<T>(this List<T> list, int index) => index >= 0 && index < list.Count;
 	public static bool IsValidIndex<T>(this List<T> list, long index) => index >= 0 && index < list.Count;
 	/// <summary>

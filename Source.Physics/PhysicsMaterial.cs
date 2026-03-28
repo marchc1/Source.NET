@@ -1,5 +1,6 @@
 ﻿using Microsoft.VisualBasic;
 
+using Source.Common.GUI;
 using Source.Common.Physics;
 using Source.Common.Utilities;
 
@@ -27,8 +28,35 @@ public class PhysicsSurfaceProps : IPhysicsSurfaceProps
 		throw new NotImplementedException();
 	}
 
-	public SurfaceData_ptr GetSurfaceData(nint surfaceDataIndex) {
-		throw new NotImplementedException();
+	public bool IsReservedMaterialIndex(nint materialIndex) {
+		return (materialIndex > 127) ? true : false;
+	}
+
+	public nint GetReservedFallBack(nint materialIndex) {
+		switch (materialIndex) {
+			case MATERIAL_INDEX_SHADOW:
+				return ShadowFallback;
+
+		}
+		return 0;
+	}
+
+	public Surface? GetInternalSurface(nint materialIndex) {
+		if (IsReservedMaterialIndex(materialIndex))
+			materialIndex = GetReservedFallBack(materialIndex);
+
+		if (materialIndex < 0 || materialIndex > Props.Count - 1)
+			return null;
+
+		return Props[(int)materialIndex];
+	}
+
+	public SurfaceData_ptr? GetSurfaceData(nint materialIndex) {
+		Surface? surface = GetInternalSurface(materialIndex);
+		surface ??= GetInternalSurface(0); // Zero is always the "default" property
+
+		Assert(surface != null);
+		return surface.Data;
 	}
 
 	public const int MATERIAL_INDEX_SHADOW = 0xF000;
@@ -71,6 +99,7 @@ public class PhysicsSurfaceProps : IPhysicsSurfaceProps
 	readonly UtlSymbolTableMT Strings = new();
 	readonly List<Surface> Props = new();
 	readonly List<UtlSymbol> FileList = new();
+	public nint ShadowFallback;
 }
 
 
@@ -78,5 +107,5 @@ public class Surface
 {
 	public UtlSymbol Name;
 	public ushort Pad;
-	public SurfaceData Data;
+	public readonly SurfaceData_ptr Data = new();
 }

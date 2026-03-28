@@ -85,6 +85,8 @@ public partial class BasePlayer : BaseCombatCharacter
 	public int SurfaceProps;
 	public SurfaceData_ptr? SurfaceData;
 	public float SurfaceFriction;
+	public ushort TextureType;
+	public ushort PreviousTextureType;
 
 	public static void SendProxy_CropFlagsToPlayerFlagBitsLength(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		int mask = (1 << Constants.PLAYER_FLAG_BITS) - 1;
@@ -149,8 +151,8 @@ public partial class BasePlayer : BaseCombatCharacter
 		SurfaceProps = 0;
 		SurfaceData = null;
 		SurfaceFriction = 1.0f;
-		// TextureType = 0;
-		// PreviousTextureType = 0;
+		TextureType = 0;
+		PreviousTextureType = 0;
 
 		// SuicideCustomKillFlags = 0;
 		// Delay = 0.0f;
@@ -196,7 +198,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	public IServerVehicle? GetVehicle() => Vehicle.Get()?.GetServerVehicle();
 	public BaseEntity? GetVehicleEntity() => Vehicle.Get();
 	public bool IsInAVehicle() => Vehicle.Get() != null;
-
+	public float GetStepSize() => Local.StepSize;
 
 	bool DisableWorldClicking;
 	float Maxspeed;
