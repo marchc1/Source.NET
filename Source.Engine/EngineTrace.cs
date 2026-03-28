@@ -36,7 +36,7 @@ public abstract class EngineTrace : IEngineTrace
 	public abstract ICollideable? GetWorldCollideable();
 	public abstract void SetTraceEntity(ICollideable? collideable, ref Trace trace);
 
-	public void ClipRayToCollideable(in Ray ray, Mask mask, ICollideable collide, ref Trace trace) {
+	public void ClipRayToCollideable(in Ray ray, Mask mask, ICollideable? collide, ref Trace trace) {
 		throw new NotImplementedException();
 	}
 
@@ -93,14 +93,14 @@ public abstract class EngineTrace : IEngineTrace
 		throw new NotImplementedException();
 	}
 
-	public void SweepCollideable<Filter>(ICollideable? collide, in Vector3 absStart, in Vector3 absEnd, in QAngle angles, Mask mask, in Filter traceFilter, ref Trace trace) where Filter : struct, ITraceFilter {
+	public void SweepCollideable<Filter>(ICollideable? collide, in Vector3 absStart, in Vector3 absEnd, in QAngle angles, Mask mask, scoped ref Filter traceFilter, ref Trace trace) where Filter : struct, ITraceFilter {
 		throw new NotImplementedException();
 	}
 
 	protected abstract int SpatialPartitionMask();
 	protected abstract int SpatialPartitionTriggerMask();
 
-	public void TraceRay<Filter>(in Ray ray, Mask mask, scoped in Filter traceFilter, out Trace trace) where Filter : struct, ITraceFilter {
+	public void TraceRay<Filter>(in Ray ray, Mask mask, scoped ref Filter traceFilter, out Trace trace) where Filter : struct, ITraceFilter {
 		trace = default;
 		CM.ClearTrace(ref trace);
 
@@ -213,14 +213,14 @@ public abstract class EngineTrace : IEngineTrace
 		trace.FractionLeftSolid *= flWorldFractionLeftSolidScale;
 	}
 
-	public void HandleEntityToCollideable(IHandleEntity handleEntity, out ICollideable? collide, out ReadOnlySpan<char> debugName){
+	public void HandleEntityToCollideable(IHandleEntity? handleEntity, out ICollideable? collide, out ReadOnlySpan<char> debugName){
 		collide = StaticPropMgr().GetStaticProp(handleEntity);
 		if (collide != null) {
 			debugName = "static prop";
 			return;
 		}
 
-		IServerUnknown? serverUnknown = (IServerUnknown)handleEntity;
+		IServerUnknown? serverUnknown = (IServerUnknown?)handleEntity;
 		if (serverUnknown == null || serverUnknown.GetNetworkable() == null) {
 			collide = null;
 			debugName = "<null>";
@@ -231,7 +231,7 @@ public abstract class EngineTrace : IEngineTrace
 		debugName = serverUnknown.GetNetworkable()!.GetClassName();
 	}
 
-	public void TraceRayAgainstLeafAndEntityList<Filter>(in Ray ray, TraceListData traceData, Mask mask, Filter traceFilter, ref Trace trace) where Filter : struct, ITraceFilter {
+	public void TraceRayAgainstLeafAndEntityList<Filter>(in Ray ray, TraceListData traceData, Mask mask, scoped ref Filter traceFilter, ref Trace trace) where Filter : struct, ITraceFilter {
 		throw new NotImplementedException();
 	}
 

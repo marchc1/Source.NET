@@ -133,10 +133,28 @@ public static partial class Util
 		return ret;
 	}
 
-	public static void TraceRay(in Ray ray, Mask mask, IHandleEntity? ignore, CollisionGroup collisionGroup, out Trace ptr){
+	public static void TraceRay(in Ray ray, Mask mask, IHandleEntity? ignore, CollisionGroup collisionGroup, out Trace ptr) {
 		TraceFilterSimple traceFilter = new(ignore, collisionGroup);
 
-		enginetrace.TraceRay(ray, mask, in traceFilter, out ptr);
+		enginetrace.TraceRay(ray, mask, ref traceFilter, out ptr);
+		// todo: visualize
+	}
+
+	public static void TraceLine(in Vector3 absStart, in Vector3 absEnd, Mask mask, IHandleEntity? ignore, CollisionGroup collisionGroup, out Trace ptr) {
+		Ray ray = default;
+		ray.Init(absStart, absEnd);
+
+		TraceFilterSimple traceFilter = new(ignore, collisionGroup);
+
+		enginetrace.TraceRay(ray, mask, ref traceFilter, out ptr);
+		// todo: visualize
+	}
+
+	public static void TraceLine<IF>(in Vector3 absStart, in Vector3 absEnd, Mask mask, IHandleEntity? ignore, scoped ref IF filter, out Trace ptr) where IF : struct, ITraceFilter {
+		Ray ray = default;
+		ray.Init(absStart, absEnd);
+
+		enginetrace.TraceRay(ray, mask, ref filter, out ptr);
 		// todo: visualize
 	}
 }

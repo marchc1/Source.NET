@@ -505,6 +505,9 @@ public static partial class CM
 		}
 	}
 	internal static void RecursiveHullCheckImpl(bool IS_POINT, TraceInfo traceInfo, int num, float p1f, float p2f, in Vector3 p1, in Vector3 p2) {
+		if (traceInfo.Trace.Fraction <= p1f)
+			return;     // already hit something nearer	
+
 		ref CollisionNode node = ref Unsafe.NullRef<CollisionNode>();
 		ref CollisionPlane plane = ref Unsafe.NullRef<CollisionPlane>();
 		float t1 = 0, t2 = 0, offset = 0;
@@ -585,7 +588,7 @@ public static partial class CM
 		// move up to the node
 		frac = Math.Clamp(frac, 0f, 1f);
 		midf = p1f + (p2f - p1f) * frac;
-		mid = Vector3.Lerp(p1, p2, frac2);
+		mid = Vector3.Lerp(p1, p2, frac);
 
 		RecursiveHullCheckImpl(IS_POINT, traceInfo, node.Children[side], p1f, midf, p1, mid);
 
@@ -596,10 +599,10 @@ public static partial class CM
 
 		RecursiveHullCheckImpl(IS_POINT, traceInfo, node.Children[side ^ 1], midf, p2f, mid, p2);
 	}
-	static readonly int[] signbits = [ 1, 2, 4 ];
+	static readonly int[] signbits = [1, 2, 4];
 	static readonly fltx4 Four_DistEpsilons = MathLib.LoadFloat4(new Vector4(DIST_EPSILON, DIST_EPSILON, DIST_EPSILON, DIST_EPSILON));
-	static readonly int[] g_CubeFaceIndex0 = [ 0, 1, 2, -1 ];
-	static readonly int[] g_CubeFaceIndex1 = [ 3, 4, 5, -1 ];
+	static readonly int[] g_CubeFaceIndex0 = [0, 1, 2, -1];
+	static readonly int[] g_CubeFaceIndex1 = [3, 4, 5, -1];
 	internal static bool IntersectRayWithBoxBrush(TraceInfo traceInfo, in CollisionBrush brush, ref CollisionBoxBrush box) {
 		// Load the unaligned ray/box parameters into SIMD registers
 		fltx4 start = MathLib.LoadFloat3(traceInfo.Start);
@@ -697,9 +700,9 @@ public static partial class CM
 
 				// this condition is copied from the brush case to avoid hitting an assert and
 				// overwriting a previous start solid with a new shorter fraction
-				if (startOut && traceInfo.IsPoint && trace.FractionLeftSolid > t1) 
+				if (startOut && traceInfo.IsPoint && trace.FractionLeftSolid > t1)
 					startOut = false;
-				
+
 				if (!startOut) {
 					float t2 = MathLib.SubFloat(ref firstOut, 0);
 					trace.StartSolid = true;
@@ -765,9 +768,7 @@ public static partial class CM
 
 		float dist;
 
-		int sideIdx = brush.FirstBrushSide;
-		int sideLimit = sideIdx + brush.NumSides;
-		while (sideIdx++ < sideLimit) {
+		for (int sideIdx = brush.FirstBrushSide, sideLimit = sideIdx + brush.NumSides; sideIdx < sideLimit; sideIdx++) {
 			ref CollisionBrushSide side = ref traceInfo.BSPData!.MapBrushSides.AsSpan()[sideIdx];
 			ref CollisionPlane plane = ref side.Plane;
 			ref Vector3 planeNormal = ref plane.Normal;
@@ -1071,7 +1072,7 @@ public static partial class CM
 		else
 			MathLib.VectorMA(start, tr.Fraction, ray.Delta, out tr.EndPos);
 
-		if (tr.FractionLeftSolid == 0) 
+		if (tr.FractionLeftSolid == 0)
 			MathLib.VectorCopy(start, out tr.StartPos);
 		else {
 			if (tr.FractionLeftSolid == 1.0f) {
