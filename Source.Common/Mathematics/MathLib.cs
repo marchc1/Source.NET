@@ -563,18 +563,18 @@ public static class MathLib
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static uint SubInt(in Vector3 a, int idx) {
-		return (uint)a[idx];
-	}
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe uint SubInt(in fltx4 a, int idx) {
-		return (uint)Vector128.GetElement(a, idx);
+		return a.AsUInt32().GetElement(idx);
 	}
-
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static uint SubInt(in Vector4 a, int idx) {
-		return (uint)a[idx];
+	public static unsafe uint SubInt(in Vector3 a, int idx) {
+		float val = a[idx];
+		return Unsafe.As<float, uint>(ref val);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe uint SubInt(in Vector4 a, int idx) {
+		float val = a[idx];
+		return Unsafe.As<float, uint>(ref val);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
