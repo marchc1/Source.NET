@@ -147,7 +147,9 @@ static class DebugOverlay
 	}
 
 	public static void Cross3D(in Vector3 position, float size, int r, int g, int b, bool noDepthTest, float duration) {
-		throw new NotImplementedException();
+		Line(position + new Vector3(size, 0, 0), position - new Vector3(size, 0, 0), r, g, b, noDepthTest, duration);
+		Line(position + new Vector3(0, size, 0), position - new Vector3(0, size, 0), r, g, b, noDepthTest, duration);
+		Line(position + new Vector3(0, 0, size), position - new Vector3(0, 0, size), r, g, b, noDepthTest, duration);
 	}
 
 	public static void Cross3DOriented(in Vector3 position, QAngle angles, float size, int r, int g, int b, bool noDepthTest, float duration) {

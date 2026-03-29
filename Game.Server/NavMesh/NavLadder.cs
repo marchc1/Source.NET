@@ -12,10 +12,10 @@ public class NavLadder
 		Down,
 		NumLadderDirections
 	}
-	Vector3 Top;
-	Vector3 Bottom;
+	public Vector3 Top;
+	public Vector3 Bottom;
 	public float Length;
-	float Width;
+	public float Width;
 	public NavArea? TopForwardArea;
 	public NavArea? TopLeftArea;
 	public NavArea? TopRightArea;
@@ -110,7 +110,7 @@ public class NavLadder
 		throw new NotImplementedException();
 	}
 
-	Vector3 GetNormal() {
+	public Vector3 GetNormal() {
 		throw new NotImplementedException();
 	}
 }

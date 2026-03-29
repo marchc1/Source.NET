@@ -8,6 +8,7 @@ using Source.Common.Commands;
 using Source.Common.Mathematics;
 
 using System.Numerics;
+using Source.Common.Formats.BSP;
 
 namespace Game.Server.NavMesh;
 
@@ -89,12 +90,226 @@ public partial class NavMesh
 		IsDragDeselecting = false;
 	}
 
-	public bool FindNavAreaOrLadderAlongRay(Vector3 start, Vector3 end, out NavArea bestArea, out NavLadder bestLadder, NavArea? ignore) {
-		throw new NotImplementedException();
+	public bool FindNavAreaOrLadderAlongRay(Vector3 start, Vector3 end, out NavArea? bestArea, out NavLadder? bestLadder, NavArea? ignore = null) {
+		bestArea = null;
+		bestLadder = null;
+
+		if (Grid.Count == 0)
+			return false;
+
+		Source.Common.Ray ray = new();
+		ray.Init(start, end, vec3_origin, vec3_origin);
+
+		float bestDist = 1.0f;
+
+		for (int i = 0; i < Ladders.Count; ++i) {
+			NavLadder ladder = Ladders[i];
+
+			Vector3 left = new(0, 0, 0), right = new(0, 0, 0), up = new(0, 0, 0);
+			MathLib.VectorVectors(ladder.GetNormal(), out right, out up);
+			right *= ladder.Width * 0.5f;
+			left = -right;
+
+			Vector3 c1 = ladder.Top + right;
+			Vector3 c2 = ladder.Top + left;
+			Vector3 c3 = ladder.Bottom + right;
+			Vector3 c4 = ladder.Bottom + left;
+			float dist = CollisionUtils.IntersectRayWithTriangle(ray, c1, c2, c4, false);
+			if (dist > 0 && dist < bestDist) {
+				bestLadder = ladder;
+				bestDist = dist;
+			}
+
+			dist = CollisionUtils.IntersectRayWithTriangle(ray, c1, c4, c3, false);
+			if (dist > 0 && dist < bestDist) {
+				bestLadder = ladder;
+				bestDist = dist;
+			}
+		}
+
+		Extent extent = default;
+		extent.Lo = extent.Hi = start;
+		extent.Encompass(end);
+
+		int loX = WorldToGridX(extent.Lo.X);
+		int loY = WorldToGridY(extent.Lo.Y);
+		int hiX = WorldToGridX(extent.Hi.X);
+		int hiY = WorldToGridY(extent.Hi.Y);
+
+		for (int y = loY; y <= hiY; ++y) {
+			for (int x = loX; x <= hiX; ++x) {
+				List<NavArea> areaGrid = Grid[x + y * GridSizeX];
+
+				for (int it = 0; it < areaGrid.Count(); ++it) {
+					NavArea area = areaGrid[it];
+					if (area == ignore)
+						continue;
+
+					Vector3 nw = area.NWCorner;
+					Vector3 se = area.SECorner;
+					Vector3 ne = default, sw = default;
+					ne.X = se.X;
+					ne.Y = nw.Y;
+					ne.Z = area.NEZ;
+					sw.X = nw.X;
+					sw.Y = se.Y;
+					sw.Z = area.SWZ;
+
+					float dist = CollisionUtils.IntersectRayWithTriangle(ray, nw, ne, se, false);
+					if (dist > 0 && dist < bestDist) {
+						bestArea = area;
+						bestDist = dist;
+					}
+
+					dist = CollisionUtils.IntersectRayWithTriangle(ray, se, sw, nw, false);
+					if (dist > 0 && dist < bestDist) {
+						bestArea = area;
+						bestDist = dist;
+					}
+				}
+			}
+		}
+
+		if (bestArea != null)
+			bestLadder = null;
+
+		return bestDist < 1.0f;
 	}
 
 	bool FindActiveNavArea() {
-		throw new NotImplementedException();
+		SplitAlongX = false;
+		SplitEdge = 0.0f;
+		SelectedArea = null;
+		ClimbableSurface = false;
+		SelectedLadder = null;
+
+		BasePlayer? player = Util.GetListenServerHost();
+		if (player == null)
+			return false;
+
+		GetEditVectors(out Vector3 from, out Vector3 dir);
+
+		float maxRange = 2000.0f;
+		bool isClippingRayAtFeet = false;
+		if (nav_create_area_at_feet.GetBool()) {
+			if (dir.Z < 0) {
+				float eyeHeight = player.GetViewOffset().Z;
+				if (eyeHeight != 0.0f) {
+					float rayHeight = -dir.Z * maxRange;
+					maxRange = maxRange * eyeHeight / rayHeight;
+					isClippingRayAtFeet = true;
+				}
+			}
+		}
+
+		Vector3 to = from + maxRange * dir;
+
+		TraceFilterWalkableEntities filter = new(null, CollisionGroup.None, WalkThruFlags.Everything);
+		Util.TraceLine(from, to, nav_solid_props.GetBool() ? Mask.NPCSolid : Mask.NPCSolidBrushOnly, null, ref filter, out Trace result);
+
+		if (result.Fraction != 1.0f) {
+			if (!IsEditMode(EditModeType.CreatingArea)) {
+				ClimbableSurface = physprops.GetSurfaceData(result.Surface.SurfaceProps)?.Game.Climbable != 0;
+				if (!ClimbableSurface)
+					ClimbableSurface = (result.Contents & Contents.Ladder) != 0;
+				SurfaceNormal = result.Plane.Normal;
+
+				if (ClimbableSurface) {
+					if (IsEditMode(EditModeType.CreatingLadder)) {
+						if (SurfaceNormal != LadderNormal)
+							ClimbableSurface = false;
+					}
+
+					if (SurfaceNormal.Z > 0.9f)
+						ClimbableSurface = false;
+				}
+			}
+
+			if ((ClimbableSurface && !IsEditMode(EditModeType.CreatingLadder)) || !IsEditMode(EditModeType.CreatingArea)) {
+				float closestDistSqr = 200.0f * 200.0f;
+
+				for (int i = 0; i < Ladders.Count; ++i) {
+					NavLadder ladder = Ladders[i];
+
+					Vector3 absMin = ladder.Bottom;
+					Vector3 absMax = ladder.Top;
+
+					Vector3 left = new(0, 0, 0), right = new(0, 0, 0), up = new(0, 0, 0);
+					MathLib.VectorVectors(ladder.GetNormal(), out right, out up);
+					right *= ladder.Width * 0.5f;
+					left = -right;
+
+					absMin.X += Math.Min(left.X, right.X);
+					absMin.Y += Math.Min(left.Y, right.Y);
+
+					absMax.X += Math.Max(left.X, right.X);
+					absMax.Y += Math.Max(left.Y, right.Y);
+
+					Extent e;
+					e.Lo = absMin + new Vector3(-5, -5, -5);
+					e.Hi = absMax + new Vector3(5, 5, 5);
+
+					if (e.Contains(EditCursorPos)) {
+						SelectedLadder = ladder;
+						break;
+					}
+
+					if (!ClimbableSurface)
+						continue;
+
+					Vector3 p1 = (ladder.Bottom + ladder.Top) / 2;
+					Vector3 p2 = EditCursorPos;
+					float distSqr = p1.DistToSqr(p2);
+
+					if (distSqr < closestDistSqr) {
+						SelectedLadder = ladder;
+						closestDistSqr = distSqr;
+					}
+				}
+			}
+
+			EditCursorPos = result.EndPos;
+
+			if (!ClimbableSurface && SelectedLadder == null) {
+				FindNavAreaOrLadderAlongRay(result.StartPos, result.EndPos + 100.0f * dir, out SelectedArea, out SelectedLadder);
+
+				if (SelectedArea == null && SelectedLadder == null)
+					SelectedArea = GetNearestNavArea(result.EndPos, false, 500.0f);
+			}
+
+			if (SelectedArea != null) {
+				float yaw = player.EyeAngles().Y;
+				while (yaw > 360.0f)
+					yaw -= 360.0f;
+
+				while (yaw < 0.0f)
+					yaw += 360.0f;
+
+				if (yaw < 45.0f || yaw > 315.0f || (yaw > 135.0f && yaw < 225.0f)) {
+					SplitEdge = SnapToGrid(result.EndPos.Y, true);
+					SplitAlongX = true;
+				}
+				else {
+					SplitEdge = SnapToGrid(result.EndPos.X, true);
+					SplitAlongX = false;
+				}
+			}
+
+			if (!ClimbableSurface && !IsEditMode(EditModeType.CreatingLadder))
+				EditCursorPos = SnapToGrid(EditCursorPos);
+
+			return true;
+		}
+		else if (isClippingRayAtFeet) {
+			EditCursorPos = SnapToGrid(result.EndPos);
+		}
+
+		if (IsEditMode(EditModeType.CreatingLadder) || IsEditMode(EditModeType.CreatingArea))
+			return false;
+
+		FindNavAreaOrLadderAlongRay(from, to, out SelectedArea, out SelectedLadder);
+
+		return SelectedArea != null || SelectedLadder != null || isClippingRayAtFeet;
 	}
 
 	public bool FindLadderCorners(out Vector3 corner1, out Vector3 corner2, out Vector3 corner3) {
@@ -107,7 +322,8 @@ public partial class NavMesh
 
 		const float maxDist = 100000f;
 
-		Source.Common.Ray ray = new();//from, from + dir * maxDist
+		Source.Common.Ray ray = new();
+		ray.Init(from, from + dir * maxDist);
 
 		corner1 = LadderAnchor + ladderUp * maxDist + ladderRight * maxDist;
 		corner2 = LadderAnchor + ladderUp * maxDist - ladderRight * maxDist;

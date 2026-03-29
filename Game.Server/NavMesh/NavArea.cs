@@ -1172,7 +1172,18 @@ public partial class NavArea : NavAreaCriticalData
 	void Shift(Vector3 shift) { }
 
 	public bool IsBlocked(int teamID, bool ignoreNavBlockers = false) {
-		throw new NotImplementedException();
+		if (ignoreNavBlockers && (GetAttributes() & NavAttributeType.NavBlocker) != 0)
+			return false;
+
+		if (teamID == -2 /*TEAM_ANY*/) {
+			bool isBlocked = false;
+			for (int i = 0; i < MAX_NAV_TEAMS; i++)
+				isBlocked = _IsBlocked[i];
+			return isBlocked;
+		}
+
+		int teamIdx = teamID % MAX_NAV_TEAMS;
+		return _IsBlocked[teamIdx];
 	}
 
 	void MarkAsBlocked(int teamID, BaseEntity blocker, bool bGenerateEvent) { }
@@ -1599,15 +1610,11 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	public bool IsDamaging() {
-		throw new NotImplementedException();
-	}
+	public bool IsDamaging() => gpGlobals.TickCount <= DamagingTickCount;
 
 	void MarkAsDamaging(float duration) { }
 
-	public bool HasAvoidanceObstacle(float maxObstructionHeight = 0) {
-		throw new NotImplementedException();
-	}
+	public bool HasAvoidanceObstacle(float maxObstructionHeight = 0) => AvoidanceObstacleHeight > maxObstructionHeight;
 
 	float GetAvoidanceObstacleHeight() {
 		throw new NotImplementedException();

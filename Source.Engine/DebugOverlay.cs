@@ -91,6 +91,20 @@ public class OverlayBox : OverlayBase
 	public int A;
 }
 
+public class OverlayLine : OverlayBase
+{
+	public override void Reset() {
+		base.Reset();
+		Type = OverlayType.Line;
+	}
+	public Vector3 Start;
+	public Vector3 End;
+	public int R;
+	public int G;
+	public int B;
+	public int A;
+}
+
 public class DebugOverlay : IVDebugOverlay
 {
 	private InlineArray1024<char> Text;
@@ -145,7 +159,27 @@ public class DebugOverlay : IVDebugOverlay
 	}
 
 	public void AddLineOverlay(in Vector3 origin, in Vector3 dest, int r, int g, int b, bool noDepthTest, float duration) {
-		throw new NotImplementedException();
+		if (cl.IsPaused())
+			return;
+
+		lock (s_OverlayMutex) {
+			OverlayLine new_overlay = OverlayBase.New<OverlayLine>();
+
+			new_overlay.Start = origin;
+			new_overlay.End = dest;
+
+			new_overlay.R = r;
+			new_overlay.G = g;
+			new_overlay.B = b;
+			new_overlay.A = 255;
+
+			// new_overlay.NoDepthTest = noDepthTest;
+
+			new_overlay.SetEndTime(duration);
+
+			new_overlay.NextOverlay = s_pOverlays;
+			s_pOverlays = new_overlay;
+		}
 	}
 
 	public void AddLineOverlayAlpha(in Vector3 origin, in Vector3 dest, int r, int g, int b, int a, bool noDepthTest, float duration) {
@@ -153,7 +187,7 @@ public class DebugOverlay : IVDebugOverlay
 	}
 
 	public void AddScreenTextOverlay(float flXPos, float flYPos, float duration, int r, int g, int b, int a, ReadOnlySpan<char> text) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public void AddSweptBoxOverlay(in Vector3 start, in Vector3 end, in Vector3 mins, in Vector3 max, in QAngle angles, int r, int g, int b, int a, float flDuration) {
@@ -282,6 +316,9 @@ public class DebugOverlay : IVDebugOverlay
 	private static void DestroyOverlay(OverlayBase overlay) {
 		switch (overlay.Type) {
 			case OverlayType.Line:
+				OverlayLine line = (OverlayLine)overlay;
+				OverlayBase.Free(line);
+				break;
 			case OverlayType.Box:
 				OverlayBox box = (OverlayBox)overlay;
 				OverlayBase.Free(box);

@@ -86,7 +86,7 @@ public partial class NavMesh
 	NavLadder? SelectedLadder;
 	NavLadder? LastSelectedLadder;
 	NavLadder? MarkedLadder;
-	CountdownTimer ShowAreaInfoTimer;
+	CountdownTimer ShowAreaInfoTimer = new();
 	readonly List<NavArea> SelectedSet = [];
 	readonly List<NavArea> DragSelectionSet = [];
 	bool ContinuouslySelecting;
@@ -397,11 +397,11 @@ public partial class NavMesh
 		throw new NotImplementedException();
 	}
 
-	NavArea GetNearestNavArea(Vector3 pos, bool anyZ, float maxDist, bool checkLOS, bool checkGround, int team) {
+	NavArea GetNearestNavArea(Vector3 pos, bool anyZ = false, float maxDist = 10000.0f, bool checkLOS = false, bool checkGround = true, int team = -2 /*TEAM_ANY*/) {
 		throw new NotImplementedException();
 	}
 
-	NavArea GetNearestNavArea(BaseEntity pEntity, int nFlags, float maxDist) {
+	NavArea GetNearestNavArea(BaseEntity entity, int flags, float maxDist) {
 		throw new NotImplementedException();
 	}
 
