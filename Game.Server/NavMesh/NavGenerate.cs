@@ -329,19 +329,432 @@ public partial class NavMesh
 
 	void SplitAreasUnderOverhangs() { }
 
+	bool TestForValidJumpArea(NavNode node) {
+		return true;
+
+		NavNode? east = node.GetConnectedNode(NavDirType.East);
+		NavNode? south = node.GetConnectedNode(NavDirType.South);
+		if (east == null || south == null)
+			return false;
+
+		NavNode? southEast = east.GetConnectedNode(NavDirType.South);
+		if (southEast == null)
+			return false;
+
+		if (!IsHeightDifferenceValid(
+			node.GetPosition().Z,
+			south.GetPosition().Z,
+			southEast.GetPosition().Z,
+			east.GetPosition().Z))
+			return false;
+
+		if (!IsHeightDifferenceValid(
+			south.GetPosition().Z,
+			node.GetPosition().Z,
+			southEast.GetPosition().Z,
+			east.GetPosition().Z))
+			return false;
+
+		if (!IsHeightDifferenceValid(
+			southEast.GetPosition().Z,
+			south.GetPosition().Z,
+			node.GetPosition().Z,
+			east.GetPosition().Z))
+			return false;
+
+		if (!IsHeightDifferenceValid(
+			east.GetPosition().Z,
+			south.GetPosition().Z,
+			southEast.GetPosition().Z,
+			node.GetPosition().Z))
+			return false;
+
+		return true;
+	}
+
+	bool TestForValidCrouchArea(NavNode node) {
+		TraceFilterWalkableEntities filter = new(null, CollisionGroup.PlayerMovement, WalkThruFlags.Everything);
+		Vector3 start = node.GetPosition();
+		Vector3 end = node.GetPosition();
+		end.Z += JumpCrouchHeight;
+
+		Vector3 mins = new(0, 0, 0);
+		Vector3 maxs = new(GenerationStepSize, GenerationStepSize, HumanCrouchHeight);
+
+		Util.TraceHull(start, end, mins, maxs, GetGenerationTraceMask(), ref filter, out Trace tr);
+
+		return !tr.AllSolid;
+	}
+
+	bool IsHeightDifferenceValid(float test, float other1, float other2, float other3) {
+		const float CloseDelta = StepHeight / 2;
+		if (Math.Abs(other1 - other2) > CloseDelta)
+			return true;
+
+		if (Math.Abs(other1 - other3) > CloseDelta)
+			return true;
+
+		if (Math.Abs(other2 - other3) > CloseDelta)
+			return true;
+
+		const float MaxDelta = StepHeight;
+		if (Math.Abs(test - other1) > MaxDelta)
+			return false;
+
+		if (Math.Abs(test - other2) > MaxDelta)
+			return false;
+
+		if (Math.Abs(test - other3) > MaxDelta)
+			return false;
+
+		return true;
+	}
+
 	bool TestArea(NavNode node, int width, int height) {
-		throw new NotImplementedException();
+		Vector3 normal = node.GetNormal();
+		float d = -MathLib.DotProduct(normal, node.GetPosition());
+
+		bool nodeCrouch = node.Crouch[(int)NavCornerType.SouthEast];
+
+		if (node.IsBlocked[(int)NavCornerType.SouthEast])
+			return false;
+
+		int nodeAttributes = (int)(node.GetAttributes() & ~NavAttributeType.Crouch);
+
+		const float offPlaneTolerance = 5.0f;
+
+		NavNode vertNode, horizNode;
+
+		vertNode = node;
+		int x, y;
+		for (y = 0; y < height; y++) {
+			horizNode = vertNode;
+
+			for (x = 0; x < width; x++) {
+				bool horizNodeCrouch = false;
+				bool westEdge = (x == 0);
+				bool eastEdge = (x == width - 1);
+				bool northEdge = (y == 0);
+				bool southEdge = (y == height - 1);
+
+				if (northEdge && westEdge) {
+					horizNodeCrouch = horizNode.Crouch[(int)NavCornerType.SouthEast];
+					if (horizNode.IsBlocked[(int)NavCornerType.SouthEast])
+						return false;
+				}
+				else if (northEdge && eastEdge) {
+					horizNodeCrouch = horizNode.Crouch[(int)NavCornerType.SouthEast] || horizNode.Crouch[(int)NavCornerType.SouthWest];
+					if (horizNode.IsBlocked[(int)NavCornerType.SouthEast] || horizNode.IsBlocked[(int)NavCornerType.SouthWest])
+						return false;
+				}
+				else if (southEdge && westEdge) {
+					horizNodeCrouch = horizNode.Crouch[(int)NavCornerType.SouthEast] || horizNode.Crouch[(int)NavCornerType.NorthEast];
+					if (horizNode.IsBlocked[(int)NavCornerType.SouthEast] || horizNode.IsBlocked[(int)NavCornerType.NorthEast])
+						return false;
+				}
+				else if (southEdge && eastEdge) {
+					horizNodeCrouch = (horizNode.GetAttributes() & NavAttributeType.Crouch) != 0;
+					if (horizNode.IsBlockedInAnyDirection())
+						return false;
+				}
+				else if (northEdge) {
+					horizNodeCrouch = horizNode.Crouch[(int)NavCornerType.SouthEast] || horizNode.Crouch[(int)NavCornerType.SouthWest];
+					if (horizNode.IsBlocked[(int)NavCornerType.SouthEast] || horizNode.IsBlocked[(int)NavCornerType.SouthWest])
+						return false;
+				}
+				else if (southEdge) {
+					horizNodeCrouch = (horizNode.GetAttributes() & NavAttributeType.Crouch) != 0;
+					if (horizNode.IsBlockedInAnyDirection())
+						return false;
+				}
+				else if (eastEdge) {
+					horizNodeCrouch = (horizNode.GetAttributes() & NavAttributeType.Crouch) != 0;
+					if (horizNode.IsBlockedInAnyDirection())
+						return false;
+				}
+				else if (westEdge) {
+					horizNodeCrouch = horizNode.Crouch[(int)NavCornerType.SouthEast] || horizNode.Crouch[(int)NavCornerType.NorthEast];
+					if (horizNode.IsBlocked[(int)NavCornerType.SouthEast] || horizNode.IsBlocked[(int)NavCornerType.NorthEast])
+						return false;
+				}
+				else {
+					horizNodeCrouch = (horizNode.GetAttributes() & NavAttributeType.Crouch) != 0;
+					if (horizNode.IsBlockedInAnyDirection())
+						return false;
+				}
+
+				if (nodeCrouch != horizNodeCrouch)
+					return false;
+
+				int horizNodeAttributes = (int)(horizNode.GetAttributes() & ~NavAttributeType.Crouch);
+				if (horizNodeAttributes != nodeAttributes)
+					return false;
+
+				if (horizNode.IsCovered)
+					return false;
+
+				if (!horizNode.IsClosedCell())
+					return false;
+
+				if (!CheckObstacles(horizNode, width, height, x, y))
+					return false;
+
+				horizNode = horizNode.GetConnectedNode(NavDirType.East);
+				if (horizNode == null)
+					return false;
+
+				if (width > 1 || height > 1) {
+					float dist = (float)Math.Abs(MathLib.DotProduct(horizNode.GetPosition(), normal) + d);
+					if (dist > offPlaneTolerance)
+						return false;
+				}
+			}
+
+			if (!CheckObstacles(horizNode, width, height, x, y))
+				return false;
+
+			vertNode = vertNode.GetConnectedNode(NavDirType.South);
+			if (vertNode == null)
+				return false;
+
+			if (width > 1 || height > 1) {
+				float dist = (float)Math.Abs(MathLib.DotProduct(vertNode.GetPosition(), normal) + d);
+				if (dist > offPlaneTolerance)
+					return false;
+			}
+		}
+
+		if (width > 1 || height > 1) {
+			horizNode = vertNode;
+
+			for (x = 0; x < width; x++) {
+				if (!CheckObstacles(horizNode, width, height, x, y))
+					return false;
+
+				horizNode = horizNode.GetConnectedNode(NavDirType.East);
+				if (horizNode == null)
+					return false;
+
+				float dist = (float)Math.Abs(MathLib.DotProduct(horizNode.GetPosition(), normal) + d);
+				if (dist > offPlaneTolerance)
+					return false;
+			}
+
+			if (!CheckObstacles(horizNode, width, height, x, y))
+				return false;
+		}
+
+		vertNode = node;
+		for (y = 0; y < height; ++y) {
+			horizNode = vertNode;
+
+			for (x = 0; x < width; ++x) {
+				if (!TestForValidJumpArea(horizNode))
+					return false;
+
+				if (nodeCrouch && !TestForValidCrouchArea(horizNode))
+					return false;
+
+				horizNode = horizNode.GetConnectedNode(NavDirType.East);
+			}
+
+			vertNode = vertNode.GetConnectedNode(NavDirType.South);
+		}
+
+		if (GenerationMode == GenerationModeType.Incremental) {
+			Vector3 nw = node.GetPosition();
+
+			vertNode = node;
+			for (y = 0; y < height; ++y)
+				vertNode = vertNode.GetConnectedNode(NavDirType.South);
+			Vector3 sw = vertNode.GetPosition();
+
+			horizNode = node;
+			for (x = 0; x < width; ++x)
+				horizNode = horizNode.GetConnectedNode(NavDirType.East);
+			Vector3 ne = horizNode.GetPosition();
+
+			vertNode = horizNode;
+			for (y = 0; y < height; ++y)
+				vertNode = vertNode.GetConnectedNode(NavDirType.South);
+			Vector3 se = vertNode.GetPosition();
+
+			TestOverlapping test = new(nw, ne, sw, se);
+			if (test.OverlapsExistingArea())
+				return false;
+		}
+
+		return true;
 	}
 
 	bool CheckObstacles(NavNode node, int width, int height, int x, int y) {
-		throw new NotImplementedException();
+		if (width > 1 || height > 1) {
+			if ((x > 0) && (node.ObstacleHeight[(int)NavDirType.West] > StepHeight))
+				return false;
+
+			if ((y > 0) && (node.ObstacleHeight[(int)NavDirType.North] > StepHeight))
+				return false;
+
+			if ((x < width - 1) && (node.ObstacleHeight[(int)NavDirType.East] > StepHeight))
+				return false;
+
+			if ((y < height - 1) && (node.ObstacleHeight[(int)NavDirType.South] > StepHeight))
+				return false;
+		}
+
+		return true;
 	}
 
 	int BuildArea(NavNode node, int width, int height) {
-		throw new NotImplementedException();
+		NavNode? nwNode = node;
+		NavNode? neNode = null;
+		NavNode? swNode = null;
+		NavNode? seNode = null;
+
+		NavNode? vertNode = node;
+		NavNode? horizNode;
+
+		int coveredNodes = 0;
+
+		for (int y = 0; y < height; y++) {
+			horizNode = vertNode;
+
+			for (int x = 0; x < width; x++) {
+				horizNode.Cover();
+				++coveredNodes;
+
+				horizNode = horizNode.GetConnectedNode(NavDirType.East);
+			}
+
+			if (y == 0)
+				neNode = horizNode;
+
+			vertNode = vertNode.GetConnectedNode(NavDirType.South);
+		}
+
+		swNode = vertNode;
+
+		horizNode = vertNode;
+		for (int x = 0; x < width; x++) {
+			horizNode = horizNode.GetConnectedNode(NavDirType.East);
+		}
+		seNode = horizNode;
+
+		if (nwNode == null || neNode == null || swNode == null || seNode == null) {
+			Error("BuildArea - null node.\n");
+			return -1;
+		}
+
+		NavArea? area = CreateArea();
+		if (area == null) {
+			Error("BuildArea: Out of memory.\n");
+			return -1;
+		}
+
+		area.Build(nwNode, neNode, seNode, swNode);
+
+		NavArea.TheNavAreas.Add(area);
+
+		area.SetAttributes(node.GetAttributes());
+
+		if (nwNode.ObstacleHeight[(int)NavDirType.South] > StepHeight || nwNode.ObstacleHeight[(int)NavDirType.East] > StepHeight ||
+				neNode.ObstacleHeight[(int)NavDirType.West] > StepHeight || neNode.ObstacleHeight[(int)NavDirType.South] > StepHeight ||
+				seNode.ObstacleHeight[(int)NavDirType.North] > StepHeight || seNode.ObstacleHeight[(int)NavDirType.West] > StepHeight ||
+				swNode.ObstacleHeight[(int)NavDirType.East] > StepHeight || swNode.ObstacleHeight[(int)NavDirType.North] > StepHeight
+			) {
+			Assert(width == 1);
+			Assert(height == 1);
+
+			area.SetAttributes(area.GetAttributes() | NavAttributeType.NoMerge);
+		}
+
+		bool nodeCrouch = node.Crouch[(int)NavCornerType.SouthEast];
+		if ((area.GetAttributes() & NavAttributeType.Crouch) != 0 && !nodeCrouch)
+			area.SetAttributes(area.GetAttributes() & ~NavAttributeType.Crouch);
+
+		return coveredNodes;
 	}
 
-	void CreateNavAreasFromNodes() { }
+	void CreateNavAreasFromNodes() {
+		int tryWidth = nav_area_max_size.GetInt();
+		int tryHeight = tryWidth;
+		int uncoveredNodes = (int)NavNode.GetListLength();
+
+		while (uncoveredNodes > 0) {
+			for (NavNode? node = NavNode.GetFirst(); node != null; node = node.GetNext()) {
+				if (node.IsCovered)
+					continue;
+
+				if (TestArea(node, tryWidth, tryHeight)) {
+					int covered = BuildArea(node, tryWidth, tryHeight);
+					if (covered < 0) {
+						Error("Generate: Error - Data corrupt.\n");
+						return;
+					}
+
+					uncoveredNodes -= covered;
+				}
+			}
+
+			if (tryWidth >= tryHeight)
+				--tryWidth;
+			else
+				--tryHeight;
+
+			if (tryWidth <= 0 || tryHeight <= 0)
+				break;
+		}
+
+		Console.WriteLine($"Num areas generated: {NavArea.TheNavAreas.Count}");
+
+		if (NavArea.TheNavAreas.Count == 0) {
+			AllocateGrid(0, 0, 0, 0);
+			return;
+		}
+
+		Extent extent;
+		extent.Lo.X = 9999999999.9f;
+		extent.Lo.Y = 9999999999.9f;
+		extent.Hi.X = -9999999999.9f;
+		extent.Hi.Y = -9999999999.9f;
+
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			Extent areaExtent = default;
+			area.GetExtent(ref areaExtent);
+
+			if (areaExtent.Lo.X < extent.Lo.X)
+				extent.Lo.X = areaExtent.Lo.X;
+			if (areaExtent.Lo.Y < extent.Lo.Y)
+				extent.Lo.Y = areaExtent.Lo.Y;
+			if (areaExtent.Hi.X > extent.Hi.X)
+				extent.Hi.X = areaExtent.Hi.X;
+			if (areaExtent.Hi.Y > extent.Hi.Y)
+				extent.Hi.Y = areaExtent.Hi.Y;
+		}
+
+		AllocateGrid(extent.Lo.X, extent.Hi.X, extent.Lo.Y, extent.Hi.Y);
+
+		foreach (NavArea area in NavArea.TheNavAreas)
+			AddNavArea(area);
+
+		ConnectGeneratedAreas();
+		MarkPlayerClipAreas();
+		MarkJumpAreas();
+		MergeGeneratedAreas();
+		SplitAreasUnderOverhangs();
+		SquareUpAreas();
+		MarkStairAreas();
+		StichAndRemoveJumpAreas();
+		HandleObstacleTopAreas();
+		FixUpGeneratedAreas();
+
+		if (GenerationMode != GenerationModeType.Incremental) {
+			for (int i = 0; i < Ladders.Count; ++i) {
+				NavLadder ladder = Ladders[i];
+				// ladder.ConnectGeneratedLadder(0.0f); todo
+			}
+		}
+	}
 
 	void AddWalkableSeeds() {
 		BaseEntity? spawn = gEntList.FindEntityByClassname(null, GetPlayerSpawnName());
@@ -1107,14 +1520,14 @@ public partial class NavMesh
 					NavArea areaOther = outgoing[con].Area!;
 					connect.Area = areaOther;
 					if (incoming.Contains(connect)) {
-						Msg("Area %d has area %d on both 2-way and incoming list, should only be on one\n", area.GetID(), areaOther.GetID());
+						Msg($"Area {area.GetID()} has area {areaOther.GetID()} on both 2-way and incoming list, should only be on one\n");
 						Assert(false);
 					}
 
 					for (int connectCheck = con + 1; connectCheck < outgoing.Count; connectCheck++) {
 						NavArea areaCheck = outgoing[connectCheck].Area!;
 						if (areaOther == areaCheck) {
-							Msg("Area %d has multiple outgoing connections to area %d in direction %d\n", area.GetID(), areaOther.GetID(), dir);
+							Msg($"Area {area.GetID()} has multiple outgoing connections to area {areaOther.GetID()} in direction {dir}\n");
 							Assert(false);
 						}
 					}
@@ -1126,7 +1539,7 @@ public partial class NavMesh
 					if (!outgoingOther.Contains(connect)) {
 						connect.Area = area;
 						if (!incomingOther.Contains(connect))
-							Msg("Area %d has one-way connect to area %d but does not appear on the latter's incoming list\n", area.GetID(), areaOther.GetID());
+							Msg($"Area {area.GetID()} has one-way connect to area {areaOther.GetID()} but does not appear on the latter's incoming list\n");
 					}
 				}
 
@@ -1144,7 +1557,7 @@ public partial class NavMesh
 					List<NavConnect> outgoingOther = areaOther.GetAdjacentAreas(OppositeDirection(dir));
 					connect.Area = area;
 					if (!outgoingOther.Contains(connect)) {
-						Msg("Area %d has incoming connection from area %d but does not appear on latter's outgoing connection list\n", area.GetID(), areaOther.GetID());
+						Msg($"Area {area.GetID()} has incoming connection from area {areaOther.GetID()} but does not appear on latter's outgoing connection list\n");
 						Assert(false);
 					}
 				}

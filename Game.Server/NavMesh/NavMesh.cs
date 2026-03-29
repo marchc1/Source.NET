@@ -951,7 +951,7 @@ public class HidingSpot
 	bool IsIdealSniperSpot() => (Flags & (byte)HidingSpotFlags.IdealSniperSpot) != 0;
 	bool IsExposed() => (Flags & (byte)HidingSpotFlags.Exposed) != 0;
 	int GetFlags() => Flags;
-	Vector3 GetPosition() => Pos;
+	public Vector3 GetPosition() => Pos;
 	public uint GetID() => ID;
 	NavArea? GetArea() => Area;
 	void Mark() => Marker = MasterMarker;

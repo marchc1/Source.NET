@@ -213,7 +213,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	void Build(Vector3 nwCorner, Vector3 neCorner, Vector3 seCorner, Vector3 swCorner) { }
 
-	void Build(NavNode nwNode, NavNode neNode, NavNode seNode, NavNode swNode) { }
+	public void Build(NavNode nwNode, NavNode neNode, NavNode seNode, NavNode swNode) { }
 
 	public void GetExtent(ref Extent extent) {
 		extent.Lo = NWCorner;
@@ -697,7 +697,8 @@ public partial class NavArea : NavAreaCriticalData
 	public NavTraverseType GetParentHow() => ParentHow;
 
 	public bool ComputeLighting() {
-		throw new NotImplementedException();
+		// todo
+		return false;
 	}
 
 	void RaiseCorner(NavCornerType corner, int amount, bool raiseAdjacentCorners) { }

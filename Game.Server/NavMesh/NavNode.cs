@@ -45,12 +45,12 @@ public class NavNode
 
 	readonly NavNode[] To = new NavNode[(int)NavDirType.NumDirections];
 	readonly NavNode[] Connections = new NavNode[(int)NavDirType.NumDirections];
-	readonly float[] ObstacleHeight = new float[(int)NavDirType.NumDirections];
+	public readonly float[] ObstacleHeight = new float[(int)NavDirType.NumDirections];
 	readonly float[] ObstacleStartDist = new float[(int)NavDirType.NumDirections];
 	readonly float[] ObstacleEndDist = new float[(int)NavDirType.NumDirections];
 	readonly float[] GroundHeightAboveNode = new float[(int)NavCornerType.NumCorners];
-	readonly bool[] IsBlocked = new bool[(int)NavCornerType.NumCorners];
-	readonly bool[] Crouch = new bool[(int)NavCornerType.NumCorners];
+	public readonly bool[] IsBlocked = new bool[(int)NavCornerType.NumCorners];
+	public readonly bool[] Crouch = new bool[(int)NavCornerType.NumCorners];
 
 	NavNode? Next;
 	NavNode? NextAtXY;
@@ -60,7 +60,7 @@ public class NavNode
 	uint ID;
 	NavAttributeType AttributeFlags;
 	byte Visited;
-	bool IsCovered;
+	public bool IsCovered;
 	bool IsOnDisplacement;
 
 	static NavNode? List;
@@ -245,7 +245,7 @@ public class NavNode
 
 	bool IsBiLinked(NavDirType dir) => To[(int)dir] != null && To[(int)dir].To[(int)Opposite[(int)dir]] == this;
 
-	bool IsClosedCell() => IsBiLinked(NavDirType.South)
+	public bool IsClosedCell() => IsBiLinked(NavDirType.South)
 			&& IsBiLinked(NavDirType.East)
 			&& To[(int)NavDirType.East].IsBiLinked(NavDirType.South)
 			&& To[(int)NavDirType.South].IsBiLinked(NavDirType.East)
@@ -255,15 +255,15 @@ public class NavNode
 
 	public Vector3 GetPosition() => Pos;
 
-	Vector3 GetNormal() => Normal;
+	public Vector3 GetNormal() => Normal;
 
 	uint GetID() => ID;
 
-	static NavNode? GetFirst() => List;
+	public static NavNode? GetFirst() => List;
 
-	static uint GetListLength() => ListLength;
+	public static uint GetListLength() => ListLength;
 
-	NavNode? GetNext() => Next;
+	public NavNode? GetNext() => Next;
 
 	public NavNode GetParent() => Parent;
 
@@ -271,7 +271,7 @@ public class NavNode
 
 	public bool HasVisited(NavDirType dir) => (Visited & (1 << (int)dir)) != 0;
 
-	void Cover() => IsCovered = true;
+	public void Cover() => IsCovered = true;
 
 	bool IsNodeCovered() => IsCovered;
 
@@ -283,7 +283,7 @@ public class NavNode
 
 	public NavAttributeType GetAttributes() => AttributeFlags;
 
-	bool IsBlockedInAnyDirection() => IsBlocked[(int)NavCornerType.NorthEast] || IsBlocked[(int)NavCornerType.NorthWest] || IsBlocked[(int)NavCornerType.SouthEast] || IsBlocked[(int)NavCornerType.SouthWest];
+	public bool IsBlockedInAnyDirection() => IsBlocked[(int)NavCornerType.NorthEast] || IsBlocked[(int)NavCornerType.NorthWest] || IsBlocked[(int)NavCornerType.SouthEast] || IsBlocked[(int)NavCornerType.SouthWest];
 
 	bool IsOnDisplacementSurface() => IsOnDisplacement;
 
