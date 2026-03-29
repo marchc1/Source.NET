@@ -7,6 +7,8 @@ using System.Numerics;
 using Source.Common;
 using Source;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.Mathematics;
+using Source.Common.Formats.BSP;
 
 namespace Game.Server.NavMesh;
 
@@ -297,6 +299,24 @@ public partial class NavMesh
 
 	}
 
+	public bool CheckCliff(Vector3 fromPos, NavDirType dir) {
+		return false;
+
+		Vector3 toPos = fromPos;
+		AddDirectionVector(ref toPos, dir, GenerationStepSize);
+
+		if (TraceAdjacentNode(0, fromPos, toPos, out Trace trace, DeathDrop * 10) && !trace.AllSolid && !trace.StartSolid) {
+			float deltaZ = fromPos.Z - trace.EndPos.Z;
+			if (deltaZ > CliffHeight)
+				return true;
+
+			if ((dir == NavDirType.South || dir == NavDirType.East) && Math.Abs(deltaZ) < StepHeight)
+				return CheckCliff(trace.EndPos, dir);
+		}
+
+		return false;
+	}
+
 	void ConnectGeneratedAreas() { }
 
 	void MergeGeneratedAreas() { }
@@ -331,7 +351,7 @@ public partial class NavMesh
 			pos.X = SnapToGrid(pos.X);
 			pos.Y = SnapToGrid(pos.Y);
 
-			if (FindGroundForNode(pos, out Vector3 normal))
+			if (FindGroundForNode(ref pos, out Vector3 normal))
 				AddWalkableSeed(pos, normal);
 		}
 	}
@@ -720,20 +740,141 @@ public partial class NavMesh
 	ReadOnlySpan<char> GetPlayerSpawnName() => SpawnName ?? "info_player_start";
 
 	NavNode AddNode(Vector3 destPos, Vector3 normal, NavDirType dir, NavNode source, bool isOnDisplacement, float obstacleHeight, float obstacleStartDist, float obstacleEndDist) {
-		throw new NotImplementedException();
+		NavNode? node = NavNode.GetNode(destPos);
+
+		bool useNew = false;
+		if (node == null) {
+			node = new(destPos, normal, source, isOnDisplacement);
+			// OnNodeAdded(node);
+			useNew = true;
+		}
+
+		source.ConnectTo(node, dir, obstacleHeight, obstacleStartDist, obstacleEndDist);
+
+		const float zTolerance = 50.0f;
+		float deltaZ = source.GetPosition().Z - destPos.Z;
+		if (Math.Abs(deltaZ) < zTolerance) {
+			if (obstacleHeight > 0)
+				obstacleHeight = Math.Max(obstacleHeight + deltaZ, 0);
+
+			node.ConnectTo(source, OppositeDirection(dir), obstacleHeight, GenerationStepSize - obstacleEndDist, GenerationStepSize - obstacleStartDist);
+			node.MarkAsVisited(OppositeDirection(dir));
+		}
+
+		if (useNew)
+			CurrentNode = node;
+
+		node.CheckCrouch();
+
+		for (int i = 0; i < (int)NavDirType.NumDirections; i++) {
+			NavDirType checkDir = (NavDirType)i;
+			if (CheckCliff(node.GetPosition(), checkDir))
+				node.SetAttributes(node.GetAttributes() | NavAttributeType.Cliff);
+		}
+
+		return node;
 	}
 
-	bool FindGroundForNode(Vector3 pos, out Vector3 normal) {
+	bool FindGroundForNode(ref Vector3 pos, out Vector3 normal) {
 		TraceFilterWalkableEntities filter = new(null, CollisionGroup.PlayerMovement, WalkThruFlags.Everything);
-		Trace tr = new();
+
 		Vector3 start = new(pos.X, pos.Y, pos.Z + VEC_DUCK_HULL_MAX.Z - 0.1f);
 		Vector3 end = new(pos.X, pos.Y, pos.Z - DeathDrop);
 
-		// todo tracehull
+		Util.TraceHull(start, end, NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), ref filter, out Trace tr);
 
-		// throw new NotImplementedException();
-		normal = Vector3.Zero;
+		pos = tr.EndPos;
+		normal = tr.Plane.Normal;
+
+		return !tr.AllSolid;
+	}
+
+	public bool StayOnFloor(ref Trace trace, float zLimit = DeathDrop) {
+		Vector3 start = trace.EndPos;
+		Vector3 end = start;
+		end.Z -= zLimit;
+
+		TraceFilterWalkableEntities filter = new(null, CollisionGroup.None, WalkThruFlags.Everything);
+		Util.TraceHull(start, end, NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), ref filter, out trace);
+
+		if (trace.StartSolid || trace.Fraction >= 1.0f)
+			return false;
+
+		if (trace.Plane.Normal.Z < nav_slope_limit.GetFloat())
+			return false;
+
 		return true;
+	}
+
+	public bool TraceAdjacentNode(int depth, Vector3 start, Vector3 end, out Trace trace, float zLimit = DeathDrop) {
+		const float MinDistance = 1.0f;
+
+		TraceFilterWalkableEntities filter = new(null, CollisionGroup.None, WalkThruFlags.Everything);
+		Util.TraceHull(start, end, NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), ref filter, out trace);
+
+		if (trace.StartSolid)
+			return false;
+
+		if (end.X == trace.EndPos.X && end.Y == trace.EndPos.Y)
+			return StayOnFloor(ref trace, zLimit);
+
+		if (depth > 0 && new Vector2(trace.EndPos.X - start.X, trace.EndPos.Y - start.Y).LengthSquared() < (MinDistance * MinDistance))
+			return false;
+
+		if (!StayOnFloor(ref trace, zLimit))
+			return false;
+
+		Vector3 testStart = trace.EndPos;
+		Vector3 testEnd = testStart;
+		testEnd.Z += StepHeight;
+
+		if (!TraceAdjacentNode(depth + 1, testStart, testEnd, out trace))
+			return false;
+
+		Vector3 forwardTestStart = trace.EndPos;
+		Vector3 forwardTestEnd = end;
+		forwardTestEnd.Z = forwardTestStart.Z;
+
+		return TraceAdjacentNode(depth + 1, forwardTestStart, forwardTestEnd, out trace);
+	}
+
+	public bool IsNodeOverlapped(Vector3 pos, Vector3 offset) {
+		bool overlap = GetNavArea(pos + offset, HumanHeight) != null;
+		if (!overlap) {
+			Vector3 mins = new(-0.5f, -0.5f, -0.5f);
+			Vector3 maxs = new(0.5f, 0.5f, 0.5f);
+
+			Vector3 start = pos;
+			start.Z += HalfHumanHeight;
+			Vector3 end = start;
+			end.X += offset.X * GenerationStepSize;
+			end.Y += offset.Y * GenerationStepSize;
+
+			TraceFilterWalkableEntities filter = new(null, CollisionGroup.None, WalkThruFlags.Everything);
+			Util.TraceHull(start, end, mins, maxs, GetGenerationTraceMask(), ref filter, out Trace trace);
+
+			if (trace.StartSolid || trace.AllSolid)
+				return true;
+
+			if (trace.Fraction < 0.1f)
+				return true;
+
+			start = trace.EndPos;
+			end = start;
+			end.Z -= HalfHumanHeight * 2;
+
+			Util.TraceHull(start, end, mins, maxs, GetGenerationTraceMask(), ref filter, out trace);
+
+			if (trace.StartSolid || trace.AllSolid)
+				return true;
+
+			if (trace.Fraction == 1.0f)
+				return true;
+
+			if (trace.Plane.Normal.Z < 0.7f)
+				return true;
+		}
+		return overlap;
 	}
 
 	bool SampleStep() {
@@ -745,18 +886,181 @@ public partial class NavMesh
 					if (GenerationMode == GenerationModeType.Incremental || GenerationMode == GenerationModeType.Simplify)
 						return false;
 
-					// for (int i = 0; i < Ladders.Count; i++) {
-					// 	NavLadder ladder = Ladders[i];
+					for (int i = 0; i < Ladders.Count; ++i) {
+						NavLadder ladder = Ladders[i];
 
-					// }
+						// todo LadderEndSearch
+						// if ((CurrentNode = LadderEndSearch(&ladder.m_bottom, ladder.GetDir())) != 0)
+						// 	break;
 
-					if (CurrentNode == null)
+						// if ((CurrentNode = LadderEndSearch(&ladder.m_top, ladder.GetDir())) != 0)
+						// 	break;
+					}
+
+					if (CurrentNode == null) {
 						return false;
+					}
 				}
 			}
 
 			for (NavDirType dir = NavDirType.North; dir < NavDirType.NumDirections; dir++) {
+				if (!CurrentNode.HasVisited(dir)) {
+					Vector3 pos = CurrentNode.GetPosition();
 
+					int cx = (int)SnapToGrid(pos.X);
+					int cy = (int)SnapToGrid(pos.Y);
+
+					switch (dir) {
+						case NavDirType.North: cy -= (int)GenerationStepSize; break;
+						case NavDirType.South: cy += (int)GenerationStepSize; break;
+						case NavDirType.East: cx += (int)GenerationStepSize; break;
+						case NavDirType.West: cx -= (int)GenerationStepSize; break;
+					}
+
+					pos.X = cx;
+					pos.Y = cy;
+
+					GenerationDir = dir;
+
+					CurrentNode.MarkAsVisited(GenerationDir);
+
+					float incrementalRange = nav_generate_incremental_range.GetFloat();
+					if (GenerationMode == GenerationModeType.Incremental && incrementalRange > 0) {
+						bool inRange = false;
+						for (int i = 0; i < WalkableSeeds.Count; ++i) {
+							Vector3 seedPos = WalkableSeeds[i].Pos;
+							if ((seedPos - pos).Length() < incrementalRange) {
+								inRange = true;
+								break;
+							}
+						}
+
+						if (!inRange)
+							return true;
+					}
+
+					if (GenerationMode == GenerationModeType.Simplify) {
+						if (!SimplifyGenerationExtent.Contains(pos))
+							return true;
+					}
+
+					Vector3 from = CurrentNode.GetPosition();
+					TraceFilterWalkableEntities filter = new(null, CollisionGroup.None, WalkThruFlags.Everything);
+					Vector3 to = new(0, 0, 0);
+					Vector3 toNormal = new(0, 0, 0);
+					float obstacleHeight = 0, obstacleStartDist = 0, obstacleEndDist = GenerationStepSize;
+					if (TraceAdjacentNode(0, from, pos, out Trace result)) {
+						to = result.EndPos;
+						toNormal = result.Plane.Normal;
+					}
+					else {
+						bool success = false;
+						for (float height = StepHeight; height <= ClimbUpHeight; height += 1.0f) {
+							Vector3 start = from;
+							Vector3 end = pos;
+							start.Z += height;
+							end.Z += height;
+							Util.TraceHull(start, end, NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), ref filter, out Trace tr);
+							if (!tr.StartSolid && tr.Fraction == 1.0f) {
+								if (!StayOnFloor(ref tr))
+									break;
+
+								to = tr.EndPos;
+								toNormal = tr.Plane.Normal;
+
+								start = end = from;
+								end.Z += height;
+								Util.TraceHull(start, end, NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), ref filter, out tr);
+								if (tr.Fraction < 1.0f)
+									break;
+
+								obstacleHeight = height;
+								success = true;
+								break;
+							}
+							else {
+								Vector3 vecToObstacleStart = tr.EndPos - start;
+								Assert(vecToObstacleStart.LengthSqr() <= (GenerationStepSize * GenerationStepSize));
+								if (vecToObstacleStart.LengthSqr() <= (GenerationStepSize * GenerationStepSize)) {
+									Util.TraceHull(end, start, NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), ref filter, out tr);
+									if (!tr.StartSolid && tr.Fraction < 1.0) {
+										Vector3 vecToObstacleEnd = tr.EndPos - start;
+										Assert(vecToObstacleEnd.LengthSqr() <= (GenerationStepSize * GenerationStepSize));
+										if (vecToObstacleEnd.LengthSqr() <= (GenerationStepSize * GenerationStepSize)) {
+											obstacleStartDist = vecToObstacleStart.Length();
+											obstacleEndDist = vecToObstacleEnd.Length();
+											if (obstacleEndDist == 0)
+												obstacleEndDist = GenerationStepSize;
+										}
+									}
+								}
+							}
+						}
+
+						if (!success)
+							return true;
+					}
+
+					if ((result.Surface.Flags & (ushort)(Surf.Sky | Surf.Sky2D)) != 0)
+						return true;
+
+					Vector3 testPos = to;
+					bool overlapSE = IsNodeOverlapped(testPos, new Vector3(1, 1, HalfHumanHeight));
+					bool overlapSW = IsNodeOverlapped(testPos, new Vector3(-1, 1, HalfHumanHeight));
+					bool overlapNE = IsNodeOverlapped(testPos, new Vector3(1, -1, HalfHumanHeight));
+					bool overlapNW = IsNodeOverlapped(testPos, new Vector3(-1, -1, HalfHumanHeight));
+					if (overlapSE && overlapSW && overlapNE && overlapNW && GenerationMode != GenerationModeType.Simplify)
+						return true;
+
+					int tolerance = nav_generate_incremental_tolerance.GetInt();
+					if (tolerance > 0 && GenerationMode == GenerationModeType.Incremental) {
+						bool valid = false;
+						int zPos = (int)to.Z;
+						for (int i = 0; i < WalkableSeeds.Count; ++i) {
+							Vector3 seedPos = WalkableSeeds[i].Pos;
+							int zMin = (int)(seedPos.Z - tolerance);
+							int zMax = (int)(seedPos.Z + tolerance);
+
+							if (zPos >= zMin && zPos <= zMax) {
+								valid = true;
+								break;
+							}
+						}
+
+						if (!valid)
+							return true;
+					}
+
+
+					bool isOnDisplacement = result.IsDispSurface();
+
+					if (nav_displacement_test.GetInt() > 0) {
+						Vector3 start = to + new Vector3(0, 0, 0);
+						Vector3 end = start + new Vector3(0, 0, nav_displacement_test.GetInt());
+						Util.TraceHull(start, end, NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), ref filter, out result);
+
+						if (result.Fraction > 0) {
+							end = start;
+							start = result.EndPos;
+							Util.TraceHull(start, end, NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), ref filter, out result);
+							if (result.Fraction < 1) {
+								if (result.EndPos.Z > to.Z + StepHeight)
+									return true;
+							}
+						}
+					}
+
+					float deltaZ = to.Z - CurrentNode.GetPosition().Z;
+					if ((obstacleHeight < StepHeight) || (deltaZ > (obstacleHeight - 2.0f))) {
+						obstacleHeight = 0;
+						obstacleStartDist = 0;
+						obstacleEndDist = GenerationStepSize;
+					}
+
+					AddNode(to, toNormal, GenerationDir, CurrentNode, isOnDisplacement, obstacleHeight, obstacleStartDist, obstacleEndDist);
+
+					return true;
+				}
 			}
 
 			CurrentNode = CurrentNode.GetParent();

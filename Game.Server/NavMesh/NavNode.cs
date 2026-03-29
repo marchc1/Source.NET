@@ -2,6 +2,9 @@ using static Game.Server.NavMesh.Nav;
 
 using System.Numerics;
 
+using Source;
+using Source.Common.Formats.BSP;
+
 namespace Game.Server.NavMesh;
 
 class NodeHashFuncs : IEqualityComparer<NavNode>
@@ -25,7 +28,6 @@ class NodeHashFuncs : IEqualityComparer<NavNode>
 		}
 	}
 }
-
 
 public class NavNode
 {
@@ -139,11 +141,44 @@ public class NavNode
 		return blockedHeight;
 	}
 
-	bool TestForCrouchArea(NavCornerType cornerNum, Vector3 mins, Vector3 maxs, float groundHeightAboveNode) {
-		throw new NotImplementedException();
+	bool TestForCrouchArea(NavCornerType cornerNum, Vector3 mins, Vector3 maxs, out float groundHeightAboveNode) {
+		TraceFilterWalkableEntities filter = new(null, CollisionGroup.BreakableGlass, WalkThruFlags.Everything);
+
+		Vector3 start = Pos;
+		Vector3 end = start;
+		end.Z += JumpCrouchHeight;
+
+		Util.TraceHull(start, end, mins, maxs, Mask.NPCSolidBrushOnly, ref filter, out Trace tr);
+
+		float maxHeight = tr.EndPos.Z - start.Z;
+
+		Vector3 realMaxs = maxs;
+
+		for (float height = 0; height <= maxHeight; height += 1.0f) {
+			start = Pos;
+			start.Z += height;
+
+			realMaxs.Z = HalfHumanHeight;
+			Util.TraceHull(start, start, mins, realMaxs, Mask.NPCSolidBrushOnly, ref filter, out tr);
+			if (!tr.StartSolid) {
+				groundHeightAboveNode = start.Z - Pos.Z;
+
+				realMaxs.Z = HumanHeight;
+				Util.TraceHull(start, start, mins, realMaxs, Mask.NPCSolidBrushOnly, ref filter, out tr);
+				if (!tr.StartSolid)
+					return true;
+
+				return false;
+			}
+		}
+
+		groundHeightAboveNode = JumpCrouchHeight;
+
+		IsBlocked[(int)cornerNum] = true;
+		return false;
 	}
 
-	void CheckCrouch() {
+	public void CheckCrouch() {
 		for (int i = 0; i < (int)NavCornerType.NumCorners; i++) {
 			NavCornerType cornerType = (NavCornerType)i;
 			Vector2 cornerVec = CornerToVector2D(cornerType);
@@ -168,14 +203,14 @@ public class NavNode
 					(maxs[j], mins[j]) = (mins[j], maxs[j]);
 			}
 
-			if (!TestForCrouchArea(cornerType, mins, maxs, GroundHeightAboveNode[i])) {
-				SetAttribute(NavAttributeType.Crouch);
+			if (!TestForCrouchArea(cornerType, mins, maxs, out GroundHeightAboveNode[i])) {
+				SetAttributes(NavAttributeType.Crouch);
 				Crouch[i] = true;
 			}
 		}
 	}
 
-	void ConnectTo(NavNode node, NavDirType dir, float obstacleHeight, float obstacleStartDist, float obstacleEndDist) {
+	public void ConnectTo(NavNode node, NavDirType dir, float obstacleHeight, float obstacleStartDist, float obstacleEndDist) {
 		Assert(obstacleStartDist >= 0 && obstacleStartDist <= GenerationStepSize);
 		Assert(obstacleEndDist >= 0 && obstacleStartDist <= GenerationStepSize);
 		Assert(obstacleStartDist < obstacleEndDist);
@@ -232,9 +267,9 @@ public class NavNode
 
 	public NavNode GetParent() => Parent;
 
-	void MarkAsVisited(NavDirType dir) => Visited |= (byte)(1 << (int)dir);
+	public void MarkAsVisited(NavDirType dir) => Visited |= (byte)(1 << (int)dir);
 
-	bool HasVisited(NavDirType dir) => (Visited & (1 << (int)dir)) != 0;
+	public bool HasVisited(NavDirType dir) => (Visited & (1 << (int)dir)) != 0;
 
 	void Cover() => IsCovered = true;
 
@@ -244,13 +279,20 @@ public class NavNode
 
 	NavArea? GetArea() => Area;
 
-	public void SetAttribute(NavAttributeType attr) => AttributeFlags |= attr;
+	public void SetAttributes(NavAttributeType attr) => AttributeFlags |= attr;
 
 	public NavAttributeType GetAttributes() => AttributeFlags;
 
 	bool IsBlockedInAnyDirection() => IsBlocked[(int)NavCornerType.NorthEast] || IsBlocked[(int)NavCornerType.NorthWest] || IsBlocked[(int)NavCornerType.SouthEast] || IsBlocked[(int)NavCornerType.SouthWest];
 
 	bool IsOnDisplacementSurface() => IsOnDisplacement;
+
+	public override bool Equals(object? obj) {
+		if (obj is NavNode other)
+			return GetPosition().AsVector2() == other.GetPosition().AsVector2();
+
+		return false;
+	}
 }
 
 public class NavNodeHashComparer : IEqualityComparer<NavNode>

@@ -139,7 +139,7 @@ public partial class NavMesh
 			center.Y = SnapToGrid(center.Y);
 
 			{
-				if (FindGroundForNode(center, out Vector3 normal)) {
+				if (FindGroundForNode(ref center, out Vector3 normal)) {
 					AddWalkableSeed(center, normal);
 					center.Z += HalfHumanHeight;
 					bounds.Encompass(center);
@@ -155,7 +155,7 @@ public partial class NavMesh
 
 			foreach (NavArea navArea in SelectedSet) {
 				Vector3 corner = area.GetCorner(NavCornerType.NorthEast);
-				if (FindGroundForNode(corner, out Vector3 normal)) {
+				if (FindGroundForNode(ref corner, out Vector3 normal)) {
 					area.Node[(int)NavCornerType.NorthEast] = NavNode.GetNode(corner);
 					NavNode? node = area.Node[(int)NavCornerType.NorthEast];
 					if (node != null) {
