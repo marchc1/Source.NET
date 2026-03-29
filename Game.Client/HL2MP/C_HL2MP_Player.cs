@@ -1,5 +1,6 @@
 using Game.Client.HL2;
 using Game.Shared;
+using Game.Shared.GarrysMod;
 
 using Source;
 using Source.Common;

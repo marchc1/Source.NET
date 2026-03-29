@@ -5,7 +5,6 @@ global using static Game.Client.BasePlayerGlobals;
 
 global using BasePlayer = Game.Client.C_BasePlayer;
 
-
 #else
 global using static Game.Server.BasePlayerGlobals;
 
