@@ -5,14 +5,18 @@ using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
+using Source.Common.Utilities;
 
+using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Mail;
 using System.Numerics;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Xml.Linq;
 namespace Source.Common;
 
 using static Source.Common.Networking.SVC_ClassInfo;
@@ -1108,6 +1112,27 @@ public enum StudioAutolayerFlags
 	Local = 0x1000,
 	Pose = 0x4000
 }
+public class MStudioActivityModifier
+{
+	public const int SIZEOF = 4;
+	public static MStudioActivityModifier FACTORY(object caller, Memory<byte> data) => new(data);
+	Memory<byte> data;
+	public int NameIndex => data.Cast<byte, int>().Span[0];
+	string? nameCache;
+
+	public string? Name() {
+		if (NameIndex == 0)
+			return null;
+		else if (nameCache != null)
+			return nameCache;
+
+		return Studio.ProduceASCIIString(ref nameCache, data.Span[NameIndex..]);
+	}
+
+	public MStudioActivityModifier(Memory<byte> data) {
+		this.data = data;
+	}
+}
 public class MStudioAutoLayer
 {
 	public const int SIZEOF = 24; // Static offset from MSVC stats (mstudiobone_t size 24, alignment 4)
@@ -1225,6 +1250,9 @@ public class MStudioSeqDesc
 
 	public int ActivityModifierIndex;
 	public int NumActivityModifiers;
+	MStudioActivityModifier[]? activityModifierCache;
+	public MStudioActivityModifier ActivityModifier(int i)
+		=> Studio.ProduceArrayIdx(this, ref activityModifierCache, NumActivityModifiers, ActivityModifierIndex, i, MStudioActivityModifier.SIZEOF, Data, MStudioActivityModifier.FACTORY);
 
 	public MStudioSeqDesc() { hdr = null!; }
 	public MStudioSeqDesc(StudioHeader hdr, Memory<byte> data) {
@@ -1458,6 +1486,11 @@ public class StudioHdr
 		return studioHdr!.GetName();
 	}
 	public const int ACTIVITY_NOT_AVAILABLE = -1;
+
+	public delegate void SetActivityForSequenceFn(StudioHdr studiohdr, int i);
+	public static event SetActivityForSequenceFn? SetActivityForSequence;
+	readonly static UtlSymbolTable g_ActivityModifiersTable = new();
+
 	public class ActivityToSequenceMapping
 	{
 		public bool Initialized;
@@ -1468,38 +1501,157 @@ public class StudioHdr
 		readonly Dictionary<int, int> LOOKUP = [];
 
 		public void Initialize(StudioHdr studiohdr) {
-			if (!studiohdr.SequencesAvailable())
-				return;
-
+			if (SequenceTuples != null) return;
+			SetValidationPair(studiohdr);
+			if (!studiohdr.SequencesAvailable()) return;
 			Initialized = true;
 
 			// Some studio headers have no activities at all. In those
 			// cases we can avoid a lot of this effort.
-			bool bFoundOne = false;
+			bool foundOne = false;
 
 			// for each sequence in the header...
 			int NumSeq = studiohdr.GetNumSeq();
 			for (int i = 0; i < NumSeq; ++i) {
 				MStudioSeqDesc seqdesc = studiohdr.Seqdesc(i);
 
-				// TODO: Finish this
+				if (0 == (seqdesc.Flags & StudioAnimSeqFlags.Activity))
+					SetActivityForSequence?.Invoke(studiohdr, i);
+
+				if (seqdesc.Activity == 0) {
+					foundOne = true;
+					// look up if we already have an entry. First we need to make a speculative one --
+					HashValueType entry = new(seqdesc.Activity, 0, 1, Math.Abs(seqdesc.ActWeight));
+					ref HashValueType toUpdate = ref ActToSeqHash.TryGetRef(entry, out bool ok);
+					if (ok) {
+						// we already have an entry and must update it by incrementing count
+						toUpdate.Count += 1;
+						toUpdate.TotalWeight += Math.Abs(seqdesc.ActWeight);
+					}
+					else {
+						// we do not have an entry yet; create one.
+						ActToSeqHash.Add(entry, entry);
+					}
+				}
+			}
+
+			if (!foundOne)
+				return;
+
+			// Now, create starting indices for each activity. For an activity n, 
+			// the starting index is of course the sum of counts [0..n-1]. 
+			int sequenceCount = 0;
+			int topActivity = 0; // this will store the highest seen activity number (used later to make an ad hoc map on the stack)
+			foreach (var entry in ActToSeqHash) {
+				ref HashValueType element = ref ActToSeqHash.TryGetRef(entry.Key, out bool ok);
+				element.StartingIdx = sequenceCount;
+				sequenceCount += element.Count;
+				topActivity = Math.Max(topActivity, element.ActivityIdx);
+			}
+
+
+			// Allocate the actual array of sequence information. Note the use of restrict;
+			// this is an important optimization, but means that you must never refer to this
+			// array through m_pSequenceTuples in the scope of this function.
+			SequenceTuple[] tupleList = new SequenceTuple[sequenceCount];
+			SequenceTuples = tupleList; // save it off -- NEVER USE m_pSequenceTuples in this function!
+
+			// Now we're going to actually populate that list with the relevant data. 
+			// First, create an array on the stack to store how many sequences we've written
+			// so far for each activity. (This is basically a very simple way of doing a map.)
+			// This stack may potentially grow very large; so if you have problems with it, 
+			// go to a utlmap or similar structure.
+			int allocsize = (int)(topActivity + 1);
+			allocsize = allocsize.AlignValue(16);
+			Span<int> seqsPerAct = stackalloc int[allocsize];
+
+			// okay, walk through all the sequences again, and write the relevant data into 
+			// our little table.
+			for (int i = 0; i < NumSeq; ++i) {
+				MStudioSeqDesc seqdesc = studiohdr.Seqdesc(i);
+				if (seqdesc.Activity >= 0) {
+					ref HashValueType element = ref ActToSeqHash.TryGetRef(new(seqdesc.Activity, 0, 0, 0), out bool ok);
+
+					// If this assert trips, we've written more sequences per activity than we allocated 
+					// (therefore there must have been a miscount in the first for loop above).
+					int tupleOffset = seqsPerAct[seqdesc.Activity];
+					Assert(tupleOffset < element.Count);
+
+					if (seqdesc.NumActivityModifiers > 0) {
+						// add entries for this model's activity modifiers
+						(tupleList[element.StartingIdx + tupleOffset]).ActivityModifiers = new UtlSymId_t[seqdesc.NumActivityModifiers];
+
+						for (int k = 0; k < seqdesc.NumActivityModifiers; k++)
+							(tupleList[element.StartingIdx + tupleOffset]).ActivityModifiers![k] = g_ActivityModifiersTable.AddString(seqdesc.ActivityModifier(k).Name());
+
+					}
+					else {
+						(tupleList[element.StartingIdx + tupleOffset]).ActivityModifiers = null;
+					}
+
+					// You might be tempted to collapse this pointer math into a single pointer --
+					// don't! the tuple list is marked __restrict above.
+					(tupleList[element.StartingIdx + tupleOffset]).SeqNum = (short)i; // store sequence number
+					(tupleList[element.StartingIdx + tupleOffset]).Weight = (short)Math.Abs(seqdesc.ActWeight);
+
+					// We can't have weights of 0
+					// Assert( (tupleList + element.startingIdx + tupleOffset)->weight > 0 );
+					if ((tupleList[element.StartingIdx + tupleOffset]).Weight == 0)
+						(tupleList[element.StartingIdx + tupleOffset]).Weight = 1;
+
+					seqsPerAct[seqdesc.Activity] += 1;
+				}
 			}
 		}
 
-		public int SelectWeightedSequence(StudioHdr studiohdr, int activity, int curSequence) {
-			return ACTIVITY_NOT_AVAILABLE; // todo
+		StudioHeader? expectedPStudioHdr;
+		VirtualModel? expectedVModel;
+
+		public void SetValidationPair(StudioHdr studiohdr){
+			expectedPStudioHdr = studiohdr.GetRenderHdr();
+			expectedVModel = studiohdr.GetVirtualModel();
 		}
+
+		public bool ValidateAgainst(StudioHdr studiohdr) {
+			if (Initialized)
+				return studiohdr.GetRenderHdr() == expectedPStudioHdr && studiohdr.GetVirtualModel() == expectedVModel;
+			else
+				return true;
+		}
+
+		public void Reinitialize(StudioHdr studiohdr) {
+			Initialized = false;
+			SequenceTuples = null;
+			ActToSeqHash.Clear();
+
+			Initialize(studiohdr);
+		}
+
+		public struct SequenceTuple
+		{
+			public short SeqNum;
+			public short Weight;
+			public UtlSymId_t[]? ActivityModifiers;
+		}
+
+		public struct HashValueType(int activityIdx, int startingIdx, int count, int totalWeight)
+		{
+			public int ActivityIdx = activityIdx;
+			public int StartingIdx = startingIdx;
+			public int Count = count;
+			public int TotalWeight = totalWeight;
+
+			public override int GetHashCode() {
+				return HashCode.Combine(ActivityIdx);
+			}
+		}
+
+		public SequenceTuple[]? SequenceTuples;
+		public readonly Dictionary<HashValueType, HashValueType> ActToSeqHash = [];
 	}
 
 
 	public readonly ActivityToSequenceMapping ActivityToSequence = new();
-
-	public int SelectWeightedSequence(int activity, int curSequence) {
-		if (!ActivityToSequence.IsInitialized())
-			ActivityToSequence.Initialize(this);
-
-		return ActivityToSequence.SelectWeightedSequence(this, activity, curSequence);
-	}
 
 	public int GetNumPoseParameters() {
 		if (vModel == null) {
@@ -1520,9 +1672,9 @@ public class StudioHdr
 	public int EntryNode(int sequence) {
 		MStudioSeqDesc seqdesc = Seqdesc(sequence);
 
-		if (vModel == null || seqdesc.LocalEntryNode == 0) 
+		if (vModel == null || seqdesc.LocalEntryNode == 0)
 			return seqdesc.LocalEntryNode;
-		
+
 		Assert(vModel != null);
 
 		VirtualGroup group = vModel.Group[vModel.Seq[sequence].Group];
@@ -1533,7 +1685,7 @@ public class StudioHdr
 	public int ExitNode(int sequence) {
 		MStudioSeqDesc seqdesc = Seqdesc(sequence);
 
-		if (vModel == null || seqdesc.LocalExitNode == 0) 
+		if (vModel == null || seqdesc.LocalExitNode == 0)
 			return seqdesc.LocalExitNode;
 
 		Assert(vModel != null);
@@ -1907,8 +2059,8 @@ public class StudioHeader
 			return null;
 		return modelinfo.GetVirtualModel(this);
 	}
-	
-	public ref byte LocalTransition(int i){
+
+	public ref byte LocalTransition(int i) {
 		return ref Data.Span[LocalNodeIndex..][i];
 	}
 

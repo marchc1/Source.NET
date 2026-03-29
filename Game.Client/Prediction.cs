@@ -273,7 +273,6 @@ public class Prediction : IPrediction
 
 			if (e.GetPredictable())
 				continue;
-
 			e.CheckInitPredictable("ReinitPredictables");
 		}
 

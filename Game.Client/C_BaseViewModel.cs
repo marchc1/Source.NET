@@ -91,12 +91,10 @@ public partial class C_BaseViewModel
 
 		TimeUnit_t dt = elapsed_time * GetSequenceCycleRate(studioHdr, GetSequence()) * GetPlaybackRate();
 		if (dt >= 1.0f) {
-			if (!IsSequenceLooping(GetSequence())) {
-				dt = 0.999f;
-			}
-			else {
+			if (!IsSequenceLooping(GetSequence())) 
+				dt = 0.999;
+			else 
 				dt = MathLib.Fmodf(dt, 1.0);
-			}
 		}
 		SetCycle(dt);
 		return bret;
