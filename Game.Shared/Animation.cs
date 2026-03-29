@@ -14,6 +14,9 @@ namespace Game.Shared;
 
 public static class Animation
 {
+static Animation(){
+		StudioHdr.SetActivityForSequence += SetActivityForSequence;
+}
 	public static StudioAnimSeqFlags GetSequenceFlags(StudioHdr? studioHdr, int sequence) {
 		if (studioHdr == null || !studioHdr.SequencesAvailable() || sequence < 0 || sequence >= studioHdr.GetNumSeq())
 			return 0;

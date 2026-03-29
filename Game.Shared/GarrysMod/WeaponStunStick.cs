@@ -27,5 +27,6 @@ public class WeaponStunStick : BaseHL2MPBludgeonWeapon
 	public static readonly new ServerClass ServerClass = new ServerClass("WeaponStunStick", DT_WeaponStunStick).WithManualClassID(StaticClassIndices.CWeaponStunStick);
 #endif
 	public bool Active;
+	public override float GetFireRate() => 0.2f;
 }
 #endif

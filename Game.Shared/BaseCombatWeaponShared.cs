@@ -17,11 +17,10 @@ using Game.Shared;
 using System.Numerics;
 
 using Source.Common.Engine;
+using System.Diagnostics;
 
 #if CLIENT_DLL
 using Game.Client.HUD;
-
-using System.Diagnostics;
 
 using Microsoft.VisualBasic;
 
@@ -919,10 +918,14 @@ public partial class
 		return true;
 	}
 
-	public BaseCombatCharacter? GetOwner() => ToBaseCombatCharacter(Owner.Get());
+	public BaseCombatCharacter? GetOwner() {
+		var ret = ToBaseCombatCharacter(Owner.Get());
+		return ret;
+	}
 
 	public bool SetIdealActivity(Activity ideal) {
 		int idealSequence = SelectWeightedSequence(ideal);
+		Msg($"idealSequence: {idealSequence}\n");
 
 		if (idealSequence == -1)
 			return false;
@@ -933,7 +936,6 @@ public partial class
 
 		//Find the next sequence in the potential chain of sequences leading to our ideal one
 		int nextSequence = FindTransitionSequence(GetSequence(), IdealSequence);
-
 		// Don't use transitions when we're deploying
 		if (ideal != Activity.ACT_VM_DRAW && IsWeaponVisible() && nextSequence != IdealSequence) {
 			//Set our activity to the next transitional animation
@@ -1006,7 +1008,7 @@ public partial class
 #endif
 	}
 
-	
+
 
 	public virtual void Equip(BaseCombatCharacter owner) {
 		SetAbsVelocity(vec3_origin);
@@ -1020,7 +1022,7 @@ public partial class
 
 		NextPrimaryAttack = gpGlobals.CurTime;
 		NextSecondaryAttack = gpGlobals.CurTime;
-		
+
 		if (owner.IsPlayer())
 			SetModel(GetViewModel());
 		else {

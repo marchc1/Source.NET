@@ -87,6 +87,11 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 		}
 		base.CalcView(ref eyeOrigin, ref eyeAngles, ref zNear, ref zFar, ref fov);
 	}
+
+	public override void PostThink() {
+		base.PostThink();
+		AngEyeAngles = EyeAngles();
+	}
 }
 
 public class C_HL2MPRagdoll : C_BaseAnimatingOverlay

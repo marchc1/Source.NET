@@ -41,6 +41,7 @@ public class WeaponRPG : BaseHL2MPCombatWeapon
 	public bool HideGuiding;
 	public EHANDLE Missile = new();
 	public Vector3 LaserDot;
+	public override float GetFireRate() => 1f;
 }
 
 [LinkEntityToClass("env_laserdot")]
