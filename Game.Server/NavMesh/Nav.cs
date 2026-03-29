@@ -63,9 +63,9 @@ public static class Nav
 	const int HalfHumanWidth = 16;
 	public const float HalfHumanHeight = 35.5f;
 	public const float HumanHeight = 71.0f;
-	const float HumanEyeHeight = 62.0f;
+	public const float HumanEyeHeight = 62.0f;
 	public const float HumanCrouchHeight = 55.0f;
-	const float HumanCrouchEyeHeight = 37.0f;
+	public const float HumanCrouchEyeHeight = 37.0f;
 	public const uint NavMagicNumber = 0xFEEDFACE;       // to help identify nav files
 
 	public const uint UndefinedPlace = 0;
@@ -443,3 +443,44 @@ public interface INavAvoidanceObstacle
 	BaseEntity GetObstructingEntity();
 	void OnNavMeshLoaded();
 };
+
+[Flags]
+public enum GetNavAreaFlags : uint
+{
+	CheckLOS = 0x01,
+	AllowBlockedAreas = 0x02,
+	CheckGround = 0x04
+}
+
+public struct NavVisPair_t()
+{
+	public readonly NavArea[] Areas = new NavArea[2];
+
+	public void SetPair(NavArea area1, NavArea area2) {
+		int iArea1 = area1.GetID() > area2.GetID() ? 0 : 1;
+		int iArea2 = (iArea1 + 1) % 2;
+		Areas[iArea1] = area1;
+		Areas[iArea2] = area2;
+	}
+}
+
+class VisPairHashFuncs : IEqualityComparer<NavVisPair_t>
+{
+	public bool Equals(NavVisPair_t lhs, NavVisPair_t rhs) => lhs.Areas[0] == rhs.Areas[0] && lhs.Areas[1] == rhs.Areas[1];
+
+	public int GetHashCode(NavVisPair_t item) {
+		int key0 = (int)(item.Areas[0].GetHashCode() + item.Areas[1].GetID());
+		int key1 = (int)(item.Areas[1].GetHashCode() + item.Areas[0].GetID());
+
+		return Hash8(key0, key1);
+	}
+
+	static int Hash8(int a, int b) {
+		unchecked {
+			int hash = 17;
+			hash = hash * 31 + a;
+			hash = hash * 31 + b;
+			return hash;
+		}
+	}
+}

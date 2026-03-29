@@ -1,11 +1,16 @@
+using static Game.Server.NavMesh.Nav;
+
 namespace Game.Server.NavMesh;
 
+using System.Collections.Concurrent;
 using System.Numerics;
 
 using Game.Server.NextBot;
 
 using Source;
 using Source.Common;
+using Source.Common.Formats.BSP;
+using Source.Common.Mathematics;
 
 public class FuncElevator;
 
@@ -136,7 +141,7 @@ public partial class NavArea : NavAreaCriticalData
 	bool IsInheritedFrom;
 	UInt32 VisTestCounter;
 	static UInt32 CurrVisTestCounter;
-	readonly List<FuncNavCost> FuncNavCostVector = [];
+	List<FuncNavCost> FuncNavCostVector;
 
 	public static void CompressIDs() {
 		NextID = 1;
@@ -204,16 +209,99 @@ public partial class NavArea : NavAreaCriticalData
 		InheritVisibilityFrom.Area = null;
 		IsInheritedFrom = false;
 
-		// FuncNavCostVector = [];
+		FuncNavCostVector = [];
 
 		VisTestCounter = UInt32.MaxValue - 1;
 	}
 
-	void Build(Vector3 corner, Vector3 otherCorner) { }
+	void Build(Vector3 corner, Vector3 otherCorner) {
+		if (corner.X < otherCorner.X) {
+			NWCorner.X = corner.X;
+			SECorner.X = otherCorner.X;
+		}
+		else {
+			SECorner.X = corner.X;
+			NWCorner.X = otherCorner.X;
+		}
 
-	void Build(Vector3 nwCorner, Vector3 neCorner, Vector3 seCorner, Vector3 swCorner) { }
+		if (corner.Y < otherCorner.Y) {
+			NWCorner.Y = corner.Y;
+			SECorner.Y = otherCorner.Y;
+		}
+		else {
+			SECorner.Y = corner.Y;
+			NWCorner.Y = otherCorner.Y;
+		}
 
-	public void Build(NavNode nwNode, NavNode neNode, NavNode seNode, NavNode swNode) { }
+		NWCorner.Z = corner.Z;
+		SECorner.Z = corner.Z;
+
+		Center.X = (NWCorner.X + SECorner.X) / 2.0f;
+		Center.Y = (NWCorner.Y + SECorner.Y) / 2.0f;
+		Center.Z = (NWCorner.Z + SECorner.Z) / 2.0f;
+
+		if ((SECorner.X - NWCorner.X) > 0.0f && (SECorner.Y - NWCorner.Y) > 0.0f) {
+			InvDXCorners = 1.0f / (SECorner.X - NWCorner.X);
+			InvDYCorners = 1.0f / (SECorner.Y - NWCorner.Y);
+		}
+		else
+			InvDXCorners = InvDYCorners = 0;
+
+		NEZ = corner.Z;
+		SWZ = otherCorner.Z;
+
+		CalcDebugID();
+	}
+
+	void Build(Vector3 nwCorner, Vector3 neCorner, Vector3 seCorner, Vector3 swCorner) {
+		NWCorner = nwCorner;
+		SECorner = seCorner;
+
+		Center.X = (NWCorner.X + SECorner.X) / 2.0f;
+		Center.Y = (NWCorner.Y + SECorner.Y) / 2.0f;
+		Center.Z = (NWCorner.Z + SECorner.Z) / 2.0f;
+
+		NEZ = neCorner.Z;
+		SWZ = swCorner.Z;
+
+		if ((SECorner.X - NWCorner.X) > 0.0f && (SECorner.Y - NWCorner.Y) > 0.0f) {
+			InvDXCorners = 1.0f / (SECorner.X - NWCorner.X);
+			InvDYCorners = 1.0f / (SECorner.Y - NWCorner.Y);
+		}
+		else {
+			InvDXCorners = InvDYCorners = 0;
+		}
+
+		CalcDebugID();
+	}
+
+	public void Build(NavNode nwNode, NavNode neNode, NavNode seNode, NavNode swNode) {
+		NWCorner = nwNode.GetPosition();
+		SECorner = seNode.GetPosition();
+
+		Center.X = (NWCorner.X + SECorner.X) / 2.0f;
+		Center.Y = (NWCorner.Y + SECorner.Y) / 2.0f;
+		Center.Z = (NWCorner.Z + SECorner.Z) / 2.0f;
+
+		NEZ = neNode.GetPosition().Z;
+		SWZ = swNode.GetPosition().Z;
+
+		Node[(int)NavCornerType.NorthWest] = nwNode;
+		Node[(int)NavCornerType.NorthEast] = neNode;
+		Node[(int)NavCornerType.SouthEast] = seNode;
+		Node[(int)NavCornerType.SouthWest] = swNode;
+
+		if ((SECorner.X - NWCorner.X) > 0.0f && (SECorner.Y - NWCorner.Y) > 0.0f) {
+			InvDXCorners = 1.0f / (SECorner.X - NWCorner.X);
+			InvDYCorners = 1.0f / (SECorner.Y - NWCorner.Y);
+		}
+		else
+			InvDXCorners = InvDYCorners = 0;
+
+		AssignNodes(this);
+
+		CalcDebugID();
+	}
 
 	public void GetExtent(ref Extent extent) {
 		extent.Lo = NWCorner;
@@ -272,7 +360,7 @@ public partial class NavArea : NavAreaCriticalData
 		Connect[(int)dir].Add(con);
 		IncomingConnect[(int)dir].RemoveAll(c => c.Area == area);
 
-		NavDirType opposite = Nav.OppositeDirection(dir);
+		NavDirType opposite = OppositeDirection(dir);
 		con.Area = this;
 
 		if (area.Connect[(int)opposite].FindIndex(c => c.Area == this) == -1)
@@ -366,7 +454,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	void InheritAttributes(NavArea first, NavArea second) { }
 
-	public void Strip() { }
+	public void Strip() => SpotEncounters.Clear();
 
 	bool IsRoughlySquare() {
 		throw new NotImplementedException();
@@ -642,20 +730,368 @@ public partial class NavArea : NavAreaCriticalData
 	void SetCorner(NavCornerType corner, Vector3 newPosition) { }
 
 	bool IsHidingSpotCollision(Vector3 pos) {
-		throw new NotImplementedException();
+		const float collisionRange = 30.0f;
+
+		foreach (HidingSpot spot in HidingSpots) {
+			if ((spot.GetPosition() - pos).Length() <= collisionRange)
+				return true;
+		}
+
+		return false;
 	}
 
-	public void ComputeHidingSpots() { }
+	bool IsHidingSpotInCover(Vector3 spot) {
+		int coverCount = 0;
 
-	public void ComputeSniperSpots() { }
+		Vector3 from = spot;
+		from.Z += HalfHumanHeight;
+
+		Vector3 to = from + new Vector3(0, 0, 20.0f);
+		Util.TraceLine(from, to, Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out Trace result);
+		if (result.Fraction != 1.0f)
+			return true;
+
+		const float coverRange = 100.0f;
+		const float inc = (float)(Math.PI / 8.0f);
+
+		for (float angle = 0.0f; angle < 2.0f * Math.PI; angle += inc) {
+			to = from + new Vector3(coverRange * (float)Math.Cos(angle), coverRange * (float)Math.Sin(angle), HalfHumanHeight);
+
+			Util.TraceLine(from, to, Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out result);
+
+			if (result.Fraction != 1.0f)
+				++coverCount;
+		}
+
+		const int halfCover = 8;
+		if (coverCount < halfCover)
+			return false;
+
+		return true;
+	}
+
+	static Vector3 FindPositionInArea(NavArea area, NavCornerType corner) {
+		int multX = 1, multY = 1;
+		switch (corner) {
+			case NavCornerType.NorthWest:
+				break;
+			case NavCornerType.NorthEast:
+				multX = -1;
+				break;
+			case NavCornerType.SouthWest:
+				multY = -1;
+				break;
+			case NavCornerType.SouthEast:
+				multX = -1;
+				multY = -1;
+				break;
+		}
+
+		const float offset = 12.5f;
+		Vector3 cornerPos = area.GetCorner(corner);
+
+		Vector3 pos = cornerPos + new Vector3(offset * multX, offset * multY, 0.0f);
+		if (!area.IsOverlapping(pos)) {
+			pos = cornerPos + new Vector3(offset * multX, area.GetSizeY() * 0.5f * multY, 0.0f);
+			if (!area.IsOverlapping(pos)) {
+				pos = cornerPos + new Vector3(area.GetSizeX() * 0.5f * multX, offset * multY, 0.0f);
+				if (!area.IsOverlapping(pos)) {
+					pos = cornerPos + new Vector3(area.GetSizeX() * 0.5f * multX, area.GetSizeY() * 0.5f * multY, 0.0f);
+					if (!area.IsOverlapping(pos)) {
+						AssertMsg(false, $"A Hiding Spot can't be placed on its area at ({cornerPos.X}, {cornerPos.Y}, {cornerPos.Z})");
+
+						pos = cornerPos + new Vector3(1.0f * multX, 1.0f * multY, 0.0f);
+						if (!area.IsOverlapping(pos))
+							pos = cornerPos;
+					}
+				}
+			}
+		}
+
+		return pos;
+	}
+
+	struct HidingSpotExtent
+	{
+		public float Lo;
+		public float Hi;
+	}
+
+	public void ComputeHidingSpots() {
+		HidingSpotExtent extent = new();
+
+		HidingSpots.Clear();
+
+		if ((GetAttributes() & NavAttributeType.Crouch) != 0)
+			return;
+
+		if ((GetAttributes() & NavAttributeType.DontHide) != 0)
+			return;
+
+		int[] cornerCount = new int[(int)NavCornerType.NumCorners];
+		for (int i = 0; i < (int)NavCornerType.NumCorners; ++i)
+			cornerCount[i] = 0;
+
+		const float cornerSize = 20.0f;
+
+		for (int d = 0; d < (int)NavDirType.NumDirections; ++d) {
+			extent.Lo = 999999.9f;
+			extent.Hi = -999999.9f;
+
+			bool isHoriz = d == (int)NavDirType.North || d == (int)NavDirType.South;
+
+			for (int it = 0; it < Connect[d].Count; it++) {
+				NavConnect connect = Connect[d][it];
+
+				if (connect.Area!.IsConnected(this, OppositeDirection((NavDirType)d)) == false)
+					continue;
+
+				if ((connect.Area.GetAttributes() & NavAttributeType.Jump) != 0)
+					continue;
+
+				if (isHoriz) {
+					if (connect.Area.NWCorner.X < extent.Lo)
+						extent.Lo = connect.Area.NWCorner.X;
+
+					if (connect.Area.SECorner.X > extent.Hi)
+						extent.Hi = connect.Area.SECorner.X;
+				}
+				else {
+					if (connect.Area.NWCorner.Y < extent.Lo)
+						extent.Lo = connect.Area.NWCorner.Y;
+
+					if (connect.Area.SECorner.Y > extent.Hi)
+						extent.Hi = connect.Area.SECorner.Y;
+				}
+			}
+
+			switch (d) {
+				case (int)NavDirType.North:
+					if (extent.Lo - NWCorner.X >= cornerSize)
+						++cornerCount[(int)NavCornerType.NorthWest];
+
+					if (SECorner.X - extent.Hi >= cornerSize)
+						++cornerCount[(int)NavCornerType.NorthEast];
+					break;
+
+				case (int)NavDirType.South:
+					if (extent.Lo - NWCorner.X >= cornerSize)
+						++cornerCount[(int)NavCornerType.SouthWest];
+
+					if (SECorner.X - extent.Hi >= cornerSize)
+						++cornerCount[(int)NavCornerType.SouthEast];
+					break;
+
+				case (int)NavDirType.East:
+					if (extent.Lo - NWCorner.Y >= cornerSize)
+						++cornerCount[(int)NavCornerType.NorthEast];
+
+					if (SECorner.Y - extent.Hi >= cornerSize)
+						++cornerCount[(int)NavCornerType.SouthEast];
+					break;
+
+				case (int)NavDirType.West:
+					if (extent.Lo - NWCorner.Y >= cornerSize)
+						++cornerCount[(int)NavCornerType.NorthWest];
+
+					if (SECorner.Y - extent.Hi >= cornerSize)
+						++cornerCount[(int)NavCornerType.SouthWest];
+					break;
+			}
+		}
+
+		for (int c = 0; c < (int)NavCornerType.NumCorners; ++c) {
+			if (cornerCount[c] == 2) {
+				Vector3 pos = FindPositionInArea(this, (NavCornerType)c);
+				if (c == 0 || !IsHidingSpotCollision(pos)) {
+					HidingSpot spot = NavMesh.Instance!.CreateHidingSpot();
+					spot.SetPosition(pos);
+					spot.SetFlags(IsHidingSpotInCover(pos) ? HidingSpotFlags.InCover : HidingSpotFlags.Exposed);
+					HidingSpots.Add(spot);
+				}
+			}
+		}
+	}
+
+	void ClassifySniperSpot(HidingSpot spot) {
+		Vector3 eye = spot.GetPosition();
+
+		NavArea? hidingArea = NavMesh.Instance!.GetNavArea(spot.GetPosition());
+		if (hidingArea != null && (hidingArea.GetAttributes() & NavAttributeType.Stand) != 0) {
+			eye.Z += HumanEyeHeight;
+		}
+		else {
+			eye.Z += HumanCrouchEyeHeight;
+		}
+
+		Vector3 walkable = default;
+
+		Extent sniperExtent = default;
+		float farthestRangeSq = 0.0f;
+		const float minSniperRangeSq = 1000.0f * 1000.0f;
+		bool found = false;
+
+		sniperExtent.Lo = Vector3.Zero;
+		sniperExtent.Hi = Vector3.Zero;
+
+		Extent areaExtent = default;
+		for (int it = 0; it < TheNavAreas.Count; it++) {
+			NavArea area = TheNavAreas[it];
+
+			area.GetExtent(ref areaExtent);
+
+			for (walkable.Y = areaExtent.Lo.Y + GenerationStepSize / 2.0f; walkable.Y < areaExtent.Hi.Y; walkable.Y += GenerationStepSize) {
+				for (walkable.X = areaExtent.Lo.X + GenerationStepSize / 2.0f; walkable.X < areaExtent.Hi.X; walkable.X += GenerationStepSize) {
+					walkable.Z = area.GetZ(walkable) + HalfHumanHeight;
+
+					Util.TraceLine(eye, walkable, (Mask)(Contents.Solid | Contents.Moveable | Contents.PlayerClip), null, CollisionGroup.None, out Trace result);
+
+					if (result.Fraction == 1.0f && !result.StartSolid) {
+						float rangeSq = (eye - walkable).LengthSquared();
+						if (rangeSq > farthestRangeSq) {
+							farthestRangeSq = rangeSq;
+
+							if (rangeSq >= minSniperRangeSq) {
+								if (found) {
+									if (walkable.X < sniperExtent.Lo.X)
+										sniperExtent.Lo.X = walkable.X;
+									if (walkable.X > sniperExtent.Hi.X)
+										sniperExtent.Hi.X = walkable.X;
+
+									if (walkable.Y < sniperExtent.Lo.Y)
+										sniperExtent.Lo.Y = walkable.Y;
+									if (walkable.Y > sniperExtent.Hi.Y)
+										sniperExtent.Hi.Y = walkable.Y;
+								}
+								else {
+									sniperExtent.Lo = walkable;
+									sniperExtent.Hi = walkable;
+									found = true;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if (found) {
+			float snipableArea = sniperExtent.Area();
+
+			const float minIdealSniperArea = 200.0f * 200.0f;
+			const float longSniperRangeSq = 1500.0f * 1500.0f;
+
+			if (snipableArea >= minIdealSniperArea || farthestRangeSq >= longSniperRangeSq)
+				spot.Flags |= (byte)HidingSpotFlags.IdealSniperSpot;
+			else
+				spot.Flags |= (byte)HidingSpotFlags.GoodSniperSpot;
+		}
+	}
+
+	public void ComputeSniperSpots() {
+		if (nav_quicksave.GetBool())
+			return;
+
+		foreach (HidingSpot spot in HidingSpots)
+			ClassifySniperSpot(spot);
+	}
 
 	SpotEncounter GetSpotEncounter(NavArea from, NavArea to) {
 		throw new NotImplementedException();
 	}
 
-	void AddSpotEncounters(NavArea from, NavDirType fromDir, NavArea to, NavDirType toDir) { }
+	void AddSpotEncounters(NavArea from, NavDirType fromDir, NavArea to, NavDirType toDir) {
+		SpotEncounter e = new();
 
-	public void ComputeSpotEncounters() { }
+		e.From.Area = from;
+		e.FromDir = fromDir;
+
+		e.To.Area = to;
+		e.ToDir = toDir;
+
+		ComputePortal(to, toDir, ref e.Path.To, out float halfWidth);
+		ComputePortal(from, fromDir, ref e.Path.From, out halfWidth);
+
+		const float eyeHeight = HumanEyeHeight;
+		e.Path.From.Z = from.GetZ(e.Path.From) + eyeHeight;
+		e.Path.To.Z = to.GetZ(e.Path.To) + eyeHeight;
+
+		Vector3 dir = e.Path.To - e.Path.From;
+		float length = dir.NormalizeInPlace();
+
+		HidingSpot.ChangeMasterMarker();
+
+		const float stepSize = 25.0f;
+		const float seeSpotRange = 2000.0f;
+
+		Vector3 eye, delta;
+		HidingSpot spot;
+		SpotOrder spotOrder = default;
+
+		bool done = false;
+		for (float along = 0.0f; !done; along += stepSize) {
+			if (along >= length) {
+				along = length;
+				done = true;
+			}
+
+			eye = e.Path.From + along * dir;
+
+			for (int it = 0; it < HidingSpot.TheHidingSpots.Count; it++) {
+				spot = HidingSpot.TheHidingSpots[it];
+
+				if (!spot.HasGoodCover())
+					continue;
+
+				if (spot.IsMarked())
+					continue;
+
+				Vector3 spotPos = spot.GetPosition();
+
+				delta.X = spotPos.X - eye.X;
+				delta.Y = spotPos.Y - eye.Y;
+				delta.Z = spotPos.Z + eyeHeight - eye.Z;
+
+				if (delta.LengthSquared() > seeSpotRange * seeSpotRange)
+					continue;
+
+				Util.TraceLine(eye, new Vector3(spotPos.X, spotPos.Y, spotPos.Z + eyeHeight), Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out Trace result);
+				if (result.Fraction != 1.0f)
+					continue;
+
+				delta.NormalizeInPlace();
+				float dot = MathLib.DotProduct(dir, delta);
+				if (dot < 0.7071f && dot > -0.7071f) {
+					if (along > 0.0f) {
+						spotOrder.Spot = spot;
+						spotOrder.T = along / length;
+						e.Spots.Add(spotOrder);
+					}
+				}
+
+				spot.Mark();
+			}
+		}
+
+		SpotEncounters.Add(e);
+	}
+
+	public void ComputeSpotEncounters() {
+		SpotEncounters.Clear();
+
+		for (int fromDir = 0; fromDir < (int)NavDirType.NumDirections; fromDir++) {
+			foreach (NavConnect fromConnect in Connect[fromDir]) {
+				for (int toDir = 0; toDir < (int)NavDirType.NumDirections; toDir++) {
+					foreach (NavConnect toConnect in Connect[toDir]) {
+						if (fromConnect.Area == toConnect.Area)
+							continue;
+
+						AddSpotEncounters(fromConnect.Area!, (NavDirType)fromDir, toConnect.Area!, (NavDirType)toDir);
+					}
+				}
+			}
+		}
+	}
 
 	void DecayDanger() { }
 
@@ -697,8 +1133,36 @@ public partial class NavArea : NavAreaCriticalData
 	public NavTraverseType GetParentHow() => ParentHow;
 
 	public bool ComputeLighting() {
-		// todo
-		return false;
+		if (engine.IsDedicatedServer()) {
+			for (int i = 0; i < (int)NavCornerType.NumCorners; i++)
+				LightIntensity[i] = 1.0f;
+
+			return true;
+		}
+
+		for (int i = 0; i < (int)NavCornerType.NumCorners; i++) {
+			Vector3 pos = FindPositionInArea(this, (NavCornerType)i);
+			pos.Z = GetZ(pos.X, pos.Y) + HalfHumanHeight - StepHeight;
+
+			if (NavMesh.Instance!.GetGroundHeight(pos, out float height))
+				pos.Z = height + HalfHumanHeight - StepHeight;
+
+			Vector3 light = Vector3.Zero;
+			Vector3 ambient = Vector3.Zero;
+
+			{
+				return false;
+			}
+
+			float amientIntensity = ambient.X + ambient.Y + ambient.Z;
+			float lightIntensity = light.X + light.Y + light.Z;
+			lightIntensity = Math.Clamp(lightIntensity, 0.0f, 1.0f);
+			lightIntensity = Math.Max(lightIntensity, amientIntensity);
+
+			LightIntensity[i] = lightIntensity;
+		}
+
+		return true;
 	}
 
 	void RaiseCorner(NavCornerType corner, int amount, bool raiseAdjacentCorners) { }
@@ -730,7 +1194,47 @@ public partial class NavArea : NavAreaCriticalData
 		}
 	}
 
-	public void UpdateAvoidanceObstacles() { }
+	public void UpdateAvoidanceObstacles() {
+		if (!AvoidanceObstacleTimer.IsElapsed())
+			return;
+
+		const float MaxBlockedCheckInterval = 5;
+		float interval = (float)(BlockedTimer.GetCountdownDuration() + 1);
+		if (interval > MaxBlockedCheckInterval)
+			interval = MaxBlockedCheckInterval;
+
+		AvoidanceObstacleTimer.Start(interval);
+
+		Vector3 mins = NWCorner;
+		Vector3 maxs = SECorner;
+
+		mins.Z = Math.Min(NWCorner.Z, SECorner.Z);
+		maxs.Z = Math.Max(NWCorner.Z, SECorner.Z) + HumanCrouchHeight;
+
+		float obstructionHeight = 0.0f;
+		for (int i = 0; i < NavMesh.Instance!.GetObstructions().Count; ++i) {
+			INavAvoidanceObstacle obstruction = NavMesh.Instance!.GetObstructions()[i];
+			BaseEntity obstructingEntity = obstruction.GetObstructingEntity();
+			if (obstructingEntity == null)
+				continue;
+
+			obstructingEntity.CollisionProp().WorldSpaceSurroundingBounds(out AngularImpulse vecSurroundMins, out AngularImpulse vecSurroundMaxs);
+			if (!CollisionUtils.IsBoxIntersectingBox(mins, maxs, vecSurroundMins, vecSurroundMaxs))
+				continue;
+
+			if (!obstruction.CanObstructNavAreas())
+				continue;
+
+			float propHeight = obstruction.GetNavObstructionHeight();
+
+			obstructionHeight = Math.Max(obstructionHeight, propHeight);
+		}
+
+		AvoidanceObstacleHeight = obstructionHeight;
+
+		if (AvoidanceObstacleHeight == 0.0f)
+			NavMesh.Instance!.OnAvoidanceObstacleLeftArea(this);
+	}
 
 	void ClearAllNavCostEntities() {
 		RemoveAttributes(NavAttributeType.FuncCost);
@@ -771,9 +1275,105 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	// VisibilityType ComputeVisibility(NavArea area, bool isPVSValid, bool bCheckPVS, bool pOutsidePVS) {
-	// 	throw new NotImplementedException();
-	// }
+	static readonly byte[] PVS = new byte[PAD_NUMBER(BSPFileCommon.MAX_MAP_CLUSTERS, 8) / 8];
+
+	public VisibilityType ComputeVisibility(NavArea area, bool isPVSValid, bool checkPVS, out bool outsidePVS) {
+		outsidePVS = false;
+		float distanceSq = (area.GetCenter() - GetCenter()).LengthSquared();
+
+		if (nav_max_view_distance.GetFloat() > 0.00001f) {
+			if (distanceSq > nav_max_view_distance.GetFloat() * nav_max_view_distance.GetFloat())
+				return VisibilityType.NotVisible;
+		}
+
+		if (!isPVSValid)
+			SetupPVS();
+
+		Vector3 eye = new(0, 0, 0.75f * HumanHeight);
+
+		if (checkPVS) {
+			Extent areaExtent = new();
+			areaExtent.Lo = areaExtent.Hi = area.GetCenter() + eye;
+			areaExtent.Encompass(area.GetCorner(NavCornerType.NorthWest) + eye);
+			areaExtent.Encompass(area.GetCorner(NavCornerType.NorthEast) + eye);
+			areaExtent.Encompass(area.GetCorner(NavCornerType.SouthWest) + eye);
+			areaExtent.Encompass(area.GetCorner(NavCornerType.SouthEast) + eye);
+
+			if (!engine.CheckBoxInPVS(areaExtent.Lo, areaExtent.Hi, PVS)) {
+				outsidePVS = true;
+				return VisibilityType.NotVisible;
+			}
+
+			outsidePVS = false;
+		}
+
+		Vector3 thisNW = GetCorner(NavCornerType.NorthWest) + eye;
+		Vector3 thisNE = GetCorner(NavCornerType.NorthEast) + eye;
+		Vector3 thisSW = GetCorner(NavCornerType.SouthWest) + eye;
+		Vector3 thisSE = GetCorner(NavCornerType.SouthEast) + eye;
+		Vector3 thisCenter = GetCenter() + eye;
+
+		Vector3 traceMins = thisNW;
+		Vector3 traceMaxs = thisSE;
+
+		traceMins.Z = Math.Min(Math.Min(Math.Min(thisNW.Z, thisNE.Z), thisSE.Z), thisSW.Z);
+		traceMaxs.Z = Math.Max(Math.Max(Math.Max(thisNW.Z, thisNE.Z), thisSE.Z), thisSW.Z) + 0.1f;
+
+		traceMins -= thisCenter;
+		traceMaxs -= thisCenter;
+
+		Vector3 vOtherMins = area.GetCorner(NavCornerType.NorthWest);
+		Vector3 vOtherMaxs = area.GetCorner(NavCornerType.SouthEast);
+
+		MathLib.CalcClosestPointOnAABB(vOtherMins, vOtherMaxs, thisCenter, out Vector3 target);
+		target.Z = area.GetZ(target) + eye.Z;
+
+		TraceFilterNoNPCsOrPlayer traceFilter = new(null, CollisionGroup.None);
+
+		Util.TraceHull(thisCenter, target, traceMins, traceMaxs, Mask.BlockLOS | ((Mask)Contents.IgnoreNoDrawOpaque), ref traceFilter, out Trace tr);
+
+		if (tr.Fraction == 1.0f || (tr.EndPos.X > vOtherMins.X && tr.EndPos.X < vOtherMaxs.X && tr.EndPos.Y > vOtherMins.Y && tr.EndPos.Y < vOtherMaxs.Y))
+			return VisibilityType.CompletelyVisible;
+
+		byte vis = (byte)VisibilityType.CompletelyVisible;
+
+		float margin = GenerationStepSize / 2.0f;
+		Vector3 shift = new(0, 0, 0.75f * HumanHeight);
+
+		if (area.IsPartiallyVisible(GetCenter() + eye))
+			vis |= (byte)VisibilityType.PotentiallyVisible;
+		else
+			vis = (byte)(vis & ~(byte)VisibilityType.CompletelyVisible);
+
+		Vector3 eyeToCenter = GetCenter() - area.GetCenter();
+		eyeToCenter = Vector3.Normalize(eyeToCenter);
+
+		float angleTolerance = nav_potentially_visible_dot_tolerance.GetFloat();
+
+		for (shift.Y = margin; shift.Y <= GetSizeY() - margin; shift.Y += GenerationStepSize) {
+			for (shift.X = margin; shift.X <= GetSizeX() - margin; shift.X += GenerationStepSize) {
+				if (vis == (byte)VisibilityType.PotentiallyVisible)
+					return VisibilityType.PotentiallyVisible;
+
+				Vector3 testPos = GetCorner(NavCornerType.NorthWest) + shift;
+				testPos.Z = GetZ(testPos) + eye.Z;
+
+				if (distanceSq > 1000 * 1000) {
+					Vector3 eyeToCorner = testPos - (GetCenter() + eye);
+					eyeToCorner = Vector3.Normalize(eyeToCorner);
+					if (Vector3.Dot(eyeToCorner, eyeToCenter) >= angleTolerance)
+						continue;
+				}
+
+				if (area.IsPartiallyVisible(testPos))
+					vis |= (byte)VisibilityType.PotentiallyVisible;
+				else
+					vis = (byte)(vis & ~(byte)VisibilityType.CompletelyVisible);
+			}
+		}
+
+		return (VisibilityType)vis;
+	}
 
 	List<AreaBindInfo> ComputeVisibilityDelta(NavArea other) {
 		throw new NotImplementedException();
@@ -781,15 +1381,95 @@ public partial class NavArea : NavAreaCriticalData
 
 	void ResetPotentiallyVisibleAreas() { }
 
-	void ComputeVisToArea(NavArea OtherArea) { }
+	[Flags]
+	public enum VisibilityType : byte
+	{
+		NotVisible,
+		PotentiallyVisible,
+		CompletelyVisible
+	}
 
-	public void ComputeVisibilityToMesh() { }
+	void ComputeVisToArea(NavArea currentArea, NavArea otherArea) {
+		NavArea area = otherArea;
+		VisibilityType visThisToOther = (area == currentArea) ? VisibilityType.CompletelyVisible : VisibilityType.NotVisible;
+		VisibilityType visOtherToThis = VisibilityType.NotVisible;
 
-	bool IsEntirelyVisible(Vector3 eye, BaseEntity ignore) {
+		if (area != currentArea) {
+			visOtherToThis = currentArea.ComputeVisibility(area, true, true, out bool outsidePVS);
+
+			if (!outsidePVS &&
+					(visOtherToThis != VisibilityType.NotVisible ||
+					 (currentArea.GetCenter() - area.GetCenter()).LengthSquared() < nav_max_view_distance.GetFloat() * nav_max_view_distance.GetFloat())) {
+				visThisToOther = area.ComputeVisibility(currentArea, true, false, out _);
+			}
+
+			if (visOtherToThis == VisibilityType.NotVisible && visThisToOther != VisibilityType.NotVisible)
+				visOtherToThis = VisibilityType.PotentiallyVisible;
+
+			if (visThisToOther == VisibilityType.NotVisible && visOtherToThis != VisibilityType.NotVisible)
+				visThisToOther = VisibilityType.PotentiallyVisible;
+		}
+
+		AreaBindInfo info = new();
+
+		if (visThisToOther != VisibilityType.NotVisible) {
+			info.Area = area;
+			info.Attributes = (byte)visThisToOther;
+			g_ComputedVis.Add(info);
+		}
+
+		if (visOtherToThis != VisibilityType.NotVisible) {
+			info.Area = currentArea;
+			info.Attributes = (byte)visOtherToThis;
+			g_ComputedVis.Add(info);
+		}
+	}
+
+	ConcurrentBag<AreaBindInfo> g_ComputedVis = [];
+	HashSet<NavVisPair_t> g_NavVisPairHash = new(new VisPairHashFuncs());
+	public void ComputeVisibilityToMesh() {
+		InheritVisibilityFrom.Area = null;
+		IsInheritedFrom = false;
+
+		NavAreaCollector collector = new();
+
+		float radius = nav_max_view_distance.GetFloat();
+		if (radius == 0.0f)
+			radius = 1500.0f;
+
+		collector.Areas.EnsureCapacity(1000);
+		NavMesh.Instance!.ForAllAreasInRadius(collector.Invoke, GetCenter(), radius);
+
+		NavVisPair_t visPair = new();
+
+		for (int i = collector.Areas.Count - 1; i >= 0; --i) {
+			visPair.SetPair(this, collector.Areas[i]);
+
+			if (g_NavVisPairHash.Contains(visPair))
+				collector.Areas.RemoveAt(i);
+		}
+
+		SetupPVS();
+
+		Parallel.ForEach(collector.Areas, area => ComputeVisToArea(this, area));
+
+		PotentiallyVisibleAreas.EnsureCapacity(g_ComputedVis.Count);
+
+		while (g_ComputedVis.TryTake(out AreaBindInfo info))
+			PotentiallyVisibleAreas.Add(info);
+
+		for (int i = 0; i < collector.Areas.Count; i++) {
+			visPair.SetPair(this, collector.Areas[i]);
+			Assert(!g_NavVisPairHash.Contains(visPair));
+			g_NavVisPairHash.Add(visPair);
+		}
+	}
+
+	bool IsEntirelyVisible(Vector3 eye, BaseEntity? ignore = null) {
 		throw new NotImplementedException();
 	}
 
-	bool IsPartiallyVisible(Vector3 eye, BaseEntity ignore) {
+	public bool IsPartiallyVisible(Vector3 eye, BaseEntity? ignore = null) {
 		throw new NotImplementedException();
 	}
 

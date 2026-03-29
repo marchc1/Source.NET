@@ -43,7 +43,8 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	}
 
 	public bool CheckBoxInPVS(in Vector3 mins, in Vector3 maxs, ReadOnlySpan<byte> checkpvs) {
-		throw new NotImplementedException();
+		Console.WriteLine($"CheckBoxInPVS not implemented");
+		return false;
 	}
 
 	public int CheckHeadnodeVisible(int nodenum, Span<byte> pvs) {
@@ -579,7 +580,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 
 	public CheckTransmitInfo GetPrevCheckTransmitInfo(Edict playerEdict) {
 		int entnum = NUM_FOR_EDICT(playerEdict);
-		if (entnum < 1 || entnum > sv.GetClientCount()) 
+		if (entnum < 1 || entnum > sv.GetClientCount())
 			Error("Invalid client specified in GetPrevCheckTransmitInfo\n");
 
 		GameClient client = sv.Client(entnum - 1);

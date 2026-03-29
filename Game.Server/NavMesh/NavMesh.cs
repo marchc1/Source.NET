@@ -540,12 +540,14 @@ public partial class NavMesh
 
 	void UnregisterAvoidanceObstacle(INavAvoidanceObstacle obstruction) => AvoidanceObstacles.Remove(obstruction);
 
+	public List<INavAvoidanceObstacle> GetObstructions() => AvoidanceObstacles;
+
 	public void OnAvoidanceObstacleEnteredArea(NavArea area) {
 		if (!AvoidanceObstacleAreas.Contains(area))
 			AvoidanceObstacleAreas.Add(area);
 	}
 
-	void OnAvoidanceObstacleLeftArea(NavArea area) => AvoidanceObstacleAreas.Remove(area);
+	public void OnAvoidanceObstacleLeftArea(NavArea area) => AvoidanceObstacleAreas.Remove(area);
 
 	void UpdateAvoidanceObstacleAreas() {
 		foreach (NavArea area in AvoidanceObstacleAreas)
@@ -913,7 +915,7 @@ public class HidingSpot
 	public uint ID;
 	uint Marker;
 	NavArea? Area;
-	byte Flags;
+	public byte Flags;
 	static uint NextID = 1;
 	static uint MasterMarker = 0;
 
@@ -946,7 +948,7 @@ public class HidingSpot
 		return NavErrorType.Ok;
 	}
 
-	bool HasGoodCover() => (Flags & (byte)HidingSpotFlags.InCover) != 0;
+	public bool HasGoodCover() => (Flags & (byte)HidingSpotFlags.InCover) != 0;
 	bool IsGoodSniperSpot() => (Flags & (byte)HidingSpotFlags.GoodSniperSpot) != 0;
 	bool IsIdealSniperSpot() => (Flags & (byte)HidingSpotFlags.IdealSniperSpot) != 0;
 	bool IsExposed() => (Flags & (byte)HidingSpotFlags.Exposed) != 0;
@@ -954,9 +956,9 @@ public class HidingSpot
 	public Vector3 GetPosition() => Pos;
 	public uint GetID() => ID;
 	NavArea? GetArea() => Area;
-	void Mark() => Marker = MasterMarker;
-	bool IsMarked() => Marker == MasterMarker;
-	static void ChangeMasterMarker() => ++MasterMarker;
+	public void Mark() => Marker = MasterMarker;
+	public bool IsMarked() => Marker == MasterMarker;
+	public static void ChangeMasterMarker() => ++MasterMarker;
 	public void SetFlags(HidingSpotFlags flags) => Flags = (byte)flags;
 	public void SetPosition(Vector3 pos) => Pos = pos;
 }
