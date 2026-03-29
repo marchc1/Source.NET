@@ -6,6 +6,7 @@ using Source.Common.Commands;
 using Source.Common.Formats.BSP;
 
 using System.Numerics;
+using Source.Common.Mathematics;
 
 namespace Game.Server.NavMesh;
 
@@ -453,30 +454,29 @@ public partial class NavMesh
 	void PrintAllPlaces() { }
 
 	public bool GetGroundHeight(Vector3 pos, out float height, Vector3? normal = null) {
-		// const float maxOffset = 100.0f;
+		const float maxOffset = 100.0f;
 
-		// TraceFilterGroundEntities filter = new(null, CollisionGroup.None, WALK_THRU_EVERYTHING);
+		TraceFilterGroundEntities filter = new(null, CollisionGroup.None, WalkThruFlags.Everything);
 
-		// Trace result;
-		// Vector3 to = new(pos.x, pos.y, pos.z - 10000.0f);
-		// Vector3 from = new(pos.x, pos.y, pos.z + HalfHumanHeight + 1e-3);
+		Vector3 to = new(pos.X, pos.Y, pos.Z - 10000.0f);
+		Vector3 from = new(pos.X, pos.Y, (int)(pos.Z + HalfHumanHeight + 1e-3));
 
-		// while (to.Z - pos.Z < maxOffset) {
-		// 	Util.TraceLine(from, to, Mask.NPCSolidBrushOnly, ref filter, out result);
-		// 	if (!result.StartSolid && ((result.Fraction == 1.0f) || ((from.Z - result.EndPos.Z) >= Nav.HalfHumanHeight))) {
-		// 		height = result.EndPos.Z;
-		// 		if (normal != null)
-		// 			normal = !result.Plane.Normal.IsZero() ? result.Plane.Normal : new Vector3(0, 0, 1);
-		// 		return true;
-		// 	}
+		while (to.Z - pos.Z < maxOffset) {
+			Util.TraceLine(from, to, Mask.NPCSolidBrushOnly, null, ref filter, out Trace result);
+			if (!result.StartSolid && ((result.Fraction == 1.0f) || ((from.Z - result.EndPos.Z) >= HalfHumanHeight))) {
+				height = result.EndPos.Z;
+				if (normal != null)
+					normal = !result.Plane.Normal.IsZero() ? result.Plane.Normal : new Vector3(0, 0, 1);
+				return true;
+			}
 
-		// 	to.Z = result.StartSolid ? from.Z : result.EndPos.Z;
-		// 	from.Z = (float)(to.Z + Nav.HalfHumanHeight + 1e-3);
-		// }
+			to.Z = result.StartSolid ? from.Z : result.EndPos.Z;
+			from.Z = (float)(to.Z + HalfHumanHeight + 1e-3);
+		}
 
-		height = 0.0f;
-		// if (normal != null)
-		// 	normal = new Vector3(0, 0, 1);
+		height = 0;
+		if (normal != null)
+			normal = new Vector3(0, 0, 1);
 
 		return false;
 	}

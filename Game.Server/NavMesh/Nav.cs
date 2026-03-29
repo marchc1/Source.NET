@@ -428,6 +428,23 @@ public struct TraceFilterWalkableEntities(IHandleEntity? passEntity, CollisionGr
 	}
 }
 
+public struct TraceFilterGroundEntities : ITraceFilter
+{
+	TraceFilterWalkableEntities Inner;
+
+	public TraceFilterGroundEntities(IHandleEntity? passEntity, CollisionGroup collisionGroup, WalkThruFlags flags) {
+		Inner = new(passEntity, collisionGroup, flags);
+	}
+
+	public bool ShouldHitEntity(IHandleEntity serverEntity, Contents contentsMask) {
+		BaseEntity? entity = EntityFromEntityHandle(serverEntity);
+		if (entity != null && (entity.ClassMatches("prop_door*") || entity.ClassMatches("func_breakable*")))
+			return false;
+
+		return Inner.ShouldHitEntity(serverEntity, contentsMask);
+	}
+}
+
 public interface INavAvoidanceObstacle
 {
 	/// <summary>
