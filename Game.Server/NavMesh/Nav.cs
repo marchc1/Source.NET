@@ -71,6 +71,8 @@ public static class Nav
 	public const uint UndefinedPlace = 0;
 	public const uint AnyPlace = 0xFFFF;
 
+	public static HashSet<NavVisPair_t> g_NavVisPairHash = new(new VisPairHashFuncs());
+
 	public static NavDirType OppositeDirection(NavDirType dir) => dir switch {
 		NavDirType.North => NavDirType.South,
 		NavDirType.South => NavDirType.North,

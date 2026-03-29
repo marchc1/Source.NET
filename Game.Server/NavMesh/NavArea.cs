@@ -136,9 +136,9 @@ public partial class NavArea : NavAreaCriticalData
 	List<Handle<FuncNavPrerequisite>> PrerequisiteVector;   // list of prerequisites that must be met before this area can be traversed
 	public NavArea? PrevHash, NextHash;
 	int DamagingTickCount;
-	AreaBindInfo InheritVisibilityFrom;
-	readonly List<AreaBindInfo> PotentiallyVisibleAreas = [];
-	bool IsInheritedFrom;
+	public AreaBindInfo InheritVisibilityFrom;
+	public List<AreaBindInfo> PotentiallyVisibleAreas = [];
+	public bool IsInheritedFrom;
 	UInt32 VisTestCounter;
 	static UInt32 CurrVisTestCounter;
 	List<FuncNavCost> FuncNavCostVector;
@@ -1375,11 +1375,54 @@ public partial class NavArea : NavAreaCriticalData
 		return (VisibilityType)vis;
 	}
 
-	List<AreaBindInfo> ComputeVisibilityDelta(NavArea other) {
-		throw new NotImplementedException();
+	static List<AreaBindInfo> AreaBindDelta = [];
+	public List<AreaBindInfo> ComputeVisibilityDelta(NavArea other) {
+		AreaBindDelta.Clear();
+
+		if (other.InheritVisibilityFrom.Area != null) {
+			AssertMsg(false, "Visibility inheriting from inherited area");
+
+			AreaBindDelta = PotentiallyVisibleAreas;
+			return AreaBindDelta;
+		}
+
+		int i, j;
+		for (i = 0; i < PotentiallyVisibleAreas.Count; ++i) {
+			if (PotentiallyVisibleAreas[i].Area != null) {
+				for (j = 0; j < other.PotentiallyVisibleAreas.Count; ++j) {
+					if (PotentiallyVisibleAreas[i].Area == other.PotentiallyVisibleAreas[j].Area &&
+							PotentiallyVisibleAreas[i].Attributes == other.PotentiallyVisibleAreas[j].Attributes) {
+						break;
+					}
+				}
+
+				if (j == other.PotentiallyVisibleAreas.Count)
+					AreaBindDelta.Add(PotentiallyVisibleAreas[i]);
+			}
+		}
+
+		for (j = 0; j < other.PotentiallyVisibleAreas.Count; ++j) {
+			if (other.PotentiallyVisibleAreas[j].Area != null) {
+				for (i = 0; i < PotentiallyVisibleAreas.Count; ++i) {
+					if (PotentiallyVisibleAreas[i].Area == other.PotentiallyVisibleAreas[j].Area)
+						break;
+				}
+
+				if (i == PotentiallyVisibleAreas.Count) {
+					AreaBindInfo info = new() {
+						Area = other.PotentiallyVisibleAreas[j].Area,
+						Attributes = (byte)VisibilityType.NotVisible
+					};
+
+					AreaBindDelta.Add(info);
+				}
+			}
+		}
+
+		return AreaBindDelta;
 	}
 
-	void ResetPotentiallyVisibleAreas() { }
+	public void ResetPotentiallyVisibleAreas() => PotentiallyVisibleAreas.Clear();
 
 	[Flags]
 	public enum VisibilityType : byte
@@ -1426,7 +1469,6 @@ public partial class NavArea : NavAreaCriticalData
 	}
 
 	ConcurrentBag<AreaBindInfo> g_ComputedVis = [];
-	HashSet<NavVisPair_t> g_NavVisPairHash = new(new VisPairHashFuncs());
 	public void ComputeVisibilityToMesh() {
 		InheritVisibilityFrom.Area = null;
 		IsInheritedFrom = false;
@@ -1520,8 +1562,11 @@ public partial class NavArea : NavAreaCriticalData
 
 	public int GetAdjacentCount(NavDirType dir) => Connect[(int)dir].Count;
 
-	public NavArea GetAdjacentArea(NavDirType dir, int i) {
-		throw new NotImplementedException();
+	public NavArea? GetAdjacentArea(NavDirType dir, int i) {
+		if (i < 0 || i >= Connect[(int)dir].Count)
+			return null;
+
+		return Connect[(int)dir][i].Area;
 	}
 
 	public bool IsOpen() {

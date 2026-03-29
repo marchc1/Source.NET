@@ -554,9 +554,74 @@ public partial class NavMesh
 			area.UpdateAvoidanceObstacles();
 	}
 
-	void BeginVisibilityComputations() { }
+	void BeginVisibilityComputations() {
+		g_NavVisPairHash.Clear();
 
-	void EndVisibilityComputations() { }
+		foreach (NavArea area in NavArea.TheNavAreas)
+			area.ResetPotentiallyVisibleAreas();
+	}
+
+	void EndVisibilityComputations() {
+		g_NavVisPairHash.Clear();
+
+		int avgVisLength = 0;
+		int maxVisLength = 0;
+		int minVisLength = 999999999;
+
+		for (int it = 0; it < NavArea.TheNavAreas.Count; ++it) {
+			NavArea area = NavArea.TheNavAreas[it];
+
+			int visLength = area.PotentiallyVisibleAreas.Count;
+			avgVisLength += visLength;
+			if (visLength < minVisLength)
+				minVisLength = visLength;
+
+			if (visLength > maxVisLength)
+				maxVisLength = visLength;
+
+			if (area.IsInheritedFrom)
+				continue;
+
+			List<NavArea.AreaBindInfo> bestDelta = [];
+			NavArea? anchor = null;
+
+			for (int dir = (int)NavDirType.North; dir < (int)NavDirType.NumDirections; ++dir) {
+				int count = area.GetAdjacentCount((NavDirType)dir);
+				for (int i = 0; i < count; ++i) {
+					NavArea adjArea = area.GetAdjacentArea((NavDirType)dir, i)!;
+
+					if (adjArea.InheritVisibilityFrom.Area != null) {
+						adjArea = adjArea.InheritVisibilityFrom.Area;
+						if (adjArea == area)
+							continue;
+					}
+
+					List<NavArea.AreaBindInfo> delta = area.ComputeVisibilityDelta(adjArea);
+
+					// keep the smallest delta
+					if (anchor == null || (anchor != null && delta.Count < bestDelta.Count)) {
+						bestDelta = delta;
+						anchor = adjArea;
+						Assert(anchor != area);
+					}
+				}
+			}
+
+			if (anchor != null && bestDelta.Count <= nav_max_vis_delta_list_length.GetInt() && anchor != area) {
+				area.InheritVisibilityFrom.Area = anchor;
+				area.PotentiallyVisibleAreas = bestDelta;
+
+				anchor.IsInheritedFrom = true;
+			}
+			else
+				area.InheritVisibilityFrom.Area = null;
+		}
+
+		if (NavArea.TheNavAreas.Count > 0)
+			avgVisLength /= NavArea.TheNavAreas.Count;
+
+		Msg($"NavMesh Visibility List Lengths:  min = {minVisLength}, avg = {avgVisLength}, max = {maxVisLength}\n");
+	}
 
 	bool IsEditMode(EditModeType mode) => EditMode == mode;
 
