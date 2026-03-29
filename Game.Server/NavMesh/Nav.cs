@@ -3,6 +3,8 @@ global using NavPlace = System.UInt32;
 using Source;
 using Source.Common;
 using Source.Common.Commands;
+using Source.Common.Engine;
+using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
 
 using System.Numerics;
@@ -55,8 +57,8 @@ public static class Nav
 	public const float JumpCrouchHeight = 64.0f;     // (48) if delta Z is less than or equal to this, we can jumpcrouch up on it
 	public const float StepHeight = 18.0f;         // if delta Z is greater than this, we have to jump to get up
 	public const float DeathDrop = 400.0f;         // (300) distance at which we will die if we fall - should be about 600, and pay attention to fall damage during pathfind
-	const float ClimbUpHeight = 200.0f;       // height to check for climbing up
-	const float CliffHeight = 300.0f;       // height which we consider a significant cliff which we would not want to fall off of
+	public const float ClimbUpHeight = 200.0f;       // height to check for climbing up
+	public const float CliffHeight = 300.0f;       // height which we consider a significant cliff which we would not want to fall off of
 
 	const int HalfHumanWidth = 16;
 	public const float HalfHumanHeight = 35.5f;
@@ -410,19 +412,17 @@ public struct Ray
 	public Vector3 From, To;
 }
 
-public struct TraceFilterWalkableEntities //: TraceFilterNoNPCsOrPlayer
+public struct TraceFilterWalkableEntities(IHandleEntity? passEntity, CollisionGroup collisionGroup, WalkThruFlags flags) : ITraceFilter
 {
-	readonly WalkThruFlags flags;
+	TraceFilterNoNPCsOrPlayer Inner = new(passEntity, collisionGroup);
+	readonly WalkThruFlags Flags = flags;
 
-	public TraceFilterWalkableEntities(IHandleEntity? passEntity, CollisionGroup collisionGroup, WalkThruFlags flags) /*: base(passEntity, collisionGroup)*/ => this.flags = flags;
+	public bool ShouldHitEntity(IHandleEntity serverEntity, Contents contentsMask) {
+		if (!Inner.ShouldHitEntity(serverEntity, contentsMask))
+			return false;
 
-	public /*override*/ bool ShouldHitEntity(IHandleEntity serverEntity, int contentsMask) {
-		// if (base.ShouldHitEntity(serverEntity, contentsMask)) {
-		// var entity = EntityFromEntityHandle(serverEntity);
-		// return !Nav.IsEntityWalkable(entity, flags);
-		// }
-
-		return false;
+		BaseEntity? entity = EntityFromEntityHandle(serverEntity);
+		return entity != null && !Nav.IsEntityWalkable(entity, Flags);
 	}
 }
 

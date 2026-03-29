@@ -6,7 +6,10 @@ using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 
+#endif
 
+#if CLIENT_DLL
+using Game.Client;
 #endif
 
 using Source.Common.Hashing;
@@ -47,6 +50,17 @@ public static partial class Util_Globals
 		return RandomInt(minVal, maxVal);
 	}
 
+	public static BaseEntity? EntityFromEntityHandle(IHandleEntity? handle) {
+#if CLIENT_DLL
+	IClientUnknown? unk = (IClientUnknown?)handle;
+	return (BaseEntity?)unk?.GetBaseEntity();
+#else
+	//todo staticpropmgr
+
+	IServerUnknown? unk = (IServerUnknown?)handle;
+	return (BaseEntity?)unk?.GetBaseEntity();
+#endif
+	}
 }
 
 public static partial class Util
@@ -157,12 +171,37 @@ public static partial class Util
 		enginetrace.TraceRay(ray, mask, ref filter, out ptr);
 		// todo: visualize
 	}
+
+	public static void TraceHull<IF>(in Vector3 absStart, in Vector3 absEnd, in Vector3 hullMin, in Vector3 hullMax, Mask mask, scoped ref IF filter, out Trace ptr) where IF : struct, ITraceFilter {
+		Ray ray = default;
+		ray.Init(absStart, absEnd, hullMin, hullMax);
+
+		enginetrace.TraceRay(ray, mask, ref filter, out ptr);
+
+		// todo: visualize
+	}
 }
 
 public struct TraceFilterSimple(IHandleEntity? passentity, CollisionGroup collisionGroup) : ITraceFilter
 {
 	public bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask) {
 		throw new NotImplementedException();
+	}
+}
+
+public struct TraceFilterNoNPCsOrPlayer(IHandleEntity? passentity, CollisionGroup collisionGroup) : ITraceFilter
+{
+	TraceFilterSimple Inner = new(passentity, collisionGroup);
+
+	public bool ShouldHitEntity(IHandleEntity serverEntity, Contents contentsMask) {
+		if (!Inner.ShouldHitEntity(serverEntity, contentsMask))
+			return false;
+
+		BaseEntity? entity = EntityFromEntityHandle(serverEntity);
+		if (entity == null)
+			return false;
+
+		return !entity.IsNPC() && !entity.IsPlayer();
 	}
 }
 
