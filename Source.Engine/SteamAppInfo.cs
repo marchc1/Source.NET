@@ -1,9 +1,11 @@
 ﻿global using static Source.Engine.SteamInfVersionInfo;
+
 using Source.Common.Filesystem;
 
 namespace Source.Engine;
 
-public static class SteamInfVersionInfo {
+public static class SteamInfVersionInfo
+{
 	static SteamAppInfo info;
 	static bool initialized;
 	public static ref readonly SteamAppInfo GetSteamInfIDVersionInfo() {
@@ -41,6 +43,11 @@ public struct SteamAppInfo
 				case "serverversion": inf.ClientVersion = int.TryParse(split[1], out int i2) ? i2 : 0; break;
 				case "appid": inf.AppID = int.TryParse(split[1], out int i3) ? i3 : 0; break;
 			}
+
+#if true // TODO TODO TODO: Remove before merging into main
+			inf.PatchVersion = "2026.02.99";
+#endif
+
 			return inf;
 		}
 		return inf;
