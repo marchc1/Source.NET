@@ -7,14 +7,17 @@ global using BaseViewModel = Game.Server.BaseViewModel;
 namespace Game.Server;
 #endif
 
-using Source.Common;
-using Source;
-
-using FIELD = Source.FIELD<BaseViewModel>;
 using Game.Shared;
+
+using Source;
+using Source.Common;
 using Source.Common.Mathematics;
-using System.Numerics;
+
 using System;
+using System.Numerics;
+
+using DEFINE = Source.DEFINE<BaseViewModel>;
+using FIELD = Source.FIELD<BaseViewModel>;
 
 public partial class
 #if CLIENT_DLL
@@ -80,7 +83,10 @@ public partial class
 #endif
 		]);
 
+	TimeUnit_t TimeWeaponIdle;
+	Activity Activity;
 #if CLIENT_DLL
+
 	private static void RecvProxy_SequenceNum(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
 		BaseViewModel model = (BaseViewModel)instance;
 		if (data.Value.Int != model.GetSequence()) {
@@ -110,7 +116,6 @@ public partial class
 		SetSequence(sequence);
 
 		AnimationParity = (AnimationParity + 1) & ((1 << VIEWMODEL_ANIMATION_PARITY_BITS) - 1);
-
 #if CLIENT_DLL
 		OldAnimationParity = AnimationParity;
 

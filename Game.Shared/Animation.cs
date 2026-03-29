@@ -25,7 +25,7 @@ static Animation(){
 		return seqdesc.Flags;
 	}
 
-	internal static void GetSequenceLinearMotion(StudioHdr studioHdr, int sequence, ReadOnlySpan<float> poseParameter, out Vector3 vecReturn) {
+	internal static void GetSequenceLinearMotion(StudioHdr? studioHdr, int sequence, ReadOnlySpan<float> poseParameter, out Vector3 vecReturn) {
 		vecReturn = default;
 
 		if (studioHdr == null) {
@@ -247,7 +247,7 @@ public static class ImplementStudioHdrFns {
 
 			// get the data for the given activity
 			HashValueType dummy = new(activity, 0, 0, 0);
-			ref HashValueType actData = ref map.ActToSeqHash.TryGetRef(dummy, out bool ok);
+			ref HashValueType actData = ref map.ActToSeqHash.TryGetRef(dummy.ActivityIdx, out bool ok);
 			if (!ok)
 				return StudioHdr.ACTIVITY_NOT_AVAILABLE;
 
@@ -264,7 +264,7 @@ public static class ImplementStudioHdrFns {
 			// chug through the entries in the list (they are sequential therefore cache-coherent)
 			// until we run out of random juice
 			Span<SequenceTuple> sequenceInfo =  map.SequenceTuples.AsSpan()[actData.StartingIdx..][..actData.Count];
-			while (sequenceInfo.Length > 0) {
+			while (randomValue >= sequenceInfo[0].Weight && sequenceInfo.Length > 0) {
 				randomValue -= sequenceInfo[0].Weight;
 				sequenceInfo = sequenceInfo[1..];
 			}

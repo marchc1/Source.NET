@@ -925,7 +925,6 @@ public partial class
 
 	public bool SetIdealActivity(Activity ideal) {
 		int idealSequence = SelectWeightedSequence(ideal);
-		Msg($"idealSequence: {idealSequence}\n");
 
 		if (idealSequence == -1)
 			return false;
@@ -1160,8 +1159,8 @@ public partial class
 	public bool AllowsAutoSwitchFrom() => GetWpnData().AutoSwitchFrom;
 	public bool UsesPrimaryAmmo() => PrimaryAmmoType >= 0;
 	public bool UsesSecondaryAmmo() => SecondaryAmmoType >= 0;
-	public ReadOnlySpan<char> GetViewModel(int _ = 0) => GetWpnData().ViewModel;
-	public ReadOnlySpan<char> GetWorldModel() => GetWpnData().WorldModel;
-	public ReadOnlySpan<char> GetAnimPrefix() => GetWpnData().AnimationPrefix;
+	public ReadOnlySpan<char> GetViewModel(int _ = 0) => GetWpnData().ViewModel.SliceNullTerminatedString();
+	public ReadOnlySpan<char> GetWorldModel() => GetWpnData().WorldModel.SliceNullTerminatedString();
+	public ReadOnlySpan<char> GetAnimPrefix() => GetWpnData().AnimationPrefix.SliceNullTerminatedString();
 }
 #endif

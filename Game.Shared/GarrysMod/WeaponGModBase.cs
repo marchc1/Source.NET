@@ -70,7 +70,6 @@ C_WeaponHL2MPBase
 		ReadOnlySpan<char> shootsound = GetWpnData().ShootSounds[(int)soundType].AsSpan().SliceNullTerminatedString();
 		if (shootsound.IsEmpty || shootsound[0] == '\0')
 			return;
-		Msg($"shoot sound: {shootsound}\n");
 #else
 	base.WeaponSound(soundType, soundTime);
 #endif

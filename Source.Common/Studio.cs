@@ -1518,11 +1518,11 @@ public class StudioHdr
 				if (0 == (seqdesc.Flags & StudioAnimSeqFlags.Activity))
 					SetActivityForSequence?.Invoke(studiohdr, i);
 
-				if (seqdesc.Activity == 0) {
+				if (seqdesc.Activity >= 0) {
 					foundOne = true;
 					// look up if we already have an entry. First we need to make a speculative one --
 					HashValueType entry = new(seqdesc.Activity, 0, 1, Math.Abs(seqdesc.ActWeight));
-					ref HashValueType toUpdate = ref ActToSeqHash.TryGetRef(entry, out bool ok);
+					ref HashValueType toUpdate = ref ActToSeqHash.TryGetRef(entry.ActivityIdx, out bool ok);
 					if (ok) {
 						// we already have an entry and must update it by incrementing count
 						toUpdate.Count += 1;
@@ -1530,7 +1530,7 @@ public class StudioHdr
 					}
 					else {
 						// we do not have an entry yet; create one.
-						ActToSeqHash.Add(entry, entry);
+						ActToSeqHash.Add(entry.ActivityIdx, entry);
 					}
 				}
 			}
@@ -1570,7 +1570,7 @@ public class StudioHdr
 			for (int i = 0; i < NumSeq; ++i) {
 				MStudioSeqDesc seqdesc = studiohdr.Seqdesc(i);
 				if (seqdesc.Activity >= 0) {
-					ref HashValueType element = ref ActToSeqHash.TryGetRef(new(seqdesc.Activity, 0, 0, 0), out bool ok);
+					ref HashValueType element = ref ActToSeqHash.TryGetRef(seqdesc.Activity, out bool ok);
 
 					// If this assert trips, we've written more sequences per activity than we allocated 
 					// (therefore there must have been a miscount in the first for loop above).
@@ -1642,12 +1642,12 @@ public class StudioHdr
 			public int TotalWeight = totalWeight;
 
 			public override int GetHashCode() {
-				return HashCode.Combine(ActivityIdx);
+				return ActivityIdx.GetHashCode();
 			}
 		}
 
 		public SequenceTuple[]? SequenceTuples;
-		public readonly Dictionary<HashValueType, HashValueType> ActToSeqHash = [];
+		public readonly Dictionary<int, HashValueType> ActToSeqHash = [];
 	}
 
 
