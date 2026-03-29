@@ -195,7 +195,7 @@ public class DebugOverlay : IVDebugOverlay
 	}
 
 	public void AddTextOverlay(in Vector3 origin, float duration, ReadOnlySpan<char> text) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public void AddTextOverlay(in Vector3 origin, int line_offset, float duration, ReadOnlySpan<char> text) {
@@ -302,6 +302,10 @@ public class DebugOverlay : IVDebugOverlay
 
 	private static void DrawOverlay(OverlayBase overlay) {
 		switch (overlay.Type) {
+			case OverlayType.Line:
+				OverlayLine line = (OverlayLine)overlay;
+				renderUtils.RenderLine(line.Start, line.End, new Color(line.R, line.G, line.B, line.A), false);
+				break;
 			case OverlayType.Box:
 				OverlayBox box = (OverlayBox)overlay;
 

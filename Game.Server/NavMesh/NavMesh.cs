@@ -12,7 +12,7 @@ namespace Game.Server.NavMesh;
 
 public partial class NavMesh
 {
-	enum EditModeType
+	public enum EditModeType
 	{
 		Normal,
 		PlacePainting,
@@ -74,7 +74,7 @@ public partial class NavMesh
 	NavArea? MarkedArea;
 	NavArea? SelectedArea;
 	NavArea? LastSelectedArea;
-	NavCornerType MarkedCorner;
+	public NavCornerType MarkedCorner;
 	Vector3 Anchor;
 	bool IsPlacePainting;
 	bool SplitAlongX;
@@ -162,13 +162,19 @@ public partial class NavMesh
 		WalkableSeeds.Clear();
 	}
 
-	NavArea GetMarkedArea() {
-		throw new NotImplementedException();
+	public NavArea? GetMarkedArea() {
+		if (MarkedArea != null)
+			return MarkedArea;
+
+		if (SelectedSet.Count > 0)
+			return SelectedSet[0];
+
+		return null;
 	}
 
 	NavLadder? GetMarkedLadder() => MarkedLadder;
 
-	NavArea? GetSelectedArea() => SelectedArea;
+	public NavArea? GetSelectedArea() => SelectedArea;
 
 	NavLadder? GetSelectedLadder() => SelectedLadder;
 
@@ -623,7 +629,7 @@ public partial class NavMesh
 		Msg($"NavMesh Visibility List Lengths:  min = {minVisLength}, avg = {avgVisLength}, max = {maxVisLength}\n");
 	}
 
-	bool IsEditMode(EditModeType mode) => EditMode == mode;
+	public bool IsEditMode(EditModeType mode) => EditMode == mode;
 
 	EditModeType GetEditMode() => EditMode;
 

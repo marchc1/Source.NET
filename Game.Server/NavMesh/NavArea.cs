@@ -1,4 +1,5 @@
 using static Game.Server.NavMesh.Nav;
+using static Game.Server.NavMesh.NavColors;
 
 namespace Game.Server.NavMesh;
 
@@ -9,6 +10,7 @@ using Game.Server.NextBot;
 
 using Source;
 using Source.Common;
+using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
 
@@ -604,15 +606,363 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	bool GetCornerHotspot(NavCornerType corner, Vector3[] hotspot) {
-		throw new NotImplementedException();
+	bool GetCornerHotspot(NavCornerType corner, out Vector3[] hotspot) {
+		hotspot = new Vector3[4];
+		Vector3 nw = NWCorner;
+		Vector3 ne = new(NWCorner.X, SECorner.Y, NEZ);
+		Vector3 sw = new(SECorner.X, NWCorner.Y, SWZ);
+		Vector3 se = SECorner;
+
+		float size = 9.0f;
+		size = MathF.Min(size, GetSizeX() / 3);
+		size = MathF.Min(size, GetSizeY() / 3);
+
+		switch (corner) {
+			case NavCornerType.NorthWest:
+				hotspot[0] = nw;
+				hotspot[1] = hotspot[0] + new Vector3(size, 0, 0);
+				hotspot[2] = hotspot[0] + new Vector3(size, size, 0);
+				hotspot[3] = hotspot[0] + new Vector3(0, size, 0);
+				break;
+			case NavCornerType.NorthEast:
+				hotspot[0] = ne;
+				hotspot[1] = hotspot[0] + new Vector3(-size, 0, 0);
+				hotspot[2] = hotspot[0] + new Vector3(-size, size, 0);
+				hotspot[3] = hotspot[0] + new Vector3(0, size, 0);
+				break;
+			case NavCornerType.SouthWest:
+				hotspot[0] = sw;
+				hotspot[1] = hotspot[0] + new Vector3(size, 0, 0);
+				hotspot[2] = hotspot[0] + new Vector3(size, -size, 0);
+				hotspot[3] = hotspot[0] + new Vector3(0, -size, 0);
+				break;
+			case NavCornerType.SouthEast:
+				hotspot[0] = se;
+				hotspot[1] = hotspot[0] + new Vector3(-size, 0, 0);
+				hotspot[2] = hotspot[0] + new Vector3(-size, -size, 0);
+				hotspot[3] = hotspot[0] + new Vector3(0, -size, 0);
+				break;
+			default:
+				return false;
+		}
+
+		for (int i = 0; i < (int)NavCornerType.NumCorners; i++)
+			hotspot[i].Z = GetZ(hotspot[i].X, hotspot[i].Y);
+
+		NavMesh.Instance!.GetEditVectors(out Vector3 eyePos, out Vector3 eyeFoward);
+
+		Source.Common.Ray ray = new();
+		ray.Init(eyePos, eyePos + 10000.0f * eyeFoward, Vector3.Zero, Vector3.Zero);
+
+		float dist = CollisionUtils.IntersectRayWithTriangle(ray, hotspot[0], hotspot[1], hotspot[2], false);
+		if (dist > 0)
+			return true;
+
+		dist = CollisionUtils.IntersectRayWithTriangle(ray, hotspot[2], hotspot[3], hotspot[0], false);
+
+		return dist > 0;
 	}
 
 	NavCornerType GetCornerUnderCursor() {
-		throw new NotImplementedException();
+		NavMesh.Instance!.GetEditVectors(out Vector3 eyePos, out Vector3 eyeFoward);
+
+		for (int i = 0; i < (int)NavCornerType.NumCorners; i++) {
+			if (GetCornerHotspot((NavCornerType)i, out _))
+				return (NavCornerType)i;
+		}
+
+		return NavCornerType.NumCorners;
 	}
 
-	public void Draw() { }
+	public void Draw() {
+		NavEditColor color;
+		bool useAttributeColors = true;
+
+		const float DebugDuration = (float)IVDebugOverlay.NDEBUG_PERSIST_TILL_NEXT_SERVER;
+
+		if (NavMesh.Instance!.IsEditMode(NavMesh.EditModeType.PlacePainting)) {
+			useAttributeColors = false;
+
+			if (Place == UndefinedPlace)
+				color = NavEditColor.NavNoPlaceColor;
+			else if (NavMesh.Instance!.GetNavPlace() == Place)
+				color = NavEditColor.NavSamePlaceColor;
+			else
+				color = NavEditColor.NavDifferentPlaceColor;
+		}
+		else {
+			// normal edit mode
+			if (this == NavMesh.Instance!.GetMarkedArea()) {
+				useAttributeColors = false;
+				color = NavEditColor.NavMarkedColor;
+			}
+			else if (this == NavMesh.Instance!.GetSelectedArea())
+				color = NavEditColor.NavSelectedColor;
+			else
+				color = NavEditColor.NavNormalColor;
+		}
+
+		if (IsDegenerate()) {
+			// TODO
+			// static IntervalTimer blink;
+			// static bool blinkOn = false;
+
+			// if (blink.GetElapsedTime() > 1.0f) {
+			// 	blink.Reset();
+			// 	blinkOn = !blinkOn;
+			// }
+
+			// useAttributeColors = false;
+
+			// if (blinkOn)
+			// 	color = NavEditColor.NavDegenerateFirstColor;
+			// else
+			// 	color = NavEditColor.NavDegenerateSecondColor;
+
+			// NDebugOverlay::Text(GetCenter(), UTIL_VarArgs("Degenerate area %d", GetID()), true, DebugDuration);
+		}
+
+		Vector3 nw, ne, sw, se;
+
+		nw = NWCorner;
+		se = SECorner;
+		ne.X = se.X;
+		ne.Y = nw.Y;
+		ne.Z = NEZ;
+		sw.X = nw.X;
+		sw.Y = se.Y;
+		sw.Z = SWZ;
+
+		if (nav_show_light_intensity.GetBool()) {
+			// for (int i = 0; i < (int)NavCornerType.NumCorners; ++i) {
+			// 	Vector3 pos = GetCorner((NavCornerType)i);
+			// 	Vector3 end = pos;
+			// 	float lightIntensity = GetLightIntensity(pos);
+			// 	end.Z += HumanHeight * lightIntensity;
+			// 	lightIntensity *= 255; // for color
+			// 	NDebugOverlay::Line(end, pos, lightIntensity, lightIntensity, Math.Max(192, lightIntensity), true, DebugDuration);
+			// }
+		}
+
+		int[] bgcolor = new int[4];
+		// if (4 == sscanf(nav_area_bgcolor.GetString(), "%d %d %d %d", &(bgcolor[0]), &(bgcolor[1]), &(bgcolor[2]), &(bgcolor[3]))) {
+		// 	for (int i = 0; i < 4; ++i)
+		// 		bgcolor[i] = clamp(bgcolor[i], 0, 255);
+
+		// 	if (bgcolor[3] > 0) {
+		// 		const Vector3 offset(0, 0, 0.8f);
+		// 		NDebugOverlay::Triangle(nw + offset, se + offset, ne + offset, bgcolor[0], bgcolor[1], bgcolor[2], bgcolor[3], true, DebugDuration);
+		// 		NDebugOverlay::Triangle(se + offset, nw + offset, sw + offset, bgcolor[0], bgcolor[1], bgcolor[2], bgcolor[3], true, DebugDuration);
+		// 	}
+		// }
+
+		const float inset = 0.2f;
+		nw.X += inset;
+		nw.Y += inset;
+		ne.X -= inset;
+		ne.Y += inset;
+		sw.X += inset;
+		sw.Y -= inset;
+		se.X -= inset;
+		se.Y -= inset;
+
+		if ((GetAttributes() & NavAttributeType.Transient) != 0) {
+			NavDrawDashedLine(nw, ne, color);
+			NavDrawDashedLine(ne, se, color);
+			NavDrawDashedLine(se, sw, color);
+			NavDrawDashedLine(sw, nw, color);
+		}
+		else {
+			NavDrawLine(nw, ne, color);
+			NavDrawLine(ne, se, color);
+			NavDrawLine(se, sw, color);
+			NavDrawLine(sw, nw, color);
+		}
+
+		if (this == NavMesh.Instance!.GetMarkedArea() && NavMesh.Instance!.MarkedCorner != NavCornerType.NumCorners) {
+			Vector3[] p = new Vector3[(int)NavCornerType.NumCorners];
+			GetCornerHotspot(NavMesh.Instance!.MarkedCorner, out p);
+
+			NavDrawLine(in p[1], in p[2], NavEditColor.NavMarkedColor);
+			NavDrawLine(in p[2], in p[3], NavEditColor.NavMarkedColor);
+		}
+		if (this != NavMesh.Instance!.GetMarkedArea() && this == NavMesh.Instance!.GetSelectedArea() && NavMesh.Instance!.IsEditMode(NavMesh.EditModeType.Normal)) {
+			NavCornerType bestCorner = GetCornerUnderCursor();
+
+			Vector3[] p = new Vector3[(int)NavCornerType.NumCorners];
+			if (GetCornerHotspot(bestCorner, out p)) {
+				NavDrawLine(p[1], p[2], NavEditColor.NavSelectedColor);
+				NavDrawLine(p[2], p[3], NavEditColor.NavSelectedColor);
+			}
+		}
+
+		if ((GetAttributes() & NavAttributeType.Crouch) != 0) {
+			if (useAttributeColors)
+				color = NavEditColor.NavAttributeCrouchColor;
+
+			NavDrawLine(nw, se, color);
+		}
+
+		if ((GetAttributes() & NavAttributeType.Jump) != 0) {
+			if (useAttributeColors)
+				color = NavEditColor.NavAttributeJumpColor;
+
+			if ((GetAttributes() & NavAttributeType.Crouch) == 0) {
+				NavDrawLine(nw, se, color);
+			}
+			NavDrawLine(ne, sw, color);
+		}
+
+		if ((GetAttributes() & NavAttributeType.Precice) != 0) {
+			if (useAttributeColors)
+				color = NavEditColor.NavAttributePreciseColor;
+
+			float size = 8.0f;
+			Vector3 up = new(Center.X, Center.Y - size, Center.Z);
+			Vector3 down = new(Center.X, Center.Y + size, Center.Z);
+			NavDrawLine(up, down, color);
+
+			Vector3 left = new(Center.X - size, Center.Y, Center.Z);
+			Vector3 right = new(Center.X + size, Center.Y, Center.Z);
+			NavDrawLine(left, right, color);
+		}
+
+		if ((GetAttributes() & NavAttributeType.NoJump) != 0) {
+			if (useAttributeColors)
+				color = NavEditColor.NavAttributeNoJumpColor;
+
+			float size = 8.0f;
+			Vector3 up = new(Center.X, Center.Y - size, Center.Z);
+			Vector3 down = new(Center.X, Center.Y + size, Center.Z);
+			Vector3 left = new(Center.X - size, Center.Y, Center.Z);
+			Vector3 right = new(Center.X + size, Center.Y, Center.Z);
+			NavDrawLine(up, right, color);
+			NavDrawLine(right, down, color);
+			NavDrawLine(down, left, color);
+			NavDrawLine(left, up, color);
+		}
+
+		if ((GetAttributes() & NavAttributeType.Stairs) != 0) {
+			if (useAttributeColors)
+				color = NavEditColor.NavAttributeStairColor;
+
+			float northZ = (GetCorner(NavCornerType.NorthWest).Z + GetCorner(NavCornerType.NorthEast).Z) / 2.0f;
+			float southZ = (GetCorner(NavCornerType.SouthWest).Z + GetCorner(NavCornerType.SouthEast).Z) / 2.0f;
+			float westZ = (GetCorner(NavCornerType.NorthWest).Z + GetCorner(NavCornerType.SouthWest).Z) / 2.0f;
+			float eastZ = (GetCorner(NavCornerType.NorthEast).Z + GetCorner(NavCornerType.SouthEast).Z) / 2.0f;
+
+			float deltaEastWest = Math.Abs(westZ - eastZ);
+			float deltaNorthSouth = Math.Abs(northZ - southZ);
+
+			float stepSize = StepHeight / 2.0f;
+			float t;
+
+			if (deltaEastWest > deltaNorthSouth) {
+				float inc = stepSize / GetSizeX();
+
+				for (t = 0.0f; t <= 1.0f; t += inc) {
+					float x = NWCorner.X + t * GetSizeX();
+					NavDrawLine(new Vector3(x, NWCorner.Y, GetZ(x, NWCorner.Y)), new Vector3(x, SECorner.Y, GetZ(x, SECorner.Y)), color);
+				}
+			}
+			else {
+				float inc = stepSize / GetSizeY();
+
+				for (t = 0.0f; t <= 1.0f; t += inc) {
+					float y = NWCorner.Y + t * GetSizeY();
+					NavDrawLine(new Vector3(NWCorner.X, y, GetZ(NWCorner.X, y)), new Vector3(SECorner.X, y, GetZ(SECorner.X, y)), color);
+				}
+			}
+		}
+
+		if ((GetAttributes() & NavAttributeType.Stop) != 0) {
+			if (useAttributeColors)
+				color = NavEditColor.NavAttributeStopColor;
+
+			float dist = 8.0f;
+			float length = dist / 2.5f;
+			Vector3 start, end;
+
+			start = Center + new Vector3(dist, -length, 0);
+			end = Center + new Vector3(dist, length, 0);
+			NavDrawLine(start, end, color);
+
+			start = Center + new Vector3(dist, length, 0);
+			end = Center + new Vector3(length, dist, 0);
+			NavDrawLine(start, end, color);
+
+			start = Center + new Vector3(-dist, -length, 0);
+			end = Center + new Vector3(-dist, length, 0);
+			NavDrawLine(start, end, color);
+
+			start = Center + new Vector3(-dist, length, 0);
+			end = Center + new Vector3(-length, dist, 0);
+			NavDrawLine(start, end, color);
+
+			start = Center + new Vector3(-length, dist, 0);
+			end = Center + new Vector3(length, dist, 0);
+			NavDrawLine(start, end, color);
+
+			start = Center + new Vector3(-dist, -length, 0);
+			end = Center + new Vector3(-length, -dist, 0);
+			NavDrawLine(start, end, color);
+
+			start = Center + new Vector3(-length, -dist, 0);
+			end = Center + new Vector3(length, -dist, 0);
+			NavDrawLine(start, end, color);
+
+			start = Center + new Vector3(length, -dist, 0);
+			end = Center + new Vector3(dist, -length, 0);
+			NavDrawLine(start, end, color);
+		}
+
+		if ((GetAttributes() & NavAttributeType.Walk) != 0) {
+			if (useAttributeColors)
+				color = NavEditColor.NavAttributeWalkColor;
+
+			float size = 8.0f;
+			NavDrawHorizontalArrow(Center + new Vector3(-size, 0, 0), Center + new Vector3(size, 0, 0), 4, color);
+		}
+
+		if ((GetAttributes() & NavAttributeType.Run) != 0) {
+			if (useAttributeColors)
+				color = NavEditColor.NavAttributeRunColor;
+
+			float size = 8.0f;
+			float dist = 4.0f;
+			NavDrawHorizontalArrow(Center + new Vector3(-size, dist, 0), Center + new Vector3(size, dist, 0), 4, color);
+			NavDrawHorizontalArrow(Center + new Vector3(-size, -dist, 0), Center + new Vector3(size, -dist, 0), 4, color);
+		}
+
+		if ((GetAttributes() & NavAttributeType.Avoid) != 0) {
+			if (useAttributeColors)
+				color = NavEditColor.NavAttributeAvoidColor;
+
+			float topHeight = 8.0f;
+			float topWidth = 3.0f;
+			float bottomHeight = 3.0f;
+			float bottomWidth = 2.0f;
+			NavDrawTriangle(Center, Center + new Vector3(-topWidth, topHeight, 0), Center + new Vector3(+topWidth, topHeight, 0), color);
+			NavDrawTriangle(Center + new Vector3(0, -bottomHeight, 0), Center + new Vector3(-bottomWidth, -bottomHeight * 2, 0), Center + new Vector3(bottomWidth, -bottomHeight * 2, 0), color);
+		}
+
+		if (IsBlocked(-2 /*TEAM_ANY*/) || HasAvoidanceObstacle() || IsDamaging()) {
+			NavEditColor clr = (IsBlocked(-2 /*TEAM_ANY*/) && (AttributeFlags & NavAttributeType.NavBlocker) != 0) ? NavEditColor.NavBlockedByFuncNavBlockerColor : NavEditColor.NavBlockedByDoorColor;
+			const float blockedInset = 4.0f;
+			nw.X += blockedInset;
+			nw.Y += blockedInset;
+			ne.X -= blockedInset;
+			ne.Y += blockedInset;
+			sw.X += blockedInset;
+			sw.Y -= blockedInset;
+			se.X -= blockedInset;
+			se.Y -= blockedInset;
+			NavDrawLine(nw, ne, clr);
+			NavDrawLine(ne, se, clr);
+			NavDrawLine(se, sw, clr);
+			NavDrawLine(sw, nw, clr);
+		}
+	}
 
 	void DrawFilled(int r, int g, int b, int a, float deltaT, bool noDepthTest, float margin) { }
 
@@ -622,7 +972,96 @@ public partial class NavArea : NavAreaCriticalData
 
 	void DrawHidingSpots() { }
 
-	public void DrawConnectedAreas() { }
+	public void DrawConnectedAreas() {
+		int i;
+
+		BasePlayer? player = Util.GetListenServerHost();
+		if (player == null)
+			return;
+
+		if (NavMesh.Instance!.IsEditMode(NavMesh.EditModeType.PlacePainting))
+			Draw();
+		else {
+			Draw();
+			DrawHidingSpots();
+		}
+
+		for (int it = 0; it < Ladder[(int)NavLadder.LadderDirectionType.Up].Count; it++) {
+			NavLadder ladder = Ladder[(int)NavLadder.LadderDirectionType.Up][it].Ladder!;
+
+			ladder.DrawLadder();
+
+			if (!ladder.IsConnected(this, NavLadder.LadderDirectionType.Down))
+				NavDrawLine(Center, ladder.Bottom, NavEditColor.NavConnectedOneWayColor);
+		}
+
+		for (int it = 0; it < Ladder[(int)NavLadder.LadderDirectionType.Down].Count; it++) {
+			NavLadder ladder = Ladder[(int)NavLadder.LadderDirectionType.Down][it].Ladder!;
+
+			ladder.DrawLadder();
+
+			if (!ladder.IsConnected(this, NavLadder.LadderDirectionType.Up))
+				NavDrawLine(Center, ladder.Top, NavEditColor.NavConnectedOneWayColor);
+		}
+
+		for (i = 0; i < (int)NavDirType.NumDirections; ++i) {
+			NavDirType dir = (NavDirType)i;
+
+			int count = GetAdjacentCount(dir);
+
+			for (int a = 0; a < count; ++a) {
+				NavArea adj = GetAdjacentArea(dir, a)!;
+
+				adj.Draw();
+
+				if (!NavMesh.Instance!.IsEditMode(NavMesh.EditModeType.PlacePainting)) {
+					adj.DrawHidingSpots();
+
+					Vector3 from = default, to = default;
+					Vector3 hookPos = default;
+					float size = 5.0f;
+					ComputePortal(adj, dir, ref hookPos, out float halfWidth);
+
+					switch (dir) {
+						case NavDirType.North:
+							from = hookPos + new Vector3(0.0f, size, 0.0f);
+							to = hookPos + new Vector3(0.0f, -size, 0.0f);
+							break;
+						case NavDirType.South:
+							from = hookPos + new Vector3(0.0f, -size, 0.0f);
+							to = hookPos + new Vector3(0.0f, size, 0.0f);
+							break;
+						case NavDirType.East:
+							from = hookPos + new Vector3(-size, 0.0f, 0.0f);
+							to = hookPos + new Vector3(+size, 0.0f, 0.0f);
+							break;
+						case NavDirType.West:
+							from = hookPos + new Vector3(size, 0.0f, 0.0f);
+							to = hookPos + new Vector3(-size, 0.0f, 0.0f);
+							break;
+					}
+
+					from.Z = GetZ(from);
+					to.Z = adj.GetZ(to);
+
+					adj.GetClosestPointOnArea(ref to, out AngularImpulse drawTo);
+
+					if (nav_show_contiguous.GetBool()) {
+						if (IsContiguous(adj))
+							NavDrawLine(from, drawTo, NavEditColor.NavConnectedContiguous);
+						else
+							NavDrawLine(from, drawTo, NavEditColor.NavConnectedNonContiguous);
+					}
+					else {
+						if (adj.IsConnected(this, OppositeDirection(dir)))
+							NavDrawLine(from, drawTo, NavEditColor.NavConnectedTwoWaysColor);
+						else
+							NavDrawLine(from, drawTo, NavEditColor.NavConnectedOneWayColor);
+					}
+				}
+			}
+		}
+	}
 
 	public void AddToOpenList() {
 		Assert((OpenList != null && OpenList.PrevOpen == null) || OpenList == null);
@@ -1480,6 +1919,9 @@ public partial class NavArea : NavAreaCriticalData
 	}
 
 	ConcurrentBag<AreaBindInfo> g_ComputedVis = [];
+
+	public NavAttributeType NAV_MESH_JUMP { get; private set; }
+
 	public void ComputeVisibilityToMesh() {
 		InheritVisibilityFrom.Area = null;
 		IsInheritedFrom = false;
@@ -1567,9 +2009,7 @@ public partial class NavArea : NavAreaCriticalData
 	public float GetSizeX() => SECorner.X - NWCorner.X;
 	public float GetSizeY() => SECorner.Y - NWCorner.Y;
 
-	bool IsDegenerate() {
-		throw new NotImplementedException();
-	}
+	bool IsDegenerate() => (NWCorner.X >= SECorner.X) || (NWCorner.Y >= SECorner.Y);
 
 	public int GetAdjacentCount(NavDirType dir) => Connect[(int)dir].Count;
 

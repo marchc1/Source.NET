@@ -143,6 +143,33 @@ public class RenderUtils(IMaterialSystem materials)
 		renderContext.PopMatrix();
 	}
 
+	internal void RenderLine(in Vector3 start, in Vector3 end, in Color color, bool zBuffer) {
+		InitializeStandardMaterials();
+
+		using MatRenderContextPtr renderContext = new(materials);
+		renderContext.Bind(zBuffer ? Wireframe : WireframeIgnoreZ);
+
+		byte chRed = color.R;
+		byte chGreen = color.G;
+		byte chBlue = color.B;
+		byte chAlpha = color.A;
+
+		IMesh mesh = renderContext.GetDynamicMesh();
+		MeshBuilder meshBuilder = new();
+		meshBuilder.Begin(mesh, MaterialPrimitiveType.Lines, 1);
+
+		meshBuilder.Position3fv(start);
+		meshBuilder.Color4ub(chRed, chGreen, chBlue, chAlpha);
+		meshBuilder.AdvanceVertex();
+
+		meshBuilder.Position3fv(end);
+		meshBuilder.Color4ub(chRed, chGreen, chBlue, chAlpha);
+		meshBuilder.AdvanceVertex();
+
+		meshBuilder.End();
+		mesh.Draw();
+	}
+
 	internal void RenderBox(in Vector3 origin, in Vector3 angles, in Vector3 mins, in Vector3 maxs, in Color color, bool zBuffer, bool insideOut = false) {
 		IMaterial pMaterial = zBuffer ? VertexColor : VertexColorIgnoreZ;
 		RenderBox(origin, angles, mins, maxs, color, pMaterial, insideOut);
@@ -273,7 +300,7 @@ public class RenderUtils(IMaterialSystem materials)
 	internal void RenderWireframeBox(in Vector3 origin, in Vector3 angles, in Vector3 mins, in Vector3 maxs, in Color color, bool zBuffer) {
 		InitializeStandardMaterials();
 
-		using MatRenderContextPtr pRenderContext = new(materials );
+		using MatRenderContextPtr pRenderContext = new(materials);
 		pRenderContext.Bind(zBuffer ? Wireframe : WireframeIgnoreZ);
 
 		Span<Vector3> p = stackalloc Vector3[8];

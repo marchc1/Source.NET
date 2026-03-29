@@ -70,7 +70,7 @@ public class NavLadder
 
 	void Disconnect(NavArea area) { }
 
-	bool IsConnected(NavArea area, LadderDirectionType dir) {
+	public bool IsConnected(NavArea area, LadderDirectionType dir) {
 		throw new NotImplementedException();
 	}
 
