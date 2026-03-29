@@ -19,6 +19,7 @@ public class ActivityList
 	public static Activity HighestActivity = 0;
 	static readonly UtlSymbolTable ActivityStrings = new();
 	static readonly Dictionary<UtlSymId_t, int> ActivityRemapDatabase = [];
+	static readonly Dictionary<UtlSymId_t, int> SharedActivityRemapDatabase = [];
 
 	public static void Init() {
 		HighestActivity = 0;
@@ -28,12 +29,13 @@ public class ActivityList
 		ActivityStrings.Clear();
 		g_ActivityList.Clear();
 		ActivityRemapDatabase.Clear();
+		SharedActivityRemapDatabase.Clear();
 		Version++;
 	}
 
 	public static ActivityList? ListFromString(ReadOnlySpan<char> str){
 		ulong stringHash = ActivityStrings.AddString(str);
-		if (!ActivityRemapDatabase.TryGetValue(stringHash, out int idx))
+		if (!SharedActivityRemapDatabase.TryGetValue(stringHash, out int idx))
 			return null;
 		return g_ActivityList[idx];
 	}
@@ -63,6 +65,7 @@ public class ActivityList
 
 		if (activityIndex > HighestActivity)
 			HighestActivity = activityIndex;
+		SharedActivityRemapDatabase[list.StringKey] = g_ActivityList.Count;
 		g_ActivityList.Add(list);
 		return list;
 	}
@@ -92,7 +95,7 @@ public class ActivityList
 		lastActivityIndex = activityIndex;
 
 		ActivityList? list = ListFromString(activityName);
-			list ??= ListFromActivity(activityIndex);
+		list ??= ListFromActivity(activityIndex);
 
 		if (list != null) {
 			Warning($"***\nShared activity collision! {activityName}<->{ActivityStrings.String(list.StringKey)}\n***\n");
