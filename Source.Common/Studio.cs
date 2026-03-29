@@ -176,7 +176,7 @@ public enum StudioHdrFlags
 
 public class VirtualGroup
 {
-	public object? Cache;
+	public MDLHandle_t Cache;
 	public readonly List<int> BoneMap = [];
 	public readonly List<int> MasterBone = [];
 	public readonly List<int> MasterSeq = [];
@@ -186,11 +186,11 @@ public class VirtualGroup
 	public readonly List<int> MasterNode = [];
 
 	internal StudioHeader? GetStudioHdr() {
-		return MDLCache.GetStudioHdr((MDLHandle_t)Cache!);
+		return MDLCache.GetStudioHdr(Cache);
 	}
 }
 
-public class VirtualSequence
+public struct VirtualSequence
 {
 	public StudioAnimSeqFlags Flags;
 	public int Activity;
@@ -198,7 +198,7 @@ public class VirtualSequence
 	public int Index;
 }
 
-public class VirtualGeneric
+public struct VirtualGeneric
 {
 	public int Group;
 	public int Index;
@@ -213,8 +213,7 @@ public partial class VirtualModel
 		throw new NotImplementedException();
 	}
 
-	// TODO
-	// public readonly Mutex Lock = new();
+	public readonly object Lock = new();
 
 	public readonly List<VirtualSequence> Seq = [];
 	public readonly List<VirtualGeneric> Anim = [];
@@ -1039,6 +1038,50 @@ public class MStudioAnimBlock
 		br.Read(out DataEnd);
 	}
 }
+public class MStudioModelGroup
+{
+	public const int SIZEOF = 8; // Static offset from MSVC stats (
+	public static MStudioModelGroup FACTORY(object caller, Memory<byte> data) => new(data);
+	public Memory<byte> Data;
+	public int LabelIndex;
+	public int NameIndex;
+	public MStudioModelGroup(Memory<byte> data) {
+		Data = data;
+		SpanBinaryReader br = new(Data.Span);
+		br.Read(out LabelIndex);
+		br.Read(out NameIndex);
+	}
+
+	string? labelCache;
+	string? nameCache;
+	public string Label() => Studio.ProduceASCIIString(ref labelCache, Data.Span[LabelIndex..]);
+	public string Name() => Studio.ProduceASCIIString(ref nameCache, Data.Span[NameIndex..]);
+}
+public class MStudioEvent
+{
+	public const int SIZEOF = sizeof(float) + sizeof(int) + sizeof(int) + 64 + sizeof(int); // Static offset from MSVC stats (
+	public static MStudioEvent FACTORY(object caller, Memory<byte> data) => new(data);
+	public Memory<byte> Data;
+	public float Cycle;
+	public int Event;
+	public int Type;
+	InlineArray64<byte> options;
+	public int EventIndex;
+	public MStudioEvent(Memory<byte> data) {
+		Data = data;
+		SpanBinaryReader br = new(Data.Span);
+		br.Read(out Cycle);
+		br.Read(out Event);
+		br.Read(out Type);
+		br.ReadInto<byte>(options);
+		br.Read(out EventIndex);
+	}
+
+	string? nameCache;
+	public Span<byte> Options() => options;
+	public string EventName() => Studio.ProduceASCIIString(ref nameCache, Data.Span[EventIndex..]);
+}
+
 public class MStudioPoseParamDesc
 {
 	public const int SIZEOF = 20; // Static offset from MSVC stats (mstudiobone_t size 20, alignment 4)
@@ -1146,7 +1189,9 @@ public class MStudioSeqDesc
 
 	public int NumEvents;
 	public int EventIndex;
-	// TODO: Events
+	MStudioEvent[]? eventCache;
+	public MStudioEvent Event(int i)
+		=> Studio.ProduceArrayIdx(this, ref eventCache, NumEvents, EventIndex, i, MStudioEvent.SIZEOF, Data, MStudioEvent.FACTORY);
 
 	public Vector3 BBMin;
 	public Vector3 BBMax;
@@ -1309,7 +1354,7 @@ public class StudioHdr
 			FrameUnlockCounter = FrameUnlockCounterPtr.Get() - 1;
 		}
 
-		if(this.studioHdr.NumIncludeModels != 0){
+		if (this.studioHdr.NumIncludeModels != 0) {
 			ResetVModel(this.studioHdr.GetVirtualModel());
 		}
 
@@ -1579,7 +1624,7 @@ public class StudioHdr
 		StudioHeader? expectedPStudioHdr;
 		VirtualModel? expectedVModel;
 
-		public void SetValidationPair(StudioHdr studiohdr){
+		public void SetValidationPair(StudioHdr studiohdr) {
 			expectedPStudioHdr = studiohdr.GetRenderHdr();
 			expectedVModel = studiohdr.GetVirtualModel();
 		}
@@ -1853,6 +1898,12 @@ public class StudioHeader
 		}
 	}
 
+	public StudioHeader? FindModel(out MDLHandle_t cache, ReadOnlySpan<char> modelName) {
+		MDLHandle_t handle = MDLCache.FindMDL(modelName);
+		cache = handle;
+		return MDLCache.GetStudioHdr(handle);
+	}
+
 	public int NumBoneControllers;
 	public int BoneControllerIndex;
 
@@ -1956,8 +2007,26 @@ public class StudioHeader
 
 	public int NumLocalNodes;
 	public int LocalNodeIndex;
+
 	public int LocalNodeNameIndex;
-	public string? localNodeNameCache;
+	string[]? localNodeNameCache;
+	public ReadOnlySpan<char> LocalNodeName(int i) {
+		if (localNodeNameCache == null)
+			localNodeNameCache = new string[NumLocalNodes];
+
+		if (localNodeNameCache[i] != null)
+			return localNodeNameCache[i];
+
+		Span<byte> span = Data.Span;
+
+		var offsetTable = MemoryMarshal.Cast<byte, int>(span[LocalNodeNameIndex..]);
+		int stringOffset = offsetTable[i];
+		var strBytes = span[stringOffset..];
+
+		using ASCIIStringView ascii = new(strBytes);
+		localNodeNameCache[i] = new(ascii);
+		return localNodeNameCache[i];
+	}
 
 	public int NumFlexDesc;
 	public int FlexDescIndex;
@@ -1992,6 +2061,10 @@ public class StudioHeader
 
 	public int NumIncludeModels;
 	public int IncludeModelIndex;
+	MStudioModelGroup[]? modelGroupCache;
+	public MStudioModelGroup ModelGroup(int i)
+		=> Studio.ProduceArrayIdx(this, ref modelGroupCache, NumIncludeModels, IncludeModelIndex, i, MStudioModelGroup.SIZEOF, Data, MStudioModelGroup.FACTORY);
+
 
 	public MDLHandle_t VirtualModel;
 
@@ -2088,6 +2161,18 @@ public class StudioHeader
 			}
 		}
 		autoplaySequenceList = autoplaySequenceList[..outIndex];
+	}
+
+	public int CopyAutoplaySequences(Span<short> autoplaySequenceList, int outCount) {
+		int outIndex = 0;
+		for (int i = 0; i < GetNumSeq() && outIndex < outCount; i++) {
+			MStudioSeqDesc seqdesc = Seqdesc(i);
+			if ((seqdesc.Flags & StudioAnimSeqFlags.Autoplay) != 0) {
+				autoplaySequenceList[outIndex] = (short)i;
+				outIndex++;
+			}
+		}
+		return outIndex;
 	}
 
 	public int IllumPositionAttachmentIndex() {
