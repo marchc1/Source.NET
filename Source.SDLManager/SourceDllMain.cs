@@ -60,7 +60,7 @@ public static class SourceDllMain
 		SDL_MessageBoxData messageboxdata = default;
 		SDL_MessageBoxButtonData* buttondata = stackalloc SDL_MessageBoxButtonData[2];
 		buttondata[0] = new() { buttonID = 1, flags = SDL_MessageBoxButtonFlags.SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, text = s_TextOK };
-		buttondata[0] = new() { buttonID = 0, flags = SDL_MessageBoxButtonFlags.SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, text = s_TextCancel };
+		buttondata[1] = new() { buttonID = 0, flags = SDL_MessageBoxButtonFlags.SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, text = s_TextCancel };
 
 		messageboxdata.window = g_SDLWindow;
 		messageboxdata.title = (byte*)Marshal.StringToCoTaskMemUTF8(new(title));

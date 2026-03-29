@@ -870,9 +870,7 @@ public class Menu : Panel
 		}
 	}
 
-	internal void OnInternalMousePressed(Panel other, MouseButton code) {
-		// todo MenuMgr
-	}
+	internal void OnInternalMousePressed(Panel other, MouseButton code) => MenuManager.Instance.OnInternalMousePressed(other, code);
 
 	public override void SetVisible(bool state) {
 		if (state == IsVisible())
@@ -881,14 +879,15 @@ public class Menu : Panel
 		if (state == false) {
 			PostActionSignal(KV_MenuClose);
 			CloseOtherMenus(null);
-
 			SetCurrentlySelectedItem(-1);
+
+			MenuManager.Instance.RemoveMenu(this);
 		}
 		else {
 			MoveToFront();
 			RequestFocus();
 
-			// MenuMgr
+			MenuManager.Instance.AddMenu(this);
 		}
 
 		base.SetVisible(state);
@@ -1411,5 +1410,79 @@ public class Menu : Panel
 		}
 
 		base.OnMessage(message, from);
+	}
+}
+
+class MenuManager
+{
+	private IVGuiInput Input = Singleton<IVGuiInput>();
+	private readonly List<Menu> Menus = [];
+	public static MenuManager Instance = new();
+
+	public void AddMenu(Menu? menu) {
+		if (menu == null)
+			return;
+
+		int count = Menus.Count;
+		for (int i = 0; i < count; i++) {
+			if (Menus[i] == menu)
+				return;
+		}
+
+		Menus.Add(menu);
+	}
+
+	public void RemoveMenu(Menu? menu) {
+		if (menu == null)
+			return;
+
+		Menus.Remove(menu);
+	}
+
+	public void OnInternalMousePressed(Panel other, MouseButton code) {
+		int count = Menus.Count;
+		if (count == 0)
+			return;
+
+		Input.GetCursorPos(out int x, out int y);
+
+		for (int i = 0; i < count; i++) {
+			Menu menu = Menus[i];
+
+			if (IsWithinMenuOrRelative(menu, x, y))
+				return;
+		}
+
+		AbortMenus();
+	}
+
+	private void AbortMenus() {
+		for (int i = 0; i < Menus.Count; i++) {
+			Menu menu = Menus[i];
+			menu.SetVisible(false);
+			Menus.RemoveAt(i);
+		}
+
+		Menus.Clear();
+	}
+
+	private bool IsWithinMenuOrRelative(Panel panel, int x, int y) {
+		IPanel? topMost = panel.IsWithinTraverse(x, y, true);
+		if (topMost != null) {
+			if (topMost == panel)
+				return true;
+
+			if (topMost.HasParent(panel))
+				return true;
+		}
+
+		Panel? parent = panel.GetParent();
+		if (parent != null) {
+			topMost = parent.IsWithinTraverse(x, y, true);
+			if (topMost == parent)
+				return true;
+		}
+
+		return false;
 	}
 }
