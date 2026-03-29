@@ -47,7 +47,7 @@ public class StudioData
 	public object?[]? AnimBlock; // todo: research what this is
 }
 
-public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
+public class MDLCache : IMDLCache, IStudioDataCache
 {
 	static readonly ConVar r_rootlod = new("r_rootlod", "0", FCvar.Archive, "Root LOD", 0, Studio.MAX_NUM_LODS);
 	static readonly ConVar mod_forcedata = new("mod_forcedata", "0", 0, "Forces all model file data into cache on model load.");
@@ -63,6 +63,15 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 	static readonly ConVar mod_lock_mdls_on_load = new("mod_lock_mdls_on_load", "0", 0);
 	static readonly ConVar mod_load_fakestall = new("mod_load_fakestall", "0", 0, "Forces all ANI file loading to stall for specified ms\n");
 
+	readonly IFileSystem fileSystem;
+	public MDLCache(IFileSystem fileSystem) {
+		this.fileSystem = fileSystem;
+		FrameUnlockCounter = new int[(int)MDLCacheDataType.Count];
+		FrameUnlockCounterFieldPtr = new AnonymousSafeFieldPointer<int>[(int)MDLCacheDataType.Count];
+		for (MDLCacheDataType i = 0; i < MDLCacheDataType.Count - 1; i++) 
+			FrameUnlockCounterFieldPtr[(int)i] = new(this, x => ref FrameUnlockCounter[(int)i]);
+	}
+
 	public int AddRef(MDLHandle_t handle) {
 		return ++HandleToMDLDict[handle].RefCount;
 	}
@@ -73,8 +82,8 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 
 	public void BeginMapLoad() {
 		// TODO: Actually make locking do something, we're super synchronous right now
-		foreach(var mdl in HandleToMDLDict) {
-			if((mdl.Value.Flags & StudioDataFlags.LockedMDL) != 0) {
+		foreach (var mdl in HandleToMDLDict) {
+			if ((mdl.Value.Flags & StudioDataFlags.LockedMDL) != 0) {
 				mdl.Value.Flags &= ~StudioDataFlags.LockedMDL;
 			}
 		}
@@ -177,16 +186,16 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 			return Array.Empty<short>();
 
 		VirtualModel? virtualModel = GetVirtualModel(handle);
-		if(virtualModel != null) 
+		if (virtualModel != null)
 			return virtualModel.AutoplaySequences.Base();
 
 		StudioData studioData = HandleToMDLDict[handle];
 		return studioData.AutoplaySequenceList;
 	}
 
-	public ref int GetFrameUnlockCounterPtr(MDLCacheDataType type) {
-		throw new NotImplementedException();
-	}
+	readonly int[] FrameUnlockCounter;
+	readonly AnonymousSafeFieldPointer<int>[] FrameUnlockCounterFieldPtr;
+	public AnonymousSafeFieldPointer<int> GetFrameUnlockCounterPtr(MDLCacheDataType type) => FrameUnlockCounterFieldPtr[(int)type];
 
 	public StudioHWData? GetHardwareData(MDLHandle_t handle) {
 		StudioData studioData = HandleToMDLDict[handle];
@@ -336,9 +345,9 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 			return false;
 		}
 
-		if(studioHdr.NumIncludeModels == 0) {
+		if (studioHdr.NumIncludeModels == 0) {
 			int count = studioHdr.CountAutoplaySequences();
-			if(count != 0) {
+			if (count != 0) {
 				AllocateAutoplaySequences(HandleToMDLDict[handle], count);
 				studioHdr.CopyAutoplaySequences(ref HandleToMDLDict[handle].AutoplaySequenceList, count);
 			}

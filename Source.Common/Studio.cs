@@ -192,7 +192,7 @@ public class VirtualGroup
 
 public class VirtualSequence
 {
-	public int Flags;
+	public StudioAnimSeqFlags Flags;
 	public int Activity;
 	public int Group;
 	public int Index;
@@ -204,48 +204,8 @@ public class VirtualGeneric
 	public int Index;
 }
 
-public class VirtualModel
+public partial class VirtualModel
 {
-	public void AppendSequences(int group, StudioHeader studioHDR) {
-
-	}
-	public void AppendAnimations(int group, StudioHeader studioHDR) {
-
-	}
-	public void AppendAttachments(int group, StudioHeader studioHDR) {
-
-	}
-	public void AppendPoseParameters(int group, StudioHeader studioHDR) {
-
-	}
-	public void AppendBonemap(int group, StudioHeader studioHDR) {
-
-	}
-	public void AppendNodes(int group, StudioHeader studioHDR) {
-
-	}
-	public void AppendTransitions(int group, StudioHeader studioHDR) {
-
-	}
-	public void AppendIKLocks(int group, StudioHeader studioHDR) {
-
-	}
-	public void AppendModels(int group, StudioHeader studioHDR) {
-		AppendSequences(group, studioHDR);
-		AppendAnimations(group, studioHDR);
-		AppendBonemap(group, studioHDR);
-		AppendAttachments(group, studioHDR);
-		AppendPoseParameters(group, studioHDR);
-		AppendNodes(group, studioHDR);
-		AppendIKLocks(group, studioHDR);
-		// todo
-
-		UpdateAutoplaySequences(studioHDR);
-	}
-	public void UpdateAutoplaySequences(StudioHeader studioHDR) {
-
-	}
-
 	public VirtualGroup AnimGroup(int animation) {
 		throw new NotImplementedException();
 	}
@@ -893,6 +853,8 @@ public class MStudioAnimDesc
 	public Memory<byte> Data;
 
 	public int NameIndex;
+	public string? nameCache;
+	public string Name() => Studio.ProduceASCIIString(ref nameCache, Data.Span[NameIndex..]);
 
 	public float FPS;
 	private int flags;
@@ -1331,7 +1293,8 @@ public class StudioHdr
 	readonly List<StudioHeader> StudioHdrCache = [];
 
 	public StudioHdrFlags Flags() => studioHdr!.Flags;
-
+	public AnonymousSafeFieldPointer<int> FrameUnlockCounterPtr;
+	public int FrameUnlockCounter;
 	public void Init(StudioHeader? studioHdr, IMDLCache mdlcache) {
 		this.studioHdr = studioHdr;
 
@@ -1340,6 +1303,15 @@ public class StudioHdr
 
 		if (this.studioHdr == null)
 			return;
+
+		if (mdlcache != null) {
+			FrameUnlockCounterPtr = mdlcache.GetFrameUnlockCounterPtr(MDLCacheDataType.StudioHDR);
+			FrameUnlockCounter = FrameUnlockCounterPtr.Get() - 1;
+		}
+
+		if(this.studioHdr.NumIncludeModels != 0){
+			ResetVModel(this.studioHdr.GetVirtualModel());
+		}
 
 		boneFlags.EnsureCount(NumBones());
 		boneParent.EnsureCount(NumBones());
@@ -1985,6 +1957,7 @@ public class StudioHeader
 	public int NumLocalNodes;
 	public int LocalNodeIndex;
 	public int LocalNodeNameIndex;
+	public string? localNodeNameCache;
 
 	public int NumFlexDesc;
 	public int FlexDescIndex;
