@@ -22,10 +22,7 @@ public class MoveHelperClient : IMoveHelper
 		throw new NotImplementedException();
 	}
 
-	public IPhysicsSurfaceProps? GetSurfaceProps() {
-		throw new NotImplementedException();
-	}
-
+	public IPhysicsSurfaceProps? GetSurfaceProps() => physprops;
 	public bool IsWorldEntity(EntityHandle_t handle) {
 		throw new NotImplementedException();
 	}

@@ -7,6 +7,7 @@ using Source.Common.Formats.Keyvalues;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
 using Source.Common.Server;
+using Source.Engine.Server;
 
 using Steamworks;
 
@@ -16,6 +17,7 @@ namespace Source.Engine;
 
 internal class EngineServer(Cbuf Cbuf) : IEngineServer
 {
+	public readonly SharedEdictChangeInfo g_roSharedEdictChangeInfo = new();
 	public void AddOriginToPVS(in Vector3 origin) {
 		throw new NotImplementedException();
 	}
@@ -574,4 +576,15 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		s_MsgData.UserMsg.DataOut.Reset();
 		return s_MsgData.UserMsg.DataOut;
 	}
+
+	public CheckTransmitInfo GetPrevCheckTransmitInfo(Edict playerEdict) {
+		int entnum = NUM_FOR_EDICT(playerEdict);
+		if (entnum < 1 || entnum > sv.GetClientCount()) 
+			Error("Invalid client specified in GetPrevCheckTransmitInfo\n");
+
+		GameClient client = sv.Client(entnum - 1);
+		return client.GetPrevPackInfo();
+	}
+
+	public SharedEdictChangeInfo GetSharedEdictChangeInfo() => g_roSharedEdictChangeInfo;
 }

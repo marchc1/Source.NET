@@ -35,4 +35,5 @@ public interface ILauncherManager
 	void SetMouseCursor(ICursor? currentlySetCursor);
 	void SetMouseVisible(bool v);
 	void SetWindowRelativeMouseMode(bool cursorLocked);
+	void FlashWindow(bool state);
 }

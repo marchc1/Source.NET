@@ -94,13 +94,11 @@ public class ViewRender : IViewRender
 
 	internal readonly IMaterialSystem materials;
 	readonly IServiceProvider services;
-	readonly IEngineTrace enginetrace;
 	readonly Render engineRenderer;
-	public ViewRender(IMaterialSystem materials, IServiceProvider services, Render engineRenderer, IEngineTrace enginetrace) {
+	public ViewRender(IMaterialSystem materials, IServiceProvider services, Render engineRenderer) {
 		this.materials = materials;
 		this.services = services;
 		this.engineRenderer = engineRenderer;
-		this.enginetrace = enginetrace;
 		SimpleExecutor = new(this);
 	}
 

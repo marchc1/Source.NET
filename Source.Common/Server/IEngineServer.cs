@@ -249,6 +249,13 @@ public interface IEngineServer
 	// Called when relevant edict state flags change.
 	void NotifyEdictFlagsChange(int iEdict);
 
+	// Only valid during CheckTransmit. Also, only the PVS, networked areas, and
+	// m_pTransmitInfo are valid in the returned strucutre.
+	CheckTransmitInfo GetPrevCheckTransmitInfo(Edict playerEdict);
+
+	SharedEdictChangeInfo GetSharedEdictChangeInfo();
+
+
 	// Tells the engine we can immdiately re-use all edict indices
 	// even though we may not have waited enough time
 	void AllowImmediateEdictReuse();

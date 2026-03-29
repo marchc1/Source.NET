@@ -16,7 +16,7 @@ public partial class C_BaseCombatWeapon : C_BaseAnimating
 	}
 
 	public bool IsCarriedByLocalPlayer() {
-		SharedBaseEntity? owner = GetOwner();
+		BaseEntity? owner = GetOwner();
 		if (owner == null)
 			return false;
 		return owner == C_BasePlayer.GetLocalPlayer();

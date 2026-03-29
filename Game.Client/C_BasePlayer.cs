@@ -12,7 +12,9 @@ using Source.Engine;
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Security.AccessControl;
 
+using DEFINE = Source.DEFINE<Game.Client.C_BasePlayer>;
 using FIELD = Source.FIELD<Game.Client.C_BasePlayer>;
 
 namespace Game.Client;
@@ -38,9 +40,47 @@ public struct C_PredictionError
 [LinkEntityToClass("player")]
 public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 {
+	public static readonly DataMap PM_PlayerState = new(nameof(PlayerState), [
+		DEFINE<PlayerState>.PRED_FIELD( nameof(PlayerState.DeadFlag), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
+	]);
 	public static readonly RecvTable DT_PlayerState = new([
-		RecvPropInt(FIELD.OF(nameof(DeadFlag)))
+		RecvPropInt(FIELD<PlayerState>.OF(nameof(PlayerState.DeadFlag)))
 	]); public static readonly ClientClass CC_PlayerState = new("PlayerState", null, null, DT_PlayerState);
+
+	public static readonly new DataMap PredMap = new(nameof(C_BasePlayer), C_BaseCombatCharacter.PredMap, [
+		DEFINE.PRED_TYPEDESCRIPTION( nameof(Local), PlayerLocalData.PredMap ),
+		DEFINE.PRED_TYPEDESCRIPTION( nameof(pl), PM_PlayerState ),
+		DEFINE.PRED_FIELD( nameof(FOV), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(ZoomOwner), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(FOVTime), FieldType.Float, 0 ),
+		DEFINE.PRED_FIELD( nameof(FOVStart), FieldType.Integer, 0 ),
+		DEFINE.PRED_FIELD( nameof(Vehicle), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD_TOL( nameof(Maxspeed), FieldType.Float, FieldTypeDescFlags.InSendTable, 0.5f ),
+		DEFINE.PRED_FIELD( nameof(Health), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(BonusProgress), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(BonusChallenge), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(OnTarget), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(NextThinkTick), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(LifeState), FieldType.Character, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(WaterLevel), FieldType.Character, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD_TOL( nameof(BaseVelocity), FieldType.Vector, FieldTypeDescFlags.InSendTable, 0.05f ),
+		DEFINE.FIELD( nameof(Buttons), FieldType.Integer ),
+		DEFINE.FIELD( nameof(WaterJumpTime), FieldType.Float ),
+		DEFINE.FIELD( nameof(Impulse), FieldType.Integer ),
+		DEFINE.FIELD( nameof(StepSoundTime), FieldType.Float ),
+		DEFINE.FIELD( nameof(SwimSoundTime), FieldType.Float ),
+		DEFINE.FIELD( nameof(LadderNormal), FieldType.Vector ),
+		DEFINE.FIELD( nameof(Physics), FieldType.Integer ),
+		DEFINE.AUTO_ARRAY( nameof(AnimExtension), FieldType.StringCharacter ),
+		DEFINE.FIELD( nameof(AfButtonLast), FieldType.Integer ),
+		DEFINE.FIELD( nameof(AfButtonPressed), FieldType.Integer ),
+		DEFINE.FIELD( nameof(AfButtonReleased), FieldType.Integer ),
+		DEFINE.PRED_FIELD( nameof(LastWeapon), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(TickBase), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(GroundEntity), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_ARRAY( nameof(ViewModel), FieldType.EHandle, MAX_VIEWMODELS, FieldTypeDescFlags.InSendTable ),
+		DEFINE.FIELD( nameof(SurfaceFriction), FieldType.Float )
+	]); public override DataMap? GetPredDescMap() => PredMap;
 
 	public override bool IsPlayer() => true;
 	public TimeUnit_t GetFinalPredictedTime() => FinalPredictedTick * TICK_INTERVAL;
@@ -55,11 +95,13 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public InButtons Buttons;
 	public AnonymousSafeFieldPointer<UserCmd> CurrentCommand;
 	public Vector3 WaterJumpVel;
-	public float WaterJumpTime;
-	public float SwimSoundTime;
+	public TimeUnit_t WaterJumpTime;
+	public TimeUnit_t StepSoundTime;
+	public TimeUnit_t SwimSoundTime;
 	public Vector3 LadderNormal;
 	public int Impulse;
-
+	bool WasFrozen;
+	int Physics;
 	bool FiredWeapon;
 	public bool HasFiredWeapon() => FiredWeapon;
 	public void SetFiredWeapon(bool flag) => FiredWeapon = flag;
@@ -198,7 +240,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		SetNetworkAngles(angles);
 	}
 
-	readonly List<Handle<SharedBaseEntity>> SimulatedByThisPlayer = [];
+	readonly List<Handle<BaseEntity>> SimulatedByThisPlayer = [];
 
 	public override void ReceiveMessage(int classID, bf_read msg) {
 		if (classID != GetClientClass().ClassID) {
@@ -224,7 +266,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public static readonly ClientClass CC_LocalPlayerExclusive = new ClientClass("LocalPlayerExclusive", null, null, DT_LocalPlayerExclusive);
 
 	public static readonly RecvTable DT_BasePlayer = new(DT_BaseCombatCharacter, [
-		RecvPropDataTable(nameof(pl), FIELD.OF(nameof(pl)), DT_PlayerState),
+		RecvPropDataTable(nameof(pl), FIELD.OF(nameof(pl)), DT_PlayerState, proxyFn: DataTableRecvProxy_PointerDataTable),
 		RecvPropEHandle(FIELD.OF(nameof(Vehicle))),
 		RecvPropEHandle(FIELD.OF(nameof(UseEntity))),
 		RecvPropInt(FIELD.OF(nameof(LifeState))),
@@ -265,9 +307,10 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public int SurfaceProps;
 	public SurfaceData_ptr? SurfaceData;
 	public float SurfaceFriction;
+	public ushort TextureType;
 
 	public override void PhysicsSimulate() {
-		SharedBaseEntity? pMoveParent = GetMoveParent();
+		BaseEntity? pMoveParent = GetMoveParent();
 		if (pMoveParent != null)
 			pMoveParent.PhysicsSimulate();
 
@@ -316,6 +359,8 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 			localPlayer = null;
 		}
 	}
+
+	public float GetStepSize() => Local.StepSize;
 
 	float OldPlayerZ;
 
@@ -366,7 +411,6 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		pl.ViewingAngle = angles;
 	}
 
-	bool DeadFlag;
 	internal readonly PlayerState pl = new();
 	public readonly PlayerLocalData Local = new();
 	EHANDLE Vehicle = new();
@@ -379,11 +423,13 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	InlineArrayNewMaxViewmodels<Handle<C_BaseViewModel>> ViewModel = new();
 	bool DisableWorldClicking;
 	public float Maxspeed;
+	int BonusProgress;
+	int BonusChallenge;
 	public int Flags;
 	public int ObserverMode;
 	public int FOV;
 	public int FOVStart;
-	public float FOVTime;
+	public TimeUnit_t FOVTime;
 	public float DefaultFOV;
 	public Vector3 ConstraintCenter;
 	public float ConstraintRadius;

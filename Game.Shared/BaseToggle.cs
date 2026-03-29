@@ -4,7 +4,7 @@ using Source.Common;
 using System.Numerics;
 namespace Game.Shared;
 using FIELD = Source.FIELD<BaseToggle>;
-public class BaseToggle : SharedBaseEntity
+public class BaseToggle : BaseEntity
 {
 	public static readonly
 #if CLIENT_DLL

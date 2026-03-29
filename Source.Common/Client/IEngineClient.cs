@@ -123,4 +123,5 @@ public interface IEngineClient
 	int GetPlayerForUserID(int userID);
 	void ClientCmd(ReadOnlySpan<char> cmd);
 	void Con_NXPrintf(in Con_NPrint_s np, ReadOnlySpan<char> text);
+	TimeUnit_t Time();
 }

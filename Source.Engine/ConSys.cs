@@ -127,7 +127,7 @@ public class ConPanel : BasePanel
 			if (cl.NetChannel!.IsLoopback())
 				text = new PrintF(ver, "Map '%s'").S(cl.LevelBaseName).ToSpan();
 			else
-				text = new PrintF(ver, "Server '%s' Map '%s'").S(cl.NetChannel!.RemoteAddress!.ToString()).S(cl.LevelBaseName).ToSpan();
+				text = new PrintF(ver, "Server '%s' Map '%s'").S(cl.NetChannel!.GetRemoteAddress()!.ToString()).S(cl.LevelBaseName).ToSpan();
 
 			int tall = Surface.GetFontTall(Font);
 

@@ -45,9 +45,9 @@ public class GameClient : BaseClient
 	public readonly List<SoundInfo> Sounds = [];
 	public Edict? ViewEntity;
 	public ClientFrame? CurrentFrame;
-	// public CheckTransmitInfo PackInfo;
+	public readonly CheckTransmitInfo PackInfo = new();
 	public bool IsInReplayMode;
-	// public CheckTransmitInfo PrevPackInfo;
+	public readonly CheckTransmitInfo PrevPackInfo = new();
 	public MaxEdictsBitVec PrevTransmitEdict;
 
 	protected override bool ProcessClientInfo(CLC_ClientInfo msg) {
@@ -545,7 +545,9 @@ public class GameClient : BaseClient
 		return frame;
 	}
 
-	// bool IgnoreTempEntity(EventInfo evnt) { }
+	internal CheckTransmitInfo GetPrevPackInfo() {
+		return PrevPackInfo;
+	}
 
-	// CheckTransmitInfo GetPrevPackInfo() { }
+	// bool IgnoreTempEntity(EventInfo evnt) { }
 }

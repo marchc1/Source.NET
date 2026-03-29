@@ -4,6 +4,7 @@ using Source;
 using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
+using Source.Common.Physics;
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -270,7 +271,26 @@ public partial class BaseEntity : IServerEntity
 		return null;
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSolidFlags(SolidFlags flags) => CollisionProp().SetSolidFlags(flags);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsSolidFlagSet(SolidFlags flagMask) => CollisionProp().IsSolidFlagSet(flagMask);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public SolidFlags GetSolidFlags() => (SolidFlags)CollisionProp().GetSolidFlags();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void AddSolidFlags(SolidFlags flags) => CollisionProp().AddSolidFlags(flags);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void RemoveSolidFlags(SolidFlags flags) => CollisionProp().RemoveSolidFlags(flags);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsSolid() => CollisionProp().IsSolid();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSolid(SolidType val) => CollisionProp().SetSolid(val);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public SolidType GetSolid() => CollisionProp().GetSolid();
+
+
 	public Team? GetTeam() => GetGlobalTeam(TeamNum);
+
+	IPhysicsObject? PhysicsObject = null!;
+	public void VPhysicsUpdate(IPhysicsObject physics) { }
+	public IPhysicsObject? VPhysicsGetObject() => PhysicsObject;
+	public int VPhysicsGetObjectList(Span<IPhysicsObject> list) => throw new NotImplementedException();
+
+	public bool IsFloating() => false; // TODO
+
+	public void SetGroundEntity(BaseEntity? ent) { /* todo */ }
 
 	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent);
 
@@ -362,6 +382,7 @@ public partial class BaseEntity : IServerEntity
 	InlineArray512<char> GMOD_String2;
 	InlineArray512<char> GMOD_String3;
 
+	public int DataObjectTypes;
 
 	public static readonly ServerClass ServerClass = new ServerClass("BaseEntity", DT_BaseEntity)
 																		.WithManualClassID(StaticClassIndices.CBaseEntity);
@@ -395,8 +416,7 @@ public partial class BaseEntity : IServerEntity
 	public bool SetModel(ReadOnlySpan<char> modelName) {
 		return false; // TODO
 	}
-
-	public void SetSolid(SolidType val) => CollisionProp().SetSolid(val);
+	public void SetOwnerEntity(BaseEntity? owner) => OwnerEntity.Set(owner);
 
 	public void SetMoveType(MoveType val, MoveCollide moveCollide = Source.MoveCollide.Default) {
 		if (MoveType == (byte)val) {
@@ -620,4 +640,7 @@ public partial class BaseEntity : IServerEntity
 
 	public object? GetBaseEntity() => this;
 	public virtual BaseAnimating? GetBaseAnimating() => null;
+
+	public void NetworkStateChanged() => NetworkProp().NetworkStateChanged();
+	public void NetworkStateChanged(IFieldAccessor field) => NetworkProp().NetworkStateChanged(field);
 }

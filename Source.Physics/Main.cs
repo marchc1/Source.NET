@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿global using static Source.Physics.SourceDllMain;
+
+using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common.GUI;
 using Source.Common.MaterialSystem;
@@ -6,19 +8,29 @@ using Source.Common.Physics;
 
 namespace Source.Physics;
 
+
+public static class SourceDllMain
+{
+	[Dependency] public static IPhysicsSurfaceProps physprops { get; private set; } = null!;
+}
+
+
 public class PhysicsInterface : IPhysics
 {
+	readonly List<IPhysicsEnvironment> envList = [];
+
 	public static void DLLInit(IServiceCollection services) {
 		services.AddSingleton<IPhysicsCollision, PhysicsCollide>();
 		services.AddSingleton<IPhysicsSurfaceProps, PhysicsSurfaceProps>();
 	}
 
 	public IPhysicsEnvironment CreateEnvironment() {
-		throw new NotImplementedException();
+		IPhysicsEnvironment environment = CreatePhysicsEnvironment();
+		return environment;
 	}
 
 	public IPhysicsObjectPairHash CreateObjectPairHash() {
-		throw new NotImplementedException();
+		return PhysicsEnvironmentGlobals.CreateObjectPairHash();
 	}
 
 	public void DestroyAllCollisionSets() {

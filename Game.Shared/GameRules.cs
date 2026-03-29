@@ -24,7 +24,7 @@ public class
 #else
 	GameRulesProxy
 #endif
-	: SharedBaseEntity
+	: BaseEntity
 {
 	public virtual GameRules GameRules => gameRules!;
 	GameRules? gameRules = null;

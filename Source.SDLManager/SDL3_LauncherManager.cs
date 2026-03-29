@@ -322,6 +322,10 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 	public void SetWindowRelativeMouseMode(bool cursorLocked) {
 		SDL3.SDL_SetWindowRelativeMouseMode(window.HardwareHandle, cursorLocked);
 	}
+
+	public void FlashWindow(bool state){
+		SDL3.SDL_FlashWindow(window.HardwareHandle, state ? SDL_FlashOperation.SDL_FLASH_UNTIL_FOCUSED : SDL_FlashOperation.SDL_FLASH_CANCEL);
+	}
 }
 
 public unsafe class SDL3_Cursor : ICursor

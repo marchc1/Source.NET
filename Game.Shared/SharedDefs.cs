@@ -11,6 +11,12 @@ using System.Runtime.CompilerServices;
 
 namespace Game.Shared;
 
+#if CLIENT_DLL
+using Game.Client;
+#elif GAME_DLL
+using Game.Server;
+#endif
+
 using Source.Common.Mathematics;
 using Source.Common.Networking;
 
@@ -350,6 +356,9 @@ public static class SharedDefs
 	public static ref Vector3 VEC_DUCK_VIEW => ref g_pGameRules.GetViewVectors().DuckView;
 	public static ref Vector3 VEC_OBS_HULL_MIN => ref g_pGameRules.GetViewVectors().ObsHullMin;
 	public static ref Vector3 VEC_OBS_HULL_MAX => ref g_pGameRules.GetViewVectors().ObsHullMax;
+
+	public const float WATERJUMP_HEIGHT = 8;
+
 #else
 	public static Vector3 VEC_VIEW_SCALED(object player) => throw new NotImplementedException();
 	public static Vector3 VEC_HULL_MIN_SCALED(object player) => throw new NotImplementedException();
@@ -546,8 +555,8 @@ public struct FireBulletsInfo
 	public FireBulletsFlags Flags;           // See FireBulletsFlags_t
 	public float DamageForceScale;
 #if CLIENT_DLL || GAME_DLL
-	public SharedBaseEntity? Attacker;
-	public SharedBaseEntity? AdditionalIgnoreEnt;
+	public BaseEntity? Attacker;
+	public BaseEntity? AdditionalIgnoreEnt;
 #else
 	public object? Attacker;
 	public object? AdditionalIgnoreEnt;
@@ -627,4 +636,30 @@ public struct InlineArrayNewMaxControlPoints<T> where T : new()
 	public const int kMAXCONTROLPOINTS = 63;
 	public T item;
 	public InlineArrayNewMaxControlPoints() { for (int i = 0; i < kMAXCONTROLPOINTS; i++) this[i] = new(); }
+}
+
+public enum DataObjectType {
+	GroundLink,
+	TouchLink,
+	StepSimulation,
+	ModelScale,
+	PositionWatcher,
+	PhysicsPushList,
+	VPhysicsUpdateAI,
+	VPhysicsWatcher,
+	NumTypes
+}
+
+public static class TraceFieldProps
+{
+	extension(ref Trace tr)
+	{
+#if CLIENT_DLL
+
+		public C_BaseEntity? Ent { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (C_BaseEntity?)tr.EntHandle; }
+#elif GAME_DLL
+		public BaseEntity? Ent { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (BaseEntity?)tr.EntHandle; }
+
+#endif
+	}
 }

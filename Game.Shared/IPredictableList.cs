@@ -2,7 +2,7 @@
 namespace Game.Shared;
 
 public interface IPredictableList {
-	SharedBaseEntity? GetPredictable(int slot);
+	BaseEntity? GetPredictable(int slot);
 	int GetPredictableCount();
 }
 #endif

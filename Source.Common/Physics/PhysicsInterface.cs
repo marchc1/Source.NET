@@ -399,13 +399,13 @@ public interface IPhysicsEnvironment
 
 	// object creation
 	// create a polygonal object.  pCollisionModel was created by the physics builder DLL in a pre-process.
-	IPhysicsObject CreatePolyObject(PhysCollide pCollisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams);
+	IPhysicsObject? CreatePolyObject(PhysCollide pCollisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams);
 	// same as above, but this one cannot move or rotate (infinite mass/inertia)
-	IPhysicsObject CreatePolyObjectStatic(PhysCollide pCollisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams);
+	IPhysicsObject? CreatePolyObjectStatic(PhysCollide pCollisionModel, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams);
 	// Create a perfectly spherical object
-	IPhysicsObject CreateSphereObject(float radius, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams, bool isStatic);
+	IPhysicsObject? CreateSphereObject(float radius, int materialIndex, in Vector3 position, in QAngle angles, ref ObjectParams objParams, bool isStatic);
 	// destroy an object created with CreatePolyObject() or CreatePolyObjectStatic()
-	void DestroyObject(IPhysicsObject obj);
+	void DestroyObject(IPhysicsObject? obj);
 
 	// Create a polygonal fluid body out of the specified collision model
 	// This object will affect any other objects that collide with the collision model
@@ -453,14 +453,14 @@ public interface IPhysicsEnvironment
 
 	// Manage the timestep (period) of the simulator.  The main functions are all integrated with
 	// this period as dt.
-	float GetSimulationTimestep();
+	TimeUnit_t GetSimulationTimestep();
 	void SetSimulationTimestep(TimeUnit_t timestep);
 
 	// returns the current simulation clock's value.  This is an absolute time.
-	float GetSimulationTime();
+	TimeUnit_t GetSimulationTime();
 	void ResetSimulationClock();
 	// returns the current simulation clock's value at the next frame.  This is an absolute time.
-	float GetNextFrameTime();
+	TimeUnit_t GetNextFrameTime();
 
 	// Collision callbacks (game code collision response)
 	void SetCollisionEventHandler(IPhysicsCollisionEvent collisionEvents);
@@ -507,7 +507,7 @@ public interface IPhysicsEnvironment
 	void DebugCheckContacts();
 }
 
-public enum CallbackFlags
+public enum CallbackFlags : ushort
 {
 	GlobalCollision = 0x0001,
 	GlobalFriction = 0x0002,
@@ -564,9 +564,9 @@ public interface IPhysicsObject
 	ushort GetGameIndex();
 
 	// setup various callbacks for this object
-	void SetCallbackFlags(ushort callbackflags);
+	void SetCallbackFlags(CallbackFlags callbackflags);
 	// get the current callback state for this object
-	ushort GetCallbackFlags();
+	CallbackFlags GetCallbackFlags();
 
 	// "wakes up" an object
 	// NOTE: ALL OBJECTS ARE "Asleep" WHEN CREATED
@@ -788,7 +788,7 @@ public interface IPhysicsSurfaceProps
 	nint GetSurfaceIndex( ReadOnlySpan<char> surfacePropName );
 	void GetPhysicsProperties(nint surfaceDataIndex, out float  density, out float thickness, out float friction, out float elasticity);
 
-	ref SurfaceData GetSurfaceData(nint surfaceDataIndex);
+	SurfaceData_ptr? GetSurfaceData(nint surfaceDataIndex);
 	ReadOnlySpan<char> GetString( ushort stringTableIndex );
 
 
@@ -812,7 +812,7 @@ public struct ConvertConvexParams
 
 }
 
-public ref struct FluidParams
+public struct FluidParams
 {
 	public Vector4 SurfacePlane;        // x,y,z normal, dist (plane constant) fluid surface
 	public Vector3 CurrentVelocity;     // velocity of the current in inches/second
@@ -824,7 +824,7 @@ public ref struct FluidParams
 	public Contents Contents;
 }
 
-public ref struct SpringParams
+public struct SpringParams
 {
 	public float Constant;          // spring constant
 	public float NaturalLength;     // relaxed length

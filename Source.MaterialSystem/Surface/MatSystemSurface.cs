@@ -820,7 +820,16 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public void DrawSetTextColor(int r, int g, int b, int a) {
-		DrawTextColor.SetColor(r, g, b, (int)(a * AlphaMultiplier));
+		int adjustedAlpha = (int)(a * AlphaMultiplier);
+
+		if (r != DrawTextColor[0] || g != DrawTextColor[1] || b != DrawTextColor[2] || adjustedAlpha != DrawTextColor[3]) {
+			DrawFlushText();
+
+			DrawTextColor[0] = (byte)r;
+			DrawTextColor[1] = (byte)g;
+			DrawTextColor[2] = (byte)b;
+			DrawTextColor[3] = (byte)adjustedAlpha;
+		}
 	}
 
 	public void DrawSetTextColor(in Color color) {
@@ -910,9 +919,7 @@ public class MatSystemSurface : IMatSystemSurface
 
 	}
 
-	public void FlashWindow(IPanel panel, bool state) {
-
-	}
+	public void FlashWindow(IPanel panel, bool state) => launcherMgr.FlashWindow(state);
 
 	public void GetAbsoluteWindowBounds(out int x, out int y, out int wide, out int tall) {
 		throw new NotImplementedException();
@@ -1812,7 +1819,7 @@ public class MatSystemSurface : IMatSystemSurface
 	public void DrawString(ReadOnlySpan<char> str, FontDrawType drawType = FontDrawType.Default) {
 		if (TextFullyTransparent)
 			return;
-		for (int i = 0; i < str[i]; i++) {
+		for (int i = 0; i < str.Length; i++) {
 			char c = str[i];
 			if (c == '\0')
 				break;

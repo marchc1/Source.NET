@@ -1,7 +1,28 @@
-﻿using Source.Common.Commands;
+﻿global using static Source.Engine.EdictEngineGlobals;
+
+using Source.Common.Commands;
 using Source.Common.Engine;
 
 namespace Source.Engine;
+
+public static class EdictEngineGlobals
+{
+	public static Edict EDICT_NUM(int n) {
+		if ((uint)n >= (uint)sv.MaxEdicts)
+			Sys.Error($"EDICT_NUM: bad number {n}");
+		return sv.Edicts![n];
+	}
+
+	public static int NUM_FOR_EDICT(Edict e) {
+		if (sv.Edicts![e.EdictIndex] == e) // NOTE: old server.dll may stomp m_EdictIndex
+			return e.EdictIndex;
+		int index = sv.Edicts.IndexOf(e); // This is gross but it works for now. Fixme, probably an easy optimization target
+		if (index == -1)
+			Sys.Error("NUM_FOR_EDICT: bad edict");
+		return index;
+	}
+
+}
 
 public class ED
 {

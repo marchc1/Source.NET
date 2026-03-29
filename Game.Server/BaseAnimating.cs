@@ -104,6 +104,7 @@ public class BaseAnimating : BaseEntity
 	public TimeUnit_t Cycle;
 	public Vector3 OverrideViewTarget;
 
+	public bool IsSequenceFinished() => SequenceFinished;
 	public bool IsModelScaleFractional() => ModelScale < 1.0f;
 	public bool IsModelScaled() => ModelScale > 1.0f + float.Epsilon || ModelScale < 1.0f - float.Epsilon;
 	public float GetModelScale() => ModelScale;

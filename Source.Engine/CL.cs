@@ -8,6 +8,7 @@ using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.Launcher;
 using Source.Common.Networking;
 using Source.Engine.Client;
 
@@ -159,7 +160,7 @@ public partial class CL(IServiceProvider services, Net Net,
 
 		bool sendPacket = true;
 
-		if (Net.Time < cl.NextCmdTime || !cl.NetChannel.CanSendPacket())
+		if (Net.Time < cl.NextCmdTime || !cl.NetChannel.CanPacket())
 			sendPacket = false;
 
 		if (cl.IsActive()) {
@@ -230,11 +231,11 @@ public partial class CL(IServiceProvider services, Net Net,
 		// Pending pure file reloads
 
 		// Level init post entity
-		// clientDLL.LevelInitPostEntity();
+		clientDLL.LevelInitPostEntity();
 
 		// Start notifying dependencies
-		uint ip = cl.NetChannel.GetRemoteAddress().GetIPHostByteOrder();
-		short port = cl.NetChannel.GetRemoteAddress().GetPort();
+		uint ip = cl.NetChannel.GetRemoteAddress()!.GetIPHostByteOrder();
+		short port = cl.NetChannel.GetRemoteAddress()!.GetPort();
 
 		if (port == 0) {
 			ip = Net.LocalAdr.GetIPHostByteOrder();
@@ -245,6 +246,9 @@ public partial class CL(IServiceProvider services, Net Net,
 
 		EngineVGui!.NotifyOfServerConnect(Common.Gamedir, (int)ip, port, queryPort);
 		EngineVGui!.UpdateProgressBar(LevelLoadingProgress.ReadyToPlay);
+		#if GMOD_DLL
+		launcherMgr.FlashWindow(true);
+		#endif
 		// MDL cache end map load
 
 		if (Host.developer.GetInt() > 0)

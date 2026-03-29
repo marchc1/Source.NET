@@ -1,10 +1,18 @@
-﻿using Source.Common;
+﻿using BepuUtilities;
+
+using CommunityToolkit.HighPerformance;
+
+using Source.Common;
 using Source.Common.Formats.BSP;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
 
 using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Source.Physics;
@@ -91,7 +99,7 @@ public class PhysicsCollide : IPhysicsCollision
 		throw new NotImplementedException();
 	}
 
-	public PhysConvex ConvexFromVerts(Span<AngularImpulse> verts) {
+	public PhysConvex ConvexFromVerts(Span<Vector3> verts) {
 		throw new NotImplementedException();
 	}
 
@@ -200,7 +208,22 @@ public class PhysicsCollide : IPhysicsCollision
 	}
 
 	public void VCollideLoad(VCollide output, int solidCount, ReadOnlySpan<byte> buffer, bool swap = false) {
-		throw new NotImplementedException();
+		output.ClearInstantiatedReference();
+		int position = 0;
+
+		output.SolidCount = (ushort)solidCount;
+		output.Solids = new PhysCollide[solidCount];
+
+		for (int i = 0; i < solidCount; i++) {
+			output.Solids[i] = PhysCollideParse.UnserializeFromBuffer(buffer[position..], i, swap, out int size);
+			position += size;
+		}
+
+		output.IsPacked = false;
+		int keySize = buffer.Length - position;
+		output.KeyValues = new byte[keySize];
+		memcpy(output.KeyValues, buffer[position..(position + keySize)]);
+		output.DescSize = 0;
 	}
 
 	public void VCollideUnload(VCollide vCollide) {
@@ -213,5 +236,17 @@ public class PhysicsCollide : IPhysicsCollision
 
 	public void VPhysicsKeyParserDestroy(IVPhysicsKeyParser parser) {
 		throw new NotImplementedException();
+	}
+}
+
+public class PhysCollideCompactSurface : PhysCollide
+{
+	public readonly List<Vector3[]> ConvexHulls = [];
+	private unsafe void Init(PhyParser parser, int index, bool swap) {
+		parser.ParseSurfaces(ConvexHulls);
+	}
+
+	public PhysCollideCompactSurface(PhyParser parser, int index, bool swap = false) {
+		Init(parser, index, swap);
 	}
 }

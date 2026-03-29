@@ -4,7 +4,7 @@ using Source.Common;
 using System.Numerics;
 namespace Game.Shared;
 using FIELD = Source.FIELD<Sprite>;
-public class Sprite : SharedBaseEntity
+public class Sprite : BaseEntity
 {
 	public static readonly
 #if CLIENT_DLL

@@ -150,6 +150,7 @@ namespace Source.Common
 									else if (index.ElementType == typeof(byte)) il.LoggedEmit(OpCodes.Ldelem_I1);
 									else if (index.ElementType == typeof(short)) il.LoggedEmit(OpCodes.Ldelem_I2);
 									else if (index.ElementType == typeof(ushort)) il.LoggedEmit(OpCodes.Ldelem_I2);
+									else if (index.ElementType == typeof(char)) il.LoggedEmit(OpCodes.Ldelem_I2);
 									else if (index.ElementType == typeof(int)) il.LoggedEmit(OpCodes.Ldelem_I4);
 									else if (index.ElementType == typeof(uint)) il.LoggedEmit(OpCodes.Ldelem_I4);
 									else if (index.ElementType == typeof(ulong)) il.LoggedEmit(OpCodes.Ldelem_I8);
@@ -179,6 +180,7 @@ namespace Source.Common
 									else if (index.ElementType == typeof(byte)) il.LoggedEmit(OpCodes.Ldind_U1);
 									else if (index.ElementType == typeof(short)) il.LoggedEmit(OpCodes.Ldind_I2);
 									else if (index.ElementType == typeof(ushort)) il.LoggedEmit(OpCodes.Ldind_U2);
+									else if (index.ElementType == typeof(char)) il.LoggedEmit(OpCodes.Ldind_U2);
 									else if (index.ElementType == typeof(int)) il.LoggedEmit(OpCodes.Ldind_I4);
 									else if (index.ElementType == typeof(uint)) il.LoggedEmit(OpCodes.Ldind_U4);
 									else if (index.ElementType == typeof(ulong)) il.LoggedEmit(OpCodes.Ldind_I8);
@@ -215,6 +217,7 @@ namespace Source.Common
 					else if (typeof(T) == typeof(byte)) il.LoggedEmit(OpCodes.Conv_U1);
 					else if (typeof(T) == typeof(short)) il.LoggedEmit(OpCodes.Conv_I2);
 					else if (typeof(T) == typeof(ushort)) il.LoggedEmit(OpCodes.Conv_U2);
+					else if (typeof(T) == typeof(char)) il.LoggedEmit(OpCodes.Conv_U2);
 					else if (typeof(T) == typeof(int)) il.LoggedEmit(OpCodes.Conv_I4);
 					else if (typeof(T) == typeof(uint)) il.LoggedEmit(OpCodes.Conv_U4);
 					else if (typeof(T) == typeof(ulong)) il.LoggedEmit(OpCodes.Conv_I8);
@@ -289,6 +292,7 @@ namespace Source.Common
 								else if (index.ElementType == typeof(byte)) il.LoggedEmit(OpCodes.Stelem_I1);
 								else if (index.ElementType == typeof(short)) il.LoggedEmit(OpCodes.Stelem_I2);
 								else if (index.ElementType == typeof(ushort)) il.LoggedEmit(OpCodes.Stelem_I2);
+								else if (index.ElementType == typeof(char)) il.LoggedEmit(OpCodes.Stelem_I2);
 								else if (index.ElementType == typeof(int)) il.LoggedEmit(OpCodes.Stelem_I4);
 								else if (index.ElementType == typeof(uint)) il.LoggedEmit(OpCodes.Stelem_I4);
 								else if (index.ElementType == typeof(ulong)) il.LoggedEmit(OpCodes.Stelem_I8);
@@ -321,6 +325,7 @@ namespace Source.Common
 							else if (index.ElementType == typeof(byte)) il.LoggedEmit(OpCodes.Stind_I1);
 							else if (index.ElementType == typeof(short)) il.LoggedEmit(OpCodes.Stind_I2);
 							else if (index.ElementType == typeof(ushort)) il.LoggedEmit(OpCodes.Stind_I2);
+							else if (index.ElementType == typeof(char)) il.LoggedEmit(OpCodes.Stind_I2);
 							else if (index.ElementType == typeof(int)) il.LoggedEmit(OpCodes.Stind_I4);
 							else if (index.ElementType == typeof(uint)) il.LoggedEmit(OpCodes.Stind_I4);
 							else if (index.ElementType == typeof(ulong)) il.LoggedEmit(OpCodes.Stind_I8);

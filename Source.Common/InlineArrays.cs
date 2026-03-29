@@ -27,13 +27,20 @@ using Source.Common.Audio;
 using Source.Common.Formats.BSP;
 using Source.Common.Networking;
 
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace Source;
+
+[DebuggerDisplay("InlineArray1<T> {this[0]}")]
 [InlineArray(1)] public struct InlineArray1<T> { public T item; }
+[DebuggerDisplay("InlineArray2<T> {this[0]}, {this[1]}")]
 [InlineArray(2)] public struct InlineArray2<T> { public T item; }
+[DebuggerDisplay("InlineArray3<T> {this[0]}, {this[1]}, {this[2]}")]
 [InlineArray(3)] public struct InlineArray3<T> { public T item; }
-[InlineArray(4)] public struct InlineArray4<T> { public T item; }
+[DebuggerDisplay("InlineArray4<T> {this[0]}, {this[1]}, {this[2]}, {this[3]}")]
+[InlineArray(4)] public struct InlineArray4<T> { public T item; }		 
+[DebuggerDisplay("InlineArray5<T> {this[0]}, {this[1]}, {this[2]}, {this[3]}, {this[4]}")]
 [InlineArray(5)] public struct InlineArray5<T> { public T item; }
 [InlineArray(6)] public struct InlineArray6<T> { public T item; }
 [InlineArray(7)] public struct InlineArray7<T> { public T item; }

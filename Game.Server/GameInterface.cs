@@ -205,6 +205,15 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 	public bool DLLInit(IServiceProvider services) {
 		StaticClassIndicesHelpers.DumpDatatablesCompleted();
+		BaseEdict.GetChangeAccessor += x => engine.GetChangeAccessor((Edict)x); // Kind of a hack, but this is defined in gameinterface.cpp like this...
+		g_SharedChangeInfo = engine.GetSharedEdictChangeInfo();
+
+		gameeventmanager.LoadEventsFromFile("resource/gameevents.res");
+
+		IGameSystem.Add(PhysicsGameSystem());
+
+		if (!IGameSystem.InitAllSystems())
+			return false;
 
 		NavMesh.NavMesh.Instance = new();
 

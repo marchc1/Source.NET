@@ -217,7 +217,7 @@ public class ClientState : BaseClientState
 			return false;
 		}
 
-		StringTableBits.CL_SetupNetworkStringTableBits(StringTableContainer!, tableName);
+		CL_SetupNetworkStringTableBits(StringTableContainer!, tableName);
 
 		switch (tableName) {
 			case PrecacheItem.MODEL_PRECACHE_TABLENAME:
@@ -466,7 +466,7 @@ public class ClientState : BaseClientState
 
 				NetChannel!.Clear();
 
-				NetChannel.SetTimeout(NetChannel.SIGNON_TIME_OUT);
+				NetChannel.SetTimeout(Source.Common.Networking.NetChannel.SIGNON_TIME_OUT);
 				NetChannel.SetMaxBufferSize(true, Protocol.MAX_PAYLOAD);
 
 				var convars = new NET_SetConVar();
@@ -499,7 +499,7 @@ public class ClientState : BaseClientState
 				HostState.OnClientConnected();
 				break;
 			case SignOnState.ChangeLevel:
-				NetChannel!.SetTimeout(NetChannel.SIGNON_TIME_OUT);
+				NetChannel!.SetTimeout(Source.Common.Networking.NetChannel.SIGNON_TIME_OUT);
 
 				if (MaxClients > 1)
 					EngineVGui?.EnabledProgressBarForNextLoad();

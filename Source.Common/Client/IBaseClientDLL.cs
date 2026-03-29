@@ -41,4 +41,5 @@ public interface IBaseClientDLL
 	void LevelShutdown();
 	LookupProxyInterfaceFn GetMaterialProxyInterfaceFn();
 	void LevelInitPreEntity(ReadOnlySpan<char> mapname);
+	void LevelInitPostEntity();
 }

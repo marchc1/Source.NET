@@ -1,9 +1,17 @@
 ﻿#if CLIENT_DLL || GAME_DLL
 global using static Game.Util_Globals;
+
+using Source;
+using Source.Common;
+using Source.Common.Engine;
+using Source.Common.Formats.BSP;
+
+
 #endif
 
 using Source.Common.Hashing;
 using Source.Common.Mathematics;
+using Source.Engine;
 
 using System.Drawing.Drawing2D;
 using System.Numerics;
@@ -28,13 +36,13 @@ public static partial class Util_Globals
 	}
 
 	public static float SharedRandomFloat(ReadOnlySpan<char> sharedname, int minVal, int maxVal, int additionalSeed = 0) {
-		int seed = SeedFileLineHash(SharedBaseEntity.GetPredictionRandomSeed(), sharedname, additionalSeed);
+		int seed = SeedFileLineHash(BaseEntity.GetPredictionRandomSeed(), sharedname, additionalSeed);
 		RandomSeed(seed);
 		return RandomFloat(minVal, maxVal);
 	}
 
 	public static int SharedRandomInt(ReadOnlySpan<char> sharedname, int minVal, int maxVal, int additionalSeed = 0) {
-		int seed = SeedFileLineHash(SharedBaseEntity.GetPredictionRandomSeed(), sharedname, additionalSeed);
+		int seed = SeedFileLineHash(BaseEntity.GetPredictionRandomSeed(), sharedname, additionalSeed);
 		RandomSeed(seed);
 		return RandomInt(minVal, maxVal);
 	}
@@ -124,7 +132,40 @@ public static partial class Util
 
 		return ret;
 	}
+
+	public static void TraceRay(in Ray ray, Mask mask, IHandleEntity? ignore, CollisionGroup collisionGroup, out Trace ptr) {
+		TraceFilterSimple traceFilter = new(ignore, collisionGroup);
+
+		enginetrace.TraceRay(ray, mask, ref traceFilter, out ptr);
+		// todo: visualize
+	}
+
+	public static void TraceLine(in Vector3 absStart, in Vector3 absEnd, Mask mask, IHandleEntity? ignore, CollisionGroup collisionGroup, out Trace ptr) {
+		Ray ray = default;
+		ray.Init(absStart, absEnd);
+
+		TraceFilterSimple traceFilter = new(ignore, collisionGroup);
+
+		enginetrace.TraceRay(ray, mask, ref traceFilter, out ptr);
+		// todo: visualize
+	}
+
+	public static void TraceLine<IF>(in Vector3 absStart, in Vector3 absEnd, Mask mask, IHandleEntity? ignore, scoped ref IF filter, out Trace ptr) where IF : struct, ITraceFilter {
+		Ray ray = default;
+		ray.Init(absStart, absEnd);
+
+		enginetrace.TraceRay(ray, mask, ref filter, out ptr);
+		// todo: visualize
+	}
 }
+
+public struct TraceFilterSimple(IHandleEntity? passentity, CollisionGroup collisionGroup) : ITraceFilter
+{
+	public bool ShouldHitEntity(IHandleEntity entity, Contents contentsMask) {
+		throw new NotImplementedException();
+	}
+}
+
 #endif
 
 public class CountdownTimer
@@ -149,6 +190,11 @@ public class CountdownTimer
 	public TimeUnit_t GetElapsedTime() => Now() - Timestamp + Duration;
 	public TimeUnit_t GetRemainingTime() => Timestamp - Now();
 	public TimeUnit_t GetCountdownDuration() => Timestamp > 0f ? Duration : 0f;
-	protected virtual TimeUnit_t Now() => gpGlobals.CurTime;
+	protected virtual TimeUnit_t Now()
+#if CLIENT_DLL || GAME_DLL
+		=> gpGlobals.CurTime;
+#else
+		=> 0;
+#endif
 }
 

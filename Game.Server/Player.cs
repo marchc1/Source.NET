@@ -24,7 +24,7 @@ public enum PlayerConnectedState
 public partial class BasePlayer : BaseCombatCharacter
 {
 	public static readonly SendTable DT_PlayerState = new([
-		SendPropInt(FIELD.OF(nameof(DeadFlag)), 1, PropFlags.Unsigned)
+		SendPropInt(FIELD<PlayerState>.OF(nameof(PlayerState.DeadFlag)), 1, PropFlags.Unsigned)
 	]); public static readonly ServerClass CC_PlayerState = new("PlayerState", DT_PlayerState);
 	public override bool IsPlayer() => true;
 	public BaseViewModel GetViewModel(int index) => throw new NotImplementedException();
@@ -85,6 +85,8 @@ public partial class BasePlayer : BaseCombatCharacter
 	public int SurfaceProps;
 	public SurfaceData_ptr? SurfaceData;
 	public float SurfaceFriction;
+	public ushort TextureType;
+	public ushort PreviousTextureType;
 
 	public static void SendProxy_CropFlagsToPlayerFlagBitsLength(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		int mask = (1 << Constants.PLAYER_FLAG_BITS) - 1;
@@ -149,8 +151,8 @@ public partial class BasePlayer : BaseCombatCharacter
 		SurfaceProps = 0;
 		SurfaceData = null;
 		SurfaceFriction = 1.0f;
-		// TextureType = 0;
-		// PreviousTextureType = 0;
+		TextureType = 0;
+		PreviousTextureType = 0;
 
 		// SuicideCustomKillFlags = 0;
 		// Delay = 0.0f;
@@ -181,7 +183,6 @@ public partial class BasePlayer : BaseCombatCharacter
 		// LastObjectiveTime = -1.0f;
 	}
 
-	bool DeadFlag;
 	public readonly PlayerState pl = new();
 	public readonly PlayerLocalData Local = new();
 	public EHANDLE Vehicle = new();
@@ -192,12 +193,12 @@ public partial class BasePlayer : BaseCombatCharacter
 	public EHANDLE TonemapController = new();
 	public EHANDLE ViewEntity = new();
 	InlineArrayNewMaxViewmodels<Handle<BaseViewModel>> ViewModel = new();
-	readonly List<Handle<SharedBaseEntity>> SimulatedByThisPlayer = [];
+	readonly List<Handle<BaseEntity>> SimulatedByThisPlayer = [];
 
 	public IServerVehicle? GetVehicle() => Vehicle.Get()?.GetServerVehicle();
 	public BaseEntity? GetVehicleEntity() => Vehicle.Get();
 	public bool IsInAVehicle() => Vehicle.Get() != null;
-
+	public float GetStepSize() => Local.StepSize;
 
 	bool DisableWorldClicking;
 	float Maxspeed;
@@ -206,7 +207,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	int FOV;
 	int TickBase;
 	int FOVStart;
-	float FOVTime;
+	TimeUnit_t FOVTime;
 	float DefaultFOV;
 	Vector3 ConstraintCenter;
 	float ConstraintRadius;
@@ -216,13 +217,15 @@ public partial class BasePlayer : BaseCombatCharacter
 	EHANDLE ColorCorrectionCtrl = new();
 	bool UseWeaponsInVehicle;
 	public bool OnTarget;
-	public double DeathTime;
+	public TimeUnit_t DeathTime;
 	public double LaggedMovementValue;
+	public TimeUnit_t StepSoundTime;
+
 	InlineArray32<char> AnimExtension;
 	public Vector3 WaterJumpVel;
-	public float SwimSoundTime;
+	public TimeUnit_t SwimSoundTime;
 	public Vector3 LadderNormal;
-	public float WaterJumpTime;
+	public TimeUnit_t WaterJumpTime;
 	public PlayerConnectedState Connected;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
 	public InButtons AfButtonLast;
@@ -385,4 +388,9 @@ public partial class BasePlayer : BaseCombatCharacter
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, int fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup, noRepeat ? 1 : 0);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSuitUpdate(ReadOnlySpan<char> name, bool fgroup, bool noRepeat) => SetSuitUpdate(name, fgroup ? 1 : 0, noRepeat ? 1 : 0);
 
+	double LastPlayerTalkTime;
+	public TimeUnit_t LastTimePlayerTalked() => LastPlayerTalkTime;
+	public void NotePlayerTalked() => LastPlayerTalkTime = gpGlobals.CurTime;
+
+	public bool CanSpeak() => true;
 }

@@ -332,7 +332,7 @@ public class Prediction : IPrediction
 
 		// Do weapon selection
 		if (ucmd.WeaponSelect != 0) {
-			C_BaseCombatWeapon? weapon = (C_BaseCombatWeapon?)(SharedBaseEntity.Instance(ucmd.WeaponSelect));
+			C_BaseCombatWeapon? weapon = (C_BaseCombatWeapon?)(BaseEntity.Instance(ucmd.WeaponSelect));
 			if (weapon != null)
 				player.SelectItem(weapon.GetName(), ucmd.WeaponSubtype);
 		}
