@@ -1335,11 +1335,12 @@ public class StudioHdr
 	public Span<MStudioBone> Bones() => studioHdr.Bones();
 
 
-	readonly List<StudioHeader> StudioHdrCache = [];
+	readonly List<StudioHeader?> StudioHdrCache = [];
 
 	public StudioHdrFlags Flags() => studioHdr!.Flags;
 	public AnonymousSafeFieldPointer<int> FrameUnlockCounterPtr;
 	public int FrameUnlockCounter;
+	public readonly object FrameUnlockCounterMutex = new();
 	public void Init(StudioHeader? studioHdr, IMDLCache mdlcache) {
 		this.studioHdr = studioHdr;
 
@@ -1403,9 +1404,33 @@ public class StudioHdr
 
 	public int GetNumSeq() => vModel == null ? studioHdr!.NumLocalSeq : vModel.Seq.Count;
 
-	public StudioHeader GroupStudioHdr(int i) {
-		StudioHeader studioHdr = StudioHdrCache[i];
-		return studioHdr; // todo: further validation needed
+	public StudioHeader? GroupStudioHdr(int i) {
+		if (FrameUnlockCounter != FrameUnlockCounterPtr.Get()) {
+			lock (FrameUnlockCounterMutex) {
+				if (FrameUnlockCounterPtr.Get() != FrameUnlockCounter) // i.e., this thread got the mutex
+				{
+					memcreset(StudioHdrCache.Base());
+					FrameUnlockCounter = FrameUnlockCounterPtr.Get();
+				}
+			}
+		}
+
+		if (!StudioHdrCache.IsValidIndex(i)) {
+			ReadOnlySpan<char> name = (this.studioHdr != null) ? this.studioHdr.GetName() : "<<null>>";
+			Debugger.Break();
+			return this.studioHdr; // return something known to probably exist, certainly things will be messed up, but hopefully not crash before the warning is noticed
+		}
+
+		StudioHeader? studioHdr = StudioHdrCache[i];
+
+		if (studioHdr == null) {
+			VirtualGroup group = vModel!.Group[i];
+			studioHdr = group.GetStudioHdr();
+			StudioHdrCache[i] = studioHdr;
+		}
+
+		Assert(studioHdr);
+		return studioHdr;
 	}
 
 	static readonly MStudioSeqDesc s_nil_seq = new();
