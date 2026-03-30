@@ -1489,11 +1489,11 @@ public class StudioHdr
 		if (vModel == null)
 			return this.studioHdr!.LocalAnimdesc(i);
 
-		if (vModel.Pose[i].Group == 0)
-			return this.studioHdr!.LocalAnimdesc(vModel.Pose[i].Index);
+		if (vModel.Anim[i].Group == 0)
+			return this.studioHdr!.LocalAnimdesc(vModel.Anim[i].Index);
 
-		StudioHeader studioHdr = GroupStudioHdr(vModel.Pose[i].Group);
-		return studioHdr.LocalAnimdesc(vModel.Pose[i].Index);
+		StudioHeader studioHdr = GroupStudioHdr(vModel.Anim[i].Group);
+		return studioHdr.LocalAnimdesc(vModel.Anim[i].Index);
 	}
 
 	public MStudioPoseParamDesc PoseParameter(int i) {
