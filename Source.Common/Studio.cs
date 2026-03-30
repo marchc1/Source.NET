@@ -207,10 +207,14 @@ public struct VirtualGeneric
 public partial class VirtualModel
 {
 	public VirtualGroup AnimGroup(int animation) {
-		throw new NotImplementedException();
+		return Group[Anim[animation].Group];
 	}
-	public VirtualGroup SeqGroup(int sequence) {
-		throw new NotImplementedException();
+	public VirtualGroup? SeqGroup(int sequence) {
+		if ((uint)sequence >= (uint)Seq.Count) {
+			Assert(false);
+			return null;
+		}
+		return Group[Seq[sequence].Group];
 	}
 
 	public readonly object Lock = new();
@@ -1241,6 +1245,8 @@ public class MStudioSeqDesc
 	public int WeightListIndex;
 	public ref float Boneweight(int i)
 		=> ref Data.Span[WeightListIndex..].Cast<byte, float>()[i];
+	public Span<float> Boneweights(int i)
+		=> Data.Span[WeightListIndex..].Cast<byte, float>()[i..];
 	public float Weight(int i) => Boneweight(i);
 
 	public int PoseKeyIndex;
@@ -1775,6 +1781,18 @@ public class StudioHdr
 			return 0;
 		return iBone;
 	}
+
+	public StudioHeader? SeqStudioHdr(int sequence) {
+		if (vModel == null)
+			return studioHdr;
+		return GroupStudioHdr(vModel.Seq[sequence].Group);
+	}
+
+	public StudioHeader? AnimStudioHdr(int sequence) {
+		if (vModel == null)
+			return studioHdr;
+		return GroupStudioHdr(vModel.Anim[sequence].Group);
+	}
 }
 
 public class MStudioBone
@@ -1909,9 +1927,9 @@ public class StudioHeader
 		return studioBoneCache[i] ??= new(Data[(BoneIndex + (i * MStudioBone.SIZEOF))..]);
 	}
 
-	public Span<MStudioBone> Bones() {
+	public Span<MStudioBone> Bones(int offset = 0) {
 		if (preloadedBones)
-			return studioBoneCache;
+			return studioBoneCache.AsSpan()[offset..];
 		else {
 			// Load any bones that haven't been loaded yet.
 			for (int i = 0; i < NumBones; i++)
@@ -1919,7 +1937,7 @@ public class StudioHeader
 
 			// Cache that all bones are good
 			preloadedBones = true;
-			return studioBoneCache;
+			return studioBoneCache.AsSpan()[offset..];
 		}
 	}
 
