@@ -441,7 +441,7 @@ public partial class BaseEntity : IServerEntity
 				break;
 			case Source.MoveType.Step: {
 					// This will probably go away once I remove the cvar that controls the test code
-					SetSimulatedEveryTick(g_bTestMoveTypeStepSimulation ? true : false);
+					SetSimulatedEveryTick(Physics.g_bTestMoveTypeStepSimulation);
 					SetAnimatedEveryTick(false);
 				}
 				break;

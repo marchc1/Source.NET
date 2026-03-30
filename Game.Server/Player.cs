@@ -531,8 +531,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		// GamePaused = paused;
 
 		if (paused) {
-			// ForceSimulation();
-			SimulationTick = -1;
+			ForceSimulation();
 			PhysicsSimulate();
 		}
 
@@ -540,6 +539,8 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		// }
 	}
+
+	public void ForceSimulation() => SimulationTick = -1;
 
 	public override void PhysicsSimulate() {
 		BaseEntity? moveParent = GetMoveParent();

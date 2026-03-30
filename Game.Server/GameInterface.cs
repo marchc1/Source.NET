@@ -225,9 +225,42 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void GameFrame(bool simulating) {
+		if (BaseEntity.IsSimulatingOnAlternateTicks()) {
+			if ((gpGlobals.TickCount & 1) != 0) {
+				// UpdateAllClientData();
+				// return;
+			}
+
+			gpGlobals.FrameTime *= 2.0f;
+		}
+
+		TimeUnit_t oldFrameTime = gpGlobals.FrameTime;
+
+		gEntList.CleanupDeleteList();
+
+		IGameSystem.FrameUpdatePreEntityThinkAllSystems();
+
+		GameStartFrame();
 
 		NavMesh.NavMesh.Instance?.Update();
 
+		// nextbots todo
+
+		// UpdateQueryCache();
+
+		Physics.RunThinkFunctions(simulating);
+
+		IGameSystem.FrameUpdatePostEntityThinkAllSystems();
+
+		// ServiceEventQueue();
+
+		// UpdateAllClientData();
+
+		// g_pGameRules?.EndGameFrame();
+
+		// g_NetworkPropertyEventMgr.FireEvents();
+
+		gpGlobals.FrameTime = oldFrameTime;
 	}
 
 	public bool GameInit() {

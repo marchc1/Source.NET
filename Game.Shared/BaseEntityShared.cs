@@ -105,7 +105,7 @@ public partial class
 	public bool IsSimulatedEveryTick() => SimulatedEveryTick;
 
 	static int FireBullets__tracerCount;
-	public virtual void FireBullets(in FireBulletsInfo info){
+	public virtual void FireBullets(in FireBulletsInfo info) {
 		// todo
 	}
 	public virtual Vector3 EyePosition() => GetAbsOrigin() + GetViewOffset();
@@ -166,6 +166,10 @@ public partial class
 		else if (!isThinking && !IsEFlagSet(EFL.NoThinkFunction) && !WillThink()) {
 			AddEFlags(EFL.NoThinkFunction);
 		}
+
+#if !CLIENT_DLL
+	SimThinkManager.g_SimThinkManager.EntityChanged(this);
+#endif
 	}
 
 	public void SetViewOffset(in Vector3 v) => ViewOffset = v;
@@ -257,7 +261,7 @@ public partial class
 		return ref GetAbsOrigin(); // todo
 	}
 
-	public void SetPlayerSimulated(BasePlayer owner){
+	public void SetPlayerSimulated(BasePlayer owner) {
 		b_IsPlayerSimulated = true;
 		owner.AddToPlayerSimulationList(owner);
 		PlayerSimulationOwner.Set(owner);
@@ -269,7 +273,7 @@ public partial class
 		b_IsPlayerSimulated = false;
 	}
 
-	
+
 
 	public virtual void SetEffects(EntityEffects effects) {
 		if (Effects != (int)effects) {
@@ -315,7 +319,7 @@ public partial class
 		return ((EntityEffects)Effects & fx) != 0;
 	}
 
-	public void FollowEntity(BaseEntity? baseEntity, bool boneMerge =true){
+	public void FollowEntity(BaseEntity? baseEntity, bool boneMerge = true) {
 		if (baseEntity != null) {
 			SetParent(baseEntity);
 			SetMoveType(Source.MoveType.None);
@@ -327,11 +331,11 @@ public partial class
 			SetLocalOrigin(vec3_origin);
 			SetLocalAngles(vec3_angle);
 		}
-		else 
+		else
 			StopFollowingEntity();
 	}
 
-	public void StopFollowingEntity(){
+	public void StopFollowingEntity() {
 
 	}
 
@@ -367,7 +371,10 @@ public partial class
 	public void SetSimulationTime(TimeUnit_t time) => SimulationTime = time;
 
 	public void CheckHasGamePhysicsSimulation() {
-		// todo
+
+#if !CLIENT_DLL
+	SimThinkManager.g_SimThinkManager.EntityChanged(this);
+#endif
 	}
 
 	public virtual void PhysicsUpdate(IPhysicsObject? physicsObject) {
