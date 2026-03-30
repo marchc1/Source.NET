@@ -3,6 +3,7 @@
 using Source;
 using Source.Common;
 using Source.Common.Client;
+using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
@@ -87,6 +88,13 @@ public partial class BasePlayer : BaseCombatCharacter
 	public float SurfaceFriction;
 	public ushort TextureType;
 	public ushort PreviousTextureType;
+
+	readonly List<CommandContext> CommandContext = [];
+	readonly List<PlayerSimInfo> VecPlayerSimInfo = [];
+
+	TimeUnit_t MovementTimeForUserCmdProcessingRemaining;
+	TimeUnit_t LastUserCommandTime;
+	UserCmd LastCmd;
 
 	public static void SendProxy_CropFlagsToPlayerFlagBitsLength(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		int mask = (1 << Constants.PLAYER_FLAG_BITS) - 1;
@@ -177,8 +185,8 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		ConstraintCenter = vec3_origin;
 
-		// LastUserCommandTime = 0.0f;
-		// MovementTimeForUserCmdProcessingRemaining = 0.0f;
+		LastUserCommandTime = 0.0f;
+		MovementTimeForUserCmdProcessingRemaining = 0.0f;
 
 		// LastObjectiveTime = -1.0f;
 	}
@@ -393,4 +401,323 @@ public partial class BasePlayer : BaseCombatCharacter
 	public void NotePlayerTalked() => LastPlayerTalkTime = gpGlobals.CurTime;
 
 	public bool CanSpeak() => true;
+
+	int GetCommandContextCount() => CommandContext.Count;
+
+	CommandContext AllocCommandContext() {
+		CommandContext ctx = new();
+		CommandContext.Add(ctx);
+
+		if (CommandContext.Count > 1000)
+			Assert(false);
+
+		return ctx;
+	}
+
+	void RemoveCommandContext(int index) => CommandContext.RemoveAt(index);
+
+	CommandContext RemoveAllCommandContextsExceptNewest() {
+		int count = CommandContext.Count;
+		int toRemove = count - 1;
+		if (toRemove > 0)
+			CommandContext.RemoveRange(0, toRemove);
+
+		if (CommandContext.Count == 0) {
+			Assert(false);
+			CommandContext.Add(AllocCommandContext());
+		}
+
+		return CommandContext[0];
+	}
+
+	CommandContext GetCommandContext(int index) => CommandContext[index];
+
+	void RemoveAllCommandContexts() => CommandContext.Clear();
+
+	void ReplaceContextCommands(CommandContext ctx, UserCmd[] cmds, int commands) {
+		ctx.Cmds.Clear();
+
+		ctx.NumCmds = commands;
+		ctx.TotalCmds = commands;
+		ctx.DroppedPackets = 0;
+
+		for (int i = commands - 1; i >= 0; --i)
+			ctx.Cmds.Add(cmds[i]);
+	}
+
+	int DetermineSimulationTicks() {
+		int commandContextCount = GetCommandContextCount();
+
+		int contextNumber;
+		int simulationTicks = 0;
+
+		for (contextNumber = 0; contextNumber < commandContextCount; contextNumber++) {
+			CommandContext ctx = GetCommandContext(contextNumber);
+			Assert(ctx != null);
+			Assert(ctx.NumCmds > 0);
+			Assert(ctx.DroppedPackets >= 0);
+
+			simulationTicks += ctx.NumCmds + ctx.DroppedPackets;
+		}
+
+		return simulationTicks;
+	}
+
+	void AdjustPlayerTimeBase(int simulationTicks) {
+		// todo
+	}
+
+	bool IsUserCmdDataValid(UserCmd cmd) {
+		return true;// todo
+	}
+
+	bool ShouldRunCommandsInContext(CommandContext ctx) {
+		return true; // todo
+	}
+
+	UserCmd GetLastUserCommand() => LastCmd; // todo BotCmd
+
+	void SetLastUserCommand(UserCmd cmd) => LastCmd = cmd;
+
+	static ConVar sv_usercmd_custom_random_seed = new("1", FCvar.Cheat, "When enabled server will populate an additional random seed independent of the client");
+
+	public void ProcessUsercmds(UserCmd[] cmds, int numcmds, int totalcmds, int dropped_packets, bool paused) {
+		CommandContext ctx = AllocCommandContext();
+		Assert(ctx);
+
+		int i;
+		for (i = totalcmds - 1; i >= 0; i--) {
+			UserCmd cmd = cmds[totalcmds - 1 - i];
+
+			if (!IsUserCmdDataValid(cmd))
+				cmd.MakeInert();
+
+			if (sv_usercmd_custom_random_seed.GetBool()) {
+				float timeNow = (float)Platform.Time;
+				cmd.ServerRandomSeed = BitConverter.SingleToInt32Bits(timeNow);
+			}
+			else
+				cmd.ServerRandomSeed = cmd.RandomSeed;
+
+			ctx.Cmds.Add(cmd);
+		}
+
+		ctx.NumCmds = numcmds;
+		ctx.TotalCmds = totalcmds;
+		ctx.DroppedPackets = dropped_packets;
+		ctx.Paused = paused;
+
+		if (ctx.Paused) {
+			bool clear_angles = true;
+
+			if (GetMoveType() == Source.MoveType.Noclip /*&& sv_cheats.GetBool() && sv_noclipduringpause.GetBool()*/)
+				clear_angles = false;
+
+			for (i = 0; i < ctx.NumCmds; i++) {
+				UserCmd cm = ctx.Cmds[i];
+				cm.Buttons = 0;
+				if (clear_angles) {
+					cm.ForwardMove = 0;
+					cm.SideMove = 0;
+					cm.UpMove = 0;
+					MathLib.VectorCopy(pl.ViewingAngle, out cm.ViewAngles);
+				}
+				ctx.Cmds[i] = cm;
+			}
+
+			ctx.DroppedPackets = 0;
+		}
+
+		// GamePaused = paused;
+
+		if (paused) {
+			// ForceSimulation();
+			SimulationTick = -1;
+			PhysicsSimulate();
+		}
+
+		// if (sv_playerperfhistorycount.GetInt() > 0) {
+
+		// }
+	}
+
+	public override void PhysicsSimulate() {
+		BaseEntity? moveParent = GetMoveParent();
+		moveParent?.PhysicsSimulate();
+
+		if (SimulationTick == gpGlobals.TickCount)
+			return;
+
+		SimulationTick = gpGlobals.TickCount;
+
+		int simulation_ticks = DetermineSimulationTicks();
+
+		if (simulation_ticks > 0)
+			AdjustPlayerTimeBase(simulation_ticks);
+
+		TimeUnit_t savetime = gpGlobals.CurTime;
+		TimeUnit_t saveframetime = gpGlobals.FrameTime;
+
+		int command_context_count = GetCommandContextCount();
+
+		List<UserCmd> vecAvailCommands = [];
+
+		for (int context_number = 0; context_number < command_context_count; context_number++) {
+			CommandContext ctx = GetCommandContext(context_number);
+			if (!ShouldRunCommandsInContext(ctx))
+				continue;
+
+			if (ctx.Cmds.Count == 0)
+				continue;
+
+			int numbackup = ctx.TotalCmds - ctx.NumCmds;
+
+			if (ctx.DroppedPackets < 24) {
+				int droppedcmds = ctx.DroppedPackets;
+
+				while (droppedcmds > numbackup) {
+					UserCmd lastCmd = GetLastUserCommand();
+					lastCmd.CommandNumber++;
+					vecAvailCommands.Add(lastCmd);
+					droppedcmds--;
+				}
+
+				while (droppedcmds > 0) {
+					int cmdnum = ctx.NumCmds + droppedcmds - 1;
+					vecAvailCommands.Add(ctx.Cmds[cmdnum]);
+					droppedcmds--;
+				}
+			}
+
+			for (int i = ctx.NumCmds - 1; i >= 0; i--)
+				vecAvailCommands.Add(ctx.Cmds[i]);
+
+			LastCmd = ctx.Cmds[ctx.Cmds.Count - 1];
+		}
+
+		int commandLimit = IsSimulatingOnAlternateTicks() ? 2 : 1;
+		int commandsToRun = vecAvailCommands.Count;
+		if (gpGlobals.SimTicksThisFrame >= commandLimit && vecAvailCommands.Count > commandLimit) {
+			int commandsToRollOver = Math.Min(vecAvailCommands.Count, (gpGlobals.SimTicksThisFrame - 1));
+			commandsToRun = vecAvailCommands.Count - commandsToRollOver;
+			Assert(commandsToRun >= 0);
+			if (commandsToRollOver > 0) {
+				CommandContext ctx = RemoveAllCommandContextsExceptNewest();
+				ReplaceContextCommands(ctx, [.. vecAvailCommands.GetRange(vecAvailCommands.Count - commandsToRollOver, commandsToRollOver)], commandsToRollOver);
+			}
+			else
+				RemoveAllCommandContexts();
+		}
+		else
+			RemoveAllCommandContexts();
+
+		TimeUnit_t vphysicsArrivalTime = TICK_INTERVAL;
+
+		int numUsrCmdProcessTicksMax = 0; // sv_maxusrcmdprocessticks.GetInt();
+		if (gpGlobals.MaxClients != 1 && numUsrCmdProcessTicksMax > 0) {
+			MovementTimeForUserCmdProcessingRemaining += TICK_INTERVAL;
+
+			if (MovementTimeForUserCmdProcessingRemaining > numUsrCmdProcessTicksMax * TICK_INTERVAL)
+				MovementTimeForUserCmdProcessingRemaining = numUsrCmdProcessTicksMax * TICK_INTERVAL;
+		}
+		else
+			MovementTimeForUserCmdProcessingRemaining = float.MaxValue;
+
+		if (commandsToRun > 0) {
+			LastUserCommandTime = savetime;
+
+			MoveHelperServer.s_MoveHelperServer.SetHost(this);
+
+			if (IsPredictingWeapons())
+				IPredictionSystem.SuppressHostEvents(this);
+
+			for (int i = 0; i < commandsToRun; ++i) {
+				PlayerRunCommand(vecAvailCommands[i], MoveHelperServer.s_MoveHelperServer);
+
+				// if (PhysicsController != null) { // todo
+				// 	// UpdateVPhysicsPosition(vNewVPhysicsPosition, vNewVPhysicsVelocity, vphysicsArrivalTime);
+				// 	vphysicsArrivalTime += TICK_INTERVAL;
+				// }
+			}
+
+			IPredictionSystem.SuppressHostEvents(null);
+
+			MoveHelperServer.s_MoveHelperServer.SetHost(null);
+
+			if (VecPlayerSimInfo.Count > 0) {
+				PlayerSimInfo pi = VecPlayerSimInfo[VecPlayerSimInfo.Count - 1];
+				pi.Time = Platform.Time;
+				pi.AbsOrigin = GetAbsOrigin();
+				pi.GameSimulationTime = gpGlobals.CurTime;
+				pi.NumCmds = commandsToRun;
+			}
+		}
+		else if (GetTimeSinceLastUserCommand() > 3.0f /*sv_player_usercommand_timeout.GetFloat()*/)
+			RunNullCommand();
+
+		gpGlobals.CurTime = savetime;
+		gpGlobals.FrameTime = saveframetime;
+	}
+
+	private void RunNullCommand() {
+		UserCmd cmd = new();
+
+		TimeUnit_t oldFrameTime = gpGlobals.FrameTime;
+		TimeUnit_t oldCurTime = gpGlobals.CurTime;
+
+		pl.FixAngle = (int)FixAngle.None;
+
+		cmd.ViewAngles = EyeAngles();
+
+		TimeUnit_t timeBase = gpGlobals.CurTime;
+		SetTimeBase(timeBase);
+
+		MoveHelperServer.s_MoveHelperServer.SetHost(this);
+		PlayerRunCommand(cmd, MoveHelperServer.s_MoveHelperServer);
+
+		SetLastUserCommand(cmd);
+
+		gpGlobals.FrameTime = oldFrameTime;
+		gpGlobals.CurTime = oldCurTime;
+
+		MoveHelperServer.s_MoveHelperServer.SetHost(null);
+	}
+
+	private void SetTimeBase(double timeBase) {
+		throw new NotImplementedException();
+	}
+
+	private void PlayerRunCommand(UserCmd userCmd, MoveHelperServer s_MoveHelperServer) {
+		// TouchedPhysObject = false;
+
+		if (pl.FixAngle == (int)FixAngle.None)
+			MathLib.VectorCopy(userCmd.ViewAngles, out pl.ViewingAngle);
+
+		// todo
+	}
+
+	private bool IsPredictingWeapons() => false; // todo
+
+	TimeUnit_t GetTimeSinceLastUserCommand() => /*(!IsConnected() || IsFakeClient() || IsBot()) ? 0.0f :*/ gpGlobals.CurTime - LastUserCommandTime;
+}
+
+
+class CommandContext
+{
+	public readonly List<UserCmd> Cmds = [];
+	public int NumCmds;
+	public int TotalCmds;
+	public int DroppedPackets;
+	public bool Paused;
+};
+
+class PlayerSimInfo
+{
+	public TimeUnit_t Time;
+	public int NumCmds;
+	public int TicksCorrected;
+	public TimeUnit_t FinalSimulationTime;
+	public TimeUnit_t GameSimulationTime;
+	public TimeUnit_t ServerFrameTime;
+	public Vector3 AbsOrigin;
 }

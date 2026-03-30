@@ -565,7 +565,7 @@ public class ServerGameClients : IServerGameClients
 		if (ignore || pl == null)
 			return 0.0f;
 
-		// pl.ProcessUsercmds(cmds, numCmds, totalCmds, droppedPackets, paused); TODO
+		pl.ProcessUsercmds(cmds, numCmds, totalCmds, droppedPackets, paused);
 
 		return TICK_INTERVAL;
 	}
