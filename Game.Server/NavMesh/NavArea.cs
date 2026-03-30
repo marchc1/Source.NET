@@ -745,16 +745,17 @@ public partial class NavArea : NavAreaCriticalData
 		}
 
 		int[] bgcolor = new int[4];
-		// if (4 == sscanf(nav_area_bgcolor.GetString(), "%d %d %d %d", &(bgcolor[0]), &(bgcolor[1]), &(bgcolor[2]), &(bgcolor[3]))) {
-		// 	for (int i = 0; i < 4; ++i)
-		// 		bgcolor[i] = clamp(bgcolor[i], 0, 255);
+		ScanF scan = new ScanF(nav_area_bgcolor.GetString(), "%d %d %d %d").Read(out bgcolor[0]).Read(out bgcolor[1]).Read(out bgcolor[2]).Read(out bgcolor[3]);
+		if (scan.ReadArguments == 4) {
+			for (int i = 0; i < 4; ++i)
+				bgcolor[i] = Math.Clamp(bgcolor[i], 0, 255);
 
-		// 	if (bgcolor[3] > 0) {
-		// 		const Vector3 offset(0, 0, 0.8f);
-		// 		NDebugOverlay::Triangle(nw + offset, se + offset, ne + offset, bgcolor[0], bgcolor[1], bgcolor[2], bgcolor[3], true, DebugDuration);
-		// 		NDebugOverlay::Triangle(se + offset, nw + offset, sw + offset, bgcolor[0], bgcolor[1], bgcolor[2], bgcolor[3], true, DebugDuration);
-		// 	}
-		// }
+			if (bgcolor[3] > 0) {
+				Vector3 offset = new(0, 0, 0.8f);
+				Shared.DebugOverlay.Triangle(nw + offset, se + offset, ne + offset, bgcolor[0], bgcolor[1], bgcolor[2], bgcolor[3], true, DebugDuration);
+				Shared.DebugOverlay.Triangle(se + offset, nw + offset, sw + offset, bgcolor[0], bgcolor[1], bgcolor[2], bgcolor[3], true, DebugDuration);
+			}
+		}
 
 		const float inset = 0.2f;
 		nw.X += inset;

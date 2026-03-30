@@ -103,6 +103,23 @@ public class OverlayLine : OverlayBase
 	public int G;
 	public int B;
 	public int A;
+	public bool NoDepthTest;
+}
+
+public class OverlayTriangle : OverlayBase
+{
+	public override void Reset() {
+		base.Reset();
+		Type = OverlayType.Triangle;
+	}
+	public Vector3 P1;
+	public Vector3 P2;
+	public Vector3 P3;
+	public int R;
+	public int G;
+	public int B;
+	public int A;
+	public bool NoDepthTest;
 }
 
 public class DebugOverlay : IVDebugOverlay
@@ -173,7 +190,7 @@ public class DebugOverlay : IVDebugOverlay
 			new_overlay.B = b;
 			new_overlay.A = 255;
 
-			// new_overlay.NoDepthTest = noDepthTest;
+			new_overlay.NoDepthTest = noDepthTest;
 
 			new_overlay.SetEndTime(duration);
 
@@ -215,7 +232,26 @@ public class DebugOverlay : IVDebugOverlay
 	}
 
 	public void AddTriangleOverlay(in Vector3 p1, in Vector3 p2, in Vector3 p3, int r, int g, int b, int a, bool noDepthTest, float duration) {
-		throw new NotImplementedException();
+		if (cl.IsPaused())
+			return;
+
+		lock (s_OverlayMutex) {
+			OverlayTriangle new_overlay = OverlayBase.New<OverlayTriangle>();
+			new_overlay.P1 = p1;
+			new_overlay.P2 = p2;
+			new_overlay.P3 = p3;
+
+			new_overlay.R = r;
+			new_overlay.G = g;
+			new_overlay.B = b;
+			new_overlay.A = a;
+			new_overlay.NoDepthTest = noDepthTest;
+
+			new_overlay.SetEndTime(duration);
+
+			new_overlay.NextOverlay = s_pOverlays;
+			s_pOverlays = new_overlay;
+		}
 	}
 
 	public static void ClearAllOverlays() {
@@ -304,7 +340,7 @@ public class DebugOverlay : IVDebugOverlay
 		switch (overlay.Type) {
 			case OverlayType.Line:
 				OverlayLine line = (OverlayLine)overlay;
-				renderUtils.RenderLine(line.Start, line.End, new Color(line.R, line.G, line.B, line.A), false);
+				renderUtils.RenderLine(line.Start, line.End, new Color(line.R, line.G, line.B, line.A), line.NoDepthTest);
 				break;
 			case OverlayType.Box:
 				OverlayBox box = (OverlayBox)overlay;
@@ -313,6 +349,10 @@ public class DebugOverlay : IVDebugOverlay
 					renderUtils.RenderBox(box.Origin, box.Angles, box.Mins, box.Maxs, new Color(box.R, box.G, box.B, box.A), false);
 
 				renderUtils.RenderWireframeBox(box.Origin, box.Angles, box.Mins, box.Maxs, new Color(box.R, box.G, box.B, 255), true);
+				break;
+			case OverlayType.Triangle:
+				OverlayTriangle tri = (OverlayTriangle)overlay;
+				renderUtils.RenderTriangle(tri.P1, tri.P2, tri.P3, new Color(tri.R, tri.G, tri.B, tri.A), tri.NoDepthTest);
 				break;
 		}
 	}

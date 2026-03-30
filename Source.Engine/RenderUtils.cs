@@ -170,6 +170,53 @@ public class RenderUtils(IMaterialSystem materials)
 		mesh.Draw();
 	}
 
+	internal void RenderTriangle(in Vector3 p1, in Vector3 p2, in Vector3 p3, in Color color, bool zBuffer) {
+		IMaterial pMaterial = zBuffer ? VertexColor : VertexColorIgnoreZ;
+		RenderTriangle(p1, p2, p3, color, pMaterial);
+	}
+
+	internal void RenderTriangle(in Vector3 p1, in Vector3 p2, in Vector3 p3, in Color color, IMaterial pMaterial) {
+		InitializeStandardMaterials();
+
+		using MatRenderContextPtr renderContext = new(materials);
+		renderContext.Bind(pMaterial);
+
+		byte chRed = color.R;
+		byte chGreen = color.G;
+		byte chBlue = color.B;
+		byte chAlpha = color.A;
+
+		MathLib.VectorSubtract(in p2, in p1, out Vector3 vecDelta1);
+		MathLib.VectorSubtract(in p3, in p1, out Vector3 vecDelta2);
+		MathLib.CrossProduct(in vecDelta1, in vecDelta2, out Vector3 vecNormal);
+		MathLib.VectorNormalize(ref vecNormal);
+
+		IMesh mesh = renderContext.GetDynamicMesh();
+		MeshBuilder meshBuilder = new();
+		meshBuilder.Begin(mesh, MaterialPrimitiveType.Triangles, 1);
+
+		meshBuilder.Position3fv(p1);
+		meshBuilder.Color4ub(chRed, chGreen, chBlue, chAlpha);
+		meshBuilder.Normal3fv(vecNormal);
+		meshBuilder.TexCoord2f(0, 0.0f, 0.0f);
+		meshBuilder.AdvanceVertex();
+
+		meshBuilder.Position3fv(p2);
+		meshBuilder.Color4ub(chRed, chGreen, chBlue, chAlpha);
+		meshBuilder.Normal3fv(vecNormal);
+		meshBuilder.TexCoord2f(0, 0.0f, 1.0f);
+		meshBuilder.AdvanceVertex();
+
+		meshBuilder.Position3fv(p3);
+		meshBuilder.Color4ub(chRed, chGreen, chBlue, chAlpha);
+		meshBuilder.Normal3fv(vecNormal);
+		meshBuilder.TexCoord2f(0, 1.0f, 0.0f);
+		meshBuilder.AdvanceVertex();
+
+		meshBuilder.End();
+		mesh.Draw();
+	}
+
 	internal void RenderBox(in Vector3 origin, in Vector3 angles, in Vector3 mins, in Vector3 maxs, in Color color, bool zBuffer, bool insideOut = false) {
 		IMaterial pMaterial = zBuffer ? VertexColor : VertexColorIgnoreZ;
 		RenderBox(origin, angles, mins, maxs, color, pMaterial, insideOut);
