@@ -176,7 +176,7 @@ public enum StudioHdrFlags
 
 public class VirtualGroup
 {
-	public MDLHandle_t Cache;
+	public nint Cache;
 	public readonly List<int> BoneMap = [];
 	public readonly List<int> MasterBone = [];
 	public readonly List<int> MasterSeq = [];
@@ -186,7 +186,7 @@ public class VirtualGroup
 	public readonly List<int> MasterNode = [];
 
 	internal StudioHeader? GetStudioHdr() {
-		return MDLCache.GetStudioHdr(Cache);
+		return MDLCache.GetStudioHdr((MDLHandle_t)Cache);
 	}
 }
 

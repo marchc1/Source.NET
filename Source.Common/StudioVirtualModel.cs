@@ -391,7 +391,7 @@ public partial class VirtualModel
 			Group.EnsureCapacity(Group.Count + validIncludes);
 			for (j = 0; j < validIncludes; j++) {
 				int groupi = Group.Count; Group.Add(new());
-				Group[groupi].Cache = list[j].Handle;
+				Group[groupi].Cache = (nint)list[j].Handle;
 				AppendModels(groupi, list[j].Hdr);
 			}
 		}

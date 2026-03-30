@@ -361,7 +361,39 @@ public class MDLCache : IMDLCache, IStudioDataCache
 			return false;
 		}
 
+		UnserializeAllVirtualModelsAndAnimBlocks(handle);
+
 		return true;
+	}
+
+	private void FreeVirtualModel(MDLHandle_t handle) {
+		if (HandleToMDLDict.TryGetValue(handle, out StudioData? studioData) && studioData.VirtualModel != null) {
+			int groupCount = studioData.VirtualModel.Group.Count;
+			Assert((groupCount >= 1) && (MDLHandle_t)studioData.VirtualModel.Group[0].Cache == handle);
+
+			// NOTE: Start at *1* here because the 0th element contains a reference to *this* handle
+			for (int i = 1; i < groupCount; ++i) {
+				MDLHandle_t h = (MDLHandle_t)(studioData.VirtualModel.Group[i].Cache & 0xffff);
+				FreeVirtualModel(h);
+				Release(h);
+			}
+
+			studioData.VirtualModel = null;
+		}
+	}
+
+	private void UnserializeAllVirtualModelsAndAnimBlocks(MDLHandle_t handle){
+		if (handle == MDLHANDLE_INVALID)
+			return;
+
+		FreeVirtualModel(handle);
+		if (!mod_forcedata.GetBool())
+			return;
+
+		GetVirtualModel(handle);
+		StudioHeader studioHdr = GetStudioHdr(handle)!;
+		for (int i = 1; i < studioHdr.NumAnimBlocks; ++i) 
+			GetAnimBlock(handle, i);
 	}
 
 	private void AllocateAutoplaySequences(StudioData studioData, int count) {
@@ -493,7 +525,9 @@ public class MDLCache : IMDLCache, IStudioDataCache
 	}
 
 	public T? GetUserData<T>(MDLHandle_t handle) {
-		throw new NotImplementedException();
+		if (handle == MDLHANDLE_INVALID)
+			return default;
+		return (T?)HandleToMDLDict[handle].UserData;
 	}
 
 	public VCollide GetVCollide(MDLHandle_t handle) {
@@ -600,7 +634,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 			studioData.VirtualModel.Group.Add(new());
 
 			Assert(group == 0);
-			studioData.VirtualModel.Group[group].Cache = handle;
+			studioData.VirtualModel.Group[group].Cache = (nint)handle;
 
 			// Add all dependent data
 			studioData.VirtualModel.AppendModels(0, studioHdr);
