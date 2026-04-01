@@ -687,8 +687,12 @@ public partial class BasePlayer : BaseCombatCharacter
 		MoveHelperServer.s_MoveHelperServer.SetHost(null);
 	}
 
-	private void SetTimeBase(double timeBase) {
-		throw new NotImplementedException();
+	private void SetTimeBase(double timeBase) => TickBase = TIME_TO_TICKS(timeBase);
+
+	private class UserCmdRef
+	{
+		public UserCmd Cmd;
+		public AnonymousSafeFieldPointer<UserCmd> Ptr => new(this, static o => ref ((UserCmdRef)o).Cmd);
 	}
 
 	private void PlayerRunCommand(UserCmd userCmd, MoveHelperServer s_MoveHelperServer) {
@@ -699,7 +703,7 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		// todo
 
-		g_PlayerMove.RunCommand(this, userCmd, s_MoveHelperServer);
+		g_PlayerMove.RunCommand(this, new UserCmdRef { Cmd = userCmd }.Ptr, s_MoveHelperServer);
 	}
 
 	public bool IsPredictingWeapons() => false; // todo

@@ -185,8 +185,39 @@ public partial class
 		}
 
 #if !CLIENT_DLL
-	SimThinkManager.g_SimThinkManager.EntityChanged(this);
+		SimThinkManager.g_SimThinkManager.EntityChanged(this);
 #endif
+	}
+
+	public void CheckHasGamePhysicsSimulation() {
+		bool isSimulating = WillSimulateGamePhysics();
+		if (isSimulating != IsEFlagSet(EFL.NoGamePhysicsSimulation))
+			return;
+
+		if (isSimulating)
+			RemoveEFlags(EFL.NoGamePhysicsSimulation);
+		else
+			AddEFlags(EFL.NoGamePhysicsSimulation);
+
+#if !CLIENT_DLL
+		SimThinkManager.g_SimThinkManager.EntityChanged(this);
+#endif
+	}
+
+	private bool WillSimulateGamePhysics() {
+		if (!IsPlayer()) {
+			MoveType movetype = GetMoveType();
+
+			if (movetype == Source.MoveType.None || movetype == Source.MoveType.VPhysics)
+				return false;
+
+#if !CLIENT_DLL
+			if (movetype == Source.MoveType.Push /* && GetMoveDoneTime() <= 0 */)
+				return false;
+#endif
+		}
+
+		return true;
 	}
 
 	public void SetViewOffset(in Vector3 v) => ViewOffset = v;
@@ -387,15 +418,14 @@ public partial class
 	public void SetAnimTime(TimeUnit_t time) => AnimTime = time;
 	public void SetSimulationTime(TimeUnit_t time) => SimulationTime = time;
 
-	public void CheckHasGamePhysicsSimulation() {
-
-#if !CLIENT_DLL
-	SimThinkManager.g_SimThinkManager.EntityChanged(this);
-#endif
-	}
-
 	public virtual void PhysicsUpdate(IPhysicsObject? physicsObject) {
 
+	}
+
+	const double MaxEntityEulerAngle = 360.0 * 1000.0f;
+	internal static bool IsEntityQAngleReasonable(QAngle q) {
+		float r = (float)MaxEntityEulerAngle;
+		return q.X >= -r && q.X <= r && q.Y >= -r && q.Y <= r && q.Z >= -r && q.Z <= r;
 	}
 }
 

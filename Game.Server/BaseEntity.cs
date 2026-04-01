@@ -293,6 +293,7 @@ public partial class BaseEntity : IServerEntity
 	public void SetGroundEntity(BaseEntity? ent) { /* todo */ }
 
 	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent);
+	public static BaseEntity? Instance(int ent) => Instance(Util.INDEXENT(ent));
 
 	public static BaseEntity? Create(ReadOnlySpan<char> name, Vector3 origin, QAngle angles, BaseEntity? owner = null) {
 		BaseEntity? ent = CreateNoSpawn(name, origin, angles, owner);

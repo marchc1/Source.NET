@@ -1,3 +1,4 @@
+using Game.Server;
 using Game.Shared;
 
 using Source.Common.Commands;
@@ -13,11 +14,11 @@ public class PlayerMove
 	static readonly ConVar sv_maxusrcmdprocessticks_warning = new("-1", FCvar.None, "Print a warning when user commands get dropped due to insufficient usrcmd ticks allocated, number of seconds to throttle, negative disabled");
 	static readonly ConVar sv_maxusrcmdprocessticks_holdaim = new("1", FCvar.Cheat, "Hold client aim for multiple server sim ticks when client-issued usrcmd contains multiple actions (0: off; 1: hold this server tick; 2+: hold multiple ticks)");
 
-	void StartCommand(BasePlayer player, UserCmd cmd) {
+	void StartCommand(BasePlayer player, AnonymousSafeFieldPointer<UserCmd> cmd) {
 		PredictableId.ResetInstanceCounters();
 
-		// player.CurrentCommand = cmd;
-		BaseEntity.SetPredictionRandomSeed(cmd);
+		player.CurrentCommand = cmd;
+		BaseEntity.SetPredictionRandomSeed(cmd.Get());
 		BaseEntity.SetPredictionPlayer(player);
 
 #if HL2_DLL
@@ -55,7 +56,7 @@ public class PlayerMove
 		player.RemoveFlag(EntityFlags.BaseVelocity);
 	}
 
-	public virtual void SetupMove(BasePlayer player, UserCmd ucmd, IMoveHelper pHelper, MoveData move) {
+	public virtual void SetupMove(BasePlayer player, ref UserCmd ucmd, IMoveHelper pHelper, MoveData move) {
 		move.FirstRunOfFunctions = true;
 		move.GameCodeMovedPlayer = false;
 
@@ -108,7 +109,7 @@ public class PlayerMove
 		// move.ConstraintSpeedFactor = player.ConstraintSpeedFactor;
 	}
 
-	public virtual void FinishMove(BasePlayer player, UserCmd ucmd, MoveData move) {
+	public virtual void FinishMove(BasePlayer player, ref UserCmd ucmd, MoveData move) {
 		// player.SetAbsOrigin(move.GetAbsOrigin());
 		player.SetAbsVelocity(move.Velocity);
 		// player.SetPreviouslyPredictedOrigin(move.GetAbsOrigin());
@@ -159,7 +160,96 @@ public class PlayerMove
 		// player.PostThink();
 	}
 
-	public void RunCommand(BasePlayer player, UserCmd ucmd, IMoveHelper moveHelper) {
+	static double lastWarningTime;
+	public void RunCommand(BasePlayer player, AnonymousSafeFieldPointer<UserCmd> ucmd, IMoveHelper moveHelper) {
+		ref UserCmd cmd = ref ucmd.Get();
 
+		double playerCurTime = player.TickBase * gpGlobals.IntervalPerTick;
+		// double playerFrameTime = player.GamePaused ? 0 : gpGlobals.IntervalPerTick;
+		double playerFrameTime = gpGlobals.IntervalPerTick;
+		// double timeAllowedForProcessing = player.ConsumeMovementTimeForUserCmdProcessing(playerFrameTime);
+		double timeAllowedForProcessing = playerFrameTime; // todo
+
+		if (/*!player.IsBot() &&*/ (timeAllowedForProcessing < playerFrameTime)) {
+			double warningFrequencyThrottle = sv_maxusrcmdprocessticks_warning.GetFloat();
+			if (warningFrequencyThrottle >= 0) {
+				double timeNow = Platform.Time;
+				if (lastWarningTime == 0 || (timeNow - lastWarningTime >= warningFrequencyThrottle)) {
+					lastWarningTime = timeNow;
+					Warning($"sv_maxusrcmdprocessticks_warning at server tick {gpGlobals.TickCount}: Ignored client {player.GetPlayerName()} usrcmd ({timeAllowedForProcessing:F6} < {playerFrameTime:F6})!\n");
+				}
+			}
+			return;
+		}
+
+		StartCommand(player, ucmd);
+
+		gpGlobals.CurTime = playerCurTime;
+		gpGlobals.FrameTime = playerFrameTime;
+
+		if (!cmd.ViewAngles.IsValid() || !BaseEntity.IsEntityQAngleReasonable(cmd.ViewAngles))
+			cmd.ViewAngles = vec3_angle;
+
+		// cmd.Buttons |= player.ButtonForced;
+		// cmd.Buttons &= ~player.ButtonDisabled;
+
+		// if (player.GamePaused) {
+		// if (player.GetMoveType() == MoveType.NoClip && sv_cheats.GetBool() && sv_noclipduringpause.GetBool())
+		// 	gpGlobals.FrameTime = gpGlobals.IntervalPerTick;
+		// }
+
+		g_pGameMovement.StartTrackPredictionErrors(player);
+
+		if (cmd.WeaponSelect != 0) {
+			if (BaseEntity.Instance(cmd.WeaponSelect) is BaseCombatWeapon weapon)
+				player.SelectItem(weapon.GetName(), cmd.WeaponSubtype);
+		}
+
+		IServerVehicle? vehicle = player.GetVehicle();
+
+		if (cmd.Impulse != 0) {
+			// if (vehicle == null || player.UsingStandardWeaponsInVehicle())
+			// 	player.Impulse = cmd.Impulse;
+		}
+
+		player.UpdateButtonState(cmd.Buttons);
+
+		CheckMovingGround(player, gpGlobals.IntervalPerTick);
+
+		g_MoveData.OldAngles = player.pl.ViewingAngle;
+
+		if (player.pl.FixAngle == (int)FixAngle.None)
+			player.pl.ViewingAngle = cmd.ViewAngles;
+		else if (player.pl.FixAngle == (int)FixAngle.Relative)
+			player.pl.ViewingAngle = cmd.ViewAngles + player.pl.AngleChange;
+
+		RunPreThink(player);
+
+		RunThink(player, gpGlobals.IntervalPerTick);
+
+		SetupMove(player, ref cmd, moveHelper, g_MoveData);
+
+		if (vehicle == null) {
+			Assert(g_pGameMovement != null);
+			g_pGameMovement.ProcessMovement(player, g_MoveData);
+		}
+		else
+			vehicle.ProcessMovement(player, g_MoveData);
+
+		FinishMove(player, ref cmd, g_MoveData);
+
+		// if (!player.IsBot() && (gpGlobals.TickCount - player.GetLockViewanglesTickNumber() < sv_maxusrcmdprocessticks_holdaim.GetInt()))
+		// 	player.pl.ViewingAngle = player.GetLockViewanglesData();
+
+		moveHelper.ProcessImpacts();
+
+		RunPostThink(player);
+
+		g_pGameMovement.FinishTrackPredictionErrors(player);
+
+		FinishCommand(player);
+
+		if (gpGlobals.FrameTime > 0)
+			player.TickBase++;
 	}
 }

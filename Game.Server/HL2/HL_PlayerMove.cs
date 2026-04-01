@@ -14,6 +14,8 @@ namespace Game.Server.HL2;
 public static class HLPlayerMoveSingletons
 {
 	public static HLPlayerMove g_PlayerMove = new();
+	public static HLMoveData g_HLMoveData = new();
+	public static MoveData g_MoveData = g_HLMoveData;
 }
 
 public class HLPlayerMove : PlayerMove
@@ -26,8 +28,8 @@ public class HLPlayerMove : PlayerMove
 
 	public HLPlayerMove() => SaveOrigin.Init();
 
-	public override void SetupMove(BasePlayer player, UserCmd ucmd, IMoveHelper helper, MoveData move) {
-		base.SetupMove(player, ucmd, helper, move);
+	public override void SetupMove(BasePlayer player, ref UserCmd ucmd, IMoveHelper helper, MoveData move) {
+		base.SetupMove(player, ref ucmd, helper, move);
 
 		HL2_Player hlPlayer = (HL2_Player)player;
 		Assert(hlPlayer);
@@ -59,8 +61,8 @@ public class HLPlayerMove : PlayerMove
 		}
 	}
 
-	public override void FinishMove(BasePlayer player, UserCmd ucmd, MoveData move) {
-		base.FinishMove(player, ucmd, move);
+	public override void FinishMove(BasePlayer player, ref UserCmd ucmd, MoveData move) {
+		base.FinishMove(player, ref ucmd, move);
 
 		if (gpGlobals.FrameTime != 0) {
 			float distance = 0.0f;
