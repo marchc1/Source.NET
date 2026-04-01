@@ -163,7 +163,7 @@ public class GameClient : BaseClient
 			sv.FrameManager.RemoveOldestFrame();
 	}
 
-	void SetupPrevPackInfo() { }
+	public void SetupPrevPackInfo() { }
 
 	// void SetRate(int nRate, bool force) { }
 

@@ -643,4 +643,12 @@ public partial class BaseEntity : IServerEntity
 
 	public void NetworkStateChanged() => NetworkProp().NetworkStateChanged();
 	public void NetworkStateChanged(IFieldAccessor field) => NetworkProp().NetworkStateChanged(field);
+
+	internal void SetTransmit(CheckTransmitInfo info, bool v) {
+		throw new NotImplementedException();
+	}
+
+	internal EdictFlags ShouldTransmit(CheckTransmitInfo info) {
+		throw new NotImplementedException();
+	}
 }

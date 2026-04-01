@@ -81,4 +81,16 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 	internal void NetworkStateChanged(IFieldAccessor field) {
 		Pev?.StateChanged(field);
 	}
+
+	internal bool IsInPVS(CheckTransmitInfo info) {
+		throw new NotImplementedException();
+	}
+
+	internal ServerNetworkProperty GetNetworkParent() {
+		throw new NotImplementedException();
+	}
+
+	internal void RecomputePVSInformation() {
+		throw new NotImplementedException();
+	}
 }
