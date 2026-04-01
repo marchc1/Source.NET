@@ -478,7 +478,6 @@ public partial class BaseEntity : IServerEntity
 	void PhysicsCustom() { }
 	void PerformPush(TimeUnit_t movetime) { }
 	void UpdateBaseVelocity() { }
-	public void DispatchUpdateTransmitState() { }
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsMarkedForDeletion() => (eflags & EFL.KillMe) != 0;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void AddEFlags(EFL flags) {
@@ -552,9 +551,7 @@ public partial class BaseEntity : IServerEntity
 
 	public bool HasSpawnFlags(int flags) => (SpawnFlags & flags) != 0;
 
-	public int GetModelIndex() {
-		throw new NotImplementedException();
-	}
+	public int GetModelIndex() => ModelIndex;
 
 	string? ModelName;
 	public ReadOnlySpan<char> GetModelName() => ModelName;
@@ -569,9 +566,7 @@ public partial class BaseEntity : IServerEntity
 
 	public ref readonly BaseHandle GetRefEHandle() => ref RefEHandle;
 
-	public void SetModelIndex(int index) {
-		// throw new NotImplementedException();
-	}
+	public void SetModelIndex(int index) => ModelIndex = index;
 
 	BaseHandle RefEHandle;
 	public void SetRefEHandle(in BaseHandle handle) => RefEHandle = handle;
@@ -614,6 +609,34 @@ public partial class BaseEntity : IServerEntity
 		Velocity = vNew;
 	}
 
+	public void SetAbsOrigin(Vector3 vector3) {
+		AssertMsg(vector3.IsValid(), "Invalid origin set");
+
+		if (AbsOrigin == vector3)
+			return;
+
+		InvalidatePhysicsRecursive(InvalidatePhysicsBits.PositionChanged);
+		RemoveEFlags(EFL.DirtyAbsVelocity);
+
+		AbsOrigin = vector3;
+
+		MathLib.MatrixSetColumn(in vector3, 3, ref CoordinateFrame);
+
+		Vector3 newOrigin;
+		BaseEntity? moveParent = GetMoveParent();
+		if (moveParent == null)
+			newOrigin = vector3;
+		else {
+			MathLib.ConcatTransforms(moveParent.EntityToWorldTransform(), CoordinateFrame, out Matrix3x4 tempMat);
+			MathLib.VectorTransform(in vector3, in tempMat, out newOrigin);
+		}
+
+		if (Origin != newOrigin) {
+			Origin = newOrigin;
+			SetSimulationTime(gpGlobals.CurTime);
+		}
+	}
+
 	public ref readonly Vector3 GetAbsOrigin() => ref AbsOrigin;
 	public ref readonly Vector3 GetViewOffset() => ref ViewOffset;
 	public ref readonly QAngle GetAbsAngles() => ref AbsRotation;
@@ -645,11 +668,100 @@ public partial class BaseEntity : IServerEntity
 	public void NetworkStateChanged() => NetworkProp().NetworkStateChanged();
 	public void NetworkStateChanged(IFieldAccessor field) => NetworkProp().NetworkStateChanged(field);
 
-	internal void SetTransmit(CheckTransmitInfo info, bool v) {
-		throw new NotImplementedException();
+	internal void SetTransmit(CheckTransmitInfo info, bool always) {
+		int entIndex = EntIndex();
+
+		if (info.TransmitEdict.Get(entIndex) != 0)
+			return;
+
+		ServerNetworkProperty networkParent = NetworkProp().GetNetworkParent();
+
+		info.TransmitEdict.Set(entIndex);
+
+		if (always || networkParent != null)
+			info.TransmitAlways.Set(entIndex);
+		else
+			Network.RecomputePVSInformation();
+
+		if (networkParent != null) {
+			BaseEntity? moveParent = networkParent.GetBaseEntity();
+			moveParent!.SetTransmit(info, always);
+		}
 	}
 
-	internal EdictFlags ShouldTransmit(CheckTransmitInfo info) {
-		throw new NotImplementedException();
+	public virtual EdictFlags ShouldTransmit(CheckTransmitInfo info) {
+		EdictFlags flags = DispatchUpdateTransmitState();
+
+		if ((flags & EdictFlags.PVSCheck) != 0)
+			return EdictFlags.PVSCheck;
+		else if ((flags & EdictFlags.Always) != 0)
+			return EdictFlags.Always;
+		else if ((flags & EdictFlags.DontSend) != 0)
+			return EdictFlags.DontSend;
+
+		BaseEntity? recipientEntity = Instance(info.ClientEnt);
+		Assert(recipientEntity != null && recipientEntity.IsPlayer());
+
+		BasePlayer recipientPlayer = (BasePlayer)recipientEntity!;
+
+		Team? team = recipientPlayer.GetTeam();
+		if (team != null) {
+			// 	if (team.ShouldTransmitToPlayer(recipientPlayer, this))
+			// 		return EdictFlags.Always;
+		}
+
+		return EdictFlags.PVSCheck;
+	}
+
+	public virtual EdictFlags UpdateTransmitState() {
+		Assert(g_InsideDispatchUpdateTransmitState > 0);
+
+		if (IsEffectActive(EntityEffects.NoDraw) /*&& !MoveChild.Get()*/)
+			return SetTransmitState(EdictFlags.DontSend);
+
+		if (!IsEFlagSet(EFL.ForceCheckTransmit)) {
+			if (GetModelIndex() == 0 || GetModelName().IsEmpty)
+				return SetTransmitState(EdictFlags.DontSend);
+		}
+
+		if (GetModelIndex() == 1)
+			return SetTransmitState(EdictFlags.Always);
+
+		if (IsEFlagSet(EFL.InSkybox))
+			return SetTransmitState(EdictFlags.Always);
+
+		return SetTransmitState(EdictFlags.PVSCheck);
+	}
+
+	static int g_InsideDispatchUpdateTransmitState = 0;
+	byte TransmitStateOwnedCounter = 0;
+	public EdictFlags DispatchUpdateTransmitState() {
+		Edict ed = Edict();
+
+		if (TransmitStateOwnedCounter != 0)
+			return ed != null ? ed.StateFlags : 0;
+
+		g_InsideDispatchUpdateTransmitState++;
+		EdictFlags ret = UpdateTransmitState();
+		g_InsideDispatchUpdateTransmitState--;
+
+		return ret;
+	}
+
+	public EdictFlags SetTransmitState(EdictFlags flag) {
+		Edict ed = Edict();
+
+		if (ed == null)
+			return 0;
+
+		ed.ClearTransmitState();
+
+		EdictFlags old = ed.StateFlags;
+		ed.StateFlags |= flag;
+
+		if ((old & EdictFlags.DontSend) != (ed.StateFlags & EdictFlags.DontSend))
+			engine.NotifyEdictFlagsChange(EntIndex());
+
+		return ed.StateFlags;
 	}
 }

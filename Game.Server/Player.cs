@@ -143,7 +143,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		// AngLockViewangles.Init();
 
 		// Setup our default FOV
-		// DefaultFOV = GameRules.DefaultFOV();
+		DefaultFOV = 75; // GameRules.DefaultFOV();
 
 		ZoomOwner.Set(null);
 
@@ -709,6 +709,17 @@ public partial class BasePlayer : BaseCombatCharacter
 	public bool IsPredictingWeapons() => false; // todo
 
 	TimeUnit_t GetTimeSinceLastUserCommand() => /*(!IsConnected() || IsFakeClient() || IsBot()) ? 0.0f :*/ gpGlobals.CurTime - LastUserCommandTime;
+
+	public override EdictFlags UpdateTransmitState() => SetTransmitState(EdictFlags.FullCheck);
+
+	public override EdictFlags ShouldTransmit(CheckTransmitInfo info) {
+		if (info.ClientEnt == Edict())
+			return EdictFlags.Always;
+
+		// todo
+
+		return base.ShouldTransmit(info);
+	}
 }
 
 

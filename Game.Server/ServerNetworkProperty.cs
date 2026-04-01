@@ -1,4 +1,6 @@
-﻿using Source.Common;
+﻿using Game.Shared;
+
+using Source.Common;
 using Source.Common.Engine;
 
 using System;
@@ -11,7 +13,8 @@ namespace Game.Server;
 public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 {
 	public int AreaNum() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException(); TODO
+		return 0;
 	}
 
 	public void FireEvent() {
@@ -86,8 +89,9 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 		throw new NotImplementedException();
 	}
 
-	internal ServerNetworkProperty GetNetworkParent() {
-		throw new NotImplementedException();
+	internal ServerNetworkProperty? GetNetworkParent() {
+		BaseEntity? parent = Parent.Get();
+		return parent?.NetworkProp();
 	}
 
 	internal void RecomputePVSInformation() {

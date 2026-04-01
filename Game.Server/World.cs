@@ -71,7 +71,7 @@ public class World : BaseEntity
 		SetLocalOrigin(vec3_origin);
 		SetLocalAngles(vec3_angle);
 		SetModelIndex(1);
-		// SetModelName(modelinfo.GetModelName(GetModel()));
+		SetModelName(modelinfo.GetModelName(modelinfo.GetModel(GetModelIndex())));
 		AddFlag(Source.EntityFlags.WorldBrush);
 
 		// EventQueue.Init();

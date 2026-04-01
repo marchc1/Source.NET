@@ -110,7 +110,7 @@ public class PlayerMove
 	}
 
 	public virtual void FinishMove(BasePlayer player, ref UserCmd ucmd, MoveData move) {
-		// player.SetAbsOrigin(move.GetAbsOrigin());
+		player.SetAbsOrigin(move.GetAbsOrigin());
 		player.SetAbsVelocity(move.Velocity);
 		// player.SetPreviouslyPredictedOrigin(move.GetAbsOrigin());
 

@@ -242,6 +242,8 @@ static class PackedEntities
 
 			clients[i].SetupPackInfo(snapshot);
 			SV.ServerGameEnts!.CheckTransmit(info, snapshot.ValidEntities!, snapshot.NumValidEntities);
+			clients[i].CurrentFrame!.TransmitEntity = info.TransmitEdict;
+			clients[i].CurrentFrame!.TransmitAlways = info.TransmitAlways;
 			clients[i].SetupPrevPackInfo();
 		}
 
