@@ -406,7 +406,7 @@ public class SimThinkManager : IEntityListener
 				if (ent.IsEFlagSet(EFL.NoGamePhysicsSimulation)) {
 					SimThinkList[EntInfoIndex[index]] = new SimThinkEntry() {
 						EntEntry = (ushort)index,
-						// NextThinkTick = ent.GetFirstThinkTick() // TODO
+						NextThinkTick = ent.GetFirstThinkTick()
 					};
 					Assert(SimThinkList[EntInfoIndex[index]].NextThinkTick >= 0);
 				}

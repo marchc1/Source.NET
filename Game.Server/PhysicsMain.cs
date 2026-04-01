@@ -1,5 +1,7 @@
 ﻿namespace Game.Server;
 
+using Game.Shared;
+
 using Source.Common.Commands;
 
 using System.Numerics;
@@ -14,12 +16,40 @@ public static class Physics
 	public static bool g_bTestMoveTypeStepSimulation = true;
 	static ConVar sv_teststepsimulation = new("1", 0);
 
+	const float PLAYER_PACKETS_STOPPED_SO_RETURN_TO_PHYSICS_TIME = 1.0f;
+
 	public static void TraceEntity(BaseEntity entity, in Vector3 start, in Vector3 end, uint mask, out Trace tr) {
 		throw new NotImplementedException();
 	}
 
 	static void SimulateEntity(BaseEntity entity) {
-		throw new NotImplementedException();
+		if (entity.Edict() != null) {
+			if (entity.IsPlayerSimulated()) {
+				BasePlayer? simulatingPlayer = entity.GetSimulatingPlayer();
+				if (simulatingPlayer != null && (simulatingPlayer.GetTimeBase() > gpGlobals.CurTime - PLAYER_PACKETS_STOPPED_SO_RETURN_TO_PHYSICS_TIME))
+					return;
+
+				entity.UnsetPlayerSimulated();
+			}
+
+			// todo PredictableID/GetOwnerEntity
+			// if (entity.PredictableID.IsActive()) {
+			// 	if (entity.GetOwnerEntity() is BasePlayer playerowner) {
+			// 		BasePlayer? pl = Util.PlayerByIndex(entity.PredictableID.GetPlayer() + 1);
+			// 		if (pl == playerowner)
+			// 			if (pl.IsPredictingWeapons())
+			// 				IPredictionSystem.SuppressHostEvents(playerowner);
+			// 	}
+
+			// 	entity.PhysicsSimulate();
+
+			// 	IPredictionSystem.SuppressHostEvents(null);
+			// }
+			// else
+			entity.PhysicsSimulate();
+		}
+		else
+			entity.PhysicsRunThink();
 	}
 
 	public static void RunThinkFunctions(bool simulating) {

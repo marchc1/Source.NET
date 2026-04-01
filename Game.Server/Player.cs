@@ -96,6 +96,9 @@ public partial class BasePlayer : BaseCombatCharacter
 	TimeUnit_t LastUserCommandTime;
 	UserCmd LastCmd;
 
+	public float ForwardMove;
+	public float SideMove;
+
 	public static void SendProxy_CropFlagsToPlayerFlagBitsLength(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		int mask = (1 << Constants.PLAYER_FLAG_BITS) - 1;
 		int data = field.GetValue<int>(instance);
@@ -213,7 +216,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	int Flags;
 	int ObserverMode;
 	int FOV;
-	int TickBase;
+	public int TickBase;
 	int FOVStart;
 	TimeUnit_t FOVTime;
 	float DefaultFOV;
@@ -695,9 +698,11 @@ public partial class BasePlayer : BaseCombatCharacter
 			MathLib.VectorCopy(userCmd.ViewAngles, out pl.ViewingAngle);
 
 		// todo
+
+		g_PlayerMove.RunCommand(this, userCmd, s_MoveHelperServer);
 	}
 
-	private bool IsPredictingWeapons() => false; // todo
+	public bool IsPredictingWeapons() => false; // todo
 
 	TimeUnit_t GetTimeSinceLastUserCommand() => /*(!IsConnected() || IsFakeClient() || IsBot()) ? 0.0f :*/ gpGlobals.CurTime - LastUserCommandTime;
 }

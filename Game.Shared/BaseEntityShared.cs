@@ -143,6 +143,23 @@ public partial class
 	public void ClearFlags() => flags = 0;
 	public void ToggleFlag(EntityFlags flag) => flags ^= (int)flag;
 
+	public int GetFirstThinkTick() {
+		int minTick = TICK_NEVER_THINK;
+
+		if (NextThinkTick > 0)
+			minTick = NextThinkTick;
+
+		for (int i = 0; i < ThinkFunctions.Count; i++) {
+			int next = (int)ThinkFunctions[i].NextThinkTick;
+			if (next > 0) {
+				if (next < minTick || minTick == TICK_NEVER_THINK)
+					minTick = next;
+			}
+		}
+
+		return minTick;
+	}
+
 	public long GetNextThinkTick(ReadOnlySpan<char> context = default) {
 		// todo
 		return (long)TICK_NEVER_THINK;
