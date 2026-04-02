@@ -22,7 +22,6 @@ public partial class InfoLightingRelative : BaseEntity
 
 public class BaseAnimating : BaseEntity
 {
-	public const int ANIMATION_SEQUENCE_BITS = 12;
 	public const int ANIMATION_SKIN_BITS = 10;
 	public const int ANIMATION_BODY_BITS = 32;
 	public const int ANIMATION_HITBOXSET_BITS = 2;

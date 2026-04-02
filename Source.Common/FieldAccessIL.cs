@@ -224,10 +224,16 @@ namespace Source.Common
 					else if (typeof(T) == typeof(long)) il.LoggedEmit(OpCodes.Conv_I8);
 					else if (typeof(T) == typeof(float)) il.LoggedEmit(OpCodes.Conv_R4);
 					else if (typeof(T) == typeof(double)) il.LoggedEmit(OpCodes.Conv_R8);
+					else if (!typeof(T).IsValueType && accessor.StoringType.IsValueType) 
+						throw new NotImplementedException("Value type cannot be boxed here, please refactor.");
 					else il.LoggedEmit(OpCodes.Castclass, enumTypeUnderflying);
 				}
-				else
+				else {
+					if (!typeof(T).IsValueType && accessor.StoringType.IsValueType) 
+						throw new NotImplementedException("Value type cannot be boxed here, please refactor.");
+					
 					il.LoggedEmit(OpCodes.Castclass, typeof(T));
+				}
 			}
 
 			il.LoggedEmit(OpCodes.Ret);

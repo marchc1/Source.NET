@@ -198,6 +198,9 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		MostRecentModelBoneCounter = ModelBoneCounter - 1;
 		LastBoneSetupTime = -TimeUnit_t.MaxValue;
 	}
+	public virtual void DoAnimationEvents(StudioHdr hdr) {
+
+	}
 	public bool IsBoneCacheValid() => MostRecentModelBoneCounter == ModelBoneCounter;
 	public static void InvalidateBoneCaches() => ModelBoneCounter++;
 
@@ -427,7 +430,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		if (cycle != Cycle) {
 			Cycle = cycle;
 			InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnimationChanged);
-			
+
 		}
 	}
 	private void StandardBlendingRules(StudioHdr hdr, Span<Vector3> pos, Span<Quaternion> q, TimeUnit_t currentTime, int boneMask) {
@@ -496,7 +499,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 
 		for (int i = SequenceTransitioner.AnimationQueue.Count - 2; i >= 0; i--) {
-			C_AnimationLayer blend = SequenceTransitioner.AnimationQueue[i];
+			ref AnimationLayer blend = ref SequenceTransitioner.AnimationQueue.AsSpan()[i];
 
 			double dt = (gpGlobals.CurTime - blend.LayerAnimtime);
 			cycle = blend.Cycle + dt * blend.PlaybackRate * GetSequenceCycleRate(boneSetup.GetStudioHdr(), blend.Sequence);
@@ -506,7 +509,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 	}
 
-	private double ClampCycle(double cycle, bool isLooping) {
+	protected double ClampCycle(double cycle, bool isLooping) {
 		if (isLooping) {
 			cycle -= (int)cycle;
 			if (cycle < 0.0) {
@@ -554,7 +557,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public object? Ragdoll; // TODO
 
 	public override void OnDataChanged(DataUpdateType updateType) {
-		if (Ragdoll  != null&& GetSequence() != PrevSequence) {
+		if (Ragdoll != null && GetSequence() != PrevSequence) {
 			SetSequence(PrevSequence);
 			PlaybackRate = 0;
 		}
@@ -575,7 +578,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		// but getting a model by index is pretty cheap...
 		Model? model = modelinfo.GetModel(GetModelIndex());
 
-		if (model != GetModel()) 
+		if (model != GetModel())
 			modelchanged = true;
 
 		base.OnDataChanged(updateType);
@@ -594,16 +597,16 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		// Only need to think if animating client side
 		if (ClientSideAnimation) {
 			// Check to see if we should reset our frame
-			if (ClientSideFrameReset != LastClientSideFrameReset) 
+			if (ClientSideFrameReset != LastClientSideFrameReset)
 				ResetClientsideFrame();
-			
+
 		}
 		// build a ragdoll if necessary
-		if (RenderFX == (byte)RenderFx.Ragdoll && !BuiltRagdoll) 
+		if (RenderFX == (byte)RenderFx.Ragdoll && !BuiltRagdoll)
 			BecomeRagdollOnClient();
 
 		//HACKHACK!!!
-		if (RenderFX == (byte)RenderFx.Ragdoll && BuiltRagdoll == true) 
+		if (RenderFX == (byte)RenderFx.Ragdoll && BuiltRagdoll == true)
 			if (Ragdoll == null)
 				AddEffects(EntityEffects.NoDraw);
 
@@ -761,7 +764,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public bool IsDynamicModelLoading() => DynamicModelPending;
 
 	public void ResetSequenceInfo() {
-		if (GetSequence() == -1) 
+		if (GetSequence() == -1)
 			// This shouldn't happen.  Setting m_nSequence blindly is a horrible coding practice.
 			SetSequence(0);
 
@@ -782,7 +785,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		ResetEventsParity = (ResetEventsParity + 1) & (int)EntityEffects.ParityMask;
 
 		// FIXME: why is this called here?  Nothing should have changed to make this nessesary
-		if (studioHdr != null) 
+		if (studioHdr != null)
 			Animation.SetEventIndexForSequence(studioHdr.Seqdesc(GetSequence()));
 	}
 
@@ -822,7 +825,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			RemoveBaseAnimatingInterpolatedVars();
 	}
 
-	public void ResetSequence(int sequence){
+	public void ResetSequence(int sequence) {
 		SetSequence(sequence);
 		ResetSequenceInfo();
 	}
