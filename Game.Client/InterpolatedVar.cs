@@ -203,7 +203,7 @@ public struct InterpolatedVarEntryBase<T>
 
 public class InterpolatedVarArrayBase<T>(bool isArray) : IInterpolatedVar
 {
-	SimpleRingBuffer<InterpolatedVarEntryBase<T>> VarHistory = new();
+	protected SimpleRingBuffer<InterpolatedVarEntryBase<T>> VarHistory = new();
 	public void Copy(IInterpolatedVar inSrc) {
 		InterpolatedVarArrayBase<T>? src = (InterpolatedVarArrayBase<T>?)inSrc;
 
@@ -236,6 +236,13 @@ public class InterpolatedVarArrayBase<T>(bool isArray) : IInterpolatedVar
 	}
 
 
+	public bool GetInterpolationInfo(TimeUnit_t currentTime, out int newer, out int older, out int oldest) {
+		bool result = GetInterpolationInfo(out InterpolationInfo info, currentTime, InterpolationAmount, out _);
+		newer = info.Newer;
+		older = info.Older;
+		oldest = info.Oldest;
+		return result;
+	}
 	public void SetLooping(bool looping, int arrayIndex = 0) {
 		Looping![arrayIndex] = looping;
 	}
@@ -603,7 +610,7 @@ public class InterpolatedVarArrayBase<T>(bool isArray) : IInterpolatedVar
 	object Instance;
 	DynamicAccessor Accessor;
 	LatchFlags Type;
-	TimeUnit_t InterpolationAmount;
+	protected TimeUnit_t InterpolationAmount;
 	TimeUnit_t LastNetworkedTime;
 	T[]? LastNetworkedValue;
 	int MaxCount => LastNetworkedValue?.Length ?? 0;
@@ -620,6 +627,18 @@ public class InterpolatedVar<T> : InterpolatedVarArrayBase<T>
 
 	public override ReadOnlySpan<char> GetDebugName() {
 		return name;
+	}
+
+	public ref T GetHistoryValue(int index, out TimeUnit_t changetime, int arrayIndex = 0) {
+		if (VarHistory.IsIdxValid(index)) {
+			ref InterpolatedVarEntryBase<T> entry = ref VarHistory[index];
+			changetime = entry.ChangeTime;
+			return ref entry.GetValue()![arrayIndex];
+		}
+		else {
+			changetime = 0.0f;
+			return ref Unsafe.NullRef<T>();
+		}
 	}
 }
 public class InterpolatedVarArray<T> : InterpolatedVarArrayBase<T>

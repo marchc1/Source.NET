@@ -3,6 +3,7 @@
 using Source.Common;
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 using FIELD = Source.FIELD<Game.Client.C_BaseAnimatingOverlay>;
 
@@ -12,7 +13,7 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
 	public const int MAX_OVERLAYS = 15;
 
 	public static readonly RecvTable DT_OverlayVars = new([
-		RecvPropList<AnimationLayerRef>(FIELD.OF_LIST(nameof(AnimOverlay), MAX_OVERLAYS), ResizeAnimationLayerCallback, RecvPropDataTable(null, AnimationLayerRef.DT_AnimationLayer))
+		RecvPropList<AnimationLayerRef>(FIELD.OF_LIST(nameof(AnimOverlay), MAX_OVERLAYS), ResizeAnimationLayerCallback, RecvPropDataTable(null!, AnimationLayerRef.DT_AnimationLayer))
 	]);
 
 	public static readonly string[] iv_AnimOverlayNames = [
@@ -85,6 +86,8 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
 	readonly List<InterpolatedVar<AnimationLayer>> iv_AnimOverlay = [];
 	readonly float[] OverlayPrevEventCycle = new float[MAX_OVERLAYS];
 
+	public AnimationLayerRef GetAnimOverlay(int i) => AnimOverlay[i];
+
 	public int GetNumAnimOverlays() => AnimOverlay.Count;
 	public void SetNumAnimOverlays(int num){
 		if (AnimOverlay.Count < num) 
@@ -95,7 +98,55 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
 				AnimOverlay.RemoveAt(AnimOverlay.Count - 1);
 	}
 	public void CheckForLayerChanges(StudioHdr hdr, TimeUnit_t currentTime){
-	
+		bool layersChanged = false;
+
+		// FIXME: damn, there has to be a better way than this.
+		int i;
+		for (i = 0; i < iv_AnimOverlay.Count; i++) {
+			iv_AnimOverlay[i].GetInterpolationInfo(currentTime, out int iHead, out int iPrev1, out int iPrev2);
+
+			// fake up previous cycle values.
+			ref AnimationLayer head = ref iv_AnimOverlay[i].GetHistoryValue(iHead, out double t0);
+			// reset previous
+			ref AnimationLayer prev1 = ref iv_AnimOverlay[i].GetHistoryValue(iPrev1, out double t1);
+			// reset previous previous
+			ref AnimationLayer prev2 = ref iv_AnimOverlay[i].GetHistoryValue(iPrev2, out double t2);
+
+			if (!Unsafe.IsNullRef(ref head) && !Unsafe.IsNullRef(ref prev1) && head.Sequence != prev1.Sequence) {
+				layersChanged = true;
+
+				if (!Unsafe.IsNullRef(ref prev1)) {
+					prev1.Sequence = head.Sequence;
+					prev1.Cycle = head.PrevCycle;
+					prev1.Weight = head.Weight;
+				}
+
+				if (!Unsafe.IsNullRef(ref prev2)) {
+					double num = 0;
+					if (Math.Abs(t0 - t1) > 0.001)
+						num = (t2 - t1) / (t0 - t1);
+
+					prev2.Sequence = head.Sequence;
+					double flTemp;
+					if (IsSequenceLooping(hdr, head.Sequence)) 
+						flTemp = LerpFunctions.LoopingLerp(num, head.PrevCycle, head.Cycle);
+					else 
+						flTemp = LerpFunctions.Lerp(num, head.PrevCycle, head.Cycle);
+					prev2.Cycle = flTemp;
+					prev2.Weight = head.Weight;
+				}
+
+				iv_AnimOverlay[i].SetLooping(IsSequenceLooping(hdr, head.Sequence));
+				iv_AnimOverlay[i].Interpolate(currentTime);
+
+				// reset event indexes
+				OverlayPrevEventCycle[i] = head.PrevCycle - 0.01f;
+			}
+		}
+
+		if (layersChanged) 
+			// render bounds may have changed
+			UpdateVisibility();
 	}
 	public override void AccumulateLayers(ref BoneSetup boneSetup, Span<AngularImpulse> pos, Span<Quaternion> q, double currentTime) {
 		base.AccumulateLayers(ref boneSetup, pos, q, currentTime);
@@ -145,11 +196,8 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
 						fWeight = 1;
 
 					boneSetup.AccumulatePose(pos, q, AnimOverlay[i].Sequence, fCycle, fWeight, currentTime, null);
-
-
 				}
 			}
-
 		}
 	}
 	public override void DoAnimationEvents(StudioHdr hdr) {
