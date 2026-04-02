@@ -9,7 +9,9 @@ public enum MDLCacheDataType
 	AnimBlock,
 	VirtualModel,
 	Vertexes,
-	DecodedAnimBlock
+	DecodedAnimBlock,
+
+	Count
 }
 
 public interface IMDLCacheNotify
@@ -85,7 +87,7 @@ public interface IMDLCache
 
 	bool IsDataLoaded(MDLHandle_t handle, MDLCacheDataType type);
 
-	ref int GetFrameUnlockCounterPtr(MDLCacheDataType type);
+	AnonymousSafeFieldPointer<int> GetFrameUnlockCounterPtr(MDLCacheDataType type);
 
 	StudioHeader? LockStudioHdr(MDLHandle_t handle);
 	void UnlockStudioHdr(MDLHandle_t handle);

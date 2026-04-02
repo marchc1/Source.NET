@@ -1,4 +1,5 @@
-﻿using Source;
+﻿#if CLIENT_DLL || GAME_DLL
+using Source;
 using Source.Common;
 using Source.Common.Mathematics;
 
@@ -7,10 +8,15 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
 
+using static Source.Common.StudioHdr.ActivityToSequenceMapping;
+
 namespace Game.Shared;
 
 public static class Animation
 {
+static Animation(){
+		StudioHdr.SetActivityForSequence += SetActivityForSequence;
+}
 	public static StudioAnimSeqFlags GetSequenceFlags(StudioHdr? studioHdr, int sequence) {
 		if (studioHdr == null || !studioHdr.SequencesAvailable() || sequence < 0 || sequence >= studioHdr.GetNumSeq())
 			return 0;
@@ -19,7 +25,7 @@ public static class Animation
 		return seqdesc.Flags;
 	}
 
-	internal static void GetSequenceLinearMotion(StudioHdr studioHdr, int sequence, ReadOnlySpan<float> poseParameter, out Vector3 vecReturn) {
+	internal static void GetSequenceLinearMotion(StudioHdr? studioHdr, int sequence, ReadOnlySpan<float> poseParameter, out Vector3 vecReturn) {
 		vecReturn = default;
 
 		if (studioHdr == null) {
@@ -207,3 +213,64 @@ public static class Animation
 		return studiohdr.SelectWeightedSequence((int)activity, curSequence);
 	}
 }
+
+public static class ImplementStudioHdrFns {
+	extension(StudioHdr map) {
+		public int SelectWeightedSequence(int activity, int curSequence) {
+			if (!map.ActivityToSequence.IsInitialized())
+				map.ActivityToSequence.Initialize(map);
+
+			return map.ActivityToSequence.SelectWeightedSequence(map, activity, curSequence);
+		}
+	}
+
+	static bool IsInPrediction() => BaseEntity.GetPredictionPlayer() != null;
+
+	extension(StudioHdr.ActivityToSequenceMapping map) {
+		public int SelectWeightedSequence(StudioHdr studiohdr, int activity, int curSequence) {
+			if (!map.ValidateAgainst(studiohdr)) {
+				AssertMsg(false, $"StudioHdr {studiohdr.Name()} has changed its vmodel pointer without reinitializing its activity mapping! Now performing emergency reinitialization.");
+				map.Reinitialize(studiohdr);
+			}
+
+			// a null m_pSequenceTuples just means that this studio header has no activities.
+			if (map.SequenceTuples == null)
+				return StudioHdr.ACTIVITY_NOT_AVAILABLE;
+
+			// is the current sequence appropriate?
+			if (curSequence >= 0) {
+				MStudioSeqDesc seqdesc = studiohdr.Seqdesc(curSequence);
+
+				if (seqdesc.Activity == activity && seqdesc.ActWeight < 0)
+					return curSequence;
+			}
+
+			// get the data for the given activity
+			HashValueType dummy = new(activity, 0, 0, 0);
+			ref HashValueType actData = ref map.ActToSeqHash.TryGetRef(dummy.ActivityIdx, out bool ok);
+			if (!ok)
+				return StudioHdr.ACTIVITY_NOT_AVAILABLE;
+
+			int weighttotal = actData.TotalWeight;
+			// generate a random number from 0 to the total weight
+			int randomValue;
+			if (IsInPrediction())
+				// dimhotepus: At least vortigaunt model has weighttotal equal to 0.
+				randomValue = weighttotal == 0 ? 0 : SharedRandomInt("SelectWeightedSequence", 0, weighttotal - 1);
+			else
+				// dimhotepus: At least vortigaunt model has weighttotal equal to 0.
+				randomValue = weighttotal == 0 ? 0 : RandomInt(0, weighttotal - 1);
+
+			// chug through the entries in the list (they are sequential therefore cache-coherent)
+			// until we run out of random juice
+			Span<SequenceTuple> sequenceInfo =  map.SequenceTuples.AsSpan()[actData.StartingIdx..][..actData.Count];
+			while (randomValue >= sequenceInfo[0].Weight && sequenceInfo.Length > 0) {
+				randomValue -= sequenceInfo[0].Weight;
+				sequenceInfo = sequenceInfo[1..];
+			}
+
+			return sequenceInfo[0].SeqNum;
+		}
+	}
+}
+#endif

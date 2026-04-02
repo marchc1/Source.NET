@@ -1,5 +1,6 @@
 using Game.Client.HL2;
 using Game.Shared;
+using Game.Shared.GarrysMod;
 
 using Source;
 using Source.Common;
@@ -85,6 +86,11 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 
 		}
 		base.CalcView(ref eyeOrigin, ref eyeAngles, ref zNear, ref zFar, ref fov);
+	}
+
+	public override void PostThink() {
+		base.PostThink();
+		AngEyeAngles = EyeAngles();
 	}
 }
 

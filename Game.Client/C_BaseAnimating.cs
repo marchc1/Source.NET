@@ -112,12 +112,12 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		GroundSpeed = (float)GetSequenceGroundSpeed(hdr, GetSequence()) * GetModelScale();
 	}
 
-	public TimeUnit_t GetSequenceMoveDist(StudioHdr studioHdr, int sequence) {
+	public TimeUnit_t GetSequenceMoveDist(StudioHdr? studioHdr, int sequence) {
 		Animation.GetSequenceLinearMotion(studioHdr, Sequence, PoseParameter, out Vector3 vecReturn);
 
 		return vecReturn.Length();
 	}
-	public TimeUnit_t GetSequenceGroundSpeed(StudioHdr studioHdr, int sequence) {
+	public TimeUnit_t GetSequenceGroundSpeed(StudioHdr? studioHdr, int sequence) {
 		TimeUnit_t t = SequenceDuration(studioHdr, sequence);
 		if (t > 0)
 			return GetSequenceMoveDist(studioHdr, sequence) / t;
@@ -129,7 +129,9 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		// todo
 	}
 
+	bool SequenceLoops;
 	bool SequenceFinished;
+	int LastEventCheck;
 
 	public static void PopAllowBoneAccess(BoneAccessTag tag) {
 		lock (BoneAccessMutex) {
@@ -425,6 +427,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		if (cycle != Cycle) {
 			Cycle = cycle;
 			InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnimationChanged);
+			
 		}
 	}
 	private void StandardBlendingRules(StudioHdr hdr, Span<Vector3> pos, Span<Quaternion> q, TimeUnit_t currentTime, int boneMask) {
@@ -755,8 +758,32 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public int RestoreSequence = -1;
 	bool ResetSequenceInfoOnLoad = false;
 
-	public void ResetSequenceInfo() {
+	public bool IsDynamicModelLoading() => DynamicModelPending;
 
+	public void ResetSequenceInfo() {
+		if (GetSequence() == -1) 
+			// This shouldn't happen.  Setting m_nSequence blindly is a horrible coding practice.
+			SetSequence(0);
+
+		if (IsDynamicModelLoading()) {
+			ResetSequenceInfoOnLoad = true;
+			return;
+		}
+
+		StudioHdr? studioHdr = GetModelPtr();
+		GroundSpeed = (float)GetSequenceGroundSpeed(studioHdr, GetSequence()) * GetModelScale();
+		SequenceLoops = ((Animation.GetSequenceFlags(studioHdr, GetSequence()) & StudioAnimSeqFlags.Looping) != 0);
+		// m_flAnimTime = gpGlobals->time;
+		PlaybackRate = 1.0f;
+		SequenceFinished = false;
+		LastEventCheck = 0;
+
+		NewSequenceParity = (NewSequenceParity + 1) & (int)EntityEffects.ParityMask;
+		ResetEventsParity = (ResetEventsParity + 1) & (int)EntityEffects.ParityMask;
+
+		// FIXME: why is this called here?  Nothing should have changed to make this nessesary
+		if (studioHdr != null) 
+			Animation.SetEventIndexForSequence(studioHdr.Seqdesc(GetSequence()));
 	}
 
 	public int SelectWeightedSequence(Activity activity) {
@@ -793,6 +820,11 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 			AddBaseAnimatingInterpolatedVars();
 		else
 			RemoveBaseAnimatingInterpolatedVars();
+	}
+
+	public void ResetSequence(int sequence){
+		SetSequence(sequence);
+		ResetSequenceInfo();
 	}
 
 	public override bool Interpolate(TimeUnit_t currentTime) {

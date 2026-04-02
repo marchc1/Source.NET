@@ -386,7 +386,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	}
 
 	public void NotifyEdictFlagsChange(int iEdict) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public ReadOnlySpan<char> ParseFile(ReadOnlySpan<char> data, Span<char> token) {

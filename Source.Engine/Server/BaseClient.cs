@@ -325,7 +325,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			Baseline = framesnapshotmanager.CreateEmptySnapshot(0, Constants.MAX_EDICTS);
 		}
 
-		NET_Tick msg = new(Server.GetTick(), (int)Host.FrameTime, (int)Host.FrameTimeStandardDeviation);
+		NET_Tick msg = new(Server.GetTick(), (int)Host.FrameTimeUnbounded, (int)Host.FrameTimeStandardDeviation);
 		SendNetMsg(msg);
 
 		SignOnState = SignOnState.Spawn;
@@ -488,7 +488,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		if (deltaFrame == null)
 			OnRequestFullUpdate();
 
-		NET_Tick tickmsg = new(frame.TickCount, (int)Host.FrameTime, (int)Host.FrameTimeStandardDeviation);
+		NET_Tick tickmsg = new(frame.TickCount, (int)Host.FrameTimeUnbounded, (int)Host.FrameTimeStandardDeviation);
 
 		StartTrace(msg);
 

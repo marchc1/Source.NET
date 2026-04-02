@@ -427,7 +427,113 @@ public ref struct BoneSetup
 		}
 	}
 	private static void CalcVirtualAnimation(VirtualModel vModel, StudioHdr studioHdr, Span<Vector3> pos, Span<Quaternion> q, MStudioSeqDesc seqdesc, int sequence, int animation, TimeUnit_t cycle, int boneMask) {
-		throw new NotImplementedException();
+		MStudioBone bone;
+		VirtualGroup seqGroup;
+		StudioHeader seqStudioHdr;
+		MStudioLinearBone seqLinearBones;
+		Span<MStudioBone> seqbone;
+		MStudioAnim? anim;
+		StudioHeader animStudioHdr;
+		MStudioLinearBone animLinearBones;
+		Span<MStudioBone> animbone;
+		VirtualGroup animGroup;
+
+		seqGroup = vModel.SeqGroup(sequence);
+		int baseanimation = studioHdr.iRelativeAnim(sequence, animation);
+		MStudioAnimDesc animdesc = studioHdr.Animdesc(baseanimation);
+		seqStudioHdr = studioHdr.SeqStudioHdr(sequence)!;
+		seqLinearBones = seqStudioHdr.LinearBones()!;
+		seqbone = seqStudioHdr.Bones(0);
+		animGroup = vModel.AnimGroup(baseanimation);
+		animStudioHdr = studioHdr.AnimStudioHdr(baseanimation)!;
+		animLinearBones = animStudioHdr.LinearBones()!;
+		animbone = animStudioHdr.Bones(0);
+
+		int iFrame;
+		float s;
+
+		float fFrame = (float)cycle * (animdesc.NumFrames - 1); // todo: double?
+
+		iFrame = (int)fFrame;
+		s = (fFrame - iFrame);
+
+		int iLocalFrame = iFrame;
+		TimeUnit_t flStall;
+		anim = animdesc.Anim(ref iLocalFrame, out flStall);
+
+		Span<float> pweight = seqdesc.Boneweights(0);
+		bone = studioHdr.Bone(0);
+
+		for (int i = 0; i < studioHdr.NumBones(); i++) {
+			if ((studioHdr.BoneFlags(i) & boneMask) != 0) {
+				int j = seqGroup.BoneMap[i];
+				if (j >= 0 && pweight[j] > 0.0f) {
+					if ((animdesc.Flags & StudioAnimSeqFlags.Delta) != 0) {
+						q[i].Init(0.0f, 0.0f, 0.0f, 1.0f);
+						pos[i].Init(0.0f, 0.0f, 0.0f);
+					}
+					else if (seqLinearBones != null) {
+						q[i] = seqLinearBones.Quat(j);
+						pos[i] = seqLinearBones.Pos(j);
+					}
+					else {
+						q[i] = seqbone[j].Quat;
+						pos[i] = seqbone[j].Position;
+					}
+				}
+			}
+		}
+
+		// if the animation isn't available, look for the zero frame cache
+		if (anim == null) {
+			CalcZeroframeData(studioHdr, animStudioHdr, animGroup, animbone, animdesc, fFrame, pos, q, boneMask, 1.0f);
+			return;
+		}
+
+		// FIXME: change encoding so that bone -1 is never the case
+		while (anim != null && anim.Bone < 255) {
+			int j = animGroup.MasterBone[anim.Bone];
+			if (j >= 0 && ((studioHdr.BoneFlags(j) & boneMask) != 0)) {
+				int k = seqGroup.BoneMap[j];
+
+				if (k >= 0 && pweight[k] > 0.0f) {
+					CalcBoneQuaternion(iLocalFrame, s, animbone[anim.Bone], animLinearBones, anim, ref q[j]);
+					CalcBonePosition(iLocalFrame, s, animbone[anim.Bone], animLinearBones, anim, ref pos[j]);
+				}
+			}
+			anim = anim.Next();
+		}
+
+		// cross fade in previous zeroframe data
+		if (flStall > 0.0f) 
+			CalcZeroframeData(studioHdr, animStudioHdr, animGroup, animbone, animdesc, fFrame, pos, q, boneMask, (float)flStall);
+
+		// calculate a local hierarchy override
+		if (animdesc.NumLocalHierarchy != 0) {
+			Matrix3x4[] boneToWorld = MatrixPool.Alloc();
+			BoneBitList boneComputed = new();
+
+			int i;
+			for (i = 0; i < animdesc.NumLocalHierarchy; i++) {
+				MStudioLocalHierarchy? hierarchy = animdesc.Hierarchy(i);
+
+				if (hierarchy == null)
+					break;
+
+				int iBone = animGroup.MasterBone[hierarchy.Bone];
+				if (iBone >= 0 && ((studioHdr.BoneFlags(iBone) & boneMask) != 0)) {
+					if (hierarchy.NewParent != -1) {
+						int newParent = animGroup.MasterBone[hierarchy.NewParent];
+						if (newParent >= 0 && ((studioHdr.BoneFlags(newParent) & boneMask) != 0)) 
+							CalcLocalHierarchyAnimation(studioHdr, boneToWorld, ref boneComputed, pos, q, bone, hierarchy, iBone, newParent, (float)cycle, iFrame, s, boneMask);
+					}
+					else 
+						CalcLocalHierarchyAnimation(studioHdr, boneToWorld, ref boneComputed, pos, q, bone, hierarchy, iBone, -1, (float)cycle, iFrame, s, boneMask);
+				}
+			}
+
+			MatrixPool.Free(boneToWorld);
+		}
 	}
 	public static void CalcBoneQuaternion(int frame, float s, MStudioBone? bone, MStudioLinearBone? linearBones, MStudioAnim anim, ref Quaternion q) {
 		if (linearBones != null)

@@ -171,7 +171,7 @@ public class ViewRender : IViewRender
 		SetUpViews();
 
 		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
-		if (player != null) {
+		if (player != null && player.DefaultFOV != 0) {
 			default_fov.SetValue(player.DefaultFOV);
 		}
 	}

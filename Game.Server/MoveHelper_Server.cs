@@ -8,7 +8,8 @@ using System.Numerics;
 namespace Game.Server;
 
 
-public interface IMoveHelperServer : IMoveHelper{
+public interface IMoveHelperServer : IMoveHelper
+{
 	void SetHost(BasePlayer host);
 }
 public class MoveHelperServer : IMoveHelperServer
@@ -45,7 +46,7 @@ public class MoveHelperServer : IMoveHelperServer
 	}
 
 	public void ProcessImpacts() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public void ResetTouchList() {

@@ -349,15 +349,15 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 	}
 
 	public bool IsDynamicModelLoading(int modelIndex) {
-		throw new NotImplementedException();
+		return false;
 	}
 
 	public void AddRefDynamicModel(int modelIndex) {
-		throw new NotImplementedException();
+
 	}
 
 	public void ReleaseDynamicModel(int modelIndex) {
-		throw new NotImplementedException();
+
 	}
 
 	public bool RegisterModelLoadCallback(int modelindex, IModelLoadCallback callback, bool callImmediatelyIfLoaded = true) {

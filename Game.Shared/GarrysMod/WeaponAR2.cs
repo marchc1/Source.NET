@@ -26,5 +26,6 @@ public class WeaponAR2 : HL2MPMachineGun
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("WeaponAR2", DT_WeaponAR2).WithManualClassID(StaticClassIndices.CWeaponAR2);
 #endif
+	public override float GetFireRate() => 0.1f;
 }
 #endif

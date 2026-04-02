@@ -35,6 +35,10 @@ public static unsafe class MemUtils
 	public static void memreset<T>(Span<T> field) where T : struct {
 		for (int i = 0; i < field.Length; i++) field[i] = default;
 	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void memcreset<T>(Span<T?> field) where T : class {
+		for (int i = 0; i < field.Length; i++) field[i] = null;
+	}
 	/// <summary>
 	/// This honestly might not be faster.
 	/// </summary>

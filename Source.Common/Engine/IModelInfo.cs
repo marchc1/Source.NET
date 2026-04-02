@@ -11,6 +11,8 @@ namespace Source.Common.Engine;
 
 public interface IVModelInfo
 {
+	public static bool IsDynamicModelIndex(int modelindex) => modelindex < -1;
+	public static bool IsClientOnlyModelIndex(int modelindex) => modelindex < -1 && (modelindex & 1) != 0;
 	Model? GetModel(int modelindex);
 	int GetModelIndex(ReadOnlySpan<char> name);
 	ReadOnlySpan<char> GetModelName(Model? model);
