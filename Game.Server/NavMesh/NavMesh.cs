@@ -399,12 +399,160 @@ public partial class NavMesh
 		return use;
 	}
 
-	NavArea GetNavArea(BaseEntity pEntity, int nFlags, float flBeneathLimit) {
-		throw new NotImplementedException();
+	NavArea? GetNavArea(BaseEntity entity, int flags, float beneathLimit) {
+		if (Grid.Count == 0)
+			return null!;
+
+		Vector3 testPos = entity.GetAbsOrigin();
+
+		float stepHeight = 1e-3f;
+		if (entity is BaseCombatCharacter combatCharacter) {
+			NavArea? lastArea = null;// combatCharacter.LastKnownArea;
+			if (lastArea != null && lastArea.IsOverlapping(testPos)) {
+				float z = lastArea.GetZ(testPos);
+				if (z <= testPos.Z + stepHeight && z >= testPos.Z - stepHeight)
+					return lastArea;
+			}
+
+			stepHeight = StepHeight;
+		}
+
+		int x = WorldToGridX(testPos.X);
+		int y = WorldToGridY(testPos.Y);
+		List<NavArea> areaVector = Grid[x + y * GridSizeX];
+
+		NavArea? use = null;
+		float useZ = -99999999.9f;
+
+		bool skipBlocked = (flags & (int)GetNavAreaFlags.AllowBlockedAreas) == 0;
+		for (int it = 0; it < areaVector.Count; ++it) {
+			NavArea area = areaVector[it];
+
+			if (!area.IsOverlapping(testPos))
+				continue;
+
+			// if (skipBlocked && area.IsBlocked(entity.TeamNumber))
+			// 	continue;
+
+			float z = area.GetZ(testPos);
+
+			if (z > testPos.Z + stepHeight)
+				continue;
+
+			if (z < testPos.Z - beneathLimit)
+				continue;
+
+			use = area;
+			useZ = z;
+		}
+
+		if (use != null && (flags & (int)GetNavAreaFlags.CheckLOS) != 0 && useZ < testPos.Z - stepHeight) {
+			Util.TraceLine(testPos, new Vector3(testPos.X, testPos.Y, useZ), Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out Trace result);
+			if (result.Fraction != 1.0f && Math.Abs(result.EndPos.Z - useZ) > stepHeight)
+				return null;
+		}
+
+		return use;
 	}
 
-	NavArea GetNearestNavArea(Vector3 pos, bool anyZ = false, float maxDist = 10000.0f, bool checkLOS = false, bool checkGround = true, int team = -2 /*TEAM_ANY*/) {
-		throw new NotImplementedException();
+	NavArea? GetNearestNavArea(Vector3 pos, bool anyZ = false, float maxDist = 10000.0f, bool checkLOS = false, bool checkGround = true, int team = -2 /*TEAM_ANY*/) {
+		if (Grid.Count == 0)
+			return null;
+
+		NavArea? close = null;
+		float closeDistSq = maxDist * maxDist;
+
+		if (!checkLOS && !checkGround) {
+			close = GetNavArea(pos);
+			if (close != null)
+				return close;
+		}
+
+		Vector3 source = new(pos.X, pos.Y, pos.Z);
+		if (!GetGroundHeight(pos, out source.Z)) {
+			if (!checkGround)
+				source.Z = pos.Z;
+			else
+				return null;
+		}
+
+		source.Z += HalfHumanHeight;
+
+		uint searchMarker = (uint)random.RandomInt(0, 1024 * 1024);
+
+		++searchMarker;
+
+		if (searchMarker == 0)
+			++searchMarker;
+
+		int originX = WorldToGridX(pos.X);
+		int originY = WorldToGridY(pos.Y);
+		int shiftLimit = (int)Math.Ceiling(maxDist / GridCellSize);
+
+		for (int shift = 0; shift <= shiftLimit; ++shift) {
+			for (int x = originX - shift; x <= originX + shift; ++x) {
+				if (x < 0 || x >= GridSizeX)
+					continue;
+
+				for (int y = originY - shift; y <= originY + shift; ++y) {
+					if (y < 0 || y >= GridSizeY)
+						continue;
+
+					if (x > originX - shift && x < originX + shift && y > originY - shift && y < originY + shift)
+						continue;
+
+					List<NavArea> areaVector = Grid[x + y * GridSizeX];
+
+					for (int it = 0; it < areaVector.Count; ++it) {
+						NavArea area = areaVector[it];
+
+						if (area.NearNavSearchMarker == searchMarker)
+							continue;
+
+						if (area.IsBlocked(team))
+							continue;
+
+						area.NearNavSearchMarker = searchMarker;
+
+						area.GetClosestPointOnArea(ref source, out AngularImpulse areaPos);
+
+						float distSq = Vector3.DistanceSquared(areaPos, pos);
+
+						if (distSq >= closeDistSq)
+							continue;
+
+						if (checkLOS) {
+							Trace result;
+
+							Vector3 safePos;
+
+							Util.TraceLine(pos, pos + new Vector3(0, 0, StepHeight), Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out result);
+							if (result.StartSolid)
+								safePos = result.EndPos + new Vector3(0, 0, 1.0f);
+							else
+								safePos = pos;
+
+							float heightDelta = Math.Abs(areaPos.Z - safePos.Z);
+							if (heightDelta > StepHeight) {
+								Util.TraceLine(areaPos + new Vector3(0, 0, StepHeight), new Vector3(areaPos.X, areaPos.Y, safePos.Z), Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out result);
+								if (result.Fraction != 1.0f)
+									continue;
+							}
+
+							Util.TraceLine(safePos, new Vector3(areaPos.X, areaPos.Y, safePos.Z + StepHeight), Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out result);
+							if (result.Fraction != 1.0f)
+								continue;
+						}
+
+						closeDistSq = distSq;
+						close = area;
+						shiftLimit = shift + 1;
+					}
+				}
+			}
+		}
+
+		return close;
 	}
 
 	NavArea GetNearestNavArea(BaseEntity entity, int flags, float maxDist) {
