@@ -264,19 +264,19 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	static readonly DynamicAccessor DA_Cycle = FIELD.OF(nameof(Cycle));
 
 	public void AddBaseAnimatingInterpolatedVars() {
-		AddVar(DA_PoseParameter, iv_flPoseParameter, LatchFlags.LatchAnimationVar, true);
+		AddVar(this, DA_PoseParameter, iv_flPoseParameter, LatchFlags.LatchAnimationVar, true);
 
 		LatchFlags flags = LatchFlags.LatchAnimationVar;
 		if (ClientSideAnimation)
 			flags |= LatchFlags.ExcludeAutoInterpolate;
 
-		AddVar(DA_Cycle, iv_Cycle, flags, true);
+		AddVar(this, DA_Cycle, iv_Cycle, flags, true);
 	}
 
 	public void RemoveBaseAnimatingInterpolatedVars() {
-		RemoveVar(DA_PoseParameter, false);
+		RemoveVar(this, DA_PoseParameter, false);
 		if (!GetPredictable())
-			RemoveVar(DA_Cycle, false);
+			RemoveVar(this, DA_Cycle, false);
 	}
 
 	public override bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, double currentTime) {

@@ -56,7 +56,7 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	public bool IsWalking;
 
 	public C_HL2MP_Player() : base() {
-		AddVar(FIELD.OF(nameof(AngEyeAngles)), IV_AngEyeAngles, LatchFlags.LatchSimulationVar);
+		AddVar(this, FIELD.OF(nameof(AngEyeAngles)), IV_AngEyeAngles, LatchFlags.LatchSimulationVar);
 	}
 
 	public override void PostDataUpdate(DataUpdateType updateType) {

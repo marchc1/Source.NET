@@ -49,7 +49,7 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
 
 		// remove all entries
 		for (int i = 0; i < vec.Count; i++) 
-			ent.RemoveVar(vec[i].Accessor);
+			ent.RemoveVar(vec[i], AnimationLayerRef.Accessor);
 
 		// adjust vector sizes
 		if (diff > 0) {
@@ -71,7 +71,7 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
 		for (int i = 0; i < len; i++) {
 			IInterpolatedVar watcher = iv[i];
 			watcher.SetDebugName(iv_AnimOverlayNames[i]);
-			ent.AddVar(vec[i].Accessor, watcher, LatchFlags.LatchAnimationVar, true);
+			ent.AddVar(vec[i], AnimationLayerRef.Accessor, watcher, LatchFlags.LatchAnimationVar, true);
 		}
 	}
 

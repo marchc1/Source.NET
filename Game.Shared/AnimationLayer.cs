@@ -151,11 +151,7 @@ public record struct AnimationLayer
 public class AnimationLayerRef
 {
 	public AnimationLayer Struct;
-	public DynamicAccessor Accessor;
-	public AnimationLayerRef() {
-		Accessor = Source.FIELD<AnimationLayerRef>.OF(nameof(Struct));
-	}
-
+	public static DynamicAccessor Accessor = Source.FIELD<AnimationLayerRef>.OF(nameof(Struct));
 
 	public ref int Sequence { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.Sequence; }
 	public ref TimeUnit_t Cycle { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.Cycle; }

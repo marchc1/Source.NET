@@ -15,8 +15,8 @@ public partial class C_BaseHLPlayer : C_BasePlayer
 															.WithManualClassID(StaticClassIndices.CHL2_Player);
 
 	public C_BaseHLPlayer() {
-		AddVar(FIELD.OF("Local.PunchAngle"), Local.iv_PunchAngle, LatchFlags.LatchSimulationVar);
-		AddVar(FIELD.OF("Local.PunchAngleVel"), Local.iv_PunchAngleVel, LatchFlags.LatchSimulationVar);
+		AddVar(this, FIELD.OF("Local.PunchAngle"), Local.iv_PunchAngle, LatchFlags.LatchSimulationVar);
+		AddVar(this, FIELD.OF("Local.PunchAngleVel"), Local.iv_PunchAngleVel, LatchFlags.LatchSimulationVar);
 	}
 
 	public override void OnDataChanged(DataUpdateType updateType) {
