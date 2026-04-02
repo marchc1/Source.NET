@@ -815,9 +815,10 @@ public class MDLCache : IMDLCache, IStudioDataCache
 			return null;
 
 		vvdHeader.Position = 0;
-		var vertices = HandleToMDLDict[handle].VertexCache = new(vvdHeader.GetBuffer());
-		BuildAndCacheVertexData(studioHdr, vertices);
-		return vertices;
+		var raw = new VertexFileHeader(vvdHeader.GetBuffer());
+		var processed = BuildAndCacheVertexData(studioHdr, raw);
+		HandleToMDLDict[handle].VertexCache = processed;
+		return processed;
 	}
 
 	private VertexFileHeader? BuildAndCacheVertexData(StudioHeader studioHdr, VertexFileHeader rawVvdHdr) {
