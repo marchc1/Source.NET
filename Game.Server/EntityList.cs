@@ -341,9 +341,9 @@ public class SimThinkManager : IEntityListener
 			EntInfoIndex[i] = 0xFFFF;
 	}
 
-	void LevelInitPreEntity() => gEntList.AddListenerEntity(this);
+	public void LevelInitPreEntity() => gEntList.AddListenerEntity(this);
 
-	void LevelShutdownPostEntity() {
+	public void LevelShutdownPostEntity() {
 		gEntList.RemoveListenerEntity(this);
 		Clear();
 	}

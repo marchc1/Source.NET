@@ -590,9 +590,8 @@ public class ServerGameClients : IServerGameClients
 		from = cmdNull;
 
 		for (i = totalCmds - 1; i >= 0; i--) {
-			to = cmds[i];
-			UserCmd.ReadUsercmd(buf, ref to, ref from);
-			from = to;
+			UserCmd.ReadUsercmd(buf, ref cmds[i], ref from);
+			from = cmds[i];
 		}
 
 		if (ignore || pl == null)

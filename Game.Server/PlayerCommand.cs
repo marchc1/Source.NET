@@ -142,7 +142,7 @@ public class PlayerMove
 
 		// g_pGameRules.PlayerThink(player);
 
-		// player.PreThink();
+		player.PreThink();
 	}
 
 	void RunThink(BasePlayer player, double frametime) {
@@ -156,9 +156,7 @@ public class PlayerMove
 		// player.Think();
 	}
 
-	void RunPostThink(BasePlayer player) {
-		// player.PostThink();
-	}
+	void RunPostThink(BasePlayer player) => player.PostThink();
 
 	static double lastWarningTime;
 	public void RunCommand(BasePlayer player, AnonymousSafeFieldPointer<UserCmd> ucmd, IMoveHelper moveHelper) {

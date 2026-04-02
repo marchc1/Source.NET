@@ -101,7 +101,7 @@ public partial class BaseEntity : IServerEntity
 		SendPropDataTable("AnimTimeMustBeFirst", DT_AnimTimeMustBeFirst, SendProxy_ClientSideAnimation),
 
 		SendPropInt(FIELD.OF(nameof(SimulationTime)), SIMULATION_TIME_WINDOW_BITS, PropFlags.Unsigned | PropFlags.ChangesOften | PropFlags.EncodedAgainstTickCount, proxyFn: SendProxy_SimulationTime /* todo */),
-		SendPropVector(FIELD.OF(nameof(Origin)), -1, PropFlags.Coord | PropFlags.ChangesOften, 0, Constants.HIGH_DEFAULT, proxyFn: null /* todo */),
+		SendPropVector(FIELD.OF(nameof(Origin)), -1, PropFlags.Coord | PropFlags.ChangesOften, 0, Constants.HIGH_DEFAULT, SendProxy_Origin),
 		SendPropInt(FIELD.OF(nameof(InterpolationFrame)), NOINTERP_PARITY_MAX_BITS, PropFlags.Unsigned),
 		SendPropModelIndex(FIELD.OF(nameof(ModelIndex))),
 		SendPropDataTable(nameof(Collision), FIELD.OF(nameof(Collision)), CollisionProperty.DT_CollisionProperty),
@@ -222,6 +222,18 @@ public partial class BaseEntity : IServerEntity
 		outData.Vector[1] = MathLib.AngleMod(angles.Y);
 		outData.Vector[2] = MathLib.AngleMod(angles.Z);
 	}
+	private static void SendProxy_Origin(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
+		BaseEntity entity = (BaseEntity)instance;
+		Assert(entity != null);
+
+		Vector3 vector3;
+		if (true /*entity.UseStepSimulationNetworkAngles*/)
+			vector3 = entity.GetLocalOrigin();
+
+		outData.Vector[0] = vector3.X;
+		outData.Vector[1] = vector3.Y;
+		outData.Vector[2] = vector3.Z;
+	}
 	protected static object? SendProxy_SendPredictableId(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
 		BaseEntity entity = (BaseEntity)instance;
 		if (entity == null || !entity.PredictableId.IsActive())
@@ -290,7 +302,19 @@ public partial class BaseEntity : IServerEntity
 
 	public bool IsFloating() => false; // TODO
 
-	public void SetGroundEntity(BaseEntity? ent) { /* todo */ }
+	public void SetGroundEntity(BaseEntity? ent) {
+		if (ent == GroundEntity.Get())
+			return;
+
+		// todo this has more
+
+		GroundEntity.Set(ent);
+
+		if (ent != null)
+			AddFlag(EntityFlags.OnGround);
+		else
+			RemoveFlag(EntityFlags.OnGround);
+	}
 
 	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent);
 	public static BaseEntity? Instance(int ent) => Instance(Util.INDEXENT(ent));
@@ -642,18 +666,46 @@ public partial class BaseEntity : IServerEntity
 	public ref readonly QAngle GetAbsAngles() => ref AbsRotation;
 
 	public void SetLocalOrigin(in Vector3 origin) {
-		// This has a lot more logic thats needed later TODO FIXME
-		Origin = origin;
+		// if (!IsEntityPositionReasonable(origin)) {
+		// 	if (CheckEmitReasonablePhysicsSpew())
+		// 		Warning("Bad SetLocalOrigin(%f,%f,%f) on %s\n", origin.x, origin.y, origin.z, GetDebugName());
+		// 	Assert(false);
+		// 	return;
+		// }
+
+		if (Origin != origin) {
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.PositionChanged);
+			Origin = origin;
+			SetSimulationTime(gpGlobals.CurTime);
+		}
 	}
 
 	public void SetLocalAngles(in QAngle angles) {
-		// This has a lot more logic thats needed later TODO FIXME
-		Rotation = angles;
+		if (!IsEntityQAngleReasonable(angles)) {
+			// 	if (CheckEmitReasonablePhysicsSpew())
+			// 		Warning("Bad SetLocalAngles(%f,%f,%f) on %s\n", angles.x, angles.y, angles.z, GetDebugName());
+			// 	AssertMsg(false, "Bad SetLocalAngles(%f,%f,%f) on %s\n", angles.x, angles.y, angles.z, GetDebugName());
+			// 	return;
+		}
+
+		if (Rotation != angles) {
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnglesChanged);
+			Rotation = angles;
+			SetSimulationTime(gpGlobals.CurTime);
+		}
 	}
 
 	public ref Matrix3x4 EntityToWorldTransform() {
+		// Assert()
+
+		if (IsEFlagSet(EFL.DirtyAbsTransform))
+			CalcAbsolutePosition();
 
 		return ref CoordinateFrame;
+	}
+
+	private void CalcAbsolutePosition() {
+		throw new NotImplementedException();
 	}
 
 	readonly ServerNetworkProperty Network = new();

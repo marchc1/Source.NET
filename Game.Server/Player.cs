@@ -28,7 +28,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		SendPropInt(FIELD<PlayerState>.OF(nameof(PlayerState.DeadFlag)), 1, PropFlags.Unsigned)
 	]); public static readonly ServerClass CC_PlayerState = new("PlayerState", DT_PlayerState);
 	public override bool IsPlayer() => true;
-	public BaseViewModel GetViewModel(int index) => throw new NotImplementedException();
+	public BaseViewModel GetViewModel(int index) => null;//throw new NotImplementedException();
 
 	public static readonly SendTable DT_LocalPlayerExclusive = new([
 		SendPropDataTable(nameof(Local), PlayerLocalData.DT_Local),
@@ -308,11 +308,9 @@ public partial class BasePlayer : BaseCombatCharacter
 	}
 
 	public override void Spawn() {
-		// if (Hints()) Hints().ResetHints();
-
 		SetClassname("player");
 
-		// SharedSpawn();
+		SharedSpawn();
 
 		SetSimulatedEveryTick(true);
 		SetAnimatedEveryTick(true);
@@ -335,7 +333,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		EntityEffects effects = (EntityEffects)Effects & EntityEffects.NoShadow;
 		SetEffects(effects);
 
-		// IncrementInterpolationFrame();
+		IncrementInterpolationFrame();
 
 		// InitFogController();
 
@@ -360,7 +358,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		// if (!GameHUDInitialized)
 		// 	GameRules.SetDefaultPlayerTeam(this);
 
-		GameRules.GetPlayerSpawnSpot(this);
+		GetPlayerSpawnSpot(this);
 
 		Local.Ducked = false;
 		Local.Ducking = false;
@@ -383,6 +381,8 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		base.Spawn();
 	}
+
+	private void IncrementInterpolationFrame() => InterpolationFrame = (byte)((InterpolationFrame + 1) % NOINTERP_PARITY_MAX);
 
 	public TimeUnit_t GetDeathTime() => DeathTime;
 
@@ -467,7 +467,17 @@ public partial class BasePlayer : BaseCombatCharacter
 	}
 
 	void AdjustPlayerTimeBase(int simulationTicks) {
+		Assert(simulationTicks >= 0);
+		if (simulationTicks < 0)
+			return;
+
 		// todo
+
+		if (gpGlobals.MaxClients == 1)
+			TickBase = (int)(gpGlobals.TickCount + simulationTicks + gpGlobals.SimTicksThisFrame);
+		else {
+
+		}
 	}
 
 	bool IsUserCmdDataValid(UserCmd cmd) {
@@ -719,6 +729,103 @@ public partial class BasePlayer : BaseCombatCharacter
 		// todo
 
 		return base.ShouldTransmit(info);
+	}
+
+	const float SMOOTHING_FACTOR = 0.9f;
+	internal void PostThink() {
+		// SmoothedVelocity = SmoothedVelocity * SMOOTHING_FACTOR + GetAbsVelocity() * (1 - SMOOTHING_FACTOR);
+
+		if (!g_fGameOver /*&& !PlayerLocked*/) {
+			if (IsAlive()) {
+				// if ((GetFlags() & EntityFlags.Ducking) != 0)
+				// 	SetCollisionBounds(VEC_DUCK_HULL_MIN, VEC_DUCK_HULL_MAX);
+				// else
+				// 	SetCollisionBounds(VEC_HULL_MIN, VEC_HULL_MAX);
+
+				// if (UseEntity != null) {
+				// 	if (UseEntity.OnControls(this) && (!GetActiveWeapon() || GetActiveWeapon()->IsEffectActive(EF_NODRAW) || (GetActiveWeapon()->GetActivity() == ACT_VM_HOLSTER)))
+				// 		UseEntity.Use(this, this, USE_SET, 2);
+				// 	else
+				// 		ClearUseEntity();
+				// }
+
+				ItemPostFrame();
+
+				if ((GetFlags() & EntityFlags.OnGround) != 0) {
+					// if (Local.FallVelocity > 64 && !g_pGameRules.IsMultiplayer())
+					// SoundEnt.InsertSound(SOUND_PLAYER, GetAbsOrigin(), m_Local.m_flFallVelocity, 0.2, this);
+					Local.FallVelocity = 0;
+				}
+
+
+				if (IsInAVehicle())
+					SetAnimation(PlayerAnim.InVehicle);
+				else if (GetAbsVelocity().X == 0 && GetAbsVelocity().Y == 0)
+					SetAnimation(PlayerAnim.Idle);
+				else if ((GetAbsVelocity().X != 0 || GetAbsVelocity().Y != 0) && (GetFlags() & EntityFlags.OnGround) != 0)
+					SetAnimation(PlayerAnim.Walk);
+				else if (GetWaterLevel() > (WaterLevel)1)
+					SetAnimation(PlayerAnim.Walk);
+			}
+
+			if (GetSequence() == -1)
+				SetSequence(0);
+
+			// StudioFrameAdvance();
+			// DispatchAnimEvents(this);
+			SetSimulationTime(gpGlobals.CurTime);
+			// Weapon_FrameUpdate();
+			// UpdatePlayerSound();
+
+			// if (ForceOrigin) {
+			// 	SetLocalOrigin(ForcedOrigin);
+			// 	SetLocalAngles(Local.PunchAngle);
+			// 	// Local.PunchAngle = RandomAngle(-25, 25);
+			// 	Local.PunchAngleVel.Init();
+			// }
+
+			// PostThinkVPhysics();
+		}
+
+		SimulatePlayerSimulatedEntities();
+	}
+
+	internal void PreThink() {
+		if (g_fGameOver /*|| PlayerLocked*/)
+			return;
+
+		// ItemPreFrame();
+		// WaterMove();
+
+		// if (g_pGameRules && g_pGameRules.FAllowFlashlight())
+		// 	Local.HideHUD &= ~HideHudBits.Flashlight;
+		// else
+		// 	Local.HideHUD |= HideHudBits.Flashlight;
+
+		// UpdateClientData();
+		// CheckTimeBasedDamage();
+		// CheckSuitUpdate();
+
+		// if (GetObserverMode() > Shared.ObserverMode.FreezeCam)
+		// 	CheckObserverSettings();
+
+		// if (GetLifeState() >= LifeState.Dying) {
+		// 	// UpdateLastKnownArea();
+		// 	return;
+		// }
+
+		// HandleFuncTrain();
+
+		// if ((Buttons & InButtons.Jump) != 0)
+		// 	Jump();
+
+		// if ((Buttons & InButtons.Duck) != 0 || (GetFlags() & EntityFlags.Ducking) != 0 /*|| (m_afPhysicsFlags & PFLAG_DUCKING)*/)
+		// 	Duck();
+
+		if ((GetFlags() & EntityFlags.OnGround) == 0)
+			Local.FallVelocity = -GetAbsVelocity().Z;
+
+		// UpdateLastKnownArea();
 	}
 }
 
