@@ -1,4 +1,6 @@
-﻿using Source;
+﻿using Game.Shared;
+
+using Source;
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Mathematics;
@@ -331,6 +333,11 @@ public class InterpolatedVarArrayBase<T>(bool isArray) : IInterpolatedVar
 			QAngle to = (QAngle)(object)newVal;
 			return (T)(object)LerpFunctions.Lerp(1.0f + extrapolationAmount * divisor, in from, in to);
 		}
+		else if (typeof(T) == typeof(AnimationLayer)) {
+			AnimationLayer from = (AnimationLayer)(object)oldVal;
+			AnimationLayer to = (AnimationLayer)(object)newVal;
+			return (T)(object)LerpFunctions.Lerp(1.0f + extrapolationAmount * divisor, in from, in to);
+		}
 		else
 			return newVal;
 	}
@@ -403,6 +410,14 @@ public class InterpolatedVarArrayBase<T>(bool isArray) : IInterpolatedVar
 		else if (typeof(T) == typeof(QAngle)) {
 			QAngle[]? a = (QAngle[]?)(object?)_a;
 			QAngle[]? b = (QAngle[]?)(object?)_b;
+			for (int i = 0; i < a?.Length && i < b?.Length; i++)
+				if (a[i] != b[i])
+					return false;
+			return true;
+		}
+		else if (typeof(T) == typeof(AnimationLayer)) {
+			AnimationLayer[]? a = (AnimationLayer[]?)(object?)_a;
+			AnimationLayer[]? b = (AnimationLayer[]?)(object?)_b;
 			for (int i = 0; i < a?.Length && i < b?.Length; i++)
 				if (a[i] != b[i])
 					return false;

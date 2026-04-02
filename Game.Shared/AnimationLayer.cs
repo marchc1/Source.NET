@@ -1,5 +1,9 @@
 ﻿// Made shared to avoid code duplication which was annoying me in the base animating overlay classes.
 
+#if CLIENT_DLL
+using Game.Client;
+#endif
+
 using Source.Common;
 
 using System;
@@ -14,7 +18,7 @@ namespace Game.Shared;
 
 #if CLIENT_DLL || GAME_DLL
 
-public struct AnimationLayer
+public record struct AnimationLayer
 {
 	public int Sequence;
 	public TimeUnit_t Cycle;
@@ -29,6 +33,61 @@ public struct AnimationLayer
 	public double BlendOut;
 	public bool ClientBlend;
 
+	public void SetOrder(int order) => Order = order;
+	#if CLIENT_DLL
+	public static AnimationLayer LoopingLerp(TimeUnit_t percent, in AnimationLayer from, in AnimationLayer to) {
+		AnimationLayer output = default;
+
+		output.Sequence = to.Sequence;
+		output.Cycle = LerpFunctions.LoopingLerp(percent, (float)from.Cycle, (float)to.Cycle);
+		output.PrevCycle = to.PrevCycle;
+		output.Weight = LerpFunctions.Lerp(percent, from.Weight, to.Weight);
+		output.Order = to.Order;
+
+		output.LayerAnimtime = to.LayerAnimtime;
+		output.LayerFadeOuttime = to.LayerFadeOuttime;
+		return output;
+	}
+	public static AnimationLayer Lerp(TimeUnit_t percent, in AnimationLayer from, in AnimationLayer to) {
+		AnimationLayer output = default;
+
+		output.Sequence = to.Sequence;
+		output.Cycle = LerpFunctions.Lerp(percent, from.Cycle, to.Cycle);
+		output.PrevCycle = to.PrevCycle;
+		output.Weight = LerpFunctions.Lerp(percent, from.Weight, to.Weight);
+		output.Order = to.Order;
+
+		output.LayerAnimtime = to.LayerAnimtime;
+		output.LayerFadeOuttime = to.LayerFadeOuttime;
+		return output;
+	}
+	public static AnimationLayer LoopingLerp_Hermite(TimeUnit_t percent, in AnimationLayer prev, in AnimationLayer from, in AnimationLayer to) {
+		AnimationLayer output = default;
+
+		output.Sequence = to.Sequence;
+		output.Cycle = LerpFunctions.LoopingLerp_Hermite(percent, (float)prev.Cycle, (float)from.Cycle, (float)to.Cycle);
+		output.PrevCycle = to.PrevCycle;
+		output.Weight = LerpFunctions.Lerp(percent, from.Weight, to.Weight);
+		output.Order = to.Order;
+
+		output.LayerAnimtime = to.LayerAnimtime;
+		output.LayerFadeOuttime = to.LayerFadeOuttime;
+		return output;
+	}
+	public static AnimationLayer Lerp_Hermite(TimeUnit_t percent, in AnimationLayer prev, in AnimationLayer from, in AnimationLayer to) {
+		AnimationLayer output = default;
+
+		output.Sequence = to.Sequence;
+		output.Cycle = LerpFunctions.Lerp_Hermite(percent, prev.Cycle, from.Cycle, to.Cycle);
+		output.PrevCycle = to.PrevCycle;
+		output.Weight = LerpFunctions.Lerp(percent, from.Weight, to.Weight);
+		output.Order = to.Order;
+
+		output.LayerAnimtime = to.LayerAnimtime;
+		output.LayerFadeOuttime = to.LayerFadeOuttime;
+		return output;
+	}
+	#endif
 	public double GetFadeout(double curTime) {
 		double s;
 
