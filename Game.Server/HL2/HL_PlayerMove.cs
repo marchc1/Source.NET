@@ -1,6 +1,7 @@
 global using static Game.Server.HL2.HLPlayerMoveSingletons;
 
 using Game.Shared;
+using Game.Shared.HL2;
 
 using Source;
 using Source.Common.Mathematics;
