@@ -111,15 +111,15 @@ public partial class
 public class PlayerAnimState
 {
 	public PlayerAnimState(HL2MP_Player outer) {
-		m_pOuter = outer;
+		Outer = outer;
 
-		m_flGaitYaw = 0.0f;
-		m_flGoalFeetYaw = 0.0f;
-		m_flCurrentFeetYaw = 0.0f;
-		m_flCurrentTorsoYaw = 0.0f;
+		GaitYaw = 0.0f;
+		GoalFeetYaw = 0.0f;
+		CurrentFeetYaw = 0.0f;
+		CurrentTorsoYaw = 0.0f;
 		m_flLastYaw = 0.0f;
-		m_flLastTurnTime = 0.0f;
-		m_flTurnCorrectionTime = 0.0f;
+		LastTurnTime = 0.0f;
+		TurnCorrectionTime = 0.0f;
 	}
 
 	public Activity BodyYawTranslateActivity(Activity activity) {
@@ -127,7 +127,7 @@ public class PlayerAnimState
 			return activity;
 
 		// Not turning
-		switch (m_nTurningInPlace) {
+		switch (TurningInPlace) {
 			default:
 			case TurnMode.None:
 				return activity;
@@ -138,8 +138,8 @@ public class PlayerAnimState
 	}
 
 	public void Update() {
-		m_angRender = GetOuter().GetLocalAngles();
-		m_angRender[PITCH] = m_angRender[ROLL] = 0.0f;
+		AngRender = GetOuter().GetLocalAngles();
+		AngRender[PITCH] = AngRender[ROLL] = 0.0f;
 
 		ComputePoseParam_BodyYaw();
 		ComputePoseParam_BodyPitch(GetOuter().GetModelPtr());
@@ -152,10 +152,10 @@ public class PlayerAnimState
 #endif
 	}
 
-	public ref readonly QAngle GetRenderAngles() => ref m_angRender;
+	public ref readonly QAngle GetRenderAngles() => ref AngRender;
 
 
-	public HL2MP_Player GetOuter() => m_pOuter!;
+	public HL2MP_Player GetOuter() => Outer!;
 
 
 	void GetOuterAbsVelocity(out Vector3 vel) {
@@ -216,7 +216,7 @@ public class PlayerAnimState
 		angles = GetOuter().GetLocalAngles();
 
 		if (est_velocity[1] == 0 && est_velocity[0] == 0) {
-			float flYawDiff = angles[YAW] - m_flGaitYaw;
+			float flYawDiff = angles[YAW] - GaitYaw;
 			flYawDiff = flYawDiff - (int)(flYawDiff / 360) * 360;
 			if (flYawDiff > 180)
 				flYawDiff -= 360;
@@ -228,16 +228,16 @@ public class PlayerAnimState
 			else
 				flYawDiff *= dt;
 
-			m_flGaitYaw += flYawDiff;
-			m_flGaitYaw = m_flGaitYaw - (int)(m_flGaitYaw / 360) * 360;
+			GaitYaw += flYawDiff;
+			GaitYaw = GaitYaw - (int)(GaitYaw / 360) * 360;
 		}
 		else {
-			m_flGaitYaw = (MathF.Atan2(est_velocity[1], est_velocity[0]) * 180 / MathF.PI);
+			GaitYaw = (MathF.Atan2(est_velocity[1], est_velocity[0]) * 180 / MathF.PI);
 
-			if (m_flGaitYaw > 180)
-				m_flGaitYaw = 180;
-			else if (m_flGaitYaw < -180)
-				m_flGaitYaw = -180;
+			if (GaitYaw > 180)
+				GaitYaw = 180;
+			else if (GaitYaw < -180)
+				GaitYaw = -180;
 		}
 	}
 	void ComputePoseParam_BodyYaw() {
@@ -258,7 +258,7 @@ public class PlayerAnimState
 			ang += 360.0f;
 
 		// calc side to side turning
-		flYaw = ang - m_flGaitYaw;
+		flYaw = ang - GaitYaw;
 		// Invert for mapping into 8way blend
 		flYaw = -flYaw;
 		flYaw = flYaw - (int)(flYaw / 360) * 360;
@@ -284,8 +284,8 @@ public class PlayerAnimState
 
 		QAngle absangles = GetOuter().GetAbsAngles();
 		absangles.X = 0.0f;
-		m_angRender = absangles;
-		m_angRender[PITCH] = m_angRender[ROLL] = 0.0f;
+		AngRender = absangles;
+		AngRender[PITCH] = AngRender[ROLL] = 0.0f;
 
 		// See if we have a blender for pitch
 		GetOuter().SetPoseParameter(studioHdr, "aim_pitch", flPitch);
@@ -293,8 +293,8 @@ public class PlayerAnimState
 	void ComputePoseParam_BodyLookYaw() {
 		QAngle absangles = GetOuter().GetAbsAngles();
 		absangles.Y = MathLib.AngleNormalize(absangles.Y);
-		m_angRender = absangles;
-		m_angRender[PITCH] = m_angRender[ROLL] = 0.0f;
+		AngRender = absangles;
+		AngRender[PITCH] = AngRender[ROLL] = 0.0f;
 
 		// See if we even have a blender for pitch
 		int upper_body_yaw = GetOuter().LookupPoseParameter("aim_yaw");
@@ -312,32 +312,32 @@ public class PlayerAnimState
 
 		if (!isMoving) {
 			// Just stopped moving, try and clamp feet
-			if (m_flLastTurnTime <= 0.0f) {
-				m_flLastTurnTime = gpGlobals.CurTime;
+			if (LastTurnTime <= 0.0f) {
+				LastTurnTime = gpGlobals.CurTime;
 				m_flLastYaw = GetOuter().GetAnimEyeAngles().Y;
 				// Snap feet to be perfectly aligned with torso/eyes
-				m_flGoalFeetYaw = GetOuter().GetAnimEyeAngles().Y;
-				m_flCurrentFeetYaw = m_flGoalFeetYaw;
-				m_nTurningInPlace = TurnMode.None;
+				GoalFeetYaw = GetOuter().GetAnimEyeAngles().Y;
+				CurrentFeetYaw = GoalFeetYaw;
+				TurningInPlace = TurnMode.None;
 			}
 
 			// If rotating in place, update stasis timer
 			if (m_flLastYaw != GetOuter().GetAnimEyeAngles().Y) {
-				m_flLastTurnTime = gpGlobals.CurTime;
+				LastTurnTime = gpGlobals.CurTime;
 				m_flLastYaw = GetOuter().GetAnimEyeAngles().Y;
 			}
 
-			if (m_flGoalFeetYaw != m_flCurrentFeetYaw) 
-				m_flLastTurnTime = gpGlobals.CurTime;
+			if (GoalFeetYaw != CurrentFeetYaw) 
+				LastTurnTime = gpGlobals.CurTime;
 			
 
-			turning = ConvergeAngles(m_flGoalFeetYaw, turnrate, (float)gpGlobals.FrameTime, ref m_flCurrentFeetYaw);
+			turning = ConvergeAngles(GoalFeetYaw, turnrate, (float)gpGlobals.FrameTime, ref CurrentFeetYaw);
 
 			QAngle eyeAngles = GetOuter().GetAnimEyeAngles();
 			QAngle vAngle = GetOuter().GetLocalAngles();
 
 			// See how far off current feetyaw is from true yaw
-			float yawdelta = GetOuter().GetAnimEyeAngles().Y - m_flCurrentFeetYaw;
+			float yawdelta = GetOuter().GetAnimEyeAngles().Y - CurrentFeetYaw;
 			yawdelta = MathLib.AngleNormalize(yawdelta);
 
 			bool rotated_too_far = false;
@@ -352,41 +352,41 @@ public class PlayerAnimState
 			// Or rotated too far
 			// FIXME:  Play an in place turning animation
 			if (rotated_too_far ||
-				(gpGlobals.CurTime> m_flLastTurnTime + mp_facefronttime.GetFloat())) {
-				m_flGoalFeetYaw = GetOuter().GetAnimEyeAngles().Y;
-				m_flLastTurnTime = gpGlobals.CurTime;
+				(gpGlobals.CurTime> LastTurnTime + mp_facefronttime.GetFloat())) {
+				GoalFeetYaw = GetOuter().GetAnimEyeAngles().Y;
+				LastTurnTime = gpGlobals.CurTime;
 
 			}
 
 			// Snap upper body into position since the delta is already smoothed for the feet
 			flGoalTorsoYaw = yawdelta;
-			m_flCurrentTorsoYaw = flGoalTorsoYaw;
+			CurrentTorsoYaw = flGoalTorsoYaw;
 		}
 		else {
-			m_flLastTurnTime = 0.0f;
-			m_nTurningInPlace = TurnMode.None;
-			m_flCurrentFeetYaw = m_flGoalFeetYaw = GetOuter().GetAnimEyeAngles().Y;
+			LastTurnTime = 0.0f;
+			TurningInPlace = TurnMode.None;
+			CurrentFeetYaw = GoalFeetYaw = GetOuter().GetAnimEyeAngles().Y;
 			flGoalTorsoYaw = 0.0f;
-			m_flCurrentTorsoYaw = GetOuter().GetAnimEyeAngles().Y - m_flCurrentFeetYaw;
+			CurrentTorsoYaw = GetOuter().GetAnimEyeAngles().Y - CurrentFeetYaw;
 		}
 
 
 		if (turning == TurnMode.None) 
-			m_nTurningInPlace = turning;
+			TurningInPlace = turning;
 		
 
-		if (m_nTurningInPlace != TurnMode.None) 
+		if (TurningInPlace != TurnMode.None) 
 			// If we're close to finishing the turn, then turn off the turning animation
-			if (MathF.Abs(m_flCurrentFeetYaw - m_flGoalFeetYaw) < MIN_TURN_ANGLE_REQUIRING_TURN_ANIMATION) 
-				m_nTurningInPlace = TurnMode.None;
+			if (MathF.Abs(CurrentFeetYaw - GoalFeetYaw) < MIN_TURN_ANGLE_REQUIRING_TURN_ANIMATION) 
+				TurningInPlace = TurnMode.None;
 
 		// Rotate entire body into position
 		absangles = GetOuter().GetAbsAngles();
-		absangles.Y = m_flCurrentFeetYaw;
-		m_angRender = absangles;
-		m_angRender[PITCH] = m_angRender[ROLL] = 0.0f;
+		absangles.Y = CurrentFeetYaw;
+		AngRender = absangles;
+		AngRender[PITCH] = AngRender[ROLL] = 0.0f;
 
-		GetOuter().SetPoseParameter(upper_body_yaw, Math.Clamp(m_flCurrentTorsoYaw, -60.0f, 60.0f));
+		GetOuter().SetPoseParameter(upper_body_yaw, Math.Clamp(CurrentTorsoYaw, -60.0f, 60.0f));
 	}
 
 	void ComputePlaybackRate() {
@@ -405,30 +405,30 @@ public class PlayerAnimState
 			GetOuter().SetPlaybackRate(1.0f);
 	}
 
-	HL2MP_Player? m_pOuter;
+	HL2MP_Player? Outer;
 
-	float m_flGaitYaw;
-	float m_flStoredCycle;
+	float GaitYaw;
+	float StoredCycle;
 
 	// The following variables are used for tweaking the yaw of the upper body when standing still and
 	//  making sure that it smoothly blends in and out once the player starts moving
 	// Direction feet were facing when we stopped moving
-	float m_flGoalFeetYaw;
-	float m_flCurrentFeetYaw;
+	float GoalFeetYaw;
+	float CurrentFeetYaw;
 
-	float m_flCurrentTorsoYaw;
+	float CurrentTorsoYaw;
 
 	// To check if they are rotating in place
 	float m_flLastYaw;
 	// Time when we stopped moving
-	TimeUnit_t m_flLastTurnTime;
+	TimeUnit_t LastTurnTime;
 
 	// One of the above enums
-	TurnMode m_nTurningInPlace;
+	TurnMode TurningInPlace;
 
-	QAngle m_angRender;
+	QAngle AngRender;
 
-	float m_flTurnCorrectionTime;
+	float TurnCorrectionTime;
 }
 
 #endif
