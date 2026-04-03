@@ -240,7 +240,7 @@ public partial class BaseEntity : IServerEntity
 			return null;
 
 		int id_player_index = entity.PredictableId.GetPlayer();
-		// recipients.SetOnly(id_player_index);
+		recipients.SetOnly(id_player_index);
 
 		return data;
 	}

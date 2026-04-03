@@ -106,7 +106,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	}
 
 	public static object? SendProxy_SendLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		// recipients.SetOnly(objectID - 1);
+		recipients.SetOnly(objectID - 1);
 		return data;
 	}
 	public static object? SendProxy_SendNonLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {

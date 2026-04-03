@@ -8,7 +8,7 @@ public class SendProxyRecipients
 
 	public BitArray Bits;
 
-	public SendProxyRecipients(int maxPlayers) => Bits = new(maxPlayers);
+	public SendProxyRecipients() => Bits = new(Constants.ABSOLUTE_PLAYER_LIMIT);
 	public void SetAllRecipients() => Bits.SetAll(true);
 	public void ClearAllRecipients() => Bits.SetAll(false);
 	public void SetRecipient(int clientIndex) => Bits.Set(clientIndex, true);
