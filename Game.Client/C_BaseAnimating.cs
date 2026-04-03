@@ -117,6 +117,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		return vecReturn.Length();
 	}
+	public TimeUnit_t GetSequenceGroundSpeed(int sequence) => GetSequenceGroundSpeed(GetModelPtr(), sequence);
 	public TimeUnit_t GetSequenceGroundSpeed(StudioHdr? studioHdr, int sequence) {
 		TimeUnit_t t = SequenceDuration(studioHdr, sequence);
 		if (t > 0)
@@ -1193,6 +1194,24 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		return (C_BaseAnimating?)follow;
 	}
 
+	public Activity LookupActivity(ReadOnlySpan<char> label) {
+		return Animation.LookupActivity(GetModelPtr(), label);
+	}
+
+	public int LookupSequence(ReadOnlySpan<char> label) {
+		return Animation.LookupSequence(GetModelPtr(), label);
+	}
+
+	public Activity GetSequenceActivity(int sequence) {
+		if (sequence == -1) {
+			return Activity.ACT_INVALID;
+		}
+
+		if (null == GetModelPtr())
+			return Activity.ACT_INVALID;
+
+		return (Activity)Animation.GetSequenceActivity(GetModelPtr()!, sequence, out _);
+	}
 	public bool GetPoseParameterRange(ReadOnlySpan<char> name, out float minValue, out float maxValue) => GetPoseParameterRange(LookupPoseParameter(name), out minValue, out maxValue);
 	public bool GetPoseParameterRange(int parameter, out float minValue, out float maxValue) {
 		StudioHdr? pStudioHdr = GetModelPtr();

@@ -18,8 +18,23 @@ namespace Game.Shared;
 
 #if CLIENT_DLL || GAME_DLL
 
+[Flags]
+public enum AnimLayerFlags : int
+{
+	Active = 0x0001,
+	AutoKill = 0x0002,
+	KillMe = 0x0004,
+	DontRestore = 0x0008,
+	CheckAccess = 0x0010,
+	Dying = 0x0020,
+}
+
 public record struct AnimationLayer
 {
+	public AnimLayerFlags Flags;
+	public bool SequenceFinished;
+	public bool Looping;
+
 	public int Sequence;
 	public TimeUnit_t Cycle;
 	public float PrevCycle;
@@ -33,8 +48,16 @@ public record struct AnimationLayer
 	public double BlendOut;
 	public bool ClientBlend;
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsActive() => ((Flags & AnimLayerFlags.Active) != 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsAutokill() => ((Flags & AnimLayerFlags.AutoKill) != 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsKillMe() => ((Flags & AnimLayerFlags.KillMe) != 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsAutoramp() => (BlendIn != 0.0f || BlendOut != 0.0f);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void KillMe() => Flags |= AnimLayerFlags.KillMe;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void Dying() => Flags |= AnimLayerFlags.Dying;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsDying() => ((Flags & AnimLayerFlags.Dying) != 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void Dead() => Flags &= ~AnimLayerFlags.Dying;
 	public void SetOrder(int order) => Order = order;
-	#if CLIENT_DLL
+#if CLIENT_DLL
 	public static AnimationLayer LoopingLerp(TimeUnit_t percent, in AnimationLayer from, in AnimationLayer to) {
 		AnimationLayer output = default;
 
@@ -87,7 +110,7 @@ public record struct AnimationLayer
 		output.LayerFadeOuttime = to.LayerFadeOuttime;
 		return output;
 	}
-	#endif
+#endif
 	public double GetFadeout(double curTime) {
 		double s;
 
@@ -130,13 +153,13 @@ public record struct AnimationLayer
 		Weight = 1;
 
 		// blend in?
-		if (BlendIn != 0.0f) 
-			if (Cycle < BlendIn) 
+		if (BlendIn != 0.0f)
+			if (Cycle < BlendIn)
 				Weight = (float)(Cycle / BlendIn);
 
 		// blend out?
-		if (BlendOut != 0.0f) 
-			if (Cycle > 1.0f - BlendOut) 
+		if (BlendOut != 0.0f)
+			if (Cycle > 1.0f - BlendOut)
 				Weight = (float)((1.0f - (float)(Cycle)) / BlendOut);
 
 		Weight = 3.0f * (float)(Weight) * (float)(Weight) * (3.0f - 2.0f * (float)(Weight));
@@ -153,6 +176,9 @@ public class AnimationLayerRef
 	public AnimationLayer Struct;
 	public static DynamicAccessor Accessor = Source.FIELD<AnimationLayerRef>.OF(nameof(Struct));
 
+	public ref AnimLayerFlags Flags { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.Flags; }
+	public ref bool SequenceFinished { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.SequenceFinished; }
+	public ref bool Looping { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.Looping; }
 	public ref int Sequence { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.Sequence; }
 	public ref TimeUnit_t Cycle { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.Cycle; }
 	public ref float PrevCycle { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.PrevCycle; }
@@ -165,11 +191,19 @@ public class AnimationLayerRef
 	public ref double BlendOut { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.BlendOut; }
 	public ref bool ClientBlend { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref Struct.ClientBlend; }
 
-
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsActive() => Struct.IsActive();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsAutokill() => Struct.IsAutokill();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsKillMe() => Struct.IsKillMe();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsAutoramp() => Struct.IsAutoramp();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void KillMe() => Struct.KillMe();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void Dying() => Struct.Dying();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsDying() => Struct.IsDying();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void Dead() => Struct.Dead();
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public double GetFadeout(double curtime) => Struct.GetFadeout(curtime);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void Reset() => Struct.Reset();
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void BlendWeight() => Struct.BlendWeight();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetOrder(int order) => Struct.SetOrder(order);
 
 	public const int ORDER_BITS = 4;
 	public const int WEIGHT_BITS = 8;

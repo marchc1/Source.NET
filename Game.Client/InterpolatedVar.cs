@@ -20,14 +20,33 @@ public enum LatchFlags
 	InteroplateOmitUpdateLastNetworked = 1 << 5,
 }
 
-public class InterpolationContext
+public ref struct InterpolationContext : IDisposable
 {
-	static bool AllowExtrapolation;
-	static TimeUnit_t LastTimeStamp;
-	internal static void EnableExtrapolation(bool value) => AllowExtrapolation = value;
-	internal static bool IsExtrapolationAllowed() => AllowExtrapolation;
-	internal static void SetLastTimeStamp(TimeUnit_t value) => LastTimeStamp = value;
-	internal static TimeUnit_t GetLastTimeStamp() => LastTimeStamp;
+	private static int contexts;
+	private static bool s_bAllowExtrapolation;
+	private static TimeUnit_t s_flLastTimeStamp;
+
+	private bool m_bOldAllowExtrapolation;
+	private TimeUnit_t m_flOldLastTimeStamp;
+
+	public InterpolationContext() {
+		m_bOldAllowExtrapolation = s_bAllowExtrapolation;
+		m_flOldLastTimeStamp = s_flLastTimeStamp;
+		s_bAllowExtrapolation = false;
+		Interlocked.Increment(ref contexts);
+	}
+
+	public void Dispose() {
+		s_bAllowExtrapolation = m_bOldAllowExtrapolation;
+		s_flLastTimeStamp = m_flOldLastTimeStamp;
+		Interlocked.Decrement(ref contexts);
+	}
+
+	public static void EnableExtrapolation(bool state) => s_bAllowExtrapolation = state;
+	public static bool IsThereAContext() => contexts != 0;
+	public static bool IsExtrapolationAllowed() => s_bAllowExtrapolation;
+	public static void SetLastTimeStamp(TimeUnit_t timestamp) => s_flLastTimeStamp = timestamp;
+	public static TimeUnit_t GetLastTimeStamp() => s_flLastTimeStamp;
 }
 
 public interface IInterpolatedVar
@@ -260,6 +279,115 @@ public class InterpolatedVarArrayBase<T>(bool isArray) : IInterpolatedVar
 		public int Older;
 		public int Newer;
 		public double Fraction;
+	}
+
+	public void _Derivative_Hermite_SmoothVelocity(Span<T> outValue, TimeUnit_t frac, ref InterpolatedVarEntryBase<T> b, ref InterpolatedVarEntryBase<T> c, ref InterpolatedVarEntryBase<T> d) {
+		InterpolatedVarEntryBase<T> fixup = default;
+		fixup.Init(MaxCount);
+		TimeFixup_Hermite(ref fixup, ref b, ref c, ref d);
+		for (int i = 0; i < MaxCount; i++) {
+			T prevVel, curVel;
+			if (typeof(T) == typeof(float)) {
+				prevVel = (T)(object)(((float)(object)c.GetValue()![i]! - (float)(object)b.GetValue()![i]!) / (float)(c.ChangeTime - b.ChangeTime));
+				curVel = (T)(object)(((float)(object)d.GetValue()![i]! - (float)(object)c.GetValue()![i]!) / (float)(d.ChangeTime - c.ChangeTime));
+			}
+			else if (typeof(T) == typeof(double)) {
+				prevVel = (T)(object)(((double)(object)c.GetValue()![i]! - (double)(object)b.GetValue()![i]!) / (c.ChangeTime - b.ChangeTime));
+				curVel = (T)(object)(((double)(object)d.GetValue()![i]! - (double)(object)c.GetValue()![i]!) / (d.ChangeTime - c.ChangeTime));
+			}
+			else if (typeof(T) == typeof(Vector3)) {
+				prevVel = (T)(object)(((Vector3)(object)c.GetValue()![i]! - (Vector3)(object)b.GetValue()![i]!) / (float)(c.ChangeTime - b.ChangeTime));
+				curVel = (T)(object)(((Vector3)(object)d.GetValue()![i]! - (Vector3)(object)c.GetValue()![i]!) / (float)(d.ChangeTime - c.ChangeTime));
+			}
+			else if (typeof(T) == typeof(QAngle)) {
+				prevVel = (T)(object)(((QAngle)(object)c.GetValue()![i]! - (QAngle)(object)b.GetValue()![i]!) / (float)(c.ChangeTime - b.ChangeTime));
+				curVel = (T)(object)(((QAngle)(object)d.GetValue()![i]! - (QAngle)(object)c.GetValue()![i]!) / (float)(d.ChangeTime - c.ChangeTime));
+			}
+			else
+				throw new NotSupportedException();
+
+			outValue[i] = LerpFunctions.Lerp(frac, prevVel, curVel);
+		}
+	}
+
+	public void _Derivative_Linear(Span<T> outValue, ref InterpolatedVarEntryBase<T> start, ref InterpolatedVarEntryBase<T> end) {
+		if (Unsafe.AreSame(ref start, ref end) || Math.Abs(start.ChangeTime - end.ChangeTime) < 0.0001) {
+			for (int i = 0; i < MaxCount; i++) {
+				if (typeof(T) == typeof(float)) outValue[i] = (T)(object)((float)(object)start.GetValue()![i]! * 0);
+				else if (typeof(T) == typeof(double)) outValue[i] = (T)(object)((double)(object)start.GetValue()![i]! * 0);
+				else if (typeof(T) == typeof(Vector3)) outValue[i] = (T)(object)((Vector3)(object)start.GetValue()![i]! * 0);
+				else if (typeof(T) == typeof(QAngle)) outValue[i] = (T)(object)((QAngle)(object)start.GetValue()![i]! * 0);
+			}
+		}
+		else {
+			double divisor = 1.0 / (end.ChangeTime - start.ChangeTime);
+			for (int i = 0; i < MaxCount; i++) {
+				if (typeof(T) == typeof(float)) outValue[i] = (T)(object)(((float)(object)(end.GetValue()![i]!) - (float)(object)(start.GetValue()![i]!)) * divisor);
+				else if (typeof(T) == typeof(double)) outValue[i] = (T)(object)(((double)(object)(end.GetValue()![i]!) - (double)(object)(start.GetValue()![i]!)) * (float)divisor);
+				else if (typeof(T) == typeof(Vector3)) outValue[i] = (T)(object)(((Vector3)(object)(end.GetValue()![i]!) - (Vector3)(object)(start.GetValue()![i]!)) * (float)divisor);
+				else if (typeof(T) == typeof(QAngle)) outValue[i] = (T)(object)(((QAngle)(object)(end.GetValue()![i]!) - (QAngle)(object)(start.GetValue()![i]!)) * (float)divisor);
+			}
+		}
+	}
+
+	public void GetDerivative_SmoothVelocity(Span<T> outValue, TimeUnit_t currentTime) {
+		if (!GetInterpolationInfo(out InterpolationInfo info, currentTime, InterpolationAmount, out _)) {
+			return;
+		}
+
+		var history = VarHistory;
+		bool bExtrapolate = false;
+		int realOlder = 0;
+
+		if (info.Hermite) {
+			_Derivative_Hermite_SmoothVelocity(outValue, info.Fraction, ref history[info.Oldest], ref history[info.Older], ref history[info.Newer]);
+			return;
+		}
+
+		else if (info.Newer == info.Older && InterpolationContext.IsExtrapolationAllowed()) {
+			// This means the server clock got way behind the client clock. Extrapolate the value here based on its
+			// previous velocity (out to a certain amount).
+			realOlder = info.Newer + 1;
+			if (IsValidIndex(realOlder) && history[realOlder].ChangeTime != 0.0) {
+				// At this point, we know we're out of data and we have the ability to get a velocity to extrapolate with.
+				//
+				// However, we only want to extraploate if the server is choking. We don't want to extrapolate if 
+				// the object legimately stopped moving and the server stopped sending updates for it.
+				//
+				// The way we know that the server is choking is if we haven't heard ANYTHING from it for a while.
+				// The server's update interval should be at least as often as our interpolation amount (otherwise,
+				// we wouldn't have the ability to interpolate).
+				//
+				// So right here, if we see that we haven't gotten any server updates for a whole interpolation 
+				// interval, then we know the server is choking.
+				//
+				// The End
+				if (InterpolationAmount > 0.000001f && InterpolationContext.GetLastTimeStamp() <= (currentTime - InterpolationAmount))
+					bExtrapolate = true;
+			}
+		}
+
+		if (bExtrapolate) {
+			// Get the velocity from the last segment.
+			_Derivative_Linear(outValue, ref history[realOlder], ref history[info.Newer]);
+
+			// Now ramp it to zero after cl_extrapolate_amount..
+			TimeUnit_t flDestTime = currentTime - InterpolationAmount;
+			TimeUnit_t diff = flDestTime - history[info.Newer].ChangeTime;
+			diff = Math.Clamp(diff, 0f, Interpolation.cl_extrapolate_amount.GetFloat() * 2);
+			if (diff > Interpolation.cl_extrapolate_amount.GetFloat()) {
+				TimeUnit_t scale = 1 - (diff - Interpolation.cl_extrapolate_amount.GetFloat()) / Interpolation.cl_extrapolate_amount.GetFloat();
+				for (int i = 0; i < MaxCount; i++) {
+					if (typeof(T) == typeof(float)) outValue[i] = (T)(object)(((float)(object)outValue[i]!) * (float)scale);
+					else if (typeof(T) == typeof(double)) outValue[i] = (T)(object)(((double)(object)outValue[i]!) * scale);
+					else if (typeof(T) == typeof(Vector3)) outValue[i] = (T)(object)(((Vector3)(object)outValue[i]!) * (float)scale);
+					else if (typeof(T) == typeof(QAngle)) outValue[i] = (T)(object)(((QAngle)(object)outValue[i]!) * (float)scale);
+				}
+			}
+		}
+		else {
+			_Derivative_Linear(outValue, ref history[info.Older], ref history[info.Newer]);
+		}
 	}
 	public int Interpolate(TimeUnit_t currentTime) => Interpolate(currentTime, InterpolationAmount);
 	public int Interpolate(TimeUnit_t currentTime, TimeUnit_t interpolationAmount) {

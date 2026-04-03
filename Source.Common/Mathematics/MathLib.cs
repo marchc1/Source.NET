@@ -435,6 +435,10 @@ public static class MathLib
 		return f1 + (f2 - f1) * (x - i1) / (i2 - i1);
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static double Fmod(double x, double y) {
+		return x - y * Math.Truncate(x / y);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float Fmodf(float x, float y) {
 		return x - y * (float)MathF.Truncate(x / y);
 	}
@@ -1681,7 +1685,7 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static fltx4 SplatXSIMD(fltx4 a) {
 		var v = a[(int)AXIS_X];
-		return Vector128.Create(v,v,v,v);
+		return Vector128.Create(v, v, v, v);
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static fltx4 SplatYSIMD(fltx4 a) {
@@ -1726,6 +1730,67 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsAllGreaterThan(fltx4 a, fltx4 b) => Vector128.GreaterThanAll(a, b);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsAllGreaterThanOrEq(fltx4 a, fltx4 b) => Vector128.GreaterThanOrEqualAll(a, b);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsAllEqual(fltx4 a, fltx4 b) => Vector128.EqualsAll(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float AngleNormalize(float angle) {
+		angle = Fmodf(angle, 360.0f);
+		if (angle > 180)
+			angle -= 360;
+		if (angle < -180)
+			angle += 360;
+
+		return angle;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float anglemod(float a) => (360f / 65536) * ((int)(a * (65536f / 360.0f)) & 65535);
+
+	public static float ApproachAngle(float target, float value, float speed) {
+		target = anglemod(target);
+		value = anglemod(value);
+
+		float delta = target - value;
+
+		// Speed is assumed to be positive
+		if (speed < 0)
+			speed = -speed;
+
+		if (delta < -180)
+			delta += 360;
+		else if (delta > 180)
+			delta -= 360;
+
+		if (delta > speed)
+			value += speed;
+		else if (delta < -speed)
+			value -= speed;
+		else
+			value = target;
+
+		return value;
+	}
+
+	public static void VectorAngles(in Vector3 forward, out QAngle angles) {
+		float tmp, yaw, pitch;
+
+		if (forward[1] == 0 && forward[0] == 0) {
+			yaw = 0;
+			if (forward[2] > 0)
+				pitch = 270;
+			else
+				pitch = 90;
+		}
+		else {
+			yaw = (MathF.Atan2(forward[1], forward[0]) * 180 / MathF.PI);
+			if (yaw < 0)
+				yaw += 360;
+
+			tmp = MathF.Sqrt(forward[0] * forward[0] + forward[1] * forward[1]);
+			pitch = (MathF.Atan2(-forward[2], tmp) * 180 / MathF.PI);
+			if (pitch < 0)
+				pitch += 360;
+		}
+
+		angles = new(pitch, yaw, 0);
+	}
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 16, Size = sizeof(float) * 4 * 3)]

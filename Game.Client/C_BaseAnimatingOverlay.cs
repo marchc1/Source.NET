@@ -10,8 +10,6 @@ using FIELD = Source.FIELD<Game.Client.C_BaseAnimatingOverlay>;
 namespace Game.Client;
 
 public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
-	public const int MAX_OVERLAYS = 15;
-
 	public static readonly RecvTable DT_OverlayVars = new([
 		RecvPropList<AnimationLayerRef>(FIELD.OF_LIST(nameof(AnimOverlay), MAX_OVERLAYS), ResizeAnimationLayerCallback, RecvPropDataTable(null!, AnimationLayerRef.DT_AnimationLayer))
 	]);
@@ -210,5 +208,17 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
 			AnimOverlay[i].Order = MAX_OVERLAYS;
 		}
 		return hdr;
+	}
+
+	public void EstimateAbsVelocity(out Vector3 vel) {
+		if (this == C_BasePlayer.GetLocalPlayer()) {
+			// This is interpolated and networked
+			vel = GetAbsVelocity();
+			return;
+		}
+		vel = default;
+		using InterpolationContext context = new();
+		InterpolationContext.EnableExtrapolation(true);
+		IV_Origin.GetDerivative_SmoothVelocity(new Span<Vector3>(ref vel), gpGlobals.CurTime);
 	}
 }

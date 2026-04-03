@@ -47,6 +47,7 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	public static readonly new ClientClass ClientClass = new ClientClass("HL2MP_Player", null, null, DT_HL2MP_Player)
 															.WithManualClassID(StaticClassIndices.CHL2MP_Player);
 
+	public readonly PlayerAnimState PlayerAnimState;
 	public QAngle AngEyeAngles;
 	readonly InterpolatedVar<QAngle> IV_AngEyeAngles = new(nameof(AngEyeAngles));
 	public EHANDLE Ragdoll = new();
@@ -56,6 +57,7 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	public bool IsWalking;
 
 	public C_HL2MP_Player() : base() {
+		PlayerAnimState = new(this);
 		AddVar(this, FIELD.OF(nameof(AngEyeAngles)), IV_AngEyeAngles, LatchFlags.LatchSimulationVar);
 	}
 

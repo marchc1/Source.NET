@@ -18,4 +18,16 @@ public class BaseAnimatingOverlay : BaseAnimating
 	]); public static readonly new ServerClass ServerClass = new ServerClass("BaseAnimatingOverlay", DT_BaseAnimatingOverlay).WithManualClassID(StaticClassIndices.CBaseAnimatingOverlay);
 
 	readonly List<AnimationLayerRef> AnimOverlay = [];
+
+	public AnimationLayerRef GetAnimOverlay(int i) => AnimOverlay[i];
+
+	public int GetNumAnimOverlays() => AnimOverlay.Count;
+	public void SetNumAnimOverlays(int num) {
+		if (AnimOverlay.Count < num)
+			for (int i = 0, diff = num - AnimOverlay.Count; i < diff; i++)
+				AnimOverlay.Add(new());
+		else if (AnimOverlay.Count > num)
+			for (int i = 0, diff = AnimOverlay.Count - num; i < diff; i++)
+				AnimOverlay.RemoveAt(AnimOverlay.Count - 1);
+	}
 }
