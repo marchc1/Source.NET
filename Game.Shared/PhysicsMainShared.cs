@@ -141,6 +141,18 @@ namespace Game.Server
 		public void UpdateWaterState() {
 			// todo
 		}
+
+		public void PhysicsCheckVelocity() {
+			throw new NotImplementedException();
+		}
+
+		private bool PhysicsCheckWater() {
+			throw new NotImplementedException();
+		}
+
+		public void SimulateAngles(TimeUnit_t frameTime) {
+			throw new NotImplementedException();
+		}
 	}
 }
 

@@ -640,7 +640,8 @@ public struct InlineArrayNewMaxControlPoints<T> where T : new()
 	public InlineArrayNewMaxControlPoints() { for (int i = 0; i < kMAXCONTROLPOINTS; i++) this[i] = new(); }
 }
 
-public enum DataObjectType {
+public enum DataObjectType
+{
 	GroundLink,
 	TouchLink,
 	StepSimulation,
@@ -664,4 +665,25 @@ public static class TraceFieldProps
 
 #endif
 	}
+}
+
+public struct StepSimulationStep
+{
+	public long TickCount;
+	public Vector3 Origin;
+	public Quaternion Rotation;
+}
+
+public struct StepSimulationData
+{
+	public bool OriginActive;
+	public bool AnglesActive;
+	public StepSimulationStep Previous2;
+	public StepSimulationStep Previous;
+	public StepSimulationStep Discontinuity;
+	public StepSimulationStep Next;
+	public QAngle NextRotation;
+	public int LastProcessTickCount;
+	public Vector3 NetworkOrigin;
+	public QAngle NetworkAngles;
 }

@@ -324,7 +324,7 @@ public struct Extent
 	}
 
 	public void Init(BaseEntity entity) {
-		// entity.CollisionProp().WorldSpaceSurroundingBounds(out Lo, out Hi);
+		entity.CollisionProp().WorldSpaceSurroundingBounds(out Lo, out Hi);
 	}
 
 	public float SizeX() => Hi.X - Lo.X;
