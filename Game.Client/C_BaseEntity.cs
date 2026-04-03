@@ -591,8 +591,8 @@ public partial class C_BaseEntity : IClientEntity
 	public float Gravity;
 
 	public C_BaseEntity() {
-		AddVar(DA_Origin, IV_Origin, LatchFlags.LatchSimulationVar);
-		AddVar(DA_Rotation, IV_Rotation, LatchFlags.LatchSimulationVar);
+		AddVar(this, DA_Origin, IV_Origin, LatchFlags.LatchSimulationVar);
+		AddVar(this, DA_Rotation, IV_Rotation, LatchFlags.LatchSimulationVar);
 
 		DataChangeEventRef.Struct = unchecked((ulong)-1);
 		EntClientFlags = 0;
@@ -2088,12 +2088,12 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 
-	public void AddVar(DynamicAccessor accessor, IInterpolatedVar watcher, LatchFlags type, bool setup = false) {
+	public void AddVar(object instance, DynamicAccessor accessor, IInterpolatedVar watcher, LatchFlags type, bool setup = false) {
 		bool addIt = true;
 		for (int i = 0; i < VarMap.Entries.Count; i++) {
 			if (VarMap.Entries[i].Watcher == watcher) {
 				if ((type & LatchFlags.ExcludeAutoInterpolate) != (watcher.GetVarType() & LatchFlags.ExcludeAutoInterpolate))
-					RemoveVar(VarMap.Entries[i].Accessor, true);
+					RemoveVar(instance, VarMap.Entries[i].Accessor, true);
 				else
 					addIt = false;
 
@@ -2104,6 +2104,7 @@ public partial class C_BaseEntity : IClientEntity
 		if (addIt) {
 			VarMapEntry map = new() {
 				Accessor = accessor,
+				Instance = instance,
 				Watcher = watcher,
 				Type = type,
 				NeedsToInterpolate = true
@@ -2122,9 +2123,9 @@ public partial class C_BaseEntity : IClientEntity
 			watcher.SetInterpolationAmount(GetInterpolationAmount(watcher.GetVarType()));
 		}
 	}
-	public void RemoveVar(DynamicAccessor accessor, bool assert = true) {
+	public void RemoveVar(object instance, DynamicAccessor accessor, bool assert = true) {
 		for (int i = 0; i < VarMap.Entries.Count; i++) {
-			if (VarMap.Entries[i].Accessor == accessor) {
+			if (VarMap.Entries[i].Instance == instance && VarMap.Entries[i].Accessor == accessor) {
 				if ((VarMap.Entries[i].Type & LatchFlags.ExcludeAutoInterpolate) == 0)
 					--VarMap.InterpolatedEntries;
 
@@ -2640,6 +2641,7 @@ public class VarMapEntry
 {
 	public required LatchFlags Type;
 	public required bool NeedsToInterpolate;
+	public required object Instance;
 	public required DynamicAccessor Accessor;
 	public required IInterpolatedVar Watcher;
 }

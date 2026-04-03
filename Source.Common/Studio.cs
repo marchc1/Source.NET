@@ -16,6 +16,7 @@ using System.Numerics;
 using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 using System.Xml.Linq;
 namespace Source.Common;
 
@@ -143,6 +144,52 @@ public static class Studio
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static int BONE_USED_BY_VERTEX_AT_LOD(int lod) => BONE_USED_BY_VERTEX_LOD0 << lod;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static int BONE_USED_BY_ANYTHING_AT_LOD(int lod) => ((BONE_USED_BY_ANYTHING & ~BONE_USED_BY_VERTEX_MASK) | BONE_USED_BY_VERTEX_AT_LOD(lod));
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void SetRootLOD(StudioHeader studioHdr, byte rootLOD) {
+		if (studioHdr.NumAllowedRootLODs > 0 &&
+			 rootLOD >= studioHdr.NumAllowedRootLODs) {
+			rootLOD = (byte)(studioHdr.NumAllowedRootLODs - 1);
+		}
+
+		Assert(rootLOD >= 0 && rootLOD < MAX_NUM_LODS);
+		rootLOD = Math.Clamp(rootLOD, (byte)0, (byte)(MAX_NUM_LODS - 1));
+
+		// run the lod fixups that culls higher detail lods
+		// vertexes are external, fixups ensure relative offsets and counts are cognizant of shrinking data
+		// indexes are built in lodN..lod0 order so higher detail lod data can be truncated at load
+		// the fixup lookup arrays are filled (or replicated) to ensure all slots valid
+		int vertexindex = 0;
+		int tangentsindex = 0;
+		int bodyPartID;
+		for (bodyPartID = 0; bodyPartID < studioHdr.NumBodyParts; bodyPartID++) {
+			MStudioBodyParts bodyPart = studioHdr.BodyPart(bodyPartID);
+			int modelID;
+			for (modelID = 0; modelID < bodyPart.NumModels; modelID++) {
+				MStudioModel model = bodyPart.Model(modelID);
+				int totalMeshVertexes = 0;
+				int meshID;
+				for (meshID = 0; meshID < model.NumMeshes; meshID++) {
+					MStudioMesh mesh = model.Mesh(meshID);
+
+					// get the fixup, vertexes are reduced
+					mesh.NumVertices = mesh.VertexData.NumLODVertexes[rootLOD];
+					mesh.VertexOffset = totalMeshVertexes;
+					totalMeshVertexes += mesh.NumVertices;
+				}
+
+				// stay in sync
+				model.NumVertices = totalMeshVertexes;
+				model.VertexIndex = vertexindex;
+				model.TangentsIndex = tangentsindex;
+
+				vertexindex += totalMeshVertexes * Unsafe.SizeOf<MStudioVertex>();
+				tangentsindex += totalMeshVertexes * Unsafe.SizeOf< Vector4>();
+			}
+		}
+
+		// track the set desired configuration
+		studioHdr.RootLOD = rootLOD;
+	}
 }
 
 public enum StudioHdrFlags
@@ -533,6 +580,13 @@ public class MStudioBodyParts(Memory<byte> Data)
 	}
 }
 
+[StructLayout(LayoutKind.Sequential, Pack = 4)]
+public struct VertexFileFixup {
+	public int LOD;
+	public int SourceVertexID;
+	public int NumVertices;
+}
+
 [StructLayout(LayoutKind.Explicit, Pack = 4)]
 public struct MStudioVertex
 {
@@ -544,11 +598,15 @@ public struct MStudioVertex
 
 public class VertexFileHeader
 {
-	public Memory<byte> Data;
+	public readonly byte[] Data;
 
 	public VertexFileHeader(byte[] data) {
 		Data = data;
 		using BinaryReader br = new(new MemoryStream(data), System.Text.Encoding.ASCII);
+		Parse(br);
+	}
+
+	public void Parse(BinaryReader br) {
 		ID = br.ReadInt32();
 		Version = br.ReadInt32();
 		Checksum = br.ReadInt32();
@@ -560,6 +618,11 @@ public class VertexFileHeader
 		FixupTableStart = br.ReadInt32();
 		VertexDataStart = br.ReadInt32();
 		TangentDataStart = br.ReadInt32();
+	}
+	public void CopyFrom(VertexFileHeader header2){
+		header2.Data.ClampedCopyTo(Data);
+		using BinaryReader br = new(new MemoryStream(Data), System.Text.Encoding.ASCII);
+		Parse(br);
 	}
 
 	public int ID;
@@ -574,14 +637,14 @@ public class VertexFileHeader
 
 	public Memory<MStudioVertex> GetVertexData() {
 		if (ID == Studio.MODEL_VERTEX_FILE_ID && VertexDataStart != 0)
-			return Data[VertexDataStart..].Cast<byte, MStudioVertex>();
+			return Data.AsMemory()[VertexDataStart..].Cast<byte, MStudioVertex>();
 		else
 			return null;
 	}
 
 	public Memory<Vector4> GetTangentData() {
 		if (ID == Studio.MODEL_VERTEX_FILE_ID && TangentDataStart != 0)
-			return Data[TangentDataStart..].Cast<byte, Vector4>();
+			return Data.AsMemory()[TangentDataStart..].Cast<byte, Vector4>();
 		else
 			return null;
 	}
@@ -1435,7 +1498,7 @@ public class StudioHdr
 			StudioHdrCache[i] = studioHdr;
 		}
 
-		Assert(studioHdr);
+		Assert(studioHdr != null);
 		return studioHdr;
 	}
 

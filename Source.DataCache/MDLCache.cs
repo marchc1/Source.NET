@@ -1,4 +1,6 @@
-﻿using SevenZip.Buffer;
+﻿using CommunityToolkit.HighPerformance;
+
+using SevenZip.Buffer;
 
 using Source.Common;
 using Source.Common.Commands;
@@ -8,6 +10,7 @@ using Source.Common.Utilities;
 
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -68,7 +71,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 		this.fileSystem = fileSystem;
 		FrameUnlockCounter = new int[(int)MDLCacheDataType.Count];
 		FrameUnlockCounterFieldPtr = new AnonymousSafeFieldPointer<int>[(int)MDLCacheDataType.Count];
-		for (MDLCacheDataType i = 0; i < MDLCacheDataType.Count - 1; i++) 
+		for (MDLCacheDataType i = 0; i < MDLCacheDataType.Count - 1; i++)
 			FrameUnlockCounterFieldPtr[(int)i] = new(this, x => ref FrameUnlockCounter[(int)i]);
 	}
 
@@ -382,7 +385,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 		}
 	}
 
-	private void UnserializeAllVirtualModelsAndAnimBlocks(MDLHandle_t handle){
+	private void UnserializeAllVirtualModelsAndAnimBlocks(MDLHandle_t handle) {
 		if (handle == MDLHANDLE_INVALID)
 			return;
 
@@ -392,7 +395,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 
 		GetVirtualModel(handle);
 		StudioHeader studioHdr = GetStudioHdr(handle)!;
-		for (int i = 1; i < studioHdr.NumAnimBlocks; ++i) 
+		for (int i = 1; i < studioHdr.NumAnimBlocks; ++i)
 			GetAnimBlock(handle, i);
 	}
 
@@ -812,19 +815,132 @@ public class MDLCache : IMDLCache, IStudioDataCache
 			return null;
 
 		vvdHeader.Position = 0;
-		HandleToMDLDict[handle].VertexCache = ReadVertices(vvdHeader);
-		return HandleToMDLDict[handle].VertexCache;
+		var raw = new VertexFileHeader(vvdHeader.GetBuffer());
+		var processed = BuildAndCacheVertexData(studioHdr, raw);
+		HandleToMDLDict[handle].VertexCache = processed;
+		return processed;
 	}
 
-	private VertexFileHeader ReadVertices(MemoryStream ms) {
-		// Justification for GetBuffer: If the buffer won't have any changes made to it, then we don't need
-		// to store another copy of the byte data and can use the MemoryStream's array. When MemoryStream disposes,
-		// the internal array will still remain ref'd by the Memory<byte>.
-		VertexFileHeader vvdHeader = new(ms.GetBuffer());
-		// TODO: Can we simplify reading the .mdl into a constructor like this?
+	private VertexFileHeader? BuildAndCacheVertexData(StudioHeader studioHdr, VertexFileHeader rawVvdHdr) {
+		MDLHandle_t handle = (MDLHandle_t)(nint)studioHdr.VirtualModel & 0xffff;
+		VertexFileHeader? vvdHdr;
 
-		return vvdHeader;
+		Msg($"MDLCache: Load VVD for {studioHdr.GetName()}\n");
+
+		Assert(rawVvdHdr != null);
+
+		// check header
+		if (rawVvdHdr.ID != Studio.MODEL_VERTEX_FILE_ID) {
+			Warning($"Error Vertex File for '{studioHdr.GetName()}' id {rawVvdHdr.ID} should be {Studio.MODEL_VERTEX_FILE_ID}\n");
+			return null;
+		}
+		if (rawVvdHdr.Version != Studio.MODEL_VERTEX_FILE_VERSION) {
+			Warning($"Error Vertex File for '{studioHdr.GetName()}' version {rawVvdHdr.Version} should be {Studio.MODEL_VERTEX_FILE_VERSION}\n");
+			return null;
+		}
+		if (rawVvdHdr.Checksum != studioHdr.Checksum) {
+			Warning($"Error Vertex File for '{studioHdr.GetName()}' checksum {rawVvdHdr.Checksum} should be {studioHdr.Checksum}\n");
+			return null;
+		}
+
+		Assert(rawVvdHdr.NumLODs != 0);
+		if (0 == rawVvdHdr.NumLODs)
+			return null;
+
+		bool needsTangentS = true;
+		int rootLOD = Math.Min((int)studioHdr.RootLOD, rawVvdHdr.NumLODs - 1);
+
+		// determine final cache footprint, possibly truncated due to lod
+		Msg($"MDLCache: Alloc VVD {GetModelName(handle)}\n");
+
+		// allocate cache space
+		vvdHdr = new(new byte[Studio_VertexDataSize(rawVvdHdr, rootLOD, needsTangentS)]);
+
+		// load minimum vertexes and fixup
+		Studio_LoadVertexes(rawVvdHdr, vvdHdr, rootLOD, needsTangentS);
+
+		return vvdHdr;
 	}
+
+	public static int Studio_VertexDataSize(VertexFileHeader vvdHdr, int rootLOD, bool needsTangentS) {
+		int numVertexes = vvdHdr.NumLODVertices[rootLOD] + 1;
+		int dataLength = vvdHdr.VertexDataStart + numVertexes * Unsafe.SizeOf<MStudioVertex>();
+		if (needsTangentS)
+			dataLength += numVertexes * Unsafe.SizeOf<Vector4>();
+
+		// allocate this much
+		return dataLength;
+	}
+
+	public static int Studio_LoadVertexes(VertexFileHeader tempVvdHdr, VertexFileHeader newVvdHdr, int rootLOD, bool needsTangentS) {
+		int i;
+		int target;
+		int numVertexes;
+		Span<VertexFileFixup> fixupTable;
+
+		numVertexes = tempVvdHdr.NumLODVertices[rootLOD];
+
+		newVvdHdr.CopyFrom(tempVvdHdr);
+
+		for (i = 0; i < rootLOD; i++)
+			newVvdHdr.NumLODVertices[i] = newVvdHdr.NumLODVertices[rootLOD];
+
+		// fixup data starts
+		if (needsTangentS)
+			// tangent data follows possibly reduced vertex data
+			newVvdHdr.TangentDataStart = newVvdHdr.VertexDataStart + numVertexes * Unsafe.SizeOf<MStudioVertex>();
+		else
+			// no tangent data will be available, mark for identification
+			newVvdHdr.TangentDataStart = 0;
+
+
+		if (0 == newVvdHdr.NumFixups) {
+			// fixups not required
+			// transfer vertex data
+			memcpy(newVvdHdr.Data.AsSpan()[newVvdHdr.VertexDataStart..], tempVvdHdr.Data.AsSpan()[tempVvdHdr.VertexDataStart..], numVertexes * Unsafe.SizeOf<MStudioVertex>());
+
+			if (needsTangentS)
+				// transfer tangent data to cache memory
+				memcpy(newVvdHdr.Data.AsSpan()[newVvdHdr.TangentDataStart..], tempVvdHdr.Data.AsSpan()[tempVvdHdr.TangentDataStart..], numVertexes * Unsafe.SizeOf<Vector4>());
+
+			return numVertexes;
+		}
+
+		// fixups required
+		// re-establish mesh ordered vertexes into cache memory, according to table
+		target = 0;
+		fixupTable = reinterpret<byte, VertexFileFixup>(tempVvdHdr.Data.AsSpan()[tempVvdHdr.FixupTableStart..]);
+		for (i = 0; i < tempVvdHdr.NumFixups; i++) {
+			if (fixupTable[i].LOD < rootLOD) {
+				// working bottom up, skip over copying higher detail lods
+				continue;
+			}
+
+			// copy vertexes
+			memcpy(
+				newVvdHdr.Data.AsSpan()[newVvdHdr.VertexDataStart..].Cast<byte, MStudioVertex>()[target..],
+				tempVvdHdr.Data.AsSpan()[tempVvdHdr.VertexDataStart..].Cast<byte, MStudioVertex>()[fixupTable[i].SourceVertexID..],
+				fixupTable[i].NumVertices
+			);
+
+			if (needsTangentS)
+				memcpy(
+						newVvdHdr.Data.AsSpan()[newVvdHdr.TangentDataStart..].Cast<byte, Vector4>()[target..],
+						tempVvdHdr.Data.AsSpan()[tempVvdHdr.TangentDataStart..].Cast<byte, Vector4>()[fixupTable[i].SourceVertexID..],
+						fixupTable[i].NumVertices 
+					);
+
+
+			// data is placed consecutively
+			target += fixupTable[i].NumVertices;
+		}
+
+		newVvdHdr.NumFixups = 0;
+
+		return target;
+	}
+
+
 
 	public void UnlockStudioHdr(MDLHandle_t handle) {
 

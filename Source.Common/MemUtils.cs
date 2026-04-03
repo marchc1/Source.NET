@@ -93,6 +93,10 @@ public static unsafe class MemUtils
 		src.CopyTo(dest);
 	}
 
+	public static void memcpy<T>(Span<T> dest, ReadOnlySpan<T> src, int size) where T : unmanaged {
+		src[..size].CopyTo(dest[..size]);
+	}
+
 	public static void memmove<T>(Span<T> dest, ReadOnlySpan<T> src, int count){
 		ArgumentOutOfRangeException.ThrowIfNegative(count);
 		ArgumentOutOfRangeException.ThrowIfGreaterThan(count, src.Length);

@@ -388,6 +388,8 @@ public static class SharedDefs
 	public const int NOINTERP_PARITY_MAX = 4;
 	public const int NOINTERP_PARITY_MAX_BITS = 2;
 	public const int ANIMATION_CYCLE_BITS = 15;
+	public const int ANIMATION_SEQUENCE_BITS = 12;
+	public const int MAX_OVERLAYS = 15;
 
 	public const float PLAYER_FATAL_FALL_SPEED = 1024;        // approx 60 feet
 	public const float PLAYER_MAX_SAFE_FALL_SPEED = 580;      // approx 20 feet
