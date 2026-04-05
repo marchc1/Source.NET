@@ -356,6 +356,7 @@ public partial class VirtualModel
 
 	public void AppendModels(int group, StudioHeader studioHdr) {
 		using ModelLookupContext ctx = new ModelLookupContext(group, studioHdr);
+		if (studioHdr == null) return;
 
 		AppendSequences(group, studioHdr);
 		AppendAnimations(group, studioHdr);

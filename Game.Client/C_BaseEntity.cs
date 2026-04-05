@@ -2119,7 +2119,6 @@ public partial class C_BaseEntity : IClientEntity
 		if (addIt) {
 			VarMapEntry map = new() {
 				Accessor = accessor,
-				Instance = instance,
 				Watcher = watcher,
 				Type = type,
 				NeedsToInterpolate = true
@@ -2134,13 +2133,13 @@ public partial class C_BaseEntity : IClientEntity
 		}
 
 		if (setup) {
-			watcher.Setup(this, accessor, type);
+			watcher.Setup(instance, accessor, type);
 			watcher.SetInterpolationAmount(GetInterpolationAmount(watcher.GetVarType()));
 		}
 	}
 	public void RemoveVar(object instance, DynamicAccessor accessor, bool assert = true) {
 		for (int i = 0; i < VarMap.Entries.Count; i++) {
-			if (VarMap.Entries[i].Instance == instance && VarMap.Entries[i].Accessor == accessor) {
+			if (VarMap.Entries[i].Watcher.GetInstance() == instance && VarMap.Entries[i].Accessor == accessor) {
 				if ((VarMap.Entries[i].Type & LatchFlags.ExcludeAutoInterpolate) == 0)
 					--VarMap.InterpolatedEntries;
 
@@ -2656,7 +2655,6 @@ public class VarMapEntry
 {
 	public required LatchFlags Type;
 	public required bool NeedsToInterpolate;
-	public required object Instance;
 	public required DynamicAccessor Accessor;
 	public required IInterpolatedVar Watcher;
 }
