@@ -300,6 +300,10 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 	private void SimulateEntities() {
 		ClientThinkList().PerformThinkFunctions();
+		C_BaseEntityIterator iterator = new C_BaseEntityIterator();
+		C_BaseEntity? ent;
+		while((ent = iterator.Next()) != null)
+			ent.Simulate();
 	}
 
 	private void OnRenderEnd() {

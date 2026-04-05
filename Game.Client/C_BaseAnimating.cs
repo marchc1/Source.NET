@@ -1,4 +1,6 @@
-﻿using CommunityToolkit.HighPerformance;
+﻿global using static Game.Client.C_BaseAnimatingGlobals;
+
+using CommunityToolkit.HighPerformance;
 
 using Game.Shared;
 
@@ -9,6 +11,7 @@ using Source.Common.Engine;
 using Source.Common.Mathematics;
 
 using System;
+using System.Linq;
 using System.Net.NetworkInformation;
 using System.Numerics;
 using System.Reflection;
@@ -30,6 +33,10 @@ public partial class C_InfoLightingRelative : C_BaseEntity
 	public EHANDLE LightingLandmark = new();
 }
 
+public static class C_BaseAnimatingGlobals
+{
+	public const ClientSideAnimationListHandle_t INVALID_CLIENTSIDEANIMATION_LIST_HANDLE = unchecked((ClientSideAnimationListHandle_t)(~0));
+}
 
 public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 {
@@ -65,8 +72,27 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	const TimeUnit_t MAX_ANIMTIME_INTERVAL = 0.2;
 	public TimeUnit_t GetAnimTimeInterval() => Math.Min(gpGlobals.CurTime - AnimTime, MAX_ANIMTIME_INTERVAL);
 
-	public bool IsSequenceFinished() => SequenceFinished;
+	public bool IsSelfAnimating() {
+		if (ClientSideAnimation)
+			return true;
 
+		switch(GetMoveType()){
+			case Source.MoveType.Step:
+			case Source.MoveType.None:
+			case Source.MoveType.Walk:
+			case Source.MoveType.Fly:
+			case Source.MoveType.FlyGravity:
+				return false;
+			default:
+				return true;
+		}
+	}
+	public bool IsSequenceFinished() => SequenceFinished;
+	public override void ResetLatched() {
+		base.ResetLatched();
+	}
+	public bool IsRagdoll() => Ragdoll != null && RenderFX == (byte)RenderFx.Ragdoll;
+	public bool IsAboutToRagdoll() => RenderFX == (byte)RenderFx.Ragdoll;
 	public void StudioFrameAdvance() {
 		if (ClientSideAnimation)
 			return;
@@ -260,6 +286,23 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 	}
 
+	public void DelayedInitModelEffects() { /* todo */ }
+	public void ClearRagdoll() { /* todo */ }
+
+	public virtual void Simulate(){
+		if (DelayInitModelEffects) 
+			DelayedInitModelEffects();
+
+		if (gpGlobals.FrameTime != 0.0) 
+			DoAnimationEvents(GetModelPtr()!);
+		
+		base.Simulate();
+		if (IsNoInterpolationFrame()) 
+			ResetLatched();
+		if (GetSequence() != -1 && Ragdoll != null && (RenderFX != (byte)RenderFx.Ragdoll)) 
+			ClearRagdoll();
+	}
+
 
 	static readonly DynamicAccessor DA_PoseParameter = FIELD.OF_ARRAY(nameof(PoseParameter));
 	static readonly DynamicAccessor DA_Cycle = FIELD.OF(nameof(Cycle));
@@ -419,12 +462,21 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 				ClientSideAnimationChanged();
 		}
 	}
-
+	public virtual ClientAnimFlags ComputeClientSideAnimationFlags() => ClientAnimFlags.SequenceCycle;
 	private void ClientSideAnimationChanged() {
-		if (!ClientSideAnimation)
+		if (!ClientSideAnimation || ClientSideAnimationListHandle == INVALID_CLIENTSIDEANIMATION_LIST_HANDLE)
 			return;
 
-		// todo
+		ref ClientAnimating anim = ref g_ClientSideAnimationList.AsSpan()[(int)ClientSideAnimationListHandle];
+		Assert(anim.Animating == this);
+		anim.Flags = ComputeClientSideAnimationFlags();
+
+		SequenceTransitioner.CheckForSequenceChange(
+			GetModelPtr(),
+			GetSequence(),
+			NewSequenceParity != PrevNewSequenceParity,
+			!IsNoInterpolationFrame()
+		);
 	}
 
 	public void SetCycle(TimeUnit_t cycle) {
@@ -946,8 +998,47 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		base.PreDataUpdate(updateType);
 	}
 
-	public void AddToClientSideAnimationList() { /* todo */}
-	public void RemoveFromClientSideAnimationList() { /* todo */}
+	public ClientSideAnimationListHandle_t ClientSideAnimationListHandle = INVALID_CLIENTSIDEANIMATION_LIST_HANDLE;
+
+	public void AddToClientSideAnimationList() {
+		if (ClientSideAnimationListHandle != INVALID_CLIENTSIDEANIMATION_LIST_HANDLE)
+			return;
+
+		ClientAnimating list = new(this, 0);
+		ClientSideAnimationListHandle = (ClientSideAnimationListHandle_t)g_ClientSideAnimationList.Count; g_ClientSideAnimationList.Add(list);
+		ClientSideAnimationChanged();
+
+		UpdateRelevantInterpolatedVars();
+	}
+
+	public void RemoveFromClientSideAnimationList(bool beingDestroyed = false) {
+		if (INVALID_CLIENTSIDEANIMATION_LIST_HANDLE == ClientSideAnimationListHandle)
+			return;
+
+		uint c = (uint)g_ClientSideAnimationList.Count;
+
+		Assert(ClientSideAnimationListHandle < c);
+
+		uint last = c - 1;
+
+		if (last == ClientSideAnimationListHandle) 
+			g_ClientSideAnimationList.RemoveAt((int)last);
+		else {
+			ClientAnimating lastEntry = g_ClientSideAnimationList[(int)last];
+			// Remove the last entry
+			g_ClientSideAnimationList.RemoveAt((int)last);
+
+			// And update it's handle to point to this slot.
+			lastEntry.Animating!.ClientSideAnimationListHandle = (ClientSideAnimationListHandle_t)ClientSideAnimationListHandle;
+			g_ClientSideAnimationList[(int)ClientSideAnimationListHandle] = lastEntry;
+		}
+
+		// Invalidate our handle no matter what.
+		ClientSideAnimationListHandle = INVALID_CLIENTSIDEANIMATION_LIST_HANDLE;
+
+		if (!beingDestroyed) 
+			UpdateRelevantInterpolatedVars();
+	}
 
 	public override void PostDataUpdate(DataUpdateType updateType) {
 		base.PostDataUpdate(updateType);
@@ -997,7 +1088,36 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 	}
 
+	[Flags]
+	public enum ClientAnimFlags : uint
+	{
+		SequenceCycle = 1
+	}
+
+	public struct ClientAnimating
+	{
+		public C_BaseAnimating? Animating;
+		public ClientAnimFlags Flags;
+		public ClientAnimating(C_BaseAnimating anim, ClientAnimFlags flags) {
+			Animating = anim;
+			Flags = flags;
+		}
+	}
+
+	public static readonly List<ClientAnimating> g_ClientSideAnimationList = [];
+
 	internal static void UpdateClientSideAnimations() {
+		int c = g_ClientSideAnimationList.Count;
+		for (int i = 0; i < c; ++i) {
+			ref ClientAnimating anim = ref g_ClientSideAnimationList.AsSpan()[i];
+			if (0 == (anim.Flags & ClientAnimFlags.SequenceCycle))
+				continue;
+			Assert(anim.Animating != null);
+			anim.Animating.UpdateClientSideAnimation();
+		}
+	}
+
+	public virtual void UpdateClientSideAnimation() {
 
 	}
 

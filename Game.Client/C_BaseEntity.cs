@@ -303,7 +303,22 @@ public partial class C_BaseEntity : IClientEntity
 	public WaterLevel GetWaterLevel() => (WaterLevel)WaterLevel;
 	public void SetWaterLevel(WaterLevel level) => WaterLevel = (byte)level;
 
-	public void ResetLatched() {
+	public virtual void CreateLightEffects() {
+
+	}
+
+	public virtual void AddEntity() {
+		if (Index == 0)
+			return;
+
+		CreateLightEffects();
+	}
+
+	public virtual void Simulate(){
+		AddEntity();
+	}
+
+	public virtual void ResetLatched() {
 		if (IsClientCreated())
 			return;
 
