@@ -25,6 +25,40 @@ static Animation(){
 		return seqdesc.Flags;
 	}
 
+	public static Activity LookupActivity(StudioHdr? studiohdr, ReadOnlySpan<char> label) {
+		if (studiohdr == null)
+			return 0;
+
+		for (int i = 0; i < studiohdr.GetNumSeq(); i++) {
+			MStudioSeqDesc seqdesc = studiohdr.Seqdesc(i);
+			if (stricmp(seqdesc.ActivityName(), label) == 0)
+				return (Activity)seqdesc.Activity;
+		}
+
+		return Activity.ACT_INVALID;
+	}
+
+	public static int LookupSequence(StudioHdr? studiohdr, ReadOnlySpan<char> label) {
+		if (studiohdr == null)
+			return 0;
+
+		if (!studiohdr.SequencesAvailable())
+			return 0;
+
+		for (int i = 0; i < studiohdr.GetNumSeq(); i++) {
+			MStudioSeqDesc seqdesc = studiohdr.Seqdesc(i);
+			if (stricmp(seqdesc.ActivityName(), label) == 0)
+				return i;
+		}
+
+		Activity activity = LookupActivity(studiohdr, label);
+		if (activity != Activity.ACT_INVALID) 
+			return SelectWeightedSequence(studiohdr, activity);
+		
+
+		return (int)Activity.ACT_INVALID;
+	}
+
 	internal static void GetSequenceLinearMotion(StudioHdr? studioHdr, int sequence, ReadOnlySpan<float> poseParameter, out Vector3 vecReturn) {
 		vecReturn = default;
 
@@ -95,6 +129,22 @@ static Animation(){
 				seqdesc.Activity = activityIndex;
 			}
 		}
+	}
+
+
+	public static int GetSequenceActivity(StudioHdr studiohdr, int sequence, out int weight) {
+		if (null == studiohdr || !studiohdr.SequencesAvailable()) {
+			weight = 0;
+			return 0;
+		}
+
+		MStudioSeqDesc seqdesc = studiohdr.Seqdesc(sequence);
+
+		if (0 == (seqdesc.Flags & StudioAnimSeqFlags.Activity))
+			SetActivityForSequence(studiohdr, sequence);
+
+		weight = seqdesc.ActWeight;
+		return seqdesc.Activity;
 	}
 
 	public static void SetEventIndexForSequence(MStudioSeqDesc seqdesc) {

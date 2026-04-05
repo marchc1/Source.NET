@@ -120,7 +120,7 @@ public partial class VirtualModel
 					for (j = numCheck; j < seq.Count(); j++) {
 						StudioHeader hdr = Group[seq[j].Group].GetStudioHdr()!;
 						ReadOnlySpan<char> s1 = hdr.LocalSeqdesc(seq[j].Index).Label();
-						GetSeqTable()[s1.Hash(invariant: true)] = (short)j;
+						GetSeqTable()[s1.Hash(invariant: false)] = (short)j;
 					}
 				}
 				EndTemporaryCopyList(Seq, seq);
