@@ -6,12 +6,12 @@ using System.Diagnostics;
 
 namespace Source.Engine;
 
-[EngineComponent]
-public class EngineSendTable(DtCommonEng DtCommonEng)
+public static class EngineSendTable
 {
-	readonly List<SendTable> SendTables = [];
-	public CRC32_t SendTableCRC;
-	internal bool Init(Span<SendTable> tables) {
+	public static CRC32_t GetCRC() => SendTableCRC;
+	static readonly List<SendTable> SendTables = [];
+	public static CRC32_t SendTableCRC;
+	internal static bool Init(Span<SendTable> tables) {
 		// Initialize them all.
 		for (int i = 0; i < tables.Length; i++) {
 			if (!InitTable(tables[i]))
@@ -27,12 +27,12 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 		return true;
 	}
 
-	private uint ComputeCRC() {
+	private static uint ComputeCRC() {
 		// Totally lie for now
 		return 0;
 	}
 
-	private bool InitTable(SendTable table) {
+	private static bool InitTable(SendTable table) {
 		if (table.Precalc != null)
 			return true;
 
@@ -51,7 +51,7 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 		return true;
 	}
 
-	private void Validate(SendTablePrecalc precalc) {
+	private static void Validate(SendTablePrecalc precalc) {
 		SendTable table = precalc.SendTable;
 		for (int i = 0; i < table.Props?.Length; i++) {
 			SendProp prop = table.Props[i];
@@ -76,12 +76,12 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 		}
 	}
 
-	private void DataTable_Warning(ReadOnlySpan<char> message) {
+	private static void DataTable_Warning(ReadOnlySpan<char> message) {
 		Warning(message);
 		Debug.Assert(false, new(message));
 	}
 
-	private void CalcNextVectorElems(SendTable table) {
+	private static void CalcNextVectorElems(SendTable table) {
 		for (int i = 0; i < table.GetNumProps(); i++) {
 			SendProp prop = table.GetProp(i);
 
@@ -96,7 +96,7 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 		}
 	}
 
-	public bool Encode(SendTable table, object data, bf_write dataOut, int objectId, SendProxyRecipients[]? recipients, bool nonZeroOnly) {
+	public static bool Encode(SendTable table, object data, bf_write dataOut, int objectId, SendProxyRecipients[]? recipients, bool nonZeroOnly) {
 		SendTablePrecalc precalc = table.Precalc!;
 		ErrorIfNot(precalc != null, $"SendTable_Encode: Missing precalc for table {table.NetTableName}.");
 		if (recipients?.Length > 0)
@@ -123,7 +123,7 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 		return !dataOut.Overflowed;
 	}
 
-	public void WritePropList(SendTable table, byte[]? state, int nBits, bf_write outBuf, int objectId, Span<int> checkProps, int nCheckProps) {
+	public static void WritePropList(SendTable table, byte[]? state, int nBits, bf_write outBuf, int objectId, Span<int> checkProps, int nCheckProps) {
 		if (nCheckProps == 0) {
 			outBuf.WriteOneBit(0);
 			return;
@@ -160,7 +160,7 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 		// inputBuf.ForceFinished();
 	}
 
-	bool IsPropZero(EncodeInfo info, int _) {
+	static bool IsPropZero(EncodeInfo info, int _) {
 		SendProp p = info.GetCurProp()!;
 
 		DVariant var = new();
@@ -172,13 +172,13 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 		return PropTypeFns.g_PropTypeFns[(int)p.Type].IsZero(baseData, ref var, p);
 	}
 
-	public int GetNumFlatProps(SendTable table) {
+	public static int GetNumFlatProps(SendTable table) {
 		SendTablePrecalc precalc = table.Precalc!;
 		ErrorIfNot(precalc != null, $"SendTable_GetNumFlatProps: missing pPrecalc.");
 		return precalc.GetNumProps();
 	}
 
-	void EncodeProp(EncodeInfo info, int prop) {
+	static void EncodeProp(EncodeInfo info, int prop) {
 		DVariant var = new();
 
 		SendProp p = info.GetCurProp()!;
@@ -200,7 +200,7 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 #endif
 	}
 
-	public int CalcDelta(SendTable table, byte[]? fromState, int nFromBits, byte[] toState, int nToBits, Span<int> deltaProps, int maxDeltaProps, int objectId) {
+	public static int CalcDelta(SendTable table, byte[]? fromState, int nFromBits, byte[] toState, int nToBits, Span<int> deltaProps, int maxDeltaProps, int objectId) {
 		int nDeltaProps = 0;
 
 		SendTablePrecalc precalc = table.Precalc!;
@@ -264,7 +264,7 @@ public class EngineSendTable(DtCommonEng DtCommonEng)
 		return nDeltaProps;
 	}
 
-	public int CullPropsFromProxies(SendTable table, int[] startProps, int nStartProps, int client, List<SendProxyRecipients>? oldStateProxies, int numOldStateProxies, List<SendProxyRecipients>? newStateProxies, int numNewStateProxies, int[] outProps, int maxOutProps) {
+	public static int CullPropsFromProxies(SendTable table, int[] startProps, int nStartProps, int client, List<SendProxyRecipients>? oldStateProxies, int numOldStateProxies, List<SendProxyRecipients>? newStateProxies, int numNewStateProxies, int[] outProps, int maxOutProps) {
 		PropCullStack stack = new(table.Precalc!, client, oldStateProxies, numOldStateProxies, newStateProxies, numNewStateProxies);
 
 		stack.CullPropsFromProxies(startProps, nStartProps, outProps, maxOutProps);

@@ -85,7 +85,7 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 	private void InitSendTables(ServerClass? classes) {
 		SendTable[] tables = new SendTable[Constants.MAX_DATATABLES];
 		int numTables = BuildSendTablesArray(classes, tables);
-		services.GetRequiredService<EngineSendTable>().Init(tables.AsSpan()[..numTables]);
+		EngineSendTable.Init(tables.AsSpan()[..numTables]);
 	}
 
 	readonly ConVar tv_enable = new("tv_enable", "0", FCvar.Notify, "Activates SourceTV on server.");
@@ -242,7 +242,6 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 		return true;
 	}
 
-	static readonly EngineSendTable EngSendTable = Singleton<EngineSendTable>();
 	private void CreateBaseline() {
 		// WriteVoiceCodec(sv.Signon);
 
@@ -292,7 +291,7 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 				byte[] packedData = new byte[Constants.MAX_PACKEDENTITY_DATA];
 				bf_write writeBuf = new(packedData, Constants.MAX_PACKEDENTITY_DATA);
 
-				if (!EngSendTable.Encode(pSendTable, edict.GetUnknown(), writeBuf, entnum, null, false))
+				if (!EngineSendTable.Encode(pSendTable, edict.GetUnknown(), writeBuf, entnum, null, false))
 					Host.Error($"SV_CreateBaseline: SendTable_Encode returned false (ent {entnum}).\n");
 
 				PackedEntities.EnsureInstanceBaseline(pClass, entnum, packedData, writeBuf.BytesWritten);
