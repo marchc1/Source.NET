@@ -1,6 +1,10 @@
-﻿using Source.Common;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source.Common;
 using Source.Common.Bitbuffers;
 using Source.Common.Engine;
+using Source.Common.Hashing;
+using Source.Common.Networking;
 
 using System.Diagnostics;
 
@@ -28,8 +32,50 @@ public static class EngineSendTable
 	}
 
 	private static uint ComputeCRC() {
-		// Totally lie for now
-		return 0;
+		CRC32_t result = default;
+		CRC32.Init(ref result);
+
+		// walk the tables and checksum them
+		int c = SendTables.Count();
+		for (int i = 0; i < c; i++) {
+			SendTable st = SendTables[i];
+			result = SendTable_CRCTable(ref result, st);
+		}
+
+		CRC32.Final(ref result);
+
+		return result;
+	}
+
+	private static uint SendTable_CRCTable(ref CRC32_t crc, SendTable table) {
+		CRC32.ProcessBuffer(ref crc, table.NetTableName.AsSpan(), strlen(table.NetTableName));
+
+		CRC32.ProcessBuffer(ref crc, table.Props?.Length ?? 0);
+
+		// Send each property.
+		for (int iProp = 0; iProp < table.Props?.Length; iProp++) {
+			SendProp prop = table.Props[iProp];
+
+			CRC32.ProcessBuffer(ref crc, (int)prop.Type);
+			CRC32.ProcessBuffer(ref crc, prop.GetName(), strlen(prop.GetName()));
+			CRC32.ProcessBuffer(ref crc, (int)prop.GetFlags());
+
+			if (prop.Type == SendPropType.DataTable) 
+				CRC32.ProcessBuffer(ref crc, prop.GetDataTable()!.NetTableName.AsSpan(), strlen(prop.GetDataTable()!.NetTableName));
+			else {
+				if (prop.IsExcludeProp()) 
+					CRC32.ProcessBuffer(ref crc, prop.GetExcludeDTName(), strlen(prop.GetExcludeDTName()));
+				else if (prop.GetPropType() == SendPropType.Array) 
+					CRC32.ProcessBuffer(ref crc, prop.GetNumElements());
+				else {
+					CRC32.ProcessBuffer(ref crc, in prop.LowValue);
+					CRC32.ProcessBuffer(ref crc, in prop.HighValue);
+					CRC32.ProcessBuffer(ref crc, in prop.Bits);
+				}
+			}
+		}
+
+		return crc;
 	}
 
 	private static bool InitTable(SendTable table) {
