@@ -1,16 +1,19 @@
+using Game.Client.HUD;
+using Game.Shared;
+
+using Microsoft.Extensions.DependencyInjection;
+
+using Source;
 using Source.Common;
 using Source.Common.Client;
-using Source.Engine;
-using Game.Client.HUD;
 using Source.Common.Commands;
-using Source.Common.Engine;
 using Source.Common.DataCache;
-using Source;
-using Source.Common.MaterialSystem;
-using Source.Common.GUI;
-using Game.Shared;
-using Microsoft.Extensions.DependencyInjection;
+using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.GUI;
+using Source.Common.MaterialSystem;
+using Source.Common.SoundEmitterSystem;
+using Source.Engine;
 
 namespace Game.Client;
 
@@ -53,6 +56,7 @@ public static class SourceDllMain
 	[Dependency] public static IMatSystemSurface surface { get; private set; } = null!;
 	[Dependency] public static IEngineVGui enginevgui { get; private set; } = null!;
 	[Dependency] public static ISpatialPartition partition { get; private set; } = null!;
+	[Dependency] public static ISoundEmitterSystemBase soundemitterbase { get; private set; } = null!;
 	[Dependency] public static Hud gHUD { get; private set; } = null!;
 	[Dependency<IPrediction>] public static Prediction prediction { get; private set; } = null!;
 	[Dependency] public static ICvar cvar { get; private set; } = null!;

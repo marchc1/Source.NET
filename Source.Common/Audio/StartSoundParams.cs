@@ -1,57 +1,82 @@
 ﻿using System.Numerics;
+using System.Reflection.Metadata;
+using System.Runtime.CompilerServices;
 
 namespace Source.Common.Audio;
+
+public static class AttenuationValues
+{
+	public const float VOL_NORM = 1.0f;
+
+	public const float ATTN_NONE = 0.0f;
+	public const float ATTN_NORM = 0.8f;
+	public const float ATTN_IDLE = 2.0f;
+	public const float ATTN_STATIC = 1.25f;
+	public const float ATTN_RICOCHET = 1.5f;
+	public const float MAX_ATTENUATION = 3.98f;
+
+	// HL2 world is 8x bigger now! We want to hear gunfire from farther.
+	// Don't change this without consulting Kelly or Wedge (sjb).
+	public const float ATTN_GUNFIRE = 0.27f;
+
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static SoundLevel ATTN_TO_SNDLVL(float a) => (SoundLevel)(int)(a > 0.0f ? (50 + 20 / a) : 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float SNDLVL_TO_ATTN(SoundLevel a) => (int)a > 50 ? (20.0f / (float)(a - 50)) : 4.0F;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float SNDLVL_TO_ATTN(int a) => a > 50 ? (20.0f / (float)(a - 50)) : 4.0F;
+}
+
 public enum SoundLevel : uint
 {
 	LvlNone = 0,
-	Lvl20dB = 20,   
-	Lvl25dB = 25,   
-	Lvl30dB = 30,   
+	Lvl20dB = 20,
+	Lvl25dB = 25,
+	Lvl30dB = 30,
 	Lvl35dB = 35,
 	Lvl40dB = 40,
-	Lvl45dB = 45,   
-	Lvl50dB = 50,   
-	Lvl55dB = 55,   
-	LvlIdle = 60,   
-	Lvl60dB = 60,   
-	Lvl65dB = 65,   
-	LvlStatic = 66, 
-	Lvl70dB = 70,   
+	Lvl45dB = 45,
+	Lvl50dB = 50,
+	Lvl55dB = 55,
+	LvlIdle = 60,
+	Lvl60dB = 60,
+	Lvl65dB = 65,
+	LvlStatic = 66,
+	Lvl70dB = 70,
 	LvlNorm = 75,
-	Lvl75dB = 75,   
-	Lvl80dB = 80,  
+	Lvl75dB = 75,
+	Lvl80dB = 80,
 	LvlTalking = 80,
-	Lvl85dB = 85,  
-	Lvl90dB = 90,  
+	Lvl85dB = 85,
+	Lvl90dB = 90,
 	Lvl95dB = 95,
 	Lvl100dB = 100,
 	Lvl105dB = 105,
 	Lvl110dB = 110,
 	Lvl120dB = 120,
 	Lvl130dB = 130,
-	LvlGunfire = 140,  
+	LvlGunfire = 140,
 	Lvl140dB = 140,
 	Lvl150dB = 150,
 	Lvl180dB = 180
 }
 
 public enum SoundFlags
-{ 
-	NoFlags = 0,                
-	ChangeVolume = 1 << 0,      
-	ChangePitch = 1 << 1,    
-	Stop = 1 << 2,            
-	Spawning = 1 << 3,        
-	Delay = 1 << 4,           
-	StopLooping = 1 << 5,    
-	Speaker = 1 << 6,         
-	ShouldPause = 1 << 7,     
+{
+	NoFlags = 0,
+	ChangeVolume = 1 << 0,
+	ChangePitch = 1 << 1,
+	Stop = 1 << 2,
+	Spawning = 1 << 3,
+	Delay = 1 << 4,
+	StopLooping = 1 << 5,
+	Speaker = 1 << 6,
+	ShouldPause = 1 << 7,
 	IgnorePhonemes = 1 << 8,
-	IgnoreName = 1 << 9,     
+	IgnoreName = 1 << 9,
 	DoNotOverwriteExistingOnChannel = 1 << 10,
 }
 
-public enum SoundEntityChannel {
+public enum SoundEntityChannel
+{
 	Replace = -1,
 
 	Auto = 0,
@@ -59,12 +84,12 @@ public enum SoundEntityChannel {
 	Voice = 2,
 	Item = 3,
 	Body = 4,
-	Stream = 5,   
-	Static = 6,     
+	Stream = 5,
+	Static = 6,
 	Voice2 = 7,
-	VoiceBase = 8, 
+	VoiceBase = 8,
 
-	UserBase = VoiceBase + 128     
+	UserBase = VoiceBase + 128
 }
 
 public interface IAudioSystem
@@ -85,7 +110,8 @@ public interface IAudioSystem
 public class SfxTable
 {
 	// Engine implements this. Kinda sucks, but whatever
-	public static class Impl {
+	public static class Impl
+	{
 		public delegate ReadOnlySpan<char> GetNameFn(SfxTable sfx);
 		public delegate bool IsPrecachedSoundFn(SfxTable sfx);
 		public static GetNameFn GetName = null!;

@@ -2525,6 +2525,12 @@ public partial class C_BaseEntity : IClientEntity
 		return OriginalData;
 	}
 
+	public virtual Vector3 GetSoundEmissionOrigin() => WorldSpaceCenter();
+
+	public static void EmitSound<IRF>(scoped in IRF filter, int entIndex, scoped in EmitSound_t parms) where IRF : IRecipientFilter {
+
+	}
+
 
 	public static readonly nuint SIZEOF_MANAGED = nuint.MaxValue - 16;
 

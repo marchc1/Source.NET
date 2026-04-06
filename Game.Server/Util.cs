@@ -129,6 +129,8 @@ public static partial class Util_Globals
 		return result;
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Edict? INDEXENT(int edictNum) => engine.PEntityOfEntIndex(edictNum);
+
 	public static bool FStrEq(ReadOnlySpan<char> sz1, ReadOnlySpan<char> sz2)
 		=> Unsafe.AreSame(in sz1.DangerousGetReference(), in sz2.DangerousGetReference()) || stricmp(sz1, sz2) == 0;
 }

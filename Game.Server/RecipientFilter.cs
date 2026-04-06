@@ -1,7 +1,10 @@
-﻿using Game.Shared;
+﻿using Game.Server;
+using Game.Shared;
 
 using Source;
 using Source.Common;
+using Source.Common.Audio;
+using Source.Common.Mathematics;
 
 using System;
 using System.Collections.Generic;
@@ -138,6 +141,103 @@ public class BroadcastNonOwnerRecipientFilter : RecipientFilter
 	public BroadcastNonOwnerRecipientFilter(BasePlayer player) {
 		AddAllPlayers();
 		RemoveRecipient(player);
+	}
+}
+
+
+public class PASFilter : RecipientFilter
+{
+	public PASFilter() {
+
+	}
+	public PASFilter(in Vector3 origin) => AddRecipientsByPAS(origin);
+}
+
+
+public class PASAttenuationFilter : PASFilter
+{
+	public void Filter(in Vector3 origin, float attenuation = ATTN_NORM) {
+		// Don't crop for attenuation in single player
+		if (gpGlobals.MaxClients == 1)
+			return;
+
+		// CPASFilter adds them by pure PVS in constructor
+		if (attenuation <= 0)
+			return;
+
+		// Now remove recipients that are outside sound radius
+		float distance, maxAudible;
+		Vector3 vecRelative;
+
+		int c = GetRecipientCount();
+
+		for (int i = c - 1; i >= 0; i--) {
+			int index = GetRecipientIndex(i);
+
+			BaseEntity? ent = BaseEntity.Instance(index);
+			if (ent == null || !ent.IsPlayer()) {
+				Assert(false);
+				continue;
+			}
+
+			BasePlayer? player = ToBasePlayer(ent);
+			if (player == null) {
+				Assert(false);
+				continue;
+			}
+
+
+			MathLib.VectorSubtract(player.EarPosition(), origin, out vecRelative);
+			distance = MathLib.VectorLength(vecRelative);
+			maxAudible = (2 * Constants.SOUND_NORMAL_CLIP_DIST) / attenuation;
+			if (distance <= maxAudible)
+				continue;
+
+			RemoveRecipient(player);
+		}
+	}
+
+	public PASAttenuationFilter() {
+	}
+
+	public PASAttenuationFilter(BaseEntity entity, SoundLevel soundlevel) : base(entity.GetSoundEmissionOrigin()) {
+		Filter(entity.GetSoundEmissionOrigin(), SNDLVL_TO_ATTN(soundlevel));
+	}
+
+	public PASAttenuationFilter(BaseEntity entity, float attenuation = ATTN_NORM) : base(entity.GetSoundEmissionOrigin()) {
+		Filter(entity.GetSoundEmissionOrigin(), attenuation);
+	}
+
+	public PASAttenuationFilter(in Vector3 origin, SoundLevel soundlevel) : base(origin) {
+		Filter(origin, SNDLVL_TO_ATTN(soundlevel));
+	}
+
+	public PASAttenuationFilter(in Vector3 origin, float attenuation = ATTN_NORM) : base(origin) {
+		Filter(origin, attenuation);
+	}
+
+	public PASAttenuationFilter(BaseEntity entity, ReadOnlySpan<char> lookupSound) : base(entity.GetSoundEmissionOrigin()) {
+		SoundLevel level = BaseEntity.LookupSoundLevel(lookupSound);
+		float attenuation = SNDLVL_TO_ATTN(level);
+		Filter(entity.GetSoundEmissionOrigin(), attenuation);
+	}
+
+	public PASAttenuationFilter(in Vector3 origin, ReadOnlySpan<char> lookupSound) : base(origin) {
+		SoundLevel level = BaseEntity.LookupSoundLevel(lookupSound);
+		float attenuation = SNDLVL_TO_ATTN(level);
+		Filter(origin, attenuation);
+	}
+
+	public PASAttenuationFilter(BaseEntity entity, ReadOnlySpan<char> lookupSound, ref HSOUNDSCRIPTHANDLE handle) : base(entity.GetSoundEmissionOrigin()) {
+		SoundLevel level = BaseEntity.LookupSoundLevel(lookupSound, ref handle);
+		float attenuation = SNDLVL_TO_ATTN(level);
+		Filter(entity.GetSoundEmissionOrigin(), attenuation);
+	}
+
+	public PASAttenuationFilter(in Vector3 origin, ReadOnlySpan<char> lookupSound, ref HSOUNDSCRIPTHANDLE handle) : base(origin) {
+		SoundLevel level = BaseEntity.LookupSoundLevel(lookupSound, ref handle);
+		float attenuation = SNDLVL_TO_ATTN(level);
+		Filter(origin, attenuation);
 	}
 }
 
