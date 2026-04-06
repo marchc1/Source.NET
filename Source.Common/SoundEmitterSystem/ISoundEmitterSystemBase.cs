@@ -134,13 +134,9 @@ public ref struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 		{ Audio.SoundLevel.Lvl45dB, "SNDLVL_45dB" },
 		{ Audio.SoundLevel.Lvl50dB, "SNDLVL_50dB" },
 		{ Audio.SoundLevel.Lvl55dB, "SNDLVL_55dB" },
-		{ Audio.SoundLevel.LvlIdle, "SNDLVL_IDLE" },
-		{ Audio.SoundLevel.LvlTalking, "SNDLVL_TALKING" },
 		{ Audio.SoundLevel.Lvl60dB, "SNDLVL_60dB" },
 		{ Audio.SoundLevel.Lvl65dB, "SNDLVL_65dB" },
-		{ Audio.SoundLevel.LvlStatic, "SNDLVL_STATIC"  },
 		{ Audio.SoundLevel.Lvl70dB, "SNDLVL_70dB"  }   ,
-		{ Audio.SoundLevel.LvlNorm, "SNDLVL_NORM"  }   ,
 		{ Audio.SoundLevel.Lvl75dB, "SNDLVL_75dB"  }   ,
 		{ Audio.SoundLevel.Lvl80dB, "SNDLVL_80dB"  }   ,
 		{ Audio.SoundLevel.Lvl85dB, "SNDLVL_85dB"  }   ,
@@ -151,16 +147,43 @@ public ref struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 		{ Audio.SoundLevel.Lvl110dB, "SNDLVL_110dB"  },
 		{ Audio.SoundLevel.Lvl120dB, "SNDLVL_120dB"  },
 		{ Audio.SoundLevel.Lvl130dB, "SNDLVL_130dB"  },
-		{ Audio.SoundLevel.LvlGunfire, "SNDLVL_GUNFIRE" },
 		{ Audio.SoundLevel.Lvl140dB, "SNDLVL_140dB" },
 		{ Audio.SoundLevel.Lvl150dB, "SNDLVL_150dB" },
 		{ Audio.SoundLevel.Lvl180dB, "SNDLVL_180dB"  },
 	}).ToFrozenDictionary();
 
-	static readonly FrozenDictionary<ulong, SoundLevel> g_pSoundLevelsRev =
-		g_pSoundLevels
-		.Select(x => new KeyValuePair<ulong, SoundLevel>(x.Value.Hash(invariant: false), x.Key))
-		.ToFrozenDictionary();
+	static readonly FrozenDictionary<ulong, SoundLevel> g_pSoundLevelsRev = (new Dictionary<ulong, SoundLevel> {
+		{ "SNDLVL_NONE".Hash(invariant: false) , Audio.SoundLevel.LvlNone},
+		{ "SNDLVL_20dB".Hash(invariant: false) , Audio.SoundLevel.Lvl20dB},
+		{ "SNDLVL_25dB".Hash(invariant: false) , Audio.SoundLevel.Lvl25dB},
+		{ "SNDLVL_30dB".Hash(invariant: false) , Audio.SoundLevel.Lvl30dB},
+		{ "SNDLVL_35dB".Hash(invariant: false) , Audio.SoundLevel.Lvl35dB},
+		{ "SNDLVL_40dB".Hash(invariant: false) , Audio.SoundLevel.Lvl40dB},
+		{ "SNDLVL_45dB".Hash(invariant: false) , Audio.SoundLevel.Lvl45dB},
+		{ "SNDLVL_50dB".Hash(invariant: false) , Audio.SoundLevel.Lvl50dB},
+		{ "SNDLVL_55dB".Hash(invariant: false) , Audio.SoundLevel.Lvl55dB},
+		{ "SNDLVL_IDLE".Hash(invariant: false) , Audio.SoundLevel.LvlIdle},
+		{ "SNDLVL_TALKING".Hash(invariant: false) , Audio.SoundLevel.LvlTalking},
+		{ "SNDLVL_60dB".Hash(invariant: false) , Audio.SoundLevel.Lvl60dB},
+		{ "SNDLVL_65dB".Hash(invariant: false) , Audio.SoundLevel.Lvl65dB},
+		{ "SNDLVL_STATIC" .Hash(invariant: false) , Audio.SoundLevel.LvlStatic},
+		{ "SNDLVL_70dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl70dB}   ,
+		{ "SNDLVL_NORM" .Hash(invariant: false) , Audio.SoundLevel.LvlNorm}   ,
+		{ "SNDLVL_75dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl75dB}   ,
+		{ "SNDLVL_80dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl80dB}   ,
+		{ "SNDLVL_85dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl85dB}   ,
+		{ "SNDLVL_90dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl90dB}   ,
+		{ "SNDLVL_95dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl95dB}   ,
+		{ "SNDLVL_100dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl100dB},
+		{ "SNDLVL_105dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl105dB},
+		{ "SNDLVL_110dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl110dB},
+		{ "SNDLVL_120dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl120dB},
+		{ "SNDLVL_130dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl130dB},
+		{ "SNDLVL_GUNFIRE".Hash(invariant: false) , Audio.SoundLevel.LvlGunfire},
+		{ "SNDLVL_140dB".Hash(invariant: false) , Audio.SoundLevel.Lvl140dB},
+		{ "SNDLVL_150dB".Hash(invariant: false) , Audio.SoundLevel.Lvl150dB},
+		{ "SNDLVL_180dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl180dB},
+	}).ToFrozenDictionary();
 
 	static readonly FrozenDictionary<SoundEntityChannel, string> g_pChannelNames = (new Dictionary<SoundEntityChannel, string> {
 		{ SoundEntityChannel.Auto, "CHAN_AUTO"  },
@@ -305,7 +328,7 @@ public ref struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 		if (0 == stricmp(key[..Math.Min((int)strlen(SNDLVL_PREFIX), key.Length)], SNDLVL_PREFIX)) {
 			ReadOnlySpan<char> val = key[(int)strlen(SNDLVL_PREFIX)..];
 			int.TryParse(val, out int sndlvl);
-			if (sndlvl > 0 && sndlvl <= 180) 
+			if (sndlvl > 0 && sndlvl <= 180)
 				return (SoundLevel)sndlvl;
 		}
 
