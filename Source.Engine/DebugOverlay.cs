@@ -371,6 +371,8 @@ public class DebugOverlay : IVDebugOverlay
 			case OverlayType.Sphere:
 			case OverlayType.SweptBox:
 			case OverlayType.Triangle:
+				OverlayTriangle tri = (OverlayTriangle)overlay;
+				OverlayBase.Free(tri);
 				break;
 		}
 	}

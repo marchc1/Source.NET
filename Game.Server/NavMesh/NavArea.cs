@@ -5,6 +5,7 @@ namespace Game.Server.NavMesh;
 
 using System.Collections.Concurrent;
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 using Game.Server.NextBot;
 
@@ -12,6 +13,7 @@ using Source;
 using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
+using Source.Common.Hashing;
 using Source.Common.Mathematics;
 
 public class FuncElevator;
@@ -144,6 +146,13 @@ public partial class NavArea : NavAreaCriticalData
 	UInt32 VisTestCounter;
 	static UInt32 CurrVisTestCounter;
 	List<FuncNavCost> FuncNavCostVector;
+
+	static Color SelectedSetColor = new(255, 255, 200, 96);
+	static Color SelectedSetBorderColor = new(100, 100, 0, 255);
+	static Color DragSelectionSetBorderColor = new(50, 50, 50, 255);
+
+	// ConVar nav_selected_set_color("nav_selected_set_color", "255 255 200 96", FCVAR_CHEAT, "Color used to draw the selected set background while editing.", false, 0.0f, false, 0.0f, SelectedSetColorChaged);
+	// ConVar nav_selected_set_border_color("nav_selected_set_border_color", "100 100 0 255", FCVAR_CHEAT, "Color used to draw the selected set borders while editing.", false, 0.0f, false, 0.0f, SelectedSetColorChaged);
 
 	public static void CompressIDs() {
 		NextID = 1;
@@ -328,9 +337,17 @@ public partial class NavArea : NavAreaCriticalData
 
 	void GetNodes(NavDirType dir, List<NavNode> nodes) { }
 
-	void ConnectElevators() { }
+	void ConnectElevators() {
+		Elevator = null;
+		AttributeFlags &= ~NavAttributeType.HasElevator;
+		ElevatorAreas.Clear();
+	}
 
-	public void OnServerActivate() { }
+	public void OnServerActivate() {
+		ConnectElevators();
+		DamagingTickCount = 0;
+		ClearAllNavCostEntities();
+	}
 
 	void OnRoundRestart() { }
 
@@ -340,7 +357,11 @@ public partial class NavArea : NavAreaCriticalData
 	}
 
 	public bool HasNodes() {
-		throw new NotImplementedException();
+		for (int i = 0; i < (int)NavCornerType.NumCorners; i++)
+			if (Node[i] != null)
+				return true;
+
+		return false;
 	}
 
 	void OnDestroyNotify(NavArea dead) { }
@@ -416,7 +437,39 @@ public partial class NavArea : NavAreaCriticalData
 	}
 
 	public bool IsConnected(NavArea area, NavDirType dir) {
-		throw new NotImplementedException();
+		if (area == this)
+			return true;
+
+		if (dir == NavDirType.NumDirections) {
+			for (int d = 0; d < (int)NavDirType.NumDirections; d++) {
+				foreach (NavConnect connect in Connect[d]) {
+					if (connect.Area == area)
+						return true;
+				}
+			}
+
+			foreach (NavLadderConnect ladderConnect in Ladder[(int)NavLadder.LadderDirectionType.Up]) {
+				NavLadder ladder = ladderConnect.Ladder!;
+
+				if (ladder.TopBehindArea == area || ladder.TopForwardArea == area || ladder.TopLeftArea == area || ladder.TopRightArea == area)
+					return true;
+			}
+
+			foreach (NavLadderConnect ladderConnect in Ladder[(int)NavLadder.LadderDirectionType.Down]) {
+				NavLadder ladder = ladderConnect.Ladder!;
+
+				if (ladder.BottomArea == area)
+					return true;
+			}
+		}
+		else {
+			foreach (NavConnect connect in Connect[(int)dir]) {
+				if (connect.Area == area)
+					return true;
+			}
+		}
+
+		return false;
 	}
 
 	float ComputeGroundHeightChange(NavArea area) {
@@ -448,7 +501,14 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	void CalcDebugID() { }
+	unsafe void CalcDebugID() {
+		if (DebugID == 0) {
+			int[] coords = [(int)NWCorner.X, (int)NWCorner.X, (int)NWCorner.Z, (int)SECorner.X, (int)SECorner.Y, (int)SECorner.Z];
+
+			fixed (int* ptr = coords)
+				DebugID = CRC32.ProcessSingleBuffer(ptr, sizeof(int) * coords.Length);
+		}
+	}
 
 	bool MergeEdit(NavArea adj) {
 		throw new NotImplementedException();
@@ -458,8 +518,16 @@ public partial class NavArea : NavAreaCriticalData
 
 	public void Strip() => SpotEncounters.Clear();
 
-	bool IsRoughlySquare() {
-		throw new NotImplementedException();
+	public bool IsRoughlySquare() {
+		float aspect = GetSizeX() / GetSizeY();
+
+		const float maxAspect = 3.01f;
+		const float minAspect = 1.0f / maxAspect;
+
+		if (aspect < minAspect || aspect > maxAspect)
+			return false;
+
+		return true;
 	}
 
 	public bool IsOverlapping(Vector3 pos, float tolerance = 0.0f) => pos.X + tolerance >= NWCorner.X && pos.X - tolerance <= SECorner.X && pos.Y + tolerance >= NWCorner.Y && pos.Y - tolerance <= SECorner.Y;
@@ -496,7 +564,7 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	float GetZ(float x, float y) {
+	public float GetZ(float x, float y) {
 		if (InvDXCorners == 0 || InvDYCorners == 0)
 			return NEZ;
 
@@ -591,11 +659,41 @@ public partial class NavArea : NavAreaCriticalData
 	void ComputeClosestPointInPortal(NavArea to, NavDirType dir, Vector3 fromPos, Vector3 closePos) { }
 
 	bool IsContiguous(NavArea other) {
-		throw new NotImplementedException();
+		NavDirType dir;
+		for (dir = NavDirType.North; dir <= NavDirType.West; dir++) {
+			if (IsConnected(other, dir))
+				return true;
+		}
+
+		if (dir == NavDirType.NumDirections)
+			return false;
+
+		Vector3 myEdge = default;
+		ComputePortal(other, dir, ref myEdge, out _);
+
+		Vector3 otherEdge = default;
+		other.ComputePortal(this, OppositeDirection(dir), ref otherEdge, out _);
+
+		return (myEdge - otherEdge).LengthSquared() < (StepHeight * StepHeight);
 	}
 
 	public float ComputeAdjacentConnectionHeightChange(NavArea destinationArea) {
-		throw new NotImplementedException();
+		NavDirType dir;
+		for (dir = NavDirType.North; dir <= NavDirType.West; dir++) {
+			if (IsConnected(destinationArea, dir))
+				break;
+		}
+
+		if (dir == NavDirType.NumDirections)
+			return float.MaxValue;
+
+		Vector3 myEdge = default;
+		ComputePortal(destinationArea, dir, ref myEdge, out _);
+
+		Vector3 otherEdge = default;
+		destinationArea.ComputePortal(this, OppositeDirection(dir), ref otherEdge, out _);
+
+		return otherEdge.Z - myEdge.Z;
 	}
 
 	bool IsEdge(NavDirType dir) {
@@ -790,8 +888,7 @@ public partial class NavArea : NavAreaCriticalData
 		if (this != NavMesh.Instance!.GetMarkedArea() && this == NavMesh.Instance!.GetSelectedArea() && NavMesh.Instance!.IsEditMode(NavMesh.EditModeType.Normal)) {
 			NavCornerType bestCorner = GetCornerUnderCursor();
 
-			Vector3[] p = new Vector3[(int)NavCornerType.NumCorners];
-			if (GetCornerHotspot(bestCorner, out p)) {
+			if (GetCornerHotspot(bestCorner, out Vector3[] p)) {
 				NavDrawLine(p[1], p[2], NavEditColor.NavSelectedColor);
 				NavDrawLine(p[2], p[3], NavEditColor.NavSelectedColor);
 			}
@@ -967,11 +1064,71 @@ public partial class NavArea : NavAreaCriticalData
 
 	void DrawFilled(int r, int g, int b, int a, float deltaT, bool noDepthTest, float margin) { }
 
-	public void DrawSelectedSet(Vector3 shift) { }
+	public void DrawSelectedSet(Vector3 shift) {
+		const float deltaT = (float)IVDebugOverlay.NDEBUG_PERSIST_TILL_NEXT_SERVER;
+		int r = SelectedSetColor.R;
+		int g = SelectedSetColor.G;
+		int b = SelectedSetColor.B;
+		int a = SelectedSetColor.A;
 
-	public void DrawDragSelectionSet(Color dragSelectionSetColor) { }
+		Vector3 nw = GetCorner(NavCornerType.NorthWest) + shift;
+		Vector3 ne = GetCorner(NavCornerType.NorthEast) + shift;
+		Vector3 sw = GetCorner(NavCornerType.SouthWest) + shift;
+		Vector3 se = GetCorner(NavCornerType.SouthEast) + shift;
 
-	void DrawHidingSpots() { }
+		Shared.DebugOverlay.Triangle(nw, se, ne, r, g, b, a, true, deltaT);
+		Shared.DebugOverlay.Triangle(se, nw, sw, r, g, b, a, true, deltaT);
+
+		r = SelectedSetBorderColor.R;
+		g = SelectedSetBorderColor.G;
+		b = SelectedSetBorderColor.B;
+		a = SelectedSetBorderColor.A;
+		Shared.DebugOverlay.Line(nw, ne, r, g, b, true, deltaT);
+		Shared.DebugOverlay.Line(nw, sw, r, g, b, true, deltaT);
+		Shared.DebugOverlay.Line(sw, se, r, g, b, true, deltaT);
+		Shared.DebugOverlay.Line(se, ne, r, g, b, true, deltaT);
+	}
+
+	public void DrawDragSelectionSet(Color dragSelectionSetColor) {
+		const float deltaT = (float)IVDebugOverlay.NDEBUG_PERSIST_TILL_NEXT_SERVER;
+		int r = dragSelectionSetColor.R;
+		int g = dragSelectionSetColor.G;
+		int b = dragSelectionSetColor.B;
+		int a = dragSelectionSetColor.A;
+
+		Vector3 nw = GetCorner(NavCornerType.NorthWest);
+		Vector3 ne = GetCorner(NavCornerType.NorthEast);
+		Vector3 sw = GetCorner(NavCornerType.SouthWest);
+		Vector3 se = GetCorner(NavCornerType.SouthEast);
+
+		Shared.DebugOverlay.Triangle(nw, se, ne, r, g, b, a, true, deltaT);
+		Shared.DebugOverlay.Triangle(se, nw, sw, r, g, b, a, true, deltaT);
+
+		r = DragSelectionSetBorderColor.R;
+		g = DragSelectionSetBorderColor.G;
+		b = DragSelectionSetBorderColor.B;
+		Shared.DebugOverlay.Line(nw, ne, r, g, b, true, deltaT);
+		Shared.DebugOverlay.Line(nw, sw, r, g, b, true, deltaT);
+		Shared.DebugOverlay.Line(sw, se, r, g, b, true, deltaT);
+		Shared.DebugOverlay.Line(se, ne, r, g, b, true, deltaT);
+	}
+
+	void DrawHidingSpots() {
+		foreach (HidingSpot spot in GetHidingSpots()) {
+			NavEditColor color;
+
+			if (spot.IsIdealSniperSpot())
+				color = NavEditColor.NavIdealSniperColor;
+			else if (spot.IsGoodSniperSpot())
+				color = NavEditColor.NavGoodSniperColor;
+			else if (spot.HasGoodCover())
+				color = NavEditColor.NavGoodCoverColor;
+			else
+				color = NavEditColor.NavExposedColor;
+
+			NavDrawLine(spot.GetPosition(), spot.GetPosition() + new Vector3(0, 0, 50), color);
+		}
+	}
 
 	public void DrawConnectedAreas() {
 		int i;
@@ -1716,8 +1873,8 @@ public partial class NavArea : NavAreaCriticalData
 			return;
 		}
 
-		pos.Z = z + 1;
-		// enginetrace todo
+		pos.Z += 1;
+		IsUnderwater = (enginetrace.GetPointContents(pos, out _) & Contents.Water) != 0;
 	}
 
 	void SetupPVS() { }
@@ -2021,21 +2178,18 @@ public partial class NavArea : NavAreaCriticalData
 		return Connect[(int)dir][i].Area;
 	}
 
-	public bool IsOpen() {
-		throw new NotImplementedException();
-	}
+	public bool IsOpen() => OpenMarker == MasterMarker;
 
 	public static bool IsOpenListEmpty() {
-		throw new NotImplementedException();
+		Assert((OpenList != null && OpenList.PrevOpen == null) || OpenList == null);
+		return OpenList == null;
 	}
 
 	public static NavArea PopOpenList() {
 		throw new NotImplementedException();
 	}
 
-	public bool IsClosed() {
-		throw new NotImplementedException();
-	}
+	public bool IsClosed() => IsMarked() && !IsOpen();
 
 	public void AddToClosedList() => Mark();
 
@@ -2046,6 +2200,8 @@ public partial class NavArea : NavAreaCriticalData
 	float GetClearedTimestamp(int teamID) {
 		throw new NotImplementedException();
 	}
+
+	List<HidingSpot> GetHidingSpots() => HidingSpots;
 
 	float GetEarliestOccupyTime(int teamID) {
 		throw new NotImplementedException();

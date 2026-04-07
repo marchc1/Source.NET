@@ -817,7 +817,7 @@ public partial class NavMesh
 		return y;
 	}
 
-	static Mask GetGenerationTraceMask() => Mask.NPCSolidBrushOnly;
+	public static Mask GetGenerationTraceMask() => Mask.NPCSolidBrushOnly;
 
 	public static HidingSpot? GetHidingSpotByID(uint id) {
 		foreach (HidingSpot spot in HidingSpot.TheHidingSpots) {
@@ -1168,8 +1168,8 @@ public class HidingSpot
 	}
 
 	public bool HasGoodCover() => (Flags & (byte)HidingSpotFlags.InCover) != 0;
-	bool IsGoodSniperSpot() => (Flags & (byte)HidingSpotFlags.GoodSniperSpot) != 0;
-	bool IsIdealSniperSpot() => (Flags & (byte)HidingSpotFlags.IdealSniperSpot) != 0;
+	public bool IsGoodSniperSpot() => (Flags & (byte)HidingSpotFlags.GoodSniperSpot) != 0;
+	public bool IsIdealSniperSpot() => (Flags & (byte)HidingSpotFlags.IdealSniperSpot) != 0;
 	bool IsExposed() => (Flags & (byte)HidingSpotFlags.Exposed) != 0;
 	int GetFlags() => Flags;
 	public Vector3 GetPosition() => Pos;

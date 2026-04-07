@@ -52,8 +52,8 @@ public static partial class Util_Globals
 
 	public static BaseEntity? EntityFromEntityHandle(IHandleEntity? handle) {
 #if CLIENT_DLL
-	IClientUnknown? unk = (IClientUnknown?)handle;
-	return (BaseEntity?)unk?.GetBaseEntity();
+		IClientUnknown? unk = (IClientUnknown?)handle;
+		return (BaseEntity?)unk?.GetBaseEntity();
 #else
 	//todo staticpropmgr
 
@@ -171,6 +171,18 @@ public static partial class Util
 		enginetrace.TraceRay(ray, mask, ref filter, out ptr);
 		// todo: visualize
 	}
+
+	public static void TraceHull(in Vector3 vecAbsStart, in Vector3 vecAbsEnd, in Vector3 hullMin, in Vector3 hullMax, Mask mask, IHandleEntity? ignore, CollisionGroup collisionGroup, out Trace ptr) {
+		Ray ray = default;
+		ray.Init(vecAbsStart, vecAbsEnd, hullMin, hullMax);
+
+		TraceFilterSimple traceFilter = new(ignore, collisionGroup);
+
+		enginetrace.TraceRay(ray, mask, ref traceFilter, out ptr);
+
+		// todo: visualize
+	}
+
 
 	public static void TraceHull<IF>(in Vector3 absStart, in Vector3 absEnd, in Vector3 hullMin, in Vector3 hullMax, Mask mask, scoped ref IF filter, out Trace ptr) where IF : struct, ITraceFilter {
 		Ray ray = default;

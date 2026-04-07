@@ -269,9 +269,20 @@ public partial class NavMesh
 
 	void MarkJumpAreas() { }
 
-	void StichAndRemoveJumpAreas() { }
+	void StichAndRemoveJumpAreas() {
+		JumpConnector jumpConnector = new();
+		ForAllAreas(jumpConnector.Invoke);
+		RemoveJumpAreas();
+	}
 
-	void HandleObstacleTopAreas() { }
+	void HandleObstacleTopAreas() {
+		if (!nav_generate_fencetops.GetBool())
+			return;
+
+		RaiseAreasWithInternalObstacles();
+		CreateObstacleTopAreas();
+		RemoveOverlappingObstacleTopAreas();
+	}
 
 	void RaiseAreasWithInternalObstacles() { }
 
@@ -289,14 +300,129 @@ public partial class NavMesh
 
 	public void CommandNavRemoveJumpAreas() { }
 
-	void SquareUpAreas() { }
+	static void SplitX(NavArea area) {
+		if (area.IsRoughlySquare())
+			return;
+
+		float split = area.GetSizeX();
+		split /= 2.0f;
+		split += area.GetCorner(NavCornerType.NorthWest).X;
+		split = Instance!.SnapToGrid(split);
+
+		const float epsilon = 0.1f;
+		if (Math.Abs(split - area.GetCorner(NavCornerType.NorthWest).X) < epsilon ||
+			Math.Abs(split - area.GetCorner(NavCornerType.SouthEast).X) < epsilon)
+			return;
+
+		if (area.SplitEdit(false, split, out NavArea alpha, out NavArea beta)) {
+			SplitX(alpha);
+			SplitX(beta);
+		}
+	}
+
+	static void SplitY(NavArea area) {
+		if (area.IsRoughlySquare())
+			return;
+
+		float split = area.GetSizeY();
+		split /= 2.0f;
+		split += area.GetCorner(NavCornerType.NorthWest).Y;
+		split = Instance!.SnapToGrid(split);
+
+		const float epsilon = 0.1f;
+		if (Math.Abs(split - area.GetCorner(NavCornerType.NorthWest).Y) < epsilon ||
+			Math.Abs(split - area.GetCorner(NavCornerType.SouthEast).Y) < epsilon)
+			return;
+
+		if (area.SplitEdit(true, split, out NavArea alpha, out NavArea beta)) {
+			SplitY(alpha);
+			SplitY(beta);
+		}
+	}
+
+	void SquareUpAreas() {
+		int it = 0;
+		while (it < NavArea.TheNavAreas.Count) {
+			NavArea area = NavArea.TheNavAreas[it];
+			++it;
+
+			if (area.HasNodes() && !area.IsRoughlySquare()) {
+				if (area.GetSizeX() > area.GetSizeY())
+					SplitX(area);
+				else
+					SplitY(area);
+			}
+		}
+	}
 
 	void StitchGeneratedAreas() { }
 
 	void StitchAreaSet(List<NavArea> areas) { }
 
 	void StitchAreaIntoMesh(NavArea area, NavDirType dir, Func<NavArea, bool> func) {
+		Vector3 corner1 = default, corner2 = default;
+		switch (dir) {
+			default:
+				Assert(false);
+				break;
+			case NavDirType.North:
+				corner1 = area.GetCorner(NavCornerType.NorthWest);
+				corner2 = area.GetCorner(NavCornerType.NorthEast);
+				break;
+			case NavDirType.South:
+				corner1 = area.GetCorner(NavCornerType.SouthWest);
+				corner2 = area.GetCorner(NavCornerType.SouthEast);
+				break;
+			case NavDirType.East:
+				corner1 = area.GetCorner(NavCornerType.NorthEast);
+				corner2 = area.GetCorner(NavCornerType.SouthEast);
+				break;
+			case NavDirType.West:
+				corner1 = area.GetCorner(NavCornerType.NorthWest);
+				corner2 = area.GetCorner(NavCornerType.SouthWest);
+				break;
+		}
 
+		Vector3 edgeDir = corner2 - corner1;
+		edgeDir.Z = 0.0f;
+
+		float edgeLength = edgeDir.Length();
+		edgeDir /= edgeLength;
+
+		for (float n = 0; n < edgeLength - 1.0f; n += GenerationStepSize) {
+			Vector3 sourcePos = corner1 + edgeDir * (n + 0.5f);
+			sourcePos.Z += HalfHumanHeight;
+
+			Vector3 targetPos = sourcePos;
+			switch (dir) {
+				case NavDirType.North:
+					targetPos.Y -= GenerationStepSize * 0.5f;
+					break;
+				case NavDirType.South:
+					targetPos.Y += GenerationStepSize * 0.5f;
+					break;
+				case NavDirType.East:
+					targetPos.X += GenerationStepSize * 0.5f;
+					break;
+				case NavDirType.West:
+					targetPos.X -= GenerationStepSize * 0.5f;
+					break;
+			}
+
+			if (Instance!.FindNavAreaOrLadderAlongRay(sourcePos, targetPos, out NavArea? targetArea, out _, null) && targetArea != null && !func(targetArea)) {
+				targetPos.Z = targetArea.GetZ(targetPos.X, targetPos.Y) + HalfHumanHeight;
+
+				if (TestStitchConnection(area, targetArea, sourcePos, targetPos))
+					area.ConnectTo(targetArea, dir);
+			}
+			else {
+				sourcePos.Z -= HalfHumanHeight;
+				sourcePos.Z += 1;
+				NavArea? downArea = FindJumpDownArea(sourcePos, dir);
+				if (downArea != null && downArea != area && !func(downArea))
+					area.ConnectTo(downArea, dir);
+			}
+		}
 	}
 
 	public bool CheckCliff(Vector3 fromPos, NavDirType dir) {
@@ -317,7 +443,239 @@ public partial class NavMesh
 		return false;
 	}
 
-	void ConnectGeneratedAreas() { }
+	static NavArea? FindFirstAreaInDirection(Vector3 start, NavDirType dir, float range, float beneathLimit, BaseEntity? traceIgnore, out Vector3? closePos) {
+		NavArea? area = null;
+		Vector3 pos = start;
+
+		int end = (int)((range / GenerationStepSize) + 0.5f);
+
+		closePos = null;
+
+		for (int i = 1; i <= end; i++) {
+			AddDirectionVector(ref pos, dir, GenerationStepSize);
+
+			Util.TraceHull(start, pos, NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), traceIgnore, CollisionGroup.None, out Trace result);
+
+			if (result.Fraction < 1.0f)
+				break;
+
+			area = Instance!.GetNavArea(pos, beneathLimit);
+			if (area != null) {
+				closePos = new Vector3(pos.X, pos.Y, area.GetZ(pos.X, pos.Y));
+				break;
+			}
+		}
+
+		return area;
+	}
+
+	static NavArea? FindJumpDownArea(Vector3 pos, NavDirType dir) {
+		if (!nav_generate_jump_connections.GetBool())
+			return null;
+
+		Vector3 start = new Vector3(pos.X, pos.Y, pos.Z + HalfHumanHeight);
+		AddDirectionVector(ref start, dir, GenerationStepSize / 2.0f);
+
+		NavArea? downArea = FindFirstAreaInDirection(start, dir, GenerationStepSize * 4, DeathDrop, null, out Vector3? toPos);
+
+		if (downArea != null && TestJumpDown(pos, toPos.Value))
+			return downArea;
+
+		return null;
+	}
+
+	static bool TestJumpDown(Vector3 fromPos, Vector3 toPos) {
+		float dz = fromPos.Z - toPos.Z;
+
+		if (dz <= JumpCrouchHeight || dz >= DeathDrop)
+			return false;
+
+		Vector3 from, to = default;
+		float up;
+		Trace result;
+
+		for (up = 1.0f; up <= ClimbUpHeight; up += 1.0f) {
+			from = fromPos;
+			to = fromPos;
+			to.Z += up;
+
+			Util.TraceHull(from, to, NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), null, CollisionGroup.None, out result);
+			if (result.Fraction <= 0.0f || result.StartSolid)
+				continue;
+
+			from = to;
+			from.Z -= 0.5f;
+			to = toPos;
+			to.Z = from.Z;
+
+			Util.TraceHull(from, to, NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), null, CollisionGroup.None, out result);
+			if (result.Fraction != 1.0f || result.StartSolid)
+				continue;
+
+			break;
+		}
+
+		if (up > ClimbUpHeight)
+			return false;
+
+		from = to;
+		to.Z = toPos.Z + 2.0f;
+		Util.TraceHull(from, to, NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), null, CollisionGroup.None, out result);
+		if (result.Fraction <= 0.0f || result.StartSolid)
+			return false;
+
+		if (result.EndPos.Z > to.Z + StepHeight)
+			return false;
+
+		return true;
+	}
+
+	bool TestStitchConnection(NavArea source, NavArea target, Vector3 sourcePos, Vector3 targetPos) {
+		Vector3 from = sourcePos;
+		Vector3 pos = targetPos;
+		TraceFilterWalkableEntities filter = new(null, CollisionGroup.None, WalkThruFlags.Everything);
+		Vector3 to = default;
+		Vector3 toNormal = default;
+		bool success = false;
+
+		if (TraceAdjacentNode(0, from, pos, out Trace result)) {
+			to = result.EndPos;
+			toNormal = result.Plane.Normal;
+			success = true;
+		}
+		else {
+			for (float height = StepHeight; height <= ClimbUpHeight; height += 1.0f) {
+				Vector3 start = from;
+				Vector3 end = pos;
+				start.Z += height;
+				end.Z += height;
+				Util.TraceHull(start, end, NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), ref filter, out Trace tr);
+				if (!tr.StartSolid && tr.Fraction == 1.0f) {
+					if (!StayOnFloor(ref tr))
+						break;
+
+					to = tr.EndPos;
+					toNormal = tr.Plane.Normal;
+
+					start = end = from;
+					end.Z += height;
+					Util.TraceHull(start, end, NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), ref filter, out tr);
+					if (tr.Fraction < 1.0f)
+						break;
+
+					success = true;
+					break;
+				}
+			}
+		}
+
+		return success;
+	}
+
+	void ConnectGeneratedAreas() {
+		Msg("Connecting navigation areas...\n");
+
+		for (int it = 0; it < NavArea.TheNavAreas.Count; it++) {
+			NavArea area = NavArea.TheNavAreas[it];
+
+			NavNode? node;
+			for (node = area.Node[(int)NavCornerType.NorthWest]; node != area.Node[(int)NavCornerType.NorthEast]; node = node.GetConnectedNode(NavDirType.East)) {
+				NavNode? adj = node.GetConnectedNode(NavDirType.North);
+
+				if (adj != null && adj.GetArea() != null && adj.GetConnectedNode(NavDirType.South) == node) {
+					area.ConnectTo(adj.GetArea(), NavDirType.North);
+				}
+				else {
+					NavArea downArea = FindJumpDownArea(node.GetPosition(), NavDirType.North);
+					if (downArea != null && downArea != area)
+						area.ConnectTo(downArea, NavDirType.North);
+				}
+			}
+
+			for (node = area.Node[(int)NavCornerType.NorthWest]; node != area.Node[(int)NavCornerType.SouthWest]; node = node.GetConnectedNode(NavDirType.South)) {
+				NavNode? adj = node.GetConnectedNode(NavDirType.West);
+				if (adj != null && adj.GetArea() != null && adj.GetConnectedNode(NavDirType.East) == node)
+					area.ConnectTo(adj.GetArea(), NavDirType.West);
+				else {
+					NavArea downArea = FindJumpDownArea(node.GetPosition(), NavDirType.West);
+					if (downArea != null && downArea != area)
+						area.ConnectTo(downArea, NavDirType.West);
+				}
+			}
+
+			node = area.Node[(int)NavCornerType.SouthWest];
+			if (node != null)
+				node = node.GetConnectedNode(NavDirType.North);
+
+			if (node != null) {
+				NavNode? end = area.Node[(int)NavCornerType.SouthEast].GetConnectedNode(NavDirType.North);
+				for (; node != null && node != end; node = node.GetConnectedNode(NavDirType.East)) {
+					NavNode? adj = node.GetConnectedNode(NavDirType.South);
+
+					if (adj != null && adj.GetArea() != null && adj.GetConnectedNode(NavDirType.North) == node)
+						area.ConnectTo(adj.GetArea(), NavDirType.South);
+					else {
+						NavArea downArea = FindJumpDownArea(node.GetPosition(), NavDirType.South);
+						if (downArea != null && downArea != area)
+							area.ConnectTo(downArea, NavDirType.South);
+					}
+				}
+			}
+
+			for (node = area.Node[(int)NavCornerType.SouthWest]; node != area.Node[(int)NavCornerType.SouthEast]; node = node.GetConnectedNode(NavDirType.East)) {
+				if (node.GetArea() != null)
+					continue;
+
+				NavNode? adj = node.GetConnectedNode(NavDirType.South);
+
+				if (node.IsBlockedInAnyDirection() || (adj != null && adj.IsBlockedInAnyDirection()))
+					continue;
+
+				if (adj == null || adj.GetArea() == null) {
+					NavArea downArea = FindJumpDownArea(node.GetPosition(), NavDirType.South);
+					if (downArea != null && downArea != area)
+						area.ConnectTo(downArea, NavDirType.South);
+				}
+			}
+
+			node = area.Node[(int)NavCornerType.NorthEast];
+			if (node != null)
+				node = node.GetConnectedNode(NavDirType.West);
+			if (node != null) {
+				NavNode? end = area.Node[(int)NavCornerType.SouthEast].GetConnectedNode(NavDirType.West);
+				for (; node != null && node != end; node = node.GetConnectedNode(NavDirType.South)) {
+					NavNode? adj = node.GetConnectedNode(NavDirType.East);
+
+					if (adj != null && adj.GetArea() != null && adj.GetConnectedNode(NavDirType.West) == node) {
+						area.ConnectTo(adj.GetArea(), NavDirType.East);
+					}
+					else {
+						NavArea downArea = FindJumpDownArea(node.GetPosition(), NavDirType.East);
+						if (downArea != null && downArea != area)
+							area.ConnectTo(downArea, NavDirType.East);
+					}
+				}
+			}
+
+			for (node = area.Node[(int)NavCornerType.NorthEast]; node != area.Node[(int)NavCornerType.SouthEast]; node = node.GetConnectedNode(NavDirType.South)) {
+				if (node.GetArea() != null)
+					continue;
+
+				NavNode? adj = node.GetConnectedNode(NavDirType.East);
+
+				if (node.IsBlockedInAnyDirection() || (adj != null && adj.IsBlockedInAnyDirection()))
+					continue;
+
+				if (adj == null || adj.GetArea() == null) {
+					NavArea downArea = FindJumpDownArea(node.GetPosition(), NavDirType.East);
+					if (downArea != null && downArea != area)
+						area.ConnectTo(downArea, NavDirType.East);
+				}
+			}
+		}
+
+		StitchGeneratedAreas();
+	}
 
 	void MergeGeneratedAreas() { }
 

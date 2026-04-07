@@ -277,7 +277,7 @@ public class NavNode
 
 	public void AssignArea(NavArea area) => Area = area;
 
-	NavArea? GetArea() => Area;
+	public NavArea? GetArea() => Area;
 
 	public void SetAttributes(NavAttributeType attr) => AttributeFlags |= attr;
 
