@@ -540,7 +540,7 @@ public partial class NavMesh
 						if ((attributes & NavAttributeType.Stairs) != 0) strcat(attrib, "STAIRS ");
 						if ((attributes & NavAttributeType.ObstacleTop) != 0) strcat(attrib, "OBSTACLE ");
 						if ((attributes & NavAttributeType.Cliff) != 0) strcat(attrib, "CLIFF ");
-						if (SelectedArea.IsBlocked(-2 /*TEAM_ANY*/)) strcat(attrib, "BLOCKED ");
+						if (SelectedArea.IsBlocked(Constants.TEAM_ANY)) strcat(attrib, "BLOCKED ");
 						if (SelectedArea.HasAvoidanceObstacle()) strcat(attrib, "OBSTRUCTED ");
 						if (SelectedArea.IsDamaging()) strcat(attrib, "DAMAGING ");
 						if (SelectedArea.IsUnderwater) strcat(attrib, "UNDERWATER ");
@@ -635,7 +635,7 @@ public partial class NavMesh
 						}
 					}
 
-					// SearchSurroundingAreas(nearest, nearest.GetCenter(), draw, -1, INCLUDE_INCOMING_CONNECTIONS | INCLUDE_BLOCKED_AREAS);
+					NavPathfind.SearchSurroundingAreas(nearest, nearest.GetCenter(), draw.Invoke, -1, SearchFlags.IncludeIncomingConnections | SearchFlags.IncludeBlockedAreas);
 				}
 			}
 		}
@@ -785,7 +785,7 @@ public partial class NavMesh
 
 	public void AddToSelectedSet(NavArea area) { }
 
-	void RemoveFromSelectedSet(NavArea area) => SelectedSet.Remove(area);
+	public void RemoveFromSelectedSet(NavArea area) => SelectedSet.Remove(area);
 
 	void AddToDragSelectionSet(NavArea area) { }
 
@@ -803,9 +803,9 @@ public partial class NavMesh
 
 	public bool IsInSelectedSet(NavArea area) => SelectedSet.Contains(area);
 
-	void OnEditCreateNotify(NavArea newArea) { }
+	public void OnEditCreateNotify(NavArea newArea) { }
 
-	void OnEditDestroyNotify(NavArea deadArea) { }
+	public void OnEditDestroyNotify(NavArea deadArea) { }
 
 	void OnEditDestroyNotify(NavLadder deadLadder) {
 		throw new NotImplementedException();

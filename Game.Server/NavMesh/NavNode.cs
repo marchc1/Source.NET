@@ -285,7 +285,7 @@ public class NavNode
 
 	public bool IsBlockedInAnyDirection() => IsBlocked[(int)NavCornerType.NorthEast] || IsBlocked[(int)NavCornerType.NorthWest] || IsBlocked[(int)NavCornerType.SouthEast] || IsBlocked[(int)NavCornerType.SouthWest];
 
-	bool IsOnDisplacementSurface() => IsOnDisplacement;
+	public bool IsOnDisplacementSurface() => IsOnDisplacement;
 
 	public override bool Equals(object? obj) {
 		if (obj is NavNode other)

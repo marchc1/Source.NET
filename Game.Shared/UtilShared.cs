@@ -172,6 +172,15 @@ public static partial class Util
 		// todo: visualize
 	}
 
+	public static void TraceLine<IF>(in Vector3 absStart, in Vector3 absEnd, Mask mask, scoped ref IF filter, out Trace ptr) where IF : struct, ITraceFilter {
+		Ray ray = default;
+		ray.Init(absStart, absEnd);
+
+		enginetrace.TraceRay(ray, mask, ref filter, out ptr);
+
+		// todo: visualize
+	}
+
 	public static void TraceHull(in Vector3 vecAbsStart, in Vector3 vecAbsEnd, in Vector3 hullMin, in Vector3 hullMax, Mask mask, IHandleEntity? ignore, CollisionGroup collisionGroup, out Trace ptr) {
 		Ray ray = default;
 		ray.Init(vecAbsStart, vecAbsEnd, hullMin, hullMax);

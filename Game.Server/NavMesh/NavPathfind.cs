@@ -1,5 +1,6 @@
 using System.Numerics;
 
+using Source;
 using Source.Common;
 
 namespace Game.Server.NavMesh;
@@ -10,6 +11,15 @@ enum RouteType
 	Fastest,
 	Safest,
 	Retreat
+}
+
+[Flags]
+public enum SearchFlags : uint
+{
+	IncludeIncomingConnections = 0x1,
+	IncludeBlockedAreas = 0x2,
+	ExcludeOutgoingConnections = 0x4,
+	ExcludeElevators = 0x8
 }
 
 class ShortestPathCost
@@ -46,7 +56,7 @@ public class ISearchSurroundingAreasFunctor
 {
 	public virtual bool Invoke(NavArea area, NavArea? priorArea, float travelDistanceSoFar) => true;
 
-	public virtual bool ShouldSearch(NavArea adjArea, NavArea currentArea, float travelDistanceSoFar) => !adjArea.IsBlocked(-2 /*TEAM_ANY*/);
+	public virtual bool ShouldSearch(NavArea adjArea, NavArea currentArea, float travelDistanceSoFar) => !adjArea.IsBlocked(Constants.TEAM_ANY);
 
 	public virtual void IterateAdjacentAreas(NavArea area, NavArea? priorArea, float travelDistanceSoFar) {
 		for (int dir = 0; dir < (int)NavDirType.NumDirections; ++dir) {
@@ -109,12 +119,7 @@ public static class NavPathfind
 		Elevators
 	}
 
-	const int INCLUDE_INCOMING_CONNECTIONS = 0x1;
-	const int INCLUDE_BLOCKED_AREAS = 0x2;
-	const int EXCLUDE_OUTGOING_CONNECTIONS = 0x4;
-	const int EXCLUDE_ELEVATORS = 0x8;
-
-	public static bool NavAreaBuildPath(NavArea? startArea, NavArea? goalArea, Vector3? goalPos, Func<NavArea, NavArea?, NavLadder?, FuncElevator?, float, float> costFunc, out NavArea? closestArea, float maxPathLength = 0.0f, int teamID = -2 /*TEAM_ANY*/, bool ignoreNavBlockers = false) {
+	public static bool NavAreaBuildPath(NavArea? startArea, NavArea? goalArea, Vector3? goalPos, Func<NavArea, NavArea?, NavLadder?, FuncElevator?, float, float> costFunc, out NavArea? closestArea, float maxPathLength = 0.0f, int teamID = Constants.TEAM_ANY, bool ignoreNavBlockers = false) {
 		closestArea = startArea;
 
 		if (startArea == null)
@@ -314,7 +319,7 @@ public static class NavPathfind
 		return false;
 	}
 
-	public static bool NavAreaBuildPath(NavArea? startArea, NavArea? goalArea, Vector3? goalPos, Func<NavArea, NavArea?, NavLadder?, FuncElevator?, float, float> costFunc, float maxPathLength = 0.0f, int teamID = -2 /*TEAM_ANY*/, bool ignoreNavBlockers = false)
+	public static bool NavAreaBuildPath(NavArea? startArea, NavArea? goalArea, Vector3? goalPos, Func<NavArea, NavArea?, NavLadder?, FuncElevator?, float, float> costFunc, float maxPathLength = 0.0f, int teamID = Constants.TEAM_ANY, bool ignoreNavBlockers = false)
 		=> NavAreaBuildPath(startArea, goalArea, goalPos, costFunc, out _, maxPathLength, teamID, ignoreNavBlockers);
 
 	public static float NavAreaTravelDistance(NavArea? startArea, NavArea? endArea, Func<NavArea, NavArea?, NavLadder?, FuncElevator?, float, float> costFunc, float maxPathLength = 0.0f) {
@@ -361,7 +366,7 @@ public static class NavPathfind
 		}
 	}
 
-	public static void SearchSurroundingAreas(NavArea? startArea, Vector3 startPos, Func<NavArea, bool> func, float maxRange = -1.0f, int options = 0, int teamID = -2 /*TEAM_ANY*/) {
+	public static void SearchSurroundingAreas(NavArea? startArea, Vector3 startPos, Func<NavArea, bool> func, float maxRange = -1.0f, SearchFlags options = 0, int teamID = Constants.TEAM_ANY) {
 		if (startArea == null)
 			return;
 
@@ -377,7 +382,7 @@ public static class NavPathfind
 		while (!NavArea.IsOpenListEmpty()) {
 			NavArea area = NavArea.PopOpenList();
 
-			if (area.IsBlocked(teamID) && (options & INCLUDE_BLOCKED_AREAS) == 0)
+			if (area.IsBlocked(teamID) && (options & SearchFlags.IncludeBlockedAreas) == 0)
 				continue;
 
 			if (func(area)) {
@@ -385,7 +390,7 @@ public static class NavPathfind
 					int count = area.GetAdjacentCount((NavDirType)dir);
 					for (int i = 0; i < count; ++i) {
 						NavArea? adjArea = area.GetAdjacentArea((NavDirType)dir, i);
-						if ((options & EXCLUDE_OUTGOING_CONNECTIONS) != 0) {
+						if ((options & SearchFlags.ExcludeOutgoingConnections) != 0) {
 							if (!adjArea.IsConnected(area, NavDirType.NumDirections))
 								continue;
 						}
@@ -393,7 +398,7 @@ public static class NavPathfind
 					}
 				}
 
-				if ((options & INCLUDE_INCOMING_CONNECTIONS) != 0) {
+				if ((options & SearchFlags.IncludeIncomingConnections) != 0) {
 					for (int dir = 0; dir < (int)NavDirType.NumDirections; ++dir) {
 						List<NavConnect> list = area.GetIncomingConnections((NavDirType)dir);
 						foreach (NavConnect connect in list)
@@ -416,7 +421,7 @@ public static class NavPathfind
 						AddAreaToOpenList(lc.Ladder?.BottomArea, area, startPos, maxRange);
 				}
 
-				if ((options & EXCLUDE_ELEVATORS) == 0) {
+				if ((options & SearchFlags.ExcludeElevators) == 0) {
 					foreach (NavConnect ec in area.GetElevatorAreas())
 						AddAreaToOpenList(ec.Area, area, startPos, maxRange);
 				}
@@ -483,7 +488,7 @@ public static class NavPathfind
 					int count = area.GetAdjacentCount((NavDirType)dir);
 					for (int i = 0; i < count; ++i) {
 						NavArea? adjArea = area.GetAdjacentArea((NavDirType)dir, i);
-						if (adjArea.IsBlocked(-2 /*TEAM_ANY*/)) continue;
+						if (adjArea.IsBlocked(Constants.TEAM_ANY)) continue;
 
 						if (!adjArea.IsMarked()) {
 							adjArea.TotalCost = 0.0f;

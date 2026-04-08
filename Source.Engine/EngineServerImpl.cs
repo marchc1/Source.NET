@@ -42,8 +42,12 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
+	static bool warnedCheckBoxInPVS = false;
 	public bool CheckBoxInPVS(in Vector3 mins, in Vector3 maxs, ReadOnlySpan<byte> checkpvs) {
-		Console.WriteLine($"CheckBoxInPVS not implemented");
+		if (!warnedCheckBoxInPVS) {
+			Console.WriteLine("CheckBoxInPVS not implemented");
+			warnedCheckBoxInPVS = true;
+		}
 		return false;
 	}
 

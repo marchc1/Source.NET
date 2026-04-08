@@ -455,7 +455,7 @@ public partial class NavMesh
 		return use;
 	}
 
-	NavArea? GetNearestNavArea(Vector3 pos, bool anyZ = false, float maxDist = 10000.0f, bool checkLOS = false, bool checkGround = true, int team = -2 /*TEAM_ANY*/) {
+	NavArea? GetNearestNavArea(Vector3 pos, bool anyZ = false, float maxDist = 10000.0f, bool checkLOS = false, bool checkGround = true, int team = Constants.TEAM_ANY) {
 		if (Grid.Count == 0)
 			return null;
 
@@ -635,7 +635,7 @@ public partial class NavMesh
 		return false;
 	}
 
-	bool GetSimpleGroundHeight(Vector3 pos, float height, Vector3 normal) {
+	public bool GetSimpleGroundHeight(Vector3 pos, out float height, out Vector3 normal) {
 		throw new NotImplementedException();
 	}
 
@@ -649,7 +649,7 @@ public partial class NavMesh
 
 	void DrawFuncNavPrerequisite() { }
 
-	bool IsGenerating() => GenerationMode != GenerationModeType.None;
+	public bool IsGenerating() => GenerationMode != GenerationModeType.None;
 
 	void IncreaseDangerNearby(int teamID, float amount, NavArea startArea, Vector3 pos, float maxRadius, float dangerLimit) { }
 
@@ -676,11 +676,21 @@ public partial class NavMesh
 
 	public HidingSpot CreateHidingSpot() => new();
 
-	void DestroyHidingSpots() { }
+	void DestroyHidingSpots() {
+		foreach (NavArea area in NavArea.TheNavAreas)
+			area.HidingSpots.Clear();
 
-	void OnAreaBlocked(NavArea area) { }
+		HidingSpot.NextID = 0;
 
-	void OnAreaUnblocked(NavArea area) { }
+		HidingSpot.TheHidingSpots.Clear();
+	}
+
+	public void OnAreaBlocked(NavArea area) {
+		if (!BlockedAreas.Contains(area))
+			BlockedAreas.Add(area);
+	}
+
+	public void OnAreaUnblocked(NavArea area) => BlockedAreas.Remove(area);
 
 	void UpdateBlockedAreas() {
 		foreach (NavArea area in BlockedAreas)
@@ -789,9 +799,9 @@ public partial class NavMesh
 	public virtual void SaveCustomDataPreArea(BinaryWriter buffer) { }
 	public virtual void LoadCustomDataPreArea(BinaryReader buffer, uint version) { }
 
-	NavArea CreateArea() => new();
+	public NavArea CreateArea() => new();
 
-	void DestroyArea(NavArea area) { }
+	public void DestroyArea(NavArea area) { }
 
 	int ComputeHashKey(uint id) => (int)(id & 0xFF);
 
@@ -1135,7 +1145,7 @@ public class HidingSpot
 	uint Marker;
 	NavArea? Area;
 	public byte Flags;
-	static uint NextID = 1;
+	public static uint NextID = 1;
 	static uint MasterMarker = 0;
 
 	public HidingSpot() {

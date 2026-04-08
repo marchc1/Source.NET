@@ -60,7 +60,7 @@ public static class Nav
 	public const float ClimbUpHeight = 200.0f;       // height to check for climbing up
 	public const float CliffHeight = 300.0f;       // height which we consider a significant cliff which we would not want to fall off of
 
-	const int HalfHumanWidth = 16;
+	public const int HalfHumanWidth = 16;
 	public const float HalfHumanHeight = 35.5f;
 	public const float HumanHeight = 71.0f;
 	public const float HumanEyeHeight = 62.0f;

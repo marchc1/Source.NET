@@ -418,6 +418,9 @@ public static class MathLib
 	public static ref Vector2 AsVector2D(this ref Vector4 vec)
 		=> ref new Span<Vector4>(ref vec).Cast<Vector4, float>()[..2].Cast<float, Vector2>()[0];
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector2 AsVector2D(this Vector3 v) => new(v.X, v.Y);
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DistTo(this in Vector3 vec, in Vector3 other) => Vector3.Distance(vec, other);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Min(this in Vector3 vec, in Vector3 other) => Vector3.Min(vec, other);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Max(this in Vector3 vec, in Vector3 other) => Vector3.Max(vec, other);

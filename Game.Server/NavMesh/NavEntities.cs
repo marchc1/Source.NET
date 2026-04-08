@@ -1,5 +1,7 @@
 using Source.Common;
 
+using System.Numerics;
+
 namespace Game.Server.NavMesh;
 
 
@@ -20,7 +22,9 @@ class FuncNavPrefer
 
 class FuncNavBlocker
 {
-
+	public static bool CalculateBlocked(bool[] resultByTeam, Vector3 mins, Vector3 maxs) {
+		throw new NotImplementedException();
+	}
 }
 
 public class FuncNavObstruction : BaseEntity, INavAvoidanceObstacle

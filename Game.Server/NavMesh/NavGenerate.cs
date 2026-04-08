@@ -677,7 +677,124 @@ public partial class NavMesh
 		StitchGeneratedAreas();
 	}
 
-	void MergeGeneratedAreas() { }
+	void MergeGeneratedAreas() {
+		Msg("Merging navigation areas...\n");
+
+		bool merged;
+
+		do {
+			merged = false;
+
+			foreach (NavArea area in NavArea.TheNavAreas) {
+				if (!area.HasNodes() || (area.GetAttributes() & NavAttributeType.NoMerge) != 0)
+					continue;
+
+				for (int nit = 0; nit < area.Connect[(int)NavDirType.North].Count; nit++) {
+					NavArea adjArea = area.Connect[(int)NavDirType.North][nit].Area!;
+					if (!area.IsAbleToMergeWith(adjArea))
+						continue;
+
+					if (area.GetSizeY() + adjArea.GetSizeY() > GenerationStepSize * nav_area_max_size.GetInt())
+						continue;
+
+					if (area.Node[(int)NavCornerType.NorthWest] == adjArea.Node[(int)NavCornerType.SouthWest] &&
+							area.Node[(int)NavCornerType.NorthEast] == adjArea.Node[(int)NavCornerType.SouthEast] &&
+							area.GetAttributes() == adjArea.GetAttributes() &&
+							area.IsCoplanar(adjArea)) {
+						area.Node[(int)NavCornerType.NorthWest] = adjArea.Node[(int)NavCornerType.NorthWest];
+						area.Node[(int)NavCornerType.NorthEast] = adjArea.Node[(int)NavCornerType.NorthEast];
+
+						merged = true;
+
+						area.FinishMerge(adjArea);
+
+						break;
+					}
+				}
+
+				if (merged)
+					break;
+
+				for (int sit = 0; sit < area.Connect[(int)NavDirType.South].Count; sit++) {
+					NavArea adjArea = area.Connect[(int)NavDirType.South][sit].Area!;
+					if (!area.IsAbleToMergeWith(adjArea))
+						continue;
+
+					if (area.GetSizeY() + adjArea.GetSizeY() > GenerationStepSize * nav_area_max_size.GetInt())
+						continue;
+
+					if (adjArea.Node[(int)NavCornerType.NorthWest] == area.Node[(int)NavCornerType.SouthWest] &&
+							adjArea.Node[(int)NavCornerType.NorthEast] == area.Node[(int)NavCornerType.SouthEast] &&
+							area.GetAttributes() == adjArea.GetAttributes() &&
+							area.IsCoplanar(adjArea)) {
+						area.Node[(int)NavCornerType.SouthWest] = adjArea.Node[(int)NavCornerType.SouthWest];
+						area.Node[(int)NavCornerType.SouthEast] = adjArea.Node[(int)NavCornerType.SouthEast];
+
+						merged = true;
+
+						area.FinishMerge(adjArea);
+
+						break;
+					}
+				}
+
+				if (merged)
+					break;
+
+				for (int wit = 0; wit < area.Connect[(int)NavDirType.West].Count; wit++) {
+					NavArea adjArea = area.Connect[(int)NavDirType.West][wit].Area!;
+					if (!area.IsAbleToMergeWith(adjArea))
+						continue;
+
+					if (area.GetSizeX() + adjArea.GetSizeX() > GenerationStepSize * nav_area_max_size.GetInt())
+						continue;
+
+					if (area.Node[(int)NavCornerType.NorthWest] == adjArea.Node[(int)NavCornerType.NorthEast] &&
+							area.Node[(int)NavCornerType.SouthWest] == adjArea.Node[(int)NavCornerType.SouthEast] &&
+							area.GetAttributes() == adjArea.GetAttributes() &&
+							area.IsCoplanar(adjArea)) {
+						area.Node[(int)NavCornerType.NorthWest] = adjArea.Node[(int)NavCornerType.NorthWest];
+						area.Node[(int)NavCornerType.SouthWest] = adjArea.Node[(int)NavCornerType.SouthWest];
+
+						merged = true;
+
+						area.FinishMerge(adjArea);
+
+						break;
+					}
+				}
+
+				if (merged)
+					break;
+
+				for (int eit = 0; eit < area.Connect[(int)NavDirType.East].Count; eit++) {
+					NavArea adjArea = area.Connect[(int)NavDirType.East][eit].Area!;
+					if (!area.IsAbleToMergeWith(adjArea))
+						continue;
+
+					if (area.GetSizeX() + adjArea.GetSizeX() > GenerationStepSize * nav_area_max_size.GetInt())
+						continue;
+
+					if (adjArea.Node[(int)NavCornerType.NorthWest] == area.Node[(int)NavCornerType.NorthEast] &&
+							adjArea.Node[(int)NavCornerType.SouthWest] == area.Node[(int)NavCornerType.SouthEast] &&
+							area.GetAttributes() == adjArea.GetAttributes() &&
+							area.IsCoplanar(adjArea)) {
+						area.Node[(int)NavCornerType.NorthEast] = adjArea.Node[(int)NavCornerType.NorthEast];
+						area.Node[(int)NavCornerType.SouthEast] = adjArea.Node[(int)NavCornerType.SouthEast];
+
+						merged = true;
+
+						area.FinishMerge(adjArea);
+
+						break;
+					}
+				}
+
+				if (merged)
+					break;
+			}
+		} while (merged);
+	}
 
 	void FixUpGeneratedAreas() { }
 
@@ -1924,4 +2041,21 @@ public partial class NavMesh
 	}
 
 	void PostProcessCliffAreas() { }
+}
+
+public partial class NavArea
+{
+	public bool TestStairs() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsAbleToMergeWith(NavArea other) {
+		if (!HasNodes() || (GetAttributes() & NavAttributeType.NoMerge) != 0)
+			return false;
+
+		if (!other.HasNodes() || (other.GetAttributes() & NavAttributeType.NoMerge) != 0)
+			return false;
+
+		return true;
+	}
 }
