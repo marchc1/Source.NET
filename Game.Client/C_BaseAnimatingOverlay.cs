@@ -9,10 +9,24 @@ using FIELD = Source.FIELD<Game.Client.C_BaseAnimatingOverlay>;
 
 namespace Game.Client;
 
-public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
+public partial class C_BaseAnimatingOverlay : C_BaseAnimating
+{
 	public static readonly RecvTable DT_OverlayVars = new([
 		RecvPropList<AnimationLayerRef>(FIELD.OF_LIST(nameof(AnimOverlay), MAX_OVERLAYS), ResizeAnimationLayerCallback, RecvPropDataTable(null!, AnimationLayerRef.DT_AnimationLayer))
 	]);
+
+	public C_BaseAnimatingOverlay() : base() {
+		for (int i = 0; i < MAX_OVERLAYS; i++) {
+			AnimationLayerRef r = new AnimationLayerRef();
+			AnimOverlay.Add(new());
+			var iv = new InterpolatedVar<AnimationLayer>();
+			iv.Setup(r, AnimationLayerRef.Accessor, LatchFlags.LatchAnimationVar);
+			iv_AnimOverlay.Add(iv);
+		}
+	}
+
+	public int ActiveOverlayCount = 0;
+
 
 	public static readonly string[] iv_AnimOverlayNames = [
 		"C_BaseAnimatingOverlay.iv_AnimOverlay00",
@@ -32,41 +46,23 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
 		"C_BaseAnimatingOverlay.iv_AnimOverlay14"
 	];
 
+
+
 	private static void ResizeAnimationLayerCallback(object instance, object list, int len) {
 		C_BaseAnimatingOverlay ent = (C_BaseAnimatingOverlay)instance;
 		List<AnimationLayerRef> vec = ent.AnimOverlay;
 		List<InterpolatedVar<AnimationLayer>> iv = ent.iv_AnimOverlay;
 
 		Assert(list == vec);
-		Assert(vec.Count == iv.Count);
-		Assert(vec.Count <= MAX_OVERLAYS);
 
-		int diff = len - vec.Count;
-
-		if (diff == 0)
+		if (len == ent.ActiveOverlayCount)
 			return;
 
-		// remove all entries
-		for (int i = 0; i < vec.Count; i++) 
+		for (int i = 0; i < ent.ActiveOverlayCount; i++)
 			ent.RemoveVar(vec[i], AnimationLayerRef.Accessor);
 
-		// adjust vector sizes
-		if (diff > 0) {
-			for (int i = 0; i < diff; i++) {
-				vec.Add(new());
-				iv.Add(new());
-			}
-		}
-		else {
-			for (int i = 0; i < -diff; i++) {
-				if(vec.Count > 0)
-				vec.RemoveAt(vec.Count - 1);
-				if(iv.Count > 0)
-				iv.RemoveAt(vec.Count - 1);
-			}
-		}
+		ent.ActiveOverlayCount = len;
 
-		// Rebind all the variables in the ent's list.
 		for (int i = 0; i < len; i++) {
 			IInterpolatedVar watcher = iv[i];
 			watcher.SetDebugName(iv_AnimOverlayNames[i]);
@@ -86,21 +82,16 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
 
 	public AnimationLayerRef GetAnimOverlay(int i) => AnimOverlay[i];
 
-	public int GetNumAnimOverlays() => AnimOverlay.Count;
-	public void SetNumAnimOverlays(int num){
-		if (AnimOverlay.Count < num) 
-			for (int i = 0, diff = num - AnimOverlay.Count; i < diff; i++) 
-				AnimOverlay.Add(new());
-		else if (AnimOverlay.Count > num) 
-			for (int i = 0, diff = AnimOverlay.Count - num; i < diff; i++)
-				AnimOverlay.RemoveAt(AnimOverlay.Count - 1);
+	public int GetNumAnimOverlays() => ActiveOverlayCount;
+	public void SetNumAnimOverlays(int num) {
+		ActiveOverlayCount = num;
 	}
-	public void CheckForLayerChanges(StudioHdr hdr, TimeUnit_t currentTime){
+	public void CheckForLayerChanges(StudioHdr hdr, TimeUnit_t currentTime) {
 		bool layersChanged = false;
 
 		// FIXME: damn, there has to be a better way than this.
 		int i;
-		for (i = 0; i < iv_AnimOverlay.Count; i++) {
+		for (i = 0; i < ActiveOverlayCount; i++) {
 			iv_AnimOverlay[i].GetInterpolationInfo(currentTime, out int iHead, out int iPrev1, out int iPrev2);
 
 			// fake up previous cycle values.
@@ -126,9 +117,9 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
 
 					prev2.Sequence = head.Sequence;
 					double flTemp;
-					if (IsSequenceLooping(hdr, head.Sequence)) 
+					if (IsSequenceLooping(hdr, head.Sequence))
 						flTemp = LerpFunctions.LoopingLerp(num, head.PrevCycle, head.Cycle);
-					else 
+					else
 						flTemp = LerpFunctions.Lerp(num, head.PrevCycle, head.Cycle);
 					prev2.Cycle = flTemp;
 					prev2.Weight = head.Weight;
@@ -142,7 +133,7 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
 			}
 		}
 
-		if (layersChanged) 
+		if (layersChanged)
 			// render bounds may have changed
 			UpdateVisibility();
 	}
@@ -150,17 +141,16 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
 		base.AccumulateLayers(ref boneSetup, pos, q, currentTime);
 
 		int i;
-
 		// resort the layers
 		Span<int> layer = stackalloc int[MAX_OVERLAYS];
-		for (i = 0; i < MAX_OVERLAYS; i++) 
+		for (i = 0; i < MAX_OVERLAYS; i++)
 			layer[i] = MAX_OVERLAYS;
-		
-		for (i = 0; i < AnimOverlay.Count; i++) {
+
+		for (i = 0; i < ActiveOverlayCount; i++) {
 			if (AnimOverlay[i].Order < MAX_OVERLAYS) {
-				if (layer[AnimOverlay[i].Order] != MAX_OVERLAYS) 
+				if (layer[AnimOverlay[i].Order] != MAX_OVERLAYS)
 					AnimOverlay[i].Order = MAX_OVERLAYS;
-				else 
+				else
 					layer[AnimOverlay[i].Order] = i;
 			}
 		}
@@ -173,10 +163,10 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
 		int j;
 		for (j = 0; j < MAX_OVERLAYS; j++) {
 			i = layer[j];
-			if (i < AnimOverlay.Count) {
-				if (AnimOverlay[i].Sequence >= nSequences) 
+			if (i < ActiveOverlayCount) {
+				if (AnimOverlay[i].Sequence >= nSequences)
 					continue;
-				
+
 				AnimOverlay[i].BlendWeight();
 
 				float fWeight = AnimOverlay[i].Weight;
@@ -202,8 +192,8 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating {
 		base.DoAnimationEvents(hdr);
 	}
 	protected override StudioHdr? OnNewModel() {
-		StudioHdr? hdr =  base.OnNewModel();
-		for (int i = 0; i < AnimOverlay.Count; i++) {
+		StudioHdr? hdr = base.OnNewModel();
+		for (int i = 0; i < ActiveOverlayCount; i++) {
 			AnimOverlay[i].Reset();
 			AnimOverlay[i].Order = MAX_OVERLAYS;
 		}

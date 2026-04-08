@@ -9,6 +9,7 @@ using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Server;
+using Source.Common.SoundEmitterSystem;
 
 namespace Game.Server;
 
@@ -24,6 +25,7 @@ public static class SourceDllMain
 	[Dependency] public static ICvar cvar { get; private set; } = null!;
 	[Dependency] public static ISpatialPartition partition { get; private set; } = null!;
 	[Dependency] public static IUniformRandomStream random { get; private set; } = null!;
+	[Dependency] public static ISoundEmitterSystemBase soundemitterbase { get; private set; } = null!;
 	[Dependency] public static IGameEventManager2 gameeventmanager { get; private set; } = null!;
 	[Dependency] public static IDataCache datacache { get; private set; } = null!;
 	[Dependency] public static UserMessages usermessages { get; private set; } = null!;

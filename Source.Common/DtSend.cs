@@ -396,7 +396,7 @@ public static class SendPropHelpers
 		props[0].SetExtraData(extraData);
 
 		for (int i = 1; i < maxElements + 1; i++) {
-			props[i] = arrayProp;
+			props[i] = arrayProp.Copy();
 			props[i].SetOffset(0);
 			props[i].NameOverride = ElementNames[i - 1];
 			props[i].ParentArrayPropName = field.Name;

@@ -17,6 +17,7 @@ using Game.Client;
 using Game.Server;
 #endif
 
+using Source.Common.Audio;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
 
@@ -686,4 +687,25 @@ public struct StepSimulationData
 	public int LastProcessTickCount;
 	public Vector3 NetworkOrigin;
 	public QAngle NetworkAngles;
+}
+
+public ref struct EmitSound_t
+{
+	public int Channel;
+	public ReadOnlySpan<char> SoundName;
+	public float Volume;
+	public SoundLevel SoundLevel;
+	public int Flags;
+	public int Pitch;
+	public int SpecialDSP;
+	public ref readonly Vector3 Origin;
+	public TimeUnit_t SoundTime;
+	public ref TimeUnit_t SoundDuration;
+	public bool EmitCloseCaption;
+	public bool WarnOnMissingCloseCaption;
+	public bool WarnOnDirectWaveReference;
+	public int SpeakerEntity;
+	public Source.InlineArray16<Vector3> SoundOrigin;
+	public int NumSoundOrigin;
+	public HSOUNDSCRIPTHANDLE SoundScriptHandle;
 }
