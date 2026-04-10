@@ -51,6 +51,12 @@ public static class Nav
 	public static readonly ConVar nav_update_visibility_on_edit = new("nav_update_visibility_on_edit", "0", FCvar.Cheat, "If nonzero editing the mesh will incrementally recompue visibility");
 	public static readonly ConVar nav_potentially_visible_dot_tolerance = new("nav_potentially_visible_dot_tolerance", "0.98", FCvar.Cheat);
 	public static readonly ConVar nav_show_potentially_visible = new("nav_show_potentially_visible", "0", FCvar.Cheat, "Show areas that are potentially visible from the current nav area");
+	public static readonly ConVar nav_show_nodes = new("nav_show_nodes", "1", FCvar.Cheat);
+	public static readonly ConVar nav_show_node_id = new("nav_show_node_id", "0", FCvar.Cheat);
+	public static readonly ConVar nav_test_node = new("nav_test_node", "0", FCvar.Cheat);
+	public static readonly ConVar nav_test_node_crouch = new("nav_test_node_crouch", "0", FCvar.Cheat);
+	public static readonly ConVar nav_test_node_crouch_dir = new("nav_test_node_crouch_dir", "4", FCvar.Cheat);
+	public static readonly ConVar nav_show_node_grid = new("nav_show_node_grid", "0", FCvar.Cheat);
 
 	public const float GenerationStepSize = 25.0f;     // (30) was 20, but bots can't fit always fit
 	const float JumpHeight = 41.8f;         // if delta Z is less than this, we can jump up on it
@@ -126,30 +132,31 @@ public static class Nav
 		return NavDirType.North;
 	}
 
-	public static Vector2 DirectionToVector2D(NavDirType dir) => dir switch {
-		NavDirType.North => new Vector2(0f, -1f),
-		NavDirType.South => new Vector2(0f, 1f),
-		NavDirType.East => new Vector2(1f, 0f),
-		NavDirType.West => new Vector2(-1f, 0f),
-		_ => Vector2.Zero
-	};
-
-	public static Vector2 CornerToVector2D(NavCornerType dir) {
-		Vector2 v = dir switch {
-			NavCornerType.NorthWest => new Vector2(-1f, -1f),
-			NavCornerType.NorthEast => new Vector2(1f, -1f),
-			NavCornerType.SouthEast => new Vector2(1f, 1f),
-			NavCornerType.SouthWest => new Vector2(-1f, 1f),
-			_ => Vector2.Zero
-		};
-
-		return Vector2.Normalize(v);
+	public static void DirectionToVector2D(NavDirType dir, ref Vector2 v) {
+		switch (dir) {
+			default: Assert(false); break;
+			case NavDirType.North: v.X = 0.0f; v.Y = -1.0f; break;
+			case NavDirType.South: v.X = 0.0f; v.Y = 1.0f; break;
+			case NavDirType.East: v.X = 1.0f; v.Y = 0.0f; break;
+			case NavDirType.West: v.X = -1.0f; v.Y = 0.0f; break;
+		}
 	}
 
-	public static void GetCornerTypesInDirection(
-			NavDirType dir,
-			out NavCornerType first,
-			out NavCornerType second) {
+	public static void CornerToVector2D(NavCornerType dir, ref Vector2 v) {
+		switch (dir) {
+			default: Assert(false); break;
+			case NavCornerType.NorthWest: v.X = -1.0f; v.Y = -1.0f; break;
+			case NavCornerType.NorthEast: v.X = 1.0f; v.Y = -1.0f; break;
+			case NavCornerType.SouthEast: v.X = 1.0f; v.Y = 1.0f; break;
+			case NavCornerType.SouthWest: v.X = -1.0f; v.Y = 1.0f; break;
+		}
+
+		v = Vector2.Normalize(v);
+	}
+
+
+
+	public static void GetCornerTypesInDirection(NavDirType dir, out NavCornerType first, out NavCornerType second) {
 		switch (dir) {
 			default:
 			case NavDirType.North:

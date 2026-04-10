@@ -223,6 +223,8 @@ public partial class NavArea : NavAreaCriticalData
 		}
 	}
 
+	public uint GetDebugID() => DebugID;
+
 	public NavArea() {
 		Marker = 0;
 		NearNavSearchMarker = 0;
@@ -323,7 +325,7 @@ public partial class NavArea : NavAreaCriticalData
 		CalcDebugID();
 	}
 
-	void Build(Vector3 nwCorner, Vector3 neCorner, Vector3 seCorner, Vector3 swCorner) {
+	public void Build(Vector3 nwCorner, Vector3 neCorner, Vector3 seCorner, Vector3 swCorner) {
 		NWCorner = nwCorner;
 		SECorner = seCorner;
 
@@ -390,7 +392,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	public Vector3 GetCenter() => Center;
 
-	NavNode FindClosestNode(Vector3 pos, NavDirType dir) {
+	public NavNode FindClosestNode(Vector3 pos, NavDirType dir) {
 		throw new NotImplementedException();
 	}
 
@@ -473,7 +475,7 @@ public partial class NavArea : NavAreaCriticalData
 			AddLadderUp(ladder);
 	}
 
-	void Disconnect(NavArea area) {
+	public void Disconnect(NavArea area) {
 		for (int i = 0; i < (int)NavDirType.NumDirections; i++) {
 			NavDirType dir = (NavDirType)i;
 			NavDirType opposite = OppositeDirection(dir);
@@ -1153,7 +1155,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	public bool IsOverlapping(Vector3 pos, float tolerance = 0.0f) => pos.X + tolerance >= NWCorner.X && pos.X - tolerance <= SECorner.X && pos.Y + tolerance >= NWCorner.Y && pos.Y - tolerance <= SECorner.Y;
 
-	bool IsOverlapping(NavArea area) => area.NWCorner.X < SECorner.X && area.SECorner.X > NWCorner.X && area.NWCorner.Y < SECorner.Y && area.SECorner.Y > NWCorner.Y;
+	public bool IsOverlapping(NavArea area) => area.NWCorner.X < SECorner.X && area.SECorner.X > NWCorner.X && area.NWCorner.Y < SECorner.Y && area.SECorner.Y > NWCorner.Y;
 
 	public bool IsOverlapping(Extent extent) => extent.Lo.X < SECorner.X && extent.Hi.X > NWCorner.X && extent.Lo.Y < SECorner.Y && extent.Hi.Y > NWCorner.Y;
 
@@ -1177,11 +1179,11 @@ public partial class NavArea : NavAreaCriticalData
 		return NavMesh.Instance!.ForAllAreasOverlappingExtent(overlap.Invoke, areaExtent);
 	}
 
-	bool Contains(NavArea area) => (NWCorner.X <= area.NWCorner.X) && (SECorner.X >= area.SECorner.X) &&
+	public bool Contains(NavArea area) => (NWCorner.X <= area.NWCorner.X) && (SECorner.X >= area.SECorner.X) &&
 						(NWCorner.Y <= area.NWCorner.Y) && (SECorner.Y >= area.SECorner.Y) &&
 						(NWCorner.Z <= area.NWCorner.Z) && (SECorner.Z >= area.SECorner.Z);
 
-	void ComputeNormal(ref Vector3 normal, bool alternate = false) {
+	public void ComputeNormal(ref Vector3 normal, bool alternate = false) {
 		Vector3 u, v;
 
 		if (!alternate) {
@@ -1207,7 +1209,7 @@ public partial class NavArea : NavAreaCriticalData
 		normal.NormalizeInPlace();
 	}
 
-	void RemoveOrthogonalConnections(NavDirType dir) {
+	public void RemoveOrthogonalConnections(NavDirType dir) {
 		NavDirType[] dirToRemove = [DirectionLeft(dir), DirectionRight(dir)];
 		for (int i = 0; i < 2; i++) {
 			dir = dirToRemove[i];
@@ -1570,6 +1572,8 @@ public partial class NavArea : NavAreaCriticalData
 		return NavCornerType.NumCorners;
 	}
 
+	static IntervalTimer blink;
+	static bool blinkOn = false;
 	public void Draw() {
 		NavEditColor color;
 		bool useAttributeColors = true;
@@ -1599,23 +1603,20 @@ public partial class NavArea : NavAreaCriticalData
 		}
 
 		if (IsDegenerate()) {
-			// TODO
-			// static IntervalTimer blink;
-			// static bool blinkOn = false;
+			blink ??= new();
+			if (blink.GetElapsedTime() > 1.0f) {
+				blink.Reset();
+				blinkOn = !blinkOn;
+			}
 
-			// if (blink.GetElapsedTime() > 1.0f) {
-			// 	blink.Reset();
-			// 	blinkOn = !blinkOn;
-			// }
+			useAttributeColors = false;
 
-			// useAttributeColors = false;
+			if (blinkOn)
+				color = NavEditColor.NavDegenerateFirstColor;
+			else
+				color = NavEditColor.NavDegenerateSecondColor;
 
-			// if (blinkOn)
-			// 	color = NavEditColor.NavDegenerateFirstColor;
-			// else
-			// 	color = NavEditColor.NavDegenerateSecondColor;
-
-			// NDebugOverlay::Text(GetCenter(), UTIL_VarArgs("Degenerate area %d", GetID()), true, DebugDuration);
+			Shared.DebugOverlay.Text(Center, $"Degenerate area {ID}", true, DebugDuration);
 		}
 
 		Vector3 nw, ne, sw, se;
@@ -1630,14 +1631,14 @@ public partial class NavArea : NavAreaCriticalData
 		sw.Z = SWZ;
 
 		if (nav_show_light_intensity.GetBool()) {
-			// for (int i = 0; i < (int)NavCornerType.NumCorners; ++i) {
-			// 	Vector3 pos = GetCorner((NavCornerType)i);
-			// 	Vector3 end = pos;
-			// 	float lightIntensity = GetLightIntensity(pos);
-			// 	end.Z += HumanHeight * lightIntensity;
-			// 	lightIntensity *= 255; // for color
-			// 	NDebugOverlay::Line(end, pos, lightIntensity, lightIntensity, Math.Max(192, lightIntensity), true, DebugDuration);
-			// }
+			for (int i = 0; i < (int)NavCornerType.NumCorners; ++i) {
+				Vector3 pos = GetCorner((NavCornerType)i);
+				Vector3 end = pos;
+				float lightIntensity = GetLightIntensity(pos);
+				end.Z += HumanHeight * lightIntensity;
+				lightIntensity *= 255;
+				Shared.DebugOverlay.Line(end, pos, (int)lightIntensity, (int)lightIntensity, Math.Max(192, (int)lightIntensity), true, DebugDuration);
+			}
 		}
 
 		int[] bgcolor = new int[4];
@@ -1860,7 +1861,23 @@ public partial class NavArea : NavAreaCriticalData
 		}
 	}
 
-	void DrawFilled(int r, int g, int b, int a, float deltaT, bool noDepthTest, float margin) { }
+	public void DrawFilled(int r, int g, int b, int a, float deltaT = 0.1f, bool noDepthTest = true, float margin = 5.0f) {
+		Vector3 nw = GetCorner(NavCornerType.NorthWest) + new Vector3(margin, margin, 0);
+		Vector3 ne = GetCorner(NavCornerType.NorthEast) + new Vector3(-margin, margin, 0);
+		Vector3 sw = GetCorner(NavCornerType.SouthWest) + new Vector3(margin, -margin, 0);
+		Vector3 se = GetCorner(NavCornerType.SouthEast) + new Vector3(-margin, -margin, 0);
+
+		if (a == 0) {
+			Shared.DebugOverlay.Line(nw, ne, r, g, b, true, deltaT);
+			Shared.DebugOverlay.Line(nw, sw, r, g, b, true, deltaT);
+			Shared.DebugOverlay.Line(sw, se, r, g, b, true, deltaT);
+			Shared.DebugOverlay.Line(se, ne, r, g, b, true, deltaT);
+		}
+		else {
+			Shared.DebugOverlay.Triangle(nw, se, ne, r, g, b, a, noDepthTest, deltaT);
+			Shared.DebugOverlay.Triangle(se, nw, sw, r, g, b, a, noDepthTest, deltaT);
+		}
+	}
 
 	public void DrawSelectedSet(Vector3 shift) {
 		const float deltaT = (float)IVDebugOverlay.NDEBUG_PERSIST_TILL_NEXT_SERVER;
@@ -2122,7 +2139,50 @@ public partial class NavArea : NavAreaCriticalData
 
 	float GetPathLengthSoFar() => PathLengthSoFar;
 
-	void SetCorner(NavCornerType corner, Vector3 newPosition) { }
+	void SetCorner(NavCornerType corner, Vector3 newPosition) {
+		switch (corner) {
+			case NavCornerType.NorthWest:
+				NWCorner = newPosition;
+				break;
+			case NavCornerType.NorthEast:
+				SECorner.X = newPosition.X;
+				NWCorner.Y = newPosition.Y;
+				NEZ = newPosition.Z;
+				break;
+			case NavCornerType.SouthWest:
+				NWCorner.X = newPosition.X;
+				SECorner.Y = newPosition.Y;
+				SWZ = newPosition.Z;
+				break;
+			case NavCornerType.SouthEast:
+				SECorner = newPosition;
+				break;
+			default: {
+					Vector3 oldPosition = Center;
+					Vector3 delta = newPosition - oldPosition;
+					NWCorner += delta;
+					SECorner += delta;
+					NEZ += delta.Z;
+					SWZ += delta.Z;
+				}
+				break;
+		}
+
+		Center.X = (NWCorner.X + SECorner.X) / 2.0f;
+		Center.Y = (NWCorner.Y + SECorner.Y) / 2.0f;
+		Center.Z = (NWCorner.Z + SECorner.Z) / 2.0f;
+
+		if ((SECorner.X - NWCorner.X) > 0.0f && (SECorner.Y - NWCorner.Y) > 0.0f) {
+			InvDXCorners = 1.0f / (SECorner.X - NWCorner.X);
+			InvDYCorners = 1.0f / (SECorner.Y - NWCorner.Y);
+		}
+		else {
+			InvDXCorners = 0;
+			InvDYCorners = 0;
+		}
+
+		CalcDebugID();
+	}
 
 	bool IsHidingSpotCollision(Vector3 pos) {
 		const float collisionRange = 30.0f;
@@ -2515,7 +2575,7 @@ public partial class NavArea : NavAreaCriticalData
 		DangerTimestamp[teamIdx] = gpGlobals.CurTime;
 	}
 
-	float GetDanger(int teamID) {
+	public float GetDanger(int teamID) {
 		DecayDanger();
 
 		int teamIdx = teamID % MAX_NAV_TEAMS;
@@ -2523,15 +2583,29 @@ public partial class NavArea : NavAreaCriticalData
 	}
 
 	float GetLightIntensity(Vector3 pos) {
-		throw new NotImplementedException();
+		Vector3 testPos;
+		testPos.X = Math.Clamp(pos.X, NWCorner.X, SECorner.X);
+		testPos.Y = Math.Clamp(pos.Y, NWCorner.Y, SECorner.Y);
+		testPos.Z = pos.Z;
+
+		float dX = (testPos.X - NWCorner.X) * InvDXCorners;
+		float dY = (testPos.Y - NWCorner.Y) * InvDYCorners;
+
+		float northLight = LightIntensity[(int)NavCornerType.NorthWest] * (1 - dX) + LightIntensity[(int)NavCornerType.NorthEast] * dX;
+		float southLight = LightIntensity[(int)NavCornerType.SouthWest] * (1 - dX) + LightIntensity[(int)NavCornerType.SouthEast] * dX;
+		float light = northLight * (1 - dY) + southLight * dY;
+
+		return light;
 	}
 
-	float GetLightIntensity(float x, float y) {
-		throw new NotImplementedException();
-	}
+	float GetLightIntensity(float x, float y) => GetLightIntensity(new Vector3(x, y, 0));
 
 	float GetLightIntensity() {
-		throw new NotImplementedException();
+		float light = LightIntensity[(int)NavCornerType.NorthWest];
+		light += LightIntensity[(int)NavCornerType.NorthEast];
+		light += LightIntensity[(int)NavCornerType.SouthWest];
+		light += LightIntensity[(int)NavCornerType.SouthEast];
+		return light / 4.0f;
 	}
 
 	public static void MakeNewMarker() {
@@ -2587,7 +2661,83 @@ public partial class NavArea : NavAreaCriticalData
 	}
 
 	void RaiseCorner(NavCornerType corner, int amount, bool raiseAdjacentCorners = true) {
-		throw new NotImplementedException();
+		if (corner == NavCornerType.NumCorners) {
+			RaiseCorner(NavCornerType.NorthWest, amount, raiseAdjacentCorners);
+			RaiseCorner(NavCornerType.NorthEast, amount, raiseAdjacentCorners);
+			RaiseCorner(NavCornerType.SouthWest, amount, raiseAdjacentCorners);
+			RaiseCorner(NavCornerType.SouthEast, amount, raiseAdjacentCorners);
+			return;
+		}
+
+		switch (corner) {
+			case NavCornerType.NorthWest:
+				NWCorner.Z += amount;
+				break;
+			case NavCornerType.NorthEast:
+				NEZ += amount;
+				break;
+			case NavCornerType.SouthWest:
+				SWZ += amount;
+				break;
+			case NavCornerType.SouthEast:
+				SECorner.Z += amount;
+				break;
+		}
+
+		Center.X = (NWCorner.X + SECorner.X) / 2.0f;
+		Center.Y = (NWCorner.Y + SECorner.Y) / 2.0f;
+		Center.Z = (NWCorner.Z + SECorner.Z) / 2.0f;
+
+		if ((SECorner.X - NWCorner.X) > 0.0f && (SECorner.Y - NWCorner.Y) > 0.0f) {
+			InvDXCorners = 1.0f / (SECorner.X - NWCorner.X);
+			InvDYCorners = 1.0f / (SECorner.Y - NWCorner.Y);
+		}
+		else {
+			InvDXCorners = 0;
+			InvDYCorners = 0;
+		}
+
+		if (!raiseAdjacentCorners || nav_corner_adjust_adjacent.GetFloat() <= 0.0f)
+			return;
+
+		MakeNewMarker();
+		Mark();
+
+		Vector3 cornerPos = GetCorner(corner);
+		cornerPos.Z -= amount;
+
+		int gridX = NavMesh.Instance!.WorldToGridX(cornerPos.X);
+		int gridY = NavMesh.Instance.WorldToGridY(cornerPos.Y);
+
+		const int shift = 1;
+
+		for (int x = gridX - shift; x <= gridX + shift; ++x) {
+			if (x < 0 || x >= NavMesh.Instance.GridSizeX)
+				continue;
+
+			for (int y = gridY - shift; y <= gridY + shift; ++y) {
+				if (y < 0 || y >= NavMesh.Instance.GridSizeY)
+					continue;
+
+				List<NavArea> areas = NavMesh.Instance.Grid[x + y * NavMesh.Instance.GridSizeX];
+
+				foreach (NavArea area in areas) {
+					if (area.IsMarked())
+						continue;
+
+					area.Mark();
+
+					Vector3 areaPos;
+					for (int i = 0; i < (int)NavCornerType.NumCorners; ++i) {
+						areaPos = area.GetCorner((NavCornerType)i);
+						if ((areaPos - cornerPos).Length() < nav_corner_adjust_adjacent.GetFloat()) {
+							float heightDiff = cornerPos.Z + amount - areaPos.Z;
+							area.RaiseCorner((NavCornerType)i, (int)heightDiff, false);
+						}
+					}
+				}
+			}
+		}
 	}
 
 	static float FindGroundZFromPoint(Vector3 end, Vector3 start) {
@@ -2694,7 +2844,48 @@ public partial class NavArea : NavAreaCriticalData
 		return _IsBlocked[teamIdx];
 	}
 
-	void MarkAsBlocked(int teamID, BaseEntity blocker, bool generateEvent) { }
+	void MarkAsBlocked(int teamID, BaseEntity? blocker, bool generateEvent = true) {
+		if (blocker != null && blocker.ClassMatches("func_nav_blocker"))
+			AttributeFlags |= NavAttributeType.NavBlocker;
+
+		bool wasBlocked = false;
+		if (teamID == Constants.TEAM_ANY) {
+			for (int i = 0; i < MAX_NAV_TEAMS; ++i) {
+				wasBlocked |= _IsBlocked[i];
+				_IsBlocked[i] = true;
+			}
+		}
+		else {
+			int teamIdx = teamID % MAX_NAV_TEAMS;
+			wasBlocked |= _IsBlocked[teamIdx];
+			_IsBlocked[teamIdx] = true;
+		}
+
+		if (!wasBlocked) {
+			if (generateEvent) {
+				IGameEvent? evnt = gameeventmanager.CreateEvent("nav_blocked");
+				if (evnt != null) {
+					evnt.SetInt("area", (int)ID);
+					evnt.SetInt("blocked", 1);
+					gameeventmanager.FireEvent(evnt);
+				}
+			}
+
+			if (nav_debug_blocked.GetBool()) {
+				if (blocker != null)
+					ConColorMsg(new Color(0, 255, 128, 255), $"{blocker.GetDebugName()} {blocker.EntIndex} blocked area {ID}\n");
+				else
+					ConColorMsg(new Color(0, 255, 128, 255), $"non-entity blocked area {ID}\n");
+			}
+			NavMesh.Instance!.OnAreaBlocked(this);
+		}
+		else if (nav_debug_blocked.GetBool()) {
+			if (blocker != null)
+				ConColorMsg(new Color(0, 255, 128, 255), $"DUPE: {blocker.GetDebugName()} {blocker.EntIndex} blocked area {ID}\n");
+			else
+				ConColorMsg(new Color(0, 255, 128, 255), $"DUPE: non-entity blocked area {ID}\n");
+		}
+	}
 
 	void UpdateBlockedFromNavBlockers() {
 		Extent bounds = default;
@@ -2740,7 +2931,35 @@ public partial class NavArea : NavAreaCriticalData
 		}
 	}
 
-	void UnblockArea(int teamID) { }
+	void UnblockArea(int teamID) {
+		bool wasBlocked = IsBlocked(teamID);
+
+		if (teamID == Constants.TEAM_ANY) {
+			for (int i = 0; i < MAX_NAV_TEAMS; ++i)
+				_IsBlocked[i] = false;
+		}
+		else {
+			int teamIdx = teamID % MAX_NAV_TEAMS;
+			_IsBlocked[teamIdx] = false;
+		}
+
+		if (wasBlocked) {
+			IGameEvent? evnt = gameeventmanager.CreateEvent("nav_blocked");
+			if (evnt != null) {
+				evnt.SetInt("area", (int)ID);
+				evnt.SetInt("blocked", 0);
+				gameeventmanager.FireEvent(evnt);
+			}
+
+			if (nav_debug_blocked.GetBool()) {
+				if (teamID == Constants.TEAM_ANY)
+					ConColorMsg(new Color(255, 0, 128, 255), $"area {ID} is unblocked by UnblockArea for all teams\n");
+				else
+					ConColorMsg(new Color(255, 0, 128, 255), $"area {ID} is unblocked by UnblockArea for team {teamID}\n");
+			}
+			NavMesh.Instance!.OnAreaUnblocked(this);
+		}
+	}
 
 	public void UpdateBlocked(bool force = false, int teamID = -2) {
 		if (!force && !BlockedTimer.IsElapsed())
@@ -2817,7 +3036,22 @@ public partial class NavArea : NavAreaCriticalData
 		}
 	}
 
-	void CheckFloor(BaseEntity ignore) { }
+	void CheckFloor(BaseEntity ignore) {
+		if (IsBlocked(Constants.TEAM_ANY))
+			return;
+
+		Vector3 origin = GetCenter();
+		origin.Z -= JumpCrouchHeight;
+
+		const float size = GenerationStepSize * 0.5f;
+		Vector3 mins = new(-size, -size, 0);
+		Vector3 maxs = new(size, size, JumpCrouchHeight + 10.0f);
+
+		Util.TraceHull(origin, origin, mins, maxs, Mask.NPCSolidBrushOnly, ignore, CollisionGroup.PlayerMovement, out Trace result);
+
+		if (!result.StartSolid)
+			MarkAsBlocked(Constants.TEAM_ANY, null);
+	}
 
 	public void MarkObstacleToAvoid(float obstructionHeight) {
 		if (AvoidanceObstacleHeight < obstructionHeight) {
@@ -2880,16 +3114,32 @@ public partial class NavArea : NavAreaCriticalData
 		FuncNavCostVector.Add(cost);
 	}
 
+
 	float ComputeFuncNavCost(BaseCombatCharacter who) {
-		throw new NotImplementedException();
+		float funcCost = 1.0f;
+
+		foreach (FuncNavCost cost in FuncNavCostVector)
+			funcCost *= cost.GetCostMultiplier(who);
+
+		return funcCost;
 	}
 
-	bool HasFuncNavAvoid() {
-		throw new NotImplementedException();
+	public bool HasFuncNavAvoid() {
+		foreach (FuncNavCost cost in FuncNavCostVector) {
+			if (cost is FuncNavAvoid)
+				return true;
+		}
+
+		return false;
 	}
 
-	bool HasFuncNavPrefer() {
-		throw new NotImplementedException();
+	public bool HasFuncNavPrefer() {
+		foreach (FuncNavCost cost in FuncNavCostVector) {
+			if (cost is FuncNavPrefer)
+				return true;
+		}
+
+		return false;
 	}
 
 	void CheckWaterLevel() {
@@ -3215,7 +3465,6 @@ public partial class NavArea : NavAreaCriticalData
 		return false;
 	}
 
-
 	bool IsCompletelyVisible(NavArea viewedArea) {
 		if (viewedArea == null)
 			return false;
@@ -3260,7 +3509,7 @@ public partial class NavArea : NavAreaCriticalData
 		return spot;
 	}
 
-	bool HasPrerequisite(BaseCombatCharacter actor) => PrerequisiteVector.Count > 0;
+	public bool HasPrerequisite(BaseCombatCharacter? actor = null) => PrerequisiteVector.Count > 0;
 
 	List<Handle<FuncNavPrerequisite>> GetPrerequisiteVector() => PrerequisiteVector;
 
@@ -3275,7 +3524,7 @@ public partial class NavArea : NavAreaCriticalData
 	public float GetSizeX() => SECorner.X - NWCorner.X;
 	public float GetSizeY() => SECorner.Y - NWCorner.Y;
 
-	bool IsDegenerate() => (NWCorner.X >= SECorner.X) || (NWCorner.Y >= SECorner.Y);
+	public bool IsDegenerate() => (NWCorner.X >= SECorner.X) || (NWCorner.Y >= SECorner.Y);
 
 	public int GetAdjacentCount(NavDirType dir) => Connect[(int)dir].Count;
 
@@ -3351,7 +3600,7 @@ public partial class NavArea : NavAreaCriticalData
 		--PlayerCount[teamID];
 	}
 
-	public byte GetPlayerCount(int teamID) {
+	public byte GetPlayerCount(int teamID = 0) {
 		if (teamID != 0)
 			return PlayerCount[teamID % MAX_NAV_TEAMS];
 

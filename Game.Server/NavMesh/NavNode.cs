@@ -46,8 +46,8 @@ public class NavNode
 	readonly NavNode[] To = new NavNode[(int)NavDirType.NumDirections];
 	readonly NavNode[] Connections = new NavNode[(int)NavDirType.NumDirections];
 	public readonly float[] ObstacleHeight = new float[(int)NavDirType.NumDirections];
-	readonly float[] ObstacleStartDist = new float[(int)NavDirType.NumDirections];
-	readonly float[] ObstacleEndDist = new float[(int)NavDirType.NumDirections];
+	public readonly float[] ObstacleStartDist = new float[(int)NavDirType.NumDirections];
+	public readonly float[] ObstacleEndDist = new float[(int)NavDirType.NumDirections];
 	readonly float[] GroundHeightAboveNode = new float[(int)NavCornerType.NumCorners];
 	public readonly bool[] IsBlocked = new bool[(int)NavCornerType.NumCorners];
 	public readonly bool[] Crouch = new bool[(int)NavCornerType.NumCorners];
@@ -128,9 +128,84 @@ public class NavNode
 		NextID = 1;
 	}
 
-	void Draw() { }
+	public void Draw() {
+		if (!nav_show_nodes.GetBool())
+			return;
 
-	float GetGroundHeightAboveNode(NavCornerType cornerType) {
+		int r = 0, g = 0, b = 0;
+
+		if (IsCovered) {
+			if ((GetAttributes() & NavAttributeType.Crouch) != 0)
+				b = 255;
+			else
+				r = 255;
+		}
+		else {
+			if ((GetAttributes() & NavAttributeType.Crouch) != 0)
+				b = 255;
+			g = 255;
+		}
+
+		Shared.DebugOverlay.Cross3D(Pos, 2, r, g, b, true, Shared.DebugOverlay.Persist);
+
+		if ((!IsCovered && nav_show_node_id.GetBool()) || (IsCovered && nav_show_node_id.GetInt() < 0))
+			Shared.DebugOverlay.Text(Pos, $"{ID}", true, Shared.DebugOverlay.Persist);
+
+		if ((uint)nav_test_node.GetInt() == ID) {
+			NavMesh.Instance!.TestArea(this, 1, 1);
+			nav_test_node.SetValue(0);
+		}
+
+		if ((uint)nav_test_node_crouch.GetInt() == ID) {
+			CheckCrouch();
+			nav_test_node_crouch.SetValue(0);
+		}
+
+		if ((GetAttributes() & NavAttributeType.Crouch) != 0) {
+			for (int i = 0; i < (int)NavCornerType.NumCorners; i++) {
+				if (IsBlocked[i] || Crouch[i]) {
+					Vector2 cornerVec = default;
+					CornerToVector2D((NavCornerType)i, ref cornerVec);
+
+					const float scale = 3.0f;
+					Vector3 scaled = new(cornerVec.X * scale, cornerVec.Y * scale, 0);
+
+					if (IsBlocked[i])
+						Shared.DebugOverlay.HorzArrow(Pos, Pos + scaled, 0.5f, 255, 0, 0, 255, true, Shared.DebugOverlay.Persist);
+					else
+						Shared.DebugOverlay.HorzArrow(Pos, Pos + scaled, 0.5f, 0, 0, 255, 255, true, Shared.DebugOverlay.Persist);
+				}
+			}
+		}
+
+		if (nav_show_node_grid.GetBool()) {
+			for (int i = 0; i < (int)NavDirType.NumDirections; i++) {
+				NavNode? nodeNext = GetConnectedNode((NavDirType)i);
+				if (nodeNext != null) {
+					Shared.DebugOverlay.Line(Pos, nodeNext.Pos, 255, 255, 0, false, Shared.DebugOverlay.Persist);
+
+					float obstacleHeight = ObstacleHeight[i];
+					if (obstacleHeight > 0) {
+						float z = Pos.Z + obstacleHeight;
+						Vector3 from = Pos;
+						Vector3 to = from;
+						AddDirectionVector(ref to, (NavDirType)i, ObstacleStartDist[i]);
+						Shared.DebugOverlay.Line(from, to, 255, 0, 255, false, Shared.DebugOverlay.Persist);
+						from = to;
+						to.Z = z;
+						Shared.DebugOverlay.Line(from, to, 255, 0, 255, false, Shared.DebugOverlay.Persist);
+						from = to;
+						to = Pos;
+						to.Z = z;
+						AddDirectionVector(ref to, (NavDirType)i, ObstacleEndDist[i]);
+						Shared.DebugOverlay.Line(from, to, 255, 0, 255, false, Shared.DebugOverlay.Persist);
+					}
+				}
+			}
+		}
+	}
+
+	public float GetGroundHeightAboveNode(NavCornerType cornerType) {
 		if (cornerType >= 0 && cornerType < NavCornerType.NumCorners)
 			return GroundHeightAboveNode[(int)cornerType];
 
@@ -165,8 +240,14 @@ public class NavNode
 
 				realMaxs.Z = HumanHeight;
 				Util.TraceHull(start, start, mins, realMaxs, Mask.NPCSolidBrushOnly, ref filter, out tr);
-				if (!tr.StartSolid)
+				if (!tr.StartSolid) {
+					if ((uint)nav_test_node_crouch.GetInt() == GetID())
+						Shared.DebugOverlay.Box(start, mins, maxs, 0, 255, 255, 100, 100);
 					return true;
+				}
+
+				if ((uint)nav_test_node_crouch.GetInt() == GetID())
+					Shared.DebugOverlay.Box(start, mins, maxs, 255, 0, 0, 100, 100);
 
 				return false;
 			}
@@ -180,8 +261,12 @@ public class NavNode
 
 	public void CheckCrouch() {
 		for (int i = 0; i < (int)NavCornerType.NumCorners; i++) {
+			if (nav_test_node_crouch_dir.GetInt() != (int)NavCornerType.NumCorners && i != nav_test_node_crouch_dir.GetInt())
+				continue;
+
 			NavCornerType cornerType = (NavCornerType)i;
-			Vector2 cornerVec = CornerToVector2D(cornerType);
+			Vector2 cornerVec = default;
+			CornerToVector2D(cornerType, ref cornerVec);
 
 			Vector3 mins = new(0, 0, 0);
 			Vector3 maxs = new(0, 0, 0);

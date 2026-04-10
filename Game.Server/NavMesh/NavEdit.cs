@@ -399,6 +399,13 @@ public partial class NavMesh
 
 		const float maxRange = 1000.0f;
 
+		if (nav_show_nodes.GetBool()) {
+			for (NavNode? node = NavNode.GetFirst(); node != null; node = node.GetNext()) {
+				if (EditCursorPos.DistToSqr(node.GetPosition()) < 150 * 150)
+					node.Draw();
+			}
+		}
+
 		GetEditVectors(out Vector3 from, out Vector3 dir);
 
 		Vector3 to = from + maxRange * dir;

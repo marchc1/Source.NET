@@ -9,6 +9,7 @@ using Source;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Mathematics;
 using Source.Common.Formats.BSP;
+using System.Runtime.CompilerServices;
 
 namespace Game.Server.NavMesh;
 
@@ -18,6 +19,7 @@ static class NavGenerate
 
 	public const float MaxObstacleAreaWidth = StepHeight;
 	public const float MinObstacleAreaWidth = 10.0f;
+	public const float MaxTraversableHeight = StepHeight;
 
 	public static uint[] BlockedID = new uint[MAX_BLOCKED_AREAS];
 	public static int BlockedIDCount = 0;
@@ -267,7 +269,32 @@ public partial class NavMesh
 
 	void MarkPlayerClipAreas() { }
 
-	void MarkJumpAreas() { }
+	void MarkJumpAreas() {
+		for (int it = 0; it < NavArea.TheNavAreas.Count; it++) {
+			NavArea area = NavArea.TheNavAreas[it];
+			if (!area.HasNodes())
+				continue;
+
+			Vector3 normal = default, otherNormal = default;
+			area.ComputeNormal(ref normal);
+			area.ComputeNormal(ref otherNormal, true);
+
+			float lowestNormalZ = Math.Min(normal.Z, otherNormal.Z);
+			if (lowestNormalZ < nav_slope_limit.GetFloat())
+				area.SetAttributes(area.GetAttributes() | NavAttributeType.Jump | NavAttributeType.NoMerge);
+			else if (lowestNormalZ < nav_slope_limit.GetFloat() + nav_slope_tolerance.GetFloat()) {
+				Vector3 testPos = area.GetCenter();
+				testPos.Z += HalfHumanHeight;
+
+				if (GetSimpleGroundHeight(testPos, out float _, out Vector3 groundNormal)) {
+					float deltaNormalZ = Math.Abs(groundNormal.Z - lowestNormalZ);
+					if (deltaNormalZ > nav_slope_tolerance.GetFloat()) {
+						area.SetAttributes(area.GetAttributes() | NavAttributeType.Jump | NavAttributeType.NoMerge);
+					}
+				}
+			}
+		}
+	}
 
 	void StichAndRemoveJumpAreas() {
 		JumpConnector jumpConnector = new();
@@ -284,15 +311,378 @@ public partial class NavMesh
 		RemoveOverlappingObstacleTopAreas();
 	}
 
-	void RaiseAreasWithInternalObstacles() { }
+	static void AdjustObstacleDistances(ref float obstacleStartDist, ref float obstacleEndDist, float maxAllowedDist) {
+		float obstacleWidth = obstacleEndDist - obstacleStartDist;
+		if (obstacleWidth < MinObstacleAreaWidth) {
+			float halfDelta = (MinObstacleAreaWidth - obstacleWidth) / 2;
+			obstacleStartDist = Math.Max(obstacleStartDist - halfDelta, 0);
+			obstacleEndDist = obstacleStartDist + MinObstacleAreaWidth;
 
-	void CreateObstacleTopAreas() { }
-
-	bool CreateObstacleTopAreaIfNecessary(NavArea area, NavArea areaOther, NavDirType dir, bool multiNode) {
-		throw new NotImplementedException();
+			if (obstacleEndDist > maxAllowedDist) {
+				float delta = obstacleEndDist - maxAllowedDist;
+				obstacleStartDist -= delta;
+				obstacleEndDist -= delta;
+			}
+		}
 	}
 
-	void RemoveOverlappingObstacleTopAreas() { }
+	void RaiseAreasWithInternalObstacles() {
+		List<NavArea> areasToDelete = [];
+
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if (!area.HasNodes() || area.GetSizeX() != GenerationStepSize || area.GetSizeY() != GenerationStepSize)
+				continue;
+
+			float[] obstacleZ = [-float.MaxValue, -float.MaxValue];
+			float obstacleZMax = -float.MaxValue;
+			NavDirType obstacleDir = NavDirType.North;
+			float obstacleStartDist = GenerationStepSize;
+			float obstacleEndDist = 0;
+
+			bool isStairNeighbor = false;
+
+			for (int i = 0; i < (int)NavDirType.NumDirections; i++) {
+				NavDirType dir = (NavDirType)i;
+
+				NavCornerType[] corner = new NavCornerType[2];
+				int edgesBlocked = 0;
+				corner[0] = (NavCornerType)((i + 3) % (int)NavCornerType.NumCorners);
+				corner[1] = (NavCornerType)((i + 2) % (int)NavCornerType.NumCorners);
+				float[] obstacleZThisDir = [-float.MaxValue, -float.MaxValue];
+				float obstacleStartDistThisDir = GenerationStepSize;
+				float obstacleEndDistThisDir = 0;
+
+				for (int iEdge = 0; iEdge < 2; iEdge++) {
+					NavCornerType cornerType = corner[iEdge];
+					NavNode? nodeFrom = area.Node[(int)cornerType];
+					if (nodeFrom != null) {
+						float obstacleHeight = nodeFrom.ObstacleHeight[(int)dir];
+						if (obstacleHeight > StepHeight) {
+							edgesBlocked++;
+							float obstacle = nodeFrom.GetPosition().Z + obstacleHeight;
+							if (obstacle > obstacleZThisDir[iEdge])
+								obstacleZThisDir[iEdge] = obstacle;
+							obstacleStartDistThisDir = Math.Min(nodeFrom.ObstacleStartDist[(int)dir], obstacleStartDistThisDir);
+							obstacleEndDistThisDir = Math.Max(nodeFrom.ObstacleEndDist[(int)dir], obstacleEndDistThisDir);
+						}
+					}
+				}
+
+				int BlockedEdgeCutoff = 2;
+				List<NavConnect>? connections = area.GetAdjacentAreas(dir);
+				if (connections != null) {
+					foreach (NavConnect connect in connections) {
+						NavArea? connectedArea = connect.Area;
+						if (connectedArea != null && connectedArea.HasAttributes(NavAttributeType.Stairs)) {
+							isStairNeighbor = true;
+							BlockedEdgeCutoff = 1;
+							break;
+						}
+					}
+				}
+
+				if (edgesBlocked >= BlockedEdgeCutoff && Math.Max(obstacleZThisDir[0], obstacleZThisDir[1]) > obstacleZMax) {
+					obstacleZ[0] = obstacleZThisDir[0];
+					obstacleZ[1] = obstacleZThisDir[1];
+					obstacleZMax = Math.Max(obstacleZ[0], obstacleZ[1]);
+					obstacleDir = dir;
+					obstacleStartDist = obstacleStartDistThisDir;
+					obstacleEndDist = obstacleStartDistThisDir;
+				}
+
+				if (isStairNeighbor && obstacleZMax > -float.MaxValue) {
+					areasToDelete.Add(area);
+					continue;
+				}
+			}
+
+			if (obstacleZMax > -float.MaxValue) {
+				AdjustObstacleDistances(ref obstacleStartDist, ref obstacleEndDist, GenerationStepSize);
+				Assert(obstacleEndDist - obstacleStartDist >= MinObstacleAreaWidth);
+
+				Vector3[] corner2 = new Vector3[4];
+				for (int i = 0; i < (int)NavCornerType.NumCorners; i++)
+					corner2[i] = area.GetCorner((NavCornerType)i);
+
+				switch (obstacleDir) {
+					case NavDirType.North:
+						corner2[(int)NavCornerType.NorthWest].Y = corner2[(int)NavCornerType.SouthWest].Y - obstacleEndDist;
+						corner2[(int)NavCornerType.NorthEast].Y = corner2[(int)NavCornerType.SouthEast].Y - obstacleEndDist;
+						corner2[(int)NavCornerType.SouthWest].Y -= obstacleStartDist;
+						corner2[(int)NavCornerType.SouthEast].Y -= obstacleStartDist;
+						(float temp1, float temp2) = (obstacleZ[0], obstacleZ[1]);
+						obstacleZ[0] = temp2;
+						obstacleZ[1] = temp1;
+						break;
+					case NavDirType.South:
+						corner2[(int)NavCornerType.SouthWest].Y = corner2[(int)NavCornerType.NorthWest].Y + obstacleEndDist;
+						corner2[(int)NavCornerType.SouthEast].Y = corner2[(int)NavCornerType.NorthEast].Y + obstacleEndDist;
+						corner2[(int)NavCornerType.NorthWest].Y += obstacleStartDist;
+						corner2[(int)NavCornerType.NorthEast].Y += obstacleStartDist;
+						(float temp3, float temp4) = (obstacleZ[0], obstacleZ[1]);
+						obstacleZ[0] = temp4;
+						obstacleZ[1] = temp3;
+						break;
+					case NavDirType.East:
+						corner2[(int)NavCornerType.NorthEast].X = corner2[(int)NavCornerType.NorthWest].X + obstacleEndDist;
+						corner2[(int)NavCornerType.SouthEast].X = corner2[(int)NavCornerType.SouthWest].X + obstacleEndDist;
+						corner2[(int)NavCornerType.NorthWest].X += obstacleStartDist;
+						corner2[(int)NavCornerType.SouthWest].X += obstacleStartDist;
+						(float temp5, float temp6) = (obstacleZ[0], obstacleZ[1]);
+						obstacleZ[0] = temp6;
+						obstacleZ[1] = temp5;
+						break;
+					case NavDirType.West:
+						corner2[(int)NavCornerType.NorthWest].X = corner2[(int)NavCornerType.NorthEast].X - obstacleEndDist;
+						corner2[(int)NavCornerType.SouthWest].X = corner2[(int)NavCornerType.SouthEast].X - obstacleEndDist;
+						corner2[(int)NavCornerType.NorthEast].X -= obstacleStartDist;
+						corner2[(int)NavCornerType.SouthEast].X -= obstacleStartDist;
+						(float temp7, float temp8) = (obstacleZ[0], obstacleZ[1]);
+						obstacleZ[0] = temp8;
+						obstacleZ[1] = temp7;
+						break;
+				}
+
+				corner2[(int)NavCornerType.NorthWest].Z = obstacleZ[0];
+				corner2[(int)NavCornerType.NorthEast].Z = obstacleZ[1];
+				corner2[(int)NavCornerType.SouthEast].Z = obstacleZ[1];
+				corner2[(int)NavCornerType.SouthWest].Z = obstacleZ[0];
+
+				RemoveNavArea(area);
+				area.Build(corner2[(int)NavCornerType.NorthWest], corner2[(int)NavCornerType.NorthEast], corner2[(int)NavCornerType.SouthEast], corner2[(int)NavCornerType.SouthWest]);
+				Assert(!area.IsDegenerate());
+				AddNavArea(area);
+
+				area.RemoveOrthogonalConnections(obstacleDir);
+				area.SetAttributes(area.GetAttributes() | NavAttributeType.NoMerge | NavAttributeType.ObstacleTop);
+				area.SetAttributes(area.GetAttributes() & ~NavAttributeType.Jump);
+				for (int i = 0; i < (int)NavCornerType.NumCorners; i++)
+					area.Node[i] = null;
+			}
+		}
+
+		foreach (NavArea area in areasToDelete) {
+			NavArea.TheNavAreas.Remove(area);
+			DestroyArea(area);
+		}
+	}
+
+	void CreateObstacleTopAreas() {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if (!area.HasNodes() || area.GetAttributes() != 0)
+				continue;
+
+			for (int i = 0; i < (int)NavDirType.NumDirections; i++) {
+				NavDirType dir = (NavDirType)i;
+				List<NavConnect>? connections = area.GetAdjacentAreas(dir);
+				if (connections == null)
+					continue;
+
+				foreach (NavConnect connect in connections) {
+					NavArea? areaOther = connect.Area;
+					if (areaOther != null && areaOther.HasAttributes(NavAttributeType.Jump | NavAttributeType.ObstacleTop))
+						continue;
+
+					if (!CreateObstacleTopAreaIfNecessary(area, areaOther!, dir, false))
+						CreateObstacleTopAreaIfNecessary(area, areaOther!, dir, true);
+				}
+			}
+		}
+	}
+
+	bool CreateObstacleTopAreaIfNecessary(NavArea area, NavArea areaOther, NavDirType dir, bool multiNode) {
+		float obstacleHeightMin = float.MaxValue;
+		float obstacleHeightMax = 0;
+		float obstacleHeightStart = 0;
+		float obstacleHeightEnd = 0;
+		float obstacleDistMin = GenerationStepSize;
+		float obstacleDistMax = 0;
+
+		Vector3 center = default;
+
+		area.ComputePortal(areaOther, dir, ref center, out float halfPortalWidth);
+
+		if (halfPortalWidth > 0) {
+			NavCornerType cornerStart = (NavCornerType)dir;
+			NavCornerType cornerEnd = (NavCornerType)(((int)dir + 1) % (int)NavCornerType.NumCorners);
+			NavNode node = area.Node[(int)cornerStart]!;
+			NavNode nodeEnd = area.Node[(int)cornerEnd]!;
+			NavDirType dirEdge = (NavDirType)(((int)dir + 1) % (int)NavDirType.NumDirections);
+			obstacleHeightMin = float.MaxValue;
+			float zStart = 0, zEnd = 0;
+			while (node != null) {
+				Vector3 vecToPortalCenter = node.GetPosition() - center;
+				vecToPortalCenter.Z = 0;
+				if (vecToPortalCenter.Length() < halfPortalWidth + 1.0f) {
+					float obstacleHeight = 0;
+					float obstacleDistStartCur = node.ObstacleStartDist[(int)dir];
+					float obstacleDistEndCur = node.ObstacleEndDist[(int)dir];
+
+					if (!multiNode)
+						obstacleHeight = node.ObstacleHeight[(int)dir];
+					else {
+						if (!areaOther.Contains(node.GetPosition())) {
+							NavNode nodeTowardOtherArea = node.GetConnectedNode(dir);
+							if (nodeTowardOtherArea != null) {
+								float deltaZ = nodeTowardOtherArea.GetPosition().Z - node.GetPosition().Z;
+								if (deltaZ > MaxTraversableHeight) {
+									bool inOtherArea = false;
+									if (areaOther.Contains(nodeTowardOtherArea.GetPosition())) {
+										float z = areaOther.GetZ(nodeTowardOtherArea.GetPosition().X, nodeTowardOtherArea.GetPosition().Y);
+										float deltaZ2 = Math.Abs(nodeTowardOtherArea.GetPosition().Z - z);
+										if (deltaZ2 < 2.0f)
+											inOtherArea = true;
+									}
+
+									if (!inOtherArea) {
+										NavNode nodeTowardOtherArea2 = nodeTowardOtherArea.GetConnectedNode(dir);
+										if (nodeTowardOtherArea2 != null && areaOther.Contains(nodeTowardOtherArea2.GetPosition())) {
+											float areaDeltaZ = node.GetPosition().Z - nodeTowardOtherArea2.GetPosition().Z;
+											if (Math.Abs(areaDeltaZ) <= MaxTraversableHeight) {
+												obstacleHeight = deltaZ;
+												obstacleDistStartCur = GenerationStepSize - (MinObstacleAreaWidth / 2);
+												obstacleDistEndCur = GenerationStepSize + (MinObstacleAreaWidth / 2);
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+
+					obstacleHeightMin = Math.Min(obstacleHeight, obstacleHeightMin);
+					obstacleHeightMax = Math.Max(obstacleHeight, obstacleHeightMax);
+					obstacleDistMin = Math.Min(obstacleDistStartCur, obstacleDistMin);
+					obstacleDistMax = Math.Max(obstacleDistEndCur, obstacleDistMax);
+
+					if (obstacleHeightStart == 0) {
+						obstacleHeightStart = obstacleHeight;
+						zStart = node.GetPosition().Z;
+					}
+					obstacleHeightEnd = obstacleHeight;
+					zEnd = node.GetPosition().Z;
+				}
+				if (node == nodeEnd)
+					break;
+
+				node = node.GetConnectedNode(dirEdge);
+			}
+
+			if ((obstacleHeightMax > MaxTraversableHeight) && (obstacleHeightMin > MaxTraversableHeight)) {
+				if ((obstacleHeightMax > obstacleHeightStart) && (obstacleHeightMax > obstacleHeightEnd)) {
+					obstacleHeightStart = obstacleHeightMax;
+					obstacleHeightEnd = obstacleHeightMax;
+				}
+
+				if (dir == NavDirType.South || dir == NavDirType.West) {
+					(float temp9, float temp10) = (obstacleHeightStart, obstacleHeightEnd);
+					obstacleHeightStart = temp10;
+					obstacleHeightEnd = temp9;
+					(float temp11, float temp12) = (zStart, zEnd);
+					zStart = temp12;
+					zEnd = temp11;
+				}
+
+				AdjustObstacleDistances(ref obstacleDistMin, ref obstacleDistMax, multiNode ? GenerationStepSize * 2 : GenerationStepSize);
+				Assert(obstacleDistMin < obstacleDistMax);
+				Assert(obstacleDistMax - obstacleDistMin >= MinObstacleAreaWidth);
+				float newAreaWidth = obstacleDistMax - obstacleDistMin;
+				Assert(newAreaWidth > 0);
+
+				AddDirectionVector(ref center, dir, obstacleDistMin + (newAreaWidth / 2));
+
+				Vector3 cornerNW = default, cornerNE = default, cornerSE = default, cornerSW = default;
+				switch (dir) {
+					case NavDirType.North:
+					case NavDirType.South:
+						cornerNW.Init(center.X - halfPortalWidth, center.Y - (newAreaWidth / 2), zStart + obstacleHeightStart);
+						cornerNE.Init(center.X + halfPortalWidth, center.Y - (newAreaWidth / 2), zEnd + obstacleHeightEnd);
+						cornerSE.Init(center.X + halfPortalWidth, center.Y + (newAreaWidth / 2), zEnd + obstacleHeightEnd);
+						cornerSW.Init(center.X - halfPortalWidth, center.Y + (newAreaWidth / 2), zStart + obstacleHeightStart);
+						break;
+					case NavDirType.East:
+					case NavDirType.West:
+						cornerNW.Init(center.X - (newAreaWidth / 2), center.Y - halfPortalWidth, zStart + obstacleHeightStart);
+						cornerNE.Init(center.X + (newAreaWidth / 2), center.Y - halfPortalWidth, zEnd + obstacleHeightEnd);
+						cornerSE.Init(center.X + (newAreaWidth / 2), center.Y + halfPortalWidth, zEnd + obstacleHeightEnd);
+						cornerSW.Init(center.X - (newAreaWidth / 2), center.Y + halfPortalWidth, zStart + obstacleHeightStart);
+						break;
+				}
+
+				NavArea areaNew = CreateArea();
+				areaNew.Build(cornerNW, cornerNE, cornerSE, cornerSW);
+
+				NavArea.TheNavAreas.Add(areaNew);
+				AddNavArea(areaNew);
+
+				Assert(!areaNew.IsDegenerate());
+
+				Msg($"Created new fencetop area {areaNew.GetID()}({areaNew.GetDebugID()}) between {area.GetID()}({area.GetDebugID()}) and {areaOther.GetID()}({areaOther.GetDebugID()})\n");
+
+				areaNew.SetAttributes(area.GetAttributes());
+				areaNew.SetAttributes(areaNew.GetAttributes() | NavAttributeType.NoMerge | NavAttributeType.ObstacleTop);
+
+				area.Disconnect(areaOther);
+				area.ConnectTo(areaNew, dir);
+
+				areaNew.ConnectTo(area, OppositeDirection(dir));
+				areaNew.ConnectTo(areaOther, dir);
+				if (areaOther.IsConnected(area, OppositeDirection(dir))) {
+					areaOther.Disconnect(area);
+					areaOther.ConnectTo(areaNew, OppositeDirection(dir));
+				}
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	void RemoveOverlappingObstacleTopAreas() {
+		List<NavArea> vecObstacleTopAreas = [];
+		for (int it = 0; it < NavArea.TheNavAreas.Count; it++) {
+			NavArea area = NavArea.TheNavAreas[it];
+			if ((area.GetAttributes() & NavAttributeType.ObstacleTop) != 0)
+				vecObstacleTopAreas.Add(area);
+		}
+
+		List<NavArea> vecAreasToRemove = [];
+		for (int it = 0; it < vecObstacleTopAreas.Count; it++) {
+			NavArea area = vecObstacleTopAreas[it];
+
+			Vector3 normal = default, otherNormal = default;
+			area.ComputeNormal(ref normal);
+			area.ComputeNormal(ref otherNormal, true);
+
+			float lowestNormalZ = Math.Min(normal.Z, otherNormal.Z);
+			if (lowestNormalZ < nav_slope_limit.GetFloat())
+				vecAreasToRemove.Add(area);
+
+			for (int it2 = it + 1; it2 < vecObstacleTopAreas.Count; it2++) {
+				NavArea areaOther = vecObstacleTopAreas[it2];
+				if (area.IsOverlapping(areaOther)) {
+					if (area.Contains(areaOther))
+						vecAreasToRemove.Add(areaOther);
+					else if (areaOther.Contains(area))
+						vecAreasToRemove.Add(area);
+					else {
+						NavArea areaToRemove = area.GetSizeX() * area.GetSizeY() > areaOther.GetSizeX() * areaOther.GetSizeY() ? areaOther : area;
+						vecAreasToRemove.Add(areaToRemove);
+					}
+				}
+			}
+		}
+
+		while (vecAreasToRemove.Count > 0) {
+			NavArea areaToDelete = vecAreasToRemove[0];
+			RemoveFromSelectedSet(areaToDelete);
+			OnEditDestroyNotify(areaToDelete);
+			NavArea.TheNavAreas.Remove(areaToDelete);
+			DestroyArea(areaToDelete);
+
+			vecAreasToRemove.RemoveAll(area => area == areaToDelete);
+		}
+	}
 
 	void MarkStairAreas() { }
 
@@ -355,9 +745,17 @@ public partial class NavMesh
 		}
 	}
 
-	void StitchGeneratedAreas() { }
+	void StitchGeneratedAreas() {
+		if (GenerationMode == GenerationModeType.Incremental) {
+			IncrementallyGeneratedAreas incrementalAreas = new();
+			StitchMesh(incrementalAreas.Invoke);
+		}
+	}
 
-	void StitchAreaSet(List<NavArea> areas) { }
+	void StitchAreaSet(List<NavArea> areas) {
+		AreaSet areaSet = new(areas);
+		StitchMesh(areaSet.Invoke);
+	}
 
 	void StitchAreaIntoMesh(NavArea area, NavDirType dir, Func<NavArea, bool> func) {
 		Vector3 corner1 = default, corner2 = default;
@@ -796,13 +1194,293 @@ public partial class NavMesh
 		} while (merged);
 	}
 
-	void FixUpGeneratedAreas() { }
+	void FixUpGeneratedAreas() {
+		FixCornerOnCornerAreas();
+		FixConnections();
+	}
 
-	void FixConnections() { }
+	void FixConnections() {
+		for (int it = 0; it < NavArea.TheNavAreas.Count; it++) {
+			NavArea area = NavArea.TheNavAreas[it];
+			if (!area.HasAttributes(NavAttributeType.Stairs))
+				continue;
 
-	void FixCornerOnCornerAreas() { }
+			if (!area.HasNodes())
+				continue;
 
-	void SplitAreasUnderOverhangs() { }
+			for (int dir = 0; dir < (int)NavDirType.NumDirections; ++dir) {
+				NavCornerType[] cornerType = new NavCornerType[2];
+				GetCornerTypesInDirection((NavDirType)dir, out cornerType[0], out cornerType[1]);
+
+				float cornerDeltaZ = Math.Abs(area.GetCorner(cornerType[0]).Z - area.GetCorner(cornerType[1]).Z);
+				if (cornerDeltaZ < StepHeight)
+					continue;
+
+				List<NavConnect> connectedAreas = area.GetAdjacentAreas((NavDirType)dir);
+				List<NavArea> areasToDisconnect = [];
+				for (int i = 0; i < connectedAreas.Count; ++i) {
+					NavArea adjArea = connectedAreas[i].Area!;
+					if (!adjArea.HasNodes())
+						continue;
+
+					Vector3 pos = default;
+					area.ComputePortal(adjArea, (NavDirType)dir, ref pos, out _);
+					adjArea.GetClosestPointOnArea(ref pos, out AngularImpulse adjPos);
+
+					NavNode node = area.FindClosestNode(pos, (NavDirType)dir);
+					NavNode adjNode = adjArea.FindClosestNode(adjPos, OppositeDirection((NavDirType)dir));
+					pos = node.GetPosition();
+					adjPos = adjNode.GetPosition();
+
+					if (node == null || adjNode == null)
+						continue;
+
+					NavCornerType[] adjCornerType = new NavCornerType[2];
+					GetCornerTypesInDirection(OppositeDirection((NavDirType)dir), out adjCornerType[0], out adjCornerType[1]);
+
+					if (node.GetGroundHeightAboveNode(cornerType[0]) > StepHeight)
+						areasToDisconnect.Add(adjArea);
+					else if (node.GetGroundHeightAboveNode(cornerType[1]) > StepHeight)
+						areasToDisconnect.Add(adjArea);
+					else if (adjPos.Z + adjNode.GetGroundHeightAboveNode(adjCornerType[0]) > pos.Z + StepHeight)
+						areasToDisconnect.Add(adjArea);
+					else if (adjPos.Z + adjNode.GetGroundHeightAboveNode(adjCornerType[1]) > pos.Z + StepHeight)
+						areasToDisconnect.Add(adjArea);
+				}
+
+				for (int i = 0; i < areasToDisconnect.Count; ++i)
+					area.Disconnect(areasToDisconnect[i]);
+			}
+		}
+
+		for (int it = 0; it < NavArea.TheNavAreas.Count; it++) {
+			NavArea area = NavArea.TheNavAreas[it];
+			List<NavArea> areasToDisconnect = [];
+			for (int dir = 0; dir < (int)NavDirType.NumDirections; ++dir) {
+				List<NavConnect> connectedAreas = area.GetAdjacentAreas((NavDirType)dir);
+				for (int i = 0; i < connectedAreas.Count; ++i) {
+					NavArea adjArea = connectedAreas[i].Area!;
+					List<NavConnect> adjConnectedAreas = adjArea.GetAdjacentAreas((NavDirType)dir);
+					for (int j = 0; j < adjConnectedAreas.Count; ++j) {
+						NavArea farArea = adjConnectedAreas[j].Area!;
+						if (area.IsConnected(farArea, (NavDirType)dir))
+							areasToDisconnect.Add(farArea);
+					}
+				}
+			}
+
+			for (int i = 0; i < areasToDisconnect.Count; ++i)
+				area.Disconnect(areasToDisconnect[i]);
+		}
+	}
+
+	void ClassifyCorners(Vector3[] vec, ref Vector3 vecNW, ref Vector3 vecNE, ref Vector3 vecSE, ref Vector3 vecSW) {
+		vecNW = vecNE = vecSE = vecSW = vec[0];
+
+		for (int i = 0; i < 4; i++) {
+			if (vec[i].X <= vecNW.X && vec[i].Y <= vecNW.Y)
+				vecNW = vec[i];
+
+			if (vec[i].X >= vecNE.X && vec[i].Y <= vecNE.Y)
+				vecNE = vec[i];
+
+			if (vec[i].X >= vecSE.X && vec[i].Y >= vecSE.Y)
+				vecSE = vec[i];
+
+			if (vec[i].X <= vecSW.X && vec[i].Y >= vecSW.Y)
+				vecSW = vec[i];
+		}
+	}
+
+	void FixCornerOnCornerAreas() {
+		const float MaxDrop = StepHeight;
+
+		for (int it = 0; it < NavArea.TheNavAreas.Count; it++) {
+			NavArea area = NavArea.TheNavAreas[it];
+			for (int iCorner = (int)NavCornerType.NorthWest; iCorner < (int)NavCornerType.NumCorners; iCorner++) {
+				NavDirType dirToRight = (NavDirType)iCorner;
+				NavDirType dirToLeft = (NavDirType)((iCorner + 3) % (int)NavDirType.NumDirections);
+
+				if (area.GetAdjacentCount(dirToLeft) > 0 || area.GetAdjacentCount(dirToRight) > 0 ||
+						area.GetIncomingConnections(dirToLeft).Count > 0 || area.GetIncomingConnections(dirToRight).Count > 0)
+					continue;
+
+				Vector3 cornerPos = area.GetCorner((NavCornerType)iCorner);
+				NavDirType dirToRightTwice = DirectionRight(dirToRight);
+				NavDirType dirToLeftTwice = DirectionLeft(dirToLeft);
+				NavDirType[] dirsAlongOtherEdge = [dirToLeft, dirToRight];
+				NavDirType[] dirsAlongOurEdge = [dirToLeftTwice, dirToRightTwice];
+
+				for (int iDir = 0; iDir < dirsAlongOtherEdge.Length; iDir++) {
+					NavDirType dirAlongOtherEdge = dirsAlongOtherEdge[iDir];
+					NavDirType dirAlongOurEdge = dirsAlongOurEdge[iDir];
+
+					Vector3 vecDeltaOtherEdge = default;
+					DirectionToVector2D(dirAlongOtherEdge, ref Unsafe.As<Vector3, Vector2>(ref vecDeltaOtherEdge));
+					vecDeltaOtherEdge.Z = 0;
+					vecDeltaOtherEdge *= GenerationStepSize * 0.5f;
+					Vector3 vecOtherEdgePos = cornerPos + vecDeltaOtherEdge;
+
+					NavArea? areaOther = GetNavArea(vecOtherEdgePos);
+					Assert(areaOther != area);
+					if (areaOther == null)
+						continue;
+
+					if (!TraceAdjacentNode(0, cornerPos, vecOtherEdgePos, out Trace result, MaxDrop))
+						continue;
+
+					int iCornerOther = (iCorner + 2) % (int)NavCornerType.NumCorners;
+					Vector3 cornerPosOther = areaOther.GetCorner((NavCornerType)iCornerOther);
+
+					if (cornerPos != cornerPosOther)
+						continue;
+
+					Vector3 vecDeltaOurEdge = default;
+					DirectionToVector2D(dirAlongOurEdge, ref Unsafe.As<Vector3, Vector2>(ref vecDeltaOurEdge));
+					vecDeltaOurEdge.Z = 0;
+					vecDeltaOurEdge *= GenerationStepSize * 0.5f;
+					Vector3[] vecCorner =
+					[
+						cornerPos + vecDeltaOtherEdge + vecDeltaOurEdge,
+						cornerPos + vecDeltaOtherEdge,
+						cornerPos,
+						cornerPos + vecDeltaOurEdge,
+					];
+					TraceFilterWalkableEntities filter = new(null, CollisionGroup.None, WalkThruFlags.Everything);
+					if (!TraceAdjacentNode(0, vecCorner[1], vecCorner[0], out result, MaxDrop) ||
+							!TraceAdjacentNode(0, vecCorner[3], vecCorner[0], out result, MaxDrop))
+						continue;
+
+					NavArea? areaTest = GetNavArea(vecCorner[0]);
+					Assert(areaTest == null);
+					if (areaTest != null)
+						continue;
+
+					vecCorner[0] = result.EndPos;
+
+					NavArea areaNew = CreateArea();
+
+					Vector3 vecNW = default, vecNE = default, vecSE = default, vecSW = default;
+					ClassifyCorners(vecCorner, ref vecNW, ref vecNE, ref vecSE, ref vecSW);
+					areaNew.Build(vecNW, vecNE, vecSE, vecSW);
+
+					NavArea.TheNavAreas.Add(areaNew);
+					AddNavArea(areaNew);
+
+					areaNew.SetAttributes(area.GetAttributes());
+
+					area.ConnectTo(areaNew, dirAlongOtherEdge);
+					areaNew.ConnectTo(area, OppositeDirection(dirAlongOtherEdge));
+
+					areaOther.ConnectTo(areaNew, dirAlongOurEdge);
+					areaNew.ConnectTo(areaOther, OppositeDirection(dirAlongOurEdge));
+				}
+			}
+		}
+	}
+
+	void SplitAreasUnderOverhangs() {
+		bool restartProcessing = false;
+
+		do {
+			restartProcessing = false;
+
+			for (int it = 0; it < NavArea.TheNavAreas.Count && !restartProcessing; it++) {
+				NavArea area = NavArea.TheNavAreas[it];
+				Extent areaExtent = default;
+				area.GetExtent(ref areaExtent);
+
+				for (int dir = (int)NavDirType.North; dir < (int)NavDirType.NumDirections && !restartProcessing; dir++) {
+					List<NavConnect> connections = area.GetAdjacentAreas((NavDirType)dir);
+					for (int iConnection = 0; iConnection < connections.Count && !restartProcessing; iConnection++) {
+						NavArea otherArea = connections[iConnection].Area!;
+						Extent otherAreaExtent = default;
+						otherArea.GetExtent(ref otherAreaExtent);
+
+						if (area.IsOverlapping(otherArea)) {
+							const float flMinSeparation = HumanCrouchHeight;
+							if (!(areaExtent.Lo.Z > otherAreaExtent.Hi.Z + flMinSeparation) &&
+									!(otherAreaExtent.Lo.Z > areaExtent.Hi.Z + flMinSeparation))
+								continue;
+
+							NavArea areaBelow = area, areaAbove = otherArea;
+							NavDirType dirFromAboveToBelow = OppositeDirection((NavDirType)dir);
+							if (otherAreaExtent.Lo.Z < areaExtent.Lo.Z) {
+								areaBelow = otherArea;
+								areaAbove = area;
+								dirFromAboveToBelow = OppositeDirection(dirFromAboveToBelow);
+							}
+							NavDirType dirFromBelowToAbove = OppositeDirection(dirFromAboveToBelow);
+
+							Extent extentBelow = default, extentAbove = default;
+							areaBelow.GetExtent(ref extentBelow);
+							areaAbove.GetExtent(ref extentAbove);
+
+							float splitCoord;
+							float splitLen;
+							float splitEdgeSize;
+							bool splitAlongX = false;
+
+							if ((dirFromAboveToBelow == NavDirType.East) || (dirFromAboveToBelow == NavDirType.West)) {
+								splitEdgeSize = extentBelow.Hi.X - extentBelow.Lo.X;
+								if (extentAbove.Hi.X < extentBelow.Hi.X) {
+									splitCoord = extentAbove.Hi.X;
+									splitLen = splitCoord - extentBelow.Lo.X;
+								}
+								else {
+									splitCoord = extentAbove.Lo.X;
+									splitLen = extentBelow.Hi.X - splitCoord;
+								}
+							}
+							else {
+								splitEdgeSize = extentBelow.Hi.Y - extentBelow.Lo.Y;
+								splitAlongX = true;
+								if (extentAbove.Hi.Y < extentBelow.Hi.Y) {
+									splitCoord = extentAbove.Hi.Y;
+									splitLen = splitCoord - extentBelow.Lo.Y;
+								}
+								else {
+									splitCoord = extentAbove.Lo.Y;
+									splitLen = extentBelow.Hi.Y - splitCoord;
+								}
+							}
+							Assert(splitLen >= 0);
+							Assert(splitEdgeSize > 0);
+
+							if (splitLen < GenerationStepSize) {
+								if ((splitLen < GenerationStepSize * 0.3) || (splitEdgeSize <= GenerationStepSize * 2))
+									continue;
+
+								float splitDelta = GenerationStepSize - splitLen;
+								splitCoord += splitDelta * (((dirFromAboveToBelow == (int)NavDirType.North) || (dirFromAboveToBelow == NavDirType.West)) ? -1 : 1);
+							}
+
+							bool connectionFromBelow = false, connectionFromAbove = false;
+							if (areaBelow.IsConnected(areaAbove, dirFromBelowToAbove)) {
+								connectionFromBelow = true;
+								areaBelow.Disconnect(areaAbove);
+							}
+							if (areaAbove.IsConnected(areaBelow, dirFromAboveToBelow)) {
+								connectionFromAbove = true;
+								areaAbove.Disconnect(areaBelow);
+							}
+
+							if (areaBelow.SplitEdit(splitAlongX, splitCoord, out NavArea? newAlpha, out NavArea? newBeta)) {
+								NavArea pNewNonoverlappedArea = ((dirFromAboveToBelow == (int)NavDirType.North) || (dirFromAboveToBelow == NavDirType.West)) ? newAlpha : newBeta;
+
+								if (connectionFromAbove)
+									areaAbove.ConnectTo(pNewNonoverlappedArea, dirFromAboveToBelow);
+								if (connectionFromBelow)
+									areaBelow.ConnectTo(pNewNonoverlappedArea, OppositeDirection(dirFromAboveToBelow));
+
+								restartProcessing = true;
+							}
+						}
+					}
+				}
+			}
+		} while (restartProcessing);
+	}
 
 	bool TestForValidJumpArea(NavNode node) {
 		return true;
@@ -885,7 +1563,7 @@ public partial class NavMesh
 		return true;
 	}
 
-	bool TestArea(NavNode node, int width, int height) {
+	public bool TestArea(NavNode node, int width, int height) {
 		Vector3 normal = node.GetNormal();
 		float d = -MathLib.DotProduct(normal, node.GetPosition());
 
@@ -1633,7 +2311,6 @@ public partial class NavMesh
 		bool useNew = false;
 		if (node == null) {
 			node = new(destPos, normal, source, isOnDisplacement);
-			// OnNodeAdded(node);
 			useNew = true;
 		}
 

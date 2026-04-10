@@ -2,7 +2,6 @@ using static Game.Server.NavMesh.Nav;
 
 using Source;
 using Source.Common;
-using Source.Common.Commands;
 using Source.Common.Formats.BSP;
 
 using System.Numerics;
@@ -53,10 +52,10 @@ public partial class NavMesh
 		public Vector3 Normal;
 	}
 
-	List<List<NavArea>> Grid = [];
+	public List<List<NavArea>> Grid = [];
 	float GridCellSize;
-	int GridSizeX;
-	int GridSizeY;
+	public int GridSizeX;
+	public int GridSizeY;
 	float MinX;
 	float MinY;
 	uint AreaCount;
@@ -345,7 +344,35 @@ public partial class NavMesh
 		++AreaCount;
 	}
 
-	public void RemoveNavArea(NavArea area) { }
+	public void RemoveNavArea(NavArea area) {
+		int loX = WorldToGridX(area.GetCorner(NavCornerType.NorthWest).X);
+		int loY = WorldToGridY(area.GetCorner(NavCornerType.NorthWest).Y);
+		int hiX = WorldToGridX(area.GetCorner(NavCornerType.SouthEast).X);
+		int hiY = WorldToGridY(area.GetCorner(NavCornerType.SouthEast).Y);
+
+		for (int y = loY; y <= hiY; ++y) {
+			for (int x = loX; x <= hiX; ++x)
+				Grid[x + y * GridSizeX].Remove(area);
+		}
+
+		int key = ComputeHashKey(area.GetID());
+
+		if (area.PrevHash != null)
+			area.PrevHash.NextHash = area.NextHash;
+		else
+			HashTable[key] = area.NextHash;
+
+		if (area.NextHash != null)
+			area.NextHash.PrevHash = area.PrevHash;
+
+		if ((area.GetAttributes() & NavAttributeType.Transient) != 0)
+			BuildTransientAreaList();
+
+		AvoidanceObstacleAreas.Remove(area);
+		BlockedAreas.Remove(area);
+
+		--AreaCount;
+	}
 
 	public void OnServerActivate() {
 		foreach (NavArea area in NavArea.TheNavAreas)
@@ -361,9 +388,22 @@ public partial class NavMesh
 
 	void OnRoundRestartPreEntity() { }
 
-	void BuildTransientAreaList() { }
+	void BuildTransientAreaList() {
+		TransientAreas.Clear();
 
-	void GridToWorld(int gridX, int gridY, Vector3 pos) { }
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if ((area.GetAttributes() & NavAttributeType.Transient) != 0)
+				TransientAreas.Add(area);
+		}
+	}
+
+	void GridToWorld(int gridX, int gridY, Vector3 pos) {
+		gridX = Math.Clamp(gridX, 0, GridSizeX - 1);
+		gridY = Math.Clamp(gridY, 0, GridSizeY - 1);
+
+		pos.X = MinX + gridX * GridCellSize;
+		pos.Y = MinY + gridY * GridCellSize;
+	}
 
 	public NavArea? GetNavArea(Vector3 pos, float beneathLimit = 120.0f) {
 		if (Grid.Count == 0)
@@ -522,11 +562,9 @@ public partial class NavMesh
 							continue;
 
 						if (checkLOS) {
-							Trace result;
-
 							Vector3 safePos;
 
-							Util.TraceLine(pos, pos + new Vector3(0, 0, StepHeight), Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out result);
+							Util.TraceLine(pos, pos + new Vector3(0, 0, StepHeight), Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out Trace result);
 							if (result.StartSolid)
 								safePos = result.EndPos + new Vector3(0, 0, 1.0f);
 							else
@@ -575,8 +613,16 @@ public partial class NavMesh
 
 	public List<NavLadder> GetLadders() => Ladders;
 
-	public NavLadder GetLadderByID(uint id) {
-		throw new NotImplementedException();
+	public NavLadder? GetLadderByID(uint id) {
+		if (id == 0)
+			return null;
+
+		foreach (NavLadder ladder in Ladders) {
+			if (ladder.GetID() == id)
+				return ladder;
+		}
+
+		return null;
 	}
 
 	uint GetPlace(Vector3 pos) {
@@ -598,7 +644,7 @@ public partial class NavMesh
 				return i;
 		}
 
-		return Nav.UndefinedPlace;
+		return UndefinedPlace;
 	}
 
 	NavPlace PartialNameToPlace(ReadOnlySpan<char> name) {
@@ -636,18 +682,71 @@ public partial class NavMesh
 	}
 
 	public bool GetSimpleGroundHeight(Vector3 pos, out float height, out Vector3 normal) {
-		throw new NotImplementedException();
+		height = 0;
+		normal = default;
+
+		Vector3 to;
+		to.X = pos.X;
+		to.Y = pos.Y;
+		to.Z = pos.Z - 9999.9f;
+
+		Util.TraceLine(pos, to, Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out Trace result);
+
+		if (result.StartSolid)
+			return false;
+
+		height = result.EndPos.Z;
+		normal = result.Plane.Normal;
+
+		return true;
 	}
 
-	void DrawDanger() { }
+	void DrawDanger() {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			Vector3 center = area.GetCenter();
+			center.Z = area.GetZ(center);
 
-	void DrawPlayerCounts() { }
+			float danger = area.GetDanger(0);
+			if (danger > 0.1f) {
+				Vector3 top = new(center.X, center.Y, center.Z + 10.0f * danger);
+				DrawLine(center, top, 3, 255, 0, 0);
+			}
 
-	void DrawFuncNavAvoid() { }
+			danger = area.GetDanger(1);
+			if (danger > 0.1f) {
+				Vector3 top = new(center.X, center.Y, center.Z + 10.0f * danger);
+				DrawLine(center, top, 3, 0, 0, 255);
+			}
+		}
+	}
 
-	void DrawFuncNavPrefer() { }
+	void DrawPlayerCounts() {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if (area.GetPlayerCount() > 0)
+				Shared.DebugOverlay.Text(area.GetCenter(), $"{area.GetPlayerCount()} ({area.GetPlayerCount(1)}/{area.GetPlayerCount(2)})", false, Shared.DebugOverlay.Persist);
+		}
+	}
 
-	void DrawFuncNavPrerequisite() { }
+	void DrawFuncNavAvoid() {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if (area.HasFuncNavAvoid())
+				area.DrawFilled(255, 0, 0, 255);
+		}
+	}
+
+	void DrawFuncNavPrefer() {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if (area.HasFuncNavPrefer())
+				area.DrawFilled(0, 255, 0, 255);
+		}
+	}
+
+	void DrawFuncNavPrerequisite() {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if (area.HasPrerequisite())
+				area.DrawFilled(0, 0, 255, 255);
+		}
+	}
 
 	public bool IsGenerating() => GenerationMode != GenerationModeType.None;
 
@@ -805,7 +904,7 @@ public partial class NavMesh
 
 	int ComputeHashKey(uint id) => (int)(id & 0xFF);
 
-	int WorldToGridX(float wx) {
+	public int WorldToGridX(float wx) {
 		int x = (int)((wx - MinX) / GridCellSize);
 
 		if (x < 0)
@@ -816,7 +915,7 @@ public partial class NavMesh
 		return x;
 	}
 
-	int WorldToGridY(float wy) {
+	public int WorldToGridY(float wy) {
 		int y = (int)((wy - MinY) / GridCellSize);
 
 		if (y < 0)
@@ -1156,7 +1255,14 @@ public class HidingSpot
 		TheHidingSpots.Add(this);
 	}
 
-	public void Save(object? fileBuffer, uint version) { }
+	public void Save(BinaryWriter fileBuffer, uint version) {
+		fileBuffer.Write(ID);
+		fileBuffer.Write(Pos.X);
+		fileBuffer.Write(Pos.Y);
+		fileBuffer.Write(Pos.Z);
+		fileBuffer.Write(Flags);
+	}
+
 	public void Load(BinaryReader fileBuffer, uint version) {
 		ID = fileBuffer.ReadUInt32();
 		Pos.X = fileBuffer.ReadSingle();

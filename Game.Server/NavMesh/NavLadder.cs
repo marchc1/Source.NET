@@ -85,10 +85,88 @@ public class NavLadder
 	void FindLadderEntity() { }
 
 	public void Save(BinaryWriter fileBuffer, uint version) {
-		DevWarning("NavLadder::Save: not implemented\n");
+		fileBuffer.Write(ID);
+
+		fileBuffer.Write(Width);
+
+		fileBuffer.Write(Top.X);
+		fileBuffer.Write(Top.Y);
+		fileBuffer.Write(Top.Z);
+
+		fileBuffer.Write(Bottom.X);
+		fileBuffer.Write(Bottom.Y);
+		fileBuffer.Write(Bottom.Z);
+
+		fileBuffer.Write(Length);
+
+		fileBuffer.Write((uint)dIR);
+
+		uint id;
+		id = (TopForwardArea != null) ? TopForwardArea.GetID() : 0;
+		fileBuffer.Write(id);
+
+		id = (TopLeftArea != null) ? TopLeftArea.GetID() : 0;
+		fileBuffer.Write(id);
+
+		id = (TopRightArea != null) ? TopRightArea.GetID() : 0;
+		fileBuffer.Write(id);
+
+		id = (TopBehindArea != null) ? TopBehindArea.GetID() : 0;
+		fileBuffer.Write(id);
+
+		id = (BottomArea != null) ? BottomArea.GetID() : 0;
+		fileBuffer.Write(id);
 	}
 
-	public void Load(BinaryReader fileBuffer, uint version) { }
+	public void Load(BinaryReader fileBuffer, uint version) {
+		ID = fileBuffer.ReadUInt32();
+
+		if (ID >= NextID)
+			NextID = ID + 1;
+
+		Width = fileBuffer.ReadSingle();
+
+		float x = fileBuffer.ReadSingle();
+		float y = fileBuffer.ReadSingle();
+		float z = fileBuffer.ReadSingle();
+		Top = new Vector3(x, y, z);
+
+		x = fileBuffer.ReadSingle();
+		y = fileBuffer.ReadSingle();
+		z = fileBuffer.ReadSingle();
+		Bottom = new Vector3(x, y, z);
+
+		Length = fileBuffer.ReadSingle();
+
+		dIR = (NavDirType)fileBuffer.ReadUInt32();
+
+		uint id;
+		id = fileBuffer.ReadUInt32();
+		TopForwardArea = NavMesh.Instance!.GetNavAreaByID(id);
+
+		id = fileBuffer.ReadUInt32();
+		TopLeftArea = NavMesh.Instance!.GetNavAreaByID(id);
+
+		id = fileBuffer.ReadUInt32();
+		TopRightArea = NavMesh.Instance!.GetNavAreaByID(id);
+
+		id = fileBuffer.ReadUInt32();
+		TopBehindArea = NavMesh.Instance!.GetNavAreaByID(id);
+
+		id = fileBuffer.ReadUInt32();
+		BottomArea = NavMesh.Instance!.GetNavAreaByID(id);
+
+		if (BottomArea == null) {
+			DevMsg($"ERROR: Unconnected ladder #{ID} bottom at ( {Bottom.X}, {Bottom.Y}, {Bottom.Z} )\n");
+			DevWarning($"nav_unmark; nav_mark ladder {ID}; nav_warp_to_mark\n");
+		}
+		else if (TopForwardArea == null && TopLeftArea == null && TopRightArea == null) {
+			DevMsg($"ERROR: Unconnected ladder #{ID} top at ( {Top.X}, {Top.Y}, {Top.Z} )\n");
+			DevWarning($"nav_unmark; nav_mark ladder {ID}; nav_warp_to_mark\n");
+		}
+
+		FindLadderEntity();
+	}
 
 	bool IsInUse(BasePlayer ignore) {
 		throw new NotImplementedException();

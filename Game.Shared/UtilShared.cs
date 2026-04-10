@@ -55,10 +55,10 @@ public static partial class Util_Globals
 		IClientUnknown? unk = (IClientUnknown?)handle;
 		return (BaseEntity?)unk?.GetBaseEntity();
 #else
-	//todo staticpropmgr
+		//todo staticpropmgr
 
-	IServerUnknown? unk = (IServerUnknown?)handle;
-	return (BaseEntity?)unk?.GetBaseEntity();
+		IServerUnknown? unk = (IServerUnknown?)handle;
+		return (BaseEntity?)unk?.GetBaseEntity();
 #endif
 	}
 }
@@ -225,7 +225,6 @@ public struct TraceFilterNoNPCsOrPlayer(IHandleEntity? passentity, CollisionGrou
 		return !entity.IsNPC() && !entity.IsPlayer();
 	}
 }
-
 #endif
 
 public class CountdownTimer
@@ -258,3 +257,17 @@ public class CountdownTimer
 #endif
 }
 
+
+public class IntervalTimer
+{
+	private TimeUnit_t Timestamp;
+	public IntervalTimer() => Timestamp = -1f;
+	public void Reset() => Timestamp = Now();
+	public void Start() => Timestamp = Now();
+	public void Invalidate() => Timestamp = -1f;
+	public bool HasStarted() => Timestamp > 0f;
+	public TimeUnit_t GetElapsedTime() => HasStarted() ? Now() - Timestamp : 99999.9f;
+	public bool IsLessThen(float duration) => Now() - Timestamp < duration;
+	public bool IsGreaterThen(float duration) => Now() - Timestamp > duration;
+	protected virtual TimeUnit_t Now() => gpGlobals.CurTime;
+}

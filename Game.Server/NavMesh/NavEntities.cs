@@ -7,15 +7,17 @@ namespace Game.Server.NavMesh;
 
 class FuncNavCost
 {
-
+	internal float GetCostMultiplier(BaseCombatCharacter who) {
+		throw new NotImplementedException();
+	}
 }
 
-class FuncNavAvoid
+class FuncNavAvoid : FuncNavCost
 {
 
 }
 
-class FuncNavPrefer
+class FuncNavPrefer : FuncNavCost
 {
 
 }
