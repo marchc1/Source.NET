@@ -17,6 +17,8 @@ using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Text;
 
+using System.Numerics;
+
 namespace Game;
 
 
@@ -271,5 +273,9 @@ public static partial class Util
 			return PlayerByIndex(id)!;
 
 		return null;
+	}
+
+	internal static void SetOrigin(BasePlayer player, Vector3 origin) {
+		throw new NotImplementedException();
 	}
 }

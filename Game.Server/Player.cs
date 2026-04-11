@@ -827,6 +827,14 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		// UpdateLastKnownArea();
 	}
+
+	internal bool IsDead() {
+		throw new NotImplementedException();
+	}
+
+	internal void Teleport(AngularImpulse origin, QAngle angles, Vector3 vec3_origin) {
+		throw new NotImplementedException();
+	}
 }
 
 

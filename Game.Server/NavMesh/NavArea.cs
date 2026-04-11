@@ -286,7 +286,7 @@ public partial class NavArea : NavAreaCriticalData
 		VisTestCounter = UInt32.MaxValue - 1;
 	}
 
-	void Build(Vector3 corner, Vector3 otherCorner) {
+	public void Build(Vector3 corner, Vector3 otherCorner) {
 		if (corner.X < otherCorner.X) {
 			NWCorner.X = corner.X;
 			SECorner.X = otherCorner.X;
@@ -464,7 +464,7 @@ public partial class NavArea : NavAreaCriticalData
 			area.AddIncomingConnection(this, opposite);
 	}
 
-	void ConnectTo(NavLadder ladder) {
+	public void ConnectTo(NavLadder ladder) {
 		float center = (ladder.Top.Z + ladder.Bottom.Z) * 0.5f;
 
 		Disconnect(ladder);
@@ -490,7 +490,7 @@ public partial class NavArea : NavAreaCriticalData
 		}
 	}
 
-	void Disconnect(NavLadder ladder) {
+	public void Disconnect(NavLadder ladder) {
 		for (int i = 0; i < (int)NavLadder.LadderDirectionType.NumLadderDirections; i++)
 			Ladder[i].RemoveAll(c => c.Ladder == ladder);
 	}
@@ -893,7 +893,7 @@ public partial class NavArea : NavAreaCriticalData
 		}
 	}
 
-	bool SpliceEdit(NavArea other) {
+	public bool SpliceEdit(NavArea other) {
 		NavArea? newArea;
 		Vector3 nw = default, ne = default, se = default, sw = default;
 
@@ -1057,7 +1057,7 @@ public partial class NavArea : NavAreaCriticalData
 		}
 	}
 
-	bool MergeEdit(NavArea adj) {
+	public bool MergeEdit(NavArea adj) {
 		const float tolerance = 1.0f;
 		bool merge = false;
 
@@ -1368,7 +1368,7 @@ public partial class NavArea : NavAreaCriticalData
 		return null;
 	}
 
-	void CollectAdjacentAreas(List<NavArea> adjVector) {
+	public void CollectAdjacentAreas(List<NavArea> adjVector) {
 		for (int dir = 0; dir < (int)NavDirType.NumDirections; dir++) {
 			foreach (NavConnect connect in Connect[dir]) {
 				if (connect.Area != this)
@@ -1423,7 +1423,7 @@ public partial class NavArea : NavAreaCriticalData
 		center.Z = GetZ(center.X, center.Y);
 	}
 
-	NavDirType ComputeLargestPortal(NavArea to, Vector3 center, float halfWidth) {
+	public NavDirType ComputeLargestPortal(NavArea to, out Vector3 center, out float halfWidth) {
 		throw new NotImplementedException();
 	}
 
@@ -2660,7 +2660,7 @@ public partial class NavArea : NavAreaCriticalData
 		return true;
 	}
 
-	void RaiseCorner(NavCornerType corner, int amount, bool raiseAdjacentCorners = true) {
+	public void RaiseCorner(NavCornerType corner, int amount, bool raiseAdjacentCorners = true) {
 		if (corner == NavCornerType.NumCorners) {
 			RaiseCorner(NavCornerType.NorthWest, amount, raiseAdjacentCorners);
 			RaiseCorner(NavCornerType.NorthEast, amount, raiseAdjacentCorners);
@@ -2823,7 +2823,7 @@ public partial class NavArea : NavAreaCriticalData
 		}
 	}
 
-	void Shift(Vector3 shift) {
+	public void Shift(Vector3 shift) {
 		NWCorner += shift;
 		SECorner += shift;
 		Center += shift;

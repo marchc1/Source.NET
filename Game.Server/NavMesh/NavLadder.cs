@@ -47,7 +47,7 @@ public class NavLadder
 		ID = NextID++;
 	}
 
-	void Shift(Vector3 shift) { }
+	public void Shift(Vector3 shift) { }
 
 	public uint GetID() => ID;
 
@@ -64,17 +64,17 @@ public class NavLadder
 
 	public void OnSplit(NavArea original, NavArea alpha, NavArea beta) { }
 
-	void ConnectTo(NavArea area) { }
+	public void ConnectTo(NavArea area) { }
 
 	void OnDestroyNotify(NavArea dead) { }
 
-	void Disconnect(NavArea area) { }
+	public void Disconnect(NavArea area) { }
 
 	public bool IsConnected(NavArea area, LadderDirectionType dir) {
 		throw new NotImplementedException();
 	}
 
-	void SetDir(NavDirType dir) { }
+	public void SetDir(NavDirType dir) { }
 
 	public void DrawLadder() { }
 
@@ -184,7 +184,7 @@ public class NavLadder
 		throw new NotImplementedException();
 	}
 
-	NavDirType GetDir() {
+	public NavDirType GetDir() {
 		throw new NotImplementedException();
 	}
 
