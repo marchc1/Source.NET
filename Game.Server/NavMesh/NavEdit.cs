@@ -566,7 +566,7 @@ public partial class NavMesh
 					if (IsPlacePainting) {
 						if (SelectedArea.GetPlace() != Instance!.GetNavPlace()) {
 							SelectedArea.SetPlace(Instance!.GetNavPlace());
-							// player.EmitSound("Bot.EditSwitchOn");
+							player.EmitSound("Bot.EditSwitchOn");
 						}
 					}
 				}

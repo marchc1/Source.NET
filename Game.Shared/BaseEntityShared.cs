@@ -249,6 +249,8 @@ public partial class
 		CheckHasThinkFunction(thinkTick == TICK_NEVER_THINK ? false : true);
 	}
 
+	public virtual Vector3 EarPosition() => EyePosition();
+
 	public int RegisterThinkContext(ReadOnlySpan<char> context) {
 		int iIndex = GetIndexForThinkContext(context);
 		if (iIndex != NO_THINK_CONTEXT)

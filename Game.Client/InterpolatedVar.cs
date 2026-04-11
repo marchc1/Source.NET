@@ -53,6 +53,7 @@ public interface IInterpolatedVar
 {
 	public const double EXTRA_INTERPOLATION_HISTORY_STORED = 0.05;
 
+	object GetInstance();
 	void Setup(object instance, DynamicAccessor accessor, LatchFlags type);
 	void SetInterpolationAmount(TimeUnit_t seconds);
 	void NoteLastNetworkedValue();
@@ -222,6 +223,7 @@ public struct InterpolatedVarEntryBase<T>
 
 public class InterpolatedVarArrayBase<T>(bool isArray) : IInterpolatedVar
 {
+	public object GetInstance() => Instance;
 	protected SimpleRingBuffer<InterpolatedVarEntryBase<T>> VarHistory = new();
 	public void Copy(IInterpolatedVar inSrc) {
 		InterpolatedVarArrayBase<T>? src = (InterpolatedVarArrayBase<T>?)inSrc;

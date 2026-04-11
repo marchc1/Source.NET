@@ -17,8 +17,11 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating
 
 	public C_BaseAnimatingOverlay() : base() {
 		for (int i = 0; i < MAX_OVERLAYS; i++) {
+			AnimationLayerRef r = new AnimationLayerRef();
 			AnimOverlay.Add(new());
-			iv_AnimOverlay.Add(new());
+			var iv = new InterpolatedVar<AnimationLayer>();
+			iv.Setup(r, AnimationLayerRef.Accessor, LatchFlags.LatchAnimationVar);
+			iv_AnimOverlay.Add(iv);
 		}
 	}
 

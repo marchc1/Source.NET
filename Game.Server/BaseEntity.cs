@@ -275,6 +275,13 @@ public partial class BaseEntity : IServerEntity
 		// todo
 	}
 
+
+	public static void EmitSound<IRF>(scoped in IRF filter, int entIndex, scoped in EmitSound_t parms) where IRF : IRecipientFilter {
+
+	}
+
+	public virtual Vector3 GetSoundEmissionOrigin() => WorldSpaceCenter();
+
 	public BaseEntity? GetParent() => Parent.Get();
 
 	public static BaseEntity? GetContainingEntity(Edict ent) {
@@ -317,7 +324,7 @@ public partial class BaseEntity : IServerEntity
 	}
 
 	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent);
-	public static BaseEntity? Instance(int ent) => Instance(Util.INDEXENT(ent));
+	public static BaseEntity? Instance(int ent) => Instance(INDEXENT(ent)!);
 
 	public static BaseEntity? Create(ReadOnlySpan<char> name, Vector3 origin, QAngle angles, BaseEntity? owner = null) {
 		BaseEntity? ent = CreateNoSpawn(name, origin, angles, owner);

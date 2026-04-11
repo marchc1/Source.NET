@@ -240,7 +240,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 			return;
 
 		if (!GetSelectedWeapon()!.CanBeSelected()) {
-			// player.EmitSound("Player.DenyWeaponSelection");
+			player.EmitSound("Player.DenyWeaponSelection");
 			DevMsg("Player.DenyWeaponSelection\n");
 		}
 		else {
@@ -248,7 +248,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 			SelectedWeapon = null;
 			engine.ClientCmd("cancelselect\n");
 
-			// player.EmitSound("Player.WeaponSelected");
+			player.EmitSound("Player.WeaponSelected");
 		}
 	}
 
@@ -263,7 +263,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 			HideSelection();
 			SelectedWeapon = null;
 
-			// player.EmitSound("Player.WeaponSelectionClose");
+			player.EmitSound("Player.WeaponSelectionClose");
 		}
 		else
 			engine.ClientCmd("escape\n");
