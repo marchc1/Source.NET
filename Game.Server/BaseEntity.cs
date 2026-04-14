@@ -101,7 +101,7 @@ public partial class BaseEntity : IServerEntity
 		SendPropDataTable("AnimTimeMustBeFirst", DT_AnimTimeMustBeFirst, SendProxy_ClientSideAnimation),
 
 		SendPropInt(FIELD.OF(nameof(SimulationTime)), SIMULATION_TIME_WINDOW_BITS, PropFlags.Unsigned | PropFlags.ChangesOften | PropFlags.EncodedAgainstTickCount, proxyFn: SendProxy_SimulationTime /* todo */),
-		SendPropVector(FIELD.OF(nameof(Origin)), -1, PropFlags.Coord | PropFlags.ChangesOften, 0, Constants.HIGH_DEFAULT, proxyFn: null /* todo */),
+		SendPropVector(FIELD.OF(nameof(Origin)), -1, PropFlags.Coord | PropFlags.ChangesOften, 0, Constants.HIGH_DEFAULT, SendProxy_Origin),
 		SendPropInt(FIELD.OF(nameof(InterpolationFrame)), NOINTERP_PARITY_MAX_BITS, PropFlags.Unsigned),
 		SendPropModelIndex(FIELD.OF(nameof(ModelIndex))),
 		SendPropDataTable(nameof(Collision), FIELD.OF(nameof(Collision)), CollisionProperty.DT_CollisionProperty),
@@ -168,13 +168,13 @@ public partial class BaseEntity : IServerEntity
 	public BaseEntity(bool serverOnly = false) {
 		// todo todo
 
-		// CollisionProp().Init(this);
+		CollisionProp().Init(this);
 		NetworkProp().Init(this);
 
 		AddEFlags(EFL.NoThinkFunction | EFL.NoGamePhysicsSimulation | EFL.UsePartitionWhenNotSolid);
 
 		SetSolid(SolidType.None);
-		// ClearSolidFlags();
+		ClearSolidFlags();
 
 		SetMoveType(Source.MoveType.None);
 		SetModelIndex(0);
@@ -222,13 +222,25 @@ public partial class BaseEntity : IServerEntity
 		outData.Vector[1] = MathLib.AngleMod(angles.Y);
 		outData.Vector[2] = MathLib.AngleMod(angles.Z);
 	}
+	private static void SendProxy_Origin(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
+		BaseEntity entity = (BaseEntity)instance;
+		Assert(entity != null);
+
+		Vector3 vector3;
+		if (true /*entity.UseStepSimulationNetworkAngles*/)
+			vector3 = entity.GetLocalOrigin();
+
+		outData.Vector[0] = vector3.X;
+		outData.Vector[1] = vector3.Y;
+		outData.Vector[2] = vector3.Z;
+	}
 	protected static object? SendProxy_SendPredictableId(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
 		BaseEntity entity = (BaseEntity)instance;
 		if (entity == null || !entity.PredictableId.IsActive())
 			return null;
 
 		int id_player_index = entity.PredictableId.GetPlayer();
-		// recipients.SetOnly(id_player_index);
+		recipients.SetOnly(id_player_index);
 
 		return data;
 	}
@@ -258,7 +270,7 @@ public partial class BaseEntity : IServerEntity
 		}
 
 		ParentName = parentEnt.Name;
-		// RemoveSolidFlags(SolidFlags.RootParentAligned);
+		RemoveSolidFlags(SolidFlags.RootParentAligned);
 
 		// todo
 	}
@@ -297,7 +309,19 @@ public partial class BaseEntity : IServerEntity
 
 	public bool IsFloating() => false; // TODO
 
-	public void SetGroundEntity(BaseEntity? ent) { /* todo */ }
+	public void SetGroundEntity(BaseEntity? ent) {
+		if (ent == GroundEntity.Get())
+			return;
+
+		// todo this has more
+
+		GroundEntity.Set(ent);
+
+		if (ent != null)
+			AddFlag(EntityFlags.OnGround);
+		else
+			RemoveFlag(EntityFlags.OnGround);
+	}
 
 	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent);
 	public static BaseEntity? Instance(int ent) => Instance(INDEXENT(ent)!);
@@ -317,7 +341,7 @@ public partial class BaseEntity : IServerEntity
 
 		ent.SetLocalOrigin(origin);
 		ent.SetLocalAngles(angles);
-		// ent.SetOwnerEntity(owner);
+		ent.SetOwnerEntity(owner);
 
 		gEntList.NotifyCreateEntity(ent);
 
@@ -421,10 +445,17 @@ public partial class BaseEntity : IServerEntity
 	public void SetMoveCollide(MoveCollide moveCollide) => MoveCollide = (byte)moveCollide;
 	public CollisionProperty CollisionProp() => Collision;
 
-	public bool SetModel(ReadOnlySpan<char> modelName) {
-		return false; // TODO
+	public void SetModel(ReadOnlySpan<char> modelName) {
+		int modelIndex = modelinfo.GetModelIndex(modelName);
+		Model? model = modelinfo.GetModel(modelIndex);
+		if (model != null && modelinfo.GetModelType(model) != ModelType.Brush)
+			Msg($"Setting CBaseEntity to non-brush model {modelName}\n");
+
+		// Util.SetModel(this, modelName); // TODO
 	}
+
 	public void SetOwnerEntity(BaseEntity? owner) => OwnerEntity.Set(owner);
+	public BaseEntity? GetOwnerEntity() => OwnerEntity.Get();
 
 	public void SetMoveType(MoveType val, MoveCollide moveCollide = Source.MoveCollide.Default) {
 		if (MoveType == (byte)val) {
@@ -449,7 +480,7 @@ public partial class BaseEntity : IServerEntity
 				break;
 			case Source.MoveType.Step: {
 					// This will probably go away once I remove the cvar that controls the test code
-					SetSimulatedEveryTick(g_bTestMoveTypeStepSimulation ? true : false);
+					SetSimulatedEveryTick(Physics.g_bTestMoveTypeStepSimulation);
 					SetAnimatedEveryTick(false);
 				}
 				break;
@@ -480,12 +511,62 @@ public partial class BaseEntity : IServerEntity
 	void PhysicsNone() { }
 	void PhysicsRigidChild() { }
 	void PhysicsNoclip() { }
-	void PhysicsStepRunTimestep(TimeUnit_t timestep) { }
 	void PhysicsToss() { }
 	void PhysicsCustom() { }
 	void PerformPush(TimeUnit_t movetime) { }
 	void UpdateBaseVelocity() { }
-	public void DispatchUpdateTransmitState() { }
+
+	void StepSimulationThink(TimeUnit_t dt) {
+		// CheckStepSimulationChanged();
+
+		// StepSimulationData? stepObject = (StepSimulationData?)GetDataObject(DataObjectType.StepSimulation);
+		// if (stepObject == null) {
+		// 	PhysicsStepRunTimestep(dt);
+		// 	PhysicsRunThink(ThinkMethods.FireBaseOnly);
+		// }
+		// else {
+		// 	StepSimulationData step = stepObject.Value; // fixme
+		// 	step.OriginActive = true;
+		// 	step.AnglesActive = true;
+
+		// 	step.LastProcessTickCount = -1;
+
+		// 	step.NetworkOrigin.Init();
+		// 	step.NetworkAngles.Init();
+
+		// 	step.Previous2 = step.Previous;
+
+		// 	step.Previous.TickCount = gpGlobals.TickCount;
+		// 	step.Previous.Origin = GetStepOrigin();
+		// 	QAngle stepAngles = GetStepAngles();
+		// 	MathLib.AngleQuaternion(stepAngles, out step.Previous.Rotation);
+
+		// 	PhysicsStepRunTimestep(dt);
+
+		// 	PhysicsRunThink(ThinkMethods.FireBaseOnly);
+
+		// 	if (GetBaseAnimating() != null)
+		// 		GetBaseAnimating()!.UpdateStepOrigin();
+
+		// 	step.Next.Origin = GetStepOrigin();
+		// 	stepAngles = GetStepAngles();
+		// 	MathLib.AngleQuaternion(stepAngles, out step.Next.Rotation);
+
+		// 	step.AngNextRotation = GetStepAngles();
+		// 	step.Next.TickCount = GetNextThinkTick();
+
+		// 	if (IsSimulatingOnAlternateTicks())
+		// 		++step.Next.TickCount;
+
+		// 	if (dt > 0) {
+		// 		Vector3 deltaOrigin = step.Next.Origin - step.Previous.Origin;
+		// 		float velSq = (float)(deltaOrigin.LengthSquared() / (dt * dt));
+		// 		if (velSq >= (4096.0f * 4096.0f) /*STEP_TELPORTATION_VEL_SQ*/)
+		// 			step.OriginActive = step.AnglesActive = false;
+		// 	}
+		// }
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsMarkedForDeletion() => (eflags & EFL.KillMe) != 0;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void AddEFlags(EFL flags) {
@@ -559,9 +640,7 @@ public partial class BaseEntity : IServerEntity
 
 	public bool HasSpawnFlags(int flags) => (SpawnFlags & flags) != 0;
 
-	public int GetModelIndex() {
-		throw new NotImplementedException();
-	}
+	public int GetModelIndex() => ModelIndex;
 
 	string? ModelName;
 	public ReadOnlySpan<char> GetModelName() => ModelName;
@@ -570,15 +649,11 @@ public partial class BaseEntity : IServerEntity
 		DispatchUpdateTransmitState();
 	}
 
-	public IServerNetworkable? GetNetworkable() {
-		return null; // todo
-	}
+	public IServerNetworkable? GetNetworkable() => Network;
 
 	public ref readonly BaseHandle GetRefEHandle() => ref RefEHandle;
 
-	public void SetModelIndex(int index) {
-		// throw new NotImplementedException();
-	}
+	public void SetModelIndex(int index) => ModelIndex = index;
 
 	BaseHandle RefEHandle;
 	public void SetRefEHandle(in BaseHandle handle) => RefEHandle = handle;
@@ -621,23 +696,79 @@ public partial class BaseEntity : IServerEntity
 		Velocity = vNew;
 	}
 
+	public void SetAbsOrigin(Vector3 vector3) {
+		AssertMsg(vector3.IsValid(), "Invalid origin set");
+
+		if (AbsOrigin == vector3)
+			return;
+
+		InvalidatePhysicsRecursive(InvalidatePhysicsBits.PositionChanged);
+		RemoveEFlags(EFL.DirtyAbsVelocity);
+
+		AbsOrigin = vector3;
+
+		MathLib.MatrixSetColumn(in vector3, 3, ref CoordinateFrame);
+
+		Vector3 newOrigin;
+		BaseEntity? moveParent = GetMoveParent();
+		if (moveParent == null)
+			newOrigin = vector3;
+		else {
+			MathLib.ConcatTransforms(moveParent.EntityToWorldTransform(), CoordinateFrame, out Matrix3x4 tempMat);
+			MathLib.VectorTransform(in vector3, in tempMat, out newOrigin);
+		}
+
+		if (Origin != newOrigin) {
+			Origin = newOrigin;
+			SetSimulationTime(gpGlobals.CurTime);
+		}
+	}
+
 	public ref readonly Vector3 GetAbsOrigin() => ref AbsOrigin;
 	public ref readonly Vector3 GetViewOffset() => ref ViewOffset;
 	public ref readonly QAngle GetAbsAngles() => ref AbsRotation;
 
 	public void SetLocalOrigin(in Vector3 origin) {
-		// This has a lot more logic thats needed later TODO FIXME
-		Origin = origin;
+		// if (!IsEntityPositionReasonable(origin)) {
+		// 	if (CheckEmitReasonablePhysicsSpew())
+		// 		Warning("Bad SetLocalOrigin(%f,%f,%f) on %s\n", origin.x, origin.y, origin.z, GetDebugName());
+		// 	Assert(false);
+		// 	return;
+		// }
+
+		if (Origin != origin) {
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.PositionChanged);
+			Origin = origin;
+			SetSimulationTime(gpGlobals.CurTime);
+		}
 	}
 
 	public void SetLocalAngles(in QAngle angles) {
-		// This has a lot more logic thats needed later TODO FIXME
-		Rotation = angles;
+		if (!IsEntityQAngleReasonable(angles)) {
+			// 	if (CheckEmitReasonablePhysicsSpew())
+			// 		Warning("Bad SetLocalAngles(%f,%f,%f) on %s\n", angles.x, angles.y, angles.z, GetDebugName());
+			// 	AssertMsg(false, "Bad SetLocalAngles(%f,%f,%f) on %s\n", angles.x, angles.y, angles.z, GetDebugName());
+			// 	return;
+		}
+
+		if (Rotation != angles) {
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnglesChanged);
+			Rotation = angles;
+			SetSimulationTime(gpGlobals.CurTime);
+		}
 	}
 
 	public ref Matrix3x4 EntityToWorldTransform() {
+		// Assert()
+
+		if (IsEFlagSet(EFL.DirtyAbsTransform))
+			CalcAbsolutePosition();
 
 		return ref CoordinateFrame;
+	}
+
+	private void CalcAbsolutePosition() {
+		throw new NotImplementedException();
 	}
 
 	readonly ServerNetworkProperty Network = new();
@@ -645,10 +776,108 @@ public partial class BaseEntity : IServerEntity
 	public int EntIndex() => Network.EntIndex();
 	public float GetGravity() => Gravity;
 	public void SetGravity(float gravity) => Gravity = gravity;
-
+	public void ClearSolidFlags() => CollisionProp().ClearSolidFlags();
 	public object? GetBaseEntity() => this;
 	public virtual BaseAnimating? GetBaseAnimating() => null;
+	private float GetFriction() => Friction;
 
 	public void NetworkStateChanged() => NetworkProp().NetworkStateChanged();
 	public void NetworkStateChanged(IFieldAccessor field) => NetworkProp().NetworkStateChanged(field);
+
+	internal void SetTransmit(CheckTransmitInfo info, bool always) {
+		int entIndex = EntIndex();
+
+		if (info.TransmitEdict.Get(entIndex) != 0)
+			return;
+
+		ServerNetworkProperty networkParent = NetworkProp().GetNetworkParent();
+
+		info.TransmitEdict.Set(entIndex);
+
+		if (always || networkParent != null)
+			info.TransmitAlways.Set(entIndex);
+		else
+			Network.RecomputePVSInformation();
+
+		if (networkParent != null) {
+			BaseEntity? moveParent = networkParent.GetBaseEntity();
+			moveParent!.SetTransmit(info, always);
+		}
+	}
+
+	public virtual EdictFlags ShouldTransmit(CheckTransmitInfo info) {
+		EdictFlags flags = DispatchUpdateTransmitState();
+
+		if ((flags & EdictFlags.PVSCheck) != 0)
+			return EdictFlags.PVSCheck;
+		else if ((flags & EdictFlags.Always) != 0)
+			return EdictFlags.Always;
+		else if ((flags & EdictFlags.DontSend) != 0)
+			return EdictFlags.DontSend;
+
+		BaseEntity? recipientEntity = Instance(info.ClientEnt);
+		Assert(recipientEntity != null && recipientEntity.IsPlayer());
+
+		BasePlayer recipientPlayer = (BasePlayer)recipientEntity!;
+
+		Team? team = recipientPlayer.GetTeam();
+		if (team != null) {
+			// 	if (team.ShouldTransmitToPlayer(recipientPlayer, this))
+			// 		return EdictFlags.Always;
+		}
+
+		return EdictFlags.PVSCheck;
+	}
+
+	public virtual EdictFlags UpdateTransmitState() {
+		Assert(g_InsideDispatchUpdateTransmitState > 0);
+
+		if (IsEffectActive(EntityEffects.NoDraw) /*&& !MoveChild.Get()*/)
+			return SetTransmitState(EdictFlags.DontSend);
+
+		if (!IsEFlagSet(EFL.ForceCheckTransmit)) {
+			if (GetModelIndex() == 0 || GetModelName().IsEmpty)
+				return SetTransmitState(EdictFlags.DontSend);
+		}
+
+		if (GetModelIndex() == 1)
+			return SetTransmitState(EdictFlags.Always);
+
+		if (IsEFlagSet(EFL.InSkybox))
+			return SetTransmitState(EdictFlags.Always);
+
+		return SetTransmitState(EdictFlags.PVSCheck);
+	}
+
+	static int g_InsideDispatchUpdateTransmitState = 0;
+	byte TransmitStateOwnedCounter = 0;
+	public EdictFlags DispatchUpdateTransmitState() {
+		Edict ed = Edict();
+
+		if (TransmitStateOwnedCounter != 0)
+			return ed != null ? ed.StateFlags : 0;
+
+		g_InsideDispatchUpdateTransmitState++;
+		EdictFlags ret = UpdateTransmitState();
+		g_InsideDispatchUpdateTransmitState--;
+
+		return ret;
+	}
+
+	public EdictFlags SetTransmitState(EdictFlags flag) {
+		Edict ed = Edict();
+
+		if (ed == null)
+			return 0;
+
+		ed.ClearTransmitState();
+
+		EdictFlags old = ed.StateFlags;
+		ed.StateFlags |= flag;
+
+		if ((old & EdictFlags.DontSend) != (ed.StateFlags & EdictFlags.DontSend))
+			engine.NotifyEdictFlagsChange(EntIndex());
+
+		return ed.StateFlags;
+	}
 }

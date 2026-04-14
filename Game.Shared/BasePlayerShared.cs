@@ -57,6 +57,37 @@ public partial class
 	BasePlayer
 #endif
 {
+	public void SharedSpawn() {
+		SetMoveType(Source.MoveType.Walk);
+		SetSolid(SolidType.BBox);
+		AddSolidFlags(SolidFlags.NotStandable);
+		Friction = 1.0f;
+
+		pl.DeadFlag = false;
+		LifeState = (int)Source.LifeState.Alive;
+		Health = 100;
+		TakeDamage = 2; // DAMAGE_YES
+
+		Local.DrawViewmodel = true;
+		Local.StepSize = sv_stepsize.GetFloat();
+		Local.AllowAutoMovement = true;
+
+		RenderFX = (byte)RenderFx.None;
+		SetNextAttack(gpGlobals.CurTime);
+		Maxspeed = 0.0f;
+
+		SetSequence(SelectWeightedSequence(Activity.ACT_IDLE));
+
+		// if ((GetFlags() & EntityFlags.Ducking) != 0)
+		// 	SetCollisionBounds(VEC_DUCK_HULL_MIN, VEC_DUCK_HULL_MAX);
+		// else
+		// 	SetCollisionBounds(VEC_HULL_MIN, VEC_HULL_MAX);
+
+		Local.FallVelocity = 0;
+
+		// SetBloodColor(BLOOD_COLOR_RED);
+	}
+
 	public TimeUnit_t GetTimeBase() => TickBase * TICK_INTERVAL;
 	public virtual void CalcView(ref Vector3 eyeOrigin, ref QAngle eyeAngles, ref float zNear, ref float zFar, ref float fov) {
 		CalcPlayerView(ref eyeOrigin, ref eyeAngles, ref fov); // << TODO: There is a lot more logic here for observers, vehicles, etc!

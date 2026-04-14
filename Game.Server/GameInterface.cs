@@ -225,9 +225,42 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	}
 
 	public void GameFrame(bool simulating) {
+		if (BaseEntity.IsSimulatingOnAlternateTicks()) {
+			if ((gpGlobals.TickCount & 1) != 0) {
+				// UpdateAllClientData();
+				// return;
+			}
+
+			gpGlobals.FrameTime *= 2.0f;
+		}
+
+		TimeUnit_t oldFrameTime = gpGlobals.FrameTime;
+
+		gEntList.CleanupDeleteList();
+
+		IGameSystem.FrameUpdatePreEntityThinkAllSystems();
+
+		GameStartFrame();
 
 		NavMesh.NavMesh.Instance?.Update();
 
+		// nextbots todo
+
+		// UpdateQueryCache();
+
+		Physics.RunThinkFunctions(simulating);
+
+		IGameSystem.FrameUpdatePostEntityThinkAllSystems();
+
+		// ServiceEventQueue();
+
+		// UpdateAllClientData();
+
+		// g_pGameRules?.EndGameFrame();
+
+		// g_NetworkPropertyEventMgr.FireEvents();
+
+		gpGlobals.FrameTime = oldFrameTime;
 	}
 
 	public bool GameInit() {
@@ -557,15 +590,14 @@ public class ServerGameClients : IServerGameClients
 		from = cmdNull;
 
 		for (i = totalCmds - 1; i >= 0; i--) {
-			to = cmds[i];
-			UserCmd.ReadUsercmd(buf, ref to, ref from);
-			from = to;
+			UserCmd.ReadUsercmd(buf, ref cmds[i], ref from);
+			from = cmds[i];
 		}
 
 		if (ignore || pl == null)
 			return 0.0f;
 
-		// pl.ProcessUsercmds(cmds, numCmds, totalCmds, droppedPackets, paused); TODO
+		pl.ProcessUsercmds(cmds, numCmds, totalCmds, droppedPackets, paused);
 
 		return TICK_INTERVAL;
 	}
@@ -586,6 +618,163 @@ public class ServerGameEnts : IServerGameEnts
 
 	public void SetDebugEdictBase(Edict[] edict) {
 
+	}
+
+	static readonly ConVar sv_force_transmit_ents = new("sv_force_transmit_ents", "0", FCvar.Cheat | FCvar.DevelopmentOnly, "Will transmit all entities to client, regardless of PVS conditions (will still skip based on transmit flags, however).");
+
+	public void CheckTransmit(CheckTransmitInfo info, ushort[] edictIndices, int edicts) {
+		// NOTE: for speed's sake, this assumes that all networkables are CBaseEntities and that the edict list
+		// is consecutive in memory. If either of these things change, then this routine needs to change, but
+		// ideally we won't be calling any virtual from this routine. This speedy routine was added as an
+		// optimization which would be nice to keep.
+		Edict baseEdict = engine.PEntityOfEntIndex(0);
+
+		// get recipient player's skybox:
+		BaseEntity? recipientEntity = BaseEntity.Instance(info.ClientEnt);
+
+		Assert(recipientEntity != null && recipientEntity.IsPlayer());
+		if (recipientEntity == null)
+			return;
+
+		BasePlayer recipientPlayer = (BasePlayer)recipientEntity;
+		int skyBoxArea = recipientPlayer.Local.Skybox3D.Area;
+
+		bool isHLTV = false;//recipientPlayer.IsHLTV();
+		bool isReplay = false;//recipientPlayer.IsReplay();
+
+		for (int i = 0; i < edicts; i++) {
+			int entIndex = edictIndices[i];
+
+			Edict edict = engine.PEntityOfEntIndex(entIndex)!;
+			Assert(edict == engine.PEntityOfEntIndex(entIndex));
+			EdictFlags flags = edict.StateFlags & (EdictFlags.DontSend | EdictFlags.Always | EdictFlags.PVSCheck | EdictFlags.FullCheck);
+
+			// entity needs no transmit
+			if ((flags & EdictFlags.DontSend) != 0)
+				continue;
+
+			// entity is already marked for sending
+			if (info.TransmitEdict.Get(entIndex) != 0)
+				continue;
+
+			if ((flags & EdictFlags.Always) != 0) {
+				// S-FIXME: Hey! Shouldn't this be using SetTransmit so as
+				// to also force network down dependent entities?
+				while (edict != null) {
+					// mark entity for sending
+					info.TransmitEdict.Set(entIndex);
+
+					if (isHLTV || isReplay)
+						info.TransmitAlways.Set(entIndex);
+
+					ServerNetworkProperty? ent = (ServerNetworkProperty?)edict.GetNetworkable();
+					if (ent == null)
+						break;
+
+					ServerNetworkProperty pParent = ent.GetNetworkParent();
+					if (pParent == null)
+						break;
+
+					edict = pParent.Edict();
+					entIndex = pParent.EntIndex();
+				}
+				continue;
+			}
+
+			// S-FIXME: Would like to remove all dependencies
+			BaseEntity entity = (BaseEntity)edict.GetUnknown()!;
+			Assert((BaseEntity?)edict.GetUnknown() == entity);
+
+			if (flags == EdictFlags.FullCheck) {
+				// do a full ShouldTransmit() check, may return FL_EDICT_CHECKPVS
+				flags = entity.ShouldTransmit(info);
+
+				Assert((flags & EdictFlags.FullCheck) == 0);
+
+				if ((flags & EdictFlags.Always) != 0) {
+					entity.SetTransmit(info, true);
+					continue;
+				}
+			}
+
+			// don't send this entity
+			if ((flags & EdictFlags.PVSCheck) == 0)
+				continue;
+
+			ServerNetworkProperty netProp = (ServerNetworkProperty)edict.GetNetworkable()!;
+
+			if (isHLTV || isReplay) {
+				// for the HLTV/Replay we don't cull against PVS
+				entity.SetTransmit(info, netProp.AreaNum() == skyBoxArea);
+				continue;
+			}
+
+			// Always send entities in the player's 3d skybox.
+			// Sidenote: call of AreaNum() ensures that PVS data is up to date for this entity
+			bool sameAreasAsSky = netProp.AreaNum() == skyBoxArea;
+			if (sameAreasAsSky) {
+				entity.SetTransmit(info, true);
+				continue;
+			}
+
+			bool inPVS = netProp.IsInPVS(info);
+			if (inPVS || sv_force_transmit_ents.GetBool()) {
+				// only send if entity is in PVS
+				entity.SetTransmit(info, false);
+				continue;
+			}
+
+			// If the entity is marked "check PVS" but it's in hierarchy, walk up the hierarchy looking for the
+			//  for any parent which is also in the PVS.  If none are found, then we don't need to worry about sending ourself
+			BaseEntity orig = entity;
+			ServerNetworkProperty check = netProp.GetNetworkParent();
+
+			// BUG BUG:  I think it might be better to build up a list of edict indices which "depend" on other answers and then
+			// resolve them in a second pass.  Not sure what happens if an entity has two parents who both request PVS check?
+			while (check != null) {
+				int checkIndex = check.EntIndex();
+
+				// Parent already being sent
+				if (info.TransmitEdict.Get(checkIndex) != 0) {
+					orig.SetTransmit(info, true);
+					break;
+				}
+
+				Edict checkEdict = check.Edict();
+				EdictFlags checkFlags = checkEdict.StateFlags & (EdictFlags.DontSend | EdictFlags.Always | EdictFlags.PVSCheck | EdictFlags.FullCheck);
+				if ((checkFlags & EdictFlags.DontSend) != 0)
+					break;
+
+				if ((checkFlags & EdictFlags.Always) != 0) {
+					orig.SetTransmit(info, true);
+					break;
+				}
+
+				if (checkFlags == EdictFlags.FullCheck) {
+					// do a full ShouldTransmit() check, may return FL_EDICT_CHECKPVS
+					BaseEntity checkEnt = check.GetBaseEntity()!;
+					flags = checkEnt.ShouldTransmit(info);
+					if ((flags & EdictFlags.Always) != 0) {
+						checkEnt.SetTransmit(info, true);
+						orig.SetTransmit(info, true);
+					}
+					break;
+				}
+
+				if ((checkFlags & EdictFlags.PVSCheck) != 0) {
+					// Check pvs
+					check.RecomputePVSInformation();
+					bool moveParentInPVS = check.IsInPVS(info);
+					if (moveParentInPVS) {
+						orig.SetTransmit(info, true);
+						break;
+					}
+				}
+
+				// Continue up chain just in case the parent itself has a parent that's in the PVS...
+				check = check.GetNetworkParent();
+			}
+		}
 	}
 }
 

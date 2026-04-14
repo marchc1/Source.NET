@@ -237,10 +237,13 @@ static class PackedEntities
 
 	public static void ComputeClientPacks(int clientCount, GameClient[] clients, FrameSnapshot snapshot) {
 		for (int i = 0; i < clientCount; i++) {
-			// todo transmit info todo todo todo todo todo maybe possibly todo
+			CheckTransmitInfo info = clients[i].PackInfo;
 
 			clients[i].SetupPackInfo(snapshot);
-
+			SV.ServerGameEnts!.CheckTransmit(info, snapshot.ValidEntities!, snapshot.NumValidEntities);
+			clients[i].CurrentFrame!.TransmitEntity = info.TransmitEdict;
+			clients[i].CurrentFrame!.TransmitAlways = info.TransmitAlways;
+			clients[i].SetupPrevPackInfo();
 		}
 
 		if (CL.LocalNetworkBackdoor != null) {

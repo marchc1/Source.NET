@@ -205,8 +205,7 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 		Common.TimestampedLog("SV.CreateBaseline");
 
 		// create a baseline for more efficient communications
-		// todo: uncomment once more il stuff is done
-		// CreateBaseline();
+		CreateBaseline();
 
 		sv.AllowSignOnWrites = false;
 

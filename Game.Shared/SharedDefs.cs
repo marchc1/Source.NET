@@ -668,6 +668,27 @@ public static class TraceFieldProps
 	}
 }
 
+public struct StepSimulationStep
+{
+	public long TickCount;
+	public Vector3 Origin;
+	public Quaternion Rotation;
+}
+
+public struct StepSimulationData
+{
+	public bool OriginActive;
+	public bool AnglesActive;
+	public StepSimulationStep Previous2;
+	public StepSimulationStep Previous;
+	public StepSimulationStep Discontinuity;
+	public StepSimulationStep Next;
+	public QAngle NextRotation;
+	public int LastProcessTickCount;
+	public Vector3 NetworkOrigin;
+	public QAngle NetworkAngles;
+}
+
 public ref struct EmitSound_t
 {
 	public int Channel;

@@ -5,7 +5,8 @@ using Source.Common.Bitbuffers;
 using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Networking;
-using Source.GUI.Controls;
+
+using System.Runtime.InteropServices;
 
 namespace Source.Engine.Server;
 
@@ -129,7 +130,8 @@ public class GameClient : BaseClient
 
 		Edict = sv.Edicts![EntityIndex];
 
-		// packinfo todo
+		PackInfo.ClientEnt = Edict;
+		PackInfo.PVSSize = Marshal.SizeOf(PackInfo.PVS);
 
 		IGameEvent? evnt = gameEventManager.CreateEvent("player_connect");
 		if (evnt != null) {
@@ -163,7 +165,7 @@ public class GameClient : BaseClient
 			sv.FrameManager.RemoveOldestFrame();
 	}
 
-	void SetupPrevPackInfo() { }
+	public void SetupPrevPackInfo() { }
 
 	// void SetRate(int nRate, bool force) { }
 

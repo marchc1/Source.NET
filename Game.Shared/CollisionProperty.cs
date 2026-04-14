@@ -326,7 +326,7 @@ public class CollisionProperty : ICollideable
 	internal bool IsSolid() => Constants.IsSolid((SolidType)SolidType, SolidFlags);
 
 	internal void AddSolidFlags(SolidFlags flags) => SetSolidFlags((SolidFlags)SolidFlags | flags);
-	internal void ClearSolidFlags(SolidFlags flags) => SetSolidFlags(0);
+	internal void ClearSolidFlags() => SetSolidFlags(0);
 
 
 	public void CreatePartitionHandle() {
