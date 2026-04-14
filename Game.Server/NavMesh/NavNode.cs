@@ -44,7 +44,6 @@ public class NavNode
 	public static HashSet<NavNode>? g_NavNodeHash;
 
 	readonly NavNode[] To = new NavNode[(int)NavDirType.NumDirections];
-	readonly NavNode[] Connections = new NavNode[(int)NavDirType.NumDirections];
 	public readonly float[] ObstacleHeight = new float[(int)NavDirType.NumDirections];
 	public readonly float[] ObstacleStartDist = new float[(int)NavDirType.NumDirections];
 	public readonly float[] ObstacleEndDist = new float[(int)NavDirType.NumDirections];
@@ -350,7 +349,7 @@ public class NavNode
 
 	public NavNode? GetNext() => Next;
 
-	public NavNode GetParent() => Parent;
+	public NavNode? GetParent() => Parent;
 
 	public void MarkAsVisited(NavDirType dir) => Visited |= (byte)(1 << (int)dir);
 

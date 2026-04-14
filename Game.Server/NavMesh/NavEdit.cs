@@ -1312,6 +1312,11 @@ public partial class NavMesh
 		player.EmitSound("EDIT_END_AREA.Creating");
 	}
 
+	[ConCommand("nav_shift", "Shifts the selected areas by the specified amount", FCvar.Cheat)]
+	static void nav_shift(in TokenizedCommand args) {
+		throw new NotImplementedException();
+	}
+
 	public void CommandNavSelectInvalidAreas() {
 		BasePlayer? player = Util.GetListenServerHost();
 		if (player == null)
@@ -2463,6 +2468,11 @@ public partial class NavMesh
 		MarkedCorner = NavCornerType.NumCorners;
 	}
 
+	[ConCommand("nav_select_radius", "Adds all areas in a radius to the selection set", FCvar.Cheat)]
+	static void nav_select_radius(in TokenizedCommand args) {
+		throw new NotImplementedException();
+	}
+
 	public void AddToSelectedSet(NavArea area) { }
 
 	public void RemoveFromSelectedSet(NavArea area) => SelectedSet.Remove(area);
@@ -2492,7 +2502,7 @@ public partial class NavMesh
 	}
 }
 
-public class DrawSelectedSet(Vector3 shift)
+class DrawSelectedSet(Vector3 shift)
 {
 	public int Count = 0;
 	public Vector3 Shift = shift;
@@ -2524,7 +2534,7 @@ class AddToDragSet(Extent area, int zMin, int zMax, bool dragDeselecting)
 	}
 }
 
-public class SelectCollector(int count)
+class SelectCollector(int count)
 {
 	public int Count = count;
 
@@ -2581,4 +2591,26 @@ class PlaceFloodFillFunctor(NavArea area)
 
 		return true;
 	}
+}
+
+class RadiusSelect(Vector3 origin, float radius)
+{
+	Vector3 Origin = origin;
+	float RadiusSquared = radius * radius;
+	int Selected = 0;
+
+	public bool Invoke(NavArea area) {
+		if (NavMesh.Instance!.IsInSelectedSet(area))
+			return true;
+
+		area.GetClosestPointOnArea(Origin, out Vector3 close);
+		if (close.DistToSqr(Origin) < RadiusSquared) {
+			NavMesh.Instance.AddToSelectedSet(area);
+			++Selected;
+		}
+
+		return true;
+	}
+
+	public int GetNumSelected() => Selected;
 }

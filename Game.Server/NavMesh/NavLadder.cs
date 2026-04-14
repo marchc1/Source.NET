@@ -1,10 +1,13 @@
 using Game.Shared;
 
+using Source;
+using Source.Common.Formats.BSP;
+
 using System.Numerics;
 
 namespace Game.Server.NavMesh;
 
-public class NavLadder
+public partial class NavLadder
 {
 	public enum LadderDirectionType
 	{
@@ -22,7 +25,7 @@ public class NavLadder
 	public NavArea? TopBehindArea;
 	public NavArea? BottomArea;
 	EHANDLE LadderEntity;
-	NavDirType dIR;
+	NavDirType Dir;
 	Vector3 Normal;
 
 	enum LadderConnectionType
@@ -47,7 +50,10 @@ public class NavLadder
 		ID = NextID++;
 	}
 
-	public void Shift(Vector3 shift) { }
+	public void Shift(Vector3 shift) {
+		Top += shift;
+		Bottom += shift;
+	}
 
 	public uint GetID() => ID;
 
@@ -58,23 +64,123 @@ public class NavLadder
 			ladders[i].ID = NextID++;
 	}
 
-	NavArea GetConnection(LadderConnectionType dir) {
-		throw new NotImplementedException();
+	NavArea? GetConnection(LadderConnectionType dir) {
+		return dir switch {
+			LadderConnectionType.TopForward => TopForwardArea,
+			LadderConnectionType.TopLeft => TopLeftArea,
+			LadderConnectionType.TopRight => TopRightArea,
+			LadderConnectionType.TopBehind => TopBehindArea,
+			LadderConnectionType.Bottom => BottomArea,
+			_ => null
+		};
 	}
 
-	public void OnSplit(NavArea original, NavArea alpha, NavArea beta) { }
+	void SetConnection(LadderConnectionType dir, NavArea area) {
+		switch (dir) {
+			case LadderConnectionType.TopForward:
+				TopForwardArea = area;
+				break;
+			case LadderConnectionType.TopLeft:
+				TopLeftArea = area;
+				break;
+			case LadderConnectionType.TopRight:
+				TopRightArea = area;
+				break;
+			case LadderConnectionType.TopBehind:
+				TopBehindArea = area;
+				break;
+			case LadderConnectionType.Bottom:
+				BottomArea = area;
+				break;
+		}
+	}
 
-	public void ConnectTo(NavArea area) { }
+	public void OnSplit(NavArea original, NavArea alpha, NavArea beta) {
+		for (int i = 0; i < (int)LadderConnectionType.NumLadderConnections; i++) {
+			LadderConnectionType con = (LadderConnectionType)i;
+			NavArea? areaConnection = GetConnection(con);
 
-	void OnDestroyNotify(NavArea dead) { }
+			if (areaConnection != null && areaConnection == original) {
+				float alphaDistance = alpha.GetDistanceSquaredToPoint(Top);
+				float betaDistance = beta.GetDistanceSquaredToPoint(Top);
 
-	public void Disconnect(NavArea area) { }
+				if (alphaDistance < betaDistance)
+					SetConnection(con, alpha);
+				else
+					SetConnection(con, beta);
+			}
+		}
+	}
+
+	public void ConnectTo(NavArea area) {
+		float center = (Top.Z + Bottom.Z) * 0.5f;
+
+		if (area.GetCenter().Z > center) {
+			NavDirType dir;
+
+			Vector3 dirVector = area.GetCenter() - Top;
+			if (MathF.Abs(dirVector.X) > MathF.Abs(dirVector.Y))
+				dir = (dirVector.X > 0.0f) ? NavDirType.East : NavDirType.West;
+			else
+				dir = (dirVector.Y > 0.0f) ? NavDirType.South : NavDirType.North;
+
+			if (Dir == dir)
+				TopBehindArea = area;
+			else if (Nav.OppositeDirection(Dir) == dir)
+				TopForwardArea = area;
+			else if (Nav.DirectionLeft(Dir) == dir)
+				TopLeftArea = area;
+			else
+				TopRightArea = area;
+		}
+		else
+			BottomArea = area;
+	}
+
+	void OnDestroyNotify(NavArea dead) => Disconnect(dead);
+
+	public void Disconnect(NavArea area) {
+		if (TopForwardArea == area)
+			TopForwardArea = null;
+		else if (TopLeftArea == area)
+			TopLeftArea = null;
+		else if (TopRightArea == area)
+			TopRightArea = null;
+		else if (TopBehindArea == area)
+			TopBehindArea = null;
+		else if (BottomArea == area)
+			BottomArea = null;
+	}
 
 	public bool IsConnected(NavArea area, LadderDirectionType dir) {
-		throw new NotImplementedException();
+		if (dir == LadderDirectionType.Down)
+			return area == BottomArea;
+		else if (dir == LadderDirectionType.Up)
+			return area == TopForwardArea || area == TopLeftArea || area == TopRightArea || area == TopBehindArea;
+		else
+			return area == BottomArea || area == TopForwardArea || area == TopLeftArea || area == TopRightArea || area == TopBehindArea;
 	}
 
-	public void SetDir(NavDirType dir) { }
+	public void SetDir(NavDirType dir) {
+		Dir = dir;
+
+		Normal = Vector3.Zero;
+		Nav.AddDirectionVector(ref Normal, Dir, 1.0f);
+
+		Vector3 from = (Top + Bottom) * 0.5f + Normal * 5.0f;
+		Vector3 to = from - Normal * 32.0f;
+
+		Util.TraceLine(from, to, Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out Trace result);
+
+		if (result.Fraction != 1.0f) {
+			bool climbableSurface = physprops.GetSurfaceData(result.Surface.SurfaceProps)?.Game.Climbable != 0;
+			if (!climbableSurface)
+				climbableSurface = (result.Contents & Contents.Ladder) != 0;
+
+			if (climbableSurface)
+				Normal = result.Plane.Normal;
+		}
+	}
 
 	public void DrawLadder() { }
 
@@ -99,7 +205,7 @@ public class NavLadder
 
 		fileBuffer.Write(Length);
 
-		fileBuffer.Write((uint)dIR);
+		fileBuffer.Write((uint)Dir);
 
 		uint id;
 		id = (TopForwardArea != null) ? TopForwardArea.GetID() : 0;
@@ -138,7 +244,7 @@ public class NavLadder
 
 		Length = fileBuffer.ReadSingle();
 
-		dIR = (NavDirType)fileBuffer.ReadUInt32();
+		Dir = (NavDirType)fileBuffer.ReadUInt32();
 
 		uint id;
 		id = fileBuffer.ReadUInt32();

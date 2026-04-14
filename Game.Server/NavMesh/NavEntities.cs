@@ -49,7 +49,7 @@ public class FuncNavObstruction : BaseEntity, INavAvoidanceObstacle
 		AddEffects(Source.EntityEffects.NoDraw);
 		// SetCollisionGroup(CollisionGroup.None);
 		SetSolid(Source.SolidType.None);
-		// AddSolidFlags(Source.SolidFlags.NotSolid);
+		AddSolidFlags(Source.SolidFlags.NotSolid);
 
 		if (!Disabled) {
 			ObstructNavAreas();

@@ -56,7 +56,7 @@ public class PlaceDirectory
 
 	bool IsKnown(NavPlace place) => Directory.Contains(place);
 
-	public ushort GetIndex(NavPlace place) { // todo IndexType
+	public ushort GetIndex(NavPlace place) {
 		if (place == Nav.UndefinedPlace)
 			return 0;
 
@@ -328,7 +328,7 @@ public partial class NavArea
 		if (version == 1) {
 			for (int h = 0; h < hidingSpotCount; ++h) {
 				Vector3 pos = new Vector3(fileBuffer.ReadSingle(), fileBuffer.ReadSingle(), fileBuffer.ReadSingle());
-				HidingSpot spot = NavMesh.Instance!.CreateHidingSpot();
+				HidingSpot spot = NavMesh.CreateHidingSpot();
 				spot.SetPosition(pos);
 				spot.SetFlags(HidingSpotFlags.InCover);
 				HidingSpots.Add(spot);
@@ -336,7 +336,7 @@ public partial class NavArea
 		}
 		else {
 			for (int h = 0; h < hidingSpotCount; ++h) {
-				HidingSpot spot = NavMesh.Instance!.CreateHidingSpot();
+				HidingSpot spot = NavMesh.CreateHidingSpot();
 				spot.Load(fileBuffer, version);
 				HidingSpots.Add(spot);
 			}
@@ -545,10 +545,6 @@ public partial class NavArea
 
 		ClearAllNavCostEntities();
 
-#if DEBUG
-		Console.WriteLine($"NavArea #{ID} (Connects: {Connect[0].Count} forward, {Connect[1].Count} left, {Connect[2].Count} back, {Connect[3].Count} right)");
-#endif
-
 		return error;
 	}
 
@@ -715,9 +711,9 @@ public partial class NavMesh
 			Span<char> bspFilename = stackalloc char[260];
 			sprintf(bspFilename, "maps/%s.bsp").S(gpGlobals.MapName);
 
-			long bspSize = filesystem.Size(bspFilename);
+			long bspSize = filesystem.Size(bspFilename); // FIXME: Size doesn't work?
 
-			if (bspSize != saveBspSize && !navIsInBsp) { // FIXME: Something still isn't being read correctly?
+			if (bspSize != saveBspSize && !navIsInBsp) {
 				if (engine.IsDedicatedServer())
 					DevMsg("The Navigation Mesh was built using a different version of this map.\n");
 				else
@@ -752,7 +748,7 @@ public partial class NavMesh
 
 		Extent areaExtent = new();
 		for (int i = 0; i < count; ++i) {
-			NavArea area = Instance!.CreateArea();
+			NavArea area = CreateArea();
 			area.Load(buffer, version, subVersion);
 			NavArea.TheNavAreas.Add(area);
 
@@ -834,7 +830,7 @@ public partial class NavMesh
 			}
 		}
 
-		// todo sort oneway
+		oneWayLinks.Sort(OneWayLink.Compare);
 
 		foreach (OneWayLink link in oneWayLinks)
 			link.DestArea.AddIncomingConnection(link.Area, (NavDirType)link.BackD);

@@ -684,9 +684,35 @@ public partial class NavMesh
 		}
 	}
 
-	void MarkStairAreas() { }
+	void MarkStairAreas() {
+		foreach (NavArea area in NavArea.TheNavAreas)
+			area.TestStairs();
+	}
 
-	void RemoveJumpAreas() { }
+	void RemoveJumpAreas() {
+		if (!nav_generate_fixup_jump_areas.GetBool())
+			return;
+
+		List<NavArea> unusedAreas = [];
+
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if ((area.GetAttributes() & NavAttributeType.Jump) == 0)
+				continue;
+
+			unusedAreas.Add(area);
+		}
+
+		foreach (NavArea area in unusedAreas) {
+			OnEditDestroyNotify(area);
+			NavArea.TheNavAreas.Remove(area);
+			DestroyArea(area);
+		}
+
+		StripNavigationAreas();
+
+		SetMarkedArea(null);
+		MarkedCorner = NavCornerType.NumCorners;
+	}
 
 	public void CommandNavRemoveJumpAreas() { }
 
@@ -984,7 +1010,7 @@ public partial class NavMesh
 					area.ConnectTo(adj.GetArea(), NavDirType.North);
 				}
 				else {
-					NavArea downArea = FindJumpDownArea(node.GetPosition(), NavDirType.North);
+					NavArea? downArea = FindJumpDownArea(node.GetPosition(), NavDirType.North);
 					if (downArea != null && downArea != area)
 						area.ConnectTo(downArea, NavDirType.North);
 				}
@@ -995,7 +1021,7 @@ public partial class NavMesh
 				if (adj != null && adj.GetArea() != null && adj.GetConnectedNode(NavDirType.East) == node)
 					area.ConnectTo(adj.GetArea(), NavDirType.West);
 				else {
-					NavArea downArea = FindJumpDownArea(node.GetPosition(), NavDirType.West);
+					NavArea? downArea = FindJumpDownArea(node.GetPosition(), NavDirType.West);
 					if (downArea != null && downArea != area)
 						area.ConnectTo(downArea, NavDirType.West);
 				}
@@ -1013,7 +1039,7 @@ public partial class NavMesh
 					if (adj != null && adj.GetArea() != null && adj.GetConnectedNode(NavDirType.North) == node)
 						area.ConnectTo(adj.GetArea(), NavDirType.South);
 					else {
-						NavArea downArea = FindJumpDownArea(node.GetPosition(), NavDirType.South);
+						NavArea? downArea = FindJumpDownArea(node.GetPosition(), NavDirType.South);
 						if (downArea != null && downArea != area)
 							area.ConnectTo(downArea, NavDirType.South);
 					}
@@ -1030,7 +1056,7 @@ public partial class NavMesh
 					continue;
 
 				if (adj == null || adj.GetArea() == null) {
-					NavArea downArea = FindJumpDownArea(node.GetPosition(), NavDirType.South);
+					NavArea? downArea = FindJumpDownArea(node.GetPosition(), NavDirType.South);
 					if (downArea != null && downArea != area)
 						area.ConnectTo(downArea, NavDirType.South);
 				}
@@ -1039,6 +1065,7 @@ public partial class NavMesh
 			node = area.Node[(int)NavCornerType.NorthEast];
 			if (node != null)
 				node = node.GetConnectedNode(NavDirType.West);
+
 			if (node != null) {
 				NavNode? end = area.Node[(int)NavCornerType.SouthEast].GetConnectedNode(NavDirType.West);
 				for (; node != null && node != end; node = node.GetConnectedNode(NavDirType.South)) {
@@ -1048,7 +1075,7 @@ public partial class NavMesh
 						area.ConnectTo(adj.GetArea(), NavDirType.East);
 					}
 					else {
-						NavArea downArea = FindJumpDownArea(node.GetPosition(), NavDirType.East);
+						NavArea? downArea = FindJumpDownArea(node.GetPosition(), NavDirType.East);
 						if (downArea != null && downArea != area)
 							area.ConnectTo(downArea, NavDirType.East);
 					}
@@ -1056,7 +1083,7 @@ public partial class NavMesh
 			}
 
 			for (node = area.Node[(int)NavCornerType.NorthEast]; node != area.Node[(int)NavCornerType.SouthEast]; node = node.GetConnectedNode(NavDirType.South)) {
-				if (node.GetArea() != null)
+				if (node!.GetArea() != null)
 					continue;
 
 				NavNode? adj = node.GetConnectedNode(NavDirType.East);
@@ -1065,7 +1092,7 @@ public partial class NavMesh
 					continue;
 
 				if (adj == null || adj.GetArea() == null) {
-					NavArea downArea = FindJumpDownArea(node.GetPosition(), NavDirType.East);
+					NavArea? downArea = FindJumpDownArea(node.GetPosition(), NavDirType.East);
 					if (downArea != null && downArea != area)
 						area.ConnectTo(downArea, NavDirType.East);
 				}
@@ -1858,7 +1885,9 @@ public partial class NavMesh
 				break;
 		}
 
+#if DEBUG
 		Console.WriteLine($"Num areas generated: {NavArea.TheNavAreas.Count}");
+#endif
 
 		if (NavArea.TheNavAreas.Count == 0) {
 			AllocateGrid(0, 0, 0, 0);
@@ -1904,7 +1933,7 @@ public partial class NavMesh
 		if (GenerationMode != GenerationModeType.Incremental) {
 			for (int i = 0; i < Ladders.Count; ++i) {
 				NavLadder ladder = Ladders[i];
-				// ladder.ConnectGeneratedLadder(0.0f); todo
+				ladder.ConnectGeneratedLadder(0.0f);
 			}
 		}
 	}
@@ -1961,7 +1990,21 @@ public partial class NavMesh
 		GenerationStartTime = Platform.Time;
 	}
 
-	public void BeginAnalysis(bool quitWhenFinished = false) { }
+	public void BeginAnalysis(bool quitWhenFinished = false) {
+		List<NavArea> tmpSet = [];
+		foreach (NavArea area in NavArea.TheNavAreas) tmpSet.Add(area);
+		NavArea.TheNavAreas.Clear();
+		foreach (NavArea area in tmpSet) NavArea.TheNavAreas.Add(area);
+
+		DestroyHidingSpots();
+
+		GenerationState = GenerationStateType.FindHidingSpots;
+		GenerationIndex = 0;
+		GenerationMode = GenerationModeType.AnalysisOnly;
+		QuitWhenFinished = quitWhenFinished;
+		LastMsgTime = 0.0f;
+		GenerationStartTime = Platform.Time;
+	}
 
 	static uint MovedPlayerToArea;
 	static CountdownTimer? PlayerSettleTimer;
@@ -2154,7 +2197,7 @@ public partial class NavMesh
 						else
 							eyePos.Z += HalfHumanHeight - StepHeight;
 
-						// host.SetAbsOrigin(eyePos); // todo
+						host.SetAbsOrigin(eyePos);
 						AnalysisProgress("Finding light intensity...", 100, 100 * (NavArea.TheNavAreas.Count - UnlitAreas.Count) / NavArea.TheNavAreas.Count);
 						MovedPlayerToArea = moveArea.GetID();
 						PlayerSettleTimer.Start(0.1f);
@@ -2340,6 +2383,39 @@ public partial class NavMesh
 		return node;
 	}
 
+	NavNode LadderEndSearch(Vector3 pos, NavDirType mountDir) {
+		Vector3 center = pos;
+		AddDirectionVector(ref center, mountDir, HalfHumanWidth);
+
+		for (int d = -1; d < 2 * (int)NavDirType.NumDirections; ++d) {
+			Vector3 tryPos = center;
+
+			if (d >= (int)NavDirType.NumDirections)
+				AddDirectionVector(ref tryPos, (NavDirType)(d - (int)NavDirType.NumDirections), 2.0f * GenerationStepSize);
+			else if (d >= 0)
+				AddDirectionVector(ref tryPos, (NavDirType)d, GenerationStepSize);
+
+			tryPos.Z += GenerationStepSize;
+
+			tryPos.X = SnapToGrid(tryPos.X);
+			tryPos.Y = SnapToGrid(tryPos.Y);
+
+			if (!GetGroundHeight(tryPos, out tryPos.Z))
+				continue;
+
+			TraceFilterWalkableEntities filter = new(null, CollisionGroup.None, WalkThruFlags.Everything);
+			Util.TraceHull(center + new Vector3(0, 0, 4), tryPos + new Vector3(0, 0, 4), NavTraceMins, NavTraceMaxs, GetGenerationTraceMask(), ref filter, out Trace trace);
+			if (trace.Fraction != 1.0f || trace.StartSolid)
+				continue;
+
+			NavNode? node = NavNode.GetNode(tryPos);
+			if (node == null)
+				return new NavNode(tryPos, trace.Plane.Normal, null, false);
+		}
+
+		return null;
+	}
+
 	bool FindGroundForNode(ref Vector3 pos, out Vector3 normal) {
 		TraceFilterWalkableEntities filter = new(null, CollisionGroup.PlayerMovement, WalkThruFlags.Everything);
 
@@ -2454,12 +2530,11 @@ public partial class NavMesh
 					for (int i = 0; i < Ladders.Count; ++i) {
 						NavLadder ladder = Ladders[i];
 
-						// todo LadderEndSearch
-						// if ((CurrentNode = LadderEndSearch(&ladder.m_bottom, ladder.GetDir())) != 0)
-						// 	break;
+						if ((CurrentNode = LadderEndSearch(ladder.Bottom, ladder.GetDir())) != null)
+							break;
 
-						// if ((CurrentNode = LadderEndSearch(&ladder.m_top, ladder.GetDir())) != 0)
-						// 	break;
+						if ((CurrentNode = LadderEndSearch(ladder.Top, ladder.GetDir())) != null)
+							break;
 					}
 
 					if (CurrentNode == null) {
@@ -2658,6 +2733,14 @@ public partial class NavMesh
 
 	void CommandNavSubdivide(in TokenizedCommand args) { }
 
+	[ConCommand("nav_subdivide", "Subdivides all selected areas.", FCvar.Cheat | FCvar.GameDLL)]
+	static void nav_subdivide(in TokenizedCommand args) {
+		if (!Util.IsCommandIssuedByServerAdmin())
+			return;
+
+		Instance!.CommandNavSubdivide(args);
+	}
+
 	void ValidateNavAreaConnections() {
 		NavConnect connect = new();
 
@@ -2717,13 +2800,177 @@ public partial class NavMesh
 		}
 	}
 
-	void PostProcessCliffAreas() { }
+	void PostProcessCliffAreas() {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if ((area.GetAttributes() & NavAttributeType.Cliff) != 0)
+				continue;
+
+			for (NavDirType dir = NavDirType.North; dir < NavDirType.NumDirections; dir++) {
+				bool hasCliff = false;
+				NavCornerType[] corner = [(NavCornerType)dir, (NavCornerType)(((int)dir + 1) % (int)NavCornerType.NumCorners)];
+
+				foreach (NavCornerType c in corner) {
+					Vector3 cornerPos = area.GetCorner(c);
+					if (CheckCliff(cornerPos, dir)) {
+						hasCliff = true;
+						break;
+					}
+				}
+
+				if (hasCliff) {
+					area.SetAttributes(area.GetAttributes() | NavAttributeType.Cliff);
+					break;
+				}
+			}
+		}
+	}
+
+	[ConCommand("nav_gen_cliffs_approx", "Mark cliff areas, post-processing approximation", FCvar.Cheat)]
+	static void nav_gen_cliffs_approx() {
+		if (!Util.IsCommandIssuedByServerAdmin())
+			return;
+
+		Instance!.PostProcessCliffAreas();
+	}
+}
+
+enum StairTestType
+{
+	No,
+	Yes,
+	Maybe
 }
 
 public partial class NavArea
 {
+	StairTestType IsStairs(Vector3 start, Vector3 end, StairTestType ret) {
+		if (ret == StairTestType.No)
+			return ret;
+
+		const float inc = 5.0f;
+
+		float minStepZ = inc * MathF.Tan(MathF.Acos(nav_slope_limit.GetFloat()));
+		const float MinStairNormal = 0.97f;
+
+		float t;
+		Vector3 pos, normal;
+		float height, priorHeight;
+
+		float length = new Vector2(start.X - end.X, start.Y - end.Y).Length();
+
+		TraceFilterWalkableEntities filter = new(null, CollisionGroup.PlayerMovement, WalkThruFlags.Everything);
+		Vector3 hullMins = new(-inc / 2, -inc / 2, 0);
+		Vector3 hullMaxs = new(inc / 2, inc / 2, 0);
+		hullMaxs.Z = 1;
+
+		if (Math.Abs(start.X - end.X) > Math.Abs(start.Y - end.Y)) {
+			hullMins.X = -8;
+			hullMaxs.X = 8;
+		}
+		else {
+			hullMins.Y = -8;
+			hullMaxs.Y = 8;
+		}
+
+		Vector3 traceOffset = new(0, 0, VEC_DUCK_HULL_MAX.Z);
+
+		if (Math.Abs(start.Z - end.Z) > StepHeight) {
+			Util.TraceHull(start + traceOffset, start - traceOffset, hullMins, hullMaxs, Mask.SolidBrushOnly, ref filter, out Trace trace);
+			if (trace.StartSolid || trace.IsDispSurface())
+				return StairTestType.No;
+			priorHeight = trace.EndPos.Z;
+
+			Vector3 prevGround = start;
+			prevGround.Z = priorHeight;
+
+			float traceIncrement = inc / length;
+			for (t = 0.0f; t <= 1.0f; t += traceIncrement) {
+				pos = start + t * (end - start);
+
+				Util.TraceHull(pos + traceOffset, pos - traceOffset, hullMins, hullMaxs, Mask.SolidBrushOnly, ref filter, out trace);
+				if (trace.StartSolid || trace.IsDispSurface())
+					return StairTestType.No;
+
+				height = trace.EndPos.Z;
+				normal = trace.Plane.Normal;
+
+				Vector3 ground = pos;
+				ground.Z = height;
+
+				if (t == 0.0f && Math.Abs(height - start.Z) > StepHeight)
+					return StairTestType.No;
+
+				if (t == 1.0f && Math.Abs(height - end.Z) > StepHeight)
+					return StairTestType.No;
+
+				if (normal.Z < MinStairNormal)
+					return StairTestType.No;
+
+				float deltaZ = Math.Abs(height - priorHeight);
+
+				if (deltaZ >= minStepZ && deltaZ <= StepHeight)
+					ret = StairTestType.Yes;
+				else if (deltaZ > StepHeight)
+					return StairTestType.No;
+
+				prevGround = pos;
+				prevGround.Z = height;
+				priorHeight = height;
+			}
+		}
+
+		return ret;
+	}
+
 	public bool TestStairs() {
-		throw new NotImplementedException();
+		SetAttributes(GetAttributes() & ~NavAttributeType.Stairs);
+
+		if (GetSizeX() <= GenerationStepSize && GetSizeY() <= GenerationStepSize)
+			return false;
+
+		const float MatchingNormalDot = 0.95f;
+		Vector3 firstNormal = default, secondNormal = default;
+		ComputeNormal(ref firstNormal);
+		ComputeNormal(ref secondNormal, true);
+		if (firstNormal.Dot(secondNormal) < MatchingNormalDot) {
+			return false;
+		}
+
+		StairTestType ret = StairTestType.Maybe;
+		Vector3 from, to;
+
+		const float inset = 5.0f;
+
+		from = GetCorner(NavCornerType.NorthWest) + new Vector3(inset, inset, 0);
+		to = GetCorner(NavCornerType.NorthEast) + new Vector3(-inset, inset, 0);
+		ret = IsStairs(from, to, ret);
+
+		from = GetCorner(NavCornerType.SouthWest) + new Vector3(inset, -inset, 0);
+		to = GetCorner(NavCornerType.SouthEast) + new Vector3(-inset, -inset, 0);
+		ret = IsStairs(from, to, ret);
+
+		from = GetCorner(NavCornerType.NorthWest) + new Vector3(inset, inset, 0);
+		to = GetCorner(NavCornerType.SouthWest) + new Vector3(inset, -inset, 0);
+		ret = IsStairs(from, to, ret);
+
+		from = GetCorner(NavCornerType.NorthEast) + new Vector3(-inset, inset, 0);
+		to = GetCorner(NavCornerType.SouthEast) + new Vector3(-inset, -inset, 0);
+		ret = IsStairs(from, to, ret);
+
+		from = (GetCorner(NavCornerType.NorthWest) + GetCorner(NavCornerType.NorthEast)) / 2.0f + new Vector3(0, inset, 0);
+		to = (GetCorner(NavCornerType.SouthWest) + GetCorner(NavCornerType.SouthEast)) / 2.0f + new Vector3(0, -inset, 0);
+		ret = IsStairs(from, to, ret);
+
+		from = (GetCorner(NavCornerType.NorthEast) + GetCorner(NavCornerType.SouthEast)) / 2.0f + new Vector3(-inset, 0, 0);
+		to = (GetCorner(NavCornerType.NorthWest) + GetCorner(NavCornerType.SouthWest)) / 2.0f + new Vector3(inset, 0, 0);
+		ret = IsStairs(from, to, ret);
+
+		if (ret == StairTestType.Yes) {
+			SetAttributes(NavAttributeType.Stairs);
+			return true;
+		}
+
+		return false;
 	}
 
 	public bool IsAbleToMergeWith(NavArea other) {
@@ -2734,5 +2981,17 @@ public partial class NavArea
 			return false;
 
 		return true;
+	}
+
+	[ConCommand("nav_test_stairs", "Test the selected set for being on stairs", FCvar.Cheat)]
+	static void nav_test_stairs(in TokenizedCommand args) {
+		throw new NotImplementedException();
+	}
+}
+
+public partial class NavLadder
+{
+	public void ConnectGeneratedLadder(float maxHeightAboveTopArea) {
+		throw new NotImplementedException();
 	}
 }

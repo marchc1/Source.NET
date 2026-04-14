@@ -154,8 +154,6 @@ public static class Nav
 		v = Vector2.Normalize(v);
 	}
 
-
-
 	public static void GetCornerTypesInDirection(NavDirType dir, out NavCornerType first, out NavCornerType second) {
 		switch (dir) {
 			default:
@@ -376,7 +374,7 @@ public struct Extent
 	}
 
 	public void Init(BaseEntity entity) {
-		// entity.CollisionProp().WorldSpaceSurroundingBounds(out Lo, out Hi);
+		entity.CollisionProp().WorldSpaceSurroundingBounds(out Lo, out Hi);
 	}
 
 	public float SizeX() => Hi.X - Lo.X;

@@ -80,6 +80,23 @@ static class NavSimplify
 
 public partial class NavMesh
 {
+	[ConCommand("nav_chop_selected", "Chops all selected areas into their component 1x1 areas", FCvar.Cheat)]
+	static void nav_chop_selected() {
+		if (!Util.IsCommandIssuedByServerAdmin() || engine.IsDedicatedServer())
+			return;
+
+		Instance!.StripNavigationAreas();
+		Instance!.SetMarkedArea(null);
+
+		NavAreaCollector collector = new();
+		Instance!.ForAllSelectedAreas(collector.Invoke);
+
+		for (int i = 0; i < collector.Areas.Count; ++i)
+			ReduceToComponentAreas(collector.Areas[i], true);
+
+		Msg($"{collector.Areas.Count} areas chopped into {Instance!.GetSelectedSetSize()}\n");
+	}
+
 	void RemoveNodes() {
 		foreach (NavArea area in NavArea.TheNavAreas)
 			area.ResetNodes();

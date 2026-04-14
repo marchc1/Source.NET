@@ -185,7 +185,8 @@ public partial class NavMesh
 		if (!incremental) {
 			NavArea.IsReset = true;
 			foreach (NavArea area in NavArea.TheNavAreas) {
-				// todo
+				// EditDestroyNotification notification = new(area);
+				// ForEachActor(notification.Invoke); // FunctorUtils todo
 			}
 
 			foreach (NavArea area in NavArea.TheNavAreas)
@@ -752,7 +753,37 @@ public partial class NavMesh
 
 	void IncreaseDangerNearby(int teamID, float amount, NavArea startArea, Vector3 pos, float maxRadius, float dangerLimit) { }
 
-	public void CommandNavMarkWalkable() { }
+	public void CommandNavMarkWalkable() {
+		Vector3 pos;
+
+		if (!Util.IsCommandIssuedByServerAdmin())
+			return;
+
+		if (nav_edit.GetBool())
+			pos = EditCursorPos;
+		else {
+			BasePlayer? player = Util.GetListenServerHost();
+
+			if (player == null) {
+				Msg("ERROR: No local player!\n");
+				return;
+			}
+
+			pos = player.GetAbsOrigin();
+		}
+
+		pos.X = SnapToGrid(pos.X, true);
+		pos.Y = SnapToGrid(pos.Y, true);
+
+		if (!FindGroundForNode(ref pos, out Vector3 normal)) {
+			Msg("ERROR: Invalid ground position.\n");
+			return;
+		}
+
+		AddWalkableSeed(pos, normal);
+
+		Msg("Walkable position marked.\n");
+	}
 
 	void DestroyLadders() {
 		for (int i = 0; i < Ladders.Count; i++) {
@@ -773,7 +804,7 @@ public partial class NavMesh
 		bIsAnalyzed = false;
 	}
 
-	public HidingSpot CreateHidingSpot() => new();
+	public static HidingSpot CreateHidingSpot() => new();
 
 	void DestroyHidingSpots() {
 		foreach (NavArea area in NavArea.TheNavAreas)
@@ -898,7 +929,7 @@ public partial class NavMesh
 	public virtual void SaveCustomDataPreArea(BinaryWriter buffer) { }
 	public virtual void LoadCustomDataPreArea(BinaryReader buffer, uint version) { }
 
-	public NavArea CreateArea() => new();
+	public static NavArea CreateArea() => new();
 
 	public void DestroyArea(NavArea area) { }
 
@@ -1237,7 +1268,7 @@ public enum HidingSpotFlags : byte
 
 public class HidingSpot
 {
-	public static List<HidingSpot> TheHidingSpots = [];
+	public readonly static List<HidingSpot> TheHidingSpots = [];
 
 	Vector3 Pos;
 	public uint ID;
@@ -1307,6 +1338,16 @@ public class NavAreaCollector(bool checkForDuplicates = false)
 			return true;
 
 		Areas.Add(area);
+		return true;
+	}
+}
+
+
+class EditDestroyNotification(NavArea area)
+{
+	NavArea DeadArea = area;
+	public bool Invoke(BaseCombatCharacter actor) {
+		// actor.OnNavAreaRemoved(DeadArea);
 		return true;
 	}
 }

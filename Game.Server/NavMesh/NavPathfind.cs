@@ -110,8 +110,6 @@ class FarAwayFromPositionFunctor(Vector3 pos)
 
 public static class NavPathfind
 {
-	const bool IGNORE_NAV_BLOCKERS = true;
-
 	enum SearchType
 	{
 		Floor,

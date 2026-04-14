@@ -10,6 +10,7 @@ using Game.Server.NextBot;
 
 using Source;
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.Hashing;
@@ -611,14 +612,14 @@ public partial class NavArea : NavAreaCriticalData
 			if (splitEdge >= SECorner.Y - 1.0f)
 				return false;
 
-			alpha = NavMesh.Instance!.CreateArea();
+			alpha = NavMesh.CreateArea();
 			alpha.NWCorner = NWCorner;
 
 			alpha.SECorner.X = SECorner.X;
 			alpha.SECorner.Y = splitEdge;
 			alpha.SECorner.Z = GetZ(alpha.SECorner);
 
-			beta = NavMesh.Instance!.CreateArea();
+			beta = NavMesh.CreateArea();
 			beta.NWCorner.X = NWCorner.X;
 			beta.NWCorner.Y = splitEdge;
 			beta.NWCorner.Z = GetZ(beta.NWCorner);
@@ -638,14 +639,14 @@ public partial class NavArea : NavAreaCriticalData
 			if (splitEdge >= SECorner.X - 1.0f)
 				return false;
 
-			alpha = NavMesh.Instance!.CreateArea();
+			alpha = NavMesh.CreateArea();
 			alpha.NWCorner = NWCorner;
 
 			alpha.SECorner.X = splitEdge;
 			alpha.SECorner.Y = SECorner.Y;
 			alpha.SECorner.Z = GetZ(alpha.SECorner);
 
-			beta = NavMesh.Instance!.CreateArea();
+			beta = NavMesh.CreateArea();
 			beta.NWCorner.X = splitEdge;
 			beta.NWCorner.Y = NWCorner.Y;
 			beta.NWCorner.Z = GetZ(beta.NWCorner);
@@ -917,7 +918,7 @@ public partial class NavArea : NavAreaCriticalData
 			sw.Y = se.Y;
 			sw.Z = other.GetZ(sw);
 
-			newArea = NavMesh.Instance!.CreateArea();
+			newArea = NavMesh.CreateArea();
 			if (newArea == null) {
 				Warning("SpliceEdit: Out of memory.\n");
 				return false;
@@ -951,7 +952,7 @@ public partial class NavArea : NavAreaCriticalData
 			sw.Y = se.Y;
 			sw.Z = GetZ(sw);
 
-			newArea = NavMesh.Instance!.CreateArea();
+			newArea = NavMesh.CreateArea();
 			if (newArea == null) {
 				Warning("SpliceEdit: Out of memory.\n");
 				return false;
@@ -986,7 +987,7 @@ public partial class NavArea : NavAreaCriticalData
 				sw.Y = se.Y;
 				sw.Z = GetZ(sw);
 
-				newArea = NavMesh.Instance!.CreateArea();
+				newArea = NavMesh.CreateArea();
 				if (newArea == null) {
 					Warning("SpliceEdit: Out of memory.\n");
 					return false;
@@ -1020,7 +1021,7 @@ public partial class NavArea : NavAreaCriticalData
 				sw.Y = se.Y;
 				sw.Z = other.GetZ(sw);
 
-				newArea = NavMesh.Instance!.CreateArea();
+				newArea = NavMesh.CreateArea();
 				if (newArea == null) {
 					Warning("SpliceEdit: Out of memory.\n");
 					return false;
@@ -1307,7 +1308,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	public void GetClosestPointOnArea(Vector3 pos, out Vector3 close) => GetClosestPointOnArea(ref pos, out close);
 
-	float GetDistanceSquaredToPoint(Vector3 pos) {
+	public float GetDistanceSquaredToPoint(Vector3 pos) {
 		if (pos.X < NWCorner.X) {
 			if (pos.Y < NWCorner.Y)
 				return (NWCorner - pos).LengthSqr();
@@ -2359,7 +2360,7 @@ public partial class NavArea : NavAreaCriticalData
 			if (cornerCount[c] == 2) {
 				Vector3 pos = FindPositionInArea(this, (NavCornerType)c);
 				if (c == 0 || !IsHidingSpotCollision(pos)) {
-					HidingSpot spot = NavMesh.Instance!.CreateHidingSpot();
+					HidingSpot spot = NavMesh.CreateHidingSpot();
 					spot.SetPosition(pos);
 					spot.SetFlags(IsHidingSpotInCover(pos) ? HidingSpotFlags.InCover : HidingSpotFlags.Exposed);
 					HidingSpots.Add(spot);
@@ -2658,6 +2659,11 @@ public partial class NavArea : NavAreaCriticalData
 		}
 
 		return true;
+	}
+
+	[ConCommand("nav_update_lighting", "Recomputes lighting values", FCvar.Cheat)]
+	static void nav_update_lighting(in TokenizedCommand args) {
+		throw new NotImplementedException();
 	}
 
 	public void RaiseCorner(NavCornerType corner, int amount, bool raiseAdjacentCorners = true) {
