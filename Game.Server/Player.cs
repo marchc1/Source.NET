@@ -829,7 +829,9 @@ public partial class BasePlayer : BaseCombatCharacter
 	}
 }
 
-
+// Something to keep in mind; in base Source, this is stored in a list in the player with value semantics...
+// may be worth trying to turn this into a struct one day, review GC usage (? if this is even a problem,
+// just happened to notice it)
 class CommandContext
 {
 	public readonly List<UserCmd> Cmds = [];
@@ -837,7 +839,7 @@ class CommandContext
 	public int TotalCmds;
 	public int DroppedPackets;
 	public bool Paused;
-};
+}
 
 class PlayerSimInfo
 {
