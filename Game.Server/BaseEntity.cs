@@ -168,13 +168,13 @@ public partial class BaseEntity : IServerEntity
 	public BaseEntity(bool serverOnly = false) {
 		// todo todo
 
-		// CollisionProp().Init(this);
+		CollisionProp().Init(this);
 		NetworkProp().Init(this);
 
 		AddEFlags(EFL.NoThinkFunction | EFL.NoGamePhysicsSimulation | EFL.UsePartitionWhenNotSolid);
 
 		SetSolid(SolidType.None);
-		// ClearSolidFlags();
+		ClearSolidFlags();
 
 		SetMoveType(Source.MoveType.None);
 		SetModelIndex(0);
@@ -240,7 +240,7 @@ public partial class BaseEntity : IServerEntity
 			return null;
 
 		int id_player_index = entity.PredictableId.GetPlayer();
-		// recipients.SetOnly(id_player_index);
+		recipients.SetOnly(id_player_index);
 
 		return data;
 	}
@@ -270,7 +270,7 @@ public partial class BaseEntity : IServerEntity
 		}
 
 		ParentName = parentEnt.Name;
-		// RemoveSolidFlags(SolidFlags.RootParentAligned);
+		RemoveSolidFlags(SolidFlags.RootParentAligned);
 
 		// todo
 	}
@@ -341,7 +341,7 @@ public partial class BaseEntity : IServerEntity
 
 		ent.SetLocalOrigin(origin);
 		ent.SetLocalAngles(angles);
-		// ent.SetOwnerEntity(owner);
+		ent.SetOwnerEntity(owner);
 
 		gEntList.NotifyCreateEntity(ent);
 
@@ -445,10 +445,17 @@ public partial class BaseEntity : IServerEntity
 	public void SetMoveCollide(MoveCollide moveCollide) => MoveCollide = (byte)moveCollide;
 	public CollisionProperty CollisionProp() => Collision;
 
-	public bool SetModel(ReadOnlySpan<char> modelName) {
-		return false; // TODO
+	public void SetModel(ReadOnlySpan<char> modelName) {
+		int modelIndex = modelinfo.GetModelIndex(modelName);
+		Model? model = modelinfo.GetModel(modelIndex);
+		if (model != null && modelinfo.GetModelType(model) != ModelType.Brush)
+			Msg($"Setting CBaseEntity to non-brush model {modelName}\n");
+
+		// Util.SetModel(this, modelName); // TODO
 	}
+
 	public void SetOwnerEntity(BaseEntity? owner) => OwnerEntity.Set(owner);
+	public BaseEntity? GetOwnerEntity() => OwnerEntity.Get();
 
 	public void SetMoveType(MoveType val, MoveCollide moveCollide = Source.MoveCollide.Default) {
 		if (MoveType == (byte)val) {
@@ -504,11 +511,62 @@ public partial class BaseEntity : IServerEntity
 	void PhysicsNone() { }
 	void PhysicsRigidChild() { }
 	void PhysicsNoclip() { }
-	void PhysicsStepRunTimestep(TimeUnit_t timestep) { }
 	void PhysicsToss() { }
 	void PhysicsCustom() { }
 	void PerformPush(TimeUnit_t movetime) { }
 	void UpdateBaseVelocity() { }
+
+	void StepSimulationThink(TimeUnit_t dt) {
+		// CheckStepSimulationChanged();
+
+		// StepSimulationData? stepObject = (StepSimulationData?)GetDataObject(DataObjectType.StepSimulation);
+		// if (stepObject == null) {
+		// 	PhysicsStepRunTimestep(dt);
+		// 	PhysicsRunThink(ThinkMethods.FireBaseOnly);
+		// }
+		// else {
+		// 	StepSimulationData step = stepObject.Value; // fixme
+		// 	step.OriginActive = true;
+		// 	step.AnglesActive = true;
+
+		// 	step.LastProcessTickCount = -1;
+
+		// 	step.NetworkOrigin.Init();
+		// 	step.NetworkAngles.Init();
+
+		// 	step.Previous2 = step.Previous;
+
+		// 	step.Previous.TickCount = gpGlobals.TickCount;
+		// 	step.Previous.Origin = GetStepOrigin();
+		// 	QAngle stepAngles = GetStepAngles();
+		// 	MathLib.AngleQuaternion(stepAngles, out step.Previous.Rotation);
+
+		// 	PhysicsStepRunTimestep(dt);
+
+		// 	PhysicsRunThink(ThinkMethods.FireBaseOnly);
+
+		// 	if (GetBaseAnimating() != null)
+		// 		GetBaseAnimating()!.UpdateStepOrigin();
+
+		// 	step.Next.Origin = GetStepOrigin();
+		// 	stepAngles = GetStepAngles();
+		// 	MathLib.AngleQuaternion(stepAngles, out step.Next.Rotation);
+
+		// 	step.AngNextRotation = GetStepAngles();
+		// 	step.Next.TickCount = GetNextThinkTick();
+
+		// 	if (IsSimulatingOnAlternateTicks())
+		// 		++step.Next.TickCount;
+
+		// 	if (dt > 0) {
+		// 		Vector3 deltaOrigin = step.Next.Origin - step.Previous.Origin;
+		// 		float velSq = (float)(deltaOrigin.LengthSquared() / (dt * dt));
+		// 		if (velSq >= (4096.0f * 4096.0f) /*STEP_TELPORTATION_VEL_SQ*/)
+		// 			step.OriginActive = step.AnglesActive = false;
+		// 	}
+		// }
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsMarkedForDeletion() => (eflags & EFL.KillMe) != 0;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void AddEFlags(EFL flags) {
@@ -591,9 +649,7 @@ public partial class BaseEntity : IServerEntity
 		DispatchUpdateTransmitState();
 	}
 
-	public IServerNetworkable? GetNetworkable() {
-		return null; // todo
-	}
+	public IServerNetworkable? GetNetworkable() => Network;
 
 	public ref readonly BaseHandle GetRefEHandle() => ref RefEHandle;
 
@@ -720,9 +776,10 @@ public partial class BaseEntity : IServerEntity
 	public int EntIndex() => Network.EntIndex();
 	public float GetGravity() => Gravity;
 	public void SetGravity(float gravity) => Gravity = gravity;
-
+	public void ClearSolidFlags() => CollisionProp().ClearSolidFlags();
 	public object? GetBaseEntity() => this;
 	public virtual BaseAnimating? GetBaseAnimating() => null;
+	private float GetFriction() => Friction;
 
 	public void NetworkStateChanged() => NetworkProp().NetworkStateChanged();
 	public void NetworkStateChanged(IFieldAccessor field) => NetworkProp().NetworkStateChanged(field);
