@@ -159,7 +159,12 @@ public class GameUI(IEngineClient engine) : IGameUI
 		platformDir = Path.Combine(dir, "platform") + Path.DirectorySeparatorChar;
 		return true;
 #else
+		string dir = Directory.GetCurrentDirectory();
+		if (string.IsNullOrEmpty(dir))
+			return false;
 
+		platformDir = Path.Combine(dir, "platform") + Path.DirectorySeparatorChar;
+		return true;
 #endif
 	}
 
