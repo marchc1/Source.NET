@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Numerics;
 
 using Game.Server.NextBot;
+using Game.Shared;
 
 using Source;
 using Source.Common;
@@ -65,17 +66,11 @@ class SplitNotification(NavArea originalArea, NavArea alphaArea, NavArea betaAre
 	}
 }
 
-class OverlapCheck
+class OverlapCheck(NavArea me, Vector3 pos)
 {
-	NavArea Me;
-	float MyZ;
-	Vector3 Pos;
-
-	public OverlapCheck(NavArea me, Vector3 pos) {
-		Me = me;
-		MyZ = me.GetZ(pos);
-		Pos = pos;
-	}
+	NavArea Me = me;
+	float MyZ = me.GetZ(pos);
+	Vector3 Pos = pos;
 
 	public bool Invoke(NavArea area) {
 		if (area == Me)
@@ -95,15 +90,10 @@ class OverlapCheck
 	}
 }
 
-class LadderConnectionReplacement
+class LadderConnectionReplacement(NavArea originalArea, NavArea replacementArea)
 {
-	NavArea OriginalArea;
-	NavArea ReplacementArea;
-
-	public LadderConnectionReplacement(NavArea originalArea, NavArea replacementArea) {
-		OriginalArea = originalArea;
-		ReplacementArea = replacementArea;
-	}
+	NavArea OriginalArea = originalArea;
+	NavArea ReplacementArea = replacementArea;
 
 	public bool Invoke(NavLadder ladder) {
 		if (ladder.TopForwardArea == OriginalArea)
@@ -127,8 +117,6 @@ class LadderConnectionReplacement
 
 public class NavAreaCriticalData
 {
-	public const int MAX_NAV_TEAMS = 2;
-
 	public Vector3 NWCorner;
 	public Vector3 SECorner;
 	public float InvDXCorners;
@@ -150,7 +138,7 @@ public class NavAreaCriticalData
 
 	public readonly List<NavConnect>[] Connect = new List<NavConnect>[(int)NavDirType.NumDirections];
 	public readonly List<NavLadderConnect>[] Ladder = new List<NavLadderConnect>[(int)NavLadder.LadderDirectionType.NumLadderDirections];
-	public List<NavConnect> ElevatorAreas;
+	public readonly List<NavConnect> ElevatorAreas = [];
 
 	public uint NearNavSearchMarker;
 
@@ -211,8 +199,27 @@ public partial class NavArea : NavAreaCriticalData
 	static Color SelectedSetBorderColor = new(100, 100, 0, 255);
 	static Color DragSelectionSetBorderColor = new(50, 50, 50, 255);
 
-	// ConVar nav_selected_set_color("nav_selected_set_color", "255 255 200 96", FCVAR_CHEAT, "Color used to draw the selected set background while editing.", false, 0.0f, false, 0.0f, SelectedSetColorChaged);
-	// ConVar nav_selected_set_border_color("nav_selected_set_border_color", "100 100 0 255", FCVAR_CHEAT, "Color used to draw the selected set borders while editing.", false, 0.0f, false, 0.0f, SelectedSetColorChaged);
+	static ConVar nav_selected_set_color = new("255 255 200 96", FCvar.Cheat, "Color used to draw the selected set background while editing.", 0, 0, SelectedSetColorChaged);
+	static ConVar nav_selected_set_border_color = new("100 100 0 255", FCvar.Cheat, "Color used to draw the selected set borders while editing.", 0, 0, SelectedSetColorChaged);
+
+	static void SelectedSetColorChaged(IConVar var, in ConVarChangeContext ctx) {
+		ConVarRef colorVar = new(var.GetName());
+
+		ref Color color = ref (FStrEq(var.GetName(), "nav_selected_set_border_color") ? ref SelectedSetBorderColor : ref SelectedSetColor);
+
+		int r = color.R;
+		int g = color.G;
+		int b = color.B;
+		int a = color.A;
+		ScanF scan = new(colorVar.GetString(), "%d %d %d %d");
+		scan.Read(out r).Read(out g).Read(out b).Read(out a);
+
+		color[0] = (byte)r;
+		color[1] = (byte)g;
+		color[2] = (byte)b;
+		if (scan.ReadArguments > 3)
+			color[3] = (byte)a;
+	}
 
 	public static void CompressIDs() {
 		NextID = 1;
@@ -274,7 +281,6 @@ public partial class NavArea : NavAreaCriticalData
 			LightIntensity[i] = 1.0f;
 
 		Elevator = null;
-		ElevatorAreas = [];
 
 		InvDXCorners = 0;
 		InvDYCorners = 0;
@@ -285,6 +291,9 @@ public partial class NavArea : NavAreaCriticalData
 		FuncNavCostVector = [];
 
 		VisTestCounter = UInt32.MaxValue - 1;
+
+		BlockedTimer = new();
+		AvoidanceObstacleTimer = new();
 	}
 
 	public void Build(Vector3 corner, Vector3 otherCorner) {
@@ -393,11 +402,72 @@ public partial class NavArea : NavAreaCriticalData
 
 	public Vector3 GetCenter() => Center;
 
-	public NavNode FindClosestNode(Vector3 pos, NavDirType dir) {
-		throw new NotImplementedException();
+	public NavNode? FindClosestNode(Vector3 pos, NavDirType dir) {
+		if (!HasNodes())
+			return null;
+
+		List<NavNode> nodes = [];
+		GetNodes(dir, nodes);
+
+		NavNode? bestNode = null;
+		float bestDistanceSq = float.MaxValue;
+
+		foreach (NavNode node in nodes) {
+			float distSq = Vector3.DistanceSquared(pos, node.GetPosition());
+			if (distSq < bestDistanceSq) {
+				bestDistanceSq = distSq;
+				bestNode = node;
+			}
+		}
+
+		return bestNode;
 	}
 
-	void GetNodes(NavDirType dir, List<NavNode> nodes) { }
+	void GetNodes(NavDirType dir, List<NavNode> nodes) {
+		if (nodes == null)
+			return;
+
+		nodes.Clear();
+
+		NavCornerType startCorner;
+		NavCornerType endCorner;
+		NavDirType traversalDirection;
+
+		switch (dir) {
+			case NavDirType.North:
+				startCorner = NavCornerType.NorthWest;
+				endCorner = NavCornerType.NorthEast;
+				traversalDirection = NavDirType.East;
+				break;
+
+			case NavDirType.South:
+				startCorner = NavCornerType.SouthWest;
+				endCorner = NavCornerType.SouthEast;
+				traversalDirection = NavDirType.East;
+				break;
+
+			case NavDirType.East:
+				startCorner = NavCornerType.NorthEast;
+				endCorner = NavCornerType.SouthEast;
+				traversalDirection = NavDirType.South;
+				break;
+
+			case NavDirType.West:
+				startCorner = NavCornerType.NorthWest;
+				endCorner = NavCornerType.SouthWest;
+				traversalDirection = NavDirType.South;
+				break;
+
+			default:
+				return;
+		}
+
+		for (NavNode? node = Node[(int)startCorner]; node != null && node != Node[(int)endCorner]; node = node.GetConnectedNode(traversalDirection))
+			nodes.Add(node);
+
+		if (Node[(int)endCorner] != null)
+			nodes.Add(Node[(int)endCorner]!);
+	}
 
 	void ConnectElevators() {
 		Elevator = null;
@@ -598,7 +668,7 @@ public partial class NavArea : NavAreaCriticalData
 		}
 	}
 
-	public bool SplitEdit(bool splitAlongX, float splitEdge, out NavArea outAlpha, out NavArea outBeta) {
+	public bool SplitEdit(bool splitAlongX, float splitEdge, out NavArea? outAlpha, out NavArea? outBeta) {
 		outAlpha = null;
 		outBeta = null;
 
@@ -668,7 +738,7 @@ public partial class NavArea : NavAreaCriticalData
 		int dir;
 		for (dir = 0; dir < (int)NavLadder.LadderDirectionType.NumLadderDirections; ++dir) {
 			for (int it = 0; it < Ladder[dir].Count; it++) {
-				NavLadder ladder = Ladder[dir][it].Ladder;
+				NavLadder ladder = Ladder[dir][it].Ladder!;
 				Vector3 ladderPos = ladder.Top;
 
 				float alphaDistance = alpha.GetDistanceSquaredToPoint(ladderPos);
@@ -702,8 +772,13 @@ public partial class NavArea : NavAreaCriticalData
 		return true;
 	}
 
-	bool IsConnected(NavLadder ladder, NavLadder.LadderDirectionType dir) {
-		throw new NotImplementedException();
+	public bool IsConnected(NavLadder ladder, NavLadder.LadderDirectionType dir) {
+		for (int i = 0; i < Ladder[(int)dir].Count; i++) {
+			if (Ladder[(int)dir][i].Ladder == ladder)
+				return true;
+		}
+
+		return false;
 	}
 
 	public bool IsConnected(NavArea area, NavDirType dir) {
@@ -926,7 +1001,7 @@ public partial class NavArea : NavAreaCriticalData
 
 			newArea.Build(nw, ne, se, sw);
 
-			this.ConnectTo(newArea, NavDirType.West);
+			ConnectTo(newArea, NavDirType.West);
 			newArea.ConnectTo(this, NavDirType.East);
 
 			other.ConnectTo(newArea, NavDirType.East);
@@ -1354,7 +1429,7 @@ public partial class NavArea : NavAreaCriticalData
 		}
 	}
 
-	NavArea GetRandomAdjacentArea(NavDirType dir) {
+	NavArea? GetRandomAdjacentArea(NavDirType dir) {
 		int count = Connect[(int)dir].Count;
 		int which = RandomInt(0, count - 1);
 
@@ -1573,7 +1648,7 @@ public partial class NavArea : NavAreaCriticalData
 		return NavCornerType.NumCorners;
 	}
 
-	static IntervalTimer blink;
+	static IntervalTimer? blink;
 	static bool blinkOn = false;
 	public void Draw() {
 		NavEditColor color;
@@ -1929,7 +2004,7 @@ public partial class NavArea : NavAreaCriticalData
 		Shared.DebugOverlay.Line(se, ne, r, g, b, true, deltaT);
 	}
 
-	void DrawHidingSpots() {
+	public void DrawHidingSpots() {
 		foreach (HidingSpot spot in GetHidingSpots()) {
 			NavEditColor color;
 
@@ -2111,7 +2186,22 @@ public partial class NavArea : NavAreaCriticalData
 		}
 	}
 
-	void RemoveFromOpenList() { }
+	void RemoveFromOpenList() {
+		if (!IsOpen())
+			return;
+
+		if (PrevOpen != null)
+			PrevOpen.NextOpen = NextOpen;
+		else
+			OpenList = NextOpen;
+
+		if (NextOpen != null)
+			NextOpen.PrevOpen = PrevOpen;
+		else
+			OpenListTail = PrevOpen;
+
+		OpenMarker = 0;
+	}
 
 	public static void ClearSearchLists() {
 		MakeNewMarker();
@@ -2643,10 +2733,10 @@ public partial class NavArea : NavAreaCriticalData
 			if (NavMesh.Instance!.GetGroundHeight(pos, out float height))
 				pos.Z = height + HalfHumanHeight - StepHeight;
 
+#pragma warning disable CS0162 // Unreachable code detected
 			{
 				return false;
 			}
-
 			Vector3 light = Vector3.Zero;
 			Vector3 ambient = Vector3.Zero;
 
@@ -2656,6 +2746,7 @@ public partial class NavArea : NavAreaCriticalData
 			lightIntensity = Math.Max(lightIntensity, amientIntensity);
 
 			LightIntensity[i] = lightIntensity;
+#pragma warning restore CS0162 // Unreachable code detected
 		}
 
 		return true;
@@ -2796,8 +2887,6 @@ public partial class NavArea : NavAreaCriticalData
 	}
 
 	public void PlaceOnGround(NavCornerType corner, float inset = 0.0f) {
-		Vector3 from, to;
-
 		Vector3 nw = NWCorner + new Vector3(inset, inset, 0);
 		Vector3 se = SECorner + new Vector3(-inset, -inset, 0);
 		Vector3 ne = default, sw = default;
@@ -3001,7 +3090,9 @@ public partial class NavArea : NavAreaCriticalData
 
 		if (!result.StartSolid) {
 			if (false)
+#pragma warning disable CS0162 // Unreachable code detected
 				Shared.DebugOverlay.Box(origin, bounds.Lo, bounds.Hi, 0, 255, 0, 10, 5.0f);
+#pragma warning restore CS0162 // Unreachable code detected
 			else {
 				for (int i = 0; i < MAX_NAV_TEAMS; ++i)
 					_IsBlocked[i] = false;
@@ -3525,7 +3616,7 @@ public partial class NavArea : NavAreaCriticalData
 		throw new NotImplementedException();
 	}
 
-	float GetDangerDecayRate() => 1.0f / 120.0f;
+	static float GetDangerDecayRate() => 1.0f / 120.0f;
 
 	public float GetSizeX() => SECorner.X - NWCorner.X;
 	public float GetSizeY() => SECorner.Y - NWCorner.Y;
@@ -3560,15 +3651,11 @@ public partial class NavArea : NavAreaCriticalData
 
 	void SetClearedTimestamp(int teamID) => ClearedTimestamp[teamID % MAX_NAV_TEAMS] = gpGlobals.CurTime;
 
-	float GetClearedTimestamp(int teamID) {
-		throw new NotImplementedException();
-	}
+	TimeUnit_t GetClearedTimestamp(int teamID) => ClearedTimestamp[teamID % MAX_NAV_TEAMS];
 
 	List<HidingSpot> GetHidingSpots() => HidingSpots;
 
-	float GetEarliestOccupyTime(int teamID) {
-		throw new NotImplementedException();
-	}
+	TimeUnit_t GetEarliestOccupyTime(int teamID) => EarliestOccupyTime[teamID % MAX_NAV_TEAMS];
 
 	public bool IsDamaging() => gpGlobals.TickCount <= DamagingTickCount;
 
@@ -3576,12 +3663,33 @@ public partial class NavArea : NavAreaCriticalData
 
 	public bool HasAvoidanceObstacle(float maxObstructionHeight = 0) => AvoidanceObstacleHeight > maxObstructionHeight;
 
-	float GetAvoidanceObstacleHeight() {
-		throw new NotImplementedException();
-	}
+	float GetAvoidanceObstacleHeight() => AvoidanceObstacleHeight;
 
-	bool IsVisible(Vector3 eye, Vector3 visSpot) {
-		throw new NotImplementedException();
+	public bool IsVisible(Vector3 eye, out Vector3? visSpot) {
+		Vector3 corner;
+		TraceFilterNoNPCsOrPlayer traceFilter = new(null, CollisionGroup.None);
+		float offset = 0.75f * HumanHeight;
+
+		Vector3 center = GetCenter();
+		Util.TraceLine(eye, center + new Vector3(0, 0, offset), Mask.BlockLOSAndNPCs | ((Mask)Contents.IgnoreNoDrawOpaque), ref traceFilter, out Trace result);
+
+		if (result.Fraction == 1.0f) {
+			visSpot = center;
+			return true;
+		}
+
+		for (int c = 0; c < (int)NavCornerType.NumCorners; ++c) {
+			corner = GetCorner((NavCornerType)c);
+			Util.TraceLine(eye, corner + new Vector3(0, 0, offset), Mask.BlockLOSAndNPCs | ((Mask)Contents.IgnoreNoDrawOpaque), ref traceFilter, out result);
+
+			if (result.Fraction == 1.0f) {
+				visSpot = corner;
+				return true;
+			}
+		}
+
+		visSpot = null;
+		return false;
 	}
 
 	void IncrementPlayerCount(int teamID, int entIndex) {

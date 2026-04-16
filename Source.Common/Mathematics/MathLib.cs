@@ -882,6 +882,9 @@ public static class MathLib
 		}
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static vec_t DotProduct2D(in Vector2 v1, in Vector2 v2) => v1.X * v2.X + v1.Y * v2.Y;
+
 	public static void MatrixBuildPerspectiveX(ref Matrix4x4 dst, float fovX, float aspectRatio, float zNear, float zFar) {
 		float flWidthScale = 1.0f / MathF.Tan(fovX * MathF.PI / 360.0f);
 		float flHeightScale = aspectRatio * flWidthScale;
@@ -918,6 +921,7 @@ public static class MathLib
 	public static void Init(this ref Quaternion v) => v.X = v.Y = v.Z = v.W = 0;
 	public static vec_t Dot(this in Vector3 a, in Vector3 b) => Vector3.Dot(a, b);
 	public static vec_t NormalizeInPlace(this ref Vector3 self) => VectorNormalize(ref self);
+	public static vec_t NormalizeInPlace(this ref Vector2 self) => VectorNormalize(ref self);
 	public static vec_t LengthSqr(this in Vector3 self) => self.LengthSquared();
 
 
@@ -1306,6 +1310,13 @@ public static class MathLib
 		float len = fwd.Length();
 		if (len != 0)
 			fwd = Vector3.Normalize(fwd);
+		return len;
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float VectorNormalize(ref Vector2 fwd) {
+		float len = fwd.Length();
+		if (len != 0)
+			fwd = Vector2.Normalize(fwd);
 		return len;
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]

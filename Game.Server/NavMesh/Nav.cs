@@ -58,6 +58,8 @@ public static class Nav
 	public static readonly ConVar nav_test_node_crouch_dir = new("nav_test_node_crouch_dir", "4", FCvar.Cheat);
 	public static readonly ConVar nav_show_node_grid = new("nav_show_node_grid", "0", FCvar.Cheat);
 
+	public const int MAX_NAV_TEAMS = 2;
+
 	public const float GenerationStepSize = 25.0f;     // (30) was 20, but bots can't fit always fit
 	const float JumpHeight = 41.8f;         // if delta Z is less than this, we can jump up on it
 	public const float JumpCrouchHeight = 64.0f;     // (48) if delta Z is less than or equal to this, we can jumpcrouch up on it

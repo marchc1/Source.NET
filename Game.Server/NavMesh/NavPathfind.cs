@@ -172,11 +172,11 @@ public static class NavPathfind
 			const int AHEAD = 0, LEFT = 1, RIGHT = 2;
 			int ladderTopDir = AHEAD;
 			bool bHaveMaxPathLength = maxPathLength > 0.0f;
-			float length = -1;
+			float length;
 
 			while (true) {
-				NavArea? newArea = null;
-				NavTraverseType how = default;
+				NavArea? newArea;
+				NavTraverseType how;
 				NavLadder? ladder = null;
 				FuncElevator? elevator = null;
 
@@ -207,7 +207,6 @@ public static class NavPathfind
 						if (!ladderUp) {
 							searchWhere = SearchType.Elevators;
 							searchIndex = 0;
-							ladder = null;
 						}
 						else {
 							ladderUp = false;
@@ -251,10 +250,8 @@ public static class NavPathfind
 					List<NavConnect> elevatorAreas = area.GetElevatorAreas();
 					elevator = area.GetElevator();
 
-					if (elevator == null || searchIndex >= elevatorAreas.Count) {
-						elevator = null;
+					if (elevator == null || searchIndex >= elevatorAreas.Count)
 						break;
-					}
 
 					newArea = elevatorAreas[searchIndex++].Area;
 					how = newArea!.Center.Z > area.Center.Z ? NavTraverseType.ElevatorUp : NavTraverseType.ElevatorDown;

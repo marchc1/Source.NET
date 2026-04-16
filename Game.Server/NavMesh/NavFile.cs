@@ -250,7 +250,7 @@ public partial class NavArea
 			}
 		}
 
-		for (int i = 0; i < MAX_NAV_TEAMS; i++)
+		for (int i = 0; i < Nav.MAX_NAV_TEAMS; i++)
 			buffer.Write(EarliestOccupyTime[i]);
 
 		for (int i = 0; i < (int)NavCornerType.NumCorners; i++)
@@ -429,7 +429,7 @@ public partial class NavArea
 		if (version < 8)
 			return NavErrorType.Ok;
 
-		for (int i = 0; i < MAX_NAV_TEAMS; ++i)
+		for (int i = 0; i < Nav.MAX_NAV_TEAMS; ++i)
 			EarliestOccupyTime[i] = fileBuffer.ReadSingle();
 
 		if (version < 11)
@@ -549,7 +549,7 @@ public partial class NavArea
 	}
 
 	public void ComputeEarliestOccupyTimes() {
-		for (int team = 0; team < MAX_NAV_TEAMS; ++team)
+		for (int team = 0; team < Nav.MAX_NAV_TEAMS; ++team)
 			EarliestOccupyTime[team] = 0.0f;
 	}
 

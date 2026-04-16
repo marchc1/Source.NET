@@ -171,11 +171,11 @@ public partial class NavMesh
 		return null;
 	}
 
-	NavLadder? GetMarkedLadder() => MarkedLadder;
+	public NavLadder? GetMarkedLadder() => MarkedLadder;
 
 	public NavArea? GetSelectedArea() => SelectedArea;
 
-	NavLadder? GetSelectedLadder() => SelectedLadder;
+	public NavLadder? GetSelectedLadder() => SelectedLadder;
 
 	void DestroyNavigationMesh(bool incremental = false) {
 		BlockedAreas.Clear();
@@ -648,11 +648,11 @@ public partial class NavMesh
 		return UndefinedPlace;
 	}
 
-	NavPlace PartialNameToPlace(ReadOnlySpan<char> name) {
+	public NavPlace PartialNameToPlace(ReadOnlySpan<char> name) {
 		throw new NotImplementedException();
 	}
 
-	void PrintAllPlaces() { }
+	public void PrintAllPlaces() { }
 
 	public bool GetGroundHeight(Vector3 pos, out float height, Vector3? normal = null) {
 		const float maxOffset = 100.0f;

@@ -33,7 +33,12 @@ static class NavCommands
 	}
 
 	[ConCommand("nav_flood_select", "Selects the current Area and all Areas connected to it, recursively. To clear a selection, use this command again.", FCvar.GameDLL | FCvar.Cheat)]
-	static void nav_flood_select() { throw new NotImplementedException(); }
+	static void nav_flood_select(in TokenizedCommand args) {
+		if (!Util.IsCommandIssuedByServerAdmin() || !nav_edit.GetBool())
+			return;
+
+		TheNavMesh.CommandNavFloodSelect(args);
+	}
 
 	[ConCommand("nav_toggle_selected_set", "Toggles all areas into/out of the selected set.", FCvar.GameDLL | FCvar.Cheat)]
 	static void nav_toggle_selected_set() {
@@ -518,7 +523,23 @@ static class NavCommands
 
 	// todo: autocomplete
 	[ConCommand("nav_use_place", "If used without arguments, all available Places will be listed. If a Place argument is given, the current Place is set.", FCvar.GameDLL | FCvar.Cheat)]
-	static void nav_use_place() { throw new NotImplementedException(); }
+	static void nav_use_place(in TokenizedCommand args) {
+		if (!Util.IsCommandIssuedByServerAdmin())
+			return;
+
+		if (args.ArgC() == 1)
+			NavMesh.Instance!.PrintAllPlaces();
+		else {
+			NavPlace place = NavMesh.Instance!.PartialNameToPlace(args[1]);
+
+			if (place == Nav.UndefinedPlace)
+				Msg("Ambiguous\n");
+			else {
+				Msg($"Current place set to '{NavMesh.Instance!.PlaceToName(place)}'\n");
+				NavMesh.Instance!.SetNavPlace(place);
+			}
+		}
+	}
 
 	[ConCommand("nav_place_replace", "Replaces all instances of the first place with the second place.", FCvar.GameDLL | FCvar.Cheat)]
 	static void nav_place_replace() { throw new NotImplementedException(); }
