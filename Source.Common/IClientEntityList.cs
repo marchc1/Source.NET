@@ -2,15 +2,15 @@
 
 public interface IClientEntityList {
 	IClientNetworkable? GetClientNetworkable(int entnNum);
-	IClientNetworkable? GetClientNetworkableFromHandle(BaseHandle ent);
-	IClientUnknown? GetClientUnknownFromHandle(BaseHandle ent);
+	IClientNetworkable? GetClientNetworkableFromHandle(in BaseHandle ent);
+	IClientUnknown? GetClientUnknownFromHandle(in BaseHandle ent);
 	IClientEntity? GetClientEntity(int entNum);
-	IClientEntity? GetClientEntityFromHandle(BaseHandle ent);
-	IClientThinkable? GetClientThinkableFromHandle(BaseHandle ent);
+	IClientEntity? GetClientEntityFromHandle(in BaseHandle ent);
+	IClientThinkable? GetClientThinkableFromHandle(in BaseHandle ent);
 	int NumberOfEntities(bool includeNonNetworkable);
 	int GetHighestEntityIndex();
 	void SetMaxEntities(int maxEnts);
 	int GetMaxEntities();
-	IHandleEntity? LookupEntity(BaseHandle index);
-	BaseHandle? InvalidHandle();
+	IHandleEntity? LookupEntity(in BaseHandle index);
+	BaseHandle InvalidHandle();
 }

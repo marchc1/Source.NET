@@ -8,37 +8,37 @@ namespace Source.Common;
 
 public static class StringTableBits
 {
-	public static int MaxModelIndexBits { get; private set; }
-	public static int MaxModels { get; private set; }
+	public static int g_MaxModelIndexBits { get; private set; }
+	public static int g_MaxModels { get; private set; }
 
-	public static int MaxGenericIndexBits { get; private set; }
-	public static int MaxGenerics { get; private set; }
+	public static int g_MaxGenericIndexBits { get; private set; }
+	public static int g_MaxGenerics { get; private set; }
 
-	public static int MaxSoundIndexBits { get; private set; }
-	public static int MaxSounds { get; private set; }
+	public static int g_MaxSoundIndexBits { get; private set; }
+	public static int g_MaxSounds { get; private set; }
 
-	public static int MaxDecalIndexBits { get; private set; }
-	public static int MaxPrecacheDecals { get; private set; }
+	public static int g_MaxDecalIndexBits { get; private set; }
+	public static int g_MaxPrecacheDecals { get; private set; }
 
 	public static void CL_SetupNetworkStringTableBits(INetworkStringTableContainer container, ReadOnlySpan<char> tableName) {
 		Span<char> lowercased = stackalloc char[tableName.Length];
 		tableName.ToLower(lowercased, null);
 		switch (lowercased) {
 			case "modelprecache":
-				MaxModelIndexBits = container.FindTable(tableName)!.GetEntryBits();
-				MaxModels = 1 << MaxModelIndexBits;
+				g_MaxModelIndexBits = container.FindTable(tableName)!.GetEntryBits();
+				g_MaxModels = 1 << g_MaxModelIndexBits;
 				break;
 			case "genericprecache":
-				MaxGenericIndexBits = container.FindTable(tableName)!.GetEntryBits();
-				MaxGenerics = 1 << MaxGenericIndexBits;
+				g_MaxGenericIndexBits = container.FindTable(tableName)!.GetEntryBits();
+				g_MaxGenerics = 1 << g_MaxGenericIndexBits;
 				break;
 			case "soundprecache":
-				MaxSoundIndexBits = container.FindTable(tableName)!.GetEntryBits();
-				MaxSounds = 1 << MaxSoundIndexBits;
+				g_MaxSoundIndexBits = container.FindTable(tableName)!.GetEntryBits();
+				g_MaxSounds = 1 << g_MaxSoundIndexBits;
 				break;
 			case "decalprecache":
-				MaxDecalIndexBits = container.FindTable(tableName)!.GetEntryBits();
-				MaxPrecacheDecals = 1 << MaxDecalIndexBits;
+				g_MaxDecalIndexBits = container.FindTable(tableName)!.GetEntryBits();
+				g_MaxPrecacheDecals = 1 << g_MaxDecalIndexBits;
 				break;
 		}
 	}

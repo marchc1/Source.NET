@@ -10,6 +10,8 @@ using Source.GUI.Controls;
 
 using System.Numerics;
 
+namespace Game.Client.HL2;
+
 [DeclareHudElement(Name = "CHudDamageIndicator")]
 class HudDamageIndicator : EditableHudElement, IHudElement
 {

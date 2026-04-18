@@ -1,4 +1,6 @@
-﻿using SevenZip.Buffer;
+﻿using CommunityToolkit.HighPerformance;
+
+using SevenZip.Buffer;
 
 using Source.Common;
 using Source.Common.Commands;
@@ -8,6 +10,7 @@ using Source.Common.Utilities;
 
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -47,7 +50,7 @@ public class StudioData
 	public object?[]? AnimBlock; // todo: research what this is
 }
 
-public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
+public class MDLCache : IMDLCache, IStudioDataCache
 {
 	static readonly ConVar r_rootlod = new("r_rootlod", "0", FCvar.Archive, "Root LOD", 0, Studio.MAX_NUM_LODS);
 	static readonly ConVar mod_forcedata = new("mod_forcedata", "0", 0, "Forces all model file data into cache on model load.");
@@ -63,6 +66,15 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 	static readonly ConVar mod_lock_mdls_on_load = new("mod_lock_mdls_on_load", "0", 0);
 	static readonly ConVar mod_load_fakestall = new("mod_load_fakestall", "0", 0, "Forces all ANI file loading to stall for specified ms\n");
 
+	readonly IFileSystem fileSystem;
+	public MDLCache(IFileSystem fileSystem) {
+		this.fileSystem = fileSystem;
+		FrameUnlockCounter = new int[(int)MDLCacheDataType.Count];
+		FrameUnlockCounterFieldPtr = new AnonymousSafeFieldPointer<int>[(int)MDLCacheDataType.Count];
+		for (MDLCacheDataType i = 0; i < MDLCacheDataType.Count - 1; i++)
+			FrameUnlockCounterFieldPtr[(int)i] = new(this, x => ref FrameUnlockCounter[(int)i]);
+	}
+
 	public int AddRef(MDLHandle_t handle) {
 		return ++HandleToMDLDict[handle].RefCount;
 	}
@@ -73,8 +85,8 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 
 	public void BeginMapLoad() {
 		// TODO: Actually make locking do something, we're super synchronous right now
-		foreach(var mdl in HandleToMDLDict) {
-			if((mdl.Value.Flags & StudioDataFlags.LockedMDL) != 0) {
+		foreach (var mdl in HandleToMDLDict) {
+			if ((mdl.Value.Flags & StudioDataFlags.LockedMDL) != 0) {
 				mdl.Value.Flags &= ~StudioDataFlags.LockedMDL;
 			}
 		}
@@ -177,16 +189,16 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 			return Array.Empty<short>();
 
 		VirtualModel? virtualModel = GetVirtualModel(handle);
-		if(virtualModel != null) 
+		if (virtualModel != null)
 			return virtualModel.AutoplaySequences.Base();
 
 		StudioData studioData = HandleToMDLDict[handle];
 		return studioData.AutoplaySequenceList;
 	}
 
-	public ref int GetFrameUnlockCounterPtr(MDLCacheDataType type) {
-		throw new NotImplementedException();
-	}
+	readonly int[] FrameUnlockCounter;
+	readonly AnonymousSafeFieldPointer<int>[] FrameUnlockCounterFieldPtr;
+	public AnonymousSafeFieldPointer<int> GetFrameUnlockCounterPtr(MDLCacheDataType type) => FrameUnlockCounterFieldPtr[(int)type];
 
 	public StudioHWData? GetHardwareData(MDLHandle_t handle) {
 		StudioData studioData = HandleToMDLDict[handle];
@@ -336,9 +348,9 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 			return false;
 		}
 
-		if(studioHdr.NumIncludeModels == 0) {
+		if (studioHdr.NumIncludeModels == 0) {
 			int count = studioHdr.CountAutoplaySequences();
-			if(count != 0) {
+			if (count != 0) {
 				AllocateAutoplaySequences(HandleToMDLDict[handle], count);
 				studioHdr.CopyAutoplaySequences(ref HandleToMDLDict[handle].AutoplaySequenceList, count);
 			}
@@ -352,7 +364,39 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 			return false;
 		}
 
+		UnserializeAllVirtualModelsAndAnimBlocks(handle);
+
 		return true;
+	}
+
+	private void FreeVirtualModel(MDLHandle_t handle) {
+		if (HandleToMDLDict.TryGetValue(handle, out StudioData? studioData) && studioData.VirtualModel != null) {
+			int groupCount = studioData.VirtualModel.Group.Count;
+			Assert((groupCount >= 1) && (MDLHandle_t)studioData.VirtualModel.Group[0].Cache == handle);
+
+			// NOTE: Start at *1* here because the 0th element contains a reference to *this* handle
+			for (int i = 1; i < groupCount; ++i) {
+				MDLHandle_t h = (MDLHandle_t)(studioData.VirtualModel.Group[i].Cache & 0xffff);
+				FreeVirtualModel(h);
+				Release(h);
+			}
+
+			studioData.VirtualModel = null;
+		}
+	}
+
+	private void UnserializeAllVirtualModelsAndAnimBlocks(MDLHandle_t handle) {
+		if (handle == MDLHANDLE_INVALID)
+			return;
+
+		FreeVirtualModel(handle);
+		if (!mod_forcedata.GetBool())
+			return;
+
+		GetVirtualModel(handle);
+		StudioHeader studioHdr = GetStudioHdr(handle)!;
+		for (int i = 1; i < studioHdr.NumAnimBlocks; ++i)
+			GetAnimBlock(handle, i);
 	}
 
 	private void AllocateAutoplaySequences(StudioData studioData, int count) {
@@ -484,7 +528,9 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 	}
 
 	public T? GetUserData<T>(MDLHandle_t handle) {
-		throw new NotImplementedException();
+		if (handle == MDLHANDLE_INVALID)
+			return default;
+		return (T?)HandleToMDLDict[handle].UserData;
 	}
 
 	public VCollide GetVCollide(MDLHandle_t handle) {
@@ -591,7 +637,7 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 			studioData.VirtualModel.Group.Add(new());
 
 			Assert(group == 0);
-			studioData.VirtualModel.Group[group].Cache = handle;
+			studioData.VirtualModel.Group[group].Cache = (nint)handle;
 
 			// Add all dependent data
 			studioData.VirtualModel.AppendModels(0, studioHdr);
@@ -769,19 +815,132 @@ public class MDLCache(IFileSystem fileSystem) : IMDLCache, IStudioDataCache
 			return null;
 
 		vvdHeader.Position = 0;
-		HandleToMDLDict[handle].VertexCache = ReadVertices(vvdHeader);
-		return HandleToMDLDict[handle].VertexCache;
+		var raw = new VertexFileHeader(vvdHeader.GetBuffer());
+		var processed = BuildAndCacheVertexData(studioHdr, raw);
+		HandleToMDLDict[handle].VertexCache = processed;
+		return processed;
 	}
 
-	private VertexFileHeader ReadVertices(MemoryStream ms) {
-		// Justification for GetBuffer: If the buffer won't have any changes made to it, then we don't need
-		// to store another copy of the byte data and can use the MemoryStream's array. When MemoryStream disposes,
-		// the internal array will still remain ref'd by the Memory<byte>.
-		VertexFileHeader vvdHeader = new(ms.GetBuffer());
-		// TODO: Can we simplify reading the .mdl into a constructor like this?
+	private VertexFileHeader? BuildAndCacheVertexData(StudioHeader studioHdr, VertexFileHeader rawVvdHdr) {
+		MDLHandle_t handle = (MDLHandle_t)(nint)studioHdr.VirtualModel & 0xffff;
+		VertexFileHeader? vvdHdr;
 
-		return vvdHeader;
+		Msg($"MDLCache: Load VVD for {studioHdr.GetName()}\n");
+
+		Assert(rawVvdHdr != null);
+
+		// check header
+		if (rawVvdHdr.ID != Studio.MODEL_VERTEX_FILE_ID) {
+			Warning($"Error Vertex File for '{studioHdr.GetName()}' id {rawVvdHdr.ID} should be {Studio.MODEL_VERTEX_FILE_ID}\n");
+			return null;
+		}
+		if (rawVvdHdr.Version != Studio.MODEL_VERTEX_FILE_VERSION) {
+			Warning($"Error Vertex File for '{studioHdr.GetName()}' version {rawVvdHdr.Version} should be {Studio.MODEL_VERTEX_FILE_VERSION}\n");
+			return null;
+		}
+		if (rawVvdHdr.Checksum != studioHdr.Checksum) {
+			Warning($"Error Vertex File for '{studioHdr.GetName()}' checksum {rawVvdHdr.Checksum} should be {studioHdr.Checksum}\n");
+			return null;
+		}
+
+		Assert(rawVvdHdr.NumLODs != 0);
+		if (0 == rawVvdHdr.NumLODs)
+			return null;
+
+		bool needsTangentS = true;
+		int rootLOD = Math.Min((int)studioHdr.RootLOD, rawVvdHdr.NumLODs - 1);
+
+		// determine final cache footprint, possibly truncated due to lod
+		Msg($"MDLCache: Alloc VVD {GetModelName(handle)}\n");
+
+		// allocate cache space
+		vvdHdr = new(new byte[Studio_VertexDataSize(rawVvdHdr, rootLOD, needsTangentS)]);
+
+		// load minimum vertexes and fixup
+		Studio_LoadVertexes(rawVvdHdr, vvdHdr, rootLOD, needsTangentS);
+
+		return vvdHdr;
 	}
+
+	public static int Studio_VertexDataSize(VertexFileHeader vvdHdr, int rootLOD, bool needsTangentS) {
+		int numVertexes = vvdHdr.NumLODVertices[rootLOD] + 1;
+		int dataLength = vvdHdr.VertexDataStart + numVertexes * Unsafe.SizeOf<MStudioVertex>();
+		if (needsTangentS)
+			dataLength += numVertexes * Unsafe.SizeOf<Vector4>();
+
+		// allocate this much
+		return dataLength;
+	}
+
+	public static int Studio_LoadVertexes(VertexFileHeader tempVvdHdr, VertexFileHeader newVvdHdr, int rootLOD, bool needsTangentS) {
+		int i;
+		int target;
+		int numVertexes;
+		Span<VertexFileFixup> fixupTable;
+
+		numVertexes = tempVvdHdr.NumLODVertices[rootLOD];
+
+		newVvdHdr.CopyFrom(tempVvdHdr);
+
+		for (i = 0; i < rootLOD; i++)
+			newVvdHdr.NumLODVertices[i] = newVvdHdr.NumLODVertices[rootLOD];
+
+		// fixup data starts
+		if (needsTangentS)
+			// tangent data follows possibly reduced vertex data
+			newVvdHdr.TangentDataStart = newVvdHdr.VertexDataStart + numVertexes * Unsafe.SizeOf<MStudioVertex>();
+		else
+			// no tangent data will be available, mark for identification
+			newVvdHdr.TangentDataStart = 0;
+
+
+		if (0 == newVvdHdr.NumFixups) {
+			// fixups not required
+			// transfer vertex data
+			memcpy(newVvdHdr.Data.AsSpan()[newVvdHdr.VertexDataStart..], tempVvdHdr.Data.AsSpan()[tempVvdHdr.VertexDataStart..], numVertexes * Unsafe.SizeOf<MStudioVertex>());
+
+			if (needsTangentS)
+				// transfer tangent data to cache memory
+				memcpy(newVvdHdr.Data.AsSpan()[newVvdHdr.TangentDataStart..], tempVvdHdr.Data.AsSpan()[tempVvdHdr.TangentDataStart..], numVertexes * Unsafe.SizeOf<Vector4>());
+
+			return numVertexes;
+		}
+
+		// fixups required
+		// re-establish mesh ordered vertexes into cache memory, according to table
+		target = 0;
+		fixupTable = reinterpret<byte, VertexFileFixup>(tempVvdHdr.Data.AsSpan()[tempVvdHdr.FixupTableStart..]);
+		for (i = 0; i < tempVvdHdr.NumFixups; i++) {
+			if (fixupTable[i].LOD < rootLOD) {
+				// working bottom up, skip over copying higher detail lods
+				continue;
+			}
+
+			// copy vertexes
+			memcpy(
+				newVvdHdr.Data.AsSpan()[newVvdHdr.VertexDataStart..].Cast<byte, MStudioVertex>()[target..],
+				tempVvdHdr.Data.AsSpan()[tempVvdHdr.VertexDataStart..].Cast<byte, MStudioVertex>()[fixupTable[i].SourceVertexID..],
+				fixupTable[i].NumVertices
+			);
+
+			if (needsTangentS)
+				memcpy(
+						newVvdHdr.Data.AsSpan()[newVvdHdr.TangentDataStart..].Cast<byte, Vector4>()[target..],
+						tempVvdHdr.Data.AsSpan()[tempVvdHdr.TangentDataStart..].Cast<byte, Vector4>()[fixupTable[i].SourceVertexID..],
+						fixupTable[i].NumVertices 
+					);
+
+
+			// data is placed consecutively
+			target += fixupTable[i].NumVertices;
+		}
+
+		newVvdHdr.NumFixups = 0;
+
+		return target;
+	}
+
+
 
 	public void UnlockStudioHdr(MDLHandle_t handle) {
 

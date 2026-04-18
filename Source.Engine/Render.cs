@@ -28,7 +28,8 @@ public struct ViewStack
 }
 
 
-public static class RenderAccessors {
+public static class RenderAccessors
+{
 
 	public static ref readonly Vector3 CurrentViewOrigin() => ref R.CurrentViewOrigin;
 	public static ref readonly Vector3 CurrentViewForward() => ref R.CurrentViewForward;
@@ -224,6 +225,13 @@ public partial class Render(
 		DecalInit();
 		LoadSkys();
 		InitStudio();
+
+		// FIXME: Is this the best place to initialize the kd tree when we're client-only?
+		if (!sv.IsActive()){
+			StaticPropMgr().LevelShutdown();
+			SpatialPartition().Init(host_state.WorldModel!.Mins, host_state.WorldModel!.Maxs);
+			StaticPropMgr().LevelInit();
+		}
 
 		LoadWorldGeometry();
 
@@ -653,7 +661,7 @@ public partial class Render(
 		}
 
 		double elapsed = (Sys.Time - st) * 1000.0;
-		DevMsg("R_RedownloadAllLightmaps took %.3f msec!\n", elapsed);
+		DevMsg($"R_RedownloadAllLightmaps took {elapsed:F3} msec!\n");
 
 		rebuildLightmaps = false;
 	}
@@ -668,7 +676,7 @@ public partial class Render(
 		if (MaterialSystem.MaterialSortInfoArray != null) {
 			Assert(ModelLoader.MSurf_MaterialSortID(ref surfID) >= 0 && ModelLoader.MSurf_MaterialSortID(ref surfID) < MaterialSystem.WorldStaticMeshes.Count);
 			if ((MaterialSystem.MaterialSortInfoArray[ModelLoader.MSurf_MaterialSortID(ref surfID)].LightmapPageID == StandardLightmap.White) ||
-			   (MaterialSystem.MaterialSortInfoArray[ModelLoader.MSurf_MaterialSortID(ref surfID)].LightmapPageID == StandardLightmap.WhiteBump)) {
+				 (MaterialSystem.MaterialSortInfoArray[ModelLoader.MSurf_MaterialSortID(ref surfID)].LightmapPageID == StandardLightmap.WhiteBump)) {
 				return;
 			}
 		}
@@ -687,7 +695,7 @@ public partial class Render(
 	static readonly ConVar r_avglightmap = new("r_avglightmap", "0", FCvar.Cheat | FCvar.MaterialSystemThread);
 	static readonly ConVar r_maxdlights = new("r_maxdlights", "32", 0);
 
-	void ComputeLightmapFromLightstyle(ref BSPSurfaceLighting lighting, bool computeLightmap, bool computeBumpmap, int lightmapSize, bool hasBumpmapLightmapData) {
+	void ComputeLightmapFromLightstyle(ref BSPMSurfaceLighting lighting, bool computeLightmap, bool computeBumpmap, int lightmapSize, bool hasBumpmapLightmapData) {
 		Span<ColorRGBExp32> pLightmap = lighting.Samples.Span;
 
 		// Compute iteration range
@@ -824,7 +832,7 @@ public partial class Render(
 	public void BuildLightMapGuts(ref BSPMSurface2 surfID, in Matrix3x4 entityToWorld, uint dlightMask, bool needsBumpmap, bool needsLightmap) {
 		Assert(!host_state.WorldBrush!.UnloadedLightmaps);
 		int bumpID;
-		ref BSPSurfaceLighting pLighting = ref ModelLoader.SurfaceLighting(ref surfID, host_state.WorldBrush);
+		ref BSPMSurfaceLighting pLighting = ref ModelLoader.SurfaceLighting(ref surfID, host_state.WorldBrush);
 
 		int size = ComputeLightmapSize(ref surfID);
 		if (size == 0)
@@ -872,7 +880,7 @@ public partial class Render(
 	}
 
 	private void UpdateLightmapTextures(ref BSPMSurface2 surfID, bool needsBumpmap) {
-		if(MaterialSystem.MaterialSortInfoArray != null) {
+		if (MaterialSystem.MaterialSortInfoArray != null) {
 			Span<int> lightmapSize = stackalloc int[2];
 			Span<int> offsetIntoLightmapPage = stackalloc int[2];
 			lightmapSize[0] = (ModelLoader.MSurf_LightmapExtents(ref surfID)[0]) + 1;
@@ -902,7 +910,7 @@ public partial class Render(
 		Span<int> iCounts = stackalloc int[256];
 		Span<int> iOffsetTable = stackalloc int[256];
 
-		fixed(int* fpToSort = toSort) {
+		fixed (int* fpToSort = toSort) {
 			int* pToSort = fpToSort;
 			for (int radix = 0; radix < 4; ++radix) {
 				{

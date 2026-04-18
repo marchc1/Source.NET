@@ -729,7 +729,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 			else if (!IsInSelectionMode())
 				OpenSelection();
 
-			// player.EmitSound("Player.WeaponSelectionMoveSlot");
+			player.EmitSound("Player.WeaponSelectionMoveSlot");
 		}
 	}
 
@@ -765,7 +765,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 			else if (!IsInSelectionMode())
 				OpenSelection();
 
-			// player.EmitSound("Player.WeaponSelectionMoveSlot");
+			player.EmitSound("Player.WeaponSelectionMoveSlot");
 		}
 	}
 
@@ -824,7 +824,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		if (nextWeapon != null && nextWeapon != activeWeapon && nextWeapon.GetSlot() == weaponSlot)
 			input.MakeWeaponSelection(nextWeapon);
 		else if (nextWeapon != activeWeapon) {
-			// player.EmitSound("Player.DenyWeaponSelection");
+			player.EmitSound("Player.DenyWeaponSelection");
 		}
 
 		if (HUDTYPE_CAROUSEL == hud_fastswitch.GetInt())
@@ -865,7 +865,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 				SelectedSlot = newSlot;
 			}
 			else {
-				// player.EmitSound("Player.DenyWeaponSelection");
+				player.EmitSound("Player.DenyWeaponSelection");
 				return;
 			}
 		}
@@ -934,6 +934,6 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 				break;
 		}
 
-		// player.EmitSound("Player.WeaponSelectionMoveSlot");
+		player.EmitSound("Player.WeaponSelectionMoveSlot");
 	}
 }

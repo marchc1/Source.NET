@@ -43,10 +43,12 @@ public interface IGameEventManager2
 {
 	int LoadEventsFromFile(ReadOnlySpan<char> filename);
 	void Reset();
+	bool AddListener(object listener, GameEventDescriptor descriptor, GameEventListenerType listenerType);
 	bool AddListener(IGameEventListener2 listener, ReadOnlySpan<char> name, bool serverSide);
 	bool FindListener(IGameEventListener2 listener, ReadOnlySpan<char> name);
 	void RemoveListener(IGameEventListener2 listener);
 	IGameEvent? CreateEvent(ReadOnlySpan<char> name, bool force = false);
+	GameEventDescriptor? GetEventDescriptor(int eventid);
 	bool FireEvent(IGameEvent ev, bool dontBroadcast = false);
 	bool FireEventClientSide(IGameEvent ev);
 	IGameEvent DuplicateEvent(IGameEvent ev);
@@ -114,7 +116,8 @@ public class GameEvent : IGameEvent
 	public KeyValues? DataKeys;
 }
 
-public enum GameEventListenerType {
+public enum GameEventListenerType
+{
 	Serverside,
 	Clientside,
 	Clientstub,
@@ -122,7 +125,8 @@ public enum GameEventListenerType {
 	ClientsideOld
 }
 
-public enum GameEventType {
+public enum GameEventType
+{
 	Local,
 	String,
 	Float,

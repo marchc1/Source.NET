@@ -2,6 +2,7 @@
 
 using Source.Common;
 using Source.Common.Bitbuffers;
+using Source.Common.Engine;
 
 using System.Collections;
 using System.Diagnostics;
@@ -57,7 +58,7 @@ public struct DeltaBitsReader : IDisposable
 		Buffer!.Seek(start);
 		outWrite.WriteBitsFromBuffer(Buffer!, len);
 	}
-	public void ComparePropData(ref DeltaBitsReader inReader, SendProp prop) => PropTypeFns.Get(prop.Type).CompareDeltas(prop, Buffer!, inReader.Buffer!);
+	public int ComparePropData(ref DeltaBitsReader inReader, SendProp prop) => PropTypeFns.Get(prop.Type).CompareDeltas(prop, Buffer!, inReader.Buffer!);
 
 	public void Dispose() {
 		Assert(Buffer == null);
@@ -119,6 +120,7 @@ public class PropVisitor<TableType, PropType>(TableType table) : IEnumerable<Key
 public abstract class DatatableStack
 {
 	public SendTablePrecalc Precalc;
+	public SendProxyRecipients[]? Recipients;
 	public InlineArray256<object?> Proxies;
 	public object Instance;
 	protected int CurPropIndex;
@@ -141,8 +143,39 @@ public abstract class DatatableStack
 		Initted = true;
 	}
 
-	public abstract void RecurseAndCallProxies(SendNode node, object instance);
+	public virtual void RecurseAndCallProxies(SendNode node, object? instance) {
+		Proxies[node.GetRecursiveProxyIndex()] = instance;
 
+		for (int iChild = 0; iChild < node.GetNumChildren(); iChild++) {
+			SendNode? curChild = node.GetChild(iChild);
+
+			object? newStructBase = null;
+			if (instance != null)
+				newStructBase = CallPropProxy(curChild, curChild.DataTableProp, instance);
+
+			RecurseAndCallProxies(curChild, newStructBase);
+		}
+	}
+
+	static SendProxyRecipients s_Recipients = new();
+	public virtual object? CallPropProxy(SendNode curChild, int prop, object instance) {
+		SendProp sendprop = Precalc.GetDatatableProp(prop)!;
+
+		SendProxyRecipients? recipients = default;
+		if (Recipients != null && curChild.GetRecursiveProxyIndex() != Constants.DATATABLE_PROXY_INDEX_NOPROXY)
+			recipients = Recipients[curChild.GetRecursiveProxyIndex()];
+
+		return sendprop.GetDataTableProxyFn()(
+			sendprop,
+			instance,
+			sendprop.FieldInfo,
+			recipients ?? s_Recipients,
+			GetObjectID()
+		);
+	}
+
+	public SendProp? GetCurProp() => CurProp;
+	public bool IsPropProxyValid(int iProp) => Proxies[Precalc.PropProxyIndices[iProp]] != null;
 	public bool IsCurProxyValid() => Proxies[Precalc.PropProxyIndices[CurPropIndex]] != null;
 	public object? GetCurStructBase() => Proxies[Precalc.PropProxyIndices[CurPropIndex]];
 	public void SeekToProp(uint iProp) {

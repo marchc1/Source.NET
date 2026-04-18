@@ -5,18 +5,18 @@ Client
 #else
 Server
 #endif
-	.SharedBaseEntityConstants;
+	.BaseEntityConstants;
 
 
 
 #if CLIENT_DLL
-global using SharedBaseEntity = Game.Client.C_BaseEntity;
+global using BaseEntity = Game.Client.C_BaseEntity;
 
 using Source.Common;
 
 namespace Game.Client;
 #else
-global using SharedBaseEntity = Game.Server.BaseEntity;
+global using BaseEntity = Game.Server.BaseEntity;
 
 using Source.Common;
 
@@ -44,11 +44,12 @@ using Class =
 	ServerClass;
 #endif
 
-using FIELD = Source.FIELD<SharedBaseEntity>;
+using FIELD = Source.FIELD<BaseEntity>;
 using System.Runtime.CompilerServices;
 using Source.Common.Formats.BSP;
+using Source.Common.Physics;
 
-public static class SharedBaseEntityConstants
+public static class BaseEntityConstants
 {
 	public const int NUM_PARENTATTACHMENT_BITS = 8; // < gmod increased 6 -> 8
 }
@@ -104,7 +105,7 @@ public partial class
 	public bool IsSimulatedEveryTick() => SimulatedEveryTick;
 
 	static int FireBullets__tracerCount;
-	public virtual void FireBullets(in FireBulletsInfo info){
+	public virtual void FireBullets(in FireBulletsInfo info) {
 		// todo
 	}
 	public virtual Vector3 EyePosition() => GetAbsOrigin() + GetViewOffset();
@@ -142,6 +143,23 @@ public partial class
 	public void ClearFlags() => flags = 0;
 	public void ToggleFlag(EntityFlags flag) => flags ^= (int)flag;
 
+	public int GetFirstThinkTick() {
+		int minTick = TICK_NEVER_THINK;
+
+		if (NextThinkTick > 0)
+			minTick = NextThinkTick;
+
+		for (int i = 0; i < ThinkFunctions.Count; i++) {
+			int next = (int)ThinkFunctions[i].NextThinkTick;
+			if (next > 0) {
+				if (next < minTick || minTick == TICK_NEVER_THINK)
+					minTick = next;
+			}
+		}
+
+		return minTick;
+	}
+
 	public long GetNextThinkTick(ReadOnlySpan<char> context = default) {
 		// todo
 		return (long)TICK_NEVER_THINK;
@@ -165,6 +183,41 @@ public partial class
 		else if (!isThinking && !IsEFlagSet(EFL.NoThinkFunction) && !WillThink()) {
 			AddEFlags(EFL.NoThinkFunction);
 		}
+
+#if !CLIENT_DLL
+		SimThinkManager.g_SimThinkManager.EntityChanged(this);
+#endif
+	}
+
+	public void CheckHasGamePhysicsSimulation() {
+		bool isSimulating = WillSimulateGamePhysics();
+		if (isSimulating != IsEFlagSet(EFL.NoGamePhysicsSimulation))
+			return;
+
+		if (isSimulating)
+			RemoveEFlags(EFL.NoGamePhysicsSimulation);
+		else
+			AddEFlags(EFL.NoGamePhysicsSimulation);
+
+#if !CLIENT_DLL
+		SimThinkManager.g_SimThinkManager.EntityChanged(this);
+#endif
+	}
+
+	private bool WillSimulateGamePhysics() {
+		if (!IsPlayer()) {
+			MoveType movetype = GetMoveType();
+
+			if (movetype == Source.MoveType.None || movetype == Source.MoveType.VPhysics)
+				return false;
+
+#if !CLIENT_DLL
+			if (movetype == Source.MoveType.Push /* && GetMoveDoneTime() <= 0 */)
+				return false;
+#endif
+		}
+
+		return true;
 	}
 
 	public void SetViewOffset(in Vector3 v) => ViewOffset = v;
@@ -195,6 +248,8 @@ public partial class
 		ThinkFunctions.AsSpan()[iIndex].NextThinkTick = thinkTick;
 		CheckHasThinkFunction(thinkTick == TICK_NEVER_THINK ? false : true);
 	}
+
+	public virtual Vector3 EarPosition() => EyePosition();
 
 	public int RegisterThinkContext(ReadOnlySpan<char> context) {
 		int iIndex = GetIndexForThinkContext(context);
@@ -256,7 +311,7 @@ public partial class
 		return ref GetAbsOrigin(); // todo
 	}
 
-	public void SetPlayerSimulated(BasePlayer owner){
+	public void SetPlayerSimulated(BasePlayer owner) {
 		b_IsPlayerSimulated = true;
 		owner.AddToPlayerSimulationList(owner);
 		PlayerSimulationOwner.Set(owner);
@@ -268,7 +323,7 @@ public partial class
 		b_IsPlayerSimulated = false;
 	}
 
-	
+
 
 	public virtual void SetEffects(EntityEffects effects) {
 		if (Effects != (int)effects) {
@@ -314,8 +369,30 @@ public partial class
 		return ((EntityEffects)Effects & fx) != 0;
 	}
 
+	public void FollowEntity(BaseEntity? baseEntity, bool boneMerge = true) {
+		if (baseEntity != null) {
+			SetParent(baseEntity);
+			SetMoveType(Source.MoveType.None);
+
+			if (boneMerge)
+				AddEffects(EntityEffects.BoneMerge);
+
+			AddSolidFlags(SolidFlags.NotSolid);
+			SetLocalOrigin(vec3_origin);
+			SetLocalAngles(vec3_angle);
+		}
+		else
+			StopFollowingEntity();
+	}
+
+	public void StopFollowingEntity() {
+
+	}
+
 	public EntityFlags GetFlags() => (EntityFlags)flags;
 	public MoveType GetMoveType() => (MoveType)MoveType;
+	public MoveCollide GetMoveCollide() => (MoveCollide)MoveCollide;
+	public CollisionGroup GetCollisionGroup() => (CollisionGroup)CollisionGroup;
 
 	public void CollisionRulesChanged() { } // TODO
 
@@ -343,8 +420,14 @@ public partial class
 	public void SetAnimTime(TimeUnit_t time) => AnimTime = time;
 	public void SetSimulationTime(TimeUnit_t time) => SimulationTime = time;
 
-	public void CheckHasGamePhysicsSimulation() {
-		// todo
+	public virtual void PhysicsUpdate(IPhysicsObject? physicsObject) {
+
+	}
+
+	const double MaxEntityEulerAngle = 360.0 * 1000.0f;
+	internal static bool IsEntityQAngleReasonable(QAngle q) {
+		float r = (float)MaxEntityEulerAngle;
+		return q.X >= -r && q.X <= r && q.Y >= -r && q.Y <= r && q.Z >= -r && q.Z <= r;
 	}
 }
 

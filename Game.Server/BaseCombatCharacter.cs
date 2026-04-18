@@ -28,14 +28,30 @@ public partial class BaseCombatCharacter : BaseFlex
 	public void SetNextAttack(TimeUnit_t wait) => NextAttack = wait;
 
 	public TimeUnit_t NextAttack;
-	public readonly Handle<BaseCombatWeapon> LastWeapon = new();
-	public readonly Handle<BaseCombatWeapon> ActiveWeapon = new();
+	public Handle<BaseCombatWeapon> LastWeapon = new();
+	public Handle<BaseCombatWeapon> ActiveWeapon = new();
 	public InlineArrayNewMaxWeapons<Handle<BaseCombatWeapon>> MyWeapons = new();
 	[NetworkArraySize(MAX_AMMO_TYPES)] public readonly NetworkArray<int> Ammo = new(MAX_AMMO_TYPES);
 	public Color BloodColor;
 
 	private static object? SendProxy_SendBaseCombatCharacterLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID) {
-		throw new NotImplementedException();
+		recipients.ClearAllRecipients();
+
+		BaseCombatCharacter character = (BaseCombatCharacter)instance;
+		if (character != null) {
+			if (character.IsPlayer())
+				recipients.SetOnly(character.EntIndex() - 1);
+			else {
+				IServerVehicle vehicle = character.GetServerVehicle();
+				if (vehicle != null) {
+					BaseCombatCharacter driver = vehicle.GetPassenger();
+					if (driver != null)
+						recipients.SetOnly(driver.EntIndex() - 1);
+				}
+			}
+		}
+
+		return data;
 	}
 
 	public static readonly new ServerClass ServerClass = new ServerClass("BaseCombatCharacter", DT_BaseCombatCharacter).WithManualClassID(StaticClassIndices.CBaseCombatCharacter);

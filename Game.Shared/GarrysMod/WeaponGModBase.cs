@@ -1,6 +1,7 @@
 ﻿#if (CLIENT_DLL || GAME_DLL) && GMOD_DLL
 using Game.Shared;
 
+using Source;
 using Source.Common;
 
 #if CLIENT_DLL
@@ -66,7 +67,9 @@ C_WeaponHL2MPBase
 
 	public new void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
 #if CLIENT_DLL
-
+		ReadOnlySpan<char> shootsound = GetWpnData().ShootSounds[(int)soundType].AsSpan().SliceNullTerminatedString();
+		if (shootsound.IsEmpty || shootsound[0] == '\0')
+			return;
 #else
 	base.WeaponSound(soundType, soundTime);
 #endif

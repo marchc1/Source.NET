@@ -1,5 +1,6 @@
 using Game.Client.HL2;
 using Game.Shared;
+using Game.Shared.GarrysMod;
 
 using Source;
 using Source.Common;
@@ -46,6 +47,7 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	public static readonly new ClientClass ClientClass = new ClientClass("HL2MP_Player", null, null, DT_HL2MP_Player)
 															.WithManualClassID(StaticClassIndices.CHL2MP_Player);
 
+	public readonly PlayerAnimState PlayerAnimState;
 	public QAngle AngEyeAngles;
 	readonly InterpolatedVar<QAngle> IV_AngEyeAngles = new(nameof(AngEyeAngles));
 	public EHANDLE Ragdoll = new();
@@ -55,7 +57,8 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	public bool IsWalking;
 
 	public C_HL2MP_Player() : base() {
-		AddVar(FIELD.OF(nameof(AngEyeAngles)), IV_AngEyeAngles, LatchFlags.LatchSimulationVar);
+		PlayerAnimState = new(this);
+		AddVar(this, FIELD.OF(nameof(AngEyeAngles)), IV_AngEyeAngles, LatchFlags.LatchSimulationVar);
 	}
 
 	public override void PostDataUpdate(DataUpdateType updateType) {
@@ -86,6 +89,11 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 		}
 		base.CalcView(ref eyeOrigin, ref eyeAngles, ref zNear, ref zFar, ref fov);
 	}
+
+	public override void PostThink() {
+		base.PostThink();
+		AngEyeAngles = EyeAngles();
+	}
 }
 
 public class C_HL2MPRagdoll : C_BaseAnimatingOverlay
@@ -101,6 +109,6 @@ public class C_HL2MPRagdoll : C_BaseAnimatingOverlay
 	public static readonly new ClientClass ClientClass = new ClientClass("HL2MPRagdoll", null, null, DT_HL2MPRagdoll).WithManualClassID(StaticClassIndices.CHL2MPRagdoll);
 
 	public Vector3 RagdollOrigin;
-	public readonly EHANDLE Player = new();
+	public EHANDLE Player = new();
 	public Vector3 RagdollVelocity;
 }

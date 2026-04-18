@@ -12,4 +12,6 @@ public struct MD5Value
 	public MD5Value() {
 		Bits = new byte[DIGEST_LENGTH];
 	}
+
+	public readonly override string ToString() => Convert.ToHexString(Bits);
 }

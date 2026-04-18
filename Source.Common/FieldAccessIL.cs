@@ -43,6 +43,9 @@ namespace Source.Common
 
 
 		static ILCast() {
+			if (typeof(From) == typeof(To))
+				AssertMsg(false, "Tried to ILCast<From, To> where From == To. Re-evaluate.");
+
 			DynamicMethod method = new DynamicMethod($"ILCast<{typeof(From)}, {typeof(To)}", typeof(void), [typeof(From).MakeByRefType(), typeof(To).MakeByRefType()]);
 			ILGenerator generator = method.GetILGenerator();
 
@@ -54,7 +57,7 @@ namespace Source.Common
 			if (implicitCheck != null) {
 				generator.Emit(OpCodes.Ldobj, typeof(From));
 				generator.Emit(OpCodes.Call, implicitCheck);
-				generator.Emit(OpCodes.Stobj);
+				generator.Emit(OpCodes.Stobj, typeof(To));
 				goto compile;
 			}
 
@@ -68,8 +71,9 @@ namespace Source.Common
 					generator.Emit(OpCodes.Stobj, to);
 					goto compile;
 				}
-				else
-					throw new Exception();
+				else {
+					throw new NotImplementedException("Could not find a way to cast these two types.");
+				}
 			}
 
 
@@ -146,6 +150,7 @@ namespace Source.Common
 									else if (index.ElementType == typeof(byte)) il.LoggedEmit(OpCodes.Ldelem_I1);
 									else if (index.ElementType == typeof(short)) il.LoggedEmit(OpCodes.Ldelem_I2);
 									else if (index.ElementType == typeof(ushort)) il.LoggedEmit(OpCodes.Ldelem_I2);
+									else if (index.ElementType == typeof(char)) il.LoggedEmit(OpCodes.Ldelem_I2);
 									else if (index.ElementType == typeof(int)) il.LoggedEmit(OpCodes.Ldelem_I4);
 									else if (index.ElementType == typeof(uint)) il.LoggedEmit(OpCodes.Ldelem_I4);
 									else if (index.ElementType == typeof(ulong)) il.LoggedEmit(OpCodes.Ldelem_I8);
@@ -175,6 +180,7 @@ namespace Source.Common
 									else if (index.ElementType == typeof(byte)) il.LoggedEmit(OpCodes.Ldind_U1);
 									else if (index.ElementType == typeof(short)) il.LoggedEmit(OpCodes.Ldind_I2);
 									else if (index.ElementType == typeof(ushort)) il.LoggedEmit(OpCodes.Ldind_U2);
+									else if (index.ElementType == typeof(char)) il.LoggedEmit(OpCodes.Ldind_U2);
 									else if (index.ElementType == typeof(int)) il.LoggedEmit(OpCodes.Ldind_I4);
 									else if (index.ElementType == typeof(uint)) il.LoggedEmit(OpCodes.Ldind_U4);
 									else if (index.ElementType == typeof(ulong)) il.LoggedEmit(OpCodes.Ldind_I8);
@@ -211,16 +217,23 @@ namespace Source.Common
 					else if (typeof(T) == typeof(byte)) il.LoggedEmit(OpCodes.Conv_U1);
 					else if (typeof(T) == typeof(short)) il.LoggedEmit(OpCodes.Conv_I2);
 					else if (typeof(T) == typeof(ushort)) il.LoggedEmit(OpCodes.Conv_U2);
+					else if (typeof(T) == typeof(char)) il.LoggedEmit(OpCodes.Conv_U2);
 					else if (typeof(T) == typeof(int)) il.LoggedEmit(OpCodes.Conv_I4);
 					else if (typeof(T) == typeof(uint)) il.LoggedEmit(OpCodes.Conv_U4);
 					else if (typeof(T) == typeof(ulong)) il.LoggedEmit(OpCodes.Conv_I8);
 					else if (typeof(T) == typeof(long)) il.LoggedEmit(OpCodes.Conv_I8);
 					else if (typeof(T) == typeof(float)) il.LoggedEmit(OpCodes.Conv_R4);
 					else if (typeof(T) == typeof(double)) il.LoggedEmit(OpCodes.Conv_R8);
+					else if (!typeof(T).IsValueType && accessor.StoringType.IsValueType) 
+						throw new NotImplementedException("Value type cannot be boxed here, please refactor.");
 					else il.LoggedEmit(OpCodes.Castclass, enumTypeUnderflying);
 				}
-				else
+				else {
+					if (!typeof(T).IsValueType && accessor.StoringType.IsValueType) 
+						throw new NotImplementedException("Value type cannot be boxed here, please refactor.");
+					
 					il.LoggedEmit(OpCodes.Castclass, typeof(T));
+				}
 			}
 
 			il.LoggedEmit(OpCodes.Ret);
@@ -285,6 +298,7 @@ namespace Source.Common
 								else if (index.ElementType == typeof(byte)) il.LoggedEmit(OpCodes.Stelem_I1);
 								else if (index.ElementType == typeof(short)) il.LoggedEmit(OpCodes.Stelem_I2);
 								else if (index.ElementType == typeof(ushort)) il.LoggedEmit(OpCodes.Stelem_I2);
+								else if (index.ElementType == typeof(char)) il.LoggedEmit(OpCodes.Stelem_I2);
 								else if (index.ElementType == typeof(int)) il.LoggedEmit(OpCodes.Stelem_I4);
 								else if (index.ElementType == typeof(uint)) il.LoggedEmit(OpCodes.Stelem_I4);
 								else if (index.ElementType == typeof(ulong)) il.LoggedEmit(OpCodes.Stelem_I8);
@@ -317,6 +331,7 @@ namespace Source.Common
 							else if (index.ElementType == typeof(byte)) il.LoggedEmit(OpCodes.Stind_I1);
 							else if (index.ElementType == typeof(short)) il.LoggedEmit(OpCodes.Stind_I2);
 							else if (index.ElementType == typeof(ushort)) il.LoggedEmit(OpCodes.Stind_I2);
+							else if (index.ElementType == typeof(char)) il.LoggedEmit(OpCodes.Stind_I2);
 							else if (index.ElementType == typeof(int)) il.LoggedEmit(OpCodes.Stind_I4);
 							else if (index.ElementType == typeof(uint)) il.LoggedEmit(OpCodes.Stind_I4);
 							else if (index.ElementType == typeof(ulong)) il.LoggedEmit(OpCodes.Stind_I8);
@@ -717,6 +732,11 @@ namespace Source.Common
 				TypeCode.Boolean or TypeCode.Byte or TypeCode.UInt16 or TypeCode.UInt32 or TypeCode.UInt64 => true,
 				_ => false
 			};
+
+			if (from == to)
+				return true;
+
+
 			if (!from.IsPrimitive || !to.IsPrimitive)
 				return false;
 
@@ -729,6 +749,7 @@ namespace Source.Common
 				default:
 					opcode = code switch {
 						TypeCode.SByte => OpCodes.Conv_I1,
+						TypeCode.Boolean => OpCodes.Conv_U1,
 						TypeCode.Byte => OpCodes.Conv_U1,
 						TypeCode.Int16 => OpCodes.Conv_I2,
 						TypeCode.UInt16 => OpCodes.Conv_U2,

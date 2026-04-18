@@ -6,7 +6,7 @@ public static class C2S
 }
 public static class S2C
 {
-	public const uint MagicVersion = 1515145523; 
+	public const uint MagicVersion = 1515145523;
 
 	public const byte Challenge = (byte)'A';
 	public const byte Connection = (byte)'B';

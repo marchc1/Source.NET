@@ -6,6 +6,8 @@ using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.GUI.Controls;
 
+namespace Game.Client;
+
 [DeclareHudElement(Name = "CHudAnimationInfo")]
 class HudAnimationInfo : EditableHudElement, IHudElement
 {
@@ -20,6 +22,7 @@ class HudAnimationInfo : EditableHudElement, IHudElement
 	Panel? Watch;
 
 	public HudAnimationInfo(string panelName) : base(null, "HudAnimationInfo") {
+		ElementName = panelName;
 		ANIM_INFO_WIDTH = 300 * (ScreenWidth() / 640);
 
 		Panel parent = clientMode.GetViewport();
@@ -161,7 +164,7 @@ class HudAnimationInfo : EditableHudElement, IHudElement
 
 	[ConCommand("cl_animationinfo", "Hud element to examine.", FCvar.None)]
 	static void func(in TokenizedCommand args) {
-		if (gHUD.FindElement("HudAnimationInfo") is not HudAnimationInfo info)
+		if (gHUD.FindElement("CHudAnimationInfo") is not HudAnimationInfo info)
 			return;
 
 		if (args.ArgC() != 2) {

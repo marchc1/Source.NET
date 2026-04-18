@@ -2,8 +2,10 @@
 using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
+using Source.Common.Bitbuffers;
 using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.Networking;
 using Source.Common.Server;
 using Source.Engine.Server;
 
@@ -15,17 +17,17 @@ namespace Source.Engine;
 /// Various serverside methods. In Source, these would mostly be represented by
 /// SV_MethodName's in the static global namespace
 /// </summary>
-public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHostState host_state, IEngineVGuiInternal EngineVGui, ICvar cvar, IModelLoader modelloader, ServerGlobalVariables serverGlobalVariables, Con Con, [FromKeyedServices(Realm.Server)] NetworkStringTableContainer networkStringTableContainerServer, IHostState HostState, ServerPlugin serverPluginHandler)
+public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHostState host_state, IEngineVGuiInternal EngineVGui, ICvar cvar, IModelLoader modelloader, ServerGlobalVariables serverGlobalVariables, Con Con, [FromKeyedServices(Realm.Server)] NetworkStringTableContainer networkStringTableContainerServer, IHostState HostState, ServerPlugin serverPluginHandler)
 {
-	public IServerGameDLL? ServerGameDLL;
-	public IServerGameEnts? ServerGameEnts;
-	public IServerGameClients? ServerGameClients;
+	public static IServerGameDLL? ServerGameDLL;
+	public static IServerGameEnts? ServerGameEnts;
+	public static IServerGameClients? ServerGameClients;
 
-	public static readonly ConVar sv_pure_kick_clients = new( "sv_pure_kick_clients", "1", 0, "If set to 1, the server will kick clients with mismatching files. Otherwise, it will issue a warning to the client." );
-	public static readonly ConVar sv_pure_trace = new( "sv_pure_trace", "0", 0, "If set to 1, the server will print a message whenever a client is verifying a CRC for a file." );
-	public static readonly ConVar sv_pure_consensus = new( "sv_pure_consensus", "5", 0, "Minimum number of file hashes to agree to form a consensus." );
-	public static readonly ConVar sv_pure_retiretime = new( "sv_pure_retiretime", "900", 0, "Seconds of server idle time to flush the sv_pure file hash cache." );
-	public static readonly ConVar sv_lan = new( "sv_lan", "0", 0, "Server is a lan server ( no heartbeat, no authentication, no non-class C addresses )" );
+	public static readonly ConVar sv_pure_kick_clients = new("sv_pure_kick_clients", "1", 0, "If set to 1, the server will kick clients with mismatching files. Otherwise, it will issue a warning to the client.");
+	public static readonly ConVar sv_pure_trace = new("sv_pure_trace", "0", 0, "If set to 1, the server will print a message whenever a client is verifying a CRC for a file.");
+	public static readonly ConVar sv_pure_consensus = new("sv_pure_consensus", "5", 0, "Minimum number of file hashes to agree to form a consensus.");
+	public static readonly ConVar sv_pure_retiretime = new("sv_pure_retiretime", "900", 0, "Seconds of server idle time to flush the sv_pure file hash cache.");
+	public static readonly ConVar sv_lan = new("sv_lan", "0", 0, "Server is a lan server ( no heartbeat, no authentication, no non-class C addresses )");
 
 	public static ConVar sv_cheats = new(nameof(sv_cheats), "0", FCvar.Notify | FCvar.Replicated, "Allow cheats on server", callback: SV_CheatsChanged);
 
@@ -83,14 +85,14 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 	private void InitSendTables(ServerClass? classes) {
 		SendTable[] tables = new SendTable[Constants.MAX_DATATABLES];
 		int numTables = BuildSendTablesArray(classes, tables);
-		services.GetRequiredService<EngineSendTable>().Init(tables.AsSpan()[..numTables]);
+		EngineSendTable.Init(tables.AsSpan()[..numTables]);
 	}
 
-	readonly ConVar tv_enable = new( "tv_enable", "0", FCvar.Notify, "Activates SourceTV on server." );
+	readonly ConVar tv_enable = new("tv_enable", "0", FCvar.Notify, "Activates SourceTV on server.");
 
 
 	[ConCommand(helpText: "Change the maximum number of players allowed on this server.")]
-	void maxplayers(in TokenizedCommand args){
+	void maxplayers(in TokenizedCommand args) {
 		if (args.ArgC() != 2) {
 			ConMsg($"\"maxplayers\" is \"{sv.GetMaxClients()}\"\n");
 			return;
@@ -104,7 +106,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		SetupMaxPlayers(int.TryParse(args[1], out int i) ? i : 0);
 	}
 
-	public void SetupMaxPlayers(int desiredMaxPlayers){
+	public void SetupMaxPlayers(int desiredMaxPlayers) {
 		int minmaxplayers = 1;
 		int maxmaxplayers = Constants.ABSOLUTE_PLAYER_LIMIT;
 		int defaultmaxplayers = 1;
@@ -112,14 +114,14 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		if (ServerGameClients != null) {
 			ServerGameClients.GetPlayerLimits(out minmaxplayers, out maxmaxplayers, out defaultmaxplayers);
 
-			if (minmaxplayers < 1) 
+			if (minmaxplayers < 1)
 				Sys.Error($"GetPlayerLimits:  min maxplayers must be >= 1 ({minmaxplayers})");
-			else if (defaultmaxplayers < 1) 
+			else if (defaultmaxplayers < 1)
 				Sys.Error($"GetPlayerLimits:  default maxplayers must be >= 1 ({minmaxplayers})");
 
-			if (minmaxplayers > maxmaxplayers || defaultmaxplayers > maxmaxplayers) 
+			if (minmaxplayers > maxmaxplayers || defaultmaxplayers > maxmaxplayers)
 				Sys.Error($"GetPlayerLimits:  min maxplayers {minmaxplayers} > max {maxmaxplayers}");
-			if (maxmaxplayers > Constants.ABSOLUTE_PLAYER_LIMIT) 
+			if (maxmaxplayers > Constants.ABSOLUTE_PLAYER_LIMIT)
 				Sys.Error($"GetPlayerLimits:  max players limited to {Constants.ABSOLUTE_PLAYER_LIMIT}");
 		}
 
@@ -189,6 +191,8 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 
 		Common.TimestampedLog("serverGameDLL.ServerActivate");
 
+		serverPluginHandler.ServerActivate(sv.Edicts!, sv.NumEdicts, sv.GetMaxClients());
+
 		host_state.IntervalPerTick = ServerGameDLL!.GetTickInterval();
 		if (host_state.IntervalPerTick < Constants.MINIMUM_TICK_INTERVAL || host_state.IntervalPerTick > Constants.MAXIMUM_TICK_INTERVAL) {
 			Sys.Error($"GetTickInterval returned bogus tick interval ({host_state.IntervalPerTick})[{Constants.MINIMUM_TICK_INTERVAL} to {Constants.MAXIMUM_TICK_INTERVAL} is valid range]");
@@ -238,7 +242,73 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 	}
 
 	private void CreateBaseline() {
+		// WriteVoiceCodec(sv.Signon);
 
+		ServerClass? pClasses = serverGameDLL.GetAllServerClasses();
+
+		if (sv_sendtables.GetBool()) {
+			sv.FullSendTablesBuffer.EnsureCapacity(288000 /*NET_MAX_PAYLOAD*/);
+			sv.FullSendTables.StartWriting(sv.FullSendTablesBuffer.Base(), sv.FullSendTablesBuffer.Count());
+
+			// WriteSendTables(pClasses, sv.FullSendTables);
+
+			if (sv.FullSendTables.Overflowed) {
+				Host.Error("SV_CreateBaseline: WriteSendTables overflow.\n");
+				return;
+			}
+
+			PackedEntities.WriteClassInfos(pClasses!, sv.FullSendTables);
+
+			if (sv.FullSendTables.Overflowed) {
+				Host.Error("SV_CreateBaseline: WriteClassInfos overflow.\n");
+				return;
+			}
+		}
+
+		if (CL.LocalNetworkBackdoor == null) {
+			int count = 0;
+			int bytes = 0;
+
+			for (int entnum = 0; entnum < sv.NumEdicts; entnum++) {
+				Edict edict = sv.Edicts![entnum];
+
+				if (edict.IsFree() || edict.GetUnknown() == null)
+					continue;
+
+				ServerClass? pClass = edict.GetNetworkable()?.GetServerClass();
+
+				if (pClass == null) {
+					Assert(pClass);
+					continue;
+				}
+
+				if (pClass.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX)
+					continue;
+
+				SendTable pSendTable = pClass.Table;
+
+				byte[] packedData = new byte[Constants.MAX_PACKEDENTITY_DATA];
+				bf_write writeBuf = new(packedData, Constants.MAX_PACKEDENTITY_DATA);
+
+				if (!EngineSendTable.Encode(pSendTable, edict.GetUnknown(), writeBuf, entnum, null, false))
+					Host.Error($"SV_CreateBaseline: SendTable_Encode returned false (ent {entnum}).\n");
+
+				PackedEntities.EnsureInstanceBaseline(pClass, entnum, packedData, writeBuf.BytesWritten);
+
+				bytes += writeBuf.BytesWritten;
+				count++;
+			}
+			DevMsg($"Created class baseline: {count} classes, {bytes} bytes.\n");
+		}
+
+		g_GameEventManager.ReloadEventDefinitions();
+
+		SVC_GameEventList gameevents = new();
+		byte[] data = new byte[288000 /*NET_MAX_PAYLOAD*/];
+		gameevents.DataOut.StartWriting(data, 288000);
+
+		// gameEventManager.WriteEventList(&gameevents);
+		gameevents.WriteToBuffer(sv.Signon);
 	}
 	public bool HasPlayers() => sv.GetClientCount() > 0;
 
@@ -246,17 +316,17 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		if (sv.IsPaused())
 			return false;
 
-# if !SWDS
+#if !SWDS
 		if (!sv.IsMultiplayer()) {
 			if (cl.IsActive() && (Con.IsVisible() || EngineVGui.ShouldPause()))
 				return false;
 		}
-#endif 
+#endif
 		return true;
 	}
 	ConVar? sv_noclipduringpause;
 	internal void Frame(bool finalTick) {
-		if (ServerGameDLL!= null && finalTick) 
+		if (ServerGameDLL != null && finalTick)
 			ServerGameDLL.Think(finalTick);
 
 		if (!sv.IsActive() || !Host.ShouldRun()) {
@@ -266,7 +336,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		serverGlobalVariables.FrameTime = host_state.IntervalPerTick;
 
 		bool isSimulating = IsSimulating();
-		bool sendDuringPause = sv_noclipduringpause != null? sv_noclipduringpause.GetBool() : false;
+		bool sendDuringPause = sv_noclipduringpause != null ? sv_noclipduringpause.GetBool() : false;
 
 		sv.RunFrame();
 
@@ -283,7 +353,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 			Think(isSimulating);
 		}
 		else if (sv.IsMultiplayer()) {
-			Think(false);  
+			Think(false);
 		}
 
 		sv.SimulatingTicks = simulated;
@@ -292,11 +362,11 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 			if (!EngineThreads.IsEngineThreaded() || sv.IsMultiplayer())
 				SendClientUpdates(isSimulating, sendDuringPause);
 			// else
-				// DeferredServerWork = CreateFunctor(SendClientUpdates, isSimulating, sendDuringPause);
+			// DeferredServerWork = CreateFunctor(SendClientUpdates, isSimulating, sendDuringPause);
 
 		}
 
-		if (IsPC() && sv.IsMultiplayer()) 
+		if (IsPC() && sv.IsMultiplayer())
 			Steam3Server().RunFrame();
 	}
 
@@ -336,10 +406,14 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 	}
 
 	internal void CreateNetworkStringTables() {
+		networkStringTableContainerServer.RemoveAllTables();
 
-	}
+		networkStringTableContainerServer.SetAllowCreation(true);
 
-	internal void ClearWorld() {
+		sv.CreateEngineStringTables();
 
+		serverGameDLL.CreateNetworkStringTables();
+
+		networkStringTableContainerServer.SetAllowCreation(false);
 	}
 }

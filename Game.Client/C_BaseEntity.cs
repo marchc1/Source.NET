@@ -22,6 +22,9 @@ using System.Runtime.InteropServices;
 using DEFINE = Source.DEFINE<Game.Client.C_BaseEntity>;
 using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
 
+using AimEntsListHandle_t = int;
+using Source.Common.Physics;
+
 namespace Game.Client;
 
 public static class BaseEntityConsts
@@ -62,7 +65,7 @@ public class PredictionContext : IPoolableObject
 	public int CreationCommandNumber;
 	public string? CreationModule;
 	public int CreationLineNumber;
-	public readonly Handle<C_BaseEntity> ServerEntity = new();
+	public Handle<C_BaseEntity> ServerEntity = new();
 }
 
 
@@ -85,8 +88,8 @@ public class PredictableList : IPredictableList
 		return Predictables.Count;
 	}
 
-	public void AddToPredictableList(ClientEntityHandle? add) {
-		Assert(add != null);
+	public void AddToPredictableList(in ClientEntityHandle add) {
+		Assert(!Unsafe.IsNullRef(in add));
 
 		if (Predictables.Contains(add))
 			return;
@@ -124,8 +127,8 @@ public class PredictableList : IPredictableList
 		}
 	}
 
-	internal void RemoveFromPredictablesList(ClientEntityHandle remove) {
-		Assert(remove != null);
+	internal void RemoveFromPredictablesList(in ClientEntityHandle remove) {
+		Assert(!Unsafe.IsNullRef(in remove));
 
 		Predictables.Remove(remove);
 	}
@@ -300,7 +303,22 @@ public partial class C_BaseEntity : IClientEntity
 	public WaterLevel GetWaterLevel() => (WaterLevel)WaterLevel;
 	public void SetWaterLevel(WaterLevel level) => WaterLevel = (byte)level;
 
-	public void ResetLatched() {
+	public virtual void CreateLightEffects() {
+
+	}
+
+	public virtual void AddEntity() {
+		if (Index == 0)
+			return;
+
+		CreateLightEffects();
+	}
+
+	public virtual void Simulate(){
+		AddEntity();
+	}
+
+	public virtual void ResetLatched() {
 		if (IsClientCreated())
 			return;
 
@@ -312,7 +330,7 @@ public partial class C_BaseEntity : IClientEntity
 		if (!ThreadInMainThread())
 			return;
 
-		s_bAbsQueriesValid = !valid;
+		s_bAbsQueriesValid = valid;
 	}
 
 	public static bool IsAbsRecomputationsEnabled() => !ThreadInMainThread() || s_bAbsRecomputationEnabled;
@@ -329,6 +347,7 @@ public partial class C_BaseEntity : IClientEntity
 		ModelInstance = MODEL_INSTANCE_INVALID;
 		renderHandle = INVALID_CLIENT_RENDER_HANDLE;
 		thinkHandle = INVALID_THINK_HANDLE;
+		AimEntsListHandle = INVALID_AIMENTS_LIST_HANDLE;
 		Index = -1;
 		SetLocalOrigin(vec3_origin);
 		SetLocalAngles(vec3_angle);
@@ -544,13 +563,13 @@ public partial class C_BaseEntity : IClientEntity
 
 	public static readonly ClientClass ClientClass = new ClientClass("BaseEntity", null, null, DT_BaseEntity)
 																		.WithManualClassID(StaticClassIndices.CBaseEntity);
-	const float coordTolerance = 2.0f / (float)(1 << (int)BitBuffer.COORD_FRACTIONAL_BITS);
+	const float coordTolerance = 2.0f / (float)(1 << (int)COORD_FRACTIONAL_BITS);
 
 	public float GetGravity() => Gravity;
 	public void SetGravity(float gravity) => Gravity = gravity;
 
 
-	public static readonly DataMap PredMap = new([
+	public static readonly DataMap PredMap = new(nameof(C_BaseEntity), [
 		DEFINE.PRED_FIELD(nameof(MoveType), FieldType.Character, FieldTypeDescFlags.InSendTable),
 		DEFINE.PRED_FIELD(nameof(MoveCollide), FieldType.Character, FieldTypeDescFlags.InSendTable),
 		DEFINE.FIELD(nameof(AbsVelocity), FieldType.Vector),
@@ -578,7 +597,7 @@ public partial class C_BaseEntity : IClientEntity
 		DEFINE.FIELD(nameof(eflags), FieldType.Integer ),
 		DEFINE.FIELD(nameof(Gravity), FieldType.Float ),
 		DEFINE.FIELD(nameof(ProxyRandomValue), FieldType.Float ),
-	], nameof(C_BaseEntity), null); public virtual DataMap? GetPredDescMap() => PredMap;
+	]); public virtual DataMap? GetPredDescMap() => PredMap;
 
 
 	static readonly DynamicAccessor DA_Origin = FIELD.OF(nameof(Origin));
@@ -587,8 +606,8 @@ public partial class C_BaseEntity : IClientEntity
 	public float Gravity;
 
 	public C_BaseEntity() {
-		AddVar(DA_Origin, IV_Origin, LatchFlags.LatchSimulationVar);
-		AddVar(DA_Rotation, IV_Rotation, LatchFlags.LatchSimulationVar);
+		AddVar(this, DA_Origin, IV_Origin, LatchFlags.LatchSimulationVar);
+		AddVar(this, DA_Rotation, IV_Rotation, LatchFlags.LatchSimulationVar);
 
 		DataChangeEventRef.Struct = unchecked((ulong)-1);
 		EntClientFlags = 0;
@@ -632,7 +651,7 @@ public partial class C_BaseEntity : IClientEntity
 	public bool AnimatedEveryTick;
 	public bool AlternateSorting;
 
-	public readonly PredictableId PredictableID = new();
+	public PredictableId PredictableID = new();
 
 	public byte TakeDamage;
 	public ushort RealClassName;
@@ -677,11 +696,18 @@ public partial class C_BaseEntity : IClientEntity
 	public int Speed;
 	public int TeamNum;
 
-	public readonly EHANDLE OwnerEntity = new();
-	public readonly EHANDLE EffectEntity = new();
-	public readonly EHANDLE GroundEntity = new();
-	public readonly EHANDLE NetworkMoveParent = new();
-	public readonly EHANDLE OldMoveParent = new();
+	IPhysicsObject? PhysicsObject = null!;
+	public void VPhysicsUpdate(IPhysicsObject physics) { }
+	public IPhysicsObject? VPhysicsGetObject() => PhysicsObject;
+	public int VPhysicsGetObjectList(Span<IPhysicsObject> list) => throw new NotImplementedException();
+
+	public bool IsFloating() => false;
+
+	public EHANDLE OwnerEntity = new();
+	public EHANDLE EffectEntity = new();
+	public EHANDLE GroundEntity = new();
+	public EHANDLE NetworkMoveParent = new();
+	public EHANDLE OldMoveParent = new();
 	public int LifeState;
 	public Vector3 BaseVelocity;
 	public int NextThinkTick;
@@ -708,7 +734,7 @@ public partial class C_BaseEntity : IClientEntity
 	public readonly InterpolatedVar<QAngle> IV_Rotation = new("Rotation");
 
 
-	public readonly Handle<C_BasePlayer> PlayerSimulationOwner = new();
+	public Handle<C_BasePlayer> PlayerSimulationOwner = new();
 	public readonly ReusableBox<ulong> DataChangeEventRef = new();
 
 	public static C_BaseEntity? Instance(BaseHandle handle) => cl_entitylist.GetBaseEntityFromHandle(handle);
@@ -720,6 +746,49 @@ public partial class C_BaseEntity : IClientEntity
 
 		return 0 == strcmp(entity.GetClassname(), classname);
 	}
+
+	public void SetParent(C_BaseEntity parentEntity, int parentAttachment = 0){
+		EHANDLE newParentHandle = default;
+		newParentHandle.Set(parentEntity);
+		if (newParentHandle.Index == MoveParent.Index)
+			return;
+
+		// NOTE: Have to do this before the unlink to ensure local coords are valid
+		Vector3 vecAbsOrigin = GetAbsOrigin();
+		QAngle angAbsRotation = GetAbsAngles();
+		Vector3 vecAbsVelocity = GetAbsVelocity();
+
+		// First deal with unlinking
+		if (MoveParent.IsValid()) 
+			UnlinkChild(MoveParent.Get(), this);
+
+		if (parentEntity != null) 
+			LinkChild(parentEntity, this);
+
+		if (!IsServerEntity()) 
+			NetworkMoveParent.Set(parentEntity);
+
+		ParentAttachment = (byte)parentAttachment;
+
+		AbsOrigin.Init(float.MaxValue, float.MaxValue, float.MaxValue);
+		AbsRotation.Init(float.MaxValue, float.MaxValue, float.MaxValue);
+		AbsVelocity.Init(float.MaxValue, float.MaxValue, float.MaxValue);
+
+		SetAbsOrigin(vecAbsOrigin);
+		SetAbsAngles(angAbsRotation);
+		SetAbsVelocity(vecAbsVelocity);
+	}
+
+	public void SetOwnerEntity(C_BaseEntity? owner) => OwnerEntity.Set(owner);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSolidFlags(SolidFlags flags) => CollisionProp().SetSolidFlags(flags);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsSolidFlagSet(SolidFlags flagMask) => CollisionProp().IsSolidFlagSet(flagMask);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public SolidFlags GetSolidFlags() => (SolidFlags)CollisionProp().GetSolidFlags();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void AddSolidFlags(SolidFlags flags) => CollisionProp().AddSolidFlags(flags);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void RemoveSolidFlags(SolidFlags flags) => CollisionProp().RemoveSolidFlags(flags);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsSolid() => CollisionProp().IsSolid();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSolid(SolidType val) => CollisionProp().SetSolid(val);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public SolidType GetSolid() => CollisionProp().GetSolid();
 
 	public int GetFxBlend() => RenderFXBlend;
 	public void GetColorModulation(Span<float> color) {
@@ -824,7 +893,6 @@ public partial class C_BaseEntity : IClientEntity
 		Model? model = modelinfo.GetModel(ModelIndex);
 		SetModelPointer(model);
 	}
-	public void SetSolid(SolidType val) => CollisionProp().SetSolid(val);
 	public void SetModelByIndex(int modelIndex) {
 		SetModelIndex(modelIndex);
 	}
@@ -861,21 +929,122 @@ public partial class C_BaseEntity : IClientEntity
 		return false;
 	}
 
-	public void UpdateOnRemove() {
-		// VPhysicsDestroyObject();
+	public void VPhysicsDestroyObject() {
 
-		// Assert(GetMoveParent() == null);
-		// UnlinkFromHierarchy();
-		// SetGroundEntity(NULL);
+	}
+	public void SetGroundEntity(C_BaseEntity? ground) {
+		if (GroundEntity.Get() == ground)
+			return;
+
+		// todo
 	}
 
-	public readonly EHANDLE MoveParent = new();
-	public readonly EHANDLE MoveChild = new();
-	public readonly EHANDLE MovePeer = new();
-	public readonly EHANDLE MovePrevPeer = new();
+	public void UpdateOnRemove() {
+		VPhysicsDestroyObject();
+
+		Assert(GetMoveParent() == null);
+		UnlinkFromHierarchy();
+		SetGroundEntity(null);
+	}
+
+	public EHANDLE MoveParent = new();
+	public EHANDLE MoveChild = new();
+	public EHANDLE MovePeer = new();
+	public EHANDLE MovePrevPeer = new();
 
 	public void UnlinkFromHierarchy() {
-		// todo
+		if (MoveParent.IsValid())
+			UnlinkChild(MoveParent.Get(), this);
+	}
+
+	public void LinkChild(C_BaseEntity parent, C_BaseEntity child) {
+		Assert(!child.MovePeer.IsValid());
+		Assert(!child.MovePrevPeer.IsValid());
+		Assert(!child.MoveParent.IsValid());
+		Assert(parent != child);
+
+#if DEBUG
+		// Make sure the child isn't already in this list
+		C_BaseEntity? existingChild;
+		for (existingChild = parent.FirstMoveChild(); existingChild != null; existingChild = existingChild.NextMovePeer()) 
+			Assert(child != existingChild);
+#endif
+
+		child.MovePrevPeer.Set(null);
+		child.MovePeer.Set(parent.MoveChild);
+		if (child.MovePeer.Get() != null) 
+			child.MovePeer.Get()!.MovePrevPeer.Set(child);
+		
+		parent.MoveChild.Set(child);
+		child.MoveParent.Set(parent);
+		child.AddToAimEntsList();
+
+		Interp_HierarchyUpdateInterpolationAmounts();
+	}
+	public void UnlinkChild(C_BaseEntity? parent, C_BaseEntity? child) {
+		Assert(child != null);
+		Assert(parent != child);
+		Assert(child.GetMoveParent() == parent);
+
+		if (parent != null && (parent.MoveChild.Get() == child)) {
+			Assert(!(child.MovePrevPeer.IsValid()));
+			parent.MoveChild.Set(child.MovePeer);
+		}
+
+		if (child.MovePrevPeer.IsValid())
+			child.MovePrevPeer.Get()!.MovePeer.Set(child.MovePeer.Get());
+
+		if (child.MovePeer.IsValid())
+			child.MovePeer.Get()!.MovePrevPeer.Set(child.MovePrevPeer.Get());
+
+		child.MovePeer.Set(null);
+		child.MovePrevPeer.Set(null);
+		child.MoveParent.Set(null);
+		child.RemoveFromAimEntsList();
+
+		Interp_HierarchyUpdateInterpolationAmounts();
+	}
+
+	static readonly List<C_BaseEntity> g_AimEntsList = [];
+
+	AimEntsListHandle_t AimEntsListHandle;
+
+	const AimEntsListHandle_t INVALID_AIMENTS_LIST_HANDLE = unchecked((AimEntsListHandle_t)~0);
+
+	public void AddToAimEntsList() {
+		if (AimEntsListHandle != INVALID_AIMENTS_LIST_HANDLE)
+			return;
+
+		AimEntsListHandle = g_AimEntsList.Count;
+		g_AimEntsList.Add(this);
+	}
+
+	public void RemoveFromAimEntsList() {
+		if (AimEntsListHandle == INVALID_AIMENTS_LIST_HANDLE)
+			return;
+
+		int c = g_AimEntsList.Count;
+
+		Assert(AimEntsListHandle < c);
+
+		var last = c - 1;
+
+		if (last == AimEntsListHandle) {
+			// Just wipe the final entry
+			g_AimEntsList.RemoveAt(last);
+		}
+		else {
+			C_BaseEntity lastEntity = g_AimEntsList[last];
+			// Remove the last entry
+			g_AimEntsList.RemoveAt(last);
+
+			// And update it's handle to point to this slot.
+			lastEntity.AimEntsListHandle = AimEntsListHandle;
+			g_AimEntsList[AimEntsListHandle] = lastEntity;
+		}
+
+		// Invalidate our handle no matter what.
+		AimEntsListHandle = INVALID_AIMENTS_LIST_HANDLE;
 	}
 
 	public void Release() {
@@ -886,6 +1055,38 @@ public partial class C_BaseEntity : IClientEntity
 			DestroyIntermediateData();
 
 		UpdateOnRemove();
+		Term();
+	}
+
+	public int DataObjectTypes;
+
+	public virtual void Term() {
+		DestroyAllDataObjects();
+
+		if (GetPredictable() || IsClientCreated())
+			g_Predictables.RemoveFromPredictablesList(GetClientHandle());
+
+		if (IsPlayerSimulated() && C_BasePlayer.GetLocalPlayer() != null)
+			C_BasePlayer.GetLocalPlayer()!.RemoveFromPlayerSimulationList(this);
+
+		if (GetClientHandle() != INVALID_CLIENTENTITY_HANDLE) {
+			if (GetThinkHandle() != INVALID_THINK_HANDLE)
+				ClientThinkList().RemoveThinkable(GetClientHandle());
+
+			// Remove from the client entity list.
+			cl_entitylist.RemoveEntity(GetClientHandle());
+
+			RefEHandle = INVALID_CLIENTENTITY_HANDLE;
+		}
+
+		CollisionProp().DestroyPartitionHandle();
+
+		if (Index != -1)
+			beams.KillDeadBeams(this);
+
+		DestroyModelInstance();
+		RemoveFromLeafSystem();
+		RemoveFromAimEntsList();
 	}
 
 	public bool OnPredictedEntityRemove(bool isbeingremoved, C_BaseEntity predicted) {
@@ -918,10 +1119,6 @@ public partial class C_BaseEntity : IClientEntity
 
 
 
-	public void AddToAimEntsList() {
-		// todo
-	}
-
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public int GetModelIndex() => ModelIndex;
 
 	public void OnPostRestoreData() {
@@ -934,7 +1131,7 @@ public partial class C_BaseEntity : IClientEntity
 			SetModelByIndex(GetModelIndex());
 	}
 
-	private void CheckInitPredictable(ReadOnlySpan<char> context) {
+	public void CheckInitPredictable(ReadOnlySpan<char> context) {
 		if (cl_predict.GetInt() == 0)
 			return;
 
@@ -981,9 +1178,9 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual bool Init(int entNum, int serialNum) {
 		Index = entNum;
 		cl_entitylist.AddNetworkableEntity(GetIClientUnknown(), entNum, serialNum);
+		CollisionProp().CreatePartitionHandle();
 		Interp_SetupMappings(ref GetVarMapping());
 		CreationTick = gpGlobals.TickCount;
-
 		return true;
 	}
 
@@ -1107,7 +1304,41 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public virtual bool PostNetworkDataReceived(int commandsAcknowledged) {
-		return false; // todo
+		bool haderrors = false;
+
+		Assert(GetPredictable());
+
+		bool errorcheck = (commandsAcknowledged > 0) ? true : false;
+
+		// Store network data into post networking pristine state slot (slot 64) 
+		SaveData("PostNetworkDataReceived", SLOT_ORIGINALDATA, PredictionCopyType.Everything);
+
+		// Show any networked fields that are different
+		bool showthis = cl_showerror.GetInt() >= 2;
+
+		if (cl_showerror.GetInt() < 0)
+			showthis = EntIndex() == -cl_showerror.GetInt();
+
+		if (errorcheck) {
+			DataFrame? predictedStateData = GetPredictedFrame(commandsAcknowledged - 1);
+			Assert(predictedStateData != null);
+			DataFrame? originalStateData = GetOriginalNetworkDataObject();
+			Assert(originalStateData != null);
+
+			bool counterrors = true;
+			bool reporterrors = showthis;
+			bool copydata = false;
+
+			PredictionCopy errorCheckHelper = new(PredictionCopyType.NetworkedOnly, predictedStateData, originalStateData, counterrors, reporterrors, copydata);
+			// Suppress debugging output
+			int ecount = errorCheckHelper.TransferData("", -1, GetPredDescMap());
+			if (ecount > 0) {
+				haderrors = true;
+				//	Msg( "%i errors %i on entity %i %s\n", gpGlobals->tickcount, ecount, index, IsClientCreated() ? "true" : "false" );
+			}
+		}
+
+		return haderrors;
 	}
 
 	public void InitPredictable() {
@@ -1245,7 +1476,7 @@ public partial class C_BaseEntity : IClientEntity
 		UpdateVisibility();
 	}
 
-	public BaseHandle? GetClientHandle() => RefEHandle;
+	public ref readonly BaseHandle GetClientHandle() => ref RefEHandle;
 
 	public bool InitializeAsClientEntity(ReadOnlySpan<char> modelName, RenderGroup renderGroup) {
 		int modelIndex;
@@ -1280,7 +1511,7 @@ public partial class C_BaseEntity : IClientEntity
 		AddToLeafSystem(renderGroup);
 
 		// Add the client entity to the spatial partition. (Collidable)
-		// CollisionProp()->CreatePartitionHandle();
+		CollisionProp().CreatePartitionHandle();
 
 		SpawnClientEntity();
 
@@ -1289,6 +1520,81 @@ public partial class C_BaseEntity : IClientEntity
 
 	public virtual void SpawnClientEntity() {
 
+	}
+
+	public static C_BaseEntity? CreatePredictedEntityByName(ReadOnlySpan<char> classname, [CallerFilePath] string? module = null, [CallerLineNumber] int line = -1, bool persist = false){
+		C_BasePlayer? player = C_BaseEntity.GetPredictionPlayer();
+
+		Assert(player != null);
+		Assert(!player.CurrentCommand.IsNull);
+		Assert(prediction.InPrediction());
+
+		C_BaseEntity? ent = null;
+
+		// What's my birthday (should match server)
+		int command_number = player.CurrentCommand.Get().CommandNumber;
+		// Who's my daddy?
+		int player_index = player.EntIndex() - 1;
+
+		// Create id/context
+		PredictableId testId = default;
+		testId.Init(player_index, command_number, classname, module, line);
+
+		// If repredicting, should be able to find the entity in the previously created list
+		if (!prediction.IsFirstTimePredicted()) {
+			// Only find previous instance if entity was created with persist set
+			if (persist) {
+				ent = FindPreviouslyCreatedEntity(testId);
+				if (ent != null)
+					return ent;
+			}
+
+			return null;
+		}
+
+		ent = CreateEntityByName(classname);
+		if (ent == null) 
+			return null;
+
+		// It's predictable
+		ent.SetPredictionEligible(true);
+
+		// Set up "shared" id number
+		ent.PredictableID.SetRaw(testId.GetRaw());
+
+		// Get a context (mostly for debugging purposes)
+		PredictionContext context = new PredictionContext();
+		context.Active = true;
+		context.CreationCommandNumber = command_number;
+		context.CreationLineNumber = line;
+		context.CreationModule = new(module.SliceNullTerminatedString());
+
+		// Attach to entity
+		ent.PredictionContext = context;
+
+		// Add to client entity list
+		cl_entitylist.AddNonNetworkableEntity(ent);
+
+		//  and predictables
+		g_Predictables.AddToPredictableList(ent.GetClientHandle());
+
+		// Duhhhh..., but might as well be safe
+		Assert(!ent.GetPredictable());
+		Assert(ent.IsClientCreated());
+
+		// Add the client entity to the spatial partition. (Collidable)
+		ent.CollisionProp().CreatePartitionHandle();
+
+		// CLIENT ONLY FOR NOW!!!
+		ent.Index = -1;
+
+		if (HLClient.AddDataChangeEvent(ent, DataUpdateType.Created, ent.DataChangeEventRef)) 
+			ent.OnPreDataChanged(DataUpdateType.Created);
+		
+
+		ent.Interp_UpdateInterpolationAmounts(ref ent.GetVarMapping());
+
+		return ent;
 	}
 
 	protected virtual void UpdateVisibility() {
@@ -1725,11 +2031,11 @@ public partial class C_BaseEntity : IClientEntity
 
 	}
 
-	public virtual ICollideable GetCollideable() => throw new NotImplementedException();
-	public virtual BaseHandle GetRefEHandle() {
-		return RefEHandle;
+	public virtual ICollideable GetCollideable() => Collision;
+	public virtual ref readonly BaseHandle GetRefEHandle() {
+		return ref RefEHandle;
 	}
-	public virtual void SetRefEHandle(BaseHandle handle) {
+	public virtual void SetRefEHandle(in BaseHandle handle) {
 		RefEHandle.Index = handle.Index;
 	}
 
@@ -1756,7 +2062,7 @@ public partial class C_BaseEntity : IClientEntity
 		return this;
 	}
 
-	public readonly BaseHandle RefEHandle = new();
+	public BaseHandle RefEHandle = new();
 
 	static double AdjustInterpolationAmount(C_BaseEntity entity, double baseInterpolation) {
 		// We don't have cl_interp_npcs yet so this isn't needed
@@ -1797,12 +2103,12 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 
-	public void AddVar(DynamicAccessor accessor, IInterpolatedVar watcher, LatchFlags type, bool setup = false) {
+	public void AddVar(object instance, DynamicAccessor accessor, IInterpolatedVar watcher, LatchFlags type, bool setup = false) {
 		bool addIt = true;
 		for (int i = 0; i < VarMap.Entries.Count; i++) {
 			if (VarMap.Entries[i].Watcher == watcher) {
 				if ((type & LatchFlags.ExcludeAutoInterpolate) != (watcher.GetVarType() & LatchFlags.ExcludeAutoInterpolate))
-					RemoveVar(VarMap.Entries[i].Accessor, true);
+					RemoveVar(instance, VarMap.Entries[i].Accessor, true);
 				else
 					addIt = false;
 
@@ -1827,13 +2133,13 @@ public partial class C_BaseEntity : IClientEntity
 		}
 
 		if (setup) {
-			watcher.Setup(this, accessor, type);
+			watcher.Setup(instance, accessor, type);
 			watcher.SetInterpolationAmount(GetInterpolationAmount(watcher.GetVarType()));
 		}
 	}
-	public void RemoveVar(DynamicAccessor accessor, bool assert = true) {
+	public void RemoveVar(object instance, DynamicAccessor accessor, bool assert = true) {
 		for (int i = 0; i < VarMap.Entries.Count; i++) {
-			if (VarMap.Entries[i].Accessor == accessor) {
+			if (VarMap.Entries[i].Watcher.GetInstance() == instance && VarMap.Entries[i].Accessor == accessor) {
 				if ((VarMap.Entries[i].Type & LatchFlags.ExcludeAutoInterpolate) == 0)
 					--VarMap.InterpolatedEntries;
 
@@ -2023,10 +2329,46 @@ public partial class C_BaseEntity : IClientEntity
 		return true;
 	}
 
+	readonly object m_CalcAbsoluteVelocityMutex = new();
+
+	public void CalcAbsoluteVelocity() {
+		if ((eflags & EFL.DirtyAbsVelocity) == 0)
+			return;
+		lock (m_CalcAbsoluteVelocityMutex) {
+			if ((eflags & EFL.DirtyAbsVelocity) == 0) // need second check in event another thread grabbed mutex and did the calculation
+				return;
+			
+			eflags &= ~EFL.DirtyAbsVelocity;
+
+			BaseEntity? moveParent = GetMoveParent();
+			if (moveParent == null) {
+				AbsVelocity = Velocity;
+				return;
+			}
+
+			MathLib.VectorRotate(Velocity, moveParent.EntityToWorldTransform(), out AbsVelocity);
+
+
+			// Add in the attachments velocity if it exists
+			if (ParentAttachment != 0) {
+				Vector3 vOriginVel;
+				Quaternion vAngleVel;
+				if (moveParent.GetAttachmentVelocity(ParentAttachment, out vOriginVel, out vAngleVel)) {
+					AbsVelocity += vOriginVel;
+					return;
+				}
+			}
+
+			// Now add in the parent abs velocity
+			AbsVelocity += moveParent.GetAbsVelocity();
+		}
+	}
+
 	Vector3 AbsVelocity;
 	QAngle AngVelocity;
 	// todo
 	public ref readonly Vector3 GetAbsVelocity() {
+		CalcAbsoluteVelocity();
 		return ref AbsVelocity;
 	}
 	public void SetAbsVelocity(in Vector3 absVelocity) {
@@ -2130,7 +2472,10 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 	private void Interp_HierarchyUpdateInterpolationAmounts() {
+		Interp_UpdateInterpolationAmounts(ref GetVarMapping());
 
+		for (C_BaseEntity? child = FirstMoveChild(); child != null; child = child.NextMovePeer())
+			child.Interp_HierarchyUpdateInterpolationAmounts();
 	}
 
 
@@ -2180,6 +2525,12 @@ public partial class C_BaseEntity : IClientEntity
 		return OriginalData;
 	}
 
+	public virtual Vector3 GetSoundEmissionOrigin() => WorldSpaceCenter();
+
+	public static void EmitSound<IRF>(scoped in IRF filter, int entIndex, scoped in EmitSound_t parms) where IRF : IRecipientFilter {
+
+	}
+
 
 	public static readonly nuint SIZEOF_MANAGED = nuint.MaxValue - 16;
 
@@ -2190,7 +2541,7 @@ public partial class C_BaseEntity : IClientEntity
 		(nuint)sizeof(Vector3),		// FIELD_VECTOR
 		(nuint)sizeof(Quaternion),	// FIELD_QUATERNION
 		sizeof(int),				// FIELD_INTEGER
-		sizeof(char),				// FIELD_BOOLEAN
+		sizeof(bool),				// FIELD_BOOLEAN
 		sizeof(short),				// FIELD_SHORT
 		sizeof(char),				// FIELD_CHARACTER
 		(nuint)sizeof(Color),		// FIELD_COLOR32
@@ -2262,6 +2613,11 @@ public partial class C_BaseEntity : IClientEntity
 					Assert(false);
 					break;
 				case FieldType.Embedded:
+					Assert(field.TD != null);
+					nuint embeddedSize = ComputePackedSize_R(field.TD);
+					field.PackedOffset = currentPosition;
+					currentPosition += embeddedSize;
+					break;
 				case FieldType.Float:
 				case FieldType.Vector:
 				case FieldType.Quaternion:
@@ -2272,6 +2628,7 @@ public partial class C_BaseEntity : IClientEntity
 				case FieldType.Color32:
 				case FieldType.Boolean:
 				case FieldType.Character:
+				case FieldType.StringCharacter:
 					field.PackedOffset = currentPosition++;
 					break;
 				case FieldType.Void: {

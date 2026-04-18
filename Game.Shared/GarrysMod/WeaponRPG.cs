@@ -39,12 +39,13 @@ public class WeaponRPG : BaseHL2MPCombatWeapon
 	public bool InitialStateUpdate;
 	public bool Guiding;
 	public bool HideGuiding;
-	public readonly EHANDLE Missile = new();
+	public EHANDLE Missile = new();
 	public Vector3 LaserDot;
+	public override float GetFireRate() => 1f;
 }
 
 [LinkEntityToClass("env_laserdot")]
-public class LaserDot : SharedBaseEntity
+public class LaserDot : BaseEntity
 {
 	public static readonly
 #if CLIENT_DLL

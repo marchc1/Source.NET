@@ -24,7 +24,7 @@ public class EnvProjectedTexture : BaseEntity
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("EnvProjectedTexture", DT_EnvProjectedTexture).WithManualClassID(StaticClassIndices.CEnvProjectedTexture);
 
-	public readonly EHANDLE HTargetEntity = new();
+	public EHANDLE HTargetEntity = new();
 	public bool State;
 	public float LightFOV;
 	public bool EnableShadows;

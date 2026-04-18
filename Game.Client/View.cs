@@ -94,13 +94,11 @@ public class ViewRender : IViewRender
 
 	internal readonly IMaterialSystem materials;
 	readonly IServiceProvider services;
-	readonly IEngineTrace enginetrace;
 	readonly Render engineRenderer;
-	public ViewRender(IMaterialSystem materials, IServiceProvider services, Render engineRenderer, IEngineTrace enginetrace) {
+	public ViewRender(IMaterialSystem materials, IServiceProvider services, Render engineRenderer) {
 		this.materials = materials;
 		this.services = services;
 		this.engineRenderer = engineRenderer;
-		this.enginetrace = enginetrace;
 		SimpleExecutor = new(this);
 	}
 
@@ -166,14 +164,14 @@ public class ViewRender : IViewRender
 	}
 
 	public void LevelShutdown() {
-		throw new NotImplementedException();
+		// ScreenSpaceEffects.ShutdownScreenSpaceEffects();
 	}
 
 	public void OnRenderStart() {
 		SetUpViews();
 
 		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
-		if (player != null) {
+		if (player != null && player.DefaultFOV != 0) {
 			default_fov.SetValue(player.DefaultFOV);
 		}
 	}

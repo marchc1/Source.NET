@@ -7,14 +7,17 @@ global using BaseViewModel = Game.Server.BaseViewModel;
 namespace Game.Server;
 #endif
 
-using Source.Common;
-using Source;
-
-using FIELD = Source.FIELD<BaseViewModel>;
 using Game.Shared;
+
+using Source;
+using Source.Common;
 using Source.Common.Mathematics;
-using System.Numerics;
+
 using System;
+using System.Numerics;
+
+using DEFINE = Source.DEFINE<BaseViewModel>;
+using FIELD = Source.FIELD<BaseViewModel>;
 
 public partial class
 #if CLIENT_DLL
@@ -80,7 +83,10 @@ public partial class
 #endif
 		]);
 
+	TimeUnit_t TimeWeaponIdle;
+	Activity Activity;
 #if CLIENT_DLL
+
 	private static void RecvProxy_SequenceNum(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
 		BaseViewModel model = (BaseViewModel)instance;
 		if (data.Value.Int != model.GetSequence()) {
@@ -96,8 +102,8 @@ public partial class
 #pragma warning restore CS0109 // Member does not hide an inherited member; new keyword is not required
 #endif
 	public int _ViewModelIndex;
-	public readonly EHANDLE Owner = new();
-	public readonly Handle<BaseCombatWeapon> Weapon = new();
+	public EHANDLE Owner = new();
+	public Handle<BaseCombatWeapon> Weapon = new();
 	public int AnimationParity;
 
 	public BaseCombatWeapon? GetOwningWeapon() => Weapon.Get();
@@ -106,16 +112,15 @@ public partial class
 
 	public const int VIEWMODEL_ANIMATION_PARITY_BITS = 3;
 
-	public virtual void SendViewModelMatchingSequence(int sequence){
+	public virtual void SendViewModelMatchingSequence(int sequence) {
 		SetSequence(sequence);
 
 		AnimationParity = (AnimationParity + 1) & ((1 << VIEWMODEL_ANIMATION_PARITY_BITS) - 1);
-
 #if CLIENT_DLL
-	OldAnimationParity = AnimationParity;
+		OldAnimationParity = AnimationParity;
 
-	// Force frame interpolation to start at exactly frame zero
-	AnimTime			= gpGlobals.CurTime;
+		// Force frame interpolation to start at exactly frame zero
+		AnimTime = gpGlobals.CurTime;
 #else
 		BaseCombatWeapon? weapon = Weapon.Get();
 		// TODO: bool showControlPanels = weapon != null && weapon.ShouldShowControlPanels();
@@ -127,7 +132,7 @@ public partial class
 		ResetSequenceInfo();
 	}
 
-	public SharedBaseEntity? GetOwner() => Owner.Get();
+	public BaseEntity? GetOwner() => Owner.Get();
 
 #if CLIENT_DLL
 	public static void FormatViewModelAttachment(ref Vector3 origin, bool inverse) {
@@ -190,10 +195,10 @@ public partial class
 		// todo: AddViewModelBob(owner, vmorigin, vmangles);
 		// todo: CalcViewModelLag
 #if CLIENT_DLL
-		if (!prediction.InPrediction()) {
-			// Let the viewmodel shake at about 10% of the amplitude of the player's view
-			// TODO: vieweffects.ApplyShake( vmorigin, vmangles, 0.1 );	
-		}
+#if CLIENT_DLL
+		if (!prediction.InPrediction())  // Let the viewmodel shake at about 10% of the amplitude of the player's view
+			vieweffects.ApplyShake(ref vmorigin, ref vmangles, 0.1f);
+#endif
 #endif
 		SetLocalOrigin(in vmorigin);
 		SetLocalAngles(in vmangles);
@@ -212,7 +217,7 @@ public partial class
 #endif
 	}
 
-	void SetControlPanelsActive(bool state){ } // todo
+	void SetControlPanelsActive(bool state) { } // todo
 
 	public override void AddEffects(EntityEffects effects) {
 		if ((effects & EntityEffects.NoDraw) != 0)

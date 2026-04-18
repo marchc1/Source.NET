@@ -2,7 +2,9 @@
 using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
+using Source.Common.Physics;
 using Source.Engine.Client;
 
 using System.Numerics;
@@ -11,7 +13,7 @@ using System.Reflection.Metadata.Ecma335;
 
 namespace Source.Engine;
 
-public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader, IMDLCache mdlCache) : IModelInfoClient
+public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader, IMDLCache mdlCache) : IVModelInfoClient
 {
 	public abstract Model? GetModel(int modelIndex);
 
@@ -68,7 +70,7 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 
 	protected readonly Dictionary<FileNameHandle_t, Model> ClientDynamicModels = [];
 
-	private int GetModelClientSideIndex(ReadOnlySpan<char> name) {
+	public int GetModelClientSideIndex(ReadOnlySpan<char> name) {
 		if (ClientDynamicModels.Count != 0) {
 			FileNameHandle_t file = filesystem.FindFileName(name);
 			if (file != FILENAMEHANDLE_INVALID && ClientDynamicModels.TryGetValue(file, out var model)) {
@@ -203,6 +205,167 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 				maxs = default;
 				break;
 		}
+	}
+
+	public void OnDynamicModelsStringTableChange(int stringIndex, ReadOnlySpan<char> str, object? data) {
+		throw new NotImplementedException();
+	}
+
+	public Model? FindOrLoadModel(ReadOnlySpan<char> name) {
+		throw new NotImplementedException();
+	}
+
+	public VCollide? GetVCollide(Model? model) {
+		throw new NotImplementedException();
+	}
+
+	public VCollide? GetVCollide(int modelIndex) {
+		// First model (index 0 )is is empty
+		// Second model( index 1 ) is the world, then brushes/submodels, then players, etc.
+		// So, we must subtract 1 from the model index to map modelindex to CM_ index
+		// in cmodels, 0 is the world, then brushes, etc.
+		if (modelIndex < g_MaxModels) {
+			Model? model = GetModel(modelIndex);
+			if (model != null) {
+				switch (model.Type) {
+					case ModelType.Brush:
+						return CM.GetVCollide(modelIndex - 1);
+					case ModelType.Studio: {
+							VCollide? col = mdlcache.GetVCollide(model.Studio);
+							return col;
+						}
+				}
+			}
+			else {
+				// we may have the cmodels loaded and not know the model/mod->type yet
+				return CM.GetVCollide(modelIndex - 1);
+			}
+		}
+		return null;
+	}
+
+	public void GetModelBounds(Model? model, out AngularImpulse mins, out AngularImpulse maxs) {
+		throw new NotImplementedException();
+	}
+
+	public bool ModelHasMaterialProxy(Model? model) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsTranslucent(Model? model) {
+		throw new NotImplementedException();
+	}
+
+	public void RecomputeTranslucency(Model? model, int skin, int nBody, object? clientRenderable, float instanceAlphaModulate = 1) {
+		throw new NotImplementedException();
+	}
+
+	public int GetModelMaterialCount(Model? model) {
+		throw new NotImplementedException();
+	}
+
+	public void GetModelMaterials(Model? model, Span<IMaterial> material) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsModelVertexLit(Model? model) {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> GetModelKeyValueText(Model? model) {
+		throw new NotImplementedException();
+	}
+
+	public float GetModelRadius(Model? model) {
+		throw new NotImplementedException();
+	}
+
+	public StudioHeader? FindModel(StudioHeader? studioHdr, ref object? cache, ReadOnlySpan<char> modelname) {
+		throw new NotImplementedException();
+	}
+
+	public StudioHeader? FindModel(object? cache) {
+		throw new NotImplementedException();
+	}
+
+	public void GetModelMaterialColorAndLighting(Model? model, in AngularImpulse origin, in QAngle angles, out Trace trace, out AngularImpulse lighting, out AngularImpulse matColor) {
+		throw new NotImplementedException();
+	}
+
+	public void GetIlluminationPoint(Model? model, IClientRenderable? renderable, in AngularImpulse origin, in QAngle angles, out AngularImpulse lightingCenter) {
+		throw new NotImplementedException();
+	}
+
+	public int GetModelContents(int modelIndex) {
+		throw new NotImplementedException();
+	}
+
+	public void SetLevelScreenFadeRange(float minSize, float maxSize) {
+		throw new NotImplementedException();
+	}
+
+	public void GetLevelScreenFadeRange(out float minArea, out float maxArea) {
+		throw new NotImplementedException();
+	}
+
+	public void SetViewScreenFadeRange(float flMinSize, float flMaxSize) {
+		throw new NotImplementedException();
+	}
+
+	public byte ComputeLevelScreenFade(in AngularImpulse absOrigin, float radius, float fadeScale) {
+		throw new NotImplementedException();
+	}
+
+	public byte ComputeViewScreenFade(in AngularImpulse absOrigin, float radius, float fadeScale) {
+		throw new NotImplementedException();
+	}
+
+	public PhysCollide? GetCollideForVirtualTerrain(int index) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsUsingFBTexture(Model? model, int nSkin, int nBody, object? pClientRenderable) {
+		throw new NotImplementedException();
+	}
+
+	public int GetBrushModelPlaneCount(Model? model) {
+		throw new NotImplementedException();
+	}
+
+	public void GetBrushModelPlane(Model? model, int nIndex, out CollisionPlane plane, out AngularImpulse origin) {
+		throw new NotImplementedException();
+	}
+
+	public int GetSurfacepropsForTerrain(int index) {
+		throw new NotImplementedException();
+	}
+
+	public void OnLevelChange() {
+		throw new NotImplementedException();
+	}
+
+	public int RegisterDynamicModel(ReadOnlySpan<char> name, bool bClientSide) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsDynamicModelLoading(int modelIndex) {
+		return false;
+	}
+
+	public void AddRefDynamicModel(int modelIndex) {
+
+	}
+
+	public void ReleaseDynamicModel(int modelIndex) {
+
+	}
+
+	public bool RegisterModelLoadCallback(int modelindex, IModelLoadCallback callback, bool callImmediatelyIfLoaded = true) {
+		throw new NotImplementedException();
+	}
+
+	public void UnregisterModelLoadCallback(int modelindex, IModelLoadCallback callback) {
+		throw new NotImplementedException();
 	}
 
 	readonly List<Model> NetworkedDynamicModels = [];

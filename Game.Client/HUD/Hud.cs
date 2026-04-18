@@ -407,7 +407,7 @@ public class Hud(HudElementHelper HudElementHelper)
 		}
 	}
 
-	public void UpdateHud() {
+	public void UpdateHud(bool active) {
 		KeyBits &= ~(InButtons.Weapon1 | InButtons.Weapon2);
 		// clientMode.Update();
 		// LCD.Update();

@@ -116,6 +116,7 @@ public interface IServerGameEnts
 	void SetDebugEdictBase(Edict[] edict);
 	void MarkEntitiesAsTouching(Edict e1, Edict e2);
 	void FreeContainingEntity(Edict e);
+	void CheckTransmit(CheckTransmitInfo info, ushort[] ushorts, int numValidEntities);
 }
 
 /// <summary>

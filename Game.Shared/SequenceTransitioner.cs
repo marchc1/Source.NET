@@ -1,9 +1,4 @@
 ﻿#if CLIENT_DLL || GAME_DLL
-#if GAME_DLL
-using Game.Server;
-#else
-using Game.Client;
-#endif
 
 using Source;
 using Source.Common;
@@ -11,16 +6,19 @@ using Source.Common;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using CommunityToolkit.HighPerformance;
+
+#if GAME_DLL
+using Game.Server;
+#else
+using Game.Client;
+#endif
 
 namespace Game.Shared;
 
 public class SequenceTransitioner
 {
-	static readonly ClassMemoryPool<AnimationLayer> AnimationLayers = new();
-
 	void ClearLayers() {
-		foreach (var layer in AnimationQueue)
-			AnimationLayers.Free(layer);
 		AnimationQueue.Clear();
 	}
 
@@ -29,9 +27,9 @@ public class SequenceTransitioner
 			return;
 
 		if (AnimationQueue.Count() == 0)
-			AnimationQueue.Add(AnimationLayers.Alloc());
+			AnimationQueue.Add(default);
 
-		AnimationLayer currentblend = AnimationQueue[^1];
+		ref AnimationLayer currentblend = ref AnimationQueue.AsSpan()[^1];
 
 		if (currentblend.LayerAnimtime != 0 && (currentblend.Sequence != curSequence || forceNewSequence)) {
 			MStudioSeqDesc seqdesc = hdr.Seqdesc(curSequence);
@@ -45,8 +43,8 @@ public class SequenceTransitioner
 				currentblend.LayerFadeOuttime = Math.Min(prevseqdesc.FadeOutTime, seqdesc.FadeInTime);
 			}
 
-			AnimationQueue.Add(AnimationLayers.Alloc());
-			currentblend = AnimationQueue[^1];
+			AnimationQueue.Add(default);
+			currentblend = ref AnimationQueue.AsSpan()[^1];
 		}
 
 		currentblend.Sequence = -1;
@@ -58,9 +56,9 @@ public class SequenceTransitioner
 			return;
 
 		if (AnimationQueue.Count == 0)
-			AnimationQueue.Add(AnimationLayers.Alloc());
+			AnimationQueue.Add(default);
 
-		AnimationLayer currentblend = AnimationQueue[^1];
+		ref AnimationLayer currentblend = ref AnimationQueue.AsSpan()[^1];
 
 		// keep track of current sequence
 		currentblend.Sequence = curSequence;
@@ -70,16 +68,17 @@ public class SequenceTransitioner
 
 		// calc blending weights for previous sequences
 		int i;
-		for (i = 0; i < AnimationQueue.Count - 1;) {
-			double s = AnimationQueue[i].GetFadeout(curTime);
+		Span<AnimationLayer> animationQueue = AnimationQueue.AsSpan();
+		for (i = 0; i < animationQueue.Length - 1;) {
+			double s = animationQueue[i].GetFadeout(curTime);
 
 			if (s > 0) {
-				AnimationQueue[i].Weight = (float)s;
+				animationQueue[i].Weight = (float)s;
 				i++;
 			}
 			else {
-				AnimationLayers.Free(AnimationQueue[i]);
 				AnimationQueue.RemoveAt(i);
+				animationQueue = AnimationQueue.AsSpan();
 			}
 		}
 	}

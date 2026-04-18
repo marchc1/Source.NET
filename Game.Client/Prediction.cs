@@ -1,3 +1,5 @@
+global using static Game.Client.PredictionConvars;
+
 using Game.Client.HL2;
 using Game.Shared;
 using Game.Shared.HL2;
@@ -14,17 +16,34 @@ using System.Runtime.CompilerServices;
 
 namespace Game.Client;
 
+public static class PredictionConvars {
+	public static readonly ConVar cl_predictweapons = new("cl_predictweapons", "1", FCvar.UserInfo | FCvar.NotConnected, "Perform client side prediction of weapon effects.");
+	public static readonly ConVar cl_lagcompensation = new("cl_lagcompensation", "1", FCvar.UserInfo | FCvar.NotConnected, "Perform server side lag compensation of weapon firing events.");
+	public static readonly ConVar cl_showerror = new("cl_showerror", "0", 0, "Show prediction errors, 2 for above plus detailed field deltas.");
+	public static readonly ConVar cl_idealpitchscale = new("cl_idealpitchscale", "0.8", FCvar.Archive);
+	public static readonly ConVar cl_predictionlist = new("cl_predictionlist", "0", FCvar.Cheat, "Show which entities are predicting\n");
+	public static readonly ConVar cl_predictionentitydump = new("cl_pdump", "-1", FCvar.Cheat, "Dump info about this entity to screen.");
+	public static readonly ConVar cl_predictionentitydumpbyclass = new("cl_pclass", "", FCvar.Cheat, "Dump entity by prediction classname.");
+	public static readonly ConVar cl_pred_optimize = new("cl_pred_optimize", "2", 0, "Optimize for not copying data if didn't receive a network update (1), and also for not repredicting if there were no errors (2).");
+}
+
 public class Prediction : IPrediction
 {
+	public Prediction() {
+		bInPrediction = false;
+		FirstTimePredicted = false;
+		IncomingPacketNumber = 0;
+		IdealPitch = 0.0f;
+		PreviousStartFrame = -1;
+		CommandsPredicted = 0;
+		ServerCommandsAcknowledged = 0;
+		PreviousAckHadErrors = false;
+	}
 	public const float ON_EPSILON = 0.1f;
 	public const float MAX_FORWARD = 6f;
 	public const float MIN_CORRECTION_DISTANCE = 0.25f;
 	public const float MIN_PREDICTION_EPSILON = 0.5f;
 	public const float MAX_PREDICTION_ERROR = 64.0f;
-
-	static readonly ConVar cl_predictweapons = new("cl_predictweapons", "1", FCvar.UserInfo | FCvar.NotConnected, "Perform client side prediction of weapon effects.");
-	static readonly ConVar cl_lagcompensation = new("cl_lagcompensation", "1", FCvar.UserInfo | FCvar.NotConnected, "Perform server side lag compensation of weapon firing events.");
-	static readonly ConVar cl_showerror = new("cl_showerror", "0", 0, "Show prediction errors, 2 for above plus detailed field deltas.");
 
 
 	bool bInPrediction;
@@ -36,7 +55,7 @@ public class Prediction : IPrediction
 
 	int CommandsPredicted;
 	int ServerCommandsAcknowledged;
-	int PreviousAckHadErrors;
+	bool PreviousAckHadErrors;
 	int IncomingPacketNumber;
 
 	float IdealPitch;
@@ -103,13 +122,9 @@ public class Prediction : IPrediction
 		MathLib.VectorSubtract(predicted_origin, origin, out delta);
 
 		len = MathLib.VectorLength(delta);
-		// temporary TODO: disabling this until I have packed fields working
-		//if (len > MAX_PREDICTION_ERROR) {
-			// A teleport or something, clear out error
-			//len = 0;
-		//}
-		//else 
-		{
+		if (len > MAX_PREDICTION_ERROR)
+			len = 0;
+		else {
 			if (len > MIN_PREDICTION_EPSILON) {
 				player.NotePredictionError(delta);
 
@@ -158,8 +173,6 @@ public class Prediction : IPrediction
 		}
 	}
 
-	public static readonly ConVar cl_predictionlist = new("cl_predictionlist", "0", FCvar.Cheat, "Show which entities are predicting\n");
-
 
 	public void PostNetworkDataReceived(int commandsAcknowledged) {
 		bool error_check = (commandsAcknowledged > 0) ? true : false;
@@ -167,7 +180,7 @@ public class Prediction : IPrediction
 		// PDumpPanel dump = GetPDumpPanel();
 
 		ServerCommandsAcknowledged += commandsAcknowledged;
-		PreviousAckHadErrors = 0;
+		PreviousAckHadErrors = false;
 
 		bool entityDumped = false;
 
@@ -200,12 +213,12 @@ public class Prediction : IPrediction
 
 				if (ent.GetPredictable())
 					if (ent.PostNetworkDataReceived(ServerCommandsAcknowledged))
-						PreviousAckHadErrors = 1;
+						PreviousAckHadErrors = true;
 
 				if (showlist != 0) {
 					Span<char> sz = stackalloc char[32];
 					if (ent.EntIndex() == -1) {
-						sprintf(sz, $"handle {(uint)(ent.GetClientHandle()?.Index ?? 0)}");
+						sprintf(sz, $"handle {(uint)(ent.GetClientHandle().Index)}");
 					}
 					else {
 						sprintf(sz, $"{ent.EntIndex()}");
@@ -237,10 +250,10 @@ public class Prediction : IPrediction
 				CheckError(ServerCommandsAcknowledged);
 		}
 		// Can also look at regular entities
-		
+
 		if (cl_predict.GetBool() != OldCLPredictValue) {
-			// if (!OldCLPredictValue) 
-			// 	ReinitPredictables();
+			if (!OldCLPredictValue)
+				ReinitPredictables();
 
 			CommandsPredicted = 0;
 			ServerCommandsAcknowledged = 0;
@@ -248,6 +261,22 @@ public class Prediction : IPrediction
 		}
 
 		OldCLPredictValue = cl_predict.GetInt() != 0;
+	}
+
+	public void ReinitPredictables() {
+		int i;
+		int c = cl_entitylist.GetHighestEntityIndex();
+		for (i = 0; i <= c; i++) {
+			C_BaseEntity? e = cl_entitylist.GetBaseEntity(i);
+			if (e == null)
+				continue;
+
+			if (e.GetPredictable())
+				continue;
+			e.CheckInitPredictable("ReinitPredictables");
+		}
+
+		Msg($"Reinitialized {predictables.GetPredictableCount()} predictable entities\n");
 	}
 
 	public void PreEntityPacketReceived(int commandsAcknowledged, int currentWorldUpdatePacket) {
@@ -302,7 +331,7 @@ public class Prediction : IPrediction
 
 		// Do weapon selection
 		if (ucmd.WeaponSelect != 0) {
-			C_BaseCombatWeapon? weapon = (C_BaseCombatWeapon?)(SharedBaseEntity.Instance(ucmd.WeaponSelect));
+			C_BaseCombatWeapon? weapon = (C_BaseCombatWeapon?)(BaseEntity.Instance(ucmd.WeaponSelect));
 			if (weapon != null)
 				player.SelectItem(weapon.GetName(), ucmd.WeaponSubtype);
 		}
@@ -394,7 +423,7 @@ public class Prediction : IPrediction
 			vehicle.FinishMove(player, ref ucmd, move);
 	}
 
-	protected readonly EHANDLE LastGround = new();
+	protected EHANDLE LastGround = new();
 
 	private void SetupMove(BasePlayer player, UserCmd ucmd, IMoveHelper helper, MoveData move) {
 		move.FirstRunOfFunctions = IsFirstTimePredicted();
@@ -403,7 +432,7 @@ public class Prediction : IPrediction
 		move.Velocity = player.GetAbsVelocity();
 		move.SetAbsOrigin(player.GetNetworkOrigin());
 		move.OldAngles = move.Angles;
-		move.Buttons = (InButtons)player.Local.OldButtons;
+		move.OldButtons = (InButtons)player.Local.OldButtons;
 		move.OldForwardMove = player.Local.OldForwardMove;
 		move.ClientMaxSpeed = player.Maxspeed;
 
@@ -513,9 +542,11 @@ public class Prediction : IPrediction
 	readonly GlobalVarsBase saveVars = new(true);
 	public void Update(int startFrame, bool validFrame, int incomingAcknowledged, int outgoingCommand) {
 		EnginePaused = engine.IsPaused();
+
 		bool receivedNewWorldUpdate = true;
-		if (PreviousStartFrame == startFrame && cl_predict.GetInt() != 0)
+		if (PreviousStartFrame == startFrame && cl_pred_optimize.GetBool() && cl_predict.GetInt() != 0)
 			receivedNewWorldUpdate = false;
+
 		PreviousStartFrame = startFrame;
 
 		gpGlobals.CopyInstantiatedReferenceTo(saveVars);
@@ -762,7 +793,7 @@ public class Prediction : IPrediction
 			if (entity.IsPlayerSimulated())
 				continue;
 
-			if (AddDataChangeEvent(entity, DataUpdateType.DataTableChanged, entity.DataChangeEventRef))
+			if (HLClient.AddDataChangeEvent(entity, DataUpdateType.DataTableChanged, entity.DataChangeEventRef))
 				entity.OnPreDataChanged(DataUpdateType.DataTableChanged);
 
 			// Certain entities can be created locally and if so created, should be 
@@ -786,28 +817,10 @@ public class Prediction : IPrediction
 		IPredictionSystem.SuppressEvents(false);
 	}
 
-	private bool AddDataChangeEvent(IClientNetworkable ent, DataUpdateType updateType, ReusableBox<ulong> storedEvent) {
-		Assert(ent);
-		// Make sure we don't already have an event queued for this guy.
-		if (storedEvent.Struct >= 0) {
-			Assert(g_GetDataChangedEvent(storedEvent.Struct).Entity == ent);
-
-			// DATA_UPDATE_CREATED always overrides DATA_UPDATE_CHANGED.
-			if (updateType == DataUpdateType.Created)
-				g_GetDataChangedEvent(storedEvent.Struct).UpdateType = updateType;
-
-			return false;
-		}
-		else {
-			storedEvent.Struct = g_AddDataChangedEvent(new DataChangedEvent(ent, updateType, storedEvent));
-			return true;
-		}
-	}
-
 	private void InvalidateEFlagsRecursive(C_BaseEntity ent, EFL dirtyFlags, EFL childFlags = 0) {
 		ent.AddEFlags(dirtyFlags);
 		dirtyFlags |= childFlags;
-		for (C_BaseEntity? child = ent.FirstMoveChild(); child != null; child = child.NextMovePeer()) 
+		for (C_BaseEntity? child = ent.FirstMoveChild(); child != null; child = child.NextMovePeer())
 			InvalidateEFlagsRecursive(child, dirtyFlags);
 	}
 
@@ -827,7 +840,7 @@ public class Prediction : IPrediction
 				continue;
 
 			// FIXME: The lack of this call inexplicably actually creates prediction errors
-			InvalidateEFlagsRecursive(entity, EFL.DirtyAbsTransform | EFL.DirtyAbsVelocity| EFL.DirtyAbsAngVelocity);
+			InvalidateEFlagsRecursive(entity, EFL.DirtyAbsTransform | EFL.DirtyAbsVelocity | EFL.DirtyAbsAngVelocity);
 
 			entity.SaveData("StorePredictionResults", predicted_frame, PredictionCopyType.Everything);
 		}
@@ -849,8 +862,6 @@ public class Prediction : IPrediction
 			entity.PhysicsCheckForEntityUntouch();
 		}
 	}
-
-	static readonly ConVar cl_pred_optimize = new("cl_pred_optimize", "2", 0, "Optimize for not copying data if didn't receive a network update (1), and also for not repredicting if there were no errors (2).");
 
 	private int ComputeFirstCommandToExecute(bool receivedNewWorldUpdate, int incomingAcknowledged, int outgoingCommand) {
 		int destination_slot = 1;
@@ -887,7 +898,7 @@ public class Prediction : IPrediction
 			//  shift the # of commands worth of intermediate state off of front the intermediate state array, and
 			//  only predict the usercmd from the latest render frame.
 			if (cl_pred_optimize.GetInt() >= 2 &&
-				0 == PreviousAckHadErrors &&
+				!PreviousAckHadErrors &&
 				CommandsPredicted > 0 &&
 				ServerCommandsAcknowledged <= nPredictedLimit) {
 				// Copy all of the previously predicted data back into entity so we can skip repredicting it
@@ -908,7 +919,7 @@ public class Prediction : IPrediction
 				//	m_nCommandsPredicted - 1 );
 			}
 			else {
-				if (0 != PreviousAckHadErrors) {
+				if (PreviousAckHadErrors) {
 					C_BasePlayer? localPlayer = C_BasePlayer.GetLocalPlayer();
 
 					// If an entity gets a prediction error, then we want to clear out its interpolated variables
@@ -933,7 +944,7 @@ public class Prediction : IPrediction
 
 		// Always reset these values now that we handled them
 		CommandsPredicted = 0;
-		PreviousAckHadErrors = 0;
+		PreviousAckHadErrors = false;
 		ServerCommandsAcknowledged = 0;
 #endif
 		return destination_slot;

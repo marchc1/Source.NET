@@ -66,7 +66,7 @@ public interface IEngineServer
 	// Given an edict, returns the entity index
 	int IndexOfEdict(Edict? edict);
 	// Given and entity index, returns the corresponding edict pointer
-	Edict PEntityOfEntIndex(int iEntIndex);
+	Edict? PEntityOfEntIndex(int iEntIndex);
 
 	// Get stats info interface for a client netchannel
 	INetChannelInfo GetPlayerNetInfo(int playerIndex);
@@ -249,6 +249,13 @@ public interface IEngineServer
 	// Called when relevant edict state flags change.
 	void NotifyEdictFlagsChange(int iEdict);
 
+	// Only valid during CheckTransmit. Also, only the PVS, networked areas, and
+	// m_pTransmitInfo are valid in the returned strucutre.
+	CheckTransmitInfo GetPrevCheckTransmitInfo(Edict playerEdict);
+
+	SharedEdictChangeInfo GetSharedEdictChangeInfo();
+
+
 	// Tells the engine we can immdiately re-use all edict indices
 	// even though we may not have waited enough time
 	void AllowImmediateEdictReuse();
@@ -292,7 +299,7 @@ public interface IEngineServer
 	// TODO: GetGamestatsData/SetGamestatsData
 
 	// Returns the SteamID of the specified player. It'll be NULL if the player hasn't authenticated yet.
-	ref readonly CSteamID GetClientSteamID( Edict playerEdict );
+	ref readonly CSteamID GetClientSteamID(Edict playerEdict);
 
 	// Returns the SteamID of the game server
 	ref readonly CSteamID GetGameServerSteamID();
@@ -302,7 +309,7 @@ public interface IEngineServer
 	void ClientCommandKeyValues(Edict edict, KeyValues command);
 
 	// Returns the SteamID of the specified player. It'll be NULL if the player hasn't authenticated yet.
-	ref readonly CSteamID GetClientSteamIDByPlayerIndex( int entNum );
+	ref readonly CSteamID GetClientSteamIDByPlayerIndex(int entNum);
 	// Gets a list of all clusters' bounds.  Returns total number of clusters.
 	int GetClusterCount();
 	// TODO: GetAllClusterBounds

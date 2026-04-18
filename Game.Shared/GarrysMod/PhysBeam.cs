@@ -32,7 +32,7 @@ public partial class
 #else
 	PhysBeam
 #endif
-	: SharedBaseEntity
+	: BaseEntity
 {
 	public static readonly Table DT_PhysBeam = new(DT_BaseEntity, [
 #if CLIENT_DLL
@@ -56,7 +56,7 @@ public partial class
 #endif
 		= new Class("PhysBeam", DT_PhysBeam).WithManualClassID(StaticClassIndices.CPhysBeam);
 
-	public readonly EHANDLE TargetEnt = new();
+	public EHANDLE TargetEnt = new();
 	public Vector3 HoldPos;
 	public bool IsOn;
 	public int PhysBone;

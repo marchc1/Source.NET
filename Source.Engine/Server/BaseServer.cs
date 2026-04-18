@@ -1,8 +1,5 @@
 ﻿using CommunityToolkit.HighPerformance;
 
-using SDL;
-
-using Source;
 using Source.Common;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
@@ -12,8 +9,6 @@ using Source.Common.Hashing;
 using Source.Common.Networking;
 using Source.Common.Server;
 using Source.Common.Utilities;
-using Source.Engine;
-using Source.Engine.Server;
 
 using Steamworks;
 
@@ -36,6 +31,7 @@ public abstract class BaseServer : IServer
 	protected readonly Net Net = Singleton<Net>();
 	protected readonly Host Host = Singleton<Host>();
 	protected readonly Filter Filter = Singleton<Filter>();
+	protected readonly FrameSnapshotManager framesnapshotmanager = Singleton<FrameSnapshotManager>();
 	internal static readonly ConVar sv_region = new("sv_region", "-1", FCvar.None, "The region of the world to report this server in.");
 	internal static readonly ConVar sv_instancebaselines = new("sv_instancebaselines", "1", FCvar.DevelopmentOnly, "Enable instanced baselines. Saves network overhead.");
 	internal static readonly ConVar sv_stats = new("sv_stats", "1", 0, "Collect CPU usage stats");
@@ -176,8 +172,51 @@ public abstract class BaseServer : IServer
 		}
 	}
 	public virtual void BroadcastMessage(INetMessage msg, IRecipientFilter filter) {
-		throw new NotImplementedException();
+		if (filter.IsInitMessage()) {
+			// This really only applies to the first player to connect, but that works in single player well enought
+			if (IsActive())
+				ConDMsg("SV_BroadcastMessage: Init message being created after signon buffer has been transmitted\n");
+
+			if (!msg.WriteToBuffer(Signon)) {
+				Sys.Error("SV_BroadcastMessage: Init message would overflow signon buffer!\n");
+				return;
+			}
+		}
+		else {
+			msg.SetReliable(filter.IsReliable());
+
+			int num = filter.GetRecipientCount();
+
+			for (int i = 0; i < num; i++) {
+				int index = filter.GetRecipientIndex(i);
+
+				if (index < 1 || index > Clients.Count) {
+					Msg("SV_BroadcastMessage:  Recipient Filter for message type %i (reliable: %s, init: %s) with bogus client index (%i) in list of %i clients\n",
+							msg.GetType(),
+							filter.IsReliable() ? "yes" : "no",
+							filter.IsInitMessage() ? "yes" : "no",
+							index, num);
+
+					if (msg.IsReliable())
+						Host.Error($"Reliable message (type {msg.GetType()}) discarded.");
+
+					continue;
+				}
+
+				BaseClient cl = Clients[index - 1];
+
+				if (!cl.IsSpawned())
+					continue;
+
+				if (!cl.SendNetMsg(msg)) {
+					if (msg.IsReliable()) {
+						DevMsg($"BroadcastMessage: Reliable filter message overflow for client {cl.GetClientName()}");
+					}
+				}
+			}
+		}
 	}
+
 	public virtual void BroadcastPrintf(ReadOnlySpan<char> msg) {
 		throw new NotImplementedException();
 	}
@@ -219,10 +258,156 @@ public abstract class BaseServer : IServer
 	public virtual void DisconnectClient(IClient client, ReadOnlySpan<char> reason) => client.Disconnect(reason);
 
 	public virtual void WriteDeltaEntities(BaseClient client, ClientFrame to, ClientFrame from, bf_write pBuf) {
-		throw new NotImplementedException();
+		EntityWriteInfo u = new() {
+			Buffer = pBuf,
+			To = to,
+			ToSnapshot = to.GetSnapshot(),
+			Baseline = client.Baseline,
+			FullProps = 0,
+			Server = this,
+			ClientEntity = client.EntityIndex
+		};
+
+		if (IsHLTV() || IsReplay()) {
+			// cull props only on master proxy
+			u.CullProps = sv.IsActive();
+		}
+		else {
+			u.CullProps = true;  // always cull props for players
+		}
+
+		if (from != null) {
+			u.AsDelta = true;
+			u.From = from;
+			u.FromSnapshot = from.GetSnapshot();
+			Assert(u.FromSnapshot);
+		}
+		else {
+			u.AsDelta = false;
+			u.From = null;
+			u.FromSnapshot = null;
+		}
+
+		u.HeaderCount = 0;
+
+		// set FromBaseline pointer if this snapshot may become a baseline update
+		if (client.BaselineUpdateTick == -1) {
+			client.BaselinesSent.ClearAll();
+			to.FromBaseline = client.BaselinesSent;
+		}
+
+		// Write the header
+
+		// TRACE_PACKET(("WriteDeltaEntities (%d)\n", u.ToSnapshot.NumEntities));
+
+		u.Buffer.WriteUBitLong(SVC.PacketEntities, Protocol.NETMSG_TYPE_BITS);
+
+		u.Buffer.WriteUBitLong((uint)u.ToSnapshot.NumEntities, Constants.MAX_EDICT_BITS);
+
+		if (u.AsDelta) {
+			u.Buffer.WriteOneBit(1); // use delta sequence
+
+			u.Buffer.WriteLong((int)u.From.TickCount);    // This is the sequence # that we are updating from.
+		}
+		else {
+			u.Buffer.WriteOneBit(0); // use baseline
+		}
+
+		u.Buffer.WriteUBitLong((uint)client.BaselineUsed, 1);  // tell client what baseline we are using
+
+		// Store off current position
+		int savepos = u.Buffer.BitsWritten;
+
+		// Save room for number of headers to parse, too
+		int bits = Constants.MAX_EDICT_BITS + Constants.DELTASIZE_BITS + 1;
+		Span<byte> headerBits = stackalloc byte[Net.Bits2Bytes(bits)];
+		u.Buffer.WriteBits(headerBits, bits);
+
+		int startbit = u.Buffer.BitsWritten;
+
+		bool isTracing = client.Tracing != 0;
+		if (isTracing)
+			client.TraceNetworkData(pBuf, "Delta Entities Overhead");
+
+		// Don't work too hard if we're using the optimized single-player mode.
+		if (CL.LocalNetworkBackdoor == null) {
+
+			// Iterate through the in PVS bitfields until we find an entity 
+			// that was either in the old pack or the new pack
+			u.NextOldEntity();
+			u.NextNewEntity();
+
+			while ((u.OldEntity != PackedEntity.ENTITY_SENTINEL) || (u.NewEntity != PackedEntity.ENTITY_SENTINEL)) {
+				u.NewPack = (u.NewEntity != PackedEntity.ENTITY_SENTINEL) ? framesnapshotmanager.GetPackedEntity(u.ToSnapshot, u.NewEntity) : null;
+				u.OldPack = (u.OldEntity != PackedEntity.ENTITY_SENTINEL) ? framesnapshotmanager.GetPackedEntity(u.FromSnapshot, u.OldEntity) : null;
+
+				int entStartBit = pBuf.BitsWritten;
+
+				// Figure out how we want to write this entity.
+				EntsWrite.DetermineUpdateType(u);
+				EntsWrite.WriteEntityUpdate(u);
+
+				if (!isTracing)
+					continue;
+
+				switch (u.UpdateType) {
+					default:
+					case UpdateType.PreserveEnt:
+						break;
+					case UpdateType.EnterPVS: {
+							ReadOnlySpan<char> eString = sv.Edicts[u.NewPack.EntityIndex].GetNetworkable().GetClassName();
+							client.TraceNetworkData(pBuf, $"enter [{eString}]");
+						}
+						break;
+					case UpdateType.LeavePVS: {
+							// Note, can't use GetNetworkable() since the edict has been freed at this point
+							ReadOnlySpan<char> eString = u.OldPack.ServerClass.NetworkName;
+							client.TraceNetworkData(pBuf, $"leave [{eString}]");
+						}
+						break;
+					case UpdateType.DeltaEnt: {
+							ReadOnlySpan<char> eString = sv.Edicts[u.OldPack.EntityIndex].GetNetworkable().GetClassName();
+							client.TraceNetworkData(pBuf, $"delta [{eString}]");
+						}
+						break;
+				}
+			}
+
+			// Now write out the express deletions
+			int nNumDeletions = EntsWrite.WriteDeletions(u);
+			if (isTracing)
+				client.TraceNetworkData(pBuf, $"Delta: [{nNumDeletions}] deletions");
+		}
+
+		// get number of written bits
+		int length = u.Buffer.BitsWritten - startbit;
+
+		// go back to header and fill in correct length now
+		int endbitpos = u.Buffer.BitsWritten;
+		u.Buffer.Seek(savepos);
+		u.Buffer.WriteUBitLong((uint)u.HeaderCount, Constants.MAX_EDICT_BITS);
+		u.Buffer.WriteUBitLong((uint)length, Constants.DELTASIZE_BITS);
+
+		bool bUpdateBaseline = ((client.BaselineUpdateTick == -1) &&
+			(u.FullProps > 0 || !u.AsDelta));
+
+		if (bUpdateBaseline && u.Baseline != null) {
+			// tell client to use this snapshot as baseline update
+			u.Buffer.WriteOneBit(1);
+			client.BaselineUpdateTick = (int)to.TickCount;
+		}
+		else
+			u.Buffer.WriteOneBit(0);
+
+		u.Buffer.Seek(endbitpos);
+
+		if (isTracing)
+			client.TraceNetworkData(pBuf, "Delta Finish");
+
 	}
 	public virtual void WriteTempEntities(BaseClient client, FrameSnapshot to, FrameSnapshot from, bf_write pBuf, int nMaxEnts) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		// todo
 	}
 
 
@@ -414,12 +599,37 @@ public abstract class BaseServer : IServer
 		throw new NotImplementedException();
 	}
 	public virtual void RemoveClientFromGame(BaseClient cl) { }
-	public virtual void SendClientMessages(bool bSendSnapshots) {
 
+	public virtual void SendClientMessages(bool bSendSnapshots) {
+		for (int i = 0; i < Clients.Count; i++) {
+			BaseClient cl = Clients[i];
+
+			if (!cl.ShouldSendMessages())
+				continue;
+
+			if (cl.NetChannel != null) {
+				cl.NetChannel.Transmit();
+				cl.UpdateSendState();
+			}
+			else
+				Msg("Client has no netchannel.\n");
+		}
 	}
 
 	public virtual void FillServerInfo(SVC_ServerInfo serverinfo) {
-
+		serverinfo.Protocol = Protocol.VERSION;
+		serverinfo.ServerCount = GetSpawnCount();
+		if (WorldmapMD5.Bits != default) // FIXME: singleplayer crash
+			serverinfo.MapMD5 = WorldmapMD5;
+		serverinfo.MaxClients = GetMaxClients();
+		serverinfo.MaxClasses = ServerClasses;
+		serverinfo.IsDedicated = IsDedicated();
+		serverinfo.TickInterval = GetTickInterval();
+		serverinfo.GameDirectory = Common.Gamedir;
+		serverinfo.MapName = new(GetMapName());
+		serverinfo.SkyName = new(((ReadOnlySpan<char>)Skyname).SliceNullTerminatedString());
+		serverinfo.HostName = new(GetName());
+		serverinfo.IsHLTV = IsHLTV();
 	}
 
 	public virtual void UserInfoChanged(int nClientIndex) {
@@ -427,7 +637,17 @@ public abstract class BaseServer : IServer
 	}
 
 	public bool GetClassBaseline(ServerClass pClass, out ReadOnlySpan<byte> pData) {
-		throw new NotImplementedException();
+		if (sv_instancebaselines.GetBool()) {
+			ErrorIfNot(pClass.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX, $"SV_GetInstanceBaseline: missing instance baseline for class '{pClass.NetworkName}'\n");
+
+			pData = GetInstanceBaselineTable()!.GetStringUserData(pClass.InstanceBaselineIndex);
+			if (pData.IsEmpty) pData = [0];
+			return true;
+		}
+		else {
+			pData = [0];
+			return true;
+		}
 	}
 
 	public const double CHALLENGE_NONCE_LIFETIME = 6d;
@@ -451,9 +671,23 @@ public abstract class BaseServer : IServer
 		if (PausedTimeEnd >= 0 && State == ServerState.Paused && Sys.Time >= PausedTimeEnd)
 			SetPausedForced(false);
 	}
-	public void InactivateClients() {
 
+	public void InactivateClients() {
+		for (int i = 0; i < Clients.Count; i++) {
+			BaseClient cl = Clients[i];
+
+			if (cl.IsFakeClient() && !cl.IsHLTV()) {
+				Steam3Server().NotifyClientDisconnect(cl);
+				cl.Clear();
+				continue;
+			}
+			else if (!cl.IsConnected())
+				continue;
+
+			cl.Inactivate();
+		}
 	}
+
 	public void ReconnectClients() {
 		for (int i = 0; i < Clients.Count; i++) {
 			BaseClient cl = Clients[i];
@@ -475,7 +709,7 @@ public abstract class BaseServer : IServer
 		for (int i = 0; i < Clients.Count; i++) {
 			BaseClient? cl = Clients[i];
 
-			if (cl.NeedSendServerInfo) 
+			if (cl.NeedSendServerInfo)
 				cl.SendServerInfo();
 		}
 	}
@@ -488,7 +722,8 @@ public abstract class BaseServer : IServer
 	}
 
 	public INetworkStringTable? GetInstanceBaselineTable() {
-		throw new NotImplementedException();
+		InstanceBaselineTable ??= StringTables!.FindTable(Protocol.INSTANCE_BASELINE_TABLENAME);
+		return InstanceBaselineTable;
 	}
 	public INetworkStringTable? GetLightStyleTable() {
 		throw new NotImplementedException();
@@ -785,14 +1020,14 @@ public abstract class BaseServer : IServer
 			Assert(!client.SteamID.IsValid());
 		}
 		else if (nAuthProtocol == Protocol.PROTOCOL_STEAM) {
-			client.SetSteamID(new()); 
+			client.SetSteamID(new());
 			if (cbCookie <= 0 || cbCookie >= Protocol.STEAM_KEYSIZE) {
 				RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectInvalidSteamCertLen");
 				return false;
 			}
 
 			NetAddress checkAdr = adr.Copy();
-			if (adr.Type == NetAddressType.Loopback || adr.IsLocalhost()) 
+			if (adr.Type == NetAddressType.Loopback || adr.IsLocalhost())
 				checkAdr.SetIP(Net.LocalAdr.GetIPHostByteOrder());
 
 			if (!Steam3Server().NotifyClientConnect(client, nNewUserID, checkAdr, pchLogonCookie, cbCookie) && !Steam3Server().BLanOnly()) {
@@ -949,8 +1184,8 @@ public abstract class BaseServer : IServer
 
 	protected int MaxClients;         // Current max #
 	protected int SpawnCount;          // Number of servers spawned since start,
-									   // used to check late spawns (e.g., when d/l'ing lots of
-									   // data)
+																		 // used to check late spawns (e.g., when d/l'ing lots of
+																		 // data)
 	protected TimeUnit_t TickInterval;     // time for 1 tick in seconds
 
 

@@ -1,4 +1,3 @@
-using Game.Client;
 using Game.Client.HUD;
 using Game.Shared;
 
@@ -6,6 +5,8 @@ using Source;
 using Source.Common.Bitbuffers;
 using Source.Common.GUI;
 using Source.GUI.Controls;
+
+namespace Game.Client;
 
 enum HRType
 {

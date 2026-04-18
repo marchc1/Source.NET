@@ -5,20 +5,20 @@ global using static Game.Client.BasePlayerGlobals;
 
 global using BasePlayer = Game.Client.C_BasePlayer;
 
-
 #else
 global using static Game.Server.BasePlayerGlobals;
+
 global using BasePlayer = Game.Server.BasePlayer;
 
 #endif
 using Source.Common.Mathematics;
-using Source;
+
 using Game.Shared;
+
 using System.Numerics;
 
 #if CLIENT_DLL
 namespace Game.Client;
-
 
 #else
 namespace Game.Server;
@@ -26,19 +26,21 @@ namespace Game.Server;
 
 using Source.Common.Commands;
 using Source.Common.Physics;
+using Source;
+using Source.Common;
 
 using System.Runtime.CompilerServices;
 
 public static class BasePlayerGlobals
 {
-	public static BasePlayer? ToBasePlayer(SharedBaseEntity? entity) {
+	public static BasePlayer? ToBasePlayer(BaseEntity? entity) {
 		if (entity == null || !entity.IsPlayer())
 			return null;
 
 		return (BasePlayer?)entity;
 	}
 
-	public static BaseCombatCharacter? ToBaseCombatCharacter(SharedBaseEntity? entity) {
+	public static BaseCombatCharacter? ToBaseCombatCharacter(BaseEntity? entity) {
 		if (entity == null || !entity.IsBaseCombatCharacter())
 			return null;
 
@@ -55,6 +57,37 @@ public partial class
 	BasePlayer
 #endif
 {
+	public void SharedSpawn() {
+		SetMoveType(Source.MoveType.Walk);
+		SetSolid(SolidType.BBox);
+		AddSolidFlags(SolidFlags.NotStandable);
+		Friction = 1.0f;
+
+		pl.DeadFlag = false;
+		LifeState = (int)Source.LifeState.Alive;
+		Health = 100;
+		TakeDamage = 2; // DAMAGE_YES
+
+		Local.DrawViewmodel = true;
+		Local.StepSize = sv_stepsize.GetFloat();
+		Local.AllowAutoMovement = true;
+
+		RenderFX = (byte)RenderFx.None;
+		SetNextAttack(gpGlobals.CurTime);
+		Maxspeed = 0.0f;
+
+		SetSequence(SelectWeightedSequence(Activity.ACT_IDLE));
+
+		// if ((GetFlags() & EntityFlags.Ducking) != 0)
+		// 	SetCollisionBounds(VEC_DUCK_HULL_MIN, VEC_DUCK_HULL_MAX);
+		// else
+		// 	SetCollisionBounds(VEC_HULL_MIN, VEC_HULL_MAX);
+
+		Local.FallVelocity = 0;
+
+		// SetBloodColor(BLOOD_COLOR_RED);
+	}
+
 	public TimeUnit_t GetTimeBase() => TickBase * TICK_INTERVAL;
 	public virtual void CalcView(ref Vector3 eyeOrigin, ref QAngle eyeAngles, ref float zNear, ref float zFar, ref float fov) {
 		CalcPlayerView(ref eyeOrigin, ref eyeAngles, ref fov); // << TODO: There is a lot more logic here for observers, vehicles, etc!
@@ -69,7 +102,7 @@ public partial class
 	static QAngle angEyeWorld;
 	public override ref readonly QAngle EyeAngles() {
 		// NOTE: Viewangles are measured *relative* to the parent's coordinate system
-		SharedBaseEntity? pMoveParent = null; //this.GetMoveParent();
+		BaseEntity? pMoveParent = null; //this.GetMoveParent();
 
 		if (pMoveParent == null)
 			return ref pl.ViewingAngle;
@@ -105,7 +138,10 @@ public partial class
 		eyeAngles += Local.PunchAngle;
 
 #if CLIENT_DLL
-		if (!prediction.InPrediction()) { } // vieweffects
+		if (!prediction.InPrediction()) {
+			vieweffects.CalcShake();
+			vieweffects.ApplyShake(ref eyeOrigin, ref eyeAngles, 1.0f);
+		}
 #endif
 
 #if CLIENT_DLL
@@ -119,7 +155,7 @@ public partial class
 	public ReadOnlySpan<char> GetPlayerName() {
 		return ((Span<char>)Netname).SliceNullTerminatedString();
 	}
-	public void SetPlayerName(ReadOnlySpan<char> name){
+	public void SetPlayerName(ReadOnlySpan<char> name) {
 		strcpy(Netname, name);
 	}
 
@@ -151,6 +187,10 @@ public partial class
 		}
 
 		Weapon_Switch(item);
+	}
+
+	public void PlayStepSound(in Vector3 origin, SurfaceData_ptr? surface, float fvol, bool force) {
+		// todo
 	}
 
 	public virtual bool Weapon_ShouldSelectItem(BaseCombatWeapon weapon) => weapon != GetActiveWeapon();
@@ -188,6 +228,7 @@ public partial class
 
 		Local.PunchAngleVel += angleOffset * 20;
 	}
+
 	public void ViewPunchReset(float tolerance) {
 		if (tolerance != 0) {
 			tolerance *= tolerance; // square
@@ -199,8 +240,8 @@ public partial class
 		Local.PunchAngleVel = vec3_angle;
 	}
 
-	void Weapon_SetLast(BaseCombatWeapon pWeapon) {
-		throw new NotImplementedException();
+	void Weapon_SetLast(BaseCombatWeapon? pWeapon) {
+		LastWeapon.Set(pWeapon);
 	}
 
 	public void SetAnimationExtension(ReadOnlySpan<char> extension) {
@@ -208,19 +249,19 @@ public partial class
 	}
 
 
-	public void AddToPlayerSimulationList(SharedBaseEntity other) {
+	public void AddToPlayerSimulationList(BaseEntity other) {
 		// Already in list
 		foreach (var entry in SimulatedByThisPlayer)
 			if (entry.Get() == other) return;
 
 		Assert(other.IsPlayerSimulated());
 
-		Handle<SharedBaseEntity> h = new();
+		Handle<BaseEntity> h = new();
 		h.Set(other);
 		SimulatedByThisPlayer.Add(h);
 	}
 
-	public void RemoveFromPlayerSimulationList(SharedBaseEntity? other) {
+	public void RemoveFromPlayerSimulationList(BaseEntity? other) {
 		if (other == null)
 			return;
 
@@ -295,7 +336,7 @@ public partial class
 			//AngleVectors(m_vecVehicleViewAngles, pForward, pRight, pUp);
 			forward = right = up = default;
 		}
-		else 
+		else
 			MathLib.AngleVectors(EyeAngles(), out forward, out right, out up);
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void EyeVectors(out Vector3 forward, out Vector3 right) => EyeVectors(out forward, out right, out _);
@@ -305,8 +346,8 @@ public partial class
 		int i;
 
 		for (i = c - 1; i >= 0; i--) {
-			Handle<SharedBaseEntity> h = SimulatedByThisPlayer[i];
-			SharedBaseEntity? e = h.Get();
+			Handle<BaseEntity> h = SimulatedByThisPlayer[i];
+			BaseEntity? e = h.Get();
 			e?.UnsetPlayerSimulated();
 		}
 
@@ -318,8 +359,8 @@ public partial class
 		int i;
 
 		for (i = c - 1; i >= 0; i--) {
-			Handle<SharedBaseEntity> h = SimulatedByThisPlayer[i];
-			SharedBaseEntity? e = h.Get();
+			Handle<BaseEntity> h = SimulatedByThisPlayer[i];
+			BaseEntity? e = h.Get();
 
 			if (e == null || !e.IsPlayerSimulated()) {
 				SimulatedByThisPlayer.RemoveAt(i);
@@ -340,8 +381,8 @@ public partial class
 		c = SimulatedByThisPlayer.Count;
 
 		for (i = c - 1; i >= 0; i--) {
-			Handle<SharedBaseEntity> h = SimulatedByThisPlayer[i];
-			SharedBaseEntity? e = h.Get();
+			Handle<BaseEntity> h = SimulatedByThisPlayer[i];
+			BaseEntity? e = h.Get();
 
 			if (e == null || !e.IsPlayerSimulated()) {
 				SimulatedByThisPlayer.RemoveAt(i);

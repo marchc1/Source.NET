@@ -44,7 +44,7 @@ public abstract class BaseClientState(
 
 	public ClockDriftMgr ClockDriftMgr;
 	public NetSocketType Socket;
-	public NetChannel? NetChannel;
+	public INetChannel? NetChannel;
 	public uint ChallengeNumber;
 	public double ConnectTime;
 	public int RetryNumber;
@@ -67,7 +67,7 @@ public abstract class BaseClientState(
 
 	public InlineArray2<InlineArrayMaxEdicts<PackedEntity?>> EntityBaselines;
 
-	public C_ServerClassInfo[] ServerClasses = new C_ServerClassInfo[Constants.TEMP_TOTAL_SERVER_CLASSES];
+	public C_ServerClassInfo[]? ServerClasses = new C_ServerClassInfo[Constants.TEMP_TOTAL_SERVER_CLASSES];
 	public int NumServerClasses = Constants.TEMP_TOTAL_SERVER_CLASSES;
 	public int ServerClassBits;
 	public InlineArraySteamKeysize<char> EncryptionKey;
@@ -122,7 +122,7 @@ public abstract class BaseClientState(
 
 				Assert(false);
 			}
-			ErrorIfNot(pInfo.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX, $"GetDynamicBaseline: FindStringIndex({str}-{pInfo.ClassName}) failed.");
+			ErrorIfNot(pInfo.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX, $"GetDynamicBaseline: FindStringIndex({str.SliceNullTerminatedString()}-{pInfo.ClassName}) failed.");
 		}
 		fromData = pBaselineTable.GetStringUserData(pInfo.InstanceBaselineIndex);
 		fromBits = fromData.Length;
@@ -248,7 +248,6 @@ public abstract class BaseClientState(
 
 	internal PackedEntity? GetEntityBaseline(int baseline, int newEntity) => EntityBaselines[baseline][newEntity];
 
-
 	public virtual void ConnectionStart(INetChannel channel) {
 		channel.RegisterMessage<NET_Tick>();
 		channel.RegisterMessage<NET_SignonState>();
@@ -369,6 +368,7 @@ public abstract class BaseClientState(
 	}
 
 	protected virtual bool ProcessSetView(SVC_SetView msg) {
+		ViewEntity = msg.EntityIndex;
 		return true;
 	}
 
@@ -381,7 +381,7 @@ public abstract class BaseClientState(
 	}
 
 	protected virtual bool ProcessGameEventList(SVC_GameEventList msg) {
-		return true;
+		return gameEventManager.ParseEventList(msg);
 	}
 
 	protected virtual bool ProcessBSPDecal(SVC_BSPDecal msg) {
@@ -572,7 +572,9 @@ public abstract class BaseClientState(
 
 	private bool ProcessSetConVar(NET_SetConVar msg) {
 		if (NetChannel == null) return false;
-		// TODO: loopback netchannels
+
+		if (NetChannel.IsLoopback())
+			return true;
 
 		foreach (var var in msg.ConVars) {
 			ConVar? cv = cvar.FindVar(var.Name);
@@ -604,7 +606,8 @@ public abstract class BaseClientState(
 		NetChannel.SetRemoteFramerate(msg.HostFrameTime, msg.HostFrameDeviation);
 		SetClientTickCount(msg.Tick);
 		SetServerTickCount(msg.Tick);
-		// string tables?
+
+		StringTableContainer?.SetTick(GetServerTickCount());
 
 		return GetServerTickCount() > 0;
 	}
@@ -626,6 +629,10 @@ public abstract class BaseClientState(
 		SetSignonState(SignOnState.Connected, -1);
 	}
 	public virtual void Connect(ReadOnlySpan<char> adr, string sourceTag) {
+		IConVar? var = cvar.FindVar("name");
+		if (var != null)
+			SetNameToSteamIDName(var);
+
 		RetryAddress = new(adr);
 		RetryChallenge = (Random.Shared.Next(0, 0x0FFF) << 16) | (Random.Shared.Next(0, 0xFFFF));
 		GameServerSteamID = 0;
@@ -827,7 +834,32 @@ public abstract class BaseClientState(
 
 	public virtual int GetConnectionRetryNumber() => CL_CONNECTION_RETRIES;
 
-	public ConVar cl_name = new("name", "unnamed", FCvar.Archive | FCvar.UserInfo | FCvar.PrintableOnly | FCvar.ServerCanExecute, "Current user name");
+	public ConVar cl_name = new("name", "unnamed", FCvar.Archive | FCvar.UserInfo | FCvar.PrintableOnly | FCvar.ServerCanExecute, "Current user name", callback: CL_NameCvarChanged);
+
+	static bool preventNameChange = false;
+	private static void CL_NameCvarChanged(IConVar var, in ConVarChangeContext ctx) {
+		if (!preventNameChange) {
+			preventNameChange = true;
+			SetNameToSteamIDName(var);
+
+			Span<char> name = stackalloc char[Constants.MAX_PLAYER_NAME_LENGTH];
+			strcpy(name, var.GetString());
+			StrTools.RemoveAllEvilCharacters(name);
+			var.SetValue(name.SliceNullTerminatedString());
+
+			preventNameChange = false;
+		}
+	}
+
+	private static void SetNameToSteamIDName(IConVar var) {
+		CSteamID steamID = SteamUser.GetSteamID();
+		UpdateNameFromSteamID(var, steamID);
+	}
+
+	private static void UpdateNameFromSteamID(IConVar var, CSteamID steamID) {
+		var name = SteamFriends.GetFriendPersonaName(steamID);
+		var.SetValue(name);
+	}
 
 	public virtual string GetClientName() => cl_name.GetString();
 
@@ -846,7 +878,10 @@ public abstract class BaseClientState(
 	}
 
 	private void FreeEntityBaselines() {
-
+		for (int i = 0; i < 2; i++)
+			for (int j = 0; j < Constants.MAX_EDICTS; j++)
+				if (EntityBaselines[i][j] != null)
+					EntityBaselines[i][j] = null;
 	}
 
 	public void SendStringCmd(ReadOnlySpan<char> str) {

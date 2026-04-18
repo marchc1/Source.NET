@@ -34,7 +34,7 @@ public class WeaponRPG_HL1 : BaseHL1MPCombatWeapon
 	public bool LaserDotSuspended;
 }
 
-public class LaserDot_HL1 : SharedBaseEntity
+public class LaserDot_HL1 : BaseEntity
 {
 	public static readonly
 #if CLIENT_DLL

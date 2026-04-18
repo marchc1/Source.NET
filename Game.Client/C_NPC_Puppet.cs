@@ -12,6 +12,6 @@ public class C_NPC_Puppet : C_AI_BaseNPC
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("NPC_Puppet", DT_NPC_Puppet).WithManualClassID(StaticClassIndices.CNPC_Puppet);
 
-	public readonly EHANDLE AnimationTarget = new();
+	public EHANDLE AnimationTarget = new();
 	public int TargetAttachment;
 }

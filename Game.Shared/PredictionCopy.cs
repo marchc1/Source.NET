@@ -38,6 +38,19 @@ public ref struct PredictionIO
 	TypeDescription? typedesc;
 	DataFrame? dataowner;
 
+	public readonly bool UsesDynAccessor() => dynaccess != null;
+	public readonly bool UsesDataMap() => typedesc != null;
+
+	public readonly void GetDynAccessorVars(out IDynamicAccessor? dynaccess, out object? dynowner) {
+		dynaccess = this.dynaccess;
+		dynowner = this.dynowner;
+	}
+
+	public readonly void GetDataMapVars(out TypeDescription? typedesc, out DataFrame? dataowner) {
+		typedesc = this.typedesc;
+		dataowner = this.dataowner;
+	}
+
 	public static PredictionIO FromDynamicAccessor(IDynamicAccessor accessor, object owner)
 		=> new() { dynaccess = accessor, dynowner = owner };
 
@@ -61,16 +74,47 @@ public ref struct PredictionIO
 	}
 }
 
+public readonly ref struct EmbeddedSaveState
+{
+	public readonly TypeDescription? CurrentField;
+	public readonly DataFrame Dest_DataFrame;
+	public readonly DataFrame Src_DataFrame;
+	public readonly object? Dest_Object;
+	public readonly object? Src_Object;
+	public readonly ReadOnlySpan<char> CurrentClassName;
+
+	public EmbeddedSaveState(TypeDescription? field, DataFrame dest_dataframe, DataFrame src_dataframe, object? dest_object, object? src_object, ReadOnlySpan<char> classname){
+		CurrentField = field;
+		Dest_DataFrame = dest_dataframe;
+		Src_DataFrame = src_dataframe;
+		Dest_Object = dest_object;
+		Src_Object = src_object;
+		CurrentClassName = classname;
+	}
+}
+
 public ref struct PredictionCopy
 {
 	public const bool PC_DATA_NORMAL = false;
 	public const bool PC_DATA_PACKED = true;
 
+	public void LoadState(in EmbeddedSaveState state) {
+		CurrentField = state.CurrentField;
+		Dest_DataFrame = state.Dest_DataFrame;
+		Src_DataFrame = state.Src_DataFrame;
+		Dest_Object = state.Dest_Object;
+		Src_Object = state.Src_Object;
+		CurrentClassName = state.CurrentClassName;
+	}
+	public EmbeddedSaveState SaveState() {
+		return new(CurrentField, Dest_DataFrame, Src_DataFrame, Dest_Object, Src_Object, CurrentClassName);
+	}
+
 	public readonly PredictionCopyType Type;
-	public readonly DataFrame Dest_DataFrame;
-	public readonly DataFrame Src_DataFrame;
-	public readonly object? Dest_Object;
-	public readonly object? Src_Object;
+	public DataFrame Dest_DataFrame;
+	public DataFrame Src_DataFrame;
+	public object? Dest_Object;
+	public object? Src_Object;
 	public readonly PredictionCopyRelationship Relationship;
 	public readonly bool ErrorCheck;
 	public readonly bool ReportErrors;
@@ -266,6 +310,7 @@ public ref struct PredictionCopy
 	DiffType CompareShort(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<short>(in output, in input, count);
 	DiffType CompareInt(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<int>(in output, in input, count);
 	DiffType CompareByte(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<byte>(in output, in input, count);
+	DiffType CompareChar(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<char>(in output, in input, count);
 	DiffType CompareBool(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<bool>(in output, in input, count);
 	DiffType CompareFloat(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE_TOLERANCE<float>(in output, in input, count, static (usetolerance, tolerance, op, ip) => {
 		if (usetolerance && MathF.Abs(op - ip) <= tolerance)
@@ -304,34 +349,39 @@ public ref struct PredictionCopy
 		return DiffType.Differs;
 	});
 	DiffType CompareColor(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<Color>(in output, in input, count);
-	DiffType CompareEHandle(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<EHANDLE>(in output, in input, count, static (ov, iv) => ov?.Get() == iv?.Get() ? DiffType.Identical : DiffType.Differs);
+	DiffType CompareEHandle(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<EHANDLE>(in output, in input, count, static (ov, iv) => ov.Get() == iv.Get() ? DiffType.Identical : DiffType.Differs);
 
 
 
+	void CopyChar(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
+		if (!PerformCopy) return;
+		if (dt == DiffType.Identical) return;
+		for (int i = 0; i < count; i++) output.Set<char>(input.Get<char>(i), i);
+	}
 	void CopyShort(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
 		if (!PerformCopy) return;
 		if (dt == DiffType.Identical) return;
-		for (int i = 0; i < count; i++) output.Set<short>(input.Get<short>(i));
+		for (int i = 0; i < count; i++) output.Set<short>(input.Get<short>(i), i);
 	}
 	void CopyInt(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
 		if (!PerformCopy) return;
 		if (dt == DiffType.Identical) return;
-		for (int i = 0; i < count; i++) output.Set<int>(input.Get<int>(i));
+		for (int i = 0; i < count; i++) output.Set<int>(input.Get<int>(i), i);
 	}
 	void CopyByte(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
 		if (!PerformCopy) return;
 		if (dt == DiffType.Identical) return;
-		for (int i = 0; i < count; i++) output.Set<byte>(input.Get<byte>(i));
+		for (int i = 0; i < count; i++) output.Set<byte>(input.Get<byte>(i), i);
 	}
 	void CopyBool(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
 		if (!PerformCopy) return;
 		if (dt == DiffType.Identical) return;
-		for (int i = 0; i < count; i++) output.Set<bool>(input.Get<bool>(i));
+		for (int i = 0; i < count; i++) output.Set<bool>(input.Get<bool>(i), i);
 	}
 	void CopyFloat(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
 		if (!PerformCopy) return;
 		if (dt == DiffType.Identical) return;
-		for (int i = 0; i < count; i++) output.Set<float>(input.Get<float>(i));
+		for (int i = 0; i < count; i++) output.Set<float>(input.Get<float>(i), i);
 	}
 	void CopyString(DiffType dt, in PredictionIO output, in PredictionIO input) {
 		if (!PerformCopy) return;
@@ -343,7 +393,7 @@ public ref struct PredictionCopy
 			output.Set<char>(ic, i);
 			if (ic == '\0')
 				break;
-			
+
 			i++;
 		}
 	}
@@ -351,23 +401,27 @@ public ref struct PredictionCopy
 	void CopyVector(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
 		if (!PerformCopy) return;
 		if (dt == DiffType.Identical) return;
-		for (int i = 0; i < count; i++) output.Set<Vector3>(input.Get<Vector3>(i));
+		for (int i = 0; i < count; i++) output.Set<Vector3>(input.Get<Vector3>(i), i);
 	}
 	void CopyQuaternion(DiffType dt, in PredictionIO output, in PredictionIO input) => CopyQuaternion(dt, output, input, 1);
 	void CopyQuaternion(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
 		if (!PerformCopy) return;
 		if (dt == DiffType.Identical) return;
-		for (int i = 0; i < count; i++) output.Set<Quaternion>(input.Get<Quaternion>(i));
+		for (int i = 0; i < count; i++) output.Set<Quaternion>(input.Get<Quaternion>(i), i);
 	}
 	void CopyColor(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
 		if (!PerformCopy) return;
 		if (dt == DiffType.Identical) return;
-		for (int i = 0; i < count; i++) output.Set<Color>(input.Get<Color>(i));
+		for (int i = 0; i < count; i++) output.Set<Color>(input.Get<Color>(i), i);
 	}
 	void CopyEHandle(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
 		if (!PerformCopy) return;
 		if (dt == DiffType.Identical) return;
-		for (int i = 0; i < count; i++) output.Get<BaseHandle>()!.Index = input.Get<BaseHandle>(i)!.Index;
+		for (int i = 0; i < count; i++) {
+			BaseHandle handle = output.Get<BaseHandle>(i);
+			handle.Index = input.Get<BaseHandle>(i)!.Index;
+			output.Set(handle, i);
+		}
 	}
 
 	void CopyFields(int chaincount, DataMap pRootMap, TypeDescription[] pFields) {
@@ -442,7 +496,43 @@ public ref struct PredictionCopy
 
 			switch (CurrentField.FieldType) {
 				case FieldType.Embedded: {
-						// todo
+						var saveSrcDF = Src_DataFrame;
+						var saveDestDF = Dest_DataFrame;
+						var saveSrcObj = Src_Object;
+						var saveDestObj = Dest_Object;
+						var saveName = CurrentClassName;
+						var saveField = CurrentField;
+
+						CurrentClassName = CurrentField.TD!.DataClassName;
+
+						switch (Relationship) {
+							case PredictionCopyRelationship.DataFrameToObject:
+								Src_DataFrame = Src_DataFrame.Get<DataFrame>(CurrentField);
+								Dest_Object = CurrentField.FieldAccessor.GetValue<object>(Dest_Object!);
+								break;
+							case PredictionCopyRelationship.ObjectToDataFrame:
+								Src_Object = CurrentField.FieldAccessor.GetValue<object>(Src_Object!);
+								Dest_DataFrame = Dest_DataFrame.Get<DataFrame>(CurrentField);
+								break;
+							case PredictionCopyRelationship.DataFrameToDataFrame:
+								Src_DataFrame = Src_DataFrame.Get<DataFrame>(CurrentField);
+								Dest_DataFrame = Dest_DataFrame.Get<DataFrame>(CurrentField);
+								break;
+							case PredictionCopyRelationship.ObjectToObject:
+								Src_Object = CurrentField.FieldAccessor.GetValue<object>(Src_Object!);
+								Dest_Object = CurrentField.FieldAccessor.GetValue<object>(Dest_Object!);
+								break;
+						}
+
+						CopyFields(chaincount, pRootMap, CurrentField.TD!.DataDesc);
+
+						// Restore state
+						Src_DataFrame = saveSrcDF;
+						Dest_DataFrame = saveDestDF;
+						Src_Object = saveSrcObj;
+						Dest_Object = saveDestObj;
+						CurrentClassName = saveName;
+						CurrentField = saveField;
 					}
 					break;
 				case FieldType.Float: {
@@ -527,6 +617,13 @@ public ref struct PredictionCopy
 				case FieldType.Character: {
 						difftype = CompareByte(pOutputData, pInputData, fieldSize);
 						CopyByte(difftype, pOutputData, pInputData, fieldSize);
+						// if (ErrorCheck && ShouldDescribe) DescribeInt(difftype, &valOut, &valIn, fieldSize);
+						// if (bShouldWatch) WatchData(difftype, fieldSize, (pOutputData), pInputData);
+					}
+					break;
+				case FieldType.StringCharacter: {
+						difftype = CompareChar(pOutputData, pInputData, fieldSize);
+						CopyChar(difftype, pOutputData, pInputData, fieldSize);
 						// if (ErrorCheck && ShouldDescribe) DescribeInt(difftype, &valOut, &valIn, fieldSize);
 						// if (bShouldWatch) WatchData(difftype, fieldSize, (pOutputData), pInputData);
 					}

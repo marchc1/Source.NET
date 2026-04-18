@@ -27,7 +27,7 @@ public ref struct MapLoadHelper
 	internal static string? LoadName;
 	internal static string? MapName;
 	internal static Stream? MapFileHandle;
-	internal static BSPHeader MapHeader;
+	internal static BSPDHeader MapHeader;
 	static Host? Host;
 	public static bool Init(Model? model, ReadOnlySpan<char> loadName) {
 		Host = Singleton<Host>();
@@ -127,6 +127,12 @@ public ref struct MapLoadHelper
 		return true;
 	}
 
+	public byte[] LoadLumpBaseRaw() {
+		ref BSPLump lump = ref MapHeader.Lumps[(int)LumpID];
+		byte[]? data = (cachedData != null && cachedData is byte[] tarr) ? tarr : lump.ReadBytes<byte>(MapFileHandle!);
+		return data ?? [];
+	}
+
 	object? cachedData;
 	public T[] LoadLumpData<T>(bool throwIfNoElements = false, int maxElements = 0, bool sysErrorIfOOB = false) where T : unmanaged {
 		ref BSPLump lump = ref MapHeader.Lumps[(int)LumpID];
@@ -174,7 +180,7 @@ public class MDLCacheNotify : IMDLCacheNotify
 
 public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 						 IEngineVGuiInternal EngineVGui, MatSysInterface materials,
-						 CollisionModelSubsystem CM, IMaterialSystemHardwareConfig materialSystemHardwareConfig,
+						 IMaterialSystemHardwareConfig materialSystemHardwareConfig,
 						 IMDLCache MDLCache, IStudioRender StudioRender, IBaseClientDLL g_ClientDLL, MatSysInterface matSys, ICommandLine CommandLine) : IModelLoader
 {
 	public int GetCount() {
@@ -571,8 +577,8 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 
 		IFileHandle? mapFile = fileSystem.Open(name, FileOpenOptions.Read | FileOpenOptions.Binary, "GAME");
 		if (mapFile != null) {
-			BSPHeader header = default;
-			Span<byte> outWrite = MemoryMarshal.Cast<BSPHeader, byte>(new Span<BSPHeader>(ref header));
+			BSPDHeader header = default;
+			Span<byte> outWrite = MemoryMarshal.Cast<BSPDHeader, byte>(new Span<BSPDHeader>(ref header));
 			int len = mapFile.Stream.Read(outWrite);
 			mapFile.Dispose();
 			if (len != outWrite.Length) {
@@ -624,7 +630,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 			return;
 
 		Mod_LoadVertices();
-		BSPEdge[] edges = Mod_LoadEdges();
+		BSPDEdge[] edges = Mod_LoadEdges();
 		Mod_LoadSurfedges(edges);
 		Mod_LoadPlanes();
 		// Mod_LoadOcclusion();
@@ -657,7 +663,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		Mod_LoadVertNormalIndices();
 		Mod_LoadLeafs();
 		Mod_LoadNodes();
-		List<BSPModel> submodelList = [];
+		List<BSPMModel> submodelList = [];
 		Mod_LoadSubmodels(submodelList);
 		SetupSubModels(mod, submodelList);
 
@@ -680,15 +686,15 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 
 	}
 
-	private void SetupSubModels(Model mod, List<BSPModel> llist) {
+	private void SetupSubModels(Model mod, List<BSPMModel> llist) {
 		int i;
-		Span<BSPModel> list = llist.AsSpan();
+		Span<BSPMModel> list = llist.AsSpan();
 
 		InlineModels.EnsureCount(WorldBrushData.NumSubModels);
 
 		for (i = 0; i < WorldBrushData.NumSubModels; i++) {
 			Model starmod = InlineModels[i];
-			ref BSPModel bm = ref list[i];
+			ref BSPMModel bm = ref list[i];
 			mod.CopyInstantiatedReferenceTo(starmod);
 
 			starmod.Brush.FirstModelSurface = bm.FirstFace;
@@ -719,18 +725,18 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	}
 
 
-	private void Mod_LoadSubmodels(List<BSPModel> inSubmodelList) {
+	private void Mod_LoadSubmodels(List<BSPMModel> inSubmodelList) {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Models);
 		BSPDModel[] inModels = lh.LoadLumpData<BSPDModel>();
 
 		int count = inModels.Length;
-		BSPModel[] outModels = new BSPModel[count];
+		BSPMModel[] outModels = new BSPMModel[count];
 
 
 		inSubmodelList.EnsureCount(count);
 		lh.GetMap().NumSubModels = count;
 
-		Span<BSPModel> submodelList = inSubmodelList.AsSpan();
+		Span<BSPMModel> submodelList = inSubmodelList.AsSpan();
 
 		for (int i = 0; i < count; i++) {
 			ref BSPDModel dm = ref inModels[i];
@@ -760,12 +766,12 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 
 	private void Mod_LoadPrimitives() {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Primitives);
-		BSPPrimitive[] inPrims = lh.LoadLumpData<BSPPrimitive>();
+		BSPDPrimitive[] inPrims = lh.LoadLumpData<BSPDPrimitive>();
 		BSPMPrimitive[] outPrims = new BSPMPrimitive[inPrims.Length];
 
 		lh.GetMap().Primitives = outPrims;
 		for (int i = 0; i < outPrims.Length; i++) {
-			ref BSPPrimitive inPrim = ref inPrims[i];
+			ref BSPDPrimitive inPrim = ref inPrims[i];
 			ref BSPMPrimitive outPrim = ref outPrims[i];
 			outPrim.FirstIndex = inPrim.FirstIndex;
 			outPrim.FirstVert = inPrim.FirstVert;
@@ -776,12 +782,12 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	}
 	private void Mod_LoadPrimVerts() {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.PrimVerts);
-		BSPPrimVert[] inPrims = lh.LoadLumpData<BSPPrimVert>();
+		BSPDPrimVert[] inPrims = lh.LoadLumpData<BSPDPrimVert>();
 		BSPMPrimVert[] outPrims = new BSPMPrimVert[inPrims.Length];
 
 		lh.GetMap().PrimVerts = outPrims;
 		for (int i = 0; i < outPrims.Length; i++) {
-			ref BSPPrimVert inPrim = ref inPrims[i];
+			ref BSPDPrimVert inPrim = ref inPrims[i];
 			ref BSPMPrimVert outPrim = ref outPrims[i];
 			outPrim.Position = inPrim.Position;
 		}
@@ -790,7 +796,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.PrimIndices);
 		lh.GetMap().PrimIndices = lh.LoadLumpData<ushort>();
 	}
-	public static ref BSPFace FaceHandleFromIndex(int surfaceIndex, WorldBrushData data) => ref data.Faces![surfaceIndex];
+	public static ref BSPDFace FaceHandleFromIndex(int surfaceIndex, WorldBrushData data) => ref data.Faces![surfaceIndex];
 	public static ref BSPMSurface2 SurfaceHandleFromIndex(int surfaceIndex, WorldBrushData? data = null) => ref (data ?? host_state.WorldBrush)!.Surfaces2![surfaceIndex];
 	public static ref CollisionPlane MSurf_Plane(ref BSPMSurface2 surfID) => ref surfID.Plane.GetReference();
 	public static int MSurf_Index(ref BSPMSurface2 surfID, WorldBrushData? data = null) => (int)surfID.SurfNum;
@@ -837,12 +843,12 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 
 	private void Mod_LoadFaces() {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Faces);
-		BSPFace[] inFaces = lh.LoadLumpData<BSPFace>();
+		BSPDFace[] inFaces = lh.LoadLumpData<BSPDFace>();
 
 		int count = inFaces.Length;
 		BSPMSurface1[] out1 = new BSPMSurface1[count];
 		BSPMSurface2[] out2 = new BSPMSurface2[count];
-		BSPSurfaceLighting[] lighting = new BSPSurfaceLighting[count];
+		BSPMSurfaceLighting[] lighting = new BSPMSurfaceLighting[count];
 
 		WorldBrushData brushData = lh.GetMap();
 		brushData.Faces = inFaces;
@@ -855,10 +861,10 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		int ti, di;
 
 		for (int surfnum = 0; surfnum < count; surfnum++) {
-			ref readonly BSPFace _in = ref inFaces[surfnum];
+			ref readonly BSPDFace _in = ref inFaces[surfnum];
 			ref BSPMSurface1 _out1 = ref out1[surfnum];
 			ref BSPMSurface2 _out2 = ref out2[surfnum];
-			ref BSPSurfaceLighting _light = ref lighting[surfnum];
+			ref BSPMSurfaceLighting _light = ref lighting[surfnum];
 			_out1.SurfNum = surfnum;
 			_out2.SurfNum = surfnum;
 			_light.SurfNum = surfnum;
@@ -937,7 +943,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		}
 	}
 
-	private bool Mod_LoadSurfaceLightingV1(ref BSPSurfaceLighting light, in BSPFace _in, ColorRGBExp32[]? lightData) {
+	private bool Mod_LoadSurfaceLightingV1(ref BSPMSurfaceLighting light, in BSPDFace _in, ColorRGBExp32[]? lightData) {
 		light.LightmapExtents[0] = (short)_in.LightmapTextureSizeInLuxels[0];
 		light.LightmapExtents[1] = (short)_in.LightmapTextureSizeInLuxels[1];
 		light.LightmapMins[0] = (short)_in.LightmapTextureMinsInLuxels[0];
@@ -1032,15 +1038,15 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 
 	private void Mod_LoadVertices() {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Vertexes);
-		lh.GetMap().Vertexes = lh.LoadLumpData<BSPVertex>();
+		lh.GetMap().Vertexes = lh.LoadLumpData<BSPDertex>();
 	}
 
-	private BSPEdge[] Mod_LoadEdges() {
+	private BSPDEdge[] Mod_LoadEdges() {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Edges);
-		BSPEdge[] outData = lh.LoadLumpData<BSPEdge>();
+		BSPDEdge[] outData = lh.LoadLumpData<BSPDEdge>();
 		return outData;
 	}
-	private void Mod_LoadSurfedges(BSPEdge[] edges) {
+	private void Mod_LoadSurfedges(BSPDEdge[] edges) {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.SurfEdges);
 		int[] inData = lh.LoadLumpData<int>(throwIfNoElements: true, maxElements: BSPFileCommon.MAX_MAP_SURFEDGES);
 		ushort[] outData = new ushort[inData.Length]; ;
@@ -1171,7 +1177,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	}
 
 	private bool DispInfo_LoadDisplacements(Model world, MaterialSystem_SortInfo[] sortInfos) {
-		nint numDisplacements = MapLoadHelper.GetLumpSize(LumpIndex.DispInfo) / Unsafe.SizeOf<BSPDispInfo>();
+		nint numDisplacements = MapLoadHelper.GetLumpSize(LumpIndex.DispInfo) / Unsafe.SizeOf<BSPDDispInfo>();
 		nint numLuxels = MapLoadHelper.GetLumpSize(LumpIndex.DispLightmapAlphas);
 		nint numSamplePositionBytes = MapLoadHelper.GetLumpSize(LumpIndex.DispLightmapSamplePositions);
 
@@ -1188,7 +1194,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		MapLoadHelper dispLMPositions = new MapLoadHelper(LumpIndex.DispLightmapSamplePositions);
 		dispLMAlphas.LoadLumpData(DispLMSamplePositions.AsSpan());
 
-		Span<BSPDispInfo> tempDisps = stackalloc BSPDispInfo[BSPFileCommon.MAX_MAP_DISPINFO];
+		Span<BSPDDispInfo> tempDisps = stackalloc BSPDDispInfo[BSPFileCommon.MAX_MAP_DISPINFO];
 		dispInfos.LoadLumpData(tempDisps);
 
 		DispInfo_LinkToParentFaces(world, tempDisps, numDisplacements);
@@ -1211,7 +1217,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		}
 
 		for (disp = 0; disp < numDisplacements; ++disp) {
-			ref BSPDispInfo mapDisp = ref tempDisps[disp];
+			ref BSPDDispInfo mapDisp = ref tempDisps[disp];
 
 			int numVerts = BSPFileCommon.NUM_DISP_POWER_VERTS(mapDisp.Power);
 			ErrorIfNot(numVerts <= BSPFileCommon.MAX_DISPVERTS, $"DispInfo_LoadDisplacements: invalid vertex count ({numVerts})");
@@ -1294,7 +1300,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 	}
 
 	private void SmoothDispSurfNormals(CoreDispInfo[] listBase, nint listSize) {
-		for (int iDisp = 0; iDisp < listSize; ++iDisp) 
+		for (int iDisp = 0; iDisp < listSize; ++iDisp)
 			listBase[iDisp].SetDispUtilsHelperInfo(listBase, listSize);
 
 		BlendSubNeighbors(listBase, listSize);
@@ -1316,12 +1322,12 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 
 	public const int MAX_STATIC_BUFFER_VERTS = (8 * 1024);
 	public const int MAX_STATIC_BUFFER_INDICES = (8 * 1024);
-	private static void DispInfo_CreateEmptyStaticBuffers(Model world, Span<BSPDispInfo> mapDisps) {
+	private static void DispInfo_CreateEmptyStaticBuffers(Model world, Span<BSPDDispInfo> mapDisps) {
 		foreach (var combo in g_DispGroups) {
 			int nTotalVerts = 0, nTotalIndices = 0;
 			int iStart = 0;
 			for (int disp = 0; disp < combo.DispInfos.Count; disp++) {
-				ref BSPDispInfo pMapDisp = ref mapDisps[combo.DispInfos[disp]];
+				ref BSPDDispInfo pMapDisp = ref mapDisps[combo.DispInfos[disp]];
 
 				CalcMaxNumVertsAndIndices(pMapDisp.Power, out int nVerts, out int nIndices);
 
@@ -1347,7 +1353,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		}
 	}
 
-	private static void AddEmptyMesh(Model world, DispGroup combo, Span<BSPDispInfo> mapDisps, Span<int> dispInfos, int nDisps, int nTotalVerts, int nTotalIndices) {
+	private static void AddEmptyMesh(Model world, DispGroup combo, Span<BSPDDispInfo> mapDisps, Span<int> dispInfos, int nDisps, int nTotalVerts, int nTotalIndices) {
 		MatRenderContextPtr pRenderContext = new(SourceDllMain.materials);
 
 		GroupMesh pMesh = new GroupMesh();
@@ -1374,7 +1380,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		int iIndexOffset = 0;
 		for (int disp = 0; disp < nDisps; disp++) {
 			DispInfo pDisp = DispInfo.GetModelDisp(world, dispInfos[disp])!;
-			ref BSPDispInfo pMapDisp = ref mapDisps[dispInfos[disp]];
+			ref BSPDDispInfo pMapDisp = ref mapDisps[dispInfos[disp]];
 
 			pDisp.Mesh = pMesh;
 			pDisp.VertOffset = iVertOffset;
@@ -1391,7 +1397,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		Assert(iIndexOffset == nTotalIndices);
 	}
 
-	private static VertexFormat ComputeDisplacementStaticMeshVertexFormat(IMaterial? material, DispGroup combo, Span<BSPDispInfo> mapDisps) {
+	private static VertexFormat ComputeDisplacementStaticMeshVertexFormat(IMaterial? material, DispGroup combo, Span<BSPDDispInfo> mapDisps) {
 		VertexFormat vertexFormat = material!.GetVertexFormat();
 		return vertexFormat;
 	}
@@ -1433,9 +1439,9 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		return null;
 	}
 
-	private void DispInfo_LinkToParentFaces(Model world, Span<BSPDispInfo> mapDisps, nint numDisplacements) {
+	private void DispInfo_LinkToParentFaces(Model world, Span<BSPDDispInfo> mapDisps, nint numDisplacements) {
 		for (int disp = 0; disp < numDisplacements; disp++) {
-			ref readonly BSPDispInfo pMapDisp = ref mapDisps[disp];
+			ref readonly BSPDDispInfo pMapDisp = ref mapDisps[disp];
 			DispInfo pDisp = DispInfo.GetModelDisp(world, disp);
 
 			// Set its parent.
@@ -1447,7 +1453,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 		}
 	}
 
-	public bool DispInfo_CreateFromMapDisp(Model world, int disp, ref BSPDispInfo mapDisp, CoreDispInfo coreDisp, Span<DispVert> verts, Span<DispTri> tris) {
+	public bool DispInfo_CreateFromMapDisp(Model world, int disp, ref BSPDDispInfo mapDisp, CoreDispInfo coreDisp, Span<DispVert> verts, Span<DispTri> tris) {
 		return true;
 	}
 
@@ -1468,7 +1474,7 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 
 	}
 
-	internal static ref BSPSurfaceLighting SurfaceLighting(ref BSPMSurface2 surfID, WorldBrushData data) {
+	internal static ref BSPMSurfaceLighting SurfaceLighting(ref BSPMSurface2 surfID, WorldBrushData data) {
 		int surfaceindex = MSurf_Index(ref surfID, data);
 		return ref data.SurfaceLighting![surfaceindex];
 	}
@@ -1509,7 +1515,8 @@ public class DispArray(nint elements)
 	public int CurTag;
 }
 
-public struct DispRenderVert{
+public struct DispRenderVert
+{
 	public Vector3 Pos;
 	public Vector3 Normal;
 	public Vector3 SVector;

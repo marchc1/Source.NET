@@ -1,16 +1,13 @@
 ﻿global using static Game.Server.EntityListGlobals;
 
-using Game.Server;
 using Game.Shared;
 
+using Source;
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Mathematics;
 
-using System;
-using System.Collections.Generic;
 using System.Numerics;
-using System.Runtime.InteropServices;
-using System.Text;
 
 namespace Game.Server;
 
@@ -18,20 +15,408 @@ public static class EntityListGlobals
 {
 	public static readonly GlobalEntityList gEntList = new();
 	public static BaseEntityList g_pEntityList = gEntList;
+
+	[ConCommand("report_entities", "List all entities")]
+	static void report_entities() {
+		if (!Util.IsCommandIssuedByServerAdmin())
+			return;
+
+		SortedEntityList list = new();
+		BaseEntity? ent = gEntList.FirstEnt();
+		while (ent != null) {
+			list.AddEntityToList(ent);
+			ent = gEntList.NextEnt(ent);
+		}
+
+		list.ReportEntityList();
+	}
+}
+
+class SortedEntityList
+{
+	private readonly List<BaseEntity?> SortedList = new();
+	private readonly EntityReportLess Comparer = new();
+	private int EmptyCount;
+
+	private sealed class EntityReportLess : IComparer<BaseEntity?>
+	{
+		public int Compare(BaseEntity? src1, BaseEntity? src2) {
+			if (src1 == null && src2 == null)
+				return 0;
+			if (src1 == null)
+				return -1;
+			if (src2 == null)
+				return 1;
+
+			return src1.GetClassname().CompareTo(src2.GetClassname(), StringComparison.Ordinal);
+		}
+	}
+
+	public void AddEntityToList(BaseEntity? entity) {
+		if (entity == null) {
+			EmptyCount++;
+			return;
+		}
+
+		int index = SortedList.BinarySearch(entity, Comparer);
+		if (index < 0)
+			index = ~index;
+
+		SortedList.Insert(index, entity);
+	}
+
+	public void ReportEntityList() {
+		ReadOnlySpan<char> lastClass = default;
+		int count = 0;
+		int edicts = 0;
+
+		for (int i = 0; i < SortedList.Count; i++) {
+			var entity = SortedList[i];
+			if (entity == null)
+				continue;
+
+			if (entity.Edict() != null)
+				edicts++;
+
+			ReadOnlySpan<char> className = entity.GetClassname();
+
+			if (!className.Equals(lastClass, StringComparison.Ordinal)) {
+				if (count > 0)
+					Msg($"Class: {lastClass} ({count})\n");
+
+				lastClass = className;
+				count = 1;
+			}
+			else {
+				count++;
+			}
+		}
+
+		if (!lastClass.IsEmpty && count > 0)
+			Msg($"Class: {lastClass} ({count})\n");
+
+		if (SortedList.Count > 0)
+			Msg($"Total {SortedList.Count} entities ({EmptyCount} empty, {edicts} edicts)\n");
+	}
 }
 
 public class GlobalEntityList : BaseEntityList
 {
-	public int HighestEnt; // the topmost used array index
-	public int NumEnts;
-	public int NumEdicts;
+	int HighestEnt;
+	int NumEnts;
+	int NumEdicts;
 
-	public bool ClearingEntities;
-	public readonly List<IEntityListener> EntityListeners = [];
+	bool ClearingEntities;
+	readonly List<IEntityListener> EntityListeners = [];
+
+	public GlobalEntityList() {
+		HighestEnt = NumEnts = NumEdicts = 0;
+		ClearingEntities = false;
+	}
+
+	public IServerNetworkable? GetServerNetworkable(BaseHandle hEnt) {
+		IServerUnknown? unk = (IServerUnknown?)LookupEntity(hEnt);
+		return unk?.GetNetworkable();
+	}
 
 	public BaseEntity? GetBaseEntity(BaseHandle ent) {
 		IServerUnknown? unk = (IServerUnknown?)LookupEntity(ent);
 		return unk == null ? null : (BaseEntity?)unk.GetBaseEntity();
+	}
+
+	public int NumberOfEntities() => NumEnts;
+	public int NumberOfEdicts() => NumEdicts;
+	public bool IsClearingEntities() => ClearingEntities;
+
+	public BaseEntity? FirstEnt() => NextEnt(null);
+
+	public BaseEntity? NextEnt(BaseEntity? currentEnt) {
+		if (currentEnt == null) {
+			EntInfo? info = FirstEntInfo();
+			if (info == null)
+				return null;
+
+			return (BaseEntity?)info.Entity;
+		}
+
+		EntInfo? list = GetEntInfoPtr(currentEnt.GetRefEHandle());
+		if (list != null)
+			list = NextEntInfo(list);
+
+		while (list != null) {
+			return (BaseEntity?)list.Entity;
+			list = NextEntInfo(list); //??
+		}
+
+		return null;
+	}
+
+	public void AddListenerEntity(IEntityListener listener) {
+		if (EntityListeners.Contains(listener)) {
+			Assert(false, "Can't add listeners multiple times\n");
+			return;
+		}
+		EntityListeners.Add(listener);
+	}
+
+	public void RemoveListenerEntity(IEntityListener listener) => EntityListeners.Remove(listener);
+
+	public void CleanupDeleteList() {
+		// todo
+	}
+
+	public int ResetDeleteList() {
+		int count = 0;
+		// todo
+		return count;
+	}
+
+	public BaseEntity? FindEntityByClassname(BaseEntity? startEntity, ReadOnlySpan<char> className) {
+		EntInfo? info = startEntity != null ? GetEntInfoPtr(startEntity.GetRefEHandle()).Next : FirstEntInfo();
+
+		for (; info != null; info = info.Next) {
+			BaseEntity? ent = (BaseEntity?)info.Entity;
+			if (ent == null) {
+				DevWarning("NULL entity in global entity list!\n");
+				continue;
+			}
+
+			if (ent.ClassMatches(className))
+				return ent;
+		}
+
+		return null;
+	}
+
+	public BaseEntity? FindEntityByName(BaseEntity? startEntity, ReadOnlySpan<char> name, BaseEntity? searchingEntity = null, BaseEntity? activator = null, BaseEntity? caller = null, IEntityFindFilter filter = null) {
+		if (name.IsEmpty)
+			return null;
+
+		if (name[0] == '!') {
+			if (startEntity == null)
+				return FindEntityProcedural(name, searchingEntity, activator, caller);
+
+			return null;
+		}
+
+		EntInfo? info = startEntity != null ? GetEntInfoPtr(startEntity.GetRefEHandle()).Next : FirstEntInfo();
+
+		for (; info != null; info = info.Next) {
+			BaseEntity? ent = (BaseEntity?)info.Entity;
+			if (ent == null) {
+				DevWarning("NULL entity in global entity list!\n");
+				continue;
+			}
+
+			if (ent.Name == null)
+				continue;
+
+			if (ent.NameMatches(name)) {
+				if (filter != null && !filter.ShouldFindEntity(ent))
+					continue;
+
+				return ent;
+			}
+		}
+
+		return null;
+	}
+
+	public BaseEntity? FindEntityProcedural(ReadOnlySpan<char> name, BaseEntity? searchingEntity = null, BaseEntity? activator = null, BaseEntity? caller = null) {
+		if (name[0] == '!') {
+			ReadOnlySpan<char> pName = name[1..];
+
+			if (pName.SequenceEqual("player"))
+				return (BaseEntity?)Util.PlayerByIndex(1);
+			else if (pName.SequenceEqual("activator"))
+				return activator;
+			else if (pName.SequenceEqual("caller"))
+				return caller;
+			else if (pName.SequenceEqual("self"))
+				return searchingEntity;
+			else {
+				Warning($"Invalid entity search name {name}\n");
+				Assert(false);
+			}
+		}
+
+		return null;
+	}
+
+	public BaseEntity? FindEntityGeneric(BaseEntity? startEntity, ReadOnlySpan<char> name, BaseEntity? searchingEntity = null, BaseEntity? activator = null, BaseEntity? caller = null) {
+		BaseEntity? entity = FindEntityByName(startEntity, name, searchingEntity, activator, caller);
+		entity ??= FindEntityByClassname(startEntity, name);
+
+		return entity;
+	}
+
+	public void NotifyCreateEntity(BaseEntity? ent) {
+		if (ent == null)
+			return;
+
+		for (int i = EntityListeners.Count - 1; i >= 0; i--)
+			EntityListeners[i].OnEntityCreated(ent);
+	}
+
+	public void NotifySpawn(BaseEntity? ent) {
+		if (ent == null)
+			return;
+
+		for (int i = EntityListeners.Count - 1; i >= 0; i--)
+			EntityListeners[i].OnEntitySpawned(ent);
+	}
+
+	public void NotifyRemoveEntity(BaseHandle hEnt) {
+		BaseEntity? ent = GetBaseEntity(hEnt);
+		if (ent == null)
+			return;
+
+		for (int i = EntityListeners.Count - 1; i >= 0; i--)
+			EntityListeners[i].OnEntityDeleted(ent);
+	}
+
+	protected override void OnAddEntity(IHandleEntity? pEnt, BaseHandle handle) {
+		int i = handle.GetEntryIndex();
+
+		NumEnts++;
+		if (i > HighestEnt)
+			HighestEnt = i;
+
+		BaseEntity? ent = (BaseEntity?)((IServerUnknown?)pEnt)?.GetBaseEntity();
+		if (ent?.Edict() != null)
+			NumEdicts++;
+
+		Assert(ent != null);
+		for (i = EntityListeners.Count - 1; i >= 0; i--)
+			EntityListeners[i].OnEntityCreated(ent!);
+	}
+
+	protected override void OnRemoveEntity(IHandleEntity? pEnt, BaseHandle handle) {
+		BaseEntity? ent = (BaseEntity?)((IServerUnknown?)pEnt)?.GetBaseEntity();
+		if (ent?.Edict() != null)
+			NumEdicts--;
+
+		NumEnts--;
+	}
+
+	public void Clear() {
+		ClearingEntities = true;
+
+		BaseHandle cur = FirstHandle();
+		while (cur.IsValid()) {
+			IServerNetworkable? ent = GetServerNetworkable(cur);
+			if (ent != null)
+				Util.Remove(ent);
+			cur = NextHandle(cur);
+		}
+
+		CleanupDeleteList();
+		// DeleteList.Clear();
+
+		HighestEnt = 0;
+		NumEnts = 0;
+		ClearingEntities = false;
+	}
+}
+
+struct SimThinkEntry
+{
+	public ushort EntEntry;
+	public ushort Unused0;
+	public int NextThinkTick;
+}
+
+public class SimThinkManager : IEntityListener
+{
+	public static SimThinkManager g_SimThinkManager = new();
+	readonly List<SimThinkEntry> SimThinkList = [];
+	ushort[] EntInfoIndex = new ushort[Constants.NUM_ENT_ENTRIES];
+
+	public SimThinkManager() => Clear();
+
+	void Clear() {
+		SimThinkList.Clear();
+
+		for (int i = 0; i < EntInfoIndex.Length; i++)
+			EntInfoIndex[i] = 0xFFFF;
+	}
+
+	public void LevelInitPreEntity() => gEntList.AddListenerEntity(this);
+
+	public void LevelShutdownPostEntity() {
+		gEntList.RemoveListenerEntity(this);
+		Clear();
+	}
+
+	public void OnEntityCreated(BaseEntity ent) => Assert(EntInfoIndex[ent.GetRefEHandle().GetEntryIndex()] == 0xFFFF);
+
+	public void OnEntityDeleted(BaseEntity ent) => RemoveEntinfoIndex(ent.GetRefEHandle().GetEntryIndex());
+
+	void RemoveEntinfoIndex(int index) {
+		int listHandle = EntInfoIndex[index];
+		if (listHandle != 0xFFFF) {
+			Assert(SimThinkList[listHandle].EntEntry == index);
+			SimThinkList.RemoveAt(listHandle);
+			EntInfoIndex[index] = 0xFFFF;
+
+			if (listHandle < SimThinkList.Count)
+				EntInfoIndex[SimThinkList[listHandle].EntEntry] = (ushort)listHandle;
+		}
+	}
+
+	public int ListCount() => SimThinkList.Count;
+
+	public int ListCopy(BaseEntity[] list, int listMax) {
+		int count = Math.Min(listMax, SimThinkList.Count);
+		int outCount = 0;
+		for (int i = 0; i < count; i++) {
+			if (SimThinkList[i].NextThinkTick <= gpGlobals.TickCount) {
+				Assert(SimThinkList[i].NextThinkTick >= 0);
+				int entinfoIndex = SimThinkList[i].EntEntry;
+				EntInfo? info = gEntList.GetEntInfoPtrByIndex(entinfoIndex);
+				BaseEntity? ent = (BaseEntity?)info?.Entity;
+				Assert(ent != null);
+				list[outCount++] = ent!;
+			}
+		}
+
+		return outCount;
+	}
+
+	public void EntityChanged(BaseEntity ent) {
+		if (ent.IsMarkedForDeletion())
+			return;
+
+		BaseHandle eh = ent.GetRefEHandle();
+		if (!eh.IsValid())
+			return;
+
+		int index = eh.GetEntryIndex();
+		if (ent.IsEFlagSet(EFL.NoThinkFunction) && ent.IsEFlagSet(EFL.NoGamePhysicsSimulation))
+			RemoveEntinfoIndex(index);
+		else {
+			if (EntInfoIndex[index] == 0xFFFF) {
+				EntInfoIndex[index] = (ushort)SimThinkList.Count;
+				SimThinkList.Add(new SimThinkEntry() {
+					EntEntry = (ushort)index,
+					NextThinkTick = 0
+				});
+			}
+			else {
+				if (ent.IsEFlagSet(EFL.NoGamePhysicsSimulation)) {
+					SimThinkList[EntInfoIndex[index]] = new SimThinkEntry() {
+						EntEntry = (ushort)index,
+						NextThinkTick = ent.GetFirstThinkTick()
+					};
+					Assert(SimThinkList[EntInfoIndex[index]].NextThinkTick >= 0);
+				}
+				else
+					SimThinkList[EntInfoIndex[index]] = new SimThinkEntry() {
+						EntEntry = (ushort)index,
+						NextThinkTick = 0
+					};
+			}
+		}
 	}
 }
 
@@ -93,4 +478,10 @@ public interface IEntityListener
 	void OnEntityCreated(BaseEntity ent) { }
 	void OnEntitySpawned(BaseEntity ent) { }
 	void OnEntityDeleted(BaseEntity ent) { }
+}
+
+public interface IEntityFindFilter
+{
+	bool ShouldFindEntity(BaseEntity ent);
+	BaseEntity? GetFilterResult();
 }

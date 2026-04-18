@@ -6,6 +6,7 @@ using Source.Common;
 
 using FIELD = Source.FIELD<EnvTonemapController>;
 
+[LinkEntityToClass("env_tonemap_controller")]
 public class EnvTonemapController : PointEntity
 {
 	public static readonly SendTable DT_EnvTonemapController = new(DT_BaseEntity, [

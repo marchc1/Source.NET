@@ -69,7 +69,7 @@ public static class GMODClient
 	public static BaseEntity? FindEntity(Edict edict, Span<char> classname) {
 		// If no name was given set bits based on the picked
 		// if (FStrEq(classname, ""))
-			// todo return (FindPickerEntityClass((CBasePlayer)GetContainingEntity(edict)), classname));
+		// todo return (FindPickerEntityClass((CBasePlayer)GetContainingEntity(edict)), classname));
 
 		return null;
 	}
@@ -117,6 +117,8 @@ public static class GMODClient
 	//=========================================================
 	// instantiate the proper game rules object
 	//=========================================================
+	static readonly GameRulesRegister s_GMODRulesRegister = new("CGMODRules", () => CreateEntityByName("gmod_gamerules"));
+
 	public static void InstallGameRules() {
 		// vanilla deathmatch
 		GameRulesRegister.CreateGameRulesObject("CGMODRules");

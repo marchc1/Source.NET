@@ -20,8 +20,8 @@ public class IPredictionSystem
 	}
 
 	public void SetSuppressEvent(bool state) => SuppressEvent = state;
-	public void SetSuppressHost(SharedBaseEntity? host) => SuppressHost = host;
-	public SharedBaseEntity? GetSuppressHost() => DisableFiltering() ? null : SuppressHost;
+	public void SetSuppressHost(BaseEntity? host) => SuppressHost = host;
+	public BaseEntity? GetSuppressHost() => DisableFiltering() ? null : SuppressHost;
 	public bool CanPredict() => DisableFiltering() ? false : SuppressEvent;
 
 	public static void SuppressEvents(bool state) {
@@ -32,7 +32,7 @@ public class IPredictionSystem
 		}
 	}
 
-	public static void SuppressHostEvents(SharedBaseEntity? host) {
+	public static void SuppressHostEvents(BaseEntity? host) {
 		IPredictionSystem? sys = PredictionSystems;
 		while (sys != null) {
 			sys.SetSuppressHost(host);
@@ -42,7 +42,7 @@ public class IPredictionSystem
 
 
 	public bool SuppressEvent;
-	public SharedBaseEntity? SuppressHost;
+	public BaseEntity? SuppressHost;
 	public int StatusPushed;
 
 	static void Push(){

@@ -14,11 +14,8 @@ public static class SendProxy
 		=> SendPropInt(field, PREDICTABLE_ID_BITS, PropFlags.Unsigned, SendProxy_PredictableIdToInt);
 
 	private static void SendProxy_PredictableIdToInt(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
-		PredictableId? pId = field.GetValue<PredictableId?>(instance);
-		if (pId != null)
-			outData.Int = pId.GetRaw();
-		else
-			outData.Int = 0;
+		PredictableId pId = field.GetValue<PredictableId>(instance);
+		outData.Int = pId.GetRaw();
 	}
 
 	public static SendProp SendPropBool(IFieldAccessor field) {
@@ -45,12 +42,13 @@ public static class SendProxy
 		outData.Int = field.GetValue<short>(instance) + 1;
 	}
 	public static void SendProxy_EHandleToInt(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
-		BaseHandle? handle = field.GetValue<BaseHandle?>(instance);
-		if (handle != null && handle.Get() != null) {
+		BaseHandle handle = field.GetValue<BaseHandle>(instance);
+		if (handle.Get() != null) {
 			int iSerialNum = handle.GetSerialNumber() & ((1 << Constants.NUM_NETWORKED_EHANDLE_SERIAL_NUMBER_BITS) - 1);
 			outData.Int = handle.GetEntryIndex() | (iSerialNum << Constants.MAX_EDICT_BITS);
 		}
 		else
 			outData.Int = Constants.INVALID_NETWORKED_EHANDLE_VALUE;
+		field.SetValue<BaseHandle>(instance, handle);
 	}
 }

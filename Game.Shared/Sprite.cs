@@ -4,7 +4,7 @@ using Source.Common;
 using System.Numerics;
 namespace Game.Shared;
 using FIELD = Source.FIELD<Sprite>;
-public class Sprite : SharedBaseEntity
+public class Sprite : BaseEntity
 {
 	public static readonly
 #if CLIENT_DLL
@@ -44,7 +44,7 @@ public class Sprite : SharedBaseEntity
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("Sprite", DT_Sprite).WithManualClassID(StaticClassIndices.CSprite);
 #endif
-	public readonly EHANDLE AttachedToEntity = new();
+	public EHANDLE AttachedToEntity = new();
 	public int Attachment;
 	public TimeUnit_t ScaleTime;
 	public float SpriteScale;

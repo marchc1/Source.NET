@@ -1,4 +1,7 @@
-﻿namespace Source;
+﻿
+using System.Runtime.CompilerServices;
+
+namespace Source;
 
 public enum EntityFlags
 {
@@ -225,6 +228,7 @@ public enum CollisionGroup
 public static class Constants
 {
 	public const int MAX_CMD_BUFFER = 4000;
+	public const float SOUND_NORMAL_CLIP_DIST = 1000.0f;
 
 	public const int MAX_EDICTS = 1 << MAX_EDICT_BITS;
 	public const int MAX_EDICT_BITS = 13;
@@ -302,4 +306,9 @@ public static class Constants
 
 	public const int PLAYER_FLAG_BITS = 16; // gmod changed from 11 > 16
 	public const int MAX_NETWORKID_LENGTH = 64;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool IsSolid(SolidType solidType, ushort solidFlags) {
+		return solidType != SolidType.None && ((solidFlags & (ushort)SolidFlags.NotSolid) != 0);
+	}
 }
