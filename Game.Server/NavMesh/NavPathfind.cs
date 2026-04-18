@@ -386,7 +386,7 @@ public static class NavPathfind
 					for (int i = 0; i < count; ++i) {
 						NavArea? adjArea = area.GetAdjacentArea((NavDirType)dir, i);
 						if ((options & SearchFlags.ExcludeOutgoingConnections) != 0) {
-							if (!adjArea.IsConnected(area, NavDirType.NumDirections))
+							if (!adjArea!.IsConnected(area, NavDirType.NumDirections))
 								continue;
 						}
 						AddAreaToOpenList(adjArea, area, startPos, maxRange);
@@ -483,7 +483,7 @@ public static class NavPathfind
 					int count = area.GetAdjacentCount((NavDirType)dir);
 					for (int i = 0; i < count; ++i) {
 						NavArea? adjArea = area.GetAdjacentArea((NavDirType)dir, i);
-						if (adjArea.IsBlocked(Constants.TEAM_ANY)) continue;
+						if (adjArea!.IsBlocked(Constants.TEAM_ANY)) continue;
 
 						if (!adjArea.IsMarked()) {
 							adjArea.TotalCost = 0.0f;

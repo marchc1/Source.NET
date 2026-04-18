@@ -2192,7 +2192,7 @@ public partial class NavMesh
 						UnlitSeedAreas.RemoveAt(0);
 
 						Vector3 eyePos = moveArea.GetCenter();
-						if (GetGroundHeight(eyePos, out float height))
+						if (GetGroundHeight(eyePos, out float height, out _))
 							eyePos.Z = height + HalfHumanHeight - StepHeight;
 						else
 							eyePos.Z += HalfHumanHeight - StepHeight;
@@ -2400,7 +2400,7 @@ public partial class NavMesh
 			tryPos.X = SnapToGrid(tryPos.X);
 			tryPos.Y = SnapToGrid(tryPos.Y);
 
-			if (!GetGroundHeight(tryPos, out tryPos.Z))
+			if (!GetGroundHeight(tryPos, out tryPos.Z, out _))
 				continue;
 
 			TraceFilterWalkableEntities filter = new(null, CollisionGroup.None, WalkThruFlags.Everything);

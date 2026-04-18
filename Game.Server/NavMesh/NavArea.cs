@@ -185,7 +185,7 @@ public partial class NavArea : NavAreaCriticalData
 	static NavArea? OpenListTail;
 	readonly List<NavConnect>[] IncomingConnect = new List<NavConnect>[(int)NavDirType.NumDirections];
 	public readonly NavNode?[] Node = new NavNode[(int)NavCornerType.NumCorners];
-	readonly List<Handle<FuncNavPrerequisite>> PrerequisiteVector = [];   // list of prerequisites that must be met before this area can be traversed
+	readonly List<Handle<FuncNavPrerequisite>> PrerequisiteVector = [];
 	public NavArea? PrevHash, NextHash;
 	int DamagingTickCount;
 	public AreaBindInfo InheritVisibilityFrom;
@@ -821,10 +821,10 @@ public partial class NavArea : NavAreaCriticalData
 		GetClosestPointOnArea(area.GetCenter(), out Vector3 closeFrom);
 		area.GetClosestPointOnArea(GetCenter(), out Vector3 closeTo);
 
-		if (!NavMesh.Instance!.GetSimpleGroundHeight(closeTo + new Vector3(0, 0, StepHeight), out float toZ, out _))
+		if (!NavMesh.GetSimpleGroundHeight(closeTo + new Vector3(0, 0, StepHeight), out float toZ, out _))
 			return 0.0f;
 
-		if (!NavMesh.Instance.GetSimpleGroundHeight(closeFrom + new Vector3(0, 0, StepHeight), out float fromZ, out _))
+		if (!NavMesh.GetSimpleGroundHeight(closeFrom + new Vector3(0, 0, StepHeight), out float fromZ, out _))
 			return 0.0f;
 
 		return toZ - fromZ;
@@ -2730,7 +2730,7 @@ public partial class NavArea : NavAreaCriticalData
 			Vector3 pos = FindPositionInArea(this, (NavCornerType)i);
 			pos.Z = GetZ(pos.X, pos.Y) + HalfHumanHeight - StepHeight;
 
-			if (NavMesh.Instance!.GetGroundHeight(pos, out float height))
+			if (NavMesh.Instance!.GetGroundHeight(pos, out float height, out _))
 				pos.Z = height + HalfHumanHeight - StepHeight;
 
 #pragma warning disable CS0162 // Unreachable code detected
@@ -2855,7 +2855,7 @@ public partial class NavArea : NavAreaCriticalData
 		while ((point.AsVector2D() - end.AsVector2D()).Length() > GenerationStepSize) {
 			point += step;
 			z = point.Z;
-			if (NavMesh.Instance!.GetGroundHeight(point, out z))
+			if (NavMesh.Instance!.GetGroundHeight(point, out z, out _))
 				point.Z = z;
 			else
 				point.Z -= step.Z;
@@ -2864,7 +2864,7 @@ public partial class NavArea : NavAreaCriticalData
 		z = point.Z + step.Z;
 		point = end;
 		point.Z = z;
-		if (NavMesh.Instance!.GetGroundHeight(point, out z))
+		if (NavMesh.Instance!.GetGroundHeight(point, out z, out _))
 			point.Z = z;
 		else
 			point.Z -= step.Z;
@@ -3241,7 +3241,7 @@ public partial class NavArea : NavAreaCriticalData
 
 	void CheckWaterLevel() {
 		Vector3 pos = GetCenter();
-		if (!NavMesh.Instance!.GetGroundHeight(pos, out float z)) {
+		if (!NavMesh.Instance!.GetGroundHeight(pos, out _, out _)) {
 			IsUnderwater = false;
 			return;
 		}

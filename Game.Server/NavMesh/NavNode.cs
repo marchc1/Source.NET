@@ -377,6 +377,11 @@ public class NavNode
 
 		return false;
 	}
+
+	public override int GetHashCode() {
+		Vector2 v = GetPosition().AsVector2();
+		return HashCode.Combine(v.X, v.Y);
+	}
 }
 
 public class NavNodeHashComparer : IEqualityComparer<NavNode>

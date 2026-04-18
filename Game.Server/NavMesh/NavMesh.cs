@@ -330,7 +330,7 @@ public partial class NavMesh
 		if (HashTable[key] != null) {
 			area.PrevHash = null;
 			area.NextHash = HashTable[key];
-			HashTable[key].PrevHash = area;
+			HashTable[key]!.PrevHash = area;
 			HashTable[key] = area;
 		}
 		else {
@@ -510,7 +510,7 @@ public partial class NavMesh
 		}
 
 		Vector3 source = new(pos.X, pos.Y, pos.Z);
-		if (!GetGroundHeight(pos, out source.Z)) {
+		if (!GetGroundHeight(pos, out source.Z, out _)) {
 			if (!checkGround)
 				source.Z = pos.Z;
 			else
@@ -630,18 +630,21 @@ public partial class NavMesh
 		throw new NotImplementedException();
 	}
 
-	void LoadPlaceDatabase() { }
+	void LoadPlaceDatabase() {
+		PlaceCount = 0;
+		// todo? is this even used?
+	}
 
 	public string? PlaceToName(NavPlace place) {
 		if (place >= 1 && place <= PlaceCount)
-			return PlaceName[place];
+			return PlaceName![place];
 
 		return "";
 	}
 
 	public NavPlace NameToPlace(ReadOnlySpan<char> name) {
 		for (uint i = 0; i < PlaceCount; i++) {
-			if (FStrEq(PlaceName[i], name))
+			if (FStrEq(PlaceName![i], name))
 				return i;
 		}
 
@@ -652,9 +655,11 @@ public partial class NavMesh
 		throw new NotImplementedException();
 	}
 
-	public void PrintAllPlaces() { }
+	public void PrintAllPlaces() {
+		throw new NotImplementedException();
+	}
 
-	public bool GetGroundHeight(Vector3 pos, out float height, Vector3? normal = null) {
+	public bool GetGroundHeight(Vector3 pos, out float height, out Vector3? normal) {
 		const float maxOffset = 100.0f;
 
 		TraceFilterGroundEntities filter = new(null, CollisionGroup.None, WalkThruFlags.Everything);
@@ -666,8 +671,7 @@ public partial class NavMesh
 			Util.TraceLine(from, to, Mask.NPCSolidBrushOnly, null, ref filter, out Trace result);
 			if (!result.StartSolid && ((result.Fraction == 1.0f) || ((from.Z - result.EndPos.Z) >= HalfHumanHeight))) {
 				height = result.EndPos.Z;
-				if (normal != null)
-					normal = !result.Plane.Normal.IsZero() ? result.Plane.Normal : new Vector3(0, 0, 1);
+				normal = !result.Plane.Normal.IsZero() ? result.Plane.Normal : new Vector3(0, 0, 1);
 				return true;
 			}
 
@@ -676,13 +680,12 @@ public partial class NavMesh
 		}
 
 		height = 0;
-		if (normal != null)
-			normal = new Vector3(0, 0, 1);
+		normal = new Vector3(0, 0, 1);
 
 		return false;
 	}
 
-	public bool GetSimpleGroundHeight(Vector3 pos, out float height, out Vector3 normal) {
+	public static bool GetSimpleGroundHeight(Vector3 pos, out float height, out Vector3 normal) {
 		height = 0;
 		normal = default;
 

@@ -683,9 +683,8 @@ public partial class NavMesh
 				DrawSelectedSet draw = new(shift);
 
 				if (SelectedSet.Count < nav_draw_limit.GetInt()) {
-					foreach (NavArea area in SelectedSet) {
+					foreach (NavArea area in SelectedSet)
 						draw.Invoke(area);
-					}
 				}
 				else {
 					NavArea? nearest = null;
@@ -699,7 +698,7 @@ public partial class NavMesh
 						}
 					}
 
-					NavPathfind.SearchSurroundingAreas(nearest, nearest.GetCenter(), draw.Invoke, -1, SearchFlags.IncludeIncomingConnections | SearchFlags.IncludeBlockedAreas);
+					NavPathfind.SearchSurroundingAreas(nearest, nearest!.GetCenter(), draw.Invoke, -1, SearchFlags.IncludeIncomingConnections | SearchFlags.IncludeBlockedAreas);
 				}
 			}
 		}
@@ -1607,13 +1606,13 @@ public partial class NavMesh
 			return;
 
 		if (!IsSelectedSetEmpty()) {
-			if (IsInSelectedSet(SelectedArea)) {
+			if (IsInSelectedSet(SelectedArea!)) {
 				player.EmitSound("EDIT_MARK.Disable");
-				RemoveFromSelectedSet(SelectedArea);
+				RemoveFromSelectedSet(SelectedArea!);
 			}
 			else {
 				player.EmitSound("EDIT_MARK.Enable");
-				AddToSelectedSet(SelectedArea);
+				AddToSelectedSet(SelectedArea!);
 			}
 			return;
 		}
@@ -1856,8 +1855,8 @@ public partial class NavMesh
 
 		FindActiveNavArea();
 
-		Vector3 center = default;
-		float halfWidth = 0;
+		Vector3 center;
+		float halfWidth;
 		if (SelectedSet.Count > 1) {
 			bool bValid = true;
 			for (int i = 1; i < SelectedSet.Count; ++i) {
