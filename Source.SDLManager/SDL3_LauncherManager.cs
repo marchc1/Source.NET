@@ -129,7 +129,29 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 	}
 
 	public void GetNativeDisplayInfo(int nDisplay, out uint width, out uint height, out uint refreshHz) {
-		throw new NotImplementedException();
+		width = 0;
+		height = 0;
+		refreshHz = 0;
+
+		if (SDL3.SDL_WasInit((SDL_InitFlags)SDL3.SDL_INIT_VIDEO) == 0)
+			return;
+
+		int count;
+		SDL_DisplayID* displays = SDL3.SDL_GetDisplays(&count);
+		if (displays == null || nDisplay >= count)
+			return;
+
+		SDL_DisplayID display = displays[nDisplay];
+		SDL_DisplayMode* modePtr = SDL3.SDL_GetCurrentDisplayMode(display);
+
+		if (modePtr == null)
+			return;
+
+		SDL_DisplayMode mode = *modePtr;
+
+		width = (uint)mode.w;
+		height = (uint)mode.h;
+		refreshHz = (uint)mode.refresh_rate;
 	}
 
 	public bool IsWindowFullScreen() => (SDL3.SDL_GetWindowFlags(window.HardwareHandle) & SDL_WindowFlags.SDL_WINDOW_FULLSCREEN) != 0;

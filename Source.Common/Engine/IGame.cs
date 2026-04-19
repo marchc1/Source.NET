@@ -15,7 +15,7 @@ public interface IGame
 	IWindow GetMainDeviceWindow();
 
 	nint GetMainWindowAddress();
-	void GetDesktopInfo(out int width, out int height, out int refreshrate);
+	void GetDesktopInfo(out uint width, out uint height, out uint refreshrate);
 
 	void SetWindowXY(int x, int y);
 	void SetWindowSize(int w, int h);
