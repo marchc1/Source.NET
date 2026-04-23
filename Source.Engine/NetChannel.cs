@@ -1223,7 +1223,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			else {
 				buf.WriteOneBit(1); // uses fragments with start fragment offset byte
 				buf.WriteUBitLong((uint)subChan.StartFragment[i], MAX_FILE_SIZE_BITS - FRAGMENT_BITS);
-				buf.WriteUBitLong((uint)subChan.NumFragments[i], 3);
+				buf.WriteUBitLong((uint)subChan.NumFragments[i], MAX_FRAGMENTS_PER_PACKET_BITS);
 
 				if (offset == 0) {
 					// this is the first fragment, write header info
@@ -1577,6 +1577,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 		InterpolationAmount = interpolationAmount;
 	}
 
+	public const int MAX_FRAGMENTS_PER_PACKET_BITS = 5;
+
 	public unsafe bool ReadSubChannelData(bf_read buf, FragmentStream stream) {
 		DataFragments data = ReceiveList[(int)stream]; // get list
 		int startFragment = 0;
@@ -1589,7 +1591,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 		if (!bSingleBlock) {
 			startFragment = (int)buf.ReadUBitLong(MAX_FILE_SIZE_BITS - FRAGMENT_BITS); // 16 MiB max
-			numFragments = (int)buf.ReadUBitLong(3);  // 8 fragments per packet max
+			numFragments = (int)buf.ReadUBitLong(MAX_FRAGMENTS_PER_PACKET_BITS);  // 8 fragments per packet max
 			offset = (uint)(startFragment * FRAGMENT_SIZE);
 			length = (uint)(numFragments * FRAGMENT_SIZE);
 		}
