@@ -11,6 +11,13 @@ using System.Runtime.CompilerServices;
 
 namespace Game.Shared;
 
+#if CLIENT_DLL
+using Game.Client;
+#elif GAME_DLL
+using Game.Server;
+#endif
+
+using Source.Common.Audio;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
 
@@ -350,6 +357,9 @@ public static class SharedDefs
 	public static ref Vector3 VEC_DUCK_VIEW => ref g_pGameRules.GetViewVectors().DuckView;
 	public static ref Vector3 VEC_OBS_HULL_MIN => ref g_pGameRules.GetViewVectors().ObsHullMin;
 	public static ref Vector3 VEC_OBS_HULL_MAX => ref g_pGameRules.GetViewVectors().ObsHullMax;
+
+	public const float WATERJUMP_HEIGHT = 8;
+
 #else
 	public static Vector3 VEC_VIEW_SCALED(object player) => throw new NotImplementedException();
 	public static Vector3 VEC_HULL_MIN_SCALED(object player) => throw new NotImplementedException();
@@ -379,6 +389,8 @@ public static class SharedDefs
 	public const int NOINTERP_PARITY_MAX = 4;
 	public const int NOINTERP_PARITY_MAX_BITS = 2;
 	public const int ANIMATION_CYCLE_BITS = 15;
+	public const int ANIMATION_SEQUENCE_BITS = 12;
+	public const int MAX_OVERLAYS = 15;
 
 	public const float PLAYER_FATAL_FALL_SPEED = 1024;        // approx 60 feet
 	public const float PLAYER_MAX_SAFE_FALL_SPEED = 580;      // approx 20 feet
@@ -546,8 +558,8 @@ public struct FireBulletsInfo
 	public FireBulletsFlags Flags;           // See FireBulletsFlags_t
 	public float DamageForceScale;
 #if CLIENT_DLL || GAME_DLL
-	public SharedBaseEntity? Attacker;
-	public SharedBaseEntity? AdditionalIgnoreEnt;
+	public BaseEntity? Attacker;
+	public BaseEntity? AdditionalIgnoreEnt;
 #else
 	public object? Attacker;
 	public object? AdditionalIgnoreEnt;
@@ -627,4 +639,73 @@ public struct InlineArrayNewMaxControlPoints<T> where T : new()
 	public const int kMAXCONTROLPOINTS = 63;
 	public T item;
 	public InlineArrayNewMaxControlPoints() { for (int i = 0; i < kMAXCONTROLPOINTS; i++) this[i] = new(); }
+}
+
+public enum DataObjectType
+{
+	GroundLink,
+	TouchLink,
+	StepSimulation,
+	ModelScale,
+	PositionWatcher,
+	PhysicsPushList,
+	VPhysicsUpdateAI,
+	VPhysicsWatcher,
+	NumTypes
+}
+
+public static class TraceFieldProps
+{
+	extension(ref Trace tr)
+	{
+#if CLIENT_DLL
+
+		public C_BaseEntity? Ent { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (C_BaseEntity?)tr.EntHandle; }
+#elif GAME_DLL
+		public BaseEntity? Ent { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (BaseEntity?)tr.EntHandle; }
+
+#endif
+	}
+}
+
+public struct StepSimulationStep
+{
+	public long TickCount;
+	public Vector3 Origin;
+	public Quaternion Rotation;
+}
+
+public struct StepSimulationData
+{
+	public bool OriginActive;
+	public bool AnglesActive;
+	public StepSimulationStep Previous2;
+	public StepSimulationStep Previous;
+	public StepSimulationStep Discontinuity;
+	public StepSimulationStep Next;
+	public QAngle NextRotation;
+	public int LastProcessTickCount;
+	public Vector3 NetworkOrigin;
+	public QAngle NetworkAngles;
+}
+
+public ref struct EmitSound_t
+{
+	public int Channel;
+	public ReadOnlySpan<char> SoundName;
+	public float Volume;
+	public SoundLevel SoundLevel;
+	public int Flags;
+	public int Pitch;
+	public int SpecialDSP;
+	public ref readonly Vector3 Origin;
+	public TimeUnit_t SoundTime;
+	public ref TimeUnit_t SoundDuration;
+	public bool EmitCloseCaption;
+	public bool WarnOnMissingCloseCaption;
+	public bool WarnOnDirectWaveReference;
+	public int SpeakerEntity;
+	public Source.InlineArray16<Vector3> SoundOrigin;
+	public int NumSoundOrigin;
+	public HSOUNDSCRIPTHANDLE SoundScriptHandle;
 }

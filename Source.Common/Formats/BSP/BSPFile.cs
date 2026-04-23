@@ -299,7 +299,7 @@ public struct LZMAHeader
 /// <summary>
 /// Analog of dheader_t
 /// </summary>
-public struct BSPHeader
+public struct BSPDHeader
 {
 
 	public int Identifier;
@@ -330,7 +330,7 @@ public struct BSPHeader
 /// <summary>
 /// Analog of dflagslump_t
 /// </summary>
-public struct BSPFlagsLump
+public struct BSPDFlagsLump
 {
 	public uint LevelFlags;
 }
@@ -350,7 +350,7 @@ public struct BSPLumpFileHeader
 /// <summary>
 /// Analog of dgamelumpheader_t
 /// </summary>
-public struct BSPGameLumpHeader
+public struct BSPDGameLumpHeader
 {
 	public int LumpCount;
 }
@@ -358,7 +358,7 @@ public struct BSPGameLumpHeader
 /// <summary>
 /// Analog of dgamelump_t
 /// </summary>
-public struct BSPGameLump
+public struct BSPDGameLump
 {
 	public GameLumpId_t id;
 	public ushort Flags;
@@ -378,11 +378,22 @@ public struct BSPDModel
 	public int FirstFace, NumFaces;
 }
 
+/// <summary>
+/// Analog of dphysmodel_t
+/// </summary>
+public struct BSPDPhysModel
+{
+	public int ModelIndex;
+	public int DataSize;
+	public int KeyDataSize;
+	public int SolidCount;
+}
+
 
 /// <summary>
 /// Analog of mmodel_t
 /// </summary>
-public struct BSPModel
+public struct BSPMModel
 {
 	public Vector3 Mins, Maxs;
 	public Vector3 Origin;
@@ -392,27 +403,16 @@ public struct BSPModel
 }
 
 /// <summary>
-/// Analog of dphysmodel_t
-/// </summary>
-public struct BSPPhysModel
-{
-	public int ModelIndex;
-	public int DataSize;
-	public int KeydataSize;
-	public int SolidCount;
-}
-
-/// <summary>
 /// Analog of dphysdisp_t
 /// </summary>
-struct BSPPhysDisp
+struct BSPDPhysDisp
 {
 	public ushort NumDisplacements;
 }
 /// <summary>
 /// Analog of dvertex_t
 /// </summary>
-public struct BSPVertex
+public struct BSPDertex
 {
 	public Vector3 Position;
 }
@@ -420,7 +420,7 @@ public struct BSPVertex
 /// <summary>
 /// Analog of dplane_t
 /// </summary>
-public struct BSPPlane
+public struct BSPDPlane
 {
 	public Vector3 Normal;
 	public float Dist;
@@ -471,7 +471,7 @@ public struct BSPTexInfo
 /// <summary>
 /// Analog of dtexdata_t
 /// </summary>
-public struct BSPTexData
+public struct BSPDTexData
 {
 	public Vector3 Reflectivity;
 	public int NameStringTableID;
@@ -482,7 +482,7 @@ public struct BSPTexData
 /// <summary>
 /// Analog of doccluderdata_t
 /// </summary>
-public struct BSPOccluderData
+public struct BSPDOccluderData
 {
 	public int Flags;
 	public int FirstPoly;
@@ -495,7 +495,7 @@ public struct BSPOccluderData
 /// <summary>
 /// Analog of doccluderdataV1_t
 /// </summary>
-public struct BSPOccluderDataV1
+public struct BSPDOccluderDataV1
 {
 	public int Flags;
 	public int FirstPoly;
@@ -516,7 +516,7 @@ public struct BSPMSurface1
 /// <summary>
 /// Analog of msurfacelighting
 /// </summary>
-public struct BSPSurfaceLighting
+public struct BSPMSurfaceLighting
 {
 	public nint SurfNum;
 
@@ -588,7 +588,7 @@ public struct BSPMSurface2
 /// <summary>
 /// Analog of doccluderpolydata_t
 /// </summary>
-public struct BSPOccluderPolyData
+public struct BSPDOccluderPolyData
 {
 	public int FirstVertexIndex;
 	public int VertexCount;
@@ -656,7 +656,7 @@ public struct DispTri
 /// Analog of ddispinfo_t
 /// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 176)]
-public struct BSPDispInfo
+public struct BSPDDispInfo
 {
 	public int NumVerts() => ((1 << Power) + 1) * ((1 << Power) + 1);
 	public int NumTris() => (1 << Power) * (1 << Power) * 2;
@@ -679,7 +679,7 @@ public struct BSPDispInfo
 /// <summary>
 /// Analog of dedge_t
 /// </summary>
-public struct BSPEdge
+public struct BSPDEdge
 {
 	public InlineArray2<ushort> V;
 }
@@ -693,7 +693,7 @@ public enum BSPPrimitiveType
 /// <summary>
 /// Analog of dprimitive_t
 /// </summary>
-public struct BSPPrimitive
+public struct BSPDPrimitive
 {
 	public byte Type;
 	public ushort FirstIndex;
@@ -705,7 +705,7 @@ public struct BSPPrimitive
 /// <summary>
 /// Analog of dprimvert_t
 /// </summary>
-public struct BSPPrimVert
+public struct BSPDPrimVert
 {
 	public Vector3 Position;
 }
@@ -741,7 +741,7 @@ public struct BSPMPrimVert
 /// <summary>
 /// Analog of dface_t
 /// </summary>
-public struct BSPFace
+public struct BSPDFace
 {
 	public ushort PlaneNum;
 	public byte Side;
@@ -779,7 +779,7 @@ public struct BSPFace
 /// <summary>
 /// Analog of dfaceid_t
 /// </summary>
-public struct BSPFaceID
+public struct BSPDFaceID
 {
 	public ushort HammerFaceID;
 }
@@ -787,7 +787,7 @@ public struct BSPFaceID
 /// <summary>
 /// Analog of dleaf_version_0_t
 /// </summary>
-public struct BSPLeafVersion0
+public struct BSPDLeafVersion0
 {
 	public int Contents;
 	public short Cluster;
@@ -823,7 +823,7 @@ public struct CompressedLightCube
 /// <summary>
 /// Analog of dleaf_t
 /// </summary>
-public struct BSPLeaf
+public struct BSPDLeaf
 {
 	public int Contents;
 	public short Cluster;
@@ -853,7 +853,7 @@ public struct BSPLeaf
 /// <summary>
 /// Analog of dleafambientlighting_t
 /// </summary>
-public struct BSPLeafAmbientLighting
+public struct BSPDLeafAmbientLighting
 {
 	public CompressedLightCube Cube;
 	public byte X;
@@ -865,7 +865,7 @@ public struct BSPLeafAmbientLighting
 /// <summary>
 /// Analog of dleafambientindex_t
 /// </summary>
-public struct BSPLeafAmbientIndex
+public struct BSPDLeafAmbientIndex
 {
 	public ushort AmbientSampleCount;
 	public ushort FirstAmbientSample;
@@ -874,7 +874,8 @@ public struct BSPLeafAmbientIndex
 /// <summary>
 /// Analog of dbrushside_t
 /// </summary>
-public struct dbrushside_t
+[StructLayout(LayoutKind.Sequential, Pack = 2, Size = sizeof(short) * 4)]
+public struct BSPDBrushSide
 {
 	public ushort PlaneNum;
 	public short TexInfo;
@@ -885,7 +886,7 @@ public struct dbrushside_t
 /// <summary>
 /// Analog of dbrush_t
 /// </summary>
-public struct BSPBrush
+public struct BSPDBrush
 {
 	public int FirstSide;
 	public int NumSides;
@@ -895,7 +896,7 @@ public struct BSPBrush
 /// <summary>
 /// Analog of dvis_t
 /// </summary>
-public struct BSPVis
+public struct BSPDVis
 {
 	public int NumClusters;
 	public InlineArray8<InlineArray2<int>> BitOffsets;
@@ -904,7 +905,7 @@ public struct BSPVis
 /// <summary>
 /// Analog of dareaportal_t
 /// </summary>
-public struct BSPAreaPortal
+public struct BSPDAreaPortal
 {
 	public ushort PortalKey;
 	public ushort OtherArea;
@@ -916,7 +917,7 @@ public struct BSPAreaPortal
 /// <summary>
 /// Analog of darea_t
 /// </summary>
-public struct BSPArea
+public struct BSPDArea
 {
 	public int NumAreaPortals;
 	public int FirstAreaPortal;
@@ -925,7 +926,7 @@ public struct BSPArea
 /// <summary>
 /// Analog of dleafwaterdata_t
 /// </summary>
-public struct BSPLeafWaterData
+public struct BSPDLeafWaterData
 {
 	public float SurfaceZ;
 	public float MinZ;

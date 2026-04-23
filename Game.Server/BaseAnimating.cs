@@ -22,7 +22,6 @@ public partial class InfoLightingRelative : BaseEntity
 
 public class BaseAnimating : BaseEntity
 {
-	public const int ANIMATION_SEQUENCE_BITS = 12;
 	public const int ANIMATION_SKIN_BITS = 10;
 	public const int ANIMATION_BODY_BITS = 32;
 	public const int ANIMATION_HITBOXSET_BITS = 2;
@@ -104,6 +103,36 @@ public class BaseAnimating : BaseEntity
 	public TimeUnit_t Cycle;
 	public Vector3 OverrideViewTarget;
 
+	public void ResetSequence(int sequence) {
+		SetSequence(sequence);
+		ResetSequenceInfo();
+	}
+
+	public Activity LookupActivity(ReadOnlySpan<char> label) {
+		return Animation.LookupActivity(GetModelPtr(), label);
+	}
+
+	public int LookupSequence(ReadOnlySpan<char> label) {
+		return Animation.LookupSequence(GetModelPtr(), label);
+	}
+	public TimeUnit_t GetSequenceGroundSpeed(int sequence) => GetSequenceGroundSpeed(GetModelPtr(), sequence);
+
+	public Activity GetSequenceActivity(int sequence){
+		if (sequence == -1) {
+			return Activity.ACT_INVALID;
+		}
+
+		if (null == GetModelPtr())
+			return Activity.ACT_INVALID;
+
+		return (Activity)Animation.GetSequenceActivity(GetModelPtr()!, sequence, out _);
+	}
+
+	public TimeUnit_t GetPlaybackRate() => PlaybackRate;
+	public void SetPlaybackRate(TimeUnit_t rate) => PlaybackRate = rate;
+
+	public bool IsSequenceFinished() => SequenceFinished;
+
 	public bool IsModelScaleFractional() => ModelScale < 1.0f;
 	public bool IsModelScaled() => ModelScale > 1.0f + float.Epsilon || ModelScale < 1.0f - float.Epsilon;
 	public float GetModelScale() => ModelScale;
@@ -114,6 +143,71 @@ public class BaseAnimating : BaseEntity
 	public ReadOnlySpan<float> GetPoseParameterArray() => PoseParameter;
 
 	public int GetSequence() => Sequence;
+
+
+	public bool GetPoseParameterRange(ReadOnlySpan<char> name, out float minValue, out float maxValue) => GetPoseParameterRange(LookupPoseParameter(name), out minValue, out maxValue);
+	public bool GetPoseParameterRange(int parameter, out float minValue, out float maxValue) {
+		StudioHdr? pStudioHdr = GetModelPtr();
+
+		if (pStudioHdr != null) {
+			if (parameter >= 0 && parameter < pStudioHdr.GetNumPoseParameters()) {
+				MStudioPoseParamDesc pose = pStudioHdr.PoseParameter(parameter);
+				minValue = pose.Start;
+				maxValue = pose.End;
+				return true;
+			}
+		}
+		minValue = 0.0f;
+		maxValue = 1.0f;
+		return false;
+	}
+
+	public float GetPoseParameter(ReadOnlySpan<char> name) => GetPoseParameter(LookupPoseParameter(name));
+	public float GetPoseParameter(int parameter) {
+		StudioHdr? pStudioHdr = GetModelPtr();
+
+		if (pStudioHdr == null)
+			return 0.0f;
+
+		if (pStudioHdr.GetNumPoseParameters() < parameter)
+			return 0.0f;
+
+		if (parameter < 0)
+			return 0.0f;
+
+		return PoseParameter[parameter];
+	}
+
+	public float SetPoseParameter(ReadOnlySpan<char> name, float value) => SetPoseParameter(GetModelPtr(), name, value);
+	public float SetPoseParameter(int parameter, float value) => SetPoseParameter(GetModelPtr(), parameter, value);
+	public float SetPoseParameter(StudioHdr? studioHdr, ReadOnlySpan<char> name, float value) => SetPoseParameter(studioHdr, LookupPoseParameter(studioHdr, name), value);
+
+	public int LookupPoseParameter(ReadOnlySpan<char> name) => LookupPoseParameter(GetModelPtr(), name);
+	public int LookupPoseParameter(StudioHdr? studioHdr, ReadOnlySpan<char> name) {
+		if (studioHdr == null)
+			return 0;
+
+		for (int i = 0; i < studioHdr.GetNumPoseParameters(); i++) {
+			if (name.Equals(studioHdr.PoseParameter(i).Name(), StringComparison.OrdinalIgnoreCase))
+				return i;
+		}
+
+		return -1;
+	}
+
+	public float SetPoseParameter(StudioHdr? studioHdr, int parameter, float value) {
+		if (studioHdr == null) {
+			AssertMsg(false, "C_BaseAnimating.SetPoseParameter: model missing");
+			return value;
+		}
+
+		if (parameter >= 0) {
+			value = BoneSetup.Studio_SetPoseParameter(studioHdr, parameter, value, out float newValue);
+			PoseParameter[parameter] = newValue;
+		}
+
+		return value;
+	}
 
 	public TimeUnit_t SequenceDuration(StudioHdr? studioHdr, int sequence) {
 		if (studioHdr == null) {

@@ -22,7 +22,6 @@ class EntityWriteInfo : EntityInfo
 static class EntsWrite
 {
 	static readonly FrameSnapshotManager framesnapshotmanager = Singleton<FrameSnapshotManager>();
-	static readonly EngineSendTable EngSendTable = Singleton<EngineSendTable>();
 	static readonly Host host = Singleton<Host>();
 
 	public static bool NeedsExplicitDestroy(int entnum, FrameSnapshot? from, FrameSnapshot to) {
@@ -92,12 +91,12 @@ static class EntsWrite
 		if (u.CullProps) {
 			sendProps = pSendProps;
 
-			nSendProps = EngSendTable.CullPropsFromProxies(sendTable, checkProps, nCheckProps, u.ClientEntity - 1, from.GetRecipients(), from.GetNumRecipients(), to.GetRecipients(), to.GetNumRecipients(), pSendProps, pSendProps.Length);
+			nSendProps = EngineSendTable.CullPropsFromProxies(sendTable, checkProps, nCheckProps, u.ClientEntity - 1, from.GetRecipients(), from.GetNumRecipients(), to.GetRecipients(), to.GetNumRecipients(), pSendProps, pSendProps.Length);
 		}
 		else
 			bufStart = u.Buffer;
 
-		EngSendTable.WritePropList(
+		EngineSendTable.WritePropList(
 			sendTable!,
 			toData,
 			toBits,
@@ -179,7 +178,7 @@ static class EntsWrite
 				nNewBits = u.NewPack.GetNumBits();
 			}
 
-			nCheckProps = EngSendTable.CalcDelta(
+			nCheckProps = EngineSendTable.CalcDelta(
 				u.NewPack.ServerClass!.Table,
 				oldData,
 				nOldBits,
@@ -341,9 +340,9 @@ static class EntsWrite
 	static int WriteAllDeltaProps(SendTable table, byte[] fromData, int nFromBits, byte[] toData, int nToBits, int objectId, bf_write bufOut) {
 		int[] deltaProps = new int[Constants.MAX_DATATABLE_PROPS];
 
-		int nDeltaProps = EngSendTable.CalcDelta(table, fromData, nFromBits, toData, nToBits, deltaProps, deltaProps.Length, objectId);
+		int nDeltaProps = EngineSendTable.CalcDelta(table, fromData, nFromBits, toData, nToBits, deltaProps, deltaProps.Length, objectId);
 
-		EngSendTable.WritePropList(table, toData, nToBits, bufOut, objectId, deltaProps, nDeltaProps);
+		EngineSendTable.WritePropList(table, toData, nToBits, bufOut, objectId, deltaProps, nDeltaProps);
 
 		return nDeltaProps;
 	}

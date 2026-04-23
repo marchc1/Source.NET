@@ -14,6 +14,11 @@ public class HudAmmo : HudNumericDisplay, IHudElement
 
 	public HudAmmo(string? panelName) : base(null, "HudAmmo") {
 		((IHudElement)this).SetHiddenBits(HideHudBits.Health | HideHudBits.PlayerDead | HideHudBits.NeedSuit | HideHudBits.WeaponSelection);
+
+		hudlcd.SetGlobalStat("(ammo_primary)", "0");
+		hudlcd.SetGlobalStat("(ammo_secondary)", "0");
+		hudlcd.SetGlobalStat("(weapon_print_name)", "");
+		hudlcd.SetGlobalStat("(weapon_name)", "");
 	}
 
 	public void Init() {
@@ -30,7 +35,9 @@ public class HudAmmo : HudNumericDisplay, IHudElement
 
 	public void VidInit() { }
 
-	public void Reset() {
+	public override void Reset() {
+		base.Reset();
+
 		Blur = 0;
 
 		CurrentActiveWeapon = null;
@@ -45,12 +52,12 @@ public class HudAmmo : HudNumericDisplay, IHudElement
 		CurrentVehicle = null;
 		BaseCombatWeapon? weapon = BaseCombatWeapon.GetActiveWeapon();
 
-		LCD.SetGlobalStat("(weapon_print_name)", weapon != null ? weapon.GetPrintName() : "");
-		LCD.SetGlobalStat("(weapon_name)", weapon != null ? weapon.GetName() : "");
+		hudlcd.SetGlobalStat("(weapon_print_name)", weapon != null ? weapon.GetPrintName() : " ");
+		hudlcd.SetGlobalStat("(weapon_name)", weapon != null ? weapon.GetName() : " ");
 
 		if (weapon == null || player == null || !weapon.UsesPrimaryAmmo()) {
-			LCD.SetGlobalStat("(ammo_primary)", "n/a");
-			LCD.SetGlobalStat("(ammo_secondary)", "n/a");
+			hudlcd.SetGlobalStat("(ammo_primary)", "n/a");
+			hudlcd.SetGlobalStat("(ammo_secondary)", "n/a");
 
 			SetPaintEnabled(false);
 			SetPaintBackgroundEnabled(false);
@@ -60,20 +67,20 @@ public class HudAmmo : HudNumericDisplay, IHudElement
 		SetPaintEnabled(true);
 		SetPaintBackgroundEnabled(true);
 
-		IconPrimaryAmmo = gWR.GetAmmoIconFromWeapon(weapon.PrimaryAmmoType);
+		IconPrimaryAmmo = gWR.GetAmmoIconFromWeapon(weapon.GetPrimaryAmmoType());
 
-		int ammo1 = weapon.Clip1;
+		int ammo1 = weapon.Clip1();
 		int ammo2;
 
 		if (ammo1 < 0) {
-			ammo1 = player.GetAmmoCount(weapon.PrimaryAmmoType);
+			ammo1 = player.GetAmmoCount(weapon.GetPrimaryAmmoType());
 			ammo2 = 0;
 		}
 		else
-			ammo2 = player.GetAmmoCount(weapon.PrimaryAmmoType);
+			ammo2 = player.GetAmmoCount(weapon.GetPrimaryAmmoType());
 
-		LCD.SetGlobalStat("(ammo_primary)", ammo1.ToString());
-		LCD.SetGlobalStat("(ammo_secondary)", ammo2.ToString());
+		hudlcd.SetGlobalStat("(ammo_primary)", ammo1.ToString());
+		hudlcd.SetGlobalStat("(ammo_secondary)", ammo2.ToString());
 
 		if (weapon == CurrentActiveWeapon) {
 			SetAmmo(ammo1, true);
@@ -138,6 +145,8 @@ public class HudAmmo : HudNumericDisplay, IHudElement
 				clientMode.GetViewportAnimationController()!.StartAnimationSequence("Ammo2Increased");
 			Ammo2 = ammo2;
 		}
+
+		SetSecondaryValue(ammo2);
 	}
 
 	public override void Paint() {
@@ -187,8 +196,8 @@ public class HudAmmoSecondary : HudNumericDisplay, IHudElement
 		SetDisplayValue(ammo);
 	}
 
-	public void Reset() {
-		Blur = 0;
+	public override void Reset() {
+		base.Reset();
 		Ammo = 0;
 		CurrentActiveWeapon = null;
 		SetAlpha(0);
@@ -201,7 +210,7 @@ public class HudAmmoSecondary : HudNumericDisplay, IHudElement
 		if (IconSecondaryAmmo != null) {
 			Surface.GetTextSize(TextFont, LabelText, out int labelWide, out int labelTall);
 			int x = (int)text_xpos + (labelWide - IconSecondaryAmmo.Width()) / 2;
-			int y = (int)text_ypos + labelTall + (IconSecondaryAmmo.Height() / 2);
+			int y = (int)text_ypos - (labelTall + (IconSecondaryAmmo.Height() / 2));
 			IconSecondaryAmmo.DrawSelf(x, y, GetFgColor());
 		}
 	}
@@ -231,15 +240,15 @@ public class HudAmmoSecondary : HudNumericDisplay, IHudElement
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
 
 		if (player != null && weapon != null && weapon.UsesSecondaryAmmo())
-			SetAmmo(player.GetAmmoCount(weapon.SecondaryAmmoType));
+			SetAmmo(player.GetAmmoCount(weapon.GetSecondaryAmmoType()));
 
 		if (weapon != CurrentActiveWeapon) {
-			if (weapon.UsesSecondaryAmmo())
+			if (weapon != null && weapon.UsesSecondaryAmmo())
 				clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponUsesSecondaryAmmo");
 			else
 				clientMode.GetViewportAnimationController()!.StartAnimationSequence("WeaponDoesNotUseSecondaryAmmo");
 			CurrentActiveWeapon = weapon;
-			IconSecondaryAmmo = gWR.GetAmmoIconFromWeapon(weapon.SecondaryAmmoType);
+			IconSecondaryAmmo = gWR.GetAmmoIconFromWeapon(weapon!.GetSecondaryAmmoType());
 		}
 	}
 }

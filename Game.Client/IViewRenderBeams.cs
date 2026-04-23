@@ -91,7 +91,7 @@ public interface IViewRenderBeams
 	void DrawBeam(C_Beam beam, ITraceFilter? entityBeamTraceFilter = null);
 	void DrawBeam(Beam beam);
 
-	void KillDeadBeams(SharedBaseEntity? ent);
+	void KillDeadBeams(BaseEntity? ent);
 
 	// New interfaces!
 	Beam? CreateBeamEnts(ref BeamInfo beamInfo );

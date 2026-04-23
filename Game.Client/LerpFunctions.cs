@@ -1,4 +1,7 @@
-﻿using Source.Common.Mathematics;
+﻿using Game.Shared;
+
+using Source.Common.Mathematics;
+using Source.Engine;
 
 using System.Numerics;
 
@@ -51,6 +54,8 @@ public static class LerpFunctions
 			return (T)(object)Vector3.Lerp((Vector3)(object)start, (Vector3)(object)end, (float)fraction);
 		else if (typeof(T) == typeof(QAngle))
 			return (T)(object)QAngle.Lerp((QAngle)(object)start, (QAngle)(object)end, (float)fraction);
+		else if (typeof(T) == typeof(AnimationLayer))
+			return (T)(object)AnimationLayer.Lerp(fraction, (AnimationLayer)(object)start, (AnimationLayer)(object)end);
 		else
 			throw new NotImplementedException();
 	}
@@ -93,6 +98,8 @@ public static class LerpFunctions
 				s += 1.0;
 			return (T)(object)s;
 		}
+		else if (typeof(T) == typeof(AnimationLayer))
+			return (T)(object)AnimationLayer.LoopingLerp(fraction, (AnimationLayer)(object)start, (AnimationLayer)(object)end);
 		else
 			throw new NotImplementedException();
 	}
@@ -135,6 +142,8 @@ public static class LerpFunctions
 
 			return (T)(object)s;
 		}
+		else if (typeof(T) == typeof(AnimationLayer))
+			return (T)(object)AnimationLayer.LoopingLerp_Hermite(fraction, (AnimationLayer)(object)_p0, (AnimationLayer)(object)_p1, (AnimationLayer)(object)_p2);
 		else
 			return Lerp_Hermite(fraction, in _p0, in _p1, in _p2);
 	}
@@ -199,6 +208,8 @@ public static class LerpFunctions
 
 			return (T)(object)output;
 		}
+		else if (typeof(T) == typeof(AnimationLayer))
+			return (T)(object)AnimationLayer.Lerp_Hermite(fraction, (AnimationLayer)(object)_p0, (AnimationLayer)(object)_p1, (AnimationLayer)(object)_p2);
 		else if (typeof(T) == typeof(QAngle)) {
 			// Can't do hermite with QAngles, get discontinuities, just do a regular interpolation
 			return Lerp(fraction, in _p1, in _p2);

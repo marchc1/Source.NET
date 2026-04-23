@@ -13,7 +13,7 @@ using FIELD = FIELD<HL2MP_Player>;
 using FIELD_RD = FIELD<HL2MPRagdoll>;
 
 [LinkEntityToClass("player")]
-public class HL2MP_Player : HL2_Player
+public partial class HL2MP_Player : HL2_Player
 {
 	public static readonly SendTable DT_HL2MPLocalPlayerExclusive = new([
 		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.NoScale|PropFlags.ChangesOften, 0.0f, Constants.HIGH_DEFAULT),

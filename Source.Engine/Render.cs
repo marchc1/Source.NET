@@ -226,6 +226,13 @@ public partial class Render(
 		LoadSkys();
 		InitStudio();
 
+		// FIXME: Is this the best place to initialize the kd tree when we're client-only?
+		if (!sv.IsActive()){
+			StaticPropMgr().LevelShutdown();
+			SpatialPartition().Init(host_state.WorldModel!.Mins, host_state.WorldModel!.Maxs);
+			StaticPropMgr().LevelInit();
+		}
+
 		LoadWorldGeometry();
 
 		Surface_LevelInit();
@@ -688,7 +695,7 @@ public partial class Render(
 	static readonly ConVar r_avglightmap = new("r_avglightmap", "0", FCvar.Cheat | FCvar.MaterialSystemThread);
 	static readonly ConVar r_maxdlights = new("r_maxdlights", "32", 0);
 
-	void ComputeLightmapFromLightstyle(ref BSPSurfaceLighting lighting, bool computeLightmap, bool computeBumpmap, int lightmapSize, bool hasBumpmapLightmapData) {
+	void ComputeLightmapFromLightstyle(ref BSPMSurfaceLighting lighting, bool computeLightmap, bool computeBumpmap, int lightmapSize, bool hasBumpmapLightmapData) {
 		Span<ColorRGBExp32> pLightmap = lighting.Samples.Span;
 
 		// Compute iteration range
@@ -825,7 +832,7 @@ public partial class Render(
 	public void BuildLightMapGuts(ref BSPMSurface2 surfID, in Matrix3x4 entityToWorld, uint dlightMask, bool needsBumpmap, bool needsLightmap) {
 		Assert(!host_state.WorldBrush!.UnloadedLightmaps);
 		int bumpID;
-		ref BSPSurfaceLighting pLighting = ref ModelLoader.SurfaceLighting(ref surfID, host_state.WorldBrush);
+		ref BSPMSurfaceLighting pLighting = ref ModelLoader.SurfaceLighting(ref surfID, host_state.WorldBrush);
 
 		int size = ComputeLightmapSize(ref surfID);
 		if (size == 0)

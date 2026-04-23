@@ -35,6 +35,10 @@ public static unsafe class MemUtils
 	public static void memreset<T>(Span<T> field) where T : struct {
 		for (int i = 0; i < field.Length; i++) field[i] = default;
 	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void memcreset<T>(Span<T?> field) where T : class {
+		for (int i = 0; i < field.Length; i++) field[i] = null;
+	}
 	/// <summary>
 	/// This honestly might not be faster.
 	/// </summary>
@@ -87,6 +91,10 @@ public static unsafe class MemUtils
 
 	public static void memcpy<T>(Span<T> dest, ReadOnlySpan<T> src) where T : unmanaged {
 		src.CopyTo(dest);
+	}
+
+	public static void memcpy<T>(Span<T> dest, ReadOnlySpan<T> src, int size) where T : unmanaged {
+		src[..size].CopyTo(dest[..size]);
 	}
 
 	public static void memmove<T>(Span<T> dest, ReadOnlySpan<T> src, int count){

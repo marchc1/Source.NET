@@ -1,8 +1,8 @@
 ﻿global using static Game.Server.EntityListGlobals;
 
-using Game.Server;
 using Game.Shared;
 
+using Source;
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Mathematics;
@@ -316,6 +316,107 @@ public class GlobalEntityList : BaseEntityList
 		HighestEnt = 0;
 		NumEnts = 0;
 		ClearingEntities = false;
+	}
+}
+
+struct SimThinkEntry
+{
+	public ushort EntEntry;
+	public ushort Unused0;
+	public int NextThinkTick;
+}
+
+public class SimThinkManager : IEntityListener
+{
+	public static SimThinkManager g_SimThinkManager = new();
+	readonly List<SimThinkEntry> SimThinkList = [];
+	ushort[] EntInfoIndex = new ushort[Constants.NUM_ENT_ENTRIES];
+
+	public SimThinkManager() => Clear();
+
+	void Clear() {
+		SimThinkList.Clear();
+
+		for (int i = 0; i < EntInfoIndex.Length; i++)
+			EntInfoIndex[i] = 0xFFFF;
+	}
+
+	public void LevelInitPreEntity() => gEntList.AddListenerEntity(this);
+
+	public void LevelShutdownPostEntity() {
+		gEntList.RemoveListenerEntity(this);
+		Clear();
+	}
+
+	public void OnEntityCreated(BaseEntity ent) => Assert(EntInfoIndex[ent.GetRefEHandle().GetEntryIndex()] == 0xFFFF);
+
+	public void OnEntityDeleted(BaseEntity ent) => RemoveEntinfoIndex(ent.GetRefEHandle().GetEntryIndex());
+
+	void RemoveEntinfoIndex(int index) {
+		int listHandle = EntInfoIndex[index];
+		if (listHandle != 0xFFFF) {
+			Assert(SimThinkList[listHandle].EntEntry == index);
+			SimThinkList.RemoveAt(listHandle);
+			EntInfoIndex[index] = 0xFFFF;
+
+			if (listHandle < SimThinkList.Count)
+				EntInfoIndex[SimThinkList[listHandle].EntEntry] = (ushort)listHandle;
+		}
+	}
+
+	public int ListCount() => SimThinkList.Count;
+
+	public int ListCopy(BaseEntity[] list, int listMax) {
+		int count = Math.Min(listMax, SimThinkList.Count);
+		int outCount = 0;
+		for (int i = 0; i < count; i++) {
+			if (SimThinkList[i].NextThinkTick <= gpGlobals.TickCount) {
+				Assert(SimThinkList[i].NextThinkTick >= 0);
+				int entinfoIndex = SimThinkList[i].EntEntry;
+				EntInfo? info = gEntList.GetEntInfoPtrByIndex(entinfoIndex);
+				BaseEntity? ent = (BaseEntity?)info?.Entity;
+				Assert(ent != null);
+				list[outCount++] = ent!;
+			}
+		}
+
+		return outCount;
+	}
+
+	public void EntityChanged(BaseEntity ent) {
+		if (ent.IsMarkedForDeletion())
+			return;
+
+		BaseHandle eh = ent.GetRefEHandle();
+		if (!eh.IsValid())
+			return;
+
+		int index = eh.GetEntryIndex();
+		if (ent.IsEFlagSet(EFL.NoThinkFunction) && ent.IsEFlagSet(EFL.NoGamePhysicsSimulation))
+			RemoveEntinfoIndex(index);
+		else {
+			if (EntInfoIndex[index] == 0xFFFF) {
+				EntInfoIndex[index] = (ushort)SimThinkList.Count;
+				SimThinkList.Add(new SimThinkEntry() {
+					EntEntry = (ushort)index,
+					NextThinkTick = 0
+				});
+			}
+			else {
+				if (ent.IsEFlagSet(EFL.NoGamePhysicsSimulation)) {
+					SimThinkList[EntInfoIndex[index]] = new SimThinkEntry() {
+						EntEntry = (ushort)index,
+						NextThinkTick = ent.GetFirstThinkTick()
+					};
+					Assert(SimThinkList[EntInfoIndex[index]].NextThinkTick >= 0);
+				}
+				else
+					SimThinkList[EntInfoIndex[index]] = new SimThinkEntry() {
+						EntEntry = (ushort)index,
+						NextThinkTick = 0
+					};
+			}
+		}
 	}
 }
 

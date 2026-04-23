@@ -1,6 +1,9 @@
 ﻿using CommunityToolkit.HighPerformance;
 
+using Source.Common.Hashing;
+
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Game.Shared;
 
@@ -106,7 +109,7 @@ public class PredictableIdHelper
 	}
 }
 
-public class PredictableId
+public struct PredictableId
 {
 	static readonly PredictableIdHelper Helper = new();
 
@@ -115,8 +118,29 @@ public class PredictableId
 	public static void ResetInstanceCounters() {
 		Helper.Reset(-1);
 	}
-	static int ClassFileLineHash(string file, int line) {
-		return HashCode.Combine(file, line);
+	static int ClassFileLineHash(ReadOnlySpan<char> classname, ReadOnlySpan<char> file, int line) {
+		CRC32_t retval  = default;
+		CRC32.Init(ref retval);
+
+		Span<byte> classnameASCIIBuffer = stackalloc byte[Encoding.ASCII.GetByteCount(classname)];
+		Span<byte> filenameASCIIBuffer = stackalloc byte[Encoding.ASCII.GetByteCount(file)];
+
+		Encoding.ASCII.GetBytes(classname, classnameASCIIBuffer);
+		Encoding.ASCII.GetBytes(file, filenameASCIIBuffer);
+
+		Span<byte> tempbuffer = stackalloc byte[512];
+		classnameASCIIBuffer.CopyTo(tempbuffer);
+		CRC32.ProcessBuffer(ref retval, tempbuffer, classname.Length);
+
+		filenameASCIIBuffer.CopyTo(tempbuffer);
+		CRC32.ProcessBuffer(ref retval, tempbuffer, file.Length);
+
+		new ReadOnlySpan<int>(in line).Cast<int, byte>().CopyTo(tempbuffer);
+		CRC32.ProcessBuffer(ref retval, tempbuffer, sizeof(int));
+
+		CRC32.Final(ref retval);
+
+		return (int)retval;
 	}
 
 	static readonly char[] desc = new char[128];
@@ -125,10 +149,10 @@ public class PredictableId
 	}
 
 	public bool IsActive() => PredictableID.Raw != 0;
-	public void Init(int player, int command, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0) {
+	public void Init(int player, int command, ReadOnlySpan<char> classname = "", ReadOnlySpan<char> filename = "", int line = 0) {
 		SetPlayer(player);
 		SetCommandNumber(command);
-		PredictableID.Hash = (uint)ClassFileLineHash(filename, line);
+		PredictableID.Hash = (uint)ClassFileLineHash(classname, filename, line);
 		int instance = Helper.AddEntry(command, (int)PredictableID.Hash);
 		SetInstanceNumber(instance);
 	}

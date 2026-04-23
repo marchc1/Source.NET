@@ -62,6 +62,7 @@ public class World : BaseEntity
 		Assert(g_pGameRules != null);
 		g_pGameRules.Init();
 
+		SimThinkManager.g_SimThinkManager.LevelInitPreEntity(); // todo move to CEntityListSystem
 		IGameSystem.LevelInitPreEntityAllSystems(GetModelName());
 
 		g_pGameRules.CreateStandardEntities();
@@ -71,7 +72,7 @@ public class World : BaseEntity
 		SetLocalOrigin(vec3_origin);
 		SetLocalAngles(vec3_angle);
 		SetModelIndex(1);
-		// SetModelName(modelinfo.GetModelName(GetModel()));
+		SetModelName(modelinfo.GetModelName(modelinfo.GetModel(GetModelIndex())));
 		AddFlag(Source.EntityFlags.WorldBrush);
 
 		// EventQueue.Init();

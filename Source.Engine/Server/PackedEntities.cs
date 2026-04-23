@@ -23,7 +23,6 @@ struct PackWork
 static class PackedEntities
 {
 	static readonly Host Host = Singleton<Host>();
-	static readonly EngineSendTable EngSendTable = Singleton<EngineSendTable>();
 	static readonly FrameSnapshotManager frameSnapshotManager = Singleton<FrameSnapshotManager>();
 
 	static readonly ConVar sv_debugmanualmode = new("sv_debugmanualmode", "0", FCvar.None, "Make sure entities correctly report whether or not their network data has changed.");
@@ -82,12 +81,12 @@ static class PackedEntities
 
 		SendProxyRecipients[] recip = new SendProxyRecipients[SendProxyRecipients.MAX_DATATABLE_PROXIES];
 
-		if (!EngSendTable.Encode(sendTable, edict.GetUnknown(), writeBuf, edictId, recip, false))
+		if (!EngineSendTable.Encode(sendTable, edict.GetUnknown(), writeBuf, edictId, recip, false))
 			Host.Error($"SV_PackEntity: SendTable_Encode returned false (ent {edictId}).\n");
 
 		EnsureInstanceBaseline(serverClass, edictId, packedData, writeBuf.BytesWritten);
 
-		int flatProps = EngSendTable.GetNumFlatProps(sendTable);
+		int flatProps = EngineSendTable.GetNumFlatProps(sendTable);
 		IChangeFrameList? changeFrame;
 
 		// If this entity was previously in there, then it should have a valid IChangeFrameList
@@ -101,7 +100,7 @@ static class PackedEntities
 
 			int[] deltaProps = new int[Constants.MAX_DATATABLE_PROPS];
 
-			int changes = EngSendTable.CalcDelta(sendTable, prevFrame.GetData(), prevFrame.GetNumBits(), packedData, writeBuf.BitsWritten, deltaProps, Constants.MAX_DATATABLE_PROPS, edictId);
+			int changes = EngineSendTable.CalcDelta(sendTable, prevFrame.GetData(), prevFrame.GetNumBits(), packedData, writeBuf.BitsWritten, deltaProps, Constants.MAX_DATATABLE_PROPS, edictId);
 
 			// If it's non-manual-mode, but we detect that there are no changes here, then just
 			// use the previous snapshot if it's available (as though the entity were manual mode).
@@ -238,10 +237,13 @@ static class PackedEntities
 
 	public static void ComputeClientPacks(int clientCount, GameClient[] clients, FrameSnapshot snapshot) {
 		for (int i = 0; i < clientCount; i++) {
-			// todo transmit info todo todo todo todo todo maybe possibly todo
+			CheckTransmitInfo info = clients[i].PackInfo;
 
 			clients[i].SetupPackInfo(snapshot);
-
+			SV.ServerGameEnts!.CheckTransmit(info, snapshot.ValidEntities!, snapshot.NumValidEntities);
+			clients[i].CurrentFrame!.TransmitEntity = info.TransmitEdict;
+			clients[i].CurrentFrame!.TransmitAlways = info.TransmitAlways;
+			clients[i].SetupPrevPackInfo();
 		}
 
 		if (CL.LocalNetworkBackdoor != null) {

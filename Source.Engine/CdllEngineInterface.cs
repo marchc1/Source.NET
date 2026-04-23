@@ -174,4 +174,6 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 
 		return 0;
 	}
+
+	public TimeUnit_t Time() => Sys.Time;
 }

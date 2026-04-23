@@ -1,40 +1,50 @@
+global using static Game.Client.HUD.LCDGlobals;
+
 using Source.Common.Formats.Keyvalues;
 
-interface IHudLCD
+namespace Game.Client.HUD;
+
+public static class LCDGlobals
+{
+	public static readonly LCD gLCD = new();
+	public static IHudLCD hudlcd => gLCD;
+}
+
+public interface IHudLCD
 {
 	void SetGlobalStat(ReadOnlySpan<char> name, ReadOnlySpan<char> value);
 	void AddChatLine(ReadOnlySpan<char> txt);
 }
 
-class LCDItem
+public class LCDItem
 {
 
 }
 
-class LCDItemText : LCDItem
+public class LCDItemText : LCDItem
 {
 
 }
 
-class LCDItemAggregate : LCDItem
+public class LCDItemAggregate : LCDItem
 {
 
 }
 
-class LCDPage
+public class LCDPage
 {
 
 }
 
-class LCD
+public class LCD : IHudLCD
 {
 	public static Dictionary<int, string> GlobalStats = [];
 
-	LCD() { }
+	public LCD() { }
 
-	void Reload() { }
+	public void Reload() { }
 
-	void Init() { }
+	public void Init() { }
 
 	void Shutdown() { }
 
@@ -42,13 +52,13 @@ class LCD
 
 	// bool IsPageValid(int currentPage, BasePlayer player) { }
 
-	void Update() { }
+	public void Update() { }
 
 	// bool IsConnected() { }
 
-	void ShowItems_R(LCDPage page, TimeUnit_t curTime, List<LCDItem> list, bool showItems) { }
+	public void ShowItems_R(LCDPage page, TimeUnit_t curTime, List<LCDItem> list, bool showItems) { }
 
-	void DisplayCurrentPage(TimeUnit_t curTime) { }
+	public void DisplayCurrentPage(TimeUnit_t curTime) { }
 
 	// LCDItemIcon ParseItemIcon(LCDPage page, bool bCreateHandles, KeyValues sub) { }
 
@@ -56,31 +66,31 @@ class LCD
 
 	// void ParseItems_R(LCDPage page, bool bCreateHandles, KeyValues kv, List<LCDItem> list) { }
 
-	void ParsePage(KeyValues kv) { }
+	public void ParsePage(KeyValues kv) { }
 
-	void ParseIconMappings(KeyValues kv) { }
+	public void ParseIconMappings(KeyValues kv) { }
 
-	void DumpPlayer() { }
+	public void DumpPlayer() { }
 
 	// bool ExtractArrayIndex(string str, UInt64 bufsize, int index) { }
 
-	void LookupToken(ReadOnlySpan<char> _in, string value) { }
+	public void LookupToken(ReadOnlySpan<char> _in, string value) { }
 
 	// void BuildUpdatedText(ReadOnlySpan<char> in, CUtlString& out ) { }
 
 	// bool Replace(string str, ReadOnlySpan<char> search, ReadOnlySpan<char> replace) { }
 
-	public static void SetGlobalStat(ReadOnlySpan<char> name, ReadOnlySpan<char> value) {
+	public void SetGlobalStat(ReadOnlySpan<char> name, ReadOnlySpan<char> value) {
 		GlobalStats[name.ToString().GetHashCode()] = value.ToString();
 	}
 
 	public void AddChatLine(ReadOnlySpan<char> txt) { }
 
-	void UpdateChat() { }
+	public void UpdateChat() { }
 
-	void DoGlobalReplacements(string str) { }
+	public void DoGlobalReplacements(string str) { }
 
-	void ReduceParentheses(string str) { }
+	public void ReduceParentheses(string str) { }
 
-	void ParseReplacements(KeyValues kv) { }
+	public void ParseReplacements(KeyValues kv) { }
 }

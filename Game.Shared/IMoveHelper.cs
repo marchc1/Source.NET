@@ -6,13 +6,14 @@ using Source.Common.Mathematics;
 using Source.Common.Physics;
 
 using System.Numerics;
+using Source;
 
 namespace Game.Shared;
 
 public static class MoveHelperExts
 {
 	public static IMoveHelper MoveHelper() => IMoveHelper.GetSingleton()!;
-
+	public const uint INVALID_ENTITY_HANDLE = Constants.INVALID_EHANDLE_INDEX;
 }
 
 public enum WaterLevel : byte

@@ -129,11 +129,29 @@ public static partial class Util_Globals
 		return result;
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Edict? INDEXENT(int edictNum) => engine.PEntityOfEntIndex(edictNum);
+
 	public static bool FStrEq(ReadOnlySpan<char> sz1, ReadOnlySpan<char> sz2)
 		=> Unsafe.AreSame(in sz1.DangerousGetReference(), in sz2.DangerousGetReference()) || stricmp(sz1, sz2) == 0;
 }
 public static partial class Util
 {
+	public static void TransmitShakeEvent(BasePlayer player, float localAmplitude, float frequency, TimeUnit_t duration, ShakeCommand command) {
+		if ((localAmplitude > 0) || (command == ShakeCommand.Stop)) {
+			if (command == ShakeCommand.Stop)
+				localAmplitude = 0;
+
+			SingleUserRecipientFilter user = new(player);
+			user.MakeReliable();
+			UserMessageBegin(user, "Shake");
+			WRITE_BYTE((byte)command);          // shake command (SHAKE_START, STOP, FREQUENCY, AMPLITUDE)
+			WRITE_FLOAT(localAmplitude);        // shake magnitude/amplitude
+			WRITE_FLOAT(frequency);             // shake noise frequency
+			WRITE_FLOAT((float)duration);       // shake lasts this long
+			MessageEnd();
+		}
+	}
+
 	public static void PrecacheOther(ReadOnlySpan<char> className, ReadOnlySpan<char> modelName = default) => throw new NotImplementedException();
 
 	public static void ClientPrintFilter<Filter>(scoped in Filter filter, HudPrint dest, ReadOnlySpan<char> msgName, ReadOnlySpan<char> param1 = default, ReadOnlySpan<char> param2 = default, ReadOnlySpan<char> param3 = default, ReadOnlySpan<char> param4 = default) where Filter : IRecipientFilter {

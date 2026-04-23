@@ -37,6 +37,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		services.AddSingleton<ClientEntityList>();
 		services.AddSingleton<IClientEntityList>(x => x.GetRequiredService<ClientEntityList>());
 		services.AddSingleton<IPrediction, Prediction>();
+		services.AddSingleton<IViewEffects, ViewEffects>(x => ViewEffects.g_ViewEffects);
 		services.AddSingleton<ICenterPrint, CenterPrint>(x => CenterPrint.CenterString);
 		services.AddSingleton<ClientLeafSystem>();
 		services.AddSingleton<IClientLeafSystem>(x => x.GetRequiredService<ClientLeafSystem>());
@@ -74,6 +75,10 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 			if (cl_predict.GetInt() != 0)
 				engine.ClientCmd("cl_predict 0");
 		}
+	}
+
+	public void LevelInitPostEntity(){
+		IGameSystem.LevelInitPostEntityAllSystems();
 	}
 
 	public void PostInit() {
@@ -120,6 +125,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		clientMode.Enable();
 
 		view.Init();
+		vieweffects.Init();
 
 		input.Init();
 
@@ -215,10 +221,12 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	private void OnRenderStart() {
 		// TODO: the rest of this, as features get implemented
 
+		C_BaseEntity.SetAbsQueriesValid(false);
 		C_BaseEntity.InterpolateServerEntities();
 		C_BaseAnimating.InvalidateBoneCaches();
 		C_BaseEntity.SetAbsQueriesValid(true);
 		C_BaseEntity.EnableAbsRecomputations(true);
+		C_BaseAnimating.PushAllowBoneAccess(true, false, new("OnRenderStart->ViewRender.SetUpView"));
 
 		input.CAM_Think();
 		view.OnRenderStart();
@@ -287,11 +295,15 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	private void PhysicsSimulate() {
-
+		g_PhysicsSystem.PhysicsSimulate();
 	}
 
 	private void SimulateEntities() {
 		ClientThinkList().PerformThinkFunctions();
+		C_BaseEntityIterator iterator = new C_BaseEntityIterator();
+		C_BaseEntity? ent;
+		while((ent = iterator.Next()) != null)
+			ent.Simulate();
 	}
 
 	private void OnRenderEnd() {

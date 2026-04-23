@@ -36,5 +36,6 @@ public class WeaponShotgun : BaseHL2MPCombatWeapon
 	public bool DelayedFire1;
 	public bool DelayedFire2;
 	public bool DelayedReload;
+	public override float GetFireRate() => 0.7f;
 }
 #endif

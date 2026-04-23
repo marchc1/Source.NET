@@ -353,16 +353,10 @@ public class Panel : IPanel
 		SetName(panelName);
 		SetParent(parent);
 	}
-	public Panel(Panel? parent, string? panelName, bool showTaskbarIcon = true) {
+	public Panel(Panel? parent, ReadOnlySpan<char> panelName, bool showTaskbarIcon = true) {
 		Init(0, 0, 64, 24);
 		SetName(panelName);
 		SetParent(parent);
-	}
-	public Panel(Panel? parent, string? panelName, IScheme scheme) {
-		Init(0, 0, 64, 24);
-		SetName(panelName);
-		SetParent(parent);
-		SetScheme(scheme);
 	}
 	public Panel(Panel? parent, ReadOnlySpan<char> panelName, IScheme scheme) {
 		Init(0, 0, 64, 24);

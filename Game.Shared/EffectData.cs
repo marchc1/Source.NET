@@ -92,12 +92,12 @@ public class EffectData
 
 #else
 	public static readonly SendTable DT_EffectData = new(nameof(DT_EffectData), [
-		SendPropFloat(FIELD.OF($"{nameof(Origin)}[0]"), (int)BitBuffer.COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
-		SendPropFloat(FIELD.OF($"{nameof(Origin)}[1]"), (int)BitBuffer.COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
-		SendPropFloat(FIELD.OF($"{nameof(Origin)}[2]"), (int)BitBuffer.COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
-		SendPropFloat(FIELD.OF($"{nameof(Start)}[0]"), (int)BitBuffer.COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
-		SendPropFloat(FIELD.OF($"{nameof(Start)}[1]"), (int)BitBuffer.COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
-		SendPropFloat(FIELD.OF($"{nameof(Start)}[2]"), (int)BitBuffer.COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
+		SendPropFloat(FIELD.OF($"{nameof(Origin)}[0]"), (int)COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
+		SendPropFloat(FIELD.OF($"{nameof(Origin)}[1]"), (int)COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
+		SendPropFloat(FIELD.OF($"{nameof(Origin)}[2]"), (int)COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
+		SendPropFloat(FIELD.OF($"{nameof(Start)}[0]"), (int)COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
+		SendPropFloat(FIELD.OF($"{nameof(Start)}[1]"), (int)COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
+		SendPropFloat(FIELD.OF($"{nameof(Start)}[2]"), (int)COORD_INTEGER_BITS + SUBINCH_PRECISION, 0, WorldSize.MIN_COORD_INTEGER, WorldSize.MAX_COORD_INTEGER),
 		SendPropQAngles(FIELD.OF(nameof(Angles)), 7),
 		SendPropVector(FIELD.OF(nameof(Normal)), 0, PropFlags.Normal | PropFlags.VarInt),
 		SendPropInt(FIELD.OF(nameof(Flags)), MAX_EFFECT_FLAG_BITS, PropFlags.Unsigned),

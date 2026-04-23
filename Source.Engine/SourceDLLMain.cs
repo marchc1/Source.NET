@@ -3,10 +3,13 @@
 using Source.Common;
 using Source.Common.Client;
 using Source.Common.Commands;
+using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.GUI;
+using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
+using Source.Common.Physics;
 using Source.Common.Server;
 using Source.Engine.Client;
 using Source.Engine.Server;
@@ -28,6 +31,9 @@ public static class SourceDllMain
 	[Dependency] public static GameServer sv { get; private set; } = null!;
 	[Dependency(Required = false)] public static IBaseClientDLL? g_ClientDLL { get; private set; } = null!;
 	[Dependency] public static IServerGameDLL serverGameDLL { get; private set; } = null!;
+	[Dependency] public static ILauncherManager launcherMgr { get; private set; } = null!;
+	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;
+	[Dependency] public static IPhysicsCollision physcollision { get; private set; } = null!;
 	[Dependency] public static ServerPlugin serverPluginHandler { get; private set; } = null!;
 	[Dependency] public static IClientEntityList entitylist { get; private set; } = null!;
 	[Dependency] public static IModelLoader modelloader { get; private set; } = null!;

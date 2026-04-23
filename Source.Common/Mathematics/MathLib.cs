@@ -5,6 +5,9 @@ using Source.Common.Formats.BSP;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.Arm;
+using System.Runtime.Intrinsics.X86;
 using System.Security.Cryptography;
 
 namespace Source.Common.Mathematics;
@@ -233,6 +236,49 @@ public enum PlaneType : byte
 	Pad1 = 19
 }
 
+
+public struct CollisionBrushSide
+{
+	public Memory<CollisionPlane> PlaneBackingMemory;
+	public int PlaneIdx;
+	public ref CollisionPlane Plane => ref PlaneBackingMemory.Span[PlaneIdx];
+
+	public ushort SurfaceIndex;
+	public bool Bevel;
+
+	public void SetPlanePointer(CollisionPlane[] collisionPlanes, ushort planeNum) {
+		PlaneBackingMemory = collisionPlanes;
+		PlaneIdx = planeNum;
+	}
+}
+
+public struct CollisionBrush
+{
+	public const int NUMSIDES_BOXBRUSH = -1;
+	public Contents Contents;
+	public int NumSides;
+	public int FirstBrushSide;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public int GetBox() => FirstBrushSide;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public void SetBox(int boxID) {
+		NumSides = NUMSIDES_BOXBRUSH;
+		FirstBrushSide = boxID;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsBox() => NumSides == NUMSIDES_BOXBRUSH;
+}
+
+public struct CollisionBoxBrush
+{
+	public Vector3 Mins;
+	public Vector3 Maxs;
+
+	public InlineArray6<ushort> SurfaceIndex;
+	public InlineArray2<ushort> Pad2;
+}
+
 public struct CollisionLeaf
 {
 	public Contents Contents;
@@ -275,6 +321,22 @@ public struct CollisionPlane
 }
 public static class MathLib
 {
+	public static readonly Vector128<float> Four_PointFives = Vector128.Create(0.5f, 0.5f, 0.5f, 0.5f);
+	public static readonly Vector128<float> Four_Zeros = Vector128.Create(0.0f, 0.0f, 0.0f, 0.0f);
+	public static readonly Vector128<float> Four_Ones = Vector128.Create(1.0f, 1.0f, 1.0f, 1.0f);
+	public static readonly Vector128<float> Four_Twos = Vector128.Create(2.0f, 2.0f, 2.0f, 2.0f);
+	public static readonly Vector128<float> Four_Threes = Vector128.Create(3.0f, 3.0f, 3.0f, 3.0f);
+	public static readonly Vector128<float> Four_Fours = Vector128.Create(4.0f, 4.0f, 4.0f, 4.0f);
+	public static readonly Vector128<float> Four_Origin = Vector128.Create(0f, 0f, 0f, 1f);
+	public static readonly Vector128<float> Four_NegativeOnes = Vector128.Create(-1f, -1f, -1f, -1f);
+	public static readonly Vector128<float> Four_2ToThe21s = Vector128.Create((float)(1 << 21), (float)(1 << 21), (float)(1 << 21), (float)(1 << 21));
+	public static readonly Vector128<float> Four_2ToThe22s = Vector128.Create((float)(1 << 22), (float)(1 << 22), (float)(1 << 22), (float)(1 << 22));
+	public static readonly Vector128<float> Four_2ToThe23s = Vector128.Create((float)(1 << 23), (float)(1 << 23), (float)(1 << 23), (float)(1 << 23));
+	public static readonly Vector128<float> Four_2ToThe24s = Vector128.Create((float)(1 << 24), (float)(1 << 24), (float)(1 << 24), (float)(1 << 24));
+	public static readonly Vector128<float> Four_Point225s = Vector128.Create(.225f, .225f, .225f, .225f);
+	public static readonly Vector128<float> Four_Epsilons = Vector128.Create(float.Epsilon, float.Epsilon, float.Epsilon, float.Epsilon);
+	public static readonly Vector128<float> Four_FLT_MAX = Vector128.Create(float.MaxValue, float.MaxValue, float.MaxValue, float.MaxValue);
+	public static readonly Vector128<float> Four_Negative_FLT_MAX = Vector128.Create(-float.MaxValue, -float.MaxValue, -float.MaxValue, -float.MaxValue);
 	public static Vector3 AsVector3(this ReadOnlySpan<float> span) => new(span[0], span[1], span[2]);
 	static MathLib() {
 
@@ -359,6 +421,7 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DistTo(this in Vector3 vec, in Vector3 other) => Vector3.Distance(vec, other);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Min(this in Vector3 vec, in Vector3 other) => Vector3.Min(vec, other);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Max(this in Vector3 vec, in Vector3 other) => Vector3.Max(vec, other);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Negate(this ref Vector3 vec) => vec = Vector3.Negate(vec);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DistToSqr(this in Vector3 vec, in Vector3 other) => Vector3.DistanceSquared(vec, other);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t Length2D(this in Vector3 vec) => MathF.Sqrt(vec.X * vec.X + vec.Y * vec.Y);
 
@@ -370,6 +433,10 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float Lerp(float f1, float f2, float i1, float i2, float x) {
 		return f1 + (f2 - f1) * (x - i1) / (i2 - i1);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static double Fmod(double x, double y) {
+		return x - y * Math.Truncate(x / y);
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float Fmodf(float x, float y) {
@@ -480,12 +547,38 @@ public static class MathLib
 
 		return ref new Span<Vector3>(ref a).Cast<Vector3, float>()[idx];
 	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe ref float SubFloat(ref fltx4 a, int idx) {
+		ArgumentOutOfRangeException.ThrowIfNegative(idx);
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(idx, 4);
+		fixed (fltx4* ap = &a) {
+			// This is probably terrible!
+			return ref ((float*)ap)[idx];
+		}
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static ref float SubFloat(ref Vector4 a, int idx) {
 		ArgumentOutOfRangeException.ThrowIfNegative(idx);
 		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(idx, 4);
 
 		return ref new Span<Vector4>(ref a).Cast<Vector4, float>()[idx];
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe uint SubInt(in fltx4 a, int idx) {
+		return a.AsUInt32().GetElement(idx);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe uint SubInt(in Vector3 a, int idx) {
+		float val = a[idx];
+		return Unsafe.As<float, uint>(ref val);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static unsafe uint SubInt(in Vector4 a, int idx) {
+		float val = a[idx];
+		return Unsafe.As<float, uint>(ref val);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -510,11 +603,14 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe void AngleQuaternion(in QAngle angles, out Quaternion outQuat) {
 		fixed (QAngle* pQ = &angles) {
-			Vector4 radians = new(*(Vector3*)pQ, 0.5f);
+			Vector4 radians = new(*(Vector3*)pQ, 0);
+			radians = Vector4.Multiply(radians, MathF.PI / 360.0f);
 			(Vector4 sine, Vector4 cosine) = Vector4.SinCos(radians);
 
-			float sr = SubFloat(ref sine, 0), sp = SubFloat(ref sine, 1), sy = SubFloat(ref sine, 2);
-			float cr = SubFloat(ref cosine, 0), cp = SubFloat(ref cosine, 1), cy = SubFloat(ref cosine, 2);
+			// NOTE: The ordering here is *different* from the RadianEuler AngleQuaternion above
+			// because p, y, r are not in the same locations in QAngle + RadianEuler. Yay!
+			float sp = SubFloat(ref sine, 0), sy = SubFloat(ref sine, 1), sr = SubFloat(ref sine, 2);
+			float cp = SubFloat(ref cosine, 0), cy = SubFloat(ref cosine, 1), cr = SubFloat(ref cosine, 2);
 
 			float srXcp = sr * cp, crXsp = cr * sp;
 			outQuat.X = srXcp * cy - crXsp * sy;
@@ -676,11 +772,45 @@ public static class MathLib
 	}
 
 	public static void QuaternionSlerp(in Quaternion p, in Quaternion q, float t, out Quaternion qt) {
-		qt = Quaternion.Slerp(p, q, t);
+		QuaternionAlign(p, q, out Quaternion q2);
+		QuaternionSlerpNoAlign(p, q2, t, out qt);
 	}
 
 	public static void QuaternionSlerpNoAlign(in Quaternion p, in Quaternion q, float t, out Quaternion qt) {
-		qt = Quaternion.Slerp(p, q, t);
+		qt = default;
+		float cosom = p.X * q.X + p.Y * q.Y + p.Z * q.Z + p.W * q.W;
+
+		if ((1.0f + cosom) > 0.000001f) {
+			float sclp, sclq;
+			if ((1.0f - cosom) > 0.000001f) {
+				float omega = MathF.Acos(cosom);
+				float sinom = MathF.Sin(omega);
+				sclp = MathF.Sin((1.0f - t) * omega) / sinom;
+				sclq = MathF.Sin(t * omega) / sinom;
+			}
+			else {
+				sclp = 1.0f - t;
+				sclq = t;
+			}
+
+			qt.X = sclp * p.X + sclq * q.X;
+			qt.Y = sclp * p.Y + sclq * q.Y;
+			qt.Z = sclp * p.Z + sclq * q.Z;
+			qt.W = sclp * p.W + sclq * q.W;
+		}
+		else {
+			qt.X = -q.Y;
+			qt.Y = q.X;
+			qt.Z = -q.W;
+			qt.W = q.Z;
+
+			float sclp = MathF.Sin((1.0f - t) * (0.5f * MathF.PI));
+			float sclq = MathF.Sin(t * (0.5f * MathF.PI));
+
+			qt.X = sclp * p.X + sclq * qt.X;
+			qt.Y = sclp * p.Y + sclq * qt.Y;
+			qt.Z = sclp * p.Z + sclq * qt.Z;
+		}
 	}
 
 	public static void QuaternionMatrix(in Quaternion q, out Matrix3x4 m) {
@@ -730,10 +860,16 @@ public static class MathLib
 		outM[2, 3] = -DotProduct(tmp, outM[2]);
 	}
 
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static vec_t DotProduct(ReadOnlySpan<vec_t> v1, ReadOnlySpan<vec_t> v2) {
-		return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
-	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProduct(ReadOnlySpan<vec_t> v1, ReadOnlySpan<vec_t> v2) => v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProduct(ReadOnlySpan<vec_t> v1, in Vector3 v2) => v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProduct(in Vector3 v1, ReadOnlySpan<vec_t> v2) => v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProduct(in Vector3 v1, in Vector3 v2) => v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProductAbs(ReadOnlySpan<vec_t> v1, ReadOnlySpan<vec_t> v2) => MathF.Abs(v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProductAbs(ReadOnlySpan<vec_t> v1, in Vector3 v2) => MathF.Abs(v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProductAbs(in Vector3 v1, ReadOnlySpan<vec_t> v2) => MathF.Abs(v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DotProductAbs(in Vector3 v1, in Vector3 v2) => MathF.Abs(v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2]);
+
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe vec_t DotProduct(in Quaternion v1, in Quaternion v2) {
@@ -742,9 +878,6 @@ public static class MathLib
 			return DotProduct(new(pV1, 4), new(pV2, 4));
 		}
 	}
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static vec_t DotProduct(in Vector3 v1, in Vector3 v2) => v1.X * v2.X + v1.Y * v2.Y + v1.Z * v2.Z;
-
 
 	public static void MatrixBuildPerspectiveX(ref Matrix4x4 dst, float fovX, float aspectRatio, float zNear, float zFar) {
 		float flWidthScale = 1.0f / MathF.Tan(fovX * MathF.PI / 360.0f);
@@ -1154,6 +1287,7 @@ public static class MathLib
 			up = new(cr * sp * cy + -sr * -sy, cr * sp * sy + -sr * cy, cr * cp);
 		}
 	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorClear(out Vector3 v) => v = default;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out Vector3 outV) => outV = inV;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out QAngle outV) => outV = inV;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1339,4 +1473,328 @@ public static class MathLib
 		@out.Y = @in.X * sy + @in.Y * cy;
 		@out.Z = @in.Z;
 	}
+
+	public static void QuaternionAngles(in Quaternion q, out QAngle angles) {
+		QuaternionMatrix(q, out Matrix3x4 matrix);
+		MatrixAngles(matrix, out angles);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> SubSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.Subtract(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.Subtract(a, b);
+		return Vector128.Subtract(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> AddSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.Add(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.Add(a, b);
+		return Vector128.Add(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> MulSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.Multiply(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.Multiply(a, b);
+		return Vector128.Multiply(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> AndSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.And(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.And(a.AsUInt32(), b.AsUInt32()).AsSingle();
+		return Vector128.BitwiseAnd(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> OrSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.Or(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.Or(a.AsUInt32(), b.AsUInt32()).AsSingle();
+		return Vector128.BitwiseOr(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> XorSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.Xor(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.Xor(a.AsUInt32(), b.AsUInt32()).AsSingle();
+		return Vector128.Xor(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> MinSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.Min(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.Min(a, b);
+		return Vector128.Min(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> MaxSIMD(Vector128<float> a, Vector128<float> b) {
+		if (Sse.IsSupported)
+			return Sse.Max(a, b);
+		if (AdvSimd.IsSupported)
+			return AdvSimd.Max(a, b);
+		return Vector128.Max(a, b);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> ReplicateX4(float value) => Vector128.Create(value);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> SetWToZeroSIMD(Vector128<float> v) {
+		if (Sse.IsSupported)
+			return Sse.And(v, Vector128.Create(~0u, ~0u, ~0u, 0u).AsSingle());
+
+		if (AdvSimd.IsSupported)
+			return AdvSimd.And(
+				v.AsUInt32(),
+				Vector128.Create(~0u, ~0u, ~0u, 0u)
+			).AsSingle();
+
+		return Vector128.AndNot(Vector128.Create(0u, 0u, 0u, ~0u).AsSingle(), v);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool IsAnyNegative(Vector128<float> v) {
+		if (Sse.IsSupported)
+			return Sse.MoveMask(v) != 0;
+		if (AdvSimd.Arm64.IsSupported) {
+			Vector128<uint> signs = AdvSimd.ShiftRightLogical(v.AsUInt32(), 31);
+			return AdvSimd.Arm64.MaxAcross(signs).ToScalar() != 0;
+		}
+		return (v.GetElement(0) < 0) | (v.GetElement(1) < 0) |
+			   (v.GetElement(2) < 0) | (v.GetElement(3) < 0);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool IsAllZeros(Vector128<float> v) {
+		if (Sse.IsSupported)
+			return Sse.MoveMask(v) == 0;
+		if (AdvSimd.Arm64.IsSupported) {
+			Vector128<uint> signs = AdvSimd.ShiftRightLogical(v.AsUInt32(), 31);
+			return AdvSimd.Arm64.MaxAcross(signs).ToScalar() == 0;
+		}
+		return v.AsUInt32().GetElement(0) == 0 && v.AsUInt32().GetElement(1) == 0 &&
+			   v.AsUInt32().GetElement(2) == 0 && v.AsUInt32().GetElement(3) == 0;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> MaskedAssign(Vector128<float> mask, Vector128<float> yes, Vector128<float> no) {
+		if (Sse41.IsSupported)
+			return Sse41.BlendVariable(no, yes, mask);
+		if (Sse.IsSupported)
+			return Sse.Or(Sse.And(mask, yes), Sse.AndNot(mask, no));
+		if (AdvSimd.IsSupported)
+			return AdvSimd.BitwiseSelect(mask.AsUInt32(), yes.AsUInt32(), no.AsUInt32()).AsSingle();
+
+		return Vector128.ConditionalSelect(mask.AsInt32(), yes.AsInt32(), no.AsInt32()).AsSingle();
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> FindLowestSIMD3(Vector128<float> v) {
+		if (Sse.IsSupported) {
+			Vector128<float> y = Sse.Shuffle(v, v, 0x55);
+			Vector128<float> z = Sse.Shuffle(v, v, 0xAA);
+			Vector128<float> xy = Sse.Min(v, y);
+			return Sse.Min(xy, z);
+		}
+		if (AdvSimd.Arm64.IsSupported) {
+			float x = v.GetElement(0);
+			float yf = v.GetElement(1);
+			float zf = v.GetElement(2);
+			float m = MathF.Min(MathF.Min(x, yf), zf);
+			return Vector128.Create(m);
+		}
+
+		{
+			float m = MathF.Min(MathF.Min(v.GetElement(0), v.GetElement(1)), v.GetElement(2));
+			return Vector128.Create(m);
+		}
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> FindHighestSIMD3(Vector128<float> v) {
+		if (Sse.IsSupported) {
+			Vector128<float> y = Sse.Shuffle(v, v, 0x55);
+			Vector128<float> z = Sse.Shuffle(v, v, 0xAA);
+			Vector128<float> xy = Sse.Max(v, y);
+			return Sse.Max(xy, z);
+		}
+		if (AdvSimd.Arm64.IsSupported) {
+			float x = v.GetElement(0);
+			float yf = v.GetElement(1);
+			float zf = v.GetElement(2);
+			float m = MathF.Max(MathF.Max(x, yf), zf);
+			return Vector128.Create(m);
+		}
+
+		{
+			float m = MathF.Max(MathF.Max(v.GetElement(0), v.GetElement(1)), v.GetElement(2));
+			return Vector128.Create(m);
+		}
+	}
+
+	public const uint PERMUTE_0X = 0;
+	public const uint PERMUTE_0Y = 1;
+	public const uint PERMUTE_0Z = 2;
+	public const uint PERMUTE_0W = 3;
+	public const uint PERMUTE_1X = 4;
+	public const uint PERMUTE_1Y = 5;
+	public const uint PERMUTE_1Z = 6;
+	public const uint PERMUTE_1W = 7;
+
+	public const uint AXIS_X = 0;
+	public const uint AXIS_Y = 1;
+	public const uint AXIS_Z = 2;
+	public const uint AXIS_W = 3;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat2(in Vector2 v2) => Vector128.Create(v2.X, v2.Y, 0, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat3(in Vector3 v3) => Vector128.Create(v3.X, v3.Y, v3.Z, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat4(in Vector4 v4) => Vector128.Create(v4.X, v4.Y, v4.Z, v4.W);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt2(in Vector2 v2) => Vector128.Create((int)v2.X, (int)v2.Y, 0, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt3(in Vector3 v3) => Vector128.Create((int)v3.X, (int)v3.Y, (int)v3.Z, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt4(in Vector4 v4) => Vector128.Create((int)v4.X, (int)v4.Y, (int)v4.Z, (int)v4.W);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat2(ReadOnlySpan<float> a) => Vector128.Create(a[0], a[1], 0, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat3(ReadOnlySpan<float> a) => Vector128.Create(a[0], a[1], a[2], 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat4(ReadOnlySpan<float> a) => Vector128.Create(a[0], a[1], a[2], a[3]);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt2(ReadOnlySpan<int> a) => Vector128.Create((int)a[0], (int)a[1], 0, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt3(ReadOnlySpan<int> a) => Vector128.Create((int)a[0], (int)a[1], (int)a[2], 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt4(ReadOnlySpan<int> a) => Vector128.Create((int)a[0], (int)a[1], (int)a[2], (int)a[3]);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat2(Span<float> a) => Vector128.Create(a[0], a[1], 0, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat3(Span<float> a) => Vector128.Create(a[0], a[1], a[2], 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> LoadFloat4(Span<float> a) => Vector128.Create(a[0], a[1], a[2], a[3]);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt2(Span<int> a) => Vector128.Create((int)a[0], (int)a[1], 0, 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt3(Span<int> a) => Vector128.Create((int)a[0], (int)a[1], (int)a[2], 0);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<int> LoadInt4(Span<int> a) => Vector128.Create((int)a[0], (int)a[1], (int)a[2], (int)a[3]);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static fltx4 SplatXSIMD(fltx4 a) {
+		var v = a[(int)AXIS_X];
+		return Vector128.Create(v, v, v, v);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static fltx4 SplatYSIMD(fltx4 a) {
+		var v = a[(int)AXIS_Y];
+		return Vector128.Create(v, v, v, v);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static fltx4 SplatZSIMD(fltx4 a) {
+		var v = a[(int)AXIS_Z];
+		return Vector128.Create(v, v, v, v);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static fltx4 SplatWSIMD(fltx4 a) {
+		var v = a[(int)AXIS_W];
+		return Vector128.Create(v, v, v, v);
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> RotateLeft(fltx4 a) {
+		Vector128<int> control = Vector128.Create((int)AXIS_Y, (int)AXIS_Z, (int)AXIS_W, (int)AXIS_X);
+		return Vector128.Shuffle(a, control);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> RotateLeft2(fltx4 a) {
+		Vector128<int> control = Vector128.Create((int)AXIS_Z, (int)AXIS_W, (int)AXIS_X, (int)AXIS_Y);
+		return Vector128.Shuffle(a, control);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> RotateRight(fltx4 a) {
+		Vector128<int> control = Vector128.Create((int)AXIS_W, (int)AXIS_X, (int)AXIS_Y, (int)AXIS_Z);
+		return Vector128.Shuffle(a, control);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> RotateRight2(fltx4 a) {
+		Vector128<int> control = Vector128.Create((int)AXIS_Z, (int)AXIS_W, (int)AXIS_X, (int)AXIS_Y);
+		return Vector128.Shuffle(a, control);
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> CmpGtSIMD(fltx4 a, fltx4 b) => Vector128.GreaterThan(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> CmpGeSIMD(fltx4 a, fltx4 b) => Vector128.GreaterThanOrEqual(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> CmpLtSIMD(fltx4 a, fltx4 b) => Vector128.LessThan(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector128<float> CmpLeSIMD(fltx4 a, fltx4 b) => Vector128.LessThanOrEqual(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsAllGreaterThan(fltx4 a, fltx4 b) => Vector128.GreaterThanAll(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsAllGreaterThanOrEq(fltx4 a, fltx4 b) => Vector128.GreaterThanOrEqualAll(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsAllEqual(fltx4 a, fltx4 b) => Vector128.EqualsAll(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float AngleNormalize(float angle) {
+		angle = Fmodf(angle, 360.0f);
+		if (angle > 180)
+			angle -= 360;
+		if (angle < -180)
+			angle += 360;
+
+		return angle;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float anglemod(float a) => (360f / 65536) * ((int)(a * (65536f / 360.0f)) & 65535);
+
+	public static float ApproachAngle(float target, float value, float speed) {
+		target = anglemod(target);
+		value = anglemod(value);
+
+		float delta = target - value;
+
+		// Speed is assumed to be positive
+		if (speed < 0)
+			speed = -speed;
+
+		if (delta < -180)
+			delta += 360;
+		else if (delta > 180)
+			delta -= 360;
+
+		if (delta > speed)
+			value += speed;
+		else if (delta < -speed)
+			value -= speed;
+		else
+			value = target;
+
+		return value;
+	}
+
+	public static void VectorAngles(in Vector3 forward, out QAngle angles) {
+		float tmp, yaw, pitch;
+
+		if (forward[1] == 0 && forward[0] == 0) {
+			yaw = 0;
+			if (forward[2] > 0)
+				pitch = 270;
+			else
+				pitch = 90;
+		}
+		else {
+			yaw = (MathF.Atan2(forward[1], forward[0]) * 180 / MathF.PI);
+			if (yaw < 0)
+				yaw += 360;
+
+			tmp = MathF.Sqrt(forward[0] * forward[0] + forward[1] * forward[1]);
+			pitch = (MathF.Atan2(-forward[2], tmp) * 180 / MathF.PI);
+			if (pitch < 0)
+				pitch += 360;
+		}
+
+		angles = new(pitch, yaw, 0);
+	}
+}
+
+[StructLayout(LayoutKind.Sequential, Pack = 16, Size = sizeof(float) * 4 * 3)]
+public struct FourVectors
+{
+	public Vector4 x, y, z;
 }

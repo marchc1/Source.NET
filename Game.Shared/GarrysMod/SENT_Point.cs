@@ -31,7 +31,7 @@ public partial class
 #else
 	SENT_Point
 #endif
-	: SharedBaseEntity
+	: BaseEntity
 {
 	public static readonly Table DT_SENT_Point = new(DT_BaseEntity, [
 #if CLIENT_DLL

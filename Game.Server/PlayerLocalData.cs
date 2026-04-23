@@ -91,7 +91,7 @@ public class PlayerLocalData
 	public double DuckJumpTime;
 	public double JumpTime;
 	public int StepSide;
-	public double FallVelocity;
+	public float FallVelocity;
 	public int OldButtons;
 	public int OldForwardMove;
 	public QAngle PunchAngle;
@@ -99,7 +99,7 @@ public class PlayerLocalData
 	public bool DrawViewmodel;
 	public bool WearingSuit;
 	public bool Poisoned;
-	public bool StepSize;
+	public float StepSize;
 	public bool AllowAutoMovement;
 	public bool SlowMovement;
 

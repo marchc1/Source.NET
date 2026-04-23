@@ -14,7 +14,11 @@ using static Source.Dbg;
 
 public class NetworkStringTableItem
 {
+#if GMOD_DLL
 	public const int MAX_USERDATA_BITS = 19; // RaphaelIT7: Unlike all other source games, gmod has this at 19 bits! Rubat probably did this for the singleplayer client lua files workaround
+#else
+	public const int MAX_USERDATA_BITS = 14;
+#endif
 	public const int MAX_USERDATA_SIZE = 1 << MAX_USERDATA_BITS;
 
 	public class ItemChange

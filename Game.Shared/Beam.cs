@@ -30,7 +30,7 @@ public class
 #else
 	Beam
 #endif
-	: SharedBaseEntity
+	: BaseEntity
 {
 	public const int ATTACHMENT_INDEX_BITS = 5;
 	public const float MAX_BEAM_WIDTH = 102.3f;

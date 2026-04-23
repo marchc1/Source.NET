@@ -17,7 +17,7 @@ namespace Source.Engine;
 /// Various serverside methods. In Source, these would mostly be represented by
 /// SV_MethodName's in the static global namespace
 /// </summary>
-public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHostState host_state, IEngineVGuiInternal EngineVGui, ICvar cvar, IModelLoader modelloader, ServerGlobalVariables serverGlobalVariables, Con Con, [FromKeyedServices(Realm.Server)] NetworkStringTableContainer networkStringTableContainerServer, IHostState HostState, ServerPlugin serverPluginHandler)
+public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHostState host_state, IEngineVGuiInternal EngineVGui, ICvar cvar, IModelLoader modelloader, ServerGlobalVariables serverGlobalVariables, Con Con, [FromKeyedServices(Realm.Server)] NetworkStringTableContainer networkStringTableContainerServer, IHostState HostState, ServerPlugin serverPluginHandler)
 {
 	public static IServerGameDLL? ServerGameDLL;
 	public static IServerGameEnts? ServerGameEnts;
@@ -85,7 +85,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 	private void InitSendTables(ServerClass? classes) {
 		SendTable[] tables = new SendTable[Constants.MAX_DATATABLES];
 		int numTables = BuildSendTablesArray(classes, tables);
-		services.GetRequiredService<EngineSendTable>().Init(tables.AsSpan()[..numTables]);
+		EngineSendTable.Init(tables.AsSpan()[..numTables]);
 	}
 
 	readonly ConVar tv_enable = new("tv_enable", "0", FCvar.Notify, "Activates SourceTV on server.");
@@ -205,8 +205,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		Common.TimestampedLog("SV.CreateBaseline");
 
 		// create a baseline for more efficient communications
-		// todo: uncomment once more il stuff is done
-		// CreateBaseline();
+		CreateBaseline();
 
 		sv.AllowSignOnWrites = false;
 
@@ -242,7 +241,6 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		return true;
 	}
 
-	static readonly EngineSendTable EngSendTable = Singleton<EngineSendTable>();
 	private void CreateBaseline() {
 		// WriteVoiceCodec(sv.Signon);
 
@@ -292,7 +290,7 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 				byte[] packedData = new byte[Constants.MAX_PACKEDENTITY_DATA];
 				bf_write writeBuf = new(packedData, Constants.MAX_PACKEDENTITY_DATA);
 
-				if (!EngSendTable.Encode(pSendTable, edict.GetUnknown(), writeBuf, entnum, null, false))
+				if (!EngineSendTable.Encode(pSendTable, edict.GetUnknown(), writeBuf, entnum, null, false))
 					Host.Error($"SV_CreateBaseline: SendTable_Encode returned false (ent {entnum}).\n");
 
 				PackedEntities.EnsureInstanceBaseline(pClass, entnum, packedData, writeBuf.BytesWritten);
@@ -417,9 +415,5 @@ public class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHo
 		serverGameDLL.CreateNetworkStringTables();
 
 		networkStringTableContainerServer.SetAllowCreation(false);
-	}
-
-	internal void ClearWorld() {
-
 	}
 }

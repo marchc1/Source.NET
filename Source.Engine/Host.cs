@@ -657,6 +657,7 @@ public class Host(
 			CL = engineAPI.InitSubsystem<CL>()!;
 			MatSysInterface = engineAPI.InitSubsystem<MatSysInterface>()!;
 			modelloader = engineAPI.InitSubsystem<IModelLoader>()!;
+			StaticPropMgr().Init();
 			EngineVGui = engineAPI.InitSubsystem<EngineVGui>()!;
 			ClientDLL = engineAPI.InitSubsystem<ClientDLL>()!;
 			HostState = engineAPI.GetRequiredService<IHostState>();

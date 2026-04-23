@@ -3,6 +3,8 @@
 namespace Source.Common.Commands;
 
 public interface IConVar {
+	public string GetString();
+
 	public void SetValue(ReadOnlySpan<char> value);
 	public void SetValue(int value);
 	public void SetValue(float value);

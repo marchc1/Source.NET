@@ -8,7 +8,8 @@ using System.Numerics;
 namespace Game.Server;
 
 
-public interface IMoveHelperServer : IMoveHelper{
+public interface IMoveHelperServer : IMoveHelper
+{
 	void SetHost(BasePlayer host);
 }
 public class MoveHelperServer : IMoveHelperServer
@@ -26,9 +27,7 @@ public class MoveHelperServer : IMoveHelperServer
 		throw new NotImplementedException();
 	}
 
-	public IPhysicsSurfaceProps? GetSurfaceProps() {
-		throw new NotImplementedException();
-	}
+	public IPhysicsSurfaceProps? GetSurfaceProps() => physprops;
 
 	public bool IsWorldEntity(EntityHandle_t handle) {
 		throw new NotImplementedException();
@@ -47,7 +46,7 @@ public class MoveHelperServer : IMoveHelperServer
 	}
 
 	public void ProcessImpacts() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public void ResetTouchList() {

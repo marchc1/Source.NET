@@ -3,11 +3,15 @@
 using Source.Common;
 
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Source.Common
 {
+	public static class DataMapConstants {
+		public const float TD_MSECTOLERANCE = 0.001f;
+	}
 
 	public enum FieldType
 	{
@@ -18,8 +22,10 @@ namespace Source.Common
 		Quaternion,       // A quaternion
 		Integer,          // Any integer or enum
 		Boolean,          // boolean, implemented as an int, I may use this as a hint for compression
+		Character,        // 1 byte integer
+		Byte = Character, // 1 byte integer
 		Short,            // 2 byte integer
-		Character,        // a byte
+		StringCharacter,  // a utf16 character
 		Color32,          // 8-bit per channel r,g,b,a (32bit color)
 		Embedded,         // an embedded object with a datadesc, recursively traverse and embedded class/structure based on an additional typedescription
 		Custom,           // special type that contains function pointers to it's read/write/parse functions
@@ -75,12 +81,13 @@ namespace Source.Common
 		public int OverrideCount;
 		public readonly float FieldTolerance;
 
-		public TypeDescription(FieldType type, ReadOnlySpan<char> fieldName, IDynamicAccessor accessor, ushort fieldSize, FieldTypeDescFlags flags, ReadOnlySpan<char> externalName, ISaveRestoreOps? saveRestoreOps, float fieldTolerance) {
+		public TypeDescription(FieldType type, ReadOnlySpan<char> fieldName, IDynamicAccessor accessor, ushort fieldSize, FieldTypeDescFlags flags, ReadOnlySpan<char> externalName, ISaveRestoreOps? saveRestoreOps, DataMap? td, float fieldTolerance) {
 			FieldType = type;
 			FieldName = new(fieldName);
 			FieldAccessor = accessor;
 			FieldSize = fieldSize;
 			Flags |= flags;
+			TD = td;
 			ExternalName = new(externalName);
 			SaveRestoreOps = saveRestoreOps;
 			FieldTolerance = fieldTolerance;
@@ -108,10 +115,34 @@ namespace Source.Common
 	}
 
 
+	/*
+		Make sure that DEFINE is defined in the C# file as using DEFINE = Source.DEFINE<YOURCLASSHERE>;
+
+			BEGIN_PREDICTION_DATA_NO_BASE:	public static readonly DataMap PredMap = new(nameof(THISCLASS), [
+			BEGIN_PREDICTION_DATA:			public static readonly new DataMap PredMap = new(nameof(THISCLASS), BaseDataMap, [
+			DEFINE_PRED_FIELD:					DEFINE.PRED_FIELD(nameof(FIELD), FieldType, FieldTypeDescFlags),
+			DEFINE_FIELD:						DEFINE.FIELD(nameof(FIELD), FieldType),
+			END_PREDICTION_DATA:			]);
+	*/
+
 	public class DataMap
 	{
 		public DataMap() { }
+
+		/// <summary>
+		/// Old API, the other constructors are better and closer to the macros... fixme
+		/// </summary>
 		public DataMap(TypeDescription[]? dataDesc, ReadOnlySpan<char> dataClassName, DataMap? baseMap) {
+			DataDesc = dataDesc ?? [];
+			DataClassName = new(dataClassName);
+			BaseMap = baseMap;
+		}
+
+		public DataMap(ReadOnlySpan<char> dataClassName, TypeDescription[]? dataDesc) {
+			DataDesc = dataDesc ?? [];
+			DataClassName = new(dataClassName);
+		}
+		public DataMap(ReadOnlySpan<char> dataClassName, DataMap? baseMap, TypeDescription[]? dataDesc) {
 			DataDesc = dataDesc ?? [];
 			DataClassName = new(dataClassName);
 			BaseMap = baseMap;
@@ -134,15 +165,31 @@ namespace Source
 {
 	public static class DEFINE<T>
 	{
+		static int SIZE_OF_ARRAY(ReadOnlySpan<char> fieldName) {
+			var field = typeof(T).GetField(new(fieldName), BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+			if (field == null)
+				throw new NullReferenceException();
+
+			InlineArrayAttribute? arrayAttr;
+			if ((arrayAttr = field.FieldType.GetCustomAttribute<InlineArrayAttribute>()) != null)
+				return arrayAttr.Length;
+
+			throw new NotSupportedException("Need a way to resolve SIZE_OF_ARRAY in this case.");
+		}
+
 		static TypeDescription _FIELD(ReadOnlySpan<char> name, FieldType fieldType, int count, FieldTypeDescFlags flags, ReadOnlySpan<char> mapname, float tolerance) {
-			return new(fieldType, name, FIELD<T>.OF(name), (ushort)count, flags, mapname, null, tolerance);
+			return new(fieldType, name, FIELD<T>.OF(name), (ushort)count, flags, mapname, null, null, tolerance);
 		}
 		static TypeDescription _FIELD_ARRAY(ReadOnlySpan<char> name, FieldType fieldType, int count, FieldTypeDescFlags flags, ReadOnlySpan<char> mapname, float tolerance) {
-			return new(fieldType, name, FIELD<T>.OF_ARRAY(name), (ushort)count, flags, mapname, null, tolerance);
+			return new(fieldType, name, FIELD<T>.OF_ARRAY(name), (ushort)count, flags, mapname, null, null, tolerance);
 		}
 
 		public static TypeDescription FIELD(ReadOnlySpan<char> name, FieldType fieldType) {
 			return _FIELD(name, fieldType, 1, FieldTypeDescFlags.Save, null, 0);
+		}
+
+		public static TypeDescription AUTO_ARRAY(ReadOnlySpan<char> name, FieldType fieldType) {
+			return _FIELD_ARRAY(name, fieldType, SIZE_OF_ARRAY(name), FieldTypeDescFlags.Save, null, 0);
 		}
 
 		public static TypeDescription PRED_FIELD(ReadOnlySpan<char> name, FieldType fieldType, FieldTypeDescFlags flags) {
@@ -157,6 +204,10 @@ namespace Source
 		}
 		public static TypeDescription PRED_ARRAY_TOL(ReadOnlySpan<char> name, FieldType fieldType, int count, FieldTypeDescFlags flags, float tolerance) {
 			return _FIELD_ARRAY(name, fieldType, count, flags, null, tolerance);
+		}
+
+		public static TypeDescription PRED_TYPEDESCRIPTION(ReadOnlySpan<char> name, DataMap baseMap) {
+			return new(FieldType.Embedded, name, FIELD<T>.OF(name), (ushort)1, FieldTypeDescFlags.Save, null, null, baseMap, 0f);
 		}
 	}
 
@@ -224,16 +275,17 @@ namespace Source
 				IDataFrameContainer framecontainer;
 				switch (td.FieldType) {
 					case FieldType.Embedded: framecontainer = new DataFrameContainer<DataFrame>(new DataFrame(td.TD)); break;
-					case FieldType.Float: framecontainer = new DataFrameContainer<float>(); break;
-					case FieldType.Vector: framecontainer = new DataFrameContainer<Vector3>(); break;
-					case FieldType.Quaternion: framecontainer = new DataFrameContainer<Quaternion>(); break;
-					case FieldType.Integer: framecontainer = new DataFrameContainer<int>(); break;
-					case FieldType.EHandle: framecontainer = new DataFrameContainer<BaseHandle>(); break;
-					case FieldType.Short: framecontainer = new DataFrameContainer<short>(); break;
-					case FieldType.String: framecontainer = new DataFrameContainer<char[]>(); break;
-					case FieldType.Color32: framecontainer = new DataFrameContainer<Color>(); break;
-					case FieldType.Boolean: framecontainer = new DataFrameContainer<bool>(); break;
-					case FieldType.Character: framecontainer = new DataFrameContainer<byte>(); break;
+					case FieldType.Float: framecontainer = new DataFrameContainer<float>(td.FieldSize); break;
+					case FieldType.Vector: framecontainer = new DataFrameContainer<Vector3>(td.FieldSize); break;
+					case FieldType.Quaternion: framecontainer = new DataFrameContainer<Quaternion>(td.FieldSize); break;
+					case FieldType.Integer: framecontainer = new DataFrameContainer<int>(td.FieldSize); break;
+					case FieldType.EHandle: framecontainer = new DataFrameContainer<BaseHandle>(td.FieldSize); break;
+					case FieldType.Short: framecontainer = new DataFrameContainer<short>(td.FieldSize); break;
+					case FieldType.String: framecontainer = new DataFrameContainer<char[]>(td.FieldSize); break;
+					case FieldType.Color32: framecontainer = new DataFrameContainer<Color>(td.FieldSize); break;
+					case FieldType.Boolean: framecontainer = new DataFrameContainer<bool>(td.FieldSize); break;
+					case FieldType.Character: framecontainer = new DataFrameContainer<byte>(td.FieldSize); break;
+					case FieldType.StringCharacter: framecontainer = new DataFrameContainer<char>(td.FieldSize); break;
 
 					default:
 						continue;

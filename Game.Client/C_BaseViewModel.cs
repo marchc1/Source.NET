@@ -1,11 +1,30 @@
-﻿using Source.Common;
+﻿using Source;
+using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
 
 namespace Game.Client;
+using DEFINE = Source.DEFINE<BaseViewModel>;
 
 public partial class C_BaseViewModel
 {
+	public static readonly new DataMap PredMap = new(nameof(C_BaseViewModel), C_BaseAnimating.PredMap, [
+		DEFINE.PRED_FIELD( nameof(ModelIndex), FieldType.Short, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.ModelIndex ),
+		DEFINE.PRED_FIELD( nameof(Skin), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(Body), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(Sequence), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(_ViewModelIndex), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD_TOL( nameof(PlaybackRate), FieldType.Float, FieldTypeDescFlags.InSendTable, 0.125f ),
+		DEFINE.PRED_FIELD( nameof(Effects), FieldType.Integer, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.Override ),
+		DEFINE.PRED_FIELD( nameof(AnimationParity), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(Weapon), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(AnimTime), FieldType.Float, 0 ),
+		DEFINE.FIELD( nameof(Owner), FieldType.EHandle ),
+		DEFINE.FIELD( nameof(TimeWeaponIdle), FieldType.Float ),
+		DEFINE.FIELD( nameof(Activity), FieldType.Integer ),
+		DEFINE.PRED_FIELD( nameof(Cycle), FieldType.Float, FieldTypeDescFlags.Private | FieldTypeDescFlags.Override | FieldTypeDescFlags.NoErrorCheck ),
+	]); public override DataMap? GetPredDescMap() => PredMap;
+
 	int OldAnimationParity;
 	public override int DrawModel(StudioFlags flags) {
 		if (!ReadyToDraw)
@@ -91,12 +110,10 @@ public partial class C_BaseViewModel
 
 		TimeUnit_t dt = elapsed_time * GetSequenceCycleRate(studioHdr, GetSequence()) * GetPlaybackRate();
 		if (dt >= 1.0f) {
-			if (!IsSequenceLooping(GetSequence())) {
-				dt = 0.999f;
-			}
-			else {
+			if (!IsSequenceLooping(GetSequence())) 
+				dt = 0.999;
+			else 
 				dt = MathLib.Fmodf(dt, 1.0);
-			}
 		}
 		SetCycle(dt);
 		return bret;

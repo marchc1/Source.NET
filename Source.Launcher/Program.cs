@@ -17,6 +17,7 @@ using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.Physics;
 using Source.Common.ShaderAPI;
+using Source.Common.SoundEmitterSystem;
 using Source.DataCache;
 using Source.Engine;
 using Source.FileSystem;
@@ -24,6 +25,7 @@ using Source.GUI.Controls;
 using Source.Physics;
 using Source.SDLManager;
 using Source.ShaderAPI.Gl46;
+using Source.SoundEmitterSystem;
 using Source.StdShader.Gl46;
 using Source.StudioRender;
 
@@ -70,6 +72,7 @@ public class Bootloader : IDisposable
 				// Rendering abstraction
 				.WithComponent<IMaterialSystem, MaterialSystem.MaterialSystem>()
 				.WithComponent<IShaderAPI, ShaderAPIGl46>()
+				.WithComponent<ISoundEmitterSystemBase, SoundEmitterSystemBase>()
 				// Datacache impl
 				.WithComponent<IDataCache, DataCache.DataCache>()
 				.WithComponent<IAudioSystem, AudioSystem.AudioSystem>()
@@ -87,11 +90,11 @@ public class Bootloader : IDisposable
 				// Let the engine builder take over and inject engine-specific dependencies
 				.Build(dedicated: false);
 
-			// Generate our startup information
-			PreInit();
-
 			// Start using this provider for the engine
 			using ServiceLocatorScope locatorScope = new(engineAPI);
+
+			// Generate our startup information
+			PreInit();
 
 			// Run the game
 			var res = engineAPI.Run();

@@ -1674,6 +1674,9 @@ public class TextEntry : Panel
 
 		CursorPos = x0;
 
+		if (HorizScrollingAllowed && CursorPos < CurrentStartIndex)
+			CurrentStartIndex = CursorPos;
+
 		DataChanged = true;
 
 		FlushLineBreaks(true);

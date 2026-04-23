@@ -25,6 +25,9 @@ public struct UserCmd
 		WeaponSelect = 0;
 		WeaponSubtype = 0;
 		RandomSeed = 0;
+#if GAME_DLL
+		ServerRandomSeed = 0;
+#endif
 		MouseDeltaX = 0;
 		MouseDeltaY = 0;
 
@@ -41,6 +44,16 @@ public struct UserCmd
 			MotionSensorPositions[i] = new(0);
 		Forced = false;
 	}
+
+	public void MakeInert() {
+		ViewAngles = vec3_angle;
+		ForwardMove = 0.0f;
+		SideMove = 0.0f;
+		UpMove = 0.0f;
+		Buttons = 0;
+		Impulse = 0;
+	}
+
 	public const int WEAPON_SUBTYPE_BITS = 6;
 
 	/// <summary>
@@ -93,6 +106,13 @@ public struct UserCmd
 	/// For shared random functions
 	/// </summary>
 	public int RandomSeed;
+
+#if GAME_DLL
+	/// <summary>
+	/// Only the server populates this seed
+	/// </summary>
+	public int ServerRandomSeed;
+#endif
 
 	/// <summary>
 	/// mouse accum in x from create move

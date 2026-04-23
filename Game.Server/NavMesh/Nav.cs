@@ -324,7 +324,7 @@ public struct Extent
 	}
 
 	public void Init(BaseEntity entity) {
-		// entity.CollisionProp().WorldSpaceSurroundingBounds(out Lo, out Hi);
+		entity.CollisionProp().WorldSpaceSurroundingBounds(out Lo, out Hi);
 	}
 
 	public float SizeX() => Hi.X - Lo.X;
@@ -369,7 +369,7 @@ public struct Ray
 	public Vector3 From, To;
 }
 
-public class TraceFilterWalkableEntities //: TraceFilterNoNPCsOrPlayer
+public struct TraceFilterWalkableEntities //: TraceFilterNoNPCsOrPlayer
 {
 	readonly WalkThruFlags flags;
 

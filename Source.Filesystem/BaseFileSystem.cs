@@ -43,7 +43,7 @@ public class BaseFileSystem : IFileSystem
 			return;
 		}
 
-		BSPHeader header = default;
+		BSPDHeader header = default;
 		file.Stream.ReadToStruct(ref header);
 
 		BSPLump pakfile = header.GetLump(LumpIndex.PakFile);

@@ -41,7 +41,7 @@ static class DebugOverlay
 		throw new NotImplementedException();
 	}
 
-	public static void EntityBounds(SharedBaseEntity entity, int r, int g, int b, int a, float duration) {
+	public static void EntityBounds(BaseEntity entity, int r, int g, int b, int a, float duration) {
 		throw new NotImplementedException();
 	}
 

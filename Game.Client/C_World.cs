@@ -12,6 +12,10 @@ namespace Game.Client;
 [LinkEntityToClass("worldspawn")]
 public class C_World : C_BaseEntity
 {
+	public C_World() {
+		g_ClientWorld = this;
+	}
+
 	public static readonly RecvTable DT_World = new(DT_BaseEntity, [
 		RecvPropFloat(FIELD.OF(nameof(WaveHeight))),
 		RecvPropVector(FIELD.OF(nameof(WorldMins))),
@@ -50,14 +54,14 @@ public class C_World : C_BaseEntity
 		WeaponParse.PrecacheFileWeaponInfoDatabase(filesystem);
 	}
 
-	public void RegisterSharedActivities(){
+	public void RegisterSharedActivities() {
 		ActivityList.RegisterSharedActivities();
 		// EventList.RegisterSharedEvents();
 	}
 
 	public override void Precache() {
-		// ActivityList_Free();
-		// EventList_Free();
+		ActivityList.Free();
+		// EventList.Free();
 
 		RegisterSharedActivities();
 
@@ -69,5 +73,11 @@ public class C_World : C_BaseEntity
 	}
 	public override void Spawn() {
 		Precache();
+	}
+
+	static C_World? g_ClientWorld;
+	public static C_World GetClientWorldEntity() {
+		Assert(g_ClientWorld != null);
+		return g_ClientWorld;
 	}
 }

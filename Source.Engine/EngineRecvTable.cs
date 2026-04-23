@@ -157,6 +157,7 @@ public abstract class DatatableStack
 		}
 	}
 
+	static SendProxyRecipients s_Recipients = new();
 	public virtual object? CallPropProxy(SendNode curChild, int prop, object instance) {
 		SendProp sendprop = Precalc.GetDatatableProp(prop)!;
 
@@ -168,7 +169,7 @@ public abstract class DatatableStack
 			sendprop,
 			instance,
 			sendprop.FieldInfo,
-			recipients,
+			recipients ?? s_Recipients,
 			GetObjectID()
 		);
 	}

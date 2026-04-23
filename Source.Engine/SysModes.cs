@@ -370,7 +370,7 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 		int adapter = materials.GetCurrentAdapter();
 		int modeCount = materials.GetModeCount(adapter);
 
-		game.GetDesktopInfo(out int desktopWidth, out int desktopHeight, out int desktopRefresh);
+		game.GetDesktopInfo(out uint desktopWidth, out uint desktopHeight, out uint desktopRefresh);
 
 		for (int i = 0; i < modeCount; i++) {
 			MaterialVideoMode info = new();

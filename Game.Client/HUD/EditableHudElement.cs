@@ -89,6 +89,10 @@ public class HudNumericDisplay : Panel
 	public void SetShouldDisplayValue(bool state) => DisplayValue = state;
 	public void SetShouldDisplaySecondaryValue(bool state) => DisplaySecondaryValue = state;
 
+	public virtual void Reset() {
+		Blur = 0;
+	}
+
 	public void SetLabelText(ReadOnlySpan<char> text) {
 		((Span<char>)LabelText).Clear();
 		text.ClampedCopyTo(LabelText);

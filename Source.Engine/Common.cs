@@ -15,6 +15,8 @@ using System.Text;
 
 using static Source.Common.FilesystemHelpers;
 
+using Game.Assets;
+
 namespace Source.Engine;
 
 /// <summary>
@@ -108,6 +110,8 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 
 		initInfo.LowViolence = Host.LowViolence;
 		initInfo.MountHDContent = false; // Study this further
+
+		AssetLinker.CheckRequired();
 
 		FileSystem.LoadSearchPaths(in initInfo);
 

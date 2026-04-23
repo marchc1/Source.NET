@@ -17,7 +17,8 @@ public static class ClientEntityExts
 public class ClientEntityList : BaseEntityList, IClientEntityList
 {
 	public IClientEntity? GetClientEntity(int entNum) {
-		throw new NotImplementedException();
+		IClientUnknown? ent = GetListedEntity(entNum);
+		return ent?.GetIClientEntity();
 	}
 
 	public C_BaseEntity? GetEnt(int entNum) => GetBaseEntity(entNum);
@@ -160,7 +161,7 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 		return pEnt == null ? null : pEnt.GetClientThinkable();
 	}
 
-	public SharedBaseEntity? GetBaseEntityFromHandle(ClientEntityHandle hEnt) {
+	public BaseEntity? GetBaseEntityFromHandle(ClientEntityHandle hEnt) {
 		IClientUnknown? pEnt = GetClientUnknownFromHandle(hEnt);
 		return pEnt != null ? pEnt.GetBaseEntity() : null;
 	}
