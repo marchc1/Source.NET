@@ -452,7 +452,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			}
 		}
 
-		int relState = packet.Message.ReadByte();
+		int relState = (int)packet.Message.ReadUBitLong(16);
 		int choked = 0;
 		int i, j;
 
@@ -1316,7 +1316,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		}
 
 		int checksumStart = send.BytesWritten;
-		send.WriteByte(InReliableState);
+		send.WriteUBitLong((uint)InReliableState, 16);
 		if (ChokedPackets > 0) {
 			flags |= (byte)PacketFlag.Choked;
 			send.WriteByte(ChokedPackets & 0xFF);
