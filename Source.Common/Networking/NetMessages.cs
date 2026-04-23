@@ -10,6 +10,7 @@ using static Constants;
 using Source.Common.Bitbuffers;
 using Source.Common.Hashing;
 using Source.Common.Mathematics;
+using System.Text;
 
 public static class NetMessageExtensions
 {
@@ -354,12 +355,15 @@ public class SVC_CreateStringTable : NetMessage
 		buffer.WriteNetMessageType(this);
 		Length = DataOut.BitsWritten;
 
+		if (IsFilenames)
+			buffer.WriteByte((byte)':');
+
 		buffer.WriteString(TableName);
-		buffer.WriteWord(MaxEntries);
+
 		int encodeBits = (int)MathF.Log2(MaxEntries);
+		buffer.WriteUBitLong((uint)encodeBits, 5);
 		buffer.WriteUBitLong((uint)NumEntries, encodeBits + 1);
 		buffer.WriteVarInt32((uint)Length);
-
 		buffer.WriteBool(UserDataFixedSize);
 
 		if (UserDataFixedSize) {
@@ -368,16 +372,30 @@ public class SVC_CreateStringTable : NetMessage
 		}
 
 		buffer.WriteBool(DataCompressed);
+
 		return buffer.WriteBits(DataOut.BaseArray, Length);
 	}
 
 	public override bool ReadFromBuffer(bf_read buffer) {
+		char prefix = '\0';
+		byte prefixR = (byte)buffer.PeekUBitLong(8);
+		Encoding.ASCII.GetChars(new ReadOnlySpan<byte>(in prefixR), new Span<char>(ref prefix));
+
+		if (prefix == ':') {
+			IsFilenames = true;
+			buffer.ReadByte();
+		}
+		else
+			IsFilenames = false;
+
 		TableName = buffer.ReadString(500) ?? throw new Exception();
-		MaxEntries = buffer.ReadWord();
-		int encodeBits = (int)MathF.Log2(MaxEntries);
+
+		MaxEntries = (int)buffer.ReadUBitLong(16);
+		int encodeBits = (int)Math.Log2(MaxEntries);
 		NumEntries = (int)buffer.ReadUBitLong(encodeBits + 1);
 		// Protocol difference here we should account for later
 		Length = (int)buffer.ReadVarInt32();
+
 		UserDataFixedSize = buffer.ReadBool();
 		if (UserDataFixedSize) {
 			UserDataSize = (int)buffer.ReadUBitLong(12);
