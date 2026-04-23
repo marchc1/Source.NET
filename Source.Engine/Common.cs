@@ -215,14 +215,30 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 		return true;
 	}
 
+	static readonly char[] tempDisconnectMsgBuffer = new char[512];
 	public void ExplainDisconnection(bool print, ReadOnlySpan<char> disconnectReason) {
+		ReadOnlySpan<char> message;
+		if (print) {
+			tempDisconnectMsgBuffer[0] = '\0';
+			ReadOnlySpan<char> localized = g_Localize != null ? g_Localize.Find(disconnectReason) : null;
+			if (!localized.IsEmpty) {
+				int count = strcpy(tempDisconnectMsgBuffer.AsSpan(), localized);
+				message = tempDisconnectMsgBuffer.AsSpan()[..count];
+			}
+			else
+				message = disconnectReason;
+		}
+		else{
+			message = disconnectReason;
+		}
+
 		if (print && !disconnectReason.IsEmpty) {
 			if (disconnectReason.Length > 0 && disconnectReason[0] == '#')
 				disconnectReason = Localize == null ? disconnectReason : Localize.Find(disconnectReason);
 
-			ConMsg($"{disconnectReason}\n");
+			ConMsg($"{message}\n");
 		}
-		Sys.DisconnectReason = new(disconnectReason);
+		Sys.DisconnectReason = new(message);
 		Sys.ExtendedError = true;
 	}
 

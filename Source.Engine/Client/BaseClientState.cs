@@ -194,7 +194,7 @@ public abstract class BaseClientState(
 					}
 
 					string why = msg.ReadString(Protocol.MAX_ROUTABLE_PAYLOAD) ?? "<null>";
-					Common.ExplainDisconnection(true, $"Disconnect: {why}\n");
+					Common.ExplainDisconnection(true, why);
 					Disconnect(why, true);
 				}
 				break;
