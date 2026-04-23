@@ -84,7 +84,7 @@ public class GripPanel : Panel
 	protected IFont? MarlettFont;
 	protected int SnapRange;
 
-	public GripPanel(Frame dragFrame, ReadOnlySpan<char> name, int xdir, int ydir) : base(dragFrame, new(name)) {
+	public GripPanel(Frame dragFrame, ReadOnlySpan<char> name, int xdir, int ydir) : base(dragFrame, name) {
 		Frame = dragFrame;
 		Dragging = false;
 		DragMultX = xdir;
