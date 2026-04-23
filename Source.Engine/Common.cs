@@ -54,7 +54,7 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 		*compressedLen = (uint)compressed_length;
 		return pCompressed;
 	}
-	static uint GetIdealDestinationCompressionBufferSize_Snappy(uint uncompressed) => 4 + (uint)Snappy.GetMaxCompressedLength((int)uncompressed);
+	public static uint GetIdealDestinationCompressionBufferSize_Snappy(uint uncompressed) => 4 + (uint)Snappy.GetMaxCompressedLength((int)uncompressed);
 	static unsafe bool BufferToBufferCompress_Snappy(byte* dest, uint* destLen, byte* source, uint sourceLen) {
 		Assert(dest != null);
 		Assert(destLen != null);

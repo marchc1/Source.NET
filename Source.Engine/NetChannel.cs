@@ -1,5 +1,8 @@
+using CommunityToolkit.HighPerformance;
+
 using Source.Common.Bitbuffers;
 using Source.Common.Commands;
+using Source.Common.Filesystem;
 using Source.Common.Hashing;
 using Source.Common.Networking;
 using Source.Engine;
@@ -686,7 +689,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 		if ((flags & PacketFlag.Reliable) != 0) {
 			FragmentStream i = 0;
-			int bit = 1 << (int)msg.ReadUBitLong(3);
+			int bit = 1 << (int)msg.ReadUBitLong(SUBCHANNEL_BITS);
 
 			for (i = 0; i < FragmentStream.Max; i++) {
 				if (msg.ReadOneBit() != 0) {
@@ -1034,10 +1037,132 @@ public class NetChannel : INetChannelInfo, INetChannel
 			freeSubChan.SendSeqNumber = 0;
 		}
 	}
+
+	public const int SUBCHANNEL_BITS = 3;
+
+	void CompressFragments(){
+		if (!UseCompression)
+			return;
+
+		// write fragemnts for both streams
+		for (int i = 0; i < (int)FragmentStream.Max; i++) {
+			if (WaitingList[i].Count == 0)
+				continue;
+
+			// get the first fragments block which is send next
+			DataFragments data = WaitingList[i][0];
+
+			// if data is already compressed or too small, skip it
+			if (data.Compressed || (int)data.Bytes < Net.net_compresspackets_minsize.GetInt())
+				continue;
+
+			// if we already started sending this block, we can't compress it anymore
+			if (data.AckedFragments > 0 || data.PendingFragments > 0)
+				continue;
+
+			//ok, compress it.
+
+			if (data.Buffer != null) {
+				var now = DateTime.UtcNow;
+
+				// fragments data is in memory
+				uint compressedSize = Source.Engine.Common.GetIdealDestinationCompressionBufferSize_Snappy(data.Bytes);
+				byte[] compressedDataArray = ArrayPool<byte>.Shared.Rent((int)compressedSize);
+				Span<byte> compressedData = compressedDataArray.AsSpan();
+
+				if (Source.Engine.Common.BufferToBufferCompress_Snappy(ref compressedData, data.Buffer.AsSpan()[..(int)data.Bytes]) && (compressedSize < data.Bytes)) {
+					TimeSpan timer = DateTime.UtcNow - now;
+					DevMsg($"Compressing fragments ({data.Bytes} -> {compressedData.Length} bytes): {Math.Round(timer.TotalSeconds, 2)}ms\n");
+
+					// copy compressed data but dont reallocate memory
+					memcpy(data.Buffer.AsSpan()[..(int)compressedSize], compressedData[..(int)compressedSize]);
+
+					data.UncompressedSize = data.Bytes;
+					data.Bytes = (uint)compressedData.Length;
+					data.NumFragments = (int)BYTES2FRAGMENTS(data.Bytes);
+					data.Compressed = true;
+				}
+
+				ArrayPool<byte>.Shared.Return(compressedDataArray, true);
+			}
+			else // it's a file
+			{
+				Assert(data.File != null);
+
+				Span<char> compressedfilename = stackalloc char[MAX_OSPATH];
+				long compressedFileSize = -1;
+				IFileHandle? hZipFile = null;
+
+				// check to see if there is a compressed version of the file
+				sprintf(compressedfilename, "%s.ztmp").S(data.Filename);
+
+				// check the timestamps 
+				DateTime compressedFileTime = g_pFileSystem.Time(compressedfilename);
+				DateTime fileTime = g_pFileSystem.Time(data.Filename);
+
+				if (compressedFileTime >= fileTime) {
+					// compressed file is newer than uncompressed file, use this one
+					hZipFile = g_pFileSystem.Open(compressedfilename, FileOpenOptions.Read | FileOpenOptions.Binary, null);
+				}
+
+				if (hZipFile != null) {
+					// use the existing compressed file
+					compressedFileSize = hZipFile.Stream.Length;
+				}
+				else {
+					// create compressed version of source file
+					uint uncompressedSize = data.Bytes;
+					uint compressedSize = Source.Engine.Common.GetIdealDestinationCompressionBufferSize_Snappy(uncompressedSize);
+
+					byte[] uncompressedArray = ArrayPool<byte>.Shared.Rent((int)uncompressedSize);
+					byte[] compressedArray = ArrayPool<byte>.Shared.Rent((int)compressedSize);
+					Span<byte> uncompressed = uncompressedArray.AsSpan();
+					Span<byte> compressed = compressedArray.AsSpan();
+
+					// read in source file
+					data.File!.Stream.Read(uncompressed);
+
+					// compress into buffer
+					if (Source.Engine.Common.BufferToBufferCompress_Snappy(ref compressed, uncompressed)) {
+						// write out to disk compressed version
+						hZipFile = g_pFileSystem.Open(compressedfilename, FileOpenOptions.Write | FileOpenOptions.Binary, null);
+
+						if (hZipFile != null) {
+							DevMsg("Creating compressed version of file %s (%d -> %d)\n", data.Filename, data.Bytes, compressedSize);
+							hZipFile.Stream.Write(compressed);
+							hZipFile.Stream.Dispose();
+
+							// and open zip file it again for reading
+							hZipFile = g_pFileSystem.Open(compressedfilename, FileOpenOptions.Read | FileOpenOptions.Binary, null);
+
+							if (hZipFile != null) {
+								// ok, now everything if fine
+								compressedFileSize = compressedSize;
+							}
+						}
+					}
+
+					ArrayPool<byte>.Shared.Return(uncompressedArray, true);
+					ArrayPool<byte>.Shared.Return(compressedArray, true);
+				}
+
+				if (compressedFileSize > 0) {
+					// use compressed file handle instead of original file
+					data.File.Stream.Dispose();
+					data.File = hZipFile;
+					data.UncompressedSize = data.Bytes;
+					data.Bytes = (uint)compressedFileSize;
+					data.NumFragments = (int)BYTES2FRAGMENTS(data.Bytes);
+					data.Compressed = true;
+				}
+			}
+		}
+	}
+
 	public unsafe bool SendSubChannelData(bf_write buf) {
 		SubChannel? subChan = null;
 		int i;
-		// compress fragments
+		CompressFragments();
 		// send tcp data
 		UpdateSubchannels();
 
@@ -1051,7 +1176,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		if (i == SubChannel.MAX || subChan == null)
 			return false; // no data to send in any subchannel
 
-		buf.WriteUBitLong((uint)i, 3);
+		buf.WriteUBitLong((uint)i, SUBCHANNEL_BITS);
 
 		for (i = 0; i < (int)FragmentStream.Max; i++) {
 			if (subChan.NumFragments[i] == 0) {
