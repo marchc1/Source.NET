@@ -1038,7 +1038,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		}
 	}
 
-	public const int SUBCHANNEL_BITS = 3;
+	public const int SUBCHANNEL_BITS = 4;
 
 	void CompressFragments(){
 		if (!UseCompression)
