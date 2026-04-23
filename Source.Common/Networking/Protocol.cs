@@ -147,7 +147,15 @@ public static class SVC
 
 public static class CLC
 {
-	public const int ClientInfoCRC = -180714362;
+	/// <summary>
+	/// At the moment, send-table CRC'ing does not work (it's to be determined on if it could ever work with the name changes we've done at this point...)
+	/// In the meantime, it's relatively easy to fetch this number:
+	/// - net_showmsg clc_ClientInfo in local SRCDS
+	/// - connect to local SRCDS
+	/// - disconnect
+	/// - place the number from Msg from (ip): clc_ClientInfo: SendTableCRC (xxxxxxxxxxx) here
+	/// </summary>
+	public const int ClientInfoCRC = 1416321537;
 
 	// client info (table CRC etc)
 	public const byte ClientInfo = 8;
