@@ -406,6 +406,7 @@ public class KeyValues : IEnumerable<KeyValues>
 		Span<char> work = stackalloc char[1024];
 		int i, len;
 		bool lastCharacterWasEscape = false;
+		int charI = 0;
 		for (i = 0, len = work.Length; i < len; i++) {
 			char c = (char)reader.Peek();
 			if (c == -1) break;
@@ -429,7 +430,7 @@ public class KeyValues : IEnumerable<KeyValues>
 					continue;
 				}
 			}
-			work[i] = c;
+			work[charI++] = c;
 			reader.Read();
 		}
 
