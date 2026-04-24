@@ -355,9 +355,6 @@ public class SVC_CreateStringTable : NetMessage
 		buffer.WriteNetMessageType(this);
 		Length = DataOut.BitsWritten;
 
-		if (IsFilenames)
-			buffer.WriteByte((byte)':');
-
 		buffer.WriteString(TableName);
 
 		int encodeBits = (int)MathF.Log2(MaxEntries);
@@ -390,9 +387,10 @@ public class SVC_CreateStringTable : NetMessage
 
 		TableName = buffer.ReadString(500) ?? throw new Exception();
 
-		MaxEntries = (int)buffer.ReadUBitLong(16);
-		int encodeBits = (int)Math.Log2(MaxEntries);
+		int encodeBits = (int)buffer.ReadUBitLong(5);
+		MaxEntries = 1 << encodeBits;
 		NumEntries = (int)buffer.ReadUBitLong(encodeBits + 1);
+
 		// Protocol difference here we should account for later
 		Length = (int)buffer.ReadVarInt32();
 
