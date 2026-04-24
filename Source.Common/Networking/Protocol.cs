@@ -154,8 +154,12 @@ public static class CLC
 	/// - connect to local SRCDS
 	/// - disconnect
 	/// - place the number from Msg from (ip): clc_ClientInfo: SendTableCRC (xxxxxxxxxxx) here
+	/// Some bits are masked (& 0xFFFFDFDF) (I think 5 and 13?).
+	/// You can extract it via either
+	/// - Brute forcing the number (it's only four combinations)
+	/// - A script that searches 32-bits-at-a-time throughout a packet. Mask by 0xFFFFDFDF, then compare
 	/// </summary>
-	public const int ClientInfoCRC = 1416321537;
+	public const int ClientInfoCRC = 1416329729;
 
 	// client info (table CRC etc)
 	public const byte ClientInfo = 8;

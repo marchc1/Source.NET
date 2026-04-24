@@ -951,12 +951,17 @@ public class CLC_ClientInfo : NetMessage
 		buffer.WriteNetMessageType(this);
 
 		buffer.WriteLong(ServerCount);
-		//buffer.WriteLong(SendTableCRC);
 		// We have to do this. I don't know why.
 		// There is some issue with sending it as a regular number that makes the bitbuffer flip a bit somewhere. I don't know why.
-		foreach (int bit in new int[] { 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1 }) {
-			buffer.WriteOneBit(bit);
-		}
+		// foreach (int bit in new int[] { 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1 }) {
+		// 	buffer.WriteOneBit(bit);
+		// }
+		// I have left the above comment as a lesson of pain. CLC_ClientInfo::ToString intentionally masks two bits in its value.
+		// v1 = *((_DWORD *)this + 4) & 0xFFFFDFDF;
+		// To find it, you have to get the packet contents, then do bit by bit searching for the masked value in CLC_ClientInfo.
+		// So just keep that in mind when changing ClientInfoCRC's magic number.
+		buffer.WriteLong(SendTableCRC);
+
 
 		buffer.WriteBool(IsHLTV);
 		buffer.WriteLong((int)FriendsID);
