@@ -284,11 +284,12 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 		int iStartBit = 0, nIndexBits = 0, iLastBit = inRead.BitsRead;
 		uint iProp;
 		using DeltaBitsReader deltaBitsReader = new(inRead);
+		//decoder.DumpNames();
 		while ((iProp = deltaBitsReader.ReadNextPropIndex()) < Constants.MAX_DATATABLE_PROPS) {
 			theStack.SeekToProp(iProp);
 
 			RecvProp? recvProp = decoder.GetProp((int)iProp);
-			// decoder.DumpNames();
+			//Msg($"  - decoding: {(recvProp == null ? "NULL PROP???" : recvProp.GetName())}\n");
 
 			DecodeInfo decodeInfo = new();
 			decodeInfo.Object = theStack.GetCurStructBase();

@@ -73,7 +73,7 @@ public class BasePropDoor : DynamicProp
 	int DoorState;
 	public static readonly SendTable DT_BasePropDoor = new(DT_DynamicProp, [
 		SendPropBool(FIELD_BPD.OF(nameof(Locked))),
-		SendPropInt(FIELD_BPD.OF(nameof(DoorState)))
+		SendPropInt(FIELD_BPD.OF(nameof(DoorState)), 3, PropFlags.Unsigned)
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("BasePropDoor", DT_BasePropDoor).WithManualClassID(StaticClassIndices.CBasePropDoor);
 }

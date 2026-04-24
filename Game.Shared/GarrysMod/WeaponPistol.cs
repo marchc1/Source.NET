@@ -24,8 +24,8 @@ public class WeaponPistol : HL2MPMachineGun
 #else
 			SendPropTime64(FIELD.OF(nameof(SoonestPrimaryAttack))),
 			SendPropTime64(FIELD.OF(nameof(LastAttackTime))),
-			SendPropFloat(FIELD.OF(nameof(AccuracyPenalty)), 16, PropFlags.NoScale),
-			SendPropInt(FIELD.OF(nameof(NumShotsFired))),
+			SendPropFloat(FIELD.OF(nameof(AccuracyPenalty)), 0, PropFlags.NoScale),
+			SendPropInt(FIELD.OF(nameof(NumShotsFired)), 16),
 #endif
 		]);
 #if CLIENT_DLL
