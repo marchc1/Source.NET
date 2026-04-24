@@ -1,25 +1,17 @@
+using static Game.Server.NavMesh.Nav;
+
 using Source;
 using Source.Common;
-using Source.Common.Commands;
 using Source.Common.Formats.BSP;
 
 using System.Numerics;
+using Source.Common.Mathematics;
 
 namespace Game.Server.NavMesh;
 
 public partial class NavMesh
 {
-	static readonly ConVar nav_edit = new("0", FCvar.GameDLL | FCvar.Cheat, "Set to one to interactively edit the Navigation Mesh. Set to zero to leave edit mode.");
-	static readonly ConVar nav_quicksave = new("1", FCvar.GameDLL | FCvar.Cheat, "Set to one to skip the time consuming phases of the analysis.  Useful for data collection and testing."); // TERROR: defaulting to 1, since we don't need the other data
-	static readonly ConVar nav_show_approach_points = new("0", FCvar.GameDLL | FCvar.Cheat, "Show Approach Points in the Navigation Mesh.");
-	static readonly ConVar nav_show_danger = new("0", FCvar.GameDLL | FCvar.Cheat, "Show current 'danger' levels.");
-	static readonly ConVar nav_show_player_counts = new("0", FCvar.GameDLL | FCvar.Cheat, "Show current player counts in each area.");
-	static readonly ConVar nav_show_func_nav_avoid = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot avoidance due to func_nav_avoid entities");
-	static readonly ConVar nav_show_func_nav_prefer = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot preference due to func_nav_prefer entities");
-	static readonly ConVar nav_show_func_nav_prerequisite = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot preference due to func_nav_prerequisite entities");
-	static readonly ConVar nav_max_vis_delta_list_length = new("64", FCvar.Cheat);
-
-	enum EditModeType
+	public enum EditModeType
 	{
 		Normal,
 		PlacePainting,
@@ -60,19 +52,19 @@ public partial class NavMesh
 		public Vector3 Normal;
 	}
 
-	List<List<NavArea>> Grid = [];
+	public List<List<NavArea>> Grid = [];
 	float GridCellSize;
-	int GridSizeX;
-	int GridSizeY;
+	public int GridSizeX;
+	public int GridSizeY;
 	float MinX;
 	float MinY;
 	uint AreaCount;
-	bool IsLoaded;
+	bool bIsLoaded;
 	bool IsOutOfDate;
-	bool IsAnalyzed;
+	bool bIsAnalyzed;
 	const int HASH_TABLE_SIZE = 256;
-	readonly NavArea[] HashTable = new NavArea[HASH_TABLE_SIZE];
-	string?[] PlaceName;
+	readonly NavArea?[] HashTable = new NavArea[HASH_TABLE_SIZE];
+	string[]? PlaceName;
 	uint PlaceCount;
 	EditModeType EditMode;
 	bool IsEditing;
@@ -81,7 +73,7 @@ public partial class NavMesh
 	NavArea? MarkedArea;
 	NavArea? SelectedArea;
 	NavArea? LastSelectedArea;
-	NavCornerType MarkedCorner;
+	public NavCornerType MarkedCorner;
 	Vector3 Anchor;
 	bool IsPlacePainting;
 	bool SplitAlongX;
@@ -93,7 +85,7 @@ public partial class NavMesh
 	NavLadder? SelectedLadder;
 	NavLadder? LastSelectedLadder;
 	NavLadder? MarkedLadder;
-	CountdownTimer ShowAreaInfoTimer;
+	CountdownTimer ShowAreaInfoTimer = new();
 	readonly List<NavArea> SelectedSet = [];
 	readonly List<NavArea> DragSelectionSet = [];
 	bool ContinuouslySelecting;
@@ -109,7 +101,7 @@ public partial class NavMesh
 	int GenerationIndex;
 	int SampleTick;
 	bool QuitWhenFinished;
-	float GenerationStartTime;
+	TimeUnit_t GenerationStartTime;
 	Extent SimplifyGenerationExtent;
 	string? SpawnName;
 	readonly List<WalkableSeedSpot> WalkableSeeds = [];
@@ -117,7 +109,7 @@ public partial class NavMesh
 	int HostThreatModeRestoreValue;
 	readonly List<NavArea> TransientAreas = [];
 	readonly List<NavArea> AvoidanceObstacleAreas = [];
-	// readonly List<INavAvoidanceObstacle> AvoidanceObstacles = [];
+	readonly List<INavAvoidanceObstacle> AvoidanceObstacles = [];
 	readonly List<NavArea> BlockedAreas = [];
 	readonly List<int> StoredSelectedSet = [];
 	CountdownTimer UpdateBlockedAreasTimer = new();
@@ -141,19 +133,11 @@ public partial class NavMesh
 	}
 
 	public void Reset() {
-		DestroyNavigationMesh();
-	}
-
-	NavArea GetMarkedArea() {
-		throw new NotImplementedException();
-	}
-
-	void DestroyNavigationMesh(bool incremental = false) {
 		GenerationMode = GenerationModeType.None;
 		CurrentNode = null;
-		// ClearWalkableSeeds();
+		ClearWalkableSeeds();
 
-		IsAnalyzed = false;
+		bIsAnalyzed = false;
 		IsOutOfDate = false;
 		IsEditing = false;
 		NavPlace = Nav.UndefinedPlace;
@@ -175,6 +159,81 @@ public partial class NavMesh
 		SpawnName = null;
 
 		WalkableSeeds.Clear();
+	}
+
+	public NavArea? GetMarkedArea() {
+		if (MarkedArea != null)
+			return MarkedArea;
+
+		if (SelectedSet.Count > 0)
+			return SelectedSet[0];
+
+		return null;
+	}
+
+	public NavLadder? GetMarkedLadder() => MarkedLadder;
+
+	public NavArea? GetSelectedArea() => SelectedArea;
+
+	public NavLadder? GetSelectedLadder() => SelectedLadder;
+
+	void DestroyNavigationMesh(bool incremental = false) {
+		BlockedAreas.Clear();
+		AvoidanceObstacleAreas.Clear();
+		TransientAreas.Clear();
+
+		if (!incremental) {
+			NavArea.IsReset = true;
+			foreach (NavArea area in NavArea.TheNavAreas) {
+				// EditDestroyNotification notification = new(area);
+				// ForEachActor(notification.Invoke); // FunctorUtils todo
+			}
+
+			foreach (NavArea area in NavArea.TheNavAreas)
+				DestroyArea(area);
+
+			NavArea.TheNavAreas.Clear();
+
+			NavArea.IsReset = false;
+
+			DestroyLadders();
+		}
+		else {
+			foreach (NavArea area in NavArea.TheNavAreas)
+				area.ResetNodes();
+		}
+
+		DestroyHidingSpots();
+
+		NavNode.CleanupGeneration();
+
+		if (!incremental) {
+			Grid.Clear();
+			GridSizeX = 0;
+			GridSizeY = 0;
+		}
+
+		for (int i = 0; i < HASH_TABLE_SIZE; i++)
+			HashTable[i] = null;
+
+		if (!incremental) {
+			AreaCount = 0;
+
+			NavArea.CompressIDs();
+			NavLadder.CompressIDs();
+		}
+
+		SetEditMode(EditModeType.Normal);
+
+		MarkedArea = null;
+		SelectedArea = null;
+		LastSelectedArea = null;
+		ClimbableSurface = false;
+		MarkedLadder = null;
+		SelectedLadder = null;
+
+		if (!incremental)
+			bIsLoaded = false;
 	}
 
 	public void Update() {
@@ -212,9 +271,9 @@ public partial class NavMesh
 		if (nav_show_func_nav_prefer.GetBool()) DrawFuncNavPrefer();
 		if (nav_show_func_nav_prerequisite.GetBool()) DrawFuncNavPrerequisite();
 
-		// if (nav_show_potentially_visible.GetBool()) {
-		// todo
-		// }
+		if (nav_show_potentially_visible.GetBool()) {
+			// todo
+		}
 
 		for (int i = 0; i < WalkableSeeds.Count; i++) {
 			WalkableSeedSpot spot = WalkableSeeds[i];
@@ -233,6 +292,10 @@ public partial class NavMesh
 	static void DrawLine(in Vector3 from, in Vector3 to, float _, int r, int g, int b) => Shared.DebugOverlay.Line(from, to, r, g, b, true, Shared.DebugOverlay.Persist);
 
 	void FireGameEvent(IGameEvent gameEvent) { }
+
+	public bool IsLoaded() => bIsLoaded;
+
+	public bool IsAnalyzed() => bIsAnalyzed;
 
 	void AllocateGrid(float minX, float maxX, float minY, float maxY) {
 		Grid.Clear();
@@ -267,7 +330,7 @@ public partial class NavMesh
 		if (HashTable[key] != null) {
 			area.PrevHash = null;
 			area.NextHash = HashTable[key];
-			HashTable[key].PrevHash = area;
+			HashTable[key]!.PrevHash = area;
 			HashTable[key] = area;
 		}
 		else {
@@ -276,15 +339,46 @@ public partial class NavMesh
 			area.PrevHash = null;
 		}
 
-		if ((area.GetAttributes() & (int)NavAttributeType.Transient) != 0)
+		if ((area.GetAttributes() & NavAttributeType.Transient) != 0)
 			TransientAreas.Add(area);
 
 		++AreaCount;
 	}
 
-	public void RemoveNavArea(NavArea area) { }
+	public void RemoveNavArea(NavArea area) {
+		int loX = WorldToGridX(area.GetCorner(NavCornerType.NorthWest).X);
+		int loY = WorldToGridY(area.GetCorner(NavCornerType.NorthWest).Y);
+		int hiX = WorldToGridX(area.GetCorner(NavCornerType.SouthEast).X);
+		int hiY = WorldToGridY(area.GetCorner(NavCornerType.SouthEast).Y);
 
-	public void OnServerActivate() { }
+		for (int y = loY; y <= hiY; ++y) {
+			for (int x = loX; x <= hiX; ++x)
+				Grid[x + y * GridSizeX].Remove(area);
+		}
+
+		int key = ComputeHashKey(area.GetID());
+
+		if (area.PrevHash != null)
+			area.PrevHash.NextHash = area.NextHash;
+		else
+			HashTable[key] = area.NextHash;
+
+		if (area.NextHash != null)
+			area.NextHash.PrevHash = area.PrevHash;
+
+		if ((area.GetAttributes() & NavAttributeType.Transient) != 0)
+			BuildTransientAreaList();
+
+		AvoidanceObstacleAreas.Remove(area);
+		BlockedAreas.Remove(area);
+
+		--AreaCount;
+	}
+
+	public void OnServerActivate() {
+		foreach (NavArea area in NavArea.TheNavAreas)
+			area.OnServerActivate();
+	}
 
 	void TestAllAreasForBlockedStatus() {
 		foreach (NavArea area in NavArea.TheNavAreas)
@@ -295,9 +389,22 @@ public partial class NavMesh
 
 	void OnRoundRestartPreEntity() { }
 
-	void BuildTransientAreaList() { }
+	void BuildTransientAreaList() {
+		TransientAreas.Clear();
 
-	void GridToWorld(int gridX, int gridY, Vector3 pos) { }
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if ((area.GetAttributes() & NavAttributeType.Transient) != 0)
+				TransientAreas.Add(area);
+		}
+	}
+
+	void GridToWorld(int gridX, int gridY, Vector3 pos) {
+		gridX = Math.Clamp(gridX, 0, GridSizeX - 1);
+		gridY = Math.Clamp(gridY, 0, GridSizeY - 1);
+
+		pos.X = MinX + gridX * GridCellSize;
+		pos.Y = MinY + gridY * GridCellSize;
+	}
 
 	public NavArea? GetNavArea(Vector3 pos, float beneathLimit = 120.0f) {
 		if (Grid.Count == 0)
@@ -333,19 +440,168 @@ public partial class NavMesh
 		return use;
 	}
 
-	NavArea GetNavArea(BaseEntity pEntity, int nFlags, float flBeneathLimit) {
-		throw new NotImplementedException();
+	NavArea? GetNavArea(BaseEntity entity, int flags, float beneathLimit) {
+		if (Grid.Count == 0)
+			return null!;
+
+		Vector3 testPos = entity.GetAbsOrigin();
+
+		float stepHeight = 1e-3f;
+		if (entity is BaseCombatCharacter combatCharacter) {
+			NavArea? lastArea = null;// combatCharacter.LastKnownArea;
+			if (lastArea != null && lastArea.IsOverlapping(testPos)) {
+				float z = lastArea.GetZ(testPos);
+				if (z <= testPos.Z + stepHeight && z >= testPos.Z - stepHeight)
+					return lastArea;
+			}
+
+			stepHeight = StepHeight;
+		}
+
+		int x = WorldToGridX(testPos.X);
+		int y = WorldToGridY(testPos.Y);
+		List<NavArea> areaVector = Grid[x + y * GridSizeX];
+
+		NavArea? use = null;
+		float useZ = -99999999.9f;
+
+		bool skipBlocked = (flags & (int)GetNavAreaFlags.AllowBlockedAreas) == 0;
+		for (int it = 0; it < areaVector.Count; ++it) {
+			NavArea area = areaVector[it];
+
+			if (!area.IsOverlapping(testPos))
+				continue;
+
+			// if (skipBlocked && area.IsBlocked(entity.TeamNumber))
+			// 	continue;
+
+			float z = area.GetZ(testPos);
+
+			if (z > testPos.Z + stepHeight)
+				continue;
+
+			if (z < testPos.Z - beneathLimit)
+				continue;
+
+			use = area;
+			useZ = z;
+		}
+
+		if (use != null && (flags & (int)GetNavAreaFlags.CheckLOS) != 0 && useZ < testPos.Z - stepHeight) {
+			Util.TraceLine(testPos, new Vector3(testPos.X, testPos.Y, useZ), Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out Trace result);
+			if (result.Fraction != 1.0f && Math.Abs(result.EndPos.Z - useZ) > stepHeight)
+				return null;
+		}
+
+		return use;
 	}
 
-	NavArea GetNearestNavArea(Vector3 pos, bool anyZ, float maxDist, bool checkLOS, bool checkGround, int team) {
-		throw new NotImplementedException();
+	NavArea? GetNearestNavArea(Vector3 pos, bool anyZ = false, float maxDist = 10000.0f, bool checkLOS = false, bool checkGround = true, int team = Constants.TEAM_ANY) {
+		if (Grid.Count == 0)
+			return null;
+
+		NavArea? close = null;
+		float closeDistSq = maxDist * maxDist;
+
+		if (!checkLOS && !checkGround) {
+			close = GetNavArea(pos);
+			if (close != null)
+				return close;
+		}
+
+		Vector3 source = new(pos.X, pos.Y, pos.Z);
+		if (!GetGroundHeight(pos, out source.Z, out _)) {
+			if (!checkGround)
+				source.Z = pos.Z;
+			else
+				return null;
+		}
+
+		source.Z += HalfHumanHeight;
+
+		uint searchMarker = (uint)random.RandomInt(0, 1024 * 1024);
+
+		++searchMarker;
+
+		if (searchMarker == 0)
+			++searchMarker;
+
+		int originX = WorldToGridX(pos.X);
+		int originY = WorldToGridY(pos.Y);
+		int shiftLimit = (int)Math.Ceiling(maxDist / GridCellSize);
+
+		for (int shift = 0; shift <= shiftLimit; ++shift) {
+			for (int x = originX - shift; x <= originX + shift; ++x) {
+				if (x < 0 || x >= GridSizeX)
+					continue;
+
+				for (int y = originY - shift; y <= originY + shift; ++y) {
+					if (y < 0 || y >= GridSizeY)
+						continue;
+
+					if (x > originX - shift && x < originX + shift && y > originY - shift && y < originY + shift)
+						continue;
+
+					List<NavArea> areaVector = Grid[x + y * GridSizeX];
+
+					for (int it = 0; it < areaVector.Count; ++it) {
+						NavArea area = areaVector[it];
+
+						if (area.NearNavSearchMarker == searchMarker)
+							continue;
+
+						if (area.IsBlocked(team))
+							continue;
+
+						area.NearNavSearchMarker = searchMarker;
+
+						area.GetClosestPointOnArea(ref source, out AngularImpulse areaPos);
+
+						float distSq = Vector3.DistanceSquared(areaPos, pos);
+
+						if (distSq >= closeDistSq)
+							continue;
+
+						if (checkLOS) {
+							Vector3 safePos;
+
+							Util.TraceLine(pos, pos + new Vector3(0, 0, StepHeight), Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out Trace result);
+							if (result.StartSolid)
+								safePos = result.EndPos + new Vector3(0, 0, 1.0f);
+							else
+								safePos = pos;
+
+							float heightDelta = Math.Abs(areaPos.Z - safePos.Z);
+							if (heightDelta > StepHeight) {
+								Util.TraceLine(areaPos + new Vector3(0, 0, StepHeight), new Vector3(areaPos.X, areaPos.Y, safePos.Z), Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out result);
+								if (result.Fraction != 1.0f)
+									continue;
+							}
+
+							Util.TraceLine(safePos, new Vector3(areaPos.X, areaPos.Y, safePos.Z + StepHeight), Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out result);
+							if (result.Fraction != 1.0f)
+								continue;
+						}
+
+						closeDistSq = distSq;
+						close = area;
+						shiftLimit = shift + 1;
+					}
+				}
+			}
+		}
+
+		return close;
 	}
 
-	NavArea GetNearestNavArea(BaseEntity pEntity, int nFlags, float maxDist) {
+	NavArea GetNearestNavArea(BaseEntity entity, int flags, float maxDist) {
 		throw new NotImplementedException();
 	}
 
 	public NavArea? GetNavAreaByID(uint id) {
+		if (id == 0)
+			return null;
+
 		int key = ComputeHashKey(id);
 
 		for (NavArea? area = HashTable[key]; area != null; area = area.NextHash) {
@@ -358,134 +614,331 @@ public partial class NavMesh
 
 	public List<NavLadder> GetLadders() => Ladders;
 
-	public NavLadder GetLadderByID(uint id) {
-		throw new NotImplementedException();
+	public NavLadder? GetLadderByID(uint id) {
+		if (id == 0)
+			return null;
+
+		foreach (NavLadder ladder in Ladders) {
+			if (ladder.GetID() == id)
+				return ladder;
+		}
+
+		return null;
 	}
 
 	uint GetPlace(Vector3 pos) {
 		throw new NotImplementedException();
 	}
 
-	void LoadPlaceDatabase() { }
+	void LoadPlaceDatabase() {
+		PlaceCount = 0;
+		// todo? is this even used?
+	}
 
-	string? PlaceToName(NavPlace place) {
+	public string? PlaceToName(NavPlace place) {
 		if (place >= 1 && place <= PlaceCount)
-			return PlaceName[place];
+			return PlaceName![place];
 
 		return "";
 	}
 
 	public NavPlace NameToPlace(ReadOnlySpan<char> name) {
 		for (uint i = 0; i < PlaceCount; i++) {
-			if (FStrEq(PlaceName[i], name))
+			if (FStrEq(PlaceName![i], name))
 				return i;
 		}
 
-		return Nav.UndefinedPlace;
+		return UndefinedPlace;
 	}
 
-	NavPlace PartialNameToPlace(ReadOnlySpan<char> name) {
+	public NavPlace PartialNameToPlace(ReadOnlySpan<char> name) {
 		throw new NotImplementedException();
 	}
 
-	void PrintAllPlaces() { }
+	public void PrintAllPlaces() {
+		throw new NotImplementedException();
+	}
 
-	public bool GetGroundHeight(Vector3 pos, out float height, Vector3? normal = null) {
-		// const float maxOffset = 100.0f;
+	public bool GetGroundHeight(Vector3 pos, out float height, out Vector3? normal) {
+		const float maxOffset = 100.0f;
 
-		// TraceFilterGroundEntities filter = new(null, CollisionGroup.None, WALK_THRU_EVERYTHING);
+		TraceFilterGroundEntities filter = new(null, CollisionGroup.None, WalkThruFlags.Everything);
 
-		// Trace result;
-		// Vector3 to = new(pos.x, pos.y, pos.z - 10000.0f);
-		// Vector3 from = new(pos.x, pos.y, pos.z + HalfHumanHeight + 1e-3);
+		Vector3 to = new(pos.X, pos.Y, pos.Z - 10000.0f);
+		Vector3 from = new(pos.X, pos.Y, (int)(pos.Z + HalfHumanHeight + 1e-3));
 
-		// while (to.Z - pos.Z < maxOffset) {
-		// 	Util.TraceLine(from, to, Mask.NPCSolidBrushOnly, ref filter, out result);
-		// 	if (!result.StartSolid && ((result.Fraction == 1.0f) || ((from.Z - result.EndPos.Z) >= Nav.HalfHumanHeight))) {
-		// 		height = result.EndPos.Z;
-		// 		if (normal != null)
-		// 			normal = !result.Plane.Normal.IsZero() ? result.Plane.Normal : new Vector3(0, 0, 1);
-		// 		return true;
-		// 	}
+		while (to.Z - pos.Z < maxOffset) {
+			Util.TraceLine(from, to, Mask.NPCSolidBrushOnly, null, ref filter, out Trace result);
+			if (!result.StartSolid && ((result.Fraction == 1.0f) || ((from.Z - result.EndPos.Z) >= HalfHumanHeight))) {
+				height = result.EndPos.Z;
+				normal = !result.Plane.Normal.IsZero() ? result.Plane.Normal : new Vector3(0, 0, 1);
+				return true;
+			}
 
-		// 	to.Z = result.StartSolid ? from.Z : result.EndPos.Z;
-		// 	from.Z = (float)(to.Z + Nav.HalfHumanHeight + 1e-3);
-		// }
+			to.Z = result.StartSolid ? from.Z : result.EndPos.Z;
+			from.Z = (float)(to.Z + HalfHumanHeight + 1e-3);
+		}
 
-		height = 0.0f;
-		// if (normal != null)
-		// 	normal = new Vector3(0, 0, 1);
+		height = 0;
+		normal = new Vector3(0, 0, 1);
 
 		return false;
 	}
 
-	bool GetSimpleGroundHeight(Vector3 pos, float height, Vector3 normal) {
-		throw new NotImplementedException();
+	public static bool GetSimpleGroundHeight(Vector3 pos, out float height, out Vector3 normal) {
+		height = 0;
+		normal = default;
+
+		Vector3 to;
+		to.X = pos.X;
+		to.Y = pos.Y;
+		to.Z = pos.Z - 9999.9f;
+
+		Util.TraceLine(pos, to, Mask.NPCSolidBrushOnly, null, CollisionGroup.None, out Trace result);
+
+		if (result.StartSolid)
+			return false;
+
+		height = result.EndPos.Z;
+		normal = result.Plane.Normal;
+
+		return true;
 	}
 
-	void DrawDanger() { }
+	void DrawDanger() {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			Vector3 center = area.GetCenter();
+			center.Z = area.GetZ(center);
 
-	void DrawPlayerCounts() { }
+			float danger = area.GetDanger(0);
+			if (danger > 0.1f) {
+				Vector3 top = new(center.X, center.Y, center.Z + 10.0f * danger);
+				DrawLine(center, top, 3, 255, 0, 0);
+			}
 
-	void DrawFuncNavAvoid() { }
+			danger = area.GetDanger(1);
+			if (danger > 0.1f) {
+				Vector3 top = new(center.X, center.Y, center.Z + 10.0f * danger);
+				DrawLine(center, top, 3, 0, 0, 255);
+			}
+		}
+	}
 
-	void DrawFuncNavPrefer() { }
+	void DrawPlayerCounts() {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if (area.GetPlayerCount() > 0)
+				Shared.DebugOverlay.Text(area.GetCenter(), $"{area.GetPlayerCount()} ({area.GetPlayerCount(1)}/{area.GetPlayerCount(2)})", false, Shared.DebugOverlay.Persist);
+		}
+	}
 
-	void DrawFuncNavPrerequisite() { }
+	void DrawFuncNavAvoid() {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if (area.HasFuncNavAvoid())
+				area.DrawFilled(255, 0, 0, 255);
+		}
+	}
 
-	bool IsGenerating() => GenerationMode != GenerationModeType.None;
+	void DrawFuncNavPrefer() {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if (area.HasFuncNavPrefer())
+				area.DrawFilled(0, 255, 0, 255);
+		}
+	}
+
+	void DrawFuncNavPrerequisite() {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if (area.HasPrerequisite())
+				area.DrawFilled(0, 0, 255, 255);
+		}
+	}
+
+	public bool IsGenerating() => GenerationMode != GenerationModeType.None;
 
 	void IncreaseDangerNearby(int teamID, float amount, NavArea startArea, Vector3 pos, float maxRadius, float dangerLimit) { }
 
-	void CommandNavMarkWalkable() { }
+	public void CommandNavMarkWalkable() {
+		Vector3 pos;
 
-	void DestroyLadders() { }
+		if (!Util.IsCommandIssuedByServerAdmin())
+			return;
 
-	void StripNavigationAreas() { }
+		if (nav_edit.GetBool())
+			pos = EditCursorPos;
+		else {
+			BasePlayer? player = Util.GetListenServerHost();
 
-	public HidingSpot CreateHidingSpot() => new();
+			if (player == null) {
+				Msg("ERROR: No local player!\n");
+				return;
+			}
 
-	void DestroyHidingSpots() { }
+			pos = player.GetAbsOrigin();
+		}
 
-	void OnAreaBlocked(NavArea area) { }
+		pos.X = SnapToGrid(pos.X, true);
+		pos.Y = SnapToGrid(pos.Y, true);
 
-	void OnAreaUnblocked(NavArea area) { }
+		if (!FindGroundForNode(ref pos, out Vector3 normal)) {
+			Msg("ERROR: Invalid ground position.\n");
+			return;
+		}
+
+		AddWalkableSeed(pos, normal);
+
+		Msg("Walkable position marked.\n");
+	}
+
+	void DestroyLadders() {
+		for (int i = 0; i < Ladders.Count; i++) {
+			OnEditDestroyNotify(Ladders[i]);
+			Ladders[i] = null!;
+		}
+
+		Ladders.Clear();
+
+		MarkedLadder = null;
+		SelectedLadder = null;
+	}
+
+	public void StripNavigationAreas() {
+		foreach (NavArea area in NavArea.TheNavAreas)
+			area.Strip();
+
+		bIsAnalyzed = false;
+	}
+
+	public static HidingSpot CreateHidingSpot() => new();
+
+	void DestroyHidingSpots() {
+		foreach (NavArea area in NavArea.TheNavAreas)
+			area.HidingSpots.Clear();
+
+		HidingSpot.NextID = 0;
+
+		HidingSpot.TheHidingSpots.Clear();
+	}
+
+	public void OnAreaBlocked(NavArea area) {
+		if (!BlockedAreas.Contains(area))
+			BlockedAreas.Add(area);
+	}
+
+	public void OnAreaUnblocked(NavArea area) => BlockedAreas.Remove(area);
 
 	void UpdateBlockedAreas() {
 		foreach (NavArea area in BlockedAreas)
 			area.UpdateBlocked();
 	}
 
-	public void RegisterAvoidanceObstacle(INavAvoidanceObstacle obstruction) { }
+	public void RegisterAvoidanceObstacle(INavAvoidanceObstacle obstruction) {
+		if (!AvoidanceObstacles.Contains(obstruction))
+			AvoidanceObstacles.Add(obstruction);
+	}
 
-	void UnregisterAvoidanceObstacle(INavAvoidanceObstacle obstruction) { }
+	void UnregisterAvoidanceObstacle(INavAvoidanceObstacle obstruction) => AvoidanceObstacles.Remove(obstruction);
 
-	void OnAvoidanceObstacleEnteredArea(NavArea area) { }
+	public List<INavAvoidanceObstacle> GetObstructions() => AvoidanceObstacles;
 
-	void OnAvoidanceObstacleLeftArea(NavArea area) { }
+	public void OnAvoidanceObstacleEnteredArea(NavArea area) {
+		if (!AvoidanceObstacleAreas.Contains(area))
+			AvoidanceObstacleAreas.Add(area);
+	}
+
+	public void OnAvoidanceObstacleLeftArea(NavArea area) => AvoidanceObstacleAreas.Remove(area);
 
 	void UpdateAvoidanceObstacleAreas() {
 		foreach (NavArea area in AvoidanceObstacleAreas)
 			area.UpdateAvoidanceObstacles();
 	}
 
-	void BeginVisibilityComputations() { }
+	void BeginVisibilityComputations() {
+		g_NavVisPairHash.Clear();
 
-	void EndVisibilityComputations() { }
+		foreach (NavArea area in NavArea.TheNavAreas)
+			area.ResetPotentiallyVisibleAreas();
+	}
 
-	bool IsEditMode(EditModeType mode) => EditMode == mode;
+	void EndVisibilityComputations() {
+		g_NavVisPairHash.Clear();
+
+		int avgVisLength = 0;
+		int maxVisLength = 0;
+		int minVisLength = 999999999;
+
+		for (int it = 0; it < NavArea.TheNavAreas.Count; ++it) {
+			NavArea area = NavArea.TheNavAreas[it];
+
+			int visLength = area.PotentiallyVisibleAreas.Count;
+			avgVisLength += visLength;
+			if (visLength < minVisLength)
+				minVisLength = visLength;
+
+			if (visLength > maxVisLength)
+				maxVisLength = visLength;
+
+			if (area.IsInheritedFrom)
+				continue;
+
+			List<NavArea.AreaBindInfo> bestDelta = [];
+			NavArea? anchor = null;
+
+			for (int dir = (int)NavDirType.North; dir < (int)NavDirType.NumDirections; ++dir) {
+				int count = area.GetAdjacentCount((NavDirType)dir);
+				for (int i = 0; i < count; ++i) {
+					NavArea adjArea = area.GetAdjacentArea((NavDirType)dir, i)!;
+
+					if (adjArea.InheritVisibilityFrom.Area != null) {
+						adjArea = adjArea.InheritVisibilityFrom.Area;
+						if (adjArea == area)
+							continue;
+					}
+
+					List<NavArea.AreaBindInfo> delta = area.ComputeVisibilityDelta(adjArea);
+
+					// keep the smallest delta
+					if (anchor == null || (anchor != null && delta.Count < bestDelta.Count)) {
+						bestDelta = delta;
+						anchor = adjArea;
+						Assert(anchor != area);
+					}
+				}
+			}
+
+			if (anchor != null && bestDelta.Count <= nav_max_vis_delta_list_length.GetInt() && anchor != area) {
+				area.InheritVisibilityFrom.Area = anchor;
+				area.PotentiallyVisibleAreas = bestDelta;
+
+				anchor.IsInheritedFrom = true;
+			}
+			else
+				area.InheritVisibilityFrom.Area = null;
+		}
+
+		if (NavArea.TheNavAreas.Count > 0)
+			avgVisLength /= NavArea.TheNavAreas.Count;
+
+		Msg($"NavMesh Visibility List Lengths:  min = {minVisLength}, avg = {avgVisLength}, max = {maxVisLength}\n");
+	}
+
+	public bool IsEditMode(EditModeType mode) => EditMode == mode;
 
 	EditModeType GetEditMode() => EditMode;
 
 	uint GetSubVersionNumber() => 0;
 
-	NavArea CreateArea() => new();
+	public virtual void SaveCustomData(BinaryWriter buffer) { }
+	public virtual void LoadCustomData(BinaryReader buffer, uint version) { }
 
-	void DestroyArea(NavArea area) { }
+	public virtual void SaveCustomDataPreArea(BinaryWriter buffer) { }
+	public virtual void LoadCustomDataPreArea(BinaryReader buffer, uint version) { }
+
+	public static NavArea CreateArea() => new();
+
+	public void DestroyArea(NavArea area) { }
 
 	int ComputeHashKey(uint id) => (int)(id & 0xFF);
 
-	int WorldToGridX(float wx) {
+	public int WorldToGridX(float wx) {
 		int x = (int)((wx - MinX) / GridCellSize);
 
 		if (x < 0)
@@ -496,7 +949,7 @@ public partial class NavMesh
 		return x;
 	}
 
-	int WorldToGridY(float wy) {
+	public int WorldToGridY(float wy) {
 		int y = (int)((wy - MinY) / GridCellSize);
 
 		if (y < 0)
@@ -507,7 +960,7 @@ public partial class NavMesh
 		return y;
 	}
 
-	static Mask GetGenerationTraceMask() => Mask.NPCSolidBrushOnly;
+	public static Mask GetGenerationTraceMask() => Mask.NPCSolidBrushOnly;
 
 	public static HidingSpot? GetHidingSpotByID(uint id) {
 		foreach (HidingSpot spot in HidingSpot.TheHidingSpots) {
@@ -516,6 +969,290 @@ public partial class NavMesh
 		}
 
 		return null;
+	}
+
+	public bool ForAllSelectedAreas(Func<NavArea, bool> func) {
+		if (IsSelectedSetEmpty()) {
+			NavArea? area = GetSelectedArea();
+			if (area != null && !func(area))
+				return false;
+		}
+		else {
+			foreach (NavArea area in SelectedSet) {
+				if (!func(area))
+					return false;
+			}
+		}
+
+		return true;
+	}
+
+	static int SearchMarker = RandomInt(0, 1024 * 1024);
+
+	public bool ForAllAreas(Func<NavArea, bool> func) {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if (!func(area))
+				return false;
+		}
+		return true;
+	}
+
+	public bool ForAllAreasOverlappingExtent(Func<NavArea, bool> func, Extent extent) {
+		if (Grid.Count == 0)
+			return true;
+
+		SearchMarker++;
+		if (SearchMarker == 0)
+			SearchMarker++;
+
+		Extent areaExtent = default;
+
+		int startX = WorldToGridX(extent.Lo.X);
+		int endX = WorldToGridX(extent.Hi.X);
+		int startY = WorldToGridY(extent.Lo.Y);
+		int endY = WorldToGridY(extent.Hi.Y);
+
+		for (int x = startX; x <= endX; ++x) {
+			for (int y = startY; y <= endY; ++y) {
+				int grid = x + y * GridSizeX;
+				if (grid >= Grid.Count)
+					return true;
+
+				List<NavArea> areaVector = Grid[grid];
+
+				foreach (NavArea area in areaVector) {
+					if (area.NearNavSearchMarker == SearchMarker)
+						continue;
+
+					area.NearNavSearchMarker = (uint)SearchMarker;
+					area.GetExtent(ref areaExtent);
+
+					if (extent.IsOverlapping(areaExtent)) {
+						if (!func(area))
+							return false;
+					}
+				}
+			}
+		}
+
+		return true;
+	}
+
+	public void CollectAreasOverlappingExtent(Extent extent, List<NavArea> outList) {
+		if (Grid.Count == 0)
+			return;
+
+		SearchMarker++;
+		if (SearchMarker == 0)
+			SearchMarker++;
+
+		Extent areaExtent = default;
+
+		int startX = WorldToGridX(extent.Lo.X);
+		int endX = WorldToGridX(extent.Hi.X);
+		int startY = WorldToGridY(extent.Lo.Y);
+		int endY = WorldToGridY(extent.Hi.Y);
+
+		for (int x = startX; x <= endX; ++x) {
+			for (int y = startY; y <= endY; ++y) {
+				int grid = x + y * GridSizeX;
+				if (grid >= Grid.Count)
+					return;
+
+				List<NavArea> areaVector = Grid[grid];
+
+				foreach (NavArea area in areaVector) {
+					if (area.NearNavSearchMarker == SearchMarker)
+						continue;
+
+					area.NearNavSearchMarker = (uint)SearchMarker;
+					area.GetExtent(ref areaExtent);
+
+					if (extent.IsOverlapping(areaExtent))
+						outList.Add(area);
+				}
+			}
+		}
+	}
+
+	public bool ForAllAreasInRadius(Func<NavArea, bool> func, Vector3 pos, float radius) {
+		SearchMarker++;
+		if (SearchMarker == 0)
+			SearchMarker++;
+
+		int originX = WorldToGridX(pos.X);
+		int originY = WorldToGridY(pos.Y);
+
+		int shiftLimit = (int)MathF.Ceiling(radius / GridCellSize);
+		float radiusSq = radius * radius;
+
+		if (radius == 0.0f)
+			shiftLimit = Math.Max(GridSizeX, GridSizeY);
+
+		for (int x = originX - shiftLimit; x <= originX + shiftLimit; ++x) {
+			if (x < 0 || x >= GridSizeX)
+				continue;
+
+			for (int y = originY - shiftLimit; y <= originY + shiftLimit; ++y) {
+				if (y < 0 || y >= GridSizeY)
+					continue;
+
+				List<NavArea> areaVector = Grid[x + y * GridSizeX];
+
+				foreach (NavArea area in areaVector) {
+					if (area.NearNavSearchMarker == SearchMarker)
+						continue;
+
+					area.NearNavSearchMarker = (uint)SearchMarker;
+
+					float distSq = Vector3.DistanceSquared(area.GetCenter(), pos);
+
+					if (distSq <= radiusSq || radiusSq == 0) {
+						if (!func(area))
+							return false;
+					}
+				}
+			}
+		}
+
+		return true;
+	}
+
+	public bool ForAllAreasAlongLine(Func<NavArea, bool> func, NavArea startArea, NavArea endArea) {
+		if (startArea == null || endArea == null)
+			return false;
+
+		if (startArea == endArea) {
+			func(startArea);
+			return true;
+		}
+
+		Vector3 start = startArea.GetCenter();
+		Vector3 end = endArea.GetCenter();
+
+		Vector3 to = end - start;
+		float range = to.Length();
+		to /= range;
+
+		const float epsilon = 0.00001f;
+
+		if (range < epsilon) {
+			func(startArea);
+			return true;
+		}
+
+		NavArea? area = startArea;
+
+		while (area != null) {
+			func(area);
+
+			if (area == endArea)
+				return true;
+
+			Vector3 origin = area.GetCorner(NavCornerType.NorthWest);
+			float xMin = origin.X;
+			float xMax = xMin + area.GetSizeX();
+			float yMin = origin.Y;
+			float yMax = yMin + area.GetSizeY();
+
+			Vector3 exit = default;
+			NavDirType edge = NavDirType.NumDirections;
+
+			if (to.X < 0.0f) {
+				float t = (xMin - start.X) / (end.X - start.X);
+				if (t > 0.0f && t < 1.0f) {
+					float y = start.Y + t * (end.Y - start.Y);
+					if (y >= yMin && y <= yMax) {
+						exit.X = xMin;
+						exit.Y = y;
+						edge = NavDirType.West;
+					}
+				}
+			}
+			else {
+				float t = (xMax - start.X) / (end.X - start.X);
+				if (t > 0.0f && t < 1.0f) {
+					float y = start.Y + t * (end.Y - start.Y);
+					if (y >= yMin && y <= yMax) {
+						exit.X = xMax;
+						exit.Y = y;
+						edge = NavDirType.East;
+					}
+				}
+			}
+
+			if (edge == NavDirType.NumDirections) {
+				if (to.Y < 0.0f) {
+					float t = (yMin - start.Y) / (end.Y - start.Y);
+					if (t > 0.0f && t < 1.0f) {
+						float x = start.X + t * (end.X - start.X);
+						if (x >= xMin && x <= xMax) {
+							exit.X = x;
+							exit.Y = yMin;
+							edge = NavDirType.North;
+						}
+					}
+				}
+				else {
+					float t = (yMax - start.Y) / (end.Y - start.Y);
+					if (t > 0.0f && t < 1.0f) {
+						float x = start.X + t * (end.X - start.X);
+						if (x >= xMin && x <= xMax) {
+							exit.X = x;
+							exit.Y = yMax;
+							edge = NavDirType.South;
+						}
+					}
+				}
+			}
+
+			if (edge == NavDirType.NumDirections)
+				break;
+
+			List<NavConnect> adjVector = area.GetAdjacentAreas(edge);
+
+			area = null;
+
+			foreach (var conn in adjVector) {
+				NavArea adjArea = conn.Area!;
+				Vector3 adjOrigin = adjArea.GetCorner(NavCornerType.NorthWest);
+
+				if (edge == NavDirType.North || edge == NavDirType.South) {
+					if (adjOrigin.X <= exit.X && adjOrigin.X + adjArea.GetSizeX() >= exit.X) {
+						area = adjArea;
+						break;
+					}
+				}
+				else {
+					if (adjOrigin.Y <= exit.Y && adjOrigin.Y + adjArea.GetSizeY() >= exit.Y) {
+						area = adjArea;
+						break;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+	public bool ForAllLadders(Func<NavLadder, bool> func) {
+		foreach (NavLadder ladder in Ladders) {
+			if (!func(ladder))
+				return false;
+		}
+		return true;
+	}
+
+	public bool StitchMesh(Func<NavArea, bool> func) {
+		foreach (NavArea area in NavArea.TheNavAreas) {
+			if (func(area)) {
+				StitchAreaIntoMesh(area, NavDirType.North, func);
+				StitchAreaIntoMesh(area, NavDirType.South, func);
+				StitchAreaIntoMesh(area, NavDirType.East, func);
+				StitchAreaIntoMesh(area, NavDirType.West, func);
+			}
+		}
+		return true;
 	}
 }
 
@@ -534,14 +1271,14 @@ public enum HidingSpotFlags : byte
 
 public class HidingSpot
 {
-	public static List<HidingSpot> TheHidingSpots = [];
+	public readonly static List<HidingSpot> TheHidingSpots = [];
 
 	Vector3 Pos;
-	uint ID;
+	public uint ID;
 	uint Marker;
 	NavArea? Area;
-	byte Flags;
-	static uint NextID = 1;
+	public byte Flags;
+	public static uint NextID = 1;
 	static uint MasterMarker = 0;
 
 	public HidingSpot() {
@@ -552,7 +1289,14 @@ public class HidingSpot
 		TheHidingSpots.Add(this);
 	}
 
-	public void Save(object? fileBuffer, uint version) { }
+	public void Save(BinaryWriter fileBuffer, uint version) {
+		fileBuffer.Write(ID);
+		fileBuffer.Write(Pos.X);
+		fileBuffer.Write(Pos.Y);
+		fileBuffer.Write(Pos.Z);
+		fileBuffer.Write(Flags);
+	}
+
 	public void Load(BinaryReader fileBuffer, uint version) {
 		ID = fileBuffer.ReadUInt32();
 		Pos.X = fileBuffer.ReadSingle();
@@ -573,17 +1317,40 @@ public class HidingSpot
 		return NavErrorType.Ok;
 	}
 
-	bool HasGoodCover() => (Flags & (byte)HidingSpotFlags.InCover) != 0;
-	bool IsGoodSniperSpot() => (Flags & (byte)HidingSpotFlags.GoodSniperSpot) != 0;
-	bool IsIdealSniperSpot() => (Flags & (byte)HidingSpotFlags.IdealSniperSpot) != 0;
+	public bool HasGoodCover() => (Flags & (byte)HidingSpotFlags.InCover) != 0;
+	public bool IsGoodSniperSpot() => (Flags & (byte)HidingSpotFlags.GoodSniperSpot) != 0;
+	public bool IsIdealSniperSpot() => (Flags & (byte)HidingSpotFlags.IdealSniperSpot) != 0;
 	bool IsExposed() => (Flags & (byte)HidingSpotFlags.Exposed) != 0;
 	int GetFlags() => Flags;
-	Vector3 GetPosition() => Pos;
+	public Vector3 GetPosition() => Pos;
 	public uint GetID() => ID;
 	NavArea? GetArea() => Area;
-	void Mark() => Marker = MasterMarker;
-	bool IsMarked() => Marker == MasterMarker;
-	static void ChangeMasterMarker() => ++MasterMarker;
+	public void Mark() => Marker = MasterMarker;
+	public bool IsMarked() => Marker == MasterMarker;
+	public static void ChangeMasterMarker() => ++MasterMarker;
 	public void SetFlags(HidingSpotFlags flags) => Flags = (byte)flags;
 	public void SetPosition(Vector3 pos) => Pos = pos;
+}
+
+public class NavAreaCollector(bool checkForDuplicates = false)
+{
+	readonly bool CheckForDuplicates = checkForDuplicates;
+	public readonly List<NavArea> Areas = [];
+	public bool Invoke(NavArea area) {
+		if (CheckForDuplicates && Areas.Contains(area))
+			return true;
+
+		Areas.Add(area);
+		return true;
+	}
+}
+
+
+class EditDestroyNotification(NavArea area)
+{
+	NavArea DeadArea = area;
+	public bool Invoke(BaseCombatCharacter actor) {
+		// actor.OnNavAreaRemoved(DeadArea);
+		return true;
+	}
 }

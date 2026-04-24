@@ -1,26 +1,32 @@
 using Source.Common;
 
+using System.Numerics;
+
 namespace Game.Server.NavMesh;
 
 
 class FuncNavCost
 {
-
+	internal float GetCostMultiplier(BaseCombatCharacter who) {
+		throw new NotImplementedException();
+	}
 }
 
-class FuncNavAvoid
+class FuncNavAvoid : FuncNavCost
 {
 
 }
 
-class FuncNavPrefer
+class FuncNavPrefer : FuncNavCost
 {
 
 }
 
 class FuncNavBlocker
 {
-
+	public static bool CalculateBlocked(bool[] resultByTeam, Vector3 mins, Vector3 maxs) {
+		throw new NotImplementedException();
+	}
 }
 
 public class FuncNavObstruction : BaseEntity, INavAvoidanceObstacle
@@ -43,7 +49,7 @@ public class FuncNavObstruction : BaseEntity, INavAvoidanceObstacle
 		AddEffects(Source.EntityEffects.NoDraw);
 		// SetCollisionGroup(CollisionGroup.None);
 		SetSolid(Source.SolidType.None);
-		// AddSolidFlags(Source.SolidFlags.NotSolid);
+		AddSolidFlags(Source.SolidFlags.NotSolid);
 
 		if (!Disabled) {
 			ObstructNavAreas();
@@ -58,7 +64,7 @@ public class FuncNavObstruction : BaseEntity, INavAvoidanceObstacle
 	void ObstructNavAreas() {
 		Extent extent = default;
 		extent.Init(this);
-		// NavMesh.Instance!.ForAllAreasOverlappingExtent(this, extent); todo
+		NavMesh.Instance!.ForAllAreasOverlappingExtent(Invoke, extent);
 	}
 
 	bool Invoke(NavArea area) {

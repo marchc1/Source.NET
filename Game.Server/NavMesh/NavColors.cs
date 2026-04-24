@@ -60,7 +60,7 @@ public static class NavColors
 		NavAttributeStairColor
 	}
 
-	static Color[] Colors = [
+	static readonly Color[] Colors = [
 		// Degenerate area colors
 		new(255, 255, 0),	// NavDegenerateFirstColor
 		new(255, 0, 0),		// NavDegenerateSecondColor
@@ -138,7 +138,7 @@ public static class NavColors
 	}
 
 	public static void NavDrawHorizontalArrow(in Vector3 from, in Vector3 to, float width, NavEditColor navColor) {
-		Vector3 offset = new Vector3(0f, 0f, 1f);
+		Vector3 offset = new(0f, 0f, 1f);
 		Color color = Colors[(int)navColor];
 
 		DebugOverlay.HorzArrow(from + offset, to + offset, width, color[0], color[1], color[2], 255, false, DebugOverlay.Persist);
@@ -146,7 +146,7 @@ public static class NavColors
 	}
 
 	public static void NavDrawDashedLine(in Vector3 from, in Vector3 to, NavEditColor navColor) {
-		Vector3 offset = new Vector3(0f, 0f, 1f);
+		Vector3 offset = new(0f, 0f, 1f);
 		Color color = Colors[(int)navColor];
 
 		const float solidLen = 7f;

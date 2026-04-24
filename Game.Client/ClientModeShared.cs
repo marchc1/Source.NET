@@ -3,6 +3,8 @@ using Game.Shared;
 
 using Source;
 using Source.Common;
+using Source.Common.Bitbuffers;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Input;
 using Source.Engine;
@@ -35,6 +37,11 @@ public class ClientModeShared : GameEventListener, IClientMode
 		ListenForGameEvent("player_changename");
 		ListenForGameEvent("teamplay_broadcast_audio");
 		ListenForGameEvent("achievement_earned");
+
+
+		UserMessages msgs = Singleton<UserMessages>();
+		msgs.HookMessage("VGUIMenu", MsgFunc_VGUIMenu);
+		// msgs.HookMessage("Rumble", MsgFunc_Rumble);
 	}
 
 	public bool IsTyping() => ChatElement!.GetMessageMode() != MessageModeType.None;
@@ -257,4 +264,37 @@ public class ClientModeShared : GameEventListener, IClientMode
 
 	public BaseHudChat? ChatElement;
 	public BaseHudWeaponSelection? WeaponSelection;
+
+	static void MsgFunc_VGUIMenu(bf_read msg) {
+		Span<char> panelname = stackalloc char[256];
+		msg.ReadString(panelname);
+
+		bool show = msg.ReadByte() != 0;
+
+		IViewPortPanel? panel = BaseViewport.g_ViewPortInterface!.FindPanelByName(panelname.SliceNullTerminatedString());
+		if (panel == null)
+			return;
+
+		int count = msg.ReadByte();
+
+		if (count > 0) {
+			KeyValues keys = new("data");
+			for (int i = 0; i < count; i++) {
+				Span<char> name = stackalloc char[256];
+				Span<char> data = stackalloc char[255];
+				msg.ReadString(name);
+				msg.ReadString(data);
+				keys.SetString(name, data);
+				// Console.WriteLine($"VGUIMenu KeyValue: {name} = {data}");
+			}
+
+			// todo
+
+			panel.SetData(keys);
+		}
+
+		// todo
+
+		panel.ShowPanel(show);
+	}
 }

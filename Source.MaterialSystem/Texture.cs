@@ -256,7 +256,10 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 	}
 
 	private void SetErrorTexture(bool v) {
-		throw new NotImplementedException();
+		if (v)
+			InternalFlags |= (uint)InternalTextureFlags.Error;
+		else
+			InternalFlags &= ~(uint)InternalTextureFlags.Error;
 	}
 
 	private bool HasBeenAllocated() {
@@ -265,9 +268,9 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 
 	public void Bind(Sampler sampler) => Bind(sampler, 0);
 	public void Bind(Sampler sampler, int frame) {
-		if (HasBeenAllocated()) 
+		if (HasBeenAllocated())
 			materials.ShaderAPI.BindTexture(sampler, TextureHandles![frame]);
-		else 
+		else
 			Warning($"Tried to bind texture {GetName()}, but texture handles are not valid.\n");
 	}
 
@@ -305,10 +308,10 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 			return;
 
 		for (int frame = 0; frame < FrameCount; ++frame) {
-			Modify(frame);     
+			Modify(frame);
 			if (!onlyLodValues) {
 				SetWrapState();
-				SetFilterState();    			
+				SetFilterState();
 			}
 			else
 				SetLodState();
@@ -328,17 +331,17 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 
 		if ((Flags & (int)TextureFlags.ClampS) != 0)
 			ShaderAPI.TexWrap(TexCoordComponent.S, TexWrapMode.Clamp);
-		else 
+		else
 			ShaderAPI.TexWrap(TexCoordComponent.S, TexWrapMode.Repeat);
 
 		if ((Flags & (int)TextureFlags.ClampT) != 0)
 			ShaderAPI.TexWrap(TexCoordComponent.T, TexWrapMode.Clamp);
-		else 
+		else
 			ShaderAPI.TexWrap(TexCoordComponent.T, TexWrapMode.Repeat);
 
 		if ((Flags & (int)TextureFlags.ClampU) != 0)
 			ShaderAPI.TexWrap(TexCoordComponent.U, TexWrapMode.Clamp);
-		else 
+		else
 			ShaderAPI.TexWrap(TexCoordComponent.U, TexWrapMode.Repeat);
 	}
 
@@ -357,7 +360,7 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 		}
 
 		bool isAnisotropic = false, isTrilinear = false;
-		if (g_config.ForceAnisotropicLevel > 1 && HardwareConfig.MaximumAnisotropicLevel() > 1) 
+		if (g_config.ForceAnisotropicLevel > 1 && HardwareConfig.MaximumAnisotropicLevel() > 1)
 			isAnisotropic = true;
 		else if (g_config.ForceTrilinear()) {
 			isAnisotropic = ((Flags & (int)TextureFlags.Anisotropic) != 0) && (HardwareConfig.MaximumAnisotropicLevel() > 1);
@@ -471,10 +474,10 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 			if (!IsDepthTextureFormat(ImageFormat)) {
 				using MatRenderContextPtr renderContext = new(materials);
 				ITexture? thisTexture = GetEmbeddedTexture(0);
-				renderContext.PushRenderTargetAndViewport(thisTexture);    
-				ShaderAPI.ClearColor4ub(0, 0, 0, 0xFF);                                 
-				ShaderAPI.ClearBuffers(true, false, false, DimsActual.Width, DimsActual.Height); 
-				renderContext.PopRenderTargetAndViewport();                                     
+				renderContext.PushRenderTargetAndViewport(thisTexture);
+				ShaderAPI.ClearColor4ub(0, 0, 0, 0xFF);
+				ShaderAPI.ClearBuffers(true, false, false, DimsActual.Width, DimsActual.Height);
+				renderContext.PopRenderTargetAndViewport();
 			}
 
 			return;
@@ -674,12 +677,12 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 	}
 
 	private bool SLoadTextureBitsFromFile(ref IVTFTexture vtfTexture, IFileHandle fileHandle, uint flags,
-										  ref TextureLODControlSettings settings, ushort desiredDimensionLimit,
-										  ref ushort streamingMips, ReadOnlySpan<char> name, Span<char> cacheFileName,
-										  out TexDimensions dimsMapping, out TexDimensions dimsActual, out TexDimensions dimsAllocated,
-										  out uint stripFlags) {
+											ref TextureLODControlSettings settings, ushort desiredDimensionLimit,
+											ref ushort streamingMips, ReadOnlySpan<char> name, Span<char> cacheFileName,
+											out TexDimensions dimsMapping, out TexDimensions dimsActual, out TexDimensions dimsAllocated,
+											out uint stripFlags) {
 		// TODO; finish the complexities of texture loading
-		if(!vtfTexture!.Unserialize(fileHandle.Stream, false)) {
+		if (!vtfTexture!.Unserialize(fileHandle.Stream, false)) {
 			Warning($"VTF texture '{fileHandle.GetPath()}' failed to load!\n");
 		}
 
@@ -763,7 +766,22 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 	}
 
 	private IVTFTexture? HandleFileLoadFailedTexture(IVTFTexture? vtfTexture) {
-		throw new Exception("File load failed (time to implement HandleFileLoadFailedTexture, or something went horribly wrong)");
+		vtfTexture.Init(32, 32, 1, ImageFormat.BGRA8888, (int)Flags, 1);
+		Init(vtfTexture.Width(), vtfTexture.Height(), vtfTexture.Depth(), vtfTexture.Format(), vtfTexture.Flags(), vtfTexture.FrameCount());
+
+		DimsAllocated.Width = DimsActual.Width = DimsMapping.Width = (ushort)vtfTexture.Width();
+		DimsAllocated.Height = DimsActual.Height = DimsMapping.Height = (ushort)vtfTexture.Height();
+		DimsAllocated.Depth = 1;
+		DimsAllocated.MipCount = DimsActual.MipCount = 1;
+		StreamingMips = 0;
+
+		materials.TextureSystem.GenerateErrorTexture(this, vtfTexture);
+		ConvertToActualFormat(vtfTexture);
+
+		Flags &= ~(uint)TextureFlags.Procedural;
+		SetErrorTexture(true);
+
+		return vtfTexture;
 	}
 
 	private bool GetFileHandle([NotNullWhen(true)] out IFileHandle? fileHandle, Span<char> cacheFileName, out string? resolvedFilename) {
@@ -983,8 +1001,8 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 			rect.Height = DimsActual.Height;
 			TextureRegenerator.RegenerateTextureBits(this, texture, in rect);
 		}
-		else { // TODO
-			   //materials.TextureSystem.GenerateErrorTexture(this, texture);
+		else {
+			materials.TextureSystem.GenerateErrorTexture(this, texture);
 		}
 		return texture;
 	}
@@ -1245,11 +1263,11 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 			Assert(FrameCount >= 2);
 			depthTextureHandle = TextureHandles[1];
 		}
-		else if ((Flags & (int)TextureFlags.NoDepthBuffer) != 0) 
+		else if ((Flags & (int)TextureFlags.NoDepthBuffer) != 0)
 			depthTextureHandle = (ShaderAPITextureHandle_t)ShaderRenderTarget.None;
-		
 
-		if (depthTexture != null) 
+
+		if (depthTexture != null)
 			depthTextureHandle = ((ITextureInternal)depthTexture).GetTextureHandle(0);
 
 		ShaderAPI.SetRenderTargetEx(renderTargetID, textureHandle, depthTextureHandle);

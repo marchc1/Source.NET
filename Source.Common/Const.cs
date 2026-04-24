@@ -266,6 +266,15 @@ public static class Constants
 	public const int VOICE_MAX_PLAYERS = MAX_PLAYERS;
 	public const int VOICE_MAX_PLAYERS_DW = (VOICE_MAX_PLAYERS / 32) + ((VOICE_MAX_PLAYERS & 31) != 0 ? 1 : 0);
 
+	public const int TEAM_ANY = -2;
+	public const int TEAM_INVALID = -1;
+	public const int TEAM_UNASSIGNED = 0;
+	public const int TEAM_SPECTATOR = 1;
+	public const int LAST_SHARED_TEAM = TEAM_SPECTATOR;
+	public const int FIRST_GAME_TEAM = LAST_SHARED_TEAM + 1;
+	public const int MAX_TEAMS = 32;
+	public const int MAX_TEAM_NAME_LENGTH = 32;
+
 	public const float HIGH_DEFAULT = -121121.121121f;
 
 	public const int SIGNED_GUID_LEN = 32;

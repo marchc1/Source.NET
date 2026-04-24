@@ -1,6 +1,10 @@
 global using NavPlace = System.UInt32;
 
+using Source;
 using Source.Common;
+using Source.Common.Commands;
+using Source.Common.Engine;
+using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
 
 using System.Numerics;
@@ -8,24 +12,74 @@ namespace Game.Server.NavMesh;
 
 public static class Nav
 {
+	public static readonly ConVar nav_edit = new("0", FCvar.GameDLL | FCvar.Cheat, "Set to one to interactively edit the Navigation Mesh. Set to zero to leave edit mode.");
+	public static readonly ConVar nav_quicksave = new("1", FCvar.GameDLL | FCvar.Cheat, "Set to one to skip the time consuming phases of the analysis.  Useful for data collection and testing."); // TERROR: defaulting to 1, since we don't need the other data
+	public static readonly ConVar nav_show_approach_points = new("0", FCvar.GameDLL | FCvar.Cheat, "Show Approach Points in the Navigation Mesh.");
+	public static readonly ConVar nav_show_danger = new("0", FCvar.GameDLL | FCvar.Cheat, "Show current 'danger' levels.");
+	public static readonly ConVar nav_show_player_counts = new("0", FCvar.GameDLL | FCvar.Cheat, "Show current player counts in each area.");
+	public static readonly ConVar nav_show_func_nav_avoid = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot avoidance due to func_nav_avoid entities");
+	public static readonly ConVar nav_show_func_nav_prefer = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot preference due to func_nav_prefer entities");
+	public static readonly ConVar nav_show_func_nav_prerequisite = new("0", FCvar.GameDLL | FCvar.Cheat, "Show areas of designer-placed bot preference due to func_nav_prerequisite entities");
+	public static readonly ConVar nav_max_vis_delta_list_length = new("64", FCvar.Cheat);
+	public static readonly ConVar nav_show_area_info = new("0.5", FCvar.Cheat, "Duration in seconds to show nav area ID and attributes while editing");
+	public static readonly ConVar nav_snap_to_grid = new("0", FCvar.Cheat, "Snap to the nav generation grid when creating new nav areas");
+	public static readonly ConVar nav_create_place_on_ground = new("0", FCvar.Cheat, "If true, nav areas will be placed flush with the ground when created by hand.");
+	public static readonly ConVar nav_draw_limit = new("500", FCvar.Cheat, "The maximum number of areas to draw in edit mode");
+	public static readonly ConVar nav_solid_props = new("0", FCvar.Cheat, "Make props solid to nav generation/editing");
+	public static readonly ConVar nav_create_area_at_feet = new("0", FCvar.Cheat, "Anchor nav_begin_area Z to editing player's feet");
+	public static readonly ConVar nav_drag_selection_volume_zmax_offset = new("32", FCvar.Replicated, "The offset of the nav drag volume top from center");
+	public static readonly ConVar nav_drag_selection_volume_zmin_offset = new("32", FCvar.Replicated, "The offset of the nav drag volume bottom from center");
+	public static readonly ConVar nav_show_compass = new("0", FCvar.Cheat);
+	public static readonly ConVar nav_slope_limit = new("0.7", FCvar.Cheat, "The ground unit normal's Z component must be greater than this for nav areas to be generated.");
+	public static readonly ConVar nav_slope_tolerance = new("0.1", FCvar.Cheat, "The ground unit normal's Z component must be this close to the nav area's Z component to be generated.");
+	public static readonly ConVar nav_displacement_test = new("10000", FCvar.Cheat, "Checks for nodes embedded in displacements (useful for in-development maps)");
+	public static readonly ConVar nav_generate_fencetops = new("1", FCvar.Cheat, "Autogenerate nav areas on fence and obstacle tops");
+	public static readonly ConVar nav_generate_fixup_jump_areas = new("1", FCvar.Cheat, "Convert obsolete jump areas into 2-way connections");
+	public static readonly ConVar nav_generate_jump_connections = new("1", FCvar.Cheat, "If disabled, don't generate jump connections from jump areas");
+	public static readonly ConVar nav_generate_incremental_range = new("2000", FCvar.Cheat, "Range to consider when generating nav incrementally");
+	public static readonly ConVar nav_generate_incremental_tolerance = new("0", FCvar.Cheat, "Z tolerance for adding new nav areas during incremental generation.");
+	public static readonly ConVar nav_area_max_size = new("50", FCvar.Cheat, "Max area size created in nav generation");
+	public static readonly ConVar nav_coplanar_slope_limit = new("nav_coplanar_slope_limit", "0.99", FCvar.Cheat);
+	public static readonly ConVar nav_coplanar_slope_limit_displacement = new("nav_coplanar_slope_limit_displacement", "0.7", FCvar.Cheat);
+	public static readonly ConVar nav_split_place_on_ground = new("nav_split_place_on_ground", "0", FCvar.Cheat, "If true, nav areas will be placed flush with the ground when split.");
+	public static readonly ConVar nav_area_bgcolor = new("nav_area_bgcolor", "0 0 0 30", FCvar.Cheat, "RGBA color to draw as the background color for nav areas while editing.");
+	public static readonly ConVar nav_corner_adjust_adjacent = new("nav_corner_adjust_adjacent", "18", FCvar.Cheat, "radius used to raise/lower corners in nearby areas when raising/lowering corners.");
+	public static readonly ConVar nav_show_light_intensity = new("nav_show_light_intensity", "0", FCvar.Cheat);
+	public static readonly ConVar nav_debug_blocked = new("nav_debug_blocked", "0", FCvar.Cheat);
+	public static readonly ConVar nav_show_contiguous = new("nav_show_continguous", "0", FCvar.Cheat, "Highlight non-contiguous connections");
+	public static readonly ConVar nav_max_view_distance = new("nav_max_view_distance", "6000", FCvar.Cheat, "Maximum range for precomputed nav mesh visibility (0 = default 1500 units)");
+	public static readonly ConVar nav_update_visibility_on_edit = new("nav_update_visibility_on_edit", "0", FCvar.Cheat, "If nonzero editing the mesh will incrementally recompue visibility");
+	public static readonly ConVar nav_potentially_visible_dot_tolerance = new("nav_potentially_visible_dot_tolerance", "0.98", FCvar.Cheat);
+	public static readonly ConVar nav_show_potentially_visible = new("nav_show_potentially_visible", "0", FCvar.Cheat, "Show areas that are potentially visible from the current nav area");
+	public static readonly ConVar nav_show_nodes = new("nav_show_nodes", "1", FCvar.Cheat);
+	public static readonly ConVar nav_show_node_id = new("nav_show_node_id", "0", FCvar.Cheat);
+	public static readonly ConVar nav_test_node = new("nav_test_node", "0", FCvar.Cheat);
+	public static readonly ConVar nav_test_node_crouch = new("nav_test_node_crouch", "0", FCvar.Cheat);
+	public static readonly ConVar nav_test_node_crouch_dir = new("nav_test_node_crouch_dir", "4", FCvar.Cheat);
+	public static readonly ConVar nav_show_node_grid = new("nav_show_node_grid", "0", FCvar.Cheat);
+
+	public const int MAX_NAV_TEAMS = 2;
+
 	public const float GenerationStepSize = 25.0f;     // (30) was 20, but bots can't fit always fit
 	const float JumpHeight = 41.8f;         // if delta Z is less than this, we can jump up on it
 	public const float JumpCrouchHeight = 64.0f;     // (48) if delta Z is less than or equal to this, we can jumpcrouch up on it
-	const float StepHeight = 18.0f;         // if delta Z is greater than this, we have to jump to get up
-	const float DeathDrop = 400.0f;         // (300) distance at which we will die if we fall - should be about 600, and pay attention to fall damage during pathfind
-	const float ClimbUpHeight = 200.0f;       // height to check for climbing up
-	const float CliffHeight = 300.0f;       // height which we consider a significant cliff which we would not want to fall off of
+	public const float StepHeight = 18.0f;         // if delta Z is greater than this, we have to jump to get up
+	public const float DeathDrop = 400.0f;         // (300) distance at which we will die if we fall - should be about 600, and pay attention to fall damage during pathfind
+	public const float ClimbUpHeight = 200.0f;       // height to check for climbing up
+	public const float CliffHeight = 300.0f;       // height which we consider a significant cliff which we would not want to fall off of
 
-	const int HalfHumanWidth = 16;
+	public const int HalfHumanWidth = 16;
 	public const float HalfHumanHeight = 35.5f;
-	const float HumanHeight = 71.0f;
-	const float HumanEyeHeight = 62.0f;
-	const float HumanCrouchHeight = 55.0f;
-	const float HumanCrouchEyeHeight = 37.0f;
+	public const float HumanHeight = 71.0f;
+	public const float HumanEyeHeight = 62.0f;
+	public const float HumanCrouchHeight = 55.0f;
+	public const float HumanCrouchEyeHeight = 37.0f;
 	public const uint NavMagicNumber = 0xFEEDFACE;       // to help identify nav files
 
 	public const uint UndefinedPlace = 0;
 	public const uint AnyPlace = 0xFFFF;
+
+	public static HashSet<NavVisPair_t> g_NavVisPairHash = new(new VisPairHashFuncs());
 
 	public static NavDirType OppositeDirection(NavDirType dir) => dir switch {
 		NavDirType.North => NavDirType.South,
@@ -80,30 +134,29 @@ public static class Nav
 		return NavDirType.North;
 	}
 
-	public static Vector2 DirectionToVector2D(NavDirType dir) => dir switch {
-		NavDirType.North => new Vector2(0f, -1f),
-		NavDirType.South => new Vector2(0f, 1f),
-		NavDirType.East => new Vector2(1f, 0f),
-		NavDirType.West => new Vector2(-1f, 0f),
-		_ => Vector2.Zero
-	};
-
-	public static Vector2 CornerToVector2D(NavCornerType dir) {
-		Vector2 v = dir switch {
-			NavCornerType.NorthWest => new Vector2(-1f, -1f),
-			NavCornerType.NorthEast => new Vector2(1f, -1f),
-			NavCornerType.SouthEast => new Vector2(1f, 1f),
-			NavCornerType.SouthWest => new Vector2(-1f, 1f),
-			_ => Vector2.Zero
-		};
-
-		return Vector2.Normalize(v);
+	public static void DirectionToVector2D(NavDirType dir, ref Vector2 v) {
+		switch (dir) {
+			default: Assert(false); break;
+			case NavDirType.North: v.X = 0.0f; v.Y = -1.0f; break;
+			case NavDirType.South: v.X = 0.0f; v.Y = 1.0f; break;
+			case NavDirType.East: v.X = 1.0f; v.Y = 0.0f; break;
+			case NavDirType.West: v.X = -1.0f; v.Y = 0.0f; break;
+		}
 	}
 
-	public static void GetCornerTypesInDirection(
-			NavDirType dir,
-			out NavCornerType first,
-			out NavCornerType second) {
+	public static void CornerToVector2D(NavCornerType dir, ref Vector2 v) {
+		switch (dir) {
+			default: Assert(false); break;
+			case NavCornerType.NorthWest: v.X = -1.0f; v.Y = -1.0f; break;
+			case NavCornerType.NorthEast: v.X = 1.0f; v.Y = -1.0f; break;
+			case NavCornerType.SouthEast: v.X = 1.0f; v.Y = 1.0f; break;
+			case NavCornerType.SouthWest: v.X = -1.0f; v.Y = 1.0f; break;
+		}
+
+		v = Vector2.Normalize(v);
+	}
+
+	public static void GetCornerTypesInDirection(NavDirType dir, out NavCornerType first, out NavCornerType second) {
 		switch (dir) {
 			default:
 			case NavDirType.North:
@@ -165,9 +218,8 @@ public static class Nav
 		if (entity.ClassMatches("func_playerinfected_clip"))
 			return true;
 
-		// todo
-		// if (nav_solid_props.GetBool() && entity.ClassMatches("prop_*"))
-		// 	return true;
+		if (nav_solid_props.GetBool() && entity.ClassMatches("prop_*"))
+			return true;
 
 		return false;
 	}
@@ -369,26 +421,41 @@ public struct Ray
 	public Vector3 From, To;
 }
 
-public struct TraceFilterWalkableEntities //: TraceFilterNoNPCsOrPlayer
+public struct TraceFilterWalkableEntities(IHandleEntity? passEntity, CollisionGroup collisionGroup, WalkThruFlags flags) : ITraceFilter
 {
-	readonly WalkThruFlags flags;
+	TraceFilterNoNPCsOrPlayer Inner = new(passEntity, collisionGroup);
+	readonly WalkThruFlags Flags = flags;
 
-	public TraceFilterWalkableEntities(IHandleEntity passEntity, int collisionGroup, WalkThruFlags flags) /*: base(passEntity, collisionGroup)*/ => this.flags = flags;
+	public bool ShouldHitEntity(IHandleEntity serverEntity, Contents contentsMask) {
+		if (!Inner.ShouldHitEntity(serverEntity, contentsMask))
+			return false;
 
-	public /*override*/ bool ShouldHitEntity(IHandleEntity serverEntity, int contentsMask) {
-		// if (base.ShouldHitEntity(serverEntity, contentsMask)) {
-		// var entity = EntityFromEntityHandle(serverEntity);
-		// return !Nav.IsEntityWalkable(entity, flags);
-		// }
+		BaseEntity? entity = EntityFromEntityHandle(serverEntity);
+		return entity != null && !Nav.IsEntityWalkable(entity, Flags);
+	}
+}
 
-		return false;
+public struct TraceFilterGroundEntities : ITraceFilter
+{
+	TraceFilterWalkableEntities Inner;
+
+	public TraceFilterGroundEntities(IHandleEntity? passEntity, CollisionGroup collisionGroup, WalkThruFlags flags) {
+		Inner = new(passEntity, collisionGroup, flags);
+	}
+
+	public bool ShouldHitEntity(IHandleEntity serverEntity, Contents contentsMask) {
+		BaseEntity? entity = EntityFromEntityHandle(serverEntity);
+		if (entity != null && (entity.ClassMatches("prop_door*") || entity.ClassMatches("func_breakable*")))
+			return false;
+
+		return Inner.ShouldHitEntity(serverEntity, contentsMask);
 	}
 }
 
 public interface INavAvoidanceObstacle
 {
 	/// <summary>
-	/// // could we at some future time obstruct nav?
+	/// could we at some future time obstruct nav?
 	/// </summary>
 	bool IsPotentiallyAbleToObstructNavAreas();
 	/// <summary>
@@ -402,3 +469,44 @@ public interface INavAvoidanceObstacle
 	BaseEntity GetObstructingEntity();
 	void OnNavMeshLoaded();
 };
+
+[Flags]
+public enum GetNavAreaFlags : uint
+{
+	CheckLOS = 0x01,
+	AllowBlockedAreas = 0x02,
+	CheckGround = 0x04
+}
+
+public struct NavVisPair_t()
+{
+	public readonly NavArea[] Areas = new NavArea[2];
+
+	public void SetPair(NavArea area1, NavArea area2) {
+		int iArea1 = area1.GetID() > area2.GetID() ? 0 : 1;
+		int iArea2 = (iArea1 + 1) % 2;
+		Areas[iArea1] = area1;
+		Areas[iArea2] = area2;
+	}
+}
+
+class VisPairHashFuncs : IEqualityComparer<NavVisPair_t>
+{
+	public bool Equals(NavVisPair_t lhs, NavVisPair_t rhs) => lhs.Areas[0] == rhs.Areas[0] && lhs.Areas[1] == rhs.Areas[1];
+
+	public int GetHashCode(NavVisPair_t item) {
+		int key0 = (int)(item.Areas[0].GetHashCode() + item.Areas[1].GetID());
+		int key1 = (int)(item.Areas[1].GetHashCode() + item.Areas[0].GetID());
+
+		return Hash8(key0, key1);
+	}
+
+	static int Hash8(int a, int b) {
+		unchecked {
+			int hash = 17;
+			hash = hash * 31 + a;
+			hash = hash * 31 + b;
+			return hash;
+		}
+	}
+}

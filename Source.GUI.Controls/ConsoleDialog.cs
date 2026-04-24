@@ -320,17 +320,16 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 
 			NormalBuild = false;
 
-			IEnumerable<string> commands = cmd.AutoCompleteSuggest(text[..len].ToString());
-			int count = commands.Count();
-			//Assert(count <= COMMAND_COMPLETION_MAXITEMS);
-			Assert(count <= 64);
+			List<string> commands = [.. cmd.AutoCompleteSuggest(text[..len].ToString())];
+			//Assert(commands.Count <= COMMAND_COMPLETION_MAXITEMS);
+			Assert(commands.Count <= 64);
 
-			for (int i = 0; i < count; i++) {
+			foreach (string completion in commands) {
 				CompletionItem item = new();
 				CompletionItems.Add(item);
 				item.IsCommand = false;
 				item.Command = null;
-				item.Text = new HistoryItem(commands.ElementAt(i));
+				item.Text = new HistoryItem(completion);
 			}
 		}
 
