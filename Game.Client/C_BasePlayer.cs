@@ -212,6 +212,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		if (IsLocalPlayer()) {
 			// Reset engine areabits pointer (TODO)
 
+#if !GMOD_DLL
 			// Check for Ammo pickups.
 			for (int i = 0; i < MAX_AMMO_TYPES; i++) {
 				if (GetAmmoCount(i) > OldAmmo[i]) {
@@ -225,6 +226,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 					}
 				}
 			}
+#endif
 
 			// Soundscape_Update(m_Local.m_audio);
 			// ^^ todo
