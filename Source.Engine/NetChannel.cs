@@ -426,6 +426,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 	private bool streamContainsChallenge = false;
 	private int packetDrop = 0;
 
+
 	public unsafe PacketFlag ProcessPacketHeader(NetPacket packet) {
 		int sequence = packet.Message.ReadLong();
 		int sequenceAck = packet.Message.ReadLong();
@@ -452,7 +453,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			}
 		}
 
-		int relState = (int)packet.Message.ReadUBitLong(16);
+		int relState = (int)packet.Message.ReadUBitLong(IN_RELIABLE_STATE_BITS);
 		int choked = 0;
 		int i, j;
 
@@ -689,7 +690,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 		if ((flags & PacketFlag.Reliable) != 0) {
 			FragmentStream i = 0;
-			int bit = 1 << (int)msg.ReadUBitLong(SUBCHANNEL_BITS);
+			int bit = 1 << (int)msg.ReadUBitLong(SubChannel.MAX_BITS);
 
 			for (i = 0; i < FragmentStream.Max; i++) {
 				if (msg.ReadOneBit() != 0) {
@@ -1038,7 +1039,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		}
 	}
 
-	public const int SUBCHANNEL_BITS = 4;
+	public const int IN_RELIABLE_STATE_BITS = 16;
 
 	void CompressFragments(){
 		if (!UseCompression)
@@ -1176,7 +1177,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		if (i == SubChannel.MAX || subChan == null)
 			return false; // no data to send in any subchannel
 
-		buf.WriteUBitLong((uint)i, SUBCHANNEL_BITS);
+		buf.WriteUBitLong((uint)i, SubChannel.MAX_BITS);
 
 		for (i = 0; i < (int)FragmentStream.Max; i++) {
 			if (subChan.NumFragments[i] == 0) {
@@ -1316,7 +1317,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		}
 
 		int checksumStart = send.BytesWritten;
-		send.WriteUBitLong((uint)InReliableState, 16);
+		send.WriteUBitLong((uint)InReliableState, IN_RELIABLE_STATE_BITS);
 		if (ChokedPackets > 0) {
 			flags |= (byte)PacketFlag.Choked;
 			send.WriteByte(ChokedPackets & 0xFF);

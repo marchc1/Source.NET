@@ -232,9 +232,9 @@ public static class Protocol
 	public const float SPLIT_PACKET_STALE_TIME = 2.0f;
 	public const float SPLIT_PACKET_TRACKING_MAX = 256; // most number of outstanding split packets to allow
 
-	public const int FRAGMENT_BITS = 8;
+	public const int FRAGMENT_BITS = 12;
 	public const int FRAGMENT_SIZE = 1 << FRAGMENT_BITS;
-	public const int MAX_FILE_SIZE_BITS = 26;
+	public const int MAX_FILE_SIZE_BITS = 30;
 	public const int MAX_FILE_SIZE = (1 << MAX_FILE_SIZE_BITS) - 1;// maximum transferable size is	64MB
 
 	public static int Bits2Bytes(int b) => b + 7 >> 3;
