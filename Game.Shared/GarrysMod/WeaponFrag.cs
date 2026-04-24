@@ -21,7 +21,7 @@ public class WeaponFrag : BaseHL2MPCombatWeapon
 #else
 			SendPropBool(FIELD.OF(nameof(Redraw))),
 			SendPropBool(FIELD.OF(nameof(DrawbackFinished))),
-			SendPropInt(FIELD.OF(nameof(AttackPaused)))
+			SendPropInt(FIELD.OF(nameof(AttackPaused)), 4)
 #endif
 		]);
 #if CLIENT_DLL

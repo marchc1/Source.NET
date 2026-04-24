@@ -17,7 +17,6 @@ public class C_World : C_BaseEntity
 	}
 
 	public static readonly RecvTable DT_World = new(DT_BaseEntity, [
-		RecvPropFloat(FIELD.OF(nameof(WaveHeight))),
 		RecvPropVector(FIELD.OF(nameof(WorldMins))),
 		RecvPropVector(FIELD.OF(nameof(WorldMaxs))),
 		RecvPropInt(FIELD.OF(nameof(StartDark))),
@@ -26,7 +25,6 @@ public class C_World : C_BaseEntity
 		RecvPropFloat(FIELD.OF(nameof(MaxPropScreenSpaceWidth))),
 		RecvPropFloat(FIELD.OF(nameof(MinPropScreenSpaceWidth))),
 		RecvPropString(FIELD.OF(nameof(DetailSpriteMaterial))),
-		RecvPropInt(FIELD.OF(nameof(ColdWorld))),
 	]);
 
 	public static new readonly ClientClass ClientClass = new ClientClass("World", null, null, DT_World)

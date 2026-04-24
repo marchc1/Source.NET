@@ -8,7 +8,7 @@ public class EnvScreenEffect : BaseEntity
 {
 	public static readonly SendTable DT_EnvScreenEffect = new(DT_BaseEntity, [
 		SendPropFloat(FIELD.OF(nameof(Duration)), 0, PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(Type)), 32, PropFlags.Unsigned),
+		SendPropInt(FIELD.OF(nameof(Type)), 12, PropFlags.Unsigned),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("EnvScreenEffect", DT_EnvScreenEffect).WithManualClassID(StaticClassIndices.CEnvScreenEffect);
 

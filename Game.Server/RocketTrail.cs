@@ -18,7 +18,7 @@ public class RocketTrail : BaseParticleEntity
 		SendPropFloat(FIELD.OF(nameof(EndSize)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(SpawnRadius)), 0, PropFlags.NoScale),
 		SendPropBool(FIELD.OF(nameof(Emit))),
-		SendPropInt(FIELD.OF(nameof(Attachment)), 32, 0),
+		SendPropInt(FIELD.OF(nameof(Attachment)), 12, 0),
 		SendPropFloat(FIELD.OF(nameof(Opacity)), 0, PropFlags.NoScale),
 		SendPropBool(FIELD.OF(nameof(Damaged))),
 		SendPropFloat(FIELD.OF(nameof(FlareScale)), 0, PropFlags.NoScale),

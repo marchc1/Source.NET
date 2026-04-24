@@ -183,7 +183,7 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 			SendPropFloat(FIELD.OF_VECTORELEM(nameof(AttachedAnglesPlayerSpace), 0), 11, PropFlags.RoundDown),
 			SendPropFloat(FIELD.OF_VECTORELEM(nameof(AttachedAnglesPlayerSpace), 1), 11, PropFlags.RoundDown),
 			SendPropFloat(FIELD.OF_VECTORELEM(nameof(AttachedAnglesPlayerSpace), 2), 11, PropFlags.RoundDown),
-			SendPropInt(FIELD.OF(nameof(EffectState))),
+			SendPropInt(FIELD.OF(nameof(EffectState)), 4),
 			SendPropBool(FIELD.OF(nameof(Open))),
 			SendPropBool(FIELD.OF(nameof(PhyscannonState))),
 #endif

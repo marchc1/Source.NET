@@ -21,7 +21,7 @@ public class BaseBeam : BaseTempEntity
 		SendPropInt(FIELD.OF(nameof(G)), 8, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(B)), 8, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(A)), 8, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(Flags)), 32, PropFlags.Unsigned),
+		SendPropInt(FIELD.OF(nameof(Flags)), 20, PropFlags.Unsigned),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("TEBaseBeam", DT_BaseBeam).WithManualClassID(StaticClassIndices.CTEBaseBeam);
 

@@ -34,7 +34,6 @@ public partial class BasePlayer : BaseCombatCharacter
 		SendPropDataTable(nameof(Local), PlayerLocalData.DT_Local),
 		SendPropFloat(FIELD.OF(nameof(Friction)), 0, PropFlags.NoScale | PropFlags.RoundDown, 0.0f, 4.0f),
 		SendPropArray3(FIELD.OF_ARRAY(nameof(Ammo)), SendPropInt( FIELD.OF_ARRAYINDEX(nameof(Ammo)), 16, PropFlags.Unsigned)),
-		SendPropInt(FIELD.OF(nameof(OnTarget)), 2, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(TickBase)), -1, PropFlags.ChangesOften),
 		SendPropInt(FIELD.OF(nameof(NextThinkTick))),
 		SendPropEHandle(FIELD.OF(nameof(LastWeapon))),
@@ -62,16 +61,15 @@ public partial class BasePlayer : BaseCombatCharacter
 		SendPropInt(FIELD.OF(nameof(Flags)), Constants.PLAYER_FLAG_BITS, PropFlags.Unsigned|PropFlags.ChangesOften, SendProxy_CropFlagsToPlayerFlagBitsLength),
 		SendPropInt(FIELD.OF(nameof(ObserverMode)), 3, PropFlags.Unsigned),
 		SendPropEHandle(FIELD.OF(nameof(ObserverTarget))),
-		SendPropInt(FIELD.OF(nameof(FOV)), 8, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(FOVStart)), 8, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF(nameof(FOVTime)), 0, PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(DefaultFOV)), 8, PropFlags.Unsigned),
+		SendPropFloat(FIELD.OF(nameof(FOV)), 16, PropFlags.Unsigned, 0, 65536),
+		SendPropFloat(FIELD.OF(nameof(FOVStart)), 16, PropFlags.Unsigned, 0, 65536),
+		SendPropTime64(FIELD.OF(nameof(FOVTime))),
+		SendPropFloat(FIELD.OF(nameof(DefaultFOV)), 16, PropFlags.Unsigned, 0, 65536),
 		SendPropEHandle(FIELD.OF(nameof(ZoomOwner))),
 
 		SendPropEHandle(FIELD.OF_ARRAYINDEX(nameof(ViewModel), 0)),
 		SendPropArray(FIELD.OF_ARRAY(nameof(ViewModel))),
 
-		SendPropString(FIELD.OF(nameof(LastPlaceName))),
 		SendPropBool(FIELD.OF(nameof(UseWeaponsInVehicle))),
 		SendPropDataTable( "localdata", DT_LocalPlayerExclusive, SendProxy_SendLocalDataTable),
 	]);

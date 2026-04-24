@@ -25,7 +25,7 @@ public class WeaponSLAM : BaseHL2MPCombatWeapon
 			RecvPropBool(FIELD.OF(nameof(AttachSatchel))),
 			RecvPropBool(FIELD.OF(nameof(AttachTripmine)))
 #else
-			SendPropInt(FIELD.OF(nameof(SlamState))),
+			SendPropInt(FIELD.OF(nameof(SlamState)), 4),
 			SendPropBool(FIELD.OF(nameof(DetonatorArmed))),
 			SendPropBool(FIELD.OF(nameof(NeedDetonatorDraw))),
 			SendPropBool(FIELD.OF(nameof(NeedDetonatorHolster))),

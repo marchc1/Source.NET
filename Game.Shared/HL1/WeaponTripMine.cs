@@ -2,7 +2,7 @@
 using Source.Common;
 namespace Game.Shared.HL1;
 using FIELD = Source.FIELD<WeaponTripMine>;
-public class WeaponTripMine : BaseHL1CombatWeapon
+public class WeaponTripMine : BaseHL1MPCombatWeapon
 {
 	public static readonly
 #if CLIENT_DLL
@@ -10,7 +10,7 @@ public class WeaponTripMine : BaseHL1CombatWeapon
 #else
 		SendTable
 #endif
-		DT_WeaponTripMine = new(DT_BaseHL1CombatWeapon, [
+		DT_WeaponTripMine = new(DT_BaseHL1MPCombatWeapon, [
 #if CLIENT_DLL
 			RecvPropFloat(FIELD.OF(nameof(GroundIndex))),
 			RecvPropFloat(FIELD.OF(nameof(PickedUpIndex))),

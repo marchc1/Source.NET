@@ -12,8 +12,8 @@ public class PropAirboat : PropVehicleDriveable
 	public static readonly SendTable DT_PropAirboat = new(DT_PropVehicleDriveable, [
 		SendPropBool(FIELD.OF(nameof(HeadlightIsOn))),
 		SendPropInt(FIELD.OF(nameof(AmmoCount)), 9),
-		SendPropInt(FIELD.OF(nameof(ExactWaterLevel)), 32),
-		SendPropInt(FIELD.OF(nameof(WaterLevel)), 8),
+		SendPropInt(FIELD.OF(nameof(ExactWaterLevel)), 24),
+		SendPropInt(FIELD.OF(nameof(WaterLevel)), 2, PropFlags.Unsigned),
 		SendPropVector(FIELD.OF(nameof(PhysVelocity)), 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("PropAirboat", DT_PropAirboat).WithManualClassID(StaticClassIndices.CPropAirboat);

@@ -111,7 +111,6 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		RecvPropDataTable(nameof(Local), FIELD.OF(nameof(Local)), PlayerLocalData.DT_Local, 0, DataTableRecvProxy_PointerDataTable),
 		RecvPropFloat(FIELD.OF(nameof(Friction))),
 		RecvPropArray3(FIELD.OF_ARRAY(nameof(Ammo)), RecvPropInt( FIELD.OF_ARRAYINDEX(nameof(Ammo)))),
-		RecvPropInt(FIELD.OF(nameof(OnTarget))),
 		RecvPropInt(FIELD.OF(nameof(TickBase))),
 		RecvPropInt(FIELD.OF(nameof(NextThinkTick))),
 		RecvPropEHandle(FIELD.OF(nameof(LastWeapon))),
@@ -275,16 +274,15 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		RecvPropInt(FIELD.OF(nameof(Flags))),
 		RecvPropInt(FIELD.OF(nameof(ObserverMode))),
 		RecvPropEHandle(FIELD.OF(nameof(ObserverTarget))),
-		RecvPropInt(FIELD.OF(nameof(FOV))),
-		RecvPropInt(FIELD.OF(nameof(FOVStart))),
-		RecvPropFloat(FIELD.OF(nameof(FOVTime))),
+		RecvPropFloat(FIELD.OF(nameof(FOV))),
+		RecvPropFloat(FIELD.OF(nameof(FOVStart))),
+		RecvPropTime64(FIELD.OF(nameof(FOVTime))),
 		RecvPropFloat(FIELD.OF(nameof(DefaultFOV))),
 		RecvPropEHandle(FIELD.OF(nameof(ZoomOwner))),
 
 		RecvPropEHandle(FIELD.OF_ARRAYINDEX(nameof(ViewModel), 0)),
 		RecvPropArray(FIELD.OF_ARRAY(nameof(ViewModel))),
 
-		RecvPropString(FIELD.OF(nameof(LastPlaceName))),
 		RecvPropBool(FIELD.OF(nameof(UseWeaponsInVehicle))),
 		RecvPropDataTable("localdata", DT_LocalPlayerExclusive),
 	]); public static readonly new ClientClass ClientClass = new ClientClass("BasePlayer", null, null, DT_BasePlayer).WithManualClassID(StaticClassIndices.CBasePlayer);

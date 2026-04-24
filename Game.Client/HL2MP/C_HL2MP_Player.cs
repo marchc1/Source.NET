@@ -41,7 +41,6 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 		RecvPropDataTable("hl2mpnonlocaldata", DT_HL2MPNonLocalPlayerExclusive),
 		RecvPropEHandle(FIELD.OF(nameof(Ragdoll))),
 		RecvPropInt(FIELD.OF(nameof(SpawnInterpCounter))),
-		RecvPropInt(FIELD.OF(nameof(PlayerSoundType))),
 		RecvPropBool(FIELD.OF(nameof(IsWalking)))
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("HL2MP_Player", null, null, DT_HL2MP_Player)

@@ -26,7 +26,7 @@ public class PropJeepEpisodic : PropJeep
 		SendPropVector(FIELD_PJE.OF_ARRAYINDEX(nameof(RadarContactPos), 0), 0, PropFlags.Coord),
 		SendPropArray2(null!, 24, "RadarContactPos"),
 
-		SendPropInt(FIELD_PJE.OF_ARRAYINDEX(nameof(RadarContactType), 0), 3),
+		SendPropInt(FIELD_PJE.OF_ARRAYINDEX(nameof(RadarContactType), 0), 4),
 		SendPropArray2(null!, 24, "RadarContactType"),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("PropJeepEpisodic", DT_PropJeepEpisodic).WithManualClassID(StaticClassIndices.CPropJeepEpisodic);

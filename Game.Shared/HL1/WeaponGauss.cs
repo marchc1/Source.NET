@@ -16,15 +16,15 @@ public class WeaponGauss : BaseHL1MPCombatWeapon
 			RecvPropBool(FIELD.OF(nameof(PrimaryFire))),
 			RecvPropFloat(FIELD.OF(nameof(StartCharge))),
 			RecvPropFloat(FIELD.OF(nameof(AmmoStartCharge))),
-			RecvPropFloat(FIELD.OF(nameof(PlayAftershock))),
-			RecvPropFloat(FIELD.OF(nameof(NextAmmoBurn)))
+			RecvPropTime64(FIELD.OF(nameof(PlayAftershock))),
+			RecvPropTime64(FIELD.OF(nameof(NextAmmoBurn)))
 #else
-			SendPropInt(FIELD.OF(nameof(AttackState)), 32),
+			SendPropInt(FIELD.OF(nameof(AttackState)), 2, PropFlags.Unsigned),
 			SendPropBool(FIELD.OF(nameof(PrimaryFire))),
 			SendPropFloat(FIELD.OF(nameof(StartCharge)), 0, PropFlags.NoScale),
 			SendPropFloat(FIELD.OF(nameof(AmmoStartCharge)), 0, PropFlags.NoScale),
-			SendPropFloat(FIELD.OF(nameof(PlayAftershock)), 0, PropFlags.NoScale),
-			SendPropFloat(FIELD.OF(nameof(NextAmmoBurn)), 0, PropFlags.NoScale)
+			SendPropTime64(FIELD.OF(nameof(PlayAftershock))),
+			SendPropTime64(FIELD.OF(nameof(NextAmmoBurn)))
 #endif
 		]);
 #if CLIENT_DLL

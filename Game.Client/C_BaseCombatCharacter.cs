@@ -10,7 +10,7 @@ namespace Game.Client;
 public partial class C_BaseCombatCharacter : C_BaseFlex
 {
 	public static readonly RecvTable DT_BCCLocalPlayerExclusive = new([
-		RecvPropTime(FIELD.OF(nameof(NextAttack))),
+		RecvPropTime64(FIELD.OF(nameof(NextAttack))),
 	]);
 	public override bool IsBaseCombatCharacter() => true;
 	public static readonly ClientClass CC_BCCLocalPlayerExclusive = new ClientClass("BCCLocalPlayerExclusive", null, null, DT_BCCLocalPlayerExclusive);

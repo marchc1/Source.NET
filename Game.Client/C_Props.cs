@@ -7,6 +7,7 @@ using Source.Common;
 namespace Game.Client;
 using FIELD_DP = Source.FIELD<C_DynamicProp>;
 using FIELD_PBM = Source.FIELD<PhysBoxMultiplayer>;
+using FIELD_BPD = Source.FIELD<C_BasePropDoor>;
 
 public class C_DynamicProp : C_BreakableProp
 {
@@ -40,7 +41,12 @@ public class PhysBoxMultiplayer : C_PhysBox
 
 public class C_BasePropDoor : C_DynamicProp
 {
-	public static readonly RecvTable DT_BasePropDoor = new(DT_DynamicProp, []);
+	bool Locked;
+	int DoorState;
+	public static readonly RecvTable DT_BasePropDoor = new(DT_DynamicProp, [
+		RecvPropBool(FIELD_BPD.OF(nameof(Locked))),
+		RecvPropInt(FIELD_BPD.OF(nameof(DoorState)))
+	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("BasePropDoor", DT_BasePropDoor).WithManualClassID(StaticClassIndices.CBasePropDoor);
 }
 

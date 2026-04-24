@@ -147,7 +147,7 @@ public partial class
 		int minTick = TICK_NEVER_THINK;
 
 		if (NextThinkTick > 0)
-			minTick = NextThinkTick;
+			minTick = (int)NextThinkTick;
 
 		for (int i = 0; i < ThinkFunctions.Count; i++) {
 			int next = (int)ThinkFunctions[i].NextThinkTick;

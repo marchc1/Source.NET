@@ -49,7 +49,6 @@ public partial class HL2MP_Player : HL2_Player
 
 		SendPropEHandle(FIELD.OF(nameof(Ragdoll))),
 		SendPropInt(FIELD.OF(nameof(SpawnInterpCounter)), 4),
-		SendPropInt(FIELD.OF(nameof(PlayerSoundType)), 3),
 		SendPropBool(FIELD.OF(nameof(IsWalking))),
 
 		SendPropExclude(nameof(DT_BaseAnimating), nameof(PoseParameter)),

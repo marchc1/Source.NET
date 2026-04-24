@@ -103,28 +103,28 @@ public partial class
 		RecvPropInt(FIELD.OF(nameof(PrimaryAmmoType))),
 		RecvPropInt(FIELD.OF(nameof(SecondaryAmmoType))),
 		RecvPropInt(FIELD.OF(nameof(nViewModelIndex))),
-		RecvPropInt(FIELD.OF(nameof(FlipViewModel))),
+		RecvPropBool(FIELD.OF(nameof(FlipViewModel))),
 #elif GAME_DLL
 		SendPropIntWithMinusOneFlag(FIELD.OF(nameof(iClip1)), 16),
 		SendPropIntWithMinusOneFlag(FIELD.OF(nameof(iClip2)), 16),
-		SendPropInt(FIELD.OF(nameof(PrimaryAmmoType)), 8),
-		SendPropInt(FIELD.OF(nameof(SecondaryAmmoType)), 8),
+		SendPropInt(FIELD.OF(nameof(PrimaryAmmoType)), 9),
+		SendPropInt(FIELD.OF(nameof(SecondaryAmmoType)), 9),
 		SendPropInt(FIELD.OF(nameof(nViewModelIndex)), BaseViewModel.VIEWMODEL_INDEX_BITS, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(FlipViewModel)), 8),
+		SendPropBool(FIELD.OF(nameof(FlipViewModel))),
 #endif
 	]); public static readonly Class SC_LocalWeaponData = new Class("LocalWeaponData", DT_LocalWeaponData);
 
 	public static readonly Table DT_LocalActiveWeaponData = new([
 #if CLIENT_DLL
-		RecvPropTime(FIELD.OF(nameof(NextPrimaryAttack))),
-		RecvPropTime(FIELD.OF(nameof(NextSecondaryAttack))),
+		RecvPropTime64(FIELD.OF(nameof(NextPrimaryAttack))),
+		RecvPropTime64(FIELD.OF(nameof(NextSecondaryAttack))),
 		RecvPropInt(FIELD.OF(nameof(NextThinkTick))),
-		RecvPropTime(FIELD.OF(nameof(TimeWeaponIdle))),
+		RecvPropTime64(FIELD.OF(nameof(TimeWeaponIdle))),
 #elif GAME_DLL
-		SendPropTime(FIELD.OF(nameof(NextPrimaryAttack))),
-		SendPropTime(FIELD.OF(nameof(NextSecondaryAttack))),
+		SendPropTime64(FIELD.OF(nameof(NextPrimaryAttack))),
+		SendPropTime64(FIELD.OF(nameof(NextSecondaryAttack))),
 		SendPropInt(FIELD.OF(nameof(NextThinkTick))),
-		SendPropTime(FIELD.OF(nameof(TimeWeaponIdle))),
+		SendPropTime64(FIELD.OF(nameof(TimeWeaponIdle))),
 #endif
 	]); public static readonly Class SC_LocalActiveWeaponData = new Class("LocalActiveWeaponData", DT_LocalActiveWeaponData);
 
@@ -141,7 +141,7 @@ public partial class
 		SendPropDataTable("LocalActiveWeaponData", DT_LocalActiveWeaponData, SendProxy_SendActiveLocalWeaponDataTable ),
 		SendPropModelIndex(FIELD.OF(nameof(iViewModelIndex))),
 		SendPropModelIndex(FIELD.OF(nameof(WorldModelIndex))),
-		SendPropInt(FIELD.OF(nameof(State)), 8, PropFlags.Unsigned),
+		SendPropInt(FIELD.OF(nameof(State)), 4, PropFlags.Unsigned),
 		SendPropEHandle(FIELD.OF(nameof(Owner))),
 #endif
 	]);

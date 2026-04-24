@@ -2,12 +2,14 @@ using Game.Server;
 using Game.Shared;
 
 using Source.Common;
+using Source.Common.GUI;
 
 
 namespace Game.Server;
-using FIELD_PP = Source.FIELD<PhysicsProp>;
 using FIELD_DP = Source.FIELD<DynamicProp>;
 using FIELD_PBM = Source.FIELD<PhysBoxMultiplayer>;
+using FIELD_BPD = Source.FIELD<BasePropDoor>;
+using FIELD_PP = Source.FIELD<PhysicsProp>;
 
 public class BaseProp : BaseAnimating
 {
@@ -67,7 +69,12 @@ public class PhysicsPropMultiplayer : PhysicsProp
 
 public class BasePropDoor : DynamicProp
 {
-	public static readonly SendTable DT_BasePropDoor = new(DT_DynamicProp, []);
+	bool Locked;
+	int DoorState;
+	public static readonly SendTable DT_BasePropDoor = new(DT_DynamicProp, [
+		SendPropBool(FIELD_BPD.OF(nameof(Locked))),
+		SendPropInt(FIELD_BPD.OF(nameof(DoorState)))
+	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("BasePropDoor", DT_BasePropDoor).WithManualClassID(StaticClassIndices.CBasePropDoor);
 }
 

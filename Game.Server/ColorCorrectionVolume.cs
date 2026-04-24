@@ -12,7 +12,7 @@ public class ColorCorrectionVolume : BaseEntity
 		SendPropFloat(FIELD.OF(nameof(FadeDuration)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(Weight)), 0, PropFlags.NoScale),
 		SendPropString(FIELD.OF(nameof(LookupFilename))),
-		SendPropInt(FIELD.OF(nameof(ModelIndex)), 16, 0),
+		SendPropInt(FIELD.OF(nameof(ModelIndex)), 14, 0),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("ColorCorrectionVolume", DT_ColorCorrectionVolume).WithManualClassID(StaticClassIndices.CColorCorrectionVolume);
 
