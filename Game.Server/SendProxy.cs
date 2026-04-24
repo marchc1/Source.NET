@@ -26,7 +26,7 @@ public static class SendProxy
 	}
 	// Garry's Mod function. I don't like the VectorXY thing but whatever
 	public static SendProp SendPropTime64(IFieldAccessor field) {
-		return SendPropVectorXY(field, -1, PropFlags.NoScale);
+		return SendPropVectorXY(field, -1, PropFlags.NoScale, proxyFn: SendProxy_DoubleToVectorXY);
 	}
 	public static SendProp SendPropEHandle(IFieldAccessor field, PropFlags flags = 0, SendVarProxyFn? proxyFn = null) {
 		return SendPropInt(field, Constants.NUM_NETWORKED_EHANDLE_BITS, PropFlags.Unsigned | flags, proxyFn ?? SendProxy_EHandleToInt);

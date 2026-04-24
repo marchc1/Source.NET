@@ -1,3 +1,5 @@
+using CommunityToolkit.HighPerformance;
+
 using System.Collections;
 using System.Diagnostics;
 using System.Numerics;
@@ -17,11 +19,19 @@ public static class RecvPropHelpers
 		field.SetValue(instance, data.Value.Vector);
 	}
 
-	public static void RecvProxy_VectorToVectorXY(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
+	public static void RecvProxy_VectorXYToVectorXY(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
 		Vector3 vec = field.GetValue<Vector3>(instance);
 		vec.X = data.Value.Vector[0];
 		vec.Y = data.Value.Vector[1];
 		field.SetValue(instance, vec);
+	}
+
+	// Specialized proxy for Garry's Mod's Time64
+	public static void RecvProxy_VectorXYToDouble(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
+		Span<float> cast = stackalloc float[2];
+		cast[0] = data.Value.Vector.X;
+		cast[1] = data.Value.Vector.Y;
+		field.SetValue(instance, cast.Cast<float, double>()[0]);
 	}
 
 	public static void DataTableRecvProxy_StaticDataTable(RecvProp prop, out object? outInstance, object? instance, IFieldAccessor fieldInfo, int objectID) {
@@ -89,7 +99,7 @@ public static class RecvPropHelpers
 	}
 	public static RecvProp RecvPropVectorXY(IFieldAccessor field, PropFlags flags = 0, RecvVarProxyFn? proxyFn = null) {
 		RecvProp ret = new();
-		proxyFn ??= RecvProxy_VectorToVectorXY;
+		proxyFn ??= RecvProxy_VectorXYToVectorXY;
 
 		ret.FieldInfo = field;
 		ret.RecvType = SendPropType.VectorXY;

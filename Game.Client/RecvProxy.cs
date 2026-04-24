@@ -33,7 +33,7 @@ public static class RecvProxy
 	}
 	// Garry's Mod function. I don't like the VectorXY thing but whatever
 	public static RecvProp RecvPropTime64(IFieldAccessor field) {
-		return RecvPropVectorXY(field);
+		return RecvPropVectorXY(field, 0, RecvProxy_VectorXYToDouble);
 	}
 	public static RecvProp RecvPropBool(IFieldAccessor field) => RecvPropInt(field);
 	public static RecvProp RecvPropIntWithMinusOneFlag(IFieldAccessor field, RecvVarProxyFn? proxyFn = null) => RecvPropInt(field, 0, proxyFn ?? RecvProxy_IntSubOne);
