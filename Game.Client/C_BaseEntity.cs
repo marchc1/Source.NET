@@ -2619,6 +2619,7 @@ public partial class C_BaseEntity : IClientEntity
 					currentPosition += embeddedSize;
 					break;
 				case FieldType.Float:
+				case FieldType.Double:
 				case FieldType.Vector:
 				case FieldType.Quaternion:
 				case FieldType.Integer:
