@@ -116,7 +116,7 @@ public sealed class VTFTexture : IVTFTexture
 
 	public int ComputeMipSize(int mipLevel, ImageFormat format) {
 		ComputeMipLevelDimensions(mipLevel, out int w, out int h, out int d);
-		return ImageLoader.GetMemRequired(w, h, d, Format, false);
+		return ImageLoader.GetMemRequired(w, h, d, format, false);
 	}
 
 	public void ComputeReflectivity() {

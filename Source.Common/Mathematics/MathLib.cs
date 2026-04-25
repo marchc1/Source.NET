@@ -418,6 +418,9 @@ public static class MathLib
 	public static ref Vector2 AsVector2D(this ref Vector4 vec)
 		=> ref new Span<Vector4>(ref vec).Cast<Vector4, float>()[..2].Cast<float, Vector2>()[0];
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector2 AsVector2D(this Vector3 v) => new(v.X, v.Y);
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static vec_t DistTo(this in Vector3 vec, in Vector3 other) => Vector3.Distance(vec, other);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Min(this in Vector3 vec, in Vector3 other) => Vector3.Min(vec, other);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static Vector3 Max(this in Vector3 vec, in Vector3 other) => Vector3.Max(vec, other);
@@ -879,6 +882,9 @@ public static class MathLib
 		}
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static vec_t DotProduct2D(in Vector2 v1, in Vector2 v2) => v1.X * v2.X + v1.Y * v2.Y;
+
 	public static void MatrixBuildPerspectiveX(ref Matrix4x4 dst, float fovX, float aspectRatio, float zNear, float zFar) {
 		float flWidthScale = 1.0f / MathF.Tan(fovX * MathF.PI / 360.0f);
 		float flHeightScale = aspectRatio * flWidthScale;
@@ -915,6 +921,7 @@ public static class MathLib
 	public static void Init(this ref Quaternion v) => v.X = v.Y = v.Z = v.W = 0;
 	public static vec_t Dot(this in Vector3 a, in Vector3 b) => Vector3.Dot(a, b);
 	public static vec_t NormalizeInPlace(this ref Vector3 self) => VectorNormalize(ref self);
+	public static vec_t NormalizeInPlace(this ref Vector2 self) => VectorNormalize(ref self);
 	public static vec_t LengthSqr(this in Vector3 self) => self.LengthSquared();
 
 
@@ -941,6 +948,14 @@ public static class MathLib
 	public static ref Vector4 AsVector4Ref(this ref Quaternion q) => ref new Span<Quaternion>(ref q).Cast<Quaternion, Vector4>()[0];
 	public static ref readonly Vector3 AsVector3ReadOnlyRef(this ref readonly Quaternion q) => ref new ReadOnlySpan<Quaternion>(in q).Cast<Quaternion, float>()[..3].Cast<float, Vector3>()[0];
 	public static ref readonly Vector4 AsVector4ReadOnlyRef(this ref readonly Quaternion q) => ref new ReadOnlySpan<Quaternion>(in q).Cast<Quaternion, Vector4>()[0];
+
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void CalcClosestPointOnAABB(in Vector3 mins, in Vector3 maxs, in Vector3 point, out Vector3 closestOut) {
+		closestOut.X = Math.Clamp(point.X, mins.X, maxs.X);
+		closestOut.Y = Math.Clamp(point.Y, mins.Y, maxs.Y);
+		closestOut.Z = Math.Clamp(point.Z, mins.Z, maxs.Z);
+	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector2 v) => !Vector2.AnyWhereAllBitsSet(Vector2.IsNaN(v));
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector3 v) => !Vector3.AnyWhereAllBitsSet(Vector3.IsNaN(v));
@@ -1298,6 +1313,13 @@ public static class MathLib
 		return len;
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float VectorNormalize(ref Vector2 fwd) {
+		float len = fwd.Length();
+		if (len != 0)
+			fwd = Vector2.Normalize(fwd);
+		return len;
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void CrossProduct(in Vector3 a, in Vector3 b, out Vector3 result) {
 		result = Vector3.Cross(a, b);
 	}
@@ -1577,7 +1599,7 @@ public static class MathLib
 			return AdvSimd.Arm64.MaxAcross(signs).ToScalar() != 0;
 		}
 		return (v.GetElement(0) < 0) | (v.GetElement(1) < 0) |
-			   (v.GetElement(2) < 0) | (v.GetElement(3) < 0);
+				 (v.GetElement(2) < 0) | (v.GetElement(3) < 0);
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1589,7 +1611,7 @@ public static class MathLib
 			return AdvSimd.Arm64.MaxAcross(signs).ToScalar() == 0;
 		}
 		return v.AsUInt32().GetElement(0) == 0 && v.AsUInt32().GetElement(1) == 0 &&
-			   v.AsUInt32().GetElement(2) == 0 && v.AsUInt32().GetElement(3) == 0;
+				 v.AsUInt32().GetElement(2) == 0 && v.AsUInt32().GetElement(3) == 0;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]

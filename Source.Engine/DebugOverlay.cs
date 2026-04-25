@@ -91,6 +91,37 @@ public class OverlayBox : OverlayBase
 	public int A;
 }
 
+public class OverlayLine : OverlayBase
+{
+	public override void Reset() {
+		base.Reset();
+		Type = OverlayType.Line;
+	}
+	public Vector3 Start;
+	public Vector3 End;
+	public int R;
+	public int G;
+	public int B;
+	public int A;
+	public bool NoDepthTest;
+}
+
+public class OverlayTriangle : OverlayBase
+{
+	public override void Reset() {
+		base.Reset();
+		Type = OverlayType.Triangle;
+	}
+	public Vector3 P1;
+	public Vector3 P2;
+	public Vector3 P3;
+	public int R;
+	public int G;
+	public int B;
+	public int A;
+	public bool NoDepthTest;
+}
+
 public class DebugOverlay : IVDebugOverlay
 {
 	private InlineArray1024<char> Text;
@@ -145,7 +176,27 @@ public class DebugOverlay : IVDebugOverlay
 	}
 
 	public void AddLineOverlay(in Vector3 origin, in Vector3 dest, int r, int g, int b, bool noDepthTest, float duration) {
-		throw new NotImplementedException();
+		if (cl.IsPaused())
+			return;
+
+		lock (s_OverlayMutex) {
+			OverlayLine new_overlay = OverlayBase.New<OverlayLine>();
+
+			new_overlay.Start = origin;
+			new_overlay.End = dest;
+
+			new_overlay.R = r;
+			new_overlay.G = g;
+			new_overlay.B = b;
+			new_overlay.A = 255;
+
+			new_overlay.NoDepthTest = noDepthTest;
+
+			new_overlay.SetEndTime(duration);
+
+			new_overlay.NextOverlay = s_pOverlays;
+			s_pOverlays = new_overlay;
+		}
 	}
 
 	public void AddLineOverlayAlpha(in Vector3 origin, in Vector3 dest, int r, int g, int b, int a, bool noDepthTest, float duration) {
@@ -153,7 +204,7 @@ public class DebugOverlay : IVDebugOverlay
 	}
 
 	public void AddScreenTextOverlay(float flXPos, float flYPos, float duration, int r, int g, int b, int a, ReadOnlySpan<char> text) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public void AddSweptBoxOverlay(in Vector3 start, in Vector3 end, in Vector3 mins, in Vector3 max, in QAngle angles, int r, int g, int b, int a, float flDuration) {
@@ -161,7 +212,7 @@ public class DebugOverlay : IVDebugOverlay
 	}
 
 	public void AddTextOverlay(in Vector3 origin, float duration, ReadOnlySpan<char> text) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
 	}
 
 	public void AddTextOverlay(in Vector3 origin, int line_offset, float duration, ReadOnlySpan<char> text) {
@@ -181,7 +232,26 @@ public class DebugOverlay : IVDebugOverlay
 	}
 
 	public void AddTriangleOverlay(in Vector3 p1, in Vector3 p2, in Vector3 p3, int r, int g, int b, int a, bool noDepthTest, float duration) {
-		throw new NotImplementedException();
+		if (cl.IsPaused())
+			return;
+
+		lock (s_OverlayMutex) {
+			OverlayTriangle new_overlay = OverlayBase.New<OverlayTriangle>();
+			new_overlay.P1 = p1;
+			new_overlay.P2 = p2;
+			new_overlay.P3 = p3;
+
+			new_overlay.R = r;
+			new_overlay.G = g;
+			new_overlay.B = b;
+			new_overlay.A = a;
+			new_overlay.NoDepthTest = noDepthTest;
+
+			new_overlay.SetEndTime(duration);
+
+			new_overlay.NextOverlay = s_pOverlays;
+			s_pOverlays = new_overlay;
+		}
 	}
 
 	public static void ClearAllOverlays() {
@@ -268,6 +338,10 @@ public class DebugOverlay : IVDebugOverlay
 
 	private static void DrawOverlay(OverlayBase overlay) {
 		switch (overlay.Type) {
+			case OverlayType.Line:
+				OverlayLine line = (OverlayLine)overlay;
+				renderUtils.RenderLine(line.Start, line.End, new Color(line.R, line.G, line.B, line.A), line.NoDepthTest);
+				break;
 			case OverlayType.Box:
 				OverlayBox box = (OverlayBox)overlay;
 
@@ -276,12 +350,19 @@ public class DebugOverlay : IVDebugOverlay
 
 				renderUtils.RenderWireframeBox(box.Origin, box.Angles, box.Mins, box.Maxs, new Color(box.R, box.G, box.B, 255), true);
 				break;
+			case OverlayType.Triangle:
+				OverlayTriangle tri = (OverlayTriangle)overlay;
+				renderUtils.RenderTriangle(tri.P1, tri.P2, tri.P3, new Color(tri.R, tri.G, tri.B, tri.A), tri.NoDepthTest);
+				break;
 		}
 	}
 
 	private static void DestroyOverlay(OverlayBase overlay) {
 		switch (overlay.Type) {
 			case OverlayType.Line:
+				OverlayLine line = (OverlayLine)overlay;
+				OverlayBase.Free(line);
+				break;
 			case OverlayType.Box:
 				OverlayBox box = (OverlayBox)overlay;
 				OverlayBase.Free(box);
@@ -290,6 +371,8 @@ public class DebugOverlay : IVDebugOverlay
 			case OverlayType.Sphere:
 			case OverlayType.SweptBox:
 			case OverlayType.Triangle:
+				OverlayTriangle tri = (OverlayTriangle)overlay;
+				OverlayBase.Free(tri);
 				break;
 		}
 	}

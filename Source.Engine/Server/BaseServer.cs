@@ -172,6 +172,9 @@ public abstract class BaseServer : IServer
 		}
 	}
 	public virtual void BroadcastMessage(INetMessage msg, IRecipientFilter filter) {
+		// #if DEBUG
+		// 		ConDColorMsg(new Color(255, 0, 0), $"Broadcasting message of type {msg.GetType()} to {filter.GetRecipientCount()} recipients (reliable: {filter.IsReliable()}, init: {filter.IsInitMessage()})\n");
+		// #endif
 		if (filter.IsInitMessage()) {
 			// This really only applies to the first player to connect, but that works in single player well enought
 			if (IsActive())
@@ -210,7 +213,7 @@ public abstract class BaseServer : IServer
 
 				if (!cl.SendNetMsg(msg)) {
 					if (msg.IsReliable()) {
-						DevMsg($"BroadcastMessage: Reliable filter message overflow for client {cl.GetClientName()}");
+						DevMsg($"BroadcastMessage: Reliable filter message overflow for client {cl.GetClientName()}\n");
 					}
 				}
 			}

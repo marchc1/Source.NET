@@ -31,7 +31,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	}
 
 	public void ChangeLevel(ReadOnlySpan<char> s1, ReadOnlySpan<char> s2) {
-		throw new NotImplementedException();
+		DevWarning("ChangeLevel not implemented\n");
 	}
 
 	public void ChangeTeam(ReadOnlySpan<char> pTeamName) {
@@ -42,8 +42,13 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
+	static bool warnedCheckBoxInPVS = false;
 	public bool CheckBoxInPVS(in Vector3 mins, in Vector3 maxs, ReadOnlySpan<byte> checkpvs) {
-		throw new NotImplementedException();
+		if (!warnedCheckBoxInPVS) {
+			Console.WriteLine("CheckBoxInPVS not implemented");
+			warnedCheckBoxInPVS = true;
+		}
+		return false;
 	}
 
 	public int CheckHeadnodeVisible(int nodenum, Span<byte> pvs) {
@@ -194,9 +199,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public void GetGameDir(Span<char> getGameDir) {
-		throw new NotImplementedException();
-	}
+	public void GetGameDir(Span<char> getGameDir) => strcpy(getGameDir, Common.Gamedir);
 
 	public ref readonly CSteamID GetGameServerSteamID() {
 		throw new NotImplementedException();
