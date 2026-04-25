@@ -740,7 +740,7 @@ public partial class C_BaseEntity : IClientEntity
 	public static C_BaseEntity? Instance(BaseHandle handle) => cl_entitylist.GetBaseEntityFromHandle(handle);
 	public static C_BaseEntity? Instance(int ent) => cl_entitylist.GetBaseEntity(ent);
 
-	public bool FClassnameIs(C_BaseEntity? entity, ReadOnlySpan<char> classname) {
+	public static bool FClassnameIs(C_BaseEntity? entity, ReadOnlySpan<char> classname) {
 		if (entity == null)
 			return false;
 

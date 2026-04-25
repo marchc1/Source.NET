@@ -1,13 +1,21 @@
 ﻿global using static Game.Shared.PredictionCopy;
+#if CLIENT_DLL
+using Game.Client;
+#endif
+
 
 using Source;
 using Source.Common;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
 using System.Text;
+
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Game.Shared;
 
@@ -28,7 +36,7 @@ public enum PredictionCopyRelationship
 	ObjectToObject
 }
 
-public delegate void FN_FIELD_COMPARE(ReadOnlySpan<char> classname, ReadOnlySpan<char> fieldname, ReadOnlySpan<char> fieldtype, bool networked, bool noterrorchecked, bool differs, bool withintolerance, ReadOnlySpan<byte> value);
+public delegate void FN_FIELD_COMPARE(ReadOnlySpan<char> classname, ReadOnlySpan<char> fieldname, ReadOnlySpan<char> fieldtype, bool networked, bool noterrorchecked, bool differs, bool withintolerance, ReadOnlySpan<char> value);
 
 public ref struct PredictionIO
 {
@@ -83,7 +91,7 @@ public readonly ref struct EmbeddedSaveState
 	public readonly object? Src_Object;
 	public readonly ReadOnlySpan<char> CurrentClassName;
 
-	public EmbeddedSaveState(TypeDescription? field, DataFrame dest_dataframe, DataFrame src_dataframe, object? dest_object, object? src_object, ReadOnlySpan<char> classname){
+	public EmbeddedSaveState(TypeDescription? field, DataFrame dest_dataframe, DataFrame src_dataframe, object? dest_object, object? src_object, ReadOnlySpan<char> classname) {
 		CurrentField = field;
 		Dest_DataFrame = dest_dataframe;
 		Src_DataFrame = src_dataframe;
@@ -119,8 +127,8 @@ public ref struct PredictionCopy
 	public readonly bool ErrorCheck;
 	public readonly bool ReportErrors;
 	public readonly bool PerformCopy;
-	public readonly bool DescribeFields;
-	public readonly FN_FIELD_COMPARE? Func;
+	public readonly bool ShouldDescribeFields;
+	public readonly FN_FIELD_COMPARE? FieldCompareFunc;
 
 	public int ErrorCount;
 
@@ -140,8 +148,8 @@ public ref struct PredictionCopy
 		ErrorCheck = countErrors;
 		ReportErrors = reportErrors;
 		PerformCopy = performCopy;
-		DescribeFields = describeFields;
-		Func = func;
+		ShouldDescribeFields = describeFields;
+		FieldCompareFunc = func;
 	}
 
 	public PredictionCopy(PredictionCopyType type, object dest, DataFrame src,
@@ -154,8 +162,8 @@ public ref struct PredictionCopy
 		ErrorCheck = countErrors;
 		ReportErrors = reportErrors;
 		PerformCopy = performCopy;
-		DescribeFields = describeFields;
-		Func = func;
+		ShouldDescribeFields = describeFields;
+		FieldCompareFunc = func;
 	}
 
 	public PredictionCopy(PredictionCopyType type, DataFrame dest, DataFrame src,
@@ -168,8 +176,8 @@ public ref struct PredictionCopy
 		ErrorCheck = countErrors;
 		ReportErrors = reportErrors;
 		PerformCopy = performCopy;
-		DescribeFields = describeFields;
-		Func = func;
+		ShouldDescribeFields = describeFields;
+		FieldCompareFunc = func;
 	}
 
 	public PredictionCopy(PredictionCopyType type, object dest, object src,
@@ -182,11 +190,70 @@ public ref struct PredictionCopy
 		ErrorCheck = countErrors;
 		ReportErrors = reportErrors;
 		PerformCopy = performCopy;
-		DescribeFields = describeFields;
-		Func = func;
+		ShouldDescribeFields = describeFields;
+		FieldCompareFunc = func;
 	}
 
+	public void DescribeFields(DiffType dt, ReadOnlySpan<char> txt) {
+		if (!ShouldDescribe)
+			return;
 
+		if (FieldCompareFunc == null)
+			return;
+
+		Assert(CurrentMap != null);
+		Assert(!CurrentClassName.IsEmpty);
+
+		ReadOnlySpan<char> fieldname = "empty";
+		FieldTypeDescFlags flags = 0;
+
+		if (CurrentField != null) {
+			flags = CurrentField.Flags;
+			fieldname = CurrentField.FieldName != null ? CurrentField.FieldName : "NULL";
+		}
+
+		bool isnetworked = (flags & FieldTypeDescFlags.InSendTable) != 0;
+		bool isnoterrorchecked = (flags & FieldTypeDescFlags.NoErrorCheck) != 0;
+
+		FieldCompareFunc(
+			CurrentClassName,
+			fieldname,
+			CurrentField?.FieldType.ToString(),
+			isnetworked,
+			isnoterrorchecked,
+			dt != DiffType.Identical,
+			dt == DiffType.WithinTolerance,
+			txt
+		);
+
+		ShouldDescribe = false;
+	}
+	public void ReportFieldsDiffer(ReadOnlySpan<char> txt) {
+		++ErrorCount;
+
+		if (!ShouldReport)
+			return;
+
+		if (ShouldDescribeFields && FieldCompareFunc != null)
+			return;
+
+		Assert(CurrentMap != null);
+		Assert(!CurrentClassName.IsEmpty);
+
+		ReadOnlySpan<char> fieldname = "empty";
+		FieldTypeDescFlags flags = 0;
+
+		if (CurrentField != null) {
+			flags = CurrentField.Flags;
+			fieldname = CurrentField.FieldName != null ? CurrentField.FieldName : "NULL";
+		}
+
+		if (ErrorCount == 1)
+			Msg("\n");
+
+		Msg($"{ErrorCount} {CurrentClassName}::{fieldname} - {txt}");
+		ShouldReport = false;
+	}
 
 	static TypeDescription? FindFieldByName_R(ReadOnlySpan<char> fieldname, DataMap? dmap) {
 		if (dmap == null)
@@ -434,6 +501,216 @@ public ref struct PredictionCopy
 		}
 	}
 
+	public string Operation;
+
+	public void WatchMsg(ReadOnlySpan<char> txt) {
+#if CLIENT_DLL || GAME_DLL
+		Msg($"{gpGlobals.TickCount} {Operation} {CurrentField?.FieldName} : {txt}\n");
+#endif
+	}
+
+	public void DescribeData(DiffType dt, int size, PredictionIO outdata, PredictionIO indata) {
+		if (!ErrorCheck) return;
+		if (dt == DiffType.Differs) ReportFieldsDiffer($"binary data differes ({size} bytes)\n");
+		DescribeFields(dt, $"binary ({size} bytes)\n");
+	}
+
+	public void WatchData(DiffType dt, int size, PredictionIO outdata, PredictionIO indata) {
+		if (WatchField != CurrentField)
+			return;
+		WatchMsg($"binary ({size} bytes)");
+	}
+
+	public void DescribeShort(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (!ErrorCheck) return;
+		int invalue = indata.Get<int>(0), outvalue = outdata.Get<int>(0);
+		if (dt == DiffType.Differs) ReportFieldsDiffer($"short differs (net {invalue} pred {outvalue}) diff({outvalue - invalue})\n");
+		DescribeFields(dt, $"short ({outvalue})\n");
+	}
+
+	public void WatchShort(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (WatchField != CurrentField)
+			return;
+		WatchMsg($"short ({outdata.Get<int>(0)})");
+	}
+
+	// TODO: Model indices for the int functions.
+	public void DescribeInt(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (!ErrorCheck) return;
+		int invalue = indata.Get<int>(0), outvalue = outdata.Get<int>(0);
+		if (dt == DiffType.Differs) ReportFieldsDiffer($"int differs (net {invalue} pred {outvalue}) diff({outvalue - invalue})\n");
+		DescribeFields(dt, $"int ({outvalue})\n");
+	}
+
+	public void WatchInt(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (WatchField != CurrentField)
+			return;
+		WatchMsg($"int ({outdata.Get<int>(0)})");
+	}
+
+	public void DescribeBool(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (!ErrorCheck) return;
+		string invalue = indata.Get<bool>(0) ? "true" : "false", outvalue = outdata.Get<bool>(0) ? "true" : "false";
+		if (dt == DiffType.Differs) ReportFieldsDiffer($"bool differs (net {invalue} pred {outvalue})\n");
+		DescribeFields(dt, $"bool ({outvalue})\n");
+	}
+
+	public void WatchBool(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (WatchField != CurrentField)
+			return;
+		WatchMsg($"bool ({(outdata.Get<bool>(0) ? "true" : "false")})");
+	}
+
+	public void DescribeFloat(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (!ErrorCheck) return;
+		float invalue = indata.Get<float>(0), outvalue = outdata.Get<float>(0);
+		if (dt == DiffType.Differs) ReportFieldsDiffer($"float differs (net {invalue} pred {outvalue}) diff({outvalue - invalue})\n");
+		DescribeFields(dt, $"float ({outvalue})\n");
+	}
+
+	public void WatchFloat(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (WatchField != CurrentField)
+			return;
+		WatchMsg($"float ({outdata.Get<float>(0)})");
+	}
+
+	public void DescribeDouble(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (!ErrorCheck) return;
+		double invalue = indata.Get<double>(0), outvalue = outdata.Get<double>(0);
+		if (dt == DiffType.Differs) ReportFieldsDiffer($"double differs (net {invalue} pred {outvalue}) diff({outvalue - invalue})\n");
+		DescribeFields(dt, $"double ({outvalue})\n");
+	}
+
+	public void WatchDouble(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (WatchField != CurrentField)
+			return;
+		WatchMsg($"double ({outdata.Get<double>(0)})");
+	}
+	public static int GetPredictionIOStringLength(PredictionIO input) {
+		int i = 0;
+		while (true) {
+			char ic = input.Get<char>(i);
+			if (ic == '\0') break;
+			i++;
+		}
+		return i;
+	}
+	public static Span<char> GetPredictionIOString(PredictionIO input, Span<char> buffer) {
+		int i = 0;
+		while (true) {
+			char ic = input.Get<char>(i);
+			if (ic == '\0') break;
+			buffer[i] = ic;
+			i++;
+		}
+		return buffer[..i];
+	}
+	public void DescribeString(DiffType dt, PredictionIO outstringd, PredictionIO instringd) {
+		if (!ErrorCheck) return;
+
+		ReadOnlySpan<char> outstring = GetPredictionIOString(outstringd, stackalloc char[GetPredictionIOStringLength(outstringd)]);
+		ReadOnlySpan<char> instring = GetPredictionIOString(instringd, stackalloc char[GetPredictionIOStringLength(instringd)]);
+
+		if (dt == DiffType.Differs) ReportFieldsDiffer($"string differs (net {instring} pred {outstring})\n");
+
+		DescribeFields(dt, $"string ({outstring})\n");
+	}
+
+	public void WatchString(DiffType dt, PredictionIO outstringd, PredictionIO instringd) {
+		if (WatchField != CurrentField)
+			return;
+		ReadOnlySpan<char> outstring = GetPredictionIOString(outstringd, stackalloc char[GetPredictionIOStringLength(outstringd)]);
+		WatchMsg($"string ({outstring.SliceNullTerminatedString()})");
+	}
+
+	public void DescribeVector(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (!ErrorCheck) return;
+		Vector3 outValue = outdata.Get<Vector3>(0);
+		if (dt == DiffType.Differs) {
+			int i = 0;
+			Vector3 inValue = indata.Get<Vector3>(0);
+			Vector3 delta = outValue - inValue;
+
+			ReportFieldsDiffer($"vec[] differs (1st diff) (net {inValue.X} {inValue.Y} {inValue.Z} - pred {outValue.X} {outValue.Y} {outValue.Z}) delta({delta.X} {delta.Y} {delta.Z})\n");
+		}
+
+		DescribeFields(dt, $"vector ({outValue.X} {outValue.Y} {outValue.Z})\n");
+	}
+
+	public void WatchVector(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (WatchField != CurrentField)
+			return;
+		Vector3 outValue = outdata.Get<Vector3>(0);
+		WatchMsg($"vector ({outValue.X} {outValue.Y} {outValue.Z})");
+	}
+
+	public void DescribeQuaternion(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (!ErrorCheck) return;
+		Quaternion outValue = outdata.Get<Quaternion>(0);
+		if (dt == DiffType.Differs) {
+			int i = 0;
+			Quaternion inValue = indata.Get<Quaternion>(0);
+			Quaternion delta = outValue - inValue;
+
+			ReportFieldsDiffer($"quaternion[] differs (1st diff) (net {inValue.X} {inValue.Y} {inValue.Z} {inValue.W} - pred {outValue.X} {outValue.Y} {outValue.Z} {outValue.Z}) delta({delta.X} {delta.Y} {delta.Z} {outValue.W})\n");
+		}
+
+		DescribeFields(dt, $"quaternion ({outValue.X} {outValue.Y} {outValue.Z} {outValue.W})\n");
+	}
+
+	public void WatchQuaternion(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (WatchField != CurrentField)
+			return;
+		Quaternion outValue = outdata.Get<Quaternion>(0);
+		WatchMsg($"quaternion ({outValue.X} {outValue.Y} {outValue.Z} {outValue.W})");
+	}
+
+	public void DescribeEHandle(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (!ErrorCheck) return;
+		EHANDLE invalue = indata.Get<EHANDLE>(0), outvalue = outdata.Get<EHANDLE>(0);
+
+		if (dt == DiffType.Differs) {
+			int i = 0;
+			ReportFieldsDiffer($"EHandles differ (net) 0x{invalue.Index:X} (pred) 0x{outvalue.Index:X}\n");
+		}
+
+#if CLIENT_DLL
+		C_BaseEntity? ent = outvalue.Get();
+		if (ent != null) {
+			ReadOnlySpan<char> classname = ent.GetClassname();
+			if (classname.IsStringEmpty)
+				classname = ent.GetType().Name;
+
+			DescribeFields(dt, $"EHandle (0x{outvalue.Index:X}->{classname})");
+		}
+		else
+			DescribeFields(dt, "EHandle (NULL)");
+
+#else
+		DescribeFields(dt, $"EHandle (0x{outvalue.Index:X})");
+#endif
+	}
+
+	public void WatchEHandle(DiffType dt, PredictionIO outdata, PredictionIO indata, int size) {
+		if (WatchField != CurrentField)
+			return;
+#if CLIENT_DLL
+		C_BaseEntity? ent = outdata.Get<EHANDLE>(0).Get();
+		if (ent != null) {
+			ReadOnlySpan<char> classname = ent.GetClassname();
+			if (classname.IsStringEmpty)
+				classname = ent.GetType().Name;
+
+			WatchMsg($"EHandle (0x{outdata.Get<EHANDLE>(0).Index:X}->{classname})");
+		}
+		else
+			WatchMsg("EHandle (NULL)");
+#else
+		WatchMsg($"EHandle (0x{outdata.Get<EHANDLE>(0).Index:X})");
+#endif
+	}
+
+
 	void CopyFields(int chaincount, DataMap pRootMap, TypeDescription[] pFields) {
 		int i;
 		FieldTypeDescFlags flags;
@@ -548,15 +825,15 @@ public ref struct PredictionCopy
 				case FieldType.Float: {
 						difftype = CompareFloat(pOutputData, pInputData, fieldSize);
 						CopyFloat(difftype, pOutputData, pInputData, fieldSize);
-						// if (ErrorCheck && ShouldDescribe) DescribeFloat(difftype, pOutputData, pInputData, fieldSize);
-						// if (bShouldWatch) WatchFloat(difftype, pOutputData, pInputData, fieldSize);
+						if (ErrorCheck && ShouldDescribe) DescribeFloat(difftype, pOutputData, pInputData, fieldSize);
+						if (bShouldWatch) WatchFloat(difftype, pOutputData, pInputData, fieldSize);
 					}
 					break;
 				case FieldType.Double: {
 						difftype = CompareDouble(pOutputData, pInputData, fieldSize);
 						CopyDouble(difftype, pOutputData, pInputData, fieldSize);
-						// if (ErrorCheck && ShouldDescribe) DescribeFloat(difftype, pOutputData, pInputData, fieldSize);
-						// if (bShouldWatch) WatchFloat(difftype, pOutputData, pInputData, fieldSize);
+						if (ErrorCheck && ShouldDescribe) DescribeDouble(difftype, pOutputData, pInputData, fieldSize);
+						if (bShouldWatch) WatchDouble(difftype, pOutputData, pInputData, fieldSize);
 					}
 					break;
 
@@ -568,8 +845,8 @@ public ref struct PredictionCopy
 				case FieldType.String: {
 						difftype = CompareString(pOutputData, pInputData);
 						CopyString(difftype, pOutputData, pInputData);
-						// if (ErrorCheck && ShouldDescribe) DescribeString(difftype, pOutputData, pInputData);
-						// if (bShouldWatch) WatchString(difftype, pOutputData, pInputData);
+						if (ErrorCheck && ShouldDescribe) DescribeString(difftype, pOutputData, pInputData);
+						if (bShouldWatch) WatchString(difftype, pOutputData, pInputData);
 					}
 					break;
 
@@ -586,70 +863,71 @@ public ref struct PredictionCopy
 				case FieldType.Vector: {
 						difftype = CompareVector(pOutputData, pInputData, fieldSize);
 						CopyVector(difftype, pOutputData, pInputData, fieldSize);
-						// if (ErrorCheck && ShouldDescribe) DescribeVector(difftype, pOutputData, pInputData, fieldSize);
-						// if (bShouldWatch) WatchVector(difftype, pOutputData, pInputData, fieldSize);
+						if (ErrorCheck && ShouldDescribe) DescribeVector(difftype, pOutputData, pInputData, fieldSize);
+						if (bShouldWatch) WatchVector(difftype, pOutputData, pInputData, fieldSize);
 					}
 					break;
 
 				case FieldType.Quaternion: {
 						difftype = CompareQuaternion(pOutputData, pInputData, fieldSize);
 						CopyQuaternion(difftype, pOutputData, pInputData, fieldSize);
-						// if (ErrorCheck && ShouldDescribe) DescribeQuaternion(difftype, pOutputData, pInputData, fieldSize);
-						// if (bShouldWatch) WatchQuaternion(difftype, pOutputData, pInputData, fieldSize);
+						if (ErrorCheck && ShouldDescribe) DescribeQuaternion(difftype, pOutputData, pInputData, fieldSize);
+						if (bShouldWatch) WatchQuaternion(difftype, pOutputData, pInputData, fieldSize);
 					}
 					break;
 
 				case FieldType.Color32: {
 						difftype = CompareColor(pOutputData, pInputData, fieldSize);
 						CopyColor(difftype, pOutputData, pInputData, fieldSize);
-						// if (ErrorCheck && ShouldDescribe) DescribeData(difftype, 4 * fieldSize, pOutputData, pInputData);
-						// if (bShouldWatch) WatchData(difftype, 4 * fieldSize, pOutputData, pInputData);
+						if (ErrorCheck && ShouldDescribe) DescribeData(difftype, 4 * fieldSize, pOutputData, pInputData);
+						if (bShouldWatch) WatchData(difftype, 4 * fieldSize, pOutputData, pInputData);
 					}
 					break;
 
 				case FieldType.Boolean: {
 						difftype = CompareBool(pOutputData, pInputData, fieldSize);
 						CopyBool(difftype, pOutputData, pInputData, fieldSize);
-						// if (ErrorCheck && ShouldDescribe) DescribeBool(difftype, pOutputData, pInputData, fieldSize);
-						// if (bShouldWatch) WatchBool(difftype, pOutputData, pInputData, fieldSize);
+						if (ErrorCheck && ShouldDescribe) DescribeBool(difftype, pOutputData, pInputData, fieldSize);
+						if (bShouldWatch) WatchBool(difftype, pOutputData, pInputData, fieldSize);
 					}
 					break;
 
 				case FieldType.Integer: {
 						difftype = CompareInt(pOutputData, pInputData, fieldSize);
 						CopyInt(difftype, pOutputData, pInputData, fieldSize);
-						// if (ErrorCheck && ShouldDescribe) DescribeInt(difftype, pOutputData, pInputData, fieldSize);
-						// if (bShouldWatch) WatchInt(difftype, pOutputData, pInputData, fieldSize);
+						if (ErrorCheck && ShouldDescribe) DescribeInt(difftype, pOutputData, pInputData, fieldSize);
+						if (bShouldWatch) WatchInt(difftype, pOutputData, pInputData, fieldSize);
 					}
 					break;
 
 				case FieldType.Short: {
 						difftype = CompareShort(pOutputData, pInputData, fieldSize);
 						CopyShort(difftype, pOutputData, pInputData, fieldSize);
-						// if (ErrorCheck && ShouldDescribe) DescribeShort(difftype, pOutputData, pInputData, fieldSize);
-						// if (bShouldWatch) WatchShort(difftype, pOutputData, pInputData, fieldSize);
+						if (ErrorCheck && ShouldDescribe) DescribeShort(difftype, pOutputData, pInputData, fieldSize);
+						if (bShouldWatch) WatchShort(difftype, pOutputData, pInputData, fieldSize);
 					}
 					break;
 
 				case FieldType.Character: {
 						difftype = CompareByte(pOutputData, pInputData, fieldSize);
 						CopyByte(difftype, pOutputData, pInputData, fieldSize);
-						// if (ErrorCheck && ShouldDescribe) DescribeInt(difftype, &valOut, &valIn, fieldSize);
-						// if (bShouldWatch) WatchData(difftype, fieldSize, (pOutputData), pInputData);
+
+						if (ErrorCheck && ShouldDescribe) DescribeInt(difftype, pOutputData, pInputData, fieldSize);
+						if (bShouldWatch) WatchData(difftype, fieldSize, (pOutputData), pInputData);
 					}
 					break;
 				case FieldType.StringCharacter: {
 						difftype = CompareChar(pOutputData, pInputData, fieldSize);
 						CopyChar(difftype, pOutputData, pInputData, fieldSize);
-						// if (ErrorCheck && ShouldDescribe) DescribeInt(difftype, &valOut, &valIn, fieldSize);
-						// if (bShouldWatch) WatchData(difftype, fieldSize, (pOutputData), pInputData);
+						if (ErrorCheck && ShouldDescribe) DescribeInt(difftype, pOutputData, pInputData, fieldSize);
+						if (bShouldWatch) WatchData(difftype, fieldSize, (pOutputData), pInputData);
 					}
 					break;
 				case FieldType.EHandle: {
 						difftype = CompareEHandle(pOutputData, pInputData, fieldSize);
 						CopyEHandle(difftype, pOutputData, pInputData, fieldSize);
-						// if (ErrorCheck && ShouldDescribe) DescribeEHandle(difftype, pOutputData, pInputData, fieldSize);
-						// if (bShouldWatch) WatchEHandle(difftype, pOutputData, pInputData, fieldSize);
+						if (ErrorCheck && ShouldDescribe) DescribeEHandle(difftype, pOutputData, pInputData, fieldSize);
+						if (bShouldWatch) WatchEHandle(difftype, pOutputData, pInputData, fieldSize);
 					}
 					break;
 				case FieldType.Function: {
