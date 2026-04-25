@@ -274,7 +274,7 @@ public ref struct PredictionCopy
 	}
 
 	delegate DiffType COMPARE_FUNC<T>(T? o, T? i);
-	delegate DiffType COMPARE_FUNC_TOL<T>(bool usetolerance, float tolerance, T? o, T? i);
+	delegate DiffType COMPARE_FUNC_TOL<T>(bool usetolerance, double tolerance, T? o, T? i);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	DiffType BASIC_COMPARE_TOLERANCE<T>(in PredictionIO output, in PredictionIO input, int count, COMPARE_FUNC_TOL<T> fn) where T : IEquatable<T> {
@@ -282,9 +282,9 @@ public ref struct PredictionCopy
 
 		DiffType retval = DiffType.Identical;
 		if (CanCheck()) {
-			float tolerance = CurrentField.FieldTolerance;
-			Assert(tolerance >= 0.0f);
-			bool usetolerance = tolerance > 0.0f;
+			double tolerance = CurrentField!.FieldTolerance;
+			Assert(tolerance >= 0.0);
+			bool usetolerance = tolerance > 0.0;
 
 			for (int i = 0; i < count; i++) {
 				T? op = output.Get<T>(i);
@@ -314,6 +314,11 @@ public ref struct PredictionCopy
 	DiffType CompareBool(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE<bool>(in output, in input, count);
 	DiffType CompareFloat(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE_TOLERANCE<float>(in output, in input, count, static (usetolerance, tolerance, op, ip) => {
 		if (usetolerance && MathF.Abs(op - ip) <= tolerance)
+			return DiffType.WithinTolerance;
+		return DiffType.Differs;
+	});
+	DiffType CompareDouble(in PredictionIO output, in PredictionIO input, int count) => BASIC_COMPARE_TOLERANCE<double>(in output, in input, count, static (usetolerance, tolerance, op, ip) => {
+		if (usetolerance && Math.Abs(op - ip) <= tolerance)
 			return DiffType.WithinTolerance;
 		return DiffType.Differs;
 	});
@@ -382,6 +387,11 @@ public ref struct PredictionCopy
 		if (!PerformCopy) return;
 		if (dt == DiffType.Identical) return;
 		for (int i = 0; i < count; i++) output.Set<float>(input.Get<float>(i), i);
+	}
+	void CopyDouble(DiffType dt, in PredictionIO output, in PredictionIO input, int count) {
+		if (!PerformCopy) return;
+		if (dt == DiffType.Identical) return;
+		for (int i = 0; i < count; i++) output.Set<double>(input.Get<double>(i), i);
 	}
 	void CopyString(DiffType dt, in PredictionIO output, in PredictionIO input) {
 		if (!PerformCopy) return;
@@ -538,6 +548,13 @@ public ref struct PredictionCopy
 				case FieldType.Float: {
 						difftype = CompareFloat(pOutputData, pInputData, fieldSize);
 						CopyFloat(difftype, pOutputData, pInputData, fieldSize);
+						// if (ErrorCheck && ShouldDescribe) DescribeFloat(difftype, pOutputData, pInputData, fieldSize);
+						// if (bShouldWatch) WatchFloat(difftype, pOutputData, pInputData, fieldSize);
+					}
+					break;
+				case FieldType.Double: {
+						difftype = CompareDouble(pOutputData, pInputData, fieldSize);
+						CopyDouble(difftype, pOutputData, pInputData, fieldSize);
 						// if (ErrorCheck && ShouldDescribe) DescribeFloat(difftype, pOutputData, pInputData, fieldSize);
 						// if (bShouldWatch) WatchFloat(difftype, pOutputData, pInputData, fieldSize);
 					}
