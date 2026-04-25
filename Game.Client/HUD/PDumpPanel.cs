@@ -121,7 +121,7 @@ public class PDumpPanel : Panel, IHudElement
 		if (fieldname.IsEmpty)
 			return;
 
-		DumpEntityInfo.Add(default); int idx = DumpEntityInfo.Count;
+		DumpEntityInfo.Add(default); int idx = DumpEntityInfo.Count - 1;
 
 		ref DumpInfo slot = ref DumpEntityInfo.AsSpan()[idx];
 
