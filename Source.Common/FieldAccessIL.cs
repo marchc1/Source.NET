@@ -143,9 +143,6 @@ namespace Source.Common
 									il.LoggedEmit(OpCodes.Ldobj, index.ElementType);
 								}
 								else {
-									LoadValue(accessor, il);
-									PerformAutocast(accessor, il);
-
 									if (index.ElementType == typeof(bool)) il.LoggedEmit(OpCodes.Ldelem_I1);
 									else if (index.ElementType == typeof(sbyte)) il.LoggedEmit(OpCodes.Ldelem_I1);
 									else if (index.ElementType == typeof(byte)) il.LoggedEmit(OpCodes.Ldelem_I1);
