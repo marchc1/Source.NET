@@ -17,12 +17,8 @@ public class C_HL2PlayerLocalData {
 		RecvPropInt(FIELD.OF(nameof(SquadMedicCount))),
 		RecvPropBool(FIELD.OF(nameof(SquadInFollowMode))),
 		RecvPropBool(FIELD.OF(nameof(WeaponLowered))),
-		RecvPropEHandle(FIELD.OF(nameof(AutoAimTargetHandle))),
-		RecvPropVector(FIELD.OF(nameof(AutoAimPoint))),
 		RecvPropEHandle(FIELD.OF(nameof(Ladder))),
 		RecvPropBool(FIELD.OF(nameof(DisplayReticle))),
-		RecvPropBool(FIELD.OF(nameof(StickyAutoAim))),
-		RecvPropBool(FIELD.OF(nameof(AutoAimTarget))),
 	]); public static readonly ClientClass CC_Local = new ClientClass("HL2Local", null, null, DT_HL2Local);
 
 	public float SuitPower;
