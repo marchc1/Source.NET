@@ -1,9 +1,10 @@
-// #define LOGGED_EMIT_ENABLE
+//#define LOGGED_EMIT_ENABLE
 
 using Source.Common;
 using Source.Common.Mathematics;
 
 using System.Collections.Frozen;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Reflection;
@@ -137,9 +138,9 @@ namespace Source.Common
 								il.LoggedEmit(OpCodes.Ldc_I4, index.Index);
 
 								if (index.ElementType.IsValueType && !index.ElementType.IsPrimitive) {
-									il.Emit(OpCodes.Ldelema, index.ElementType);
+									il.LoggedEmit(OpCodes.Ldelema, index.ElementType);
 
-									il.Emit(OpCodes.Ldobj, index.ElementType);
+									il.LoggedEmit(OpCodes.Ldobj, index.ElementType);
 								}
 								else {
 									LoadValue(accessor, il);
@@ -224,14 +225,14 @@ namespace Source.Common
 					else if (typeof(T) == typeof(long)) il.LoggedEmit(OpCodes.Conv_I8);
 					else if (typeof(T) == typeof(float)) il.LoggedEmit(OpCodes.Conv_R4);
 					else if (typeof(T) == typeof(double)) il.LoggedEmit(OpCodes.Conv_R8);
-					else if (!typeof(T).IsValueType && accessor.StoringType.IsValueType) 
+					else if (!typeof(T).IsValueType && accessor.StoringType.IsValueType)
 						throw new NotImplementedException("Value type cannot be boxed here, please refactor.");
 					else il.LoggedEmit(OpCodes.Castclass, enumTypeUnderflying);
 				}
 				else {
-					if (!typeof(T).IsValueType && accessor.StoringType.IsValueType) 
+					if (!typeof(T).IsValueType && accessor.StoringType.IsValueType)
 						throw new NotImplementedException("Value type cannot be boxed here, please refactor.");
-					
+
 					il.LoggedEmit(OpCodes.Castclass, typeof(T));
 				}
 			}
@@ -282,12 +283,12 @@ namespace Source.Common
 
 
 							if (index.ElementType.IsValueType && !index.ElementType.IsPrimitive) {
-								il.Emit(OpCodes.Ldelema, index.ElementType);
+								il.LoggedEmit(OpCodes.Ldelema, index.ElementType);
 
 								LoadValue(accessor, il);
 								PerformAutocast(accessor, il);
 
-								il.Emit(OpCodes.Stobj, index.ElementType);
+								il.LoggedEmit(OpCodes.Stobj, index.ElementType);
 							}
 							else {
 								LoadValue(accessor, il);
@@ -658,10 +659,17 @@ namespace Source.Common
 
 	public static class ILAssembler
 	{
+#if LOGGED_EMIT_ENABLE
+		public static void CheckConditionDebuggerBreak(OpCode code) {
+			// if (code == OpCodes.Nop)
+				// Debugger.Break();
+		}
+#endif
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void LoggedEmit(this ILGenerator il, OpCode code) {
 #if LOGGED_EMIT_ENABLE
 			Console.WriteLine(code);
+			CheckConditionDebuggerBreak(code);
 #endif
 			il.Emit(code);
 		}
@@ -669,6 +677,7 @@ namespace Source.Common
 		public static void LoggedEmit(this ILGenerator il, OpCode code, FieldInfo field) {
 #if LOGGED_EMIT_ENABLE
 			Console.WriteLine($"{code} {field}");
+			CheckConditionDebuggerBreak(code);
 #endif
 			il.Emit(code, field);
 		}
@@ -676,6 +685,7 @@ namespace Source.Common
 		public static void LoggedEmit(this ILGenerator il, OpCode code, MethodInfo method) {
 #if LOGGED_EMIT_ENABLE
 			Console.WriteLine($"{code} {method}");
+			CheckConditionDebuggerBreak(code);
 #endif
 			il.Emit(code, method);
 		}
@@ -683,6 +693,7 @@ namespace Source.Common
 		public static void LoggedEmit(this ILGenerator il, OpCode code, Type type) {
 #if LOGGED_EMIT_ENABLE
 			Console.WriteLine($"{code} {type}");
+			CheckConditionDebuggerBreak(code);
 #endif
 			il.Emit(code, type);
 		}
@@ -690,6 +701,7 @@ namespace Source.Common
 		public static void LoggedEmit(this ILGenerator il, OpCode code, int v) {
 #if LOGGED_EMIT_ENABLE
 			Console.WriteLine($"{code} {v}");
+			CheckConditionDebuggerBreak(code);
 #endif
 			il.Emit(code, v);
 		}

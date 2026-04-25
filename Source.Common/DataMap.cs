@@ -277,6 +277,7 @@ namespace Source
 				switch (td.FieldType) {
 					case FieldType.Embedded: framecontainer = new DataFrameContainer<DataFrame>(new DataFrame(td.TD)); break;
 					case FieldType.Float: framecontainer = new DataFrameContainer<float>(td.FieldSize); break;
+					case FieldType.Double: framecontainer = new DataFrameContainer<double>(td.FieldSize); break;
 					case FieldType.Vector: framecontainer = new DataFrameContainer<Vector3>(td.FieldSize); break;
 					case FieldType.Quaternion: framecontainer = new DataFrameContainer<Quaternion>(td.FieldSize); break;
 					case FieldType.Integer: framecontainer = new DataFrameContainer<int>(td.FieldSize); break;
