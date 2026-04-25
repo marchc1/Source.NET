@@ -2,7 +2,10 @@
 
 using Source;
 using Source.Common;
+using Source.Common.Physics;
+using Source.GUI.Controls;
 
+using DEFINE = Source.DEFINE<Game.Client.C_BaseCombatCharacter>;
 using FIELD = Source.FIELD<Game.Client.C_BaseCombatCharacter>;
 
 namespace Game.Client;
@@ -14,6 +17,13 @@ public partial class C_BaseCombatCharacter : C_BaseFlex
 	]);
 	public override bool IsBaseCombatCharacter() => true;
 	public static readonly ClientClass CC_BCCLocalPlayerExclusive = new ClientClass("BCCLocalPlayerExclusive", null, null, DT_BCCLocalPlayerExclusive);
+
+	public static readonly new DataMap PredMap = new(nameof(C_BaseCombatCharacter), C_BaseFlex.PredMap, [
+		DEFINE.PRED_ARRAY( nameof(Ammo), FieldType.Boolean, MAX_AMMO_TYPES, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(NextAttack), FieldType.Double, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(ActiveWeapon), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_ARRAY( nameof(MyWeapons), FieldType.EHandle, MAX_WEAPONS, FieldTypeDescFlags.InSendTable ),
+	]); public override DataMap? GetPredDescMap() => PredMap;
 
 	public static readonly RecvTable DT_BaseCombatCharacter = new(DT_BaseFlex, [
 		RecvPropDataTable( "bcc_localdata", DT_BCCLocalPlayerExclusive ),

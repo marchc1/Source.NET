@@ -687,12 +687,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public static readonly new DataMap PredMap = new(nameof(C_BaseAnimating), C_BaseEntity.PredMap, [
 		DEFINE.PRED_FIELD( nameof(Skin), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD( nameof(Body), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
-		DEFINE.PRED_FIELD( nameof(Sequence), FieldType.Integer, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.NoErrorCheck ),
-		DEFINE.PRED_FIELD( nameof(PlaybackRate), FieldType.Float, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.NoErrorCheck ),
-		DEFINE.PRED_FIELD( nameof(Cycle), FieldType.Float, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.NoErrorCheck ),
-		DEFINE.PRED_ARRAY_TOL( nameof(EncodedController), FieldType.Float, Studio.MAXSTUDIOBONECTRLS, FieldTypeDescFlags.InSendTable, 0.02f ),
 		DEFINE.FIELD( nameof(PrevSequence), FieldType.Integer ),
-		DEFINE.PRED_FIELD( nameof(NewSequenceParity), FieldType.Integer, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.NoErrorCheck ),
 		DEFINE.PRED_FIELD( nameof(ResetEventsParity), FieldType.Integer, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.NoErrorCheck ),
 		DEFINE.PRED_FIELD( nameof(MuzzleFlashParity), FieldType.Character, FieldTypeDescFlags.InSendTable ),
 	]); public override DataMap? GetPredDescMap() => PredMap;

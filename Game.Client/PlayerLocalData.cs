@@ -13,7 +13,7 @@ using DEFINE = Source.DEFINE<Game.Client.PlayerLocalData>;
 public class PlayerLocalData
 {
 	public static readonly DataMap PredMap = new(nameof(PlayerLocalData), [
-		DEFINE.FIELD( nameof(StepSide), FieldType.Integer ),
+		// DEFINE.FIELD( nameof(StepSide), FieldType.Integer ),
 		DEFINE.PRED_FIELD( nameof(HideHUD), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD_TOL( nameof(PunchAngle), FieldType.Vector, FieldTypeDescFlags.InSendTable, 0.125f ),
 		DEFINE.PRED_FIELD_TOL( nameof(PunchAngleVel), FieldType.Vector, FieldTypeDescFlags.InSendTable, 0.125f ),
@@ -29,9 +29,16 @@ public class PlayerLocalData
 		DEFINE.PRED_FIELD( nameof(JumpTime), FieldType.Float, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD_TOL( nameof(FallVelocity), FieldType.Float, FieldTypeDescFlags.InSendTable, 0.5f ),
 		DEFINE.FIELD( nameof(OldButtons), FieldType.Integer ),
-		DEFINE.FIELD( nameof(OldForwardMove), FieldType.Float ),
 		DEFINE.PRED_FIELD( nameof(StepSize), FieldType.Float, FieldTypeDescFlags.InSendTable ),
 		DEFINE.FIELD( nameof(FOVRate), FieldType.Float ),
+		DEFINE.PRED_FIELD( nameof(SprintSpeed), FieldType.Float, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(WalkSpeed), FieldType.Float, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(SlowWalkSpeed), FieldType.Float, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(LadderSpeed), FieldType.Float, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(CrouchedWalkSpeed), FieldType.Float, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(DuckSpeed), FieldType.Float, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(UnDuckSpeed), FieldType.Float, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(DuckToggled), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
 	]);
 
 	public static readonly RecvTable DT_Local = new([
