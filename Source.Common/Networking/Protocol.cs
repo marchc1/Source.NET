@@ -122,10 +122,6 @@ public static class SVC
 	/// </summary>
 	public const byte Prefetch = 28;
 	/// <summary>
-	/// display a menu from a plugin
-	/// </summary>
-	public const byte Menu = 29;
-	/// <summary>
 	/// list of known games events and fields
 	/// </summary>
 	public const byte GameEventList = 30;
