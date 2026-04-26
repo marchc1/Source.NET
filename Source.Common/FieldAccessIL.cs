@@ -226,6 +226,9 @@ namespace Source.Common
 						throw new NotImplementedException("Value type cannot be boxed here, please refactor.");
 					else il.LoggedEmit(OpCodes.Castclass, enumTypeUnderflying);
 				}
+				// TODO: Converting an InlineArray to a string.
+				// I don't like it... but it's required unfortunately in SendProxy_StringToString.
+				// Maybe we can get away with it, especially if interned?
 				else {
 					if (!typeof(T).IsValueType && accessor.StoringType.IsValueType)
 						throw new NotImplementedException("Value type cannot be boxed here, please refactor.");
