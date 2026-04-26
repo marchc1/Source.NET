@@ -273,13 +273,13 @@ public class GameMovement : IGameMovement
 		flatvelocity[2] = 0;
 
 		// Must be moving
-		curspeed = MathLib.VectorNormalize(ref flatvelocity);
+		curspeed = MathLib.VectorNormalizeFast(ref flatvelocity);
 
 		// see if near an edge
 		flatforward[0] = forward[0];
 		flatforward[1] = forward[1];
 		flatforward[2] = 0;
-		MathLib.VectorNormalize(ref flatforward);
+		MathLib.VectorNormalizeFast(ref flatforward);
 
 		// Are we backing into water from steps or something?  If so, don't pop forward
 		if (curspeed != 0.0 && (MathLib.DotProduct(flatvelocity, flatforward) < 0.0))
@@ -355,7 +355,7 @@ public class GameMovement : IGameMovement
 
 		// Copy it over and determine speed
 		MathLib.VectorCopy(wishvel, out wishdir);
-		wishspeed = MathLib.VectorNormalize(ref wishdir);
+		wishspeed = MathLib.VectorNormalizeFast(ref wishdir);
 
 		// Cap speed.
 		if (wishspeed > mv.MaxSpeed) {
@@ -368,7 +368,7 @@ public class GameMovement : IGameMovement
 
 		// Water friction
 		MathLib.VectorCopy(mv.Velocity, out temp);
-		speed = MathLib.VectorNormalize(ref temp);
+		speed = MathLib.VectorNormalizeFast(ref temp);
 		if (speed != 0) {
 			newspeed = speed - (float)gpGlobals.FrameTime * speed * sv_friction.GetFloat() * Player.SurfaceFriction;
 			if (newspeed < 0.1f) {
@@ -385,7 +385,7 @@ public class GameMovement : IGameMovement
 		{
 			addspeed = wishspeed - newspeed;
 			if (addspeed > 0) {
-				MathLib.VectorNormalize(ref wishvel);
+				MathLib.VectorNormalizeFast(ref wishvel);
 				accelspeed = sv_accelerate.GetFloat() * wishspeed * (float)gpGlobals.FrameTime * Player.SurfaceFriction;
 				if (accelspeed > addspeed) {
 					accelspeed = addspeed;
@@ -546,15 +546,15 @@ public class GameMovement : IGameMovement
 		// Zero out z components of movement vectors
 		forward[2] = 0;
 		right[2] = 0;
-		MathLib.VectorNormalize(ref forward);  // Normalize remainder of vectors
-		MathLib.VectorNormalize(ref right);    // 
+		MathLib.VectorNormalizeFast(ref forward);  // Normalize remainder of vectors
+		MathLib.VectorNormalizeFast(ref right);    // 
 
 		for (i = 0; i < 2; i++)       // Determine x and y parts of velocity
 			wishvel[i] = forward[i] * fmove + right[i] * smove;
 		wishvel[2] = 0;             // Zero out z part of velocity
 
 		MathLib.VectorCopy(wishvel, out wishdir);   // Determine maginitude of speed of move
-		wishspeed = MathLib.VectorNormalize(ref wishdir);
+		wishspeed = MathLib.VectorNormalizeFast(ref wishdir);
 
 		//
 		// clamp to server defined max speed
@@ -645,20 +645,20 @@ public class GameMovement : IGameMovement
 		if (g_bMovementOptimizations) {
 			if (forward[2] != 0) {
 				forward[2] = 0;
-				MathLib.VectorNormalize(ref forward);
+				MathLib.VectorNormalizeFast(ref forward);
 			}
 
 			if (right[2] != 0) {
 				right[2] = 0;
-				MathLib.VectorNormalize(ref right);
+				MathLib.VectorNormalizeFast(ref right);
 			}
 		}
 		else {
 			forward[2] = 0;
 			right[2] = 0;
 
-			MathLib.VectorNormalize(ref forward);  // Normalize remainder of vectors.
-			MathLib.VectorNormalize(ref right);    // 
+			MathLib.VectorNormalizeFast(ref forward);  // Normalize remainder of vectors.
+			MathLib.VectorNormalizeFast(ref right);    // 
 		}
 
 		for (i = 0; i < 2; i++)       // Determine x and y parts of velocity
@@ -667,7 +667,7 @@ public class GameMovement : IGameMovement
 		wishvel[2] = 0;             // Zero out z part of velocity
 
 		MathLib.VectorCopy(wishvel, out wishdir);   // Determine maginitude of speed of move
-		wishspeed = MathLib.VectorNormalize(ref wishdir);
+		wishspeed = MathLib.VectorNormalizeFast(ref wishdir);
 
 		//
 		// Clamp to server defined max speed
@@ -1064,15 +1064,15 @@ public class GameMovement : IGameMovement
 		float fmove = mv.ForwardMove * factor;
 		float smove = mv.SideMove * factor;
 
-		MathLib.VectorNormalize(ref forward);  // Normalize remainder of vectors
-		MathLib.VectorNormalize(ref right);    // 
+		MathLib.VectorNormalizeFast(ref forward);  // Normalize remainder of vectors
+		MathLib.VectorNormalizeFast(ref right);    // 
 
 		for (int i = 0; i < 3; i++)       // Determine x and y parts of velocity
 			wishvel[i] = forward[i] * fmove + right[i] * smove;
 		wishvel[2] += mv.UpMove * factor;
 
 		MathLib.VectorCopy(in wishvel, out wishdir);   // Determine maginitude of speed of move
-		wishspeed = MathLib.VectorNormalize(ref wishdir);
+		wishspeed = MathLib.VectorNormalizeFast(ref wishdir);
 
 		//
 		// Clamp to server defined max speed
@@ -1257,8 +1257,8 @@ public class GameMovement : IGameMovement
 			fmove = mv.ForwardMove;
 			smove = mv.SideMove;
 
-			MathLib.VectorNormalize(ref forward);  // Normalize remainder of vectors.
-			MathLib.VectorNormalize(ref right);    // 
+			MathLib.VectorNormalizeFast(ref forward);  // Normalize remainder of vectors.
+			MathLib.VectorNormalizeFast(ref right);    // 
 
 			for (i = 0; i < 3; i++)       // Determine x and y parts of velocity
 				wishvel[i] = forward[i] * fmove + right[i] * smove;
@@ -1266,7 +1266,7 @@ public class GameMovement : IGameMovement
 			wishvel[2] += mv.UpMove;
 
 			MathLib.VectorCopy(wishvel, out wishdir);   // Determine maginitude of speed of move
-			wishspeed = MathLib.VectorNormalize(ref wishdir);
+			wishspeed = MathLib.VectorNormalizeFast(ref wishdir);
 
 			//
 			// Clamp to server defined max speed
@@ -1559,7 +1559,7 @@ public class GameMovement : IGameMovement
 				for (int i = 0; i < 3; i++)       // Determine x and y parts of velocity
 					wishdir[i] = Forward[i] * mv.ForwardMove + Right[i] * mv.SideMove;
 
-				MathLib.VectorNormalize(ref wishdir);
+				MathLib.VectorNormalizeFast(ref wishdir);
 			}
 			else {
 				// Player is not attempting to move, no ladder behavior
@@ -1628,7 +1628,7 @@ public class GameMovement : IGameMovement
 				MathLib.VectorCopy(vec3_origin, out tmp);
 				tmp[2] = 1;
 				MathLib.CrossProduct(tmp, pm.Plane.Normal, out perp);
-				MathLib.VectorNormalize(ref perp);
+				MathLib.VectorNormalizeFast(ref perp);
 
 				// decompose velocity into ladder plane
 				float normal = MathLib.DotProduct(velocity, pm.Plane.Normal);
@@ -2846,8 +2846,8 @@ public class GameMovement : IGameMovement
 
 		Vector3 vecDelta;
 		MathLib.VectorSubtract(mv.GetAbsOrigin(), mv.ConstraintCenter, out vecDelta);
-		MathLib.VectorNormalize(ref vecDelta);
-		MathLib.VectorNormalize(ref vecDesired);
+		MathLib.VectorNormalizeFast(ref vecDelta);
+		MathLib.VectorNormalizeFast(ref vecDesired);
 		if (MathLib.DotProduct(vecDelta, vecDesired) < 0.0f)
 			return 1.0f;
 
