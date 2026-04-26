@@ -777,23 +777,23 @@ public struct SurfaceAudioParams
 
 public struct SurfaceSoundNames
 {
-	public ushort StepLeft;
-	public ushort StepRight;
-	public ushort ImpactSoft;
-	public ushort ImpactHard;
-	public ushort ScrapeSmooth;
-	public ushort ScrapeRough;
-	public ushort BulletImpact;
-	public ushort Rolling;
-	public ushort BreakSound;
-	public ushort StrainSound;
+	public UtlSymId_t StepLeft;
+	public UtlSymId_t StepRight;
+	public UtlSymId_t ImpactSoft;
+	public UtlSymId_t ImpactHard;
+	public UtlSymId_t ScrapeSmooth;
+	public UtlSymId_t ScrapeRough;
+	public UtlSymId_t BulletImpact;
+	public UtlSymId_t Rolling;
+	public UtlSymId_t BreakSound;
+	public UtlSymId_t StrainSound;
 }
 
 public struct SurfaceGameProps
 {
 	public float MaxSpeedFactor;
 	public float JumpFactor;
-	public ushort Material;
+	public UtlSymId_t Material;
 	public byte Climbable;
 	public byte Pad;
 }

@@ -2801,6 +2801,7 @@ public class GameMovement : IGameMovement
 		Player.SurfaceFriction *= 1.25f;
 		if (Player.SurfaceFriction > 1.0f)
 			Player.SurfaceFriction = 1.0f;
+
 		Player.TextureType = Player.SurfaceData!.Struct.Game.Material;
 	}
 

@@ -84,8 +84,8 @@ public partial class BasePlayer : BaseCombatCharacter
 	public int SurfaceProps;
 	public SurfaceData_ptr? SurfaceData;
 	public float SurfaceFriction;
-	public ushort TextureType;
-	public ushort PreviousTextureType;
+	public UtlSymId_t TextureType;
+	public UtlSymId_t PreviousTextureType;
 
 	readonly List<CommandContext> CommandContext = [];
 	readonly List<PlayerSimInfo> VecPlayerSimInfo = [];

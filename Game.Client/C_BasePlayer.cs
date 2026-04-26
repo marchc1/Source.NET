@@ -306,7 +306,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public int SurfaceProps;
 	public SurfaceData_ptr? SurfaceData;
 	public float SurfaceFriction;
-	public ushort TextureType;
+	public UtlSymId_t TextureType;
 
 	public override void PhysicsSimulate() {
 		BaseEntity? pMoveParent = GetMoveParent();

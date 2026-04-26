@@ -2,6 +2,8 @@
 
 using Source;
 using Source.Common;
+using Source.Common.Filesystem;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.Physics;
 namespace Game.Shared;
 
@@ -20,6 +22,7 @@ public static class PhysicsSharedGlobals
 #endif
 	public static IPhysicsObjectPairHash g_EntityCollisionHash = null!;
 
+	const string SURFACEPROP_MANIFEST_FILE = "scripts/surfaceproperties_manifest.txt";
 
 	public static readonly ObjectParams g_PhysDefaultObjectParams = new() {
 		MassCenterOverrideFn = null,
@@ -34,6 +37,32 @@ public static class PhysicsSharedGlobals
 		DragCoefficient = 1.0f,
 		EnableCollisions = true
 	};
+
+	public static void AddSurfacepropFile(ReadOnlySpan<char> filename, IPhysicsSurfaceProps props, IFileSystem fileSystem) {
+		using IFileHandle? file = fileSystem.Open(filename, FileOpenOptions.Read | FileOpenOptions.Binary, "GAME");
+		if(file != null){
+			int len = (int)file.Stream.Length;
+			Span<char> buffer = stackalloc char[len];
+			using StreamReader reader = new(file.Stream);
+			reader.Read(buffer);
+			props.ParseSurfaceData(filename, buffer);
+		}
+	}
+	public static void PhysParseSurfaceData(IPhysicsSurfaceProps props, IFileSystem fileSystem){
+		KeyValues manifest = new KeyValues(SURFACEPROP_MANIFEST_FILE);
+		if (manifest.LoadFromFile(fileSystem, SURFACEPROP_MANIFEST_FILE, "GAME")) {
+			for (KeyValues? sub = manifest.GetFirstSubKey(); sub != null; sub = sub.GetNextKey()) {
+				if (0 == stricmp(sub.Name, "file")) {
+					AddSurfacepropFile(sub.GetString(), props, fileSystem);
+					continue;
+				}
+
+				Warning($"surfaceprops::Init:  Manifest '{SURFACEPROP_MANIFEST_FILE}' with bogus file type '{sub.Name}', expecting 'file'\n");
+			}
+		}
+		else 
+			Error($"Unable to load manifest file '{SURFACEPROP_MANIFEST_FILE}'\n");
+	}
 
 	static IGameSystem physicsGameSystem = null!;
 	public static void SetPhysicsGameSystem(IGameSystem system) => physicsGameSystem = system;

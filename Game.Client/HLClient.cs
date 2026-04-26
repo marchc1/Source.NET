@@ -126,8 +126,13 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 		view.Init();
 		vieweffects.Init();
-
+		C_BaseTempEntity.PrecacheTempEnts();
 		input.Init();
+
+		// PhysicsDLLInit
+		PhysParseSurfaceData(physprops, filesystem);
+
+		C_World.ClientWorldFactoryInit();
 
 		VGui_CreateGlobalPanels();
 		materials.AddModeChangeCallBack(VGui_VideoMode_AdjustForModeChange);

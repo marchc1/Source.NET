@@ -1043,7 +1043,7 @@ public partial class C_BaseEntity : IClientEntity
 		AimEntsListHandle = INVALID_AIMENTS_LIST_HANDLE;
 	}
 
-	public void Release() {
+	public virtual void Release() {
 		using (C_BaseAnimating.AutoAllowBoneAccess boneaccess = new(true, true))
 			UnlinkFromHierarchy();
 
@@ -1056,6 +1056,9 @@ public partial class C_BaseEntity : IClientEntity
 
 	public int DataObjectTypes;
 
+	/// <summary>
+	/// The equiv of the dtor (kinda...)
+	/// </summary>
 	public virtual void Term() {
 		DestroyAllDataObjects();
 
