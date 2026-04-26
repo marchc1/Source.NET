@@ -226,9 +226,32 @@ namespace Source.Common
 						throw new NotImplementedException("Value type cannot be boxed here, please refactor.");
 					else il.LoggedEmit(OpCodes.Castclass, enumTypeUnderflying);
 				}
-				// TODO: Converting an InlineArray to a string.
-				// I don't like it... but it's required unfortunately in SendProxy_StringToString.
-				// Maybe we can get away with it, especially if interned?
+				// Converting an InlineArray to a string involves casting the inline array to ReadOnlySpan<char>,
+				// null terminating it, then creating an interned string
+				else if(accessor.StoringType.GetCustomAttribute<InlineArrayAttribute>() != null && typeof(T) == typeof(string) && accessor.StoringType.IsConstructedGenericType && accessor.StoringType.GetGenericArguments()[0] == typeof(char)){
+					var inlineArrayAttr = accessor.StoringType.GetCustomAttribute<InlineArrayAttribute>()!;
+					var elementField = accessor.StoringType.GetFields((BindingFlags)~0).First();
+
+					var local = il.DeclareLocal(accessor.StoringType);
+					il.LoggedEmit(OpCodes.Stloc, local.LocalIndex);
+					il.LoggedEmit(OpCodes.Ldloca, local.LocalIndex);
+					il.LoggedEmit(OpCodes.Ldflda, elementField);
+					il.LoggedEmit(OpCodes.Ldc_I4, inlineArrayAttr.Length);
+
+					var createSpanMethod = typeof(System.Runtime.InteropServices.MemoryMarshal)
+						.GetMethod("CreateReadOnlySpan")!
+						.MakeGenericMethod(typeof(char));
+					il.LoggedEmit(OpCodes.Call, createSpanMethod);
+
+					var sliceMethod = typeof(Source.UnmanagedUtils).GetMethod("SliceNullTerminatedString", BindingFlags.Public | BindingFlags.Static, [typeof(ReadOnlySpan<char>)])!;
+					il.LoggedEmit(OpCodes.Call, sliceMethod);
+
+					var stringCtor = typeof(string).GetConstructor([typeof(ReadOnlySpan<char>)])!;
+					il.LoggedEmit(OpCodes.Newobj, stringCtor);
+
+					var internMethod = typeof(string).GetMethod("Intern", BindingFlags.Public | BindingFlags.Static, [typeof(string)])!;
+					il.LoggedEmit(OpCodes.Call, internMethod);
+				}
 				else {
 					if (!typeof(T).IsValueType && accessor.StoringType.IsValueType)
 						throw new NotImplementedException("Value type cannot be boxed here, please refactor.");
@@ -680,6 +703,14 @@ namespace Source.Common
 			CheckConditionDebuggerBreak(code);
 #endif
 			il.Emit(code, field);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void LoggedEmit(this ILGenerator il, OpCode code, ConstructorInfo ctor) {
+#if LOGGED_EMIT_ENABLE
+			Console.WriteLine($"{code} {field}");
+			CheckConditionDebuggerBreak(code);
+#endif
+			il.Emit(code, ctor);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void LoggedEmit(this ILGenerator il, OpCode code, MethodInfo method) {
