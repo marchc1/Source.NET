@@ -12,7 +12,7 @@ namespace Game.Client;
 [LinkEntityToClass("worldspawn")]
 public class C_World : C_BaseEntity
 {
-	public C_World() {
+	public C_World() : base() { 
 		g_ClientWorld = this;
 	}
 

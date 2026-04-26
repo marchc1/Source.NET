@@ -349,6 +349,7 @@ public partial class C_BaseEntity : IClientEntity
 		thinkHandle = INVALID_THINK_HANDLE;
 		AimEntsListHandle = INVALID_AIMENTS_LIST_HANDLE;
 		Index = -1;
+		Collision.Init(this);
 		SetLocalOrigin(vec3_origin);
 		SetLocalAngles(vec3_angle);
 		Model = null;
