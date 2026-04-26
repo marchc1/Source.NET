@@ -833,6 +833,10 @@ public partial class BasePlayer : BaseCombatCharacter
 	internal void Teleport(AngularImpulse origin, QAngle angles, Vector3 vec3_origin) {
 		throw new NotImplementedException();
 	}
+
+	internal void ForceDropOfCarriedPhysObjects(BaseEntity? ground) {
+	// todo
+	}
 }
 
 // Something to keep in mind; in base Source, this is stored in a list in the player with value semantics...

@@ -309,20 +309,6 @@ public partial class BaseEntity : IServerEntity
 
 	public bool IsFloating() => false; // TODO
 
-	public void SetGroundEntity(BaseEntity? ent) {
-		if (ent == GroundEntity.Get())
-			return;
-
-		// todo this has more
-
-		GroundEntity.Set(ent);
-
-		if (ent != null)
-			AddFlag(EntityFlags.OnGround);
-		else
-			RemoveFlag(EntityFlags.OnGround);
-	}
-
 	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent);
 	public static BaseEntity? Instance(int ent) => Instance(INDEXENT(ent)!);
 

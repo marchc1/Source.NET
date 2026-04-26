@@ -296,7 +296,7 @@ public class GameMovement : IGameMovement
 		{
 			IPhysicsObject? physObj = tr.Ent!.VPhysicsGetObject();
 			if (physObj != null) {
-				if ((physObj.GetGameFlags() & (ushort)(PhysicsFlags.PlayerHeld)) != 0)
+				if ((physObj.GetGameFlags() & PhysicsFlags.PlayerHeld) != 0)
 					return;
 			}
 

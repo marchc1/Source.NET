@@ -933,12 +933,6 @@ public partial class C_BaseEntity : IClientEntity
 	public void VPhysicsDestroyObject() {
 
 	}
-	public void SetGroundEntity(C_BaseEntity? ground) {
-		if (GroundEntity.Get() == ground)
-			return;
-
-		// todo
-	}
 
 	public void UpdateOnRemove() {
 		VPhysicsDestroyObject();
