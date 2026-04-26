@@ -225,6 +225,7 @@ public partial class
 	TimeUnit_t HudHintPollTime;
 	TimeUnit_t HudHintMinDisplayTime;
 
+	public virtual BaseCombatWeapon? GetLastWeapon() => this;
 	public virtual bool IsOverridingViewmodel() => false;
 	public virtual int DrawOverriddenViewmodel(BaseViewModel viewmodel, StudioFlags flags) => 0;
 	public virtual void ViewModelDrawn(BaseViewModel viewmodelflags) { }
