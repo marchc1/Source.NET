@@ -634,7 +634,7 @@ public struct PropTypeFns
 		}
 	}
 
-	private static bool Skip(bf_read p) {
+	private static bool GModTable_Skip(bf_read p) {
 		int len = (int)p.ReadUBitLong(GModTable.ENTRIES_BITS);
 		bool clear = p.ReadBool();
 
@@ -654,12 +654,12 @@ public struct PropTypeFns
 		GModTable? gmodtable = (GModTable?)var.Data;
 	}
 	public static ReadOnlySpan<char> GModTable_GetTypeNameString() => "DPT_GMODTable";
-	public static bool GModTable_IsEncodedZero(SendProp prop, bf_read p) => Skip(p);
+	public static bool GModTable_IsEncodedZero(SendProp prop, bf_read p) => GModTable_Skip(p);
 	public static bool GModTable_IsZero(object instance, ref DVariant var, SendProp prop) {
 		GModTable? dt = (GModTable?)var.Data;
 		return dt!.IsEmpty();
 	}
-	public static void GModTable_SkipProp(SendProp prop, bf_read p) => Skip(p);
+	public static void GModTable_SkipProp(SendProp prop, bf_read p) => GModTable_Skip(p);
 #endif
 	#endregion
 }
