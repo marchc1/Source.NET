@@ -1112,8 +1112,23 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 	}
 
-	public virtual void UpdateClientSideAnimation() {
+	public double FrameAdvance(double interval){
+		return 0; // todo
+	}
 
+	public virtual void UpdateClientSideAnimation() {
+		if (ClientSideAnimation) {
+			Assert(ClientSideAnimationListHandle != INVALID_CLIENTSIDEANIMATION_LIST_HANDLE);
+			if (GetSequence() != -1) {
+				// latch old values
+				OnLatchInterpolatedVariables(LatchFlags.LatchAnimationVar);
+				// move frame forward
+				FrameAdvance(0.0); // 0 means to use the time we last advanced instead of a constant
+			}
+		}
+		else {
+			Assert(ClientSideAnimationListHandle == INVALID_CLIENTSIDEANIMATION_LIST_HANDLE);
+		}
 	}
 
 	StudioHdr? pStudioHdr;
