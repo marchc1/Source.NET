@@ -52,8 +52,8 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		DEFINE.PRED_TYPEDESCRIPTION( nameof(pl), PM_PlayerState ),
 		DEFINE.PRED_FIELD( nameof(FOV), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD( nameof(ZoomOwner), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
-		DEFINE.PRED_FIELD( nameof(FOVTime), FieldType.Double, 0 ),
-		DEFINE.PRED_FIELD( nameof(FOVStart), FieldType.Integer, 0 ),
+		DEFINE.PRED_FIELD( nameof(FOVTime), FieldType.Double, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(FOVStart), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD( nameof(Vehicle), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD_TOL( nameof(Maxspeed), FieldType.Float, FieldTypeDescFlags.InSendTable, 0.5f ),
 		DEFINE.PRED_FIELD( nameof(Health), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
@@ -77,14 +77,6 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		DEFINE.FIELD( nameof(SurfaceFriction), FieldType.Float ),
 		DEFINE.FIELD( nameof(ButtonsArray), FieldType.Integer ),
 		DEFINE.PRED_FIELD( nameof(UseWeaponsInVehicle), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
-
-
-		DEFINE.PRED_FIELD( nameof(BonusProgress), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
-		DEFINE.PRED_FIELD( nameof(BonusChallenge), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
-		DEFINE.PRED_FIELD( nameof(OnTarget), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
-		DEFINE.FIELD( nameof(Physics), FieldType.Integer ),
-		DEFINE.AUTO_ARRAY( nameof(AnimExtension), FieldType.StringCharacter ),
-		
 	]); public override DataMap? GetPredDescMap() => PredMap;
 
 	public int ButtonsArray;

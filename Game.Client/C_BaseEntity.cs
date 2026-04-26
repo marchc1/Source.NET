@@ -570,6 +570,7 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public static readonly DataMap PredMap = new(nameof(C_BaseEntity), [
+		DEFINE.PRED_TYPEDESCRIPTION( nameof(Collision), CollisionProperty.PredMap ),
 		DEFINE.PRED_FIELD(nameof(MoveType), FieldType.Character, FieldTypeDescFlags.InSendTable),
 		DEFINE.PRED_FIELD(nameof(MoveCollide), FieldType.Character, FieldTypeDescFlags.InSendTable),
 		DEFINE.FIELD(nameof(AbsVelocity), FieldType.Vector),
