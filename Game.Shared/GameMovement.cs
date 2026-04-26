@@ -1007,28 +1007,31 @@ public class GameMovement : IGameMovement
 	// Handle movement in noclip mode.
 	protected void FullNoClipMove_NoAcceleration(float speed, float maxacceleration) {
 		Vector3 forward, right, up;
-		MathLib.AngleVectors(mv.ViewAngles, out forward, out right, out up);
+		MathLib.AngleVectors(mv!.ViewAngles, out forward, out right, out up);
 		bool isValidMode = Player.GetMoveType() == MoveType.Noclip;
 
 		Vector3 forwardScaled = forward * mv.ForwardMove;
 		Vector3 rightScaled = right * mv.SideMove;
-		Vector3 upScaled = up * mv.UpMove;
 
 		float wantsUp;
-		if (isValidMode && (mv.Buttons & InButtons.Jump) != 0)
+		float wantsUpNorm;
+		if (isValidMode && (mv.Buttons & InButtons.Jump) != 0) {
 			wantsUp = 1.0f;
-		else
+			wantsUpNorm = 1.0f;
+		}
+		else {
 			wantsUp = 0.0f;
+			wantsUpNorm = 1.0e-10f;
+		}
 
-		Vector3 forwardRight = forwardScaled + rightScaled;
-		MathLib.VectorNormalize(ref forwardRight);
+		MathLib.VectorNormalizeFast(ref forwardScaled);
+		MathLib.VectorNormalizeFast(ref rightScaled);
 
-		Vector3 upMove = upScaled;
-		MathLib.VectorNormalize(ref upMove);
+		float upInvSqrt = 1.0f / MathF.Sqrt(wantsUpNorm);
+		float upNorm = upInvSqrt * ((3.0f - upInvSqrt * upInvSqrt * wantsUpNorm) * 0.5f);
 
-		Vector3 worldUp = new Vector3(0, 0, 1);
-		Vector3 wishdir = forwardRight + upMove + (worldUp * wantsUp);
-		MathLib.VectorNormalize(ref wishdir);
+		Vector3 wishdir = forwardScaled + rightScaled + new Vector3(0, 0, wantsUp * upNorm);
+		MathLib.VectorNormalizeFast(ref wishdir);
 
 		float multiplier = speed * 100.0f;
 		Vector3 velocity = wishdir * multiplier;

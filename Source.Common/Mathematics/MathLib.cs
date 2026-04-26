@@ -1306,6 +1306,14 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out Vector3 outV) => outV = inV;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out QAngle outV) => outV = inV;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float VectorNormalizeFast(ref Vector3 v) {
+		float sqlen = v.X * v.X + v.Y * v.Y + v.Z * v.Z + 1.0e-10f;
+		float invlen = MathF.ReciprocalSqrtEstimate(sqlen);
+		invlen = invlen * ((3.0f - invlen * invlen * sqlen) * 0.5f);
+		v = new Vector3(v.X * invlen, v.Y * invlen, v.Z * invlen);
+		return 1.0f / invlen;
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float VectorNormalize(ref Vector3 fwd) {
 		float len = fwd.Length();
 		if (len != 0)
