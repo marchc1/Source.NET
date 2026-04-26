@@ -55,6 +55,9 @@ public class PDumpPanel : Panel, IHudElement
 	public override void ApplySettings(KeyValues resourceData) {
 		SetProportional(false);
 		base.ApplySettings(resourceData);
+		// I am fairly sure this is incorrect, but whatever, it fixes the problem
+		surface.GetScreenSize(out int w, out int h);
+		SetSize(w, h);
 	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {
