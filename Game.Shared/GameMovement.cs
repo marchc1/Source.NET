@@ -2361,9 +2361,13 @@ public class GameMovement : IGameMovement
 	public const float GAMEMOVEMENT_DUCK_TIME = 1000.0f;    // ms
 	public const float GAMEMOVEMENT_JUMP_TIME = 510.0f; // ms approx - based on the 21 unit height jump
 	public const float GAMEMOVEMENT_JUMP_HEIGHT = 21.0f;  // units
-	public const float GAMEMOVEMENT_TIME_TO_UNDUCK = (TIME_TO_UNDUCK * 1000.0f);     // ms
-	public const float GAMEMOVEMENT_TIME_TO_UNDUCK_INV = (GAMEMOVEMENT_DUCK_TIME - GAMEMOVEMENT_TIME_TO_UNDUCK);
+	public float GAMEMOVEMENT_TIME_TO_UNDUCK => (TIME_TO_UNDUCK * 1000.0f);     // ms
+	public float GAMEMOVEMENT_TIME_TO_UNDUCK_INV => (GAMEMOVEMENT_DUCK_TIME - GAMEMOVEMENT_TIME_TO_UNDUCK);
 
+
+	public float TIME_TO_DUCK => Player!.Local.DuckSpeed;
+	public float TIME_TO_UNDUCK => Player!.Local.UnDuckSpeed;
+	public float TIME_TO_UNDUCK_MS => TIME_TO_UNDUCK * 1000;
 
 	// Ducking
 	protected virtual void Duck() {
