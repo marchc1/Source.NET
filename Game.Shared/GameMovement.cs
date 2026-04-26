@@ -1,5 +1,11 @@
 ﻿#if CLIENT_DLL || GAME_DLL
 
+#if CLIENT_DLL
+using Game.Client.GarrysMod;
+#else
+using Game.Server.GarrysMod;
+#endif
+
 using Source;
 using Source.Common;
 using Source.Common.Commands;
@@ -1194,12 +1200,22 @@ public class GameMovement : IGameMovement
 		if (Player.SurfaceData != null)
 			flGroundFactor = Player.SurfaceData.Game.JumpFactor;
 
+#if GMOD_DLL
+		float flMul = 0;
+#if CLIENT_DLL
+		if (Player is C_GMOD_Player gmodPlayer)
+			flMul = gmodPlayer.JumpPower;
+#else
+		if (Player is GMOD_Player gmodPlayer)
+			flMul = gmodPlayer.JumpPower;
+#endif
+#else
 		float flMul;
 		if (g_bMovementOptimizations)
 			flMul = 268.3281572999747f;
 		else
 			flMul = MathF.Sqrt(2 * GetCurrentGravity() * GAMEMOVEMENT_JUMP_HEIGHT);
-
+#endif
 		// Acclerate upward
 		// If we are ducking...
 		float startz = mv.Velocity[2];
@@ -2134,7 +2150,7 @@ public class GameMovement : IGameMovement
 					SetGroundEntity(ref pm);
 				}
 			}
-			else 
+			else
 				SetGroundEntity(ref pm);  // Otherwise, point to index of ent under us.
 
 #if !CLIENT_DLL
@@ -2356,7 +2372,7 @@ public class GameMovement : IGameMovement
 
 			return CachedGetPointContents[idx, slot];
 		}
-		else 
+		else
 			return enginetrace.GetPointContents(point, out _);
 	}
 
