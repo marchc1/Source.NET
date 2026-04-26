@@ -16,16 +16,36 @@ public class PhysicsSurfaceProps : IPhysicsSurfaceProps
 		throw new NotImplementedException();
 	}
 
-	public void GetPhysicsProperties(nint surfaceDataIndex, out float density, out float thickness, out float friction, out float elasticity) {
-		throw new NotImplementedException();
+	public void GetPhysicsProperties(nint materialIndex, out float density, out float thickness, out float friction, out float elasticity) {
+		Surface? surface = GetInternalSurface(materialIndex);
+		if (surface == null) {
+			surface = GetInternalSurface(GetSurfaceIndex("default"));
+			Assert(surface != null);
+		}
+
+		if (surface != null) {
+			friction = (float)surface.Data.Physics.Friction;
+			elasticity = (float)surface.Data.Physics.Elasticity;
+			density = surface.Data.Physics.Density;
+			thickness = surface.Data.Physics.Thickness;
+		}
+		else{
+			friction = default;
+			elasticity = default;
+			density = default;
+			thickness = default;
+		}
 	}
 
 	public ReadOnlySpan<char> GetPropName(nint surfaceDataIndex) {
-		throw new NotImplementedException();
+		Surface? surface = GetInternalSurface(surfaceDataIndex);
+		if (surface != null)
+			return GetNameString(surface.Name);
+		return null;
 	}
 
 	public ReadOnlySpan<char> GetString(ushort stringTableIndex) {
-		throw new NotImplementedException();
+		return null; // todo: what?
 	}
 
 	public bool IsReservedMaterialIndex(nint materialIndex) {
@@ -83,6 +103,8 @@ public class PhysicsSurfaceProps : IPhysicsSurfaceProps
 
 		return -1;
 	}
+
+	public ReadOnlySpan<char> GetNameString(UtlSymbol name) => Strings.String(name);
 
 	public nint ParseSurfaceData(ReadOnlySpan<char> filename, ReadOnlySpan<char> textfile) {
 		throw new NotImplementedException();
