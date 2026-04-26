@@ -119,9 +119,9 @@ public class PlayerLocalData
 	public bool Ducked;
 	public bool Ducking;
 	public bool InDuckJump;
-	public double DuckTime;
-	public double DuckJumpTime;
-	public double JumpTime;
+	public float DuckTime;
+	public float DuckJumpTime;
+	public float JumpTime;
 	public int StepSide;
 	public float FallVelocity;
 	public int OldButtons;

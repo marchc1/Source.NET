@@ -2745,9 +2745,9 @@ public class GameMovement : IGameMovement
 		Player.Local.Ducked = false;
 		Player.Local.Ducking = false;
 		Player.Local.InDuckJump = false;
-		Player.Local.DuckTime = 0.0;
-		Player.Local.DuckJumpTime = 0.0;
-		Player.Local.JumpTime = 0.0;
+		Player.Local.DuckTime = 0.0f;
+		Player.Local.DuckJumpTime = 0.0f;
+		Player.Local.JumpTime = 0.0f;
 
 		Vector3 vecViewOffset = GetPlayerViewOffset(false);
 		vecViewOffset.Z -= flDeltaZ;
