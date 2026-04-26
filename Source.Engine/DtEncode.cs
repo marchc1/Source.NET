@@ -650,7 +650,9 @@ public struct PropTypeFns
 	}
 
 	public static void GModTable_DecodeZero(ref DecodeInfo info) { }
-	public static void GModTable_Encode(object instance, ref DVariant var, SendProp prop, bf_write writeOut, int objectID) => throw new NotImplementedException();
+	public static void GModTable_Encode(object instance, ref DVariant var, SendProp prop, bf_write writeOut, int objectID) {
+		GModTable? gmodtable = (GModTable?)var.Data;
+	}
 	public static ReadOnlySpan<char> GModTable_GetTypeNameString() => "DPT_GMODTable";
 	public static bool GModTable_IsEncodedZero(SendProp prop, bf_read p) => Skip(p);
 	public static bool GModTable_IsZero(object instance, ref DVariant var, SendProp prop) {

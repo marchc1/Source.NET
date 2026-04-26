@@ -335,6 +335,7 @@ public static class RecvPropHelpers
 
 		ret.RecvType = SendPropType.GModTable;
 		ret.FieldInfo = field;
+		ret.SetProxyFn(static (ref readonly data, instance, field) => { });
 
 		return ret;
 	}

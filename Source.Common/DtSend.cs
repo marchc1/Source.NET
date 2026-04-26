@@ -472,6 +472,7 @@ public static class SendPropHelpers
 
 		ret.Type = SendPropType.GModTable;
 		ret.FieldInfo = field;
+		ret.SetProxyFn(static (prop, baseData, fieldInfo, ref value, element, objectID) => { value.Data = fieldInfo.GetValue<GModTable>(baseData); });
 
 		return ret;
 	}
