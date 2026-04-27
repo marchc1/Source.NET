@@ -15,7 +15,7 @@ public static class PhysicsSharedGlobals
 	[Dependency] public static IPhysicsSurfaceProps physprops { get; set; } = null!;
 
 
-	public static IPhysicsObject g_PhysWorldObject = null!;
+	public static IPhysicsObject? g_PhysWorldObject = null!;
 	public static IPhysicsEnvironment physenv = null!;
 #if PORTAL
 	public static IPhysicsEnvironment physenv_main = null!;
@@ -40,7 +40,7 @@ public static class PhysicsSharedGlobals
 
 	public static void AddSurfacepropFile(ReadOnlySpan<char> filename, IPhysicsSurfaceProps props, IFileSystem fileSystem) {
 		using IFileHandle? file = fileSystem.Open(filename, FileOpenOptions.Read | FileOpenOptions.Binary, "GAME");
-		if(file != null){
+		if (file != null) {
 			int len = (int)file.Stream.Length;
 			Span<char> buffer = stackalloc char[len];
 			using StreamReader reader = new(file.Stream);
@@ -48,7 +48,7 @@ public static class PhysicsSharedGlobals
 			props.ParseSurfaceData(filename, buffer);
 		}
 	}
-	public static void PhysParseSurfaceData(IPhysicsSurfaceProps props, IFileSystem fileSystem){
+	public static void PhysParseSurfaceData(IPhysicsSurfaceProps props, IFileSystem fileSystem) {
 		KeyValues manifest = new KeyValues(SURFACEPROP_MANIFEST_FILE);
 		if (manifest.LoadFromFile(fileSystem, SURFACEPROP_MANIFEST_FILE, "GAME")) {
 			for (KeyValues? sub = manifest.GetFirstSubKey(); sub != null; sub = sub.GetNextKey()) {
@@ -60,7 +60,7 @@ public static class PhysicsSharedGlobals
 				Warning($"surfaceprops::Init:  Manifest '{SURFACEPROP_MANIFEST_FILE}' with bogus file type '{sub.Name}', expecting 'file'\n");
 			}
 		}
-		else 
+		else
 			Error($"Unable to load manifest file '{SURFACEPROP_MANIFEST_FILE}'\n");
 	}
 
@@ -69,6 +69,17 @@ public static class PhysicsSharedGlobals
 	public static IGameSystem PhysicsGameSystem() => physicsGameSystem;
 
 #if CLIENT_DLL || GAME_DLL
+	public static void PhysDestroyObject(IPhysicsObject? obj, BaseEntity entity) {
+		//g_pPhysSaveRestoreManager->ForgetModel(pObject);
+
+		obj?.SetGameData(null);
+		g_EntityCollisionHash.RemoveAllPairsForObject(obj);
+		if (entity != null && entity.IsMarkedForDeletion())
+			g_EntityCollisionHash.RemoveAllPairsForObject(entity);
+
+		physenv?.DestroyObject(obj);
+	}
+
 	public static IPhysicsObject? PhysCreateWorld_Shared(BaseEntity world, VCollide? worldCollide, in ObjectParams defaultParams) {
 		Solid solid;
 		Fluid fluid;

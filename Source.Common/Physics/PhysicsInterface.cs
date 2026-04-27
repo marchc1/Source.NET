@@ -832,7 +832,7 @@ public interface IPhysicsSurfaceProps
 	void GetPhysicsProperties(nint surfaceDataIndex, out float  density, out float thickness, out float friction, out float elasticity);
 
 	SurfaceData_ptr? GetSurfaceData(nint surfaceDataIndex);
-	ReadOnlySpan<char> GetString( ushort stringTableIndex );
+	ReadOnlySpan<char> GetString( UtlSymId_t stringTableIndex );
 
 
 	ReadOnlySpan<char> GetPropName( nint surfaceDataIndex );

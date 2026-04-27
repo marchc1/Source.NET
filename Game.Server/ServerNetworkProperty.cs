@@ -1,5 +1,6 @@
 ﻿using Game.Shared;
 
+using Source;
 using Source.Common;
 using Source.Common.Engine;
 
@@ -16,6 +17,9 @@ public class ServerNetworkProperty : IServerNetworkable, IEventRegisterCallback
 		// throw new NotImplementedException(); TODO
 		return 0;
 	}
+
+	public void MarkForDeletion() => Outer!.AddEFlags(EFL.KillMe);
+	public bool IsMarkedForDeletion() => (Outer!.GetEFlags() & EFL.KillMe) != 0;
 
 	public void FireEvent() {
 		throw new NotImplementedException();

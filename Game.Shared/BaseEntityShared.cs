@@ -176,6 +176,16 @@ public partial class
 		return false;
 	}
 
+	public void VPhysicsDestroyObject() {
+		if (PhysicsObject != null) {
+#if !CLIENT_DLL
+			PhysRemoveShadow(this);
+#endif
+			PhysDestroyObject(PhysicsObject, this);
+			PhysicsObject = null;
+		}
+	}
+
 	public void CheckHasThinkFunction(bool isThinking) {
 		if (IsEFlagSet(EFL.NoThinkFunction) && isThinking) {
 			RemoveEFlags(EFL.NoThinkFunction);
@@ -428,6 +438,51 @@ public partial class
 	internal static bool IsEntityQAngleReasonable(QAngle q) {
 		float r = (float)MaxEntityEulerAngle;
 		return q.X >= -r && q.X <= r && q.Y >= -r && q.Y <= r && q.Z >= -r && q.Z <= r;
+	}
+
+	internal static short PrecacheScriptSound(ReadOnlySpan<char> sound) {
+		// todo
+		return 0;
+	}
+
+	public static float k_flMaxEntityPosCoord = MAX_COORD_FLOAT;
+	public static float k_flMaxEntityEulerAngle = 360.0f * 1000.0f; // really should be restricted to +/-180, but some code doesn't adhere to this.  let's just trap NANs, etc
+															// Sometimes the resulting computed speeds are legitimately above the original
+															// constants; use bumped up versions for the downstream validation logic to
+															// account for this.
+	public static float k_flMaxEntitySpeed = k_flMaxVelocity * 2.0f;
+	public static float k_flMaxEntitySpinRate = k_flMaxAngularVelocity * 10.0f;
+	static double s_LastEntityReasonableEmitTime;
+	public static bool CheckEmitReasonablePhysicsSpew(){
+		// Reported recently?
+		double now = Platform.Time;
+		if (now >= s_LastEntityReasonableEmitTime && now < s_LastEntityReasonableEmitTime + 5.0) {
+			// Already reported recently
+			return false;
+		}
+
+		// Not reported recently.  Report it now
+		s_LastEntityReasonableEmitTime = now;
+		return true;
+	}
+	public static int CheckEntityVelocity(ref Vector3 v){
+		float r = k_flMaxEntitySpeed;
+		if (
+			v.X > -r && v.X < r &&
+			v.Y > -r && v.Y < r &&
+			v.Z > -r && v.Z < r) {
+			// The usual case.  It's totally reasonable
+			return 1;
+		}
+		float speed = v.Length();
+		if (speed < k_flMaxEntitySpeed * 100.0f) {
+			// Sort of suspicious.  Clamp it
+			v *= k_flMaxEntitySpeed / speed;
+			return 0;
+		}
+
+		// A terrible, horrible, no good, very bad velocity.
+		return -1;
 	}
 }
 

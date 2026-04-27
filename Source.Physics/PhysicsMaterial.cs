@@ -45,8 +45,8 @@ public class PhysicsSurfaceProps : IPhysicsSurfaceProps
 		return null;
 	}
 
-	public ReadOnlySpan<char> GetString(ushort stringTableIndex) {
-		return null; // todo: what?
+	public ReadOnlySpan<char> GetString(UtlSymId_t stringTableIndex) {
+		return Strings.String(stringTableIndex);
 	}
 
 	public bool IsReservedMaterialIndex(nint materialIndex) {
@@ -274,7 +274,7 @@ public class PhysicsSurfaceProps : IPhysicsSurfaceProps
 	}
 
 	public nint SurfacePropCount() {
-		throw new NotImplementedException();
+		return Props.Count;
 	}
 
 	readonly UtlSymbolTableMT Strings = new();

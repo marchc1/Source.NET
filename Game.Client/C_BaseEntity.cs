@@ -931,10 +931,6 @@ public partial class C_BaseEntity : IClientEntity
 		return false;
 	}
 
-	public void VPhysicsDestroyObject() {
-
-	}
-
 	public void UpdateOnRemove() {
 		VPhysicsDestroyObject();
 
