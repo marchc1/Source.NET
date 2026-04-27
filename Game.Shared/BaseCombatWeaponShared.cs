@@ -60,15 +60,14 @@ public partial class
 {
 #if CLIENT_DLL
 	public static readonly new DataMap PredMap = new(nameof(C_BaseCombatWeapon), C_BaseAnimating.PredMap, [
-
 	DEFINE.PRED_FIELD(nameof(NextThinkTick), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 	DEFINE.PRED_FIELD(nameof(Owner), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
 	DEFINE.PRED_FIELD(nameof(State), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 	DEFINE.PRED_FIELD(nameof(iViewModelIndex), FieldType.Integer, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.ModelIndex ),
 	DEFINE.PRED_FIELD(nameof(WorldModelIndex), FieldType.Integer, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.ModelIndex ),
-	DEFINE.PRED_FIELD_TOL(nameof(NextPrimaryAttack), FieldType.Float, FieldTypeDescFlags.InSendTable, TD_MSECTOLERANCE ),
-	DEFINE.PRED_FIELD_TOL(nameof(NextSecondaryAttack), FieldType.Float, FieldTypeDescFlags.InSendTable, TD_MSECTOLERANCE ),
-	DEFINE.PRED_FIELD_TOL(nameof(TimeWeaponIdle), FieldType.Float, FieldTypeDescFlags.InSendTable, TD_MSECTOLERANCE ),
+	DEFINE.PRED_FIELD_TOL(nameof(NextPrimaryAttack), FieldType.Double, FieldTypeDescFlags.InSendTable, TD_MSECTOLERANCE ),
+	DEFINE.PRED_FIELD_TOL(nameof(NextSecondaryAttack), FieldType.Double, FieldTypeDescFlags.InSendTable, TD_MSECTOLERANCE ),
+	DEFINE.PRED_FIELD_TOL(nameof(TimeWeaponIdle), FieldType.Double, FieldTypeDescFlags.InSendTable, TD_MSECTOLERANCE ),
 	DEFINE.PRED_FIELD(nameof(PrimaryAmmoType), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 	DEFINE.PRED_FIELD(nameof(SecondaryAmmoType), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 	DEFINE.PRED_FIELD(nameof(iClip1), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
