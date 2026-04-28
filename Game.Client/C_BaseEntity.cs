@@ -435,6 +435,7 @@ public partial class C_BaseEntity : IClientEntity
 		C_BaseEntity pEntity = (C_BaseEntity)instance;
 
 		long t = gpGlobals.GetNetworkBase(gpGlobals.TickCount, pEntity.EntIndex()) + data.Value.Int;
+		t += data.Value.Int;
 
 		while (t < gpGlobals.TickCount - 127)
 			t += 256;
