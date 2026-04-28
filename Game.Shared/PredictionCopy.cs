@@ -304,14 +304,14 @@ public ref struct PredictionCopy
 	public bool CanCheck() => (CurrentField!.Flags & FieldTypeDescFlags.NoErrorCheck) == 0;
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	DiffType BASIC_COMPARE<T>(in PredictionIO output, in PredictionIO input, int count) where T : IEquatable<T> {
+	DiffType BASIC_COMPARE<T>(in PredictionIO output, in PredictionIO input, int count) where T : struct, IEquatable<T> {
 		if (!ErrorCheck) return DiffType.Differs;
 
 		if (CanCheck()) {
 			for (int i = 0; i < count; i++) {
-				T? op = output.Get<T>(i);
-				T? ip = input.Get<T>(i);
-				if ((op == null && ip == null) || (op != null && op.Equals(ip)))
+				T op = output.Get<T>(i);
+				T ip = input.Get<T>(i);
+				if (op.Equals(ip))
 					continue;
 
 				return DiffType.Differs;
