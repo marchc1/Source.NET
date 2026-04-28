@@ -46,19 +46,6 @@ public ref struct PredictionIO
 	TypeDescription? typedesc;
 	DataFrame? dataowner;
 
-	public readonly bool UsesDynAccessor() => dynaccess != null;
-	public readonly bool UsesDataMap() => typedesc != null;
-
-	public readonly void GetDynAccessorVars(out IDynamicAccessor? dynaccess, out object? dynowner) {
-		dynaccess = this.dynaccess;
-		dynowner = this.dynowner;
-	}
-
-	public readonly void GetDataMapVars(out TypeDescription? typedesc, out DataFrame? dataowner) {
-		typedesc = this.typedesc;
-		dataowner = this.dataowner;
-	}
-
 	public static PredictionIO FromDynamicAccessor(IDynamicAccessor accessor, object owner)
 		=> new() { dynaccess = accessor, dynowner = owner };
 
