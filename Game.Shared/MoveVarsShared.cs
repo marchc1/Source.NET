@@ -31,7 +31,7 @@ public static class MoveVarsShared
 	public static readonly ConVar sv_waterdist = new("12", FCvar.Replicated, "Vertical view fixup when eyes are near water plane.");
 
 	public static readonly ConVar sv_skyname = new("sky_urb01", FCvar.Archive | FCvar.Replicated, "Current name of the skybox texture");
-	public static readonly ConVar sv_friction = new("8", FCvar.Notify | FCvar.Replicated | FCvar.DevelopmentOnly, "World friction.");
+	public static readonly ConVar sv_friction = new("8", FCvar.Notify | FCvar.Replicated, "World friction.");
 
 	// Vehicle convars
 	public static readonly ConVar r_VehicleViewDampen = new("1", FCvar.Cheat | FCvar.Notify | FCvar.Replicated);
