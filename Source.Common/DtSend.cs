@@ -40,6 +40,15 @@ public static class SendPropHelpers
 		outData.Vector[0] = MathLib.AngleMod(v.X);
 		outData.Vector[1] = MathLib.AngleMod(v.Y);
 	}
+	// Specialized proxy for Garry's Mod's Time64
+	public static void SendProxy_DoubleToVectorXY(SendProp prop, object instance, IFieldAccessor data, ref DVariant outData, int element, int objectID) {
+		double value = prop.GetValue<double>(instance);
+		Span<double> valuePtr = new Span<double>(ref value);
+		Span<float> valueComponents = valuePtr.Cast<double, float>();
+		outData.Vector[0] = valueComponents[0];
+		outData.Vector[1] = valueComponents[1];
+	}
+
 	public static void SendProxy_Int8ToInt32(SendProp prop, object instance, IFieldAccessor data, ref DVariant outData, int element, int objectID)
 		=> outData.Int = prop.GetValue<sbyte>(instance);
 	public static void SendProxy_Int16ToInt32(SendProp prop, object instance, IFieldAccessor data, ref DVariant outData, int element, int objectID)
@@ -463,6 +472,7 @@ public static class SendPropHelpers
 
 		ret.Type = SendPropType.GModTable;
 		ret.FieldInfo = field;
+		ret.SetProxyFn(static (prop, baseData, fieldInfo, ref value, element, objectID) => { value.Data = fieldInfo.GetValue<GModTable>(baseData); });
 
 		return ret;
 	}

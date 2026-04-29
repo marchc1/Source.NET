@@ -5,6 +5,7 @@ global using static Game.Shared.DataObjectAccessSystemGlobals;
 using Game.Shared;
 
 using Source.Common.Mathematics;
+using Source.Common.Physics;
 
 using System;
 using System.Collections.Generic;
@@ -63,6 +64,53 @@ namespace Game.Server
 			for (DataObjectType i = 0; i < DataObjectType.NumTypes; i++)
 				if (HasDataObjectType(i))
 					DestroyDataObject(i);
+		}
+
+		public GroundLink? AddEntityToGroundList(BaseEntity? other) {
+			return null; // TODO
+		}
+
+		public static void PhysicsNotifyOtherOfGroundRemoval(BaseEntity? ent, BaseEntity? other) {
+			// TODO
+		}
+
+		public void SetGroundEntity(BaseEntity? ground) {
+			if (GroundEntity.Get() == ground)
+				return;
+
+#if GAME_DLL
+		// this can happen in-between updates to the held object controller (physcannon, +USE)
+		// so trap it here and release held objects when they become player ground
+		if (ground!= null && IsPlayer() && ground.GetMoveType() == Source.MoveType.VPhysics) {
+			BasePlayer? player = ToBasePlayer(this);
+			IPhysicsObject? physGround = ground.VPhysicsGetObject();
+			if (physGround != null && player != null)
+				if ((physGround.GetGameFlags() & PhysicsFlags.PlayerHeld) != 0 )
+					player.ForceDropOfCarriedPhysObjects(ground);
+		}
+#endif
+
+			BaseEntity? oldGround = GroundEntity.Get();
+			GroundEntity.Set(ground);
+
+			// Just starting to touch
+			if (oldGround == null && ground != null) 
+				ground.AddEntityToGroundList(this);
+			// Just stopping touching
+			else if (oldGround != null && ground == null) 
+				PhysicsNotifyOtherOfGroundRemoval(this, oldGround);
+			// Changing out to new ground entity
+			else {
+				PhysicsNotifyOtherOfGroundRemoval(this, oldGround);
+				ground!.AddEntityToGroundList(this);
+			}
+
+			// HACK/PARANOID:  This is redundant with the code above, but in case we get out of sync groundlist entries ever, 
+			//  this will force the appropriate flags
+			if (ground != null)
+				AddFlag(Source.EntityFlags.OnGround);
+			else
+				RemoveFlag(Source.EntityFlags.OnGround);
 		}
 
 		public virtual void PhysicsSimulate() {

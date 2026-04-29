@@ -27,6 +27,10 @@ public abstract class BaseFont
 	internal abstract void GetCharRGBA(char @char, int fontWide, int fontTall, Span<byte> pRGBA);
 
 	internal abstract void GetKernedCharWidth(char ch, char chBefore, char chAfter, out float flWide, out float flabcA, out float flabcC);
+
+	internal abstract ReadOnlySpan<char> GetName();
+	internal abstract ReadOnlySpan<char> GetFamilyName();
+	internal abstract int GetHeightRequested();
 }
 
 public record struct FontRange
@@ -71,12 +75,18 @@ public class FontAmalgam : IFont
 	}
 
 
-	public ReadOnlySpan<char> GetFontName(char c) {
-		throw new NotImplementedException();
+	public ReadOnlySpan<char> GetFontName(int i) {
+		if (Fonts.IsValidIndex(i) && Fonts[i].Font != null) 
+			return Fonts[i].Font.GetName();
+		else 
+			return null;
 	}
 
-	public ReadOnlySpan<char> GetFontFamilyName(char c) {
-		throw new NotImplementedException();
+	public ReadOnlySpan<char> GetFontFamilyName(int i) {
+		if (Fonts.IsValidIndex(i) && Fonts[i].Font != null) 
+			return Fonts[i].Font.GetFamilyName();
+
+		return "";
 	}
 
 	public nint GetCount() {
@@ -127,6 +137,13 @@ public class FontAmalgam : IFont
 
 	internal int GetFontMaxWidth() {
 		return MaxWidth;
+	}
+
+	internal int GetFontHeightRequested() {
+		if (Fonts.Count == 0) 
+			return MaxHeight;
+		
+		return Fonts[0].Font.GetHeightRequested();
 	}
 }
 
@@ -535,5 +552,17 @@ public unsafe class FontManager
 			ValidAsianFonts[vafidx++] = new(kv.GetString());
 
 		FontsReady = true;
+	}
+
+	public ReadOnlySpan<char> GetFontFamilyName(IFont font) {
+		return ((FontAmalgam)font).GetFontFamilyName(0);
+	}
+
+	public ReadOnlySpan<char> GetFontName(IFont font) {
+		return ((FontAmalgam)font).GetFontName(0);
+	}
+
+	internal int GetFontTallRequested(IFont? font) {
+		return ((FontAmalgam)font!).GetFontHeightRequested();
 	}
 }

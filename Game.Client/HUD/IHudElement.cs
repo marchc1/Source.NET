@@ -6,7 +6,14 @@ namespace Game.Client.HUD;
 // being the actual base class
 public interface IHudElement
 {
-	string? ElementName { get; }
+	public void Ctor(ReadOnlySpan<char> elementName) {
+		Active = false;
+		HiddenBits = 0;
+		ElementName = new(elementName);
+		NeedsRemove = false;
+		IsParentedToClientDLLRootPanel = false;
+	}
+	string? ElementName { get; protected set; }
 	HideHudBits HiddenBits { get; set; }
 	bool Active { get; set; }
 	bool NeedsRemove { get; set; }

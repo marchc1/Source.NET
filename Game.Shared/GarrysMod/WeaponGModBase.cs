@@ -48,7 +48,11 @@ public partial class
 
 #if CLIENT_DLL
 	public static readonly new DataMap PredMap = new([], "WeaponHL2MPBase", BaseCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
-
+	public override bool ShouldPredict() {
+		if (GetOwner() != null && GetOwner() == C_BasePlayer.GetLocalPlayer())
+			return true;
+		return base.ShouldPredict();
+	}
 #endif
 
 	public override bool IsPredicted() {

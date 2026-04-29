@@ -20,6 +20,10 @@ using VolumeInterval = Source.Common.SoundEmitterSystem.SoundInterval<System.Hal
 
 namespace Source.Common.SoundEmitterSystem;
 
+public static class SoundEmitterSystemGlobals {
+	public const HSOUNDSCRIPTHANDLE SOUNDEMITTER_INVALID_HANDLE = unchecked((HSOUNDSCRIPTHANDLE)(-1));
+}
+
 public struct Interval
 {
 	public float Start;

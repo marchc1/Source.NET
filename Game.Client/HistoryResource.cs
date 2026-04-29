@@ -17,7 +17,9 @@ enum HRType
 	AmmoDenied
 }
 
+#if !GMOD_DLL
 [DeclareHudElement(Name = "CHudHistoryResource")]
+#endif
 class HudHistoryResource : EditableHudElement, IHudElement
 {
 	struct HistItem(TimeUnit_t displayTime)

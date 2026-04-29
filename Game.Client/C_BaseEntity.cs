@@ -349,6 +349,7 @@ public partial class C_BaseEntity : IClientEntity
 		thinkHandle = INVALID_THINK_HANDLE;
 		AimEntsListHandle = INVALID_AIMENTS_LIST_HANDLE;
 		Index = -1;
+		Collision.Init(this);
 		SetLocalOrigin(vec3_origin);
 		SetLocalAngles(vec3_angle);
 		Model = null;
@@ -434,6 +435,7 @@ public partial class C_BaseEntity : IClientEntity
 		C_BaseEntity pEntity = (C_BaseEntity)instance;
 
 		long t = gpGlobals.GetNetworkBase(gpGlobals.TickCount, pEntity.EntIndex()) + data.Value.Int;
+		t += data.Value.Int;
 
 		while (t < gpGlobals.TickCount - 127)
 			t += 256;
@@ -570,6 +572,7 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public static readonly DataMap PredMap = new(nameof(C_BaseEntity), [
+		DEFINE.PRED_TYPEDESCRIPTION( nameof(Collision), CollisionProperty.PredMap ),
 		DEFINE.PRED_FIELD(nameof(MoveType), FieldType.Character, FieldTypeDescFlags.InSendTable),
 		DEFINE.PRED_FIELD(nameof(MoveCollide), FieldType.Character, FieldTypeDescFlags.InSendTable),
 		DEFINE.FIELD(nameof(AbsVelocity), FieldType.Vector),
@@ -740,7 +743,7 @@ public partial class C_BaseEntity : IClientEntity
 	public static C_BaseEntity? Instance(BaseHandle handle) => cl_entitylist.GetBaseEntityFromHandle(handle);
 	public static C_BaseEntity? Instance(int ent) => cl_entitylist.GetBaseEntity(ent);
 
-	public bool FClassnameIs(C_BaseEntity? entity, ReadOnlySpan<char> classname) {
+	public static bool FClassnameIs(C_BaseEntity? entity, ReadOnlySpan<char> classname) {
 		if (entity == null)
 			return false;
 
@@ -929,16 +932,6 @@ public partial class C_BaseEntity : IClientEntity
 		return false;
 	}
 
-	public void VPhysicsDestroyObject() {
-
-	}
-	public void SetGroundEntity(C_BaseEntity? ground) {
-		if (GroundEntity.Get() == ground)
-			return;
-
-		// todo
-	}
-
 	public void UpdateOnRemove() {
 		VPhysicsDestroyObject();
 
@@ -1047,7 +1040,7 @@ public partial class C_BaseEntity : IClientEntity
 		AimEntsListHandle = INVALID_AIMENTS_LIST_HANDLE;
 	}
 
-	public void Release() {
+	public virtual void Release() {
 		using (C_BaseAnimating.AutoAllowBoneAccess boneaccess = new(true, true))
 			UnlinkFromHierarchy();
 
@@ -1060,6 +1053,9 @@ public partial class C_BaseEntity : IClientEntity
 
 	public int DataObjectTypes;
 
+	/// <summary>
+	/// The equiv of the dtor (kinda...)
+	/// </summary>
 	public virtual void Term() {
 		DestroyAllDataObjects();
 
@@ -2619,6 +2615,7 @@ public partial class C_BaseEntity : IClientEntity
 					currentPosition += embeddedSize;
 					break;
 				case FieldType.Float:
+				case FieldType.Double:
 				case FieldType.Vector:
 				case FieldType.Quaternion:
 				case FieldType.Integer:

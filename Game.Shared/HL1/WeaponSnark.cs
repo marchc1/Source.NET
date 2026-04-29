@@ -2,7 +2,7 @@
 using Source.Common;
 namespace Game.Shared.HL1;
 using FIELD = Source.FIELD<WeaponSnark>;
-public class WeaponSnark : BaseHL1CombatWeapon
+public class WeaponSnark : BaseHL1MPCombatWeapon
 {
 	public static readonly
 #if CLIENT_DLL
@@ -10,7 +10,7 @@ public class WeaponSnark : BaseHL1CombatWeapon
 #else
 		SendTable
 #endif
-		DT_WeaponSnark = new(DT_BaseHL1CombatWeapon, [
+		DT_WeaponSnark = new(DT_BaseHL1MPCombatWeapon, [
 #if CLIENT_DLL
 			RecvPropBool(FIELD.OF(nameof(JustThrown))),
 #else

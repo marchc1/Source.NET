@@ -6,11 +6,13 @@ using Source;
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Mathematics;
+using Source.Common.Physics;
 
 using System.Numerics;
 
 namespace Game.Client.HL2MP;
 
+using DEFINE = Source.DEFINE<Game.Client.HL2MP.C_HL2MP_Player>;
 using FIELD = FIELD<C_HL2MP_Player>;
 using FIELD_RD = FIELD<C_HL2MPRagdoll>;
 
@@ -20,6 +22,9 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	static ConVar cl_playermodel = new("none", FCvar.UserInfo | FCvar.Archive | FCvar.ServerCanExecute, "Default Player Model");
 	static ConVar cl_defaultweapon = new("weapon_physcannon", FCvar.UserInfo | FCvar.Archive, "Default Spawn Weapon");
 
+	public static readonly new DataMap PredMap = new(nameof(C_HL2MP_Player), C_BaseHLPlayer.PredMap, [
+		DEFINE.PRED_FIELD( nameof(IsWalking), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
+	]); public override DataMap? GetPredDescMap() => PredMap;
 
 	public static readonly RecvTable DT_HL2MPLocalPlayerExclusive = new([
 		RecvPropVector(FIELD.OF_NAMED(nameof(NetworkOrigin), nameof(Origin))),
@@ -41,7 +46,6 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 		RecvPropDataTable("hl2mpnonlocaldata", DT_HL2MPNonLocalPlayerExclusive),
 		RecvPropEHandle(FIELD.OF(nameof(Ragdoll))),
 		RecvPropInt(FIELD.OF(nameof(SpawnInterpCounter))),
-		RecvPropInt(FIELD.OF(nameof(PlayerSoundType))),
 		RecvPropBool(FIELD.OF(nameof(IsWalking)))
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("HL2MP_Player", null, null, DT_HL2MP_Player)

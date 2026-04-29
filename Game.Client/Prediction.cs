@@ -1,6 +1,7 @@
 global using static Game.Client.PredictionConvars;
 
 using Game.Client.HL2;
+using Game.Client.HUD;
 using Game.Shared;
 using Game.Shared.HL2;
 
@@ -16,7 +17,8 @@ using System.Runtime.CompilerServices;
 
 namespace Game.Client;
 
-public static class PredictionConvars {
+public static class PredictionConvars
+{
 	public static readonly ConVar cl_predictweapons = new("cl_predictweapons", "1", FCvar.UserInfo | FCvar.NotConnected, "Perform client side prediction of weapon effects.");
 	public static readonly ConVar cl_lagcompensation = new("cl_lagcompensation", "1", FCvar.UserInfo | FCvar.NotConnected, "Perform server side lag compensation of weapon firing events.");
 	public static readonly ConVar cl_showerror = new("cl_showerror", "0", 0, "Show prediction errors, 2 for above plus detailed field deltas.");
@@ -173,11 +175,31 @@ public class Prediction : IPrediction
 		}
 	}
 
+	public bool ShouldDumpEntity(C_BaseEntity ent){
+		int dump_entity = cl_predictionentitydump.GetInt();
+		if (dump_entity != -1) {
+			bool dump = false;
+			if (ent.EntIndex() == -1) 
+				dump = (dump_entity == ent.EntIndex()) ? true : false;
+			else 
+				dump = (ent.EntIndex() == dump_entity) ? true : false;
+
+			if (!dump) 
+				return false;
+		}
+		else {
+			if (cl_predictionentitydumpbyclass.GetString().IsStringEmpty)
+				return false;
+
+			if (!C_BaseEntity.FClassnameIs(ent, cl_predictionentitydumpbyclass.GetString()))
+				return false;
+		}
+		return true;
+	}
 
 	public void PostNetworkDataReceived(int commandsAcknowledged) {
 		bool error_check = (commandsAcknowledged > 0) ? true : false;
-
-		// PDumpPanel dump = GetPDumpPanel();
+		PDumpPanel dump = GetPDumpPanel();
 
 		ServerCommandsAcknowledged += commandsAcknowledged;
 		PreviousAckHadErrors = false;
@@ -193,10 +215,10 @@ public class Prediction : IPrediction
 		//  during prediction!!!
 		if (cl_predict.GetInt() != 0) {
 			int showlist = cl_predictionlist.GetInt();
-			nuint totalsize = 0;
-			nuint totalsize_intermediate = 0;
+			int totalsize = 0;
+			int totalsize_intermediate = 0;
 
-			Con_NPrint_s np = default;
+			Con_NPrint_s np = new();
 			np.FixedWidthFont = true;
 			np.Color[0] = 0.8f;
 			np.Color[1] = 1.0f;
@@ -217,50 +239,68 @@ public class Prediction : IPrediction
 
 				if (showlist != 0) {
 					Span<char> sz = stackalloc char[32];
-					if (ent.EntIndex() == -1) {
-						sprintf(sz, $"handle {(uint)(ent.GetClientHandle().Index)}");
-					}
-					else {
-						sprintf(sz, $"{ent.EntIndex()}");
-					}
+					if (ent.EntIndex() == -1)
+						sz = sprintf(sz, "handle %u").U((uint)ent.GetClientHandle().Index);
+					else
+						sz = sprintf(sz, "%i").I(ent.EntIndex());
 
 					np.Index = i;
 
 					if (showlist >= 2) {
-						nint size = GetClassMap().GetClassSize(ent.GetClassname());
-						ent.ComputePackedOffsets();
-
-						totalsize += (nuint)size;
+						// todo
 					}
-					else {
-						engine.Con_NXPrintf(in np, $"{sz.SliceNullTerminatedString()} {ent.GetClassname()}: {(ent.GetPredictable() ? "predicted" : "client created")}");
-					}
+					else
+						engine.Con_NXPrintf(np, $"{sz} {ent.GetClassname()}: {(ent.GetPredictable() ? "predicted" : "client created")}");
 				}
+				if (error_check && !entityDumped && dump != null && ShouldDumpEntity(ent)) {
+					entityDumped = true;
+					dump.DumpEntity(ent, ServerCommandsAcknowledged);
+				}
+			}
+
+			if (showlist >= 2) {
+				// todo
 			}
 
 			// Zero out rest of list
 			if (showlist != 0) {
 				while (i < 20) {
-					// engine.Con_NPrintf(i, "");
+					engine.Con_NXPrintf(new(){ Index= i}, "");
 					i++;
 				}
 			}
 
-			if (error_check)
+			if (error_check) 
 				CheckError(ServerCommandsAcknowledged);
 		}
+
 		// Can also look at regular entities
+		int dumpentindex = cl_predictionentitydump.GetInt();
+		if (dump != null && error_check && !entityDumped && dumpentindex != -1) {
+			int last_entity = cl_entitylist.GetHighestEntityIndex();
+			if (dumpentindex >= 0 && dumpentindex <= last_entity) {
+				C_BaseEntity? ent = cl_entitylist.GetBaseEntity(dumpentindex);
+				if (ent != null) {
+					dump.DumpEntity(ent, ServerCommandsAcknowledged);
+					entityDumped = true;
+				}
+			}
+		}
 
 		if (cl_predict.GetBool() != OldCLPredictValue) {
-			if (!OldCLPredictValue)
+			if (!OldCLPredictValue) 
 				ReinitPredictables();
-
+			
 			CommandsPredicted = 0;
 			ServerCommandsAcknowledged = 0;
 			PreviousStartFrame = -1;
 		}
 
 		OldCLPredictValue = cl_predict.GetInt() != 0;
+
+		if (dump != null && error_check && !entityDumped) {
+			dump.Clear();
+		}
 	}
 
 	public void ReinitPredictables() {

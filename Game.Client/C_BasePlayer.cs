@@ -52,17 +52,14 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		DEFINE.PRED_TYPEDESCRIPTION( nameof(pl), PM_PlayerState ),
 		DEFINE.PRED_FIELD( nameof(FOV), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD( nameof(ZoomOwner), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
-		DEFINE.PRED_FIELD( nameof(FOVTime), FieldType.Float, 0 ),
-		DEFINE.PRED_FIELD( nameof(FOVStart), FieldType.Integer, 0 ),
+		DEFINE.PRED_FIELD( nameof(FOVTime), FieldType.Double, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(FOVStart), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD( nameof(Vehicle), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD_TOL( nameof(Maxspeed), FieldType.Float, FieldTypeDescFlags.InSendTable, 0.5f ),
 		DEFINE.PRED_FIELD( nameof(Health), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
-		DEFINE.PRED_FIELD( nameof(BonusProgress), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
-		DEFINE.PRED_FIELD( nameof(BonusChallenge), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
-		DEFINE.PRED_FIELD( nameof(OnTarget), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD( nameof(NextThinkTick), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
-		DEFINE.PRED_FIELD( nameof(LifeState), FieldType.Character, FieldTypeDescFlags.InSendTable ),
-		DEFINE.PRED_FIELD( nameof(WaterLevel), FieldType.Character, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(LifeState), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD( nameof(WaterLevel), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD_TOL( nameof(BaseVelocity), FieldType.Vector, FieldTypeDescFlags.InSendTable, 0.05f ),
 		DEFINE.FIELD( nameof(Buttons), FieldType.Integer ),
 		DEFINE.FIELD( nameof(WaterJumpTime), FieldType.Float ),
@@ -70,8 +67,6 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		DEFINE.FIELD( nameof(StepSoundTime), FieldType.Float ),
 		DEFINE.FIELD( nameof(SwimSoundTime), FieldType.Float ),
 		DEFINE.FIELD( nameof(LadderNormal), FieldType.Vector ),
-		DEFINE.FIELD( nameof(Physics), FieldType.Integer ),
-		DEFINE.AUTO_ARRAY( nameof(AnimExtension), FieldType.StringCharacter ),
 		DEFINE.FIELD( nameof(AfButtonLast), FieldType.Integer ),
 		DEFINE.FIELD( nameof(AfButtonPressed), FieldType.Integer ),
 		DEFINE.FIELD( nameof(AfButtonReleased), FieldType.Integer ),
@@ -79,8 +74,12 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		DEFINE.PRED_FIELD( nameof(TickBase), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD( nameof(GroundEntity), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_ARRAY( nameof(ViewModel), FieldType.EHandle, MAX_VIEWMODELS, FieldTypeDescFlags.InSendTable ),
-		DEFINE.FIELD( nameof(SurfaceFriction), FieldType.Float )
+		DEFINE.FIELD( nameof(SurfaceFriction), FieldType.Float ),
+		DEFINE.FIELD( nameof(ButtonsArray), FieldType.Integer ),
+		DEFINE.PRED_FIELD( nameof(UseWeaponsInVehicle), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
 	]); public override DataMap? GetPredDescMap() => PredMap;
+
+	public int ButtonsArray;
 
 	public override bool IsPlayer() => true;
 	public TimeUnit_t GetFinalPredictedTime() => FinalPredictedTick * TICK_INTERVAL;
@@ -111,7 +110,6 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		RecvPropDataTable(nameof(Local), FIELD.OF(nameof(Local)), PlayerLocalData.DT_Local, 0, DataTableRecvProxy_PointerDataTable),
 		RecvPropFloat(FIELD.OF(nameof(Friction))),
 		RecvPropArray3(FIELD.OF_ARRAY(nameof(Ammo)), RecvPropInt( FIELD.OF_ARRAYINDEX(nameof(Ammo)))),
-		RecvPropInt(FIELD.OF(nameof(OnTarget))),
 		RecvPropInt(FIELD.OF(nameof(TickBase))),
 		RecvPropInt(FIELD.OF(nameof(NextThinkTick))),
 		RecvPropEHandle(FIELD.OF(nameof(LastWeapon))),
@@ -213,6 +211,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		if (IsLocalPlayer()) {
 			// Reset engine areabits pointer (TODO)
 
+#if !GMOD_DLL
 			// Check for Ammo pickups.
 			for (int i = 0; i < MAX_AMMO_TYPES; i++) {
 				if (GetAmmoCount(i) > OldAmmo[i]) {
@@ -226,6 +225,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 					}
 				}
 			}
+#endif
 
 			// Soundscape_Update(m_Local.m_audio);
 			// ^^ todo
@@ -275,16 +275,15 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		RecvPropInt(FIELD.OF(nameof(Flags))),
 		RecvPropInt(FIELD.OF(nameof(ObserverMode))),
 		RecvPropEHandle(FIELD.OF(nameof(ObserverTarget))),
-		RecvPropInt(FIELD.OF(nameof(FOV))),
-		RecvPropInt(FIELD.OF(nameof(FOVStart))),
-		RecvPropFloat(FIELD.OF(nameof(FOVTime))),
+		RecvPropFloat(FIELD.OF(nameof(FOV))),
+		RecvPropFloat(FIELD.OF(nameof(FOVStart))),
+		RecvPropTime64(FIELD.OF(nameof(FOVTime))),
 		RecvPropFloat(FIELD.OF(nameof(DefaultFOV))),
 		RecvPropEHandle(FIELD.OF(nameof(ZoomOwner))),
 
 		RecvPropEHandle(FIELD.OF_ARRAYINDEX(nameof(ViewModel), 0)),
 		RecvPropArray(FIELD.OF_ARRAY(nameof(ViewModel))),
 
-		RecvPropString(FIELD.OF(nameof(LastPlaceName))),
 		RecvPropBool(FIELD.OF(nameof(UseWeaponsInVehicle))),
 		RecvPropDataTable("localdata", DT_LocalPlayerExclusive),
 	]); public static readonly new ClientClass ClientClass = new ClientClass("BasePlayer", null, null, DT_BasePlayer).WithManualClassID(StaticClassIndices.CBasePlayer);
@@ -307,7 +306,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public int SurfaceProps;
 	public SurfaceData_ptr? SurfaceData;
 	public float SurfaceFriction;
-	public ushort TextureType;
+	public UtlSymId_t TextureType;
 
 	public override void PhysicsSimulate() {
 		BaseEntity? pMoveParent = GetMoveParent();

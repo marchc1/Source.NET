@@ -223,6 +223,8 @@ public interface ISurface
 	void DrawString(ReadOnlySpan<char> str, FontDrawType drawType = FontDrawType.Default);
 	void PopFullscreenViewport();
 	void PushFullscreenViewport();
+	ReadOnlySpan<char> GetFontName(IFont font);
+	ReadOnlySpan<char> GetFontFamilyName(IFont font);
 }
 
 public interface IMatSystemSurface : ISurface

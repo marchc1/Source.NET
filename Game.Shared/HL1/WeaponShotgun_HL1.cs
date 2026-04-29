@@ -16,7 +16,7 @@ public class WeaponShotgun_HL1 : BaseHL1MPCombatWeapon
 			RecvPropInt(FIELD.OF(nameof(InSpecialReload))),
 #else
 			SendPropFloat(FIELD.OF(nameof(PumpTime)), 0, PropFlags.NoScale),
-			SendPropInt(FIELD.OF(nameof(InSpecialReload)), 32),
+			SendPropInt(FIELD.OF(nameof(InSpecialReload)), 2, PropFlags.Unsigned),
 #endif
 		]);
 #if CLIENT_DLL

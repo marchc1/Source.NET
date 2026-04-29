@@ -194,7 +194,7 @@ public abstract class BaseClientState(
 					}
 
 					string why = msg.ReadString(Protocol.MAX_ROUTABLE_PAYLOAD) ?? "<null>";
-					ConWarning($"Disconnect: {why}\n"); // RaphaelIT7: Source Engine calls COM_ExplainDisconnection instead here.
+					Common.ExplainDisconnection(true, why);
 					Disconnect(why, true);
 				}
 				break;

@@ -13,7 +13,7 @@ using FIELD = Source.FIELD<BaseCombatCharacter>;
 public partial class BaseCombatCharacter : BaseFlex
 {
 	public static readonly SendTable DT_BCCLocalPlayerExclusive = new([
-		SendPropTime(FIELD.OF(nameof(NextAttack))),
+		SendPropTime64(FIELD.OF(nameof(NextAttack))),
 	]);
 	public static readonly ServerClass CC_BCCLocalPlayerExclusive = new ServerClass("BCCLocalPlayerExclusive", DT_BCCLocalPlayerExclusive);
 
@@ -21,7 +21,7 @@ public partial class BaseCombatCharacter : BaseFlex
 		SendPropDataTable( "bcc_localdata", DT_BCCLocalPlayerExclusive, SendProxy_SendBaseCombatCharacterLocalDataTable ),
 		SendPropEHandle(FIELD.OF(nameof(ActiveWeapon))),
 		SendPropArray3(FIELD.OF_ARRAY(nameof(MyWeapons)), SendPropEHandle( FIELD.OF_ARRAY(nameof(MyWeapons)))),
-		SendPropInt(FIELD.OF(nameof(BloodColor)), 32, 0)
+		SendPropInt(FIELD.OF(nameof(BloodColor)), 5, 0)
 	]);
 
 	public TimeUnit_t GetNextAttack() => NextAttack;

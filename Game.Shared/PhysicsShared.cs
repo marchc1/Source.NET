@@ -2,6 +2,8 @@
 
 using Source;
 using Source.Common;
+using Source.Common.Filesystem;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.Physics;
 namespace Game.Shared;
 
@@ -13,13 +15,14 @@ public static class PhysicsSharedGlobals
 	[Dependency] public static IPhysicsSurfaceProps physprops { get; set; } = null!;
 
 
-	public static IPhysicsObject g_PhysWorldObject = null!;
+	public static IPhysicsObject? g_PhysWorldObject = null!;
 	public static IPhysicsEnvironment physenv = null!;
 #if PORTAL
 	public static IPhysicsEnvironment physenv_main = null!;
 #endif
 	public static IPhysicsObjectPairHash g_EntityCollisionHash = null!;
 
+	const string SURFACEPROP_MANIFEST_FILE = "scripts/surfaceproperties_manifest.txt";
 
 	public static readonly ObjectParams g_PhysDefaultObjectParams = new() {
 		MassCenterOverrideFn = null,
@@ -35,11 +38,48 @@ public static class PhysicsSharedGlobals
 		EnableCollisions = true
 	};
 
+	public static void AddSurfacepropFile(ReadOnlySpan<char> filename, IPhysicsSurfaceProps props, IFileSystem fileSystem) {
+		using IFileHandle? file = fileSystem.Open(filename, FileOpenOptions.Read | FileOpenOptions.Binary, "GAME");
+		if (file != null) {
+			int len = (int)file.Stream.Length;
+			Span<char> buffer = stackalloc char[len];
+			using StreamReader reader = new(file.Stream);
+			reader.Read(buffer);
+			props.ParseSurfaceData(filename, buffer);
+		}
+	}
+	public static void PhysParseSurfaceData(IPhysicsSurfaceProps props, IFileSystem fileSystem) {
+		KeyValues manifest = new KeyValues(SURFACEPROP_MANIFEST_FILE);
+		if (manifest.LoadFromFile(fileSystem, SURFACEPROP_MANIFEST_FILE, "GAME")) {
+			for (KeyValues? sub = manifest.GetFirstSubKey(); sub != null; sub = sub.GetNextKey()) {
+				if (0 == stricmp(sub.Name, "file")) {
+					AddSurfacepropFile(sub.GetString(), props, fileSystem);
+					continue;
+				}
+
+				Warning($"surfaceprops::Init:  Manifest '{SURFACEPROP_MANIFEST_FILE}' with bogus file type '{sub.Name}', expecting 'file'\n");
+			}
+		}
+		else
+			Error($"Unable to load manifest file '{SURFACEPROP_MANIFEST_FILE}'\n");
+	}
+
 	static IGameSystem physicsGameSystem = null!;
 	public static void SetPhysicsGameSystem(IGameSystem system) => physicsGameSystem = system;
 	public static IGameSystem PhysicsGameSystem() => physicsGameSystem;
 
 #if CLIENT_DLL || GAME_DLL
+	public static void PhysDestroyObject(IPhysicsObject? obj, BaseEntity entity) {
+		//g_pPhysSaveRestoreManager->ForgetModel(pObject);
+
+		obj?.SetGameData(null);
+		g_EntityCollisionHash.RemoveAllPairsForObject(obj);
+		if (entity != null && entity.IsMarkedForDeletion())
+			g_EntityCollisionHash.RemoveAllPairsForObject(entity);
+
+		physenv?.DestroyObject(obj);
+	}
+
 	public static IPhysicsObject? PhysCreateWorld_Shared(BaseEntity world, VCollide? worldCollide, in ObjectParams defaultParams) {
 		Solid solid;
 		Fluid fluid;
@@ -58,47 +98,4 @@ public static class PhysicsSharedGlobals
 		return null;
 	}
 #endif
-}
-
-public enum PhysicsFlags : ushort
-{
-	///<summary> does slice damage, not just blunt damage </summary>
-	DamageSlice = 0x0001,
-
-	///<summary> object is constrained to the world, so it should behave like a static </summary>
-	ConstraintStatic = 0x0002,
-
-	///<summary> object is held by the player, so have a very inelastic collision response </summary>
-	PlayerHeld = 0x0004,
-
-	///<summary> object is part of a client or server ragdoll </summary>
-	PartOfRagdoll = 0x0008,
-
-	///<summary> object is part of a multi-object entity </summary>
-	MultiObjectEntity = 0x0010,
-
-	///<summary> HULK SMASH! (Do large damage even if the mass is small) </summary>
-	HeavyObject = 0x0020,
-
-	///<summary> This object is currently stuck inside another object </summary>
-	Penetrating = 0x0040,
-
-	///<summary> Player can't pick this up for some game rule reason </summary>
-	NoPlayerPickup = 0x0080,
-
-	///<summary> Player threw this object </summary>
-	WasThrown = 0x0100,
-
-	///<summary> does dissolve damage, not just blunt damage </summary>
-	DamageDissolve = 0x0200,
-
-	///<summary> don't do impact damage to anything </summary>
-	NoImpactDamage = 0x0400,
-
-	///<summary> Don't do impact damage to NPC's. This is temporary for NPC's shooting combine balls (sjb) </summary>
-	NoNPCImpactDamage = 0x0800,
-
-	///<summary> don't collide with other objects that are part of the same entity </summary>
-	NoSelfCollisions = 0x8000, 
-
 }

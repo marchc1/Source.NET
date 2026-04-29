@@ -16,7 +16,7 @@ public class WeaponHgun : BaseHL1MPCombatWeapon
 			RecvPropInt(FIELD.OF(nameof(FirePhase))),
 #else
 			SendPropFloat(FIELD.OF(nameof(RechargeTime)), 0, PropFlags.NoScale),
-			SendPropInt(FIELD.OF(nameof(FirePhase)), 32),
+			SendPropInt(FIELD.OF(nameof(FirePhase)), 4, PropFlags.Unsigned),
 #endif
 		]);
 #if CLIENT_DLL

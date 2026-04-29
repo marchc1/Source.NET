@@ -17,6 +17,7 @@ namespace Source.Common
 	{
 		Void = 0,         // No type or value
 		Float,            // Any floating point value
+		Double,           // Any double-precision floating point value
 		String,           // A string ID (return from ALLOC_STRING)
 		Vector,           // Any vector, QAngle, or AngularImpulse
 		Quaternion,       // A quaternion
@@ -79,9 +80,9 @@ namespace Source.Common
 		public readonly DataMap? TD;
 		public TypeDescription? OverrideField;
 		public int OverrideCount;
-		public readonly float FieldTolerance;
+		public readonly double FieldTolerance;
 
-		public TypeDescription(FieldType type, ReadOnlySpan<char> fieldName, IDynamicAccessor accessor, ushort fieldSize, FieldTypeDescFlags flags, ReadOnlySpan<char> externalName, ISaveRestoreOps? saveRestoreOps, DataMap? td, float fieldTolerance) {
+		public TypeDescription(FieldType type, ReadOnlySpan<char> fieldName, IDynamicAccessor accessor, ushort fieldSize, FieldTypeDescFlags flags, ReadOnlySpan<char> externalName, ISaveRestoreOps? saveRestoreOps, DataMap? td, double fieldTolerance) {
 			FieldType = type;
 			FieldName = new(fieldName);
 			FieldAccessor = accessor;
@@ -276,6 +277,7 @@ namespace Source
 				switch (td.FieldType) {
 					case FieldType.Embedded: framecontainer = new DataFrameContainer<DataFrame>(new DataFrame(td.TD)); break;
 					case FieldType.Float: framecontainer = new DataFrameContainer<float>(td.FieldSize); break;
+					case FieldType.Double: framecontainer = new DataFrameContainer<double>(td.FieldSize); break;
 					case FieldType.Vector: framecontainer = new DataFrameContainer<Vector3>(td.FieldSize); break;
 					case FieldType.Quaternion: framecontainer = new DataFrameContainer<Quaternion>(td.FieldSize); break;
 					case FieldType.Integer: framecontainer = new DataFrameContainer<int>(td.FieldSize); break;

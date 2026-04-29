@@ -16,11 +16,11 @@ public class EnvProjectedTexture : BaseEntity
 		SendPropBool(FIELD.OF(nameof(CameraSpace))),
 		SendPropVector(FIELD.OF(nameof(LinearFloatLightColor)), 0, PropFlags.NoScale),
 		SendPropString(FIELD.OF(nameof(SpotlightTextureName))),
-		SendPropInt(FIELD.OF(nameof(SpotlightTextureFrame)), 32, 0),
+		SendPropInt(FIELD.OF(nameof(SpotlightTextureFrame)), 14, 0),
 		SendPropFloat(FIELD.OF(nameof(NearZ)), 16, PropFlags.RoundDown),
 		SendPropFloat(FIELD.OF(nameof(FarZ)), 18, PropFlags.RoundDown),
 		SendPropBool(FIELD.OF(nameof(ShadowQuality))),
-		SendPropInt(FIELD.OF(nameof(Style)), 32, 0),
+		SendPropInt(FIELD.OF(nameof(Style)), 8, 0),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("EnvProjectedTexture", DT_EnvProjectedTexture).WithManualClassID(StaticClassIndices.CEnvProjectedTexture);
 

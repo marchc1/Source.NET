@@ -2,7 +2,7 @@
 using Source.Common;
 namespace Game.Shared.HL1;
 using FIELD = Source.FIELD<WeaponSatchel>;
-public class WeaponSatchel : BaseHL1CombatWeapon
+public class WeaponSatchel : BaseHL1MPCombatWeapon
 {
 	public static readonly
 #if CLIENT_DLL
@@ -10,7 +10,7 @@ public class WeaponSatchel : BaseHL1CombatWeapon
 #else
 		SendTable
 #endif
-		DT_WeaponSatchel = new(DT_BaseHL1CombatWeapon, [
+		DT_WeaponSatchel = new(DT_BaseHL1MPCombatWeapon, [
 #if CLIENT_DLL
 			RecvPropInt(FIELD.OF(nameof(RadioViewIndex))),
 			RecvPropInt(FIELD.OF(nameof(RadioWorldIndex))),
@@ -18,11 +18,11 @@ public class WeaponSatchel : BaseHL1CombatWeapon
 			RecvPropInt(FIELD.OF(nameof(SatchelWorldIndex))),
 			RecvPropInt(FIELD.OF(nameof(ChargeReady))),
 #else
-			SendPropInt(FIELD.OF(nameof(RadioViewIndex)), 32),
-			SendPropInt(FIELD.OF(nameof(RadioWorldIndex)), 32),
-			SendPropInt(FIELD.OF(nameof(SatchelViewIndex)), 32),
-			SendPropInt(FIELD.OF(nameof(SatchelWorldIndex)), 32),
-			SendPropInt(FIELD.OF(nameof(ChargeReady)), 32),
+			SendPropInt(FIELD.OF(nameof(RadioViewIndex)), 14),
+			SendPropInt(FIELD.OF(nameof(RadioWorldIndex)), 14),
+			SendPropInt(FIELD.OF(nameof(SatchelViewIndex)), 14),
+			SendPropInt(FIELD.OF(nameof(SatchelWorldIndex)), 14),
+			SendPropInt(FIELD.OF(nameof(ChargeReady)), 3, PropFlags.Unsigned),
 #endif
 		]);
 #if CLIENT_DLL

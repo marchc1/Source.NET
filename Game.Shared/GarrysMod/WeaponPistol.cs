@@ -17,15 +17,15 @@ public class WeaponPistol : HL2MPMachineGun
 #endif
 		DT_WeaponPistol = new(DT_HL2MPMachineGun, [
 #if CLIENT_DLL
-			RecvPropFloat(FIELD.OF(nameof(SoonestPrimaryAttack))),
-			RecvPropFloat(FIELD.OF(nameof(LastAttackTime))),
+			RecvPropTime64(FIELD.OF(nameof(SoonestPrimaryAttack))),
+			RecvPropTime64(FIELD.OF(nameof(LastAttackTime))),
 			RecvPropFloat(FIELD.OF(nameof(AccuracyPenalty))),
 			RecvPropInt(FIELD.OF(nameof(NumShotsFired))),
 #else
-			SendPropFloat(FIELD.OF(nameof(SoonestPrimaryAttack)), 0, PropFlags.NoScale),
-			SendPropFloat(FIELD.OF(nameof(LastAttackTime)), 0, PropFlags.NoScale),
+			SendPropTime64(FIELD.OF(nameof(SoonestPrimaryAttack))),
+			SendPropTime64(FIELD.OF(nameof(LastAttackTime))),
 			SendPropFloat(FIELD.OF(nameof(AccuracyPenalty)), 0, PropFlags.NoScale),
-			SendPropInt(FIELD.OF(nameof(NumShotsFired))),
+			SendPropInt(FIELD.OF(nameof(NumShotsFired)), 16),
 #endif
 		]);
 #if CLIENT_DLL

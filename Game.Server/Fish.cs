@@ -13,7 +13,7 @@ public class Fish : BaseAnimating
 		SendPropFloat(FIELD.OF(nameof(Y)), 7, 0),
 		SendPropFloat(FIELD.OF(nameof(Z)), 0, PropFlags.Coord | PropFlags.NoScale),
 		SendPropInt(FIELD.OF(nameof(ModelIndex)), 14, 0),
-		SendPropInt(FIELD.OF(nameof(LifeState)), 8, 0),
+		SendPropInt(FIELD.OF(nameof(LifeState)), 3, PropFlags.Unsigned),
 		SendPropFloat(FIELD.OF(nameof(WaterLevel)), 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("Fish", DT_Fish).WithManualClassID(StaticClassIndices.CFish);

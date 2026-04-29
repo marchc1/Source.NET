@@ -8,7 +8,7 @@ public class NPC_Puppet : AI_BaseNPC
 {
 	public static readonly SendTable DT_NPC_Puppet = new(DT_AI_BaseNPC, [
 		SendPropEHandle(FIELD.OF(nameof(AnimationTarget))),
-		SendPropInt(FIELD.OF(nameof(TargetAttachment)), 32, 0),
+		SendPropInt(FIELD.OF(nameof(TargetAttachment)), 12, 0),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("NPC_Puppet", DT_NPC_Puppet).WithManualClassID(StaticClassIndices.CNPC_Puppet);
 

@@ -91,6 +91,7 @@ public class WeaponsResource
 			weaponInfo.IconZoomedAutoaim = weaponInfo.IconZoomedCrosshair;  //default to zoomed crosshair
 		}
 
+#if !GMOD_DLL
 		HudHistoryResource? hudHR = gHUD.FindElement("CHudHistoryResource") as HudHistoryResource;
 		if (hudHR != null) {
 			p = FindHudTextureInDict(tempList, "weapon");
@@ -132,6 +133,7 @@ public class WeaponsResource
 				}
 			}
 		}
+#endif
 	}
 
 	public void Init() => Reset();

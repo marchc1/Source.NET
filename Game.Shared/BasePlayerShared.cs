@@ -189,6 +189,25 @@ public partial class
 		Weapon_Switch(item);
 	}
 
+	public virtual bool Weapon_ShouldSetLast(BaseCombatWeapon? last, BaseCombatWeapon? active) => true;
+
+	public override bool Weapon_Switch(BaseCombatWeapon? weapon, int viewmodelindex = 0) {
+		BaseCombatWeapon? lastWeapon = GetActiveWeapon();
+
+		if (base.Weapon_Switch(weapon, viewmodelindex)) {
+			if (lastWeapon != null && Weapon_ShouldSetLast(lastWeapon, GetActiveWeapon())) 
+				Weapon_SetLast(lastWeapon.GetLastWeapon());
+
+			BaseViewModel? pViewModel = GetViewModel(viewmodelindex);
+			Assert(pViewModel != null);
+			if (pViewModel != null)
+				pViewModel.RemoveEffects(EntityEffects.NoDraw);
+			ResetAutoaim();
+			return true;
+		}
+		return false;
+	}
+
 	public void PlayStepSound(in Vector3 origin, SurfaceData_ptr? surface, float fvol, bool force) {
 		// todo
 	}

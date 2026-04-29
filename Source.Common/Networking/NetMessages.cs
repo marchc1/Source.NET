@@ -10,6 +10,7 @@ using static Constants;
 using Source.Common.Bitbuffers;
 using Source.Common.Hashing;
 using Source.Common.Mathematics;
+using System.Text;
 
 public static class NetMessageExtensions
 {
@@ -355,11 +356,11 @@ public class SVC_CreateStringTable : NetMessage
 		Length = DataOut.BitsWritten;
 
 		buffer.WriteString(TableName);
-		buffer.WriteWord(MaxEntries);
+
 		int encodeBits = (int)MathF.Log2(MaxEntries);
+		buffer.WriteUBitLong((uint)encodeBits, 5);
 		buffer.WriteUBitLong((uint)NumEntries, encodeBits + 1);
 		buffer.WriteVarInt32((uint)Length);
-
 		buffer.WriteBool(UserDataFixedSize);
 
 		if (UserDataFixedSize) {
@@ -368,16 +369,31 @@ public class SVC_CreateStringTable : NetMessage
 		}
 
 		buffer.WriteBool(DataCompressed);
+
 		return buffer.WriteBits(DataOut.BaseArray, Length);
 	}
 
 	public override bool ReadFromBuffer(bf_read buffer) {
+		char prefix = '\0';
+		byte prefixR = (byte)buffer.PeekUBitLong(8);
+		Encoding.ASCII.GetChars(new ReadOnlySpan<byte>(in prefixR), new Span<char>(ref prefix));
+
+		if (prefix == ':') {
+			IsFilenames = true;
+			buffer.ReadByte();
+		}
+		else
+			IsFilenames = false;
+
 		TableName = buffer.ReadString(500) ?? throw new Exception();
-		MaxEntries = buffer.ReadWord();
-		int encodeBits = (int)MathF.Log2(MaxEntries);
+
+		int encodeBits = (int)buffer.ReadUBitLong(5);
+		MaxEntries = 1 << encodeBits;
 		NumEntries = (int)buffer.ReadUBitLong(encodeBits + 1);
+
 		// Protocol difference here we should account for later
 		Length = (int)buffer.ReadVarInt32();
+
 		UserDataFixedSize = buffer.ReadBool();
 		if (UserDataFixedSize) {
 			UserDataSize = (int)buffer.ReadUBitLong(12);
@@ -935,12 +951,17 @@ public class CLC_ClientInfo : NetMessage
 		buffer.WriteNetMessageType(this);
 
 		buffer.WriteLong(ServerCount);
-		//buffer.WriteLong(SendTableCRC);
 		// We have to do this. I don't know why.
 		// There is some issue with sending it as a regular number that makes the bitbuffer flip a bit somewhere. I don't know why.
-		foreach (int bit in new int[] { 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1 }) {
-			buffer.WriteOneBit(bit);
-		}
+		// foreach (int bit in new int[] { 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1 }) {
+		// 	buffer.WriteOneBit(bit);
+		// }
+		// I have left the above comment as a lesson of pain. CLC_ClientInfo::ToString intentionally masks two bits in its value.
+		// v1 = *((_DWORD *)this + 4) & 0xFFFFDFDF;
+		// To find it, you have to get the packet contents, then do bit by bit searching for the masked value in CLC_ClientInfo.
+		// So just keep that in mind when changing ClientInfoCRC's magic number.
+		buffer.WriteLong(SendTableCRC);
+
 
 		buffer.WriteBool(IsHLTV);
 		buffer.WriteLong((int)FriendsID);

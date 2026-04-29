@@ -18,6 +18,7 @@ public static class PlatformMacros
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsPlatform64Bits() => IntPtr.Size == 8;
 
 	public const int MAX_PATH = 260;
+	public const int MAX_OSPATH = 260;
 }
 
 public delegate bool MessageBoxFn(ReadOnlySpan<char> title, ReadOnlySpan<char> info, bool showOkAndCancel);

@@ -14,7 +14,8 @@ public class C_PropVehiclePrisonerPod : C_PhysicsProp
 		RecvPropBool(FIELD.OF(nameof(EnterAnimOn))),
 		RecvPropBool(FIELD.OF(nameof(ExitAnimOn))),
 		RecvPropVector(FIELD.OF(nameof(EyeExitEndpoint))),
-		RecvPropBool(FIELD.OF(nameof(LimitView)))
+		RecvPropBool(FIELD.OF(nameof(LimitView))),
+		RecvPropBool(FIELD.OF(nameof(Locked))),
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("PropVehiclePrisonerPod", DT_PropVehiclePrisonerPod).WithManualClassID(StaticClassIndices.CPropVehiclePrisonerPod);
 
@@ -23,4 +24,5 @@ public class C_PropVehiclePrisonerPod : C_PhysicsProp
 	public bool ExitAnimOn = new();
 	public Vector3 EyeExitEndpoint = new();
 	public bool LimitView = new();
+	public bool Locked = new();
 }

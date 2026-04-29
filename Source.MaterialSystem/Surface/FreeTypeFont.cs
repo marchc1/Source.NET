@@ -24,6 +24,9 @@ public unsafe class FreeTypeFont : BaseFont
 		if (error != 0)
 			throw new Exception("FT_Init_FreeType failed");
 	}
+	internal override int GetHeightRequested() => Tall;	
+	internal override ReadOnlySpan<char> GetName() => Name;
+	internal override ReadOnlySpan<char> GetFamilyName() => null;
 
 	internal readonly FontManager fontManager;
 	internal readonly ISystem system;

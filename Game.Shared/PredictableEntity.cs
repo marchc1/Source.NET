@@ -1,5 +1,10 @@
-﻿using Source.Common;
+﻿using Source;
+using Source.Common;
 using Source.Common.Commands;
+using Source.Common.Networking;
+
+using System.Drawing;
+using System.Runtime.CompilerServices;
 
 namespace Game.Shared;
 
@@ -58,6 +63,176 @@ public static class StaticClassIndicesHelpers
 		Msg("-dumpdatatablescompleted present, dumped all datatables to " + backPath + "\n");
 		Msg($"  - {implemented.Count(true)}/{values.Length} datatables were marked as completed.\n");
 		Msg($"  - Around {Math.Round((implemented.Count(true) / (float)values.Length) * 100, 2)}% have been completed!\n");
+
+		//HolylibDumpDtReplica();
+	}
+
+	/// <summary>
+	/// This tries to replicate https://github.com/RaphaelIT7/gmod-holylib/blob/efa27b047b93f2ff014289aa08f2c9003118418c/source/modules/networking.cpp#L1902
+	/// It should result in exact output so it can be used in diff checks.
+	/// </summary>
+	public static void HolylibDumpDtReplica() {
+		string dumpFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Source.NET Datatables");
+		Directory.CreateDirectory(dumpFilePath);
+		HashSet<SendTable> writtenTables = [];
+		int classIndex = 0;
+		for (ServerClass? svc = ServerClass.Head; svc != null; svc = svc.Next) {
+			string fileName = Path.Combine(dumpFilePath, $"{classIndex++}_{svc.NetworkName}-{svc.Table.GetName()}.txt");
+			using FileStream file = File.Open(fileName, FileMode.Create, FileAccess.Write);
+			using StreamWriter fileWriter = new(file);
+			WriteSendTable(svc.Table, fileWriter, writtenTables);
+		}
+
+		using FileStream fullList = File.Open(Path.Combine(dumpFilePath, "fulllist.dt"), FileMode.Create, FileAccess.Write);
+		using StreamWriter fullListWriter = new(fullList);
+		classIndex = 0;
+		for (ServerClass? svc = ServerClass.Head; svc != null; svc = svc.Next)
+			fullListWriter.Write($"{svc.NetworkName} = {classIndex++}\n");
+	}
+
+	private static void WriteSendTable(SendTable table, StreamWriter file, HashSet<SendTable> writtenTables) {
+		for (int i = 0; i < table.GetNumProps(); ++i) {
+			SendProp prop = table.GetProp(i);
+
+			WriteSendProp(prop, i, 0, file, writtenTables);
+			file.Write("\n");
+			writtenTables.Add(table);
+		}
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	static void APPEND_IF_PFLAGS_CONTAINS_SPROP(ref string pFlags, PropFlags flags, PropFlags prop) {
+		if ((flags & prop) != 0)
+			pFlags += " " + prop switch {
+				PropFlags.Unsigned => "UNSIGNED",
+				PropFlags.Coord => "COORD",
+				PropFlags.NoScale => "NOSCALE",
+				PropFlags.RoundDown => "ROUNDDOWN",
+				PropFlags.RoundUp => "ROUNDUP",
+				PropFlags.Normal => "NORMAL",
+				PropFlags.Exclude => "EXCLUDE",
+				PropFlags.XYZExponent => "XYZE",
+				PropFlags.InsideArray => "INSIDEARRAY",
+				PropFlags.ProxyAlwaysYes => "PROXY_ALWAYS_YES",
+				PropFlags.ChangesOften => "CHANGES_OFTEN",
+				PropFlags.IsAVectorElem => "IS_A_VECTOR_ELEM",
+				PropFlags.CoordMP => "COORD_MP",
+				PropFlags.CoordMPLowPrecision => "COORD_MP_LOWPRECISION",
+				PropFlags.CoordMPIntegral => "COORD_MP_INTEGRAL",
+				// PropFlags.VarInt => "VARINT",
+				PropFlags.EncodedAgainstTickCount => "ENCODED_AGAINST_TICKCOUNT",
+				_ => throw new NotImplementedException()
+			};
+	}
+
+	private static void WriteString(string str, int nIndent, StreamWriter pHandle) {
+		for (int i = 0; i < nIndent; ++i)
+			pHandle.Write("\t");
+
+		pHandle.Write(str);
+		pHandle.Write("\n");
+	}
+
+
+
+	private static void WriteSendTable(SendTable pTable, HashSet<SendTable> pWrittenTables) {
+		if (pWrittenTables.Contains(pTable))
+			return; // Already wrote it. Skipping...
+
+		string fileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Source.NET Datatables", $"{pTable.GetName()}.txt");
+
+		using FileStream stream = File.Open(fileName, FileMode.Create, FileAccess.Write);
+		using StreamWriter pHandle = new(stream);
+
+		for (int i = 0; i < pTable.GetNumProps(); ++i) {
+			SendProp pProp = pTable.GetProp(i);
+
+			WriteSendProp(pProp, i, 0, pHandle, pWrittenTables);
+			pHandle.Write("\n");
+
+			pWrittenTables.Add(pTable);
+		}
+	}
+
+	private static void WriteSendProp(SendProp pProp, int nIndex, int nIndent, StreamWriter pHandle, HashSet<SendTable> pWrittenTables) {
+		WriteString($"PropName: {pProp.GetName()}", nIndent, pHandle);
+		WriteString($"ExcludeName: {pProp.GetExcludeDTName()}", nIndent, pHandle);
+
+		string pFlags = "Flags:";
+		var flags = pProp.GetFlags();
+		if (flags == 0) {
+			pFlags += " None";
+		}
+		else {
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.Unsigned);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.Coord);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.NoScale);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.RoundDown);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.RoundUp);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.Normal);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.Exclude);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.XYZExponent);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.InsideArray);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.ProxyAlwaysYes);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.ChangesOften);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.IsAVectorElem);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.CoordMP);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.CoordMPLowPrecision);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.CoordMPIntegral);
+			APPEND_IF_PFLAGS_CONTAINS_SPROP(ref pFlags, flags, PropFlags.EncodedAgainstTickCount);
+		}
+		WriteString(pFlags, nIndent, pHandle);
+		var pDataTableName = ($"Inherited: {((pProp.GetPropType() == SendPropType.DataTable && pProp.GetDataTable() != null) ? pProp.GetDataTable()!.GetName() : "NONE")}");
+
+		if (pProp.GetDataTable() != null)
+			WriteSendTable(pProp.GetDataTable(), pWrittenTables);
+		WriteString(pDataTableName, nIndent, pHandle);
+
+		string pType = "Type: ";
+		switch (pProp.GetPropType()) {
+			case SendPropType.Int:
+				pType += ("DPT_Int");
+				break;
+			case SendPropType.Float:
+				pType += ("DPT_Float");
+				break;
+			case SendPropType.Vector:
+				pType += ("DPT_Vector");
+				break;
+			case SendPropType.VectorXY:
+				// IMPORTANT: GMod uses this to network doubles! See SendPropTime64 which just redirects to SendPropVectorXY
+				pType += ("DPT_VectorXY");
+				break;
+			case SendPropType.String:
+				pType += ("DPT_String");
+				break;
+			case SendPropType.Array:
+				pType += ("DPT_Array");
+				break;
+			case SendPropType.DataTable:
+				pType += ("DPT_DataTable");
+				break;
+			case SendPropType.GModTable:
+				pType += ("DPT_GMODTable");
+				break;
+			default:
+				pType += ("UNKNOWN(");
+				pType += (pProp.GetPropType());
+				pType += (")");
+				break;
+		}
+		WriteString(pType, nIndent, pHandle);
+
+		WriteString($"NumElement: {pProp.GetNumElements()}", nIndent, pHandle);
+		WriteString($"Bits: {pProp.Bits}", nIndent, pHandle);
+		WriteString($"HighValue: {pProp.HighValue}", nIndent, pHandle);
+		WriteString($"LowValue: {pProp.LowValue}", nIndent, pHandle);
+
+		if (pProp.GetArrayProp() != null) {
+			string pArrayProp = "ArrayProp: ";
+
+			WriteString(pArrayProp, nIndent, pHandle);
+			WriteSendProp(pProp.GetArrayProp()!, nIndex, nIndent + 1, pHandle, pWrittenTables);
+		}
 	}
 }
 
@@ -65,255 +240,253 @@ public static class StaticClassIndicesHelpers
 public enum StaticClassIndices
 {
 	AR2Explosion = 0,
-	CAI_BaseNPC = 1,
-	CAlyxEmpEffect = 2,
-	CBaseAnimating = 3,
-	CBaseAnimatingOverlay = 4,
-	CBaseCombatCharacter = 5,
-	CBaseCombatWeapon = 6,
-	CBaseDoor = 7,
-	CBaseEntity = 8,
-	CBaseFlex = 9,
-	CBaseGrenade = 10,
-	CBaseHelicopter = 11,
-	CBaseHelicopter_HL1 = 12,
-	CBaseHL1CombatWeapon = 13,
-	CBaseHL1MPCombatWeapon = 14,
-	CBaseHL2MPBludgeonWeapon = 15,
-	CBaseHL2MPCombatWeapon = 16,
-	CBaseHLBludgeonWeapon = 17,
-	CBaseHLCombatWeapon = 18,
-	CBaseParticleEntity = 19,
-	CBasePlayer = 20,
-	CBasePropDoor = 21,
-	CBaseTempEntity = 22,
-	CBaseToggle = 23,
-	CBaseTrigger = 24,
-	CBaseViewModel = 25,
-	CBeam = 26,
-	CBeamSpotlight = 27,
-	CBoneFollower = 28,
-	CBoneManipulate = 29,
-	CBreakableProp = 30,
-	CBreakableSurface = 31,
-	CCitadelEnergyCore = 32,
-	CColorCorrection = 33,
-	CColorCorrectionVolume = 34,
-	CCrossbowBolt = 35,
-	CDynamicLight = 36,
-	CDynamicProp = 37,
-	CEmbers = 38,
-	CEntityDissolve = 39,
-	CEntityFlame = 40,
-	CEntityParticleTrail = 41,
-	CEnvAmbientLight = 42,
-	CEnvDetailController = 43,
-	CEnvHeadcrabCanister = 44,
-	CEnvParticleScript = 45,
-	CEnvProjectedTexture = 46,
-	CEnvQuadraticBeam = 47,
-	CEnvScreenEffect = 48,
-	CEnvScreenOverlay = 49,
-	CEnvStarfield = 50,
-	CEnvTonemapController = 51,
-	CEnvWind = 52,
-	CFireSmoke = 53,
-	CFireTrail = 54,
-	CFish = 55,
-	CFlare = 56,
-	CFleshEffectTarget = 57,
-	CFlexManipulate = 58,
-	CFogController = 59,
-	CFunc_Dust = 60,
-	CFunc_LOD = 61,
-	CFuncAreaPortalWindow = 62,
-	CFuncConveyor = 63,
-	CFuncLadder = 64,
-	CFuncMonitor = 65,
-	CFuncOccluder = 66,
-	CFuncReflectiveGlass = 67,
-	CFuncRotating = 68,
-	CFuncSmokeVolume = 69,
-	CFuncTrackTrain = 70,
-	CGameRulesProxy = 71,
-	CGMOD_Player = 72,
-	CGMODGameRulesProxy = 73,
-	CHL2_Player = 74,
-	CHL2MP_Player = 75,
-	CHL2MPGameRulesProxy = 76,
-	CHL2MPMachineGun = 77,
-	CHL2MPRagdoll = 78,
-	CHLMachineGun = 79,
-	CHLSelectFireMachineGun = 80,
-	CInfoLadderDismount = 81,
-	CInfoLightingRelative = 82,
-	CInfoOverlayAccessor = 83,
-	CInfoTeleporterCountdown = 84,
-	CLaserDot = 85,
-	CLaserDot_HL1 = 86,
-	CLightGlow = 87,
-	CLuaNextBot = 88,
-	CMaterialModifyControl = 89,
-	CMortarShell = 90,
-	CNPC_AntlionGuard = 91,
-	CNPC_Barnacle = 92,
-	CNPC_Barney = 93,
-	CNPC_CombineGunship = 94,
-	CNPC_Manhack = 95,
-	CNPC_Portal_FloorTurret = 96,
-	CNPC_Puppet = 97,
-	CNPC_RocketTurret = 98,
-	CNPC_RollerMine = 99,
-	CNPC_Strider = 100,
-	CNPC_Vortigaunt = 101,
-	CParticleFire = 102,
-	CParticlePerformanceMonitor = 103,
-	CParticleSystem = 104,
-	CPhysBeam = 105,
-	CPhysBox = 106,
-	CPhysBoxMultiplayer = 107,
-	CPhysicsProp = 108,
-	CPhysicsPropMultiplayer = 109,
-	CPhysMagnet = 110,
-	CPlasma = 111,
-	CPlayerResource = 112,
-	CPointCamera = 113,
-	CPointWorldText = 114,
-	CPoseController = 115,
-	CPrecipitation = 116,
-	CPrecipitationBlocker = 117,
-	CPredictedViewModel = 118,
-	CPropAirboat = 119,
-	CPropCombineBall = 120,
-	CPropCrane = 121,
-	CPropDoorRotating = 122,
-	CPropEnergyBall = 123,
-	CPropJeep = 124,
-	CPropJeepEpisodic = 125,
-	CPropScalable = 126,
-	CPropVehicleChoreoGeneric = 127,
-	CPropVehicleDriveable = 128,
-	CPropVehiclePrisonerPod = 129,
-	CRagdollManager = 130,
-	CRagdollProp = 131,
-	CRagdollPropAttached = 132,
-	CRopeKeyframe = 133,
-	CRotorWashEmitter = 134,
-	CRpgRocket = 135,
-	CSceneEntity = 136,
-	CScriptIntro = 137,
-	CSENT_AI = 138,
-	CSENT_anim = 139,
-	CSENT_point = 140,
-	CShadowControl = 141,
-	CSlideshowDisplay = 142,
-	CSmokeStack = 143,
-	CSpatialEntity = 144,
-	CSpotlightEnd = 145,
-	CSprite = 146,
-	CSpriteOriented = 147,
-	CSpriteTrail = 148,
-	CSteamJet = 149,
-	CSun = 150,
-	CTeam = 151,
-	CTEAntlionDust = 152,
-	CTEArmorRicochet = 153,
-	CTEBaseBeam = 154,
-	CTEBeamEntPoint = 155,
-	CTEBeamEnts = 156,
-	CTEBeamFollow = 157,
-	CTEBeamLaser = 158,
-	CTEBeamPoints = 159,
-	CTEBeamRing = 160,
-	CTEBeamRingPoint = 161,
-	CTEBeamSpline = 162,
-	CTEBloodSprite = 163,
-	CTEBloodStream = 164,
-	CTEBreakModel = 165,
-	CTEBSPDecal = 166,
-	CTEBubbles = 167,
-	CTEBubbleTrail = 168,
-	CTEClientProjectile = 169,
-	CTEConcussiveExplosion = 170,
-	CTEDecal = 171,
-	CTEDust = 172,
-	CTEDynamicLight = 173,
-	CTEEffectDispatch = 174,
-	CTEEnergySplash = 175,
-	CTEExplosion = 176,
-	CTEFizz = 177,
-	CTEFootprintDecal = 178,
-	CTEGaussExplosion = 179,
-	CTEGlowSprite = 180,
-	CTEHL2MPFireBullets = 181,
-	CTEImpact = 182,
-	CTEKillPlayerAttachments = 183,
-	CTELargeFunnel = 184,
-	CTEMetalSparks = 185,
-	CTEMuzzleFlash = 186,
-	CTEParticleSystem = 187,
-	CTEPhysicsProp = 188,
-	CTEPlayerAnimEvent = 189,
-	CTEPlayerDecal = 190,
-	CTEProjectedDecal = 191,
-	CTEShatterSurface = 192,
-	CTEShowLine = 193,
-	CTesla = 194,
-	CTESmoke = 195,
-	CTESparks = 196,
-	CTESprite = 197,
-	CTESpriteSpray = 198,
-	CTEWorldDecal = 199,
-	CTriggerPlayerMovement = 200,
-	CVGuiScreen = 201,
-	CVortigauntChargeToken = 202,
-	CVortigauntEffectDispel = 203,
-	CWaterBullet = 204,
-	CWaterLODControl = 205,
-	CWeapon357 = 206,
-	CWeapon357_HL1 = 207,
-	CWeapon_SLAM = 208,
-	CWeaponAlyxGun = 209,
-	CWeaponAnnabelle = 210,
-	CWeaponAR2 = 211,
-	CWeaponBugBait = 212,
-	CWeaponCitizenPackage = 213,
-	CWeaponCitizenSuitcase = 214,
-	CWeaponCrossbow = 215,
-	CWeaponCrossbow_HL1 = 216,
-	CWeaponCrowbar = 217,
-	CWeaponCrowbar_HL1 = 218,
-	CWeaponCubemap = 219,
-	CWeaponCycler = 220,
-	CWeaponEgon = 221,
-	CWeaponFrag = 222,
-	CWeaponGauss = 223,
-	CWeaponGlock = 224,
-	CWeaponHandGrenade = 225,
-	CWeaponHgun = 226,
-	CWeaponHL2MPBase = 227,
-	CWeaponMP5 = 228,
-	CWeaponOldManHarpoon = 229,
-	CWeaponPhysCannon = 230,
-	CWeaponPhysGun = 231,
-	CWeaponPistol = 232,
-	CWeaponRPG = 233,
-	CWeaponRPG_HL1 = 234,
-	CWeaponSatchel = 235,
-	CWeaponShotgun = 236,
-	CWeaponShotgun_HL1 = 237,
-	CWeaponSMG1 = 238,
-	CWeaponSnark = 239,
-	CWeaponStunStick = 240,
-	CWeaponSWEP = 241,
-	CWeaponTripMine = 242,
-	CWorld = 243,
-	DustTrail = 244,
-	MovieExplosion = 245,
-	NextBotCombatCharacter = 246,
-	ParticleSmokeGrenade = 247,
-	RocketTrail = 248,
-	SmokeTrail = 249,
-	SporeExplosion = 250,
+	CAI_BaseNPC,
+	CAlyxEmpEffect,
+	CBaseAnimating,
+	CBaseAnimatingOverlay,
+	CBaseCombatCharacter,
+	CBaseCombatWeapon,
+	CBaseDoor,
+	CBaseEntity,
+	CBaseFlex,
+	CBaseGrenade,
+	CBaseHelicopter,
+	CBaseHelicopter_HL1,
+	CBaseHL1CombatWeapon,
+	CBaseHL1MPCombatWeapon,
+	CBaseHL2MPBludgeonWeapon,
+	CBaseHL2MPCombatWeapon,
+	CBaseHLBludgeonWeapon,
+	CBaseHLCombatWeapon,
+	CBaseParticleEntity,
+	CBasePlayer,
+	CBasePropDoor,
+	CBaseTempEntity,
+	CBaseToggle,
+	CBaseTrigger,
+	CBaseViewModel,
+	CBeam,
+	CBeamSpotlight,
+	CBoneFollower,
+	CBoneManipulate,
+	CBreakableProp,
+	CBreakableSurface,
+	CCitadelEnergyCore,
+	CColorCorrection,
+	CColorCorrectionVolume,
+	CCrossbowBolt,
+	CDynamicLight,
+	CDynamicProp,
+	CEmbers,
+	CEntityDissolve,
+	CEntityFlame,
+	CEntityParticleTrail,
+	CEnvAmbientLight,
+	CEnvDetailController,
+	CEnvHeadcrabCanister,
+	CEnvParticleScript,
+	CEnvProjectedTexture,
+	CEnvQuadraticBeam,
+	CEnvScreenEffect,
+	CEnvScreenOverlay,
+	CEnvStarfield,
+	CEnvTonemapController,
+	CEnvWind,
+	CFireSmoke,
+	CFireTrail,
+	CFish,
+	CFlare,
+	CFleshEffectTarget,
+	CFlexManipulate,
+	CFogController,
+	CFunc_Dust,
+	CFunc_LOD,
+	CFuncAreaPortalWindow,
+	CFuncConveyor,
+	CFuncLadder,
+	CFuncMonitor,
+	CFuncOccluder,
+	CFuncReflectiveGlass,
+	CFuncRotating,
+	CFuncSmokeVolume,
+	CFuncTrackTrain,
+	CGameRulesProxy,
+	CGMOD_Player,
+	CGMODGameRulesProxy,
+	CHL2_Player,
+	CHL2MP_Player,
+	CHL2MPGameRulesProxy,
+	CHL2MPMachineGun,
+	CHL2MPRagdoll,
+	CHLMachineGun,
+	CHLSelectFireMachineGun,
+	CInfoLadderDismount,
+	CInfoLightingRelative,
+	CInfoOverlayAccessor,
+	CInfoTeleporterCountdown,
+	CLaserDot,
+	CLaserDot_HL1,
+	CLightGlow,
+	CLuaNextBot,
+	CMaterialModifyControl,
+	CMortarShell,
+	CNPC_AntlionGuard,
+	CNPC_Barnacle,
+	CNPC_Barney,
+	CNPC_CombineGunship,
+	CNPC_Manhack,
+	CNPC_Portal_FloorTurret,
+	CNPC_Puppet,
+	CNPC_RocketTurret,
+	CNPC_RollerMine,
+	CNPC_Strider,
+	CNPC_Vortigaunt,
+	CParticlePerformanceMonitor,
+	CParticleSystem,
+	CPhysBeam,
+	CPhysBox,
+	CPhysBoxMultiplayer,
+	CPhysicsProp,
+	CPhysicsPropMultiplayer,
+	CPhysMagnet,
+	CPlasma,
+	CPlayerResource,
+	CPointCamera,
+	CPointWorldText,
+	CPoseController,
+	CPrecipitation,
+	CPrecipitationBlocker,
+	CPredictedViewModel,
+	CPropAirboat,
+	CPropCombineBall,
+	CPropCrane,
+	CPropDoorRotating,
+	CPropEnergyBall,
+	CPropJeep,
+	CPropJeepEpisodic,
+	CPropScalable,
+	CPropVehicleChoreoGeneric,
+	CPropVehicleDriveable,
+	CPropVehiclePrisonerPod,
+	CRagdollManager,
+	CRagdollProp,
+	CRagdollPropAttached,
+	CRopeKeyframe,
+	CRotorWashEmitter,
+	CRpgRocket,
+	CSceneEntity,
+	CScriptIntro,
+	CSENT_AI,
+	CSENT_anim,
+	CSENT_point,
+	CShadowControl,
+	CSlideshowDisplay,
+	CSmokeStack,
+	CSpatialEntity,
+	CSpotlightEnd,
+	CSprite,
+	CSpriteOriented,
+	CSpriteTrail,
+	CSteamJet,
+	CSun,
+	CTeam,
+	CTEAntlionDust,
+	CTEArmorRicochet,
+	CTEBaseBeam,
+	CTEBeamEntPoint,
+	CTEBeamEnts,
+	CTEBeamFollow,
+	CTEBeamLaser,
+	CTEBeamPoints,
+	CTEBeamRing,
+	CTEBeamRingPoint,
+	CTEBeamSpline,
+	CTEBloodSprite,
+	CTEBloodStream,
+	CTEBreakModel,
+	CTEBSPDecal,
+	CTEBubbles,
+	CTEBubbleTrail,
+	CTEClientProjectile,
+	CTEConcussiveExplosion,
+	CTEDecal,
+	CTEDust,
+	CTEDynamicLight,
+	CTEEffectDispatch,
+	CTEEnergySplash,
+	CTEExplosion,
+	CTEFizz,
+	CTEFootprintDecal,
+	CTEGaussExplosion,
+	CTEGlowSprite,
+	CTEHL2MPFireBullets,
+	CTEKillPlayerAttachments,
+	CTELargeFunnel,
+	CTEMetalSparks,
+	CTEMuzzleFlash,
+	CTEParticleSystem,
+	CTEPhysicsProp,
+	CTEPlayerAnimEvent,
+	CTEPlayerDecal,
+	CTEProjectedDecal,
+	CTEShatterSurface,
+	CTEShowLine,
+	CTesla,
+	CTESmoke,
+	CTESparks,
+	CTESprite,
+	CTESpriteSpray,
+	CTEWorldDecal,
+	CTriggerPlayerMovement,
+	CVGuiScreen,
+	CVortigauntChargeToken,
+	CVortigauntEffectDispel,
+	CWaterBullet,
+	CWaterLODControl,
+	CWeapon357,
+	CWeapon357_HL1,
+	CWeapon_SLAM,
+	CWeaponAlyxGun,
+	CWeaponAnnabelle,
+	CWeaponAR2,
+	CWeaponBugBait,
+	CWeaponCitizenPackage,
+	CWeaponCitizenSuitcase,
+	CWeaponCrossbow,
+	CWeaponCrossbow_HL1,
+	CWeaponCrowbar,
+	CWeaponCrowbar_HL1,
+	CWeaponCubemap,
+	CWeaponCycler,
+	CWeaponEgon,
+	CWeaponFrag,
+	CWeaponGauss,
+	CWeaponGlock,
+	CWeaponHandGrenade,
+	CWeaponHgun,
+	CWeaponHL2MPBase,
+	CWeaponMP5,
+	CWeaponOldManHarpoon,
+	CWeaponPhysCannon,
+	CWeaponPhysGun,
+	CWeaponPistol,
+	CWeaponRPG,
+	CWeaponRPG_HL1,
+	CWeaponSatchel,
+	CWeaponShotgun,
+	CWeaponShotgun_HL1,
+	CWeaponSMG1,
+	CWeaponSnark,
+	CWeaponStunStick,
+	CWeaponSWEP,
+	CWeaponTripMine,
+	CWorld,
+	DustTrail,
+	MovieExplosion,
+	NextBotCombatCharacter,
+	ParticleSmokeGrenade,
+	RocketTrail,
+	SmokeTrail,
+	SporeExplosion,
 }
 #endif

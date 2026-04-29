@@ -13,16 +13,12 @@ public class HL2PlayerLocalData {
 		SendPropFloat(FIELD.OF(nameof(SuitPower)), 10, PropFlags.Unsigned | PropFlags.RoundUp, 0.0f, 100.0f),
 		SendPropInt(FIELD.OF(nameof(Zooming)), 1, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(BitsActiveDevices)), MAX_SUIT_DEVICES, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(SquadMemberCount))),
-		SendPropInt(FIELD.OF(nameof(SquadMedicCount))),
+		SendPropInt(FIELD.OF(nameof(SquadMemberCount)), 5, PropFlags.Unsigned),
+		SendPropInt(FIELD.OF(nameof(SquadMedicCount)), 5, PropFlags.Unsigned),
 		SendPropBool(FIELD.OF(nameof(SquadInFollowMode))),
 		SendPropBool(FIELD.OF(nameof(WeaponLowered))),
-		SendPropEHandle(FIELD.OF(nameof(AutoAimTargetHandle))),
-		SendPropVector(FIELD.OF(nameof(AutoAimPoint))),
 		SendPropEHandle(FIELD.OF(nameof(Ladder))),
 		SendPropBool(FIELD.OF(nameof(DisplayReticle))),
-		SendPropBool(FIELD.OF(nameof(StickyAutoAim))),
-		SendPropBool(FIELD.OF(nameof(AutoAimTarget))),
 	]); public static readonly ServerClass SC_Local = new ServerClass("HL2Local", DT_HL2Local);
 
 	public float SuitPower;
