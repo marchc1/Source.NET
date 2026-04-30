@@ -134,6 +134,7 @@ public class NET_SetConVar : NetMessage
 public class NET_StringCmd : NetMessage
 {
 	public NET_StringCmd() : base(NET.StringCmd) { }
+	public NET_StringCmd(string cmd) : base(NET.StringCmd) => Command = cmd;
 	public override NetChannelGroup GetGroup() => NetChannelGroup.StringCmd;
 
 	public string Command = "";
@@ -643,6 +644,7 @@ public class SVC_GameEventList : NetMessage
 public class SVC_SetView : NetMessage
 {
 	public SVC_SetView() : base(SVC.SetView) { }
+	public SVC_SetView(int ent) : base(SVC.SetView) => EntityIndex = ent;
 
 	public int EntityIndex;
 

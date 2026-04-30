@@ -72,7 +72,7 @@ public class ED
 				// to explicitly delete this old entity.
 				if (edict.FreeTime == 0 && sv_useexplicitdelete.GetBool()) {
 					//Warning("ADDING SLOT to snapshot: %d\n", i );
-					// framesnapshotmanager.AddExplicitDelete(bit); TODO
+					sv.FrameSnapshotManager.AddExplicitDelete(bit);
 				}
 
 				--sv.FreeEdicts;
@@ -86,7 +86,7 @@ public class ED
 		if (sv.NumEdicts >= sv.MaxEdicts) {
 			AssertMsg(false, "Can't allocate edict");
 
-			//todo  SpewEdicts(); // Log the entities we have before we die
+			SpewEdicts(); // Log the entities we have before we die
 
 			if (sv.MaxEdicts == 0)
 				Sys.Error("ED_Alloc: No edicts yet");
@@ -129,7 +129,7 @@ public class ED
 					break;
 				case 5:
 					// spew all edicts
-					// SpewEdicts(); todo
+					SpewEdicts();
 					break;
 			}
 		}
@@ -137,6 +137,9 @@ public class ED
 		return edict;
 	}
 
+	private static void SpewEdicts() {
+		DevWarning("SpewEdicts not implemented\n");
+	}
 
 	public static void ClearEdict(Edict e) {
 		e.ClearFree();
@@ -155,5 +158,33 @@ public class ED
 	public void ClearFreeFlag(Edict e) {
 		e.ClearFree();
 		FreeEdicts.Clear(e.EdictIndex);
+	}
+
+	internal static void Free(Edict ed) {
+		if (ed.IsFree())
+			return;
+
+		int idx = Array.IndexOf(sv.Edicts!, ed);
+		if (idx >= 1 && idx <= sv.GetMaxClients())
+			return;
+
+		SV.ServerGameEnts?.FreeContainingEntity(ed);
+
+		ed.SetFree();
+		ed.FreeTime = sv.GetTime();
+
+		++sv.FreeEdicts;
+		Assert(!FreeEdicts.IsBitSet(ed.EdictIndex));
+		FreeEdicts.Set(ed.EdictIndex);
+
+		ed.NetworkSerialNumber++;
+	}
+
+	internal static void AllowImmediateReuse() {
+		for (int i = sv.GetMaxClients() + 1; i < sv.NumEdicts; i++) {
+			Edict edict = sv.Edicts![i];
+			if (edict.IsFree())
+				edict.FreeTime = 0;
+		}
 	}
 }

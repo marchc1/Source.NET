@@ -807,9 +807,10 @@ public static partial class CM
 
 			// crosses face
 			if (d1 > d2) {  // enter
-							// NOTE: This could be negative if d1 is less than the epsilon.
-							// If the trace is short (d1-d2 is small) then it could produce a large
-							// negative fraction. 
+
+				// NOTE: This could be negative if d1 is less than the epsilon.
+				// If the trace is short (d1-d2 is small) then it could produce a large
+				// negative fraction.
 				float f = (d1 - DIST_EPSILON);
 				if (f < 0f)
 					f = 0f;
@@ -1130,5 +1131,9 @@ public static partial class CM
 	private static void EndTrace(TraceInfo traceInfo) {
 		PopTraceVisits(traceInfo);
 		g_TraceInfoPool.Free(traceInfo);
+	}
+
+	internal static int AreasConnected(int area1, int area2) {
+		throw new NotImplementedException();
 	}
 }

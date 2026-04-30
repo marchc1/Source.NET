@@ -941,6 +941,10 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		throw new NotImplementedException();
 	}
 
+	public void SetUserCVar(ReadOnlySpan<char> cvar, ReadOnlySpan<char> value) {
+		throw new NotImplementedException();
+	}
+
 	public void SetRate(int nRate, bool force) => NetChannel?.SetDataRate(nRate);
 
 	public int GetRate() => NetChannel?.GetDataRate() ?? 0;

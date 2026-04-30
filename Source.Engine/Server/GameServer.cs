@@ -28,7 +28,7 @@ public class GameServer : BaseServer
 	protected readonly Scr Scr = Singleton<Scr>();
 	protected readonly SV SV = Singleton<SV>();
 	protected readonly ICommandLine CommandLine = Singleton<ICommandLine>();
-	protected readonly FrameSnapshotManager FrameSnapshotManager = Singleton<FrameSnapshotManager>();
+	public readonly FrameSnapshotManager FrameSnapshotManager = Singleton<FrameSnapshotManager>();
 	public readonly ClientFrameManager FrameManager = new();
 
 	public override void SetMaxClients(int number) {
@@ -68,7 +68,7 @@ public class GameServer : BaseServer
 	public int MaxEdicts;
 	public int FreeEdicts;
 	public Edict[]? Edicts;
-	IChangeInfoAccessor? edictchangeinfo;
+	public IChangeInfoAccessor? edictchangeinfo;
 
 	public int MaxClientsLimit;    // Max allowed on server.
 

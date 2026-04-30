@@ -15,32 +15,50 @@ using System.Numerics;
 
 namespace Source.Engine;
 
-internal class EngineServer(Cbuf Cbuf) : IEngineServer
+internal class EngineServer(Cbuf Cbuf, Host host) : IEngineServer
 {
 	public readonly SharedEdictChangeInfo g_roSharedEdictChangeInfo = new();
 	public void AddOriginToPVS(in Vector3 origin) {
 		throw new NotImplementedException();
 	}
 
-	public void AllowImmediateEdictReuse() {
-		throw new NotImplementedException();
-	}
+	public void AllowImmediateEdictReuse() => ED.AllowImmediateReuse();
 
 	public void BuildEntityClusterList(Edict edict, ref PVSInfo pvsInfo) {
 		throw new NotImplementedException();
 	}
 
 	public void ChangeLevel(ReadOnlySpan<char> s1, ReadOnlySpan<char> s2) {
-		DevWarning("ChangeLevel not implemented\n");
+		Span<char> cmd = stackalloc char[256];
+		Span<char> s1Escaped = stackalloc char[256];
+		Span<char> s2Escaped = stackalloc char[256];
+
+		if (!Cbuf.EscapeCommandArg(s1, s1Escaped) || (!s2.IsEmpty && !Cbuf.EscapeCommandArg(s2, s2Escaped))) {
+			Warning("Illegal map name in ChangeLevel\n");
+			return;
+		}
+
+		int cmdLen = 0;
+		if (s2.IsEmpty)
+			cmdLen = sprintf(cmd, "changelevel %s\n").S(s1Escaped);
+		else
+			cmdLen = sprintf(cmd, "changelevel %s %s\n").S(s1Escaped).S(s2Escaped);
+
+		if (cmdLen >= 256) {
+			Warning("Paramter overflow in ChangeLevel\n");
+			return;
+		}
+
+		cbuf.AddText(cmd);
 	}
 
 	public void ChangeTeam(ReadOnlySpan<char> pTeamName) {
+#if !SWDS
 		throw new NotImplementedException();
+#endif
 	}
 
-	public int CheckAreasConnected(int area1, int area2) {
-		throw new NotImplementedException();
-	}
+	public int CheckAreasConnected(int area1, int area2) => CM.AreasConnected(area1, area2);
 
 	static bool warnedCheckBoxInPVS = false;
 	public bool CheckBoxInPVS(in Vector3 mins, in Vector3 maxs, ReadOnlySpan<byte> checkpvs) {
@@ -80,13 +98,23 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	}
 
 	public void ClientPrintf(Edict edict, ReadOnlySpan<char> szMsg) {
-		throw new NotImplementedException();
+		int entnum = NUM_FOR_EDICT(edict);
+		if (entnum < 1 || entnum > sv.GetClientCount()) {
+			ConMsg("tried to sprint to a non-client\n");
+			return;
+		}
+
+		sv.Client(entnum - 1).ClientPrintf(szMsg);
 	}
 
 	public int CompareFileTime(ReadOnlySpan<char> filename1, ReadOnlySpan<char> filename2, ref int compare) {
 		throw new NotImplementedException();
 	}
 
+#if SWDS
+	public void Con_NPrintf(int pos, ReadOnlySpan<char> msg) {};
+	public void Con_NXPrintf(in Con_NPrint_s info, ReadOnlySpan<char> msg) {};
+#else
 	public void Con_NPrintf(int pos, ReadOnlySpan<char> msg) {
 		throw new NotImplementedException();
 	}
@@ -94,6 +122,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	public void Con_NXPrintf(in Con_NPrint_s info, ReadOnlySpan<char> msg) {
 		throw new NotImplementedException();
 	}
+#endif
 
 	public bool CopyFile(ReadOnlySpan<char> source, ReadOnlySpan<char> destination) {
 		throw new NotImplementedException();
@@ -107,12 +136,16 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		return edict;
 	}
 
-	public Edict CreateFakeClient(ReadOnlySpan<char> netname) {
-		throw new NotImplementedException();
+	public Edict? CreateFakeClient(ReadOnlySpan<char> netname) {
+		GameClient? fcl = (GameClient?)sv.CreateFakeClient(netname);
+		return fcl?.Edict;
 	}
 
-	public Edict CreateFakeClientEx(ReadOnlySpan<char> netname, bool bReportFakeClient = true) {
-		throw new NotImplementedException();
+	public Edict? CreateFakeClientEx(ReadOnlySpan<char> netname, bool reportFakeClient = true) {
+		sv.SetReportNewFakeClients(reportFakeClient);
+		Edict? ret = CreateFakeClient(netname);
+		sv.SetReportNewFakeClients(true);
+		return ret;
 	}
 
 	public ISpatialPartition CreateSpatialPartition(in Vector3 worldmin, in Vector3 worldmax) {
@@ -131,12 +164,40 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public bf_write EntityMessageBegin(int ent_index, ServerClass ent_class, bool reliable) {
-		throw new NotImplementedException();
+	public bf_write? EntityMessageBegin(int ent_index, ServerClass ent_class, bool reliable) {
+		if (s_MsgData.Started) {
+			Sys.Error("EntityMessageBegin:  New message started before matching call to EndMessage.\n ");
+			return null;
+		}
+
+		s_MsgData.Reset();
+
+		Assert(ent_class != null);
+
+		s_MsgData.Filter = null;
+		s_MsgData.Reliable = reliable;
+		s_MsgData.Started = true;
+		s_MsgData.CurrentMsg = s_MsgData.EntityMsg;
+
+		s_MsgData.EntityMsg.EntityIndex = ent_index;
+		s_MsgData.EntityMsg.ClassID = ent_class.ClassID;
+		s_MsgData.EntityMsg.DataOut.Reset();
+
+		return s_MsgData.EntityMsg.DataOut;
 	}
 
 	public void FadeClientVolume(Edict edict, float fadePercent, float fadeOutSeconds, float holdTime, float fadeInSeconds) {
-		throw new NotImplementedException();
+		int entnum = NUM_FOR_EDICT(edict);
+
+		if (entnum < 1 || entnum > sv.GetClientCount()) {
+			ConMsg("tried to DLL_FadeClientVolume a non-client\n");
+			return;
+		}
+
+		GameClient client = sv.Client(entnum - 1);
+
+		NET_StringCmd sndMsg = new($"soundfade {fadePercent:F1} {holdTime:F1} {fadeOutSeconds:F1} {fadeInSeconds:F1}");
+		client.SendNetMsg(sndMsg);
 	}
 
 	public void ForceExactFile(ReadOnlySpan<char> s) {
@@ -172,15 +233,31 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	}
 
 	public ReadOnlySpan<char> GetClientConVarValue(int clientIndex, ReadOnlySpan<char> name) {
-		throw new NotImplementedException();
+		if (clientIndex < 1 || clientIndex > sv.GetClientCount()) {
+			DevMsg(1, "GetClientConVarValue: player invalid index %i\n", clientIndex);
+			return "";
+		}
+
+		return sv.GetClient(clientIndex - 1)!.GetUserSetting(name);
 	}
 
-	public ref readonly CSteamID GetClientSteamID(Edict playerEdict) {
-		throw new NotImplementedException();
+	public CSteamID? GetClientSteamID(Edict playerEdict) {
+		int entnum = NUM_FOR_EDICT(playerEdict);
+		return GetClientSteamIDByPlayerIndex(entnum);
 	}
 
-	public ref readonly CSteamID GetClientSteamIDByPlayerIndex(int entNum) {
-		throw new NotImplementedException();
+	public CSteamID? GetClientSteamIDByPlayerIndex(int entNum) {
+		if (entNum < 1 || entNum > sv.GetClientCount())
+			return null;
+
+		GameClient? client = sv.Client(entNum - 1);
+		if (client == null)
+			return null;
+
+		if (!client.IsConnected() || !client.SteamID.IsValid())
+			return null;
+
+		return client.SteamID;
 	}
 
 	public int GetClusterCount() {
@@ -191,9 +268,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public int GetEntityCount() {
-		throw new NotImplementedException();
-	}
+	public int GetEntityCount() => sv.NumEdicts - sv.FreeEdicts;
 
 	public ref readonly MaxEdictsBitVec GetEntityTransmitBitsForClient(int iClientIndex) {
 		throw new NotImplementedException();
@@ -201,8 +276,13 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 
 	public void GetGameDir(Span<char> getGameDir) => strcpy(getGameDir, Common.Gamedir);
 
-	public ref readonly CSteamID GetGameServerSteamID() {
-		throw new NotImplementedException();
+	public CSteamID? GetGameServerSteamID() {
+		CSteamID sid = Steam3Server().GetGSSteamID();
+
+		if (!sid.IsValid())
+			return null;
+
+		return sid;
 	}
 
 	public ReadOnlySpan<char> GetMapEntitiesString() {
@@ -213,20 +293,43 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public bool GetPlayerInfo(int entNum, out PlayerInfo info) {
-		throw new NotImplementedException();
-	}
+	public bool GetPlayerInfo(int entNum, out PlayerInfo info) => sv.GetPlayerInfo(entNum - 1, out info);
 
-	public INetChannelInfo GetPlayerNetInfo(int playerIndex) {
-		throw new NotImplementedException();
+	public INetChannelInfo? GetPlayerNetInfo(int playerIndex) {
+		if (playerIndex < 1 || playerIndex > sv.GetClientCount())
+			return null;
+
+		GameClient client = sv.Client(playerIndex - 1);
+
+		return client.NetChannel;
 	}
 
 	public ReadOnlySpan<char> GetPlayerNetworkIDString(Edict e) {
-		throw new NotImplementedException();
+		if (!sv.IsActive() || e == null)
+			return null;
+
+		for (int i = 0; i < sv.GetClientCount(); i++) {
+			GameClient cl = sv.Client(i);
+
+			if (cl.Edict == e)
+				return cl.GetNetworkIDString();
+		}
+
+		return null;
 	}
 
 	public int GetPlayerUserId(Edict e) {
-		throw new NotImplementedException();
+		if (!sv.IsActive() || e == null)
+			return -1;
+
+		for (int i = 0; i < sv.GetClientCount(); i++) {
+			GameClient cl = sv.Client(i);
+
+			if (cl.Edict == e)
+				return cl.UserID;
+		}
+
+		return -1;
 	}
 
 	public int GetPVSForCluster(int cluster, Span<byte> outputpvs) {
@@ -237,12 +340,17 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public int GetServerVersion() {
-		throw new NotImplementedException();
-	}
+	public int GetServerVersion() => GetSteamInfIDVersionInfo().ServerVersion;
 
 	public int IndexOfEdict(Edict? edict) {
-		throw new NotImplementedException();
+		if (edict == null)
+			return 0;
+
+		int index = Array.IndexOf(sv.Edicts!, edict);
+		if (index < 0 || index > sv.MaxEdicts)
+			Sys.Error($"Bad entity in IndexOfEdict() index {index} pEdict {edict} sv.edicts {sv.Edicts}\n");
+
+		return index;
 	}
 
 	public void InsertServerCommand(ReadOnlySpan<char> str) {
@@ -250,7 +358,12 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	}
 
 	public bool IsClientFullyAuthenticated(Edict edict) {
-		throw new NotImplementedException();
+		int entnum = NUM_FOR_EDICT(edict);
+		if (entnum < 1 || entnum > sv.GetClientCount())
+			return false;
+
+		GameClient? client = sv.Client(entnum - 1);
+		return client?.IsFullyAuthenticated() ?? false;
 	}
 
 	public bool IsDecalPrecached(ReadOnlySpan<char> s) {
@@ -271,25 +384,17 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public bool IsInternalBuild() {
-		throw new NotImplementedException();
-	}
+	public bool IsInternalBuild() => false;
 
 	public bool IsLowViolence() {
 		throw new NotImplementedException();
 	}
 
-	public int IsMapValid(ReadOnlySpan<char> filename) {
-		throw new NotImplementedException();
-	}
+	public int IsMapValid(ReadOnlySpan<char> filename) => modelloader.Map_IsValid(filename) ? 1 : 0;
 
-	public bool IsModelPrecached(ReadOnlySpan<char> s) {
-		throw new NotImplementedException();
-	}
+	public bool IsModelPrecached(ReadOnlySpan<char> s) => SV.ModelIndex(s) != -1;
 
-	public bool IsPaused() {
-		throw new NotImplementedException();
-	}
+	public bool IsPaused() => sv.IsPaused();
 
 	public void LightStyle(int style, ReadOnlySpan<char> val) {
 		throw new NotImplementedException();
@@ -389,9 +494,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public void NotifyEdictFlagsChange(int iEdict) {
-		// throw new NotImplementedException();
-	}
+	public void NotifyEdictFlagsChange(int edict) => CL.LocalNetworkBackdoor?.NotifyEdictFlagsChange((uint)edict);
 
 	public ReadOnlySpan<char> ParseFile(ReadOnlySpan<char> data, Span<char> token) {
 		throw new NotImplementedException();
@@ -428,7 +531,8 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	}
 
 	public void RemoveEdict(Edict e) {
-		throw new NotImplementedException();
+		serverPluginHandler.OnEdictFreed(e);
+		ED.Free(e);
 	}
 
 	public void ResetPVS(Span<byte> pvs) {
@@ -478,9 +582,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 			ConMsg($"Error, bad server command {str}\n");
 	}
 
-	public void ServerExecute() {
-		Cbuf.Execute();
-	}
+	public void ServerExecute() => Cbuf.Execute();
 
 	public void SetAreaPortalState(int portalNumber, int isOpen) {
 		throw new NotImplementedException();
@@ -495,11 +597,27 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	}
 
 	public void SetFakeClientConVarValue(Edict pEntity, ReadOnlySpan<char> cvar, ReadOnlySpan<char> value) {
-		throw new NotImplementedException();
+		int clientnum = NUM_FOR_EDICT(pEntity);
+		if (clientnum < 1 || clientnum > sv.GetClientCount())
+			host.Error("DLL_SetView: not a client");
+
+		GameClient client = sv.Client(clientnum - 1);
+		if (client.IsFakeClient()) {
+			client.SetUserCVar(cvar, value);
+			client.ConVarsChanged = true;
+		}
 	}
 
-	public void SetView(Edict pClient, Edict pViewent) {
-		throw new NotImplementedException();
+	public void SetView(Edict client, Edict viewent) {
+		int clientnum = NUM_FOR_EDICT(client);
+		if (clientnum < 1 || clientnum > sv.GetClientCount())
+			host.Error("DLL_SetView: not a client");
+
+		GameClient cl = sv.Client(clientnum - 1);
+		cl.ViewEntity = viewent;
+
+		SVC_SetView view = new(NUM_FOR_EDICT(viewent));
+		cl.SendNetMsg(view);
 	}
 
 	public void SolidMoved(Edict pSolidEnt, ICollideable pSolidCollide, in Vector3 prevAbsOrigin, bool testSurroundingBoundsOnly) {
@@ -507,20 +625,30 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 	}
 
 	public void StaticDecal(in Vector3 originInEntitySpace, int decalIndex, int entityIndex, int modelIndex, bool lowpriority) {
-		throw new NotImplementedException();
+		SVC_BSPDecal decal = new() {
+			Pos = originInEntitySpace,
+			DecalTextureIndex = decalIndex,
+			EntityIndex = entityIndex,
+			ModelIndex = modelIndex,
+			LowPriority = lowpriority
+		};
+
+		if (sv.AllowSignOnWrites)
+			decal.WriteToBuffer(sv.Signon);
+		else
+			sv.BroadcastMessage(decal, false, true);
 	}
 
 	public ref ClientTextMessage TextMessageGet(ReadOnlySpan<char> name) {
 		throw new NotImplementedException();
 	}
 
-	public TimeUnit_t Time() {
-		throw new NotImplementedException();
-	}
+	public TimeUnit_t Time() => Sys.Time;
 
 	public void TriggerMoved(Edict pTriggerEnt, bool testSurroundingBoundsOnly) {
 		throw new NotImplementedException();
 	}
+
 	class MsgData
 	{
 		public MsgData() {
@@ -553,7 +681,7 @@ internal class EngineServer(Cbuf Cbuf) : IEngineServer
 		public int SubType;            // usermessage index
 		public bool Started;           // IS THERE A MESSAGE IN THE PROCESS OF BEING SENT?
 		public int UserMessageSize;
-		public string UserMessageName;
+		public string? UserMessageName;
 
 		public readonly SVC_EntityMessage EntityMsg = new();
 		public readonly SVC_UserMessage UserMsg = new();
