@@ -18,7 +18,7 @@ public partial class C_BaseCombatCharacter : C_BaseFlex
 	public override bool IsBaseCombatCharacter() => true;
 	public static readonly ClientClass CC_BCCLocalPlayerExclusive = new ClientClass("BCCLocalPlayerExclusive", null, null, DT_BCCLocalPlayerExclusive);
 
-	public static readonly new DataMap PredMap = new(nameof(C_BaseCombatCharacter), C_BaseFlex.PredMap, [
+	public static readonly new DataMap PredMap = new(typeof(C_BaseCombatCharacter), C_BaseFlex.PredMap, [
 		DEFINE.PRED_ARRAY( nameof(Ammo), FieldType.Integer, MAX_AMMO_TYPES, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD( nameof(NextAttack), FieldType.Double, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD( nameof(ActiveWeapon), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),

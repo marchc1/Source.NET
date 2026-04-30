@@ -108,17 +108,17 @@ public class Prediction : IPrediction
 			return;
 
 		Vector3 origin = player.GetNetworkOrigin();
-		DataFrame? slot = player.GetPredictedFrame(commandsAcknowledged - 1);
+		byte[]? slot = player.GetPredictedFrame(commandsAcknowledged - 1);
 		if (slot == null)
 			return;
 
 		// Find the origin field in the database
-		TypeDescription? td = FindFieldByName(nameof(C_BaseEntity.NetworkOrigin), player.GetPredDescMap());
+		TypeDescription? td = PredictionCopy.FindFieldByName(nameof(C_BaseEntity.NetworkOrigin), player.GetPredDescMap());
 		Assert(td != null);
 		if (td == null)
 			return;
 
-		Vector3 predicted_origin = slot.Get<Vector3>(td);
+		Vector3 predicted_origin = slot.GetValueType<Vector3>((int)td.PackedOffset);
 
 		// Compare what the server returned with what we had predicted it to be
 		MathLib.VectorSubtract(predicted_origin, origin, out delta);

@@ -59,7 +59,7 @@ public partial class
 #endif
 {
 #if CLIENT_DLL
-	public static readonly new DataMap PredMap = new(nameof(C_BaseCombatWeapon), C_BaseAnimating.PredMap, [
+	public static readonly new DataMap PredMap = new(typeof(C_BaseCombatWeapon), C_BaseAnimating.PredMap, [
 	DEFINE.PRED_FIELD(nameof(NextThinkTick), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 	DEFINE.PRED_FIELD(nameof(Owner), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
 	DEFINE.PRED_FIELD(nameof(State), FieldType.Integer, FieldTypeDescFlags.InSendTable ),

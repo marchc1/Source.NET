@@ -314,7 +314,7 @@ public partial class C_BaseEntity : IClientEntity
 		CreateLightEffects();
 	}
 
-	public virtual void Simulate(){
+	public virtual void Simulate() {
 		AddEntity();
 	}
 
@@ -571,7 +571,7 @@ public partial class C_BaseEntity : IClientEntity
 	public void SetGravity(float gravity) => Gravity = gravity;
 
 
-	public static readonly DataMap PredMap = new(nameof(C_BaseEntity), [
+	public static readonly DataMap PredMap = new(typeof(C_BaseEntity), [
 		DEFINE.PRED_TYPEDESCRIPTION( nameof(Collision), CollisionProperty.PredMap ),
 		DEFINE.PRED_FIELD(nameof(MoveType), FieldType.Character, FieldTypeDescFlags.InSendTable),
 		DEFINE.PRED_FIELD(nameof(MoveCollide), FieldType.Character, FieldTypeDescFlags.InSendTable),
@@ -750,7 +750,7 @@ public partial class C_BaseEntity : IClientEntity
 		return 0 == strcmp(entity.GetClassname(), classname);
 	}
 
-	public void SetParent(C_BaseEntity parentEntity, int parentAttachment = 0){
+	public void SetParent(C_BaseEntity parentEntity, int parentAttachment = 0) {
 		EHANDLE newParentHandle = default;
 		newParentHandle.Set(parentEntity);
 		if (newParentHandle.Index == MoveParent.Index)
@@ -762,13 +762,13 @@ public partial class C_BaseEntity : IClientEntity
 		Vector3 vecAbsVelocity = GetAbsVelocity();
 
 		// First deal with unlinking
-		if (MoveParent.IsValid()) 
+		if (MoveParent.IsValid())
 			UnlinkChild(MoveParent.Get(), this);
 
-		if (parentEntity != null) 
+		if (parentEntity != null)
 			LinkChild(parentEntity, this);
 
-		if (!IsServerEntity()) 
+		if (!IsServerEntity())
 			NetworkMoveParent.Set(parentEntity);
 
 		ParentAttachment = (byte)parentAttachment;
@@ -959,15 +959,15 @@ public partial class C_BaseEntity : IClientEntity
 #if DEBUG
 		// Make sure the child isn't already in this list
 		C_BaseEntity? existingChild;
-		for (existingChild = parent.FirstMoveChild(); existingChild != null; existingChild = existingChild.NextMovePeer()) 
+		for (existingChild = parent.FirstMoveChild(); existingChild != null; existingChild = existingChild.NextMovePeer())
 			Assert(child != existingChild);
 #endif
 
 		child.MovePrevPeer.Set(null);
 		child.MovePeer.Set(parent.MoveChild);
-		if (child.MovePeer.Get() != null) 
+		if (child.MovePeer.Get() != null)
 			child.MovePeer.Get()!.MovePrevPeer.Set(child);
-		
+
 		parent.MoveChild.Set(child);
 		child.MoveParent.Set(parent);
 		child.AddToAimEntsList();
@@ -1292,9 +1292,9 @@ public partial class C_BaseEntity : IClientEntity
 
 		ComputePackedOffsets();
 
-		OriginalData = new DataFrame(GetPredDescMap());
+		OriginalData = new byte[GetPredDescMap()!.PackedSize];
 		for (int i = 0; i < MULTIPLAYER_BACKUP; i++)
-			IntermediateData[i] = new DataFrame(GetPredDescMap());
+			IntermediateData[i] = new byte[GetPredDescMap()!.PackedSize];
 
 		IntermediateDataCount = 0;
 	}
@@ -1316,9 +1316,9 @@ public partial class C_BaseEntity : IClientEntity
 			showthis = EntIndex() == -cl_showerror.GetInt();
 
 		if (errorcheck) {
-			DataFrame? predictedStateData = GetPredictedFrame(commandsAcknowledged - 1);
+			byte[]? predictedStateData = GetPredictedFrame(commandsAcknowledged - 1);
 			Assert(predictedStateData != null);
-			DataFrame? originalStateData = GetOriginalNetworkDataObject();
+			byte[]? originalStateData = GetOriginalNetworkDataObject();
 			Assert(originalStateData != null);
 
 			bool counterrors = true;
@@ -1359,7 +1359,7 @@ public partial class C_BaseEntity : IClientEntity
 	public EFL GetEFlags() => eflags;
 
 	public int RestoreData(ReadOnlySpan<char> context, int slot, PredictionCopyType type) {
-		DataFrame? src = slot == SLOT_ORIGINALDATA ? GetOriginalNetworkDataObject() : GetPredictedFrame(slot);
+		byte[]? src = slot == SLOT_ORIGINALDATA ? GetOriginalNetworkDataObject() : GetPredictedFrame(slot);
 
 		// This assert will fire if the server ack'd a CUserCmd which we hadn't predicted yet...
 		// In that case, we'd be comparing "old" data from this "unused" slot with the networked data and reporting all kinds of prediction errors possibly.
@@ -1398,7 +1398,7 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual int CalcOverrideModelIndex() => -1;
 
 	public int SaveData(ReadOnlySpan<char> context, int slot, PredictionCopyType type) {
-		DataFrame? dest = slot == SLOT_ORIGINALDATA ? GetOriginalNetworkDataObject() : GetPredictedFrame(slot);
+		byte[]? dest = slot == SLOT_ORIGINALDATA ? GetOriginalNetworkDataObject() : GetPredictedFrame(slot);
 		Span<char> sz = stackalloc char[64];
 
 		if (slot != SLOT_ORIGINALDATA)
@@ -1518,7 +1518,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	}
 
-	public static C_BaseEntity? CreatePredictedEntityByName(ReadOnlySpan<char> classname, [CallerFilePath] string? module = null, [CallerLineNumber] int line = -1, bool persist = false){
+	public static C_BaseEntity? CreatePredictedEntityByName(ReadOnlySpan<char> classname, [CallerFilePath] string? module = null, [CallerLineNumber] int line = -1, bool persist = false) {
 		C_BasePlayer? player = C_BaseEntity.GetPredictionPlayer();
 
 		Assert(player != null);
@@ -1549,7 +1549,7 @@ public partial class C_BaseEntity : IClientEntity
 		}
 
 		ent = CreateEntityByName(classname);
-		if (ent == null) 
+		if (ent == null)
 			return null;
 
 		// It's predictable
@@ -1584,9 +1584,9 @@ public partial class C_BaseEntity : IClientEntity
 		// CLIENT ONLY FOR NOW!!!
 		ent.Index = -1;
 
-		if (HLClient.AddDataChangeEvent(ent, DataUpdateType.Created, ent.DataChangeEventRef)) 
+		if (HLClient.AddDataChangeEvent(ent, DataUpdateType.Created, ent.DataChangeEventRef))
 			ent.OnPreDataChanged(DataUpdateType.Created);
-		
+
 
 		ent.Interp_UpdateInterpolationAmounts(ref ent.GetVarMapping());
 
@@ -2333,7 +2333,7 @@ public partial class C_BaseEntity : IClientEntity
 		lock (m_CalcAbsoluteVelocityMutex) {
 			if ((eflags & EFL.DirtyAbsVelocity) == 0) // need second check in event another thread grabbed mutex and did the calculation
 				return;
-			
+
 			eflags &= ~EFL.DirtyAbsVelocity;
 
 			BaseEntity? moveParent = GetMoveParent();
@@ -2477,7 +2477,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	public void ShiftIntermediateDataForward(int slots_to_remove, int number_of_commands_run) {
 		// Just moving pointers, yeah
-		List<DataFrame> saved = ListPool<DataFrame>.Shared.Alloc();
+		List<byte[]> saved = ListPool<byte[]>.Shared.Alloc();
 
 		// Remember first slots
 		int i = 0;
@@ -2495,16 +2495,16 @@ public partial class C_BaseEntity : IClientEntity
 			IntermediateData[slot] = saved[i];
 		}
 
-		ListPool<DataFrame>.Shared.Free(saved);
+		ListPool<byte[]>.Shared.Free(saved);
 	}
 
 	public bool GetCheckUntouch() => IsEFlagSet(EFL.CheckUntouch);
 
-	public readonly DataFrame[] IntermediateData = new DataFrame[MULTIPLAYER_BACKUP];
-	public DataFrame? OriginalData;
+	public readonly byte[][] IntermediateData = new byte[MULTIPLAYER_BACKUP][];
+	public byte[]? OriginalData;
 	public int IntermediateDataCount;
 
-	public DataFrame? GetPredictedFrame(int framenumber) {
+	public byte[]? GetPredictedFrame(int framenumber) {
 		if (OriginalData == null) {
 			Assert(false);
 			return default;
@@ -2513,7 +2513,7 @@ public partial class C_BaseEntity : IClientEntity
 		return IntermediateData[framenumber % MULTIPLAYER_BACKUP];
 	}
 
-	public DataFrame? GetOriginalNetworkDataObject() {
+	public byte[]? GetOriginalNetworkDataObject() {
 		if (OriginalData == null) {
 			Assert(false);
 			return default;
@@ -2594,6 +2594,8 @@ public partial class C_BaseEntity : IClientEntity
 				if ((field.Flags & FieldTypeDescFlags.Private) != 0)
 					continue;
 
+			field.PackedOffset = currentPosition;
+			int sizeOfField = 0;
 			switch (field.FieldType) {
 				default:
 				case FieldType.ModelIndex:
@@ -2611,28 +2613,26 @@ public partial class C_BaseEntity : IClientEntity
 				case FieldType.Embedded:
 					Assert(field.TD != null);
 					nuint embeddedSize = ComputePackedSize_R(field.TD);
-					field.PackedOffset = currentPosition;
-					currentPosition += embeddedSize;
+					sizeOfField = (int)embeddedSize;
 					break;
-				case FieldType.Float:
-				case FieldType.Double:
-				case FieldType.Vector:
-				case FieldType.Quaternion:
-				case FieldType.Integer:
-				case FieldType.EHandle:
-				case FieldType.Short:
-				case FieldType.String:
-				case FieldType.Color32:
-				case FieldType.Boolean:
-				case FieldType.Character:
-				case FieldType.StringCharacter:
-					field.PackedOffset = currentPosition++;
-					break;
+				case FieldType.Float: sizeOfField = sizeof(float); break;
+				case FieldType.Double: sizeOfField = sizeof(double); break;
+				case FieldType.Vector: sizeOfField = (int)Unsafe.SizeOf<Vector3>(); break;
+				case FieldType.Quaternion: sizeOfField = (int)Unsafe.SizeOf<Quaternion>(); break;
+				case FieldType.Integer: sizeOfField = sizeof(int); break;
+				case FieldType.EHandle: sizeOfField = (int)Unsafe.SizeOf<EHANDLE>(); break;
+				case FieldType.Short: sizeOfField = sizeof(short); break;
+				case FieldType.String: sizeOfField = (int)Unsafe.SizeOf<GCHandle>(); break;
+				case FieldType.Color32: sizeOfField = (int)Unsafe.SizeOf<Color>(); break;
+				case FieldType.Boolean: sizeOfField = sizeof(bool); break;
+				case FieldType.Character: sizeOfField = sizeof(sbyte); break;
+				case FieldType.StringCharacter: sizeOfField = sizeof(char); break;
 				case FieldType.Void: {
 						// Special case, just skip it
 					}
 					break;
 			}
+			currentPosition += (nuint)(sizeOfField * field.FieldSize);
 		}
 
 		map.PackedSize = currentPosition;

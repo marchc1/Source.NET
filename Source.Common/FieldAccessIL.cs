@@ -1,4 +1,4 @@
-//#define LOGGED_EMIT_ENABLE
+// #define LOGGED_EMIT_ENABLE
 
 using Source.Common;
 using Source.Common.Mathematics;
@@ -696,6 +696,25 @@ namespace Source.Common
 #endif
 			il.Emit(code);
 		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void LoggedEmit(this ILGenerator il, OpCode code, Label label) {
+#if LOGGED_EMIT_ENABLE
+			Console.WriteLine($"{code} {label}");
+			CheckConditionDebuggerBreak(code);
+#endif
+			il.Emit(code, label);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void LoggedEmit(this ILGenerator il, OpCode code, LocalBuilder local) {
+#if LOGGED_EMIT_ENABLE
+			Console.WriteLine($"{code} {local}");
+			CheckConditionDebuggerBreak(code);
+#endif
+			il.Emit(code, local);
+		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void LoggedEmit(this ILGenerator il, OpCode code, FieldInfo field) {
 #if LOGGED_EMIT_ENABLE
@@ -707,7 +726,7 @@ namespace Source.Common
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void LoggedEmit(this ILGenerator il, OpCode code, ConstructorInfo ctor) {
 #if LOGGED_EMIT_ENABLE
-			Console.WriteLine($"{code} {field}");
+			Console.WriteLine($"{code} {ctor}");
 			CheckConditionDebuggerBreak(code);
 #endif
 			il.Emit(code, ctor);

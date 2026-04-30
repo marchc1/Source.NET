@@ -684,7 +684,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		RecvPropFloat(FIELD.OF(nameof(Cycle))),
 	]);
 	public static readonly ClientClass CC_ServerAnimationData = new ClientClass("ServerAnimationData", null, null, DT_ServerAnimationData);
-	public static readonly new DataMap PredMap = new(nameof(C_BaseAnimating), C_BaseEntity.PredMap, [
+	public static readonly new DataMap PredMap = new(typeof(C_BaseAnimating), C_BaseEntity.PredMap, [
 		DEFINE.PRED_FIELD( nameof(Skin), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD( nameof(Body), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 		DEFINE.FIELD( nameof(PrevSequence), FieldType.Integer ),

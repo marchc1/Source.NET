@@ -52,7 +52,7 @@ public partial class
 		= new Class("WeaponSWEP", DT_WeaponSWEP).WithManualClassID(StaticClassIndices.CWeaponSWEP);
 
 #if CLIENT_DLL
-	public static readonly new DataMap PredMap = new([], "WeaponSWEP", BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
+	public static readonly new DataMap PredMap = new([], typeof(C_WeaponSWEP), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #endif
 
 	public InlineArray64<char> HoldType;

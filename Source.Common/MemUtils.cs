@@ -80,6 +80,12 @@ public static unsafe class MemUtils
 			}
 		}
 	}
+
+	public static bool memcmpb<T>(ReadOnlySpan<T> buf1, ReadOnlySpan<T> buf2) where T : unmanaged {
+		if (buf1.Length != buf2.Length)
+			return false;
+		return MemoryMarshal.AsBytes(buf1).SequenceEqual(MemoryMarshal.AsBytes(buf2));
+	}
 	public static void memcpy<T>(ref T dest, ref T src) where T : unmanaged {
 		dest = src;
 	}

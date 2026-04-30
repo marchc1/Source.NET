@@ -163,7 +163,7 @@ public class DirtySpatialPartitionEntityList() : AutoGameSystem("DirtySpatialPar
 public class CollisionProperty : ICollideable
 {
 #if CLIENT_DLL
-	public static readonly DataMap PredMap = new(nameof(CollisionProperty), [
+	public static readonly DataMap PredMap = new(typeof(CollisionProperty), [
 		DEFINE.PRED_FIELD(nameof(MinsPreScaled), FieldType.Vector, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD(nameof(MaxsPreScaled), FieldType.Vector, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD(nameof(Mins), FieldType.Vector, FieldTypeDescFlags.InSendTable ),
@@ -218,17 +218,17 @@ public class CollisionProperty : ICollideable
 	}
 #endif
 
-	Vector3 MinsPreScaled;
-	Vector3 MaxsPreScaled;
-	Vector3 Mins;
-	Vector3 Maxs;
+	public Vector3 MinsPreScaled;
+	public Vector3 MaxsPreScaled;
+	public Vector3 Mins;
+	public Vector3 Maxs;
 	float Radius;
-	ushort SolidFlags;
+	public ushort SolidFlags;
 	SpatialPartitionHandle_t Partition;
 	byte SurroundType;
-	byte SolidType;
+	public byte SolidType;
 
-	byte TriggerBloat;
+	public byte TriggerBloat;
 	Vector3 SurroundingMins;
 	Vector3 SurroundingMaxs;
 	Vector3 SpecifiedSurroundingMinsPreScaled;
