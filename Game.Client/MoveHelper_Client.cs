@@ -10,7 +10,7 @@ namespace Game.Client;
 public class MoveHelperClient : IMoveHelper
 {
 	public static readonly MoveHelperClient s_MoveHelperClient = new();
-	public MoveHelperClient(){
+	public MoveHelperClient() {
 		IMoveHelper.SetSingleton(this);
 	}
 
@@ -24,7 +24,8 @@ public class MoveHelperClient : IMoveHelper
 
 	public IPhysicsSurfaceProps? GetSurfaceProps() => physprops;
 	public bool IsWorldEntity(EntityHandle_t handle) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		return true; // TODO TODO TODO
 	}
 
 	public void PlaybackEventFull(int flags, int clientindex, ushort eventindex, float delay, out Vector3 origin, out Vector3 angles, float fparam1, float fparam2, int iparam1, int iparam2, int bparam1, int bparam2) {
@@ -55,7 +56,8 @@ public class MoveHelperClient : IMoveHelper
 		throw new NotImplementedException();
 	}
 
-	struct TouchList_t{
+	struct TouchList_t
+	{
 		public Vector3 DeltaVelocity;
 		public Trace Trace;
 	}

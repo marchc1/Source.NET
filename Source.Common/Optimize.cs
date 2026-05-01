@@ -13,15 +13,17 @@ public static class OptimizedModel
 {
 	public class MaterialReplacementHeader
 	{
-		public const int SIZEOF = sizeof(short) + sizeof(int);
+		public const int SIZEOF = sizeof(short) + 2 + sizeof(int);
 
 		Memory<byte> Data;
+		int ThisOffset;
 		public short MaterialID;
 		public int ReplacementMaterialNameOffset;
 
-		public MaterialReplacementHeader(Memory<byte> mem) {
-			Data = mem;
-			Span<byte> data = mem.Span;
+		public MaterialReplacementHeader(Memory<byte> fullData, int thisOffset) {
+			Data = fullData;
+			ThisOffset = thisOffset;
+			Span<byte> data = fullData.Span[thisOffset..];
 			MaterialID = data[0..].Cast<byte, short>()[0];
 			ReplacementMaterialNameOffset = data[2..].Cast<byte, int>()[0];
 		}
@@ -29,7 +31,7 @@ public static class OptimizedModel
 		string? nameCache;
 		public string MaterialReplacementName() {
 			if (nameCache == null) {
-				using ASCIIStringView ascii = new(Data.Span[ReplacementMaterialNameOffset..]);
+				using ASCIIStringView ascii = new(Data.Span[(ThisOffset + ReplacementMaterialNameOffset)..]);
 				nameCache = new(ascii);
 			}
 			return nameCache;
@@ -40,12 +42,14 @@ public static class OptimizedModel
 		public const int SIZEOF = sizeof(int) * 2;
 
 		Memory<byte> Data;
+		int ThisOffset;
 		public int NumReplacements;
 		public int ReplacementOffset;
 
-		public MaterialReplacementListHeader(Memory<byte> mem) {
-			Data = mem;
-			Span<byte> data = mem.Span;
+		public MaterialReplacementListHeader(Memory<byte> fullData, int thisOffset) {
+			Data = fullData;
+			ThisOffset = thisOffset;
+			Span<byte> data = fullData.Span[thisOffset..];
 			NumReplacements = data[0..].Cast<byte, int>()[0];
 			ReplacementOffset = data[4..].Cast<byte, int>()[0];
 		}
@@ -55,7 +59,7 @@ public static class OptimizedModel
 			if (partCache == null)
 				partCache = new MaterialReplacementHeader[NumReplacements];
 
-			return partCache[i] ?? (partCache[i] = new(Data[(ReplacementOffset + (MaterialReplacementHeader.SIZEOF * i))..]));
+			return partCache[i] ?? (partCache[i] = new(Data, ThisOffset + ReplacementOffset + (MaterialReplacementHeader.SIZEOF * i)));
 		}
 	}
 
@@ -74,7 +78,8 @@ public static class OptimizedModel
 		public int NewBoneID;
 	}
 
-	public enum StripHeaderFlags {
+	public enum StripHeaderFlags
+	{
 		IsTriList = 0x01,
 		IsTriStrip = 0x02,
 	}
@@ -300,7 +305,7 @@ public static class OptimizedModel
 			materialReplacementsCache ??= new MaterialReplacementListHeader[NumLODs];
 			MaterialReplacementListHeader? ret = materialReplacementsCache[i];
 			if (ret == null)
-				return materialReplacementsCache[i] = new(Data[(MaterialReplacementListOffset + (MaterialReplacementListHeader.SIZEOF * i))..]);
+				return materialReplacementsCache[i] = new(Data, MaterialReplacementListOffset + (MaterialReplacementListHeader.SIZEOF * i));
 
 			return ret;
 		}
