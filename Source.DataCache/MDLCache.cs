@@ -562,7 +562,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 			VirtualModel? virtualModel = GetVirtualModel(handle);
 			if (virtualModel != null) {
 				for (int i = 1; i < virtualModel.Group.Count; i++) {
-					MDLHandle_t sharedHandle = (MDLHandle_t)virtualModel.Group[i].Cache!;
+					MDLHandle_t sharedHandle = (MDLHandle_t)((int)virtualModel.Group[i].Cache & 0xffff);
 					StudioData data = HandleToMDLDict[sharedHandle];
 					if ((data.Flags & StudioDataFlags.VCollisionLoaded) == 0)
 						UnserializeVCollide(sharedHandle, synchronousLoad);
@@ -927,7 +927,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 				memcpy(
 						newVvdHdr.Data.AsSpan()[newVvdHdr.TangentDataStart..].Cast<byte, Vector4>()[target..],
 						tempVvdHdr.Data.AsSpan()[tempVvdHdr.TangentDataStart..].Cast<byte, Vector4>()[fixupTable[i].SourceVertexID..],
-						fixupTable[i].NumVertices 
+						fixupTable[i].NumVertices
 					);
 
 

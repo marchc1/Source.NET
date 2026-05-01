@@ -189,14 +189,14 @@ public partial class VirtualModel
 				n = Group[group].MasterBone[studioHdr.LocalAttachment(j).LocalBone];
 
 				// skip if the attachments bone doesn't exist in the root model
-				if (n == -1) 
+				if (n == -1)
 					continue;
 
 				ReadOnlySpan<char> s1 = studioHdr.LocalAttachment(j).Name();
 				for (k = 0; k < numCheck; k++) {
 					ReadOnlySpan<char> s2 = Group[attachment[k].Group].GetStudioHdr()!.LocalAttachment(attachment[k].Index).Name();
 
-					if (stricmp(s1, s2) == 0) 
+					if (stricmp(s1, s2) == 0)
 						break;
 				}
 				// no duplication
@@ -212,7 +212,7 @@ public partial class VirtualModel
 						while (n != -1) {
 							grouphdr.Bone(n).Flags |= Studio.BONE_USED_BY_ATTACHMENT;
 
-							if (grouphdr.LinearBones() != null) 
+							if (grouphdr.LinearBones() != null)
 								grouphdr.LinearBones()!.RefFlags(n) |= Studio.BONE_USED_BY_ATTACHMENT;
 
 							n = grouphdr!.Bone(n).Parent;
@@ -241,7 +241,7 @@ public partial class VirtualModel
 				for (k = 0; k < numCheck; k++) {
 					ReadOnlySpan<char> s2 = Group[pose[k].Group].GetStudioHdr()!.LocalPoseParameter(pose[k].Index).Name();
 
-					if (stricmp(s1, s2) == 0) 
+					if (stricmp(s1, s2) == 0)
 						break;
 				}
 				if (k == numCheck) {
@@ -289,7 +289,7 @@ public partial class VirtualModel
 				for (j = 0; j < studioHdr.NumBones; j++) {
 					// NOTE: studiohdr has a bone table - using the table is ~5% faster than this for alyx.mdl on a P4/3.2GHz
 					for (k = 0; k < baseStudioHdr.NumBones; k++) {
-						if (stricmp(studioHdr.Bone(j).Name(), baseStudioHdr.Bone(k).Name()) == 0) 
+						if (stricmp(studioHdr.Bone(j).Name(), baseStudioHdr.Bone(k).Name()) == 0)
 							break;
 					}
 					if (k < baseStudioHdr.NumBones) {
@@ -298,7 +298,7 @@ public partial class VirtualModel
 
 						// FIXME: these runtime messages don't display in hlmv
 						if ((studioHdr.Bone(j).Parent == -1) || (baseStudioHdr.Bone(k).Parent == -1)) {
-							if ((studioHdr.Bone(j).Parent != -1) || (baseStudioHdr.Bone(k).Parent != -1)) 
+							if ((studioHdr.Bone(j).Parent != -1) || (baseStudioHdr.Bone(k).Parent != -1))
 								Warning($"{baseStudioHdr.GetName()}/{studioHdr.GetName()} : mismatched parent bones on \"{studioHdr.Bone(j).Name()}\"\n");
 						}
 						else if (Group[group].MasterBone[studioHdr.Bone(j).Parent] != Group[0].MasterBone[baseStudioHdr.Bone(k).Parent])
@@ -325,7 +325,7 @@ public partial class VirtualModel
 				for (k = 0; k < numCheck; k++) {
 					ReadOnlySpan<char> s2 = Group[node[k].Group].GetStudioHdr().LocalNodeName(node[k].Index);
 
-					if (stricmp(s1, s2) == 0) 
+					if (stricmp(s1, s2) == 0)
 						break;
 				}
 				// no duplication
@@ -342,7 +342,7 @@ public partial class VirtualModel
 			EndTemporaryCopyList(Node, node);
 		}
 	}
-	
+
 	public void AppendIKLocks(int group, StudioHeader studioHDR) {
 		// todo: IK studiomodel
 	}
@@ -352,8 +352,6 @@ public partial class VirtualModel
 		public MDLHandle_t Handle;
 		public StudioHeader Hdr;
 	}
-	static readonly ThreadLocal<HandleAndHeader_t[]> lists = new(() => new HandleAndHeader_t[64]);
-
 	public void AppendModels(int group, StudioHeader studioHdr) {
 		using ModelLookupContext ctx = new ModelLookupContext(group, studioHdr);
 		if (studioHdr == null) return;
@@ -365,7 +363,10 @@ public partial class VirtualModel
 		AppendPoseParameters(group, studioHdr);
 		AppendNodes(group, studioHdr);
 		AppendIKLocks(group, studioHdr);
-		HandleAndHeader_t[] list = lists.Value!;
+		// This was ThreadLocal, but for some reason that was causing issues/crashes in MDLCache
+		// I've just changed it back to how Source has it for now,
+		// but maybe returning to this at some point is worth it - Callum
+		HandleAndHeader_t[] list = new HandleAndHeader_t[64];
 
 		// determine quantity of valid include models in one pass only
 		// temporarily cache results off, otherwise FindModel() causes ref counting problems
@@ -396,8 +397,6 @@ public partial class VirtualModel
 				AppendModels(groupi, list[j].Hdr);
 			}
 		}
-
-		memreset(list);
 
 		UpdateAutoplaySequences(studioHdr);
 	}
