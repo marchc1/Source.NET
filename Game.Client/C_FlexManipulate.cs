@@ -9,11 +9,11 @@ public class C_FlexManipulate : C_BaseEntity
 	public static readonly RecvTable DT_FlexManipulate = new(DT_BaseEntity, [
 		RecvPropFloat(FIELD.OF(nameof(ExScale))),
 		RecvPropVector(FIELD.OF(nameof(EyesLocalTarget))),
-		RecvPropFloat(FIELD.OF(nameof(FlexWeights))),
+		RecvPropArray3(FIELD.OF_ARRAY(nameof(FlexWeights)), RecvPropFloat(null!)),
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("FlexManipulate", DT_FlexManipulate).WithManualClassID(StaticClassIndices.CFlexManipulate);
 
 	public float ExScale;
 	public Vector3 EyesLocalTarget;
-	public float FlexWeights;
+	public InlineArray96<float> FlexWeights;
 }

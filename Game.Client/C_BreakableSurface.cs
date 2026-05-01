@@ -1,8 +1,11 @@
 using Source.Common;
 using Source;
+
 using Game.Shared;
+
 using System.Numerics;
 namespace Game.Client;
+
 using FIELD = FIELD<C_BreakableSurface>;
 public class C_BreakableSurface : C_BaseEntity
 {
@@ -15,7 +18,7 @@ public class C_BreakableSurface : C_BaseEntity
 		RecvPropVector(FIELD.OF(nameof(VCorner))),
 		RecvPropInt(FIELD.OF(nameof(IsBroken))),
 		RecvPropInt(FIELD.OF(nameof(SurfaceType))),
-		RecvPropInt(FIELD.OF(nameof(RawPanelBitVec))),
+		RecvPropArray3(FIELD.OF_ARRAY(nameof(RawPanelBitVec)), RecvPropInt(null!, null!, sizeOfVar: sizeof(int))),
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("BreakableSurface", DT_BreakableSurface).WithManualClassID(StaticClassIndices.CBreakableSurface);
 
@@ -27,5 +30,5 @@ public class C_BreakableSurface : C_BaseEntity
 	public Vector3 VCorner;
 	public int IsBroken;
 	public int SurfaceType;
-	public int RawPanelBitVec;
+	public InlineArray256<int> RawPanelBitVec;
 }
