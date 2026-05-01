@@ -276,6 +276,17 @@ public class SVC_ServerInfo : NetMessage
 
 	public override string ToString() => $"SVC_ServerInfo: game \"{GameDirectory}\", map \"{MapName}\", max {MaxClients}";
 }
+
+public class SVC_SendTable : NetMessage
+{
+	public SVC_SendTable() : base(SVC.SendTable) { }
+	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
+	public bool NeedsDecoder;
+	public int Length;
+	public bf_read DataIn = new();
+	public bf_write DataOut = new();
+};
+
 public class SVC_ClassInfo : NetMessage
 {
 	public struct Class

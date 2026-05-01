@@ -5,6 +5,7 @@ using Source.Common.Engine;
 using Source.Common.Networking;
 
 using System.Buffers;
+using System.Data;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -253,16 +254,43 @@ static class PackedEntities
 			Normal(clientCount, clients, snapshot);
 	}
 
-	static void MaybeWriteSendTable(SendTable table, bf_write buffer, bool needDecover) {
-		throw new NotImplementedException();
+	static void MaybeWriteSendTable(SendTable table, bf_write buffer, bool needDecoder) {
+		if (table.GetWriteFlag())
+			return;
+
+		table.SetWriteFlag(true);
+
+		SVC_SendTable sendTbl = new();
+
+		byte[] buf = new byte[4096];
+		sendTbl.DataOut.StartWriting(buf, buf.Length);
+
+		SendTable.WriteInfos(table, ref sendTbl.DataOut);
+
+		sendTbl.NeedsDecoder = needDecoder;
+
+		sendTbl.WriteToBuffer(buffer);
 	}
 
 	static void MaybeWriteSendTable_R(SendTable table, bf_write buffer) {
-		throw new NotImplementedException();
+		MaybeWriteSendTable(table, buffer, false);
+
+		foreach (SendProp prop in table.Props ?? []) {
+			if (prop.Type == SendPropType.DataTable)
+				MaybeWriteSendTable_R(prop.GetDataTable()!, buffer);
+		}
 	}
 
-	static void WriteSendTables(ServerClass serverClass, bf_write buffer) {
-		throw new NotImplementedException();
+	public static void WriteSendTables(ServerClass serverClasses, bf_write buffer) {
+		ServerClass? cur;
+
+		DtCommonEng.ClearWriteFlags(serverClasses);
+
+		for (cur = serverClasses; cur != null; cur = serverClasses.Next)
+			MaybeWriteSendTable(cur.Table, buffer, true);
+
+		for (cur = serverClasses; cur != null; cur = serverClasses.Next)
+			MaybeWriteSendTable_R(cur.Table, buffer);
 	}
 
 	static void ComputeClassInfosCRC(Crc32 crc) {

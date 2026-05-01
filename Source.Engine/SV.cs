@@ -250,7 +250,7 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 			sv.FullSendTablesBuffer.EnsureCapacity(288000 /*NET_MAX_PAYLOAD*/);
 			sv.FullSendTables.StartWriting(sv.FullSendTablesBuffer.Base(), sv.FullSendTablesBuffer.Count());
 
-			// WriteSendTables(pClasses, sv.FullSendTables);
+			PackedEntities.WriteSendTables(pClasses, sv.FullSendTables);
 
 			if (sv.FullSendTables.Overflowed) {
 				Host.Error("SV_CreateBaseline: WriteSendTables overflow.\n");
@@ -305,7 +305,7 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 
 		SVC_GameEventList gameevents = new();
 		byte[] data = new byte[288000 /*NET_MAX_PAYLOAD*/];
-		gameevents.DataOut.StartWriting(data, 288000);
+		gameevents.DataOut.StartWriting(data, data.Length);
 
 		// gameEventManager.WriteEventList(&gameevents);
 		gameevents.WriteToBuffer(sv.Signon);
