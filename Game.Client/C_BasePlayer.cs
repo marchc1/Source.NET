@@ -135,7 +135,6 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 				GetWeapon(i).UpdateClientData(this);
 		}
 	}
-	public virtual void UpdateUnderwaterState() { }
 	public virtual void UpdateFogController() { }
 	public virtual void PreThink() {
 		ItemPreFrame();
@@ -537,4 +536,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public ObserverMode GetObserverMode() => (ObserverMode)ObserverMode;
 
 	public int CurrentCommandNumber() => CurrentCommand.Get().CommandNumber;
+
+	bool PlayerUnderwater;
+	private bool IsPlayerUnderwater() => PlayerUnderwater;
 }

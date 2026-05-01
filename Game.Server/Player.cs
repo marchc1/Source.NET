@@ -5,8 +5,10 @@ using Source.Common;
 using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
+using Source.Engine;
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -28,7 +30,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		SendPropInt(FIELD<PlayerState>.OF(nameof(PlayerState.DeadFlag)), 1, PropFlags.Unsigned)
 	]); public static readonly ServerClass CC_PlayerState = new("PlayerState", DT_PlayerState);
 	public override bool IsPlayer() => true;
-	public BaseViewModel GetViewModel(int index) => null;//throw new NotImplementedException();
+	public BaseViewModel? GetViewModel(int index) => ViewModel[index].Get();
 
 	public static readonly SendTable DT_LocalPlayerExclusive = new([
 		SendPropDataTable(nameof(Local), PlayerLocalData.DT_Local),
@@ -96,6 +98,23 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	public float ForwardMove;
 	public float SideMove;
+
+	uint PhysicsFlags;
+
+	int LastDmageAmount;
+	Vector3 DmgOrigin;
+	float DmgTake;
+	float DmgSave;
+	DamageType bitsDamageType;
+	int HUDDamage;
+	TimeUnit_t DeathAnimTime;
+	byte[] TimeBasedDamage = new byte[(int)ITBD.TimeBasedDamageCount];
+
+	int DrownDmg;
+	int DrownRestored;
+
+	int PoisonDmg;
+	int PoisonRestored;
 
 	public static void SendProxy_CropFlagsToPlayerFlagBitsLength(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		int mask = (1 << Constants.PLAYER_FLAG_BITS) - 1;
@@ -235,7 +254,10 @@ public partial class BasePlayer : BaseCombatCharacter
 	public TimeUnit_t SwimSoundTime;
 	public Vector3 LadderNormal;
 	public TimeUnit_t WaterJumpTime;
+	int DrownDmgRate;
 	public PlayerConnectedState Connected;
+	TimeUnit_t AirFinished;
+	TimeUnit_t PainFinished;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
 	public InButtons AfButtonLast;
 	public InButtons AfButtonPressed;
@@ -363,7 +385,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		SetViewOffset(VEC_VIEW_SCALED(this));
 		Precache();
 
-		// SetPlayerUnderwater(false);
+		SetPlayerUnderwater(false);
 
 		// Train = TRAIN_NEW;
 
@@ -371,6 +393,8 @@ public partial class BasePlayer : BaseCombatCharacter
 		// BonusChallenge;
 
 		// SetThink(null);
+
+		InitHUD = true;
 
 		// more todo
 
@@ -385,6 +409,70 @@ public partial class BasePlayer : BaseCombatCharacter
 	public TimeUnit_t GetDeathTime() => DeathTime;
 
 	public virtual void SetAnimation(PlayerAnim playerAnim) { } // todo
+
+#if HL2_DLL
+	const int AIRTIME = 7;
+	const int DROWNING_DAMAGE_INITIAL = 10;
+	const int DROWNING_DAMAGE_MAX = 10;
+#else
+	const int AIRTIME =  12;
+	const int DROWNING_DAMAGE_INITIAL = 2;
+	const int DROWNING_DAMAGE_MAX = 5;
+#endif
+
+	void WaterMove() {
+		if ((GetMoveType() == Source.MoveType.Noclip) && GetMoveParent() == null) {
+			AirFinished = gpGlobals.CurTime + AIRTIME;
+			return;
+		}
+
+		if (Health < 0 || !IsAlive()) {
+			UpdateUnderwaterState();
+			return;
+		}
+
+		if (GetWaterLevel() != Shared.WaterLevel.Eyes || CanBreatheUnderwater()) {
+			if (AirFinished < gpGlobals.CurTime)
+				EmitSound("Player.DrownStart");
+
+			AirFinished = gpGlobals.CurTime + AIRTIME;
+			DrownDmgRate = DROWNING_DAMAGE_INITIAL;
+
+			if (DrownDmg > DrownRestored) {
+				bitsDamageType |= DamageType.DrownRecover;
+				bitsDamageType &= ~DamageType.Drown;
+				TimeBasedDamage[(int)ITBD.DrownRecover] = 0;
+			}
+		}
+		else {
+			bitsDamageType &= ~DamageType.DrownRecover;
+			TimeBasedDamage[(int)ITBD.DrownRecover] = 0;
+
+			if (AirFinished < gpGlobals.CurTime && (GetFlags() & EntityFlags.GodMode) == 0) // drown!
+			{
+				if (PainFinished < gpGlobals.CurTime) {
+					DrownDmgRate += 1;
+					if (DrownDmgRate > DROWNING_DAMAGE_MAX) {
+						DrownDmgRate = DROWNING_DAMAGE_MAX;
+					}
+
+					// OnTakeDamage(TakeDamageInfo(GetContainingEntity(INDEXENT(0)), GetContainingEntity(INDEXENT(0)), DrownDmgRate, DamageType.Drown));
+					PainFinished = gpGlobals.CurTime + 1;
+
+					DrownDmg += DrownDmgRate;
+				}
+			}
+			else
+				bitsDamageType &= ~DamageType.Drown;
+		}
+
+		UpdateUnderwaterState();
+	}
+
+	public virtual bool CanBreatheUnderwater() => false;
+
+	bool PlayerUnderwater;
+	private bool IsPlayerUnderwater() => PlayerUnderwater;
 
 	public virtual Vector3 GetAutoaimVector(float scale) {
 		MathLib.AngleVectors(GetAbsAngles(), out Vector3 forward, out _, out _);
@@ -703,7 +791,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		public AnonymousSafeFieldPointer<UserCmd> Ptr => new(this, static o => ref ((UserCmdRef)o).Cmd);
 	}
 
-	private void PlayerRunCommand(UserCmd userCmd, MoveHelperServer s_MoveHelperServer) {
+	public virtual void PlayerRunCommand(UserCmd userCmd, MoveHelperServer s_MoveHelperServer) {
 		// TouchedPhysObject = false;
 
 		if (pl.FixAngle == (int)FixAngle.None)
@@ -793,14 +881,14 @@ public partial class BasePlayer : BaseCombatCharacter
 			return;
 
 		// ItemPreFrame();
-		// WaterMove();
+		WaterMove();
 
 		// if (g_pGameRules && g_pGameRules.FAllowFlashlight())
 		// 	Local.HideHUD &= ~HideHudBits.Flashlight;
 		// else
 		// 	Local.HideHUD |= HideHudBits.Flashlight;
 
-		// UpdateClientData();
+		UpdateClientData();
 		// CheckTimeBasedDamage();
 		// CheckSuitUpdate();
 
@@ -814,16 +902,46 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		// HandleFuncTrain();
 
-		// if ((Buttons & InButtons.Jump) != 0)
-		// 	Jump();
+		if ((Buttons & InButtons.Jump) != 0)
+			Jump();
 
-		// if ((Buttons & InButtons.Duck) != 0 || (GetFlags() & EntityFlags.Ducking) != 0 /*|| (m_afPhysicsFlags & PFLAG_DUCKING)*/)
-		// 	Duck();
+		if ((Buttons & InButtons.Duck) != 0 || (GetFlags() & EntityFlags.Ducking) != 0 /*|| (m_afPhysicsFlags & PFLAG_DUCKING)*/)
+			Duck();
 
 		if ((GetFlags() & EntityFlags.OnGround) == 0)
 			Local.FallVelocity = -GetAbsVelocity().Z;
 
 		// UpdateLastKnownArea();
+	}
+
+	bool InitHUD;
+	private void UpdateClientData() {
+		SingleUserRecipientFilter user = new(this);
+		user.MakeReliable();
+
+		if (InitHUD) {
+			InitHUD = false;
+			// gInitHUD = false;
+
+			UserMessageBegin(user, "ResetHUD");
+			WRITE_BYTE(0);
+			MessageEnd();
+
+			World? world = GetWorldEntity();
+			// todo
+		}
+
+		// todo
+
+		// g_pGameRules.UpdateClientData(this);
+	}
+
+	private void Duck() {
+
+	}
+
+	private void Jump() {
+
 	}
 
 	internal bool IsDead() {
@@ -834,9 +952,11 @@ public partial class BasePlayer : BaseCombatCharacter
 		throw new NotImplementedException();
 	}
 
-	internal void ForceDropOfCarriedPhysObjects(BaseEntity? ground) {
-	// todo
-	}
+	public virtual void ForceDropOfCarriedPhysObjects(BaseEntity? ground) { }
+
+	private Action? FnThink;
+	internal void Think() => FnThink?.Invoke();
+	// todo: thinking about thinking... lots of thinking
 }
 
 // Something to keep in mind; in base Source, this is stored in a list in the player with value semantics...

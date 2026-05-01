@@ -95,7 +95,7 @@ public class PlayerMove
 
 		move.Velocity = player.GetAbsVelocity();
 
-		// move.PlayerHandle = player;
+		move.PlayerHandle.Set(player);
 
 		move.SetAbsOrigin(player.GetAbsOrigin());
 
@@ -153,7 +153,7 @@ public class PlayerMove
 
 		player.SetNextThink(TICK_NEVER_THINK);
 
-		// player.Think();
+		player.Think();
 	}
 
 	void RunPostThink(BasePlayer player) => player.PostThink();

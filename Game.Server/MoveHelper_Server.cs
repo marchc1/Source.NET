@@ -53,7 +53,7 @@ public class MoveHelperServer : IMoveHelperServer
 		TouchList.Clear();
 	}
 
-	public void SetHost(BasePlayer host) {
+	public void SetHost(BasePlayer? host) {
 		HostPlayer = host;
 	}
 
