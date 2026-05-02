@@ -313,4 +313,8 @@ public static partial class Util
 	internal static void SetOrigin(BasePlayer player, Vector3 origin) {
 		throw new NotImplementedException();
 	}
+
+	internal static void RemoveImmediate(BaseEntity? baseEntity) {
+		throw new NotImplementedException();
+	}
 }

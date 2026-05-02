@@ -37,7 +37,7 @@ public delegate FileWeaponInfo CreateWeaponInfoFn();
 
 public static class WeaponParse
 {
-	public static CreateWeaponInfoFn CreateWeaponInfo = null!;
+	public static CreateWeaponInfoFn CreateWeaponInfo = () => new FileWeaponInfo();
 
 	static readonly FileWeaponInfo NullWeaponInfo = new();
 	static WEAPON_FILE_INFO_HANDLE currentHandle = 0;
@@ -135,7 +135,7 @@ public class FileWeaponInfo
 			ShootSounds[i] = new char[WeaponParse.MAX_WEAPON_STRING];
 		}
 	}
-	public static readonly string[] WeaponSoundCategories =[
+	public static readonly string[] WeaponSoundCategories = [
 		"empty",
 		"single_shot",
 		"single_shot_npc",
@@ -237,7 +237,7 @@ public class FileWeaponInfo
 	// This helps cl_righthand make the decision about whether to flip the model or not.
 	public bool BuiltRightHanded;
 	public bool AllowFlipping;  // False to disallow flipping the model, regardless of whether
-								// it is built left or right handed.
+															// it is built left or right handed.
 
 #if CLIENT_DLL
 	public int SpriteCount;

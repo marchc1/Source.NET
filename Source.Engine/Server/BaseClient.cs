@@ -698,6 +698,10 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 		int nStartBit = NetChannel.GetNumBitsWritten(msg.IsReliable() || forceReliable);
 		bool bret = NetChannel.SendNetMsg(msg, forceReliable);
+		if (Tracing != 0) {
+			int bits = NetChannel.GetNumBitsWritten(msg.IsReliable() || forceReliable) - nStartBit;
+			TraceNetworkMsg(bits, $"NetMessage {msg.GetName()}");
+		}
 		return bret;
 	}
 

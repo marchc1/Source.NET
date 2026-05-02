@@ -195,7 +195,7 @@ public partial class
 		BaseCombatWeapon? lastWeapon = GetActiveWeapon();
 
 		if (base.Weapon_Switch(weapon, viewmodelindex)) {
-			if (lastWeapon != null && Weapon_ShouldSetLast(lastWeapon, GetActiveWeapon())) 
+			if (lastWeapon != null && Weapon_ShouldSetLast(lastWeapon, GetActiveWeapon()))
 				Weapon_SetLast(lastWeapon.GetLastWeapon());
 
 			BaseViewModel? pViewModel = GetViewModel(viewmodelindex);
@@ -473,7 +473,7 @@ public partial class
 		}
 	}
 
-	private void SetPlayerUnderwater(bool v) {
+	public void SetPlayerUnderwater(bool v) {
 		// throw new NotImplementedException();
 	}
 }

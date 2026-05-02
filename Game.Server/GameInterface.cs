@@ -533,9 +533,7 @@ public class ServerGameClients : IServerGameClients
 		throw new NotImplementedException();
 	}
 
-	public void ClientSpawned(Edict player) {
-		throw new NotImplementedException();
-	}
+	public void ClientSpawned(Edict player) => g_pGameRules?.ClientSpawned(player);
 
 	public void GetBugReportInfo(Span<char> buf) {
 		throw new NotImplementedException();

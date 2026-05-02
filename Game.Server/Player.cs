@@ -77,6 +77,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	]);
 
 	public static Edict? s_PlayerEdict;
+	public static BaseEntity? g_LastSpawn;
 
 	public int StuckLast;
 	public float MaxSpeed() => Maxspeed;
@@ -276,6 +277,30 @@ public partial class BasePlayer : BaseCombatCharacter
 	public AnonymousSafeFieldPointer<UserCmd> CurrentCommand;
 	public int CurrentCommandNumber() => CurrentCommand.Get().CommandNumber;
 
+	public BaseEntity? GiveNamedItem(ReadOnlySpan<char> name, int subType = 0) {
+		if (Weapon_OwnsThisType(name, subType) != null)
+			return null;
+
+		BaseEntity? pent = CreateEntityByName(name);
+		if (pent == null) {
+			Msg("NULL Ent in GiveNamedItem!\n");
+			return null;
+		}
+
+		pent.SetLocalOrigin(GetLocalOrigin());
+		// pent.AddSpawnFlags(SF_NORESPAWN);
+
+		BaseCombatWeapon? weapon = (BaseCombatWeapon?)((BaseEntity)pent);
+		weapon?.SetSubType(subType);
+
+		Util.DispatchSpawn(pent);
+
+		// if (pent != null && !(pent.IsMarkedForDeletion()))
+		// 	pent.Touch(this);
+
+		return pent;
+	}
+
 	public void ImpulseCommands() {
 		// todo
 	}
@@ -299,7 +324,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		return startFirst;
 	}
 
-	public BaseEntity? EntSelectSpawnPoint() {
+	public virtual BaseEntity? EntSelectSpawnPoint() {
 		BaseEntity? spot;
 		Edict player = Edict();
 
@@ -818,7 +843,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	}
 
 	const float SMOOTHING_FACTOR = 0.9f;
-	internal void PostThink() {
+	public virtual void PostThink() {
 		// SmoothedVelocity = SmoothedVelocity * SMOOTHING_FACTOR + GetAbsVelocity() * (1 - SMOOTHING_FACTOR);
 
 		if (!g_fGameOver /*&& !PlayerLocked*/) {
@@ -876,7 +901,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		SimulatePlayerSimulatedEntities();
 	}
 
-	internal void PreThink() {
+	public virtual void PreThink() {
 		if (g_fGameOver /*|| PlayerLocked*/)
 			return;
 
@@ -957,6 +982,8 @@ public partial class BasePlayer : BaseCombatCharacter
 	private Action? FnThink;
 	internal void Think() => FnThink?.Invoke();
 	// todo: thinking about thinking... lots of thinking
+
+	public Activity GetActivity() { return Activity.ACT_IDLE; } // TODO
 }
 
 // Something to keep in mind; in base Source, this is stored in a list in the player with value semantics...

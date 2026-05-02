@@ -133,8 +133,20 @@ public partial class CL
 			entitylist.SetMaxEntities(Constants.MAX_EDICTS);
 	}
 
-	internal void SetupMapName(ReadOnlySpan<char> readOnlySpan, Span<char> mapname) {
-		// todo
+	internal void SetupMapName(ReadOnlySpan<char> name, Span<char> mapname) {
+		ReadOnlySpan<char> slash = strrchr(name, '\\');
+		ReadOnlySpan<char> slash2 = strrchr(name, '/');
+
+		if (!slash2.IsEmpty && (slash.IsEmpty || slash2.Length > slash.Length))
+			slash = slash2;
+
+		ReadOnlySpan<char> src = slash.IsEmpty ? name : slash[1..];
+
+		strcpy(mapname, src);
+
+		Span<char> ext = strchr(mapname, '.');
+		if (!ext.IsEmpty)
+			ext[0] = '\0';
 	}
 }
 
