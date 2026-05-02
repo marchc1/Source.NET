@@ -40,14 +40,14 @@ public struct C_PredictionError
 [LinkEntityToClass("player")]
 public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 {
-	public static readonly DataMap PM_PlayerState = new(nameof(PlayerState), [
+	public static readonly DataMap PM_PlayerState = new(typeof(PlayerState), [
 		DEFINE<PlayerState>.PRED_FIELD( nameof(PlayerState.DeadFlag), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
 	]);
 	public static readonly RecvTable DT_PlayerState = new([
 		RecvPropInt(FIELD<PlayerState>.OF(nameof(PlayerState.DeadFlag)))
 	]); public static readonly ClientClass CC_PlayerState = new("PlayerState", null, null, DT_PlayerState);
 
-	public static readonly new DataMap PredMap = new(nameof(C_BasePlayer), C_BaseCombatCharacter.PredMap, [
+	public static readonly new DataMap PredMap = new(typeof(C_BasePlayer), C_BaseCombatCharacter.PredMap, [
 		DEFINE.PRED_TYPEDESCRIPTION( nameof(Local), PlayerLocalData.PredMap ),
 		DEFINE.PRED_TYPEDESCRIPTION( nameof(pl), PM_PlayerState ),
 		DEFINE.PRED_FIELD( nameof(FOV), FieldType.Integer, FieldTypeDescFlags.InSendTable ),

@@ -22,7 +22,7 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 	static ConVar cl_playermodel = new("none", FCvar.UserInfo | FCvar.Archive | FCvar.ServerCanExecute, "Default Player Model");
 	static ConVar cl_defaultweapon = new("weapon_physcannon", FCvar.UserInfo | FCvar.Archive, "Default Spawn Weapon");
 
-	public static readonly new DataMap PredMap = new(nameof(C_HL2MP_Player), C_BaseHLPlayer.PredMap, [
+	public static readonly new DataMap PredMap = new(typeof(C_HL2MP_Player), C_BaseHLPlayer.PredMap, [
 		DEFINE.PRED_FIELD( nameof(IsWalking), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
 	]); public override DataMap? GetPredDescMap() => PredMap;
 

@@ -16,7 +16,7 @@ public partial class C_BaseHLPlayer : C_BasePlayer
 	public static readonly new ClientClass ClientClass = new ClientClass("HL2_Player", null, null, DT_HL2_Player)
 															.WithManualClassID(StaticClassIndices.CHL2_Player);
 
-	public static readonly new DataMap PredMap = new(nameof(C_BaseHLPlayer), C_BasePlayer.PredMap, [
+	public static readonly new DataMap PredMap = new(typeof(C_BaseHLPlayer), C_BasePlayer.PredMap, [
 		DEFINE.PRED_TYPEDESCRIPTION( nameof(HL2Local), C_HL2PlayerLocalData.PredMap ),
 		DEFINE.PRED_FIELD( nameof(_IsSprinting), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
 	]); public override DataMap? GetPredDescMap() => PredMap;

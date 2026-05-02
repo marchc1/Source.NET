@@ -12,7 +12,7 @@ using DEFINE = Source.DEFINE<Game.Client.PlayerLocalData>;
 
 public class PlayerLocalData
 {
-	public static readonly DataMap PredMap = new(nameof(PlayerLocalData), [
+	public static readonly DataMap PredMap = new(typeof(PlayerLocalData), [
 		// DEFINE.FIELD( nameof(StepSide), FieldType.Integer ),
 		DEFINE.PRED_FIELD( nameof(HideHUD), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD_TOL( nameof(PunchAngle), FieldType.Vector, FieldTypeDescFlags.InSendTable, 0.125f ),

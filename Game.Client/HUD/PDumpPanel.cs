@@ -81,8 +81,8 @@ public class PDumpPanel : Panel, IHudElement
 	}
 
 	public void DumpEntity(C_BaseEntity ent, int commandsAcknowledged) {
-		DataFrame? originalStateData = null;
-		DataFrame? predictedStateData = null;
+		byte[]? originalStateData = null;
+		byte[]? predictedStateData = null;
 
 		if (ent.GetPredictable()) {
 			originalStateData = ent.GetOriginalNetworkDataObject();

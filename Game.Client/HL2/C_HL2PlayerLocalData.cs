@@ -22,7 +22,7 @@ public class C_HL2PlayerLocalData {
 		RecvPropBool(FIELD.OF(nameof(DisplayReticle))),
 	]); public static readonly ClientClass CC_Local = new ClientClass("HL2Local", null, null, DT_HL2Local);
 
-	public static readonly DataMap PredMap = new(nameof(C_HL2PlayerLocalData), [
+	public static readonly DataMap PredMap = new(typeof(C_HL2PlayerLocalData), [
 		DEFINE.PRED_FIELD( nameof(Ladder), FieldType.EHandle, FieldTypeDescFlags.InSendTable ),
 	]);
 
