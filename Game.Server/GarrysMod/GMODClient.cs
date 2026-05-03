@@ -81,15 +81,15 @@ public static class GMODClient
 		// todo BaseEntity.PrecacheModel("models/player.mdl");
 		// todo BaseEntity.PrecacheModel("models/gibs/agibs.mdl");
 		// todo BaseEntity.PrecacheModel("models/weapons/v_hands.mdl");
-		// todo BaseEntity.PrecacheScriptSound("HUDQuickInfo.LowAmmo");
-		// todo BaseEntity.PrecacheScriptSound("HUDQuickInfo.LowHealth");
-		// todo BaseEntity.PrecacheScriptSound("FX_AntlionImpact.ShellImpact");
-		// todo BaseEntity.PrecacheScriptSound("Missile.ShotDown");
-		// todo BaseEntity.PrecacheScriptSound("Bullets.DefaultNearmiss");
-		// todo BaseEntity.PrecacheScriptSound("Bullets.GunshipNearmiss");
-		// todo BaseEntity.PrecacheScriptSound("Bullets.StriderNearmiss");
-		// todo BaseEntity.PrecacheScriptSound("Geiger.BeepHigh");
-		// todo BaseEntity.PrecacheScriptSound("Geiger.BeepLow");
+		BaseEntity.PrecacheScriptSound("HUDQuickInfo.LowAmmo");
+		BaseEntity.PrecacheScriptSound("HUDQuickInfo.LowHealth");
+		BaseEntity.PrecacheScriptSound("FX_AntlionImpact.ShellImpact");
+		BaseEntity.PrecacheScriptSound("Missile.ShotDown");
+		BaseEntity.PrecacheScriptSound("Bullets.DefaultNearmiss");
+		BaseEntity.PrecacheScriptSound("Bullets.GunshipNearmiss");
+		BaseEntity.PrecacheScriptSound("Bullets.StriderNearmiss");
+		BaseEntity.PrecacheScriptSound("Geiger.BeepHigh");
+		BaseEntity.PrecacheScriptSound("Geiger.BeepLow");
 	}
 
 

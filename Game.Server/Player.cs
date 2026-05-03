@@ -816,7 +816,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		public AnonymousSafeFieldPointer<UserCmd> Ptr => new(this, static o => ref ((UserCmdRef)o).Cmd);
 	}
 
-	public virtual void PlayerRunCommand(UserCmd userCmd, MoveHelperServer s_MoveHelperServer) {
+	public virtual void PlayerRunCommand(UserCmd userCmd, IMoveHelper s_MoveHelperServer) {
 		// TouchedPhysObject = false;
 
 		if (pl.FixAngle == (int)FixAngle.None)
@@ -970,7 +970,8 @@ public partial class BasePlayer : BaseCombatCharacter
 	}
 
 	internal bool IsDead() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		return false;// todo
 	}
 
 	internal void Teleport(AngularImpulse origin, QAngle angles, Vector3 vec3_origin) {

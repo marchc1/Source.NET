@@ -473,7 +473,7 @@ public partial class
 		}
 	}
 
-	public void SetPlayerUnderwater(bool v) {
+	public virtual void SetPlayerUnderwater(bool v) {
 		// throw new NotImplementedException();
 	}
 }
