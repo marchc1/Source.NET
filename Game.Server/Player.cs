@@ -940,7 +940,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	}
 
 	bool InitHUD;
-	private void UpdateClientData() {
+	public virtual void UpdateClientData() {
 		SingleUserRecipientFilter user = new(this);
 		user.MakeReliable();
 

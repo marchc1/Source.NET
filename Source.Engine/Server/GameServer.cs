@@ -68,7 +68,7 @@ public class GameServer : BaseServer
 	public int MaxEdicts;
 	public int FreeEdicts;
 	public Edict[]? Edicts;
-	public IChangeInfoAccessor? edictchangeinfo;
+	public IChangeInfoAccessor[] EdictChangeInfo = [];
 
 	public int MaxClientsLimit;    // Max allowed on server.
 

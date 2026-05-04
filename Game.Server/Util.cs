@@ -317,4 +317,19 @@ public static partial class Util
 	internal static void RemoveImmediate(BaseEntity? baseEntity) {
 		throw new NotImplementedException();
 	}
+
+	internal static void SetModel(BaseEntity baseEntity, ReadOnlySpan<char> modelName) {
+		int i = modelinfo.GetModelIndex(modelName);
+		if (i == -1)
+			DevWarning($"{baseEntity.EntIndex()}/{baseEntity/*.GetEntityName()*/} - {baseEntity.GetClassname()}:  UTIL_SetModel:  not precached: {modelName}\n");
+		// todo ^ change to Error once precache stuff is done
+
+		BaseAnimating? animating = baseEntity.GetBaseAnimating();
+		animating?.ForceBone = 0;
+
+		baseEntity.SetModelName(modelName);
+		baseEntity.SetModelIndex(i);
+		// SetMinMaxSize(baseEntity, vec3_origin, vec3_origin); // TODO
+		// baseEntity.SetCollisionBoundsFromModel(); todo
+	}
 }

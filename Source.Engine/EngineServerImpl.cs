@@ -228,9 +228,7 @@ internal class EngineServer(Cbuf Cbuf, Host host) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public IChangeInfoAccessor GetChangeAccessor(Edict edict) {
-		throw new NotImplementedException();
-	}
+	public IChangeInfoAccessor GetChangeAccessor(Edict edict) => sv.EdictChangeInfo[NUM_FOR_EDICT(edict)];
 
 	public ReadOnlySpan<char> GetClientConVarValue(int clientIndex, ReadOnlySpan<char> name) {
 		if (clientIndex < 1 || clientIndex > sv.GetClientCount()) {

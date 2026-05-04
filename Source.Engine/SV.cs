@@ -172,7 +172,9 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 			sv.Edicts[i].FreeTime = 0;
 		}
 		ED.ClearFreeEdictList();
-		// TODO: EdictChangeInfo
+		sv.EdictChangeInfo = new IChangeInfoAccessor[sv.MaxEdicts];
+		for (int i = 0; i < sv.MaxEdicts; i++)
+			sv.EdictChangeInfo[i] = new IChangeInfoAccessor();
 	}
 
 	internal void InitGameServerSteam() {
