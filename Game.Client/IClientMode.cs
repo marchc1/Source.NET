@@ -1,11 +1,13 @@
 ﻿using Game.Shared;
 
+using Source.Common;
 using Source.Common.Input;
 using Source.GUI.Controls;
 
 namespace Game.Client;
 
-public enum MessageModeType {
+public enum MessageModeType
+{
 	None,
 	Say,
 	SayTeam
@@ -25,4 +27,5 @@ public interface IClientMode
 	bool IsTyping();
 	float GetViewModelFOV();
 	bool CreateMove(double frametime, ref UserCmd cmd);
+	void OverrideView(ref ViewSetup setup);
 }

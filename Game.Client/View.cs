@@ -204,6 +204,8 @@ public class ViewRender : IViewRender
 			viewModelAngles = viewEye.Angles;
 		}
 
+		clientMode.OverrideView(ref viewEye);
+
 		float fDefaultFov = default_fov.GetFloat();
 		float flFOVOffset = fDefaultFov - viewEye.FOV;
 
@@ -478,8 +480,8 @@ public class ViewRender : IViewRender
 		if (!r_drawviewmodel.GetBool())
 			return false;
 
-		//  if (C_BasePlayer.ShouldDrawLocalPlayer())
-		//  	return false;
+		if (C_BasePlayer.ShouldDrawLocalPlayer())
+			return false;
 
 		if (!ShouldDrawEntities())
 			return false;

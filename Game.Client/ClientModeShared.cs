@@ -7,8 +7,11 @@ using Source.Common.Bitbuffers;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Input;
+using Source.Common.Mathematics;
 using Source.Engine;
 using Source.GUI.Controls;
+
+using System.Numerics;
 
 namespace Game.Client;
 
@@ -128,6 +131,34 @@ public class ClientModeShared : GameEventListener, IClientMode
 
 	public float GetViewModelFOV() {
 		return v_viewmodel_fov.GetFloat();
+	}
+
+	public virtual void OverrideView(ref ViewSetup setup) {
+		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
+		if (player == null)
+			return;
+
+		if (input.CAM_IsThirdPerson()) {
+			Vector3 camOfs = g_ThirdPersonManager.GetCameraOffsetAngles();
+			Vector3 camOfsDist = g_ThirdPersonManager.GetFinalCameraOffset();
+
+			camOfsDist *= g_ThirdPersonManager.GetDistanceFraction();
+
+			QAngle camAngles = new(camOfs[PITCH], camOfs[YAW], 0);
+
+			if (g_ThirdPersonManager.IsOverridingThirdPerson() == false)
+				engine.GetViewAngles(out camAngles);
+
+			MathLib.AngleVectors(camAngles, out Vector3 camForward, out Vector3 camRight, out Vector3 camUp);
+
+			setup.Origin -= camForward * camOfsDist[0];
+			setup.Origin += camRight * camOfsDist[1];
+			setup.Origin += camUp * camOfsDist[2];
+
+			setup.Angles = camAngles;
+		}
+
+		// todo ortho
 	}
 
 	public void Layout() {

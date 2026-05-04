@@ -85,7 +85,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public TimeUnit_t GetFinalPredictedTime() => FinalPredictedTick * TICK_INTERVAL;
 	public bool IsLocalPlayer() => GetLocalPlayer() == this;
 	public static bool ShouldDrawLocalPlayer() {
-		return false; // todo
+		return input.CAM_IsThirdPerson(); // todo
 	}
 
 	public InButtons AfButtonLast;
@@ -539,4 +539,21 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 
 	bool PlayerUnderwater;
 	private bool IsPlayerUnderwater() => PlayerUnderwater;
+
+	internal void ThirdPersonSwitch(bool thirdperson) {
+		UpdateVisibility();
+
+		if (IsLocalPlayer()) {
+			bool shouldDrawLocalPlayer = ShouldDrawLocalPlayer();
+			// for (int i = 0; i < GetNumBoneAttachments(); ++i) {
+			// 	C_BaseAnimating bone = GetBoneAttachment(i);
+			// 	if (bone != null) {
+			// 		if (shouldDrawLocalPlayer)
+			// 			bone.RemoveEffects(EntityEffects.NoDraw);
+			// 		else
+			// 			bone.AddEffects(EntityEffects.NoDraw);
+			// 	}
+			// }
+		}
+	}
 }
