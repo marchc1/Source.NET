@@ -10,6 +10,7 @@ using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Networking;
 using Source.Common.Server;
+using Source.Engine;
 using Source.GUI.Controls;
 
 using Steamworks;
@@ -45,6 +46,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		channel.RegisterMessage<CLC_ListenEvents>();
 		channel.RegisterMessage<CLC_GMod_ClientToServer>();
 	}
+	public virtual bool IgnoreTempEntity(EventInfo evnt) { return false; }
 	public virtual void ConnectionClosing(ReadOnlySpan<char> reason) { }
 	public virtual void ConnectionCrashed(ReadOnlySpan<char> reason) { }
 	public virtual void PacketStart(int incomingSequence, int outgoingAcknowledged) { }

@@ -38,6 +38,7 @@ public abstract class BaseServer : IServer
 	internal static readonly ConVar sv_enableoldqueries = new("sv_enableoldqueries", "0", 0, "Enable support for old style (HL1) server queries");
 	internal static readonly ConVar sv_password = new("sv_password", "", FCvar.Notify | FCvar.Protected | FCvar.DontRecord, "Server password for entry into multiplayer games");
 	internal static readonly ConVar sv_tags = new("sv_tags", "", FCvar.Notify, "Server tags. Used to provide extra information to clients when they're browsing for servers. Separate tags with a comma.", callback: SvTagsChangeCallback);
+	internal static readonly ConVar sv_debugtempentities = new("sv_debugtempentities", "0", FCvar.None, "Show temp entity bandwidth usage.");
 
 	static bool bTagsChangeCallback = false;
 	private static void SvTagsChangeCallback(IConVar var, in ConVarChangeContext ctx) {
@@ -409,8 +410,109 @@ public abstract class BaseServer : IServer
 
 	}
 	public virtual void WriteTempEntities(BaseClient client, FrameSnapshot to, FrameSnapshot from, bf_write pBuf, int nMaxEnts) {
-		// throw new NotImplementedException();
-		// todo
+		byte[] data = new byte[Protocol.MAX_PAYLOAD];
+		SVC_TempEntities msg = new();
+		msg.DataOut.StartWriting(data, data.Length);
+		bf_write buffer = msg.DataOut;
+
+		FrameSnapshot? pSnapshot;
+		EventInfo? lastEvent = null;
+
+		bool bDebug = sv_debugtempentities.GetBool();
+
+		nMaxEnts = Math.Min(nMaxEnts, (1 << EventInfo.EVENT_INDEX_BITS) - 1);
+
+		if (from != null)
+			pSnapshot = from.NextSnapshot();
+		else
+			pSnapshot = to;
+
+		List<EventInfo> sorted = new(nMaxEnts);
+
+		while (pSnapshot != null && sorted.Count < nMaxEnts) {
+			for (int i = 0; i < pSnapshot.NumTempEntities; i++) {
+				EventInfo evnt = pSnapshot.TempEntities![i];
+
+				if (client.IgnoreTempEntity(evnt))
+					continue;
+
+				sorted.Add(evnt);
+
+				if (sorted.Count >= nMaxEnts)
+					break;
+			}
+
+			if (pSnapshot == to)
+				break;
+
+			pSnapshot = framesnapshotmanager.NextSnapshot(pSnapshot);
+		}
+
+		if (sorted.Count <= 0)
+			return;
+
+		sorted.Sort((a, b) => a.ClassID.CompareTo(b.ClassID));
+
+		for (int i = 0; i < sorted.Count; i++) {
+			EventInfo evnt = sorted[i];
+
+			if (evnt.FireDelay == 0.0f) {
+				buffer.WriteOneBit(0);
+			}
+			else {
+				buffer.WriteOneBit(1);
+				buffer.WriteSBitLong((int)(evnt.FireDelay * 100.0f), 8);
+			}
+
+			if (lastEvent != null && lastEvent.ClassID == evnt.ClassID) {
+				buffer.WriteOneBit(0);
+
+				int startBit = bDebug ? buffer.BitsWritten : 0;
+
+				EntsWrite.WriteAllDeltaProps(evnt.SendTable!,
+					lastEvent.Data!,
+					lastEvent.Bits,
+					evnt.Data!,
+					evnt.Bits,
+					-1,
+					buffer);
+
+				if (bDebug) {
+					int length = buffer.BitsWritten - startBit;
+					DevMsg(2, $"TE {evnt.SendTable!.NetTableName} delta bits: {length}\n");
+				}
+			}
+			else {
+				buffer.WriteOneBit(1);
+
+				int startBit = bDebug ? buffer.BitsWritten : 0;
+
+				buffer.WriteUBitLong((uint)evnt.ClassID, GetClassBits());
+
+				if (IsMultiplayer()) {
+					EntsWrite.WriteAllDeltaProps(evnt.SendTable!,
+						null,
+						0,
+						evnt.Data!,
+						evnt.Bits,
+						-1,
+						buffer);
+				}
+				else
+					buffer.WriteBits(evnt.Data!, evnt.Bits);
+
+				if (bDebug) {
+					int length = buffer.BitsWritten - startBit;
+					DevMsg(2, $"TE {evnt.SendTable!.NetTableName} full bits: {length}\n");
+				}
+			}
+
+			if (IsMultiplayer())
+				lastEvent = evnt;
+		}
+
+		msg.NumEntries = sorted.Count;
+		msg.WriteToBuffer(pBuf);
 	}
 
 

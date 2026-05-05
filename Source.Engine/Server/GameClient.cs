@@ -551,5 +551,5 @@ public class GameClient : BaseClient
 		return PrevPackInfo;
 	}
 
-	// bool IgnoreTempEntity(EventInfo evnt) { }
+	public override bool IgnoreTempEntity(EventInfo evnt) { return false; } // todo
 }
