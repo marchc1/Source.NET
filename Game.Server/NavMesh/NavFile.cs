@@ -705,6 +705,14 @@ public partial class NavMesh
 				return NavErrorType.InvalidFile;
 		}
 
+		// TF2 = 2, GMOD = 0, L4D = 13, L4D2 = 14
+		// TODO: Test what versions have no custom data
+		// without this, we'll crash attempting to read OOB
+		if (subVersion != 0) {
+			DevWarning($"Cannot load navmesh, unsupported subversion: {subVersion}\n");
+			return NavErrorType.BadFileVersion;
+		}
+
 		if (version >= 4) {
 			uint saveBspSize = buffer.ReadUInt32();
 
