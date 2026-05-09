@@ -4,7 +4,6 @@ using Source;
 using Source.Common.Commands;
 
 using System.Numerics;
-using System.Runtime.InteropServices;
 
 namespace Game.Server.NavMesh;
 
@@ -129,9 +128,11 @@ public class PlaceDirectory
 			for (int j = 0; j < len; ++j)
 				placeName[j] = (char)fileBuffer.ReadByte();
 
-			NavPlace place = NavMesh.Instance!.NameToPlace(placeName[..len]);
+			ReadOnlySpan<char> nameSliced = placeName[..len].SliceNullTerminatedString();
+
+			NavPlace place = NavMesh.Instance!.NameToPlace(nameSliced);
 			if (place == Nav.UndefinedPlace)
-				DevWarning($"Warning: NavMesh place {placeName[..len]} is undefined?\n");
+				DevWarning($"Warning: NavMesh place {nameSliced} is undefined?\n");
 
 			AddPlace(place);
 		}
@@ -438,20 +439,24 @@ public partial class NavArea
 		for (int i = 0; i < (int)NavCornerType.NumCorners; ++i)
 			LightIntensity[i] = fileBuffer.ReadSingle();
 
-		if (version < 16)
-			return NavErrorType.Ok;
-
-		uint visibleAreaCount = fileBuffer.ReadUInt32();
-		for (uint j = 0; j < visibleAreaCount; ++j) {
-			AreaBindInfo info = new() {
-				ID = fileBuffer.ReadUInt32(),
-				Attributes = fileBuffer.ReadByte()
-			};
-
-			PotentiallyVisibleAreas.Add(info);
+		if ((version == 16 && subVersion == 14) || (version == 15 && subVersion == 13)) {
+			fileBuffer.ReadUInt32();
+			fileBuffer.ReadUInt16();
 		}
 
-		InheritVisibilityFrom.ID = fileBuffer.ReadUInt32();
+		if (version >= 16 || (version == 15 && subVersion == 13)) {
+			uint visibleAreaCount = fileBuffer.ReadUInt32();
+			for (uint j = 0; j < visibleAreaCount; ++j) {
+				AreaBindInfo info = new() {
+					ID = fileBuffer.ReadUInt32(),
+					Attributes = fileBuffer.ReadByte()
+				};
+
+				PotentiallyVisibleAreas.Add(info);
+			}
+
+			InheritVisibilityFrom.ID = fileBuffer.ReadUInt32();
+		}
 
 		return NavErrorType.Ok;
 	}
@@ -706,10 +711,13 @@ public partial class NavMesh
 		}
 
 		// TF2 = 2, GMOD = 0, L4D = 13, L4D2 = 14
-		// TODO: Test what versions have no custom data
-		// without this, we'll crash attempting to read OOB
-		if (subVersion != 0) {
-			DevWarning($"Cannot load navmesh, unsupported subversion: {subVersion}\n");
+		// TODO: CS:S/TF2 has custom data
+		if (!(
+			(version == 16 && subVersion == 0) // GMOD
+			|| (version == 16 && subVersion == 14) // L4D2
+			|| (version == 15 && subVersion == 13) // L4D
+		)) {
+			DevWarning($"Cannot load navmesh, unsupported version: {version}, sub {subVersion}\n");
 			return NavErrorType.BadFileVersion;
 		}
 
@@ -742,6 +750,11 @@ public partial class NavMesh
 
 		if (version >= 5)
 			placeDirectory.Load(buffer, version);
+
+		if ((version == 16 && subVersion == 14) || (version == 15 && subVersion == 13)) {
+			while (buffer.ReadByte() != 0) { }
+			buffer.ReadUInt16();
+		}
 
 		uint count = buffer.ReadUInt32();
 
