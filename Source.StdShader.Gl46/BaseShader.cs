@@ -127,10 +127,10 @@ public abstract class BaseShader : IShader
 			ShaderShadow.EnableDepthWrites(false);
 		}
 
-		if ((flags & MaterialVarFlags.Decal) != 0) {
-			ShaderShadow.EnablePolyOffset(PolygonOffsetMode.Decal);
-			ShaderShadow.EnableDepthWrites(false);
-		}
+		//if ((flags & MaterialVarFlags.Decal) != 0) {
+		//	ShaderShadow.EnablePolyOffset(PolygonOffsetMode.Decal);
+		//	ShaderShadow.EnableDepthWrites(false);
+		//}
 
 		if ((flags & MaterialVarFlags.NoCull) != 0)
 			ShaderShadow.EnableCulling(false);

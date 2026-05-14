@@ -527,7 +527,11 @@ public class Material : IMaterialInternal
 		while (true) {
 			shader = materials.ShaderSystem.FindShader(shaderName);
 			if (shader == null) {
-				Dbg.Warning($"Error: Material \"{GetName()}\" uses unknown shader \"{shaderName}\"\n");
+#if DEBUG
+				DevWarning($"Error: Material \"{GetName()}\" uses unknown shader \"{shaderName}\"\n");
+#else
+				Warning($"Error: Material \"{GetName()}\" uses unknown shader \"{shaderName}\"\n");
+#endif
 
 				shaderName = MissingShaderName();
 				shader = materials.ShaderSystem.FindShader(shaderName);
@@ -866,7 +870,7 @@ public class Material : IMaterialInternal
 	}
 
 	private string MissingShaderName() {
-		return "Wireframe";
+		return "unlitgeneric";
 	}
 
 	MaterialFlags flags;
