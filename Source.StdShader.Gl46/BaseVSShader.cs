@@ -2,6 +2,8 @@ using Source.Common.MaterialSystem;
 using Source.Common.ShaderAPI;
 using Source.Common.ShaderLib;
 
+using System.Numerics;
+
 namespace Source.StdShader.Gl46;
 
 public abstract class BaseVSShader : BaseShader
@@ -73,37 +75,64 @@ public abstract class BaseVSShader : BaseShader
 	PixelShaderHandle psh;
 
 	public void VertexShaderUnlitGenericPass(int baseTextureVar, int frameVar,
-												  int baseTextureTransformVar,
-												  int detailVar, int detailTransform,
-												  bool bDetailTransformIsScale,
-												  int envmapVar, int envMapFrameVar,
-												  int envmapMaskVar, int envmapMaskFrameVar,
-												  int envmapMaskScaleVar, int envmapTintVar,
-												  int alphaTestReferenceVar,
-												  int nDetailBlendModeVar,
-												  int nOutlineVar,
-												  int nOutlineColorVar,
-												  int nOutlineStartVar,
-												  int nOutlineEndVar,
-												  int nSeparateDetailUVsVar,
-												  ReadOnlySpan<char> shaderName) {
+													int baseTextureTransformVar,
+													int detailVar, int detailTransform,
+													bool bDetailTransformIsScale,
+													int envmapVar, int envMapFrameVar,
+													int envmapMaskVar, int envmapMaskFrameVar,
+													int envmapMaskScaleVar, int envmapTintVar,
+													int alphaTestReferenceVar,
+													int nDetailBlendModeVar,
+													int nOutlineVar,
+													int nOutlineColorVar,
+													int nOutlineStartVar,
+													int nOutlineEndVar,
+													int nSeparateDetailUVsVar,
+													ReadOnlySpan<char> shaderName) {
 		IMaterialVar[] shaderParams = Params!;
 
+		bool baseAlphaEnvmapMask = IsFlagSet(Params, MaterialVarFlags.BaseAlphaEnvMapMask);
+		bool envmap = envmapVar >= 0 && shaderParams[envmapVar].IsTexture();
+		bool mask = false;
+		if (envmap && envmapMaskVar >= 0)
+			mask = shaderParams[envmapMaskVar].IsTexture();
+		bool detail = detailVar >= 0 && shaderParams[detailVar].IsTexture();
 		bool bBaseTexture = (baseTextureVar >= 0) && shaderParams[baseTextureVar].IsTexture();
 		bool bVertexColor = IsFlagSet(Params, MaterialVarFlags.VertexColor);
+		// bool envmapCameraSpace = IsFlagSet(Params, MaterialVarFlags.EnvMapCameraSpace);
+		// bool envmapSpehere = IsFlagSet(Params, MaterialVarFlags.EnvMapSphere);
+		// bool detailMultiply = nDetailBlendModeVar >= 0 && (shaderParams[nDetailBlendModeVar].GetIntValue() == 8);
+		// bool maskBaseByDetailAlpha = nDetailBlendModeVar >= 0 && (shaderParams[nDetailBlendModeVar].GetIntValue() == 9);
+		bool separateDetailUVs = nSeparateDetailUVsVar >= 0 && (shaderParams[nSeparateDetailUVsVar].GetIntValue() != 0);
+
 		if (IsSnapshotting()) {
 			ShaderShadow.EnableAlphaTest(IsFlagSet(shaderParams, MaterialVarFlags.AlphaTest));
 			if (alphaTestReferenceVar != -1 && shaderParams[alphaTestReferenceVar].GetFloatValue() > 0.0f)
 				ShaderShadow.AlphaFunc(ShaderAlphaFunc.GreaterEqual, shaderParams[alphaTestReferenceVar].GetFloatValue());
 
-			int numTexCoords = 1;
-			
-			if (bBaseTexture) {
+			if (bBaseTexture)
 				ShaderShadow.EnableTexture(Sampler.Sampler0, true);
+
+			if (detail)
+				ShaderShadow.EnableTexture(Sampler.Sampler3, true);
+
+			if (envmap) {
+				ShaderShadow.EnableTexture(Sampler.Sampler1, true);
+
+				if (mask || baseAlphaEnvmapMask)
+					ShaderShadow.EnableTexture(Sampler.Sampler2, true);
 			}
 
 			if (bBaseTexture)
 				SetDefaultBlendingShadowState(baseTextureVar, true);
+			else if (mask)
+				SetDefaultBlendingShadowState(baseTextureVar, false);
+			else
+				SetDefaultBlendingShadowState();
+
+			int numTexCoords = 1;
+			if (separateDetailUVs)
+				numTexCoords = 2;
 
 			ShaderShadow.SetVertexShader(shaderName);
 			ShaderShadow.SetPixelShader(shaderName);
@@ -119,6 +148,11 @@ public abstract class BaseVSShader : BaseShader
 			if (bBaseTexture) {
 				BindTexture(Sampler.Sampler0, baseTextureVar, frameVar);
 			}
+
+			if (ShaderAPI!.InFlashlightMode()) {
+				Draw(false);
+				return;
+			}
 		}
 
 		Draw();
@@ -132,7 +166,7 @@ public abstract class BaseVSShader : BaseShader
 		}
 	}
 
-	protected void SetDefaultBlendingShadowState(int baseTextureVar, bool isBaseTexture) {
+	protected void SetDefaultBlendingShadowState(int baseTextureVar = -1, bool isBaseTexture = true) {
 		if ((CurrentMaterialVarFlags() & (int)MaterialVarFlags.Additive) != 0)
 			SetAdditiveBlendingShadowState(baseTextureVar, isBaseTexture); // TODO: additive
 		else
