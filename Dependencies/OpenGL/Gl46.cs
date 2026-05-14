@@ -139,6 +139,14 @@ public unsafe static class Gl46
 			_ => throw new NotImplementedException()
 		};
 	}
+	public static int GLEnum(this ShaderPolyMode polyMode) {
+		return polyMode switch {
+			ShaderPolyMode.Point => GL_POINT,
+			ShaderPolyMode.Line => GL_LINE,
+			ShaderPolyMode.Fill => GL_FILL,
+			_ => throw new NotImplementedException()
+		};
+	}
 	public static bool Both(this ShaderBlendFactor factor) {
 		return factor switch {
 			ShaderBlendFactor.BothInvSrcAlpha => true,

@@ -38,7 +38,12 @@ public struct GraphicsBoardState
 	public bool ColorWrite;
 	public bool AlphaWrite;
 	public bool DepthWrite;
+	public bool CullEnable;
+	public bool AlphaToCoverage;
+
 	public ShaderDepthFunc DepthFunc;
+	public ShaderPolyMode FillMode;
+	public PolygonOffsetMode ZBias;
 }
 
 public interface IMeshMgr

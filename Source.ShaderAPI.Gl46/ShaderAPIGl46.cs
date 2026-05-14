@@ -1121,8 +1121,28 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			glToggle(GL_DEPTH_TEST, state.DepthTest);
 			glDepthMask(state.DepthWrite); // state.DepthWrite
 			glDepthFunc(state.DepthFunc.GLEnum());
-			// TEMPORARY
-			glCullFace(GL_FRONT_AND_BACK);
+
+			glPolygonMode(GL_FRONT_AND_BACK, state.FillMode.GLEnum());
+			glToggle(GL_CULL_FACE, state.CullEnable);
+			glToggle(GL_SAMPLE_ALPHA_TO_COVERAGE, state.AlphaToCoverage);
+
+			bool polyOffsetEnabled = state.ZBias != PolygonOffsetMode.Disable;
+			glToggle(GL_POLYGON_OFFSET_FILL, polyOffsetEnabled && state.FillMode == ShaderPolyMode.Fill);
+			glToggle(GL_POLYGON_OFFSET_LINE, polyOffsetEnabled && state.FillMode == ShaderPolyMode.Line);
+			glToggle(GL_POLYGON_OFFSET_POINT, polyOffsetEnabled && state.FillMode == ShaderPolyMode.Point);
+
+			if (polyOffsetEnabled) {
+				float factor = 0.0f;
+				float units = 0.0f;
+
+				if (state.ZBias == PolygonOffsetMode.ShadowBias) {
+					factor = -1.0f;
+					units = -1.0f;
+				}
+
+				glPolygonOffset(factor, units);
+			}
+
 #if DEBUG
 			glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_MARKER, 0, GL_DEBUG_SEVERITY_LOW, "A board state write occured.");
 #endif

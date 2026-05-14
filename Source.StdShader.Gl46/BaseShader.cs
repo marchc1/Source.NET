@@ -127,9 +127,23 @@ public abstract class BaseShader : IShader
 			ShaderShadow.EnableDepthWrites(false);
 		}
 
+		if ((flags & MaterialVarFlags.Decal) != 0) {
+			ShaderShadow.EnablePolyOffset(PolygonOffsetMode.Decal);
+			ShaderShadow.EnableDepthWrites(false);
+		}
+
+		if ((flags & MaterialVarFlags.NoCull) != 0)
+			ShaderShadow.EnableCulling(false);
+
 		if ((flags & MaterialVarFlags.ZNearer) != 0) {
 			ShaderShadow.DepthFunc(ShaderDepthFunc.Nearer);
 		}
+
+		if ((flags & MaterialVarFlags.Wireframe) != 0)
+			ShaderShadow.PolyMode(ShaderPolyModeFace.FrontAndBack, ShaderPolyMode.Line);
+
+		if ((flags & MaterialVarFlags.AllowAlphaToCoverage) != 0)
+			ShaderShadow.EnableAlphaToCoverage(true);
 	}
 
 	[MemberNotNullWhen(true, nameof(ShaderShadow))]
@@ -177,7 +191,7 @@ public abstract class BaseShader : IShader
 		TextureGroupName = null;
 	}
 
-	protected void LoadCubeMap(int envmapVar) {
+	protected void LoadCubeMap(int envmapVar, int additionalCreationFlags = 0) {
 		if (Params == null || envmapVar == -1)
 			return;
 
