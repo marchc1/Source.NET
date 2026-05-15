@@ -38,7 +38,9 @@ public enum UniformBufferBindingLocation
 	/// <summary><b>source_bone_matrices</b>: A <see cref="Matrix4x4"/>[<see cref="Studio.MAXSTUDIOBONES"/>] array.</summary>
 	SharedBoneMatrices = 4,
 	/// <summary><b>source_vs_constants</b>: Vertex shader float constants.</summary>
-	VertexShaderConstants = 5
+	VertexShaderConstants = 5,
+	/// <summary><b>source_ps_constants</b>: Pixel shader float constants.</summary>
+	PixelShaderConstants = 6
 }
 
 public struct GfxViewport
@@ -144,9 +146,14 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	readonly float[] desiredVertexShaderConstants = new float[NUM_VERTEX_SHADER_CONSTANTS * 4];
 	readonly float[] dynamicVertexShaderConstants = new float[NUM_VERTEX_SHADER_CONSTANTS * 4];
 
+	const int NUM_PIXEL_SHADER_CONSTANTS = 256;
+	readonly float[] desiredPixelShaderConstants = new float[NUM_PIXEL_SHADER_CONSTANTS * 4];
+	readonly float[] dynamicPixelShaderConstants = new float[NUM_PIXEL_SHADER_CONSTANTS * 4];
+
 	uint uboMatrices;
 	uint uboBones;
 	uint uboVertexConstants;
+	uint uboPixelConstants;
 
 	private unsafe void CreateMatrixStacks() {
 		uboMatrices = glCreateBuffer();
@@ -168,6 +175,11 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		glObjectLabel(GL_BUFFER, uboVertexConstants, "ShaderAPI Vertex Shader Constants UBO");
 		glNamedBufferData(uboVertexConstants, sizeof(float) * NUM_VERTEX_SHADER_CONSTANTS * 4, null, GL_DYNAMIC_DRAW);
 		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.VertexShaderConstants, uboVertexConstants);
+
+		uboPixelConstants = glCreateBuffer();
+		glObjectLabel(GL_BUFFER, uboPixelConstants, "ShaderAPI Pixel Shader Constants UBO");
+		glNamedBufferData(uboPixelConstants, sizeof(float) * NUM_PIXEL_SHADER_CONSTANTS * 4, null, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.PixelShaderConstants, uboPixelConstants);
 	}
 
 	private void AcquireInternalRenderTargets() {
@@ -388,6 +400,28 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	public void SetVertexShaderConstant(int var, Span<float> vec) {
 		SetVertexShaderConstantInternal(var, vec);
+	}
+
+	public void SetPixelShaderConstant(int var, Span<float> vec) {
+		SetPixelShaderConstantInternal(var, vec);
+	}
+
+	private unsafe void SetPixelShaderConstantInternal(int var, Span<float> vec) {
+		int numVecs = vec.Length / 4;
+		Assert(var + numVecs <= NUM_PIXEL_SHADER_CONSTANTS);
+
+		numVecs = AdjustUpdateRange(vec, desiredPixelShaderConstants.AsSpan(var * 4), numVecs, out int skip);
+		if (numVecs == 0)
+			return;
+
+		var += skip;
+		Span<float> src = vec.Slice(skip * 4, numVecs * 4);
+
+		src.CopyTo(desiredPixelShaderConstants.AsSpan(var * 4));
+		src.CopyTo(dynamicPixelShaderConstants.AsSpan(var * 4));
+
+		fixed (float* pSrc = src)
+			glNamedBufferSubData(uboPixelConstants, var * sizeof(Vector4), numVecs * sizeof(Vector4), pSrc);
 	}
 
 	private static int AdjustUpdateRange(ReadOnlySpan<float> src, ReadOnlySpan<float> dst, int numVecs, out int skip) {
@@ -713,6 +747,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 
 	MaterialMatrixMode currentMode;
+	readonly Matrix4x4[] Matrices = new Matrix4x4[3];
+
 	public void MatrixMode(MaterialMatrixMode mode) {
 		currentMode = mode;
 	}
@@ -720,8 +756,13 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public unsafe void LoadMatrix(in Matrix4x4 m4x4) {
 		int szm4x4 = sizeof(Matrix4x4);
 		int loc = (int)currentMode * szm4x4;
+		Matrices[(int)currentMode] = m4x4;
 		Matrix4x4 transposed = Matrix4x4.Transpose(m4x4);
 		glNamedBufferSubData(uboMatrices, loc, szm4x4, &transposed);
+	}
+
+	public void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 dst) {
+		dst = Matrices[(int)matrixMode];
 	}
 
 	public void LoadIdentity() {

@@ -359,6 +359,9 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static byte RoundFloatToByte(float f) => (byte)RoundFloatToInt(f);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float GammaToLinear(float x) => MathF.Pow(x, 2.2f);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void ColorClamp(ref Vector3 color) {
 		float maxc = MathF.Max(color.X, MathF.Max(color.Y, color.Z));
 		if (maxc > 1.0f) {

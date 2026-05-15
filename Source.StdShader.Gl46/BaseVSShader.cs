@@ -1,4 +1,6 @@
+using Source.Common.Commands;
 using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
 using Source.Common.ShaderAPI;
 using Source.Common.ShaderLib;
 
@@ -225,6 +227,14 @@ public abstract class BaseVSShader : BaseShader
 		ShaderSystem.Draw(makeActualDrawCall);
 	}
 
+	public void LoadViewMatrixIntoVertexShaderConstant(int vertexReg) {
+		ShaderAPI!.GetMatrix(MaterialMatrixMode.View, out Matrix4x4 mat);
+
+		Matrix4x4 t = Matrix4x4.Transpose(mat);
+		Span<float> rows = [t.M11, t.M12, t.M13, t.M14, t.M21, t.M22, t.M23, t.M24, t.M31, t.M32, t.M33, t.M34,];
+		ShaderAPI!.SetVertexShaderConstant(vertexReg, rows);
+	}
+
 	public void SetVertexShaderTextureTransform(int vertexReg, int transformVar) {
 		IMaterialVar[] shaderParams = Params!;
 
@@ -271,6 +281,117 @@ public abstract class BaseVSShader : BaseShader
 		transformation[7] *= scaleY;
 
 		ShaderAPI!.SetVertexShaderConstant(vertexReg, transformation);
+	}
+
+	public static void ColorVarsToVector(int colorVar, int alphaVar, Span<float> color) {
+		IMaterialVar[] shaderParams = Params!;
+
+		color[0] = color[1] = color[2] = color[3] = 1.0f;
+		if (colorVar != -1) {
+			IMaterialVar pColorVar = shaderParams[colorVar];
+			if (pColorVar.GetVarType() == MaterialVarType.Vector)
+				pColorVar.GetVecValue(color.Slice(0, 3));
+			else
+				color[0] = color[1] = color[2] = pColorVar.GetFloatValue();
+		}
+		if (alphaVar != -1) {
+			float alpha = shaderParams[alphaVar].GetFloatValue();
+			color[3] = Math.Clamp(alpha, 0.0f, 1.0f);
+		}
+	}
+
+	public void SetColorPixelShaderConstant(int nPixelReg, int colorVar, int alphaVar) {
+		Span<float> color = stackalloc float[4];
+		ColorVarsToVector(colorVar, alphaVar, color);
+		ShaderAPI!.SetPixelShaderConstant(nPixelReg, color);
+	}
+
+#if DEBUG
+	static readonly ConVar mat_envmaptintoverride = new("mat_envmaptintoverride", "-1", FCvar.None);
+	static readonly ConVar mat_envmaptintscale = new("mat_envmaptintscale", "-1", FCvar.None);
+#endif
+
+	public void SetEnvMapTintPixelShaderDynamicState(int pixelReg, int tintVar, int alphaVar, bool convertFromGammaToLinear = false) {
+		IMaterialVar[] shaderParams = Params!;
+		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
+
+		Span<float> color = stackalloc float[4];
+		color[0] = color[1] = color[2] = color[3] = 1.0f;
+		if (config.ShowSpecular && config.Fullbright != 2) {
+			IMaterialVar? pAlphaVar = alphaVar >= 0 ? shaderParams[alphaVar] : null;
+			if (pAlphaVar != null)
+				color[3] = pAlphaVar.GetFloatValue();
+
+			IMaterialVar pTintVar = shaderParams[tintVar];
+#if DEBUG
+			pTintVar.GetVecValue(color[..3]);
+
+			float envmapTintOverride = mat_envmaptintoverride.GetFloat();
+			float envmapTintScaleOverride = mat_envmaptintscale.GetFloat();
+
+			if (envmapTintOverride != -1.0f)
+				color[0] = color[1] = color[2] = envmapTintOverride;
+			if (envmapTintScaleOverride != -1.0f) {
+				color[0] *= envmapTintScaleOverride;
+				color[1] *= envmapTintScaleOverride;
+				color[2] *= envmapTintScaleOverride;
+			}
+
+			if (convertFromGammaToLinear) {
+				color[0] = color[0] > 1.0f ? color[0] : MathLib.GammaToLinear(color[0]);
+				color[1] = color[1] > 1.0f ? color[1] : MathLib.GammaToLinear(color[1]);
+				color[2] = color[2] > 1.0f ? color[2] : MathLib.GammaToLinear(color[2]);
+			}
+#else
+			if (convertFromGammaToLinear)
+				tintVar.GetLinearVecValue(color, 3);
+			else
+				tintVar.GetVecValue(color[..3]);
+#endif
+		}
+		else {
+			color[0] = color[1] = color[2] = color[3] = 0.0f;
+		}
+		ShaderAPI!.SetPixelShaderConstant(pixelReg, color);
+	}
+
+	public static void EnablePixelShaderOverbright(int reg, bool bEnable, bool divideByTwo) {
+		float v;
+		if (bEnable)
+			v = divideByTwo ? IMaterialSystem.OVERBRIGHT / 2.0f : IMaterialSystem.OVERBRIGHT;
+		else
+			v = divideByTwo ? 1.0f / 2.0f : 1.0f;
+		Span<float> val = [v, v, v, v];
+		ShaderAPI!.SetPixelShaderConstant(reg, val);
+	}
+
+	public void SetModulationVertexShaderDynamicState() {
+		Span<float> color = [1.0f, 1.0f, 1.0f, 1.0f];
+		ComputeModulationColor(color);
+		ShaderAPI!.SetVertexShaderConstant(VertexShaderConst.ModulationColor, color);
+	}
+
+	public void SetModulationPixelShaderDynamicState(int modulationVar) {
+		Span<float> color = [1.0f, 1.0f, 1.0f, 1.0f];
+		ComputeModulationColor(color);
+		ShaderAPI!.SetPixelShaderConstant(modulationVar, color);
+	}
+
+	public void SetPixelShaderConstant(int pixelReg, int constantVar) {
+		Assert(!IsSnapshotting());
+		IMaterialVar[] shaderParams = Params!;
+		if (shaderParams == null || constantVar == -1)
+			return;
+
+		IMaterialVar pPixelVar = shaderParams[constantVar];
+		Assert(pPixelVar != null);
+
+		Span<float> val = stackalloc float[4];
+		if (pPixelVar.GetVarType() == MaterialVarType.Vector)
+			pPixelVar.GetVecValue(val);
+		else
+			val[0] = val[1] = val[2] = val[3] = pPixelVar.GetFloatValue();
+		ShaderAPI!.SetPixelShaderConstant(pixelReg, val);
 	}
 
 	public void InitUnlitGeneric(int baseTextureVar, int detailVar, int envmapVar, int envmapMaskVar) {

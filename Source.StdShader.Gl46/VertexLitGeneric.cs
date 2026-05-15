@@ -50,6 +50,7 @@ public class VertexLitGeneric : BaseVSShader
 		public ReadOnlySpan<char> GetHelp() => Info.Help;
 	}
 
+	public static readonly ShaderParam SELFILLUMTINT = new($"${nameof(SELFILLUMTINT)}", ShaderParamType.Color, "[1 1 1]", "Slef-illumunation tint");
 	public static readonly ShaderParam DETAIL = new($"${nameof(DETAIL)}", ShaderParamType.Texture, "shadertest/detail", "detail texture");
 	public static readonly ShaderParam DETAILSCALE = new($"${nameof(DETAILSCALE)}", ShaderParamType.Float, "4", "scale of the detail texture");
 	public static readonly ShaderParam DETAILFRAME = new($"${nameof(DETAILFRAME)}", ShaderParamType.Integer, "0", "frame number for $detail");
@@ -170,16 +171,21 @@ public class VertexLitGeneric : BaseVSShader
 				}
 
 				if (IsFlagSet(vars, MaterialVarFlags.EnvMapSphere) || IsFlagSet(vars, MaterialVarFlags.EnvMapCameraSpace)) {
-					// LoadViewMatrixIntoVertexShaderConstant(VERTEX_SHADER_VIEWMODEL);
+					LoadViewMatrixIntoVertexShaderConstant(VertexShaderConst.ViewModel);
 				}
 
-				// SetEnvMapTintPixelShaderDynamicState(2, ENVMAPTINT, -1);
+				SetEnvMapTintPixelShaderDynamicState(2, ENVMAPTINT, -1);
 			}
 
 			if (vars[DETAIL].IsTexture()) {
 				BindTexture(Sampler.Sampler3, DETAIL, DETAILFRAME);
 				SetVertexShaderTextureScaledTransform(VertexShaderConst.ShaderSpecificConst4, (int)ShaderMaterialVars.BaseTextureTransform, DETAILSCALE);
 			}
+
+			// SetAmbientCubeDynamicStateVertexShader();
+			SetModulationPixelShaderDynamicState(3);
+			EnablePixelShaderOverbright(0, true, true);
+			SetPixelShaderConstant(1, SELFILLUMTINT);
 
 			// TODO: Set skinning, etc
 		}
