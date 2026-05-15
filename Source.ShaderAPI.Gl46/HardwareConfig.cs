@@ -1,6 +1,7 @@
 using Source.Common.MaterialSystem;
 
 namespace Source.ShaderAPI.Gl46;
+
 public class HardwareConfig : IMaterialSystemHardwareConfig
 {
 	public bool ActuallySupportsPixelShaders_2_b() {
@@ -209,7 +210,8 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool SupportsCubeMaps() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		return true; // todo
 	}
 
 	public bool SupportsFetch4() {

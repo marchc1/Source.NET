@@ -405,5 +405,24 @@ public abstract class BaseVSShader : BaseShader
 					ClearFlags(shaderParams, MaterialVarFlags.BaseAlphaEnvMapMask);
 			}
 		}
+
+		if (IsFlagSet(shaderParams, MaterialVarFlags.BaseAlphaEnvMapMask))
+			ClearFlags(shaderParams, MaterialVarFlags.AlphaTest);
+
+		if (detailVar >= 0 && shaderParams[detailVar].IsDefined())
+			LoadTexture(detailVar);
+
+		if (envmapVar >= 0 && shaderParams[envmapVar].IsDefined()) {
+			if (!IsFlagSet(shaderParams, MaterialVarFlags.EnvMapSphere))
+				LoadCubeMap(envmapVar);
+			else
+				LoadTexture(envmapVar);
+
+			if (!HardwareConfig.SupportsCubeMaps())
+				SetFlags(shaderParams, MaterialVarFlags.EnvMapSphere);
+
+			if (envmapMaskVar >= 0 && shaderParams[envmapMaskVar].IsDefined())
+				LoadTexture(envmapMaskVar);
+		}
 	}
 }

@@ -875,6 +875,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		public int Height;
 		public int ZOffset;
 		public int Level;
+		public int CubeFaceID;
 		public ImageFormat SrcFormat;
 	}
 
@@ -894,7 +895,12 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			throw new NotImplementedException("Multidepth textures not supported yet");
 		}
 		else if (vtf.IsCubeMap()) {
-			throw new NotImplementedException("Cubemap textures not supported yet");
+			if (HardwareConfig.SupportsCubeMaps())
+				LoadCubeTextureFromVTF(in info, vtf, vtfFrame);
+			else {
+				info.CubeFaceID = (int)CubeMapFaceIndex.Spheremap;
+				LoadTextureFromVTF(in info, vtf, vtfFrame);
+			}
 		}
 		else {
 			for (int i = 0; i < vtf.MipCount(); i++) {
@@ -904,9 +910,30 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		}
 	}
 
-	private unsafe void LoadTextureFromVTF(in TextureLoadInfo info, IVTFTexture vtf, int vtfFrame) {
-		vtf.ImageFileInfo(vtfFrame, 0, info.Level, out int start, out int size);
+	private unsafe void LoadCubeTextureFromVTF(in TextureLoadInfo info, IVTFTexture vtf, int vtfFrame) {
+		if (vtf.FaceCount() < 6) {
+			Warning("LoadCubeTextureFromVTF: VTF dimensions do not match texture\n");
+			return;
+		}
 
+		int mipCount = vtf.MipCount();
+		for (int mip = 0; mip < mipCount; ++mip) {
+			vtf.ComputeMipLevelDimensions(mip, out int w, out int h, out _);
+			for (int face = 0; face < 6; ++face) {
+				Span<byte> data = vtf.ImageData(vtfFrame, face, mip);
+				if (info.SrcFormat.IsCompressed()) {
+					fixed (byte* bytes = data)
+						glCompressedTextureSubImage3D((uint)info.Handle, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
+				}
+				else {
+					fixed (byte* bytes = data)
+						glTextureSubImage3D((uint)info.Handle, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageUploadFormat(info.SrcFormat), GL_UNSIGNED_BYTE, bytes);
+				}
+			}
+		}
+	}
+
+	private unsafe void LoadTextureFromVTF(in TextureLoadInfo info, IVTFTexture vtf, int vtfFrame) {
 		vtf.ComputeMipLevelDimensions(info.Level, out int w, out int h, out _);
 
 		if (info.SrcFormat.IsCompressed()) {

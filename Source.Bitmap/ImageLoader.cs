@@ -269,6 +269,7 @@ public static class ImageLoader
 													  // ImageFormat.ARGB8888 => Gl46.ARGB,
 		ImageFormat.BGRA8888 => GL_BGRA,
 		ImageFormat.BGRX8888 => GL_BGRA,
+		ImageFormat.I8 => GL_RED,
 		ImageFormat.RGBA16161616 => GL_RGBA,
 		ImageFormat.RGBA16161616F => GL_RGBA,
 		ImageFormat.R32F => GL_RED,

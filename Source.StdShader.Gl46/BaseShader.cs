@@ -199,7 +199,7 @@ public abstract class BaseShader : IShader
 
 		IMaterialVar nameVar = Params[envmapVar];
 		if (nameVar != null && nameVar.IsDefined()) {
-			// TODO: ShaderInit.LoadCubeMap(Params, nameVar, additionalCreationFlags);
+			ShaderInit!.LoadCubeMap(Params, nameVar, additionalCreationFlags);
 		}
 	}
 
