@@ -188,6 +188,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	public void InitRenderState() {
 		glDisable(GL_DEPTH_TEST);
+		glFrontFace(GL_CW);
 
 		if (!IsDeactivated())
 			ResetRenderState();

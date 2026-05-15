@@ -338,6 +338,7 @@ public class ShadowStateGl46 : IShaderShadow
 		EnableDepthWrites(true);
 		EnableDepthTest(true);
 		EnableBlending(false);
+		EnableCulling(true);
 		PolyMode(ShaderPolyModeFace.FrontAndBack, ShaderPolyMode.Fill);
 		BlendFunc(ShaderBlendFactor.One, ShaderBlendFactor.Zero);
 		BlendOp(ShaderBlendOp.Add);
