@@ -16,6 +16,7 @@ using Source.Common.ShaderAPI;
 using Source.Common.Utilities;
 
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 
@@ -35,7 +36,9 @@ public enum UniformBufferBindingLocation
 	/// <summary><b>source_pixel_sharedUBO</b>: Shared uniforms that every pixel shader can use.</summary>
 	SharedPixelShader = 3,
 	/// <summary><b>source_bone_matrices</b>: A <see cref="Matrix4x4"/>[<see cref="Studio.MAXSTUDIOBONES"/>] array.</summary>
-	SharedBoneMatrices = 4
+	SharedBoneMatrices = 4,
+	/// <summary><b>source_vs_constants</b>: Vertex shader float constants.</summary>
+	VertexShaderConstants = 5
 }
 
 public struct GfxViewport
@@ -137,8 +140,13 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	}
 
+	const int NUM_VERTEX_SHADER_CONSTANTS = 256;
+	readonly float[] desiredVertexShaderConstants = new float[NUM_VERTEX_SHADER_CONSTANTS * 4];
+	readonly float[] dynamicVertexShaderConstants = new float[NUM_VERTEX_SHADER_CONSTANTS * 4];
+
 	uint uboMatrices;
 	uint uboBones;
+	uint uboVertexConstants;
 
 	private unsafe void CreateMatrixStacks() {
 		uboMatrices = glCreateBuffer();
@@ -155,6 +163,11 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 		glNamedBufferData(uboBones, sizeof(Matrix4x4) * Studio.MAXSTUDIOBONES, identityMatrices, GL_DYNAMIC_DRAW);
 		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.SharedBoneMatrices, uboBones);
+
+		uboVertexConstants = glCreateBuffer();
+		glObjectLabel(GL_BUFFER, uboVertexConstants, "ShaderAPI Vertex Shader Constants UBO");
+		glNamedBufferData(uboVertexConstants, sizeof(float) * NUM_VERTEX_SHADER_CONSTANTS * 4, null, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.VertexShaderConstants, uboVertexConstants);
 	}
 
 	private void AcquireInternalRenderTargets() {
@@ -377,8 +390,40 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		SetVertexShaderConstantInternal(var, vec);
 	}
 
-	private void SetVertexShaderConstantInternal(int var, Span<float> vec) {
-		// I'm so tired of looking at this stuff
+	private static int AdjustUpdateRange(ReadOnlySpan<float> src, ReadOnlySpan<float> dst, int numVecs, out int skip) {
+		ReadOnlySpan<uint> srcU = MemoryMarshal.Cast<float, uint>(src);
+		ReadOnlySpan<uint> dstU = MemoryMarshal.Cast<float, uint>(dst);
+		skip = 0;
+		int i = 0;
+
+		while (numVecs > 0 && ((srcU[i] ^ dstU[i]) | (srcU[i + 1] ^ dstU[i + 1]) | (srcU[i + 2] ^ dstU[i + 2]) | (srcU[i + 3] ^ dstU[i + 3])) == 0)
+			i += 4; numVecs--; skip++;
+
+		if (numVecs == 0) return 0;
+
+		int tail = i + numVecs * 4 - 4;
+		while (numVecs > 1 && ((srcU[tail] ^ dstU[tail]) | (srcU[tail + 1] ^ dstU[tail + 1]) | (srcU[tail + 2] ^ dstU[tail + 2]) | (srcU[tail + 3] ^ dstU[tail + 3])) == 0)
+			tail -= 4; numVecs--;
+
+		return numVecs;
+	}
+
+	private unsafe void SetVertexShaderConstantInternal(int var, Span<float> vec) {
+		int numVecs = vec.Length / 4;
+		Assert(var + numVecs <= NUM_VERTEX_SHADER_CONSTANTS);
+
+		numVecs = AdjustUpdateRange(vec, desiredVertexShaderConstants.AsSpan(var * 4), numVecs, out int skip);
+		if (numVecs == 0)
+			return;
+
+		var += skip;
+		Span<float> src = vec.Slice(skip * 4, numVecs * 4);
+
+		src.CopyTo(desiredVertexShaderConstants.AsSpan(var * 4));
+		src.CopyTo(dynamicVertexShaderConstants.AsSpan(var * 4));
+
+		fixed (float* pSrc = src)
+			glNamedBufferSubData(uboVertexConstants, var * sizeof(Vector4), numVecs * sizeof(Vector4), pSrc);
 	}
 
 	bool UsingTextureRenderTarget;
