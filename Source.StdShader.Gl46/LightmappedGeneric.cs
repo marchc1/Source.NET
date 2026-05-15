@@ -73,8 +73,8 @@ public class LightmappedGeneric : BaseVSShader
 	protected override void OnInitShaderParams(IMaterialVar[] vars, ReadOnlySpan<char> materialName) {
 		InitParamsUnlitGeneric((int)ShaderMaterialVars.BaseTexture, DETAILSCALE, ENVMAPOPTIONAL, ENVMAP, ENVMAPTINT, ENVMAPMASKSCALE, DETAILBLENDMODE);
 
-		SetFlags(vars, MaterialVarFlags.Decal);
-		SetFlags(vars, MaterialVarFlags.NoDebugOverride);
+		// SetFlags(vars, MaterialVarFlags.Decal);
+		// SetFlags(vars, MaterialVarFlags.NoDebugOverride);
 		SetFlags2(vars, MaterialVarFlags2.LightingLightmap);
 	}
 

@@ -225,6 +225,54 @@ public abstract class BaseVSShader : BaseShader
 		ShaderSystem.Draw(makeActualDrawCall);
 	}
 
+	public void SetVertexShaderTextureTransform(int vertexReg, int transformVar) {
+		IMaterialVar[] shaderParams = Params!;
+
+		Span<float> transformation = stackalloc float[8];
+		if (transformVar >= 0 && shaderParams[transformVar].GetVarType() == MaterialVarType.Matrix) {
+			Matrix4x4 mat = shaderParams[transformVar].GetMatrixValue();
+			transformation[0] = mat.M11; transformation[1] = mat.M12; transformation[2] = mat.M13; transformation[3] = mat.M14;
+			transformation[4] = mat.M21; transformation[5] = mat.M22; transformation[6] = mat.M23; transformation[7] = mat.M24;
+		}
+		else {
+			transformation[0] = 1.0f; transformation[1] = 0.0f; transformation[2] = 0.0f; transformation[3] = 0.0f;
+			transformation[4] = 0.0f; transformation[5] = 1.0f; transformation[6] = 0.0f; transformation[7] = 0.0f;
+		}
+
+		ShaderAPI!.SetVertexShaderConstant(vertexReg, transformation);
+	}
+
+	public void SetVertexShaderTextureScaledTransform(int vertexReg, int transformVar, int scaleVar) {
+		IMaterialVar[] shaderParams = Params!;
+
+		Matrix4x4 mat = Matrix4x4.Identity;
+		if (transformVar >= 0 && shaderParams[transformVar].GetVarType() == MaterialVarType.Matrix)
+			mat = shaderParams[transformVar].GetMatrixValue();
+
+		Span<float> transformation = [mat.M11, mat.M12, mat.M13, mat.M14, mat.M21, mat.M22, mat.M23, mat.M24];
+
+		float scaleX = 1.0f, scaleY = 1.0f;
+		if (scaleVar >= 0 && shaderParams[scaleVar].IsDefined()) {
+			if (shaderParams[scaleVar].GetVarType() == MaterialVarType.Vector) {
+				Span<float> scale = stackalloc float[2];
+				shaderParams[scaleVar].GetVecValue(scale);
+				scaleX = scale[0]; scaleY = scale[1];
+			}
+			else {
+				scaleX = scaleY = shaderParams[scaleVar].GetFloatValue();
+			}
+		}
+
+		transformation[0] *= scaleX;
+		transformation[1] *= scaleY;
+		transformation[4] *= scaleX;
+		transformation[5] *= scaleY;
+		transformation[3] *= scaleX;
+		transformation[7] *= scaleY;
+
+		ShaderAPI!.SetVertexShaderConstant(vertexReg, transformation);
+	}
+
 	public void InitUnlitGeneric(int baseTextureVar, int detailVar, int envmapVar, int envmapMaskVar) {
 		IMaterialVar[] shaderParams = Params!;
 
