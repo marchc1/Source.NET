@@ -12,6 +12,7 @@ public abstract class BaseShader : IShader
 	readonly public IShaderSystem ShaderSystem = Singleton<IShaderSystem>();
 	static readonly Lazy<IMaterialSystem> s_materials = new(Singleton<IMaterialSystem>); // HACK
 	protected static IMaterialSystem Materials => s_materials.Value;
+	public static MaterialSystem_Config Config => Materials.GetCurrentConfigForVideoCard();
 
 	internal static IMaterialVar[]? Params;
 	internal static IShaderInit? ShaderInit;
@@ -129,10 +130,10 @@ public abstract class BaseShader : IShader
 			ShaderShadow.EnableDepthWrites(false);
 		}
 
-		//if ((flags & MaterialVarFlags.Decal) != 0) {
-		//	ShaderShadow.EnablePolyOffset(PolygonOffsetMode.Decal);
-		//	ShaderShadow.EnableDepthWrites(false);
-		//}
+		if ((flags & MaterialVarFlags.Decal) != 0) {
+			ShaderShadow.EnablePolyOffset(PolygonOffsetMode.Decal);
+			ShaderShadow.EnableDepthWrites(false);
+		}
 
 		if ((flags & MaterialVarFlags.NoCull) != 0)
 			ShaderShadow.EnableCulling(false);

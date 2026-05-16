@@ -431,14 +431,16 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		skip = 0;
 		int i = 0;
 
-		while (numVecs > 0 && ((srcU[i] ^ dstU[i]) | (srcU[i + 1] ^ dstU[i + 1]) | (srcU[i + 2] ^ dstU[i + 2]) | (srcU[i + 3] ^ dstU[i + 3])) == 0)
+		while (numVecs > 0 && ((srcU[i] ^ dstU[i]) | (srcU[i + 1] ^ dstU[i + 1]) | (srcU[i + 2] ^ dstU[i + 2]) | (srcU[i + 3] ^ dstU[i + 3])) == 0) {
 			i += 4; numVecs--; skip++;
+		}
 
 		if (numVecs == 0) return 0;
 
 		int tail = i + numVecs * 4 - 4;
-		while (numVecs > 1 && ((srcU[tail] ^ dstU[tail]) | (srcU[tail + 1] ^ dstU[tail + 1]) | (srcU[tail + 2] ^ dstU[tail + 2]) | (srcU[tail + 3] ^ dstU[tail + 3])) == 0)
+		while (numVecs > 1 && ((srcU[tail] ^ dstU[tail]) | (srcU[tail + 1] ^ dstU[tail + 1]) | (srcU[tail + 2] ^ dstU[tail + 2]) | (srcU[tail + 3] ^ dstU[tail + 3])) == 0) {
 			tail -= 4; numVecs--;
+		}
 
 		return numVecs;
 	}
