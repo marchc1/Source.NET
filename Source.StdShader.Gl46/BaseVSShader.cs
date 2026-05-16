@@ -102,8 +102,8 @@ public abstract class BaseVSShader : BaseShader
 		bool bBaseTexture = (baseTextureVar >= 0) && shaderParams[baseTextureVar].IsTexture();
 		bool bVertexColor = IsFlagSet(Params, MaterialVarFlags.VertexColor);
 		// bool envmapCameraSpace = IsFlagSet(Params, MaterialVarFlags.EnvMapCameraSpace);
-		// bool envmapSpehere = IsFlagSet(Params, MaterialVarFlags.EnvMapSphere);
-		// bool detailMultiply = nDetailBlendModeVar >= 0 && (shaderParams[nDetailBlendModeVar].GetIntValue() == 8);
+		bool envmapSphere = IsFlagSet(Params, MaterialVarFlags.EnvMapSphere);
+		bool detailMultiply = nDetailBlendModeVar >= 0 && (shaderParams[nDetailBlendModeVar].GetIntValue() == 8);
 		// bool maskBaseByDetailAlpha = nDetailBlendModeVar >= 0 && (shaderParams[nDetailBlendModeVar].GetIntValue() == 9);
 		bool separateDetailUVs = nSeparateDetailUVsVar >= 0 && (shaderParams[nSeparateDetailUVsVar].GetIntValue() != 0);
 
@@ -147,14 +147,63 @@ public abstract class BaseVSShader : BaseShader
 			// DevMsg("UnlitGeneric snapshotted!\n");
 		}
 		else {
-			if (bBaseTexture) {
-				BindTexture(Sampler.Sampler0, baseTextureVar, frameVar);
-			}
-
 			if (ShaderAPI!.InFlashlightMode()) {
 				Draw(false);
 				return;
 			}
+
+			if (bBaseTexture) {
+				BindTexture(Sampler.Sampler0, baseTextureVar, frameVar);
+				SetVertexShaderTextureTransform(VertexShaderConst.ShaderSpecificConst0, baseTextureTransformVar);
+			}
+
+			if (detail) {
+				BindTexture(Sampler.Sampler3, detailVar, frameVar);
+
+				if (bDetailTransformIsScale)
+					SetVertexShaderTextureScaledTransform(VertexShaderConst.ShaderSpecificConst4, baseTextureTransformVar, detailTransform);
+				else
+					SetVertexShaderTextureTransform(VertexShaderConst.ShaderSpecificConst4, detailTransform);
+			}
+
+			if (envmap) {
+				BindTexture(Sampler.Sampler1, envmapVar, frameVar);
+
+				if (mask || baseAlphaEnvmapMask) {
+					if (mask)
+						BindTexture(Sampler.Sampler2, envmapMaskVar, frameVar);
+					else
+						BindTexture(Sampler.Sampler2, baseTextureVar, frameVar);
+
+					SetVertexShaderTextureScaledTransform(VertexShaderConst.ShaderSpecificConst2, baseTextureTransformVar, envmapMaskScaleVar);
+				}
+
+				SetEnvMapTintPixelShaderDynamicState(2, envmapTintVar, -1);
+
+				if (envmapSphere || IsFlagSet(shaderParams, MaterialVarFlags.EnvMapCameraSpace))
+					LoadViewMatrixIntoVertexShaderConstant(VertexShaderConst.ViewModel);
+			}
+
+			SetModulationVertexShaderDynamicState();
+
+			Span<float> consts = [
+				0, 0, 0, 1,
+				0, 0, 0, 0,
+				0, 0, 0, .5f
+			];
+
+			if (detailMultiply && nOutlineVar != -1 && shaderParams[nOutlineVar].GetIntValue() != 0) {
+				if (nOutlineColorVar != -1)
+					shaderParams[nOutlineColorVar].GetVecValue(consts);
+				if (nOutlineEndVar != -1)
+					consts[7] = shaderParams[nOutlineEndVar].GetFloatValue();
+				if (nOutlineStartVar != -1)
+					consts[11] = shaderParams[nOutlineStartVar].GetFloatValue();
+			}
+
+			ShaderAPI.SetPixelShaderConstant(0, consts);
+
+			// todo waterfog/skinning
 		}
 
 		Draw();
