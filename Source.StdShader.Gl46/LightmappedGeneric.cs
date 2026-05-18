@@ -316,7 +316,52 @@ public class LightmappedGeneric : BaseVSShader
 	}
 
 	private void DrawAdditiveEnvmap(IMaterialVar[] vars, IShaderDynamicAPI shaderAPI, IShaderShadow? shaderShadow) {
-		throw new NotImplementedException();
+		IMaterialVar[] shaderParams = Params!;
+
+		// bool usingBaseTexture = shaderParams[(int)ShaderMaterialVars.BaseTexture].IsTexture();
+		bool usingMask = shaderParams[ENVMAPMASK].IsTexture();
+		// bool usingBaseAlphaEnvmapMask = IsFlagSet(shaderParams, MaterialVarFlags.BaseAlphaEnvMapMask);
+
+		if (IsSnapshotting()) {
+			ShaderShadow.EnableAlphaTest(false);
+			ShaderShadow.EnableTexture(Sampler.Sampler0, false);
+			ShaderShadow.EnableTexture(Sampler.Sampler1, false);
+			ShaderShadow.EnableTexture(Sampler.Sampler2, true);
+
+			if (shaderParams[ENVMAPMASK].IsTexture() || IsFlagSet(shaderParams, MaterialVarFlags.BaseAlphaEnvMapMask))
+				ShaderShadow.EnableTexture(Sampler.Sampler3, true);
+
+			if (shaderParams[(int)ShaderMaterialVars.BaseTexture].IsTexture())
+				SetDefaultBlendingShadowState((int)ShaderMaterialVars.BaseTexture, true);
+			else
+				SetDefaultBlendingShadowState(ENVMAPMASK, true);
+
+			VertexFormat fmt = VertexFormat.Position | VertexFormat.Normal | VertexFormat.TexCoord2D_0 | VertexFormat.TexCoord2D_1;
+			ShaderShadow.VertexShaderVertexFormat(fmt, 2, null, 0);
+
+			ShaderShadow.SetVertexShader("lightmappedgeneric");
+		}
+		else {
+			BindTexture(Sampler.Sampler2, ENVMAP, ENVMAPFRAME);
+
+			if (usingMask || IsFlagSet(shaderParams, MaterialVarFlags.BaseAlphaEnvMapMask)) {
+				if (usingMask)
+					BindTexture(Sampler.Sampler3, ENVMAPMASK, ENVMAPMASKFRAME);
+				else
+					BindTexture(Sampler.Sampler3, (int)ShaderMaterialVars.BaseTexture, (int)ShaderMaterialVars.Frame);
+
+				SetVertexShaderTextureScaledTransform(VertexShaderConst.ShaderSpecificConst2, (int)ShaderMaterialVars.BaseTextureTransform, ENVMAPMASKSCALE);
+			}
+
+			SetPixelShaderConstant(2, ENVMAPTINT);
+
+			if (IsFlagSet(shaderParams, MaterialVarFlags.EnvMapSphere) || IsFlagSet(shaderParams, MaterialVarFlags.EnvMapCameraSpace))
+				LoadViewMatrixIntoVertexShaderConstant(VertexShaderConst.ViewModel);
+
+			SetModulationVertexShaderDynamicState();
+
+			shaderAPI!.SetShaderUniform(shaderAPI.LocateShaderUniform("lightmaptexture"), 1);
+		}
 	}
 
 	private void DrawDetailNoEnvmap(IMaterialVar[] vars, IShaderDynamicAPI shaderAPI, IShaderShadow? shaderShadow, bool doSelfIllum) {
