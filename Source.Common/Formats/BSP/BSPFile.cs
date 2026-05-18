@@ -15,8 +15,8 @@ public static class BSPFileCommon
 	public const int MINBSPVERSION = 19;
 	public const int BSPVERSION = 20;
 
-	public const int MAX_BRUSH_LIGHTMAP_DIM_WITHOUT_BORDER = 32;
-	public const int MAX_BRUSH_LIGHTMAP_DIM_INCLUDING_BORDER = 35;
+	public const int MAX_BRUSH_LIGHTMAP_DIM_WITHOUT_BORDER = 125;
+	public const int MAX_BRUSH_LIGHTMAP_DIM_INCLUDING_BORDER = 128;
 
 	public const int MAX_DISP_LIGHTMAP_DIM_WITHOUT_BORDER = 125;
 	public const int MAX_DISP_LIGHTMAP_DIM_INCLUDING_BORDER = 128;
