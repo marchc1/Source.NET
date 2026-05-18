@@ -37,7 +37,7 @@ public class ShaderSystem : IShaderSystemInternal
 	}
 
 	public void DrawElements(IShader shader, IMaterialVar[] parms, IShaderShadow renderState, VertexCompressionType vertexCompression, uint materialVarTimeStamp) {
-		ShaderAPI.InvalidateDelayedShaderConstraints();
+		ShaderAPI.InvalidateDelayedShaderConstants();
 
 		int materialVarFlags = parms[(int)ShaderMaterialVars.Flags].GetIntValue();
 		if (((materialVarFlags & (int)MaterialVarFlags.Model) != 0) || (IsFlag2Set(parms, MaterialVarFlags2.SupportsHardwareSkinning) && (ShaderAPI.GetCurrentNumBones() > 0))) {
@@ -291,7 +291,7 @@ public class ShaderSystem : IShaderSystemInternal
 		if (makeActualDrawCall)
 			ShaderAPI.RenderPass();
 
-		ShaderAPI.InvalidateDelayedShaderConstraints();
+		ShaderAPI.InvalidateDelayedShaderConstants();
 	}
 
 	internal void BindVertexShader(in VertexShaderHandle vertexShader) {

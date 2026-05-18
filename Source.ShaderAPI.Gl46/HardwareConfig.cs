@@ -46,7 +46,9 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public unsafe int GetSamplerCount() {
-		return 2;
+		int count;
+		glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &count);
+		return count;
 	}
 
 	public ReadOnlySpan<char> GetShaderDLLName() {
@@ -210,8 +212,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool SupportsCubeMaps() {
-		// throw new NotImplementedException();
-		return true; // todo
+		return true;
 	}
 
 	public bool SupportsFetch4() {
@@ -297,6 +298,6 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool UsesSRGBCorrectBlending() {
-		return false; // todo
+		return true; // todo
 	}
 }

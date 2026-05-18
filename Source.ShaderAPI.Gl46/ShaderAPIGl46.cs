@@ -296,7 +296,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		return DeviceState != DeviceState.OK;
 	}
 
-	public void InvalidateDelayedShaderConstraints() {
+	public void InvalidateDelayedShaderConstants() {
 		// TODO FIXME
 	}
 
@@ -388,7 +388,21 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	public void SetSkinningMatrices() {
-		// TODO
+		Assert(Material != null);
+
+		if (numBones == 0)
+			return;
+
+		SetVertexShaderStateSkinningMatrices();
+	}
+
+	private unsafe void SetVertexShaderStateSkinningMatrices() {
+		GetMatrix(MaterialMatrixMode.Model, out Matrix4x4 modelMatrix);
+
+		Matrix4x4 transposed = Matrix4x4.Transpose(modelMatrix);
+		glNamedBufferSubData(uboBones, 0, sizeof(Matrix4x4), &transposed);
+
+		MaxBoneLoaded = 0;
 	}
 
 	public void ShadeMode(ShadeMode shadeMode) {

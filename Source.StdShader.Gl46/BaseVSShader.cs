@@ -67,8 +67,7 @@ public abstract class BaseVSShader : BaseShader
 		}
 
 		// If mat_specular 0, then get rid of envmap
-		// TODO: what to do about the materialsystem_config_t type, which is what the "true" is right now as a placeholder
-		if (envmapVar >= 0 && baseTextureVar >= 0 && true && shaderParams[envmapVar].IsDefined() && shaderParams[baseTextureVar].IsDefined()) {
+		if (envmapVar >= 0 && baseTextureVar >= 0 && !Config.UseSpecular() && shaderParams[envmapVar].IsDefined() && shaderParams[baseTextureVar].IsDefined()) {
 			shaderParams[envmapVar].SetUndefined();
 		}
 	}
@@ -219,7 +218,7 @@ public abstract class BaseVSShader : BaseShader
 
 	protected void SetDefaultBlendingShadowState(int baseTextureVar = -1, bool isBaseTexture = true) {
 		if ((CurrentMaterialVarFlags() & (int)MaterialVarFlags.Additive) != 0)
-			SetAdditiveBlendingShadowState(baseTextureVar, isBaseTexture); // TODO: additive
+			SetAdditiveBlendingShadowState(baseTextureVar, isBaseTexture);
 		else
 			SetNormalBlendingShadowState(baseTextureVar, isBaseTexture);
 	}
