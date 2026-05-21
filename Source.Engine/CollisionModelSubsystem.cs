@@ -128,7 +128,8 @@ public class CollisionBSPData
 	internal void LoadTexinfo(List<ushort> map_texinfo) {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.TexInfo);
 		BSPTexInfo[] inData = lh.LoadLumpData<BSPTexInfo>(throwIfNoElements: true, BSPFileCommon.MAX_MAP_TEXINFO, sysErrorIfOOB: true);
-		map_texinfo.Clear(); map_texinfo.EnsureCount(inData.Length);
+		map_texinfo.Clear();
+		map_texinfo.EnsureCount(inData.Length);
 		ushort _out;
 		Span<CollisionSurface> mapSurfaces = MapSurfaces.AsSpan();
 		for (int i = 0; i < inData.Length; i++) {
@@ -137,7 +138,7 @@ public class CollisionBSPData
 			if (_out >= NumTextures)
 				_out = 0;
 			mapSurfaces[_out].Flags |= (ushort)_in.Flags;
-			map_texinfo.Add(_out);
+			map_texinfo[i] = _out;
 		}
 	}
 	internal void LoadLeafs() {
