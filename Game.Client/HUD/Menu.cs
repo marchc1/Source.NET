@@ -7,8 +7,9 @@ using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Game.Client.HUD;
-
+#if !GMOD_DLL
 [DeclareHudElement(Name = "CHudMenu")]
+#endif
 class HudMenu : EditableHudElement
 {
 	const float MENU_SELECTION_TIMEOUT = 5.0f;

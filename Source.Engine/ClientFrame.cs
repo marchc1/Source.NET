@@ -174,6 +174,7 @@ public class ClientFrameManager
 		}
 	}
 
+
 	public ClientFrame AllocateFrame() => ClientFramePool.Alloc();
 
 	public void FreeFrame(ClientFrame frame) {

@@ -32,6 +32,7 @@ public static class SourceDllMain
 	[Dependency(Required = false)] public static IBaseClientDLL? g_ClientDLL { get; private set; } = null!;
 	[Dependency] public static IServerGameDLL serverGameDLL { get; private set; } = null!;
 	[Dependency] public static ILauncherManager launcherMgr { get; private set; } = null!;
+	[Dependency] public static ILocalize g_Localize { get; private set; } = null!;
 	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;
 	[Dependency] public static IPhysicsCollision physcollision { get; private set; } = null!;
 	[Dependency] public static ServerPlugin serverPluginHandler { get; private set; } = null!;

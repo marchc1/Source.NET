@@ -24,6 +24,10 @@ public static class ClientClassRetriever {
 	}
 }
 
+[AttributeUsage(AttributeTargets.Method)]
+public class ImplementClientClassFactoryAttribute : Attribute {
+
+}
 public class ClientClass
 {
 	public static ClientClass? Head;
@@ -37,6 +41,13 @@ public class ClientClass
 
 	void AssembleDynamicCreateFn(Type t, [NotNull] ref CreateClientClassFn? createFn) {
 		if (t.IsAssignableTo(typeof(IClientEntity))) {
+			// Lets see if there's a good ImplementClientClassFactoryAttribute method...
+			var factoryMethod = t.GetMethodsWithAttribute<ImplementClientClassFactoryAttribute>().FirstOrDefault().Key;
+			if(factoryMethod != null){
+				createFn = factoryMethod.CreateDelegate<CreateClientClassFn>();
+				return;
+			}
+
 			DynamicMethod method = new DynamicMethod($"CreateObjectDynImpl_{t.Name}", typeof(IClientNetworkable), [typeof(int), typeof(int)]);
 			ILGenerator il = method.GetILGenerator();
 

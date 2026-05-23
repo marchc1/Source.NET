@@ -7,7 +7,6 @@ using FIELD = FIELD<TELargeFunnel>;
 public class TELargeFunnel : TEParticleSystem
 {
 	public static readonly SendTable DT_TELargeFunnel = new(DT_TEParticleSystem, [
-		SendPropInt(FIELD.OF(nameof(ModelIndex)), 14, 0),
 		SendPropInt(FIELD.OF(nameof(Reversed)), 2, PropFlags.Unsigned),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("TELargeFunnel", DT_TELargeFunnel).WithManualClassID(StaticClassIndices.CTELargeFunnel);

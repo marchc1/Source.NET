@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
+using Source.Common.Commands;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
@@ -13,6 +14,17 @@ public class SchemeManager : ISchemeManager
 	readonly IFileSystem fileSystem;
 	readonly IServiceProvider services;
 	ISurface? surface;
+
+	[ConCommand("vgui_spew_fonts")]
+	void vgui_spew_fonts(){
+		SpewFonts();
+	}
+
+	public void SpewFonts(){
+		foreach (var s in Schemes)
+			s.SpewFonts();
+	}
+
 	public SchemeManager(IFileSystem fileSystem, IServiceProvider services) {
 		this.services = services;
 		this.fileSystem = fileSystem;

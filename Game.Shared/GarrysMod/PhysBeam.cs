@@ -44,7 +44,7 @@ public partial class
 		SendPropEHandle(FIELD.OF(nameof(TargetEnt))),
 		SendPropVector(FIELD.OF(nameof(HoldPos)), 0, PropFlags.NoScale),
 		SendPropBool(FIELD.OF(nameof(IsOn))),
-		SendPropInt(FIELD.OF(nameof(PhysBone)), 32, 0),
+		SendPropInt(FIELD.OF(nameof(PhysBone)), 12, 0),
 #endif
 	]);
 

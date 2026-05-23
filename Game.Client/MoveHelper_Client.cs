@@ -32,7 +32,7 @@ public class MoveHelperClient : IMoveHelper
 	}
 
 	public bool PlayerFallingDamage() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public void PlayerSetAnimation(PlayerAnim playerAnim) {

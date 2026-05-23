@@ -19,6 +19,12 @@ public struct ThinkFunc
 	public long NextThinkTick;
 	public long LastThinkTick;
 }
+public enum EntityEvent
+{
+	WaterTouch,
+	WaterUntouch,
+	ParentChanged
+}
 public partial class BaseEntity : IServerEntity
 {
 	public static Edict? g_pForceAttachEdict;
@@ -187,6 +193,73 @@ public partial class BaseEntity : IServerEntity
 		AddEFlags(EFL.UsePartitionWhenNotSolid);
 	}
 
+	public virtual void StopLoopingSounds() { }
+	string? GlobalName;
+	public virtual void UpdateOnRemove() {
+		Util.g_bReceivedChainedUpdateOnRemove = true;
+
+		// Virtual call to shut down any looping sounds.
+		StopLoopingSounds();
+
+		// Notifies entity listeners, etc
+		gEntList.NotifyRemoveEntity(GetRefEHandle());
+
+		if (Edict() != null) {
+			AddFlag(EntityFlags.KillMe);
+			if ((GetFlags() & EntityFlags.Graphed) != 0) {
+				/*	<<TODO>>
+				// this entity was a LinkEnt in the world node graph, so we must remove it from
+				// the graph since we are removing it from the world.
+				for ( int i = 0 ; i < WorldGraph.m_cLinks ; i++ )
+				{
+					if ( WorldGraph.m_pLinkPool [ i ].m_pLinkEnt == pev )
+					{
+						// if this link has a link ent which is the same ent that is removing itself, remove it!
+						WorldGraph.m_pLinkPool [ i ].m_pLinkEnt = NULL;
+					}
+				}
+				*/
+			}
+		}
+
+		if (GlobalName != null) {
+			// NOTE: During level shutdown the global list will suppress this
+			// it assumes your changing levels or the game will end
+			// causing the whole list to be flushed
+			GlobalState.GlobalEntity_SetState(GlobalName, GlobalEState.Dead);
+		}
+
+		VPhysicsDestroyObject();
+
+		// This is only here to allow the MOVETYPE_NONE to be set without the
+		// assertion triggering. Why do we bother setting the MOVETYPE to none here?
+		RemoveEffects(EntityEffects.BoneMerge);
+		SetMoveType(Source.MoveType.None);
+
+		// If we have a parent, unlink from it.
+		UnlinkFromParent(this);
+
+		// Any children still connected are orphans, mark all for delete
+		List<BaseEntity> childrenList = [];
+		GetAllChildren(this, childrenList);
+		if (childrenList.Count != 0) {
+			DevMsg(2, $"Warning: Deleting orphaned children of {GetClassname()}\n");
+			for (int i = childrenList.Count() - 1; i >= 0; --i) 
+				Util.Remove(childrenList[i]);
+		}
+
+		SetGroundEntity(null);
+
+		// if (DynamicModelPending) 
+		// 	sg_DynamicLoadHandlers.Remove(this);
+		
+
+		if (IVModelInfo.IsDynamicModelIndex(ModelIndex)) {
+			modelinfo.ReleaseDynamicModel(ModelIndex); // no-op if not dynamic
+			ModelIndex = -1;
+		}
+	}
+
 	public virtual void Activate() {
 
 	}
@@ -243,6 +316,42 @@ public partial class BaseEntity : IServerEntity
 		recipients.SetOnly(id_player_index);
 
 		return data;
+	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public BaseEntity? GetMoveParent() => MoveParent.Get();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public BaseEntity? FirstMoveChild() => MoveChild.Get();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public BaseEntity? NextMovePeer() => MovePeer.Get();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool AnyPlayersInHierarchy_R(BaseEntity ent){
+		if (ent.IsPlayer())
+			return true;
+
+		for (BaseEntity? cur = ent.FirstMoveChild(); cur != null; cur = cur.NextMovePeer()) 
+			if (AnyPlayersInHierarchy_R(cur))
+				return true;
+
+		return false;
+	}
+	public void RecalcHasPlayerChildBit(){
+		if (AnyPlayersInHierarchy_R(this))
+			AddEFlags(EFL.HasPlayerChild);
+		else
+			RemoveEFlags(EFL.HasPlayerChild);
+	}
+	public bool DoesHavePlayerChild(){
+		return IsEFlagSet(EFL.HasPlayerChild);
+	}
+	public virtual void OnEntityEvent<T>(EntityEvent ev, T? data){
+		switch(ev){
+			case EntityEvent.WaterTouch:
+
+				break;
+			case EntityEvent.WaterUntouch:
+
+				break;
+
+			default:
+				return;
+		}
 	}
 
 	public void SetParent(string newParent, BaseEntity activator, int attachment = -1) {
@@ -308,20 +417,6 @@ public partial class BaseEntity : IServerEntity
 	public int VPhysicsGetObjectList(Span<IPhysicsObject> list) => throw new NotImplementedException();
 
 	public bool IsFloating() => false; // TODO
-
-	public void SetGroundEntity(BaseEntity? ent) {
-		if (ent == GroundEntity.Get())
-			return;
-
-		// todo this has more
-
-		GroundEntity.Set(ent);
-
-		if (ent != null)
-			AddFlag(EntityFlags.OnGround);
-		else
-			RemoveFlag(EntityFlags.OnGround);
-	}
 
 	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent);
 	public static BaseEntity? Instance(int ent) => Instance(INDEXENT(ent)!);
@@ -395,6 +490,8 @@ public partial class BaseEntity : IServerEntity
 	public EHANDLE OwnerEntity = new();
 	public EHANDLE EffectEntity = new();
 	public EHANDLE MoveParent = new();
+	public EHANDLE MoveChild = new();
+	public EHANDLE MovePeer = new();
 	public EHANDLE GroundEntity = new();
 
 	public int LifeState;
@@ -454,6 +551,72 @@ public partial class BaseEntity : IServerEntity
 		// Util.SetModel(this, modelName); // TODO
 	}
 
+	internal void SetAbsAngles(in QAngle absAngles) {
+		// This is necessary to get the other fields of m_rgflCoordinateFrame ok
+		CalcAbsolutePosition();
+
+		// FIXME: The normalize caused problems in server code like momentary_rot_button that isn't
+		//        handling things like +/-180 degrees properly. This should be revisited.
+		//QAngle angleNormalize( AngleNormalize( absAngles.x ), AngleNormalize( absAngles.y ), AngleNormalize( absAngles.z ) );
+
+		if (AbsRotation == absAngles)
+			return;
+
+		// All children are invalid, but we are not
+		InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnglesChanged);
+		RemoveEFlags(EFL.DirtyAbsTransform);
+
+		AbsRotation = absAngles;
+		MathLib.AngleMatrix(absAngles, out CoordinateFrame);
+		MathLib.MatrixSetColumn(AbsOrigin, 3, ref CoordinateFrame);
+
+		QAngle angNewRotation = default;
+		BaseEntity? moveParent = GetMoveParent();
+		if (moveParent == null) 
+			angNewRotation = absAngles;
+		else {
+			if (AbsRotation == moveParent.GetAbsAngles()) 
+				angNewRotation.Init();
+			else {
+				// Moveparent case: transform the abs transform into local space
+				Matrix3x4 worldToParent, localMatrix;
+				MathLib.MatrixInvert(moveParent.EntityToWorldTransform(), out worldToParent);
+				MathLib.ConcatTransforms(worldToParent, CoordinateFrame, out localMatrix);
+				MathLib.MatrixAngles(localMatrix, out angNewRotation);
+			}
+		}
+
+		if (Rotation != angNewRotation) {
+			Rotation = angNewRotation;
+			SetSimulationTime(gpGlobals.CurTime);
+		}
+	}
+	internal void SetLocalVelocity(in Vector3 velocity) {
+		Vector3 vecVelocity = velocity;
+
+		// Safety check against receive a huge impulse, which can explode physics
+		switch (CheckEntityVelocity(ref vecVelocity)) {
+			case -1:
+				Warning($"Discarding SetLocalVelocity({vecVelocity.X},{vecVelocity.Y},{vecVelocity.Z}) on {GetDebugName()}\n");
+				Assert(false);
+				return;
+			case 0:
+				if (CheckEmitReasonablePhysicsSpew()) 
+					Warning($"Clamping SetLocalVelocity({velocity.X},{velocity.Y},{velocity.Z}) on {GetDebugName()}\n");
+				break;
+		}
+
+		if (Velocity != vecVelocity) {
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.VelocityChanged);
+			Velocity = vecVelocity;
+		}
+	}
+	public void SetName(ReadOnlySpan<char> name) {
+		Name = new(name.SliceNullTerminatedString());
+	}
+	public void SetName(string? name) {
+		Name = name;
+	}
 	public void SetOwnerEntity(BaseEntity? owner) => OwnerEntity.Set(owner);
 	public BaseEntity? GetOwnerEntity() => OwnerEntity.Get();
 
@@ -581,8 +744,9 @@ public partial class BaseEntity : IServerEntity
 			DispatchUpdateTransmitState();
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsEFlagSet(EFL mask) => (eflags & mask) != 0;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public EFL GetEFlags() => eflags;
 
-	Vector3 AbsVelocity;
+	public Vector3 AbsVelocity;
 
 	public ref readonly Vector3 GetAbsVelocity() {
 		return ref AbsVelocity;
@@ -626,7 +790,6 @@ public partial class BaseEntity : IServerEntity
 		CheckHasGamePhysicsSimulation();
 	}
 
-	public BaseEntity? GetMoveParent() => MoveParent.Get();
 	public virtual IServerVehicle? GetServerVehicle() => null;
 	public ICollideable? GetCollideable() {
 		throw new NotImplementedException();

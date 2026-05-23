@@ -24,7 +24,7 @@ public class WeaponBugBait : BaseHL2MPCombatWeapon
 		]);
 #if CLIENT_DLL
 	public static readonly new ClientClass ClientClass = new ClientClass("WeaponBugBait", null, null, DT_WeaponBugBait).WithManualClassID(StaticClassIndices.CWeaponBugBait);
-	public static readonly new DataMap PredMap = new([], nameof(WeaponBugBait), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
+	public static readonly new DataMap PredMap = new([], typeof(WeaponBugBait), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("WeaponBugBait", DT_WeaponBugBait).WithManualClassID(StaticClassIndices.CWeaponBugBait);

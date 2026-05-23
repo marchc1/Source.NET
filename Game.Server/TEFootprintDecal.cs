@@ -11,7 +11,6 @@ public class TEFootprintDecal : BaseTempEntity
 		SendPropVector(FIELD.OF(nameof(Direction)), 0, PropFlags.Coord),
 		SendPropInt(FIELD.OF(nameof(Entity)), 11, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(Index)), 8, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(ChMaterialType)), 8, PropFlags.Unsigned),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("TEFootprintDecal", DT_TEFootprintDecal).WithManualClassID(StaticClassIndices.CTEFootprintDecal);
 

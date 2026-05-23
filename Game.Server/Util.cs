@@ -257,12 +257,47 @@ public static partial class Util
 		return 0;
 	}
 
-	public static void Remove(BaseEntity entity) {
-		throw new NotImplementedException();
+	public static void Remove(BaseEntity? entity) {
+		if (entity == null)
+			return;
+		Remove(entity.NetworkProp());
 	}
 
-	public static void Remove(IServerNetworkable entity) {
-		throw new NotImplementedException();
+	public static bool g_bDisableEhandleAccess = false;
+	public static bool g_bReceivedChainedUpdateOnRemove = false;
+
+	public static void Remove(IServerNetworkable? oldObj) {
+		ServerNetworkProperty? prop = (ServerNetworkProperty?)oldObj;
+		if (prop == null || prop.IsMarkedForDeletion())
+			return;
+
+		if (PhysIsInCallback()) {
+			// This assert means that someone is deleting an entity inside a callback.  That isn't supported so
+			// this code will defer the deletion of that object until the end of the current physics simulation frame
+			// Since this is hidden from the calling code it's preferred to call PhysCallbackRemove() directly from the caller
+			// in case the deferred delete will have unwanted results (like continuing to receive callbacks).  That will make it 
+			// obvious why the unwanted results are happening so the caller can handle them appropriately. (some callbacks can be masked 
+			// or the calling entity can be flagged to filter them in most cases)
+			Assert(0);
+			PhysCallbackRemove(oldObj);
+			return;
+		}
+
+		// mark it for deletion	
+		prop.MarkForDeletion();
+
+		BaseEntity baseEnt = (BaseEntity?)oldObj.GetBaseEntity();
+		if (baseEnt != null) {
+			g_bReceivedChainedUpdateOnRemove = false;
+			baseEnt.UpdateOnRemove();
+
+			Assert(g_bReceivedChainedUpdateOnRemove);
+
+			// clear oldObj targetname / other flags now
+			baseEnt.SetName(null);
+		}
+
+		gEntList.AddToDeleteList(oldObj);
 	}
 
 	public static int GetCommandClientIndex() => ServerGameClients.CommandClientIndex;

@@ -12,9 +12,7 @@ public partial class BaseDoor : BaseToggle
 #endif
 		DT_BaseDoor = new(DT_BaseToggle, [
 #if CLIENT_DLL
-		RecvPropFloat(FIELD.OF(nameof(WaveHeight)))
 #else
-		SendPropFloat(FIELD.OF(nameof(WaveHeight)), 8, PropFlags.RoundUp)
 #endif
 		]);
 #if CLIENT_DLL

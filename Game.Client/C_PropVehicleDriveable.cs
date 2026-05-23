@@ -16,14 +16,13 @@ public class C_PropVehicleDriveable : C_BaseAnimating
 		RecvPropFloat(FIELD.OF(nameof(Throttle))),
 		RecvPropInt(FIELD.OF(nameof(BoostTimeLeft))),
 		RecvPropBool(FIELD.OF(nameof(HasBoost))),
-		RecvPropBool(FIELD.OF(nameof(ScannerDisabledWeapons))),
-		RecvPropBool(FIELD.OF(nameof(ScannerDisabledVehicle))),
 		RecvPropBool(FIELD.OF(nameof(EnterAnimOn))),
 		RecvPropBool(FIELD.OF(nameof(ExitAnimOn))),
 		RecvPropBool(FIELD.OF(nameof(UnableToFire))),
 		RecvPropVector(FIELD.OF(nameof(EyeExitEndpoint))),
 		RecvPropBool(FIELD.OF(nameof(HasGun))),
-		RecvPropVector(FIELD.OF(nameof(GunCrosshair)))
+		RecvPropVector(FIELD.OF(nameof(GunCrosshair))),
+		RecvPropBool(FIELD.OF(nameof(Locked))),
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("PropVehicleDriveable", DT_PropVehicleDriveable).WithManualClassID(StaticClassIndices.CPropVehicleDriveable);
 
@@ -40,4 +39,5 @@ public class C_PropVehicleDriveable : C_BaseAnimating
 	public Vector3 EyeExitEndpoint;
 	public bool HasGun;
 	public Vector3 GunCrosshair;
+	public bool Locked;
 }

@@ -54,7 +54,7 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 		*compressedLen = (uint)compressed_length;
 		return pCompressed;
 	}
-	static uint GetIdealDestinationCompressionBufferSize_Snappy(uint uncompressed) => 4 + (uint)Snappy.GetMaxCompressedLength((int)uncompressed);
+	public static uint GetIdealDestinationCompressionBufferSize_Snappy(uint uncompressed) => 4 + (uint)Snappy.GetMaxCompressedLength((int)uncompressed);
 	static unsafe bool BufferToBufferCompress_Snappy(byte* dest, uint* destLen, byte* source, uint sourceLen) {
 		Assert(dest != null);
 		Assert(destLen != null);
@@ -215,14 +215,30 @@ public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
 		return true;
 	}
 
+	static readonly char[] tempDisconnectMsgBuffer = new char[512];
 	public void ExplainDisconnection(bool print, ReadOnlySpan<char> disconnectReason) {
+		ReadOnlySpan<char> message;
+		if (print) {
+			tempDisconnectMsgBuffer[0] = '\0';
+			ReadOnlySpan<char> localized = g_Localize != null ? g_Localize.Find(disconnectReason) : null;
+			if (!localized.IsEmpty) {
+				int count = strcpy(tempDisconnectMsgBuffer.AsSpan(), localized);
+				message = tempDisconnectMsgBuffer.AsSpan()[..count];
+			}
+			else
+				message = disconnectReason;
+		}
+		else{
+			message = disconnectReason;
+		}
+
 		if (print && !disconnectReason.IsEmpty) {
 			if (disconnectReason.Length > 0 && disconnectReason[0] == '#')
 				disconnectReason = Localize == null ? disconnectReason : Localize.Find(disconnectReason);
 
-			ConMsg($"{disconnectReason}\n");
+			ConMsg($"{message}\n");
 		}
-		Sys.DisconnectReason = new(disconnectReason);
+		Sys.DisconnectReason = new(message);
 		Sys.ExtendedError = true;
 	}
 

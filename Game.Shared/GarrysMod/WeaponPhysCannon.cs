@@ -183,14 +183,14 @@ public class WeaponPhysCannon : BaseHL2MPCombatWeapon
 			SendPropFloat(FIELD.OF_VECTORELEM(nameof(AttachedAnglesPlayerSpace), 0), 11, PropFlags.RoundDown),
 			SendPropFloat(FIELD.OF_VECTORELEM(nameof(AttachedAnglesPlayerSpace), 1), 11, PropFlags.RoundDown),
 			SendPropFloat(FIELD.OF_VECTORELEM(nameof(AttachedAnglesPlayerSpace), 2), 11, PropFlags.RoundDown),
-			SendPropInt(FIELD.OF(nameof(EffectState))),
+			SendPropInt(FIELD.OF(nameof(EffectState)), 4),
 			SendPropBool(FIELD.OF(nameof(Open))),
 			SendPropBool(FIELD.OF(nameof(PhyscannonState))),
 #endif
 		]);
 #if CLIENT_DLL
 	public static readonly new ClientClass ClientClass = new ClientClass("WeaponPhysCannon", null, null, DT_WeaponPhysCannon).WithManualClassID(StaticClassIndices.CWeaponPhysCannon);
-	public static readonly new DataMap PredMap = new([], nameof(WeaponPhysCannon), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
+	public static readonly new DataMap PredMap = new([], typeof(WeaponPhysCannon), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("WeaponPhysCannon", DT_WeaponPhysCannon).WithManualClassID(StaticClassIndices.CWeaponPhysCannon);

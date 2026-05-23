@@ -16,14 +16,13 @@ public class PropVehicleDriveable : BaseAnimating
 		SendPropFloat(FIELD.OF(nameof(Throttle)), 0, PropFlags.NoScale),
 		SendPropInt(FIELD.OF(nameof(BoostTimeLeft)), 8),
 		SendPropBool(FIELD.OF(nameof(HasBoost))),
-		SendPropBool(FIELD.OF(nameof(ScannerDisabledWeapons))),
-		SendPropBool(FIELD.OF(nameof(ScannerDisabledVehicle))),
 		SendPropBool(FIELD.OF(nameof(EnterAnimOn))),
 		SendPropBool(FIELD.OF(nameof(ExitAnimOn))),
 		SendPropBool(FIELD.OF(nameof(UnableToFire))),
 		SendPropVector(FIELD.OF(nameof(EyeExitEndpoint)), 0, PropFlags.Coord),
 		SendPropBool(FIELD.OF(nameof(HasGun))),
-		SendPropVector(FIELD.OF(nameof(GunCrosshair)), 0, PropFlags.Coord)
+		SendPropVector(FIELD.OF(nameof(GunCrosshair)), 0, PropFlags.Coord),
+		SendPropBool(FIELD.OF(nameof(Locked))),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("PropVehicleDriveable", DT_PropVehicleDriveable).WithManualClassID(StaticClassIndices.CPropVehicleDriveable);
 
@@ -40,4 +39,5 @@ public class PropVehicleDriveable : BaseAnimating
 	public Vector3 EyeExitEndpoint;
 	public bool HasGun;
 	public Vector3 GunCrosshair;
+	public bool Locked;
 }

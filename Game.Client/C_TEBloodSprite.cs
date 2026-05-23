@@ -13,8 +13,6 @@ public class C_TEBloodSprite
 		RecvPropInt(FIELD.OF(nameof(G))),
 		RecvPropInt(FIELD.OF(nameof(B))),
 		RecvPropInt(FIELD.OF(nameof(A))),
-		RecvPropInt(FIELD.OF(nameof(SprayModel))),
-		RecvPropInt(FIELD.OF(nameof(DropModel))),
 		RecvPropInt(FIELD.OF(nameof(Size))),
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("TEBloodSprite", DT_TEBloodSprite).WithManualClassID(StaticClassIndices.CTEBloodSprite);

@@ -421,6 +421,17 @@ public static class CFormatting
 		return 0;
 	}
 
+
+	public static void strlower(Span<char> str) {
+		for (int i = 0; i < str.Length; i++)
+			str[i] = char.ToLower(str[i]);
+	}
+
+	public static void strupper(Span<char> str) {
+		for (int i = 0; i < str.Length; i++)
+			str[i] = char.ToUpper(str[i]);
+	}
+
 	public static int strcmp(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b) => a.SliceNullTerminatedString().CompareTo(b.SliceNullTerminatedString(), StringComparison.Ordinal);
 	public static int strncmp(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b, int c) => a.SliceNullTerminatedString().SliceSafe(c).CompareTo(b.SliceNullTerminatedString().SliceSafe(c), StringComparison.Ordinal);
 	public static int stricmp(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b) => a.SliceNullTerminatedString().CompareTo(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);

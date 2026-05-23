@@ -16,11 +16,7 @@ public class AI_BaseNPC : BaseCombatCharacter
 		SendPropBool(FIELD.OF(nameof(FadeCorpse))),
 		SendPropInt(FIELD.OF(nameof(DeathPose)), 12),
 		SendPropInt(FIELD.OF(nameof(DeathFrame)), 12),
-		SendPropBool(FIELD.OF(nameof(SpeedModActive))),
-		SendPropInt(FIELD.OF(nameof(SpeedModRadius)), 32),
-		SendPropInt(FIELD.OF(nameof(SpeedModSpeed)), 32),
 		SendPropBool(FIELD.OF(nameof(ImportantRagdoll))),
-		SendPropFloat(FIELD.OF(nameof(TimePingEffect)), 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("AI_BaseNPC", DT_AI_BaseNPC).WithManualClassID(StaticClassIndices.CAI_BaseNPC);
 

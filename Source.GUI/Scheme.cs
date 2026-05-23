@@ -479,4 +479,19 @@ public class Scheme : IScheme
 	public IPanel? GetSizingPanel() => SizingPanel;
 
 	public int GetProportionalNormalizedValue(int scaled) => SchemeManager.GetProportionalNormalizedValue(scaled);
+	public ReadOnlySpan<char> GetName() => tag;
+	public ReadOnlySpan<char> GetFileName() => fileName;
+	internal void SpewFonts() {
+		Msg($"Scheme: {GetName()} ({GetFileName()})\n");
+		int i = 0;
+		foreach(var kvp in FontAliases){
+			IFont font = kvp.Value.Font;
+			ReadOnlySpan<char> fontName = Surface.GetFontName(font);
+			ReadOnlySpan<char> fontFamilyName = Surface.GetFontFamilyName(font);
+			ReadOnlySpan<char> trueFontName = kvp.Value.TrueFontName;
+			ReadOnlySpan<char> fontAlias = kvp.Key.String();
+
+			Msg($"  {i++}: HFont:0x{font.GetHashCode():X}, {(trueFontName.IsStringEmpty ? "??" : trueFontName)}, {(fontAlias.IsStringEmpty ? "??" : fontAlias)}, font:{(fontName.IsStringEmpty ? "??" : fontName)}, tall:{Surface.GetFontTall(font)}({Surface.GetFontTallRequested(font)}). {fontFamilyName}\n");
+		}
+	}
 }

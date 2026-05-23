@@ -60,12 +60,12 @@ public static class EngineSendTable
 			CRC32.ProcessBuffer(ref crc, prop.GetName(), strlen(prop.GetName()));
 			CRC32.ProcessBuffer(ref crc, (int)prop.GetFlags());
 
-			if (prop.Type == SendPropType.DataTable) 
+			if (prop.Type == SendPropType.DataTable)
 				CRC32.ProcessBuffer(ref crc, prop.GetDataTable()!.NetTableName.AsSpan(), strlen(prop.GetDataTable()!.NetTableName));
 			else {
-				if (prop.IsExcludeProp()) 
+				if (prop.IsExcludeProp())
 					CRC32.ProcessBuffer(ref crc, prop.GetExcludeDTName(), strlen(prop.GetExcludeDTName()));
-				else if (prop.GetPropType() == SendPropType.Array) 
+				else if (prop.GetPropType() == SendPropType.Array)
 					CRC32.ProcessBuffer(ref crc, prop.GetNumElements());
 				else {
 					CRC32.ProcessBuffer(ref crc, in prop.LowValue);
@@ -230,20 +230,15 @@ public static class EngineSendTable
 		SendProp p = info.GetCurProp()!;
 		object baseData = info.GetCurStructBase()!;
 
-#if DEBUG
-		try {
-#endif
-			p.GetProxyFn()(p, baseData, p.FieldInfo, ref var, 0, info.GetObjectID());
+		// to (likely) callum: don't add a try/catch here, confused the hell out of me for a bit...
+		// not a big deal though. Just that I imagine the reason this was added was due to missing encoders,
+		// of which shouldn't be a problem anyway... and any other problems should throw errors rather than silently dying
+		// (and later ruining decoding entirely)
+		p.GetProxyFn()(p, baseData, p.FieldInfo, ref var, 0, info.GetObjectID());
 
-			info.DeltaBitsWriter.WritePropIndex(prop);
+		info.DeltaBitsWriter.WritePropIndex(prop);
 
-			PropTypeFns.g_PropTypeFns[(int)p.Type].Encode(baseData, ref var, p, info.DeltaBitsWriter.GetBitBuf(), info.GetObjectID());
-#if DEBUG
-		}
-		catch (Exception ex) {
-			// DevMsg($"EncodeProp: skipping prop '{p.GetName()}' on '{p.FieldInfo?.DeclaringType?.Name}' ({p.Type}): {ex.GetType().Name}: {ex.Message}\n");
-		}
-#endif
+		PropTypeFns.g_PropTypeFns[(int)p.Type].Encode(baseData, ref var, p, info.DeltaBitsWriter.GetBitBuf(), info.GetObjectID());
 	}
 
 	public static int CalcDelta(SendTable table, byte[]? fromState, int nFromBits, byte[] toState, int nToBits, Span<int> deltaProps, int maxDeltaProps, int objectId) {

@@ -47,8 +47,12 @@ public partial class
 		= new Class("WeaponHL2MPBase", DT_WeaponHL2MPBase).WithManualClassID(StaticClassIndices.CWeaponHL2MPBase);
 
 #if CLIENT_DLL
-	public static readonly new DataMap PredMap = new([], "WeaponHL2MPBase", BaseCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
-
+	public static readonly new DataMap PredMap = new([], typeof(WeaponHL2MPBase), BaseCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
+	public override bool ShouldPredict() {
+		if (GetOwner() != null && GetOwner() == C_BasePlayer.GetLocalPlayer())
+			return true;
+		return base.ShouldPredict();
+	}
 #endif
 
 	public override bool IsPredicted() {
@@ -112,7 +116,7 @@ public partial class
 	}
 
 #if CLIENT_DLL
-	public static readonly new DataMap PredMap = new([], "BaseHL2MPCombatWeapon", BaseCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
+	public static readonly new DataMap PredMap = new([], typeof(BaseHL2MPCombatWeapon), BaseCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #endif
 
 #if CLIENT_DLL

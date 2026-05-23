@@ -134,8 +134,8 @@ internal class PhysicsObject : IPhysicsObject
 
 	public object? GetGameData() => GameData;
 
-	public ushort GetGameFlags() {
-		throw new NotImplementedException();
+	public PhysicsFlags GetGameFlags() {
+		return 0;
 	}
 
 	public ushort GetGameIndex() {
@@ -300,8 +300,8 @@ internal class PhysicsObject : IPhysicsObject
 
 	public void SetGameData(object? gameData) => GameData = gameData;
 
-	public void SetGameFlags(ushort userFlags) {
-		throw new NotImplementedException();
+	public void SetGameFlags(PhysicsFlags userFlags) {
+
 	}
 
 	public void SetGameIndex(ushort gameIndex) {

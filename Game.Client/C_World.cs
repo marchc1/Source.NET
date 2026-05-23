@@ -12,12 +12,18 @@ namespace Game.Client;
 [LinkEntityToClass("worldspawn")]
 public class C_World : C_BaseEntity
 {
-	public C_World() {
-		g_ClientWorld = this;
+	[ImplementClientClassFactory]
+	public static C_World ClientWorldFactory(int entnum, int serialnum) {
+		Assert(g_ClientWorld != null);
+		g_ClientWorld.Init(entnum, serialnum);
+		return g_ClientWorld;
+	}
+
+	public C_World() : base() {
+
 	}
 
 	public static readonly RecvTable DT_World = new(DT_BaseEntity, [
-		RecvPropFloat(FIELD.OF(nameof(WaveHeight))),
 		RecvPropVector(FIELD.OF(nameof(WorldMins))),
 		RecvPropVector(FIELD.OF(nameof(WorldMaxs))),
 		RecvPropInt(FIELD.OF(nameof(StartDark))),
@@ -26,7 +32,6 @@ public class C_World : C_BaseEntity
 		RecvPropFloat(FIELD.OF(nameof(MaxPropScreenSpaceWidth))),
 		RecvPropFloat(FIELD.OF(nameof(MinPropScreenSpaceWidth))),
 		RecvPropString(FIELD.OF(nameof(DetailSpriteMaterial))),
-		RecvPropInt(FIELD.OF(nameof(ColdWorld))),
 	]);
 
 	public static new readonly ClientClass ClientClass = new ClientClass("World", null, null, DT_World)
@@ -35,8 +40,14 @@ public class C_World : C_BaseEntity
 	public override bool Init(int entNum, int serialNum) {
 		WaveHeight = 0.0f;
 		ActivityList.Init();
+		// TODO: EventList.Init();
 
 		return base.Init(entNum, serialNum);
+	}
+
+	public override void Release() {
+		ActivityList.Free();
+		Term();
 	}
 
 	float WaveHeight;
@@ -61,7 +72,7 @@ public class C_World : C_BaseEntity
 
 	public override void Precache() {
 		ActivityList.Free();
-		// EventList.Free();
+		// TODO: EventList.Free();
 
 		RegisterSharedActivities();
 
@@ -71,6 +82,7 @@ public class C_World : C_BaseEntity
 		// Call all registered precachers.
 		PrecacheRegister.Precache();
 	}
+
 	public override void Spawn() {
 		Precache();
 	}
@@ -79,5 +91,13 @@ public class C_World : C_BaseEntity
 	public static C_World GetClientWorldEntity() {
 		Assert(g_ClientWorld != null);
 		return g_ClientWorld;
+	}
+
+	internal static void ClientWorldFactoryInit() {
+		g_ClientWorld = new();
+	}
+
+	internal static void ClientWorldFactoryShutdown() {
+		g_ClientWorld = null;
 	}
 }

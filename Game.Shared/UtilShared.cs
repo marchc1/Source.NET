@@ -225,7 +225,6 @@ public struct TraceFilterNoNPCsOrPlayer(IHandleEntity? passentity, CollisionGrou
 		return !entity.IsNPC() && !entity.IsPlayer();
 	}
 }
-#endif
 
 public class CountdownTimer
 {
@@ -271,3 +270,4 @@ public class IntervalTimer
 	public bool IsGreaterThen(float duration) => Now() - Timestamp > duration;
 	protected virtual TimeUnit_t Now() => gpGlobals.CurTime;
 }
+#endif

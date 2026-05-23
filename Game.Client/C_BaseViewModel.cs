@@ -8,7 +8,7 @@ using DEFINE = Source.DEFINE<BaseViewModel>;
 
 public partial class C_BaseViewModel
 {
-	public static readonly new DataMap PredMap = new(nameof(C_BaseViewModel), C_BaseAnimating.PredMap, [
+	public static readonly new DataMap PredMap = new(typeof(C_BaseViewModel), C_BaseAnimating.PredMap, [
 		DEFINE.PRED_FIELD( nameof(ModelIndex), FieldType.Short, FieldTypeDescFlags.InSendTable | FieldTypeDescFlags.ModelIndex ),
 		DEFINE.PRED_FIELD( nameof(Skin), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
 		DEFINE.PRED_FIELD( nameof(Body), FieldType.Integer, FieldTypeDescFlags.InSendTable ),

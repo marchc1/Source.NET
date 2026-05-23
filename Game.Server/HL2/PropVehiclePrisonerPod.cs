@@ -14,7 +14,8 @@ public class PropVehiclePrisonerPod : PhysicsProp
 		SendPropBool(FIELD.OF(nameof(EnterAnimOn))),
 		SendPropBool(FIELD.OF(nameof(ExitAnimOn))),
 		SendPropVector(FIELD.OF(nameof(EyeExitEndpoint)), 0, PropFlags.Coord),
-		SendPropBool(FIELD.OF(nameof(LimitView)))
+		SendPropBool(FIELD.OF(nameof(LimitView))),
+		SendPropBool(FIELD.OF(nameof(Locked))),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("PropVehiclePrisonerPod", DT_PropVehiclePrisonerPod).WithManualClassID(StaticClassIndices.CPropVehiclePrisonerPod);
 
@@ -23,4 +24,5 @@ public class PropVehiclePrisonerPod : PhysicsProp
 	public bool ExitAnimOn = new();
 	public Vector3 EyeExitEndpoint = new();
 	public bool LimitView = new();
+	public bool Locked;
 }

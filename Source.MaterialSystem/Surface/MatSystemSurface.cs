@@ -1783,7 +1783,7 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public int GetFontTallRequested(IFont? font) {
-		throw new NotImplementedException();
+		return FontManager.GetFontTallRequested(font);
 	}
 
 	public int GetFontAscent(IFont? font, char ch) {
@@ -2124,4 +2124,7 @@ public class MatSystemSurface : IMatSystemSurface
 
 		DisableClipping(false);
 	}
+
+	public ReadOnlySpan<char> GetFontName(IFont font) => FontManager.GetFontName(font);
+	public ReadOnlySpan<char> GetFontFamilyName(IFont font) => FontManager.GetFontFamilyName(font);
 }

@@ -886,7 +886,7 @@ public class AnimationController : Panel, IAnimationController
 						SetupPosition(ref cmdAnimate, ref cmdAnimate.Target.A, token, screenWide);
 
 						// Get second token from "token"
-						ReadOnlySpan<char> psz = FilesystemHelpers.ParseFile(token, token2, out _);
+						scoped ReadOnlySpan<char> psz = FilesystemHelpers.ParseFile(token, token2, out _);
 						psz = FilesystemHelpers.ParseFile(psz, token2, out _);
 						psz = token2;
 

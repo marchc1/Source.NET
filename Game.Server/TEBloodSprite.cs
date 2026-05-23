@@ -13,8 +13,6 @@ public class TEBloodSprite
 		SendPropInt(FIELD.OF(nameof(G)), 8, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(B)), 8, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(A)), 8, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(SprayModel)), 14, 0),
-		SendPropInt(FIELD.OF(nameof(DropModel)), 14, 0),
 		SendPropInt(FIELD.OF(nameof(Size)), 8, PropFlags.Unsigned),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("TEBloodSprite", DT_TEBloodSprite).WithManualClassID(StaticClassIndices.CTEBloodSprite);

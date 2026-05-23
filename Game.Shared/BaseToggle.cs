@@ -19,7 +19,7 @@ public class BaseToggle : BaseEntity
 		RecvPropFloat(FIELD.OF(nameof(MoveTargetTime)))
 #else
 		SendPropVector(FIELD.OF(nameof(FinalDest)), 0, PropFlags.NoScale),
-		SendPropInt(FIELD.OF(nameof(MovementType))),
+		SendPropInt(FIELD.OF(nameof(MovementType)), 4),
 		SendPropFloat(FIELD.OF(nameof(MoveTargetTime)), 0, PropFlags.NoScale)
 #endif
 		]);

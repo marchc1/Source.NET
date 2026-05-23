@@ -32,6 +32,68 @@ public static class EntityListGlobals
 	}
 }
 
+internal class EntItem{
+	public EHANDLE Ent;
+	public EntItem? Next;
+}
+public class EntityList {
+	int NumItems;
+	EntItem? ItemList;
+
+	public void AddEntity(BaseEntity ent) {
+		// check if it's already in the list; if not, add it
+		EntItem e = ItemList;
+		while (e != null) {
+			if (e.Ent.Get<BaseEntity>() == ent) {
+				// it's already in the list
+				return;
+			}
+
+			if (e.Next == null) {
+				// we've hit the end of the list, so tack it on
+				e.Next = new EntItem();
+				e.Next.Ent.Set(ent);
+				e.Next.Next = null;
+				NumItems++;
+				return;
+			}
+
+			e = e.Next;
+		}
+
+		// empty list
+		ItemList = new EntItem();
+		ItemList.Ent.Set(ent);
+		ItemList.Next = null;
+		NumItems = 1;
+	}
+
+	public void DeleteEntity(BaseEntity ent) {
+		// find the entry in the list and delete it
+		EntItem? prev = null, e = ItemList;
+		while (e != null) {
+			// delete the link if it's the matching entity OR if the link is NULL
+			if (e.Ent.Get<BaseEntity>() == ent || e.Ent.Get<BaseEntity>() == null) {
+				if (prev != null) 
+					prev.Next = e.Next;
+				else 
+					ItemList = e.Next;
+
+				NumItems--;
+
+				// REVISIT: Is this correct?  Is this just here to clean out dead EHANDLEs?
+				// restart the loop
+				e = ItemList;
+				prev = null;
+				continue;
+			}
+
+			prev = e;
+			e = e.Next;
+		}
+	}
+}
+
 class SortedEntityList
 {
 	private readonly List<BaseEntity?> SortedList = new();
@@ -112,6 +174,13 @@ public class GlobalEntityList : BaseEntityList
 	public GlobalEntityList() {
 		HighestEnt = NumEnts = NumEdicts = 0;
 		ClearingEntities = false;
+	}
+
+	readonly static List<IServerNetworkable> g_DeleteList;
+
+	public void AddToDeleteList(IServerNetworkable? ent) {
+		if (ent != null && ent.GetEntityHandle().GetRefEHandle().Index != Constants.INVALID_EHANDLE_INDEX)
+			g_DeleteList.Add(ent);
 	}
 
 	public IServerNetworkable? GetServerNetworkable(BaseHandle hEnt) {

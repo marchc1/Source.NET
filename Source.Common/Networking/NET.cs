@@ -40,5 +40,8 @@ public enum FragmentStream
 {
 	Normal,
 	File,
+	/// <summary>
+	/// Analog of MAX_STREAMS
+	/// </summary>
 	Max
 }

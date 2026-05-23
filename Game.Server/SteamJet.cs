@@ -15,7 +15,7 @@ public class SteamJet : BaseParticleEntity
 		SendPropFloat(FIELD.OF(nameof(JetLength)), 0, PropFlags.NoScale),
 		SendPropBool(FIELD.OF(nameof(Emit))),
 		SendPropBool(FIELD.OF(nameof(FaceLeft))),
-		SendPropInt(FIELD.OF(nameof(Type)), 32, PropFlags.Unsigned),
+		SendPropInt(FIELD.OF(nameof(Type)), 2, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(Spawnflags)), 8, PropFlags.Unsigned),
 		SendPropFloat(FIELD.OF(nameof(RollSpeed)), 0, PropFlags.NoScale),
 	]);

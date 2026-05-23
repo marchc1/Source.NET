@@ -1,9 +1,14 @@
-﻿using Source.Common.Physics;
+﻿using Source.Common;
+using Source.Common.Physics;
 
 namespace Game.Server;
 
 public class CollisionEvent : IPhysicsCollisionEvent, IPhysicsCollisionSolver, IPhysicsObjectEvent
 {
+	int inCallback;
+	readonly List<IServerNetworkable> removeObjects = [];
+	public bool IsInCallback() => inCallback > 0;
+
 	public int AdditionalCollisionChecksThisTick(int currentChecksDone) {
 		throw new NotImplementedException();
 	}
@@ -62,5 +67,10 @@ public class CollisionEvent : IPhysicsCollisionEvent, IPhysicsCollisionSolver, I
 
 	public void StartTouch(IPhysicsObject obj1, IPhysicsObject obj2, IPhysicsCollisionData touchData) {
 		throw new NotImplementedException();
+	}
+
+	internal void AddRemoveObject(IServerNetworkable? remove) {
+		if (remove != null && !removeObjects.Contains(remove))
+			removeObjects.Add(remove);
 	}
 }

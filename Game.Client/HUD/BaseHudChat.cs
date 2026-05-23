@@ -719,10 +719,6 @@ public class BaseHudChat : EditableHudElement
 			return ColorYellow;
 	}
 
-	protected void SayText2(bf_read msg) {
-
-	}
-
 	protected void TextMsg(bf_read msg) {
 
 	}
@@ -854,7 +850,6 @@ public class HudChat : BaseHudChat
 		base.Init();
 
 		IHudElement.HookMessage("SayText", SayText);
-		IHudElement.HookMessage("SayText2", SayText2);
 		IHudElement.HookMessage("TextMsg", TextMsg);
 	}
 	public override void ApplySchemeSettings(IScheme scheme) {

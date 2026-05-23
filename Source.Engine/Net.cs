@@ -67,7 +67,7 @@ public class Net
 			if (Time < entry.LastActiveTime + SPLIT_PACKET_STALE_TIME)
 				continue;
 
-			SplitPackets.RemoveAt(i);
+			splitPacketEntries.RemoveAt(i);
 		}
 
 		if (splitPacketEntries.Count > SPLIT_PACKET_TRACKING_MAX) {

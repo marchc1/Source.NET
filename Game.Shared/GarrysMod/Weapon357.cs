@@ -24,7 +24,7 @@ public class Weapon357 : BaseHL2MPCombatWeapon
 		]);
 #if CLIENT_DLL
 	public static readonly new ClientClass ClientClass = new ClientClass("Weapon357", null, null, DT_Weapon357).WithManualClassID(StaticClassIndices.CWeapon357);
-	public static readonly new DataMap PredMap = new([], nameof(Weapon357), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
+	public static readonly new DataMap PredMap = new([], typeof(Weapon357), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("Weapon357", DT_Weapon357).WithManualClassID(StaticClassIndices.CWeapon357);
 #endif

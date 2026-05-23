@@ -1,5 +1,11 @@
 ﻿#if CLIENT_DLL || GAME_DLL
 
+#if CLIENT_DLL
+using Game.Client.GarrysMod;
+#else
+using Game.Server.GarrysMod;
+#endif
+
 using Source;
 using Source.Common;
 using Source.Common.Commands;
@@ -273,13 +279,13 @@ public class GameMovement : IGameMovement
 		flatvelocity[2] = 0;
 
 		// Must be moving
-		curspeed = MathLib.VectorNormalize(ref flatvelocity);
+		curspeed = MathLib.VectorNormalizeFast(ref flatvelocity);
 
 		// see if near an edge
 		flatforward[0] = forward[0];
 		flatforward[1] = forward[1];
 		flatforward[2] = 0;
-		MathLib.VectorNormalize(ref flatforward);
+		MathLib.VectorNormalizeFast(ref flatforward);
 
 		// Are we backing into water from steps or something?  If so, don't pop forward
 		if (curspeed != 0.0 && (MathLib.DotProduct(flatvelocity, flatforward) < 0.0))
@@ -296,7 +302,7 @@ public class GameMovement : IGameMovement
 		{
 			IPhysicsObject? physObj = tr.Ent!.VPhysicsGetObject();
 			if (physObj != null) {
-				if ((physObj.GetGameFlags() & (ushort)(PhysicsFlags.PlayerHeld)) != 0)
+				if ((physObj.GetGameFlags() & PhysicsFlags.PlayerHeld) != 0)
 					return;
 			}
 
@@ -355,7 +361,7 @@ public class GameMovement : IGameMovement
 
 		// Copy it over and determine speed
 		MathLib.VectorCopy(wishvel, out wishdir);
-		wishspeed = MathLib.VectorNormalize(ref wishdir);
+		wishspeed = MathLib.VectorNormalizeFast(ref wishdir);
 
 		// Cap speed.
 		if (wishspeed > mv.MaxSpeed) {
@@ -368,7 +374,7 @@ public class GameMovement : IGameMovement
 
 		// Water friction
 		MathLib.VectorCopy(mv.Velocity, out temp);
-		speed = MathLib.VectorNormalize(ref temp);
+		speed = MathLib.VectorNormalizeFast(ref temp);
 		if (speed != 0) {
 			newspeed = speed - (float)gpGlobals.FrameTime * speed * sv_friction.GetFloat() * Player.SurfaceFriction;
 			if (newspeed < 0.1f) {
@@ -385,7 +391,7 @@ public class GameMovement : IGameMovement
 		{
 			addspeed = wishspeed - newspeed;
 			if (addspeed > 0) {
-				MathLib.VectorNormalize(ref wishvel);
+				MathLib.VectorNormalizeFast(ref wishvel);
 				accelspeed = sv_accelerate.GetFloat() * wishspeed * (float)gpGlobals.FrameTime * Player.SurfaceFriction;
 				if (accelspeed > addspeed) {
 					accelspeed = addspeed;
@@ -546,15 +552,15 @@ public class GameMovement : IGameMovement
 		// Zero out z components of movement vectors
 		forward[2] = 0;
 		right[2] = 0;
-		MathLib.VectorNormalize(ref forward);  // Normalize remainder of vectors
-		MathLib.VectorNormalize(ref right);    // 
+		MathLib.VectorNormalizeFast(ref forward);  // Normalize remainder of vectors
+		MathLib.VectorNormalizeFast(ref right);    // 
 
 		for (i = 0; i < 2; i++)       // Determine x and y parts of velocity
 			wishvel[i] = forward[i] * fmove + right[i] * smove;
 		wishvel[2] = 0;             // Zero out z part of velocity
 
 		MathLib.VectorCopy(wishvel, out wishdir);   // Determine maginitude of speed of move
-		wishspeed = MathLib.VectorNormalize(ref wishdir);
+		wishspeed = MathLib.VectorNormalizeFast(ref wishdir);
 
 		//
 		// clamp to server defined max speed
@@ -645,20 +651,20 @@ public class GameMovement : IGameMovement
 		if (g_bMovementOptimizations) {
 			if (forward[2] != 0) {
 				forward[2] = 0;
-				MathLib.VectorNormalize(ref forward);
+				MathLib.VectorNormalizeFast(ref forward);
 			}
 
 			if (right[2] != 0) {
 				right[2] = 0;
-				MathLib.VectorNormalize(ref right);
+				MathLib.VectorNormalizeFast(ref right);
 			}
 		}
 		else {
 			forward[2] = 0;
 			right[2] = 0;
 
-			MathLib.VectorNormalize(ref forward);  // Normalize remainder of vectors.
-			MathLib.VectorNormalize(ref right);    // 
+			MathLib.VectorNormalizeFast(ref forward);  // Normalize remainder of vectors.
+			MathLib.VectorNormalizeFast(ref right);    // 
 		}
 
 		for (i = 0; i < 2; i++)       // Determine x and y parts of velocity
@@ -667,7 +673,7 @@ public class GameMovement : IGameMovement
 		wishvel[2] = 0;             // Zero out z part of velocity
 
 		MathLib.VectorCopy(wishvel, out wishdir);   // Determine maginitude of speed of move
-		wishspeed = MathLib.VectorNormalize(ref wishdir);
+		wishspeed = MathLib.VectorNormalizeFast(ref wishdir);
 
 		//
 		// Clamp to server defined max speed
@@ -1007,28 +1013,31 @@ public class GameMovement : IGameMovement
 	// Handle movement in noclip mode.
 	protected void FullNoClipMove_NoAcceleration(float speed, float maxacceleration) {
 		Vector3 forward, right, up;
-		MathLib.AngleVectors(mv.ViewAngles, out forward, out right, out up);
+		MathLib.AngleVectors(mv!.ViewAngles, out forward, out right, out up);
 		bool isValidMode = Player.GetMoveType() == MoveType.Noclip;
 
 		Vector3 forwardScaled = forward * mv.ForwardMove;
 		Vector3 rightScaled = right * mv.SideMove;
-		Vector3 upScaled = up * mv.UpMove;
 
 		float wantsUp;
-		if (isValidMode && (mv.Buttons & InButtons.Jump) != 0)
+		float wantsUpNorm;
+		if (isValidMode && (mv.Buttons & InButtons.Jump) != 0) {
 			wantsUp = 1.0f;
-		else
+			wantsUpNorm = 1.0f;
+		}
+		else {
 			wantsUp = 0.0f;
+			wantsUpNorm = 1.0e-10f;
+		}
 
-		Vector3 forwardRight = forwardScaled + rightScaled;
-		MathLib.VectorNormalize(ref forwardRight);
+		MathLib.VectorNormalizeFast(ref forwardScaled);
+		MathLib.VectorNormalizeFast(ref rightScaled);
 
-		Vector3 upMove = upScaled;
-		MathLib.VectorNormalize(ref upMove);
+		float upInvSqrt = 1.0f / MathF.Sqrt(wantsUpNorm);
+		float upNorm = upInvSqrt * ((3.0f - upInvSqrt * upInvSqrt * wantsUpNorm) * 0.5f);
 
-		Vector3 worldUp = new Vector3(0, 0, 1);
-		Vector3 wishdir = forwardRight + upMove + (worldUp * wantsUp);
-		MathLib.VectorNormalize(ref wishdir);
+		Vector3 wishdir = forwardScaled + rightScaled + new Vector3(0, 0, wantsUp * upNorm);
+		MathLib.VectorNormalizeFast(ref wishdir);
 
 		float multiplier = speed * 100.0f;
 		Vector3 velocity = wishdir * multiplier;
@@ -1061,15 +1070,15 @@ public class GameMovement : IGameMovement
 		float fmove = mv.ForwardMove * factor;
 		float smove = mv.SideMove * factor;
 
-		MathLib.VectorNormalize(ref forward);  // Normalize remainder of vectors
-		MathLib.VectorNormalize(ref right);    // 
+		MathLib.VectorNormalizeFast(ref forward);  // Normalize remainder of vectors
+		MathLib.VectorNormalizeFast(ref right);    // 
 
 		for (int i = 0; i < 3; i++)       // Determine x and y parts of velocity
 			wishvel[i] = forward[i] * fmove + right[i] * smove;
 		wishvel[2] += mv.UpMove * factor;
 
 		MathLib.VectorCopy(in wishvel, out wishdir);   // Determine maginitude of speed of move
-		wishspeed = MathLib.VectorNormalize(ref wishdir);
+		wishspeed = MathLib.VectorNormalizeFast(ref wishdir);
 
 		//
 		// Clamp to server defined max speed
@@ -1191,12 +1200,22 @@ public class GameMovement : IGameMovement
 		if (Player.SurfaceData != null)
 			flGroundFactor = Player.SurfaceData.Game.JumpFactor;
 
+#if GMOD_DLL
+		float flMul = 0;
+#if CLIENT_DLL
+		if (Player is C_GMOD_Player gmodPlayer)
+			flMul = gmodPlayer.JumpPower;
+#else
+		if (Player is GMOD_Player gmodPlayer)
+			flMul = gmodPlayer.JumpPower;
+#endif
+#else
 		float flMul;
 		if (g_bMovementOptimizations)
 			flMul = 268.3281572999747f;
 		else
 			flMul = MathF.Sqrt(2 * GetCurrentGravity() * GAMEMOVEMENT_JUMP_HEIGHT);
-
+#endif
 		// Acclerate upward
 		// If we are ducking...
 		float startz = mv.Velocity[2];
@@ -1254,8 +1273,8 @@ public class GameMovement : IGameMovement
 			fmove = mv.ForwardMove;
 			smove = mv.SideMove;
 
-			MathLib.VectorNormalize(ref forward);  // Normalize remainder of vectors.
-			MathLib.VectorNormalize(ref right);    // 
+			MathLib.VectorNormalizeFast(ref forward);  // Normalize remainder of vectors.
+			MathLib.VectorNormalizeFast(ref right);    // 
 
 			for (i = 0; i < 3; i++)       // Determine x and y parts of velocity
 				wishvel[i] = forward[i] * fmove + right[i] * smove;
@@ -1263,7 +1282,7 @@ public class GameMovement : IGameMovement
 			wishvel[2] += mv.UpMove;
 
 			MathLib.VectorCopy(wishvel, out wishdir);   // Determine maginitude of speed of move
-			wishspeed = MathLib.VectorNormalize(ref wishdir);
+			wishspeed = MathLib.VectorNormalizeFast(ref wishdir);
 
 			//
 			// Clamp to server defined max speed
@@ -1556,7 +1575,7 @@ public class GameMovement : IGameMovement
 				for (int i = 0; i < 3; i++)       // Determine x and y parts of velocity
 					wishdir[i] = Forward[i] * mv.ForwardMove + Right[i] * mv.SideMove;
 
-				MathLib.VectorNormalize(ref wishdir);
+				MathLib.VectorNormalizeFast(ref wishdir);
 			}
 			else {
 				// Player is not attempting to move, no ladder behavior
@@ -1625,7 +1644,7 @@ public class GameMovement : IGameMovement
 				MathLib.VectorCopy(vec3_origin, out tmp);
 				tmp[2] = 1;
 				MathLib.CrossProduct(tmp, pm.Plane.Normal, out perp);
-				MathLib.VectorNormalize(ref perp);
+				MathLib.VectorNormalizeFast(ref perp);
 
 				// decompose velocity into ladder plane
 				float normal = MathLib.DotProduct(velocity, pm.Plane.Normal);
@@ -2131,7 +2150,7 @@ public class GameMovement : IGameMovement
 					SetGroundEntity(ref pm);
 				}
 			}
-			else 
+			else
 				SetGroundEntity(ref pm);  // Otherwise, point to index of ent under us.
 
 #if !CLIENT_DLL
@@ -2353,7 +2372,7 @@ public class GameMovement : IGameMovement
 
 			return CachedGetPointContents[idx, slot];
 		}
-		else 
+		else
 			return enginetrace.GetPointContents(point, out _);
 	}
 
@@ -2361,9 +2380,13 @@ public class GameMovement : IGameMovement
 	public const float GAMEMOVEMENT_DUCK_TIME = 1000.0f;    // ms
 	public const float GAMEMOVEMENT_JUMP_TIME = 510.0f; // ms approx - based on the 21 unit height jump
 	public const float GAMEMOVEMENT_JUMP_HEIGHT = 21.0f;  // units
-	public const float GAMEMOVEMENT_TIME_TO_UNDUCK = (TIME_TO_UNDUCK * 1000.0f);     // ms
-	public const float GAMEMOVEMENT_TIME_TO_UNDUCK_INV = (GAMEMOVEMENT_DUCK_TIME - GAMEMOVEMENT_TIME_TO_UNDUCK);
+	public float GAMEMOVEMENT_TIME_TO_UNDUCK => (TIME_TO_UNDUCK * 1000.0f);     // ms
+	public float GAMEMOVEMENT_TIME_TO_UNDUCK_INV => (GAMEMOVEMENT_DUCK_TIME - GAMEMOVEMENT_TIME_TO_UNDUCK);
 
+
+	public float TIME_TO_DUCK => Player!.Local.DuckSpeed;
+	public float TIME_TO_UNDUCK => Player!.Local.UnDuckSpeed;
+	public float TIME_TO_UNDUCK_MS => TIME_TO_UNDUCK * 1000;
 
 	// Ducking
 	protected virtual void Duck() {
@@ -2722,9 +2745,9 @@ public class GameMovement : IGameMovement
 		Player.Local.Ducked = false;
 		Player.Local.Ducking = false;
 		Player.Local.InDuckJump = false;
-		Player.Local.DuckTime = 0.0;
-		Player.Local.DuckJumpTime = 0.0;
-		Player.Local.JumpTime = 0.0;
+		Player.Local.DuckTime = 0.0f;
+		Player.Local.DuckJumpTime = 0.0f;
+		Player.Local.JumpTime = 0.0f;
 
 		Vector3 vecViewOffset = GetPlayerViewOffset(false);
 		vecViewOffset.Z -= flDeltaZ;
@@ -2794,6 +2817,7 @@ public class GameMovement : IGameMovement
 		Player.SurfaceFriction *= 1.25f;
 		if (Player.SurfaceFriction > 1.0f)
 			Player.SurfaceFriction = 1.0f;
+
 		Player.TextureType = Player.SurfaceData!.Struct.Game.Material;
 	}
 
@@ -2839,8 +2863,8 @@ public class GameMovement : IGameMovement
 
 		Vector3 vecDelta;
 		MathLib.VectorSubtract(mv.GetAbsOrigin(), mv.ConstraintCenter, out vecDelta);
-		MathLib.VectorNormalize(ref vecDelta);
-		MathLib.VectorNormalize(ref vecDesired);
+		MathLib.VectorNormalizeFast(ref vecDelta);
+		MathLib.VectorNormalizeFast(ref vecDesired);
 		if (MathLib.DotProduct(vecDelta, vecDesired) < 0.0f)
 			return 1.0f;
 

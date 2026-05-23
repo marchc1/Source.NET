@@ -13,9 +13,13 @@ using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
+using Source.Engine;
 
 using System.Numerics;
+using System.Security.AccessControl;
+using System.Reflection.Metadata.Ecma335;
 
+using DEFINE = Source.DEFINE<Game.Shared.CollisionProperty>;
 using FIELD = Source.FIELD<Game.Shared.CollisionProperty>;
 
 namespace Game.Shared;
@@ -159,7 +163,15 @@ public class DirtySpatialPartitionEntityList() : AutoGameSystem("DirtySpatialPar
 public class CollisionProperty : ICollideable
 {
 #if CLIENT_DLL
-
+	public static readonly DataMap PredMap = new(typeof(CollisionProperty), [
+		DEFINE.PRED_FIELD(nameof(MinsPreScaled), FieldType.Vector, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD(nameof(MaxsPreScaled), FieldType.Vector, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD(nameof(Mins), FieldType.Vector, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD(nameof(Maxs), FieldType.Vector, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD(nameof(SolidType), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD(nameof(SolidFlags), FieldType.Short, FieldTypeDescFlags.InSendTable ),
+		DEFINE.PRED_FIELD(nameof(TriggerBloat), FieldType.Integer, FieldTypeDescFlags.InSendTable ),
+	]);
 	private static void RecvProxy_VectorDirtySurround(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
 		Vector3 vecold = field.GetValue<Vector3>(instance);
 		Vector3 vecnew = data.Value.Vector;
@@ -206,17 +218,17 @@ public class CollisionProperty : ICollideable
 	}
 #endif
 
-	Vector3 MinsPreScaled;
-	Vector3 MaxsPreScaled;
-	Vector3 Mins;
-	Vector3 Maxs;
+	public Vector3 MinsPreScaled;
+	public Vector3 MaxsPreScaled;
+	public Vector3 Mins;
+	public Vector3 Maxs;
 	float Radius;
-	ushort SolidFlags;
+	public ushort SolidFlags;
 	SpatialPartitionHandle_t Partition;
 	byte SurroundType;
-	byte SolidType;
+	public byte SolidType;
 
-	byte TriggerBloat;
+	public byte TriggerBloat;
 	Vector3 SurroundingMins;
 	Vector3 SurroundingMaxs;
 	Vector3 SpecifiedSurroundingMinsPreScaled;

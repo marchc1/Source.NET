@@ -12,9 +12,9 @@ public static class MoveVarsShared
 	public const string DEFAULT_GRAVITY_STRING = "600";
 
 	public static readonly ConVar sv_gravity = new(DEFAULT_GRAVITY_STRING, FCvar.Notify | FCvar.Replicated, "World gravity.");
-	public static readonly ConVar sv_stopspeed = new("100", FCvar.Notify | FCvar.Replicated, "Minimum stopping speed when on ground.");
+	public static readonly ConVar sv_stopspeed = new("10", FCvar.Notify | FCvar.Replicated, "Minimum stopping speed when on ground.");
 
-	public static readonly ConVar sv_maxspeed = new("320", FCvar.Notify | FCvar.Replicated);
+	public static readonly ConVar sv_maxspeed = new("10000", FCvar.Notify | FCvar.Replicated);
 	public static readonly ConVar sv_accelerate = new("10", FCvar.Notify | FCvar.Replicated);
 
 	public static readonly ConVar sv_airaccelerate = new("10", FCvar.Notify | FCvar.Replicated);
@@ -31,10 +31,10 @@ public static class MoveVarsShared
 	public static readonly ConVar sv_waterdist = new("12", FCvar.Replicated, "Vertical view fixup when eyes are near water plane.");
 
 	public static readonly ConVar sv_skyname = new("sky_urb01", FCvar.Archive | FCvar.Replicated, "Current name of the skybox texture");
-	public static readonly ConVar sv_friction = new("sv_friction", "4", FCvar.Notify | FCvar.Replicated | FCvar.DevelopmentOnly, "World friction.");
+	public static readonly ConVar sv_friction = new("8", FCvar.Notify | FCvar.Replicated, "World friction.");
 
 	// Vehicle convars
-	public static readonly ConVar r_VehicleViewDampen = new("r_VehicleViewDampen", "1", FCvar.Cheat | FCvar.Notify | FCvar.Replicated);
+	public static readonly ConVar r_VehicleViewDampen = new("1", FCvar.Cheat | FCvar.Notify | FCvar.Replicated);
 
 	// Jeep convars
 	public static readonly ConVar r_JeepViewDampenFreq = new("7.0", FCvar.Cheat | FCvar.Notify | FCvar.Replicated);

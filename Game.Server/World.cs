@@ -27,7 +27,6 @@ public class World : BaseEntity
 	public static SendTable DT_World = new([
 		SendPropDataTable("baseclass", DT_BaseEntity),
 
-		SendPropFloat(FIELD.OF(nameof(WaveHeight)), 8, PropFlags.RoundUp, 0, 8),
 		SendPropVector(FIELD.OF(nameof(WorldMins)), -1, PropFlags.Coord),
 		SendPropVector(FIELD.OF(nameof(WorldMaxs)), -1, PropFlags.Coord),
 		SendPropInt(FIELD.OF(nameof(StartDark)), 1, PropFlags.Unsigned),
@@ -36,7 +35,6 @@ public class World : BaseEntity
 		SendPropFloat(FIELD.OF(nameof(MaxPropScreenSpaceWidth)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(MinPropScreenSpaceWidth)), 0, PropFlags.NoScale),
 		SendPropStringT(FIELD.OF(nameof(DetailSpriteMaterial))),
-		SendPropInt(FIELD.OF(nameof(ColdWorld)), 1, PropFlags.Unsigned),
 	]);
 
 	public World() {

@@ -41,7 +41,7 @@ public class
 		RecvPropInt(FIELD<GMODGameRules>.OF("SkillLevel"))
 #else
 		SendPropFloat(FIELD<GMODGameRules>.OF("TimeScale"), 0, PropFlags.NoScale, 0, 0),
-		SendPropInt(FIELD<GMODGameRules>.OF("SkillLevel"), 32, 0)
+		SendPropInt(FIELD<GMODGameRules>.OF("SkillLevel"), 4, PropFlags.Unsigned)
 #endif
 	]);
 

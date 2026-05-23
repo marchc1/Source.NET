@@ -15,7 +15,7 @@ public class HL2MPMachineGun : WeaponHL2MPBase
 #if CLIENT_DLL
 		RecvPropInt(FIELD.OF(nameof(ShotsFired))),
 #else
-		SendPropInt(FIELD.OF(nameof(ShotsFired))),
+		SendPropInt(FIELD.OF(nameof(ShotsFired)), 16),
 #endif
 		]);
 #if CLIENT_DLL

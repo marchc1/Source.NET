@@ -16,11 +16,7 @@ public class C_AI_BaseNPC : C_BaseCombatCharacter
 		RecvPropBool(FIELD.OF(nameof(FadeCorpse))),
 		RecvPropInt(FIELD.OF(nameof(DeathPose))),
 		RecvPropInt(FIELD.OF(nameof(DeathFrame))),
-		RecvPropBool(FIELD.OF(nameof(SpeedModActive))),
-		RecvPropInt(FIELD.OF(nameof(SpeedModRadius))),
-		RecvPropInt(FIELD.OF(nameof(SpeedModSpeed))),
 		RecvPropBool(FIELD.OF(nameof(ImportantRagdoll))),
-		RecvPropFloat(FIELD.OF(nameof(TimePingEffect))),
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("AI_BaseNPC", DT_AI_BaseNPC).WithManualClassID(StaticClassIndices.CAI_BaseNPC);
 

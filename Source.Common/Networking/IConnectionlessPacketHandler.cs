@@ -12,7 +12,8 @@ using static Protocol;
 
 public class SubChannel
 {
-	public const int MAX = 8;
+	public const int MAX_BITS = 4;
+	public const int MAX = 1 << MAX_BITS;
 
 	public int[] StartFragment = new int[(int)FragmentStream.Max];
 	public int[] NumFragments = new int[(int)FragmentStream.Max];

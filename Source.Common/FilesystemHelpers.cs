@@ -14,7 +14,7 @@ public static class FilesystemHelpers
 
 	// This is really gross code repetition...
 
-	public static ReadOnlySpan<char> ParseFileInternal(ReadOnlySpan<char> fileBytes, Span<char> tokenOut, out bool wasQuoted, CharacterSet? charSet = null, int maxTokenLen = 0) {
+	public static ReadOnlySpan<char> ParseFileInternal(ReadOnlySpan<char> fileBytes, scoped Span<char> tokenOut, out bool wasQuoted, CharacterSet? charSet = null, int maxTokenLen = 0) {
 		tokenOut[0] = '\0';
 		wasQuoted = false;
 
@@ -118,7 +118,7 @@ public static class FilesystemHelpers
 		tokenOut[(int)len] = '\0';
 		return fileBytes;
 	}
-	public static ReadOnlySpan<byte> ParseFileInternal(ReadOnlySpan<byte> fileBytes, Span<char> tokenOut, out bool wasQuoted, CharacterSet? charSet = null, int maxTokenLen = 0) {
+	public static ReadOnlySpan<byte> ParseFileInternal(ReadOnlySpan<byte> fileBytes, scoped Span<char> tokenOut, out bool wasQuoted, CharacterSet? charSet = null, int maxTokenLen = 0) {
 		tokenOut[0] = '\0';
 		wasQuoted = false;
 
@@ -224,11 +224,11 @@ public static class FilesystemHelpers
 	}
 
 
-	public static ReadOnlySpan<byte> ParseFile(ReadOnlySpan<byte> data, Span<char> token, out bool wasQuoted) {
+	public static ReadOnlySpan<byte> ParseFile(ReadOnlySpan<byte> data, scoped Span<char> token, out bool wasQuoted) {
 		return ParseFileInternal(data, token, out wasQuoted, null, token.Length);
 	}
 
-	public static ReadOnlySpan<char> ParseFile(ReadOnlySpan<char> data, Span<char> token, out bool wasQuoted) {
+	public static ReadOnlySpan<char> ParseFile(ReadOnlySpan<char> data, scoped Span<char> token, out bool wasQuoted) {
 		return ParseFileInternal(data, token, out wasQuoted, null, token.Length);
 	}
 

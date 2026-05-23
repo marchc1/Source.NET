@@ -11,7 +11,6 @@ public class C_TEFootprintDecal : C_BaseTempEntity
 		RecvPropVector(FIELD.OF(nameof(Direction))),
 		RecvPropInt(FIELD.OF(nameof(Entity))),
 		RecvPropInt(FIELD.OF(nameof(Index))),
-		RecvPropInt(FIELD.OF(nameof(ChMaterialType))),
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("TEFootprintDecal", DT_TEFootprintDecal).WithManualClassID(StaticClassIndices.CTEFootprintDecal);
 

@@ -58,7 +58,7 @@ public partial class
 		= new Class("WeaponPhysGun", DT_WeaponPhysGun).WithManualClassID(StaticClassIndices.CWeaponPhysGun);
 
 #if CLIENT_DLL
-	public static readonly new DataMap PredMap = new([], "WeaponPhysGun", BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
+	public static readonly new DataMap PredMap = new([], typeof(C_WeaponPhysGun), BaseHL2MPCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #endif
 
 	public EHANDLE PhysBeam = new();

@@ -122,10 +122,6 @@ public static class SVC
 	/// </summary>
 	public const byte Prefetch = 28;
 	/// <summary>
-	/// display a menu from a plugin
-	/// </summary>
-	public const byte Menu = 29;
-	/// <summary>
 	/// list of known games events and fields
 	/// </summary>
 	public const byte GameEventList = 30;
@@ -147,7 +143,19 @@ public static class SVC
 
 public static class CLC
 {
-	public const int ClientInfoCRC = -180714362;
+	/// <summary>
+	/// At the moment, send-table CRC'ing does not work (it's to be determined on if it could ever work with the name changes we've done at this point...)
+	/// In the meantime, it's relatively easy to fetch this number:
+	/// - net_showmsg clc_ClientInfo in local SRCDS
+	/// - connect to local SRCDS
+	/// - disconnect
+	/// - place the number from Msg from (ip): clc_ClientInfo: SendTableCRC (xxxxxxxxxxx) here
+	/// Some bits are masked (& 0xFFFFDFDF) (I think 5 and 13?).
+	/// You can extract it via either
+	/// - Brute forcing the number (it's only four combinations)
+	/// - A script that searches 32-bits-at-a-time throughout a packet. Mask by 0xFFFFDFDF, then compare
+	/// </summary>
+	public const int ClientInfoCRC = 1416329729;
 
 	// client info (table CRC etc)
 	public const byte ClientInfo = 8;
@@ -224,9 +232,9 @@ public static class Protocol
 	public const float SPLIT_PACKET_STALE_TIME = 2.0f;
 	public const float SPLIT_PACKET_TRACKING_MAX = 256; // most number of outstanding split packets to allow
 
-	public const int FRAGMENT_BITS = 8;
+	public const int FRAGMENT_BITS = 12;
 	public const int FRAGMENT_SIZE = 1 << FRAGMENT_BITS;
-	public const int MAX_FILE_SIZE_BITS = 26;
+	public const int MAX_FILE_SIZE_BITS = 30;
 	public const int MAX_FILE_SIZE = (1 << MAX_FILE_SIZE_BITS) - 1;// maximum transferable size is	64MB
 
 	public static int Bits2Bytes(int b) => b + 7 >> 3;
