@@ -7,9 +7,18 @@
       "request": "launch",
       "preLaunchTask": "build Source.Launcher",
       "program": "${workspaceFolder}/Source.Launcher/bin/Debug/net10.0/Source.Launcher.dll",
-      "args": [],
       "cwd": "${workspaceFolder}/Source.Launcher/bin/Debug/net10.0",
       "stopAtEntry": false
+    },
+    {
+      "name": "Source.Launcher (External Terminal)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build Source.Launcher",
+      "program": "${workspaceFolder}/Source.Launcher/bin/Debug/net10.0/Source.Launcher.dll",
+      "cwd": "${workspaceFolder}/Source.Launcher/bin/Debug/net10.0",
+      "stopAtEntry": false,
+      "console": "externalTerminal"
     },
     {
       "name": "Source.Dedicated",
@@ -17,9 +26,18 @@
       "request": "launch",
       "preLaunchTask": "build Source.Dedicated",
       "program": "${workspaceFolder}/Source.Dedicated/bin/Debug/net10.0/Source.Dedicated.dll",
-      "args": [],
       "cwd": "${workspaceFolder}/Source.Dedicated/bin/Debug/net10.0",
       "stopAtEntry": false
+    },
+    {
+      "name": "Source.Dedicated (External Terminal)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build Source.Dedicated",
+      "program": "${workspaceFolder}/Source.Dedicated/bin/Debug/net10.0/Source.Dedicated.dll",
+      "cwd": "${workspaceFolder}/Source.Dedicated/bin/Debug/net10.0",
+      "stopAtEntry": false,
+      "console": "externalTerminal"
     }
   ]
 }
