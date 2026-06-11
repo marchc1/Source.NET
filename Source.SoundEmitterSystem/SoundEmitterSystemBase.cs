@@ -127,7 +127,9 @@ public class SoundEmitterSystemBase : ISoundEmitterSystemBase
 	}
 
 	public SoundLevel LookupSoundLevel(ReadOnlySpan<char> soundname) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		Console.WriteLine($"LookupSoundLevel not implemented {soundname}");
+		return SoundLevel.LvlNorm;
 	}
 
 	public SoundLevel LookupSoundLevelByHandle(ReadOnlySpan<char> soundname, ref short handle) {

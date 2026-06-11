@@ -41,21 +41,24 @@ public enum EdictFlags
 [InlineArray(BaseEdict.MAX_CHANGE_OFFSETS)] public struct InlineArrayMaxChangeOffsets<T> { T? first; }
 [InlineArray(BaseEdict.MAX_EDICT_CHANGE_INFOS)] public struct InlineArrayMaxEdictChangeInfos<T> { T first; }
 
-public static class EdictGlobals {
+public static class EdictGlobals
+{
 	public static SharedEdictChangeInfo? g_SharedChangeInfo;
 }
 
-public class EdictChangeInfo {
+public class EdictChangeInfo
+{
 	public InlineArrayMaxChangeOffsets<IFieldAccessor> ChangedFields;
 	public ushort NumChangeFields;
 }
 
-public class SharedEdictChangeInfo {
+public class SharedEdictChangeInfo
+{
 	public ushort SerialNumber;
 	public InlineArrayMaxEdictChangeInfos<EdictChangeInfo> ChangeInfos;
 	public ushort NumChangeInfos;
 
-	public SharedEdictChangeInfo(){
+	public SharedEdictChangeInfo() {
 		SerialNumber = 1;
 		for (int i = 0; i < BaseEdict.MAX_EDICT_CHANGE_INFOS; i++)
 			ChangeInfos[i] = new();
@@ -133,7 +136,7 @@ public class BaseEdict
 				accessor.SetChangeInfoSerialNumber(0);
 				StateFlags |= EdictFlags.FullEdictChanged; // So we don't get in here again.
 			}
-			else 
+			else
 				p.ChangedFields[p.NumChangeFields++] = field;
 		}
 		else {
@@ -160,10 +163,10 @@ public class BaseEdict
 
 	public void ClearTransmitState() => StateFlags &= ~(EdictFlags.Always | EdictFlags.PVSCheck | EdictFlags.DontSend);
 
-	public void SetChangeInfo(ushort info) { /* TODO */ }
-	public void SetChangeInfoSerialNumber(ushort sn) { /* TODO */ }
-	public ushort GetChangeInfo() => 0; // TODO
-	public ushort GetChangeInfoSerialNumber() => 0; // TODO
+	public void SetChangeInfo(ushort info) => GetChangeAccessor!.Invoke(this).SetChangeInfo(info);
+	public void SetChangeInfoSerialNumber(ushort sn) => GetChangeAccessor!.Invoke(this).SetChangeInfoSerialNumber(sn);
+	public ushort GetChangeInfo() => GetChangeAccessor!.Invoke(this).GetChangeInfo();
+	public ushort GetChangeInfoSerialNumber() => GetChangeAccessor!.Invoke(this).GetChangeInfoSerialNumber();
 
 	public EdictFlags StateFlags;
 

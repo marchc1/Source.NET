@@ -134,7 +134,7 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 		button.State &= ~KeyButtonStateFlags.Down;
 		button.State |= KeyButtonStateFlags.ImpulseUp;
 	}
-	float KeyState(ref KeyButtonState key) {
+	public float KeyState(ref KeyButtonState key) {
 		float val = 0f;
 		bool impulsedown, impulseup, down;
 
@@ -358,6 +358,13 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 	bool MouseInitialized;
 	bool CameraInThirdPerson;
 	bool CameraIsOrthographic;
+
+	bool CameraMovingWithMouse;
+	bool CameraDistanceMove;
+	int CameraOldX;
+	int CameraOldY;
+	int CameraX;
+	int CameraY;
 
 	float AccumulatedMouseXMovement;
 	float AccumulatedMouseYMovement;
@@ -647,8 +654,6 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 		return; // nothing?
 	}
 
-	public bool CAM_IsThirdPerson() => CameraInThirdPerson;
-
 	private void ComputeForwardMove(ref UserCmd cmd) {
 		if (CAM_IsThirdPerson() && thirdperson_platformer.GetInt() != 0) {
 			float movement = (KeyState(ref in_forward) == 0 ? false : true
@@ -767,10 +772,6 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 
 		if (reset != 0)
 			button.State &= clearmask;
-	}
-
-	public void CAM_Think() {
-
 	}
 
 	InButtons ClearInputState;

@@ -52,6 +52,7 @@ global using ClientEntityHandle = Source.Common.BaseHandle;
 global using ClientThinkHandle_t = ulong;
 global using ClientSideAnimationListHandle_t = uint;
 global using HSOUNDSCRIPTHANDLE = short;
+global using BSPTreeDataHandle_t = ushort;
 global using fltx4 = System.Runtime.Intrinsics.Vector128<float>;
 global using static Source.Common.ClientRenderHandleGlobals;
 global using static Source.Common.Audio.AudioConstants;

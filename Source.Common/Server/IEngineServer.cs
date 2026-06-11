@@ -69,12 +69,12 @@ public interface IEngineServer
 	Edict? PEntityOfEntIndex(int iEntIndex);
 
 	// Get stats info interface for a client netchannel
-	INetChannelInfo GetPlayerNetInfo(int playerIndex);
+	INetChannelInfo? GetPlayerNetInfo(int playerIndex);
 
 	// Allocate space for string and return index/offset of string in global string list
 	// If iForceEdictIndex is not -1, then it will return the edict with that index. If that edict index
 	// is already used, it'll return null.
-	Edict CreateEdict(int iForceEdictIndex = -1);
+	Edict? CreateEdict(int iForceEdictIndex = -1);
 	// Remove the specified edict and place back into the free edict list
 	void RemoveEdict(Edict e);
 
@@ -112,7 +112,7 @@ public interface IEngineServer
 	void Message_DetermineMulticastRecipients(bool usepas, in Vector3 origin, ref AbsolutePlayerLimitBitVec playerbits);
 
 	// Begin a message from a server side entity to its client side counterpart (func_breakable glass, e.g.)
-	bf_write EntityMessageBegin(int ent_index, ServerClass ent_class, bool reliable);
+	bf_write? EntityMessageBegin(int ent_index, ServerClass ent_class, bool reliable);
 	// Begin a usermessage from the server to the client .dll
 	bf_write UserMessageBegin(in IRecipientFilter filter, int msg_type);
 	// Finish the Entity or UserMessage and dispatch to network layer
@@ -149,7 +149,7 @@ public interface IEngineServer
 	bool LockNetworkStringTables(bool shouldLock);
 
 	// Create a bot with the given name.  Returns NULL if fake client can't be created
-	Edict CreateFakeClient(ReadOnlySpan<char> netname);
+	Edict? CreateFakeClient(ReadOnlySpan<char> netname);
 
 	// Get a convar keyvalue for s specified client
 	ReadOnlySpan<char> GetClientConVarValue(int clientIndex, ReadOnlySpan<char> name);
@@ -299,23 +299,23 @@ public interface IEngineServer
 	// TODO: GetGamestatsData/SetGamestatsData
 
 	// Returns the SteamID of the specified player. It'll be NULL if the player hasn't authenticated yet.
-	ref readonly CSteamID GetClientSteamID(Edict playerEdict);
+	CSteamID? GetClientSteamID(Edict playerEdict);
 
 	// Returns the SteamID of the game server
-	ref readonly CSteamID GetGameServerSteamID();
+	CSteamID? GetGameServerSteamID();
 
 	// Send a client command keyvalues
 	// keyvalues are deleted inside the function
 	void ClientCommandKeyValues(Edict edict, KeyValues command);
 
 	// Returns the SteamID of the specified player. It'll be NULL if the player hasn't authenticated yet.
-	ref readonly CSteamID GetClientSteamIDByPlayerIndex(int entNum);
+	CSteamID? GetClientSteamIDByPlayerIndex(int entNum);
 	// Gets a list of all clusters' bounds.  Returns total number of clusters.
 	int GetClusterCount();
 	// TODO: GetAllClusterBounds
 
 	// Create a bot with the given name.  Returns NULL if fake client can't be created
-	Edict CreateFakeClientEx(ReadOnlySpan<char> netname, bool bReportFakeClient = true);
+	Edict? CreateFakeClientEx(ReadOnlySpan<char> netname, bool bReportFakeClient = true);
 
 	// Server version from the steam.inf, this will be compared to the GC version
 	int GetServerVersion();

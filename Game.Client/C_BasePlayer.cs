@@ -85,7 +85,14 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public TimeUnit_t GetFinalPredictedTime() => FinalPredictedTick * TICK_INTERVAL;
 	public bool IsLocalPlayer() => GetLocalPlayer() == this;
 	public static bool ShouldDrawLocalPlayer() {
-		return false; // todo
+		return input.CAM_IsThirdPerson(); // todo
+	}
+
+	public override bool ShouldDraw() {
+		if (IsLocalPlayer())
+			return ShouldDrawLocalPlayer();
+
+		return base.ShouldDraw();
 	}
 
 	public InButtons AfButtonLast;
@@ -135,7 +142,6 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 				GetWeapon(i).UpdateClientData(this);
 		}
 	}
-	public virtual void UpdateUnderwaterState() { }
 	public virtual void UpdateFogController() { }
 	public virtual void PreThink() {
 		ItemPreFrame();
@@ -537,4 +543,24 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public ObserverMode GetObserverMode() => (ObserverMode)ObserverMode;
 
 	public int CurrentCommandNumber() => CurrentCommand.Get().CommandNumber;
+
+	bool PlayerUnderwater;
+	private bool IsPlayerUnderwater() => PlayerUnderwater;
+
+	internal void ThirdPersonSwitch(bool thirdperson) {
+		UpdateVisibility();
+
+		if (IsLocalPlayer()) {
+			bool shouldDrawLocalPlayer = ShouldDrawLocalPlayer();
+			// for (int i = 0; i < GetNumBoneAttachments(); ++i) {
+			// 	C_BaseAnimating bone = GetBoneAttachment(i);
+			// 	if (bone != null) {
+			// 		if (shouldDrawLocalPlayer)
+			// 			bone.RemoveEffects(EntityEffects.NoDraw);
+			// 		else
+			// 			bone.AddEffects(EntityEffects.NoDraw);
+			// 	}
+			// }
+		}
+	}
 }

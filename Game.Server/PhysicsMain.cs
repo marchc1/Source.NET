@@ -4,6 +4,7 @@ using Game.Shared;
 
 using Source;
 using Source.Common.Commands;
+using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
 using Source.Engine;
 
@@ -119,7 +120,8 @@ public partial class BaseEntity
 public static class Physics
 {
 	public static bool g_bTestMoveTypeStepSimulation = true;
-	static ConVar sv_teststepsimulation = new("1", 0);
+	static readonly ConVar sv_teststepsimulation = new("1", 0);
+	public readonly static ConVar npc_vphysics = new("0", 0);
 
 	const float PLAYER_PACKETS_STOPPED_SO_RETURN_TO_PHYSICS_TIME = 1.0f;
 
@@ -186,11 +188,158 @@ public static class Physics
 
 				gpGlobals.CurTime = startTime;
 				SimulateEntity(list[i]);
+				list[i].NetworkStateChanged();
 			}
 
 			// Util.EnableRemoveImmediate();
 		}
 
 		gpGlobals.CurTime = startTime;
+	}
+}
+
+public partial class BaseEntity
+{
+	void PhysicsStep() {
+		// EVIL HACK: Force these to appear as if they've changed!!!
+		// The underlying values don't actually change, but we need the network sendproxy on origin/angles
+		//  to get triggered, and that only happens if NetworkStateChanged() appears to have occured.
+		// Getting them for modify marks them as changed automagically.
+		// Origin.GetForModify(); // TODO!
+		// Rotation.GetForModify(); // TODO!
+
+		SetSimulationTime(gpGlobals.CurTime);
+
+		PhysicsRunThink(ThinkMethods.FireAllButBase);
+
+		long thinkTick = GetNextThinkTick();
+
+		TimeUnit_t thinkTime = thinkTick * TICK_INTERVAL;
+		TimeUnit_t deltaThink = thinkTime - gpGlobals.CurTime;
+
+		if (thinkTime <= 0 || deltaThink > 0.5) {
+			PhysicsStepRunTimestep(gpGlobals.FrameTime);
+			// PhysicsCheckWaterTransition();
+			// SetLastThink(-1, gpGlobals.CurTime);
+			// UpdatePhysicsShadowToCurrentPosition(gpGlobals.FrameTime);
+			// PhysicsRelinkChildren(gpGlobals.FrameTime);
+			return;
+		}
+
+		Vector3 oldOrigin = GetAbsOrigin();
+
+		bool updateFromVPhysics = Physics.npc_vphysics.GetBool();
+		if (HasDataObjectType(DataObjectType.VPhysicsUpdateAI)) {
+			// todo
+		}
+
+		if (updateFromVPhysics && VPhysicsGetObject() != null && GetParent() == null) {
+			VPhysicsGetObject()!.GetShadowPosition(out Vector3 position, out _);
+			float delta = (GetAbsOrigin() - position).LengthSqr();
+			if (delta < 1) {
+				Physics.TraceEntity(this, GetAbsOrigin(), GetAbsOrigin(), (uint)Mask.Solid, out Trace tr); // PhysicsSolidMaskForEntity
+				updateFromVPhysics = tr.StartSolid;
+			}
+
+			if (updateFromVPhysics) {
+				SetAbsOrigin(position);
+				// PhysicsTouchTriggers();
+			}
+		}
+
+		if (thinkTick > gpGlobals.TickCount)
+			return;
+
+		if (thinkTime < gpGlobals.CurTime)
+			thinkTime = gpGlobals.CurTime;
+
+		float dt = (float)(thinkTime - 0);//GetLastThink(); todo
+
+		StepSimulationThink(dt);
+
+		// PhysicsCheckWaterTransition();
+
+		if (VPhysicsGetObject() != null) {
+			if (!MathLib.VectorCompare(oldOrigin, GetAbsOrigin()))
+				VPhysicsGetObject()!.UpdateShadow(GetAbsOrigin(), vec3_angle, (GetFlags() & EntityFlags.Fly) != 0, dt);
+		}
+
+		// PhysicsRelinkChildren(dt);
+	}
+
+	void PhysicsPusher() { }
+
+	void PhysicsNone() {
+		PhysicsRunThink();
+	}
+
+	void PhysicsRigidChild() { }
+
+	void PhysicsNoclip() {
+		if (!PhysicsRunThink()) {
+			return;
+		}
+
+		SimulateAngles(gpGlobals.FrameTime);
+
+		MathLib.VectorMA(GetLocalOrigin(), gpGlobals.FrameCount, Velocity, out Vector3 origin);
+		SetLocalOrigin(origin);
+	}
+
+	void PhysicsToss() { }
+
+	void PhysicsCustom() { }
+
+	void PerformPush(TimeUnit_t movetime) { }
+
+	void StepSimulationThink(TimeUnit_t dt) {
+		CheckStepSimulationChanged();
+
+		StepSimulationData? stepObject = (StepSimulationData?)GetDataObject(DataObjectType.StepSimulation);
+		if (stepObject == null) {
+			PhysicsStepRunTimestep(dt);
+			PhysicsRunThink(ThinkMethods.FireBaseOnly);
+		}
+		else {
+			// StepSimulationData step = stepObject.Value; // fixme (?)
+			// step.OriginActive = true;
+			// step.AnglesActive = true;
+
+			// step.LastProcessTickCount = -1;
+
+			// step.NetworkOrigin.Init();
+			// step.NetworkAngles.Init();
+
+			// step.Previous2 = step.Previous;
+
+			// step.Previous.TickCount = gpGlobals.TickCount;
+			// step.Previous.Origin = GetStepOrigin();
+			// QAngle stepAngles = GetStepAngles();
+			// MathLib.AngleQuaternion(stepAngles, out step.Previous.Rotation);
+
+			// PhysicsStepRunTimestep(dt);
+
+			// PhysicsRunThink(ThinkMethods.FireBaseOnly);
+
+			// if (GetBaseAnimating() != null)
+			// 	GetBaseAnimating()!.UpdateStepOrigin();
+
+			// step.Next.Origin = GetStepOrigin();
+			// stepAngles = GetStepAngles();
+			// MathLib.AngleQuaternion(stepAngles, out step.Next.Rotation);
+
+			// step.AngNextRotation = GetStepAngles();
+			// step.Next.TickCount = GetNextThinkTick();
+
+			// if (IsSimulatingOnAlternateTicks())
+			// 	++step.Next.TickCount;
+
+			// if (dt > 0) {
+			// 	Vector3 deltaOrigin = step.Next.Origin - step.Previous.Origin;
+			// 	float velSq = (float)(deltaOrigin.LengthSquared() / (dt * dt));
+			// 	if (velSq >= (4096.0f * 4096.0f) /*STEP_TELPORTATION_VEL_SQ*/)
+			// 		step.OriginActive = step.AnglesActive = false;
+			// }
+		}
 	}
 }

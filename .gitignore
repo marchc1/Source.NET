@@ -399,8 +399,6 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 Game.Assets/hl2/steam.inf
-Game.Assets/hl2/maps/gm_flatgrass.bsp
-Game.Assets/hl2/maps/gm_bigcity.bsp
-Game.Assets/hl2/maps/gm_flatgrass_classic.bsp
+Game.Assets/hl2/maps/*
 Source.Launcher/Properties/launchSettings.json
 /.idea
