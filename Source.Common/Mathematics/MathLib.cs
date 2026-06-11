@@ -732,7 +732,10 @@ public static class MathLib
 	public static void Vector4DMultiply(Matrix4x4 src1, in Vector4 src2, ref Vector4 dst) {
 		Vector4 v = src2;
 
-		dst = Vector4.Transform(src2, src1);
+		dst.X = src1.M11 * v.X + src1.M12 * v.Y + src1.M13 * v.Z + src1.M14 * v.W;
+		dst.Y = src1.M21 * v.X + src1.M22 * v.Y + src1.M23 * v.Z + src1.M24 * v.W;
+		dst.Z = src1.M31 * v.X + src1.M32 * v.Y + src1.M33 * v.Z + src1.M34 * v.W;
+		dst.W = src1.M41 * v.X + src1.M42 * v.Y + src1.M43 * v.Z + src1.M44 * v.W;
 	}
 
 	public static void ConcatTransforms(in Matrix3x4 in1, in Matrix3x4 in2, out Matrix3x4 result) {

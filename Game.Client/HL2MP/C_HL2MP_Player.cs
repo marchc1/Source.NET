@@ -98,6 +98,13 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 		base.PostThink();
 		AngEyeAngles = EyeAngles();
 	}
+
+	public override void ClientThink() {
+		base.ClientThink();
+		PlayerAnimState.Update();
+	}
+
+	public override ref readonly QAngle GetRenderAngles() => ref PlayerAnimState.GetRenderAngles();
 }
 
 public class C_HL2MPRagdoll : C_BaseAnimatingOverlay

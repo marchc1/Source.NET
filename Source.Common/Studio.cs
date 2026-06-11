@@ -327,7 +327,8 @@ public class StudioHWData
 		int numLODs = (LODs![NumLODs - 1].SwitchPoint < 0.0f) ? NumLODs - 1 : NumLODs;
 
 		for (int i = RootLOD; i < numLODs - 1; i++) {
-			if (LODs[i + 1].SwitchPoint > lodMetric)
+			float switchPoint = LODs[i + 1].SwitchPoint;
+			if (switchPoint <= 0.0f || switchPoint > lodMetric)
 				return i;
 		}
 
@@ -1226,7 +1227,7 @@ public class MStudioAutoLayer
 		br.Read(out Tail);
 		br.Read(out End);
 	}
-	public StudioAutolayerFlags Flags => (StudioAutolayerFlags)Flags;
+	public StudioAutolayerFlags Flags => (StudioAutolayerFlags)flags;
 }
 public class MStudioSeqDesc
 {
