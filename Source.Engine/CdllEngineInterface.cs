@@ -1,14 +1,18 @@
 ﻿using CommunityToolkit.HighPerformance;
 
 using Source.Common;
+using Source.Common.Audio;
 using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
+using Source.Common.Formats.Keyvalues;
+using Source.Common.Input;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
+using Source.Common.Physics;
 using Source.Engine.Client;
 using Source.Engine.Server;
 
@@ -107,7 +111,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 	}
 
 	readonly ILauncherManager launcherMgr = Singleton<ILauncherManager>();
-	public void GetMouseDelta(out int dx, out int dy) {
+	public void GetMouseDelta(out int dx, out int dy, bool ignoreNextMouseDelta = false) {
 		launcherMgr.GetMouseDelta(out dx, out dy);
 	}
 
@@ -154,10 +158,6 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 		return true;
 	}
 
-	public bool CullBox(ref Vector3 mins, ref Vector3 maxs) {
-		return true;
-	}
-
 	public int GetPlayerForUserID(int userID) {
 		if (cl.UserInfoTable == null)
 			return 0;
@@ -176,4 +176,412 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 	}
 
 	public TimeUnit_t Time() => Sys.Time;
+
+	public int GetIntersectingSurfaces(Model? model, in Vector3 center, float radius, bool onlyVisibleSurfaces, ref SurfInfo infos, int maxInfos) {
+		throw new NotImplementedException();
+	}
+
+	public Vector3 GetLightForPoint(in Vector3 pos, bool clamp) {
+		throw new NotImplementedException();
+	}
+
+	public IMaterial? TraceLineMaterialAndLighting(in Vector3 start, in Vector3 end, out Vector3 diffuseLightColor, out Vector3 baseColor) {
+		throw new NotImplementedException();
+	}
+
+	public bool CopyLocalFile(ReadOnlySpan<char> source, ReadOnlySpan<char> destination) {
+		throw new NotImplementedException();
+	}
+
+	public void ServerCmd(ReadOnlySpan<char> szCmdString, bool bReliable = true) {
+		throw new NotImplementedException();
+	}
+
+	public ref ClientTextMessage TextMessageGet(ReadOnlySpan<char> name) {
+		throw new NotImplementedException();
+	}
+
+	public float GetSentenceLength(AudioSource? audioSource) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsStreaming(AudioSource? audioSource) {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> Key_BindingForKey(ButtonCode code) {
+		throw new NotImplementedException();
+	}
+
+	public void StartKeyTrapMode() {
+		throw new NotImplementedException();
+	}
+
+	public bool CheckDoneKeyTrapping(out ButtonCode code) {
+		throw new NotImplementedException();
+	}
+
+	public void Con_NPrintf(int pos, ReadOnlySpan<char> text) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsBoxInViewCluster(in Vector3 mins, in Vector3 maxs) {
+		throw new NotImplementedException();
+	}
+
+	public bool CullBox(in Vector3 mins, in Vector3 maxs) {
+		return true;
+	}
+
+	public void Sound_ExtraUpdate() {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> GetGameDirectory() {
+		throw new NotImplementedException();
+	}
+
+	public ref readonly Matrix4x4 WorldToScreenMatrix() {
+		throw new NotImplementedException();
+	}
+
+	public ref readonly Matrix4x4 WorldToViewMatrix() {
+		throw new NotImplementedException();
+	}
+
+	public int GameLumpVersion(int lumpId) {
+		throw new NotImplementedException();
+	}
+
+	public int GameLumpSize(int lumpId) {
+		throw new NotImplementedException();
+	}
+
+	public bool LoadGameLump(int lumpId, Span<byte> buffer) {
+		throw new NotImplementedException();
+	}
+
+	public int LevelLeafCount() {
+		throw new NotImplementedException();
+	}
+
+	public ISpatialQuery? GetBSPTreeQuery() {
+		throw new NotImplementedException();
+	}
+
+	public void LinearToGamma(Span<float> linear, Span<float> gamma) {
+		throw new NotImplementedException();
+	}
+
+	public float LightStyleValue(int style) {
+		throw new NotImplementedException();
+	}
+
+	public void ComputeDynamicLighting(in Vector3 pt, in Vector3 normal, out Vector3 color) {
+		throw new NotImplementedException();
+	}
+
+	public void GetAmbientLightColor(out Vector3 color) {
+		throw new NotImplementedException();
+	}
+
+	public int GetDXSupportLevel() {
+		throw new NotImplementedException();
+	}
+
+	public bool SupportsHDR() {
+		throw new NotImplementedException();
+	}
+
+	public void Mat_Stub(IMaterialSystem? matSys) {
+		throw new NotImplementedException();
+	}
+
+	public void GetChapterName(Span<char> buff) {
+		throw new NotImplementedException();
+	}
+
+	public int GetLevelVersion() {
+		throw new NotImplementedException();
+	}
+
+	public ref IVoiceTweak GetVoiceTweakAPI() {
+		throw new NotImplementedException();
+	}
+
+	public void EngineStats_BeginFrame() {
+		throw new NotImplementedException();
+	}
+
+	public void EngineStats_EndFrame() {
+		throw new NotImplementedException();
+	}
+
+	public int GetLeavesArea(Span<int> leaves) {
+		throw new NotImplementedException();
+	}
+
+	public bool DoesBoxTouchAreaFrustum(in Vector3 mins, in Vector3 maxs, int iArea) {
+		throw new NotImplementedException();
+	}
+
+	public void SetAudioState(in AudioState state) {
+		throw new NotImplementedException();
+	}
+
+	public int SentenceGroupPick(int groupIndex, Span<char> name, int nameBufLen) {
+		throw new NotImplementedException();
+	}
+
+	public int SentenceGroupPickSequential(int groupIndex, Span<char> name, int nameBufLen, int sentenceIndex, int reset) {
+		throw new NotImplementedException();
+	}
+
+	public int SentenceIndexFromName(ReadOnlySpan<char> sentenceName) {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> SentenceNameFromIndex(int sentenceIndex) {
+		throw new NotImplementedException();
+	}
+
+	public int SentenceGroupIndexFromName(ReadOnlySpan<char> grouname) {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> SentenceGrounameFromIndex(int groupIndex) {
+		throw new NotImplementedException();
+	}
+
+	public float SentenceLength(int sentenceIndex) {
+		throw new NotImplementedException();
+	}
+
+	public void ComputeLighting(in Vector3 pt, in Vector3 normal, bool clamp, out Vector3 color, Span<Vector3> boxColors = default) {
+		throw new NotImplementedException();
+	}
+
+	public void ActivateOccluder(int nOccluderIndex, bool bActive) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsOccluded(in Vector3 absMins, in Vector3 absMaxs) {
+		throw new NotImplementedException();
+	}
+
+	public void DebugDrawPhysCollide(PhysCollide collide, IMaterial material, in Matrix3x4 transform, in Color color) {
+		throw new NotImplementedException();
+	}
+
+	public void CheckPoint(ReadOnlySpan<char> name) {
+		throw new NotImplementedException();
+	}
+
+	public void DrawPortals() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsRecordingDemo() {
+		throw new NotImplementedException();
+	}
+
+	public int GetDemoRecordingTick() {
+		throw new NotImplementedException();
+	}
+
+	public int GetDemoPlaybackTick() {
+		throw new NotImplementedException();
+	}
+
+	public int GetDemoPlaybackStartTick() {
+		throw new NotImplementedException();
+	}
+
+	public float GetDemoPlaybackTimeScale() {
+		throw new NotImplementedException();
+	}
+
+	public int GetDemoPlaybackTotalTicks() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsTakingScreenshot() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsHLTV() {
+		throw new NotImplementedException();
+	}
+
+	public void GetVideoModes(out Span<VMode> modes) {
+		throw new NotImplementedException();
+	}
+
+	public void SetOcclusionParameters(in OcclusionParams parms) {
+		throw new NotImplementedException();
+	}
+
+	public void GetUILanguage(Span<char> dest) {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> GetMapEntitiesString() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsInEditMode() {
+		throw new NotImplementedException();
+	}
+
+	public uint GetEngineBuildNumber() {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> GetProductVersionString() {
+		throw new NotImplementedException();
+	}
+
+	public void GrabPreColorCorrectedFrame(int x, int y, int width, int height) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsHammerRunning() {
+		throw new NotImplementedException();
+	}
+
+	public bool MapHasHDRLighting() {
+		throw new NotImplementedException();
+	}
+
+	public int GetAppID() {
+		throw new NotImplementedException();
+	}
+
+	public Vector3 GetLightForPointFast(in Vector3 pos, bool bClamp) {
+		throw new NotImplementedException();
+	}
+
+	public void SetRestrictServerCommands(bool restrict) {
+		throw new NotImplementedException();
+	}
+
+	public void SetRestrictClientCommands(bool restrict) {
+		throw new NotImplementedException();
+	}
+
+	public void SetOverlayBindProxy(int overlayID, object bindProxy) {
+		throw new NotImplementedException();
+	}
+
+	public bool CopyFrameBufferToMaterial(ReadOnlySpan<char> materialName) {
+		throw new NotImplementedException();
+	}
+
+	public void ChangeTeam(ReadOnlySpan<char> teamName) {
+		throw new NotImplementedException();
+	}
+
+	public void ReadConfiguration(bool readDefault = false) {
+		throw new NotImplementedException();
+	}
+
+	public void SetAchievementMgr(IAchievementMgr? achievementMgr) {
+		throw new NotImplementedException();
+	}
+
+	public IAchievementMgr? GetAchievementMgr() {
+		throw new NotImplementedException();
+	}
+
+	public bool MapLoadFailed() {
+		throw new NotImplementedException();
+	}
+
+	public void SetMapLoadFailed(bool bState) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsLowViolence() {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> GetMostRecentSaveGame() {
+		throw new NotImplementedException();
+	}
+
+	public void SetMostRecentSaveGame(ReadOnlySpan<char> lpszFilename) {
+		throw new NotImplementedException();
+	}
+
+	public void StartXboxExitingProcess() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsSaveInProgress() {
+		throw new NotImplementedException();
+	}
+
+	public uint OnStorageDeviceAttached() {
+		throw new NotImplementedException();
+	}
+
+	public void OnStorageDeviceDetached() {
+		throw new NotImplementedException();
+	}
+
+	public void ResetDemoInterpolation() {
+		throw new NotImplementedException();
+	}
+
+	public void SetGamestatsData(object? gamestatsData) {
+		throw new NotImplementedException();
+	}
+
+	public object? GetGamestatsData() {
+		throw new NotImplementedException();
+	}
+
+	public void ServerCmdKeyValues(KeyValues keyValues) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsSkippingPlayback() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsLoadingDemo() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsPlayingDemoALocallyRecordedDemo() {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> Key_LookupBindingExact(ReadOnlySpan<char> pBinding) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsWindowedMode() {
+		throw new NotImplementedException();
+	}
+
+	public void FlashWindow() {
+		throw new NotImplementedException();
+	}
+
+	public int GetClientVersion() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsActiveApp() {
+		throw new NotImplementedException();
+	}
+
+	public void DisconnectInternal() {
+		throw new NotImplementedException();
+	}
+
+	public int GetInstancesRunningCount() {
+		throw new NotImplementedException();
+	}
 }
