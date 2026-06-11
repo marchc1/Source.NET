@@ -142,11 +142,13 @@ public class ClientLeafSystem : IClientLeafSystem
 	}
 
 	public void BuildRenderablesList(in SetupRenderInfo info) {
-		// TODO: full implementation. Every prop physics for now (I am lazy and testing model rendering).
 		foreach (var renderable in Renderables) {
 			ref RenderableInfo i = ref renderable.Value.Info;
-			if (i.Renderable is C_PhysicsProp || i.Renderable is Beam)
-				AddRenderableToRenderList(info.RenderList!, i.Renderable, 0, i.RenderGroup);
+			if (i.Renderable == null || !i.Renderable.ShouldDraw())
+				continue;
+
+			bool twoPass = (i.Flags & RenderFlags.TwoPass) != 0;
+			AddRenderableToRenderList(info.RenderList!, i.Renderable, 0, i.RenderGroup, renderable.Key, twoPass);
 		}
 	}
 

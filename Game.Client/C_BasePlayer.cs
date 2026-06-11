@@ -88,6 +88,13 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		return input.CAM_IsThirdPerson(); // todo
 	}
 
+	public override bool ShouldDraw() {
+		if (IsLocalPlayer())
+			return ShouldDrawLocalPlayer();
+
+		return base.ShouldDraw();
+	}
+
 	public InButtons AfButtonLast;
 	public InButtons AfButtonPressed;
 	public InButtons AfButtonReleased;
