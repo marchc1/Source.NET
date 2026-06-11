@@ -383,11 +383,8 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 					CompletionItem item1 = CompletionItems[i];
 					CompletionItem item2 = CompletionItems[j];
 
-					if (item1.GetName().CompareTo(item2.GetName(), StringComparison.OrdinalIgnoreCase) > 0) {
-						CompletionItem temp = CompletionItems[i];
-						CompletionItems[i] = CompletionItems[j];
-						CompletionItems[j] = temp;
-					}
+					if (item1.GetName().CompareTo(item2.GetName(), StringComparison.OrdinalIgnoreCase) > 0)
+						(CompletionItems[j], CompletionItems[i]) = (CompletionItems[i], CompletionItems[j]);
 				}
 			}
 		}
