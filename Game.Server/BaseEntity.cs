@@ -244,7 +244,7 @@ public partial class BaseEntity : IServerEntity
 		GetAllChildren(this, childrenList);
 		if (childrenList.Count != 0) {
 			DevMsg(2, $"Warning: Deleting orphaned children of {GetClassname()}\n");
-			for (int i = childrenList.Count() - 1; i >= 0; --i) 
+			for (int i = childrenList.Count() - 1; i >= 0; --i)
 				Util.Remove(childrenList[i]);
 		}
 
@@ -252,7 +252,7 @@ public partial class BaseEntity : IServerEntity
 
 		// if (DynamicModelPending) 
 		// 	sg_DynamicLoadHandlers.Remove(this);
-		
+
 
 		if (IVModelInfo.IsDynamicModelIndex(ModelIndex)) {
 			modelinfo.ReleaseDynamicModel(ModelIndex); // no-op if not dynamic
@@ -321,27 +321,27 @@ public partial class BaseEntity : IServerEntity
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public BaseEntity? FirstMoveChild() => MoveChild.Get();
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public BaseEntity? NextMovePeer() => MovePeer.Get();
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static bool AnyPlayersInHierarchy_R(BaseEntity ent){
+	public static bool AnyPlayersInHierarchy_R(BaseEntity ent) {
 		if (ent.IsPlayer())
 			return true;
 
-		for (BaseEntity? cur = ent.FirstMoveChild(); cur != null; cur = cur.NextMovePeer()) 
+		for (BaseEntity? cur = ent.FirstMoveChild(); cur != null; cur = cur.NextMovePeer())
 			if (AnyPlayersInHierarchy_R(cur))
 				return true;
 
 		return false;
 	}
-	public void RecalcHasPlayerChildBit(){
+	public void RecalcHasPlayerChildBit() {
 		if (AnyPlayersInHierarchy_R(this))
 			AddEFlags(EFL.HasPlayerChild);
 		else
 			RemoveEFlags(EFL.HasPlayerChild);
 	}
-	public bool DoesHavePlayerChild(){
+	public bool DoesHavePlayerChild() {
 		return IsEFlagSet(EFL.HasPlayerChild);
 	}
-	public virtual void OnEntityEvent<T>(EntityEvent ev, T? data){
-		switch(ev){
+	public virtual void OnEntityEvent<T>(EntityEvent ev, T? data) {
+		switch (ev) {
 			case EntityEvent.WaterTouch:
 
 				break;
@@ -548,7 +548,7 @@ public partial class BaseEntity : IServerEntity
 		if (model != null && modelinfo.GetModelType(model) != ModelType.Brush)
 			Msg($"Setting CBaseEntity to non-brush model {modelName}\n");
 
-		// Util.SetModel(this, modelName); // TODO
+		Util.SetModel(this, modelName);
 	}
 
 	internal void SetAbsAngles(in QAngle absAngles) {
@@ -572,10 +572,10 @@ public partial class BaseEntity : IServerEntity
 
 		QAngle angNewRotation = default;
 		BaseEntity? moveParent = GetMoveParent();
-		if (moveParent == null) 
+		if (moveParent == null)
 			angNewRotation = absAngles;
 		else {
-			if (AbsRotation == moveParent.GetAbsAngles()) 
+			if (AbsRotation == moveParent.GetAbsAngles())
 				angNewRotation.Init();
 			else {
 				// Moveparent case: transform the abs transform into local space
@@ -601,7 +601,7 @@ public partial class BaseEntity : IServerEntity
 				Assert(false);
 				return;
 			case 0:
-				if (CheckEmitReasonablePhysicsSpew()) 
+				if (CheckEmitReasonablePhysicsSpew())
 					Warning($"Clamping SetLocalVelocity({velocity.X},{velocity.Y},{velocity.Z}) on {GetDebugName()}\n");
 				break;
 		}
@@ -669,66 +669,7 @@ public partial class BaseEntity : IServerEntity
 	public bool GetCheckUntouch() => IsEFlagSet(EFL.CheckUntouch);
 	public Handle<BasePlayer> PlayerSimulationOwner = new();
 
-	void PhysicsStep() { }
-	void PhysicsPusher() { }
-	void PhysicsNone() { }
-	void PhysicsRigidChild() { }
-	void PhysicsNoclip() { }
-	void PhysicsToss() { }
-	void PhysicsCustom() { }
-	void PerformPush(TimeUnit_t movetime) { }
 	void UpdateBaseVelocity() { }
-
-	void StepSimulationThink(TimeUnit_t dt) {
-		// CheckStepSimulationChanged();
-
-		// StepSimulationData? stepObject = (StepSimulationData?)GetDataObject(DataObjectType.StepSimulation);
-		// if (stepObject == null) {
-		// 	PhysicsStepRunTimestep(dt);
-		// 	PhysicsRunThink(ThinkMethods.FireBaseOnly);
-		// }
-		// else {
-		// 	StepSimulationData step = stepObject.Value; // fixme
-		// 	step.OriginActive = true;
-		// 	step.AnglesActive = true;
-
-		// 	step.LastProcessTickCount = -1;
-
-		// 	step.NetworkOrigin.Init();
-		// 	step.NetworkAngles.Init();
-
-		// 	step.Previous2 = step.Previous;
-
-		// 	step.Previous.TickCount = gpGlobals.TickCount;
-		// 	step.Previous.Origin = GetStepOrigin();
-		// 	QAngle stepAngles = GetStepAngles();
-		// 	MathLib.AngleQuaternion(stepAngles, out step.Previous.Rotation);
-
-		// 	PhysicsStepRunTimestep(dt);
-
-		// 	PhysicsRunThink(ThinkMethods.FireBaseOnly);
-
-		// 	if (GetBaseAnimating() != null)
-		// 		GetBaseAnimating()!.UpdateStepOrigin();
-
-		// 	step.Next.Origin = GetStepOrigin();
-		// 	stepAngles = GetStepAngles();
-		// 	MathLib.AngleQuaternion(stepAngles, out step.Next.Rotation);
-
-		// 	step.AngNextRotation = GetStepAngles();
-		// 	step.Next.TickCount = GetNextThinkTick();
-
-		// 	if (IsSimulatingOnAlternateTicks())
-		// 		++step.Next.TickCount;
-
-		// 	if (dt > 0) {
-		// 		Vector3 deltaOrigin = step.Next.Origin - step.Previous.Origin;
-		// 		float velSq = (float)(deltaOrigin.LengthSquared() / (dt * dt));
-		// 		if (velSq >= (4096.0f * 4096.0f) /*STEP_TELPORTATION_VEL_SQ*/)
-		// 			step.OriginActive = step.AnglesActive = false;
-		// 	}
-		// }
-	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsMarkedForDeletion() => (eflags & EFL.KillMe) != 0;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -1,5 +1,6 @@
 using CommunityToolkit.HighPerformance;
 
+using Source.Common.Bitbuffers;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
 
@@ -803,6 +804,9 @@ public class SendTable : IDataTableBase<SendProp>
 		return Props![index];
 	}
 
+	public bool GetWriteFlag() => HasBeenWritten;
+	public void SetWriteFlag(bool hasBeenWritten) => HasBeenWritten = hasBeenWritten;
+
 	public static void GenerateProxyPaths(SendTablePrecalc precalc, int proxyIndices) {
 		precalc.ProxyPaths.SetSize(proxyIndices);
 
@@ -853,6 +857,10 @@ public class SendTable : IDataTableBase<SendProp>
 
 	public void SetHasPropsEncodedAgainstTickcount(bool state) {
 		HasPropsEncodedAgainstCurrentTickCount = state;
+	}
+
+	public static void WriteInfos(SendTable table, ref bf_write dataOut) {
+		throw new NotImplementedException();
 	}
 }
 

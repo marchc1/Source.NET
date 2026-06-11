@@ -134,6 +134,7 @@ public class NET_SetConVar : NetMessage
 public class NET_StringCmd : NetMessage
 {
 	public NET_StringCmd() : base(NET.StringCmd) { }
+	public NET_StringCmd(string cmd) : base(NET.StringCmd) => Command = cmd;
 	public override NetChannelGroup GetGroup() => NetChannelGroup.StringCmd;
 
 	public string Command = "";
@@ -275,6 +276,17 @@ public class SVC_ServerInfo : NetMessage
 
 	public override string ToString() => $"SVC_ServerInfo: game \"{GameDirectory}\", map \"{MapName}\", max {MaxClients}";
 }
+
+public class SVC_SendTable : NetMessage
+{
+	public SVC_SendTable() : base(SVC.SendTable) { }
+	public override NetChannelGroup GetGroup() => NetChannelGroup.SignOn;
+	public bool NeedsDecoder;
+	public int Length;
+	public bf_read DataIn = new();
+	public bf_write DataOut = new();
+};
+
 public class SVC_ClassInfo : NetMessage
 {
 	public struct Class
@@ -643,6 +655,7 @@ public class SVC_GameEventList : NetMessage
 public class SVC_SetView : NetMessage
 {
 	public SVC_SetView() : base(SVC.SetView) { }
+	public SVC_SetView(int ent) : base(SVC.SetView) => EntityIndex = ent;
 
 	public int EntityIndex;
 

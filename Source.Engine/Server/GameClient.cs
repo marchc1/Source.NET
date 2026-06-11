@@ -398,7 +398,7 @@ public class GameClient : BaseClient
 
 		base.SpawnPlayer();
 
-		// SV.ServerGameClients!.ClientSpawned(Edict);
+		SV.ServerGameClients!.ClientSpawned(Edict);
 	}
 
 	protected override ClientFrame? GetDeltaFrame(int tick) {
@@ -551,5 +551,5 @@ public class GameClient : BaseClient
 		return PrevPackInfo;
 	}
 
-	// bool IgnoreTempEntity(EventInfo evnt) { }
+	public override bool IgnoreTempEntity(EventInfo evnt) { return false; } // todo
 }

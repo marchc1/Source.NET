@@ -109,7 +109,7 @@ public class ServerPlugin : IServerPluginHelpers
 		// throw new NotImplementedException();
 	}
 
-	void OnEdictFreed(Edict edict) {
+	public void OnEdictFreed(Edict edict) {
 		throw new NotImplementedException();
 	}
 

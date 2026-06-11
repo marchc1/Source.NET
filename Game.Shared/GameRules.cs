@@ -17,6 +17,7 @@ using Game.Shared;
 using System.Numerics;
 
 using Source.Common;
+using Source.Common.Engine;
 
 public class
 #if CLIENT_DLL
@@ -116,6 +117,8 @@ public abstract class
 		PlayerResource g_pPlayerResource = (PlayerResource)BaseEntity.Create("player_manager", vec3_origin, vec3_angle); // todo, should be global
 		g_pPlayerResource.AddEFlags(EFL.KeepOnRecreateEntities);
 	}
+
+	internal void ClientSpawned(Edict player) { }
 #endif
 }
 #endif

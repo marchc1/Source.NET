@@ -1,8 +1,11 @@
 using Source.Common;
 using Source;
+
 using Game.Shared;
+
 using System.Numerics;
 namespace Game.Server;
+
 using FIELD = FIELD<BreakableSurface>;
 public class BreakableSurface : BaseEntity
 {
@@ -15,7 +18,7 @@ public class BreakableSurface : BaseEntity
 		SendPropVector(FIELD.OF(nameof(VCorner)), 0, PropFlags.Coord),
 		SendPropInt(FIELD.OF(nameof(IsBroken)), 1, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(SurfaceType)), 2, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(RawPanelBitVec)), 1, PropFlags.ProxyAlwaysYes | PropFlags.Unsigned),
+		SendPropArray3(FIELD.OF_ARRAY(nameof(RawPanelBitVec)), SendPropInt((IFieldAccessor)null!, 1, PropFlags.ProxyAlwaysYes | PropFlags.Unsigned, sizeOfVar: sizeof(int))),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("BreakableSurface", DT_BreakableSurface).WithManualClassID(StaticClassIndices.CBreakableSurface);
 
@@ -27,5 +30,5 @@ public class BreakableSurface : BaseEntity
 	public Vector3 VCorner;
 	public int IsBroken;
 	public int SurfaceType;
-	public int RawPanelBitVec;
+	public InlineArray256<int> RawPanelBitVec;
 }

@@ -337,7 +337,7 @@ static class EntsWrite
 		return numDeletions;
 	}
 
-	static int WriteAllDeltaProps(SendTable table, byte[] fromData, int nFromBits, byte[] toData, int nToBits, int objectId, bf_write bufOut) {
+	internal static int WriteAllDeltaProps(SendTable table, byte[]? fromData, int nFromBits, byte[] toData, int nToBits, int objectId, bf_write bufOut) {
 		int[] deltaProps = new int[Constants.MAX_DATATABLE_PROPS];
 
 		int nDeltaProps = EngineSendTable.CalcDelta(table, fromData, nFromBits, toData, nToBits, deltaProps, deltaProps.Length, objectId);

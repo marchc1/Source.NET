@@ -175,4 +175,8 @@ public class DtCommonEng(Host Host, Sys Sys, IServerGameDLL serverGameDLL, IBase
 			};
 		}
 	}
+
+	internal static void ClearWriteFlags(ServerClass serverClasses) {
+		throw new NotImplementedException();
+	}
 }

@@ -19,7 +19,6 @@ using System.Numerics;
 
 #if CLIENT_DLL
 namespace Game.Client;
-
 #else
 namespace Game.Server;
 #endif
@@ -28,6 +27,7 @@ using Source.Common.Commands;
 using Source.Common.Physics;
 using Source;
 using Source.Common;
+using Source.Common.Formats.BSP;
 
 using System.Runtime.CompilerServices;
 
@@ -195,7 +195,7 @@ public partial class
 		BaseCombatWeapon? lastWeapon = GetActiveWeapon();
 
 		if (base.Weapon_Switch(weapon, viewmodelindex)) {
-			if (lastWeapon != null && Weapon_ShouldSetLast(lastWeapon, GetActiveWeapon())) 
+			if (lastWeapon != null && Weapon_ShouldSetLast(lastWeapon, GetActiveWeapon()))
 				Weapon_SetLast(lastWeapon.GetLastWeapon());
 
 			BaseViewModel? pViewModel = GetViewModel(viewmodelindex);
@@ -442,6 +442,39 @@ public partial class
 			return false;
 
 		return true;
+	}
+
+	private void UpdateUnderwaterState() {
+		if (GetWaterLevel() == Shared.WaterLevel.Eyes) {
+			if (IsPlayerUnderwater() == false)
+				SetPlayerUnderwater(true);
+			return;
+		}
+
+		if (IsPlayerUnderwater())
+			SetPlayerUnderwater(false);
+
+		if (GetWaterLevel() == 0) {
+			if ((GetFlags() & EntityFlags.InWater) != 0) {
+#if !CLIENT_DLL
+				if (Health > 0 && IsAlive())
+					EmitSound("Player.Wade");
+#endif
+				RemoveFlag(EntityFlags.InWater);
+			}
+		}
+		else if ((GetFlags() & EntityFlags.InWater) == 0) {
+#if !CLIENT_DLL
+			if (GetWaterType() == Contents.Water)
+				EmitSound("Player.Wade");
+#endif
+
+			AddFlag(EntityFlags.InWater);
+		}
+	}
+
+	public virtual void SetPlayerUnderwater(bool v) {
+		// throw new NotImplementedException();
 	}
 }
 #endif

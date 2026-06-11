@@ -10,6 +10,7 @@ using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Networking;
 using Source.Common.Server;
+using Source.Engine;
 using Source.GUI.Controls;
 
 using Steamworks;
@@ -45,6 +46,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		channel.RegisterMessage<CLC_ListenEvents>();
 		channel.RegisterMessage<CLC_GMod_ClientToServer>();
 	}
+	public virtual bool IgnoreTempEntity(EventInfo evnt) { return false; }
 	public virtual void ConnectionClosing(ReadOnlySpan<char> reason) { }
 	public virtual void ConnectionCrashed(ReadOnlySpan<char> reason) { }
 	public virtual void PacketStart(int incomingSequence, int outgoingAcknowledged) { }
@@ -698,6 +700,10 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 
 		int nStartBit = NetChannel.GetNumBitsWritten(msg.IsReliable() || forceReliable);
 		bool bret = NetChannel.SendNetMsg(msg, forceReliable);
+		if (Tracing != 0) {
+			int bits = NetChannel.GetNumBitsWritten(msg.IsReliable() || forceReliable) - nStartBit;
+			TraceNetworkMsg(bits, $"NetMessage {msg.GetName()}");
+		}
 		return bret;
 	}
 
@@ -938,6 +944,10 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	public ReadOnlySpan<char> GetUserSetting(ReadOnlySpan<char> cvar) {
+		throw new NotImplementedException();
+	}
+
+	public void SetUserCVar(ReadOnlySpan<char> cvar, ReadOnlySpan<char> value) {
 		throw new NotImplementedException();
 	}
 

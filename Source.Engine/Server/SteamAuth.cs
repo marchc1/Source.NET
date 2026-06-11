@@ -1,18 +1,12 @@
 ﻿#define USE_GS_AUTH_API
 global using static Source.Engine.Server.Steam3ServerAccessor;
 
-using SevenZip.Buffer;
-
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Networking;
 using Source.Common.Server;
 
 using Steamworks;
-
-using System;
-using System.Diagnostics;
-using System.Net;
 
 namespace Source.Engine.Server;
 
@@ -150,7 +144,6 @@ public class Steam3Server : IDisposable
 		return true;
 	}
 	Filter? _filter = null; Filter Filter => _filter ??= Singleton<Filter>();
-	SV? _SV = null; SV SV => _SV ??= Singleton<SV>();
 
 	void OnLogonSuccess(SteamServersConnected_t logonSuccess) {
 		if (!BIsActive())
@@ -234,7 +227,7 @@ public class Steam3Server : IDisposable
 			if (!cl.IsConnected() || cl.IsFakeClient())
 				continue;
 
-			if (cl.GetNetworkID().IDType != Source.Common.IDType.Steam)
+			if (cl.GetNetworkID().IDType != IDType.Steam)
 				continue;
 
 			USERID id = cl.GetNetworkID();
@@ -302,8 +295,53 @@ public class Steam3Server : IDisposable
 		return false;
 	}
 
-	private void OnValidateAuthTicketResponseHelper(BaseClient client, EAuthSessionResponse m_eAuthSessionResponse) {
-		throw new NotImplementedException();
+	private void OnValidateAuthTicketResponseHelper(BaseClient client, EAuthSessionResponse authSessionResponse) {
+		INetChannel netchan = client.GetNetChannel();
+
+		if (netchan != null && netchan.IsTimingOut()) {
+			client.Disconnect($"{client.GetClientName()} timed out");
+			return;
+		}
+
+		WarningAndLog("STEAMAUTH: Client {client.GetClientName()} received failure code {(int)authSessionResponse)\n");
+
+		switch (authSessionResponse) {
+			case EAuthSessionResponse.k_EAuthSessionResponseUserNotConnectedToSteam:
+				if (!BLanOnly())
+					client.Disconnect("Client not connected to Steam\n");
+				break;
+			case EAuthSessionResponse.k_EAuthSessionResponseLoggedInElseWhere:
+				if (!BLanOnly())
+					client.Disconnect("This Steam account is being used in another location\n");
+				break;
+			case EAuthSessionResponse.k_EAuthSessionResponseNoLicenseOrExpired:
+				client.Disconnect("This Steam account does not own this game. \nPlease login to the correct Steam account");
+				break;
+			case EAuthSessionResponse.k_EAuthSessionResponseVACBanned:
+				if (!BLanOnly())
+					client.Disconnect("VAC banned from secure server\n");
+				break;
+			case EAuthSessionResponse.k_EAuthSessionResponseAuthTicketCanceled:
+				if (!BLanOnly())
+					client.Disconnect("Client left game (Steam auth ticket has been canceled)\n");
+				break;
+			case EAuthSessionResponse.k_EAuthSessionResponseAuthTicketInvalidAlreadyUsed:
+			case EAuthSessionResponse.k_EAuthSessionResponseAuthTicketInvalid:
+				if (!BLanOnly())
+					client.Disconnect("Invalid STEAM UserID Ticket\n");
+				break;
+			case EAuthSessionResponse.k_EAuthSessionResponseVACCheckTimedOut:
+				client.Disconnect("An issue with your computer is blocking the VAC system. You cannot play on secure servers.\n\nhttps://support.steampowered.com/kb_article.php?ref=2117-ILZV-2837");
+				break;
+			default:
+				client.Disconnect("Client dropped by server");
+				break;
+		}
+	}
+
+	private static void WarningAndLog(ReadOnlySpan<char> v) {
+		Warning(v);
+		Log(v);
 	}
 
 	void OnP2PSessionRequest(P2PSessionRequest_t pCallback) {
@@ -385,8 +423,8 @@ public class Steam3Server : IDisposable
 			return false;
 
 		switch (id1.IDType) {
-			case Source.Common.IDType.Steam:
-			case Source.Common.IDType.Valve:
+			case IDType.Steam:
+			case IDType.Valve:
 				return (id1.SteamID == id2.SteamID);
 			default:
 				break;
@@ -395,12 +433,47 @@ public class Steam3Server : IDisposable
 		return false;
 	}
 
-	internal void NotifyClientDisconnect(BaseClient baseClient) {
-		// throw new NotImplementedException();
+	internal void NotifyClientDisconnect(BaseClient client) {
+		if (client == null || !BIsActive() || !client.IsConnected() || !client.SteamID.IsValid())
+			return;
+
+		// Check if the client has a local (anonymous) steam account.  This is the
+		// case for bots.  Currently it's also the case for people who connect
+		// directly to the SourceTV port.
+		if (client.SteamID.GetEAccountType() == EAccountType.k_EAccountTypeAnonGameServer) {
+			SteamGameServer.SendUserDisconnect_DEPRECATED(client.SteamID);
+
+			// Clear the steam ID, as it was a dummy one that should not be used again
+			client.SteamID = new CSteamID(new AccountID_t(0), EUniverse.k_EUniverseInvalid, EAccountType.k_EAccountTypeInvalid);
+		}
+		else {
+
+			// All bots should have an anonymous account ID
+			Assert(!client.IsFakeClient());
+
+			USERID id = client.GetNetworkID();
+			if (id.IDType != IDType.Steam)
+				return;
+
+			// Msg("S3: Sending client disconnect for %x\n", steamIDClient.ConvertToUint64( ) );
+			SteamGameServer.EndAuthSession(client.SteamID);
+		}
 	}
 
+	static double LastRunCallback;
 	public void RunFrame() {
+		bool hasPlayers = sv.GetNumClients() > 0;
 
+		if (HasActivePlayers != hasPlayers) {
+			HasActivePlayers = hasPlayers;
+			SendUpdatedServerDetails();
+		}
+
+		double CurTime = Platform.Time;
+		if (CurTime - LastRunCallback > 0.1f) {
+			LastRunCallback = CurTime;
+			// Steam3Server.RunCallbacks(); //todo?
+		}
 	}
 
 	internal CSteamID GetGSSteamID() {

@@ -353,4 +353,30 @@ public class Cbuf(IServiceProvider provider)
 		ExecutionMarkers.Add(randomNumber);
 		return randomNumber;
 	}
+
+	internal static bool EscapeCommandArg(ReadOnlySpan<char> s1, Span<char> s1Escaped) {
+		if (s1.IsEmpty)
+			return false;
+
+		foreach (var ch in s1) {
+			if (ch <= (char)31)
+				return false;
+
+			if (ch == '"')
+				return false;
+		}
+
+		if (s1Escaped.Length < s1.Length + 3)
+			return false;
+
+		s1Escaped[0] = '"';
+
+		for (int i = 0; i < s1.Length; i++)
+			s1Escaped[i + 1] = s1[i];
+
+		s1Escaped[s1.Length + 1] = '"';
+		s1Escaped[s1.Length + 2] = '\0';
+
+		return true;
+	}
 }
