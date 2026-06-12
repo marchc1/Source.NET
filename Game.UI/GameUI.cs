@@ -315,4 +315,8 @@ public class GameUI(IEngineClient engine) : IGameUI
 
 	public void PreventEngineHideGameUI() => engine.ExecuteClientCmd("gameui_preventescape");
 	public void AllowEngineHideGameUI() => engine.ExecuteClientCmd("gameui_allowescape");
+
+	internal VMode[] GetVideoModes() {
+		return []; // TODO
+	}
 }

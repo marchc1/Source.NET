@@ -91,6 +91,7 @@ public struct ShaderDeviceInfo
 	public int WindowedSizeLimitHeight;
 
 	public bool Windowed;
+	public bool Borderless;
 	public bool Resizing;
 	public bool UseStencil;
 	public bool LimitWindowedSize;

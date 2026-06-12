@@ -22,6 +22,7 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 
 	VMode mode = new();
 	bool Windowed;
+	bool Borderless;
 	bool ClientViewRectDirty = true;
 	int ModeWidth;
 	int ModeHeight;
@@ -68,11 +69,15 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 			ClientViewRectDirty = true;
 	}
 
-	public ref VMode DefaultVideoMode() => ref ModeList[-VIDEO_MODE_DEFAULT - 1];
-	public ref VMode RequestedWindowVideoMode() => ref mode;
+	public ref VMode DefaultVideoMode() => ref CustomModeList[-VIDEO_MODE_DEFAULT - 1];
+	public ref VMode RequestedWindowVideoMode() => ref CustomModeList[-VIDEO_MODE_REQUESTED_WINDOW_SIZE - 1];
 
-	public void ResetCurrentModeForNewResolution(int width, int height, bool windowed) {
-		ref VMode mode = ref RequestedWindowVideoMode();
+	public void ResetCurrentModeForNewResolution(int width, int height, bool windowed, bool borderless) {
+		int gameMode = FindVideoMode(width, height, windowed || borderless);
+		mode = GetMode(gameMode);
+
+		Windowed = windowed;
+		Borderless = borderless;
 		ModeWidth = mode.Width;
 		ModeHeight = mode.Height;
 		UIWidth = mode.Width;
@@ -82,6 +87,7 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 	}
 
 	public bool IsWindowedMode() => Windowed;
+	public bool IsBorderlessMode() => Borderless;
 	public int GetModeWidth() => ModeWidth;
 	public int GetModeHeight() => ModeHeight;
 	public int GetModeBPP() => ModeBPP;
@@ -126,7 +132,8 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 			return VIDEO_MODE_DEFAULT;
 
 		if (windowed) {
-			if (desiredWidth == mode.Width && desiredHeight == mode.Height)
+			ref VMode requested = ref RequestedWindowVideoMode();
+			if (desiredWidth == requested.Width && desiredHeight == requested.Height)
 				return VIDEO_MODE_REQUESTED_WINDOW_SIZE;
 		}
 
@@ -157,7 +164,7 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 		return i;
 	}
 
-	public void AdjustWindow(int width, int height, int bpp, bool windowed) {
+	public void AdjustWindow(int width, int height, int bpp, bool windowed, bool borderless) {
 		IGame game = services.GetRequiredService<IGame>();
 		ILauncherManager launcherMgr = services.GetRequiredService<ILauncherManager>();
 
@@ -175,27 +182,35 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 
 	public void MarkClientViewRectDirty() => ClientViewRectDirty = true;
 
-	public bool CreateGameWindow(int width, int height, bool windowed) {
+	public bool CreateGameWindow(int width, int height, bool windowed, bool borderless) {
 		if (width != 0 && height != 0 && windowed) {
 			ref VMode requested = ref RequestedWindowVideoMode();
 			requested.Width = width;
 			requested.Height = height;
 		}
 
-		if (true) { // InEditMode(), we aren't doing edit mode right now, so just true
-			ResetCurrentModeForNewResolution(width, height, windowed);
+		if (true) { // !InEditMode(), we aren't doing edit mode right now, so just true
+			ResetCurrentModeForNewResolution(width, height, windowed, borderless);
 
 			// Aggggghhh i hate this
 			services.GetRequiredService<IGraphicsProvider>().PrepareContext(services.GetRequiredService<MaterialSystem_Config>().Driver);
 			IGame game = services.GetRequiredService<IGame>();
-			if (!game.CreateGameWindow(width, height, windowed))
-				return false;
 
-			AdjustWindow(GetModeWidth(), GetModeHeight(), GetModeBPP(), IsWindowedMode());
-			if (!SetMode(GetModeWidth(), GetModeHeight(), IsWindowedMode()))
+			Common.TimestampedLog("CreateGameWindow - Start");
+			if (!game.CreateGameWindow(width, height, windowed, borderless))
 				return false;
+			Common.TimestampedLog("CreateGameWindow - Finish");
 
+			AdjustWindow(GetModeWidth(), GetModeHeight(), GetModeBPP(), IsWindowedMode(), IsBorderlessMode());
+
+			Common.TimestampedLog("SetMode - Start");
+			if (!SetMode(GetModeWidth(), GetModeHeight(), IsWindowedMode(), IsBorderlessMode()))
+				return false;
+			Common.TimestampedLog("SetMode - Finish");
+
+			Common.TimestampedLog("DrawStartupGraphic - Start");
 			DrawStartupGraphic();
+			Common.TimestampedLog("DrawStartupGraphic - Finish");
 		}
 
 		return true;
@@ -338,7 +353,7 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 		throw new NotImplementedException();
 	}
 
-	public virtual bool SetMode(int width, int height, bool windowed) => false;
+	public virtual bool SetMode(int width, int height, bool windowed, bool borderless) => false;
 
 	public void SetInitialized(bool initialized) => Initialized = initialized;
 	public bool GetInitialized() => Initialized;
@@ -415,8 +430,8 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 		return true;
 	}
 
-	public override bool SetMode(int width, int height, bool windowed) {
-		int foundMode = FindVideoMode(width, height, windowed);
+	public override bool SetMode(int width, int height, bool windowed, bool borderless) {
+		int foundMode = FindVideoMode(width, height, windowed || borderless);
 		VMode mode = GetMode(foundMode);
 
 		MaterialSystem_Config newConfig = new();
@@ -432,6 +447,7 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 #endif
 
 		newConfig.SetFlag(MaterialSystem_Config_Flags.Windowed, windowed);
+		newConfig.SetFlag(MaterialSystem_Config_Flags.NoWindowBorder, borderless);
 
 		if (!SetModeOnce) {
 			if (!materials.SetMode(game.GetMainDeviceWindow(), newConfig))
@@ -440,7 +456,6 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 			newConfig.CopyInstantiatedReferenceTo(config);
 			SetModeOnce = true;
 
-			InitStartupScreen();
 			return true;
 		}
 
@@ -456,8 +471,6 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 		}
 	}
 
-	private void InitStartupScreen() { }
-
 	void AdjustForModeChange() {
 		int oldUIWidth = GetModeUIWidth();
 		int oldUIHeight = GetModeUIHeight();
@@ -465,11 +478,12 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 		int newWidth = config.VideoMode.Width;
 		int newHeight = config.VideoMode.Height;
 		bool windowed = config.Windowed();
+		bool borderless = config.NoWindowBorder();
 
 		using MatRenderContextPtr renderContext = new(materials);
 
-		ResetCurrentModeForNewResolution(newWidth, newHeight, windowed);
-		AdjustWindow(GetModeWidth(), GetModeHeight(), GetModeBPP(), IsWindowedMode());
+		ResetCurrentModeForNewResolution(newWidth, newHeight, windowed, borderless);
+		AdjustWindow(GetModeWidth(), GetModeHeight(), GetModeBPP(), IsWindowedMode(), IsBorderlessMode());
 		MarkClientViewRectDirty();
 		renderContext.Viewport(0, 0, GetModeStereoWidth(), GetModeStereoHeight());
 

@@ -597,6 +597,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				LauncherManager.SetWindowFullScreen(false, info.DisplayMode.Width, info.DisplayMode.Height);
 			else
 				LauncherManager.SizeWindow(info.DisplayMode.Width, info.DisplayMode.Height);
+
+			LauncherManager.SetWindowBordered(!info.Borderless);
 		}
 
 		SetPresentParameters(in info);

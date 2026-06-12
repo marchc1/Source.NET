@@ -651,7 +651,7 @@ public class OptionsSubVideo : PropertyPage
 		Windowed = new(this, "DisplayModeCombo", 5, false);
 		Windowed.AddItem("#GameUI_Fullscreen", null);
 		Windowed.AddItem("#GameUI_Windowed", null);
-		// Windowed.AddItem("Borderless Window", null); // TODO: ugh
+		Windowed.AddItem("Borderless Window", null);
 
 		PrepareResolutionList();
 
@@ -683,7 +683,9 @@ public class OptionsSubVideo : PropertyPage
 
 		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 
-		bool windowed = Windowed.GetActiveItem() >= (Windowed.GetItemCount() - 1);
+		bool windowed = Windowed.GetActiveItem() == (Windowed.GetItemCount() - 2);
+		bool borderless = Windowed.GetActiveItem() == (Windowed.GetItemCount() - 1);
+
 		int desktopWidth = 4096, desktopHeight = 2160; // todo gameuifuncs.GetDesktopResolution
 
 		bool foundWidescreen = false;
@@ -692,7 +694,7 @@ public class OptionsSubVideo : PropertyPage
 			if (mode.Width == 0 || mode.Height == 0)
 				continue;
 
-			if (windowed) {
+			if (windowed || borderless) {
 				if (mode.Width > desktopWidth || mode.Height > desktopHeight)
 					continue;
 			}
@@ -726,10 +728,10 @@ public class OptionsSubVideo : PropertyPage
 			int width = config.VideoMode.Width;
 			int height = config.VideoMode.Height;
 
-			if ((width > desktopWidth) || (height > desktopHeight)) {
-				width = desktopWidth;
-				height = desktopHeight;
-			}
+			// if ((width > desktopWidth) || (height > desktopHeight)) {
+			// 	width = desktopWidth;
+			// 	height = desktopHeight;
+			// }
 
 			sprintf(sz, "%i x %i").I(width).I(height);
 			Mode.SetText(sz);
@@ -749,7 +751,13 @@ public class OptionsSubVideo : PropertyPage
 
 		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 
-		Windowed.ActivateItem(config.Windowed() ? 1 : 0);
+		if (config.Windowed())
+			Windowed.ActivateItem(Windowed.GetItemCount() - 2);
+		else if (config.NoWindowBorder())
+			Windowed.ActivateItem(Windowed.GetItemCount() - 1);
+		else
+			Windowed.ActivateItem(0);
+
 		GammaButton.SetEnabled(!config.Windowed());
 		HDContent.SetSelected(BUseHDContent());
 
@@ -788,18 +796,19 @@ public class OptionsSubVideo : PropertyPage
 		new ScanF(sz, "%i x %i").Read(out int width).Read(out int height);
 
 		bool configChanged = false;
-		bool windowed = Windowed.GetActiveItem() == (Windowed.GetItemCount() - 1);
+		bool windowed = Windowed.GetActiveItem() == (Windowed.GetItemCount() - 2);
+		bool borderless = Windowed.GetActiveItem() == (Windowed.GetItemCount() - 1);
 		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 
 		bool vrMode = VRMode.GetActiveItem() != 0;
 		// todo vr mode
 
-		if (config.VideoMode.Width != width || config.VideoMode.Height != height || config.Windowed() != windowed)
+		if (config.VideoMode.Width != width || config.VideoMode.Height != height || config.Windowed() != windowed || config.NoWindowBorder() != borderless)
 			configChanged = true;
 
 		if (configChanged) {
 			Span<char> cmd = stackalloc char[256];
-			sprintf(cmd, "mat_setvideomode %i %i %i\n").I(width).I(height).I(windowed ? 1 : 0);
+			sprintf(cmd, "mat_setvideomode %i %i %i %i\n").I(width).I(height).I((windowed || borderless) ? 1 : 0).I(borderless ? 1 : 0);
 			engine.ClientCmd_Unrestricted(cmd);
 		}
 

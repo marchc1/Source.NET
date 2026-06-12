@@ -257,6 +257,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 				config.AASamples != Config.AASamples ||
 				config.AAQuality != Config.AAQuality ||
 				config.Windowed() != Config.Windowed() ||
+				config.NoWindowBorder() != Config.NoWindowBorder() ||
 				config.Stencil() != Config.Stencil())
 			videoModeChange = true;
 
@@ -385,14 +386,15 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 #if !SWDS
 	[ConCommand("mat_setvideomode", "sets the width, height, windowed state of the material system")]
 	static void mat_setvideomode(in TokenizedCommand args) {
-		if (args.ArgC() != 4)
+		if (args.ArgC() < 4 || args.ArgC() > 5)
 			return;
 
 		int width = args.Arg(1, 0);
 		int height = args.Arg(2, 0);
-		int windowed = args.Arg(3, 0);
+		bool windowed = args.Arg(3, 0) > 0;
+		bool borderless = args.ArgC() == 5 && args.Arg(4, 0) > 0;
 
-		Singleton<IVideoMode>().SetMode(width, height, windowed != 0);
+		Singleton<IVideoMode>().SetMode(width, height, windowed, borderless);
 	}
 #endif
 
@@ -508,6 +510,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 
 		Config.VideoMode = config.VideoMode;
 		Config.SetFlag(MaterialSystem_Config_Flags.Windowed, config.Windowed());
+		Config.SetFlag(MaterialSystem_Config_Flags.NoWindowBorder, config.NoWindowBorder());
 		Config.SetFlag(MaterialSystem_Config_Flags.Stencil, config.Stencil());
 		// WriteConfigIntoConVars(config); todo
 
@@ -536,6 +539,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		mode.WindowedSizeLimitHeight = (int)config.WindowedSizeLimitHeight;
 
 		mode.Windowed = config.Windowed();
+		mode.Borderless = config.NoWindowBorder();
 		mode.Resizing = config.Resizing();
 		mode.UseStencil = config.Stencil();
 		mode.LimitWindowedSize = config.LimitWindowedSize();

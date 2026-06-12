@@ -26,10 +26,11 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 		int height = commandLine.ParmValue("-height", 900);
 		height = commandLine.ParmValue("-h", height);
 		bool windowed = true;
+		bool borderless = false; // TODO
 
 		videomode.Init();
 
-		return videomode.CreateGameWindow(width, height, windowed);
+		return videomode.CreateGameWindow(width, height, windowed, borderless);
 	}
 
 	public IMod.Result Run() {

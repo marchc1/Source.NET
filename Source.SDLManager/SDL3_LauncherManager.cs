@@ -96,22 +96,25 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 		window = null!;
 	}
 	SDL3_Window window;
-	public unsafe bool CreateGameWindow(string title, bool windowed, int width, int height) {
+	public bool CreateGameWindow(string title, bool windowed, bool borderless, int width, int height) {
 		IMaterialSystem materials = services.GetRequiredService<IMaterialSystem>();
-		SDL_WindowFlags flags = 0;
-		flags |= SDL_WindowFlags.SDL_WINDOW_OPENGL;
+
+		SDL_WindowFlags flags = SDL_WindowFlags.SDL_WINDOW_OPENGL;
+		if (!windowed) flags |= SDL_WindowFlags.SDL_WINDOW_FULLSCREEN;
+		if (borderless) flags |= SDL_WindowFlags.SDL_WINDOW_BORDERLESS;
+
 		window = new SDL3_Window(services).Create(title, width, height, flags);
 
 		return true;
 	}
 
 	[UnmanagedCallersOnly(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
-	unsafe static void* GL_ProcAddress(byte* proc) {
+	static void* GL_ProcAddress(byte* proc) {
 		return (void*)SDL3.SDL_GL_GetProcAddress(proc);
 	}
 
 	public void DestroyGameWindow() {
-
+		SDL3.SDL_DestroyWindow(window.HardwareHandle);
 	}
 
 	public void DisplayedSize(out int width, out int height) {
@@ -161,8 +164,9 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 	}
 
 	public void MoveWindow(int x, int y) {
-
+		SDL3.SDL_SetWindowPosition(window.HardwareHandle, x, y);
 	}
+
 	int renderedWidth, renderedHeight;
 	public void RenderedSize(bool set, ref int width, ref int height) {
 		if (set) {
@@ -182,6 +186,10 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 	public void SetWindowFullScreen(bool fullscreen, int width, int height) {
 		SDL3.SDL_SetWindowFullscreen(window.HardwareHandle, fullscreen);
 		SizeWindow(width, height);
+	}
+
+	public void SetWindowBordered(bool bordered) {
+		SDL3.SDL_SetWindowBordered(window.HardwareHandle, bordered);
 	}
 
 	public void SizeWindow(int width, int tall) => SDL3.SDL_SetWindowSize(window.HardwareHandle, width, tall);
@@ -276,7 +284,7 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 	}
 
 	public IGraphicsContext? CreateContext(in ShaderDeviceInfo deviceInfo, IWindow? window = null) {
-		IGraphicsContext? gfx = null;
+		IGraphicsContext? gfx;
 
 		window = window == null ? this.window : window;
 		if (0 != (deviceInfo.Driver & GraphicsDriver.OpenGL)) {
@@ -345,7 +353,7 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 		SDL3.SDL_SetWindowRelativeMouseMode(window.HardwareHandle, cursorLocked);
 	}
 
-	public void FlashWindow(bool state){
+	public void FlashWindow(bool state) {
 		SDL3.SDL_FlashWindow(window.HardwareHandle, state ? SDL_FlashOperation.SDL_FLASH_UNTIL_FOCUSED : SDL_FlashOperation.SDL_FLASH_CANCEL);
 	}
 }

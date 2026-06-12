@@ -10,8 +10,8 @@ public interface IVideoMode
 {
 	bool Init();
 	void DrawStartupGraphic();
-	bool CreateGameWindow(int width, int height, bool windowed);
+	bool CreateGameWindow(int width, int height, bool windowed, bool borderless);
 	void SetGameWindow(nint window);
-	bool SetMode(int width, int height, bool windowed);
+	bool SetMode(int width, int height, bool windowed, bool borderless);
 	ViewRects GetClientViewRect();
 }
