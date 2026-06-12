@@ -829,7 +829,7 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, TimeUnit_t currentTime) {
 		return true;
 	}
-	public virtual void SetupWeights(Matrix3x4 boneToWorldOut, Span<float> flexWeights, TimeUnit_t currentTime) {
+	public virtual void SetupWeights(Span<Matrix3x4> boneToWorldOut, Span<float> flexWeights, Span<float> flexDelayedWeights) {
 
 	}
 	public virtual void DoAnimationEvents() {
@@ -2652,6 +2652,114 @@ public partial class C_BaseEntity : IClientEntity
 		ComputePackedSize_R(map);
 		Assert(map.PackedOffsetsComputed);
 	}
+
+	ClientShadowHandle_t ShadowHandle = 0;
+
+	public bool UsesPowerOfTwoFrameBufferTexture() => false;
+	public bool UsesFullFrameBufferTexture() => false;
+
+	public virtual ClientShadowHandle_t GetShadowHandle() => ShadowHandle;
+
+	public virtual int GetBody() => 0;
+
+	public virtual bool LODTest() => true;
+
+	public virtual void GetShadowRenderBounds(out Vector3 mins, out Vector3 maxs, ShadowType shadowType) {
+		EntClientFlags |= EntClientFlags.GettingShadowRenderBounds;
+		GetRenderBounds(out mins, out maxs);
+		EntClientFlags &= ~EntClientFlags.GettingShadowRenderBounds;
+	}
+
+	public Color GetRenderColor() => new(255, 255, 255, 255);
+	public RenderMode GetRenderMode() => (RenderMode)RenderMode;
+
+	public bool ShouldReceiveProjectedTextures(ShadowFlags flags) {
+		if (IsEffectActive(EntityEffects.NoDraw))
+			return false;
+
+		if ((flags & ShadowFlags.Flashlight) != 0) {
+			if (GetRenderMode() > Source.RenderMode.Normal && GetRenderColor().A == 0)
+				return false;
+
+			return true;
+		}
+
+		Assert((flags & ShadowFlags.Shadow) != 0);
+
+		if (IsEffectActive(EntityEffects.NoReceiveShadow))
+			return false;
+
+		if (modelinfo.GetModelType(Model) == ModelType.Studio)
+			return false;
+
+		return true;
+	}
+
+	public bool GetShadowCastDistance(out float dist, ShadowType shadowType) {
+		if (ShadowCastDistance != 0.0f) {
+			dist = ShadowCastDistance;
+			return true;
+		}
+		dist = default;
+		return false;
+	}
+
+	EHANDLE ShadowDirUseOtherEntity = default;
+
+	public bool GetShadowCastDirection(out Vector3 direction, ShadowType shadowType) {
+		if (ShadowDirUseOtherEntity.Get() != null)
+			return ShadowDirUseOtherEntity.Get()!.GetShadowCastDirection(out direction, shadowType);
+		direction = default;
+		return false;
+	}
+
+	public bool IsShadowDirty() => IsEFlagSet(EFL.DirtyShadowUpdate);
+	public void MarkShadowDirty(bool bDirty) {
+		if (bDirty)
+			AddEFlags(EFL.DirtyShadowUpdate);
+		else
+			RemoveEFlags(EFL.DirtyShadowUpdate);
+	}
+
+	public IClientRenderable? GetShadowParent() {
+		C_BaseEntity? parent = GetMoveParent();
+		return parent?.GetClientRenderable();
+	}
+
+	public IClientRenderable? FirstShadowChild() {
+		C_BaseEntity? parent = FirstMoveChild();
+		return parent?.GetClientRenderable();
+	}
+
+	public IClientRenderable? NextShadowPeer() {
+		C_BaseEntity? parent = NextMovePeer();
+		return parent?.GetClientRenderable();
+	}
+
+	public ShadowType ShadowCastType() {
+		if (IsEffectActive(EntityEffects.NoDraw | EntityEffects.NoShadow))
+			return ShadowType.None;
+
+		ModelType modelType = modelinfo.GetModelType(Model);
+		return (modelType == ModelType.Studio) ? ShadowType.RenderToTexture : ShadowType.None;
+	}
+
+	public virtual ref readonly Matrix3x4 RenderableToWorldTransform() => ref EntityToWorldTransform();
+
+	public virtual int LookupAttachment(ReadOnlySpan<char> attachmentName) => -1;
+
+	public Span<float> GetRenderClipPlane() {
+		// todo
+		return null;
+	}
+
+	public virtual int GetSkin() => 0;
+	public virtual void OnThreadedDrawSetup() { }
+
+	public virtual bool UsesFlexDelayedWeights() => false;
+
+	public void RecordToolMessage() { }
+	public bool IgnoresZBuffer() => RenderMode == (byte)Source.RenderMode.Glow || RenderMode == (byte)Source.RenderMode.WorldGlow;
 }
 
 public class VarMapEntry

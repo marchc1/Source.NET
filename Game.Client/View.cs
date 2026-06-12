@@ -220,6 +220,9 @@ public class ViewRender : IViewRender
 		ViewRender.g_VecPrevRenderAngles = ViewRender.g_VecRenderAngles;
 		ViewRender.g_VecRenderOrigin = viewEye.Origin;
 		ViewRender.g_VecRenderAngles = viewEye.Angles;
+
+		ComputeCameraVariables(ViewRender.g_VecRenderOrigin, ViewRender.g_VecRenderAngles,
+			out ViewRender.g_VecVForward, out ViewRender.g_VecVRight, out ViewRender.g_VecVUp, ref ViewRender.g_MatCamInverse);
 	}
 
 	public void QueueOverlayRenderView(in ViewSetup view, ClearFlags clearFlags, DrawFlags whatToDraw) {

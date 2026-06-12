@@ -19,10 +19,6 @@ public enum InPVS : byte
 	NeedsNotify = 0x0004
 }
 
-public interface IPVSNotify {
-	void OnPVSStatusChanged(bool inPVS);
-}
-
 public interface IClientNetworkable {
 	IClientUnknown GetIClientUnknown();
 	void Release();

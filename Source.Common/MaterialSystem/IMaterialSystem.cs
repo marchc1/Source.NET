@@ -123,6 +123,77 @@ public struct MaterialVideoMode
 	public int RefreshRate;      // 0 == default (ignored for windowed mode)
 }
 
+// fixme: should move this into something else.
+public struct FlashlightState
+{
+	public FlashlightState() {
+		LightOrigin = new();
+		Orientation = new();
+		NearZ = 0.0F;
+		FarZ = 0.0F;
+		HorizontalFOVDegrees = 0.0F;
+		VerticalFOVDegrees = 0.0F;
+		QuadraticAtten = 0.0F;
+		LinearAtten = 0.0F;
+		ConstantAtten = 0.0F;
+		Color = new();
+		SpotlightTexture = null;
+		SpotlightTextureFrame = -1;
+		EnableShadows = false;                       // Provide reasonable defaults for shadow depth mapping parameters
+		DrawShadowFrustum = false;
+		ShadowMapResolution = 1024.0f;
+		ShadowFilterSize = 3.0f;
+		ShadowSlopeScaleDepthBias = 16.0f;
+		ShadowDepthBias = 0.0005f;
+		ShadowJitterSeed = 0.0f;
+		ShadowAtten = 0.0f;
+		ShadowQuality = 0;
+		Scissor = false;
+		Left = -1;
+		Top = -1;
+		Right = -1;
+		Bottom = -1;
+	}
+
+	public Vector3 LightOrigin;
+	public Quaternion Orientation;
+	public float NearZ;
+	public float FarZ;
+	public float HorizontalFOVDegrees;
+	public float VerticalFOVDegrees;
+	public float QuadraticAtten;
+	public float LinearAtten;
+	public float ConstantAtten;
+	public InlineArray4<float> Color;
+	public ITexture? SpotlightTexture;
+	public int SpotlightTextureFrame;
+
+	// Shadow depth mapping parameters
+	public bool EnableShadows;
+	public bool DrawShadowFrustum;
+	public float ShadowMapResolution;
+	public float ShadowFilterSize;
+	public float ShadowSlopeScaleDepthBias;
+	public float ShadowDepthBias;
+	public float ShadowJitterSeed;
+	public float ShadowAtten;
+	public int ShadowQuality;
+
+	// Getters for scissor members
+	public bool DoScissor() => Scissor;
+	public int GetLeft() => Left;
+	public int GetTop() => Top;
+	public int GetRight() => Right;
+	public int GetBottom() => Bottom;
+
+
+	bool Scissor;
+	int Left;
+	int Top;
+	int Right;
+	int Bottom;
+}
+
 public enum CreateRenderTargetFlags
 {
 	HDR = 0x00000001,

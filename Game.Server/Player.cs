@@ -407,6 +407,13 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		Local.Ducked = false;
 		Local.Ducking = false;
+		Local.DuckSpeed = 0.4f;                // TIME_TO_DUCK (non-TF default, shareddefs.h)
+		Local.UnDuckSpeed = 0.2f;              // TIME_TO_UNDUCK
+		Local.SprintSpeed = 320.0f;            // HL2_SPRINT_SPEED
+		Local.WalkSpeed = 150.0f;              // HL2_WALK_SPEED
+		Local.SlowWalkSpeed = 75.0f;
+		Local.LadderSpeed = 150.0f;
+		Local.CrouchedWalkSpeed = 0.33333333f; // matches duck-speed-crop fraction used in GameMovement.cs
 		SetViewOffset(VEC_VIEW_SCALED(this));
 		Precache();
 
