@@ -1579,7 +1579,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public int Skin;
 	public int Body;
 	public int HitboxSet;
-	public float ModelScale;
+	public float ModelScale = 1.0f;
 	public float PlaybackRate;
 	public bool ClientSideAnimation;
 	public bool LastClientSideFrameReset;

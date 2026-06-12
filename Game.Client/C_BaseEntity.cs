@@ -561,7 +561,7 @@ public partial class C_BaseEntity : IClientEntity
 		((C_BaseEntity)instance).SetMoveType((MoveType)data.Value.Int);
 	}
 
-	public void SetCollisionBounds(in Vector3 mins, in Vector3 maxs) { } // todo: => CollisionProp().SetCollisionBounds(in mins, in maxs);
+	public void SetCollisionBounds(in Vector3 mins, in Vector3 maxs) => CollisionProp().SetCollisionBounds(in mins, in maxs);
 
 	public static readonly ClientClass ClientClass = new ClientClass("BaseEntity", null, null, DT_BaseEntity)
 																		.WithManualClassID(StaticClassIndices.CBaseEntity);
@@ -1840,7 +1840,7 @@ public partial class C_BaseEntity : IClientEntity
 
 
 
-	int flags;
+	protected int flags;
 	EFL eflags = EFL.DirtyAbsTransform; // << TODO: FIGURE OUT WHAT ACTUALLY INITIALIZES THIS.
 	public Matrix3x4 CoordinateFrame;
 
@@ -2651,6 +2651,88 @@ public partial class C_BaseEntity : IClientEntity
 
 		ComputePackedSize_R(map);
 		Assert(map.PackedOffsetsComputed);
+	}
+
+	public void DumpPackedOffsets(DataMap? map) {
+		if (map == null) {
+			Assert(false);
+			return;
+		}
+
+		ComputePackedSize_R(map);
+
+		List<(string ClassName, string FieldName, nuint AbsoluteOffset, int ByteSize)> entries = [];
+		CollectPackedOffsets_R(map, 0, entries);
+
+		entries.Sort((a, b) => a.AbsoluteOffset.CompareTo(b.AbsoluteOffset));
+
+		Msg($"PackedOffset dump for {map.DataClassName} ({entries.Count} fields)\n");
+		foreach (var entry in entries)
+			Msg($"  [{entry.AbsoluteOffset,5}, {entry.AbsoluteOffset + (nuint)entry.ByteSize,5}) {entry.ClassName}::{entry.FieldName}\n");
+
+		for (int i = 0; i < entries.Count - 1; i++) {
+			nuint end = entries[i].AbsoluteOffset + (nuint)entries[i].ByteSize;
+			if (end > entries[i + 1].AbsoluteOffset)
+				Warning($"PackedOffset OVERLAP: {entries[i].ClassName}::{entries[i].FieldName} [{entries[i].AbsoluteOffset}, {end}) overlaps {entries[i + 1].ClassName}::{entries[i + 1].FieldName} starting at {entries[i + 1].AbsoluteOffset}\n");
+		}
+	}
+
+	void CollectPackedOffsets_R(DataMap? map, nuint baseOffset, List<(string ClassName, string FieldName, nuint AbsoluteOffset, int ByteSize)> entries) {
+		if (map == null)
+			return;
+
+		if (map.BaseMap != null)
+			CollectPackedOffsets_R(map.BaseMap, baseOffset, entries);
+
+		int c = map.DataNumFields;
+		for (int i = 0; i < c; i++) {
+			TypeDescription field = map.DataDesc[i];
+
+			// Always descend into embedded types...
+			if (field.FieldType != FieldType.Embedded)
+				// Skip all private fields
+				if ((field.Flags & FieldTypeDescFlags.Private) != 0)
+					continue;
+
+			nuint absoluteOffset = baseOffset + field.PackedOffset;
+
+			if (field.FieldType == FieldType.Embedded) {
+				CollectPackedOffsets_R(field.TD, absoluteOffset, entries);
+				continue;
+			}
+
+			int sizeOfField;
+			switch (field.FieldType) {
+				default:
+				case FieldType.ModelIndex:
+				case FieldType.ModelName:
+				case FieldType.SoundName:
+				case FieldType.Time:
+				case FieldType.Tick:
+				case FieldType.Custom:
+				case FieldType.ClassPtr:
+				case FieldType.EDict:
+				case FieldType.PositionVector:
+				case FieldType.Function:
+					sizeOfField = 0;
+					break;
+				case FieldType.Float: sizeOfField = sizeof(float); break;
+				case FieldType.Double: sizeOfField = sizeof(double); break;
+				case FieldType.Vector: sizeOfField = (int)Unsafe.SizeOf<Vector3>(); break;
+				case FieldType.Quaternion: sizeOfField = (int)Unsafe.SizeOf<Quaternion>(); break;
+				case FieldType.Integer: sizeOfField = sizeof(int); break;
+				case FieldType.EHandle: sizeOfField = (int)Unsafe.SizeOf<EHANDLE>(); break;
+				case FieldType.Short: sizeOfField = sizeof(short); break;
+				case FieldType.String: sizeOfField = (int)Unsafe.SizeOf<GCHandle>(); break;
+				case FieldType.Color32: sizeOfField = (int)Unsafe.SizeOf<Color>(); break;
+				case FieldType.Boolean: sizeOfField = sizeof(bool); break;
+				case FieldType.Character: sizeOfField = sizeof(sbyte); break;
+				case FieldType.StringCharacter: sizeOfField = sizeof(char); break;
+				case FieldType.Void: sizeOfField = 0; break;
+			}
+
+			entries.Add((map.DataClassName, field.FieldName, absoluteOffset, sizeOfField * field.FieldSize));
+		}
 	}
 
 	ClientShadowHandle_t ShadowHandle = 0;

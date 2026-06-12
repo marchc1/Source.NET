@@ -60,7 +60,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		SendPropInt(FIELD.OF(nameof(LifeState)), 3, PropFlags.Unsigned ),
 		SendPropEHandle(FIELD.OF(nameof(ColorCorrectionCtrl))), // << gmod specific
 		SendPropFloat(FIELD.OF(nameof(Maxspeed)), 12, PropFlags.RoundDown, 0.0f, 2048.0f ),
-		SendPropInt(FIELD.OF(nameof(Flags)), Constants.PLAYER_FLAG_BITS, PropFlags.Unsigned|PropFlags.ChangesOften, SendProxy_CropFlagsToPlayerFlagBitsLength),
+		SendPropInt(FIELD.OF("flags"), Constants.PLAYER_FLAG_BITS, PropFlags.Unsigned|PropFlags.ChangesOften, SendProxy_CropFlagsToPlayerFlagBitsLength),
 		SendPropInt(FIELD.OF(nameof(ObserverMode)), 3, PropFlags.Unsigned),
 		SendPropEHandle(FIELD.OF(nameof(ObserverTarget))),
 		SendPropFloat(FIELD.OF(nameof(FOV)), 16, PropFlags.Unsigned, 0, 65536),
@@ -231,7 +231,6 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	bool DisableWorldClicking;
 	float Maxspeed;
-	int Flags;
 	int ObserverMode;
 	int FOV;
 	public int TickBase;
@@ -407,13 +406,13 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		Local.Ducked = false;
 		Local.Ducking = false;
-		Local.DuckSpeed = 0.4f;                // TIME_TO_DUCK (non-TF default, shareddefs.h)
-		Local.UnDuckSpeed = 0.2f;              // TIME_TO_UNDUCK
-		Local.SprintSpeed = 320.0f;            // HL2_SPRINT_SPEED
-		Local.WalkSpeed = 150.0f;              // HL2_WALK_SPEED
-		Local.SlowWalkSpeed = 75.0f;
+		Local.DuckSpeed = 0.1f;                // GMod player_sandbox.DuckSpeed
+		Local.UnDuckSpeed = 0.1f;              // GMod player_sandbox.UnDuckSpeed
+		Local.SprintSpeed = 400.0f;            // GMod player_sandbox.RunSpeed
+		Local.WalkSpeed = 200.0f;              // GMod player_sandbox.WalkSpeed (default move speed)
+		Local.SlowWalkSpeed = 100.0f;          // GMod player_sandbox.SlowWalkSpeed (+walk)
 		Local.LadderSpeed = 150.0f;
-		Local.CrouchedWalkSpeed = 0.33333333f; // matches duck-speed-crop fraction used in GameMovement.cs
+		Local.CrouchedWalkSpeed = 0.3f;        // GMod player_default.CrouchedWalkSpeed
 		SetViewOffset(VEC_VIEW_SCALED(this));
 		Precache();
 
@@ -855,10 +854,10 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		if (!g_fGameOver /*&& !PlayerLocked*/) {
 			if (IsAlive()) {
-				// if ((GetFlags() & EntityFlags.Ducking) != 0)
-				// 	SetCollisionBounds(VEC_DUCK_HULL_MIN, VEC_DUCK_HULL_MAX);
-				// else
-				// 	SetCollisionBounds(VEC_HULL_MIN, VEC_HULL_MAX);
+				if ((GetFlags() & EntityFlags.Ducking) != 0)
+					SetCollisionBounds(VEC_DUCK_HULL_MIN, VEC_DUCK_HULL_MAX);
+				else
+					SetCollisionBounds(VEC_HULL_MIN, VEC_HULL_MAX);
 
 				// if (UseEntity != null) {
 				// 	if (UseEntity.OnControls(this) && (!GetActiveWeapon() || GetActiveWeapon()->IsEffectActive(EF_NODRAW) || (GetActiveWeapon()->GetActivity() == ACT_VM_HOLSTER)))

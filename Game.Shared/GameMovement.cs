@@ -2553,7 +2553,7 @@ public class GameMovement : IGameMovement
 	}
 	protected virtual void HandleDuckingSpeedCrop() {
 		if ((SpeedCropped & SpeedCropped.Duck) == 0 && (Player.GetFlags() & EntityFlags.Ducking) != 0 && (Player.GetGroundEntity() != null)) {
-			float frac = 0.33333333f;
+			float frac = Player.Local.CrouchedWalkSpeed;
 			mv.ForwardMove *= frac;
 			mv.SideMove *= frac;
 			mv.UpMove *= frac;

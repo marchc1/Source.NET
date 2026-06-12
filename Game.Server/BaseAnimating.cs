@@ -79,7 +79,7 @@ public class BaseAnimating : BaseEntity
 	public int Body;
 	public int HitboxSet;
 
-	public float ModelScale;
+	public float ModelScale = 1.0f;
 	public InlineArrayMaxStudioPoseParam<float> PoseParameter;
 	public InlineArrayMaxStudioPoseParam<float> OldPoseParameters;
 	public float PrevEventCycle;

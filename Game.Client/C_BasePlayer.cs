@@ -278,7 +278,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		RecvPropInt(FIELD.OF(nameof(LifeState))),
 		RecvPropEHandle(FIELD.OF(nameof(ColorCorrectionCtrl))), // << gmod specific
 		RecvPropFloat(FIELD.OF(nameof(Maxspeed))),
-		RecvPropInt(FIELD.OF(nameof(Flags))),
+		RecvPropInt(FIELD.OF("flags")),
 		RecvPropInt(FIELD.OF(nameof(ObserverMode))),
 		RecvPropEHandle(FIELD.OF(nameof(ObserverTarget))),
 		RecvPropFloat(FIELD.OF(nameof(FOV))),
@@ -430,7 +430,6 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public float Maxspeed;
 	int BonusProgress;
 	int BonusChallenge;
-	public int Flags;
 	public int ObserverMode;
 	public int FOV;
 	public int FOVStart;

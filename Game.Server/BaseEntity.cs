@@ -407,6 +407,7 @@ public partial class BaseEntity : IServerEntity
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsSolid() => CollisionProp().IsSolid();
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSolid(SolidType val) => CollisionProp().SetSolid(val);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public SolidType GetSolid() => CollisionProp().GetSolid();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetCollisionBounds(in Vector3 mins, in Vector3 maxs) => CollisionProp().SetCollisionBounds(in mins, in maxs);
 
 
 	public Team? GetTeam() => GetGlobalTeam(TeamNum);
@@ -762,7 +763,7 @@ public partial class BaseEntity : IServerEntity
 	BaseHandle RefEHandle;
 	public void SetRefEHandle(in BaseHandle handle) => RefEHandle = handle;
 
-	int flags;
+	protected int flags;
 	EFL eflags;
 	public Matrix3x4 CoordinateFrame;
 

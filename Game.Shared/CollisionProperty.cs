@@ -193,13 +193,13 @@ public class CollisionProperty : ICollideable
 	private static void RecvProxy_OBBMinsPreScaled(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
 		CollisionProperty prop = (CollisionProperty)instance;
 		Vector3 vecMins = data.Value.Vector;
-		// prop.SetCollisionBounds(vecMins, prop.OBBMaxsPreScaled());
+		prop.SetCollisionBounds(vecMins, prop.OBBMaxsPreScaled());
 	}
 
 	private static void RecvProxy_OBBMaxPreScaled(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
 		CollisionProperty prop = (CollisionProperty)instance;
 		Vector3 vecMaxs = data.Value.Vector;
-		// prop.SetCollisionBounds(prop.OBBMinsPreScaled(), vecMaxs);
+		prop.SetCollisionBounds(prop.OBBMinsPreScaled(), vecMaxs);
 	}
 
 	private static void RecvProxy_IntDirtySurround(ref readonly RecvProxyData data, object instance, IFieldAccessor field) {
@@ -251,20 +251,45 @@ public class CollisionProperty : ICollideable
 
 	public IHandleEntity? GetEntityHandle() => Outer;
 
-	public ref readonly Vector3 OBBMinsPreScaled() {
-		throw new NotImplementedException();
-	}
+	public ref readonly Vector3 OBBMinsPreScaled() => ref MinsPreScaled;
 
-	public ref readonly Vector3 OBBMaxsPreScaled() {
-		throw new NotImplementedException();
-	}
+	public ref readonly Vector3 OBBMaxsPreScaled() => ref MaxsPreScaled;
 
-	public ref readonly Vector3 OBBMins() {
-		throw new NotImplementedException();
-	}
+	public ref readonly Vector3 OBBMins() => ref Mins;
 
-	public ref readonly Vector3 OBBMaxs() {
-		throw new NotImplementedException();
+	public ref readonly Vector3 OBBMaxs() => ref Maxs;
+
+	public void SetCollisionBounds(in Vector3 mins, in Vector3 maxs) {
+		if (MinsPreScaled != mins || MaxsPreScaled != maxs) {
+			MinsPreScaled = mins;
+			MaxsPreScaled = maxs;
+		}
+
+		bool dirty = false;
+
+		float scale = (Outer is BaseAnimating anim) ? anim.GetModelScale() : 1.0f;
+		if (scale != 1.0f) {
+			Vector3 newMins = mins * scale;
+			Vector3 newMaxs = maxs * scale;
+			if (Mins != newMins || Maxs != newMaxs) {
+				Mins = newMins;
+				Maxs = newMaxs;
+				dirty = true;
+			}
+		}
+		else {
+			if (Mins != mins || Maxs != maxs) {
+				Mins = mins;
+				Maxs = maxs;
+				dirty = true;
+			}
+		}
+
+		if (dirty) {
+			Vector3 size = Maxs - Mins;
+			Radius = size.Length() * 0.5f;
+			MarkSurroundingBoundsDirty();
+		}
 	}
 
 	public void WorldSpaceTriggerBounds(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) {

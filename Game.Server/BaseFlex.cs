@@ -26,7 +26,6 @@ public class BaseFlex : BaseAnimatingOverlay {
 	public InlineArray96<float> FlexWeight;
 	public int BlinkToggle;
 	public Vector3 ViewTarget;
-	public Vector3 ViewOffset;
 	public Vector3 Lean;
 	public Vector3 Shift;
 }
