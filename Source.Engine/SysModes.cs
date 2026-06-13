@@ -96,15 +96,18 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 	public int GetModeUIWidth() => UIWidth;
 	public int GetModeUIHeight() => UIHeight;
 
-	public VMode GetMode(int num) {
+	public ref VMode GetMode(int num) {
 		if (num < 0)
-			return CustomModeList[-num - 1];
+			return ref CustomModeList[-num - 1];
 
 		if (num >= NumModes)
-			return DefaultVideoMode();
+			return ref DefaultVideoMode();
 
-		return ModeList[num];
+		return ref ModeList[num];
 	}
+
+	public Span<VMode> GetModes() => ModeList;
+	public Span<VMode> GetCustomModes() => CustomModeList;
 
 	public int GetModeCount() => NumModes;
 

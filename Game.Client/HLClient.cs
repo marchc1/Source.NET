@@ -403,4 +403,12 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	public LookupProxyInterfaceFn GetMaterialProxyInterfaceFn() {
 		return MaterialProxies.CreateProxyInterfaceFn;
 	}
+
+	public void IN_Accumulate() {
+		throw new NotImplementedException();
+	}
+
+	public bool IN_IsKeyDown(ReadOnlySpan<char> name, out bool isDown) {
+		throw new NotImplementedException();
+	}
 }

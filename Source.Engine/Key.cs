@@ -277,4 +277,14 @@ public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClie
 	internal void Shutdown() {
 
 	}
+
+	public ReadOnlySpan<char> BindingForKey(ButtonCode code) {
+		if (code < 0 || code > ButtonCode.Last)
+			return null;
+
+		if (string.IsNullOrEmpty(KeyInfo[(int)code].KeyBinding))
+			return null;
+
+		return KeyInfo[(int)code].KeyBinding;
+	}
 }

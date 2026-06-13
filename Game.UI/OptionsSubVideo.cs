@@ -678,8 +678,7 @@ public class OptionsSubVideo : PropertyPage
 		AspectRatio.SetItemEnabled(1, false);
 		AspectRatio.SetItemEnabled(2, false);
 
-		VMode[] list = ((VideoMode_Common)Singleton<IVideoMode>()).ModeList;
-		// gameuifuncs.GetVideoModes // todo ^
+		gameuifuncs.GetVideoModes(out Span<VMode> list);
 
 		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 
@@ -765,6 +764,8 @@ public class OptionsSubVideo : PropertyPage
 	}
 
 	private void SetCurrentResolutionComboItem() {
+		gameuifuncs.GetVideoModes(out Span<VMode> list); 
+		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 		// todo
 	}
 

@@ -184,6 +184,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<IServerPluginHelpers, ServerPlugin>(x => x.GetRequiredService<ServerPlugin>());
 		this.AddSingleton<IUniformRandomStream, UniformRandomStream>();
 		this.AddSingleton<ISoundServices, EngineSoundServices>();
+		this.AddSingleton<IGameUIFuncs, GameUIFuncs>();
 		// Engine datacache
 		this.AddSingleton<IModelRender, ModelRender>();
 		this.AddSingleton<IVModelInfoClient, ModelInfoClient>();

@@ -1040,4 +1040,9 @@ public class ClientState : BaseClientState
 		p.SetSound(s!);
 		return s;
 	}
+
+	internal void SetFriendsID(uint friendsID, ReadOnlySpan<char> friendsName) {
+		FriendsID = friendsID;
+		FriendsName = new(friendsName.SliceNullTerminatedString());
+	}
 }
