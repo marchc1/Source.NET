@@ -993,6 +993,7 @@ public partial class
 	public ReadOnlySpan<char> GetShootSound(WeaponSound index) => GetWpnData().ShootSounds[(int)index].SliceNullTerminatedString();
 	public ReadOnlySpan<char> GetShootSound(int index) => GetWpnData().ShootSounds[index].SliceNullTerminatedString();
 	public virtual void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
+		if (true) return; // todo fixme
 #if !CLIENT_DLL
 		if (!SoundsEnabled)
 			return;
