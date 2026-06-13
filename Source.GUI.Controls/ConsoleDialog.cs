@@ -155,7 +155,8 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 
 		AutoCompleteMode = false;
 
-		RebuildCompletionList(PartialText);
+		int prefix = FindChainedPrefix(PartialText);
+		RebuildCompletionList(PartialText.AsSpan(prefix));
 
 		if (CompletionItems.Count < 1)
 			CompletionList.SetVisible(false);
@@ -292,6 +293,33 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 			return null;
 
 		return cmd;
+	}
+
+	static int FindChainedPrefix(ReadOnlySpan<char> text) {
+		bool inQuotes = false;
+		int lastSplit = -1;
+
+		for (int i = 0; i < text.Length; i++) {
+			char c = text[i];
+
+			if (c == '\0')
+				break;
+
+			if (c == '"')
+				inQuotes = !inQuotes;
+			else if (!inQuotes && c == ';')
+				lastSplit = i;
+		}
+
+		if (lastSplit < 0)
+			return 0;
+
+		int p = lastSplit + 1;
+
+		while (p < text.Length && text[p] == ' ')
+			p++;
+
+		return p;
 	}
 
 	private void RebuildCompletionList(ReadOnlySpan<char> text) {
@@ -488,7 +516,17 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		if (!CompletedText.SliceNullTerminatedString().Contains(' '))
 			strcat(CompletedText, " ");
 
-		Entry.SetText(CompletedText.SliceNullTerminatedString());
+		ReadOnlySpan<char> completed = CompletedText.SliceNullTerminatedString();
+		int prefix = FindChainedPrefix(PartialText);
+		if (prefix > 0) {
+			Span<char> full = stackalloc char[512];
+			PartialText.AsSpan(0, prefix).CopyTo(full);
+			completed.CopyTo(full[prefix..]);
+			Entry.SetText(full[..(prefix + completed.Length)]);
+		}
+		else
+			Entry.SetText(completed);
+
 		Entry.GotoTextEnd();
 		Entry.SelectNone();
 
