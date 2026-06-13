@@ -397,38 +397,6 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 
 	}
 
-#if !SWDS
-	[ConCommand("mat_setvideomode", "sets the width, height, windowed state of the material system")]
-	static void mat_setvideomode(in TokenizedCommand args) {
-		if (args.ArgC() < 4 || args.ArgC() > 5)
-			return;
-
-		int width = args.Arg(1, 0);
-		int height = args.Arg(2, 0);
-		bool windowed = args.Arg(3, 0) > 0;
-		bool borderless = args.ArgC() == 5 && args.Arg(4, 0) > 0;
-
-		Singleton<IVideoMode>().SetMode(width, height, windowed, borderless);
-	}
-#endif
-
-	[ConCommand("mat_savechanges", "saves current video configuration to the registry")]
-	static void mat_savechanges(in TokenizedCommand args) {
-		// commandLine.RemoveParm("-safe");
-		UpdateMaterialSystemConfig();
-	}
-
-	static void UpdateMaterialSystemConfig() {
-		// if (host_state.worldbrush && !host_state.worldbrush->lightdata) {
-		// 	mat_fullbright.SetValue(1);
-		// }
-
-		bool lightmapsNeedReloading = Singleton<IMaterialSystem>().UpdateConfig(false); //fixme
-		if (lightmapsNeedReloading) {
-
-		}
-	}
-
 
 	[UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
 	unsafe static void raylibSpew(int logLevel, sbyte* text, sbyte* args) {
