@@ -168,6 +168,12 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddKeyedSingleton(typeof(IEngineTrace), Realm.Server, (x, _) => x.GetRequiredKeyedService<EngineTraceServer>(Realm.Server));
 
 
+		this.AddKeyedSingleton<EngineSoundClient>(Realm.Client);
+		this.AddKeyedSingleton<EngineSoundServer>(Realm.Server);
+		this.AddKeyedSingleton(typeof(IEngineSound), Realm.Client, (x, _) => x.GetRequiredKeyedService<EngineSoundClient>(Realm.Client));
+		this.AddKeyedSingleton(typeof(IEngineSound), Realm.Server, (x, _) => x.GetRequiredKeyedService<EngineSoundServer>(Realm.Server));
+
+
 		this.AddSingleton<ISpatialPartition, SpatialPartitionImpl>(x => g_SpatialPartition);
 		this.AddSingleton<IMod, BaseMod>();
 		this.AddSingleton<IGame, Game>();

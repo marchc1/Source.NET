@@ -711,6 +711,7 @@ public partial class C_BaseEntity : IClientEntity
 	public EHANDLE GroundEntity = new();
 	public EHANDLE NetworkMoveParent = new();
 	public EHANDLE OldMoveParent = new();
+	public string? ModelName;
 	public int LifeState;
 	public Vector3 BaseVelocity;
 	public int NextThinkTick;
@@ -1285,7 +1286,7 @@ public partial class C_BaseEntity : IClientEntity
 		if (OldShouldDraw != ShouldDraw())
 			UpdateVisibility();
 	}
-
+	public ReadOnlySpan<char> GetModelName() => ModelName.SliceNullTerminatedString();
 	public void AllocateIntermediateData() {
 		if (OriginalData != null)
 			return;

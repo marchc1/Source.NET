@@ -55,7 +55,7 @@ public class ZipPackFileSearchPath : SearchPath
 		byte[] data = lump.ReadBytes(stream);
 
 		// Unpack the zip
-		archive = ZipArchive.Open(new MemoryStream(data), new());
+		archive = (ZipArchive)ZipArchive.OpenArchive(new MemoryStream(data), new());
 		// Create optimized lookup
 		foreach(var entry in archive.Entries) {
 			Entries[filesystem.FindOrAddFileName(entry.Key)] = entry;

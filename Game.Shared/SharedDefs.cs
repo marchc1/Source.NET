@@ -692,7 +692,7 @@ public ref struct EmitSound_t
 	public ReadOnlySpan<char> SoundName;
 	public float Volume;
 	public SoundLevel SoundLevel;
-	public int Flags;
+	public SoundFlags Flags;
 	public int Pitch;
 	public int SpecialDSP;
 	public ref readonly Vector3 Origin;

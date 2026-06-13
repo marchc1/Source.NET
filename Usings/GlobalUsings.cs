@@ -3,6 +3,7 @@ global using static Source.Common.CFormatting;
 global using static Source.PlatformMacros;
 global using static Source.Common.MemUtils;
 global using static Source.Common.ThreadUtils;
+global using static Source.Common.Engine.EngineSoundGlobals;
 global using static Source.Common.Engine.ImportUtils;
 global using static Source.Common.Mathematics.MathLibConsts;
 global using static Source.GlobalReflectionUtils;

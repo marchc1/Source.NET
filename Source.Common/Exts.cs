@@ -4,6 +4,7 @@ using K4os.Hash.xxHash;
 
 using Microsoft.Extensions.DependencyInjection;
 
+using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
@@ -120,7 +121,7 @@ public struct VarBitVec
 		if (Overflows(bit)) return;
 		BitVecBase.Clear(bytes, bit);
 	}
-	public void Set(int bit, bool newVal){
+	public void Set(int bit, bool newVal) {
 		if (newVal == false && Overflows(bit))
 			return;
 		ReallocateIfNecessary(bit);
@@ -521,6 +522,41 @@ public static class StrTools
 
 	public static bool IsPathSeparator(this char c) => c == CORRECT_PATH_SEPARATOR || c == INCORRECT_PATH_SEPARATOR;
 
+	public static ReadOnlySpan<char> FileBase(ReadOnlySpan<char> input, Span<char> output) {
+		Debug.Assert(output.Length >= 1);
+
+		int len = input.IndexOf('\0');
+		if (len < 0) len = input.Length;
+
+		if (len == 0) {
+			output[0] = '\0';
+			return default;
+		}
+
+		int end = len - 1;
+		while (end != 0 && input[end] != '.' && !IsPathSeparator(input[end]))
+			end--;
+
+		if (input[end] != '.')
+			end = len - 1;
+		else
+			end--;
+
+		int start = len - 1;
+		while (start >= 0 && !IsPathSeparator(input[start]))
+			start--;
+
+		start = (start < 0 || !IsPathSeparator(input[start])) ? 0 : start + 1;
+
+		int strLen = end - start + 1;
+		int maxcopy = Math.Min(strLen + 1, output.Length);
+
+		int n = maxcopy - 1;
+		input.Slice(start, n).CopyTo(output);
+		output[n] = '\0';
+		return output[..n];
+	}
+
 	public static void FixDoubleSlashes(Span<char> str) {
 		int len = (int)strlen(str);
 
@@ -852,11 +888,12 @@ public static class ListExtensions
 		}
 	}
 
-	static class TempSwap<T>{
+	static class TempSwap<T>
+	{
 		public static readonly ThreadLocal<List<T>> List = new(() => []);
 	}
 
-	public static void Swap<T>(this List<T> a, List<T> b){
+	public static void Swap<T>(this List<T> a, List<T> b) {
 		var swap = TempSwap<T>.List.Value!;
 		swap.Clear();
 		swap.EnsureCapacity(a.Count);

@@ -197,6 +197,18 @@ public static partial class Util
 		return player;
 	}
 
+	public static BaseEntity? EntityByIndex(int entityIndex) {
+		BaseEntity? entity = null;
+
+		if (entityIndex > 0) {
+			Edict? edict = INDEXENT(entityIndex);
+			if (edict != null && !edict.IsFree())
+				entity = BaseEntity.GetContainingEntity(edict);
+		}
+
+		return entity;
+	}
+
 	public static BasePlayer? GetListenServerHost() {
 		if (engine.IsDedicatedServer()) {
 			Assert("UTIL_GetListenServerHost");

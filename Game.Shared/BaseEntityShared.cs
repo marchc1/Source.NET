@@ -160,6 +160,13 @@ public partial class
 		return minTick;
 	}
 
+	public virtual void ModifyEmitSoundParams(ref EmitSound_t parms){
+#if CLIENT_DLL
+		if (g_pGameRules != null)
+			parms.SoundName = g_pGameRules.TranslateEffectForVisionFilter("sounds", parms.SoundName);
+ #endif
+	}
+
 	public long GetNextThinkTick(ReadOnlySpan<char> context = default) {
 		// todo
 		return (long)TICK_NEVER_THINK;

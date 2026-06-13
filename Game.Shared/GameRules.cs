@@ -96,6 +96,10 @@ public abstract class
 
 	public virtual void CreateCustomNetworkStringTables() { }
 
+	internal ReadOnlySpan<char> TranslateEffectForVisionFilter(ReadOnlySpan<char> type, ReadOnlySpan<char> soundName) {
+		return soundName;
+	}
+
 #if CLIENT_DLL
 
 #else

@@ -263,7 +263,6 @@ public partial class BaseEntity : IServerEntity
 	public virtual void Activate() {
 
 	}
-
 	public string? Name;
 	public string GetDebugName() {
 		if (this == null)
@@ -494,6 +493,8 @@ public partial class BaseEntity : IServerEntity
 	public EHANDLE MoveChild = new();
 	public EHANDLE MovePeer = new();
 	public EHANDLE GroundEntity = new();
+
+	public string? ModelName;
 
 	public int LifeState;
 	public Vector3 BaseVelocity;
@@ -747,7 +748,6 @@ public partial class BaseEntity : IServerEntity
 
 	public int GetModelIndex() => ModelIndex;
 
-	string? ModelName;
 	public ReadOnlySpan<char> GetModelName() => ModelName;
 	public void SetModelName(ReadOnlySpan<char> modelName) {
 		ModelName = new(modelName);

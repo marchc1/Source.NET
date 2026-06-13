@@ -466,7 +466,7 @@ public interface ISoundEmitterSystemBase
 	int GetSoundCount();
 
 	ReadOnlySpan<char> GetSoundName(int index);
-	bool GetParametersForSound(ReadOnlySpan<char> soundname, SoundParameters parms, Gender gender, bool isbeingemitted = false);
+	bool GetParametersForSound(ReadOnlySpan<char> soundname, ref SoundParameters parms, Gender gender, bool isbeingemitted = false);
 
 	ReadOnlySpan<char> GetWaveName(out UtlSymbol sym);
 	UtlSymbol AddWaveName(ReadOnlySpan<char> name);
