@@ -9,7 +9,6 @@ public struct ViewRect
 public interface IVideoMode
 {
 	bool Init();
-	void InitMaterialSystemConfig(bool inEditMode);
 	void DrawStartupGraphic();
 	bool CreateGameWindow(int width, int height, bool windowed, bool borderless);
 	void SetGameWindow(nint window);

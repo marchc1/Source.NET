@@ -15,7 +15,7 @@ using System.Runtime.ExceptionServices;
 namespace Source.Engine;
 
 
-public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sys, ILauncherManager launcherMgr, IInputSystem inputSystem) : IEngineAPI, IDisposable
+public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sys, ILauncherManager launcherMgr, IInputSystem inputSystem, MatSysInterface matSys) : IEngineAPI, IDisposable
 {
 	public bool Dedicated;
 
@@ -50,14 +50,27 @@ public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sy
 	}
 
 	public IEngineAPI.Result Run() {
+		InitRegistry(startupInfo.InitialMod);
+
 		services.GetRequiredService<IMaterialSystem>().ModInit();
 
 		ConVar_Register();
 
-		services.GetRequiredService<IVideoMode>().InitMaterialSystemConfig(InEditMode());
+		matSys.InitMaterialSystemConfig(InEditMode());
+
+		ShutdownRegistry();
 
 		return RunListenServer();
 	}
+
+	public bool InitRegistry(ReadOnlySpan<char> modName) {
+		Span<char> regSubPath = stackalloc char[260];
+		// NOTE: I decided to prefix the path here with sdn_ so we don't touch config for the actual hl2 etc -Callum
+		int n = sprintf(regSubPath, "%s\\sdn_%s").S("Source").S(modName);
+		return registry.Init(regSubPath[..n]);
+	}
+
+	public void ShutdownRegistry() => registry.Shutdown();
 
 	public object? GetService(Type serviceType) => services.GetService(serviceType);
 	public object? GetKeyedService(Type serviceType, object? key) => ((IKeyedServiceProvider)services).GetKeyedService(serviceType, key);

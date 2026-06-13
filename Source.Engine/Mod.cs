@@ -20,6 +20,8 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 			cl.RestrictClientCommands = false;
 		}
 
+		((EngineAPI)services.GetRequiredService<IEngineAPI>()).InitRegistry(initialMod);
+
 		MaterialSystem_Config config = materials.GetCurrentConfigForVideoCard();
 		int width = config.VideoMode.Width;
 		int height = config.VideoMode.Height;
@@ -60,6 +62,6 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 	}
 
 	public void Shutdown() {
-
+		((EngineAPI)services.GetRequiredService<IEngineAPI>()).ShutdownRegistry();
 	}
 }
