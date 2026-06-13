@@ -354,6 +354,7 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 	}
 
 	public virtual bool SetMode(int width, int height, bool windowed, bool borderless) => false;
+	public virtual void InitMaterialSystemConfig(bool inEditMode) { }
 
 	public void SetInitialized(bool initialized) => Initialized = initialized;
 	public bool GetInitialized() => Initialized;
@@ -462,6 +463,70 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 		OverrideMaterialSystemConfig(newConfig);
 
 		return true;
+	}
+
+	public override void InitMaterialSystemConfig(bool inEditMode) {
+		if (inEditMode)
+			return;
+
+		MaterialSystem_Config config = new();
+		this.config.CopyInstantiatedReferenceTo(config);
+
+		// todo: this has more logic
+
+		OverrideMaterialSystemConfigFromCommandLine(config);
+		OverrideMaterialSystemConfig(config);
+
+		materials.UpdateConfig(false);
+	}
+
+	public void OverrideMaterialSystemConfigFromCommandLine(MaterialSystem_Config config) {
+		if (commandLine.FindParm("-sw") != 0 || commandLine.FindParm("-startwindowed") != 0 || commandLine.FindParm("-windowed") != 0 || commandLine.FindParm("-window") != 0)
+			config.SetFlag(MaterialSystem_Config_Flags.Windowed, true);
+		else if (commandLine.FindParm("-full") != 0 || commandLine.FindParm("-fullscreen") != 0)
+			config.SetFlag(MaterialSystem_Config_Flags.Windowed, false);
+
+		if (commandLine.FindParm("-noborder") != 0)
+			config.SetFlag(MaterialSystem_Config_Flags.NoWindowBorder, true);
+
+		if (commandLine.FindParm("-width") != 0 || commandLine.FindParm("-w") != 0) {
+			config.VideoMode.Width = commandLine.ParmValue("-width", config.VideoMode.Width);
+			config.VideoMode.Width = commandLine.ParmValue("-w", config.VideoMode.Width);
+
+			if (!(commandLine.FindParm("-height") != 0 || commandLine.FindParm("-h") != 0))
+				config.VideoMode.Height = config.VideoMode.Width * 3 / 4;
+		}
+
+		if (commandLine.FindParm("-height") != 0 || commandLine.FindParm("-h") != 0) {
+			config.VideoMode.Height = commandLine.ParmValue("-height", config.VideoMode.Height);
+			config.VideoMode.Height = commandLine.ParmValue("-h", config.VideoMode.Height);
+		}
+
+		if (commandLine.FindParm("-resizing") != 0)
+			config.SetFlag(MaterialSystem_Config_Flags.Resizing, commandLine.CheckParm("-resizing") ? true : false);
+
+		if (commandLine.FindParm("-mat_vsync") != 0)
+			config.SetFlag(MaterialSystem_Config_Flags.NoWaitForVSync, commandLine.ParmValue("-mat_vsync", 1) == 0);
+
+		config.AASamples = commandLine.ParmValue("-mat_antialias", config.AASamples);
+		config.AAQuality = commandLine.ParmValue("-mat_aaquality", config.AAQuality);
+
+		// Clamp the requested dimensions to the display resolution
+		// TODO GetDisplayMode
+		// MaterialVideoMode videoMode = default;
+		// materials.GetDisplayMode(videoMode);
+		// config.VideoMode.Width = Math.Min(videoMode.Width, config.VideoMode.Width);
+		// config.VideoMode.Height = Math.Min(videoMode.Height, config.VideoMode.Height);
+
+		// safe mode
+		if (commandLine.FindParm("-safe") != 0) {
+			config.SetFlag(MaterialSystem_Config_Flags.Windowed, true);
+			config.VideoMode.Width = 640;//BASE_WIDTH;
+			config.VideoMode.Height = 480;//BASE_HEIGHT;
+			config.VideoMode.RefreshRate = 0;
+			config.AASamples = 0;
+			config.AAQuality = 0;
+		}
 	}
 
 	private void OverrideMaterialSystemConfig(MaterialSystem_Config config) {

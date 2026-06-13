@@ -53,6 +53,9 @@ public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sy
 		services.GetRequiredService<IMaterialSystem>().ModInit();
 
 		ConVar_Register();
+
+		services.GetRequiredService<IVideoMode>().InitMaterialSystemConfig(InEditMode());
+
 		return RunListenServer();
 	}
 

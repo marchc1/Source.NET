@@ -127,7 +127,23 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 	public void ModInit() {
 		launcherMgr = services.GetRequiredService<ILauncherManager>();
 		matContext = new(() => new(this));
+
+		GenerateConfigFromConfigKeyValues(Config, false);
 		UpdateConfig(false);
+	}
+
+	public void GenerateConfigFromConfigKeyValues(MaterialSystem_Config config, bool overwriteCommandLineValues) {
+		config.Flags = 0;
+
+		launcherMgr.GetNativeDisplayInfo(-1, out uint width, out uint height, out uint refreshHz);
+		config.VideoMode.Width = (int)width;
+		config.VideoMode.Height = (int)height;
+
+#if DEBUG // Convenience, can remove this once config etc is actually saved
+		config.VideoMode.Width = 1600;
+		config.VideoMode.Height = 900;
+		config.SetFlag(MaterialSystem_Config_Flags.Windowed, true);
+#endif
 	}
 
 	public bool UpdateConfig(bool forceUpdate) {
@@ -264,7 +280,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		if (!config.Windowed() && (config.WaitForVSync() != Config.WaitForVSync()))
 			videoModeChange = true;
 
-		// Config = config;
+		config.CopyInstantiatedReferenceTo(Config);
 
 		if (redownloadTextures || redownloadLightmaps)
 			ColorSpace.SetGamma(2.2f, 2.2f, IMaterialSystem.OVERBRIGHT, Config.AllowCheats, false);
@@ -306,8 +322,6 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 			ConvertModeStruct(config, out ShaderDeviceInfo info);
 			ShaderAPI.ChangeVideoMode(info);
 		}
-
-		config.CopyInstantiatedReferenceTo(Config);
 
 		// if (videoModeChange)
 		// ForceSingleThreaded();

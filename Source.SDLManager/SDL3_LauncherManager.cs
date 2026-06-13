@@ -105,8 +105,35 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 
 		window = new SDL3_Window(services).Create(title, width, height, flags);
 
+#if WIN32
+		// Hack to fix SDL/GL promoting borderless windows to exclusive fullscreen
+		// when the resolution matches desktop
+		// See https://github.com/libsdl-org/SDL/issues/12791
+		// & https://github.com/libsdl-org/SDL/issues/12791#issuecomment-2792498618
+		if (windowed && borderless) {
+			SDL_PropertiesID props = SDL3.SDL_GetWindowProperties(window.HardwareHandle);
+			nint hwnd;
+			fixed (byte* name = SDL3.SDL_PROP_WINDOW_WIN32_HWND_POINTER)
+				hwnd = SDL3.SDL_GetPointerProperty(props, name, IntPtr.Zero);
+			SetWindowLongPtrW(hwnd, -16, 0x06000000 /* WS_OVERLAPPED|WS_CLIPSIBLINGS|WS_CLIPCHILDREN */);
+
+			int x = 0, y = 0;
+			SDL_Rect bounds;
+			if (SDL3.SDL_GetDisplayBounds(SDL3.SDL_GetDisplayForWindow(window.HardwareHandle), &bounds)) {
+				x = bounds.x + (bounds.w - width) / 2;
+				y = bounds.y + (bounds.h - height) / 2;
+			}
+			SetWindowPos(hwnd, 0, x, y, width, height, 0x0260 /* FRAMECHANGED|NOOWNERZORDER|SHOWWINDOW */);
+		}
+#endif
+
 		return true;
 	}
+
+#if WIN32
+	[DllImport("user32.dll")] static extern nint SetWindowLongPtrW(nint hWnd, int nIndex, nint dwNewLong);
+	[DllImport("user32.dll")] static extern bool SetWindowPos(nint hWnd, nint after, int x, int y, int cx, int cy, uint flags);
+#endif
 
 	[UnmanagedCallersOnly(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
 	static void* GL_ProcAddress(byte* proc) {
@@ -144,7 +171,7 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 		if (displays == null || nDisplay >= count)
 			return;
 
-		SDL_DisplayID display = displays[nDisplay];
+		SDL_DisplayID display = nDisplay < 0 ? SDL3.SDL_GetPrimaryDisplay() : displays[nDisplay];
 		SDL_DisplayMode* modePtr = SDL3.SDL_GetCurrentDisplayMode(display);
 
 		if (modePtr == null)

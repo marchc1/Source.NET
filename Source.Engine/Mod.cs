@@ -20,13 +20,11 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 			cl.RestrictClientCommands = false;
 		}
 
-		// Temporary - we need to reconsider MaterialSystem_Config
-		int width = commandLine.ParmValue("-width", 1600);
-		width = commandLine.ParmValue("-w", width);
-		int height = commandLine.ParmValue("-height", 900);
-		height = commandLine.ParmValue("-h", height);
-		bool windowed = true;
-		bool borderless = false; // TODO
+		MaterialSystem_Config config = materials.GetCurrentConfigForVideoCard();
+		int width = config.VideoMode.Width;
+		int height = config.VideoMode.Height;
+		bool windowed = config.Windowed();
+		bool borderless = config.NoWindowBorder();
 
 		videomode.Init();
 
