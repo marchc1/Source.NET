@@ -2185,7 +2185,7 @@ public class Panel : IPanel
 	public virtual void OnMouseDoublePressed(ButtonCode code) { }
 	public virtual void OnMouseReleased(ButtonCode code) { }
 	public virtual void OnMouseMismatchedRelease(ButtonCode code, IPanel? pressedPanel) { }
-	public virtual void OnMouseWheeled(int delta) { }
+	public virtual void OnMouseWheeled(int delta) => CallParentFunction(new KeyValues("MouseWheeled", "delta", delta));
 	bool TriplePressAllowed;
 	public virtual void SetTriplePressAllowed(bool state) => TriplePressAllowed = state;
 	public virtual bool IsTriplePressAllowed() => TriplePressAllowed;
