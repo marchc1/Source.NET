@@ -11,6 +11,8 @@ using Source.Common.Networking;
 using Source.Engine;
 using Source.GUI.Controls;
 
+using System.Numerics;
+
 namespace Game.UI;
 
 struct RatioToAspectMode
@@ -583,6 +585,14 @@ public class OptionsSubVideo : PropertyPage
 		new () { Anamorphic = 2, AspectRatio = 1.0f }
 	];
 
+	// Indexed by AspectRatio combo item ID (0,1,2), matching the order items were added in the
+	// constructor (#GameUI_AspectNormal, #GameUI_AspectWide16x9, #GameUI_AspectWide16x10).
+	readonly (int Numerator, int Denominator)[] AspectRatioFractions = [
+		(4, 3),
+		(16, 9),
+		(16, 10)
+	];
+
 	int[] DirectXLevels = [
 		70,
 		80,
@@ -683,11 +693,40 @@ public class OptionsSubVideo : PropertyPage
 		bool windowed = Windowed.GetActiveItem() == (Windowed.GetItemCount() - 2);
 		bool borderless = Windowed.GetActiveItem() == (Windowed.GetItemCount() - 1);
 
-		int desktopWidth = 4096, desktopHeight = 2160; // todo gameuifuncs.GetDesktopResolution
+		gameuifuncs.GetDesktopResolution(out int desktopWidth, out int desktopHeight);
 
 		bool foundWidescreen = false;
 		int selectedItemID = -1;
-		
+
+		// Enable widescreen aspect-ratio options if the desktop can actually produce
+		// resolutions for them.
+		for (int i = 1; i < AspectRatioFractions.Length; i++) {
+			var (num, den) = AspectRatioFractions[i];
+			List<Vector2> widescreenModes = [];
+			UserVideoMode.ProduceAvailableResolutionList(num, den, desktopWidth, desktopHeight, widescreenModes);
+			if (widescreenModes.Count > 0) {
+				AspectRatio.SetItemEnabled(i, true);
+				foundWidescreen = true;
+			}
+		}
+
+		int activeAspect = Math.Clamp(AspectRatio.GetActiveItem(), 0, AspectRatioFractions.Length - 1);
+		var (activeNum, activeDen) = AspectRatioFractions[activeAspect];
+
+		List<Vector2> modes = [];
+		UserVideoMode.ProduceAvailableResolutionList(activeNum, activeDen, desktopWidth, desktopHeight, modes);
+
+		Span<char> modeText = stackalloc char[32];
+		foreach (Vector2 mode in modes) {
+			int w = (int)mode.X;
+			int h = (int)mode.Y;
+
+			int itemID = Mode.AddItem(sprintf(modeText, "%i x %i").I(w).I(h).ToSpan(), null);
+
+			if (w == currentWidth && h == currentHeight)
+				selectedItemID = itemID;
+		}
+
 		AspectRatio.SetEnabled(foundWidescreen);
 
 		SelectedMode = selectedItemID;
@@ -853,7 +892,7 @@ public class OptionsSubVideo : PropertyPage
 	}
 
 	private int GetScreenAspectMode(int width, int height) {
-		float aspectRatio = width / height;
+		float aspectRatio = (float)width / height;
 		float closestAspectRatioDist = 99999.0f;
 		int closestAnamorphic = 0;
 

@@ -157,7 +157,7 @@ public class CommandBuffer
 				break;
 		}
 		if (i == null)
-			Commands.AddFirst(command);
+			Commands.AddLast(command);
 		else
 			Commands.AddBefore(i, command);
 	}
