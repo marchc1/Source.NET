@@ -21,7 +21,7 @@ class ScrollableEditablePanel : EditablePanel
 	public override void ApplySettings(KeyValues resourceData) {
 		base.ApplySettings(resourceData);
 
-		KeyValues? scrollBarData = resourceData.FindKey("ScrollBar");
+		KeyValues? scrollBarData = resourceData.FindKey("Scrollbar");
 		if (scrollBarData != null)
 			ScrollBar.ApplySettings(scrollBarData);
 	}

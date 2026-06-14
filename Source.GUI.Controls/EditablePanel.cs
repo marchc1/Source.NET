@@ -199,21 +199,17 @@ public class EditablePanel : Panel
 	}
 
 	public override bool RequestFocusNext(IPanel? existingPanel = null) {
-		// bool Ret = NavGroup.RequestFocusNext(existingPanel);
-		// if (IsPC() && !Ret && IsConsoleStylePanel())
-		// NavigateUp();
-		// return Ret;
-
-		return false;
+		bool ret = NavGroup.RequestFocusNext((Panel?)existingPanel);
+		// if (IsPC() && !ret && IsConsoleStylePanel())
+		// 	NavigateUp();
+		return ret;
 	}
 
 	public override bool RequestFocusPrev(IPanel? existingPanel = null) {
-		// bool Ret = NavGroup.RequestFocusPrev(existingPanel);
-		// if (IsPC() && !Ret && IsConsoleStylePanel())
-		// NavigateDown();
-		// return Ret;
-
-		return false;
+		bool ret = NavGroup.RequestFocusPrev((Panel?)existingPanel);
+		// if (IsPC() && !ret && IsConsoleStylePanel())
+		// 	NavigateDown();
+		return ret;
 	}
 
 	public void SetControlEnabled(ReadOnlySpan<char> controlName, bool enabled, bool recurseDown = false) {

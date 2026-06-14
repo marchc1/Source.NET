@@ -272,9 +272,14 @@ public class ListViewPanel : Panel
 			if (SortFunc != null) {
 				int insertionPoint;
 				for (insertionPoint = 0; insertionPoint < SortedItems.Count; insertionPoint++) {
-					if (!SortFunc(DataItems[i].GetData()!, DataItems[SortedItems[insertionPoint]].GetData()!))
+					if (SortFunc(DataItems[i].GetData()!, DataItems[SortedItems[insertionPoint]].GetData()!))
 						break;
 				}
+
+				if (insertionPoint == SortedItems.Count)
+					SortedItems.Add(i);
+				else
+					SortedItems.Insert(insertionPoint, i);
 			}
 			else
 				SortedItems.Add(i);
@@ -412,7 +417,7 @@ public class ListViewPanel : Panel
 
 		for (; i < SortedItems.Count; i++) {
 			if (i >= startItem && i <= lastItemVisible) {
-				DataItems[SortedItems[i]].SetVisible(false);
+				DataItems[SortedItems[i]].SetVisible(true);
 				DataItems[SortedItems[i]].SetPos(x, y);
 				itemsThisCol++;
 				if (itemsThisCol == itemsPerCol) {

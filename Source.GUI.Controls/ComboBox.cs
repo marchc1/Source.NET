@@ -469,7 +469,7 @@ public class ComboBox : TextEntry
 			case "SetText":
 				OnSetText(message.GetString("text", ""));
 				break;
-			case "MenuClosed":
+			case "MenuClose":
 				OnMenuClose();
 				break;
 			case "ActivateItem":

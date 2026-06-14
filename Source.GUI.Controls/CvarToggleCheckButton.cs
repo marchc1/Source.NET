@@ -1,5 +1,6 @@
 using Source.Common.Commands;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GUI;
 
 namespace Source.GUI.Controls;
 
@@ -91,6 +92,20 @@ public class CvarToggleCheckButton : CheckButton
 				SetSelected(true);
 			else
 				SetSelected(false);
+		}
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		switch (message.Name) {
+			case "CheckButtonChecked":
+				OnButtonChecked();
+				break;
+			case "ApplyChanges":
+				ApplyChanges();
+				break;
+			default:
+				base.OnMessage(message, from);
+				break;
 		}
 	}
 }

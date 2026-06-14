@@ -2186,6 +2186,7 @@ public class Panel : IPanel
 	public virtual void OnMouseReleased(ButtonCode code) { }
 	public virtual void OnMouseMismatchedRelease(ButtonCode code, IPanel? pressedPanel) { }
 	public virtual void OnMouseWheeled(int delta) => CallParentFunction(new KeyValues("MouseWheeled", "delta", delta));
+	public virtual void OnDialogVariablesChanged(KeyValues variables) { }
 	bool TriplePressAllowed;
 	public virtual void SetTriplePressAllowed(bool state) => TriplePressAllowed = state;
 	public virtual bool IsTriplePressAllowed() => TriplePressAllowed;
@@ -2510,6 +2511,7 @@ public class Panel : IPanel
 			case "OnRequestFocus": OnRequestFocus(message.GetPtr<Panel>("subFocus")!, message.GetPtr<Panel>("defaultPanel")); break;
 			case "OnScreenSizeChanged": OnScreenSizeChanged(message.GetInt("oldwide"), message.GetInt("oldtall")); break;
 			case "Command": OnCommand(message.GetString("command")); break;
+			case "DialogVariables": OnDialogVariablesChanged(message); break;
 #if DEBUG
 			default:
 				DevMsg(3, $"Unhandled message '{message.Name}' from {from}");

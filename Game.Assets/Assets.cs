@@ -9,7 +9,9 @@ namespace Game.Assets;
 
 static class AssetUtils
 {
-	public record AssetMapping(string LocalPath, string RemotePath);
+	public record AssetMapping(string LocalPath, string RemotePath/*, bool IsDirectory = false, bool Optional = false*/);
+	// TODO: "GetOptionalAssets", for symlinking maps folder etc
+
 	private const int GModAppID = 4000;
 	private const string GModLocalPath = "steamapps/common/GarrysMod";
 

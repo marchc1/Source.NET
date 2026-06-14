@@ -62,10 +62,10 @@ public class MenuButton : Button
 		base.OnKillFocus(newPanel);
 	}
 
-	static readonly KeyValues KV_MenuClosed = new("MenuClosed");
+	static readonly KeyValues KV_MenuClose = new("MenuClose");
 	public void OnMenuClose() {
 		HideMenu();
-		PostActionSignal(KV_MenuClosed);
+		PostActionSignal(KV_MenuClose);
 	}
 
 	public void SetOpenOffsetY(int offset) => OpenOffsetY = offset;
@@ -214,7 +214,7 @@ public class MenuButton : Button
 	}
 
 	public override void OnMessage(KeyValues message, IPanel? from) {
-		if (message.Name == "MenuClosed") {
+		if (message.Name == "MenuClose") {
 			OnMenuClose();
 			return;
 		}

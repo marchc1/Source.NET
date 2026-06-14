@@ -12,10 +12,10 @@ enum Direction
 
 class RadioImage : TextImage
 {
-	Color BorderColor1;
-	Color BorderColor2;
-	Color CheckColor;
-	Color BgColor;
+	public Color BorderColor1;
+	public Color BorderColor2;
+	public Color CheckColor;
+	public Color BgColor;
 	RadioButton RadioButton;
 	public RadioImage(RadioButton radioButton) : base("n") {
 		RadioButton = radioButton;
@@ -64,13 +64,35 @@ public class RadioButton : ToggleButton
 		SubTabPosition = 0;
 
 		SetTextImageIndex(1);
-		SetImageAtIndex(1, RadioBoxImage, 0);
+		SetImageAtIndex(0, RadioBoxImage, 0);
 
 		SetButtonActivationType(ActivationType.OnPressed);
 	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
+		RadioBoxImage.BgColor = GetSchemeColor("CheckButton.BgColor", new Color(150, 150, 150, 0), scheme);
+		RadioBoxImage.BorderColor1 = GetSchemeColor("CheckButton.Border1", new Color(20, 20, 20, 0), scheme);
+		RadioBoxImage.BorderColor2 = GetSchemeColor("CheckButton.Border2", new Color(90, 90, 90, 0), scheme);
+		RadioBoxImage.CheckColor = GetSchemeColor("CheckButton.Check", new Color(20, 20, 20, 0), scheme);
+
+		SetFgColor(GetSchemeColor("RadioButton.TextColor", scheme));
+		SelectedFgColor = GetSchemeColor("RadioButton.SelectedTextColor", GetSchemeColor("ControlText", scheme), scheme);
+
+		SetDefaultColor(GetFgColor(), GetBgColor());
+
+		SetArmedColor(GetSchemeColor("RadioButton.ArmedTextColor", scheme), GetButtonArmedBgColor());
+
+		SetContentAlignment(Alignment.West);
+
+		IFont? font = scheme.GetFont("MarlettSmall", IsProportional());
+		font ??= scheme.GetFont("Marlett", IsProportional());
+
+		RadioBoxImage.SetFont(font);
+		RadioBoxImage.ResizeImageToContent();
+		SetImageAtIndex(0, RadioBoxImage, 0);
+
+		SetPaintBackgroundEnabled(false);
 	}
 
 	public override IBorder? GetBorder(bool depressed, bool armed, bool selected, bool keyfocus) {
@@ -192,7 +214,7 @@ public class RadioButton : ToggleButton
 		if (pr != null) {
 			for (int i = 0; i < pr.GetChildCount(); i++) {
 				RadioButton? child = (RadioButton)pr.GetChild(i);
-				if (child != null && child.GetSubTabPosition() == OldTabPosition) {
+				if (child != null && child.GetRadioTabPosition() == OldTabPosition) {
 					if (child.GetSubTabPosition() == SubTabPosition + direction) {
 						bestRadio = child;
 						break;
