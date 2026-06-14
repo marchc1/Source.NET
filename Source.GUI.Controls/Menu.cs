@@ -854,7 +854,7 @@ public class Menu : Panel
 
 	public override void OnKillFocus(Panel? newPanel) {
 		if (newPanel == null || !HasParent(newPanel)) {
-			if (IsKeyboardInputEnabled() && newPanel == null)
+			if (!IsKeyboardInputEnabled() && newPanel == null)
 				return;
 
 			MenuItem item = GetParentMenuItem()!;
@@ -870,7 +870,7 @@ public class Menu : Panel
 		}
 	}
 
-	internal void OnInternalMousePressed(Panel other, MouseButton code) => MenuManager.Instance.OnInternalMousePressed(other, code);
+	internal static void OnInternalMousePressed(Panel other, ButtonCode code) => MenuManager.Instance.OnInternalMousePressed(other, code);
 
 	public override void SetVisible(bool state) {
 		if (state == IsVisible())
@@ -1441,7 +1441,7 @@ class MenuManager
 		Menus.Remove(menu);
 	}
 
-	public void OnInternalMousePressed(Panel other, MouseButton code) {
+	public void OnInternalMousePressed(Panel other, ButtonCode code) {
 		int count = Menus.Count;
 		if (count == 0)
 			return;
@@ -1459,10 +1459,11 @@ class MenuManager
 	}
 
 	private void AbortMenus() {
-		for (int i = 0; i < Menus.Count; i++) {
+		for (int i = Menus.Count - 1; i >= 0; --i) {
 			Menu menu = Menus[i];
-			menu.SetVisible(false);
 			Menus.RemoveAt(i);
+
+			menu.SetVisible(false);
 		}
 
 		Menus.Clear();

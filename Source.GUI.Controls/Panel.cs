@@ -2394,6 +2394,28 @@ public class Panel : IPanel
 		return false;
 	}
 
+	private void InternalMousePressed(ButtonCode code) {
+		// todo triple press/dragdrop etc
+
+		Menu.OnInternalMousePressed(this, code);
+
+		if (!ShouldHandleInputMessage())
+			return;
+
+		if (IsCursorNone())
+			return;
+
+		if (!IsMouseInputEnabled())
+			return;
+
+		if (IsBuildGroupEnabled()) {
+			// if (BuildGroup.MousePressed(code, this))
+			// 	return;
+		}
+
+		OnMousePressed(code);
+	}
+
 	private void InternalKeyCodeReleased(ButtonCode code) {
 		if (!ShouldHandleInputMessage())
 			return;
@@ -2476,7 +2498,7 @@ public class Panel : IPanel
 			case "MouseFocusTicked": InternalMouseFocusTicked(); break;
 			case "KeyFocusTicked": InternalKeyFocusTicked(); break;
 			case "MouseCaptureLost": OnMouseCaptureLost(); break;
-			case "MousePressed": OnMousePressed((ButtonCode)message.GetInt("code")); break;
+			case "MousePressed": InternalMousePressed((ButtonCode)message.GetInt("code")); break;
 			case "MouseWheeled": OnMouseWheeled(message.GetInt("delta")); break;
 			case "MouseReleased": OnMouseReleased((ButtonCode)message.GetInt("code")); break;
 			case "UnhandledMouseClick": OnUnhandledMouseClick((ButtonCode)message.GetInt("code")); break;
