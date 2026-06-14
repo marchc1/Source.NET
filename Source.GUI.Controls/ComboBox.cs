@@ -377,7 +377,6 @@ public class ComboBox : TextEntry
 	public override void OnSizeChanged(int newWide, int newTall) {
 		base.OnSizeChanged(newWide, newTall);
 
-		// FIXME: Button can be null here?
 		if (Button == null)
 			return;
 

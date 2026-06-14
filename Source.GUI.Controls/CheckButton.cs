@@ -29,7 +29,7 @@ class CheckImage : TextImage
 			DrawSetTextColor(BgColor);
 		else
 			DrawSetTextColor(CheckButton.GetDisabledBgColor());
-		// DrawPrintChar(0, 1, 'g'); // FIXME: Why does DrawSetTextColor not work above? A value like 0,0,0,128 (TransparentBlack) is pure white?
+		DrawPrintChar(0, 1, 'g');
 
 		DrawSetTextColor(BorderColor1);
 		DrawPrintChar(0, 1, 'e');

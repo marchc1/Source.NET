@@ -69,6 +69,9 @@ public class MessageBox : Frame
 	}
 
 	public override void OnCommand(ReadOnlySpan<char> command) {
+		if (Input.GetAppModalSurface() == this)
+			Input.ReleaseAppModalSurface();
+
 		switch (command) {
 			case "OnOk":
 				if (OkCommand != null)

@@ -526,7 +526,7 @@ public class SectionedListPanel : Panel
 	public SectionedListPanel(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 		ScrollBar = new(this, "SectionedScrollBar", true);
 		ScrollBar.SetVisible(false);
-		ScrollBar.AddActionSignalTarget(this); //fixme, why is this not working
+		ScrollBar.AddActionSignalTarget(this);
 
 		EditModeItemID = 0;
 		EditModeColumn = 0;
