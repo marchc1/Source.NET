@@ -459,29 +459,42 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 	public IMatRenderContext GetRenderContext() => matContext!.Value!;
 
 	public bool SetMode(IWindow window, MaterialSystem_Config config) {
-		int width = config.VideoMode.Width;
-		int height = config.VideoMode.Height;
+		MaterialSystem MaterialSystem = (MaterialSystem)Singleton<IMaterialSystem>();
+		TextureManager TextureManager = (TextureManager)Singleton<ITextureManager>();
+
+		ShaderDeviceInfo info;
+		ConvertModeStruct(config, out info);
 
 		bool previouslyUsingGraphics = ShaderDevice.IsUsingGraphics();
-		ConvertModeStruct(config, out ShaderDeviceInfo info);
-		if (!ShaderAPI.SetMode(window, in info))
+
+		bool bOk = ShaderAPI.SetMode(window, info);
+		if (!bOk)
 			return false;
 
-		TextureSystem.FreeStandardRenderTargets();
-		TextureSystem.AllocateStandardRenderTargets();
+		int width = info.DisplayMode.Width;
+		int height = info.DisplayMode.Height;
+		launcherMgr.RenderedSize(true, ref width, ref height);
 
+		TextureManager.FreeStandardRenderTargets();
+		TextureManager.AllocateStandardRenderTargets();
 		if (!previouslyUsingGraphics) {
-			TextureSystem.RestoreRenderTargets();
-			TextureSystem.RestoreNonRenderTargetTextures();
+			if (IsPC()) {
+				TextureManager.RestoreRenderTargets();
+				TextureManager.RestoreNonRenderTargetTextures();
+				if (MaterialSystem.CanUseEditorMaterials()) 
+					MathLib.Init(2.2f, 2.2f, 0.0f, (int)IMaterialSystem.OVERBRIGHT);
+
+				AllocateStandardTextures();
+			}
 		}
 
+		// Copy over that state which isn't stored currently in convars
 		Config.VideoMode = config.VideoMode;
 		Config.SetFlag(MaterialSystem_Config_Flags.Windowed, config.Windowed());
-		Config.SetFlag(MaterialSystem_Config_Flags.NoWindowBorder, config.NoWindowBorder());
 		Config.SetFlag(MaterialSystem_Config_Flags.Stencil, config.Stencil());
-		// WriteConfigIntoConVars(config); todo
+		Config.SetFlag(MaterialSystem_Config_Flags.VRMode, config.VRMode());
+		// WriteConfigIntoConVars(config);
 
-		launcherMgr.RenderedSize(true, ref width, ref height);
 		return true;
 	}
 

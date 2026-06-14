@@ -321,6 +321,176 @@ public struct CollisionPlane
 }
 public static class MathLib
 {
+	public static bool MathlibInitialized;
+	public static void Init(float gamma, float texGamma, float brightness, int overbright) {
+		if (MathlibInitialized) return;
+		MathlibInitialized = true;
+		BuildGammaTable(gamma, texGamma, brightness, overbright);
+	}
+
+	private static void BuildGammaTable(float gamma, float texGamma, float brightness, int overbright) {
+		int i;
+
+		// Con_Printf("BuildGammaTable %.1f %.1f %.1f\n", g, v_lightgamma.GetFloat(), v_texgamma.GetFloat() );
+
+		float g = 1.0f / MathF.Min(gamma, 3.0F);
+		float g1 = texGamma * g;
+		float g3;
+
+		if (brightness <= 0.0)
+			g3 = 0.125f;
+		else if (brightness > 1.0f)
+			g3 = 0.05f;
+		else
+			g3 = 0.125f - (brightness * brightness) * 0.075f;
+
+		for (i = 0; i < 256; i++) {
+			int inf = (int)(255 * MathF.Pow(i / 255f, g1));
+			texgammatable[i] = (byte)(int)(MathF.Max(MathF.Min(inf, 255), 0));
+		}
+
+		for (i = 0; i < 1024; i++) {
+			float f = i / 1023.0f;
+
+			// scale up
+			if (brightness > 1.0f)
+				f = f * brightness;
+
+			// shift up
+			if (f <= g3)
+				f = (f / g3) * 0.125f;
+			else
+				f = 0.125f + ((f - g3) / (1.0f - g3)) * 0.875f;
+
+			// convert linear space to desired gamma space
+			int inf = (int)(255 * MathF.Pow(f, g));
+			lineartoscreen[i] = Math.Max(Math.Min(inf, 255), 0);
+		}
+
+		for (i = 0; i < 256; i++) {
+			// convert from nonlinear texture space (0..255) to linear space (0..1)
+			texturetolinear[i] = MathF.Pow(i / 255f, texGamma);
+
+			// convert from linear space (0..1) to nonlinear (sRGB) space (0..1)
+			Mathlib_LinearToGamma[i] = LinearToGammaFullRange(i / 255f);
+
+			// convert from sRGB gamma space (0..1) to linear space (0..1)
+			Mathlib_GammaToLinear[i] = GammaToLinearFullRange(i / 255f);
+		}
+
+		for (i = 0; i < 1024; i++) {
+			// convert from linear space (0..1) to nonlinear texture space (0..255)
+			lineartotexture[i] = (int)(MathF.Pow(i / 1023.0f, 1.0f / texGamma) * 255);
+		}
+
+		{
+			float f;
+			float overbrightFactor = 1.0f;
+
+			// Can't do overbright without texcombine
+			// UNDONE: Add GAMMA ramp to rectify this
+			if (overbright == 2)
+				overbrightFactor = 0.5f;
+			else if (overbright == 4)
+				overbrightFactor = 0.25f;
+
+			for (i = 0; i < 4096; i++) {
+				// convert from linear 0..4 (x1024) to screen corrected vertex space (0..1?)
+				f = MathF.Pow(i / 1024.0f, 1.0f / gamma);
+
+				lineartovertex[i] = f * overbrightFactor;
+				if (lineartovertex[i] > 1)
+					lineartovertex[i] = 1;
+
+				int lightmap = RoundFloatToInt(f * 255 * overbrightFactor);
+				lightmap = Math.Clamp(lightmap, 0, 255);
+				lineartolightmap[i] = (byte)lightmap;
+			}
+		}
+	}
+
+	public static float GammaToLinearFullRange(float gamma) => MathF.Pow(gamma, 2.2f);
+	public static float LinearToGammaFullRange(float linear) => MathF.Pow(linear, 1.0f / 2.2f);
+	public static float GammaToLinear(float gamma) {
+		Assert(MathlibInitialized);
+		if (gamma < 0.0f)
+			return 0.0f;
+
+		if (gamma >= 0.95f)
+			return 1.0f;
+
+		int index = RoundFloatToInt(gamma * 255.0f);
+		Assert(index >= 0 && index < 256);
+		return Mathlib_GammaToLinear[index];
+	}
+
+	public static float LinearToGamma(float linear) {
+		Assert(MathlibInitialized);
+		if (linear < 0.0f) {
+			return 0.0f;
+		}
+		if (linear > 1.0f) {
+			// Use LinearToGammaFullRange maybe if you trip this.
+			Assert(0);
+			return 1.0f;
+		}
+
+		int index = RoundFloatToInt(linear * 255.0f);
+		Assert(index >= 0 && index < 256);
+		return Mathlib_LinearToGamma[index];
+	}
+	public static float SrgbGammaToLinear(float srgbGammaValue) {
+		float x = Math.Clamp(srgbGammaValue, 0.0f, 1.0f);
+		return (x <= 0.04045f) ? (x / 12.92f) : (MathF.Pow((x + 0.055f) / 1.055f, 2.4f));
+	}
+	public static float SrgbLinearToGamma(float linearValue) {
+		float x = Math.Clamp(linearValue, 0.0f, 1.0f);
+		return (x <= 0.0031308f) ? (x * 12.92f) : (1.055f * MathF.Pow(x, (1.0f / 2.4f))) - 0.055f;
+	}
+	public static float TextureToLinear(int c) {
+		Assert(MathlibInitialized);
+		if (c < 0)
+			return 0;
+		if (c > 255)
+			return 1.0f;
+
+		return texturetolinear[c];
+	}
+
+	// convert texture to linear 0..1 value
+	public static int LinearToTexture(float f) {
+		Assert(MathlibInitialized);
+		int i = Math.Max(Math.Min((int)(f * 1023), 1023), 0);  // assume 0..1 range
+		return lineartotexture[i];
+	}
+	public static int LinearToScreenGamma(float f) {
+		Assert(MathlibInitialized);
+		int i = Math.Max(Math.Min((int)(f * 1023), 1023), 0);  // assume 0..1 range
+		return lineartoscreen[i];
+	}
+
+	public static void ColorRGBExp32ToVector(in ColorRGBExp32 input, out Vector3 output) {
+		Assert(MathlibInitialized);
+		// FIXME: Why is there a factor of 255 built into this?
+		output.X = 255.0f * TexLightToLinear(input.R, input.Exponent);
+		output.Y = 255.0f * TexLightToLinear(input.G, input.Exponent);
+		output.Z = 255.0f * TexLightToLinear(input.B, input.Exponent);
+	}
+
+	public static readonly byte[] texgammatable = new byte[256]; // palette is sent through this to convert to screen gamma
+
+	public static readonly float[] texturetolinear = new float[256];  // texture (0..255) to linear (0..1)
+	public static readonly int[] lineartotexture = new int [1024];   // linear (0..1) to texture (0..255)
+	public static readonly int[] lineartoscreen = new int[1024];    // linear (0..1) to gamma corrected vertex light (0..255)
+
+	// build a lightmap texture to combine with surface texture, adjust for src*dst+dst*src, ramp reprogramming, etc
+	public static readonly float[] lineartovertex = new float[4096]; // linear (0..4) to screen corrected vertex space (0..1?)
+	public static readonly byte[] lineartolightmap = new byte[4096];   // linear (0..4) to screen corrected texture value (0..255)
+
+	public static readonly float[] Mathlib_GammaToLinear = new float[256];  // gamma (0..1) to linear (0..1)
+	public static readonly float[] Mathlib_LinearToGamma = new float[256];  // linear (0..1) to gamma (0..1)
+
+
 	public static readonly Vector128<float> Four_PointFives = Vector128.Create(0.5f, 0.5f, 0.5f, 0.5f);
 	public static readonly Vector128<float> Four_Zeros = Vector128.Create(0.0f, 0.0f, 0.0f, 0.0f);
 	public static readonly Vector128<float> Four_Ones = Vector128.Create(1.0f, 1.0f, 1.0f, 1.0f);
