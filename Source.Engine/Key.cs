@@ -155,11 +155,11 @@ public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClie
 			return true;
 		}
 
-		if (kb.Equals("toggleconsole", StringComparison.OrdinalIgnoreCase)) 
+		if (kb.Equals("toggleconsole", StringComparison.OrdinalIgnoreCase))
 			if (KeyInfo[(int)ButtonCode.KeyLAlt].KeyDown || KeyInfo[(int)ButtonCode.KeyLShift].KeyDown || KeyInfo[(int)ButtonCode.KeyLControl].KeyDown ||
 				KeyInfo[(int)ButtonCode.KeyRAlt].KeyDown || KeyInfo[(int)ButtonCode.KeyRShift].KeyDown || KeyInfo[(int)ButtonCode.KeyRControl].KeyDown)
 				return false;
-		
+
 		Cbuf.AddText(kb);
 		Cbuf.AddText("\n");
 
@@ -286,5 +286,17 @@ public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClie
 			return null;
 
 		return KeyInfo[(int)code].KeyBinding;
+	}
+
+	internal ReadOnlySpan<char> NameForBindingExact(ReadOnlySpan<char> binding) {
+		ButtonCode i;
+
+		for (i = 0; i < ButtonCode.Last; i++)
+			if (KeyInfo[(int)i].KeyBinding != null)
+				if (KeyInfo[(int)i].KeyBinding![0] != '\0')
+					if (0 == strcmp(KeyInfo[(int)i].KeyBinding, binding))
+						return inputSystem == null ? null : inputSystem.ButtonCodeToString(i);
+
+		return null;
 	}
 }

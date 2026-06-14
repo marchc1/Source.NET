@@ -411,7 +411,6 @@ public interface IEngineClient
 	ReadOnlySpan<char> GetMostRecentSaveGame();
 	void SetMostRecentSaveGame(ReadOnlySpan<char> lpszFilename);
 
-	void StartXboxExitingProcess();
 	bool IsSaveInProgress();
 	uint OnStorageDeviceAttached();
 	void OnStorageDeviceDetached();

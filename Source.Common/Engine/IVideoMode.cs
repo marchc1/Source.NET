@@ -68,4 +68,6 @@ public interface IVideoMode
 	void SetGameWindow(nint window);
 	bool SetMode(in UserVideoMode videomode);
 	ViewRects GetClientViewRect();
+	bool IsWindowedMode();
+	bool IsBorderlessMode();
 }

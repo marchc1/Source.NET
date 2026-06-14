@@ -20,13 +20,11 @@ using System.Numerics;
 
 namespace Source.Engine;
 
-public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
+public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host Host,
 							IMaterialSystem materials, MaterialSystem_Config MaterialSystemConfig,
 							MatSysInterface MatSys, ModelLoader modelloader) : IEngineClient
 {
-	public ReadOnlySpan<char> Key_LookupBinding(ReadOnlySpan<char> binding) {
-		return "";
-	}
+	public ReadOnlySpan<char> Key_LookupBinding(ReadOnlySpan<char> binding) => Key.NameForBinding(binding);
 	public void GetMainMenuBackgroundName(Span<char> dest) {
 		"background05".CopyTo(dest);
 	}
@@ -222,7 +220,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 	}
 
 	public void Con_NPrintf(int pos, ReadOnlySpan<char> text) {
-		throw new NotImplementedException();
+		// todo
 	}
 
 	public bool IsBoxInViewCluster(in Vector3 mins, in Vector3 maxs) {
@@ -409,9 +407,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 		throw new NotImplementedException();
 	}
 
-	public bool IsHLTV() {
-		throw new NotImplementedException();
-	}
+	public bool IsHLTV() => false; // not hltv ever, hltv probably will never be implemented
 
 	public void SetOcclusionParameters(in OcclusionParams parms) {
 		throw new NotImplementedException();
@@ -425,13 +421,9 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 		throw new NotImplementedException();
 	}
 
-	public bool IsInEditMode() {
-		throw new NotImplementedException();
-	}
+	public bool IsInEditMode() => false; //todo
 
-	public uint GetEngineBuildNumber() {
-		throw new NotImplementedException();
-	}
+	public uint GetEngineBuildNumber() => Protocol.VERSION;
 
 	public ReadOnlySpan<char> GetProductVersionString() {
 		throw new NotImplementedException();
@@ -457,13 +449,8 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 		throw new NotImplementedException();
 	}
 
-	public void SetRestrictServerCommands(bool restrict) {
-		throw new NotImplementedException();
-	}
-
-	public void SetRestrictClientCommands(bool restrict) {
-		throw new NotImplementedException();
-	}
+	public void SetRestrictServerCommands(bool restrict) => cl.RestrictServerCommands = restrict;
+	public void SetRestrictClientCommands(bool restrict) => cl.RestrictClientCommands = restrict;
 
 	public void SetOverlayBindProxy(int overlayID, object bindProxy) {
 		throw new NotImplementedException();
@@ -477,10 +464,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 		throw new NotImplementedException();
 	}
 
-	public void ReadConfiguration(bool readDefault = false) {
-		throw new NotImplementedException();
-	}
-
+	public void ReadConfiguration(bool readDefault = false) => Host.ReadConfiguration();
 	public void SetAchievementMgr(IAchievementMgr? achievementMgr) {
 		throw new NotImplementedException();
 	}
@@ -489,27 +473,15 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 		throw new NotImplementedException();
 	}
 
-	public bool MapLoadFailed() {
-		throw new NotImplementedException();
-	}
-
-	public void SetMapLoadFailed(bool bState) {
-		throw new NotImplementedException();
-	}
-
-	public bool IsLowViolence() {
-		throw new NotImplementedException();
-	}
+	public bool MapLoadFailed() => serverGlobalVariables.MapLoadFailed;
+	public void SetMapLoadFailed(bool state) => serverGlobalVariables.MapLoadFailed = state;
+	public bool IsLowViolence() => Host.LowViolence;
 
 	public ReadOnlySpan<char> GetMostRecentSaveGame() {
 		throw new NotImplementedException();
 	}
 
 	public void SetMostRecentSaveGame(ReadOnlySpan<char> lpszFilename) {
-		throw new NotImplementedException();
-	}
-
-	public void StartXboxExitingProcess() {
 		throw new NotImplementedException();
 	}
 
@@ -537,45 +509,19 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 		throw new NotImplementedException();
 	}
 
-	public void ServerCmdKeyValues(KeyValues keyValues) {
-		throw new NotImplementedException();
-	}
+	public void ServerCmdKeyValues(KeyValues keyValues) => cl.SendServerCmdKeyValues(keyValues);
+	public bool IsSkippingPlayback() => false; // TODO: demo support?
+	public bool IsLoadingDemo() => false; // TODO: demo support?
+	public bool IsPlayingDemoALocallyRecordedDemo() => false; // TODO: demo support?
+	public ReadOnlySpan<char> Key_LookupBindingExact(ReadOnlySpan<char> binding) => Key.NameForBindingExact(binding);
 
-	public bool IsSkippingPlayback() {
-		throw new NotImplementedException();
-	}
+	public bool IsWindowedMode() => videoMode!.IsWindowedMode();
+	public void FlashWindow() => launcherMgr.FlashWindow(true);
 
-	public bool IsLoadingDemo() {
-		throw new NotImplementedException();
-	}
+	public int GetClientVersion() => GetSteamInfIDVersionInfo().ClientVersion;
+	public bool IsActiveApp() => game.IsActiveApp();
 
-	public bool IsPlayingDemoALocallyRecordedDemo() {
-		throw new NotImplementedException();
-	}
-
-	public ReadOnlySpan<char> Key_LookupBindingExact(ReadOnlySpan<char> pBinding) {
-		throw new NotImplementedException();
-	}
-
-	public bool IsWindowedMode() {
-		throw new NotImplementedException();
-	}
-
-	public void FlashWindow() {
-		throw new NotImplementedException();
-	}
-
-	public int GetClientVersion() {
-		throw new NotImplementedException();
-	}
-
-	public bool IsActiveApp() {
-		throw new NotImplementedException();
-	}
-
-	public void DisconnectInternal() {
-		throw new NotImplementedException();
-	}
+	public void DisconnectInternal() => Host.Disconnect(true, "");
 
 	public int GetInstancesRunningCount() {
 		throw new NotImplementedException();
