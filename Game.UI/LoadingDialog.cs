@@ -91,7 +91,11 @@ public class LoadingDialog : Frame
 			SetTitle("#GameUI_Loading", true);
 		}
 
+#if GMOD_DLL
+		Center = false;
+#else
 		Center = !GameUI.HasLoadingBackgroundDialog();
+#endif
 
 		ShowingSecondaryProgress = false;
 		SecondaryProgress = 0.0f;
@@ -148,10 +152,14 @@ public class LoadingDialog : Frame
 			// return;
 		}
 
-		if (ModInfo.IsSinglePlayerOnly() && !forceShowProgressText)
-			LoadControlSettings("resource/LoadingDialogNoBannerSingle.res");
-		else
-			LoadControlSettings("resource/LoadingDialogNoBanner.res");
+#if GMOD_DLL
+		LoadControlSettings("resource/LoadingDialogGMod.res");
+#else
+	if (ModInfo.IsSinglePlayerOnly() && !forceShowProgressText)
+		LoadControlSettings("resource/LoadingDialogNoBannerSingle.res");
+	else
+		LoadControlSettings("resource/LoadingDialogNoBanner.res");
+#endif
 	}
 
 	internal void DisplayGenericError(ReadOnlySpan<char> failureReason, ReadOnlySpan<char> extendedReason) {
