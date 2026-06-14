@@ -1,4 +1,7 @@
-﻿using Source.Common.ShaderAPI;
+﻿using Source.Common.Bitmap;
+using Source.Common.Engine;
+using Source.Common.ShaderAPI;
+
 
 namespace Source.Common.MaterialSystem;
 
@@ -26,7 +29,8 @@ public enum MaterialSystem_Config_Flags
 
 public class MaterialSystem_Config
 {
-	public MaterialVideoMode VideoMode;
+	public UserVideoMode VideoMode;
+	public ImageFormat Format;
 	public float MonitorGamma;
 	public float GammaTVRangeMin;
 	public float GammaTVRangeMax;

@@ -678,8 +678,6 @@ public class OptionsSubVideo : PropertyPage
 		AspectRatio.SetItemEnabled(1, false);
 		AspectRatio.SetItemEnabled(2, false);
 
-		gameuifuncs.GetVideoModes(out Span<VMode> list);
-
 		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 
 		bool windowed = Windowed.GetActiveItem() == (Windowed.GetItemCount() - 2);
@@ -689,34 +687,7 @@ public class OptionsSubVideo : PropertyPage
 
 		bool foundWidescreen = false;
 		int selectedItemID = -1;
-		foreach (VMode mode in list) {
-			if (mode.Width == 0 || mode.Height == 0)
-				continue;
-
-			if (windowed || borderless) {
-				if (mode.Width > desktopWidth || mode.Height > desktopHeight)
-					continue;
-			}
-
-			sz.Clear();
-			GetResolutionName(mode, sz, desktopWidth, desktopHeight);
-
-			int itemID = -1;
-			int aspectMode = GetScreenAspectMode(mode.Width, mode.Height);
-			if (aspectMode > 0) {
-				AspectRatio.SetItemEnabled(aspectMode, true);
-				foundWidescreen = true;
-			}
-
-			if (aspectMode == AspectRatio.GetActiveItem())
-				itemID = Mode.AddItem(sz, null);
-
-			if (mode.Width == currentWidth && mode.Height == currentHeight)
-				selectedItemID = itemID;
-			else if (selectedItemID == -1 && mode.Width == config.VideoMode.Width && mode.Height == config.VideoMode.Height)
-				selectedItemID = itemID;
-		}
-
+		
 		AspectRatio.SetEnabled(foundWidescreen);
 
 		SelectedMode = selectedItemID;
@@ -764,7 +735,6 @@ public class OptionsSubVideo : PropertyPage
 	}
 
 	private void SetCurrentResolutionComboItem() {
-		gameuifuncs.GetVideoModes(out Span<VMode> list); 
 		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 		// todo
 	}
@@ -897,9 +867,6 @@ public class OptionsSubVideo : PropertyPage
 
 		return closestAnamorphic;
 	}
-
-	private void GetResolutionName(VMode mode, Span<char> name, int desktopWidth, int desktopHeight)
-		=> sprintf(name, "%i x %i%s").I(mode.Width).I(mode.Height).S(mode.Width == desktopWidth && mode.Height == desktopHeight ? " (native)" : "");
 
 	FileStream FOpenGameHDFile(FileMode mode) {
 		// ReadOnlySpan<char> gameDir = engine.GetGameDirectory(); // todo

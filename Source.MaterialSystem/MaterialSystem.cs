@@ -139,11 +139,6 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		config.VideoMode.Width = (int)width;
 		config.VideoMode.Height = (int)height;
 
-#if DEBUG // Convenience, can remove this once config etc is actually saved
-		config.VideoMode.Width = 1600;
-		config.VideoMode.Height = 900;
-		config.SetFlag(MaterialSystem_Config_Flags.Windowed, true);
-#endif
 	}
 
 	public bool UpdateConfig(bool forceUpdate) {
@@ -383,15 +378,6 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 	}
 
 	public int GetCurrentAdapter() => ShaderDevice.GetCurrentAdapter();
-
-	public int GetModeCount(int adapter) => ShaderDevice.GetModeCount(adapter);
-	public void GetModeInfo(int adapter, int mode, out MaterialVideoMode info) {
-		ShaderDevice.GetModeInfo(adapter, mode, out ShaderDisplayMode shaderInfo);
-		info.Width = shaderInfo.Width;
-		info.Height = shaderInfo.Height;
-		info.Format = shaderInfo.Format;
-		info.RefreshRate = (int)(shaderInfo.RefreshRateNumerator / (double)shaderInfo.RefreshRateDenominator);
-	}
 
 	public void ModShutdown() {
 

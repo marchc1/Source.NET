@@ -21,14 +21,6 @@ public class GameUIFuncs(Key Key, IInputSystem inputsystem, IGame game) : IGameU
 		height = (int)uheight;
 	}
 
-
-	public void GetVideoModes(out Span<VMode> list) {
-		if (videoMode != null)
-			list = videoMode.GetModes();
-		else
-			list = null;
-	}
-
 	public bool IsConnectedToVACSecureServer() {
 		if (cl.IsConnected())
 			return false; // todo

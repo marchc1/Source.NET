@@ -8,7 +8,6 @@ public interface IGameUIFuncs
 	bool IsKeyDown(ReadOnlySpan<char> keyName, out bool isDown);
 	ReadOnlySpan<char> GetBindingForButtonCode(ButtonCode code);
 	ButtonCode GetButtonCodeForBind(ReadOnlySpan<char> bind);
-	void GetVideoModes(out Span<VMode> list);
 	void SetFriendsID(uint friendsID, ReadOnlySpan<char> friendsName);
 	void GetDesktopResolution(out int width, out int height);
 	bool IsConnectedToVACSecureServer();

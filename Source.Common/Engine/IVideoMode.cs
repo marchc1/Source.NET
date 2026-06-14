@@ -1,4 +1,6 @@
-﻿namespace Source.Common.Engine;
+﻿using Source.Common.Bitmap;
+
+namespace Source.Common.Engine;
 
 
 public struct ViewRect
@@ -6,16 +8,23 @@ public struct ViewRect
 	public int X, Y, Width, Height;
 }
 
+/// <summary>
+/// General merging of things, differentiates from Source's garbage when managing video modes. Allows arbitrary user data for the video mode
+/// </summary>
+public struct UserVideoMode {
+	public int Width;
+	public int Height;
+	public int RefreshRate;
+	public bool Windowed;
+	public bool Borderless;
+}
+
 public interface IVideoMode
 {
 	bool Init();
 	void DrawStartupGraphic();
-	bool CreateGameWindow(int width, int height, bool windowed, bool borderless);
+	bool CreateGameWindow(in UserVideoMode videomode);
 	void SetGameWindow(nint window);
-	bool SetMode(int width, int height, bool windowed, bool borderless);
+	bool SetMode(in UserVideoMode videomode);
 	ViewRects GetClientViewRect();
-	int GetModeCount();
-	ref VMode GetMode(int mode);
-	Span<VMode> GetModes();
-	Span<VMode> GetCustomModes();
 }
