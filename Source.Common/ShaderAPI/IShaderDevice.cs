@@ -33,6 +33,12 @@ public enum ShaderType
 }
 public static class GraphicsAPIVersion_Exts
 {
+	public static GraphicsDriver GetDriver(this GraphicsDriver version) {
+		return version & GraphicsDriver.DriverMask;
+	}
+	public static bool IsDriver(this GraphicsDriver version, GraphicsDriver driver) {
+		return driver == (version & GraphicsDriver.DriverMask);
+	}
 	/// <summary>
 	/// Generate a file extension, consiting of (DRIVER)(VERSION).(SHADERTYPEEXT).
 	/// <br/>

@@ -99,11 +99,23 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 	public bool CreateGameWindow(string title, bool windowed, bool borderless, int width, int height) {
 		IMaterialSystem materials = services.GetRequiredService<IMaterialSystem>();
 
-		SDL_WindowFlags flags = SDL_WindowFlags.SDL_WINDOW_OPENGL;
-		if (!windowed) flags |= SDL_WindowFlags.SDL_WINDOW_FULLSCREEN;
+		SDL_WindowFlags flags = default;
+		GraphicsDriver driver = GraphicsDriver.OpenGL46; // todo, dont hardcode
+		switch(driver.GetDriver()){
+			case GraphicsDriver.OpenGL: flags |= SDL_WindowFlags.SDL_WINDOW_OPENGL; break;
+			case GraphicsDriver.Metal: flags |= SDL_WindowFlags.SDL_WINDOW_METAL; break;
+			case GraphicsDriver.Vulkan: flags |= SDL_WindowFlags.SDL_WINDOW_VULKAN; break;
+			default: throw new Exception("Need graphics driver support");
+		}
+
 		if (borderless) flags |= SDL_WindowFlags.SDL_WINDOW_BORDERLESS;
 
 		window = new SDL3_Window(services).Create(title, width, height, flags);
+
+		if (!windowed) {
+			SetExclusiveFullscreenMode(width, height);
+			SDL3.SDL_SetWindowFullscreen(window.HardwareHandle, true);
+		}
 
 #if WIN32
 		// Hack to fix SDL/GL promoting borderless windows to exclusive fullscreen
@@ -211,8 +223,20 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 	}
 
 	public void SetWindowFullScreen(bool fullscreen, int width, int height) {
+		if (fullscreen)
+			SetExclusiveFullscreenMode(width, height);
+		else
+			SDL3.SDL_SetWindowFullscreenMode(window.HardwareHandle, null);
+
 		SDL3.SDL_SetWindowFullscreen(window.HardwareHandle, fullscreen);
 		SizeWindow(width, height);
+	}
+
+	private void SetExclusiveFullscreenMode(int width, int height) {
+		SDL_DisplayID display = SDL3.SDL_GetDisplayForWindow(window.HardwareHandle);
+		SDL_DisplayMode closest;
+		if (SDL3.SDL_GetClosestFullscreenDisplayMode(display, width, height, 0, false, &closest))
+			SDL3.SDL_SetWindowFullscreenMode(window.HardwareHandle, &closest);
 	}
 
 	public void SetWindowBordered(bool bordered) {

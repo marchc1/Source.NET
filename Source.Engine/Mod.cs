@@ -30,7 +30,7 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 
 		videomode.Init();
 
-		return videomode.CreateGameWindow(width, height, windowed, borderless);
+		return videomode.CreateGameWindow(new(width, height, windowed, borderless));
 	}
 
 	public IMod.Result Run() {

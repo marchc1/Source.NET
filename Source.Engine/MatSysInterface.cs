@@ -800,7 +800,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		bool windowed = args.Arg(3, 0) > 0;
 		bool borderless = args.ArgC() == 5 && args.Arg(4, 0) > 0;
 
-		Singleton<IVideoMode>().SetMode(width, height, windowed, borderless);
+		Singleton<IVideoMode>().SetMode(new(width, height, windowed, borderless));
 	}
 #endif
 

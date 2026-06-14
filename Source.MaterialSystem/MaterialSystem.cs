@@ -138,7 +138,6 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		launcherMgr.GetNativeDisplayInfo(-1, out uint width, out uint height, out uint refreshHz);
 		config.VideoMode.Width = (int)width;
 		config.VideoMode.Height = (int)height;
-
 	}
 
 	public bool UpdateConfig(bool forceUpdate) {
@@ -496,7 +495,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		mode = new ShaderDeviceInfo();
 		mode.DisplayMode.Width = config.VideoMode.Width;
 		mode.DisplayMode.Height = config.VideoMode.Height;
-		mode.DisplayMode.Format = config.VideoMode.Format;
+		mode.DisplayMode.Format = config.Format;
 		mode.DisplayMode.RefreshRateNumerator = config.VideoMode.RefreshRate;
 		mode.DisplayMode.RefreshRateDenominator = config.VideoMode.RefreshRate >= 0 ? 1 : 0;
 		mode.BackBufferCount = 1;
