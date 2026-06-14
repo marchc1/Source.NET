@@ -776,7 +776,23 @@ public class OptionsSubVideo : PropertyPage
 
 	private void SetCurrentResolutionComboItem() {
 		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
-		// todo
+
+		int currentResolutionItemID = -1;
+		Span<char> itemText = stackalloc char[32];
+		for (int i = 0; i < Mode.GetItemCount(); i++) {
+			Mode.GetItemText(i, itemText);
+			new ScanF(itemText, "%i x %i").Read(out int width).Read(out int height);
+
+			if (width == config.VideoMode.Width && height == config.VideoMode.Height) {
+				currentResolutionItemID = i;
+				break;
+			}
+		}
+
+		if (currentResolutionItemID != -1) {
+			SelectedMode = currentResolutionItemID;
+			Mode.ActivateItem(currentResolutionItemID);
+		}
 	}
 
 	readonly IEngineClient engine = Singleton<IEngineClient>();
