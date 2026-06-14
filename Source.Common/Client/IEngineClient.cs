@@ -333,9 +333,6 @@ public interface IEngineClient
 	// returns the name of the background level
 	void GetMainMenuBackgroundName(Span<char> dest);
 
-	// Get video modes
-	void GetVideoModes(out Span<VMode> modes);
-
 	// Occlusion system control
 	void SetOcclusionParameters(in OcclusionParams parms);
 

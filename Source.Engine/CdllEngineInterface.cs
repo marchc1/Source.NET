@@ -413,10 +413,6 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con,
 		throw new NotImplementedException();
 	}
 
-	public void GetVideoModes(out Span<VMode> modes) {
-		throw new NotImplementedException();
-	}
-
 	public void SetOcclusionParameters(in OcclusionParams parms) {
 		throw new NotImplementedException();
 	}
