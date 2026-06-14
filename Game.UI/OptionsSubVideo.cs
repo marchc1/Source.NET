@@ -11,6 +11,8 @@ using Source.Common.Networking;
 using Source.Engine;
 using Source.GUI.Controls;
 
+using System.Numerics;
+
 namespace Game.UI;
 
 struct RatioToAspectMode
@@ -583,6 +585,14 @@ public class OptionsSubVideo : PropertyPage
 		new () { Anamorphic = 2, AspectRatio = 1.0f }
 	];
 
+	// Indexed by AspectRatio combo item ID (0,1,2), matching the order items were added in the
+	// constructor (#GameUI_AspectNormal, #GameUI_AspectWide16x9, #GameUI_AspectWide16x10).
+	readonly (int Numerator, int Denominator)[] AspectRatioFractions = [
+		(4, 3),
+		(16, 9),
+		(16, 10)
+	];
+
 	int[] DirectXLevels = [
 		70,
 		80,
@@ -651,7 +661,7 @@ public class OptionsSubVideo : PropertyPage
 		Windowed = new(this, "DisplayModeCombo", 5, false);
 		Windowed.AddItem("#GameUI_Fullscreen", null);
 		Windowed.AddItem("#GameUI_Windowed", null);
-		// Windowed.AddItem("Borderless Window", null); // TODO: ugh
+		Windowed.AddItem("Borderless Window", null);
 
 		PrepareResolutionList();
 
@@ -678,41 +688,42 @@ public class OptionsSubVideo : PropertyPage
 		AspectRatio.SetItemEnabled(1, false);
 		AspectRatio.SetItemEnabled(2, false);
 
-		VMode[] list = ((VideoMode_Common)Singleton<IVideoMode>()).ModeList;
-		// gameuifuncs.GetVideoModes // todo ^
-
 		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 
-		bool windowed = Windowed.GetActiveItem() >= (Windowed.GetItemCount() - 1);
-		int desktopWidth = 4096, desktopHeight = 2160; // todo gameuifuncs.GetDesktopResolution
+		bool windowed = Windowed.GetActiveItem() == (Windowed.GetItemCount() - 2);
+		bool borderless = Windowed.GetActiveItem() == (Windowed.GetItemCount() - 1);
+
+		gameuifuncs.GetDesktopResolution(out int desktopWidth, out int desktopHeight);
 
 		bool foundWidescreen = false;
 		int selectedItemID = -1;
-		foreach (VMode mode in list) {
-			if (mode.Width == 0 || mode.Height == 0)
-				continue;
 
-			if (windowed) {
-				if (mode.Width > desktopWidth || mode.Height > desktopHeight)
-					continue;
-			}
-
-			sz.Clear();
-			GetResolutionName(mode, sz, desktopWidth, desktopHeight);
-
-			int itemID = -1;
-			int aspectMode = GetScreenAspectMode(mode.Width, mode.Height);
-			if (aspectMode > 0) {
-				AspectRatio.SetItemEnabled(aspectMode, true);
+		// Enable widescreen aspect-ratio options if the desktop can actually produce
+		// resolutions for them.
+		for (int i = 1; i < AspectRatioFractions.Length; i++) {
+			var (num, den) = AspectRatioFractions[i];
+			List<Vector2> widescreenModes = [];
+			UserVideoMode.ProduceAvailableResolutionList(num, den, desktopWidth, desktopHeight, widescreenModes);
+			if (widescreenModes.Count > 0) {
+				AspectRatio.SetItemEnabled(i, true);
 				foundWidescreen = true;
 			}
+		}
 
-			if (aspectMode == AspectRatio.GetActiveItem())
-				itemID = Mode.AddItem(sz, null);
+		int activeAspect = Math.Clamp(AspectRatio.GetActiveItem(), 0, AspectRatioFractions.Length - 1);
+		var (activeNum, activeDen) = AspectRatioFractions[activeAspect];
 
-			if (mode.Width == currentWidth && mode.Height == currentHeight)
-				selectedItemID = itemID;
-			else if (selectedItemID == -1 && mode.Width == config.VideoMode.Width && mode.Height == config.VideoMode.Height)
+		List<Vector2> modes = [];
+		UserVideoMode.ProduceAvailableResolutionList(activeNum, activeDen, desktopWidth, desktopHeight, modes);
+
+		Span<char> modeText = stackalloc char[32];
+		foreach (Vector2 mode in modes) {
+			int w = (int)mode.X;
+			int h = (int)mode.Y;
+
+			int itemID = Mode.AddItem(sprintf(modeText, "%i x %i").I(w).I(h).ToSpan(), null);
+
+			if (w == currentWidth && h == currentHeight)
 				selectedItemID = itemID;
 		}
 
@@ -726,10 +737,10 @@ public class OptionsSubVideo : PropertyPage
 			int width = config.VideoMode.Width;
 			int height = config.VideoMode.Height;
 
-			if ((width > desktopWidth) || (height > desktopHeight)) {
-				width = desktopWidth;
-				height = desktopHeight;
-			}
+			// if ((width > desktopWidth) || (height > desktopHeight)) {
+			// 	width = desktopWidth;
+			// 	height = desktopHeight;
+			// }
 
 			sprintf(sz, "%i x %i").I(width).I(height);
 			Mode.SetText(sz);
@@ -749,7 +760,13 @@ public class OptionsSubVideo : PropertyPage
 
 		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 
-		Windowed.ActivateItem(config.Windowed() ? 1 : 0);
+		if (config.Windowed())
+			Windowed.ActivateItem(Windowed.GetItemCount() - 2);
+		else if (config.NoWindowBorder())
+			Windowed.ActivateItem(Windowed.GetItemCount() - 1);
+		else
+			Windowed.ActivateItem(0);
+
 		GammaButton.SetEnabled(!config.Windowed());
 		HDContent.SetSelected(BUseHDContent());
 
@@ -757,6 +774,7 @@ public class OptionsSubVideo : PropertyPage
 	}
 
 	private void SetCurrentResolutionComboItem() {
+		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 		// todo
 	}
 
@@ -788,18 +806,19 @@ public class OptionsSubVideo : PropertyPage
 		new ScanF(sz, "%i x %i").Read(out int width).Read(out int height);
 
 		bool configChanged = false;
-		bool windowed = Windowed.GetActiveItem() == (Windowed.GetItemCount() - 1);
+		bool windowed = Windowed.GetActiveItem() == (Windowed.GetItemCount() - 2);
+		bool borderless = Windowed.GetActiveItem() == (Windowed.GetItemCount() - 1);
 		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 
 		bool vrMode = VRMode.GetActiveItem() != 0;
 		// todo vr mode
 
-		if (config.VideoMode.Width != width || config.VideoMode.Height != height || config.Windowed() != windowed)
+		if (config.VideoMode.Width != width || config.VideoMode.Height != height || config.Windowed() != windowed || config.NoWindowBorder() != borderless)
 			configChanged = true;
 
 		if (configChanged) {
 			Span<char> cmd = stackalloc char[256];
-			sprintf(cmd, "mat_setvideomode %i %i %i\n").I(width).I(height).I(windowed ? 1 : 0);
+			sprintf(cmd, "mat_setvideomode %i %i %i %i\n").I(width).I(height).I((windowed || borderless) ? 1 : 0).I(borderless ? 1 : 0);
 			engine.ClientCmd_Unrestricted(cmd);
 		}
 
@@ -873,7 +892,7 @@ public class OptionsSubVideo : PropertyPage
 	}
 
 	private int GetScreenAspectMode(int width, int height) {
-		float aspectRatio = width / height;
+		float aspectRatio = (float)width / height;
 		float closestAspectRatioDist = 99999.0f;
 		int closestAnamorphic = 0;
 
@@ -887,9 +906,6 @@ public class OptionsSubVideo : PropertyPage
 
 		return closestAnamorphic;
 	}
-
-	private void GetResolutionName(VMode mode, Span<char> name, int desktopWidth, int desktopHeight)
-		=> sprintf(name, "%i x %i%s").I(mode.Width).I(mode.Height).S(mode.Width == desktopWidth && mode.Height == desktopHeight ? " (native)" : "");
 
 	FileStream FOpenGameHDFile(FileMode mode) {
 		// ReadOnlySpan<char> gameDir = engine.GetGameDirectory(); // todo

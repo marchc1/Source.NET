@@ -158,6 +158,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<EngineParms>();
 		this.AddSingleton<ClientDLL>();
 		this.AddSingleton<IVideoMode, VideoMode_MaterialSystem>();
+		this.AddSingleton<IRegistry, Registry>();
 		this.AddSingleton<IRenderView, RenderView>();
 		this.AddSingleton<ModelLoader>();
 		this.AddSingleton<IModelLoader>(x => x.GetRequiredService<ModelLoader>());
@@ -190,6 +191,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<IServerPluginHelpers, ServerPlugin>(x => x.GetRequiredService<ServerPlugin>());
 		this.AddSingleton<IUniformRandomStream, UniformRandomStream>();
 		this.AddSingleton<ISoundServices, EngineSoundServices>();
+		this.AddSingleton<IGameUIFuncs, GameUIFuncs>();
 		// Engine datacache
 		this.AddSingleton<IModelRender, ModelRender>();
 		this.AddSingleton<IVModelInfoClient, ModelInfoClient>();

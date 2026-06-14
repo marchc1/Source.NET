@@ -11,7 +11,7 @@ public class CommandLine : ICommandLine
 		CleanUpParms();
 		if (cmdLine == null) return;
 
-		fixed(char* pCharFx = cmdLine) {
+		fixed (char* pCharFx = cmdLine) {
 			char* pChar = pCharFx;
 
 			while (*pChar > 0 && char.IsWhiteSpace(*pChar))
@@ -30,8 +30,8 @@ public class CommandLine : ICommandLine
 					continue;
 				}
 
-				if(firstLetter == null) {
-					if(*pChar == '\"') {
+				if (firstLetter == null) {
+					if (*pChar == '\"') {
 						inQuotes = true;
 						firstLetter = pChar + 1;
 						continue;
@@ -107,20 +107,20 @@ public class CommandLine : ICommandLine
 		full[0] = '\0';
 
 		char* dst = full;
-		fixed(char* pCommandLine = commandLine) {
+		fixed (char* pCommandLine = commandLine) {
 			char* src = pCommandLine;
 			bool inQuotes = false;
 			char* inQuotesStart = null;
-			while(*src > 0) {
-				if(*src == '"') {
-					if(src == pCommandLine || (src[-1] != '/' && src[-1] != '\\')) {
+			while (*src > 0) {
+				if (*src == '"') {
+					if (src == pCommandLine || (src[-1] != '/' && src[-1] != '\\')) {
 						inQuotes = !inQuotes;
 						inQuotesStart = src + 1;
 					}
 				}
 
-				if(*src == '*') {
-					if(src == pCommandLine || (inQuotes && char.IsWhiteSpace(src[-1])) || (inQuotes && src == inQuotesStart)){
+				if (*src == '*') {
+					if (src == pCommandLine || (inQuotes && char.IsWhiteSpace(src[-1])) || (inQuotes && src == inQuotesStart)) {
 						LoadParametersFromFile(src, dst, MAX_BUFFER_LEN - ((nint)dst - (nint)full), inQuotes);
 						continue;
 					}
@@ -224,11 +224,93 @@ public class CommandLine : ICommandLine
 		return parms[index + 1];
 	}
 
-	public unsafe void RemoveParm(string name) {
-		throw new NotImplementedException();
+
+	static int StrLen(char[] buffer, int start) {
+		int len = 0;
+		while (buffer[start + len] != '\0')
+			len++;
+		return len;
+	}
+
+	static int StrIStr(char[] buffer, int start, string needle) {
+		int haystackLen = StrLen(buffer, start);
+		if (needle.Length > haystackLen)
+			return -1;
+
+		for (int i = 0; i <= haystackLen - needle.Length; i++) {
+			bool match = true;
+			for (int j = 0; j < needle.Length; j++) {
+				if (char.ToLowerInvariant(buffer[start + i + j]) != char.ToLowerInvariant(needle[j])) {
+					match = false;
+					break;
+				}
+			}
+			if (match)
+				return start + i;
+		}
+
+		return -1;
+	}
+
+	public void RemoveParm(string name) {
+		if (cmdLine == null)
+			return;
+
+		int nParmLen = name.Length;
+
+		char[] buffer = new char[cmdLine.Length + 1];
+		cmdLine.AsSpan().CopyTo(buffer);
+		buffer[cmdLine.Length] = '\0';
+
+		int p = 0;
+		while (buffer[p] != '\0') {
+			int curlen = StrLen(buffer, p);
+
+			int found = StrIStr(buffer, p, name);
+			if (found == -1)
+				break;
+
+			int nextparam = found + 1;
+			bool hadQuote = false;
+			if (found > 0 && buffer[found - 1] == '"')
+				hadQuote = true;
+
+			while (buffer[nextparam] != '\0' && buffer[nextparam] != ' ' && buffer[nextparam] != '"')
+				nextparam++;
+
+			if ((nextparam - found) > nParmLen) {
+				p = nextparam;
+				continue;
+			}
+
+			while (buffer[nextparam] != '\0' && buffer[nextparam] != '-' && buffer[nextparam] != '+')
+				nextparam++;
+
+			if (hadQuote)
+				found--;
+
+			if (buffer[nextparam] != '\0') {
+				int n = curlen - (nextparam - p);
+				new Span<char>(buffer, nextparam, n).CopyTo(new Span<char>(buffer, found, n));
+				buffer[found + n] = '\0';
+			}
+			else {
+				int n = nextparam - found;
+				new Span<char>(buffer, found, n).Clear();
+			}
+		}
+
+		int len = StrLen(buffer, 0);
+		while (len > 0 && buffer[len - 1] == ' ')
+			len--;
+
+		cmdLine = new string(buffer, 0, len);
+		ParseCommandLine();
 	}
 
 	public void SetParm(int index, string newParm) {
-		throw new NotImplementedException();
+		Dbg.Assert(index >= 0 && index < parms.Count);
+		if (index >= 0 && index < parms.Count)
+			parms[index] = newParm;
 	}
 }

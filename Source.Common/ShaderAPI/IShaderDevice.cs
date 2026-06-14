@@ -33,6 +33,12 @@ public enum ShaderType
 }
 public static class GraphicsAPIVersion_Exts
 {
+	public static GraphicsDriver GetDriver(this GraphicsDriver version) {
+		return version & GraphicsDriver.DriverMask;
+	}
+	public static bool IsDriver(this GraphicsDriver version, GraphicsDriver driver) {
+		return driver == (version & GraphicsDriver.DriverMask);
+	}
 	/// <summary>
 	/// Generate a file extension, consiting of (DRIVER)(VERSION).(SHADERTYPEEXT).
 	/// <br/>
@@ -91,6 +97,7 @@ public struct ShaderDeviceInfo
 	public int WindowedSizeLimitHeight;
 
 	public bool Windowed;
+	public bool Borderless;
 	public bool Resizing;
 	public bool UseStencil;
 	public bool LimitWindowedSize;

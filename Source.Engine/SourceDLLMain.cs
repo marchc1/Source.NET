@@ -49,6 +49,7 @@ public static class SourceDllMain
 	public static IMaterialSystem materialSystem { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => materials; }
 	[Dependency] public static IDebugTextureInfo materialSystemDebugTextureInfo { get; private set; } = null!;
 	[Dependency] public static IVideoMode videoMode { get; private set; } = null!;
+	[Dependency] public static IRegistry registry { get; private set; } = null!;
 	[Dependency] public static Cbuf cbuf { get; private set; } = null!;
 	[Dependency] public static ICvar cvar { get; private set; } = null!;
 	[Dependency] public static Cmd cmd { get; private set; } = null!;

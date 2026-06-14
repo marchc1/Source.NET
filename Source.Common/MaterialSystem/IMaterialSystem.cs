@@ -115,13 +115,6 @@ public record struct PixelShaderHandle
 
 	public readonly bool IsValid() => Handle != INVALID;
 }
-public struct MaterialVideoMode
-{
-	public int Width;            // if width and height are 0 and you select 
-	public int Height;           // windowed mode, it'll use the window size
-	public ImageFormat Format;   // use ImageFormats (ignored for windowed mode)
-	public int RefreshRate;      // 0 == default (ignored for windowed mode)
-}
 
 // fixme: should move this into something else.
 public struct FlashlightState
@@ -264,8 +257,6 @@ public interface IMaterialSystem
 	bool OverrideConfig(MaterialSystem_Config config, bool forceUpdate);
 	int GetDisplayAdapterCount();
 	int GetCurrentAdapter();
-	int GetModeCount(int adapter);
-	void GetModeInfo(int adapter, int mode, out MaterialVideoMode info);
 	bool SetMode(IWindow window, MaterialSystem_Config config);
 	void AddModeChangeCallBack(Action func);
 	IMaterial CreateMaterial(ReadOnlySpan<char> name, ReadOnlySpan<char> textureGroupName, KeyValues keyValues);

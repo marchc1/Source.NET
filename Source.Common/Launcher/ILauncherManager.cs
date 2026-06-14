@@ -5,10 +5,11 @@ namespace Source.Common.Launcher;
 
 public interface ILauncherManager
 {
-	bool CreateGameWindow(string title, bool windowed, int width, int height);
+	bool CreateGameWindow(string title, bool windowed, bool borderless, int width, int height);
 
 	void SetWindowFullScreen(bool fullscreen, int width, int height);
 	bool IsWindowFullScreen();
+	void SetWindowBordered(bool bordered);
 
 	void MoveWindow(int x, int y);
 	void SizeWindow(int width, int tall);

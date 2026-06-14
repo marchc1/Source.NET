@@ -82,7 +82,7 @@ public class Game : IGame
 			eng.SetQuitting(IEngine.Quit.ToDesktop);
 	}
 
-	public bool CreateGameWindow(int width, int height, bool windowed) {
+	public bool CreateGameWindow(int width, int height, bool windowed, bool borderless) {
 		GameMessageHandlers = [
 			new(InputEventType.App_AppActivated, HandleMsg_ActivateApp),
 			new(InputEventType.App_WindowMove, HandleMsg_WindowMove),
@@ -106,7 +106,7 @@ public class Game : IGame
 		}
 
 		Console.Title = windowName;
-		if (!launcherManager.CreateGameWindow(windowName, windowed, width, height))
+		if (!launcherManager.CreateGameWindow(windowName, windowed, borderless, width, height))
 			return false;
 
 		SetGameWindow(launcherManager.GetWindow());
