@@ -294,7 +294,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 	}
 
 	public BaseCombatWeapon? GetNextActivePos(int slot, int slotPos) {
-		if (slot >= MAX_WEAPON_POSITIONS || slot >= MAX_WEAPON_SLOTS)
+		if (slotPos >= MAX_WEAPON_POSITIONS || slot >= MAX_WEAPON_SLOTS)
 			return null;
 
 		int lowestPosition = MAX_WEAPON_POSITIONS;

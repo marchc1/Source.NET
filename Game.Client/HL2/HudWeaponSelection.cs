@@ -855,7 +855,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 			int lastSlotPos = -1;
 			for (int slotPos = 0; slotPos < MAX_WEAPON_POSITIONS; ++slotPos) {
-				BaseCombatWeapon? weapon = GetWeaponInSlot(SelectedSlot, slotPos);
+				BaseCombatWeapon? weapon = GetWeaponInSlot(newSlot, slotPos);
 				if (weapon != null)
 					lastSlotPos = slotPos;
 			}
