@@ -1150,7 +1150,14 @@ public class SectionedListPanel : Panel
 	}
 
 	public void EnterEditMode(int itemID, int column, Panel editPanel) {
-
+		EditModePanel = editPanel;
+		EditModeItemID = itemID;
+		EditModeColumn = column;
+		editPanel.SetParent(this);
+		editPanel.SetVisible(true);
+		editPanel.RequestFocus();
+		editPanel.MoveToFront();
+		InvalidateLayout();
 	}
 
 	public void LeaveEditMode() {
