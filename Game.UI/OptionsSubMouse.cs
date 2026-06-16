@@ -82,7 +82,7 @@ public class OptionsSubMouse : PropertyPage
 		JoyYawSensitivitySlider.ApplyChanges();
 		JoyPitchSensitivitySlider.ApplyChanges();
 
-		// engine.ClientCmd_Unrestricted("joyadvancedupdate");
+		engine.ClientCmd_Unrestricted("joyadvancedupdate");
 
 		ConVarRef var = new("m_customaccel");
 		if (var.IsValid())
