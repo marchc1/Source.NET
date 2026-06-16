@@ -3024,3 +3024,25 @@ class TextureIdProperty : IPanelAnimationPropertyConverter
 		entry.Set(panel, (int)currentId);
 	}
 }
+
+public readonly struct ScopedPanelWaitCursor : IDisposable
+{
+	const CursorCode dc_hourglass = CursorCode.Hourglass;
+
+	readonly Panel Panel;
+	readonly CursorCode OldCursor;
+
+	public ScopedPanelWaitCursor(Panel panel) {
+		Panel = panel;
+		OldCursor = panel.GetCursor();
+		panel.SetCursor(dc_hourglass);
+	}
+
+	public void Dispose() {
+		CursorCode nowCursor = Panel.GetCursor();
+		if (nowCursor == dc_hourglass)
+			Panel.SetCursor(OldCursor);
+		else
+			Assert(nowCursor == dc_hourglass, $"Expected dc_hourglass cursor, got {nowCursor} one.");
+	}
+}

@@ -61,7 +61,7 @@ public class EditablePanel : Panel
 		return base.RequestInfo(outputData);
 	}
 
-	protected virtual Panel? CreateControlByName(ReadOnlySpan<char> controlName) => InstancePanel(controlName);
+	public virtual Panel? CreateControlByName(ReadOnlySpan<char> controlName) => InstancePanel(controlName);
 
 	public override void ApplySettings(KeyValues resourceData) {
 		base.ApplySettings(resourceData);

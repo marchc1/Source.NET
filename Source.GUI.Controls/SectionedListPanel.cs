@@ -388,11 +388,30 @@ public class ItemButton : Label
 	}
 
 	public override void OnMousePressed(ButtonCode code) {
+		if (ListPanel != null && ListPanel.IsClickable() && IsEnabled()) {
+			if (code == ButtonCode.MouseLeft)
+				ListPanel.PostActionSignal(new KeyValues("ItemLeftClick", "itemID", ID));
 
+			if (code == ButtonCode.MouseRight) {
+				KeyValues msg = new("ItemContextMenu", "itemID", ID);
+				msg.SetPtr("SubPanel", this);
+				ListPanel.PostActionSignal(msg);
+			}
+
+			ListPanel.SetSelectedItem(this);
+		}
 	}
 
 	public void SetSelected(bool state) {
+		if (Selected != state) {
+			if (state)
+				RequestFocus();
 
+			Selected = state;
+			SetPaintBackgroundEnabled(state);
+			InvalidateLayout();
+			Repaint();
+		}
 	}
 
 	public bool IsSelected() => Selected;
@@ -1047,7 +1066,15 @@ public class SectionedListPanel : Panel
 	}
 
 	public void SetSelectedItem(ItemButton? item) {
+		if (SelectedItem == item)
+			return;
 
+		SelectedItem?.SetSelected(false);
+		SelectedItem = item;
+		SelectedItem?.SetSelected(true);
+
+		Repaint();
+		PostActionSignal(new KeyValues("ItemSelected", "itemID", SelectedItem?.GetID() ?? -1));
 	}
 
 	public int GetSelectedItem() {
@@ -1237,4 +1264,6 @@ public class SectionedListPanel : Panel
 
 		base.OnMessage(message, from);
 	}
+
+	internal bool IsClickable() => Clickable;
 }
