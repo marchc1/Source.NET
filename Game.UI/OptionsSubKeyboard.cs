@@ -320,8 +320,8 @@ public class OptionsSubKeyboard : PropertyPage
 		base.OnThink();
 
 		if (KeyBindList.IsCapturing()) {
-			// if (engine.CheckDoneKeyTrapping(ButtonCode.Invalid))
-			// Finish(ButtonCode.Invalid);
+			if (engine.CheckDoneKeyTrapping(out ButtonCode code))
+				Finish(code);
 		}
 	}
 

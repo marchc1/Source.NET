@@ -64,7 +64,7 @@ public class ControlsListPanel : SectionedListPanel
 
 		// InputSystem.SetNovintPure(true);
 
-		// engine.StartKeyTrapMode();
+		engine.StartKeyTrapMode();
 
 		if (cursor != null) {
 			InlineEditPanel.SetCursor(cursor.Value);
