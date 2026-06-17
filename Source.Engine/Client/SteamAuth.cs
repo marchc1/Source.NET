@@ -1,4 +1,6 @@
 ﻿global using static Source.Engine.Client.Steam3ClientAccessor;
+
+using Steamworks;
 namespace Source.Engine.Client;
 
 
@@ -22,6 +24,10 @@ public class Steam3Client;
 [EngineComponent]
 public class Steam3Client : IDisposable
 {
-	public void Dispose() {}
+	public void RunFrame() {
+		SteamAPI.RunCallbacks();
+	}
+
+	public void Dispose() { }
 }
 #endif

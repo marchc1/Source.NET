@@ -1338,7 +1338,7 @@ public class Menu : Panel
 			MenuItems[itemID].SetCurrentKeyBinding(hotkey);
 	}
 
-	public void PlaceContextMenu(Panel parent, Menu menu) {
+	public static void PlaceContextMenu(Panel parent, Menu menu) {
 		Assert(parent);
 		Assert(menu);
 
@@ -1347,15 +1347,15 @@ public class Menu : Panel
 
 		menu.SetVisible(true);
 		menu.SetParent(parent);
-		menu.AddActionSignalTarget(this);
+		menu.AddActionSignalTarget(parent);
 
-		Input.GetCursorPos(out int cursorX, out int cursorY);
+		parent.Input.GetCursorPos(out int cursorX, out int cursorY);
 
 		menu.SetVisible(true);
 		menu.InvalidateLayout(true);
 		menu.GetSize(out int menuWide, out int menuTall);
 
-		Surface.GetScreenSize(out int wide, out int tall);
+		parent.Surface.GetScreenSize(out int wide, out int tall);
 
 		if (wide - menuWide > cursorX) {
 			if (tall - menuTall > cursorY)
