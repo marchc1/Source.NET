@@ -183,7 +183,7 @@ public class GameUI(IEngineClient engine) : IGameUI
 			strcpy(configDir, platformDir);
 			strcat(configDir, "config");
 
-			Msg($"Steam config directory: {configDir} \n");
+			Msg($"Steam config directory: {configDir.SliceNullTerminatedString()}\n");
 
 			fileSystem.AddSearchPath(configDir.SliceNullTerminatedString(), "CONFIG");
 			fileSystem.CreateDirHierarchy("", "CONFIG");
