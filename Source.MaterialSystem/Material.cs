@@ -1020,12 +1020,17 @@ public class Material : IMaterialInternal
 	public IMaterialVar[]? GetShaderParams() => ShaderParams;
 	public int ShaderParamCount() => VarCount;
 
-	public void IncrementReferenceCount() {
-		// VERY IMPORTANT TODO
-	}
+	int RefCount;
 
-	public void DecrementReferenceCount() {
-		// VERY IMPORTANT TODO
+	public void IncrementReferenceCount() => ++RefCount;
+
+	public void DecrementReferenceCount() => --RefCount;
+
+	public void DeleteIfUnreferenced() {
+		if (RefCount > 0)
+			return;
+		// todo: this has more, but i'm not sure if its needed?
+		materials.MaterialDict.RemoveMaterial(this);
 	}
 
 	public IMaterialVar? FindVarFast(ReadOnlySpan<char> varName, ref TokenCache token) {

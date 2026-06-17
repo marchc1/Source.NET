@@ -33,6 +33,11 @@ public class MaterialDict(MaterialSystem materials) : IEnumerable<IMaterialInter
 		Dict[lookup.Hash()] = lookup;
 	}
 
+	public void RemoveMaterial(IMaterialInternal material) {
+		MaterialLookup lookup = new(material, material.GetName().Hash(), material.IsManuallyCreated());
+		Dict.Remove(lookup.Hash());
+	}
+
 	public IEnumerator<IMaterialInternal> GetEnumerator() {
 		foreach (var kvp in Dict) {
 			if (kvp.Value.Material == null)

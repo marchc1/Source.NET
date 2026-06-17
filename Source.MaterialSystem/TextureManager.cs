@@ -72,6 +72,11 @@ public class TextureManager : ITextureManager
 
 	Dictionary<ulong, ITextureInternal> TextureList = [];
 
+	public void RemoveTexture(ITextureInternal texture) {
+		if (TextureList.Remove(texture.GetName().Hash()))
+			texture.Dispose();
+	}
+
 	public ITextureInternal? FindOrLoadTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroupName, int additionalCreationFlags) {
 		ITextureInternal? texture = FindTexture(textureName);
 		if (texture == null) {

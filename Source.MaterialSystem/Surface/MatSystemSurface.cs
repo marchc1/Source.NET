@@ -407,7 +407,8 @@ public class MatSystemSurface : IMatSystemSurface
 	}
 
 	public bool DeleteTextureByID(in TextureID id) {
-		throw new NotImplementedException();
+		TextureDictionary.DestroyTexture(id);
+		return false;
 	}
 
 	public void DrawFilledRect(int x0, int y0, int x1, int y1) {
@@ -862,6 +863,15 @@ public class MatSystemSurface : IMatSystemSurface
 
 	public void DrawSetTextureRGBA(in TextureID id, Span<byte> rgba, int wide, int tall, int a, bool b) {
 		TextureDictionary.SetTextureRGBAEx(in id, rgba, wide, tall, ImageFormat.RGBA8888, false);
+	}
+
+	public unsafe void DrawSetTextureRGBAEx(in TextureID id, nint rgba, int wide, int tall, ImageFormat format) {
+		Span<byte> data = new((void*)rgba, wide * tall * 4);
+		TextureDictionary.SetTextureRGBAEx(in id, data, wide, tall, format, true);
+	}
+
+	public void DrawUpdateRegionTextureRGBA(in TextureID id, int x, int y, nint rgba, int wide, int tall, ImageFormat format) {
+		TextureDictionary.UpdateSubTextureRGBA(in id, x, y, rgba, wide, tall, format);
 	}
 
 	public void DrawTexturedRect(int x0, int y0, int x1, int y1) {
