@@ -1072,6 +1072,18 @@ public class Panel : IPanel
 
 	public AutoResize GetAutoResize() => AutoResizeDirection;
 
+	public PinCorner GetPinCorner() => PinCorner;
+
+	public void GetPinOffset(out int dx, out int dy) {
+		dx = PinDeltaX;
+		dy = PinDeltaY;
+	}
+
+	public void GetResizeOffset(out int dx, out int dy) {
+		dx = ResizeDeltaX;
+		dy = ResizeDeltaY;
+	}
+
 	PinCorner PinCorner;
 	AutoResize AutoResizeDirection;
 	int PinDeltaX;

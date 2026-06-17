@@ -294,13 +294,47 @@ public class EditablePanel : Panel
 			if (child == null)
 				continue;
 
-			//child.GetBounds(out int x, out int y, out int w, out int h);
-			// child.GetPinOffset(out int px, out int py);
-			// child.GetResizeOffset(out int ox, out int oy);
+			child.GetBounds(out int x, out int y, out int w, out int h);
 
-			//int ex, ey;
+			child.GetPinOffset(out int px, out int py);
 
-			// AutoResize resize = child.GetAutoResize();
+			child.GetResizeOffset(out int ox, out int oy);
+
+			int ex;
+			int ey;
+
+			AutoResize resize = child.GetAutoResize();
+			bool resizeHoriz = resize == AutoResize.Right || resize == AutoResize.DownAndRight;
+			bool resizeVert = resize == AutoResize.Down || resize == AutoResize.DownAndRight;
+
+			if (!ShouldSkipAutoResize) {
+				PinCorner pinCorner = child.GetPinCorner();
+				if (pinCorner == PinCorner.TopRight || pinCorner == PinCorner.BottomRight) {
+					ex = newWide + px;
+					x = resizeHoriz ? ox : ex - w;
+				}
+				else {
+					x = px;
+					ex = resizeHoriz ? newWide + ox : px + w;
+				}
+
+				if (pinCorner == PinCorner.BottomLeft || pinCorner == PinCorner.BottomRight) {
+					ey = newTall + py;
+					y = resizeVert ? oy : ey - h;
+				}
+				else {
+					y = py;
+					ey = resizeVert ? newTall + oy : py + h;
+				}
+
+				if (ex < x)
+					ex = x;
+				if (ey < y)
+					ey = y;
+
+				child.SetBounds(x, y, ex - x, ey - y);
+				child.InvalidateLayout();
+			}
 		}
 
 		Repaint();
