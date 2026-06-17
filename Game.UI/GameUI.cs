@@ -87,12 +87,14 @@ public class GameUI(IEngineClient engine) : IGameUI
 	}
 
 	bool PlayGameStartupSound;
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 	BasePanel staticPanel;
 	IEngineVGui enginevguifuncs;
 	ISurface Surface;
 	ILocalize localize;
 	IEngineAPI EngineAPI;
 	IFileSystem fileSystem;
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
 	public void Initialize(IEngineAPI engineAPI) {
 		enginevguifuncs = engineAPI.GetRequiredService<IEngineVGui>();

@@ -28,7 +28,8 @@ public class OptionsSubKeyboard : PropertyPage
 		for (int i = 0; i < KeyBindings.Length; i++)
 			KeyBindings[i] = new();
 
-		CreateKeyBindingList();
+		KeyBindList = new(this, "listpanel_keybindlist");
+
 		SaveCurrentBindings();
 		ParseActionDescriptions();
 
@@ -54,10 +55,6 @@ public class OptionsSubKeyboard : PropertyPage
 	}
 
 	public override void OnApplyChanges() => ApplyAllBindings();
-
-	public void CreateKeyBindingList() {
-		KeyBindList = new(this, "listpanel_keybindlist");
-	}
 
 	public override void OnKeyCodeTyped(ButtonCode code) {
 		if (code == ButtonCode.KeyEnter)
