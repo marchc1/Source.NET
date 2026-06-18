@@ -268,8 +268,7 @@ public class MatSystemTexture(IMaterialSystem materials)
 	}
 
 	internal unsafe void UpdateSubTextureRGBA(int drawX, int drawY, nint rgba, int subTextureWide, int subTextureTall, ImageFormat format) {
-		ITexture? texture = GetTextureValue();
-		if (texture == null)
+		if (GetTextureValue() is not ITextureInternal texture)
 			return;
 
 		Assert(IsProcedural());
@@ -281,28 +280,16 @@ public class MatSystemTexture(IMaterialSystem materials)
 		Assert(drawX + subTextureWide <= Wide);
 		Assert(drawY + subTextureTall <= Tall);
 
-		Assert(Regen);
-
 		Assert(rgba != 0);
 
-		Span<byte> bits = new((void*)rgba, InputWide * InputTall * ImageLoader.SizeInBytes(format));
+		// NOTE: This no longer matches source
+		// previously the image was copied twice before sending it to the GPU.. now we just send it straight there :)
 
-		Rectangle subRect = new() {
-			X = drawX,
-			Y = drawY,
-			Width = subTextureWide,
-			Height = subTextureTall
-		};
+		int bpp = ImageLoader.SizeInBytes(format);
+		Span<byte> bits = new((void*)rgba, InputWide * InputTall * bpp);
+		Span<byte> sub = bits[((drawY * InputWide + drawX) * bpp)..];
 
-		Rectangle textureSize = new() {
-			X = 0,
-			Y = 0,
-			Width = InputWide,
-			Height = InputTall
-		};
-
-		Regen!.UpdateBackingBits(subRect, bits, textureSize, format);
-		texture.Download(subRect);
+		texture.UpdateSubTextureDirect(drawX, drawY, subTextureWide, subTextureTall, format, InputWide * bpp, sub);
 	}
 	static int textureID = 0;
 	internal void SetTextureRGBA(Span<byte> rgba, int wide, int tall, ImageFormat format, bool fixupTextCoords) {

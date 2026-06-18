@@ -523,6 +523,19 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 		materials.ShaderAPI.ModifyTexture(TextureHandles![frame]);
 	}
 
+	public void UpdateSubTextureDirect(int x, int y, int w, int h, ImageFormat format, int strideBytes, Span<byte> bits) {
+		if (!materials.ShaderDevice.IsUsingGraphics())
+			return;
+
+		if (!HasBeenAllocated()) {
+			if (!AllocateShaderAPITextures())
+				return;
+		}
+
+		Modify(0);
+		materials.ShaderAPI.TexSubImage2D(0, 0, x, y, 0, w, h, format, strideBytes, bits);
+	}
+
 	private void GetDownloadFaceCount(out int firstFace, out int faceCount) {
 		faceCount = 1;
 		firstFace = 0;
