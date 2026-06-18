@@ -660,7 +660,8 @@ public sealed class VTFTexture : IVTFTexture
 	}
 
 	private static bool GenericAllocateReusableData(ref byte[]? imageData, nint numRequested) {
-		imageData = new byte[numRequested];
+		if (imageData == null || imageData.Length < numRequested)
+			imageData = new byte[numRequested];
 		return true;
 	}
 
