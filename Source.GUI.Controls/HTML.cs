@@ -7,6 +7,7 @@ using Source.Common.Input;
 using Steamworks;
 
 using System.ComponentModel.DataAnnotations;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Source.GUI.Controls;
@@ -145,52 +146,72 @@ public class HTML : Panel
 
 	HHTMLBrowser BrowserHandle;
 
-	Callback<HTML_NeedsPaint_t> NeedsPaint;
-	Callback<HTML_StartRequest_t> StartRequest;
-	Callback<HTML_URLChanged_t> URLChanged;
-	Callback<HTML_FinishedRequest_t> FinishedRequest;
-	Callback<HTML_OpenLinkInNewTab_t> LinkInNewTab;
-	Callback<HTML_ChangedTitle_t> ChangeTitle;
-	Callback<HTML_NewWindow_t> NewWindow;
-	Callback<HTML_FileOpenDialog_t> FileLoadDialog;
-	Callback<HTML_SearchResults_t> SearchResults;
-	Callback<HTML_CloseBrowser_t> CloseBrowser;
-	Callback<HTML_HorizontalScroll_t> HorizScroll;
-	Callback<HTML_VerticalScroll_t> VertScroll;
-	Callback<HTML_LinkAtPosition_t> LinkAtPosResp;
-	Callback<HTML_JSAlert_t> JSAlert;
-	Callback<HTML_JSConfirm_t> JSConfirm;
-	Callback<HTML_CanGoBackAndForward_t> CanGoBackForward;
-	Callback<HTML_SetCursor_t> SetCursor;
-	Callback<HTML_StatusText_t> StatusText;
-	Callback<HTML_ShowToolTip_t> ShowTooltip;
-	Callback<HTML_UpdateToolTip_t> UpdateTooltip;
-	Callback<HTML_HideToolTip_t> HideTooltip;
+	BrowserCallback<HTML_NeedsPaint_t> NeedsPaint;
+	BrowserCallback<HTML_StartRequest_t> StartRequest;
+	BrowserCallback<HTML_URLChanged_t> URLChanged;
+	BrowserCallback<HTML_FinishedRequest_t> FinishedRequest;
+	BrowserCallback<HTML_OpenLinkInNewTab_t> LinkInNewTab;
+	BrowserCallback<HTML_ChangedTitle_t> ChangeTitle;
+	BrowserCallback<HTML_NewWindow_t> NewWindow;
+	BrowserCallback<HTML_FileOpenDialog_t> FileLoadDialog;
+	BrowserCallback<HTML_SearchResults_t> SearchResults;
+	BrowserCallback<HTML_CloseBrowser_t> CloseBrowser;
+	BrowserCallback<HTML_HorizontalScroll_t> HorizScroll;
+	BrowserCallback<HTML_VerticalScroll_t> VertScroll;
+	BrowserCallback<HTML_LinkAtPosition_t> LinkAtPosResp;
+	BrowserCallback<HTML_JSAlert_t> JSAlert;
+	BrowserCallback<HTML_JSConfirm_t> JSConfirm;
+	BrowserCallback<HTML_CanGoBackAndForward_t> CanGoBackForward;
+	BrowserCallback<HTML_SetCursor_t> SetCursor;
+	BrowserCallback<HTML_StatusText_t> StatusText;
+	BrowserCallback<HTML_ShowToolTip_t> ShowTooltip;
+	BrowserCallback<HTML_UpdateToolTip_t> UpdateTooltip;
+	BrowserCallback<HTML_HideToolTip_t> HideTooltip;
 
 	CallResult<HTML_BrowserReady_t> SteamCallResultBrowserReady;
 
+	class BrowserCallback<T> where T : struct
+	{
+		static readonly FieldInfo HandleField = typeof(T).GetField("unBrowserHandle")!;
+
+		readonly HTML Owner;
+		readonly Action<T> Handler;
+		readonly Callback<T> Callback;
+
+		public BrowserCallback(HTML owner, Action<T> handler) {
+			Owner = owner;
+			Handler = handler;
+			Callback = Callback<T>.Create(OnCallback);
+		}
+
+		void OnCallback(T param) {
+			if ((HHTMLBrowser)HandleField.GetValue(param)! == Owner.BrowserHandle)
+				Handler(param);
+		}
+	}
+
 	public HTML(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
-		NeedsPaint = Callback<HTML_NeedsPaint_t>.Create(BrowserNeedsPaint);
-		StartRequest = Callback<HTML_StartRequest_t>.Create(BrowserStartRequest);
-		URLChanged = Callback<HTML_URLChanged_t>.Create(BrowserURLChanged);
-		FinishedRequest = Callback<HTML_FinishedRequest_t>.Create(BrowserFinishedRequest);
-		LinkInNewTab = Callback<HTML_OpenLinkInNewTab_t>.Create(BrowserOpenNewTab);
-		ChangeTitle = Callback<HTML_ChangedTitle_t>.Create(BrowserSetHTMLTitle);
-		NewWindow = Callback<HTML_NewWindow_t>.Create(BrowserPopupHTMLWindow);
-		FileLoadDialog = Callback<HTML_FileOpenDialog_t>.Create(BrowserFileLoadDialog);
-		SearchResults = Callback<HTML_SearchResults_t>.Create(BrowserSearchResults);
-		CloseBrowser = Callback<HTML_CloseBrowser_t>.Create(BrowserClose);
-		HorizScroll = Callback<HTML_HorizontalScroll_t>.Create(BrowserHorizontalScrollBarSizeResponse);
-		VertScroll = Callback<HTML_VerticalScroll_t>.Create(BrowserVerticalScrollBarSizeResponse);
-		LinkAtPosResp = Callback<HTML_LinkAtPosition_t>.Create(BrowserLinkAtPositionResponse);
-		JSAlert = Callback<HTML_JSAlert_t>.Create(BrowserJSAlert);
-		JSConfirm = Callback<HTML_JSConfirm_t>.Create(BrowserJSConfirm);
-		CanGoBackForward = Callback<HTML_CanGoBackAndForward_t>.Create(BrowserCanGoBackandForward);
-		SetCursor = Callback<HTML_SetCursor_t>.Create(BrowserSetCursor);
-		StatusText = Callback<HTML_StatusText_t>.Create(BrowserStatusText);
-		ShowTooltip = Callback<HTML_ShowToolTip_t>.Create(BrowserShowToolTip);
-		UpdateTooltip = Callback<HTML_UpdateToolTip_t>.Create(BrowserUpdateToolTip);
-		HideTooltip = Callback<HTML_HideToolTip_t>.Create(BrowserHideToolTip);
+		NeedsPaint = new(this, BrowserNeedsPaint);
+		StartRequest = new(this, BrowserStartRequest);
+		URLChanged = new(this, BrowserURLChanged);
+		FinishedRequest = new(this, BrowserFinishedRequest);
+		LinkInNewTab = new(this, BrowserOpenNewTab);
+		ChangeTitle = new(this, BrowserSetHTMLTitle);
+		NewWindow = new(this, BrowserPopupHTMLWindow);
+		FileLoadDialog = new(this, BrowserFileLoadDialog);
+		SearchResults = new(this, BrowserSearchResults);
+		CloseBrowser = new(this, BrowserClose);
+		HorizScroll = new(this, BrowserHorizontalScrollBarSizeResponse);
+		VertScroll = new(this, BrowserVerticalScrollBarSizeResponse);
+		LinkAtPosResp = new(this, BrowserLinkAtPositionResponse);
+		JSAlert = new(this, BrowserJSAlert);
+		JSConfirm = new(this, BrowserJSConfirm);
+		CanGoBackForward = new(this, BrowserCanGoBackandForward);
+		SetCursor = new(this, BrowserSetCursor);
+		StatusText = new(this, BrowserStatusText);
+		ShowTooltip = new(this, BrowserShowToolTip);
+		UpdateTooltip = new(this, BrowserUpdateToolTip);
+		HideTooltip = new(this, BrowserHideToolTip);
 
 		HTMLTextureID = 0;
 		CanGoBack = false;
@@ -267,7 +288,7 @@ public class HTML : Panel
 		}
 	}
 
-	void OnSetCursorVGUI(int cursor) { }
+	void OnSetCursorVGUI(int cursor) => SetCursor((CursorCode)cursor);
 
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
@@ -285,7 +306,14 @@ public class HTML : Panel
 		}
 
 		if (ScrollBorderX > 0 || ScrollBorderY > 0) {
-			// todo
+			GetSize(out int w, out int h);
+			IBorder? border = GetBorder();
+			int left = 0, top = 0, right = 0, bottom = 0;
+			border?.GetInset(out left, out top, out right, out bottom);
+			if (ScrollBorderX != 0)
+				Surface.DrawFilledRect(w - ScrollBorderX - right, top, w, h - bottom);
+			if (ScrollBorderY != 0)
+				Surface.DrawFilledRect(left, h - ScrollBorderY - bottom, w - ScrollBorderX - right, h);
 		}
 	}
 
@@ -345,31 +373,29 @@ public class HTML : Panel
 	}
 
 	bool StopLoading() {
-		throw new NotImplementedException();
+		SteamHTMLSurface.StopLoad(BrowserHandle);
+		return true;
 	}
 
 	bool Refresh() {
-		throw new NotImplementedException();
+		SteamHTMLSurface.Reload(BrowserHandle);
+		return true;
 	}
 
-	void GoBack() { }
+	void GoBack() => SteamHTMLSurface.GoBack(BrowserHandle);
 
-	void GoForward() { }
+	void GoForward() => SteamHTMLSurface.GoForward(BrowserHandle);
 
-	bool BCanGoBack() {
-		throw new NotImplementedException();
-	}
+	bool BCanGoBack() => CanGoBack;
 
-	bool BCanGoFoward() {
-		throw new NotImplementedException();
-	}
+	bool BCanGoFoward() => CanGoForward;
 
 	public override void OnSizeChanged(int wide, int tall) {
 		base.OnSizeChanged(wide, tall);
 		UpdateSizeAndScrollBars();
 	}
 
-	void RunJavascript(ReadOnlySpan<char> script) { }
+	void RunJavascript(string script) => SteamHTMLSurface.ExecuteJavascript(BrowserHandle, script);
 
 	static EHTMLMouseButton ConvertMouseCodeToCEFCode(ButtonCode code) => code switch {
 		ButtonCode.MouseLeft => EHTMLMouseButton.eHTMLMouseButton_Left,
@@ -377,7 +403,6 @@ public class HTML : Panel
 		ButtonCode.MouseMiddle => EHTMLMouseButton.eHTMLMouseButton_Middle,
 		_ => EHTMLMouseButton.eHTMLMouseButton_Left,
 	};
-
 
 	public override void OnMousePressed(ButtonCode code) {
 		DragURL = null;
@@ -471,9 +496,7 @@ public class HTML : Panel
 
 	void HideFindDialog() { }
 
-	bool FindDialogVisible() {
-		throw new NotImplementedException();
-	}
+	bool FindDialogVisible() => FindBar.IsVisible() && !FindBar.BIsHidden();
 
 	public override void OnKeyCodeTyped(ButtonCode code) {
 		switch (code) {
@@ -570,39 +593,75 @@ public class HTML : Panel
 		throw new NotImplementedException();
 	}
 
-	bool IsScrollbarVisible() {
-		throw new NotImplementedException();
-	}
+	bool IsScrollbarVisible() => VBar.IsVisible();
 
-	void SetScrollbarsEnabled(bool state) { }
+	void SetScrollbarsEnabled(bool state) => ScrollBarEnabled = state;
 
-	void SetContextMenuEnabled(bool state) { }
+	void SetContextMenuEnabled(bool state) => ContextMenuEnabled = state;
 
-	void SetViewSourceEnabled(bool state) { }
+	void SetViewSourceEnabled(bool state) => ContextMenu.SetItemVisible(ViewSourceAllowedIndex, state);
 
-	void NewWindowsOnly(bool state) { }
+	void NewWindowsOnly(bool state) => bNewWindowsOnly = state;
 
-	void AddHeader(ReadOnlySpan<char> pchHeader, ReadOnlySpan<char> pchValue) { }
+	void AddHeader(string header, string value) => SteamHTMLSurface.AddHeader(BrowserHandle, header, value);
 
 	public override void OnSetFocus() {
 		SteamHTMLSurface.SetKeyFocus(BrowserHandle, true);
 		base.OnSetFocus();
 	}
 
-	public override void OnKillFocus(Panel panel) {
+	public override void OnKillFocus(Panel? panel) {
 		base.OnKillFocus(panel);
 
 		if (!ContextMenu.HasFocus())
 			SteamHTMLSurface.SetKeyFocus(BrowserHandle, false);
 	}
 
-	void OnCommand(ReadOnlySpan<char> command) { }
+	public override void OnCommand(ReadOnlySpan<char> command) {
+		if (stricmp(command, "back") == 0)
+			PostActionSignal(new KeyValues("HTMLBackRequested"));
+		else if (stricmp(command, "forward") == 0)
+			PostActionSignal(new KeyValues("HTMLForwardRequested"));
+		else if (stricmp(command, "reload") == 0)
+			Refresh();
+		else if (stricmp(command, "stop") == 0)
+			StopLoading();
+		else if (stricmp(command, "viewsource") == 0)
+			SteamHTMLSurface.ViewSource(BrowserHandle);
+		else if (stricmp(command, "copy") == 0)
+			SteamHTMLSurface.CopyToClipboard(BrowserHandle);
+		else if (stricmp(command, "paste") == 0)
+			SteamHTMLSurface.PasteFromClipboard(BrowserHandle);
+		else if (stricmp(command, "copyurl") == 0) {
+			// system.SetClipboardText(CurrentURL);
+		}
+		else if (stricmp(command, "copylink") == 0) {
+			ContextMenu.GetPos(out int x, out int y);
+			GetAbsPos(out int htmlx, out int htmly);
+
+			RequestingCopyLink = true;
+			GetLinkAtPosition(x - htmlx, y - htmly);
+		}
+		else
+			base.OnCommand(command);
+	}
 
 	void OnFileSelected(ReadOnlySpan<char> selectedFile) { }
 
-	void OnFileSelectionCancelled() { }
+	void OnFileSelectionCancelled() {
+		SteamHTMLSurface.FileLoadDialogResponse(BrowserHandle, 0);
+		FileOpenDialog.Close();
+	}
 
-	void Find(ReadOnlySpan<char> subStr) { }
+	void Find(string subStr) {
+		InFind = false;
+		if (LastSearchString == subStr)
+			InFind = true;
+
+		LastSearchString = subStr;
+
+		SteamHTMLSurface.Find(BrowserHandle, subStr, InFind, false);
+	}
 
 	void FindPrevious() { }
 
@@ -610,12 +669,12 @@ public class HTML : Panel
 
 	void StopFind() { }
 
-	void OnEditNewLine(Panel panel) { }
+	void OnEditNewLine(Panel panel) => OnTextChanged(panel);
 
 	public override void OnTextChanged(Panel panel) {
 		Span<char> txt = stackalloc char[2000];
 		FindBar.GetText(txt);
-		Find(txt);
+		Find(txt.SliceNullTerminatedString().ToString());
 	}
 
 	void BrowserNeedsPaint(HTML_NeedsPaint_t callback) {
@@ -649,10 +708,11 @@ public class HTML : Panel
 	}
 
 	bool OnStartRequest(ReadOnlySpan<char> url, ReadOnlySpan<char> target, ReadOnlySpan<char> oostData, bool isRedirect) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		return true; // TODO
 	}
 
-	void BrowserStartRequest(HTML_StartRequest_t cmd) { }
+	void BrowserStartRequest(HTML_StartRequest_t cmd) => SteamHTMLSurface.AllowStartRequest(BrowserHandle, OnStartRequest(cmd.pchURL, cmd.pchTarget, cmd.pchPostData, cmd.bIsRedirect));
 
 	void BrowserURLChanged(HTML_URLChanged_t cmd) { }
 
@@ -662,7 +722,14 @@ public class HTML : Panel
 
 	void BrowserPopupHTMLWindow(HTML_NewWindow_t cmd) { }
 
-	void BrowserSetHTMLTitle(HTML_ChangedTitle_t cmd) { }
+	void BrowserSetHTMLTitle(HTML_ChangedTitle_t cmd) {
+		PostMessage(GetParent(), new("OnSetHTMLTitle", "title", cmd.pchTitle));
+		OnSetHTMLTitle(cmd.pchTitle);
+	}
+
+	public virtual void OnSetHTMLTitle(string pchTitle) {
+
+	}
 
 	void BrowserStatusText(HTML_StatusText_t cmd) { }
 
@@ -678,7 +745,7 @@ public class HTML : Panel
 
 	void BrowserSearchResults(HTML_SearchResults_t cmd) { }
 
-	void BrowserClose(HTML_CloseBrowser_t cmd) { }
+	void BrowserClose(HTML_CloseBrowser_t cmd) => PostActionSignal(new("OnCloseWindow"));
 
 	void BrowserHorizontalScrollBarSizeResponse(HTML_HorizontalScroll_t cmd) { }
 
@@ -690,11 +757,14 @@ public class HTML : Panel
 
 	void BrowserJSConfirm(HTML_JSConfirm_t cmd) { }
 
-	void DismissJSDialog(int result) { }
+	void DismissJSDialog(int result) => SteamHTMLSurface.JSDialogResponse(BrowserHandle, result != 0);
 
-	void BrowserCanGoBackandForward(HTML_CanGoBackAndForward_t cmd) { }
+	void BrowserCanGoBackandForward(HTML_CanGoBackAndForward_t cmd) {
+		CanGoBack = cmd.bCanGoBack;
+		CanGoForward = cmd.bCanGoForward;
+	}
 
-	void GetLinkAtPosition(int x, int y) { }
+	void GetLinkAtPosition(int x, int y) => SteamHTMLSurface.GetLinkAtPosition(BrowserHandle, x, y);
 
 	void UpdateSizeAndScrollBars() {
 		BrowserResize();
