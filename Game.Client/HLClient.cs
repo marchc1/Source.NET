@@ -312,7 +312,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	private void OnRenderEnd() {
-
+		C_BaseAnimating.PopAllowBoneAccess(new("ViewRender.SetUpView->OnRenderEnd"));
 	}
 
 	public ClientClass? GetAllClasses() {
