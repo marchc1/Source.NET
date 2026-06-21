@@ -632,11 +632,39 @@ public abstract class BaseServer : IServer
 
 		Signon.DebugName = "m_Signon";
 
-		// TODO: cvar.InstallGlobalChangeCallback(ServerNotifyVarChangeCallback);
+		cvar.Changed += ServerNotifyVarChangeCallback;
 		SetMasterServerRulesDirty();
 
 		Clear();
 	}
+
+	private void ServerNotifyVarChangeCallback(IConVar var, in ConVarChangeContext ctx) {
+		if (!var.IsFlagSet(FCvar.Notify))
+			return;
+
+			if(!SteamGameServer.BLoggedOn()){ 
+			// This will force it to send all the rules whenever the master server updater is there.
+			sv.SetMasterServerRulesDirty();
+			return;
+		}
+
+		SetMasterServerKeyValue(var);
+	}
+
+	private void SetMasterServerKeyValue(IConVar var) {
+		if(var.IsFlagSet(FCvar.Protected)){
+			if (var.GetString()[0] != '\0' && 0 != stricmp(var.GetString(), "none")) 
+				SteamGameServer.SetKeyValue(var.GetName(), "1");
+			else 
+				SteamGameServer.SetKeyValue(var.GetName(), "0");
+		}
+		else
+			SteamGameServer.SetKeyValue(var.GetName(), var.GetString());
+
+		if (Steam3Server().BIsActive())
+			sv.RecalculateTags();
+	}
+
 	public virtual void Clear() {
 		if (StringTables != null) {
 			StringTables.RemoveAllTables();
@@ -805,10 +833,43 @@ public abstract class BaseServer : IServer
 		}
 	}
 	public void CheckTimeouts() {
+		int i;
 
+#if DEBUG
+		for (i = 0; i < Clients.Count; i++) {
+			IClient cl = Clients[i];
+
+			if (cl.IsFakeClient() || !cl.IsConnected())
+				continue;
+
+			INetChannel? netchan = cl.GetNetChannel();
+			if (netchan == null)
+				continue;
+
+			if (netchan.IsTimedOut()) 
+				cl.Disconnect($"{cl.GetClientName()} timed out");
+		}
+#endif
+
+		for (i = 0; i < Clients.Count; i++) {
+			IClient cl = Clients[i];
+
+			if (cl.IsFakeClient() || !cl.IsConnected())
+				continue;
+
+			if (cl.GetNetChannel() != null && cl.GetNetChannel()!.IsOverflowed()) 
+				cl.Disconnect($"Client {i} overflowed reliable channel.");
+		}
 	}
 	public void UpdateUserSettings() {
+		for (int i = 0; i < Clients.Count; i++) {
+			BaseClient cl = Clients[i];
 
+			cl.CheckFlushNameChange();
+
+			if (cl.ConVarsChanged) 
+				cl.UpdateUserSettings();
+		}
 	}
 	public void SendPendingServerInfo() {
 		for (int i = 0; i < Clients.Count; i++) {
@@ -878,8 +939,15 @@ public abstract class BaseServer : IServer
 
 	public void SetReportNewFakeClients(bool bReportNewFakeClients) { ReportNewFakeClients = bReportNewFakeClients; }
 
-	public void SetPausedForced(bool bPaused, TimeUnit_t flDuration = -1) {
-		throw new NotImplementedException();
+	public void SetPausedForced(bool paused, TimeUnit_t flDuration = -1) {
+		if (!IsActive())
+			return;
+
+		State = (paused) ? ServerState.Paused : ServerState.Active;
+		PausedTimeEnd = (paused && flDuration > 0) ? Sys.Time + flDuration : -1;
+
+		// SVC_SetPauseTimed setpause = new(paused, PausedTimeEnd);
+		// BroadcastMessage(setpause);
 	}
 
 	protected virtual IClient? ConnectClient(NetAddress adr, int protocol, int challenge, int clientChallenge, int authProtocol,
@@ -1214,8 +1282,51 @@ public abstract class BaseServer : IServer
 	protected void CheckMasterServerRequestRestart() {
 		throw new NotImplementedException();
 	}
+	const double MASTER_SERVER_UPDATE_INTERVAL = 2.0;
+	static bool bUpdateMasterServers;
 	protected void UpdateMasterServer() {
+		if (!ShouldUpdateMasterServer())
+			return;
 
+		if (!SteamGameServer.BLoggedOn())
+			return;
+
+		// Only update every so often.
+		TimeUnit_t curtime = Platform.Time;
+		if (curtime - LastMasterServerUpdateTime < MASTER_SERVER_UPDATE_INTERVAL)
+			return;
+
+		LastMasterServerUpdateTime = curtime;
+
+		ForwardPacketsFromMasterServerUpdater();
+		CheckMasterServerRequestRestart();
+
+
+		if (Net.Dedicated && sv_region.GetInt() == -1) {
+			sv_region.SetValue(255); // HACK!HACK! undo me once we want to enforce regions
+
+			//Log_Printf( "You must set sv_region in your server.cfg or use +sv_region on the command line\n" );
+			//Con_Printf( "You must set sv_region in your server.cfg or use +sv_region on the command line\n" );
+			//Cbuf_AddText( "quit\n" );
+			//return;
+		}
+
+		bUpdateMasterServers = 0 == commandLine.FindParm("-nomaster");
+		if (!bUpdateMasterServers)
+			return;
+
+		bool active = IsActive() && IsMultiplayer();
+		if (serverGameDLL != null && serverGameDLL.ShouldHideServer())
+			active = false;
+
+		SteamGameServer.SetAdvertiseServerActive(active);
+
+		if (!active)
+			return;
+
+		UpdateMasterServerRules();
+		UpdateMasterServerPlayers();
+		Steam3Server().SendUpdatedServerDetails();
 	}
 	protected void UpdateMasterServerRules() {
 		throw new NotImplementedException();

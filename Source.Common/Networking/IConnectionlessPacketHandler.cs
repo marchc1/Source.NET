@@ -286,11 +286,9 @@ public abstract class NetMessage : INetMessage
 {
 	private int type;
 	protected bool reliable;
-	private string typename;
 	private INetChannel? netchan;
 
 	public NetMessage(int type) {
-		typename = GetType().Name;
 		this.type = type;
 		reliable = true;
 	}
@@ -304,7 +302,7 @@ public abstract class NetMessage : INetMessage
 	public void SetReliable(bool state) => reliable = state;
 
 	public int GetMessageType() => type;
-	public string GetName() => typename;
+	public string GetName() => GetType().Name;
 
 	public virtual bool Process() {
 		return netchan?.GetMsgHandler()?.ProcessMessage(this) ?? false;
