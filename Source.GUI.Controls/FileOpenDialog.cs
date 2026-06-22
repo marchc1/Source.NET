@@ -4,7 +4,7 @@ using Source.Common.Input;
 
 namespace Source.GUI.Controls;
 
-enum FileOpenDialogType
+public enum FileOpenDialogType
 {
 	Save = 0,
 	Open,
@@ -75,7 +75,11 @@ public class FileOpenDialog : Frame
 	IPanel SaveModal;
 	InputDialog InputDialog;
 
-	public FileOpenDialog(Panel? parent, ReadOnlySpan<char> panelName) : base(parent, panelName) {
+	public FileOpenDialog(Panel? parent, ReadOnlySpan<char> title, bool openOnly, KeyValues? contextKeyValues = null) : base(parent, "FileOpenDialog") {
+
+	}
+
+	public FileOpenDialog(Panel? parent, ReadOnlySpan<char> title, FileOpenDialogType type, KeyValues? contextKeyValues = null) : base(parent, "FileOpenDialog") {
 
 	}
 
@@ -103,7 +107,7 @@ public class FileOpenDialog : Frame
 
 	void SetStartDirectoryContext(ReadOnlySpan<char> startDirContext, ReadOnlySpan<char> defaultDir) { }
 
-	void SetStartDirectory(ReadOnlySpan<char> dir) { }
+	public void SetStartDirectory(ReadOnlySpan<char> dir) { }
 
 	void AddFilter(ReadOnlySpan<char> filter, ReadOnlySpan<char> filterName, bool active, ReadOnlySpan<char> filterInfo) { }
 

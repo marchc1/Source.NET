@@ -65,7 +65,7 @@ public class SDL3_InputSystem(IServiceProvider services) : IInputSystem
 	}
 
 	public int ButtonCodeToVirtualKey(ButtonCode code) {
-		throw new NotImplementedException();
+		return buttonCodeToVirtual[(int)code];
 	}
 
 	public void DetachFromWindow() {
@@ -172,6 +172,82 @@ public class SDL3_InputSystem(IServiceProvider services) : IInputSystem
 		scantokey[(int)SDL_Scancode.SDL_SCANCODE_RSHIFT] = ButtonCode.KeyRShift;
 		scantokey[(int)SDL_Scancode.SDL_SCANCODE_RALT] = ButtonCode.KeyRAlt;
 		scantokey[(int)SDL_Scancode.SDL_SCANCODE_RGUI] = ButtonCode.KeyRWin;
+
+		ButtonCode_InitKeyTranslationTable();
+	}
+
+	static ButtonCode[] virtualKeyToButtonCode = null!;
+	static int[] buttonCodeToVirtual = null!;
+
+	const int VK_BACK = 0x08, VK_TAB = 0x09, VK_RETURN = 0x0D, VK_SHIFT = 0x10, VK_CONTROL = 0x11,
+		VK_MENU = 0x12, VK_PAUSE = 0x13, VK_CAPITAL = 0x14, VK_ESCAPE = 0x1B, VK_SPACE = 0x20,
+		VK_PRIOR = 0x21, VK_NEXT = 0x22, VK_END = 0x23, VK_HOME = 0x24, VK_LEFT = 0x25, VK_UP = 0x26,
+		VK_RIGHT = 0x27, VK_DOWN = 0x28, VK_INSERT = 0x2D, VK_DELETE = 0x2E, VK_LWIN = 0x5B,
+		VK_RWIN = 0x5C, VK_APPS = 0x5D, VK_NUMPAD0 = 0x60, VK_MULTIPLY = 0x6A, VK_ADD = 0x6B,
+		VK_SUBTRACT = 0x6D, VK_DECIMAL = 0x6E, VK_DIVIDE = 0x6F, VK_F1 = 0x70, VK_NUMLOCK = 0x90,
+		VK_SCROLL = 0x91;
+
+	static void ButtonCode_InitKeyTranslationTable() {
+		virtualKeyToButtonCode = new ButtonCode[256];
+		ButtonCode[] vk = virtualKeyToButtonCode;
+
+		for (int i = 0; i <= 9; i++)
+			vk['0' + i] = ButtonCode.Key0 + i;
+		for (int i = 0; i < 26; i++)
+			vk['A' + i] = ButtonCode.KeyA + i;
+
+		for (int i = 0; i <= 9; i++)
+			vk[VK_NUMPAD0 + i] = ButtonCode.KeyPad0 + i;
+		vk[VK_DIVIDE] = ButtonCode.KeyPadDivide;
+		vk[VK_MULTIPLY] = ButtonCode.KeyPadMultiply;
+		vk[VK_SUBTRACT] = ButtonCode.KeyPadMinus;
+		vk[VK_ADD] = ButtonCode.KeyPadPlus;
+		vk[VK_DECIMAL] = ButtonCode.KeyPadDecimal;
+
+		vk[0xdb] = ButtonCode.KeyLBracket;
+		vk[0xdd] = ButtonCode.KeyRBracket;
+		vk[0xba] = ButtonCode.KeySemicolon;
+		vk[0xde] = ButtonCode.KeyApostrophe;
+		vk[0xc0] = ButtonCode.KeyBackquote;
+		vk[0xbc] = ButtonCode.KeyComma;
+		vk[0xbe] = ButtonCode.KeyPeriod;
+		vk[0xbf] = ButtonCode.KeySlash;
+		vk[0xdc] = ButtonCode.KeyBackslash;
+		vk[0xbd] = ButtonCode.KeyMinus;
+		vk[0xbb] = ButtonCode.KeyEqual;
+
+		vk[VK_RETURN] = ButtonCode.KeyEnter;
+		vk[VK_SPACE] = ButtonCode.KeySpace;
+		vk[VK_BACK] = ButtonCode.KeyBackspace;
+		vk[VK_TAB] = ButtonCode.KeyTab;
+		vk[VK_CAPITAL] = ButtonCode.KeyCapsLock;
+		vk[VK_NUMLOCK] = ButtonCode.KeyNumLock;
+		vk[VK_ESCAPE] = ButtonCode.KeyEscape;
+		vk[VK_SCROLL] = ButtonCode.KeyScrollLock;
+		vk[VK_INSERT] = ButtonCode.KeyInsert;
+		vk[VK_DELETE] = ButtonCode.KeyDelete;
+		vk[VK_HOME] = ButtonCode.KeyHome;
+		vk[VK_END] = ButtonCode.KeyEnd;
+		vk[VK_PRIOR] = ButtonCode.KeyPageUp;
+		vk[VK_NEXT] = ButtonCode.KeyPageDown;
+		vk[VK_PAUSE] = ButtonCode.KeyBreak;
+		vk[VK_SHIFT] = ButtonCode.KeyLShift;
+		vk[VK_MENU] = ButtonCode.KeyLAlt;
+		vk[VK_CONTROL] = ButtonCode.KeyLControl;
+		vk[VK_LWIN] = ButtonCode.KeyLWin;
+		vk[VK_RWIN] = ButtonCode.KeyRWin;
+		vk[VK_APPS] = ButtonCode.KeyApp;
+		vk[VK_UP] = ButtonCode.KeyUp;
+		vk[VK_LEFT] = ButtonCode.KeyLeft;
+		vk[VK_DOWN] = ButtonCode.KeyDown;
+		vk[VK_RIGHT] = ButtonCode.KeyRight;
+		for (int i = 0; i < 12; i++)
+			vk[VK_F1 + i] = ButtonCode.KeyF1 + i;
+
+		buttonCodeToVirtual = new int[(int)ButtonCode.Count];
+		for (int i = 0; i < virtualKeyToButtonCode.Length; i++)
+			buttonCodeToVirtual[(int)virtualKeyToButtonCode[i]] = i;
+		buttonCodeToVirtual[0] = 0;
 	}
 
 
@@ -370,7 +446,7 @@ public class SDL3_InputSystem(IServiceProvider services) : IInputSystem
 	}
 
 	private void ReleaseAllButtons(int firstButton = 0, int lastButton = (int)ButtonCode.Last - 1) {
-		for (int i = firstButton; i <= lastButton; ++i) 
+		for (int i = firstButton; i <= lastButton; ++i)
 			PostButtonReleasedEvent(InputEventType.IE_ButtonReleased, LastSampleTick, (ButtonCode)i, (ButtonCode)i);
 	}
 
@@ -444,137 +520,137 @@ public class SDL3_InputSystem(IServiceProvider services) : IInputSystem
 	public unsafe void SetCursorPosition(int x, int y) => SDL3.SDL_WarpMouseInWindow((SDL_Window*)Window!.GetHandle(), x, y);
 
 	public ButtonCode VirtualKeyToButtonCode(int virtualKey) {
-		throw new NotImplementedException();
+		return virtualKeyToButtonCode[virtualKey];
 	}
 
 	static string[] ButtonCodeName ={
-		"",				
-		"0",			
-		"1",			
-		"2",			
-		"3",			
-		"4",			
-		"5",			
-		"6",			
-		"7",			
-		"8",			
-		"9",			
-		"a",			
-		"b",			
-		"c",			
-		"d",			
-		"e",			
-		"f",			
-		"g",			
-		"h",			
-		"i",			
-		"j",			
-		"k",			
-		"l",			
-		"m",			
-		"n",			
-		"o",			
-		"p",			
-		"q",			
-		"r",			
-		"s",			
-		"t",			
-		"u",			
-		"v",			
-		"w",			
-		"x",			
-		"y",			
-		"z",			
-		"KP_INS",		
-		"KP_END",		
-		"KP_DOWNARROW",	
-		"KP_PGDN",		
-		"KP_LEFTARROW",	
-		"KP_5",			
+		"",
+		"0",
+		"1",
+		"2",
+		"3",
+		"4",
+		"5",
+		"6",
+		"7",
+		"8",
+		"9",
+		"a",
+		"b",
+		"c",
+		"d",
+		"e",
+		"f",
+		"g",
+		"h",
+		"i",
+		"j",
+		"k",
+		"l",
+		"m",
+		"n",
+		"o",
+		"p",
+		"q",
+		"r",
+		"s",
+		"t",
+		"u",
+		"v",
+		"w",
+		"x",
+		"y",
+		"z",
+		"KP_INS",
+		"KP_END",
+		"KP_DOWNARROW",
+		"KP_PGDN",
+		"KP_LEFTARROW",
+		"KP_5",
 		"KP_RIGHTARROW",
-		"KP_HOME",		
-		"KP_UPARROW",	
-		"KP_PGUP",		
-		"KP_SLASH",		
-		"KP_MULTIPLY",	
-		"KP_MINUS",		
-		"KP_PLUS",		
-		"KP_ENTER",		
-		"KP_DEL",		
-		"[",			
-		"]",			
-		"SEMICOLON",	
-		"'",			
-		"`",			
-		",",			
-		".",			
-		"/",			
-		"\\",			
-		"-",			
-		"=",			
-		"ENTER",		
-		"SPACE",		
-		"BACKSPACE",	
-		"TAB",			
-		"CAPSLOCK",		
-		"NUMLOCK",		
-		"ESCAPE",		
-		"SCROLLLOCK",	
-		"INS",			
-		"DEL",			
-		"HOME",			
-		"END",			
-		"PGUP",			
-		"PGDN",			
-		"PAUSE",		
-		"SHIFT",		
-		"RSHIFT",		
-		"ALT",			
-		"RALT",			
-		"CTRL",			
-		"RCTRL",		
-		"LWIN",			
-		"RWIN",			
-		"APP",			
-		"UPARROW",		
-		"LEFTARROW",	
-		"DOWNARROW",	
-		"RIGHTARROW",	
-		"F1",			
-		"F2",			
-		"F3",			
-		"F4",			
-		"F5",			
-		"F6",			
-		"F7",			
-		"F8",			
-		"F9",			
-		"F10",			
-		"F11",			
-		"F12",			
+		"KP_HOME",
+		"KP_UPARROW",
+		"KP_PGUP",
+		"KP_SLASH",
+		"KP_MULTIPLY",
+		"KP_MINUS",
+		"KP_PLUS",
+		"KP_ENTER",
+		"KP_DEL",
+		"[",
+		"]",
+		"SEMICOLON",
+		"'",
+		"`",
+		",",
+		".",
+		"/",
+		"\\",
+		"-",
+		"=",
+		"ENTER",
+		"SPACE",
+		"BACKSPACE",
+		"TAB",
+		"CAPSLOCK",
+		"NUMLOCK",
+		"ESCAPE",
+		"SCROLLLOCK",
+		"INS",
+		"DEL",
+		"HOME",
+		"END",
+		"PGUP",
+		"PGDN",
+		"PAUSE",
+		"SHIFT",
+		"RSHIFT",
+		"ALT",
+		"RALT",
+		"CTRL",
+		"RCTRL",
+		"LWIN",
+		"RWIN",
+		"APP",
+		"UPARROW",
+		"LEFTARROW",
+		"DOWNARROW",
+		"RIGHTARROW",
+		"F1",
+		"F2",
+		"F3",
+		"F4",
+		"F5",
+		"F6",
+		"F7",
+		"F8",
+		"F9",
+		"F10",
+		"F11",
+		"F12",
 
-		"CAPSLOCKTOGGLE",	
-		"NUMLOCKTOGGLE",	
+		"CAPSLOCKTOGGLE",
+		"NUMLOCKTOGGLE",
 		"SCROLLLOCKTOGGLE",
 
-		"MOUSE1",		
-		"MOUSE2",		
-		"MOUSE3",		
-		"MOUSE4",		
-		"MOUSE5",		
+		"MOUSE1",
+		"MOUSE2",
+		"MOUSE3",
+		"MOUSE4",
+		"MOUSE5",
 
-		"MWHEELUP",		
-		"MWHEELDOWN",	
+		"MWHEELUP",
+		"MWHEELDOWN",
 	};
 
 	public ButtonCode StringToButtonCode(ReadOnlySpan<char> str) {
-		if (str.IsEmpty || str.Length <=0)
+		if (str.IsEmpty || str.Length <= 0)
 			return ButtonCode.Invalid;
 
-		for (ButtonCode i = 0; i < ButtonCode.Last; ++i) 
+		for (ButtonCode i = 0; i < ButtonCode.Last; ++i)
 			if (str.Equals(ButtonCodeName[(int)i], StringComparison.OrdinalIgnoreCase))
 				return i;
-		
+
 		return ButtonCode.Invalid;
 	}
 

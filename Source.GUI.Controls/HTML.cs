@@ -1,5 +1,6 @@
 ﻿using Source.Common.Bitmap;
 using Source.Common.Commands;
+using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Input;
@@ -7,8 +8,11 @@ using Source.Common.Input;
 using Steamworks;
 
 using System.ComponentModel.DataAnnotations;
+using System.Numerics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Source.GUI.Controls;
 
@@ -25,7 +29,7 @@ class HTMLInterior : Panel
 
 class HTMLPopup : Frame
 {
-	public HTMLPopup(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
+	public HTMLPopup(Panel? parent, ReadOnlySpan<char> url, ReadOnlySpan<char> title) : base(null, "HTMLPopup", true) {
 
 	}
 }
@@ -36,7 +40,7 @@ public class HTML : Panel
 
 	Panel InteriorPanel;
 	ScrollBar HBar, VBar;
-	FileOpenDialog FileOpenDialog;
+	FileOpenDialog? FileOpenDialog;
 
 	public class HTMLFindBar : EditablePanel
 	{
@@ -45,16 +49,29 @@ public class HTML : Panel
 		Label FindCountLabel;
 		bool Hidden;
 		public HTMLFindBar(HTML parent) : base(parent, null) {
+			Parent = parent;
+			Hidden = false;
+			FindBar = new(this, "FindEntry");
+			FindBar.AddActionSignalTarget(parent);
+			FindBar.SendNewLine(true);
+			FindCountLabel = new(this, "FindCount", "");
+			FindCountLabel.SetVisible(false);
 
+			if (fileSystem.FileExists("resource/layout/htmlfindbar.layout"))
+				LoadControlSettings("resource/layout/htmlfindbar.layout");
 		}
 
-		internal bool BIsHidden() {
-			return false;//todo
-		}
+		internal void SetHidden(bool v) => Hidden = v;
 
-		internal void GetText(Span<char> txt) {
-			throw new NotImplementedException();
-		}
+		internal bool BIsHidden() => Hidden;
+
+		internal void GetText(Span<char> txt) => FindBar.GetText(txt);
+
+		internal void SetText(ReadOnlySpan<char> v) => FindBar.SetText(v);
+
+		internal void HideCountLabel() => FindCountLabel.SetVisible(false);
+
+		internal void ShowCountLabel() => FindCountLabel.SetVisible(true);
 	}
 
 	HTMLFindBar FindBar;
@@ -96,7 +113,7 @@ public class HTML : Panel
 	{
 		public UInt32 X;
 		public UInt32 Y;
-		string URL;
+		public string URL;
 	}
 	LinkAtPos_t LinkAtPos;
 	bool RequestingDragURL;
@@ -350,8 +367,6 @@ public class HTML : Panel
 		FindBar.SetBounds(GetWide() - SearchWide - SearchInsetX - vbarInset, FindBar.BIsHidden() ? -1 * SearchTall - QuickPropScale(5) : SearchInsetY, SearchWide, SearchTall);
 	}
 
-	void OnMove() { }
-
 	void OpenURL(string URL, string postData, bool force) => PostURL(URL, postData, force);
 
 	void PostURL(string URL, string postData, bool force) {
@@ -492,9 +507,48 @@ public class HTML : Panel
 		return modifierCodes;
 	}
 
-	void ShowFindDialog() { }
+	void ShowFindDialog() {
+		IScheme? clientScheme = SchemeManager.GetScheme("ClientScheme");
+		if (clientScheme == null)
+			return;
 
-	void HideFindDialog() { }
+		FindBar.SetVisible(true);
+		FindBar.RequestFocus();
+		FindBar.SetText("");
+		FindBar.HideCountLabel();
+		FindBar.SetHidden(false);
+		FindBar.GetBounds(out int x, out int y, out int w, out int h);
+		FindBar.SetPos(x, -1 * h);
+
+		int searchInsetY = 0;
+		ReadOnlySpan<char> resourceString = clientScheme.GetResourceString("HTML.SearchInsetY");
+		if (!resourceString.IsEmpty)
+			searchInsetY = QuickPropScale(int.TryParse(resourceString, out int value) ? value : 0);
+
+		float animationTime = 0;
+		resourceString = clientScheme.GetResourceString("HTML.SearchAnimationTime");
+		if (!resourceString.IsEmpty)
+			animationTime = strtof(resourceString, out _);
+
+		GetAnimationController().RunAnimationCommand(FindBar, "ypos", searchInsetY, 0, animationTime, Interpolators.Linear);
+	}
+
+	void HideFindDialog() {
+		IScheme? clientScheme = SchemeManager.GetScheme("ClientScheme");
+		if (clientScheme == null)
+			return;
+
+		FindBar.GetBounds(out int x, out int y, out int w, out int h);
+
+		float animationTime = 0;
+		ReadOnlySpan<char> resourceString = clientScheme.GetResourceString("HTML.SearchAnimationTime");
+		if (!resourceString.IsEmpty)
+			animationTime = strtof(resourceString, out _);
+
+		GetAnimationController().RunAnimationCommand(FindBar, "ypos", -1 * h - QuickPropScale(5), 0, animationTime, Interpolators.Linear);
+		FindBar.SetHidden(true);
+		StopFind();
+	}
 
 	bool FindDialogVisible() => FindBar.IsVisible() && !FindBar.BIsHidden();
 
@@ -587,10 +641,25 @@ public class HTML : Panel
 		}
 	}
 
-	void OnSliderMoved() { }
+	void OnSliderMoved() {
+		if (HBar.IsVisible()) {
+			int scrollX = HBar.GetValue();
+			SteamHTMLSurface.SetHorizontalScroll(BrowserHandle, (uint)scrollX);
+		}
+
+		if (VBar.IsVisible()) {
+			int scrollY = VBar.GetValue();
+			SteamHTMLSurface.SetVerticalScroll(BrowserHandle, (uint)scrollY);
+		}
+
+		PostActionSignal(new("HTMLSliderMoved"));
+	}
 
 	bool IsScrolledToBottom() {
-		throw new NotImplementedException();
+		if (!VBar.IsVisible())
+			return false;
+
+		return ScrollVertical.Scroll >= ScrollVertical.Max;
 	}
 
 	bool IsScrollbarVisible() => VBar.IsVisible();
@@ -646,7 +715,20 @@ public class HTML : Panel
 			base.OnCommand(command);
 	}
 
-	void OnFileSelected(ReadOnlySpan<char> selectedFile) { }
+	void OnFileSelected(ReadOnlySpan<char> selectedFile) {
+		byte[] bytes = new byte[Encoding.UTF8.GetByteCount(selectedFile) + 1];
+		Encoding.UTF8.GetBytes(selectedFile, bytes);
+		nint file = Marshal.AllocHGlobal(bytes.Length);
+		Marshal.Copy(bytes, 0, file, bytes.Length);
+		nint selectedFiles = Marshal.AllocHGlobal(IntPtr.Size * 2);
+		Marshal.WriteIntPtr(selectedFiles, 0, file);
+		Marshal.WriteIntPtr(selectedFiles, IntPtr.Size, IntPtr.Zero);
+		SteamHTMLSurface.FileLoadDialogResponse(BrowserHandle, selectedFiles);
+		Marshal.FreeHGlobal(file);
+		Marshal.FreeHGlobal(selectedFiles);
+
+		FileOpenDialog.Close();
+	}
 
 	void OnFileSelectionCancelled() {
 		SteamHTMLSurface.FileLoadDialogResponse(BrowserHandle, 0);
@@ -663,11 +745,14 @@ public class HTML : Panel
 		SteamHTMLSurface.Find(BrowserHandle, subStr, InFind, false);
 	}
 
-	void FindPrevious() { }
+	void FindPrevious() => SteamHTMLSurface.Find(BrowserHandle, LastSearchString, InFind, true);
 
-	void FindNext() { }
+	void FindNext() => Find(LastSearchString);
 
-	void StopFind() { }
+	void StopFind() {
+		SteamHTMLSurface.StopFind(BrowserHandle);
+		InFind = false;
+	}
 
 	void OnEditNewLine(Panel panel) => OnTextChanged(panel);
 
@@ -714,13 +799,48 @@ public class HTML : Panel
 
 	void BrowserStartRequest(HTML_StartRequest_t cmd) => SteamHTMLSurface.AllowStartRequest(BrowserHandle, OnStartRequest(cmd.pchURL, cmd.pchTarget, cmd.pchPostData, cmd.bIsRedirect));
 
-	void BrowserURLChanged(HTML_URLChanged_t cmd) { }
+	void BrowserURLChanged(HTML_URLChanged_t cmd) {
+		CurrentURL = cmd.pchURL;
 
-	void BrowserFinishedRequest(HTML_FinishedRequest_t cmd) { }
+		KeyValues msg = new("OnURLChanged");
+		msg.SetString("url", cmd.pchURL);
+		msg.SetString("postdata", cmd.pchPostData);
+		msg.SetInt("isredirect", cmd.bIsRedirect ? 1 : 0);
+
+		PostActionSignal(msg);
+
+		// OnURLChanged(CurrentURL, cmd.pchPostData, cmd.bIsRedirect); todo?
+	}
+
+	void BrowserFinishedRequest(HTML_FinishedRequest_t cmd) {
+		PostActionSignal(new("OnFinishRequest", "url", cmd.pchURL));
+
+		if (cmd.pchPageTitle.Length > 0)
+			PostActionSignal(new("PageTitleChange", "title", cmd.pchPageTitle));
+
+		// OnFinishRequest todo
+	}
 
 	void BrowserOpenNewTab(HTML_OpenLinkInNewTab_t cmd) { }
 
-	void BrowserPopupHTMLWindow(HTML_NewWindow_t cmd) { }
+	void BrowserPopupHTMLWindow(HTML_NewWindow_t cmd) {
+		HTMLPopup popup = new(this, cmd.pchURL, "");
+
+		uint wide = cmd.unWide;
+		uint tall = cmd.unTall;
+
+		if (wide == 0 || tall == 0) {
+			wide = (uint)Math.Max(QuickPropScale(640), GetWide());
+			tall = (uint)Math.Max(QuickPropScale(480), GetTall());
+		}
+
+		popup.SetBounds((int)cmd.unX, (int)cmd.unY, (int)wide, (int)tall);
+		popup.SetDeleteSelfOnClose(true);
+
+		if (cmd.unX == 0 || cmd.unY == 0)
+			popup.MoveToCenterOfScreen();
+		popup.Activate();
+	}
 
 	void BrowserSetHTMLTitle(HTML_ChangedTitle_t cmd) {
 		PostMessage(GetParent(), new("OnSetHTMLTitle", "title", cmd.pchTitle));
@@ -731,11 +851,20 @@ public class HTML : Panel
 
 	}
 
-	void BrowserStatusText(HTML_StatusText_t cmd) { }
+	void BrowserStatusText(HTML_StatusText_t cmd) => PostActionSignal(new("OnSetStatusText", "status", cmd.pchMsg));
 
 	void BrowserSetCursor(HTML_SetCursor_t cmd) { }
 
-	void BrowserFileLoadDialog(HTML_FileOpenDialog_t cmd) { }
+	void BrowserFileLoadDialog(HTML_FileOpenDialog_t cmd) {
+		FileOpenDialog?.Dispose();
+		FileOpenDialog = null;
+
+		FileOpenDialog = new(this, cmd.pchTitle, true);
+		FileOpenDialog.SetStartDirectory(cmd.pchInitialFile);
+		FileOpenDialog.AddActionSignalTarget(this);
+		FileOpenDialog.SetAutoDelete(true);
+		FileOpenDialog.DoModal();
+	}
 
 	void BrowserShowToolTip(HTML_ShowToolTip_t cmd) { }
 
@@ -743,19 +872,94 @@ public class HTML : Panel
 
 	void BrowserHideToolTip(HTML_HideToolTip_t cmd) { }
 
-	void BrowserSearchResults(HTML_SearchResults_t cmd) { }
+	void BrowserSearchResults(HTML_SearchResults_t cmd) {
+		if (cmd.unResults == 0)
+			FindBar.HideCountLabel();
+		else
+			FindBar.ShowCountLabel();
+
+		if (cmd.unResults > 0)
+			FindBar.SetDialogVariable("findcount", cmd.unResults);
+
+		if (cmd.unCurrentMatch > 0)
+			FindBar.SetDialogVariable("findactive", cmd.unCurrentMatch);
+
+		FindBar.InvalidateLayout();
+	}
 
 	void BrowserClose(HTML_CloseBrowser_t cmd) => PostActionSignal(new("OnCloseWindow"));
 
-	void BrowserHorizontalScrollBarSizeResponse(HTML_HorizontalScroll_t cmd) { }
+	void BrowserHorizontalScrollBarSizeResponse(HTML_HorizontalScroll_t cmd) {
+		ScrollData_t scrollHorizontal = new() {
+			Scroll = (int)cmd.unScrollCurrent,
+			Max = (int)cmd.unScrollMax,
+			Visible = cmd.bVisible,
+			Zoom = cmd.flPageScale
+		};
 
-	void BrowserVerticalScrollBarSizeResponse(HTML_VerticalScroll_t cmd) { }
+		if (scrollHorizontal != ScrollHorizontal) {
+			ScrollHorizontal = scrollHorizontal;
+			UpdateSizeAndScrollBars();
+			NeedsFullTextureUpload = true;
+		}
+		else
+			ScrollHorizontal = scrollHorizontal;
+	}
 
-	void BrowserLinkAtPositionResponse(HTML_LinkAtPosition_t cmd) { }
+	void BrowserVerticalScrollBarSizeResponse(HTML_VerticalScroll_t cmd) {
+		ScrollData_t scrollVertical = new() {
+			Scroll = (int)cmd.unScrollCurrent,
+			Max = (int)cmd.unScrollMax,
+			Visible = cmd.bVisible,
+			Zoom = cmd.flPageScale
+		};
 
-	void BrowserJSAlert(HTML_JSAlert_t cmd) { }
+		if (scrollVertical != ScrollHorizontal) {
+			ScrollHorizontal = scrollVertical;
+			UpdateSizeAndScrollBars();
+			NeedsFullTextureUpload = true;
+		}
+		else
+			ScrollHorizontal = scrollVertical;
+	}
 
-	void BrowserJSConfirm(HTML_JSConfirm_t cmd) { }
+	void BrowserLinkAtPositionResponse(HTML_LinkAtPosition_t cmd) {
+		LinkAtPos.URL = cmd.pchURL;
+		LinkAtPos.X = cmd.x;
+		LinkAtPos.Y = cmd.y;
+
+		ContextMenu.SetItemVisible(CopyLinkMenuItemID, LinkAtPos.URL.Length != 0);
+		if (RequestingDragURL) {
+			RequestingDragURL = false;
+			DragURL = LinkAtPos.URL;
+
+			if (DragURL.Length > 0)
+				Input.SetMouseCapture(this);
+		}
+
+		if (RequestingCopyLink) {
+			RequestingCopyLink = false;
+
+			// todo
+		}
+
+
+	}
+
+	void BrowserJSAlert(HTML_JSAlert_t cmd) {
+		MessageBox dlg = new(CurrentURL, cmd.pchMessage, this);
+		dlg.AddActionSignalTarget(this);
+		dlg.SetCommand(new KeyValues("DismissJSDialog", "result", 0));
+		dlg.DoModal();
+	}
+
+	void BrowserJSConfirm(HTML_JSConfirm_t cmd) {
+		MessageBox dlg = new(CurrentURL, cmd.pchMessage, this);
+		dlg.AddActionSignalTarget(this);
+		dlg.SetOKCommand(new KeyValues("DismissJSDialog", "result", 1));
+		dlg.SetCancelCommand(new KeyValues("DismissJSDialog", "result", 0));
+		dlg.DoModal();
+	}
 
 	void DismissJSDialog(int result) => SteamHTMLSurface.JSDialogResponse(BrowserHandle, result != 0);
 
@@ -769,6 +973,32 @@ public class HTML : Panel
 	void UpdateSizeAndScrollBars() {
 		BrowserResize();
 		InvalidateLayout();
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		switch (message.Name) {
+			case "ScrollBarSliderMoved":
+				OnSliderMoved();
+				break;
+			case "FileSelected":
+				OnFileSelected(message.GetString("fullpath"));
+				break;
+			case "FileSelectionCancelled":
+				OnFileSelectionCancelled();
+				break;
+			case "TextChanged":
+				OnTextChanged((Panel)from!);
+				break;
+			case "TextNewLine":
+				OnEditNewLine((Panel)from!);
+				break;
+			case "DismissJSDialog":
+				DismissJSDialog(message.GetInt("result", 0));
+				break;
+			default:
+				base.OnMessage(message, from);
+				break;
+		}
 	}
 
 #if DEBUG

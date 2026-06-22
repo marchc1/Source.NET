@@ -2237,7 +2237,7 @@ public class Panel : IPanel
 
 		SetParent(null);
 		while (GetChildCount() > 0) {
-			IPanel child = GetChild(0);
+			Panel child = GetChild(0);
 			if (child.IsAutoDeleteSet())
 				child.DeletePanel();
 			else
@@ -2548,9 +2548,9 @@ public class Panel : IPanel
 	}
 
 
-	public virtual void OnTick() {
+	public virtual void OnTick() { }
 
-	}
+	public virtual void OnMove() { }
 
 	public void SendMessage(KeyValues parms, IPanel? from) {
 		OnMessage(parms, from);

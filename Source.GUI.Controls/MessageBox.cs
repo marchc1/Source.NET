@@ -176,4 +176,8 @@ public class MessageBox : Frame
 
 		InvalidateLayout();
 	}
+
+	public void SetCommand(ReadOnlySpan<char> command) => OkCommand = new("Command", "command", command);
+
+	public void SetCommand(KeyValues command) => OkCommand = command;
 }
