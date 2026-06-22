@@ -1086,6 +1086,11 @@ public static class MathLib
 				 diff.Z <= toleranceVec.Z;
 	}
 
+	public static void Init(this ref Vector2 v, vec_t ix, vec_t iy) {
+		v.X = ix;
+		v.Y = iy;
+		Assert(IsValid(ref v));
+	}
 	public static void Init(this ref Vector2 v) => v.X = v.Y = 0;
 	public static void Init(this ref Vector3 v) => v.X = v.Y = v.Z = 0;
 	public static void Init(this ref QAngle a) => a.X = a.Y = a.Z = 0;
@@ -1476,8 +1481,19 @@ public static class MathLib
 		}
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorClear(out Vector3 v) => v = default;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DClear(out Vector2 v) => v = default;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out Vector3 outV) => outV = inV;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out QAngle outV) => outV = inV;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DCopy(in Vector2 inV, out Vector2 outV) => outV = inV;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorLerp(in Vector3 src1, in Vector3 src2, float t, out Vector3 dest) => dest = Vector3.Lerp(src1, src2, t);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DAdd(in Vector2 a, in Vector2 b, out Vector2 c) => c = a + b;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DSubtract(in Vector2 a, in Vector2 b, out Vector2 c) => c = a - b;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DMultiply(in Vector2 a, float b, out Vector2 c) => c = a * b;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DMultiply(in Vector2 a, in Vector2 b, out Vector2 c) => c = a * b;
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float VectorNormalizeFast(ref Vector3 v) {
 		float sqlen = v.X * v.X + v.Y * v.Y + v.Z * v.Z + 1.0e-10f;
@@ -1554,6 +1570,12 @@ public static class MathLib
 	}
 
 	public static float VectorLength(in Vector3 delta) => delta.Length();
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector3 Cross(this Vector3 vec, Vector3 other) {
+		CrossProduct(vec, other, out Vector3 res);
+		return res;
+	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Square(int x) => x * x;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float Square(float x) => x * x;
@@ -2003,4 +2025,10 @@ public static class MathLib
 public struct FourVectors
 {
 	public Vector4 x, y, z;
+
+	public FourVectors(Vector3 v) {
+		x = new Vector4(v.X);
+		y = new Vector4(v.Y);
+		z = new Vector4(v.Z);
+	}
 }

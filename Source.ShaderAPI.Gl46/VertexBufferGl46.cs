@@ -313,6 +313,28 @@ public unsafe class VertexBufferGl46 : IDisposable
 		Locked = false;
 	}
 
+	int modifyOffset;
+
+	public byte* ModifyLock(int firstVertex, int numVerts, out int baseVertexIndex) {
+		Assert(!Locked);
+
+		if (SysmemBuffer == null)
+			RecomputeVBO();
+
+		modifyOffset = firstVertex * VertexSize;
+		baseVertexIndex = firstVertex;
+		Locked = true;
+		return (byte*)((nint)SysmemBuffer + modifyOffset);
+	}
+
+	public void ModifyUnlock(int vertexCount) {
+		if (!Locked)
+			return;
+
+		glNamedBufferSubData((uint)vbo, modifyOffset, vertexCount * VertexSize, (void*)((nint)SysmemBuffer + modifyOffset));
+		Locked = false;
+	}
+
 	internal bool HasEnoughRoom(int numVertices) {
 		return NextLockOffset() + (numVertices * VertexSize) <= BufferSize;
 	}

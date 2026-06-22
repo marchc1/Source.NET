@@ -392,13 +392,43 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		}
 	}
 
-	struct SurfaceCtx
+	public struct SurfaceCtx
 	{
 		public InlineArray2<int> LightmapSize;
 		public InlineArray2<int> LightmapPageSize;
 		public float BumpSTexCoordOffset;
 		public Vector2 Offset;
 		public Vector2 Scale;
+	}
+
+	internal void BuildMSurfaceVerts(WorldBrushData brushData, ref BSPMSurface2 surfID, Vector3[]? verts, Vector2[]? texCoords, Vector2[,]? lightCoords) {
+		SurfaceCtx ctx = default;
+		SurfSetupSurfaceContext(ref ctx, ref surfID);
+
+		int vertCount = ModelLoader.MSurf_VertCount(ref surfID);
+		int vertFirstIndex = ModelLoader.MSurf_FirstVertIndex(ref surfID);
+		for (int i = 0; i < vertCount; i++) {
+			int vertIndex = brushData.VertIndices![vertFirstIndex + i];
+
+			ref Vector3 vec = ref brushData.Vertexes![vertIndex].Position;
+
+			if (verts != null)
+				MathLib.VectorCopy(vec, out verts[i]);
+
+			if (texCoords != null)
+				SurfComputeTextureCoordinate(ref ctx, ref surfID, ref vec, ref texCoords[i]);
+
+			if (lightCoords != null) {
+				SurfComputeLightmapCoordinate(ref ctx, ref surfID, ref vec, ref lightCoords[i, 0]);
+
+				if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.BumpLight) != 0) {
+					for (int bumpID = 1; bumpID <= Constants.NUM_BUMP_VECTS; bumpID++) {
+						lightCoords[i, bumpID].X = lightCoords[i, 0].X + (bumpID * ctx.BumpSTexCoordOffset);
+						lightCoords[i, bumpID].Y = lightCoords[i, 0].Y;
+					}
+				}
+			}
+		}
 	}
 
 	private void BuildMSurfaceVertexArrays(WorldBrushData brushData, ref BSPMSurface2 surfID, float overbright, ref MeshBuilder builder) {
@@ -475,7 +505,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	internal MaterialSystem_SortInfo[]? MaterialSortInfoArray;
 	private int SortInfoToLightmapPage(int sortID) => MaterialSortInfoArray![sortID].LightmapPageID;
 
-	private void SurfSetupSurfaceContext(ref SurfaceCtx ctx, ref BSPMSurface2 surfID) {
+	internal void SurfSetupSurfaceContext(ref SurfaceCtx ctx, ref BSPMSurface2 surfID) {
 		materials.GetLightmapPageSize(SortInfoToLightmapPage(ModelLoader.MSurf_MaterialSortID(ref surfID)), out ctx.LightmapPageSize[0], out ctx.LightmapPageSize[1]);
 		ctx.LightmapSize[0] = ModelLoader.MSurf_LightmapExtents(ref surfID)[0] + 1;
 		ctx.LightmapSize[1] = ModelLoader.MSurf_LightmapExtents(ref surfID)[1] + 1;
@@ -492,7 +522,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			ctx.BumpSTexCoordOffset = 0.0f;
 	}
 
-	private void SurfComputeLightmapCoordinate(ref SurfaceCtx ctx, ref BSPMSurface2 surfID, ref Vector3 vec, ref Vector2 uv) {
+	internal void SurfComputeLightmapCoordinate(ref SurfaceCtx ctx, ref BSPMSurface2 surfID, ref Vector3 vec, ref Vector2 uv) {
 		if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.NoLight) != 0)
 			uv.X = uv.Y = 0.5f;
 

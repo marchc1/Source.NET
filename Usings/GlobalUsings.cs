@@ -56,6 +56,8 @@ global using ClientSideAnimationListHandle_t = uint;
 global using HSOUNDSCRIPTHANDLE = short;
 global using BSPTreeDataHandle_t = ushort;
 global using ShadowHandle_t = ushort;
+global using DispShadowHandle = ushort;
+global using DispDecalHandle = short;
 global using fltx4 = System.Runtime.Intrinsics.Vector128<float>;
 global using static Source.Common.ClientRenderHandleGlobals;
 global using static Source.Common.Audio.AudioConstants;

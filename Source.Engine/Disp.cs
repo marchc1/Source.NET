@@ -26,6 +26,33 @@ public class DispArray(nint elements)
 	public int CurTag;
 }
 
+class EngineTesselateHelper : BaseTesselateHelper
+{
+	public MeshBuilder IndexMesh = new();
+	public DispInfo Disp = null!;
+
+	public override void EndTriangle() {
+		int vertOffset = Disp.VertOffset;
+
+		IndexMesh.Index((ushort)(TempIndices[0] + vertOffset));
+		IndexMesh.AdvanceIndex();
+
+		IndexMesh.Index((ushort)(TempIndices[1] + vertOffset));
+		IndexMesh.AdvanceIndex();
+
+		IndexMesh.Index((ushort)(TempIndices[2] + vertOffset));
+		IndexMesh.AdvanceIndex();
+
+		Disp.Indices[NIndices] = (ushort)(TempIndices[0] + vertOffset);
+		Disp.Indices[NIndices + 1] = (ushort)(TempIndices[1] + vertOffset);
+		Disp.Indices[NIndices + 2] = (ushort)(TempIndices[2] + vertOffset);
+
+		NIndices += 3;
+	}
+
+	public override ref DispNodeInfo GetNodeInfo(int nodeBit) => ref Disp.GetNodeInfoRef(nodeBit);
+}
+
 public class GroupMesh
 {
 	public IMesh? Mesh;
@@ -50,12 +77,12 @@ struct SideVertCorners
 	public InlineArray2<FourVerts> Corners;
 }
 
-class DispDecalBase
+public class DispDecalBase
 {
 
 }
 
-class DispDecal : DispDecalBase
+public class DispDecal : DispDecalBase
 {
 
 }

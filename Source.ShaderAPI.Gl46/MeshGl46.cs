@@ -221,12 +221,43 @@ public unsafe class MeshGl46 : IMesh
 
 	public virtual void MarkAsDrawn() {}
 
+	int modifyVertexCount;
+	int modifyFirstIndex;
+	int modifyIndexCount;
+
 	public virtual void ModifyBegin(int firstVertex, int vertexCount, int firstIndex, int indexCount, ref MeshDesc desc) {
-		throw new NotImplementedException();
+		Assert(VertexBuffer != null);
+
+		byte* vertexMemory = VertexBuffer.ModifyLock(firstVertex, vertexCount, out desc.Vertex.FirstVertex);
+		VertexBufferGl46.ComputeVertexDescription(vertexMemory, VertexFormat, ref desc.Vertex);
+
+		if (indexCount > 0) {
+			IndexBuffer ??= new IndexBufferGl46(indexCount, false);
+			desc.Index.Indices = (ushort*)IndexBuffer.ModifyLock(firstIndex, indexCount, out int startIndex);
+			desc.Index.IndexSize = 1;
+			IsIBLocked = true;
+		}
+		else {
+			desc.Index.Indices = ScratchIndexBuffer;
+			desc.Index.IndexSize = 0;
+		}
+
+		modifyVertexCount = vertexCount;
+		modifyFirstIndex = firstIndex;
+		modifyIndexCount = indexCount;
+		Locked = true;
 	}
 
 	public virtual void ModifyEnd(ref MeshDesc desc) {
-		throw new NotImplementedException();
+		Assert(Locked);
+
+		if (IsIBLocked) {
+			IndexBuffer.ModifyUnlock(modifyFirstIndex, modifyIndexCount);
+			IsIBLocked = false;
+		}
+
+		VertexBuffer.ModifyUnlock(modifyVertexCount);
+		Locked = false;
 	}
 
 	IMesh? ColorMesh;

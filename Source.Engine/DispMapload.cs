@@ -9,6 +9,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using Source.Common.Engine;
 using CommunityToolkit.HighPerformance;
+using Source.Common.Mathematics;
 
 namespace Source.Engine;
 
@@ -23,7 +24,19 @@ static class DispHelpers
 
 public static class DispMapload
 {
-	static void BuildDispGetSurfNormals(Vector3[] points, Vector3[] normals) => throw new NotImplementedException();
+	static readonly MatSysInterface MatSys = Singleton<MatSysInterface>();
+
+	static void BuildDispGetSurfNormals(Vector3[] points, Vector3[] normals) {
+		Vector3[] tmp = new Vector3[2];
+		Vector3 normal;
+		tmp[0] = points[1] - points[0];
+		tmp[1] = points[3] - points[0];
+		normal = tmp[1].Cross(tmp[0]);
+		MathLib.VectorNormalize(ref normal);
+
+		for (int i = 0; i < 4; i++)
+			normals[i] = normal;
+	}
 
 	static DispGroup? FindCombo(List<DispGroup> combos, int idLMPage, IMaterial? material) {
 		foreach (var c in combos)
@@ -43,7 +56,85 @@ public static class DispMapload
 		return combo;
 	}
 
-	static void BuildDispSurfInit(Model world, CoreDispInfo buildDisp, ref BSPMSurface2 worldSurfID) => throw new NotImplementedException();
+	static void BuildDispSurfInit(Model world, CoreDispInfo buildDisp, ref BSPMSurface2 worldSurfID) {
+		// if (!IS_SURF_VALID(worldSurfID)) return; // TODO
+		// ASSERT_SURF_VALID(worldSurfID);
+
+		Vector3[] surfPoints = new Vector3[4];
+		Vector3[] surfNormals = new Vector3[4];
+		Vector2[] surfTexCoords = new Vector2[4];
+		Vector2[,] surfLightCoords = new Vector2[4, 4];
+
+		if (MSurf_VertCount(ref worldSurfID) != 4) return;
+
+#if !SWDS
+		MatSys.BuildMSurfaceVerts(world.Brush.Shared, ref worldSurfID, surfPoints, surfTexCoords, surfLightCoords);
+#endif
+		BuildDispGetSurfNormals(surfPoints, surfNormals);
+
+		CoreDispSurface dispSurf = buildDisp.GetSurface();
+
+		int surfFlag = dispSurf.GetFlags();
+		int nLMVects = 1;
+		if ((MSurf_Flags(ref worldSurfID) & SurfDraw.BumpLight) != 0) {
+			surfFlag |= CoreDispInfo.SURF_BUMPED;
+			nLMVects = Constants.NUM_BUMP_VECTS + 1;
+		}
+
+		dispSurf.SetPointCount(4);
+		for (int i = 0; i < 4; i++) {
+			dispSurf.SetPoint(i, surfPoints[i]);
+			dispSurf.SetPointNormal(i, surfNormals[i]);
+			dispSurf.SetTexCoord(i, surfTexCoords[i]);
+
+			for (int j = 0; j < nLMVects; j++)
+				dispSurf.SetLuxelCoord(j, i, surfLightCoords[i, j]);
+		}
+
+		Vector3 vecS = MSurf_TexInfo(ref worldSurfID).TextureVecsTexelsPerWorldUnits[0].AsVector3D();
+		Vector3 vecT = MSurf_TexInfo(ref worldSurfID).TextureVecsTexelsPerWorldUnits[1].AsVector3D();
+		MathLib.VectorNormalize(ref vecS);
+		MathLib.VectorNormalize(ref vecT);
+		dispSurf.SetSAxis(vecS);
+		dispSurf.SetTAxis(vecT);
+
+		dispSurf.SetFlags(surfFlag);
+		dispSurf.FindSurfPointStartIndex();
+		dispSurf.AdjustSurfPointData();
+
+#if !SWDS
+		MatSysInterface.SurfaceCtx ctx = default;
+		MatSys.SurfSetupSurfaceContext(ref ctx, ref worldSurfID);
+		int lightmapWidth = MSurf_LightmapExtents(ref worldSurfID)[0];
+		int lightmapHeight = MSurf_LightmapExtents(ref worldSurfID)[1];
+
+		Vector2 uv = new(0.0f, 0.0f);
+		for (int ndxLuxel = 0; ndxLuxel < 4; ndxLuxel++) {
+			switch (ndxLuxel) {
+				case 0:
+					uv.Init(0.0f, 0.0f);
+					break;
+				case 1:
+					uv.Init(0.0f, lightmapHeight);
+					break;
+				case 2:
+					uv.Init(lightmapWidth, lightmapHeight);
+					break;
+				case 3:
+					uv.Init(lightmapWidth, 0.0f);
+					break;
+			}
+
+			uv.X += 0.5f;
+			uv.Y += 0.5f;
+
+			uv *= ctx.Scale;
+			uv += ctx.Offset;
+
+			dispSurf.SetLuxelCoord(0, ndxLuxel, uv);
+		}
+#endif
+	}
 
 	static VertexFormat ComputeDisplacementStaticMeshVertexFormat(IMaterial? material, DispGroup combo, Span<BSPDDispInfo> mapDisps) {
 		VertexFormat vertexFormat = material!.GetVertexFormat();
@@ -94,7 +185,51 @@ public static class DispMapload
 		Assert(iIndexOffset == totalIndices);
 	}
 
-	static void FillStaticBuffer(GroupMesh mesh, DispInfo disp, CoreDispInfo coreDisp, Span<DispVert> verts, int lightmaps) => throw new NotImplementedException();
+	static void FillStaticBuffer(GroupMesh mesh, DispInfo disp, CoreDispInfo coreDisp, Span<DispVert> verts, int lightmaps) {
+#if !SWDS
+		CalcMaxNumVertsAndIndices(disp.GetPower(), out int nVerts, out int nIndices);
+
+		using MeshBuilder builder = new();
+		builder.BeginModify(mesh.Mesh!, disp.VertOffset, nVerts, 0, 0);
+
+		MatSysInterface.SurfaceCtx ctx = default;
+		MatSys.SurfSetupSurfaceContext(ref ctx, ref disp.GetParent());
+
+		for (int i = 0; i < nVerts; i++) {
+			Vector3 pos = coreDisp.GetVert(i);
+			builder.Position3f(pos.X, pos.Y, pos.Z);
+
+			Vector3 normal = coreDisp.GetNormal(i);
+			builder.Normal3f(normal.X, normal.Y, normal.Z);
+
+			coreDisp.GetTangentS(i, out Vector3 vec);
+			builder.TangentS3fv(vec);
+
+			coreDisp.GetTangentT(i, out vec);
+			builder.TangentT3fv(vec);
+
+			coreDisp.GetTexCoord(i, out Vector2 texCoord);
+			builder.TexCoord2f(0, texCoord.X, texCoord.Y);
+
+			coreDisp.GetLuxelCoord(0, i, out Vector2 lightCoord);
+			builder.TexCoord2f(DISP_LMCOORDS_STAGE, lightCoord.X, lightCoord.Y);
+
+			float alpha = coreDisp.GetAlpha(i);
+			alpha *= 1.0f / 255.0f;
+			alpha = Math.Clamp(alpha, 0.0f, 1.0f);
+			builder.Color4f(1.0f, 1.0f, 1.0f, alpha);
+
+			if (lightmaps > 1) {
+				MatSys.SurfComputeLightmapCoordinate(ref ctx, ref disp.GetParent(), ref disp.GetVertex(i).Pos, ref lightCoord);
+				builder.TexCoord2f(2, ctx.BumpSTexCoordOffset, 0.0f);
+			}
+
+			builder.AdvanceVertex();
+		}
+
+		builder.EndModify();
+#endif
+	}
 
 	static void DispInfo_CreateMaterialGroups(Model world, MaterialSystem_SortInfo[] sortInfos) {
 		for (int disp = 0; disp < world.Brush.Shared!.NumDispInfos; disp++) {
@@ -153,12 +288,43 @@ public static class DispMapload
 		}
 	}
 
-	public static bool DispInfo_CreateFromMapDisp(Model world, int disp, ref BSPDDispInfo mapDisp, CoreDispInfo coreDisp, Span<DispVert> verts, Span<DispTri> tris) {
+	public static bool DispInfo_CreateFromMapDisp(Model world, int disp, ref BSPDDispInfo mapDisp, CoreDispInfo coreDisp, Span<DispVert> verts, Span<DispTri> tris, MaterialSystem_SortInfo[] sortInfos, bool restoring) {
+		DispInfo pDisp = DispInfo.GetModelDisp(world, disp)!;
+
+		coreDisp.GetSurface().SetPointStart(mapDisp.StartPosition);
+		coreDisp.InitDispInfo(mapDisp.Power, mapDisp.MinTess, mapDisp.SmoothingAngle, verts, tris);
+		coreDisp.SetNeighborData(mapDisp.EdgeNeighbors, mapDisp.CornerNeighbors);
+
+		ErrorIfNot(coreDisp.GetAllowedVerts().GetNumDWords() == 10, $"DispInfo_StoreMapData: size mismatch in 'allowed verts' list ({coreDisp.GetAllowedVerts().GetNumDWords()} != 10)");
+		for (int iVert = 0; iVert < coreDisp.GetAllowedVerts().GetNumDWords(); ++iVert)
+			coreDisp.GetAllowedVerts().SetDWord(iVert, (uint)mapDisp.AllowedVerts[iVert]);
+
+		ref BSPMSurface2 parent = ref pDisp.GetParent();
+		BuildDispSurfInit(world, coreDisp, ref parent);
+		if (!coreDisp.Create())
+			return false;
+
+		pDisp.PointStart = coreDisp.GetSurface().GetPointStartIndex();
+
+		pDisp.Index = (ushort)disp;
+
+		pDisp.CopyMapDispData(in mapDisp);
+
+		if (!pDisp.CopyCoreDispData(world, sortInfos, coreDisp, restoring))
+			return false;
+
+		pDisp.InitializeActiveVerts();
+		pDisp.LightmapSamplePositionStart = mapDisp.LightmapSamplePositionStart;
+
 		return true;
 	}
 
 	static void DispInfo_CreateStaticBuffersAndTags(Model world, int disp, CoreDispInfo coreDispInfo, Span<DispVert> tempVerts) {
+		DispInfo dsp = DispInfo.GetModelDisp(world, disp)!;
 
+		FillStaticBuffer(dsp.Mesh!, dsp, coreDispInfo, tempVerts, dsp.NumLightmaps());
+
+		BuildTagData(coreDispInfo, dsp);
 	}
 
 	static unsafe void SetupMeshReaders(Model world, nint numDisplacements) {
@@ -241,7 +407,7 @@ public static class DispMapload
 			dispTris.LoadLumpData(curTri * Unsafe.SizeOf<DispTri>(), numTris * Unsafe.SizeOf<DispTri>(), tempTris);
 			curTri += numTris;
 
-			if (!DispInfo_CreateFromMapDisp(world, disp, ref mapDisp, coreDisps[disp], tempVerts, tempTris))
+			if (!DispInfo_CreateFromMapDisp(world, disp, ref mapDisp, coreDisps[disp], tempVerts, tempTris, sortInfos, false))
 				return false;
 		}
 
@@ -272,25 +438,252 @@ public static class DispMapload
 
 	static void DispInfo_ReleaseMaterialSystemObjects(Model world) => throw new NotImplementedException();
 
-	static void BuildTagData(CoreDispInfo coreDisp, DispInfo disp) => throw new NotImplementedException();
+	static void BuildTagData(CoreDispInfo coreDisp, DispInfo disp) {
+		int walkTest = 0;
+		int buildTest = 0;
+		int tri;
 
-	static int FindNeighborCornerVert(CoreDispInfo disp, in Vector3 point) => throw new NotImplementedException();
+		for (tri = 0; tri < coreDisp.GetTriCount(); ++tri) {
+			if (coreDisp.IsTriTag(tri, DispTriTags.TagWalkable))
+				++walkTest;
 
-	static void UpdateTangentSpace(CoreDispInfo disp, int vert, in Vector3 normal, in Vector3 tanS) => throw new NotImplementedException();
-	static void UpdateTangentSpace(CoreDispInfo disp, in VertIndex index, in Vector3 normal, in Vector3 tanS) => throw new NotImplementedException();
+			if (coreDisp.IsTriTag(tri, DispTriTags.TagBuildable))
+				++buildTest;
+		}
 
-	static void BlendSubNeighbors(CoreDispInfo[] listBase, nint listSize) {
+		walkTest *= 3;
+		buildTest *= 3;
 
+		disp.WalkIndices = new ushort[walkTest];
+		disp.BuildIndices = new ushort[buildTest];
+
+		int walkCount = 0;
+		int buildCount = 0;
+
+
+		for (tri = 0; tri < coreDisp.GetTriCount(); ++tri) {
+			if (coreDisp.IsTriTag(tri, DispTriTags.TagWalkable)) {
+				coreDisp.GetTriIndices(tri, out disp.WalkIndices[walkCount], out disp.WalkIndices[walkCount + 1], out disp.WalkIndices[walkCount + 2]);
+				walkCount += 3;
+			}
+
+			if (coreDisp.IsTriTag(tri, DispTriTags.TagBuildable)) {
+				coreDisp.GetTriIndices(tri, out disp.BuildIndices[buildCount], out disp.BuildIndices[buildCount + 1], out disp.BuildIndices[buildCount + 2]);
+				buildCount += 3;
+			}
+		}
+
+		Assert(walkCount == walkTest);
+		Assert(buildCount == buildTest);
+
+		disp.WalkIndexCount = walkCount;
+		disp.BuildIndexCount = buildCount;
 	}
 
-	static int GetAllNeighbors(CoreDispInfo disp, int[] neighbors) => throw new NotImplementedException();
+	static int FindNeighborCornerVert(CoreDispInfo disp, in Vector3 point) {
+		DispUtilsHelper dispHelper = disp;
+
+		int closest = 0;
+		float closestDist = float.MaxValue;
+		for (int corner = 0; corner < 4; ++corner) {
+			VertIndex cornerVertIndex = dispHelper.GetPowerInfo().GetCornerPointIndex(corner);
+			int cornerVert = dispHelper.VertIndexToInt(cornerVertIndex);
+			Vector3 cornerPos = disp.GetVert(cornerVert);
+
+			float dist = cornerPos.DistTo(point);
+			if (dist < closestDist) {
+				closest = corner;
+				closestDist = dist;
+			}
+		}
+
+		if (closestDist <= 0.1f)
+			return closest;
+		else
+			return -1;
+	}
+
+	static void UpdateTangentSpace(CoreDispInfo disp, int vert, in Vector3 normal, in Vector3 tanS) {
+		disp.SetNormal(vert, tanS);
+		MathLib.CrossProduct(tanS, normal, out Vector3 tanT);
+		disp.SetTangentS(vert, tanS);
+		disp.SetTangentT(vert, tanT);
+	}
+
+	static void UpdateTangentSpace(CoreDispInfo disp, in VertIndex index, in Vector3 normal, in Vector3 tanS) => UpdateTangentSpace(disp, disp.VertIndexToInt(index), normal, tanS);
+
+	static void BlendSubNeighbors(CoreDispInfo[] listBase, nint listSize) {
+		for (int disp = 0; disp < listSize; ++disp) {
+			CoreDispInfo dispInfo = listBase[disp];
+			if (dispInfo == null) continue;
+
+			for (int edge = 0; edge < 4; ++edge) {
+				DispNeighbor edgeNeighbor = dispInfo.GetEdgeNeighbor(edge);
+
+				if (!edgeNeighbor.SubNeighbors[0].IsValid() || !edgeNeighbor.SubNeighbors[1].IsValid())
+					continue;
+
+				VertIndex midPointIndex = dispInfo.GetEdgeMidPoint(edge);
+				int midPoint = dispInfo.VertIndexToInt(midPointIndex);
+
+				Vector3 midPointPos = dispInfo.GetVert(midPoint);
+
+				CoreDispInfo neighbor1 = listBase[edgeNeighbor.SubNeighbors[0].GetNeighborIndex()];
+				CoreDispInfo neighbor2 = listBase[edgeNeighbor.SubNeighbors[1].GetNeighborIndex()];
+
+				int[] corners = new int[2];
+				corners[0] = FindNeighborCornerVert(neighbor1, midPointPos);
+				corners[1] = FindNeighborCornerVert(neighbor2, midPointPos);
+				if (corners[0] != -1 && corners[1] != -1) {
+					VertIndex[] cornerIndices = [
+						neighbor1.GetCornerPointIndex(corners[0]),
+						neighbor2.GetCornerPointIndex(corners[1])
+					];
+
+					Vector3 average = dispInfo.GetNormal(midPoint);
+					average += neighbor1.GetNormal(cornerIndices[0]);
+					average += neighbor2.GetNormal(cornerIndices[1]);
+
+					MathLib.VectorNormalize(ref average);
+					Vector3 avgTanS = dispInfo.GetTangentS(midPoint);
+					avgTanS += neighbor1.GetTangentS(cornerIndices[0]);
+					avgTanS += neighbor2.GetTangentS(cornerIndices[1]);
+					MathLib.VectorNormalize(ref avgTanS);
+
+					UpdateTangentSpace(dispInfo, midPoint, average, avgTanS);
+					UpdateTangentSpace(neighbor1, cornerIndices[0], average, avgTanS);
+					UpdateTangentSpace(neighbor2, cornerIndices[1], average, avgTanS);
+				}
+			}
+		}
+	}
+
+	static int GetAllNeighbors(CoreDispInfo disp, int[] neighbors) {
+		int numNeighbors = 0;
+
+		for (int corner = 0; corner < 4; corner++) {
+			DispCornerNeighbors cornerNeighbors = disp.GetCornerNeighbors(corner);
+
+			for (int i = 0; i < cornerNeighbors.NumNeighbors; i++) {
+				if (numNeighbors < 512)
+					neighbors[numNeighbors++] = cornerNeighbors.Neighbors[i];
+			}
+		}
+
+		for (int edge = 0; edge < 4; edge++) {
+			DispNeighbor edgeNeighbor = disp.GetEdgeNeighbor(edge);
+
+			for (int i = 0; i < 2; i++) {
+				if (edgeNeighbor.SubNeighbors[i].IsValid())
+					if (numNeighbors < 512)
+						neighbors[numNeighbors++] = edgeNeighbor.SubNeighbors[i].GetNeighborIndex();
+			}
+		}
+
+		return numNeighbors;
+	}
 
 	static void BlendCorners(CoreDispInfo[] listBase, nint listSize) {
+		for (int disp = 0; disp < listSize; ++disp) {
+			CoreDispInfo dispInfo = listBase[disp];
 
+			int[] neighbors = new int[512];
+			int numNeighbors = GetAllNeighbors(dispInfo, neighbors);
+
+			int[] nbCornerVerts = new int[numNeighbors];
+
+			for (int corner = 0; corner < 4; corner++) {
+				VertIndex cornerVertIndex = dispInfo.GetCornerPointIndex(corner);
+				int cornerVert = dispInfo.VertIndexToInt(cornerVertIndex);
+				Vector3 cornerPos = dispInfo.GetVert(cornerVert);
+
+				Vector3 average = dispInfo.GetNormal(cornerVert);
+				dispInfo.GetTangentS(cornerVert, out Vector3 avgTanS);
+
+				for (int neighbor = 0; neighbor < numNeighbors; neighbor++) {
+					int nbListIndex = neighbors[neighbor];
+					CoreDispInfo nb = listBase[nbListIndex];
+
+					int nbCorner = FindNeighborCornerVert(nb, cornerPos);
+					if (nbCorner == -1) {
+						nbCornerVerts[neighbor] = -1;
+					}
+					else {
+						VertIndex nbCornerVertIndex = nb.GetCornerPointIndex(nbCorner);
+						int nbVert = nb.VertIndexToInt(nbCornerVertIndex);
+						nbCornerVerts[neighbor] = nbVert;
+						average += nb.GetNormal(nbVert);
+						avgTanS += nb.GetTangentS(nbVert);
+					}
+				}
+
+				MathLib.VectorNormalize(ref average);
+				MathLib.VectorNormalize(ref avgTanS);
+				UpdateTangentSpace(dispInfo, cornerVert, average, avgTanS);
+
+				for (int neighbor = 0; neighbor < numNeighbors; neighbor++) {
+					int nbListIndex = neighbors[neighbor];
+					if (nbCornerVerts[neighbor] == -1) continue;
+
+					CoreDispInfo nb = listBase[nbListIndex];
+					UpdateTangentSpace(nb, nbCornerVerts[neighbor], average, avgTanS);
+				}
+			}
+		}
 	}
 
 	static void BlendEdges(CoreDispInfo[] listBase, nint listSize) {
+		for (int disp = 0; disp < listSize; ++disp) {
+			CoreDispInfo dispInfo = listBase[disp];
+			if (dispInfo == null) continue;
 
+			for (int edge = 0; edge < 4; ++edge) {
+				DispNeighbor edgeNeighbor = dispInfo.GetEdgeNeighbor(edge);
+
+				for (int subEdge = 0; subEdge < 2; ++subEdge) {
+					DispSubNeighbor sub = edgeNeighbor.SubNeighbors[subEdge];
+					if (!sub.IsValid()) continue;
+
+					CoreDispInfo neighbor = listBase[sub.GetNeighborIndex()];
+					if (neighbor == null) continue;
+
+					int edgeDim = DispUtilsHelper.g_EdgeDims[edge];
+
+					DispSubEdgeIterator it = new();
+					it.Start(dispInfo, edge, subEdge, true);
+
+					it.Next();
+					VertIndex prevPos = it.GetVertIndex();
+					while (it.Next()) {
+						if (!it.IsLastVert()) {
+							Vector3 average = dispInfo.GetNormal(it.GetVertIndex()) + neighbor.GetNormal(it.GetNBVertIndex());
+							Vector3 avgTanS = dispInfo.GetTangentS(it.GetVertIndex()) + neighbor.GetTangentS(it.GetNBVertIndex());
+							MathLib.VectorNormalize(ref average);
+							MathLib.VectorNormalize(ref avgTanS);
+							UpdateTangentSpace(dispInfo, it.GetVertIndex(), average, avgTanS);
+							UpdateTangentSpace(neighbor, it.GetNBVertIndex(), average, avgTanS);
+						}
+
+						int prevPosFree = prevPos[edgeDim ^ 1];
+						int curPosFree = it.GetVertIndex()[edgeDim ^ 1];
+						for (int tween = prevPosFree + 1; tween < curPosFree; tween++) {
+							float percent = (float)MathLib.RemapVal(tween, prevPosFree, curPosFree, 0, 1);
+							MathLib.VectorLerp(dispInfo.GetNormal(prevPos), dispInfo.GetNormal(it.GetVertIndex()), percent, out Vector3 normal);
+							MathLib.VectorNormalize(ref normal);
+							MathLib.VectorLerp(dispInfo.GetTangentS(prevPos), dispInfo.GetTangentS(it.GetVertIndex()), percent, out Vector3 avgTanS);
+							MathLib.VectorNormalize(ref avgTanS);
+
+							VertIndex tweenIndex = new();
+							tweenIndex[edgeDim] = it.GetVertIndex()[edgeDim];
+							tweenIndex[edgeDim ^ 1] = (short)tween;
+							UpdateTangentSpace(dispInfo, tweenIndex, normal, avgTanS);
+						}
+
+						prevPos = it.GetVertIndex();
+					}
+				}
+			}
+		}
 	}
 
 	static void SmoothDispSurfNormals(CoreDispInfo[] listBase, nint listSize) {
