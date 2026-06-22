@@ -1,3 +1,4 @@
+using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.MaterialSystem;
@@ -6,9 +7,6 @@ using Source.Common.Mathematics;
 using System.Numerics;
 
 namespace Source.Engine;
-
-public class PowerInfo{
-}
 
 public class DispInfo : IDispInfo
 {
@@ -63,6 +61,8 @@ public class DispInfo : IDispInfo
 	internal int NumVerts() {
 		return 0;
 	}
+
+	internal int NumLightmaps() => (ModelLoader.MSurf_Flags(ref ParentSurfID) & SurfDraw.BumpLight) != 0 ? Constants.NUM_BUMP_VECTS + 1 : 1;
 
 	public Vector3 BBoxMin;
 	public Vector3 BBoxMax;

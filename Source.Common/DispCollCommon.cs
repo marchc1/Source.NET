@@ -152,14 +152,20 @@ public class DispCollTree
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void GetBounds(out Vector3 boxMin, out Vector3 boxMax) { boxMin = Mins; boxMax = Maxs; }
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public Contents GetContents() => Contents;
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSurfaceProps(int prop, short surfProp) => SurfaceProps[prop] = surfProp; 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSurfaceProps(int prop, short surfProp) => SurfaceProps[prop] = surfProp;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public short GetSurfaceProps(int prop) => SurfaceProps[prop];
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public uint GetMemorySize() => Size;
-	
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsCached() => TrisCache.Count == Tris.Count;
 
 	public bool PointInBounds(in Vector3 start, in Vector3 mins, in Vector3 maxs, bool isPoint) {
-		return false; // todo enginetrace
+		if (isPoint)
+			return CollisionUtils.IsPointInBox(start, mins, maxs);
+
+		MathLib.VectorSubtract(maxs, mins, out Vector3 extents);
+		extents *= 0.5f;
+
+		return CollisionUtils.IsPointInBox(start, mins - extents, maxs + extents);
 	}
 }

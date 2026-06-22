@@ -480,7 +480,7 @@ public static class MathLib
 	public static readonly byte[] texgammatable = new byte[256]; // palette is sent through this to convert to screen gamma
 
 	public static readonly float[] texturetolinear = new float[256];  // texture (0..255) to linear (0..1)
-	public static readonly int[] lineartotexture = new int [1024];   // linear (0..1) to texture (0..255)
+	public static readonly int[] lineartotexture = new int[1024];   // linear (0..1) to texture (0..255)
 	public static readonly int[] lineartoscreen = new int[1024];    // linear (0..1) to gamma corrected vertex light (0..255)
 
 	// build a lightmap texture to combine with surface texture, adjust for src*dst+dst*src, ramp reprogramming, etc
@@ -1554,6 +1554,9 @@ public static class MathLib
 	}
 
 	public static float VectorLength(in Vector3 delta) => delta.Length();
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Square(int x) => x * x;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float Square(float x) => x * x;
 
 	public static void SinCos(float v, out float s, out float c) => (s, c) = float.SinCos(v);
 
