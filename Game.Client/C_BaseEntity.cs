@@ -387,8 +387,25 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	internal static void AddVisibleEntities() {
-		// TODO
-		// Requires leaf system
+		int c = predictables.GetPredictableCount();
+
+		for (int i = 0; i < c; i++) {
+			BaseEntity? ent = predictables.GetPredictable(i);
+
+			if (ent == null)
+				continue;
+
+			if (!ent.IsClientCreated())
+				continue;
+
+			if (ent.PredictableID.GetAcknowledged())
+				continue;
+
+			if (ent.IsDormantPredictable())
+				continue;
+
+			ent.UpdateVisibility();
+		}
 	}
 
 	public bool IsNoInterpolationFrame() => OldInterpolationFrame != InterpolationFrame;
@@ -427,7 +444,17 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	private static C_BaseEntity? FindPreviouslyCreatedEntity(PredictableId testId) {
-		// TODO: Prediction system
+		int c = predictables.GetPredictableCount();
+
+		for (int i = 0; i < c; i++) {
+			BaseEntity? e = predictables.GetPredictable(i);
+			if (e == null || !e.IsClientCreated())
+				continue;
+
+			if (testId == e.PredictableID)
+				return e;
+		}
+
 		return null;
 	}
 
@@ -869,11 +896,10 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public IClientNetworkable GetClientNetworkable() => this;
-	public Source.Common.IClientRenderable GetClientRenderable() => this;
+	public IClientRenderable GetClientRenderable() => this;
 	public IClientThinkable GetClientThinkable() => this;
 	public IClientEntity GetIClientEntity() => this;
 	public IClientUnknown GetIClientUnknown() => this;
-
 
 
 	public Model? GetModel() => Model;
@@ -929,8 +955,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public bool IsTransparent() {
-		// todo; we need IModelInfoClient for this
-		return false;
+		return modelinfo.IsTranslucent(Model) || RenderMode != (int)Source.RenderMode.Normal;
 	}
 
 	public void UpdateOnRemove() {
@@ -1114,8 +1139,6 @@ public partial class C_BaseEntity : IClientEntity
 
 	public virtual bool ShouldPredict() => false;
 
-
-
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public int GetModelIndex() => ModelIndex;
 
 	public void OnPostRestoreData() {
@@ -1217,7 +1240,7 @@ public partial class C_BaseEntity : IClientEntity
 
 		OldRenderMode = RenderMode;
 
-		// TODO: client leaf sorting
+		clientLeafSystem.EnableAlternateSorting(renderHandle, AlternateSorting);
 
 		OldInterpolationFrame = InterpolationFrame;
 		OldShouldDraw = ShouldDraw();
@@ -1231,7 +1254,7 @@ public partial class C_BaseEntity : IClientEntity
 
 		if (Index == 0) {
 			ModelIndex = 1;
-			// SetSolid(SolidType.BSP);
+			SetSolid(SolidType.BSP);
 		}
 
 		if (OldRenderMode != RenderMode)
@@ -1654,10 +1677,10 @@ public partial class C_BaseEntity : IClientEntity
 							// We need IsHandleValid/GetClientHandle stuff.
 							// Assert(cl_entitylist.IsHandleValid(otherEntity.GetClientHandle()));
 
-							// otherEntity.PredictableId.SetAcknowledged(true);
+							otherEntity.PredictableID.SetAcknowledged(true);
 
-							// if (OnPredictedEntityRemove(false, otherEntity)) 
-							// otherEntity.Release();
+							if (OnPredictedEntityRemove(false, otherEntity))
+								otherEntity.Release();
 						}
 					}
 				}
@@ -2038,7 +2061,7 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	private ref readonly Vector3 GetLocalVelocity() {
-		return ref vec3_origin; // todo
+		return ref Velocity;
 	}
 
 
@@ -2156,8 +2179,7 @@ public partial class C_BaseEntity : IClientEntity
 		double curValue_Interp = CdllBoundedCVars.GetClientInterpAmount();
 		if (LastValue_Interp == -1) LastValue_Interp = curValue_Interp;
 
-		// float curValue_InterpNPCs = cl_interp_npcs.GetFloat();
-		double curValue_InterpNPCs = 0;
+		float curValue_InterpNPCs = cl_interp_npcs.GetFloat();
 		if (LastValue_InterpNPCs == -1) LastValue_InterpNPCs = curValue_InterpNPCs;
 
 		if (LastValue_Interp != curValue_Interp || LastValue_InterpNPCs != curValue_InterpNPCs) {
@@ -2175,7 +2197,7 @@ public partial class C_BaseEntity : IClientEntity
 		if (Unsafe.IsNullRef(ref map))
 			return;
 
-		int c = map.Entries.Count();
+		int c = map.Entries.Count;
 		for (int i = 0; i < c; i++) {
 			VarMapEntry e = map.Entries[i];
 			IInterpolatedVar watcher = e.Watcher;
