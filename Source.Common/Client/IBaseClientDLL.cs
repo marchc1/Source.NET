@@ -26,6 +26,8 @@ public interface IBaseClientDLL
 	bool HandleUiToggle();
 	void IN_DeactivateMouse();
 	void IN_ActivateMouse();
+	void IN_Accumulate();
+	bool IN_IsKeyDown( ReadOnlySpan<char> name, out bool isDown);
 	void View_Render(ViewRects screenrect);
 	void InstallStringTableCallback(ReadOnlySpan<char> tableName);
 	int IN_KeyEvent(int eventcode, ButtonCode keynum, ReadOnlySpan<char> currentBinding);

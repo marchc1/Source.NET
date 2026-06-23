@@ -127,7 +127,17 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 	public void ModInit() {
 		launcherMgr = services.GetRequiredService<ILauncherManager>();
 		matContext = new(() => new(this));
+
+		GenerateConfigFromConfigKeyValues(Config, false);
 		UpdateConfig(false);
+	}
+
+	public void GenerateConfigFromConfigKeyValues(MaterialSystem_Config config, bool overwriteCommandLineValues) {
+		config.Flags = 0;
+
+		launcherMgr.GetNativeDisplayInfo(-1, out uint width, out uint height, out uint refreshHz);
+		config.VideoMode.Width = (int)width;
+		config.VideoMode.Height = (int)height;
 	}
 
 	public bool UpdateConfig(bool forceUpdate) {
@@ -257,13 +267,14 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 				config.AASamples != Config.AASamples ||
 				config.AAQuality != Config.AAQuality ||
 				config.Windowed() != Config.Windowed() ||
+				config.NoWindowBorder() != Config.NoWindowBorder() ||
 				config.Stencil() != Config.Stencil())
 			videoModeChange = true;
 
 		if (!config.Windowed() && (config.WaitForVSync() != Config.WaitForVSync()))
 			videoModeChange = true;
 
-		// Config = config;
+		config.CopyInstantiatedReferenceTo(Config);
 
 		if (redownloadTextures || redownloadLightmaps)
 			ColorSpace.SetGamma(2.2f, 2.2f, IMaterialSystem.OVERBRIGHT, Config.AllowCheats, false);
@@ -305,8 +316,6 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 			ConvertModeStruct(config, out ShaderDeviceInfo info);
 			ShaderAPI.ChangeVideoMode(info);
 		}
-
-		config.CopyInstantiatedReferenceTo(Config);
 
 		// if (videoModeChange)
 		// ForceSingleThreaded();
@@ -369,48 +378,8 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 
 	public int GetCurrentAdapter() => ShaderDevice.GetCurrentAdapter();
 
-	public int GetModeCount(int adapter) => ShaderDevice.GetModeCount(adapter);
-	public void GetModeInfo(int adapter, int mode, out MaterialVideoMode info) {
-		ShaderDevice.GetModeInfo(adapter, mode, out ShaderDisplayMode shaderInfo);
-		info.Width = shaderInfo.Width;
-		info.Height = shaderInfo.Height;
-		info.Format = shaderInfo.Format;
-		info.RefreshRate = (int)(shaderInfo.RefreshRateNumerator / (double)shaderInfo.RefreshRateDenominator);
-	}
-
 	public void ModShutdown() {
 
-	}
-
-#if !SWDS
-	[ConCommand("mat_setvideomode", "sets the width, height, windowed state of the material system")]
-	static void mat_setvideomode(in TokenizedCommand args) {
-		if (args.ArgC() != 4)
-			return;
-
-		int width = args.Arg(1, 0);
-		int height = args.Arg(2, 0);
-		int windowed = args.Arg(3, 0);
-
-		Singleton<IVideoMode>().SetMode(width, height, windowed != 0);
-	}
-#endif
-
-	[ConCommand("mat_savechanges", "saves current video configuration to the registry")]
-	static void mat_savechanges(in TokenizedCommand args) {
-		// commandLine.RemoveParm("-safe");
-		UpdateMaterialSystemConfig();
-	}
-
-	static void UpdateMaterialSystemConfig() {
-		// if (host_state.worldbrush && !host_state.worldbrush->lightdata) {
-		// 	mat_fullbright.SetValue(1);
-		// }
-
-		bool lightmapsNeedReloading = Singleton<IMaterialSystem>().UpdateConfig(false); //fixme
-		if (lightmapsNeedReloading) {
-
-		}
 	}
 
 
@@ -490,28 +459,42 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 	public IMatRenderContext GetRenderContext() => matContext!.Value!;
 
 	public bool SetMode(IWindow window, MaterialSystem_Config config) {
-		int width = config.VideoMode.Width;
-		int height = config.VideoMode.Height;
+		MaterialSystem MaterialSystem = (MaterialSystem)Singleton<IMaterialSystem>();
+		TextureManager TextureManager = (TextureManager)Singleton<ITextureManager>();
+
+		ShaderDeviceInfo info;
+		ConvertModeStruct(config, out info);
 
 		bool previouslyUsingGraphics = ShaderDevice.IsUsingGraphics();
-		ConvertModeStruct(config, out ShaderDeviceInfo info);
-		if (!ShaderAPI.SetMode(window, in info))
+
+		bool bOk = ShaderAPI.SetMode(window, info);
+		if (!bOk)
 			return false;
 
-		TextureSystem.FreeStandardRenderTargets();
-		TextureSystem.AllocateStandardRenderTargets();
+		int width = info.DisplayMode.Width;
+		int height = info.DisplayMode.Height;
+		launcherMgr.RenderedSize(true, ref width, ref height);
 
+		TextureManager.FreeStandardRenderTargets();
+		TextureManager.AllocateStandardRenderTargets();
 		if (!previouslyUsingGraphics) {
-			TextureSystem.RestoreRenderTargets();
-			TextureSystem.RestoreNonRenderTargetTextures();
+			if (IsPC()) {
+				TextureManager.RestoreRenderTargets();
+				TextureManager.RestoreNonRenderTargetTextures();
+				if (MaterialSystem.CanUseEditorMaterials()) 
+					MathLib.Init(2.2f, 2.2f, 0.0f, (int)IMaterialSystem.OVERBRIGHT);
+
+				AllocateStandardTextures();
+			}
 		}
 
+		// Copy over that state which isn't stored currently in convars
 		Config.VideoMode = config.VideoMode;
 		Config.SetFlag(MaterialSystem_Config_Flags.Windowed, config.Windowed());
 		Config.SetFlag(MaterialSystem_Config_Flags.Stencil, config.Stencil());
-		// WriteConfigIntoConVars(config); todo
+		Config.SetFlag(MaterialSystem_Config_Flags.VRMode, config.VRMode());
+		// WriteConfigIntoConVars(config);
 
-		launcherMgr.RenderedSize(true, ref width, ref height);
 		return true;
 	}
 
@@ -525,7 +508,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		mode = new ShaderDeviceInfo();
 		mode.DisplayMode.Width = config.VideoMode.Width;
 		mode.DisplayMode.Height = config.VideoMode.Height;
-		mode.DisplayMode.Format = config.VideoMode.Format;
+		mode.DisplayMode.Format = config.Format;
 		mode.DisplayMode.RefreshRateNumerator = config.VideoMode.RefreshRate;
 		mode.DisplayMode.RefreshRateDenominator = config.VideoMode.RefreshRate >= 0 ? 1 : 0;
 		mode.BackBufferCount = 1;
@@ -536,6 +519,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 		mode.WindowedSizeLimitHeight = (int)config.WindowedSizeLimitHeight;
 
 		mode.Windowed = config.Windowed();
+		mode.Borderless = config.NoWindowBorder();
 		mode.Resizing = config.Resizing();
 		mode.UseStencil = config.Stencil();
 		mode.LimitWindowedSize = config.LimitWindowedSize();

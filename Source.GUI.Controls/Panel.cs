@@ -1162,8 +1162,8 @@ public class Panel : IPanel
 	}
 
 	public void GetPos(out int x, out int y) {
-		x = this.X;
-		y = this.Y;
+		x = X;
+		y = Y;
 	}
 
 	public IScheme? GetScheme() {
@@ -1281,8 +1281,8 @@ public class Panel : IPanel
 
 		if (traversePopups) {
 			int i;
-			IList<Panel> children = Children;
-			int childCount = children.Count();
+			List<Panel> children = Children;
+			int childCount = children.Count;
 			for (i = childCount - 1; i >= 0; i--) {
 				IPanel? panel = children[i];
 				if (panel.IsPopup()) {
@@ -1307,8 +1307,8 @@ public class Panel : IPanel
 		}
 		else {
 			if (IsWithin(x, y)) {
-				IList<Panel> children = Children;
-				int childCount = children.Count();
+				List<Panel> children = Children;
+				int childCount = children.Count;
 				for (int i = childCount - 1; i >= 0; i--) {
 					IPanel? panel = children[i];
 					if (!panel.IsPopup()) {
@@ -1855,10 +1855,16 @@ public class Panel : IPanel
 		=> CallParentFunction(new KeyValues("OnRequestFocus").AddSubKey(new("subFocus", subFocus)).AddSubKey(new("defaultPanel", defaultPanel)));
 
 	public virtual bool RequestFocusNext(IPanel? existingPanel = null) {
+		if (GetParent() != null)
+			return GetParent()!.RequestFocusNext(this);
+
 		return false;
 	}
 
 	public virtual bool RequestFocusPrev(IPanel? existingPanel = null) {
+		if (GetParent() != null)
+			return GetParent()!.RequestFocusPrev(this);
+
 		return false;
 	}
 
@@ -1912,14 +1918,14 @@ public class Panel : IPanel
 	}
 
 	public void SetName(ReadOnlySpan<char> panelName) {
-		if (this.PanelName != null && !panelName.IsEmpty && !panelName.Equals(this.PanelName, StringComparison.Ordinal))
+		if (PanelName != null && !panelName.IsEmpty && !panelName.Equals(this.PanelName, StringComparison.Ordinal))
 			return;
 
 		if (this.PanelName != null)
 			panelName = null;
 
 		if (!panelName.IsEmpty)
-			this.PanelName = new(panelName);
+			PanelName = new(panelName);
 	}
 
 	public virtual void SetParent(IPanel? newParent) {
@@ -1965,8 +1971,8 @@ public class Panel : IPanel
 	}
 
 	public void SetPos(int x, int y) {
-		this.X = (short)x;
-		this.Y = (short)y;
+		X = (short)x;
+		Y = (short)y;
 	}
 
 	public void SetSize(int wide, int tall) {

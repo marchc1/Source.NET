@@ -5,6 +5,7 @@ using Game.Shared;
 using Source;
 using Source.Common;
 using Source.Common.Commands;
+using Source.Common.Engine;
 using Source.Common.Mathematics;
 
 using System.Numerics;
@@ -385,6 +386,14 @@ public class GlobalEntityList : BaseEntityList
 		HighestEnt = 0;
 		NumEnts = 0;
 		ClearingEntities = false;
+	}
+
+	public Edict? GetEdict(EntityHandle_t ent) {
+		IServerUnknown? unk = (IServerUnknown?)LookupEntity(ent);
+		if (unk != null)
+			return unk.GetNetworkable()!.GetEdict();
+		else
+			return null;
 	}
 }
 

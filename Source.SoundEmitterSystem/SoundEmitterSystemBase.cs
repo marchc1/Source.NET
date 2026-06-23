@@ -54,8 +54,16 @@ public class SoundEmitterSystemBase : ISoundEmitterSystemBase
 		throw new NotImplementedException();
 	}
 
+	readonly Dictionary<ulong, Gender> ActorGenders = [];
+
 	public Gender GetActorGender(ReadOnlySpan<char> actormodel) {
-		throw new NotImplementedException();
+		Span<char> actor = stackalloc char[256];
+		actor[0] = '\0';
+		scoped ReadOnlySpan<char> check = default;
+		if (!actormodel.IsEmpty) 
+			check = StrTools.FileBase(actormodel, actor);
+		
+		return ActorGenders.TryGetValue(check.Hash(), out Gender g) ? g : Gender.None;
 	}
 
 	public uint GetManifestFileTimeChecksum() {
@@ -66,7 +74,7 @@ public class SoundEmitterSystemBase : ISoundEmitterSystemBase
 		throw new NotImplementedException();
 	}
 
-	public bool GetParametersForSound(ReadOnlySpan<char> soundname, SoundParameters parms, Gender gender, bool isbeingemitted = false) {
+	public bool GetParametersForSound(ReadOnlySpan<char> soundname, ref SoundParameters parms, Gender gender, bool isbeingemitted = false) {
 		throw new NotImplementedException();
 	}
 

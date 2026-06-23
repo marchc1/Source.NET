@@ -1183,7 +1183,9 @@ public class Menu : Panel
 			return;
 
 		if (Scroller!.IsVisible()) {
-			if (row > Scroller.GetValue() + NumVisibleLines - 1 || row < Scroller.GetValue())
+			if (row > Scroller.GetValue() + NumVisibleLines - 1)
+				Scroller.SetValue(row - NumVisibleLines + 1);
+			else if (row < Scroller.GetValue())
 				Scroller.SetValue(row);
 		}
 

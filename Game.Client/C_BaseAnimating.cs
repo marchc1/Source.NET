@@ -56,6 +56,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	}
 	static readonly ConVar r_drawothermodels = new("1", FCvar.Cheat, "0=Off, 1=Normal, 2=Wireframe");
 	static readonly HashSet<C_BaseAnimating> PreviousBoneSetups = [];
+	static readonly Dictionary<int, double> AnimDebugLastLogTime = [];
 
 	public static void PushAllowBoneAccess(bool allowForNormalModels, bool allowForViewModels, BoneAccessTag tag) {
 		lock (BoneAccessMutex) {
@@ -93,6 +94,10 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	}
 	public bool IsRagdoll() => Ragdoll != null && RenderFX == (byte)RenderFx.Ragdoll;
 	public bool IsAboutToRagdoll() => RenderFX == (byte)RenderFx.Ragdoll;
+	public override void ClientThink() {
+		base.ClientThink();
+		StudioFrameAdvance();
+	}
 	public void StudioFrameAdvance() {
 		if (ClientSideAnimation)
 			return;
@@ -490,7 +495,6 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		Span<float> poseparam = stackalloc float[Studio.MAXSTUDIOPOSEPARAM];
 		GetPoseParameters(hdr, poseparam);
 		TimeUnit_t cycle = GetCycle();
-
 		BoneSetup setup = new(hdr, boneMask, poseparam);
 		setup.InitPose(pos, q);
 		setup.AccumulatePose(pos, q, GetSequence(), cycle, 1.0f, currentTime, null);
@@ -623,6 +627,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		if (updateType == DataUpdateType.Created) {
 			PrevSequence = -1;
 			RestoreSequence = -1;
+			SetNextClientThink(CLIENT_THINK_ALWAYS);
 		}
 
 		bool modelchanged = false;
@@ -1112,8 +1117,38 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 	}
 
-	public double FrameAdvance(double interval){
-		return 0; // todo
+	public double FrameAdvance(double interval) {
+		StudioHdr? hdr = GetModelPtr();
+		if (hdr == null)
+			return 0;
+
+		double flInterval = interval;
+		if (flInterval == 0.0) {
+			flInterval = GetAnimTimeInterval();
+			if (flInterval <= 0.001)
+				return 0;
+		}
+
+		UpdateModelScale();
+
+		double cycleAdvance = flInterval * GetSequenceCycleRate(hdr, GetSequence()) * PlaybackRate;
+		double flNewCycle = GetCycle() + cycleAdvance;
+		AnimTime = gpGlobals.CurTime;
+
+		if (flNewCycle < 0.0 || flNewCycle >= 1.0) {
+			if (IsSequenceLooping(hdr, GetSequence()))
+				flNewCycle -= (int)flNewCycle;
+			else
+				flNewCycle = (flNewCycle < 0.0) ? 0.0 : 1.0;
+
+			SequenceFinished = true;
+		}
+
+		SetCycle(flNewCycle);
+
+		GroundSpeed = (float)GetSequenceGroundSpeed(hdr, GetSequence()) * GetModelScale();
+
+		return cycleAdvance;
 	}
 
 	public virtual void UpdateClientSideAnimation() {
@@ -1544,7 +1579,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public int Skin;
 	public int Body;
 	public int HitboxSet;
-	public float ModelScale;
+	public float ModelScale = 1.0f;
 	public float PlaybackRate;
 	public bool ClientSideAnimation;
 	public bool LastClientSideFrameReset;

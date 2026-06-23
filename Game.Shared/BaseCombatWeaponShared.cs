@@ -17,6 +17,7 @@ using Game.Shared;
 using System.Numerics;
 
 using Source.Common.Engine;
+
 using System.Diagnostics;
 
 #if CLIENT_DLL
@@ -26,10 +27,15 @@ using Microsoft.VisualBasic;
 
 using System.Reflection;
 
+
 namespace Game.Client;
 #else
 namespace Game.Server;
 #endif
+
+using Source.Common.SoundEmitterSystem;
+using System.Runtime.CompilerServices;
+using Source.Common.Audio;
 
 using Table =
 #if CLIENT_DLL
@@ -953,6 +959,9 @@ public partial class
 		SetWeaponIdleTime(gpGlobals.CurTime + SequenceDuration());
 		return true;
 	}
+#if !CLIENT_DLL
+	bool SoundsEnabled;
+#endif
 	public void SetWeaponIdleTime(TimeUnit_t time) => TimeWeaponIdle = time;
 	public void SendViewModelAnim(int sequence) {
 #if CLIENT_DLL
@@ -981,8 +990,56 @@ public partial class
 	public bool SendWeaponAnim(Activity act) {
 		return SetIdealActivity((Activity)act);
 	}
-	public void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
+	public ReadOnlySpan<char> GetShootSound(WeaponSound index) => GetWpnData().ShootSounds[(int)index].SliceNullTerminatedString();
+	public ReadOnlySpan<char> GetShootSound(int index) => GetWpnData().ShootSounds[index].SliceNullTerminatedString();
+	public virtual void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
+		if (true) return; // todo fixme
+#if !CLIENT_DLL
+		if (!SoundsEnabled)
+			return;
+#endif
 
+		ReadOnlySpan<char> shootsound = GetShootSound(soundType);
+		if (shootsound.IsStringEmpty)
+			return;
+
+		SoundParameters parms = default;
+		if (!GetParametersForSound(shootsound, ref parms, null))
+			return;
+
+		if (parms.PlayToOwnerOnly) {
+			// Am I only to play to my owner?
+			if (GetOwner() != null && GetOwner()!.IsPlayer()) {
+				SingleUserRecipientFilter filter = new(ToBasePlayer(GetOwner())!);
+				if (IsPredicted() && BaseEntity.GetPredictionPlayer() != null) 
+					filter.UsePredictionRules();
+				
+				EmitSound(filter, GetOwner()!.EntIndex(), shootsound, in Unsafe.NullRef<Vector3>(), soundTime, out _);
+			}
+		}
+		else {
+			// Play weapon sound from the owner
+			if (GetOwner() != null) {
+				PASAttenuationFilter filter = new(GetOwner()!, (float)parms.SoundLevel /* << is this correct? */ );
+				if (IsPredicted() && BaseEntity.GetPredictionPlayer() != null) 
+					filter.UsePredictionRules();
+				
+				EmitSound(filter, GetOwner()!.EntIndex(), shootsound, in Unsafe.NullRef<Vector3>(), soundTime, out _);
+
+#if !CLIENT_DLL
+				// TODO: if (soundType == EMPTY) 
+				// TODO: 	CSoundEnt::InsertSound(SOUND_COMBAT, GetOwner()->GetAbsOrigin(), SOUNDENT_VOLUME_EMPTY, 0.2f, GetOwner());
+#endif
+			}
+			// If no owner play from the weapon (this is used for thrown items)
+			else {
+				PASAttenuationFilter filter = new(this, (float)parms.SoundLevel );
+				if (IsPredicted() && BaseEntity.GetPredictionPlayer() != null)
+					filter.UsePredictionRules();
+				
+				EmitSound(filter, EntIndex(), shootsound, in Unsafe.NullRef<Vector3>(), soundTime, out _);
+			}
+		}
 	}
 
 	public override void Precache() {

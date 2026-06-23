@@ -4,7 +4,7 @@ namespace Source.Common.Engine;
 
 public interface IGame
 {
-	bool CreateGameWindow(int width, int height, bool windowed);
+	bool CreateGameWindow(int width, int height, bool windowed, bool borderless);
 	void DestroyGameWindow();
 	void SetGameWindow(IWindow window);
 	bool InputAttachToGameWindow();

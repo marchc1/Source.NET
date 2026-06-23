@@ -387,8 +387,25 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	internal static void AddVisibleEntities() {
-		// TODO
-		// Requires leaf system
+		int c = predictables.GetPredictableCount();
+
+		for (int i = 0; i < c; i++) {
+			BaseEntity? ent = predictables.GetPredictable(i);
+
+			if (ent == null)
+				continue;
+
+			if (!ent.IsClientCreated())
+				continue;
+
+			if (ent.PredictableID.GetAcknowledged())
+				continue;
+
+			if (ent.IsDormantPredictable())
+				continue;
+
+			ent.UpdateVisibility();
+		}
 	}
 
 	public bool IsNoInterpolationFrame() => OldInterpolationFrame != InterpolationFrame;
@@ -427,7 +444,17 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	private static C_BaseEntity? FindPreviouslyCreatedEntity(PredictableId testId) {
-		// TODO: Prediction system
+		int c = predictables.GetPredictableCount();
+
+		for (int i = 0; i < c; i++) {
+			BaseEntity? e = predictables.GetPredictable(i);
+			if (e == null || !e.IsClientCreated())
+				continue;
+
+			if (testId == e.PredictableID)
+				return e;
+		}
+
 		return null;
 	}
 
@@ -561,7 +588,7 @@ public partial class C_BaseEntity : IClientEntity
 		((C_BaseEntity)instance).SetMoveType((MoveType)data.Value.Int);
 	}
 
-	public void SetCollisionBounds(in Vector3 mins, in Vector3 maxs) { } // todo: => CollisionProp().SetCollisionBounds(in mins, in maxs);
+	public void SetCollisionBounds(in Vector3 mins, in Vector3 maxs) => CollisionProp().SetCollisionBounds(in mins, in maxs);
 
 	public static readonly ClientClass ClientClass = new ClientClass("BaseEntity", null, null, DT_BaseEntity)
 																		.WithManualClassID(StaticClassIndices.CBaseEntity);
@@ -711,6 +738,7 @@ public partial class C_BaseEntity : IClientEntity
 	public EHANDLE GroundEntity = new();
 	public EHANDLE NetworkMoveParent = new();
 	public EHANDLE OldMoveParent = new();
+	public string? ModelName;
 	public int LifeState;
 	public Vector3 BaseVelocity;
 	public int NextThinkTick;
@@ -829,7 +857,7 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, TimeUnit_t currentTime) {
 		return true;
 	}
-	public virtual void SetupWeights(Matrix3x4 boneToWorldOut, Span<float> flexWeights, TimeUnit_t currentTime) {
+	public virtual void SetupWeights(Span<Matrix3x4> boneToWorldOut, Span<float> flexWeights, Span<float> flexDelayedWeights) {
 
 	}
 	public virtual void DoAnimationEvents() {
@@ -868,11 +896,10 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public IClientNetworkable GetClientNetworkable() => this;
-	public Source.Common.IClientRenderable GetClientRenderable() => this;
+	public IClientRenderable GetClientRenderable() => this;
 	public IClientThinkable GetClientThinkable() => this;
 	public IClientEntity GetIClientEntity() => this;
 	public IClientUnknown GetIClientUnknown() => this;
-
 
 
 	public Model? GetModel() => Model;
@@ -928,8 +955,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public bool IsTransparent() {
-		// todo; we need IModelInfoClient for this
-		return false;
+		return modelinfo.IsTranslucent(Model) || RenderMode != (int)Source.RenderMode.Normal;
 	}
 
 	public void UpdateOnRemove() {
@@ -1113,8 +1139,6 @@ public partial class C_BaseEntity : IClientEntity
 
 	public virtual bool ShouldPredict() => false;
 
-
-
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public int GetModelIndex() => ModelIndex;
 
 	public void OnPostRestoreData() {
@@ -1216,7 +1240,7 @@ public partial class C_BaseEntity : IClientEntity
 
 		OldRenderMode = RenderMode;
 
-		// TODO: client leaf sorting
+		clientLeafSystem.EnableAlternateSorting(renderHandle, AlternateSorting);
 
 		OldInterpolationFrame = InterpolationFrame;
 		OldShouldDraw = ShouldDraw();
@@ -1230,7 +1254,7 @@ public partial class C_BaseEntity : IClientEntity
 
 		if (Index == 0) {
 			ModelIndex = 1;
-			// SetSolid(SolidType.BSP);
+			SetSolid(SolidType.BSP);
 		}
 
 		if (OldRenderMode != RenderMode)
@@ -1285,7 +1309,7 @@ public partial class C_BaseEntity : IClientEntity
 		if (OldShouldDraw != ShouldDraw())
 			UpdateVisibility();
 	}
-
+	public ReadOnlySpan<char> GetModelName() => ModelName.SliceNullTerminatedString();
 	public void AllocateIntermediateData() {
 		if (OriginalData != null)
 			return;
@@ -1653,10 +1677,10 @@ public partial class C_BaseEntity : IClientEntity
 							// We need IsHandleValid/GetClientHandle stuff.
 							// Assert(cl_entitylist.IsHandleValid(otherEntity.GetClientHandle()));
 
-							// otherEntity.PredictableId.SetAcknowledged(true);
+							otherEntity.PredictableID.SetAcknowledged(true);
 
-							// if (OnPredictedEntityRemove(false, otherEntity)) 
-							// otherEntity.Release();
+							if (OnPredictedEntityRemove(false, otherEntity))
+								otherEntity.Release();
 						}
 					}
 				}
@@ -1825,13 +1849,59 @@ public partial class C_BaseEntity : IClientEntity
 	public ref QAngle GetNetworkAngles() => ref NetworkAngles;
 
 	public void SetLocalOrigin(in Vector3 origin) {
-		// This has a lot more logic thats needed later TODO FIXME
-		Origin = origin;
+		// Safety check against NaN's or really huge numbers
+		if (!IsEntityPositionReasonable(origin)) {
+			if (CheckEmitReasonablePhysicsSpew()) 
+				Warning($"Bad SetLocalOrigin({origin}) on {GetDebugName()}\n");
+			Assert(false);
+			return;
+		}
+
+		//	if ( !origin.IsValid() )
+		//	{
+		//		AssertMsg( 0, "Bad origin set" );
+		//		return;
+		//	}
+
+		if (Origin != origin) {
+			// Sanity check to make sure the origin is valid.
+#if DEBUG
+			float largeVal = 1024 * 128;
+			Assert(origin.X >= -largeVal && origin.X <= largeVal);
+			Assert(origin.Y >= -largeVal && origin.Y <= largeVal);
+			Assert(origin.Z >= -largeVal && origin.Z <= largeVal);
+#endif
+
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.PositionChanged);
+			Origin = origin;
+			SetSimulationTime(gpGlobals.CurTime);
+		}
 	}
 
+	public ReadOnlySpan<char> GetDebugName() => GetClassname(); // todo
+
 	public void SetLocalAngles(in QAngle angles) {
-		// This has a lot more logic thats needed later TODO FIXME
-		Rotation = angles;
+		// NOTE: The angle normalize is a little expensive, but we can save
+		// a bunch of time in interpolation if we don't have to invalidate everything
+		// and sometimes it's off by a normalization amount
+
+		// FIXME: The normalize caused problems in server code like momentary_rot_button that isn't
+		//        handling things like +/-180 degrees properly. This should be revisited.
+		//QAngle angleNormalize( AngleNormalize( angles.x ), AngleNormalize( angles.y ), AngleNormalize( angles.z ) );
+
+		// Safety check against NaN's or really huge numbers
+		if (!IsEntityQAngleReasonable(angles)) {
+			if (CheckEmitReasonablePhysicsSpew()) 
+				Warning($"Bad SetLocalAngles({angles}) on {GetDebugName()}\n");
+			AssertMsg(false, $"Bad SetLocalAngles({angles}) on {GetDebugName()}\n");
+			return;
+		}
+
+		if (Rotation != angles) {
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnglesChanged);
+			Rotation = angles;
+			SetSimulationTime(gpGlobals.CurTime);
+		}
 	}
 
 	public void SetNetworkAngles(in QAngle angles) {
@@ -1840,7 +1910,7 @@ public partial class C_BaseEntity : IClientEntity
 
 
 
-	int flags;
+	protected int flags;
 	EFL eflags = EFL.DirtyAbsTransform; // << TODO: FIGURE OUT WHAT ACTUALLY INITIALIZES THIS.
 	public Matrix3x4 CoordinateFrame;
 
@@ -2037,7 +2107,7 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	private ref readonly Vector3 GetLocalVelocity() {
-		return ref vec3_origin; // todo
+		return ref Velocity;
 	}
 
 
@@ -2155,8 +2225,7 @@ public partial class C_BaseEntity : IClientEntity
 		double curValue_Interp = CdllBoundedCVars.GetClientInterpAmount();
 		if (LastValue_Interp == -1) LastValue_Interp = curValue_Interp;
 
-		// float curValue_InterpNPCs = cl_interp_npcs.GetFloat();
-		double curValue_InterpNPCs = 0;
+		float curValue_InterpNPCs = cl_interp_npcs.GetFloat();
 		if (LastValue_InterpNPCs == -1) LastValue_InterpNPCs = curValue_InterpNPCs;
 
 		if (LastValue_Interp != curValue_Interp || LastValue_InterpNPCs != curValue_InterpNPCs) {
@@ -2174,7 +2243,7 @@ public partial class C_BaseEntity : IClientEntity
 		if (Unsafe.IsNullRef(ref map))
 			return;
 
-		int c = map.Entries.Count();
+		int c = map.Entries.Count;
 		for (int i = 0; i < c; i++) {
 			VarMapEntry e = map.Entries[i];
 			IInterpolatedVar watcher = e.Watcher;
@@ -2652,6 +2721,196 @@ public partial class C_BaseEntity : IClientEntity
 		ComputePackedSize_R(map);
 		Assert(map.PackedOffsetsComputed);
 	}
+
+	public void DumpPackedOffsets(DataMap? map) {
+		if (map == null) {
+			Assert(false);
+			return;
+		}
+
+		ComputePackedSize_R(map);
+
+		List<(string ClassName, string FieldName, nuint AbsoluteOffset, int ByteSize)> entries = [];
+		CollectPackedOffsets_R(map, 0, entries);
+
+		entries.Sort((a, b) => a.AbsoluteOffset.CompareTo(b.AbsoluteOffset));
+
+		Msg($"PackedOffset dump for {map.DataClassName} ({entries.Count} fields)\n");
+		foreach (var entry in entries)
+			Msg($"  [{entry.AbsoluteOffset,5}, {entry.AbsoluteOffset + (nuint)entry.ByteSize,5}) {entry.ClassName}::{entry.FieldName}\n");
+
+		for (int i = 0; i < entries.Count - 1; i++) {
+			nuint end = entries[i].AbsoluteOffset + (nuint)entries[i].ByteSize;
+			if (end > entries[i + 1].AbsoluteOffset)
+				Warning($"PackedOffset OVERLAP: {entries[i].ClassName}::{entries[i].FieldName} [{entries[i].AbsoluteOffset}, {end}) overlaps {entries[i + 1].ClassName}::{entries[i + 1].FieldName} starting at {entries[i + 1].AbsoluteOffset}\n");
+		}
+	}
+
+	void CollectPackedOffsets_R(DataMap? map, nuint baseOffset, List<(string ClassName, string FieldName, nuint AbsoluteOffset, int ByteSize)> entries) {
+		if (map == null)
+			return;
+
+		if (map.BaseMap != null)
+			CollectPackedOffsets_R(map.BaseMap, baseOffset, entries);
+
+		int c = map.DataNumFields;
+		for (int i = 0; i < c; i++) {
+			TypeDescription field = map.DataDesc[i];
+
+			// Always descend into embedded types...
+			if (field.FieldType != FieldType.Embedded)
+				// Skip all private fields
+				if ((field.Flags & FieldTypeDescFlags.Private) != 0)
+					continue;
+
+			nuint absoluteOffset = baseOffset + field.PackedOffset;
+
+			if (field.FieldType == FieldType.Embedded) {
+				CollectPackedOffsets_R(field.TD, absoluteOffset, entries);
+				continue;
+			}
+
+			int sizeOfField;
+			switch (field.FieldType) {
+				default:
+				case FieldType.ModelIndex:
+				case FieldType.ModelName:
+				case FieldType.SoundName:
+				case FieldType.Time:
+				case FieldType.Tick:
+				case FieldType.Custom:
+				case FieldType.ClassPtr:
+				case FieldType.EDict:
+				case FieldType.PositionVector:
+				case FieldType.Function:
+					sizeOfField = 0;
+					break;
+				case FieldType.Float: sizeOfField = sizeof(float); break;
+				case FieldType.Double: sizeOfField = sizeof(double); break;
+				case FieldType.Vector: sizeOfField = (int)Unsafe.SizeOf<Vector3>(); break;
+				case FieldType.Quaternion: sizeOfField = (int)Unsafe.SizeOf<Quaternion>(); break;
+				case FieldType.Integer: sizeOfField = sizeof(int); break;
+				case FieldType.EHandle: sizeOfField = (int)Unsafe.SizeOf<EHANDLE>(); break;
+				case FieldType.Short: sizeOfField = sizeof(short); break;
+				case FieldType.String: sizeOfField = (int)Unsafe.SizeOf<GCHandle>(); break;
+				case FieldType.Color32: sizeOfField = (int)Unsafe.SizeOf<Color>(); break;
+				case FieldType.Boolean: sizeOfField = sizeof(bool); break;
+				case FieldType.Character: sizeOfField = sizeof(sbyte); break;
+				case FieldType.StringCharacter: sizeOfField = sizeof(char); break;
+				case FieldType.Void: sizeOfField = 0; break;
+			}
+
+			entries.Add((map.DataClassName, field.FieldName, absoluteOffset, sizeOfField * field.FieldSize));
+		}
+	}
+
+	ClientShadowHandle_t ShadowHandle = 0;
+
+	public bool UsesPowerOfTwoFrameBufferTexture() => false;
+	public bool UsesFullFrameBufferTexture() => false;
+
+	public virtual ClientShadowHandle_t GetShadowHandle() => ShadowHandle;
+
+	public virtual int GetBody() => 0;
+
+	public virtual bool LODTest() => true;
+
+	public virtual void GetShadowRenderBounds(out Vector3 mins, out Vector3 maxs, ShadowType shadowType) {
+		EntClientFlags |= EntClientFlags.GettingShadowRenderBounds;
+		GetRenderBounds(out mins, out maxs);
+		EntClientFlags &= ~EntClientFlags.GettingShadowRenderBounds;
+	}
+
+	public Color GetRenderColor() => new(255, 255, 255, 255);
+	public RenderMode GetRenderMode() => (RenderMode)RenderMode;
+
+	public bool ShouldReceiveProjectedTextures(ShadowFlags flags) {
+		if (IsEffectActive(EntityEffects.NoDraw))
+			return false;
+
+		if ((flags & ShadowFlags.Flashlight) != 0) {
+			if (GetRenderMode() > Source.RenderMode.Normal && GetRenderColor().A == 0)
+				return false;
+
+			return true;
+		}
+
+		Assert((flags & ShadowFlags.Shadow) != 0);
+
+		if (IsEffectActive(EntityEffects.NoReceiveShadow))
+			return false;
+
+		if (modelinfo.GetModelType(Model) == ModelType.Studio)
+			return false;
+
+		return true;
+	}
+
+	public bool GetShadowCastDistance(out float dist, ShadowType shadowType) {
+		if (ShadowCastDistance != 0.0f) {
+			dist = ShadowCastDistance;
+			return true;
+		}
+		dist = default;
+		return false;
+	}
+
+	EHANDLE ShadowDirUseOtherEntity = default;
+
+	public bool GetShadowCastDirection(out Vector3 direction, ShadowType shadowType) {
+		if (ShadowDirUseOtherEntity.Get() != null)
+			return ShadowDirUseOtherEntity.Get()!.GetShadowCastDirection(out direction, shadowType);
+		direction = default;
+		return false;
+	}
+
+	public bool IsShadowDirty() => IsEFlagSet(EFL.DirtyShadowUpdate);
+	public void MarkShadowDirty(bool bDirty) {
+		if (bDirty)
+			AddEFlags(EFL.DirtyShadowUpdate);
+		else
+			RemoveEFlags(EFL.DirtyShadowUpdate);
+	}
+
+	public IClientRenderable? GetShadowParent() {
+		C_BaseEntity? parent = GetMoveParent();
+		return parent?.GetClientRenderable();
+	}
+
+	public IClientRenderable? FirstShadowChild() {
+		C_BaseEntity? parent = FirstMoveChild();
+		return parent?.GetClientRenderable();
+	}
+
+	public IClientRenderable? NextShadowPeer() {
+		C_BaseEntity? parent = NextMovePeer();
+		return parent?.GetClientRenderable();
+	}
+
+	public ShadowType ShadowCastType() {
+		if (IsEffectActive(EntityEffects.NoDraw | EntityEffects.NoShadow))
+			return ShadowType.None;
+
+		ModelType modelType = modelinfo.GetModelType(Model);
+		return (modelType == ModelType.Studio) ? ShadowType.RenderToTexture : ShadowType.None;
+	}
+
+	public virtual ref readonly Matrix3x4 RenderableToWorldTransform() => ref EntityToWorldTransform();
+
+	public virtual int LookupAttachment(ReadOnlySpan<char> attachmentName) => -1;
+
+	public Span<float> GetRenderClipPlane() {
+		// todo
+		return null;
+	}
+
+	public virtual int GetSkin() => 0;
+	public virtual void OnThreadedDrawSetup() { }
+
+	public virtual bool UsesFlexDelayedWeights() => false;
+
+	public void RecordToolMessage() { }
+	public bool IgnoresZBuffer() => RenderMode == (byte)Source.RenderMode.Glow || RenderMode == (byte)Source.RenderMode.WorldGlow;
 }
 
 public class VarMapEntry

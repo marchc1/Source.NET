@@ -78,10 +78,10 @@ public partial class
 
 		SetSequence(SelectWeightedSequence(Activity.ACT_IDLE));
 
-		// if ((GetFlags() & EntityFlags.Ducking) != 0)
-		// 	SetCollisionBounds(VEC_DUCK_HULL_MIN, VEC_DUCK_HULL_MAX);
-		// else
-		// 	SetCollisionBounds(VEC_HULL_MIN, VEC_HULL_MAX);
+		if ((GetFlags() & EntityFlags.Ducking) != 0)
+			SetCollisionBounds(VEC_DUCK_HULL_MIN, VEC_DUCK_HULL_MAX);
+		else
+			SetCollisionBounds(VEC_HULL_MIN, VEC_HULL_MAX);
 
 		Local.FallVelocity = 0;
 
@@ -226,9 +226,19 @@ public partial class
 	}
 
 	public float GetPlayerMaxSpeed() {
+		float speed = Local.WalkSpeed;
+		if ((Buttons & InButtons.Walk) != 0)
+			speed = Local.SlowWalkSpeed;
+		else if ((Buttons & InButtons.Speed) != 0)
+			speed = Local.SprintSpeed;
+
 		float maxSpeed = sv_maxspeed.GetFloat();
+		if (speed > 0.0f && speed < maxSpeed)
+			maxSpeed = speed;
+
 		if (MaxSpeed() > 0.0f && MaxSpeed() < maxSpeed)
 			maxSpeed = MaxSpeed();
+
 		return maxSpeed;
 	}
 

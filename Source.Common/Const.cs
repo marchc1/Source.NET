@@ -230,6 +230,8 @@ public static class Constants
 	public const int MAX_CMD_BUFFER = 4000;
 	public const float SOUND_NORMAL_CLIP_DIST = 1000.0f;
 
+	public const int NUM_BUMP_VECTS = 3;
+
 	public const int MAX_EDICTS = 1 << MAX_EDICT_BITS;
 	public const int MAX_EDICT_BITS = 13;
 

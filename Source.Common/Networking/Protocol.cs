@@ -133,6 +133,7 @@ public static class SVC
 	/// Server submits KeyValues command for the client
 	/// </summary>
 	public const byte CmdKeyValues = 32;
+	// public const byte SetPauseTimed = 33; This isnt available now?
 	public const byte GMod_ServerToClient = 33;
 
 	/// <summary>

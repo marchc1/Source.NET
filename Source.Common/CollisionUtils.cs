@@ -121,4 +121,107 @@ public static class CollisionUtils
 			return false;
 		return true;
 	}
+
+	public static bool IsPointInBox(in Vector3 pt, in Vector3 boxMin, in Vector3 boxMax) {
+		Assert(boxMin.X <= boxMax.X && boxMin.Y <= boxMax.Y && boxMin.Z <= boxMax.Z);
+		return pt.X >= boxMin.X && pt.X <= boxMax.X && pt.Y >= boxMin.Y && pt.Y <= boxMax.Y && pt.Z >= boxMin.Z && pt.Z <= boxMax.Z;
+	}
+
+	private static void FindMinMax(float v1, float v2, float v3, out float min, out float max) {
+		min = max = v1;
+		if (v2 < min) min = v2; else if (v2 > max) max = v2;
+		if (v3 < min) min = v3; else if (v3 > max) max = v3;
+	}
+
+	// Separating-axis edge tests (triangle edge crossed with an axial axis). Returns false on a separating axis.
+	private static bool AxisTestEdgeCrossX(float edgeZ, float edgeY, float absEdgeZ, float absEdgeY, in Vector3 pA, in Vector3 pB, in Vector3 ext, float tol) {
+		float distA = edgeZ * pA.Y - edgeY * pA.Z;
+		float distB = edgeZ * pB.Y - edgeY * pB.Z;
+		float distBox = absEdgeZ * ext.Y + absEdgeY * ext.Z;
+		if (distA < distB) {
+			if ((distA > (distBox + tol)) || (distB < -(distBox + tol))) return false;
+		}
+		else {
+			if ((distB > (distBox + tol)) || (distA < -(distBox + tol))) return false;
+		}
+		return true;
+	}
+
+	private static bool AxisTestEdgeCrossY(float edgeZ, float edgeX, float absEdgeZ, float absEdgeX, in Vector3 pA, in Vector3 pB, in Vector3 ext, float tol) {
+		float distA = -edgeZ * pA.X + edgeX * pA.Z;
+		float distB = -edgeZ * pB.X + edgeX * pB.Z;
+		float distBox = absEdgeZ * ext.X + absEdgeX * ext.Z;
+		if (distA < distB) {
+			if ((distA > (distBox + tol)) || (distB < -(distBox + tol))) return false;
+		}
+		else {
+			if ((distB > (distBox + tol)) || (distA < -(distBox + tol))) return false;
+		}
+		return true;
+	}
+
+	private static bool AxisTestEdgeCrossZ(float edgeY, float edgeX, float absEdgeY, float absEdgeX, in Vector3 pA, in Vector3 pB, in Vector3 ext, float tol) {
+		float distA = edgeY * pA.X - edgeX * pA.Y;
+		float distB = edgeY * pB.X - edgeX * pB.Y;
+		float distBox = absEdgeY * ext.X + absEdgeX * ext.Y;
+		if (distB < distA) {
+			if ((distB > (distBox + tol)) || (distA < -(distBox + tol))) return false;
+		}
+		else {
+			if ((distA > (distBox + tol)) || (distB < -(distBox + tol))) return false;
+		}
+		return true;
+	}
+
+	// Separating-Axis Theorem test for an AABB (center/extents) vs. a triangle (with its precomputed plane).
+	public static bool IsBoxIntersectingTriangle(in Vector3 boxCenter, in Vector3 boxExtents, in Vector3 v1, in Vector3 v2, in Vector3 v3, in CollisionPlane plane, float tolerance) {
+		// Test the axial planes (x,y,z) against the min/max of the triangle.
+		Vector3 p1, p2, p3;
+
+		p1.X = v1.X - boxCenter.X; p2.X = v2.X - boxCenter.X; p3.X = v3.X - boxCenter.X;
+		FindMinMax(p1.X, p2.X, p3.X, out float min, out float max);
+		if ((min > (boxExtents.X + tolerance)) || (max < -(boxExtents.X + tolerance))) return false;
+
+		p1.Y = v1.Y - boxCenter.Y; p2.Y = v2.Y - boxCenter.Y; p3.Y = v3.Y - boxCenter.Y;
+		FindMinMax(p1.Y, p2.Y, p3.Y, out min, out max);
+		if ((min > (boxExtents.Y + tolerance)) || (max < -(boxExtents.Y + tolerance))) return false;
+
+		p1.Z = v1.Z - boxCenter.Z; p2.Z = v2.Z - boxCenter.Z; p3.Z = v3.Z - boxCenter.Z;
+		FindMinMax(p1.Z, p2.Z, p3.Z, out min, out max);
+		if ((min > (boxExtents.Z + tolerance)) || (max < -(boxExtents.Z + tolerance))) return false;
+
+		// Test the 9 edge cases.
+		Vector3 edge, absEdge;
+
+		// edge 0 (p2 - p1)
+		edge = p2 - p1;
+		absEdge.Y = MathF.Abs(edge.Y); absEdge.Z = MathF.Abs(edge.Z);
+		if (!AxisTestEdgeCrossX(edge.Z, edge.Y, absEdge.Z, absEdge.Y, p1, p3, boxExtents, tolerance)) return false;
+		absEdge.X = MathF.Abs(edge.X);
+		if (!AxisTestEdgeCrossY(edge.Z, edge.X, absEdge.Z, absEdge.X, p1, p3, boxExtents, tolerance)) return false;
+		if (!AxisTestEdgeCrossZ(edge.Y, edge.X, absEdge.Y, absEdge.X, p2, p3, boxExtents, tolerance)) return false;
+
+		// edge 1 (p3 - p2)
+		edge = p3 - p2;
+		absEdge.Y = MathF.Abs(edge.Y); absEdge.Z = MathF.Abs(edge.Z);
+		if (!AxisTestEdgeCrossX(edge.Z, edge.Y, absEdge.Z, absEdge.Y, p1, p2, boxExtents, tolerance)) return false;
+		absEdge.X = MathF.Abs(edge.X);
+		if (!AxisTestEdgeCrossY(edge.Z, edge.X, absEdge.Z, absEdge.X, p1, p2, boxExtents, tolerance)) return false;
+		if (!AxisTestEdgeCrossZ(edge.Y, edge.X, absEdge.Y, absEdge.X, p1, p3, boxExtents, tolerance)) return false;
+
+		// edge 2 (p1 - p3)
+		edge = p1 - p3;
+		absEdge.Y = MathF.Abs(edge.Y); absEdge.Z = MathF.Abs(edge.Z);
+		if (!AxisTestEdgeCrossX(edge.Z, edge.Y, absEdge.Z, absEdge.Y, p1, p2, boxExtents, tolerance)) return false;
+		absEdge.X = MathF.Abs(edge.X);
+		if (!AxisTestEdgeCrossY(edge.Z, edge.X, absEdge.Z, absEdge.X, p1, p2, boxExtents, tolerance)) return false;
+		if (!AxisTestEdgeCrossZ(edge.Y, edge.X, absEdge.Y, absEdge.X, p2, p3, boxExtents, tolerance)) return false;
+
+		// Test against the triangle face plane.
+		Vector3 vecMin = boxCenter - boxExtents;
+		Vector3 vecMax = boxCenter + boxExtents;
+		if (MathLib.BoxOnPlaneSide(vecMin, vecMax, plane) != 3) return false;
+
+		return true;
+	}
 }

@@ -956,7 +956,7 @@ public class CLC_ClientInfo : NetMessage
 	public int SendTableCRC;
 	public bool IsHLTV;
 	public ulong FriendsID;
-	public string FriendsName = string.Empty;
+	public string? FriendsName = string.Empty;
 	public uint[] CustomFiles = new uint[MAX_CUSTOM_FILES];
 
 	// 01110100
@@ -1092,7 +1092,26 @@ public class SVC_TempEntities : NetMessage
 		return $"svc_TempEntities: number {NumEntries}, bytes {Bits2Bytes(Length)}";
 	}
 }
+/*
+public class SVC_SetPauseTimed(bool paused, TimeUnit_t expireTime) : NetMessage(SVC.SetPauseTimed)
+{
+	public bool Paused = paused;
+	public TimeUnit_t ExpireTime = expireTime;
 
+	public override bool ReadFromBuffer(bf_read buffer) {
+		Paused = buffer.ReadOneBit() != 0;
+		ExpireTime = buffer.ReadFloat();
+		return !buffer.Overflowed;
+	}
+
+	public override bool WriteToBuffer(bf_write buffer) {
+		buffer.WriteNetMessageType(this);
+		buffer.WriteOneBit(Paused ? 1 : 0);
+		buffer.WriteFloat((float)ExpireTime);
+		return !buffer.Overflowed;
+	}
+}
+*/
 public class EventInfo
 {
 	public const int EVENT_INDEX_BITS = 8;

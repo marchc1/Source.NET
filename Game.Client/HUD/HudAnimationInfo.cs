@@ -55,7 +55,7 @@ class HudAnimationInfo : EditableHudElement, IHudElement
 	void PaintString(ref int x, ref int y, ReadOnlySpan<char> str, Color? LegendColor) {
 		// FIXME: Where is my text, its here, its drawing, ... but... not visible, defnitely in bounds and not transparent
 
-		surface.DrawSetTextFont(LabelFont);
+		surface.DrawSetTextFont(ItemFont);
 		surface.DrawSetTextPos(x, y);
 
 		if (LegendColor != null)
@@ -158,11 +158,19 @@ class HudAnimationInfo : EditableHudElement, IHudElement
 		PaintString(ref x, ref y, buf, null);
 	}
 
-	// static int HudElementCompletion() {
-	// 	// todo
-	// }
+	static IEnumerable<string> HudElementCompletion(string partial) {
+		const string commandName = "cl_animationinfo";
+		string partialName = partial[(commandName.Length + 1)..];
+		int space = partial.IndexOf(' ');
+		string prefix = space >= 0 ? partial[..(space + 1)] : "map ";
 
-	[ConCommand("cl_animationinfo", "Hud element to examine.", FCvar.None)]
+		for (int i = 0; i < gHUD.HudList.Count; i++) {
+			if (gHUD.HudList[i].GetName().StartsWith(partialName, StringComparison.OrdinalIgnoreCase))
+				yield return prefix + gHUD.HudList[i].GetName().ToString(); // FIXME: Seems a lot of elements are not setting ElementName
+		}
+	}
+
+	[ConCommand("cl_animationinfo", "Hud element to examine.", FCvar.None, autoCompleteMethod: nameof(HudElementCompletion))]
 	static void func(in TokenizedCommand args) {
 		if (gHUD.FindElement("CHudAnimationInfo") is not HudAnimationInfo info)
 			return;

@@ -1,4 +1,7 @@
-﻿using Source.Common.ShaderAPI;
+﻿using Source.Common.Bitmap;
+using Source.Common.Engine;
+using Source.Common.ShaderAPI;
+
 
 namespace Source.Common.MaterialSystem;
 
@@ -21,11 +24,13 @@ public enum MaterialSystem_Config_Flags
 	UsingMultipleWindows = (1 << 15),
 	DisablePhong = (1 << 16),
 	VRMode = (1 << 17),
+	NoWindowBorder = (1 << 18)
 };
 
 public class MaterialSystem_Config
 {
-	public MaterialVideoMode VideoMode;
+	public UserVideoMode VideoMode;
+	public ImageFormat Format;
 	public float MonitorGamma;
 	public float GammaTVRangeMin;
 	public float GammaTVRangeMax;
@@ -92,6 +97,7 @@ public class MaterialSystem_Config
 	}
 
 	public bool Windowed() => (Flags & (int)MaterialSystem_Config_Flags.Windowed) != 0;
+	public bool NoWindowBorder() => (Flags & (int)MaterialSystem_Config_Flags.NoWindowBorder) != 0;
 	public bool Resizing() => (Flags & (int)MaterialSystem_Config_Flags.Resizing) != 0;
 	public bool WaitForVSync() => (Flags & (int)MaterialSystem_Config_Flags.NoWaitForVSync) == 0;
 	public bool Stencil() => (Flags & (int)MaterialSystem_Config_Flags.Stencil) != 0;

@@ -10,6 +10,7 @@ using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.Hashing;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
@@ -1039,5 +1040,14 @@ public class ClientState : BaseClientState
 
 		p.SetSound(s!);
 		return s;
+	}
+
+	internal void SetFriendsID(uint friendsID, ReadOnlySpan<char> friendsName) {
+		FriendsID = friendsID;
+		FriendsName = new(friendsName.SliceNullTerminatedString());
+	}
+
+	internal void SendServerCmdKeyValues(KeyValues keyValues) {
+		throw new NotImplementedException();
 	}
 }

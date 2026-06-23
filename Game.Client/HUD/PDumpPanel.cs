@@ -111,6 +111,8 @@ public class PDumpPanel : Panel, IHudElement
 		// Don't spew debugging info
 		datacompare.TransferData("", -1, ent.GetPredDescMap());
 
+		ent.DumpPackedOffsets(ent.GetPredDescMap());
+
 		DumpEntityHandle.Set(ent);
 	}
 

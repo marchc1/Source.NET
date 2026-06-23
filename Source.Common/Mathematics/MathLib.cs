@@ -321,6 +321,176 @@ public struct CollisionPlane
 }
 public static class MathLib
 {
+	public static bool MathlibInitialized;
+	public static void Init(float gamma, float texGamma, float brightness, int overbright) {
+		if (MathlibInitialized) return;
+		MathlibInitialized = true;
+		BuildGammaTable(gamma, texGamma, brightness, overbright);
+	}
+
+	private static void BuildGammaTable(float gamma, float texGamma, float brightness, int overbright) {
+		int i;
+
+		// Con_Printf("BuildGammaTable %.1f %.1f %.1f\n", g, v_lightgamma.GetFloat(), v_texgamma.GetFloat() );
+
+		float g = 1.0f / MathF.Min(gamma, 3.0F);
+		float g1 = texGamma * g;
+		float g3;
+
+		if (brightness <= 0.0)
+			g3 = 0.125f;
+		else if (brightness > 1.0f)
+			g3 = 0.05f;
+		else
+			g3 = 0.125f - (brightness * brightness) * 0.075f;
+
+		for (i = 0; i < 256; i++) {
+			int inf = (int)(255 * MathF.Pow(i / 255f, g1));
+			texgammatable[i] = (byte)(int)(MathF.Max(MathF.Min(inf, 255), 0));
+		}
+
+		for (i = 0; i < 1024; i++) {
+			float f = i / 1023.0f;
+
+			// scale up
+			if (brightness > 1.0f)
+				f = f * brightness;
+
+			// shift up
+			if (f <= g3)
+				f = (f / g3) * 0.125f;
+			else
+				f = 0.125f + ((f - g3) / (1.0f - g3)) * 0.875f;
+
+			// convert linear space to desired gamma space
+			int inf = (int)(255 * MathF.Pow(f, g));
+			lineartoscreen[i] = Math.Max(Math.Min(inf, 255), 0);
+		}
+
+		for (i = 0; i < 256; i++) {
+			// convert from nonlinear texture space (0..255) to linear space (0..1)
+			texturetolinear[i] = MathF.Pow(i / 255f, texGamma);
+
+			// convert from linear space (0..1) to nonlinear (sRGB) space (0..1)
+			Mathlib_LinearToGamma[i] = LinearToGammaFullRange(i / 255f);
+
+			// convert from sRGB gamma space (0..1) to linear space (0..1)
+			Mathlib_GammaToLinear[i] = GammaToLinearFullRange(i / 255f);
+		}
+
+		for (i = 0; i < 1024; i++) {
+			// convert from linear space (0..1) to nonlinear texture space (0..255)
+			lineartotexture[i] = (int)(MathF.Pow(i / 1023.0f, 1.0f / texGamma) * 255);
+		}
+
+		{
+			float f;
+			float overbrightFactor = 1.0f;
+
+			// Can't do overbright without texcombine
+			// UNDONE: Add GAMMA ramp to rectify this
+			if (overbright == 2)
+				overbrightFactor = 0.5f;
+			else if (overbright == 4)
+				overbrightFactor = 0.25f;
+
+			for (i = 0; i < 4096; i++) {
+				// convert from linear 0..4 (x1024) to screen corrected vertex space (0..1?)
+				f = MathF.Pow(i / 1024.0f, 1.0f / gamma);
+
+				lineartovertex[i] = f * overbrightFactor;
+				if (lineartovertex[i] > 1)
+					lineartovertex[i] = 1;
+
+				int lightmap = RoundFloatToInt(f * 255 * overbrightFactor);
+				lightmap = Math.Clamp(lightmap, 0, 255);
+				lineartolightmap[i] = (byte)lightmap;
+			}
+		}
+	}
+
+	public static float GammaToLinearFullRange(float gamma) => MathF.Pow(gamma, 2.2f);
+	public static float LinearToGammaFullRange(float linear) => MathF.Pow(linear, 1.0f / 2.2f);
+	public static float GammaToLinear(float gamma) {
+		Assert(MathlibInitialized);
+		if (gamma < 0.0f)
+			return 0.0f;
+
+		if (gamma >= 0.95f)
+			return 1.0f;
+
+		int index = RoundFloatToInt(gamma * 255.0f);
+		Assert(index >= 0 && index < 256);
+		return Mathlib_GammaToLinear[index];
+	}
+
+	public static float LinearToGamma(float linear) {
+		Assert(MathlibInitialized);
+		if (linear < 0.0f) {
+			return 0.0f;
+		}
+		if (linear > 1.0f) {
+			// Use LinearToGammaFullRange maybe if you trip this.
+			Assert(0);
+			return 1.0f;
+		}
+
+		int index = RoundFloatToInt(linear * 255.0f);
+		Assert(index >= 0 && index < 256);
+		return Mathlib_LinearToGamma[index];
+	}
+	public static float SrgbGammaToLinear(float srgbGammaValue) {
+		float x = Math.Clamp(srgbGammaValue, 0.0f, 1.0f);
+		return (x <= 0.04045f) ? (x / 12.92f) : (MathF.Pow((x + 0.055f) / 1.055f, 2.4f));
+	}
+	public static float SrgbLinearToGamma(float linearValue) {
+		float x = Math.Clamp(linearValue, 0.0f, 1.0f);
+		return (x <= 0.0031308f) ? (x * 12.92f) : (1.055f * MathF.Pow(x, (1.0f / 2.4f))) - 0.055f;
+	}
+	public static float TextureToLinear(int c) {
+		Assert(MathlibInitialized);
+		if (c < 0)
+			return 0;
+		if (c > 255)
+			return 1.0f;
+
+		return texturetolinear[c];
+	}
+
+	// convert texture to linear 0..1 value
+	public static int LinearToTexture(float f) {
+		Assert(MathlibInitialized);
+		int i = Math.Max(Math.Min((int)(f * 1023), 1023), 0);  // assume 0..1 range
+		return lineartotexture[i];
+	}
+	public static int LinearToScreenGamma(float f) {
+		Assert(MathlibInitialized);
+		int i = Math.Max(Math.Min((int)(f * 1023), 1023), 0);  // assume 0..1 range
+		return lineartoscreen[i];
+	}
+
+	public static void ColorRGBExp32ToVector(in ColorRGBExp32 input, out Vector3 output) {
+		Assert(MathlibInitialized);
+		// FIXME: Why is there a factor of 255 built into this?
+		output.X = 255.0f * TexLightToLinear(input.R, input.Exponent);
+		output.Y = 255.0f * TexLightToLinear(input.G, input.Exponent);
+		output.Z = 255.0f * TexLightToLinear(input.B, input.Exponent);
+	}
+
+	public static readonly byte[] texgammatable = new byte[256]; // palette is sent through this to convert to screen gamma
+
+	public static readonly float[] texturetolinear = new float[256];  // texture (0..255) to linear (0..1)
+	public static readonly int[] lineartotexture = new int[1024];   // linear (0..1) to texture (0..255)
+	public static readonly int[] lineartoscreen = new int[1024];    // linear (0..1) to gamma corrected vertex light (0..255)
+
+	// build a lightmap texture to combine with surface texture, adjust for src*dst+dst*src, ramp reprogramming, etc
+	public static readonly float[] lineartovertex = new float[4096]; // linear (0..4) to screen corrected vertex space (0..1?)
+	public static readonly byte[] lineartolightmap = new byte[4096];   // linear (0..4) to screen corrected texture value (0..255)
+
+	public static readonly float[] Mathlib_GammaToLinear = new float[256];  // gamma (0..1) to linear (0..1)
+	public static readonly float[] Mathlib_LinearToGamma = new float[256];  // linear (0..1) to gamma (0..1)
+
+
 	public static readonly Vector128<float> Four_PointFives = Vector128.Create(0.5f, 0.5f, 0.5f, 0.5f);
 	public static readonly Vector128<float> Four_Zeros = Vector128.Create(0.0f, 0.0f, 0.0f, 0.0f);
 	public static readonly Vector128<float> Four_Ones = Vector128.Create(1.0f, 1.0f, 1.0f, 1.0f);
@@ -572,6 +742,41 @@ public static class MathLib
 		return ref new Span<Vector4>(ref a).Cast<Vector4, float>()[idx];
 	}
 
+	// Returns which side(s) of a plane a box straddles: 1 = front, 2 = back, 3 = both (straddling).
+	// Analog of BOX_ON_PLANE_SIDE / BoxOnPlaneSide.
+	public static int BoxOnPlaneSide(in Vector3 emins, in Vector3 emaxs, in CollisionPlane p) {
+		// fast axial cases
+		int type = (byte)p.Type;
+		if (type < 3) {
+			if (p.Dist <= emins[type])
+				return 1;
+			if (p.Dist >= emaxs[type])
+				return 2;
+			return 3;
+		}
+
+		// general case: pick the corner that maximizes and minimizes the dot with the normal
+		Vector3 n = p.Normal;
+		Vector3 cmax, cmin;
+		cmax.X = n.X < 0.0f ? emins.X : emaxs.X;
+		cmin.X = n.X < 0.0f ? emaxs.X : emins.X;
+		cmax.Y = n.Y < 0.0f ? emins.Y : emaxs.Y;
+		cmin.Y = n.Y < 0.0f ? emaxs.Y : emins.Y;
+		cmax.Z = n.Z < 0.0f ? emins.Z : emaxs.Z;
+		cmin.Z = n.Z < 0.0f ? emaxs.Z : emins.Z;
+
+		float dist1 = Vector3.Dot(n, cmax);
+		float dist2 = Vector3.Dot(n, cmin);
+
+		int sides = 0;
+		if (dist1 >= p.Dist)
+			sides = 1;
+		if (dist2 < p.Dist)
+			sides |= 2;
+
+		return sides;
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe uint SubInt(in fltx4 a, int idx) {
 		return a.AsUInt32().GetElement(idx);
@@ -735,7 +940,10 @@ public static class MathLib
 	public static void Vector4DMultiply(Matrix4x4 src1, in Vector4 src2, ref Vector4 dst) {
 		Vector4 v = src2;
 
-		dst = Vector4.Transform(src2, src1);
+		dst.X = src1.M11 * v.X + src1.M12 * v.Y + src1.M13 * v.Z + src1.M14 * v.W;
+		dst.Y = src1.M21 * v.X + src1.M22 * v.Y + src1.M23 * v.Z + src1.M24 * v.W;
+		dst.Z = src1.M31 * v.X + src1.M32 * v.Y + src1.M33 * v.Z + src1.M34 * v.W;
+		dst.W = src1.M41 * v.X + src1.M42 * v.Y + src1.M43 * v.Z + src1.M44 * v.W;
 	}
 
 	public static void ConcatTransforms(in Matrix3x4 in1, in Matrix3x4 in2, out Matrix3x4 result) {
@@ -916,6 +1124,11 @@ public static class MathLib
 				 diff.Z <= toleranceVec.Z;
 	}
 
+	public static void Init(this ref Vector2 v, vec_t ix, vec_t iy) {
+		v.X = ix;
+		v.Y = iy;
+		Assert(IsValid(ref v));
+	}
 	public static void Init(this ref Vector2 v) => v.X = v.Y = 0;
 	public static void Init(this ref Vector3 v) => v.X = v.Y = v.Z = 0;
 	public static void Init(this ref QAngle a) => a.X = a.Y = a.Z = 0;
@@ -1306,8 +1519,19 @@ public static class MathLib
 		}
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorClear(out Vector3 v) => v = default;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DClear(out Vector2 v) => v = default;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out Vector3 outV) => outV = inV;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out QAngle outV) => outV = inV;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DCopy(in Vector2 inV, out Vector2 outV) => outV = inV;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorLerp(in Vector3 src1, in Vector3 src2, float t, out Vector3 dest) => dest = Vector3.Lerp(src1, src2, t);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DAdd(in Vector2 a, in Vector2 b, out Vector2 c) => c = a + b;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DSubtract(in Vector2 a, in Vector2 b, out Vector2 c) => c = a - b;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DMultiply(in Vector2 a, float b, out Vector2 c) => c = a * b;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DMultiply(in Vector2 a, in Vector2 b, out Vector2 c) => c = a * b;
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float VectorNormalizeFast(ref Vector3 v) {
 		float sqlen = v.X * v.X + v.Y * v.Y + v.Z * v.Z + 1.0e-10f;
@@ -1384,6 +1608,15 @@ public static class MathLib
 	}
 
 	public static float VectorLength(in Vector3 delta) => delta.Length();
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector3 Cross(this Vector3 vec, Vector3 other) {
+		CrossProduct(vec, other, out Vector3 res);
+		return res;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Square(int x) => x * x;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float Square(float x) => x * x;
 
 	public static void SinCos(float v, out float s, out float c) => (s, c) = float.SinCos(v);
 
@@ -1830,4 +2063,79 @@ public static class MathLib
 public struct FourVectors
 {
 	public Vector4 x, y, z;
+
+	public FourVectors(Vector3 v) {
+		x = new Vector4(v.X);
+		y = new Vector4(v.Y);
+		z = new Vector4(v.Z);
+	}
+
+	// Broadcast a single vector into all four lanes.
+	public void DuplicateVector(in Vector3 v) {
+		x = new Vector4(v.X);
+		y = new Vector4(v.Y);
+		z = new Vector4(v.Z);
+	}
+
+	// Load four vectors into the lanes: x = (a.x, b.x, c.x, d.x), etc.
+	public void LoadAndSwizzle(in Vector3 a, in Vector3 b, in Vector3 c, in Vector3 d) {
+		x = new Vector4(a.X, b.X, c.X, d.X);
+		y = new Vector4(a.Y, b.Y, c.Y, d.Y);
+		z = new Vector4(a.Z, b.Z, c.Z, d.Z);
+	}
+
+	public static FourVectors operator -(FourVectors a, FourVectors b) => new() { x = a.x - b.x, y = a.y - b.y, z = a.z - b.z };
+	public static FourVectors operator +(FourVectors a, FourVectors b) => new() { x = a.x + b.x, y = a.y + b.y, z = a.z + b.z };
+	public static FourVectors operator *(FourVectors a, FourVectors b) => new() { x = a.x * b.x, y = a.y * b.y, z = a.z * b.z };
+
+	public static FourVectors Min(in FourVectors a, in FourVectors b) => new() { x = Vector4.Min(a.x, b.x), y = Vector4.Min(a.y, b.y), z = Vector4.Min(a.z, b.z) };
+	public static FourVectors Max(in FourVectors a, in FourVectors b) => new() { x = Vector4.Max(a.x, b.x), y = Vector4.Max(a.y, b.y), z = Vector4.Max(a.z, b.z) };
+
+	// Build a 4-bit mask, one bit per lane, where a[lane] <= b[lane].
+	private static int LeMask(in Vector4 a, in Vector4 b) {
+		int mask = 0;
+		if (a.X <= b.X) mask |= 1;
+		if (a.Y <= b.Y) mask |= 2;
+		if (a.Z <= b.Z) mask |= 4;
+		if (a.W <= b.W) mask |= 8;
+		return mask;
+	}
+
+	// SIMD test of a swept ray/box against all four child boxes at once. Returns a 4-bit hit mask.
+	public static int IntersectRayWithFourBoxes(in FourVectors rayStart, in FourVectors invDelta, in FourVectors rayExtents, in FourVectors boxMins, in FourVectors boxMaxs) {
+		FourVectors hitMins = boxMins - rayStart;
+		FourVectors hitMaxs = boxMaxs - rayStart;
+
+		// adjust for swept box by enlarging the child bounds to shrink the sweep to a point
+		hitMins -= rayExtents;
+		hitMaxs += rayExtents;
+
+		// parametric distance along the ray of intersection in each dimension
+		hitMins *= invDelta;
+		hitMaxs *= invDelta;
+
+		FourVectors exitT = Max(hitMins, hitMaxs);
+		FourVectors entryT = Min(hitMins, hitMaxs);
+
+		Vector4 boxEntryT = Vector4.Max(Vector4.Max(entryT.x, entryT.y), entryT.z);
+		Vector4 boxExitT = Vector4.Min(Vector4.Min(exitT.x, exitT.y), exitT.z);
+
+		boxEntryT = Vector4.Max(boxEntryT, Vector4.Zero);
+		boxExitT = Vector4.Min(boxExitT, Vector4.One);
+
+		// hit if entry <= exit
+		return LeMask(boxEntryT, boxExitT);
+	}
+
+	// SIMD test of one box against four boxes. Returns a 4-bit overlap mask.
+	public static int IntersectFourBoxPairs(in FourVectors mins0, in FourVectors maxs0, in FourVectors mins1, in FourVectors maxs1) {
+		FourVectors intersectMins = Max(mins0, mins1);
+		FourVectors intersectMaxs = Min(maxs0, maxs1);
+
+		int maskX = LeMask(intersectMins.x, intersectMaxs.x);
+		int maskY = LeMask(intersectMins.y, intersectMaxs.y);
+		int maskZ = LeMask(intersectMins.z, intersectMaxs.z);
+
+		return maskX & maskY & maskZ;
+	}
 }

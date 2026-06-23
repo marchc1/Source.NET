@@ -115,6 +115,7 @@ public class BaseWorldView : Rendering3dView
 		if ((DrawFlags & DrawFlags.DrawEntities) != 0) {
 			DrawWorld(waterZAdjust);
 			DrawOpaqueRenderables(depthMode);
+			DrawTranslucentRenderables(depthMode);
 		}
 	}
 }
@@ -211,6 +212,55 @@ public class Rendering3dView : Base3dView
 		view.SetCurrentlyDrawingEntity(ent.GetIClientUnknown().GetBaseEntity());
 		ent.DrawModel(flags);
 		view.SetCurrentlyDrawingEntity(null);
+	}
+
+	protected void DrawTranslucentRenderables(RenderDepthMode depthMode) {
+		if (!r_drawtranslucentrenderables.GetBool())
+			return;
+
+		if (!mainView.ShouldDrawEntities())
+			return;
+
+		render.SetBlend(1);
+
+		int count = RenderablesList.Count(RenderGroup.TranslucentEntity);
+		for (int i = count - 1; i >= 0; i--) {
+			ref ClientRenderablesList.Entry entry = ref RenderablesList[RenderGroup.TranslucentEntity, i];
+			if (entry.Renderable != null)
+				DrawTranslucentRenderable(entry.Renderable, entry.TwoPass, depthMode);
+		}
+
+		render.SetBlend(1);
+	}
+
+	private void DrawTranslucentRenderable(IClientRenderable ent, bool twoPass, RenderDepthMode depthMode) {
+		float blend = ent.GetFxBlend() / 255.0f;
+		if (blend <= 0.0f)
+			return;
+
+		render.SetBlend(blend);
+
+		Span<float> color = stackalloc float[3];
+		ent.GetColorModulation(color);
+		render.SetColorModulation(color);
+
+		StudioFlags flags = StudioFlags.Render | StudioFlags.Transparency;
+		if (twoPass)
+			flags |= StudioFlags.TwoPass;
+
+		if (depthMode == RenderDepthMode.Shadow) {
+			flags |= StudioFlags.ShadowDepthTexture;
+		}
+		else if (depthMode == RenderDepthMode.SSAO) {
+			flags |= StudioFlags.SSAODepthTexture;
+		}
+
+		Assert(view.GetCurrentlyDrawingEntity() == null);
+		view.SetCurrentlyDrawingEntity(ent.GetIClientUnknown().GetBaseEntity());
+		ent.DrawModel(flags);
+		view.SetCurrentlyDrawingEntity(null);
+
+		render.SetBlend(1);
 	}
 
 	protected void EnableWorldFog() => throw new NotImplementedException();

@@ -96,22 +96,64 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 		window = null!;
 	}
 	SDL3_Window window;
-	public unsafe bool CreateGameWindow(string title, bool windowed, int width, int height) {
+	public bool CreateGameWindow(string title, bool windowed, bool borderless, int width, int height) {
 		IMaterialSystem materials = services.GetRequiredService<IMaterialSystem>();
-		SDL_WindowFlags flags = 0;
-		flags |= SDL_WindowFlags.SDL_WINDOW_OPENGL;
+
+		SDL_WindowFlags flags = default;
+		GraphicsDriver driver = GraphicsDriver.OpenGL46; // todo, dont hardcode
+		switch(driver.GetDriver()){
+			case GraphicsDriver.OpenGL: flags |= SDL_WindowFlags.SDL_WINDOW_OPENGL; break;
+			case GraphicsDriver.Metal: flags |= SDL_WindowFlags.SDL_WINDOW_METAL; break;
+			case GraphicsDriver.Vulkan: flags |= SDL_WindowFlags.SDL_WINDOW_VULKAN; break;
+			default: throw new Exception("Need graphics driver support");
+		}
+
+		if (borderless) flags |= SDL_WindowFlags.SDL_WINDOW_BORDERLESS;
+
 		window = new SDL3_Window(services).Create(title, width, height, flags);
+
+		if (!windowed) {
+			SetExclusiveFullscreenMode(width, height);
+			SDL3.SDL_SetWindowFullscreen(window.HardwareHandle, true);
+		}
+
+#if WIN32
+		// Hack to fix SDL/GL promoting borderless windows to exclusive fullscreen
+		// when the resolution matches desktop
+		// See https://github.com/libsdl-org/SDL/issues/12791
+		// & https://github.com/libsdl-org/SDL/issues/12791#issuecomment-2792498618
+		if (windowed && borderless) {
+			SDL_PropertiesID props = SDL3.SDL_GetWindowProperties(window.HardwareHandle);
+			nint hwnd;
+			fixed (byte* name = SDL3.SDL_PROP_WINDOW_WIN32_HWND_POINTER)
+				hwnd = SDL3.SDL_GetPointerProperty(props, name, IntPtr.Zero);
+			SetWindowLongPtrW(hwnd, -16, 0x06000000 /* WS_OVERLAPPED|WS_CLIPSIBLINGS|WS_CLIPCHILDREN */);
+
+			int x = 0, y = 0;
+			SDL_Rect bounds;
+			if (SDL3.SDL_GetDisplayBounds(SDL3.SDL_GetDisplayForWindow(window.HardwareHandle), &bounds)) {
+				x = bounds.x + (bounds.w - width) / 2;
+				y = bounds.y + (bounds.h - height) / 2;
+			}
+			SetWindowPos(hwnd, 0, x, y, width, height, 0x0260 /* FRAMECHANGED|NOOWNERZORDER|SHOWWINDOW */);
+		}
+#endif
 
 		return true;
 	}
 
+#if WIN32
+	[DllImport("user32.dll")] static extern nint SetWindowLongPtrW(nint hWnd, int nIndex, nint dwNewLong);
+	[DllImport("user32.dll")] static extern bool SetWindowPos(nint hWnd, nint after, int x, int y, int cx, int cy, uint flags);
+#endif
+
 	[UnmanagedCallersOnly(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
-	unsafe static void* GL_ProcAddress(byte* proc) {
+	static void* GL_ProcAddress(byte* proc) {
 		return (void*)SDL3.SDL_GL_GetProcAddress(proc);
 	}
 
 	public void DestroyGameWindow() {
-
+		SDL3.SDL_DestroyWindow(window.HardwareHandle);
 	}
 
 	public void DisplayedSize(out int width, out int height) {
@@ -141,7 +183,7 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 		if (displays == null || nDisplay >= count)
 			return;
 
-		SDL_DisplayID display = displays[nDisplay];
+		SDL_DisplayID display = nDisplay < 0 ? SDL3.SDL_GetPrimaryDisplay() : displays[nDisplay];
 		SDL_DisplayMode* modePtr = SDL3.SDL_GetCurrentDisplayMode(display);
 
 		if (modePtr == null)
@@ -161,8 +203,9 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 	}
 
 	public void MoveWindow(int x, int y) {
-
+		SDL3.SDL_SetWindowPosition(window.HardwareHandle, x, y);
 	}
+
 	int renderedWidth, renderedHeight;
 	public void RenderedSize(bool set, ref int width, ref int height) {
 		if (set) {
@@ -180,8 +223,24 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 	}
 
 	public void SetWindowFullScreen(bool fullscreen, int width, int height) {
+		if (fullscreen)
+			SetExclusiveFullscreenMode(width, height);
+		else
+			SDL3.SDL_SetWindowFullscreenMode(window.HardwareHandle, null);
+
 		SDL3.SDL_SetWindowFullscreen(window.HardwareHandle, fullscreen);
 		SizeWindow(width, height);
+	}
+
+	private void SetExclusiveFullscreenMode(int width, int height) {
+		SDL_DisplayID display = SDL3.SDL_GetDisplayForWindow(window.HardwareHandle);
+		SDL_DisplayMode closest;
+		if (SDL3.SDL_GetClosestFullscreenDisplayMode(display, width, height, 0, false, &closest))
+			SDL3.SDL_SetWindowFullscreenMode(window.HardwareHandle, &closest);
+	}
+
+	public void SetWindowBordered(bool bordered) {
+		SDL3.SDL_SetWindowBordered(window.HardwareHandle, bordered);
 	}
 
 	public void SizeWindow(int width, int tall) => SDL3.SDL_SetWindowSize(window.HardwareHandle, width, tall);
@@ -276,7 +335,7 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 	}
 
 	public IGraphicsContext? CreateContext(in ShaderDeviceInfo deviceInfo, IWindow? window = null) {
-		IGraphicsContext? gfx = null;
+		IGraphicsContext? gfx;
 
 		window = window == null ? this.window : window;
 		if (0 != (deviceInfo.Driver & GraphicsDriver.OpenGL)) {
@@ -345,7 +404,7 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 		SDL3.SDL_SetWindowRelativeMouseMode(window.HardwareHandle, cursorLocked);
 	}
 
-	public void FlashWindow(bool state){
+	public void FlashWindow(bool state) {
 		SDL3.SDL_FlashWindow(window.HardwareHandle, state ? SDL_FlashOperation.SDL_FLASH_UNTIL_FOCUSED : SDL_FlashOperation.SDL_FLASH_CANCEL);
 	}
 }

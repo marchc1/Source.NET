@@ -74,16 +74,15 @@ public static class SourceDllMain
 		Marshal.ZeroFreeCoTaskMemUTF8((nint)messageboxdata.message);
 
 		return (buttonid == 1);
-
-
 	}
+
 	public static unsafe void Link(IServiceCollection services) {
 		if (initialized)
 			return;
 
 		// We only run this stuff once to plug into asserts!
-		AssertDialog.OnMainThreadAssert += AssertDialog_OnMainThreadAssert;
-		AssertDialog.OnSepThreadAssert += AssertDialog_OnSepThreadAssert;
+		OnMainThreadAssert += AssertDialog_OnMainThreadAssert;
+		OnSepThreadAssert += AssertDialog_OnSepThreadAssert;
 		services.AddSingleton<MessageBoxFn>(SDLMessageBox);
 
 #if WIN32
@@ -95,9 +94,11 @@ public static class SourceDllMain
 			14, 0, 0, 0, 400, 0, 0, 0,
 			0, 0, 0, 0, 0, "Consolas"
 		);
-		WNDCLASS wc = new WNDCLASS();
+
+
 		const int COLOR_WINDOW = 5;
-		const int IDC_ARROW = 5;
+
+		WNDCLASS wc = new WNDCLASS();
 		wc.lpfnWndProc = &WndProc; // or your custom WndProc delegate
 		fixed (char* ptr = "Source.NET.WindowDialog") {
 			wc.lpszClassName = ptr;
@@ -114,15 +115,14 @@ public static class SourceDllMain
 			wc.hbrBackground = (IntPtr)(COLOR_WINDOW + 1);
 			ushort atom = RegisterClass(&wc);
 		}
-
 #endif
 
 		initialized = true;
 	}
+
 #if WIN32
 	[DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
 	public static unsafe extern ushort RegisterClass([In] WNDCLASS* cls);
-
 
 	private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 	[DllImport("gdi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
@@ -145,7 +145,6 @@ public static class SourceDllMain
 	[DllImport("user32.dll", SetLastError = true)]
 	static unsafe extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, delegate* unmanaged[Stdcall]<nint, nint, uint, nint, nint, nint> newProc);
 
-
 	[DllImport("user32.dll")]
 	static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
@@ -154,8 +153,6 @@ public static class SourceDllMain
 	const nint HTCLIENT = 0x0001;
 	const nint HTCAPTION = 0x0002;
 	static AssertDialogOutgoing outgoing;
-
-
 
 	const nint IGNORE_TIMES_INPUT = 280;
 	const nint IGNORE_NEARBY_INPUT = 281;
@@ -193,7 +190,7 @@ public static class SourceDllMain
 						// Oh man this is heartbreaking but it's 4 AM and I am not redoing this
 						// in a more efficient way right now
 						nint fileLabel = CreateWindowEx(0, "EDIT", string.Join('\n', Environment.StackTrace.Split('\n')[7..]),
-										WindowStyles.WS_VISIBLE | WindowStyles.WS_CHILD | (WindowStyles)(EditControlWindowStyles.ES_MULTILINE),
+										WindowStyles.WS_VISIBLE | WindowStyles.WS_CHILD | (WindowStyles)EditControlWindowStyles.ES_MULTILINE,
 										0, 0, 800, 600, hwnd, 0, 0, 0);
 						CenterWindow(800, 600, hwnd);
 						HookControl(fileLabel, monoFont);
@@ -351,7 +348,7 @@ public static class SourceDllMain
 	}
 
 #if WIN32
-	private static unsafe void CenterWindow(int w, int h, nint hwnd) {
+	private static void CenterWindow(int w, int h, nint hwnd) {
 		int screenWidth = GetSystemMetrics(SystemMetric.SM_CXSCREEN);
 		int screenHeight = GetSystemMetrics(SystemMetric.SM_CYSCREEN);
 
@@ -362,7 +359,7 @@ public static class SourceDllMain
 	}
 #endif
 
-	private static unsafe void AssertDialog_OnSepThreadAssert(ref AssertDialog.AssertDialogResult result) {
+	private static void AssertDialog_OnSepThreadAssert(ref AssertDialog.AssertDialogResult result) {
 		throw new NotImplementedException();
 	}
 }

@@ -224,12 +224,14 @@ public class ModelRender : IModelRender
 
 	private int ComputeLOD(ref ModelRenderInfo info, StudioHWData studioHWData) {
 		int lod = r_lod.GetInt();
+		float screenSize = -1.0f;
+		float metric = -1.0f;
 		// FIXME!!!  This calc should be in studiorender, not here!!!!!  But since the bone setup
 		// is done here, and we need the bone mask, we'll do it here for now.
 		if (lod == -1) {
 			using MatRenderContextPtr renderContext = new(materials);
-			float screenSize = renderContext.ComputePixelWidthOfSphere(info.Renderable!.GetRenderOrigin(), 0.5f);
-			float metric = studioHWData.LODMetric(screenSize);
+			screenSize = renderContext.ComputePixelWidthOfSphere(info.Renderable!.GetRenderOrigin(), 0.5f);
+			metric = studioHWData.LODMetric(screenSize);
 			lod = studioHWData.GetLODForMetric(metric);
 		}
 		else {

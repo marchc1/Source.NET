@@ -9,6 +9,7 @@ using Source.Common.Physics;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Numerics;
 using System.Text;
 
@@ -65,6 +66,28 @@ namespace Game.Server
 				if (HasDataObjectType(i))
 					DestroyDataObject(i);
 		}
+		static Trace g_TouchTrace;
+
+		public void PhysicsImpact(BaseEntity? other, in Trace trace) {
+			if (other == null)
+				return;
+			// If either of the entities is flagged to be deleted, 
+			//  don't call the touch functions
+			if (((GetFlags() | other.GetFlags()) & Source.EntityFlags.KillMe) != 0)
+				return;
+
+			PhysicsMarkEntitiesAsTouching(other, trace);
+		}
+
+		private void PhysicsMarkEntityAsTouched(BaseEntity other) {
+			//todo
+		}
+
+		private void PhysicsMarkEntitiesAsTouching(BaseEntity other, in Trace trace) {
+			g_TouchTrace = trace;
+			PhysicsMarkEntityAsTouched(other);
+			other.PhysicsMarkEntityAsTouched(this);
+		}
 
 		public GroundLink? AddEntityToGroundList(BaseEntity? other) {
 			return null; // TODO
@@ -94,10 +117,10 @@ namespace Game.Server
 			GroundEntity.Set(ground);
 
 			// Just starting to touch
-			if (oldGround == null && ground != null) 
+			if (oldGround == null && ground != null)
 				ground.AddEntityToGroundList(this);
 			// Just stopping touching
-			else if (oldGround != null && ground == null) 
+			else if (oldGround != null && ground == null)
 				PhysicsNotifyOtherOfGroundRemoval(this, oldGround);
 			// Changing out to new ground entity
 			else {
@@ -213,15 +236,17 @@ namespace Game.Shared
 		FireAllButBase,
 	}
 
-	public class DataObjectAccessSystem : AutoGameSystem {
+	public class DataObjectAccessSystem : AutoGameSystem
+	{
 		// Blank for now
 
 		public object? GetDataObject(DataObjectType type, BaseEntity? instance) => null;
 		public object? CreateDataObject(DataObjectType type, BaseEntity? instance) => null;
-		public void DestroyDataObject(DataObjectType type, BaseEntity? instance){ }
+		public void DestroyDataObject(DataObjectType type, BaseEntity? instance) { }
 	}
 
-	public static class DataObjectAccessSystemGlobals {
+	public static class DataObjectAccessSystemGlobals
+	{
 		public static readonly DataObjectAccessSystem g_DataObjectAccessSystem = new();
 	}
 }

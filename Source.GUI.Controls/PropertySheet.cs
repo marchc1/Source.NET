@@ -450,9 +450,7 @@ public class PropertySheet : EditablePanel
 
 	public int GetNumPages() => Pages.Count;
 
-	public void GetActiveTabTitle(Span<char> textOut) {
-		if (ActiveTab != null) ActiveTab.GetText(textOut);
-	}
+	public void GetActiveTabTitle(Span<char> textOut) => ActiveTab?.GetText(textOut);
 
 	public bool GetTabTitle(int i, Span<char> textOut) {
 		if (i < 0 || i >= Pages.Count) {
@@ -606,7 +604,6 @@ public class PropertySheet : EditablePanel
 				ActivePage.SetBounds(0, PageYOffset, wide, tall);
 
 			ActivePage.InvalidateLayout();
-
 		}
 
 		int limit = PageTabs.Count;
@@ -1016,7 +1013,7 @@ public class PropertySheet : EditablePanel
 		ReadOnlySpan<char> text = data.GetString("tabname", "");
 		Assert(!text.IsEmpty);
 
-		PageTab fakeTab = new(this, "FakeTab", text.ToString(), null, TabWidth, null, false);
+		PageTab fakeTab = new(this, "FakeTab", text.ToString(), null, TabWidth, null!, false);
 		fakeTab.SetBounds(x, 4, w, tabHeight - 4);
 		fakeTab.SetFont(TabFont);
 		fakeTab.Repaint();

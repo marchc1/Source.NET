@@ -169,7 +169,7 @@ public class C_RecipientFilter : IRecipientFilter
 
 public class SingleUserRecipientFilter : C_RecipientFilter
 {
-	public SingleUserRecipientFilter(C_BasePlayer player) : base() {
+	public SingleUserRecipientFilter(C_BasePlayer? player) : base() {
 		AddRecipient(player);
 	}
 }

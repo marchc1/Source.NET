@@ -657,9 +657,20 @@ public static class TraceFieldProps
 	{
 #if CLIENT_DLL
 
-		public C_BaseEntity? Ent { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (C_BaseEntity?)tr.EntHandle; }
+		public C_BaseEntity? Ent {
+
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			get => (C_BaseEntity?)tr.EntHandle;
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			set => tr.EntHandle = (IHandleEntity?)value;
+		}
 #elif GAME_DLL
-		public BaseEntity? Ent { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (BaseEntity?)tr.EntHandle; }
+		public BaseEntity? Ent {
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			get => (BaseEntity?)tr.EntHandle;
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			set => tr.EntHandle = (IHandleEntity?)value;
+		}
 
 #endif
 	}
@@ -692,7 +703,7 @@ public ref struct EmitSound_t
 	public ReadOnlySpan<char> SoundName;
 	public float Volume;
 	public SoundLevel SoundLevel;
-	public int Flags;
+	public SoundFlags Flags;
 	public int Pitch;
 	public int SpecialDSP;
 	public ref readonly Vector3 Origin;

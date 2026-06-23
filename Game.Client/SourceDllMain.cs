@@ -81,6 +81,8 @@ public static class SourceDllMain
 
 	[KeyedDependency(Key = Realm.Client)] public static INetworkStringTableContainer networkstringtable { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Client)] public static IEngineTrace enginetrace { get; private set; } = null!;
+	[KeyedDependency(Key = Realm.Client)] public static IEngineSound enginesound { get; private set; } = null!;
+
 
 	public static TimeUnit_t TICK_INTERVAL => gpGlobals.IntervalPerTick;
 

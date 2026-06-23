@@ -2,12 +2,11 @@ using CommunityToolkit.HighPerformance;
 
 using DStruct.BinaryTrees;
 
-using Microsoft.Extensions.DependencyInjection;
-
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
@@ -176,7 +175,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	public readonly TextureReference FullFrameFBTexture0 = new();
 	public readonly TextureReference FullFrameFBTexture1 = new();
 
-	public int FrameConut = 1;
+	public int FrameCount = 1;
 	public readonly int[] LightStyleValue = new int[256];
 	public readonly int[] LightStyleNumFrames = new int[256];
 	public readonly int[] LightStyleFrame = new int[256];
@@ -214,7 +213,6 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			rtFlags)!;
 	}
 
-	int FrameCount = 0;
 	internal enum ToolTexture
 	{
 		/// <summary> Not a tool texture </summary>
@@ -394,13 +392,43 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		}
 	}
 
-	struct SurfaceCtx
+	public struct SurfaceCtx
 	{
 		public InlineArray2<int> LightmapSize;
 		public InlineArray2<int> LightmapPageSize;
 		public float BumpSTexCoordOffset;
 		public Vector2 Offset;
 		public Vector2 Scale;
+	}
+
+	internal void BuildMSurfaceVerts(WorldBrushData brushData, ref BSPMSurface2 surfID, Vector3[]? verts, Vector2[]? texCoords, Vector2[,]? lightCoords) {
+		SurfaceCtx ctx = default;
+		SurfSetupSurfaceContext(ref ctx, ref surfID);
+
+		int vertCount = ModelLoader.MSurf_VertCount(ref surfID);
+		int vertFirstIndex = ModelLoader.MSurf_FirstVertIndex(ref surfID);
+		for (int i = 0; i < vertCount; i++) {
+			int vertIndex = brushData.VertIndices![vertFirstIndex + i];
+
+			ref Vector3 vec = ref brushData.Vertexes![vertIndex].Position;
+
+			if (verts != null)
+				MathLib.VectorCopy(vec, out verts[i]);
+
+			if (texCoords != null)
+				SurfComputeTextureCoordinate(ref ctx, ref surfID, ref vec, ref texCoords[i]);
+
+			if (lightCoords != null) {
+				SurfComputeLightmapCoordinate(ref ctx, ref surfID, ref vec, ref lightCoords[i, 0]);
+
+				if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.BumpLight) != 0) {
+					for (int bumpID = 1; bumpID <= Constants.NUM_BUMP_VECTS; bumpID++) {
+						lightCoords[i, bumpID].X = lightCoords[i, 0].X + (bumpID * ctx.BumpSTexCoordOffset);
+						lightCoords[i, bumpID].Y = lightCoords[i, 0].Y;
+					}
+				}
+			}
+		}
 	}
 
 	private void BuildMSurfaceVertexArrays(WorldBrushData brushData, ref BSPMSurface2 surfID, float overbright, ref MeshBuilder builder) {
@@ -477,7 +505,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	internal MaterialSystem_SortInfo[]? MaterialSortInfoArray;
 	private int SortInfoToLightmapPage(int sortID) => MaterialSortInfoArray![sortID].LightmapPageID;
 
-	private void SurfSetupSurfaceContext(ref SurfaceCtx ctx, ref BSPMSurface2 surfID) {
+	internal void SurfSetupSurfaceContext(ref SurfaceCtx ctx, ref BSPMSurface2 surfID) {
 		materials.GetLightmapPageSize(SortInfoToLightmapPage(ModelLoader.MSurf_MaterialSortID(ref surfID)), out ctx.LightmapPageSize[0], out ctx.LightmapPageSize[1]);
 		ctx.LightmapSize[0] = ModelLoader.MSurf_LightmapExtents(ref surfID)[0] + 1;
 		ctx.LightmapSize[1] = ModelLoader.MSurf_LightmapExtents(ref surfID)[1] + 1;
@@ -494,7 +522,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			ctx.BumpSTexCoordOffset = 0.0f;
 	}
 
-	private void SurfComputeLightmapCoordinate(ref SurfaceCtx ctx, ref BSPMSurface2 surfID, ref Vector3 vec, ref Vector2 uv) {
+	internal void SurfComputeLightmapCoordinate(ref SurfaceCtx ctx, ref BSPMSurface2 surfID, ref Vector3 vec, ref Vector2 uv) {
 		if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.NoLight) != 0)
 			uv.X = uv.Y = 0.5f;
 
@@ -790,4 +818,305 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		renderContext.GetRenderTargetDimensions(out int width, out int height);
 		return (height != 0) ? ((float)width / (float)height) : 1.0f;
 	}
+
+#if !SWDS
+	[ConCommand("mat_setvideomode", "sets the width, height, windowed state of the material system")]
+	static void mat_setvideomode(in TokenizedCommand args) {
+		if (args.ArgC() < 4 || args.ArgC() > 5)
+			return;
+
+		int width = args.Arg(1, 0);
+		int height = args.Arg(2, 0);
+		bool windowed = args.Arg(3, 0) > 0;
+		bool borderless = args.ArgC() == 5 && args.Arg(4, 0) > 0;
+
+		Singleton<IVideoMode>().SetMode(new(width, height, windowed, borderless));
+	}
+#endif
+
+	[ConCommand("mat_savechanges", "saves current video configuration to the registry")]
+	static void mat_savechanges(in TokenizedCommand args) {
+		commandLine.RemoveParm("-safe");
+		UpdateMaterialSystemConfig();
+		WriteMaterialSystemConfigToRegistry(MaterialSystemConfig);
+	}
+
+	static void UpdateMaterialSystemConfig() {
+		// if (host_state.worldbrush && !host_state.worldbrush->lightdata) {
+		// 	mat_fullbright.SetValue(1);
+		// }
+
+		bool lightmapsNeedReloading = materialSystem.UpdateConfig(false);
+		if (lightmapsNeedReloading) {
+
+		}
+	}
+
+	public static MaterialSystem_Config MaterialSystemConfig;
+	public void InitMaterialSystemConfig(bool inEditMode) {
+		MaterialSystemConfig = materials.GetCurrentConfigForVideoCard();
+
+		if (inEditMode)
+			return;
+
+		MaterialSystem_Config config = MaterialSystemConfig;
+
+#if !SWDS
+		ReadMaterialSystemConfigFromRegistry(config);
+#endif
+
+		OverrideMaterialSystemConfigFromCommandLine(config);
+		OverrideMaterialSystemConfig(config);
+
+		WriteMaterialSystemConfigToRegistry(MaterialSystemConfig);
+
+		materials.UpdateConfig(false);
+	}
+
+	static string[] RegistryConVars = [
+		"mat_forceaniso",
+		"mat_picmip",
+		"mat_trilinear",
+		"mat_vsync",
+		"mat_forcehardwaresync",
+		"mat_parallaxmap",
+		"mat_reducefillrate",
+		"r_shadowrendertotexture",
+		"r_rootlod",
+		"r_waterforceexpensive",
+		"r_waterforcereflectentities",
+		"mat_antialias",
+		"mat_aaquality",
+		"mat_specular",
+		"mat_bumpmap",
+		"mat_hdr_level",
+		"mat_colorcorrection",
+	];
+
+	private static void WriteMaterialSystemConfigToRegistry(MaterialSystem_Config config) {
+#if !SWDS
+		WriteVideoConfigInt("ScreenWidth", config.VideoMode.Width);
+		WriteVideoConfigInt("ScreenHeight", config.VideoMode.Height);
+		WriteVideoConfigInt("ScreenWindowed", config.Windowed() ? 1 : 0);
+		WriteVideoConfigInt("ScreenNoBorder", config.NoWindowBorder() ? 1 : 0);
+		WriteVideoConfigInt("ScreenMSAA", config.AASamples);
+		WriteVideoConfigInt("ScreenMSAAQuality", config.AAQuality);
+		WriteVideoConfigInt("MotionBlur", config.MotionBlur ? 1 : 0);
+		WriteVideoConfigInt("ShadowDepthTexture", config.ShadowDepthTexture ? 1 : 0);
+		// WriteVideoConfigInt("VRModeAdapter", config.VRModeAdapter);
+
+		// WriteVideoConfigString("ScreenMonitorGamma", mat_monitorgamma.GetString());
+
+		foreach (string cvar in RegistryConVars) {
+			ConVarRef var = new(cvar);
+
+			if (!var.IsValid())
+				continue;
+
+			WriteVideoConfigInt(cvar, var.GetInt());
+		}
+#endif
+	}
+
+
+	private static void ReadMaterialSystemConfigFromRegistry(MaterialSystem_Config config) {
+#if !SWDS
+		ReadVideoConfigInt("ScreenWidth", ref config.VideoMode.Width);
+		ReadVideoConfigInt("ScreenHeight", ref config.VideoMode.Height);
+		config.SetFlag(MaterialSystem_Config_Flags.Windowed, ReadVideoConfigInt("ScreenWindowed", 0) != 0);
+		config.SetFlag(MaterialSystem_Config_Flags.NoWindowBorder, ReadVideoConfigInt("ScreenNoBorder", 0) != 0);
+
+		ReadOnlySpan<char> szMonitorGamma = ReadVideoConfigString("ScreenMonitorGamma", "2.2");
+		if (!szMonitorGamma.IsEmpty) {
+			// float monitorGamma = strtof(szMonitorGamma, nullptr);
+			// if (monitorGamma > 3.0f)
+			// 	monitorGamma = 2.2f;
+
+			// monitorGamma = OverrideVideoConfigFromCommandLine("mat_monitorgamma", monitorGamma);
+
+			// mat_monitorgamma.SetValue(monitorGamma);
+			// config.MonitorGamma = mat_monitorgamma.GetFloat();
+		}
+
+		foreach (string cvar in RegistryConVars) {
+			int value = ReadVideoConfigInt(cvar, -1);
+			if (value == -1)
+				continue;
+
+			ConVarRef var = new(cvar);
+			if (var.IsValid())
+				var.SetValue(value);
+		}
+
+		int val = ReadVideoConfigInt("DXLevel_V1", -1);
+		if (val != -1) {
+			val = OverrideVideoConfigFromCommandLine("mat_dxlevel", val);
+
+			ConVarRef conVar = new("mat_dxlevel");
+			if (conVar.IsValid())
+				conVar.SetValue(val);
+		}
+
+		val = ReadVideoConfigInt("MotionBlur", -1);
+		if (val != -1) {
+			val = OverrideVideoConfigFromCommandLine("mat_motion_blur_enabled", val);
+
+			ConVarRef conVar = new("mat_motion_blur_enabled");
+			if (conVar.IsValid()) {
+				conVar.SetValue(val);
+				config.MotionBlur = ReadVideoConfigInt("MotionBlur", 0) != 0;
+			}
+		}
+
+		val = ReadVideoConfigInt("ShadowDepthTexture", -1);
+		if (val != -1) {
+			val = OverrideVideoConfigFromCommandLine("r_flashlightdepthtexture", val);
+
+			ConVarRef conVar = new("r_flashlightdepthtexture");
+			if (conVar.IsValid()) {
+				conVar.SetValue(val);
+				config.ShadowDepthTexture = ReadVideoConfigInt("ShadowDepthTexture", 0) != 0;
+			}
+		}
+#endif
+	}
+
+	private static bool VideoConfigOverriddenFromCmdLine = false;
+
+	private static int OverrideVideoConfigFromCommandLine(string cvarname, int curVal) {
+		string szOption = $"+{cvarname}";
+		if (commandLine.CheckParm(szOption)) {
+			int newVal = commandLine.ParmValue(szOption, curVal);
+			Warning($"Video configuration ignoring {cvarname} due to command line override\n");
+			VideoConfigOverriddenFromCmdLine = true;
+			return newVal;
+		}
+		return curVal;
+	}
+
+	public void OverrideMaterialSystemConfigFromCommandLine(MaterialSystem_Config config) {
+		if (commandLine.FindParm("-sw") != 0 || commandLine.FindParm("-startwindowed") != 0 || commandLine.FindParm("-windowed") != 0 || commandLine.FindParm("-window") != 0)
+			config.SetFlag(MaterialSystem_Config_Flags.Windowed, true);
+		else if (commandLine.FindParm("-full") != 0 || commandLine.FindParm("-fullscreen") != 0)
+			config.SetFlag(MaterialSystem_Config_Flags.Windowed, false);
+
+		if (commandLine.FindParm("-noborder") != 0)
+			config.SetFlag(MaterialSystem_Config_Flags.NoWindowBorder, true);
+
+		if (commandLine.FindParm("-width") != 0 || commandLine.FindParm("-w") != 0) {
+			config.VideoMode.Width = commandLine.ParmValue("-width", config.VideoMode.Width);
+			config.VideoMode.Width = commandLine.ParmValue("-w", config.VideoMode.Width);
+
+			if (!(commandLine.FindParm("-height") != 0 || commandLine.FindParm("-h") != 0))
+				config.VideoMode.Height = config.VideoMode.Width * 3 / 4;
+		}
+
+		if (commandLine.FindParm("-height") != 0 || commandLine.FindParm("-h") != 0) {
+			config.VideoMode.Height = commandLine.ParmValue("-height", config.VideoMode.Height);
+			config.VideoMode.Height = commandLine.ParmValue("-h", config.VideoMode.Height);
+		}
+
+		if (commandLine.FindParm("-resizing") != 0)
+			config.SetFlag(MaterialSystem_Config_Flags.Resizing, commandLine.CheckParm("-resizing") ? true : false);
+
+		if (commandLine.FindParm("-mat_vsync") != 0)
+			config.SetFlag(MaterialSystem_Config_Flags.NoWaitForVSync, commandLine.ParmValue("-mat_vsync", 1) == 0);
+
+		config.AASamples = commandLine.ParmValue("-mat_antialias", config.AASamples);
+		config.AAQuality = commandLine.ParmValue("-mat_aaquality", config.AAQuality);
+
+		// Clamp the requested dimensions to the display resolution
+		// TODO GetDisplayMode
+		// MaterialVideoMode videoMode = default;
+		// materials.GetDisplayMode(videoMode);
+		// config.VideoMode.Width = Math.Min(videoMode.Width, config.VideoMode.Width);
+		// config.VideoMode.Height = Math.Min(videoMode.Height, config.VideoMode.Height);
+
+		// safe mode
+		if (commandLine.FindParm("-safe") != 0) {
+			config.SetFlag(MaterialSystem_Config_Flags.Windowed, true);
+			config.VideoMode.Width = 640;//BASE_WIDTH;
+			config.VideoMode.Height = 480;//BASE_HEIGHT;
+			config.VideoMode.RefreshRate = 0;
+			config.AASamples = 0;
+			config.AAQuality = 0;
+		}
+	}
+
+	public void OverrideMaterialSystemConfig(MaterialSystem_Config config) {
+		bool lightmapsNeedReloading = materials.OverrideConfig(config, false);
+		if (lightmapsNeedReloading) {
+
+		}
+	}
+
+#if OSX
+	const string MOD_VIDEO_CONFIG_SETTINGS = "videoconfig_mac.cfg";
+	const bool USE_VIDEOCONFIG_FILE = true;
+#elif LINUX
+	const string MOD_VIDEO_CONFIG_SETTINGS = "videoconfig_linux.cfg";
+	const bool USE_VIDEOCONFIG_FILE = true;
+#elif WIN32
+	const string MOD_VIDEO_CONFIG_SETTINGS = "videoconfig.cfg";
+	const bool USE_VIDEOCONFIG_FILE = false;
+#endif
+
+#pragma warning disable CS0162 // Unreachable code
+	static int ReadVideoConfigInt(ReadOnlySpan<char> name, int fallback) {
+		if (USE_VIDEOCONFIG_FILE) {
+			KeyValues videoConfig = new("videoconfig");
+			bool exists = videoConfig.LoadFromFile(g_pFileSystem, MOD_VIDEO_CONFIG_SETTINGS, "MOD");
+
+			if (!exists)
+				return fallback;
+
+			return videoConfig.GetInt(name, fallback);
+		}
+		else
+			return registry.ReadInt(name, fallback);
+	}
+
+	static void ReadVideoConfigInt(ReadOnlySpan<char> name, ref int entry) {
+		int value = ReadVideoConfigInt(name, -1);
+		if (value != -1)
+			entry = value;
+	}
+
+	static ReadOnlySpan<char> ReadVideoConfigString(ReadOnlySpan<char> name, ReadOnlySpan<char> fallback) {
+		if (USE_VIDEOCONFIG_FILE) {
+			KeyValues videoConfig = new("videoconfig");
+			bool exists = videoConfig.LoadFromFile(g_pFileSystem, MOD_VIDEO_CONFIG_SETTINGS, "MOD");
+
+			if (!exists)
+				return fallback;
+
+			return videoConfig.GetString(name, fallback);
+		}
+		else
+			return registry.ReadString(name, fallback);
+	}
+
+	static void WriteVideoConfigInt(ReadOnlySpan<char> name, int value) {
+		if (USE_VIDEOCONFIG_FILE) {
+			KeyValues videoConfig = new("videoconfig");
+			videoConfig.LoadFromFile(g_pFileSystem, MOD_VIDEO_CONFIG_SETTINGS, "MOD");
+			videoConfig.SetInt(name, value);
+			// videoConfig.SaveToFile(g_pFileSystem, MOD_VIDEO_CONFIG_SETTINGS, "MOD", false, false, true); TODO!!!!!
+		}
+		else
+			registry.WriteInt(name, value);
+	}
+
+	static void WriteVideoConfigString(ReadOnlySpan<char> name, ReadOnlySpan<char> value) {
+		if (USE_VIDEOCONFIG_FILE) {
+			KeyValues videoConfig = new("videoconfig");
+			videoConfig.LoadFromFile(g_pFileSystem, MOD_VIDEO_CONFIG_SETTINGS, "MOD");
+			videoConfig.SetString(name, value);
+			// videoConfig.SaveToFile(g_pFileSystem, MOD_VIDEO_CONFIG_SETTINGS, "MOD", false, false, true); TODO!!!!!
+		}
+		else
+			registry.WriteString(name, value);
+	}
+#pragma warning restore CS0162
 }
+

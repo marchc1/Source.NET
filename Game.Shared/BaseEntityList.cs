@@ -108,6 +108,14 @@ public class BaseEntityList
 		return AddEntityAtSlot(ent, index, forcedSerialNum);
 	}
 
+	public BaseHandle GetNetworkableHandle(int entity) {
+		Assert(entity >= 0 && entity < Constants.MAX_EDICTS);
+		if (EntPtrArray[entity].Entity != null)
+			return new BaseHandle(entity, EntPtrArray[entity].SerialNumber);
+		else
+			return new BaseHandle();
+	}
+
 	private BaseHandle AddEntityAtSlot(IHandleEntity ent, int slot, int forcedSerialNum) {
 		EntInfo entSlot = EntPtrArray[slot];
 		Assert(entSlot.Entity == null);

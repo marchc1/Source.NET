@@ -263,7 +263,6 @@ public partial class BaseEntity : IServerEntity
 	public virtual void Activate() {
 
 	}
-
 	public string? Name;
 	public string GetDebugName() {
 		if (this == null)
@@ -393,7 +392,7 @@ public partial class BaseEntity : IServerEntity
 
 	public BaseEntity? GetParent() => Parent.Get();
 
-	public static BaseEntity? GetContainingEntity(Edict ent) {
+	public static BaseEntity? GetContainingEntity(Edict? ent) {
 		if (ent != null && ent.GetUnknown() != null)
 			return (BaseEntity?)ent.GetUnknown()!.GetBaseEntity();
 		return null;
@@ -407,6 +406,7 @@ public partial class BaseEntity : IServerEntity
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsSolid() => CollisionProp().IsSolid();
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSolid(SolidType val) => CollisionProp().SetSolid(val);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public SolidType GetSolid() => CollisionProp().GetSolid();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetCollisionBounds(in Vector3 mins, in Vector3 maxs) => CollisionProp().SetCollisionBounds(in mins, in maxs);
 
 
 	public Team? GetTeam() => GetGlobalTeam(TeamNum);
@@ -418,7 +418,7 @@ public partial class BaseEntity : IServerEntity
 
 	public bool IsFloating() => false; // TODO
 
-	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent);
+	public static BaseEntity? Instance(Edict? ent) => GetContainingEntity(ent);
 	public static BaseEntity? Instance(int ent) => Instance(INDEXENT(ent)!);
 
 	public static BaseEntity? Create(ReadOnlySpan<char> name, Vector3 origin, QAngle angles, BaseEntity? owner = null) {
@@ -493,6 +493,8 @@ public partial class BaseEntity : IServerEntity
 	public EHANDLE MoveChild = new();
 	public EHANDLE MovePeer = new();
 	public EHANDLE GroundEntity = new();
+
+	public string? ModelName;
 
 	public int LifeState;
 	public Vector3 BaseVelocity;
@@ -746,7 +748,6 @@ public partial class BaseEntity : IServerEntity
 
 	public int GetModelIndex() => ModelIndex;
 
-	string? ModelName;
 	public ReadOnlySpan<char> GetModelName() => ModelName;
 	public void SetModelName(ReadOnlySpan<char> modelName) {
 		ModelName = new(modelName);
@@ -762,7 +763,7 @@ public partial class BaseEntity : IServerEntity
 	BaseHandle RefEHandle;
 	public void SetRefEHandle(in BaseHandle handle) => RefEHandle = handle;
 
-	int flags;
+	protected int flags;
 	EFL eflags;
 	public Matrix3x4 CoordinateFrame;
 
