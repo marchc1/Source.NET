@@ -32,7 +32,7 @@ public interface IMoveHelper
 
 	// Adds the trace result to touch list, if contact is not already in list.
 	void ResetTouchList();
-	bool AddToTouched(in GameTrace tr, in Vector3 impactvelocity);
+	bool AddToTouched(ref GameTrace tr, in Vector3 impactvelocity);
 	void ProcessImpacts();
 
 	// These have separate server vs client impementations

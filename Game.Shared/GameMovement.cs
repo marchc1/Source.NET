@@ -1441,7 +1441,7 @@ public class GameMovement : IGameMovement
 			// Save entity that blocked us (since fraction was < 1.0)
 			//  for contact
 			// Add it if it's not already in the list!!!
-			MoveHelper().AddToTouched(pm, mv.Velocity);
+			MoveHelper().AddToTouched(ref pm, mv.Velocity);
 
 			// If the plane we hit has a high z component in the normal, then
 			//  it's probably a floor
@@ -1761,7 +1761,7 @@ public class GameMovement : IGameMovement
 		// So we can run impact function afterwards.
 		// If
 		if (trace.Fraction < 1.0 && !trace.AllSolid)
-			MoveHelper().AddToTouched(in trace, in mv!.Velocity);
+			MoveHelper().AddToTouched(ref trace, in mv!.Velocity);
 	}
 
 	// Slide off of the impacting object
@@ -1870,7 +1870,7 @@ public class GameMovement : IGameMovement
 
 		StuckCheckTime[Player.EntIndex(), idx] = time;
 
-		MoveHelper().AddToTouched(traceresult, mv.Velocity);
+		MoveHelper().AddToTouched(ref traceresult, mv.Velocity);
 		GetRandomStuckOffsets(Player, out offset);
 		MathLib.VectorAdd(vecBase, offset, out test);
 
@@ -2904,7 +2904,7 @@ public class GameMovement : IGameMovement
 
 			// Standing on an entity other than the world, so signal that we are touching something.
 			if (!pm.DidHitWorld())
-				MoveHelper().AddToTouched(in pm, mv!.Velocity);
+				MoveHelper().AddToTouched(ref pm, mv!.Velocity);
 
 			mv!.Velocity.Z = 0.0f;
 		}

@@ -19,7 +19,7 @@ public class MoveHelperServer : IMoveHelperServer
 		IMoveHelper.SetSingleton(this);
 	}
 
-	public bool AddToTouched(in Trace tr, in Vector3 impactvelocity) {
+	public bool AddToTouched(ref Trace tr, in Vector3 impactvelocity) {
 		return false; // TODO
 	}
 
