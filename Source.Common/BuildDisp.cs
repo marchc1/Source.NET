@@ -830,7 +830,7 @@ public class CoreDispInfo : DispUtilsHelper
 	public void ResetTriTag(int tri, DispTriTags tag) => throw new NotImplementedException();
 	public void ToggleTriTag(int tri, DispTriTags tag) => throw new NotImplementedException();
 	public bool IsTriTag(int tri, DispTriTags tag) => (Tris![tri].Tags & tag) != 0;
-	public ushort GetTriTagValue(int tri) => throw new NotImplementedException();
+	public ushort GetTriTagValue(int tri) => (ushort)Tris![tri].Tags;
 	public void SetTriTagValue(int tri, ushort val) => throw new NotImplementedException();
 
 	public bool IsTriWalkable(int tri) => throw new NotImplementedException();

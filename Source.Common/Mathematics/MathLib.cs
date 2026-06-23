@@ -739,6 +739,41 @@ public static class MathLib
 		return ref new Span<Vector4>(ref a).Cast<Vector4, float>()[idx];
 	}
 
+	// Returns which side(s) of a plane a box straddles: 1 = front, 2 = back, 3 = both (straddling).
+	// Analog of BOX_ON_PLANE_SIDE / BoxOnPlaneSide.
+	public static int BoxOnPlaneSide(in Vector3 emins, in Vector3 emaxs, in CollisionPlane p) {
+		// fast axial cases
+		int type = (byte)p.Type;
+		if (type < 3) {
+			if (p.Dist <= emins[type])
+				return 1;
+			if (p.Dist >= emaxs[type])
+				return 2;
+			return 3;
+		}
+
+		// general case: pick the corner that maximizes and minimizes the dot with the normal
+		Vector3 n = p.Normal;
+		Vector3 cmax, cmin;
+		cmax.X = n.X < 0.0f ? emins.X : emaxs.X;
+		cmin.X = n.X < 0.0f ? emaxs.X : emins.X;
+		cmax.Y = n.Y < 0.0f ? emins.Y : emaxs.Y;
+		cmin.Y = n.Y < 0.0f ? emaxs.Y : emins.Y;
+		cmax.Z = n.Z < 0.0f ? emins.Z : emaxs.Z;
+		cmin.Z = n.Z < 0.0f ? emaxs.Z : emins.Z;
+
+		float dist1 = Vector3.Dot(n, cmax);
+		float dist2 = Vector3.Dot(n, cmin);
+
+		int sides = 0;
+		if (dist1 >= p.Dist)
+			sides = 1;
+		if (dist2 < p.Dist)
+			sides |= 2;
+
+		return sides;
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static unsafe uint SubInt(in fltx4 a, int idx) {
 		return a.AsUInt32().GetElement(idx);
@@ -2030,5 +2065,74 @@ public struct FourVectors
 		x = new Vector4(v.X);
 		y = new Vector4(v.Y);
 		z = new Vector4(v.Z);
+	}
+
+	// Broadcast a single vector into all four lanes.
+	public void DuplicateVector(in Vector3 v) {
+		x = new Vector4(v.X);
+		y = new Vector4(v.Y);
+		z = new Vector4(v.Z);
+	}
+
+	// Load four vectors into the lanes: x = (a.x, b.x, c.x, d.x), etc.
+	public void LoadAndSwizzle(in Vector3 a, in Vector3 b, in Vector3 c, in Vector3 d) {
+		x = new Vector4(a.X, b.X, c.X, d.X);
+		y = new Vector4(a.Y, b.Y, c.Y, d.Y);
+		z = new Vector4(a.Z, b.Z, c.Z, d.Z);
+	}
+
+	public static FourVectors operator -(FourVectors a, FourVectors b) => new() { x = a.x - b.x, y = a.y - b.y, z = a.z - b.z };
+	public static FourVectors operator +(FourVectors a, FourVectors b) => new() { x = a.x + b.x, y = a.y + b.y, z = a.z + b.z };
+	public static FourVectors operator *(FourVectors a, FourVectors b) => new() { x = a.x * b.x, y = a.y * b.y, z = a.z * b.z };
+
+	public static FourVectors Min(in FourVectors a, in FourVectors b) => new() { x = Vector4.Min(a.x, b.x), y = Vector4.Min(a.y, b.y), z = Vector4.Min(a.z, b.z) };
+	public static FourVectors Max(in FourVectors a, in FourVectors b) => new() { x = Vector4.Max(a.x, b.x), y = Vector4.Max(a.y, b.y), z = Vector4.Max(a.z, b.z) };
+
+	// Build a 4-bit mask, one bit per lane, where a[lane] <= b[lane].
+	private static int LeMask(in Vector4 a, in Vector4 b) {
+		int mask = 0;
+		if (a.X <= b.X) mask |= 1;
+		if (a.Y <= b.Y) mask |= 2;
+		if (a.Z <= b.Z) mask |= 4;
+		if (a.W <= b.W) mask |= 8;
+		return mask;
+	}
+
+	// SIMD test of a swept ray/box against all four child boxes at once. Returns a 4-bit hit mask.
+	public static int IntersectRayWithFourBoxes(in FourVectors rayStart, in FourVectors invDelta, in FourVectors rayExtents, in FourVectors boxMins, in FourVectors boxMaxs) {
+		FourVectors hitMins = boxMins - rayStart;
+		FourVectors hitMaxs = boxMaxs - rayStart;
+
+		// adjust for swept box by enlarging the child bounds to shrink the sweep to a point
+		hitMins -= rayExtents;
+		hitMaxs += rayExtents;
+
+		// parametric distance along the ray of intersection in each dimension
+		hitMins *= invDelta;
+		hitMaxs *= invDelta;
+
+		FourVectors exitT = Max(hitMins, hitMaxs);
+		FourVectors entryT = Min(hitMins, hitMaxs);
+
+		Vector4 boxEntryT = Vector4.Max(Vector4.Max(entryT.x, entryT.y), entryT.z);
+		Vector4 boxExitT = Vector4.Min(Vector4.Min(exitT.x, exitT.y), exitT.z);
+
+		boxEntryT = Vector4.Max(boxEntryT, Vector4.Zero);
+		boxExitT = Vector4.Min(boxExitT, Vector4.One);
+
+		// hit if entry <= exit
+		return LeMask(boxEntryT, boxExitT);
+	}
+
+	// SIMD test of one box against four boxes. Returns a 4-bit overlap mask.
+	public static int IntersectFourBoxPairs(in FourVectors mins0, in FourVectors maxs0, in FourVectors mins1, in FourVectors maxs1) {
+		FourVectors intersectMins = Max(mins0, mins1);
+		FourVectors intersectMaxs = Min(maxs0, maxs1);
+
+		int maskX = LeMask(intersectMins.x, intersectMaxs.x);
+		int maskY = LeMask(intersectMins.y, intersectMaxs.y);
+		int maskZ = LeMask(intersectMins.z, intersectMaxs.z);
+
+		return maskX & maskY & maskZ;
 	}
 }

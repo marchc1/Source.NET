@@ -46,6 +46,7 @@ public class MoveHelperServer : IMoveHelperServer
 
 		TouchList.Add(default);
 		int i = TouchList.Count - 1;
+		tl = TouchList.AsSpan();
 		tl[i].Trace = tr;
 		MathLib.VectorCopy(impactvelocity, out tl[i].DeltaVelocity);
 

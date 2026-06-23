@@ -428,7 +428,195 @@ public class CollisionBSPData
 		MapEntityString = Encoding.ASCII.GetString(inData);
 	}
 	internal void LoadDispInfo() {
+		// How many displacements in the map?
+		CM.g_DispCollTreeCount = 0;
+		nint dispInfoLumpSize = MapLoadHelper.GetLumpSize(LumpIndex.DispInfo);
+		int coreDispCount = (int)(dispInfoLumpSize / Unsafe.SizeOf<BSPDDispInfo>());
+		if (coreDispCount == 0)
+			return;
 
+		// Geometry needed to reconstruct each displacement's base surface.
+		BSPDertex[] verts = new MapLoadHelper(LumpIndex.Vertexes).LoadLumpData<BSPDertex>();
+		BSPDEdge[] edges = new MapLoadHelper(LumpIndex.Edges).LoadLumpData<BSPDEdge>();
+		int[] surfEdges = new MapLoadHelper(LumpIndex.SurfEdges).LoadLumpData<int>();
+		BSPDFace[] faces = new MapLoadHelper(LumpIndex.Faces).LoadLumpData<BSPDFace>();
+		BSPDDispInfo[] dispInfos = new MapLoadHelper(LumpIndex.DispInfo).LoadLumpData<BSPDDispInfo>();
+		DispVert[] dispVerts = new MapLoadHelper(LumpIndex.DispVerts).LoadLumpData<DispVert>();
+		DispTri[] dispTris = new MapLoadHelper(LumpIndex.DispTris).LoadLumpData<DispTri>();
+
+		if (faces.Length == 0)
+			return;
+
+		// Allocate displacement collision trees + culling bounds.
+		CM.g_DispCollTreeCount = coreDispCount;
+		g_DispCollTrees = new DispCollTree[coreDispCount];
+		g_DispBounds = new AlignedBBox[coreDispCount];
+		for (int i = 0; i < coreDispCount; i++) {
+			g_DispCollTrees[i] = new DispCollTree { Counter = i };
+			g_DispCollTrees[i].SetPower(0);
+		}
+
+		// Build the inverse mapping from disp index to face.
+		ushort[] dispIndexToFaceIndex = new ushort[coreDispCount];
+		Array.Fill(dispIndexToFaceIndex, (ushort)0xFFFF);
+		for (int i = 0; i < faces.Length; ++i) {
+			short dispInfoIndex = faces[i].DispInfo;
+			if (dispInfoIndex == -1 || dispInfoIndex >= coreDispCount)
+				continue;
+			dispIndexToFaceIndex[dispInfoIndex] = (ushort)i;
+		}
+
+		Span<Vector3> surfPoints = stackalloc Vector3[4];
+		for (int i = 0; i < coreDispCount; ++i) {
+			// Find the face associated with this dispinfo.
+			ushort faceIndex = dispIndexToFaceIndex[i];
+			if (faceIndex == 0xFFFF)
+				continue;
+
+			ref BSPDDispInfo dispInfo = ref dispInfos[i];
+
+			// Set up the CCoreDispInfo from the lump data.
+			Span<DispVert> vSlice = dispVerts.AsSpan(dispInfo.DispVertStart, dispInfo.NumVerts());
+			Span<DispTri> tSlice = dispTris.AsSpan(dispInfo.DispTriStart, dispInfo.NumTris());
+
+			CoreDispInfo coreDisp = new();
+			CoreDispSurface dispSurf = coreDisp.GetSurface();
+			dispSurf.SetPointStart(dispInfo.StartPosition);
+			dispSurf.SetContents(dispInfo.Contents);
+			coreDisp.InitDispInfo(dispInfo.Power, dispInfo.MinTess, dispInfo.SmoothingAngle, vSlice, tSlice);
+
+			// Hook the disp surface to the face.
+			ref BSPDFace face = ref faces[faceIndex];
+			dispSurf.SetHandle(faceIndex);
+
+			// Get the base surface points from the face's edges.
+			if (face.NumEdges > 4)
+				continue;
+
+			for (int j = 0; j < face.NumEdges; j++) {
+				int eIndex = surfEdges[face.FirstEdge + j];
+				if (eIndex < 0)
+					surfPoints[j] = verts[edges[-eIndex].V[1]].Position;
+				else
+					surfPoints[j] = verts[edges[eIndex].V[0]].Position;
+			}
+
+			dispSurf.SetPointCount(face.NumEdges);
+			for (int j = 0; j < 4; j++)
+				dispSurf.SetPoint(j, surfPoints[j]);
+
+			dispSurf.FindSurfPointStartIndex();
+			dispSurf.AdjustSurfPointData();
+
+			// Generate the collision displacement surface.
+			DispCollTree tree = g_DispCollTrees[i];
+			tree.SetPower(0);
+
+			// Check for null faces (should have been taken care of in vbsp).
+			if (dispSurf.GetPointCount() != 4)
+				continue;
+
+			coreDisp.Create();
+
+			tree.Create(coreDisp);
+			tree.GetBounds(out Vector3 treeMins, out Vector3 treeMaxs);
+			g_DispBounds[i].Init(treeMins, treeMaxs, tree.Counter, tree.GetContents());
+
+			// NOTE: surface props are left at their defaults; physprops material lookup
+			// is not yet wired in the collision subsystem (see LoadTextures TODO).
+		}
+
+		// Link each displacement into the BSP leaves it touches.
+		CM_DispTreeLeafnum();
+	}
+
+	// Port of CM_DispTreeLeafnum + CDispLeafBuilder: build the per-leaf displacement lists.
+	private void CM_DispTreeLeafnum() {
+		if (g_DispCollTrees == null || g_DispCollTrees.Length == 0)
+			return;
+
+		int treeCount = g_DispCollTrees.Length;
+		Span<CollisionLeaf> leafs = MapLeafs.AsSpan();
+		for (int i = 0; i < NumLeafs; i++)
+			leafs[i].DispCount = 0;
+
+		int headnode = MapCollisionModels[0].HeadNode;
+
+		// For each displacement, gather the list of leaves it overlaps.
+		List<int>[] perDispLeaves = new List<int>[treeCount];
+		int totalRefs = 0;
+		for (int i = 0; i < treeCount; i++) {
+			perDispLeaves[i] = BuildLeafListForDisplacement(i, headnode);
+			totalRefs += perDispLeaves[i].Count;
+		}
+
+		// Compute per-leaf displacement counts.
+		for (int i = 0; i < treeCount; i++)
+			foreach (int leafIndex in perDispLeaves[i])
+				leafs[leafIndex].DispCount++;
+
+		// Point each leaf at the start of its output range, then reset the running count.
+		ushort firstDispIndex = 0;
+		for (int i = 0; i < NumLeafs; i++) {
+			leafs[i].DispListStart = firstDispIndex;
+			firstDispIndex += leafs[i].DispCount;
+			leafs[i].DispCount = 0;
+		}
+
+		// Write the compact per-leaf reference lists.
+		MapDispList.SetCount(totalRefs);
+		Span<ushort> outList = MapDispList.AsSpan();
+		for (int i = 0; i < treeCount; i++) {
+			foreach (int leafIndex in perDispLeaves[i]) {
+				int outListIndex = leafs[leafIndex].DispListStart + leafs[leafIndex].DispCount;
+				outList[outListIndex] = (ushort)i;
+				leafs[leafIndex].DispCount++;
+			}
+		}
+	}
+
+	private List<int> BuildLeafListForDisplacement(int index, int headnode) {
+		List<int> result = [];
+
+		DispCollTree tree = g_DispCollTrees![index];
+		if (tree == null || tree.GetPower() == 0)
+			return result;
+
+		tree.GetBounds(out Vector3 mins, out Vector3 maxs);
+
+		const int MAX_NODES = 1024;
+		Span<int> nodeList = stackalloc int[MAX_NODES];
+		int listRead = 0;
+		int listWrite = 1;
+		nodeList[0] = headnode;
+
+		while (listRead != listWrite) {
+			int nodeIndex = nodeList[listRead];
+			listRead = (listRead + 1) % MAX_NODES;
+
+			if (nodeIndex < 0) {
+				// leaf
+				int leafIndex = -1 - nodeIndex;
+				result.Add(leafIndex);
+			}
+			else {
+				ref CollisionNode node = ref MapNodes.AsSpan()[nodeIndex];
+				ref CollisionPlane plane = ref MapPlanes.AsSpan()[node.CollisionPlaneIdx];
+
+				int sideResult = MathLib.BoxOnPlaneSide(mins, maxs, plane);
+
+				if ((sideResult & 1) != 0) {
+					nodeList[listWrite] = node.Children[0];
+					listWrite = (listWrite + 1) % MAX_NODES;
+				}
+				if ((sideResult & 2) != 0) {
+					nodeList[listWrite] = node.Children[1];
+					listWrite = (listWrite + 1) % MAX_NODES;
+				}
+			}
+		}
+
+		return result;
 	}
 	internal bool Load(ReadOnlySpan<char> name) {
 		List<ushort> map_texinfo = [];
