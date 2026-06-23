@@ -384,7 +384,7 @@ public unsafe struct VertexBuilder
 
 	internal void AdvanceVertices(int nVerts) {
 		CurrentVertex += nVerts;
-		if (CurrentVertex > VertexCount) 
+		if (CurrentVertex > VertexCount)
 			VertexCount = CurrentVertex;
 
 		// We may want to find a better way to error handle here.
@@ -396,12 +396,12 @@ public unsafe struct VertexBuilder
 		IncrementFloatPointer(ref CurrNormal, Desc.NormalSize * nVerts);
 
 		IncrementFloatPointer(ref CurrTexCoord0, Desc.TexCoordSize[0] * nVerts);
-		IncrementFloatPointer(ref CurrTexCoord1,  Desc.TexCoordSize[1] * nVerts);
-		IncrementFloatPointer(ref CurrTexCoord2,  Desc.TexCoordSize[2] * nVerts);
-		IncrementFloatPointer(ref CurrTexCoord3,  Desc.TexCoordSize[3] * nVerts);
-		IncrementFloatPointer(ref CurrTexCoord4,  Desc.TexCoordSize[4] * nVerts);
-		IncrementFloatPointer(ref CurrTexCoord5,  Desc.TexCoordSize[5] * nVerts);
-		IncrementFloatPointer(ref CurrTexCoord6,  Desc.TexCoordSize[6] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord1, Desc.TexCoordSize[1] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord2, Desc.TexCoordSize[2] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord3, Desc.TexCoordSize[3] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord4, Desc.TexCoordSize[4] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord5, Desc.TexCoordSize[5] * nVerts);
+		IncrementFloatPointer(ref CurrTexCoord6, Desc.TexCoordSize[6] * nVerts);
 		IncrementFloatPointer(ref CurrTexCoord7, Desc.TexCoordSize[7] * nVerts);
 		CurrColor += Desc.ColorSize * nVerts;
 	}
@@ -692,8 +692,36 @@ public unsafe struct MeshBuilder : IDisposable
 	// Locks the vertex buffer to modify existing data
 	// Passing nVertexCount == -1 says to lock all the vertices for modification.
 	// Pass 0 for nIndexCount to not lock the index buffer.
-	public void BeginModify(IMesh pMesh, int nFirstVertex = 0, int nVertexCount = -1, int nFirstIndex = 0, int nIndexCount = 0) => throw new NotImplementedException();
-	public void EndModify(bool bSpewData = false) => throw new NotImplementedException();
+	public void BeginModify(IMesh pMesh, int nFirstVertex = 0, int nVertexCount = -1, int nFirstIndex = 0, int nIndexCount = 0) {
+		Assert(pMesh != null && Mesh == null);
+
+		if (nVertexCount < 0)
+			nVertexCount = pMesh!.VertexCount();
+
+		Mesh = pMesh;
+		GenerateIndices = false;
+
+		Mesh!.ModifyBegin(nFirstVertex, nVertexCount, nFirstIndex, nIndexCount, ref Desc);
+
+		IndexBuilder.AttachBegin(pMesh, nIndexCount, ref Desc);
+		VertexBuilder.AttachBegin(pMesh, nVertexCount, ref Desc.Vertex);
+
+		Reset();
+	}
+	public void EndModify(bool bSpewData = false) {
+		Assert(Mesh != null);
+
+		if (bSpewData)
+			Warning("Mesh spew not implemented...\n");
+
+		Mesh!.ModifyEnd(ref Desc);
+		Mesh = null;
+
+		IndexBuilder.AttachEnd();
+		VertexBuilder.AttachEnd();
+
+		memreset(ref Desc);
+	}
 
 	// A helper method since this seems to be done a whole bunch.
 	public void DrawQuad(IMesh pMesh, ReadOnlySpan<float> v1, ReadOnlySpan<float> v2, ReadOnlySpan<float> v3, ReadOnlySpan<float> v4, ReadOnlySpan<byte> pColor, bool wireframe = false) => throw new NotImplementedException();

@@ -128,9 +128,10 @@ public unsafe class SDL3_Window : IWindow
 							break;
 						}
 
-						MouseXDelta += (int)ev.motion.xrel;
-						MouseYDelta += (int)ev.motion.yrel;
-						
+						if (SDL3.SDL_GetWindowRelativeMouseMode(window)) {
+							MouseXDelta += (int)ev.motion.xrel;
+							MouseYDelta += (int)ev.motion.yrel;
+						}
 						// Msg($"MouseXDelta = {ev.motion.xrel}, MouseYDelta = {ev.motion.yrel}\n");
 
 						if (!RawInput && !CursorVisible && (

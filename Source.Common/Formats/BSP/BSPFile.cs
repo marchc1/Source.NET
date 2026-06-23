@@ -617,7 +617,7 @@ public struct DispNeighbor
 	public void SetInvalid() { SubNeighbors[0].SetInvalid(); SubNeighbors[1].SetInvalid(); }
 	public bool IsValid() => SubNeighbors[0].IsValid() || SubNeighbors[1].IsValid();
 
-	InlineArray2<DispSubNeighbor> SubNeighbors;
+	public InlineArray2<DispSubNeighbor> SubNeighbors;
 }
 
 
@@ -673,7 +673,7 @@ public struct BSPDDispInfo
 	public int LightmapSamplePositionStart;
 	public InlineArray4<DispNeighbor> EdgeNeighbors;
 	public InlineArray4<DispCornerNeighbors> CornerNeighbors;
-	InlineArray10<int> AllowedVerts;
+	public InlineArray10<int> AllowedVerts;
 }
 
 /// <summary>

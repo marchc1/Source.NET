@@ -121,4 +121,9 @@ public static class CollisionUtils
 			return false;
 		return true;
 	}
+
+	public static bool IsPointInBox(in Vector3 pt, in Vector3 boxMin, in Vector3 boxMax) {
+		Assert(boxMin.X <= boxMax.X && boxMin.Y <= boxMax.Y && boxMin.Z <= boxMax.Z);
+		return pt.X >= boxMin.X && pt.X <= boxMax.X && pt.Y >= boxMin.Y && pt.Y <= boxMax.Y && pt.Z >= boxMin.Z && pt.Z <= boxMax.Z;
+	}
 }

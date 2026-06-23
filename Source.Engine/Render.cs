@@ -227,7 +227,7 @@ public partial class Render(
 		InitStudio();
 
 		// FIXME: Is this the best place to initialize the kd tree when we're client-only?
-		if (!sv.IsActive()){
+		if (!sv.IsActive()) {
 			StaticPropMgr().LevelShutdown();
 			SpatialPartition().Init(host_state.WorldModel!.Mins, host_state.WorldModel!.Maxs);
 			StaticPropMgr().LevelInit();
@@ -333,6 +333,49 @@ public partial class Render(
 				default:
 					// Don't draw the mesh
 					break;
+			}
+		}
+
+		DrawDisplacements();
+	}
+
+	// cheating the system until wordlist stuff etc is done
+	private void DrawDisplacements() {
+		foreach (DispGroup group in g_DispGroups) {
+			group.Visible = 0;
+			foreach (GroupMesh mesh in group.Meshes)
+				mesh.NumVisible = 0;
+		}
+
+		foreach (DispGroup group in g_DispGroups) {
+			foreach (GroupMesh mesh in group.Meshes) {
+				foreach (DispInfo? disp in mesh.DispInfos) {
+					disp?.Render(mesh, true);
+				}
+			}
+		}
+
+		DispInfo_DrawPrimLists();
+	}
+
+	private void DispInfo_DrawPrimLists() {
+		using MatRenderContextPtr renderContext = new(materials);
+
+		foreach (DispGroup group in g_DispGroups) {
+			if (group.Visible == 0)
+				continue;
+
+			renderContext.Bind(group.Material!);
+			renderContext.BindLightmapPage(group.LightmapPageID);
+
+			foreach (GroupMesh mesh in group.Meshes) {
+				if (mesh.NumVisible == 0)
+					continue;
+
+				for (int visible = 0; visible < mesh.NumVisible; visible++)
+					mesh.Mesh!.Draw(mesh.Visible[visible].FirstIndex, mesh.Visible[visible].NumIndices);
+
+				mesh.NumVisible = 0;
 			}
 		}
 	}

@@ -67,6 +67,55 @@ public class DispCollTri
 
 	public Vector3 Normal;
 	public float Dist;
+
+	public DispCollTri() {
+		throw new NotImplementedException();
+	}
+
+	void Init() {
+		throw new NotImplementedException();
+	}
+
+	public void CalcPlane() {
+		throw new NotImplementedException();
+	}
+
+	public void MinMinMax() {
+		throw new NotImplementedException();
+	}
+
+	public void SetVert(int pos, int vert) {
+		Assert((pos >= 0) && (pos < 3));
+		Assert((vert >= 0) && (vert < (1 << 9)));
+		TriData[pos].Vert = (ushort)vert;
+	}
+
+	public int GetVert(int pos) {
+		Assert((pos >= 0) && (pos < 3));
+		return TriData[pos].Vert;
+	}
+
+	public void SetMin(int axis, int min) {
+		Assert((axis >= 0) && (axis < 3));
+		Assert((min >= 0) && (min < 3));
+		TriData[axis].Min = (ushort)min;
+	}
+
+	public int GetMin(int axis) {
+		Assert((axis >= 0) && (axis < 3));
+		return TriData[axis].Min;
+	}
+
+	public void SetMax(int axis, int max) {
+		Assert((axis >= 0) && (axis < 3));
+		Assert((max >= 0) && (max < 3));
+		TriData[axis].Max = (ushort)max;
+	}
+
+	public int GetMax(int axis) {
+		Assert((axis >= 0) && (axis < 3));
+		return TriData[axis].Max;
+	}
 }
 
 public class DispCollHelper
@@ -132,8 +181,36 @@ public class DispCollTree
 	public bool AABBTree_Ray(in Ray ray, in Vector3 invDelta, ref Trace trace, bool side = true) {
 		return false; // todo enginetrace
 	}
+
+	static Vector3 Vec3DispCollEpsilons = new(DISPCOLL_DIST_EPSILON, DISPCOLL_DIST_EPSILON, DISPCOLL_DIST_EPSILON);
 	public bool AABBTree_SweepAABB(in Ray ray, in Vector3 invDelta, ref Trace trace) {
-		return false; // todo enginetrace
+		if (CheckFlags(CoreDispInfo.SURF_NOHULL_COLL))
+			return false;
+
+		MathLib.VectorCopy(ray.Delta, out AngularImpulse rayDir);
+		MathLib.VectorNormalize(ref rayDir);
+
+		float frac = trace.Fraction;
+
+		RayLeafList list = new() {
+			InvDelta = new(invDelta),
+			RayStart = new(ray.Start),
+			RayExtents = new(ray.Extents + Vec3DispCollEpsilons)
+		};
+		int listIndex = BuildRayLeafList(0, list);
+
+		if (listIndex <= list.MaxIndex) {
+			// todo
+		}
+
+		if (trace.Fraction < frac)
+			return true;
+
+		return false;
+	}
+
+	private int BuildRayLeafList(int v, RayLeafList list) {
+		throw new NotImplementedException();
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetPower(int power) => Power = power;
@@ -152,14 +229,20 @@ public class DispCollTree
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void GetBounds(out Vector3 boxMin, out Vector3 boxMax) { boxMin = Mins; boxMax = Maxs; }
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public Contents GetContents() => Contents;
-	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSurfaceProps(int prop, short surfProp) => SurfaceProps[prop] = surfProp; 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSurfaceProps(int prop, short surfProp) => SurfaceProps[prop] = surfProp;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public short GetSurfaceProps(int prop) => SurfaceProps[prop];
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public uint GetMemorySize() => Size;
-	
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsCached() => TrisCache.Count == Tris.Count;
 
 	public bool PointInBounds(in Vector3 start, in Vector3 mins, in Vector3 maxs, bool isPoint) {
-		return false; // todo enginetrace
+		if (isPoint)
+			return CollisionUtils.IsPointInBox(start, mins, maxs);
+
+		MathLib.VectorSubtract(maxs, mins, out Vector3 extents);
+		extents *= 0.5f;
+
+		return CollisionUtils.IsPointInBox(start, mins - extents, maxs + extents);
 	}
 }

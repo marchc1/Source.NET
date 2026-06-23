@@ -134,11 +134,13 @@ public struct VarBitVec
 /// <summary>
 /// An inline bit-vector array of MAX_EDICTS >> 3 bytes.
 /// </summary>
-[InlineArray(BSPFileCommon.MAX_DISPVERTS >> 3)]
+[InlineArray((BSPFileCommon.MAX_DISPVERTS + 31) / 32 * 4)]
 public struct MaxDispVertsBitVec
 {
 	public byte bytes;
 	public uint GetDWord(int i) => BitVecBase.GetDWord(this, i);
+	public void SetDWord(int i, uint val) => BitVecBase.SetDWord(this, i, val);
+	public int GetNumDWords() => (BSPFileCommon.MAX_DISPVERTS + 31) / 32;
 	public int Get(int bit) => BitVecBase.IsBitSet(this, bit) ? 1 : 0;
 	public bool IsBitSet(int bit) => BitVecBase.IsBitSet(this, bit);
 	public void Set(int bit) => BitVecBase.Set(this, bit);
