@@ -442,9 +442,31 @@ public partial class
 	}
 
 	const double MaxEntityEulerAngle = 360.0 * 1000.0f;
+	internal static bool IsEntityCoordinateReasonable(vec_t c) {
+		float r = k_flMaxEntityPosCoord;
+		return c > -r && c < r;
+
+	}
+	internal static bool IsEntityPositionReasonable(Vector3 v) {
+		float r = k_flMaxEntityPosCoord;
+		return
+			v.X > -r && v.X < r &&
+			v.Y > -r && v.Y < r &&
+			v.Z > -r && v.Z < r;
+	}
 	internal static bool IsEntityQAngleReasonable(QAngle q) {
-		float r = (float)MaxEntityEulerAngle;
-		return q.X >= -r && q.X <= r && q.Y >= -r && q.Y <= r && q.Z >= -r && q.Z <= r;
+		float r = k_flMaxEntityEulerAngle;
+		return
+			q.X > -r && q.X < r &&
+			q.Y > -r && q.Y < r &&
+			q.Z > -r && q.Z < r;
+	}
+	internal static bool IsEntityAngularVelocityReasonable(Vector3 q) {
+		float r = k_flMaxEntitySpinRate;
+		return
+			q.X > -r && q.X < r &&
+			q.Y > -r && q.Y < r &&
+			q.Z > -r && q.Z < r;
 	}
 
 	internal static short PrecacheScriptSound(ReadOnlySpan<char> sound) {

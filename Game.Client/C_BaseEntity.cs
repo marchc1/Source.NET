@@ -1849,13 +1849,59 @@ public partial class C_BaseEntity : IClientEntity
 	public ref QAngle GetNetworkAngles() => ref NetworkAngles;
 
 	public void SetLocalOrigin(in Vector3 origin) {
-		// This has a lot more logic thats needed later TODO FIXME
-		Origin = origin;
+		// Safety check against NaN's or really huge numbers
+		if (!IsEntityPositionReasonable(origin)) {
+			if (CheckEmitReasonablePhysicsSpew()) 
+				Warning($"Bad SetLocalOrigin({origin}) on {GetDebugName()}\n");
+			Assert(false);
+			return;
+		}
+
+		//	if ( !origin.IsValid() )
+		//	{
+		//		AssertMsg( 0, "Bad origin set" );
+		//		return;
+		//	}
+
+		if (Origin != origin) {
+			// Sanity check to make sure the origin is valid.
+#if DEBUG
+			float largeVal = 1024 * 128;
+			Assert(origin.X >= -largeVal && origin.X <= largeVal);
+			Assert(origin.Y >= -largeVal && origin.Y <= largeVal);
+			Assert(origin.Z >= -largeVal && origin.Z <= largeVal);
+#endif
+
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.PositionChanged);
+			Origin = origin;
+			SetSimulationTime(gpGlobals.CurTime);
+		}
 	}
 
+	public ReadOnlySpan<char> GetDebugName() => GetClassname(); // todo
+
 	public void SetLocalAngles(in QAngle angles) {
-		// This has a lot more logic thats needed later TODO FIXME
-		Rotation = angles;
+		// NOTE: The angle normalize is a little expensive, but we can save
+		// a bunch of time in interpolation if we don't have to invalidate everything
+		// and sometimes it's off by a normalization amount
+
+		// FIXME: The normalize caused problems in server code like momentary_rot_button that isn't
+		//        handling things like +/-180 degrees properly. This should be revisited.
+		//QAngle angleNormalize( AngleNormalize( angles.x ), AngleNormalize( angles.y ), AngleNormalize( angles.z ) );
+
+		// Safety check against NaN's or really huge numbers
+		if (!IsEntityQAngleReasonable(angles)) {
+			if (CheckEmitReasonablePhysicsSpew()) 
+				Warning($"Bad SetLocalAngles({angles}) on {GetDebugName()}\n");
+			AssertMsg(false, $"Bad SetLocalAngles({angles}) on {GetDebugName()}\n");
+			return;
+		}
+
+		if (Rotation != angles) {
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnglesChanged);
+			Rotation = angles;
+			SetSimulationTime(gpGlobals.CurTime);
+		}
 	}
 
 	public void SetNetworkAngles(in QAngle angles) {
