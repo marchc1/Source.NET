@@ -36,7 +36,7 @@ public interface IMoveHelper
 	void ProcessImpacts();
 
 	// These have separate server vs client impementations
-	void StartSound(in Vector3 origin, int channel, ReadOnlySpan<char> sample, float volume, SoundLevel soundlevel, int flags, int pitch);
+	void StartSound(in Vector3 origin, int channel, ReadOnlySpan<char> sample, float volume, SoundLevel soundlevel, SoundFlags flags, int pitch);
 	void StartSound(in Vector3 origin, ReadOnlySpan<char> soundname);
 	void PlaybackEventFull(int flags, int clientindex, ushort eventindex, float delay, out Vector3 origin, out Vector3 angles, float fparam1, float fparam2, int iparam1, int iparam2, int bparam1, int bparam2);
 

@@ -98,7 +98,7 @@ public class MoveHelperClient : IMoveHelper
 		TouchList.Clear();
 	}
 
-	public void StartSound(in Vector3 origin, int channel, ReadOnlySpan<char> sample, float volume, SoundLevel soundlevel, int flags, int pitch) {
+	public void StartSound(in Vector3 origin, int channel, ReadOnlySpan<char> sample, float volume, SoundLevel soundlevel, SoundFlags flags, int pitch) {
 		if (!sample.IsEmpty) {
 			C_BaseEntity.PrecacheScriptSound(sample);
 			LocalPlayerFilter filter = new();

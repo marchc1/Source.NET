@@ -392,7 +392,7 @@ public partial class BaseEntity : IServerEntity
 
 	public BaseEntity? GetParent() => Parent.Get();
 
-	public static BaseEntity? GetContainingEntity(Edict ent) {
+	public static BaseEntity? GetContainingEntity(Edict? ent) {
 		if (ent != null && ent.GetUnknown() != null)
 			return (BaseEntity?)ent.GetUnknown()!.GetBaseEntity();
 		return null;
@@ -418,7 +418,7 @@ public partial class BaseEntity : IServerEntity
 
 	public bool IsFloating() => false; // TODO
 
-	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent);
+	public static BaseEntity? Instance(Edict? ent) => GetContainingEntity(ent);
 	public static BaseEntity? Instance(int ent) => Instance(INDEXENT(ent)!);
 
 	public static BaseEntity? Create(ReadOnlySpan<char> name, Vector3 origin, QAngle angles, BaseEntity? owner = null) {
