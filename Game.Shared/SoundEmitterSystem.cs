@@ -133,7 +133,7 @@ BaseEntity
 		parms.SoundName = soundname;
 		parms.SoundTime = soundtime;
 		parms.Origin = ref origin;
-		parms.SoundDuration = duration;
+		parms.SoundDuration = ref duration;
 		parms.WarnOnDirectWaveReference = true;
 
 		EmitSound(filter, entIndex, ref parms, ref parms.SoundScriptHandle);

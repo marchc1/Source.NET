@@ -444,7 +444,23 @@ public class GameMovement : IGameMovement
 		MathLib.VectorSubtract(mv.Velocity, Player.GetBaseVelocity(), out mv.Velocity);
 	}
 
-	protected void WaterJump() { throw new NotImplementedException(); }
+	protected void WaterJump() {
+		if (Player!.WaterJumpTime > 10000)
+			Player!.WaterJumpTime = 10000;
+
+		if (0 == Player!.WaterJumpTime)
+			return;
+
+		Player!.WaterJumpTime -= 1000.0 * gpGlobals.FrameTime;
+
+		if (Player!.WaterJumpTime <= 0 || 0 == Player!.GetWaterLevel()) {
+			Player!.WaterJumpTime = 0;
+			Player!.RemoveFlag(EntityFlags.WaterJump);
+		}
+
+		mv!.Velocity[0] = Player!.WaterJumpVel[0];
+		mv!.Velocity[1] = Player!.WaterJumpVel[1];
+	}
 
 	// Handles both ground friction and water friction
 	protected void Friction() {
@@ -1344,7 +1360,20 @@ public class GameMovement : IGameMovement
 	protected void FullObserverMove() { throw new NotImplementedException(); }
 
 	// Handle movement when in MoveType.Ladder mode.
-	protected virtual void FullLadderMove() { throw new NotImplementedException(); }
+	protected virtual void FullLadderMove() {
+		CheckWater();
+
+		// Was jump button pressed? If so, set velocity to 270 away from ladder.  
+		if ((mv!.Buttons & InButtons.Jump) != 0) 
+			CheckJumpButton();
+		else 
+			mv!.OldButtons &= ~InButtons.Jump;
+
+		// Perform the move accounting for any base velocity.
+		MathLib.VectorAdd(mv!.Velocity, Player!.GetBaseVelocity(), out mv.Velocity);
+		TryPlayerMove();
+		MathLib.VectorSubtract(mv!.Velocity, Player!.GetBaseVelocity(), out mv.Velocity);
+	}
 
 	public const float STOP_EPSILON = 0.1f;
 	public const int MAX_CLIP_PLANES = 5;
@@ -1805,6 +1834,7 @@ public class GameMovement : IGameMovement
 
 	const TimeUnit_t CHECKSTUCK_MINTIME = 0.05;
 
+	ConVarRef developer = new ConVarRef("developer");
 
 	// If pmove.origin is in a solid position,
 	// try nudging slightly on all axis to
@@ -1827,13 +1857,11 @@ public class GameMovement : IGameMovement
 		}
 
 		// Deal with stuckness...
-#if !DEDICATED // TODO: this
-		//  if (developer.GetBool()) {
-		//  	bool isServer = player.IsServer();
-		//  	engine.Con_NPrintf(isServer, "%s stuck on object %i/%s",
-		//  		isServer ? "server" : "client",
-		//  		hitent.GetEntryIndex(), MoveHelper.GetName(hitent));
-		//  }
+#if !DEDICATED
+		if (developer.GetBool()) {
+			bool isServer = Player.IsServer();
+			engine.Con_NPrintf(isServer ? 1 : 0, $"{(isServer ? "server" : "client")} stuck on object {hitent.GetEntryIndex()}/{MoveHelper().GetName(hitent)}");
+		}
 #endif
 
 		MathLib.VectorCopy(mv.GetAbsOrigin(), out vecBase);
