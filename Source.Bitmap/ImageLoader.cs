@@ -274,6 +274,7 @@ public static class ImageLoader
 		ImageFormat.R32F => GL_RED,
 		ImageFormat.RGB323232F => GL_RGB,
 		ImageFormat.RGBA32323232F => GL_RGBA,
+		ImageFormat.I8 => GL_R8,
 	};
 	public static int GetGLImageInternalFormat(ImageFormat format) => format switch {
 		// Uncompressed color formats

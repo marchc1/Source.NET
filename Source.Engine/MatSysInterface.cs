@@ -442,7 +442,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		// if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.TangentSpace) != 0) 
 		// negate = TangentSpaceSurfaceSetup(ref surfID, vect);
 
-		// CheckMSurfaceBaseTexture2(pBrushData, surfID);
+		CheckMSurfaceBaseTexture2(brushData, ref surfID);
 		int vertCount = ModelLoader.MSurf_VertCount(ref surfID);
 		int firstVertex = builder.GetCurrentVertex();
 		for (int i = 0; i < vertCount; i++) {
@@ -501,6 +501,31 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		}
 	}
 
+	private bool CheckMSurfaceBaseTexture2(WorldBrushData brushData, ref BSPMSurface2 surfID) {
+		if (!ModelLoader.SurfaceHasDispInfo(ref surfID) && 0 != (ModelLoader.MSurf_TexInfo(ref surfID).TexInfoFlags & TEXINFO_USING_BASETEXTURE2)) {
+			ReadOnlySpan<char> materialName = ModelLoader.MSurf_TexInfo(ref surfID).Material!.GetName();
+			if (!materialName.IsEmpty) {
+				// Calculate the surface's centerpoint.
+				Vector3 vCenter = new(0, 0, 0);
+				for (int i = 0; i < ModelLoader.MSurf_VertCount(ref surfID); i++) {
+					int vertIndex = brushData.VertIndices![ModelLoader.MSurf_FirstVertIndex(ref surfID) + i];
+					vCenter += brushData.Vertexes![vertIndex].Position;
+				}
+				vCenter /= (float)ModelLoader.MSurf_VertCount(ref surfID);
+
+				// Spit out the warning.				
+				Warning("Warning: using WorldTwoTextureBlend on a non-displacement surface.\n" +
+						 "Support for this will go away soon.\n" +
+						 $"   - Material       : {materialName}\n" +
+						 $"   - Surface center : {(int)vCenter.X} {(int)vCenter.Y} {(int)vCenter.Z}\n"
+						 );
+			}
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
 	internal MaterialSystem_SortInfo[]? MaterialSortInfoArray;
 	private int SortInfoToLightmapPage(int sortID) => MaterialSortInfoArray![sortID].LightmapPageID;

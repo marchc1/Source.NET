@@ -97,7 +97,7 @@ public abstract class BaseVSShader : BaseShader
 				ShaderShadow.AlphaFunc(ShaderAlphaFunc.GreaterEqual, shaderParams[alphaTestReferenceVar].GetFloatValue());
 
 			int numTexCoords = 1;
-			
+
 			if (bBaseTexture) {
 				ShaderShadow.EnableTexture(Sampler.Sampler0, true);
 			}
@@ -201,6 +201,10 @@ public abstract class BaseVSShader : BaseShader
 				if (IsFlagSet(shaderParams, MaterialVarFlags.BaseAlphaEnvMapMask))
 					ClearFlags(shaderParams, MaterialVarFlags.BaseAlphaEnvMapMask);
 			}
+		}
+
+		if (detailVar >= 0 && shaderParams[detailVar].IsDefined()) {
+			LoadTexture(detailVar);
 		}
 	}
 }
