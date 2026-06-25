@@ -239,10 +239,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		throw new NotImplementedException();
 	}
 
-	public ref readonly Matrix4x4 WorldToScreenMatrix() {
-		throw new NotImplementedException();
-	}
-
+	public ref readonly Matrix4x4 WorldToScreenMatrix() => ref g_EngineRenderer.WorldToScreenMatrix();
 	public ref readonly Matrix4x4 WorldToViewMatrix() {
 		throw new NotImplementedException();
 	}

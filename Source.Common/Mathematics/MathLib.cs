@@ -1046,6 +1046,9 @@ public static class MathLib
 		matrix[1, 1] = 1.0f;
 		matrix[2, 2] = 1.0f;
 	}
+	public static void SetIdentityMatrix(out Matrix4x4 matrix) {
+		matrix = Matrix4x4.Identity;
+	}
 
 	public static void MatrixInvert(in Matrix3x4 inM, out Matrix3x4 outM) {
 		outM = default;

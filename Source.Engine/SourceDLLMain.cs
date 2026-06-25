@@ -25,6 +25,7 @@ public static class SourceDllMain
 	[Dependency] public static IEngineServer engine { get; private set; } = null!;
 	[Dependency] public static IGameEventManager2 gameEventManager { get; private set; } = null!;
 	[Dependency] public static IEngineVGui __EngineVGui { get; private set; } = null!;
+	[Dependency] public static IRender g_EngineRenderer { get; private set; } = null!;
 	public static GameEventManager g_GameEventManager => (GameEventManager)gameEventManager;
 	public static IEngineVGuiInternal EngineVGui() => (IEngineVGuiInternal)__EngineVGui;
 	[Dependency] public static ClientState cl { get; private set; } = null!;

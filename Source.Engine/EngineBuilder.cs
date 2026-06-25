@@ -158,6 +158,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<EngineParms>();
 		this.AddSingleton<ClientDLL>();
 		this.AddSingleton<IVideoMode, VideoMode_MaterialSystem>();
+		this.AddSingleton<IRender, Render>(x => x.GetRequiredService<Render>());
 		this.AddSingleton<IRegistry, Registry>();
 		this.AddSingleton<IRenderView, RenderView>();
 		this.AddSingleton<ModelLoader>();

@@ -251,6 +251,8 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	internal readonly List<IMesh?> WorldStaticMeshes = [];
 
 	ConVar mat_max_worldmesh_vertices = new((32767 / 3).ToString(), 0);
+	public static readonly ConVar r_drawbrushmodels = new( "r_drawbrushmodels", "1", FCvar.Cheat, "Render brush models. 0=Off, 1=Normal, 2=Wireframe" );
+
 
 	public static void VertexCountForSurfaceList(MSurfaceSortList list, in SurfaceSortGroup group, out int vertexCount, out int indexCount) {
 		vertexCount = indexCount = 0;
