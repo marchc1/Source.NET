@@ -3,14 +3,19 @@ using Game.Server;
 using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
+using Source.Common.Audio;
 using Source.Common.Commands;
 using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.Physics;
+using Source.Common.SoundEmitterSystem;
 using Source.DataCache;
 using Source.Engine;
 using Source.FileSystem;
 using Source.GUI.Controls;
+using Source.Physics;
+using Source.SoundEmitterSystem;
 
 using Steamworks;
 
@@ -42,13 +47,16 @@ public class Bootloader : IDisposable
 				.WithAssembly("Source.VTF")
 				// Base file system implementation
 				.WithComponent<IFileSystem, BaseFileSystem>()
+				// Physics
+				.WithComponent<IPhysics, PhysicsInterface>()
+				// Sound emitter
+				.WithComponent<ISoundEmitterSystemBase, SoundEmitterSystemBase>()
 				// Datacache impl
 				.WithComponent<IDataCache, DataCache.DataCache>()
 				.WithComponent<MDLCache>()
 				.WithResolvedComponent<IMDLCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
 				.WithResolvedComponent<IStudioDataCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
-				// Studiorender
-				// Our game DLL's. Server/game impl, client impl, UI impl.
+				// Our game DLL'
 				.WithGameDLL<ServerGameDLL>()
 				// Let the engine builder take over and inject engine-specific dependencies
 				.Build(dedicated: true);

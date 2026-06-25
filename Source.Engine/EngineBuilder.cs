@@ -138,9 +138,11 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<Host>();
 		this.AddSingleton<MatSysInterface>();
 		this.AddSingleton<Net>();
+#if !SWDS
 		this.AddKeyedSingleton<NetworkStringTableContainer>(Realm.Client);
-		this.AddKeyedSingleton<NetworkStringTableContainer>(Realm.Server);
 		this.AddKeyedSingleton(typeof(INetworkStringTableContainer), Realm.Client, (x, _) => x.GetRequiredKeyedService<NetworkStringTableContainer>(Realm.Client));
+#endif
+		this.AddKeyedSingleton<NetworkStringTableContainer>(Realm.Server);
 		this.AddKeyedSingleton(typeof(INetworkStringTableContainer), Realm.Server, (x, _) => x.GetRequiredKeyedService<NetworkStringTableContainer>(Realm.Server));
 		this.AddSingleton<Render>();
 		this.AddSingleton<RenderUtils>();
@@ -157,22 +159,29 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<CommonHostState>();
 		this.AddSingleton<EngineParms>();
 		this.AddSingleton<ClientDLL>();
+#if !SWDS
 		this.AddSingleton<IVideoMode, VideoMode_MaterialSystem>();
+#endif
 		this.AddSingleton<IRender, Render>(x => x.GetRequiredService<Render>());
 		this.AddSingleton<IRegistry, Registry>();
+#if !SWDS
 		this.AddSingleton<IRenderView, RenderView>();
+#endif
 		this.AddSingleton<ModelLoader>();
 		this.AddSingleton<IModelLoader>(x => x.GetRequiredService<ModelLoader>());
 
+#if !SWDS
 		this.AddKeyedSingleton<EngineTraceClient>(Realm.Client);
-		this.AddKeyedSingleton<EngineTraceServer>(Realm.Server);
 		this.AddKeyedSingleton(typeof(IEngineTrace), Realm.Client, (x, _) => x.GetRequiredKeyedService<EngineTraceClient>(Realm.Client));
+#endif
+		this.AddKeyedSingleton<EngineTraceServer>(Realm.Server);
 		this.AddKeyedSingleton(typeof(IEngineTrace), Realm.Server, (x, _) => x.GetRequiredKeyedService<EngineTraceServer>(Realm.Server));
 
-
+#if !SWDS
 		this.AddKeyedSingleton<EngineSoundClient>(Realm.Client);
-		this.AddKeyedSingleton<EngineSoundServer>(Realm.Server);
 		this.AddKeyedSingleton(typeof(IEngineSound), Realm.Client, (x, _) => x.GetRequiredKeyedService<EngineSoundClient>(Realm.Client));
+#endif
+		this.AddKeyedSingleton<EngineSoundServer>(Realm.Server);
 		this.AddKeyedSingleton(typeof(IEngineSound), Realm.Server, (x, _) => x.GetRequiredKeyedService<EngineSoundServer>(Realm.Server));
 
 
@@ -183,9 +192,13 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<IGameEventManager2, GameEventManager>();
 		this.AddSingleton<ModInfo>(); // This may not be valid for a while! At least until gameinfo is readable!
 									  // Client state and server state singletons
+#if !SWDS
 		this.AddSingleton<ClientState>();
+#endif
 		this.AddSingleton<GameServer>();
+#if !SWDS
 		this.AddSingleton<ClientGlobalVariables>();
+#endif
 		this.AddSingleton<ServerGlobalVariables>();
 		this.AddSingleton<DtCommonEng>();
 		this.AddSingleton<ServerPlugin>();
@@ -194,15 +207,19 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<ISoundServices, EngineSoundServices>();
 		this.AddSingleton<IGameUIFuncs, GameUIFuncs>();
 		// Engine datacache
+#if !SWDS
 		this.AddSingleton<IModelRender, ModelRender>();
 		this.AddSingleton<IVModelInfoClient, ModelInfoClient>();
+#endif
 		this.AddSingleton<IVModelInfo>(x => x.GetRequiredService<IVModelInfoClient>());
+#if !SWDS
 		// Engine VGUI and how to read it later
 		this.AddSingleton<EngineVGui>();
 		this.AddSingleton<IEngineVGuiInternal, EngineVGui>(x => x.GetRequiredService<EngineVGui>());
 		this.AddSingleton<IEngineVGui, EngineVGui>(x => x.GetRequiredService<EngineVGui>());
 		// These interfaces go to client and game dll's
 		this.AddSingleton<IEngineClient, EngineClient>();
+#endif
 		this.AddSingleton<IEngineServer, EngineServer>();
 		// We have to tell the dependency injection system how to resolve parent classes ourselves.
 		this.AddSingleton<BaseClientState>(x => x.GetRequiredService<ClientState>());

@@ -246,7 +246,7 @@ public partial class CL(IServiceProvider services, Net Net,
 
 		EngineVGui!.NotifyOfServerConnect(Common.Gamedir, (int)ip, port, queryPort);
 		EngineVGui!.UpdateProgressBar(LevelLoadingProgress.ReadyToPlay);
-		#if GMOD_DLL
+		#if GMOD_DLL && !SWDS
 		launcherMgr.FlashWindow(true);
 		#endif
 		// MDL cache end map load

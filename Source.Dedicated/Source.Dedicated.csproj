@@ -20,6 +20,8 @@
 		<ProjectReference Include="..\Source.DataCache\Source.DataCache.csproj" />
 		<ProjectReference Include="..\Source.Engine\Source.Engine.csproj" />
 		<ProjectReference Include="..\Source.Filesystem\Source.Filesystem.csproj" />
+		<ProjectReference Include="..\Source.Physics\Source.Physics.csproj" />
+		<ProjectReference Include="..\Source.SoundEmitterSystem\Source.SoundEmitterSystem.csproj" />
 		<ProjectReference Include="..\Source.VTF\Source.VTF.csproj" />
 	</ItemGroup>
 

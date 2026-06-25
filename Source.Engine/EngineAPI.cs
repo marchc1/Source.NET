@@ -15,7 +15,7 @@ using System.Runtime.ExceptionServices;
 namespace Source.Engine;
 
 
-public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sys, ILauncherManager launcherMgr, IInputSystem inputSystem, MatSysInterface matSys) : IEngineAPI, IDisposable
+public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sys, IInputSystem inputSystem, MatSysInterface matSys) : IEngineAPI, IDisposable
 {
 	public bool Dedicated;
 
@@ -78,7 +78,9 @@ public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sy
 
 	public bool InEditMode() => false;
 	public void PumpMessages() {
+#if !SWDS
 		launcherMgr.PumpWindowsMessageLoop();
+#endif
 		inputSystem.PollInputState();
 		game.DispatchAllStoredGameMessages();
 	}
