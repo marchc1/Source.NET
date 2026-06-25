@@ -8,6 +8,7 @@
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<NoWarn>$(NoWarn);1591</NoWarn>
 		<LangVersion>12</LangVersion>
+		<Configurations>Debug;Release;Debug (Dedicated);Release (Dedicated)</Configurations>
 	</PropertyGroup>
 	<ItemGroup>
 		<Compile Include="Gl46.cs" />

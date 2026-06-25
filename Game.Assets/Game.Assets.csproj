@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 		<PlatformTarget>AnyCPU</PlatformTarget>
+		<Configurations>Debug;Release;Debug (Dedicated);Release (Dedicated)</Configurations>
 	</PropertyGroup>
 
   <ItemGroup>

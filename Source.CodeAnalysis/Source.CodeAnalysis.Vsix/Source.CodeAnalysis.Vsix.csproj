@@ -6,6 +6,7 @@
     <TargetFramework>net472</TargetFramework>
     <RootNamespace>Source.CodeAnalysis.Vsix</RootNamespace>
     <AssemblyName>Source.CodeAnalysis.Vsix</AssemblyName>
+    <Configurations>Debug;Release;Debug (Dedicated);Release (Dedicated)</Configurations>
   </PropertyGroup>
 
   <PropertyGroup>
