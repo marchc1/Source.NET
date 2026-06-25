@@ -10,7 +10,7 @@ public class MaterialProxyFactory : IMaterialProxyFactory
 {
 	public IMaterialProxy? CreateProxy(ReadOnlySpan<char> proxyName) {
 #if SWDS
-		return null
+		return null;
 #else
 		IMaterialProxy? materialProxy = LookupProxy(proxyName);
 		if (materialProxy == null) {

@@ -29,7 +29,11 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		"background05".CopyTo(dest);
 	}
 
-	public void Con_NXPrintf(in Con_NPrint_s np, ReadOnlySpan<char> text) => Con.NXPrintF(in np, text);
+	public void Con_NXPrintf(in Con_NPrint_s np, ReadOnlySpan<char> text) {
+#if !SWDS
+		Con.NXPrintF(in np, text);
+#endif
+	}
 
 	public bool IsDrawingLoadingImage() => Scr.DrawLoading;
 
@@ -90,7 +94,12 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		return true;
 	}
 
-	public bool Con_IsVisible() => Con.IsVisible();
+	public bool Con_IsVisible() =>
+#if SWDS
+		false;
+#else
+		 Con.IsVisible();
+#endif
 
 	ReadOnlySpan<byte> IEngineClient.ParseFile(ReadOnlySpan<byte> data, Span<char> token) => Common.ParseFile(data, token);
 
@@ -249,7 +258,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		throw new NotImplementedException();
 	}
 
-	public int LevelLeafCount()=> host_state.WorldBrush!.Leafs!.Length;
+	public int LevelLeafCount() => host_state.WorldBrush!.Leafs!.Length;
 	public ISpatialQuery? GetBSPTreeQuery() {
 		throw new NotImplementedException();
 	}
