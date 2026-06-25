@@ -85,7 +85,6 @@ public class Bootloader : IDisposable
 		commandLine = new CommandLine();
 		commandLine.CreateCmdLine(Environment.CommandLine);
 		GetBaseDirectory(commandLine, out baseDir);
-		SteamAPI.Init();
 		isTextMode = commandLine.CheckParm("-textmode");
 	}
 	public void Boot() {

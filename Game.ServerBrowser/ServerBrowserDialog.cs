@@ -107,8 +107,6 @@ class ServerBrowserDialog : Frame
 	public override void OnTick() {
 		base.OnTick();
 		GetAnimationController().UpdateAnimations(Sys.Time);
-
-		SteamAPI.RunCallbacks(); // FIXME: should not be here
 	}
 
 	public void LoadUserData() {

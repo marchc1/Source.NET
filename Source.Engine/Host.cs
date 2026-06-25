@@ -850,9 +850,9 @@ public class Host(
 
 	public EUniverse GetSteamUniverse() {
 #if !SWDS
-		return SteamUtils.GetConnectedUniverse();
+		return Steam3Client().SteamUtils()?.GetConnectedUniverse() ?? EUniverse.k_EUniverseInvalid;
 #else
-		return SteamGameServerUtils.GetConnectedUniverse();
+		return Steam3Server().SteamGameServerUtils()?.GetConnectedUniverse() ?? EUniverse.k_EUniverseInvalid;
 #endif
 	}
 

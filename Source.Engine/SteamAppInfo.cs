@@ -24,6 +24,7 @@ public struct SteamAppInfo
 	public string PatchVersion;
 	public string ProductName;
 	public int AppID;
+	public int ServerAppID;
 	public int ServerVersion;
 	public int ClientVersion;
 

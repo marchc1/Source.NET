@@ -9,6 +9,7 @@ using Source.Common.Hashing;
 using Source.Common.Networking;
 using Source.Common.Server;
 using Source.Common.Utilities;
+using Source.Engine.Steam;
 
 using Steamworks;
 
@@ -37,10 +38,10 @@ public abstract class BaseServer : IServer
 	internal static readonly ConVar sv_stats = new("sv_stats", "1", 0, "Collect CPU usage stats");
 	internal static readonly ConVar sv_enableoldqueries = new("sv_enableoldqueries", "0", 0, "Enable support for old style (HL1) server queries");
 	internal static readonly ConVar sv_password = new("sv_password", "", FCvar.Notify | FCvar.Protected | FCvar.DontRecord, "Server password for entry into multiplayer games");
-	internal static readonly ConVar sv_visiblemaxplayers = new( "sv_visiblemaxplayers", "-1", 0, "Overrides the max players reported to prospective clients" );
-	internal static readonly ConVar sv_alternateticks = new( "sv_alternateticks", "0", FCvar.SingleplayerOnly, "If set, server only simulates entities on even numbered ticks.\n" );
-	internal static readonly ConVar sv_allow_wait_command = new( "sv_allow_wait_command", "1", FCvar.Replicated, "Allow or disallow the wait command on clients connected to this server." );
-	internal static readonly ConVar sv_allow_color_correction = new( "sv_allow_color_correction", "1", FCvar.Replicated, "Allow or disallow clients to use color correction on this server." );
+	internal static readonly ConVar sv_visiblemaxplayers = new("sv_visiblemaxplayers", "-1", 0, "Overrides the max players reported to prospective clients");
+	internal static readonly ConVar sv_alternateticks = new("sv_alternateticks", "0", FCvar.SingleplayerOnly, "If set, server only simulates entities on even numbered ticks.\n");
+	internal static readonly ConVar sv_allow_wait_command = new("sv_allow_wait_command", "1", FCvar.Replicated, "Allow or disallow the wait command on clients connected to this server.");
+	internal static readonly ConVar sv_allow_color_correction = new("sv_allow_color_correction", "1", FCvar.Replicated, "Allow or disallow clients to use color correction on this server.");
 	internal static readonly ConVar sv_tags = new("sv_tags", "", FCvar.Notify, "Server tags. Used to provide extra information to clients when they're browsing for servers. Separate tags with a comma.", callback: SvTagsChangeCallback);
 	internal static readonly ConVar sv_debugtempentities = new("sv_debugtempentities", "0", FCvar.None, "Show temp entity bandwidth usage.");
 
@@ -608,7 +609,7 @@ public abstract class BaseServer : IServer
 					if (!QueryRateChecker.CheckIP(packet.From))
 						return false;
 
-					if (IsSteamServerNotNull()) {
+					if (Steam3Server().SteamGameServer() != null) {
 						SteamGameServer.HandleIncomingPacket(
 							packet.Message.GetData(),
 							packet.Message.BytesAvailable,
@@ -646,20 +647,22 @@ public abstract class BaseServer : IServer
 		if (!var.IsFlagSet(FCvar.Notify))
 			return;
 
-			if(!SteamGameServer.BLoggedOn()){ 
+		ISteamGameServer? updater = Steam3Server().SteamGameServer();
+
+		if (updater == null) {
 			// This will force it to send all the rules whenever the master server updater is there.
 			sv.SetMasterServerRulesDirty();
 			return;
 		}
 
-		SetMasterServerKeyValue(var);
+		SetMasterServerKeyValue(updater, var);
 	}
 
-	private void SetMasterServerKeyValue(IConVar var) {
-		if(var.IsFlagSet(FCvar.Protected)){
-			if (var.GetString()[0] != '\0' && 0 != stricmp(var.GetString(), "none")) 
+	private void SetMasterServerKeyValue(ISteamGameServer server, IConVar var) {
+		if (var.IsFlagSet(FCvar.Protected)) {
+			if (var.GetString()[0] != '\0' && 0 != stricmp(var.GetString(), "none"))
 				SteamGameServer.SetKeyValue(var.GetName(), "1");
-			else 
+			else
 				SteamGameServer.SetKeyValue(var.GetName(), "0");
 		}
 		else
@@ -850,7 +853,7 @@ public abstract class BaseServer : IServer
 			if (netchan == null)
 				continue;
 
-			if (netchan.IsTimedOut()) 
+			if (netchan.IsTimedOut())
 				cl.Disconnect($"{cl.GetClientName()} timed out");
 		}
 #endif
@@ -861,7 +864,7 @@ public abstract class BaseServer : IServer
 			if (cl.IsFakeClient() || !cl.IsConnected())
 				continue;
 
-			if (cl.GetNetChannel() != null && cl.GetNetChannel()!.IsOverflowed()) 
+			if (cl.GetNetChannel() != null && cl.GetNetChannel()!.IsOverflowed())
 				cl.Disconnect($"Client {i} overflowed reliable channel.");
 		}
 	}
@@ -871,7 +874,7 @@ public abstract class BaseServer : IServer
 
 			cl.CheckFlushNameChange();
 
-			if (cl.ConVarsChanged) 
+			if (cl.ConVarsChanged)
 				cl.UpdateUserSettings();
 		}
 	}
@@ -1000,12 +1003,13 @@ public abstract class BaseServer : IServer
 		if (!CheckChallengeType(client, nNextUserID, adr, authProtocol, hashedCDkey, cdKeyLen, clientChallenge))
 			return null;
 
-		if (!IsSteamServerNotNull() && authProtocol == Protocol.PROTOCOL_STEAM)
+		ISteamGameServer? steamGameServer = Steam3Server().SteamGameServer();
+		if (steamGameServer == null && authProtocol == Protocol.PROTOCOL_STEAM)
 			Warning("NULL ISteamGameServer in ConnectClient. Steam authentication may fail.\n");
 
 		if (Filter.IsUserBanned(client.GetNetworkID())) {
-			if (IsSteamServerNotNull() && authProtocol == Protocol.PROTOCOL_STEAM)
-				SteamGameServer.SendUserDisconnect_DEPRECATED(client.SteamID);
+			if (steamGameServer != null && authProtocol == Protocol.PROTOCOL_STEAM)
+				steamGameServer.SendUserDisconnect_DEPRECATED(client.SteamID);
 
 			RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectBanned");
 			return null;
@@ -1017,8 +1021,8 @@ public abstract class BaseServer : IServer
 		INetChannel? netchan = Net.CreateNetChannel(Socket, adr, adr.ToString(), client);
 
 		if (netchan == null) {
-			if (IsSteamServerNotNull() && authProtocol == Protocol.PROTOCOL_STEAM)
-				SteamGameServer.SendUserDisconnect_DEPRECATED(client.SteamID);
+			if (steamGameServer != null && authProtocol == Protocol.PROTOCOL_STEAM)
+				steamGameServer.SendUserDisconnect_DEPRECATED(client.SteamID);
 
 			RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectFailedChannel");
 			return null;
@@ -1280,11 +1284,11 @@ public abstract class BaseServer : IServer
 
 	// Keep the master server data updated.
 	protected virtual bool ShouldUpdateMasterServer() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	protected void CheckMasterServerRequestRestart() {
-		throw new NotImplementedException();
+		// todo
 	}
 	const double MASTER_SERVER_UPDATE_INTERVAL = 2.0;
 	static bool bUpdateMasterServers;
@@ -1292,7 +1296,7 @@ public abstract class BaseServer : IServer
 		if (!ShouldUpdateMasterServer())
 			return;
 
-		if (!SteamGameServer.BLoggedOn())
+		if (Steam3Server().SteamGameServer() == null)
 			return;
 
 		// Only update every so often.
@@ -1404,8 +1408,8 @@ public abstract class BaseServer : IServer
 
 	protected int MaxClients;         // Current max #
 	protected int SpawnCount;          // Number of servers spawned since start,
-																		 // used to check late spawns (e.g., when d/l'ing lots of
-																		 // data)
+									   // used to check late spawns (e.g., when d/l'ing lots of
+									   // data)
 	protected TimeUnit_t TickInterval;     // time for 1 tick in seconds
 
 

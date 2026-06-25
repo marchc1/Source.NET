@@ -1149,7 +1149,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 	}
 
 	public void PurgeUnusedModels() {
-		throw new NotImplementedException();
+
 	}
 
 	public Model? ReferenceModel(ReadOnlySpan<char> name, ModelLoaderFlags referenceType) {
