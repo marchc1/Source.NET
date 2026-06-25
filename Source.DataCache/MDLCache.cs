@@ -704,7 +704,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 	}
 
 	public void MarkFrame() {
-		throw new NotImplementedException();
+
 	}
 
 	public bool PreloadModel(MDLHandle_t handle) {

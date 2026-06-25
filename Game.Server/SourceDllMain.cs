@@ -30,6 +30,9 @@ public static class SourceDllMain
 	[Dependency] public static IDataCache datacache { get; private set; } = null!;
 	[Dependency] public static UserMessages usermessages { get; private set; } = null!;
 	[Dependency] public static IVModelInfo modelinfo { get; private set; } = null!;
+	[Dependency] public static GlobalEntityList gEntList { get; private set; } = null!;
+	[Dependency] public static BaseEntityList g_pEntityList { get; private set; } = null!;
+
 
 	[KeyedDependency(Key = Realm.Server)] public static INetworkStringTableContainer networkstringtable { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Server)] public static IEngineTrace enginetrace { get; private set; } = null!;

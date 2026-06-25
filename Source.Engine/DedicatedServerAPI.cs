@@ -14,7 +14,7 @@ using System.Runtime.ExceptionServices;
 
 namespace Source.Engine;
 
-public class DedicatedServerAPI(IGame game, IServiceProvider services, Common COM, Sys Sys, EngineParms host_parms, SV SV) : IDedicatedServerAPI
+public class DedicatedServerAPI(Cbuf Cbuf, IGame game, IServiceProvider services, Common COM, Sys Sys, EngineParms host_parms, SV SV) : IDedicatedServerAPI
 {
 	public List<MemberInfo> __INTERNAL_FilledDependencies { get; set; } = [];
 	public object? GetService(Type serviceType) => services.GetService(serviceType);
@@ -28,15 +28,18 @@ public class DedicatedServerAPI(IGame game, IServiceProvider services, Common CO
 	}
 
 	Mod? dedicatedServer = null;
+	IEngine eng = null!;
+
 	public bool ModInit(in StartupInfo info) {
 		ConVar.Register();
 		IEngineAPI engineAPI = services.GetRequiredService<IEngineAPI>();
-		IEngine eng = services.GetRequiredService<IEngine>();
+		eng ??= services.GetRequiredService<IEngine>();
 		eng.SetQuitting(IEngine.Quit.NotQuitting);
 
 		host_parms.BaseDir = info.BaseDirectory;
 		host_parms.Mod = GetModDirFromPath(info.InitialMod);
 		host_parms.Game = info.InitialGame;
+		COM.InitFilesystem(info.InitialMod);
 
 		Sys.TextMode = info.TextMode;
 
@@ -51,18 +54,25 @@ public class DedicatedServerAPI(IGame game, IServiceProvider services, Common CO
 		if (dedicatedServer != null) {
 			dedicatedServer = null;
 		}
-		IEngine eng = services.GetRequiredService<IEngine>();
+		eng ??= services.GetRequiredService<IEngine>();
 
 		eng.Unload();
 		materials.ModShutdown();
 	}
 
 	public bool RunFrame() {
-		throw new NotImplementedException();
+		if (eng.GetQuitting() != IEngine.Quit.NotQuitting)
+			return false;
+
+		eng.Frame();
+		return true;
 	}
 
 	public void AddConsoleText(ReadOnlySpan<char> text) {
-		throw new NotImplementedException();
+		text = text.SliceNullTerminatedString();
+		if (text.IsEmpty)
+			return;
+		Cbuf.InsertText(text);
 	}
 
 	public void UpdateStatus(out float fps, out int active, out int maxPlayers, Span<char> map) {

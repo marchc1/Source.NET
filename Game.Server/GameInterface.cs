@@ -191,6 +191,9 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	public static void DLLInit(IServiceCollection services) {
 		services.AddSingleton<IServerGameEnts, ServerGameEnts>();
 		services.AddSingleton<IServerGameClients, ServerGameClients>();
+
+		services.AddSingleton<GlobalEntityList>();
+		services.AddSingleton<BaseEntityList>(x => x.GetRequiredService<GlobalEntityList>());
 	}
 
 	public void BuildAdjacentMapList() {

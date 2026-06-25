@@ -19,8 +19,7 @@ public class Mod(bool serverOnly, IEngineAPI engineAPI)
 
 		if (IsServerOnly()) {
 			if (eng.Load(true, host_parms.BaseDir)) {
-				// Dedicated stuff one day?
-				Msg("Congrats, dedicated can boot...");
+				dedicated.RunServer();
 			}
 		}
 		else {

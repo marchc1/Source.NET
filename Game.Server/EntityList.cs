@@ -14,9 +14,6 @@ namespace Game.Server;
 
 public static class EntityListGlobals
 {
-	public static readonly GlobalEntityList gEntList = new();
-	public static BaseEntityList g_pEntityList = gEntList;
-
 	[ConCommand("report_entities", "List all entities")]
 	static void report_entities() {
 		if (!Util.IsCommandIssuedByServerAdmin())

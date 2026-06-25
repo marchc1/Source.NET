@@ -6,13 +6,13 @@ using System.Runtime.CompilerServices;
 namespace Game.Shared;
 
 public static class HandleExts {
-	static IClientEntityList? entityList;
+	static BaseEntityList? entityList;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static IHandleEntity? Get(this BaseHandle handle) {
-		return (entityList ??= Singleton<IClientEntityList>()).LookupEntity(handle);
+		return (entityList ??= Singleton<BaseEntityList>()).LookupEntity(handle);
 	}
 	public static T? Get<T>(this Handle<T> handle) where T : IHandleEntity {
-		return (T?)(entityList ??= Singleton<IClientEntityList>()).LookupEntity(handle);
+		return (T?)(entityList ??= Singleton<BaseEntityList>()).LookupEntity(handle);
 	}
 
 	/// <summary>

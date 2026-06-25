@@ -11,6 +11,7 @@ using Source.Common.Filesystem;
 using Source.Common.MaterialSystem;
 using Source.Common.Physics;
 using Source.Common.SoundEmitterSystem;
+using Source.Common.Utilities;
 using Source.DataCache;
 using Source.Engine;
 using Source.FileSystem;
@@ -22,6 +23,54 @@ using Source.SoundEmitterSystem;
 using Steamworks;
 
 namespace Source.Dedicated;
+
+public class DedicatedExports(IDedicatedServerAPI engine) : IDedicatedExports
+{
+	readonly UserConsoleInput consoleUserInput = new();
+
+	public void RunServer() {
+		// Run 2 engine frames first to get the engine to load its resources.
+		for (int i = 0; i < 2; i++) {
+			DoRunVGUIFrame();
+			if (!engine.RunFrame())
+				return;
+		}
+
+		DoRunVGUIFrame(true);
+		consoleUserInput.OnEnter += ConsoleUserInput_OnEnter;
+		bool done = false;
+		while(!done){
+			if (!DoRunVGUIFrame())
+				ProcessConsoleInput();
+
+			if (!engine.RunFrame())
+				done = true;
+
+			UpdateStatus(false);
+		}
+	}
+
+	private void ConsoleUserInput_OnEnter(ReadOnlySpan<char> text) {
+		engine.AddConsoleText(text);
+	}
+
+	private int ProcessConsoleInput() {
+		consoleUserInput.RunFrame();
+		return 0;
+	}
+
+	private void UpdateStatus(bool force) {
+
+	}
+
+	private bool DoRunVGUIFrame(bool finished = false) {
+		return false;
+	}
+
+	public void Sys_Printf(ReadOnlySpan<char> text) {
+		Console.Write(text);
+	}
+}
 
 public class Bootloader : IDisposable
 {
@@ -52,6 +101,7 @@ public class Bootloader : IDisposable
 			.WithComponent<ISoundEmitterSystemBase, SoundEmitterSystemBase>()
 			// Datacache impl
 			.WithComponent<IDataCache, DataCache.DataCache>()
+			.WithComponent<IDedicatedExports, DedicatedExports>()
 			.WithComponent<MDLCache>()
 			.WithResolvedComponent<IMDLCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
 			.WithResolvedComponent<IStudioDataCache, MDLCache>(x => x.GetRequiredService<MDLCache>())

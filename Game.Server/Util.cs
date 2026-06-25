@@ -234,7 +234,7 @@ public static partial class Util
 	}
 
 	public static int DispatchSpawn(BaseEntity? entity) {
-		Console.WriteLine($"Dispatching spawn for {entity}");
+		Msg($"Dispatching spawn for {entity}\n");
 		if (entity != null) {
 			// keep a smart pointer that will know if the object gets deleted
 			EHANDLE pEntSafe = new();

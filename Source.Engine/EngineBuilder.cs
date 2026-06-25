@@ -295,8 +295,10 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<IEngineVGui, EngineVGui>(x => x.GetRequiredService<EngineVGui>());
 		// These interfaces go to client and game dll's
 		this.AddSingleton<IEngineClient, EngineClient>();
+		this.AddSingleton<ClientLauncherAPI>();
+		this.AddSingleton<IEngineAPI, ClientLauncherAPI>(x => x.GetRequiredService<ClientLauncherAPI>());
+		this.AddSingleton<IClientLauncherAPI, ClientLauncherAPI>(x => x.GetRequiredService<ClientLauncherAPI>());
 #endif
-		this.AddSingleton<IEngineAPI, ClientLauncherAPI>();
 		return PostBuildAllForms<ClientLauncherAPI>();
 	}
 
@@ -307,9 +309,13 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 	/// <returns></returns>
 	public DedicatedServerAPI BuildServer() {
 		PreBuildAllForms();
+#if SWDS
 		this.AddSingleton<IVModelInfoClient, ModelInfoServer>();
 		this.AddSingleton<IVModelInfo>(x => x.GetRequiredService<IVModelInfoClient>());
-		this.AddSingleton<IEngineAPI, DedicatedServerAPI>();
+		this.AddSingleton<DedicatedServerAPI>();
+		this.AddSingleton<IEngineAPI, DedicatedServerAPI>(x => x.GetRequiredService<DedicatedServerAPI>());
+		this.AddSingleton<IDedicatedServerAPI, DedicatedServerAPI>(x => x.GetRequiredService<DedicatedServerAPI>());
+#endif
 		return PostBuildAllForms<DedicatedServerAPI>();
 	}
 

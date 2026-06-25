@@ -37,6 +37,10 @@ public abstract class BaseServer : IServer
 	internal static readonly ConVar sv_stats = new("sv_stats", "1", 0, "Collect CPU usage stats");
 	internal static readonly ConVar sv_enableoldqueries = new("sv_enableoldqueries", "0", 0, "Enable support for old style (HL1) server queries");
 	internal static readonly ConVar sv_password = new("sv_password", "", FCvar.Notify | FCvar.Protected | FCvar.DontRecord, "Server password for entry into multiplayer games");
+	internal static readonly ConVar sv_visiblemaxplayers = new( "sv_visiblemaxplayers", "-1", 0, "Overrides the max players reported to prospective clients" );
+	internal static readonly ConVar sv_alternateticks = new( "sv_alternateticks", "0", FCvar.SingleplayerOnly, "If set, server only simulates entities on even numbered ticks.\n" );
+	internal static readonly ConVar sv_allow_wait_command = new( "sv_allow_wait_command", "1", FCvar.Replicated, "Allow or disallow the wait command on clients connected to this server." );
+	internal static readonly ConVar sv_allow_color_correction = new( "sv_allow_color_correction", "1", FCvar.Replicated, "Allow or disallow clients to use color correction on this server." );
 	internal static readonly ConVar sv_tags = new("sv_tags", "", FCvar.Notify, "Server tags. Used to provide extra information to clients when they're browsing for servers. Separate tags with a comma.", callback: SvTagsChangeCallback);
 	internal static readonly ConVar sv_debugtempentities = new("sv_debugtempentities", "0", FCvar.None, "Show temp entity bandwidth usage.");
 

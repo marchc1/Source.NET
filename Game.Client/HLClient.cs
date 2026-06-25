@@ -36,6 +36,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		services.AddSingleton<IInput, HLInput>();
 		services.AddSingleton<ClientEntityList>();
 		services.AddSingleton<IClientEntityList>(x => x.GetRequiredService<ClientEntityList>());
+		services.AddSingleton<BaseEntityList>(x => x.GetRequiredService<ClientEntityList>());
 		services.AddSingleton<IPrediction, Prediction>();
 		services.AddSingleton<IViewEffects, ViewEffects>(x => ViewEffects.g_ViewEffects);
 		services.AddSingleton<ICenterPrint, CenterPrint>(x => CenterPrint.CenterString);

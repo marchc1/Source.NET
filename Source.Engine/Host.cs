@@ -9,6 +9,7 @@ using Source.Common.Filesystem;
 using Source.Common.Input;
 using Source.Common.Networking;
 using Source.Common.Server;
+using Source.Common.Utilities;
 using Source.Engine.Client;
 using Source.Engine.Server;
 
@@ -149,313 +150,130 @@ public class Host(
 	public TimeUnit_t FramesPerSecond;
 
 	void _RunFrame(TimeUnit_t time) {
+		int numticks;
 		TimeUnit_t prevRemainder;
 		bool shouldRender;
-		int numTicks;
 
-		AccumulateTime(time);
-		_SetGlobalTime();
-
-		shouldRender = !sv.IsDedicated();
-
-		prevRemainder = Remainder;
-		if (prevRemainder < 0)
-			prevRemainder = 0;
-
-		Remainder += FrameTime;
-		numTicks = 0;
-		if (Remainder >= host_state.IntervalPerTick) {
-			numTicks = (int)Math.Floor(Remainder / host_state.IntervalPerTick);
-			if (IsSinglePlayerGame() && false) { // alternateTicks!
-
-			}
-
-			Remainder -= (numTicks * host_state.IntervalPerTick);
-		}
-
-		NextTick = host_state.IntervalPerTick - Remainder;
-
-		Cbuf.Execute();
-		if (Net.Dedicated && !Net.IsMultiplayer())
-			Net.SetMultiplayer(true);
-
-		serverGlobalVariables.InterpolationAmount = 0;
-#if !SWDS
-		clientGlobalVariables.InterpolationAmount = 0;
-		cl.InSimulation = true;
-#endif
-
-		FrameTicks = numTicks;
-		CurrentFrameTick = 0;
-
-#if !SWDS
-		// engine tools?
-#endif
-
-#if !SWDS
-		if (!EngineThreads.IsEngineThreaded())
-#endif
 		{
-#if !SWDS
-			if (clientDLL != null)
-				clientDLL.IN_SetSampleTime(FrameTime);
-			clientGlobalVariables.SimTicksThisFrame = 1;
-#endif
-			cl.TickRemainder = Remainder;
-			serverGlobalVariables.SimTicksThisFrame = 1;
-			cl.SetFrameTime(FrameTime);
-			for (int tick = 0; tick < numTicks; tick++) {
-				TimeUnit_t now = Sys.Time;
-				TimeUnit_t jitter = now - IdealTime;
-				JitterHistory[JitterHistoryPos] = jitter;
-				JitterHistoryPos = (JitterHistoryPos + 1) % JitterHistory.Length;
-
-				if (Math.Abs(jitter) > 1.0)
-					IdealTime = now;
-				else
-					IdealTime = 0.99 * IdealTime + 0.01 * now;
-
-				Net.RunFrame(now);
-				bool finalTick = (tick == (numTicks - 1));
-				if (Net.Dedicated && !Net.IsMultiplayer())
-					Net.SetMultiplayer(true);
-
-				serverGlobalVariables.TickCount = sv.TickCount;
-				++TickCount;
-				++CurrentFrameTick;
-#if !SWDS
-				clientGlobalVariables.TickCount = cl.GetClientTickCount();
-				CL.CheckClientState();
-#endif
-				_RunFrame_Input(prevRemainder, finalTick);
+			AccumulateTime(time);
+			_SetGlobalTime();
+			shouldRender = !sv.IsDedicated();
+			prevRemainder = Remainder;
+			if (prevRemainder < 0)
 				prevRemainder = 0;
-				_RunFrame_Server(finalTick);
-				if (!sv.IsDedicated())
-					_RunFrame_Client(finalTick);
-				IdealTime += host_state.IntervalPerTick;
-				Net.SendQueuedPackets(); // ?
-			}
 
-			if (!sv.IsDedicated()) {
-				SetClientInSimulation(false);
-				clientGlobalVariables.InterpolationAmount = (cl.TickRemainder / host_state.IntervalPerTick);
+			Remainder += FrameTime;
+			numticks = 0;
+			if (Remainder >= host_state.IntervalPerTick) {
+				numticks = (int)(Math.Floor(Remainder / host_state.IntervalPerTick));
 
-				CL.RunPrediction(PredictionReason.Normal);
-				CL.ApplyAddAngle();
-				CL.ExtraMouseUpdate(clientGlobalVariables.FrameTime);
+				if (IsSinglePlayerGame() && BaseServer.sv_alternateticks.GetBool()) {
+					int startTick = (int)serverGlobalVariables.TickCount;
+					int endTick = startTick + numticks;
+					endTick = endTick.AlignValue(2);
+					numticks = endTick - startTick;
+				}
+
+				Remainder -= numticks * host_state.IntervalPerTick;
 			}
+			NextTick = host_state.IntervalPerTick - Remainder;
+			mdlcache.MarkFrame();
 		}
-#if !SWDS
-		else
-#endif
+
 		{
-			int clientTicks, serverTicks;
-			clientTicks = NumTicksLastFrame;
-			cl.TickRemainder = RemainderLastFrame;
-			cl.SetFrameTime(LastFrameTime);
-			if (clientDLL != null)
-				clientDLL.IN_SetSampleTime(LastFrameTime);
 
-			LastFrameTime = FrameTime;
+			Cbuf.Execute();
+			if (Net.Dedicated && !Net.IsMultiplayer())
+				Net.SetMultiplayer(true);
 
-			serverTicks = numTicks;
+			serverGlobalVariables.IntervalPerTick = 0.0;
+#if !SWDS
+			clientGlobalVariables.IntervalPerTick = 0.0;
+			cl.InSimulation = true;
+#endif
 
-			clientGlobalVariables.SimTicksThisFrame = clientTicks;
-			serverGlobalVariables.SimTicksThisFrame = serverTicks;
-			serverGlobalVariables.TickCount = sv.TickCount;
+			FrameTicks = numticks;
+			CurrentFrameTick = 0;
 
-			for (int tick = 0; tick < clientTicks; tick++) {
-				Net.RunFrame(Sys.Time);
-				bool finalTick = (tick == (clientTicks - 1));
+#if !SWDS
+			// TODO: enginetool
+#endif
 
-				if (Net.Dedicated && !Net.IsMultiplayer())
-					Net.SetMultiplayer(true);
+			if (!EngineThreads.IsEngineThreaded()) {
+#if !SWDS
+				clientDLL?.IN_SetSampleTime(FrameTime);
+				clientGlobalVariables.SimTicksThisFrame = 1;
+#endif
 
-				clientGlobalVariables.TickCount = cl.GetClientTickCount();
+				cl.TickRemainder = Remainder;
+				serverGlobalVariables.SimTicksThisFrame = 1;
+				cl.SetFrameTime(FrameTime);
 
-				CL.CheckClientState();
-				Net.SendQueuedPackets();
-				if (!sv.IsDedicated())
-					_RunFrame_Client(finalTick);
+				for (int tick = 0; tick < numticks; tick++) {
+					TimeUnit_t now = Platform.Time;
+					TimeUnit_t jitter = now - IdealTime;
+					JitterHistory[JitterHistoryPos] = jitter;
+					JitterHistoryPos = (JitterHistoryPos + 1) % JitterHistory.Length;
+
+					if (Math.Abs(jitter) > 1.0)
+						IdealTime = now;
+					else
+						IdealTime = 0.99 * IdealTime + 0.01 * now;
+
+					Net.RunFrame(now);
+					bool finalTick = tick == (numticks - 1);
+
+					if (Net.Dedicated && !Net.IsMultiplayer())
+						Net.SetMultiplayer(true);
+
+					serverGlobalVariables.TickCount = sv.TickCount;
+					TickCount++;
+					CurrentFrameTick++;
+
+#if !SWDS
+					clientGlobalVariables.TickCount = cl.GetClientTickCount();
+					CL.CheckClientState();
+#endif
+					_RunFrame_Input(prevRemainder, finalTick);
+					prevRemainder = 0;
+					_RunFrame_Server(finalTick);
+					Net.SendQueuedPackets();
+
+#if !SWDS
+					if (!sv.IsDedicated())
+						_RunFrame_Client(finalTick);
+					// todo: tool framework
+#endif
+
+					IdealTime += host_state.IntervalPerTick;
+				}
+
+#if !SWDS
+				if (numticks == 0 && false) // todo: demoplayer
+					_RunFrame_Client(true);
+
+				if (!sv.IsDedicated()) {
+					SetClientInSimulation(false);
+					clientGlobalVariables.IntervalPerTick = cl.TickRemainder / host_state.IntervalPerTick;
+					// replay?
+					CL.RunPrediction(PredictionReason.Normal);
+					CL.ApplyAddAngle();
+					CL.ExtraMouseUpdate(clientGlobalVariables.FrameTime);
+				}
+#endif
+
+
 			}
-
-			SetClientInSimulation(false);
-			clientGlobalVariables.InterpolationAmount = (cl.TickRemainder / host_state.IntervalPerTick);
-
-			CL.RunPrediction(PredictionReason.Normal);
-			CL.ApplyAddAngle();
-			SetClientInSimulation(true);
-
-			long saveTick = clientGlobalVariables.TickCount;
-			for (int tick = 0; tick < serverTicks; tick++) {
-				++TickCount;
-				++CurrentFrameTick;
-				clientGlobalVariables.TickCount = TickCount;
-				bool finalTick = tick == (serverTicks - 1);
-				_RunFrame_Input(prevRemainder, finalTick);
-				prevRemainder = 0;
-				Net.RunFrame(Sys.Time);
+#if !SWDS
+			else {
+				throw new NotImplementedException("Threaded Host.RunFrame path is not implemented yet");
 			}
-
-			SetClientInSimulation(false);
-
-			CL.ExtraMouseUpdate(clientGlobalVariables.FrameTime);
-
-			clientGlobalVariables.TickCount = saveTick;
-			NumTicksLastFrame = numTicks;
-			RemainderLastFrame = Remainder;
-
-			Net.SetTime(Sys.Time);
-			throw new Exception("We haven't done threaded engine yet...");
-		}
-
-		if (shouldRender) {
-			_RunFrame_Render();
-			_RunFrame_Sound();
-		}
-
-		if (!sv.IsDedicated()) {
-			ClientDLL.Update();
-		}
-
-		Speeds();
-		UpdateMapList();
-		FrameCount++;
-		Time = TickCount * host_state.IntervalPerTick + cl.TickRemainder;
-
-		// It may be a bad idea to put this here... whatever for now - but later figure out how it's *actually* done
-		if (Sys.TextMode)
-			_RunFrame_TextMode();
-
-		PostFrameRate(FrameTime);
-	}
-
-	public char[] consoleText = new char[2048];
-	public int consoleTextLen;
-	public int cursorPosition;
-
-	private void _RunFrame_TextMode() {
-		while (!Console.IsInputRedirected && Console.KeyAvailable) {
-			var key = Console.ReadKey(true);
-			switch (key.Key) {
-				case ConsoleKey.UpArrow:
-					ReceiveUpArrow();
-					break;
-				case ConsoleKey.DownArrow:
-					ReceiveDownArrow();
-					break;
-				case ConsoleKey.LeftArrow:
-					ReceiveLeftArrow();
-					break;
-				case ConsoleKey.RightArrow:
-					ReceiveRightArrow();
-					break;
-				case ConsoleKey.Enter:
-					ReadOnlySpan<char> line = ReceiveNewLine();
-					if (line.Length > 0) {
-						Cbuf.InsertText(line);
-					}
-					break;
-				case ConsoleKey.Backspace:
-					ReceiveBackspace();
-					break;
-				case ConsoleKey.Tab:
-					ReceiveTab();
-					break;
-				default:
-					char ch = key.KeyChar;
-					if (ch >= ' ' && ch <= '~')
-						ReceiveStandardChar(ch);
-					break;
-			}
+#endif
 		}
 	}
 	public static void DefaultMapFileName(ReadOnlySpan<char> fullMapName, Span<char> diskName) {
 		sprintf(diskName, "maps/%s.bsp").S(fullMapName);
 	}
-	private void ReceiveUpArrow() {
-
-	}
-
-	private void ReceiveDownArrow() {
-
-	}
-
-	private void ReceiveLeftArrow() {
-		if (cursorPosition <= 0)
-			return;
-		Console.Write('\b');
-		cursorPosition--;
-	}
-
-	private void ReceiveRightArrow() {
-		if (cursorPosition >= consoleTextLen)
-			return;
-		Console.Write(consoleText[cursorPosition]);
-		cursorPosition++;
-	}
-
-	private void ReceiveTab() {
-
-	}
-
-	private void ReceiveBackspace() {
-		int count;
-		if (cursorPosition <= 0)
-			return;
-		consoleTextLen--;
-		cursorPosition--;
-
-		Console.Write('\b');
-		for (count = cursorPosition; count < consoleTextLen; count++) {
-			consoleText[count] = consoleText[count + 1];
-			Console.Write(consoleText[count]);
-		}
-
-		Console.Write(' ');
-		count = consoleTextLen;
-		while (count >= cursorPosition) {
-			Console.Write('\b');
-			count--;
-		}
-	}
-
-	private ReadOnlySpan<char> ReceiveNewLine() {
-		Console.WriteLine();
-		int len = 0;
-		if (consoleTextLen > 0) {
-			len = consoleTextLen;
-			consoleTextLen = 0;
-			cursorPosition = 0;
-			return consoleText.AsSpan()[..len];
-		}
-		else
-			return null;
-	}
-
-	private void ReceiveStandardChar(char ch) {
-		int count;
-		if (consoleTextLen >= (consoleText.Length - 2))
-			return;
-
-		count = consoleTextLen;
-		while (count > cursorPosition) {
-			consoleText[count] = consoleText[count - 1];
-			count--;
-		}
-
-		consoleText[cursorPosition] = ch;
-
-		Console.Write(new string(new ReadOnlySpan<char>(consoleText))[cursorPosition..(cursorPosition + (consoleTextLen - cursorPosition + 1))]);
-		consoleTextLen++;
-		cursorPosition++;
-		count = consoleTextLen;
-		while (count > cursorPosition) {
-			Console.Write('\b');
-			count--;
-		}
-	}
-
 	const TimeUnit_t FPS_AVG_FRAC = 0.9;
 
 	private void PostFrameRate(TimeUnit_t frameTime) {
@@ -977,7 +795,9 @@ public class Host(
 		SV.InitGameServerSteam();
 
 		if (!modelloader.Map_IsValid(_mapFile)) {
+#if !SWDS
 			Scr.EndLoadingPlaque();
+#endif
 			return false;
 		}
 
@@ -1265,7 +1085,9 @@ public class Host(
 			return;
 
 		bool rememberLocation = args.ArgC() == 2 && args[1].Equals("setpos", StringComparison.OrdinalIgnoreCase);
+#if !SWDS
 		Scr.BeginLoadingPlaque();
+#endif
 		Disconnect(false);
 		Dbg.Msg("reload incomplete!\n");
 	}

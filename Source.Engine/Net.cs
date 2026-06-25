@@ -652,7 +652,7 @@ public class Net
 			return;
 		}
 
-		if (Dedicated && !Multiplayer) {
+		if (Dedicated && !multiplayer) {
 			Warning("Warning: Cannot use singleplayer mode on a dedicated server\n");
 			return;
 		}
