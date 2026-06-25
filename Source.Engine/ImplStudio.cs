@@ -40,7 +40,7 @@ public class ModelRender : IModelRender
 	static readonly ConVar r_drawmodelstatsoverlay = new("r_drawmodelstatsoverlay", "0", FCvar.Cheat);
 	static readonly ConVar r_drawmodelstatsoverlaydistance = new("r_drawmodelstatsoverlaydistance", "500", FCvar.Cheat);
 	static readonly ConVar r_drawmodellightorigin = new("r_DrawModelLightOrigin", "0", FCvar.Cheat);
-	readonly ConVar r_lod = new("r_lod", "-1", 0, "");
+	static readonly ConVar r_lod = new("r_lod", "-1", 0, "");
 	static readonly ConVar r_entity = new("r_entity", "-1", FCvar.Cheat | FCvar.DevelopmentOnly);
 	static readonly ConVar r_lightaverage = new("r_lightaverage", "1", 0, "Activates/deactivate light averaging");
 	static readonly ConVar r_lightinterp = new("r_lightinterp", "5", FCvar.Cheat, "Controls the speed of light interpolation, 0 turns off interpolation");

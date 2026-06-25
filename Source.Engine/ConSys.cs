@@ -427,7 +427,11 @@ public class ConPanel : BasePanel
 #endif
 
 
-public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInput Input, IBaseClientDLL ClientDLL)
+public class Con(Host Host, ICvar cvar
+#if !SWDS
+, IEngineVGuiInternal EngineVGui, IVGuiInput Input, IBaseClientDLL ClientDLL
+#endif
+)
 {
 #if !SWDS
 	static ConPanel? conPanel = null;
@@ -438,6 +442,7 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 	void toggleconsole() => ToggleConsole();
 
 	public void ShowConsole() {
+#if !SWDS
 		if (Input.GetAppModalSurface() != null)
 			return;
 
@@ -448,20 +453,25 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 			EngineVGui.ShowConsole();
 			Singleton<Scr>().EndLoadingPlaque();
 		}
+#endif
 	}
 
 	public void HideConsole() {
+	#if !SWDS
 		if (EngineVGui.IsConsoleVisible())
 			EngineVGui.HideConsole();
+#endif
 	}
 
 	public void ToggleConsole() {
+#if !SWDS
 		if (EngineVGui.IsConsoleVisible()) {
 			HideConsole();
 			EngineVGui.HideGameUI();
 		}
 		else
 			ShowConsole();
+#endif
 	}
 
 	public void Init() { }

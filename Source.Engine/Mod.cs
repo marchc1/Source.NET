@@ -7,8 +7,10 @@ using Source.Engine.Client;
 
 namespace Source.Engine;
 
-public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, ICommandLine commandLine, IMaterialSystem materials, IVideoMode videomode) : IMod
+public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, IMaterialSystem materials) : IMod
 {
+	IVideoMode videomode = Singleton<IVideoMode>()!;
+
 	private bool IsServerOnly(IEngineAPI api) => ((EngineAPI)api).Dedicated;
 
 	public bool InitRegistry(ReadOnlySpan<char> modName) {
@@ -37,8 +39,10 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 		bool windowed = config.Windowed();
 		bool borderless = config.NoWindowBorder();
 
-		videomode.Init();
+		if (videomode == null)
+			return false;
 
+		videomode.Init();
 		return videomode.CreateGameWindow(new(width, height, windowed, borderless));
 	}
 
@@ -50,6 +54,7 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 		if (IsServerOnly(engineAPI)) {
 			if (eng.Load(true, host_parms.BaseDir)) {
 				// Dedicated stuff one day?
+				Msg("Congrats, dedicated can boot...");
 			}
 		}
 		else {

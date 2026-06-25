@@ -117,10 +117,10 @@ public class ClientState : BaseClientState
 		Cbuf Cbuf, Cmd Cmd, ICvar cvar, IHostState HostState, Scr Scr, IEngineAPI engineAPI,
 		IServiceProvider services,
 		IModelLoader modelloader, ICommandLine commandLine,
+		[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient, 
 
 #if !SWDS
 		IPrediction ClientSidePrediction, 
-		[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient, 
 		IEngineVGuiInternal? EngineVGui,
 		CL CL, 
 		DtCommonEng DtCommonEng, 
@@ -128,12 +128,7 @@ public class ClientState : BaseClientState
 #endif
 		ClientGlobalVariables clientGlobalVariables, Sound Sound
 		)
-		: base(Host, fileSystem, Net, Cbuf, cvar, engineAPI
-#if !SWDS
-		, EngineVGui, networkStringTableContainerClient
-#else
-		, null!, null!
-#endif
+		: base(Host, fileSystem, Net, Cbuf, cvar, networkStringTableContainerClient
 		) {
 		this.Host = Host;
 		this.fileSystem = fileSystem;

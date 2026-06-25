@@ -1417,7 +1417,7 @@ public class Menu : Panel
 
 class MenuManager
 {
-	private IVGuiInput Input = Singleton<IVGuiInput>();
+	private IVGuiInput Input = OptionalSingleton<IVGuiInput>()!;
 	private readonly List<Menu> Menus = [];
 	public static MenuManager Instance = new();
 
