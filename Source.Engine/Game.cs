@@ -169,6 +169,11 @@ public class Game : IGame
 	uint DesktopHeight;
 	uint DesktopRefreshRate;
 	public void GetDesktopInfo(out uint width, out uint height, out uint refreshRate) {
+#if SWDS
+		width = 0;
+		height = 0;
+		refreshRate = 60;
+#else
 		// order of initialization means that this might get called early.  In that case go ahead and grab the current
 		// screen window and setup based on that.
 		// we need to do this when initializing the base list of video modes, for example
@@ -180,6 +185,7 @@ public class Game : IGame
 		width = DesktopWidth;
 		height = DesktopHeight;
 		refreshRate = DesktopRefreshRate;
+#endif
 	}
 
 	void UpdateDesktopInformation() => launcherManager!.GetNativeDisplayInfo(0, out DesktopWidth, out DesktopHeight, out DesktopRefreshRate);

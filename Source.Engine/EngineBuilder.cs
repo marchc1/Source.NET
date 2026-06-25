@@ -137,6 +137,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<Key>();
 		this.AddSingleton<Host>();
 		this.AddSingleton<MatSysInterface>();
+		this.AddSingleton<MaterialSystem_Config>();
 		this.AddSingleton<Net>();
 		this.AddKeyedSingleton<NetworkStringTableContainer>(Realm.Client);
 		this.AddKeyedSingleton(typeof(INetworkStringTableContainer), Realm.Client, (x, _) => x.GetRequiredKeyedService<NetworkStringTableContainer>(Realm.Client));
