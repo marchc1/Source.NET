@@ -1,9 +1,20 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
+using System.Reflection;
+
 namespace Source.Common.Engine;
 
 public interface IEngineAPI : IServiceProvider, IKeyedServiceProvider
 {
+	
+	List<MemberInfo> __INTERNAL_FilledDependencies { get; set; }
+}
+
+public interface IClientLauncherAPI : IEngineAPI
+{
+	public void SetStartupInfo(in StartupInfo info);
+	bool MainLoop();
+
 	public enum Result
 	{
 		InitFailed = 0,
@@ -14,9 +25,13 @@ public interface IEngineAPI : IServiceProvider, IKeyedServiceProvider
 	}
 
 	public Result Run();
-	public void SetStartupInfo(in StartupInfo info);
-	bool MainLoop();
 }
+
+public interface IDedicatedExports {
+	void Sys_Printf(ReadOnlySpan<char> text);
+	void RunServer();
+}
+
 public delegate void PreInject(IServiceCollection services);
 
 public delegate void PreInjectInstance<T>(IServiceProvider services);

@@ -2,6 +2,6 @@
 
 public enum ModResult
 {
-	RunOK = IEngineAPI.Result.RunOK,
-	RunRestart = IEngineAPI.Result.RunRestart,
+	RunOK = IClientLauncherAPI.Result.RunOK,
+	RunRestart = IClientLauncherAPI.Result.RunRestart,
 }

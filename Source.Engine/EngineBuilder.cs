@@ -13,6 +13,8 @@ using Source.Engine.Client;
 using Source.Engine.Server;
 
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 
 namespace Source.Engine;
 
@@ -111,14 +113,10 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		}
 	}
 
-	/// <summary>
-	/// Finalizes the dependency injection setup and returns a finalized <see cref="IServiceProvider"/> (as an <see cref="EngineAPI"/>).
-	/// </summary>
-	/// <param name="dedicated"></param>
-	/// <returns></returns>
-	public EngineAPI Build(bool dedicated) {
+	void PreBuildAllForms() {
 		SetMainThread(); // Setup ThreadUtils
 						 // We got the ICommandLine from EngineBuilder, insert it into the app system
+		ConVar.Register = ConVar_Register;
 		this.AddSingleton(cmdLine);
 		// Internal methods. These are class instances for better restart
 		// support, and I feel like every time I try this, I end up getting
@@ -159,31 +157,21 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<EngineParms>();
 		this.AddSingleton<ClientDLL>();
 		this.AddSingleton<IVideoMode, VideoMode_MaterialSystem>();
-#if !SWDS
-#endif
 		this.AddSingleton<IRender, Render>(x => x.GetRequiredService<Render>());
 		this.AddSingleton<IRegistry, Registry>();
-#if !SWDS
-		this.AddSingleton<IRenderView, RenderView>();
-#endif
+
+		this.AddSingleton<IEngineServer, EngineServer>();
+		// We have to tell the dependency injection system how to resolve parent classes ourselves.
+		this.AddSingleton<BaseServer>(x => x.GetRequiredService<GameServer>());
+		// Singleton implementations of IEngineAPI and IEngine
+		this.AddSingleton<IEngineAPI, ClientLauncherAPI>();
+		this.AddSingleton<IEngine, GameEngine>();
 		this.AddSingleton<ModelLoader>();
 		this.AddSingleton<IModelLoader>(x => x.GetRequiredService<ModelLoader>());
-
-#if !SWDS
-		this.AddKeyedSingleton<EngineTraceClient>(Realm.Client);
-		this.AddKeyedSingleton(typeof(IEngineTrace), Realm.Client, (x, _) => x.GetRequiredKeyedService<EngineTraceClient>(Realm.Client));
-#endif
 		this.AddKeyedSingleton<EngineTraceServer>(Realm.Server);
 		this.AddKeyedSingleton(typeof(IEngineTrace), Realm.Server, (x, _) => x.GetRequiredKeyedService<EngineTraceServer>(Realm.Server));
-
-#if !SWDS
-		this.AddKeyedSingleton<EngineSoundClient>(Realm.Client);
-		this.AddKeyedSingleton(typeof(IEngineSound), Realm.Client, (x, _) => x.GetRequiredKeyedService<EngineSoundClient>(Realm.Client));
-#endif
 		this.AddKeyedSingleton<EngineSoundServer>(Realm.Server);
 		this.AddKeyedSingleton(typeof(IEngineSound), Realm.Server, (x, _) => x.GetRequiredKeyedService<EngineSoundServer>(Realm.Server));
-
-
 		this.AddSingleton<ISpatialPartition, SpatialPartitionImpl>(x => g_SpatialPartition);
 		this.AddSingleton<IGame, Game>();
 		this.AddSingleton<IVDebugOverlay, DebugOverlay>();
@@ -201,30 +189,9 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<ISoundServices, EngineSoundServices>();
 		this.AddSingleton<IGameUIFuncs, GameUIFuncs>();
 		this.AddSingleton<DtCommonEng>();
-		// Engine datacache
-#if !SWDS
-		this.AddSingleton<IModelRender, ModelRender>();
-		this.AddSingleton<IVModelInfoClient, ModelInfoClient>();
-		this.AddSingleton<IVModelInfo>(x => x.GetRequiredService<IVModelInfoClient>());
-#else
-		this.AddSingleton<IVModelInfoClient, ModelInfoServer>();
-		this.AddSingleton<IVModelInfo>(x => x.GetRequiredService<IVModelInfoClient>());
-#endif
-#if !SWDS
-		// Engine VGUI and how to read it later
-		this.AddSingleton<EngineVGui>();
-		this.AddSingleton<IEngineVGuiInternal, EngineVGui>(x => x.GetRequiredService<EngineVGui>());
-		this.AddSingleton<IEngineVGui, EngineVGui>(x => x.GetRequiredService<EngineVGui>());
-		// These interfaces go to client and game dll's
-		this.AddSingleton<IEngineClient, EngineClient>();
-#endif
-		this.AddSingleton<IEngineServer, EngineServer>();
-		// We have to tell the dependency injection system how to resolve parent classes ourselves.
-		this.AddSingleton<BaseServer>(x => x.GetRequiredService<GameServer>());
-		// Singleton implementations of IEngineAPI and IEngine
-		this.AddSingleton<IEngineAPI, EngineAPI>();
-		this.AddSingleton<IEngine, GameEngine>();
+	}
 
+	T PostBuildAllForms<T>() where T : IEngineAPI {
 		List<Type> wantsInjection = [];
 		object?[]? linkInput = [this];
 		List<MemberInfo> populateLater = [];
@@ -272,8 +239,8 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		// Start using this provider for the engine
 		using ServiceLocatorScope locatorScope = new(provider);
 
-		EngineAPI api = (EngineAPI)provider.GetRequiredService<IEngineAPI>();
-		api.filledDependencies = filledDependencies;
+		T api = (T)provider.GetRequiredService<IEngineAPI>();
+		api.__INTERNAL_FilledDependencies = filledDependencies;
 
 		object? getService(Type service, DependencyAttribute depAttr) {
 			if (depAttr is KeyedDependencyAttribute keyed)
@@ -305,7 +272,194 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 			handleSet(member, member.GetCustomAttribute<KeyedDependencyAttribute>());
 		}
 
-		api.Dedicated = dedicated;
 		return api;
+	}
+
+	/// <summary>
+	/// Finalizes the dependency injection setup and returns a finalized <see cref="IServiceProvider"/> (as a <see cref="ClientLauncherAPI"/>).
+	/// </summary>
+	/// <param name="dedicated"></param>
+	/// <returns></returns>
+	public ClientLauncherAPI BuildClient() {
+		PreBuildAllForms();
+#if !SWDS
+		this.AddSingleton<IRenderView, RenderView>();
+		this.AddKeyedSingleton<EngineTraceClient>(Realm.Client);
+		this.AddKeyedSingleton(typeof(IEngineTrace), Realm.Client, (x, _) => x.GetRequiredKeyedService<EngineTraceClient>(Realm.Client));
+		this.AddKeyedSingleton<EngineSoundClient>(Realm.Client);
+		this.AddKeyedSingleton(typeof(IEngineSound), Realm.Client, (x, _) => x.GetRequiredKeyedService<EngineSoundClient>(Realm.Client));
+		this.AddSingleton<IModelRender, ModelRender>();
+		this.AddSingleton<IVModelInfoClient, ModelInfoClient>();
+		this.AddSingleton<IVModelInfo>(x => x.GetRequiredService<IVModelInfoClient>());
+		// Engine VGUI and how to read it later
+		this.AddSingleton<EngineVGui>();
+		this.AddSingleton<IEngineVGuiInternal, EngineVGui>(x => x.GetRequiredService<EngineVGui>());
+		this.AddSingleton<IEngineVGui, EngineVGui>(x => x.GetRequiredService<EngineVGui>());
+		// These interfaces go to client and game dll's
+		this.AddSingleton<IEngineClient, EngineClient>();
+#endif
+		return PostBuildAllForms<ClientLauncherAPI>();
+	}
+
+	/// <summary>
+	/// Finalizes the dependency injection setup and returns a finalized <see cref="IServiceProvider"/> (as a <see cref="DedicatedServerAPI"/>).
+	/// </summary>
+	/// <param name="dedicated"></param>
+	/// <returns></returns>
+	public DedicatedServerAPI BuildServer() {
+		PreBuildAllForms();
+		this.AddSingleton<IVModelInfoClient, ModelInfoServer>();
+		this.AddSingleton<IVModelInfo>(x => x.GetRequiredService<IVModelInfoClient>());
+		return PostBuildAllForms<DedicatedServerAPI>();
+	}
+
+	static IEnumerable<Type> safeTypeGet(Assembly assembly) {
+		IEnumerable<Type?> types;
+		try {
+			types = assembly.GetTypes();
+		}
+		catch (ReflectionTypeLoadException e) {
+			types = e.Types;
+		}
+		foreach (var t in types.Where(t => t != null && t.Assembly.GetName().Name != "Steamworks.NET"))
+			yield return t!;
+	}
+
+	private static object? DetermineInstance(IEngineAPI engineAPI, Type type, bool concommand, ReadOnlySpan<char> name) {
+		// We need to find an appropriate instance of the type in question.
+		// If it's not registered with the dependency injection framework, then we can't really link anything
+		// Should've made it static...
+		object? instance = engineAPI.GetService(type);
+
+		// As a last resort, try pulling at interface types.
+		if (instance == null) {
+			foreach (var iface in type.GetInterfaces()) {
+				instance = engineAPI.GetService(iface);
+				if (instance != null)
+					return instance;
+			}
+		}
+		else
+			return instance;
+
+		throw new Exception($"{(concommand ? "ConCommand" : "ConVar")} at member '{name}' was marked as by-instance, and the EngineAPI cannot find an instance of the type it's contained in ({type.Name}). Review if the instance type is an engine component, or if this should be a static field/method. If you are trying to hold a reference to a ConVar, either use a ConVarRef or mark the field/property with a [CvarIgnore] attribute.");
+	}
+
+	static bool cvar_initialized;
+	public static void ConVar_Register() {
+		var engineAPI = Singleton<IEngineAPI>();
+		ICvar cvar = engineAPI.GetRequiredService<ICvar>();
+		var assemblies = AppDomain.CurrentDomain.GetAssemblies()
+			.Where(ReflectionUtils.IsOkAssembly);
+
+		Type CVAR = typeof(ConVar);
+		Type CCMD = typeof(ConCommand);
+
+		foreach (var assembly in assemblies) {
+			cvar.SetAssemblyIdentifier(assembly);
+			foreach (var type in assembly.GetTypes()) {
+				if (type.IsAssignableTo(typeof(ConVar)) || type == typeof(ConVarRef))
+					continue;
+
+				var props = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+				var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+				var methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static);
+
+				// If any props/fields exist, run the cctor so we can pull out static cvars/concmds
+				if ((props.Length + fields.Length) > 0) {
+					try {
+						RuntimeHelpers.RunClassConstructor(type.TypeHandle);
+					}
+					catch (TypeInitializationException tie) when (tie.InnerException != null) {
+						ExceptionDispatchInfo.Capture(tie.InnerException).Throw();
+						throw;
+					}
+				}
+
+				for (int i = 0; i < props.Length; i++) {
+					PropertyInfo prop = props[i];
+					if (!prop.PropertyType.IsAssignableTo(CVAR))
+						continue;
+					if (prop.GetCustomAttribute<CvarIgnoreAttribute>() != null)
+						continue;
+
+					var getMethod = prop.GetGetMethod();
+
+					if (getMethod == null)
+						continue;
+
+					if (getMethod.IsStatic) {
+						// Pull a static reference out to link
+						ConVar? cv = (ConVar?)getMethod.Invoke(null, null);
+						if (cv == null) continue;
+						if (cv.GetName() == null) cv.SetName(prop.Name);
+						cvar.RegisterConCommand(cv);
+					}
+					else {
+						object? instance = DetermineInstance(engineAPI, type, false, prop.Name);
+						ConVar? cv = (ConVar?)getMethod.Invoke(instance, null);
+						if (cv == null) continue;
+						if (cv.GetName() == null) cv.SetName(prop.Name);
+						cvar.RegisterConCommand(cv);
+					}
+				}
+
+				for (int i = 0; i < fields.Length; i++) {
+					FieldInfo field = fields[i];
+					if (!field.FieldType.IsAssignableTo(CVAR))
+						continue;
+					if (field.GetCustomAttribute<CvarIgnoreAttribute>() != null)
+						continue;
+
+					if (field.IsStatic) {
+						// Pull a static reference out to link
+						ConVar? cv = (ConVar?)field.GetValue(null);
+						if (cv == null) continue;
+						if (cv.GetName() == null) cv.SetName(field.Name);
+						cvar.RegisterConCommand(cv);
+					}
+					else {
+						object? instance = DetermineInstance(engineAPI, type, false, field.Name);
+						ConVar? cv = (ConVar?)field.GetValue(instance);
+						if (cv == null) continue;
+						if (cv.GetName() == null) cv.SetName(field.Name);
+						cvar.RegisterConCommand(cv);
+					}
+				}
+
+				for (int i = 0; i < methods.Length; i++) {
+					MethodInfo method = methods[i];
+					ConCommandAttribute? cmdAttr = method.GetCustomAttribute<ConCommandAttribute>();
+					if (cmdAttr == null)
+						continue;
+
+					ConCommandAttribute attribute = method.GetCustomAttribute<ConCommandAttribute>()!; // < never null!
+					object? instance = method.IsStatic ? null : DetermineInstance(engineAPI, type, true, method.Name);
+
+					// Lets see if we can find a FnCommandCompletionCallback...
+					FnCommandCompletionCallback? completionCallback = null;
+					if (attribute.AutoCompleteMethod != null)
+						type.TryExtractMethodDelegate(instance, x => x.Name == attribute.AutoCompleteMethod, out completionCallback);
+
+					// Construct a new ConCommand
+					string cmdName = attribute.Name ?? method.Name;
+					string? helpText = attribute.HelpText;
+					FCvar flags = attribute.Flags;
+
+					ConCommand cmd;
+
+					if (method.TryToDelegate<FnCommandCallbackVoid>(instance, out var callbackVoid))
+						cmd = new(cmdName, callbackVoid, helpText, flags, completionCallback);
+					else if (method.TryToDelegate<FnCommandCallback>(instance, out var callback))
+						cmd = new(cmdName, callback, helpText, flags, completionCallback);
+					else if (method.TryToDelegate<FnCommandCallbackSourced>(instance, out var callbackSourced))
+						cmd = new(cmdName, callbackSourced, helpText, flags, completionCallback);
+					else
+						throw new ArgumentException("Cannot dynamically produce ConCommand with the arguments we were given");
+
+					cvar.RegisterConCommand(cmd);
+				}
+			}
+		}
 	}
 }

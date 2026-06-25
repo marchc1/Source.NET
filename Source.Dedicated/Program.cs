@@ -26,7 +26,7 @@ namespace Source.Dedicated;
 public class Bootloader : IDisposable
 {
 	ICommandLine commandLine;
-	IEngineAPI? engineAPI;
+	IDedicatedServerAPI? engineAPI;
 
 	string baseDir;
 	bool isEditMode;
@@ -40,57 +40,45 @@ public class Bootloader : IDisposable
 		isTextMode = commandLine.CheckParm("-textmode");
 	}
 	public void Boot() {
-		bool needsRestart;
-		do {
-			engineAPI = new EngineBuilder(commandLine)
-				// These assemblies have no reference to them, so they must be manually loaded.
-				.WithAssembly("Source.VTF")
-				.WithStubMaterialSystem()
-				// Base file system implementation
-				.WithComponent<IFileSystem, BaseFileSystem>()
-				// Physics
-				.WithComponent<IPhysics, PhysicsInterface>()
-				// Sound emitter
-				.WithComponent<ISoundEmitterSystemBase, SoundEmitterSystemBase>()
-				// Datacache impl
-				.WithComponent<IDataCache, DataCache.DataCache>()
-				.WithComponent<MDLCache>()
-				.WithResolvedComponent<IMDLCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
-				.WithResolvedComponent<IStudioDataCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
-				// Our game DLL'
-				.WithGameDLL<ServerGameDLL>()
-				// Let the engine builder take over and inject engine-specific dependencies
-				.Build(dedicated: true);
+		engineAPI = new EngineBuilder(commandLine)
+			// These assemblies have no reference to them, so they must be manually loaded.
+			.WithAssembly("Source.VTF")
+			.WithStubMaterialSystem()
+			// Base file system implementation
+			.WithComponent<IFileSystem, BaseFileSystem>()
+			// Physics
+			.WithComponent<IPhysics, PhysicsInterface>()
+			// Sound emitter
+			.WithComponent<ISoundEmitterSystemBase, SoundEmitterSystemBase>()
+			// Datacache impl
+			.WithComponent<IDataCache, DataCache.DataCache>()
+			.WithComponent<MDLCache>()
+			.WithResolvedComponent<IMDLCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
+			.WithResolvedComponent<IStudioDataCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
+			// Our game DLL'
+			.WithGameDLL<ServerGameDLL>()
+			// Let the engine builder take over and inject engine-specific dependencies
+			.BuildServer();
 
-			// Generate our startup information
-			PreInit();
+		// Generate our startup information
+		PreInit();
 
-			// Start using this provider for the engine
-			using ServiceLocatorScope locatorScope = new(engineAPI);
-
-			// Run the game
-			var res = engineAPI.Run();
-
-			// If the engine requested a restart, re-loop
-			needsRestart = res == IEngineAPI.Result.InitRestart || res == IEngineAPI.Result.RunRestart;
-		} while (needsRestart);
+		// Start using this provider for the engine
+		using ServiceLocatorScope locatorScope = new(engineAPI);
+		if (engineAPI.ModInit(in info))
+			engineAPI.ModShutdown();
 	}
 
 	static void GetBaseDirectory(ICommandLine cmdLine, out string baseDirectory) {
 		baseDirectory = cmdLine.CheckParm("-basedir", out var values) ? values.FirstOrDefault() ?? AppContext.BaseDirectory : AppContext.BaseDirectory;
 	}
 
+	StartupInfo info = new();
 	private void PreInit() {
-		StartupInfo info = new();
 		info.BaseDirectory = baseDir;
 		info.InitialMod = DetermineInitialMod();
 		info.InitialGame = DetermineInitialGame();
 		info.TextMode = isTextMode;
-
-		engineAPI!.SetStartupInfo(in info);
-
-		// Preload VGUI controls
-		Panel.InitializeControls();
 	}
 
 	const string defaultHalfLife2GameDirectory = "hl2";

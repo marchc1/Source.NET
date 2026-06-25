@@ -45,7 +45,7 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 	}
 
 	private void RecomputeClientViewRect() {
-		if (!Sys.InEditMode()) {
+		if (!InEditMode()) {
 			if (!ClientViewRectDirty)
 				return;
 		}
@@ -105,7 +105,7 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 	public void MarkClientViewRectDirty() => ClientViewRectDirty = true;
 
 	public bool CreateGameWindow(in UserVideoMode videoMode) {
-		if (true) { // !InEditMode(), we aren't doing edit mode right now, so just true
+		if (!InEditMode()) {
 			ResetCurrentModeForNewResolution(videoMode.Width, videoMode.Height, videoMode.Windowed, videoMode.Borderless);
 
 			// Aggggghhh i hate this

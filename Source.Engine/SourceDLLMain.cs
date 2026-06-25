@@ -47,6 +47,7 @@ public static class SourceDllMain
 	[Dependency] public static ServerGlobalVariables serverGlobalVariables { get; private set; } = null!;
 	public static IMaterialSystem materialSystem { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => materials; }
 	[Dependency(Required = false)] public static IDebugTextureInfo materialSystemDebugTextureInfo { get; private set; } = null!;
+	[Dependency(Required = false)] public static IDedicatedExports dedicated { get; private set; } = null!;
 	[Dependency] public static IRegistry registry { get; private set; } = null!;
 	[Dependency] public static Cbuf cbuf { get; private set; } = null!;
 	[Dependency] public static ICvar cvar { get; private set; } = null!;
