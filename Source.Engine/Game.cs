@@ -35,17 +35,17 @@ public class Game : IGame
 	readonly Host Host;
 	IBaseClientDLL? clientDLL;
 	readonly IServiceProvider services;
-	readonly Key Key;
-	public Game(Host host, Sys Sys, IFileSystem fileSystem, IEngine eng, IServiceProvider services, Key Key) {
+	readonly Key? Key;
+	public Game(Host host, Sys Sys, IFileSystem fileSystem, IEngine eng, IServiceProvider services) {
 		Host = host;
 		this.Sys = Sys;
 		this.fileSystem = fileSystem;
 		this.eng = eng;
 		this.services = services;
-		this.Key = Key;
 		clientDLL = services.GetService<IBaseClientDLL>();
 		inputSystem = services.GetService<IInputSystem>();
 		surface = services.GetService<IMatSystemSurface>();
+		this.Key = services.GetService<Key>();
 	}
 	GameMessageHandler[]? GameMessageHandlers;
 
@@ -148,7 +148,7 @@ public class Game : IGame
 			case InputEventType.IE_ButtonPressed:
 			case InputEventType.IE_ButtonDoubleClicked:
 			case InputEventType.IE_ButtonReleased:
-				Key.Event(in ev);
+				Key?.Event(in ev);
 				break;
 			default:
 				if (surface?.HandleInputEvent(in ev) ?? false)

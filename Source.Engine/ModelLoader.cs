@@ -180,10 +180,10 @@ public class MDLCacheNotify : IMDLCacheNotify
 	public static readonly MDLCacheNotify s = new();
 }
 
-public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
-						 IEngineVGuiInternal EngineVGui, MatSysInterface materials,
+public class ModelLoader(IFileSystem fileSystem, Host Host,
+						 MatSysInterface materials,
 						 IMaterialSystemHardwareConfig materialSystemHardwareConfig,
-						 IMDLCache MDLCache, IStudioRender StudioRender, IBaseClientDLL g_ClientDLL, MatSysInterface matSys, ICommandLine CommandLine) : IModelLoader
+						 IMDLCache MDLCache, IStudioRender StudioRender,MatSysInterface matSys) : IModelLoader
 {
 	public int GetCount() {
 		throw new NotImplementedException();

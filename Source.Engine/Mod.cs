@@ -11,6 +11,15 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 {
 	private bool IsServerOnly(IEngineAPI api) => ((EngineAPI)api).Dedicated;
 
+	public bool InitRegistry(ReadOnlySpan<char> modName) {
+		Span<char> regSubPath = stackalloc char[260];
+		// NOTE: I decided to prefix the path here with sdn_ so we don't touch config for the actual hl2 etc -Callum
+		int n = sprintf(regSubPath, "%s\\sdn_%s").S("Source").S(modName);
+		return registry.Init(regSubPath[..n]);
+	}
+
+	public void ShutdownRegistry() => registry.Shutdown();
+
 	public bool Init(string initialMod, string initialGame) {
 		host_parms.Mod = initialMod;
 		host_parms.Game = initialGame;
@@ -20,8 +29,8 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 			cl.RestrictClientCommands = false;
 		}
 
-		((EngineAPI)services.GetRequiredService<IEngineAPI>()).InitRegistry(initialMod);
-
+		InitRegistry(initialMod);
+		
 		MaterialSystem_Config config = materials.GetCurrentConfigForVideoCard();
 		int width = config.VideoMode.Width;
 		int height = config.VideoMode.Height;
@@ -62,6 +71,9 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 	}
 
 	public void Shutdown() {
-		((EngineAPI)services.GetRequiredService<IEngineAPI>()).ShutdownRegistry();
+		host_parms.Mod = null!;
+		host_parms.Game = null!;
+		Singleton<IGame>().InputDetachFromGameWindow();
+		ShutdownRegistry();
 	}
 }

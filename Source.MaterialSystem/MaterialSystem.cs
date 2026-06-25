@@ -19,6 +19,27 @@ using System.Runtime.InteropServices;
 
 namespace Source.MaterialSystem;
 
+public static class MatSysBootstrap {
+
+	public static T WithFullMaterialSystem<T>(this T services) where T : IServiceCollection {
+		services.AddSingleton<MaterialSystem>();
+		services.AddSingleton<MatSystemSurface>();
+		services.AddSingleton<IMatSystemSurface>(x => x.GetRequiredService<MatSystemSurface>());
+		services.AddSingleton<ISurface>(x => x.GetRequiredService<MatSystemSurface>());
+		services.AddSingleton<ITextureManager, TextureManager>();
+		services.AddSingleton<MaterialSystem_Config>();
+		return services;
+	}
+
+	public static T WithStubMaterialSystem<T>(this T services) where T : IServiceCollection {
+		services.AddSingleton<DummyMaterialSystem>();
+		services.AddSingleton<DummyHardwareConfig>();
+		services.AddSingleton<IMaterialSystemHardwareConfig, DummyHardwareConfig>(x => x.GetRequiredService<DummyHardwareConfig>());
+		return services;
+	}
+
+}
+
 public class MaterialSystem : IMaterialSystem, IShaderUtil
 {
 	public readonly MaterialDict MaterialDict;
@@ -87,14 +108,6 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 	readonly static ConVar r_waterforceexpensive = new("0", FCvar.Archive);
 	readonly static ConVar r_waterforcereflectentities = new("0", 0);
 	readonly static ConVar mat_motion_blur_enabled = new("0", FCvar.Archive);
-
-	public static void DLLInit(IServiceCollection services) {
-		services.AddSingleton<MatSystemSurface>();
-		services.AddSingleton<IMatSystemSurface>(x => x.GetRequiredService<MatSystemSurface>());
-		services.AddSingleton<ISurface>(x => x.GetRequiredService<MatSystemSurface>());
-		services.AddSingleton<ITextureManager, TextureManager>();
-		services.AddSingleton<MaterialSystem_Config>();
-	}
 
 	public MaterialSystem(IServiceProvider services) {
 		MaterialDict = new(this);

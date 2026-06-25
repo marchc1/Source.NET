@@ -388,3 +388,22 @@ public class ModelInfoClient(IFileSystem filesystem, IModelLoader modelloader, I
 		return cl.LookupModelIndex(name);
 	}
 }
+
+
+public class ModelInfoServer(IFileSystem filesystem, IModelLoader modelloader, IMDLCache mdlCache) : ModelInfo(filesystem, modelloader, mdlCache)
+{
+	public override Model? GetModel(int modelIndex) {
+		if (IsDynamicModelIndex(modelIndex))
+			return LookupDynamicModel(modelIndex);
+
+		return cl.GetModel(modelIndex);
+	}
+
+	protected override INetworkStringTable? GetDynamicModelStringTable() {
+		return cl.DynamicModelsTable;
+	}
+
+	protected override int LookupPrecachedModelIndex(ReadOnlySpan<char> name) {
+		return cl.LookupModelIndex(name);
+	}
+}

@@ -15,7 +15,11 @@ using System.Runtime.ExceptionServices;
 namespace Source.Engine;
 
 
-public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sys, IInputSystem inputSystem, MatSysInterface matSys) : IEngineAPI, IDisposable
+public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sys
+#if !SWDS
+, IInputSystem inputSystem, MatSysInterface matSys
+#endif
+) : IEngineAPI, IDisposable
 {
 	public bool Dedicated;
 
@@ -50,27 +54,14 @@ public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sy
 	}
 
 	public IEngineAPI.Result Run() {
-		InitRegistry(startupInfo.InitialMod);
-
 		services.GetRequiredService<IMaterialSystem>().ModInit();
-
 		ConVar_Register();
-
+#if !SWDS
 		matSys.InitMaterialSystemConfig(InEditMode());
-
-		ShutdownRegistry();
-
+#endif
 		return RunListenServer();
 	}
 
-	public bool InitRegistry(ReadOnlySpan<char> modName) {
-		Span<char> regSubPath = stackalloc char[260];
-		// NOTE: I decided to prefix the path here with sdn_ so we don't touch config for the actual hl2 etc -Callum
-		int n = sprintf(regSubPath, "%s\\sdn_%s").S("Source").S(modName);
-		return registry.Init(regSubPath[..n]);
-	}
-
-	public void ShutdownRegistry() => registry.Shutdown();
 
 	public object? GetService(Type serviceType) => services.GetService(serviceType);
 	public object? GetKeyedService(Type serviceType, object? key) => ((IKeyedServiceProvider)services).GetKeyedService(serviceType, key);
@@ -80,8 +71,8 @@ public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sy
 	public void PumpMessages() {
 #if !SWDS
 		launcherMgr.PumpWindowsMessageLoop();
-#endif
 		inputSystem.PollInputState();
+#endif
 		game.DispatchAllStoredGameMessages();
 	}
 	public void PumpMessagesEditMode(bool idle, long idleCount) => throw new NotImplementedException();

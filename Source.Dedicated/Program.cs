@@ -8,12 +8,14 @@ using Source.Common.Commands;
 using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.MaterialSystem;
 using Source.Common.Physics;
 using Source.Common.SoundEmitterSystem;
 using Source.DataCache;
 using Source.Engine;
 using Source.FileSystem;
 using Source.GUI.Controls;
+using Source.MaterialSystem;
 using Source.Physics;
 using Source.SoundEmitterSystem;
 
@@ -42,9 +44,8 @@ public class Bootloader : IDisposable
 		do {
 			engineAPI = new EngineBuilder(commandLine)
 				// These assemblies have no reference to them, so they must be manually loaded.
-				.WithAssembly("Source.GUI")
-				.WithAssembly("Source.GUI.Controls")
 				.WithAssembly("Source.VTF")
+				.WithStubMaterialSystem()
 				// Base file system implementation
 				.WithComponent<IFileSystem, BaseFileSystem>()
 				// Physics

@@ -134,7 +134,9 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<CvarUtilities>();
 		this.AddSingleton<ED>();
 		this.AddSingleton<FileSystem>();
+#if !SWDS
 		this.AddSingleton<Key>();
+#endif
 		this.AddSingleton<Host>();
 		this.AddSingleton<MatSysInterface>();
 		this.AddSingleton<Net>();
@@ -210,8 +212,11 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 #if !SWDS
 		this.AddSingleton<IModelRender, ModelRender>();
 		this.AddSingleton<IVModelInfoClient, ModelInfoClient>();
-#endif
 		this.AddSingleton<IVModelInfo>(x => x.GetRequiredService<IVModelInfoClient>());
+#else
+		this.AddSingleton<IVModelInfoClient, ModelInfoServer>();
+		this.AddSingleton<IVModelInfo>(x => x.GetRequiredService<IVModelInfoClient>());
+#endif
 #if !SWDS
 		// Engine VGUI and how to read it later
 		this.AddSingleton<EngineVGui>();

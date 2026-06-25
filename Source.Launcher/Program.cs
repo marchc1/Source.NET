@@ -22,6 +22,7 @@ using Source.DataCache;
 using Source.Engine;
 using Source.FileSystem;
 using Source.GUI.Controls;
+using Source.MaterialSystem;
 using Source.Physics;
 using Source.SDLManager;
 using Source.ShaderAPI.Gl46;
@@ -70,7 +71,7 @@ public class Bootloader : IDisposable
 				// Physics
 				.WithComponent<IPhysics, PhysicsInterface>()
 				// Rendering abstraction
-				.WithComponent<IMaterialSystem, MaterialSystem.MaterialSystem>()
+				.WithFullMaterialSystem()
 				.WithComponent<IShaderAPI, ShaderAPIGl46>()
 				.WithComponent<ISoundEmitterSystemBase, SoundEmitterSystemBase>()
 				// Datacache impl
