@@ -3,134 +3,160 @@ using Game.Shared;
 
 using Source;
 using Source.Common;
+using Source.Common.Mathematics;
 
-#if CLIENT_DLL
-namespace Game.Client;
-#else
-namespace Game.Server;
-#endif
 
 using Table =
 #if CLIENT_DLL
-	RecvTable;
+	Source.Common.RecvTable;
 #else
-	SendTable;
+	Source.Common.SendTable;
 #endif
 
 using Class =
 #if CLIENT_DLL
-	ClientClass;
+	Source.Common.ClientClass;
 #else
-	ServerClass;
+	Source.Common.ServerClass;
 #endif
 
 // ====================================================================================================== //
 // WeaponHL2MPBase
 // ====================================================================================================== //
+namespace Game
+{
+	public static partial class Util
+	{
+		public static void ClipPunchAngleOffset(ref QAngle input, in QAngle punch, in QAngle clip) {
+			QAngle final = input + punch;
 
-public partial class
+			//Clip each component
+			for (int i = 0; i < 3; i++) {
+				if (final[i] > clip[i]) {
+					final[i] = clip[i];
+				}
+				else if (final[i] < -clip[i]) {
+					final[i] = -clip[i];
+				}
+
+				//Return the result
+				input[i] = final[i] - punch[i];
+			}
+		}
+	}
+}
+
+#if CLIENT_DLL
+namespace Game.Client
+#else
+namespace Game.Server
+#endif
+
+{
+	public partial class
+#if CLIENT_DLL
+		C_WeaponHL2MPBase
+#else
+	WeaponHL2MPBase
+#endif
+		: BaseCombatWeapon
+	{
+		public static readonly Table DT_WeaponHL2MPBase = new(DT_BaseCombatWeapon, []);
+
+		public static readonly new Class
+#if CLIENT_DLL
+			ClientClass
+#else
+		ServerClass
+#endif
+			= new Class("WeaponHL2MPBase", DT_WeaponHL2MPBase).WithManualClassID(StaticClassIndices.CWeaponHL2MPBase);
+
+#if CLIENT_DLL
+		public static readonly new DataMap PredMap = new([], typeof(WeaponHL2MPBase), BaseCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
+		public override bool ShouldPredict() {
+			if (GetOwner() != null && GetOwner() == C_BasePlayer.GetLocalPlayer())
+				return true;
+			return base.ShouldPredict();
+		}
+#endif
+
+		public override bool IsPredicted() {
+			return true;
+		}
+
+		public
 #if CLIENT_DLL
 	C_WeaponHL2MPBase
 #else
 	WeaponHL2MPBase
 #endif
-	: BaseCombatWeapon
-{
-	public static readonly Table DT_WeaponHL2MPBase = new(DT_BaseCombatWeapon, []);
+		() {
+			SetPredictionEligible(true);
+		}
 
-	public static readonly new Class
+		public new void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
 #if CLIENT_DLL
-		ClientClass
-#else
-		ServerClass
-#endif
-		= new Class("WeaponHL2MPBase", DT_WeaponHL2MPBase).WithManualClassID(StaticClassIndices.CWeaponHL2MPBase);
-
-#if CLIENT_DLL
-	public static readonly new DataMap PredMap = new([], typeof(WeaponHL2MPBase), BaseCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
-	public override bool ShouldPredict() {
-		if (GetOwner() != null && GetOwner() == C_BasePlayer.GetLocalPlayer())
-			return true;
-		return base.ShouldPredict();
-	}
-#endif
-
-	public override bool IsPredicted() {
-		return true;
-	}
-
-	public
-#if CLIENT_DLL
-C_WeaponHL2MPBase
-#else
-	WeaponHL2MPBase
-#endif
-	() {
-		SetPredictionEligible(true);
-	}
-
-	public new void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
-#if CLIENT_DLL
-		ReadOnlySpan<char> shootsound = GetWpnData().ShootSounds[(int)soundType].AsSpan().SliceNullTerminatedString();
-		if (shootsound.IsEmpty || shootsound[0] == '\0')
-			return;
+			ReadOnlySpan<char> shootsound = GetWpnData().ShootSounds[(int)soundType].AsSpan().SliceNullTerminatedString();
+			if (shootsound.IsEmpty || shootsound[0] == '\0')
+				return;
 #else
 	base.WeaponSound(soundType, soundTime);
 #endif
+		}
 	}
-}
 
-// ====================================================================================================== //
-// BaseHL2MPCombatWeapon
-// ====================================================================================================== //
+	// ====================================================================================================== //
+	// BaseHL2MPCombatWeapon
+	// ====================================================================================================== //
 
-public partial class
+	public partial class
 #if CLIENT_DLL
-	C_BaseHL2MPCombatWeapon
+		C_BaseHL2MPCombatWeapon
 #else
 	BaseHL2MPCombatWeapon
 #endif
-	: WeaponHL2MPBase
-{
-	public static readonly Table DT_BaseHL2MPCombatWeapon = new(DT_BaseCombatWeapon, []);
+		: WeaponHL2MPBase
+	{
+		public static readonly Table DT_BaseHL2MPCombatWeapon = new(DT_BaseCombatWeapon, []);
 
-	public static readonly new Class
+		public static readonly new Class
 #if CLIENT_DLL
-		ClientClass
+			ClientClass
 #else
 		ServerClass
 #endif
-		= new Class("BaseHL2MPCombatWeapon", DT_BaseHL2MPCombatWeapon).WithManualClassID(StaticClassIndices.CBaseHL2MPCombatWeapon);
+			= new Class("BaseHL2MPCombatWeapon", DT_BaseHL2MPCombatWeapon).WithManualClassID(StaticClassIndices.CBaseHL2MPCombatWeapon);
 
-	protected bool Lowered;
-	protected TimeUnit_t RaiseTime;
-	protected TimeUnit_t HolsterTime;
+		protected bool Lowered;
+		protected TimeUnit_t RaiseTime;
+		protected TimeUnit_t HolsterTime;
 
-	public override bool Holster(BaseCombatWeapon switchingTo) {
-		if (base.Holster(switchingTo)) {
-			SetWeaponVisible(false);
-			HolsterTime = gpGlobals.CurTime;
-			return true;
+		public override bool Holster(BaseCombatWeapon switchingTo) {
+			if (base.Holster(switchingTo)) {
+				SetWeaponVisible(false);
+				HolsterTime = gpGlobals.CurTime;
+				return true;
+			}
+			return false;
 		}
-		return false;
-	}
 
 #if CLIENT_DLL
-	public static readonly new DataMap PredMap = new([], typeof(BaseHL2MPCombatWeapon), BaseCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
+		public static readonly new DataMap PredMap = new([], typeof(BaseHL2MPCombatWeapon), BaseCombatWeapon.PredMap); public override DataMap? GetPredDescMap() => PredMap;
 #endif
 
 #if CLIENT_DLL
-	public override void OnDataChanged(DataUpdateType updateType) {
-		base.OnDataChanged(updateType);
-		if (GetPredictable() && !ShouldPredict())
-			ShutdownPredictable();
-	}
+		public override void OnDataChanged(DataUpdateType updateType) {
+			base.OnDataChanged(updateType);
+			if (GetPredictable() && !ShouldPredict())
+				ShutdownPredictable();
+		}
 
-	public override bool ShouldPredict() {
-		if (GetOwner() != null && GetOwner() == C_BasePlayer.GetLocalPlayer())
-			return true;
-		return base.ShouldPredict();
-	}
+		public override bool ShouldPredict() {
+			if (GetOwner() != null && GetOwner() == C_BasePlayer.GetLocalPlayer())
+				return true;
+			return base.ShouldPredict();
+		}
 #endif
+	}
 }
 #endif

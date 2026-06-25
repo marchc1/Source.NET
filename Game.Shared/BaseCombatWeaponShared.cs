@@ -376,7 +376,9 @@ public partial class
 
 		return HasPrimaryAmmo() || HasSecondaryAmmo();
 	}
+	public virtual void AddViewKick(){
 
+	}
 	public virtual float GetFireRate() => 0;
 
 	public virtual void PrimaryAttack() {
@@ -734,8 +736,6 @@ public partial class
 
 	public virtual Activity GetPrimaryAttackActivity() => Activity.ACT_VM_PRIMARYATTACK;
 	public virtual Activity GetSecondaryAttackActivity() => Activity.ACT_VM_SECONDARYATTACK;
-	public virtual void AddViewKick() { }
-
 
 	static readonly Vector3 cone = VECTOR_CONE_15DEGREES;
 
