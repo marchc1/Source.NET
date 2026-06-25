@@ -29,7 +29,7 @@ public partial class CL(IServiceProvider services, Net Net,
 	ClientGlobalVariables clientGlobalVariables, ServerGlobalVariables serverGlobalVariables,
 	CommonHostState host_state, Host Host, Cbuf Cbuf, Scr Scr,
 #if !SWDS
-	IEngineVGuiInternal? EngineVGui
+	IEngineVGuiInternal? EngineVGui,
 #endif
 	Shader Shader, ClientDLL ClientDLL, EngineRecvTable RecvTable, Sound Sound)
 {

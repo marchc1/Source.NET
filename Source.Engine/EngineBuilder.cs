@@ -185,7 +185,6 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 
 
 		this.AddSingleton<ISpatialPartition, SpatialPartitionImpl>(x => g_SpatialPartition);
-		this.AddSingleton<IMod, BaseMod>();
 		this.AddSingleton<IGame, Game>();
 		this.AddSingleton<IVDebugOverlay, DebugOverlay>();
 		this.AddSingleton<IGameEventManager2, GameEventManager>();

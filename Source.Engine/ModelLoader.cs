@@ -189,6 +189,11 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 						 MatSysInterface matSys,
 						 IServiceProvider services) : IModelLoader
 {
+
+#if !SWDS
+	readonly EngineVGui EngineVGui = Singleton<EngineVGui>();
+#endif
+
 	IStudioRender StudioRender = services.GetService<IStudioRender>()!;
 	public int GetCount() {
 		throw new NotImplementedException();

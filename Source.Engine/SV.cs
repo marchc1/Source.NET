@@ -23,6 +23,11 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 	public static IServerGameEnts? ServerGameEnts;
 	public static IServerGameClients? ServerGameClients;
 
+#if !SWDS
+	readonly Con Con = Singleton<Con>();
+	readonly EngineVGui EngineVGui = Singleton<EngineVGui>();
+#endif
+
 	public static readonly ConVar sv_pure_kick_clients = new("sv_pure_kick_clients", "1", 0, "If set to 1, the server will kick clients with mismatching files. Otherwise, it will issue a warning to the client.");
 	public static readonly ConVar sv_pure_trace = new("sv_pure_trace", "0", 0, "If set to 1, the server will print a message whenever a client is verifying a CRC for a file.");
 	public static readonly ConVar sv_pure_consensus = new("sv_pure_consensus", "5", 0, "Minimum number of file hashes to agree to form a consensus.");

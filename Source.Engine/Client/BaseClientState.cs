@@ -37,6 +37,10 @@ public abstract class BaseClientState(
 	public ConVar cl_connectmethod = new(nameof(cl_connectmethod), "", FCvar.UserInfo | FCvar.Hidden, "Method by which we connected to the current server.");
 	public ConVar password = new(nameof(password), "", FCvar.Archive | FCvar.ServerCannotQuery | FCvar.DontRecord, "Current server access password");
 
+
+#if !SWDS
+	readonly EngineVGui EngineVGui = Singleton<EngineVGui>();
+#endif
 	public const int CL_CONNECTION_RETRIES = 4;
 	public const double CL_MIN_RESEND_TIME = 1.5;
 	public const double CL_MAX_RESEND_TIME = 20;

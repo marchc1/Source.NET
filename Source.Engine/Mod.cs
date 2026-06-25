@@ -7,6 +7,7 @@ using Source.Engine.Client;
 
 namespace Source.Engine;
 
+/*
 public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, IMaterialSystem materials) : IMod
 {
 	IVideoMode videomode = Singleton<IVideoMode>()!;
@@ -82,3 +83,4 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 		ShutdownRegistry();
 	}
 }
+*/
