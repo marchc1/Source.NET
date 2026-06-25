@@ -4,8 +4,12 @@
 		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<Configurations>Debug;Release;Debug (Dedicated);Release (Dedicated)</Configurations>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+	  <DefineConstants>$(DefineConstants);DBGFLAG_ASSERT</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug (Dedicated)|AnyCPU'">
 	  <DefineConstants>$(DefineConstants);DBGFLAG_ASSERT</DefineConstants>
 	</PropertyGroup>
 	<ItemGroup>
@@ -16,6 +20,9 @@
 		<ProjectReference Include="..\Source.DataCache\Source.DataCache.csproj" />
 		<ProjectReference Include="..\Source.Engine\Source.Engine.csproj" />
 		<ProjectReference Include="..\Source.Filesystem\Source.Filesystem.csproj" />
+		<ProjectReference Include="..\Source.MaterialSystem\Source.MaterialSystem.csproj" />
+		<ProjectReference Include="..\Source.Physics\Source.Physics.csproj" />
+		<ProjectReference Include="..\Source.SoundEmitterSystem\Source.SoundEmitterSystem.csproj" />
 		<ProjectReference Include="..\Source.VTF\Source.VTF.csproj" />
 	</ItemGroup>
 

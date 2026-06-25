@@ -35,4 +35,12 @@
 	<PropertyGroup Condition="'$(IsLinux)'=='true'">
 		<DefineConstants>$(DefineConstants);LINUX</DefineConstants>
 	</PropertyGroup>
+
+	<PropertyGroup Condition="$(Configuration.Contains('(Dedicated)'))">
+		<DefineConstants>$(DefineConstants);SWDS</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="$(Configuration.Contains('(Dedicated)'))">
+		<OutputPath>bin\$(Configuration)\</OutputPath>
+	</PropertyGroup>
 </Project>

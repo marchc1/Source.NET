@@ -138,8 +138,8 @@ public class PredictableList : IPredictableList
 
 public partial class C_BaseEntity : IClientEntity
 {
-	public delegate void BASEPTR();
-	public delegate void ENTITYFUNCPTR(C_BaseEntity? other);
+	public delegate void BASEPTR(C_BaseEntity self);
+	public delegate void ENTITYFUNCPTR(C_BaseEntity self, C_BaseEntity? other);
 
 	public const int SLOT_ORIGINALDATA = -1;
 	public static C_BaseEntity? CreateEntityByName(ReadOnlySpan<char> className) {
@@ -372,10 +372,10 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	static readonly List<C_BaseEntity> AimEntsList = [];
-	public Action? FnThink;
+	public BASEPTR? FnThink;
 	public virtual void Think() {
 		if (FnThink != null)
-			this.FnThink();
+			this.FnThink(this);
 	}
 
 	internal static void CalcAimEntPositions() {
@@ -742,6 +742,7 @@ public partial class C_BaseEntity : IClientEntity
 	public int LifeState;
 	public Vector3 BaseVelocity;
 	public int NextThinkTick;
+	public int LastThinkTick;
 	public byte WaterLevel;
 	public byte WaterType;
 
@@ -958,7 +959,7 @@ public partial class C_BaseEntity : IClientEntity
 		return modelinfo.IsTranslucent(Model) || RenderMode != (int)Source.RenderMode.Normal;
 	}
 
-	public void UpdateOnRemove() {
+	public virtual void UpdateOnRemove() {
 		VPhysicsDestroyObject();
 
 		Assert(GetMoveParent() == null);
@@ -1210,7 +1211,7 @@ public partial class C_BaseEntity : IClientEntity
 		GC.SuppressFinalize(this);
 	}
 
-	double SpawnTime;
+	double flSpawnTime;
 	double LastMessageTime;
 
 	public void MoveToLastReceivedPosition(bool force = false) {
@@ -1229,7 +1230,7 @@ public partial class C_BaseEntity : IClientEntity
 			Interp_RestoreToLastNetworked(ref GetVarMapping());
 
 		if (newentity && !IsClientCreated()) {
-			SpawnTime = engine.GetLastTimeStamp();
+			flSpawnTime = engine.GetLastTimeStamp();
 			Spawn();
 		}
 
@@ -1538,10 +1539,6 @@ public partial class C_BaseEntity : IClientEntity
 		return true;
 	}
 
-	public virtual void SpawnClientEntity() {
-
-	}
-
 	public static C_BaseEntity? CreatePredictedEntityByName(ReadOnlySpan<char> classname, [CallerFilePath] string? module = null, [CallerLineNumber] int line = -1, bool persist = false) {
 		C_BasePlayer? player = C_BaseEntity.GetPredictionPlayer();
 
@@ -1791,6 +1788,8 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public virtual void Spawn() { }
+	public virtual void Activate() { }
+	public virtual void SpawnClientEntity() { }
 	public virtual void Precache() { }
 
 	public PredictionContext? PredictionContext;
@@ -1922,7 +1921,9 @@ public partial class C_BaseEntity : IClientEntity
 
 	readonly object CalcAbsolutePositionMutex = new();
 
-	private void CalcAbsolutePosition() {
+	public TimeUnit_t SpawnTime() => flSpawnTime;
+
+	protected void CalcAbsolutePosition() {
 		if (!s_bAbsRecomputationEnabled)
 			return;
 
@@ -2730,11 +2731,11 @@ public partial class C_BaseEntity : IClientEntity
 
 		ComputePackedSize_R(map);
 
+		/*
 		List<(string ClassName, string FieldName, nuint AbsoluteOffset, int ByteSize)> entries = [];
 		CollectPackedOffsets_R(map, 0, entries);
 
 		entries.Sort((a, b) => a.AbsoluteOffset.CompareTo(b.AbsoluteOffset));
-
 		Msg($"PackedOffset dump for {map.DataClassName} ({entries.Count} fields)\n");
 		foreach (var entry in entries)
 			Msg($"  [{entry.AbsoluteOffset,5}, {entry.AbsoluteOffset + (nuint)entry.ByteSize,5}) {entry.ClassName}::{entry.FieldName}\n");
@@ -2744,6 +2745,7 @@ public partial class C_BaseEntity : IClientEntity
 			if (end > entries[i + 1].AbsoluteOffset)
 				Warning($"PackedOffset OVERLAP: {entries[i].ClassName}::{entries[i].FieldName} [{entries[i].AbsoluteOffset}, {end}) overlaps {entries[i + 1].ClassName}::{entries[i + 1].FieldName} starting at {entries[i + 1].AbsoluteOffset}\n");
 		}
+		*/
 	}
 
 	void CollectPackedOffsets_R(DataMap? map, nuint baseOffset, List<(string ClassName, string FieldName, nuint AbsoluteOffset, int ByteSize)> entries) {

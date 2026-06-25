@@ -3,7 +3,7 @@ using Source.Engine;
 using Source.GUI.Controls;
 
 // TODO: Remove uses of ConVarRef when those cvars exist
-
+#if !SWDS
 enum PerformanceTool_t
 {
 	PERF_TOOL_NONE = 0,
@@ -403,3 +403,4 @@ class EnginePerfTools : IEnginePerfTools
 			PerfUI.Activate();
 	}
 }
+#endif

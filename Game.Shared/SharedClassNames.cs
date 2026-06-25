@@ -2,3 +2,7 @@
 global using BaseCombatCharacter = Game.Client.C_BaseCombatCharacter;
 global using BaseAnimating = Game.Client.C_BaseAnimating;
 #endif
+
+#if GAME_DLL
+global using BaseCombatCharacter = Game.Server.BaseCombatCharacter;
+#endif

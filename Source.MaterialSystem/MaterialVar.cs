@@ -128,7 +128,7 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override void SetStringValue(ReadOnlySpan<char> val) {
-		throw new NotImplementedException();
+		StringVal = new(val.SliceNullTerminatedString());
 	}
 
 	public override void SetTextureValue(ITexture? texture) {

@@ -61,7 +61,9 @@ public class Host(
 	public Cmd Cmd;
 	public Con Con;
 	public Key Key;
+#if !SWDS
 	public EngineVGui EngineVGui;
+#endif
 	public Cvar Cvar;
 	public View View;
 	public Render Render;
@@ -668,6 +670,10 @@ public class Host(
 		else {
 			cl.SignOnState = SignOnState.None;
 		}
+#else
+		modelloader = engineAPI.InitSubsystem<IModelLoader>()!;
+		HostState = engineAPI.GetRequiredService<IHostState>();
+		MatSysInterface = engineAPI.InitSubsystem<MatSysInterface>()!;
 #endif
 
 #if !SWDS
@@ -689,9 +695,9 @@ public class Host(
 		OverlayText.SetEndTimeFn -= OverlayText_SetEndTimeFn;
 
 		Disconnect(true);
-		Scr.DisabledForLoading = true;
 
 #if !SWDS
+		Scr.DisabledForLoading = true;
 		if (!sv.IsDedicated()) {
 			// Decal.Shutdown();
 			Render.Shutdown();

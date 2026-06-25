@@ -605,6 +605,11 @@ public partial class BasePlayer : BaseCombatCharacter
 		return true; // todo
 	}
 
+	public void SnapEyeAngles(in QAngle viewAngles){
+		pl.ViewingAngle = viewAngles;
+		pl.FixAngle = (int)FixAngle.Absolute;
+	}
+
 	UserCmd GetLastUserCommand() => LastCmd; // todo BotCmd
 
 	void SetLastUserCommand(UserCmd cmd) => LastCmd = cmd;

@@ -1,13 +1,7 @@
 ﻿namespace Source.Common.Engine;
 
-public interface IMod
+public enum ModResult
 {
-	public enum Result
-	{
-		RunOK = IEngineAPI.Result.RunOK,
-		RunRestart = IEngineAPI.Result.RunRestart,
-	}
-	public bool Init(string initialMod, string initialGame);
-	public Result Run();
-	public void Shutdown();
+	RunOK = IClientLauncherAPI.Result.RunOK,
+	RunRestart = IClientLauncherAPI.Result.RunRestart,
 }

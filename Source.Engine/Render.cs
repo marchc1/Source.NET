@@ -1,9 +1,11 @@
 global using static Source.Engine.RenderAccessors;
+
 using CommunityToolkit.HighPerformance;
 
 using Source.Common;
 using Source.Common.Client;
 using Source.Common.Commands;
+using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.MaterialSystem;
@@ -15,6 +17,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 
 using static Source.Engine.MatSysInterface;
+using static Source.Engine.Render;
 namespace Source.Engine;
 
 public struct ViewStack
@@ -47,7 +50,7 @@ public partial class Render(
 	Host Host,
 	MatSysInterface MaterialSystem,
 	ClientGlobalVariables gpGlobals
-	)
+	) : IRender
 {
 	int FrameCount = 1;
 	RefStack<ViewStack> ViewStack = new();
@@ -58,7 +61,8 @@ public partial class Render(
 	ModelLoader? _modelLoader;
 	ModelLoader modelLoader => _modelLoader ??= (ModelLoader)Singleton<IModelLoader>();
 
-	float FOV;
+	int LightmapUpdateDepth;
+	float yFOV;
 	float Framerate;
 	float ZNear;
 	float ZFar;
@@ -76,16 +80,36 @@ public partial class Render(
 
 	bool CanAccessCurrentView;
 
-	internal void FrameBegin() {
+	public void FrameBegin() {
 
 		FrameCount++;
 	}
 
-	internal void FrameEnd() {
+	public void FrameEnd() {
 
 	}
 
-	internal void PopView(Frustum frustumPlanes) {
+	public ref readonly Vector3 ViewOrigin() => ref CurrentView().Origin;
+	public ref readonly QAngle ViewAngles() => ref CurrentView().Angles;
+	public ref readonly ViewSetup ViewGetCurrent() => ref CurrentView();
+	public float GetFramerate() => Framerate;
+	public virtual float GetZNear() => ZNear;
+	public virtual float GetZFar() => ZFar;
+	public float GetFov() => CurrentView().FOV;
+	public float GetFovY() => yFOV;
+	public float GetFovViewmodel() => CurrentView().FOVViewmodel;
+	public ref readonly Matrix4x4 ViewMatrix() {
+		if (ViewStack.Count > 1)
+			return ref ViewStack.Top().MatrixView;
+		return ref MatrixView;
+	}
+	public ref readonly Matrix4x4 WorldToScreenMatrix() {
+		if (ViewStack.Count > 1)
+			return ref ViewStack.Top().MatrixWorldToScreen;
+		return ref MatrixWorldToScreen;
+	}
+
+	public void PopView(Frustum frustumPlanes) {
 		if (!ViewStack.Top().NoDraw) {
 			using MatRenderContextPtr renderContext = new(materials);
 
@@ -123,12 +147,54 @@ public partial class Render(
 		angles.Vectors(out MainViewForward, out MainViewRight, out MainViewUp);
 	}
 
+	public bool ClipTransformWithProjection(in Matrix4x4 worldToScreen, in Vector3 point, out Vector3 clip) {
+		// UNDONE: Clean this up some, handle off-screen vertices
+		float w;
+
+		clip.X = worldToScreen[0][0] * point[0] + worldToScreen[0][1] * point[1] + worldToScreen[0][2] * point[2] + worldToScreen[0][3];
+		clip.Y = worldToScreen[1][0] * point[0] + worldToScreen[1][1] * point[1] + worldToScreen[1][2] * point[2] + worldToScreen[1][3];
+		//	z		 = worldToScreen[2][0] * point[0] + worldToScreen[2][1] * point[1] + worldToScreen[2][2] * point[2] + worldToScreen[2][3];
+		w = worldToScreen[3][0] * point[0] + worldToScreen[3][1] * point[1] + worldToScreen[3][2] * point[2] + worldToScreen[3][3];
+
+		// Just so we have something valid here
+		clip.Z = 0.0f;
+
+		bool behind;
+		if (w < 0.001f) {
+			behind = true;
+			clip.X *= 100000;
+			clip.Y *= 100000;
+		}
+		else {
+			behind = false;
+			float invw = 1.0f / w;
+			clip.X *= invw;
+			clip.Y *= invw;
+		}
+
+		return behind;
+	}
+
+	public bool ClipTransform(in Vector3 point, out Vector3 clip) {
+		ref readonly Matrix4x4 worldToScreen = ref g_EngineRenderer.WorldToScreenMatrix();
+		return ClipTransformWithProjection(worldToScreen, point, out clip);
+	}
+
+	public bool ScreenTransform(in Vector3 point, out Vector3 screen) {
+		bool retval = ClipTransform(point, out screen);
+
+		screen.X = 0.5f * (screen.X + 1.0f) * CurrentView().Width + CurrentView().X;
+		screen.Y = 0.5f * (screen.Y + 1.0f) * CurrentView().Height + CurrentView().Y;
+
+		return retval;
+	}
+
 	private ref ViewSetup CurrentView() => ref ViewStack.Top().View;
 
 	private void OnViewActive(Frustum frustumPlanes) {
 		ref ViewSetup view = ref CurrentView();
 
-		FOV = MathLib.CalcFovY(view.FOV, view.AspectRatio);
+		yFOV = MathLib.CalcFovY(view.FOV, view.AspectRatio);
 
 		CurrentViewOrigin = view.Origin;
 		view.Angles.Vectors(out CurrentViewForward, out CurrentViewRight, out CurrentViewUp);
@@ -148,7 +214,7 @@ public partial class Render(
 		}
 	}
 
-	internal void Push2DView(in ViewSetup view, ClearFlags flags, ITexture? renderTarget, Frustum frustumPlanes) {
+	public void Push2DView(in ViewSetup view, ClearFlags flags, ITexture? renderTarget, Frustum frustumPlanes) {
 		ref ViewStack viewStack = ref ViewStack.Push();
 		viewStack.View = view;
 		viewStack.Is2DView = true;
@@ -241,8 +307,8 @@ public partial class Render(
 
 	private void ResetLightStyles() {
 		for (int i = 0; i < 256; i++) {
-			MaterialSystem.LightStyleValue[i] = 264;
-			MaterialSystem.LightStyleFrame[i] = FrameCount;
+			MatSysInterface.LightStyleValue[i] = 264;
+			MatSysInterface.LightStyleFrame[i] = FrameCount;
 		}
 	}
 	private void DecalInit() { }
@@ -296,17 +362,22 @@ public partial class Render(
 		SkyboxOcclude = materials.CreateMaterial("__skybox_occlude", kvs);
 	}
 
-	internal void DrawSceneBegin() {
+	public void DrawSceneBegin() {
 
 	}
 
-	internal void DrawSceneEnd() {
+	public void DrawSceneEnd() {
 
 	}
 
-	internal void ViewSetupVisEx(bool novis, ReadOnlySpan<Vector3> origins, out uint returnFlags) {
+	public void ViewSetupVis(bool novis, ReadOnlySpan<Vector3> origins) {
+		ViewSetupVisEx(novis, origins, out _);
+	}
+
+	public void ViewSetupVisEx(bool novis, ReadOnlySpan<Vector3> origins, out uint returnFlags) {
 		ModelLoader.Map_VisSetup(host_state.WorldModel, origins, novis, out returnFlags);
 	}
+
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	internal void RenderOneMesh(MatRenderContextPtr renderContext, in MatSysInterface.MeshList meshList) {
@@ -315,7 +386,7 @@ public partial class Render(
 		meshList.Mesh.Draw();
 	}
 
-	internal void DrawWorld(DrawWorldListFlags flags, float waterZAdjust) {
+	public void DrawWorld(DrawWorldListFlags flags, float waterZAdjust) {
 		using MatRenderContextPtr renderContext = new(materials);
 		Span<MatSysInterface.MeshList> meshLists = MaterialSystem.Meshes.AsSpan();
 
@@ -379,11 +450,6 @@ public partial class Render(
 			}
 		}
 	}
-
-	private float GetZFar() {
-		return Far;
-	}
-
 	static ConVar r_drawskybox = new("1", FCvar.Cheat);
 
 	static readonly int[] SkyTexOrder = [0, 2, 1, 3, 4, 5];
@@ -528,10 +594,55 @@ public partial class Render(
 		texCoord = new(s, t);
 	}
 
-	float Near;
-	float Far;
 
-	internal void Push3DView(in ViewSetup view, ClearFlags clearFlags, ITexture? rtColor, Frustum frustum, ITexture? rtDepth) {
+	public static readonly List<LightmapUpdateInfo> g_LightmapUpdateList = [];
+	public static readonly List<LightmapTransformInfo> g_LightmapTransformList = [];
+
+	public struct LightmapUpdateInfo
+	{
+		public Memory<BSPMSurface2> SurfaceData;
+		public int SurfaceIndex;
+		public ref BSPMSurface2 SurfHandle => ref SurfaceData.Span[SurfaceIndex];
+		public int TransformIndex;
+	}
+
+	public struct LightmapTransformInfo
+	{
+		public Model? Model;
+		public Matrix4x4 XForm;
+	}
+
+	public bool InLightmapUpdate() => LightmapUpdateDepth != 0;
+
+	public void BeginUpdateLightmaps() {
+		if (++LightmapUpdateDepth == 1) {
+			Assert(g_LightmapUpdateList.Count() == 0);
+			materials.BeginUpdateLightmaps();
+			g_LightmapTransformList.Clear();
+			g_LightmapTransformList.Add(new());
+			int index = g_LightmapTransformList.Count;
+			g_LightmapTransformList.AsSpan()[index].Model = host_state.WorldModel;
+			MathLib.SetIdentityMatrix(out g_LightmapTransformList.AsSpan()[index].XForm);
+		}
+	}
+
+	public void UpdateBrushModelLightmap(ModelInfo model, IClientRenderable renderable) {
+		if (!r_drawbrushmodels.GetBool() || 0 == LightmapUpdateDepth)
+			return;
+		// todo
+	}
+
+	public void EndUpdateLightmaps() {
+		if (--LightmapUpdateDepth == 0) {
+			// todo
+			materials.EndUpdateLightmaps();
+			g_LightmapUpdateList.Clear();
+			g_LightmapTransformList.Clear();
+		}
+	}
+
+	public void Push3DView(in ViewSetup view, ClearFlags clearFlags, ITexture? rtColor, Frustum frustum) => Push3DView(in view, clearFlags, rtColor, frustum, null);
+	public void Push3DView(in ViewSetup view, ClearFlags clearFlags, ITexture? rtColor, Frustum frustum, ITexture? rtDepth) {
 		ref ViewStack writeStack = ref ViewStack.Push();
 		writeStack.View = view;
 		writeStack.Is2DView = false;
@@ -545,8 +656,8 @@ public partial class Render(
 		ref ViewStack viewStack = ref ViewStack.Top();
 		topView.AspectRatio = ComputeViewMatrices(ref viewStack.MatrixView, ref viewStack.MatrixProjection, ref viewStack.MatrixWorldToScreen, in topView);
 
-		Near = topView.ZNear;
-		Far = topView.ZFar;
+		ZNear = topView.ZNear;
+		ZFar = topView.ZFar;
 
 		ExtractMatrices();
 
@@ -659,14 +770,14 @@ public partial class Render(
 		return true;
 	}
 
-	internal void Shutdown() {
+	public void Shutdown() {
 
 	}
 
 	bool rebuildLightmaps = false;
 	public void RebuildLightmaps() => rebuildLightmaps = true;
 
-	internal void CheckForLightingConfigChanges() {
+	public void CheckForLightingConfigChanges() {
 		if (rebuildLightmaps) {
 			RedownloadAllLightmaps();
 		}
@@ -868,8 +979,8 @@ public partial class Render(
 	}
 	readonly Vector4[][] blocklights = _makeblocklights();
 
-	public float LightStyleValue(byte style) {
-		return (float)MaterialSystem.LightStyleValue[style] * (1.0f / 264f);
+	public static float LightStyleValue(byte style) {
+		return (float)MatSysInterface.LightStyleValue[style] * (1.0f / 264f);
 	}
 
 	public void BuildLightMapGuts(ref BSPMSurface2 surfID, in Matrix3x4 entityToWorld, uint dlightMask, bool needsBumpmap, bool needsLightmap) {
@@ -984,15 +1095,43 @@ public partial class Render(
 		}
 	}
 
-	internal void DecalTermAll() {
+	public void DecalTermAll() {
 
 	}
 
-	internal void UnloadSkys() {
+	public void UnloadSkys() {
 
 	}
 
-	internal void LevelShutdown() {
+	public void LevelShutdown() {
 
+	}
+
+	public void ViewDrawFade(Span<byte> color, IMaterial? fadeMaterial) {
+		throw new NotImplementedException();
+	}
+
+	public IWorldRenderList? CreateWorldList() {
+		throw new NotImplementedException();
+	}
+
+	public void BuildWorldLists(IWorldRenderList? list, ref WorldListInfo info, int forceViewLeaf, ReadOnlySpan<VisOverrideData> visData, bool shadowDepth, Span<float> reflectionWaterHeight) {
+		throw new NotImplementedException();
+	}
+
+	public void DrawWorldLists(IWorldRenderList? list, uint flags, float waterZAdjust) {
+		throw new NotImplementedException();
+	}
+
+	public void ViewSetupVisEx(bool novis, Span<AngularImpulse> origin, out uint returnFlags) {
+		throw new NotImplementedException();
+	}
+
+	public void OverrideViewFrustum(Frustum custom) {
+		throw new NotImplementedException();
+	}
+
+	public void UpdateBrushModelLightmap(Model? model, IClientRenderable? renderable) {
+		throw new NotImplementedException();
 	}
 }

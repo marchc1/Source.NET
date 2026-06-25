@@ -22,6 +22,7 @@ using Source.DataCache;
 using Source.Engine;
 using Source.FileSystem;
 using Source.GUI.Controls;
+using Source.MaterialSystem;
 using Source.Physics;
 using Source.SDLManager;
 using Source.ShaderAPI.Gl46;
@@ -37,7 +38,7 @@ namespace Source.Launcher;
 public class Bootloader : IDisposable
 {
 	ICommandLine commandLine;
-	IEngineAPI? engineAPI;
+	IClientLauncherAPI? engineAPI;
 
 	string baseDir;
 	bool isEditMode;
@@ -70,7 +71,7 @@ public class Bootloader : IDisposable
 				// Physics
 				.WithComponent<IPhysics, PhysicsInterface>()
 				// Rendering abstraction
-				.WithComponent<IMaterialSystem, MaterialSystem.MaterialSystem>()
+				.WithFullMaterialSystem()
 				.WithComponent<IShaderAPI, ShaderAPIGl46>()
 				.WithComponent<ISoundEmitterSystemBase, SoundEmitterSystemBase>()
 				// Datacache impl
@@ -88,7 +89,7 @@ public class Bootloader : IDisposable
 				// Shaders we want to load
 				.WithStdShader<StdShaderGl46>()
 				// Let the engine builder take over and inject engine-specific dependencies
-				.Build(dedicated: false);
+				.BuildClient();
 
 			// Start using this provider for the engine
 			using ServiceLocatorScope locatorScope = new(engineAPI);
@@ -100,7 +101,7 @@ public class Bootloader : IDisposable
 			var res = engineAPI.Run();
 
 			// If the engine requested a restart, re-loop
-			needsRestart = res == IEngineAPI.Result.InitRestart || res == IEngineAPI.Result.RunRestart;
+			needsRestart = res == IClientLauncherAPI.Result.InitRestart || res == IClientLauncherAPI.Result.RunRestart;
 		} while (needsRestart);
 	}
 

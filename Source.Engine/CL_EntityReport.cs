@@ -23,7 +23,7 @@ public partial class CL
 	public static readonly ConVar cl_entityreport = new("cl_entityreport", "0", FCvar.Cheat, "For debugging, draw entity states to console");
 	public static readonly ConVar cl_entityreport_sorted = new("cl_entityreport_sorted", "0", FCvar.Cheat, "For debugging, draw entity states to console in sorted order. [0 = disabled, 1 = average, 2 = current, 3 = peak");
 
-	IClientEntityList entitylist = Singleton<IClientEntityList>();
+	IClientEntityList entitylist = OptionalSingleton<IClientEntityList>()!;
 
 	internal const float BITCOUNT_AVERAGE = 0.95f;
 	internal const float EFFECT_TIME = 1.5f;

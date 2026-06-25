@@ -31,6 +31,8 @@ using Source.Common.Formats.BSP;
 
 using System.Runtime.CompilerServices;
 
+using Game.Shared.GarrysMod;
+
 public static class BasePlayerGlobals
 {
 	public static BasePlayer? ToBasePlayer(BaseEntity? entity) {
@@ -258,7 +260,7 @@ public partial class
 		Local.PunchAngleVel += angleOffset * 20;
 	}
 
-	public void ViewPunchReset(float tolerance) {
+	public void ViewPunchReset(float tolerance = 0) {
 		if (tolerance != 0) {
 			tolerance *= tolerance; // square
 			float check = Local.PunchAngleVel.LengthSqr() + Local.PunchAngle.LengthSqr();

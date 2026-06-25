@@ -7,8 +7,16 @@ using Source.Engine.Client;
 
 namespace Source.Engine;
 
-public class DtCommonEng(Host Host, Sys Sys, IServerGameDLL serverGameDLL, IBaseClientDLL clientDLL, ICommandLine CommandLine)
+public class DtCommonEng(Host Host, Sys Sys, IServerGameDLL serverGameDLL
+#if !SWDS
+, IBaseClientDLL clientDLL
+#endif
+, ICommandLine CommandLine)
 {
+
+#if SWDS
+	public readonly IBaseClientDLL clientDLL = null!;
+#endif
 	public readonly LinkedList<RecvTable> RecvTables = [];
 	public readonly LinkedList<RecvDecoder> RecvDecoders = [];
 	public readonly LinkedList<ClientSendTable> ClientSendTables = [];

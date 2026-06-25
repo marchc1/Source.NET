@@ -75,5 +75,30 @@ public class WeaponPistol : HL2MPMachineGun
 		SoonestPrimaryAttack = gpGlobals.CurTime + PISTOL_FASTEST_DRY_REFIRE_TIME;
 		NextPrimaryAttack = gpGlobals.CurTime + SequenceDuration();
 	}
+
+	public override void PrimaryAttack() {
+		if ((gpGlobals.CurTime - LastAttackTime) > 0.5f) 
+			NumShotsFired = 0;
+		else 
+			NumShotsFired++;
+
+		LastAttackTime = gpGlobals.CurTime;
+		SoonestPrimaryAttack = gpGlobals.CurTime + PISTOL_FASTEST_REFIRE_TIME;
+
+		BasePlayer? owner = ToBasePlayer(GetOwner());
+
+		if (owner != null) {
+			// Each time the player fires the pistol, reset the view punch. This prevents
+			// the aim from 'drifting off' when the player fires very quickly. This may
+			// not be the ideal way to achieve this, but it's cheap and it works, which is
+			// great for a feature we're evaluating. (sjb)
+			owner.ViewPunchReset();
+		}
+
+		base.PrimaryAttack();
+
+		// Add an accuracy penalty which can move past our maximum penalty time if we're really spastic
+		AccuracyPenalty += PISTOL_ACCURACY_SHOT_PENALTY_TIME;
+	}
 }
 #endif

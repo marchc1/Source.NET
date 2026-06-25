@@ -1046,6 +1046,9 @@ public static class MathLib
 		matrix[1, 1] = 1.0f;
 		matrix[2, 2] = 1.0f;
 	}
+	public static void SetIdentityMatrix(out Matrix4x4 matrix) {
+		matrix = Matrix4x4.Identity;
+	}
 
 	public static void MatrixInvert(in Matrix3x4 inM, out Matrix3x4 outM) {
 		outM = default;
@@ -2053,6 +2056,12 @@ public static class MathLib
 		}
 
 		angles = new(pitch, yaw, 0);
+	}
+
+	public static void Vector3DMultiplyPosition(in Matrix4x4 src1, in Vector3 src2, out Vector3 dst) {
+		dst.X = src1[0][0] * src2.X + src1[0][1] * src2.Y + src1[0][2] * src2.Z + src1[0][3];
+		dst.Y = src1[1][0] * src2.X + src1[1][1] * src2.Y + src1[1][2] * src2.Z + src1[1][3];
+		dst.Z = src1[2][0] * src2.X + src1[2][1] * src2.Y + src1[2][2] * src2.Z + src1[2][3];
 	}
 }
 

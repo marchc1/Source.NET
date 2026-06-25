@@ -34,7 +34,9 @@ namespace Game.Server;
 #endif
 
 using Source.Common.SoundEmitterSystem;
+
 using System.Runtime.CompilerServices;
+
 using Source.Common.Audio;
 
 using Table =
@@ -53,6 +55,11 @@ using Class =
 #if CLIENT_DLL || GAME_DLL
 using FIELD = Source.FIELD<BaseCombatWeapon>;
 using DEFINE = Source.DEFINE<BaseCombatWeapon>;
+
+using Microsoft.VisualBasic;
+
+using System.Reflection;
+
 #endif
 
 public partial class
@@ -193,6 +200,48 @@ public partial class
 		= new Class("BaseCombatWeapon", DT_BaseCombatWeapon).WithManualClassID(StaticClassIndices.CBaseCombatWeapon);
 
 
+	public virtual bool CanBePickedUpByNPCs() => true;
+	public struct ActTable
+	{
+		public Activity BaseAct;
+		public Activity WeaponAct;
+		public bool Required;
+	}
+	public virtual ReadOnlySpan<ActTable> ActivityList() => null;
+	public virtual Activity ActivityOverride(Activity baseAct, ref bool required) {
+		ReadOnlySpan<ActTable> table = ActivityList();
+		int actCount = table.Length;
+
+		for (int i = 0; i < actCount; i++) {
+			ref readonly ActTable act = ref table[i];
+			if (baseAct == act.BaseAct) {
+				if (!Unsafe.IsNullRef(ref required))
+					required = act.Required;
+
+				return act.WeaponAct;
+			}
+		}
+		return baseAct;
+	}
+	
+#if GMOD_DLL
+	public virtual ReadOnlySpan<char> GetHoldType() => "normal";
+#endif
+
+	public override void Activate() {
+		base.Activate();
+
+#if !CLIENT_DLL
+		// todo
+#endif
+	}
+
+	public struct PoseParamTable
+	{
+		public string Name;
+		public float Value;
+	}
+
 	public int iClip1;
 	public int iClip2;
 	public int PrimaryAmmoType;
@@ -321,13 +370,15 @@ public partial class
 
 	public virtual bool ForceWeaponSwitch() => false;
 
-	public bool HasAnyAmmo() {
+	public virtual bool HasAnyAmmo() {
 		if (!UsesPrimaryAmmo() && !UsesSecondaryAmmo())
 			return true;
 
 		return HasPrimaryAmmo() || HasSecondaryAmmo();
 	}
+	public virtual void AddViewKick(){
 
+	}
 	public virtual float GetFireRate() => 0;
 
 	public virtual void PrimaryAttack() {
@@ -675,7 +726,6 @@ public partial class
 				WeaponIdle();
 		}
 	}
-	public bool HasWeaponIdleTimeElapsed() => gpGlobals.CurTime > TimeWeaponIdle;
 
 	public virtual void WeaponIdle() {
 		//Idle again if we've finished
@@ -685,8 +735,6 @@ public partial class
 
 	public virtual Activity GetPrimaryAttackActivity() => Activity.ACT_VM_PRIMARYATTACK;
 	public virtual Activity GetSecondaryAttackActivity() => Activity.ACT_VM_SECONDARYATTACK;
-	public virtual void AddViewKick() { }
-
 
 	static readonly Vector3 cone = VECTOR_CONE_15DEGREES;
 
@@ -845,6 +893,8 @@ public partial class
 	public virtual int GetPrimaryAmmoType() => PrimaryAmmoType;
 	public virtual int GetSecondaryAmmoType() => SecondaryAmmoType;
 
+	public virtual ReadOnlySpan<PoseParamTable> PoseParamList() => null;
+
 	public void PoseParameterOverride(bool reset) {
 		BaseCombatCharacter? owner = GetOwner();
 		if (owner == null)
@@ -854,7 +904,15 @@ public partial class
 		if (studioHdr == null)
 			return;
 
-		// todo
+		ReadOnlySpan<PoseParamTable> poseParamList = PoseParamList();
+		if (!poseParamList.IsEmpty) {
+			for (int i = 0; i < poseParamList.Length; ++i) {
+				int poseParam = owner.LookupPoseParameter(studioHdr, poseParamList[i].Name);
+
+				if (poseParam != -1)
+					owner.SetPoseParameter(poseParam, reset ? 0 : poseParamList[i].Value);
+			}
+		}
 	}
 
 	public void SetViewModel() {
@@ -886,12 +944,13 @@ public partial class
 	public bool InReload;
 	public bool FireOnEmpty;
 	public bool FiringWholeClip;
+	public const string HIDEWEAPON_THINK_CONTEXT = "BaseCombatWeapon_HideThink";
 
 	public virtual bool Holster(BaseCombatWeapon switchingTo) {
 		InReload = false;
 		FiringWholeClip = false;
 
-		// todo: think function
+		SetThink(null);
 
 		// Send holster animation
 		SendWeaponAnim(Activity.ACT_VM_HOLSTER);
@@ -908,9 +967,8 @@ public partial class
 		// If we don't have a holster anim, hide immediately to avoid timing issues
 		if (sequenceDuration == 0)
 			SetWeaponVisible(false);
-		// else 
-		// Hide the weapon when the holster animation's finished todo
-
+		else
+			SetContextThink(HideThink, gpGlobals.CurTime + sequenceDuration, HIDEWEAPON_THINK_CONTEXT);
 
 		// if we were displaying a hud hint, squelch it.
 		if (HudHintMinDisplayTime != 0 && gpGlobals.CurTime < HudHintMinDisplayTime) {
@@ -922,6 +980,11 @@ public partial class
 		PoseParameterOverride(true);
 
 		return true;
+	}
+
+	public void HideThink() {
+		if (GetOwner()?.GetActiveWeapon() == this)
+			SetWeaponVisible(false);
 	}
 
 	public BaseCombatCharacter? GetOwner() {
@@ -962,7 +1025,9 @@ public partial class
 #if !CLIENT_DLL
 	bool SoundsEnabled;
 #endif
-	public void SetWeaponIdleTime(TimeUnit_t time) => TimeWeaponIdle = time;
+	public virtual bool HasWeaponIdleTimeElapsed() => gpGlobals.CurTime > TimeWeaponIdle;
+	public virtual TimeUnit_t GetWeaponIdleTime(TimeUnit_t time) => TimeWeaponIdle;
+	public virtual void SetWeaponIdleTime(TimeUnit_t time) => TimeWeaponIdle = time;
 	public void SendViewModelAnim(int sequence) {
 #if CLIENT_DLL
 		if (!IsPredicted())
@@ -1011,9 +1076,9 @@ public partial class
 			// Am I only to play to my owner?
 			if (GetOwner() != null && GetOwner()!.IsPlayer()) {
 				SingleUserRecipientFilter filter = new(ToBasePlayer(GetOwner())!);
-				if (IsPredicted() && BaseEntity.GetPredictionPlayer() != null) 
+				if (IsPredicted() && BaseEntity.GetPredictionPlayer() != null)
 					filter.UsePredictionRules();
-				
+
 				EmitSound(filter, GetOwner()!.EntIndex(), shootsound, in Unsafe.NullRef<Vector3>(), soundTime, out _);
 			}
 		}
@@ -1021,9 +1086,9 @@ public partial class
 			// Play weapon sound from the owner
 			if (GetOwner() != null) {
 				PASAttenuationFilter filter = new(GetOwner()!, (float)parms.SoundLevel /* << is this correct? */ );
-				if (IsPredicted() && BaseEntity.GetPredictionPlayer() != null) 
+				if (IsPredicted() && BaseEntity.GetPredictionPlayer() != null)
 					filter.UsePredictionRules();
-				
+
 				EmitSound(filter, GetOwner()!.EntIndex(), shootsound, in Unsafe.NullRef<Vector3>(), soundTime, out _);
 
 #if !CLIENT_DLL
@@ -1033,10 +1098,10 @@ public partial class
 			}
 			// If no owner play from the weapon (this is used for thrown items)
 			else {
-				PASAttenuationFilter filter = new(this, (float)parms.SoundLevel );
+				PASAttenuationFilter filter = new(this, (float)parms.SoundLevel);
 				if (IsPredicted() && BaseEntity.GetPredictionPlayer() != null)
 					filter.UsePredictionRules();
-				
+
 				EmitSound(filter, EntIndex(), shootsound, in Unsafe.NullRef<Vector3>(), soundTime, out _);
 			}
 		}
@@ -1053,7 +1118,13 @@ public partial class
 
 	public void SetOwner(BaseCombatCharacter? owner) {
 		if (owner == null) {
-			// todo
+			// Make sure the weapon updates its state when it's removed from the player
+			// We have to force an active state change, because it's being dropped and won't call UpdateClientData()
+			WeaponState oldState = (WeaponState)State;
+			State = (int)WeaponState.NotCarried;
+			OnActiveStateChanged(oldState);
+
+			SetContextThink(null, 0, HIDEWEAPON_THINK_CONTEXT);
 		}
 
 		Owner.Set(owner);

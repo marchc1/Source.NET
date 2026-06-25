@@ -70,7 +70,6 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		services.AddSingleton<IMeshMgr, MeshMgr>();
 		services.AddSingleton<IMaterialSystemHardwareConfig, HardwareConfig>();
 		services.AddSingleton<IShaderSystem, ShaderSystem>();
-		services.AddSingleton<MaterialSystem_Config>();
 		services.AddSingleton<MeshMgr>();
 	}
 

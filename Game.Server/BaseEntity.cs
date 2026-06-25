@@ -29,9 +29,11 @@ public partial class BaseEntity : IServerEntity
 {
 	public static Edict? g_pForceAttachEdict;
 
-	public delegate void BASEPTR();
-	public delegate void ENTITYFUNCPTR(BaseEntity? other);
+	public delegate void BASEPTR(BaseEntity self);
+	public delegate void ENTITYFUNCPTR(BaseEntity self, BaseEntity? other);
 	public delegate void USEPTR(BaseEntity? activator, BaseEntity? caller, UseType useType, float value);
+
+	public BASEPTR? FnThink;
 
 	static int PredictionRandomSeed = -1;
 	static BasePlayer? PredictionPlayer;
@@ -260,9 +262,6 @@ public partial class BaseEntity : IServerEntity
 		}
 	}
 
-	public virtual void Activate() {
-
-	}
 	public string? Name;
 	public string GetDebugName() {
 		if (this == null)
@@ -499,6 +498,7 @@ public partial class BaseEntity : IServerEntity
 	public int LifeState;
 	public Vector3 BaseVelocity;
 	public int NextThinkTick;
+	public int LastThinkTick;
 	public byte WaterLevel;
 	public byte WaterType;
 
@@ -527,6 +527,7 @@ public partial class BaseEntity : IServerEntity
 	public CollisionProperty Collision = new();
 	public float Friction;
 	public long SimulationTick;
+
 
 	public bool FClassnameIs(BaseEntity? entity, ReadOnlySpan<char> classname) {
 		if (entity == null)
@@ -742,6 +743,7 @@ public partial class BaseEntity : IServerEntity
 		return Classname;
 	}
 	public virtual void Spawn() { }
+	public virtual void Activate() { }
 	public virtual void Precache() { }
 
 	public bool HasSpawnFlags(int flags) => (SpawnFlags & flags) != 0;
@@ -872,7 +874,7 @@ public partial class BaseEntity : IServerEntity
 		return ref CoordinateFrame;
 	}
 
-	private void CalcAbsolutePosition() {
+	protected void CalcAbsolutePosition() {
 		throw new NotImplementedException();
 	}
 

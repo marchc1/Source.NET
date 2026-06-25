@@ -1857,6 +1857,10 @@ public class StudioHdr
 			return studioHdr;
 		return GroupStudioHdr(vModel.Anim[sequence].Group);
 	}
+
+	public int NumBodyParts() => studioHdr!.NumBodyParts;
+
+	public MStudioBodyParts Bodypart(int i) => studioHdr!.BodyPart(i); 
 }
 
 public class MStudioBone

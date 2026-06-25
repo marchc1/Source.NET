@@ -244,4 +244,55 @@ public static class BeamDraw
 		meshBuilder.End();
 		pMesh.Draw();
 	}
+
+		static TokenCache nHDRColorScaleCache = default;
+	internal static void DrawHalo(IMaterial? material, in Vector3 source, float scale, Span<float> color, float hdrColorScale = 1.0f) {
+		Vector3 point, screen;
+
+		if (material != null) {
+			IMaterialVar? pHDRColorScaleVar = material.FindVarFast("$hdrcolorscale", ref nHDRColorScaleCache);
+			if (pHDRColorScaleVar != null)
+				pHDRColorScaleVar.SetFloatValue(hdrColorScale);
+		}
+
+		using MatRenderContextPtr renderContext = new(materials );
+		IMesh mesh = renderContext.GetDynamicMesh();
+
+		MeshBuilder meshBuilder = new();
+		meshBuilder.Begin(mesh, MaterialPrimitiveType.Quads, 1);
+
+		// Transform source into screen space
+		ScreenTransform(source, out screen);
+
+		meshBuilder.Color3fv(color);
+		meshBuilder.TexCoord2f(0, 0, 1);
+		MathLib.VectorMA(source, -scale, CurrentViewUp(), out point);
+		MathLib.VectorMA(point, -scale, CurrentViewRight(), out point);
+		meshBuilder.Position3fv(point);
+		meshBuilder.AdvanceVertex();
+
+		meshBuilder.Color3fv(color);
+		meshBuilder.TexCoord2f(0, 0, 0);
+		MathLib.VectorMA(source, scale, CurrentViewUp(), out point);
+		MathLib.VectorMA(point, -scale, CurrentViewRight(), out point);
+		meshBuilder.Position3fv(point);
+		meshBuilder.AdvanceVertex();
+
+		meshBuilder.Color3fv(color);
+		meshBuilder.TexCoord2f(0, 1, 0);
+		MathLib.VectorMA(source, scale, CurrentViewUp(), out point);
+		MathLib.VectorMA(point, scale, CurrentViewRight(), out point);
+		meshBuilder.Position3fv(point);
+		meshBuilder.AdvanceVertex();
+
+		meshBuilder.Color3fv(color);
+		meshBuilder.TexCoord2f(0, 1, 1);
+		MathLib.VectorMA(source, -scale, CurrentViewUp(), out point);
+		MathLib.VectorMA(point, scale, CurrentViewRight(), out point);
+		meshBuilder.Position3fv(point);
+		meshBuilder.AdvanceVertex();
+
+		meshBuilder.End();
+		mesh.Draw();
+	}
 }

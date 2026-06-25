@@ -10,8 +10,16 @@ using System.Runtime.InteropServices;
 
 namespace Source.Common.Commands;
 
-public class Cvar(ICommandLine CommandLine, IServiceProvider services, ICvarQuery cvarQuery) : ICvar
+public class Cvar : ICvar
 {
+	readonly ICommandLine CommandLine;
+	readonly IServiceProvider services;
+	readonly ICvarQuery cvarQuery;
+	public Cvar(ICommandLine CommandLine, IServiceProvider services, ICvarQuery cvarQuery) {
+		this.CommandLine = CommandLine;
+		this.services = services;
+		this.cvarQuery = cvarQuery;
+	}
 	public event FnChangeCallback? Changed;
 	List<IConsoleDisplayFunc> DisplayFuncs = [];
 	Assembly? NextDLLIdentifier;
@@ -323,7 +331,7 @@ public class Cvar(ICommandLine CommandLine, IServiceProvider services, ICvarQuer
 
 		ReadOnlySpan<char> search = args[1];
 
-		foreach(var var in GetCommands()){ 
+		foreach (var var in GetCommands()) {
 			if (var.IsFlagSet(FCvar.DevelopmentOnly) || var.IsFlagSet(FCvar.Hidden))
 				continue;
 

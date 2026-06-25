@@ -23,9 +23,10 @@ namespace Source.Engine;
 /// Common functionality
 /// </summary>
 /// <param name="providers"></param>
-public class Common(IServiceProvider providers, ILocalize? Localize, Sys Sys)
+public class Common(IServiceProvider providers, Sys Sys)
 {
-	public static string Gamedir { get; private set; }
+	ILocalize? Localize = providers.GetService<ILocalize>();
+	public static string Gamedir { get; private set; } = "";
 	const uint SNAPPY_ID = ('P' << 24) | ('A' << 16) | ('N' << 8) | ('S');
 
 	// TODO: make safe. I'm lazy right now

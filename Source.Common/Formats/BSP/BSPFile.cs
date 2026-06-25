@@ -1,5 +1,4 @@
 using System.Numerics;
-using GameLumpId_t = int;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Source.Common.Mathematics;
@@ -350,6 +349,7 @@ public struct BSPLumpFileHeader
 /// <summary>
 /// Analog of dgamelumpheader_t
 /// </summary>
+[StructLayout(LayoutKind.Sequential)]
 public struct BSPDGameLumpHeader
 {
 	public int LumpCount;

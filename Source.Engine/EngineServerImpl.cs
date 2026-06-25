@@ -112,8 +112,8 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	}
 
 #if SWDS
-	public void Con_NPrintf(int pos, ReadOnlySpan<char> msg) {};
-	public void Con_NXPrintf(in Con_NPrint_s info, ReadOnlySpan<char> msg) {};
+	public void Con_NPrintf(int pos, ReadOnlySpan<char> msg) {}
+	public void Con_NXPrintf(in Con_NPrint_s info, ReadOnlySpan<char> msg) {}
 #else
 	public void Con_NPrintf(int pos, ReadOnlySpan<char> msg) {
 		throw new NotImplementedException();
