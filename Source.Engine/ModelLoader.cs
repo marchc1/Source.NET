@@ -191,7 +191,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 {
 
 #if !SWDS
-	readonly EngineVGui EngineVGui = Singleton<EngineVGui>();
+	EngineVGui EngineVGui => field ??= Singleton<EngineVGui>();
 #endif
 
 	IStudioRender StudioRender = services.GetService<IStudioRender>()!;
