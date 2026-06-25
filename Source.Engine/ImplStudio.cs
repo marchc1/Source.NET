@@ -188,9 +188,12 @@ public class ModelRender : IModelRender
 	readonly IMDLCache MDLCache;
 	readonly IStudioRender StudioRender;
 	readonly IMaterialSystem materials;
+	#if !SWDS
 	readonly RenderView RenderView;
+	#endif
 	readonly Render Render;
 	readonly Host Host;
+	#if !SWDS
 	public ModelRender(IMDLCache MDLCache, IStudioRender StudioRender, Host Host, Render Render, IRenderView renderView, IMaterialSystem materialSystem) {
 		this.MDLCache = MDLCache;
 		this.StudioRender = StudioRender;
@@ -201,6 +204,7 @@ public class ModelRender : IModelRender
 
 		r_lod.Changed += r_lod_f;
 	}
+	#endif
 
 	protected void r_lod_f(IConVar var, in ConVarChangeContext ctx) {
 		CheckVarRange_r_lod();

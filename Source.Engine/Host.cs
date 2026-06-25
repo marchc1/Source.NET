@@ -61,7 +61,9 @@ public class Host(
 	public Cmd Cmd;
 	public Con Con;
 	public Key Key;
+#if !SWDS
 	public EngineVGui EngineVGui;
+#endif
 	public Cvar Cvar;
 	public View View;
 	public Render Render;

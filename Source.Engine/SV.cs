@@ -17,7 +17,7 @@ namespace Source.Engine;
 /// Various serverside methods. In Source, these would mostly be represented by
 /// SV_MethodName's in the static global namespace
 /// </summary>
-public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHostState host_state, IEngineVGuiInternal EngineVGui, ICvar cvar, IModelLoader modelloader, ServerGlobalVariables serverGlobalVariables, Con Con, [FromKeyedServices(Realm.Server)] NetworkStringTableContainer networkStringTableContainerServer, IHostState HostState, ServerPlugin serverPluginHandler)
+public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, CommonHostState host_state, ICvar cvar, IModelLoader modelloader, ServerGlobalVariables serverGlobalVariables, [FromKeyedServices(Realm.Server)] NetworkStringTableContainer networkStringTableContainerServer, IHostState HostState, ServerPlugin serverPluginHandler)
 {
 	public static IServerGameDLL? ServerGameDLL;
 	public static IServerGameEnts? ServerGameEnts;

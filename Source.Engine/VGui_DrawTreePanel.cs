@@ -4,7 +4,7 @@ using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Source.Engine;
-
+#if !SWDS
 class ConVarCheckbutton : CheckButton
 {
 	[CvarIgnore]
@@ -484,3 +484,4 @@ public class VGuiDrawTree
 			DrawTreeFrame.Tree.RemoveAll();
 	}
 }
+#endif

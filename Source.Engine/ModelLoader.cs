@@ -17,6 +17,8 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
+using Microsoft.Extensions.DependencyInjection;
+
 namespace Source.Engine;
 
 public ref struct MapLoadHelper
@@ -183,8 +185,11 @@ public class MDLCacheNotify : IMDLCacheNotify
 public class ModelLoader(IFileSystem fileSystem, Host Host,
 						 MatSysInterface materials,
 						 IMaterialSystemHardwareConfig materialSystemHardwareConfig,
-						 IMDLCache MDLCache, IStudioRender StudioRender,MatSysInterface matSys) : IModelLoader
+						 IMDLCache MDLCache, 
+						 MatSysInterface matSys,
+						 IServiceProvider services) : IModelLoader
 {
+	IStudioRender StudioRender = services.GetService<IStudioRender>()!;
 	public int GetCount() {
 		throw new NotImplementedException();
 	}

@@ -85,6 +85,7 @@ public interface IEngineVGuiInternal : IEngineVGui
 	bool ShouldPause();
 }
 
+#if !SWDS
 public class EnginePanel : EditablePanel
 {
 	public EnginePanel(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
@@ -1137,3 +1138,4 @@ public class EngineVGui(
 		return false;
 	}
 }
+#endif

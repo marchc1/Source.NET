@@ -31,7 +31,7 @@ public class C_ServerClassInfo()
 /// </summary>
 public abstract class BaseClientState(
 	Host Host, IFileSystem fileSystem, Net Net, Cbuf Cbuf, ICvar cvar,
-	IEngineVGuiInternal? EngineVGui, IEngineAPI engineAPI,
+	IEngineAPI engineAPI, IEngineVGuiInternal? EngineVGui,
 	[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient
 	) : INetChannelHandler, IConnectionlessPacketHandler, IServerMessageHandler
 {

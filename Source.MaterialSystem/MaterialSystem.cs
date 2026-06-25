@@ -22,7 +22,7 @@ namespace Source.MaterialSystem;
 public static class MatSysBootstrap {
 
 	public static T WithFullMaterialSystem<T>(this T services) where T : IServiceCollection {
-		services.AddSingleton<MaterialSystem>();
+		services.AddSingleton<IMaterialSystem, MaterialSystem>();
 		services.AddSingleton<MatSystemSurface>();
 		services.AddSingleton<IMatSystemSurface>(x => x.GetRequiredService<MatSystemSurface>());
 		services.AddSingleton<ISurface>(x => x.GetRequiredService<MatSystemSurface>());
@@ -32,9 +32,8 @@ public static class MatSysBootstrap {
 	}
 
 	public static T WithStubMaterialSystem<T>(this T services) where T : IServiceCollection {
-		services.AddSingleton<DummyMaterialSystem>();
-		services.AddSingleton<DummyHardwareConfig>();
-		services.AddSingleton<IMaterialSystemHardwareConfig, DummyHardwareConfig>(x => x.GetRequiredService<DummyHardwareConfig>());
+		services.AddSingleton<IMaterialSystem, DummyMaterialSystem>();
+		services.AddSingleton<IMaterialSystemHardwareConfig, DummyHardwareConfig>();
 		return services;
 	}
 

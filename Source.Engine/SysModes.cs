@@ -349,9 +349,9 @@ public class VideoMode_MaterialSystem(Sys Sys, IMaterialSystem materials, IGame 
 		AdjustWindow(GetModeWidth(), GetModeHeight(), GetModeBPP(), IsWindowedMode(), IsBorderlessMode());
 		MarkClientViewRectDirty();
 		renderContext.Viewport(0, 0, GetModeStereoWidth(), GetModeStereoHeight());
-
+#if !SWDS
 		surface.OnScreenSizeChanged(oldUIWidth, oldUIHeight);
-
+#endif
 		g_ClientDLL!.HudVidInit();
 	}
 

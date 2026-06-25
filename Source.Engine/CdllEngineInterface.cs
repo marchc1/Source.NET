@@ -20,6 +20,7 @@ using System.Numerics;
 
 namespace Source.Engine;
 
+#if !SWDS
 public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host Host,
 							IMaterialSystem materials, MaterialSystem_Config MaterialSystemConfig,
 							MatSysInterface MatSys, ModelLoader modelloader) : IEngineClient
@@ -522,3 +523,4 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		throw new NotImplementedException();
 	}
 }
+#endif

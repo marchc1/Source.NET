@@ -53,7 +53,7 @@ public class View(Host Host, IEngineVGuiInternal EngineVGui, IMaterialSystem mat
 	}
 }
 
-
+#if !SWDS
 public class RenderView(EngineVGui EngineVGui, Render engineRenderer) : IRenderView
 {
 	public virtual void Push2DView(ViewSetup view, ClearFlags flags, ITexture? renderTarget, Frustum frustumPlanes) {
@@ -118,3 +118,4 @@ public class RenderView(EngineVGui EngineVGui, Render engineRenderer) : IRenderV
 		DebugOverlay.DrawAllOverlays();
 	}
 }
+#endif

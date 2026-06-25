@@ -11,7 +11,7 @@ using Source.Engine;
 using Source.GUI.Controls;
 
 using System.Text;
-
+#if !SWDS
 class TileViewPanelEx : Panel
 {
 	public enum HitTest_t
@@ -1969,3 +1969,4 @@ class SmartTextureKeyValues : IDisposable
 		_p = null;
 	}
 }
+#endif

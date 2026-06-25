@@ -229,7 +229,9 @@ public class ClientDatatableStack : DatatableStack
 		return val;
 	}
 }
+#if !SWDS
 [EngineComponent]
+#endif
 public class EngineRecvTable(DtCommonEng DtCommonEng)
 {
 	bool NewTable(RecvTable table) {

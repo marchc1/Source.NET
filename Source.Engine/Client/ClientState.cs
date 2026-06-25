@@ -114,11 +114,27 @@ public class ClientState : BaseClientState
 	readonly Common Common;
 	readonly Sound Sound;
 	public ClientState(Host Host, IFileSystem fileSystem, Net Net, CommonHostState host_state, Common Common,
-		Cbuf Cbuf, Cmd Cmd, ICvar cvar, CL CL, IEngineVGuiInternal? EngineVGui, IHostState HostState, Scr Scr, IEngineAPI engineAPI,
-		[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient, IServiceProvider services,
-		IModelLoader modelloader, ICommandLine commandLine, IPrediction ClientSidePrediction, DtCommonEng DtCommonEng, EngineRecvTable recvTable,
-		ClientGlobalVariables clientGlobalVariables, Sound Sound)
-		: base(Host, fileSystem, Net, Cbuf, cvar, EngineVGui, engineAPI, networkStringTableContainerClient) {
+		Cbuf Cbuf, Cmd Cmd, ICvar cvar, IHostState HostState, Scr Scr, IEngineAPI engineAPI,
+		IServiceProvider services,
+		IModelLoader modelloader, ICommandLine commandLine,
+
+#if !SWDS
+		IPrediction ClientSidePrediction, 
+		[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient, 
+		IEngineVGuiInternal? EngineVGui,
+		CL CL, 
+		DtCommonEng DtCommonEng, 
+		EngineRecvTable RecvTable,
+#endif
+		ClientGlobalVariables clientGlobalVariables, Sound Sound
+		)
+		: base(Host, fileSystem, Net, Cbuf, cvar, engineAPI
+#if !SWDS
+		, EngineVGui, networkStringTableContainerClient
+#else
+		, null!, null!
+#endif
+		) {
 		this.Host = Host;
 		this.fileSystem = fileSystem;
 		this.Net = Net;
@@ -138,7 +154,7 @@ public class ClientState : BaseClientState
 		this.Sound = Sound;
 		engineClient_LAZY = new(ProduceEngineClient);
 		CommandLine = commandLine;
-		RecvTable = recvTable;
+		RecvTable = RecvTable;
 	}
 
 	private IEngineClient ProduceEngineClient() => services.GetRequiredService<IEngineClient>();
@@ -991,8 +1007,9 @@ public class ClientState : BaseClientState
 		g_ClientDLL?.HudVidInit();
 
 		// gHostSpawnCount = m_nServerCount;
-
+#if !SWDS
 		((VideoMode_Common)videoMode).MarkClientViewRectDirty();
+#endif
 		return true;
 	}
 

@@ -9,7 +9,6 @@ namespace Source.Engine;
 
 public class EngineSoundServices : ISoundServices
 {
-	ClientState? cl;
 	Host? host;
 	TimeUnit_t frameTime;
 
@@ -57,15 +56,15 @@ public class EngineSoundServices : ISoundServices
 		throw new NotImplementedException();
 	}
 
-	public int GetServerCount() => (cl ??= Singleton<ClientState>()).ServerCount;
+	public int GetServerCount() => cl.ServerCount;
 
 	public ReadOnlySpan<char> GetUILanguage() {
 		throw new NotImplementedException();
 	}
 
-	public int GetViewEntity() => (cl ??= Singleton<ClientState>()).ViewEntity;
+	public int GetViewEntity() => cl.ViewEntity;
 
-	public bool IsConnected() => (cl ??= Singleton<ClientState>()).IsConnected();
+	public bool IsConnected() => cl.IsConnected();
 
 	public bool IsGameActive() {
 		throw new NotImplementedException();
@@ -76,7 +75,7 @@ public class EngineSoundServices : ISoundServices
 	}
 
 	public bool IsPlayer(int source) {
-		return source == (cl ??= Singleton<ClientState>()).PlayerSlot + 1;
+		return source == cl.PlayerSlot + 1;
 	}
 
 	public object? LevelAlloc(uint bytes, ReadOnlySpan<char> tag) {
