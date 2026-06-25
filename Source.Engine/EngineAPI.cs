@@ -15,7 +15,7 @@ using System.Runtime.ExceptionServices;
 namespace Source.Engine;
 
 
-public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sys
+public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sys, EngineParms host_parms, SV SV
 #if !SWDS
 , IInputSystem inputSystem, MatSysInterface matSys
 #endif
@@ -29,18 +29,90 @@ public class EngineAPI(IGame game, IServiceProvider services, Common COM, Sys Sy
 	}
 
 	StartupInfo startupInfo;
+	IVideoMode videomode = Singleton<IVideoMode>()!;
+
+	private bool IsServerOnly(IEngineAPI api) => ((EngineAPI)api).Dedicated;
+
+	public bool InitRegistry(ReadOnlySpan<char> modName) {
+		Span<char> regSubPath = stackalloc char[260];
+		// NOTE: I decided to prefix the path here with sdn_ so we don't touch config for the actual hl2 etc -Callum
+		int n = sprintf(regSubPath, "%s\\sdn_%s").S("Source").S(modName);
+		return registry.Init(regSubPath[..n]);
+	}
+
+	public void ShutdownRegistry() => registry.Shutdown();
+
+	public bool ModInit(string initialMod, string initialGame) {
+		host_parms.Mod = initialMod;
+		host_parms.Game = initialGame;
+
+		if (cl != null) {
+			cl.RestrictServerCommands = false;
+			cl.RestrictClientCommands = false;
+		}
+
+		InitRegistry(initialMod);
+
+		MaterialSystem_Config config = materials.GetCurrentConfigForVideoCard();
+		int width = config.VideoMode.Width;
+		int height = config.VideoMode.Height;
+		bool windowed = config.Windowed();
+		bool borderless = config.NoWindowBorder();
+
+		if (videomode == null)
+			return false;
+
+		videomode.Init();
+		return videomode.CreateGameWindow(new(width, height, windowed, borderless));
+	}
+
+	public ModResult ModRun() {
+		ModResult res = ModResult.RunOK;
+		IEngine eng = services.GetRequiredService<IEngine>();
+		IEngineAPI engineAPI = services.GetRequiredService<IEngineAPI>();
+
+		if (IsServerOnly(engineAPI)) {
+			if (eng.Load(true, host_parms.BaseDir)) {
+				// Dedicated stuff one day?
+				Msg("Congrats, dedicated can boot...");
+			}
+		}
+		else {
+			eng.SetQuitting(IEngine.Quit.NotQuitting);
+
+			if (eng.Load(false, host_parms.BaseDir)) {
+#if !SWDS
+				if (engineAPI.MainLoop())
+					res = ModResult.RunRestart;
+
+				eng.Unload();
+#endif
+
+				SV.ShutdownGameDLL();
+			}
+		}
+
+		return res;
+	}
+
+	public void ModShutdown() {
+		host_parms.Mod = null!;
+		host_parms.Game = null!;
+		Singleton<IGame>().InputDetachFromGameWindow();
+		ShutdownRegistry();
+	}
 
 	Lazy<IEngine> engR = new(services.GetRequiredService<IEngine>);
 
 
 	internal List<MemberInfo>? filledDependencies;
 
+
 	public IEngineAPI.Result RunListenServer() {
 		IEngineAPI.Result result = IEngineAPI.Result.RunOK;
-		IMod mod = services.GetRequiredService<IMod>();
-		if (mod.Init(startupInfo.InitialMod, startupInfo.InitialGame)) {
-			result = (IEngineAPI.Result)mod.Run();
-			mod.Shutdown();
+		if(ModInit(startupInfo.InitialMod, startupInfo.InitialGame)){
+			result = (IEngineAPI.Result)ModRun();
+			ModShutdown();
 		}
 		EngineBuilder.InvalidateEngineDeps(filledDependencies);
 		return result;
