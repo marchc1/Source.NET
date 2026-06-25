@@ -307,8 +307,8 @@ public partial class Render(
 
 	private void ResetLightStyles() {
 		for (int i = 0; i < 256; i++) {
-			MaterialSystem.LightStyleValue[i] = 264;
-			MaterialSystem.LightStyleFrame[i] = FrameCount;
+			MatSysInterface.LightStyleValue[i] = 264;
+			MatSysInterface.LightStyleFrame[i] = FrameCount;
 		}
 	}
 	private void DecalInit() { }
@@ -979,8 +979,8 @@ public partial class Render(
 	}
 	readonly Vector4[][] blocklights = _makeblocklights();
 
-	public float LightStyleValue(byte style) {
-		return (float)MaterialSystem.LightStyleValue[style] * (1.0f / 264f);
+	public static float LightStyleValue(byte style) {
+		return (float)MatSysInterface.LightStyleValue[style] * (1.0f / 264f);
 	}
 
 	public void BuildLightMapGuts(ref BSPMSurface2 surfID, in Matrix3x4 entityToWorld, uint dlightMask, bool needsBumpmap, bool needsLightmap) {

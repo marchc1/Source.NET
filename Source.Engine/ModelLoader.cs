@@ -15,6 +15,7 @@ using Source.Common.Mathematics;
 using System.Buffers;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 namespace Source.Engine;
 
@@ -159,6 +160,10 @@ public ref struct MapLoadHelper
 		else
 			Host!.Error(error);
 		return [];
+	}
+
+	internal ReadOnlySpan<char> GetMapName() {
+		return MapName;
 	}
 }
 
@@ -1209,5 +1214,70 @@ public class ModelLoader(Sys Sys, IFileSystem fileSystem, Host Host,
 			hasLightmap = true;
 		}
 		return hasLightmap;
+	}
+
+	struct dgamelump_internal
+	{
+		public GameLumpId_t ID;
+		public ushort Flags;
+		public ushort Version;
+		public uint Offset;
+		public uint UncompressedSize;
+		public uint CompressedSize;
+
+		public dgamelump_internal(in BSPDGameLump other, uint compressedSize) {
+			ID = other.id;
+			Flags = other.Flags;
+			Version = other.Version;
+			Offset = (uint)Math.Max(other.fileofs, 0);
+			UncompressedSize = (uint)Math.Max(other.filelen, 0);
+			CompressedSize = compressedSize;
+		}
+	}
+	static readonly List<dgamelump_internal> g_GameLumpDict = [];
+
+	internal static int GameLumpVersion(GameLumpId_t lumpId) {
+		Span<dgamelump_internal> gameLumpDict = g_GameLumpDict.AsSpan();
+		for (int i = gameLumpDict.Length; --i >= 0;)
+			if (gameLumpDict[i].ID == lumpId)
+				return gameLumpDict[i].Version;
+		return 0;
+	}
+	internal static int GameLumpSize(GameLumpId_t lumpId) {
+		Span<dgamelump_internal> gameLumpDict = g_GameLumpDict.AsSpan();
+		for (int i = gameLumpDict.Length; --i >= 0;)
+			if (gameLumpDict[i].ID == lumpId)
+				return (int)gameLumpDict[i].UncompressedSize;
+		return 0;
+	}
+	static string? g_GameLumpFilename;
+	internal static void LoadGameLumpDict() {
+		MapLoadHelper lh = new MapLoadHelper(LumpIndex.GameLump);
+		g_GameLumpDict.Clear();
+		g_GameLumpFilename = new(lh.GetMapName());
+		uint lhSize = (uint)Math.Max(lh.LumpSize, 0);
+		if (lhSize >= Unsafe.SizeOf<BSPDGameLumpHeader>()) {
+			ref readonly BSPDGameLumpHeader gameLumpHeader = ref (lh.LoadLumpBaseRaw()[..Unsafe.SizeOf<BSPDGameLumpHeader>()].Cast<byte, BSPDGameLumpHeader>())[0];
+
+			// Ensure (lumpsize * numlumps + headersize) doesn't overflow
+			int nMaxGameLumps = (int.MaxValue - Unsafe.SizeOf<BSPDGameLumpHeader>()) / Unsafe.SizeOf<BSPDGameLump>();
+			if (gameLumpHeader.LumpCount < 0 || gameLumpHeader.LumpCount > nMaxGameLumps || Unsafe.SizeOf<BSPDGameLumpHeader>() + Unsafe.SizeOf<BSPDGameLump>() * gameLumpHeader.LumpCount > lhSize) {
+				Warning("Bogus gamelump header in map, rejecting\n");
+			}
+			else {
+				// Load in lumps
+				ReadOnlySpan<BSPDGameLump> gameLump = lh.LoadLumpBaseRaw()[Unsafe.SizeOf<BSPDGameLumpHeader>()..].Cast<byte, BSPDGameLump>();
+				for (int i = 0; i < gameLumpHeader.LumpCount; ++i) {
+					if (gameLump[i].fileofs >= 0 && (uint)gameLump[i].fileofs >= (uint)lh.LumpOffset && (uint)gameLump[i].fileofs < (uint)lh.LumpOffset + lhSize && gameLump[i].filelen > 0) {
+						uint compressedSize = 0;
+						if (gameLump[i].fileofs >= 0 && (uint)gameLump[i].fileofs >= (uint)lh.LumpOffset && (uint)gameLump[i].fileofs < (uint)lh.LumpOffset + lhSize && gameLump[i].filelen > 0) 
+							compressedSize = (uint)gameLump[i + 1].fileofs - (uint)gameLump[i].fileofs;
+						else 
+							compressedSize = (uint)lh.LumpOffset + lhSize - (uint)gameLump[i].fileofs;
+						g_GameLumpDict.Add(new(in gameLump[i], compressedSize));
+					}
+				}
+			}
+		}
 	}
 }

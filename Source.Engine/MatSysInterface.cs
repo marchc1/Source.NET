@@ -176,9 +176,9 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	public readonly TextureReference FullFrameFBTexture1 = new();
 
 	public int FrameCount = 1;
-	public readonly int[] LightStyleValue = new int[256];
-	public readonly int[] LightStyleNumFrames = new int[256];
-	public readonly int[] LightStyleFrame = new int[256];
+	public static readonly int[] LightStyleValue = new int[256];
+	public static readonly int[] LightStyleNumFrames = new int[256];
+	public static readonly int[] LightStyleFrame = new int[256];
 
 	public void Init() {
 		InitWellKnownRenderTargets();

@@ -56,6 +56,7 @@ global using ClientSideAnimationListHandle_t = uint;
 global using HSOUNDSCRIPTHANDLE = short;
 global using BSPTreeDataHandle_t = ushort;
 global using LeafIndex_t = ushort;
+global using GameLumpId_t = int;
 global using LeafFogVolume_t = short;
 global using ShadowHandle_t = ushort;
 global using DispShadowHandle = ushort;
