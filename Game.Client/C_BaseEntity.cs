@@ -1211,7 +1211,7 @@ public partial class C_BaseEntity : IClientEntity
 		GC.SuppressFinalize(this);
 	}
 
-	double SpawnTime;
+	double flSpawnTime;
 	double LastMessageTime;
 
 	public void MoveToLastReceivedPosition(bool force = false) {
@@ -1230,7 +1230,7 @@ public partial class C_BaseEntity : IClientEntity
 			Interp_RestoreToLastNetworked(ref GetVarMapping());
 
 		if (newentity && !IsClientCreated()) {
-			SpawnTime = engine.GetLastTimeStamp();
+			flSpawnTime = engine.GetLastTimeStamp();
 			Spawn();
 		}
 
@@ -1920,6 +1920,8 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	readonly object CalcAbsolutePositionMutex = new();
+
+	public TimeUnit_t SpawnTime() => flSpawnTime;
 
 	protected void CalcAbsolutePosition() {
 		if (!s_bAbsRecomputationEnabled)

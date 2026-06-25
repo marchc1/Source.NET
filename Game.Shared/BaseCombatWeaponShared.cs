@@ -726,7 +726,6 @@ public partial class
 				WeaponIdle();
 		}
 	}
-	public bool HasWeaponIdleTimeElapsed() => gpGlobals.CurTime > TimeWeaponIdle;
 
 	public virtual void WeaponIdle() {
 		//Idle again if we've finished
@@ -1026,7 +1025,9 @@ public partial class
 #if !CLIENT_DLL
 	bool SoundsEnabled;
 #endif
-	public void SetWeaponIdleTime(TimeUnit_t time) => TimeWeaponIdle = time;
+	public virtual bool HasWeaponIdleTimeElapsed() => gpGlobals.CurTime > TimeWeaponIdle;
+	public virtual TimeUnit_t GetWeaponIdleTime(TimeUnit_t time) => TimeWeaponIdle;
+	public virtual void SetWeaponIdleTime(TimeUnit_t time) => TimeWeaponIdle = time;
 	public void SendViewModelAnim(int sequence) {
 #if CLIENT_DLL
 		if (!IsPredicted())
