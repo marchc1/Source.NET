@@ -22,7 +22,7 @@ public class ClientLauncherAPI(IGame game, IServiceProvider services, Common COM
 	}
 
 	StartupInfo startupInfo;
-	IVideoMode videomode = Singleton<IVideoMode>()!;
+	IVideoMode videomode => field ??= Singleton<IVideoMode>()!;
 
 
 	public bool InitRegistry(ReadOnlySpan<char> modName) {
