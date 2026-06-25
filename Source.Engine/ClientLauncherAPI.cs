@@ -70,7 +70,7 @@ public class ClientLauncherAPI(IGame game, IServiceProvider services, Common COM
 	Lazy<IEngine> engR = new(services.GetRequiredService<IEngine>);
 
 
-	public List<MemberInfo>? __INTERNAL_FilledDependencies { get; set; }
+	public List<MemberInfo> __INTERNAL_FilledDependencies { get; set; } = [];
 
 
 	public IClientLauncherAPI.Result RunListenServer() {

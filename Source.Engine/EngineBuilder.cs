@@ -163,8 +163,6 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<IEngineServer, EngineServer>();
 		// We have to tell the dependency injection system how to resolve parent classes ourselves.
 		this.AddSingleton<BaseServer>(x => x.GetRequiredService<GameServer>());
-		// Singleton implementations of IEngineAPI and IEngine
-		this.AddSingleton<IEngineAPI, ClientLauncherAPI>();
 		this.AddSingleton<IEngine, GameEngine>();
 		this.AddSingleton<ModelLoader>();
 		this.AddSingleton<IModelLoader>(x => x.GetRequiredService<ModelLoader>());
@@ -298,6 +296,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		// These interfaces go to client and game dll's
 		this.AddSingleton<IEngineClient, EngineClient>();
 #endif
+		this.AddSingleton<IEngineAPI, ClientLauncherAPI>();
 		return PostBuildAllForms<ClientLauncherAPI>();
 	}
 
@@ -310,6 +309,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		PreBuildAllForms();
 		this.AddSingleton<IVModelInfoClient, ModelInfoServer>();
 		this.AddSingleton<IVModelInfo>(x => x.GetRequiredService<IVModelInfoClient>());
+		this.AddSingleton<IEngineAPI, DedicatedServerAPI>();
 		return PostBuildAllForms<DedicatedServerAPI>();
 	}
 

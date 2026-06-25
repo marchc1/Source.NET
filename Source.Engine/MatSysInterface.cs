@@ -187,13 +187,18 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 
 	private void InitDebugMaterials() {
 		MaterialEmpty = GL_LoadMaterial("debug/debugempty", MaterialDefines.TEXTURE_GROUP_OTHER)!;
+#if !SWDS
+// TODO: the rest of these important materials
+#endif
 	}
 
 	private void InitWellKnownRenderTargets() {
+#if !SWDS
 		materials.BeginRenderTargetAllocation();
 		FullFrameFBTexture0.Init(CreateFullFrameFBTexture(0));
 		FullFrameFBTexture0.Init(CreateFullFrameFBTexture(1));
 		materials.EndRenderTargetAllocation();
+#endif
 	}
 
 	private ITexture CreateFullFrameFBTexture(int textureIndex, CreateRenderTargetFlags extraFlags = 0) {
@@ -251,7 +256,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	internal readonly List<IMesh?> WorldStaticMeshes = [];
 
 	ConVar mat_max_worldmesh_vertices = new((32767 / 3).ToString(), 0);
-	public static readonly ConVar r_drawbrushmodels = new( "r_drawbrushmodels", "1", FCvar.Cheat, "Render brush models. 0=Off, 1=Normal, 2=Wireframe" );
+	public static readonly ConVar r_drawbrushmodels = new("r_drawbrushmodels", "1", FCvar.Cheat, "Render brush models. 0=Off, 1=Normal, 2=Wireframe");
 
 
 	public static void VertexCountForSurfaceList(MSurfaceSortList list, in SurfaceSortGroup group, out int vertexCount, out int indexCount) {
