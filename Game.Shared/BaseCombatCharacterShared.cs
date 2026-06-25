@@ -1,7 +1,9 @@
 ﻿#if CLIENT_DLL || GAME_DLL
 
 using Source.Common;
+
 using Game.Shared;
+
 using System.Numerics;
 
 #if CLIENT_DLL
@@ -30,7 +32,7 @@ public partial class
 #endif
 	}
 
-	public virtual BaseCombatWeapon? Weapon_OwnsThisType(ReadOnlySpan<char> weapon, int subtype){
+	public virtual BaseCombatWeapon? Weapon_OwnsThisType(ReadOnlySpan<char> weapon, int subtype) {
 		for (int i = 0; i < MAX_WEAPONS; i++) {
 			if (MyWeapons[i].Get() != null && FClassnameIs(MyWeapons[i].Get(), weapon)) {
 				// Make sure it matches the subtype
@@ -41,7 +43,8 @@ public partial class
 		return null;
 	}
 
-	public virtual bool Weapon_Switch(BaseCombatWeapon? weapon, int viewmodelindex = 0){
+
+	public virtual bool Weapon_Switch(BaseCombatWeapon? weapon, int viewmodelindex = 0) {
 		if (weapon == null)
 			return false;
 
@@ -51,10 +54,10 @@ public partial class
 			return false;
 		}
 
-		if (!Weapon_CanSwitchTo(weapon)) 
+		if (!Weapon_CanSwitchTo(weapon))
 			return false;
 
-		if (ActiveWeapon.Get() != null) 
+		if (ActiveWeapon.Get() != null)
 			if (!ActiveWeapon.Get()!.Holster(weapon))
 				return false;
 
@@ -91,7 +94,7 @@ public partial class
 				if (ActiveWeapon.Get()!.ForceWeaponSwitch()) {
 					// last weapon wasn't allowed to switch, don't allow to switch to new weapon
 					BaseCombatWeapon? lastWeapon = player.GetLastWeapon();
-					if (lastWeapon != null && weapon != lastWeapon && !lastWeapon!.CanHolster() && !weapon.ForceWeaponSwitch()) 
+					if (lastWeapon != null && weapon != lastWeapon && !lastWeapon!.CanHolster() && !weapon.ForceWeaponSwitch())
 						return false;
 				}
 			}
@@ -102,7 +105,7 @@ public partial class
 
 	public BaseCombatWeapon? GetActiveWeapon() => ActiveWeapon.Get();
 
-	public void RemoveAmmo(int count, int ammoIndex){
+	public void RemoveAmmo(int count, int ammoIndex) {
 		if (count <= 0)
 			return;
 
@@ -117,10 +120,10 @@ public partial class
 
 	public virtual Vector3 Weapon_ShootPosition() => EyePosition();
 
-	public bool SwitchToNextBestWeapon(BaseCombatWeapon current){
+	public bool SwitchToNextBestWeapon(BaseCombatWeapon current) {
 		BaseCombatWeapon? newWeapon = g_pGameRules.GetNextBestWeapon(this, current);
 
-		if ((newWeapon != null) && (newWeapon != current)) 
+		if ((newWeapon != null) && (newWeapon != current))
 			return Weapon_Switch(newWeapon);
 
 		return false;

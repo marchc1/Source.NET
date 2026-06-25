@@ -59,6 +59,7 @@ using DEFINE = Source.DEFINE<BaseCombatWeapon>;
 using Microsoft.VisualBasic;
 
 using System.Reflection;
+
 #endif
 
 public partial class
@@ -199,6 +200,42 @@ public partial class
 		= new Class("BaseCombatWeapon", DT_BaseCombatWeapon).WithManualClassID(StaticClassIndices.CBaseCombatWeapon);
 
 
+	public virtual bool CanBePickedUpByNPCs() => true;
+	public struct ActTable
+	{
+		public Activity BaseAct;
+		public Activity WeaponAct;
+		public bool Required;
+	}
+	public virtual ReadOnlySpan<ActTable> ActivityList() => null;
+	public virtual Activity ActivityOverride(Activity baseAct, ref bool required) {
+		ReadOnlySpan<ActTable> table = ActivityList();
+		int actCount = table.Length;
+
+		for (int i = 0; i < actCount; i++) {
+			ref readonly ActTable act = ref table[i];
+			if (baseAct == act.BaseAct) {
+				if (!Unsafe.IsNullRef(ref required))
+					required = act.Required;
+
+				return act.WeaponAct;
+			}
+		}
+		return baseAct;
+	}
+	
+#if GMOD_DLL
+	public virtual ReadOnlySpan<char> GetHoldType() => "normal";
+#endif
+
+	public override void Activate() {
+		base.Activate();
+
+#if !CLIENT_DLL
+		// todo
+#endif
+	}
+
 	public struct PoseParamTable
 	{
 		public string Name;
@@ -333,7 +370,7 @@ public partial class
 
 	public virtual bool ForceWeaponSwitch() => false;
 
-	public bool HasAnyAmmo() {
+	public virtual bool HasAnyAmmo() {
 		if (!UsesPrimaryAmmo() && !UsesSecondaryAmmo())
 			return true;
 

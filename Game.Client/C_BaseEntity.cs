@@ -959,7 +959,7 @@ public partial class C_BaseEntity : IClientEntity
 		return modelinfo.IsTranslucent(Model) || RenderMode != (int)Source.RenderMode.Normal;
 	}
 
-	public void UpdateOnRemove() {
+	public virtual void UpdateOnRemove() {
 		VPhysicsDestroyObject();
 
 		Assert(GetMoveParent() == null);
@@ -1539,10 +1539,6 @@ public partial class C_BaseEntity : IClientEntity
 		return true;
 	}
 
-	public virtual void SpawnClientEntity() {
-
-	}
-
 	public static C_BaseEntity? CreatePredictedEntityByName(ReadOnlySpan<char> classname, [CallerFilePath] string? module = null, [CallerLineNumber] int line = -1, bool persist = false) {
 		C_BasePlayer? player = C_BaseEntity.GetPredictionPlayer();
 
@@ -1792,6 +1788,8 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public virtual void Spawn() { }
+	public virtual void Activate() { }
+	public virtual void SpawnClientEntity() { }
 	public virtual void Precache() { }
 
 	public PredictionContext? PredictionContext;
@@ -1923,7 +1921,7 @@ public partial class C_BaseEntity : IClientEntity
 
 	readonly object CalcAbsolutePositionMutex = new();
 
-	private void CalcAbsolutePosition() {
+	protected void CalcAbsolutePosition() {
 		if (!s_bAbsRecomputationEnabled)
 			return;
 
