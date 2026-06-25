@@ -160,16 +160,77 @@ public partial class
 		return minTick;
 	}
 
-	public virtual void ModifyEmitSoundParams(ref EmitSound_t parms){
+	public virtual void ModifyEmitSoundParams(ref EmitSound_t parms) {
 #if CLIENT_DLL
 		if (g_pGameRules != null)
 			parms.SoundName = g_pGameRules.TranslateEffectForVisionFilter("sounds", parms.SoundName);
- #endif
+#endif
 	}
 
 	public long GetNextThinkTick(ReadOnlySpan<char> context = default) {
-		// todo
-		return (long)TICK_NEVER_THINK;
+		// Are we currently in a think function with a context?
+		int index = 0;
+		if (context.IsEmpty) {
+#if DEBUG
+			if (CurrentThinkContext != NO_THINK_CONTEXT) 
+				Msg($"Warning: Getting base nextthink time within think context {ThinkFunctions[CurrentThinkContext].Context}\n");
+#endif
+
+			if (NextThinkTick == TICK_NEVER_THINK)
+				return TICK_NEVER_THINK;
+
+			// Old system
+			return (long)(TICK_INTERVAL * NextThinkTick);
+		}
+		else 
+			// Find the think function in our list
+			index = GetIndexForThinkContext(context);
+		
+		if (index == NO_THINK_CONTEXT)
+			return TICK_NEVER_THINK;
+
+		ref ThinkFunc tf = ref ThinkFunctions.AsSpan()[index];
+
+		if (tf.NextThinkTick == TICK_NEVER_THINK) 
+			return TICK_NEVER_THINK;
+		
+		return (long)(TICK_INTERVAL * (tf.NextThinkTick));
+	}
+
+	public TimeUnit_t GetLastThink(ReadOnlySpan<char> context){
+		// Are we currently in a think function with a context?
+		int index = 0;
+		if (context.IsEmpty) {
+#if DEBUG
+			if (CurrentThinkContext != NO_THINK_CONTEXT) 
+				Msg($"Warning: Getting base lastthink time within think context {ThinkFunctions[CurrentThinkContext].Context}\n");
+#endif
+			// Old system
+			return LastThinkTick * TICK_INTERVAL;
+		}
+		else 
+			// Find the think function in our list
+			index = GetIndexForThinkContext(context);
+
+		return ThinkFunctions.AsSpan()[index].LastThinkTick * TICK_INTERVAL;
+	}
+
+	public long GetLastThinkTick(ReadOnlySpan<char> context){
+		// Are we currently in a think function with a context?
+		int index = 0;
+		if (context.IsEmpty) {
+#if DEBUG
+			if (CurrentThinkContext != NO_THINK_CONTEXT)
+				Msg($"Warning: Getting base lastthink time within think context {ThinkFunctions[CurrentThinkContext].Context}\n");
+#endif
+			// Old system
+			return LastThinkTick;
+		}
+		else
+			// Find the think function in our list
+			index = GetIndexForThinkContext(context);
+
+		return ThinkFunctions.AsSpan()[index].LastThinkTick;
 	}
 
 	public bool WillThink() {
@@ -221,6 +282,30 @@ public partial class
 #endif
 	}
 
+	public BASEPTR SetThink(Action? a) => ThinkSet(a == null ? null : _ => a(), 0, null);
+	public BASEPTR SetContextThink(Action? a, TimeUnit_t b, ReadOnlySpan<char> context) => ThinkSet(a == null ? null : _ => a(), b, context);
+	public BASEPTR? ThinkSet(BASEPTR? func, TimeUnit_t thinkTime, ReadOnlySpan<char> context) {
+		if (context.IsEmpty) {
+			FnThink = func;
+			return FnThink;
+		}
+
+		int iIndex = GetIndexForThinkContext(context);
+		if (iIndex == NO_THINK_CONTEXT) 
+			iIndex = RegisterThinkContext(context);
+
+		var thinkFns = ThinkFunctions.AsSpan();
+
+		thinkFns[iIndex].Think = func;
+		if (thinkTime != 0) {
+			int thinkTick = (thinkTime == TICK_NEVER_THINK) ? TICK_NEVER_THINK : TIME_TO_TICKS(thinkTime);
+			thinkFns[iIndex].NextThinkTick = thinkTick;
+			CheckHasThinkFunction(thinkTick == TICK_NEVER_THINK ? false : true);
+		}
+
+		return func;
+	}
+
 	private bool WillSimulateGamePhysics() {
 		if (!IsPlayer()) {
 			MoveType movetype = GetMoveType();
@@ -238,6 +323,17 @@ public partial class
 	}
 
 	public void SetViewOffset(in Vector3 v) => ViewOffset = v;
+
+	public void SetNextThink(int contextIndex, TimeUnit_t thinkTime) {
+		int thinkTick = (thinkTime == TICK_NEVER_THINK) ? TICK_NEVER_THINK : TIME_TO_TICKS(thinkTime);
+
+		if (contextIndex < 0) 
+			SetNextThink(thinkTime);
+		else 
+			ThinkFunctions.AsSpan()[contextIndex].NextThinkTick = thinkTick;
+		
+		CheckHasThinkFunction(thinkTick == TICK_NEVER_THINK ? false : true);
+	}
 
 	public void SetNextThink(TimeUnit_t thinkTime, ReadOnlySpan<char> context = default) {
 		int thinkTick = (thinkTime == TICK_NEVER_THINK) ? TICK_NEVER_THINK : TIME_TO_TICKS(thinkTime);
@@ -476,13 +572,13 @@ public partial class
 
 	public static float k_flMaxEntityPosCoord = MAX_COORD_FLOAT;
 	public static float k_flMaxEntityEulerAngle = 360.0f * 1000.0f; // really should be restricted to +/-180, but some code doesn't adhere to this.  let's just trap NANs, etc
-															// Sometimes the resulting computed speeds are legitimately above the original
-															// constants; use bumped up versions for the downstream validation logic to
-															// account for this.
+																	// Sometimes the resulting computed speeds are legitimately above the original
+																	// constants; use bumped up versions for the downstream validation logic to
+																	// account for this.
 	public static float k_flMaxEntitySpeed = k_flMaxVelocity * 2.0f;
 	public static float k_flMaxEntitySpinRate = k_flMaxAngularVelocity * 10.0f;
 	static double s_LastEntityReasonableEmitTime;
-	public static bool CheckEmitReasonablePhysicsSpew(){
+	public static bool CheckEmitReasonablePhysicsSpew() {
 		// Reported recently?
 		double now = Platform.Time;
 		if (now >= s_LastEntityReasonableEmitTime && now < s_LastEntityReasonableEmitTime + 5.0) {
@@ -494,7 +590,7 @@ public partial class
 		s_LastEntityReasonableEmitTime = now;
 		return true;
 	}
-	public static int CheckEntityVelocity(ref Vector3 v){
+	public static int CheckEntityVelocity(ref Vector3 v) {
 		float r = k_flMaxEntitySpeed;
 		if (
 			v.X > -r && v.X < r &&

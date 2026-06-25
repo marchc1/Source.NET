@@ -295,5 +295,11 @@ public class BaseAnimating : BaseEntity
 			return sequence;
 	}
 
+	public void SetBodygroup(int group, int value){
+		int newBody = Body;
+		Animation.SetBodygroup(GetModelPtr(), ref newBody, group, value);
+		Body = newBody;
+	}
+
 	public override BaseAnimating? GetBaseAnimating() => this;
 }

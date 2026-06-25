@@ -116,5 +116,14 @@ public partial class
 	public void RemoveAmmo(int count, ReadOnlySpan<char> name) => RemoveAmmo(count, GetAmmoDef().Index(name));
 
 	public virtual Vector3 Weapon_ShootPosition() => EyePosition();
+
+	public bool SwitchToNextBestWeapon(BaseCombatWeapon current){
+		BaseCombatWeapon? newWeapon = g_pGameRules.GetNextBestWeapon(this, current);
+
+		if ((newWeapon != null) && (newWeapon != current)) 
+			return Weapon_Switch(newWeapon);
+
+		return false;
+	}
 }
 #endif

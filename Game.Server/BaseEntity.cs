@@ -29,9 +29,11 @@ public partial class BaseEntity : IServerEntity
 {
 	public static Edict? g_pForceAttachEdict;
 
-	public delegate void BASEPTR();
-	public delegate void ENTITYFUNCPTR(BaseEntity? other);
+	public delegate void BASEPTR(BaseEntity self);
+	public delegate void ENTITYFUNCPTR(BaseEntity self, BaseEntity? other);
 	public delegate void USEPTR(BaseEntity? activator, BaseEntity? caller, UseType useType, float value);
+
+	public BASEPTR? FnThink;
 
 	static int PredictionRandomSeed = -1;
 	static BasePlayer? PredictionPlayer;
@@ -499,6 +501,7 @@ public partial class BaseEntity : IServerEntity
 	public int LifeState;
 	public Vector3 BaseVelocity;
 	public int NextThinkTick;
+	public int LastThinkTick;
 	public byte WaterLevel;
 	public byte WaterType;
 

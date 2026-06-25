@@ -69,6 +69,10 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 	}
 
+	public void SetBodygroup(int group, int value) {
+		Animation.SetBodygroup(GetModelPtr(), ref Body, group, value);
+	}
+
 	float GroundSpeed;
 	const TimeUnit_t MAX_ANIMTIME_INTERVAL = 0.2;
 	public TimeUnit_t GetAnimTimeInterval() => Math.Min(gpGlobals.CurTime - AnimTime, MAX_ANIMTIME_INTERVAL);
