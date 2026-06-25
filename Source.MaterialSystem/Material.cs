@@ -870,7 +870,7 @@ public class Material : IMaterialInternal
 	}
 
 	private string MissingShaderName() {
-		return "unlitgeneric";
+		return "Wireframe";
 	}
 
 	MaterialFlags flags;

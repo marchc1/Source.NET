@@ -266,10 +266,9 @@ public static class ImageLoader
 		ImageFormat.BGR888 => GL_BGR,
 		ImageFormat.RGB888_Bluescreen => GL_RGB,
 		ImageFormat.BGR888_Bluescreen => GL_BGR, // TODO: what does bluescreen mean here
-													  // ImageFormat.ARGB8888 => Gl46.ARGB,
+																						 // ImageFormat.ARGB8888 => Gl46.ARGB,
 		ImageFormat.BGRA8888 => GL_BGRA,
 		ImageFormat.BGRX8888 => GL_BGRA,
-		ImageFormat.I8 => GL_RED,
 		ImageFormat.RGBA16161616 => GL_RGBA,
 		ImageFormat.RGBA16161616F => GL_RGBA,
 		ImageFormat.R32F => GL_RED,
@@ -290,7 +289,7 @@ public static class ImageLoader
 		ImageFormat.A8 => GL_RGBA8,
 		ImageFormat.RGB888_Bluescreen => GL_RGB8,
 		ImageFormat.BGR888_Bluescreen => Gl46.GL_BGR, // TODO: what does bluescreen mean here
-													  // ImageFormat.ARGB8888 => Gl46.ARGB,
+																									// ImageFormat.ARGB8888 => Gl46.ARGB,
 		ImageFormat.BGRA8888 => Gl46.GL_BGRA8_EXT,
 		ImageFormat.BGRX8888 => Gl46.GL_BGRA8_EXT,
 		// ImageFormat.BGRX5551 => GL_RGBA8,
