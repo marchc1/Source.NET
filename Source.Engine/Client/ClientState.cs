@@ -149,7 +149,7 @@ public class ClientState : BaseClientState
 		this.Sound = Sound;
 		engineClient_LAZY = new(ProduceEngineClient);
 		CommandLine = commandLine;
-		RecvTable = RecvTable;
+		this.RecvTable = RecvTable;
 	}
 
 	private IEngineClient ProduceEngineClient() => services.GetRequiredService<IEngineClient>();

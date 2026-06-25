@@ -46,6 +46,7 @@ public class Game : IGame
 		inputSystem = services.GetService<IInputSystem>();
 		surface = services.GetService<IMatSystemSurface>();
 		this.Key = services.GetService<Key>();
+		launcherManager = OptionalSingleton<ILauncherManager>();
 	}
 	GameMessageHandler[]? GameMessageHandlers;
 
@@ -221,7 +222,7 @@ public class Game : IGame
 	}
 
 	public void InputDetachFromGameWindow() {
-		throw new NotImplementedException();
+
 	}
 
 	bool ActiveApp;

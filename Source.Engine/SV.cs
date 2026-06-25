@@ -24,8 +24,8 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 	public static IServerGameClients? ServerGameClients;
 
 #if !SWDS
-	readonly Con Con = Singleton<Con>();
-	readonly EngineVGui EngineVGui = Singleton<EngineVGui>();
+	Con Con => field ??= Singleton<Con>();
+	EngineVGui EngineVGui => field ??= Singleton<EngineVGui>();
 #endif
 
 	public static readonly ConVar sv_pure_kick_clients = new("sv_pure_kick_clients", "1", 0, "If set to 1, the server will kick clients with mismatching files. Otherwise, it will issue a warning to the client.");

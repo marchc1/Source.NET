@@ -54,7 +54,6 @@ public class ClientLauncherAPI(IGame game, IServiceProvider services, Common COM
 		if (videomode == null)
 			return false;
 
-		videomode.Init();
 		return videomode.CreateGameWindow(new(width, height, windowed, borderless));
 	}
 
@@ -92,12 +91,42 @@ public class ClientLauncherAPI(IGame game, IServiceProvider services, Common COM
 	}
 
 	public IClientLauncherAPI.Result Run() {
-		services.GetRequiredService<IMaterialSystem>().ModInit();
+		return Main();
+	}
+
+	private IClientLauncherAPI.Result Main() {
+		if (!Init())
+			return IClientLauncherAPI.Result.InitFailed;
+
 		ConVar.Register();
+		return RunListenServer();
+	}
+
+	private bool Init() {
+		// if (!game.Init()) 
+			// goto onStartupError;
+		
+		if (!videomode.Init()) 
+			goto onStartupShutdownGame;
+		
+		if (!InitRegistry(startupInfo.InitialMod)) 
+			goto onStartupShutdownVideoMode;
+
+		materials.ModInit();
+
 #if !SWDS
 		matSys.InitMaterialSystemConfig(InEditMode());
 #endif
-		return RunListenServer();
+
+		ShutdownRegistry();
+		return true;
+
+	onStartupShutdownVideoMode:
+		// videomode.Shutdown();
+	onStartupShutdownGame:
+		// game.Shutdown();
+	onStartupError:
+		return false;
 	}
 
 	public object? GetService(Type serviceType) => services.GetService(serviceType);
