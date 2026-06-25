@@ -2,4 +2,5 @@
 
 public interface IMaterialSystemStub : IMaterialSystem
 {
+	void SetRealMaterialSystem(IMaterialSystem? sys);
 }
