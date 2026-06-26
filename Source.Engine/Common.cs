@@ -79,8 +79,7 @@ public class Common(IServiceProvider providers, Sys Sys)
 
 		// We have room and should be able to compress directly
 		*(uint*)dest = SNAPPY_ID;
-		int compressed_length = Snappy.Compress(new Span<byte>(source, (int)sourceLen), new(dest + sizeof(uint), (int)(destLen - sizeof(uint))));
-		compressed_length += 4;
+		int compressed_length = Snappy.Compress(new Span<byte>(source, (int)sourceLen), new(dest + sizeof(uint), (int)(*destLen - sizeof(uint)))); compressed_length += 4;
 		Assert(compressed_length <= nMaxCompressedSize);
 		*destLen = (uint)compressed_length;
 		return true;
@@ -229,7 +228,7 @@ public class Common(IServiceProvider providers, Sys Sys)
 			else
 				message = disconnectReason;
 		}
-		else{
+		else {
 			message = disconnectReason;
 		}
 
