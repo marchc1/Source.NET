@@ -184,7 +184,20 @@ public static partial class Util
 		}
 	}
 
-	public static void PrecacheOther(ReadOnlySpan<char> className, ReadOnlySpan<char> modelName = default) => throw new NotImplementedException();
+	public static void PrecacheOther(ReadOnlySpan<char> className, ReadOnlySpan<char> modelName = default) {
+		BaseEntity? entity = CreateEntityByName(className);
+		if (entity == null) {
+			Warning("NULL Ent in UTIL_PrecacheOther\n");
+			return;
+		}
+
+		// If we have a specified model, set it before calling precache
+		if (!modelName.IsStringEmpty)
+			entity.SetModelName(modelName);
+
+		entity.Precache();
+		Util.RemoveImmediate(entity);
+	}
 
 	public static void ClientPrintFilter<Filter>(scoped in Filter filter, HudPrint dest, ReadOnlySpan<char> msgName, ReadOnlySpan<char> param1 = default, ReadOnlySpan<char> param2 = default, ReadOnlySpan<char> param3 = default, ReadOnlySpan<char> param4 = default) where Filter : IRecipientFilter {
 		UserMessageBegin(filter, "TextMsg");

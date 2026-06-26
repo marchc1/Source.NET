@@ -54,7 +54,7 @@ public partial class BaseEntity : IServerEntity
 	public virtual bool IsTemplate() => false;
 	public bool IsDormant() => IsEFlagSet(EFL.Dormant);
 
-	public  ReadOnlySpan<char> TeamID() {
+	public ReadOnlySpan<char> TeamID() {
 		var team = GetTeam();
 		return team == null ? "" : team.GetName();
 	}
@@ -749,7 +749,57 @@ public partial class BaseEntity : IServerEntity
 	}
 	public virtual void Spawn() { }
 	public virtual void Activate() { }
-	public virtual void Precache() { }
+	public virtual void Precache() {
+
+	}
+
+	static bool _AllowPrecache;
+	public static bool IsPrecacheAllowed() => _AllowPrecache;
+	public static bool SetAllowPrecache(bool allow) => _AllowPrecache = allow;
+
+	public int PrecacheModel(ReadOnlySpan<char> name, bool preload) {
+		if (name.IsStringEmpty)
+			return -1;
+
+		if (!BaseEntity.IsPrecacheAllowed()) 
+			if (!engine.IsModelPrecached(name)) 
+				DevMsg($"Late precache of {name} -- not necessarily a bug now that we allow ~everything to be dynamically loaded.\n");
+
+		int idx = engine.PrecacheModel(name, preload);
+		if (idx != -1) 
+			PrecacheModelComponents(idx);
+		
+		return idx;
+	}
+
+	public void PrecacheModelComponents(int modelIndex){
+		Model? model = (Model?)modelinfo.GetModel(modelIndex);
+		if (model != null || modelinfo.GetModelType(model) != ModelType.Studio) 
+			return;
+
+		// sounds
+		if (IsPC()) {
+			ReadOnlySpan<char> name = modelinfo.GetModelName(model);
+			if (!g_ModelSoundsCache.TryGetValue(name.Hash(), out _)) {
+				ReadOnlySpan<char> extension = Path.GetExtension(name);
+
+				if (!stristr(extension, "mdl").IsEmpty) 
+					DevMsg(2, $"Late precache of {name}, need to rebuild modelsounds.cache\n");
+				else {
+					if (extension[0] == '\0') 
+						Warning($"Precache of {name} ambigious (no extension specified)\n");
+					else 
+						Warning($"Late precache of {name} (file missing?)\n");
+					return;
+				}
+			}
+
+			if (g_ModelSoundsCache.TryGetValue(name.Hash(), out ModelSoundsCache? entry)) 
+				entry.PrecacheSoundList();
+		}
+	}
+
+	static readonly Dictionary<UtlSymId_t, ModelSoundsCache> g_ModelSoundsCache = [];
 
 	public bool HasSpawnFlags(int flags) => (SpawnFlags & flags) != 0;
 

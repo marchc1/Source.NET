@@ -60,7 +60,7 @@ public class World : BaseEntity
 		Assert(g_pGameRules != null);
 		g_pGameRules.Init();
 
-		SimThinkManager.g_SimThinkManager.LevelInitPreEntity(); // todo move to CEntityListSystem
+		BaseEntity.SetAllowPrecache(true);
 		IGameSystem.LevelInitPreEntityAllSystems(GetModelName());
 
 		g_pGameRules.CreateStandardEntities();

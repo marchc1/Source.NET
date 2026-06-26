@@ -38,13 +38,13 @@ public static class GMODClient
 		// 	ClientPrint(player, HudPrint.Talk, $"You are on team {player.GetTeam().GetName()}\n");
 	}
 
-	public static void ClientPutInServer(Edict edict, ReadOnlySpan<char> playername) {
+	public static void ClientPutInServer(Edict? edict, ReadOnlySpan<char> playername) {
 		// Allocate a CBaseTFPlayer for pev, and call spawn
-		GMOD_Player player = GMOD_Player.CreatePlayer("player", edict);
+		GMOD_Player player = GMOD_Player.CreatePlayer("player", edict)!;
 		player.SetPlayerName(playername);
 	}
 
-	public static void ClientActive(Edict edict, bool loadGame) {
+	public static void ClientActive(Edict? edict, bool loadGame) {
 		// Can't load games in CS!
 		Assert(!loadGame);
 

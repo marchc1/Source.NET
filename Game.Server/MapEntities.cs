@@ -34,6 +34,18 @@ public static class MapEntities
 {
 	static ref Edict? g_pForceAttachEdict => ref BaseEntity.g_pForceAttachEdict;
 
+	public static void MapEntity_ParseAllEntities<IMEF>(ReadOnlySpan<char> mapData, ref IMEF filter, bool activateEntities) where IMEF : IMapEntityFilter {
+		HierarchicalSpawnMapData_t[] pSpawnMapData = new HierarchicalSpawnMapData_t[Constants.NUM_ENT_ENTRIES];
+		HierarchicalSpawn_t[] pSpawnList = new HierarchicalSpawn_t[Constants.NUM_ENT_ENTRIES];
+
+		List<PointTemplate> pPointTemplates = [];
+		int nEntities = 0;
+
+		Span<char> szTokenBuffer = stackalloc char[EntityMapData.MAPKEY_MAXLENGTH];
+		// todo
+		SpawnHierarchicalList(nEntities, pSpawnList, activateEntities);
+	}
+
 	public static BaseEntity? CreateEntityByName(ReadOnlySpan<char> className, int forceEdictIndex = -1) {
 		if (forceEdictIndex != -1) {
 			g_pForceAttachEdict = engine.CreateEdict(forceEdictIndex);

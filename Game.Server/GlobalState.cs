@@ -14,13 +14,15 @@ using System.Text;
 
 namespace Game.Server;
 
-public enum GlobalEState {
+public enum GlobalEState
+{
 	Off,
 	On,
 	Dead
 }
 
-public struct GlobalEntity {
+public struct GlobalEntity
+{
 	public UtlSymbol Name;
 	public UtlSymbol LevelName;
 	public GlobalEState State;
@@ -43,7 +45,7 @@ public class GlobalState : AutoGameSystem
 		NameList.RemoveAll();
 	}
 
-	public int GetIndex(ReadOnlySpan<char> str){
+	public int GetIndex(ReadOnlySpan<char> str) {
 		UtlSymbol symName = new(NameList.Find(str));
 
 		if (symName.IsValid()) {
@@ -56,8 +58,8 @@ public class GlobalState : AutoGameSystem
 		return -1;
 	}
 
-	public void EnableStateUpdates(bool enable) => DisableStateUpdates = !enable; 
-	public void SetState(int globalIndex, GlobalEState state){
+	public void EnableStateUpdates(bool enable) => DisableStateUpdates = !enable;
+	public void SetState(int globalIndex, GlobalEState state) {
 		if (DisableStateUpdates || !List.IsValidIndex(globalIndex))
 			return;
 		List.AsSpan()[globalIndex].State = state;
@@ -94,7 +96,7 @@ public class GlobalState : AutoGameSystem
 			return null;
 		return NameList.String(List.AsSpan()[globalIndex].Name);
 	}
-	public nint AddEntity(ReadOnlySpan<char> globalname, ReadOnlySpan<char> mapname, GlobalEState state){
+	public nint AddEntity(ReadOnlySpan<char> globalname, ReadOnlySpan<char> mapname, GlobalEState state) {
 		GlobalEntity entity;
 		entity.Name = new(NameList.AddString(globalname));
 		entity.LevelName = new(NameList.AddString(mapname));
@@ -116,4 +118,6 @@ public class GlobalState : AutoGameSystem
 	public readonly UtlSymbolTable NameList = new();
 	private bool DisableStateUpdates;
 	private readonly List<GlobalEntity> List = [];
+
+	public static void GlobalEntity_EnableStateUpdates(bool enable) => globalState.EnableStateUpdates(enable);
 }
