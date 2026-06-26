@@ -1236,6 +1236,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		UnlockStudioHdr();
 	}
 
+
 	public bool IsModelScaleFractional() => ModelScale < 1.0f;
 	public bool IsModelScaled() => ModelScale > 1.0f + float.Epsilon || ModelScale < 1.0f - float.Epsilon;
 	public float GetModelScale() => ModelScale;

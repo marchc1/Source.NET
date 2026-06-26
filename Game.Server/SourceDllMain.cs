@@ -29,6 +29,7 @@ public static class SourceDllMain
 	[Dependency] public static IGameEventManager2 gameeventmanager { get; private set; } = null!;
 	[Dependency] public static IDataCache datacache { get; private set; } = null!;
 	[Dependency] public static UserMessages usermessages { get; private set; } = null!;
+	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;
 	[Dependency] public static IVModelInfo modelinfo { get; private set; } = null!;
 	[Dependency] public static GlobalEntityList gEntList { get; private set; } = null!;
 	[Dependency] public static BaseEntityList g_pEntityList { get; private set; } = null!;

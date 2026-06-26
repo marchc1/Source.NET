@@ -755,6 +755,26 @@ public partial class BaseEntity : IServerEntity
 
 	public int GetModelIndex() => ModelIndex;
 
+	/// <summary>
+	/// The equiv of the dtor (kinda...)
+	/// </summary>
+	public virtual void Term() {
+		VPhysicsDestroyObject();
+		DestroyAllDataObjects();
+
+		{
+			Util.g_bDisableEhandleAccess = false;
+			// BaseEntity.PhysicsRemoveTouchedList(this);
+			// BaseEntity.PhysicsRemoveGroundList(this);
+			SetGroundEntity(null); // remove us from the ground entity if we are on it
+			DestroyAllDataObjects();
+			Util.g_bDisableEhandleAccess = true;
+
+			// Remove this entity from the ent list (NOTE:  This Makes EHANDLES go NULL)
+			gEntList.RemoveEntity(GetRefEHandle());
+		}
+	}
+
 	public ReadOnlySpan<char> GetModelName() => ModelName;
 	public void SetModelName(ReadOnlySpan<char> modelName) {
 		ModelName = new(modelName);

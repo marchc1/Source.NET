@@ -138,6 +138,8 @@ public static partial class Util_Globals
 }
 public static partial class Util
 {
+	public static bool g_bDisableEhandleAccess = false;
+	public static bool g_bReceivedChainedUpdateOnRemove = false;
 	public static void LogPrintf(ReadOnlySpan<char> text) {
 		engine.LogPrint(text);
 	}
@@ -303,9 +305,6 @@ public static partial class Util
 		Remove(entity.NetworkProp());
 	}
 
-	public static bool g_bDisableEhandleAccess = false;
-	public static bool g_bReceivedChainedUpdateOnRemove = false;
-
 	public static void Remove(IServerNetworkable? oldObj) {
 		ServerNetworkProperty? prop = (ServerNetworkProperty?)oldObj;
 		if (prop == null || prop.IsMarkedForDeletion())
@@ -339,6 +338,36 @@ public static partial class Util
 
 		gEntList.AddToDeleteList(oldObj);
 	}
+	static int s_RemoveImmediateSemaphore = 0;
+	public static void DisableRemoveImmediate() {
+		s_RemoveImmediateSemaphore++;
+	}
+	public static void EnableRemoveImmediate() {
+		s_RemoveImmediateSemaphore--;
+		Assert(s_RemoveImmediateSemaphore >= 0);
+	}
+	public static void RemoveImmediate(BaseEntity? oldObj) {
+		if (oldObj == null || oldObj.IsEFlagSet(EFL.KillMe))
+			return;
+
+		if (s_RemoveImmediateSemaphore != 0) {
+			Remove(oldObj);
+			return;
+		}
+
+
+		oldObj.AddEFlags(EFL.KillMe);  // Make sure to ignore further calls into here or UTIL_Remove.
+
+		g_bReceivedChainedUpdateOnRemove = false;
+		oldObj.UpdateOnRemove();
+		Assert(g_bReceivedChainedUpdateOnRemove);
+
+		// Entities shouldn't reference other entities in their destructors
+		//  that type of code should only occur in an UpdateOnRemove call
+		g_bDisableEhandleAccess = true;
+		oldObj.Term();
+		g_bDisableEhandleAccess = false;
+	}
 
 	public static int GetCommandClientIndex() => ServerGameClients.CommandClientIndex + 1;
 
@@ -351,10 +380,6 @@ public static partial class Util
 	}
 
 	internal static void SetOrigin(BasePlayer player, Vector3 origin) {
-		throw new NotImplementedException();
-	}
-
-	internal static void RemoveImmediate(BaseEntity? baseEntity) {
 		throw new NotImplementedException();
 	}
 

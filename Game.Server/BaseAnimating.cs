@@ -2,6 +2,8 @@
 
 using Source;
 using Source.Common;
+using Source.Common.DataCache;
+using Source.Common.Engine;
 
 using System.Numerics;
 
@@ -117,7 +119,7 @@ public class BaseAnimating : BaseEntity
 	}
 	public TimeUnit_t GetSequenceGroundSpeed(int sequence) => GetSequenceGroundSpeed(GetModelPtr(), sequence);
 
-	public Activity GetSequenceActivity(int sequence){
+	public Activity GetSequenceActivity(int sequence) {
 		if (sequence == -1) {
 			return Activity.ACT_INVALID;
 		}
@@ -137,8 +139,63 @@ public class BaseAnimating : BaseEntity
 	public bool IsModelScaled() => ModelScale > 1.0f + float.Epsilon || ModelScale < 1.0f - float.Epsilon;
 	public float GetModelScale() => ModelScale;
 
+	StudioHdr? StudioHdr;
+	public Model? GetModel() => modelinfo.GetModel(GetModelIndex());
+
 	// todo...
-	public StudioHdr? GetModelPtr() => null!;
+	public StudioHdr? GetModelPtr() {
+		if (IsDynamicModelLoading())
+			return null;
+
+		if (StudioHdr == null && GetModel() != null)
+			LockStudioHdr();
+
+		return (StudioHdr != null && StudioHdr.IsValid()) ? StudioHdr : null;
+	}
+
+	readonly object StudioHdrInitLock = new();
+
+	public void LockStudioHdr() {
+		lock (StudioHdrInitLock) {
+			Model? mdl = GetModel();
+			if (mdl != null) {
+				MDLHandle_t hStudioHdr = modelinfo.GetCacheHandle(mdl);
+				if (hStudioHdr != MDLHANDLE_INVALID) {
+					StudioHeader? pStudioHdr = mdlcache.LockStudioHdr(hStudioHdr);
+					StudioHdr? pStudioHdrContainer = null;
+					if (StudioHdr == null) {
+						if (pStudioHdr != null) {
+							pStudioHdrContainer = new StudioHdr();
+							pStudioHdrContainer.Init(pStudioHdr, mdlcache);
+						}
+					}
+					else 
+						pStudioHdrContainer = StudioHdr;
+
+					Assert((pStudioHdr == null && pStudioHdrContainer == null) || (pStudioHdrContainer != null && pStudioHdrContainer.GetRenderHdr() == pStudioHdr));
+
+					if (pStudioHdrContainer != null && pStudioHdrContainer.GetVirtualModel() != null) {
+						MDLHandle_t hVirtualModel = (MDLHandle_t)(nint)(pStudioHdrContainer.GetRenderHdr().VirtualModel) & 0xffff;
+						mdlcache.LockStudioHdr(hVirtualModel);
+					}
+					StudioHdr = pStudioHdrContainer;
+				}
+			}
+		}
+	}
+
+	public void UnlockStudioHdr() {
+		if (StudioHdr != null) {
+			Model? mdl = GetModel();
+			if (mdl != null) {
+				mdlcache.UnlockStudioHdr(modelinfo.GetCacheHandle(mdl));
+				if (StudioHdr.GetVirtualModel() != null) {
+					MDLHandle_t virtualModel = (MDLHandle_t)(nint)(StudioHdr.GetRenderHdr().VirtualModel) & 0xffff;
+					mdlcache.UnlockStudioHdr(virtualModel);
+				}
+			}
+		}
+	}
 
 	public ReadOnlySpan<float> GetPoseParameterArray() => PoseParameter;
 
@@ -268,7 +325,7 @@ public class BaseAnimating : BaseEntity
 		StudioHdr? studioHdr = GetModelPtr();
 		GroundSpeed = GetSequenceGroundSpeed(studioHdr, GetSequence()) * GetModelScale();
 		SequenceLoops = ((Animation.GetSequenceFlags(studioHdr, GetSequence()) & StudioAnimSeqFlags.Looping) != 0);
-		// m_flAnimTime = gpGlobals->time;
+		// m_flAnimTime = gpGlobals.time;
 		PlaybackRate = 1.0;
 		SequenceFinished = false;
 		LastEventCheck = 0;
@@ -295,7 +352,7 @@ public class BaseAnimating : BaseEntity
 			return sequence;
 	}
 
-	public void SetBodygroup(int group, int value){
+	public void SetBodygroup(int group, int value) {
 		int newBody = Body;
 		Animation.SetBodygroup(GetModelPtr(), ref newBody, group, value);
 		Body = newBody;
