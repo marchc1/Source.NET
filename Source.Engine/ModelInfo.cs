@@ -262,9 +262,7 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException();
 	}
 
-	public bool IsTranslucent(Model? model) {
-		throw new NotImplementedException();
-	}
+	public bool IsTranslucent(Model? model) => model != null && (model.Flags & ModelFlag.Translucent) != 0;
 
 	public void RecomputeTranslucency(Model? model, int skin, int nBody, object? clientRenderable, float instanceAlphaModulate = 1) {
 		throw new NotImplementedException();

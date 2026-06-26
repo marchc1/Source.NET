@@ -110,11 +110,13 @@ public partial class Render
 
 	// Precache lighting
 	public LightCacheHandle_t CreateStaticLightingCache(in Vector3 origin, in Vector3 mins, in Vector3 maxs) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		return default; // TODO
 	}
 
 	public void ClearStaticLightingCache() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		// todo
 	}
 
 	public bool ComputeVertexLightingFromSphericalSamples(in Vector3 vertex, in Vector3 normal, IHandleEntity? ignoreEnt, out Vector3 linearColor) {

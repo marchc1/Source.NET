@@ -27,6 +27,8 @@ public static class StaticPropMgrGlobals
 	public static readonly ConVar r_staticpropinfo = new("r_staticpropinfo", "0", 0);
 	public static readonly ConVar r_drawmodeldecals = new("r_drawmodeldecals", "1", 0);
 
+	public const int STATICPROP_EHANDLE_MASK = 0x40000000;
+
 	public static Vector3 r_colormod = new(1, 1, 1);
 	public static float r_blend = 1;
 
@@ -77,7 +79,10 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 	}
 
 	public void Shutdown() {
-		throw new NotImplementedException();
+		if (!LevelInitialized)
+			return;
+
+		LevelShutdown();
 	}
 
 	public void LevelInit() {
@@ -91,15 +96,75 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 	}
 
 	public void LevelInitClient() {
+#if !SWDS
+		if (sv.IsDedicated())
+			return;
 
+		bool needsMapAccess = ModelRender.r_proplightingfromdisk.GetBool();
+		if (needsMapAccess)
+			g_pFileSystem.BeginMapAccess();
+
+		Assert(LevelInitialized);
+		Assert(!ClientInitialized);
+
+		foreach (StaticProp prop in StaticProps) {
+			clientleafsystem.CreateRenderableHandle(prop, true);
+			if (!prop.ShouldDraw())
+				continue;
+
+			ClientRenderHandle_t handle = prop.RenderHandle();
+			if (prop.LeafCount() > 0) {
+				Span<ushort> leaves = MemoryMarshal.Cast<StaticPropLeafLump, ushort>(CollectionsMarshal.AsSpan(StaticPropLeaves)).Slice(prop.FirstLeaf(), prop.LeafCount());
+				clientleafsystem.AddRenderableToLeaves(handle, leaves);
+			}
+			else {
+				Vector3 origin = prop.GetCollisionOrigin();
+				DevMsg($"Static prop in 0 leaves! @ {origin.X:F1}, {origin.Y:F1}, {origin.Z:F1}\n");
+			}
+		}
+
+		PrecacheLighting();
+
+		ClientInitialized = true;
+
+		if (needsMapAccess)
+			g_pFileSystem.EndMapAccess();
+#endif
 	}
 
 	public void LevelShutdown() {
+		if (!LevelInitialized)
+			return;
 
+		if (ClientInitialized)
+			LevelShutdownClient();
+
+		LevelInitialized = false;
+
+		for (int i = 0; i < StaticPropDictList.Count; i++)
+			mdlcache.UnlockStudioHdr(StaticPropDictList[i].MDL);
+
+		StaticProps.Clear();
+		StaticPropDictList.Clear();
+		StaticPropFadeList.Clear();
 	}
 
 	public void LevelShutdownClient() {
+		if (!ClientInitialized)
+			return;
 
+		Assert(LevelInitialized);
+
+		for (int i = StaticProps.Count; --i >= 0;) {
+			StaticProps[i].CleanUpRenderHandle();
+			modelrender.SetStaticLighting(StaticProps[i].GetModelInstance(), null);
+		}
+
+#if !SWDS
+		R.ClearStaticLightingCache();
+#endif
+
+		ClientInitialized = false;
 	}
 
 	public bool IsPropInPVS(IHandleEntity? handleEntity, ReadOnlySpan<byte> vis) {
@@ -118,21 +183,11 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 		throw new NotImplementedException();
 	}
 
-	public bool IsStaticProp(IHandleEntity? handleEntity) {
-		return false; // todo
-	}
+	public bool IsStaticProp(IHandleEntity? handleEntity) => handleEntity == null || handleEntity.GetRefEHandle().GetSerialNumber() == (STATICPROP_EHANDLE_MASK >> Constants.NUM_ENT_ENTRY_BITS);
+	public bool IsStaticProp(ClientEntityHandle handle) => handle.GetSerialNumber() == (STATICPROP_EHANDLE_MASK >> Constants.NUM_ENT_ENTRY_BITS);
+	public bool IsStaticProp(in ClientEntityHandle handle) => handle.GetSerialNumber() == (STATICPROP_EHANDLE_MASK >> Constants.NUM_ENT_ENTRY_BITS);
 
-	public bool IsStaticProp(ClientEntityHandle handle) {
-		return false; // todo
-	}
-
-	public bool IsStaticProp(in ClientEntityHandle handle) {
-		return false; // todo
-	}
-
-	public int GetStaticPropIndex(IHandleEntity? handleEntity) {
-		throw new NotImplementedException();
-	}
+	public int GetStaticPropIndex(IHandleEntity? handleEntity) => HandleEntityToIndex(handleEntity);
 
 	public ICollideable GetStaticPropByIndex(int propIndex) {
 		throw new NotImplementedException();
@@ -227,7 +282,17 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 	void DrawStaticProps_FastPipeline(IClientRenderable[] props, int count, bool shadowDepth) => throw new NotImplementedException();
 
 	void OutputLevelStats() => throw new NotImplementedException();
-	void PrecacheLighting() => throw new NotImplementedException();
+	void PrecacheLighting() {
+		Common.TimestampedLog("CStaticPropMgr::PrecacheLighting - start");
+
+		for (int i = StaticProps.Count; --i >= 0;) {
+			if (!StaticProps[i].ShouldDraw())
+				continue;
+			StaticProps[i].PrecacheLighting();
+		}
+
+		Common.TimestampedLog("CStaticPropMgr::PrecacheLighting - end");
+	}
 
 	void UnserializeModelDict(Stream buf) {
 		int count = 0;
@@ -368,7 +433,10 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 		Common.TimestampedLog("UnserializeStaticProps - end");
 	}
 
-	int HandleEntityToIndex(IHandleEntity? handleEntity) => throw new NotImplementedException();
+	int HandleEntityToIndex(IHandleEntity? handleEntity) {
+		Assert(IsStaticProp(handleEntity));
+		return handleEntity!.GetRefEHandle().GetEntryIndex();
+	}
 
 	byte ComputeScreenFade(StaticProp prop, float minSize, float maxSize, float falloffFactor) => throw new NotImplementedException();
 	void ChangeRenderGroup(StaticProp prop) => throw new NotImplementedException();
@@ -452,8 +520,8 @@ public class StaticProp : IClientUnknown, IClientRenderable, ICollideable
 	public ref readonly Vector3 GetRenderOrigin() => ref Origin;
 	public ref readonly QAngle GetRenderAngles() => ref Angles;
 	public bool ShouldDraw() => (flags & (byte)StaticPropFlags.NoDraw) == 0;
-	public bool IsTransparent() => throw new NotImplementedException();
-	public bool IsTwoPass() => throw new NotImplementedException();
+	public bool IsTransparent() => Alpha < 255 || modelInfo.IsTranslucent(Model);
+	public bool IsTwoPass() => modelInfo.IsTranslucentTwoPass(Model);
 	public void OnThreadedDrawSetup() { }
 	public Model? GetModel() => Model;
 	public int DrawModel(StudioFlags flags) {
@@ -526,7 +594,6 @@ public class StaticProp : IClientUnknown, IClientRenderable, ICollideable
 	public ref readonly Matrix3x4 RenderableToWorldTransform() => ref ModelToWorld;
 	public IClientUnknown GetIClientUnknown() => this;
 
-	const int STATICPROP_EHANDLE_MASK = 0x40000000;
 	const nint INVALID_FADE_INDEX = ~0;
 
 	static IMaterialSystemHardwareConfig hardwareConfig = Singleton<IMaterialSystemHardwareConfig>();
@@ -620,7 +687,14 @@ public class StaticProp : IClientUnknown, IClientRenderable, ICollideable
 	}
 	public void RemovePropFromKDTree() => throw new NotImplementedException();
 
-	public void PrecacheLighting() => throw new NotImplementedException();
+	public void PrecacheLighting() {
+#if !SWDS
+		if (ModelInstance == MODEL_INSTANCE_INVALID) {
+			LightCacheHandle_t lightCacheHandle = R.CreateStaticLightingCache(LightingOrigin, WorldRenderBBoxMin, WorldRenderBBoxMax);
+			ModelInstance = modelrender.CreateInstance(this, lightCacheHandle);
+		}
+#endif
+	}
 	public void RecomputeStaticLighting() => throw new NotImplementedException();
 
 	public int LeafCount() => leafCount;
@@ -628,7 +702,14 @@ public class StaticProp : IClientUnknown, IClientRenderable, ICollideable
 	public LightCacheHandle_t GetLightCacheHandle() => throw new NotImplementedException();
 	public void SetModelInstance(ModelInstanceHandle_t handle) => ModelInstance = handle;
 	public void SetRenderHandle(ClientRenderHandle_t handle) => renderHandle = handle;
-	public void CleanUpRenderHandle() => throw new NotImplementedException();
+	public void CleanUpRenderHandle() {
+		if (renderHandle != INVALID_CLIENT_RENDER_HANDLE) {
+#if !SWDS
+			clientleafsystem.RemoveRenderable(renderHandle);
+#endif
+			renderHandle = INVALID_CLIENT_RENDER_HANDLE;
+		}
+	}
 	public ClientRenderHandle_t GetRenderHandle() => renderHandle;
 	public void SetAlpha(byte alpha) => Alpha = alpha;
 

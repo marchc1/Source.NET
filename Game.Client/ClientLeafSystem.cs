@@ -138,7 +138,8 @@ public class ClientLeafSystem : IClientLeafSystem
 	}
 
 	public void AddRenderableToLeaves(ClientRenderHandle_t renderable, Span<ushort> pLeaves) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		// TODO!!
 	}
 
 	public void BuildRenderablesList(in SetupRenderInfo info) {
@@ -267,7 +268,7 @@ public class ClientLeafSystem : IClientLeafSystem
 			Renderables[handle].Info.Flags |= RenderFlags.HasChanged;
 			DirtyRenderables.Add(handle);
 		}
-		else{
+		else {
 			Assert(DirtyRenderables.IndexOf(handle) != -1);
 		}
 	}
@@ -291,11 +292,11 @@ public class ClientLeafSystem : IClientLeafSystem
 			group = RenderGroup.TranslucentEntity;
 		}
 
-		if (twoPass) 
+		if (twoPass)
 			pInfo.Flags |= RenderFlags.TwoPass;
-		else 
+		else
 			pInfo.Flags &= ~RenderFlags.TwoPass;
-		
+
 		bool bOldViewModelRenderGroup = IsViewModelRenderGroup(pInfo.RenderGroup);
 		bool bNewViewModelRenderGroup = IsViewModelRenderGroup(group);
 		if (bOldViewModelRenderGroup != bNewViewModelRenderGroup) {

@@ -222,7 +222,7 @@ public partial class CL(IServiceProvider services, Net Net,
 #if !SWDS
 		EngineVGui?.UpdateProgressBar(LevelLoadingProgress.FullyConnected);
 #endif
-		// Static prop manager level init client
+		StaticPropMgr().LevelInitClient();
 
 		// Flush dynamic models
 		// modelloader.FlushDynamicModels();
