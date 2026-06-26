@@ -1607,6 +1607,23 @@ public static class MathLib
 		return Vector3.Add(dotResult, translation);
 	}
 
+	public static void TransformAABB(in Matrix3x4 transform, in Vector3 minsIn, in Vector3 maxsIn, out Vector3 minsOut, out Vector3 maxsOut) {
+		Matrix3x4 mat = transform;
+
+		Vector3 localCenter = (minsIn + maxsIn) * 0.5f;
+		Vector3 localExtents = maxsIn - localCenter;
+
+		VectorTransform(localCenter, mat, out Vector3 worldCenter);
+
+		Vector3 worldExtents;
+		worldExtents.X = DotProductAbs(localExtents, mat[0]);
+		worldExtents.Y = DotProductAbs(localExtents, mat[1]);
+		worldExtents.Z = DotProductAbs(localExtents, mat[2]);
+
+		minsOut = worldCenter - worldExtents;
+		maxsOut = worldCenter + worldExtents;
+	}
+
 	public static float VectorLength(in Vector3 delta) => delta.Length();
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -52,6 +52,7 @@ public interface IModelRender
 {
 	ModelInstanceHandle_t CreateInstance(IClientRenderable renderable);
 	void DestroyInstance(ModelInstanceHandle_t modelInstance);
+	int DrawModelEx(ref ModelRenderInfo info);
 	void DrawModelExecute(ref DrawModelState state, ref ModelRenderInfo info, Span<Matrix3x4> boneToWorldArray);
 	bool DrawModelSetup(ref ModelRenderInfo info, ref DrawModelState state, Span<Matrix3x4> customBoneToWorld, out Span<Matrix3x4> boneToWorldArray);
 	ref Matrix4x4 SetupModelState(IClientRenderable renderable);

@@ -135,9 +135,9 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 
 		// Each body part has nummodels variations so there are as many total variations as there
 		// are in a matrix of each part by each other part
-		for (i = 0; i < studiohdr.NumBodyParts; i++) 
+		for (i = 0; i < studiohdr.NumBodyParts; i++)
 			count = count * pbodypart[i].NumModels;
-		
+
 		return count;
 	}
 
@@ -216,7 +216,17 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 	}
 
 	public VCollide? GetVCollide(Model? model) {
-		throw new NotImplementedException();
+		if (model == null)
+			return null;
+
+		if (model.Type == ModelType.Studio)
+			return mdlcache.GetVCollide(model.Studio);
+
+		int i = GetModelIndex(GetModelName(model));
+		if (i >= 0)
+			return GetVCollide(i);
+
+		return null;
 	}
 
 	public VCollide? GetVCollide(int modelIndex) {
@@ -293,7 +303,9 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 	}
 
 	public void GetIlluminationPoint(Model? model, IClientRenderable? renderable, in AngularImpulse origin, in QAngle angles, out AngularImpulse lightingCenter) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		// TODO!!
+		lightingCenter = origin;
 	}
 
 	public int GetModelContents(int modelIndex) {

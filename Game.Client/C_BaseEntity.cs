@@ -846,7 +846,7 @@ public partial class C_BaseEntity : IClientEntity
 				Warning($"ERROR:  Can't draw studio model {modelinfo.GetModelName(Model)} because {GetClientClass().NetworkName ?? "unknown"} is not derived from C_BaseAnimating\n");
 				break;
 			case ModelType.Sprite:
-				Warning("ERROR:  Sprite model's not supported any more except in legacy temp ents\n");
+				// Warning("ERROR:  Sprite model's not supported any more except in legacy temp ents\n");
 				break;
 		}
 
@@ -1850,7 +1850,7 @@ public partial class C_BaseEntity : IClientEntity
 	public void SetLocalOrigin(in Vector3 origin) {
 		// Safety check against NaN's or really huge numbers
 		if (!IsEntityPositionReasonable(origin)) {
-			if (CheckEmitReasonablePhysicsSpew()) 
+			if (CheckEmitReasonablePhysicsSpew())
 				Warning($"Bad SetLocalOrigin({origin}) on {GetDebugName()}\n");
 			Assert(false);
 			return;
@@ -1890,7 +1890,7 @@ public partial class C_BaseEntity : IClientEntity
 
 		// Safety check against NaN's or really huge numbers
 		if (!IsEntityQAngleReasonable(angles)) {
-			if (CheckEmitReasonablePhysicsSpew()) 
+			if (CheckEmitReasonablePhysicsSpew())
 				Warning($"Bad SetLocalAngles({angles}) on {GetDebugName()}\n");
 			AssertMsg(false, $"Bad SetLocalAngles({angles}) on {GetDebugName()}\n");
 			return;

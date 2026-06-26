@@ -280,7 +280,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public int GetDXSupportLevel() {
-		throw new NotImplementedException();
+		return 0;
 	}
 
 	public bool SupportsHDR() {

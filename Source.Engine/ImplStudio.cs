@@ -259,6 +259,25 @@ public class ModelRender : IModelRender
 		return lod;
 	}
 
+	public int DrawModelEx(ref ModelRenderInfo info) {
+#if !SWDS
+		DrawModelState state = default;
+
+		if (info.ModelToWorld == default)
+			MathLib.AngleMatrix(info.Angles, info.Origin, out info.ModelToWorld);
+
+		if (!DrawModelSetup(ref info, ref state, default, out Span<Matrix3x4> boneToWorld))
+			return 0;
+
+		if ((info.Flags & StudioFlags.Render) != 0)
+			DrawModelExecute(ref state, ref info, boneToWorld);
+
+		return 1;
+#else
+		return 0;
+#endif
+	}
+
 	public void DrawModelExecute(ref DrawModelState state, ref ModelRenderInfo pInfo, Span<Matrix3x4> boneToWorldArray) {
 #if !SWDS
 		bool bShadowDepth = (pInfo.Flags & StudioFlags.ShadowDepthTexture) != 0;
