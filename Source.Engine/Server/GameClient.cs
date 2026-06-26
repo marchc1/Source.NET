@@ -82,7 +82,7 @@ public class GameClient : BaseClient
 
 		bool ignore = !sv.IsActive();
 #if SWDS
-	bool paused = sv.IsPaused();
+		bool paused = sv.IsPaused();
 #else
 		bool paused = sv.IsPaused() || (!sv.IsMultiplayer() && false /*Con_IsVisible todo*/);
 #endif
@@ -534,9 +534,11 @@ public class GameClient : BaseClient
 
 	// void FileSent(ReadOnlySpan<char> fileName, uint transferID) { }
 
+	readonly Host Host = Singleton<Host>();
+
 	public override void PacketStart(int incoming_sequence, int outgoing_acknowledged) {
 		LastMovementTick = (int)(sv.TickCount - 1);
-		// host_client = this;
+		Host.Client = this;
 		ReceivedPacket = true;
 	}
 

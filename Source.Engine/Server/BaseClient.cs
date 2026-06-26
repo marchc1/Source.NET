@@ -1069,8 +1069,11 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	public void ClientPrintf(ReadOnlySpan<char> fmt) {
-		// throw new NotImplementedException();
-		DevMsg($"ClientPrintf: {fmt}\n");
+		if (NetChannel == null)
+			return;
+
+		SVC_Print print = new SVC_Print(fmt);
+		NetChannel.SendNetMsg(print);
 	}
 
 	public bool IsHearingClient(int index) {

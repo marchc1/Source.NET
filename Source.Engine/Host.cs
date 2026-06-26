@@ -52,6 +52,7 @@ public class Host(
 	public static readonly ConVar developer = new("developer", "0", 0, "Set developer message level");
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
+	public GameClient? Client;
 	public ClientGlobalVariables clientGlobalVariables;
 	public CL CL;
 	public MatSysInterface MatSysInterface;
@@ -999,7 +1000,7 @@ public class Host(
 	}
 
 	public void Client_Print(ReadOnlySpan<char> text) {
-
+		Client?.ClientPrintf(text);
 	}
 
 	public void BuildConVarUpdateMessage(NET_SetConVar convars, FCvar flags, bool nonDefault) {

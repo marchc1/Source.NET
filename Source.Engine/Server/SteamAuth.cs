@@ -183,8 +183,6 @@ public class Steam3ServerImpl : IDisposable
 	protected Callback<P2PSessionRequest_t> m_CallbackP2PSessionRequest = null!;
 	protected Callback<P2PSessionConnectFail_t> m_CallbackP2PSessionConnectFail = null!;
 	public bool Init() {
-		SteamAPI.Init();
-
 		m_CallbackSteamServersConnected = Callback<SteamServersConnected_t>.CreateGameServer(OnLogonSuccess);
 		m_CallbackSteamServersConnectFailure = Callback<SteamServerConnectFailure_t>.CreateGameServer(OnLogonFailure);
 		m_CallbackSteamServersDisconnected = Callback<SteamServersDisconnected_t>.CreateGameServer(OnLoggedOff);
