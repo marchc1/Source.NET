@@ -176,7 +176,7 @@ public class GlobalEntityList : BaseEntityList
 		ClearingEntities = false;
 	}
 
-	readonly static List<IServerNetworkable> g_DeleteList;
+	readonly static List<IServerNetworkable> g_DeleteList = [];
 
 	public void AddToDeleteList(IServerNetworkable? ent) {
 		if (ent != null && ent.GetEntityHandle().GetRefEHandle().Index != Constants.INVALID_EHANDLE_INDEX)

@@ -613,11 +613,10 @@ public class Host(
 
 	public void Disconnect(bool showMainMenu, ReadOnlySpan<char> reason = default) {
 #if !SWDS
-		if (!sv.IsDedicated()) {
+		if (!sv.IsDedicated()) 
 			cl.Disconnect(reason, showMainMenu);
-		}
-		HostState.GameShutdown();
 #endif
+		HostState.GameShutdown();
 	}
 
 	public void Disconnect() {
