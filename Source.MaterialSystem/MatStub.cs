@@ -203,6 +203,11 @@ public class DummyTexture : ITexture
 	public NormalDecodeMode GetNormalDecodeMode() => NormalDecodeMode.None;
 	public int GetNumAnimationFrames() => 0;
 	public Span<byte> GetResourceData(uint type) => null;
+
+	public void IncrementReferenceCount() { }
+	public void DecrementReferenceCount() { }
+	public void DeleteIfUnreferenced() { }
+
 	public bool IsCubeMap() => false;
 	public bool IsError() => false;
 	public bool IsMipmapped() => false;
@@ -264,6 +269,7 @@ public class DummyMaterial : IMaterial
 {
 	public void CallBindProxy(object? clientEntity) { }
 	public void DecrementReferenceCount() { }
+	public void DeleteIfUnreferenced() { }
 	public IMaterialVar FindVar(ReadOnlySpan<char> varName, out bool found, bool complain = true) {
 		found = true;
 		return DummyMaterialSystem.g_DummyMaterialVar;
@@ -372,7 +378,7 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	}
 	public void GetWindowSize(out int w, out int h) {
 		w = h = 0;
-		if(RealMaterialSystem != null){
+		if (RealMaterialSystem != null) {
 			using MatRenderContextPtr renderContext = new(RealMaterialSystem);
 			renderContext.GetWindowSize(out w, out h);
 		}
