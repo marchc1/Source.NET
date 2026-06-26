@@ -208,8 +208,6 @@ public struct UserCmd
 				move.WeaponSubtype = (int)buf.ReadUBitLong(WEAPON_SUBTYPE_BITS);
 		}
 
-		move.RandomSeed = move.CommandNumber & 0x7fffffff; // TODO MD5_PseudoRandom
-
 		if (buf.ReadOneBit() != 0)
 			move.MouseDeltaX = buf.ReadShort();
 
@@ -217,8 +215,11 @@ public struct UserCmd
 			move.MouseDeltaY = buf.ReadShort();
 
 		if (buf.ReadOneBit() != 0) {
-			for (int i = 0; i < MAX_BUTTONS_PRESSED; i++)
+			for (int i = 0; i < MAX_BUTTONS_PRESSED; i++) {
 				move.ButtonsPressed[i] = (byte)buf.ReadUBitLong(8);
+				if (move.ButtonsPressed[i] == 0)
+					break;
+			}
 		}
 
 		if (buf.ReadOneBit() != 0)
@@ -375,6 +376,8 @@ public struct UserCmd
 		if (HasChanged(to.ButtonsPressed, from.ButtonsPressed)) {
 			buf.WriteOneBit(1);
 			for (int i = 0; i < 5; i++) {
+				if (to.ButtonsPressed[i] == 0)
+					break;
 				buf.WriteUBitLong(to.ButtonsPressed[i], 8);
 			}
 		}
