@@ -147,7 +147,7 @@ public class Steam3ServerImpl : IDisposable
 				break;
 		}
 
-		SteamGameServer_InitSafe();
+		Steamworks.GameServer.Init(IP, gamePort, (ushort)(Port + 1), ServerMode, GetSteamInfIDVersionInfo().PatchVersion);
 
 		if (!Init()) {
 			Assert(false);

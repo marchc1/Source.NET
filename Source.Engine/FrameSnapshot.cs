@@ -1,4 +1,6 @@
 ﻿
+using CommunityToolkit.HighPerformance;
+
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Engine;
@@ -267,7 +269,9 @@ public class FrameSnapshotManager
 		return null;
 	}
 
-	public UnpackedDataCache GetCachedUncompressedEntity(PackedEntity packedEntity) {
+	UnpackedDataCache oldest = default;
+
+	public ref UnpackedDataCache GetCachedUncompressedEntity(PackedEntity packedEntity) {
 		if (PackedEntityCache.Count == 0) {
 			PackedEntityCacheCounter = 0;
 			for (int i = 0; i < 128; i++) {
@@ -280,15 +284,14 @@ public class FrameSnapshotManager
 
 		PackedEntityCacheCounter++;
 
-		UnpackedDataCache oldest = default;
 		int oldestValue = PackedEntityCacheCounter;
 
 		for (int i = 0; i < PackedEntityCache.Count; i++) {
-			UnpackedDataCache pdc = PackedEntityCache[i];
+			ref UnpackedDataCache pdc = ref PackedEntityCache.AsSpan()[i];
 
 			if (pdc.Entity == packedEntity) {
 				pdc.Counter = PackedEntityCacheCounter;
-				return pdc;
+				return ref pdc;
 			}
 
 			if (pdc.Counter < oldestValue) {
@@ -300,7 +303,7 @@ public class FrameSnapshotManager
 		oldest!.Counter = PackedEntityCacheCounter;
 		oldest.Bits = -1;
 		oldest.Entity = packedEntity;
-		return oldest;
+		return ref oldest;
 	}
 
 	public Mutex GetMutex() => WriteMutex;

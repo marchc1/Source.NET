@@ -227,7 +227,8 @@ public abstract class BaseServer : IServer
 	}
 
 	public virtual void BroadcastPrintf(ReadOnlySpan<char> msg) {
-		throw new NotImplementedException();
+		SVC_Print print = new(msg);
+		BroadcastMessage(print);
 	}
 
 	public virtual ReadOnlySpan<char> GetPassword() {
@@ -735,8 +736,60 @@ public abstract class BaseServer : IServer
 		// clear everything
 		Clear();
 	}
-	public virtual BaseClient CreateFakeClient(ReadOnlySpan<char> name) {
-		throw new NotImplementedException();
+	public virtual BaseClient? CreateFakeClient(ReadOnlySpan<char> name) {
+		NetAddress adr = new(); // it's an empty address
+		BaseClient? fakeclient = GetFreeClient(adr);
+
+		if (fakeclient == null) {
+			// server is full
+			return null;
+		}
+
+		INetChannel? netchan = null;
+		if (sv_stressbots.GetBool()) {
+			NetAddress adrNull = new();
+			adrNull.SetIP(0, 0); // 0.0.0.0:0 signifies a bot. It'll plumb all the way down to winsock calls but it won't make them.
+			netchan = Net.CreateNetChannel(Socket, adrNull, adrNull.ToString(), fakeclient, true);
+		}
+
+		// a NULL netchannel signals a fakeclient
+		UserID = GetNextUserID();
+		NumConnections++;
+
+		fakeclient.SetReportThisFakeClient(ReportNewFakeClients);
+		fakeclient.Connect(name, UserID, netchan, true, 0);
+
+		// fake some cvar settings
+		//fakeclient->SetUserCVar( "name", name ); // set already by Connect()
+		fakeclient.SetUserCVar("rate", "30000");
+		fakeclient.SetUserCVar("cl_updaterate", "20");
+		fakeclient.SetUserCVar("cl_interp_ratio", "1.0");
+		fakeclient.SetUserCVar("cl_interp", "0.1");
+		fakeclient.SetUserCVar("cl_interpolate", "0");
+		fakeclient.SetUserCVar("cl_predict", "1");
+		fakeclient.SetUserCVar("cl_predictweapons", "1");
+		fakeclient.SetUserCVar("cl_lagcompensation", "1");
+		fakeclient.SetUserCVar("closecaption", "0");
+		fakeclient.SetUserCVar("english", "1");
+
+		fakeclient.SetUserCVar("cl_clanid", "0");
+		fakeclient.SetUserCVar("cl_team", "blue");
+		fakeclient.SetUserCVar("hud_classautokill", "1");
+		fakeclient.SetUserCVar("tf_medigun_autoheal", "0");
+		fakeclient.SetUserCVar("cl_autorezoom", "1");
+		fakeclient.SetUserCVar("fov_desired", "75");
+		fakeclient.SetUserCVar("tf_remember_lastswitched", "0");
+
+		fakeclient.SetUserCVar("cl_autoreload", "0");
+		fakeclient.SetUserCVar("tf_remember_activeweapon", "0");
+		fakeclient.SetUserCVar("hud_combattext", "0");
+		fakeclient.SetUserCVar("cl_flipviewmodels", "0");
+
+		fakeclient.ActivatePlayer();
+
+		fakeclient.SignOnTick = TickCount;
+
+		return fakeclient;
 	}
 	public virtual void RemoveClientFromGame(BaseClient cl) { }
 
@@ -776,12 +829,12 @@ public abstract class BaseServer : IServer
 
 	}
 
-	public bool GetClassBaseline(ServerClass pClass, out ReadOnlySpan<byte> pData) {
+	public bool GetClassBaseline(ServerClass pClass, out byte[]? pData) {
 		if (sv_instancebaselines.GetBool()) {
 			ErrorIfNot(pClass.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX, $"SV_GetInstanceBaseline: missing instance baseline for class '{pClass.NetworkName}'\n");
 
 			pData = GetInstanceBaselineTable()!.GetStringUserData(pClass.InstanceBaselineIndex);
-			if (pData.IsEmpty) pData = [0];
+			if (pData?.Length == 0) pData = [0];
 			return true;
 		}
 		else {
@@ -887,23 +940,76 @@ public abstract class BaseServer : IServer
 		}
 	}
 
-	public ReadOnlySpan<char> CompressPackedEntity(ServerClass pServerClass, ReadOnlySpan<byte> data, out int bits) {
-		throw new NotImplementedException();
+	static readonly byte[] s_packedData = new byte[Constants.MAX_PACKEDENTITY_DATA];
+	// We really need bitbuffers to be span objects sometime... or at least have the ability to do this...
+	// todo fix s_unpackedDataTemp
+	static readonly byte[] s_unpackedDataTemp = new byte[Constants.MAX_PACKEDENTITY_DATA];
+
+	public ReadOnlySpan<byte> CompressPackedEntity(ServerClass pServerClass, ReadOnlySpan<byte> data, out int bits) {
+		bf_write writeBuf = new(s_packedData, s_packedData.Length);
+
+		byte[]? pBaselineData = null;
+		Assert(pServerClass != null);
+
+		GetClassBaseline(pServerClass, out pBaselineData);
+		int nBaselineBits = (pBaselineData?.Length ?? 0) * 8;
+
+		Assert(pBaselineData?.Length != 0);
+
+		SendTable.WriteAllDeltaProps(
+			pServerClass.Table,
+			pBaselineData!,
+			nBaselineBits,
+			data,
+			out bits,
+			-1,
+			writeBuf);
+
+		//overwrite in bits with out bits
+		bits = writeBuf.BitsWritten;
+
+		return s_packedData;
 	}
-	public ReadOnlySpan<char> UncompressPackedEntity(PackedEntity pPackedEntity, out int size) {
-		throw new NotImplementedException();
+	public ReadOnlySpan<byte> UncompressPackedEntity(PackedEntity pPackedEntity, out int bits) {
+		ref UnpackedDataCache pdc = ref framesnapshotmanager.GetCachedUncompressedEntity(pPackedEntity);
+
+		if (pdc.Bits > 0) {
+			// found valid uncompressed version in cache
+			bits = pdc.Bits;
+			return pdc.Data;
+		}
+
+		// not in cache, so uncompress it
+
+		byte[]? pBaseline;
+
+		GetClassBaseline(pPackedEntity.ServerClass!, out pBaseline);
+		int nBaselineBytes = pBaseline?.Length ?? 0;
+
+		Assert(pBaseline != null);
+
+		// store this baseline in u.m_pUpdateBaselines
+		bf_read oldBuf = new(pBaseline, nBaselineBytes);
+		bf_read newBuf = new(pPackedEntity!.GetData()!, Protocol.Bits2Bytes(pPackedEntity.GetNumBits()));
+		bf_write outBuf = new(s_unpackedDataTemp, Constants.MAX_PACKEDENTITY_DATA);
+
+		Assert(pPackedEntity.ClientClass);
+
+		RecvTable.MergeDeltas(
+			pPackedEntity.ClientClass!.RecvTable,
+			oldBuf,
+			newBuf,
+			outBuf);
+
+		bits = pdc.Bits = outBuf.BitsWritten;
+		s_unpackedDataTemp.CopyTo(pdc.Data);
+
+		return pdc.Data;
 	}
 
-	public INetworkStringTable? GetInstanceBaselineTable() {
-		InstanceBaselineTable ??= StringTables!.FindTable(Protocol.INSTANCE_BASELINE_TABLENAME);
-		return InstanceBaselineTable;
-	}
-	public INetworkStringTable? GetLightStyleTable() {
-		throw new NotImplementedException();
-	}
-	public INetworkStringTable? GetUserInfoTable() {
-		throw new NotImplementedException();
-	}
+	public INetworkStringTable? GetInstanceBaselineTable() => LightStyleTable ??= StringTables!.FindTable(Protocol.INSTANCE_BASELINE_TABLENAME);
+	public INetworkStringTable? GetLightStyleTable() => LightStyleTable ??= StringTables!.FindTable(Protocol.LIGHT_STYLES_TABLENAME);
+	public INetworkStringTable? GetUserInfoTable() => LightStyleTable ??= StringTables?.FindTable(Protocol.USER_INFO_TABLENAME);
 
 	public virtual void RejectConnection(NetAddress adr, int clientChallenge, ReadOnlySpan<char> s) {
 		byte[] msg_buffer = new byte[Protocol.MAX_ROUTABLE_PAYLOAD];
@@ -917,9 +1023,7 @@ public abstract class BaseServer : IServer
 		Net.SendPacket(null!, Socket, adr, msg.GetData(), msg.BytesWritten);
 	}
 
-	public TimeUnit_t GetFinalTickTime() {
-		throw new NotImplementedException();
-	}
+	public TimeUnit_t GetFinalTickTime() => (TickCount + (Host.FrameTicks - Host.CurrentFrameTick)) * TickInterval;
 
 	public virtual bool CheckIPRestrictions(NetAddress adr, int nAuthProtocol) {
 		return true; // todo
@@ -1143,7 +1247,7 @@ public abstract class BaseServer : IServer
 			return Protocol.PROTOCOL_HASHEDCDKEY;
 		else
 #endif
-			return Protocol.PROTOCOL_STEAM;
+		return Protocol.PROTOCOL_STEAM;
 	}
 
 	protected virtual bool CheckProtocol(NetAddress adr, int nProtocol, int clientChallenge) {
@@ -1336,24 +1440,62 @@ public abstract class BaseServer : IServer
 		UpdateMasterServerPlayers();
 		Steam3Server().SendUpdatedServerDetails();
 	}
-	protected void UpdateMasterServerRules() {
-		throw new NotImplementedException();
-	}
+	protected void UpdateMasterServerRules() { }
 	protected virtual void UpdateMasterServerPlayers() { }
+	readonly byte[] packetData = new byte[16 * 1024];
+	readonly NetAddress adr = new();
 	protected void ForwardPacketsFromMasterServerUpdater() {
-		throw new NotImplementedException();
+		ISteamGameServer? p = Steam3Server().SteamGameServer();
+		if (p == null)
+			return;
+
+		while (true) {
+			uint netadrAddress;
+			ushort netadrPort;
+			int len = p.GetNextOutgoingPacket(packetData, packetData.Length, out netadrAddress, out netadrPort);
+			if (len <= 0)
+				break;
+
+			// Send this packet for them..
+			adr.SetIP(netadrAddress, netadrPort);
+			Net.SendPacket(null!, Socket, adr, packetData, len);
+		}
 	}
 
 	protected void SetRestartOnLevelChange(bool state) { RestartOnLevelChange = state; }
 
-	protected bool RequireValidChallenge(NetAddress adr) {
-		throw new NotImplementedException();
-	}
+	protected bool RequireValidChallenge(NetAddress adr) => !sv_enableoldqueries.GetBool();
 	protected bool ValidChallenge(NetAddress adr, int challengeNr) {
-		throw new NotImplementedException();
+		if (!IsActive())
+			return false;
+
+		if (!IsMultiplayer())
+			return false;
+
+		if (RequireValidChallenge(adr)) {
+			if (!CheckChallengeNr(adr, challengeNr)) {
+				ReplyServerChallenge(adr);
+				return false;
+			}
+		}
+
+		return true;
 	}
 	protected bool ValidInfoChallenge(NetAddress adr, ReadOnlySpan<char> nugget) {
-		throw new NotImplementedException();
+		if (!IsActive())
+			return false;
+
+		if (!IsMultiplayer())
+			return false;
+
+		if (IsReplay())
+			return false;
+
+		if (RequireValidChallenge(adr))
+			if (stricmp(nugget, A2S.KEY_STRING) != 0)
+				return false;
+
+		return true;
 	}
 
 

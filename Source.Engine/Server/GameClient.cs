@@ -321,7 +321,7 @@ public class GameClient : BaseClient
 		return true; // todo
 	}
 
-	protected override void ActivatePlayer() {
+	public override void ActivatePlayer() {
 		base.ActivatePlayer();
 
 		Common.TimestampedLog("CGameClient::ActivatePlayer -start");

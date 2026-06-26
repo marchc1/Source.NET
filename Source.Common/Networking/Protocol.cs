@@ -15,6 +15,7 @@ public static class S2C
 
 public static class A2S
 {
+	public const string KEY_STRING = "Source Engine Query";
 	/// <summary>
 	/// Retrieve a challenge number from a server.
 	/// </summary>

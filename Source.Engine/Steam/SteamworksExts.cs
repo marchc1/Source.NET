@@ -12,9 +12,6 @@ namespace Source.Engine.Steam;
 // I am very annoyed
 class SteamworksDotNetBoasts100PercentCoverageOfTheNativeSteamworksAPIAcrossAllInterfaces
 {
-	// This one doesnt look right...
-	[DllImport("steam_api64", CallingConvention = CallingConvention.Cdecl)] public static extern void SteamGameServer_InitSafe();
-
 	[DllImport("steam_api64", CallingConvention = CallingConvention.Cdecl)] public static extern void SteamGameServer_RunCallbacks();
 	[DllImport("steam_api64", CallingConvention = CallingConvention.Cdecl)] public static extern void SteamAPI_RunCallbacks();
 	[DllImport("steam_api64", CallingConvention = CallingConvention.Cdecl)] public static extern void SteamAPI_SetBreakpadAppID(uint unAppID);

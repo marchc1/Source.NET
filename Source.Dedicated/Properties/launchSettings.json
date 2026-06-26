@@ -2,7 +2,7 @@
   "profiles": {
     "Source.Dedicated": {
       "commandName": "Project",
-      "commandLineArgs": "+map gm_flatgrass"
+      "commandLineArgs": "+map gm_flatgrass +maxplayers 2"
     }
   }
 }

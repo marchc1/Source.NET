@@ -21,8 +21,8 @@ public static class SteamInfVersionInfo
 
 public struct SteamAppInfo
 {
-	public string PatchVersion;
-	public string ProductName;
+	public string PatchVersion; // version string
+	public string ProductName;  // product string
 	public int AppID;
 	public int ServerAppID;
 	public int ServerVersion;

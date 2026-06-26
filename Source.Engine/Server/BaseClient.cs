@@ -24,7 +24,9 @@ namespace Source.Engine.Server;
 public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageHandler, IDisposable
 {
 	protected readonly FrameSnapshotManager framesnapshotmanager = Singleton<FrameSnapshotManager>();
-
+	public void SetReportThisFakeClient(bool report){
+		ReportFakeClient = report;
+	}
 	public int GetPlayerSlot() => ClientSlot;
 	public int GetUserID() => UserID;
 	// NetworkID?
@@ -366,7 +368,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		SendNetMsg(signonState);
 	}
 
-	protected virtual void ActivatePlayer() {
+	public virtual void ActivatePlayer() {
 		Common.TimestampedLog("CBaseClient::ActivatePlayer");
 
 		Server.UserInfoChanged(ClientSlot);

@@ -477,9 +477,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		throw new NotImplementedException();
 	}
 
-	public bool ShouldHideServer() {
-		throw new NotImplementedException();
-	}
+	public bool ShouldHideServer() => false;
 
 	public void Think(bool finalTick) {
 

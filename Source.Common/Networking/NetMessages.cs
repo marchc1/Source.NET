@@ -187,7 +187,7 @@ public class SVC_Print : NetMessage
 {
 	public string? Text;
 	public SVC_Print() : base(SVC.Print) { }
-
+	public SVC_Print(ReadOnlySpan<char> msg) : base(SVC.Print) => Text = msg.Length == 0 ? null : new(msg.SliceNullTerminatedString());
 	public override bool WriteToBuffer(bf_write buffer) {
 		buffer.WriteNetMessageType(this);
 		return buffer.WriteString(Text ?? "svc_print NULL");

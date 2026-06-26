@@ -862,6 +862,10 @@ public class SendTable : IDataTableBase<SendProp>
 	public static void WriteInfos(SendTable table, ref bf_write dataOut) {
 		throw new NotImplementedException();
 	}
+
+	public static void WriteAllDeltaProps(SendTable table, byte[] pBaselineData, int nBaselineBits, ReadOnlySpan<byte> data, out int bits, int v, bf_write writeBuf) {
+		throw new NotImplementedException();
+	}
 }
 
 public delegate void SendVarProxyFn(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID);

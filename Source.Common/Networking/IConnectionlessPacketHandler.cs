@@ -238,6 +238,10 @@ public class NetAddress
 	public void SetIP(uint v) {
 		IP = new(v);
 	}
+	public void SetIP(uint v, ushort port) {
+		IP = new(v);
+		Port = port;
+	}
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
