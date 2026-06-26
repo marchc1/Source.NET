@@ -592,8 +592,19 @@ public struct PropTypeFns
 		}
 	}
 	public static ReadOnlySpan<char> Array_GetTypeNameString() => "DPT_Array";
-	public static bool Array_IsEncodedZero(SendProp prop, bf_read p) => throw new NotImplementedException();
-	public static bool Array_IsZero(object instance, ref DVariant var, SendProp prop) => throw new NotImplementedException();
+	public static bool Array_IsEncodedZero(SendProp prop, bf_read p){
+		SendProp arrayProp = prop.GetArrayProp()!;
+		int nElements = (int)p.ReadUBitLong(prop.GetNumArrayLengthBits());
+
+		for (int i = 0; i < nElements; i++) 
+			g_PropTypeFns[(int)arrayProp.GetPropType()].IsEncodedZero(arrayProp, p);
+
+		return nElements == 0;
+	}
+	public static bool Array_IsZero(object instance, ref DVariant var, SendProp prop){
+		int nElements = Array_GetLength(instance, prop, -1);
+		return nElements == 0;
+	}
 	public static void Array_SkipProp(SendProp prop, bf_read p) {
 		SendProp? arrayProp = prop.GetArrayProp();
 		AssertMsg(arrayProp != null, "Array_SkipProp: missing m_pArrayProp for a property.");
