@@ -18,7 +18,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public int GetDXSupportLevel() {
-		throw new NotImplementedException();
+		return 0;
 	}
 
 	public int GetFrameBufferColorDepth() {

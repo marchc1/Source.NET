@@ -650,7 +650,7 @@ public static class StrTools
 	}
 
 	public static void ComposeFileName(ReadOnlySpan<char> path, ReadOnlySpan<char> filename, Span<char> dest) {
-		path.CopyTo(dest);
+		strcpy(dest, path);
 		FixSlashes(dest);
 		AppendSlash(dest);
 		StrConcat(dest, filename, COPY_ALL_CHARACTERS);

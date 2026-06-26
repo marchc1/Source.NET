@@ -110,7 +110,7 @@ public ref struct MapLoadHelper
 		LumpVersion = lump.Version;
 	}
 
-	public readonly bool LoadLumpData<T>(int byteOffset, int bytesLength, Span<T> output) where T : unmanaged {
+	public bool LoadLumpData<T>(int byteOffset, int bytesLength, scoped Span<T> output) where T : unmanaged {
 		ref BSPLump lump = ref MapHeader.Lumps[(int)LumpID];
 		T[]? ret = LoadLumpData<T>();
 		if (ret == null)
@@ -118,7 +118,7 @@ public ref struct MapLoadHelper
 		ret.AsSpan().Cast<T, byte>()[byteOffset..(byteOffset + bytesLength)].Cast<byte, T>().ClampedCopyTo(output);
 		return true;
 	}
-	public readonly bool LoadLumpData<T>(Span<T> output) where T : unmanaged {
+	public bool LoadLumpData<T>(scoped Span<T> output) where T : unmanaged {
 		ref BSPLump lump = ref MapHeader.Lumps[(int)LumpID];
 		T[]? ret = LoadLumpData<T>();
 		if (ret == null)
@@ -185,7 +185,7 @@ public class MDLCacheNotify : IMDLCacheNotify
 public class ModelLoader(IFileSystem fileSystem, Host Host,
 						 MatSysInterface materials,
 						 IMaterialSystemHardwareConfig materialSystemHardwareConfig,
-						 IMDLCache MDLCache, 
+						 IMDLCache MDLCache,
 						 MatSysInterface matSys,
 						 IServiceProvider services) : IModelLoader
 {
@@ -678,6 +678,9 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		List<BSPMModel> submodelList = [];
 		Mod_LoadSubmodels(submodelList);
 		SetupSubModels(mod, submodelList);
+
+		Common.TimestampedLog("  Mod_LoadGameLumpDict");
+		LoadGameLumpDict();
 
 		MapLoadHelper.Shutdown();
 		double elapsed = Platform.Time - startTime;
@@ -1261,13 +1264,57 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		return 0;
 	}
 	static string? g_GameLumpFilename;
+	internal static bool LoadGameLump(GameLumpId_t lumpId, Span<byte> outBuffer) {
+		Span<dgamelump_internal> gameLumpDict = g_GameLumpDict.AsSpan();
+		int i;
+		for (i = gameLumpDict.Length; --i >= 0;)
+			if (gameLumpDict[i].ID == lumpId)
+				break;
+
+		if (i < 0)
+			return false;
+
+		bool isCompressed = (gameLumpDict[i].Flags & BSPFileCommon.GAMELUMPFLAG_COMPRESSED) != 0;
+		int outSize = (int)gameLumpDict[i].UncompressedSize;
+
+		if (outBuffer.Length < outSize)
+			return false;
+
+		Stream? file = Singleton<IFileSystem>().Open(g_GameLumpFilename, FileOpenOptions.Read | FileOpenOptions.Binary)?.Stream;
+		if (file == null)
+			return false;
+
+		using (file) {
+			file.Seek(gameLumpDict[i].Offset, SeekOrigin.Begin);
+
+			if (!isCompressed)
+				return file.Read(outBuffer[..outSize]) > 0;
+
+			using BinaryReader reader = new(file, System.Text.Encoding.UTF8, true);
+			LZMAHeader header = default;
+			header.ID = reader.ReadUInt32();
+			header.ActualSize = reader.ReadUInt32();
+			header.LZMASize = reader.ReadUInt32();
+
+			if (header.ID != LZMAHeader.LZMA_ID || header.ActualSize != gameLumpDict[i].UncompressedSize) {
+				Warning($"Failed loading game lump {lumpId}: lump claims to be compressed but metadata does not match\n");
+				return false;
+			}
+
+			using MemoryStream output = new(outSize);
+			LZMA.Decompress(file, output, header.LZMASize, outSize);
+			output.Position = 0;
+			output.ReadExactly(outBuffer[..outSize]);
+			return true;
+		}
+	}
 	internal static void LoadGameLumpDict() {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.GameLump);
 		g_GameLumpDict.Clear();
 		g_GameLumpFilename = new(lh.GetMapName());
 		uint lhSize = (uint)Math.Max(lh.LumpSize, 0);
 		if (lhSize >= Unsafe.SizeOf<BSPDGameLumpHeader>()) {
-			ref readonly BSPDGameLumpHeader gameLumpHeader = ref (lh.LoadLumpBaseRaw()[..Unsafe.SizeOf<BSPDGameLumpHeader>()].Cast<byte, BSPDGameLumpHeader>())[0];
+			ref readonly BSPDGameLumpHeader gameLumpHeader = ref (lh.LoadLumpBaseRaw().AsSpan()[..Unsafe.SizeOf<BSPDGameLumpHeader>()].Cast<byte, BSPDGameLumpHeader>())[0];
 
 			// Ensure (lumpsize * numlumps + headersize) doesn't overflow
 			int nMaxGameLumps = (int.MaxValue - Unsafe.SizeOf<BSPDGameLumpHeader>()) / Unsafe.SizeOf<BSPDGameLump>();
@@ -1276,13 +1323,13 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 			}
 			else {
 				// Load in lumps
-				ReadOnlySpan<BSPDGameLump> gameLump = lh.LoadLumpBaseRaw()[Unsafe.SizeOf<BSPDGameLumpHeader>()..].Cast<byte, BSPDGameLump>();
+				ReadOnlySpan<BSPDGameLump> gameLump = lh.LoadLumpBaseRaw().AsSpan()[Unsafe.SizeOf<BSPDGameLumpHeader>()..].Cast<byte, BSPDGameLump>();
 				for (int i = 0; i < gameLumpHeader.LumpCount; ++i) {
 					if (gameLump[i].fileofs >= 0 && (uint)gameLump[i].fileofs >= (uint)lh.LumpOffset && (uint)gameLump[i].fileofs < (uint)lh.LumpOffset + lhSize && gameLump[i].filelen > 0) {
 						uint compressedSize = 0;
-						if (gameLump[i].fileofs >= 0 && (uint)gameLump[i].fileofs >= (uint)lh.LumpOffset && (uint)gameLump[i].fileofs < (uint)lh.LumpOffset + lhSize && gameLump[i].filelen > 0) 
+						if (gameLump[i].fileofs >= 0 && (uint)gameLump[i].fileofs >= (uint)lh.LumpOffset && (uint)gameLump[i].fileofs < (uint)lh.LumpOffset + lhSize && gameLump[i].filelen > 0)
 							compressedSize = (uint)gameLump[i + 1].fileofs - (uint)gameLump[i].fileofs;
-						else 
+						else
 							compressedSize = (uint)lh.LumpOffset + lhSize - (uint)gameLump[i].fileofs;
 						g_GameLumpDict.Add(new(in gameLump[i], compressedSize));
 					}

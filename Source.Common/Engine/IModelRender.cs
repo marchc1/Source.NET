@@ -50,8 +50,10 @@ public struct ModelRenderInfo
 
 public interface IModelRender
 {
-	ModelInstanceHandle_t CreateInstance(IClientRenderable renderable);
+	ModelInstanceHandle_t CreateInstance(IClientRenderable renderable, LightCacheHandle_t? cache = null);
 	void DestroyInstance(ModelInstanceHandle_t modelInstance);
+	int DrawModelEx(ref ModelRenderInfo info);
+	void SetStaticLighting(ModelInstanceHandle_t handle, LightCacheHandle_t? cache);
 	void DrawModelExecute(ref DrawModelState state, ref ModelRenderInfo info, Span<Matrix3x4> boneToWorldArray);
 	bool DrawModelSetup(ref ModelRenderInfo info, ref DrawModelState state, Span<Matrix3x4> customBoneToWorld, out Span<Matrix3x4> boneToWorldArray);
 	ref Matrix4x4 SetupModelState(IClientRenderable renderable);

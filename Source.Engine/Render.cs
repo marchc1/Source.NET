@@ -408,6 +408,8 @@ public partial class Render(
 		}
 
 		DrawDisplacements();
+
+		g_StaticPropMgr.DrawAllStaticProps();
 	}
 
 	// cheating the system until wordlist stuff etc is done

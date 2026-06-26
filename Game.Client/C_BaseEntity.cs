@@ -1850,7 +1850,7 @@ public partial class C_BaseEntity : IClientEntity
 	public void SetLocalOrigin(in Vector3 origin) {
 		// Safety check against NaN's or really huge numbers
 		if (!IsEntityPositionReasonable(origin)) {
-			if (CheckEmitReasonablePhysicsSpew()) 
+			if (CheckEmitReasonablePhysicsSpew())
 				Warning($"Bad SetLocalOrigin({origin}) on {GetDebugName()}\n");
 			Assert(false);
 			return;
@@ -1890,7 +1890,7 @@ public partial class C_BaseEntity : IClientEntity
 
 		// Safety check against NaN's or really huge numbers
 		if (!IsEntityQAngleReasonable(angles)) {
-			if (CheckEmitReasonablePhysicsSpew()) 
+			if (CheckEmitReasonablePhysicsSpew())
 				Warning($"Bad SetLocalAngles({angles}) on {GetDebugName()}\n");
 			AssertMsg(false, $"Bad SetLocalAngles({angles}) on {GetDebugName()}\n");
 			return;

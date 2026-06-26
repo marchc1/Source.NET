@@ -533,9 +533,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 		return (T?)HandleToMDLDict[handle].UserData;
 	}
 
-	public VCollide GetVCollide(MDLHandle_t handle) {
-		throw new NotImplementedException();
-	}
+	public VCollide? GetVCollide(MDLHandle_t handle) => GetVCollideEx(handle, true);
 
 	public VCollide? GetVCollideEx(MDLHandle_t handle, bool synchronousLoad = true) {
 		if (handle == MDLHANDLE_INVALID)
