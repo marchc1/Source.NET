@@ -985,7 +985,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		return false;// todo
 	}
 
-	internal void Teleport(AngularImpulse origin, QAngle angles, Vector3 vec3_origin) {
+	internal void Teleport(Vector3 origin, QAngle angles, Vector3 vec3_origin) {
 		throw new NotImplementedException();
 	}
 

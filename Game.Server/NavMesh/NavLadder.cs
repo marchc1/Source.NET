@@ -228,7 +228,7 @@ public partial class NavLadder
 		else if (isSelected)
 			ladderColor = NavEditColor.NavSelectedColor;
 
-		MathLib.VectorVectors(GetNormal(), out AngularImpulse right, out AngularImpulse up);
+		MathLib.VectorVectors(GetNormal(), out Vector3 right, out Vector3 up);
 		if (up.Z <= 0.0f) {
 			AssertMsg(false, "A nav ladder has an invalid normal");
 			up.Init(0, 0, 1);

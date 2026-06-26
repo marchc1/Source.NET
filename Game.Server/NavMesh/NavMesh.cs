@@ -555,7 +555,7 @@ public partial class NavMesh
 
 						area.NearNavSearchMarker = searchMarker;
 
-						area.GetClosestPointOnArea(ref source, out AngularImpulse areaPos);
+						area.GetClosestPointOnArea(ref source, out Vector3 areaPos);
 
 						float distSq = Vector3.DistanceSquared(areaPos, pos);
 

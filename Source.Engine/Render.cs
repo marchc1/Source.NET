@@ -1125,7 +1125,7 @@ public partial class Render(
 		throw new NotImplementedException();
 	}
 
-	public void ViewSetupVisEx(bool novis, Span<AngularImpulse> origin, out uint returnFlags) {
+	public void ViewSetupVisEx(bool novis, Span<Vector3> origin, out uint returnFlags) {
 		throw new NotImplementedException();
 	}
 

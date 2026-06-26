@@ -28,7 +28,6 @@ global using HCursor = nint;
 global using UtlSymId_t = ulong;
 global using vec_t = float;
 global using FileNameHandle_t = ulong;
-global using AngularImpulse = System.Numerics.Vector3;
 global using FileFindHandle_t = ulong;
 global using PackedEntityHandle_t = nint;
 global using LightCacheHandle_t = nint;

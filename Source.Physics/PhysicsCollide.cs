@@ -19,27 +19,27 @@ namespace Source.Physics;
 
 public class PhysicsCollide : IPhysicsCollision
 {
-	public PhysCollide BBoxToCollide(in AngularImpulse mins, in AngularImpulse maxs) {
+	public PhysCollide BBoxToCollide(in Vector3 mins, in Vector3 maxs) {
 		throw new NotImplementedException();
 	}
 
-	public PhysConvex BBoxToConvex(in AngularImpulse mins, in AngularImpulse maxs) {
+	public PhysConvex BBoxToConvex(in Vector3 mins, in Vector3 maxs) {
 		throw new NotImplementedException();
 	}
 
-	public void CollideGetAABB(out AngularImpulse mins, out AngularImpulse maxs, PhysCollide collide, in AngularImpulse collideOrigin, in QAngle collideAngles) {
+	public void CollideGetAABB(out Vector3 mins, out Vector3 maxs, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles) {
 		throw new NotImplementedException();
 	}
 
-	public AngularImpulse CollideGetExtent(PhysCollide collide, in AngularImpulse collideOrigin, in QAngle collideAngles, in AngularImpulse direction) {
+	public Vector3 CollideGetExtent(PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, in Vector3 direction) {
 		throw new NotImplementedException();
 	}
 
-	public void CollideGetMassCenter(PhysCollide collide, out AngularImpulse outMassCenter) {
+	public void CollideGetMassCenter(PhysCollide collide, out Vector3 outMassCenter) {
 		throw new NotImplementedException();
 	}
 
-	public AngularImpulse CollideGetOrthographicAreas(PhysCollide collide) {
+	public Vector3 CollideGetOrthographicAreas(PhysCollide collide) {
 		throw new NotImplementedException();
 	}
 
@@ -47,11 +47,11 @@ public class PhysicsCollide : IPhysicsCollision
 		throw new NotImplementedException();
 	}
 
-	public void CollideSetMassCenter(PhysCollide collide, in AngularImpulse massCenter) {
+	public void CollideSetMassCenter(PhysCollide collide, in Vector3 massCenter) {
 		throw new NotImplementedException();
 	}
 
-	public void CollideSetOrthographicAreas(PhysCollide collide, in AngularImpulse areas) {
+	public void CollideSetOrthographicAreas(PhysCollide collide, in Vector3 areas) {
 		throw new NotImplementedException();
 	}
 
@@ -83,7 +83,7 @@ public class PhysicsCollide : IPhysicsCollision
 		throw new NotImplementedException();
 	}
 
-	public void ConvexesFromConvexPolygon(in AngularImpulse polyNormal, ReadOnlySpan<AngularImpulse> points, int pointCount, Span<PhysConvex> output) {
+	public void ConvexesFromConvexPolygon(in Vector3 polyNormal, ReadOnlySpan<Vector3> points, int pointCount, Span<PhysConvex> output) {
 		throw new NotImplementedException();
 	}
 
@@ -111,7 +111,7 @@ public class PhysicsCollide : IPhysicsCollision
 		throw new NotImplementedException();
 	}
 
-	public int CreateDebugMesh(PhysCollide collisionModel, Span<AngularImpulse> outVerts) {
+	public int CreateDebugMesh(PhysCollide collisionModel, Span<Vector3> outVerts) {
 		throw new NotImplementedException();
 	}
 
@@ -127,7 +127,7 @@ public class PhysicsCollide : IPhysicsCollision
 		throw new NotImplementedException();
 	}
 
-	public void DestroyDebugMesh(int vertCount, Span<AngularImpulse> outVerts) {
+	public void DestroyDebugMesh(int vertCount, Span<Vector3> outVerts) {
 		throw new NotImplementedException();
 	}
 
@@ -143,7 +143,7 @@ public class PhysicsCollide : IPhysicsCollision
 		throw new NotImplementedException();
 	}
 
-	public bool IsBoxIntersectingCone(in AngularImpulse boxAbsMins, in AngularImpulse boxAbsMaxs, in TruncatedCone cone) {
+	public bool IsBoxIntersectingCone(in Vector3 boxAbsMins, in Vector3 boxAbsMaxs, in TruncatedCone cone) {
 		throw new NotImplementedException();
 	}
 
@@ -155,7 +155,7 @@ public class PhysicsCollide : IPhysicsCollision
 		throw new NotImplementedException();
 	}
 
-	public void PolysoupAddTriangle(PhysPolysoup soup, in AngularImpulse a, in AngularImpulse b, in AngularImpulse c, int materialIndex7bits) {
+	public void PolysoupAddTriangle(PhysPolysoup soup, in Vector3 a, in Vector3 b, in Vector3 c, int materialIndex7bits) {
 		throw new NotImplementedException();
 	}
 
@@ -187,19 +187,19 @@ public class PhysicsCollide : IPhysicsCollision
 		throw new NotImplementedException();
 	}
 
-	public void TraceBox(in AngularImpulse start, in AngularImpulse end, in AngularImpulse mins, in AngularImpulse maxs, PhysCollide collide, in AngularImpulse collideOrigin, in QAngle collideAngles, out Trace trace) {
+	public void TraceBox(in Vector3 start, in Vector3 end, in Vector3 mins, in Vector3 maxs, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, out Trace trace) {
 		throw new NotImplementedException();
 	}
 
-	public void TraceBox(in Ray ray, PhysCollide collide, in AngularImpulse collideOrigin, in QAngle collideAngles, out Trace trace) {
+	public void TraceBox(in Ray ray, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, out Trace trace) {
 		throw new NotImplementedException();
 	}
 
-	public void TraceBox(in Ray ray, Contents contentsMask, IConvexInfo? convexInfo, PhysCollide collide, in AngularImpulse collideOrigin, in QAngle collideAngles, out Trace trace) {
+	public void TraceBox(in Ray ray, Contents contentsMask, IConvexInfo? convexInfo, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, out Trace trace) {
 		throw new NotImplementedException();
 	}
 
-	public void TraceCollide(in AngularImpulse start, in AngularImpulse end, PhysCollide pSweepCollide, in QAngle sweepAngles, PhysCollide collide, in AngularImpulse collideOrigin, in QAngle collideAngles, out Trace trace) {
+	public void TraceCollide(in Vector3 start, in Vector3 end, PhysCollide pSweepCollide, in QAngle sweepAngles, PhysCollide collide, in Vector3 collideOrigin, in QAngle collideAngles, out Trace trace) {
 		throw new NotImplementedException();
 	}
 

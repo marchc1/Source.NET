@@ -222,7 +222,7 @@ public partial class Input
 		cam_idealpitch.SetValue(idealAngles[PITCH]);
 		cam_idealyaw.SetValue(idealAngles[YAW]);
 		cam_idealdist.SetValue(idealAngles[DIST]);
-		MathLib.VectorCopy(g_ThirdPersonManager.GetCameraOffsetAngles(), out AngularImpulse camOffset);
+		MathLib.VectorCopy(g_ThirdPersonManager.GetCameraOffsetAngles(), out Vector3 camOffset);
 
 		if (cam_snapto.GetBool()) {
 			camOffset[YAW] = cam_idealyaw.GetFloat() + viewangles[YAW];

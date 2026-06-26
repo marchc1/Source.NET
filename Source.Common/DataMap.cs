@@ -23,7 +23,7 @@ namespace Source.Common
 		Float,            // Any floating point value
 		Double,           // Any double-precision floating point value
 		String,           // A string ID (return from ALLOC_STRING)
-		Vector,           // Any vector, QAngle, or AngularImpulse
+		Vector,           // Any vector, QAngle, or Vector3
 		Quaternion,       // A quaternion
 		Integer,          // Any integer or enum
 		Boolean,          // boolean, implemented as an int, I may use this as a hint for compression

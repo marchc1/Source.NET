@@ -103,7 +103,7 @@ public partial class
 		CreatePhysBeam();
 		return base.Deploy();
 	}
-	public override void Drop(in AngularImpulse velocity) {
+	public override void Drop(in Vector3 velocity) {
 		DropEntity();
 		RemovePhysBeam();
 		base.Drop(velocity);

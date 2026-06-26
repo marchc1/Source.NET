@@ -254,7 +254,7 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		return null;
 	}
 
-	public void GetModelBounds(Model? model, out AngularImpulse mins, out AngularImpulse maxs) {
+	public void GetModelBounds(Model? model, out Vector3 mins, out Vector3 maxs) {
 		throw new NotImplementedException();
 	}
 
@@ -294,11 +294,11 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException();
 	}
 
-	public void GetModelMaterialColorAndLighting(Model? model, in AngularImpulse origin, in QAngle angles, out Trace trace, out AngularImpulse lighting, out AngularImpulse matColor) {
+	public void GetModelMaterialColorAndLighting(Model? model, in Vector3 origin, in QAngle angles, out Trace trace, out Vector3 lighting, out Vector3 matColor) {
 		throw new NotImplementedException();
 	}
 
-	public void GetIlluminationPoint(Model? model, IClientRenderable? renderable, in AngularImpulse origin, in QAngle angles, out AngularImpulse lightingCenter) {
+	public void GetIlluminationPoint(Model? model, IClientRenderable? renderable, in Vector3 origin, in QAngle angles, out Vector3 lightingCenter) {
 		// throw new NotImplementedException();
 		// TODO!!
 		lightingCenter = origin;
@@ -322,7 +322,7 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 
 	public byte ComputeLevelScreenFade(in Vector3 absOrigin, float radius, float fadeScale) => 255; // TODO!!!
 
-	public byte ComputeViewScreenFade(in AngularImpulse absOrigin, float radius, float fadeScale) => 255;// TODO!!
+	public byte ComputeViewScreenFade(in Vector3 absOrigin, float radius, float fadeScale) => 255;// TODO!!
 
 	public PhysCollide? GetCollideForVirtualTerrain(int index) {
 		throw new NotImplementedException();
@@ -336,7 +336,7 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException();
 	}
 
-	public void GetBrushModelPlane(Model? model, int nIndex, out CollisionPlane plane, out AngularImpulse origin) {
+	public void GetBrushModelPlane(Model? model, int nIndex, out CollisionPlane plane, out Vector3 origin) {
 		throw new NotImplementedException();
 	}
 
