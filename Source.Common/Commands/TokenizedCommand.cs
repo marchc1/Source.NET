@@ -12,7 +12,7 @@ public struct TokenizedCommand
 
 	int argCount;
 	int strlen;
-	
+
 	char[]? argSBuffer;
 	Range[] ppArgs;
 
@@ -27,16 +27,17 @@ public struct TokenizedCommand
 	/// </summary>
 	/// <returns>All text, as a <see cref="ReadOnlySpan{char}"/> slice of the internal command buffer, after the provided arguments starting position (0 returning all text, 1 returning all after the initial command, etc..)</returns>
 	public readonly ReadOnlySpan<char> ArgS(int startingArg = 1) {
-		// Null and strict bounds checking
-		if (argSBuffer == null || startingArg < 0 || startingArg >= argCount)
+		// Null/overflow checking
+		if (argSBuffer == null)
+			return [];
+		if (argCount <= startingArg)
 			return [];
 
-		int start = ppArgs[startingArg].Start.Value;
+		// Start at the first argument requested, and end at the last argument in ppArgs
+		Index startIdx = ppArgs[startingArg].Start;
+		Index endIdx = ppArgs[argCount - 1].End;
 
-		if (start > 0 && argSBuffer[start - 1] == '"') 
-			start--;
-
-		return argSBuffer.AsSpan()[start..strlen];
+		return argSBuffer.AsSpan()[startIdx..endIdx];
 	}
 
 	/// <summary>

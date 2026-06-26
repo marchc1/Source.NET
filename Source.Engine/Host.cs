@@ -187,9 +187,9 @@ public class Host(
 			if (Net.Dedicated && !Net.IsMultiplayer())
 				Net.SetMultiplayer(true);
 
-			serverGlobalVariables.IntervalPerTick = 0.0;
+			serverGlobalVariables.InterpolationAmount = 0.0;
 #if !SWDS
-			clientGlobalVariables.IntervalPerTick = 0.0;
+			clientGlobalVariables.InterpolationAmount = 0.0;
 			cl.InSimulation = true;
 #endif
 
@@ -255,7 +255,7 @@ public class Host(
 
 				if (!sv.IsDedicated()) {
 					SetClientInSimulation(false);
-					clientGlobalVariables.IntervalPerTick = cl.TickRemainder / host_state.IntervalPerTick;
+					clientGlobalVariables.InterpolationAmount = cl.TickRemainder / host_state.IntervalPerTick;
 					// replay?
 					CL.RunPrediction(PredictionReason.Normal);
 					CL.ApplyAddAngle();
@@ -269,6 +269,25 @@ public class Host(
 			else {
 				throw new NotImplementedException("Threaded Host.RunFrame path is not implemented yet");
 			}
+
+			if(shouldRender){
+				_RunFrame_Render();
+				_RunFrame_Sound();
+			}
+			// else
+			// updatedynamicmodels
+
+			#if !SWDS
+			if(!sv.IsDedicated()){
+				ClientDLL.Update();
+			}
+#endif
+
+			Speeds();
+			UpdateMapList();
+			FrameCount++;
+			Time = TickCount * host_state.IntervalPerTick + cl.TickRemainder;
+			PostFrameRate(FrameTime);
 #endif
 		}
 	}
