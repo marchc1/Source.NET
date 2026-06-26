@@ -1,6 +1,8 @@
+using Source.Common.Commands;
 using Source.Common.MaterialSystem;
 
 namespace Source.ShaderAPI.Gl46;
+
 public class HardwareConfig : IMaterialSystemHardwareConfig
 {
 	public bool ActuallySupportsPixelShaders_2_b() {
@@ -45,7 +47,9 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public unsafe int GetSamplerCount() {
-		return 2;
+		int count;
+		glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &count);
+		return count;
 	}
 
 	public ReadOnlySpan<char> GetShaderDLLName() {
@@ -209,7 +213,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool SupportsCubeMaps() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsFetch4() {
@@ -294,7 +298,8 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 		throw new NotImplementedException();
 	}
 
+	static readonly ConVar r_shader_srgb = new("r_shader_srgb", "0", 0, "-1 = use hardware caps. 0 = use hardware srgb. 1 = use shader srgb(software lookup)");
 	public bool UsesSRGBCorrectBlending() {
-		return false; // todo
+		return r_shader_srgb.GetInt() == 0;
 	}
 }

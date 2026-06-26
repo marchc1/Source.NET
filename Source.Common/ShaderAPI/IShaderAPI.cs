@@ -38,7 +38,12 @@ public struct GraphicsBoardState
 	public bool ColorWrite;
 	public bool AlphaWrite;
 	public bool DepthWrite;
+	public bool CullEnable;
+	public bool AlphaToCoverage;
+
 	public ShaderDepthFunc DepthFunc;
+	public ShaderPolyMode FillMode;
+	public PolygonOffsetMode ZBias;
 }
 
 public interface IMeshMgr
@@ -69,7 +74,7 @@ public interface IShaderAPI : IShaderDynamicAPI
 	bool DoRenderTargetsNeedSeparateDepthBuffer();
 	void EnableLinearColorSpaceFrameBuffer(bool v);
 	void SetRenderTargetEx(int rt, ShaderAPITextureHandle_t colorTextureHandle = (ShaderAPITextureHandle_t)ShaderRenderTarget.Backbuffer, ShaderAPITextureHandle_t depthTextureHandle = (ShaderAPITextureHandle_t)ShaderRenderTarget.Depthbuffer);
-	void InvalidateDelayedShaderConstraints();
+	void InvalidateDelayedShaderConstants();
 	void SetSkinningMatrices();
 	void ShadeMode(ShadeMode flat);
 	void RenderPass();

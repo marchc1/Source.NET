@@ -37,7 +37,7 @@ public class ShaderSystem : IShaderSystemInternal
 	}
 
 	public void DrawElements(IShader shader, IMaterialVar[] parms, IShaderShadow renderState, VertexCompressionType vertexCompression, uint materialVarTimeStamp) {
-		ShaderAPI.InvalidateDelayedShaderConstraints();
+		ShaderAPI.InvalidateDelayedShaderConstants();
 
 		int materialVarFlags = parms[(int)ShaderMaterialVars.Flags].GetIntValue();
 		if (((materialVarFlags & (int)MaterialVarFlags.Model) != 0) || (IsFlag2Set(parms, MaterialVarFlags2.SupportsHardwareSkinning) && (ShaderAPI.GetCurrentNumBones() > 0))) {
@@ -216,6 +216,32 @@ public class ShaderSystem : IShaderSystemInternal
 		DoneWithShaderDraw();
 	}
 
+	public void LoadCubeMap(IMaterialVar[] parms, IMaterialVar textureVar, int additionalCreationFlags = 0) {
+		if (!HardwareConfig.SupportsCubeMaps())
+			return;
+
+		if (textureVar.GetVarType() != MaterialVarType.String) {
+			if (textureVar.GetVarType() != MaterialVarType.Texture)
+				textureVar.SetTextureValue(MaterialSystem.GetErrorTexture());
+			return;
+		}
+
+		if (stricmp(textureVar.GetStringValue(), "env_cubemap") == 0) {
+			textureVar.SetTextureValue(MaterialSystem.FindTexture("env_cubemap", TEXTURE_GROUP_CUBE_MAP, false));
+			SetFlags2(parms, MaterialVarFlags2.UsesEnvCubemap);
+			return;
+		}
+
+		string textureName = textureVar.GetStringValue();
+		if (HardwareConfig.GetHDRType() != HDRType.None)
+			textureName += ".hdr";
+
+		ITexture texture = MaterialSystem.FindTexture(textureName, TEXTURE_GROUP_CUBE_MAP, false, additionalCreationFlags)
+			?? MaterialSystem.GetErrorTexture();
+
+		textureVar.SetTextureValue(texture);
+	}
+
 	public void LoadTexture(IMaterialVar textureVar, ReadOnlySpan<char> textureGroupName, int additionalCreationFlags = 0) {
 		if (textureVar.GetVarType() != MaterialVarType.String) {
 			if (textureVar.GetVarType() != MaterialVarType.Texture)
@@ -265,7 +291,7 @@ public class ShaderSystem : IShaderSystemInternal
 		if (makeActualDrawCall)
 			ShaderAPI.RenderPass();
 
-		ShaderAPI.InvalidateDelayedShaderConstraints();
+		ShaderAPI.InvalidateDelayedShaderConstants();
 	}
 
 	internal void BindVertexShader(in VertexShaderHandle vertexShader) {
@@ -287,6 +313,8 @@ public class ShaderSystem : IShaderSystemInternal
 	IFileSystem FileSystem;
 	IShaderDevice? _ShaderDevice;
 	IShaderDevice? ShaderDevice => _ShaderDevice ??= Singleton<IShaderDevice>();
+	IMaterialSystemHardwareConfig? _HardwareConfig;
+	IMaterialSystemHardwareConfig HardwareConfig => _HardwareConfig ??= Singleton<IMaterialSystemHardwareConfig>();
 
 	public void Init() {
 

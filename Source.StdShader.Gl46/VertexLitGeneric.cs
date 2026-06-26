@@ -50,9 +50,10 @@ public class VertexLitGeneric : BaseVSShader
 		public ReadOnlySpan<char> GetHelp() => Info.Help;
 	}
 
+	public static readonly ShaderParam SELFILLUMTINT = new($"${nameof(SELFILLUMTINT)}", ShaderParamType.Color, "[1 1 1]", "Slef-illumunation tint");
 	public static readonly ShaderParam DETAIL = new($"${nameof(DETAIL)}", ShaderParamType.Texture, "shadertest/detail", "detail texture");
 	public static readonly ShaderParam DETAILSCALE = new($"${nameof(DETAILSCALE)}", ShaderParamType.Float, "4", "scale of the detail texture");
-	public static readonly ShaderParam DETAILFRAME= new($"${nameof(DETAILFRAME)}", ShaderParamType.Integer, "0", "frame number for $detail");
+	public static readonly ShaderParam DETAILFRAME = new($"${nameof(DETAILFRAME)}", ShaderParamType.Integer, "0", "frame number for $detail");
 	public static readonly ShaderParam ENVMAP = new($"${nameof(ENVMAP)}", ShaderParamType.Texture, "shadertest/shadertest_env", "envmap");
 	public static readonly ShaderParam ENVMAPFRAME = new($"${nameof(ENVMAPFRAME)}", ShaderParamType.Integer, "0", "");
 	public static readonly ShaderParam ENVMAPMASK = new($"${nameof(ENVMAPMASK)}", ShaderParamType.Texture, "shadertest/shadertest_envmask", "envmap mask");
@@ -123,14 +124,16 @@ public class VertexLitGeneric : BaseVSShader
 			if (vars[ALPHATESTREFERENCE].GetFloatValue() > 0.0f)
 				shaderShadow.AlphaFunc(ShaderAlphaFunc.GreaterEqual, vars[ALPHATESTREFERENCE].GetFloatValue());
 
-
-			VertexFormat fmt = Source.Common.MaterialSystem.VertexFormat.Position | Source.Common.MaterialSystem.VertexFormat.Normal | Source.Common.MaterialSystem.VertexFormat.Color | Source.Common.MaterialSystem.VertexFormat.BoneIndex | Source.Common.MaterialSystem.VertexFormat.BoneWeights2 | Source.Common.MaterialSystem.VertexFormat.UserData4 | Source.Common.MaterialSystem.VertexFormat.TexCoord2D_0;
+			VertexFormat fmt = VertexFormat.Position | VertexFormat.Normal | VertexFormat.Color | VertexFormat.BoneIndex | VertexFormat.BoneWeights2 | VertexFormat.UserData4 | VertexFormat.TexCoord2D_0;
 
 			if (IsFlagSet(vars, MaterialVarFlags.VertexColor) || IsFlagSet(vars, MaterialVarFlags.VertexAlpha))
 				fmt |= VertexFormat.Color;
 
 			if (vars[ENVMAP].IsTexture() && !skipEnvmap) {
-				// envmap todo
+				shaderShadow.EnableTexture(Sampler.Sampler1, true);
+
+				if (vars[ENVMAPMASK].IsTexture() || IsFlagSet(vars, MaterialVarFlags.BaseAlphaEnvMapMask))
+					shaderShadow.EnableTexture(Sampler.Sampler2, true);
 			}
 
 			if (vars[(int)ShaderMaterialVars.BaseTexture].IsTexture())
@@ -148,10 +151,11 @@ public class VertexLitGeneric : BaseVSShader
 
 			shaderShadow.EnableAlphaWrites(true);
 		}
+
 		if (shaderAPI != null) {
 			if (vars[(int)ShaderMaterialVars.BaseTexture].IsTexture()) {
 				BindTexture(Sampler.Sampler0, (int)ShaderMaterialVars.BaseTexture, (int)ShaderMaterialVars.Frame);
-				// TODO: base texture transform...
+				SetVertexShaderTextureTransform(VertexShaderConst.ShaderSpecificConst0, (int)ShaderMaterialVars.BaseTextureTransform);
 			}
 
 			if (vars[ENVMAP].IsTexture() && !skipEnvmap) {
@@ -162,20 +166,30 @@ public class VertexLitGeneric : BaseVSShader
 						BindTexture(Sampler.Sampler2, ENVMAPMASK, ENVMAPMASKFRAME);
 					else
 						BindTexture(Sampler.Sampler2, (int)ShaderMaterialVars.BaseTexture, (int)ShaderMaterialVars.Frame);
+
+					SetVertexShaderTextureScaledTransform(VertexShaderConst.ShaderSpecificConst2, (int)ShaderMaterialVars.BaseTextureTransform, ENVMAPMASKSCALE);
 				}
 
 				if (IsFlagSet(vars, MaterialVarFlags.EnvMapSphere) || IsFlagSet(vars, MaterialVarFlags.EnvMapCameraSpace)) {
-					// LoadViewMatrixIntoVertexShaderConstant(VERTEX_SHADER_VIEWMODEL);
+					LoadViewMatrixIntoVertexShaderConstant(VertexShaderConst.ViewModel);
 				}
 
-				// SetEnvMapTintPixelShaderDynamicState(2, ENVMAPTINT, -1);
+				SetEnvMapTintPixelShaderDynamicState(2, ENVMAPTINT, -1);
 			}
 
-			if (vars[DETAIL].IsTexture()) 
+			if (vars[DETAIL].IsTexture()) {
 				BindTexture(Sampler.Sampler3, DETAIL, DETAILFRAME);
+				SetVertexShaderTextureScaledTransform(VertexShaderConst.ShaderSpecificConst4, (int)ShaderMaterialVars.BaseTextureTransform, DETAILSCALE);
+			}
+
+			// SetAmbientCubeDynamicStateVertexShader();
+			SetModulationPixelShaderDynamicState(3);
+			EnablePixelShaderOverbright(0, true, true);
+			SetPixelShaderConstant(1, SELFILLUMTINT);
 
 			// TODO: Set skinning, etc
 		}
+
 		Draw();
 	}
 }
