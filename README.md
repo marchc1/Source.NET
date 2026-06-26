@@ -19,11 +19,13 @@
 ## What is this?
 This is an open source clone of the Source Engine, based on [RaphaelIT7's Source Engine branch](https://github.com/RaphaelIT7/obsolete-source-engine), written in C#. It aims to be as compatible as possible with Source Engine's formats and protocols, more specifically targetting [Garry's Mod](https://store.steampowered.com/app/4000/Garrys_Mod/) compatibility. 
 
-<img width="1600" height="900" alt="Source Launcher_h58b4odIBv" src="https://github.com/user-attachments/assets/fbd1a007-7fb6-4710-ab94-67656067eef5" />
-<img width="1600" height="900" alt="image" src="https://github.com/user-attachments/assets/c86c9e46-b74a-4dde-8374-c425171be6bd" />
+<img width="1600" height="900" alt="image" src="https://github.com/user-attachments/assets/b382c7f6-f3ca-43d5-9ce6-fdfc347a5aa2" />
+<img width="1600" height="900" alt="image" src="https://github.com/user-attachments/assets/d456bd33-b96a-4847-b97c-0a2cb16fbe0a" />
+<img width="1600" height="900" alt="image" src="https://github.com/user-attachments/assets/903488b0-0c1d-4485-940a-d9acc3c2b929" />
 
+It can currently connect to real Garry's Mod servers. Development is currently done by connecting to a local Garry's Mod SRCDS instance - if you wish to contribute, you can set one up relatively easily with [these instructions](https://wiki.facepunch.com/gmod/Downloading_a_Dedicated_Server). 
 
-It can currently connect to real Garry's Mod servers. Development is currently done by connecting to a local Garry's Mod SRCDS instance - if you wish to contribute, you can set one up relatively easily with [these instructions](https://wiki.facepunch.com/gmod/Downloading_a_Dedicated_Server). Note that most entities aren't implemented yet - your best luck is a vanilla, -noworkshop -noaddons SRCDS server on gm_flatgrass.
+Generally speaking, testing is done on a vanilla, -noworkshop -noaddons SRCDS server on gm_flatgrass.
 
 ## Goals
 I originally started this project mostly to learn more about the Source Engine, but due to public interest I've made it open-sourced in the case that it helps others and could be further worked on by people smarter than I (especially in the graphics department). 
@@ -39,10 +41,8 @@ In an ideal world, it could serve as a playable Garry's Mod client - but that is
 ## Building
 You need the following:
 - A C#-compatible IDE obviously (Visual Studio 2022 is what I use for now, although I'm sure it would work fine on Rider or VS Code)
-- The .NET 9.0 SDK
+- The .NET 10.0 SDK
 - A license for Garry's Mod on Steam
-
-You will also need to symlink the Half Life 2/Garry's Mod vpk files or copy them directly. A Powershell file is provided in Game.Assets to automatically symlink the necessary VPK's and map files - if someone wants to write an equivalent Linux script for doing this, that would be very appreciated. 
 
 ## Structure
 The engine is very similar to Source, with various deviations where I saw fit, to better match .NET/C# implementation details. Things like UtlVector/UtlMap/UtlLinkedList are replaced with their C# equivalents. Each "stage" described here builds on each other incrementally - ie. stage 3 can include stage 2 and stage 1 libraries, stage 2 can include stage 1 libraries, but stage 1 cannot include stage 2 libraries, etc. Libraries can include other libraries within their own stage if needed - but is done only in a few cases (VTF including Common and Bitmap, for example.)
@@ -50,7 +50,10 @@ The engine is very similar to Source, with various deviations where I saw fit, t
 There are currently seven stages. The Solution is organized via Solution Folders as well in this order.
 
 > [!NOTE]  
-> AppFramework in Source is instead replaced by [Microsoft.Extensions.DependencyInjection](https://www.nuget.org/packages/microsoft.extensions.dependencyinjection/). 
+> AppFramework in Source is instead replaced by [Microsoft.Extensions.DependencyInjection](https://www.nuget.org/packages/microsoft.extensions.dependencyinjection/).
+
+> > [!NOTE]  
+> Some of this is outdated (or missing new libraries that now exist), however the majority of this information and the general structure is still correct.
 
 ---
 
