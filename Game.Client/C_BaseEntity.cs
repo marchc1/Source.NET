@@ -846,7 +846,7 @@ public partial class C_BaseEntity : IClientEntity
 				Warning($"ERROR:  Can't draw studio model {modelinfo.GetModelName(Model)} because {GetClientClass().NetworkName ?? "unknown"} is not derived from C_BaseAnimating\n");
 				break;
 			case ModelType.Sprite:
-				// Warning("ERROR:  Sprite model's not supported any more except in legacy temp ents\n");
+				Warning("ERROR:  Sprite model's not supported any more except in legacy temp ents\n");
 				break;
 		}
 
