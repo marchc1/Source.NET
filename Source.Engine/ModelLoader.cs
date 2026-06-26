@@ -110,7 +110,7 @@ public ref struct MapLoadHelper
 		LumpVersion = lump.Version;
 	}
 
-	public readonly bool LoadLumpData<T>(int byteOffset, int bytesLength, Span<T> output) where T : unmanaged {
+	public bool LoadLumpData<T>(int byteOffset, int bytesLength, scoped Span<T> output) where T : unmanaged {
 		ref BSPLump lump = ref MapHeader.Lumps[(int)LumpID];
 		T[]? ret = LoadLumpData<T>();
 		if (ret == null)
@@ -118,7 +118,7 @@ public ref struct MapLoadHelper
 		ret.AsSpan().Cast<T, byte>()[byteOffset..(byteOffset + bytesLength)].Cast<byte, T>().ClampedCopyTo(output);
 		return true;
 	}
-	public readonly bool LoadLumpData<T>(Span<T> output) where T : unmanaged {
+	public bool LoadLumpData<T>(scoped Span<T> output) where T : unmanaged {
 		ref BSPLump lump = ref MapHeader.Lumps[(int)LumpID];
 		T[]? ret = LoadLumpData<T>();
 		if (ret == null)
