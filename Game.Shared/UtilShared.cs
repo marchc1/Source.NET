@@ -55,7 +55,8 @@ public static partial class Util_Globals
 		IClientUnknown? unk = (IClientUnknown?)handle;
 		return (BaseEntity?)unk?.GetBaseEntity();
 #else
-		//todo staticpropmgr
+		if (StaticPropMgrGlobals.g_StaticPropMgr.IsStaticProp(handle))
+			return null;
 
 		IServerUnknown? unk = (IServerUnknown?)handle;
 		return (BaseEntity?)unk?.GetBaseEntity();

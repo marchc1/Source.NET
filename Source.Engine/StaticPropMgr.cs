@@ -2,14 +2,12 @@ global using static Source.Engine.StaticPropMgrGlobals;
 
 using Source.Common;
 using Source.Common.Commands;
-using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
 
-using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
@@ -172,7 +170,14 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 	}
 
 	public ICollideable? GetStaticProp(IHandleEntity? handleEntity) {
-		throw new NotImplementedException();
+		if (!IsStaticProp(handleEntity))
+			return null;
+
+		int index = handleEntity != null ? handleEntity.GetRefEHandle().GetEntryIndex() : -1;
+		if (index < 0 || index > StaticProps.Count)
+			return null;
+
+		return StaticProps[index];
 	}
 
 	public void RecomputeStaticLighting() {
@@ -190,11 +195,16 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 	public int GetStaticPropIndex(IHandleEntity? handleEntity) => HandleEntityToIndex(handleEntity);
 
 	public ICollideable GetStaticPropByIndex(int propIndex) {
-		throw new NotImplementedException();
+		if (propIndex < StaticProps.Count)
+			return StaticProps[propIndex];
+
+		Assert(false);
+		return null;
 	}
 
 	public void ComputePropOpacity(Vector3 viewOrigin, float factor) {
-		throw new NotImplementedException();
+		LastViewOrigin = viewOrigin;
+		LastViewFactor = factor;
 	}
 
 	public void TraceRayAgainstStaticProp(Ray ray, int staticPropIndex, Trace tr) {
@@ -243,13 +253,81 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 
 	public ref readonly Vector3 ViewOrigin() => ref LastViewOrigin;
 
-	void ComputePropOpacity(StaticProp prop) => throw new NotImplementedException();
+	static ConVarRef? localplayer_visionflags;
+
+	public void ComputePropOpacity(StaticProp prop) {
+#if !SWDS
+		if (modelInfo.ModelHasMaterialProxy(prop.GetModel()))
+			modelInfo.RecomputeTranslucency(prop.GetModel(), prop.GetSkin(), prop.GetBody(), prop.GetClientRenderable(), (float)prop.GetFxBlend() / 255.0f);
+#endif
+
+		ConVarRef visionFlags = localplayer_visionflags ??= new("localplayer_visionflags");
+		bool visionOverride = visionFlags.IsValid() && (visionFlags.GetInt() & 0x01) != 0;
+		if (!HardwareConfig.SupportsPixelShaders_2_0())
+			visionOverride = false;
+
+		if (LastViewFactor < 0 || visionOverride) {
+			prop.SetAlpha(255);
+			ChangeRenderGroup(prop);
+			return;
+		}
+
+		if ((prop.Flags() & (int)StaticPropFlags.Fades) != 0) {
+			Assert(prop.FadeIndex() != -1);
+
+			StaticPropFade fade = StaticPropFadeList[(int)prop.FadeIndex()];
+
+			byte alpha;
+
+			if ((prop.Flags() & (int)StaticPropFlags.ScreenSpaceFade) == 0) {
+				MathLib.VectorSubtract(prop.GetRenderOrigin(), LastViewOrigin, out Vector3 v);
+				MathLib.VectorScale(v, LastViewFactor, out v);
+
+				alpha = 0;
+				float sqDist = v.LengthSqr();
+				if (sqDist < fade.MaxDistSq) {
+					if (fade.MinDistSq >= 0 && sqDist > fade.MinDistSq) {
+						int nAlpha = (int)(fade.FalloffFactor * (fade.MaxDistSq - sqDist));
+						alpha = (byte)Math.Clamp(nAlpha, 0, 255);
+					}
+					else
+						alpha = 255;
+				}
+			}
+			else
+				alpha = ComputeScreenFade(prop, fade.MinScreenWidth, fade.MaxScreenWidth, fade.FalloffFactor);
+
+			prop.SetAlpha(alpha);
+			ChangeRenderGroup(prop);
+		}
+		else {
+			prop.SetAlpha(255);
+			ChangeRenderGroup(prop);
+		}
+
+#if !SWDS
+		{
+			byte alpha = modelInfo.ComputeLevelScreenFade(prop.GetRenderOrigin(), prop.Radius(), prop.ForcedFadeScale());
+			byte viewAlpha = modelInfo.ComputeViewScreenFade(prop.GetRenderOrigin(), prop.Radius(), prop.ForcedFadeScale());
+			if (viewAlpha < alpha)
+				alpha = viewAlpha;
+
+			if (alpha < prop.GetFxBlend()) {
+				prop.SetAlpha(alpha);
+				ChangeRenderGroup(prop);
+			}
+		}
+#endif
+	}
 
 	// todo: pvs, remove this func
 	public void DrawAllStaticProps() {
+		ComputePropOpacity(CurrentViewOrigin(), 1.0f); // called from UpdateRenderablesOpacity
+
 		IClientRenderable[] props = new IClientRenderable[StaticProps.Count];
 		int count = 0;
 		foreach (StaticProp prop in StaticProps) {
+			prop.ComputeFxBlend();
 			if (prop.ShouldDraw())
 				props[count++] = prop;
 		}
@@ -438,8 +516,39 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 		return handleEntity!.GetRefEHandle().GetEntryIndex();
 	}
 
-	byte ComputeScreenFade(StaticProp prop, float minSize, float maxSize, float falloffFactor) => throw new NotImplementedException();
-	void ChangeRenderGroup(StaticProp prop) => throw new NotImplementedException();
+	byte ComputeScreenFade(StaticProp prop, float minSize, float maxSize, float falloffFactor) {
+		MatRenderContextPtr renderContext = new(materials);
+
+		float pixelWidth = renderContext.ComputePixelWidthOfSphere(prop.GetRenderOrigin(), prop.Radius());
+
+		byte alpha = 0;
+		if (pixelWidth > minSize) {
+			if (maxSize >= 0 && pixelWidth < maxSize) {
+				int nAlpha = (int)(falloffFactor * (pixelWidth - minSize));
+				alpha = (byte)Math.Clamp(nAlpha, 0, 255);
+			}
+			else
+				alpha = 255;
+		}
+
+		return alpha;
+	}
+
+	void ChangeRenderGroup(StaticProp prop) {
+#if !SWDS
+		RenderGroup opaqueRenderGroup = RenderGroup.OpaqueStatic;
+		ClientRenderHandle_t renderHandle = prop.GetRenderHandle();
+		Assert(renderHandle != INVALID_CLIENT_RENDER_HANDLE);
+		if (prop.GetFxBlend() == 0)
+			clientleafsystem.ChangeRenderableRenderGroup(renderHandle, opaqueRenderGroup);
+		else if (prop.GetFxBlend() == 255) {
+			RenderGroup nRenderGroup = prop.IsTransparent() ? RenderGroup.TranslucentEntity : opaqueRenderGroup;
+			clientleafsystem.ChangeRenderableRenderGroup(renderHandle, nRenderGroup);
+		}
+		else
+			clientleafsystem.ChangeRenderableRenderGroup(renderHandle, RenderGroup.TranslucentEntity);
+#endif
+	}
 }
 
 
@@ -479,8 +588,11 @@ public class StaticProp : IClientUnknown, IClientRenderable, ICollideable
 		Alpha = 255;
 	}
 
-	public void SetRefEHandle(in BaseHandle handle) => throw new NotImplementedException();
-	public ref readonly BaseHandle GetRefEHandle() => throw new NotImplementedException();
+	public void SetRefEHandle(in BaseHandle handle) {
+		// Only the static prop mgr should be setting this...
+		Assert(false);
+	}
+	public ref readonly BaseHandle GetRefEHandle() => ref EntHandle;
 
 	public ICollideable? GetCollideable() => this;
 	public IClientNetworkable? GetClientNetworkable() => null;
@@ -493,25 +605,36 @@ public class StaticProp : IClientUnknown, IClientRenderable, ICollideable
 	public ref readonly Vector3 OBBMins() => throw new NotImplementedException();
 	public ref readonly Vector3 OBBMaxs() => throw new NotImplementedException();
 
-	public bool TestCollision(in Ray ray, Contents contentsMask, ref Trace tr) => throw new NotImplementedException();
-	public bool TestHitboxes(in Ray ray, Contents contentsMask, ref Trace tr) => throw new NotImplementedException();
+	public bool TestCollision(in Ray ray, Contents contentsMask, ref Trace tr) {
+		Assert(false);
+		return false;
+	}
+	public bool TestHitboxes(in Ray ray, Contents contentsMask, ref Trace tr) => false;
 
-	public int GetCollisionModelIndex() => throw new NotImplementedException();
-	public Model? GetCollisionModel() => throw new NotImplementedException();
+	public int GetCollisionModelIndex() => -1;
+	public Model? GetCollisionModel() => Model;
 
 	public ref readonly Vector3 GetCollisionOrigin() => ref Origin;
 	public ref readonly QAngle GetCollisionAngles() => ref Angles;
 	public ref readonly Matrix3x4 CollisionToWorldTransform() => ref ModelToWorld;
 
-	public SolidType GetSolid() => throw new NotImplementedException();
-	public int GetSolidFlags() => throw new NotImplementedException();
+	public SolidType GetSolid() => (SolidType)Solid;
+	public int GetSolidFlags() => 0;
 
 	public IHandleEntity? GetEntityHandle() => this;
 
 	public int GetCollisionGroup() => (int)CollisionGroup.None;
 
-	public void WorldSpaceTriggerBounds(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) => throw new NotImplementedException();
-	public void WorldSpaceSurroundingBounds(out Vector3 vecMins, out Vector3 vecMaxs) => throw new NotImplementedException();
+	public void WorldSpaceTriggerBounds(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) {
+		// This should never be called..
+		Assert(false);
+		vecWorldMins = default;
+		vecWorldMaxs = default;
+	}
+	public void WorldSpaceSurroundingBounds(out Vector3 vecMins, out Vector3 vecMaxs) {
+		vecMins = WorldRenderBBoxMin;
+		vecMaxs = WorldRenderBBoxMax;
+	}
 	public bool ShouldTouchTrigger(int triggerSolidFlags) => false;
 	public ref readonly Matrix3x4 GetRootParentToWorldTransform() => throw new NotImplementedException();
 
@@ -552,9 +675,9 @@ public class StaticProp : IClientUnknown, IClientRenderable, ICollideable
 		return 0;
 #endif
 	}
-	public void ComputeFxBlend() => throw new NotImplementedException();
-	public int GetFxBlend() => throw new NotImplementedException();
-	public void GetColorModulation(Span<float> color) => throw new NotImplementedException();
+	public void ComputeFxBlend() => g_StaticPropMgr.ComputePropOpacity(this);
+	public int GetFxBlend() => Alpha;
+	public void GetColorModulation(Span<float> color) => color[0] = color[1] = color[2] = 1;
 	public bool LODTest() => true;
 	public bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, TimeUnit_t currentTime) {
 		if (Model == null)
@@ -566,10 +689,21 @@ public class StaticProp : IClientUnknown, IClientRenderable, ICollideable
 	public void SetupWeights(Span<Matrix3x4> boneToWorld, Span<float> flexWeights, Span<float> flexDelayedWeights) => throw new NotImplementedException();
 	public bool UsesFlexDelayedWeights() => false;
 	public void DoAnimationEvents() => throw new NotImplementedException();
-	public IPVSNotify? GetPVSNotifyInterface() => throw new NotImplementedException();
-	public void GetRenderBounds(out Vector3 mins, out Vector3 maxs) => throw new NotImplementedException();
-	public void GetRenderBoundsWorldspace(out Vector3 mins, out Vector3 maxs) => throw new NotImplementedException();
-	public bool ShouldReceiveProjectedTextures(ShadowFlags flags) => throw new NotImplementedException();
+	public IPVSNotify? GetPVSNotifyInterface() => null;
+	public void GetRenderBounds(out Vector3 mins, out Vector3 maxs) {
+		mins = RenderBBoxMin;
+		maxs = RenderBBoxMax;
+	}
+	public void GetRenderBoundsWorldspace(out Vector3 mins, out Vector3 maxs) {
+		mins = WorldRenderBBoxMin;
+		maxs = WorldRenderBBoxMax;
+	}
+	public bool ShouldReceiveProjectedTextures(ShadowFlags flags) {
+		if ((flags & ShadowFlags.Flashlight) != 0)
+			return true;
+		else
+			return false;
+	}
 	public bool GetShadowCastDistance(out float dist, ShadowType shadowType) { dist = 0; return false; }
 	public bool GetShadowCastDirection(out Vector3 direction, ShadowType shadowType) { direction = default; return false; }
 	public bool UsesPowerOfTwoFrameBufferTexture() => throw new NotImplementedException();
@@ -579,7 +713,7 @@ public class StaticProp : IClientUnknown, IClientRenderable, ICollideable
 	public void RecordToolMessage() { }
 	public void GetShadowRenderBounds(out Vector3 mins, out Vector3 maxs, ShadowType shadowType) => GetRenderBounds(out mins, out maxs);
 	public bool IsShadowDirty() => false;
-	public void MarkShadowDirty(bool bDirty) { }
+	public void MarkShadowDirty(bool dirty) { }
 	public IClientRenderable? GetShadowParent() => null;
 	public IClientRenderable? FirstShadowChild() => null;
 	public IClientRenderable? NextShadowPeer() => null;
@@ -587,10 +721,14 @@ public class StaticProp : IClientUnknown, IClientRenderable, ICollideable
 	public void CreateModelInstance() => Assert(false);
 	public ModelInstanceHandle_t GetModelInstance() => ModelInstance;
 	public int LookupAttachment(ReadOnlySpan<char> attachmentName) => -1;
-	public bool GetAttachment(int number, out Vector3 origin, out QAngle angles) => throw new NotImplementedException();
+	public bool GetAttachment(int number, out Vector3 origin, out QAngle angles) {
+		origin = Origin;
+		angles = Angles;
+		return true;
+	}
 	public bool GetAttachment(int number, out Matrix3x4 matrix) => throw new NotImplementedException();
 	public bool IgnoresZBuffer() => false;
-	public Span<float> GetRenderClipPlane() => default;
+	public Span<float> GetRenderClipPlane() => null;
 	public ref readonly Matrix3x4 RenderableToWorldTransform() => ref ModelToWorld;
 	public IClientUnknown GetIClientUnknown() => this;
 

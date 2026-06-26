@@ -258,9 +258,7 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException();
 	}
 
-	public bool ModelHasMaterialProxy(Model? model) {
-		throw new NotImplementedException();
-	}
+	public bool ModelHasMaterialProxy(Model? model) => model != null && (model.Flags & ModelFlag.MaterialProxy) != 0;
 
 	public bool IsTranslucent(Model? model) => model != null && (model.Flags & ModelFlag.Translucent) != 0;
 
@@ -322,13 +320,9 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException();
 	}
 
-	public byte ComputeLevelScreenFade(in AngularImpulse absOrigin, float radius, float fadeScale) {
-		throw new NotImplementedException();
-	}
+	public byte ComputeLevelScreenFade(in Vector3 absOrigin, float radius, float fadeScale) => 255; // TODO!!!
 
-	public byte ComputeViewScreenFade(in AngularImpulse absOrigin, float radius, float fadeScale) {
-		throw new NotImplementedException();
-	}
+	public byte ComputeViewScreenFade(in AngularImpulse absOrigin, float radius, float fadeScale) => 255;// TODO!!
 
 	public PhysCollide? GetCollideForVirtualTerrain(int index) {
 		throw new NotImplementedException();
