@@ -54,6 +54,11 @@ public partial class BaseEntity : IServerEntity
 	public virtual bool IsTemplate() => false;
 	public bool IsDormant() => IsEFlagSet(EFL.Dormant);
 
+	public  ReadOnlySpan<char> TeamID() {
+		var team = GetTeam();
+		return team == null ? "" : team.GetName();
+	}
+
 	private static void SendProxy_AnimTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		BaseEntity entity = (BaseEntity)instance;
 

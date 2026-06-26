@@ -411,7 +411,7 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	}
 
 	public void LogPrint(ReadOnlySpan<char> msg) {
-		throw new NotImplementedException();
+		// todo
 	}
 
 	int Message_CheckMessageLength() {

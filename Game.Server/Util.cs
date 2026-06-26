@@ -9,15 +9,15 @@ using Source;
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Engine.Server;
 
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Text;
-
-using System.Numerics;
 
 namespace Game;
 
@@ -138,6 +138,34 @@ public static partial class Util_Globals
 }
 public static partial class Util
 {
+	public static void LogPrintf(ReadOnlySpan<char> text) {
+		engine.LogPrint(text);
+	}
+
+	public static void SayTextFilter<T>(scoped in T filter, ReadOnlySpan<char> pText, BasePlayer? player, bool chat) where T : IRecipientFilter {
+		UserMessageBegin(filter, "SayText");
+		WRITE_BYTE((byte)(player?.EntIndex() ?? 0));
+
+		WRITE_STRING(pText);
+		WRITE_BYTE((byte)(chat ? 1 : 0));
+		MessageEnd();
+	}
+	public static void SayText2Filter<T>(scoped in T filter, BasePlayer? entity, bool chat, ReadOnlySpan<char> msgName, ReadOnlySpan<char> param1 = default, ReadOnlySpan<char> param2 = default, ReadOnlySpan<char> param3 = default, ReadOnlySpan<char> param4 = default) where T : IRecipientFilter {
+		UserMessageBegin(filter, "SayText2");
+		WRITE_BYTE((byte)(entity?.EntIndex() ?? 0));
+
+		WRITE_BYTE((byte)(chat ? 1 : 0));
+
+		WRITE_STRING(msgName);
+
+		WRITE_STRING(param1);
+		WRITE_STRING(param2);
+		WRITE_STRING(param3);
+		WRITE_STRING(param4);
+
+		MessageEnd();
+	}
+
 	public static void TransmitShakeEvent(BasePlayer player, float localAmplitude, float frequency, TimeUnit_t duration, ShakeCommand command) {
 		if ((localAmplitude > 0) || (command == ShakeCommand.Stop)) {
 			if (command == ShakeCommand.Stop)
@@ -312,7 +340,7 @@ public static partial class Util
 		gEntList.AddToDeleteList(oldObj);
 	}
 
-	public static int GetCommandClientIndex() => ServerGameClients.CommandClientIndex;
+	public static int GetCommandClientIndex() => ServerGameClients.CommandClientIndex + 1;
 
 	public static BasePlayer? GetCommandClient() {
 		int id = GetCommandClientIndex();

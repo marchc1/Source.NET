@@ -41,6 +41,11 @@ public class Team : BaseEntity
 		BasePlayer player = team.Players[element];
 		outData.Int = player.EntIndex();
 	}
+
+	internal ReadOnlySpan<char> GetName() {
+		throw new NotImplementedException();
+	}
+
 	public static readonly new ServerClass ServerClass = new ServerClass("Team", DT_Team).WithManualClassID(StaticClassIndices.CTeam);
 
 	public readonly List<BasePlayer> Players = [];

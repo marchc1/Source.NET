@@ -59,12 +59,18 @@ class SteamworksExts
 
 
 // Interfaces to the static classes
+// (yes, this is a weird way to do it)
+// but this was easiest to do while still using Steamworks.NET and not reinventing the whole wheel
 
 public interface ISteamClient;
 public interface ISteamUser;
 public interface ISteamFriends;
 public interface ISteamUtils{
+#if SWDS
+	public EUniverse GetConnectedUniverse() => SteamGameServerUtils.GetConnectedUniverse();
+	#else
 	public EUniverse GetConnectedUniverse() => SteamUtils.GetConnectedUniverse();
+	#endif
 }
 public interface ISteamMatchmaking;
 public interface ISteamGameSearch;
