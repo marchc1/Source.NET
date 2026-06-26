@@ -41,9 +41,9 @@ public sealed class MaterialVar : IMaterialVar
 		Name = new(key);
 		Type = MaterialVarType.Vector;
 		NumVectorComps = (byte)Math.Min(val.Length, 4);
-		for (int i = 0; i < NumVectorComps; i++) 
+		for (int i = 0; i < NumVectorComps; i++)
 			VecVal[i] = val[i];
-		
+
 		IntVal = (int)VecVal[0];
 	}
 	public MaterialVar(IMaterial material, ReadOnlySpan<char> key, ReadOnlySpan<char> val) {
@@ -95,7 +95,7 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override unsafe void GetVecValue(Span<float> val) {
-		fixed(Vector4* v4 = &VecVal)
+		fixed (Vector4* v4 = &VecVal)
 			new Span<float>(v4, val.Length > 4 ? 4 : val.Length).CopyTo(val);
 	}
 
@@ -128,7 +128,7 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override void SetStringValue(ReadOnlySpan<char> val) {
-		throw new NotImplementedException();
+		StringVal = new(val.SliceNullTerminatedString());
 	}
 
 	public override void SetTextureValue(ITexture? texture) {
@@ -185,6 +185,6 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	protected override int VectorSizeInternal() {
-		throw new NotImplementedException();
+		return NumVectorComps;
 	}
 }

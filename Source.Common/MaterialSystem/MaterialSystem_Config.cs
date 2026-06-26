@@ -103,6 +103,7 @@ public class MaterialSystem_Config
 	public bool Stencil() => (Flags & (int)MaterialSystem_Config_Flags.Stencil) != 0;
 	public bool ForceTrilinear() => (Flags & (int)MaterialSystem_Config_Flags.ForceTrilinear) != 0;
 	public bool ForceHardwareSync() => (Flags & (int)MaterialSystem_Config_Flags.ForceHardwareSync) != 0;
+	public bool UseSpecular() => (Flags & (int)MaterialSystem_Config_Flags.DisableSpecular) == 0;
 	public bool DisableSpecular() => (Flags & (int)MaterialSystem_Config_Flags.DisableSpecular) != 0;
 	public bool DisableBumpmap() => (Flags & (int)MaterialSystem_Config_Flags.DisableBumpmap) != 0;
 	public bool EnableParallaxMapping() => (Flags & (int)MaterialSystem_Config_Flags.EnableParallaxMapping) != 0;

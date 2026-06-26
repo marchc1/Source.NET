@@ -326,7 +326,7 @@ public interface IPhysicsShadowController
 public interface IMotionEvent
 {
 	public enum SimResult { Nothing = 0, LocalAcceleration, LocalForce, GlobalAcceleration, GlobalForce }
-	SimResult Simulate(IPhysicsMotionController? controller, IPhysicsObject? obj, TimeUnit_t deltaTime, out Vector3 linear, out AngularImpulse angular);
+	SimResult Simulate(IPhysicsMotionController? controller, IPhysicsObject? obj, TimeUnit_t deltaTime, out Vector3 linear, out Vector3 angular);
 }
 public interface IPhysicsMotionController
 {
@@ -660,22 +660,22 @@ public interface IPhysicsObject
 	// force the velocity to a new value
 	// NOTE: velocity is in worldspace, angularVelocity is relative to the object's 
 	// local axes (just like pev->velocity, pev->avelocity)
-	void SetVelocity(in Vector3 velocity, in AngularImpulse angularVelocity);
+	void SetVelocity(in Vector3 velocity, in Vector3 angularVelocity);
 
 	// like the above, but force the change into the simulator immediately
-	void SetVelocityInstantaneous(in Vector3 velocity, in AngularImpulse angularVelocity );
+	void SetVelocityInstantaneous(in Vector3 velocity, in Vector3 angularVelocity );
 
 	// NOTE: velocity is in worldspace, angularVelocity is relative to the object's 
 	// local axes (just like pev->velocity, pev->avelocity)
-	void GetVelocity(out Vector3 velocity, out AngularImpulse angularVelocity);
+	void GetVelocity(out Vector3 velocity, out Vector3 angularVelocity);
 
 	// NOTE: These are velocities, not forces.  i.e. They will have the same effect regardless of
 	// the object's mass or inertia
-	void AddVelocity( in Vector3 velocity, in AngularImpulse angularVelocity );
+	void AddVelocity( in Vector3 velocity, in Vector3 angularVelocity );
 	// gets a velocity in the object's local frame of reference at a specific point
 	void GetVelocityAtPoint(in Vector3 worldPosition, out Vector3 velocity);
 	// gets the velocity actually moved by the object in the last simulation update
-	void GetImplicitVelocity(out Vector3 velocity, out AngularImpulse angularVelocity);
+	void GetImplicitVelocity(out Vector3 velocity, out Vector3 angularVelocity);
 	// NOTE:	These are here for convenience, but you can do them yourself by using the matrix
 	//			returned from GetPositionMatrix()
 	// convenient coordinate system transformations (params - dest, src)
@@ -693,12 +693,12 @@ public interface IPhysicsObject
 	void ApplyForceOffset(in Vector3 forceVector, in Vector3 worldPosition);
 	// apply torque impulse.  This will change the angular velocity on the object.
 	// HL Axes, kg degrees / s
-	void ApplyTorqueCenter(in AngularImpulse torque);
+	void ApplyTorqueCenter(in Vector3 torque);
 
 	// Calculates the force/torque on the center of mass for an offset force impulse (pass output to ApplyForceCenter / ApplyTorqueCenter)
-	void CalculateForceOffset(in Vector3 forceVector, in Vector3 worldPosition, out Vector3 centerForce, out AngularImpulse centerTorque);
+	void CalculateForceOffset(in Vector3 forceVector, in Vector3 worldPosition, out Vector3 centerForce, out Vector3 centerTorque);
 	// Calculates the linear/angular velocities on the center of mass for an offset force impulse (pass output to AddVelocity)
-	void CalculateVelocityOffset(in Vector3 forceVector, in Vector3 worldPosition, out Vector3 centerVelocity, out AngularImpulse centerAngularVelocity);
+	void CalculateVelocityOffset(in Vector3 forceVector, in Vector3 worldPosition, out Vector3 centerVelocity, out Vector3 centerAngularVelocity);
 	// calculate drag scale
 	float CalculateLinearDrag(in Vector3 unitDirection);
 	float CalculateAngularDrag(in Vector3 objectSpaceRotationAxis);

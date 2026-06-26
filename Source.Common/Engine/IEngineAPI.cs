@@ -1,8 +1,20 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
+using System.Reflection;
+
 namespace Source.Common.Engine;
+
 public interface IEngineAPI : IServiceProvider, IKeyedServiceProvider
 {
+	
+	List<MemberInfo> __INTERNAL_FilledDependencies { get; set; }
+}
+
+public interface IClientLauncherAPI : IEngineAPI
+{
+	public void SetStartupInfo(in StartupInfo info);
+	bool MainLoop();
+
 	public enum Result
 	{
 		InitFailed = 0,
@@ -13,9 +25,13 @@ public interface IEngineAPI : IServiceProvider, IKeyedServiceProvider
 	}
 
 	public Result Run();
-	public void SetStartupInfo(in StartupInfo info);
-	bool MainLoop();
 }
+
+public interface IDedicatedExports {
+	void Sys_Printf(ReadOnlySpan<char> text);
+	void RunServer();
+}
+
 public delegate void PreInject(IServiceCollection services);
 
 public delegate void PreInjectInstance<T>(IServiceProvider services);
@@ -23,7 +39,8 @@ public delegate void PreInjectInstance<T>(IServiceProvider services);
 /// <summary>
 /// Used to sanity check the lifetime of a service locator scope.
 /// </summary>
-public ref struct ServiceLocatorScope {
+public ref struct ServiceLocatorScope
+{
 	IServiceProvider lifetimeServices;
 	public ServiceLocatorScope(IServiceProvider services) {
 		Assert(ImportUtils.EngineProvider == null);
@@ -37,7 +54,8 @@ public ref struct ServiceLocatorScope {
 	}
 }
 
-public static class ImportUtils {
+public static class ImportUtils
+{
 	/// <summary>
 	/// A static instance of an IServiceProvider that acts as a common service locator for engine components.
 	/// While this is not an ideal way to do it, it is the most convenient way to place dependencies
@@ -56,6 +74,13 @@ public static class ImportUtils {
 		//Msg(typeof(T).Name + "\n");
 		return EngineProvider!.GetRequiredService<T>();
 	}
+
+	public static T? OptionalSingleton<T>() where T : notnull {
+		Assert(EngineProvider != null);
+		//Msg(typeof(T).Name + "\n");
+		return EngineProvider!.GetService<T>();
+	}
+
 	/// <summary>
 	/// Pulls a keyed singleton instance out of the active engine provider.
 	/// </summary>

@@ -1,4 +1,6 @@
 ﻿#if CLIENT_DLL || GAME_DLL
+using SharpCompress.Common;
+
 using Source;
 using Source.Common;
 using Source.Common.Mathematics;
@@ -261,6 +263,23 @@ static Animation(){
 		VerifySequenceIndex(studiohdr);
 
 		return studiohdr.SelectWeightedSequence((int)activity, curSequence);
+	}
+
+	internal static void SetBodygroup(StudioHdr? studioHdr, ref int body, int group, int value) {
+		if (studioHdr == null)
+			return;
+
+		if (group >= studioHdr.NumBodyParts())
+			return;
+
+		MStudioBodyParts bodypart = studioHdr.Bodypart(group);
+
+		if (value >= bodypart.NumModels)
+			return;
+
+		int iCurrent = (body / bodypart.Base) % bodypart.NumModels;
+
+		body = (body - (iCurrent * bodypart.Base) + (value * bodypart.Base));
 	}
 }
 

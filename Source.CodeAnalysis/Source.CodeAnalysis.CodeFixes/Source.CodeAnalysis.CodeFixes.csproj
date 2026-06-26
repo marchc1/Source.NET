@@ -4,6 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <RootNamespace>Source.CodeAnalysis</RootNamespace>
+    <Configurations>Debug;Release;Debug (Dedicated);Release (Dedicated)</Configurations>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1252,7 +1252,7 @@ public partial class NavMesh
 
 					Vector3 pos = default;
 					area.ComputePortal(adjArea, (NavDirType)dir, ref pos, out _);
-					adjArea.GetClosestPointOnArea(ref pos, out AngularImpulse adjPos);
+					adjArea.GetClosestPointOnArea(ref pos, out Vector3 adjPos);
 
 					NavNode node = area.FindClosestNode(pos, (NavDirType)dir);
 					NavNode adjNode = adjArea.FindClosestNode(adjPos, OppositeDirection((NavDirType)dir));

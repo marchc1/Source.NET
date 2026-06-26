@@ -230,13 +230,12 @@ static class EntsWrite
 			nFromBits = baseline.GetNumBits();
 		}
 		else {
-			if (!u.Server.GetClassBaseline(entryClass, out ReadOnlySpan<byte> pFromData))
+			if (!u.Server.GetClassBaseline(entryClass, out fromData))
 				Error($"SV_WriteEnterPVS: missing instance baseline for '{entryClass.NetworkName}'.");
 
-			ErrorIfNot(!pFromData.IsEmpty, $"SV_WriteEnterPVS: missing pFromData for '{entryClass.NetworkName}'.");
+			ErrorIfNot(fromData?.Length != 0, $"SV_WriteEnterPVS: missing pFromData for '{entryClass.NetworkName}'.");
 
-			fromData = pFromData.ToArray();
-			nFromBits = pFromData.Length * 8;
+			nFromBits = (fromData?.Length ?? 0) * 8;
 		}
 
 		if (u.To?.FromBaseline != null)

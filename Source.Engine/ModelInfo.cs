@@ -135,9 +135,9 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 
 		// Each body part has nummodels variations so there are as many total variations as there
 		// are in a matrix of each part by each other part
-		for (i = 0; i < studiohdr.NumBodyParts; i++) 
+		for (i = 0; i < studiohdr.NumBodyParts; i++)
 			count = count * pbodypart[i].NumModels;
-		
+
 		return count;
 	}
 
@@ -216,7 +216,17 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 	}
 
 	public VCollide? GetVCollide(Model? model) {
-		throw new NotImplementedException();
+		if (model == null)
+			return null;
+
+		if (model.Type == ModelType.Studio)
+			return mdlcache.GetVCollide(model.Studio);
+
+		int i = GetModelIndex(GetModelName(model));
+		if (i >= 0)
+			return GetVCollide(i);
+
+		return null;
 	}
 
 	public VCollide? GetVCollide(int modelIndex) {
@@ -244,17 +254,13 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		return null;
 	}
 
-	public void GetModelBounds(Model? model, out AngularImpulse mins, out AngularImpulse maxs) {
+	public void GetModelBounds(Model? model, out Vector3 mins, out Vector3 maxs) {
 		throw new NotImplementedException();
 	}
 
-	public bool ModelHasMaterialProxy(Model? model) {
-		throw new NotImplementedException();
-	}
+	public bool ModelHasMaterialProxy(Model? model) => model != null && (model.Flags & ModelFlag.MaterialProxy) != 0;
 
-	public bool IsTranslucent(Model? model) {
-		throw new NotImplementedException();
-	}
+	public bool IsTranslucent(Model? model) => model != null && (model.Flags & ModelFlag.Translucent) != 0;
 
 	public void RecomputeTranslucency(Model? model, int skin, int nBody, object? clientRenderable, float instanceAlphaModulate = 1) {
 		throw new NotImplementedException();
@@ -288,12 +294,14 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException();
 	}
 
-	public void GetModelMaterialColorAndLighting(Model? model, in AngularImpulse origin, in QAngle angles, out Trace trace, out AngularImpulse lighting, out AngularImpulse matColor) {
+	public void GetModelMaterialColorAndLighting(Model? model, in Vector3 origin, in QAngle angles, out Trace trace, out Vector3 lighting, out Vector3 matColor) {
 		throw new NotImplementedException();
 	}
 
-	public void GetIlluminationPoint(Model? model, IClientRenderable? renderable, in AngularImpulse origin, in QAngle angles, out AngularImpulse lightingCenter) {
-		throw new NotImplementedException();
+	public void GetIlluminationPoint(Model? model, IClientRenderable? renderable, in Vector3 origin, in QAngle angles, out Vector3 lightingCenter) {
+		// throw new NotImplementedException();
+		// TODO!!
+		lightingCenter = origin;
 	}
 
 	public int GetModelContents(int modelIndex) {
@@ -312,13 +320,9 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException();
 	}
 
-	public byte ComputeLevelScreenFade(in AngularImpulse absOrigin, float radius, float fadeScale) {
-		throw new NotImplementedException();
-	}
+	public byte ComputeLevelScreenFade(in Vector3 absOrigin, float radius, float fadeScale) => 255; // TODO!!!
 
-	public byte ComputeViewScreenFade(in AngularImpulse absOrigin, float radius, float fadeScale) {
-		throw new NotImplementedException();
-	}
+	public byte ComputeViewScreenFade(in Vector3 absOrigin, float radius, float fadeScale) => 255;// TODO!!
 
 	public PhysCollide? GetCollideForVirtualTerrain(int index) {
 		throw new NotImplementedException();
@@ -332,7 +336,7 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException();
 	}
 
-	public void GetBrushModelPlane(Model? model, int nIndex, out CollisionPlane plane, out AngularImpulse origin) {
+	public void GetBrushModelPlane(Model? model, int nIndex, out CollisionPlane plane, out Vector3 origin) {
 		throw new NotImplementedException();
 	}
 
@@ -372,6 +376,25 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 }
 
 public class ModelInfoClient(IFileSystem filesystem, IModelLoader modelloader, IMDLCache mdlCache) : ModelInfo(filesystem, modelloader, mdlCache)
+{
+	public override Model? GetModel(int modelIndex) {
+		if (IsDynamicModelIndex(modelIndex))
+			return LookupDynamicModel(modelIndex);
+
+		return cl.GetModel(modelIndex);
+	}
+
+	protected override INetworkStringTable? GetDynamicModelStringTable() {
+		return cl.DynamicModelsTable;
+	}
+
+	protected override int LookupPrecachedModelIndex(ReadOnlySpan<char> name) {
+		return cl.LookupModelIndex(name);
+	}
+}
+
+
+public class ModelInfoServer(IFileSystem filesystem, IModelLoader modelloader, IMDLCache mdlCache) : ModelInfo(filesystem, modelloader, mdlCache)
 {
 	public override Model? GetModel(int modelIndex) {
 		if (IsDynamicModelIndex(modelIndex))

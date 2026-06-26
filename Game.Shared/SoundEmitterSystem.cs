@@ -124,7 +124,7 @@ BaseEntity
 
 		BaseEntity.EmitSound(filter, EntIndex(), in parms);
 	}
-	public void EmitSound<T>(in T filter, int entIndex, ReadOnlySpan<char> soundname, in Vector3 origin, TimeUnit_t soundtime, out TimeUnit_t duration) where T : IRecipientFilter {
+	public static void EmitSound<T>(in T filter, int entIndex, ReadOnlySpan<char> soundname, in Vector3 origin, TimeUnit_t soundtime, out TimeUnit_t duration) where T : IRecipientFilter {
 		duration = default;
 		if (soundname.IsStringEmpty)
 			return;
@@ -133,12 +133,12 @@ BaseEntity
 		parms.SoundName = soundname;
 		parms.SoundTime = soundtime;
 		parms.Origin = ref origin;
-		parms.SoundDuration = duration;
+		parms.SoundDuration = ref duration;
 		parms.WarnOnDirectWaveReference = true;
 
 		EmitSound(filter, entIndex, ref parms, ref parms.SoundScriptHandle);
 	}
-	public void EmitSound<T>(in T filter, int entIndex, ref EmitSound_t parms, ref HSOUNDSCRIPTHANDLE handle) where T : IRecipientFilter {
+	public static void EmitSound<T>(in T filter, int entIndex, ref EmitSound_t parms, ref HSOUNDSCRIPTHANDLE handle) where T : IRecipientFilter {
 #if GAME_DLL
 		BaseEntity? entity = Util.EntityByIndex(entIndex);
 #else

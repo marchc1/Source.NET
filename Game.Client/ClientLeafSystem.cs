@@ -1,5 +1,6 @@
 ﻿using Source;
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Engine;
 
 using System.Numerics;
@@ -138,7 +139,8 @@ public class ClientLeafSystem : IClientLeafSystem
 	}
 
 	public void AddRenderableToLeaves(ClientRenderHandle_t renderable, Span<ushort> pLeaves) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		// TODO!!
 	}
 
 	public void BuildRenderablesList(in SetupRenderInfo info) {
@@ -152,19 +154,37 @@ public class ClientLeafSystem : IClientLeafSystem
 		}
 	}
 
-	private void AddRenderableToRenderList(ClientRenderablesList renderList, IClientRenderable? renderable, ushort leaf, RenderGroup renderGroup, ClientRenderHandle_t renderHandle = 0, bool twoPass = false) {
-		ref int curCount = ref renderList.RenderGroupCounts[(int)renderGroup];
+	static readonly ConVar cl_drawleaf = new("cl_drawleaf", "-1", FCvar.Cheat);
 
-		ref ClientRenderablesList.Entry entry = ref renderList[renderGroup, curCount];
-		entry.Renderable = renderable;
-		entry.WorldListInfoLeaf = leaf;
-		entry.TwoPass = twoPass;
-		entry.RenderHandle = renderHandle;
-		curCount++;
+	private void AddRenderableToRenderList(ClientRenderablesList renderList, IClientRenderable? renderable, ushort leaf, RenderGroup renderGroup, ClientRenderHandle_t renderHandle = 0, bool twoPass = false) {
+#if DEBUG
+		if (cl_drawleaf.GetInt() >= 0) {
+			if (leaf != cl_drawleaf.GetInt())
+				return;
+		}
+#endif
+
+		Assert(renderGroup >= 0 && (int)renderGroup < ClientRenderablesList.RENDER_GROUP_COUNT);
+
+		ref int curCount = ref renderList.RenderGroupCounts[(int)renderGroup];
+		if (curCount < ClientRenderablesList.MAX_GROUP_ENTITIES) {
+			Assert(leaf >= 0 && leaf <= 65535);
+
+			ref ClientRenderablesList.Entry entry = ref renderList[renderGroup, curCount];
+			entry.Renderable = renderable;
+			entry.WorldListInfoLeaf = leaf;
+			entry.TwoPass = twoPass;
+			entry.RenderHandle = renderHandle;
+			curCount++;
+		}
+		else {
+			engine.Con_NPrintf(10, $"Warning: overflowed CClientRenderablesList group {(int)renderGroup}");
+		}
 	}
 
 	public void ChangeRenderableRenderGroup(ClientRenderHandle_t handle, RenderGroup group) {
-		throw new NotImplementedException();
+		ref RenderableInfo info = ref Renderables[handle].Info;
+		info.RenderGroup = group;
 	}
 
 	public void CreateRenderableHandle(IClientRenderable? renderable, bool bIsStaticProp = false) {
@@ -267,7 +287,7 @@ public class ClientLeafSystem : IClientLeafSystem
 			Renderables[handle].Info.Flags |= RenderFlags.HasChanged;
 			DirtyRenderables.Add(handle);
 		}
-		else{
+		else {
 			Assert(DirtyRenderables.IndexOf(handle) != -1);
 		}
 	}
@@ -291,11 +311,11 @@ public class ClientLeafSystem : IClientLeafSystem
 			group = RenderGroup.TranslucentEntity;
 		}
 
-		if (twoPass) 
+		if (twoPass)
 			pInfo.Flags |= RenderFlags.TwoPass;
-		else 
+		else
 			pInfo.Flags &= ~RenderFlags.TwoPass;
-		
+
 		bool bOldViewModelRenderGroup = IsViewModelRenderGroup(pInfo.RenderGroup);
 		bool bNewViewModelRenderGroup = IsViewModelRenderGroup(group);
 		if (bOldViewModelRenderGroup != bNewViewModelRenderGroup) {

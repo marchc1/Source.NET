@@ -9,6 +9,7 @@ using Source.Common.Hashing;
 using Source.Common.Networking;
 using Source.Common.Server;
 using Source.Common.Utilities;
+using Source.Engine.Steam;
 
 using Steamworks;
 
@@ -37,6 +38,10 @@ public abstract class BaseServer : IServer
 	internal static readonly ConVar sv_stats = new("sv_stats", "1", 0, "Collect CPU usage stats");
 	internal static readonly ConVar sv_enableoldqueries = new("sv_enableoldqueries", "0", 0, "Enable support for old style (HL1) server queries");
 	internal static readonly ConVar sv_password = new("sv_password", "", FCvar.Notify | FCvar.Protected | FCvar.DontRecord, "Server password for entry into multiplayer games");
+	internal static readonly ConVar sv_visiblemaxplayers = new("sv_visiblemaxplayers", "-1", 0, "Overrides the max players reported to prospective clients");
+	internal static readonly ConVar sv_alternateticks = new("sv_alternateticks", "0", FCvar.SingleplayerOnly, "If set, server only simulates entities on even numbered ticks.\n");
+	internal static readonly ConVar sv_allow_wait_command = new("sv_allow_wait_command", "1", FCvar.Replicated, "Allow or disallow the wait command on clients connected to this server.");
+	internal static readonly ConVar sv_allow_color_correction = new("sv_allow_color_correction", "1", FCvar.Replicated, "Allow or disallow clients to use color correction on this server.");
 	internal static readonly ConVar sv_tags = new("sv_tags", "", FCvar.Notify, "Server tags. Used to provide extra information to clients when they're browsing for servers. Separate tags with a comma.", callback: SvTagsChangeCallback);
 	internal static readonly ConVar sv_debugtempentities = new("sv_debugtempentities", "0", FCvar.None, "Show temp entity bandwidth usage.");
 
@@ -222,7 +227,8 @@ public abstract class BaseServer : IServer
 	}
 
 	public virtual void BroadcastPrintf(ReadOnlySpan<char> msg) {
-		throw new NotImplementedException();
+		SVC_Print print = new(msg);
+		BroadcastMessage(print);
 	}
 
 	public virtual ReadOnlySpan<char> GetPassword() {
@@ -604,7 +610,7 @@ public abstract class BaseServer : IServer
 					if (!QueryRateChecker.CheckIP(packet.From))
 						return false;
 
-					if (IsSteamServerNotNull()) {
+					if (Steam3Server().SteamGameServer() != null) {
 						SteamGameServer.HandleIncomingPacket(
 							packet.Message.GetData(),
 							packet.Message.BytesAvailable,
@@ -632,11 +638,41 @@ public abstract class BaseServer : IServer
 
 		Signon.DebugName = "m_Signon";
 
-		// TODO: cvar.InstallGlobalChangeCallback(ServerNotifyVarChangeCallback);
+		cvar.Changed += ServerNotifyVarChangeCallback;
 		SetMasterServerRulesDirty();
 
 		Clear();
 	}
+
+	private void ServerNotifyVarChangeCallback(IConVar var, in ConVarChangeContext ctx) {
+		if (!var.IsFlagSet(FCvar.Notify))
+			return;
+
+		ISteamGameServer? updater = Steam3Server().SteamGameServer();
+
+		if (updater == null) {
+			// This will force it to send all the rules whenever the master server updater is there.
+			sv.SetMasterServerRulesDirty();
+			return;
+		}
+
+		SetMasterServerKeyValue(updater, var);
+	}
+
+	private void SetMasterServerKeyValue(ISteamGameServer server, IConVar var) {
+		if (var.IsFlagSet(FCvar.Protected)) {
+			if (var.GetString()[0] != '\0' && 0 != stricmp(var.GetString(), "none"))
+				SteamGameServer.SetKeyValue(var.GetName(), "1");
+			else
+				SteamGameServer.SetKeyValue(var.GetName(), "0");
+		}
+		else
+			SteamGameServer.SetKeyValue(var.GetName(), var.GetString());
+
+		if (Steam3Server().BIsActive())
+			sv.RecalculateTags();
+	}
+
 	public virtual void Clear() {
 		if (StringTables != null) {
 			StringTables.RemoveAllTables();
@@ -700,8 +736,60 @@ public abstract class BaseServer : IServer
 		// clear everything
 		Clear();
 	}
-	public virtual BaseClient CreateFakeClient(ReadOnlySpan<char> name) {
-		throw new NotImplementedException();
+	public virtual BaseClient? CreateFakeClient(ReadOnlySpan<char> name) {
+		NetAddress adr = new(); // it's an empty address
+		BaseClient? fakeclient = GetFreeClient(adr);
+
+		if (fakeclient == null) {
+			// server is full
+			return null;
+		}
+
+		INetChannel? netchan = null;
+		if (sv_stressbots.GetBool()) {
+			NetAddress adrNull = new();
+			adrNull.SetIP(0, 0); // 0.0.0.0:0 signifies a bot. It'll plumb all the way down to winsock calls but it won't make them.
+			netchan = Net.CreateNetChannel(Socket, adrNull, adrNull.ToString(), fakeclient, true);
+		}
+
+		// a NULL netchannel signals a fakeclient
+		UserID = GetNextUserID();
+		NumConnections++;
+
+		fakeclient.SetReportThisFakeClient(ReportNewFakeClients);
+		fakeclient.Connect(name, UserID, netchan, true, 0);
+
+		// fake some cvar settings
+		//fakeclient->SetUserCVar( "name", name ); // set already by Connect()
+		fakeclient.SetUserCVar("rate", "30000");
+		fakeclient.SetUserCVar("cl_updaterate", "20");
+		fakeclient.SetUserCVar("cl_interp_ratio", "1.0");
+		fakeclient.SetUserCVar("cl_interp", "0.1");
+		fakeclient.SetUserCVar("cl_interpolate", "0");
+		fakeclient.SetUserCVar("cl_predict", "1");
+		fakeclient.SetUserCVar("cl_predictweapons", "1");
+		fakeclient.SetUserCVar("cl_lagcompensation", "1");
+		fakeclient.SetUserCVar("closecaption", "0");
+		fakeclient.SetUserCVar("english", "1");
+
+		fakeclient.SetUserCVar("cl_clanid", "0");
+		fakeclient.SetUserCVar("cl_team", "blue");
+		fakeclient.SetUserCVar("hud_classautokill", "1");
+		fakeclient.SetUserCVar("tf_medigun_autoheal", "0");
+		fakeclient.SetUserCVar("cl_autorezoom", "1");
+		fakeclient.SetUserCVar("fov_desired", "75");
+		fakeclient.SetUserCVar("tf_remember_lastswitched", "0");
+
+		fakeclient.SetUserCVar("cl_autoreload", "0");
+		fakeclient.SetUserCVar("tf_remember_activeweapon", "0");
+		fakeclient.SetUserCVar("hud_combattext", "0");
+		fakeclient.SetUserCVar("cl_flipviewmodels", "0");
+
+		fakeclient.ActivatePlayer();
+
+		fakeclient.SignOnTick = TickCount;
+
+		return fakeclient;
 	}
 	public virtual void RemoveClientFromGame(BaseClient cl) { }
 
@@ -741,12 +829,12 @@ public abstract class BaseServer : IServer
 
 	}
 
-	public bool GetClassBaseline(ServerClass pClass, out ReadOnlySpan<byte> pData) {
+	public bool GetClassBaseline(ServerClass pClass, out byte[]? pData) {
 		if (sv_instancebaselines.GetBool()) {
 			ErrorIfNot(pClass.InstanceBaselineIndex != INetworkStringTable.INVALID_STRING_INDEX, $"SV_GetInstanceBaseline: missing instance baseline for class '{pClass.NetworkName}'\n");
 
 			pData = GetInstanceBaselineTable()!.GetStringUserData(pClass.InstanceBaselineIndex);
-			if (pData.IsEmpty) pData = [0];
+			if (pData?.Length == 0) pData = [0];
 			return true;
 		}
 		else {
@@ -805,10 +893,43 @@ public abstract class BaseServer : IServer
 		}
 	}
 	public void CheckTimeouts() {
+		int i;
 
+#if DEBUG
+		for (i = 0; i < Clients.Count; i++) {
+			IClient cl = Clients[i];
+
+			if (cl.IsFakeClient() || !cl.IsConnected())
+				continue;
+
+			INetChannel? netchan = cl.GetNetChannel();
+			if (netchan == null)
+				continue;
+
+			if (netchan.IsTimedOut())
+				cl.Disconnect($"{cl.GetClientName()} timed out");
+		}
+#endif
+
+		for (i = 0; i < Clients.Count; i++) {
+			IClient cl = Clients[i];
+
+			if (cl.IsFakeClient() || !cl.IsConnected())
+				continue;
+
+			if (cl.GetNetChannel() != null && cl.GetNetChannel()!.IsOverflowed())
+				cl.Disconnect($"Client {i} overflowed reliable channel.");
+		}
 	}
 	public void UpdateUserSettings() {
+		for (int i = 0; i < Clients.Count; i++) {
+			BaseClient cl = Clients[i];
 
+			cl.CheckFlushNameChange();
+
+			if (cl.ConVarsChanged)
+				cl.UpdateUserSettings();
+		}
 	}
 	public void SendPendingServerInfo() {
 		for (int i = 0; i < Clients.Count; i++) {
@@ -819,23 +940,76 @@ public abstract class BaseServer : IServer
 		}
 	}
 
-	public ReadOnlySpan<char> CompressPackedEntity(ServerClass pServerClass, ReadOnlySpan<byte> data, out int bits) {
-		throw new NotImplementedException();
+	static readonly byte[] s_packedData = new byte[Constants.MAX_PACKEDENTITY_DATA];
+	// We really need bitbuffers to be span objects sometime... or at least have the ability to do this...
+	// todo fix s_unpackedDataTemp
+	static readonly byte[] s_unpackedDataTemp = new byte[Constants.MAX_PACKEDENTITY_DATA];
+
+	public ReadOnlySpan<byte> CompressPackedEntity(ServerClass pServerClass, ReadOnlySpan<byte> data, out int bits) {
+		bf_write writeBuf = new(s_packedData, s_packedData.Length);
+
+		byte[]? pBaselineData = null;
+		Assert(pServerClass != null);
+
+		GetClassBaseline(pServerClass, out pBaselineData);
+		int nBaselineBits = (pBaselineData?.Length ?? 0) * 8;
+
+		Assert(pBaselineData?.Length != 0);
+
+		SendTable.WriteAllDeltaProps(
+			pServerClass.Table,
+			pBaselineData!,
+			nBaselineBits,
+			data,
+			out bits,
+			-1,
+			writeBuf);
+
+		//overwrite in bits with out bits
+		bits = writeBuf.BitsWritten;
+
+		return s_packedData;
 	}
-	public ReadOnlySpan<char> UncompressPackedEntity(PackedEntity pPackedEntity, out int size) {
-		throw new NotImplementedException();
+	public ReadOnlySpan<byte> UncompressPackedEntity(PackedEntity pPackedEntity, out int bits) {
+		ref UnpackedDataCache pdc = ref framesnapshotmanager.GetCachedUncompressedEntity(pPackedEntity);
+
+		if (pdc.Bits > 0) {
+			// found valid uncompressed version in cache
+			bits = pdc.Bits;
+			return pdc.Data;
+		}
+
+		// not in cache, so uncompress it
+
+		byte[]? pBaseline;
+
+		GetClassBaseline(pPackedEntity.ServerClass!, out pBaseline);
+		int nBaselineBytes = pBaseline?.Length ?? 0;
+
+		Assert(pBaseline != null);
+
+		// store this baseline in u.m_pUpdateBaselines
+		bf_read oldBuf = new(pBaseline, nBaselineBytes);
+		bf_read newBuf = new(pPackedEntity!.GetData()!, Protocol.Bits2Bytes(pPackedEntity.GetNumBits()));
+		bf_write outBuf = new(s_unpackedDataTemp, Constants.MAX_PACKEDENTITY_DATA);
+
+		Assert(pPackedEntity.ClientClass);
+
+		RecvTable.MergeDeltas(
+			pPackedEntity.ClientClass!.RecvTable,
+			oldBuf,
+			newBuf,
+			outBuf);
+
+		bits = pdc.Bits = outBuf.BitsWritten;
+		s_unpackedDataTemp.CopyTo(pdc.Data);
+
+		return pdc.Data;
 	}
 
-	public INetworkStringTable? GetInstanceBaselineTable() {
-		InstanceBaselineTable ??= StringTables!.FindTable(Protocol.INSTANCE_BASELINE_TABLENAME);
-		return InstanceBaselineTable;
-	}
-	public INetworkStringTable? GetLightStyleTable() {
-		throw new NotImplementedException();
-	}
-	public INetworkStringTable? GetUserInfoTable() {
-		throw new NotImplementedException();
-	}
+	public INetworkStringTable? GetInstanceBaselineTable() => LightStyleTable ??= StringTables!.FindTable(Protocol.INSTANCE_BASELINE_TABLENAME);
+	public INetworkStringTable? GetLightStyleTable() => LightStyleTable ??= StringTables!.FindTable(Protocol.LIGHT_STYLES_TABLENAME);
+	public INetworkStringTable? GetUserInfoTable() => LightStyleTable ??= StringTables?.FindTable(Protocol.USER_INFO_TABLENAME);
 
 	public virtual void RejectConnection(NetAddress adr, int clientChallenge, ReadOnlySpan<char> s) {
 		byte[] msg_buffer = new byte[Protocol.MAX_ROUTABLE_PAYLOAD];
@@ -849,9 +1023,7 @@ public abstract class BaseServer : IServer
 		Net.SendPacket(null!, Socket, adr, msg.GetData(), msg.BytesWritten);
 	}
 
-	public TimeUnit_t GetFinalTickTime() {
-		throw new NotImplementedException();
-	}
+	public TimeUnit_t GetFinalTickTime() => (TickCount + (Host.FrameTicks - Host.CurrentFrameTick)) * TickInterval;
 
 	public virtual bool CheckIPRestrictions(NetAddress adr, int nAuthProtocol) {
 		return true; // todo
@@ -878,8 +1050,15 @@ public abstract class BaseServer : IServer
 
 	public void SetReportNewFakeClients(bool bReportNewFakeClients) { ReportNewFakeClients = bReportNewFakeClients; }
 
-	public void SetPausedForced(bool bPaused, TimeUnit_t flDuration = -1) {
-		throw new NotImplementedException();
+	public void SetPausedForced(bool paused, TimeUnit_t flDuration = -1) {
+		if (!IsActive())
+			return;
+
+		State = (paused) ? ServerState.Paused : ServerState.Active;
+		PausedTimeEnd = (paused && flDuration > 0) ? Sys.Time + flDuration : -1;
+
+		// SVC_SetPauseTimed setpause = new(paused, PausedTimeEnd);
+		// BroadcastMessage(setpause);
 	}
 
 	protected virtual IClient? ConnectClient(NetAddress adr, int protocol, int challenge, int clientChallenge, int authProtocol,
@@ -928,12 +1107,13 @@ public abstract class BaseServer : IServer
 		if (!CheckChallengeType(client, nNextUserID, adr, authProtocol, hashedCDkey, cdKeyLen, clientChallenge))
 			return null;
 
-		if (!IsSteamServerNotNull() && authProtocol == Protocol.PROTOCOL_STEAM)
+		ISteamGameServer? steamGameServer = Steam3Server().SteamGameServer();
+		if (steamGameServer == null && authProtocol == Protocol.PROTOCOL_STEAM)
 			Warning("NULL ISteamGameServer in ConnectClient. Steam authentication may fail.\n");
 
 		if (Filter.IsUserBanned(client.GetNetworkID())) {
-			if (IsSteamServerNotNull() && authProtocol == Protocol.PROTOCOL_STEAM)
-				SteamGameServer.SendUserDisconnect_DEPRECATED(client.SteamID);
+			if (steamGameServer != null && authProtocol == Protocol.PROTOCOL_STEAM)
+				steamGameServer.SendUserDisconnect_DEPRECATED(client.SteamID);
 
 			RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectBanned");
 			return null;
@@ -945,8 +1125,8 @@ public abstract class BaseServer : IServer
 		INetChannel? netchan = Net.CreateNetChannel(Socket, adr, adr.ToString(), client);
 
 		if (netchan == null) {
-			if (IsSteamServerNotNull() && authProtocol == Protocol.PROTOCOL_STEAM)
-				SteamGameServer.SendUserDisconnect_DEPRECATED(client.SteamID);
+			if (steamGameServer != null && authProtocol == Protocol.PROTOCOL_STEAM)
+				steamGameServer.SendUserDisconnect_DEPRECATED(client.SteamID);
 
 			RejectConnection(adr, clientChallenge, "#GameUI_ServerRejectFailedChannel");
 			return null;
@@ -1067,7 +1247,7 @@ public abstract class BaseServer : IServer
 			return Protocol.PROTOCOL_HASHEDCDKEY;
 		else
 #endif
-			return Protocol.PROTOCOL_STEAM;
+		return Protocol.PROTOCOL_STEAM;
 	}
 
 	protected virtual bool CheckProtocol(NetAddress adr, int nProtocol, int clientChallenge) {
@@ -1208,33 +1388,114 @@ public abstract class BaseServer : IServer
 
 	// Keep the master server data updated.
 	protected virtual bool ShouldUpdateMasterServer() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	protected void CheckMasterServerRequestRestart() {
-		throw new NotImplementedException();
+		// todo
 	}
+	const double MASTER_SERVER_UPDATE_INTERVAL = 2.0;
+	static bool bUpdateMasterServers;
 	protected void UpdateMasterServer() {
+		if (!ShouldUpdateMasterServer())
+			return;
 
+		if (Steam3Server().SteamGameServer() == null)
+			return;
+
+		// Only update every so often.
+		TimeUnit_t curtime = Platform.Time;
+		if (curtime - LastMasterServerUpdateTime < MASTER_SERVER_UPDATE_INTERVAL)
+			return;
+
+		LastMasterServerUpdateTime = curtime;
+
+		ForwardPacketsFromMasterServerUpdater();
+		CheckMasterServerRequestRestart();
+
+
+		if (Net.Dedicated && sv_region.GetInt() == -1) {
+			sv_region.SetValue(255); // HACK!HACK! undo me once we want to enforce regions
+
+			//Log_Printf( "You must set sv_region in your server.cfg or use +sv_region on the command line\n" );
+			//Con_Printf( "You must set sv_region in your server.cfg or use +sv_region on the command line\n" );
+			//Cbuf_AddText( "quit\n" );
+			//return;
+		}
+
+		bUpdateMasterServers = 0 == commandLine.FindParm("-nomaster");
+		if (!bUpdateMasterServers)
+			return;
+
+		bool active = IsActive() && IsMultiplayer();
+		if (serverGameDLL != null && serverGameDLL.ShouldHideServer())
+			active = false;
+
+		SteamGameServer.SetAdvertiseServerActive(active);
+
+		if (!active)
+			return;
+
+		UpdateMasterServerRules();
+		UpdateMasterServerPlayers();
+		Steam3Server().SendUpdatedServerDetails();
 	}
-	protected void UpdateMasterServerRules() {
-		throw new NotImplementedException();
-	}
+	protected void UpdateMasterServerRules() { }
 	protected virtual void UpdateMasterServerPlayers() { }
+	readonly byte[] packetData = new byte[16 * 1024];
+	readonly NetAddress adr = new();
 	protected void ForwardPacketsFromMasterServerUpdater() {
-		throw new NotImplementedException();
+		ISteamGameServer? p = Steam3Server().SteamGameServer();
+		if (p == null)
+			return;
+
+		while (true) {
+			uint netadrAddress;
+			ushort netadrPort;
+			int len = p.GetNextOutgoingPacket(packetData, packetData.Length, out netadrAddress, out netadrPort);
+			if (len <= 0)
+				break;
+
+			// Send this packet for them..
+			adr.SetIP(netadrAddress, netadrPort);
+			Net.SendPacket(null!, Socket, adr, packetData, len);
+		}
 	}
 
 	protected void SetRestartOnLevelChange(bool state) { RestartOnLevelChange = state; }
 
-	protected bool RequireValidChallenge(NetAddress adr) {
-		throw new NotImplementedException();
-	}
+	protected bool RequireValidChallenge(NetAddress adr) => !sv_enableoldqueries.GetBool();
 	protected bool ValidChallenge(NetAddress adr, int challengeNr) {
-		throw new NotImplementedException();
+		if (!IsActive())
+			return false;
+
+		if (!IsMultiplayer())
+			return false;
+
+		if (RequireValidChallenge(adr)) {
+			if (!CheckChallengeNr(adr, challengeNr)) {
+				ReplyServerChallenge(adr);
+				return false;
+			}
+		}
+
+		return true;
 	}
 	protected bool ValidInfoChallenge(NetAddress adr, ReadOnlySpan<char> nugget) {
-		throw new NotImplementedException();
+		if (!IsActive())
+			return false;
+
+		if (!IsMultiplayer())
+			return false;
+
+		if (IsReplay())
+			return false;
+
+		if (RequireValidChallenge(adr))
+			if (stricmp(nugget, A2S.KEY_STRING) != 0)
+				return false;
+
+		return true;
 	}
 
 
@@ -1289,8 +1550,8 @@ public abstract class BaseServer : IServer
 
 	protected int MaxClients;         // Current max #
 	protected int SpawnCount;          // Number of servers spawned since start,
-																		 // used to check late spawns (e.g., when d/l'ing lots of
-																		 // data)
+									   // used to check late spawns (e.g., when d/l'ing lots of
+									   // data)
 	protected TimeUnit_t TickInterval;     // time for 1 tick in seconds
 
 

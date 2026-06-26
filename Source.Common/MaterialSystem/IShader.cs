@@ -24,7 +24,7 @@ public interface IShader
 	ReadOnlySpan<char> GetParamName(int paramIndex);
 	ReadOnlySpan<char> GetParamHelp(int paramIndex);
 	ShaderParamType GetParamType(int paramIndex);
-    ReadOnlySpan<char> GetParamDefault(int paramIndex);
+	ReadOnlySpan<char> GetParamDefault(int paramIndex);
 	string? GetFallbackShader(IMaterialVar[] vars);
 	void InitShaderParams(IMaterialVar[] vars, IShaderAPI shaderAPI, ReadOnlySpan<char> materialName);
 	void InitShaderInstance(IMaterialVar[] shaderParams, IShaderAPI shaderAPI, IShaderInit shaderManager, ReadOnlySpan<char> materialName, ReadOnlySpan<char> textureGroupName);
@@ -32,8 +32,10 @@ public interface IShader
 	bool IsTranslucent(IMaterialVar[]? shaderParams);
 }
 
-public interface IShaderInit {
+public interface IShaderInit
+{
 	public void LoadTexture(IMaterialVar textureVar, ReadOnlySpan<char> textureGroupName, int additionalCreationFlags = 0);
+	public void LoadCubeMap(IMaterialVar[] parms, IMaterialVar textureVar, int additionalCreationFlags = 0);
 	VertexShaderHandle LoadVertexShader(ReadOnlySpan<char> name);
 	PixelShaderHandle LoadPixelShader(ReadOnlySpan<char> name);
 }
@@ -46,7 +48,8 @@ public enum VertexCompressionType : uint
 	On = 1
 }
 
-public struct ShaderViewport {
+public struct ShaderViewport
+{
 	public int TopLeftX;
 	public int TopLeftY;
 	public int Width;
@@ -96,4 +99,7 @@ public interface IShaderDynamicAPI
 
 	void SetShaderUniform(IMaterialVar variable);
 	void BindStandardTexture(Sampler sampler, StandardTextureId id);
+	void SetVertexShaderConstant(int var, Span<float> vec);
+	void SetPixelShaderConstant(int var, Span<float> vec);
+	void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 dst);
 }

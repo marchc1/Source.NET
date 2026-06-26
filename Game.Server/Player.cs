@@ -605,6 +605,11 @@ public partial class BasePlayer : BaseCombatCharacter
 		return true; // todo
 	}
 
+	public void SnapEyeAngles(in QAngle viewAngles){
+		pl.ViewingAngle = viewAngles;
+		pl.FixAngle = (int)FixAngle.Absolute;
+	}
+
 	UserCmd GetLastUserCommand() => LastCmd; // todo BotCmd
 
 	void SetLastUserCommand(UserCmd cmd) => LastCmd = cmd;
@@ -980,7 +985,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		return false;// todo
 	}
 
-	internal void Teleport(AngularImpulse origin, QAngle angles, Vector3 vec3_origin) {
+	internal void Teleport(Vector3 origin, QAngle angles, Vector3 vec3_origin) {
 		throw new NotImplementedException();
 	}
 
@@ -991,6 +996,18 @@ public partial class BasePlayer : BaseCombatCharacter
 	// todo: thinking about thinking... lots of thinking
 
 	public Activity GetActivity() { return Activity.ACT_IDLE; } // TODO
+
+	internal int GetUserID() => engine.GetPlayerUserId(Edict());
+
+	internal ReadOnlySpan<char> GetNetworkIDString() {
+		ReadOnlySpan<char> str = engine.GetPlayerNetworkIDString(Edict());
+		int l = strcpy(NetworkIDString, str);
+		return NetworkIDString.AsSpan()[..l];
+	}
+
+	public virtual bool IsNetClient() => false;
+
+	readonly char[] NetworkIDString = new char[Constants.MAX_NETWORKID_LENGTH];
 }
 
 // Something to keep in mind; in base Source, this is stored in a list in the player with value semantics...

@@ -40,7 +40,7 @@ public class ModelRender : IModelRender
 	static readonly ConVar r_drawmodelstatsoverlay = new("r_drawmodelstatsoverlay", "0", FCvar.Cheat);
 	static readonly ConVar r_drawmodelstatsoverlaydistance = new("r_drawmodelstatsoverlaydistance", "500", FCvar.Cheat);
 	static readonly ConVar r_drawmodellightorigin = new("r_DrawModelLightOrigin", "0", FCvar.Cheat);
-	readonly ConVar r_lod = new("r_lod", "-1", 0, "");
+	static readonly ConVar r_lod = new("r_lod", "-1", 0, "");
 	static readonly ConVar r_entity = new("r_entity", "-1", FCvar.Cheat | FCvar.DevelopmentOnly);
 	static readonly ConVar r_lightaverage = new("r_lightaverage", "1", 0, "Activates/deactivate light averaging");
 	static readonly ConVar r_lightinterp = new("r_lightinterp", "5", FCvar.Cheat, "Controls the speed of light interpolation, 0 turns off interpolation");
@@ -49,7 +49,7 @@ public class ModelRender : IModelRender
 	static readonly ConVar r_decalstaticprops = new("r_decalstaticprops", "1", 0, "Decal static props test");
 	// static readonly ConCommand r_flushlod = new( "r_flushlod", FlushLOD_f, "Flush and reload LODs." ); << todo
 	static readonly ConVar r_debugrandomstaticlighting = new("r_debugrandomstaticlighting", "0", FCvar.Cheat, "Set to 1 to randomize static lighting for debugging.  Must restart for change to take affect.");
-	static readonly ConVar r_proplightingfromdisk = new("r_proplightingfromdisk", "1", FCvar.Cheat, "0=Off, 1=On, 2=Show Errors");
+	public static readonly ConVar r_proplightingfromdisk = new("r_proplightingfromdisk", "1", FCvar.Cheat, "0=Off, 1=On, 2=Show Errors");
 	static readonly ConVar r_itemblinkmax = new("r_itemblinkmax", ".3", FCvar.Cheat);
 	static readonly ConVar r_itemblinkrate = new("r_itemblinkrate", "4.5", FCvar.Cheat);
 	static readonly ConVar r_proplightingpooling = new("r_proplightingpooling", "-1.0", FCvar.Cheat, "0 - off, 1 - static prop color meshes are allocated from a single shared vertex buffer (on hardware that supports stream offset)");
@@ -83,7 +83,7 @@ public class ModelRender : IModelRender
 		ModelInstances.Remove(handle);
 	}
 
-	public ModelInstanceHandle_t CreateInstance(IClientRenderable renderable) {
+	public ModelInstanceHandle_t CreateInstance(IClientRenderable renderable, LightCacheHandle_t? cache = null) {
 		Model? model = renderable.GetModel();
 
 		// We're ok, allocate a new instance handle
@@ -97,7 +97,18 @@ public class ModelRender : IModelRender
 		for (int i = 0; i < 6; ++i)
 			instance.AmbientLightingState.BoxColor[i].X = 1.0f;
 
-		// TODO: static prop lighting, shadows, etc
+		// Static props use baked lighting for performance reasons
+		if (cache != null) {
+			SetStaticLighting(handle, cache);
+
+			// todo v
+
+			// validate static color meshes once, now at load/create time
+			// ValidateStaticPropColorData(handle);
+
+			// builds out color meshes or loads disk colors, now at load/create time
+			// RecomputeStaticLighting(handle);
+		}
 
 		return handle;
 	}
@@ -188,9 +199,12 @@ public class ModelRender : IModelRender
 	readonly IMDLCache MDLCache;
 	readonly IStudioRender StudioRender;
 	readonly IMaterialSystem materials;
+#if !SWDS
 	readonly RenderView RenderView;
+#endif
 	readonly Render Render;
 	readonly Host Host;
+#if !SWDS
 	public ModelRender(IMDLCache MDLCache, IStudioRender StudioRender, Host Host, Render Render, IRenderView renderView, IMaterialSystem materialSystem) {
 		this.MDLCache = MDLCache;
 		this.StudioRender = StudioRender;
@@ -201,6 +215,7 @@ public class ModelRender : IModelRender
 
 		r_lod.Changed += r_lod_f;
 	}
+#endif
 
 	protected void r_lod_f(IConVar var, in ConVarChangeContext ctx) {
 		CheckVarRange_r_lod();
@@ -253,6 +268,39 @@ public class ModelRender : IModelRender
 
 		Assert(lod >= 0 && lod < studioHWData.NumLODs);
 		return lod;
+	}
+
+	public void SetStaticLighting(ModelInstanceHandle_t handle, LightCacheHandle_t? cache) {
+		if (handle != MODEL_INSTANCE_INVALID) {
+			ModelInstance instance = ModelInstances[handle];
+			if (cache != null) {
+				instance.LightCacheHandle = cache.Value;
+				instance.Flags |= ModelInstanceFlags.HasStaticLighting;
+			}
+			else {
+				instance.LightCacheHandle = 0;
+				instance.Flags &= ~ModelInstanceFlags.HasStaticLighting;
+			}
+		}
+	}
+
+	public int DrawModelEx(ref ModelRenderInfo info) {
+#if !SWDS
+		DrawModelState state = default;
+
+		if (info.ModelToWorld == default)
+			MathLib.AngleMatrix(info.Angles, info.Origin, out info.ModelToWorld);
+
+		if (!DrawModelSetup(ref info, ref state, default, out Span<Matrix3x4> boneToWorld))
+			return 0;
+
+		if ((info.Flags & StudioFlags.Render) != 0)
+			DrawModelExecute(ref state, ref info, boneToWorld);
+
+		return 1;
+#else
+		return 0;
+#endif
 	}
 
 	public void DrawModelExecute(ref DrawModelState state, ref ModelRenderInfo pInfo, Span<Matrix3x4> boneToWorldArray) {
@@ -347,12 +395,12 @@ public class ModelRender : IModelRender
 	}
 
 	private void StudioSetupLighting(DrawModelState state, Vector3 entOrigin, ref nint lightCache, bool bVertexLit, bool bNeedsEnvCubemap, bool bStaticLighting, DrawModelInfo info, ModelRenderInfo pInfo, StudioRenderFlags drawFlags) {
-		
+
 	}
 
 	private void R_ComputeLightingOrigin(IClientRenderable? renderable, StudioHeader? studioHdr, in Matrix3x4 matrix, out Vector3 center) {
 		int nAttachmentIndex = studioHdr!.IllumPositionAttachmentIndex();
-		if (nAttachmentIndex <= 0) 
+		if (nAttachmentIndex <= 0)
 			MathLib.VectorTransform(studioHdr!.IllumPosition, matrix, out center);
 		else {
 			renderable!.GetAttachment(nAttachmentIndex, out Matrix3x4 attachment);

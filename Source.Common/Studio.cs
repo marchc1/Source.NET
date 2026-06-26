@@ -676,7 +676,7 @@ public class StudioHeader2
 
 	public int LinearBoneIndex;
 	MStudioLinearBone? linearBones;
-	public MStudioLinearBone LinearBones() => linearBones ??= new(Data[LinearBoneIndex..]);
+	public MStudioLinearBone? LinearBones() => LinearBoneIndex != 0 ? linearBones ??= new(Data[LinearBoneIndex..]) : null;
 
 	public int SzNameIndex;
 	public int BoneFlexDriverCount;
@@ -1045,7 +1045,7 @@ public class MStudioAnimDesc
 	public int SectionIndex;
 	public int SectionFrames;
 	MStudioAnimSections[]? sections;
-	public MStudioAnimSections Section(int i) => Studio.ProduceArrayIdx(this, ref sections, SectionFrames, SectionIndex, i, MStudioAnimSections.SIZEOF, Data, MStudioAnimSections.FACTORY);
+	public MStudioAnimSections Section(int i) => Studio.ProduceArrayIdx(this, ref sections, (NumFrames / SectionFrames) + 2, SectionIndex, i, MStudioAnimSections.SIZEOF, Data, MStudioAnimSections.FACTORY);
 
 
 	public int ZeroFrameSpan;
@@ -1857,6 +1857,10 @@ public class StudioHdr
 			return studioHdr;
 		return GroupStudioHdr(vModel.Anim[sequence].Group);
 	}
+
+	public int NumBodyParts() => studioHdr!.NumBodyParts;
+
+	public MStudioBodyParts Bodypart(int i) => studioHdr!.BodyPart(i); 
 }
 
 public class MStudioBone

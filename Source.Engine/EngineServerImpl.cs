@@ -15,7 +15,7 @@ using System.Numerics;
 
 namespace Source.Engine;
 
-internal class EngineServer(Cbuf Cbuf, Host host) : IEngineServer
+internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 {
 	public readonly SharedEdictChangeInfo g_roSharedEdictChangeInfo = new();
 	public void AddOriginToPVS(in Vector3 origin) {
@@ -112,8 +112,8 @@ internal class EngineServer(Cbuf Cbuf, Host host) : IEngineServer
 	}
 
 #if SWDS
-	public void Con_NPrintf(int pos, ReadOnlySpan<char> msg) {};
-	public void Con_NXPrintf(in Con_NPrint_s info, ReadOnlySpan<char> msg) {};
+	public void Con_NPrintf(int pos, ReadOnlySpan<char> msg) {}
+	public void Con_NXPrintf(in Con_NPrint_s info, ReadOnlySpan<char> msg) {}
 #else
 	public void Con_NPrintf(int pos, ReadOnlySpan<char> msg) {
 		throw new NotImplementedException();
@@ -152,8 +152,8 @@ internal class EngineServer(Cbuf Cbuf, Host host) : IEngineServer
 		throw new NotImplementedException();
 	}
 
-	public void CrosshairAngle(Edict pClient, float pitch, float yaw) {
-		throw new NotImplementedException();
+	public void CrosshairAngle(Edict clientent, float pitch, float yaw) {
+		
 	}
 
 	public void DestroySpatialPartition(ISpatialPartition spatialPartition) {
@@ -411,7 +411,7 @@ internal class EngineServer(Cbuf Cbuf, Host host) : IEngineServer
 	}
 
 	public void LogPrint(ReadOnlySpan<char> msg) {
-		throw new NotImplementedException();
+		// todo
 	}
 
 	int Message_CheckMessageLength() {
@@ -597,7 +597,7 @@ internal class EngineServer(Cbuf Cbuf, Host host) : IEngineServer
 	public void SetFakeClientConVarValue(Edict pEntity, ReadOnlySpan<char> cvar, ReadOnlySpan<char> value) {
 		int clientnum = NUM_FOR_EDICT(pEntity);
 		if (clientnum < 1 || clientnum > sv.GetClientCount())
-			host.Error("DLL_SetView: not a client");
+			Host.Error("DLL_SetView: not a client");
 
 		GameClient client = sv.Client(clientnum - 1);
 		if (client.IsFakeClient()) {
@@ -609,7 +609,7 @@ internal class EngineServer(Cbuf Cbuf, Host host) : IEngineServer
 	public void SetView(Edict client, Edict viewent) {
 		int clientnum = NUM_FOR_EDICT(client);
 		if (clientnum < 1 || clientnum > sv.GetClientCount())
-			host.Error("DLL_SetView: not a client");
+			Host.Error("DLL_SetView: not a client");
 
 		GameClient cl = sv.Client(clientnum - 1);
 		cl.ViewEntity = viewent;

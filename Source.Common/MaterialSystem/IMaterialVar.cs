@@ -67,6 +67,32 @@ public abstract class IMaterialVar
 
 	public abstract void GetVecValue(Span<float> color);
 
+	public void GetLinearVecValue(Span<float> pVal, int numComps) {
+		Assert(numComps <= 4);
+		switch (Type) {
+			case MaterialVarType.Vector:
+				for (int i = 0; i < numComps; i++)
+					pVal[i] = Mathematics.MathLib.GammaToLinear(i == 0 ? VecVal.X : i == 1 ? VecVal.Y : i == 2 ? VecVal.Z : VecVal.W);
+				break;
+			case MaterialVarType.Int:
+				for (int i = 0; i < numComps; i++)
+					pVal[i] = Mathematics.MathLib.GammaToLinear(IntVal);
+				break;
+			case MaterialVarType.Float:
+				for (int i = 0; i < numComps; i++)
+					pVal[i] = Mathematics.MathLib.GammaToLinear(VecVal.X);
+				break;
+			case MaterialVarType.Matrix:
+			case MaterialVarType.Undefined:
+				for (int i = 0; i < numComps; i++)
+					pVal[i] = 0.0f;
+				break;
+			default:
+				Warning($"CMaterialVar::GetLinearVecValue: trying to get a vec value for {GetName()} which is of type {(int)Type}\n");
+				break;
+		}
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void GetVecValue(out Vector2 vec) {
 		Span<float> retv = stackalloc float[2];

@@ -266,7 +266,7 @@ public static class ImageLoader
 		ImageFormat.BGR888 => GL_BGR,
 		ImageFormat.RGB888_Bluescreen => GL_RGB,
 		ImageFormat.BGR888_Bluescreen => GL_BGR, // TODO: what does bluescreen mean here
-													  // ImageFormat.ARGB8888 => Gl46.ARGB,
+																						 // ImageFormat.ARGB8888 => Gl46.ARGB,
 		ImageFormat.BGRA8888 => GL_BGRA,
 		ImageFormat.BGRX8888 => GL_BGRA,
 		ImageFormat.RGBA16161616 => GL_RGBA,
@@ -274,6 +274,7 @@ public static class ImageLoader
 		ImageFormat.R32F => GL_RED,
 		ImageFormat.RGB323232F => GL_RGB,
 		ImageFormat.RGBA32323232F => GL_RGBA,
+		ImageFormat.I8 => GL_R8,
 	};
 	public static int GetGLImageInternalFormat(ImageFormat format) => format switch {
 		// Uncompressed color formats
@@ -288,7 +289,7 @@ public static class ImageLoader
 		ImageFormat.A8 => GL_RGBA8,
 		ImageFormat.RGB888_Bluescreen => GL_RGB8,
 		ImageFormat.BGR888_Bluescreen => Gl46.GL_BGR, // TODO: what does bluescreen mean here
-													  // ImageFormat.ARGB8888 => Gl46.ARGB,
+																									// ImageFormat.ARGB8888 => Gl46.ARGB,
 		ImageFormat.BGRA8888 => Gl46.GL_BGRA8_EXT,
 		ImageFormat.BGRX8888 => Gl46.GL_BGRA8_EXT,
 		// ImageFormat.BGRX5551 => GL_RGBA8,

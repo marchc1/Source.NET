@@ -12,6 +12,18 @@ public interface IWorldRenderList
 
 }
 
+public ref struct WorldListInfo {
+	public int ViewFogVolume;
+	public int LeafCount;
+	public Span<LeafIndex_t> LeafList;
+	public Span<LeafFogVolume_t> LeafFogVolume;
+}
+
+public struct VisOverrideData {
+	public Vector3 VisOrigin;
+	public float DistToAreaPortalTolerance;
+}
+
 [Flags]
 public enum DrawWorldListFlags : ulong
 {

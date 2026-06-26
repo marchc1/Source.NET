@@ -2093,7 +2093,7 @@ public partial class NavArea : NavAreaCriticalData
 					from.Z = GetZ(from);
 					to.Z = adj.GetZ(to);
 
-					adj.GetClosestPointOnArea(ref to, out AngularImpulse drawTo);
+					adj.GetClosestPointOnArea(ref to, out Vector3 drawTo);
 
 					if (nav_show_contiguous.GetBool()) {
 						if (IsContiguous(adj))
@@ -3183,7 +3183,7 @@ public partial class NavArea : NavAreaCriticalData
 			if (obstructingEntity == null)
 				continue;
 
-			obstructingEntity.CollisionProp().WorldSpaceSurroundingBounds(out AngularImpulse vecSurroundMins, out AngularImpulse vecSurroundMaxs);
+			obstructingEntity.CollisionProp().WorldSpaceSurroundingBounds(out Vector3 vecSurroundMins, out Vector3 vecSurroundMaxs);
 			if (!CollisionUtils.IsBoxIntersectingBox(mins, maxs, vecSurroundMins, vecSurroundMaxs))
 				continue;
 

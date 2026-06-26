@@ -80,6 +80,7 @@ public struct ConVarRef
 
 public class ConVar : ConCommandBase, IConVar
 {
+	public static Action Register = null!; // Engine code sets this
 	public override bool Equals(object? obj) {
 		if (obj == null) return false;
 		return obj is ConVar cv ? cv.Name == Name : false;

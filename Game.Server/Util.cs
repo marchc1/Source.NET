@@ -9,15 +9,15 @@ using Source;
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Engine.Server;
 
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Text;
-
-using System.Numerics;
 
 namespace Game;
 
@@ -138,6 +138,36 @@ public static partial class Util_Globals
 }
 public static partial class Util
 {
+	public static bool g_bDisableEhandleAccess = false;
+	public static bool g_bReceivedChainedUpdateOnRemove = false;
+	public static void LogPrintf(ReadOnlySpan<char> text) {
+		engine.LogPrint(text);
+	}
+
+	public static void SayTextFilter<T>(scoped in T filter, ReadOnlySpan<char> pText, BasePlayer? player, bool chat) where T : IRecipientFilter {
+		UserMessageBegin(filter, "SayText");
+		WRITE_BYTE((byte)(player?.EntIndex() ?? 0));
+
+		WRITE_STRING(pText);
+		WRITE_BYTE((byte)(chat ? 1 : 0));
+		MessageEnd();
+	}
+	public static void SayText2Filter<T>(scoped in T filter, BasePlayer? entity, bool chat, ReadOnlySpan<char> msgName, ReadOnlySpan<char> param1 = default, ReadOnlySpan<char> param2 = default, ReadOnlySpan<char> param3 = default, ReadOnlySpan<char> param4 = default) where T : IRecipientFilter {
+		UserMessageBegin(filter, "SayText2");
+		WRITE_BYTE((byte)(entity?.EntIndex() ?? 0));
+
+		WRITE_BYTE((byte)(chat ? 1 : 0));
+
+		WRITE_STRING(msgName);
+
+		WRITE_STRING(param1);
+		WRITE_STRING(param2);
+		WRITE_STRING(param3);
+		WRITE_STRING(param4);
+
+		MessageEnd();
+	}
+
 	public static void TransmitShakeEvent(BasePlayer player, float localAmplitude, float frequency, TimeUnit_t duration, ShakeCommand command) {
 		if ((localAmplitude > 0) || (command == ShakeCommand.Stop)) {
 			if (command == ShakeCommand.Stop)
@@ -154,7 +184,20 @@ public static partial class Util
 		}
 	}
 
-	public static void PrecacheOther(ReadOnlySpan<char> className, ReadOnlySpan<char> modelName = default) => throw new NotImplementedException();
+	public static void PrecacheOther(ReadOnlySpan<char> className, ReadOnlySpan<char> modelName = default) {
+		BaseEntity? entity = CreateEntityByName(className);
+		if (entity == null) {
+			Warning("NULL Ent in UTIL_PrecacheOther\n");
+			return;
+		}
+
+		// If we have a specified model, set it before calling precache
+		if (!modelName.IsStringEmpty)
+			entity.SetModelName(modelName);
+
+		entity.Precache();
+		Util.RemoveImmediate(entity);
+	}
 
 	public static void ClientPrintFilter<Filter>(scoped in Filter filter, HudPrint dest, ReadOnlySpan<char> msgName, ReadOnlySpan<char> param1 = default, ReadOnlySpan<char> param2 = default, ReadOnlySpan<char> param3 = default, ReadOnlySpan<char> param4 = default) where Filter : IRecipientFilter {
 		UserMessageBegin(filter, "TextMsg");
@@ -234,7 +277,7 @@ public static partial class Util
 	}
 
 	public static int DispatchSpawn(BaseEntity? entity) {
-		Console.WriteLine($"Dispatching spawn for {entity}");
+		Msg($"Dispatching spawn for {entity}\n");
 		if (entity != null) {
 			// keep a smart pointer that will know if the object gets deleted
 			EHANDLE pEntSafe = new();
@@ -275,9 +318,6 @@ public static partial class Util
 		Remove(entity.NetworkProp());
 	}
 
-	public static bool g_bDisableEhandleAccess = false;
-	public static bool g_bReceivedChainedUpdateOnRemove = false;
-
 	public static void Remove(IServerNetworkable? oldObj) {
 		ServerNetworkProperty? prop = (ServerNetworkProperty?)oldObj;
 		if (prop == null || prop.IsMarkedForDeletion())
@@ -311,8 +351,38 @@ public static partial class Util
 
 		gEntList.AddToDeleteList(oldObj);
 	}
+	static int s_RemoveImmediateSemaphore = 0;
+	public static void DisableRemoveImmediate() {
+		s_RemoveImmediateSemaphore++;
+	}
+	public static void EnableRemoveImmediate() {
+		s_RemoveImmediateSemaphore--;
+		Assert(s_RemoveImmediateSemaphore >= 0);
+	}
+	public static void RemoveImmediate(BaseEntity? oldObj) {
+		if (oldObj == null || oldObj.IsEFlagSet(EFL.KillMe))
+			return;
 
-	public static int GetCommandClientIndex() => ServerGameClients.CommandClientIndex;
+		if (s_RemoveImmediateSemaphore != 0) {
+			Remove(oldObj);
+			return;
+		}
+
+
+		oldObj.AddEFlags(EFL.KillMe);  // Make sure to ignore further calls into here or UTIL_Remove.
+
+		g_bReceivedChainedUpdateOnRemove = false;
+		oldObj.UpdateOnRemove();
+		Assert(g_bReceivedChainedUpdateOnRemove);
+
+		// Entities shouldn't reference other entities in their destructors
+		//  that type of code should only occur in an UpdateOnRemove call
+		g_bDisableEhandleAccess = true;
+		oldObj.Term();
+		g_bDisableEhandleAccess = false;
+	}
+
+	public static int GetCommandClientIndex() => ServerGameClients.CommandClientIndex + 1;
 
 	public static BasePlayer? GetCommandClient() {
 		int id = GetCommandClientIndex();
@@ -323,10 +393,6 @@ public static partial class Util
 	}
 
 	internal static void SetOrigin(BasePlayer player, Vector3 origin) {
-		throw new NotImplementedException();
-	}
-
-	internal static void RemoveImmediate(BaseEntity? baseEntity) {
 		throw new NotImplementedException();
 	}
 

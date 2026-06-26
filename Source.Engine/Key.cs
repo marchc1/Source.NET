@@ -24,8 +24,11 @@ public enum KeyUpTarget
 	Client
 }
 
-public class Key(IInputSystem? inputSystem, IServiceProvider services, IBaseClientDLL? clientDLL, Cbuf Cbuf)
+public class Key(IServiceProvider services, Cbuf Cbuf)
 {
+	readonly IInputSystem? inputSystem = OptionalSingleton<IInputSystem>();
+	readonly IBaseClientDLL? clientDLL = OptionalSingleton<IBaseClientDLL>();
+
 	readonly KeyInfo[] KeyInfo = new KeyInfo[(int)ButtonCode.Last];
 	bool TrapMode = false;
 	bool DoneTrapping = false;

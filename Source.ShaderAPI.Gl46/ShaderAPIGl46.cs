@@ -16,6 +16,7 @@ using Source.Common.ShaderAPI;
 using Source.Common.Utilities;
 
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 
@@ -35,7 +36,11 @@ public enum UniformBufferBindingLocation
 	/// <summary><b>source_pixel_sharedUBO</b>: Shared uniforms that every pixel shader can use.</summary>
 	SharedPixelShader = 3,
 	/// <summary><b>source_bone_matrices</b>: A <see cref="Matrix4x4"/>[<see cref="Studio.MAXSTUDIOBONES"/>] array.</summary>
-	SharedBoneMatrices = 4
+	SharedBoneMatrices = 4,
+	/// <summary><b>source_vs_constants</b>: Vertex shader float constants.</summary>
+	VertexShaderConstants = 5,
+	/// <summary><b>source_ps_constants</b>: Pixel shader float constants.</summary>
+	PixelShaderConstants = 6
 }
 
 public struct GfxViewport
@@ -65,7 +70,6 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		services.AddSingleton<IMeshMgr, MeshMgr>();
 		services.AddSingleton<IMaterialSystemHardwareConfig, HardwareConfig>();
 		services.AddSingleton<IShaderSystem, ShaderSystem>();
-		services.AddSingleton<MaterialSystem_Config>();
 		services.AddSingleton<MeshMgr>();
 	}
 
@@ -137,8 +141,18 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	}
 
+	const int NUM_VERTEX_SHADER_CONSTANTS = 256;
+	readonly float[] desiredVertexShaderConstants = new float[NUM_VERTEX_SHADER_CONSTANTS * 4];
+	readonly float[] dynamicVertexShaderConstants = new float[NUM_VERTEX_SHADER_CONSTANTS * 4];
+
+	const int NUM_PIXEL_SHADER_CONSTANTS = 256;
+	readonly float[] desiredPixelShaderConstants = new float[NUM_PIXEL_SHADER_CONSTANTS * 4];
+	readonly float[] dynamicPixelShaderConstants = new float[NUM_PIXEL_SHADER_CONSTANTS * 4];
+
 	uint uboMatrices;
 	uint uboBones;
+	uint uboVertexConstants;
+	uint uboPixelConstants;
 
 	private unsafe void CreateMatrixStacks() {
 		uboMatrices = glCreateBuffer();
@@ -155,6 +169,16 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 		glNamedBufferData(uboBones, sizeof(Matrix4x4) * Studio.MAXSTUDIOBONES, identityMatrices, GL_DYNAMIC_DRAW);
 		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.SharedBoneMatrices, uboBones);
+
+		uboVertexConstants = glCreateBuffer();
+		glObjectLabel(GL_BUFFER, uboVertexConstants, "ShaderAPI Vertex Shader Constants UBO");
+		glNamedBufferData(uboVertexConstants, sizeof(float) * NUM_VERTEX_SHADER_CONSTANTS * 4, null, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.VertexShaderConstants, uboVertexConstants);
+
+		uboPixelConstants = glCreateBuffer();
+		glObjectLabel(GL_BUFFER, uboPixelConstants, "ShaderAPI Pixel Shader Constants UBO");
+		glNamedBufferData(uboPixelConstants, sizeof(float) * NUM_PIXEL_SHADER_CONSTANTS * 4, null, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_UNIFORM_BUFFER, (int)UniformBufferBindingLocation.PixelShaderConstants, uboPixelConstants);
 	}
 
 	private void AcquireInternalRenderTargets() {
@@ -163,6 +187,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	public void InitRenderState() {
 		glDisable(GL_DEPTH_TEST);
+		glFrontFace(GL_CW);
 
 		if (!IsDeactivated())
 			ResetRenderState();
@@ -270,7 +295,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		return DeviceState != DeviceState.OK;
 	}
 
-	public void InvalidateDelayedShaderConstraints() {
+	public void InvalidateDelayedShaderConstants() {
 		// TODO FIXME
 	}
 
@@ -362,7 +387,21 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	public void SetSkinningMatrices() {
-		// TODO
+		Assert(Material != null);
+
+		if (numBones == 0)
+			return;
+
+		SetVertexShaderStateSkinningMatrices();
+	}
+
+	private unsafe void SetVertexShaderStateSkinningMatrices() {
+		GetMatrix(MaterialMatrixMode.Model, out Matrix4x4 modelMatrix);
+
+		Matrix4x4 transposed = Matrix4x4.Transpose(modelMatrix);
+		glNamedBufferSubData(uboBones, 0, sizeof(Matrix4x4), &transposed);
+
+		MaxBoneLoaded = 0;
 	}
 
 	public void ShadeMode(ShadeMode shadeMode) {
@@ -377,8 +416,64 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		SetVertexShaderConstantInternal(var, vec);
 	}
 
-	private void SetVertexShaderConstantInternal(int var, Span<float> vec) {
-		// I'm so tired of looking at this stuff
+	public void SetPixelShaderConstant(int var, Span<float> vec) {
+		SetPixelShaderConstantInternal(var, vec);
+	}
+
+	private unsafe void SetPixelShaderConstantInternal(int var, Span<float> vec) {
+		int numVecs = vec.Length / 4;
+		Assert(var + numVecs <= NUM_PIXEL_SHADER_CONSTANTS);
+
+		numVecs = AdjustUpdateRange(vec, desiredPixelShaderConstants.AsSpan(var * 4), numVecs, out int skip);
+		if (numVecs == 0)
+			return;
+
+		var += skip;
+		Span<float> src = vec.Slice(skip * 4, numVecs * 4);
+
+		src.CopyTo(desiredPixelShaderConstants.AsSpan(var * 4));
+		src.CopyTo(dynamicPixelShaderConstants.AsSpan(var * 4));
+
+		fixed (float* pSrc = src)
+			glNamedBufferSubData(uboPixelConstants, var * sizeof(Vector4), numVecs * sizeof(Vector4), pSrc);
+	}
+
+	private static int AdjustUpdateRange(ReadOnlySpan<float> src, ReadOnlySpan<float> dst, int numVecs, out int skip) {
+		ReadOnlySpan<uint> srcU = MemoryMarshal.Cast<float, uint>(src);
+		ReadOnlySpan<uint> dstU = MemoryMarshal.Cast<float, uint>(dst);
+		skip = 0;
+		int i = 0;
+
+		while (numVecs > 0 && ((srcU[i] ^ dstU[i]) | (srcU[i + 1] ^ dstU[i + 1]) | (srcU[i + 2] ^ dstU[i + 2]) | (srcU[i + 3] ^ dstU[i + 3])) == 0) {
+			i += 4; numVecs--; skip++;
+		}
+
+		if (numVecs == 0) return 0;
+
+		int tail = i + numVecs * 4 - 4;
+		while (numVecs > 1 && ((srcU[tail] ^ dstU[tail]) | (srcU[tail + 1] ^ dstU[tail + 1]) | (srcU[tail + 2] ^ dstU[tail + 2]) | (srcU[tail + 3] ^ dstU[tail + 3])) == 0) {
+			tail -= 4; numVecs--;
+		}
+
+		return numVecs;
+	}
+
+	private unsafe void SetVertexShaderConstantInternal(int var, Span<float> vec) {
+		int numVecs = vec.Length / 4;
+		Assert(var + numVecs <= NUM_VERTEX_SHADER_CONSTANTS);
+
+		numVecs = AdjustUpdateRange(vec, desiredVertexShaderConstants.AsSpan(var * 4), numVecs, out int skip);
+		if (numVecs == 0)
+			return;
+
+		var += skip;
+		Span<float> src = vec.Slice(skip * 4, numVecs * 4);
+
+		src.CopyTo(desiredVertexShaderConstants.AsSpan(var * 4));
+		src.CopyTo(dynamicVertexShaderConstants.AsSpan(var * 4));
+
+		fixed (float* pSrc = src)
+			glNamedBufferSubData(uboVertexConstants, var * sizeof(Vector4), numVecs * sizeof(Vector4), pSrc);
 	}
 
 	bool UsingTextureRenderTarget;
@@ -670,6 +765,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 
 	MaterialMatrixMode currentMode;
+	readonly Matrix4x4[] Matrices = new Matrix4x4[3];
+
 	public void MatrixMode(MaterialMatrixMode mode) {
 		currentMode = mode;
 	}
@@ -677,8 +774,13 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public unsafe void LoadMatrix(in Matrix4x4 m4x4) {
 		int szm4x4 = sizeof(Matrix4x4);
 		int loc = (int)currentMode * szm4x4;
+		Matrices[(int)currentMode] = m4x4;
 		Matrix4x4 transposed = Matrix4x4.Transpose(m4x4);
 		glNamedBufferSubData(uboMatrices, loc, szm4x4, &transposed);
+	}
+
+	public void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 dst) {
+		dst = Matrices[(int)matrixMode];
 	}
 
 	public void LoadIdentity() {
@@ -791,6 +893,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		public int Height;
 		public int ZOffset;
 		public int Level;
+		public int CubeFaceID;
 		public ImageFormat SrcFormat;
 	}
 
@@ -810,7 +913,12 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			throw new NotImplementedException("Multidepth textures not supported yet");
 		}
 		else if (vtf.IsCubeMap()) {
-			throw new NotImplementedException("Cubemap textures not supported yet");
+			if (HardwareConfig.SupportsCubeMaps())
+				LoadCubeTextureFromVTF(in info, vtf, vtfFrame);
+			else {
+				info.CubeFaceID = (int)CubeMapFaceIndex.Spheremap;
+				LoadTextureFromVTF(in info, vtf, vtfFrame);
+			}
 		}
 		else {
 			for (int i = 0; i < vtf.MipCount(); i++) {
@@ -820,9 +928,30 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		}
 	}
 
-	private unsafe void LoadTextureFromVTF(in TextureLoadInfo info, IVTFTexture vtf, int vtfFrame) {
-		vtf.ImageFileInfo(vtfFrame, 0, info.Level, out int start, out int size);
+	private unsafe void LoadCubeTextureFromVTF(in TextureLoadInfo info, IVTFTexture vtf, int vtfFrame) {
+		if (vtf.FaceCount() < 6) {
+			Warning("LoadCubeTextureFromVTF: VTF dimensions do not match texture\n");
+			return;
+		}
 
+		int mipCount = vtf.MipCount();
+		for (int mip = 0; mip < mipCount; ++mip) {
+			vtf.ComputeMipLevelDimensions(mip, out int w, out int h, out _);
+			for (int face = 0; face < 6; ++face) {
+				Span<byte> data = vtf.ImageData(vtfFrame, face, mip);
+				if (info.SrcFormat.IsCompressed()) {
+					fixed (byte* bytes = data)
+						glCompressedTextureSubImage3D((uint)info.Handle, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
+				}
+				else {
+					fixed (byte* bytes = data)
+						glTextureSubImage3D((uint)info.Handle, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageUploadFormat(info.SrcFormat), GL_UNSIGNED_BYTE, bytes);
+				}
+			}
+		}
+	}
+
+	private unsafe void LoadTextureFromVTF(in TextureLoadInfo info, IVTFTexture vtf, int vtfFrame) {
 		vtf.ComputeMipLevelDimensions(info.Level, out int w, out int h, out _);
 
 		if (info.SrcFormat.IsCompressed()) {
@@ -1123,8 +1252,28 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			glToggle(GL_DEPTH_TEST, state.DepthTest);
 			glDepthMask(state.DepthWrite); // state.DepthWrite
 			glDepthFunc(state.DepthFunc.GLEnum());
-			// TEMPORARY
-			glCullFace(GL_FRONT_AND_BACK);
+
+			glPolygonMode(GL_FRONT_AND_BACK, state.FillMode.GLEnum());
+			glToggle(GL_CULL_FACE, state.CullEnable);
+			glToggle(GL_SAMPLE_ALPHA_TO_COVERAGE, state.AlphaToCoverage);
+
+			bool polyOffsetEnabled = state.ZBias != PolygonOffsetMode.Disable;
+			glToggle(GL_POLYGON_OFFSET_FILL, polyOffsetEnabled && state.FillMode == ShaderPolyMode.Fill);
+			glToggle(GL_POLYGON_OFFSET_LINE, polyOffsetEnabled && state.FillMode == ShaderPolyMode.Line);
+			glToggle(GL_POLYGON_OFFSET_POINT, polyOffsetEnabled && state.FillMode == ShaderPolyMode.Point);
+
+			if (polyOffsetEnabled) {
+				float factor = 0.0f;
+				float units = 0.0f;
+
+				if (state.ZBias == PolygonOffsetMode.ShadowBias) {
+					factor = -1.0f;
+					units = -1.0f;
+				}
+
+				glPolygonOffset(factor, units);
+			}
+
 #if DEBUG
 			glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_MARKER, 0, GL_DEBUG_SEVERITY_LOW, "A board state write occured.");
 #endif

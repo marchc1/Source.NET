@@ -1,5 +1,7 @@
 using CommunityToolkit.HighPerformance;
 
+using Source.Common.Bitbuffers;
+
 using System.Collections;
 using System.Diagnostics;
 using System.Numerics;
@@ -653,6 +655,10 @@ public class RecvTable : IEnumerable<RecvProp>, IDataTableBase<RecvProp>
 	}
 	public void SetInMainList(bool inList) {
 		InMainList = inList;
+	}
+
+	public static void MergeDeltas(RecvTable? recvTable, bf_read oldBuf, bf_read newBuf, bf_write outBuf) {
+		throw new NotImplementedException();
 	}
 }
 

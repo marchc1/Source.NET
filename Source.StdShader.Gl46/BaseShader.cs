@@ -10,6 +10,9 @@ public abstract class BaseShader : IShader
 {
 	readonly public IMaterialSystemHardwareConfig HardwareConfig = Singleton<IMaterialSystemHardwareConfig>();
 	readonly public IShaderSystem ShaderSystem = Singleton<IShaderSystem>();
+	static readonly Lazy<IMaterialSystem> s_materials = new(Singleton<IMaterialSystem>); // HACK
+	protected static IMaterialSystem Materials => s_materials.Value;
+	public static MaterialSystem_Config Config => Materials.GetCurrentConfigForVideoCard();
 
 	internal static IMaterialVar[]? Params;
 	internal static IShaderInit? ShaderInit;
@@ -127,9 +130,23 @@ public abstract class BaseShader : IShader
 			ShaderShadow.EnableDepthWrites(false);
 		}
 
+		if ((flags & MaterialVarFlags.Decal) != 0) {
+			ShaderShadow.EnablePolyOffset(PolygonOffsetMode.Decal);
+			ShaderShadow.EnableDepthWrites(false);
+		}
+
+		if ((flags & MaterialVarFlags.NoCull) != 0)
+			ShaderShadow.EnableCulling(false);
+
 		if ((flags & MaterialVarFlags.ZNearer) != 0) {
 			ShaderShadow.DepthFunc(ShaderDepthFunc.Nearer);
 		}
+
+		if ((flags & MaterialVarFlags.Wireframe) != 0)
+			ShaderShadow.PolyMode(ShaderPolyModeFace.FrontAndBack, ShaderPolyMode.Line);
+
+		if ((flags & MaterialVarFlags.AllowAlphaToCoverage) != 0)
+			ShaderShadow.EnableAlphaToCoverage(true);
 	}
 
 	[MemberNotNullWhen(true, nameof(ShaderShadow))]
@@ -177,13 +194,13 @@ public abstract class BaseShader : IShader
 		TextureGroupName = null;
 	}
 
-	protected void LoadCubeMap(int envmapVar) {
+	protected void LoadCubeMap(int envmapVar, int additionalCreationFlags = 0) {
 		if (Params == null || envmapVar == -1)
 			return;
 
 		IMaterialVar nameVar = Params[envmapVar];
 		if (nameVar != null && nameVar.IsDefined()) {
-			// TODO: ShaderInit.LoadCubeMap(Params, nameVar, additionalCreationFlags);
+			ShaderInit!.LoadCubeMap(Params, nameVar, additionalCreationFlags);
 		}
 	}
 
@@ -229,5 +246,54 @@ public abstract class BaseShader : IShader
 
 		float alpha = parms[(int)ShaderMaterialVars.Alpha].GetFloatValue();
 		return Math.Clamp(alpha, 0, 1);
+	}
+
+	protected float GetAlpha() => GetAlpha(Params);
+
+	protected void ApplyColor2Factor(Span<float> colorOut) {
+		IMaterialVar[] shaderParams = Params!;
+
+		IMaterialVar color2Var = shaderParams[(int)ShaderMaterialVars.Color2];
+		if (color2Var.GetVarType() == MaterialVarType.Vector) {
+			Span<float> color2 = stackalloc float[3];
+			color2Var.GetVecValue(color2);
+			colorOut[0] *= color2[0];
+			colorOut[1] *= color2[1];
+			colorOut[2] *= color2[2];
+		}
+
+		if (HardwareConfig.UsesSRGBCorrectBlending()) {
+			IMaterialVar pSRGBVar = shaderParams[(int)ShaderMaterialVars.SRGBTint];
+			if (pSRGBVar.GetVarType() == MaterialVarType.Vector) {
+				Span<float> SRGB = stackalloc float[3];
+				pSRGBVar.GetVecValue(SRGB);
+				colorOut[0] *= SRGB[0];
+				colorOut[1] *= SRGB[1];
+				colorOut[2] *= SRGB[2];
+			}
+		}
+	}
+
+	protected void ComputeModulationColor(Span<float> color) {
+		Assert(!IsSnapshotting());
+		IMaterialVar[] shaderParams = Params!;
+		if (shaderParams == null)
+			return;
+
+		IMaterialVar colorVar = shaderParams[(int)ShaderMaterialVars.Color];
+		if (colorVar.GetVarType() == MaterialVarType.Vector)
+			colorVar.GetVecValue(color[..3]);
+		else
+			color[0] = color[1] = color[2] = colorVar.GetFloatValue();
+
+		ApplyColor2Factor(color);
+
+		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
+		if (!config.ShowDiffuse)
+			color[0] = color[1] = color[2] = 0.0f;
+		if (config.Fullbright == 2)
+			color[0] = color[1] = color[2] = 1.0f;
+
+		color[3] = GetAlpha();
 	}
 }

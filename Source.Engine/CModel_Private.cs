@@ -474,7 +474,23 @@ public static partial class CM
 	}
 
 	internal static void PostStab(TraceInfo traceInfo) {
-
+		//
+		// only need to resolve things that impacted against a displacement surface,
+		// this is partially resolved in the post trace phase -- so just use that
+		// data to determine
+		//
+		if (traceInfo.DispHit != 0 && traceInfo.Trace.StartSolid) {
+			traceInfo.Trace.AllSolid = true;
+			traceInfo.Trace.Fraction = 0.0f;
+			traceInfo.Trace.FractionLeftSolid = 0.0f;
+		}
+		else {
+			traceInfo.Trace.StartSolid = false;
+			traceInfo.Trace.AllSolid = false;
+			traceInfo.Trace.Contents = 0;
+			traceInfo.Trace.Fraction = 1.0f;
+			traceInfo.Trace.FractionLeftSolid = 0.0f;
+		}
 	}
 
 	internal static unsafe void UnsweptBoxTrace(TraceInfo traceInfo, in Ray ray, int headnode, Mask brushmask) {

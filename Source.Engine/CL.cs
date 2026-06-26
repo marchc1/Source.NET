@@ -27,7 +27,10 @@ namespace Source.Engine;
 /// </summary>
 public partial class CL(IServiceProvider services, Net Net,
 	ClientGlobalVariables clientGlobalVariables, ServerGlobalVariables serverGlobalVariables,
-	CommonHostState host_state, Host Host, Cbuf Cbuf, IEngineVGuiInternal? EngineVGui, Scr Scr,
+	CommonHostState host_state, Host Host, Cbuf Cbuf, Scr Scr,
+#if !SWDS
+	IEngineVGuiInternal? EngineVGui,
+#endif
 	Shader Shader, ClientDLL ClientDLL, EngineRecvTable RecvTable, Sound Sound)
 {
 	public IPrediction ClientSidePrediction => ClientDLL.ClientSidePrediction;
@@ -216,8 +219,10 @@ public partial class CL(IServiceProvider services, Net Net,
 	}
 
 	public void FullyConnected() {
+#if !SWDS
 		EngineVGui?.UpdateProgressBar(LevelLoadingProgress.FullyConnected);
-		// Static prop manager level init client
+#endif
+		StaticPropMgr().LevelInitClient();
 
 		// Flush dynamic models
 		// modelloader.FlushDynamicModels();
@@ -244,11 +249,13 @@ public partial class CL(IServiceProvider services, Net Net,
 
 		int queryPort = GetServerQueryPort();
 
+#if !SWDS
 		EngineVGui!.NotifyOfServerConnect(Common.Gamedir, (int)ip, port, queryPort);
 		EngineVGui!.UpdateProgressBar(LevelLoadingProgress.ReadyToPlay);
-		#if GMOD_DLL
+#endif
+#if GMOD_DLL && !SWDS
 		launcherMgr.FlashWindow(true);
-		#endif
+#endif
 		// MDL cache end map load
 
 		if (Host.developer.GetInt() > 0)
@@ -267,9 +274,13 @@ public partial class CL(IServiceProvider services, Net Net,
 		if (strcmp(address[..Math.Min(address.Length, 9)], "localhost") != 0) {
 			Host.Disconnect(false);
 			Net.SetMultiplayer(true);
+#if !SWDS
 			EngineVGui?.EnabledProgressBarForNextLoad();
+#endif
 			Scr.BeginLoadingPlaque();
+#if !SWDS
 			EngineVGui?.UpdateProgressBar(LevelLoadingProgress.BeginConnect);
+#endif
 		}
 		else {
 			cl.Disconnect("Connecting to local host", false);
@@ -747,7 +758,11 @@ public partial class CL(IServiceProvider services, Net Net,
 /// Loads and shuts down the client DLL
 /// </summary>
 /// <param name="services"></param>
-public class ClientDLL(IServiceProvider services, Sys Sys, EngineRecvTable RecvTable)
+public class ClientDLL(IServiceProvider services, Sys Sys
+#if !SWDS
+, EngineRecvTable RecvTable
+#endif
+)
 {
 	public IBaseClientDLL clientDLL;
 	public IPrediction ClientSidePrediction;
@@ -777,9 +792,10 @@ public class ClientDLL(IServiceProvider services, Sys Sys, EngineRecvTable RecvT
 			ErrorIfNot(nRecvTables < MAX_DATATABLES, "ClientDLL_InitRecvTableMgr: overflowed MAX_DATATABLES");
 			recvTables[nRecvTables++] = cur.RecvTable;
 		}
-
+#if !SWDS
 		RecvTable.Init(recvTables.AsSpan()[..nRecvTables]!); // << ! is acceptable here; anything beyond recvTables is null, anything before it shouldnt be
-																												 // (and if something is null before that point something else is already horribly broken)
+															 // (and if something is null before that point something else is already horribly broken)
+#endif
 	}
 
 	public void Update() {

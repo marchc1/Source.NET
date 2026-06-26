@@ -11,7 +11,8 @@ using Source.Engine.Server;
 using System.Numerics;
 namespace Source.Engine;
 
-public enum ClockSyncIndex {
+public enum ClockSyncIndex
+{
 	Client = 0,
 	Server = 1,
 	Num = 2
@@ -38,14 +39,14 @@ public partial class Sound
 	readonly ConVar snd_mix_async = new("snd_mix_async", "0", 0);
 
 	public bool Initialized;
-	readonly IAudioSystem AudioSystem = Singleton<IAudioSystem>();
+	readonly IAudioSystem? AudioSystem = OptionalSingleton<IAudioSystem>();
 
 	public void Init() {
 		DevMsg("Sound Initialization: Start\n");
 		// TODO: Vox
 
 		Initialized = true;
-		AudioSystem.Init();
+		AudioSystem?.Init();
 
 		StopAllSounds(true);
 		// AllocDsps?
@@ -107,8 +108,8 @@ public partial class Sound
 			return StartDynamicSound(parms);
 	}
 
-	private long StartDynamicSound(in StartSoundParams parms) => AudioSystem.StartDynamicSound(in parms);
-	private long StartStaticSound(in StartSoundParams parms) => AudioSystem.StartStaticSound(in parms);
+	private long StartDynamicSound(in StartSoundParams parms) => AudioSystem?.StartDynamicSound(in parms) ?? 0;
+	private long StartStaticSound(in StartSoundParams parms) => AudioSystem?.StartStaticSound(in parms) ?? 0;
 	internal void Shutdown() { }
 
 	Vector3 ListenerOrigin;

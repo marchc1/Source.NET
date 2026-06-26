@@ -69,6 +69,10 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 	}
 
+	public void SetBodygroup(int group, int value) {
+		Animation.SetBodygroup(GetModelPtr(), ref Body, group, value);
+	}
+
 	float GroundSpeed;
 	const TimeUnit_t MAX_ANIMTIME_INTERVAL = 0.2;
 	public TimeUnit_t GetAnimTimeInterval() => Math.Min(gpGlobals.CurTime - AnimTime, MAX_ANIMTIME_INTERVAL);
@@ -1231,6 +1235,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public void InvalidateMdlCache() {
 		UnlockStudioHdr();
 	}
+
 
 	public bool IsModelScaleFractional() => ModelScale < 1.0f;
 	public bool IsModelScaled() => ModelScale > 1.0f + float.Epsilon || ModelScale < 1.0f - float.Epsilon;

@@ -29,8 +29,8 @@ public static class ShaderDefines
 
 	public static void ClearFlags(Span<IMaterialVar> shaderParams, int flag)
 		=> shaderParams[(int)ShaderMaterialVars.Flags].SetIntValue(shaderParams[(int)ShaderMaterialVars.Flags].GetIntValue() & ~flag);
-	public static void ClearFlags(Span<IMaterialVar> shaderParams, MaterialVarFlags flag) => SetFlags(shaderParams, (int)flag);
+	public static void ClearFlags(Span<IMaterialVar> shaderParams, MaterialVarFlags flag) => ClearFlags(shaderParams, (int)flag);
 	public static void ClearFlags2(Span<IMaterialVar> shaderParams, int flag)
 		=> shaderParams[(int)ShaderMaterialVars.Flags2].SetIntValue(shaderParams[(int)ShaderMaterialVars.Flags2].GetIntValue() & ~flag);
-	public static void ClearFlags2(Span<IMaterialVar> shaderParams, MaterialVarFlags2 flag) => SetFlags2(shaderParams, (int)flag);
+	public static void ClearFlags2(Span<IMaterialVar> shaderParams, MaterialVarFlags2 flag) => ClearFlags2(shaderParams, (int)flag);
 }

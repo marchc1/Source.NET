@@ -137,7 +137,7 @@ public partial class C_BaseAnimatingOverlay : C_BaseAnimating
 			// render bounds may have changed
 			UpdateVisibility();
 	}
-	public override void AccumulateLayers(ref BoneSetup boneSetup, Span<AngularImpulse> pos, Span<Quaternion> q, double currentTime) {
+	public override void AccumulateLayers(ref BoneSetup boneSetup, Span<Vector3> pos, Span<Quaternion> q, double currentTime) {
 		base.AccumulateLayers(ref boneSetup, pos, q, currentTime);
 
 		int i;

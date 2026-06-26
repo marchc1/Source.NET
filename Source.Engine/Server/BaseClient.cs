@@ -24,7 +24,9 @@ namespace Source.Engine.Server;
 public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageHandler, IDisposable
 {
 	protected readonly FrameSnapshotManager framesnapshotmanager = Singleton<FrameSnapshotManager>();
-
+	public void SetReportThisFakeClient(bool report){
+		ReportFakeClient = report;
+	}
 	public int GetPlayerSlot() => ClientSlot;
 	public int GetUserID() => UserID;
 	// NetworkID?
@@ -166,7 +168,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		CheckFlushNameChange(showStatusMessage);
 	}
 
-	private void CheckFlushNameChange(bool showStatusMessage) {
+	public void CheckFlushNameChange(bool showStatusMessage = false) {
 		if (!IsConnected())
 			return;
 
@@ -193,6 +195,36 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		// Set the new name
 		TimeLastNameChange = Platform.Time;
 		SetName(PendingNameChange);
+	}
+
+	public void UpdateUserSettings(){
+		int rate = ConVars!.GetInt("rate", Source.Common.Networking.NetChannel.DEFAULT_RATE);
+
+		if (sv.IsActive()) {
+			// If we're running a local listen server then set the rate very high
+			// in order to avoid delays due to network throttling. This allows for
+			// easier profiling of other issues (it removes most of the frame-render
+			// time which can otherwise dominate profiles) and saves developer time
+			// by making maps and models load much faster.
+			if (rate == Source.Common.Networking.NetChannel.DEFAULT_RATE) {
+				// Only override the rate if the user hasn't customized it.
+				// The max rate should be a million or so in order to truly
+				// eliminate networking delays.
+				rate = Source.Common.Networking.NetChannel.MAX_RATE;
+			}
+		}
+
+		// set server to client network rate
+		SetRate(rate, false);
+
+		// set server to client update rate
+		SetUpdateRate(ConVars.GetInt("cl_updaterate", 20), false);
+
+		SetMaxRoutablePayloadSize(ConVars.GetInt("net_maxroutable", Protocol.MAX_ROUTABLE_PAYLOAD));
+
+		Server.UserInfoChanged(ClientSlot);
+
+		ConVarsChanged = false;
 	}
 
 	public static readonly ConVar sv_namechange_cooldown_seconds = new("sv_namechange_cooldown_seconds", "30.0", 0, "When a client name change is received, wait N seconds before allowing another name change");
@@ -336,7 +368,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		SendNetMsg(signonState);
 	}
 
-	protected virtual void ActivatePlayer() {
+	public virtual void ActivatePlayer() {
 		Common.TimestampedLog("CBaseClient::ActivatePlayer");
 
 		Server.UserInfoChanged(ClientSlot);
@@ -1037,8 +1069,11 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	}
 
 	public void ClientPrintf(ReadOnlySpan<char> fmt) {
-		// throw new NotImplementedException();
-		DevMsg($"ClientPrintf: {fmt}\n");
+		if (NetChannel == null)
+			return;
+
+		SVC_Print print = new SVC_Print(fmt);
+		NetChannel.SendNetMsg(print);
 	}
 
 	public bool IsHearingClient(int index) {

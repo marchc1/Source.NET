@@ -5,6 +5,7 @@ using Game.Shared;
 using Source;
 using Source.Common;
 using Source.Common.Commands;
+using Source.Common.Engine;
 using Source.Common.Mathematics;
 
 using System.Numerics;
@@ -13,9 +14,6 @@ namespace Game.Server;
 
 public static class EntityListGlobals
 {
-	public static readonly GlobalEntityList gEntList = new();
-	public static BaseEntityList g_pEntityList = gEntList;
-
 	[ConCommand("report_entities", "List all entities")]
 	static void report_entities() {
 		if (!Util.IsCommandIssuedByServerAdmin())
@@ -32,11 +30,13 @@ public static class EntityListGlobals
 	}
 }
 
-internal class EntItem{
+internal class EntItem
+{
 	public EHANDLE Ent;
 	public EntItem? Next;
 }
-public class EntityList {
+public class EntityList
+{
 	int NumItems;
 	EntItem? ItemList;
 
@@ -74,9 +74,9 @@ public class EntityList {
 		while (e != null) {
 			// delete the link if it's the matching entity OR if the link is NULL
 			if (e.Ent.Get<BaseEntity>() == ent || e.Ent.Get<BaseEntity>() == null) {
-				if (prev != null) 
+				if (prev != null)
 					prev.Next = e.Next;
-				else 
+				else
 					ItemList = e.Next;
 
 				NumItems--;
@@ -176,7 +176,7 @@ public class GlobalEntityList : BaseEntityList
 		ClearingEntities = false;
 	}
 
-	readonly static List<IServerNetworkable> g_DeleteList;
+	readonly static List<IServerNetworkable> g_DeleteList = [];
 
 	public void AddToDeleteList(IServerNetworkable? ent) {
 		if (ent != null && ent.GetEntityHandle().GetRefEHandle().Index != Constants.INVALID_EHANDLE_INDEX)
@@ -386,6 +386,14 @@ public class GlobalEntityList : BaseEntityList
 		NumEnts = 0;
 		ClearingEntities = false;
 	}
+
+	public Edict? GetEdict(EntityHandle_t ent) {
+		IServerUnknown? unk = (IServerUnknown?)LookupEntity(ent);
+		if (unk != null)
+			return unk.GetNetworkable()!.GetEdict();
+		else
+			return null;
+	}
 }
 
 struct SimThinkEntry
@@ -484,6 +492,74 @@ public class SimThinkManager : IEntityListener
 						EntEntry = (ushort)index,
 						NextThinkTick = 0
 					};
+			}
+		}
+	}
+}
+
+public struct RespawnEntitiesFilter : IMapEntityFilter
+{
+	public BaseEntity? CreateNextEntity(ReadOnlySpan<char> className) => CreateEntityByName(className);
+	public bool ShouldCreateEntity(ReadOnlySpan<char> className) => stricmp(className, "worldspawn") != 0;
+}
+
+public class EntityListSystem : AutoGameSystemPerFrame
+{
+	public static EntityListSystem g_EntityListSystem = new();
+	public static void RespawnEntities() => g_EntityListSystem.RespawnAllEntities = true;
+	bool RespawnAllEntities;
+
+	public override void LevelInitPreEntity() {
+		SimThinkManager.g_SimThinkManager.LevelInitPreEntity();
+	}
+	public override void LevelShutdownPostEntity() {
+		SimThinkManager.g_SimThinkManager.LevelShutdownPostEntity();
+	}
+
+	public override void FrameUpdatePostEntityThink() {
+		// g_TouchManager.FrameUpdatePostEntityThink();
+
+		if (RespawnAllEntities) {
+			RespawnAllEntities = false;
+
+			// Don't change globalstate owing to deletion here
+			GlobalEntity_EnableStateUpdates(false);
+
+			// Remove all entities
+			int nPlayerIndex = -1;
+			BaseEntity? ent = gEntList.FirstEnt();
+			while (ent != null) {
+				BaseEntity? nextEnt = gEntList.NextEnt(ent);
+				if (ent.IsPlayer())
+					nPlayerIndex = ent.EntIndex();
+
+				if (!ent.IsEFlagSet(EFL.KeepOnRecreateEntities))
+					Util.Remove(ent);
+
+				ent = nextEnt;
+			}
+
+			gEntList.CleanupDeleteList();
+
+			GlobalEntity_EnableStateUpdates(true);
+
+			// Allows us to immediately re-use the edict indices we just freed to avoid edict overflow
+			engine.AllowImmediateEdictReuse();
+
+			// Reset node counter used during load
+			// NodeEnt.m_nNodeCount = 0; todo
+
+			RespawnEntitiesFilter filter = new();
+			MapEntity_ParseAllEntities(engine.GetMapEntitiesString(), ref filter, true);
+
+			// Allocate a CBasePlayer for pev, and call spawn
+			if (nPlayerIndex >= 0) {
+				Edict? edict = engine.PEntityOfEntIndex(nPlayerIndex);
+				ClientPutInServer(edict, "unnamed");
+				ClientActive(edict, false);
+
+				BasePlayer? player = (BasePlayer?)BaseEntity.Instance(edict);
+				// SceneManager_ClientActive(player);
 			}
 		}
 	}

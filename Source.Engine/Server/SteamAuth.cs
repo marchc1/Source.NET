@@ -5,8 +5,12 @@ using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Networking;
 using Source.Common.Server;
+using Source.Engine.Steam;
 
 using Steamworks;
+
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 
 namespace Source.Engine.Server;
 
@@ -19,16 +23,39 @@ public enum ServerType
 [EngineComponent]
 public static class Steam3ServerAccessor
 {
-	[Dependency] static Steam3Server _server = null!;
-	public static Steam3Server Steam3Server() => _server;
+	[Dependency] static Steam3ServerImpl _server = null!;
+	public static Steam3ServerImpl Steam3Server() => _server;
 }
 
 [EngineComponent]
-public class Steam3Server : IDisposable
+public class Steam3ServerImpl : IDisposable
 {
 	readonly ICommandLine CommandLine;
-	public Steam3Server(ICommandLine commandLine) {
+	readonly Net Net;
+
+	// These exist as wrappers to the static methods
+	// (kind of a stupid way to implement this, but its easiest right now
+	readonly ISteamClient __SteamClient = new ImplSteamClient();
+	readonly ISteamGameServer __SteamGameServer = new ImplSteamGameServer();
+	readonly ISteamUtils __SteamUtils = new ImplSteamUtils();
+	readonly ISteamNetworking __SteamNetworking = new ImplSteamNetworking();
+	readonly ISteamGameServerStats __SteamGameServerStats = new ImplSteamGameServerStats();
+	readonly ISteamHTTP __SteamHTTP = new ImplSteamHTTP();
+	readonly ISteamInventory __SteamInventory = new ImplSteamInventory();
+	readonly ISteamUGC __SteamUGC = new ImplSteamUGC();
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ISteamClient SteamClient() => HasSteamGameServer() ? __SteamClient : null!;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ISteamGameServer SteamGameServer() => HasSteamGameServer() ? __SteamGameServer : null!;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ISteamUtils SteamGameServerUtils() => HasSteamGameServer() ? __SteamUtils : null!;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ISteamNetworking SteamGameServerNetworking() => HasSteamGameServer() ? __SteamNetworking : null!;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ISteamGameServerStats SteamGameServerStats() => HasSteamGameServer() ? __SteamGameServerStats : null!;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ISteamHTTP SteamHTTP() => HasSteamGameServer() ? __SteamHTTP : null!;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ISteamInventory SteamInventory() => HasSteamGameServer() ? __SteamInventory : null!;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ISteamUGC SteamUGC() => HasSteamGameServer() ? __SteamUGC : null!;
+
+	public Steam3ServerImpl(ICommandLine commandLine, Net net) {
 		CommandLine = commandLine;
+		Net = net;
 
 		HasActivePlayers = false;
 		LogOnResult = false;
@@ -67,16 +94,6 @@ public class Steam3Server : IDisposable
 
 	CSteamID SteamIDGroupForBlocking;
 
-	public bool BSecure() => IsSteamServerNotNull() && SteamGameServer.BSecure();
-	public bool BIsActive() => IsSteamServerNotNull() && ServerMode >= EServerMode.eServerModeNoAuthentication;
-	public bool BLanOnly() => IsSteamServerNotNull() && ServerMode == EServerMode.eServerModeNoAuthentication;
-	public bool BWantsSecure() => IsSteamServerNotNull() && ServerMode == EServerMode.eServerModeAuthenticationAndSecure;
-	public bool BLoggedOn() => IsSteamServerNotNull() && SteamGameServer.BLoggedOn();
-
-	public SteamIPAddress_t GetPublicIP() {
-		return SteamGameServer.GetPublicIP();
-	}
-
 	public EServerMode GetCurrentServerMode() {
 		if (SV.sv_lan.GetBool())
 			return EServerMode.eServerModeNoAuthentication;
@@ -85,6 +102,12 @@ public class Steam3Server : IDisposable
 		else
 			return EServerMode.eServerModeAuthenticationAndSecure;
 	}
+
+	public bool BSecure() => SteamGameServer()?.BSecure() ?? false;
+	public bool BIsActive() => SteamGameServer() != null && (ServerMode >= EServerMode.eServerModeNoAuthentication);
+	public bool BLanOnly() => ServerMode == EServerMode.eServerModeNoAuthentication;
+	public bool BWantsSecure() => ServerMode == EServerMode.eServerModeAuthenticationAndSecure;
+	public bool BLoggedOn() => SteamGameServer()?.BLoggedOn() ?? false;
 
 	public void Activate(ServerType serverType) {
 		if (GetCurrentServerMode() == ServerMode && ServerType == serverType)
@@ -102,6 +125,12 @@ public class Steam3Server : IDisposable
 		ServerMode = GetCurrentServerMode();
 		ServerType = serverType;
 
+		ReadOnlySpan<char> gamedir = StrTools.FileBase(Common.Gamedir, stackalloc char[MAX_OSPATH]);
+
+		ushort gamePort = 0;
+		if (serverType == ServerType.Normal)
+			gamePort = (ushort)Net.GetUDPPort(NetSocketType.Server);
+
 		switch (ServerMode) {
 			case EServerMode.eServerModeNoAuthentication:
 				Msg("Initializing Steam libraries for LAN server\n");
@@ -118,9 +147,32 @@ public class Steam3Server : IDisposable
 				break;
 		}
 
+		Steamworks.GameServer.Init(IP, gamePort, (ushort)(Port + 1), ServerMode, GetSteamInfIDVersionInfo().PatchVersion);
+
 		if (!Init()) {
 			Assert(false);
 			return;
+		}
+
+		if (sv.IsDedicated())
+			SteamAPI_SetBreakpadAppID((uint)GetSteamInfIDVersionInfo().ServerAppID);
+
+		SteamGameServer()!.SetProduct(GetSteamInfIDVersionInfo().ProductName);
+		SteamGameServer()!.SetGameDescription(serverGameDLL.GetGameDescription());
+		SteamGameServer()!.SetDedicatedServer(sv.IsDedicated());
+		SteamGameServer()!.SetModDir(gamedir);
+
+		if (AccountToken == null) {
+			WantsPersistentAccountLogon = false;
+			Msg("No account token specified; logging into anonymous game server account. (Use sv_setsteamaccount to login to a persistent account.)\n");
+			SteamGameServer()!.LogOnAnonymous();
+		}
+		else {
+			WantsPersistentAccountLogon = true;
+			Msg("Logging into Steam game server account\n");
+
+			// TODO: Change this to use just the token when the SDK is updated
+			SteamGameServer()!.LogOn(AccountToken);
 		}
 	}
 	protected Callback<SteamServersConnected_t> m_CallbackSteamServersConnected = null!;
@@ -131,8 +183,6 @@ public class Steam3Server : IDisposable
 	protected Callback<P2PSessionRequest_t> m_CallbackP2PSessionRequest = null!;
 	protected Callback<P2PSessionConnectFail_t> m_CallbackP2PSessionConnectFail = null!;
 	public bool Init() {
-		SteamAPI.Init();
-
 		m_CallbackSteamServersConnected = Callback<SteamServersConnected_t>.CreateGameServer(OnLogonSuccess);
 		m_CallbackSteamServersConnectFailure = Callback<SteamServerConnectFailure_t>.CreateGameServer(OnLogonFailure);
 		m_CallbackSteamServersDisconnected = Callback<SteamServersDisconnected_t>.CreateGameServer(OnLoggedOff);
@@ -154,12 +204,12 @@ public class Steam3Server : IDisposable
 
 		if (!BLanOnly()) {
 			Msg("Connection to Steam servers successful.\n");
-			SteamIPAddress_t ip = SteamGameServer.GetPublicIP();
+			SteamIPAddress_t ip = SteamGameServer()!.GetPublicIP();
 			Msg($"   Public IP is {ip.ToIPAddress()}\n");
 		}
 
-		if (SteamGameServer.GetSteamID().IsValid()) {
-			SteamIDGS = SteamGameServer.GetSteamID();
+		if (SteamGameServer()!.GetSteamID().IsValid()) {
+			SteamIDGS = SteamGameServer().GetSteamID();
 			if (SteamIDGS.BAnonGameServerAccount())
 				Msg($"Assigned anonymous gameserver Steam ID {SteamIDGS}.\n");
 			else if (SteamIDGS.BPersistentGameServerAccount())
@@ -261,11 +311,11 @@ public class Steam3Server : IDisposable
 			sprintf(msg, "\"%s<%i><%s><>\" STEAM USERID validated\n").S(client.GetClientName()).I(client.GetUserID()).S(client.GetNetworkIDString());
 
 			DevMsg(msg);
-			SV.ServerGameClients.NetworkIDValidated(client.GetClientName(), client.GetNetworkIDString());
+			SV.ServerGameClients!.NetworkIDValidated(client.GetClientName(), client.GetNetworkIDString());
 		}
 
 		if (sv_steamblockingcheck.GetInt() >= 1)
-			SteamGameServer.ComputeNewPlayerCompatibility(validateAuthTicketResponse.m_SteamID);
+			SteamGameServer().ComputeNewPlayerCompatibility(validateAuthTicketResponse.m_SteamID);
 
 		client.SetFullyAuthenticated();
 	}
@@ -379,7 +429,7 @@ public class Steam3Server : IDisposable
 
 				if (cl.SteamID.IsValid()) {
 					Assert(cl.SteamID.BAnonGameServerAccount());
-					SteamGameServer.SendUserDisconnect_DEPRECATED(cl.SteamID);
+					SteamGameServer().SendUserDisconnect_DEPRECATED(cl.SteamID);
 					cl.SteamID = new();
 				}
 			}
@@ -387,14 +437,14 @@ public class Steam3Server : IDisposable
 
 		// sv_visiblemaxplayers todo
 
-		SteamGameServer.SetMaxPlayerCount(nMaxClients);
-		SteamGameServer.SetBotPlayerCount(nFakeClients);
-		SteamGameServer.SetPasswordProtected(!sv.GetPassword().IsEmpty);
-		SteamGameServer.SetRegion(BaseServer.sv_region.GetString());
-		SteamGameServer.SetServerName(new(sv.GetName()));
-		SteamGameServer.SetMapName(new(sv.GetMapName()));
+		SteamGameServer().SetMaxPlayerCount(nMaxClients);
+		SteamGameServer().SetBotPlayerCount(nFakeClients);
+		SteamGameServer().SetPasswordProtected(!sv.GetPassword().IsEmpty);
+		SteamGameServer().SetRegion(BaseServer.sv_region.GetString());
+		SteamGameServer().SetServerName(sv.GetName());
+		SteamGameServer().SetMapName(sv.GetMapName());
 
-		SteamGameServer.SetSpectatorPort(0);
+		SteamGameServer().SetSpectatorPort(0);
 
 		// UpdateGroupSteamID(false);
 	}
@@ -441,7 +491,7 @@ public class Steam3Server : IDisposable
 		// case for bots.  Currently it's also the case for people who connect
 		// directly to the SourceTV port.
 		if (client.SteamID.GetEAccountType() == EAccountType.k_EAccountTypeAnonGameServer) {
-			SteamGameServer.SendUserDisconnect_DEPRECATED(client.SteamID);
+			SteamGameServer().SendUserDisconnect_DEPRECATED(client.SteamID);
 
 			// Clear the steam ID, as it was a dummy one that should not be used again
 			client.SteamID = new CSteamID(new AccountID_t(0), EUniverse.k_EUniverseInvalid, EAccountType.k_EAccountTypeInvalid);
@@ -456,7 +506,7 @@ public class Steam3Server : IDisposable
 				return;
 
 			// Msg("S3: Sending client disconnect for %x\n", steamIDClient.ConvertToUint64( ) );
-			SteamGameServer.EndAuthSession(client.SteamID);
+			SteamGameServer().EndAuthSession(client.SteamID);
 		}
 	}
 
@@ -472,7 +522,7 @@ public class Steam3Server : IDisposable
 		double CurTime = Platform.Time;
 		if (CurTime - LastRunCallback > 0.1f) {
 			LastRunCallback = CurTime;
-			// Steam3Server.RunCallbacks(); //todo?
+			SteamGameServer_RunCallbacks();
 		}
 	}
 
@@ -483,8 +533,7 @@ public class Steam3Server : IDisposable
 	internal bool NotifyLocalClientConnect(BaseClient client) {
 		CSteamID steamID = default;
 
-		if (IsSteamServerNotNull())
-			steamID = SteamGameServer.CreateUnauthenticatedUserConnection();
+		steamID = SteamGameServer()?.CreateUnauthenticatedUserConnection() ?? default;
 		client.SetSteamID(steamID);
 
 		SendUpdatedServerDetails();
@@ -508,8 +557,8 @@ public class Steam3Server : IDisposable
 		ulong ulSteamID = br.Read<ulong>();
 
 		CSteamID steamID = new(ulSteamID);
-		if (steamID.GetEUniverse() != SteamGameServer.GetSteamID().GetEUniverse()) {
-			Warning($"Client {unUserID} {steamID.Render()} connected to universe {steamID.GetEUniverse()}, but game server {SteamGameServer.GetSteamID().Render()} is running in universe {SteamGameServer.GetSteamID().GetEUniverse()}\n");
+		if (steamID.GetEUniverse() != SteamGameServer().GetSteamID().GetEUniverse()) {
+			Warning($"Client {unUserID} {steamID.Render()} connected to universe {steamID.GetEUniverse()}, but game server {SteamGameServer().GetSteamID().Render()} is running in universe {SteamGameServer().GetSteamID().GetEUniverse()}\n");
 			return false;
 		}
 		if (!steamID.IsValid() || !steamID.BIndividualAccount()) {
@@ -519,7 +568,7 @@ public class Steam3Server : IDisposable
 
 		pvCookie = pvCookie[sizeof(ulong)..];
 		ucbCookie -= sizeof(ulong);
-		EBeginAuthSessionResult eResult = SteamGameServer.BeginAuthSession(pvCookie.ToArray() /* This sucks, but Steamworks.NET forces our hand */, ucbCookie, steamID);
+		EBeginAuthSessionResult eResult = SteamGameServer().BeginAuthSession(pvCookie.ToArray() /* This sucks, but Steamworks.NET forces our hand */, ucbCookie, steamID);
 		switch (eResult) {
 			case EBeginAuthSessionResult.k_EBeginAuthSessionResultOK:
 				break;

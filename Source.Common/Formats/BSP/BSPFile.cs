@@ -1,5 +1,4 @@
 using System.Numerics;
-using GameLumpId_t = int;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Source.Common.Mathematics;
@@ -15,8 +14,8 @@ public static class BSPFileCommon
 	public const int MINBSPVERSION = 19;
 	public const int BSPVERSION = 20;
 
-	public const int MAX_BRUSH_LIGHTMAP_DIM_WITHOUT_BORDER = 32;
-	public const int MAX_BRUSH_LIGHTMAP_DIM_INCLUDING_BORDER = 35;
+	public const int MAX_BRUSH_LIGHTMAP_DIM_WITHOUT_BORDER = 125;
+	public const int MAX_BRUSH_LIGHTMAP_DIM_INCLUDING_BORDER = 128;
 
 	public const int MAX_DISP_LIGHTMAP_DIM_WITHOUT_BORDER = 125;
 	public const int MAX_DISP_LIGHTMAP_DIM_INCLUDING_BORDER = 128;
@@ -350,6 +349,7 @@ public struct BSPLumpFileHeader
 /// <summary>
 /// Analog of dgamelumpheader_t
 /// </summary>
+[StructLayout(LayoutKind.Sequential)]
 public struct BSPDGameLumpHeader
 {
 	public int LumpCount;
@@ -617,7 +617,7 @@ public struct DispNeighbor
 	public void SetInvalid() { SubNeighbors[0].SetInvalid(); SubNeighbors[1].SetInvalid(); }
 	public bool IsValid() => SubNeighbors[0].IsValid() || SubNeighbors[1].IsValid();
 
-	InlineArray2<DispSubNeighbor> SubNeighbors;
+	public InlineArray2<DispSubNeighbor> SubNeighbors;
 }
 
 
@@ -673,7 +673,7 @@ public struct BSPDDispInfo
 	public int LightmapSamplePositionStart;
 	public InlineArray4<DispNeighbor> EdgeNeighbors;
 	public InlineArray4<DispCornerNeighbors> CornerNeighbors;
-	InlineArray10<int> AllowedVerts;
+	public InlineArray10<int> AllowedVerts;
 }
 
 /// <summary>

@@ -20,6 +20,7 @@ using System.Numerics;
 
 namespace Source.Engine;
 
+#if !SWDS
 public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host Host,
 							IMaterialSystem materials, MaterialSystem_Config MaterialSystemConfig,
 							MatSysInterface MatSys, ModelLoader modelloader) : IEngineClient
@@ -29,7 +30,11 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		"background05".CopyTo(dest);
 	}
 
-	public void Con_NXPrintf(in Con_NPrint_s np, ReadOnlySpan<char> text) => Con.NXPrintF(in np, text);
+	public void Con_NXPrintf(in Con_NPrint_s np, ReadOnlySpan<char> text) {
+#if !SWDS
+		Con.NXPrintF(in np, text);
+#endif
+	}
 
 	public bool IsDrawingLoadingImage() => Scr.DrawLoading;
 
@@ -90,7 +95,12 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		return true;
 	}
 
-	public bool Con_IsVisible() => Con.IsVisible();
+	public bool Con_IsVisible() =>
+#if SWDS
+		false;
+#else
+		 Con.IsVisible();
+#endif
 
 	ReadOnlySpan<byte> IEngineClient.ParseFile(ReadOnlySpan<byte> data, Span<char> token) => Common.ParseFile(data, token);
 
@@ -235,42 +245,28 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		throw new NotImplementedException();
 	}
 
-	public ref readonly Matrix4x4 WorldToScreenMatrix() {
-		throw new NotImplementedException();
-	}
+	public ref readonly Matrix4x4 WorldToScreenMatrix() => ref g_EngineRenderer.WorldToScreenMatrix();
+	public ref readonly Matrix4x4 WorldToViewMatrix() => ref g_EngineRenderer.ViewMatrix();
 
-	public ref readonly Matrix4x4 WorldToViewMatrix() {
-		throw new NotImplementedException();
-	}
+	public int GameLumpVersion(int lumpId) => ModelLoader.GameLumpVersion(lumpId);
 
-	public int GameLumpVersion(int lumpId) {
-		throw new NotImplementedException();
-	}
-
-	public int GameLumpSize(int lumpId) {
-		throw new NotImplementedException();
-	}
-
+	public int GameLumpSize(int lumpId) => ModelLoader.GameLumpSize(lumpId);
 	public bool LoadGameLump(int lumpId, Span<byte> buffer) {
 		throw new NotImplementedException();
 	}
 
-	public int LevelLeafCount() {
-		throw new NotImplementedException();
-	}
-
+	public int LevelLeafCount() => host_state.WorldBrush!.Leafs!.Length;
 	public ISpatialQuery? GetBSPTreeQuery() {
 		throw new NotImplementedException();
 	}
 
 	public void LinearToGamma(Span<float> linear, Span<float> gamma) {
-		throw new NotImplementedException();
+		gamma[0] = MathLib.LinearToTexture(linear[0]) / 255.0f;
+		gamma[1] = MathLib.LinearToTexture(linear[1]) / 255.0f;
+		gamma[2] = MathLib.LinearToTexture(linear[2]) / 255.0f;
 	}
 
-	public float LightStyleValue(int style) {
-		throw new NotImplementedException();
-	}
-
+	public float LightStyleValue(int style) => Render.LightStyleValue((byte)style);
 	public void ComputeDynamicLighting(in Vector3 pt, in Vector3 normal, out Vector3 color) {
 		throw new NotImplementedException();
 	}
@@ -280,7 +276,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public int GetDXSupportLevel() {
-		throw new NotImplementedException();
+		return 0;
 	}
 
 	public bool SupportsHDR() {
@@ -523,3 +519,4 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		throw new NotImplementedException();
 	}
 }
+#endif

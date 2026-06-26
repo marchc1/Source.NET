@@ -407,6 +407,11 @@ public static class SharedDefs
 	public const float AUTOAIM_SCALE_DEFAULT = 1.0f;
 	public const float AUTOAIM_SCALE_DIRECT_ONLY = 0.0f;
 
+	public const float AUTOAIM_2DEGREES = 0.0348994967025f;
+	public const float AUTOAIM_5DEGREES = 0.08715574274766f;
+	public const float AUTOAIM_8DEGREES = 0.1391731009601f;
+	public const float AUTOAIM_10DEGREES = 0.1736481776669f;
+	public const float AUTOAIM_20DEGREES = 0.3490658503989f;
 
 	public const int MAX_VIEWMODELS = 3;
 	public const int MAX_BEAM_ENTS = 10;
@@ -657,9 +662,20 @@ public static class TraceFieldProps
 	{
 #if CLIENT_DLL
 
-		public C_BaseEntity? Ent { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (C_BaseEntity?)tr.EntHandle; }
+		public C_BaseEntity? Ent {
+
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			get => (C_BaseEntity?)tr.EntHandle;
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			set => tr.EntHandle = (IHandleEntity?)value;
+		}
 #elif GAME_DLL
-		public BaseEntity? Ent { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => (BaseEntity?)tr.EntHandle; }
+		public BaseEntity? Ent {
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			get => (BaseEntity?)tr.EntHandle;
+			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			set => tr.EntHandle = (IHandleEntity?)value;
+		}
 
 #endif
 	}

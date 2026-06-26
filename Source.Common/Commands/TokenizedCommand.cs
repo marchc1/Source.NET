@@ -12,7 +12,7 @@ public struct TokenizedCommand
 
 	int argCount;
 	int strlen;
-	
+
 	char[]? argSBuffer;
 	Range[] ppArgs;
 
@@ -65,7 +65,7 @@ public struct TokenizedCommand
 	/// </summary>
 	/// <param name="index">A zero-indexed argument, zero will return the command name, and one is the start of the command arguments.</param>
 	public readonly double Arg(int index, double def = default) {
-		if (int.TryParse(Arg(index), null, out int r))
+		if (double.TryParse(Arg(index), null, out double r))
 			return r;
 		return def;
 	}

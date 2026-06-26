@@ -26,30 +26,29 @@ public struct GameMessageHandler
 
 public class Game : IGame
 {
-	readonly ILauncherManager? launcherManager;
+	ILauncherManager? launcherManager;
 	readonly Sys Sys;
 	readonly IFileSystem fileSystem;
-	readonly IInputSystem inputSystem;
-	readonly IMatSystemSurface surface;
+	IInputSystem? inputSystem;
+	readonly IMatSystemSurface? surface;
 	readonly IEngine eng;
 	readonly Host Host;
-	readonly IBaseClientDLL? clientDLL;
+	IBaseClientDLL? clientDLL;
 	readonly IServiceProvider services;
-	readonly Key Key;
-	public Game(Host host, ILauncherManager? launcherManager, IBaseClientDLL? clientDLL, Sys Sys, IFileSystem fileSystem, IInputSystem inputSystem, IMatSystemSurface surface, IEngine eng, IServiceProvider services, Key Key) {
+	readonly Key? Key;
+	public Game(Host host, Sys Sys, IFileSystem fileSystem, IEngine eng, IServiceProvider services) {
 		Host = host;
-
-		this.launcherManager = launcherManager;
 		this.Sys = Sys;
 		this.fileSystem = fileSystem;
-		this.inputSystem = inputSystem;
-		this.surface = surface;
 		this.eng = eng;
 		this.services = services;
-		this.Key = Key;
-		this.clientDLL = clientDLL;
+		clientDLL = services.GetService<IBaseClientDLL>();
+		inputSystem = services.GetService<IInputSystem>();
+		surface = services.GetService<IMatSystemSurface>();
+		this.Key = services.GetService<Key>();
+		launcherManager = OptionalSingleton<ILauncherManager>();
 	}
-	GameMessageHandler[] GameMessageHandlers;
+	GameMessageHandler[]? GameMessageHandlers;
 
 	void AppActivate(bool active) {
 		if (IsActiveApp() == active)
@@ -90,6 +89,7 @@ public class Game : IGame
 			new(InputEventType.System_Quit, HandleMsg_Close),
 		];
 
+		launcherManager = services.GetService<ILauncherManager>();
 		if (launcherManager == null) {
 			Sys.Error("Tried to call Game.CreateGameWindow without a valid ILauncherManager implementation.");
 			return false;
@@ -116,24 +116,28 @@ public class Game : IGame
 	}
 
 	private void AttachToWindow() {
-		inputSystem.AttachToWindow(window);
+#if !SWDS
+		inputSystem.AttachToWindow(window!);
 		inputSystem.EnableInput(true);
 		inputSystem.EnableMessagePump(false);
 
 		surface.AttachToWindow(window, true);
 		surface.EnableWindowsMessages(true);
+#endif
 	}
 
-	IWindow window;
+	IWindow? window;
 
 	public void DestroyGameWindow() {
 		throw new NotImplementedException();
 	}
 
 	public void DispatchAllStoredGameMessages() {
+#if !SWDS
 		foreach (var ev in inputSystem.GetEventData()) {
 			DispatchInputEvent(in ev);
 		}
+#endif
 	}
 
 	IEngineVGui? engineVGui;
@@ -145,13 +149,13 @@ public class Game : IGame
 			case InputEventType.IE_ButtonPressed:
 			case InputEventType.IE_ButtonDoubleClicked:
 			case InputEventType.IE_ButtonReleased:
-				Key.Event(in ev);
+				Key?.Event(in ev);
 				break;
 			default:
 				if (surface?.HandleInputEvent(in ev) ?? false)
 					break;
 
-				foreach (GameMessageHandler h in GameMessageHandlers) {
+				foreach (GameMessageHandler h in GameMessageHandlers!) {
 					if (h.EventType == ev.Type) {
 						h.Function(in ev);
 						break;
@@ -166,6 +170,11 @@ public class Game : IGame
 	uint DesktopHeight;
 	uint DesktopRefreshRate;
 	public void GetDesktopInfo(out uint width, out uint height, out uint refreshRate) {
+#if SWDS
+		width = 0;
+		height = 0;
+		refreshRate = 60;
+#else
 		// order of initialization means that this might get called early.  In that case go ahead and grab the current
 		// screen window and setup based on that.
 		// we need to do this when initializing the base list of video modes, for example
@@ -177,12 +186,13 @@ public class Game : IGame
 		width = DesktopWidth;
 		height = DesktopHeight;
 		refreshRate = DesktopRefreshRate;
+#endif
 	}
 
 	void UpdateDesktopInformation() => launcherManager!.GetNativeDisplayInfo(0, out DesktopWidth, out DesktopHeight, out DesktopRefreshRate);
 
 	public IWindow GetMainDeviceWindow() {
-		return window;
+		return window!;
 	}
 
 	public nint GetMainWindow() {
@@ -212,7 +222,7 @@ public class Game : IGame
 	}
 
 	public void InputDetachFromGameWindow() {
-		throw new NotImplementedException();
+
 	}
 
 	bool ActiveApp;

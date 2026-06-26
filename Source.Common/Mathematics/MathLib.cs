@@ -480,7 +480,7 @@ public static class MathLib
 	public static readonly byte[] texgammatable = new byte[256]; // palette is sent through this to convert to screen gamma
 
 	public static readonly float[] texturetolinear = new float[256];  // texture (0..255) to linear (0..1)
-	public static readonly int[] lineartotexture = new int [1024];   // linear (0..1) to texture (0..255)
+	public static readonly int[] lineartotexture = new int[1024];   // linear (0..1) to texture (0..255)
 	public static readonly int[] lineartoscreen = new int[1024];    // linear (0..1) to gamma corrected vertex light (0..255)
 
 	// build a lightmap texture to combine with surface texture, adjust for src*dst+dst*src, ramp reprogramming, etc
@@ -737,6 +737,41 @@ public static class MathLib
 		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(idx, 4);
 
 		return ref new Span<Vector4>(ref a).Cast<Vector4, float>()[idx];
+	}
+
+	// Returns which side(s) of a plane a box straddles: 1 = front, 2 = back, 3 = both (straddling).
+	// Analog of BOX_ON_PLANE_SIDE / BoxOnPlaneSide.
+	public static int BoxOnPlaneSide(in Vector3 emins, in Vector3 emaxs, in CollisionPlane p) {
+		// fast axial cases
+		int type = (byte)p.Type;
+		if (type < 3) {
+			if (p.Dist <= emins[type])
+				return 1;
+			if (p.Dist >= emaxs[type])
+				return 2;
+			return 3;
+		}
+
+		// general case: pick the corner that maximizes and minimizes the dot with the normal
+		Vector3 n = p.Normal;
+		Vector3 cmax, cmin;
+		cmax.X = n.X < 0.0f ? emins.X : emaxs.X;
+		cmin.X = n.X < 0.0f ? emaxs.X : emins.X;
+		cmax.Y = n.Y < 0.0f ? emins.Y : emaxs.Y;
+		cmin.Y = n.Y < 0.0f ? emaxs.Y : emins.Y;
+		cmax.Z = n.Z < 0.0f ? emins.Z : emaxs.Z;
+		cmin.Z = n.Z < 0.0f ? emaxs.Z : emins.Z;
+
+		float dist1 = Vector3.Dot(n, cmax);
+		float dist2 = Vector3.Dot(n, cmin);
+
+		int sides = 0;
+		if (dist1 >= p.Dist)
+			sides = 1;
+		if (dist2 < p.Dist)
+			sides |= 2;
+
+		return sides;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1011,6 +1046,9 @@ public static class MathLib
 		matrix[1, 1] = 1.0f;
 		matrix[2, 2] = 1.0f;
 	}
+	public static void SetIdentityMatrix(out Matrix4x4 matrix) {
+		matrix = Matrix4x4.Identity;
+	}
 
 	public static void MatrixInvert(in Matrix3x4 inM, out Matrix3x4 outM) {
 		outM = default;
@@ -1086,6 +1124,11 @@ public static class MathLib
 				 diff.Z <= toleranceVec.Z;
 	}
 
+	public static void Init(this ref Vector2 v, vec_t ix, vec_t iy) {
+		v.X = ix;
+		v.Y = iy;
+		Assert(IsValid(ref v));
+	}
 	public static void Init(this ref Vector2 v) => v.X = v.Y = 0;
 	public static void Init(this ref Vector3 v) => v.X = v.Y = v.Z = 0;
 	public static void Init(this ref QAngle a) => a.X = a.Y = a.Z = 0;
@@ -1476,8 +1519,19 @@ public static class MathLib
 		}
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorClear(out Vector3 v) => v = default;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DClear(out Vector2 v) => v = default;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out Vector3 outV) => outV = inV;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorCopy(in Vector3 inV, out QAngle outV) => outV = inV;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DCopy(in Vector2 inV, out Vector2 outV) => outV = inV;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorLerp(in Vector3 src1, in Vector3 src2, float t, out Vector3 dest) => dest = Vector3.Lerp(src1, src2, t);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DAdd(in Vector2 a, in Vector2 b, out Vector2 c) => c = a + b;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DSubtract(in Vector2 a, in Vector2 b, out Vector2 c) => c = a - b;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DMultiply(in Vector2 a, float b, out Vector2 c) => c = a * b;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DMultiply(in Vector2 a, in Vector2 b, out Vector2 c) => c = a * b;
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float VectorNormalizeFast(ref Vector3 v) {
 		float sqlen = v.X * v.X + v.Y * v.Y + v.Z * v.Z + 1.0e-10f;
@@ -1553,7 +1607,33 @@ public static class MathLib
 		return Vector3.Add(dotResult, translation);
 	}
 
+	public static void TransformAABB(in Matrix3x4 transform, in Vector3 minsIn, in Vector3 maxsIn, out Vector3 minsOut, out Vector3 maxsOut) {
+		Matrix3x4 mat = transform;
+
+		Vector3 localCenter = (minsIn + maxsIn) * 0.5f;
+		Vector3 localExtents = maxsIn - localCenter;
+
+		VectorTransform(localCenter, mat, out Vector3 worldCenter);
+
+		Vector3 worldExtents;
+		worldExtents.X = DotProductAbs(localExtents, mat[0]);
+		worldExtents.Y = DotProductAbs(localExtents, mat[1]);
+		worldExtents.Z = DotProductAbs(localExtents, mat[2]);
+
+		minsOut = worldCenter - worldExtents;
+		maxsOut = worldCenter + worldExtents;
+	}
+
 	public static float VectorLength(in Vector3 delta) => delta.Length();
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector3 Cross(this Vector3 vec, Vector3 other) {
+		CrossProduct(vec, other, out Vector3 res);
+		return res;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static int Square(int x) => x * x;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float Square(float x) => x * x;
 
 	public static void SinCos(float v, out float s, out float c) => (s, c) = float.SinCos(v);
 
@@ -1994,10 +2074,91 @@ public static class MathLib
 
 		angles = new(pitch, yaw, 0);
 	}
+
+	public static void Vector3DMultiplyPosition(in Matrix4x4 src1, in Vector3 src2, out Vector3 dst) {
+		dst.X = src1[0][0] * src2.X + src1[0][1] * src2.Y + src1[0][2] * src2.Z + src1[0][3];
+		dst.Y = src1[1][0] * src2.X + src1[1][1] * src2.Y + src1[1][2] * src2.Z + src1[1][3];
+		dst.Z = src1[2][0] * src2.X + src1[2][1] * src2.Y + src1[2][2] * src2.Z + src1[2][3];
+	}
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 16, Size = sizeof(float) * 4 * 3)]
 public struct FourVectors
 {
 	public Vector4 x, y, z;
+
+	public FourVectors(Vector3 v) {
+		x = new Vector4(v.X);
+		y = new Vector4(v.Y);
+		z = new Vector4(v.Z);
+	}
+
+	// Broadcast a single vector into all four lanes.
+	public void DuplicateVector(in Vector3 v) {
+		x = new Vector4(v.X);
+		y = new Vector4(v.Y);
+		z = new Vector4(v.Z);
+	}
+
+	// Load four vectors into the lanes: x = (a.x, b.x, c.x, d.x), etc.
+	public void LoadAndSwizzle(in Vector3 a, in Vector3 b, in Vector3 c, in Vector3 d) {
+		x = new Vector4(a.X, b.X, c.X, d.X);
+		y = new Vector4(a.Y, b.Y, c.Y, d.Y);
+		z = new Vector4(a.Z, b.Z, c.Z, d.Z);
+	}
+
+	public static FourVectors operator -(FourVectors a, FourVectors b) => new() { x = a.x - b.x, y = a.y - b.y, z = a.z - b.z };
+	public static FourVectors operator +(FourVectors a, FourVectors b) => new() { x = a.x + b.x, y = a.y + b.y, z = a.z + b.z };
+	public static FourVectors operator *(FourVectors a, FourVectors b) => new() { x = a.x * b.x, y = a.y * b.y, z = a.z * b.z };
+
+	public static FourVectors Min(in FourVectors a, in FourVectors b) => new() { x = Vector4.Min(a.x, b.x), y = Vector4.Min(a.y, b.y), z = Vector4.Min(a.z, b.z) };
+	public static FourVectors Max(in FourVectors a, in FourVectors b) => new() { x = Vector4.Max(a.x, b.x), y = Vector4.Max(a.y, b.y), z = Vector4.Max(a.z, b.z) };
+
+	// Build a 4-bit mask, one bit per lane, where a[lane] <= b[lane].
+	private static int LeMask(in Vector4 a, in Vector4 b) {
+		int mask = 0;
+		if (a.X <= b.X) mask |= 1;
+		if (a.Y <= b.Y) mask |= 2;
+		if (a.Z <= b.Z) mask |= 4;
+		if (a.W <= b.W) mask |= 8;
+		return mask;
+	}
+
+	// SIMD test of a swept ray/box against all four child boxes at once. Returns a 4-bit hit mask.
+	public static int IntersectRayWithFourBoxes(in FourVectors rayStart, in FourVectors invDelta, in FourVectors rayExtents, in FourVectors boxMins, in FourVectors boxMaxs) {
+		FourVectors hitMins = boxMins - rayStart;
+		FourVectors hitMaxs = boxMaxs - rayStart;
+
+		// adjust for swept box by enlarging the child bounds to shrink the sweep to a point
+		hitMins -= rayExtents;
+		hitMaxs += rayExtents;
+
+		// parametric distance along the ray of intersection in each dimension
+		hitMins *= invDelta;
+		hitMaxs *= invDelta;
+
+		FourVectors exitT = Max(hitMins, hitMaxs);
+		FourVectors entryT = Min(hitMins, hitMaxs);
+
+		Vector4 boxEntryT = Vector4.Max(Vector4.Max(entryT.x, entryT.y), entryT.z);
+		Vector4 boxExitT = Vector4.Min(Vector4.Min(exitT.x, exitT.y), exitT.z);
+
+		boxEntryT = Vector4.Max(boxEntryT, Vector4.Zero);
+		boxExitT = Vector4.Min(boxExitT, Vector4.One);
+
+		// hit if entry <= exit
+		return LeMask(boxEntryT, boxExitT);
+	}
+
+	// SIMD test of one box against four boxes. Returns a 4-bit overlap mask.
+	public static int IntersectFourBoxPairs(in FourVectors mins0, in FourVectors maxs0, in FourVectors mins1, in FourVectors maxs1) {
+		FourVectors intersectMins = Max(mins0, mins1);
+		FourVectors intersectMaxs = Min(maxs0, maxs1);
+
+		int maskX = LeMask(intersectMins.x, intersectMaxs.x);
+		int maskY = LeMask(intersectMins.y, intersectMaxs.y);
+		int maskZ = LeMask(intersectMins.z, intersectMaxs.z);
+
+		return maskX & maskY & maskZ;
+	}
 }

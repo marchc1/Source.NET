@@ -18,6 +18,16 @@ using System.Numerics;
 
 using Source.Common;
 using Source.Common.Engine;
+using System.Diagnostics.CodeAnalysis;
+
+public enum GameRulesPlayerRelationship
+{
+	NotTeammate,
+	Teammate,
+	Enemy,
+	Ally,
+	Neutral
+}
 
 public class
 #if CLIENT_DLL
@@ -57,7 +67,7 @@ public abstract class
 #endif
 : AutoGameSystemPerFrame
 {
-	public static GameRules g_pGameRules = null!;
+	[NotNull] public static GameRules g_pGameRules = null!;
 	public
 #if CLIENT_DLL
 	C_GameRules
@@ -100,6 +110,25 @@ public abstract class
 		return soundName;
 	}
 
+#if GAME_DLL
+	public ReadOnlySpan<char> GetTeamID(BaseEntity? entity) {
+		if (entity == null || entity.Edict() == null)
+			return "\0";
+		return entity.TeamID();
+	}
+	public virtual GameRulesPlayerRelationship PlayerCanHearChat(BasePlayer? listener, BasePlayer? speaker) => PlayerRelationship(listener, speaker);
+
+	public virtual GameRulesPlayerRelationship PlayerRelationship(BasePlayer? player, BasePlayer? target) {
+		if (player == null || target == null || !target.IsPlayer())
+			return GameRulesPlayerRelationship.NotTeammate;
+
+		if ((GetTeamID(player)[0] != '\0') && (GetTeamID(target)[0] != '\0') && 0 == stricmp(GetTeamID(player), GetTeamID(target)))
+			return GameRulesPlayerRelationship.Teammate;
+
+		return GameRulesPlayerRelationship.NotTeammate;
+	}
+#endif
+
 #if CLIENT_DLL
 
 #else
@@ -123,6 +152,18 @@ public abstract class
 	}
 
 	internal void ClientSpawned(Edict player) { }
+
+	internal ReadOnlySpan<char> GetChatFormat(bool teamOnly, BasePlayer? player) {
+		return "";
+	}
+
+	internal ReadOnlySpan<char> GetChatPrefix(bool teamOnly, BasePlayer? player) {
+		return "";
+	}
+
+	internal ReadOnlySpan<char> GetChatLocation(bool teamOnly, BasePlayer? player) {
+		return "";
+	}
 #endif
 }
 #endif

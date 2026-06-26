@@ -138,8 +138,8 @@ public class PredictableList : IPredictableList
 
 public partial class C_BaseEntity : IClientEntity
 {
-	public delegate void BASEPTR();
-	public delegate void ENTITYFUNCPTR(C_BaseEntity? other);
+	public delegate void BASEPTR(C_BaseEntity self);
+	public delegate void ENTITYFUNCPTR(C_BaseEntity self, C_BaseEntity? other);
 
 	public const int SLOT_ORIGINALDATA = -1;
 	public static C_BaseEntity? CreateEntityByName(ReadOnlySpan<char> className) {
@@ -372,10 +372,10 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	static readonly List<C_BaseEntity> AimEntsList = [];
-	public Action? FnThink;
+	public BASEPTR? FnThink;
 	public virtual void Think() {
 		if (FnThink != null)
-			this.FnThink();
+			this.FnThink(this);
 	}
 
 	internal static void CalcAimEntPositions() {
@@ -387,8 +387,25 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	internal static void AddVisibleEntities() {
-		// TODO
-		// Requires leaf system
+		int c = predictables.GetPredictableCount();
+
+		for (int i = 0; i < c; i++) {
+			BaseEntity? ent = predictables.GetPredictable(i);
+
+			if (ent == null)
+				continue;
+
+			if (!ent.IsClientCreated())
+				continue;
+
+			if (ent.PredictableID.GetAcknowledged())
+				continue;
+
+			if (ent.IsDormantPredictable())
+				continue;
+
+			ent.UpdateVisibility();
+		}
 	}
 
 	public bool IsNoInterpolationFrame() => OldInterpolationFrame != InterpolationFrame;
@@ -427,7 +444,17 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	private static C_BaseEntity? FindPreviouslyCreatedEntity(PredictableId testId) {
-		// TODO: Prediction system
+		int c = predictables.GetPredictableCount();
+
+		for (int i = 0; i < c; i++) {
+			BaseEntity? e = predictables.GetPredictable(i);
+			if (e == null || !e.IsClientCreated())
+				continue;
+
+			if (testId == e.PredictableID)
+				return e;
+		}
+
 		return null;
 	}
 
@@ -715,6 +742,7 @@ public partial class C_BaseEntity : IClientEntity
 	public int LifeState;
 	public Vector3 BaseVelocity;
 	public int NextThinkTick;
+	public int LastThinkTick;
 	public byte WaterLevel;
 	public byte WaterType;
 
@@ -818,7 +846,7 @@ public partial class C_BaseEntity : IClientEntity
 				Warning($"ERROR:  Can't draw studio model {modelinfo.GetModelName(Model)} because {GetClientClass().NetworkName ?? "unknown"} is not derived from C_BaseAnimating\n");
 				break;
 			case ModelType.Sprite:
-				Warning("ERROR:  Sprite model's not supported any more except in legacy temp ents\n");
+				// Warning("ERROR:  Sprite model's not supported any more except in legacy temp ents\n");
 				break;
 		}
 
@@ -869,11 +897,10 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	public IClientNetworkable GetClientNetworkable() => this;
-	public Source.Common.IClientRenderable GetClientRenderable() => this;
+	public IClientRenderable GetClientRenderable() => this;
 	public IClientThinkable GetClientThinkable() => this;
 	public IClientEntity GetIClientEntity() => this;
 	public IClientUnknown GetIClientUnknown() => this;
-
 
 
 	public Model? GetModel() => Model;
@@ -929,11 +956,10 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public bool IsTransparent() {
-		// todo; we need IModelInfoClient for this
-		return false;
+		return modelinfo.IsTranslucent(Model) || RenderMode != (int)Source.RenderMode.Normal;
 	}
 
-	public void UpdateOnRemove() {
+	public virtual void UpdateOnRemove() {
 		VPhysicsDestroyObject();
 
 		Assert(GetMoveParent() == null);
@@ -1114,8 +1140,6 @@ public partial class C_BaseEntity : IClientEntity
 
 	public virtual bool ShouldPredict() => false;
 
-
-
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public int GetModelIndex() => ModelIndex;
 
 	public void OnPostRestoreData() {
@@ -1187,7 +1211,7 @@ public partial class C_BaseEntity : IClientEntity
 		GC.SuppressFinalize(this);
 	}
 
-	double SpawnTime;
+	double flSpawnTime;
 	double LastMessageTime;
 
 	public void MoveToLastReceivedPosition(bool force = false) {
@@ -1206,7 +1230,7 @@ public partial class C_BaseEntity : IClientEntity
 			Interp_RestoreToLastNetworked(ref GetVarMapping());
 
 		if (newentity && !IsClientCreated()) {
-			SpawnTime = engine.GetLastTimeStamp();
+			flSpawnTime = engine.GetLastTimeStamp();
 			Spawn();
 		}
 
@@ -1217,7 +1241,7 @@ public partial class C_BaseEntity : IClientEntity
 
 		OldRenderMode = RenderMode;
 
-		// TODO: client leaf sorting
+		clientLeafSystem.EnableAlternateSorting(renderHandle, AlternateSorting);
 
 		OldInterpolationFrame = InterpolationFrame;
 		OldShouldDraw = ShouldDraw();
@@ -1231,7 +1255,7 @@ public partial class C_BaseEntity : IClientEntity
 
 		if (Index == 0) {
 			ModelIndex = 1;
-			// SetSolid(SolidType.BSP);
+			SetSolid(SolidType.BSP);
 		}
 
 		if (OldRenderMode != RenderMode)
@@ -1515,10 +1539,6 @@ public partial class C_BaseEntity : IClientEntity
 		return true;
 	}
 
-	public virtual void SpawnClientEntity() {
-
-	}
-
 	public static C_BaseEntity? CreatePredictedEntityByName(ReadOnlySpan<char> classname, [CallerFilePath] string? module = null, [CallerLineNumber] int line = -1, bool persist = false) {
 		C_BasePlayer? player = C_BaseEntity.GetPredictionPlayer();
 
@@ -1654,10 +1674,10 @@ public partial class C_BaseEntity : IClientEntity
 							// We need IsHandleValid/GetClientHandle stuff.
 							// Assert(cl_entitylist.IsHandleValid(otherEntity.GetClientHandle()));
 
-							// otherEntity.PredictableId.SetAcknowledged(true);
+							otherEntity.PredictableID.SetAcknowledged(true);
 
-							// if (OnPredictedEntityRemove(false, otherEntity)) 
-							// otherEntity.Release();
+							if (OnPredictedEntityRemove(false, otherEntity))
+								otherEntity.Release();
 						}
 					}
 				}
@@ -1768,6 +1788,8 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public virtual void Spawn() { }
+	public virtual void Activate() { }
+	public virtual void SpawnClientEntity() { }
 	public virtual void Precache() { }
 
 	public PredictionContext? PredictionContext;
@@ -1826,13 +1848,59 @@ public partial class C_BaseEntity : IClientEntity
 	public ref QAngle GetNetworkAngles() => ref NetworkAngles;
 
 	public void SetLocalOrigin(in Vector3 origin) {
-		// This has a lot more logic thats needed later TODO FIXME
-		Origin = origin;
+		// Safety check against NaN's or really huge numbers
+		if (!IsEntityPositionReasonable(origin)) {
+			if (CheckEmitReasonablePhysicsSpew())
+				Warning($"Bad SetLocalOrigin({origin}) on {GetDebugName()}\n");
+			Assert(false);
+			return;
+		}
+
+		//	if ( !origin.IsValid() )
+		//	{
+		//		AssertMsg( 0, "Bad origin set" );
+		//		return;
+		//	}
+
+		if (Origin != origin) {
+			// Sanity check to make sure the origin is valid.
+#if DEBUG
+			float largeVal = 1024 * 128;
+			Assert(origin.X >= -largeVal && origin.X <= largeVal);
+			Assert(origin.Y >= -largeVal && origin.Y <= largeVal);
+			Assert(origin.Z >= -largeVal && origin.Z <= largeVal);
+#endif
+
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.PositionChanged);
+			Origin = origin;
+			SetSimulationTime(gpGlobals.CurTime);
+		}
 	}
 
+	public ReadOnlySpan<char> GetDebugName() => GetClassname(); // todo
+
 	public void SetLocalAngles(in QAngle angles) {
-		// This has a lot more logic thats needed later TODO FIXME
-		Rotation = angles;
+		// NOTE: The angle normalize is a little expensive, but we can save
+		// a bunch of time in interpolation if we don't have to invalidate everything
+		// and sometimes it's off by a normalization amount
+
+		// FIXME: The normalize caused problems in server code like momentary_rot_button that isn't
+		//        handling things like +/-180 degrees properly. This should be revisited.
+		//QAngle angleNormalize( AngleNormalize( angles.x ), AngleNormalize( angles.y ), AngleNormalize( angles.z ) );
+
+		// Safety check against NaN's or really huge numbers
+		if (!IsEntityQAngleReasonable(angles)) {
+			if (CheckEmitReasonablePhysicsSpew())
+				Warning($"Bad SetLocalAngles({angles}) on {GetDebugName()}\n");
+			AssertMsg(false, $"Bad SetLocalAngles({angles}) on {GetDebugName()}\n");
+			return;
+		}
+
+		if (Rotation != angles) {
+			InvalidatePhysicsRecursive(InvalidatePhysicsBits.AnglesChanged);
+			Rotation = angles;
+			SetSimulationTime(gpGlobals.CurTime);
+		}
 	}
 
 	public void SetNetworkAngles(in QAngle angles) {
@@ -1853,7 +1921,9 @@ public partial class C_BaseEntity : IClientEntity
 
 	readonly object CalcAbsolutePositionMutex = new();
 
-	private void CalcAbsolutePosition() {
+	public TimeUnit_t SpawnTime() => flSpawnTime;
+
+	protected void CalcAbsolutePosition() {
 		if (!s_bAbsRecomputationEnabled)
 			return;
 
@@ -2038,7 +2108,7 @@ public partial class C_BaseEntity : IClientEntity
 
 
 	private ref readonly Vector3 GetLocalVelocity() {
-		return ref vec3_origin; // todo
+		return ref Velocity;
 	}
 
 
@@ -2156,8 +2226,7 @@ public partial class C_BaseEntity : IClientEntity
 		double curValue_Interp = CdllBoundedCVars.GetClientInterpAmount();
 		if (LastValue_Interp == -1) LastValue_Interp = curValue_Interp;
 
-		// float curValue_InterpNPCs = cl_interp_npcs.GetFloat();
-		double curValue_InterpNPCs = 0;
+		float curValue_InterpNPCs = cl_interp_npcs.GetFloat();
 		if (LastValue_InterpNPCs == -1) LastValue_InterpNPCs = curValue_InterpNPCs;
 
 		if (LastValue_Interp != curValue_Interp || LastValue_InterpNPCs != curValue_InterpNPCs) {
@@ -2175,7 +2244,7 @@ public partial class C_BaseEntity : IClientEntity
 		if (Unsafe.IsNullRef(ref map))
 			return;
 
-		int c = map.Entries.Count();
+		int c = map.Entries.Count;
 		for (int i = 0; i < c; i++) {
 			VarMapEntry e = map.Entries[i];
 			IInterpolatedVar watcher = e.Watcher;
@@ -2662,11 +2731,11 @@ public partial class C_BaseEntity : IClientEntity
 
 		ComputePackedSize_R(map);
 
+		/*
 		List<(string ClassName, string FieldName, nuint AbsoluteOffset, int ByteSize)> entries = [];
 		CollectPackedOffsets_R(map, 0, entries);
 
 		entries.Sort((a, b) => a.AbsoluteOffset.CompareTo(b.AbsoluteOffset));
-
 		Msg($"PackedOffset dump for {map.DataClassName} ({entries.Count} fields)\n");
 		foreach (var entry in entries)
 			Msg($"  [{entry.AbsoluteOffset,5}, {entry.AbsoluteOffset + (nuint)entry.ByteSize,5}) {entry.ClassName}::{entry.FieldName}\n");
@@ -2676,6 +2745,7 @@ public partial class C_BaseEntity : IClientEntity
 			if (end > entries[i + 1].AbsoluteOffset)
 				Warning($"PackedOffset OVERLAP: {entries[i].ClassName}::{entries[i].FieldName} [{entries[i].AbsoluteOffset}, {end}) overlaps {entries[i + 1].ClassName}::{entries[i + 1].FieldName} starting at {entries[i + 1].AbsoluteOffset}\n");
 		}
+		*/
 	}
 
 	void CollectPackedOffsets_R(DataMap? map, nuint baseOffset, List<(string ClassName, string FieldName, nuint AbsoluteOffset, int ByteSize)> entries) {

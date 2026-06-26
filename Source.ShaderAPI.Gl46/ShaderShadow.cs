@@ -56,7 +56,7 @@ public class ShadowStateGl46 : IShaderShadow
 		shaderUniforms.Add(textureVar);
 	}
 	public void ActivateShaderUniforms() {
-		foreach(var var in shaderUniforms) {
+		foreach (var var in shaderUniforms) {
 			ShaderAPI.SetShaderUniform(var);
 		}
 	}
@@ -168,7 +168,7 @@ public class ShadowStateGl46 : IShaderShadow
 	}
 
 	public void EnablePolyOffset(PolygonOffsetMode offsetMode) {
-		throw new NotImplementedException();
+		State.ZBias = offsetMode;
 	}
 
 	public void EnableColorWrites(bool enable) {
@@ -211,11 +211,14 @@ public class ShadowStateGl46 : IShaderShadow
 	}
 
 	public void PolyMode(ShaderPolyModeFace face, ShaderPolyMode polyMode) {
-		throw new NotImplementedException();
+		if (face == ShaderPolyModeFace.Back)
+			return;
+
+		State.FillMode = polyMode;
 	}
 
 	public void EnableCulling(bool enable) {
-		throw new NotImplementedException();
+		State.CullEnable = enable;
 	}
 
 	public void EnableConstantColor(bool enable) {
@@ -313,7 +316,7 @@ public class ShadowStateGl46 : IShaderShadow
 	}
 
 	public void EnableAlphaToCoverage(bool enable) {
-		throw new NotImplementedException();
+		State.AlphaToCoverage = enable;
 	}
 
 	public void SetShadowDepthFiltering(Sampler stage) {
@@ -335,10 +338,13 @@ public class ShadowStateGl46 : IShaderShadow
 		EnableDepthWrites(true);
 		EnableDepthTest(true);
 		EnableBlending(false);
+		EnableCulling(true);
+		PolyMode(ShaderPolyModeFace.FrontAndBack, ShaderPolyMode.Fill);
 		BlendFunc(ShaderBlendFactor.One, ShaderBlendFactor.Zero);
 		BlendOp(ShaderBlendOp.Add);
 		EnableBlendingSeparateAlpha(false);
 		BlendFuncSeparateAlpha(ShaderBlendFactor.One, ShaderBlendFactor.Zero);
 		BlendOpSeparateAlpha(ShaderBlendOp.Add);
+		EnablePolyOffset(PolygonOffsetMode.Disable);
 	}
 }

@@ -176,9 +176,9 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	public readonly TextureReference FullFrameFBTexture1 = new();
 
 	public int FrameCount = 1;
-	public readonly int[] LightStyleValue = new int[256];
-	public readonly int[] LightStyleNumFrames = new int[256];
-	public readonly int[] LightStyleFrame = new int[256];
+	public static readonly int[] LightStyleValue = new int[256];
+	public static readonly int[] LightStyleNumFrames = new int[256];
+	public static readonly int[] LightStyleFrame = new int[256];
 
 	public void Init() {
 		InitWellKnownRenderTargets();
@@ -187,13 +187,18 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 
 	private void InitDebugMaterials() {
 		MaterialEmpty = GL_LoadMaterial("debug/debugempty", MaterialDefines.TEXTURE_GROUP_OTHER)!;
+#if !SWDS
+// TODO: the rest of these important materials
+#endif
 	}
 
 	private void InitWellKnownRenderTargets() {
+#if !SWDS
 		materials.BeginRenderTargetAllocation();
 		FullFrameFBTexture0.Init(CreateFullFrameFBTexture(0));
 		FullFrameFBTexture0.Init(CreateFullFrameFBTexture(1));
 		materials.EndRenderTargetAllocation();
+#endif
 	}
 
 	private ITexture CreateFullFrameFBTexture(int textureIndex, CreateRenderTargetFlags extraFlags = 0) {
@@ -251,6 +256,8 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	internal readonly List<IMesh?> WorldStaticMeshes = [];
 
 	ConVar mat_max_worldmesh_vertices = new((32767 / 3).ToString(), 0);
+	public static readonly ConVar r_drawbrushmodels = new("r_drawbrushmodels", "1", FCvar.Cheat, "Render brush models. 0=Off, 1=Normal, 2=Wireframe");
+
 
 	public static void VertexCountForSurfaceList(MSurfaceSortList list, in SurfaceSortGroup group, out int vertexCount, out int indexCount) {
 		vertexCount = indexCount = 0;
@@ -392,13 +399,43 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		}
 	}
 
-	struct SurfaceCtx
+	public struct SurfaceCtx
 	{
 		public InlineArray2<int> LightmapSize;
 		public InlineArray2<int> LightmapPageSize;
 		public float BumpSTexCoordOffset;
 		public Vector2 Offset;
 		public Vector2 Scale;
+	}
+
+	internal void BuildMSurfaceVerts(WorldBrushData brushData, ref BSPMSurface2 surfID, Vector3[]? verts, Vector2[]? texCoords, Vector2[,]? lightCoords) {
+		SurfaceCtx ctx = default;
+		SurfSetupSurfaceContext(ref ctx, ref surfID);
+
+		int vertCount = ModelLoader.MSurf_VertCount(ref surfID);
+		int vertFirstIndex = ModelLoader.MSurf_FirstVertIndex(ref surfID);
+		for (int i = 0; i < vertCount; i++) {
+			int vertIndex = brushData.VertIndices![vertFirstIndex + i];
+
+			ref Vector3 vec = ref brushData.Vertexes![vertIndex].Position;
+
+			if (verts != null)
+				MathLib.VectorCopy(vec, out verts[i]);
+
+			if (texCoords != null)
+				SurfComputeTextureCoordinate(ref ctx, ref surfID, ref vec, ref texCoords[i]);
+
+			if (lightCoords != null) {
+				SurfComputeLightmapCoordinate(ref ctx, ref surfID, ref vec, ref lightCoords[i, 0]);
+
+				if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.BumpLight) != 0) {
+					for (int bumpID = 1; bumpID <= Constants.NUM_BUMP_VECTS; bumpID++) {
+						lightCoords[i, bumpID].X = lightCoords[i, 0].X + (bumpID * ctx.BumpSTexCoordOffset);
+						lightCoords[i, bumpID].Y = lightCoords[i, 0].Y;
+					}
+				}
+			}
+		}
 	}
 
 	private void BuildMSurfaceVertexArrays(WorldBrushData brushData, ref BSPMSurface2 surfID, float overbright, ref MeshBuilder builder) {
@@ -412,7 +449,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		// if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.TangentSpace) != 0) 
 		// negate = TangentSpaceSurfaceSetup(ref surfID, vect);
 
-		// CheckMSurfaceBaseTexture2(pBrushData, surfID);
+		CheckMSurfaceBaseTexture2(brushData, ref surfID);
 		int vertCount = ModelLoader.MSurf_VertCount(ref surfID);
 		int firstVertex = builder.GetCurrentVertex();
 		for (int i = 0; i < vertCount; i++) {
@@ -471,11 +508,36 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		}
 	}
 
+	private bool CheckMSurfaceBaseTexture2(WorldBrushData brushData, ref BSPMSurface2 surfID) {
+		if (!ModelLoader.SurfaceHasDispInfo(ref surfID) && 0 != (ModelLoader.MSurf_TexInfo(ref surfID).TexInfoFlags & TEXINFO_USING_BASETEXTURE2)) {
+			ReadOnlySpan<char> materialName = ModelLoader.MSurf_TexInfo(ref surfID).Material!.GetName();
+			if (!materialName.IsEmpty) {
+				// Calculate the surface's centerpoint.
+				Vector3 vCenter = new(0, 0, 0);
+				for (int i = 0; i < ModelLoader.MSurf_VertCount(ref surfID); i++) {
+					int vertIndex = brushData.VertIndices![ModelLoader.MSurf_FirstVertIndex(ref surfID) + i];
+					vCenter += brushData.Vertexes![vertIndex].Position;
+				}
+				vCenter /= (float)ModelLoader.MSurf_VertCount(ref surfID);
+
+				// Spit out the warning.				
+				Warning("Warning: using WorldTwoTextureBlend on a non-displacement surface.\n" +
+						 "Support for this will go away soon.\n" +
+						 $"   - Material       : {materialName}\n" +
+						 $"   - Surface center : {(int)vCenter.X} {(int)vCenter.Y} {(int)vCenter.Z}\n"
+						 );
+			}
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
 	internal MaterialSystem_SortInfo[]? MaterialSortInfoArray;
 	private int SortInfoToLightmapPage(int sortID) => MaterialSortInfoArray![sortID].LightmapPageID;
 
-	private void SurfSetupSurfaceContext(ref SurfaceCtx ctx, ref BSPMSurface2 surfID) {
+	internal void SurfSetupSurfaceContext(ref SurfaceCtx ctx, ref BSPMSurface2 surfID) {
 		materials.GetLightmapPageSize(SortInfoToLightmapPage(ModelLoader.MSurf_MaterialSortID(ref surfID)), out ctx.LightmapPageSize[0], out ctx.LightmapPageSize[1]);
 		ctx.LightmapSize[0] = ModelLoader.MSurf_LightmapExtents(ref surfID)[0] + 1;
 		ctx.LightmapSize[1] = ModelLoader.MSurf_LightmapExtents(ref surfID)[1] + 1;
@@ -492,7 +554,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			ctx.BumpSTexCoordOffset = 0.0f;
 	}
 
-	private void SurfComputeLightmapCoordinate(ref SurfaceCtx ctx, ref BSPMSurface2 surfID, ref Vector3 vec, ref Vector2 uv) {
+	internal void SurfComputeLightmapCoordinate(ref SurfaceCtx ctx, ref BSPMSurface2 surfID, ref Vector3 vec, ref Vector2 uv) {
 		if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.NoLight) != 0)
 			uv.X = uv.Y = 0.5f;
 

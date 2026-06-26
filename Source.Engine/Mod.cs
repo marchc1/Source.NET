@@ -1,46 +1,25 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
-using Source.Common.Commands;
 using Source.Common.Engine;
-using Source.Common.MaterialSystem;
-using Source.Engine.Client;
+
+using System;
+using System.Collections.Generic;
+using System.Text;
 
 namespace Source.Engine;
 
-public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, ICommandLine commandLine, IMaterialSystem materials, IVideoMode videomode) : IMod
+public class Mod(bool serverOnly, IEngineAPI engineAPI)
 {
-	private bool IsServerOnly(IEngineAPI api) => ((EngineAPI)api).Dedicated;
+	public bool IsServerOnly() => serverOnly;
+	public ModResult Main() {
+		ModResult res = ModResult.RunOK;
+		IEngine eng = engineAPI.GetRequiredService<IEngine>();
+		var host_parms = engineAPI.GetRequiredService<EngineParms>();
+		SV SV = engineAPI.GetRequiredService<SV>();
 
-	public bool Init(string initialMod, string initialGame) {
-		host_parms.Mod = initialMod;
-		host_parms.Game = initialGame;
-
-		if (cl != null) {
-			cl.RestrictServerCommands = false;
-			cl.RestrictClientCommands = false;
-		}
-
-		((EngineAPI)services.GetRequiredService<IEngineAPI>()).InitRegistry(initialMod);
-
-		MaterialSystem_Config config = materials.GetCurrentConfigForVideoCard();
-		int width = config.VideoMode.Width;
-		int height = config.VideoMode.Height;
-		bool windowed = config.Windowed();
-		bool borderless = config.NoWindowBorder();
-
-		videomode.Init();
-
-		return videomode.CreateGameWindow(new(width, height, windowed, borderless));
-	}
-
-	public IMod.Result Run() {
-		IMod.Result res = IMod.Result.RunOK;
-		IEngine eng = services.GetRequiredService<IEngine>();
-		IEngineAPI engineAPI = services.GetRequiredService<IEngineAPI>();
-
-		if (IsServerOnly(engineAPI)) {
+		if (IsServerOnly()) {
 			if (eng.Load(true, host_parms.BaseDir)) {
-				// Dedicated stuff one day?
+				dedicated.RunServer();
 			}
 		}
 		else {
@@ -48,8 +27,8 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 
 			if (eng.Load(false, host_parms.BaseDir)) {
 #if !SWDS
-				if (engineAPI.MainLoop())
-					res = IMod.Result.RunRestart;
+				if (((IClientLauncherAPI)engineAPI).MainLoop())
+					res = ModResult.RunRestart;
 
 				eng.Unload();
 #endif
@@ -59,9 +38,5 @@ public class BaseMod(IServiceProvider services, EngineParms host_parms, SV SV, I
 		}
 
 		return res;
-	}
-
-	public void Shutdown() {
-		((EngineAPI)services.GetRequiredService<IEngineAPI>()).ShutdownRegistry();
 	}
 }

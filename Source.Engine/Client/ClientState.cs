@@ -115,11 +115,22 @@ public class ClientState : BaseClientState
 	readonly Common Common;
 	readonly Sound Sound;
 	public ClientState(Host Host, IFileSystem fileSystem, Net Net, CommonHostState host_state, Common Common,
-		Cbuf Cbuf, Cmd Cmd, ICvar cvar, CL CL, IEngineVGuiInternal? EngineVGui, IHostState HostState, Scr Scr, IEngineAPI engineAPI,
-		[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient, IServiceProvider services,
-		IModelLoader modelloader, ICommandLine commandLine, IPrediction ClientSidePrediction, DtCommonEng DtCommonEng, EngineRecvTable recvTable,
-		ClientGlobalVariables clientGlobalVariables, Sound Sound)
-		: base(Host, fileSystem, Net, Cbuf, cvar, EngineVGui, engineAPI, networkStringTableContainerClient) {
+		Cbuf Cbuf, Cmd Cmd, ICvar cvar, IHostState HostState, Scr Scr, IEngineAPI engineAPI,
+		IServiceProvider services,
+		IModelLoader modelloader, ICommandLine commandLine,
+		[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient, 
+
+#if !SWDS
+		IPrediction ClientSidePrediction, 
+		IEngineVGuiInternal? EngineVGui,
+		CL CL, 
+		DtCommonEng DtCommonEng, 
+		EngineRecvTable RecvTable,
+#endif
+		ClientGlobalVariables clientGlobalVariables, Sound Sound
+		)
+		: base(Host, fileSystem, Net, Cbuf, cvar, networkStringTableContainerClient
+		) {
 		this.Host = Host;
 		this.fileSystem = fileSystem;
 		this.Net = Net;
@@ -139,7 +150,7 @@ public class ClientState : BaseClientState
 		this.Sound = Sound;
 		engineClient_LAZY = new(ProduceEngineClient);
 		CommandLine = commandLine;
-		RecvTable = recvTable;
+		this.RecvTable = RecvTable;
 	}
 
 	private IEngineClient ProduceEngineClient() => services.GetRequiredService<IEngineClient>();
@@ -992,8 +1003,9 @@ public class ClientState : BaseClientState
 		g_ClientDLL?.HudVidInit();
 
 		// gHostSpawnCount = m_nServerCount;
-
+#if !SWDS
 		((VideoMode_Common)videoMode).MarkClientViewRectDirty();
+#endif
 		return true;
 	}
 

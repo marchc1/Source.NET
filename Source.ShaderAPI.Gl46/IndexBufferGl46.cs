@@ -84,6 +84,25 @@ public unsafe class IndexBufferGl46 : IDisposable
 		Locked = false;
 	}
 
+	public short* ModifyLock(int firstIndex, int indexCount, out int startIndex) {
+		Assert(!Locked);
+
+		if (SysmemBuffer == null)
+			RecomputeIBO();
+
+		startIndex = firstIndex;
+		Locked = true;
+		return (short*)SysmemBuffer + firstIndex;
+	}
+
+	public void ModifyUnlock(int firstIndex, int indexCount) {
+		if (!Locked)
+			return;
+
+		glNamedBufferSubData((uint)ibo, firstIndex * 2, indexCount * 2, (void*)((nint)SysmemBuffer + firstIndex * 2));
+		Locked = false;
+	}
+
 	internal bool HasEnoughRoom(int indices) {
 		return indices + Position <= IndexCount;
 	}

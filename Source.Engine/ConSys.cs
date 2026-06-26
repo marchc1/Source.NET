@@ -427,7 +427,11 @@ public class ConPanel : BasePanel
 #endif
 
 
-public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInput Input, IBaseClientDLL ClientDLL)
+public class Con(Host Host, ICvar cvar
+#if !SWDS
+, IEngineVGuiInternal EngineVGui, IVGuiInput Input, IBaseClientDLL ClientDLL
+#endif
+)
 {
 #if !SWDS
 	static ConPanel? conPanel = null;
@@ -438,6 +442,7 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 	void toggleconsole() => ToggleConsole();
 
 	public void ShowConsole() {
+#if !SWDS
 		if (Input.GetAppModalSurface() != null)
 			return;
 
@@ -448,20 +453,25 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 			EngineVGui.ShowConsole();
 			Singleton<Scr>().EndLoadingPlaque();
 		}
+#endif
 	}
 
 	public void HideConsole() {
+	#if !SWDS
 		if (EngineVGui.IsConsoleVisible())
 			EngineVGui.HideConsole();
+#endif
 	}
 
 	public void ToggleConsole() {
+#if !SWDS
 		if (EngineVGui.IsConsoleVisible()) {
 			HideConsole();
 			EngineVGui.HideGameUI();
 		}
 		else
 			ShowConsole();
+#endif
 	}
 
 	public void Init() { }
@@ -484,15 +494,18 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 	bool g_fColorPrintf;
 	bool g_fIsDebugPrint;
 	bool g_bInColorPrint;
+
 	public void ColorPrintf(in Color clr, ReadOnlySpan<char> fmt) {
+#if !SWDS
 		g_fColorPrintf = true;
 		ColorPrint(clr, fmt);
 		g_fColorPrintf = false;
+#endif
 	}
-
 	static ConVar spew_consolelog_to_debugstring = new("0", 0, "Send console log to PLAT_DebugString()");
 
 	public void ColorPrint(in Color clr, ReadOnlySpan<char> msg) {
+#if !SWDS
 		if (g_bInColorPrint)
 			return;
 
@@ -560,9 +573,12 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 #endif
 
 		g_bInColorPrint = false;
+#endif
 	}
 
+#if !SWDS
 	public bool IsVisible() => EngineVGui.IsConsoleVisible();
+#endif
 
 	internal void CreateConsolePanel(Panel parent) {
 #if !SWDS
@@ -572,8 +588,10 @@ public class Con(Host Host, ICvar cvar, IEngineVGuiInternal EngineVGui, IVGuiInp
 	}
 
 	public static void NXPrintF(in Con_NPrint_s info, ReadOnlySpan<char> text) {
+#if !SWDS
 		if (IsPC())
 			conPanel!.Con_NXPrintf(in info, text);
+#endif
 	}
 
 #if !SWDS

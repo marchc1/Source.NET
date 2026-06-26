@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  <Configurations>Debug;Release;Debug (Dedicated);Release (Dedicated)</Configurations>
   </PropertyGroup>
 	<ItemGroup>
 		<Compile Include="..\Usings\GlobalUsings.cs" Link="Usings/GlobalUsings.cs" />

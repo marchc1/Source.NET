@@ -1,4 +1,5 @@
 #define DBGFLAG_WRITE_TO_STDOUT
+global using static Source.Engine.SysGlobals;
 
 using Pastel;
 
@@ -13,6 +14,10 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Source.Engine;
+
+public static class SysGlobals {
+	public static bool InEditMode() => false;
+}
 
 // Kind of custom here, we can figure out what to properly do here later.
 // What would be nice if we continue to go custom is something like "date (git branch)",
@@ -228,9 +233,6 @@ public class Sys(Host host, ICommandLine CommandLine)
 		Singleton<MessageBoxFn>().Invoke("Engine Error", msg, false);
 		Environment.Exit(100);
 	}
-
-	public bool InEditMode() => false;
-
 
 	// public static readonly DateTime SourceEpoch = new(2003, 9, 30);
 	public static readonly DateTime SourceEpoch = new(1998, 11, 7);

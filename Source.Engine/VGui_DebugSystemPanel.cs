@@ -4,7 +4,7 @@ using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Source.Engine;
-
+#if !SWDS
 class DebugMenuButton : MenuButton
 {
 	Menu Menu;
@@ -257,3 +257,4 @@ class DebugSystemPanel : Panel
 		base.OnCommand(command);
 	}
 }
+#endif

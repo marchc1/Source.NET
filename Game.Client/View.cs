@@ -223,6 +223,9 @@ public class ViewRender : IViewRender
 
 		ComputeCameraVariables(ViewRender.g_VecRenderOrigin, ViewRender.g_VecRenderAngles,
 			out ViewRender.g_VecVForward, out ViewRender.g_VecVRight, out ViewRender.g_VecVUp, ref ViewRender.g_MatCamInverse);
+
+		C_BaseAnimating.PopAllowBoneAccess(new("OnRenderStart->ViewRender.SetUpView")); // pops the (true, false) bone access set in OnRenderStart
+		C_BaseAnimating.PushAllowBoneAccess(true, true, new("ViewRender.SetUpView->OnRenderEnd")); // pop is in OnRenderEnd()
 	}
 
 	public void QueueOverlayRenderView(in ViewSetup view, ClearFlags clearFlags, DrawFlags whatToDraw) {

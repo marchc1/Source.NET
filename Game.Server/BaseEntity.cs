@@ -29,9 +29,11 @@ public partial class BaseEntity : IServerEntity
 {
 	public static Edict? g_pForceAttachEdict;
 
-	public delegate void BASEPTR();
-	public delegate void ENTITYFUNCPTR(BaseEntity? other);
+	public delegate void BASEPTR(BaseEntity self);
+	public delegate void ENTITYFUNCPTR(BaseEntity self, BaseEntity? other);
 	public delegate void USEPTR(BaseEntity? activator, BaseEntity? caller, UseType useType, float value);
+
+	public BASEPTR? FnThink;
 
 	static int PredictionRandomSeed = -1;
 	static BasePlayer? PredictionPlayer;
@@ -51,6 +53,11 @@ public partial class BaseEntity : IServerEntity
 	public virtual bool IsPredicted() => false;
 	public virtual bool IsTemplate() => false;
 	public bool IsDormant() => IsEFlagSet(EFL.Dormant);
+
+	public ReadOnlySpan<char> TeamID() {
+		var team = GetTeam();
+		return team == null ? "" : team.GetName();
+	}
 
 	private static void SendProxy_AnimTime(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		BaseEntity entity = (BaseEntity)instance;
@@ -260,9 +267,6 @@ public partial class BaseEntity : IServerEntity
 		}
 	}
 
-	public virtual void Activate() {
-
-	}
 	public string? Name;
 	public string GetDebugName() {
 		if (this == null)
@@ -392,7 +396,7 @@ public partial class BaseEntity : IServerEntity
 
 	public BaseEntity? GetParent() => Parent.Get();
 
-	public static BaseEntity? GetContainingEntity(Edict ent) {
+	public static BaseEntity? GetContainingEntity(Edict? ent) {
 		if (ent != null && ent.GetUnknown() != null)
 			return (BaseEntity?)ent.GetUnknown()!.GetBaseEntity();
 		return null;
@@ -418,7 +422,7 @@ public partial class BaseEntity : IServerEntity
 
 	public bool IsFloating() => false; // TODO
 
-	public static BaseEntity? Instance(Edict ent) => GetContainingEntity(ent);
+	public static BaseEntity? Instance(Edict? ent) => GetContainingEntity(ent);
 	public static BaseEntity? Instance(int ent) => Instance(INDEXENT(ent)!);
 
 	public static BaseEntity? Create(ReadOnlySpan<char> name, Vector3 origin, QAngle angles, BaseEntity? owner = null) {
@@ -499,6 +503,7 @@ public partial class BaseEntity : IServerEntity
 	public int LifeState;
 	public Vector3 BaseVelocity;
 	public int NextThinkTick;
+	public int LastThinkTick;
 	public byte WaterLevel;
 	public byte WaterType;
 
@@ -527,6 +532,7 @@ public partial class BaseEntity : IServerEntity
 	public CollisionProperty Collision = new();
 	public float Friction;
 	public long SimulationTick;
+
 
 	public bool FClassnameIs(BaseEntity? entity, ReadOnlySpan<char> classname) {
 		if (entity == null)
@@ -742,11 +748,82 @@ public partial class BaseEntity : IServerEntity
 		return Classname;
 	}
 	public virtual void Spawn() { }
-	public virtual void Precache() { }
+	public virtual void Activate() { }
+	public virtual void Precache() {
+
+	}
+
+	static bool _AllowPrecache;
+	public static bool IsPrecacheAllowed() => _AllowPrecache;
+	public static bool SetAllowPrecache(bool allow) => _AllowPrecache = allow;
+
+	public int PrecacheModel(ReadOnlySpan<char> name, bool preload) {
+		if (name.IsStringEmpty)
+			return -1;
+
+		if (!BaseEntity.IsPrecacheAllowed()) 
+			if (!engine.IsModelPrecached(name)) 
+				DevMsg($"Late precache of {name} -- not necessarily a bug now that we allow ~everything to be dynamically loaded.\n");
+
+		int idx = engine.PrecacheModel(name, preload);
+		if (idx != -1) 
+			PrecacheModelComponents(idx);
+		
+		return idx;
+	}
+
+	public void PrecacheModelComponents(int modelIndex){
+		Model? model = (Model?)modelinfo.GetModel(modelIndex);
+		if (model != null || modelinfo.GetModelType(model) != ModelType.Studio) 
+			return;
+
+		// sounds
+		if (IsPC()) {
+			ReadOnlySpan<char> name = modelinfo.GetModelName(model);
+			if (!g_ModelSoundsCache.TryGetValue(name.Hash(), out _)) {
+				ReadOnlySpan<char> extension = Path.GetExtension(name);
+
+				if (!stristr(extension, "mdl").IsEmpty) 
+					DevMsg(2, $"Late precache of {name}, need to rebuild modelsounds.cache\n");
+				else {
+					if (extension[0] == '\0') 
+						Warning($"Precache of {name} ambigious (no extension specified)\n");
+					else 
+						Warning($"Late precache of {name} (file missing?)\n");
+					return;
+				}
+			}
+
+			if (g_ModelSoundsCache.TryGetValue(name.Hash(), out ModelSoundsCache? entry)) 
+				entry.PrecacheSoundList();
+		}
+	}
+
+	static readonly Dictionary<UtlSymId_t, ModelSoundsCache> g_ModelSoundsCache = [];
 
 	public bool HasSpawnFlags(int flags) => (SpawnFlags & flags) != 0;
 
 	public int GetModelIndex() => ModelIndex;
+
+	/// <summary>
+	/// The equiv of the dtor (kinda...)
+	/// </summary>
+	public virtual void Term() {
+		VPhysicsDestroyObject();
+		DestroyAllDataObjects();
+
+		{
+			Util.g_bDisableEhandleAccess = false;
+			// BaseEntity.PhysicsRemoveTouchedList(this);
+			// BaseEntity.PhysicsRemoveGroundList(this);
+			SetGroundEntity(null); // remove us from the ground entity if we are on it
+			DestroyAllDataObjects();
+			Util.g_bDisableEhandleAccess = true;
+
+			// Remove this entity from the ent list (NOTE:  This Makes EHANDLES go NULL)
+			gEntList.RemoveEntity(GetRefEHandle());
+		}
+	}
 
 	public ReadOnlySpan<char> GetModelName() => ModelName;
 	public void SetModelName(ReadOnlySpan<char> modelName) {
@@ -872,7 +949,7 @@ public partial class BaseEntity : IServerEntity
 		return ref CoordinateFrame;
 	}
 
-	private void CalcAbsolutePosition() {
+	protected void CalcAbsolutePosition() {
 		throw new NotImplementedException();
 	}
 

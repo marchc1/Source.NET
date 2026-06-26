@@ -3,7 +3,7 @@ using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Source.Engine;
-
+#if !SWDS
 enum CounterGroup
 {
 	Default = 0,
@@ -170,3 +170,4 @@ class TextureBudgetPanel : BaseBudgetPanel
 	[ConCommand("-showbudget_texture_global", "", FCvar.Cheat)]
 	static void ShowBudget_Texture_Global_off() => showbudget_texture.SetValue(0);
 }
+#endif

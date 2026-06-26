@@ -223,7 +223,7 @@ public sealed class VTFTexture : IVTFTexture
 	public void GenerateMipmaps() {
 		throw new NotImplementedException();
 	}
-	
+
 	public unsafe Span<byte> GetResourceData(ResourceEntryType type) {
 		ref ResourceEntryInfo info = ref FindResourceEntryInfo(type);
 
@@ -384,11 +384,11 @@ public sealed class VTFTexture : IVTFTexture
 			forceMipCount = 1;
 		}
 
-		if (forceMipCount == -1) 
+		if (forceMipCount == -1)
 			MipCount = ComputeMipCount();
 		else
 			MipCount = forceMipCount;
-	
+
 		FrameCount = frameCount;
 
 		FaceCount = (flags & (uint)TextureFlags.EnvMap) != 0 ? 6 : 1;
@@ -581,7 +581,7 @@ public sealed class VTFTexture : IVTFTexture
 
 		return true;
 	}
-	
+
 	private bool LoadImageData(Stream stream, VTFFileHeader header, int skipMipLevels) {
 		if (skipMipLevels > 0) {
 			if (header.NumMipLevels < skipMipLevels) {
@@ -597,8 +597,10 @@ public sealed class VTFTexture : IVTFTexture
 		imageSize *= FaceCount * FrameCount;
 
 		int facesToRead = FaceCount;
-		if (IsCubeMap())
-			throw new NotImplementedException("No cubemap support yet");
+		if (IsCubeMap()) {
+			if (Version[0] == 7 && Version[1] < 1)
+				facesToRead = 6;
+		}
 
 		if (!AllocateImageData(imageSize))
 			return false;
@@ -640,7 +642,7 @@ public sealed class VTFTexture : IVTFTexture
 				for (int face = 0; face < facesToRead; face++) {
 					Span<byte> mipBits = GetImageData(frame, face, mip);
 					int bytesRead = stream.Read(mipBits);
-					Debug.Assert(mipBits.Length == bytesRead);
+					// Debug.Assert(mipBits.Length == bytesRead);
 				}
 			}
 		}

@@ -196,7 +196,9 @@ public class HostState : IHostState
 			}
 		}
 
+#if !SWDS
 		Scr.EndLoadingPlaque();
+#endif
 		// new game failed
 		Msg("NewGame failed!\n");
 		GameShutdown();
@@ -222,7 +224,9 @@ public class HostState : IHostState
 			case HostStates.Run: break;
 			case HostStates.LoadGame:
 			case HostStates.NewGame:
+#if !SWDS
 				Host.Scr.BeginLoadingPlaque();
+#endif
 				goto case HostStates.GameShutdown;
 
 			case HostStates.Shutdown:
