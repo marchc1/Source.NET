@@ -104,7 +104,11 @@ public class TextureManager : ITextureManager
 	}
 
 	public ITextureInternal? FindTexture(ReadOnlySpan<char> textureName) {
-		if (TextureList.TryGetValue(textureName.Hash(), out ITextureInternal? tex))
+		if (textureName.IsEmpty)
+			return null;
+
+		string cleanName = ITextureInternal.NormalizeTextureName(textureName);
+		if (TextureList.TryGetValue(cleanName.AsSpan().Hash(), out ITextureInternal? tex))
 			return tex;
 
 		return null;

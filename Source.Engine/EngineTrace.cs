@@ -213,7 +213,7 @@ public abstract class EngineTrace : IEngineTrace
 		trace.FractionLeftSolid *= flWorldFractionLeftSolidScale;
 	}
 
-	public void HandleEntityToCollideable(IHandleEntity? handleEntity, out ICollideable? collide, out ReadOnlySpan<char> debugName){
+	public void HandleEntityToCollideable(IHandleEntity? handleEntity, out ICollideable? collide, out ReadOnlySpan<char> debugName) {
 		collide = StaticPropMgr().GetStaticProp(handleEntity);
 		if (collide != null) {
 			debugName = "static prop";
@@ -289,8 +289,12 @@ public class EngineTraceClient : EngineTrace
 		}
 
 		IClientUnknown? unk = (IClientUnknown?)collideable.GetEntityHandle();
-		// TODO: Static props have logic here but no static prop manager yet
-		trace.EntHandle = unk?.GetIClientEntity();
+		if (!StaticPropMgr().IsStaticProp(unk))
+			trace.EntHandle = unk?.GetIClientEntity();
+		else {
+			trace.EntHandle = entitylist.GetClientEntity(0);
+			trace.HitBox = StaticPropMgr().GetStaticPropIndex(unk) + 1;
+		}
 	}
 }
 

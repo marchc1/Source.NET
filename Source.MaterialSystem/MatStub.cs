@@ -283,6 +283,7 @@ public class DummyMaterial : IMaterial
 	public int GetNumAnimationFrames() => 0;
 	public bool GetPropertyFlag(MaterialPropertyTypes needsBumpedLightmaps) => true;
 	public IMaterialVar[]? GetShaderParams() => null;
+	public string? GetShaderName() => null;
 	public VertexFormat GetVertexFormat() => 0;
 	public bool HasProxy() => false;
 	public void IncrementReferenceCount() { }
