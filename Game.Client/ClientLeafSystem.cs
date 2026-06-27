@@ -18,6 +18,10 @@ public enum RenderFlags : byte
 	AlternateSorting = 0x20
 }
 
+public class ClientLeafSubSystemData
+{
+}
+
 public struct RenderableInfo
 {
 	public IClientRenderable? Renderable;
