@@ -111,6 +111,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 #if GMOD_DLL
 		garrysmod.InitializeMod(services);
 #endif
+		IGameSystem.Add(DetailObjectSystem.GetDetailObjectSystem());
 		IGameSystem.Add(Singleton<ViewportClientSystem>());
 
 		vgui = services.GetService<IVGui>();

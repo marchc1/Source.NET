@@ -63,4 +63,8 @@ public interface IClientLeafSystem : IClientLeafSystemEngine, IGameSystem {
 
 	void RenderableChanged(ClientRenderHandle_t handle);
 	void SetRenderGroup(ClientRenderHandle_t handle, RenderGroup group);
+
+	void SetSubSystemDataInLeaf(int leaf, int subSystemIdx, ClientLeafSubSystemData? data);
+	ClientLeafSubSystemData? GetSubSystemDataInLeaf(int leaf, int subSystemIdx);
+	void SetDetailObjectsInLeaf(int leaf, int firstDetailObject, int detailObjectCount);
 }

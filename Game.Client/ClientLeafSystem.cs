@@ -1,4 +1,6 @@
-﻿using Source;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source;
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Engine;
@@ -45,6 +47,7 @@ public struct ClientLeaf
 	public ushort FirstDetailProp;
 	public ushort DetailPropCount;
 	public int DetailPropRenderFrame;
+	public InlineArray1<ClientLeafSubSystemData?> SubSystemData;
 }
 
 public struct ShadowInfo_t
@@ -74,6 +77,9 @@ class RenderableInfoBox
 
 public class ClientLeafSystem : IClientLeafSystem
 {
+	public const int CLSUBSYSTEM_DETAILOBJECTS = 0;
+	public const int N_CLSUBSYSTEMS = 1;
+
 	readonly List<ClientLeaf> Leaf = [];
 	readonly List<ClientRenderHandle_t> DirtyRenderables = [];
 	readonly List<ClientRenderHandle_t> ViewModels = [];
@@ -84,6 +90,35 @@ public class ClientLeafSystem : IClientLeafSystem
 		ClientRenderHandle_t handle = Interlocked.Increment(ref curHandleIdx);
 		ValidHandles.Add(handle);
 		return handle;
+	}
+
+	public void SetSubSystemDataInLeaf(int leaf, int subSystemIdx, ClientLeafSubSystemData? data) {
+		Assert(subSystemIdx < N_CLSUBSYSTEMS);
+		if (!Leaf.IsValidIndex(leaf)) {
+			Assert(false);
+			return;
+		}
+		ref ClientLeaf l = ref Leaf.AsSpan()[leaf];
+		l.SubSystemData[subSystemIdx] = data;
+	}
+
+	public ClientLeafSubSystemData? GetSubSystemDataInLeaf(int leaf, int subSystemIdx) {
+		Assert(subSystemIdx < N_CLSUBSYSTEMS);
+		if (!Leaf.IsValidIndex(leaf)) {
+			Assert(false);
+			return null;
+		}
+		return Leaf[leaf].SubSystemData[subSystemIdx];
+	}
+
+	public void SetDetailObjectsInLeaf(int leaf, int firstDetailObject, int detailObjectCount) {
+		if (!Leaf.IsValidIndex(leaf)) {
+			Assert(false);
+			return;
+		}
+		ref ClientLeaf l = ref Leaf.AsSpan()[leaf];
+		l.FirstDetailProp = (ushort)firstDetailObject;
+		l.DetailPropCount = (ushort)detailObjectCount;
 	}
 
 

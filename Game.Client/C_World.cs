@@ -87,6 +87,8 @@ public class C_World : C_BaseEntity
 		Precache();
 	}
 
+	public ReadOnlySpan<char> GetDetailSpriteMaterial() => ((ReadOnlySpan<char>)DetailSpriteMaterial).SliceNullTerminatedString();
+
 	static C_World? g_ClientWorld;
 	public static C_World GetClientWorldEntity() {
 		Assert(g_ClientWorld != null);

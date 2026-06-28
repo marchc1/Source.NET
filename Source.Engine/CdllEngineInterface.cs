@@ -255,9 +255,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	public int GameLumpVersion(int lumpId) => ModelLoader.GameLumpVersion(lumpId);
 
 	public int GameLumpSize(int lumpId) => ModelLoader.GameLumpSize(lumpId);
-	public bool LoadGameLump(int lumpId, Span<byte> buffer) {
-		throw new NotImplementedException();
-	}
+	public bool LoadGameLump(int lumpId, Span<byte> buffer) => ModelLoader.LoadGameLump(lumpId, buffer);
 
 	public int LevelLeafCount() => host_state.WorldBrush!.Leafs!.Length;
 	public ISpatialQuery? GetBSPTreeQuery() {
