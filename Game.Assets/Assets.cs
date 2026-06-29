@@ -9,7 +9,8 @@ namespace Game.Assets;
 
 static class AssetUtils
 {
-	public record AssetMapping(string LocalPath, string RemotePath);
+	public record AssetMapping(string LocalPath, string RemotePath, bool IsDirectory = false, bool Optional = false);
+
 	private const int GModAppID = 4000;
 	private const string GModLocalPath = "steamapps/common/GarrysMod";
 
@@ -51,6 +52,13 @@ static class AssetUtils
 			list.Add(new($"hl2/hl2_textures_{suffix}.vpk", $"sourceengine/hl2_textures_{suffix}.vpk"));
 
 		return list;
+	}
+
+	public static List<AssetMapping> GetOptionalAssets() {
+		return [
+			new("hl2/maps", "garrysmod/maps", IsDirectory: true, Optional: true),
+			new("hl2/cfg/autoexec.cfg", "garrysmod/cfg/autoexec.cfg", Optional: true),
+		];
 	}
 
 	public static string? FindGarrysModPath() {
@@ -125,7 +133,7 @@ static class AssetUtils
 
 	public static bool IsAssetLinked(string localRelativePath, string projectRoot) {
 		string fullPath = Path.Combine(projectRoot, localRelativePath);
-		return File.Exists(fullPath);
+		return File.Exists(fullPath) || Directory.Exists(fullPath);
 	}
 
 	public static bool UnlinkAsset(string localRelativePath, string projectRoot) {
@@ -135,6 +143,10 @@ static class AssetUtils
 				File.Delete(fullLocalPath);
 				return true;
 			}
+			if (Directory.Exists(fullLocalPath)) {
+				Directory.Delete(fullLocalPath, false);
+				return true;
+			}
 			return false;
 		}
 		catch {
@@ -142,7 +154,7 @@ static class AssetUtils
 		}
 	}
 
-	public static bool BatchLinkAssets(List<(string Local, string Remote)> assets) {
+	public static bool BatchLinkAssets(List<(string Local, string Remote, bool IsDirectory)> assets) {
 		foreach (var asset in assets) {
 			string? dir = Path.GetDirectoryName(asset.Local);
 			if (dir != null && !Directory.Exists(dir))
@@ -150,6 +162,8 @@ static class AssetUtils
 
 			if (File.Exists(asset.Local))
 				File.Delete(asset.Local);
+			else if (asset.IsDirectory && Directory.Exists(asset.Local))
+				Directory.Delete(asset.Local, false);
 		}
 
 		try {
@@ -158,7 +172,7 @@ static class AssetUtils
 				using (var writer = File.CreateText(batchFile)) {
 					writer.WriteLine("@echo off");
 					foreach (var asset in assets) {
-						writer.WriteLine($"mklink \"{asset.Local}\" \"{asset.Remote}\"");
+						writer.WriteLine($"mklink {(asset.IsDirectory ? "/D " : "")}\"{asset.Local}\" \"{asset.Remote}\"");
 					}
 				}
 
@@ -207,31 +221,33 @@ static class AssetUtils
 		return AppDomain.CurrentDomain.BaseDirectory!;
 	}
 
-	public static void LinkAllAssets(string projectRoot, bool requireRestart = false) {
+	public static void LinkAllAssets(string projectRoot, bool requireRestart = false) =>
+		LinkAssets(projectRoot, GetRequiredAssets(), requireRestart);
+
+	public static void LinkAssets(string projectRoot, IEnumerable<AssetMapping> mappings, bool requireRestart = false) {
 		string? gmodPath = FindGarrysModPath();
 		if (gmodPath == null)
 			return;
 
-		List<(string, string)> assets = [];
-		var required = GetRequiredAssets();
+		List<(string Local, string Remote, bool IsDirectory)> assets = [];
 
-		foreach (var asset in required) {
+		foreach (var asset in mappings) {
 			if (IsAssetLinked(asset.LocalPath, projectRoot))
 				continue;
 
 			string fullLocalPath = Path.Combine(projectRoot, asset.LocalPath);
 			string remotePath = Path.Combine(gmodPath, asset.RemotePath);
-			assets.Add((fullLocalPath, remotePath));
+			assets.Add((fullLocalPath, remotePath, asset.IsDirectory));
 		}
 
 		if (assets.Count > 0) {
 			if (BatchLinkAssets(assets)) {
 				if (requireRestart) {
-					List<(string, string)> outputAssets = [];
-					foreach (var (local, remote) in assets) {
+					List<(string Local, string Remote, bool IsDirectory)> outputAssets = [];
+					foreach (var (local, remote, isDir) in assets) {
 						var relative = Path.GetRelativePath(projectRoot, local);
 						var dest = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, relative);
-						outputAssets.Add((dest, remote));
+						outputAssets.Add((dest, remote, isDir));
 					}
 					BatchLinkAssets(outputAssets);
 				}
@@ -278,7 +294,7 @@ public class AssetLinker : Frame
 		RefreshButton = new Button(this, "RefreshButton", "Refresh", this, "Refresh");
 		CloseButton = new Button(this, "CloseButton", "Close", this, "Close");
 
-		AssetsStringList = AssetUtils.GetRequiredAssets();
+		AssetsStringList = [.. AssetUtils.GetRequiredAssets(), .. AssetUtils.GetOptionalAssets()];
 
 		RefreshList();
 		UpdateButtons();
@@ -371,6 +387,7 @@ public class AssetLinker : Frame
 
 		string localPath = data.GetString("local", "").ToString();
 		string remotePath = data.GetString("remote", "").ToString();
+		bool isDir = data.GetInt("isdir") != 0;
 
 		if (string.IsNullOrEmpty(localPath) || string.IsNullOrEmpty(remotePath) || remotePath == "Not Found")
 			return;
@@ -380,7 +397,7 @@ public class AssetLinker : Frame
 		if (AssetUtils.IsAssetLinked(relPath, ProjectRoot))
 			return;
 
-		AssetUtils.BatchLinkAssets([(localPath, remotePath)]);
+		AssetUtils.BatchLinkAssets([(localPath, remotePath, isDir)]);
 		RefreshList();
 	}
 
@@ -427,6 +444,7 @@ public class AssetLinker : Frame
 			string fullLocalPath = Path.Combine(ProjectRoot, asset.LocalPath);
 			kv.SetString("local", fullLocalPath);
 			kv.SetString("remote", gmodPath != null ? Path.Combine(gmodPath, asset.RemotePath) : "Not Found");
+			kv.SetInt("isdir", asset.IsDirectory ? 1 : 0);
 
 			bool isLinked = AssetUtils.IsAssetLinked(asset.LocalPath, ProjectRoot);
 			kv.SetString("status", isLinked ? "Linked" : "Missing");
@@ -445,7 +463,7 @@ public class AssetLinker : Frame
 		if (gmodPath == null)
 			return;
 
-		AssetUtils.LinkAllAssets(ProjectRoot);
+		AssetUtils.LinkAssets(ProjectRoot, AssetsStringList);
 		RefreshList();
 	}
 

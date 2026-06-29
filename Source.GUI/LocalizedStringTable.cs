@@ -46,8 +46,9 @@ public class LocalizedStringTable(ISystem system, IFileSystem fileSystem) : ILoc
 
 			system.GetUILanguage(language);
 
-			if (language.IndexOfAnyExcept('\0') != -1 && ((ReadOnlySpan<char>)language).Equals(ENGLISH_STRING, StringComparison.OrdinalIgnoreCase)) {
-				string fileName3 = new string(file).Replace(LANGUAGE_STRING, new(language));
+			ReadOnlySpan<char> uiLanguage = language.SliceNullTerminatedString();
+			if (!uiLanguage.IsEmpty && !uiLanguage.Equals(ENGLISH_STRING, StringComparison.OrdinalIgnoreCase)) {
+				string fileName3 = new string(file).Replace(LANGUAGE_STRING, new(uiLanguage));
 				success &= AddFile(fileName3, pathID, includeFallbackSearchPaths);
 			}
 
@@ -55,7 +56,7 @@ public class LocalizedStringTable(ISystem system, IFileSystem fileSystem) : ILoc
 		}
 
 		LocalizationFileInfo search;
-		search.SymName = new string(fileName);
+		search.SymName = new string(file);
 		search.SymPathID = !pathID.IsEmpty ? new string(pathID) : "";
 		search.IncludeFallbacks = includeFallbackSearchPaths;
 
@@ -63,7 +64,7 @@ public class LocalizedStringTable(ISystem system, IFileSystem fileSystem) : ILoc
 		int lfc = localizationFiles.Length;
 		for (int lf = 0; lf < lfc; ++lf) {
 			ref LocalizationFileInfo entry = ref localizationFiles[lf];
-			if (entry.SymName.Hash() == fileName.Hash()) {
+			if (entry.SymName.Hash() == file.Hash()) {
 				LocalizationFiles.RemoveAt(lf);
 				break;
 			}

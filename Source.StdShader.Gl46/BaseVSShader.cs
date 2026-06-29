@@ -392,9 +392,9 @@ public abstract class BaseVSShader : BaseShader
 			}
 #else
 			if (convertFromGammaToLinear)
-				tintVar.GetLinearVecValue(color, 3);
+				pTintVar.GetLinearVecValue(color, 3);
 			else
-				tintVar.GetVecValue(color[..3]);
+				pTintVar.GetVecValue(color[..3]);
 #endif
 		}
 		else {

@@ -75,6 +75,20 @@ public class ScrollBarSlider : Panel
 		ScrollBarSliderBorder = scheme.GetBorder("ScrollBarSliderBorder") ?? scheme.GetBorder("ButtonBorder");
 	}
 
+	public override void ApplySettings(KeyValues resourceData) {
+		base.ApplySettings(resourceData);
+
+		ReadOnlySpan<char> buttonBorderName = resourceData.GetString("ButtonBorder", null);
+		if (!buttonBorderName.IsEmpty && buttonBorderName.Length > 0)
+			ScrollBarSliderBorder = GetScheme()!.GetBorder(buttonBorderName);
+	}
+
+	public override void PaintBackground() {
+		GetPaintSize(out int wide, out int tall);
+		Surface.DrawSetColor(GetBgColor());
+		Surface.DrawFilledRect(0, 0, wide - 1, tall - 1);
+	}
+
 	public override void Paint() {
 		GetPaintSize(out int wide, out int tall);
 
@@ -128,8 +142,17 @@ public class ScrollBarSlider : Panel
 	}
 
 	public void SetRange(int min, int max) {
+		if (max < min)
+			max = min;
+
+		if (min > max)
+			min = max;
+
 		Range[0] = min;
 		Range[1] = max;
+
+		SetValue(Value);
+		InvalidateLayout();
 	}
 
 	public void GetRange(out int min, out int max) {
@@ -177,7 +200,7 @@ public class ScrollBarSlider : Panel
 			NobPos[1] = (int)(firstpixel + fnobsize);
 
 			if (NobPos[1] > length) {
-				NobPos[0] = NobPos[1] - (int)fnobsize;
+				NobPos[0] = (int)(length - fnobsize);
 				NobPos[1] = (int)length;
 			}
 		}
@@ -219,7 +242,7 @@ public class ScrollBarSlider : Panel
 			else
 				fvalue = (frange - frangewindow) * (fnob / (length - fnobsize));
 
-			if ((fvalue + RangeWindow - Range[1]) > (0.01f * frangewindow))
+			if (Math.Abs(fvalue + RangeWindow - Range[1]) < (0.01f * frange))
 				Value = Range[1] - RangeWindow;
 			else
 				Value = (int)(fvalue + Range[0] + 0.5f);

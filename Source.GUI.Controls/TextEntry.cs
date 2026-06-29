@@ -993,7 +993,7 @@ public class TextEntry : Panel
 		LayoutVerticalScrollBarSlider();
 	}
 
-	private void Undo() { // FIXME: why does this only work once?
+	private void Undo() {
 		CursorPos = UndoCursorPos;
 
 		// I have a bad feeling about this...

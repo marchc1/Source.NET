@@ -854,7 +854,7 @@ public class Menu : Panel
 
 	public override void OnKillFocus(Panel? newPanel) {
 		if (newPanel == null || !HasParent(newPanel)) {
-			if (IsKeyboardInputEnabled() && newPanel == null)
+			if (!IsKeyboardInputEnabled() && newPanel == null)
 				return;
 
 			MenuItem item = GetParentMenuItem()!;
@@ -870,7 +870,7 @@ public class Menu : Panel
 		}
 	}
 
-	internal void OnInternalMousePressed(Panel other, MouseButton code) => MenuManager.Instance.OnInternalMousePressed(other, code);
+	internal static void OnInternalMousePressed(Panel other, ButtonCode code) => MenuManager.Instance.OnInternalMousePressed(other, code);
 
 	public override void SetVisible(bool state) {
 		if (state == IsVisible())
@@ -1338,7 +1338,7 @@ public class Menu : Panel
 			MenuItems[itemID].SetCurrentKeyBinding(hotkey);
 	}
 
-	public void PlaceContextMenu(Panel parent, Menu menu) {
+	public static void PlaceContextMenu(Panel parent, Menu menu) {
 		Assert(parent);
 		Assert(menu);
 
@@ -1347,15 +1347,15 @@ public class Menu : Panel
 
 		menu.SetVisible(true);
 		menu.SetParent(parent);
-		menu.AddActionSignalTarget(this);
+		menu.AddActionSignalTarget(parent);
 
-		Input.GetCursorPos(out int cursorX, out int cursorY);
+		parent.Input.GetCursorPos(out int cursorX, out int cursorY);
 
 		menu.SetVisible(true);
 		menu.InvalidateLayout(true);
 		menu.GetSize(out int menuWide, out int menuTall);
 
-		Surface.GetScreenSize(out int wide, out int tall);
+		parent.Surface.GetScreenSize(out int wide, out int tall);
 
 		if (wide - menuWide > cursorX) {
 			if (tall - menuTall > cursorY)
@@ -1441,7 +1441,7 @@ class MenuManager
 		Menus.Remove(menu);
 	}
 
-	public void OnInternalMousePressed(Panel other, MouseButton code) {
+	public void OnInternalMousePressed(Panel other, ButtonCode code) {
 		int count = Menus.Count;
 		if (count == 0)
 			return;
@@ -1459,10 +1459,11 @@ class MenuManager
 	}
 
 	private void AbortMenus() {
-		for (int i = 0; i < Menus.Count; i++) {
+		for (int i = Menus.Count - 1; i >= 0; --i) {
 			Menu menu = Menus[i];
-			menu.SetVisible(false);
 			Menus.RemoveAt(i);
+
+			menu.SetVisible(false);
 		}
 
 		Menus.Clear();

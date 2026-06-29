@@ -21,7 +21,7 @@ public class ImageBorder : Border
 	public virtual void SetImage(ReadOnlySpan<char> imageName) {
 		if (!imageName.IsEmpty && imageName.Length > 0) {
 			ImageName = "vgui/" + new string(imageName);
-			Surface.DrawSetTextureFile(TextureID, imageName, 1, false);
+			Surface.DrawSetTextureFile(TextureID, ImageName, 1, false);
 		}
 	}
 

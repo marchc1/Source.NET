@@ -54,6 +54,7 @@ public class OptionsSubAudio : PropertyPage
 		SoundMuteLoseFocusCheckButton = new(this, "snd_mute_losefocus", "#GameUI_SndMuteLoseFocus", "snd_mute_losefocus");
 
 		LoadControlSettings("resource/OptionsSubAudio.res");
+		FindChildByName("ThirdPartySoundCredits")?.SetVisible(false);
 	}
 
 	public override void OnResetData() {
@@ -112,12 +113,5 @@ public class OptionsSubAudio : PropertyPage
 		MusicSlider.ApplyChanges();
 
 		// More to do
-	}
-}
-
-class OptionsSubAudioThirdPartyCreditsDlg : Frame
-{
-	public OptionsSubAudioThirdPartyCreditsDlg(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
-
 	}
 }

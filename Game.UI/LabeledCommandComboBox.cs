@@ -1,3 +1,4 @@
+using Source;
 using Source.Common.Client;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
@@ -72,10 +73,12 @@ public class LabeledCommandComboBox : ComboBox
 
 	readonly static KeyValues KV_ControlModified = new("ControlModified");
 	public void OnTextChanged(ReadOnlySpan<char> text) {
+		text = text.SliceNullTerminatedString();
 		for (int i = 0; i < items.Count; i++) {
-			if (text.SequenceEqual(items[i].name)) {
+			ReadOnlySpan<char> name = items[i].name.AsSpan().SliceNullTerminatedString();
+			if (text.Equals(name, StringComparison.OrdinalIgnoreCase)) {
 				CurrentSelection = i;
-				return;
+				break;
 			}
 		}
 

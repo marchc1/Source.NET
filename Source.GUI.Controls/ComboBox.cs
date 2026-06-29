@@ -192,7 +192,7 @@ public class ComboBox : TextEntry
 
 	public override void ApplySchemeSettings(IScheme scheme) {
 		base.ApplySchemeSettings(scheme);
-		SetBorder(scheme.GetBorder(BorderOverride.Length > 0 ? BorderOverride : "ComboBoxBorder"));
+		SetBorder(scheme.GetBorder(BorderOverride[0] != '\0' ? BorderOverride : "ComboBoxBorder"));
 	}
 
 	public override void ApplySettings(KeyValues resourceData) {
@@ -278,7 +278,7 @@ public class ComboBox : TextEntry
 		if (DropDown == null)
 			return;
 
-		DropDown.SetVisible(true);
+		DropDown.SetVisible(false);
 		DoClick();
 	}
 
@@ -297,7 +297,7 @@ public class ComboBox : TextEntry
 		}
 		else if (IsCursorOver()) {
 			SelectAllText(false);
-			OnCursorExited();
+			OnCursorEntered();
 			RequestFocus();
 		}
 		else
@@ -377,7 +377,6 @@ public class ComboBox : TextEntry
 	public override void OnSizeChanged(int newWide, int newTall) {
 		base.OnSizeChanged(newWide, newTall);
 
-		// FIXME: Button can be null here?
 		if (Button == null)
 			return;
 
@@ -469,7 +468,7 @@ public class ComboBox : TextEntry
 			case "SetText":
 				OnSetText(message.GetString("text", ""));
 				break;
-			case "MenuClosed":
+			case "MenuClose":
 				OnMenuClose();
 				break;
 			case "ActivateItem":

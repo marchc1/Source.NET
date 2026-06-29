@@ -388,11 +388,30 @@ public class ItemButton : Label
 	}
 
 	public override void OnMousePressed(ButtonCode code) {
+		if (ListPanel != null && ListPanel.IsClickable() && IsEnabled()) {
+			if (code == ButtonCode.MouseLeft)
+				ListPanel.PostActionSignal(new KeyValues("ItemLeftClick", "itemID", ID));
 
+			if (code == ButtonCode.MouseRight) {
+				KeyValues msg = new("ItemContextMenu", "itemID", ID);
+				msg.SetPtr("SubPanel", this);
+				ListPanel.PostActionSignal(msg);
+			}
+
+			ListPanel.SetSelectedItem(this);
+		}
 	}
 
 	public void SetSelected(bool state) {
+		if (Selected != state) {
+			if (state)
+				RequestFocus();
 
+			Selected = state;
+			SetPaintBackgroundEnabled(state);
+			InvalidateLayout();
+			Repaint();
+		}
 	}
 
 	public bool IsSelected() => Selected;
@@ -526,7 +545,7 @@ public class SectionedListPanel : Panel
 	public SectionedListPanel(Panel? parent, ReadOnlySpan<char> name) : base(parent, name) {
 		ScrollBar = new(this, "SectionedScrollBar", true);
 		ScrollBar.SetVisible(false);
-		ScrollBar.AddActionSignalTarget(this); //fixme, why is this not working
+		ScrollBar.AddActionSignalTarget(this);
 
 		EditModeItemID = 0;
 		EditModeColumn = 0;
@@ -1047,7 +1066,15 @@ public class SectionedListPanel : Panel
 	}
 
 	public void SetSelectedItem(ItemButton? item) {
+		if (SelectedItem == item)
+			return;
 
+		SelectedItem?.SetSelected(false);
+		SelectedItem = item;
+		SelectedItem?.SetSelected(true);
+
+		Repaint();
+		PostActionSignal(new KeyValues("ItemSelected", "itemID", SelectedItem?.GetID() ?? -1));
 	}
 
 	public int GetSelectedItem() {
@@ -1123,7 +1150,14 @@ public class SectionedListPanel : Panel
 	}
 
 	public void EnterEditMode(int itemID, int column, Panel editPanel) {
-
+		EditModePanel = editPanel;
+		EditModeItemID = itemID;
+		EditModeColumn = column;
+		editPanel.SetParent(this);
+		editPanel.SetVisible(true);
+		editPanel.RequestFocus();
+		editPanel.MoveToFront();
+		InvalidateLayout();
 	}
 
 	public void LeaveEditMode() {
@@ -1237,4 +1271,6 @@ public class SectionedListPanel : Panel
 
 		base.OnMessage(message, from);
 	}
+
+	internal bool IsClickable() => Clickable;
 }

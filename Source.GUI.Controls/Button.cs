@@ -219,6 +219,8 @@ public class Button : Label
 		return blended;
 	}
 
+	public Color GetButtonArmedBgColor() => ArmedBgColor;
+
 	public virtual Color GetButtonBgColor() {
 		if (0 != (ButtonFlags & ButtonFlags.Depressed))
 			return DepressedBgColor;
@@ -542,7 +544,7 @@ public class Button : Label
 	}
 
 	private void SetAsCurrentDefaultButton(bool state) {
-		if (ButtonFlags.DefaultButton != 0 != state) {
+		if ((ButtonFlags & ButtonFlags.DefaultButton) != 0 != state) {
 			ButtonFlags ^= ButtonFlags.DefaultButton;
 
 			if (state) {
@@ -627,10 +629,10 @@ public class Button : Label
 
 	public virtual void DrawFocusBorder(int tx0, int ty0, int tx1, int ty1) {
 		Surface.DrawSetColor(KeyboardFocusColor);
-		DrawDashedLine(tx0, ty0, tx1, ty0 + 1, 1, 1); // Top
-		DrawDashedLine(tx0, ty0, tx0 + 1, ty1, 1, 1); // Bottom
-		DrawDashedLine(tx0, ty0 - 1, tx1, ty1, 1, 1); // Left
-		DrawDashedLine(tx1 - 1, ty0, tx1, ty1, 1, 1); // Right
+		DrawDashedLine(tx0, ty0, tx1, ty0 + 1, 1, 1); // top
+		DrawDashedLine(tx0, ty0, tx0 + 1, ty1, 1, 1); // left
+		DrawDashedLine(tx0, ty1 - 1, tx1, ty1, 1, 1); // bottom
+		DrawDashedLine(tx1 - 1, ty0, tx1, ty1, 1, 1); // right
 	}
 
 	public override void SizeToContents() {

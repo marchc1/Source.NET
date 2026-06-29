@@ -63,7 +63,7 @@ public unsafe class BufferedMeshGl46 : MeshGl46
 		Mesh.PreLock();
 
 		if (!Mesh.HasEnoughRoom(vertexCount, indexCount)) {
-			Msg("Not enough room! Flushing!\n");
+			// Msg("Not enough room! Flushing!\n");
 			ShaderAPI.FlushBufferedPrimitives();
 		}
 

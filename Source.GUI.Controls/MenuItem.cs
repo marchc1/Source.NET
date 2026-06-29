@@ -1,5 +1,6 @@
 using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
+using Source.Common.Input;
 
 namespace Source.GUI.Controls;
 
@@ -21,7 +22,7 @@ public class MenuItemCheckImage : TextImage
 		if (MenuItem.IsChecked()) {
 			if (MenuItem.IsEnabled()) {
 				DrawSetTextColor(MenuItem.GetButtonFgColor());
-				DrawPrintChar(1, 3, 'a');
+				DrawPrintChar(0, 2, 'a');
 			}
 			else {
 				DrawSetTextColor(MenuItem.GetDisabledFgColor1());
@@ -147,6 +148,13 @@ public class MenuItem : Button
 		GetParentMenu()?.OnKillFocus(newPanel);
 	}
 
+	public override void OnKeyCodeReleased(ButtonCode code) {
+		if (GetParentMenu()!.GetMenuMode() == MenuMode.KEYBOARD && CascadeMenu != null)
+			return;
+
+		base.OnKeyCodeReleased(code);
+	}
+
 	public override void FireActionSignal() {
 		if (CascadeMenu == null) {
 			KeyValues kv = new KeyValues("MenuItemSelected");
@@ -185,7 +193,7 @@ public class MenuItem : Button
 		if (CasecadeArrow != null) {
 			CasecadeArrow.SetFont(scheme.GetFont("Marlett", IsProportional()));
 			CasecadeArrow.ResizeImageToContent();
-			AddImage(CasecadeArrow, 2);
+			AddImage(CasecadeArrow, 0);
 		}
 		else if (Checkable) {
 			((MenuItemCheckImage)Check!).SetFont(scheme.GetFont("Marlett", IsProportional()));
@@ -329,7 +337,7 @@ public class MenuItem : Button
 
 	public override void OnMessage(KeyValues message, IPanel? from) {
 		switch (message.Name) {
-			case "MenuClosed":
+			case "MenuClose":
 				OnKillFocus(newPanel: null);
 				break;
 			case "ArmItem":

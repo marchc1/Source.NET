@@ -1233,7 +1233,7 @@ public class ListPanel : Panel
 
 		int startItem = GetStartItem();
 		int rowsPerPage = (int)GetRowsPerPage();
-		int screenPosition = 01;
+		int screenPosition = -1;
 
 		if (LastSelectedItem != -1 && SelectedItems.Count > 0) {
 			int selectedItemRow = VisibleItems.IndexOf(LastSelectedItem);

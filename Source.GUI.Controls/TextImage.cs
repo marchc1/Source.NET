@@ -232,7 +232,7 @@ public class TextImage : Image
 
 			if (ColorChangeStream.Count > nextColorChange)
 				if (ColorChangeStream[nextColorChange].TextStreamIndex == i) {
-					DrawSetTextColor(ColorChangeStream[nextColorChange++].Color);
+					DrawSetTextColor(ColorChangeStream[nextColorChange].Color);
 					nextColorChange++;
 				}
 

@@ -43,6 +43,20 @@ public class ProgressBar : Panel
 		return (int)(segmentTotal * Progress);
 	}
 
+	public override void PaintBackground() {
+		GetSize(out int wide, out int tall);
+		Surface.DrawSetColor(GetBgColor());
+		Surface.DrawFilledRect(0, 0, wide, tall);
+	}
+
+	public override void OnDialogVariablesChanged(KeyValues variables) {
+		if (DialogVar != null) {
+			int val = variables.GetInt(DialogVar, -1);
+			if (val >= 0)
+				SetProgress(val / 100.0f);
+		}
+	}
+
 	public double GetProgress() => Progress;
 
 	public void SetProgress(double progress) {

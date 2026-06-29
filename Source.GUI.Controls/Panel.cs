@@ -1072,6 +1072,18 @@ public class Panel : IPanel
 
 	public AutoResize GetAutoResize() => AutoResizeDirection;
 
+	public PinCorner GetPinCorner() => PinCorner;
+
+	public void GetPinOffset(out int dx, out int dy) {
+		dx = PinDeltaX;
+		dy = PinDeltaY;
+	}
+
+	public void GetResizeOffset(out int dx, out int dy) {
+		dx = ResizeDeltaX;
+		dy = ResizeDeltaY;
+	}
+
 	PinCorner PinCorner;
 	AutoResize AutoResizeDirection;
 	int PinDeltaX;
@@ -2185,7 +2197,8 @@ public class Panel : IPanel
 	public virtual void OnMouseDoublePressed(ButtonCode code) { }
 	public virtual void OnMouseReleased(ButtonCode code) { }
 	public virtual void OnMouseMismatchedRelease(ButtonCode code, IPanel? pressedPanel) { }
-	public virtual void OnMouseWheeled(int delta) { }
+	public virtual void OnMouseWheeled(int delta) => CallParentFunction(new KeyValues("MouseWheeled", "delta", delta));
+	public virtual void OnDialogVariablesChanged(KeyValues variables) { }
 	bool TriplePressAllowed;
 	public virtual void SetTriplePressAllowed(bool state) => TriplePressAllowed = state;
 	public virtual bool IsTriplePressAllowed() => TriplePressAllowed;
@@ -2224,7 +2237,7 @@ public class Panel : IPanel
 
 		SetParent(null);
 		while (GetChildCount() > 0) {
-			IPanel child = GetChild(0);
+			Panel child = GetChild(0);
 			if (child.IsAutoDeleteSet())
 				child.DeletePanel();
 			else
@@ -2394,6 +2407,28 @@ public class Panel : IPanel
 		return false;
 	}
 
+	private void InternalMousePressed(ButtonCode code) {
+		// todo triple press/dragdrop etc
+
+		Menu.OnInternalMousePressed(this, code);
+
+		if (!ShouldHandleInputMessage())
+			return;
+
+		if (IsCursorNone())
+			return;
+
+		if (!IsMouseInputEnabled())
+			return;
+
+		if (IsBuildGroupEnabled()) {
+			// if (BuildGroup.MousePressed(code, this))
+			// 	return;
+		}
+
+		OnMousePressed(code);
+	}
+
 	private void InternalKeyCodeReleased(ButtonCode code) {
 		if (!ShouldHandleInputMessage())
 			return;
@@ -2476,7 +2511,7 @@ public class Panel : IPanel
 			case "MouseFocusTicked": InternalMouseFocusTicked(); break;
 			case "KeyFocusTicked": InternalKeyFocusTicked(); break;
 			case "MouseCaptureLost": OnMouseCaptureLost(); break;
-			case "MousePressed": OnMousePressed((ButtonCode)message.GetInt("code")); break;
+			case "MousePressed": InternalMousePressed((ButtonCode)message.GetInt("code")); break;
 			case "MouseWheeled": OnMouseWheeled(message.GetInt("delta")); break;
 			case "MouseReleased": OnMouseReleased((ButtonCode)message.GetInt("code")); break;
 			case "UnhandledMouseClick": OnUnhandledMouseClick((ButtonCode)message.GetInt("code")); break;
@@ -2488,6 +2523,7 @@ public class Panel : IPanel
 			case "OnRequestFocus": OnRequestFocus(message.GetPtr<Panel>("subFocus")!, message.GetPtr<Panel>("defaultPanel")); break;
 			case "OnScreenSizeChanged": OnScreenSizeChanged(message.GetInt("oldwide"), message.GetInt("oldtall")); break;
 			case "Command": OnCommand(message.GetString("command")); break;
+			case "DialogVariables": OnDialogVariablesChanged(message); break;
 #if DEBUG
 			default:
 				DevMsg(3, $"Unhandled message '{message.Name}' from {from}");
@@ -2512,9 +2548,9 @@ public class Panel : IPanel
 	}
 
 
-	public virtual void OnTick() {
+	public virtual void OnTick() { }
 
-	}
+	public virtual void OnMove() { }
 
 	public void SendMessage(KeyValues parms, IPanel? from) {
 		OnMessage(parms, from);
@@ -2998,5 +3034,27 @@ class TextureIdProperty : IPanelAnimationPropertyConverter
 		}
 
 		entry.Set(panel, (int)currentId);
+	}
+}
+
+public readonly struct ScopedPanelWaitCursor : IDisposable
+{
+	const CursorCode dc_hourglass = CursorCode.Hourglass;
+
+	readonly Panel Panel;
+	readonly CursorCode OldCursor;
+
+	public ScopedPanelWaitCursor(Panel panel) {
+		Panel = panel;
+		OldCursor = panel.GetCursor();
+		panel.SetCursor(dc_hourglass);
+	}
+
+	public void Dispose() {
+		CursorCode nowCursor = Panel.GetCursor();
+		if (nowCursor == dc_hourglass)
+			Panel.SetCursor(OldCursor);
+		else
+			Assert(nowCursor == dc_hourglass, $"Expected dc_hourglass cursor, got {nowCursor} one.");
 	}
 }

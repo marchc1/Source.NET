@@ -32,6 +32,10 @@ public interface ITexture : IDisposable
 
 	void SetTextureRegenerator(ITextureRegenerator textureRegen);
 
+	void IncrementReferenceCount();
+	void DecrementReferenceCount();
+	void DeleteIfUnreferenced();
+
 	// todo: enum for additionalCreationFlags, if applicable?
 	void Download(Rectangle rect = default, int additionalCreationFlags = 0);
 
