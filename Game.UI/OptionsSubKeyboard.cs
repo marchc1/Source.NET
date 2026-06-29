@@ -28,7 +28,8 @@ public class OptionsSubKeyboard : PropertyPage
 		for (int i = 0; i < KeyBindings.Length; i++)
 			KeyBindings[i] = new();
 
-		CreateKeyBindingList();
+		KeyBindList = new(this, "listpanel_keybindlist");
+
 		SaveCurrentBindings();
 		ParseActionDescriptions();
 
@@ -54,10 +55,6 @@ public class OptionsSubKeyboard : PropertyPage
 	}
 
 	public override void OnApplyChanges() => ApplyAllBindings();
-
-	public void CreateKeyBindingList() {
-		KeyBindList = new(this, "listpanel_keybindlist");
-	}
 
 	public override void OnKeyCodeTyped(ButtonCode code) {
 		if (code == ButtonCode.KeyEnter)
@@ -136,26 +133,42 @@ public class OptionsSubKeyboard : PropertyPage
 		}
 	}
 
-
-	// static int bindingSymbol = KeyValuesSystem().GetSymbolForString("Binding");//TODO
 	public KeyValues? GetItemForBinding(ReadOnlySpan<char> binding) {
-		throw new NotImplementedException();
-		// for (int i = 0; i < KeyBindList.GetItemCount(); i++) {
-		// 	KeyValues? item = KeyBindList.GetItemData(KeyBindList.GetItemIDFromRow(i));
-		// 	if (item == null)
-		// 		continue;
+		for (int i = 0; i < KeyBindList.GetItemCount(); i++) {
+			KeyValues? item = KeyBindList.GetItemData(KeyBindList.GetItemIDFromRow(i));
+			if (item == null)
+				continue;
 
-		// 	KeyValues bindingItem = item.FindKey("" /*bindingSymbol*/);
-		// 	ReadOnlySpan<char> bindString = bindingItem.GetString();
+			KeyValues bindingItem = item.FindKey("Binding")!;
+			ReadOnlySpan<char> bindString = bindingItem.GetString();
 
-		// 	if (strcmp(bindString, binding) == 0)
-		// 		return item;
-		// }
+			if (strcmp(bindString, binding) == 0)
+				return item;
+		}
 
-		// return null;
+		return null;
 	}
 
-	public void AddBinding() {
+	public void AddBinding(KeyValues item, ReadOnlySpan<char> keyName) {
+		if (stricmp(item.GetString("key", ""), keyName) == 0)
+			return;
+
+		// RemoveKeyFromBindItems(item, keyName);
+
+		ReadOnlySpan<char> binding = item.GetString("Binding", "");
+
+		for (int i = 0; i < KeyBindList.GetItemCount(); i++) {
+			KeyValues? curItem = KeyBindList.GetItemData(KeyBindList.GetItemIDFromRow(i));
+			if (curItem == null)
+				continue;
+
+			ReadOnlySpan<char> curBinding = curItem.GetString("Binding", "");
+
+			if (stricmp(curBinding, binding) == 0) {
+				curItem.SetString("Key", keyName);
+				KeyBindList.InvalidateLayout();
+			}
+		}
 	}
 
 	public void ClearBindItems() {
@@ -181,22 +194,35 @@ public class OptionsSubKeyboard : PropertyPage
 
 		ClearBindItems();
 
-		bool Joystick = false;
-		ConVarRef joy = new("joystick");
-		if (joy.IsValid())
-			Joystick = joy.GetBool();
+		// bool Joystick = false;
+		// ConVarRef joy = new("joystick");
+		// if (joy.IsValid())
+		// 	Joystick = joy.GetBool();
 
-		bool Falcon = false;
-		ConVarRef falcon = new("hap_HasDevice");
-		if (falcon.IsValid())
-			Falcon = falcon.GetBool();
+		// bool Falcon = false;
+		// ConVarRef falcon = new("hap_HasDevice");
+		// if (falcon.IsValid())
+		// 	Falcon = falcon.GetBool();
 
 		for (int i = 0; i < KeyBindings.Length; i++) {
-			ReadOnlySpan<char> binding = [];//gameuifuncs.GetBindingForButtonCode((ButtonCode)i);
+			ReadOnlySpan<char> binding = gameuifuncs.GetBindingForButtonCode((ButtonCode)i);
 			if (binding.IsEmpty)
 				continue;
 
 			KeyValues? item = GetItemForBinding(binding);
+			if (item != null) {
+				ReadOnlySpan<char> keyName = inputSystem.ButtonCodeToString((ButtonCode)i);
+				ReadOnlySpan<char> currentKey = item.GetString("key", "");
+
+				if (!currentKey.IsEmpty) {
+					// ButtonCode currentBC = gameuifuncs.GetButtonCodeForBind(currentKey);
+					KeysToUnbind.Remove(currentKey.ToString());
+				}
+
+				AddBinding(item, keyName);
+
+				KeysToUnbind.Add(keyName.ToString());
+			}
 		}
 	}
 
@@ -211,7 +237,7 @@ public class OptionsSubKeyboard : PropertyPage
 		DeleteSavedBindings();
 
 		for (int i = 0; i < (int)ButtonCode.Last; i++) {
-			ReadOnlySpan<char> binding = [];//gameuifuncs.GetBindingForButtonCode((ButtonCode)i);
+			ReadOnlySpan<char> binding = gameuifuncs.GetBindingForButtonCode((ButtonCode)i);
 			if (!binding.IsEmpty)
 				continue;
 
@@ -232,11 +258,40 @@ public class OptionsSubKeyboard : PropertyPage
 	}
 
 	public void FillInDefaultBindings() {
+		long size = fileSystem.Size("cfg/config_default.cfg");
+		if (size <= 0) return;
 
+		Span<byte> fileData = stackalloc byte[(int)size];
+		if (!fileSystem.ReadFile("cfg/config_default.cfg", null, fileData.AsBytes(), 0))
+			return;
+
+		ClearBindItems();
+
+		// todo
 	}
 
 	public void ItemSelected(int itemID) {
+		KeyBindList.SetItemOfInterest(itemID);
 
+		if (KeyBindList.IsItemIDValid(itemID)) {
+			SetBindingButton.SetEnabled(true);
+
+			KeyValues? kv = KeyBindList.GetItemData(itemID);
+			if (kv != null) {
+				ReadOnlySpan<char> key = kv.GetString("Key", null);
+				if (!key.IsEmpty)
+					ClearBindingButton.SetEnabled(true);
+				else
+					ClearBindingButton.SetEnabled(false);
+
+				if (kv.GetInt("Header") > 0)
+					SetBindingButton.SetEnabled(false);
+			}
+		}
+		else {
+			SetBindingButton.SetEnabled(false);
+			ClearBindingButton.SetEnabled(false);
+		}
 	}
 
 	static readonly KeyValues KV_ApplyButtonEnable = new("ApplyButtonEnable");
@@ -247,7 +302,7 @@ public class OptionsSubKeyboard : PropertyPage
 		KeyValues? item = KeyBindList.GetItemData(r);
 		if (item != null) {
 			if (code != ButtonCode.None && code != ButtonCode.KeyEscape && code != ButtonCode.Invalid) {
-				// AddBinding(item, inputSystem.ButtonCodeToString(code));
+				AddBinding(item, inputSystem.ButtonCodeToString(code));
 				PostActionSignal(KV_ApplyButtonEnable);
 			}
 
@@ -262,8 +317,8 @@ public class OptionsSubKeyboard : PropertyPage
 		base.OnThink();
 
 		if (KeyBindList.IsCapturing()) {
-			// if (engine.CheckDoneKeyTrapping(ButtonCode.Invalid))
-			// Finish(ButtonCode.Invalid);
+			if (engine.CheckDoneKeyTrapping(out ButtonCode code))
+				Finish(code);
 		}
 	}
 
@@ -273,9 +328,7 @@ public class OptionsSubKeyboard : PropertyPage
 	}
 
 	public void OpenKeyboardAdvancedDialog() {
-		if (OptionsSubKeyboardAdvancedDlg == null)
-			OptionsSubKeyboardAdvancedDlg = new(GetParent());
-
+		OptionsSubKeyboardAdvancedDlg ??= new(GetParent());
 		OptionsSubKeyboardAdvancedDlg.Activate();
 	}
 

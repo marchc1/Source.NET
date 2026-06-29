@@ -78,6 +78,7 @@ public class FocusNavGroup
 		if (best != null) {
 			CurrentFocus.SetTarget(best);
 			best.RequestFocus(-1);
+			found = true;
 
 			if (!CanButtonBeDefault(best)) {
 				if (DefaultButton.TryGetTarget(out Panel? r))

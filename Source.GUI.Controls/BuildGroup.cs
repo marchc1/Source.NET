@@ -30,7 +30,7 @@ public class BuildGroup
 	public List<UtlSymbol> RegisteredControlSettingsFiles = [];
 
 	readonly static Dictionary<ulong, KeyValues?> DictCachedResFiles = [];
-	public static void ClearResFileCache(){
+	public static void ClearResFileCache() {
 		DictCachedResFiles.Clear();
 	}
 
@@ -177,7 +177,7 @@ public class BuildGroup
 
 			newPanel.SetAutoDelete(true);
 		}
-#if DEBUG
+#if false //DEBUG
 		else {
 			Warning($"BuildGroup::NewControl Could not create panel '{controlKeys.Name}', '{controlKeys.GetString("ControlName")}'\n");
 		}

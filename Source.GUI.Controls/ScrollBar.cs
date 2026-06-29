@@ -289,6 +289,24 @@ public class ScrollBar : Panel
 
 	public void SetButtonPressedScrollValue(int value) => ButtonPressedScrollValue = value;
 
+	public virtual void SendSliderMoveMessage(int value) => PostActionSignal(new KeyValues("ScrollBarSliderMoved", "position", value));
+
+	public void OnSliderMoved(int value) {
+		SendSliderMoveMessage(value);
+		UpdateSliderImages();
+	}
+
+	public override void OnMessage(KeyValues message, IPanel? from) {
+		switch (message.Name) {
+			case "ScrollBarSliderMoved":
+				OnSliderMoved(message.GetInt("position"));
+				break;
+			default:
+				base.OnMessage(message, from);
+				break;
+		}
+	}
+
 	public int GetValue() => Slider!.GetValue();
 	public void SetValue(int val) => Slider!.SetValue(val);
 	public void SetRange(int min, int max) => Slider!.SetRange(min, max);

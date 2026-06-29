@@ -921,10 +921,10 @@ public class Frame : EditablePanel
 			SysMenu.AddMenuItem("Maximize", "#SysMenu_Maximize", "Maximize", this);
 			SysMenu.AddMenuItem("Close", "#SysMenu_Close", "Close", this);
 
-			Panel menuItem = SysMenu.FindChildByName("Maximize")!;
+			Panel menuItem = SysMenu.FindChildByName("Minimize")!;
 			menuItem?.SetEnabled(MinimizeButton!.IsVisible());
 
-			menuItem = SysMenu.FindChildByName("Minimize")!;
+			menuItem = SysMenu.FindChildByName("Maximize")!;
 			menuItem?.SetEnabled(MaximizeButton!.IsVisible());
 
 			menuItem = SysMenu.FindChildByName("Close")!;

@@ -1,3 +1,4 @@
+using Source.Common.Bitmap;
 using Source.Common.Input;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
@@ -125,6 +126,8 @@ public interface ISurface
 	bool DrawGetTextureFile(in TextureID id, out ReadOnlySpan<char> filename);
 	void DrawSetTextureFile(in TextureID id, in ReadOnlySpan<char> filename, int hardwareFilter, bool forceReload);
 	void DrawSetTextureRGBA(in TextureID id, Span<byte> rgba, int wide, int tall, int hardwareFilter, bool forceReload);
+	void DrawSetTextureRGBAEx(in TextureID id, IntPtr rgba, int wide, int tall, ImageFormat format);
+	void DrawUpdateRegionTextureRGBA(in TextureID id, int x, int y, IntPtr rgba, int wide, int tall, ImageFormat format);
 	void DrawSetTexture(in TextureID id);
 	void DrawGetTextureSize(in TextureID id, out int wide, out int tall);
 	void DrawTexturedRect(int x0, int y0, int x1, int y1);

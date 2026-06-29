@@ -3,7 +3,7 @@ using Source.Common.GUI;
 
 namespace Source.GUI.Controls;
 
-class BitmapImagePanel : Panel
+public class BitmapImagePanel : Panel
 {
 	Alignment ContentAlignment;
 	bool PrserveAspectRatio;
@@ -13,7 +13,7 @@ class BitmapImagePanel : Panel
 	string ImageName;
 	string ColorName;
 
-	public BitmapImagePanel(Panel? parent, ReadOnlySpan<char> panelName) : base(parent, panelName) {
+	public BitmapImagePanel(Panel? parent, ReadOnlySpan<char> panelName, ReadOnlySpan<char> fileName = default) : base(parent, panelName) {
 
 	}
 

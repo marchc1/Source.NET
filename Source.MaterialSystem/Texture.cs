@@ -39,12 +39,17 @@ public struct TexDimensions
 
 public class Texture(MaterialSystem materials) : ITextureInternal
 {
-	public void DecrementReferenceCount() {
-		throw new NotImplementedException();
+	int RefCount;
+
+	public void DeleteIfUnreferenced() {
+		if (RefCount > 0)
+			return;
+		materials.TextureSystem.RemoveTexture(this);
 	}
 
 	public void Dispose() {
-		throw new NotImplementedException();
+		FreeShaderAPITextures();
+		ReleaseTextureHandles();
 	}
 
 	public void Download(out Rectangle rect, int additionalCreationFlags = 0) {
@@ -91,9 +96,9 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 		throw new NotImplementedException();
 	}
 
-	public void IncrementReferenceCount() {
-		throw new NotImplementedException();
-	}
+	public void IncrementReferenceCount() => ++RefCount;
+
+	public void DecrementReferenceCount() => --RefCount;
 
 	public bool IsCubeMap() => ((TextureFlags)Flags & TextureFlags.EnvMap) != 0;
 	public bool IsError() => ((InternalTextureFlags)InternalFlags & InternalTextureFlags.Error) != 0;

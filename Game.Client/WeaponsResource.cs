@@ -93,47 +93,52 @@ public class WeaponsResource
 
 #if !GMOD_DLL
 		HudHistoryResource? hudHR = gHUD.FindElement("CHudHistoryResource") as HudHistoryResource;
-		if (hudHR != null) {
-			p = FindHudTextureInDict(tempList, "weapon");
-			if (p != null) {
-				weaponInfo.IconInactive = gHUD.AddUnsearchableHudIconToList(p);
-				if (weaponInfo.IconInactive != null) {
-					weaponInfo.IconInactive.Precache();
-					hudHR.SetHistoryGap(weaponInfo.IconInactive.Height());
-				}
-			}
+#endif
 
-			p = FindHudTextureInDict(tempList, "weapon_s");
-			if (p != null) {
-				weaponInfo.IconActive = gHUD.AddUnsearchableHudIconToList(p);
-				weaponInfo.IconActive?.Precache();
-			}
-
-			p = FindHudTextureInDict(tempList, "weapon_small");
-			if (p != null) {
-				weaponInfo.IconSmall = gHUD.AddUnsearchableHudIconToList(p);
-				weaponInfo.IconSmall?.Precache();
-			}
-
-			p = FindHudTextureInDict(tempList, "ammo");
-			if (p != null) {
-				weaponInfo.IconAmmo = gHUD.AddUnsearchableHudIconToList(p);
-				if (weaponInfo.IconAmmo != null) {
-					weaponInfo.IconAmmo.Precache();
-					hudHR.SetHistoryGap(weaponInfo.IconAmmo.Height());
-				}
-			}
-
-			p = FindHudTextureInDict(tempList, "ammo2");
-			if (p != null) {
-				weaponInfo.IconAmmo2 = gHUD.AddUnsearchableHudIconToList(p);
-				if (weaponInfo.IconAmmo2 != null) {
-					weaponInfo.IconAmmo2.Precache();
-					hudHR.SetHistoryGap(weaponInfo.IconAmmo2.Height());
-				}
+		p = FindHudTextureInDict(tempList, "weapon");
+		if (p != null) {
+			weaponInfo.IconInactive = gHUD.AddUnsearchableHudIconToList(p);
+			if (weaponInfo.IconInactive != null) {
+				weaponInfo.IconInactive.Precache();
+#if !GMOD_DLL
+				hudHR?.SetHistoryGap(weaponInfo.IconInactive.Height());
+#endif
 			}
 		}
+
+		p = FindHudTextureInDict(tempList, "weapon_s");
+		if (p != null) {
+			weaponInfo.IconActive = gHUD.AddUnsearchableHudIconToList(p);
+			weaponInfo.IconActive?.Precache();
+		}
+
+		p = FindHudTextureInDict(tempList, "weapon_small");
+		if (p != null) {
+			weaponInfo.IconSmall = gHUD.AddUnsearchableHudIconToList(p);
+			weaponInfo.IconSmall?.Precache();
+		}
+
+		p = FindHudTextureInDict(tempList, "ammo");
+		if (p != null) {
+			weaponInfo.IconAmmo = gHUD.AddUnsearchableHudIconToList(p);
+			if (weaponInfo.IconAmmo != null) {
+				weaponInfo.IconAmmo.Precache();
+#if !GMOD_DLL
+				hudHR?.SetHistoryGap(weaponInfo.IconAmmo.Height());
 #endif
+			}
+		}
+
+		p = FindHudTextureInDict(tempList, "ammo2");
+		if (p != null) {
+			weaponInfo.IconAmmo2 = gHUD.AddUnsearchableHudIconToList(p);
+			if (weaponInfo.IconAmmo2 != null) {
+				weaponInfo.IconAmmo2.Precache();
+#if !GMOD_DLL
+				hudHR?.SetHistoryGap(weaponInfo.IconAmmo2.Height());
+#endif
+			}
+		}
 	}
 
 	public void Init() => Reset();

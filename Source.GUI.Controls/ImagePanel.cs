@@ -1,4 +1,5 @@
-﻿using Source.Common.Formats.Keyvalues;
+﻿using Source.Common;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 
 namespace Source.GUI.Controls;
@@ -26,7 +27,7 @@ public class ImagePanel : Panel
 		ImageName = null;
 		FillColorName = null;
 		DrawColorName = null;
-		PositionImage = false;
+		PositionImage = true;
 		CenterImage = false;
 		ScaleImage = false;
 		TileImage = false;
@@ -154,13 +155,45 @@ public class ImagePanel : Panel
 	}
 
 	public override void ApplySettings(KeyValues resourceData) {
-		base.ApplySettings(resourceData);
-
-
 		ImageName = null;
 		FillColorName = null;
 		DrawColorName = null;
 
+		PositionImage = resourceData.GetInt("positionImage", 1) != 0;
+		ScaleImage = resourceData.GetInt("scaleImage", 0) != 0;
+		ScaleAmount = resourceData.GetFloat("scaleAmount", 0.0f);
+		TileImage = resourceData.GetInt("tileImage", 0) != 0;
+		TileHorizontally = resourceData.GetInt("tileHorizontally", TileImage ? 1 : 0) != 0;
+		TileVertically = resourceData.GetInt("tileVertically", TileImage ? 1 : 0) != 0;
+		Rotation = (IImageRotation)resourceData.GetInt("rotation", (int)IImageRotation.Unrotated);
+
+		ReadOnlySpan<char> imageName = resourceData.GetString("image", "");
+		if (imageName.Length > 0)
+			SetImage(imageName);
+
+		ReadOnlySpan<char> fillColor = resourceData.GetString("fillcolor", "");
+		if (fillColor.Length > 0) {
+			FillColorName = new(fillColor);
+			if (new ScanF(fillColor, "%d %d %d %d").Read(out int r).Read(out int g).Read(out int b).Read(out int a).ReadArguments >= 3)
+				FillColor = new(r, g, b, a);
+			else
+				FillColor = GetScheme()!.GetColor(fillColor, new(0, 0, 0, 0));
+		}
+
+		ReadOnlySpan<char> drawColor = resourceData.GetString("drawcolor", "");
+		if (drawColor.Length > 0) {
+			DrawColorName = new(drawColor);
+			if (new ScanF(drawColor, "%d %d %d %d").Read(out int r).Read(out int g).Read(out int b).Read(out int a).ReadArguments >= 3)
+				DrawColor = new(r, g, b, a);
+			else
+				DrawColor = GetScheme()!.GetColor(drawColor, new(255, 255, 255, 255));
+		}
+
+		ReadOnlySpan<char> border = resourceData.GetString("border", "");
+		if (border.Length > 0)
+			SetBorder(GetScheme()!.GetBorder(border));
+
+		base.ApplySettings(resourceData);
 	}
 
 	public override void ApplySchemeSettings(IScheme scheme) {

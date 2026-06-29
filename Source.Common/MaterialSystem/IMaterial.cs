@@ -433,13 +433,14 @@ public interface IMaterial
 	bool IsErrorMaterialInternal();
 	VertexFormat GetVertexFormat();
 	ReadOnlySpan<char> GetName();
+	string? GetShaderName();
 	int GetEnumerationID();
 	IMaterialVar[]? GetShaderParams();
 	int ShaderParamCount();
 	bool GetPropertyFlag(MaterialPropertyTypes needsBumpedLightmaps);
-	// TODO: We need to get these working. The original plan was to use C#'s finalizers, but that's a bad idea in hindsight
 	void IncrementReferenceCount();
 	void DecrementReferenceCount();
+	void DeleteIfUnreferenced();
 	IMaterialVar? FindVarFast(ReadOnlySpan<char> name, ref TokenCache lightmapVarCache);
 	bool IsTranslucent();
 	int GetNumAnimationFrames();

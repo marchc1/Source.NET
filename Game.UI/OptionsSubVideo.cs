@@ -632,7 +632,7 @@ public class OptionsSubVideo : PropertyPage
 		Benchmark = new(this, "BenchmarkButton", "#GameUI_LaunchBenchmark");
 		Benchmark.SetCommand(KV_LaunchBenchmark);
 		ThirdPartyCredits = new(this, "ThirdPartyVideoCredits", "#GameUI_ThirdPartyTechCredits");
-		ThirdPartyCredits.SetCommand(new KeyValues("OpenThirdPartyVideoCreditsDialog"));//static
+		// ThirdPartyCredits.SetCommand(new KeyValues("OpenThirdPartyVideoCreditsDialog"));//static
 		HDContent = new(this, "HDContentButton", "#GameUI_HDContent");
 
 		ReadOnlySpan<char> aspect1 = Localize.Find("#GameUI_AspectNormal");
@@ -670,6 +670,7 @@ public class OptionsSubVideo : PropertyPage
 		Benchmark.SetVisible(fileSystem.FileExists("maps/test_hardware.bsp"));
 		if (!ModInfo.SupportsVR()) VRMode.SetVisible(false);
 		if (!ModInfo.HasHDContent()) HDContent.SetVisible(false);
+		ThirdPartyCredits.SetVisible(false);
 	}
 
 	// FIXME #37
@@ -775,7 +776,23 @@ public class OptionsSubVideo : PropertyPage
 
 	private void SetCurrentResolutionComboItem() {
 		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
-		// todo
+
+		int currentResolutionItemID = -1;
+		Span<char> itemText = stackalloc char[32];
+		for (int i = 0; i < Mode.GetItemCount(); i++) {
+			Mode.GetItemText(i, itemText);
+			new ScanF(itemText, "%i x %i").Read(out int width).Read(out int height);
+
+			if (width == config.VideoMode.Width && height == config.VideoMode.Height) {
+				currentResolutionItemID = i;
+				break;
+			}
+		}
+
+		if (currentResolutionItemID != -1) {
+			SelectedMode = currentResolutionItemID;
+			Mode.ActivateItem(currentResolutionItemID);
+		}
 	}
 
 	readonly IEngineClient engine = Singleton<IEngineClient>();
@@ -886,10 +903,10 @@ public class OptionsSubVideo : PropertyPage
 		// BasePanel.g_BasePanel?.OnOpenBenchmarkDialog(); // todo
 	}
 
-	private void OpenThirdPartyVideoCreditsDialog() {
-		OptionsSubVideoThirdPartyCreditsDlg ??= new(this);
-		OptionsSubVideoThirdPartyCreditsDlg.Activate();
-	}
+	// private void OpenThirdPartyVideoCreditsDialog() {
+	// 	OptionsSubVideoThirdPartyCreditsDlg ??= new(this);
+	// 	OptionsSubVideoThirdPartyCreditsDlg.Activate();
+	// }
 
 	private int GetScreenAspectMode(int width, int height) {
 		float aspectRatio = (float)width / height;
@@ -935,9 +952,9 @@ public class OptionsSubVideo : PropertyPage
 			case "OpenGammaDialog":
 				OpenGammaDialog();
 				break;
-			case "OpenThirdPartyVideoCreditsDialog":
-				OpenThirdPartyVideoCreditsDialog();
-				break;
+			// case "OpenThirdPartyVideoCreditsDialog":
+			// 	OpenThirdPartyVideoCreditsDialog();
+			// 	break;
 			default:
 				base.OnMessage(message, from);
 				break;

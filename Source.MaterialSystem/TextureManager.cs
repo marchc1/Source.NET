@@ -72,6 +72,11 @@ public class TextureManager : ITextureManager
 
 	Dictionary<ulong, ITextureInternal> TextureList = [];
 
+	public void RemoveTexture(ITextureInternal texture) {
+		if (TextureList.Remove(texture.GetName().Hash()))
+			texture.Dispose();
+	}
+
 	public ITextureInternal? FindOrLoadTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroupName, int additionalCreationFlags) {
 		ITextureInternal? texture = FindTexture(textureName);
 		if (texture == null) {
@@ -99,7 +104,11 @@ public class TextureManager : ITextureManager
 	}
 
 	public ITextureInternal? FindTexture(ReadOnlySpan<char> textureName) {
-		if (TextureList.TryGetValue(textureName.Hash(), out ITextureInternal? tex))
+		if (textureName.IsEmpty)
+			return null;
+
+		string cleanName = ITextureInternal.NormalizeTextureName(textureName);
+		if (TextureList.TryGetValue(cleanName.AsSpan().Hash(), out ITextureInternal? tex))
 			return tex;
 
 		return null;

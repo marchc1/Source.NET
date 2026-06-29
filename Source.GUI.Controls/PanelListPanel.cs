@@ -284,21 +284,21 @@ public class PanelListPanel : EditablePanel
 		if (!Vbar.IsVisible())
 			return;
 
-		DataItem item = DataItems.ElementAt(itemNumber);
+		DataItem item = DataItems.ElementAt(SortedItems[itemNumber]);
 		if (item.Panel == null)
 			return;
 
-		GetPos(out int x, out int y);
+		item.Panel.GetPos(out int x, out int y);
 
 		int lx = x, ly = y;
 		PanelEmbedded.LocalToScreen(ref lx, ref ly);
 		ScreenToLocal(ref lx, ref ly);
 
 		int h = item.Panel.GetTall();
-		if (ly >= 0 && ly + h <= GetTall())
+		if (ly >= 0 && ly + h < GetTall())
 			return;
 
-		Vbar.SetValue(ly);
+		Vbar.SetValue(y);
 		InvalidateLayout();
 	}
 

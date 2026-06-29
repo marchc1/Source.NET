@@ -1,29 +1,13 @@
 using Source.Common.Formats.Keyvalues;
 using Source.GUI.Controls;
+using Source.Common;
 
 namespace Game.UI;
-
-// TODO: These probably shouldn't be here
-enum VoiceTweakControl
-{
-	MicrophoneVolume = 0,
-	OtherSpeakerScale,
-	MicBoost,
-	SpeakingVolume
-}
-
-interface IVoiceTweak
-{
-	int StartVoiceTweakMode(); // 0 on error
-	void EndVoiceTweakMode();
-	void SetControlFloat(VoiceTweakControl control, float value);
-	float GetControlFloat(VoiceTweakControl control);
-	bool IsStillTweaking(); // This can return false if the user restarts the sound system during voice tweak mode
-}
 
 public class OptionsSubVoice : PropertyPage
 {
 	IVoiceTweak? VoiceTweak;
+	IVoiceTweak voiceTeak => VoiceTweak!.Value;
 	CheckButton MicBoost;
 	ImagePanel MicMeter;
 	ImagePanel MicMeter2;
@@ -80,19 +64,19 @@ public class OptionsSubVoice : PropertyPage
 	// FIXME #37
 	public override void Dispose() {
 		base.Dispose();
-		// if (VoiceOn)
-		// EndTestMicrophone();
+		if (VoiceOn)
+			EndTestMicrophone();
 	}
 
 	public override void OnResetData() {
 		if (VoiceTweak == null)
 			return;
 
-		float micVolume = VoiceTweak.GetControlFloat(VoiceTweakControl.MicrophoneVolume);
+		float micVolume = voiceTeak.GetControlFloat(VoiceTweakControl.MicrophoneVolume);
 		MicrophoneVolume.SetValue((int)(100.0f * micVolume));
 		MicVolumeValue = MicrophoneVolume.GetValue();
 
-		float micBoost = VoiceTweak.GetControlFloat(VoiceTweakControl.MicBoost);
+		float micBoost = voiceTeak.GetControlFloat(VoiceTweakControl.MicBoost);
 		MicBoost.SetSelected(micBoost != 0.0f);
 		MicBoostSelected = MicBoost.IsSelected();
 
@@ -122,10 +106,10 @@ public class OptionsSubVoice : PropertyPage
 
 		MicVolumeValue = MicrophoneVolume.GetValue();
 		float micVolume = MicVolumeValue / 100.0f;
-		VoiceTweak.SetControlFloat(VoiceTweakControl.MicrophoneVolume, micVolume);
+		voiceTeak.SetControlFloat(VoiceTweakControl.MicrophoneVolume, micVolume);
 
 		MicBoostSelected = MicBoost.IsSelected();
-		VoiceTweak.SetControlFloat(VoiceTweakControl.MicBoost, MicBoostSelected ? 1.0f : 0.0f);
+		voiceTeak.SetControlFloat(VoiceTweakControl.MicBoost, MicBoostSelected ? 1.0f : 0.0f);
 
 		ReceiveVolume.ApplyChanges();
 		fReceiveVolume = ReceiveVolume.GetSliderValue();

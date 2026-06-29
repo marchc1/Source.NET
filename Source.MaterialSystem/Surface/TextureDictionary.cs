@@ -131,6 +131,8 @@ public class MatSystemTexture(IMaterialSystem materials)
 	public FontTextureRegen? Regen;
 
 	public void SetMaterial(IMaterial? material) {
+		CleanUpMaterial();
+
 		Material = material;
 
 		if (material == null) {
@@ -139,6 +141,8 @@ public class MatSystemTexture(IMaterialSystem materials)
 			S1 = T1 = 1.0f;
 			return;
 		}
+
+		material.IncrementReferenceCount();
 
 		Wide = material.GetMappingWidth();
 		Tall = material.GetMappingHeight();
@@ -161,6 +165,7 @@ public class MatSystemTexture(IMaterialSystem materials)
 			if (Material!.TryFindVar("$basetexture", out IMaterialVar? var) && var.IsTexture()) {
 				Texture = var.GetTextureValue();
 				if (Texture != null) {
+					Texture.IncrementReferenceCount();
 					CreateRegen(Wide, Tall, Texture.GetImageFormat());
 					Texture.SetTextureRegenerator(Regen);
 				}
@@ -260,6 +265,44 @@ public class MatSystemTexture(IMaterialSystem materials)
 		Regen!.UpdateBackingBits(subRect, rgba, textureSize, format);
 		texture.Download(subRect);
 
+	}
+
+	internal unsafe void UpdateSubTextureRGBA(int drawX, int drawY, nint rgba, int subTextureWide, int subTextureTall, ImageFormat format) {
+		ITexture? texture = GetTextureValue();
+		if (texture == null)
+			return;
+
+		Assert(IsProcedural());
+		if (!IsProcedural())
+			return;
+
+		Assert(drawX < Wide);
+		Assert(drawY < Tall);
+		Assert(drawX + subTextureWide <= Wide);
+		Assert(drawY + subTextureTall <= Tall);
+
+		Assert(Regen);
+
+		Assert(rgba != 0);
+
+		Span<byte> bits = new((void*)rgba, InputWide * InputTall * ImageLoader.SizeInBytes(format));
+
+		Rectangle subRect = new() {
+			X = drawX,
+			Y = drawY,
+			Width = subTextureWide,
+			Height = subTextureTall
+		};
+
+		Rectangle textureSize = new() {
+			X = 0,
+			Y = 0,
+			Width = InputWide,
+			Height = InputTall
+		};
+
+		Regen!.UpdateBackingBits(subRect, bits, textureSize, format);
+		texture.Download(subRect);
 	}
 	static int textureID = 0;
 	internal void SetTextureRGBA(Span<byte> rgba, int wide, int tall, ImageFormat format, bool fixupTextCoords) {
@@ -361,12 +404,19 @@ public class MatSystemTexture(IMaterialSystem materials)
 		}
 	}
 
-	private void CleanUpMaterial() {
-		if (Material != null)
+	internal void CleanUpMaterial() {
+		if (Material != null) {
+			Material.DecrementReferenceCount();
+			Material.DeleteIfUnreferenced();
 			Material = null;
+		}
 
-		if (Texture != null)
+		if (Texture != null) {
+			Texture.SetTextureRegenerator(null!);
+			Texture.DecrementReferenceCount();
+			Texture.DeleteIfUnreferenced();
 			Texture = null;
+		}
 
 		if (Regen != null)
 			Regen = null;
@@ -428,7 +478,13 @@ public class TextureDictionary(IMaterialSystem materials, MatSystemSurface surfa
 	}
 
 	internal void DestroyTexture(in TextureID id) {
+		if (Textures.Count <= 1)
+			return;
 
+		if (id != TextureID.INVALID && Textures.TryGetValue(id.ID, out MatSystemTexture? tex)) {
+			tex.CleanUpMaterial();
+			Textures.Remove(id.ID);
+		}
 	}
 
 	internal int FindTextureIdForTextureId(ReadOnlySpan<char> filename) {
@@ -482,6 +538,14 @@ public class TextureDictionary(IMaterialSystem materials, MatSystemSurface surfa
 			return;
 		}
 		tex.SetSubTextureRGBAEx(drawX, drawY, rgba, subTextureWide, subTextureTall, format);
+	}
+
+	internal void UpdateSubTextureRGBA(in TextureID id, int drawX, int drawY, nint rgba, int subTextureWide, int subTextureTall, ImageFormat format) {
+		if (!IsValidId(id, out MatSystemTexture? tex)) {
+			Msg($"UpdateSubTextureRGBA: Invalid texture id {id}\n");
+			return;
+		}
+		tex.UpdateSubTextureRGBA(drawX, drawY, rgba, subTextureWide, subTextureTall, format);
 	}
 
 	internal void SetTextureRGBAEx(in TextureID id, Span<byte> rgba, int wide, int tall, ImageFormat format, bool fixupTextCoords) {

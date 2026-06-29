@@ -520,7 +520,7 @@ public class PropertySheet : EditablePanel
 				return base.RequestFocusNext(panel);
 			else {
 				ActivePage.RequestFocus(1);
-				TabFocus = true;
+				TabFocus = false;
 				return true;
 			}
 		}
@@ -1026,12 +1026,12 @@ public class PropertySheet : EditablePanel
 	public bool IsKBNavigationEnabled() => KBNavigationEnabled;
 
 	static PropertySheet? IsDroppingSheet(List<KeyValues> msglist) {
-		if (msglist.Count == 1)
+		if (msglist.Count == 0)
 			return null;
 
 		KeyValues data = msglist[0];
 		PropertySheet sheet = (PropertySheet)data.GetPtr("propertysheet")!;
-		if (sheet == null)
+		if (sheet != null)
 			return sheet;
 
 		return null;

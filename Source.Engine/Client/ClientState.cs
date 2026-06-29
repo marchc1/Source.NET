@@ -108,6 +108,7 @@ public class ClientState : BaseClientState
 	readonly PrecacheItem[] DecalPrecache = ClassUtils.BlankInstantiatedArray<PrecacheItem>(PrecacheItem.MAX_BASE_DECAL);
 
 	public static ConVar cl_timeout = new("30", FCvar.Archive, "After this many seconds without receiving a packet from the server, the client will disconnect itself");
+	public static ConVar cl_logofile = new("materials/decals/spraylogo.vtf", FCvar.Archive, "Spraypoint logo decal.");
 	public static ConVar cl_allowdownload = new("1", FCvar.Archive, "Client downloads customization files");
 	public static ConVar cl_downloadfilter = new("all", FCvar.Archive, "Determines which files can be downloaded from the server (all, none, nosounds, mapsonly)");
 

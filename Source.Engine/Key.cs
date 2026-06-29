@@ -302,4 +302,31 @@ public class Key(IServiceProvider services, Cbuf Cbuf)
 
 		return null;
 	}
+
+	public void StartTrapMode() {
+		if (TrapMode)
+			return;
+
+		Assert(!DoneTrapping && TrapKeyUp == ButtonCode.Invalid);
+
+		DoneTrapping = false;
+		TrapMode = true;
+		TrapKeyUp = ButtonCode.Invalid;
+	}
+
+	public bool CheckDoneTrapping(out ButtonCode code) {
+		code = ButtonCode.Invalid;
+
+		if (TrapMode)
+			return false;
+
+		if (!DoneTrapping)
+			return false;
+
+		code = TrapKey;
+		TrapKey = ButtonCode.Invalid;
+		DoneTrapping = false;
+
+		return true;
+	}
 }

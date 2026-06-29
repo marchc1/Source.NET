@@ -347,6 +347,8 @@ public class Host(
 		cl.CheckFileCRCsWithServer();
 
 		cl.RunFrame();
+
+		Steam3Client()?.RunFrame();
 	}
 
 	private void _RunFrame_Server(bool finalTick) {

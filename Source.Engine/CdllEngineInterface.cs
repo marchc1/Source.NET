@@ -221,13 +221,9 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		throw new NotImplementedException();
 	}
 
-	public void StartKeyTrapMode() {
-		throw new NotImplementedException();
-	}
+	public void StartKeyTrapMode() => Key.StartTrapMode();
 
-	public bool CheckDoneKeyTrapping(out ButtonCode code) {
-		throw new NotImplementedException();
-	}
+	public bool CheckDoneKeyTrapping(out ButtonCode code) => Key.CheckDoneTrapping(out code);
 
 	public void Con_NPrintf(int pos, ReadOnlySpan<char> text) {
 		// todo
