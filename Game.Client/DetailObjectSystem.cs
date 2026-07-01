@@ -352,8 +352,8 @@ public class DetailModel : IClientUnknown, IClientRenderable
 
 		MathLib.VectorMA(Origin, ul.X, dx, out Vector3 vecOrigin);
 		MathLib.VectorMA(vecOrigin, ul.Y, dy, out vecOrigin);
-		dx *= (lr.X - ul.X);
-		dy *= (lr.Y - ul.Y);
+		dx *= lr.X - ul.X;
+		dy *= lr.Y - ul.Y;
 
 		Vector2 texul = dict.TexUL;
 		Vector2 texlr = dict.TexLR;
@@ -387,10 +387,213 @@ public class DetailModel : IClientUnknown, IClientRenderable
 		meshBuilder.AdvanceVertex();
 	}
 
-	public void DrawTypeShapeCross(ref MeshBuilder meshBuilder) => throw new NotImplementedException();
-	public void DrawTypeShapeTri(ref MeshBuilder meshBuilder) => throw new NotImplementedException();
+	public void DrawTypeShapeCross(ref MeshBuilder meshBuilder) {
+		Assert(Type == (byte)DetailPropType.ShapeCross);
 
-	public void UpdatePlayerAvoid() => throw new NotImplementedException();
+		Span<float> vecColor = stackalloc float[3];
+		GetColorModulation(vecColor);
+
+		Span<byte> color =
+		[
+			(byte)(vecColor[0] * 255.0f),
+			(byte)(vecColor[1] * 255.0f),
+			(byte)(vecColor[2] * 255.0f),
+			Alpha,
+		];
+		ref DetailPropSpriteDict dict = ref ((DetailObjectSystem)DetailObjectSystem.GetDetailObjectSystem()).DetailSpriteDict(SpriteInfo.SpriteIndex);
+
+		Vector2 texul = dict.TexUL;
+		Vector2 texlr = dict.TexLR;
+
+		if (Model == null) {
+			texul.X = dict.TexLR.X;
+			texlr.X = dict.TexUL.X;
+		}
+
+		Vector2 texumid, texlmid;
+		texumid.Y = texul.Y;
+		texlmid.Y = texlr.Y;
+		texumid.X = texlmid.X = (texul.X + texlr.X) / 2;
+
+		Vector2 texll;
+		texll.X = texul.X;
+		texll.Y = texlr.Y;
+
+		float scale = (float)SpriteInfo.Scale;
+		Vector2 ul = dict.UL * scale;
+		Vector2 lr = dict.LR * scale;
+
+		float sizeX = (lr.X - ul.X) / 2;
+		float sizeY = lr.Y - ul.Y;
+
+		UpdatePlayerAvoid();
+
+		Vector3 vecSway = AdvInfo!.CurrentAvoid * sizeX * 2;
+		float swayAmplitude = AdvInfo.SwayAmount * cl_detail_max_sway.GetFloat();
+		if (swayAmplitude > 0) {
+			vecSway += Util.YawToVector(AdvInfo.SwayYaw) * MathF.Sin((float)(gpGlobals.CurTime + Origin.X)) * swayAmplitude;
+		}
+
+		MathLib.VectorMA(Origin, ul.Y, AdvInfo.AnglesUp[0], out Vector3 vecOrigin);
+
+		Vector3 forward = AdvInfo.AnglesForward[0] * sizeX;
+		Vector3 right = AdvInfo.AnglesRight[0] * sizeX;
+		Vector3 up = AdvInfo.AnglesUp[0] * sizeY;
+
+		Vector3 viewOffset = CurrentViewOrigin() - Origin;
+		bool frontSide = Vector3.Dot(forward, viewOffset) > 0;
+		bool rightSide = Vector3.Dot(right, viewOffset) > 0;
+		int branch = frontSide ? (rightSide ? 0 : 3) : (rightSide ? 1 : 2);
+
+		int drawn = 0;
+		while (drawn < 4) {
+			switch (branch) {
+				case 0:
+					DrawSwayingQuad(ref meshBuilder, vecOrigin, vecSway, texumid, texlr, color, -forward, up);
+					break;
+				case 1:
+					DrawSwayingQuad(ref meshBuilder, vecOrigin, vecSway, texumid, texll, color, -right, up);
+					break;
+				case 2:
+					DrawSwayingQuad(ref meshBuilder, vecOrigin, vecSway, texumid, texll, color, forward, up);
+					break;
+				case 3:
+					DrawSwayingQuad(ref meshBuilder, vecOrigin, vecSway, texumid, texlr, color, right, up);
+					break;
+			}
+
+			drawn++;
+			branch++;
+			if (branch > 3)
+				branch = 0;
+		}
+	}
+
+	public void DrawTypeShapeTri(ref MeshBuilder meshBuilder) {
+		Assert(Type == (byte)DetailPropType.ShapeTri);
+
+		Span<float> vecColor = stackalloc float[3];
+		GetColorModulation(vecColor);
+
+		Span<byte> color =
+		[
+			(byte)(vecColor[0] * 255.0f),
+			(byte)(vecColor[1] * 255.0f),
+			(byte)(vecColor[2] * 255.0f),
+			Alpha,
+		];
+		ref DetailPropSpriteDict dict = ref ((DetailObjectSystem)DetailObjectSystem.GetDetailObjectSystem()).DetailSpriteDict(SpriteInfo.SpriteIndex);
+
+		Vector2 texul = dict.TexUL;
+		Vector2 texlr = dict.TexLR;
+
+		if (Model == null) {
+			texul.X = dict.TexLR.X;
+			texlr.X = dict.TexUL.X;
+		}
+
+		float scale = (float)SpriteInfo.Scale;
+		Vector2 ul = dict.UL * scale;
+		Vector2 lr = dict.LR * scale;
+
+		Vector3 viewOffset = CurrentViewOrigin() - Origin;
+
+		bool outsideA = Vector3.Dot(AdvInfo!.AnglesForward[0], viewOffset) > 0;
+		bool outsideB = Vector3.Dot(AdvInfo.AnglesForward[1], viewOffset) > 0;
+		bool outsideC = Vector3.Dot(AdvInfo.AnglesForward[2], viewOffset) > 0;
+
+		int branch = 0;
+		if (outsideA && !outsideB)
+			branch = 1;
+		else if (outsideB && !outsideC)
+			branch = 2;
+
+		float height = lr.Y - ul.Y;
+		float width = lr.X - ul.X;
+
+		Vector3 vecHeight, vecWidth;
+
+		UpdatePlayerAvoid();
+
+		Vector3 vecSwayYaw = Util.YawToVector(AdvInfo.SwayYaw);
+		float swayAmplitude = AdvInfo.SwayAmount * cl_detail_max_sway.GetFloat();
+
+		int drawn = 0;
+		while (drawn < 3) {
+			vecHeight = AdvInfo.AnglesUp[branch] * height;
+			vecWidth = AdvInfo.AnglesRight[branch] * width;
+
+			MathLib.VectorMA(Origin, ul.X, AdvInfo.AnglesRight[branch], out Vector3 vecOrigin);
+			MathLib.VectorMA(vecOrigin, ul.Y, AdvInfo.AnglesUp[branch], out vecOrigin);
+			MathLib.VectorMA(vecOrigin, AdvInfo.ShapeSize * width, AdvInfo.AnglesForward[branch], out vecOrigin);
+
+			Vector3 vecSway = (AdvInfo.CurrentAvoid * width) +
+				vecSwayYaw * MathF.Sin((float)(gpGlobals.CurTime + Origin.X + branch)) * swayAmplitude;
+
+			DrawSwayingQuad(ref meshBuilder, vecOrigin, vecSway, texul, texlr, color, vecWidth, vecHeight);
+
+			drawn++;
+			branch++;
+			if (branch > 2)
+				branch = 0;
+		}
+	}
+
+	public void UpdatePlayerAvoid() {
+		float force = cl_detail_avoid_force.GetFloat();
+
+		if (force < 0.1)
+			return;
+
+		if (AdvInfo == null)
+			return;
+
+		float radius = cl_detail_avoid_radius.GetFloat();
+		float recoverSpeed = cl_detail_avoid_recover_speed.GetFloat();
+
+		Vector3 avoidance;
+		C_BaseEntity? ent;
+
+		float maxForce = 0;
+		Vector3 maxAvoid = new(0, 0, 0);
+
+		PlayerEnumerator avoid = new(radius, Origin);
+		partition.EnumerateElementsInSphere((SpatialPartitionListMask_t)PartitionListMask.ClientSolidEdicts, Origin, radius, false, ref avoid);
+
+		int c = avoid.GetObjectCount();
+		for (int i = 0; i < c + 1; i++) {
+			if (i == c) {
+				ent = C_BasePlayer.GetLocalPlayer();
+				if (ent == null) continue;
+			}
+			else
+				ent = avoid.GetObject(i);
+
+			avoidance = Origin - ent!.GetAbsOrigin();
+			avoidance.Z = 0;
+
+			float dist = avoidance.Length2D();
+
+			if (dist > radius)
+				continue;
+
+			float forceScale = (float)MathLib.RemapValClamped(dist, 0, radius, force, 0.0);
+
+			if (forceScale > maxForce) {
+				maxForce = forceScale;
+				avoidance = Vector3.Normalize(avoidance);
+				avoidance *= maxForce;
+				maxAvoid = avoidance;
+			}
+		}
+
+		if (maxAvoid.Length2D() > AdvInfo.CurrentAvoid.Length2D())
+			recoverSpeed = 10;
+
+		AdvInfo.CurrentAvoid[0] = MathLib.Approach(maxAvoid[0], AdvInfo.CurrentAvoid[0], recoverSpeed);
+		AdvInfo.CurrentAvoid[1] = MathLib.Approach(maxAvoid[1], AdvInfo.CurrentAvoid[1], recoverSpeed);
+		AdvInfo.CurrentAvoid[2] = MathLib.Approach(maxAvoid[2], AdvInfo.CurrentAvoid[2], recoverSpeed);
+	}
 
 	public void InitShapedSprite(byte shapeAngle, byte shapeSize, byte swayAmount) {
 		Assert(AdvInfo == null);
@@ -399,8 +602,8 @@ public class DetailModel : IClientUnknown, IClientRenderable
 
 		if (AdvInfo != null) {
 			AdvInfo.ShapeAngle = shapeAngle;
-			AdvInfo.SwayAmount = (float)swayAmount / 255.0f;
-			AdvInfo.ShapeSize = (float)shapeSize / 255.0f;
+			AdvInfo.SwayAmount = swayAmount / 255.0f;
+			AdvInfo.ShapeSize = shapeSize / 255.0f;
 			AdvInfo.CurrentAvoid = Vector3.Zero;
 			AdvInfo.SwayYaw = random.RandomFloat(0, 180);
 		}
@@ -468,7 +671,10 @@ public class DetailModel : IClientUnknown, IClientRenderable
 	public bool IsDetailModelTranslucent() => Type >= (byte)DetailPropType.Sprite || modelinfo.IsTranslucent(GetModel());
 
 	public void SetRefEHandle(in BaseHandle handle) => Assert(false);
-	public ref readonly BaseHandle GetRefEHandle() => throw new NotImplementedException();
+	public ref readonly BaseHandle GetRefEHandle() {
+		Assert(false);
+		throw new NotSupportedException();
+	}
 
 	static readonly int[] QuadCount = [
 		0, //DETAIL_PROP_TYPE_MODEL
@@ -837,8 +1043,199 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 		renderContext.PopMatrix();
 	}
 
-	public void RenderTranslucentDetailObjectsInLeaf(in Vector3 viewOrigin, in Vector3 viewForward, in Vector3 viewRight, in Vector3 viewUp, int leaf, Vector3? closestPoint) => throw new NotImplementedException();
-	public void RenderFastTranslucentDetailObjectsInLeaf(in Vector3 viewOrigin, in Vector3 viewForward, in Vector3 viewRight, in Vector3 viewUp, int leaf, Vector3? closestPoint) => throw new NotImplementedException();
+	public void RenderTranslucentDetailObjectsInLeaf(in Vector3 viewOrigin, in Vector3 viewForward, in Vector3 viewRight, in Vector3 viewUp, int leaf, Vector3? closestPoint) {
+		RenderFastTranslucentDetailObjectsInLeaf(viewOrigin, viewForward, viewRight, viewUp, leaf, closestPoint);
+
+		if (SortedLeaf != leaf) {
+			SortedLeaf = leaf;
+			SpriteCount = 0;
+			FirstSprite = 0;
+
+			Span<LeafIndex_t> leafIndex = [(LeafIndex_t)leaf];
+			int spriteCount = CountSpritesInLeafList(1, leafIndex);
+			if (spriteCount == 0)
+				return;
+
+			SpriteCount = SortSpritesBackToFront(leaf, viewOrigin, viewForward, SortInfos!);
+			Assert(SpriteCount <= spriteCount);
+		}
+
+		if (SpriteCount == FirstSprite)
+			return;
+
+		float minDistance = 0.0f;
+		if (closestPoint.HasValue) {
+			MathLib.VectorSubtract(closestPoint.Value, viewOrigin, out Vector3 vecDelta);
+			minDistance = vecDelta.LengthSquared();
+		}
+
+		if (SortInfos![FirstSprite].Distance < minDistance)
+			return;
+
+		IMatRenderContext renderContext = materials.GetRenderContext();
+		renderContext.MatrixMode(MaterialMatrixMode.Model);
+		renderContext.PushMatrix();
+		renderContext.LoadIdentity();
+
+		IMaterial material = DetailSpriteMaterial.Get()!;
+		if (false /*ShouldDrawInWireFrameMode()*/ || r_DrawDetailProps.GetInt() == 2)
+			material = DetailWireframeMaterial.Get()!;
+
+		MeshBuilder meshBuilder = new();
+		IMesh mesh = renderContext.GetDynamicMesh(true, null, null, material);
+
+		int maxVerts = 32768, maxIndices = 32768; /*GetMaxToRender*/
+
+		int quadCount = (SpriteCount - FirstSprite) * 4;
+		int maxQuadsToDraw = maxIndices / 6;
+		if (maxQuadsToDraw > maxVerts / 4)
+			maxQuadsToDraw = maxVerts / 4;
+
+		if (maxQuadsToDraw == 0)
+			return;
+
+		int quadsToDraw = quadCount;
+		if (quadsToDraw > maxQuadsToDraw)
+			quadsToDraw = maxQuadsToDraw;
+
+		meshBuilder.Begin(mesh, MaterialPrimitiveType.Quads, quadsToDraw);
+
+		int quadsDrawn = 0;
+		while (FirstSprite < SpriteCount && SortInfos![FirstSprite].Distance >= minDistance) {
+			DetailModel model = DetailObjects[SortInfos![FirstSprite].Index];
+			int quadsInModel = model.QuadsToDraw();
+			if (quadsDrawn + quadsInModel > quadsToDraw) {
+				meshBuilder.End();
+				mesh.Draw();
+
+				quadCount = (SpriteCount - FirstSprite) * 4;
+				quadsToDraw = quadCount;
+				if (quadsToDraw > maxQuadsToDraw)
+					quadsToDraw = maxQuadsToDraw;
+
+				meshBuilder.Begin(mesh, MaterialPrimitiveType.Quads, quadsToDraw);
+				quadsDrawn = 0;
+			}
+
+			model.DrawSprite(ref meshBuilder);
+			++FirstSprite;
+			quadsDrawn += quadsInModel;
+		}
+		meshBuilder.End();
+		mesh.Draw();
+
+		renderContext.PopMatrix();
+	}
+
+	public void RenderFastTranslucentDetailObjectsInLeaf(in Vector3 viewOrigin, in Vector3 viewForward, in Vector3 viewRight, in Vector3 viewUp, int leaf, Vector3? closestPoint) {
+		if (clientLeafSystem.GetSubSystemDataInLeaf(leaf, ClientLeafSystem.CLSUBSYSTEM_DETAILOBJECTS) is not FastDetailLeafSpriteList data)
+			return;
+
+		if (SortedFastLeaf != leaf) {
+			SortedFastLeaf = leaf;
+			data.NumPendingSprites = BuildOutSortedSprites(data, viewOrigin, viewForward, viewRight, viewUp);
+			data.StartSpriteIndex = 0;
+		}
+
+		if (data.NumPendingSprites == 0)
+			return;
+
+		float minDistance = 0.0f;
+		if (closestPoint.HasValue) {
+			MathLib.VectorSubtract(closestPoint.Value, viewOrigin, out Vector3 vecDelta);
+			minDistance = vecDelta.LengthSquared();
+		}
+
+		if (FastSortInfos![data.StartSpriteIndex].Distance < minDistance)
+			return;
+
+		int count = data.NumPendingSprites;
+
+		if (r_DrawDetailProps.GetInt() == 0)
+			return;
+
+		IMatRenderContext renderContext = materials.GetRenderContext();
+		renderContext.MatrixMode(MaterialMatrixMode.Model);
+		renderContext.PushMatrix();
+		renderContext.LoadIdentity();
+
+		IMaterial material = DetailSpriteMaterial.Get()!;
+		if (false /*ShouldDrawInWireFrameMode()*/ || r_DrawDetailProps.GetInt() == 2)
+			material = DetailWireframeMaterial.Get()!;
+
+		MeshBuilder meshBuilder = new();
+		IMesh mesh = renderContext.GetDynamicMesh(true, null, null, material);
+
+		int maxVerts = 32768, maxIndices = 32768; /*GetMaxToRender*/
+		int maxQuadsToDraw = maxIndices / 6;
+		if (maxQuadsToDraw > maxVerts / 4)
+			maxQuadsToDraw = maxVerts / 4;
+
+		if (maxQuadsToDraw == 0)
+			return;
+
+		int quadsToDraw = Math.Min(count, maxQuadsToDraw);
+		int quadsRemaining = quadsToDraw;
+
+		meshBuilder.Begin(mesh, MaterialPrimitiveType.Quads, quadsToDraw);
+
+		int drawIdx = data.StartSpriteIndex;
+
+		Span<byte> color = stackalloc byte[4];
+
+		while (count != 0 && FastSortInfos![drawIdx].Distance >= minDistance) {
+			if (quadsRemaining == 0) {
+				meshBuilder.End();
+				mesh.Draw();
+				quadsRemaining = quadsToDraw;
+				meshBuilder.Begin(mesh, MaterialPrimitiveType.Quads, quadsToDraw);
+			}
+			int toDraw = Math.Min(count, quadsRemaining);
+			count -= toDraw;
+			quadsRemaining -= toDraw;
+			while (toDraw-- != 0) {
+				int nSIMDIdx = FastSortInfos![drawIdx].Index >> 2;
+				int subIdx = FastSortInfos![drawIdx].Index & 3;
+
+				ref FastSpriteQuadBuildoutBufferX4 quad = ref BuildoutBuffer![nSIMDIdx];
+
+				color[0] = quad.RGBColor[subIdx][0];
+				color[1] = quad.RGBColor[subIdx][1];
+				color[2] = quad.RGBColor[subIdx][2];
+				color[3] = (byte)(BitConverter.SingleToInt32Bits(MathLib.SubFloat(ref quad.Alpha, subIdx)) >> (MANTISSA_LSB_OFFSET * 8));
+
+				ref DetailPropSpriteDict pDict = ref quad.SpriteDefs[subIdx];
+				Color col = new(color[0], color[1], color[2], color[3]);
+
+				meshBuilder.Position3f(MathLib.SubFloat(ref quad.Coords[0].x, subIdx), MathLib.SubFloat(ref quad.Coords[0].y, subIdx), MathLib.SubFloat(ref quad.Coords[0].z, subIdx));
+				meshBuilder.Color4ubv(col);
+				meshBuilder.TexCoord2f(0, pDict.TexLR.X, pDict.TexLR.Y);
+				meshBuilder.AdvanceVertex();
+
+				meshBuilder.Position3f(MathLib.SubFloat(ref quad.Coords[1].x, subIdx), MathLib.SubFloat(ref quad.Coords[1].y, subIdx), MathLib.SubFloat(ref quad.Coords[1].z, subIdx));
+				meshBuilder.Color4ubv(col);
+				meshBuilder.TexCoord2f(0, pDict.TexLR.X, pDict.TexUL.Y);
+				meshBuilder.AdvanceVertex();
+
+				meshBuilder.Position3f(MathLib.SubFloat(ref quad.Coords[2].x, subIdx), MathLib.SubFloat(ref quad.Coords[2].y, subIdx), MathLib.SubFloat(ref quad.Coords[2].z, subIdx));
+				meshBuilder.Color4ubv(col);
+				meshBuilder.TexCoord2f(0, pDict.TexUL.X, pDict.TexUL.Y);
+				meshBuilder.AdvanceVertex();
+
+				meshBuilder.Position3f(MathLib.SubFloat(ref quad.Coords[3].x, subIdx), MathLib.SubFloat(ref quad.Coords[3].y, subIdx), MathLib.SubFloat(ref quad.Coords[3].z, subIdx));
+				meshBuilder.Color4ubv(col);
+				meshBuilder.TexCoord2f(0, pDict.TexUL.X, pDict.TexLR.Y);
+				meshBuilder.AdvanceVertex();
+				drawIdx++;
+			}
+		}
+		data.NumPendingSprites = count;
+		data.StartSpriteIndex = drawIdx;
+
+		meshBuilder.End();
+		mesh.Draw();
+		renderContext.PopMatrix();
+	}
 
 	public void BeginTranslucentDetailRendering() {
 		SortedLeaf = -1;
@@ -1453,6 +1850,4 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 
 		return count;
 	}
-
-	IterationRetval EnumElement(int userId, nint context) => throw new NotImplementedException();
 }

@@ -156,6 +156,20 @@ public class Rendering3dView : Base3dView
 		mainView.IncRenderablesListsNumber();
 		SetupRenderablesList(viewID);
 	}
+
+	protected void UpdateRenderablesOpacity() {
+		float factor = 1.0f;
+		C_BasePlayer? local = C_BasePlayer.GetLocalPlayer();
+		if (local != null)
+			factor = local.GetFOVDistanceAdjustFactor();
+
+		// if (cl_leveloverview.GetFloat() > 0) // todo
+		// 	factor = -1;
+
+		StaticPropMgrGlobals.g_StaticPropMgr.ComputePropOpacity(CurrentViewOrigin(), factor);
+
+		((DetailObjectSystem)DetailObjectSystem.GetDetailObjectSystem()).BuildDetailObjectRenderLists(CurrentViewOrigin());
+	}
 	public virtual void Setup(in ViewSetup setup) {
 		ViewSetup = setup; // copy to our ViewSetup
 		ReleaseLists();
