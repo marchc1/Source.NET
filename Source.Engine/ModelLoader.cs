@@ -693,12 +693,238 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 
 		int count = inNodes.Length;
 		BSPMNode[] outNodes = new BSPMNode[count];
-		lh.GetMap().Nodes = outNodes; // TODO!!!!!!!!!!!
-		lh.GetMap().NumNodes = count;
+		for (int i = 0; i < count; i++)
+			outNodes[i] = new BSPMNode();
+
+		WorldBrushData map = lh.GetMap();
+		map.Nodes = outNodes;
+		map.NumNodes = count;
+
+		CollisionPlane[] planes = map.Planes!;
+		BSPMLeaf[] leafs = map.Leafs!;
+
+		for (int i = 0; i < count; i++) {
+			ref BSPDNode _in = ref inNodes[i];
+			BSPMNode _out = outNodes[i];
+
+			Vector3 mins = new(_in.Mins[0], _in.Mins[1], _in.Mins[2]);
+			Vector3 maxs = new(_in.Maxs[0], _in.Maxs[1], _in.Maxs[2]);
+
+			_out.Center = (mins + maxs) * 0.5f;
+			_out.HalfDiagonal = maxs - _out.Center;
+
+			_out.Plane = planes[_in.PlaneNum];
+
+			_out.FirstSurface = _in.FirstFace;
+			_out.NumSurfaces = _in.NumFaces;
+			_out.Area = _in.Area;
+			_out.Contents = -1;
+
+			for (int j = 0; j < 2; j++) {
+				int p = _in.Children[j];
+				if (p >= 0)
+					_out.Children[j] = outNodes[p];
+				else
+					_out.Children[j] = leafs[-1 - p];
+			}
+		}
+
+		if (count == 0)
+			return;
+
+		Mod_SetParent(outNodes[0], null);
+
+		for (int i = 0; i < count; i++) {
+			BSPMNode pNode = outNodes[i];
+			if (pNode.Contents == -1) {
+				if (pNode.HalfDiagonal.X <= 50 && pNode.HalfDiagonal.Y <= 50 && pNode.HalfDiagonal.Z <= 50) {
+					MarkSmallNode(pNode.Children[0]!);
+					MarkSmallNode(pNode.Children[1]!);
+				}
+				else {
+					CheckSmallVolumeDifferences(pNode.Children[0]!, pNode.HalfDiagonal);
+					CheckSmallVolumeDifferences(pNode.Children[1]!, pNode.HalfDiagonal);
+				}
+			}
+		}
+	}
+
+	static void Mod_SetParent(BSPMNode node, BSPMNode? parent) {
+		node.Parent = parent;
+		if (node.Contents >= 0)
+			return;
+		Mod_SetParent(node.Children[0]!, node);
+		Mod_SetParent(node.Children[1]!, node);
+	}
+
+	static void MarkSmallNode(BSPMNode node) {
+		if (node.Contents >= 0)
+			return;
+		node.Contents = -2;
+		MarkSmallNode(node.Children[0]!);
+		MarkSmallNode(node.Children[1]!);
+	}
+
+	static void CheckSmallVolumeDifferences(BSPMNode pNode, in Vector3 parentSize) {
+		if (pNode.Contents >= 0)
+			return;
+
+		Vector3 delta = parentSize - pNode.HalfDiagonal;
+
+		if (delta.X < 5 && delta.Y < 5 && delta.Z < 5) {
+			pNode.Contents = -3;
+			CheckSmallVolumeDifferences(pNode.Children[0]!, parentSize);
+			CheckSmallVolumeDifferences(pNode.Children[1]!, parentSize);
+		}
+	}
+
+	private void Mod_LoadLeafs_Version_0(MapLoadHelper lh) {
+		BSPDLeafVersion0[] inLeafs = lh.LoadLumpData<BSPDLeafVersion0>();
+		int count = inLeafs.Length;
+		BSPMLeaf[] outLeafs = new BSPMLeaf[count];
+
+		lh.GetMap().Leafs = outLeafs;
+		lh.GetMap().NumLeafs = count;
+		lh.GetMap().LeafAmbient = new MLeafAmbientIndex[count];
+		lh.GetMap().AmbientSamples = new MLeafAmbientLighting[count];
+		MLeafAmbientIndex[] pTable = lh.GetMap().LeafAmbient!;
+		MLeafAmbientLighting[] pSamples = lh.GetMap().AmbientSamples!;
+
+		for (int i = 0; i < count; i++) {
+			ref BSPDLeafVersion0 _in = ref inLeafs[i];
+			BSPMLeaf _out = outLeafs[i] = new BSPMLeaf();
+
+			Vector3 mins = new(_in.Mins[0], _in.Mins[1], _in.Mins[2]);
+			Vector3 maxs = new(_in.Maxs[0], _in.Maxs[1], _in.Maxs[2]);
+
+			_out.Center = (mins + maxs) * 0.5f;
+			_out.HalfDiagonal = maxs - _out.Center;
+
+			pTable[i].AmbientSampleCount = 1;
+			pTable[i].FirstAmbientSample = (ushort)i;
+			pSamples[i].X = pSamples[i].Y = pSamples[i].Z = 128;
+			pSamples[i].Pad = 0;
+			pSamples[i].Cube = _in.AmbientLighting;
+
+			_out.Contents = _in.Contents;
+
+			_out.Cluster = _in.Cluster;
+			_out.Area = _in.Area;
+			_out.Flags = _in.Flags;
+			_out.FirstMarkSurface = _in.FirstLeafFace;
+			_out.NumMarkSurfaces = _in.NumLeafFaces;
+			_out.Parent = null;
+
+			_out.DispCount = 0;
+
+			_out.LeafWaterDataID = _in.LeafWaterDataID;
+			_out.Index = i;
+		}
+	}
+
+	private void Mod_LoadLeafs_Version_1(MapLoadHelper lh, MapLoadHelper ambientLightingLump, MapLoadHelper ambientLightingTable) {
+		BSPDLeaf[] inLeafs = lh.LoadLumpData<BSPDLeaf>();
+		int count = inLeafs.Length;
+		BSPMLeaf[] outLeafs = new BSPMLeaf[count];
+
+		lh.GetMap().Leafs = outLeafs;
+		lh.GetMap().NumLeafs = count;
+
+		if (ambientLightingLump.LumpVersion != (int)LumpVersions.LUMP_LEAF_AMBIENT_LIGHTING_VERSION || ambientLightingTable.LumpSize == 0) {
+			CompressedLightCube[]? inLightCubes = null;
+			if (ambientLightingLump.LumpSize != 0) {
+				inLightCubes = ambientLightingLump.LoadLumpData<CompressedLightCube>();
+				Assert(ambientLightingLump.LumpSize % Unsafe.SizeOf<CompressedLightCube>() == 0);
+				Assert(ambientLightingLump.LumpSize / Unsafe.SizeOf<CompressedLightCube>() == lh.LumpSize / Unsafe.SizeOf<BSPDLeaf>());
+			}
+			lh.GetMap().LeafAmbient = new MLeafAmbientIndex[count];
+			lh.GetMap().AmbientSamples = new MLeafAmbientLighting[count];
+			MLeafAmbientIndex[] pTable = lh.GetMap().LeafAmbient!;
+			MLeafAmbientLighting[] pSamples = lh.GetMap().AmbientSamples!;
+			Vector3 gray = new(0.5f, 0.5f, 0.5f);
+			MathLib.VectorToColorRGBExp32(gray, out ColorRGBExp32 grayColor);
+			for (int i = 0; i < count; i++) {
+				pTable[i].AmbientSampleCount = 1;
+				pTable[i].FirstAmbientSample = (ushort)i;
+				pSamples[i].X = pSamples[i].Y = pSamples[i].Z = 128;
+				pSamples[i].Pad = 0;
+				if (inLightCubes != null) {
+					pSamples[i].Cube = inLightCubes[i];
+				}
+				else {
+					for (int j = 0; j < 6; j++) {
+						pSamples[i].Cube.Color[j] = grayColor;
+					}
+				}
+			}
+		}
+		else {
+			Assert(ambientLightingLump.LumpSize % Unsafe.SizeOf<BSPDLeafAmbientLighting>() == 0);
+			Assert(ambientLightingTable.LumpSize % Unsafe.SizeOf<BSPDLeafAmbientIndex>() == 0);
+			Assert(ambientLightingTable.LumpSize / Unsafe.SizeOf<BSPDLeafAmbientIndex>() == count);
+			lh.GetMap().LeafAmbient = ambientLightingTable.LoadLumpData<MLeafAmbientIndex>();
+			lh.GetMap().AmbientSamples = ambientLightingLump.LoadLumpData<MLeafAmbientLighting>();
+		}
+
+		for (int i = 0; i < count; i++) {
+			ref BSPDLeaf _in = ref inLeafs[i];
+			BSPMLeaf _out = outLeafs[i] = new BSPMLeaf();
+
+			Vector3 mins = new(_in.Mins[0], _in.Mins[1], _in.Mins[2]);
+			Vector3 maxs = new(_in.Maxs[0], _in.Maxs[1], _in.Maxs[2]);
+
+			_out.Center = (mins + maxs) * 0.5f;
+			_out.HalfDiagonal = maxs - _out.Center;
+
+			_out.Contents = _in.Contents;
+
+			_out.Cluster = _in.Cluster;
+			_out.Area = _in.Area;
+			_out.Flags = _in.Flags;
+			_out.FirstMarkSurface = _in.FirstLeafFace;
+			_out.NumMarkSurfaces = _in.NumLeafFaces;
+			_out.Parent = null;
+
+			_out.DispCount = 0;
+
+			_out.LeafWaterDataID = _in.LeafWaterDataID;
+			_out.Index = i;
+		}
 	}
 
 	private void Mod_LoadLeafs() {
+		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Leafs);
 
+		switch (lh.LumpVersion) {
+			case 0:
+				Mod_LoadLeafs_Version_0(lh);
+				break;
+			case 1:
+				if (materialSystemHardwareConfig.GetHDRType() != HDRType.None && MapLoadHelper.GetLumpSize(LumpIndex.LeafAmbientLightingHDR) > 0) {
+					MapLoadHelper mlh = new MapLoadHelper(LumpIndex.LeafAmbientLightingHDR);
+					MapLoadHelper mlhTable = new MapLoadHelper(LumpIndex.LeafAmbientIndexHDR);
+					Mod_LoadLeafs_Version_1(lh, mlh, mlhTable);
+				}
+				else {
+					MapLoadHelper mlh = new MapLoadHelper(LumpIndex.LeafAmbientLighting);
+					MapLoadHelper mlhTable = new MapLoadHelper(LumpIndex.LeafAmbientIndex);
+					Mod_LoadLeafs_Version_1(lh, mlh, mlhTable);
+				}
+				break;
+			default:
+				Assert(false);
+				Error("Unknown LUMP_LEAFS version\n");
+				break;
+		}
+
+		WorldBrushData pMap = lh.GetMap();
+		Span<CollisionLeaf> pCLeaf = GetCollisionBSPData().MapLeafs.AsSpan();
+		for (int i = 0; i < pMap.Leafs!.Length; i++) {
+			pMap.Leafs[i].DispCount = pCLeaf[i].DispCount;
+			pMap.Leafs[i].DispListStart = pCLeaf[i].DispListStart;
+		}
+		pMap.DispInfoReferences = GetCollisionBSPData().MapDispList.Base();
+		pMap.NumDispInfoReferences = GetCollisionBSPData().MapDispList.Count;
 	}
 
 	private void SetupSubModels(Model mod, List<BSPMModel> llist) {

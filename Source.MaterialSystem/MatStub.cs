@@ -297,6 +297,7 @@ public class DummyMaterial : IMaterial
 		found = null;
 		return false;
 	}
+	public void ColorModulate(float r, float g, float b) { }
 }
 
 public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderContext

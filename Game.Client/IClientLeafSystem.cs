@@ -67,4 +67,6 @@ public interface IClientLeafSystem : IClientLeafSystemEngine, IGameSystem {
 	void SetSubSystemDataInLeaf(int leaf, int subSystemIdx, ClientLeafSubSystemData? data);
 	ClientLeafSubSystemData? GetSubSystemDataInLeaf(int leaf, int subSystemIdx);
 	void SetDetailObjectsInLeaf(int leaf, int firstDetailObject, int detailObjectCount);
+	void GetDetailObjectsInLeaf(int leaf, out int firstDetailObject, out int detailObjectCount);
+	void DrawDetailObjectsInLeaf(int leaf, int frameNumber, out int firstDetailObject, out int detailObjectCount);
 }

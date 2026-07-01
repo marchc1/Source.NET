@@ -212,6 +212,9 @@ public partial class Render(
 		if (!ViewStack.Top().NoDraw) {
 			// R_SceneBegin();
 		}
+
+		if (MathLib.VectorCompare(MainViewOrigin(), view.Origin))
+			DebugLeafVis.LeafVisBuild(view.Origin);
 	}
 
 	public void Push2DView(in ViewSetup view, ClearFlags flags, ITexture? renderTarget, Frustum frustumPlanes) {
@@ -367,7 +370,8 @@ public partial class Render(
 	}
 
 	public void DrawSceneEnd() {
-
+		// R_SceneEnd();
+		DebugLeafVis.LeafVisDraw();
 	}
 
 	public void ViewSetupVis(bool novis, ReadOnlySpan<Vector3> origins) {

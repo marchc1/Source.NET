@@ -121,6 +121,24 @@ public class ClientLeafSystem : IClientLeafSystem
 		l.DetailPropCount = (ushort)detailObjectCount;
 	}
 
+	public void GetDetailObjectsInLeaf(int leaf, out int firstDetailObject, out int detailObjectCount) {
+		firstDetailObject = 0;
+		detailObjectCount = 0;
+		if (!Leaf.IsValidIndex(leaf)) {
+			Assert(false);
+			return;
+		}
+		firstDetailObject = Leaf[leaf].FirstDetailProp;
+		detailObjectCount = Leaf[leaf].DetailPropCount;
+	}
+
+	public void DrawDetailObjectsInLeaf(int leaf, int frameNumber, out int firstDetailObject, out int detailObjectCount) {
+		ref ClientLeaf leafInfo = ref Leaf.AsSpan()[leaf];
+		leafInfo.DetailPropRenderFrame = frameNumber;
+		firstDetailObject = leafInfo.FirstDetailProp;
+		detailObjectCount = leafInfo.DetailPropCount;
+	}
+
 
 
 	public void AddRenderable(IClientRenderable renderable, RenderGroup group) {
@@ -250,53 +268,57 @@ public class ClientLeafSystem : IClientLeafSystem
 
 	}
 
-	public bool Init() {
-		throw new NotImplementedException();
-	}
+	public bool Init() => true;
 
-	public bool IsPerFrame() {
-		throw new NotImplementedException();
-	}
+	public bool IsPerFrame() => true;
 
 	public bool IsRenderableInPVS(IClientRenderable renderable) {
 		throw new NotImplementedException();
 	}
 
-	public void LevelInitPostEntity() {
-		throw new NotImplementedException();
-	}
+	public void LevelInitPostEntity() { }
 
 	public void LevelInitPreEntity() {
-		throw new NotImplementedException();
+		Renderables.EnsureCapacity(1024);
+		DirtyRenderables.EnsureCapacity(256);
+
+		int leafCount = engine.LevelLeafCount();
+		Leaf.EnsureCapacity(leafCount);
+
+		ClientLeaf newLeaf = new() {
+			FirstElement = unchecked((uint)-1),
+			FirstShadow = unchecked((uint)-1),
+			FirstDetailProp = 0,
+			DetailPropCount = 0,
+			DetailPropRenderFrame = -1
+		};
+		while (--leafCount >= 0)
+			Leaf.Add(newLeaf);
+
+#if DEBUG
+		DevMsg($"ClientLeafSystem.LevelInitPreEntity: {Leaf.Count} leaves\n");
+#endif
 	}
 
 	public void LevelShutdownPostEntity() {
-		throw new NotImplementedException();
+		ViewModels.Clear();
+		Renderables.Clear();
+		Leaf.Clear();
+		DirtyRenderables.Clear();
+		ValidHandles.Clear();
 	}
 
-	public void LevelShutdownPreClearSteamAPIContext() {
-		throw new NotImplementedException();
-	}
+	public void LevelShutdownPreClearSteamAPIContext() { }
 
-	public void LevelShutdownPreEntity() {
-		throw new NotImplementedException();
-	}
+	public void LevelShutdownPreEntity() { }
 
-	public ReadOnlySpan<char> Name() {
-		throw new NotImplementedException();
-	}
+	public ReadOnlySpan<char> Name() => "CClientLeafSystem";
 
-	public void OnRestore() {
-		throw new NotImplementedException();
-	}
+	public void OnRestore() { }
 
-	public void OnSave() {
-		throw new NotImplementedException();
-	}
+	public void OnSave() { }
 
-	public void PostInit() {
-		throw new NotImplementedException();
-	}
+	public void PostInit() { }
 
 	public void RemoveRenderable(ClientRenderHandle_t handle) {
 		if (!ValidHandles.Contains(handle))
@@ -337,9 +359,7 @@ public class ClientLeafSystem : IClientLeafSystem
 		ViewModels.RemoveAt(i);
 	}
 
-	public void SafeRemoveIfDesired() {
-		throw new NotImplementedException();
-	}
+	public void SafeRemoveIfDesired() { }
 
 	public void SetRenderGroup(ClientRenderHandle_t handle, RenderGroup group) {
 		ref RenderableInfo pInfo = ref Renderables[handle].Info;

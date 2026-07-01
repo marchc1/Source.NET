@@ -153,6 +153,95 @@ public static partial class CM
 		return -1 - num;
 	}
 
+	public static int LeafCluster(int leafnum) {
+		CollisionBSPData bspData = GetCollisionBSPData();
+
+		Assert(leafnum >= 0);
+		Assert(leafnum < bspData.NumLeafs);
+
+		return bspData.MapLeafs.AsSpan()[leafnum].Cluster;
+	}
+
+	public static int LeafArea(int leafnum) {
+		CollisionBSPData bspData = GetCollisionBSPData();
+
+		Assert(leafnum >= 0);
+		Assert(leafnum < bspData.NumLeafs);
+
+		return bspData.MapLeafs.AsSpan()[leafnum].Area;
+	}
+
+	public const int DVIS_PVS = 0;
+	public const int DVIS_PAS = 1;
+
+	static void NullVis(CollisionBSPData bspData, Span<byte> outVis) {
+		int numClusterBytes = (bspData.NumClusters + 7) >> 3;
+		int outIdx = 0;
+
+		while (numClusterBytes != 0) {
+			outVis[outIdx++] = 0xff;
+			numClusterBytes--;
+		}
+	}
+
+	static void DecompressVis(CollisionBSPData bspData, int cluster, int visType, Span<byte> outVis) {
+		int c;
+		int numClusterBytes;
+
+		if (cluster > bspData.NumClusters || cluster < 0) {
+			NullVis(bspData, outVis);
+			return;
+		}
+
+		if (bspData.NumVisibility == 0 || bspData.MapVis == null) {
+			NullVis(bspData, outVis);
+			return;
+		}
+
+		byte[] mapVis = bspData.MapVis;
+		int inIdx = BitConverter.ToInt32(mapVis, 4 + (cluster * 2 + visType) * 4);
+		numClusterBytes = (bspData.NumClusters + 7) >> 3;
+		int outIdx = 0;
+
+		do {
+			if (mapVis[inIdx] != 0) {
+				outVis[outIdx++] = mapVis[inIdx++];
+				continue;
+			}
+
+			c = mapVis[inIdx + 1];
+			inIdx += 2;
+			if (outIdx + c > numClusterBytes) {
+				c = numClusterBytes - outIdx;
+				ConMsg("warning: Vis decompression overrun\n");
+			}
+			while (c != 0) {
+				outVis[outIdx++] = 0;
+				c--;
+			}
+		} while (outIdx < numClusterBytes);
+	}
+
+	public static Span<byte> Vis(Span<byte> dest, int destlen, int cluster, int visType) {
+		CollisionBSPData bspData = GetCollisionBSPData();
+
+		if (visType > DVIS_PAS || visType < DVIS_PVS) {
+			Sys.Error($"CM_Vis: Vis type {visType} is unknown");
+			return null;
+		}
+
+		if (cluster == -1) {
+			int len = (bspData.NumClusters + 7) >> 3;
+			if (len > destlen)
+				Sys.Error($"CM_Vis:  buffer not big enough ({destlen} but need {len})\n");
+			memset(dest[..((bspData.NumClusters + 7) >> 3)], (byte)0);
+		}
+		else
+			DecompressVis(bspData, cluster, visType, dest);
+
+		return dest;
+	}
+
 	public static nint g_DispCollTreeCount = 0;
 
 	internal static TraceInfo BeginTrace() {

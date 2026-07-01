@@ -112,6 +112,12 @@ public class Material : IMaterialInternal
 		PrecacheMappingDimensions();
 	}
 
+	public void ColorModulate(float r, float g, float b) {
+		Precache();
+		if (VarCount > (int)ShaderMaterialVars.Color)
+			ShaderParams![(int)ShaderMaterialVars.Color].SetVecValue(r, g, b);
+	}
+
 	public void RecomputeStateSnapshots() {
 		bool ok = InitializeRenderState();
 		if (!ok)

@@ -405,7 +405,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	public void ShadeMode(ShadeMode shadeMode) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException(); todo
 	}
 
 	public bool InEditorMode() {

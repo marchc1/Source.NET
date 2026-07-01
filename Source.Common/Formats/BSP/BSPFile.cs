@@ -450,11 +450,22 @@ public class BSPMNode
 	public short Area;
 	public short Flags;
 	public Vector3 Center;
-	public Vector3 HalfDiagnoal;
-	public CollisionPlane[]? Plane;
+	public Vector3 HalfDiagonal;
+	public CollisionPlane Plane;
 	public InlineArray2<BSPMNode?> Children;
 	public ushort FirstSurface;
 	public ushort NumSurfaces;
+}
+
+public class BSPMLeaf : BSPMNode
+{
+	public int Index;
+	public short Cluster;
+	public short LeafWaterDataID;
+	public ushort FirstMarkSurface;
+	public ushort NumMarkSurfaces;
+	public ushort DispListStart;
+	public ushort DispCount;
 }
 /// <summary>
 /// Analog of texinfo_s
@@ -812,7 +823,7 @@ public struct BSPDLeafVersion0
 	public ushort NumLeafBrushes;
 	public short LeafWaterDataID;
 
-	CompressedLightCube m_AmbientLighting;
+	public CompressedLightCube AmbientLighting;
 }
 
 public struct CompressedLightCube

@@ -430,6 +430,7 @@ public interface IMaterial
 	bool TryFindVar(ReadOnlySpan<char> varName, [NotNullWhen(true)] out IMaterialVar? found, bool complain = true);
 	IMaterialVar FindVar(ReadOnlySpan<char> varName, out bool found, bool complain = true);
 	void Refresh();
+	void ColorModulate(float r, float g, float b);
 	bool IsErrorMaterialInternal();
 	VertexFormat GetVertexFormat();
 	ReadOnlySpan<char> GetName();

@@ -20,12 +20,30 @@ public struct ModelTexInfo
 	public IMaterial? Material;
 }
 
+public struct MLeafAmbientIndex
+{
+	public ushort AmbientSampleCount;
+	public ushort FirstAmbientSample;
+}
+
+public struct MLeafAmbientLighting
+{
+	public CompressedLightCube Cube;
+	public byte X;
+	public byte Y;
+	public byte Z;
+	public byte Pad;
+}
+
 public class WorldBrushData
 {
 	public int NumSubModels;
 	public CollisionPlane[]? Planes;
 	public int NumPlanes;
-	public BSPDLeaf[]? Leafs;
+	public BSPMLeaf[]? Leafs;
+	public int NumLeafs;
+	public MLeafAmbientIndex[]? LeafAmbient;
+	public MLeafAmbientLighting[]? AmbientSamples;
 	public BSPDLeafWaterData[]? LeafWaterData;
 	public BSPDertex[]? Vertexes;
 	public BSPDOccluderData[]? Occluders;
@@ -64,6 +82,8 @@ public class WorldBrushData
 	public BSPMSurfaceNormal[]? SurfaceNormals;
 	public object? DispInfos;
 	public int NumDispInfos;
+	public ushort[]? DispInfoReferences;
+	public int NumDispInfoReferences;
 	public bool UnloadedLightmaps;
 }
 
