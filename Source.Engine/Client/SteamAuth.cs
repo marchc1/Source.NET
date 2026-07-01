@@ -81,7 +81,7 @@ public class Steam3ClientImpl : IDisposable
 	public void Dispose() { }
 
 	public void RunFrame() {
-		SteamAPI_RunCallbacks();
+		SteamAPI.RunCallbacks();
 	}
 }
 #endif

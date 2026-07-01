@@ -155,7 +155,9 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 
 		for (int i = StaticProps.Count; --i >= 0;) {
 			StaticProps[i].CleanUpRenderHandle();
+#if !SWDS
 			modelrender.SetStaticLighting(StaticProps[i].GetModelInstance(), null);
+#endif
 		}
 
 #if !SWDS
