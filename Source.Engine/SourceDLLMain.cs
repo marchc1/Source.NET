@@ -36,9 +36,11 @@ public static class SourceDllMain
 	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;
 	[Dependency] public static ModelLoader modelLoader { get; private set; } = null!;
 	[Dependency] public static IVModelInfo modelInfo { get; private set; } = null!;
+#if !SWDS
 	[Dependency] public static IModelRender modelrender { get; private set; } = null!;
 	[Dependency] public static IStudioRender studiorender { get; private set; } = null!;
 	[Dependency(Required = false)] public static IClientLeafSystemEngine clientleafsystem { get; private set; } = null!;
+#endif
 	[Dependency] public static IPhysicsCollision physcollision { get; private set; } = null!;
 	[Dependency] public static ServerPlugin serverPluginHandler { get; private set; } = null!;
 	[Dependency] public static IModelLoader modelloader { get; private set; } = null!;

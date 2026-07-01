@@ -277,7 +277,7 @@ public class Host(
 			// else
 			// updatedynamicmodels
 
-			#if !SWDS
+#if !SWDS
 			if(!sv.IsDedicated()){
 				ClientDLL.Update();
 			}
@@ -340,6 +340,7 @@ public class Host(
 	}
 
 	private void _RunFrame_Client(bool finalTick) {
+#if !SWDS
 		CL.ReadPackets(finalTick);
 		CL.ProcessVoiceData();
 
@@ -347,8 +348,8 @@ public class Host(
 		cl.CheckFileCRCsWithServer();
 
 		cl.RunFrame();
-
 		Steam3Client()?.RunFrame();
+#endif
 	}
 
 	private void _RunFrame_Server(bool finalTick) {
