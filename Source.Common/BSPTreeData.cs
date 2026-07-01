@@ -20,10 +20,10 @@ public interface ISpatialQuery
 	int LeafCount();
 
 	// Enumerates the leaves along a ray, box, etc.
-	bool EnumerateLeavesAtPoint(in Vector3 pt, IBSPTreeDataEnumerator enumerator, nint context);
-	bool EnumerateLeavesInBox(in Vector3 mins, in Vector3 maxs, IBSPTreeDataEnumerator enumerator, nint context);
-	bool EnumerateLeavesInSphere(in Vector3 center, float radius, IBSPTreeDataEnumerator enumerator, nint context);
-	bool EnumerateLeavesAlongRay(in Ray ray, IBSPTreeDataEnumerator enumerator, nint context);
+	bool EnumerateLeavesAtPoint(in Vector3 pt, ISpatialLeafEnumerator enumerator, nint context);
+	bool EnumerateLeavesInBox(in Vector3 mins, in Vector3 maxs, ISpatialLeafEnumerator enumerator, nint context);
+	bool EnumerateLeavesInSphere(in Vector3 center, float radius, ISpatialLeafEnumerator enumerator, nint context);
+	bool EnumerateLeavesAlongRay(in Ray ray, ISpatialLeafEnumerator enumerator, nint context);
 }
 
 public interface IBSPTreeDataEnumerator
@@ -54,8 +54,8 @@ public interface IBSPTreeData
 	// NOTE: These methods call through to the functions in the attached
 	// ISpatialQuery
 	// For convenience, enumerates the leaves along a ray, box, etc.
-	bool EnumerateLeavesAtPoint(in Vector3 pt, IBSPTreeDataEnumerator enumerator, nint context);
-	bool EnumerateLeavesInBox(in Vector3 mins, in Vector3 maxs, IBSPTreeDataEnumerator enumerator, nint context);
-	bool EnumerateLeavesInSphere(in Vector3 center, float radius, IBSPTreeDataEnumerator enumerator, nint context);
-	bool EnumerateLeavesAlongRay(in Ray ray, IBSPTreeDataEnumerator enumerator, nint context);
+	bool EnumerateLeavesAtPoint(in Vector3 pt, ISpatialLeafEnumerator enumerator, nint context);
+	bool EnumerateLeavesInBox(in Vector3 mins, in Vector3 maxs, ISpatialLeafEnumerator enumerator, nint context);
+	bool EnumerateLeavesInSphere(in Vector3 center, float radius, ISpatialLeafEnumerator enumerator, nint context);
+	bool EnumerateLeavesAlongRay(in Ray ray, ISpatialLeafEnumerator enumerator, nint context);
 }

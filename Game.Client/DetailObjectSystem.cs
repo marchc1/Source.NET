@@ -13,6 +13,8 @@ using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
 using System.Numerics;
+using System.Runtime.Intrinsics;
+using System.Runtime.InteropServices;
 
 namespace Game.Client;
 
@@ -44,7 +46,7 @@ public interface IDetailObjectSystem : IGameSystem
 }
 
 
-public struct DetailModelAdvInfo
+public class DetailModelAdvInfo
 {
 	public InlineArray3<Vector3> AnglesForward;
 	public InlineArray3<Vector3> AnglesRight;
@@ -160,32 +162,69 @@ public class DetailModel : IClientUnknown, IClientRenderable
 	public int GetBody() => 0;
 	public ref readonly Vector3 GetRenderOrigin() => ref Origin;
 	public ref readonly QAngle GetRenderAngles() => ref Angles;
-	public ref readonly Matrix3x4 RenderableToWorldTransform() => throw new NotImplementedException();
-	public bool ShouldDraw() => throw new NotImplementedException();
+	static Matrix3x4 mat;
+	public ref readonly Matrix3x4 RenderableToWorldTransform() {
+		MathLib.AngleMatrix(GetRenderAngles(), GetRenderOrigin(), out mat);
+		return ref mat;
+	}
+	public bool ShouldDraw() => clientMode.ShouldDrawDetailObjects();
 	public bool IsTwoPass() => false;
 	public void OnThreadedDrawSetup() { }
-	public bool IsTransparent() => throw new NotImplementedException();
+	public bool IsTransparent() => Alpha < 255 || modelinfo.IsTranslucent(Model);
 	public Model? GetModel() => Model;
-	public int DrawModel(StudioFlags flags) => throw new NotImplementedException();
-	public void ComputeFxBlend() => throw new NotImplementedException();
-	public int GetFxBlend() => throw new NotImplementedException();
-	public bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, TimeUnit_t currentTime) => throw new NotImplementedException();
-	public void SetupWeights(Span<Matrix3x4> boneToWorld, Span<float> flexWeights, Span<float> flexDelayedWeights) => throw new NotImplementedException();
+	public int DrawModel(StudioFlags flags) {
+		if (Alpha == 0 || Model == null)
+			return 0;
+
+		int drawn = modelrender.DrawModel(flags, this, MODEL_INSTANCE_INVALID, -1, Model, Origin, Angles, 0, 0, 0);
+		return drawn;
+	}
+	public void ComputeFxBlend() { }
+	public int GetFxBlend() => Alpha;
+	public bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, TimeUnit_t currentTime) {
+		if (Model == null)
+			return false;
+
+		ref readonly QAngle vRenderAngles = ref GetRenderAngles();
+		ref readonly Vector3 vRenderOrigin = ref GetRenderOrigin();
+		MathLib.AngleMatrix(vRenderAngles, out Matrix3x4 parentTransform);
+		parentTransform[0, 3] = vRenderOrigin.X;
+		parentTransform[1, 3] = vRenderOrigin.Y;
+		parentTransform[2, 3] = vRenderOrigin.Z;
+
+		StudioHeader studioHdr = modelinfo.GetStudiomodel(Model)!;
+		for (int i = 0; i < studioHdr.NumBones; i++)
+			boneToWorldOut[i] = parentTransform;
+
+		return true;
+	}
+	public void SetupWeights(Span<Matrix3x4> boneToWorld, Span<float> flexWeights, Span<float> flexDelayedWeights) { }
 	public bool UsesFlexDelayedWeights() => false;
-	public void DoAnimationEvents() => throw new NotImplementedException();
-	public void GetRenderBounds(out Vector3 mins, out Vector3 maxs) => throw new NotImplementedException();
-	public IPVSNotify? GetPVSNotifyInterface() => throw new NotImplementedException();
-	public void GetRenderBoundsWorldspace(out Vector3 mins, out Vector3 maxs) => throw new NotImplementedException();
-	public bool ShouldReceiveProjectedTextures(ShadowFlags flags) => throw new NotImplementedException();
+	public void DoAnimationEvents() { }
+	public void GetRenderBounds(out Vector3 mins, out Vector3 maxs) {
+		ModelType modelType = modelinfo.GetModelType(Model);
+		if (modelType == ModelType.Studio || modelType == ModelType.Brush)
+			modelinfo.GetModelRenderBounds(GetModel(), out mins, out maxs);
+		else {
+			mins = new(0, 0, 0);
+			maxs = new(0, 0, 0);
+		}
+	}
+	public IPVSNotify? GetPVSNotifyInterface() => null;
+	public void GetRenderBoundsWorldspace(out Vector3 mins, out Vector3 maxs) => IClientLeafSystemEngine.DefaultRenderBoundsWorldspace(this, out mins, out maxs);
+	public bool ShouldReceiveProjectedTextures(ShadowFlags flags) => false;
 	public bool GetShadowCastDistance(out float dist, ShadowType shadowType) { dist = 0; return false; }
 	public bool GetShadowCastDirection(out Vector3 direction, ShadowType shadowType) { direction = default; return false; }
-	public bool UsesPowerOfTwoFrameBufferTexture() => throw new NotImplementedException();
-	public bool UsesFullFrameBufferTexture() => throw new NotImplementedException();
+	public bool UsesPowerOfTwoFrameBufferTexture() => false;
+	public bool UsesFullFrameBufferTexture() => false;
 	public bool IgnoresZBuffer() => false;
 	public bool LODTest() => true;
-	public ClientShadowHandle_t GetShadowHandle() => throw new NotImplementedException();
-	public ref ClientRenderHandle_t RenderHandle() => throw new NotImplementedException();
-	public void GetShadowRenderBounds(out Vector3 mins, out Vector3 maxs, ShadowType shadowType) => throw new NotImplementedException();
+	public ClientShadowHandle_t GetShadowHandle() => unchecked((ClientShadowHandle_t)~0);
+	public ref ClientRenderHandle_t RenderHandle() {
+		AssertMsg(false, "CDetailModel has no render handle");
+		throw new NotSupportedException();
+	}
+	public void GetShadowRenderBounds(out Vector3 mins, out Vector3 maxs, ShadowType shadowType) => GetRenderBounds(out mins, out maxs);
 	public bool IsShadowDirty() => false;
 	public void MarkShadowDirty(bool dirty) { }
 	public IClientRenderable? GetShadowParent() => null;
@@ -195,37 +234,238 @@ public class DetailModel : IClientUnknown, IClientRenderable
 	public void CreateModelInstance() { }
 	public ModelInstanceHandle_t GetModelInstance() => MODEL_INSTANCE_INVALID;
 	public int LookupAttachment(ReadOnlySpan<char> attachmentName) => -1;
-	public bool GetAttachment(int number, out Matrix3x4 matrix) => throw new NotImplementedException();
-	public bool GetAttachment(int number, out Vector3 origin, out QAngle angles) => throw new NotImplementedException();
+	public bool GetAttachment(int number, out Matrix3x4 matrix) {
+		matrix = RenderableToWorldTransform();
+		return true;
+	}
+	public bool GetAttachment(int number, out Vector3 origin, out QAngle angles) {
+		origin = Origin;
+		angles = Angles;
+		return true;
+	}
 	public Span<float> GetRenderClipPlane() => null;
 	public int GetSkin() => 0;
 	public void RecordToolMessage() { }
 
-	public void GetColorModulation(Span<float> color) => throw new NotImplementedException();
+	public void GetColorModulation(Span<float> color) {
+		// if (mat_fullbright.GetInt() == 1) {
+		// 	color[0] = color[1] = color[2] = 1.0f;
+		// 	return;
+		// }
 
-	public void ComputeAngles() => throw new NotImplementedException();
+		Vector3 normal = new(1, 0, 0);
+		engine.ComputeDynamicLighting(Origin, normal, out Vector3 tmp);
 
-	public void DrawSprite(ref MeshBuilder meshBuilder) => throw new NotImplementedException();
+		float val = engine.LightStyleValue(0);
+		color[0] = tmp.X + val * MathLib.TexLightToLinear(Color.R, Color.Exponent);
+		color[1] = tmp.Y + val * MathLib.TexLightToLinear(Color.G, Color.Exponent);
+		color[2] = tmp.Z + val * MathLib.TexLightToLinear(Color.B, Color.Exponent);
+
+		if (HasLightStyle) {
+			if (LightStylesMap.TryGetValue(this, out LightStyleInfo info)) {
+				int nLightStyles = (int)info.LightStyleCount;
+				int iLightStyle = (int)info.LightStyle;
+				for (int i = 0; i < nLightStyles; ++i) {
+					ref DetailPropLightstylesLump lighting = ref ((DetailObjectSystem)DetailObjectSystem.GetDetailObjectSystem()).DetailLighting(iLightStyle + i);
+					val = engine.LightStyleValue(lighting.Style);
+					if (val != 0) {
+						color[0] += val * MathLib.TexLightToLinear(lighting.Lighting.R, lighting.Lighting.Exponent);
+						color[1] += val * MathLib.TexLightToLinear(lighting.Lighting.G, lighting.Lighting.Exponent);
+						color[2] += val * MathLib.TexLightToLinear(lighting.Lighting.B, lighting.Lighting.Exponent);
+					}
+				}
+			}
+		}
+
+		engine.LinearToGamma(color, color);
+	}
+
+	public void ComputeAngles() {
+		switch (Orientation) {
+			case 0:
+				break;
+
+			case 1: {
+					MathLib.VectorSubtract(CurrentViewOrigin(), Origin, out Vector3 vecDir);
+					MathLib.VectorAngles(vecDir, out Angles);
+				}
+				break;
+
+			case 2: {
+					MathLib.VectorSubtract(CurrentViewOrigin(), Origin, out Vector3 vecDir);
+					vecDir.Z = 0.0f;
+					MathLib.VectorAngles(vecDir, out Angles);
+				}
+				break;
+		}
+	}
+
+	public void DrawSprite(ref MeshBuilder meshBuilder) {
+		switch ((DetailPropType)Type) {
+			case DetailPropType.ShapeCross:
+				DrawTypeShapeCross(ref meshBuilder);
+				break;
+
+			case DetailPropType.ShapeTri:
+				DrawTypeShapeTri(ref meshBuilder);
+				break;
+
+			case DetailPropType.Sprite:
+				DrawTypeSprite(ref meshBuilder);
+				break;
+
+			default:
+				Assert(false);
+				break;
+		}
+	}
 
 	public int QuadsToDraw() => QuadCount[Type];
 
-	public void DrawTypeSprite(ref MeshBuilder meshBuilder) => throw new NotImplementedException();
+	public void DrawTypeSprite(ref MeshBuilder meshBuilder) {
+		Assert(Type == (byte)DetailPropType.Sprite);
+
+		Span<float> vecColor = stackalloc float[3];
+		GetColorModulation(vecColor);
+
+		Color color = new((byte)(vecColor[0] * 255.0f), (byte)(vecColor[1] * 255.0f), (byte)(vecColor[2] * 255.0f), Alpha);
+
+		ref DetailPropSpriteDict dict = ref ((DetailObjectSystem)DetailObjectSystem.GetDetailObjectSystem()).DetailSpriteDict(SpriteInfo.SpriteIndex);
+
+		MathLib.AngleVectors(Angles, out _, out Vector3 dx, out Vector3 dy);
+
+		float scale = (float)SpriteInfo.Scale;
+		MathLib.Vector2DMultiply(dict.UL, scale, out Vector2 ul);
+		MathLib.Vector2DMultiply(dict.LR, scale, out Vector2 lr);
+
+		UpdatePlayerAvoid();
+
+		Vector3 vecSway = Vector3.Zero;
+
+		if (AdvInfo != null) {
+			vecSway = AdvInfo.CurrentAvoid * (float)SpriteInfo.Scale;
+			float flSwayAmplitude = AdvInfo.SwayAmount * cl_detail_max_sway.GetFloat();
+			if (flSwayAmplitude > 0) {
+				vecSway += dx * MathF.Sin((float)(gpGlobals.CurTime + Origin.X)) * flSwayAmplitude;
+			}
+		}
+
+		MathLib.VectorMA(Origin, ul.X, dx, out Vector3 vecOrigin);
+		MathLib.VectorMA(vecOrigin, ul.Y, dy, out vecOrigin);
+		dx *= (lr.X - ul.X);
+		dy *= (lr.Y - ul.Y);
+
+		Vector2 texul = dict.TexUL;
+		Vector2 texlr = dict.TexLR;
+
+		if (!Flipped) {
+			texul.X = dict.TexLR.X;
+			texlr.X = dict.TexUL.X;
+		}
+
+		meshBuilder.Position3fv(vecOrigin + vecSway);
+		meshBuilder.Color4ubv(color);
+		meshBuilder.TexCoord2fv(0, texul);
+		meshBuilder.AdvanceVertex();
+
+		vecOrigin += dy;
+		meshBuilder.Position3fv(vecOrigin);
+		meshBuilder.Color4ubv(color);
+		meshBuilder.TexCoord2f(0, texul.X, texlr.Y);
+		meshBuilder.AdvanceVertex();
+
+		vecOrigin += dx;
+		meshBuilder.Position3fv(vecOrigin);
+		meshBuilder.Color4ubv(color);
+		meshBuilder.TexCoord2fv(0, texlr);
+		meshBuilder.AdvanceVertex();
+
+		vecOrigin -= dy;
+		meshBuilder.Position3fv(vecOrigin + vecSway);
+		meshBuilder.Color4ubv(color);
+		meshBuilder.TexCoord2f(0, texlr.X, texul.Y);
+		meshBuilder.AdvanceVertex();
+	}
 
 	public void DrawTypeShapeCross(ref MeshBuilder meshBuilder) => throw new NotImplementedException();
 	public void DrawTypeShapeTri(ref MeshBuilder meshBuilder) => throw new NotImplementedException();
 
 	public void UpdatePlayerAvoid() => throw new NotImplementedException();
 
-	public void InitShapedSprite(byte shapeAngle, byte shapeSize, byte swayAmount) => throw new NotImplementedException();
-	public void InitShapeTri() => throw new NotImplementedException();
-	public void InitShapeCross() => throw new NotImplementedException();
+	public void InitShapedSprite(byte shapeAngle, byte shapeSize, byte swayAmount) {
+		Assert(AdvInfo == null);
+		AdvInfo = new DetailModelAdvInfo();
+		Assert(AdvInfo != null);
 
-	public void DrawSwayingQuad(ref MeshBuilder meshBuilder, Vector3 vecOrigin, Vector3 vecSway, Vector2 texul, Vector2 texlr, Span<byte> color, Vector3 width, Vector3 height) => throw new NotImplementedException();
+		if (AdvInfo != null) {
+			AdvInfo.ShapeAngle = shapeAngle;
+			AdvInfo.SwayAmount = (float)swayAmount / 255.0f;
+			AdvInfo.ShapeSize = (float)shapeSize / 255.0f;
+			AdvInfo.CurrentAvoid = Vector3.Zero;
+			AdvInfo.SwayYaw = random.RandomFloat(0, 180);
+		}
+
+		switch ((DetailPropType)Type) {
+			case DetailPropType.ShapeTri:
+				InitShapeTri();
+				break;
+
+			case DetailPropType.ShapeCross:
+				InitShapeCross();
+				break;
+
+			default:
+				break;
+		}
+	}
+	public void InitShapeTri() {
+		MathLib.AngleMatrix(Angles, out Matrix3x4 matrix);
+
+		for (int i = 0; i < 3; i++) {
+			QAngle anglesRotated = new(AdvInfo!.ShapeAngle, i * 120, 0);
+
+			MathLib.AngleVectors(anglesRotated, out Vector3 rotForward, out Vector3 rotRight, out Vector3 rotUp);
+
+			MathLib.VectorRotate(rotForward, matrix, out AdvInfo.AnglesForward[i]);
+			MathLib.VectorRotate(rotRight, matrix, out AdvInfo.AnglesRight[i]);
+			MathLib.VectorRotate(rotUp, matrix, out AdvInfo.AnglesUp[i]);
+		}
+	}
+	public void InitShapeCross() {
+		MathLib.AngleVectors(Angles, out AdvInfo!.AnglesForward[0], out AdvInfo.AnglesRight[0], out AdvInfo.AnglesUp[0]);
+	}
+
+	public void DrawSwayingQuad(ref MeshBuilder meshBuilder, Vector3 vecOrigin, Vector3 vecSway, Vector2 texul, Vector2 texlr, Span<byte> color, Vector3 width, Vector3 height) {
+		Color col = new(color[0], color[1], color[2], color[3]);
+
+		meshBuilder.Position3fv(vecOrigin + vecSway);
+		meshBuilder.TexCoord2fv(0, texul);
+		meshBuilder.Color4ubv(col);
+		meshBuilder.AdvanceVertex();
+
+		vecOrigin += height;
+		meshBuilder.Position3fv(vecOrigin);
+		meshBuilder.TexCoord2f(0, texul.X, texlr.Y);
+		meshBuilder.Color4ubv(col);
+		meshBuilder.AdvanceVertex();
+
+		vecOrigin += width;
+		meshBuilder.Position3fv(vecOrigin);
+		meshBuilder.TexCoord2fv(0, texlr);
+		meshBuilder.Color4ubv(col);
+		meshBuilder.AdvanceVertex();
+
+		vecOrigin -= height;
+		meshBuilder.Position3fv(vecOrigin + vecSway);
+		meshBuilder.TexCoord2f(0, texlr.X, texul.Y);
+		meshBuilder.Color4ubv(col);
+		meshBuilder.AdvanceVertex();
+	}
 
 	public int GetDetailType() => Type;
 	public byte GetAlpha() => Alpha;
 
-	public bool IsDetailModelTranslucent() => throw new NotImplementedException();
+	public bool IsDetailModelTranslucent() => Type >= (byte)DetailPropType.Sprite || modelinfo.IsTranslucent(GetModel());
 
 	public void SetRefEHandle(in BaseHandle handle) => Assert(false);
 	public ref readonly BaseHandle GetRefEHandle() => throw new NotImplementedException();
@@ -273,7 +513,7 @@ public struct FastSpriteQuadBuildoutBufferX4
 	public InlineArray4<FourVectors> Coords;
 	public InlineArray4<InlineArray4<byte>> RGBColor;
 	public fltx4 Alpha;
-	public InlineArray4<nint> SpriteDefs;
+	public InlineArray4<DetailPropSpriteDict> SpriteDefs;
 }
 
 public struct FastSpriteQuadBuildoutBufferNonSIMDView
@@ -474,11 +714,128 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 	}
 
 
-	public void BuildDetailObjectRenderLists(in Vector3 viewOrigin) => throw new NotImplementedException();
+	public void BuildDetailObjectRenderLists(in Vector3 viewOrigin) {
+		if (!clientMode.ShouldDrawDetailObjects() || r_DrawDetailProps.GetInt() == 0)
+			return;
 
-	public void RenderOpaqueDetailObjects(int leafCount, Span<LeafIndex_t> leafList) => throw new NotImplementedException();
+		if (FastSpriteData == null && DetailObjects.Count == 0)
+			return;
 
-	public void RenderTranslucentDetailObjects(in Vector3 viewOrigin, in Vector3 viewForward, in Vector3 viewRight, in Vector3 viewUp, int leafCount, Span<LeafIndex_t> leafList) => throw new NotImplementedException();
+		EnumContext ctx = new() {
+			ViewOrigin = viewOrigin,
+			BuildWorldListNumber = view.BuildWorldListsNumber()
+		};
+
+		for (int i = DetailObjectDict.Count; --i >= 0;) {
+			if (modelinfo.ModelHasMaterialProxy(DetailObjectDict[i].Model))
+				modelinfo.RecomputeTranslucency(DetailObjectDict[i].Model, 0, 0, null);
+		}
+
+		float factor = 1.0f;
+		C_BasePlayer? local = C_BasePlayer.GetLocalPlayer();
+		if (local != null)
+			factor = local.GetFOVDistanceAdjustFactor();
+
+		CurMaxSqDist = cl_detaildist.GetFloat() * cl_detaildist.GetFloat();
+		CurFadeSqDist = cl_detaildist.GetFloat() - cl_detailfade.GetFloat();
+
+		CurMaxSqDist /= factor;
+		CurFadeSqDist /= factor;
+
+		if (CurFadeSqDist > 0)
+			CurFadeSqDist *= CurFadeSqDist;
+		else
+			CurFadeSqDist = 0;
+		CurFadeSqDist = Math.Min(CurFadeSqDist, CurMaxSqDist - 1);
+		CurFalloffFactor = 255.0f / (CurMaxSqDist - CurFadeSqDist);
+
+		ISpatialQuery query = engine.GetBSPTreeQuery()!;
+		GCHandle handle = GCHandle.Alloc(ctx);
+		try {
+			query.EnumerateLeavesInSphere(CurrentViewOrigin(), cl_detaildist.GetFloat(), this, GCHandle.ToIntPtr(handle));
+		}
+		finally {
+			handle.Free();
+		}
+	}
+
+	public void RenderOpaqueDetailObjects(int leafCount, Span<LeafIndex_t> leafList) { }
+
+	public void RenderTranslucentDetailObjects(in Vector3 viewOrigin, in Vector3 viewForward, in Vector3 viewRight, in Vector3 viewUp, int leafCount, Span<LeafIndex_t> leafList) {
+		if (leafCount == 0)
+			return;
+
+		Assert(SpriteCount == FirstSprite);
+
+		RenderFastSprites(viewOrigin, viewForward, viewRight, viewUp, leafCount, leafList);
+
+		int quadCount = CountSpriteQuadsInLeafList(leafCount, leafList);
+		if (quadCount == 0)
+			return;
+
+		using MatRenderContextPtr renderContext = new(materials);
+		renderContext.MatrixMode(MaterialMatrixMode.Model);
+		renderContext.PushMatrix();
+		renderContext.LoadIdentity();
+
+		IMaterial material = DetailSpriteMaterial.Get()!;
+		if (false /*ShouldDrawInWireFrameMode()*/ || r_DrawDetailProps.GetInt() == 2)
+			material = DetailWireframeMaterial.Get()!;
+
+		MeshBuilder meshBuilder = new();
+		IMesh mesh = renderContext.GetDynamicMesh(true, null, null, material);
+
+		int maxVerts = 32768 /*GetMaxToRender*/, maxIndices = 32768;
+		int maxQuadsToDraw = maxIndices / 6;
+		if (maxQuadsToDraw > maxVerts / 4)
+			maxQuadsToDraw = maxVerts / 4;
+
+		if (maxQuadsToDraw == 0)
+			return;
+
+		int quadsToDraw = quadCount;
+		if (quadsToDraw > maxQuadsToDraw)
+			quadsToDraw = maxQuadsToDraw;
+
+		meshBuilder.Begin(mesh, MaterialPrimitiveType.Quads, quadsToDraw);
+
+		int quadsDrawn = 0;
+		for (int i = 0; i < leafCount; ++i) {
+			int leaf = leafList[i];
+
+			clientLeafSystem.GetDetailObjectsInLeaf(leaf, out int firstDetailObject, out int detailObjectCount);
+
+			Span<SortInfo> sortInfo = SortInfos!;
+			int count = SortSpritesBackToFront(leaf, viewOrigin, viewForward, sortInfo);
+
+			for (int j = 0; j < count; ++j) {
+				DetailModel model = DetailObjects[sortInfo[j].Index];
+				int quadsInModel = model.QuadsToDraw();
+
+				if (quadsDrawn + quadsInModel > quadsToDraw) {
+					meshBuilder.End();
+					mesh.Draw();
+
+					quadCount -= quadsDrawn;
+					quadsToDraw = quadCount;
+					if (quadsToDraw > maxQuadsToDraw)
+						quadsToDraw = maxQuadsToDraw;
+
+					meshBuilder.Begin(mesh, MaterialPrimitiveType.Quads, quadsToDraw);
+					quadsDrawn = 0;
+				}
+
+				model.DrawSprite(ref meshBuilder);
+
+				quadsDrawn += quadsInModel;
+			}
+		}
+
+		meshBuilder.End();
+		mesh.Draw();
+
+		renderContext.PopMatrix();
+	}
 
 	public void RenderTranslucentDetailObjectsInLeaf(in Vector3 viewOrigin, in Vector3 viewForward, in Vector3 viewRight, in Vector3 viewUp, int leaf, Vector3? closestPoint) => throw new NotImplementedException();
 	public void RenderFastTranslucentDetailObjectsInLeaf(in Vector3 viewOrigin, in Vector3 viewForward, in Vector3 viewRight, in Vector3 viewUp, int leaf, Vector3? closestPoint) => throw new NotImplementedException();
@@ -489,18 +846,230 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 		SpriteCount = FirstSprite = 0;
 	}
 
-	public bool EnumerateLeaf(int leaf, nint context) => throw new NotImplementedException();
+	public bool EnumerateLeaf(int leaf, nint context) {
+		EnumContext ctx = (EnumContext)GCHandle.FromIntPtr(context).Target!;
+		clientLeafSystem.DrawDetailObjectsInLeaf(leaf, ctx.BuildWorldListNumber, out int firstDetailObject, out int detailObjectCount);
+
+		for (int i = 0; i < detailObjectCount; ++i) {
+			DetailModel model = DetailObjects[firstDetailObject + i];
+			MathLib.VectorSubtract(model.GetRenderOrigin(), ctx.ViewOrigin, out Vector3 v);
+
+			float sqDist = v.LengthSquared();
+
+			model.SetAlpha(255);
+			if (sqDist < CurMaxSqDist) {
+				if (sqDist > CurFadeSqDist)
+					model.SetAlpha((byte)(CurFalloffFactor * (CurMaxSqDist - sqDist)));
+				else
+					model.SetAlpha(255);
+
+				model.ComputeAngles();
+			}
+			else
+				model.SetAlpha(0);
+		}
+		return true;
+	}
 
 	public ref DetailPropLightstylesLump DetailLighting(int i) => ref DetailLightingList.AsSpan()[i];
 	public ref DetailPropSpriteDict DetailSpriteDict(int i) => ref DetailSpriteDictList.AsSpan()[i];
 
-	int BuildOutSortedSprites(FastDetailLeafSpriteList data, in Vector3 viewOrigin, in Vector3 viewForward, in Vector3 viewRight, in Vector3 viewUp) => throw new NotImplementedException();
+	const int MAGIC_NUMBER = 1 << 23;
+	const int MANTISSA_LSB_OFFSET = 0;
+	static readonly fltx4 Four_MagicNumbers = MathLib.ReplicateX4(MAGIC_NUMBER);
+	static readonly fltx4 Four_255s = MathLib.ReplicateX4(255.0f);
 
-	void RenderFastSprites(in Vector3 viewOrigin, in Vector3 viewForward, in Vector3 viewRight, in Vector3 viewUp, int leafCount, ReadOnlySpan<LeafIndex_t> leafList) => throw new NotImplementedException();
+	int BuildOutSortedSprites(FastDetailLeafSpriteList data, in Vector3 viewOrigin, in Vector3 viewForward, in Vector3 viewRight, in Vector3 viewUp) {
+		int simdSprites = data.NumSIMDSprites;
+		FastSpriteX4[] sprites = data.Sprites!;
+		SortInfo[] outSort = FastSortInfos!;
+		FastSpriteQuadBuildoutBufferX4[] quadBufferOut = BuildoutBuffer!;
+		int spriteIdx = 0;
+		int outIdx = 0;
+		int quadIdx = 0;
+		int curidx = 0;
+		int lastBfMask = 0;
+
+		FourVectors vecViewPos = default;
+		vecViewPos.DuplicateVector(viewOrigin);
+		fltx4 maxsqdist = MathLib.ReplicateX4(CurMaxSqDist);
+
+		fltx4 falloffFactor = MathLib.ReplicateX4(1.0f / (CurMaxSqDist - CurFadeSqDist));
+		fltx4 startFade = MathLib.ReplicateX4(CurFadeSqDist);
+
+		FourVectors vecUp = default;
+		vecUp.DuplicateVector(new Vector3(0, 0, 1));
+		FourVectors vecFwd = default;
+		vecFwd.DuplicateVector(viewForward);
+
+		do {
+			ref FastSpriteX4 spr = ref sprites[spriteIdx];
+			FourVectors ofs = spr.Pos;
+			ofs -= vecViewPos;
+			Vector4 ofsDotFwd = ofs.Dot(vecFwd);
+			Vector4 distanceSquared = ofs.Dot(ofs);
+			lastBfMask = MathLib.TestSignSIMD(MathLib.OrSIMD(ofsDotFwd.AsVector128(), MathLib.CmpGtSIMD(distanceSquared.AsVector128(), maxsqdist)));
+			if (lastBfMask != 0xf) {
+				FourVectors dx1 = default;
+				dx1.x = -ofs.y;
+				dx1.y = ofs.x;
+				dx1.z = Vector4.Zero;
+				dx1.VectorNormalizeFast();
+
+				FourVectors vecDx = dx1;
+				FourVectors vecDy = vecUp;
+
+				FourVectors vecPos0 = spr.Pos;
+
+				vecDx *= spr.HalfWidth.AsVector4();
+				vecDy *= spr.Height.AsVector4();
+				fltx4 alpha = MathLib.MulSIMD(falloffFactor, MathLib.SubSIMD(distanceSquared.AsVector128(), startFade));
+				alpha = MathLib.SubSIMD(MathLib.Four_Ones, MathLib.MinSIMD(MathLib.MaxSIMD(alpha, MathLib.Four_Zeros), MathLib.Four_Ones));
+
+				ref FastSpriteQuadBuildoutBufferX4 quad = ref quadBufferOut[quadIdx];
+				quad.Alpha = MathLib.MaddSIMD(Four_255s, alpha, Four_MagicNumbers);
+
+				vecPos0 += vecDx;
+				quad.Coords[0] = vecPos0;
+				vecPos0 -= vecDy;
+				quad.Coords[1] = vecPos0;
+				vecPos0 -= vecDx;
+				vecPos0 -= vecDx;
+				quad.Coords[2] = vecPos0;
+				vecPos0 += vecDy;
+				quad.Coords[3] = vecPos0;
+
+				for (int j = 0; j < 4; j++)
+					quad.SpriteDefs[j] = spr.SpriteDefs[j];
+				for (int i = 0; i < 4; i++)
+					for (int j = 0; j < 4; j++)
+						quad.RGBColor[i][j] = spr.RGBColor[i][j];
+
+				outSort[outIdx + 0].Index = curidx;
+				outSort[outIdx + 0].Distance = MathLib.SubFloat(ref distanceSquared, 0);
+				outSort[outIdx + 1].Index = curidx + 1;
+				outSort[outIdx + 1].Distance = MathLib.SubFloat(ref distanceSquared, 1);
+				outSort[outIdx + 2].Index = curidx + 2;
+				outSort[outIdx + 2].Distance = MathLib.SubFloat(ref distanceSquared, 2);
+				outSort[outIdx + 3].Index = curidx + 3;
+				outSort[outIdx + 3].Distance = MathLib.SubFloat(ref distanceSquared, 3);
+				curidx += 4;
+				outIdx += 4;
+				quadIdx++;
+			}
+			spriteIdx++;
+		} while (--simdSprites != 0);
+
+		int count = outIdx;
+		if (lastBfMask != 0xf)
+			count -= (0 - data.NumSprites) & 3;
+
+		if (count != 0) {
+			Span<SortInfo> s = outSort.AsSpan(0, count);
+			s.Sort((a, b) => SortLessFunc(a, b) ? -1 : (SortLessFunc(b, a) ? 1 : 0));
+		}
+		return count;
+	}
+
+	void RenderFastSprites(in Vector3 viewOrigin, in Vector3 viewForward, in Vector3 viewRight, in Vector3 viewUp, int leafCount, ReadOnlySpan<LeafIndex_t> leafList) {
+		int quadCount = CountFastSpritesInLeafList(leafCount, leafList, out int nMaxInLeaf);
+		if (quadCount == 0)
+			return;
+		if (r_DrawDetailProps.GetInt() == 0)
+			return;
+
+		IMatRenderContext renderContext = materials.GetRenderContext();
+		renderContext.MatrixMode(MaterialMatrixMode.Model);
+		renderContext.PushMatrix();
+		renderContext.LoadIdentity();
+
+		IMaterial material = DetailSpriteMaterial.Get()!;
+		if (false /*ShouldDrawInWireFrameMode()*/ || r_DrawDetailProps.GetInt() == 2)
+			material = DetailWireframeMaterial.Get()!;
+
+		MeshBuilder meshBuilder = new();
+		IMesh mesh = renderContext.GetDynamicMesh(true, null, null, material);
+
+		int maxVerts = 32768, maxIndices = 32768; /*GetMaxToRender*/
+		int maxQuadsToDraw = maxIndices / 6;
+		if (maxQuadsToDraw > maxVerts / 4)
+			maxQuadsToDraw = maxVerts / 4;
+
+		if (maxQuadsToDraw == 0)
+			return;
+
+		int nQuadsToDraw = Math.Min(quadCount, maxQuadsToDraw);
+		int quadsRemaining = nQuadsToDraw;
+
+		meshBuilder.Begin(mesh, MaterialPrimitiveType.Quads, nQuadsToDraw);
+
+		Span<byte> color = stackalloc byte[4];
+
+		for (int i = 0; i < leafCount; ++i) {
+			int leaf = leafList[i];
+
+			if (clientLeafSystem.GetSubSystemDataInLeaf(leaf, ClientLeafSystem.CLSUBSYSTEM_DETAILOBJECTS) is FastDetailLeafSpriteList pData) {
+				Assert(pData.NumSprites != 0);
+
+				int count = BuildOutSortedSprites(pData, viewOrigin, viewForward, viewRight, viewUp);
+
+				int drawIdx = 0;
+
+				while (count != 0) {
+					if (quadsRemaining == 0) {
+						meshBuilder.End();
+						mesh.Draw();
+						quadsRemaining = nQuadsToDraw;
+						meshBuilder.Begin(mesh, MaterialPrimitiveType.Quads, nQuadsToDraw);
+					}
+					int toDraw = Math.Min(count, quadsRemaining);
+					count -= toDraw;
+					quadsRemaining -= toDraw;
+					while (toDraw-- != 0) {
+						int nSIMDIdx = FastSortInfos![drawIdx].Index >> 2;
+						int nSubIdx = FastSortInfos![drawIdx].Index & 3;
+
+						ref FastSpriteQuadBuildoutBufferX4 quad = ref BuildoutBuffer![nSIMDIdx];
+
+						color[0] = quad.RGBColor[nSubIdx][0];
+						color[1] = quad.RGBColor[nSubIdx][1];
+						color[2] = quad.RGBColor[nSubIdx][2];
+						color[3] = (byte)(BitConverter.SingleToInt32Bits(MathLib.SubFloat(ref quad.Alpha, nSubIdx)) >> (MANTISSA_LSB_OFFSET * 8));
+
+						ref DetailPropSpriteDict pDict = ref quad.SpriteDefs[nSubIdx];
+						Color col = new(color[0], color[1], color[2], color[3]);
+
+						meshBuilder.Position3f(MathLib.SubFloat(ref quad.Coords[0].x, nSubIdx), MathLib.SubFloat(ref quad.Coords[0].y, nSubIdx), MathLib.SubFloat(ref quad.Coords[0].z, nSubIdx));
+						meshBuilder.Color4ubv(col);
+						meshBuilder.TexCoord2f(0, pDict.TexLR.X, pDict.TexLR.Y);
+						meshBuilder.AdvanceVertex();
+
+						meshBuilder.Position3f(MathLib.SubFloat(ref quad.Coords[1].x, nSubIdx), MathLib.SubFloat(ref quad.Coords[1].y, nSubIdx), MathLib.SubFloat(ref quad.Coords[1].z, nSubIdx));
+						meshBuilder.Color4ubv(col);
+						meshBuilder.TexCoord2f(0, pDict.TexLR.X, pDict.TexUL.Y);
+						meshBuilder.AdvanceVertex();
+
+						meshBuilder.Position3f(MathLib.SubFloat(ref quad.Coords[2].x, nSubIdx), MathLib.SubFloat(ref quad.Coords[2].y, nSubIdx), MathLib.SubFloat(ref quad.Coords[2].z, nSubIdx));
+						meshBuilder.Color4ubv(col);
+						meshBuilder.TexCoord2f(0, pDict.TexUL.X, pDict.TexUL.Y);
+						meshBuilder.AdvanceVertex();
+
+						meshBuilder.Position3f(MathLib.SubFloat(ref quad.Coords[3].x, nSubIdx), MathLib.SubFloat(ref quad.Coords[3].y, nSubIdx), MathLib.SubFloat(ref quad.Coords[3].z, nSubIdx));
+						meshBuilder.Color4ubv(col);
+						meshBuilder.TexCoord2f(0, pDict.TexUL.X, pDict.TexLR.Y);
+						meshBuilder.AdvanceVertex();
+						drawIdx++;
+					}
+				}
+			}
+		}
+		meshBuilder.End();
+		mesh.Draw();
+		renderContext.PopMatrix();
+	}
 
 	void UnserializeFastSprite(ref FastSpriteX4 spritex4, int subField, in DetailObjectLump lump, bool flipped, in Vector3 posOffset) {
-		Vector3 pos = lump.Origin + posOffset;
-		pos = GetSpriteMiddleBottomPosition(lump) + posOffset;
+		Vector3 pos = GetSpriteMiddleBottomPosition(lump) + posOffset;
 
 		MathLib.SubFloat(ref spritex4.Pos.x, subField) = pos.X;
 		MathLib.SubFloat(ref spritex4.Pos.y, subField) = pos.Y;
@@ -787,11 +1356,40 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 		return vecOrigin + dy + 0.5f * dx;
 	}
 
-	int CountSpritesInLeafList(int leafCount, ReadOnlySpan<LeafIndex_t> leafList) => throw new NotImplementedException();
+	static int CountSpritesInLeafList(int leafCount, ReadOnlySpan<LeafIndex_t> leafList) {
+		int propCount = 0;
+		for (int i = 0; i < leafCount; ++i) {
+			clientLeafSystem.GetDetailObjectsInLeaf(leafList[i], out _, out int detailObjectCount);
+			propCount += detailObjectCount;
+		}
 
-	int CountSpriteQuadsInLeafList(int leafCount, ReadOnlySpan<LeafIndex_t> leafList) => throw new NotImplementedException();
+		return propCount;
+	}
 
-	int CountFastSpritesInLeafList(int leafCount, ReadOnlySpan<LeafIndex_t> leafList, out int maxInLeaf) => throw new NotImplementedException();
+	int CountSpriteQuadsInLeafList(int leafCount, ReadOnlySpan<LeafIndex_t> leafList) {
+		int quadCount = 0;
+		for (int i = 0; i < leafCount; ++i) {
+			clientLeafSystem.GetDetailObjectsInLeaf(leafList[i], out int firstDetailObject, out int detailObjectCount);
+			for (int j = 0; j < detailObjectCount; ++j) {
+				quadCount += DetailObjects[j + firstDetailObject].QuadsToDraw();
+			}
+		}
+
+		return quadCount;
+	}
+
+	static int CountFastSpritesInLeafList(int leafCount, ReadOnlySpan<LeafIndex_t> leafList, out int maxFoundInLeaf) {
+		int count = 0;
+		int max = 0;
+		for (int i = 0; i < leafCount; ++i) {
+			if (clientLeafSystem.GetSubSystemDataInLeaf(leafList[i], ClientLeafSystem.CLSUBSYSTEM_DETAILOBJECTS) is FastDetailLeafSpriteList data) {
+				count += data.NumSprites;
+				max = Math.Max(max, data.NumSprites);
+			}
+		}
+		maxFoundInLeaf = (max + 3) & ~3;
+		return count;
+	}
 
 	void FreeSortBuffers() {
 		SortInfos = null;
@@ -800,8 +1398,61 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 		BuildoutBuffer = null;
 	}
 
-	static bool SortLessFunc(in SortInfo left, in SortInfo right) => throw new NotImplementedException();
-	int SortSpritesBackToFront(int leaf, in Vector3 viewOrigin, in Vector3 viewForward, Span<SortInfo> sortInfo) => throw new NotImplementedException();
+	static bool SortLessFunc(in SortInfo left, in SortInfo right) => BitConverter.SingleToInt32Bits(left.Distance) > BitConverter.SingleToInt32Bits(right.Distance);
+	int SortSpritesBackToFront(int leaf, in Vector3 viewOrigin, in Vector3 viewForward, Span<SortInfo> sortInfo) {
+		clientLeafSystem.GetDetailObjectsInLeaf(leaf, out int firstDetailObject, out int detailObjectCount);
+
+		float factor = 1.0f;
+		C_BasePlayer? localPlayer = C_BasePlayer.GetLocalPlayer();
+		if (localPlayer != null)
+			factor = 1.0f / localPlayer.GetFOVDistanceAdjustFactor();
+
+		float maxSqDist;
+		float fadeSqDist;
+		float detailDist = cl_detaildist.GetFloat();
+
+		maxSqDist = detailDist * detailDist;
+		fadeSqDist = detailDist - cl_detailfade.GetFloat();
+		maxSqDist *= factor;
+		fadeSqDist *= factor;
+		if (fadeSqDist > 0)
+			fadeSqDist *= fadeSqDist;
+		else
+			fadeSqDist = 0;
+		float falloffFactor = 255.0f / (maxSqDist - fadeSqDist);
+
+		int count = 0;
+		detailObjectCount += firstDetailObject;
+		for (int j = firstDetailObject; j < detailObjectCount; ++j) {
+			DetailModel model = DetailObjects[j];
+
+			MathLib.VectorSubtract(model.GetRenderOrigin(), viewOrigin, out Vector3 vecDelta);
+			float sqDist = vecDelta.LengthSqr();
+			if (sqDist >= maxSqDist)
+				continue;
+
+			if ((fadeSqDist > 0) && (sqDist > fadeSqDist))
+				model.SetAlpha((byte)(falloffFactor * (maxSqDist - sqDist)));
+			else
+				model.SetAlpha(255);
+
+			if ((model.GetDetailType() == (int)DetailPropType.Model) || (model.GetAlpha() == 0))
+				continue;
+
+			model.ComputeAngles();
+			ref SortInfo sortInfoCurrent = ref sortInfo[count];
+
+			sortInfoCurrent.Index = j;
+
+			sortInfoCurrent.Distance = sqDist;
+			++count;
+		}
+
+		if (count != 0)
+			sortInfo[..count].Sort((a, b) => SortLessFunc(a, b) ? -1 : (SortLessFunc(b, a) ? 1 : 0));
+
+		return count;
+	}
 
 	IterationRetval EnumElement(int userId, nint context) => throw new NotImplementedException();
 }

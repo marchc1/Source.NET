@@ -284,6 +284,27 @@ public class ModelRender : IModelRender
 		}
 	}
 
+	public int DrawModel(StudioFlags flags, IClientRenderable? renderable, ModelInstanceHandle_t instance, int entityIndex, Model? model, in Vector3 origin, in QAngle angles, int skin, int body, int hitboxset, Matrix3x4? modelToWorld = null, Matrix3x4? lightingOffset = null) {
+		ModelRenderInfo info = default;
+		info.Flags = flags;
+		info.Renderable = renderable;
+		info.Instance = instance;
+		info.EntityIndex = entityIndex;
+		info.Model = model;
+		info.Origin = origin;
+		info.Angles = angles;
+		info.Skin = skin;
+		info.Body = body;
+		info.HitboxSet = hitboxset;
+		if (modelToWorld.HasValue) info.ModelToWorld = modelToWorld.Value;
+		if (lightingOffset.HasValue) info.LightingOffset = lightingOffset.Value;
+
+		if (r_entity.GetInt() == -1 || r_entity.GetInt() == entityIndex)
+			return DrawModelEx(ref info);
+
+		return 0;
+	}
+
 	public int DrawModelEx(ref ModelRenderInfo info) {
 #if !SWDS
 		DrawModelState state = default;

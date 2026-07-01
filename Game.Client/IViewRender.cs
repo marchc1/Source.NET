@@ -75,4 +75,5 @@ public interface IViewRender
 	void FreezeFrame(float flFreezeTime);
 	C_BaseEntity? GetCurrentlyDrawingEntity();
 	void SetCurrentlyDrawingEntity(C_BaseEntity? ent);
+	int BuildWorldListsNumber();
 }

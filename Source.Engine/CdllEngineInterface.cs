@@ -255,7 +255,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 
 	public int LevelLeafCount() => host_state.WorldBrush!.Leafs!.Length;
 	public ISpatialQuery? GetBSPTreeQuery() {
-		throw new NotImplementedException();
+		return g_ToolBSPTree;
 	}
 
 	public void LinearToGamma(Span<float> linear, Span<float> gamma) {

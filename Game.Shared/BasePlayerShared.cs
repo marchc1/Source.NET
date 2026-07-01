@@ -323,7 +323,7 @@ public partial class
 #if CLIENT_DLL
 			if (vehicle.IsPredicted())
 #endif
-				vehicle.ItemPostFrame(this);
+			vehicle.ItemPostFrame(this);
 
 			if (!usingStandardWeapons || GetVehicle() == null)
 				return;
@@ -347,7 +347,7 @@ public partial class
 				// Not predicting this weapon
 				if (GetActiveWeapon()!.IsPredicted())
 #endif
-					GetActiveWeapon()!.ItemPostFrame();
+				GetActiveWeapon()!.ItemPostFrame();
 			}
 		}
 
@@ -487,6 +487,17 @@ public partial class
 
 	public virtual void SetPlayerUnderwater(bool v) {
 		// throw new NotImplementedException();
+	}
+
+	public float GetFOVDistanceAdjustFactor() {
+		// TODO! GetDefaultFOV/GetFOV
+		float defaultFOV = DefaultFOV;
+		float localFOV = FOV;
+
+		if (localFOV == defaultFOV || defaultFOV < 0.001f)
+			return 1.0f;
+
+		return localFOV / defaultFOV;
 	}
 }
 #endif

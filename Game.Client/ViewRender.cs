@@ -26,6 +26,7 @@ public static class ViewRenderConVars
 	internal readonly static ConVar r_drawtranslucentrenderables = new("1", FCvar.Cheat);
 	internal readonly static ConVar r_drawopaquerenderables = new("1", FCvar.Cheat);
 	internal readonly static ConVar r_threaded_renderables = new("0", 0);
+	internal readonly static ConVar r_DrawDetailProps = new("1", FCvar.None, "0=Off, 1=Normal, 2=Wireframe");
 }
 
 public class RenderExecutor
@@ -276,7 +277,7 @@ public class Rendering3dView : Base3dView
 			setupInfo.RenderFrame = mainView.BuildRenderablesListsNumber();
 			// setupInfo.DetailBuildFrame = mainView.BuildWorldListsNumber();  
 			setupInfo.RenderList = RenderablesList;
-			// setupInfo.DrawDetailObjects = ClientMode.ShouldDrawDetailObjects() && r_DrawDetailProps.GetInt();
+			setupInfo.DrawDetailObjects = clientMode.ShouldDrawDetailObjects() && r_DrawDetailProps.GetBool();
 			setupInfo.DrawTranslucentObjects = (viewID != ViewID.ShadowDepthTexture);
 
 			setupInfo.RenderOrigin = setup.Origin;

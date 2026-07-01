@@ -670,6 +670,11 @@ public class ViewRender : IViewRender
 	public long BuildRenderablesListsNumber() => m_BuildRenderablesListsNumber;
 	public long IncRenderablesListsNumber() => ++m_BuildRenderablesListsNumber;
 
+	public int m_BuildWorldListsNumber;
+
+	public int BuildWorldListsNumber() => m_BuildWorldListsNumber;
+	public int IncWorldListsNumber() => ++m_BuildWorldListsNumber;
+
 
 	C_BaseEntity? currentlyDrawingEntity;
 	public C_BaseEntity? GetCurrentlyDrawingEntity() {
