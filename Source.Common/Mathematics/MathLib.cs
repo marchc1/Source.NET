@@ -319,6 +319,23 @@ public struct CollisionPlane
 	public byte SignBits;
 	public InlineArray2<byte> Pad;
 }
+
+public class Frustum_t
+{
+	readonly CollisionPlane[] Plane = new CollisionPlane[(int)FrustumPlane.NumPlanes];
+	readonly Vector3[] AbsNormal = new Vector3[(int)FrustumPlane.NumPlanes];
+
+	public void SetPlane(int i, byte nType, in Vector3 normal, float dist) {
+		Plane[i].Normal = normal;
+		Plane[i].Dist = dist;
+		Plane[i].Type = (PlaneType)nType;
+		Plane[i].SignBits = MathLib.SignbitsForPlane(in Plane[i]);
+		AbsNormal[i] = new(MathF.Abs(normal.X), MathF.Abs(normal.Y), MathF.Abs(normal.Z));
+	}
+
+	public ref readonly CollisionPlane GetPlane(int i) => ref Plane[i];
+	public ref readonly Vector3 GetAbsNormal(int i) => ref AbsNormal[i];
+}
 public static class MathLib
 {
 	public static bool MathlibInitialized;
@@ -679,6 +696,37 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float DEG2RAD(float x) => x * (MathF.PI / 180);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static double DEG2RAD(double x) => x * (Math.PI / 180);
 
+	public static void GeneratePerspectiveFrustum(in Vector3 origin, in Vector3 forward, in Vector3 right, in Vector3 up, float zNear, float zFar, float fovX, float fovY, Frustum_t frustum) {
+		float intercept = DotProduct(origin, forward);
+
+		frustum.SetPlane((int)FrustumPlane.FarZ, 5, -forward, -zFar - intercept);
+		frustum.SetPlane((int)FrustumPlane.NearZ, 5, forward, zNear + intercept);
+
+		fovX *= 0.5f;
+		fovY *= 0.5f;
+
+		float tanX = MathF.Tan(DEG2RAD(fovX));
+		float tanY = MathF.Tan(DEG2RAD(fovY));
+
+		VectorMA(right, tanX, forward, out Vector3 normalPos);
+		VectorMA(normalPos, -2.0f, right, out Vector3 normalNeg);
+
+		VectorNormalize(ref normalPos);
+		VectorNormalize(ref normalNeg);
+
+		frustum.SetPlane((int)FrustumPlane.Left, 5, normalPos, Vector3.Dot(normalPos, origin));
+		frustum.SetPlane((int)FrustumPlane.Right, 5, normalNeg, Vector3.Dot(normalNeg, origin));
+
+		VectorMA(up, tanY, forward, out normalPos);
+		VectorMA(normalPos, -2.0f, up, out normalNeg);
+
+		VectorNormalize(ref normalPos);
+		VectorNormalize(ref normalNeg);
+
+		frustum.SetPlane((int)FrustumPlane.Bottom, 5, normalPos, Vector3.Dot(normalPos, origin));
+		frustum.SetPlane((int)FrustumPlane.Top, 5, normalNeg, Vector3.Dot(normalNeg, origin));
+	}
+
 	public static float CalcFovX(float fovY, float aspect)
 		=> RAD2DEG(MathF.Atan(MathF.Tan(DEG2RAD(fovY) * 0.5f) * aspect)) * 2.0f;
 	public static float CalcFovY(float fovX, float aspect) {
@@ -737,6 +785,14 @@ public static class MathLib
 		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(idx, 4);
 
 		return ref new Span<Vector4>(ref a).Cast<Vector4, float>()[idx];
+	}
+
+	public static byte SignbitsForPlane(in CollisionPlane outPlane) {
+		byte bits = 0;
+		if (outPlane.Normal.X < 0) bits |= 1 << 0;
+		if (outPlane.Normal.Y < 0) bits |= 1 << 1;
+		if (outPlane.Normal.Z < 0) bits |= 1 << 2;
+		return bits;
 	}
 
 	// Returns which side(s) of a plane a box straddles: 1 = front, 2 = back, 3 = both (straddling).
@@ -1292,6 +1348,13 @@ public static class MathLib
 		dst[1, 0] = 0.0f; dst[1, 1] = y; dst[1, 2] = 0.0f; dst[1, 3] = 0.0f;
 		dst[2, 0] = 0.0f; dst[2, 1] = 0.0f; dst[2, 2] = z; dst[2, 3] = 0.0f;
 		dst[3, 0] = 0.0f; dst[3, 1] = 0.0f; dst[3, 2] = 0.0f; dst[3, 3] = 1.0f;
+	}
+
+	public static void MatrixBuildTranslation(out Matrix4x4 dst, float x, float y, float z) {
+		dst = Matrix4x4.Identity;
+		dst[0, 3] = x;
+		dst[1, 3] = y;
+		dst[2, 3] = z;
 	}
 
 	public static void MatrixAngles(in Matrix3x4 matrix, out QAngle angles) {

@@ -95,6 +95,18 @@ public static class BitVecBase
 public struct VarBitVec
 {
 	public byte[] bytes;
+	public int NumBits;
+	public readonly int GetNumBits() => NumBits;
+	public void Resize(int resizeNumBits, bool clearAll = false) {
+		int numBytes = (resizeNumBits + 7) >> 3;
+		if (bytes == null)
+			bytes = new byte[numBytes];
+		else if (numBytes != bytes.Length)
+			Array.Resize(ref bytes, numBytes);
+		else if (clearAll)
+			BitVecBase.ClearAll(bytes);
+		NumBits = resizeNumBits;
+	}
 	public void ReallocateIfNecessary(nint bitSet) {
 		if (bytes == null || Overflows(bitSet))
 			Array.Resize(ref bytes, 1 + MathLib.CeilPow2((int)(bitSet >> 3)));
@@ -129,6 +141,12 @@ public struct VarBitVec
 	}
 	public int FindNextSetBit(int startBit) => BitVecBase.FindNextSetBit(bytes, startBit);
 	public void ClearAll() => BitVecBase.ClearAll(bytes);
+	public bool TestAndSet(int bit) {
+		ReallocateIfNecessary(bit);
+		bool old = BitVecBase.IsBitSet(bytes, bit);
+		BitVecBase.Set(bytes, bit);
+		return old;
+	}
 }
 
 /// <summary>

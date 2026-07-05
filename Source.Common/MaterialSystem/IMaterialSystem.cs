@@ -312,7 +312,12 @@ public interface IMatRenderContext
 	IShaderAPI GetShaderAPI();
 	bool InFlashlightMode();
 	IMesh GetDynamicMesh(bool buffered, IMesh? vertexOverride = null, IMesh? indexOverride = null, IMaterial? autoBind = null);
+	void BeginBatch(IMesh indices);
+	void BindBatch(IMesh vertices, IMaterial? autoBind = null);
+	void DrawBatch(int firstIndex, int numIndices);
+	void EndBatch();
 	void GetRenderTargetDimensions(out int screenWidth, out int screenHeight);
+	void Translate(float x, float y, float z);
 	void Scale(float x, float y, float z);
 	void Ortho(double left, double top, double right, double bottom, double near, double far);
 	void PushRenderTargetAndViewport(ITexture? thisTexture);
@@ -323,7 +328,7 @@ public interface IMatRenderContext
 	ITexture? GetRenderTarget();
 	IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material);
 	int GetMaxVerticesToRender(IMaterial material);
-	int GetMaxIndicesToRender(IMaterial material);
+	int GetMaxIndicesToRender();
 	void LoadMatrix(in Matrix3x4 matrix);
 	void LoadMatrix(in Matrix4x4 matrix);
 	float ComputePixelDiameterOfSphere(Vector3 origin, float radius);
@@ -374,9 +379,14 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public IShaderAPI GetShaderAPI() => ctx.GetShaderAPI();
 	public IMesh GetDynamicMesh(bool buffered = true, IMesh? vertexOverride = null, IMesh? indexOverride = null, IMaterial? autoBind = null) =>
 		ctx.GetDynamicMesh(buffered, vertexOverride, indexOverride, autoBind);
+	public void BeginBatch(IMesh indices) => ctx.BeginBatch(indices);
+	public void BindBatch(IMesh vertices, IMaterial? autoBind = null) => ctx.BindBatch(vertices, autoBind);
+	public void DrawBatch(int firstIndex, int numIndices) => ctx.DrawBatch(firstIndex, numIndices);
+	public void EndBatch() => ctx.EndBatch();
 	public bool InFlashlightMode() => ctx.InFlashlightMode();
 	public void GetRenderTargetDimensions(out int screenWidth, out int screenHeight) =>
 		ctx.GetRenderTargetDimensions(out screenWidth, out screenHeight);
+	public void Translate(float x, float y, float z) => ctx.Translate(x, y, z);
 	public void Scale(float x, float y, float z) => ctx.Scale(x, y, z);
 	public void Ortho(double left, double top, double right, double bottom, double near, double far) => ctx.Ortho(left, top, right, bottom, near, far);
 	public void PushRenderTargetAndViewport(ITexture? thisTexture) => ctx.PushRenderTargetAndViewport(thisTexture);
@@ -392,7 +402,7 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material = null) => ctx.CreateStaticMesh(format, textureGroup, material);
 
 	public int GetMaxVerticesToRender(IMaterial material) => ctx.GetMaxVerticesToRender(material);
-	public int GetMaxIndicesToRender(IMaterial material) => ctx.GetMaxIndicesToRender(material);
+	public int GetMaxIndicesToRender() => ctx.GetMaxIndicesToRender();
 
 	public void TurnOnToneMapping() {
 		// todo

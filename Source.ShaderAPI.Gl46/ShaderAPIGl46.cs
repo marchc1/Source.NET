@@ -1323,7 +1323,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	public int GetMaxVerticesToRender(IMaterial material) => MeshMgr.GetMaxVerticesToRender(material);
-	public int GetMaxIndicesToRender(IMaterial material) => MeshMgr.GetMaxIndicesToRender(material);
+	public int GetMaxIndicesToRender() => MeshMgr.GetMaxIndicesToRender();
 
 	public void TexWrap(TexCoordComponent coord, TexWrapMode wrapMode) {
 		int coordinate = coord switch {

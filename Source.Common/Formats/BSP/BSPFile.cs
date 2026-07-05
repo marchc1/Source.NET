@@ -464,6 +464,7 @@ public class BSPMLeaf : BSPMNode
 	public short LeafWaterDataID;
 	public ushort FirstMarkSurface;
 	public ushort NumMarkSurfaces;
+	public ushort NumMarkNodeSurfaces;
 	public ushort DispListStart;
 	public ushort DispCount;
 }
@@ -558,7 +559,7 @@ public struct BSPMSurfaceNormal
 
 public interface IDispInfo
 {
-
+	ref BSPMSurface2 GetParent();
 }
 
 public struct BSPMSurface2

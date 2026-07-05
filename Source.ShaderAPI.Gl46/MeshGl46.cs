@@ -36,8 +36,8 @@ public unsafe class MeshGl46 : IMesh
 	protected int Mode = ComputeMode(MaterialPrimitiveType.Triangles);
 	public bool Locked;
 
-	public VertexBufferGl46 GetVertexBuffer() => throw new Exception();
-	public IndexBufferGl46 GetIndexBuffer() => throw new Exception();
+	public VertexBufferGl46 GetVertexBuffer() => VertexBuffer;
+	public IndexBufferGl46 GetIndexBuffer() => IndexBuffer;
 
 	public virtual void BeginCastBuffer(VertexFormat format) {
 		throw new NotImplementedException();
@@ -88,7 +88,7 @@ public unsafe class MeshGl46 : IMesh
 		if (VertexBuffer == null)
 			return;
 
-		if(!ShaderUtil.OnDrawMesh(this, firstIndex, indexCount)) {
+		if (!ShaderUtil.OnDrawMesh(this, firstIndex, indexCount)) {
 			MarkAsDrawn();
 			return;
 		}
@@ -103,6 +103,20 @@ public unsafe class MeshGl46 : IMesh
 			primList->NumIndices = indexCount;
 		}
 		DrawInternal(primList, 1);
+	}
+
+	public virtual void Draw(ReadOnlySpan<Source.Common.MaterialSystem.PrimList> lists, int numLists) {
+		Assert(VertexBuffer != null);
+		if (VertexBuffer == null)
+			return;
+
+		if (!ShaderUtil.OnDrawMesh(this, -1, 0)) {
+			MarkAsDrawn();
+			return;
+		}
+
+		fixed (PrimList* p = MemoryMarshal.Cast<Source.Common.MaterialSystem.PrimList, PrimList>(lists))
+			DrawInternal(p, numLists);
 	}
 
 	private unsafe void DrawInternal(PrimList* primList, int lists) {
@@ -126,7 +140,7 @@ public unsafe class MeshGl46 : IMesh
 		s_PrimsCount = lists;
 
 #if DEBUG
-		for (i = 0; i < lists; ++i) 
+		for (i = 0; i < lists; ++i)
 			Assert(primList[i].NumIndices > 0);
 #endif
 
@@ -209,7 +223,7 @@ public unsafe class MeshGl46 : IMesh
 		ShaderUtil.SyncMatrices();
 
 		Lock(vertexCount, false, ref desc.Vertex);
-		if (Type != MaterialPrimitiveType.Points) 
+		if (Type != MaterialPrimitiveType.Points)
 			Lock(false, -1, indexCount, ref desc.Index);
 		else {
 			desc.Index.Indices = ScratchIndexBuffer;
@@ -219,7 +233,7 @@ public unsafe class MeshGl46 : IMesh
 		Locked = true;
 	}
 
-	public virtual void MarkAsDrawn() {}
+	public virtual void MarkAsDrawn() { }
 
 	int modifyVertexCount;
 	int modifyFirstIndex;
@@ -380,8 +394,9 @@ public unsafe class MeshGl46 : IMesh
 			// TODO: Should index buffer be global? Why the hell was it global before??
 			Assert(pPrim->FirstIndex >= 0 && pPrim->FirstIndex < IndexBuffer.IndexCount);
 
-			for (int j = 0; j < indexCount; j++) { // TODO
-												   //uint index = IndexBuffer.GetShadowIndex(j + pPrim->FirstIndex);
+			for (int j = 0; j < indexCount; j++) {
+				// TODO
+				//uint index = IndexBuffer.GetShadowIndex(j + pPrim->FirstIndex);
 
 				//if (index >= s_FirstVertex && index < s_FirstVertex + s_NumVertices) {
 				//	continue;

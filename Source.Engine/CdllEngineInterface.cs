@@ -266,7 +266,9 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 
 	public float LightStyleValue(int style) => Render.LightStyleValue((byte)style);
 	public void ComputeDynamicLighting(in Vector3 pt, in Vector3 normal, out Vector3 color) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		// TODO
+		color = default;
 	}
 
 	public void GetAmbientLightColor(out Vector3 color) {

@@ -674,6 +674,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		Mod_LoadVertNormals();
 		Mod_LoadVertNormalIndices();
 		Mod_LoadLeafs();
+		Mod_LoadMarksurfaces();
 		Mod_LoadNodes();
 		List<BSPMModel> submodelList = [];
 		Mod_LoadSubmodels(submodelList);
@@ -927,6 +928,61 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		pMap.NumDispInfoReferences = GetCollisionBSPData().MapDispList.Count;
 	}
 
+	private void Mod_LoadMarksurfaces() {
+		MapLoadHelper lh = new(LumpIndex.LeafFaces);
+		ushort[] _in = lh.LoadLumpData<ushort>();
+		int count = _in.Length;
+		SurfaceHandle_t[] tempDiskData = new SurfaceHandle_t[count];
+
+		WorldBrushData brushData = lh.GetMap();
+		brushData.MarkSurfaces = tempDiskData;
+		brushData.NumMarkSurfaces = count;
+
+		int realCount = 0;
+		for (int i = 0; i < count; i++) {
+			int j = _in[i];
+			if (j >= brushData.NumSurfaces)
+				Host.Error("Mod_LoadMarksurfaces: bad surface number");
+			SurfaceHandle_t surfID = j;
+			tempDiskData[i] = surfID;
+			ref BSPMSurface2 surf = ref SurfaceHandleFromIndex(surfID, brushData);
+			if (!SurfaceHasDispInfo(ref surf) && (MSurf_Flags(ref surf) & SurfDraw.NoDraw) == 0)
+				realCount++;
+		}
+
+		SurfaceHandle_t[] surfList = new SurfaceHandle_t[realCount];
+
+		int outCount = 0;
+		BSPMLeaf[] leaf = brushData.Leafs!;
+		for (int i = 0; i < brushData.NumLeafs; i++) {
+			int firstMark = outCount;
+			int numMark = 0;
+			bool foundDetail = false;
+			int numMarkNode = 0;
+			for (int j = 0; j < leaf[i].NumMarkSurfaces; j++) {
+				SurfaceHandle_t surfID = tempDiskData[leaf[i].FirstMarkSurface + j];
+				ref BSPMSurface2 surf = ref SurfaceHandleFromIndex(surfID, brushData);
+				if (!SurfaceHasDispInfo(ref surf) && (MSurf_Flags(ref surf) & SurfDraw.NoDraw) == 0) {
+					surfList[outCount++] = surfID;
+					numMark++;
+					Assert(outCount <= realCount);
+					if ((MSurf_Flags(ref surf) & SurfDraw.Node) != 0) {
+						Assert(!foundDetail);
+						numMarkNode++;
+					}
+					else
+						foundDetail = true;
+				}
+			}
+			leaf[i].NumMarkSurfaces = (ushort)numMark;
+			leaf[i].FirstMarkSurface = (ushort)firstMark;
+			leaf[i].NumMarkNodeSurfaces = (ushort)numMarkNode;
+		}
+
+		brushData.MarkSurfaces = surfList;
+		brushData.NumMarkSurfaces = realCount;
+	}
+
 	private void SetupSubModels(Model mod, List<BSPMModel> llist) {
 		int i;
 		Span<BSPMModel> list = llist.AsSpan();
@@ -1060,6 +1116,8 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 	public static ref SurfDraw MSurf_Flags(ref BSPMSurface2 surfID) => ref surfID.Flags;
 	public static bool SurfaceHasDispInfo(ref BSPMSurface2 surfID) => (MSurf_Flags(ref surfID) & SurfDraw.HasDisp) != 0;
 	public static ref ushort MSurf_VertBufferIndex(ref BSPMSurface2 surfID) => ref surfID.VertBufferIndex;
+	public static ref ShadowDecalHandle_t MSurf_ShadowDecals(ref BSPMSurface2 surfID) => ref surfID.ShadowDecals;
+	public static ref OverlayFragmentHandle_t MSurf_OverlayFragmentList(ref BSPMSurface2 surfID) => ref surfID.FirstOverlayFragment;
 	public static ushort MSurf_NumPrims(ref BSPMSurface2 surfID, WorldBrushData data) {
 		if (SurfaceHasDispInfo(ref surfID) || !SurfaceHasPrims(ref surfID))
 			return 0;
@@ -1395,11 +1453,6 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 
 	public void UnreferenceModel(Model model, ModelLoaderFlags referenceType) {
 		throw new NotImplementedException();
-	}
-
-	internal static void Map_VisSetup(Model? worldModel, ReadOnlySpan<Vector3> origins, bool novis, out uint returnFlags) {
-		// todo
-		returnFlags = 0;
 	}
 
 	internal static int MSurf_FirstPrimID(ref BSPMSurface2 surfID, WorldBrushData bsp) {

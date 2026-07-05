@@ -162,6 +162,15 @@ public static partial class CM
 		return bspData.MapLeafs.AsSpan()[leafnum].Cluster;
 	}
 
+	public static int LeafFlags(int leafnum) {
+		CollisionBSPData bspData = GetCollisionBSPData();
+
+		Assert(leafnum >= 0);
+		Assert(leafnum < bspData.NumLeafs);
+
+		return bspData.MapLeafs.AsSpan()[leafnum].Flags;
+	}
+
 	public static int LeafArea(int leafnum) {
 		CollisionBSPData bspData = GetCollisionBSPData();
 
@@ -170,6 +179,8 @@ public static partial class CM
 
 		return bspData.MapLeafs.AsSpan()[leafnum].Area;
 	}
+
+	public static int NumClusters() => GetCollisionBSPData().NumClusters;
 
 	public const int DVIS_PVS = 0;
 	public const int DVIS_PAS = 1;

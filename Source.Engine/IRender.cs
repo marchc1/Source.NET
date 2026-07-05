@@ -32,6 +32,7 @@ public interface IRender
 	float GetFramerate();
 	float GetZNear();
 	float GetZFar();
+	void DrawSkybox(float zFar, int drawFlags = 0x3F);
 
 	// Query current fov and view model fov
 	float GetFov();

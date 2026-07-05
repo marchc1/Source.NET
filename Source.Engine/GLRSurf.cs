@@ -1,15 +1,1051 @@
 global using static Source.Engine.GLRSurfGlobals;
+global using static Source.Engine.GLRSurf;
 
 using Source.Common;
+using Source.Common.Engine;
 using Source.Common.Formats.BSP;
+using Source.Common.Mathematics;
+using Source.Common.MaterialSystem;
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
+using Source.Common.Commands;
 
 namespace Source.Engine;
 
+public struct FogState
+{
+	public MaterialFogMode FogMode;
+	public float FogStart;
+	public float FogEnd;
+	public InlineArray3<float> FogColor;
+	public bool FogEnabled;
+}
+
+public struct FogVolumeInfo
+{
+	public FogState State;
+	public bool InFogVolume;
+	public float FogSurfaceZ;
+	public float FogMinZ;
+	public int FogVolumeID;
+}
+
+public struct VisibleFogVolumeInfo
+{
+	public int VisibleFogVolume;
+	public int VisibleFogVolumeLeaf;
+	public bool EyeInFogVolume;
+	public float DistanceToWater;
+	public float WaterHeight;
+	public IMaterial? FogVolumeMaterial;
+}
+
+public struct CachedConvars
+{
+	public int DrawLeaf;
+	public bool DrawWorld;
+	public bool DrawFuncDetail;
+}
+
+public struct VertexFormatList
+{
+	public ushort NumBatches;
+	public ushort FirstBatch;
+	public IMesh? Mesh;
+}
+
+public struct BatchList
+{
+	public SurfaceHandle_t SurfID;
+	public ushort FirstIndex;
+	public ushort NumIndex;
+}
+
+public struct EnumLeafBoxInfo
+{
+	public Vector3 BoxMax;
+	public Vector3 BoxMin;
+	public Vector3 BoxCenter;
+	public Vector3 BoxHalfDiagonal;
+	public ISpatialLeafEnumerator? Iterator;
+	public nint Context;
+}
+
+public struct ShaderDebug
+{
+	public bool Wireframe;
+	public bool Normals;
+	public bool Luxels;
+	public bool BumpBasis;
+	public bool SurfaceMaterials;
+	public bool AnyDebug;
+	public int SurfaceID;
+	public void TestAnyDebug() => AnyDebug = Wireframe || Normals || Luxels || BumpBasis || SurfaceID != 0 || SurfaceMaterials;
+}
+
 public static class GLRSurfGlobals
 {
+	public const int FRUSTUM_CLIP_RIGHT = 1 << (int)FrustumPlane.Right;
+	public const int FRUSTUM_CLIP_LEFT = 1 << (int)FrustumPlane.Left;
+	public const int FRUSTUM_CLIP_TOP = 1 << (int)FrustumPlane.Top;
+	public const int FRUSTUM_CLIP_BOTTOM = 1 << (int)FrustumPlane.Bottom;
+	public const int FRUSTUM_CLIP_MASK = FRUSTUM_CLIP_RIGHT | FRUSTUM_CLIP_LEFT | FRUSTUM_CLIP_TOP | FRUSTUM_CLIP_BOTTOM;
+	public const int FRUSTUM_CLIP_IN_AREA = unchecked((int)0x80000000);
+	public const int FRUSTUM_CLIP_ALL = FRUSTUM_CLIP_MASK;
+	public const int FRUSTUM_SUPPRESS_CLIPPING = FRUSTUM_CLIP_IN_AREA;
+
 	public static readonly EngineBSPTree g_ToolBSPTree = new();
+	public static CachedConvars s_ShaderConvars;
+	public static Frustum_t g_Frustum = new();
+	public static ShaderDebug g_ShaderDebug = new();
+	public static Vector3 ModelOrg;
+	public static bool r_drawtopview = false;
+	public static int g_MaxLeavesVisible = 512;
+
+	public const float BACKFACE_EPSILON = -0.01f;
+	public const int MAX_VERTEX_FORMAT_CHANGES = 256;
+
+
+	public readonly static ConVar r_drawtranslucentworld = new("r_drawtranslucentworld", "1", FCvar.Cheat);
+	public readonly static ConVar mat_forcedynamic = new("mat_forcedynamic", "0", FCvar.Cheat);
+	public readonly static ConVar r_drawleaf = new("r_drawleaf", "-1", FCvar.Cheat, "Draw the specified leaf.");
+	public readonly static ConVar r_drawworld = new("r_drawworld", "1", FCvar.Cheat, "Render the world.");
+	public readonly static ConVar r_drawfuncdetail = new("r_drawfuncdetail", "1", FCvar.Cheat, "Render func_detail");
+	public readonly static ConVar fog_enable_water_fog = new("fog_enable_water_fog", "1", FCvar.Cheat);
+	public readonly static ConVar r_fastzreject = new("r_fastzreject", "0", 0, "Activate/deactivates a fast z-setting algorithm to take advantage of hardware with fast z reject. Use -1 to default to hardware settings");
+	public readonly static ConVar r_fastzrejectdisp = new("r_fastzrejectdisp", "0", 0, "Activates/deactivates fast z rejection on displacements (360 only). Only active when r_fastzreject is on.");
+	public readonly static ConVar r_frustumcullworld = new("r_frustumcullworld", "1", FCvar.Cheat);
+	public readonly static ConVar r_spewleaf = new("r_spewleaf", "0", 0);
+}
+
+public class WorldRenderList : IWorldRenderList
+{
+	public MSurfaceSortList SortList = new();
+	public MSurfaceSortList DispSortList = new();
+	public MSurfaceSortList AlphaSortList = new();
+	public MSurfaceSortList DispAlphaSortList = new();
+
+	public readonly List<ShadowDecalHandle_t>[] ShadowHandles = new List<ShadowDecalHandle_t>[(int)MatSortGroup.Max].InstantiateArray();
+	public readonly List<SurfaceHandle_t>[] DlightSurfaces = new List<SurfaceHandle_t>[(int)MatSortGroup.Max].InstantiateArray();
+
+	public readonly List<LeafIndex_t> VisibleLeaves = [];
+	public readonly List<LeafFogVolume_t> VisibleLeafFogVolumes = [];
+
+	public VarBitVec VisitedSurfs = new();
+	public bool SkyVisible;
+
+	static readonly Stack<WorldRenderList> g_Pool = new();
+
+	public static WorldRenderList FindOrCreateList(int numSurfaces) {
+		WorldRenderList p = g_Pool.Count > 0 ? g_Pool.Pop() : new();
+		if (p.VisitedSurfs.GetNumBits() == 0)
+			p.Init(numSurfaces);
+		else
+			p.AddRef();
+
+		AssertMsg(p.VisitedSurfs.GetNumBits() == numSurfaces, "World render list pool not cleared between maps");
+
+		return p;
+	}
+
+	public static void PurgeAll() {
+		while (g_Pool.Count > 0) {
+			WorldRenderList p = g_Pool.Pop();
+			p.Purge();
+		}
+	}
+
+	public bool OnFinalRelease() {
+		Reset();
+		g_Pool.Push(this);
+		return false;
+	}
+
+	public void Init(int numSurfaces) {
+		SortList.Init(materials.GetNumSortIDs(), 512);
+		AlphaSortList.Init(g_MaxLeavesVisible, 64);
+		DispSortList.Init(materials.GetNumSortIDs(), 32);
+		DispAlphaSortList.Init(g_MaxLeavesVisible, 32);
+		VisitedSurfs.Resize(numSurfaces);
+		SkyVisible = false;
+	}
+
+	public void Purge() {
+		g_MaxLeavesVisible = Math.Max(g_MaxLeavesVisible, VisibleLeaves.Count);
+
+		VisibleLeaves.Clear();
+		VisibleLeafFogVolumes.Clear();
+		for (int i = 0; i < (int)MatSortGroup.Max; i++) {
+			ShadowHandles[i].Clear();
+			DlightSurfaces[i].Clear();
+		}
+		SortList.Shutdown();
+		AlphaSortList.Shutdown();
+		DispSortList.Shutdown();
+		DispAlphaSortList.Shutdown();
+	}
+
+	public void Reset() {
+		g_MaxLeavesVisible = Math.Max(g_MaxLeavesVisible, VisibleLeaves.Count);
+		SortList.Reset();
+		AlphaSortList.Reset();
+		DispSortList.Reset();
+		DispAlphaSortList.Reset();
+
+		SkyVisible = false;
+		for (int j = 0; j < (int)MatSortGroup.Max; ++j) {
+			ShadowHandles[j].Clear();
+			DlightSurfaces[j].Clear();
+		}
+
+		VisibleLeaves.Clear();
+		VisibleLeafFogVolumes.Clear();
+
+		VisitedSurfs.ClearAll();
+	}
+
+	public void AddRef() { }
+}
+
+public static class GLRSurf
+{
+	static readonly MatSysInterface MatSys = Singleton<MatSysInterface>();
+
+	public static void Shader_BrushBegin(Model? model, IClientEntity? baseEntity = null) => throw new NotImplementedException();
+	public static void Shader_BrushSurface(SurfaceHandle_t surfID, Model? model, IClientEntity? baseEntity = null) => throw new NotImplementedException();
+	public static void Shader_BrushEnd(IMatRenderContext renderContext, in Matrix4x4 brushToWorld, Model? model, bool shadowDepth, IClientEntity? baseEntity = null) => throw new NotImplementedException();
+	public static void BuildMSurfaceVertexArrays(WorldBrushData brushData, SurfaceHandle_t surfID, float overbright, MeshBuilder builder) => throw new NotImplementedException();
+
+	public static void BuildIndicesForSurface(ref MeshBuilder meshBuilder, SurfaceHandle_t surfID) {
+		ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+		int surfTriCount = ModelLoader.MSurf_VertCount(ref surface) - 2;
+		ushort startVert = ModelLoader.MSurf_VertBufferIndex(ref surface);
+		Assert(startVert != 0xFFFF);
+
+		switch (surfTriCount) {
+			case 1:
+				meshBuilder.FastIndex(startVert);
+				meshBuilder.FastIndex((ushort)(startVert + 1));
+				meshBuilder.FastIndex((ushort)(startVert + 2));
+				break;
+
+			case 2:
+				meshBuilder.FastIndex(startVert);
+				meshBuilder.FastIndex((ushort)(startVert + 1));
+				meshBuilder.FastIndex((ushort)(startVert + 2));
+				meshBuilder.FastIndex(startVert);
+				meshBuilder.FastIndex((ushort)(startVert + 2));
+				meshBuilder.FastIndex((ushort)(startVert + 3));
+				break;
+
+			default: {
+					for (ushort v = 0; v < surfTriCount; ++v) {
+						meshBuilder.FastIndex(startVert);
+						meshBuilder.FastIndex((ushort)(startVert + v + 1));
+						meshBuilder.FastIndex((ushort)(startVert + v + 2));
+					}
+				}
+				break;
+		}
+	}
+
+	public static void BuildIndicesForWorldSurface(ref MeshBuilder meshBuilder, SurfaceHandle_t surfID, WorldBrushData pData) {
+		ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID, pData);
+		if (ModelLoader.SurfaceHasPrims(ref surface)) {
+			ref BSPMPrimitive prim = ref pData.Primitives![ModelLoader.MSurf_FirstPrimID(ref surface, pData)];
+			Assert(prim.VertCount == 0);
+			ushort startVert = ModelLoader.MSurf_VertBufferIndex(ref surface);
+			Assert(prim.IndexCount == (ModelLoader.MSurf_VertCount(ref surface) - 2) * 3);
+
+			for (int primIndex = 0; primIndex < prim.IndexCount; primIndex++)
+				meshBuilder.FastIndex((ushort)(pData.PrimIndices![prim.FirstIndex + primIndex] + startVert));
+		}
+		else
+			BuildIndicesForSurface(ref meshBuilder, surfID);
+	}
+
+	public static int R_GetBrushModelPlaneCount(Model model) => throw new NotImplementedException();
+	public static ref readonly CollisionPlane R_GetBrushModelPlane(Model model, int index, out Vector3 origin) => throw new NotImplementedException();
+	public static void Surf_ComputeCentroid(SurfaceHandle_t surfID, out Vector3 vecCentroid) => throw new NotImplementedException();
+	public static int SortInfoToLightmapPage(int sortID) => throw new NotImplementedException();
+	public static IWorldRenderList AllocWorldRenderList() => WorldRenderList.FindOrCreateList(host_state!.WorldBrush!.NumSurfaces);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool VisitSurface(ref VarBitVec visitedSurfs, SurfaceHandle_t surfID) => !visitedSurfs.TestAndSet(surfID);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void MarkSurfaceVisited(ref VarBitVec visitedSurfs, SurfaceHandle_t surfID) => visitedSurfs.Set(surfID);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool VisitedSurface(ref VarBitVec visitedSurfs, int index) => visitedSurfs.IsBitSet(index);
+
+	public static void R_DrawTopView(bool enable) => throw new NotImplementedException();
+	public static void R_TopViewBounds(in Vector2 mins, in Vector2 maxs) => throw new NotImplementedException();
+	public static bool DlightSurfaceSetQueuingFlag(SurfaceHandle_t surfID) => false;
+
+	public static void Shader_TranslucentWorldSurface(WorldRenderList renderList, SurfaceHandle_t surfID) => throw new NotImplementedException();
+	static void Shader_WorldSurface(WorldRenderList renderList, SurfaceHandle_t surfID) {
+		ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+		Assert(!ModelLoader.SurfaceHasDispInfo(ref surface));
+
+		int sortGroup = ModelLoader.MSurf_SortGroup(ref surface);
+
+		// DecalSurfaceAdd // todo
+
+		int materialSortID = ModelLoader.MSurf_MaterialSortID(ref surface);
+
+		if ((ModelLoader.MSurf_Flags(ref surface) & (SurfDraw.HasLightStyles | SurfDraw.HasDLight)) != 0) {
+			renderList.DlightSurfaces[sortGroup].Add(surfID);
+			if (!DlightSurfaceSetQueuingFlag(surfID))
+				renderList.SortList.AddSurfaceToTail(ref surface, sortGroup, (short)materialSortID);
+		}
+		else
+			renderList.SortList.AddSurfaceToTail(ref surface, sortGroup, (short)materialSortID);
+	}
+
+	public static void Shader_TranslucentDisplacementSurface(WorldRenderList renderList, SurfaceHandle_t surfID) {
+		ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+		Assert(ModelLoader.SurfaceHasDispInfo(ref surface) && (renderList.VisibleLeaves.Count > 0));
+
+		int sortGroup = ModelLoader.MSurf_SortGroup(ref surface);
+		if ((ModelLoader.MSurf_Flags(ref surface) & (SurfDraw.HasLightStyles | SurfDraw.HasDLight)) != 0) {
+			renderList.DlightSurfaces[sortGroup].Add(surfID);
+			if (!DlightSurfaceSetQueuingFlag(surfID))
+				renderList.DispAlphaSortList.AddSurfaceToTail(ref surface, sortGroup, (short)(renderList.VisibleLeaves.Count - 1));
+		}
+		else
+			renderList.DispAlphaSortList.AddSurfaceToTail(ref surface, sortGroup, (short)(renderList.VisibleLeaves.Count - 1));
+	}
+
+	public static void Shader_DisplacementSurface(WorldRenderList renderList, SurfaceHandle_t surfID) {
+		ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+		Assert(ModelLoader.SurfaceHasDispInfo(ref surface));
+
+		int sortGroup = ModelLoader.MSurf_SortGroup(ref surface);
+		int materialSortID = ModelLoader.MSurf_MaterialSortID(ref surface);
+		if ((ModelLoader.MSurf_Flags(ref surface) & (SurfDraw.HasLightStyles | SurfDraw.HasDLight)) != 0) {
+			renderList.DlightSurfaces[sortGroup].Add(surfID);
+			if (!DlightSurfaceSetQueuingFlag(surfID))
+				renderList.DispSortList.AddSurfaceToTail(ref surface, sortGroup, (short)materialSortID);
+		}
+		else
+			renderList.DispSortList.AddSurfaceToTail(ref surface, sortGroup, (short)materialSortID);
+	}
+	public static void Shader_DrawSurfaceDynamic(IMatRenderContext renderContext, SurfaceHandle_t surfID, bool shadowDepth) => throw new NotImplementedException();
+	public static void Shader_DrawSurfaceStatic(SurfaceHandle_t surfID) => throw new NotImplementedException();
+	static void Shader_SetChainLightmapState(IMatRenderContext renderContext, SurfaceHandle_t surfID) => throw new NotImplementedException();
+	public static void Shader_SetChainTextureState(IMatRenderContext renderContext, SurfaceHandle_t surfID, IClientEntity? baseEntity, bool shadowDepth) => throw new NotImplementedException();
+	public static void Shader_DrawDynamicChain(in MSurfaceSortList sortList, in SurfaceSortGroup group, bool shadowDepth) => throw new NotImplementedException();
+	public static void Shader_DrawChainsDynamic(in MSurfaceSortList sortList, int sortGroup, bool shadowDepth) => throw new NotImplementedException();
+	public static void Shader_DrawChainsStatic(in MSurfaceSortList sortList, int sortGroup, bool shadowDepth) {
+		List<VertexFormatList> meshList = [];
+		int[] meshMap = new int[MAX_VERTEX_FORMAT_CHANGES];
+		List<BatchList> batchList = [];
+		List<SurfaceSortGroup> dynamicGroups = [];
+		bool bWarn = true;
+
+		bool skipBind = false;
+		if (MatSysInterface.MaterialSystemConfig.Fullbright == 1)
+			skipBind = true;
+
+		List<SurfaceSortGroup> groupList = sortList.GetSortList(sortGroup);
+		int count = groupList.Count;
+
+		int listIndex = 0;
+
+		using MatRenderContextPtr renderContext = new(materials);
+
+		int nMaxIndices = renderContext.GetMaxIndicesToRender();
+		while (listIndex < count) {
+			SurfaceSortGroup groupBase = groupList[listIndex];
+			ref BSPMSurface2 surfIDBase = ref sortList.GetSurfaceAtHead(in groupBase);
+			int sortIDBase = ModelLoader.MSurf_MaterialSortID(ref surfIDBase);
+			IMesh pBuildMesh = renderContext.GetDynamicMesh(false, MatSys.WorldStaticMeshes[sortIDBase]);
+			MeshBuilder meshBuilder = new();
+			meshBuilder.Begin(pBuildMesh, MaterialPrimitiveType.Triangles, 0, nMaxIndices);
+			IMesh? lastMesh = null;
+			int indexCount = 0;
+			int meshIndex = -1;
+
+			for (; listIndex < count; listIndex++) {
+				SurfaceSortGroup group = groupList[listIndex];
+				ref BSPMSurface2 surfID = ref sortList.GetSurfaceAtHead(in group);
+				if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.Dynamic) != 0) {
+					dynamicGroups.Add(group);
+					continue;
+				}
+
+				Assert(group.TriangleCount > 0);
+				int numIndex = group.TriangleCount * 3;
+				if (indexCount + numIndex > nMaxIndices) {
+					if (numIndex > nMaxIndices) {
+						DevMsg($"Too many faces (max {nMaxIndices}) with the same material in scene!\n");
+						break;
+					}
+
+					lastMesh = null;
+					break;
+				}
+
+				int sortID = ModelLoader.MSurf_MaterialSortID(ref surfID);
+
+				if (!ReferenceEquals(MatSys.WorldStaticMeshes[sortID], lastMesh)) {
+					if (meshList.Count < MAX_VERTEX_FORMAT_CHANGES - 1) {
+						lastMesh = MatSys.WorldStaticMeshes[sortID];
+						Assert(lastMesh != null);
+						meshList.Add(new VertexFormatList { NumBatches = 0, FirstBatch = (ushort)batchList.Count, Mesh = lastMesh });
+						meshIndex = meshList.Count - 1;
+					}
+					else {
+						if (bWarn) {
+							Warning($"Too many (max {MAX_VERTEX_FORMAT_CHANGES - 1}) vertex format changes in frame, whole world not rendered\n");
+							bWarn = false;
+						}
+						continue;
+					}
+				}
+
+				batchList.Add(new BatchList { FirstIndex = (ushort)indexCount, SurfID = ModelLoader.MSurf_Index(ref surfID), NumIndex = (ushort)numIndex });
+				Assert(indexCount + numIndex < nMaxIndices);
+				indexCount += numIndex;
+
+				CollectionsMarshal.AsSpan(meshList)[meshIndex].NumBatches++;
+
+				for (short blockIndex = group.ListHead; blockIndex != -1; blockIndex = sortList.GetSurfaceBlock(blockIndex).NextBlock) {
+					ref MaterialList matList = ref sortList.GetSurfaceBlock(blockIndex);
+					for (int idx = 0; idx < matList.Count; ++idx) {
+						SurfaceHandle_t surfIDList = (SurfaceHandle_t)matList.Surfaces[idx];
+						BuildIndicesForWorldSurface(ref meshBuilder, surfIDList, host_state.WorldBrush!);
+					}
+				}
+			}
+
+			meshBuilder.End(false, false);
+
+			int meshTotal = meshList.Count;
+
+			for (int i = 0; i < meshTotal; i++) {
+				meshMap[i] = i;
+			}
+
+			bool swapped = true;
+			while (swapped) {
+				swapped = false;
+				for (int i = 1; i < meshTotal; i++) {
+					if (MatSys.WorldStaticMeshes.IndexOf(meshList[meshMap[i]].Mesh) < MatSys.WorldStaticMeshes.IndexOf(meshList[meshMap[i - 1]].Mesh)) {
+						(meshMap[i - 1], meshMap[i]) = (meshMap[i], meshMap[i - 1]);
+						swapped = true;
+					}
+				}
+			}
+
+			renderContext.BeginBatch(pBuildMesh);
+			for (int m = 0; m < meshTotal; m++) {
+				VertexFormatList mesh = meshList[meshMap[m]];
+				IMaterial? pBindMaterial = MatSys.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref ModelLoader.SurfaceHandleFromIndex(batchList[mesh.FirstBatch].SurfID))].Material;
+				Assert(mesh.Mesh != null);
+				renderContext.BindBatch(mesh.Mesh!, pBindMaterial);
+
+				for (int b = 0; b < mesh.NumBatches; b++) {
+					BatchList batch = batchList[b + mesh.FirstBatch];
+					IMaterial pDrawMaterial = MatSys.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref ModelLoader.SurfaceHandleFromIndex(batch.SurfID))].Material!;
+
+					if (shadowDepth) {
+						// TODO!!!!!!!!!!
+						throw new NotImplementedException();
+					}
+					else {
+						renderContext.Bind(pDrawMaterial, null);
+
+						if (skipBind) {
+							if ((ModelLoader.MSurf_Flags(ref ModelLoader.SurfaceHandleFromIndex(batch.SurfID)) & SurfDraw.BumpLight) != 0)
+								renderContext.BindLightmapPage(StandardLightmap.WhiteBump);
+							else
+								renderContext.BindLightmapPage(StandardLightmap.White);
+						}
+						else
+							renderContext.BindLightmapPage(MatSys.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref ModelLoader.SurfaceHandleFromIndex(batch.SurfID))].LightmapPageID);
+					}
+					renderContext.DrawBatch(batch.FirstIndex, batch.NumIndex);
+				}
+			}
+			renderContext.EndBatch();
+
+			if (lastMesh != null || meshTotal == 0)
+				break;
+
+			meshList.Clear();
+			batchList.Clear();
+		}
+		for (int i = 0; i < dynamicGroups.Count; i++) {
+			Shader_DrawDynamicChain(sortList, dynamicGroups[i], shadowDepth);
+		}
+	}
+
+	public static void DrawSurfaceID(SurfaceHandle_t surfID, in Vector3 vecCentroid) => throw new NotImplementedException();
+	public static void DrawSurfaceIDAsInt(SurfaceHandle_t surfID, in Vector3 vecCentroid) => throw new NotImplementedException();
+	public static void DrawSurfaceMaterial(SurfaceHandle_t surfID, in Vector3 vecCentroid) => throw new NotImplementedException();
+	public static void Shader_DrawSurfaceDebuggingInfo(List<SurfaceHandle_t> surfaceList, SurfaceDebugFunc func) => throw new NotImplementedException();
+	public static void Shader_DrawWireframePolygons(List<SurfaceHandle_t> surfaceList) => throw new NotImplementedException();
+	static void Shader_DrawChainsWireframe(List<SurfaceHandle_t> surfaceList) => throw new NotImplementedException();
+	static void Shader_DrawChainNormals(List<SurfaceHandle_t> surfaceList) => throw new NotImplementedException();
+	static void Shader_DrawChainBumpBasis(List<SurfaceHandle_t> surfaceList) => throw new NotImplementedException();
+	static void Shader_DrawLuxels(List<SurfaceHandle_t> surfaceList) => throw new NotImplementedException();
+	static void ComputeDebugSettings() {
+		// todo
+		// g_ShaderDebug.Wireframe = ShouldDrawInWireFrameMode() || (r_drawworld.GetInt() == 2);
+		// g_ShaderDebug.Normals = mat_normals.GetBool();
+		// g_ShaderDebug.Luxels = mat_luxels.GetBool();
+		// g_ShaderDebug.BumpBasis = mat_bumpbasis.GetBool();
+		// g_ShaderDebug.SurfaceID = mat_surfaceid.GetInt();
+		// g_ShaderDebug.SurfaceMaterials = mat_surfacemat.GetBool();
+		g_ShaderDebug.TestAnyDebug();
+	}
+	static void DrawDebugInformation(List<SurfaceHandle_t> surfaceList) => throw new NotImplementedException();
+
+	public static void AddProjectedTextureDecalsToList(WorldRenderList renderList, int sortGroup) {
+		MSurfaceSortList sortList = renderList.SortList;
+		foreach (SurfaceSortGroup group in sortList.GetSortList(sortGroup)) {
+			for (short blockIndex = group.ListHead; blockIndex != -1; blockIndex = sortList.GetSurfaceBlock(blockIndex).NextBlock) {
+				ref MaterialList matList = ref sortList.GetSurfaceBlock(blockIndex);
+				for (int idx = 0; idx < matList.Count; ++idx) {
+					SurfaceHandle_t surfID = (SurfaceHandle_t)matList.Surfaces[idx];
+					ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+					Assert(!ModelLoader.SurfaceHasDispInfo(ref surface));
+					if (SHADOW_DECAL_HANDLE_INVALID != ModelLoader.MSurf_ShadowDecals(ref surface)) {
+						if ((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.NoShadows) == 0)
+							renderList.ShadowHandles[sortGroup].Add(ModelLoader.MSurf_ShadowDecals(ref surface));
+					}
+					// OverlayMgr().AddFragmentListToRenderList(sortGroup, MSurf_OverlayFragmentList(surface), false) // todo
+				}
+			}
+		}
+	}
+	public static void Shader_DrawChains(WorldRenderList renderList, int sortGroup, bool shadowDepth) {
+		using MatRenderContextPtr renderContext = new(materials);
+		Assert(!g_EngineRenderer.InLightmapUpdate());
+
+		if (mat_forcedynamic.GetInt() == 0 && !MatSysInterface.MaterialSystemConfig.DrawFlat)
+			Shader_DrawChainsStatic(renderList.SortList, sortGroup, shadowDepth);
+		else
+			Shader_DrawChainsDynamic(renderList.SortList, sortGroup, shadowDepth);
+
+		if (shadowDepth)
+			return;
+
+		if (g_ShaderDebug.AnyDebug) {
+			MSurfaceSortList sortList = renderList.SortList;
+			foreach (SurfaceSortGroup group in sortList.GetSortList(sortGroup)) {
+				List<SurfaceHandle_t> surfList = [];
+				sortList.GetSurfaceListForGroup(surfList, group);
+				DrawDebugInformation(surfList);
+			}
+		}
+	}
+	public static void Shader_DrawDispChain(int sortGroup, in MSurfaceSortList list, uint flags, RenderDepthMode depthMode) {
+		int count = 0;
+		List<SurfaceSortGroup> groupList = list.GetSortList(sortGroup);
+		foreach (SurfaceSortGroup group in groupList)
+			count += group.SurfaceCount;
+
+		if (count != 0) {
+			SurfaceHandle_t[] pList = new SurfaceHandle_t[count];
+			int i = 0;
+			foreach (SurfaceSortGroup group in groupList) {
+				for (short blockIndex = group.ListHead; blockIndex != -1; blockIndex = list.GetSurfaceBlock(blockIndex).NextBlock) {
+					ref MaterialList matList = ref list.GetSurfaceBlock(blockIndex);
+					for (int index = 0; index < matList.Count; ++index) {
+						pList[i] = (SurfaceHandle_t)matList.Surfaces[index];
+						++i;
+					}
+				}
+			}
+			Assert(i == count);
+
+			DispInfo.DispInfo_RenderList(sortGroup, pList, count, g_EngineRenderer.ViewGetCurrent().Ortho, flags, depthMode);
+		}
+	}
+	static void Shader_BuildDynamicLightmaps(WorldRenderList renderList) {
+		// R_DLightStartView(); // todo
+
+		for (int sortGroup = 0; sortGroup < (int)MatSortGroup.Max; ++sortGroup) {
+			for (int i = renderList.DlightSurfaces[sortGroup].Count - 1; i >= 0; --i) {
+				Render.LightmapUpdateInfo tmp = default;
+				tmp.SurfaceData = host_state.WorldBrush!.Surfaces2.AsMemory();
+				tmp.SurfaceIndex = renderList.DlightSurfaces[sortGroup][i];
+				tmp.TransformIndex = 0;
+				Render.g_LightmapUpdateList.Add(tmp);
+			}
+		}
+
+		// R_DLightEndView(); // todo
+	}
+	static void ComputeFogVolumeInfo(ref FogVolumeInfo fogVolume) {
+		fogVolume.InFogVolume = false;
+		int leafID = CM.PointLeafnum(CurrentViewOrigin());
+		if (leafID < 0 || leafID >= host_state.WorldBrush!.NumLeafs)
+			return;
+
+		BSPMLeaf leaf = host_state.WorldBrush!.Leafs![leafID];
+		fogVolume.FogVolumeID = leaf.LeafWaterDataID;
+		if (fogVolume.FogVolumeID == -1)
+			return;
+
+		fogVolume.InFogVolume = true;
+
+		ref BSPDLeafWaterData leafWaterData = ref host_state.WorldBrush!.LeafWaterData![leaf.LeafWaterDataID];
+		if (leafWaterData.SurfaceTexInfoID == -1) {
+			fogVolume.State.FogEnabled = false;
+			return;
+		}
+		ref ModelTexInfo texInfo = ref host_state.WorldBrush!.TexInfo![leafWaterData.SurfaceTexInfoID];
+
+		IMaterial? material = texInfo.Material;
+		if (material != null) {
+			IMaterialVar fogColorVar = material.FindVar("$fogcolor", out _);
+			IMaterialVar fogEnableVar = material.FindVar("$fogenable", out _);
+			IMaterialVar fogStartVar = material.FindVar("$fogstart", out _);
+			IMaterialVar fogEndVar = material.FindVar("$fogend", out _);
+
+			fogVolume.State.FogEnabled = fogEnableVar.GetIntValue() != 0;
+			fogColorVar.GetVecValue(fogVolume.State.FogColor);
+			fogVolume.State.FogStart = -fogStartVar.GetFloatValue();
+			fogVolume.State.FogEnd = -fogEndVar.GetFloatValue();
+			fogVolume.FogSurfaceZ = leafWaterData.SurfaceZ;
+			fogVolume.FogMinZ = leafWaterData.MinZ;
+			fogVolume.State.FogMode = MaterialFogMode.Linear;
+		}
+		else {
+			Warning("***Water vmt missing . . check console for missing materials!***\n");
+			fogVolume.State.FogEnabled = false;
+		}
+	}
+	public static void ResetWorldRenderList(WorldRenderList renderList) => renderList?.Reset();
+	public static void Shader_WorldBegin(WorldRenderList renderList) {
+		s_ShaderConvars.DrawLeaf = r_drawleaf.GetInt();
+		s_ShaderConvars.DrawWorld = r_drawworld.GetBool();
+		s_ShaderConvars.DrawFuncDetail = r_drawfuncdetail.GetBool();
+
+		ResetWorldRenderList(renderList);
+
+		// TODO decal/overlaymgr/shadowmgr
+	}
+	static void Shader_WorldZFillSurfChain(in MSurfaceSortList sortList, in SurfaceSortGroup group, MeshBuilder meshBuilder, ref nint startVertIn, uint includeFlags) => throw new NotImplementedException();
+	static void Shader_WorldShadowDepthFill(WorldRenderList renderList, DrawWorldListFlags flags) => throw new NotImplementedException();
+	static void Shader_WorldZFill(WorldRenderList renderList, DrawWorldListFlags flags) => throw new NotImplementedException();
+	static readonly int[] s_DrawWorldListsToSortGroup = [
+		(int)MatSortGroup.StrictlyAboveWater,
+		(int)MatSortGroup.StrictlyUnderwater,
+		(int)MatSortGroup.IntersectsWaterSurface,
+		(int)MatSortGroup.WaterSurface,
+	];
+
+	static void Shader_WorldEnd(WorldRenderList renderList, DrawWorldListFlags flags, float waterZAdjust) {
+		using MatRenderContextPtr renderCtx = new(materials);
+
+		if ((flags & (DrawWorldListFlags.ShadowDepth | DrawWorldListFlags.SSAO)) != 0) {
+			Shader_WorldShadowDepthFill(renderList, flags);
+			return;
+		}
+
+		if ((flags & DrawWorldListFlags.Skybox) != 0) {
+			if (renderList.SkyVisible || Map_VisForceFullSky()) {
+				if ((flags & DrawWorldListFlags.ClipSkybox) != 0)
+					g_EngineRenderer.DrawSkybox(g_EngineRenderer.GetZFar());
+				else {
+					// MaterialHeightClipMode nClipMode = renderCtx.GetHeightClipMode(); // todo
+					// renderCtx.SetHeightClipMode(MaterialHeightClipMode.Disable);
+					g_EngineRenderer.DrawSkybox(g_EngineRenderer.GetZFar());
+					// renderCtx.SetHeightClipMode(nClipMode);
+				}
+			}
+		}
+
+		bool fastZReject = r_fastzreject.GetInt() != 0;
+		if (fastZReject)
+			Shader_WorldZFill(renderList, flags);
+
+		int i;
+		for (i = (int)MatSortGroup.Max; --i >= 0;) {
+			if ((flags & (DrawWorldListFlags)(1 << i)) == 0)
+				continue;
+
+			int sortGroup = s_DrawWorldListsToSortGroup[i];
+			if (sortGroup == (int)MatSortGroup.WaterSurface) {
+				if (waterZAdjust != 0.0f) {
+					renderCtx.MatrixMode(MaterialMatrixMode.Model);
+					renderCtx.PushMatrix();
+					renderCtx.LoadIdentity();
+					renderCtx.Translate(0.0f, 0.0f, waterZAdjust);
+				}
+			}
+
+			Shader_DrawDispChain(sortGroup, renderList.DispSortList, (uint)flags, RenderDepthMode.Normal);
+
+			Shader_DrawChains(renderList, sortGroup, false);
+			AddProjectedTextureDecalsToList(renderList, sortGroup);
+
+			// g_pShadowMgr.AddShadowsOnSurfaceToRenderList // todo
+			renderList.ShadowHandles[sortGroup].Clear();
+
+			// g_pShadowMgr flashlights + OverlayMgr + DecalSurfaceDraw + RenderShadows // todo
+
+			if (sortGroup == (int)MatSortGroup.WaterSurface && waterZAdjust != 0.0f) {
+				renderCtx.MatrixMode(MaterialMatrixMode.Model);
+				renderCtx.PopMatrix();
+			}
+		}
+	}
+
+	public static bool Shader_LeafContainsTranslucentSurfaces(IWorldRenderList renderListIn, int sortIndex, uint flags) => throw new NotImplementedException();
+	public static void Shader_DrawTranslucentSurfaces(IWorldRenderList renderListIn, int sortIndex, uint flags, bool shadowDepth) => throw new NotImplementedException();
+
+	public static void R_DrawSurface(WorldRenderList renderList, SurfaceHandle_t surfID) {
+		ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+		Assert(!ModelLoader.SurfaceHasDispInfo(ref surface));
+		if ((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.Sky) != 0)
+			renderList.SkyVisible = true;
+		else if ((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.Trans) != 0)
+			Shader_TranslucentWorldSurface(renderList, surfID);
+		else
+			Shader_WorldSurface(renderList, surfID);
+	}
+	public static void R_DrawSurfaceNoCull(WorldRenderList renderList, SurfaceHandle_t surfID) => throw new NotImplementedException();
+	static void DrawDisplacementsInLeaf(WorldRenderList renderList, BSPMLeaf leaf) {
+		if (leaf.DispCount == 0)
+			return;
+
+		ref VarBitVec visitedSurfs = ref renderList.VisitedSurfs;
+		for (int i = 0; i < leaf.DispCount; i++) {
+			IDispInfo dispInfo = DispInfo.MLeaf_Disaplcement(leaf, i)!;
+
+			ref BSPMSurface2 parent = ref dispInfo.GetParent();
+			SurfaceHandle_t parentSurfID = ModelLoader.MSurf_Index(ref parent);
+
+			if (VisitSurface(ref visitedSurfs, parentSurfID)) {
+				if ((ModelLoader.MSurf_Flags(ref parent) & SurfDraw.Trans) != 0)
+					Shader_TranslucentDisplacementSurface(renderList, parentSurfID);
+				else
+					Shader_DisplacementSurface(renderList, parentSurfID);
+			}
+		}
+	}
+
+	static int LeafToIndex(BSPMLeaf leaf) => leaf.Index;
+
+	static void UpdateVisibleLeafLists(WorldRenderList renderList, BSPMLeaf leaf) {
+		int nLeafIndex = LeafToIndex(leaf);
+		renderList.VisibleLeaves.Add((LeafIndex_t)nLeafIndex);
+		int leafCount = renderList.VisibleLeaves.Count;
+		renderList.VisibleLeafFogVolumes.Add(leaf.LeafWaterDataID);
+		renderList.AlphaSortList.EnsureMaxSortIDs(leafCount);
+		renderList.DispAlphaSortList.EnsureMaxSortIDs(leafCount);
+	}
+
+	static void R_DrawLeaf(WorldRenderList renderList, BSPMLeaf pleaf) {
+		UpdateVisibleLeafLists(renderList, pleaf);
+
+		if ((s_ShaderConvars.DrawLeaf >= 0) && (s_ShaderConvars.DrawLeaf != LeafToIndex(pleaf)))
+			return;
+
+		DrawDisplacementsInLeaf(renderList, pleaf);
+
+		if (!s_ShaderConvars.DrawWorld)
+			return;
+
+		int i;
+		int surfaceCount = pleaf.NumMarkNodeSurfaces;
+		Span<SurfaceHandle_t> pSurfID = host_state.WorldBrush!.MarkSurfaces.AsSpan(pleaf.FirstMarkSurface);
+		ref VarBitVec visitedSurfs = ref renderList.VisitedSurfs;
+		for (i = 0; i < surfaceCount; ++i) {
+			SurfaceHandle_t surfID = pSurfID[i];
+			ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+			Assert((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.NoDraw) == 0);
+			Assert((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.Node) != 0);
+			Assert(!ModelLoader.SurfaceHasDispInfo(ref surface));
+			MarkSurfaceVisited(ref visitedSurfs, surfID);
+		}
+
+		if (!s_ShaderConvars.DrawFuncDetail)
+			return;
+
+		for (; i < pleaf.NumMarkSurfaces; i++) {
+			SurfaceHandle_t surfID = pSurfID[i];
+
+			if (!VisitSurface(ref visitedSurfs, surfID))
+				continue;
+
+			ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+			Assert((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.Node) == 0);
+
+			if ((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.NoCull) == 0) {
+				ref CollisionPlane plane = ref ModelLoader.MSurf_Plane(ref surface);
+				if ((Vector3.Dot(plane.Normal, ModelOrg) - plane.Dist) < BACKFACE_EPSILON)
+					continue;
+			}
+
+			R_DrawSurface(renderList, surfID);
+		}
+	}
+	static void R_DrawLeafNoCull(WorldRenderList renderList, BSPMLeaf leaf) => throw new NotImplementedException();
+	static void R_RecursiveWorldNodeNoCull(WorldRenderList renderList, BSPMNode node, int cullMask) => throw new NotImplementedException();
+	static void R_RecursiveWorldNode(WorldRenderList renderList, BSPMNode node, int cullMask) {
+		int side;
+		float dot;
+
+		while (true) {
+			if (node.Contents == (int)Contents.Solid)
+				return;
+
+			if (node.VisFrame != r_visframecount)
+				return;
+
+			if (cullMask != FRUSTUM_SUPPRESS_CLIPPING) {
+				if (node.Contents >= -1) {
+					if ((cullMask != 0) || (node.Area > 0)) {
+						if (R_CullNode(g_Frustum, node, ref cullMask))
+							return;
+					}
+				}
+				else {
+					if (node.Contents == -2)
+						cullMask = FRUSTUM_SUPPRESS_CLIPPING;
+				}
+			}
+
+			if (node.Contents >= 0) {
+				R_DrawLeaf(renderList, (BSPMLeaf)node);
+				return;
+			}
+
+			ref CollisionPlane plane = ref node.Plane;
+			if ((byte)plane.Type <= 2)
+				dot = ModelOrg[(byte)plane.Type] - plane.Dist;
+			else
+				dot = Vector3.Dot(ModelOrg, plane.Normal) - plane.Dist;
+
+			side = dot >= 0 ? 0 : 1;
+
+			R_RecursiveWorldNode(renderList, node.Children[side]!, cullMask);
+
+			SurfaceHandle_t surfID = node.FirstSurface;
+			int i = ModelLoader.MSurf_Index(ref ModelLoader.SurfaceHandleFromIndex(surfID));
+			int lastSurface = i + node.NumSurfaces;
+			ref VarBitVec visitedSurfs = ref renderList.VisitedSurfs;
+			for (; i < lastSurface; ++i, ++surfID) {
+				if (!VisitedSurface(ref visitedSurfs, i))
+					continue;
+
+				ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+				Assert(!ModelLoader.SurfaceHasDispInfo(ref surface));
+
+				SurfDraw flags = ModelLoader.MSurf_Flags(ref surface);
+
+				Assert((flags & SurfDraw.Node) != 0);
+
+				Assert((flags & SurfDraw.NoDraw) == 0);
+
+				if ((flags & SurfDraw.UnderWater) == 0 && (side ^ ((flags & SurfDraw.PlaneBack) != 0 ? 1 : 0)) != 0)
+					continue;
+
+				R_DrawSurface(renderList, surfID);
+			}
+
+			node = node.Children[side == 0 ? 1 : 0]!;
+		}
+	}
+	public static IMaterial R_GetFogVolumeMaterial(int fogVolume, bool eyeInFogVolume) => throw new NotImplementedException();
+	public static void R_SetFogVolumeState(int fogVolume, bool useHeightFog) => throw new NotImplementedException();
+	static bool R_CullNodeTopView(BSPMNode node) => throw new NotImplementedException();
+	static void R_DrawTopViewLeaf(WorldRenderList renderList, BSPMLeaf leaf) => throw new NotImplementedException();
+	public static void R_RenderWorldTopView(WorldRenderList renderList, BSPMNode node) => throw new NotImplementedException();
+	static void SpewLeaf() => throw new NotImplementedException();
+
+	public static void R_BuildWorldLists(IWorldRenderList renderListIn, ref WorldListInfo info, int forceViewLeaf, ReadOnlySpan<VisOverrideData> visData, bool shadowDepth, Span<float> waterReflectionHeight) {
+		WorldRenderList renderList = (WorldRenderList)renderListIn;
+		// if (g_LostVideoMemory) {
+		// 	info.ViewFogVolume = (int)MatSortGroup.StrictlyAboveWater;
+		// 	info.LeafCount = 0;
+		// 	info.LeafList = CollectionsMarshal.AsSpan(renderList.VisibleLeaves);
+		// 	info.LeafFogVolume = CollectionsMarshal.AsSpan(renderList.VisibleLeafFogVolumes);
+		// 	return;
+		// }
+
+		ModelOrg = g_EngineRenderer.ViewOrigin();
+
+		if (r_spewleaf.GetInt() != 0)
+			SpewLeaf();
+
+		Shader_WorldBegin(renderList);
+
+		if (!r_drawtopview) {
+			R_SetupAreaBits(forceViewLeaf, visData, waterReflectionHeight);
+
+			if (shadowDepth)
+				R_RecursiveWorldNodeNoCull(renderList, host_state.WorldBrush!.Nodes![0], r_frustumcullworld.GetBool() ? FRUSTUM_CLIP_ALL : FRUSTUM_SUPPRESS_CLIPPING);
+			else
+				R_RecursiveWorldNode(renderList, host_state.WorldBrush!.Nodes![0], r_frustumcullworld.GetBool() ? FRUSTUM_CLIP_ALL : FRUSTUM_SUPPRESS_CLIPPING);
+		}
+		else
+			R_RenderWorldTopView(renderList, host_state.WorldBrush!.Nodes![0]);
+
+		if (!r_drawtopview && !shadowDepth)
+			Shader_BuildDynamicLightmaps(renderList);
+
+		if (!shadowDepth) {
+			FogVolumeInfo fogInfo = default;
+			ComputeFogVolumeInfo(ref fogInfo);
+			if (fogInfo.InFogVolume)
+				info.ViewFogVolume = (int)MatSortGroup.StrictlyUnderwater;
+			else
+				info.ViewFogVolume = (int)MatSortGroup.StrictlyAboveWater;
+		}
+		else
+			info.ViewFogVolume = (int)MatSortGroup.StrictlyAboveWater;
+		info.LeafCount = renderList.VisibleLeaves.Count;
+		info.LeafList = CollectionsMarshal.AsSpan(renderList.VisibleLeaves);
+		info.LeafFogVolume = CollectionsMarshal.AsSpan(renderList.VisibleLeafFogVolumes);
+	}
+
+	static void ClearFogInfo(ref VisibleFogVolumeInfo info) => throw new NotImplementedException();
+	public static void R_GetVisibleFogVolume(in Vector3 eyePoint, ref VisibleFogVolumeInfo info) => throw new NotImplementedException();
+
+	public static void R_DrawWorldLists(IWorldRenderList renderListIn, DrawWorldListFlags flags, float waterZAdjust) {
+		WorldRenderList renderList = (WorldRenderList)renderListIn;
+		// if (TextMode || LostVideoMemory)
+		// return;
+
+		Shader_WorldEnd(renderList, flags, waterZAdjust);
+	}
+	public static void R_SceneBegin() => ComputeDebugSettings();
+	public static void R_SceneEnd() { }
+
+	public static void Shader_DrawLightmapPageSurface(SurfaceHandle_t surfID, float red, float green, float blue) => throw new NotImplementedException();
+	public static void Shader_DrawLightmapPageChains(IWorldRenderList renderListIn, int pageId) => throw new NotImplementedException();
+
+	public static void R_FastZRejectDisplacements(bool enable) => throw new NotImplementedException();
+	public static void R_InstallBrushRenderOverride(IBrushRenderer? brushRenderer) => throw new NotImplementedException();
+	public static bool Shader_DrawBrushSurfaceOverride(IMatRenderContext renderContext, SurfaceHandle_t surfID, IClientEntity? baseEntity) => throw new NotImplementedException();
+
+	public static void R_BrushBatchInit() => throw new NotImplementedException();
+	public static void R_Surface_LevelInit() => throw new NotImplementedException();
+	public static void R_Surface_LevelShutdown() => throw new NotImplementedException();
+	static void R_DrawBrushModel_Override(IClientEntity? baseEntity, Model? model, in Vector3 origin) => throw new NotImplementedException();
+	public static int R_MarkDlightsOnBrushModel(Model? model, IClientRenderable renderable) => throw new NotImplementedException();
+
+	public static void R_DrawBrushModel(IClientEntity? baseEntity, Model? model, in Vector3 origin, in QAngle angles, RenderDepthMode depthMode, bool drawOpaque, bool drawTranslucent) => throw new NotImplementedException();
+	public static void R_DrawBrushModelShadow(IClientRenderable renderable) => throw new NotImplementedException();
+	public static void R_DrawIdentityBrushModel(IWorldRenderList renderListIn, Model? model) => throw new NotImplementedException();
+}
+
+public class VisibleFogVolumeQuery
+{
+	Vector3 SearchPoint;
+	int VisibleFogVolume;
+	int VisibleFogVolumeLeaf;
+
+	public void FindVisibleFogVolume(in Vector3 viewPoint, out int visibleFogVolume, out int visibleFogVolumeLeaf) => throw new NotImplementedException();
+	bool RecursiveGetVisibleFogVolume(BSPMNode node) => throw new NotImplementedException();
+}
+
+public class BrushSurface : IBrushSurface
+{
+	SurfaceHandle_t SurfaceID;
+	MatSysInterface.SurfaceCtx Ctx;
+
+	public BrushSurface(SurfaceHandle_t surfID) => throw new NotImplementedException();
+
+	public void ComputeTextureCoordinate(in Vector3 worldPos, out Vector2 texCoord) => throw new NotImplementedException();
+	public void ComputeLightmapCoordinate(in Vector3 worldPos, out Vector2 lightmapCoord) => throw new NotImplementedException();
+	public int GetVertexCount() => throw new NotImplementedException();
+	public void GetVertexData(Span<BrushVertex> verts) => throw new NotImplementedException();
+	public IMaterial? GetMaterial() => throw new NotImplementedException();
+}
+
+public class BrushBatchRender
+{
+	public struct BrushRenderSurface
+	{
+		public short SurfaceIndex;
+		public nint PlaneIndex;
+	}
+
+	public struct BrushRenderBatch
+	{
+		public short FirstSurface;
+		public short SurfaceCount;
+		public IMaterial? Material;
+		public int SortID;
+		public int IndexCount;
+	}
+
+	public struct BrushRenderMesh
+	{
+		public short FirstBatch;
+		public short BatchCount;
+	}
+
+	public class BrushRender
+	{
+		public CollisionPlane[]? Planes;
+		public BrushRenderMesh[]? Meshes;
+		public BrushRenderBatch[]? Batches;
+		public BrushRenderSurface[]? Surfaces;
+		public short PlaneCount;
+		public short MeshCount;
+		public short BatchCount;
+		public short SurfaceCount;
+		public short TotalIndexCount;
+		public short TotalVertexCount;
+
+		public void Free() => throw new NotImplementedException();
+	}
+
+	public struct SurfaceList
+	{
+		public SurfaceHandle_t SurfID;
+		public short SurfaceIndex;
+		public nint PlaneIndex;
+	}
+
+	public struct TransBatch
+	{
+		public short FirstSurface;
+		public short SurfaceCount;
+		public IMaterial? Material;
+		public int SortID;
+		public int IndexCount;
+	}
+
+	public struct TransDecal
+	{
+		public short FirstSurface;
+		public short SurfaceCount;
+	}
+
+	public struct TransNode
+	{
+		public short FirstBatch;
+		public short BatchCount;
+		public short FirstDecalSurface;
+		public short DecalSurfaceCount;
+	}
+
+	public static int SurfaceCmp(in SurfaceList s0, in SurfaceList s1) => throw new NotImplementedException();
+	public void LevelInit() => throw new NotImplementedException();
+	public void ClearRenderHandles() => throw new NotImplementedException();
+	public void DrawOpaqueBrushModel(IClientEntity? baseEntity, Model? model, in Vector3 origin, RenderDepthMode depthMode) => throw new NotImplementedException();
+	public void DrawTranslucentBrushModel(IClientEntity? baseEntity, Model? model, in Vector3 origin, bool shadowDepth, bool drawOpaque, bool drawTranslucent) => throw new NotImplementedException();
+	public void DrawBrushModelShadow(Model? model, IClientRenderable renderable) => throw new NotImplementedException();
+}
+
+public class BrushModelTransform : IDisposable
+{
+	public Vector3 SavedModelOrg;
+	public bool Identity;
+
+	public BrushModelTransform(in Vector3 origin, in QAngle angles, IMatRenderContext renderContext) => throw new NotImplementedException();
+	public void Dispose() => throw new NotImplementedException();
+
+	public Matrix4x4? GetNonIdentityMatrix() => throw new NotImplementedException();
+	public bool IsIdentity() => Identity;
 }
 
 public class EngineBSPTree : ISpatialQuery
@@ -50,6 +1086,12 @@ public class EngineBSPTree : ISpatialQuery
 	}
 
 	public bool EnumerateLeavesAlongRay(in Ray ray, ISpatialLeafEnumerator pEnum, nint context) => throw new NotImplementedException();
+
+	static bool EnumerateLeafInBox_R(BSPMNode node, ref EnumLeafBoxInfo info) => throw new NotImplementedException();
+
+	static bool EnumerateLeavesAlongRay_R(BSPMNode node, in Ray ray, float start, float end, ISpatialLeafEnumerator pEnum, nint context) => throw new NotImplementedException();
+
+	static bool EnumerateLeavesAlongExtrudedRay_R(BSPMNode node, in Ray ray, float start, float end, ISpatialLeafEnumerator pEnum, nint context) => throw new NotImplementedException();
 
 	static bool EnumerateLeafInSphere_R(BSPMNode node, ref EnumLeafSphereInfo info, int testFlags) {
 		while (true) {
@@ -115,3 +1157,5 @@ public class EngineBSPTree : ISpatialQuery
 		}
 	}
 }
+
+public delegate void SurfaceDebugFunc(SurfaceHandle_t surfID, in Vector3 vecCentroid);

@@ -116,6 +116,7 @@ public interface IMesh : IVertexBuffer, IIndexBuffer
 	public const int DYNAMIC_VERTEX_BUFFER_MEMORY_SMALL = 384 * 1024; // Only allocate this much during map transitions
 	void SetPrimitiveType(MaterialPrimitiveType type);
 	void Draw(int firstIndex = -1, int indexCount = 0);
+	void Draw(ReadOnlySpan<PrimList> lists, int numLists);
 	void SetColorMesh(IMesh colorMesh, int vertexOffset);
 	void LockMesh(int vertexCount, int indexCount, ref MeshDesc desc);
 	void ModifyBegin(int firstVertex, int vertexCount, int firstIndex, int indexCount, ref MeshDesc desc);
@@ -283,6 +284,52 @@ public unsafe struct VertexBuilder
 		}
 	}
 
+
+	internal void TangentS3f(float sx, float sy, float sz) {
+		Assert(Desc.TangentS != null);
+		Assert(float.IsFinite(sx) && float.IsFinite(sy) && float.IsFinite(sz));
+
+		float* pTangentS = OffsetFloatPointer(Desc.TangentS, CurrentVertex, Desc.TangentSSize);
+		*pTangentS++ = sx;
+		*pTangentS++ = sy;
+		*pTangentS = sz;
+	}
+
+	internal void TangentS3fv(ReadOnlySpan<float> s) {
+		Assert(Desc.TangentS != null);
+		Assert(float.IsFinite(s[0]) && float.IsFinite(s[1]) && float.IsFinite(s[2]));
+
+		fixed (float* sptr = s) {
+			float* sp = sptr;
+			float* pTangentS = OffsetFloatPointer(Desc.TangentS, CurrentVertex, Desc.TangentSSize);
+			*pTangentS++ = *sp++;
+			*pTangentS++ = *sp++;
+			*pTangentS = *sp;
+		}
+	}
+
+	internal void TangentT3f(float tx, float ty, float tz) {
+		Assert(Desc.TangentT != null);
+		Assert(float.IsFinite(tx) && float.IsFinite(ty) && float.IsFinite(tz));
+
+		float* pTangentT = OffsetFloatPointer(Desc.TangentT, CurrentVertex, Desc.TangentTSize);
+		*pTangentT++ = tx;
+		*pTangentT++ = ty;
+		*pTangentT = tz;
+	}
+
+	internal void TangentT3fv(ReadOnlySpan<float> t) {
+		Assert(Desc.TangentT != null);
+		Assert(float.IsFinite(t[0]) && float.IsFinite(t[1]) && float.IsFinite(t[2]));
+
+		fixed (float* tptr = t) {
+			float* tp = tptr;
+			float* pTangentT = OffsetFloatPointer(Desc.TangentT, CurrentVertex, Desc.TangentTSize);
+			*pTangentT++ = *tp++;
+			*pTangentT++ = *tp++;
+			*pTangentT = *tp;
+		}
+	}
 
 	internal void TexCoord2f(int stage, float s, float t) {
 		float* pDst = stage switch {
@@ -834,13 +881,13 @@ public unsafe struct MeshBuilder : IDisposable
 	public void TexCoordSubRect2fv(int stage, ReadOnlySpan<float> st, ReadOnlySpan<float> offset, ReadOnlySpan<float> scale) => throw new NotImplementedException();
 
 	// tangent space 
-	public void TangentS3f(float sx, float sy, float sz) { /* TODO: add tangents to vertex elements + descriptor */ }
-	public void TangentS3fv(ReadOnlySpan<float> s) { /* TODO: add tangents to vertex elements + descriptor */ }
-	public void TangentS3fv(Vector3 vec) { /* TODO: add tangents to vertex elements + descriptor */ }
+	public void TangentS3f(float sx, float sy, float sz) => VertexBuilder.TangentS3f(sx, sy, sz);
+	public void TangentS3fv(ReadOnlySpan<float> s) => VertexBuilder.TangentS3fv(s);
+	public void TangentS3fv(Vector3 vec) => VertexBuilder.TangentS3f(vec.X, vec.Y, vec.Z);
 
-	public void TangentT3f(float tx, float ty, float tz) { /* TODO: add tangents to vertex elements + descriptor */ }
-	public void TangentT3fv(ReadOnlySpan<float> t) { /* TODO: add tangents to vertex elements + descriptor */ }
-	public void TangentT3fv(Vector3 vec) { /* TODO: add tangents to vertex elements + descriptor */ }
+	public void TangentT3f(float tx, float ty, float tz) => VertexBuilder.TangentT3f(tx, ty, tz);
+	public void TangentT3fv(ReadOnlySpan<float> t) => VertexBuilder.TangentT3fv(t);
+	public void TangentT3fv(Vector3 vec) => VertexBuilder.TangentT3f(vec.X, vec.Y, vec.Z);
 
 	// Wrinkle
 	public void Wrinkle1f(float flWrinkle) => throw new NotImplementedException();

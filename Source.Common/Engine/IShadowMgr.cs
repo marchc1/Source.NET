@@ -18,6 +18,7 @@ public enum ShadowFlags
 public static class ShadowGlobals
 {
 	public const ShadowHandle_t SHADOW_HANDLE_INVALID = unchecked((ShadowHandle_t)~0);
+	public const ShadowDecalHandle_t SHADOW_DECAL_HANDLE_INVALID = unchecked((ShadowDecalHandle_t)~0);
 }
 
 public enum ShadowCreateFlags

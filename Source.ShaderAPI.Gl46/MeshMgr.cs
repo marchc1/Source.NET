@@ -50,7 +50,7 @@ public class MeshMgr : IMeshMgr
 			MeshGl46? baseVertex = (MeshGl46?)vertexOverride;
 			if (baseVertex != null)
 				DynamicMesh.OverrideVertexBuffer(baseVertex.GetVertexBuffer());
-			MeshGl46? baseIndex = (MeshGl46?)vertexOverride;
+			MeshGl46? baseIndex = (MeshGl46?)indexOverride;
 			if (baseIndex != null)
 				DynamicMesh.OverrideIndexBuffer(baseIndex.GetIndexBuffer());
 		}
@@ -162,7 +162,7 @@ public class MeshMgr : IMeshMgr
 		return mesh;
 	}
 
-	internal int GetMaxIndicesToRender(IMaterial material) {
+	internal int GetMaxIndicesToRender() {
 		return IMesh.INDEX_BUFFER_SIZE;
 	}
 

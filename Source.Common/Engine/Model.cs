@@ -55,6 +55,8 @@ public class WorldBrushData
 	public int NumVertNormals => VertNormals?.Length ?? 0;
 	public BSPMNode[]? Nodes;
 	public int NumNodes;
+	public SurfaceHandle_t[]? MarkSurfaces;
+	public int NumMarkSurfaces;
 	public BSPDFace[]? Faces;
 	public ushort[]? LeafMinDistToWater;
 	public ModelTexInfo[]? TexInfo;
@@ -71,7 +73,9 @@ public class WorldBrushData
 	public ushort[]? PrimIndices;
 	public int NumPrimIndices => PrimIndices?.Length ?? 0;
 	public BSPDArea[]? Areas;
+	public int NumAreas;
 	public BSPDAreaPortal[]? AreaPortals;
+	public int NumAreaPortals;
 	public Vector3[]? ClipPortalVerts;
 	public BSPCubeMapSample[]? CubemapSamples;
 	public int NumSurfaces;

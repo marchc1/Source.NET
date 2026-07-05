@@ -200,22 +200,34 @@ public partial class Render(
 		view.Angles.Vectors(out CurrentViewForward, out CurrentViewRight, out CurrentViewUp);
 		CanAccessCurrentView = true;
 
-		/*if (view.Ortho) {
-			OrthoExtractFrustumPlanes(frustumPlanes);
+		if (view.Ortho) {
+			OrthoExtractFrustumPlanes(ref frustumPlanes);
 		}
 		else {
-			ExtractFrustumPlanes(frustumPlanes);
-		}*/
+			ExtractFrustumPlanes(ref frustumPlanes);
+		}
 
 		// OcclusionSystem.SetView(view.Origin, view.FOV, MatrixView, MatrixProjection, frustumPlanes[FrustumPlane.NearZ]);
 
 		if (!ViewStack.Top().NoDraw) {
-			// R_SceneBegin();
+			R_SceneBegin();
 		}
 
 		if (MathLib.VectorCompare(MainViewOrigin(), view.Origin))
 			DebugLeafVis.LeafVisBuild(view.Origin);
 	}
+
+	private void ExtractFrustumPlanes(ref Frustum frustumPlanes) {
+		ref ViewSetup view = ref CurrentView();
+
+		MathLib.GeneratePerspectiveFrustum(CurrentViewOrigin, CurrentViewForward, CurrentViewRight, CurrentViewUp,
+			view.ZNear, view.ZFar, view.FOV, yFOV, g_Frustum);
+
+		for (int i = 0; i < (int)FrustumPlane.NumPlanes; i++)
+			frustumPlanes.SetPlane(i, g_Frustum.GetPlane(i).Normal, g_Frustum.GetPlane(i).Dist);
+	}
+
+	private void OrthoExtractFrustumPlanes(ref Frustum frustumPlanes) => throw new NotImplementedException();
 
 	public void Push2DView(in ViewSetup view, ClearFlags flags, ITexture? renderTarget, Frustum frustumPlanes) {
 		ref ViewStack viewStack = ref ViewStack.Push();
@@ -370,7 +382,7 @@ public partial class Render(
 	}
 
 	public void DrawSceneEnd() {
-		// R_SceneEnd();
+		R_SceneEnd();
 		DebugLeafVis.LeafVisDraw();
 	}
 
@@ -379,7 +391,7 @@ public partial class Render(
 	}
 
 	public void ViewSetupVisEx(bool novis, ReadOnlySpan<Vector3> origins, out uint returnFlags) {
-		ModelLoader.Map_VisSetup(host_state.WorldModel, origins, novis, out returnFlags);
+		ModVis.Map_VisSetup(host_state.WorldModel, origins, novis, out returnFlags);
 	}
 
 
@@ -390,77 +402,11 @@ public partial class Render(
 		meshList.Mesh.Draw();
 	}
 
-	public void DrawWorld(DrawWorldListFlags flags, float waterZAdjust) {
-		using MatRenderContextPtr renderContext = new(materials);
-		Span<MatSysInterface.MeshList> meshLists = MaterialSystem.Meshes.AsSpan();
-
-		if ((flags & DrawWorldListFlags.Skybox) != 0) {
-			DrawSkybox(GetZFar());
-		}
-
-		for (int i = meshLists.Length - 1; i >= 0; i--) {
-			ref MatSysInterface.MeshList meshList = ref meshLists[i];
-
-			switch (meshList.ToolTexture) {
-				case MatSysInterface.ToolTexture.None:
-					RenderOneMesh(renderContext, in meshList);
-					break;
-				default:
-					// Don't draw the mesh
-					break;
-			}
-		}
-
-		DrawDisplacements();
-
-		g_StaticPropMgr.DrawAllStaticProps();
-	}
-
-	// cheating the system until wordlist stuff etc is done
-	private void DrawDisplacements() {
-		foreach (DispGroup group in g_DispGroups) {
-			group.Visible = 0;
-			foreach (GroupMesh mesh in group.Meshes)
-				mesh.NumVisible = 0;
-		}
-
-		foreach (DispGroup group in g_DispGroups) {
-			foreach (GroupMesh mesh in group.Meshes) {
-				foreach (DispInfo? disp in mesh.DispInfos) {
-					disp?.Render(mesh, true);
-				}
-			}
-		}
-
-		DispInfo_DrawPrimLists();
-	}
-
-	private void DispInfo_DrawPrimLists() {
-		using MatRenderContextPtr renderContext = new(materials);
-
-		foreach (DispGroup group in g_DispGroups) {
-			if (group.Visible == 0)
-				continue;
-
-			renderContext.Bind(group.Material!);
-			renderContext.BindLightmapPage(group.LightmapPageID);
-
-			foreach (GroupMesh mesh in group.Meshes) {
-				if (mesh.NumVisible == 0)
-					continue;
-
-				for (int visible = 0; visible < mesh.NumVisible; visible++)
-					mesh.Mesh!.Draw(mesh.Visible[visible].FirstIndex, mesh.Visible[visible].NumIndices);
-
-				mesh.NumVisible = 0;
-			}
-		}
-	}
 	static ConVar r_drawskybox = new("1", FCvar.Cheat);
 
 	static readonly int[] SkyTexOrder = [0, 2, 1, 3, 4, 5];
 	static readonly int[] FakePlaneType = [1, -1, 2, -2, 3, -3];
-	private void DrawSkybox(float zFar, int drawFlags = 0x3F) {
+	public void DrawSkybox(float zFar, int drawFlags = 0x3F) {
 		if (!r_drawskybox.GetBool())
 			return;
 
@@ -691,7 +637,7 @@ public partial class Render(
 		}
 	}
 
-	private float ComputeViewMatrices(ref Matrix4x4 worldToView, ref Matrix4x4 viewToProjection, ref Matrix4x4 worldToProjection, in ViewSetup viewSetup) {
+	internal float ComputeViewMatrices(ref Matrix4x4 worldToView, ref Matrix4x4 viewToProjection, ref Matrix4x4 worldToProjection, in ViewSetup viewSetup) {
 		float aspectRatio = viewSetup.AspectRatio;
 		if (aspectRatio == 0.0f)
 			aspectRatio = (viewSetup.Height != 0) ? ((float)viewSetup.Height / (float)viewSetup.Width) : 1.0f;
@@ -1117,16 +1063,26 @@ public partial class Render(
 		throw new NotImplementedException();
 	}
 
-	public IWorldRenderList? CreateWorldList() {
-		throw new NotImplementedException();
-	}
+	public IWorldRenderList? CreateWorldList() => AllocWorldRenderList();
 
 	public void BuildWorldLists(IWorldRenderList? list, ref WorldListInfo info, int forceViewLeaf, ReadOnlySpan<VisOverrideData> visData, bool shadowDepth, Span<float> reflectionWaterHeight) {
-		throw new NotImplementedException();
+		Assert(list);
+		Assert(LightmapUpdateDepth > 0 || g_LightmapUpdateList.Count == 0);
+
+		if (shadowDepth)
+			BeginUpdateLightmaps();
+
+		R_BuildWorldLists(list!, ref info, forceViewLeaf, visData, shadowDepth, reflectionWaterHeight);
+
+		if (!shadowDepth)
+			EndUpdateLightmaps();
+
+		Assert(LightmapUpdateDepth > 0 || g_LightmapUpdateList.Count == 0);
 	}
 
 	public void DrawWorldLists(IWorldRenderList? list, uint flags, float waterZAdjust) {
-		throw new NotImplementedException();
+		Assert(list);
+		R_DrawWorldLists(list!, (DrawWorldListFlags)flags, waterZAdjust);
 	}
 
 	public void ViewSetupVisEx(bool novis, Span<Vector3> origin, out uint returnFlags) {

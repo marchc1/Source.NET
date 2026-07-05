@@ -322,21 +322,6 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 #endif
 	}
 
-	// todo: pvs, remove this func
-	public void DrawAllStaticProps() {
-		ComputePropOpacity(CurrentViewOrigin(), 1.0f); // called from UpdateRenderablesOpacity
-
-		IClientRenderable[] props = new IClientRenderable[StaticProps.Count];
-		int count = 0;
-		foreach (StaticProp prop in StaticProps) {
-			prop.ComputeFxBlend();
-			if (prop.ShouldDraw())
-				props[count++] = prop;
-		}
-
-		DrawStaticProps(props, count, false, false);
-	}
-
 	public void DrawStaticProps(IClientRenderable[] props, int count, bool shadowDepth, bool drawVCollideWireframe) {
 		if (!r_drawstaticprops.GetBool())
 			return;
