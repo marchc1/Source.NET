@@ -64,7 +64,7 @@ public interface IClientRenderable
 	// equal to studiohdr_t::numbones. Use MAXSTUDIOBONES to be safe.)
 	bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, TimeUnit_t currentTime);
 
-	void SetupWeights(Span<Matrix3x4> boneToWorld, Span<float> flexWeights, Span<float> flexDelayedWeights );
+	void SetupWeights(Span<Matrix3x4> boneToWorld, Span<float> flexWeights, Span<float> flexDelayedWeights);
 	void DoAnimationEvents();
 
 	// Return this if you want PVS notifications. See IPVSNotify for more info.	
@@ -73,7 +73,7 @@ public interface IClientRenderable
 	IPVSNotify? GetPVSNotifyInterface();
 
 	// Returns the bounds relative to the origin (render bounds)
-	void GetRenderBounds(out Vector3 mins, out Vector3 maxs );
+	void GetRenderBounds(out Vector3 mins, out Vector3 maxs);
 
 	// returns the bounds as an AABB in worldspace
 	void GetRenderBoundsWorldspace(out Vector3 mins, out Vector3 maxs);
@@ -108,9 +108,9 @@ public interface IClientRenderable
 	ref readonly Matrix3x4 RenderableToWorldTransform();
 
 	// Attachments
-	int LookupAttachment(ReadOnlySpan<char> attachmentName );
-	bool GetAttachment(int number, out Vector3 origin, out QAngle angles );
-	bool GetAttachment(int number, out Matrix3x4 matrix );
+	int LookupAttachment(ReadOnlySpan<char> attachmentName);
+	bool GetAttachment(int number, out Vector3 origin, out QAngle angles);
+	bool GetAttachment(int number, out Matrix3x4 matrix);
 
 	// Rendering clip plane, should be 4 floats, return value of NULL indicates a disabled render clip plane
 	Span<float> GetRenderClipPlane();

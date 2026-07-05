@@ -130,9 +130,8 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 			return false;
 		}
 
-		// todo
-		// if (R_CullBox(BBoxMin, BBoxMax, g_Frustum))
-		//	return false;
+		if (MathLib.R_CullBox(BBoxMin, BBoxMax, g_Frustum))
+			return false;
 
 		bool normalRender = true;
 		if (allowDebugModes) {

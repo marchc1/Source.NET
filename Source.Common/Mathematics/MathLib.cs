@@ -795,6 +795,23 @@ public static class MathLib
 		return bits;
 	}
 
+	public static bool R_CullBox(in Vector3 mins, in Vector3 maxs, Frustum_t frustum) {
+		return (BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Right)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Left)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Top)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Bottom)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.NearZ)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.FarZ)) == 2);
+	}
+
+	public static bool R_CullBoxSkipNear(in Vector3 mins, in Vector3 maxs, Frustum_t frustum) {
+		return (BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Right)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Left)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Top)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Bottom)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.FarZ)) == 2);
+	}
+
 	// Returns which side(s) of a plane a box straddles: 1 = front, 2 = back, 3 = both (straddling).
 	// Analog of BOX_ON_PLANE_SIDE / BoxOnPlaneSide.
 	public static int BoxOnPlaneSide(in Vector3 emins, in Vector3 emaxs, in CollisionPlane p) {

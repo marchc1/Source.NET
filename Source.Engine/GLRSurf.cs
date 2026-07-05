@@ -900,8 +900,8 @@ public static class GLRSurf
 		else
 			info.ViewFogVolume = (int)MatSortGroup.StrictlyAboveWater;
 		info.LeafCount = renderList.VisibleLeaves.Count;
-		info.LeafList = CollectionsMarshal.AsSpan(renderList.VisibleLeaves);
-		info.LeafFogVolume = CollectionsMarshal.AsSpan(renderList.VisibleLeafFogVolumes);
+		info.LeafList = renderList.VisibleLeaves;
+		info.LeafFogVolume = renderList.VisibleLeafFogVolumes;
 	}
 
 	static void ClearFogInfo(ref VisibleFogVolumeInfo info) => throw new NotImplementedException();
@@ -1071,7 +1071,19 @@ public class EngineBSPTree : ISpatialQuery
 
 	public bool EnumerateLeavesAtPoint(in Vector3 pt, ISpatialLeafEnumerator pEnum, nint context) => pEnum.EnumerateLeaf(CM.PointLeafnum(pt), context);
 
-	public bool EnumerateLeavesInBox(in Vector3 mins, in Vector3 maxs, ISpatialLeafEnumerator pEnum, nint context) => throw new NotImplementedException();
+	public bool EnumerateLeavesInBox(in Vector3 mins, in Vector3 maxs, ISpatialLeafEnumerator pEnum, nint context) {
+		if (host_state.WorldModel == null)
+			return false;
+
+		EnumLeafBoxInfo info = default;
+		info.BoxCenter = (mins + maxs) * 0.5f;
+		info.BoxHalfDiagonal = maxs - info.BoxCenter;
+		info.Iterator = pEnum;
+		info.Context = context;
+		info.BoxMax = maxs;
+		info.BoxMin = mins;
+		return EnumerateLeafInBox_R(host_state.WorldBrush!.Nodes![0], ref info);
+	}
 
 	public bool EnumerateLeavesInSphere(in Vector3 center, float radius, ISpatialLeafEnumerator pEnum, nint context) {
 		EnumLeafSphereInfo info = default;
@@ -1087,7 +1099,57 @@ public class EngineBSPTree : ISpatialQuery
 
 	public bool EnumerateLeavesAlongRay(in Ray ray, ISpatialLeafEnumerator pEnum, nint context) => throw new NotImplementedException();
 
-	static bool EnumerateLeafInBox_R(BSPMNode node, ref EnumLeafBoxInfo info) => throw new NotImplementedException();
+	static bool EnumerateLeafInBox_R(BSPMNode node, ref EnumLeafBoxInfo info) {
+		if (node.Contents == (int)Contents.Solid)
+			return true;
+
+		if (!CollisionUtils.IsBoxIntersectingBoxExtents(node.Center, node.HalfDiagonal, info.BoxCenter, info.BoxHalfDiagonal))
+			return true;
+
+		if (node.Contents >= 0)
+			return info.Iterator!.EnumerateLeaf(((BSPMLeaf)node).Index, info.Context);
+
+		ref CollisionPlane plane = ref node.Plane;
+		if ((byte)plane.Type <= 2) {
+			if (info.BoxMax[(byte)plane.Type] <= plane.Dist) {
+				return EnumerateLeafInBox_R(node.Children[1]!, ref info);
+			}
+			else if (info.BoxMin[(byte)plane.Type] >= plane.Dist) {
+				return EnumerateLeafInBox_R(node.Children[0]!, ref info);
+			}
+			else {
+				bool ret = EnumerateLeafInBox_R(node.Children[0]!, ref info);
+				if (!ret)
+					return false;
+
+				return EnumerateLeafInBox_R(node.Children[1]!, ref info);
+			}
+		}
+
+		Vector3 normal = plane.Normal;
+		Vector3 cornermin = new(
+			normal.X >= 0 ? info.BoxMin.X : info.BoxMax.X,
+			normal.Y >= 0 ? info.BoxMin.Y : info.BoxMax.Y,
+			normal.Z >= 0 ? info.BoxMin.Z : info.BoxMax.Z);
+		Vector3 cornermax = new(
+			normal.X >= 0 ? info.BoxMax.X : info.BoxMin.X,
+			normal.Y >= 0 ? info.BoxMax.Y : info.BoxMin.Y,
+			normal.Z >= 0 ? info.BoxMax.Z : info.BoxMin.Z);
+
+		if (MathLib.DotProduct(plane.Normal, cornermax) <= plane.Dist) {
+			return EnumerateLeafInBox_R(node.Children[1]!, ref info);
+		}
+		else if (MathLib.DotProduct(plane.Normal, cornermin) >= plane.Dist) {
+			return EnumerateLeafInBox_R(node.Children[0]!, ref info);
+		}
+		else {
+			bool ret = EnumerateLeafInBox_R(node.Children[0]!, ref info);
+			if (!ret)
+				return false;
+
+			return EnumerateLeafInBox_R(node.Children[1]!, ref info);
+		}
+	}
 
 	static bool EnumerateLeavesAlongRay_R(BSPMNode node, in Ray ray, float start, float end, ISpatialLeafEnumerator pEnum, nint context) => throw new NotImplementedException();
 

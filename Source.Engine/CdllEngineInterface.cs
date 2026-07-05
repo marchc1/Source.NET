@@ -234,7 +234,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public bool CullBox(in Vector3 mins, in Vector3 maxs) {
-		return true;
+		return MathLib.R_CullBoxSkipNear(mins, maxs, g_Frustum);
 	}
 
 	public void Sound_ExtraUpdate() {

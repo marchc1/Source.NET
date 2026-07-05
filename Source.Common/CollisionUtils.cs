@@ -122,6 +122,12 @@ public static class CollisionUtils
 		return true;
 	}
 
+	public static bool IsBoxIntersectingBoxExtents(in Vector3 boxCenter1, in Vector3 boxHalfDiagonal1, in Vector3 boxCenter2, in Vector3 boxHalfDiagonal2) {
+		Vector3 delta = Vector3.Abs(boxCenter1 - boxCenter2);
+		Vector3 size = boxHalfDiagonal1 + boxHalfDiagonal2;
+		return delta.X <= size.X && delta.Y <= size.Y && delta.Z <= size.Z;
+	}
+
 	public static bool IsBoxIntersectingSphereExtents(in Vector3 boxCenter, in Vector3 boxHalfDiag, in Vector3 center, float radius) {
 		float dmin = 0.0f;
 		float delta, diff;

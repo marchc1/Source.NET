@@ -12,12 +12,12 @@ public interface IWorldRenderList
 
 }
 
-public ref struct WorldListInfo
+public struct WorldListInfo
 {
 	public int ViewFogVolume;
 	public int LeafCount;
-	public Span<LeafIndex_t> LeafList;
-	public Span<LeafFogVolume_t> LeafFogVolume;
+	public List<LeafIndex_t> LeafList;
+	public List<LeafFogVolume_t> LeafFogVolume;
 }
 
 public struct VisOverrideData

@@ -952,7 +952,7 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public void GetRenderBoundsWorldspace(out Vector3 mins, out Vector3 maxs) {
-		throw new NotImplementedException();
+		ClientLeafSystem.DefaultRenderBoundsWorldspace(this, out mins, out maxs);
 	}
 
 	public bool IsTransparent() {
