@@ -429,7 +429,7 @@ public static class GLRSurf
 			while (swapped) {
 				swapped = false;
 				for (int i = 1; i < meshTotal; i++) {
-					if (MatSys.WorldStaticMeshes.IndexOf(meshList[meshMap[i]].Mesh) < MatSys.WorldStaticMeshes.IndexOf(meshList[meshMap[i - 1]].Mesh)) {
+					if (RuntimeHelpers.GetHashCode(meshList[meshMap[i]].Mesh) < RuntimeHelpers.GetHashCode(meshList[meshMap[i - 1]].Mesh)) {
 						(meshMap[i - 1], meshMap[i]) = (meshMap[i], meshMap[i - 1]);
 						swapped = true;
 					}
