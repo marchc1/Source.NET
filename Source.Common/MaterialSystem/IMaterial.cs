@@ -431,6 +431,9 @@ public interface IMaterial
 	IMaterialVar FindVar(ReadOnlySpan<char> varName, out bool found, bool complain = true);
 	void Refresh();
 	void ColorModulate(float r, float g, float b);
+	void GetColorModulation(out float r, out float g, out float b);
+	void AlphaModulate(float alpha);
+	float GetAlphaModulation();
 	bool IsErrorMaterialInternal();
 	VertexFormat GetVertexFormat();
 	ReadOnlySpan<char> GetName();

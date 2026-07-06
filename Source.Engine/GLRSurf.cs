@@ -1,6 +1,8 @@
 global using static Source.Engine.GLRSurfGlobals;
 global using static Source.Engine.GLRSurf;
 
+using CommunityToolkit.HighPerformance;
+
 using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
@@ -108,7 +110,6 @@ public static class GLRSurfGlobals
 	public const float BACKFACE_EPSILON = -0.01f;
 	public const int MAX_VERTEX_FORMAT_CHANGES = 256;
 
-
 	public readonly static ConVar r_drawtranslucentworld = new("r_drawtranslucentworld", "1", FCvar.Cheat);
 	public readonly static ConVar mat_forcedynamic = new("mat_forcedynamic", "0", FCvar.Cheat);
 	public readonly static ConVar r_drawleaf = new("r_drawleaf", "-1", FCvar.Cheat, "Draw the specified leaf.");
@@ -212,11 +213,38 @@ public class WorldRenderList : IWorldRenderList
 
 public static class GLRSurf
 {
-	static readonly MatSysInterface MatSys = Singleton<MatSysInterface>();
+	internal static readonly MatSysInterface MatSys = Singleton<MatSysInterface>();
+	static readonly RenderView RenderView = (RenderView)Singleton<IRenderView>();
 
-	public static void Shader_BrushBegin(Model? model, IClientEntity? baseEntity = null) => throw new NotImplementedException();
+	public static void ModulateMaterial(IMaterial material, Span<float> oldColor) {
+		if (RenderView.IsBlendingOrModulating) {
+			oldColor[3] = material.GetAlphaModulation();
+			material.GetColorModulation(out float r, out float g, out float b);
+			oldColor[0] = r;
+			oldColor[1] = g;
+			oldColor[2] = b;
+			material.AlphaModulate(RenderView.r_blend);
+			material.ColorModulate(RenderView.r_colormod.X, RenderView.r_colormod.Y, RenderView.r_colormod.Z);
+		}
+	}
+
+	public static void UnModulateMaterial(IMaterial material, Span<float> oldColor) {
+		if (RenderView.IsBlendingOrModulating) {
+			material.AlphaModulate(oldColor[3]);
+			material.ColorModulate(oldColor[0], oldColor[1], oldColor[2]);
+		}
+	}
+
+	public static void Shader_BrushBegin(Model? model, IClientEntity? baseEntity = null) {
+		// todo
+	}
 	public static void Shader_BrushSurface(SurfaceHandle_t surfID, Model? model, IClientEntity? baseEntity = null) => throw new NotImplementedException();
-	public static void Shader_BrushEnd(IMatRenderContext renderContext, in Matrix4x4 brushToWorld, Model? model, bool shadowDepth, IClientEntity? baseEntity = null) => throw new NotImplementedException();
+	public static void Shader_BrushEnd(IMatRenderContext renderContext, in Matrix4x4? brushToWorld, Model? model, bool shadowDepth, IClientEntity? baseEntity = null) {
+		if (shadowDepth)
+			return;
+
+		// todo
+	}
 	public static void BuildMSurfaceVertexArrays(WorldBrushData brushData, SurfaceHandle_t surfID, float overbright, MeshBuilder builder) => throw new NotImplementedException();
 
 	public static void BuildIndicesForSurface(ref MeshBuilder meshBuilder, SurfaceHandle_t surfID) {
@@ -930,7 +958,44 @@ public static class GLRSurf
 	static void R_DrawBrushModel_Override(IClientEntity? baseEntity, Model? model, in Vector3 origin) => throw new NotImplementedException();
 	public static int R_MarkDlightsOnBrushModel(Model? model, IClientRenderable renderable) => throw new NotImplementedException();
 
-	public static void R_DrawBrushModel(IClientEntity? baseEntity, Model? model, in Vector3 origin, in QAngle angles, RenderDepthMode depthMode, bool drawOpaque, bool drawTranslucent) => throw new NotImplementedException();
+	public static readonly BrushBatchRender g_BrushBatchRenderer = new();
+
+	public static void R_DrawBrushModel(IClientEntity? baseEntity, Model? model, in Vector3 origin, in QAngle angles, RenderDepthMode depthMode, bool drawOpaque, bool drawTranslucent) {
+		if (MatSysInterface.r_drawbrushmodels.GetInt() == 0)
+			return;
+
+		bool wireframe = false;
+		if (MatSysInterface.r_drawbrushmodels.GetInt() == 2) {
+			wireframe = g_ShaderDebug.Wireframe;
+			g_ShaderDebug.Wireframe = true;
+			g_ShaderDebug.AnyDebug = true;
+		}
+
+		using MatRenderContextPtr renderContext = new(materials);
+		using BrushModelTransform brushTransform = new(origin, angles, renderContext);
+
+		Assert(model!.Brush.FirstModelSurface != 0);
+
+		Shader_BrushBegin(model, baseEntity);
+
+		if ((model.Flags & ModelFlag.FramebufferTexture) != 0) {
+			// todo
+		}
+
+		if ((model.Flags & ModelFlag.Translucent) != 0) {
+			if (depthMode == RenderDepthMode.Normal)
+				g_BrushBatchRenderer.DrawTranslucentBrushModel(baseEntity, model, origin, false, drawOpaque, drawTranslucent);
+		}
+		else if (drawOpaque)
+			g_BrushBatchRenderer.DrawOpaqueBrushModel(baseEntity, model, origin, depthMode);
+
+		Shader_BrushEnd(renderContext, brushTransform.GetNonIdentityMatrix(), model, depthMode != RenderDepthMode.Normal, baseEntity);
+
+		if (MatSysInterface.r_drawbrushmodels.GetInt() == 2) {
+			g_ShaderDebug.Wireframe = wireframe;
+			g_ShaderDebug.TestAnyDebug();
+		}
+	}
 	public static void R_DrawBrushModelShadow(IClientRenderable renderable) => throw new NotImplementedException();
 	public static void R_DrawIdentityBrushModel(IWorldRenderList renderListIn, Model? model) => throw new NotImplementedException();
 }
@@ -995,7 +1060,12 @@ public class BrushBatchRender
 		public short TotalIndexCount;
 		public short TotalVertexCount;
 
-		public void Free() => throw new NotImplementedException();
+		public void Free() {
+			Planes = null;
+			Meshes = null;
+			Batches = null;
+			Surfaces = null;
+		}
 	}
 
 	public struct SurfaceList
@@ -1028,11 +1098,230 @@ public class BrushBatchRender
 		public short DecalSurfaceCount;
 	}
 
-	public static int SurfaceCmp(in SurfaceList s0, in SurfaceList s1) => throw new NotImplementedException();
-	public void LevelInit() => throw new NotImplementedException();
-	public void ClearRenderHandles() => throw new NotImplementedException();
-	public void DrawOpaqueBrushModel(IClientEntity? baseEntity, Model? model, in Vector3 origin, RenderDepthMode depthMode) => throw new NotImplementedException();
-	public void DrawTranslucentBrushModel(IClientEntity? baseEntity, Model? model, in Vector3 origin, bool shadowDepth, bool drawOpaque, bool drawTranslucent) => throw new NotImplementedException();
+	readonly List<BrushRender> RenderList = [];
+
+	public static int SurfaceCmp(in SurfaceList s0, in SurfaceList s1) {
+		int sortID0 = ModelLoader.MSurf_MaterialSortID(ref ModelLoader.SurfaceHandleFromIndex(s0.SurfID));
+		int sortID1 = ModelLoader.MSurf_MaterialSortID(ref ModelLoader.SurfaceHandleFromIndex(s1.SurfID));
+
+		return sortID0 - sortID1;
+	}
+
+	public void LevelInit() {
+		foreach (BrushRender render in RenderList)
+			render.Free();
+
+		RenderList.Clear();
+
+		ClearRenderHandles();
+	}
+
+	public void ClearRenderHandles() {
+		for (int brush = 1; brush < host_state.WorldBrush!.NumSubModels; ++brush) {
+			Span<char> brushModel = stackalloc char[5];
+			sprintf(brushModel, $"*{brush}");
+			Model? model = modelloader.GetModelForName(brushModel.SliceNullTerminatedString(), ModelLoaderFlags.Server);
+			if (model != null)
+				model.Brush.RenderHandle = 0;
+		}
+	}
+
+	public BrushRender? FindOrCreateRenderBatch(Model model) {
+		if (model.Brush.NumModelSurfaces == 0)
+			return null;
+
+		int index = model.Brush.RenderHandle - 1;
+
+		if (RenderList.IsValidIndex(index))
+			return RenderList[index];
+
+		index = RenderList.Count;
+		BrushRender renderT = new();
+		RenderList.Add(renderT);
+		model.Brush.RenderHandle = (ushort)(index + 1);
+		renderT.Planes = null;
+		renderT.Meshes = null;
+		renderT.PlaneCount = 0;
+		renderT.MeshCount = 0;
+		renderT.TotalIndexCount = 0;
+		renderT.TotalVertexCount = 0;
+
+		List<CollisionPlane> planeList = [];
+		List<SurfaceList> surfaceList = [];
+
+		int i;
+
+		for (i = 0; i < model.Brush.NumModelSurfaces; i++) {
+			SurfaceHandle_t surfID = model.Brush.FirstModelSurface + i;
+			ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID, model.Brush.Shared);
+			if ((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.Trans) != 0)
+				continue;
+
+			ref CollisionPlane plane = ref ModelLoader.MSurf_Plane(ref surface);
+			int planeIndex = -1;
+			for (int p = 0; p < planeList.Count; p++) {
+				if (planeList[p].Normal == plane.Normal && planeList[p].Dist == plane.Dist) {
+					planeIndex = p;
+					break;
+				}
+			}
+			if (planeIndex == -1) {
+				planeIndex = planeList.Count;
+				planeList.Add(plane);
+			}
+			SurfaceList tmp;
+			tmp.SurfID = surfID;
+			tmp.SurfaceIndex = (short)i;
+			tmp.PlaneIndex = planeIndex;
+			surfaceList.Add(tmp);
+		}
+		surfaceList.Sort((a, b) => SurfaceCmp(a, b));
+		renderT.Planes = new CollisionPlane[planeList.Count];
+		renderT.PlaneCount = (short)planeList.Count;
+		for (i = 0; i < planeList.Count; i++)
+			renderT.Planes[i] = planeList[i];
+		renderT.Surfaces = new BrushRenderSurface[surfaceList.Count];
+		renderT.SurfaceCount = (short)surfaceList.Count;
+
+		int meshCount = 0;
+		int batchCount = 0;
+		int lastSortID = -1;
+		IMesh? lastMesh = null;
+		BrushRenderMesh[] tmpMesh = new BrushRenderMesh[MAX_VERTEX_FORMAT_CHANGES];
+		BrushRenderBatch[] tmpBatch = new BrushRenderBatch[128];
+
+		for (i = 0; i < surfaceList.Count; i++) {
+			renderT.Surfaces[i].SurfaceIndex = surfaceList[i].SurfaceIndex;
+			renderT.Surfaces[i].PlaneIndex = surfaceList[i].PlaneIndex;
+
+			SurfaceHandle_t surfID = surfaceList[i].SurfID;
+			ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID, model.Brush.Shared);
+			int sortID = ModelLoader.MSurf_MaterialSortID(ref surface);
+			if (!ReferenceEquals(MatSys.WorldStaticMeshes[sortID], lastMesh)) {
+				tmpMesh[meshCount].FirstBatch = (short)batchCount;
+				tmpMesh[meshCount].BatchCount = 0;
+				lastSortID = -1;
+				meshCount++;
+			}
+			if (sortID != lastSortID) {
+				tmpBatch[batchCount].FirstSurface = (short)i;
+				tmpBatch[batchCount].SurfaceCount = 0;
+				tmpBatch[batchCount].SortID = sortID;
+				tmpBatch[batchCount].Material = ModelLoader.MSurf_TexInfo(ref surface, model.Brush.Shared).Material;
+				tmpBatch[batchCount].IndexCount = 0;
+				tmpMesh[meshCount - 1].BatchCount++;
+				batchCount++;
+			}
+			lastMesh = MatSys.WorldStaticMeshes[sortID];
+			lastSortID = sortID;
+			tmpBatch[batchCount - 1].SurfaceCount++;
+			int vertCount = ModelLoader.MSurf_VertCount(ref surface);
+			int indexCount = (vertCount - 2) * 3;
+			tmpBatch[batchCount - 1].IndexCount += indexCount;
+			renderT.TotalIndexCount += (short)indexCount;
+			renderT.TotalVertexCount += (short)vertCount;
+		}
+
+		renderT.Meshes = new BrushRenderMesh[meshCount];
+		Array.Copy(tmpMesh, renderT.Meshes, meshCount);
+		renderT.MeshCount = (short)meshCount;
+		renderT.Batches = new BrushRenderBatch[batchCount];
+		Array.Copy(tmpBatch, renderT.Batches, batchCount);
+		renderT.BatchCount = (short)batchCount;
+		return renderT;
+	}
+
+	public void DrawOpaqueBrushModel(IClientEntity? baseEntity, Model? model, in Vector3 origin, RenderDepthMode depthMode) {
+		SurfaceHandle_t firstSurfID = model!.Brush.FirstModelSurface;
+
+		BrushRender? render = FindOrCreateRenderBatch(model);
+		int i;
+		if (render == null)
+			return;
+
+		bool skipLight = false;
+		using MatRenderContextPtr renderContext = new(materials);
+
+		if (MatSysInterface.MaterialSystemConfig.Fullbright == 1 || depthMode == RenderDepthMode.Shadow) {
+			renderContext.BindLightmapPage(StandardLightmap.WhiteBump);
+			skipLight = true;
+		}
+
+		object? proxyData = baseEntity?.GetClientRenderable();
+		Span<bool> backface = stackalloc bool[1024];
+		Assert(render.PlaneCount < 1024);
+
+		for (i = 0; i < render.PlaneCount; i++) {
+			float dot = MathLib.DotProduct(ModelOrg, render.Planes![i].Normal) - render.Planes[i].Dist;
+			backface[i] = depthMode == RenderDepthMode.Normal && dot < BACKFACE_EPSILON;
+		}
+
+		Span<float> oldColor = stackalloc float[4];
+
+		for (i = 0; i < render.MeshCount; i++) {
+			ref BrushRenderMesh mesh = ref render.Meshes![i];
+			for (int j = 0; j < mesh.BatchCount; j++) {
+				ref BrushRenderBatch batch = ref render.Batches![mesh.FirstBatch + j];
+
+				int k;
+				for (k = 0; k < batch.SurfaceCount; k++) {
+					ref BrushRenderSurface surface = ref render.Surfaces![batch.FirstSurface + k];
+					if (!backface[(int)surface.PlaneIndex])
+						break;
+				}
+
+				if (k == batch.SurfaceCount)
+					continue;
+
+				MeshBuilder meshBuilder = new();
+				IMaterial? material;
+
+				if (depthMode != RenderDepthMode.Normal) {
+					throw new NotImplementedException();
+				}
+				else {
+					material = batch.Material;
+
+					ModulateMaterial(material!, oldColor);
+					if (!skipLight)
+						renderContext.BindLightmapPage(MatSys.MaterialSortInfoArray![batch.SortID].LightmapPageID);
+				}
+
+				renderContext.Bind(material!, proxyData);
+				IMesh pBuildMesh = renderContext.GetDynamicMesh(false, MatSys.WorldStaticMeshes[batch.SortID]);
+				meshBuilder.Begin(pBuildMesh, MaterialPrimitiveType.Triangles, 0, batch.IndexCount);
+
+				for (; k < batch.SurfaceCount; k++) {
+					ref BrushRenderSurface surface = ref render.Surfaces![batch.FirstSurface + k];
+					if (backface[(int)surface.PlaneIndex])
+						continue;
+					SurfaceHandle_t surfID = firstSurfID + surface.SurfaceIndex;
+
+					BuildIndicesForSurface(ref meshBuilder, surfID);
+
+					// todo
+				}
+
+				meshBuilder.End(false, true);
+
+				if (depthMode == RenderDepthMode.Normal)
+					UnModulateMaterial(material!, oldColor);
+			}
+		}
+
+		if (depthMode != RenderDepthMode.Normal)
+			return;
+
+		// todo
+	}
+
+	public void DrawTranslucentBrushModel(IClientEntity? baseEntity, Model? model, in Vector3 origin, bool shadowDepth, bool drawOpaque, bool drawTranslucent) {
+		if (drawOpaque)
+			DrawOpaqueBrushModel(baseEntity, model, origin, shadowDepth ? RenderDepthMode.Shadow : RenderDepthMode.Normal);
+
+		// todo: translucent
+	}
+
 	public void DrawBrushModelShadow(Model? model, IClientRenderable renderable) => throw new NotImplementedException();
 }
 
@@ -1040,11 +1329,38 @@ public class BrushModelTransform : IDisposable
 {
 	public Vector3 SavedModelOrg;
 	public bool Identity;
+	Matrix3x4 BrushToWorldMatrix;
 
-	public BrushModelTransform(in Vector3 origin, in QAngle angles, IMatRenderContext renderContext) => throw new NotImplementedException();
-	public void Dispose() => throw new NotImplementedException();
+	public BrushModelTransform(in Vector3 origin, in QAngle angles, IMatRenderContext renderContext) {
+		bool rotated = angles[0] != 0 || angles[1] != 0 || angles[2] != 0;
+		Identity = origin == Vector3.Zero && !rotated;
 
-	public Matrix4x4? GetNonIdentityMatrix() => throw new NotImplementedException();
+		if (!Identity) {
+			SavedModelOrg = ModelOrg;
+			renderContext.MatrixMode(MaterialMatrixMode.Model);
+			renderContext.PushMatrix();
+			MathLib.AngleMatrix(angles, origin, out BrushToWorldMatrix);
+			renderContext.LoadMatrix(BrushToWorldMatrix);
+
+			Vector3 delta = g_EngineRenderer.ViewOrigin() - origin;
+			ModelOrg = new Vector3(
+				delta.X * BrushToWorldMatrix.M00 + delta.Y * BrushToWorldMatrix.M10 + delta.Z * BrushToWorldMatrix.M20,
+				delta.X * BrushToWorldMatrix.M01 + delta.Y * BrushToWorldMatrix.M11 + delta.Z * BrushToWorldMatrix.M21,
+				delta.X * BrushToWorldMatrix.M02 + delta.Y * BrushToWorldMatrix.M12 + delta.Z * BrushToWorldMatrix.M22
+			);
+		}
+	}
+
+	public void Dispose() {
+		if (!Identity) {
+			using MatRenderContextPtr renderContext = new(materials);
+			renderContext.MatrixMode(MaterialMatrixMode.Model);
+			renderContext.PopMatrix();
+			ModelOrg = SavedModelOrg;
+		}
+	}
+
+	public Matrix4x4? GetNonIdentityMatrix() => Identity ? null : BrushToWorldMatrix;
 	public bool IsIdentity() => Identity;
 }
 

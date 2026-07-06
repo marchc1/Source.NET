@@ -299,6 +299,9 @@ public class DummyMaterial : IMaterial
 		return false;
 	}
 	public void ColorModulate(float r, float g, float b) { }
+	public void AlphaModulate(float alpha) { }
+	public float GetAlphaModulation() => 1.0f;
+	public void GetColorModulation(out float r, out float g, out float b) { r = g = b = 1.0f; }
 }
 
 public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderContext

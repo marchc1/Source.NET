@@ -506,12 +506,10 @@ public class ClientLeafSystem : IClientLeafSystem, ISpatialLeafEnumerator
 	static readonly ConVar cl_drawleaf = new("cl_drawleaf", "-1", FCvar.Cheat);
 
 	private void AddRenderableToRenderList(ClientRenderablesList renderList, IClientRenderable? renderable, ushort leaf, RenderGroup renderGroup, ClientRenderHandle_t renderHandle = 0, bool twoPass = false) {
-#if DEBUG
 		if (cl_drawleaf.GetInt() >= 0) {
 			if (leaf != cl_drawleaf.GetInt())
 				return;
 		}
-#endif
 
 		Assert(renderGroup >= 0 && (int)renderGroup < ClientRenderablesList.RENDER_GROUP_COUNT);
 
@@ -593,6 +591,11 @@ public class ClientLeafSystem : IClientLeafSystem, ISpatialLeafEnumerator
 	}
 
 	public void LevelShutdownPostEntity() {
+		foreach (RenderableInfoBox box in Renderables.Values) {
+			IClientRenderable? renderable = box.Info.Renderable;
+			renderable?.RenderHandle() = INVALID_CLIENT_RENDER_HANDLE;
+		}
+
 		ViewModels.Clear();
 		Renderables.Clear();
 		Leaf.Clear();
