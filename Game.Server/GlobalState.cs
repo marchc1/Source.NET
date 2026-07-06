@@ -46,7 +46,7 @@ public class GlobalState : AutoGameSystem
 	}
 
 	public int GetIndex(ReadOnlySpan<char> str) {
-		UtlSymbol symName = new(NameList.Find(str));
+		UtlSymbol symName = NameList.Find(str);
 
 		if (symName.IsValid()) {
 			for (int i = List.Count - 1; i >= 0; --i) {

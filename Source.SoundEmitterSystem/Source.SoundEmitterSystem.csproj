@@ -6,7 +6,9 @@
     <Nullable>enable</Nullable>
     <Configurations>Debug;Release;Debug (Dedicated);Release (Dedicated)</Configurations>
   </PropertyGroup>
-
+	<ItemGroup>
+		<Compile Include="..\Usings\GlobalUsings.cs" Link="Usings/GlobalUsings.cs" />
+	</ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Source.Common\Source.Common.csproj" />
   </ItemGroup>

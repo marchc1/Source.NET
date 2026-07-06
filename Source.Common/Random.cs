@@ -17,6 +17,7 @@ public static class RandomGlobals {
 	static readonly UniformRandomStream s_UniformStream = new();
 	public static void RandomSeed(int seed) => s_UniformStream.SetSeed(seed);
 	public static float RandomFloat(float min, float max) => s_UniformStream.RandomFloat(min, max);
+	public static float RandomFloatExp(float min, float max, float exponent) => s_UniformStream.RandomFloatExp(min, max, exponent);
 	public static int RandomInt(int min, int max) => s_UniformStream.RandomInt(min, max);
 }
 

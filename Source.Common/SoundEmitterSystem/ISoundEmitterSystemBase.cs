@@ -85,15 +85,53 @@ public struct SoundInterval<T>
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public ref struct SoundParametersInternal : IEquatable<SoundParametersInternal>
+public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 {
-
 	public SoundParametersInternal() {
 
 	}
 
-	public void CopyFrom(ref SoundParametersInternal src) {
+	public void CopyFrom(in SoundParametersInternal src) {
+		if (SoundNamesCount > 1)
+			SoundNames = null;
+		if (ConvertedNamesCount > 1)
+			ConvertedNames = null;
 
+		Channel = src.Channel;
+		Volume = src.Volume;
+		Pitch = src.Pitch;
+		SoundLevel = src.SoundLevel;
+		DelayMsec= src.DelayMsec;
+		bPlayToOwnerOnly = src.bPlayToOwnerOnly;
+
+		SoundNamesCount = src.SoundNamesCount;
+		if (SoundNamesCount != 0) {
+			if (SoundNamesCount > 1) {
+				SoundNames = new SoundFile[SoundNamesCount];
+				memcpy(SoundNames, src.SoundNames, SoundNamesCount);
+			}
+			else {
+				SoundNames = src.SoundNames;
+			}
+		}
+		else 
+			SoundNames = null;
+
+		ConvertedNamesCount = src.ConvertedNamesCount;
+		if (ConvertedNamesCount != 0) {
+			if (ConvertedNamesCount > 1) {
+				ConvertedNames = new SoundFile[ConvertedNamesCount];
+				memcpy(ConvertedNames, src.ConvertedNames, ConvertedNamesCount);
+			}
+			else {
+				ConvertedNames = src.ConvertedNames;
+			}
+		}
+		else 
+			ConvertedNames = null;
+
+		bHadMissingWaveFiles = src.bHadMissingWaveFiles;
+		bUsesGenderToken = src.bUsesGenderToken;
 	}
 
 	public bool Equals(SoundParametersInternal other) {
@@ -390,32 +428,47 @@ public ref struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 
 	public void AddSoundName(in SoundFile soundFile) => AddToTail(ref SoundNames, ref SoundNamesCount, soundFile);
 	public int NumSoundNames() => SoundNamesCount;
-	public Span<SoundFile> GetSoundNamesForEdit() => SoundNames;
-	public ReadOnlySpan<SoundFile> GetSoundNames() => SoundNames;
+	public Span<SoundFile> GetSoundNames() => SoundNames;
 
 	public void AddConvertedName(in SoundFile soundFile) => AddToTail(ref ConvertedNames, ref ConvertedNamesCount, soundFile);
 	int NumConvertedNames() => ConvertedNamesCount;
-	Span<SoundFile> GetConvertedNamesForEdit() => ConvertedNames;
-	ReadOnlySpan<SoundFile> GetConvertedNames() => ConvertedNames;
+	Span<SoundFile> GetConvertedNames() => ConvertedNames;
 
-	void AddToTail(ref Span<SoundFile> dest, ref ushort destCount, in SoundFile source) {
+	void AddToTail(ref SoundFile[]? dest, ref ushort destCount, in SoundFile source) {
+		destCount++;
+		if (destCount == 1) {
+			// NOTE: when there's only one soundfile in the list, we store it
+			// packed into the pointer itself, the four bytes for the pointer is just used to store the sound file!
+			dest![0] = source;
+		}
+		else {
+			SoundFile temp = default;
+			if (destCount == 2) {
+				temp = dest![0];
+				dest = null!;
+			}
 
+			Array.Resize(ref dest, destCount);
+			dest[destCount - 1] = source;
+
+			if (destCount == 2) 
+				dest[0] = temp;
+		}
 	}
 
-	Span<SoundFile> SoundNames;           // 4
-	Span<SoundFile> ConvertedNames;       // 8
+	SoundFile[]? SoundNames;     
+	SoundFile[]? ConvertedNames; 
 
-	ushort SoundNamesCount;           // 4
-	ushort ConvertedNamesCount;       // 8
+	ushort ConvertedNamesCount; 
+	ushort SoundNamesCount;     
 
-	VolumeInterval Volume;                   // 16
-	SoundLevelInterval SoundLevel;               // 20
-	PitchInterval Pitch;                 // 22
-	SoundEntityChannel Channel;             // 24
-	ushort DelayMsec;              // 26
+	VolumeInterval Volume;         
+	SoundLevelInterval SoundLevel; 
+	PitchInterval Pitch;           
+	SoundEntityChannel Channel;    
+	ushort DelayMsec;              
 
-	bool bPlayToOwnerOnly; // For weapon sounds...	// 27
-						   // Internal use, for warning about missing .wav files
+	bool bPlayToOwnerOnly; 
 	bool bHadMissingWaveFiles;
 	bool bUsesGenderToken;
 	bool bShouldPreload;
@@ -468,7 +521,7 @@ public interface ISoundEmitterSystemBase
 	ReadOnlySpan<char> GetSoundName(int index);
 	bool GetParametersForSound(ReadOnlySpan<char> soundname, ref SoundParameters parms, Gender gender, bool isbeingemitted = false);
 
-	ReadOnlySpan<char> GetWaveName(out UtlSymbol sym);
+	ReadOnlySpan<char> GetWaveName(UtlSymbol sym);
 	UtlSymbol AddWaveName(ReadOnlySpan<char> name);
 
 	SoundLevel LookupSoundLevel(ReadOnlySpan<char> soundname);

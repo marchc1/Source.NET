@@ -1,5 +1,6 @@
 ﻿using Source.Common.Audio;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Source.Common.Engine;
 
@@ -7,6 +8,11 @@ public static class EngineSoundGlobals {
 	public const int SOUND_FROM_UI_PANEL = -2;      // Sound being played inside a UI panel on the client
 	public const int SOUND_FROM_LOCAL_PLAYER = -1;
 	public const int SOUND_FROM_WORLD = 0;
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static SoundLevel SNDLEVEL_TO_COMPATIBILITY_MODE(int x) => (SoundLevel)(int)(x + 256);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static SoundLevel SNDLEVEL_FROM_COMPATIBILITY_MODE(int x) => (SoundLevel)(int)(x - 256);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static SoundLevel SNDLEVEL_TO_COMPATIBILITY_MODE(SoundLevel x) => (SoundLevel)(int)(x + 256);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static SoundLevel SNDLEVEL_FROM_COMPATIBILITY_MODE(SoundLevel x) => (SoundLevel)(int)(x - 256);
 }
 
 public interface IEngineSound

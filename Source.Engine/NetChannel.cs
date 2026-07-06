@@ -1098,8 +1098,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 				sprintf(compressedfilename, "%s.ztmp").S(data.Filename);
 
 				// check the timestamps 
-				DateTime compressedFileTime = g_pFileSystem.Time(compressedfilename);
-				DateTime fileTime = g_pFileSystem.Time(data.Filename);
+				DateTime compressedFileTime = g_pFileSystem.GetFileTime(compressedfilename);
+				DateTime fileTime = g_pFileSystem.GetFileTime(data.Filename);
 
 				if (compressedFileTime >= fileTime) {
 					// compressed file is newer than uncompressed file, use this one
