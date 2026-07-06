@@ -876,8 +876,21 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
-	private int DrawBrushModel(bool v1, StudioFlags flags, bool v2) {
-		// todo
+	private int DrawBrushModel(bool drawingTranslucency, StudioFlags flags, bool twoPass) {
+		Assert(modelinfo.GetModelType(Model) == ModelType.Brush);
+
+		RenderDepthMode depthMode = RenderDepthMode.Normal;
+		if ((flags & StudioFlags.SSAODepthTexture) != 0)
+			depthMode = RenderDepthMode.SSAO;
+		else if ((flags & StudioFlags.ShadowDepthTexture) != 0)
+			depthMode = RenderDepthMode.Shadow;
+
+		if (depthMode != RenderDepthMode.Normal) {
+			// todo
+		}
+		else
+			render.DrawBrushModel(GetIClientEntity(), Model!, GetAbsOrigin(), GetAbsAngles());
+
 		return 1;
 	}
 

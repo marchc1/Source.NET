@@ -292,7 +292,7 @@ public class HTML : Panel
 
 		ContextMenu?.MarkForDeletion();
 		SteamHTMLSurface.RemoveBrowser(BrowserHandle);
-		HCursor.Clear();
+		HCursor?.Clear();
 	}
 
 	void OnBrowserReady(HTML_BrowserReady_t browserReady, bool ioFailure) {

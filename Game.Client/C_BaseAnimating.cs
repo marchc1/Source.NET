@@ -81,7 +81,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		if (ClientSideAnimation)
 			return true;
 
-		switch(GetMoveType()){
+		switch (GetMoveType()) {
 			case Source.MoveType.Step:
 			case Source.MoveType.None:
 			case Source.MoveType.Walk:
@@ -291,24 +291,63 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		}
 	}
 
-	protected virtual void ApplyBoneMatrixTransform(ref Matrix3x4 matrix4x4) {
+	protected virtual void ApplyBoneMatrixTransform(ref Matrix3x4 transform) {
+		switch ((RenderFx)RenderFX) {
+			case RenderFx.Distort:
+			case RenderFx.Hologram:
+				if (RandomInt(0, 49) == 0) {
+					int axis = RandomInt(0, 1);
+					if (axis == 1)
+						axis = 2;
+					MathLib.VectorScale(transform[axis], RandomFloat(1, 1.484f), transform[axis]);
+				}
+				else if (RandomInt(0, 49) == 0) {
+					float offset = RandomFloat(-10, 10);
+					transform[RandomInt(0, 2)][3] += offset;
+				}
+				break;
+			case RenderFx.Explode: {
+					float scale = 1.0f + (float)(gpGlobals.CurTime - AnimTime) * 10.0f;
+					if (scale > 2)
+						scale = 2;
+					transform[0, 1] *= scale;
+					transform[1, 1] *= scale;
+					transform[2, 1] *= scale;
+				}
+				break;
+			default:
+				break;
+		}
 
+		if (IsModelScaled()) {
+			float scale = GetModelScale();
+
+			MathLib.MatrixGetColumn(transform, 3, out Vector3 pos);
+			pos -= GetRenderOrigin();
+			pos *= scale;
+			pos += GetRenderOrigin();
+			MathLib.MatrixSetColumn(pos, 3, ref transform);
+
+			MathLib.VectorScale(transform[0], scale, transform[0]);
+			MathLib.VectorScale(transform[1], scale, transform[1]);
+			MathLib.VectorScale(transform[2], scale, transform[2]);
+		}
 	}
 
 	public void DelayedInitModelEffects() { /* todo */ }
 	public void ClearRagdoll() { /* todo */ }
 
-	public virtual void Simulate(){
-		if (DelayInitModelEffects) 
+	public virtual void Simulate() {
+		if (DelayInitModelEffects)
 			DelayedInitModelEffects();
 
-		if (gpGlobals.FrameTime != 0.0) 
+		if (gpGlobals.FrameTime != 0.0)
 			DoAnimationEvents(GetModelPtr()!);
-		
+
 		base.Simulate();
-		if (IsNoInterpolationFrame()) 
+		if (IsNoInterpolationFrame())
 			ResetLatched();
-		if (GetSequence() != -1 && Ragdoll != null && (RenderFX != (byte)RenderFx.Ragdoll)) 
+		if (GetSequence() != -1 && Ragdoll != null && (RenderFX != (byte)RenderFx.Ragdoll))
 			ClearRagdoll();
 	}
 
@@ -1025,7 +1064,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 
 		uint last = c - 1;
 
-		if (last == ClientSideAnimationListHandle) 
+		if (last == ClientSideAnimationListHandle)
 			g_ClientSideAnimationList.RemoveAt((int)last);
 		else {
 			ClientAnimating lastEntry = g_ClientSideAnimationList[(int)last];
@@ -1040,7 +1079,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		// Invalidate our handle no matter what.
 		ClientSideAnimationListHandle = INVALID_CLIENTSIDEANIMATION_LIST_HANDLE;
 
-		if (!beingDestroyed) 
+		if (!beingDestroyed)
 			UpdateRelevantInterpolatedVars();
 	}
 
@@ -1289,10 +1328,13 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		// Scale the base transform if we don't have a bone hierarchy
 		if (IsModelScaled()) {
 			StudioHdr? pHdr = GetModelPtr();
-			if (pHdr != null && !Unsafe.IsNullRef(ref boneToWorld) && pHdr.NumBones() == 1) {
+			if (pHdr != null && !boneToWorld.IsEmpty && pHdr.NumBones() == 1) {
 				// Scale the bone to world at this point
 				float flScale = GetModelScale();
-				// todo: vector scale
+				ref Matrix3x4 boneToWorld0 = ref boneToWorld[0];
+				MathLib.VectorScale(boneToWorld0[0], flScale, boneToWorld0[0]);
+				MathLib.VectorScale(boneToWorld0[1], flScale, boneToWorld0[1]);
+				MathLib.VectorScale(boneToWorld0[2], flScale, boneToWorld0[2]);
 			}
 		}
 

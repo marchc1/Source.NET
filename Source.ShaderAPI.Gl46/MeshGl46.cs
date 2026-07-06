@@ -1,6 +1,7 @@
 using Source.Common.MaterialSystem;
 using Source.Common.ShaderAPI;
 
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace Source.ShaderAPI.Gl46;
@@ -338,6 +339,7 @@ public unsafe class MeshGl46 : IMesh
 		HandleLateCreation();
 		Assert(Type != MaterialPrimitiveType.Heterogenous);
 
+		bool bound = false;
 		for (int iPrim = 0; iPrim < s_PrimsCount; iPrim++) {
 			PrimList* pPrim = &s_Prims[iPrim];
 
@@ -351,10 +353,13 @@ public unsafe class MeshGl46 : IMesh
 				int numPrimitives = NumPrimitives(s_NumVertices, pPrim->NumIndices);
 
 				CheckIndices(pPrim, numPrimitives);
-				uint vao = VertexBuffer!.VAO();
-				uint ibo = IndexBuffer!.IBO();
-				glVertexArrayElementBuffer(vao, ibo);
-				glBindVertexArray(vao);
+				if (!bound) {
+					uint vao = VertexBuffer!.VAO();
+					uint ibo = IndexBuffer!.IBO();
+					glVertexArrayElementBuffer(vao, ibo);
+					glBindVertexArray(vao);
+					bound = true;
+				}
 				glDrawElements(Mode, pPrim->NumIndices, GL_UNSIGNED_SHORT, (void*)(pPrim->FirstIndex * 2));
 			}
 		}
@@ -381,6 +386,7 @@ public unsafe class MeshGl46 : IMesh
 		}
 	}
 
+	[Conditional("DEBUG")]
 	private void CheckIndices(PrimList* pPrim, int numPrimitives) {
 		int indexCount = 0;
 		if (Mode == GL_TRIANGLES) {

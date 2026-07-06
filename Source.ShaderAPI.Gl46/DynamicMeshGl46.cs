@@ -45,6 +45,8 @@ public unsafe class DynamicMeshGl46 : MeshGl46
 		return VertexBuffer.HasEnoughRoom(vertexCount) && IndexBuffer.HasEnoughRoom(indexCount);
 	}
 	public override void LockMesh(int vertexCount, int indexCount, ref MeshDesc desc) {
+		PreLock();
+
 		if (VertexOverride) {
 			vertexCount = 0;
 		}

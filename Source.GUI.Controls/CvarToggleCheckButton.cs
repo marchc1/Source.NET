@@ -11,9 +11,11 @@ public class CvarToggleCheckButton : CheckButton
 
 	string? CvarName;
 	bool StartValue;
+	ConVarRef Cvar;
 
 	public CvarToggleCheckButton(Panel? parent, ReadOnlySpan<char> name, ReadOnlySpan<char> text, ReadOnlySpan<char> cvarName) : base(parent, name, text) {
 		CvarName = cvarName.Length > 0 ? new(cvarName) : null;
+		Cvar = new(CvarName);
 		if (CvarName != null)
 			Reset();
 		AddActionSignalTarget(this);
@@ -25,11 +27,10 @@ public class CvarToggleCheckButton : CheckButton
 			return;
 		}
 
-		ConVarRef var = new(CvarName);
-		if (!var.IsValid())
+		if (!Cvar.IsValid())
 			return;
 
-		bool value = var.GetBool();
+		bool value = Cvar.GetBool();
 
 		if (value != StartValue) {
 			SetSelected(value);

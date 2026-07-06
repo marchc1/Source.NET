@@ -118,6 +118,30 @@ public class Material : IMaterialInternal
 			ShaderParams![(int)ShaderMaterialVars.Color].SetVecValue(r, g, b);
 	}
 
+	public void GetColorModulation(out float r, out float g, out float b) {
+		Precache();
+
+		Span<float> color = [0.0f, 0.0f, 0.0f];
+		if (VarCount > (int)ShaderMaterialVars.Color)
+			ShaderParams![(int)ShaderMaterialVars.Color].GetVecValue(color);
+		r = color[0];
+		g = color[1];
+		b = color[2];
+	}
+
+	public void AlphaModulate(float alpha) {
+		Precache();
+		if (VarCount > (int)ShaderMaterialVars.Alpha)
+			ShaderParams![(int)ShaderMaterialVars.Alpha].SetFloatValue(alpha);
+	}
+
+	public float GetAlphaModulation() {
+		Precache();
+		if (VarCount > (int)ShaderMaterialVars.Alpha)
+			return ShaderParams![(int)ShaderMaterialVars.Alpha].GetFloatValue();
+		return 0.0f;
+	}
+
 	public void RecomputeStateSnapshots() {
 		bool ok = InitializeRenderState();
 		if (!ok)

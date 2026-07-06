@@ -74,7 +74,7 @@ public class RenderView(EngineVGui EngineVGui, Render engineRenderer) : IRenderV
 	}
 
 	public void DrawBrushModel(IClientEntity baseentity, Model model, in Vector3 origin, in QAngle angles) {
-		throw new NotImplementedException();
+		R_DrawBrushModel(baseentity, model, origin, angles, RenderDepthMode.Normal, true, true);
 	}
 
 	public void DrawIdentityBrushModel(IWorldRenderList list, Model model) {
