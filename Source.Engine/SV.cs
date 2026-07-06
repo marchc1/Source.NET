@@ -33,6 +33,9 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 	public static readonly ConVar sv_pure_consensus = new("sv_pure_consensus", "5", 0, "Minimum number of file hashes to agree to form a consensus.");
 	public static readonly ConVar sv_pure_retiretime = new("sv_pure_retiretime", "900", 0, "Seconds of server idle time to flush the sv_pure file hash cache.");
 	public static readonly ConVar sv_lan = new("sv_lan", "0", 0, "Server is a lan server ( no heartbeat, no authentication, no non-class C addresses )");
+	public static readonly ConVar sv_client_predict = new("sv_client_predict", "-1", FCvar.Replicated, "This can be used to force the value of cl_predict for connected clients (only while they are connected).\n-1 = let clients set cl_predict to anything\n0 = force cl_predict to 0\n1 = force cl_predict to 1");
+	public static readonly ConVar sv_client_min_interp_ratio = new("sv_client_min_interp_ratio", "1", FCvar.Replicated, "This can be used to limit the value of cl_interp_ratio for connected clients (only while they are connected).\n-1 = let clients set cl_interp_ratio to anything\nany other value = set minimum value for cl_interp_ratio");
+	public static readonly ConVar sv_client_max_interp_ratio = new("sv_client_max_interp_ratio", "5", FCvar.Replicated, "This can be used to limit the value of cl_interp_ratio for connected clients (only while they are connected). If sv_client_min_interp_ratio is -1, then this cvar has no effect.");
 
 	public static ConVar sv_cheats = new(nameof(sv_cheats), "0", FCvar.Notify | FCvar.Replicated, "Allow cheats on server", callback: SV_CheatsChanged);
 
