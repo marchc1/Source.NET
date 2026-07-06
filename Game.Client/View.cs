@@ -605,7 +605,7 @@ public class ViewRender : IViewRender
 	// Needs more work. Mostly just to clear the buffers rn
 	private void SetupMain3DView(in ViewSetup viewRender, ClearFlags clearFlags) {
 		using MatRenderContextPtr renderContext = new(materials);
-		renderContext.ClearColor4ub(125, 0, 0, 255);
+		renderContext.ClearColor4ub(0, 0, 0, 255); // FOR DEBUGGING: this used to be 125, 0, 0
 		renderContext.ClearBuffers((clearFlags & ClearFlags.ClearColor) != 0, (clearFlags & ClearFlags.ClearDepth) != 0, (clearFlags & ClearFlags.ClearStencil) != 0);
 
 		ITexture? rtColor = null;

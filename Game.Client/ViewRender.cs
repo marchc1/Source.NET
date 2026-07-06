@@ -504,7 +504,7 @@ public class SkyboxView : Rendering3dView
 	}
 
 	private SafeFieldPointer<PlayerLocalData, Sky3DParams> PreRender3dSkyboxWorld(ref SkyboxVisibility skyboxVisible) {
-		if ((skyboxVisible != SkyboxVisibility.Skybox3D) && r_3dsky.GetInt() != 1)
+		if ((skyboxVisible != SkyboxVisibility.Skybox3D) && r_3dsky.GetInt() != 2)
 			return SafeFieldPointer<PlayerLocalData, Sky3DParams>.Null;
 
 		if (r_3dsky.GetInt() == 0)
