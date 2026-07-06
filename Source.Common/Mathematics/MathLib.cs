@@ -319,6 +319,23 @@ public struct CollisionPlane
 	public byte SignBits;
 	public InlineArray2<byte> Pad;
 }
+
+public class Frustum_t
+{
+	readonly CollisionPlane[] Plane = new CollisionPlane[(int)FrustumPlane.NumPlanes];
+	readonly Vector3[] AbsNormal = new Vector3[(int)FrustumPlane.NumPlanes];
+
+	public void SetPlane(int i, byte nType, in Vector3 normal, float dist) {
+		Plane[i].Normal = normal;
+		Plane[i].Dist = dist;
+		Plane[i].Type = (PlaneType)nType;
+		Plane[i].SignBits = MathLib.SignbitsForPlane(in Plane[i]);
+		AbsNormal[i] = new(MathF.Abs(normal.X), MathF.Abs(normal.Y), MathF.Abs(normal.Z));
+	}
+
+	public ref readonly CollisionPlane GetPlane(int i) => ref Plane[i];
+	public ref readonly Vector3 GetAbsNormal(int i) => ref AbsNormal[i];
+}
 public static class MathLib
 {
 	public static bool MathlibInitialized;
@@ -679,6 +696,37 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float DEG2RAD(float x) => x * (MathF.PI / 180);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static double DEG2RAD(double x) => x * (Math.PI / 180);
 
+	public static void GeneratePerspectiveFrustum(in Vector3 origin, in Vector3 forward, in Vector3 right, in Vector3 up, float zNear, float zFar, float fovX, float fovY, Frustum_t frustum) {
+		float intercept = DotProduct(origin, forward);
+
+		frustum.SetPlane((int)FrustumPlane.FarZ, 5, -forward, -zFar - intercept);
+		frustum.SetPlane((int)FrustumPlane.NearZ, 5, forward, zNear + intercept);
+
+		fovX *= 0.5f;
+		fovY *= 0.5f;
+
+		float tanX = MathF.Tan(DEG2RAD(fovX));
+		float tanY = MathF.Tan(DEG2RAD(fovY));
+
+		VectorMA(right, tanX, forward, out Vector3 normalPos);
+		VectorMA(normalPos, -2.0f, right, out Vector3 normalNeg);
+
+		VectorNormalize(ref normalPos);
+		VectorNormalize(ref normalNeg);
+
+		frustum.SetPlane((int)FrustumPlane.Left, 5, normalPos, Vector3.Dot(normalPos, origin));
+		frustum.SetPlane((int)FrustumPlane.Right, 5, normalNeg, Vector3.Dot(normalNeg, origin));
+
+		VectorMA(up, tanY, forward, out normalPos);
+		VectorMA(normalPos, -2.0f, up, out normalNeg);
+
+		VectorNormalize(ref normalPos);
+		VectorNormalize(ref normalNeg);
+
+		frustum.SetPlane((int)FrustumPlane.Bottom, 5, normalPos, Vector3.Dot(normalPos, origin));
+		frustum.SetPlane((int)FrustumPlane.Top, 5, normalNeg, Vector3.Dot(normalNeg, origin));
+	}
+
 	public static float CalcFovX(float fovY, float aspect)
 		=> RAD2DEG(MathF.Atan(MathF.Tan(DEG2RAD(fovY) * 0.5f) * aspect)) * 2.0f;
 	public static float CalcFovY(float fovX, float aspect) {
@@ -737,6 +785,31 @@ public static class MathLib
 		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(idx, 4);
 
 		return ref new Span<Vector4>(ref a).Cast<Vector4, float>()[idx];
+	}
+
+	public static byte SignbitsForPlane(in CollisionPlane outPlane) {
+		byte bits = 0;
+		if (outPlane.Normal.X < 0) bits |= 1 << 0;
+		if (outPlane.Normal.Y < 0) bits |= 1 << 1;
+		if (outPlane.Normal.Z < 0) bits |= 1 << 2;
+		return bits;
+	}
+
+	public static bool R_CullBox(in Vector3 mins, in Vector3 maxs, Frustum_t frustum) {
+		return (BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Right)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Left)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Top)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Bottom)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.NearZ)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.FarZ)) == 2);
+	}
+
+	public static bool R_CullBoxSkipNear(in Vector3 mins, in Vector3 maxs, Frustum_t frustum) {
+		return (BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Right)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Left)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Top)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.Bottom)) == 2) ||
+			(BoxOnPlaneSide(mins, maxs, frustum.GetPlane((int)FrustumPlane.FarZ)) == 2);
 	}
 
 	// Returns which side(s) of a plane a box straddles: 1 = front, 2 = back, 3 = both (straddling).
@@ -1294,6 +1367,13 @@ public static class MathLib
 		dst[3, 0] = 0.0f; dst[3, 1] = 0.0f; dst[3, 2] = 0.0f; dst[3, 3] = 1.0f;
 	}
 
+	public static void MatrixBuildTranslation(out Matrix4x4 dst, float x, float y, float z) {
+		dst = Matrix4x4.Identity;
+		dst[0, 3] = x;
+		dst[1, 3] = y;
+		dst[2, 3] = z;
+	}
+
 	public static void MatrixAngles(in Matrix3x4 matrix, out QAngle angles) {
 		angles = default;
 		Span<float> forward = stackalloc float[3];
@@ -1481,6 +1561,21 @@ public static class MathLib
 			return val >= B ? D : C;
 		return C + (D - C) * (val - A) / (B - A);
 	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static float Approach(float target, float value, float speed) {
+		float delta = target - value;
+
+		if (delta > speed)
+			value += speed;
+		else if (delta < -speed)
+			value -= speed;
+		else
+			value = target;
+
+		return value;
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static double RemapValClamped(double val, double A, double B, double C, double D) {
 		if (A == B)
@@ -1710,11 +1805,177 @@ public static class MathLib
 		return (float)c * power2_n[exponent + 128];
 	}
 
+	static int VectorToColorRGBExp32_CalcExponent(float pin) {
+		if (pin == 0.0f)
+			return 0;
+
+		uint bits = BitConverter.SingleToUInt32Bits(pin);
+
+		const uint biasedSeven = 7 + 127;
+
+		int expComponent = (int)((bits & 0x7F800000) >> 23);
+		expComponent -= (int)biasedSeven;
+		return expComponent;
+	}
+
+	public static void VectorToColorRGBExp32(in Vector3 vin, out ColorRGBExp32 c) {
+		Assert(MathlibInitialized);
+		Assert(vin.X >= 0.0f && vin.Y >= 0.0f && vin.Z >= 0.0f);
+
+		float max = MathF.Max(MathF.Max(vin.X, vin.Y), vin.Z);
+
+		int exponent = VectorToColorRGBExp32_CalcExponent(max);
+
+		Assert(exponent > sbyte.MinValue && exponent <= sbyte.MaxValue);
+
+		uint bits = (uint)(127 - exponent) << 23;
+		float scalar = BitConverter.UInt32BitsToSingle(bits);
+
+		float r = vin.X * scalar;
+		float g = vin.Y * scalar;
+		float b = vin.Z * scalar;
+
+		AssertMsg(r <= 255.0f, $"(R {r:F2}, G {g:F2}, B {b:F2}): R > 255.");
+		AssertMsg(g <= 255.0f, $"(R {r:F2}, G {g:F2}, B {b:F2}): G > 255.");
+		AssertMsg(b <= 255.0f, $"(R {r:F2}, G {g:F2}, B {b:F2}): B > 255.");
+
+		c.R = (byte)(int)r;
+		c.G = (byte)(int)g;
+		c.B = (byte)(int)b;
+
+		c.Exponent = (sbyte)exponent;
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void VectorRotate(in Vector3 in1, in Matrix3x4 in2, out Vector3 outVec) {
 		outVec.X = in1.X * in2.M00 + in1.Y * in2.M01 + in1.Z * in2.M02;
 		outVec.Y = in1.X * in2.M10 + in1.Y * in2.M11 + in1.Z * in2.M12;
 		outVec.Z = in1.X * in2.M20 + in1.Y * in2.M21 + in1.Z * in2.M22;
+	}
+
+	public static int PolyFromPlane(Span<Vector3> outVerts, in Vector3 normal, float dist, float halfScale = 9000.0f) {
+		int i, x;
+		float max, v;
+		Vector3 org, vup;
+
+		max = -16384; //MAX_COORD_INTEGER
+		x = -1;
+		for (i = 0; i < 3; i++) {
+			v = MathF.Abs(normal[i]);
+			if (v > max) {
+				x = i;
+				max = v;
+			}
+		}
+
+		if (x == -1)
+			return 0;
+
+		vup = new(0, 0, 0);
+		switch (x) {
+			case 0:
+			case 1:
+				vup[2] = 1;
+				break;
+			case 2:
+				vup[0] = 1;
+				break;
+		}
+
+		v = Vector3.Dot(vup, normal);
+		VectorMA(vup, -v, normal, out vup);
+		VectorNormalize(ref vup);
+
+		org = normal * dist;
+		CrossProduct(vup, normal, out Vector3 vright);
+
+		vup *= halfScale;
+		vright *= halfScale;
+
+		outVerts[0] = org - vright; // left
+		outVerts[0] += vup;         // up
+
+		outVerts[1] = org + vright; // right
+		outVerts[1] += vup;         // up
+
+		outVerts[2] = org + vright; // right
+		outVerts[2] -= vup;         // down
+
+		outVerts[3] = org - vright; // left
+		outVerts[3] -= vup;         // down
+
+		return 4;
+	}
+
+	public static int ClipPolyToPlane(Span<Vector3> inVerts, int vertCount, Span<Vector3> outVerts, in Vector3 normal, float dist, float onPlaneEpsilon = 0.1f) {
+		Span<float> dists = stackalloc float[vertCount * 4]; //4x vertcount should cover all cases
+		Span<int> sides = stackalloc int[vertCount * 4];
+		Span<int> counts = stackalloc int[3];
+		float dot;
+		int i, j;
+		Vector3 mid = new(0, 0, 0);
+		int outCount;
+
+		counts[0] = counts[1] = counts[2] = 0;
+
+		for (i = 0; i < vertCount; i++) {
+			dot = Vector3.Dot(inVerts[i], normal) - dist;
+			dists[i] = dot;
+			if (dot > onPlaneEpsilon)
+				sides[i] = VPlane.SIDE_FRONT;
+			else if (dot < -onPlaneEpsilon)
+				sides[i] = VPlane.SIDE_BACK;
+			else
+				sides[i] = VPlane.SIDE_ON;
+			counts[sides[i]]++;
+		}
+		sides[i] = sides[0];
+		dists[i] = dists[0];
+
+		if (counts[0] == 0)
+			return 0;
+
+		if (counts[1] == 0) {
+			for (i = 0; i < vertCount; i++)
+				outVerts[i] = inVerts[i];
+			return vertCount;
+		}
+
+		outCount = 0;
+		for (i = 0; i < vertCount; i++) {
+			Vector3 p1 = inVerts[i];
+
+			if (sides[i] == VPlane.SIDE_ON) {
+				outVerts[outCount] = p1;
+				outCount++;
+				continue;
+			}
+
+			if (sides[i] == VPlane.SIDE_FRONT) {
+				outVerts[outCount] = p1;
+				outCount++;
+			}
+
+			if (sides[i + 1] == VPlane.SIDE_ON || sides[i + 1] == sides[i])
+				continue;
+
+			Vector3 p2 = inVerts[(i + 1) % vertCount];
+
+			dot = dists[i] / (dists[i] - dists[i + 1]);
+			for (j = 0; j < 3; j++) {
+				if (normal[j] == 1)
+					mid[j] = dist;
+				else if (normal[j] == -1)
+					mid[j] = -dist;
+				else
+					mid[j] = p1[j] + dot * (p2[j] - p1[j]);
+			}
+
+			outVerts[outCount] = mid;
+			outCount++;
+		}
+
+		return outCount;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1788,6 +2049,12 @@ public static class MathLib
 			return AdvSimd.Multiply(a, b);
 		return Vector128.Multiply(a, b);
 	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static Vector128<float> MaddSIMD(Vector128<float> a, Vector128<float> b, Vector128<float> c) => AddSIMD(MulSIMD(a, b), c);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static int TestSignSIMD(in Vector128<float> a) => (int)Vector128.ExtractMostSignificantBits(a);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Vector128<float> AndSIMD(Vector128<float> a, Vector128<float> b) {
@@ -2113,6 +2380,16 @@ public struct FourVectors
 
 	public static FourVectors Min(in FourVectors a, in FourVectors b) => new() { x = Vector4.Min(a.x, b.x), y = Vector4.Min(a.y, b.y), z = Vector4.Min(a.z, b.z) };
 	public static FourVectors Max(in FourVectors a, in FourVectors b) => new() { x = Vector4.Max(a.x, b.x), y = Vector4.Max(a.y, b.y), z = Vector4.Max(a.z, b.z) };
+
+	public readonly Vector4 Dot(in FourVectors b) => x * b.x + y * b.y + z * b.z;
+
+	public static FourVectors operator *(FourVectors a, Vector4 scale) => new() { x = a.x * scale, y = a.y * scale, z = a.z * scale };
+
+	public void VectorNormalizeFast() {
+		Vector4 magSq = x * x + y * y + z * z;
+		Vector4 invMag = new(1.0f / MathF.Sqrt(magSq.X), 1.0f / MathF.Sqrt(magSq.Y), 1.0f / MathF.Sqrt(magSq.Z), 1.0f / MathF.Sqrt(magSq.W));
+		x *= invMag; y *= invMag; z *= invMag;
+	}
 
 	// Build a 4-bit mask, one bit per lane, where a[lane] <= b[lane].
 	private static int LeMask(in Vector4 a, in Vector4 b) {

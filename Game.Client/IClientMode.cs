@@ -28,4 +28,5 @@ public interface IClientMode
 	float GetViewModelFOV();
 	bool CreateMove(double frametime, ref UserCmd cmd);
 	void OverrideView(ref ViewSetup setup);
+	bool ShouldDrawDetailObjects();
 }

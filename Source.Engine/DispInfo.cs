@@ -1,12 +1,14 @@
 using CommunityToolkit.HighPerformance;
 
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace Source.Engine;
 
@@ -128,9 +130,8 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 			return false;
 		}
 
-		// todo
-		// if (R_CullBox(BBoxMin, BBoxMax, g_Frustum))
-		//	return false;
+		if (MathLib.R_CullBox(BBoxMin, BBoxMax, g_Frustum))
+			return false;
 
 		bool normalRender = true;
 		if (allowDebugModes) {
@@ -351,10 +352,131 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 	// bool SetupDecalNodeIntersect_R(in VertIndex nodeIndex, int nodeBitIndex, DispDecalBase dispDecal, in ShadowInfo_t info, int level, DecalNodeSetupCache cache) => throw new NotImplementedException();
 
 	public static DispInfo? GetModelDisp(Model world, int i) {
-		return (DispInfo?)DispInfo_IndexArray(world.Brush.Shared!.DispInfos, i);
+		return DispInfo_IndexArray(world.Brush.Shared!.DispInfos, i);
 	}
 
-	private static IDispInfo? DispInfo_IndexArray(object? oArray, int i) {
+	static readonly ConVar r_DrawDisp = new("r_DrawDisp", "1", FCvar.Cheat, "Toggles rendering of displacment maps");
+	public static void DispInfo_RenderList(int sortGroup, Span<SurfaceHandle_t> list, int listCount, bool ortho, uint flags, RenderDepthMode depthMode) {
+		if (r_DrawDisp.GetInt() == 0 || listCount == 0)
+			return;
+
+		DispInfo[] visibleDisps = new DispInfo[BSPFileCommon.MAX_MAP_DISPINFO];
+
+		DispInfo_BuildPrimLists(sortGroup, list, listCount, depthMode != RenderDepthMode.Normal, visibleDisps, out int visibleDispCount);
+
+		DispInfo_DrawPrimLists(depthMode);
+
+		if (depthMode != RenderDepthMode.Normal)
+			return;
+
+		for (int i = 0; i < listCount; i++) {
+			SurfaceHandle_t cur = list[i];
+			ref BSPMSurface2 surf = ref ModelLoader.SurfaceHandleFromIndex(cur);
+			ShadowDecalHandle_t decalHandle = ModelLoader.MSurf_ShadowDecals(ref surf);
+			if (decalHandle != SHADOW_DECAL_HANDLE_INVALID) {
+				// g_pShadowMgr.AddShadowsOnSurfaceToRenderList(decalHandle) // todo
+			}
+		}
+
+		bool flashlightMask = !(((DrawWorldListFlags)flags & DrawWorldListFlags.Refraction) != 0 || ((DrawWorldListFlags)flags & DrawWorldListFlags.Reflection) != 0);
+
+		// todo
+
+		// g_pShadowMgr.RenderFlashlights(flashlightMask)
+		// OverlayMgr().RenderOverlays(sortGroup)
+		// g_pShadowMgr.DrawFlashlightOverlays(sortGroup, flashlightMask
+		// OverlayMgr().ClearRenderLists(sortGroup)
+
+		// DispInfo_BatchDecals(visibleDisps, visibleDispCount);
+		// DispInfo_DrawDecals(visibleDisps, visibleDispCount);
+
+		// g_pShadowMgr.DrawFlashlightDecalsOnDisplacements(sortGroup, visibleDisps, visibleDispCount, flashlightMask)
+		// g_pShadowMgr.RenderShadows()
+		// g_pShadowMgr.ClearShadowRenderList()
+
+		DispInfo_DrawDebugInformation(list, listCount);
+	}
+
+	static void DispInfo_BuildPrimLists(int sortGroup, Span<SurfaceHandle_t> list, int listCount, bool depthOnly, DispInfo[] visibleDisps, out int visibleDispCount) {
+		visibleDispCount = 0;
+		bool debugConvars = false; // !depthOnly ? DispInfoRenderDebugModes() : false // todo
+		for (int i = 0; i < listCount; i++) {
+			DispInfo disp = (DispInfo)ModelLoader.SurfaceHandleFromIndex(list[i]).DispInfo!;
+			if (!disp.Render(disp.Mesh!, debugConvars))
+				continue;
+
+			if (visibleDispCount < BSPFileCommon.MAX_MAP_DISPINFO)
+				visibleDisps[visibleDispCount++] = disp;
+
+			if (depthOnly)
+				continue;
+#if !SWDS
+			// OverlayMgr().AddFragmentListToRenderList(sortGroup, MSurf_OverlayFragmentList(list[i]), true) // todo
+#endif
+		}
+	}
+
+	static readonly ConVar disp_dynamic = new("disp_dynamic", "0", 0);
+
+	static void DispInfo_DrawPrimLists(RenderDepthMode depthMode) {
+		int dispGroupsSize = g_DispGroups.Count;
+
+		int fullbright = MatSysInterface.MaterialSystemConfig.Fullbright;
+
+		using MatRenderContextPtr renderContext = new(materials);
+
+		for (int iGroup = 0; iGroup < dispGroupsSize; iGroup++) {
+			DispGroup group = g_DispGroups[iGroup];
+			if (group.Visible == 0)
+				continue;
+
+			if (depthMode != RenderDepthMode.Normal) {
+				// todo!!!!!!
+			}
+			else
+				renderContext.Bind(group.Material!, null);
+
+			if (fullbright != 1 && depthMode == RenderDepthMode.Normal)
+				renderContext.BindLightmapPage(group.LightmapPageID);
+			else {
+				if (group.Material!.GetPropertyFlag(MaterialPropertyTypes.NeedsBumpedLightmaps))
+					renderContext.BindLightmapPage(StandardLightmap.WhiteBump);
+				else
+					renderContext.BindLightmapPage(StandardLightmap.White);
+			}
+
+			int meshesSize = group.Meshes.Count;
+
+			for (int iMesh = 0; iMesh < meshesSize; iMesh++) {
+				GroupMesh mesh = group.Meshes[iMesh];
+				if (mesh.NumVisible == 0)
+					continue;
+
+				if (disp_dynamic.GetInt() != 0) {
+					for (int iVisible = 0; iVisible < mesh.NumVisible; iVisible++)
+						mesh.VisibleDisps[iVisible]!.SpecifyDynamicMesh();
+				}
+				else
+					mesh.Mesh!.Draw(CollectionsMarshal.AsSpan(mesh.Visible), mesh.NumVisible);
+
+				mesh.NumVisible = 0;
+			}
+		}
+	}
+	static void DispInfo_BatchDecals(DispInfo[] visibleDisps, int visibleDispCount) => throw new NotImplementedException();
+	static void DispInfo_DrawDecals(DispInfo[] visibleDisps, int visibleDispCount) => throw new NotImplementedException();
+	static void DispInfo_DrawDebugInformation(Span<SurfaceHandle_t> list, int listCount) {
+		// => throw new NotImplementedException();
+	}
+
+	public static IDispInfo? MLeaf_Disaplcement(BSPMLeaf leaf, int index, WorldBrushData? data = null) {
+		data ??= host_state.WorldBrush;
+		Assert(index < leaf.DispCount);
+		int dispIndex = data!.DispInfoReferences![leaf.DispListStart + index];
+		return DispInfo_IndexArray(data.DispInfos, dispIndex);
+	}
+
+	private static DispInfo? DispInfo_IndexArray(object? oArray, int i) {
 		DispArray? array = (DispArray?)oArray;
 		if (array == null)
 			return null;

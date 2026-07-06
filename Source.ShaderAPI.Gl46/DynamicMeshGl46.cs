@@ -27,11 +27,13 @@ public unsafe class DynamicMeshGl46 : MeshGl46
 	}
 
 	internal void OverrideVertexBuffer(VertexBufferGl46 vertexBuffer) {
-		throw new NotImplementedException();
+		UseVertexBuffer(vertexBuffer);
+		VertexOverride = true;
 	}
 
 	internal void OverrideIndexBuffer(IndexBufferGl46 indexBuffer) {
-		throw new NotImplementedException();
+		UseIndexBuffer(indexBuffer);
+		IndexOverride = true;
 	}
 	public override bool NeedsVertexFormatReset(VertexFormat fmt) {
 		return VertexOverride || IndexOverride || base.NeedsVertexFormatReset(fmt);

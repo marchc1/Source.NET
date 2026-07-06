@@ -201,7 +201,7 @@ public class MatRenderContext : IMatRenderContextInternal
 
 	public void PopMatrix() {
 		shaderAPI.PopMatrix(); // We need to tell ShaderAPI *NOW* so it can flush primitives trigger matrix sync etc
-							   // ^^ is NOT source behavior. But I think, for all intents and purposes, it will act as such (we'll see if I eat my words on that)
+													 // ^^ is NOT source behavior. But I think, for all intents and purposes, it will act as such (we'll see if I eat my words on that)
 		RefStack<MatrixStackItem> curStack = MatrixStacks[(int)matrixMode];
 		curStack.Pop();
 		CurrentMatrixChanged();
@@ -229,6 +229,28 @@ public class MatRenderContext : IMatRenderContextInternal
 		}
 
 		return shaderAPI.GetDynamicMesh(GetCurrentMaterialInternal()!, nCurrentBoneCount, buffered, vertexOverride, indexOverride);
+	}
+
+	IMesh? BatchIndices;
+	IMesh? BatchMesh;
+
+	public void BeginBatch(IMesh indices) {
+		Assert(BatchMesh == null && BatchIndices == null);
+		BatchIndices = indices;
+	}
+
+	public void BindBatch(IMesh vertices, IMaterial? autoBind = null) {
+		BatchMesh = GetDynamicMesh(false, vertices, BatchIndices, autoBind);
+	}
+
+	public void DrawBatch(int firstIndex, int numIndices) {
+		Assert(BatchMesh != null);
+		BatchMesh!.Draw(firstIndex, numIndices);
+	}
+
+	public void EndBatch() {
+		BatchIndices = null;
+		BatchMesh = null;
 	}
 
 	bool FlashlightEnable;
@@ -305,6 +327,11 @@ public class MatRenderContext : IMatRenderContextInternal
 	public void SyncMatrix(MaterialMatrixMode mode) {
 		if (!ShouldValidateMatrices() && AllowLazyMatrixSync())
 			ForceSyncMatrix(mode);
+	}
+
+	public void Translate(float x, float y, float z) {
+		MathLib.MatrixBuildTranslation(out Matrix4x4 mat, x, y, z);
+		MultMatrixLocal(in mat);
 	}
 
 	public void Scale(float x, float y, float z) {
@@ -425,7 +452,7 @@ public class MatRenderContext : IMatRenderContextInternal
 	}
 
 	public int GetMaxVerticesToRender(IMaterial material) => materials.ShaderAPI.GetMaxVerticesToRender(material);
-	public int GetMaxIndicesToRender(IMaterial material) => materials.ShaderAPI.GetMaxIndicesToRender(material);
+	public int GetMaxIndicesToRender() => materials.ShaderAPI.GetMaxIndicesToRender();
 
 	public float ComputePixelDiameterOfSphere(Vector3 absOrigin, float radius) {
 		RecomputeViewState();
@@ -557,9 +584,9 @@ public class MatRenderContext : IMatRenderContextInternal
 		switch (LightmapPageID) {
 			default:
 				Assert((LightmapPageID == 0 && GetLightmaps().GetNumLightmapPages() == 0) || (LightmapPageID >= 0 && LightmapPageID < GetLightmaps().GetNumLightmapPages()));
-				if (LightmapPageID >= 0 && LightmapPageID < GetLightmaps().GetNumLightmapPages()) 
+				if (LightmapPageID >= 0 && LightmapPageID < GetLightmaps().GetNumLightmapPages())
 					shaderAPI.BindTexture(sampler, GetLightmaps().GetLightmapPageTextureHandle(LightmapPageID));
-				
+
 				break;
 
 			case StandardLightmap.UserDefined:

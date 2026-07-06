@@ -69,6 +69,47 @@ public class MSurfaceSortList
 		InitGroup(ref EmptyGroup);
 	}
 
+	public void Shutdown() { }
+
+	public void Reset() => Init(MaxSortIDs, List.Capacity);
+
+	public void EnsureMaxSortIDs(int newMaxSortIDs) {
+		if (newMaxSortIDs > MaxSortIDs) {
+			int oldMax = MaxSortIDs;
+			newMaxSortIDs += 255;
+			newMaxSortIDs -= newMaxSortIDs & 255;
+			int groupMax = newMaxSortIDs * (int)MatSortGroup.Max;
+			int groupBytes = (groupMax + 7) >> 3;
+			Groups.EnsureCount(groupMax);
+			GroupUsed.EnsureCount(groupBytes);
+			for (int i = (int)MatSortGroup.Max; --i >= 0;) {
+				for (int j = newMaxSortIDs; --j >= 0;) {
+					int newIndex = (i * newMaxSortIDs) + j;
+					if (j < oldMax) {
+						if (i != 0) {
+							int oldIndex = (i * oldMax) + j;
+							MarkGroupNotUsed(newIndex);
+							if (IsGroupUsed(oldIndex)) {
+								MarkGroupNotUsed(oldIndex);
+								MarkGroupUsed(newIndex);
+								Groups[newIndex] = Groups[oldIndex];
+								SurfaceSortGroup oldGroup = Groups[oldIndex];
+								InitGroup(ref oldGroup);
+								Groups[oldIndex] = oldGroup;
+							}
+						}
+						if (IsGroupUsed(newIndex) && Groups[newIndex].GroupListIndex >= 0)
+							SortGroupLists[i][Groups[newIndex].GroupListIndex] = Groups[newIndex];
+					}
+					else
+						MarkGroupNotUsed(newIndex);
+				}
+				GroupOffset[i] = i * newMaxSortIDs;
+			}
+			MaxSortIDs = newMaxSortIDs;
+		}
+	}
+
 	readonly int[] GroupOffset = new int[(int)MatSortGroup.Max];
 	readonly List<byte> GroupUsed = [];
 	readonly List<MaterialList> List = [];
@@ -87,7 +128,7 @@ public class MSurfaceSortList
 	}
 	public bool IsGroupUsed(int groupIndex) => (GroupUsed[(groupIndex >> 3)] & (1 << (groupIndex & 7))) != 0;
 	public void MarkGroupUsed(int groupIndex) => GroupUsed[groupIndex >> 3] |= checked((byte)(1 << (groupIndex & 7)));
-	public void MarkGroupNotUsed(int groupIndex) => GroupUsed[groupIndex >> 3] &= checked((byte)~(1 << (groupIndex & 7)));
+	public void MarkGroupNotUsed(int groupIndex) => GroupUsed[groupIndex >> 3] &= unchecked((byte)~(1 << (groupIndex & 7)));
 
 	internal void AddSurfaceToTail(ref BSPMSurface2 surface, int sortGroup, short sortID) {
 		Span<SurfaceSortGroup> groups = Groups.AsSpan();
@@ -142,6 +183,19 @@ public class MSurfaceSortList
 			list.Count = 1;
 			list.Surfaces[0] = surface.SurfNum;
 		}
+
+		if (group.GroupListIndex >= 0)
+			SortGroupLists[sortGroup][group.GroupListIndex] = group;
+	}
+
+	public List<SurfaceSortGroup> GetSortList(int sortGroup) => SortGroupLists[sortGroup];
+
+	public void GetSurfaceListForGroup(List<SurfaceHandle_t> list, in SurfaceSortGroup group) {
+		for (short blockIndex = group.ListHead; blockIndex != -1; blockIndex = GetSurfaceBlock(blockIndex).NextBlock) {
+			ref MaterialList matList = ref GetSurfaceBlock(blockIndex);
+			for (int index = 0; index < matList.Count; ++index)
+				list.Add((SurfaceHandle_t)matList.Surfaces[index]);
+		}
 	}
 
 	internal ref SurfaceSortGroup GetGroupForSortID(int sortGroup, int sortID) {
@@ -188,7 +242,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	private void InitDebugMaterials() {
 		MaterialEmpty = GL_LoadMaterial("debug/debugempty", MaterialDefines.TEXTURE_GROUP_OTHER)!;
 #if !SWDS
-// TODO: the rest of these important materials
+		// TODO: the rest of these important materials
 #endif
 	}
 
@@ -328,7 +382,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			}
 
 			MeshBuilder meshBuilder = new();
-			meshBuilder.Begin(meshes[i].Mesh, MaterialPrimitiveType.Triangles, meshes[i].VertCount, meshes[i].IndexCount);
+			meshBuilder.Begin(meshes[i].Mesh, MaterialPrimitiveType.Triangles, meshes[i].VertCount, 0);
 			for (int j = 0; j < WorldStaticMeshes.Count; j++) {
 				int meshId = sortIndex[j];
 				if (meshId == i) {
@@ -339,26 +393,8 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 						for (int _index = 0; _index < matList.Count; ++_index) {
 							ref BSPMSurface2 surfID = ref host_state.WorldBrush!.Surfaces2![matList.Surfaces[_index]];
 							ModelLoader.MSurf_VertBufferIndex(ref surfID) = (ushort)vertBufferIndex;
-
-							if (!ModelLoader.SurfaceHasPrims(ref surfID)) {
-								BuildMSurfaceVertexArrays(host_state.WorldBrush!, ref surfID, IMaterialSystem.OVERBRIGHT, ref meshBuilder);
-								vertBufferIndex += ModelLoader.MSurf_VertCount(ref surfID);
-							}
-							else {
-								int firstPrimId = ModelLoader.MSurf_FirstPrimID(ref surfID, host_state.WorldBrush);
-								ref BSPMPrimitive prim = ref host_state.WorldBrush!.Primitives![firstPrimId];
-								if (prim.VertCount != 0) {
-									for (int k = 0; k < ModelLoader.MSurf_NumPrims(ref surfID, host_state.WorldBrush); k++) {
-										prim = ref host_state.WorldBrush!.Primitives![firstPrimId + k];
-										Assert(prim.IndexCount != 0);
-										BuildMSurfacePrimVerts(prim.Type, host_state.WorldBrush!, ref prim, ref meshBuilder, ref surfID);
-										BuildMSurfacePrimIndices(prim.Type, host_state.WorldBrush!, ref prim, ref meshBuilder);
-									}
-								}
-								else {
-									BuildMSurfaceVertexArrays(host_state.WorldBrush!, ref surfID, IMaterialSystem.OVERBRIGHT, ref meshBuilder);
-								}
-							}
+							BuildMSurfaceVertexArrays(host_state.WorldBrush!, ref surfID, IMaterialSystem.OVERBRIGHT, ref meshBuilder);
+							vertBufferIndex += ModelLoader.MSurf_VertCount(ref surfID);
 						}
 					}
 				}
@@ -368,12 +404,15 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			Assert(vertBufferIndex == Meshes[i].VertCount);
 			meshBuilder.Dispose();
 		}
+
+		// Msg($"Total {Meshes.Count} meshes, {WorldStaticMeshes.Count} before\n");
 	}
 
 	private void BuildMSurfacePrimVerts(BSPPrimType type, WorldBrushData brushData, ref BSPMPrimitive prim, ref MeshBuilder builder, ref BSPMSurface2 surfID) {
 		bool negate = false;
-		// if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.TangentSpace) != 0) 
-		// negate = TangentSpaceSurfaceSetup(ref surfID, out _);
+		Vector3 vect = default;
+		if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.TangentSpace) != 0)
+			negate = TangentSpaceSurfaceSetup(ref surfID, out vect);
 
 		for (int i = 0; i < prim.VertCount; i++) {
 			ref BSPMPrimVert primVert = ref brushData.PrimVerts![prim.FirstVert + i];
@@ -382,10 +421,9 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 			builder.TexCoord2fv(0, primVert.TexCoord);
 			builder.TexCoord2fv(1, primVert.LightCoord);
 			if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.TangentSpace) != 0) {
-				// Vector3 tangentS, tangentT;
-				//TangentSpaceComputeBasis(out tangentS, out tangentT, MSurf_Plane(surfID).Normal, out _, false);
-				// builder.TangentS3fv(tangentS);
-				// builder.TangentT3fv(tangentT);
+				TangentSpaceComputeBasis(out Vector3 tangentS, out Vector3 tangentT, ModelLoader.MSurf_Plane(ref surfID).Normal, ref vect, false);
+				builder.TangentS3fv(tangentS);
+				builder.TangentT3fv(tangentT);
 			}
 			builder.AdvanceVertex();
 		}
@@ -446,13 +484,11 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 
 		Vector3 vect = default;
 		bool negate = false;
-		// if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.TangentSpace) != 0) 
-		// negate = TangentSpaceSurfaceSetup(ref surfID, vect);
+		if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.TangentSpace) != 0)
+			negate = TangentSpaceSurfaceSetup(ref surfID, out vect);
 
 		CheckMSurfaceBaseTexture2(brushData, ref surfID);
-		int vertCount = ModelLoader.MSurf_VertCount(ref surfID);
-		int firstVertex = builder.GetCurrentVertex();
-		for (int i = 0; i < vertCount; i++) {
+		for (int i = 0; i < ModelLoader.MSurf_VertCount(ref surfID); i++) {
 			int vertIndex = brushData.VertIndices![ModelLoader.MSurf_FirstVertIndex(ref surfID) + i];
 
 			ref Vector3 vec = ref brushData.Vertexes![vertIndex].Position;
@@ -472,15 +508,15 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 
 					SurfComputeLightmapCoordinate(ref ctx, ref surfID, ref vec, ref uv);
 				}
-				builder.TexCoord2fv(2, uv);
+				builder.TexCoord2f(2, ctx.BumpSTexCoordOffset, 0.0f);
 			}
 
 			ref Vector3 normal = ref brushData.VertNormals![brushData.VertNormalIndices![ModelLoader.MSurf_FirstVertNormal(ref surfID) + i]];
 			builder.Normal3fv(normal);
 			if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.TangentSpace) != 0) {
-				// TangentSpaceComputeBasis(out Vector3 tangentS, out Vector3 tangentT, normal, out vect, negate);
-				// builder.TangentS3fv(tangentS);
-				// builder.TangentT3fv(tangentT);
+				TangentSpaceComputeBasis(out Vector3 tangentS, out Vector3 tangentT, normal, ref vect, negate);
+				builder.TangentS3fv(tangentS);
+				builder.TangentT3fv(tangentT);
 			}
 
 			if (!ModelLoader.SurfaceHasDispInfo(ref surfID) && (ModelLoader.MSurf_TexInfo(ref surfID).TexInfoFlags & TEXINFO_USING_BASETEXTURE2) != 0) {
@@ -491,21 +527,36 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 					Warning($"Warning: WorldTwoTextureBlend found on a non-displacement surface (material: {materialName}). This wastes perf for no benefit.\n");
 				}
 
-				builder.Color4ub(255, 255, 255, 255);
+				builder.Color4ub(255, 255, 255, 0);
 			}
 			else {
-				builder.Color4ubv(flatColor);
+				builder.Color3ubv(flatColor);
 			}
 
 			builder.AdvanceVertex();
 		}
 
-		int numPolygons = vertCount - 2;
-		for (int i = 0; i < numPolygons; ++i) {
-			builder.FastIndex((ushort)firstVertex);
-			builder.FastIndex((ushort)(firstVertex + i + 1));
-			builder.FastIndex((ushort)(firstVertex + i + 2));
-		}
+	}
+
+	private static bool TangentSpaceSurfaceSetup(ref BSPMSurface2 surfID, out Vector3 tVect) {
+		MathLib.VectorCopy(ModelLoader.MSurf_TexInfo(ref surfID).TextureVecsTexelsPerWorldUnits[0].AsVector3D(), out Vector3 sVect);
+		MathLib.VectorCopy(ModelLoader.MSurf_TexInfo(ref surfID).TextureVecsTexelsPerWorldUnits[1].AsVector3D(), out tVect);
+		MathLib.VectorNormalize(ref sVect);
+		MathLib.VectorNormalize(ref tVect);
+		MathLib.CrossProduct(sVect, tVect, out Vector3 tmpVect);
+		if (MathLib.DotProduct(ModelLoader.MSurf_Plane(ref surfID).Normal, tmpVect) > 0.0f)
+			return true;
+		return false;
+	}
+
+	private static void TangentSpaceComputeBasis(out Vector3 tangentS, out Vector3 tangentT, Vector3 normal, ref Vector3 vect, bool negate) {
+		MathLib.CrossProduct(normal, vect, out tangentS);
+		MathLib.VectorNormalize(ref tangentS);
+		MathLib.CrossProduct(tangentS, normal, out tangentT);
+		MathLib.VectorNormalize(ref tangentT);
+
+		if (negate)
+			MathLib.VectorScale(tangentS, -1.0f, out tangentS);
 	}
 
 	private bool CheckMSurfaceBaseTexture2(WorldBrushData brushData, ref BSPMSurface2 surfID) {
@@ -581,7 +632,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		uv.Y = Math.Clamp(uv.Y, 0.0f, 1.0f);
 	}
 
-	private void SurfComputeTextureCoordinate(ref SurfaceCtx ctx, ref BSPMSurface2 surfID, ref Vector3 vec, ref Vector2 uv) {
+	public void SurfComputeTextureCoordinate(ref SurfaceCtx ctx, ref BSPMSurface2 surfID, ref Vector3 vec, ref Vector2 uv) {
 		ref ModelTexInfo texInfo = ref ModelLoader.MSurf_TexInfo(ref surfID);
 
 		// base texture coordinate
@@ -703,7 +754,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		using MatRenderContextPtr renderContext = new(materials);
 
 		int maxVertices = renderContext.GetMaxVerticesToRender(material);
-		int maxIndices = renderContext.GetMaxIndicesToRender(material);
+		int maxIndices = renderContext.GetMaxIndicesToRender();
 
 		int worldLimit = mat_max_worldmesh_vertices.GetInt();
 		worldLimit = Math.Max(worldLimit, 1024);

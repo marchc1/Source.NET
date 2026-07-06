@@ -4,6 +4,8 @@ global using static Source.Engine.SysGlobals;
 using Pastel;
 
 using Source.Common.Commands;
+using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
 using Source.Engine.Server;
 using Source.GUI.Controls;
 
@@ -15,7 +17,8 @@ using System.Runtime.CompilerServices;
 
 namespace Source.Engine;
 
-public static class SysGlobals {
+public static class SysGlobals
+{
 	public static bool InEditMode() => false;
 }
 
@@ -82,6 +85,9 @@ public class Sys(Host host, ICommandLine CommandLine)
 
 	public bool InitGame(bool dedicated, string rootDirectory) {
 		MainThread = Thread.CurrentThread;
+
+		MathLib.Init(IMaterialSystem.GAMMA, IMaterialSystem.TEXGAMMA, 0.0f, (int)IMaterialSystem.OVERBRIGHT);
+
 		Dbg.SpewActivate("console", 1);
 		Host.developer.Changed += DeveloperChangeCallback;
 		Dbg.SpewOutputFunc(SpewFunc);

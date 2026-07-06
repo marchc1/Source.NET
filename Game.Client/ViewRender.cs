@@ -12,6 +12,7 @@ using Source.Common.Mathematics;
 using Source.Engine;
 
 using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace Game.Client;
 
@@ -26,6 +27,7 @@ public static class ViewRenderConVars
 	internal readonly static ConVar r_drawtranslucentrenderables = new("1", FCvar.Cheat);
 	internal readonly static ConVar r_drawopaquerenderables = new("1", FCvar.Cheat);
 	internal readonly static ConVar r_threaded_renderables = new("0", 0);
+	internal readonly static ConVar r_DrawDetailProps = new("1", FCvar.None, "0=Off, 1=Normal, 2=Wireframe");
 }
 
 public class RenderExecutor
@@ -88,7 +90,12 @@ public class BaseWorldView : Rendering3dView
 	protected void DrawSetup(float waterHeight, DrawFlags setupFlags, float waterZAdjust) {
 		ViewID savedViewID = ViewRender.g_CurrentViewID;
 		ViewRender.g_CurrentViewID = ViewID.Illegal;
-		BuildRenderableRenderLists(savedViewID);
+
+		bool drawEntities = (setupFlags & DrawFlags.DrawEntities) != 0;
+		BuildWorldRenderLists(drawEntities, -1, true);
+
+		if (drawEntities)
+			BuildRenderableRenderLists(savedViewID);
 
 		ViewRender.g_CurrentViewID = savedViewID;
 	}
@@ -129,6 +136,8 @@ public class SimpleWorldView : BaseWorldView
 		ClearFlags = clearFlags;
 		DrawFlags = DrawFlags.DrawEntities;
 
+		DrawFlags |= DrawFlags.RenderUnderwater | DrawFlags.RenderAbovewater;
+
 		if (drawSkybox)
 			DrawFlags |= DrawFlags.DrawSkybox;
 	}
@@ -142,21 +151,47 @@ public class Rendering3dView : Base3dView
 {
 	protected DrawFlags DrawFlags;
 	protected ClearFlags ClearFlags;
-	protected ViewSetup ViewSetup;
 
 	ClientRenderablesList RenderablesList = null!;
+	protected IWorldRenderList? WorldRenderList;
+	protected WorldListInfo WorldListInfo;
 
 	public Rendering3dView(ViewRender mainView) : base(mainView) {
 
 	}
+
+	protected void BuildWorldRenderLists(bool drawEntities, int forceViewLeaf = -1, bool useCacheIfEnabled = true, bool shadowDepth = false, Span<float> reflectionWaterHeight = default) {
+		mainView.IncWorldListsNumber();
+
+		WorldRenderList = render.CreateWorldList();
+		render.BuildWorldLists(WorldRenderList, ref WorldListInfo, forceViewLeaf, [], shadowDepth, reflectionWaterHeight);
+
+		if (drawEntities)
+			UpdateRenderablesOpacity();
+	}
+
 	protected void BuildRenderableRenderLists(ViewID viewID) {
 		//  if (viewID != ViewID.ShadowDepthTexture)
 		//  	render.BeginUpdateLightmaps();
 		mainView.IncRenderablesListsNumber();
 		SetupRenderablesList(viewID);
 	}
+
+	protected void UpdateRenderablesOpacity() {
+		float factor = 1.0f;
+		C_BasePlayer? local = C_BasePlayer.GetLocalPlayer();
+		if (local != null)
+			factor = local.GetFOVDistanceAdjustFactor();
+
+		// if (cl_leveloverview.GetFloat() > 0) // todo
+		// 	factor = -1;
+
+		StaticPropMgrGlobals.g_StaticPropMgr.ComputePropOpacity(CurrentViewOrigin(), factor);
+
+		((DetailObjectSystem)DetailObjectSystem.GetDetailObjectSystem()).BuildDetailObjectRenderLists(CurrentViewOrigin());
+	}
 	public virtual void Setup(in ViewSetup setup) {
-		ViewSetup = setup; // copy to our ViewSetup
+		this.setup = setup;
 		ReleaseLists();
 
 		RenderablesList = ClientRenderablesList.Shared.Alloc();
@@ -171,6 +206,56 @@ public class Rendering3dView : Base3dView
 
 	}
 
+	private void DrawOpaqueRenderables_DrawBrushModels(RenderGroup group, RenderDepthMode depthMode) {
+		int count = RenderablesList.Count(group);
+		for (int i = 0; i < count; i++) {
+			ref ClientRenderablesList.Entry entry = ref RenderablesList[group, i];
+			Assert(!entry.TwoPass);
+			DrawOpaqueRenderable(entry.Renderable!, false, depthMode);
+		}
+	}
+
+	private void DrawOpaqueRenderables_DrawStaticProps(RenderGroup group, RenderDepthMode depthMode) {
+		int count = RenderablesList.Count(group);
+		if (count == 0)
+			return;
+
+		Span<float> one = [1.0f, 1.0f, 1.0f, 1.0f];
+		render.SetColorModulation(one);
+		render.SetBlend(1.0f);
+
+		const int MAX_STATICS_PER_BATCH = 512;
+		IClientRenderable[] statics = new IClientRenderable[MAX_STATICS_PER_BATCH];
+
+		int numScheduled = 0, numAvailable = MAX_STATICS_PER_BATCH;
+
+		for (int i = 0; i < count; i++) {
+			ref ClientRenderablesList.Entry entry = ref RenderablesList[group, i];
+			if (entry.Renderable == null)
+				continue;
+
+			statics[numScheduled++] = entry.Renderable;
+			if (--numAvailable > 0)
+				continue;
+
+			StaticPropMgrGlobals.g_StaticPropMgr.DrawStaticProps(statics, numScheduled, depthMode != RenderDepthMode.Normal, false /*vcollide_wireframe*/);
+			numScheduled = 0;
+			numAvailable = MAX_STATICS_PER_BATCH;
+		}
+
+		if (numScheduled != 0)
+			StaticPropMgrGlobals.g_StaticPropMgr.DrawStaticProps(statics, numScheduled, depthMode != RenderDepthMode.Normal, false /*vcollide_wireframe*/);
+	}
+
+	private void DrawOpaqueRenderables_Range(RenderGroup group, RenderDepthMode depthMode) {
+		int count = RenderablesList.Count(group);
+		for (int i = 0; i < count; i++) {
+			ref ClientRenderablesList.Entry entry = ref RenderablesList[group, i];
+			if (entry.Renderable != null)
+				DrawOpaqueRenderable(entry.Renderable, entry.TwoPass, depthMode);
+		}
+	}
+
 	protected void DrawOpaqueRenderables(RenderDepthMode depthMode) {
 		if (!r_drawopaquerenderables.GetBool())
 			return;
@@ -180,12 +265,15 @@ public class Rendering3dView : Base3dView
 
 		render.SetBlend(1);
 
-		// TODO: do this properly, lazy right now
-		int count = RenderablesList.Count(RenderGroup.OpaqueEntity);
-		for (int i = 0; i < count; i++) {
-			ref ClientRenderablesList.Entry entry = ref RenderablesList[RenderGroup.OpaqueEntity, i];
-			if (entry.Renderable != null)
-				DrawOpaqueRenderable(entry.Renderable, entry.TwoPass, depthMode);
+		// todo, this has more
+
+		// First do the brush models
+		DrawOpaqueRenderables_DrawBrushModels(RenderGroup.OpaqueBrush, depthMode);
+
+		// Draw static props + opaque entities from the biggest bucket to the smallest
+		for (int bucket = 0; bucket < (int)RenderGroup_Config_t.NumOpaqueEntBuckets; bucket++) {
+			DrawOpaqueRenderables_Range(RenderGroup.OpaqueEntityHuge + 2 * bucket, depthMode);
+			DrawOpaqueRenderables_DrawStaticProps(RenderGroup.OpaqueStaticHuge + 2 * bucket, depthMode);
 		}
 	}
 
@@ -230,6 +318,9 @@ public class Rendering3dView : Base3dView
 				DrawTranslucentRenderable(entry.Renderable, entry.TwoPass, depthMode);
 		}
 
+		((DetailObjectSystem)DetailObjectSystem.GetDetailObjectSystem()).RenderTranslucentDetailObjects(
+			CurrentViewOrigin(), CurrentViewForward(), CurrentViewRight(), CurrentViewUp(), WorldListInfo.LeafCount, CollectionsMarshal.AsSpan(WorldListInfo.LeafList));
+
 		render.SetBlend(1);
 	}
 
@@ -273,10 +364,11 @@ public class Rendering3dView : Base3dView
 		// Now collate the entities in the leaves.
 		if (mainView.ShouldDrawEntities()) {
 			SetupRenderInfo setupInfo = default;
+			setupInfo.WorldListInfo = WorldListInfo;
 			setupInfo.RenderFrame = mainView.BuildRenderablesListsNumber();
-			// setupInfo.DetailBuildFrame = mainView.BuildWorldListsNumber();  
+			setupInfo.DetailBuildFrame = mainView.BuildWorldListsNumber();
 			setupInfo.RenderList = RenderablesList;
-			// setupInfo.DrawDetailObjects = ClientMode.ShouldDrawDetailObjects() && r_DrawDetailProps.GetInt();
+			setupInfo.DrawDetailObjects = clientMode.ShouldDrawDetailObjects() && r_DrawDetailProps.GetBool();
 			setupInfo.DrawTranslucentObjects = (viewID != ViewID.ShadowDepthTexture);
 
 			setupInfo.RenderOrigin = setup.Origin;
@@ -291,8 +383,11 @@ public class Rendering3dView : Base3dView
 		}
 	}
 	protected void DrawWorld(float waterZAdjust) {
+		if (!r_drawopaqueworld.GetBool())
+			return;
+
 		DrawWorldListFlags engineFlags = BuildEngineDrawWorldListFlags(DrawFlags);
-		mainView.render.DrawWorld(engineFlags, waterZAdjust);
+		mainView.render.DrawWorldLists(WorldRenderList, (uint)engineFlags, waterZAdjust);
 	}
 
 	private DrawWorldListFlags BuildEngineDrawWorldListFlags(DrawFlags drawFlags) {
@@ -364,7 +459,7 @@ public class SkyboxView : Rendering3dView
 	public override void Draw() {
 		ITexture? rtColor = null;
 		ITexture? rtDepth = null;
-		if (ViewSetup.StereoEye != StereoEye.Mono)
+		if (setup.StereoEye != StereoEye.Mono)
 			throw new Exception("No support for multi-stereo-eye yet");
 		DrawInternal(ViewID.Sky3D, true, rtColor, rtDepth);
 	}
@@ -372,23 +467,33 @@ public class SkyboxView : Rendering3dView
 	private void DrawInternal(ViewID skyBoxViewID, bool invokePreAndPostRender, ITexture? rtColor, ITexture? rtDepth) {
 		ref Sky3DParams sky3dParams = ref Sky3dParams.Get();
 
-		ViewSetup.ZNear = 2;
-		ViewSetup.ZFar = WorldSize.MAX_TRACE_LENGTH;
+		setup.ZNear = 2;
+		setup.ZFar = WorldSize.MAX_TRACE_LENGTH;
 		if (sky3dParams.Scale > 0)
-			ViewSetup.Origin *= 1f / sky3dParams.Scale;
-		ViewSetup.Origin += sky3dParams.Origin;
+			setup.Origin *= 1f / sky3dParams.Scale;
+		setup.Origin += sky3dParams.Origin;
 
 		render.ViewSetupVisEx(false, new(ref sky3dParams.Origin), out _);
-		render.Push3DView(in ViewSetup, ClearFlags, rtColor, GetFrustrum(), rtDepth);
+		render.Push3DView(in setup, ClearFlags, rtColor, GetFrustrum(), rtDepth);
 
 		SetupCurrentView(in setup.Origin, in setup.Angles, skyBoxViewID);
 
 		if (invokePreAndPostRender)
 			IGameSystem.PreRenderAllSystems();
 
+		// render.BeginUpdateLightmaps();
+		BuildWorldRenderLists(true, -1, true);
 		BuildRenderableRenderLists(skyBoxViewID);
+		// render.EndUpdateLightmaps();
 
 		DrawWorld(0);
+
+		// Iterate over all leaves and render objects in those leaves
+		DrawOpaqueRenderables(RenderDepthMode.Normal);
+
+		// Iterate over all leaves and render objects in those leaves
+		DrawTranslucentRenderables(RenderDepthMode.Normal);
+		// todo: DrawNoZBufferTranslucentRenderables()
 
 		if (invokePreAndPostRender) {
 			IGameSystem.PostRenderAllSystems();
@@ -419,6 +524,6 @@ public class SkyboxView : Rendering3dView
 	static ref Sky3DParams GetSkybox3DRef(PlayerLocalData local) => ref local.Skybox3D;
 
 	private SkyboxVisibility ComputeSkyboxVisibility() {
-		return engine.IsSkyboxVisibleFromPoint(ViewSetup.Origin);
+		return engine.IsSkyboxVisibleFromPoint(setup.Origin);
 	}
 }

@@ -126,6 +126,7 @@ public class DummyMesh : IMesh
 	public void BeginCastBuffer(VertexFormat format) { }
 	public void BeginCastBuffer(MaterialIndexFormat format) { }
 	public void Draw(int firstIndex = -1, int indexCount = 0) { }
+	public void Draw(ReadOnlySpan<PrimList> lists, int numLists) { }
 	public void EndCastBuffer() { }
 	public int GetRoomRemaining() => 1;
 	public VertexFormat GetVertexFormat() => VertexFormat.Position;
@@ -297,6 +298,7 @@ public class DummyMaterial : IMaterial
 		found = null;
 		return false;
 	}
+	public void ColorModulate(float r, float g, float b) { }
 }
 
 public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderContext
@@ -356,6 +358,10 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public IMaterial? GetCurrentMaterial() => null;
 	public int GetDisplayAdapterCount() => 0;
 	public IMesh GetDynamicMesh(bool buffered, IMesh? vertexOverride = null, IMesh? indexOverride = null, IMaterial? autoBind = null) => GetDummyMesh();
+	public void BeginBatch(IMesh indices) { }
+	public void BindBatch(IMesh vertices, IMaterial? autoBind = null) { }
+	public void DrawBatch(int firstIndex, int numIndices) { }
+	public void EndBatch() { }
 	public ITexture GetErrorTexture() => g_DummyTexture;
 	public void GetLightmapPageSize(int lightmap, out int width, out int height) {
 		if (RealMaterialSystem != null)
@@ -364,7 +370,7 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 			width = height = 32;
 	}
 	public IMaterialProxyFactory? GetMaterialProxyFactory() => null;
-	public int GetMaxIndicesToRender(IMaterial material) => 32768;
+	public int GetMaxIndicesToRender() => 32768;
 	public int GetMaxVerticesToRender(IMaterial material) => 32768;
 	public int GetNumSortIDs() => 10;
 	public IMatRenderContext GetRenderContext() => this;
@@ -407,6 +413,7 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public void PushRenderTargetAndViewport(ITexture? renderTarget, int x, int y, int width, int height) { }
 	public void PushRenderTargetAndViewport(ITexture? renderTarget, ITexture? depthTarget, int x, int y, int width, int height) { }
 	public void RestoreShaderObjects(IServiceProvider services, int changeFlags) { }
+	public void Translate(float x, float y, float z) { }
 	public void Scale(float x, float y, float z) { }
 	public void SetMaterialProxyFactory(IMaterialProxyFactory? factory) { }
 	public bool SetMode(IWindow window, MaterialSystem_Config config) => true;

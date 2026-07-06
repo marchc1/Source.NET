@@ -234,7 +234,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public bool CullBox(in Vector3 mins, in Vector3 maxs) {
-		return true;
+		return MathLib.R_CullBoxSkipNear(mins, maxs, g_Frustum);
 	}
 
 	public void Sound_ExtraUpdate() {
@@ -251,13 +251,11 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	public int GameLumpVersion(int lumpId) => ModelLoader.GameLumpVersion(lumpId);
 
 	public int GameLumpSize(int lumpId) => ModelLoader.GameLumpSize(lumpId);
-	public bool LoadGameLump(int lumpId, Span<byte> buffer) {
-		throw new NotImplementedException();
-	}
+	public bool LoadGameLump(int lumpId, Span<byte> buffer) => ModelLoader.LoadGameLump(lumpId, buffer);
 
 	public int LevelLeafCount() => host_state.WorldBrush!.Leafs!.Length;
 	public ISpatialQuery? GetBSPTreeQuery() {
-		throw new NotImplementedException();
+		return g_ToolBSPTree;
 	}
 
 	public void LinearToGamma(Span<float> linear, Span<float> gamma) {
@@ -268,7 +266,9 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 
 	public float LightStyleValue(int style) => Render.LightStyleValue((byte)style);
 	public void ComputeDynamicLighting(in Vector3 pt, in Vector3 normal, out Vector3 color) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		// TODO
+		color = default;
 	}
 
 	public void GetAmbientLightColor(out Vector3 color) {

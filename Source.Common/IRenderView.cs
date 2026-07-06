@@ -12,14 +12,16 @@ public interface IWorldRenderList
 
 }
 
-public ref struct WorldListInfo {
+public struct WorldListInfo
+{
 	public int ViewFogVolume;
 	public int LeafCount;
-	public Span<LeafIndex_t> LeafList;
-	public Span<LeafFogVolume_t> LeafFogVolume;
+	public List<LeafIndex_t> LeafList;
+	public List<LeafFogVolume_t> LeafFogVolume;
 }
 
-public struct VisOverrideData {
+public struct VisOverrideData
+{
 	public Vector3 VisOrigin;
 	public float DistToAreaPortalTolerance;
 }
@@ -74,7 +76,11 @@ public interface IRenderView
 	void SceneEnd();
 	void Draw3DDebugOverlays();
 	void ViewSetupVisEx(bool novis, ReadOnlySpan<Vector3> origins, out uint visFlags);
-	void DrawWorld(DrawWorldListFlags flags, float waterZAdjust);
+	IWorldRenderList? CreateWorldList();
+	void BuildWorldLists(IWorldRenderList? list, ref WorldListInfo info, int forceViewLeaf, ReadOnlySpan<VisOverrideData> visData, bool shadowDepth, Span<float> reflectionWaterHeight);
+	void DrawWorldLists(IWorldRenderList? list, uint flags, float waterZAdjust);
+	void BeginUpdateLightmaps();
+	void EndUpdateLightmaps();
 	void Push3DView(in ViewSetup viewRender, ClearFlags clearFlags, ITexture? rtColor, Frustum frustum, ITexture? rtDepth);
 	int GetViewEntity();
 	void SetBlend(float blend);

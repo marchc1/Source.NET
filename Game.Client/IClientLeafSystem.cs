@@ -9,7 +9,8 @@ using System.Numerics;
 namespace Game.Client;
 
 
-public class ClientRenderablesList : IPoolableObject {
+public class ClientRenderablesList : IPoolableObject
+{
 
 	public static readonly ObjectPool<ClientRenderablesList> Shared = new();
 
@@ -35,10 +36,12 @@ public class ClientRenderablesList : IPoolableObject {
 		Array.Clear(RenderGroupCounts);
 	}
 
-	public void Reset() {}
+	public void Reset() { }
 }
 
-public struct SetupRenderInfo {
+public struct SetupRenderInfo
+{
+	public WorldListInfo WorldListInfo;
 	public ClientRenderablesList? RenderList;
 	public Vector3 RenderOrigin;
 	public Vector3 RenderForward;
@@ -54,7 +57,8 @@ public struct SetupRenderInfo {
 	}
 }
 
-public interface IClientLeafSystem : IClientLeafSystemEngine, IGameSystem {
+public interface IClientLeafSystem : IClientLeafSystemEngine, IGameSystemPerFrame
+{
 	void AddRenderable(IClientRenderable renderable, RenderGroup group);
 	void BuildRenderablesList(in SetupRenderInfo setupInfo);
 	void CollateViewModelRenderables(List<IClientRenderable> opaqueViewModelList, List<IClientRenderable> translucentViewModelList);
@@ -63,4 +67,10 @@ public interface IClientLeafSystem : IClientLeafSystemEngine, IGameSystem {
 
 	void RenderableChanged(ClientRenderHandle_t handle);
 	void SetRenderGroup(ClientRenderHandle_t handle, RenderGroup group);
+
+	void SetSubSystemDataInLeaf(int leaf, int subSystemIdx, ClientLeafSubSystemData? data);
+	ClientLeafSubSystemData? GetSubSystemDataInLeaf(int leaf, int subSystemIdx);
+	void SetDetailObjectsInLeaf(int leaf, int firstDetailObject, int detailObjectCount);
+	void GetDetailObjectsInLeaf(int leaf, out int firstDetailObject, out int detailObjectCount);
+	void DrawDetailObjectsInLeaf(int leaf, int frameNumber, out int firstDetailObject, out int detailObjectCount);
 }

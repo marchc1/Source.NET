@@ -80,7 +80,7 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void RenderPass();
 	bool SetMode(IWindow window, in ShaderDeviceInfo info);
 	int GetMaxVerticesToRender(IMaterial material);
-	int GetMaxIndicesToRender(IMaterial material);
+	int GetMaxIndicesToRender();
 	bool IsActive();
 	bool SetBoardState(in GraphicsBoardState state);
 	bool CanDownloadTextures();

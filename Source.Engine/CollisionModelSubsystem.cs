@@ -42,7 +42,8 @@ public class CollisionBSPData
 
 	IMaterialSystem? materials;
 
-	public BSPDVis[]? MapVis;
+	public byte[]? MapVis;
+	public int NumVisibility;
 
 	public int MapRootNode;
 	public int SolidLeaf;
@@ -421,7 +422,18 @@ public class CollisionBSPData
 
 	}
 	internal void LoadVisibility() {
+		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Visibility);
 
+		int visDataSize = lh.LumpSize;
+
+		NumVisibility = visDataSize;
+		if (visDataSize > BSPFileCommon.MAX_MAP_VISIBILITY)
+			Sys.Error($"Map '{lh.GetMapName().SliceNullTerminatedString()}' has too many visibilities ({visDataSize} > max {BSPFileCommon.MAX_MAP_VISIBILITY})");
+
+		if (visDataSize == 0)
+			MapVis = null;
+		else
+			MapVis = lh.LoadLumpData<byte>();
 	}
 	internal void LoadEntityString() {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Entities);

@@ -39,6 +39,17 @@ public struct Frustum
 		FrustumPlane.FarZ => FarZ,
 		_ => throw new ArgumentOutOfRangeException()
 	};
+	public void SetPlane(int index, in Vector3 normal, float dist) {
+		switch (index) {
+			case 0: Right.Normal = normal; Right.Dist = dist; break;
+			case 1: Left.Normal = normal; Left.Dist = dist; break;
+			case 2: Top.Normal = normal; Top.Dist = dist; break;
+			case 3: Bottom.Normal = normal; Bottom.Dist = dist; break;
+			case 4: NearZ.Normal = normal; NearZ.Dist = dist; break;
+			case 5: FarZ.Normal = normal; FarZ.Dist = dist; break;
+			default: throw new ArgumentOutOfRangeException();
+		}
+	}
 }
 
 public struct VPlane

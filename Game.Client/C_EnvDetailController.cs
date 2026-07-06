@@ -14,4 +14,12 @@ public class C_EnvDetailController : C_BaseEntity
 
 	public float FadeStartDist;
 	public float FadeEndDist;
+
+	static C_EnvDetailController? s_DetailController;
+
+	public C_EnvDetailController() {
+		s_DetailController = this;
+	}
+
+	public static C_EnvDetailController? GetDetailController() => s_DetailController;
 }

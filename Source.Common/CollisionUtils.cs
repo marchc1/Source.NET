@@ -122,6 +122,37 @@ public static class CollisionUtils
 		return true;
 	}
 
+	public static bool IsBoxIntersectingBoxExtents(in Vector3 boxCenter1, in Vector3 boxHalfDiagonal1, in Vector3 boxCenter2, in Vector3 boxHalfDiagonal2) {
+		Vector3 delta = Vector3.Abs(boxCenter1 - boxCenter2);
+		Vector3 size = boxHalfDiagonal1 + boxHalfDiagonal2;
+		return delta.X <= size.X && delta.Y <= size.Y && delta.Z <= size.Z;
+	}
+
+	public static bool IsBoxIntersectingSphereExtents(in Vector3 boxCenter, in Vector3 boxHalfDiag, in Vector3 center, float radius) {
+		float dmin = 0.0f;
+		float delta, diff;
+
+		diff = MathF.Abs(center.X - boxCenter.X);
+		if (diff > boxHalfDiag.X) {
+			delta = diff - boxHalfDiag.X;
+			dmin += delta * delta;
+		}
+
+		diff = MathF.Abs(center.Y - boxCenter.Y);
+		if (diff > boxHalfDiag.Y) {
+			delta = diff - boxHalfDiag.Y;
+			dmin += delta * delta;
+		}
+
+		diff = MathF.Abs(center.Z - boxCenter.Z);
+		if (diff > boxHalfDiag.Z) {
+			delta = diff - boxHalfDiag.Z;
+			dmin += delta * delta;
+		}
+
+		return dmin < radius * radius;
+	}
+
 	public static bool IsPointInBox(in Vector3 pt, in Vector3 boxMin, in Vector3 boxMax) {
 		Assert(boxMin.X <= boxMax.X && boxMin.Y <= boxMax.Y && boxMin.Z <= boxMax.Z);
 		return pt.X >= boxMin.X && pt.X <= boxMax.X && pt.Y >= boxMin.Y && pt.Y <= boxMax.Y && pt.Z >= boxMin.Z && pt.Z <= boxMax.Z;
