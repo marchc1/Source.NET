@@ -646,6 +646,9 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 
 	private void Map_LoadModel(Model mod) {
 		MapLoadCount++;
+
+		Common.TimestampedLog("Map_LoadModel: Start");
+
 		double startTime = Platform.Time;
 
 #if !SWDS
@@ -656,7 +659,10 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		mod.Brush.Shared = WorldBrushData;
 		mod.Brush.RenderHandle = 0;
 
-		Common.TimestampedLog("Loading map");
+		Common.TimestampedLog("  Map_CheckForHDR");
+		// todo
+
+		Common.TimestampedLog("  CM_LoadMap");
 		CM.LoadMap(mod.StrName, false, out uint checksum);
 
 		mod.Type = ModelType.Brush;
@@ -664,18 +670,26 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		if (!MapLoadHelper.Init(mod, LoadNameSliced()))
 			return;
 
+		Common.TimestampedLog("  Mod_LoadVertices");
 		Mod_LoadVertices();
+		Common.TimestampedLog("  Mod_LoadEdges");
 		BSPDEdge[] edges = Mod_LoadEdges();
+		Common.TimestampedLog("  Mod_LoadSurfedges");
 		Mod_LoadSurfedges(edges);
+		Common.TimestampedLog("  Mod_LoadPlanes");
 		Mod_LoadPlanes();
+		// Common.TimestampedLog("  Mod_LoadOcclusion");
 		// Mod_LoadOcclusion();
+		Common.TimestampedLog("  Mod_LoadTexdata");
 		Mod_LoadTexdata();
+		Common.TimestampedLog("  Mod_LoadTexinfo");
 		Mod_LoadTexinfo();
 
 #if !SWDS
 		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LoadWorldModel);
 #endif
 
+		Common.TimestampedLog("  Mod_LoadLighting");
 		if (materialSystemHardwareConfig.GetHDRType() != HDRType.None && MapLoadHelper.GetLumpSize(LumpIndex.LightingHDR) > 0) {
 			MapLoadHelper mlh = new(LumpIndex.LightingHDR);
 			Map_LoadLighting(mlh);
@@ -685,41 +699,57 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 			Map_LoadLighting(mlh);
 		}
 
+		Common.TimestampedLog("  Mod_LoadPrimitives");
 		Mod_LoadPrimitives();
+		Common.TimestampedLog("  Mod_LoadPrimVerts");
 		Mod_LoadPrimVerts();
+		Common.TimestampedLog("  Mod_LoadPrimIndices");
 		Mod_LoadPrimIndices();
 
 #if !SWDS
 		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LoadWorldModel);
 #endif
 
+		Common.TimestampedLog("  Mod_LoadFaces");
 		Mod_LoadFaces();
+		Common.TimestampedLog("  Mod_LoadVertNormals");
 		Mod_LoadVertNormals();
+		Common.TimestampedLog("  Mod_LoadVertNormalIndices");
 		Mod_LoadVertNormalIndices();
 
 #if !SWDS
 		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LoadWorldModel);
 #endif
 
+		Common.TimestampedLog("  Mod_LoadLeafs");
 		Mod_LoadLeafs();
+		Common.TimestampedLog("  Mod_LoadMarksurfaces");
 		Mod_LoadMarksurfaces();
+		Common.TimestampedLog("  Mod_LoadNodes");
 		Mod_LoadNodes();
+		Common.TimestampedLog("  Mod_LoadLeafWaterData");
 		Mod_LoadLeafWaterData();
+		Common.TimestampedLog("  Mod_LoadCubemapSamples");
 		Mod_LoadCubemapSamples();
 
 		// TODO: Load overlays
 
 
+		Common.TimestampedLog("  Mod_LoadLeafMinDistToWater");
 		Mod_LoadLeafMinDistToWater();
 
 #if !SWDS
 		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LoadWorldModel);
 #endif
 
+		Common.TimestampedLog("  LUMP_CLIPPORTALVERTS");
 		Mod_LoadLump(mod, LumpIndex.ClipPortalVerts, $"{LoadNameSliced()} [clipportalverts]", ref WorldBrushData.ClipPortalVerts);
+		Common.TimestampedLog("  LUMP_AREAPORTALS");
 		Mod_LoadLump(mod, LumpIndex.AreaPortals, $"{LoadNameSliced()} [areaportals]", ref WorldBrushData.AreaPortals, ref WorldBrushData.NumAreaPortals);
-		Mod_LoadLump(mod, LumpIndex.Areas, $"{LoadNameSliced()} [areaportals]", ref WorldBrushData.Areas, ref WorldBrushData.NumAreas);
+		Common.TimestampedLog("  LUMP_AREAS");
+		Mod_LoadLump(mod, LumpIndex.Areas, $"{LoadNameSliced()} [areas]", ref WorldBrushData.Areas, ref WorldBrushData.NumAreas);
 
+		Common.TimestampedLog("  Mod_LoadWorldlights");
 		if (materialSystemHardwareConfig.GetHDRType() != HDRType.None && MapLoadHelper.GetLumpSize(LumpIndex.WorldLightsHDR) > 0) {
 			MapLoadHelper mlh = new(LumpIndex.WorldLightsHDR);
 			Mod_LoadWorldlights(ref mlh, true);
@@ -734,6 +764,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 #if !SWDS
 		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LoadWorldModel);
 #endif
+		Common.TimestampedLog("  Mod_LoadSubmodels");
 		List<BSPMModel> submodelList = [];
 		Mod_LoadSubmodels(submodelList);
 
@@ -741,14 +772,20 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LoadWorldModel);
 #endif
 
+		Common.TimestampedLog("  SetupSubModels");
 		SetupSubModels(mod, submodelList);
+
+		Common.TimestampedLog("  RecomputeSurfaceFlags");
 		RecomputeSurfaceFlags(mod);
 
 #if !SWDS
 		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LoadWorldModel);
 #endif
 
+		Common.TimestampedLog("  Map_VisClear");
 		Map_VisClear();
+
+		Common.TimestampedLog("  Map_SetRenderInfoAllocated");
 		Map_SetRenderInfoAllocated(false);
 
 		MapLoadHelper.Shutdown();
@@ -1002,9 +1039,9 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 				if (ITexture.IsError(outCurrent.Texture)) {
 					sprintf(textureName, "maps/%s/cubemapdefault").S(loadName);
 					outCurrent.Texture = materialSystem.FindTexture(textureName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
-					if (ITexture.IsError(outCurrent.Texture)) 
+					if (ITexture.IsError(outCurrent.Texture))
 						outCurrent.Texture = materialSystem.FindTexture("engine/defaultcubemap", MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
-					
+
 					Warning($"Failed, using default cubemap '{outCurrent.Texture.GetName()}'\n");
 				}
 			}
@@ -1013,18 +1050,18 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 
 		using MatRenderContextPtr renderContext = new(materialSystem);
 
-		if (count != 0) 
+		if (count != 0)
 			renderContext.BindLocalCubemap(lh.GetMap().CubemapSamples![0].Texture);
 		else {
-			if (commandLine.CheckParm("-requirecubemaps")) 
+			if (commandLine.CheckParm("-requirecubemaps"))
 				Sys.Error($"Map \"{lh.GetMapName()}\" does not have cubemaps!");
 
 			ITexture? pTexture;
 			sprintf(textureName, "maps/%s/cubemapdefault").S(loadName);
 			pTexture = materialSystem.FindTexture(textureName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
-			if (ITexture.IsError(pTexture)) 
+			if (ITexture.IsError(pTexture))
 				pTexture = materialSystem.FindTexture("engine/defaultcubemap", MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
-			
+
 			pTexture.IncrementReferenceCount();
 			renderContext.BindLocalCubemap(pTexture);
 		}
