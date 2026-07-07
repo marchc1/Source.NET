@@ -891,7 +891,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				glActiveTexture(tex);
 				lastActiveTexture = tex;
 			}
-			glBindTexture(GL_TEXTURE_2D, (uint)textureHandle);
+			glBindTexture(GL_TEXTURE_2D, GetGL46Texture(textureHandle));
 			LastBoundTextures[(int)sampler] = textureHandle;
 		}
 	}
@@ -1005,7 +1005,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		if (info.SrcFormat.IsCompressed()) {
 			Span<byte> data = vtf.ImageData(vtfFrame, 0, info.Level);
 			fixed (byte* bytes = data)
-				glCompressedTextureSubImage2D((uint)info.TextureHandle, info.Level, 0, 0, w, h, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
+				glCompressedTextureSubImage2D((uint)info.Texture, info.Level, 0, 0, w, h, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
 			// Msg("err: " + glGetErrorName() + "\n");
 		}
 		else {
@@ -1245,8 +1245,21 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	public ShaderAPITextureHandle_t CreateDepthTexture(ImageFormat imageFormat, ushort width, ushort height, Span<char> debugName, bool texture) {
 		ShaderAPITextureHandle_t handle = CreateTextureHandle();
-		glObjectLabel(GL_TEXTURE, (uint)handle, $"ShaderAPI Depth Texture '{debugName}'");
-		glTextureStorage2D((uint)handle, 1, GL_DEPTH24_STENCIL8, width, height);
+		InternalTextureInfo tex = GetTexture(handle);
+		tex.Flags = InternalTextureFlags.IsAllocated;
+		tex.DebugName = (ReadOnlySpan<char>)debugName;
+		tex.Width = width;
+		tex.Height = height;
+		tex.Depth = 1;
+		tex.Count = 1;
+		tex.Format = imageFormat;
+		tex.NumCopies = 1;
+		tex.CurrentCopy = 0;
+
+		uint glTex = glCreateTexture(GL_TEXTURE_2D);
+		glObjectLabel(GL_TEXTURE, glTex, $"ShaderAPI Depth Texture '{debugName}'");
+		glTextureStorage2D(glTex, 1, GL_DEPTH24_STENCIL8, width, height);
+		tex.SetTexture(glTex);
 		return handle;
 	}
 
@@ -1308,7 +1321,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		var tex = GetTexture(GetModifyTextureHandle());
 		TextureLoadInfo info = new();
 		info.TextureHandle = GetModifyTextureHandle();
-		info.Texture = tex.CurrentCopy;
+		info.Texture = GetModifyTexture();
 		info.Level = mip;
 		info.Copy = tex.CurrentCopy;
 		info.CubeFaceID = face;
@@ -1341,7 +1354,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, srcStride / srcFormat.SizeInBytes());
 		ConvertDataToAcceptableGLFormat(srcFormat, imageData, out srcFormat, out Span<byte> convertedData);
 		fixed (byte* data = convertedData)
-			glTextureSubImage2D((uint)ModifyTextureHandle, mip, xOffset, yOffset, width >> mip, height >> mip, ImageLoader.GetGLImageUploadFormat(srcFormat), GL_UNSIGNED_BYTE, data);
+			glTextureSubImage2D((uint)info.Texture, mip, xOffset, yOffset, width >> mip, height >> mip, ImageLoader.GetGLImageUploadFormat(srcFormat), GL_UNSIGNED_BYTE, data);
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		var err = glGetError();
 		// System.Diagnostics.Debug.Assert(err == 0);
@@ -1365,7 +1378,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, srcStride / srcFormat.SizeInBytes());
 		ConvertDataToAcceptableGLFormat(srcFormat, imageData, out srcFormat, out Span<byte> convertedData);
 		fixed (byte* data = convertedData)
-			glTextureSubImage2D((uint)ModifyTextureHandle, mip, x, y, width >> mip, height >> mip, ImageLoader.GetGLImageUploadFormat(srcFormat), GL_UNSIGNED_BYTE, data);
+			glTextureSubImage2D(GetModifyTexture(), mip, x, y, width >> mip, height >> mip, ImageLoader.GetGLImageUploadFormat(srcFormat), GL_UNSIGNED_BYTE, data);
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		var err = glGetError();
 		// System.Diagnostics.Debug.Assert(err == 0);
@@ -1569,13 +1582,13 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 		switch (wrapMode) {
 			case TexWrapMode.Clamp:
-				glTextureParameteri((uint)ModifyTextureHandle, coordinate, GL_CLAMP_TO_EDGE);
+				glTextureParameteri(GetModifyTexture(), coordinate, GL_CLAMP_TO_EDGE);
 				break;
 			case TexWrapMode.Repeat:
-				glTextureParameteri((uint)ModifyTextureHandle, coordinate, GL_REPEAT);
+				glTextureParameteri(GetModifyTexture(), coordinate, GL_REPEAT);
 				break;
 			case TexWrapMode.Border:
-				glTextureParameteri((uint)ModifyTextureHandle, coordinate, GL_CLAMP_TO_BORDER);
+				glTextureParameteri(GetModifyTexture(), coordinate, GL_CLAMP_TO_BORDER);
 				break;
 			default:
 				Warning("ShaderAPIGl46.TexWrap: unknown wrapMode\n");
@@ -1586,26 +1599,26 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public void TexMinFilter(TexFilterMode mode) {
 		switch (mode) {
 			case TexFilterMode.Nearest:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 				break;
 			case TexFilterMode.Linear:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 				break;
 			case TexFilterMode.NearestMipmapNearest:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
 				break;
 			case TexFilterMode.LinearMipmapNearest:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
 				break;
 			case TexFilterMode.NearestMipmapLinear:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
 				break;
 			case TexFilterMode.LinearMipmapLinear:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 				break;
 			case TexFilterMode.Anisotropic:
-				glTextureParameterf((uint)ModifyTextureHandle, GL_TEXTURE_MAX_ANISOTROPY, HardwareConfig.MaximumAnisotropicLevel());
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+				glTextureParameterf(GetModifyTexture(), GL_TEXTURE_MAX_ANISOTROPY, HardwareConfig.MaximumAnisotropicLevel());
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 				break;
 			default:
 				break;
@@ -1615,10 +1628,10 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public void TexMagFilter(TexFilterMode mode) {
 		switch (mode) {
 			case TexFilterMode.Nearest:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 				break;
 			case TexFilterMode.Linear:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 				break;
 			case TexFilterMode.NearestMipmapNearest:
 				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.NearestMipmapNearest is invalid\n");
@@ -1708,7 +1721,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 		Memory<byte> buffer = GetTempLockBuffer(info.Format, width, height);
 		fixed (byte* data = buffer.Span) {
-			glGetTextureSubImage((uint)ModifyTextureHandle, 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
+			glGetTextureSubImage(GetModifyTexture(), 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
 		}
 		writer.SetPixelMemory(info.Format, buffer.Span, width * ImageLoader.SizeInBytes(info.Format));
 		return true;
@@ -1731,7 +1744,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 		Memory<byte> buffer = GetTempLockBuffer(info.Format, width, height);
 		fixed (byte* data = buffer.Span) {
-			glGetTextureSubImage((uint)ModifyTextureHandle, 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
+			glGetTextureSubImage(GetModifyTexture(), 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
 		}
 		writer.SetPixelMemory(info.Format, buffer, width * ImageLoader.SizeInBytes(info.Format));
 		return true;
@@ -1740,7 +1753,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public unsafe void TexUnlock() {
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		fixed (byte* data = lockdata)
-			glTextureSubImage2D((uint)Lock.Handle, Lock.Mip, Lock.X, Lock.Y, Lock.W, Lock.H, ImageLoader.GetGLImageUploadFormat(Lock.Format), GL_UNSIGNED_BYTE, data);
+			glTextureSubImage2D(GetGL46Texture(Lock.Handle), Lock.Mip, Lock.X, Lock.Y, Lock.W, Lock.H, ImageLoader.GetGLImageUploadFormat(Lock.Format), GL_UNSIGNED_BYTE, data);
 		Lock = default;
 	}
 

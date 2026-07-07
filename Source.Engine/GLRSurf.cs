@@ -308,7 +308,18 @@ public static class GLRSurf
 	public static void R_TopViewBounds(in Vector2 mins, in Vector2 maxs) => throw new NotImplementedException();
 	public static bool DlightSurfaceSetQueuingFlag(SurfaceHandle_t surfID) => false;
 
-	public static void Shader_TranslucentWorldSurface(WorldRenderList renderList, SurfaceHandle_t surfID) => throw new NotImplementedException();
+	public static void Shader_TranslucentWorldSurface(WorldRenderList renderList, SurfaceHandle_t surfID) {
+		ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+		Assert(!ModelLoader.SurfaceHasDispInfo(ref surface) && (renderList.VisibleLeaves.Count > 0));
+
+		// Hook into the chain of translucent objects for this leaf
+		int sortGroup = ModelLoader.MSurf_SortGroup(ref surface);
+		renderList.AlphaSortList.AddSurfaceToTail(ref surface, sortGroup, (short)(renderList.VisibleLeaves.Count - 1));
+		if ((ModelLoader.MSurf_Flags(ref surface) & (SurfDraw.HasLightStyles | SurfDraw.HasDLight)) != 0) {
+			renderList.DlightSurfaces[sortGroup].Add(surfID);
+			DlightSurfaceSetQueuingFlag(surfID);
+		}
+	}
 	static void Shader_WorldSurface(WorldRenderList renderList, SurfaceHandle_t surfID) {
 		ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
 		Assert(!ModelLoader.SurfaceHasDispInfo(ref surface));

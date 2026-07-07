@@ -45,7 +45,7 @@ public ref struct MapLoadHelper
 		else
 			MapName = model.StrName.String();
 
-		MapFileHandle = fileSystem.Open(loadName, FileOpenOptions.Read | FileOpenOptions.Binary)?.Stream;
+		MapFileHandle = fileSystem.Open(MapName, FileOpenOptions.Read | FileOpenOptions.Binary)?.Stream;
 		if (MapFileHandle == null) {
 			Host.Error($"MapLoadHelper.Init, unable to open {MapName}");
 			return false;
@@ -661,7 +661,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 
 		mod.Type = ModelType.Brush;
 		mod.LoadFlags |= ModelLoaderFlags.Loaded;
-		if (!MapLoadHelper.Init(mod, ((Span<char>)(ActiveMapName)).SliceNullTerminatedString()))
+		if (!MapLoadHelper.Init(mod, LoadNameSliced()))
 			return;
 
 		Mod_LoadVertices();
@@ -1809,7 +1809,8 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 	}
 
 	public void Map_LoadDisplacements(MaterialSystem_SortInfo[] materialSortInfoArray, Model model) {
-		if (!MapLoadHelper.Init(model, ActiveMapName))
+		model.StrName.String()!.FileBase(LoadName);
+		if (!MapLoadHelper.Init(model, LoadNameSliced()))
 			return;
 
 		DispInfo_LoadDisplacements(model, materialSortInfoArray);
