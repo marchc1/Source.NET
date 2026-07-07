@@ -108,7 +108,9 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override void SetFloatValue(float val) {
-		VecVal[0] = val;
+		VecVal[0] = VecVal[1] = VecVal[2] = VecVal[3] = val;
+		IntVal = (int)val;
+		Type = MaterialVarType.Float;
 	}
 
 	public override void SetFourCCValue(ulong type, object? data) {
@@ -117,6 +119,8 @@ public sealed class MaterialVar : IMaterialVar
 
 	public override void SetIntValue(int val) {
 		IntVal = val;
+		VecVal[0] = VecVal[1] = VecVal[2] = VecVal[3] = val;
+		Type = MaterialVarType.Int;
 	}
 
 	public override void SetMaterialValue(IMaterial? material) {
@@ -129,6 +133,7 @@ public sealed class MaterialVar : IMaterialVar
 
 	public override void SetStringValue(ReadOnlySpan<char> val) {
 		StringVal = new(val.SliceNullTerminatedString());
+		Type = MaterialVarType.String;
 	}
 
 	public override void SetTextureValue(ITexture? texture) {
@@ -151,17 +156,26 @@ public sealed class MaterialVar : IMaterialVar
 	public override unsafe void SetVecValue(ReadOnlySpan<float> val) {
 		fixed (Vector4* v4 = &VecVal)
 			val.CopyTo(new Span<float>(v4, 4));
+		Type = MaterialVarType.Vector;
+		NumVectorComps = (byte)Math.Min(val.Length, 4);
+		IntVal = (int)VecVal[0];
 	}
 
 	public override void SetVecValue(float x, float y) {
 		VecVal[0] = x;
 		VecVal[1] = y;
+		Type = MaterialVarType.Vector;
+		NumVectorComps = 2;
+		IntVal = (int)VecVal[0];
 	}
 
 	public override void SetVecValue(float x, float y, float z) {
 		VecVal[0] = x;
 		VecVal[1] = y;
 		VecVal[2] = z;
+		Type = MaterialVarType.Vector;
+		NumVectorComps = 3;
+		IntVal = (int)VecVal[0];
 	}
 
 	public override void SetVecValue(float x, float y, float z, float w) {

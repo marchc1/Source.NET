@@ -311,7 +311,7 @@ public interface IMatRenderContext
 	IMaterial? GetCurrentMaterial();
 	IShaderAPI GetShaderAPI();
 	bool InFlashlightMode();
-	IMesh GetDynamicMesh(bool buffered, IMesh? vertexOverride = null, IMesh? indexOverride = null, IMaterial? autoBind = null);
+	IMesh GetDynamicMesh(bool buffered = true, IMesh? vertexOverride = null, IMesh? indexOverride = null, IMaterial? autoBind = null);
 	void BeginBatch(IMesh indices);
 	void BindBatch(IMesh vertices, IMaterial? autoBind = null);
 	void DrawBatch(int firstIndex, int numIndices);

@@ -1,3 +1,5 @@
+global using static Source.Engine.MatSysVars;
+
 using CommunityToolkit.HighPerformance;
 
 using DStruct.BinaryTrees;
@@ -14,6 +16,36 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Source.Engine;
+
+public static class MatSysVars
+{
+	public static readonly ConVar r_decals = new("r_decals", "2048");
+	public static readonly ConVar mp_decals = new("mp_decals", "200", FCvar.Archive);
+	public static readonly ConVar r_lightmap = new("r_lightmap", "-1", FCvar.Cheat | FCvar.MaterialSystemThread);
+	public static readonly ConVar r_lightstyle = new("r_lightstyle", "-1", FCvar.Cheat | FCvar.MaterialSystemThread);
+	public static readonly ConVar r_dynamic = new("r_dynamic", "1");
+	public static readonly ConVar mat_norendering = new("mat_norendering", "0", FCvar.Cheat);
+	public static readonly ConVar mat_wireframe = new("mat_wireframe", "0", FCvar.Cheat);
+	public static readonly ConVar mat_luxels = new("mat_luxels", "0", FCvar.Cheat);
+	public static readonly ConVar mat_normals = new("mat_normals", "0", FCvar.Cheat);
+	public static readonly ConVar mat_bumpbasis = new("mat_bumpbasis", "0", FCvar.Cheat);
+	public static readonly ConVar mat_envmapsize = new("mat_envmapsize", "128");
+	public static readonly ConVar mat_envmaptgasize = new("mat_envmaptgasize", "32.0");
+	public static readonly ConVar mat_levelflush = new("mat_levelflush", "1");
+	public static readonly ConVar mat_fullbright = new("mat_fullbright", "0", FCvar.Cheat);
+	public static readonly ConVar mat_monitorgamma = new("mat_monitorgamma", "2.2", FCvar.Archive, "monitor gamma (typically 2.2 for CRT and 1.7 for LCD)", 1.6f, 2.6f);
+	public static readonly ConVar mat_monitorgamma_tv_range_min = new("mat_monitorgamma_tv_range_min", "16");
+	public static readonly ConVar mat_monitorgamma_tv_range_max = new("mat_monitorgamma_tv_range_max", "255");
+	public static readonly ConVar mat_monitorgamma_tv_exp = new("mat_monitorgamma_tv_exp", "2.5", 0, "", 1.0f, 4.0f);
+	public static readonly ConVar mat_monitorgamma_tv_enabled = new("mat_monitorgamma_tv_enabled", "0", FCvar.Archive, "");
+	public static readonly ConVar r_drawbrushmodels = new("r_drawbrushmodels", "1", FCvar.Cheat, "Render brush models. 0=Off, 1=Normal, 2=Wireframe");
+	public static readonly ConVar r_shadowrendertotexture = new("r_shadowrendertotexture", "0");
+	public static readonly ConVar r_flashlightdepthtexture = new("r_flashlightdepthtexture", "1");
+	public static readonly ConVar r_waterforceexpensive = new("r_waterforceexpensive", "0", FCvar.Archive);
+	public static readonly ConVar r_waterforcereflectentities = new("r_waterforcereflectentities", "0");
+	public static readonly ConVar mat_depthbias_normal = new("mat_depthbias_normal", "0.0", FCvar.Cheat);
+	public static readonly ConVar mat_show_ab_hdr = new("mat_show_ab_hdr", "0");
+}
 
 public struct MaterialList
 {
@@ -242,6 +274,9 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	private void InitDebugMaterials() {
 		MaterialEmpty = GL_LoadMaterial("debug/debugempty", MaterialDefines.TEXTURE_GROUP_OTHER)!;
 #if !SWDS
+		MaterialWireframe = GL_LoadMaterial("debug/debugwireframe", MaterialDefines.TEXTURE_GROUP_OTHER);
+		MaterialWorldWireframe = GL_LoadMaterial("debug/debugworldwireframe", MaterialDefines.TEXTURE_GROUP_OTHER);
+		MaterialWorldWireframeZBuffer = GL_LoadMaterial("debug/debugworldwireframezbuffer", MaterialDefines.TEXTURE_GROUP_OTHER);
 		// TODO: the rest of these important materials
 #endif
 	}
@@ -309,9 +344,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 
 	internal readonly List<IMesh?> WorldStaticMeshes = [];
 
-	ConVar mat_max_worldmesh_vertices = new((32767 / 3).ToString(), 0);
-	public static readonly ConVar r_drawbrushmodels = new("r_drawbrushmodels", "1", FCvar.Cheat, "Render brush models. 0=Off, 1=Normal, 2=Wireframe");
-
+	ConVar mat_max_worldmesh_vertices = new("65536"); //new((32767 / 3).ToString(), 0);
 
 	public static void VertexCountForSurfaceList(MSurfaceSortList list, in SurfaceSortGroup group, out int vertexCount, out int indexCount) {
 		vertexCount = indexCount = 0;
@@ -408,7 +441,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		// Msg($"Total {Meshes.Count} meshes, {WorldStaticMeshes.Count} before\n");
 	}
 
-	private void BuildMSurfacePrimVerts(BSPPrimType type, WorldBrushData brushData, ref BSPMPrimitive prim, ref MeshBuilder builder, ref BSPMSurface2 surfID) {
+	internal void BuildMSurfacePrimVerts(BSPPrimType type, WorldBrushData brushData, ref BSPMPrimitive prim, ref MeshBuilder builder, ref BSPMSurface2 surfID) {
 		bool negate = false;
 		Vector3 vect = default;
 		if ((ModelLoader.MSurf_Flags(ref surfID) & SurfDraw.TangentSpace) != 0)
@@ -429,7 +462,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		}
 	}
 
-	private void BuildMSurfacePrimIndices(BSPPrimType type, WorldBrushData brushData, ref BSPMPrimitive prim, ref MeshBuilder builder) {
+	internal void BuildMSurfacePrimIndices(BSPPrimType type, WorldBrushData brushData, ref BSPMPrimitive prim, ref MeshBuilder builder) {
 		for (int i = 0; i < prim.IndexCount; i++) {
 			ushort primIndex = brushData.PrimIndices![prim.FirstIndex + i];
 			builder.Index((ushort)(primIndex - prim.FirstVert));
@@ -476,7 +509,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		}
 	}
 
-	private void BuildMSurfaceVertexArrays(WorldBrushData brushData, ref BSPMSurface2 surfID, float overbright, ref MeshBuilder builder) {
+	internal void BuildMSurfaceVertexArrays(WorldBrushData brushData, ref BSPMSurface2 surfID, float overbright, ref MeshBuilder builder) {
 		SurfaceCtx ctx = default;
 		SurfSetupSurfaceContext(ref ctx, ref surfID);
 
@@ -801,6 +834,11 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 
 	public ConVar mat_loadtextures = new("1", 0);
 	public IMaterial MaterialEmpty;
+#if !SWDS
+	public IMaterial? MaterialWireframe;
+	public IMaterial? MaterialWorldWireframe;
+	public IMaterial? MaterialWorldWireframeZBuffer;
+#endif
 
 	public IMaterial GL_LoadMaterial(ReadOnlySpan<char> name, ReadOnlySpan<char> textureGroupName) {
 		IMaterial? material = GL_LoadMaterialNoRef(name, textureGroupName);
@@ -925,9 +963,8 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	}
 
 	static void UpdateMaterialSystemConfig() {
-		// if (host_state.worldbrush && !host_state.worldbrush->lightdata) {
-		// 	mat_fullbright.SetValue(1);
-		// }
+		if (host_state.WorldBrush != null && host_state.WorldBrush.LightData?.Length == 0)
+			mat_fullbright.SetValue(1);
 
 		bool lightmapsNeedReloading = materialSystem.UpdateConfig(false);
 		if (lightmapsNeedReloading) {
