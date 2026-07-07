@@ -1138,4 +1138,91 @@ public class Material : IMaterialInternal
 			}
 		}
 	}
+
+	public void SetMaterialVarFlags(MaterialVarFlags flags, bool on) {
+		if (ShaderParams == null) {
+			Assert(false);
+			return;
+		}
+
+		MaterialVarFlags val = on ? (GetMaterialVarFlags() | flags) : (GetMaterialVarFlags() & (~flags));
+		ShaderParams[(int)ShaderMaterialVars.Flags].SetIntValue((int)val);
+		ShaderParams[(int)ShaderMaterialVars.FlagsDefined].SetIntValue(ShaderParams[(int)ShaderMaterialVars.FlagsDefined].GetIntValue() | (int)flags);
+	}
+
+	public void SetMaterialVarFlag(MaterialVarFlags flag, bool on) {
+		bool oldOn = (GetMaterialVarFlags() & flag) != 0;
+		if (oldOn != on) {
+			SetMaterialVarFlags(flag, on);
+			RecomputeStateSnapshots();
+		}
+	}
+
+	public bool GetMaterialVarFlag(MaterialVarFlags flag) => (GetMaterialVarFlags() & flag) != 0;
+
+	public bool IsTwoSided() {
+		PrecacheVars();
+		return GetMaterialVarFlag(MaterialVarFlags.NoCull);
+	}
+
+	public bool IsAlphaTested() {
+		Precache();
+		if (Shader != null && IsValidRenderState())
+			return (ShaderRenderState.GetFlags() & ShaderFlags.OpacityAlphaTest) != 0 || GetMaterialVarFlag(MaterialVarFlags.AlphaTest);
+
+		return false;
+	}
+
+	public bool UsesEnvCubemap() {
+		Precache();
+
+		if (Shader == null) {
+			AssertMsg(false, $"Shader==NULL. Shader: {GetName()}");
+			return false;
+		}
+
+		Assert(ShaderParams != null);
+		return IsFlag2Set(ShaderParams, MaterialVarFlags2.UsesEnvCubemap);
+	}
+
+	public bool NeedsTangentSpace() {
+		Precache();
+
+		if (Shader == null) {
+			AssertMsg(false, $"Shader==NULL. Shader: {GetName()}");
+			return false;
+		}
+
+		Assert(ShaderParams != null);
+		return IsFlag2Set(ShaderParams, MaterialVarFlags2.NeedsTangentSpaces);
+	}
+
+	public bool NeedsPowerOfTwoFrameBufferTexture(bool checkSpecificToThisFrame) {
+		Precache();
+
+		if (Shader == null) {
+			AssertMsg(false, $"Shader==NULL. Shader: {GetName()}");
+			return false;
+		}
+
+		// todo
+		return false;
+	}
+
+	public bool NeedsFullFrameBufferTexture(bool checkSpecificToThisFrame) {
+		Precache();
+
+		if (Shader == null) {
+			AssertMsg(false, $"Shader==NULL. Shader: {GetName()}");
+			return false;
+		}
+
+		// todo
+		return false;
+	}
+
+	public bool NeedsLightmapBlendAlpha(){
+		Precache();
+		return (GetMaterialVarFlags2() & MaterialVarFlags2.BlendWithLightmapAlpha) != 0;
+	}
 }

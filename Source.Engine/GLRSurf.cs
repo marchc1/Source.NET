@@ -66,13 +66,13 @@ public struct BatchList
 	public ushort NumIndex;
 }
 
-public struct EnumLeafBoxInfo
+public ref struct EnumLeafBoxInfo<T> where T : ISpatialLeafEnumerator
 {
 	public Vector3 BoxMax;
 	public Vector3 BoxMin;
 	public Vector3 BoxCenter;
 	public Vector3 BoxHalfDiagonal;
-	public ISpatialLeafEnumerator? Iterator;
+	public ref T Iterator;
 	public nint Context;
 }
 
@@ -1371,13 +1371,13 @@ public class EngineBSPTree : ISpatialQuery
 	const int ENUM_SPHERE_TEST_Z = 0x4;
 	const int ENUM_SPHERE_TEST_ALL = 0x7;
 
-	struct EnumLeafSphereInfo
+	ref struct EnumLeafSphereInfo<T> where T : ISpatialLeafEnumerator
 	{
 		public Vector3 Center;
 		public float Radius;
 		public Vector3 BoxCenter;
 		public Vector3 BoxHalfDiagonal;
-		public ISpatialLeafEnumerator Iterator;
+		public ref T Iterator;
 		public nint Context;
 	}
 
@@ -1385,37 +1385,40 @@ public class EngineBSPTree : ISpatialQuery
 
 	public int LeafCount() => host_state.WorldBrush!.NumLeafs;
 
-	public bool EnumerateLeavesAtPoint(in Vector3 pt, ISpatialLeafEnumerator pEnum, nint context) => pEnum.EnumerateLeaf(CM.PointLeafnum(pt), context);
+	public bool EnumerateLeavesAtPoint<T>(in Vector3 pt, ref T pEnum, nint context) where T : ISpatialLeafEnumerator => pEnum.EnumerateLeaf(CM.PointLeafnum(pt), context);
 
-	public bool EnumerateLeavesInBox(in Vector3 mins, in Vector3 maxs, ISpatialLeafEnumerator pEnum, nint context) {
+	public bool EnumerateLeavesInBox<T>(in Vector3 mins, in Vector3 maxs, ref T pEnum, nint context) where T : ISpatialLeafEnumerator {
 		if (host_state.WorldModel == null)
 			return false;
 
-		EnumLeafBoxInfo info = default;
-		info.BoxCenter = (mins + maxs) * 0.5f;
-		info.BoxHalfDiagonal = maxs - info.BoxCenter;
-		info.Iterator = pEnum;
-		info.Context = context;
-		info.BoxMax = maxs;
-		info.BoxMin = mins;
-		return EnumerateLeafInBox_R(host_state.WorldBrush!.Nodes![0], ref info);
+		unsafe {
+			EnumLeafBoxInfo<T> info = default;
+			info.BoxCenter = (mins + maxs) * 0.5f;
+			info.BoxHalfDiagonal = maxs - info.BoxCenter;
+			info.Iterator = ref pEnum;
+			info.Context = context;
+			info.BoxMax = maxs;
+			info.BoxMin = mins;
+			return EnumerateLeafInBox_R(host_state.WorldBrush!.Nodes![0], ref info);
+		}
 	}
 
-	public bool EnumerateLeavesInSphere(in Vector3 center, float radius, ISpatialLeafEnumerator pEnum, nint context) {
-		EnumLeafSphereInfo info = default;
-		info.Center = center;
-		info.Radius = radius;
-		info.Iterator = pEnum;
-		info.Context = context;
-		info.BoxCenter = center;
-		info.BoxHalfDiagonal = new(radius, radius, radius);
-
-		return EnumerateLeafInSphere_R(host_state.WorldBrush!.Nodes![0], ref info, ENUM_SPHERE_TEST_ALL);
+	public bool EnumerateLeavesInSphere<T>(in Vector3 center, float radius, ref T pEnum, nint context) where T : ISpatialLeafEnumerator {
+		EnumLeafSphereInfo<T> info = default;
+		unsafe {
+			info.Center = center;
+			info.Radius = radius;
+			info.Iterator = ref pEnum;
+			info.Context = context;
+			info.BoxCenter = center;
+			info.BoxHalfDiagonal = new(radius, radius, radius);
+			return EnumerateLeafInSphere_R(host_state.WorldBrush!.Nodes![0], ref info, ENUM_SPHERE_TEST_ALL);
+		}
 	}
 
-	public bool EnumerateLeavesAlongRay(in Ray ray, ISpatialLeafEnumerator pEnum, nint context) => throw new NotImplementedException();
+	public bool EnumerateLeavesAlongRay<T>(in Ray ray, ref T pEnum, nint context) where T : ISpatialLeafEnumerator => throw new NotImplementedException();
 
-	static bool EnumerateLeafInBox_R(BSPMNode node, ref EnumLeafBoxInfo info) {
+	static bool EnumerateLeafInBox_R<T>(BSPMNode node, ref EnumLeafBoxInfo<T> info) where T : ISpatialLeafEnumerator {
 		if (node.Contents == (int)Contents.Solid)
 			return true;
 
@@ -1471,7 +1474,7 @@ public class EngineBSPTree : ISpatialQuery
 
 	static bool EnumerateLeavesAlongExtrudedRay_R(BSPMNode node, in Ray ray, float start, float end, ISpatialLeafEnumerator pEnum, nint context) => throw new NotImplementedException();
 
-	static bool EnumerateLeafInSphere_R(BSPMNode node, ref EnumLeafSphereInfo info, int testFlags) {
+	static bool EnumerateLeafInSphere_R<T>(BSPMNode node, ref EnumLeafSphereInfo<T> info, int testFlags) where T : ISpatialLeafEnumerator {
 		while (true) {
 			if (node.Contents == (int)Contents.Solid)
 				return true;

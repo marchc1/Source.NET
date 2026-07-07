@@ -20,10 +20,10 @@ public interface ISpatialQuery
 	int LeafCount();
 
 	// Enumerates the leaves along a ray, box, etc.
-	bool EnumerateLeavesAtPoint(in Vector3 pt, ISpatialLeafEnumerator enumerator, nint context);
-	bool EnumerateLeavesInBox(in Vector3 mins, in Vector3 maxs, ISpatialLeafEnumerator enumerator, nint context);
-	bool EnumerateLeavesInSphere(in Vector3 center, float radius, ISpatialLeafEnumerator enumerator, nint context);
-	bool EnumerateLeavesAlongRay(in Ray ray, ISpatialLeafEnumerator enumerator, nint context);
+	bool EnumerateLeavesAtPoint<T>(in Vector3 pt, ref T enumerator, nint context) where T : ISpatialLeafEnumerator;
+	bool EnumerateLeavesInBox<T>(in Vector3 mins, in Vector3 maxs, ref T enumerator, nint context) where T : ISpatialLeafEnumerator;
+	bool EnumerateLeavesInSphere<T>(in Vector3 center, float radius, ref T enumerator, nint context) where T : ISpatialLeafEnumerator;
+	bool EnumerateLeavesAlongRay<T>(in Ray ray, ref T enumerator, nint context) where T : ISpatialLeafEnumerator;
 }
 
 public interface IBSPTreeDataEnumerator
@@ -46,7 +46,7 @@ public interface IBSPTreeData
 	void ElementMoved(BSPTreeDataHandle_t handle, in Vector3 mins, in Vector3 maxs);
 
 	// Enumerate elements in a particular leaf
-	bool EnumerateElementsInLeaf(int leaf, IBSPTreeDataEnumerator enumerator, nint context);
+	bool EnumerateElementsInLeaf<T>(int leaf, ref T enumerator, nint context)where T : IBSPTreeDataEnumerator;
 
 	// Is the element in any leaves at all?
 	bool IsElementInTree(BSPTreeDataHandle_t handle);
@@ -54,8 +54,8 @@ public interface IBSPTreeData
 	// NOTE: These methods call through to the functions in the attached
 	// ISpatialQuery
 	// For convenience, enumerates the leaves along a ray, box, etc.
-	bool EnumerateLeavesAtPoint(in Vector3 pt, ISpatialLeafEnumerator enumerator, nint context);
-	bool EnumerateLeavesInBox(in Vector3 mins, in Vector3 maxs, ISpatialLeafEnumerator enumerator, nint context);
-	bool EnumerateLeavesInSphere(in Vector3 center, float radius, ISpatialLeafEnumerator enumerator, nint context);
-	bool EnumerateLeavesAlongRay(in Ray ray, ISpatialLeafEnumerator enumerator, nint context);
+	bool EnumerateLeavesAtPoint<T>(in Vector3 pt, ref T enumerator, nint context) where T : ISpatialLeafEnumerator;
+	bool EnumerateLeavesInBox<T>(in Vector3 mins, in Vector3 maxs, ref T enumerator, nint context) where T : ISpatialLeafEnumerator;
+	bool EnumerateLeavesInSphere<T>(in Vector3 center, float radius, ref T enumerator, nint context) where T : ISpatialLeafEnumerator;
+	bool EnumerateLeavesAlongRay<T>(in Ray ray, ref T enumerator, nint context) where T : ISpatialLeafEnumerator;
 }

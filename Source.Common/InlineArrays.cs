@@ -168,6 +168,7 @@ namespace Source;
 [InlineArray(255)] public struct InlineArray255<T> { public T item; }
 [InlineArray(256)] public struct InlineArray256<T> { public T item; }
 [InlineArray(260)] public struct InlineArray260<T> { public T item; }
+[InlineArray(384)] public struct InlineArray384<T> { public T item; }
 [InlineArray(512)] public struct InlineArray512<T> { public T item; }
 [InlineArray(1024)] public struct InlineArray1024<T> { public T item; }
 [InlineArray(2048)] public struct InlineArray2048<T> { public T item; }

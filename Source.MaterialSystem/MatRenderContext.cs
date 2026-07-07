@@ -4,6 +4,7 @@ using Source.Common.ShaderAPI;
 using Source.Common.Utilities;
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 
@@ -567,15 +568,33 @@ public class MatRenderContext : IMatRenderContextInternal
 		LightmapPageID = lightmapPageID;
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ShaderAPITextureHandle_t GetBlackTextureHandle() => materials.GetBlackTextureHandle();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ShaderAPITextureHandle_t GetFlatNormalTextureHandle() => materials.GetFlatNormalTextureHandle();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ShaderAPITextureHandle_t GetGreyTextureHandle() => materials.GetGreyTextureHandle();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ShaderAPITextureHandle_t GetGreyAlphaZeroTextureHandle() => materials.GetGreyAlphaZeroTextureHandle();
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ShaderAPITextureHandle_t GetWhiteTextureHandle() => materials.GetWhiteTextureHandle();
+
 	public void BindStandardTexture(Sampler sampler, StandardTextureId id) {
 		switch (id) {
-			case StandardTextureId.Lightmap:
-				BindLightmap(sampler);
-				break;
-			default:
-				Assert(false);
-				break;
+			case StandardTextureId.Lightmap: BindLightmap(sampler); break;
+			case StandardTextureId.White: shaderAPI.BindTexture(sampler, GetWhiteTextureHandle()); break;
+			case StandardTextureId.NormalMapFlat: shaderAPI.BindTexture(sampler, GetFlatNormalTextureHandle()); break;
+			case StandardTextureId.Black: shaderAPI.BindTexture(sampler, GetBlackTextureHandle()); break;
+			case StandardTextureId.Grey: shaderAPI.BindTexture(sampler, GetGreyTextureHandle()); break;
+			case StandardTextureId.GreyAlphaZero: shaderAPI.BindTexture(sampler, GetGreyAlphaZeroTextureHandle()); break;
+			default: Assert(false); break;
 		}
+	}
+
+	ITexture? LocalCubemapTexture;
+
+	public void BindLocalCubemap(ITexture? texture){
+		ITexture? previousTexture = LocalCubemapTexture;
+
+		LocalCubemapTexture = texture ?? materials.TextureSystem.ErrorTexture();
+
+		if (LocalCubemapTexture != previousTexture)
+			shaderAPI.FlushBufferedPrimitives();
 	}
 
 	public MatLightmaps GetLightmaps() => materials.MatLightmaps;

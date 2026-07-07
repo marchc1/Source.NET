@@ -958,7 +958,8 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 		ISpatialQuery query = engine.GetBSPTreeQuery()!;
 		GCHandle handle = GCHandle.Alloc(ctx);
 		try {
-			query.EnumerateLeavesInSphere(CurrentViewOrigin(), cl_detaildist.GetFloat(), this, GCHandle.ToIntPtr(handle));
+			ISpatialLeafEnumerator queryRef = this;
+			query.EnumerateLeavesInSphere(CurrentViewOrigin(), cl_detaildist.GetFloat(), ref queryRef, GCHandle.ToIntPtr(handle));
 		}
 		finally {
 			handle.Free();

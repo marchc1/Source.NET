@@ -70,6 +70,7 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void BeginFrame();
 	void EndFrame();
 	int GetCurrentDynamicVBSize();
+	void TexImage2D(int mip, int face,  ImageFormat dstFormat, int zOffset, int width, int height, ImageFormat srcFormat, bool srcIsTiled, Span<byte> imageData);
 	void TexSubImage2D(int mip, int face, int x, int y, int z, int width, int height, ImageFormat srcFormat, int srcStride, Span<byte> imageData);
 	bool DoRenderTargetsNeedSeparateDepthBuffer();
 	void EnableLinearColorSpaceFrameBuffer(bool v);
@@ -125,4 +126,7 @@ public interface IShaderAPI : IShaderDynamicAPI
 	bool ChangeVideoMode(in ShaderDeviceInfo info);
 	void AddModeChangeCallBack(Action func);
 	void SetDefaultState();
+	void SetStandardTextureHandle(StandardTextureId id, int handle);
+	float LinearToGamma_HardwareSpecific(float fLookupResult);
+	void SetLinearToGammaConversionTextures(int linearToGammaTableTextureHandle, int linearToGammaIdentityTableTextureHandle);
 }

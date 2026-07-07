@@ -339,6 +339,7 @@ public interface IMatRenderContext
 	void BindLightmapPage(int lightmapPageID);
 	void BindLightmap(Sampler sampler);
 	void BindStandardTexture(Sampler sampler, StandardTextureId id);
+	void BindLocalCubemap(ITexture tex);
 }
 
 public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
@@ -424,7 +425,6 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 		ctx.GetWorldSpaceCameraPosition(out vecCameraPos);
 	}
 
-	public void BindStandardTexture(Sampler sampler, StandardTextureId id) {
-		ctx.BindStandardTexture(sampler, id);
-	}
+	public void BindStandardTexture(Sampler sampler, StandardTextureId id) => ctx.BindStandardTexture(sampler, id);
+	public void BindLocalCubemap(ITexture texture) => ctx.BindLocalCubemap(texture);
 }

@@ -302,6 +302,15 @@ public class DummyMaterial : IMaterial
 	public void AlphaModulate(float alpha) { }
 	public float GetAlphaModulation() => 1.0f;
 	public void GetColorModulation(out float r, out float g, out float b) { r = g = b = 1.0f; }
+	public void SetMaterialVarFlag(MaterialVarFlags flag, bool on) { }
+	public bool GetMaterialVarFlag(MaterialVarFlags flag) => false;
+	public bool IsTwoSided() => false;
+	public bool IsAlphaTested() => false;
+	public bool UsesEnvCubemap() => false;
+	public bool NeedsTangentSpace() => false;
+	public bool NeedsPowerOfTwoFrameBufferTexture(bool checkSpecificToThisFrame) => false;
+	public bool NeedsFullFrameBufferTexture(bool checkSpecificToThisFrame) => false;
+	public bool NeedsLightmapBlendAlpha() => false;
 }
 
 public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderContext
@@ -428,4 +437,5 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public void UpdateLightmap(int lightmapPageID, Span<int> lightmapSize, Span<int> offsetIntoLightmapPage, Span<float> floatImage, Span<float> floatImageBump1, Span<float> floatImageBump2, Span<float> floatImageBump3) { }
 	public void Viewport(int x, int y, int width, int height) { }
 	public void SetRealMaterialSystem(IMaterialSystem? sys) => RealMaterialSystem = sys;
+	public void BindLocalCubemap(ITexture tex) { }
 }

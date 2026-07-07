@@ -450,6 +450,17 @@ public interface IMaterial
 	int GetNumAnimationFrames();
 	bool HasProxy();
 	void CallBindProxy(object? clientEntity);
+
+	void SetMaterialVarFlag(MaterialVarFlags flag, bool on);
+	bool GetMaterialVarFlag(MaterialVarFlags flag);
+
+	bool IsTwoSided();
+	bool IsAlphaTested();
+	bool UsesEnvCubemap();
+	bool NeedsTangentSpace();
+	bool NeedsPowerOfTwoFrameBufferTexture(bool checkSpecificToThisFrame);
+	bool NeedsFullFrameBufferTexture(bool checkSpecificToThisFrame);
+	bool NeedsLightmapBlendAlpha();
 }
 
 // Intended to only be used by the material system and not other components
