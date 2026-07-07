@@ -96,7 +96,7 @@ public class UtlCachedFileData<T> where T : class, IBaseCacheInfo, new()
 						e.DiskFileInfo = 0;
 				}
 				else {
-					e.DiskFileInfo = filesystem.Time(filename, "GAME").Ticks;
+					e.DiskFileInfo = filesystem.GetFileTime(filename, "GAME").Ticks;
 				}
 			}
 		}

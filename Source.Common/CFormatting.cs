@@ -39,7 +39,7 @@ public ref struct SpanWriter<T>
 		input[writePtr++] = value;
 		return this;
 	}
-	public SpanWriter<T> Write(ReadOnlySpan<T> span) {
+	public SpanWriter<T> Write(scoped ReadOnlySpan<T> span) {
 		if ((writePtr + span.Length) >= input.Length) {
 			// We'll clamped-copy it anyway, but set overflow flag
 			overflowed = true;
@@ -127,7 +127,7 @@ public ref struct PrintF
 		return this;
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public PrintF I(int i) => D(i);
-	public PrintF S(ReadOnlySpan<char> str) {
+	public PrintF S(scoped ReadOnlySpan<char> str) {
 		if (reader.ReadVariable(out char type, out int variableIdx)) {
 			input.Write(str.SliceNullTerminatedString());
 			WriteAnyLiterals();

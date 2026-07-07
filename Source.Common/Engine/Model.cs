@@ -65,7 +65,7 @@ public class WorldBrushData
 	public CollisionSurface[]? TexData;
 	public ushort[]? VertIndices;
 	// TODO: Displacement info
-	public BSPWorldLight[]? WorldLights;
+	public BSPDWorldLight[]? WorldLights;
 	public BSPMPrimitive[]? Primitives;
 	public int NumPrimitives => Primitives?.Length ?? 0;
 	public BSPMPrimVert[]? PrimVerts;
@@ -77,7 +77,8 @@ public class WorldBrushData
 	public BSPDAreaPortal[]? AreaPortals;
 	public int NumAreaPortals;
 	public Vector3[]? ClipPortalVerts;
-	public BSPCubeMapSample[]? CubemapSamples;
+	public BSPMCubeMapSample[]? CubemapSamples;
+	public int NumCubemapSamples;
 	public int NumSurfaces;
 	public BSPMSurface1[]? Surfaces1;
 	public BSPMSurface2[]? Surfaces2;
@@ -89,6 +90,9 @@ public class WorldBrushData
 	public ushort[]? DispInfoReferences;
 	public int NumDispInfoReferences;
 	public bool UnloadedLightmaps;
+
+	public int NumWorldLights;
+	public LightZBuffer[]? ShadowZBuffers;
 }
 
 public struct BrushData

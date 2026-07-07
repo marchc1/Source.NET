@@ -1,6 +1,6 @@
-using static Source.Engine.DispMapload;
-
 using CommunityToolkit.HighPerformance;
+
+using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
 using Source.Common.Client;
@@ -13,11 +13,13 @@ using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
 using System.Buffers;
+using System.Drawing;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Xml.Linq;
 
-using Microsoft.Extensions.DependencyInjection;
+using static Source.Engine.DispMapload;
 
 namespace Source.Engine;
 
@@ -43,7 +45,7 @@ public ref struct MapLoadHelper
 		else
 			MapName = model.StrName.String();
 
-		MapFileHandle = fileSystem.Open(loadName, FileOpenOptions.Read | FileOpenOptions.Binary)?.Stream;
+		MapFileHandle = fileSystem.Open(MapName, FileOpenOptions.Read | FileOpenOptions.Binary)?.Stream;
 		if (MapFileHandle == null) {
 			Host.Error($"MapLoadHelper.Init, unable to open {MapName}");
 			return false;
@@ -167,6 +169,10 @@ public ref struct MapLoadHelper
 	internal ReadOnlySpan<char> GetMapName() {
 		return MapName;
 	}
+
+	internal ReadOnlySpan<char> GetLoadName() {
+		return LoadName;
+	}
 }
 
 public class MDLCacheNotify : IMDLCacheNotify
@@ -242,6 +248,9 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 
 	InlineArray64<char> ActiveMapName;
 	InlineArray64<char> LoadName;
+
+	public ReadOnlySpan<char> ActiveMapNameSliced() => ((ReadOnlySpan<char>)ActiveMapName).SliceNullTerminatedString();
+	public ReadOnlySpan<char> LoadNameSliced() => ((ReadOnlySpan<char>)LoadName).SliceNullTerminatedString();
 
 	Model? WorldModel;
 	double accumulatedModelLoadTimeStudio;
@@ -621,6 +630,20 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 	int MapLoadCount;
 	public readonly WorldBrushData WorldBrushData = new();
 
+	private void Mod_LoadLump<T>(Model loadmodel, LumpIndex lump, ReadOnlySpan<char> loadName, ref T[]? data) where T : unmanaged {
+		int elements = 0;
+		Mod_LoadLump(loadmodel, lump, loadName, ref data, ref elements);
+	}
+	private void Mod_LoadLump<T>(Model loadmodel, LumpIndex lump, ReadOnlySpan<char> loadName, ref T[]? data, ref int elements) where T : unmanaged {
+		int elementSize = Unsafe.SizeOf<T>();
+		MapLoadHelper lh = new MapLoadHelper(lump);
+		if ((lh.LumpSize % elementSize) != 0)
+			Host.Error($"Mod_LoadLump: funny lump size in {loadmodel.StrName.String()}");
+
+		elements = lh.LumpSize / elementSize;
+		data = lh.LoadLumpData<T>();
+	}
+
 	private void Map_LoadModel(Model mod) {
 		MapLoadCount++;
 		double startTime = Platform.Time;
@@ -638,7 +661,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 
 		mod.Type = ModelType.Brush;
 		mod.LoadFlags |= ModelLoaderFlags.Loaded;
-		if (!MapLoadHelper.Init(mod, ((Span<char>)(ActiveMapName)).SliceNullTerminatedString()))
+		if (!MapLoadHelper.Init(mod, LoadNameSliced()))
 			return;
 
 		Mod_LoadVertices();
@@ -673,19 +696,342 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		Mod_LoadFaces();
 		Mod_LoadVertNormals();
 		Mod_LoadVertNormalIndices();
+
+#if !SWDS
+		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LoadWorldModel);
+#endif
+
 		Mod_LoadLeafs();
 		Mod_LoadMarksurfaces();
 		Mod_LoadNodes();
-		List<BSPMModel> submodelList = [];
-		Mod_LoadSubmodels(submodelList);
-		SetupSubModels(mod, submodelList);
+		Mod_LoadLeafWaterData();
+		Mod_LoadCubemapSamples();
+
+		// TODO: Load overlays
+
+
+		Mod_LoadLeafMinDistToWater();
+
+#if !SWDS
+		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LoadWorldModel);
+#endif
+
+		Mod_LoadLump(mod, LumpIndex.ClipPortalVerts, $"{LoadNameSliced()} [clipportalverts]", ref WorldBrushData.ClipPortalVerts);
+		Mod_LoadLump(mod, LumpIndex.AreaPortals, $"{LoadNameSliced()} [areaportals]", ref WorldBrushData.AreaPortals, ref WorldBrushData.NumAreaPortals);
+		Mod_LoadLump(mod, LumpIndex.Areas, $"{LoadNameSliced()} [areaportals]", ref WorldBrushData.Areas, ref WorldBrushData.NumAreas);
+
+		if (materialSystemHardwareConfig.GetHDRType() != HDRType.None && MapLoadHelper.GetLumpSize(LumpIndex.WorldLightsHDR) > 0) {
+			MapLoadHelper mlh = new(LumpIndex.WorldLightsHDR);
+			Mod_LoadWorldlights(ref mlh, true);
+		}
+		else {
+			MapLoadHelper mlh = new(LumpIndex.WorldLights);
+			Mod_LoadWorldlights(ref mlh, false);
+		}
 
 		Common.TimestampedLog("  Mod_LoadGameLumpDict");
 		LoadGameLumpDict();
+#if !SWDS
+		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LoadWorldModel);
+#endif
+		List<BSPMModel> submodelList = [];
+		Mod_LoadSubmodels(submodelList);
+
+#if !SWDS
+		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LoadWorldModel);
+#endif
+
+		SetupSubModels(mod, submodelList);
+		RecomputeSurfaceFlags(mod);
+
+#if !SWDS
+		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LoadWorldModel);
+#endif
+
+		Map_VisClear();
+		Map_SetRenderInfoAllocated(false);
 
 		MapLoadHelper.Shutdown();
 		double elapsed = Platform.Time - startTime;
 		Common.TimestampedLog($"Map_LoadModel: Finish - loading took {elapsed:F4} seconds");
+	}
+
+	public void Mod_LoadWorldlights(ref MapLoadHelper lh, bool isHDR) {
+		WorldBrushData map = lh.GetMap();
+		map.ShadowZBuffers = null;
+		if (lh.LumpSize == 0) {
+			map.NumWorldLights = 0;
+			map.WorldLights = null;
+			return;
+		}
+		map.NumWorldLights = lh.LumpSize / Unsafe.SizeOf<BSPDWorldLight>();
+		map.WorldLights = lh.LoadLumpData<BSPDWorldLight>();
+#if !SWDS
+		if (Render.r_lightcache_zbuffercache.GetInt() != 0) {
+			int zbufSize = map.NumWorldLights * Unsafe.SizeOf<LightZBuffer>();
+			map.ShadowZBuffers = new LightZBuffer[map.NumWorldLights];
+		}
+#endif
+
+		// Fixup for backward compatability
+		for (int i = 0; i < map.NumWorldLights; i++) {
+			if (map.WorldLights![i].Type == EmitType.SpotLight) {
+				if ((map.WorldLights![i].ConstantAttn == 0.0) &&
+					(map.WorldLights![i].LinearAttn == 0.0) &&
+					(map.WorldLights![i].QuadraticAttn == 0.0)) {
+					map.WorldLights![i].QuadraticAttn = 1.0f;
+				}
+
+				if (map.WorldLights![i].Exponent == 0.0f)
+					map.WorldLights![i].Exponent = 1.0f;
+			}
+			else if (map.WorldLights![i].Type == EmitType.Point) {
+				// To match earlier lighting, use quadratic...
+				if ((map.WorldLights![i].ConstantAttn == 0.0) && (map.WorldLights![i].LinearAttn == 0.0) && (map.WorldLights![i].QuadraticAttn == 0.0))
+					map.WorldLights![i].QuadraticAttn = 1.0f;
+
+			}
+
+			// I replaced the cuttoff_dot field (which took a value from 0 to 1)
+			// with a max light radius. Radius of less than 1 will never happen,
+			// so I can get away with this. When I set radius to 0, it'll 
+			// run the old code which computed a radius
+			if (map.WorldLights![i].Radius < 1)
+				map.WorldLights![i].Radius = ComputeLightRadius(ref map.WorldLights![i], isHDR);
+		}
+	}
+
+	public const float LIGHT_MIN_LIGHT_VALUE = 0.03f;
+
+	float ComputeLightRadius(ref BSPDWorldLight light, bool isHDR) {
+		float flLightRadius = light.Radius;
+		if (flLightRadius == 0.0f) {
+			// HACKHACK: Usually our designers scale the light intensity by 0.5 in HDR
+			// This keeps the behavior of the cutoff radius consistent between LDR and HDR
+			float minLightValue = isHDR ? (LIGHT_MIN_LIGHT_VALUE * 0.5f) : LIGHT_MIN_LIGHT_VALUE;
+
+			// Compute the light range based on attenuation factors
+			float flIntensity = MathF.Sqrt(MathLib.DotProduct(light.Intensity, light.Intensity));
+			if (light.QuadraticAttn == 0.0f) {
+				if (light.LinearAttn == 0.0f)
+					// Infinite, but we're not going to draw it as such
+					flLightRadius = 2000;
+				else
+					flLightRadius = (flIntensity / minLightValue - light.ConstantAttn) / light.LinearAttn;
+			}
+			else {
+				float a = light.QuadraticAttn;
+				float b = light.LinearAttn;
+				float c = light.ConstantAttn - flIntensity / minLightValue;
+				float discrim = b * b - 4 * a * c;
+				if (discrim < 0.0f)
+					// Infinite, but we're not going to draw it as such
+					flLightRadius = 2000;
+				else {
+					flLightRadius = (-b + MathF.Sqrt(discrim)) / (2.0f * a);
+					if (flLightRadius < 0)
+						flLightRadius = 0;
+				}
+			}
+		}
+
+		return flLightRadius;
+	}
+
+
+	struct BrushBSPIterator : ISpatialLeafEnumerator
+	{
+		Model World;
+		Model Brush;
+		WorldBrushData Shared;
+		int Count;
+
+		public BrushBSPIterator(Model world, Model brush) {
+			World = world;
+			Brush = brush;
+			Shared = Brush.Brush.Shared!;
+			Count = 0;
+		}
+
+		public bool EnumerateLeaf(int leaf, nint context) {
+			SurfDraw flags = (Shared.Leafs![leaf].LeafWaterDataID == -1) ? SurfDraw.AboveWater : SurfDraw.UnderWater;
+			MarkModelSurfaces(flags);
+			Count++;
+			return true;
+		}
+
+		void MarkModelSurfaces(SurfDraw flags) {
+			// Iterate over all this models surfaces
+			int surfaceCount = Brush.Brush.NumModelSurfaces;
+			for (int i = 0; i < surfaceCount; ++i) {
+				ref BSPMSurface2 surfID = ref SurfaceHandleFromIndex(Brush.Brush.FirstModelSurface + i, Shared);
+				MSurf_Flags(ref surfID) &= ~(SurfDraw.AboveWater | SurfDraw.UnderWater);
+				MSurf_Flags(ref surfID) |= flags;
+			}
+		}
+
+		public void CheckSurfaces() {
+			if (Count == 0)
+				MarkModelSurfaces(SurfDraw.AboveWater);
+		}
+	}
+
+
+	static void MarkBrushModelWaterSurfaces(Model world, in Vector3 mins, in Vector3 maxs, Model brush) {
+		Model pTemp = host_state.WorldModel!;
+		BrushBSPIterator brushIterator = new(world, brush);
+		host_state.SetWorldModel(world);
+		g_ToolBSPTree.EnumerateLeavesInBox(mins, maxs, ref brushIterator, brush.GetHashCode());
+		brushIterator.CheckSurfaces();
+		host_state.SetWorldModel(pTemp);
+	}
+
+	public void RecomputeSurfaceFlags(Model mod) {
+		for (int i = 0; i < mod.Brush.Shared!.NumSubModels; i++) {
+			Model subModel = InlineModels[i];
+
+			Mod_ComputeBrushModelFlags(subModel);
+
+			if (i != 0)
+				MarkBrushModelWaterSurfaces(mod, subModel.Mins, subModel.Maxs, subModel);
+		}
+	}
+
+	public static void Mod_ComputeBrushModelFlags(Model mod) {
+		WorldBrushData brushData = mod.Brush.Shared!;
+		// Clear out flags we're going to set
+		mod.Flags &= ~(ModelFlag.MaterialProxy | ModelFlag.Translucent | ModelFlag.FramebufferTexture | ModelFlag.TranslucentTwoPass);
+		mod.Flags = ModelFlag.HasDLight; // force this check the first time
+
+		int i;
+		int scount = mod.Brush.NumModelSurfaces;
+		bool bHasOpaqueSurfaces = false;
+		bool bHasTranslucentSurfaces = false;
+		for (i = 0; i < scount; ++i) {
+			ref BSPMSurface2 surfID = ref SurfaceHandleFromIndex(mod.Brush.FirstModelSurface + i, brushData);
+
+			// Clear out flags we're going to set
+			MSurf_Flags(ref surfID) &= ~(SurfDraw.NoCull | SurfDraw.Trans | SurfDraw.AlphaTest | SurfDraw.NoDecals);
+
+			ref ModelTexInfo pTex = ref MSurf_TexInfo(ref surfID, brushData);
+			IMaterial material = pTex.Material!;
+
+			if (material.HasProxy())
+				mod.Flags |= ModelFlag.MaterialProxy;
+
+
+			if (material.NeedsPowerOfTwoFrameBufferTexture(false)) // The false checks if it will ever need the frame buffer, not just this frame
+				mod.Flags |= ModelFlag.FramebufferTexture;
+
+			// Deactivate culling if the material is two sided
+			if (material.IsTwoSided())
+				MSurf_Flags(ref surfID) |= SurfDraw.NoCull;
+
+			if ((pTex.Flags & Surf.Trans) != 0 || material.IsTranslucent()) {
+				mod.Flags |= ModelFlag.Translucent;
+				MSurf_Flags(ref surfID) |= SurfDraw.Trans;
+				bHasTranslucentSurfaces = true;
+			}
+			else
+				bHasOpaqueSurfaces = true;
+
+			if ((pTex.Flags & Surf.NoDecals) != 0 || material.GetMaterialVarFlag(MaterialVarFlags.SuppressDecals) || material.IsAlphaTested())
+				MSurf_Flags(ref surfID) |= SurfDraw.NoDecals;
+
+			if (material.IsAlphaTested())
+				MSurf_Flags(ref surfID) |= SurfDraw.AlphaTest;
+		}
+
+		if (bHasOpaqueSurfaces && bHasTranslucentSurfaces)
+			mod.Flags |= ModelFlag.TranslucentTwoPass;
+	}
+
+	bool MapRenderInfoLoaded;
+	public bool Map_GetRenderInfoAllocated() => MapRenderInfoLoaded;
+	private void Map_SetRenderInfoAllocated(bool allocated) => MapRenderInfoLoaded = allocated;
+
+	private void Mod_LoadLeafWaterData() {
+
+	}
+
+	private void Mod_LoadCubemapSamples() {
+		Span<char> textureName = stackalloc char[512];
+		Span<char> loadName = stackalloc char[MAX_PATH];
+		ReadOnlySpan<BSPDCubeMapSample> inSample;
+		BSPMCubeMapSample[] outSample;
+		int count, i;
+
+		MapLoadHelper lh = new(LumpIndex.Cubemaps);
+		strcpy(loadName, lh.GetLoadName());
+
+		inSample = lh.LoadLumpData<BSPDCubeMapSample>();
+		if ((lh.LumpSize % Unsafe.SizeOf<BSPDCubeMapSample>()) != 0)
+			Host.Error($"Mod_LoadCubemapSamples: funny lump size in {lh.GetMapName()}");
+		count = lh.LumpSize / Unsafe.SizeOf<BSPDCubeMapSample>();
+		outSample = new BSPMCubeMapSample[count];
+
+		lh.GetMap().CubemapSamples = outSample;
+		lh.GetMap().NumCubemapSamples = count;
+
+		bool hdr = materialSystemHardwareConfig.GetHDRType() != HDRType.None;
+		TextureFlags createFlags = hdr ? 0 : TextureFlags.SRGB;
+
+		// We have separate HDR versions of the textures.  In order to deal with this,
+		// we have blahenvmap.hdr.vtf and blahenvmap.vtf.
+		ReadOnlySpan<char> hdrExtension = "";
+		if (hdr)
+			hdrExtension = ".hdr";
+
+
+		for (i = 0; i < count; i++) {
+			ref readonly BSPDCubeMapSample inCurrent = ref inSample[i];
+			ref BSPMCubeMapSample outCurrent = ref outSample[i];
+			outCurrent.Origin.Init((float)inCurrent.Origin[0], (float)inCurrent.Origin[1], (float)inCurrent.Origin[2]);
+			outCurrent.Size = inCurrent.Size;
+			sprintf(textureName, "maps/%s/c%d_%d_%d%s").S(loadName).D((int)inCurrent.Origin[0]).D((int)inCurrent.Origin[1]).D((int)inCurrent.Origin[2]).S(hdrExtension);
+			outCurrent.Texture = materialSystem.FindTexture(textureName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
+			if (ITexture.IsError(outCurrent.Texture)) {
+				if (hdr) {
+					Warning($"Couldn't get HDR '{textureName}' -- ");
+					// try non hdr version
+					sprintf(textureName, "maps/%s/c%d_%d_%d").S(loadName).D((int)inCurrent.Origin[0]).D((int)inCurrent.Origin[1]).D((int)inCurrent.Origin[2]);
+					Warning($"Trying non HDR '{textureName}'\n");
+					outCurrent.Texture = materialSystem.FindTexture(textureName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true);
+				}
+
+				if (ITexture.IsError(outCurrent.Texture)) {
+					sprintf(textureName, "maps/%s/cubemapdefault").S(loadName);
+					outCurrent.Texture = materialSystem.FindTexture(textureName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
+					if (ITexture.IsError(outCurrent.Texture)) 
+						outCurrent.Texture = materialSystem.FindTexture("engine/defaultcubemap", MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
+					
+					Warning($"Failed, using default cubemap '{outCurrent.Texture.GetName()}'\n");
+				}
+			}
+			outCurrent.Texture.IncrementReferenceCount();
+		}
+
+		using MatRenderContextPtr renderContext = new(materialSystem);
+
+		if (count != 0) 
+			renderContext.BindLocalCubemap(lh.GetMap().CubemapSamples![0].Texture);
+		else {
+			if (commandLine.CheckParm("-requirecubemaps")) 
+				Sys.Error($"Map \"{lh.GetMapName()}\" does not have cubemaps!");
+
+			ITexture? pTexture;
+			sprintf(textureName, "maps/%s/cubemapdefault").S(loadName);
+			pTexture = materialSystem.FindTexture(textureName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
+			if (ITexture.IsError(pTexture)) 
+				pTexture = materialSystem.FindTexture("engine/defaultcubemap", MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
+			
+			pTexture.IncrementReferenceCount();
+			renderContext.BindLocalCubemap(pTexture);
+		}
+	}
+
+	private void Mod_LoadLeafMinDistToWater() {
+
 	}
 
 	private void Mod_LoadNodes() {
@@ -1463,7 +1809,8 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 	}
 
 	public void Map_LoadDisplacements(MaterialSystem_SortInfo[] materialSortInfoArray, Model model) {
-		if (!MapLoadHelper.Init(model, ActiveMapName))
+		model.StrName.String()!.FileBase(LoadName);
+		if (!MapLoadHelper.Init(model, LoadNameSliced()))
 			return;
 
 		DispInfo_LoadDisplacements(model, materialSortInfoArray);

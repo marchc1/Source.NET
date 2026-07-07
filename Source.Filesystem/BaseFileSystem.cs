@@ -5,6 +5,7 @@ using CommunityToolkit.HighPerformance;
 
 using Source.Common.Filesystem;
 using Source.Common.Formats.BSP;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.Utilities;
 using Source.Filesystem;
 
@@ -289,7 +290,7 @@ public class BaseFileSystem : IFileSystem
 		return FirstToThePost(fileName, pathID, (path, filename) => path.Size(filename), (v) => v != -1, -1, out _);
 	}
 
-	public DateTime Time(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID) {
+	public DateTime GetFileTime(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID) {
 		return FirstToThePost(fileName, pathID, (path, filename) => path.Time(filename), (v) => v != DateTime.UnixEpoch, DateTime.UnixEpoch, out _);
 	}
 
@@ -586,5 +587,20 @@ public class BaseFileSystem : IFileSystem
 		ulong hashID = pathID.Hash();
 		foreach (var path in GetCollections(hashID)) 
 			paths.Add(path.DiskPath ?? throw new Exception());
+	}
+
+	public void LoadCompiledKeyValues(IFileSystem.KeyValuesPreloadType type, ReadOnlySpan<char> archiveFile) {
+		throw new NotImplementedException();
+	}
+
+	public KeyValues? LoadKeyValues(IFileSystem.KeyValuesPreloadType type, ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID = default) {
+		KeyValues? kv = new KeyValues(filename);
+		kv.LoadFromFile(this, filename, pathID);
+		// TODO: There is more here, but need to look more into it (for compiled keyvalues)
+		return kv;
+	}
+
+	public bool LoadKeyValues(KeyValues head, IFileSystem.KeyValuesPreloadType type, ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID = default) {
+		return head.LoadFromFile(this, filename, pathID);	
 	}
 }

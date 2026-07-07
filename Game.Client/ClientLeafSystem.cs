@@ -135,7 +135,8 @@ public class ClientLeafSystem : IClientLeafSystem, ISpatialLeafEnumerator
 		ISpatialQuery query = engine.GetBSPTreeQuery()!;
 		GCHandle gcHandle = GCHandle.Alloc(list);
 		try {
-			query.EnumerateLeavesInBox(absMins, absMaxs, this, GCHandle.ToIntPtr(gcHandle));
+			ISpatialLeafEnumerator queryRef = this;
+			query.EnumerateLeavesInBox(absMins, absMaxs, ref queryRef, GCHandle.ToIntPtr(gcHandle));
 		}
 		finally {
 			gcHandle.Free();

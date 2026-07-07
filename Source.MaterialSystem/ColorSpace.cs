@@ -1,4 +1,6 @@
-﻿using Source.Common.Mathematics;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source.Common.Mathematics;
 
 using System.Numerics;
 
@@ -30,6 +32,142 @@ public static class ColorSpace
 		pDstRGB[0] = MathLib.RoundFloatToByte(tmpVect[0] * 255.0f);
 		pDstRGB[1] = MathLib.RoundFloatToByte(tmpVect[1] * 255.0f);
 		pDstRGB[2] = MathLib.RoundFloatToByte(tmpVect[2] * 255.0f);
+	}
+
+	public static unsafe void ColorClampBumped(ref Vector3 color1, ref Vector3 color2, ref Vector3 color3) {
+		fixed (Vector3* pColor1 = &color1)
+		fixed (Vector3* pColor2 = &color2)
+		fixed (Vector3* pColor3 = &color3) {
+			Vector3 maxs;
+			Vector3** colors = stackalloc Vector3*[3];
+			colors[0] = pColor1;
+			colors[1] = pColor2;
+			colors[2] = pColor3;
+			maxs.X = MathLib.VectorMaximum(color1);
+			maxs.Y = MathLib.VectorMaximum(color2);
+			maxs.Z = MathLib.VectorMaximum(color3);
+
+			Span<int> order = stackalloc int[3];
+			if (maxs[0] >= maxs[1] && maxs[1] >= maxs[2]) {
+				order[0] = 0;
+				order[1] = 1;
+				order[2] = 2;
+			}
+			if (maxs[0] >= maxs[2] && maxs[2] >= maxs[1]) {
+				order[0] = 0;
+				order[1] = 2;
+				order[2] = 1;
+			}
+			if (maxs[1] >= maxs[0] && maxs[0] >= maxs[2]) {
+				order[0] = 1;
+				order[1] = 0;
+				order[2] = 2;
+			}
+			if (maxs[1] >= maxs[2] && maxs[2] >= maxs[0]) {
+				order[0] = 1;
+				order[1] = 2;
+				order[2] = 0;
+			}
+			if (maxs[2] >= maxs[0] && maxs[0] >= maxs[1]) {
+				order[0] = 2;
+				order[1] = 0;
+				order[2] = 1;
+			}
+			if (maxs[2] >= maxs[1] && maxs[1] >= maxs[0]) {
+				order[0] = 2;
+				order[1] = 1;
+				order[2] = 0;
+			}
+
+			int i;
+			for (i = 0; i < 3; i++) {
+				float max = MathLib.VectorMaximum(*colors[order[i]]);
+				if (max <= 1.0f) {
+					continue;
+				}
+				// This channel is too bright. . take half of the amount that we are over and 
+				// add it to the other two channel.
+				float factorToRedist = (max - 1.0f) / max;
+				Vector3 colorToRedist = factorToRedist * *colors[order[i]];
+				*colors[order[i]] -= colorToRedist;
+				colorToRedist *= 0.5f;
+				*colors[order[(i + 1) % 3]] += colorToRedist;
+				*colors[order[(i + 2) % 3]] += colorToRedist;
+			}
+
+			MathLib.ColorClamp(ref color1);
+			MathLib.ColorClamp(ref color2);
+			MathLib.ColorClamp(ref color3);
+
+			if (color1.X < 0f) color1.X = 0f;
+			if (color1.Y < 0f) color1.Y = 0f;
+			if (color1.Z < 0f) color1.Z = 0f;
+			if (color2.X < 0f) color2.X = 0f;
+			if (color2.Y < 0f) color2.Y = 0f;
+			if (color2.Z < 0f) color2.Z = 0f;
+			if (color3.X < 0f) color3.X = 0f;
+			if (color3.Y < 0f) color3.Y = 0f;
+			if (color3.Z < 0f) color3.Z = 0f;
+		}
+	}
+	public static void LinearToBumpedLightmap(
+		ReadOnlySpan<float> linearColor, ReadOnlySpan<float> linearBumpColor1,
+		ReadOnlySpan<float> linearBumpColor2, ReadOnlySpan<float> linearBumpColor3,
+		Span<byte> ret, Span<byte> retBump1,
+		Span<byte> retBump2, Span<byte> retBump3) {
+
+		ref readonly Vector3 linearBump1 = ref linearBumpColor1[..3].Cast<float, Vector3>()[0];
+		ref readonly Vector3 linearBump2 = ref linearBumpColor2[..3].Cast<float, Vector3>()[0];
+		ref readonly Vector3 linearBump3 = ref linearBumpColor3[..3].Cast<float, Vector3>()[0];
+
+		Vector3 gammaGoal;
+		// gammaGoal is premultiplied by 1/overbright, which we want
+		gammaGoal.X = MathLib.LinearToVertexLight(linearColor[0]);
+		gammaGoal.Y = MathLib.LinearToVertexLight(linearColor[1]);
+		gammaGoal.Z = MathLib.LinearToVertexLight(linearColor[2]);
+		Vector3 bumpAverage = linearBump1;
+		bumpAverage += linearBump2;
+		bumpAverage += linearBump3;
+		bumpAverage *= (1.0f / 3.0f);
+
+		Vector3 correctionScale = default;
+		if (const_reinterpret<float, int>(in bumpAverage.X) != 0 && const_reinterpret<float, int>(in bumpAverage.Y) != 0 && const_reinterpret<float, int>(in bumpAverage.Z) != 0)
+			MathLib.VectorDivide(gammaGoal, bumpAverage, out correctionScale);
+		else {
+			correctionScale.Init(0.0f, 0.0f, 0.0f);
+			if (bumpAverage[0] != 0.0f) {
+				correctionScale[0] = gammaGoal[0] / bumpAverage[0];
+			}
+			if (bumpAverage[1] != 0.0f) {
+				correctionScale[1] = gammaGoal[1] / bumpAverage[1];
+			}
+			if (bumpAverage[2] != 0.0f) {
+				correctionScale[2] = gammaGoal[2] / bumpAverage[2];
+			}
+		}
+		Vector3 correctedBumpColor1;
+		Vector3 correctedBumpColor2;
+		Vector3 correctedBumpColor3;
+		MathLib.VectorMultiply(linearBump1, correctionScale, out correctedBumpColor1);
+		MathLib.VectorMultiply(linearBump2, correctionScale, out correctedBumpColor2);
+		MathLib.VectorMultiply(linearBump3, correctionScale, out correctedBumpColor3);
+
+		Vector3 check = (correctedBumpColor1 + correctedBumpColor2 + correctedBumpColor3) / 3.0f;
+
+		ColorClampBumped(ref correctedBumpColor1, ref correctedBumpColor2, ref correctedBumpColor3);
+
+		ret[0] = MathLib.RoundFloatToByte(gammaGoal[0] * 255.0f);
+		ret[1] = MathLib.RoundFloatToByte(gammaGoal[1] * 255.0f);
+		ret[2] = MathLib.RoundFloatToByte(gammaGoal[2] * 255.0f);
+		retBump1[0] = MathLib.RoundFloatToByte(correctedBumpColor1[0] * 255.0f);
+		retBump1[1] = MathLib.RoundFloatToByte(correctedBumpColor1[1] * 255.0f);
+		retBump1[2] = MathLib.RoundFloatToByte(correctedBumpColor1[2] * 255.0f);
+		retBump2[0] = MathLib.RoundFloatToByte(correctedBumpColor2[0] * 255.0f);
+		retBump2[1] = MathLib.RoundFloatToByte(correctedBumpColor2[1] * 255.0f);
+		retBump2[2] = MathLib.RoundFloatToByte(correctedBumpColor2[2] * 255.0f);
+		retBump3[0] = MathLib.RoundFloatToByte(correctedBumpColor3[0] * 255.0f);
+		retBump3[1] = MathLib.RoundFloatToByte(correctedBumpColor3[1] * 255.0f);
+		retBump3[2] = MathLib.RoundFloatToByte(correctedBumpColor3[2] * 255.0f);
 	}
 
 	internal static void SetGamma(float screenGamma, float texGamma, float overbright, bool allowCheats, bool linearFrameBuffer) {
@@ -93,19 +231,19 @@ public static class ColorSpace
 			linearToScreen[i] = inf;
 		}
 
-		for (i = 0; i < 256; i++) 
+		for (i = 0; i < 256; i++)
 			textureToLinear[i] = MathF.Pow(i / 255.0f, texGamma);
 
-		for (i = 0; i < 1024; i++) 
+		for (i = 0; i < 1024; i++)
 			linearToTexture[i] = (int)(MathF.Pow(i / 1023.0f, 1.0f / texGamma) * 255);
 
 		float f, overbrightFactor;
 
-		if (overbright == 2.0F) 
+		if (overbright == 2.0F)
 			overbrightFactor = 0.5F;
-		else if (overbright == 4.0F) 
+		else if (overbright == 4.0F)
 			overbrightFactor = 0.25F;
-		else 
+		else
 			overbrightFactor = 1.0F;
 
 		for (i = 0; i < 4096; i++) {

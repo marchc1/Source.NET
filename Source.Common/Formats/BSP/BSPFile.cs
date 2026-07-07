@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using Source.Common.Mathematics;
 using CommunityToolkit.HighPerformance;
 using Source.Common.Engine;
+using Source.Common.MaterialSystem;
 
 namespace Source.Common.Formats.BSP;
 
@@ -198,7 +199,7 @@ public enum LumpIndex
 	LeafAmbientIndexHDR = 51,
 	LeafAmbientIndex = 52,
 	LightingHDR = 53,
-	WorldlightsHDR = 54,
+	WorldLightsHDR = 54,
 	LeafAmbientLightingHDR = 55,
 	LeafAmbientLighting = 56,
 	XZipPakFile = 57,
@@ -457,6 +458,21 @@ public class BSPMNode
 	public ushort NumSurfaces;
 }
 
+public class BSPMLeafWaterData
+{
+	public float SurfaceZ;
+	public float MinZ;
+	public short SurfaceTexInfoID;
+	public short FirstLeafIndex;
+}
+
+public struct BSPMCubeMapSample
+{
+	public Vector3 Origin;
+	public ITexture? Texture;
+	public byte Size;
+}
+
 public class BSPMLeaf : BSPMNode
 {
 	public int Index;
@@ -551,10 +567,77 @@ public struct BSPMSurfaceLighting
 	public InlineArrayMaxLightmaps<byte> Styles;
 	public Memory<ColorRGBExp32> Samples;
 }
+
+public enum DWorldLightFlags
+{
+	InAmbientCube = 0x0001,
+	CastEntityShadows = 0x0002,
+}
+
+public struct BSPDWorldLight
+{
+	public Vector3 Origin;
+	public Vector3 Intensity;
+	public Vector3 Normal;
+	public int Cluster;
+	public EmitType Type;
+	public int Style;
+	public float StopDot;
+	public float StopDot2;
+	public float Exponent;
+	public float Radius;
+	public float ConstantAttn;
+	public float LinearAttn;
+	public float QuadraticAttn;
+	public DWorldLightFlags Flags;
+	public int TexInfo;
+	public int Owner;
+}
+
+public struct BSPDCubeMapSample
+{
+	public InlineArray3<int> Origin;
+	public byte Size;
+}
+
+public struct BSPDOverlay
+{
+	const int OVERLAY_BSP_FACE_COUNT = 64;
+	public int ID;
+	public short TexInfo;
+	public ushort FaceCountAndRenderOrder;
+	public InlineArray64<int> Faces;
+	public InlineArray2<float> U;
+	public InlineArray2<float> V;
+	public InlineArray4<Vector3> UVPoints;
+	public Vector3 Origin;
+	public Vector3 BasisNormal;
+}
+
 public struct BSPMSurfaceNormal
 {
 	public nint SurfNum;
 	public uint FirstVertNormal;
+}
+
+/*
+template<class T, int RES> struct CCubeMap
+{
+	T m_Samples[6][RES][RES];
+*/
+// lightzbuffer is LightShadowZBufferSample_t, SHADOW_ZBUF_RES (8) 6*8*8 = inline array 384
+
+public struct LightShadowZBufferSample
+{
+	public float TraceDistance;
+	public float HitDistance;
+}
+
+public struct LightZBuffer
+{
+	const int SHADOW_ZBUF_RES = 8;
+	public InlineArray384<LightShadowZBufferSample> Samples;
+	public unsafe ref LightShadowZBufferSample this[int face, int x, int y] => ref Samples[face * SHADOW_ZBUF_RES * SHADOW_ZBUF_RES + x * SHADOW_ZBUF_RES + y];
 }
 
 public interface IDispInfo
@@ -961,44 +1044,11 @@ public enum EmitType
 	SkyAmbient
 }
 
-public record struct BSPWorldLightPtr
+public record struct BSPDWorldLightPtr
 {
 	public readonly WorldBrushData Data;
 	public readonly nint Index;
-	public readonly ref BSPWorldLight Dereference() => ref Data.WorldLights![Index];
-}
-
-/// <summary>
-/// Analog of dworldlight_t
-/// </summary>
-public struct BSPWorldLight
-{
-	public Vector3 Origin;
-	public Vector3 Intensity;
-	public Vector3 Normal;
-	public Vector3 ShadowCastOffset; // Verify this.
-	public int Cluster;
-	public EmitType Type;
-	public int Style;
-	public float StopDot;
-	public float StopDot2;
-	public float Exponent;
-	public float Radius;
-	public float ConstantAttn;
-	public float LinearAttn;
-	public float QuadraticAttn;
-	public int Flags;
-	public int TexInfo;
-	public int Owner;
-}
-
-/// <summary>
-/// Analog of dcubemapsample_t
-/// </summary>
-public struct BSPCubeMapSample
-{
-	public InlineArray3<int> Origin;
-	public byte size;
+	public readonly ref BSPDWorldLight Dereference() => ref Data.WorldLights![Index];
 }
 
 /// <summary>

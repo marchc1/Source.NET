@@ -542,6 +542,7 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorDivide(in Vector3 inVec, vec_t scale, out Vector3 result) => result = Vector3.Divide(inVec, scale);
 
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float VectorMaximum(in Vector3 v) => MathF.Max(v.X, MathF.Max(v.Y, v.Z));
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static int RoundFloatToInt(float f) => (int)f;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static byte RoundFloatToByte(float f) => (byte)RoundFloatToInt(f);
 
@@ -2346,6 +2347,19 @@ public static class MathLib
 		dst.X = src1[0][0] * src2.X + src1[0][1] * src2.Y + src1[0][2] * src2.Z + src1[0][3];
 		dst.Y = src1[1][0] * src2.X + src1[1][1] * src2.Y + src1[1][2] * src2.Z + src1[1][3];
 		dst.Z = src1[2][0] * src2.X + src1[2][1] * src2.Y + src1[2][2] * src2.Z + src1[2][3];
+	}
+
+	public static float LinearToVertexLight(float f) {
+		int i = RoundFloatToInt(f * 1024f);
+
+		if ((uint)i > 4095) {
+			if (i < 0)
+				i = 0;    
+			else
+				i = 4095;
+		}
+
+		return lineartovertex[i];
 	}
 }
 

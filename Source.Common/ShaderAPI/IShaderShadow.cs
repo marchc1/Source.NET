@@ -179,7 +179,8 @@ public enum PolygonOffsetMode
 	Reserved = 0x3
 }
 
-public enum StandardTextureId {
+public enum StandardTextureId
+{
 	// Lightmaps
 	Lightmap = 0,
 	LightmapFullbright,
@@ -218,6 +219,14 @@ public enum StandardTextureId {
 	// Equivalent to the debug material for mat_luxels, in convenient texture form.
 	DebugLuxels,
 	Max = 32
+}
+
+public enum ShaderFlags
+{
+	OpacityAlphaTest = 0x0010,
+	OpacityOpaque = 0x0020,
+	OpacityTranslucent = 0x0040,
+	OpacityMask = 0x0070
 }
 
 // We differ from Source heavily here.
@@ -311,4 +320,7 @@ public interface IShaderShadow
 	void SetDefaultState();
 	VertexFormat GetVertexFormat();
 	void Activate();
+
+	ShaderFlags GetFlags();
+	void SetFlags(ShaderFlags flags);
 }

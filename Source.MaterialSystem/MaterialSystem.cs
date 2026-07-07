@@ -1,3 +1,5 @@
+using CommunityToolkit.HighPerformance;
+
 using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common;
@@ -19,7 +21,8 @@ using System.Runtime.InteropServices;
 
 namespace Source.MaterialSystem;
 
-public static class MatSysBootstrap {
+public static class MatSysBootstrap
+{
 
 	public static T WithFullMaterialSystem<T>(this T services) where T : IServiceCollection {
 		services.AddSingleton<IMaterialSystem, MaterialSystem>();
@@ -493,7 +496,7 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 			if (IsPC()) {
 				TextureManager.RestoreRenderTargets();
 				TextureManager.RestoreNonRenderTargetTextures();
-				if (MaterialSystem.CanUseEditorMaterials()) 
+				if (MaterialSystem.CanUseEditorMaterials())
 					MathLib.Init(2.2f, 2.2f, 0.0f, (int)IMaterialSystem.OVERBRIGHT);
 
 				AllocateStandardTextures();
@@ -512,8 +515,197 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 
 	public void AddModeChangeCallBack(Action func) => ShaderAPI.AddModeChangeCallBack(func);
 
-	private void AllocateStandardTextures() {
 
+	ShaderAPITextureHandle_t FullbrightLightmapTextureHandle;
+	ShaderAPITextureHandle_t FullbrightBumpedLightmapTextureHandle;
+	ShaderAPITextureHandle_t BlackTextureHandle;
+	ShaderAPITextureHandle_t FlatNormalTextureHandle;
+	ShaderAPITextureHandle_t GreyTextureHandle;
+	ShaderAPITextureHandle_t GreyAlphaZeroTextureHandle;
+	ShaderAPITextureHandle_t WhiteTextureHandle;
+	ShaderAPITextureHandle_t LinearToGammaTableTextureHandle;
+	ShaderAPITextureHandle_t LinearToGammaIdentityTableTextureHandle;
+	ShaderAPITextureHandle_t MaxDepthTextureHandle;
+	bool StandardTexturesAllocated = false;
+
+	private void AllocateStandardTextures() {
+		if (StandardTexturesAllocated)
+			return;
+
+		StandardTexturesAllocated = true;
+
+		float nominal_lightmap_value = 1.0f;
+		if (HardwareConfig.GetHDRType() == HDRType.Integer)
+			nominal_lightmap_value = 1.0f / 16.0f;
+
+		Span<byte> texel = stackalloc byte[4];
+		texel[3] = 255;
+
+		CreateTextureFlags tcFlags = CreateTextureFlags.Managed;
+		CreateTextureFlags tcFlagsSRGB = CreateTextureFlags.Managed | CreateTextureFlags.SRGB;
+
+
+		FullbrightLightmapTextureHandle = ShaderAPI.CreateTexture(1, 1, 1, ImageFormat.BGRX8888, 1, 1, tcFlags, "[FULLBRIGHT_LIGHTMAP_TEXID]", TEXTURE_GROUP_LIGHTMAP);
+		ShaderAPI.ModifyTexture(FullbrightLightmapTextureHandle);
+		ShaderAPI.TexMinFilter(TexFilterMode.Linear);
+		ShaderAPI.TexMagFilter(TexFilterMode.Linear);
+		Span<float> tmpVect = [nominal_lightmap_value, nominal_lightmap_value, nominal_lightmap_value];
+		ColorSpace.LinearToLightmap(texel, tmpVect);
+		ShaderAPI.TexImage2D(0, 0, ImageFormat.BGRX8888, 0, 1, 1, ImageFormat.BGRX8888, false, texel);
+
+		BlackTextureHandle = ShaderAPI.CreateTexture(1, 1, 1, ImageFormat.BGRX8888, 1, 1, tcFlagsSRGB, "[BLACK_TEXID]", TEXTURE_GROUP_OTHER);
+		ShaderAPI.ModifyTexture(BlackTextureHandle);
+		ShaderAPI.TexMinFilter(TexFilterMode.Linear);
+		ShaderAPI.TexMagFilter(TexFilterMode.Linear);
+		texel[0] = texel[1] = texel[2] = 0;
+		ShaderAPI.TexImage2D(0, 0, ImageFormat.BGRX8888, 0, 1, 1, ImageFormat.BGRX8888, false, texel);
+		ShaderAPI.SetStandardTextureHandle(StandardTextureId.Black, BlackTextureHandle);
+
+		WhiteTextureHandle = ShaderAPI.CreateTexture(1, 1, 1, ImageFormat.BGRX8888, 1, 1, tcFlagsSRGB, "[WHITE_TEXID]", TEXTURE_GROUP_OTHER);
+		ShaderAPI.ModifyTexture(WhiteTextureHandle);
+		ShaderAPI.TexMinFilter(TexFilterMode.Linear);
+		ShaderAPI.TexMagFilter(TexFilterMode.Linear);
+		texel[0] = texel[1] = texel[2] = 255;
+		ShaderAPI.TexImage2D(0, 0, ImageFormat.BGRX8888, 0, 1, 1, ImageFormat.BGRX8888, false, texel);
+		ShaderAPI.SetStandardTextureHandle(StandardTextureId.White, WhiteTextureHandle);
+
+		GreyTextureHandle = ShaderAPI.CreateTexture(1, 1, 1, ImageFormat.BGRX8888, 1, 1, tcFlagsSRGB, "[GREY_TEXID]", TEXTURE_GROUP_OTHER);
+		ShaderAPI.ModifyTexture(GreyTextureHandle);
+		ShaderAPI.TexMinFilter(TexFilterMode.Linear);
+		ShaderAPI.TexMagFilter(TexFilterMode.Linear);
+		texel[0] = texel[1] = texel[2] = 128;
+		texel[3] = 255;
+		ShaderAPI.TexImage2D(0, 0, ImageFormat.BGRX8888, 0, 1, 1, ImageFormat.BGRX8888, false, texel);
+		ShaderAPI.SetStandardTextureHandle(StandardTextureId.Grey, GreyTextureHandle);
+
+		GreyAlphaZeroTextureHandle = ShaderAPI.CreateTexture(1, 1, 1, ImageFormat.RGBA8888, 1, 1, tcFlagsSRGB, "[GREYALPHAZERO_TEXID]", TEXTURE_GROUP_OTHER);
+		ShaderAPI.ModifyTexture(GreyAlphaZeroTextureHandle);
+		ShaderAPI.TexMinFilter(TexFilterMode.Linear);
+		ShaderAPI.TexMagFilter(TexFilterMode.Linear);
+		texel[0] = texel[1] = texel[2] = 128;
+		texel[3] = 0;
+		ShaderAPI.TexImage2D(0, 0, ImageFormat.RGBA8888, 0, 1, 1, ImageFormat.RGBA8888, false, texel);
+		texel[3] = 255;
+		ShaderAPI.SetStandardTextureHandle(StandardTextureId.GreyAlphaZero, GreyAlphaZeroTextureHandle);
+
+		FlatNormalTextureHandle = ShaderAPI.CreateTexture(1, 1, 1, ImageFormat.BGRX8888, 1, 1, tcFlags, "[FLAT_NORMAL_TEXTURE]", TEXTURE_GROUP_OTHER);
+		ShaderAPI.ModifyTexture(FlatNormalTextureHandle);
+		ShaderAPI.TexMinFilter(TexFilterMode.Linear);
+		ShaderAPI.TexMagFilter(TexFilterMode.Linear);
+		texel[0] = 255;
+		texel[1] = 127;
+		texel[2] = 127;
+		ShaderAPI.TexImage2D(0, 0, ImageFormat.BGRX8888, 0, 1, 1, ImageFormat.BGRX8888, false, texel);
+		ShaderAPI.SetStandardTextureHandle(StandardTextureId.NormalMapFlat, FlatNormalTextureHandle);
+
+		FullbrightBumpedLightmapTextureHandle = ShaderAPI.CreateTexture(1, 1, 1, ImageFormat.BGRX8888, 1, 1, tcFlags, "[FULLBRIGHT_BUMPED_LIGHTMAP_TEXID]", TEXTURE_GROUP_LIGHTMAP);
+		ShaderAPI.ModifyTexture(FullbrightBumpedLightmapTextureHandle);
+		ShaderAPI.TexMinFilter(TexFilterMode.Linear);
+		ShaderAPI.TexMagFilter(TexFilterMode.Linear);
+		Span<float> linearColor = [nominal_lightmap_value, nominal_lightmap_value, nominal_lightmap_value];
+		Span<byte> dummy = stackalloc byte[3];
+		ColorSpace.LinearToBumpedLightmap(linearColor, linearColor, linearColor, linearColor, dummy, texel, dummy, dummy);
+		ShaderAPI.TexImage2D(0, 0, ImageFormat.BGRX8888, 0, 1, 1, ImageFormat.BGRX8888, false, texel);
+		ShaderAPI.SetStandardTextureHandle(StandardTextureId.LightmapBumpedFullbright, FullbrightBumpedLightmapTextureHandle);
+
+		{
+			CreateTextureFlags iGammaLookupFlags = tcFlags;
+			ImageFormat gammalookupfmt;
+			gammalookupfmt = ImageFormat.I8;
+
+			{
+				const int LINEAR_TO_GAMMA_TABLE_WIDTH = 512;
+				LinearToGammaTableTextureHandle = ShaderAPI.CreateTexture(LINEAR_TO_GAMMA_TABLE_WIDTH, 1, 1, gammalookupfmt, 1, 1, iGammaLookupFlags, "[LINEAR_TO_GAMMA_LOOKUP_SRGBON_TEXID]", TEXTURE_GROUP_PIXEL_SHADERS);
+				ShaderAPI.ModifyTexture(LinearToGammaTableTextureHandle);
+				ShaderAPI.TexMinFilter(TexFilterMode.Linear);
+				ShaderAPI.TexMagFilter(TexFilterMode.Linear);
+				ShaderAPI.TexWrap(TexCoordComponent.S, TexWrapMode.Clamp);
+				ShaderAPI.TexWrap(TexCoordComponent.T, TexWrapMode.Clamp);
+				ShaderAPI.TexWrap(TexCoordComponent.U, TexWrapMode.Clamp);
+
+				Span<float> pixelData = stackalloc float[LINEAR_TO_GAMMA_TABLE_WIDTH];
+				for (int i = 0; i != LINEAR_TO_GAMMA_TABLE_WIDTH; ++i) {
+					float fLookupResult = ((float)i) / ((float)(LINEAR_TO_GAMMA_TABLE_WIDTH - 1));
+					fLookupResult = ShaderAPI.LinearToGamma_HardwareSpecific(fLookupResult);
+
+					fLookupResult = ShaderAPI.LinearToGamma_HardwareSpecific(fLookupResult);
+
+					int iColor = MathLib.RoundFloatToInt(fLookupResult * 255.0f);
+					if (iColor > 255)
+						iColor = 255;
+
+					pixelData.Cast<float, byte>()[i] = (byte)iColor;
+				}
+
+				ShaderAPI.TexImage2D(0, 0, gammalookupfmt, 0, LINEAR_TO_GAMMA_TABLE_WIDTH, 1, gammalookupfmt, false, pixelData.Cast<float, byte>());
+			}
+
+			// generate the identity conversion table texture.
+			{
+				const int LINEAR_TO_GAMMA_IDENTITY_TABLE_WIDTH = 256;
+				LinearToGammaIdentityTableTextureHandle = ShaderAPI.CreateTexture(LINEAR_TO_GAMMA_IDENTITY_TABLE_WIDTH, 1, 1, gammalookupfmt, 1, 1, tcFlags, "[LINEAR_TO_GAMMA_LOOKUP_SRGBOFF_TEXID]", TEXTURE_GROUP_PIXEL_SHADERS);
+				ShaderAPI.ModifyTexture(LinearToGammaIdentityTableTextureHandle);
+				ShaderAPI.TexMinFilter(TexFilterMode.Linear);
+				ShaderAPI.TexMagFilter(TexFilterMode.Linear);
+				ShaderAPI.TexWrap(TexCoordComponent.S, TexWrapMode.Clamp);
+				ShaderAPI.TexWrap(TexCoordComponent.T, TexWrapMode.Clamp);
+				ShaderAPI.TexWrap(TexCoordComponent.U, TexWrapMode.Clamp);
+
+				Span<float> pixelData = stackalloc float[LINEAR_TO_GAMMA_IDENTITY_TABLE_WIDTH];
+				for (int i = 0; i != LINEAR_TO_GAMMA_IDENTITY_TABLE_WIDTH; ++i) {
+					float fLookupResult = ((float)i) / ((float)(LINEAR_TO_GAMMA_IDENTITY_TABLE_WIDTH - 1));
+
+					//do an extra srgb conversion because we'll be converting back on texture read
+					fLookupResult = ShaderAPI.LinearToGamma_HardwareSpecific(fLookupResult);
+
+					int iColor = MathLib.RoundFloatToInt(fLookupResult * 255.0f);
+					if (iColor > 255)
+						iColor = 255;
+
+					pixelData.Cast<float, byte>()[i] = (byte)iColor;
+				}
+
+				ShaderAPI.TexImage2D(0, 0, gammalookupfmt, 0, LINEAR_TO_GAMMA_IDENTITY_TABLE_WIDTH, 1, gammalookupfmt, false, pixelData.Cast<float, byte>());
+			}
+		}
+
+		//create the maximum depth texture
+		{
+			MaxDepthTextureHandle = ShaderAPI.CreateTexture(1, 1, 1, ImageFormat.RGBA8888, 1, 1, tcFlags, "[MAXDEPTH_TEXID]", TEXTURE_GROUP_OTHER);
+			ShaderAPI.ModifyTexture(MaxDepthTextureHandle);
+			ShaderAPI.TexMinFilter(TexFilterMode.Linear);
+			ShaderAPI.TexMagFilter(TexFilterMode.Linear);
+
+			texel[0] = texel[1] = texel[2] = 255;
+			texel[3] = 255;
+
+			ShaderAPI.TexImage2D(0, 0, ImageFormat.RGBA8888, 0, 1, 1, ImageFormat.RGBA8888, false, texel);
+		}
+
+		//only the shaderapi can handle switching between textures correctly, so pass off the textures to it.
+		ShaderAPI.SetLinearToGammaConversionTextures(LinearToGammaTableTextureHandle, LinearToGammaIdentityTableTextureHandle);
+	}
+
+	public void ReleaseStandardTextures() {
+		if (StandardTexturesAllocated) {
+			if (IsPC()) {
+				ShaderAPI.DeleteTexture(BlackTextureHandle);
+				ShaderAPI.DeleteTexture(WhiteTextureHandle);
+				ShaderAPI.DeleteTexture(GreyTextureHandle);
+				ShaderAPI.DeleteTexture(GreyAlphaZeroTextureHandle);
+			}
+			ShaderAPI.DeleteTexture(FullbrightLightmapTextureHandle);
+			ShaderAPI.DeleteTexture(FlatNormalTextureHandle);
+			ShaderAPI.DeleteTexture(FullbrightBumpedLightmapTextureHandle);
+
+			ShaderAPI.DeleteTexture(LinearToGammaTableTextureHandle);
+			ShaderAPI.DeleteTexture(LinearToGammaIdentityTableTextureHandle);
+			ShaderAPI.SetLinearToGammaConversionTextures(INVALID_SHADERAPI_TEXTURE_HANDLE, INVALID_SHADERAPI_TEXTURE_HANDLE);
+
+			ShaderAPI.DeleteTexture(MaxDepthTextureHandle);
+
+			StandardTexturesAllocated = false;
+		}
 	}
 
 	private void ConvertModeStruct(MaterialSystem_Config config, out ShaderDeviceInfo mode) {
@@ -836,6 +1028,11 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 	void RecomputeAllStateSnapshots() {
 		// todo
 	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ShaderAPITextureHandle_t GetBlackTextureHandle() => BlackTextureHandle;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ShaderAPITextureHandle_t GetFlatNormalTextureHandle() => FlatNormalTextureHandle;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ShaderAPITextureHandle_t GetGreyTextureHandle() => GreyTextureHandle;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ShaderAPITextureHandle_t GetGreyAlphaZeroTextureHandle() => GreyAlphaZeroTextureHandle;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ShaderAPITextureHandle_t GetWhiteTextureHandle() => WhiteTextureHandle;
 
 	public event Action? Restore;
 

@@ -1,4 +1,6 @@
 ﻿
+using Source.Common.Formats.Keyvalues;
+
 namespace Source.Common.Filesystem;
 
 public interface IBaseFileSystem
@@ -61,7 +63,7 @@ public interface IBaseFileSystem
 	/// <returns>True if the operation succeded, and false if it didn't.</returns>
 	public bool SetFileWritable(ReadOnlySpan<char> fileName, bool writable, ReadOnlySpan<char> pathID);
 	public long Size(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID = default);
-	public DateTime Time(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID = default);
+	public DateTime GetFileTime(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID = default);
 	public bool FileExists(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID = default);
 
 
@@ -134,6 +136,18 @@ public interface IFileSystem : IBaseFileSystem
 
 	ReadOnlySpan<char> String(FileNameHandle_t nameHandle);
 	void GetSearchPaths(List<string> vecSearchPaths, ReadOnlySpan<char> pathID);
+
+	public enum KeyValuesPreloadType
+	{
+		VMT,
+		SoundEmitter,
+		SoundScape,
+		NumTypes,
+	}
+
+	void LoadCompiledKeyValues(KeyValuesPreloadType type, ReadOnlySpan<char> archiveFile);
+	KeyValues? LoadKeyValues(KeyValuesPreloadType type, ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID = default);
+	bool LoadKeyValues(KeyValues head, KeyValuesPreloadType type, ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID = default);
 }
 
 public enum PathTypeFilter

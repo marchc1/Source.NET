@@ -16,6 +16,8 @@ using Source.Common.ShaderAPI;
 using Source.Common.Utilities;
 
 using System.Numerics;
+using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -206,6 +208,27 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		Singleton<ILauncherManager>().DisplayedSize(out width, out height);
 		ShaderViewport viewport = new ShaderViewport(0, 0, width, height);
 		SetViewports(new(ref viewport));
+	}
+
+	readonly ShaderAPITextureHandle_t[] StdTextureHandles = new ShaderAPITextureHandle_t[(int)StandardTextureId.Max];
+
+	public void SetStandardTextureHandle(StandardTextureId id, ShaderAPITextureHandle_t handle){
+		StdTextureHandles[(int)id] = handle;
+	}
+
+	public void SetLinearToGammaConversionTextures(ShaderAPITextureHandle_t srgbWriteEnabledTexture, ShaderAPITextureHandle_t identityTexture){
+		LinearToGammaTableTexture = srgbWriteEnabledTexture;
+		LinearToGammaTableIdentityTexture = identityTexture;
+	}
+
+	ShaderAPITextureHandle_t LinearToGammaTableTexture;
+	ShaderAPITextureHandle_t LinearToGammaTableIdentityTexture;
+
+	public float LinearToGamma_HardwareSpecific(float linear){
+		if (IsPC())
+			return MathLib.SrgbLinearToGamma(linear);
+		else
+			throw new NotImplementedException();
 	}
 
 	public void SetDefaultState() {
@@ -868,7 +891,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				glActiveTexture(tex);
 				lastActiveTexture = tex;
 			}
-			glBindTexture(GL_TEXTURE_2D, (uint)textureHandle);
+			glBindTexture(GL_TEXTURE_2D, GetGL46Texture(textureHandle));
 			LastBoundTextures[(int)sampler] = textureHandle;
 		}
 	}
@@ -886,29 +909,43 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		ModifyTextureHandle = textureHandle;
 	}
 
-	public struct TextureLoadInfo
+	public ref struct TextureLoadInfo
 	{
-		public ShaderAPITextureHandle_t Handle;
+		public ShaderAPITextureHandle_t TextureHandle;
+		public uint Texture;
 		public int Width;
 		public int Height;
+		public int Copy;
 		public int ZOffset;
 		public int Level;
 		public int CubeFaceID;
 		public ImageFormat SrcFormat;
+		public Span<byte> SrcData;
+		public bool TextureIsLockable;
 	}
 
 	public void TexImageFromVTF(IVTFTexture? vtf, int vtfFrame) {
 		Assert(vtf != null);
 		Assert(ModifyTextureHandle != INVALID_SHADERAPI_TEXTURE_HANDLE);
 
-		ref TextureLoadInfo info = ref (stackalloc TextureLoadInfo[1])[0];
-		info.Handle = ModifyTextureHandle;
+		InternalTextureInfo tex = GetTexture(GetModifyTextureHandle());
+		if (tex.SwitchNeeded) {
+			AdvanceCurrentCopy(GetModifyTextureHandle());
+			tex.SwitchNeeded = false;
+		}
+
+		TextureLoadInfo info = new();
+		info.TextureHandle = GetModifyTextureHandle();
+		info.Texture = GetModifyTexture();
+		info.Level = 0;
+		info.Copy = tex.CurrentCopy;
+		info.CubeFaceID = 0;
 		info.Width = 0;
 		info.Height = 0;
 		info.ZOffset = 0;
-		info.Level = 0;
 		info.SrcFormat = vtf.Format();
-
+		info.SrcData = null;
+		info.TextureIsLockable = (tex.Flags & InternalTextureFlags.IsLockable) != 0;
 		if (vtf.Depth() > 1) {
 			throw new NotImplementedException("Multidepth textures not supported yet");
 		}
@@ -926,6 +963,17 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				LoadTextureFromVTF(in info, vtf, vtfFrame);
 			}
 		}
+		SetModifyTexture(info.Texture);
+	}
+
+	private void AdvanceCurrentCopy(int textureHandle) {
+		InternalTextureInfo tex = GetTexture(textureHandle);
+		if (tex.NumCopies > 1) {
+			if (++tex.CurrentCopy >= tex.NumCopies)
+				tex.CurrentCopy = 0;
+
+			UnbindTexture(textureHandle);
+		}
 	}
 
 	private unsafe void LoadCubeTextureFromVTF(in TextureLoadInfo info, IVTFTexture vtf, int vtfFrame) {
@@ -941,11 +989,11 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				Span<byte> data = vtf.ImageData(vtfFrame, face, mip);
 				if (info.SrcFormat.IsCompressed()) {
 					fixed (byte* bytes = data)
-						glCompressedTextureSubImage3D((uint)info.Handle, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
+						glCompressedTextureSubImage3D((uint)info.Texture, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
 				}
 				else {
 					fixed (byte* bytes = data)
-						glTextureSubImage3D((uint)info.Handle, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageUploadFormat(info.SrcFormat), GL_UNSIGNED_BYTE, bytes);
+						glTextureSubImage3D((uint)info.Texture, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageUploadFormat(info.SrcFormat), GL_UNSIGNED_BYTE, bytes);
 				}
 			}
 		}
@@ -957,7 +1005,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		if (info.SrcFormat.IsCompressed()) {
 			Span<byte> data = vtf.ImageData(vtfFrame, 0, info.Level);
 			fixed (byte* bytes = data)
-				glCompressedTextureSubImage2D((uint)info.Handle, info.Level, 0, 0, w, h, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
+				glCompressedTextureSubImage2D((uint)info.Texture, info.Level, 0, 0, w, h, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
 			// Msg("err: " + glGetErrorName() + "\n");
 		}
 		else {
@@ -1004,21 +1052,47 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		bool isDynamic = (creationFlags & CreateTextureFlags.Dynamic) != 0;
 		bool isSRGB = (creationFlags & CreateTextureFlags.SRGB) != 0;
 
+		InternalTextureFlags setFlags = 0;
+		// setFlags |= (IsPosix() || (creationFlags & (TEXTURE_CREATE_DYNAMIC | TEXTURE_CREATE_MANAGED))) ? Texture_t::IS_LOCKABLE : 0;
+		setFlags |= (false || (creationFlags & (CreateTextureFlags.Dynamic | CreateTextureFlags.Managed)) != 0) ? InternalTextureFlags.IsLockable : 0;
+		setFlags |= (creationFlags & CreateTextureFlags.VertexTexture) != 0 ? InternalTextureFlags.IsVertexTexture : 0;
+
 		CreateTextureHandles(textureHandles);
 		for (int i = 0; i < count; i++) {
 			ShaderAPITextureHandle_t handle = textureHandles[i];
-			glObjectLabel(GL_TEXTURE, (uint)handle, $"ShaderAPI Texture '{debugName.SliceNullTerminatedString()}' [frame {i}]");
+			InternalTextureInfo texture = GetTexture(textureHandles[i]);
+			texture.Flags = InternalTextureFlags.IsAllocated;
+			texture.DebugName = debugName;
+			texture.Width = width;
+			texture.Height = height;
+			texture.Depth = depth;
+			texture.Count = count;
+			texture.CountIndex = i;
 
 			ConvertDataToAcceptableGLFormat(imageFormat, null, out ImageFormat dstFormat, out _);
-			glTextureStorage2D((uint)handle, mipCount, ImageLoader.GetGLImageInternalFormat(dstFormat), width, height);
-			Textures[handle].Width = width;
-			Textures[handle].Height = height;
-			Textures[handle].Depth = depth;
-			Textures[handle].Levels = mipCount;
-			Textures[handle].Count = count;
-			Textures[handle].Format = dstFormat;
-			Textures[handle].DebugName = debugName;
-			Textures[handle].TextureGroupName = textureGroup;
+			texture.Format = dstFormat;
+
+			texture.CreationFlags = creationFlags;
+			texture.Flags |= setFlags;
+			if (copies <= 1) {
+				texture.NumCopies = 1;
+				uint glTex = glCreateTexture(texture.DetermineGLObjectType());
+				glTextureStorage2D(glTex, mipCount, ImageLoader.GetGLImageInternalFormat(dstFormat), width, height);
+				glObjectLabel(GL_TEXTURE, glTex, $"ShaderAPI Texture '{debugName.SliceNullTerminatedString()}' [frame {i}]");
+				texture.SetTexture(glTex);
+			}
+			else {
+				texture.NumCopies = (byte)copies;
+				texture.TextureCopies = new uint[copies];
+				for (int k = 0; k < copies; k++) {
+					uint glTex = glCreateTexture(texture.DetermineGLObjectType());
+					glTextureStorage2D(glTex, mipCount, ImageLoader.GetGLImageInternalFormat(dstFormat), width, height);
+					glObjectLabel(GL_TEXTURE, glTex, $"ShaderAPI Texture '{debugName.SliceNullTerminatedString()}' [frame {i} copy {k}]");
+					texture.SetTexture(k, glTex);
+				}
+			}
+
+			texture.CurrentCopy = 0;
 
 			ComputeStatsInfo(textureHandles[i], isCubeMap, depth > 1);
 		}
@@ -1055,11 +1129,17 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	public class InternalTextureInfo
 	{
+		internal uint[] TextureCopies = [0];
+		internal readonly uint DepthStencilSurface = 0;
+		internal readonly InlineArray2<int> RenderTargetSurface;
+
+
 		internal int Width;
 		internal int Height;
 		internal int Depth;
 		internal int Levels;
 		internal int Count;
+		internal int CountIndex;
 		internal ImageFormat Format;
 		internal UtlSymbol DebugName;
 		internal UtlSymbol TextureGroupName;
@@ -1069,6 +1149,40 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		internal ulong LastBoundFrame;
 		internal int TimesBoundMax;
 		internal int TimesBoundThisFrame;
+
+		public byte NumLevels;
+		public bool SwitchNeeded;
+		public byte NumCopies;
+		public byte CurrentCopy;
+
+		public InternalTextureFlags Flags;
+		internal CreateTextureFlags CreationFlags;
+
+		public uint GetTexture() {
+			Assert(NumCopies == 1);
+			Assert(0 == (Flags & InternalTextureFlags.IsDepthStencil));
+			return TextureCopies[0];
+		}
+
+		public uint GetTexture(int copy) {
+			Assert(NumCopies > 1);
+			Assert(0 == (Flags & InternalTextureFlags.IsDepthStencil));
+			return TextureCopies[copy];
+		}
+
+		public uint[] GetTextureArray() {
+			Assert(NumCopies > 1);
+			Assert(0 == (Flags & InternalTextureFlags.IsDepthStencil));
+			return TextureCopies;
+		}
+
+		public void SetTexture(uint tex) {
+			TextureCopies[0] = tex;
+		}
+
+		public void SetTexture(int copy, uint tex) {
+			TextureCopies[copy] = tex;
+		}
 
 		internal nuint GetMemUsage() {
 			return SizeBytes;
@@ -1080,22 +1194,72 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		internal virtual int GetLevelCount() => Levels;
 		internal virtual int GetCount() => Count;
 		internal virtual ImageFormat GetImageFormat() => Format;
+
+		internal int DetermineGLObjectType() {
+			if ((CreationFlags & CreateTextureFlags.Cubemap) != 0)
+				return GL_TEXTURE_CUBE_MAP;
+
+			if (Depth > 1)
+				return GL_TEXTURE_3D;
+
+			return GL_TEXTURE_2D;
+		}
+	}
+
+	public enum InternalTextureFlags
+	{
+		IsAllocated = 0x0001,
+		IsDepthStencil = 0x0002,
+		IsDepthStencilTexture = 0x0004,
+		IsRenderable = (IsDepthStencil | IsAllocated),
+		IsLockable = 0x0008,
+		IsFinalized = 0x0010,
+		IsFailed = 0x0020,
+		CanConvertFormat = 0x0040,
+		IsLinear = 0x0080,
+		IsRenderTarget = 0x0100,
+		IsRenderTargetSurface = 0x0200,
+		IsVertexTexture = 0x0800
 	}
 
 	readonly Dictionary<ShaderAPITextureHandle_t, InternalTextureInfo> Textures = [];
-
+	int currentTextureID = 1;
+	public int AllocNewTextureID() => Interlocked.Increment(ref currentTextureID);
 	public unsafe void CreateTextureHandles(Span<int> textureHandles) {
 		int idxCreating = 0;
-		fixed (ShaderAPITextureHandle_t* handles = textureHandles)
-			glCreateTextures(GL_TEXTURE_2D, textureHandles.Length, (uint*)handles);
-		for (int i = 0; i < textureHandles.Length; i++)
-			Textures.Add(textureHandles[i], new());
+		ShaderAPITextureHandle_t hTexture;
+		foreach (var texture in Textures) {
+			if ((texture.Value.Flags & InternalTextureFlags.IsAllocated) == 0) {
+				textureHandles[idxCreating++] = texture.Key;
+				if (idxCreating >= textureHandles.Length)
+					return;
+			}
+		}
+
+		while (idxCreating < textureHandles.Length) {
+			int id = AllocNewTextureID();
+			textureHandles[idxCreating++] = id;
+			Textures.Add(id, new());
+		}
 	}
 
 	public ShaderAPITextureHandle_t CreateDepthTexture(ImageFormat imageFormat, ushort width, ushort height, Span<char> debugName, bool texture) {
 		ShaderAPITextureHandle_t handle = CreateTextureHandle();
-		glObjectLabel(GL_TEXTURE, (uint)handle, $"ShaderAPI Depth Texture '{debugName}'");
-		glTextureStorage2D((uint)handle, 1, GL_DEPTH24_STENCIL8, width, height);
+		InternalTextureInfo tex = GetTexture(handle);
+		tex.Flags = InternalTextureFlags.IsAllocated;
+		tex.DebugName = (ReadOnlySpan<char>)debugName;
+		tex.Width = width;
+		tex.Height = height;
+		tex.Depth = 1;
+		tex.Count = 1;
+		tex.Format = imageFormat;
+		tex.NumCopies = 1;
+		tex.CurrentCopy = 0;
+
+		uint glTex = glCreateTexture(GL_TEXTURE_2D);
+		glObjectLabel(GL_TEXTURE, glTex, $"ShaderAPI Depth Texture '{debugName}'");
+		glTextureStorage2D(glTex, 1, GL_DEPTH24_STENCIL8, width, height);
+		tex.SetTexture(glTex);
 		return handle;
 	}
 
@@ -1131,12 +1295,90 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		return (1024 + 512) * 1024; // See if it's still needed to use smaller sizes at certain points... how would this even work, I wonder
 	}
 
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private void AssertValidTextureHandle(int textureHandle) {
+		Assert(TextureIsAllocated(textureHandle));
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public ShaderAPITextureHandle_t GetModifyTextureHandle() => ModifyTextureHandle;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public uint GetModifyTexture() => GetGL46Texture(ModifyTextureHandle);
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private uint GetGL46Texture(ShaderAPITextureHandle_t textureHandle) {
+		AssertValidTextureHandle(textureHandle);
+		InternalTextureInfo tex = GetTexture(textureHandle);
+		if (tex.NumCopies == 1)
+			return tex.GetTexture();
+		else
+			return tex.GetTexture(tex.CurrentCopy);
+	}
+
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public InternalTextureInfo? GetTexture() => Textures.TryGetValue(ModifyTextureHandle, out InternalTextureInfo? info) ? info : null;
+
+	public unsafe void TexImage2D(int mip, int face, ImageFormat dstFormat, int zOffset, int width, int height, ImageFormat srcFormat, bool srcIsTiled, Span<byte> imageData) {
+		var tex = GetTexture(GetModifyTextureHandle());
+		TextureLoadInfo info = new();
+		info.TextureHandle = GetModifyTextureHandle();
+		info.Texture = GetModifyTexture();
+		info.Level = mip;
+		info.Copy = tex.CurrentCopy;
+		info.CubeFaceID = face;
+		info.Width = width;
+		info.Height = height;
+		info.ZOffset = zOffset;
+		info.SrcFormat = srcFormat;
+		info.SrcData = imageData;
+		info.TextureIsLockable = (tex.Flags & InternalTextureFlags.IsLockable) != 0;
+		LoadTexture(ref info);
+		SetModifyTexture(info.Texture);
+	}
+
+	private void LoadTexture(ref TextureLoadInfo info) {
+		BlitTextureBits(ref info, 0, 0, 0);
+	}
+
+	private void BlitTextureBits(ref TextureLoadInfo info, int xOffset, int yOffset, int srcStride) {
+		BlitSurfaceBits(ref info, xOffset, yOffset, srcStride);
+	}
+
+	private unsafe void BlitSurfaceBits(ref TextureLoadInfo info, int xOffset, int yOffset, int srcStride) {
+		ImageFormat srcFormat = info.SrcFormat;
+		Span<byte> imageData = info.SrcData;
+		int width = info.Width;
+		int height = info.Height;
+		int mip = info.Level;
+
+		glGetError();
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, srcStride / srcFormat.SizeInBytes());
+		ConvertDataToAcceptableGLFormat(srcFormat, imageData, out srcFormat, out Span<byte> convertedData);
+		fixed (byte* data = convertedData)
+			glTextureSubImage2D((uint)info.Texture, mip, xOffset, yOffset, width >> mip, height >> mip, ImageLoader.GetGLImageUploadFormat(srcFormat), GL_UNSIGNED_BYTE, data);
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+		var err = glGetError();
+		// System.Diagnostics.Debug.Assert(err == 0);
+		if (err != 0)
+			Warning($"glTextureSubImage2D error: {err}\n");
+	}
+
+	public void SetModifyTexture(uint textureID) {
+		if (ModifyTextureHandle == INVALID_SHADERAPI_TEXTURE_HANDLE)
+			return;
+
+		InternalTextureInfo tex = GetTexture(ModifyTextureHandle);
+		if (tex.NumCopies == 1)
+			tex.SetTexture(textureID);
+		else
+			tex.SetTexture(tex.CurrentCopy, textureID);
+	}
+
 	public unsafe void TexSubImage2D(int mip, int face, int x, int y, int z, int width, int height, ImageFormat srcFormat, int srcStride, Span<byte> imageData) {
 		glGetError();
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, srcStride / srcFormat.SizeInBytes());
 		ConvertDataToAcceptableGLFormat(srcFormat, imageData, out srcFormat, out Span<byte> convertedData);
 		fixed (byte* data = convertedData)
-			glTextureSubImage2D((uint)ModifyTextureHandle, mip, x, y, width >> mip, height >> mip, ImageLoader.GetGLImageUploadFormat(srcFormat), GL_UNSIGNED_BYTE, data);
+			glTextureSubImage2D(GetModifyTexture(), mip, x, y, width >> mip, height >> mip, ImageLoader.GetGLImageUploadFormat(srcFormat), GL_UNSIGNED_BYTE, data);
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		var err = glGetError();
 		// System.Diagnostics.Debug.Assert(err == 0);
@@ -1340,13 +1582,13 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 		switch (wrapMode) {
 			case TexWrapMode.Clamp:
-				glTextureParameteri((uint)ModifyTextureHandle, coordinate, GL_CLAMP_TO_EDGE);
+				glTextureParameteri(GetModifyTexture(), coordinate, GL_CLAMP_TO_EDGE);
 				break;
 			case TexWrapMode.Repeat:
-				glTextureParameteri((uint)ModifyTextureHandle, coordinate, GL_REPEAT);
+				glTextureParameteri(GetModifyTexture(), coordinate, GL_REPEAT);
 				break;
 			case TexWrapMode.Border:
-				glTextureParameteri((uint)ModifyTextureHandle, coordinate, GL_CLAMP_TO_BORDER);
+				glTextureParameteri(GetModifyTexture(), coordinate, GL_CLAMP_TO_BORDER);
 				break;
 			default:
 				Warning("ShaderAPIGl46.TexWrap: unknown wrapMode\n");
@@ -1357,26 +1599,26 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public void TexMinFilter(TexFilterMode mode) {
 		switch (mode) {
 			case TexFilterMode.Nearest:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 				break;
 			case TexFilterMode.Linear:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 				break;
 			case TexFilterMode.NearestMipmapNearest:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
 				break;
 			case TexFilterMode.LinearMipmapNearest:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
 				break;
 			case TexFilterMode.NearestMipmapLinear:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
 				break;
 			case TexFilterMode.LinearMipmapLinear:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 				break;
 			case TexFilterMode.Anisotropic:
-				glTextureParameterf((uint)ModifyTextureHandle, GL_TEXTURE_MAX_ANISOTROPY, HardwareConfig.MaximumAnisotropicLevel());
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+				glTextureParameterf(GetModifyTexture(), GL_TEXTURE_MAX_ANISOTROPY, HardwareConfig.MaximumAnisotropicLevel());
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 				break;
 			default:
 				break;
@@ -1386,10 +1628,10 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public void TexMagFilter(TexFilterMode mode) {
 		switch (mode) {
 			case TexFilterMode.Nearest:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 				break;
 			case TexFilterMode.Linear:
-				glTextureParameteri((uint)ModifyTextureHandle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 				break;
 			case TexFilterMode.NearestMipmapNearest:
 				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.NearestMipmapNearest is invalid\n");
@@ -1479,7 +1721,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 		Memory<byte> buffer = GetTempLockBuffer(info.Format, width, height);
 		fixed (byte* data = buffer.Span) {
-			glGetTextureSubImage((uint)ModifyTextureHandle, 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
+			glGetTextureSubImage(GetModifyTexture(), 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
 		}
 		writer.SetPixelMemory(info.Format, buffer.Span, width * ImageLoader.SizeInBytes(info.Format));
 		return true;
@@ -1502,7 +1744,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 		Memory<byte> buffer = GetTempLockBuffer(info.Format, width, height);
 		fixed (byte* data = buffer.Span) {
-			glGetTextureSubImage((uint)ModifyTextureHandle, 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
+			glGetTextureSubImage(GetModifyTexture(), 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
 		}
 		writer.SetPixelMemory(info.Format, buffer, width * ImageLoader.SizeInBytes(info.Format));
 		return true;
@@ -1511,7 +1753,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public unsafe void TexUnlock() {
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		fixed (byte* data = lockdata)
-			glTextureSubImage2D((uint)Lock.Handle, Lock.Mip, Lock.X, Lock.Y, Lock.W, Lock.H, ImageLoader.GetGLImageUploadFormat(Lock.Format), GL_UNSIGNED_BYTE, data);
+			glTextureSubImage2D(GetGL46Texture(Lock.Handle), Lock.Mip, Lock.X, Lock.Y, Lock.W, Lock.H, ImageLoader.GetGLImageUploadFormat(Lock.Format), GL_UNSIGNED_BYTE, data);
 		Lock = default;
 	}
 

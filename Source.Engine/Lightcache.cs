@@ -1,6 +1,7 @@
 ﻿global using AmbientCube = Source.InlineArray6<System.Numerics.Vector3>;
 
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Formats.BSP;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
@@ -15,7 +16,7 @@ public struct LightingState
 	public AmbientCube BoxColor;
 	public int NumLights;
 
-	public InlineArrayMaxLocalLights<BSPWorldLightPtr> LocalLight;
+	public InlineArrayMaxLocalLights<BSPDWorldLightPtr> LocalLight;
 
 	public void ZeroLightingState() {
 		for (int i = 0; i < 6; i++)
@@ -30,7 +31,7 @@ public struct LightingState
 		return false;
 	}
 
-	public void AddLocalLight(in BSPWorldLightPtr localLight) {
+	public void AddLocalLight(in BSPDWorldLightPtr localLight) {
 		if (NumLights >= Render.MAXLOCALLIGHTS)
 			return;
 
@@ -75,6 +76,8 @@ public struct LightcacheGetDynamic_Stats
 public partial class Render
 {
 	public const int MAXLOCALLIGHTS = 4;
+	public static readonly ConVar r_lightcache_zbuffercache = new("r_lightcache_zbuffercache", "0", 0);
+
 
 	public void StudioCheckReinitLightingCache() {
 		throw new NotImplementedException();
@@ -104,7 +107,7 @@ public partial class Render
 	}
 
 	// Finds ambient lights
-	public BSPWorldLightPtr FindAmbientLight() {
+	public BSPDWorldLightPtr FindAmbientLight() {
 		throw new NotImplementedException();
 	}
 
@@ -135,7 +138,7 @@ public partial class Render
 		throw new NotImplementedException();
 	}
 
-	public void AddWorldLightToAmbientCube(BSPWorldLightPtr worldLight, in Vector3 lightingOrigin, ref AmbientCube ambientCube) {
+	public void AddWorldLightToAmbientCube(BSPDWorldLightPtr worldLight, in Vector3 lightingOrigin, ref AmbientCube ambientCube) {
 
 	}
 
