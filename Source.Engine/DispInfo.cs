@@ -135,7 +135,15 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 
 		bool normalRender = true;
 		if (allowDebugModes) {
-			// todo
+			using MatRenderContextPtr renderContext = new(materials);
+
+			if (GLCvars.ShouldDrawInWireFrameMode()) {
+				renderContext.Bind(MatSys.MaterialWireframe!, null);
+				SpecifyDynamicMesh();
+				normalRender = false;
+			}
+
+			// todo: mat_luxels, r_DispWalkable/r_DispBuildable, mat_surfaceid, mat_surfacemat
 		}
 
 		if (normalRender) {
@@ -295,7 +303,37 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 		NumIndices = helper.NIndices;
 	}
 
-	public void SpecifyDynamicMesh() => throw new NotImplementedException();
+	public void SpecifyDynamicMesh() {
+		using MatRenderContextPtr renderContext = new(materials);
+
+		IMesh mesh = renderContext.GetDynamicMesh(true);
+		MeshBuilder builder = new();
+		builder.Begin(mesh, MaterialPrimitiveType.Triangles, NumVerts(), NumIndices);
+
+		int verts = NumVerts();
+		for (int iVert = 0; iVert < verts; iVert++) {
+			ref DispRenderVert vert = ref GetVertex(iVert);
+
+			builder.Position3fv(vert.Pos);
+
+			builder.TexCoord2fv(0, vert.TexCoord);
+			builder.TexCoord2fv(1, vert.LMCoords);
+			builder.TexCoord2f(2, BumpSTexCoordOffset, 0);
+
+			builder.Normal3fv(vert.Normal);
+			builder.TangentS3fv(vert.SVector);
+			builder.TangentT3fv(vert.TVector);
+
+			builder.AdvanceVertex();
+		}
+
+		for (int index = 0; index < NumIndices; index++) {
+			builder.Index((ushort)(Indices[index] - VertOffset));
+			builder.AdvanceIndex();
+		}
+
+		builder.End(false, true);
+	}
 	public void SpecifyWalkableDynamicMesh() => throw new NotImplementedException();
 	public void SpecifyBuildableDynamicMesh() => throw new NotImplementedException();
 
@@ -397,9 +435,18 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 		DispInfo_DrawDebugInformation(list, listCount);
 	}
 
+	static bool DispInfoRenderDebugModes() {
+		if (GLCvars.ShouldDrawInWireFrameMode() || mat_luxels.GetInt() != 0
+			// || r_DispWalkable.GetInt() || r_DispBuildable.GetInt() || mat_surfaceid.GetInt() || mat_surfacemat.GetInt() // todo
+			)
+			return true;
+
+		return false;
+	}
+
 	static void DispInfo_BuildPrimLists(int sortGroup, Span<SurfaceHandle_t> list, int listCount, bool depthOnly, DispInfo[] visibleDisps, out int visibleDispCount) {
 		visibleDispCount = 0;
-		bool debugConvars = false; // !depthOnly ? DispInfoRenderDebugModes() : false // todo
+		bool debugConvars = !depthOnly ? DispInfoRenderDebugModes() : false;
 		for (int i = 0; i < listCount; i++) {
 			DispInfo disp = (DispInfo)ModelLoader.SurfaceHandleFromIndex(list[i]).DispInfo!;
 			if (!disp.Render(disp.Mesh!, debugConvars))

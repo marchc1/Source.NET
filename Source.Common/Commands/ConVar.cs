@@ -147,7 +147,7 @@ public class ConVar : ConCommandBase, IConVar
 #pragma warning restore CS8604
 	}
 
-	public ConVar(string name, string defaultValue, FCvar flags) {
+	public ConVar(string name, string defaultValue, FCvar flags = 0) {
 		Create(name, defaultValue, flags);
 	}
 	public ConVar(string name, string defaultValue, FCvar flags, string helpText) {
@@ -157,7 +157,7 @@ public class ConVar : ConCommandBase, IConVar
 		Create(name, defaultValue, flags, helpText, min.HasValue, min ?? 0, max.HasValue, max ?? 0, callback);
 	}
 
-	public ConVar(string defaultValue, FCvar flags) {
+	public ConVar(string defaultValue, FCvar flags = 0) {
 		Create(null, defaultValue, flags);
 	}
 	public ConVar(string defaultValue, FCvar flags, string helpText) {

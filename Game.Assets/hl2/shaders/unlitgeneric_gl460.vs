@@ -11,6 +11,15 @@ layout(std140, binding = 0) uniform source_matrices {
     mat4 modelMatrix;
 };
 
+layout(std140, binding = 5) uniform source_vs_constants {
+    vec4 vs_const[256];
+};
+
+const int VertexColor = 16;
+const int VertexAlpha = 32;
+
+uniform int flags;
+
 out vec2 vs_TexCoord;
 out vec4 vs_Color;
 
@@ -20,5 +29,14 @@ void main()
 
     gl_Position = mvp * vec4(v_Position, 1.0);
     vs_TexCoord = v_TexCoord;
-    vs_Color    = v_Color;
+
+    vec4 color = vs_const[47];
+
+    if((flags & VertexColor) != 0)
+        color.rgb *= v_Color.rgb;
+
+    if((flags & VertexAlpha) != 0)
+        color.a *= v_Color.a;
+
+    vs_Color = color;
 }

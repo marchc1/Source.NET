@@ -122,6 +122,21 @@ public static class GLRSurfGlobals
 	public readonly static ConVar r_spewleaf = new("r_spewleaf", "0", 0);
 }
 
+public static class GLCvars
+{
+	public static int WireFrameMode() {
+		if (Host.CanCheat())
+			return mat_wireframe.GetInt();
+		return 0;
+	}
+
+	public static bool ShouldDrawInWireFrameMode() {
+		if (Host.CanCheat())
+			return mat_wireframe.GetInt() != 0;
+		return false;
+	}
+}
+
 public class WorldRenderList : IWorldRenderList
 {
 	public MSurfaceSortList SortList = new();
@@ -367,7 +382,56 @@ public static class GLRSurf
 		else
 			renderList.DispSortList.AddSurfaceToTail(ref surface, sortGroup, (short)materialSortID);
 	}
-	public static void Shader_DrawSurfaceDynamic(IMatRenderContext renderContext, SurfaceHandle_t surfID, bool shadowDepth) => throw new NotImplementedException();
+	public static void Shader_DrawSurfaceDynamic(IMatRenderContext renderContext, SurfaceHandle_t surfID, bool shadowDepth) {
+		ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+
+		if (!ModelLoader.SurfaceHasPrims(ref surface)) {
+			IMesh mesh = renderContext.GetDynamicMesh();
+			MeshBuilder meshBuilder = new();
+			meshBuilder.Begin(mesh, MaterialPrimitiveType.Polygon, ModelLoader.MSurf_VertCount(ref surface));
+			MatSys.BuildMSurfaceVertexArrays(host_state!.WorldBrush!, ref surface, IMaterialSystem.OVERBRIGHT, ref meshBuilder);
+			meshBuilder.End();
+			mesh.Draw();
+			return;
+		}
+
+		int firstPrim = ModelLoader.MSurf_FirstPrimID(ref surface, host_state!.WorldBrush!);
+		ref BSPMPrimitive prim = ref host_state.WorldBrush!.Primitives![firstPrim];
+
+		if (prim.VertCount != 0) {
+			IMesh mesh = renderContext.GetDynamicMesh(false);
+			MeshBuilder meshBuilder = new();
+			for (int i = 0; i < ModelLoader.MSurf_NumPrims(ref surface, host_state.WorldBrush); i++) {
+				ref BSPMPrimitive current = ref host_state.WorldBrush.Primitives![firstPrim + i];
+				switch (current.Type) {
+					case BSPPrimType.TriList:
+						meshBuilder.Begin(mesh, MaterialPrimitiveType.Triangles, current.VertCount, current.IndexCount);
+						break;
+					case BSPPrimType.TriStrip:
+						meshBuilder.Begin(mesh, MaterialPrimitiveType.TriangleStrip, current.VertCount, current.IndexCount);
+						break;
+					default:
+						Assert(false);
+						return;
+				}
+				Assert(current.IndexCount != 0);
+				MatSys.BuildMSurfacePrimVerts(current.Type, host_state.WorldBrush, ref current, ref meshBuilder, ref surface);
+				MatSys.BuildMSurfacePrimIndices(current.Type, host_state.WorldBrush, ref current, ref meshBuilder);
+				meshBuilder.End();
+				mesh.Draw();
+			}
+		}
+		else {
+			IMesh mesh = renderContext.GetDynamicMesh();
+			MeshBuilder meshBuilder = new();
+			meshBuilder.Begin(mesh, MaterialPrimitiveType.Triangles, ModelLoader.MSurf_VertCount(ref surface), prim.IndexCount);
+			MatSys.BuildMSurfaceVertexArrays(host_state.WorldBrush, ref surface, IMaterialSystem.OVERBRIGHT, ref meshBuilder);
+			for (int primIndex = 0; primIndex < prim.IndexCount; primIndex++)
+				meshBuilder.FastIndex(host_state.WorldBrush.PrimIndices![prim.FirstIndex + primIndex]);
+			meshBuilder.End();
+			mesh.Draw();
+		}
+	}
 	public static void Shader_DrawSurfaceStatic(SurfaceHandle_t surfID) => throw new NotImplementedException();
 	static void Shader_SetChainLightmapState(IMatRenderContext renderContext, SurfaceHandle_t surfID) => throw new NotImplementedException();
 	public static void Shader_SetChainTextureState(IMatRenderContext renderContext, SurfaceHandle_t surfID, IClientEntity? baseEntity, bool shadowDepth) => throw new NotImplementedException();
@@ -522,22 +586,104 @@ public static class GLRSurf
 	public static void DrawSurfaceIDAsInt(SurfaceHandle_t surfID, in Vector3 vecCentroid) => throw new NotImplementedException();
 	public static void DrawSurfaceMaterial(SurfaceHandle_t surfID, in Vector3 vecCentroid) => throw new NotImplementedException();
 	public static void Shader_DrawSurfaceDebuggingInfo(List<SurfaceHandle_t> surfaceList, SurfaceDebugFunc func) => throw new NotImplementedException();
-	public static void Shader_DrawWireframePolygons(List<SurfaceHandle_t> surfaceList) => throw new NotImplementedException();
-	static void Shader_DrawChainsWireframe(List<SurfaceHandle_t> surfaceList) => throw new NotImplementedException();
+	public static void Shader_DrawWireframePolygons(List<SurfaceHandle_t> surfaceList) {
+		int lineCount = 0;
+		for (int i = 0; i < surfaceList.Count; i++) {
+			int count = ModelLoader.MSurf_VertCount(ref ModelLoader.SurfaceHandleFromIndex(surfaceList[i]));
+			if (count >= 3)
+				lineCount += count;
+		}
+
+		if (lineCount == 0)
+			return;
+
+		using MatRenderContextPtr renderContext = new(materials);
+
+		renderContext.Bind(MatSys.MaterialWorldWireframe!, null);
+		IMesh mesh = renderContext.GetDynamicMesh(false);
+		MeshBuilder meshBuilder = new();
+		meshBuilder.Begin(mesh, MaterialPrimitiveType.Lines, lineCount);
+
+		for (int i = 0; i < surfaceList.Count; i++) {
+			SurfaceHandle_t surfID = surfaceList[i];
+			ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+			Assert(!ModelLoader.SurfaceHasDispInfo(ref surface));
+
+			int count = ModelLoader.MSurf_VertCount(ref surface);
+			if (count >= 3) {
+				int firstVertIndex = ModelLoader.MSurf_FirstVertIndex(ref surface);
+				int vertIndex = host_state!.WorldBrush!.VertIndices![firstVertIndex + count - 1];
+				Vector3 prevPos = host_state.WorldBrush.Vertexes![vertIndex].Position;
+				for (int v = 0; v < count; ++v) {
+					vertIndex = host_state.WorldBrush.VertIndices[firstVertIndex + v];
+					ref Vector3 vec = ref host_state.WorldBrush.Vertexes![vertIndex].Position;
+
+					meshBuilder.Position3fv(prevPos);
+					meshBuilder.AdvanceVertex();
+					meshBuilder.Position3fv(vec);
+					meshBuilder.AdvanceVertex();
+
+					prevPos = vec;
+				}
+			}
+		}
+
+		meshBuilder.End();
+		mesh.Draw();
+	}
+	static void Shader_DrawChainsWireframe(List<SurfaceHandle_t> surfaceList) {
+		int wireFrameMode = GLCvars.WireFrameMode();
+
+		switch (wireFrameMode) {
+			case 3:
+				Shader_DrawWireframePolygons(surfaceList);
+				break;
+
+			default: {
+					using MatRenderContextPtr renderContext = new(materials);
+					if (wireFrameMode == 2)
+						renderContext.Bind(MatSys.MaterialWorldWireframeZBuffer!, null);
+					else
+						renderContext.Bind(MatSys.MaterialWorldWireframe!, null);
+					for (int i = 0; i < surfaceList.Count; i++) {
+						SurfaceHandle_t surfID = surfaceList[i];
+						Assert(!ModelLoader.SurfaceHasDispInfo(ref ModelLoader.SurfaceHandleFromIndex(surfID)));
+						Shader_DrawSurfaceDynamic(renderContext, surfID, false);
+					}
+				}
+				break;
+		}
+	}
 	static void Shader_DrawChainNormals(List<SurfaceHandle_t> surfaceList) => throw new NotImplementedException();
 	static void Shader_DrawChainBumpBasis(List<SurfaceHandle_t> surfaceList) => throw new NotImplementedException();
 	static void Shader_DrawLuxels(List<SurfaceHandle_t> surfaceList) => throw new NotImplementedException();
 	static void ComputeDebugSettings() {
-		// todo
-		// g_ShaderDebug.Wireframe = ShouldDrawInWireFrameMode() || (r_drawworld.GetInt() == 2);
-		// g_ShaderDebug.Normals = mat_normals.GetBool();
-		// g_ShaderDebug.Luxels = mat_luxels.GetBool();
-		// g_ShaderDebug.BumpBasis = mat_bumpbasis.GetBool();
+		g_ShaderDebug.Wireframe = GLCvars.ShouldDrawInWireFrameMode() || (r_drawworld.GetInt() == 2);
+		g_ShaderDebug.Normals = mat_normals.GetBool();
+		g_ShaderDebug.Luxels = mat_luxels.GetBool();
+		g_ShaderDebug.BumpBasis = mat_bumpbasis.GetBool();
 		// g_ShaderDebug.SurfaceID = mat_surfaceid.GetInt();
 		// g_ShaderDebug.SurfaceMaterials = mat_surfacemat.GetBool();
 		g_ShaderDebug.TestAnyDebug();
 	}
-	static void DrawDebugInformation(List<SurfaceHandle_t> surfaceList) => throw new NotImplementedException();
+	static void DrawDebugInformation(List<SurfaceHandle_t> surfaceList) {
+		if (g_ShaderDebug.Wireframe)
+			Shader_DrawChainsWireframe(surfaceList);
+
+		if (g_ShaderDebug.Normals)
+			Shader_DrawChainNormals(surfaceList);
+
+		if (g_ShaderDebug.BumpBasis)
+			Shader_DrawChainBumpBasis(surfaceList);
+
+		if (g_ShaderDebug.Luxels)
+			Shader_DrawLuxels(surfaceList);
+
+		if (g_ShaderDebug.SurfaceID != 0)
+			Shader_DrawSurfaceDebuggingInfo(surfaceList, g_ShaderDebug.SurfaceID != 2 ? DrawSurfaceID : DrawSurfaceIDAsInt);
+		else if (g_ShaderDebug.SurfaceMaterials)
+			Shader_DrawSurfaceDebuggingInfo(surfaceList, DrawSurfaceMaterial);
+	}
 
 	public static void AddProjectedTextureDecalsToList(WorldRenderList renderList, int sortGroup) {
 		MSurfaceSortList sortList = renderList.SortList;
@@ -972,11 +1118,11 @@ public static class GLRSurf
 	public static readonly BrushBatchRender g_BrushBatchRenderer = new();
 
 	public static void R_DrawBrushModel(IClientEntity? baseEntity, Model? model, in Vector3 origin, in QAngle angles, RenderDepthMode depthMode, bool drawOpaque, bool drawTranslucent) {
-		if (MatSysInterface.r_drawbrushmodels.GetInt() == 0)
+		if (r_drawbrushmodels.GetInt() == 0)
 			return;
 
 		bool wireframe = false;
-		if (MatSysInterface.r_drawbrushmodels.GetInt() == 2) {
+		if (r_drawbrushmodels.GetInt() == 2) {
 			wireframe = g_ShaderDebug.Wireframe;
 			g_ShaderDebug.Wireframe = true;
 			g_ShaderDebug.AnyDebug = true;
@@ -1002,7 +1148,7 @@ public static class GLRSurf
 
 		Shader_BrushEnd(renderContext, brushTransform.GetNonIdentityMatrix(), model, depthMode != RenderDepthMode.Normal, baseEntity);
 
-		if (MatSysInterface.r_drawbrushmodels.GetInt() == 2) {
+		if (r_drawbrushmodels.GetInt() == 2) {
 			g_ShaderDebug.Wireframe = wireframe;
 			g_ShaderDebug.TestAnyDebug();
 		}

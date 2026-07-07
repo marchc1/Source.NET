@@ -740,9 +740,8 @@ public partial class Render(
 
 		bool onlyUseLightStyles = false;
 
-		//  if (r_dynamic.GetInt() == 0) {
-		//  	onlyUseLightStyles = true;
-		//  }
+		if (r_dynamic.GetInt() == 0)
+			onlyUseLightStyles = true;
 
 		using MatRenderContextPtr renderContext = new(materials);
 		if (!host_state.WorldBrush!.UnloadedLightmaps) {
@@ -796,8 +795,6 @@ public partial class Render(
 		BuildLightMapGuts(ref surfID, in entityToWorld, dlightMask, needsBumpmap, needsLightmap);
 	}
 
-	static readonly ConVar r_lightmap = new("r_lightmap", "-1", FCvar.Cheat | FCvar.MaterialSystemThread);
-	static readonly ConVar r_lightstyle = new("r_lightstyle", "-1", FCvar.Cheat | FCvar.MaterialSystemThread);
 	static readonly ConVar r_avglightmap = new("r_avglightmap", "0", FCvar.Cheat | FCvar.MaterialSystemThread);
 	static readonly ConVar r_maxdlights = new("r_maxdlights", "32", 0);
 

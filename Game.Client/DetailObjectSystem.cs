@@ -1,4 +1,5 @@
 using static Game.Client.DetailObjectSystemGlobals;
+using static Source.Engine.MatSysVars;
 
 using CommunityToolkit.HighPerformance;
 
@@ -15,6 +16,7 @@ using Source.Common.Mathematics;
 using System.Numerics;
 using System.Runtime.Intrinsics;
 using System.Runtime.InteropServices;
+using Source.Engine;
 
 namespace Game.Client;
 
@@ -248,10 +250,10 @@ public class DetailModel : IClientUnknown, IClientRenderable
 	public void RecordToolMessage() { }
 
 	public void GetColorModulation(Span<float> color) {
-		// if (mat_fullbright.GetInt() == 1) {
-		// 	color[0] = color[1] = color[2] = 1.0f;
-		// 	return;
-		// }
+		if (mat_fullbright.GetInt() == 1) {
+			color[0] = color[1] = color[2] = 1.0f;
+			return;
+		}
 
 		Vector3 normal = new(1, 0, 0);
 		engine.ComputeDynamicLighting(Origin, normal, out Vector3 tmp);
@@ -986,7 +988,7 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 		renderContext.LoadIdentity();
 
 		IMaterial material = DetailSpriteMaterial.Get()!;
-		if (false /*ShouldDrawInWireFrameMode()*/ || r_DrawDetailProps.GetInt() == 2)
+		if (GLCvars.ShouldDrawInWireFrameMode() || r_DrawDetailProps.GetInt() == 2)
 			material = DetailWireframeMaterial.Get()!;
 
 		MeshBuilder meshBuilder = new();
@@ -1079,7 +1081,7 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 		renderContext.LoadIdentity();
 
 		IMaterial material = DetailSpriteMaterial.Get()!;
-		if (false /*ShouldDrawInWireFrameMode()*/ || r_DrawDetailProps.GetInt() == 2)
+		if (GLCvars.ShouldDrawInWireFrameMode() || r_DrawDetailProps.GetInt() == 2)
 			material = DetailWireframeMaterial.Get()!;
 
 		MeshBuilder meshBuilder = new();
@@ -1161,7 +1163,7 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 		renderContext.LoadIdentity();
 
 		IMaterial material = DetailSpriteMaterial.Get()!;
-		if (false /*ShouldDrawInWireFrameMode()*/ || r_DrawDetailProps.GetInt() == 2)
+		if (GLCvars.ShouldDrawInWireFrameMode() || r_DrawDetailProps.GetInt() == 2)
 			material = DetailWireframeMaterial.Get()!;
 
 		MeshBuilder meshBuilder = new();
@@ -1382,7 +1384,7 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 		renderContext.LoadIdentity();
 
 		IMaterial material = DetailSpriteMaterial.Get()!;
-		if (false /*ShouldDrawInWireFrameMode()*/ || r_DrawDetailProps.GetInt() == 2)
+		if (GLCvars.ShouldDrawInWireFrameMode() || r_DrawDetailProps.GetInt() == 2)
 			material = DetailWireframeMaterial.Get()!;
 
 		MeshBuilder meshBuilder = new();

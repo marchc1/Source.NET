@@ -118,13 +118,13 @@ public class ClientState : BaseClientState
 		Cbuf Cbuf, Cmd Cmd, ICvar cvar, IHostState HostState, Scr Scr, IEngineAPI engineAPI,
 		IServiceProvider services,
 		IModelLoader modelloader, ICommandLine commandLine,
-		[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient, 
+		[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient,
 
 #if !SWDS
-		IPrediction ClientSidePrediction, 
+		IPrediction ClientSidePrediction,
 		IEngineVGuiInternal? EngineVGui,
-		CL CL, 
-		DtCommonEng DtCommonEng, 
+		CL CL,
+		DtCommonEng DtCommonEng,
 		EngineRecvTable RecvTable,
 #endif
 		ClientGlobalVariables clientGlobalVariables, Sound Sound
@@ -974,10 +974,8 @@ public class ClientState : BaseClientState
 		ServerMD5 = msg.MapMD5;
 
 		if (MaxClients > 1) {
-			/*if (mp_decals.GetInt() < r_decals.GetInt())
-			{
+			if (mp_decals.GetInt() < r_decals.GetInt())
 				r_decals.SetValue(mp_decals.GetInt());
-			}*/
 		}
 
 		clientGlobalVariables.MaxClients = MaxClients;

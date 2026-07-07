@@ -34,8 +34,9 @@ public static class StaticPropMgrGlobals
 		if (r_drawstaticprops.GetInt() != 1 ||
 			r_DrawSpecificStaticProp.GetInt() >= 0 ||
 			r_colorstaticprops.GetBool() ||
-			r_staticpropinfo.GetInt() != 0)
-			// todo: || mat_fullbright || r_drawmodellightorigin || r_drawmodelstatsoverlay
+			r_staticpropinfo.GetInt() != 0 ||
+			mat_fullbright.GetBool())
+			// todo: || r_drawmodellightorigin || r_drawmodelstatsoverlay
 			return true;
 		return false;
 	}
