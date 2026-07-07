@@ -1026,19 +1026,20 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 			outCurrent.Origin.Init((float)inCurrent.Origin[0], (float)inCurrent.Origin[1], (float)inCurrent.Origin[2]);
 			outCurrent.Size = inCurrent.Size;
 			sprintf(textureName, "maps/%s/c%d_%d_%d%s").S(loadName).D((int)inCurrent.Origin[0]).D((int)inCurrent.Origin[1]).D((int)inCurrent.Origin[2]).S(hdrExtension);
-			outCurrent.Texture = materialSystem.FindTexture(textureName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
+			ReadOnlySpan<char> cubemapName = textureName.SliceNullTerminatedString();
+			outCurrent.Texture = materialSystem.FindTexture(cubemapName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
 			if (ITexture.IsError(outCurrent.Texture)) {
 				if (hdr) {
-					Warning($"Couldn't get HDR '{textureName}' -- ");
+					Warning($"Couldn't get HDR '{cubemapName}' -- ");
 					// try non hdr version
 					sprintf(textureName, "maps/%s/c%d_%d_%d").S(loadName).D((int)inCurrent.Origin[0]).D((int)inCurrent.Origin[1]).D((int)inCurrent.Origin[2]);
-					Warning($"Trying non HDR '{textureName}'\n");
-					outCurrent.Texture = materialSystem.FindTexture(textureName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true);
+					Warning($"Trying non HDR '{cubemapName}'\n");
+					outCurrent.Texture = materialSystem.FindTexture(cubemapName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true);
 				}
 
 				if (ITexture.IsError(outCurrent.Texture)) {
 					sprintf(textureName, "maps/%s/cubemapdefault").S(loadName);
-					outCurrent.Texture = materialSystem.FindTexture(textureName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
+					outCurrent.Texture = materialSystem.FindTexture(cubemapName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
 					if (ITexture.IsError(outCurrent.Texture))
 						outCurrent.Texture = materialSystem.FindTexture("engine/defaultcubemap", MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
 
