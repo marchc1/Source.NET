@@ -240,7 +240,8 @@ public abstract class BaseVSShader : BaseShader
 	private void SetNormalBlendingShadowState(int textureVar, bool isBaseTexture) {
 		Assert(IsSnapshotting());
 
-		bool isTranslucent = (CurrentMaterialVarFlags() & (int)MaterialVarFlags.VertexAlpha) != 0;
+		bool isTranslucent = IsAlphaModulating();
+		isTranslucent |= (CurrentMaterialVarFlags() & (int)MaterialVarFlags.VertexAlpha) != 0;
 		isTranslucent |= TextureIsTranslucent(textureVar, isBaseTexture) && (CurrentMaterialVarFlags() & (int)MaterialVarFlags.AlphaTest) == 0;
 
 		if (isTranslucent) {

@@ -250,6 +250,8 @@ public abstract class BaseShader : IShader
 
 	protected float GetAlpha() => GetAlpha(Params);
 
+	protected bool IsAlphaModulating() => GetAlpha() < 1.0f;
+
 	protected void ApplyColor2Factor(Span<float> colorOut) {
 		IMaterialVar[] shaderParams = Params!;
 

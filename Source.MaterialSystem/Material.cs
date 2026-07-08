@@ -1102,6 +1102,13 @@ public class Material : IMaterialInternal
 		return false;
 	}
 
+	public bool IsVertexLit() {
+		Precache();
+		if (IsValidRenderState())
+			return (GetMaterialVarFlags2() & MaterialVarFlags2.LightingVertexLit) != 0;
+		return false;
+	}
+
 	public int GetNumAnimationFrames() {
 		Precache();
 		if (representativeTexture != null) {
