@@ -6,7 +6,7 @@ namespace Source.Common.MaterialSystem;
 public interface IShaderSystem
 {
 	public static bool IsTranslucent(IShaderShadow renderState) {
-		return false; // todo
+		return (renderState.GetFlags() & ShaderFlags.OpacityTranslucent) != 0;
 	}
 
 	void BindTexture(Sampler sampler, ITexture texture, int frame = 0);

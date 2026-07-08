@@ -879,8 +879,74 @@ public static class GLRSurf
 		}
 	}
 
-	public static bool Shader_LeafContainsTranslucentSurfaces(IWorldRenderList renderListIn, int sortIndex, uint flags) => throw new NotImplementedException();
-	public static void Shader_DrawTranslucentSurfaces(IWorldRenderList renderListIn, int sortIndex, uint flags, bool shadowDepth) => throw new NotImplementedException();
+	public static bool Shader_LeafContainsTranslucentSurfaces(IWorldRenderList renderListIn, int sortIndex, uint flags) {
+		WorldRenderList renderList = (WorldRenderList)renderListIn;
+		for (int i = 0; i < (int)MatSortGroup.Max; ++i) {
+			if ((flags & (1u << i)) == 0)
+				continue;
+
+			int sortGroup = s_DrawWorldListsToSortGroup[i];
+
+			ref SurfaceSortGroup group = ref renderList.AlphaSortList.GetGroupForSortID(sortGroup, sortIndex);
+			if (group.SurfaceCount != 0)
+				return true;
+			ref SurfaceSortGroup dispGroup = ref renderList.DispAlphaSortList.GetGroupForSortID(sortGroup, sortIndex);
+			if (dispGroup.SurfaceCount != 0)
+				return true;
+		}
+
+		return false;
+	}
+	public static void Shader_DrawTranslucentSurfaces(IWorldRenderList renderListIn, int sortIndex, uint flags, bool shadowDepth) {
+		if (!r_drawtranslucentworld.GetBool())
+			return;
+
+		WorldRenderList renderList = (WorldRenderList)renderListIn;
+
+		using MatRenderContextPtr renderContext = new(materials);
+
+		bool skipLight = false;
+		if (MatSysInterface.MaterialSystemConfig.Fullbright == 1) {
+			renderContext.BindLightmapPage(StandardLightmap.WhiteBump);
+			skipLight = true;
+		}
+
+		List<SurfaceHandle_t> surfaceList = [];
+		for (int i = 0; i < (int)MatSortGroup.Max; ++i) {
+			if ((flags & (1u << i)) == 0)
+				continue;
+
+			int sortGroup = s_DrawWorldListsToSortGroup[i];
+
+			surfaceList.Clear();
+			ref SurfaceSortGroup group = ref renderList.AlphaSortList.GetGroupForSortID(sortGroup, sortIndex);
+			ref SurfaceSortGroup dispGroup = ref renderList.DispAlphaSortList.GetGroupForSortID(sortGroup, sortIndex);
+			if (group.SurfaceCount == 0 && dispGroup.SurfaceCount == 0)
+				continue;
+
+			renderList.AlphaSortList.GetSurfaceListForGroup(surfaceList, group);
+
+			for (int listIndex = surfaceList.Count; --listIndex >= 0;) {
+				SurfaceHandle_t surfID = surfaceList[listIndex];
+				ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+				renderContext.Bind(ModelLoader.MSurf_TexInfo(ref surface).Material!, null);
+
+				if (!skipLight)
+					renderContext.BindLightmapPage(MatSys.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref surface)].LightmapPageID);
+
+				Shader_DrawSurfaceDynamic(renderContext, surfID, false);
+
+				// todo
+			}
+
+			DrawDebugInformation(surfaceList);
+
+			surfaceList.Clear();
+			renderList.DispAlphaSortList.GetSurfaceListForGroup(surfaceList, dispGroup);
+			Span<SurfaceHandle_t> dispList = surfaceList.AsSpan();
+			DispInfo.DispInfo_RenderList(i, dispList, dispList.Length, g_EngineRenderer.ViewGetCurrent().Ortho, flags, RenderDepthMode.Normal);
+		}
+	}
 
 	public static void R_DrawSurface(WorldRenderList renderList, SurfaceHandle_t surfID) {
 		ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);

@@ -303,25 +303,122 @@ public class Rendering3dView : Base3dView
 	}
 
 	protected void DrawTranslucentRenderables(RenderDepthMode depthMode) {
-		if (!r_drawtranslucentrenderables.GetBool())
+		bool shadowDepth = depthMode != RenderDepthMode.Normal;
+		IDetailObjectSystem detailObjectSystem = DetailObjectSystem.GetDetailObjectSystem();
+
+		if (!r_drawtranslucentworld.GetBool()) {
+			DrawTranslucentRenderablesNoWorld(depthMode);
 			return;
-
-		if (!mainView.ShouldDrawEntities())
-			return;
-
-		render.SetBlend(1);
-
-		int count = RenderablesList.Count(RenderGroup.TranslucentEntity);
-		for (int i = count - 1; i >= 0; i--) {
-			ref ClientRenderablesList.Entry entry = ref RenderablesList[RenderGroup.TranslucentEntity, i];
-			if (entry.Renderable != null)
-				DrawTranslucentRenderable(entry.Renderable, entry.TwoPass, depthMode);
 		}
 
-		((DetailObjectSystem)DetailObjectSystem.GetDetailObjectSystem()).RenderTranslucentDetailObjects(
-			CurrentViewOrigin(), CurrentViewForward(), CurrentViewRight(), CurrentViewUp(), WorldListInfo.LeafCount, CollectionsMarshal.AsSpan(WorldListInfo.LeafList));
+		int prevLeaf = WorldListInfo.LeafCount - 1;
+		int detailLeafCount = 0;
+		Span<LeafIndex_t> detailLeafList = stackalloc LeafIndex_t[WorldListInfo.LeafCount];
+
+		uint engineDrawFlags = (uint)BuildEngineDrawWorldListFlags(DrawFlags & ~DrawFlags.DrawSkybox);
+
+		detailObjectSystem.BeginTranslucentDetailRendering();
+
+		if (mainView.ShouldDrawEntities() && r_drawtranslucentrenderables.GetBool()) {
+			// DrawParticleSingletons(); // todo
+
+			int curTranslucentEntity = RenderablesList.Count(RenderGroup.TranslucentEntity) - 1;
+
+			while (curTranslucentEntity >= 0) {
+				int thisLeaf = RenderablesList[RenderGroup.TranslucentEntity, curTranslucentEntity].WorldListInfoLeaf;
+
+				DrawTranslucentWorldAndDetailPropsInLeaves(prevLeaf, thisLeaf, engineDrawFlags, ref detailLeafCount, detailLeafList, shadowDepth);
+
+				prevLeaf = thisLeaf - 1;
+
+				int leaf = WorldListInfo.LeafList[thisLeaf];
+
+				bool drawDetailProps = ((ClientLeafSystem)clientLeafSystem).ShouldDrawDetailObjectsInLeaf(leaf, mainView.BuildWorldListsNumber());
+				if (drawDetailProps) {
+					--detailLeafCount;
+					detailObjectSystem.RenderTranslucentDetailObjects(CurrentViewOrigin(), CurrentViewForward(), CurrentViewRight(), CurrentViewUp(), detailLeafCount, detailLeafList);
+
+					for (; curTranslucentEntity >= 0 && RenderablesList[RenderGroup.TranslucentEntity, curTranslucentEntity].WorldListInfoLeaf == thisLeaf; --curTranslucentEntity) {
+						ref ClientRenderablesList.Entry entry = ref RenderablesList[RenderGroup.TranslucentEntity, curTranslucentEntity];
+						IClientRenderable renderable = entry.Renderable!;
+
+						Vector3 renderOrigin = renderable.GetRenderOrigin();
+						detailObjectSystem.RenderTranslucentDetailObjectsInLeaf(CurrentViewOrigin(), CurrentViewForward(), CurrentViewRight(), CurrentViewUp(), leaf, renderOrigin);
+
+						// todo
+
+						DrawTranslucentRenderable(renderable, entry.TwoPass, depthMode);
+					}
+
+					detailObjectSystem.RenderTranslucentDetailObjectsInLeaf(CurrentViewOrigin(), CurrentViewForward(), CurrentViewRight(), CurrentViewUp(), leaf, null);
+				}
+				else {
+					detailObjectSystem.RenderTranslucentDetailObjects(CurrentViewOrigin(), CurrentViewForward(), CurrentViewRight(), CurrentViewUp(), detailLeafCount, detailLeafList);
+
+					for (; curTranslucentEntity >= 0 && RenderablesList[RenderGroup.TranslucentEntity, curTranslucentEntity].WorldListInfoLeaf == thisLeaf; --curTranslucentEntity) {
+						ref ClientRenderablesList.Entry entry = ref RenderablesList[RenderGroup.TranslucentEntity, curTranslucentEntity];
+						IClientRenderable renderable = entry.Renderable!;
+
+						// todo
+
+						DrawTranslucentRenderable(renderable, entry.TwoPass, depthMode);
+					}
+				}
+
+				detailLeafCount = 0;
+			}
+		}
+
+		DrawTranslucentWorldAndDetailPropsInLeaves(prevLeaf, 0, engineDrawFlags, ref detailLeafCount, detailLeafList, shadowDepth);
+
+		detailObjectSystem.RenderTranslucentDetailObjects(CurrentViewOrigin(), CurrentViewForward(), CurrentViewRight(), CurrentViewUp(), detailLeafCount, detailLeafList);
 
 		render.SetBlend(1);
+	}
+
+	protected void DrawTranslucentRenderablesNoWorld(RenderDepthMode depthMode) {
+		if (!mainView.ShouldDrawEntities() || !r_drawtranslucentrenderables.GetBool())
+			return;
+
+		// DrawParticleSingletons(); // todo
+
+		int curTranslucentEntity = RenderablesList.Count(RenderGroup.TranslucentEntity) - 1;
+
+		while (curTranslucentEntity >= 0) {
+			ref ClientRenderablesList.Entry entry = ref RenderablesList[RenderGroup.TranslucentEntity, curTranslucentEntity];
+			IClientRenderable renderable = entry.Renderable!;
+
+			// todo
+
+			DrawTranslucentRenderable(renderable, entry.TwoPass, depthMode);
+			--curTranslucentEntity;
+		}
+	}
+
+	protected void DrawTranslucentWorldInLeaves(bool shadowDepth) {
+		for (int curLeafIndex = WorldListInfo.LeafCount - 1; curLeafIndex >= 0; curLeafIndex--) {
+			int actualLeafIndex = curLeafIndex;
+			if (render.LeafContainsTranslucentSurfaces(WorldRenderList, actualLeafIndex, (uint)DrawFlags))
+				render.DrawTranslucentSurfaces(WorldRenderList, actualLeafIndex, (uint)DrawFlags, shadowDepth);
+		}
+	}
+
+	protected void DrawTranslucentWorldAndDetailPropsInLeaves(int curLeafIndex, int finalLeafIndex, uint engineDrawFlags, ref int detailLeafCount, Span<LeafIndex_t> detailLeafList, bool shadowDepth) {
+		IDetailObjectSystem detailObjectSystem = DetailObjectSystem.GetDetailObjectSystem();
+		for (; curLeafIndex >= finalLeafIndex; curLeafIndex--) {
+			int actualLeafIndex = curLeafIndex;
+			if (render.LeafContainsTranslucentSurfaces(WorldRenderList, actualLeafIndex, engineDrawFlags)) {
+				detailObjectSystem.RenderTranslucentDetailObjects(CurrentViewOrigin(), CurrentViewForward(), CurrentViewRight(), CurrentViewUp(), detailLeafCount, detailLeafList);
+				detailLeafCount = 0;
+
+				render.DrawTranslucentSurfaces(WorldRenderList, actualLeafIndex, engineDrawFlags, shadowDepth);
+			}
+
+			if (((ClientLeafSystem)clientLeafSystem).ShouldDrawDetailObjectsInLeaf(WorldListInfo.LeafList[curLeafIndex], mainView.BuildWorldListsNumber())) {
+				detailLeafList[detailLeafCount] = WorldListInfo.LeafList[curLeafIndex];
+				++detailLeafCount;
+			}
+		}
 	}
 
 	private void DrawTranslucentRenderable(IClientRenderable ent, bool twoPass, RenderDepthMode depthMode) {

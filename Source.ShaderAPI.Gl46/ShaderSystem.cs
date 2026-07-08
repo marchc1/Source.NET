@@ -268,7 +268,19 @@ public class ShaderSystem : IShaderSystemInternal
 		Assert(RenderState == null);
 		InitRenderStateFlags(ref renderState, shaderParams);
 		InitState(shader, shaderParams, ref renderState);
+		ComputeRenderStateFlagsFromSnapshot(renderState);
 		return true;
+	}
+
+	private void ComputeRenderStateFlagsFromSnapshot(IShaderShadow renderState) {
+		if (ShaderAPI.IsTranslucent(renderState))
+			renderState.SetFlags(renderState.GetFlags() | ShaderFlags.OpacityTranslucent);
+		else {
+			if (ShaderAPI.IsAlphaTested(renderState))
+				renderState.SetFlags(renderState.GetFlags() | ShaderFlags.OpacityAlphaTest);
+			else
+				renderState.SetFlags(renderState.GetFlags() | ShaderFlags.OpacityOpaque);
+		}
 	}
 
 	private void InitState(IShader shader, IMaterialVar[] shaderParams, ref IShaderShadow renderState) {

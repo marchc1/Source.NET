@@ -89,6 +89,8 @@ public class RenderView(EngineVGui EngineVGui, Render engineRenderer) : IRenderV
 	public IWorldRenderList? CreateWorldList() => engineRenderer.CreateWorldList();
 	public void BuildWorldLists(IWorldRenderList? list, ref WorldListInfo info, int forceViewLeaf, ReadOnlySpan<VisOverrideData> visData, bool shadowDepth, Span<float> reflectionWaterHeight) => engineRenderer.BuildWorldLists(list, ref info, forceViewLeaf, visData, shadowDepth, reflectionWaterHeight);
 	public void DrawWorldLists(IWorldRenderList? list, uint flags, float waterZAdjust) => engineRenderer.DrawWorldLists(list, flags, waterZAdjust);
+	public void DrawTranslucentSurfaces(IWorldRenderList? list, int sortIndex, uint flags, bool shadowDepth) => GLRSurf.Shader_DrawTranslucentSurfaces(list!, sortIndex, flags, shadowDepth);
+	public bool LeafContainsTranslucentSurfaces(IWorldRenderList? list, int sortIndex, uint flags) => GLRSurf.Shader_LeafContainsTranslucentSurfaces(list!, sortIndex, flags);
 	public void BeginUpdateLightmaps() => engineRenderer.BeginUpdateLightmaps();
 	public void EndUpdateLightmaps() => engineRenderer.EndUpdateLightmaps();
 
