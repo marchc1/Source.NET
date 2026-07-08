@@ -107,7 +107,7 @@ public ref struct MapLoadHelper
 	public MapLoadHelper(LumpIndex lumpToLoad) {
 		LumpID = lumpToLoad;
 		ref BSPLump lump = ref MapHeader.Lumps[(int)lumpToLoad];
-		LumpSize = lump.FileLength;
+		LumpSize = lump.UncompressedSize != 0 ? lump.UncompressedSize : lump.FileLength;
 		LumpOffset = lump.FileOffset;
 		LumpVersion = lump.Version;
 	}
