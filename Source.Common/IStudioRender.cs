@@ -55,6 +55,7 @@ public struct StudioRenderConfig {
 	public bool DrawTangentFrame;
 	public bool DrawZBufferedWireframe;
 	public bool SoftwareLighting;
+	public bool SupportsVertexAndPixelShaders;
 	public bool ShowEnvCubemapOnly;
 	public bool WireframeDecals;
 	public bool EnableHWMorph;

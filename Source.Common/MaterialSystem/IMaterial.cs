@@ -459,6 +459,9 @@ public interface IMaterial
 	bool IsAlphaTested();
 	bool UsesEnvCubemap();
 	bool NeedsTangentSpace();
+	bool NeedsSoftwareSkinning();
+	bool NeedsSoftwareLighting();
+	void SetUseFixedFunctionBakedLighting(bool enable);
 	bool NeedsPowerOfTwoFrameBufferTexture(bool checkSpecificToThisFrame);
 	bool NeedsFullFrameBufferTexture(bool checkSpecificToThisFrame);
 	bool NeedsLightmapBlendAlpha();

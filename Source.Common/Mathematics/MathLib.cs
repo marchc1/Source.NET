@@ -441,6 +441,13 @@ public static class MathLib
 		return Mathlib_GammaToLinear[index];
 	}
 
+	public static byte LinearToLightmap(float f) {
+		int i = RoundFloatToInt(f * 1024.0f);
+		if ((uint)i > 4095)
+			i = i < 0 ? 0 : 4095;
+		return lineartolightmap[i];
+	}
+
 	public static float LinearToGamma(float linear) {
 		Assert(MathlibInitialized);
 		if (linear < 0.0f) {

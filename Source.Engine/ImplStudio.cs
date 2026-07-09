@@ -4,16 +4,10 @@ using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
-using Source.Engine.Client;
 
-using System.Drawing.Drawing2D;
-using System.Net.NetworkInformation;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-using static Source.Common.Engine.IStaticPropMgrEngine;
-
-using static Source.Common.OptimizedModel;
 
 namespace Source.Engine;
 
@@ -114,6 +108,9 @@ public class ModelRender : IModelRender
 	}
 	public void DestroyInstance(ModelInstanceHandle_t modelInstance) {
 		// TODO
+
+		// DestroyStaticPropColorData(modelInstance);
+		ModelInstances.Remove(modelInstance);
 	}
 
 	public ref Matrix4x4 SetupModelState(IClientRenderable renderable) {
@@ -124,7 +121,10 @@ public class ModelRender : IModelRender
 		state.StudioHdr = MDLCache.GetStudioHdr(info.Model!.Studio);
 		state.Renderable = info.Renderable;
 
-		// r_entity todo
+		if ((r_entity.GetInt() != -1) && (r_entity.GetInt() != info.EntityIndex)) {
+			boneToWorldOut = default;
+			return false;
+		}
 
 		// quick exit
 		if (state.StudioHdr!.NumBodyParts == 0) {
@@ -355,7 +355,11 @@ public class ModelRender : IModelRender
 		// todo: r_drawmodellightorigin
 
 		ColorMeshInfo[]? pColorMeshes = null;
-		// TODO: static lighting
+
+		if (bStaticLighting) {
+			// TODO: static lighting
+			bStaticLighting = false;
+		}
 
 		DrawModelInfo info = default;
 		info.StaticLighting = false;

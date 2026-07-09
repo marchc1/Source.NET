@@ -435,8 +435,17 @@ public partial class Render
 
 
 	private static bool IsCachedLightStylesValid(LightCache cache) {
-		// todo
-		return false;
+		if (!cache.HasLightStyle())
+			return true;
+
+		for (int i = 1; i < BSPFileCommon.MAX_LIGHTSTYLES; i++) {
+			int byt = i >> 3;
+			int bit = i & 0xf;
+			if ((cache.Lightstyles[byt] & (1 << bit)) != 0)
+				return false;
+		}
+
+		return true;
 	}
 
 	private static void AdjustLightCacheOrigin(LightCache cache, in Vector3 origin, int originLeaf) {
@@ -636,6 +645,8 @@ public partial class Render
 		if ((flags & LightCacheFlags.Dynamic) != 0)
 			vis = AddLightingState(ref lightingState, cache.DynamicLightingState, info, cache.LightingOrigin, vis, true, false);
 
+		// todo r_drawlightcache
+
 		return cache.EnvCubemapTexture;
 	}
 
@@ -687,7 +698,11 @@ public partial class Render
 
 	}
 
+	float MinLightingValue = 1.0f;
 	public void InitDLightGlobals(int mapVersion) {
-
+		if (mapVersion >= 20)
+			MinLightingValue = 1 / 256;
+		else
+			MinLightingValue = 20 / 256;
 	}
 }

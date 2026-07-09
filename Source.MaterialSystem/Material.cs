@@ -1109,6 +1109,39 @@ public class Material : IMaterialInternal
 		return false;
 	}
 
+	public bool NeedsSoftwareSkinning() {
+		Precache();
+		Assert(Shader != null);
+		if (Shader == null)
+			return false;
+		Assert(ShaderParams != null);
+		return (GetMaterialVarFlags() & MaterialVarFlags.NeedsSoftwareSkinning) != 0;
+	}
+
+	public bool NeedsSoftwareLighting() {
+		Precache();
+		Assert(Shader != null);
+		if (Shader == null)
+			return false;
+		Assert(ShaderParams != null);
+		return (GetMaterialVarFlags2() & MaterialVarFlags2.NeedsSoftwareLighting) != 0;
+	}
+
+	public void SetMaterialVarFlags2(MaterialVarFlags2 flags, bool on) {
+		if (ShaderParams == null) {
+			Assert(false);
+			return;
+		}
+
+		MaterialVarFlags2 val = on ? (GetMaterialVarFlags2() | flags) : (GetMaterialVarFlags2() & (~flags));
+		ShaderParams[(int)ShaderMaterialVars.Flags2].SetIntValue((int)val);
+		ShaderParams[(int)ShaderMaterialVars.FlagsDefined2].SetIntValue(ShaderParams[(int)ShaderMaterialVars.FlagsDefined2].GetIntValue() | (int)flags);
+	}
+
+	public void SetUseFixedFunctionBakedLighting(bool enable) {
+		SetMaterialVarFlags2(MaterialVarFlags2.UseFixedFunctionBakedLighting, enable);
+	}
+
 	public int GetNumAnimationFrames() {
 		Precache();
 		if (representativeTexture != null) {

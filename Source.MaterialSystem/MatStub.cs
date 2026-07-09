@@ -310,6 +310,9 @@ public class DummyMaterial : IMaterial
 	public bool IsAlphaTested() => false;
 	public bool UsesEnvCubemap() => false;
 	public bool NeedsTangentSpace() => false;
+	public bool NeedsSoftwareSkinning() => false;
+	public bool NeedsSoftwareLighting() => false;
+	public void SetUseFixedFunctionBakedLighting(bool enable) { }
 	public bool NeedsPowerOfTwoFrameBufferTexture(bool checkSpecificToThisFrame) => false;
 	public bool NeedsFullFrameBufferTexture(bool checkSpecificToThisFrame) => false;
 	public bool NeedsLightmapBlendAlpha() => false;

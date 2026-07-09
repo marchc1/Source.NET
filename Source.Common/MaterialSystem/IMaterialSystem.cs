@@ -42,6 +42,13 @@ public enum MaterialFogMode
 	LinearBelowFogZ
 }
 
+public enum MaterialHeightClipMode
+{
+	Disable,
+	RenderAboveHeight,
+	RenderBelowHeight
+}
+
 public enum ShaderParamType
 {
 	Texture,

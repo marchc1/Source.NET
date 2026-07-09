@@ -74,6 +74,9 @@ public class VertexLitGeneric : BaseVSShader
 
 	protected override void OnInitShaderParams(IMaterialVar[] vars, ReadOnlySpan<char> materialName) {
 		InitParamsUnlitGeneric((int)ShaderMaterialVars.BaseTexture, DETAILSCALE, ENVMAPOPTIONAL, ENVMAP, ENVMAPTINT, ENVMAPMASKSCALE, DETAILBLENDMODE);
+
+		SetFlags2(vars, MaterialVarFlags2.SupportsHardwareSkinning);
+		SetFlags2(vars, MaterialVarFlags2.LightingVertexLit);
 	}
 
 	public override string? GetFallbackShader(IMaterialVar[] vars) {

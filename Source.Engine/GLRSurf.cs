@@ -834,10 +834,10 @@ public static class GLRSurf
 				if ((flags & DrawWorldListFlags.ClipSkybox) != 0)
 					g_EngineRenderer.DrawSkybox(g_EngineRenderer.GetZFar());
 				else {
-					// MaterialHeightClipMode nClipMode = renderCtx.GetHeightClipMode(); // todo
+					// MaterialHeightClipMode clipMode = renderCtx.GetHeightClipMode(); // todo
 					// renderCtx.SetHeightClipMode(MaterialHeightClipMode.Disable);
 					g_EngineRenderer.DrawSkybox(g_EngineRenderer.GetZFar());
-					// renderCtx.SetHeightClipMode(nClipMode);
+					// renderCtx.SetHeightClipMode(clipMode);
 				}
 			}
 		}
@@ -1551,7 +1551,24 @@ public class BrushBatchRender
 		if (depthMode != RenderDepthMode.Normal)
 			return;
 
-		// todo
+		if (g_ShaderDebug.AnyDebug) {
+			for (int i2 = 0; i2 < render.MeshCount; i2++) {
+				ref BrushRenderMesh mesh = ref render.Meshes![i2];
+				List<SurfaceHandle_t> brushList = [];
+				for (int j = 0; j < mesh.BatchCount; j++) {
+					ref BrushRenderBatch batch = ref render.Batches![mesh.FirstBatch + j];
+					for (int k = 0; k < batch.SurfaceCount; k++) {
+						ref BrushRenderSurface surface = ref render.Surfaces![batch.FirstSurface + k];
+						if (backface[(int)surface.PlaneIndex])
+							continue;
+
+						SurfaceHandle_t surfID = firstSurfID + surface.SurfaceIndex;
+						brushList.Add(surfID);
+					}
+				}
+				DrawDebugInformation(brushList);
+			}
+		}
 	}
 
 	public void DrawTranslucentBrushModel(IClientEntity? baseEntity, Model? model, in Vector3 origin, bool shadowDepth, bool drawOpaque, bool drawTranslucent) {
