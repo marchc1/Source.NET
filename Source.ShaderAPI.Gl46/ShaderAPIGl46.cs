@@ -61,6 +61,13 @@ public enum CommitFuncType
 	PerPass
 }
 
+public enum TransformDirtyBits
+{
+	StateChangedVertexShader = 0x1,
+	StateChangedFixedFunction = 0x2,
+	StateChanged = 0x3
+}
+
 public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 {
 	public MeshMgr MeshMgr;
@@ -238,6 +245,16 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public IShaderShadow NewShaderShadow(ReadOnlySpan<char> materialName) => new ShadowStateGl46(this, (IShaderSystemInternal)ShaderManager, materialName);
 	public bool IsTranslucent(IShaderShadow renderState) => ((ShadowStateGl46)renderState).State.Blending;
 	public bool IsAlphaTested(IShaderShadow renderState) => ((ShadowStateGl46)renderState).Pixel.IsAlphaTesting != 0;
+
+	private InlineArray6<Vector4> AmbientLightCube;
+	private int CachedAmbientLightCube = (int)TransformDirtyBits.StateChanged;
+	public void SetAmbientLightCube(ReadOnlySpan<Vector4> cube) {
+		Span<Vector4> dst = AmbientLightCube;
+		if (!memcmpb(dst, cube)) {
+			memcpy(dst, cube);
+			CachedAmbientLightCube = (int)TransformDirtyBits.StateChanged;
+		}
+	}
 
 	private void InitVertexAndPixelShaders() {
 		// TODO; everything before this call

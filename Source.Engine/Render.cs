@@ -81,6 +81,14 @@ public partial class Render(
 	bool CanAccessCurrentView;
 
 	public void FrameBegin() {
+		if (host_state.WorldModel != null) {
+			r_framecount++;
+			// R_AnimateLight();
+			// R_PushDlights();
+		}
+
+		// UpdateStudioRenderConfig();
+		// studiorender.BeginFrame();
 
 		FrameCount++;
 	}
@@ -356,7 +364,11 @@ public partial class Render(
 		if (!success)
 			ConDMsg($"Unable to load sky {requestedsky}\n");
 	}
-	private void InitStudio() { }
+	private void InitStudio() {
+#if !SWDS
+		R_StudioInitLightingCache();
+#endif
+	}
 	private void LoadWorldGeometry() {
 		if (host_state.WorldModel == null)
 			return;

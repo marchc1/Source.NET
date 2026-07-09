@@ -334,6 +334,7 @@ public interface IMatRenderContext
 	float ComputePixelDiameterOfSphere(Vector3 origin, float radius);
 	float ComputePixelWidthOfSphere(Vector3 origin, float radius);
 	void SetNumBoneWeights(int v);
+	void SetAmbientLightCube(ReadOnlySpan<Vector4> cube);
 	void LoadBoneMatrix(int hardwareID, in Matrix3x4 matrix4x4);
 	void GetWorldSpaceCameraPosition(out Vector3 vecCameraPos);
 	void BindLightmapPage(int lightmapPageID);
@@ -418,6 +419,7 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public float ComputePixelWidthOfSphere(Vector3 origin, float radius) => ctx.ComputePixelWidthOfSphere(origin, radius);
 
 	public void SetNumBoneWeights(int v) => ctx.SetNumBoneWeights(v);
+	public void SetAmbientLightCube(ReadOnlySpan<Vector4> cube) => ctx.SetAmbientLightCube(cube);
 
 	public void LoadBoneMatrix(int hardwareID, in Matrix3x4 matrix) => ctx.LoadBoneMatrix(hardwareID, in matrix);
 

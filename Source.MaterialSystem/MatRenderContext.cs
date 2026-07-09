@@ -551,6 +551,8 @@ public class MatRenderContext : IMatRenderContextInternal
 		shaderAPI.SetNumBoneWeights(numBones);
 	}
 
+	public void SetAmbientLightCube(ReadOnlySpan<Vector4> cube) => shaderAPI.SetAmbientLightCube(cube);
+
 	public void LoadBoneMatrix(int boneIndex, in Matrix3x4 matrix) {
 		shaderAPI.LoadBoneMatrix(boneIndex, in matrix);
 	}
@@ -588,7 +590,7 @@ public class MatRenderContext : IMatRenderContextInternal
 
 	ITexture? LocalCubemapTexture;
 
-	public void BindLocalCubemap(ITexture? texture){
+	public void BindLocalCubemap(ITexture? texture) {
 		ITexture? previousTexture = LocalCubemapTexture;
 
 		LocalCubemapTexture = texture ?? materials.TextureSystem.ErrorTexture();

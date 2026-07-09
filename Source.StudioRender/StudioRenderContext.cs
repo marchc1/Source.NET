@@ -27,6 +27,7 @@ public class StudioRenderCtx
 	public Vector3 ViewRight;
 	public Vector3 ViewUp;
 	public Vector3 ViewPlaneNormal;
+	public InlineArray6<Vector4> LightBoxColors;
 	public Vector3 ColorMod;
 	public float AlphaMod;
 	public IMaterial? ForcedMaterial;
@@ -687,4 +688,16 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 	public int GetNumAmbientLightSamples() => 6;
 
 	public ReadOnlySpan<Vector3> GetAmbientLightDirections() => AmbientLightDir;
+
+	public void SetAmbientLightColors(ReadOnlySpan<Vector3> colors) {
+		for (int i = 0; i < 6; i++) {
+			MathLib.VectorCopy(colors[i], out RC.LightBoxColors[i].AsVector3D());
+			RC.LightBoxColors[i].W = 1.0f;
+		}
+
+		// S-FIXME: Would like to get this into the render thread, but there's systemic confusion
+		// about whether to set lighting state here or in the material system
+		using MatRenderContextPtr renderContext = new(materialSystem);
+		renderContext.SetAmbientLightCube(RC.LightBoxColors);
+	}
 }

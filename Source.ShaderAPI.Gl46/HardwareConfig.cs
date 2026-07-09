@@ -110,8 +110,10 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 		return (int)maxAniso;
 	}
 
+	public const int MAX_NUM_LIGHTS = 4;
+
 	public int MaxNumLights() {
-		throw new NotImplementedException();
+		return MAX_NUM_LIGHTS;
 	}
 
 	public int MaxTextureAspectRatio() {

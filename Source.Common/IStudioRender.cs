@@ -30,7 +30,8 @@ public struct DrawModelInfo {
 	public ColorMeshInfo[]? ColorMeshes;
 	public bool StaticLighting;
 	public InlineArray6<Vector3> AmbientCube;
-	// todo: lights
+	public int NumLocalLights;
+	public InlineArray4<LightDesc> LocalLightDescs;
 }
 
 public struct StudioRenderConfig {
@@ -86,4 +87,5 @@ public interface IStudioRender {
 
 	int GetNumAmbientLightSamples();
 	ReadOnlySpan<Vector3> GetAmbientLightDirections();
+	void SetAmbientLightColors(ReadOnlySpan<Vector3> ambientOnlyColors);
 }

@@ -432,6 +432,7 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public void SetMaterialProxyFactory(IMaterialProxyFactory? factory) { }
 	public bool SetMode(IWindow window, MaterialSystem_Config config) => true;
 	public void SetNumBoneWeights(int v) { }
+	public void SetAmbientLightCube(ReadOnlySpan<Vector4> cube) { }
 	public void SwapBuffers() { }
 	public void SyncMatrices() { }
 	public void SyncMatrix(MaterialMatrixMode mode) { }

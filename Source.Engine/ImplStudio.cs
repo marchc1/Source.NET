@@ -371,7 +371,7 @@ public class ModelRender : IModelRender
 			R_ComputeLightingOrigin(state.Renderable, state.StudioHdr, in state.ModelToWorld, out Vector3 entOrigin);
 
 			// Set up lighting based on the lighting origin
-			StudioSetupLighting(state, entOrigin, ref lightCache, bVertexLit, bNeedsEnvCubemap, bStaticLighting, info, pInfo, state.DrawFlags);
+			StudioSetupLighting(state, entOrigin, ref lightCache, bVertexLit, bNeedsEnvCubemap, ref bStaticLighting, ref info, pInfo, state.DrawFlags);
 		}
 
 		// Set up the camera state
@@ -415,8 +415,44 @@ public class ModelRender : IModelRender
 #endif
 	}
 
-	private void StudioSetupLighting(DrawModelState state, Vector3 entOrigin, ref nint lightCache, bool bVertexLit, bool bNeedsEnvCubemap, bool bStaticLighting, DrawModelInfo info, ModelRenderInfo pInfo, StudioRenderFlags drawFlags) {
+	bool SuppressEngineLighting = false;
 
+	private void StudioSetupLighting(DrawModelState state, in Vector3 absEntCenter, ref LightCacheHandle_t lightcache, bool vertexLit, bool needsEnvCubemap, ref bool staticLighting, ref DrawModelInfo drawInfo, ModelRenderInfo renderInfo, StudioRenderFlags drawFlags) {
+		if (SuppressEngineLighting)
+			return;
+
+#if !SWDS
+		ITexture? envCubemapTexture = null;
+		LightingState lightingState = default;
+
+		drawInfo.StaticLighting = staticLighting && HardwareConfig.SupportsStaticPlusDynamicLighting();
+		drawInfo.NumLocalLights = 0;
+
+		Vector3 lightingOrigin = absEntCenter;
+		// todo
+
+		using MatRenderContextPtr renderContext = new(materialSystem);
+
+		// todo
+
+		if (!staticLighting) {
+			LightcacheGetDynamic_Stats stats = default;
+			envCubemapTexture = Render.LightcacheGetDynamic(lightingOrigin, ref lightingState, ref stats,
+				LightCacheFlags.Static | LightCacheFlags.Dynamic | LightCacheFlags.LightStyle | LightCacheFlags.AllowFast);
+		}
+
+		// todo
+
+		if (MatSysInterface.MaterialSystemConfig.Fullbright == 1) {
+			ReadOnlySpan<Vector3> white = [new(1, 1, 1), new(1, 1, 1), new(1, 1, 1), new(1, 1, 1), new(1, 1, 1), new(1, 1, 1)];
+			StudioRender.SetAmbientLightColors(white);
+		}
+		else if (vertexLit) {
+			StudioRender.SetAmbientLightColors(lightingState.BoxColor);
+
+			// todo
+		}
+#endif
 	}
 
 	private void R_ComputeLightingOrigin(IClientRenderable? renderable, StudioHeader? studioHdr, in Matrix3x4 matrix, out Vector3 center) {
