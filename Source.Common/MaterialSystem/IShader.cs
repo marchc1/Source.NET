@@ -30,6 +30,8 @@ public interface IShader
 	void InitShaderInstance(IMaterialVar[] shaderParams, IShaderAPI shaderAPI, IShaderInit shaderManager, ReadOnlySpan<char> materialName, ReadOnlySpan<char> textureGroupName);
 	void DrawElements(IMaterialVar[] shaderParams, IShaderShadow? shadow, IShaderDynamicAPI? shaderAPI, VertexCompressionType none);
 	bool IsTranslucent(IMaterialVar[]? shaderParams);
+	bool NeedsPowerOfTwoFrameBufferTexture(IMaterialVar[]? shaderParams, bool checkSpecificToThisFrame);
+	bool NeedsFullFrameBufferTexture(IMaterialVar[]? shaderParams, bool checkSpecificToThisFrame);
 }
 
 public interface IShaderInit

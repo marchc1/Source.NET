@@ -666,7 +666,7 @@ public static class GLRSurf
 		// g_ShaderDebug.SurfaceMaterials = mat_surfacemat.GetBool();
 		g_ShaderDebug.TestAnyDebug();
 	}
-	static void DrawDebugInformation(List<SurfaceHandle_t> surfaceList) {
+	internal static void DrawDebugInformation(List<SurfaceHandle_t> surfaceList) {
 		if (g_ShaderDebug.Wireframe)
 			Shader_DrawChainsWireframe(surfaceList);
 
@@ -704,7 +704,6 @@ public static class GLRSurf
 		}
 	}
 	public static void Shader_DrawChains(WorldRenderList renderList, int sortGroup, bool shadowDepth) {
-		using MatRenderContextPtr renderContext = new(materials);
 		Assert(!g_EngineRenderer.InLightmapUpdate());
 
 		if (mat_forcedynamic.GetInt() == 0 && !MatSysInterface.MaterialSystemConfig.DrawFlat)
@@ -823,12 +822,12 @@ public static class GLRSurf
 	];
 
 	static void Shader_WorldEnd(WorldRenderList renderList, DrawWorldListFlags flags, float waterZAdjust) {
-		using MatRenderContextPtr renderCtx = new(materials);
-
 		if ((flags & (DrawWorldListFlags.ShadowDepth | DrawWorldListFlags.SSAO)) != 0) {
 			Shader_WorldShadowDepthFill(renderList, flags);
 			return;
 		}
+
+		using MatRenderContextPtr renderCtx = new(materials);
 
 		if ((flags & DrawWorldListFlags.Skybox) != 0) {
 			if (renderList.SkyVisible || Map_VisForceFullSky()) {
@@ -1321,6 +1320,24 @@ public class BrushBatchRender
 		public short DecalSurfaceCount;
 	}
 
+	// const int MAX_TRANS_NODES = 256;
+	// const int MAX_TRANS_SURFACES = 1024;
+	// const int MAX_TRANS_DECALS = 256;
+	// const int MAX_TRANS_BATCHES = 1024;
+	public struct TransRender
+	{
+		public InlineArray256<TransNode> Nodes;
+		public InlineArray1024<SurfaceHandle_t> Surfaces;
+		public InlineArray256<SurfaceHandle_t> DecalSurfaces;
+		public InlineArray1024<TransBatch> Batches;
+		public short LastBatch;
+		public short LastNode;
+		public short NodeCount;
+		public short BatchCount;
+		public short SurfaceCount;
+		public short DecalSurfaceCount;
+	}
+
 	readonly List<BrushRender> RenderList = [];
 
 	public static int SurfaceCmp(in SurfaceList s0, in SurfaceList s1) {
@@ -1344,8 +1361,7 @@ public class BrushBatchRender
 			Span<char> brushModel = stackalloc char[5];
 			sprintf(brushModel, $"*{brush}");
 			Model? model = modelloader.GetModelForName(brushModel.SliceNullTerminatedString(), ModelLoaderFlags.Server);
-			if (model != null)
-				model.Brush.RenderHandle = 0;
+			model?.Brush.RenderHandle = 0;
 		}
 	}
 
@@ -1542,7 +1558,184 @@ public class BrushBatchRender
 		if (drawOpaque)
 			DrawOpaqueBrushModel(baseEntity, model, origin, shadowDepth ? RenderDepthMode.Shadow : RenderDepthMode.Normal);
 
-		// todo: translucent
+		if (drawTranslucent)
+			DrawTranslucentBrushModel(model, baseEntity);
+	}
+
+	private void DrawTranslucentBrushModel(Model? model, IClientEntity? baseEntity) {
+		TransRender renderT = new() {
+			LastBatch = -1,
+			LastNode = -1,
+			NodeCount = 0,
+			SurfaceCount = 0,
+			BatchCount = 0,
+			DecalSurfaceCount = 0
+		};
+
+		BuildTransLists_r(ref renderT, model!, model!.Brush.Shared!.Nodes![model.Brush.FirstNode]!);
+		object? proxyData = baseEntity?.GetClientRenderable();
+		DrawTransLists(ref renderT, proxyData);
+	}
+
+	private void AddSurfaceToBatch(ref TransRender renderT, int nodeIndex, int batchIndex, SurfaceHandle_t surfID) {
+		renderT.Batches[batchIndex].SurfaceCount++;
+		Assert(renderT.SurfaceCount < 1024);
+
+		renderT.Batches[batchIndex].IndexCount += (ModelLoader.MSurf_VertCount(ref ModelLoader.SurfaceHandleFromIndex(surfID)) - 2) * 3;
+		renderT.Surfaces[renderT.SurfaceCount] = surfID;
+		renderT.SurfaceCount++;
+		if (ModelLoader.SurfaceHasDecals(ref ModelLoader.SurfaceHandleFromIndex(surfID))) {
+			Assert(renderT.DecalSurfaceCount < 256);
+			renderT.Nodes[nodeIndex].DecalSurfaceCount++;
+			renderT.DecalSurfaces[renderT.DecalSurfaceCount] = surfID;
+			renderT.DecalSurfaceCount++;
+		}
+	}
+
+	private void AddTransNode(ref TransRender renderT) {
+		renderT.LastNode = renderT.NodeCount;
+		renderT.NodeCount++;
+		Assert(renderT.NodeCount < 256);
+		renderT.LastBatch = -1;
+		renderT.Nodes[renderT.LastNode].FirstBatch = renderT.BatchCount;
+		renderT.Nodes[renderT.LastNode].FirstDecalSurface = renderT.DecalSurfaceCount;
+		renderT.Nodes[renderT.LastNode].BatchCount = 0;
+		renderT.Nodes[renderT.LastNode].DecalSurfaceCount = 0;
+	}
+
+	private void AddTransBatch(ref TransRender renderT, SurfaceHandle_t surfID) {
+		int batchIndex = renderT.Nodes[renderT.LastNode].FirstBatch + renderT.Nodes[renderT.LastNode].BatchCount;
+		Assert(renderT.BatchCount < 256);
+		renderT.Nodes[renderT.LastNode].BatchCount++;
+		renderT.BatchCount++;
+		ref TransBatch batch = ref renderT.Batches[batchIndex];
+		batch.FirstSurface = renderT.SurfaceCount;
+		batch.SurfaceCount = 0;
+		batch.Material = ModelLoader.MSurf_TexInfo(ref ModelLoader.SurfaceHandleFromIndex(surfID)).Material;
+		batch.SortID = ModelLoader.MSurf_MaterialSortID(ref ModelLoader.SurfaceHandleFromIndex(surfID));
+		batch.IndexCount = 0;
+		renderT.LastBatch = (short)batchIndex;
+		AddSurfaceToBatch(ref renderT, renderT.LastNode, batchIndex, surfID);
+	}
+
+	private void BuildTransLists_r(ref TransRender renderT, Model model, BSPMNode node) {
+		float dot;
+
+		if (node.Contents >= 0)
+			return;
+
+		ref CollisionPlane plane = ref node.Plane;
+		if ((byte)plane.Type <= 2)
+			dot = ModelOrg[(byte)plane.Type] - plane.Dist;
+		else
+			dot = Vector3.Dot(ModelOrg, plane.Normal) - plane.Dist;
+
+		int side = dot >= 0 ? 0 : 1;
+
+		BuildTransLists_r(ref renderT, model, node.Children[side == 0 ? 1 : 0]!);
+
+		List<SurfaceList> sortList = [];
+		SurfaceHandle_t surfID = node.FirstSurface;
+		for (int i = 0; i < node.NumSurfaces; i++, surfID++) {
+			ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID, model.Brush.Shared);
+
+			if ((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.Trans) != 0) {
+				if ((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.NoCull) == 0) {
+					if ((side ^ ((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.PlaneBack) != 0 ? 1 : 0)) != 0)
+						continue;
+				}
+
+				int sortID = ModelLoader.MSurf_MaterialSortID(ref surface);
+				if (renderT.LastBatch != -1 && renderT.Batches[renderT.LastBatch].SortID == sortID) {
+					AddSurfaceToBatch(ref renderT, renderT.LastNode, renderT.LastBatch, surfID);
+				}
+				else {
+					SurfaceList tmp = default;
+					tmp.SurfID = surfID;
+					sortList.Add(tmp);
+				}
+			}
+		}
+
+		if (sortList.Count != 0) {
+			sortList.Sort((a, b) => SurfaceCmp(a, b));
+
+			AddTransNode(ref renderT);
+			int lastSortID = -1;
+			for (int i = 0; i < sortList.Count; i++) {
+				surfID = sortList[i].SurfID;
+				int sortID = ModelLoader.MSurf_MaterialSortID(ref ModelLoader.SurfaceHandleFromIndex(surfID, model.Brush.Shared));
+				if (lastSortID == sortID) {
+					AddSurfaceToBatch(ref renderT, renderT.LastNode, renderT.LastBatch, surfID);
+				}
+				else {
+					AddTransBatch(ref renderT, surfID);
+					lastSortID = sortID;
+				}
+			}
+
+			if (renderT.Nodes[renderT.LastNode].DecalSurfaceCount != 0) {
+				renderT.LastNode = -1;
+				renderT.LastBatch = -1;
+			}
+		}
+
+		BuildTransLists_r(ref renderT, model, node.Children[side]!);
+	}
+
+	private void DrawTransLists(ref TransRender renderT, object? proxyData) {
+		using MatRenderContextPtr renderContext = new(materials);
+
+		bool skipLight = false;
+		if (MatSysInterface.MaterialSystemConfig.Fullbright == 1) {
+			renderContext.BindLightmapPage(StandardLightmap.WhiteBump);
+			skipLight = true;
+		}
+
+		Span<float> oldColor = stackalloc float[4];
+
+		for (int i = 0; i < renderT.NodeCount; i++) {
+			int j;
+			ref TransNode node = ref renderT.Nodes[i];
+			for (j = 0; j < node.BatchCount; j++) {
+				ref TransBatch batch = ref renderT.Batches[node.FirstBatch + j];
+
+				MeshBuilder meshBuilder = new();
+				IMaterial material = batch.Material!;
+
+				ModulateMaterial(material, oldColor);
+
+				if (!skipLight)
+					renderContext.BindLightmapPage(MatSys.MaterialSortInfoArray![batch.SortID].LightmapPageID);
+				renderContext.Bind(material, proxyData);
+
+				IMesh buildMesh = renderContext.GetDynamicMesh(false, MatSys.WorldStaticMeshes[batch.SortID]);
+				meshBuilder.Begin(buildMesh, MaterialPrimitiveType.Triangles, 0, batch.IndexCount);
+
+				for (int k = 0; k < batch.SurfaceCount; k++) {
+					SurfaceHandle_t surfID = renderT.Surfaces[batch.FirstSurface + k];
+					BuildIndicesForSurface(ref meshBuilder, surfID);
+				}
+
+				meshBuilder.End(false, true);
+
+				UnModulateMaterial(material, oldColor);
+			}
+
+			if (node.DecalSurfaceCount != 0) {
+				// todo
+			}
+
+			if (g_ShaderDebug.AnyDebug) {
+				List<SurfaceHandle_t> brushList = [];
+				for (j = 0; j < node.BatchCount; j++) {
+					ref TransBatch batch = ref renderT.Batches[node.FirstBatch + j];
+					for (int k = 0; k < batch.SurfaceCount; k++)
+						brushList.Add(renderT.Surfaces[batch.FirstSurface + k]);
+				}
+				DrawDebugInformation(brushList);
+			}
+		}
 	}
 
 	public void DrawBrushModelShadow(Model? model, IClientRenderable renderable) => throw new NotImplementedException();

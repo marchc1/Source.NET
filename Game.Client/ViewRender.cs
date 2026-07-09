@@ -171,10 +171,23 @@ public class Rendering3dView : Base3dView
 	}
 
 	protected void BuildRenderableRenderLists(ViewID viewID) {
-		//  if (viewID != ViewID.ShadowDepthTexture)
-		//  	render.BeginUpdateLightmaps();
+		if (viewID != ViewID.ShadowDepthTexture)
+			render.BeginUpdateLightmaps();
+
 		mainView.IncRenderablesListsNumber();
+
+		ref WorldListInfo info = ref WorldListInfo;
+
+		if (mainView.ShouldDrawEntities() && viewID != ViewID.ShadowDepthTexture)
+			clientLeafSystem.ComputeTranslucentRenderLeaf(info.LeafCount, info.LeafList, info.LeafFogVolume, mainView.BuildRenderablesListsNumber(), (int)viewID);
+
 		SetupRenderablesList(viewID);
+
+
+		if (viewID != ViewID.ShadowDepthTexture) {
+			// todo
+			render.EndUpdateLightmaps();
+		}
 	}
 
 	protected void UpdateRenderablesOpacity() {

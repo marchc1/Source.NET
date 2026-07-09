@@ -298,4 +298,11 @@ public abstract class BaseShader : IShader
 
 		color[3] = GetAlpha();
 	}
+
+	public bool NeedsPowerOfTwoFrameBufferTexture(IMaterialVar[]? shaderParams, bool checkSpecificToThisFrame)
+	=> IsFlag2Set(shaderParams, MaterialVarFlags2.NeedsPowerOfTwoFrameBufferTexture);
+
+	public bool NeedsFullFrameBufferTexture(IMaterialVar[]? shaderParams, bool checkSpecificToThisFrame)
+	=> IsFlag2Set(shaderParams, MaterialVarFlags2.NeedsFullFrameBufferTexture);
+
 }

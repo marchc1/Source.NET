@@ -1576,6 +1576,9 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 	public static bool SurfaceHasDispInfo(ref BSPMSurface2 surfID) => (MSurf_Flags(ref surfID) & SurfDraw.HasDisp) != 0;
 	public static ref ushort MSurf_VertBufferIndex(ref BSPMSurface2 surfID) => ref surfID.VertBufferIndex;
 	public static ref ShadowDecalHandle_t MSurf_ShadowDecals(ref BSPMSurface2 surfID) => ref surfID.ShadowDecals;
+	public const WorldDecalHandle_t WORLD_DECAL_HANDLE_INVALID = 0xFFFF;
+	public static ref WorldDecalHandle_t MSurf_Decals(ref BSPMSurface2 surfID) => ref surfID.Decals;
+	public static bool SurfaceHasDecals(ref BSPMSurface2 surfID) => MSurf_Decals(ref surfID) != WORLD_DECAL_HANDLE_INVALID;
 	public static ref OverlayFragmentHandle_t MSurf_OverlayFragmentList(ref BSPMSurface2 surfID) => ref surfID.FirstOverlayFragment;
 	public static ushort MSurf_NumPrims(ref BSPMSurface2 surfID, WorldBrushData data) {
 		if (SurfaceHasDispInfo(ref surfID) || !SurfaceHasPrims(ref surfID))

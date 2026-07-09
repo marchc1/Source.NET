@@ -1212,8 +1212,7 @@ public class Material : IMaterialInternal
 			return false;
 		}
 
-		// todo
-		return false;
+		return Shader.NeedsPowerOfTwoFrameBufferTexture(ShaderParams, checkSpecificToThisFrame);
 	}
 
 	public bool NeedsFullFrameBufferTexture(bool checkSpecificToThisFrame) {
@@ -1224,11 +1223,10 @@ public class Material : IMaterialInternal
 			return false;
 		}
 
-		// todo
-		return false;
+		return Shader.NeedsFullFrameBufferTexture(ShaderParams, checkSpecificToThisFrame);
 	}
 
-	public bool NeedsLightmapBlendAlpha(){
+	public bool NeedsLightmapBlendAlpha() {
 		Precache();
 		return (GetMaterialVarFlags2() & MaterialVarFlags2.BlendWithLightmapAlpha) != 0;
 	}
