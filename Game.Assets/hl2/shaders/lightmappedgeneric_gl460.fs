@@ -25,13 +25,13 @@ void main()
     vec4 lightmapColor = texture(lightmaptexture, vs_TexCoord1);
     if(isAlphaTesting){
         switch(alphaTestFunc){
-            case 1: if(texelColor.a <  alphaTestRef){ discard; } break;
-            case 2: if(texelColor.a == alphaTestRef){ discard; } break;
-            case 3: if(texelColor.a <= alphaTestRef){ discard; } break;
-            case 4: if(texelColor.a >  alphaTestRef){ discard; } break;
-            case 5: if(texelColor.a != alphaTestRef){ discard; } break;
-            case 6: if(texelColor.a >= alphaTestRef){ discard; } break;
-            case 7: discard; break;
+            case 0: discard; break;
+            case 1: if(texelColor.a >=  alphaTestRef){ discard; } break;
+            case 2: if(texelColor.a != alphaTestRef){ discard; } break;
+            case 3: if(texelColor.a > alphaTestRef){ discard; } break;
+            case 4: if(texelColor.a <=  alphaTestRef){ discard; } break;
+            case 5: if(texelColor.a == alphaTestRef){ discard; } break;
+            case 6: if(texelColor.a < alphaTestRef){ discard; } break;
         }
     }
 
