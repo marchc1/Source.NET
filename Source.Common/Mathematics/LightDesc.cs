@@ -10,6 +10,15 @@ public enum LightType
 	Spot
 }
 
+[Flags]
+public enum LightTypeOptimizationFlags
+{
+	HasAttenuation0 = 1,
+	HasAttenuation1 = 2,
+	HasAttenuation2 = 4,
+	DerivedValuesCalced = 8
+}
+
 public struct LightDesc
 {
 	public LightType Type;                          //< MATERIAL_LIGHT_xxx

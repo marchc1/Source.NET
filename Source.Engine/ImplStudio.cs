@@ -2,6 +2,7 @@
 using Source.Common.Commands;
 using Source.Common.DataCache;
 using Source.Common.Engine;
+using Source.Common.Formats.BSP;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
@@ -454,9 +455,119 @@ public class ModelRender : IModelRender
 		else if (vertexLit) {
 			StudioRender.SetAmbientLightColors(lightingState.BoxColor);
 
-			// todo
+			R_SetNonAmbientLightingState(lightingState.NumLights, lightingState.LocalLight, out drawInfo.NumLocalLights, drawInfo.LocalLightDescs, true);
 		}
 #endif
+	}
+
+	const float MIN_LIGHT_VALUE = 0.03f;
+
+	private static bool WorldLightToMaterialLight(ref BSPDWorldLight worldLight, out LightDesc light) {
+		light = default;
+		light.Attenuation0 = 0.0f;
+		light.Attenuation1 = 0.0f;
+		light.Attenuation2 = 0.0f;
+
+		switch (worldLight.Type) {
+			case EmitType.SpotLight:
+				light.Type = LightType.Spot;
+				light.Attenuation0 = worldLight.ConstantAttn;
+				light.Attenuation1 = worldLight.LinearAttn;
+				light.Attenuation2 = worldLight.QuadraticAttn;
+				light.Theta = 2.0f * MathF.Acos(worldLight.StopDot);
+				light.Phi = 2.0f * MathF.Acos(worldLight.StopDot2);
+				light.ThetaDot = worldLight.StopDot;
+				light.PhiDot = worldLight.StopDot2;
+				light.Falloff = worldLight.Exponent != 0.0f ? worldLight.Exponent : 1.0f;
+				break;
+			case EmitType.Surface:
+				light.Type = LightType.Spot;
+				light.Attenuation2 = 1.0f;
+				light.Theta = MathF.PI;
+				light.Phi = MathF.PI;
+				light.ThetaDot = 0.0f;
+				light.PhiDot = 0.0f;
+				light.Falloff = 1.0f;
+				break;
+			case EmitType.Point:
+				light.Type = LightType.Point;
+				light.Attenuation0 = worldLight.ConstantAttn;
+				light.Attenuation1 = worldLight.LinearAttn;
+				light.Attenuation2 = worldLight.QuadraticAttn;
+				break;
+			case EmitType.SkyLight:
+				light.Type = LightType.Directional;
+				break;
+			case EmitType.QuakeLight:
+			case EmitType.SkyAmbient:
+				return false;
+		}
+
+		if ((light.Attenuation0 == 0.0f) && (light.Attenuation1 == 0.0f) && (light.Attenuation2 == 0.0f))
+			light.Attenuation0 = 1.0f;
+
+		light.Position = worldLight.Origin;
+		light.Direction = worldLight.Normal;
+		light.Color = worldLight.Intensity;
+
+		float intensity = MathF.Sqrt(MathLib.DotProduct(light.Color, light.Color));
+
+		if (worldLight.Radius != 0)
+			light.Range = worldLight.Radius;
+		else {
+			if (light.Attenuation2 == 0.0f) {
+				if (light.Attenuation1 == 0.0f)
+					light.Range = MathF.Sqrt(float.MaxValue);
+				else
+					light.Range = (intensity / MIN_LIGHT_VALUE - light.Attenuation0) / light.Attenuation1;
+			}
+			else {
+				float a = light.Attenuation2;
+				float b = light.Attenuation1;
+				float c = light.Attenuation0 - intensity / MIN_LIGHT_VALUE;
+				float discrim = b * b - 4 * a * c;
+				if (discrim < 0.0f)
+					light.Range = MathF.Sqrt(float.MaxValue);
+				else {
+					light.Range = (-b + MathF.Sqrt(discrim)) / (2.0f * a);
+					if (light.Range < 0)
+						light.Range = 0;
+				}
+			}
+		}
+
+		LightTypeOptimizationFlags flags = LightTypeOptimizationFlags.DerivedValuesCalced;
+		if (light.Attenuation0 != 0.0f)
+			flags |= LightTypeOptimizationFlags.HasAttenuation0;
+		if (light.Attenuation1 != 0.0f)
+			flags |= LightTypeOptimizationFlags.HasAttenuation1;
+		if (light.Attenuation2 != 0.0f)
+			flags |= LightTypeOptimizationFlags.HasAttenuation2;
+		light.Flags = (uint)flags;
+
+		return true;
+	}
+
+	private void R_SetNonAmbientLightingState(int numLights, Span<BSPDWorldLightPtr> localLight, out int numLightDescs, Span<LightDesc> lightDescs, bool updateStudioRenderLights) {
+		Assert(numLights >= 0 && numLights <= Render.MAXLOCALLIGHTS);
+
+		numLightDescs = 0;
+
+		for (int i = 0; i < numLights; i++) {
+			if (!WorldLightToMaterialLight(ref localLight[i].Dereference(), out LightDesc lightDesc))
+				continue;
+
+			float bias = Render.LightStyleValue((byte)localLight[i].Dereference().Style);
+
+			lightDesc.Color *= bias;
+
+			lightDescs[numLightDescs] = lightDesc;
+			numLightDescs += 1;
+			Assert(numLightDescs <= Render.MAXLOCALLIGHTS);
+		}
+
+		if (updateStudioRenderLights)
+			StudioRender.SetLocalLights(numLightDescs, lightDescs[..numLightDescs]);
 	}
 
 	private void R_ComputeLightingOrigin(IClientRenderable? renderable, StudioHeader? studioHdr, in Matrix3x4 matrix, out Vector3 center) {

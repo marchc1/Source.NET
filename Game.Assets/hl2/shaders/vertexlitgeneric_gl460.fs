@@ -45,7 +45,8 @@ void main()
     }
 
     // Final product: texture color * vertex color if applicable
-    fragColor = texelColor * vertexColor;
+    fragColor.rgb = texelColor.rgb * vertexColor.rgb * 2.2;
+    fragColor.a = texelColor.a * vertexColor.a;
 
     // Gradient for testing
     //fragColor = vec4(vs_TexCoord.x, vs_TexCoord.y, 1.0, 1.0);

@@ -24,6 +24,13 @@ public enum StudioModelLighting
 	Mouth
 }
 
+public struct LightPos
+{
+	public Vector3 Delta;
+	public float Falloff;
+	public float Dot;
+}
+
 [EngineComponent]
 public unsafe class StudioRender
 {
@@ -38,6 +45,8 @@ public unsafe class StudioRender
 
 	public readonly Matrix3x4[] PoseToWorld = new Matrix3x4[Studio.MAXSTUDIOBONES];
 	public readonly Matrix3x4[] PoseToDecal = new Matrix3x4[Studio.MAXSTUDIOBONES];
+
+	internal const int MAXLOCALLIGHTS = 4;
 
 	internal void DrawModel(ref DrawModelInfo info, StudioRenderCtx RC, Span<Matrix3x4> boneToWorld, StudioRenderFlags flags) {
 		// TODO: a better way to do this that doesnt require unsafe
@@ -534,9 +543,119 @@ public unsafe class StudioRender
 			return;
 		}
 
-		// tood R_LightStrengthWorld R_LightEffectsWorld3
+		Span<LightPos> lightpos = stackalloc LightPos[MAXLOCALLIGHTS];
+		R_LightStrengthWorld(in pos, pRC.NumLocalLights, pRC.LocalLights, lightpos);
 
 		R_LightAmbient_4D(in normal, pRC.LightBoxColors, out color);
+
+		R_LightEffectsWorld3(pRC.LocalLights, lightpos, in normal, ref color, pRC.NumLocalLights);
+	}
+
+	private static void R_LightStrengthWorld(in Vector3 vert, int lightcount, Span<LightDesc> desc, Span<LightPos> light) {
+		for (int i = 0; i < lightcount; i++) {
+			R_WorldLightDelta(in desc[i], in vert, out light[i].Delta);
+			light[i].Falloff = R_WorldLightDistanceFalloff(in desc[i], in light[i].Delta);
+
+			MathLib.VectorNormalizeFast(ref light[i].Delta);
+			light[i].Dot = MathLib.DotProduct(light[i].Delta, desc[i].Direction);
+		}
+	}
+
+	private static void R_WorldLightDelta(in LightDesc wl, in Vector3 org, out Vector3 delta) {
+		switch (wl.Type) {
+			case LightType.Point:
+			case LightType.Spot:
+				MathLib.VectorSubtract(wl.Position, org, out delta);
+				break;
+
+			case LightType.Directional:
+				MathLib.VectorMultiply(wl.Direction, -1, out delta);
+				break;
+
+			default:
+				Assert(false);
+				delta = default;
+				break;
+		}
+	}
+
+	private static float R_WorldLightDistanceFalloff(in LightDesc wl, in Vector3 delta) {
+		float dist2 = MathLib.DotProduct(delta, delta);
+
+		if (wl.Range != 0.0f) {
+			if (dist2 > wl.Range * wl.Range)
+				return 0.0f;
+		}
+
+		float total = float.Epsilon;
+
+		LightTypeOptimizationFlags flags = (LightTypeOptimizationFlags)wl.Flags;
+
+		if ((flags & LightTypeOptimizationFlags.HasAttenuation0) != 0)
+			total = wl.Attenuation0;
+
+		if ((flags & LightTypeOptimizationFlags.HasAttenuation1) != 0)
+			total += wl.Attenuation1 * MathF.Sqrt(dist2);
+
+		if ((flags & LightTypeOptimizationFlags.HasAttenuation2) != 0)
+			total += wl.Attenuation2 * dist2;
+
+		return 1.0f / total;
+	}
+
+	private static float R_WorldLightAngle(in LightDesc wl, in Vector3 lnormal, in Vector3 snormal, in Vector3 delta) {
+		float dot, dot2, ratio;
+
+		switch (wl.Type) {
+			case LightType.Point:
+				dot = MathLib.DotProduct(snormal, delta);
+				if (dot < 0.0f)
+					return 0.0f;
+				return dot;
+
+			case LightType.Spot:
+				dot = MathLib.DotProduct(snormal, delta);
+				if (dot < 0.0f)
+					return 0.0f;
+
+				dot2 = -MathLib.DotProduct(delta, lnormal);
+				if (dot2 <= wl.PhiDot)
+					return 0.0f;
+
+				ratio = dot;
+				if (dot2 >= wl.ThetaDot)
+					return ratio;
+
+				if ((wl.Falloff == 1.0f) || (wl.Falloff == 0.0f))
+					ratio *= (dot2 - wl.PhiDot) / (wl.ThetaDot - wl.PhiDot);
+				else
+					ratio *= MathF.Pow((dot2 - wl.PhiDot) / (wl.ThetaDot - wl.PhiDot), wl.Falloff);
+				return ratio;
+
+			case LightType.Directional:
+				dot2 = -MathLib.DotProduct(snormal, lnormal);
+				if (dot2 < 0.0f)
+					return 0.0f;
+				return dot2;
+
+			case LightType.Disable:
+				return 0.0f;
+
+			default:
+				Assert(false);
+				return 0.0f;
+		}
+	}
+
+	private static void R_LightEffectsWorld3(Span<LightDesc> desc, Span<LightPos> light, in Vector3 normal, ref Vector3 dest, int numLights) {
+		for (int i = 0; i < numLights; i++) {
+			if (desc[i].Type == LightType.Disable)
+				continue;
+
+			float ratio = light[i].Falloff * R_WorldLightAngle(in desc[i], in desc[i].Direction, in normal, in light[i].Delta);
+			if (ratio > 0)
+				dest += desc[i].Color * ratio;
+		}
 	}
 
 	private static void R_LightAmbient_4D(in Vector3 normal, InlineArray6<Vector4> pLightBoxColor, out Vector3 lv) {

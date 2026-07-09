@@ -77,6 +77,7 @@ public class VertexLitGeneric : BaseVSShader
 
 		SetFlags2(vars, MaterialVarFlags2.SupportsHardwareSkinning);
 		SetFlags2(vars, MaterialVarFlags2.LightingVertexLit);
+		SetFlags(vars, MaterialVarFlags.VertexColor);
 	}
 
 	public override string? GetFallbackShader(IMaterialVar[] vars) {
@@ -151,6 +152,8 @@ public class VertexLitGeneric : BaseVSShader
 
 			shaderShadow.SetVertexShader("vertexlitgeneric");
 			shaderShadow.SetPixelShader("vertexlitgeneric");
+
+			SetStandardShaderUniforms();
 
 			shaderShadow.EnableAlphaWrites(true);
 		}

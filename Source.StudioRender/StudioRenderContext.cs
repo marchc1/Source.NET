@@ -28,6 +28,8 @@ public class StudioRenderCtx
 	public Vector3 ViewUp;
 	public Vector3 ViewPlaneNormal;
 	public InlineArray6<Vector4> LightBoxColors;
+	public int NumLocalLights;
+	public InlineArray4<LightDesc> LocalLights;
 	public Vector3 ColorMod;
 	public float AlphaMod;
 	public IMaterial? ForcedMaterial;
@@ -699,5 +701,30 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 		// about whether to set lighting state here or in the material system
 		using MatRenderContextPtr renderContext = new(materialSystem);
 		renderContext.SetAmbientLightCube(RC.LightBoxColors);
+	}
+
+	public void SetLocalLights(int lightCount, ReadOnlySpan<LightDesc> lights) {
+		RC.NumLocalLights = CopyLocalLightingState(StudioRender.MAXLOCALLIGHTS, RC.LocalLights, lightCount, lights);
+
+		// todo
+	}
+
+	private static int CopyLocalLightingState(int maxLights, Span<LightDesc> dest, int lightCount, ReadOnlySpan<LightDesc> src) {
+		if (lightCount > maxLights)
+			lightCount = maxLights;
+
+		for (int i = 0; i < lightCount; i++) {
+			dest[i] = src[i];
+			LightTypeOptimizationFlags flags = 0;
+			if (dest[i].Attenuation0 != 0.0f)
+				flags |= LightTypeOptimizationFlags.HasAttenuation0;
+			if (dest[i].Attenuation1 != 0.0f)
+				flags |= LightTypeOptimizationFlags.HasAttenuation1;
+			if (dest[i].Attenuation2 != 0.0f)
+				flags |= LightTypeOptimizationFlags.HasAttenuation2;
+			dest[i].Flags = (uint)flags;
+		}
+
+		return lightCount;
 	}
 }

@@ -89,4 +89,5 @@ public interface IStudioRender {
 	int GetNumAmbientLightSamples();
 	ReadOnlySpan<Vector3> GetAmbientLightDirections();
 	void SetAmbientLightColors(ReadOnlySpan<Vector3> ambientOnlyColors);
+	void SetLocalLights(int lightCount, ReadOnlySpan<LightDesc> lights);
 }
