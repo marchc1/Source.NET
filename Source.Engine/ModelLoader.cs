@@ -1552,6 +1552,41 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.PrimIndices);
 		lh.GetMap().PrimIndices = lh.LoadLumpData<ushort>();
 	}
+	public static void Mod_LeafAmbientColorAtPos(Span<Vector3> outColors, in Vector3 pos, int leafIndex) {
+		for (int i = 0; i < 6; i++)
+			outColors[i].Init();
+
+		ref MLeafAmbientIndex ambient = ref host_state.WorldBrush!.LeafAmbient![leafIndex];
+		if (ambient.AmbientSampleCount == 0 && ambient.FirstAmbientSample != 0) {
+			leafIndex = ambient.FirstAmbientSample;
+			ambient = ref host_state.WorldBrush!.LeafAmbient![leafIndex];
+		}
+		int count = ambient.AmbientSampleCount;
+		if (count > 0) {
+			int start = host_state.WorldBrush!.LeafAmbient![leafIndex].FirstAmbientSample;
+			MLeafAmbientLighting[] samples = host_state.WorldBrush!.AmbientSamples!;
+			BSPMLeaf leaf = host_state.WorldBrush!.Leafs![leafIndex];
+			float totalFactor = 0;
+			for (int i = 0; i < count; i++) {
+				ref MLeafAmbientLighting sample = ref samples[start + i];
+				Vector3 samplePos = leaf.Center - leaf.HalfDiagonal;
+				samplePos.X += sample.X * leaf.HalfDiagonal.X * (2.0f / 255.0f);
+				samplePos.Y += sample.Y * leaf.HalfDiagonal.Y * (2.0f / 255.0f);
+				samplePos.Z += sample.Z * leaf.HalfDiagonal.Z * (2.0f / 255.0f);
+
+				float dist = (samplePos - pos).LengthSqr();
+				float factor = 1.0f / (dist + 1.0f);
+				totalFactor += factor;
+				for (int j = 0; j < 6; j++) {
+					MathLib.ColorRGBExp32ToVector(sample.Cube.Color[j], out Vector3 v);
+					outColors[j] += v * factor;
+				}
+			}
+			for (int i = 0; i < 6; i++)
+				outColors[i] *= (1.0f / totalFactor);
+		}
+	}
+
 	public static ref BSPDFace FaceHandleFromIndex(int surfaceIndex, WorldBrushData data) => ref data.Faces![surfaceIndex];
 	public static ref BSPMSurface2 SurfaceHandleFromIndex(int surfaceIndex, WorldBrushData? data = null) => ref (data ?? host_state.WorldBrush)!.Surfaces2![surfaceIndex];
 	public static ref CollisionPlane MSurf_Plane(ref BSPMSurface2 surfID) => ref surfID.Plane.GetReference();

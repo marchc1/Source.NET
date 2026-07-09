@@ -83,4 +83,7 @@ public interface IStudioRender {
 	void SetViewState(in Vector3 currentViewOrigin, in Vector3 currentViewRight, in Vector3 currentViewUp, in Vector3 currentViewForward);
 	void SetColorModulation(Vector3 r_colormod);
 	void SetAlphaModulation(float r_blend);
+
+	int GetNumAmbientLightSamples();
+	ReadOnlySpan<Vector3> GetAmbientLightDirections();
 }

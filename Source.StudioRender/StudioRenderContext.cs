@@ -610,7 +610,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 		// get skinref array
 		int nSkin = (RC.Config.Skin > 0) ? RC.Config.Skin : info.Skin;
 		Span<short> pSkinRef = info.StudioHdr.SkinRef(0);
-		if (nSkin > 0 && nSkin < info.StudioHdr.NumSkinFamilies) 
+		if (nSkin > 0 && nSkin < info.StudioHdr.NumSkinFamilies)
 			pSkinRef = pSkinRef[(nSkin * info.StudioHdr.NumSkinRef)..];
 
 		// This is used to ensure proxies are only called once
@@ -674,4 +674,17 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 	public void SetAlphaModulation(float alpha) {
 		RC.AlphaMod = alpha;
 	}
+
+	static readonly Vector3[] AmbientLightDir = [
+		new( 1,  0,  0),
+		new(-1,  0,  0),
+		new( 0,  1,  0),
+		new( 0, -1,  0),
+		new( 0,  0,  1),
+		new( 0,  0, -1)
+	];
+
+	public int GetNumAmbientLightSamples() => 6;
+
+	public ReadOnlySpan<Vector3> GetAmbientLightDirections() => AmbientLightDir;
 }
