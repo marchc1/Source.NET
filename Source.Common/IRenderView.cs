@@ -79,6 +79,8 @@ public interface IRenderView
 	IWorldRenderList? CreateWorldList();
 	void BuildWorldLists(IWorldRenderList? list, ref WorldListInfo info, int forceViewLeaf, ReadOnlySpan<VisOverrideData> visData, bool shadowDepth, Span<float> reflectionWaterHeight);
 	void DrawWorldLists(IWorldRenderList? list, uint flags, float waterZAdjust);
+	void DrawTranslucentSurfaces(IWorldRenderList? list, int sortIndex, uint flags, bool shadowDepth);
+	bool LeafContainsTranslucentSurfaces(IWorldRenderList? list, int sortIndex, uint flags);
 	void BeginUpdateLightmaps();
 	void EndUpdateLightmaps();
 	void Push3DView(in ViewSetup viewRender, ClearFlags clearFlags, ITexture? rtColor, Frustum frustum, ITexture? rtDepth);

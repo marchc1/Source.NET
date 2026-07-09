@@ -271,7 +271,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 		else
 			studioData.Flags |= StudioDataFlags.NoStudioMesh;
 
-		// todo: cacheNotify
+		CacheNotify?.OnDataLoaded(MDLCacheDataType.StudioHWData, handle);
 
 		return true;
 	}
@@ -738,8 +738,9 @@ public class MDLCache : IMDLCache, IStudioDataCache
 		throw new NotImplementedException();
 	}
 
+	IMDLCacheNotify? CacheNotify;
 	public void SetCacheNotify(IMDLCacheNotify notify) {
-		throw new NotImplementedException();
+		CacheNotify = notify;
 	}
 
 	public void SetUserData<T>(MDLHandle_t handle, T? data) {

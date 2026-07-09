@@ -114,6 +114,8 @@ public interface IShaderAPI : IShaderDynamicAPI
 	public void DeleteTexture(ShaderAPITextureHandle_t handle);
 	ImageFormat GetNearestSupportedFormat(ImageFormat fmt, bool filteringRequired = true);
 	IShaderShadow NewShaderShadow(ReadOnlySpan<char> materialName);
+	bool IsTranslucent(IShaderShadow renderState);
+	bool IsAlphaTested(IShaderShadow renderState);
 	IShaderDevice GetShaderDevice();
 	void TexWrap(TexCoordComponent coord, TexWrapMode wrapMode);
 	void TexMinFilter(TexFilterMode mode);

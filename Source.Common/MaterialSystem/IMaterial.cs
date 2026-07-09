@@ -447,6 +447,7 @@ public interface IMaterial
 	void DeleteIfUnreferenced();
 	IMaterialVar? FindVarFast(ReadOnlySpan<char> name, ref TokenCache lightmapVarCache);
 	bool IsTranslucent();
+	bool IsVertexLit();
 	int GetNumAnimationFrames();
 	bool HasProxy();
 	void CallBindProxy(object? clientEntity);

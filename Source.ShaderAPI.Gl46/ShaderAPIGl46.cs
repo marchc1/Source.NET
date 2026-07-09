@@ -212,11 +212,11 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	readonly ShaderAPITextureHandle_t[] StdTextureHandles = new ShaderAPITextureHandle_t[(int)StandardTextureId.Max];
 
-	public void SetStandardTextureHandle(StandardTextureId id, ShaderAPITextureHandle_t handle){
+	public void SetStandardTextureHandle(StandardTextureId id, ShaderAPITextureHandle_t handle) {
 		StdTextureHandles[(int)id] = handle;
 	}
 
-	public void SetLinearToGammaConversionTextures(ShaderAPITextureHandle_t srgbWriteEnabledTexture, ShaderAPITextureHandle_t identityTexture){
+	public void SetLinearToGammaConversionTextures(ShaderAPITextureHandle_t srgbWriteEnabledTexture, ShaderAPITextureHandle_t identityTexture) {
 		LinearToGammaTableTexture = srgbWriteEnabledTexture;
 		LinearToGammaTableIdentityTexture = identityTexture;
 	}
@@ -224,7 +224,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	ShaderAPITextureHandle_t LinearToGammaTableTexture;
 	ShaderAPITextureHandle_t LinearToGammaTableIdentityTexture;
 
-	public float LinearToGamma_HardwareSpecific(float linear){
+	public float LinearToGamma_HardwareSpecific(float linear) {
 		if (IsPC())
 			return MathLib.SrgbLinearToGamma(linear);
 		else
@@ -236,6 +236,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	public IShaderShadow NewShaderShadow(ReadOnlySpan<char> materialName) => new ShadowStateGl46(this, (IShaderSystemInternal)ShaderManager, materialName);
+	public bool IsTranslucent(IShaderShadow renderState) => ((ShadowStateGl46)renderState).State.Blending;
+	public bool IsAlphaTested(IShaderShadow renderState) => ((ShadowStateGl46)renderState).Pixel.IsAlphaTesting != 0;
 
 	private void InitVertexAndPixelShaders() {
 		// TODO; everything before this call
@@ -1492,7 +1494,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			glColorMask(state.ColorWrite, state.ColorWrite, state.ColorWrite, state.AlphaWrite);
 
 			glToggle(GL_DEPTH_TEST, state.DepthTest);
-			glDepthMask(state.DepthWrite); // state.DepthWrite
+			glDepthMask(state.DepthWrite);
 			glDepthFunc(state.DepthFunc.GLEnum());
 
 			glPolygonMode(GL_FRONT_AND_BACK, state.FillMode.GLEnum());

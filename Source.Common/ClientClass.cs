@@ -8,7 +8,8 @@ namespace Source.Common;
 public delegate IClientNetworkable CreateClientClassFn(int entNum, int serialNum);
 public delegate IClientNetworkable CreateEventFn();
 
-public static class ClientClassRetriever {
+public static class ClientClassRetriever
+{
 	static readonly Dictionary<Type, ClientClass> ClassList = [];
 
 	public static ClientClass GetOrError(Type t) {
@@ -16,7 +17,7 @@ public static class ClientClassRetriever {
 			return c;
 
 		FieldInfo? field = t.GetField(nameof(ClientClass), BindingFlags.Static | BindingFlags.Public);
-		if(field == null)
+		if (field == null)
 			throw new NullReferenceException(nameof(field));
 
 		c = ClassList[t] = (ClientClass)field.GetValue(null)!;
@@ -25,7 +26,8 @@ public static class ClientClassRetriever {
 }
 
 [AttributeUsage(AttributeTargets.Method)]
-public class ImplementClientClassFactoryAttribute : Attribute {
+public class ImplementClientClassFactoryAttribute : Attribute
+{
 
 }
 public class ClientClass
@@ -43,7 +45,7 @@ public class ClientClass
 		if (t.IsAssignableTo(typeof(IClientEntity))) {
 			// Lets see if there's a good ImplementClientClassFactoryAttribute method...
 			var factoryMethod = t.GetMethodsWithAttribute<ImplementClientClassFactoryAttribute>().FirstOrDefault().Key;
-			if(factoryMethod != null){
+			if (factoryMethod != null) {
 				createFn = factoryMethod.CreateDelegate<CreateClientClassFn>();
 				return;
 			}

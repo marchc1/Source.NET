@@ -61,6 +61,7 @@ public interface IClientLeafSystem : IClientLeafSystemEngine, IGameSystemPerFram
 {
 	void AddRenderable(IClientRenderable renderable, RenderGroup group);
 	void BuildRenderablesList(in SetupRenderInfo setupInfo);
+	void ComputeTranslucentRenderLeaf(int count, List<LeafIndex_t> leafList, List<LeafFogVolume_t> leafFogVolumeList, long frameNumber, int viewID);
 	void CollateViewModelRenderables(List<IClientRenderable> opaqueViewModelList, List<IClientRenderable> translucentViewModelList);
 	void EnableAlternateSorting(ClientRenderHandle_t renderHandle, bool alternateSorting);
 	bool IsRenderableInPVS(IClientRenderable renderable);

@@ -216,6 +216,7 @@ public class DummyTexture : ITexture
 	public bool IsProcedural() => false;
 	public bool IsRenderTarget() => false;
 	public bool IsTranslucent() => false;
+	public bool IsVertexLit() => false;
 	public bool IsVolumeTexture() => false;
 	public bool SaveToFile(ReadOnlySpan<char> fileName) => false;
 	public void SetTextureRegenerator(ITextureRegenerator textureRegen) { }
@@ -292,6 +293,7 @@ public class DummyMaterial : IMaterial
 	public bool IsErrorMaterialInternal() => false;
 	public bool IsRealTimeVersion() => false;
 	public bool IsTranslucent() => false;
+	public bool IsVertexLit() => false;
 	public void Refresh() { }
 	public int ShaderParamCount() => 0;
 	public bool TryFindVar(ReadOnlySpan<char> varName, [NotNullWhen(true)] out IMaterialVar? found, bool complain = true) {

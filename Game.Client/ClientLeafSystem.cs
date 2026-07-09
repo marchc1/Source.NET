@@ -378,6 +378,56 @@ public class ClientLeafSystem : IClientLeafSystem, ISpatialLeafEnumerator
 		}
 	}
 
+	private static long LeafToMarker(LeafIndex_t leaf) => ((long)leaf << 1) | 1;
+	private static bool IsLeafMarker(long p) => (p & 1) != 0;
+	private static LeafIndex_t MarkerToLeaf(long p) => (LeafIndex_t)(p >> 1);
+
+	private readonly List<long> orderedList = new();
+
+	public void ComputeTranslucentRenderLeaf(int count, List<LeafIndex_t> leafList, List<LeafFogVolume_t> leafFogVolumeList, long frameNumber, int viewID) {
+		long globalFrameCount = gpGlobals.FrameCount;
+		int i;
+
+		orderedList.Clear();
+		LeafIndex_t leaf = 0;
+		for (i = 0; i < count; ++i) {
+			leaf = leafList[i];
+			orderedList.Add(LeafToMarker(leaf));
+
+			int idx = RenderablesInLeaf.FirstElementInBucket(leaf);
+			while (idx != BidirectionalSet<int, ClientRenderHandle_t>.InvalidIndex) {
+				ClientRenderHandle_t handle = RenderablesInLeaf.Element(idx);
+				ref RenderableInfo info = ref Renderables[handle].Info;
+				if (info.TranslucencyCalculated != globalFrameCount || info.TranslucencyCalculatedView != (ViewID)viewID) {
+					info.Renderable!.ComputeFxBlend();
+					info.TranslucencyCalculated = globalFrameCount;
+					info.TranslucencyCalculatedView = (ViewID)viewID;
+				}
+				orderedList.Add(handle << 1);
+				idx = RenderablesInLeaf.NextElement(idx);
+			}
+		}
+
+		foreach (long entry in orderedList) {
+			if (!IsLeafMarker(entry)) {
+				ref RenderableInfo info = ref Renderables[entry >> 1].Info;
+				if (info.RenderFrame != frameNumber) {
+					if (info.RenderGroup == RenderGroup.TranslucentEntity)
+						info.RenderLeaf = leaf;
+					info.RenderFrame = frameNumber;
+				}
+				else if ((info.Flags & RenderFlags.AlternateSorting) != 0) {
+					if (info.RenderGroup == RenderGroup.TranslucentEntity)
+						info.RenderLeaf = leaf;
+				}
+			}
+			else
+				leaf = MarkerToLeaf(entry);
+		}
+
+		orderedList.Clear();
+	}
+
 	private void CollateRenderablesInLeaf(LeafIndex_t leaf, int worldListLeafIndex, in SetupRenderInfo info) {
 		AddRenderableToRenderList(info.RenderList!, null, (ushort)worldListLeafIndex, RenderGroup.OpaqueStatic);
 		AddRenderableToRenderList(info.RenderList!, null, (ushort)worldListLeafIndex, RenderGroup.OpaqueEntity);

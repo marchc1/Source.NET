@@ -250,6 +250,8 @@ public abstract class BaseShader : IShader
 
 	protected float GetAlpha() => GetAlpha(Params);
 
+	protected bool IsAlphaModulating() => GetAlpha() < 1.0f;
+
 	protected void ApplyColor2Factor(Span<float> colorOut) {
 		IMaterialVar[] shaderParams = Params!;
 
@@ -296,4 +298,11 @@ public abstract class BaseShader : IShader
 
 		color[3] = GetAlpha();
 	}
+
+	public bool NeedsPowerOfTwoFrameBufferTexture(IMaterialVar[]? shaderParams, bool checkSpecificToThisFrame)
+	=> IsFlag2Set(shaderParams, MaterialVarFlags2.NeedsPowerOfTwoFrameBufferTexture);
+
+	public bool NeedsFullFrameBufferTexture(IMaterialVar[]? shaderParams, bool checkSpecificToThisFrame)
+	=> IsFlag2Set(shaderParams, MaterialVarFlags2.NeedsFullFrameBufferTexture);
+
 }

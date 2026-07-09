@@ -107,7 +107,7 @@ public ref struct MapLoadHelper
 	public MapLoadHelper(LumpIndex lumpToLoad) {
 		LumpID = lumpToLoad;
 		ref BSPLump lump = ref MapHeader.Lumps[(int)lumpToLoad];
-		LumpSize = lump.FileLength;
+		LumpSize = lump.UncompressedSize != 0 ? lump.UncompressedSize : lump.FileLength;
 		LumpOffset = lump.FileOffset;
 		LumpVersion = lump.Version;
 	}
@@ -178,7 +178,82 @@ public ref struct MapLoadHelper
 public class MDLCacheNotify : IMDLCacheNotify
 {
 	public void OnDataLoaded(MDLCacheDataType type, uint handle) {
-		throw new NotImplementedException();
+		Model? model = Singleton<IMDLCache>().GetUserData<Model>(handle);
+
+		if (model == null)
+			return;
+
+		switch (type) {
+			case MDLCacheDataType.StudioHDR:
+				SetBoundsFromStudioHdr(model, handle);
+				break;
+
+			case MDLCacheDataType.VCollide:
+				SetBoundsFromStudioHdr(model, handle);
+				// todo
+				break;
+
+			case MDLCacheDataType.StudioHWData:
+				ComputeModelFlags(model, handle);
+				break;
+		}
+	}
+
+	private void ComputeModelFlags(Model model, uint handle) {
+		StudioHeader studioHdr = Singleton<IMDLCache>().GetStudioHdr(handle)!;
+
+		model.Flags &= ~(ModelFlag.TranslucentTwoPass | ModelFlag.VertexLit | ModelFlag.Translucent | ModelFlag.MaterialProxy | ModelFlag.FramebufferTexture | ModelFlag.UsesFBTexture | ModelFlag.UsesBumpMapping | ModelFlag.UsesEnvCubemap);
+
+		bool forceOpaque = (studioHdr.Flags & StudioHdrFlags.ForceOpaque) != 0;
+
+		if ((studioHdr.Flags & StudioHdrFlags.TranslucentTwoPass) != 0)
+			model.Flags |= ModelFlag.TranslucentTwoPass;
+		if ((studioHdr.Flags & StudioHdrFlags.UsesFbTexture) != 0)
+			model.Flags |= ModelFlag.UsesFBTexture;
+		if ((studioHdr.Flags & StudioHdrFlags.UsesBumpmapping) != 0)
+			model.Flags |= ModelFlag.UsesBumpMapping;
+		if ((studioHdr.Flags & StudioHdrFlags.UsesEnvCubemap) != 0)
+			model.Flags |= ModelFlag.UsesEnvCubemap;
+		if ((studioHdr.Flags & StudioHdrFlags.AmbientBoost) != 0)
+			model.Flags |= ModelFlag.AmbientBoost;
+		if ((studioHdr.Flags & StudioHdrFlags.DoNotCastShadows) != 0)
+			model.Flags |= ModelFlag.DoNotCastShadows;
+
+		Span<IMaterial> materials = new IMaterial[128];
+		int materialCount = ((ModelLoader)Singleton<IModelLoader>()).Mod_GetModelMaterials(model, materials);
+
+		for (int i = 0; i < materialCount; ++i) {
+			IMaterial material = materials[i];
+			if (material == null)
+				continue;
+
+			if (material.IsVertexLit())
+				model.Flags |= ModelFlag.VertexLit;
+
+			if (!forceOpaque && material.IsTranslucent())
+				model.Flags |= ModelFlag.Translucent;
+
+			if (material.HasProxy())
+				model.Flags |= ModelFlag.MaterialProxy;
+
+			if (material.NeedsPowerOfTwoFrameBufferTexture(false))
+				model.Flags |= ModelFlag.FramebufferTexture;
+		}
+	}
+
+	private void SetBoundsFromStudioHdr(Model model, uint handle) {
+		StudioHeader studioHdr = Singleton<IMDLCache>().GetStudioHdr(handle)!;
+		model.Mins = studioHdr.HullMin;
+		model.Maxs = studioHdr.HullMax;
+		model.Radius = 0.0f;
+		Span<float> mins = [model.Mins.X, model.Mins.Y, model.Mins.Z];
+		Span<float> maxs = [model.Maxs.X, model.Maxs.Y, model.Maxs.Z];
+		for (int i = 0; i < 3; i++) {
+			if (MathF.Abs(mins[i]) > model.Radius)
+				model.Radius = MathF.Abs(mins[i]);
+			if (MathF.Abs(maxs[i]) > model.Radius)
+				model.Radius = MathF.Abs(maxs[i]);
+		}
 	}
 
 	public void OnDataUnloaded(MDLCacheDataType type, uint handle) {
@@ -471,7 +546,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		}
 	}
 
-	private int Mod_GetModelMaterials(Model model, Span<IMaterial> materials) {
+	internal int Mod_GetModelMaterials(Model model, Span<IMaterial> materials) {
 		StudioHeader studioHdr;
 		int found = 0;
 		int i;
@@ -1501,6 +1576,9 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 	public static bool SurfaceHasDispInfo(ref BSPMSurface2 surfID) => (MSurf_Flags(ref surfID) & SurfDraw.HasDisp) != 0;
 	public static ref ushort MSurf_VertBufferIndex(ref BSPMSurface2 surfID) => ref surfID.VertBufferIndex;
 	public static ref ShadowDecalHandle_t MSurf_ShadowDecals(ref BSPMSurface2 surfID) => ref surfID.ShadowDecals;
+	public const WorldDecalHandle_t WORLD_DECAL_HANDLE_INVALID = 0xFFFF;
+	public static ref WorldDecalHandle_t MSurf_Decals(ref BSPMSurface2 surfID) => ref surfID.Decals;
+	public static bool SurfaceHasDecals(ref BSPMSurface2 surfID) => MSurf_Decals(ref surfID) != WORLD_DECAL_HANDLE_INVALID;
 	public static ref OverlayFragmentHandle_t MSurf_OverlayFragmentList(ref BSPMSurface2 surfID) => ref surfID.FirstOverlayFragment;
 	public static ushort MSurf_NumPrims(ref BSPMSurface2 surfID, WorldBrushData data) {
 		if (SurfaceHasDispInfo(ref surfID) || !SurfaceHasPrims(ref surfID))
@@ -1816,7 +1894,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 	}
 
 	public void Init() {
-
+		MDLCache.SetCacheNotify(MDLCacheNotify.s);
 	}
 
 	public void PurgeUnusedModels() {
