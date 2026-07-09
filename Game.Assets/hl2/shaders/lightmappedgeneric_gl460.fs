@@ -48,5 +48,6 @@ void main()
     }
 
     // Final product: texture color * vertex color if applicable
-    fragColor = texelColor * vertexColor * lightmapColor * 2.2;
+    fragColor.rgb = texelColor.rgb * vertexColor.rgb * lightmapColor.rgb * 2.2;
+    fragColor.a = texelColor.a * vertexColor.a;
 }
