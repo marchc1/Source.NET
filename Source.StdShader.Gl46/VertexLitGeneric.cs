@@ -188,7 +188,7 @@ public class VertexLitGeneric : BaseVSShader
 				SetVertexShaderTextureScaledTransform(VertexShaderConst.ShaderSpecificConst4, (int)ShaderMaterialVars.BaseTextureTransform, DETAILSCALE);
 			}
 
-			// SetAmbientCubeDynamicStateVertexShader();
+			SetAmbientCubeDynamicStateVertexShader();
 			SetModulationPixelShaderDynamicState(3);
 			EnablePixelShaderOverbright(0, true, true);
 			SetPixelShaderConstant(1, SELFILLUMTINT);

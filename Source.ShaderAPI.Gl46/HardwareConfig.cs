@@ -285,7 +285,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool SupportsVertexAndPixelShaders() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsVertexShaders_2_0() {

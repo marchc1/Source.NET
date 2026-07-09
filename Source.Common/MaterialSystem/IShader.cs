@@ -103,5 +103,6 @@ public interface IShaderDynamicAPI
 	void BindStandardTexture(Sampler sampler, StandardTextureId id);
 	void SetVertexShaderConstant(int var, Span<float> vec);
 	void SetPixelShaderConstant(int var, Span<float> vec);
+	void SetVertexShaderStateAmbientLightCube();
 	void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 dst);
 }

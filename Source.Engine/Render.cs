@@ -61,6 +61,9 @@ public partial class Render(
 	ModelLoader? _modelLoader;
 	ModelLoader modelLoader => _modelLoader ??= (ModelLoader)Singleton<IModelLoader>();
 
+	IStudioRender? _studioRender;
+	IStudioRender studioRender => _studioRender ??= Singleton<IStudioRender>();
+
 	int LightmapUpdateDepth;
 	float yFOV;
 	float Framerate;
@@ -88,7 +91,7 @@ public partial class Render(
 		}
 
 		// UpdateStudioRenderConfig();
-		// studiorender.BeginFrame();
+		studioRender.BeginFrame();
 
 		FrameCount++;
 	}

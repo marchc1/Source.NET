@@ -13,6 +13,7 @@ using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 using Source.Common.ShaderAPI;
+using Source.Common.ShaderLib;
 using Source.Common.Utilities;
 
 using System.Numerics;
@@ -253,6 +254,14 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		if (!memcmpb(dst, cube)) {
 			memcpy(dst, cube);
 			CachedAmbientLightCube = (int)TransformDirtyBits.StateChanged;
+		}
+	}
+
+	public void SetVertexShaderStateAmbientLightCube() {
+		if ((CachedAmbientLightCube & (int)TransformDirtyBits.StateChangedVertexShader) != 0) {
+			Span<Vector4> cube = AmbientLightCube;
+			SetVertexShaderConstant(VertexShaderConst.AmbientLight, MemoryMarshal.Cast<Vector4, float>(cube));
+			CachedAmbientLightCube &= ~(int)TransformDirtyBits.StateChangedVertexShader;
 		}
 	}
 

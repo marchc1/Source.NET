@@ -49,8 +49,12 @@ public enum OverrideType
 /// </summary>
 public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCache studioDataCache, StudioRender studioRenderImp) : IStudioRender
 {
+	readonly IMaterialSystemHardwareConfig hardwareConfig = Singleton<IMaterialSystemHardwareConfig>();
+
 	public void BeginFrame() {
-		throw new NotImplementedException();
+		RC.Config.SupportsVertexAndPixelShaders = hardwareConfig.SupportsVertexAndPixelShaders();
+
+
 	}
 
 	public void EndFrame() {

@@ -27,6 +27,8 @@ public class ModelInstance
 
 	public LightingState CurrentLightingState;
 	public LightingState AmbientLightingState;
+	public InlineArray4<Vector3> LightIntensity;
+	public float LightingTime = ModelRender.CURRENT_LIGHTING_UNINITIALIZED;
 	public LightCacheHandle_t LightCacheHandle;
 }
 
@@ -446,7 +448,9 @@ public class ModelRender : IModelRender
 				LightCacheFlags.Static | LightCacheFlags.Dynamic | LightCacheFlags.LightStyle | LightCacheFlags.AllowFast);
 		}
 
-		// todo
+		// Do time averaging of the lighting state to avoid popping...
+		if (!staticLighting && Unsafe.IsNullRef(ref lightcache))
+			TimeAverageLightingState(renderInfo.Instance, ref lightingState, renderInfo.EntityIndex, lightingOrigin);
 
 		if (MatSysInterface.MaterialSystemConfig.Fullbright == 1) {
 			ReadOnlySpan<Vector3> white = [new(1, 1, 1), new(1, 1, 1), new(1, 1, 1), new(1, 1, 1), new(1, 1, 1), new(1, 1, 1)];
@@ -458,6 +462,60 @@ public class ModelRender : IModelRender
 			R_SetNonAmbientLightingState(lightingState.NumLights, lightingState.LocalLight, out drawInfo.NumLocalLights, drawInfo.LocalLightDescs, true);
 		}
 #endif
+	}
+
+	public const float CURRENT_LIGHTING_UNINITIALIZED = -999999.0f;
+	const float AMBIENT_MAX = 8.0f;
+
+	private void TimeAverageLightingState(ModelInstanceHandle_t handle, ref LightingState lightingState, int entIndex, in Vector3 lightingOrigin) {
+		if (r_lightaverage.GetInt() == 0)
+			return;
+
+		float interpFactor = r_lightinterp.GetFloat();
+		if (interpFactor == 0)
+			return;
+
+		if (handle == MODEL_INSTANCE_INVALID)
+			return;
+
+		ModelInstance inst = ModelInstances[handle];
+		if (inst.LightingTime == CURRENT_LIGHTING_UNINITIALIZED) {
+			SnapCurrentLightingState(inst, ref lightingState);
+			return;
+		}
+
+		float dt = (float)(cl.GetTime() - inst.LightingTime);
+		if (dt <= 0.0f)
+			dt = 0.0f;
+		else
+			inst.LightingTime = (float)cl.GetTime();
+
+		float attenFactor = MathF.Exp(-interpFactor * dt);
+		TimeAverageAmbientLight(inst, attenFactor, ref lightingState, lightingOrigin);
+
+		// todo
+
+		for (int i = 0; i < 6; i++)
+			lightingState.BoxColor[i] = inst.CurrentLightingState.BoxColor[i];
+	}
+
+	private static void TimeAverageAmbientLight(ModelInstance inst, float attenFactor, ref LightingState lightingState, in Vector3 lightingOrigin) {
+		attenFactor = Math.Clamp(attenFactor, 0.0f, 1.0f);
+		for (int i = 0; i < 6; ++i) {
+			MathLib.VectorSubtract(lightingState.BoxColor[i], inst.CurrentLightingState.BoxColor[i], out Vector3 vecDelta);
+			vecDelta *= attenFactor;
+			inst.CurrentLightingState.BoxColor[i] = lightingState.BoxColor[i] - vecDelta;
+
+			inst.CurrentLightingState.BoxColor[i].X = Math.Clamp(inst.CurrentLightingState.BoxColor[i].X, 0.0f, AMBIENT_MAX);
+			inst.CurrentLightingState.BoxColor[i].Y = Math.Clamp(inst.CurrentLightingState.BoxColor[i].Y, 0.0f, AMBIENT_MAX);
+			inst.CurrentLightingState.BoxColor[i].Z = Math.Clamp(inst.CurrentLightingState.BoxColor[i].Z, 0.0f, AMBIENT_MAX);
+		}
+	}
+
+	private void SnapCurrentLightingState(ModelInstance inst, ref LightingState lightingState) {
+		inst.CurrentLightingState = lightingState;
+		// todo
+		inst.LightingTime = (float)cl.GetTime();
 	}
 
 	const float MIN_LIGHT_VALUE = 0.03f;
