@@ -269,7 +269,7 @@ public interface IShaderShadow
 	void VertexShaderVertexFormat(VertexFormat format, int texCoordCount, Span<int> texCoordDimensions, int userDataSize);
 
 	// Pixel and vertex shader methods
-	void SetVertexShader(ReadOnlySpan<char> fileName);
+	void SetVertexShader(ReadOnlySpan<char> fileName, ReadOnlySpan<char> dynamicCombos = default);
 	void SetPixelShader(ReadOnlySpan<char> fileName);
 
 	// Todo.

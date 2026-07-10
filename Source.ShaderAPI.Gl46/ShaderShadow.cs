@@ -1,6 +1,8 @@
 using Source.Common.MaterialSystem;
 using Source.Common.ShaderAPI;
 
+using System.Text;
+
 namespace Source.ShaderAPI.Gl46;
 
 /// <summary>
@@ -123,6 +125,7 @@ public class ShadowStateGl46 : IShaderShadow
 		ShaderAPI.SetBoardState(in State);
 
 		// Set VSH and PSH. Shader API can bind these whenever it needs to
+		((ShaderAPIGl46)ShaderAPI).SetCurrentVertexShaderShadow(this);
 		ShaderAPI!.BindVertexShader(in VertexShader);
 		ShaderAPI!.BindPixelShader(in PixelShader);
 
@@ -235,8 +238,48 @@ public class ShadowStateGl46 : IShaderShadow
 
 	public GraphicsDriver GetDriver() => ShaderAPI.GetDriver();
 
-	public void SetVertexShader(ReadOnlySpan<char> fileName) {
-		VertexShader = Shaders.LoadVertexShader($"{fileName}_{GetDriver().Extension(ShaderType.Vertex)}");
+	string? vertexShaderFile;
+	string[] dynamicComboNames = [];
+	VertexShaderHandle[] vertexShaderVariants = [];
+
+	public void SetVertexShader(ReadOnlySpan<char> fileName, ReadOnlySpan<char> dynamicCombos = default) {
+		vertexShaderFile = $"{fileName}_{GetDriver().Extension(ShaderType.Vertex)}";
+
+		List<string> combos = [];
+		ReadOnlySpan<char> rest = dynamicCombos;
+		while (!rest.IsEmpty) {
+			int sep = rest.IndexOf(';');
+			ReadOnlySpan<char> combo = (sep < 0 ? rest : rest[..sep]).Trim();
+			rest = sep < 0 ? default : rest[(sep + 1)..];
+			if (!combo.IsEmpty)
+				combos.Add(new(combo));
+		}
+		dynamicComboNames = [.. combos];
+
+		vertexShaderVariants = new VertexShaderHandle[1 << dynamicComboNames.Length];
+		VertexShader = GetVertexShaderVariant(0);
+	}
+
+	private VertexShaderHandle CompileVertexShaderVariant(int index) {
+		StringBuilder defines = new();
+		for (int bit = 0; bit < dynamicComboNames.Length; bit++) {
+			if (bit > 0)
+				defines.Append(';');
+			defines.Append(dynamicComboNames[bit]);
+			defines.Append(' ');
+			defines.Append((index >> bit) & 1);
+		}
+		return Shaders.LoadVertexShader(vertexShaderFile, defines.ToString());
+	}
+
+	internal VertexShaderHandle GetVertexShaderVariant(int index) {
+		if (vertexShaderVariants.Length == 0)
+			return VertexShader;
+		if ((uint)index >= (uint)vertexShaderVariants.Length)
+			index = 0;
+		if (vertexShaderVariants[index].Handle == 0)
+			vertexShaderVariants[index] = CompileVertexShaderVariant(index);
+		return vertexShaderVariants[index];
 	}
 
 	public void SetPixelShader(ReadOnlySpan<char> fileName) {

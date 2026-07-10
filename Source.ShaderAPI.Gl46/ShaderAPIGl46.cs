@@ -137,6 +137,18 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	PixelShaderHandle activePixelShader = PixelShaderHandle.INVALID;
 	bool pipelineChanged = false;
 	uint lastShader;
+	ShadowStateGl46? currentVertexShaderShadow;
+	internal void SetCurrentVertexShaderShadow(ShadowStateGl46 shadow) {
+		currentVertexShaderShadow = shadow;
+	}
+
+	public void SetVertexShaderIndex(int index) {
+		if (currentVertexShaderShadow != null)
+			BindVertexShader(currentVertexShaderShadow.GetVertexShaderVariant(index));
+	}
+
+	public bool GetVertexShaderStaticLight() => RenderMesh?.HasColorMesh() ?? false;
+
 	public void BindVertexShader(in VertexShaderHandle vertexShader) {
 		activeVertexShader = vertexShader;
 		pipelineChanged = true;

@@ -38,8 +38,8 @@ public interface IShaderInit
 {
 	public void LoadTexture(IMaterialVar textureVar, ReadOnlySpan<char> textureGroupName, int additionalCreationFlags = 0);
 	public void LoadCubeMap(IMaterialVar[] parms, IMaterialVar textureVar, int additionalCreationFlags = 0);
-	VertexShaderHandle LoadVertexShader(ReadOnlySpan<char> name);
-	PixelShaderHandle LoadPixelShader(ReadOnlySpan<char> name);
+	VertexShaderHandle LoadVertexShader(ReadOnlySpan<char> name, ReadOnlySpan<char> defines = default);
+	PixelShaderHandle LoadPixelShader(ReadOnlySpan<char> name, ReadOnlySpan<char> defines = default);
 }
 
 
@@ -85,6 +85,8 @@ public interface IShaderDynamicAPI
 
 	void BindVertexShader(in VertexShaderHandle vertexShader);
 	void BindPixelShader(in PixelShaderHandle pixelShader);
+	void SetVertexShaderIndex(int index);
+	bool GetVertexShaderStaticLight();
 
 	int LocateShaderUniform(ReadOnlySpan<char> name);
 

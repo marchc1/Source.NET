@@ -244,7 +244,7 @@ public unsafe class VertexBufferGl46 : IDisposable
 	internal void BindColorMesh(VertexBufferGl46 colorBuffer, int vertOffsetInBytes) {
 		VertexElement.Specular.GetInformation(out int count, out VertexAttributeType type);
 
-
+		glEnableVertexArrayAttrib((uint)vao, (uint)OpenGL_ShaderInputAttribute.Specular);
 		glVertexArrayAttribFormat((uint)vao, (uint)OpenGL_ShaderInputAttribute.Specular, count, (int)type, true, 0);
 		glVertexArrayAttribBinding((uint)vao, (uint)OpenGL_ShaderInputAttribute.Specular, 1);
 		glVertexArrayVertexBuffer((uint)vao, 1, colorBuffer.VBO(), vertOffsetInBytes, colorBuffer.VertexSize);

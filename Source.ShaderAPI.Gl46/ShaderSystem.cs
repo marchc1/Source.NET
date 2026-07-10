@@ -383,60 +383,95 @@ public class ShaderSystem : IShaderSystemInternal
 		return true;
 	}
 
-	public unsafe VertexShaderHandle LoadVertexShader(ReadOnlySpan<char> name) {
-		ulong symbol = name.Hash();
-		if (vshs.TryGetValue(symbol, out VertexShaderHandle value))
-			return value;
+	private static byte[]? BuildShaderSource(ReadOnlySpan<byte> source, ReadOnlySpan<char> defines) {
+		if (defines.IsEmpty)
+			return source.ToArray();
 
+		int versionEnd = source.IndexOf((byte)'\n');
+		if (versionEnd < 0)
+			return null;
+		versionEnd += 1;
+
+		StringBuilder sb = new();
+		ReadOnlySpan<char> rest = defines;
+		while (!rest.IsEmpty) {
+			int sep = rest.IndexOf(';');
+			ReadOnlySpan<char> define = (sep < 0 ? rest : rest[..sep]).Trim();
+			rest = sep < 0 ? default : rest[(sep + 1)..];
+			if (define.IsEmpty)
+				continue;
+			sb.Append("#define ");
+			sb.Append(define);
+			sb.Append('\n');
+		}
+
+		byte[] block = Encoding.ASCII.GetBytes(sb.ToString());
+		byte[] result = new byte[versionEnd + block.Length + (source.Length - versionEnd)];
+		source[..versionEnd].CopyTo(result);
+		block.CopyTo(result, versionEnd);
+		source[versionEnd..].CopyTo(result.AsSpan(versionEnd + block.Length));
+		return result;
+	}
+
+	private unsafe uint CompileShader(int glType, ReadOnlySpan<char> name, ReadOnlySpan<char> defines, string typeName) {
 		using IFileHandle? handle = FileSystem.Open($"shaders/{name}", FileOpenOptions.Read, "game");
 		if (handle == null)
-			return VertexShaderHandle.INVALID;
+			return 0;
 
 		Span<byte> source = stackalloc byte[(int)handle.Stream.Length];
-		int read = handle.Stream.Read(source);
-		uint pShader = 0;
-		pShader = glCreateShader(GL_VERTEX_SHADER);
-		int len = source.Length;
-		fixed (byte* pSrc = source)
+		handle.Stream.Read(source);
+
+		byte[]? built = BuildShaderSource(source, defines);
+		if (built == null)
+			return 0;
+
+		uint pShader = glCreateShader(glType);
+		int len = built.Length;
+		fixed (byte* pSrc = built)
 			glShaderSource(pShader, 1, &pSrc, &len);
 		glCompileShader(pShader);
 
 		if (!IsValidShader(pShader, out string? error)) {
-			Warning("WARNING: Vertex shader compilation error.\n");
+			Warning($"WARNING: {typeName} shader compilation error.\n");
 			Warning(error);
 			Warning("\n");
-			return VertexShaderHandle.INVALID;
+			return 0;
 		}
+		else
+			Msg($"Compiled shader: {typeName} - {defines.SliceNullTerminatedString()}\n");
+
+		return pShader;
+	}
+
+	private static ulong ComboSymbol(ReadOnlySpan<char> name, ReadOnlySpan<char> defines) {
+		ulong symbol = name.Hash();
+		if (!defines.IsEmpty)
+			symbol ^= defines.Hash();
+		return symbol;
+	}
+
+	public VertexShaderHandle LoadVertexShader(ReadOnlySpan<char> name, ReadOnlySpan<char> defines = default) {
+		ulong symbol = ComboSymbol(name, defines);
+		if (vshs.TryGetValue(symbol, out VertexShaderHandle value))
+			return value;
+
+		uint pShader = CompileShader(GL_VERTEX_SHADER, name, defines, "Vertex");
+		if (pShader == 0)
+			return VertexShaderHandle.INVALID;
 
 		VertexShaderHandle vsh = new((nint)pShader);
 		vshs[symbol] = vsh;
 		return vsh;
 	}
 
-	public unsafe PixelShaderHandle LoadPixelShader(ReadOnlySpan<char> name) {
-		ulong symbol = name.Hash();
+	public unsafe PixelShaderHandle LoadPixelShader(ReadOnlySpan<char> name, ReadOnlySpan<char> defines = default) {
+		ulong symbol = ComboSymbol(name, defines);
 		if (pshs.TryGetValue(symbol, out PixelShaderHandle value))
 			return value;
 
-		using IFileHandle? handle = FileSystem.Open($"shaders/{name}", FileOpenOptions.Read, "game");
-		if (handle == null)
+		uint pShader = CompileShader(GL_FRAGMENT_SHADER, name, defines, "Pixel");
+		if (pShader == 0)
 			return PixelShaderHandle.INVALID;
-
-		Span<byte> source = stackalloc byte[(int)handle.Stream.Length];
-		int read = handle.Stream.Read(source);
-		uint pShader = 0;
-		pShader = glCreateShader(GL_FRAGMENT_SHADER);
-		int len = source.Length;
-		fixed (byte* pSrc = source)
-			glShaderSource(pShader, 1, &pSrc, &len);
-		glCompileShader(pShader);
-
-		if (!IsValidShader(pShader, out string? error)) {
-			Warning("WARNING: Pixel shader compilation error.\n");
-			Warning(error);
-			Warning("\n");
-			return PixelShaderHandle.INVALID;
-		}
 
 		PixelShaderHandle psh = new((nint)pShader);
 		pshs[symbol] = psh;

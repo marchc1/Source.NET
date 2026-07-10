@@ -3,6 +3,7 @@
 layout(location = 0) in vec3 v_Position;
 layout(location = 1) in vec3 v_Normal;
 layout(location = 2) in vec4 v_Color;
+layout(location = 3) in vec4 v_Specular;
 layout(location = 7) in ivec2 v_BoneIndex;
 layout(location = 8) in vec2 v_BoneWeights;
 layout(location = 9) in vec4 v_UserData;
@@ -27,9 +28,15 @@ layout(std140, binding = 5) uniform source_vs_constants {
 };
 
 const int VERTEX_SHADER_AMBIENT_LIGHT = 21;
+const float cOverbright = 2.0;
 
 out vec2 vs_TexCoord;
 out vec4 vs_Color;
+
+vec3 GammaToLinear(vec3 gamma)
+{
+    return pow(gamma, vec3(2.2));
+}
 
 vec3 AmbientLight(vec3 worldNormal)
 {
@@ -39,7 +46,7 @@ vec3 AmbientLight(vec3 worldNormal)
     color  = nSquared.x * vs_const[VERTEX_SHADER_AMBIENT_LIGHT + isNegative.x].rgb;
     color += nSquared.y * vs_const[VERTEX_SHADER_AMBIENT_LIGHT + 2 + isNegative.y].rgb;
     color += nSquared.z * vs_const[VERTEX_SHADER_AMBIENT_LIGHT + 4 + isNegative.z].rgb;
-    return pow(color, vec3(1.0 / 2.2));
+    return color;
 }
 
 void main()
@@ -47,7 +54,7 @@ void main()
     vec4 localPos = vec4(0.0);
     vec3 worldNormal = vec3(0.0);
 	mat4 mvp;
-	
+
     if (numBones == 0) {
 		mvp = projectionMatrix * viewMatrix * modelMatrix;
 		gl_Position = mvp * vec4(v_Position, 1.0);
@@ -65,8 +72,15 @@ void main()
 		}
 		mvp = projectionMatrix * viewMatrix;
 		gl_Position = mvp * localPos;
-	}   
+	}
 
     vs_TexCoord = v_TexCoord;
-    vs_Color    = vec4(AmbientLight(normalize(worldNormal)), 1.0);
+
+    vec3 linearColor;
+#if STATIC_LIGHT
+    linearColor = GammaToLinear(v_Specular.rgb * cOverbright);
+#else
+    linearColor = AmbientLight(normalize(worldNormal));
+#endif
+    vs_Color = vec4(pow(linearColor, vec3(1.0 / 2.2)), 1.0);
 }
