@@ -216,14 +216,15 @@ public class ModelRender : IModelRender
 			// todo v
 
 			// validate static color meshes once, now at load/create time
-			// ValidateStaticPropColorData(handle);
+			ValidateStaticPropColorData(handle);
 
 			// builds out color meshes or loads disk colors, now at load/create time
-			// RecomputeStaticLighting(handle);
+			RecomputeStaticLighting(handle);
 		}
 
 		return handle;
 	}
+
 	public void DestroyInstance(ModelInstanceHandle_t modelInstance) {
 		// TODO
 
@@ -476,13 +477,12 @@ public class ModelRender : IModelRender
 		DataCacheHandle_t colorMeshData = 0;
 		if (bStaticLighting) {
 			colorMeshData = ModelInstances[pInfo.Instance].ColorMeshHandle;
-			ColorMeshData? pColorMeshData = null; // CacheGet(colorMeshData); // todo
+			ColorMeshData? pColorMeshData = CacheGet(colorMeshData);
 			if (pColorMeshData == null || pColorMeshData.NeedsRetry) {
-				if (RecomputeStaticLighting(pInfo.Instance)) {
-					// pColorMeshData = CacheGet(colorMeshData);
-				}
-				// else if (pColorMeshData == null || !pColorMeshData.NeedsRetry)
-				// 	return 0;
+				if (RecomputeStaticLighting(pInfo.Instance))
+					pColorMeshData = CacheGet(colorMeshData);
+				else if (pColorMeshData == null || !pColorMeshData.NeedsRetry)
+					return;
 			}
 
 			if (pColorMeshData != null && (pColorMeshData.ColorMeshValid || pColorMeshData.ColorTextureValid)) {
@@ -789,15 +789,14 @@ public class ModelRender : IModelRender
 		}
 	}
 
-	private ColorMeshData? FindOrCreateStaticPropColorData(ModelInstanceHandle_t handle) { // TODO!
+	private ColorMeshData? FindOrCreateStaticPropColorData(ModelInstanceHandle_t handle) { // datacache TODO
 		if (handle == MODEL_INSTANCE_INVALID || !HardwareConfig.SupportsColorOnSecondStream())
 			return null;
 
 		ModelInstance instance = ModelInstances[handle];
-		ColorMeshData? colorMeshData = null;
-		// ColorMeshData? colorMeshData = CacheGet(instance.ColorMeshHandle);
-		// if (colorMeshData != null)
-		// 	return colorMeshData;
+		ColorMeshData? colorMeshData = CacheGet(instance.ColorMeshHandle);
+		if (colorMeshData != null)
+			return colorMeshData;
 
 		if (instance.Model == null)
 			return null;
@@ -813,12 +812,35 @@ public class ModelRender : IModelRender
 			return null;
 
 		parms.FnHandle = instance.Model.FileNameHandle;
-		// instance.ColorMeshHandle = CacheCreate(parms);
-		// ProtectColorDataIfQueued(instance.ColorMeshHandle);
-		// colorMeshData = CacheGet(instance.ColorMeshHandle);
+		instance.ColorMeshHandle = CacheCreate(parms);
+		ProtectColorDataIfQueued(instance.ColorMeshHandle);
+		colorMeshData = CacheGet(instance.ColorMeshHandle);
 
 		return colorMeshData;
 	}
+
+#if true // until datacache done
+	private DataCacheHandle_t CacheNextHandle = 1;
+	private readonly Dictionary<DataCacheHandle_t, ColorMeshData> Cache = [];
+
+	private ColorMeshData? CacheGet(DataCacheHandle_t handle) {
+		Cache.TryGetValue(handle, out ColorMeshData? colorMeshData);
+		return colorMeshData;
+	}
+
+	private DataCacheHandle_t CacheCreate(in ColorMeshParams parms) {
+		ColorMeshData? colorMeshData = ColorMeshData.CreateResource(parms);
+		if (colorMeshData == null)
+			return 0;
+
+		DataCacheHandle_t handle = CacheNextHandle++;
+		Cache[handle] = colorMeshData;
+		return handle;
+	}
+
+	private void ProtectColorDataIfQueued(DataCacheHandle_t handle) {
+	}
+#endif
 
 	private static void CreateLightmapsFromData(ColorMeshData colorMeshData) {
 		Assert(colorMeshData.ColorTextureValid);
@@ -879,6 +901,7 @@ public class ModelRender : IModelRender
 	}
 
 	private bool UpdateStaticPropColorData(IHandleEntity? pProp, ModelInstanceHandle_t handle) {
+#if !SWDS
 		ColorMeshData? colorMeshData = FindOrCreateStaticPropColorData(handle);
 		if (colorMeshData == null)
 			return false;
@@ -1033,7 +1056,7 @@ public class ModelRender : IModelRender
 
 		colorMeshData.ColorMeshValid = true;
 		colorMeshData.NeedsRetry = false;
-
+#endif
 		return true;
 	}
 
@@ -1064,6 +1087,22 @@ public class ModelRender : IModelRender
 #endif
 		return true;
 	}
+
+	private void ValidateStaticPropColorData(uint handle) {
+		if (!r_proplightingfromdisk.GetBool())
+			return;
+
+		ModelInstance instance = ModelInstances[handle];
+		IHandleEntity prop = instance.Renderable!.GetIClientUnknown();
+
+
+		if (!HardwareConfig.SupportsColorOnSecondStream() || !StaticPropMgr().IsStaticProp(prop))
+			return;
+
+		// todo
+
+	}
+
 
 	private ref LightingState TimeAverageLightingState(ModelInstanceHandle_t handle, ref LightingState lightingState, int entIndex, Vector3? lightingOrigin) {
 		if (r_lightaverage.GetInt() == 0)

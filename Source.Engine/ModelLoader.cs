@@ -13,11 +13,9 @@ using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
 using System.Buffers;
-using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Xml.Linq;
 
 using static Source.Engine.DispMapload;
 
@@ -178,7 +176,7 @@ public ref struct MapLoadHelper
 public class MDLCacheNotify : IMDLCacheNotify
 {
 	public void OnDataLoaded(MDLCacheDataType type, uint handle) {
-		Model? model = Singleton<IMDLCache>().GetUserData<Model>(handle);
+		Model? model = mdlcache.GetUserData<Model>(handle);
 
 		if (model == null)
 			return;
@@ -200,7 +198,7 @@ public class MDLCacheNotify : IMDLCacheNotify
 	}
 
 	private void ComputeModelFlags(Model model, uint handle) {
-		StudioHeader studioHdr = Singleton<IMDLCache>().GetStudioHdr(handle)!;
+		StudioHeader studioHdr = mdlcache.GetStudioHdr(handle)!;
 
 		model.Flags &= ~(ModelFlag.TranslucentTwoPass | ModelFlag.VertexLit | ModelFlag.Translucent | ModelFlag.MaterialProxy | ModelFlag.FramebufferTexture | ModelFlag.UsesFBTexture | ModelFlag.UsesBumpMapping | ModelFlag.UsesEnvCubemap);
 
@@ -220,7 +218,7 @@ public class MDLCacheNotify : IMDLCacheNotify
 			model.Flags |= ModelFlag.DoNotCastShadows;
 
 		Span<IMaterial> materials = new IMaterial[128];
-		int materialCount = ((ModelLoader)Singleton<IModelLoader>()).Mod_GetModelMaterials(model, materials);
+		int materialCount = modelLoader.Mod_GetModelMaterials(model, materials);
 
 		for (int i = 0; i < materialCount; ++i) {
 			IMaterial material = materials[i];
@@ -242,7 +240,7 @@ public class MDLCacheNotify : IMDLCacheNotify
 	}
 
 	private void SetBoundsFromStudioHdr(Model model, uint handle) {
-		StudioHeader studioHdr = Singleton<IMDLCache>().GetStudioHdr(handle)!;
+		StudioHeader studioHdr = mdlcache.GetStudioHdr(handle)!;
 		model.Mins = studioHdr.HullMin;
 		model.Maxs = studioHdr.HullMax;
 		model.Radius = 0.0f;
@@ -2058,7 +2056,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		if (outBuffer.Length < outSize)
 			return false;
 
-		Stream? file = Singleton<IFileSystem>().Open(g_GameLumpFilename, FileOpenOptions.Read | FileOpenOptions.Binary)?.Stream;
+		Stream? file = g_pFileSystem.Open(g_GameLumpFilename, FileOpenOptions.Read | FileOpenOptions.Binary)?.Stream;
 		if (file == null)
 			return false;
 
@@ -2104,7 +2102,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 				ReadOnlySpan<BSPDGameLump> gameLump = lh.LoadLumpBaseRaw().AsSpan()[Unsafe.SizeOf<BSPDGameLumpHeader>()..].Cast<byte, BSPDGameLump>();
 				for (int i = 0; i < gameLumpHeader.LumpCount; ++i) {
 					if (gameLump[i].fileofs >= 0 && (uint)gameLump[i].fileofs >= (uint)lh.LumpOffset && (uint)gameLump[i].fileofs < (uint)lh.LumpOffset + lhSize && gameLump[i].filelen > 0) {
-						uint compressedSize = 0;
+						uint compressedSize;
 						if (gameLump[i].fileofs >= 0 && (uint)gameLump[i].fileofs >= (uint)lh.LumpOffset && (uint)gameLump[i].fileofs < (uint)lh.LumpOffset + lhSize && gameLump[i].filelen > 0)
 							compressedSize = (uint)gameLump[i + 1].fileofs - (uint)gameLump[i].fileofs;
 						else

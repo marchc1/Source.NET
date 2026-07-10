@@ -241,6 +241,19 @@ public unsafe class VertexBufferGl46 : IDisposable
 			glVertexArrayAttribBinding(vao, bindings[i], 0);
 	}
 
+	internal void BindColorMesh(VertexBufferGl46 colorBuffer, int vertOffsetInBytes) {
+		VertexElement.Specular.GetInformation(out int count, out VertexAttributeType type);
+
+
+		glVertexArrayAttribFormat((uint)vao, (uint)OpenGL_ShaderInputAttribute.Specular, count, (int)type, true, 0);
+		glVertexArrayAttribBinding((uint)vao, (uint)OpenGL_ShaderInputAttribute.Specular, 1);
+		glVertexArrayVertexBuffer((uint)vao, 1, colorBuffer.VBO(), vertOffsetInBytes, colorBuffer.VertexSize);
+	}
+
+	internal void UnbindColorMesh() {
+		glDisableVertexArrayAttrib((uint)vao, (uint)OpenGL_ShaderInputAttribute.Specular);
+	}
+
 	public int NextLockOffset() {
 		int nextOffset = VertexSize == 0 ? 0 : (Position + VertexSize - 1) / VertexSize;
 		nextOffset *= VertexSize;
