@@ -257,6 +257,22 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		}
 	}
 
+	private Vector3 LightingOrigin;
+	public void SetLightingOrigin(Vector3 lightingOrigin) {
+		if (lightingOrigin != LightingOrigin) {
+			FlushBufferedPrimitives();
+			LightingOrigin = lightingOrigin;
+		}
+	}
+
+	public void SetAmbientLight(float r, float g, float b) {
+		// todo
+	}
+
+	public void DisableAllLocalLights() {
+		// todo
+	}
+
 	public void SetVertexShaderStateAmbientLightCube() {
 		if ((CachedAmbientLightCube & (int)TransformDirtyBits.StateChangedVertexShader) != 0) {
 			Span<Vector4> cube = AmbientLightCube;

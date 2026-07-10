@@ -8,6 +8,20 @@ namespace Source.Common;
 
 public static class CollisionUtils
 {
+	public static bool IsSphereIntersectingCone(in Vector3 sphereCenter, float sphereRadius, in Vector3 coneOrigin, in Vector3 coneNormal, float coneSine, float coneCosine) {
+		Vector3 backCenter = coneOrigin - (sphereRadius / coneSine) * coneNormal;
+		Vector3 delta = sphereCenter - backCenter;
+		float deltaLen = delta.Length();
+		if (MathLib.DotProduct(coneNormal, delta) >= deltaLen * coneCosine) {
+			delta = sphereCenter - coneOrigin;
+			deltaLen = delta.Length();
+			if (-MathLib.DotProduct(coneNormal, delta) >= deltaLen * coneSine)
+				return deltaLen <= sphereRadius;
+			return true;
+		}
+		return false;
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float IntersectRayWithTriangle(in Ray ray, in Vector3 v1, in Vector3 v2, in Vector3 v3, bool oneSided) {
 		Vector3 edge1 = v2 - v1;

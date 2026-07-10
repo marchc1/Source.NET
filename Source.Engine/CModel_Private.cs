@@ -233,6 +233,12 @@ public static partial class CM
 		} while (outIdx < numClusterBytes);
 	}
 
+	private static readonly byte[] PVSRow = new byte[BSPFileCommon.MAX_MAP_LEAFS / 8];
+
+	public static int ClusterPVSSize() => PVSRow.Length;
+
+	public static Span<byte> ClusterPVS(int cluster) => Vis(PVSRow, ClusterPVSSize(), cluster, DVIS_PVS);
+
 	public static Span<byte> Vis(Span<byte> dest, int destlen, int cluster, int visType) {
 		CollisionBSPData bspData = GetCollisionBSPData();
 

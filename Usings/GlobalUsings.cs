@@ -35,6 +35,7 @@ global using SpatialPartitionHandle_t = ushort;
 global using TimeUnit_t = double;
 global using MDLHandle_t = uint;
 global using ModelInstanceHandle_t = uint;
+global using StudioDecalHandle_t = ushort;
 global using SoundSource = int;
 global using SpatialPartitionListMask_t = int;
 global using SpatialTempHandle_t = int;

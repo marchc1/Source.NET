@@ -1608,6 +1608,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		return data!.SurfaceLighting![surfaceIndex].LightmapExtents;
 	}
 	public static ref SurfDraw MSurf_Flags(ref BSPMSurface2 surfID) => ref surfID.Flags;
+	public static ref int MSurf_VisFrame(ref BSPMSurface2 surfID) => ref surfID.VisFrame;
 	public static bool SurfaceHasDispInfo(ref BSPMSurface2 surfID) => (MSurf_Flags(ref surfID) & SurfDraw.HasDisp) != 0;
 	public static ref ushort MSurf_VertBufferIndex(ref BSPMSurface2 surfID) => ref surfID.VertBufferIndex;
 	public static ref ShadowDecalHandle_t MSurf_ShadowDecals(ref BSPMSurface2 surfID) => ref surfID.ShadowDecals;
@@ -1745,7 +1746,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		light.LightmapMins[0] = (short)_in.LightmapTextureMinsInLuxels[0];
 		light.LightmapMins[1] = (short)_in.LightmapTextureMinsInLuxels[1];
 
-		int i = _in.LightOffset / 4;
+		int i = _in.LightOffset;
 
 		if (i == -1 || lightData == null) {
 			light.Samples = null;
@@ -1754,7 +1755,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 				light.Styles[i] = 255;
 		}
 		else {
-			light.Samples = lightData.AsMemory()[i..];
+			light.Samples = lightData.AsMemory()[(i / 4)..];
 
 			for (i = 0; i < BSPFileCommon.MAXLIGHTMAPS; ++i)
 				light.Styles[i] = _in.Styles[i];

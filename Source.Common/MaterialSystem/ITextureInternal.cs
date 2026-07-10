@@ -1,5 +1,7 @@
 ﻿using Source.Common.MaterialSystem;
 
+using System.Numerics;
+
 namespace Source.MaterialSystem;
 
 public interface ITextureInternal : ITexture
@@ -14,4 +16,5 @@ public interface ITextureInternal : ITexture
 	void OnRestore();
 	void Precache();
 	bool SetRenderTarget(int rt, ITexture? depthTexture = null);
+	void GetReflectivity(out Vector3 reflectivity);
 }

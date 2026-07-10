@@ -99,6 +99,8 @@ public static class GLRSurfGlobals
 	public const int FRUSTUM_CLIP_ALL = FRUSTUM_CLIP_MASK;
 	public const int FRUSTUM_SUPPRESS_CLIPPING = FRUSTUM_CLIP_IN_AREA;
 
+	public static int r_surfacevisframe = 0;
+
 	public static readonly EngineBSPTree g_ToolBSPTree = new();
 	public static CachedConvars s_ShaderConvars;
 	public static Frustum_t g_Frustum = new();

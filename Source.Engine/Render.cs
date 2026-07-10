@@ -64,6 +64,9 @@ public partial class Render(
 	IStudioRender? _studioRender;
 	IStudioRender studioRender => _studioRender ??= Singleton<IStudioRender>();
 
+	IEngineTrace? _engineTrace;
+	IEngineTrace engineTrace => _engineTrace ??= KeyedSingleton<IEngineTrace>(Realm.Client);
+
 	int LightmapUpdateDepth;
 	float yFOV;
 	float Framerate;

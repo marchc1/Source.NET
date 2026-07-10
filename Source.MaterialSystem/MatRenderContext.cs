@@ -599,6 +599,10 @@ public class MatRenderContext : IMatRenderContextInternal
 			shaderAPI.FlushBufferedPrimitives();
 	}
 
+	public void SetLightingOrigin(Vector3 lightingOrigin) => shaderAPI.SetLightingOrigin(lightingOrigin);
+	public void SetAmbientLight(float r, float g, float b) => shaderAPI.SetAmbientLight(r, g, b);
+	public void DisableAllLocalLights() => shaderAPI.DisableAllLocalLights();
+
 	public MatLightmaps GetLightmaps() => materials.MatLightmaps;
 
 	public void BindLightmap(Sampler sampler) {

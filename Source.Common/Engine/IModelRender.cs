@@ -38,8 +38,8 @@ public struct ModelRenderInfo
 	public IClientRenderable? Renderable;
 	public Model? Model;
 	public Matrix3x4 ModelToWorld;
-	public Matrix3x4 LightingOffset;
-	public Vector3 LightingOrigin;
+	public Matrix3x4? LightingOffset;
+	public Vector3? LightingOrigin;
 	public StudioFlags Flags;
 	public int EntityIndex;
 	public int Skin;

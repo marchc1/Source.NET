@@ -132,4 +132,7 @@ public interface IShaderAPI : IShaderDynamicAPI
 	float LinearToGamma_HardwareSpecific(float fLookupResult);
 	void SetLinearToGammaConversionTextures(int linearToGammaTableTextureHandle, int linearToGammaIdentityTableTextureHandle);
 	void SetAmbientLightCube(ReadOnlySpan<System.Numerics.Vector4> cube);
+	void SetLightingOrigin(System.Numerics.Vector3 lightingOrigin);
+	void SetAmbientLight(float r, float g, float b);
+	void DisableAllLocalLights();
 }

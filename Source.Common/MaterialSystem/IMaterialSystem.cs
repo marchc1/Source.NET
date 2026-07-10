@@ -348,6 +348,9 @@ public interface IMatRenderContext
 	void BindLightmap(Sampler sampler);
 	void BindStandardTexture(Sampler sampler, StandardTextureId id);
 	void BindLocalCubemap(ITexture tex);
+	void SetLightingOrigin(Vector3 lightingOrigin);
+	void SetAmbientLight(float r, float g, float b);
+	void DisableAllLocalLights();
 }
 
 public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
@@ -436,4 +439,7 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 
 	public void BindStandardTexture(Sampler sampler, StandardTextureId id) => ctx.BindStandardTexture(sampler, id);
 	public void BindLocalCubemap(ITexture texture) => ctx.BindLocalCubemap(texture);
+	public void SetLightingOrigin(Vector3 lightingOrigin) => ctx.SetLightingOrigin(lightingOrigin);
+	public void SetAmbientLight(float r, float g, float b) => ctx.SetAmbientLight(r, g, b);
+	public void DisableAllLocalLights() => ctx.DisableAllLocalLights();
 }

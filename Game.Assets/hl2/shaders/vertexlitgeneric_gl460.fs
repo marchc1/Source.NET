@@ -32,21 +32,8 @@ void main()
         }
     }
 
-    vec4 vertexColor = vec4(1.0, 1.0, 1.0, 1.0);
-
-    if((flags & VertexColor) != 0){
-        vertexColor.r = vs_Color.r;
-        vertexColor.g = vs_Color.g;
-        vertexColor.b = vs_Color.b;
-    }
-
-    if((flags & VertexAlpha) != 0){
-        vertexColor.a = vs_Color.a;
-    }
-
-    // Final product: texture color * vertex color if applicable
-    fragColor.rgb = texelColor.rgb * vertexColor.rgb;
-    fragColor.a = texelColor.a * vertexColor.a;
+    fragColor.rgb = texelColor.rgb * vs_Color.rgb;
+    fragColor.a = texelColor.a;
 
     // Gradient for testing
     //fragColor = vec4(vs_TexCoord.x, vs_TexCoord.y, 1.0, 1.0);

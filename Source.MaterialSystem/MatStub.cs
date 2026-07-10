@@ -280,6 +280,7 @@ public class DummyMaterial : IMaterial
 	public int GetEnumerationID() => 0;
 	public float GetMappingHeight() => 512;
 	public float GetMappingWidth() => 512;
+	public void GetReflectivity(out Vector3 reflect) => reflect = new(0.2f, 0.2f, 0.2f);
 	public IMaterial GetMaterialPage() => null!;
 	public ReadOnlySpan<char> GetName() => "dummy material";
 	public int GetNumAnimationFrames() => 0;
@@ -444,4 +445,7 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public void Viewport(int x, int y, int width, int height) { }
 	public void SetRealMaterialSystem(IMaterialSystem? sys) => RealMaterialSystem = sys;
 	public void BindLocalCubemap(ITexture tex) { }
+	public void SetLightingOrigin(Vector3 lightingOrigin) { }
+	public void SetAmbientLight(float r, float g, float b) { }
+	public void DisableAllLocalLights() { }
 }

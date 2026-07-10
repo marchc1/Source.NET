@@ -30,6 +30,7 @@ public class ModelInstance
 	public InlineArray4<Vector3> LightIntensity;
 	public float LightingTime = ModelRender.CURRENT_LIGHTING_UNINITIALIZED;
 	public LightCacheHandle_t LightCacheHandle;
+	public StudioDecalHandle_t DecalHandle = ModelRender.STUDIORENDER_DECAL_INVALID;
 }
 
 public class ModelRender : IModelRender
@@ -49,6 +50,11 @@ public class ModelRender : IModelRender
 	public static readonly ConVar r_proplightingfromdisk = new("r_proplightingfromdisk", "1", FCvar.Cheat, "0=Off, 1=On, 2=Show Errors");
 	static readonly ConVar r_itemblinkmax = new("r_itemblinkmax", ".3", FCvar.Cheat);
 	static readonly ConVar r_itemblinkrate = new("r_itemblinkrate", "4.5", FCvar.Cheat);
+	static readonly ConVar r_ambientboost = new("r_ambientboost", "1", 0, "Set to boost ambient term if it is totally swamped by local lights");
+	static readonly ConVar r_ambientmin = new("r_ambientmin", "0.3", 0, "Threshold below which ambient cube will appear boosted");
+	static readonly ConVar r_ambientfraction = new("r_ambientfraction", "0.1", FCvar.Cheat, "Fraction of direct lighting used to boost lighting when model requests");
+	static readonly ConVar r_drawlightcache = new("r_drawlightcache", "0", FCvar.Cheat, "0: off\n1: draw light cache entries\n2: draw rays\n");
+	static readonly ConVar r_lightcachemodel = new("r_lightcachemodel", "-1", FCvar.Cheat, "");
 	static readonly ConVar r_proplightingpooling = new("r_proplightingpooling", "-1.0", FCvar.Cheat, "0 - off, 1 - static prop color meshes are allocated from a single shared vertex buffer (on hardware that supports stream offset)");
 
 	static readonly ConVar r_showenvcubemap = new("r_showenvcubemap", "0", FCvar.Cheat);
@@ -432,40 +438,209 @@ public class ModelRender : IModelRender
 		ITexture? envCubemapTexture = null;
 		LightingState lightingState = default;
 
+		Span<Vector3> saveLightPos = stackalloc Vector3[Render.MAXLOCALLIGHTS];
+		Vector3? debugLightingOrigin = null;
+		LightingState lightingDecalState = default;
+
 		drawInfo.StaticLighting = staticLighting && HardwareConfig.SupportsStaticPlusDynamicLighting();
 		drawInfo.NumLocalLights = 0;
 
-		Vector3 lightingOrigin = absEntCenter;
-		// todo
-
+		Vector3 lightingOrigin = new(0.0f, 0.0f, 0.0f);
 		using MatRenderContextPtr renderContext = new(materialSystem);
-
-		// todo
-
-		if (!staticLighting) {
-			LightcacheGetDynamic_Stats stats = default;
-			envCubemapTexture = Render.LightcacheGetDynamic(lightingOrigin, ref lightingState, ref stats,
-				LightCacheFlags.Static | LightCacheFlags.Dynamic | LightCacheFlags.LightStyle | LightCacheFlags.AllowFast);
+		if (renderInfo.LightingOrigin.HasValue)
+			lightingOrigin = renderInfo.LightingOrigin.Value;
+		else {
+			lightingOrigin = absEntCenter;
+			if (renderInfo.LightingOffset.HasValue)
+				MathLib.VectorTransform(absEntCenter, renderInfo.LightingOffset.Value, out lightingOrigin);
 		}
 
-		// Do time averaging of the lighting state to avoid popping...
+		renderContext.SetLightingOrigin(lightingOrigin);
+
+		ModelInstance? modelInst = null;
+		bool hasDecals = false;
+		if (renderInfo.Instance != MODEL_INSTANCE_INVALID) {
+			modelInst = ModelInstances[renderInfo.Instance];
+			hasDecals = modelInst.DecalHandle != STUDIORENDER_DECAL_INVALID;
+		}
+
+		if (!Unsafe.IsNullRef(ref lightcache)) {
+			if (staticLighting) {
+				if (HardwareConfig.SupportsStaticPlusDynamicLighting()) {
+					if (Render.StaticLightCacheAffectedByDynamicLight(lightcache))
+						lightingState = Render.LightcacheGetStatic(lightcache, out envCubemapTexture);
+					else
+						lightingState = Render.LightcacheGetStatic(lightcache, out envCubemapTexture, LightCacheFlags.Dynamic | LightCacheFlags.LightStyle);
+				}
+				else {
+					if (Render.StaticLightCacheAffectedByDynamicLight(lightcache) ||
+						Render.StaticLightCacheAffectedByAnimatedLightStyle(lightcache))
+						staticLighting = false;
+					else if (Render.StaticLightCacheNeedsSwitchableLightUpdate(lightcache))
+						UpdateStaticPropColorData(state.Renderable!.GetIClientUnknown(), renderInfo.Instance);
+				}
+			}
+
+			if (!staticLighting)
+				lightingState = Render.LightcacheGetStatic(lightcache, out envCubemapTexture);
+
+			if (r_decalstaticprops.GetBool() && modelInst != null && drawInfo.StaticLighting && hasDecals) {
+				for (int iCube = 0; iCube < 6; ++iCube)
+					drawInfo.AmbientCube[iCube] = modelInst.AmbientLightingState.BoxColor[iCube] + lightingState.BoxColor[iCube];
+
+				lightingDecalState.CopyLocalLights(modelInst.AmbientLightingState);
+				lightingDecalState.AddAllLocalLights(lightingState);
+			}
+		}
+		else {
+			debugLightingOrigin = lightingOrigin;
+
+			if (staticLighting) {
+				LightcacheGetDynamic_Stats stats = default;
+				envCubemapTexture = Render.LightcacheGetDynamic(lightingOrigin, ref lightingState,
+					ref stats, LightCacheFlags.Dynamic | LightCacheFlags.LightStyle);
+
+				if (!HardwareConfig.SupportsStaticPlusDynamicLighting()) {
+					if (stats.HasDLights || stats.HasNonSwitchableLightStyles)
+						staticLighting = false;
+					else if (stats.NeedsSwitchableLightStyleUpdate)
+						UpdateStaticPropColorData(state.Renderable!.GetIClientUnknown(), renderInfo.Instance);
+				}
+			}
+
+			if (!staticLighting) {
+				LightcacheGetDynamic_Stats stats = default;
+
+				bool debugModel = false;
+				if (r_drawlightcache.GetInt() == 5) {
+					if (modelInst != null && modelInst.Model != null && !string.IsNullOrEmpty(modelInst.Model.StrName.String())) {
+						string modelName = r_lightcachemodel.GetString();
+						debugModel = modelInst.Model.StrName.String()!.Contains(modelName, StringComparison.OrdinalIgnoreCase);
+					}
+				}
+
+				envCubemapTexture = Render.LightcacheGetDynamic(lightingOrigin, ref lightingState, ref stats,
+					LightCacheFlags.Static | LightCacheFlags.Dynamic | LightCacheFlags.LightStyle | LightCacheFlags.AllowFast, debugModel);
+			}
+
+			if (renderInfo.LightingOffset.HasValue && !renderInfo.LightingOrigin.HasValue) {
+				for (int i = 0; i < lightingState.NumLights; ++i) {
+					saveLightPos[i] = lightingState.LocalLight[i].Dereference().Origin;
+					MathLib.VectorITransform(saveLightPos[i], renderInfo.LightingOffset.Value, out lightingState.LocalLight[i].Dereference().Origin);
+				}
+			}
+
+			if (modelInst != null && drawInfo.StaticLighting && hasDecals) {
+				LightcacheGetDynamic_Stats stats = default;
+				Render.LightcacheGetDynamic(lightingOrigin, ref lightingDecalState, ref stats,
+					LightCacheFlags.Static | LightCacheFlags.Dynamic | LightCacheFlags.LightStyle | LightCacheFlags.AllowFast);
+
+				for (int iCube = 0; iCube < 6; ++iCube)
+					MathLib.VectorCopy(lightingDecalState.BoxColor[iCube], out drawInfo.AmbientCube[iCube]);
+
+				if (renderInfo.LightingOffset.HasValue && !renderInfo.LightingOrigin.HasValue) {
+					for (int i = 0; i < lightingDecalState.NumLights; ++i) {
+						saveLightPos[i] = lightingDecalState.LocalLight[i].Dereference().Origin;
+						MathLib.VectorITransform(saveLightPos[i], renderInfo.LightingOffset.Value, out lightingDecalState.LocalLight[i].Dereference().Origin);
+					}
+				}
+			}
+		}
+
+		ref LightingState stateRef = ref lightingState;
 		if (!staticLighting && Unsafe.IsNullRef(ref lightcache))
 			TimeAverageLightingState(renderInfo.Instance, ref lightingState, renderInfo.EntityIndex, lightingOrigin);
 
+		if (needsEnvCubemap && envCubemapTexture != null)
+			renderContext.BindLocalCubemap(envCubemapTexture);
+
 		if (MatSysInterface.MaterialSystemConfig.Fullbright == 1) {
+			renderContext.SetAmbientLight(1.0f, 1.0f, 1.0f);
+
 			ReadOnlySpan<Vector3> white = [new(1, 1, 1), new(1, 1, 1), new(1, 1, 1), new(1, 1, 1), new(1, 1, 1), new(1, 1, 1)];
 			StudioRender.SetAmbientLightColors(white);
+
+			renderContext.DisableAllLocalLights();
 		}
 		else if (vertexLit) {
-			StudioRender.SetAmbientLightColors(lightingState.BoxColor);
+			if ((drawFlags & StudioRenderFlags.DrawItemBlink) != 0) {
+				float add = r_itemblinkmax.GetFloat() * (MathF.Cos(r_itemblinkrate.GetFloat() * (float)Sys.Time) + 1.0f);
+				Vector3 additiveColor = new(add, add, add);
+				Span<Vector3> temp = stackalloc Vector3[6];
+				for (int i = 0; i < 6; i++)
+					temp[i] = stateRef.BoxColor[i] + additiveColor;
+				StudioRender.SetAmbientLightColors(temp);
+			}
+			else {
+				if (stateRef.NumLights > 0 && (renderInfo.Model!.Flags & ModelFlag.AmbientBoost) != 0 && r_ambientboost.GetBool()) {
+					Vector3 lumCoeff = new(0.3f, 0.59f, 0.11f);
+					float avgCubeLuminance = 0.0f;
+					float minCubeLuminance = float.MaxValue;
+					float maxCubeLuminance = 0.0f;
 
-			R_SetNonAmbientLightingState(lightingState.NumLights, lightingState.LocalLight, out drawInfo.NumLocalLights, drawInfo.LocalLightDescs, true);
+					for (int i = 0; i < 6; i++) {
+						float luminance = MathLib.DotProduct(stateRef.BoxColor[i], lumCoeff);
+						minCubeLuminance = MathF.Min(minCubeLuminance, luminance);
+						maxCubeLuminance = MathF.Max(maxCubeLuminance, luminance);
+						avgCubeLuminance += luminance;
+					}
+					avgCubeLuminance /= 6.0f;
+
+					float directLight = 0.0f;
+					for (int i = 0; i < stateRef.NumLights; i++) {
+						Vector3 light = stateRef.LocalLight[i].Dereference().Origin - lightingOrigin;
+						float d2 = MathLib.DotProduct(light, light);
+						float d = MathF.Sqrt(d2);
+						float atten = 1.0f;
+
+						float denom = stateRef.LocalLight[i].Dereference().ConstantAttn +
+									stateRef.LocalLight[i].Dereference().LinearAttn * d +
+									stateRef.LocalLight[i].Dereference().QuadraticAttn * d2;
+
+						if (denom > 0.00001f)
+							atten = 1.0f / denom;
+
+						Vector3 lit = stateRef.LocalLight[i].Dereference().Intensity * atten;
+						directLight += MathLib.DotProduct(lit, lumCoeff);
+					}
+
+					if (avgCubeLuminance < r_ambientmin.GetFloat() && (avgCubeLuminance < (directLight * r_ambientfraction.GetFloat()))) {
+						Span<Vector3> finalAmbientCube = stackalloc Vector3[6];
+						float boostFactor = MathF.Min((directLight * r_ambientfraction.GetFloat()) / maxCubeLuminance, 5.0f);
+						for (int i = 0; i < 6; i++)
+							finalAmbientCube[i] = stateRef.BoxColor[i] * boostFactor;
+						StudioRender.SetAmbientLightColors(finalAmbientCube);
+					}
+					else
+						StudioRender.SetAmbientLightColors(stateRef.BoxColor);
+				}
+				else
+					StudioRender.SetAmbientLightColors(stateRef.BoxColor);
+			}
+
+			renderContext.SetAmbientLight(0.0f, 0.0f, 0.0f);
+			R_SetNonAmbientLightingState(stateRef.NumLights, stateRef.LocalLight, out drawInfo.NumLocalLights, drawInfo.LocalLightDescs, true);
+
+			if (modelInst != null && drawInfo.StaticLighting && hasDecals)
+				R_SetNonAmbientLightingState(lightingDecalState.NumLights, lightingDecalState.LocalLight, out drawInfo.NumLocalLights, drawInfo.LocalLightDescs, false);
+		}
+
+		if (renderInfo.LightingOffset.HasValue && !renderInfo.LightingOrigin.HasValue) {
+			for (int i = 0; i < lightingState.NumLights; ++i)
+				lightingState.LocalLight[i].Dereference().Origin = saveLightPos[i];
 		}
 #endif
 	}
 
 	public const float CURRENT_LIGHTING_UNINITIALIZED = -999999.0f;
+	public const StudioDecalHandle_t STUDIORENDER_DECAL_INVALID = unchecked((StudioDecalHandle_t)~0);
 	const float AMBIENT_MAX = 8.0f;
+
+	private void UpdateStaticPropColorData(IHandleEntity? pProp, ModelInstanceHandle_t handle) {
+		// todo
+		// todo
+		// todo
+	}
 
 	private void TimeAverageLightingState(ModelInstanceHandle_t handle, ref LightingState lightingState, int entIndex, in Vector3 lightingOrigin) {
 		if (r_lightaverage.GetInt() == 0)
@@ -628,7 +803,7 @@ public class ModelRender : IModelRender
 			StudioRender.SetLocalLights(numLightDescs, lightDescs[..numLightDescs]);
 	}
 
-	private void R_ComputeLightingOrigin(IClientRenderable? renderable, StudioHeader? studioHdr, in Matrix3x4 matrix, out Vector3 center) {
+	internal static void R_ComputeLightingOrigin(IClientRenderable? renderable, StudioHeader? studioHdr, in Matrix3x4 matrix, out Vector3 center) {
 		int nAttachmentIndex = studioHdr!.IllumPositionAttachmentIndex();
 		if (nAttachmentIndex <= 0)
 			MathLib.VectorTransform(studioHdr!.IllumPosition, matrix, out center);

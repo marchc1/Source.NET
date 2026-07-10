@@ -1,6 +1,7 @@
 using Source.Common.Formats.Keyvalues;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 
 namespace Source.Common.MaterialSystem;
 
@@ -427,6 +428,7 @@ public interface IMaterial
 	IMaterial GetMaterialPage();
 	float GetMappingWidth();
 	float GetMappingHeight();
+	void GetReflectivity(out Vector3 reflect);
 	bool TryFindVar(ReadOnlySpan<char> varName, [NotNullWhen(true)] out IMaterialVar? found, bool complain = true);
 	IMaterialVar FindVar(ReadOnlySpan<char> varName, out bool found, bool complain = true);
 	void Refresh();

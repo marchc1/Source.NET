@@ -74,6 +74,15 @@ public struct LightcacheGetDynamic_Stats
 	public bool NeedsSwitchableLightStyleUpdate;
 }
 
+[Flags]
+public enum LightIntensityFlags
+{
+	NoOcclusionCheck = 0x1,
+	NoRadiusCheck = 0x2,
+	OccludeVsProps = 0x4,
+	IgnoreLightstyleValue = 0x8
+}
+
 public enum HackLightCacheFlags
 {
 	HasSwitchableLightStyle = 0x1,
@@ -156,9 +165,46 @@ public class LightCache : BaseLightCache
 	public int Index;
 }
 
+public class PropLightcache : BaseLightCache
+{
+	public uint Flags;
+	public int DLightActive;
+	public int DLightMarkFrame;
+	public List<short> LightStyleWorldLights = [];
+	public int SwitchableLightFrame;
+	public Vector3 Mins;
+	public Vector3 Maxs;
+
+	public PropLightcache() {
+		Flags = 0;
+		DLightActive = 0;
+		DLightMarkFrame = 0;
+		SwitchableLightFrame = -1;
+		Mins = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+		Maxs = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+	}
+
+	public bool HasDlights() => DLightActive != 0;
+}
+
+public class LightVecState
+{
+	public Ray Ray;
+	public float HitFrac;
+	public float[]? TextureS;
+	public float[]? TextureT;
+	public float[]? LightmapS;
+	public float[]? LightmapT;
+	public SurfaceHandle_t SkySurfID;
+	public bool UseLightStyles;
+	public List<IDispInfo> LightTestDisps = [];
+}
+
 public partial class Render
 {
 	public const int MAXLOCALLIGHTS = 4;
+	public const int SURFACE_HANDLE_INVALID = -1;
+	private static bool IS_SURF_VALID(int surfID) => surfID != SURFACE_HANDLE_INVALID;
 	public static readonly ConVar r_lightcache_zbuffercache = new("r_lightcache_zbuffercache", "0", 0);
 	public static readonly ConVar r_radiosity = new("r_radiosity", "4", FCvar.Cheat, "0: no radiosity\n1: radiosity with ambient cube (6 samples)\n2: radiosity with 162 samples\n3: 162 samples for static props, 6 samples for everything else");
 	public static readonly ConVar r_ambientlightingonly = new("r_ambientlightingonly", "0", FCvar.Cheat, "Set this to 1 to light models with only ambient lighting (and no static lighting).");
@@ -167,6 +213,8 @@ public partial class Render
 	public static readonly ConVar r_lightcachecenter = new("r_lightcachecenter", "1", FCvar.Cheat);
 	public static readonly ConVar r_lightcache_numambientsamples = new("r_lightcache_numambientsamples", "162", FCvar.Cheat, "number of random directions to fire rays when computing ambient lighting");
 	public static readonly ConVar lightcache_maxmiss = new("lightcache_maxmiss", "2", FCvar.Cheat);
+	public static readonly ConVar r_oldlightselection = new("r_oldlightselection", "0", FCvar.Cheat, "Set this to revert to HL2's method of selecting lights");
+	public static readonly ConVar r_worldlightmin = new("r_worldlightmin", "0.0002");
 
 	private const int MAX_CACHE_ENTRY = 200;
 	private const int MAX_CACHE_BUCKETS = MAX_CACHE_ENTRY;
@@ -399,7 +447,7 @@ public partial class Render
 		}
 	}
 
-	private static void R_StudioGetAmbientLightForPoint(int leafID, in Vector3 start, Span<Vector3> lightBoxColor, bool isStaticProp, out bool addedLeafAmbientCube) {
+	private void R_StudioGetAmbientLightForPoint(int leafID, in Vector3 start, Span<Vector3> lightBoxColor, bool isStaticProp, out bool addedLeafAmbientCube) {
 		addedLeafAmbientCube = false;
 
 		int i;
@@ -411,30 +459,356 @@ public partial class Render
 
 		switch (r_radiosity.GetInt()) {
 			case 1:
-				// todo: ComputeAmbientFromAxisAlignedSamples
+				// todo
 				break;
 			case 2:
-				// todo: ComputeAmbientFromSphericalSamples
+				ComputeAmbientFromSphericalSamples(start, lightBoxColor);
 				break;
 			case 3:
-				// todo: ComputeAmbientFromSphericalSamples / ComputeAmbientFromAxisAlignedSamples
+				if (isStaticProp)
+					ComputeAmbientFromSphericalSamples(start, lightBoxColor);
+				else {
+					// todo
+				}
 				break;
 			case 4:
-				if (isStaticProp) {
-					// todo: ComputeAmbientFromSphericalSamples
-				}
+				if (isStaticProp)
+					ComputeAmbientFromSphericalSamples(start, lightBoxColor);
 				else
 					ComputeAmbientFromLeaf(start, leafID, lightBoxColor, ref addedLeafAmbientCube);
 				break;
 			default:
-				for (i = 6; --i >= 0;)
+				for (i = studiorender.GetNumAmbientLightSamples(); --i >= 0;)
 					lightBoxColor[i].Init(0.0f, 0.0f, 0.0f);
 				break;
 		}
 	}
 
+	private static void ComputeLightmapCoordsAtIntersection(ref BSPMSurfaceLighting lighting, float ds, float dt, float[]? lightmapS, float[]? lightmapT) {
+		if (lightmapS != null && lightmapT != null) {
+			if (lighting.LightmapExtents[0] != 0)
+				lightmapS[0] = (ds + 0.5f) / lighting.LightmapExtents[0];
+			else
+				lightmapS[0] = 0.5f;
 
-	private static bool IsCachedLightStylesValid(LightCache cache) {
+			if (lighting.LightmapExtents[1] != 0)
+				lightmapT[0] = (dt + 0.5f) / lighting.LightmapExtents[1];
+			else
+				lightmapT[0] = 0.5f;
+		}
+	}
+
+	static int messagecount = 0;
+	private void ComputeLightmapColor(ref BSPMSurface2 surf, ref BSPMSurfaceLighting lighting, int ds, int dt, bool useLightStyles, ref Vector3 c) {
+		Span<ColorRGBExp32> lightmap = lighting.Samples.Span;
+		if (lightmap.IsEmpty) {
+			if (++messagecount < 10)
+				ConMsg("hit surface has no samples\n");
+			return;
+		}
+
+		int smax = lighting.LightmapExtents[0] + 1;
+		int tmax = lighting.LightmapExtents[1] + 1;
+		int offset = smax * tmax;
+		if (ModelLoader.SurfHasBumpedLightmaps(ref surf))
+			offset *= Constants.NUM_BUMP_VECTS + 1;
+
+		int index = dt * smax + ds;
+		int maxMaps = useLightStyles ? BSPFileCommon.MAXLIGHTMAPS : 1;
+		for (int maps = 0; maps < maxMaps && lighting.Styles[maps] != 255; ++maps) {
+			float scale = LightStyleValue(lighting.Styles[maps]);
+
+			ColorRGBExp32 sample = lightmap[index];
+			c[0] += MathLib.TexLightToLinear(sample.R, sample.Exponent) * scale;
+			c[1] += MathLib.TexLightToLinear(sample.G, sample.Exponent) * scale;
+			c[2] += MathLib.TexLightToLinear(sample.B, sample.Exponent) * scale;
+
+			index += offset;
+		}
+	}
+
+	private void ComputeLightmapColorFromAverage(ref BSPMSurfaceLighting lighting, bool useLightStyles, ref Vector3 c) {
+		int maxMaps = useLightStyles ? BSPFileCommon.MAXLIGHTMAPS : 1;
+		for (int maps = 0; maps < maxMaps && lighting.Styles[maps] != 255; ++maps) {
+			float scale = LightStyleValue(lighting.Styles[maps]);
+
+			ColorRGBExp32 avgColor = lighting.AvgLightColor(maps)[0];
+			c[0] += MathLib.TexLightToLinear(avgColor.R, avgColor.Exponent) * scale;
+			c[1] += MathLib.TexLightToLinear(avgColor.G, avgColor.Exponent) * scale;
+			c[2] += MathLib.TexLightToLinear(avgColor.B, avgColor.Exponent) * scale;
+		}
+	}
+
+	private bool FindIntersectionAtSurface(int surfID, float f, ref Vector3 c, LightVecState state) {
+		ref BSPMSurface2 surf = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+
+		if ((ModelLoader.MSurf_Flags(ref surf) & SurfDraw.NoLight) != 0)
+			return false;
+
+		MathLib.VectorMA(state.Ray.Start, f, state.Ray.Delta, out Vector3 pt);
+
+		ref ModelTexInfo tex = ref ModelLoader.MSurf_TexInfo(ref surf);
+
+		float s = MathLib.DotProduct(pt, tex.LightmapVecsLuxelsPerWorldUnits[0].AsVector3D()) + tex.LightmapVecsLuxelsPerWorldUnits[0][3];
+		float t = MathLib.DotProduct(pt, tex.LightmapVecsLuxelsPerWorldUnits[1].AsVector3D()) + tex.LightmapVecsLuxelsPerWorldUnits[1][3];
+
+		ref BSPMSurfaceLighting lighting = ref ModelLoader.SurfaceLighting(ref surf, host_state.WorldBrush!);
+		if (s < lighting.LightmapMins[0] || t < lighting.LightmapMins[1])
+			return false;
+
+		float ds = s - lighting.LightmapMins[0];
+		float dt = t - lighting.LightmapMins[1];
+		if (lighting.LightmapExtents[0] == 0 && lighting.LightmapExtents[1] == 0) {
+			WorldBrushData brushData = host_state.WorldBrush!;
+
+			Span<float> lightMaxs = stackalloc float[2];
+			lightMaxs[0] = lighting.LightmapMins[0];
+			lightMaxs[1] = lighting.LightmapMins[1];
+			int i;
+			for (i = 0; i < ModelLoader.MSurf_VertCount(ref surf); i++) {
+				int e = brushData.VertIndices![ModelLoader.MSurf_FirstVertIndex(ref surf) + i];
+				ref BSPDertex v = ref brushData.Vertexes![e];
+
+				int j;
+				for (j = 0; j < 2; j++) {
+					float sextent = MathLib.DotProduct(v.Position, tex.LightmapVecsLuxelsPerWorldUnits[0].AsVector3D()) + tex.LightmapVecsLuxelsPerWorldUnits[0][3] - lighting.LightmapMins[0];
+					float textent = MathLib.DotProduct(v.Position, tex.LightmapVecsLuxelsPerWorldUnits[1].AsVector3D()) + tex.LightmapVecsLuxelsPerWorldUnits[1][3] - lighting.LightmapMins[1];
+
+					if (sextent > lightMaxs[0])
+						lightMaxs[0] = sextent;
+					if (textent > lightMaxs[1])
+						lightMaxs[1] = textent;
+				}
+			}
+			if (ds > lightMaxs[0] || dt > lightMaxs[1])
+				return false;
+		}
+		else {
+			if (ds > lighting.LightmapExtents[0] || dt > lighting.LightmapExtents[1])
+				return false;
+		}
+
+		state.HitFrac = f;
+
+		ComputeTextureCoordsAtIntersection(tex, pt, state.TextureS, state.TextureT);
+
+		if (r_avglight.GetInt() != 0)
+			ComputeLightmapColorFromAverage(ref lighting, state.UseLightStyles, ref c);
+		else {
+			ComputeLightmapCoordsAtIntersection(ref lighting, ds, dt, state.LightmapS, state.LightmapT);
+			ComputeLightmapColor(ref surf, ref lighting, (int)ds, (int)dt, state.UseLightStyles, ref c);
+		}
+
+		return true;
+	}
+
+	private void ComputeTextureCoordsAtIntersection(ModelTexInfo tex, Vector3 pt, float[]? textureS, float[]? textureT) {
+		// TODO!
+		// TODO!
+	}
+
+	private int FindIntersectionSurfaceAtNode(BSPMNode node, float t, ref Vector3 c, LightVecState state) {
+		int surfID = node.FirstSurface;
+		for (int i = 0; i < node.NumSurfaces; ++i, ++surfID) {
+			ref BSPMSurface2 surf = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+
+			if ((ModelLoader.MSurf_Flags(ref surf) & SurfDraw.Sky) != 0) {
+				state.SkySurfID = surfID;
+				continue;
+			}
+
+			if ((ModelLoader.MSurf_Flags(ref surf) & SurfDraw.WaterSurface) != 0)
+				continue;
+
+			if (FindIntersectionAtSurface(surfID, t, ref c, state))
+				return surfID;
+		}
+
+		return SURFACE_HANDLE_INVALID;
+	}
+
+	private int R_LightVecDisplacementChain(LightVecState state, bool useLightStyles, ref Vector3 c) {
+		SurfaceHandle_t surfID = SURFACE_HANDLE_INVALID;
+
+		// TODO!
+
+		return surfID;
+	}
+
+	private void AddDisplacementsInLeafToTestList(BSPMLeaf leaf, LightVecState state) {
+		for (int i = 0; i < leaf.DispCount; i++) {
+			IDispInfo dispInfo = DispInfo.MLeaf_Disaplcement(leaf, i)!;
+			BSPMSurface2 parentSurfID = dispInfo.GetParent();
+
+			if (ModelLoader.MSurf_VisFrame(ref parentSurfID) != r_surfacevisframe) {
+				ModelLoader.MSurf_VisFrame(ref parentSurfID) = r_surfacevisframe;
+				state.LightTestDisps.Add(dispInfo);
+			}
+		}
+	}
+
+	private int FindIntersectionSurfaceAtLeaf(BSPMLeaf leaf, float start, float end, ref Vector3 c, LightVecState state) {
+		SurfaceHandle_t closestSurfID = SURFACE_HANDLE_INVALID;
+
+		AddDisplacementsInLeafToTestList(leaf, state);
+
+		WorldBrushData brushData = host_state.WorldBrush!;
+		for (int i = leaf.NumMarkNodeSurfaces; i < leaf.NumMarkSurfaces; i++) {
+			SurfaceHandle_t surfID = brushData.MarkSurfaces![leaf.FirstMarkSurface + i];
+			ref BSPMSurface2 surf = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+
+			if (ModelLoader.SurfaceHasDispInfo(ref surf))
+				continue;
+			Assert((ModelLoader.MSurf_Flags(ref surf) & SurfDraw.Node) == 0);
+
+			if ((ModelLoader.MSurf_Flags(ref surf) & (SurfDraw.Node | SurfDraw.NoDraw | SurfDraw.WaterSurface)) != 0)
+				continue;
+
+			ref CollisionPlane plane = ref ModelLoader.MSurf_Plane(ref surf);
+
+			if (MathLib.DotProduct(plane.Normal, state.Ray.Delta) > 0.0f)
+				continue;
+
+			float startDotN = MathLib.DotProduct(state.Ray.Start, plane.Normal);
+			float deltaDotN = MathLib.DotProduct(state.Ray.Delta, plane.Normal);
+
+			float front = startDotN + start * deltaDotN - plane.Dist;
+			float back = startDotN + end * deltaDotN - plane.Dist;
+
+			int side = front < 0.0f ? 1 : 0;
+
+			if ((back < 0.0f ? 1 : 0) == side)
+				continue;
+
+			float frac = front / (front - back);
+			if (frac >= state.HitFrac)
+				continue;
+
+			float mid = start * (1.0f - frac) + end * frac;
+
+			if (FindIntersectionAtSurface(surfID, mid, ref c, state))
+				closestSurfID = surfID;
+		}
+
+		return closestSurfID;
+	}
+
+	private int RecursiveLightPoint(BSPMNode node, float start, float end, ref Vector3 c, LightVecState state) {
+		if (node.Contents >= 0)
+			return FindIntersectionSurfaceAtLeaf((BSPMLeaf)node, start, end, ref c, state);
+
+		ref CollisionPlane plane = ref node.Plane;
+
+		float startDotN = MathLib.DotProduct(state.Ray.Start, plane.Normal);
+		float deltaDotN = MathLib.DotProduct(state.Ray.Delta, plane.Normal);
+
+		float front = startDotN + start * deltaDotN - plane.Dist;
+		float back = startDotN + end * deltaDotN - plane.Dist;
+		int side = front < 0 ? 1 : 0;
+
+		int surfID;
+		if ((back < 0 ? 1 : 0) == side) {
+			surfID = RecursiveLightPoint(node.Children[side]!, start, end, ref c, state);
+			return surfID;
+		}
+
+		float frac = front / (front - back);
+		float mid = start * (1.0f - frac) + end * frac;
+
+		surfID = RecursiveLightPoint(node.Children[side]!, start, mid, ref c, state);
+		if (IS_SURF_VALID(surfID))
+			return surfID;
+
+		surfID = FindIntersectionSurfaceAtNode(node, mid, ref c, state);
+		if (IS_SURF_VALID(surfID))
+			return surfID;
+
+		surfID = RecursiveLightPoint(node.Children[side == 0 ? 1 : 0]!, mid, end, ref c, state);
+		return surfID;
+	}
+
+	private int R_LightVec(in Vector3 start, in Vector3 end, bool useLightStyles, out Vector3 c) {
+		int retSurfID;
+		int dispSurfID;
+
+		++r_surfacevisframe;
+
+		LightVecState state = new();
+		state.HitFrac = 1.0f;
+		state.Ray.Init(start, end);
+		state.SkySurfID = SURFACE_HANDLE_INVALID;
+		state.UseLightStyles = useLightStyles;
+
+		c = new(0.0f, 0.0f, 0.0f);
+
+		Model model = host_state.WorldModel!; // toto LightVecModel
+		retSurfID = RecursiveLightPoint(host_state.WorldBrush!.Nodes![model.Brush.FirstNode], 0.0f, 1.0f, ref c, state);
+
+		dispSurfID = R_LightVecDisplacementChain(state, useLightStyles, ref c);
+
+		//r_visualizelighttraces
+
+		if (IS_SURF_VALID(dispSurfID))
+			retSurfID = dispSurfID;
+
+		if (retSurfID == SURFACE_HANDLE_INVALID && state.SkySurfID != SURFACE_HANDLE_INVALID)
+			return state.SkySurfID;
+
+		return retSurfID;
+	}
+
+	private void ComputeAmbientFromSurface(int surfID, BSPDWorldLight? skylight, ref Vector3 radcolor) {
+		if (IS_SURF_VALID(surfID)) {
+			ref BSPMSurface2 surf = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+			if ((ModelLoader.MSurf_Flags(ref surf) & SurfDraw.Sky) != 0) {
+				if (skylight != null)
+					radcolor = skylight.Value.Intensity;
+			}
+			else {
+				ModelLoader.MSurf_TexInfo(ref surf).Material!.GetReflectivity(out Vector3 reflectivity);
+				MathLib.VectorMultiply(radcolor, reflectivity, out radcolor);
+			}
+		}
+	}
+
+	private void ComputeAmbientFromSphericalSamples(in Vector3 start, Span<Vector3> lightBoxColor) {
+		BSPDWorldLight? skylight = FindAmbientLight();
+
+		Span<Vector3> radcolor = stackalloc Vector3[MathLib.Anorms.Length];
+		Assert(CachedRLightcacheNumAmbientSamples <= radcolor.Length);
+
+		int i;
+		for (i = 0; i < CachedRLightcacheNumAmbientSamples; i++) {
+			MathLib.VectorMA(start, COORD_EXTENT * 1.74f, MathLib.Anorms[i], out Vector3 upend);
+
+			int surfID = R_LightVec(start, upend, false, out radcolor[i]);
+			if (!IS_SURF_VALID(surfID))
+				continue;
+
+			ComputeAmbientFromSurface(surfID, skylight, ref radcolor[i]);
+		}
+
+		ReadOnlySpan<Vector3> boxDirs = studiorender.GetAmbientLightDirections();
+		for (int j = studiorender.GetNumAmbientLightSamples(); --j >= 0;) {
+			float c, t = 0;
+
+			lightBoxColor[j][0] = 0;
+			lightBoxColor[j][1] = 0;
+			lightBoxColor[j][2] = 0;
+
+			for (i = 0; i < CachedRLightcacheNumAmbientSamples; i++) {
+				c = MathLib.DotProduct(MathLib.Anorms[i], boxDirs[j]);
+				if (c > 0) {
+					t += c;
+					MathLib.VectorMA(lightBoxColor[j], c, radcolor[i], out lightBoxColor[j]);
+				}
+			}
+
+			MathLib.VectorMultiply(lightBoxColor[j], 1 / t, out lightBoxColor[j]);
+		}
+	}
+
+	private static bool IsCachedLightStylesValid(BaseLightCache cache) {
 		if (!cache.HasLightStyle())
 			return true;
 
@@ -478,7 +852,7 @@ public partial class Render
 			return null;
 	}
 
-	private byte[]? ComputeStaticLightingForCacheEntry(LightCache cache, in Vector3 origin, int leaf, bool staticProp = false) {
+	private byte[]? ComputeStaticLightingForCacheEntry(BaseLightCache cache, in Vector3 origin, int leaf, bool staticProp = false) {
 		// todo
 		byte[]? vis = null;
 
@@ -538,7 +912,7 @@ public partial class Render
 		return vis;
 	}
 
-	private void AddStaticLighting(LightCache cache, in Vector3 origin, byte[]? vis, bool staticProp, bool addedLeafAmbientCube) {
+	private void AddStaticLighting(BaseLightCache cache, in Vector3 origin, byte[]? vis, bool staticProp, bool addedLeafAmbientCube) {
 		// todo
 	}
 
@@ -566,8 +940,43 @@ public partial class Render
 			R_StudioInitLightingCache();
 		}
 	}
-	public ref LightingState LightcacheGetStatic(LightCacheHandle_t cache, out ITexture envCubemap, LightCacheFlags flags = LightCacheFlags.Static | LightCacheFlags.Dynamic | LightCacheFlags.LightStyle) {
-		throw new NotImplementedException();
+	private readonly List<PropLightcache> PropCaches = [];
+
+	public ref LightingState LightcacheGetStatic(LightCacheHandle_t cache, out ITexture? envCubemap, LightCacheFlags flags = LightCacheFlags.Static | LightCacheFlags.Dynamic | LightCacheFlags.LightStyle) {
+		PropLightcache pcache = PropCaches[(int)cache - 1];
+
+		envCubemap = pcache.EnvCubemapTexture;
+
+		bool recalcStaticLighting = false;
+		bool recalcLightStyles = pcache.HasLightStyle() && pcache.LastFrameUpdatedLightStyles != r_framecount && !IsCachedLightStylesValid(pcache);
+		bool recalcDLights = pcache.HasLightStyle() && pcache.LastFrameUpdatedDynamicLighting != r_framecount;
+
+		if (flags != (LightCacheFlags)pcache.Flags) {
+			recalcStaticLighting = true;
+			recalcLightStyles = true;
+			recalcDLights = true;
+
+			pcache.Flags = (uint)flags;
+		}
+		else if (!recalcDLights && !recalcLightStyles)
+			return ref pcache.DynamicLightingState;
+
+		if ((flags & LightCacheFlags.Static) != 0) {
+			if (recalcStaticLighting && (pcache.LightingFlags & (int)HackLightCacheFlags.HasDoneStaticLighting) == 0) {
+				ComputeStaticLightingForCacheEntry(pcache, pcache.LightingOrigin, pcache.Leaf, true);
+				pcache.LightingFlags |= (int)HackLightCacheFlags.HasDoneStaticLighting;
+			}
+
+			pcache.DynamicLightingState = pcache.StaticLightingState;
+		}
+		else
+			pcache.DynamicLightingState.ZeroLightingState();
+
+		// todo finish
+		// todo finish
+		// todo finish
+
+		return ref pcache.DynamicLightingState;
 	}
 
 	public ITexture? LightcacheGetDynamic(in Vector3 origin, ref LightingState lightingState, ref LightcacheGetDynamic_Stats stats, LightCacheFlags flags = (LightCacheFlags.Static | LightCacheFlags.Dynamic | LightCacheFlags.Dynamic), bool debugModel = false) {
@@ -663,14 +1072,234 @@ public partial class Render
 	}
 
 	// Finds ambient lights
-	public BSPDWorldLightPtr FindAmbientLight() {
-		throw new NotImplementedException();
+	public BSPDWorldLight? FindAmbientLight() {
+		WorldBrushData worldBrush = host_state.WorldBrush!;
+		for (int i = 0; i < worldBrush.NumWorldLights; i++)
+			if (worldBrush.WorldLights![i].Type == EmitType.SkyAmbient)
+				return host_state.WorldBrush!.WorldLights![i];
+
+		return null;
+	}
+
+	public static float Engine_WorldLightDistanceFalloff(in BSPDWorldLight wl, in Vector3 delta, bool noRadiusCheck = false) {
+		float falloff;
+
+		switch (wl.Type) {
+			case EmitType.Surface:
+				if (wl.Radius != 0) {
+					if (MathLib.DotProduct(delta, delta) > wl.Radius * wl.Radius)
+						return 0.0f;
+				}
+				return 1.0f / MathF.Max(1.0f, MathLib.DotProduct(delta, delta));
+			case EmitType.SkyLight:
+				return 1.0f;
+			case EmitType.QuakeLight:
+				falloff = wl.LinearAttn - MathF.Sqrt(MathLib.DotProduct(delta, delta));
+				if (falloff < 0)
+					return 0.0f;
+
+				return falloff;
+			case EmitType.SkyAmbient:
+				return 1.0f;
+			case EmitType.Point:
+			case EmitType.SpotLight: {
+					float dist2 = MathLib.DotProduct(delta, delta);
+					float dist = MathF.Sqrt(dist2);
+
+					if (!noRadiusCheck && wl.Radius != 0 && dist > wl.Radius)
+						return 0.0f;
+
+					return 1.0f / (wl.ConstantAttn + wl.LinearAttn * dist + wl.QuadraticAttn * dist2);
+				}
+		}
+		return 1.0f;
+	}
+
+	private float LightIntensityAndDirectionAtPointOld(ref BSPDWorldLight light, in Vector3 mid, LightIntensityFlags flags, IHandleEntity? ignoreEnt, out Vector3 direction) {
+		TraceFilterWorldOnly worldTraceFilter = new();
+		TraceFilterWorldAndPropsOnly propTraceFilter = new();
+		bool occludeVsProps = (flags & LightIntensityFlags.OccludeVsProps) != 0;
+
+		switch (light.Type) {
+			case EmitType.SkyLight:
+				MathLib.VectorClear(out direction);
+				MathLib.VectorMA(mid, -COORD_EXTENT * 1.74f, light.Normal, out Vector3 end);
+
+				Trace tr;
+				Ray ray = default;
+				ray.Init(mid, end);
+				if (occludeVsProps)
+					engineTrace.TraceRay(in ray, Mask.Opaque, ref propTraceFilter, out tr);
+				else
+					engineTrace.TraceRay(in ray, Mask.Opaque, ref worldTraceFilter, out tr);
+
+				if ((tr.Surface.Flags & (ushort)Surf.Sky) == 0)
+					return 0.0f;
+
+				direction = -light.Normal;
+				return 1.0f;
+			case EmitType.SkyAmbient:
+				MathLib.VectorClear(out direction);
+				return 0.0f;
+		}
+
+		MathLib.VectorSubtract(light.Origin, mid, out direction);
+		float ratio = Engine_WorldLightDistanceFalloff(light, direction, (flags & LightIntensityFlags.NoRadiusCheck) != 0);
+
+		if ((flags & LightIntensityFlags.IgnoreLightstyleValue) == 0)
+			ratio *= LightStyleValue((byte)light.Style);
+
+		float intensity = MathF.Max(light.Intensity.X, light.Intensity.Y);
+		intensity = MathF.Max(intensity, light.Intensity.Z);
+
+		if (light.Type != EmitType.Surface) {
+			if (intensity * ratio < r_worldlightmin.GetFloat())
+				return 0.0f;
+		}
+
+		float dist = MathLib.VectorNormalize(ref direction);
+
+		if ((flags & LightIntensityFlags.NoOcclusionCheck) != 0)
+			return ratio;
+
+		Trace pm;
+		Ray occludeRay = default;
+		occludeRay.Init(mid, light.Origin);
+		if (occludeVsProps)
+			engineTrace.TraceRay(in occludeRay, Mask.Opaque, ref propTraceFilter, out pm);
+		else
+			engineTrace.TraceRay(in occludeRay, Mask.Opaque, ref worldTraceFilter, out pm);
+
+		if ((1.0f - pm.Fraction) * dist > 8) // r_drawlightcache
+			return 0.0f;
+
+		return ratio;
+	}
+
+	private float LightIntensityAndDirectionAtPoint(ref BSPDWorldLight light, LightZBuffer[]? zBuf, in Vector3 mid, LightIntensityFlags flags, IHandleEntity? ignoreEnt, out Vector3 direction) {
+		if (zBuf != null) {
+			throw new NotImplementedException();
+		}
+		else
+			return LightIntensityAndDirectionAtPointOld(ref light, mid, flags, ignoreEnt, out direction);
+	}
+
+	private float LightIntensityAndDirectionInBox(ref BSPDWorldLight light, LightZBuffer[]? zBuf, in Vector3 mid, in Vector3 mins, in Vector3 maxs, LightIntensityFlags flags, out Vector3 direction) {
+		if (!r_oldlightselection.GetBool()) {
+			switch (light.Type) {
+				case EmitType.SpotLight: {
+						float sphereRadius = (maxs - mid).Length();
+						float dist = (light.Origin - mid).Length();
+						if (dist > sphereRadius + light.Radius) {
+							direction = new(0, 0, 0);
+							return 0;
+						}
+						float angle = MathF.Acos(light.StopDot2);
+						float sinAngle = MathF.Sin(angle);
+						if (!CollisionUtils.IsSphereIntersectingCone(mid, sphereRadius, light.Origin, light.Normal, sinAngle, light.StopDot2)) {
+							direction = new(0, 0, 0);
+							return 0;
+						}
+						goto case EmitType.Point;
+					}
+				case EmitType.Point: {
+						float distSqr = MathLib.CalcSqrDistanceToAABB(mins, maxs, light.Origin);
+						if (distSqr > light.Radius * light.Radius) {
+							direction = new(0, 0, 0);
+							return 0;
+						}
+					}
+					break;
+				case EmitType.Surface: {
+						float sphereRadius = (maxs - mid).Length();
+						float dist = (light.Origin - mid).Length();
+						if (dist > sphereRadius + light.Radius) {
+							direction = new(0, 0, 0);
+							return 0;
+						}
+						if (!CollisionUtils.IsSphereIntersectingCone(mid, sphereRadius, light.Origin, light.Normal, 1.0f, 0.0f)) {
+							direction = new(0, 0, 0);
+							return 0;
+						}
+					}
+					break;
+			}
+		}
+		else {
+			switch (light.Type) {
+				case EmitType.Point:
+				case EmitType.SpotLight: {
+						Vector3 closestPoint = new();
+						for (int i = 0; i < 3; ++i)
+							closestPoint[i] = Math.Clamp(light.Origin[i], mins[i], maxs[i]);
+
+						closestPoint -= light.Origin;
+						if (closestPoint.LengthSquared() > light.Radius * light.Radius) {
+							direction = new(0, 0, 0);
+							return 0;
+						}
+					}
+					break;
+			}
+		}
+
+		return LightIntensityAndDirectionAtPoint(ref light, zBuf, mid, flags | LightIntensityFlags.NoRadiusCheck, null, out direction);
+	}
+
+	private void BuildStaticLightingCacheLightStyleInfo(PropLightcache cache, in Vector3 mins, in Vector3 maxs) {
+		Span<byte> vis = default;
+		bool haveVis = false;
+		Assert(cache.LightStyleWorldLights.Count == 0);
+		cache.LightingFlags &= ~(int)(HackLightCacheFlags.HasSwitchableLightStyle | HackLightCacheFlags.HasNonSwitchableLightStyle);
+		for (int i = 0; i < BaseLightCache.MAX_LIGHTSTYLE_BYTES; i++)
+			cache.Lightstyles[i] = 0;
+
+		WorldBrushData worldBrush = host_state.WorldBrush!;
+		for (short i = 0; i < worldBrush.NumWorldLights; ++i) {
+			ref BSPDWorldLight wl = ref worldBrush.WorldLights![i];
+			if (wl.Style == 0)
+				continue;
+
+			if (!haveVis) {
+				vis = CM.ClusterPVS(CM.LeafCluster(cache.Leaf));
+				haveVis = true;
+			}
+			if ((vis[wl.Cluster >> 3] & (1 << (wl.Cluster & 7))) != 0) {
+				BSPDWorldLight tmpLight = wl;
+				tmpLight.Style = 0;
+				float ratio = LightIntensityAndDirectionInBox(ref tmpLight, null, cache.LightingOrigin, mins, maxs,
+					LightIntensityFlags.NoOcclusionCheck | LightIntensityFlags.IgnoreLightstyleValue, out _);
+				if (ratio <= 0.0f)
+					continue;
+
+				cache.LightStyleWorldLights.Add(i);
+
+				int b = wl.Style >> 3;
+				int bit = wl.Style & 0x7;
+				cache.Lightstyles[b] |= (byte)(1 << bit);
+				if (MatSysInterface.LightStyleNumFrames[wl.Style] <= 1)
+					cache.LightingFlags |= (int)HackLightCacheFlags.HasSwitchableLightStyle;
+				else
+					cache.LightingFlags |= (int)HackLightCacheFlags.HasNonSwitchableLightStyle;
+			}
+		}
 	}
 
 	// Precache lighting
 	public LightCacheHandle_t CreateStaticLightingCache(in Vector3 origin, in Vector3 mins, in Vector3 maxs) {
-		// throw new NotImplementedException();
-		return default; // TODO
+		PropLightcache pcache = new() {
+			LightingOrigin = origin,
+			Flags = 0,
+			Mins = mins,
+			Maxs = maxs,
+			Leaf = CM.PointLeafnum(origin),
+			EnvCubemapTexture = FindEnvCubemapForPoint(origin)
+		};
+
+		BuildStaticLightingCacheLightStyleInfo(pcache, mins, maxs);
+
+		PropCaches.Add(pcache);
+		return PropCaches.Count;
 	}
 
 	public void ClearStaticLightingCache() {
@@ -683,15 +1312,46 @@ public partial class Render
 	}
 
 	public bool StaticLightCacheAffectedByDynamicLight(LightCacheHandle_t handle) {
-		throw new NotImplementedException();
+		PropLightcache pcache = PropCaches[(int)handle - 1];
+		return pcache.HasDlights();
 	}
 
 	public bool StaticLightCacheAffectedByAnimatedLightStyle(LightCacheHandle_t handle) {
-		throw new NotImplementedException();
+		PropLightcache pcache = PropCaches[(int)handle - 1];
+		if (!pcache.HasLightStyle())
+			return false;
+		else {
+			for (int i = 0; i < pcache.LightStyleWorldLights.Count; ++i) {
+				Assert(pcache.LightStyleWorldLights[i] >= 0);
+				Assert(pcache.LightStyleWorldLights[i] < host_state.WorldBrush!.NumWorldLights);
+				ref BSPDWorldLight wl = ref host_state.WorldBrush!.WorldLights![pcache.LightStyleWorldLights[i]];
+				Assert(wl.Style != 0);
+				if (MatSysInterface.LightStyleNumFrames[wl.Style] > 1)
+					return true;
+			}
+			return false;
+		}
 	}
 
 	public bool StaticLightCacheNeedsSwitchableLightUpdate(LightCacheHandle_t handle) {
-		throw new NotImplementedException();
+		PropLightcache pcache = PropCaches[(int)handle - 1];
+		if (!pcache.HasSwitchableLightStyle())
+			return false;
+		else {
+			for (int i = 0; i < pcache.LightStyleWorldLights.Count; ++i) {
+				Assert(pcache.LightStyleWorldLights[i] >= 0);
+				Assert(pcache.LightStyleWorldLights[i] < host_state.WorldBrush!.NumWorldLights);
+				ref BSPDWorldLight wl = ref host_state.WorldBrush!.WorldLights![pcache.LightStyleWorldLights[i]];
+				Assert(wl.Style != 0);
+				if (MatSysInterface.LightStyleNumFrames[wl.Style] <= 1) {
+					if (pcache.SwitchableLightFrame < MatSysInterface.LightStyleFrame[wl.Style]) {
+						pcache.SwitchableLightFrame = r_framecount;
+						return true;
+					}
+				}
+			}
+			return false;
+		}
 	}
 
 	public void AddWorldLightToAmbientCube(BSPDWorldLightPtr worldLight, in Vector3 lightingOrigin, ref AmbientCube ambientCube) {

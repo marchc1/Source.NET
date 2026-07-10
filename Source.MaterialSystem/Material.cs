@@ -71,6 +71,7 @@ public class Material : IMaterialInternal
 		}
 		ShaderParams = null;
 		MappingWidth = MappingHeight = 0;
+		Reflectivity = new(0.2f, 0.2f, 0.2f);
 		if (keyValues != null) {
 			flags |= MaterialFlags.IsManuallyCreated;
 		}
@@ -209,12 +210,8 @@ public class Material : IMaterialInternal
 		IMaterialVar? textureVar = FindVar("$basetexture", out found, false);
 		if (found && textureVar.GetVarType() == MaterialVarType.Texture) {
 			ITextureInternal? texture = (ITextureInternal?)textureVar.GetTextureValue();
-			if (representativeTexture != null)
-				representativeTexture.Precache();
-			else {
-				representativeTexture = materials.TextureSystem.ErrorTexture();
-				Assert(representativeTexture);
-			}
+			if (texture != null)
+				texture.GetReflectivity(out Reflectivity);
 		}
 		if (!found || textureVar.GetVarType() != MaterialVarType.Texture) {
 			textureVar = FindVar("$envmapmask", out found, false);
@@ -968,6 +965,11 @@ public class Material : IMaterialInternal
 	public float GetMappingHeight() {
 		Precache();
 		return MappingHeight;
+	}
+
+	public void GetReflectivity(out Vector3 reflect) {
+		Precache();
+		reflect = Reflectivity;
 	}
 
 	public void Refresh() {
