@@ -397,6 +397,18 @@ public unsafe struct VertexBuilder
 		*pDst = rgba[3];
 	}
 
+	internal void Specular3ub(byte r, byte g, byte b) {
+		byte* pSpecular = &Desc.Specular[CurrentVertex * Desc.SpecularSize];
+		int col = r | (g << 8) | (b << 16) | unchecked((int)0xFF000000);
+		*(int*)pSpecular = col;
+	}
+
+	internal void Specular3ubv(ReadOnlySpan<byte> c) {
+		byte* pSpecular = &Desc.Specular[CurrentVertex * Desc.SpecularSize];
+		int col = c[0] | (c[1] << 8) | (c[2] << 16) | unchecked((int)0xFF000000);
+		*(int*)pSpecular = col;
+	}
+
 	internal unsafe void CompressedBoneWeight3fv(ReadOnlySpan<float> boneWeights) {
 		float* pDestWeights = OffsetFloatPointer(Desc.BoneWeight, CurrentVertex, Desc.BoneWeightSize);
 		// No compression yet
@@ -862,8 +874,8 @@ public unsafe struct MeshBuilder : IDisposable
 	public void Specular4fv(ReadOnlySpan<float> rgba) => throw new NotImplementedException();
 
 	// Faster version of specular
-	public void Specular3ub(byte r, byte g, byte b) => throw new NotImplementedException();
-	public void Specular3ubv(ReadOnlySpan<byte> c) => throw new NotImplementedException();
+	public void Specular3ub(byte r, byte g, byte b) => VertexBuilder.Specular3ub(r, g, b);
+	public void Specular3ubv(ReadOnlySpan<byte> c) => VertexBuilder.Specular3ubv(c);
 	public void Specular4ub(byte r, byte g, byte b, byte a) => throw new NotImplementedException();
 	public void Specular4ubv(ReadOnlySpan<byte> c) => throw new NotImplementedException();
 

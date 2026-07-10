@@ -334,6 +334,7 @@ public interface IMatRenderContext
 	void GetWindowSize(out int w, out int h);
 	ITexture? GetRenderTarget();
 	IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material);
+	void DestroyStaticMesh(IMesh mesh);
 	int GetMaxVerticesToRender(IMaterial material);
 	int GetMaxIndicesToRender();
 	void LoadMatrix(in Matrix3x4 matrix);
@@ -412,6 +413,8 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public ITexture? GetRenderTarget() => ctx.GetRenderTarget();
 
 	public IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material = null) => ctx.CreateStaticMesh(format, textureGroup, material);
+
+	public void DestroyStaticMesh(IMesh mesh) => ctx.DestroyStaticMesh(mesh);
 
 	public int GetMaxVerticesToRender(IMaterial material) => ctx.GetMaxVerticesToRender(material);
 	public int GetMaxIndicesToRender() => ctx.GetMaxIndicesToRender();

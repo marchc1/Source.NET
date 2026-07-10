@@ -822,13 +822,50 @@ public partial class Render
 		return true;
 	}
 
-	private static void AdjustLightCacheOrigin(LightCache cache, in Vector3 origin, int originLeaf) {
-		ComputeLightcacheBounds(origin, out Vector3 cacheMins, out Vector3 cacheMaxs);
-		Vector3 center = cacheMins + cacheMaxs;
-		center *= 0.5f;
+	private void AdjustLightCacheOrigin(LightCache cache, in Vector3 origin, int originLeaf) {
+		Trace tr;
+		Ray ray = default;
+		TraceFilterWorldOnly worldTraceFilter = new();
 
-		// todo
-		cache.LightingOrigin = origin;
+		tr.StartSolid = false;
+		tr.Fraction = 0;
+
+		ComputeLightcacheBounds(origin, out Vector3 cacheMins, out Vector3 cacheMaxs);
+		MathLib.VectorAdd(cacheMins, cacheMaxs, out Vector3 center);
+		MathLib.VectorScale(center, 0.5f, out center);
+
+		bool traceToCenter = true;
+		int centerLeaf = CM.PointLeafnum(center);
+		if (centerLeaf != originLeaf) {
+			if (((uint)CM.LeafContents(centerLeaf) & (uint)Mask.Opaque) != 0)
+				traceToCenter = false;
+			else
+				CM.SnapPointToReferenceLeaf(origin, LIGHTCACHE_SNAP_EPSILON, ref center);
+		}
+
+		if (traceToCenter) {
+			ray.Init(origin, center);
+			engineTrace.TraceRay(in ray, Mask.Opaque, ref worldTraceFilter, out tr);
+		}
+
+		if (traceToCenter && tr.StartSolid)
+			MathLib.VectorCopy(origin, out cache.LightingOrigin);
+		else if (!traceToCenter || tr.Fraction < 1) {
+			center.X = (cacheMins.X + cacheMaxs.X) * 0.5f;
+			center.Y = (cacheMins.Y + cacheMaxs.Y) * 0.5f;
+			center.Z = origin.Z;
+			CM.SnapPointToReferenceLeaf(origin, LIGHTCACHE_SNAP_EPSILON, ref center);
+
+			ray.Init(origin, center);
+			engineTrace.TraceRay(in ray, Mask.Opaque, ref worldTraceFilter, out tr);
+			if (tr.Fraction < 1)
+				MathLib.VectorCopy(origin, out cache.LightingOrigin);
+			else
+				MathLib.VectorCopy(center, out cache.LightingOrigin);
+		}
+		else {
+			MathLib.VectorCopy(center, out cache.LightingOrigin);
+		}
 	}
 
 	private ITexture? FindEnvCubemapForPoint(in Vector3 origin) {
@@ -1303,8 +1340,8 @@ public partial class Render
 	}
 
 	public void ClearStaticLightingCache() {
-		// throw new NotImplementedException();
-		// todo
+		PropCaches.Clear();
+		// AllStaticProps = null;
 	}
 
 	public bool ComputeVertexLightingFromSphericalSamples(in Vector3 vertex, in Vector3 normal, IHandleEntity? ignoreEnt, out Vector3 linearColor) {

@@ -1608,6 +1608,10 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		return MeshMgr.CreateStaticMesh(format, textureGroup, material);
 	}
 
+	public void DestroyStaticMesh(IMesh mesh) {
+		MeshMgr.DestroyStaticMesh(mesh);
+	}
+
 	public int GetMaxVerticesToRender(IMaterial material) => MeshMgr.GetMaxVerticesToRender(material);
 	public int GetMaxIndicesToRender() => MeshMgr.GetMaxIndicesToRender();
 

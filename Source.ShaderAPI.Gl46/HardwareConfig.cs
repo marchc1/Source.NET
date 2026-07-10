@@ -203,7 +203,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool SupportsColorOnSecondStream() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsCompressedTextures() {

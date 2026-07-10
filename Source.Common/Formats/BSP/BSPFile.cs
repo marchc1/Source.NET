@@ -548,7 +548,7 @@ public struct BSPMSurfaceLighting
 {
 	public nint SurfNum;
 
-	public unsafe Span<ColorRGBExp32> AvgLightColor(int lightStyleIndex) {
+	public Span<ColorRGBExp32> AvgLightColor(int lightStyleIndex) {
 		if (lightStyleIndex < 0 || lightStyleIndex >= (Samples.Length))
 			throw new IndexOutOfRangeException();
 
@@ -1046,9 +1046,15 @@ public enum EmitType
 
 public record struct BSPDWorldLightPtr
 {
-	public readonly WorldBrushData Data;
+	public readonly BSPDWorldLight[] Lights;
 	public readonly nint Index;
-	public readonly ref BSPDWorldLight Dereference() => ref Data.WorldLights![Index];
+
+	public BSPDWorldLightPtr(BSPDWorldLight[] lights, nint index) {
+		Lights = lights;
+		Index = index;
+	}
+
+	public readonly ref BSPDWorldLight Dereference() => ref Lights[Index];
 }
 
 /// <summary>

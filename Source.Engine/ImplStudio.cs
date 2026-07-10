@@ -31,6 +31,115 @@ public class ModelInstance
 	public float LightingTime = ModelRender.CURRENT_LIGHTING_UNINITIALIZED;
 	public LightCacheHandle_t LightCacheHandle;
 	public StudioDecalHandle_t DecalHandle = ModelRender.STUDIORENDER_DECAL_INVALID;
+	public DataCacheHandle_t ColorMeshHandle;
+}
+
+public struct ColorMeshParams
+{
+	public int Meshes;
+	public int TotalVertexes;
+	public IPooledVBAllocator? PooledVBAllocator;
+	public InlineArray256<int> Vertexes;
+	public FileNameHandle_t FnHandle;
+}
+
+public class ColorMeshData
+{
+	public int NumMeshes;
+	public ColorMeshInfo[]? MeshInfos;
+	public nint[]? Targets;
+	public uint TotalSize;
+	// FSAsyncControl_t AsyncControlVertex; // todo
+	// FSAsyncControl_t AsyncControlTexel; // todo
+	public bool HasInvalidVB;
+	public bool ColorMeshValid;
+	public bool ColorTextureValid;
+	public bool ColorTextureCreated;
+	public bool NeedsRetry;
+	public FileNameHandle_t FnHandle;
+
+	public void DestroyResource() {
+		// todo AsyncFinish/AsyncRelease
+
+		using MatRenderContextPtr renderContext = new(Singleton<IMaterialSystem>());
+
+		for (int i = 0; i < NumMeshes; i++) {
+			if (MeshInfos![i].PooledVBAllocator != null)
+				MeshInfos[i].PooledVBAllocator!.Deallocate(MeshInfos[i].VertOffsetInBytes, MeshInfos[i].NumVerts);
+			else
+				renderContext.DestroyStaticMesh(MeshInfos[i].Mesh!);
+
+			if (MeshInfos[i].Lightmap != null) {
+				// MeshInfos[i].Lightmap.Release();
+				MeshInfos[i].Lightmap = null;
+			}
+
+			if (MeshInfos[i].LightmapData != null)
+				MeshInfos[i].LightmapData = null;
+		}
+	}
+
+	public ColorMeshData GetData() => this;
+
+	public uint Size() => TotalSize;
+
+	public static ColorMeshData? CreateResource(in ColorMeshParams createParams) {
+		ColorMeshData data = new() {
+			HasInvalidVB = false,
+			ColorMeshValid = false,
+			ColorTextureValid = false,
+			ColorTextureCreated = false,
+			NeedsRetry = false,
+			// data.AsyncControlVertex = null;
+			// data.AsyncControlTexel = null;
+			FnHandle = createParams.FnHandle,
+			TotalSize = (uint)(createParams.Meshes * IntPtr.Size + createParams.TotalVertexes * 4),
+			NumMeshes = createParams.Meshes,
+			MeshInfos = new ColorMeshInfo[createParams.Meshes],
+			Targets = new nint[createParams.Meshes]
+		};
+
+		using MatRenderContextPtr renderContext = new(Singleton<IMaterialSystem>());
+
+		for (int i = 0; i < createParams.Meshes; i++) {
+			VertexFormat vertexFormat = VertexFormat.Specular;
+
+			data.MeshInfos[i].Mesh = null;
+			data.MeshInfos[i].PooledVBAllocator = createParams.PooledVBAllocator;
+			data.MeshInfos[i].VertOffsetInBytes = 0;
+			data.MeshInfos[i].NumVerts = createParams.Vertexes[i];
+			data.MeshInfos[i].LightmapData = null;
+			data.MeshInfos[i].Lightmap = null;
+
+			if (createParams.PooledVBAllocator != null) {
+				data.MeshInfos[i].VertOffsetInBytes = createParams.PooledVBAllocator.Allocate(createParams.Vertexes[i]);
+
+				if (data.MeshInfos[i].VertOffsetInBytes == -1) {
+					data.MeshInfos[i].PooledVBAllocator = null;
+					data.MeshInfos[i].VertOffsetInBytes = 0;
+				}
+				else {
+					data.MeshInfos[i].Mesh = createParams.PooledVBAllocator.GetSharedMesh();
+					data.Targets[i] = createParams.PooledVBAllocator.GetVertexBufferBase() + data.MeshInfos[i].VertOffsetInBytes;
+				}
+			}
+
+			if (data.MeshInfos[i].Mesh == null)
+				data.MeshInfos[i].Mesh = renderContext.CreateStaticMesh(vertexFormat, MaterialDefines.TEXTURE_GROUP_STATIC_VERTEX_BUFFER_COLOR, null);
+
+			Assert(data.MeshInfos[i].Mesh != null);
+			if (data.MeshInfos[i].Mesh == null) {
+				data.DestroyResource();
+				return null;
+			}
+		}
+
+		return data;
+	}
+
+	public static nuint EstimatedSize(in ColorMeshParams createParams) {
+		return (nuint)(createParams.Meshes * IntPtr.Size + createParams.TotalVertexes * 4);
+	}
 }
 
 public class ModelRender : IModelRender
@@ -363,11 +472,26 @@ public class ModelRender : IModelRender
 
 		// todo: r_drawmodellightorigin
 
-		ColorMeshInfo[]? pColorMeshes = null;
-
+		ColorMeshInfo[]? colorMeshes = null;
+		DataCacheHandle_t colorMeshData = 0;
 		if (bStaticLighting) {
-			// TODO: static lighting
-			bStaticLighting = false;
+			colorMeshData = ModelInstances[pInfo.Instance].ColorMeshHandle;
+			ColorMeshData? pColorMeshData = null; // CacheGet(colorMeshData); // todo
+			if (pColorMeshData == null || pColorMeshData.NeedsRetry) {
+				if (RecomputeStaticLighting(pInfo.Instance)) {
+					// pColorMeshData = CacheGet(colorMeshData);
+				}
+				// else if (pColorMeshData == null || !pColorMeshData.NeedsRetry)
+				// 	return 0;
+			}
+
+			if (pColorMeshData != null && (pColorMeshData.ColorMeshValid || pColorMeshData.ColorTextureValid)) {
+				colorMeshes = pColorMeshData.MeshInfos;
+				if (pColorMeshData.ColorTextureValid && !pColorMeshData.ColorTextureCreated)
+					CreateLightmapsFromData(pColorMeshData);
+			}
+			else
+				bStaticLighting = false;
 		}
 
 		DrawModelInfo info = default;
@@ -401,7 +525,7 @@ public class ModelRender : IModelRender
 		info.HitboxSet = pInfo.HitboxSet;
 		info.ClientEntity = state.Renderable;
 		info.Lod = state.LOD;
-		info.ColorMeshes = pColorMeshes;
+		info.ColorMeshes = colorMeshes;
 
 		// TODO: decals
 
@@ -429,6 +553,10 @@ public class ModelRender : IModelRender
 	}
 
 	bool SuppressEngineLighting = false;
+
+	LightingState ActualLightingState;
+	readonly BSPDWorldLight[] WorldLights = new BSPDWorldLight[Render.MAXLOCALLIGHTS];
+	readonly BSPDWorldLightPtr[] SourceLight = new BSPDWorldLightPtr[Render.MAXLOCALLIGHTS];
 
 	private void StudioSetupLighting(DrawModelState state, in Vector3 absEntCenter, ref LightCacheHandle_t lightcache, bool vertexLit, bool needsEnvCubemap, ref bool staticLighting, ref DrawModelInfo drawInfo, ModelRenderInfo renderInfo, StudioRenderFlags drawFlags) {
 		if (SuppressEngineLighting)
@@ -549,7 +677,7 @@ public class ModelRender : IModelRender
 
 		ref LightingState stateRef = ref lightingState;
 		if (!staticLighting && Unsafe.IsNullRef(ref lightcache))
-			TimeAverageLightingState(renderInfo.Instance, ref lightingState, renderInfo.EntityIndex, lightingOrigin);
+			stateRef = ref TimeAverageLightingState(renderInfo.Instance, ref lightingState, renderInfo.EntityIndex, debugLightingOrigin);
 
 		if (needsEnvCubemap && envCubemapTexture != null)
 			renderContext.BindLocalCubemap(envCubemapTexture);
@@ -636,27 +764,322 @@ public class ModelRender : IModelRender
 	public const StudioDecalHandle_t STUDIORENDER_DECAL_INVALID = unchecked((StudioDecalHandle_t)~0);
 	const float AMBIENT_MAX = 8.0f;
 
-	private void UpdateStaticPropColorData(IHandleEntity? pProp, ModelInstanceHandle_t handle) {
-		// todo
-		// todo
-		// todo
+	private void InitColormeshParams(ModelInstance instance, StudioHWData studioHWData, ref ColorMeshParams colorMeshParams) {
+		colorMeshParams.Meshes = 0;
+		colorMeshParams.TotalVertexes = 0;
+		colorMeshParams.PooledVBAllocator = null;
+
+		if ((instance.Flags & ModelInstanceFlags.HasDiskCompiledColor) != 0 &&
+			HardwareConfig.SupportsStreamOffset() &&
+			r_proplightingpooling.GetInt() == 1) {
+			// colorMeshParams.PooledVBAllocator = ColorMeshVBAllocator;
+		}
+
+		for (int lodID = studioHWData.RootLOD; lodID < studioHWData.NumLODs; lodID++) {
+			StudioLODData lod = studioHWData.LODs![lodID];
+			for (int meshID = 0; meshID < studioHWData.NumStudioMeshes; meshID++) {
+				StudioMeshData mesh = lod.MeshData![meshID];
+				for (int groupID = 0; groupID < mesh.NumGroup; groupID++) {
+					colorMeshParams.Vertexes[colorMeshParams.Meshes++] = mesh.MeshGroup![groupID].NumVertices;
+					Assert(colorMeshParams.Meshes <= 256);
+
+					colorMeshParams.TotalVertexes += mesh.MeshGroup[groupID].NumVertices;
+				}
+			}
+		}
 	}
 
-	private void TimeAverageLightingState(ModelInstanceHandle_t handle, ref LightingState lightingState, int entIndex, in Vector3 lightingOrigin) {
-		if (r_lightaverage.GetInt() == 0)
+	private ColorMeshData? FindOrCreateStaticPropColorData(ModelInstanceHandle_t handle) { // TODO!
+		if (handle == MODEL_INSTANCE_INVALID || !HardwareConfig.SupportsColorOnSecondStream())
+			return null;
+
+		ModelInstance instance = ModelInstances[handle];
+		ColorMeshData? colorMeshData = null;
+		// ColorMeshData? colorMeshData = CacheGet(instance.ColorMeshHandle);
+		// if (colorMeshData != null)
+		// 	return colorMeshData;
+
+		if (instance.Model == null)
+			return null;
+
+		StudioHWData? studioHWData = MDLCache.GetHardwareData(instance.Model.Studio);
+		Assert(studioHWData != null);
+		if (studioHWData == null)
+			return null;
+
+		ColorMeshParams parms = default;
+		InitColormeshParams(instance, studioHWData, ref parms);
+		if (parms.Meshes <= 0)
+			return null;
+
+		parms.FnHandle = instance.Model.FileNameHandle;
+		// instance.ColorMeshHandle = CacheCreate(parms);
+		// ProtectColorDataIfQueued(instance.ColorMeshHandle);
+		// colorMeshData = CacheGet(instance.ColorMeshHandle);
+
+		return colorMeshData;
+	}
+
+	private static void CreateLightmapsFromData(ColorMeshData colorMeshData) {
+		Assert(colorMeshData.ColorTextureValid);
+		Assert(!colorMeshData.ColorTextureCreated);
+
+		for (int mesh = 0; mesh < colorMeshData.NumMeshes; ++mesh) {
+			ref ColorMeshInfo meshInfo = ref colorMeshData.MeshInfos![mesh];
+
+			Assert(meshInfo.LightmapData != null);
+			Assert(meshInfo.Lightmap == null);
+
+			ColorTexelsInfo cti = meshInfo.LightmapData!.Value;
+
+			Assert(cti.TexelData != null);
+
+			// meshInfo.Lightmap = Singleton<IMaterialSystem>().CreateTextureFromBits(cti.Width, cti.Height, cti.MipmapCount, cti.ImageFormat, cti.ByteCount, cti.TexelData); // todo
+
+			meshInfo.LightmapData = null;
+		}
+
+		colorMeshData.ColorTextureCreated = true;
+	}
+
+	private void ComputeModelVertexLightingOld(StudioHeader studioHdr, MStudioModel pModel, in Matrix3x4 matrix, in LightingState lightingState, Span<Color24> pLighting, bool useConstDirLighting, float constDirLightAmount) {
+		Vector3 destColor;
+		Span<LightDesc> lightDesc = stackalloc LightDesc[Render.MAXLOCALLIGHTS];
+
+		ref LightingState pLightingState = ref Unsafe.AsRef(in lightingState);
+
+		R_SetNonAmbientLightingState(pLightingState.NumLights, pLightingState.LocalLight, out int numLightDesc, lightDesc, false);
+
+		MStudioModelVertexData? vertData = pModel.GetVertexData((IStudioDataCache)MDLCache, studioHdr);
+		if (vertData == null)
 			return;
+
+		for (int i = 0; i < pModel.NumVertices; ++i) {
+			ref MStudioVertex vert = ref vertData.Vertex(i);
+			MathLib.VectorTransform(vert.Position, matrix, out Vector3 worldPos);
+			MathLib.VectorRotate(vert.Normal, matrix, out Vector3 worldNormal);
+
+			if (useConstDirLighting)
+				StudioRender.ComputeLightingConstDirectional(pLightingState.BoxColor, numLightDesc, lightDesc, worldPos, worldNormal, out destColor, constDirLightAmount);
+			else
+				StudioRender.ComputeLighting(pLightingState.BoxColor, numLightDesc, lightDesc, worldPos, worldNormal, out destColor);
+
+			destColor.X = MathLib.LinearToVertexLight(destColor.X);
+			destColor.Y = MathLib.LinearToVertexLight(destColor.Y);
+			destColor.Z = MathLib.LinearToVertexLight(destColor.Z);
+
+			Assert((destColor.X >= 0.0f) && (destColor.X <= 1.0f));
+			Assert((destColor.Y >= 0.0f) && (destColor.Y <= 1.0f));
+			Assert((destColor.Z >= 0.0f) && (destColor.Z <= 1.0f));
+
+			pLighting[i].R = MathLib.FastFToC(destColor.X);
+			pLighting[i].G = MathLib.FastFToC(destColor.Y);
+			pLighting[i].B = MathLib.FastFToC(destColor.Z);
+		}
+	}
+
+	private bool UpdateStaticPropColorData(IHandleEntity? pProp, ModelInstanceHandle_t handle) {
+		ColorMeshData? colorMeshData = FindOrCreateStaticPropColorData(handle);
+		if (colorMeshData == null)
+			return false;
+
+		if (colorMeshData.HasInvalidVB) {
+			colorMeshData.ColorMeshValid = false;
+			colorMeshData.NeedsRetry = false;
+			return false;
+		}
+
+		Span<byte> debugColor = stackalloc byte[3];
+		debugColor.Clear();
+		bool debugColorSet = false;
+		if (r_debugrandomstaticlighting.GetBool()) {
+			Vector3 randomColor;
+			int color = RandomInt(1, 6);
+			randomColor.X = (color >> 2) & 1;
+			randomColor.Y = (color >> 1) & 1;
+			randomColor.Z = color & 1;
+			MathLib.VectorNormalize(ref randomColor);
+			debugColor[0] = (byte)(randomColor.X * 255.0f);
+			debugColor[1] = (byte)(randomColor.Y * 255.0f);
+			debugColor[2] = (byte)(randomColor.Z * 255.0f);
+			debugColorSet = true;
+		}
+
+		ModelInstance inst = ModelInstances[handle];
+		Assert(inst.Model != null);
+
+		if (r_proplightingfromdisk.GetInt() == 2) {
+			if ((inst.Flags & ModelInstanceFlags.DiskCompiledColorBad) != 0) {
+				debugColor[0] = 255;
+				debugColor[1] = 0;
+				debugColor[2] = 0;
+			}
+			else if ((inst.Flags & ModelInstanceFlags.HasDiskCompiledColor) != 0) {
+				debugColor[0] = 0;
+				debugColor[1] = 255;
+				debugColor[2] = 0;
+			}
+			else {
+				debugColor[0] = 255;
+				debugColor[1] = 255;
+				debugColor[2] = 0;
+			}
+			debugColorSet = true;
+		}
+
+		StudioHeader? studioHdr = MDLCache.GetStudioHdr(inst.Model!.Studio);
+		StudioHWData? studioHWData = MDLCache.GetHardwareData(inst.Model.Studio);
+		Assert(studioHdr != null && studioHWData != null);
+
+		if (!debugColorSet && (inst.Flags & ModelInstanceFlags.HasDiskCompiledColor) != 0) {
+			// if (LoadStaticPropColorData(pProp, inst.ColorMeshHandle, studioHWData)) // todo
+			// 	return true;
+		}
+
+		colorMeshData.ColorMeshValid = false;
+		colorMeshData.ColorTextureValid = false;
+		colorMeshData.ColorTextureCreated = false;
+		colorMeshData.NeedsRetry = true;
+
+		if (!debugColorSet) {
+			VertexFileHeader? vertexHdr = ((IStudioDataCache)MDLCache).CacheVertexData(studioHdr!);
+			if (vertexHdr == null)
+				return false;
+		}
+
+		inst.Flags |= ModelInstanceFlags.HasColorDAta;
+
+		MathLib.AngleMatrix(inst.Renderable!.GetRenderAngles(), inst.Renderable.GetRenderOrigin(), out Matrix3x4 matrix);
+
+		LightCacheFlags lightCacheFlags = LightCacheFlags.Static;
+		if (!HardwareConfig.SupportsStaticPlusDynamicLighting())
+			lightCacheFlags |= LightCacheFlags.LightStyle;
+
+		LightingState lightingState = default;
+		if ((inst.Flags & ModelInstanceFlags.HasStaticLighting) != 0 && inst.LightCacheHandle != 0)
+			lightingState = Render.LightcacheGetStatic(inst.LightCacheHandle, out _, lightCacheFlags);
+		else {
+			R_ComputeLightingOrigin(inst.Renderable, studioHdr, matrix, out Vector3 entOrigin);
+			LightcacheGetDynamic_Stats stats = default;
+			Render.LightcacheGetDynamic(entOrigin, ref lightingState, ref stats, lightCacheFlags);
+		}
+
+		bool useConstDirLighting = false;
+		float constDirLightingAmount = 0.0f;
+		if ((studioHdr!.Flags & StudioHdrFlags.ConstantDirectionalLightDot) != 0) {
+			useConstDirLighting = true;
+			constDirLightingAmount = studioHdr.ConstDirectionalLightDot / 255.0f;
+		}
+
+		Color24[]? tmpLightingMem = null;
+
+		for (int bodyPartID = 0; bodyPartID < studioHdr.NumBodyParts; ++bodyPartID) {
+			MStudioBodyParts pBodyPart = studioHdr.BodyPart(bodyPartID);
+
+			for (int modelID = 0; modelID < pBodyPart.NumModels; ++modelID) {
+				MStudioModel pModel = pBodyPart.Model(modelID);
+
+				if (pModel.NumVertices == 0)
+					continue;
+
+				if (tmpLightingMem == null || tmpLightingMem.Length < pModel.NumVertices)
+					tmpLightingMem = new Color24[pModel.NumVertices];
+
+				if (!debugColorSet)
+					ComputeModelVertexLightingOld(studioHdr, pModel, matrix, lightingState, tmpLightingMem, useConstDirLighting, constDirLightingAmount);
+				else {
+					for (int i = 0; i < pModel.NumVertices; i++) {
+						tmpLightingMem[i].R = debugColor[0];
+						tmpLightingMem[i].G = debugColor[1];
+						tmpLightingMem[i].B = debugColor[2];
+					}
+				}
+
+				for (int lodID = studioHWData!.RootLOD; lodID < studioHWData.NumLODs; ++lodID) {
+					StudioLODData pStudioLODData = studioHWData.LODs![lodID];
+					StudioMeshData[] pStudioMeshData = pStudioLODData.MeshData!;
+
+					for (int meshID = 0; meshID < pModel.NumMeshes; ++meshID) {
+						MStudioMesh pMesh = pModel.Mesh(meshID);
+
+						for (int stripGroupID = 0; stripGroupID < pStudioMeshData[pMesh.MeshID].NumGroup; ++stripGroupID) {
+							StudioMeshGroup pMeshGroup = pStudioMeshData[pMesh.MeshID].MeshGroup![stripGroupID];
+							ref ColorMeshInfo pColorMeshInfo = ref colorMeshData.MeshInfos![pMeshGroup.ColorMeshID];
+
+							MeshBuilder meshBuilder = new();
+							meshBuilder.Begin(pColorMeshInfo.Mesh!, MaterialPrimitiveType.Heterogenous, pMeshGroup.NumVertices, 0);
+
+							if (meshBuilder.VertexSize() == 0) {
+								meshBuilder.End();
+								return false;
+							}
+
+							int streamOffset = pColorMeshInfo.VertOffsetInBytes / meshBuilder.VertexSize();
+							meshBuilder.AdvanceVertices(streamOffset);
+
+							for (int i = 0; i < pMeshGroup.NumVertices; ++i) {
+								int nVertIndex = pMesh.VertexOffset + pMeshGroup.GroupIndexToMeshIndex![i];
+								Assert(nVertIndex < pModel.NumVertices);
+								meshBuilder.Specular3ub(tmpLightingMem[nVertIndex].R, tmpLightingMem[nVertIndex].G, tmpLightingMem[nVertIndex].B);
+								meshBuilder.AdvanceVertex();
+							}
+
+							meshBuilder.End();
+						}
+					}
+				}
+			}
+		}
+
+		colorMeshData.ColorMeshValid = true;
+		colorMeshData.NeedsRetry = false;
+
+		return true;
+	}
+
+	public bool RecomputeStaticLighting(ModelInstanceHandle_t handle) {
+#if !SWDS
+		if (handle == MODEL_INSTANCE_INVALID)
+			return false;
+
+		if (!HardwareConfig.SupportsColorOnSecondStream())
+			return true;
+
+		ModelInstance instance = ModelInstances[handle];
+
+		StudioHeader? studioHdr = MDLCache.GetStudioHdr(instance.Model!.Studio);
+		if (studioHdr == null)
+			return false;
+
+		if ((studioHdr.Flags & StudioHdrFlags.StaticProp) != 0) {
+			StudioHWData? studioHWData = MDLCache.GetHardwareData(instance.Model.Studio);
+			if (studioHWData == null)
+				return false;
+
+			if (r_decalstaticprops.GetBool() && instance.LightCacheHandle != 0)
+				instance.AmbientLightingState = Render.LightcacheGetStatic(instance.LightCacheHandle, out _, LightCacheFlags.Static);
+
+			return UpdateStaticPropColorData(instance.Renderable!.GetIClientUnknown(), handle);
+		}
+#endif
+		return true;
+	}
+
+	private ref LightingState TimeAverageLightingState(ModelInstanceHandle_t handle, ref LightingState lightingState, int entIndex, Vector3? lightingOrigin) {
+		if (r_lightaverage.GetInt() == 0)
+			return ref lightingState;
 
 		float interpFactor = r_lightinterp.GetFloat();
 		if (interpFactor == 0)
-			return;
+			return ref lightingState;
 
 		if (handle == MODEL_INSTANCE_INVALID)
-			return;
+			return ref lightingState;
 
 		ModelInstance inst = ModelInstances[handle];
 		if (inst.LightingTime == CURRENT_LIGHTING_UNINITIALIZED) {
 			SnapCurrentLightingState(inst, ref lightingState);
-			return;
+			return ref lightingState;
 		}
 
 		float dt = (float)(cl.GetTime() - inst.LightingTime);
@@ -665,16 +1088,83 @@ public class ModelRender : IModelRender
 		else
 			inst.LightingTime = (float)cl.GetTime();
 
+		int i;
+		Vector3 vecDelta;
 		float attenFactor = MathF.Exp(-interpFactor * dt);
-		TimeAverageAmbientLight(inst, attenFactor, ref lightingState, lightingOrigin);
+		TimeAverageAmbientLight(ref ActualLightingState, inst, attenFactor, ref lightingState, lightingOrigin);
 
-		// todo
+		int worldLights;
+		if (!MatSysInterface.MaterialSystemConfig.SoftwareLighting)
+			worldLights = Math.Min(HardwareConfig.MaxNumLights(), Render.r_worldlights.GetInt());
+		else
+			worldLights = Render.r_worldlights.GetInt();
 
-		for (int i = 0; i < 6; i++)
-			lightingState.BoxColor[i] = inst.CurrentLightingState.BoxColor[i];
+		int matchCount = 0;
+		Span<bool> match = stackalloc bool[Render.MAXLOCALLIGHTS];
+		Span<Vector3> lightIntensity = stackalloc Vector3[Render.MAXLOCALLIGHTS];
+
+		match.Clear();
+		for (i = 0; i < lightingState.NumLights; ++i) {
+			lightIntensity[i].Init(0.0f, 0.0f, 0.0f);
+			int j;
+			for (j = 0; j < inst.CurrentLightingState.NumLights; ++j) {
+				if (lightingState.LocalLight[i] == inst.CurrentLightingState.LocalLight[j]) {
+					++matchCount;
+					match[j] = true;
+					lightIntensity[i] = inst.LightIntensity[j];
+					break;
+				}
+			}
+		}
+
+		for (i = 0; i < lightingState.NumLights; ++i) {
+			ActualLightingState.LocalLight[i] = new BSPDWorldLightPtr(WorldLights, i);
+			WorldLights[i] = lightingState.LocalLight[i].Dereference();
+
+			MathLib.VectorSubtract(lightingState.LocalLight[i].Dereference().Intensity, lightIntensity[i], out vecDelta);
+			vecDelta *= attenFactor;
+
+			WorldLights[i].Intensity = lightingState.LocalLight[i].Dereference().Intensity - vecDelta;
+			SourceLight[i] = lightingState.LocalLight[i];
+		}
+
+		int currLight = lightingState.NumLights;
+		for (i = 0; i < inst.CurrentLightingState.NumLights; ++i) {
+			if (match[i])
+				continue;
+
+			if (inst.LightIntensity[i].LengthSqr() < 1)
+				continue;
+
+			if (currLight >= Render.MAXLOCALLIGHTS)
+				break;
+
+			ActualLightingState.LocalLight[currLight] = new BSPDWorldLightPtr(WorldLights, currLight);
+			WorldLights[currLight] = inst.CurrentLightingState.LocalLight[i].Dereference();
+
+			MathLib.VectorMultiply(inst.LightIntensity[i], attenFactor, out vecDelta);
+
+			WorldLights[currLight].Intensity = vecDelta;
+			SourceLight[currLight] = inst.CurrentLightingState.LocalLight[i];
+
+			if ((currLight >= worldLights) && lightingOrigin.HasValue)
+				Render.AddWorldLightToAmbientCube(ActualLightingState.LocalLight[currLight], lightingOrigin.Value, ref ActualLightingState.BoxColor);
+
+			++currLight;
+		}
+
+		ActualLightingState.NumLights = Math.Min(currLight, worldLights);
+		inst.CurrentLightingState.NumLights = currLight;
+
+		for (i = 0; i < currLight; ++i) {
+			inst.CurrentLightingState.LocalLight[i] = SourceLight[i];
+			inst.LightIntensity[i] = WorldLights[i].Intensity;
+		}
+
+		return ref ActualLightingState;
 	}
 
-	private static void TimeAverageAmbientLight(ModelInstance inst, float attenFactor, ref LightingState lightingState, in Vector3 lightingOrigin) {
+	private static void TimeAverageAmbientLight(ref LightingState actualLightingState, ModelInstance inst, float attenFactor, ref LightingState lightingState, Vector3? lightingOrigin) {
 		attenFactor = Math.Clamp(attenFactor, 0.0f, 1.0f);
 		for (int i = 0; i < 6; ++i) {
 			MathLib.VectorSubtract(lightingState.BoxColor[i], inst.CurrentLightingState.BoxColor[i], out Vector3 vecDelta);
@@ -685,11 +1175,20 @@ public class ModelRender : IModelRender
 			inst.CurrentLightingState.BoxColor[i].Y = Math.Clamp(inst.CurrentLightingState.BoxColor[i].Y, 0.0f, AMBIENT_MAX);
 			inst.CurrentLightingState.BoxColor[i].Z = Math.Clamp(inst.CurrentLightingState.BoxColor[i].Z, 0.0f, AMBIENT_MAX);
 		}
+
+		for (int i = 0; i < 6; ++i)
+			actualLightingState.BoxColor[i] = inst.CurrentLightingState.BoxColor[i];
 	}
 
 	private void SnapCurrentLightingState(ModelInstance inst, ref LightingState lightingState) {
 		inst.CurrentLightingState = lightingState;
-		// todo
+		for (int i = 0; i < Render.MAXLOCALLIGHTS; ++i) {
+			if (i < lightingState.NumLights)
+				inst.LightIntensity[i] = lightingState.LocalLight[i].Dereference().Intensity;
+			else
+				inst.LightIntensity[i].Init(0.0f, 0.0f, 0.0f);
+		}
+
 		inst.LightingTime = (float)cl.GetTime();
 	}
 

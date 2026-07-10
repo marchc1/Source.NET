@@ -452,6 +452,10 @@ public class MatRenderContext : IMatRenderContextInternal
 		return materials.ShaderDevice.CreateStaticMesh(format, textureGroup, material);
 	}
 
+	public void DestroyStaticMesh(IMesh mesh) {
+		materials.ShaderDevice.DestroyStaticMesh(mesh);
+	}
+
 	public int GetMaxVerticesToRender(IMaterial material) => materials.ShaderAPI.GetMaxVerticesToRender(material);
 	public int GetMaxIndicesToRender() => materials.ShaderAPI.GetMaxIndicesToRender();
 

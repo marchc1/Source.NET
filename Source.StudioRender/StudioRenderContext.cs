@@ -713,6 +713,39 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 		// todo
 	}
 
+	public void ComputeLighting(ReadOnlySpan<Vector3> ambient, int lightCount, Span<LightDesc> lights, in Vector3 pt, in Vector3 normal, out Vector3 lighting) {
+		if (RC.Config.FullBright != 0) {
+			lighting = new(1.0f, 1.0f, 1.0f);
+			return;
+		}
+
+		if (lightCount > StudioRender.MAXLOCALLIGHTS)
+			lightCount = StudioRender.MAXLOCALLIGHTS;
+
+		// todo fixme
+		Span<LightPos> lightPos = stackalloc LightPos[StudioRender.MAXLOCALLIGHTS];
+		StudioRender.R_LightStrengthWorld(in pt, lightCount, lights, lightPos);
+		StudioRender.R_LightAmbient_3D(in normal, ambient, out lighting);
+		StudioRender.R_LightEffectsWorld3(lights, lightPos, in normal, ref lighting, lightCount);
+	}
+
+	public void ComputeLightingConstDirectional(ReadOnlySpan<Vector3> ambient, int lightCount, Span<LightDesc> lights, in Vector3 pt, in Vector3 normal, out Vector3 lighting, float directionalAmount) {
+		if (RC.Config.FullBright != 0) {
+			lighting = new(1.0f, 1.0f, 1.0f);
+			return;
+		}
+
+		if (lightCount > StudioRender.MAXLOCALLIGHTS) {
+			AssertMsg(false, "Light count out of range in ComputeLighting\n");
+			lightCount = StudioRender.MAXLOCALLIGHTS;
+		}
+
+		// todo fixme
+		Span<LightPos> lightPos = stackalloc LightPos[StudioRender.MAXLOCALLIGHTS];
+		StudioRender.R_LightStrengthWorld(in pt, lightCount, lights, lightPos);
+		StudioRender.R_LightAmbient_3D(in normal, ambient, out lighting);
+	}
+
 	private static int CopyLocalLightingState(int maxLights, Span<LightDesc> dest, int lightCount, ReadOnlySpan<LightDesc> src) {
 		if (lightCount > maxLights)
 			lightCount = maxLights;

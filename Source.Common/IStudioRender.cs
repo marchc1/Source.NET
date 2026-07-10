@@ -1,3 +1,4 @@
+using Source.Common.Bitmap;
 using Source.Common.Engine;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
@@ -12,11 +13,22 @@ public static class MaterialVertexFormat {
 	public static readonly VertexFormat Color = VertexFormat.Specular;
 }
 
+public struct ColorTexelsInfo {
+	public int Width;
+	public int Height;
+	public int MipmapCount;
+	public ImageFormat ImageFormat;
+	public int ByteCount;
+	public byte[]? TexelData;
+}
+
 public struct ColorMeshInfo {
 	public IMesh? Mesh;
+	public IPooledVBAllocator? PooledVBAllocator;
 	public int VertOffsetInBytes;
 	public int NumVerts;
 	public ITexture? Lightmap;
+	public ColorTexelsInfo? LightmapData;
 }
 
 public struct DrawModelInfo {
@@ -90,4 +102,6 @@ public interface IStudioRender {
 	ReadOnlySpan<Vector3> GetAmbientLightDirections();
 	void SetAmbientLightColors(ReadOnlySpan<Vector3> ambientOnlyColors);
 	void SetLocalLights(int lightCount, ReadOnlySpan<LightDesc> lights);
+	void ComputeLighting(ReadOnlySpan<Vector3> ambient, int lightCount, Span<LightDesc> lights, in Vector3 pt, in Vector3 normal, out Vector3 lighting);
+	void ComputeLightingConstDirectional(ReadOnlySpan<Vector3> ambient, int lightCount, Span<LightDesc> lights, in Vector3 pt, in Vector3 normal, out Vector3 lighting, float directionalAmount);
 }

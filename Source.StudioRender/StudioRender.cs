@@ -551,7 +551,7 @@ public unsafe class StudioRender
 		R_LightEffectsWorld3(pRC.LocalLights, lightpos, in normal, ref color, pRC.NumLocalLights);
 	}
 
-	private static void R_LightStrengthWorld(in Vector3 vert, int lightcount, Span<LightDesc> desc, Span<LightPos> light) {
+	internal static void R_LightStrengthWorld(in Vector3 vert, int lightcount, Span<LightDesc> desc, Span<LightPos> light) {
 		for (int i = 0; i < lightcount; i++) {
 			R_WorldLightDelta(in desc[i], in vert, out light[i].Delta);
 			light[i].Falloff = R_WorldLightDistanceFalloff(in desc[i], in light[i].Delta);
@@ -647,7 +647,7 @@ public unsafe class StudioRender
 		}
 	}
 
-	private static void R_LightEffectsWorld3(Span<LightDesc> desc, Span<LightPos> light, in Vector3 normal, ref Vector3 dest, int numLights) {
+	internal static void R_LightEffectsWorld3(Span<LightDesc> desc, Span<LightPos> light, in Vector3 normal, ref Vector3 dest, int numLights) {
 		for (int i = 0; i < numLights; i++) {
 			if (desc[i].Type == LightType.Disable)
 				continue;
@@ -662,6 +662,12 @@ public unsafe class StudioRender
 		MathLib.VectorScale(normal.X > 0.0f ? pLightBoxColor[0].AsVector3D() : pLightBoxColor[1].AsVector3D(), normal.X * normal.X, out lv);
 		MathLib.VectorMA(lv, normal.Y * normal.Y, normal.Y > 0.0f ? pLightBoxColor[2].AsVector3D() : pLightBoxColor[3].AsVector3D(), out lv);
 		MathLib.VectorMA(lv, normal.Z * normal.Z, normal.Z > 0.0f ? pLightBoxColor[4].AsVector3D() : pLightBoxColor[5].AsVector3D(), out lv);
+	}
+
+	internal static void R_LightAmbient_3D(in Vector3 normal, ReadOnlySpan<Vector3> pLightBoxColor, out Vector3 lv) {
+		MathLib.VectorScale(normal.X > 0.0f ? pLightBoxColor[0] : pLightBoxColor[1], normal.X * normal.X, out lv);
+		MathLib.VectorMA(lv, normal.Y * normal.Y, normal.Y > 0.0f ? pLightBoxColor[2] : pLightBoxColor[3], out lv);
+		MathLib.VectorMA(lv, normal.Z * normal.Z, normal.Z > 0.0f ? pLightBoxColor[4] : pLightBoxColor[5], out lv);
 	}
 
 	private static VertexFormat ComputeSWSkinVertexFormat(IMaterial pMaterial) {

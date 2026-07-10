@@ -2400,6 +2400,8 @@ public static class MathLib
 		dst.Z = src1[2][0] * src2.X + src1[2][1] * src2.Y + src1[2][2] * src2.Z + src1[2][3];
 	}
 
+	public static byte FastFToC(float c) => (byte)(int)(c * 255.0f);
+
 	public static float LinearToVertexLight(float f) {
 		int i = RoundFloatToInt(f * 1024f);
 
