@@ -446,6 +446,7 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public void Viewport(int x, int y, int width, int height) { }
 	public void SetRealMaterialSystem(IMaterialSystem? sys) => RealMaterialSystem = sys;
 	public void BindLocalCubemap(ITexture tex) { }
+	public ITexture? GetLocalCubemap() => null;
 	public void SetLightingOrigin(Vector3 lightingOrigin) { }
 	public void SetAmbientLight(float r, float g, float b) { }
 	public void DisableAllLocalLights() { }

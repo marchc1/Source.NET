@@ -217,6 +217,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public void InitRenderState() {
 		glDisable(GL_DEPTH_TEST);
 		glFrontFace(GL_CW);
+		glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
 		if (!IsDeactivated())
 			ResetRenderState();
@@ -986,7 +987,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				glActiveTexture(tex);
 				lastActiveTexture = tex;
 			}
-			glBindTexture(GL_TEXTURE_2D, GetGL46Texture(textureHandle));
+			glBindTexture(GetTexture(textureHandle).DetermineGLObjectType(), GetGL46Texture(textureHandle));
 			LastBoundTextures[(int)sampler] = textureHandle;
 		}
 	}
@@ -1077,6 +1078,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			return;
 		}
 
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		int mipCount = vtf.MipCount();
 		for (int mip = 0; mip < mipCount; ++mip) {
 			vtf.ComputeMipLevelDimensions(mip, out int w, out int h, out _);
@@ -1087,11 +1090,13 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 						glCompressedTextureSubImage3D((uint)info.Texture, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
 				}
 				else {
-					fixed (byte* bytes = data)
-						glTextureSubImage3D((uint)info.Texture, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageUploadFormat(info.SrcFormat), GL_UNSIGNED_BYTE, bytes);
+					ConvertDataToAcceptableGLFormat(info.SrcFormat, data, out ImageFormat uploadFormat, out Span<byte> convertedData);
+					fixed (byte* bytes = convertedData)
+						glTextureSubImage3D((uint)info.Texture, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageUploadFormat(uploadFormat), GL_UNSIGNED_BYTE, bytes);
 				}
 			}
 		}
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 	}
 
 	private unsafe void LoadTextureFromVTF(in TextureLoadInfo info, IVTFTexture vtf, int vtfFrame) {
@@ -1745,7 +1750,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.LinearMipmapLinear is invalid\n");
 				break;
 			case TexFilterMode.Anisotropic:
-				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.Anisotropic is invalid\n");
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				glTextureParameterf(GetModifyTexture(), GL_TEXTURE_MAX_ANISOTROPY_EXT, 16.0f);
 				break;
 			default:
 				break;
@@ -1820,7 +1826,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 		Memory<byte> buffer = GetTempLockBuffer(info.Format, width, height);
 		fixed (byte* data = buffer.Span) {
-			glGetTextureSubImage(GetModifyTexture(), 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
+			glGetTextureSubImage(GetModifyTexture(), level, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
 		}
 		writer.SetPixelMemory(info.Format, buffer.Span, width * ImageLoader.SizeInBytes(info.Format));
 		return true;
@@ -1843,7 +1849,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 		Memory<byte> buffer = GetTempLockBuffer(info.Format, width, height);
 		fixed (byte* data = buffer.Span) {
-			glGetTextureSubImage(GetModifyTexture(), 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
+			glGetTextureSubImage(GetModifyTexture(), level, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
 		}
 		writer.SetPixelMemory(info.Format, buffer, width * ImageLoader.SizeInBytes(info.Format));
 		return true;

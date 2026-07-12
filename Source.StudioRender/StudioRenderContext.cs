@@ -557,8 +557,8 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 	static uint bumpvarCache = 0;
 
 	private void ComputeMaterialFlags(StudioHeader hdr, StudioLODData lodData, IMaterial material) {
-		//  if (material.UsesEnvCubemap()) 
-		//  	hdr.Flags |= StudioHdrFlags.UsesEnvCubemap;
+		if (material.UsesEnvCubemap())
+			hdr.Flags |= StudioHdrFlags.UsesEnvCubemap;
 
 		//  if (material.NeedsPowerOfTwoFrameBufferTexture(false)) // The false checks if it will ever need the frame buffer, not just this frame
 		//  	hdr.Flags |= StudioHdrFlags.UsesFbTexture;

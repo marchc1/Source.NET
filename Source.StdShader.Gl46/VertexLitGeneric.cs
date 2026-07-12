@@ -60,7 +60,11 @@ public class VertexLitGeneric : BaseVSShader
 	public static readonly ShaderParam ENVMAPMASKFRAME = new($"${nameof(ENVMAPMASKFRAME)}", ShaderParamType.Integer, "0", "");
 	public static readonly ShaderParam ENVMAPMASKSCALE = new($"${nameof(ENVMAPMASKSCALE)}", ShaderParamType.Float, "1", "envmap mask scale");
 	public static readonly ShaderParam ENVMAPTINT = new($"${nameof(ENVMAPTINT)}", ShaderParamType.Color, "[1 1 1]", "envmap tint");
+	public static readonly ShaderParam ENVMAPCONTRAST = new($"${nameof(ENVMAPCONTRAST)}", ShaderParamType.Float, "0.0", "controls the contrast of the envmap. 0.0 == normal, 1.0 == color*color");
+	public static readonly ShaderParam ENVMAPSATURATION = new($"${nameof(ENVMAPSATURATION)}", ShaderParamType.Float, "1.0", "saturation 0 == greyscale 1 == normal");
 	public static readonly ShaderParam ENVMAPOPTIONAL = new($"${nameof(ENVMAPOPTIONAL)}", ShaderParamType.Bool, "0", "Make the envmap only apply to dx9 and higher hardware");
+	public static readonly ShaderParam BUMPMAP = new($"${nameof(BUMPMAP)}", ShaderParamType.Texture, "models/shadertest/shader1_normal", "bump map");
+	public static readonly ShaderParam BUMPFRAME = new($"${nameof(BUMPFRAME)}", ShaderParamType.Integer, "0", "frame number for $bumpmap");
 	public static readonly ShaderParam DETAILBLENDMODE = new($"${nameof(DETAILBLENDMODE)}", ShaderParamType.Integer, "0", "mode for combining detail texture with base. 0=normal, 1= additive, 2=alpha blend detail over base, 3=crossfade");
 	public static readonly ShaderParam ALPHATESTREFERENCE = new($"${nameof(ALPHATESTREFERENCE)}", ShaderParamType.Float, "0.7", "");
 	public static readonly ShaderParam OUTLINE = new($"${nameof(OUTLINE)}", ShaderParamType.Bool, "0", "Enable outline for distance coded textures.");
@@ -74,6 +78,12 @@ public class VertexLitGeneric : BaseVSShader
 
 	protected override void OnInitShaderParams(IMaterialVar[] vars, ReadOnlySpan<char> materialName) {
 		InitParamsUnlitGeneric((int)ShaderMaterialVars.BaseTexture, DETAILSCALE, ENVMAPOPTIONAL, ENVMAP, ENVMAPTINT, ENVMAPMASKSCALE, DETAILBLENDMODE);
+
+		if (!vars[ENVMAPCONTRAST].IsDefined())
+			vars[ENVMAPCONTRAST].SetFloatValue(0.0f);
+
+		if (!vars[ENVMAPSATURATION].IsDefined())
+			vars[ENVMAPSATURATION].SetFloatValue(1.0f);
 
 		SetFlags2(vars, MaterialVarFlags2.SupportsHardwareSkinning);
 		SetFlags2(vars, MaterialVarFlags2.LightingVertexLit);
@@ -114,6 +124,9 @@ public class VertexLitGeneric : BaseVSShader
 	}
 	protected override void OnInitShaderInstance(IMaterialVar[] vars, ReadOnlySpan<char> materialName) {
 		InitUnlitGeneric((int)ShaderMaterialVars.BaseTexture, DETAIL, ENVMAP, ENVMAPMASK);
+
+		if (vars[BUMPMAP].IsDefined())
+			LoadTexture(BUMPMAP);
 	}
 	protected override void OnDrawElements(IMaterialVar[] vars, IShaderDynamicAPI shaderAPI, VertexCompressionType vertexCompression) {
 		DrawUnbumpedUsingVertexShader(vars, shaderAPI, ShaderShadow, false);
@@ -137,6 +150,9 @@ public class VertexLitGeneric : BaseVSShader
 
 				if (vars[ENVMAPMASK].IsTexture() || IsFlagSet(vars, MaterialVarFlags.BaseAlphaEnvMapMask))
 					shaderShadow.EnableTexture(Sampler.Sampler2, true);
+
+				if (IsFlagSet(vars, MaterialVarFlags.NormalMapAlphaEnvMapMask) && vars[BUMPMAP].IsTexture())
+					shaderShadow.EnableTexture(Sampler.Sampler4, true);
 			}
 
 			if (vars[(int)ShaderMaterialVars.BaseTexture].IsTexture())
@@ -149,8 +165,18 @@ public class VertexLitGeneric : BaseVSShader
 
 			shaderShadow.VertexShaderVertexFormat(fmt, 1, null, 0);
 
-			shaderShadow.SetVertexShader("vertexlitgeneric");
-			shaderShadow.SetPixelShader("vertexlitgeneric");
+			bool hasEnvmap = vars[ENVMAP].IsTexture() && !skipEnvmap;
+
+			StaticShaderIndex vshIndex = new(shaderShadow, ShaderType.Vertex, "vertexlitgeneric");
+			vshIndex.Set("CUBEMAP", hasEnvmap);
+			shaderShadow.SetVertexShader("vertexlitgeneric", vshIndex.GetIndex());
+
+			StaticShaderIndex pshIndex = new(shaderShadow, ShaderType.Pixel, "vertexlitgeneric");
+			pshIndex.Set("CUBEMAP", hasEnvmap);
+			pshIndex.Set("ENVMAPMASK", hasEnvmap && vars[ENVMAPMASK].IsTexture());
+			pshIndex.Set("BASEALPHAENVMAPMASK", hasEnvmap && IsFlagSet(vars, MaterialVarFlags.BaseAlphaEnvMapMask));
+			pshIndex.Set("NORMALMAPALPHAENVMAPMASK", hasEnvmap && IsFlagSet(vars, MaterialVarFlags.NormalMapAlphaEnvMapMask) && vars[BUMPMAP].IsTexture());
+			shaderShadow.SetPixelShader("vertexlitgeneric", pshIndex.GetIndex());
 
 			SetStandardShaderUniforms();
 
@@ -164,6 +190,8 @@ public class VertexLitGeneric : BaseVSShader
 			}
 
 			if (vars[ENVMAP].IsTexture() && !skipEnvmap) {
+				ITexture? resolvedEnvmap = vars[ENVMAP].GetTextureValue();
+
 				BindTexture(Sampler.Sampler1, ENVMAP, ENVMAPFRAME);
 
 				if (vars[ENVMAPMASK].IsTexture() || IsFlagSet(vars, MaterialVarFlags.BaseAlphaEnvMapMask)) {
@@ -175,11 +203,21 @@ public class VertexLitGeneric : BaseVSShader
 					SetVertexShaderTextureScaledTransform(VertexShaderConst.ShaderSpecificConst2, (int)ShaderMaterialVars.BaseTextureTransform, ENVMAPMASKSCALE);
 				}
 
+				if (IsFlagSet(vars, MaterialVarFlags.NormalMapAlphaEnvMapMask) && vars[BUMPMAP].IsTexture())
+					BindTexture(Sampler.Sampler4, BUMPMAP, BUMPFRAME);
+
 				if (IsFlagSet(vars, MaterialVarFlags.EnvMapSphere) || IsFlagSet(vars, MaterialVarFlags.EnvMapCameraSpace)) {
 					LoadViewMatrixIntoVertexShaderConstant(VertexShaderConst.ViewModel);
 				}
 
 				SetEnvMapTintPixelShaderDynamicState(2, ENVMAPTINT, -1);
+
+				float envmapContrast = vars[ENVMAPCONTRAST].GetFloatValue();
+				float envmapSaturation = vars[ENVMAPSATURATION].GetFloatValue();
+				Span<float> envmapContrastConst = [envmapContrast, envmapContrast, envmapContrast, 0.0f];
+				Span<float> envmapSaturationConst = [envmapSaturation, envmapSaturation, envmapSaturation, 0.0f];
+				shaderAPI.SetPixelShaderConstant(4, envmapContrastConst);
+				shaderAPI.SetPixelShaderConstant(5, envmapSaturationConst);
 			}
 
 			if (vars[DETAIL].IsTexture()) {

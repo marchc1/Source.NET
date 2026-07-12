@@ -45,11 +45,16 @@ layout(std140, binding = 5) uniform source_vs_constants {
     vec4 vs_const[256];
 };
 
+const int VERTEX_SHADER_CAMERA_POS = 2;
 const int VERTEX_SHADER_AMBIENT_LIGHT = 21;
 const float cOverbright = 2.0;
 
 out vec2 vs_TexCoord;
 out vec4 vs_Color;
+#if CUBEMAP
+out vec3 vs_WorldNormal;
+out vec3 vs_WorldVertToEye;
+#endif
 
 vec3 GammaToLinear(vec3 gamma)
 {
@@ -71,12 +76,14 @@ void main()
 {
     vec4 localPos = vec4(0.0);
     vec3 worldNormal = vec3(0.0);
+    vec3 worldPos = vec3(0.0);
 	mat4 mvp;
 
     if (numBones == 0) {
 		mvp = projectionMatrix * viewMatrix * modelMatrix;
 		gl_Position = mvp * vec4(v_Position, 1.0);
 		worldNormal = mat3(modelMatrix) * v_Normal;
+		worldPos = (modelMatrix * vec4(v_Position, 1.0)).xyz;
 	}
 	else{
 		if (numBones >= 1) {
@@ -90,9 +97,15 @@ void main()
 		}
 		mvp = projectionMatrix * viewMatrix;
 		gl_Position = mvp * localPos;
+		worldPos = localPos.xyz;
 	}
 
     vs_TexCoord = v_TexCoord;
+
+#if CUBEMAP
+    vs_WorldNormal = worldNormal;
+    vs_WorldVertToEye = vs_const[VERTEX_SHADER_CAMERA_POS].xyz - worldPos;
+#endif
 
     vec3 linearColor;
 #if STATIC_LIGHT

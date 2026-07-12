@@ -229,7 +229,7 @@ public class ShaderSystem : IShaderSystemInternal
 		}
 
 		if (stricmp(textureVar.GetStringValue(), "env_cubemap") == 0) {
-			textureVar.SetTextureValue(MaterialSystem.FindTexture("env_cubemap", TEXTURE_GROUP_CUBE_MAP, false));
+			textureVar.SetTextureValue(ITextureInternal.EnvCubemap);
 			SetFlags2(parms, MaterialVarFlags2.UsesEnvCubemap);
 			return;
 		}

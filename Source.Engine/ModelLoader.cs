@@ -1098,6 +1098,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 			ref BSPMCubeMapSample outCurrent = ref outSample[i];
 			outCurrent.Origin.Init((float)inCurrent.Origin[0], (float)inCurrent.Origin[1], (float)inCurrent.Origin[2]);
 			outCurrent.Size = inCurrent.Size;
+			textureName.Clear();
 			sprintf(textureName, "maps/%s/c%d_%d_%d%s").S(loadName).D((int)inCurrent.Origin[0]).D((int)inCurrent.Origin[1]).D((int)inCurrent.Origin[2]).S(hdrExtension);
 			ReadOnlySpan<char> cubemapName = textureName.SliceNullTerminatedString();
 			outCurrent.Texture = materialSystem.FindTexture(cubemapName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
@@ -1105,13 +1106,17 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 				if (hdr) {
 					Warning($"Couldn't get HDR '{cubemapName}' -- ");
 					// try non hdr version
+					textureName.Clear();
 					sprintf(textureName, "maps/%s/c%d_%d_%d").S(loadName).D((int)inCurrent.Origin[0]).D((int)inCurrent.Origin[1]).D((int)inCurrent.Origin[2]);
+					cubemapName = textureName.SliceNullTerminatedString();
 					Warning($"Trying non HDR '{cubemapName}'\n");
 					outCurrent.Texture = materialSystem.FindTexture(cubemapName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true);
 				}
 
 				if (ITexture.IsError(outCurrent.Texture)) {
+					textureName.Clear();
 					sprintf(textureName, "maps/%s/cubemapdefault").S(loadName);
+					cubemapName = textureName.SliceNullTerminatedString();
 					outCurrent.Texture = materialSystem.FindTexture(cubemapName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
 					if (ITexture.IsError(outCurrent.Texture))
 						outCurrent.Texture = materialSystem.FindTexture("engine/defaultcubemap", MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
@@ -1131,8 +1136,9 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 				Sys.Error($"Map \"{lh.GetMapName()}\" does not have cubemaps!");
 
 			ITexture? pTexture;
+			textureName.Clear();
 			sprintf(textureName, "maps/%s/cubemapdefault").S(loadName);
-			pTexture = materialSystem.FindTexture(textureName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
+			pTexture = materialSystem.FindTexture(textureName.SliceNullTerminatedString(), MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
 			if (ITexture.IsError(pTexture))
 				pTexture = materialSystem.FindTexture("engine/defaultcubemap", MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
 

@@ -603,6 +603,8 @@ public class MatRenderContext : IMatRenderContextInternal
 			shaderAPI.FlushBufferedPrimitives();
 	}
 
+	public ITexture? GetLocalCubemap() => LocalCubemapTexture;
+
 	public void SetLightingOrigin(Vector3 lightingOrigin) => shaderAPI.SetLightingOrigin(lightingOrigin);
 	public void SetAmbientLight(float r, float g, float b) => shaderAPI.SetAmbientLight(r, g, b);
 	public void DisableAllLocalLights() => shaderAPI.DisableAllLocalLights();
