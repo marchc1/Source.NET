@@ -73,6 +73,29 @@ public struct ShaderViewport
 	}
 }
 
+public ref struct DynamicShaderIndex(IShaderDynamicAPI shaderAPI, ShaderType type)
+{
+	readonly IShaderDynamicAPI shaderAPI = shaderAPI;
+	readonly ShaderType type = type;
+	int index = 0;
+
+	public void Set(ReadOnlySpan<char> name, int value) => index += value * shaderAPI.GetDynamicComboScale(type, name);
+	public void Set(ReadOnlySpan<char> name, bool value) => Set(name, value ? 1 : 0);
+	public readonly int GetIndex() => index;
+}
+
+public ref struct StaticShaderIndex(IShaderShadow shaderShadow, ShaderType type, ReadOnlySpan<char> fileName)
+{
+	readonly IShaderShadow shaderShadow = shaderShadow;
+	readonly ShaderType type = type;
+	readonly ReadOnlySpan<char> fileName = fileName;
+	int index = 0;
+
+	public void Set(ReadOnlySpan<char> name, int value) => index += value * shaderShadow.GetStaticComboScale(type, fileName, name);
+	public void Set(ReadOnlySpan<char> name, bool value) => Set(name, value ? 1 : 0);
+	public readonly int GetIndex() => index;
+}
+
 public interface IShaderDynamicAPI
 {
 	MaterialFogMode GetSceneFogMode();
@@ -86,7 +109,9 @@ public interface IShaderDynamicAPI
 	void BindVertexShader(in VertexShaderHandle vertexShader);
 	void BindPixelShader(in PixelShaderHandle pixelShader);
 	void SetVertexShaderIndex(int index);
+	void SetPixelShaderIndex(int index);
 	bool GetVertexShaderStaticLight();
+	int GetDynamicComboScale(ShaderType type, ReadOnlySpan<char> name);
 
 	int LocateShaderUniform(ReadOnlySpan<char> name);
 

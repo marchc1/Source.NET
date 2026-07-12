@@ -14,6 +14,8 @@ namespace Source.ShaderAPI.Gl46;
 
 public interface IShaderSystemInternal : IShaderInit, IShaderSystem;
 
+public readonly record struct ShaderCombo(string Name, int Min, int Range);
+
 public class ShaderSystem : IShaderSystemInternal
 {
 	List<IShaderDLL> ShaderDLLs = [];
@@ -432,15 +434,80 @@ public class ShaderSystem : IShaderSystemInternal
 		glCompileShader(pShader);
 
 		if (!IsValidShader(pShader, out string? error)) {
-			Warning($"WARNING: {typeName} shader compilation error.\n");
+			Warning($"WARNING: {typeName} shader compilation error in {name}.\n");
 			Warning(error);
 			Warning("\n");
 			return 0;
 		}
-		else
-			Msg($"Compiled shader: {typeName} - {defines.SliceNullTerminatedString()}\n");
+		else {
+			ReadOnlySpan<char> combos = defines.SliceNullTerminatedString();
+			if (combos.IsEmpty)
+				Msg($"Compiled shader: {name} ({typeName})\n");
+			else
+				Msg($"Compiled shader: {name} ({typeName}) [{combos}]\n");
+		}
 
 		return pShader;
+	}
+
+	Dictionary<string, (List<ShaderCombo> Static, List<ShaderCombo> Dynamic)> comboCache = [];
+
+	internal (List<ShaderCombo> Static, List<ShaderCombo> Dynamic) GetShaderCombos(ReadOnlySpan<char> name) {
+		string key = new(name);
+		if (comboCache.TryGetValue(key, out var cached))
+			return cached;
+
+		List<ShaderCombo> statics = [];
+		List<ShaderCombo> dynamics = [];
+
+		using IFileHandle? handle = FileSystem.Open($"shaders/{key}", FileOpenOptions.Read, "game");
+		if (handle != null) {
+			byte[] bytes = new byte[handle.Stream.Length];
+			handle.Stream.ReadExactly(bytes);
+			string source = Encoding.ASCII.GetString(bytes);
+
+			foreach (string rawLine in source.Split('\n')) {
+				string line = rawLine.Trim();
+
+				if (!line.StartsWith("//"))
+					continue;
+				ReadOnlySpan<char> body = line.AsSpan(2).TrimStart();
+
+				List<ShaderCombo>? list = null;
+				if (body.StartsWith("STATIC:"))
+					list = statics;
+				else if (body.StartsWith("DYNAMIC:"))
+					list = dynamics;
+				if (list == null)
+					continue;
+
+				int q1 = line.IndexOf('"');
+				if (q1 < 0)
+					continue;
+				int q2 = line.IndexOf('"', q1 + 1);
+				if (q2 < 0)
+					continue;
+				string comboName = line[(q1 + 1)..q2];
+
+				int min = 0, max = 1;
+				int q3 = line.IndexOf('"', q2 + 1);
+				int q4 = q3 < 0 ? -1 : line.IndexOf('"', q3 + 1);
+				if (q4 >= 0) {
+					ReadOnlySpan<char> range = line[(q3 + 1)..q4];
+					int dots = range.IndexOf("..");
+					if (dots >= 0) {
+						min = int.Parse(range[..dots]);
+						max = int.Parse(range[(dots + 2)..]);
+					}
+				}
+
+				list.Add(new(comboName, min, max - min + 1));
+			}
+		}
+
+		var result = (statics, dynamics);
+		comboCache[key] = result;
+		return result;
 	}
 
 	private static ulong ComboSymbol(ReadOnlySpan<char> name, ReadOnlySpan<char> defines) {

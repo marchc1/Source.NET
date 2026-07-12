@@ -17,6 +17,16 @@ uniform sampler2D basetexture;
 
 out vec4 fragColor;
 
+vec3 GammaToLinear(vec3 gamma)
+{
+    return pow(gamma, vec3(2.2));
+}
+
+vec3 LinearToGamma(vec3 linear)
+{
+    return pow(linear, vec3(1.0 / 2.2));
+}
+
 void main()
 {
     vec4 texelColor = texture(basetexture, vs_TexCoord);
@@ -32,7 +42,7 @@ void main()
         }
     }
 
-    fragColor.rgb = texelColor.rgb * vs_Color.rgb;
+    fragColor.rgb = LinearToGamma(GammaToLinear(texelColor.rgb) * vs_Color.rgb);
     fragColor.a = texelColor.a;
 
     // Gradient for testing

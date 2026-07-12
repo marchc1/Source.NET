@@ -1,4 +1,22 @@
 #version 460
+//  STATIC: "VERTEXCOLOR"				"0..1"
+//	STATIC: "CUBEMAP"					"0..1"
+//  STATIC: "HALFLAMBERT"				"0..1"
+//  STATIC: "FLASHLIGHT"				"0..1"
+//  STATIC: "SEAMLESS_BASE"         	"0..1"
+//  STATIC: "SEAMLESS_DETAIL"       	"0..1"
+//  STATIC: "SEPARATE_DETAIL_UVS"   	"0..1"
+//  STATIC: "DECAL"						"0..1"
+//  STATIC: "USE_STATIC_CONTROL_FLOW"	"0..1"
+//  STATIC: "DONT_GAMMA_CONVERT_VERTEX_COLOR" "0..1"
+//  DYNAMIC: "COMPRESSED_VERTS"			"0..1"
+//	DYNAMIC: "DYNAMIC_LIGHT"			"0..1"
+//	DYNAMIC: "STATIC_LIGHT"				"0..1"
+//	DYNAMIC: "DOWATERFOG"				"0..1"
+//	DYNAMIC: "SKINNING"					"0..1"
+//  DYNAMIC: "LIGHTING_PREVIEW"			"0..1"
+//  DYNAMIC: "MORPHING"					"0..1"
+//  DYNAMIC: "NUM_LIGHTS"				"0..2"
 
 layout(location = 0) in vec3 v_Position;
 layout(location = 1) in vec3 v_Normal;
@@ -82,5 +100,5 @@ void main()
 #else
     linearColor = AmbientLight(normalize(worldNormal));
 #endif
-    vs_Color = vec4(pow(linearColor, vec3(1.0 / 2.2)), 1.0);
+    vs_Color = vec4(linearColor, 1.0);
 }

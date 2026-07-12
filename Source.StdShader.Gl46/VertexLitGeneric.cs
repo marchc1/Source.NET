@@ -149,7 +149,7 @@ public class VertexLitGeneric : BaseVSShader
 
 			shaderShadow.VertexShaderVertexFormat(fmt, 1, null, 0);
 
-			shaderShadow.SetVertexShader("vertexlitgeneric", "STATIC_LIGHT");
+			shaderShadow.SetVertexShader("vertexlitgeneric");
 			shaderShadow.SetPixelShader("vertexlitgeneric");
 
 			SetStandardShaderUniforms();
@@ -188,7 +188,9 @@ public class VertexLitGeneric : BaseVSShader
 			}
 
 			SetAmbientCubeDynamicStateVertexShader();
-			shaderAPI.SetVertexShaderIndex(shaderAPI.GetVertexShaderStaticLight() ? 1 : 0);
+			DynamicShaderIndex vshIndex = new(shaderAPI, ShaderType.Vertex);
+			vshIndex.Set("STATIC_LIGHT", shaderAPI.GetVertexShaderStaticLight());
+			shaderAPI.SetVertexShaderIndex(vshIndex.GetIndex());
 			SetModulationPixelShaderDynamicState(3);
 			EnablePixelShaderOverbright(0, true, true);
 			SetPixelShaderConstant(1, SELFILLUMTINT);

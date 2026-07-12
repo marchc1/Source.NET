@@ -137,17 +137,24 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	PixelShaderHandle activePixelShader = PixelShaderHandle.INVALID;
 	bool pipelineChanged = false;
 	uint lastShader;
-	ShadowStateGl46? currentVertexShaderShadow;
-	internal void SetCurrentVertexShaderShadow(ShadowStateGl46 shadow) {
-		currentVertexShaderShadow = shadow;
+	ShadowStateGl46? currentShadow;
+	internal void SetCurrentShadow(ShadowStateGl46 shadow) {
+		currentShadow = shadow;
 	}
 
 	public void SetVertexShaderIndex(int index) {
-		if (currentVertexShaderShadow != null)
-			BindVertexShader(currentVertexShaderShadow.GetVertexShaderVariant(index));
+		if (currentShadow != null)
+			BindVertexShader(currentShadow.GetVertexShaderVariant(index));
+	}
+
+	public void SetPixelShaderIndex(int index) {
+		if (currentShadow != null)
+			BindPixelShader(currentShadow.GetPixelShaderVariant(index));
 	}
 
 	public bool GetVertexShaderStaticLight() => RenderMesh?.HasColorMesh() ?? false;
+
+	public int GetDynamicComboScale(ShaderType type, ReadOnlySpan<char> name) => currentShadow?.GetDynamicComboScale(type, name) ?? 0;
 
 	public void BindVertexShader(in VertexShaderHandle vertexShader) {
 		activeVertexShader = vertexShader;
@@ -291,6 +298,33 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			SetVertexShaderConstant(VertexShaderConst.AmbientLight, MemoryMarshal.Cast<Vector4, float>(cube));
 			CachedAmbientLightCube &= ~(int)TransformDirtyBits.StateChangedVertexShader;
 		}
+	}
+
+	Vector4 WorldSpaceCameraPosition = new(0, 0, 0.01f, 0); // Don't let z be zero, as some pixel shaders will divide by this
+
+	private void CacheWorldSpaceCameraPosition() {
+		ref Matrix4x4 view = ref Matrices[(int)MaterialMatrixMode.View];
+
+		WorldSpaceCameraPosition.X = -(view.M41 * view.M11 + view.M42 * view.M12 + view.M43 * view.M13);
+		WorldSpaceCameraPosition.Y = -(view.M41 * view.M21 + view.M42 * view.M22 + view.M43 * view.M23);
+		WorldSpaceCameraPosition.Z = -(view.M41 * view.M31 + view.M42 * view.M32 + view.M43 * view.M33);
+		WorldSpaceCameraPosition.W = 1.0f;
+
+		if (MathF.Abs(WorldSpaceCameraPosition.Z) <= 0.00001f)
+			WorldSpaceCameraPosition.Z = 0.01f;
+	}
+
+	private void UpdateVertexShaderFogParams() {
+		// todo: fog params
+
+		Span<float> vertexShaderCameraPos = [
+			WorldSpaceCameraPosition.X,
+			WorldSpaceCameraPosition.Y,
+			WorldSpaceCameraPosition.Z,
+			0.0f, // todo: waterheight
+		];
+
+		SetVertexShaderConstant(VertexShaderConst.CameraPos, vertexShaderCameraPos);
 	}
 
 	private void InitVertexAndPixelShaders() {
@@ -856,6 +890,11 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		Matrices[(int)currentMode] = m4x4;
 		Matrix4x4 transposed = Matrix4x4.Transpose(m4x4);
 		glNamedBufferSubData(uboMatrices, loc, szm4x4, &transposed);
+
+		if (currentMode == MaterialMatrixMode.View) {
+			CacheWorldSpaceCameraPosition();
+			UpdateVertexShaderFogParams();
+		}
 	}
 
 	public void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 dst) {
