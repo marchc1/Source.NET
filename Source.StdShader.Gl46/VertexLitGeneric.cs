@@ -169,6 +169,7 @@ public class VertexLitGeneric : BaseVSShader
 
 			StaticShaderIndex vshIndex = new(shaderShadow, ShaderType.Vertex, "vertexlitgeneric");
 			vshIndex.Set("CUBEMAP", hasEnvmap);
+			vshIndex.Set("VERTEXCOLOR", IsFlagSet(vars, MaterialVarFlags.VertexColor));
 			shaderShadow.SetVertexShader("vertexlitgeneric", vshIndex.GetIndex());
 
 			StaticShaderIndex pshIndex = new(shaderShadow, ShaderType.Pixel, "vertexlitgeneric");
@@ -176,6 +177,8 @@ public class VertexLitGeneric : BaseVSShader
 			pshIndex.Set("ENVMAPMASK", hasEnvmap && vars[ENVMAPMASK].IsTexture());
 			pshIndex.Set("BASEALPHAENVMAPMASK", hasEnvmap && IsFlagSet(vars, MaterialVarFlags.BaseAlphaEnvMapMask));
 			pshIndex.Set("NORMALMAPALPHAENVMAPMASK", hasEnvmap && IsFlagSet(vars, MaterialVarFlags.NormalMapAlphaEnvMapMask) && vars[BUMPMAP].IsTexture());
+			pshIndex.Set("SELFILLUM", IsFlagSet(vars, MaterialVarFlags.SelfIllum));
+			pshIndex.Set("VERTEXCOLOR", IsFlagSet(vars, MaterialVarFlags.VertexColor));
 			shaderShadow.SetPixelShader("vertexlitgeneric", pshIndex.GetIndex());
 
 			SetStandardShaderUniforms();

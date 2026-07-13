@@ -47,10 +47,14 @@ layout(std140, binding = 5) uniform source_vs_constants {
 
 const int VERTEX_SHADER_CAMERA_POS = 2;
 const int VERTEX_SHADER_AMBIENT_LIGHT = 21;
+const int VERTEX_SHADER_BASE_TEXCOORD_TRANSFORM = 48; // SHADER_SPECIFIC_CONST_0
 const float cOverbright = 2.0;
 
 out vec2 vs_TexCoord;
 out vec4 vs_Color;
+#if VERTEXCOLOR
+out vec4 vs_VertexColor;
+#endif
 #if CUBEMAP
 out vec3 vs_WorldNormal;
 out vec3 vs_WorldVertToEye;
@@ -100,7 +104,13 @@ void main()
 		worldPos = localPos.xyz;
 	}
 
-    vs_TexCoord = v_TexCoord;
+    vec4 texCoordInput = vec4(v_TexCoord, 0.0, 1.0);
+    vs_TexCoord.x = dot(texCoordInput, vs_const[VERTEX_SHADER_BASE_TEXCOORD_TRANSFORM + 0]);
+    vs_TexCoord.y = dot(texCoordInput, vs_const[VERTEX_SHADER_BASE_TEXCOORD_TRANSFORM + 1]);
+
+#if VERTEXCOLOR
+    vs_VertexColor = v_Color;
+#endif
 
 #if CUBEMAP
     vs_WorldNormal = worldNormal;
