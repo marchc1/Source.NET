@@ -170,6 +170,7 @@ public class VertexLitGeneric : BaseVSShader
 			StaticShaderIndex vshIndex = new(shaderShadow, ShaderType.Vertex, "vertexlitgeneric");
 			vshIndex.Set("CUBEMAP", hasEnvmap);
 			vshIndex.Set("VERTEXCOLOR", IsFlagSet(vars, MaterialVarFlags.VertexColor));
+			vshIndex.Set("HALFLAMBERT", IsFlagSet(vars, MaterialVarFlags.HalfLambert));
 			shaderShadow.SetVertexShader("vertexlitgeneric", vshIndex.GetIndex());
 
 			StaticShaderIndex pshIndex = new(shaderShadow, ShaderType.Pixel, "vertexlitgeneric");
@@ -229,8 +230,12 @@ public class VertexLitGeneric : BaseVSShader
 			}
 
 			SetAmbientCubeDynamicStateVertexShader();
+			shaderAPI.GetLightState(out LightState lightState);
+
 			DynamicShaderIndex vshIndex = new(shaderAPI, ShaderType.Vertex);
-			vshIndex.Set("STATIC_LIGHT", shaderAPI.GetVertexShaderStaticLight());
+			vshIndex.Set("DYNAMIC_LIGHT", lightState.HasDynamicLight());
+			vshIndex.Set("STATIC_LIGHT", lightState.StaticLightVertex);
+			vshIndex.Set("NUM_LIGHTS", lightState.NumLights);
 			shaderAPI.SetVertexShaderIndex(vshIndex.GetIndex());
 			SetModulationPixelShaderDynamicState(3);
 			EnablePixelShaderOverbright(0, true, true);

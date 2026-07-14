@@ -352,7 +352,9 @@ public interface IMatRenderContext
 	ITexture? GetLocalCubemap();
 	void SetLightingOrigin(Vector3 lightingOrigin);
 	void SetAmbientLight(float r, float g, float b);
+	void SetLight(int lightNum, in Source.Common.Mathematics.LightDesc desc);
 	void DisableAllLocalLights();
+	int GetMaxLights();
 }
 
 public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
@@ -446,5 +448,7 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public ITexture? GetLocalCubemap() => ctx.GetLocalCubemap();
 	public void SetLightingOrigin(Vector3 lightingOrigin) => ctx.SetLightingOrigin(lightingOrigin);
 	public void SetAmbientLight(float r, float g, float b) => ctx.SetAmbientLight(r, g, b);
+	public void SetLight(int lightNum, in Mathematics.LightDesc desc) => ctx.SetLight(lightNum, desc);
 	public void DisableAllLocalLights() => ctx.DisableAllLocalLights();
+	public int GetMaxLights() => ctx.GetMaxLights();
 }

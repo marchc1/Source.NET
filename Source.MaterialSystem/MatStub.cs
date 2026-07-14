@@ -449,5 +449,7 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public ITexture? GetLocalCubemap() => null;
 	public void SetLightingOrigin(Vector3 lightingOrigin) { }
 	public void SetAmbientLight(float r, float g, float b) { }
+	public void SetLight(int lightNum, in LightDesc desc) { }
 	public void DisableAllLocalLights() { }
+	public int GetMaxLights() => 0;
 }

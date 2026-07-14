@@ -16,7 +16,7 @@
 //	DYNAMIC: "SKINNING"					"0..1"
 //  DYNAMIC: "LIGHTING_PREVIEW"			"0..1"
 //  DYNAMIC: "MORPHING"					"0..1"
-//  DYNAMIC: "NUM_LIGHTS"				"0..2"
+//  DYNAMIC: "NUM_LIGHTS"				"0..4"
 
 layout(location = 0) in vec3 v_Position;
 layout(location = 1) in vec3 v_Normal;
@@ -47,6 +47,7 @@ layout(std140, binding = 5) uniform source_vs_constants {
 
 const int VERTEX_SHADER_CAMERA_POS = 2;
 const int VERTEX_SHADER_AMBIENT_LIGHT = 21;
+const int VERTEX_SHADER_LIGHT_INFO = 27;
 const int VERTEX_SHADER_BASE_TEXCOORD_TRANSFORM = 48; // SHADER_SPECIFIC_CONST_0
 const float cOverbright = 2.0;
 
@@ -103,11 +104,10 @@ void main()
     vs_WorldVertToEye = vs_const[VERTEX_SHADER_CAMERA_POS].xyz - worldPos;
 #endif
 
-    vec3 linearColor;
-#if STATIC_LIGHT
-    linearColor = GammaToLinear(v_Specular.rgb * cOverbright);
-#else
-    linearColor = AmbientLight(normalize(worldNormal));
-#endif
-    vs_Color = vec4(linearColor, 1.0);
+    bool bDynamicLight = DYNAMIC_LIGHT != 0;
+    bool bStaticLight = STATIC_LIGHT != 0;
+
+    InitLightInfo();
+    vs_Color.xyz = DoLightingUnrolled(worldPos, normalize(worldNormal), v_Specular.rgb, bStaticLight, bDynamicLight, HALFLAMBERT != 0, NUM_LIGHTS);
+    vs_Color.w = 1.0;
 }

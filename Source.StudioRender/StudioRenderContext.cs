@@ -710,7 +710,24 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 	public void SetLocalLights(int lightCount, ReadOnlySpan<LightDesc> lights) {
 		RC.NumLocalLights = CopyLocalLightingState(StudioRender.MAXLOCALLIGHTS, RC.LocalLights, lightCount, lights);
 
-		// todo
+		using MatRenderContextPtr renderContext = new(materialSystem);
+
+		renderContext.SetAmbientLightCube(RC.LightBoxColors);
+
+		if (RC.Config.SoftwareLighting || RC.NumLocalLights == 0)
+			renderContext.DisableAllLocalLights();
+		else {
+			int i;
+			int maxLightCount = renderContext.GetMaxLights();
+			int localLightCount = Math.Min(RC.NumLocalLights, maxLightCount);
+			LightDesc desc = default;
+			desc.Type = LightType.Disable;
+
+			for (i = 0; i < localLightCount; ++i)
+				renderContext.SetLight(i, RC.LocalLights[i]);
+			for (; i < maxLightCount; ++i)
+				renderContext.SetLight(i, desc);
+		}
 	}
 
 	public void ComputeLighting(ReadOnlySpan<Vector3> ambient, int lightCount, Span<LightDesc> lights, in Vector3 pt, in Vector3 normal, out Vector3 lighting) {

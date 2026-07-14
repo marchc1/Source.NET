@@ -35,14 +35,14 @@ const int PIXEL_SHADER_ENVMAP_CONTRAST = 4;
 const int PIXEL_SHADER_ENVMAP_SATURATION = 5;
 
 uniform int flags;
-uniform sampler2D basetexture;
+layout(binding = 0) uniform sampler2D basetexture;
 #if CUBEMAP
-uniform samplerCube envmap;
+layout(binding = 1) uniform samplerCube envmap;
 #if ENVMAPMASK
-uniform sampler2D envmapmask;
+layout(binding = 2) uniform sampler2D envmapmask;
 #endif
 #if NORMALMAPALPHAENVMAPMASK
-uniform sampler2D bumpmap;
+layout(binding = 4) uniform sampler2D bumpmap;
 #endif
 #endif
 

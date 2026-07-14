@@ -152,8 +152,6 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			BindPixelShader(currentShadow.GetPixelShaderVariant(index));
 	}
 
-	public bool GetVertexShaderStaticLight() => RenderMesh?.HasColorMesh() ?? false;
-
 	public int GetDynamicComboScale(ShaderType type, ReadOnlySpan<char> name) => currentShadow?.GetDynamicComboScale(type, name) ?? 0;
 
 	public void BindVertexShader(in VertexShaderHandle vertexShader) {
@@ -289,8 +287,312 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		// todo
 	}
 
+	public const int MAX_NUM_LIGHTS = 4;
+
+	enum VertexShaderLightTypes
+	{
+		None = -1,
+		Spot = 0,
+		Point = 1,
+		Directional = 2,
+		Static = 3
+	}
+
+	struct Light
+	{
+		public LightType Type;
+		public Vector4 Diffuse;
+		public Vector4 Specular;
+		public Vector4 Ambient;
+		public Vector3 Position;
+		public Vector3 Direction;
+		public float Range;
+		public float Falloff;
+		public float Attenuation0;
+		public float Attenuation1;
+		public float Attenuation2;
+		public float Theta;
+		public float Phi;
+	}
+
+	readonly LightDesc[] LightDescs = new LightDesc[MAX_NUM_LIGHTS];
+	readonly Light[] Lights = new Light[MAX_NUM_LIGHTS];
+	readonly bool[] LightEnable = new bool[MAX_NUM_LIGHTS];
+	readonly TransformDirtyBits[] LightEnableChanged = new TransformDirtyBits[MAX_NUM_LIGHTS];
+	readonly TransformDirtyBits[] LightChanged = new TransformDirtyBits[MAX_NUM_LIGHTS];
+	readonly VertexShaderLightTypes[] LightTypes = new VertexShaderLightTypes[MAX_NUM_LIGHTS];
+	int NumLights;
+
+	public int GetMaxLights() => MAX_NUM_LIGHTS;
+
+	public void SetLight(int lightNum, in LightDesc desc) {
+		if (lightNum >= MAX_NUM_LIGHTS || lightNum < 0)
+			return;
+
+		LightDescs[lightNum] = desc;
+
+		FlushBufferedPrimitives();
+
+		if (desc.Type == LightType.Disable) {
+			if (LightEnable[lightNum]) {
+				LightEnableChanged[lightNum] = TransformDirtyBits.StateChanged;
+				LightEnable[lightNum] = false;
+			}
+			return;
+		}
+
+		if (!LightEnable[lightNum]) {
+			LightEnableChanged[lightNum] = TransformDirtyBits.StateChanged;
+			LightEnable[lightNum] = true;
+		}
+
+		Light light = default;
+		switch (desc.Type) {
+			case LightType.Point:
+				light.Type = LightType.Point;
+				light.Range = desc.Range;
+				break;
+
+			case LightType.Directional:
+				light.Type = LightType.Directional;
+				light.Range = 1e12f;
+				break;
+
+			case LightType.Spot:
+				light.Type = LightType.Spot;
+				light.Range = desc.Range;
+				break;
+
+			default:
+				LightEnable[lightNum] = false;
+				return;
+		}
+
+		light.Diffuse = new Vector4(desc.Color, 1.0f);
+		light.Specular = new Vector4(desc.Color, 1.0f);
+		light.Ambient = new Vector4(0, 0, 0, 0);
+		light.Position = desc.Position;
+		light.Direction = desc.Direction;
+		light.Falloff = desc.Falloff;
+		light.Attenuation0 = desc.Attenuation0;
+		light.Attenuation1 = desc.Attenuation1;
+		light.Attenuation2 = desc.Attenuation2;
+
+		light.Theta = desc.Theta;
+		light.Phi = desc.Phi;
+		if (light.Phi > MathF.PI)
+			light.Phi = MathF.PI;
+
+		if (light.Theta - light.Phi > -1e-3f)
+			light.Theta = light.Phi - 1e-3f;
+
+		LightChanged[lightNum] = TransformDirtyBits.StateChanged;
+		Lights[lightNum] = light;
+	}
+
 	public void DisableAllLocalLights() {
+		bool flushed = false;
+		for (int lightNum = 0; lightNum < MAX_NUM_LIGHTS; lightNum++) {
+			if (LightEnable[lightNum]) {
+				if (!flushed) {
+					FlushBufferedPrimitives();
+					flushed = true;
+				}
+				LightDescs[lightNum].Type = LightType.Disable;
+				LightEnableChanged[lightNum] = TransformDirtyBits.StateChanged;
+				LightEnable[lightNum] = false;
+			}
+		}
+	}
+
+	private VertexShaderLightTypes ComputeLightType(int i) {
+		if (!LightEnable[i])
+			return VertexShaderLightTypes.None;
+
+		return Lights[i].Type switch {
+			LightType.Point => VertexShaderLightTypes.Point,
+			LightType.Directional => VertexShaderLightTypes.Directional,
+			LightType.Spot => VertexShaderLightTypes.Spot,
+			_ => VertexShaderLightTypes.None,
+		};
+	}
+
+	private void SortLights(Span<int> index) {
+		NumLights = 0;
+
+		for (int i = 0; i < MAX_NUM_LIGHTS; ++i) {
+			VertexShaderLightTypes type = ComputeLightType(i);
+			int j = NumLights;
+			if (type != VertexShaderLightTypes.None) {
+				while (--j >= 0) {
+					if (LightTypes[j] <= type)
+						break;
+
+					LightTypes[j + 1] = LightTypes[j];
+					index[j + 1] = index[j];
+				}
+				++j;
+
+				LightTypes[j] = type;
+				index[j] = i;
+
+				++NumLights;
+			}
+		}
+	}
+
+	public const int PSREG_LIGHT_INFO_ARRAY = 20;
+
+	public void CommitPixelShaderLighting(int pshReg) {
+		Span<int> lightIndex = stackalloc int[MAX_NUM_LIGHTS];
+		SortLights(lightIndex);
+
+		const float farAway = 10000.0f;
+
+		Span<Vector4> lightState = stackalloc Vector4[6];
+		for (int i = 0; i < 6; i++)
+			lightState[i] = default;
+
+		int numLights = NumLights;
+		if (numLights > 0) {
+			ref Light light = ref Lights[lightIndex[0]];
+			lightState[0] = new Vector4(light.Diffuse.X, light.Diffuse.Y, light.Diffuse.Z, 0.0f);
+
+			if (light.Type == LightType.Directional) {
+				Vector3 dir = light.Direction;
+				Vector3 pos = LightingOrigin - dir * farAway;
+				lightState[1] = new Vector4(pos.X, pos.Y, pos.Z, 0.0f);
+			}
+			else {
+				lightState[1] = new Vector4(light.Position.X, light.Position.Y, light.Position.Z, 0.0f);
+			}
+
+			if (numLights > 1) {
+				light = ref Lights[lightIndex[1]];
+				lightState[2] = new Vector4(light.Diffuse.X, light.Diffuse.Y, light.Diffuse.Z, 0.0f);
+
+				if (light.Type == LightType.Directional) {
+					Vector3 dir = light.Direction;
+					Vector3 pos = LightingOrigin - dir * farAway;
+					lightState[3] = new Vector4(pos.X, pos.Y, pos.Z, 0.0f);
+				}
+				else
+					lightState[3] = new Vector4(light.Position.X, light.Position.Y, light.Position.Z, 0.0f);
+
+				if (numLights > 2) {
+					light = ref Lights[lightIndex[2]];
+					lightState[4] = new Vector4(light.Diffuse.X, light.Diffuse.Y, light.Diffuse.Z, 0.0f);
+
+					if (light.Type == LightType.Directional) {
+						Vector3 dir = light.Direction;
+						Vector3 pos = LightingOrigin - dir * farAway;
+						lightState[5] = new Vector4(pos.X, pos.Y, pos.Z, 0.0f);
+					}
+					else
+						lightState[5] = new Vector4(light.Position.X, light.Position.Y, light.Position.Z, 0.0f);
+
+					if (numLights > 3) {
+						light = ref Lights[lightIndex[3]];
+						lightState[0].W = light.Diffuse.X;
+						lightState[1].W = light.Diffuse.Y;
+						lightState[2].W = light.Diffuse.Z;
+
+						if (light.Type == LightType.Directional) {
+							Vector3 dir = light.Direction;
+							Vector3 pos = LightingOrigin - dir * farAway;
+							lightState[3].W = pos.X;
+							lightState[4].W = pos.Y;
+							lightState[5].W = pos.Z;
+						}
+						else {
+							lightState[3].W = light.Position.X;
+							lightState[4].W = light.Position.Y;
+							lightState[5].W = light.Position.Z;
+						}
+					}
+				}
+			}
+		}
+
+		SetPixelShaderConstant(pshReg, MemoryMarshal.Cast<Vector4, float>(lightState));
+	}
+
+	private bool VertexShaderLightingChanged(int i) => (LightChanged[i] & TransformDirtyBits.StateChangedVertexShader) != 0;
+	private bool VertexShaderLightingEnableChanged(int i) => (LightEnableChanged[i] & TransformDirtyBits.StateChangedVertexShader) != 0;
+
+	public void CommitVertexShaderLighting() {
+		int i;
+		for (i = 0; i < MAX_NUM_LIGHTS; ++i) {
+			if (VertexShaderLightingChanged(i) || VertexShaderLightingEnableChanged(i))
+				break;
+		}
+
+		if (i == MAX_NUM_LIGHTS)
+			return;
+
+		Span<int> lightIndex = stackalloc int[MAX_NUM_LIGHTS];
+		lightIndex.Clear();
+		SortLights(lightIndex);
+
+		for (i = 0; i < MAX_NUM_LIGHTS; ++i) {
+			LightEnableChanged[i] &= ~TransformDirtyBits.StateChangedVertexShader;
+			LightChanged[i] &= ~TransformDirtyBits.StateChangedVertexShader;
+		}
+
+		Span<Vector4> lightState = stackalloc Vector4[5];
+		for (i = 0; i < NumLights; ++i) {
+			ref Light light = ref Lights[lightIndex[i]];
+
+			float w = (light.Type == LightType.Directional) ? 1.0f : 0.0f;
+			lightState[0] = new Vector4(light.Diffuse.X, light.Diffuse.Y, light.Diffuse.Z, w);
+
+			w = (light.Type == LightType.Spot) ? 1.0f : 0.0f;
+			lightState[1] = new Vector4(light.Direction.X, light.Direction.Y, light.Direction.Z, w);
+
+			lightState[2] = new Vector4(light.Position.X, light.Position.Y, light.Position.Z, 1.0f);
+
+			if (light.Type == LightType.Spot) {
+				float stopDot = MathF.Cos(light.Theta * 0.5f);
+				float stopDot2 = MathF.Cos(light.Phi * 0.5f);
+				float ooDot = (stopDot > stopDot2) ? 1.0f / (stopDot - stopDot2) : 0.0f;
+				lightState[3] = new Vector4(light.Falloff, stopDot, stopDot2, ooDot);
+			}
+			else {
+				lightState[3] = new Vector4(0, 1, 1, 1);
+			}
+
+			lightState[4] = new Vector4(light.Attenuation0, light.Attenuation1, light.Attenuation2, 0.0f);
+
+			SetVertexShaderConstant(VertexShaderConst.Lights + i * 5, MemoryMarshal.Cast<Vector4, float>(lightState));
+		}
+
 		// todo
+	}
+
+	public void GetLightState(out LightState state) {
+		state = default;
+
+		Span<Vector4> cube = AmbientLightCube;
+		bool ambientIsZero = true;
+		for (int i = 0; i < 6; ++i) {
+			if (cube[i].X != 0.0f || cube[i].Y != 0.0f || cube[i].Z != 0.0f) {
+				ambientIsZero = false;
+				break;
+			}
+		}
+		state.AmbientLight = !ambientIsZero;
+
+		Assert(RenderMesh != null);
+		Assert(NumLights <= 4);
+
+		if (HardwareConfig.SupportsPixelShaders_2_b())
+			Assert(NumLights <= MAX_NUM_LIGHTS);
+		else
+			Assert(NumLights <= MAX_NUM_LIGHTS - 2);
+
+		state.NumLights = NumLights;
+		state.StaticLightVertex = RenderMesh?.HasColorMesh() ?? false;
+		state.StaticLightTexel = false;
 	}
 
 	public void SetVertexShaderStateAmbientLightCube() {
@@ -472,6 +774,9 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	private void CommitStateChanges() {
 		// todo
+
+		CommitVertexShaderLighting();
+
 	}
 
 	private void SetVertexDecl(VertexFormat vertexFormat, bool hasColorMesh, bool hasFleshMesh, bool usingMorph) {

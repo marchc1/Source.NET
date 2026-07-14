@@ -110,7 +110,6 @@ public interface IShaderDynamicAPI
 	void BindPixelShader(in PixelShaderHandle pixelShader);
 	void SetVertexShaderIndex(int index);
 	void SetPixelShaderIndex(int index);
-	bool GetVertexShaderStaticLight();
 	int GetDynamicComboScale(ShaderType type, ReadOnlySpan<char> name);
 
 	int LocateShaderUniform(ReadOnlySpan<char> name);
@@ -132,4 +131,15 @@ public interface IShaderDynamicAPI
 	void SetPixelShaderConstant(int var, Span<float> vec);
 	void SetVertexShaderStateAmbientLightCube();
 	void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 dst);
+	void CommitVertexShaderLighting();
+	void GetLightState(out LightState state);
+}
+
+public struct LightState
+{
+	public int NumLights;
+	public bool AmbientLight;
+	public bool StaticLightVertex;
+	public bool StaticLightTexel;
+	public readonly int HasDynamicLight() => (AmbientLight || (NumLights > 0)) ? 1 : 0;
 }

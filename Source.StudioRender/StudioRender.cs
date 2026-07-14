@@ -709,6 +709,7 @@ public unsafe class StudioRender
 		}
 
 		// todo: lightmap var
+
 		renderContext.Bind(pMaterial, clientRenderable);
 
 		if (bCheckForConVarDrawTranslucentSubModels) {
@@ -767,5 +768,26 @@ public unsafe class StudioRender
 
 		subModel = pbodypart.Model(index);
 		return index;
+	}
+
+	public void SetLightingRenderState() {
+		using MatRenderContextPtr renderContext = new(materialSystem);
+
+		renderContext.SetAmbientLightCube(pRC!.LightBoxColors);
+
+		if (pRC.Config.SoftwareLighting || pRC.NumLocalLights == 0)
+			renderContext.DisableAllLocalLights();
+		else {
+			int maxLightCount = renderContext.GetMaxLights();
+			LightDesc desc = default;
+			desc.Type = LightType.Disable;
+
+			int i;
+			int lightCount = Math.Min(pRC.NumLocalLights, maxLightCount);
+			for (i = 0; i < lightCount; ++i)
+				renderContext.SetLight(i, pRC.LocalLights[i]);
+			for (; i < maxLightCount; ++i)
+				renderContext.SetLight(i, desc);
+		}
 	}
 }

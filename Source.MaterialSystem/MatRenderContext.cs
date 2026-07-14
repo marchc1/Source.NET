@@ -607,7 +607,9 @@ public class MatRenderContext : IMatRenderContextInternal
 
 	public void SetLightingOrigin(Vector3 lightingOrigin) => shaderAPI.SetLightingOrigin(lightingOrigin);
 	public void SetAmbientLight(float r, float g, float b) => shaderAPI.SetAmbientLight(r, g, b);
+	public void SetLight(int lightNum, in LightDesc desc) => shaderAPI.SetLight(lightNum, desc);
 	public void DisableAllLocalLights() => shaderAPI.DisableAllLocalLights();
+	public int GetMaxLights() => shaderAPI.GetMaxLights();
 
 	public MatLightmaps GetLightmaps() => materials.MatLightmaps;
 
