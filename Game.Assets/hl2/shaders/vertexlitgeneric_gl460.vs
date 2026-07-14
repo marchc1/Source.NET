@@ -60,21 +60,7 @@ out vec3 vs_WorldNormal;
 out vec3 vs_WorldVertToEye;
 #endif
 
-vec3 GammaToLinear(vec3 gamma)
-{
-    return pow(gamma, vec3(2.2));
-}
-
-vec3 AmbientLight(vec3 worldNormal)
-{
-    vec3 nSquared = worldNormal * worldNormal;
-    ivec3 isNegative = ivec3(lessThan(worldNormal, vec3(0.0)));
-    vec3 color;
-    color  = nSquared.x * vs_const[VERTEX_SHADER_AMBIENT_LIGHT + isNegative.x].rgb;
-    color += nSquared.y * vs_const[VERTEX_SHADER_AMBIENT_LIGHT + 2 + isNegative.y].rgb;
-    color += nSquared.z * vs_const[VERTEX_SHADER_AMBIENT_LIGHT + 4 + isNegative.z].rgb;
-    return color;
-}
+#include "common_gl460.vs"
 
 void main()
 {

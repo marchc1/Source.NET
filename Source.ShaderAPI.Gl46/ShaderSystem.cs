@@ -385,16 +385,17 @@ public class ShaderSystem : IShaderSystemInternal
 		return true;
 	}
 
-	private static byte[]? BuildShaderSource(ReadOnlySpan<byte> source, ReadOnlySpan<char> defines) {
-		if (defines.IsEmpty)
-			return source.ToArray();
-
-		int versionEnd = source.IndexOf((byte)'\n');
+	private byte[]? BuildShaderSource(ReadOnlySpan<byte> source, ReadOnlySpan<char> defines, string mainName, List<string> sourceFiles) {
+		string src = Encoding.ASCII.GetString(source);
+		int versionEnd = src.IndexOf('\n');
 		if (versionEnd < 0)
 			return null;
-		versionEnd += 1;
+
+		sourceFiles.Add(mainName);
 
 		StringBuilder sb = new();
+		sb.Append(src.AsSpan(0, versionEnd + 1));
+
 		ReadOnlySpan<char> rest = defines;
 		while (!rest.IsEmpty) {
 			int sep = rest.IndexOf(';');
@@ -407,12 +408,50 @@ public class ShaderSystem : IShaderSystemInternal
 			sb.Append('\n');
 		}
 
-		byte[] block = Encoding.ASCII.GetBytes(sb.ToString());
-		byte[] result = new byte[versionEnd + block.Length + (source.Length - versionEnd)];
-		source[..versionEnd].CopyTo(result);
-		block.CopyTo(result, versionEnd);
-		source[versionEnd..].CopyTo(result.AsSpan(versionEnd + block.Length));
-		return result;
+		sb.Append("#line 2 0\n");
+
+		ProcessSource(sb, src[(versionEnd + 1)..], 0, 2, sourceFiles, 0);
+
+		return Encoding.ASCII.GetBytes(sb.ToString());
+	}
+
+	private void ProcessSource(StringBuilder sb, string source, int fileIndex, int startLine, List<string> sourceFiles, int depth) {
+		if (depth > 32) {
+			sb.Append(source);
+			return;
+		}
+
+		int lineNo = startLine;
+		foreach (string line in source.Split('\n')) {
+			ReadOnlySpan<char> trimmed = line.AsSpan().TrimStart();
+			if (trimmed.StartsWith("#include")) {
+				int q1 = line.IndexOf('"');
+				int q2 = q1 >= 0 ? line.IndexOf('"', q1 + 1) : -1;
+				if (q1 >= 0 && q2 > q1) {
+					string includeName = line[(q1 + 1)..q2];
+					using IFileHandle? includeHandle = FileSystem.Open($"shaders/{includeName}", FileOpenOptions.Read, "game");
+					if (includeHandle != null) {
+						byte[] bytes = new byte[includeHandle.Stream.Length];
+						includeHandle.Stream.ReadExactly(bytes);
+
+						int includeIndex = sourceFiles.Count;
+						sourceFiles.Add(includeName);
+
+						sb.Append("#line 1 ").Append(includeIndex).Append('\n');
+						ProcessSource(sb, Encoding.ASCII.GetString(bytes), includeIndex, 1, sourceFiles, depth + 1);
+						sb.Append("#line ").Append(lineNo + 1).Append(' ').Append(fileIndex).Append('\n');
+						++lineNo;
+						continue;
+					}
+
+					Warning($"Shader include not found: {includeName}\n");
+				}
+			}
+
+			sb.Append(line);
+			sb.Append('\n');
+			++lineNo;
+		}
 	}
 
 	private unsafe uint CompileShader(int glType, ReadOnlySpan<char> name, ReadOnlySpan<char> defines, string typeName) {
@@ -423,7 +462,8 @@ public class ShaderSystem : IShaderSystemInternal
 		Span<byte> source = stackalloc byte[(int)handle.Stream.Length];
 		handle.Stream.Read(source);
 
-		byte[]? built = BuildShaderSource(source, defines);
+		List<string> sourceFiles = [];
+		byte[]? built = BuildShaderSource(source, defines, new string(name), sourceFiles);
 		if (built == null)
 			return 0;
 
@@ -436,6 +476,9 @@ public class ShaderSystem : IShaderSystemInternal
 		if (!IsValidShader(pShader, out string? error)) {
 			Warning($"WARNING: {typeName} shader compilation error in {name}.\n");
 			Warning(error);
+			Warning("\n");
+			for (int i = 0; i < sourceFiles.Count; i++)
+				Warning($"  [source string {i}] = {sourceFiles[i]}\n");
 			Warning("\n");
 			return 0;
 		}

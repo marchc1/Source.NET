@@ -48,15 +48,7 @@ uniform sampler2D bumpmap;
 
 out vec4 fragColor;
 
-vec3 GammaToLinear(vec3 gamma)
-{
-    return pow(gamma, vec3(2.2));
-}
-
-vec3 LinearToGamma(vec3 linear)
-{
-    return pow(linear, vec3(1.0 / 2.2));
-}
+#include "common_gl460.fs"
 
 void main()
 {
