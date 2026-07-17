@@ -400,6 +400,7 @@ FodyWeavers.xsd
 *.sln.iml
 Game.Assets/hl2/steam.inf
 Game.Assets/hl2/maps/*
+Game.Assets/hl2/scripts
 Game.Assets/hl2/maps
 Game.Assets/hl2/cfg/autoexec.cfg
 Source.Launcher/Properties/launchSettings.json

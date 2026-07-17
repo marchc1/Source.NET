@@ -17,7 +17,7 @@ static class AssetUtils
 	public static void CheckRequired() {
 		string? root = Path.Combine(FindProjectRoot(), "Game.Assets");
 
-		if (File.Exists(Path.Combine(root, "hl2", "garrysmod_dir.vpk")))
+		if (File.Exists(Path.Combine(root, "hl2", "garrysmod_dir.vpk")) && File.Exists(Path.Combine(root, "hl2", "scripts", "surfaceproperties_manifest.txt")))
 			return;
 
 		bool result = Singleton<MessageBoxFn>()("Source.NET", "Missing required content, should we automatically link it?", true);
@@ -50,6 +50,8 @@ static class AssetUtils
 		string[] tex = ["dir", "000", "001", "002", "003", "004", "005", "006", "007", "008", "009", "010"];
 		foreach (var suffix in tex)
 			list.Add(new($"hl2/hl2_textures_{suffix}.vpk", $"sourceengine/hl2_textures_{suffix}.vpk"));
+
+		list.Add(new("hl2/scripts", "sourceengine/scripts", IsDirectory: true));
 
 		return list;
 	}
