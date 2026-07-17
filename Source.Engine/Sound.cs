@@ -76,10 +76,11 @@ public partial class Sound
 	}
 
 	bool SfxTable_IsPrecachedSound(SfxTable self) {
-		if (sv.IsActive())
-			return false; // Todo
-
 		ReadOnlySpan<char> name = SfxTable_GetName(self);
+
+		if (sv.IsActive())
+			return sv.LookupSoundIndex(name) != 0;
+
 		return cl.LookupSoundIndex(name) != -1;
 	}
 
@@ -164,5 +165,7 @@ public partial class Sound
 
 		if (!AudioSystem.IsActive())
 			return;
+
+		// todo
 	}
 }

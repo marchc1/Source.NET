@@ -213,6 +213,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 		gameeventmanager.LoadEventsFromFile("resource/gameevents.res");
 
+		IGameSystem.Add(g_SoundEmitterSystem);
 		IGameSystem.Add(PhysicsGameSystem());
 
 		if (!IGameSystem.InitAllSystems())

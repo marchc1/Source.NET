@@ -8,6 +8,7 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Reflection.Emit;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -15,12 +16,13 @@ using System.Threading.Channels;
 using System.Xml.Linq;
 
 using PitchInterval = Source.Common.SoundEmitterSystem.SoundInterval<System.Byte>;
-using SoundLevelInterval = Source.Common.SoundEmitterSystem.SoundInterval<Source.Common.Audio.SoundLevel>;
+using SoundLevelInterval = Source.Common.SoundEmitterSystem.SoundInterval<System.UInt16>;
 using VolumeInterval = Source.Common.SoundEmitterSystem.SoundInterval<System.Half>;
 
 namespace Source.Common.SoundEmitterSystem;
 
-public static class SoundEmitterSystemGlobals {
+public static class SoundEmitterSystemGlobals
+{
 	public const HSOUNDSCRIPTHANDLE SOUNDEMITTER_INVALID_HANDLE = unchecked((HSOUNDSCRIPTHANDLE)(-1));
 }
 
@@ -32,7 +34,7 @@ public struct Interval
 		return memcmp(in i1, in i2) == 0;
 	}
 
-	public static bool Compare<T>(in SoundInterval<T> i1, in SoundInterval<T> i2) where T : unmanaged {
+	public static bool Compare<T>(in SoundInterval<T> i1, in SoundInterval<T> i2) where T : unmanaged, INumber<T> {
 		return memcmp(in i1, in i2) == 0;
 	}
 
@@ -68,20 +70,20 @@ public struct SoundFile
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public struct SoundInterval<T>
+public struct SoundInterval<T> where T : INumber<T>
 {
 	public T Start;
 	public T Range;
 	public readonly ref Interval ToInterval(ref Interval dest) {
-		dest.Start = (float?)(object?)Start ?? 0;
-		dest.Range = (float?)(object?)Range ?? 0;
+		dest.Start = float.CreateTruncating(Start);
+		dest.Range = float.CreateTruncating(Range);
 		return ref dest;
 	}
 	public void FromInterval(in Interval from) {
-		Start = (T)(object)from.Start;
-		Range = (T)(object)from.Range;
+		Start = T.CreateTruncating(from.Start);
+		Range = T.CreateTruncating(from.Range);
 	}
-	public readonly float Random() => RandomFloat((float?)(object?)Start ?? 0, ((float?)(object?)(Start) ?? 0) + ((float?)(object?)(Range) ?? 0));
+	public readonly float Random() => RandomFloat(float.CreateTruncating(Start), float.CreateTruncating(Start) + float.CreateTruncating(Range));
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -101,7 +103,7 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 		Volume = src.Volume;
 		Pitch = src.Pitch;
 		SoundLevel = src.SoundLevel;
-		DelayMsec= src.DelayMsec;
+		DelayMsec = src.DelayMsec;
 		bPlayToOwnerOnly = src.bPlayToOwnerOnly;
 
 		SoundNamesCount = src.SoundNamesCount;
@@ -114,7 +116,7 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 				SoundNames = src.SoundNames;
 			}
 		}
-		else 
+		else
 			SoundNames = null;
 
 		ConvertedNamesCount = src.ConvertedNamesCount;
@@ -127,7 +129,7 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 				ConvertedNames = src.ConvertedNames;
 			}
 		}
-		else 
+		else
 			ConvertedNames = null;
 
 		bHadMissingWaveFiles = src.bHadMissingWaveFiles;
@@ -396,8 +398,8 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 			Pitch.FromInterval(Interval.Read(sz));
 	}
 	public void SoundLevelFromString(ReadOnlySpan<char> sz) {
-		if (0 == strcmp(sz[..Math.Max(sz.Length, "SNDLVL_".Length - 1)], "SNDLVL_")) {
-			SoundLevel.Start = TextToSoundLevel(sz);
+		if (0 == strnicmp(sz, "SNDLVL_", "SNDLVL_".Length)) {
+			SoundLevel.Start = (ushort)TextToSoundLevel(sz);
 			SoundLevel.Range = 0;
 		}
 		else
@@ -419,7 +421,7 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 	public void SetChannel(int newChannel) => Channel = (SoundEntityChannel)newChannel;
 	public void SetVolume(float start, float range = 0.0f) { Volume.Start = (Half)start; Volume.Range = (Half)range; }
 	public void SetPitch(float start, float range = 0.0f) { Pitch.Start = (byte)start; Pitch.Range = (byte)range; }
-	public void SetSoundLevel(float start, float range = 0.0f) { SoundLevel.Start = (SoundLevel)start; SoundLevel.Range = (SoundLevel)range; }
+	public void SetSoundLevel(float start, float range = 0.0f) { SoundLevel.Start = (ushort)start; SoundLevel.Range = (ushort)range; }
 	public void SetDelayMsec(int delay) => DelayMsec = (ushort)delay;
 	public void SetShouldPreload(bool bShouldPreload) => this.bShouldPreload = bShouldPreload;
 	public void SetOnlyPlayToOwner(bool b) => bPlayToOwnerOnly = b;
@@ -439,7 +441,8 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 		if (destCount == 1) {
 			// NOTE: when there's only one soundfile in the list, we store it
 			// packed into the pointer itself, the four bytes for the pointer is just used to store the sound file!
-			dest![0] = source;
+			dest = new SoundFile[1];
+			dest[0] = source;
 		}
 		else {
 			SoundFile temp = default;
@@ -451,24 +454,24 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 			Array.Resize(ref dest, destCount);
 			dest[destCount - 1] = source;
 
-			if (destCount == 2) 
+			if (destCount == 2)
 				dest[0] = temp;
 		}
 	}
 
-	SoundFile[]? SoundNames;     
-	SoundFile[]? ConvertedNames; 
+	SoundFile[]? SoundNames;
+	SoundFile[]? ConvertedNames;
 
-	ushort ConvertedNamesCount; 
-	ushort SoundNamesCount;     
+	ushort ConvertedNamesCount;
+	ushort SoundNamesCount;
 
-	VolumeInterval Volume;         
-	SoundLevelInterval SoundLevel; 
-	PitchInterval Pitch;           
-	SoundEntityChannel Channel;    
-	ushort DelayMsec;              
+	VolumeInterval Volume;
+	SoundLevelInterval SoundLevel;
+	PitchInterval Pitch;
+	SoundEntityChannel Channel;
+	ushort DelayMsec;
 
-	bool bPlayToOwnerOnly; 
+	bool bPlayToOwnerOnly;
 	bool bHadMissingWaveFiles;
 	bool bUsesGenderToken;
 	bool bShouldPreload;
@@ -551,7 +554,7 @@ public interface ISoundEmitterSystemBase
 	int FindSoundScript(ReadOnlySpan<char> name);
 	void SaveChangesToSoundScript(int scriptindex);
 
-	void ExpandSoundNameMacros(in SoundParametersInternal parms, ReadOnlySpan<char> wavename);
+	void ExpandSoundNameMacros(ref SoundParametersInternal parms, ReadOnlySpan<char> wavename);
 	Gender GetActorGender(ReadOnlySpan<char> actormodel);
 	void GenderExpandString(ReadOnlySpan<char> actormodel, ReadOnlySpan<char> inText, Span<char> outText);
 	void GenderExpandString(Gender gender, ReadOnlySpan<char> inText, Span<char> outText);

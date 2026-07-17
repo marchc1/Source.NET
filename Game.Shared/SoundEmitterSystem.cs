@@ -28,6 +28,18 @@ namespace Game.Server;
 
 public class SoundEmitterSystem : BaseGameSystem
 {
+	public override ReadOnlySpan<char> Name() => "CSoundEmitterSystem";
+
+	public override bool Init() {
+		Assert(soundemitterbase != null);
+		return soundemitterbase.ModInit();
+	}
+
+	public override void Shutdown() {
+		Assert(soundemitterbase != null);
+		soundemitterbase.ModShutdown();
+	}
+
 	internal void EmitSoundByHandle<T>(T filter, int entIndex, in EmitSound_t ep, ref HSOUNDSCRIPTHANDLE handle) where T : IRecipientFilter {
 		SoundParameters parms = default;
 
@@ -75,11 +87,56 @@ public class SoundEmitterSystem : BaseGameSystem
 			st,
 			ep.SpeakerEntity);
 
-		if (!Unsafe.IsNullRef(ref ep.SoundDuration)) 
-			ep.SoundDuration = enginesound.GetSoundDuration( parms.SoundName);
+		if (!Unsafe.IsNullRef(ref ep.SoundDuration))
+			ep.SoundDuration = enginesound.GetSoundDuration(parms.SoundName);
 
-		// if (0 == (ep.Flags & (SoundFlags.ChangePitch | SoundFlags.ChangeVolume))) 
-			// EmitCloseCaption(filter, entindex, params, ep);
+		// if (0 == (ep.Flags & (SoundFlags.ChangePitch | SoundFlags.ChangeVolume)))
+		// EmitCloseCaption(filter, entindex, params, ep);
+	}
+
+	public void EmitSound<T>(scoped in T filter, int entindex, ref EmitSound_t ep) where T : IRecipientFilter {
+		if (!ep.SoundName.IsEmpty &&
+			(!stristr(ep.SoundName, ".wav").IsEmpty ||
+			 !stristr(ep.SoundName, ".mp3").IsEmpty ||
+			 ep.SoundName[0] == '!')) {
+#if !CLIENT_DLL
+			// TODO: CEnvMicrophone
+#endif
+
+			if (ep.WarnOnDirectWaveReference && !stristr(ep.SoundName, ".wav").IsEmpty) {
+				// WaveTrace( ep.SoundName, "Emitsound" );
+			}
+
+			enginesound.EmitSound(
+				filter,
+				entindex,
+				ep.Channel,
+				ep.SoundName,
+				ep.Volume,
+				ep.SoundLevel,
+				ep.Flags,
+				ep.Pitch,
+				ep.SpecialDSP,
+				in ep.Origin,
+				Unsafe.NullRef<Vector3>(),
+				ep.SoundOrigin,
+				true,
+				ep.SoundTime,
+				ep.SpeakerEntity);
+			if (!Unsafe.IsNullRef(ref ep.SoundDuration))
+				ep.SoundDuration = enginesound.GetSoundDuration(ep.SoundName);
+
+			// TraceEmitSound( "EmitSound:  Raw wave emitted '%s' (ent %i)\n", ep.SoundName, entindex );
+			return;
+		}
+
+		if (ep.SoundScriptHandle == SOUNDEMITTER_INVALID_HANDLE)
+			ep.SoundScriptHandle = (HSOUNDSCRIPTHANDLE)soundemitterbase.GetSoundIndex(ep.SoundName);
+
+		if (ep.SoundScriptHandle == -1)
+			return;
+
+		EmitSoundByHandle(filter, entindex, ep, ref ep.SoundScriptHandle);
 	}
 }
 
@@ -112,6 +169,7 @@ BaseEntity
 
 		BaseEntity.EmitSound(filter, EntIndex(), in parms);
 	}
+
 	public void EmitSound(ReadOnlySpan<char> soundname, TimeUnit_t soundtime, out TimeUnit_t duration) {
 		duration = default;
 		PASAttenuationFilter filter = new(this, soundname);
@@ -124,6 +182,7 @@ BaseEntity
 
 		BaseEntity.EmitSound(filter, EntIndex(), in parms);
 	}
+
 	public static void EmitSound<T>(in T filter, int entIndex, ReadOnlySpan<char> soundname, in Vector3 origin, TimeUnit_t soundtime, out TimeUnit_t duration) where T : IRecipientFilter {
 		duration = default;
 		if (soundname.IsStringEmpty)
@@ -138,6 +197,7 @@ BaseEntity
 
 		EmitSound(filter, entIndex, ref parms, ref parms.SoundScriptHandle);
 	}
+
 	public static void EmitSound<T>(in T filter, int entIndex, ref EmitSound_t parms, ref HSOUNDSCRIPTHANDLE handle) where T : IRecipientFilter {
 #if GAME_DLL
 		BaseEntity? entity = Util.EntityByIndex(entIndex);
@@ -151,6 +211,7 @@ BaseEntity
 		// Call into the sound emitter system...
 		g_SoundEmitterSystem.EmitSoundByHandle(filter, entIndex, parms, ref handle);
 	}
+
 	public bool GetParametersForSound(ReadOnlySpan<char> soundName, ref SoundParameters parms, ReadOnlySpan<char> actorModel) {
 		Gender gender = soundemitterbase.GetActorGender(actorModel);
 		return soundemitterbase.GetParametersForSound(soundName, ref parms, gender);

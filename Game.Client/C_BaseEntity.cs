@@ -2607,7 +2607,9 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual Vector3 GetSoundEmissionOrigin() => WorldSpaceCenter();
 
 	public static void EmitSound<IRF>(scoped in IRF filter, int entIndex, scoped in EmitSound_t parms) where IRF : IRecipientFilter {
-
+		C_BaseEntity? entity = cl_entitylist.GetEnt(entIndex);
+		entity?.ModifyEmitSoundParams(ref Unsafe.AsRef(in parms));
+		g_SoundEmitterSystem.EmitSound(filter, entIndex, ref Unsafe.AsRef(in parms));
 	}
 
 

@@ -78,7 +78,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		}
 	}
 
-	public void LevelInitPostEntity(){
+	public void LevelInitPostEntity() {
 		IGameSystem.LevelInitPostEntityAllSystems();
 	}
 
@@ -111,6 +111,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 #if GMOD_DLL
 		garrysmod.InitializeMod(services);
 #endif
+		IGameSystem.Add(g_SoundEmitterSystem);
 		IGameSystem.Add(Singleton<ClientLeafSystem>());
 		IGameSystem.Add(DetailObjectSystem.GetDetailObjectSystem());
 		IGameSystem.Add(Singleton<ViewportClientSystem>());
@@ -310,7 +311,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		ClientThinkList().PerformThinkFunctions();
 		C_BaseEntityIterator iterator = new C_BaseEntityIterator();
 		C_BaseEntity? ent;
-		while((ent = iterator.Next()) != null)
+		while ((ent = iterator.Next()) != null)
 			ent.Simulate();
 	}
 

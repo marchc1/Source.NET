@@ -31,7 +31,7 @@ class SoundEmitterUniformRandomStream : IUniformRandomStream
 	public float RandomFloatExp(float flMinVal = 0.0f, float flMaxVal = 1.0f, float flExponent = 1.0f) => RandomGlobals.RandomFloatExp(flMinVal, flMaxVal, flExponent);
 }
 
-public struct SoundEntry
+public struct SoundEntry : IEquatable<SoundEntry>
 {
 	string? name;
 	ulong hash;
@@ -47,6 +47,9 @@ public struct SoundEntry
 			hash = name?.Hash() ?? 0;
 		}
 	}
+
+	public readonly bool Equals(SoundEntry other) => string.Equals(name, other.name, StringComparison.OrdinalIgnoreCase);
+	public override readonly bool Equals(object? obj) => obj is SoundEntry other && Equals(other);
 
 	public override int GetHashCode() {
 		return HashCode.Combine(hash);
@@ -79,6 +82,7 @@ public class SoundEmitterSystemBase : ISoundEmitterSystemBase
 
 	int CurrentHandle;
 	int Sounds_AllocHandle(LinkedListNode<SoundEntry> node) {
+		Sounds.AddLast(node);
 		int handle = Interlocked.Increment(ref CurrentHandle);
 		HandleToSound[handle] = node;
 		SoundToHandle[node] = handle;
@@ -211,8 +215,43 @@ public class SoundEmitterSystemBase : ISoundEmitterSystemBase
 		throw new NotImplementedException();
 	}
 
-	public void ExpandSoundNameMacros(in SoundParametersInternal parms, ReadOnlySpan<char> wavename) {
-		throw new NotImplementedException();
+	void AddSoundName(ref SoundParametersInternal parms, ReadOnlySpan<char> wavename, Gender gender) {
+		UtlSymbol sym = Waves.AddString(wavename);
+		SoundFile e = new();
+		e.Symbol = sym;
+		e.Gender = gender;
+		if (gender != Gender.None)
+			parms.SetUsesGenderToken(true);
+		parms.AddSoundName(e);
+	}
+
+	public void ExpandSoundNameMacros(ref SoundParametersInternal parms, ReadOnlySpan<char> wavename) {
+		int offset = wavename.IndexOf(SOUNDGENDER_MACRO, StringComparison.OrdinalIgnoreCase);
+		if (offset == -1) {
+			AddSoundName(ref parms, wavename, Gender.None);
+			return;
+		}
+
+		Assert(offset >= 0);
+		int duration = SOUNDGENDER_MACRO_LENGTH;
+
+		// Create a "male" and "female" version of the sound
+		Span<char> before = stackalloc char[256], after = stackalloc char[256];
+
+		SplitName(wavename, offset, duration, before, after);
+
+		Span<char> temp = stackalloc char[256];
+		sprintf(temp, "%s%s%s").S(before).S("male").S(after);
+		AddSoundName(ref parms, temp.SliceNullTerminatedString(), Gender.Male);
+		sprintf(temp, "%s%s%s").S(before).S("female").S(after);
+		AddSoundName(ref parms, temp.SliceNullTerminatedString(), Gender.Female);
+
+		// Add the conversion entry with the gender tags still in it
+		UtlSymbol sym = Waves.AddString(wavename);
+		SoundFile e = new();
+		e.Symbol = sym;
+		e.Gender = Gender.None;
+		parms.AddConvertedName(e);
 	}
 
 	public int FindSoundScript(ReadOnlySpan<char> name) {
@@ -252,7 +291,7 @@ public class SoundEmitterSystemBase : ISoundEmitterSystemBase
 		int c = 0;
 		int l = 0;
 		int maxl = before.Length;
-		while (inText[0] != '\0') {
+		while (inText.Length > 0 && inText[0] != '\0') {
 			if (c == splitchar) {
 				while (--splitlen >= 0)
 					inText = inText[1..];
@@ -324,15 +363,27 @@ public class SoundEmitterSystemBase : ISoundEmitterSystemBase
 	public int GetNumSoundScripts() => SoundKeyValues.Count;
 
 	public bool GetParametersForSound(ReadOnlySpan<char> soundname, ref SoundParameters parms, Gender gender, bool isbeingemitted = false) {
-		throw new NotImplementedException();
+		HSOUNDSCRIPTHANDLE index = (HSOUNDSCRIPTHANDLE)GetSoundIndex(soundname);
+		if (index == SOUNDEMITTER_INVALID_HANDLE) {
+			Span<char> key = stackalloc char[256];
+			sprintf(key, "%s:%s").S(soundname).S(((Span<char>)parms.SoundName).SliceNullTerminatedString());
+			if (UTL_INVAL_SYMBOL == soundWarnings.Find(key)) {
+				soundWarnings.AddString(key);
+
+				DevMsg($"CSoundEmitterSystemBase::GetParametersForSound:  No such sound {soundname}\n");
+			}
+			return false;
+		}
+
+		return GetParametersForSoundEx(soundname, ref index, ref parms, gender, isbeingemitted);
 	}
 
-	public void EnsureAvailableSlotsForGender(Span<SoundFile> soundNames, int c, Gender gender){
+	public void EnsureAvailableSlotsForGender(Span<SoundFile> soundNames, int c, Gender gender) {
 		int i;
-		if (c <= 0) 
+		if (c <= 0)
 			return;
-		
-		List<int> slots =[]; // todo: dont make a list here
+
+		List<int> slots = []; // todo: dont make a list here
 
 		bool needsreset = false;
 		for (i = 0; i < c; i++) {
@@ -573,12 +624,12 @@ public class SoundEmitterSystemBase : ISoundEmitterSystemBase
 				parms.PitchFromString(key.GetString());
 			}
 			else if (0 == strcmp(key.Name, "wave")) {
-				ExpandSoundNameMacros(parms, key.GetString());
+				ExpandSoundNameMacros(ref parms, key.GetString());
 			}
 			else if (0 == strcmp(key.Name, "rndwave")) {
 				KeyValues? waves = key.GetFirstSubKey();
 				while (waves != null) {
-					ExpandSoundNameMacros(parms, waves.GetString());
+					ExpandSoundNameMacros(ref parms, waves.GetString());
 
 					waves = waves.GetNextKey();
 				}
