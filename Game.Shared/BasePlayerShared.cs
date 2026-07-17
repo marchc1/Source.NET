@@ -4,6 +4,7 @@
 global using static Game.Client.BasePlayerGlobals;
 
 global using BasePlayer = Game.Client.C_BasePlayer;
+global using RecipientFilter = Game.Client.C_RecipientFilter;
 
 #else
 global using static Game.Server.BasePlayerGlobals;
@@ -27,7 +28,9 @@ using Source.Common.Commands;
 using Source.Common.Physics;
 using Source;
 using Source.Common;
+using Source.Common.Audio;
 using Source.Common.Formats.BSP;
+using Source.Common.SoundEmitterSystem;
 
 using System.Runtime.CompilerServices;
 
@@ -50,6 +53,14 @@ public static class BasePlayerGlobals
 	}
 
 	public const TimeUnit_t DEATH_ANIMATION_TIME = 3.0f;
+
+	public enum StepSoundTimes
+	{
+		Normal = 0,
+		OnLadder,
+		WaterKnee,
+		WaterFoot
+	}
 }
 
 public partial class
@@ -210,8 +221,77 @@ public partial class
 		return false;
 	}
 
-	public void PlayStepSound(in Vector3 origin, SurfaceData_ptr? surface, float fvol, bool force) {
-		// todo
+	public virtual ReadOnlySpan<char> GetOverrideStepSound(ReadOnlySpan<char> baseStepSoundName) => baseStepSoundName;
+	public virtual void OnEmitFootstepSound(in SoundParameters parms, in Vector3 origin, float volume) { }
+
+	struct StepSoundCache_t
+	{
+		public StepSoundCache_t() { SoundNameIndex = 0; }
+		public SoundParameters SoundParameters;
+		public UtlSymId_t SoundNameIndex;
+	}
+	StepSoundCache_t[] StepSoundCache = [new(), new()];
+
+	public void PlayStepSound(in Vector3 origin, SurfaceData_ptr? surface, float vol, bool force) {
+		if (gpGlobals.MaxClients > 1 && !sv_footsteps.GetBool())
+			return;
+
+#if CLIENT_DLL
+		if (prediction.InPrediction() && !prediction.IsFirstTimePredicted())
+			return;
+#endif
+
+		if (surface == null)
+			return;
+
+		int side = Local.StepSide;
+		UtlSymId_t stepSoundName = side != 0 ? surface.Sounds.StepLeft : surface.Sounds.StepRight;
+		if (stepSoundName == 0)
+			return;
+
+		Local.StepSide = side != 0 ? 0 : 1;
+
+		SoundParameters parms = new();
+
+		Assert(side == 0 || side == 1);
+
+		if (StepSoundCache[side].SoundNameIndex == stepSoundName)
+			parms = StepSoundCache[side].SoundParameters;
+		else {
+			ReadOnlySpan<char> soundName = MoveHelper().GetSurfaceProps()!.GetString(stepSoundName);
+
+			soundName = GetOverrideStepSound(soundName);
+
+			if (!GetParametersForSound(soundName, ref parms, null))
+				return;
+
+			if (parms.Count == 1) {
+				StepSoundCache[side].SoundNameIndex = stepSoundName;
+				StepSoundCache[side].SoundParameters = parms;
+			}
+		}
+
+		RecipientFilter filter = new();
+		filter.AddRecipientsByPAS(origin);
+
+#if !CLIENT_DLL
+		if (gpGlobals.MaxClients > 1)
+			filter.RemoveRecipientsByPVS(origin);
+#endif
+
+		scoped EmitSound_t ep = new() {
+			Channel = (int)SoundEntityChannel.Body,
+			SoundName = ((ReadOnlySpan<char>)parms.SoundName).SliceNullTerminatedString(),
+			Volume = vol,
+			SoundLevel = parms.SoundLevel,
+			Flags = 0,
+			Pitch = parms.Pitch,
+			Origin = ref origin
+		};
+
+		EmitSound(filter, EntIndex(), in ep);
+
+		OnEmitFootstepSound(parms, origin, vol);
 	}
 
 	public virtual bool Weapon_ShouldSelectItem(BaseCombatWeapon weapon) => weapon != GetActiveWeapon();
@@ -244,9 +324,191 @@ public partial class
 		return maxSpeed;
 	}
 
-	public void UpdateStepSound(SurfaceData_ptr surface, in Vector3 origin, in Vector3 velocity) {
-		// todo
+	int SkipStep;
+	public void UpdateStepSound(SurfaceData_ptr? surface, in Vector3 origin, in Vector3 velocity) {
+		bool walking;
+		float vol = 0;
+		Vector3 knee, feet;
+		float height, speed, velrun, velwalk;
+		bool ladder;
+
+		if (StepSoundTime > 0) {
+			StepSoundTime -= 1000.0f * gpGlobals.FrameTime;
+			if (StepSoundTime < 0)
+				StepSoundTime = 0;
+		}
+
+		if (StepSoundTime > 0)
+			return;
+
+		if ((GetFlags() & (EntityFlags.Frozen | EntityFlags.AtControls)) != 0)
+			return;
+
+		if (GetMoveType() == Source.MoveType.Noclip || GetMoveType() == Source.MoveType.Observer)
+			return;
+
+		if (!sv_footsteps.GetBool())
+			return;
+
+		speed = MathLib.VectorLength(Velocity);
+		float groundSpeed = MathLib.Vector2DLength(Velocity.AsVector2());
+
+		ladder = GetMoveType() == Source.MoveType.Ladder;
+
+		GetStepSoundVelocities(out velwalk, out velrun);
+
+		bool onground = (GetFlags() & EntityFlags.OnGround) != 0;
+		bool movingAlongGround = groundSpeed > 0.0001f;
+		bool movingFastEnough = speed >= velwalk;
+
+		if (!movingFastEnough || !(ladder || (onground && movingAlongGround)))
+			return;
+
+		walking = speed < velrun;
+
+		MathLib.VectorCopy(Origin, out knee);
+		MathLib.VectorCopy(Origin, out feet);
+
+		height = GetPlayerMaxs()[2] - GetPlayerMins()[2];
+		knee[2] = Origin[2] + 0.2f * height;
+
+		if (ladder) {
+			surface = GetLadderSurface(Origin);
+			vol = 0.5f;
+
+			SetStepSoundTime(StepSoundTimes.OnLadder, walking);
+		}
+		else if (GetWaterLevel() == Shared.WaterLevel.Waist) {
+
+			if (SkipStep == 0) {
+				SkipStep++;
+				return;
+			}
+
+			if (SkipStep++ == 3)
+				SkipStep = 0;
+
+			surface = physprops.GetSurfaceData(physprops.GetSurfaceIndex("wade"));
+			vol = 0.65f;
+
+			SetStepSoundTime(StepSoundTimes.WaterKnee, walking);
+		}
+		else if (GetWaterLevel() == Shared.WaterLevel.Feet) {
+			surface = physprops.GetSurfaceData(physprops.GetSurfaceIndex("water"));
+			vol = walking ? .2f : .5f;
+			SetStepSoundTime(StepSoundTimes.WaterKnee, walking);
+		}
+		else {
+			if (surface == null)
+				return;
+
+			SetStepSoundTime(StepSoundTimes.Normal, walking);
+
+			switch ((char)surface.Game.Material) {
+				default:
+				case Decals.CHAR_TEX_CONCRETE:
+					vol = walking ? 0.2f : 0.5f;
+					break;
+
+				case Decals.CHAR_TEX_METAL:
+					vol = walking ? 0.2f : 0.5f;
+					break;
+
+				case Decals.CHAR_TEX_DIRT:
+					vol = walking ? 0.25f : 0.55f;
+					break;
+
+				case Decals.CHAR_TEX_VENT:
+					vol = walking ? 0.4f : 0.7f;
+					break;
+
+				case Decals.CHAR_TEX_GRATE:
+					vol = walking ? 0.2f : 0.5f;
+					break;
+
+				case Decals.CHAR_TEX_TILE:
+					vol = walking ? 0.2f : 0.5f;
+					break;
+
+				case Decals.CHAR_TEX_SLOSH:
+					vol = walking ? 0.2f : 0.5f;
+					break;
+			}
+
+			if ((GetFlags() & EntityFlags.Ducking) != 0)
+				vol *= 0.65f;
+		}
+
+		PlayStepSound(feet, surface, vol, false);
 	}
+
+	private SurfaceData_ptr GetLadderSurface(Vector3 origin) {
+#if CLIENT_DLL
+		return GetFootstepSurface(origin, "ladder")!;
+#else
+		return physprops.GetSurfaceData(physprops.GetSurfaceIndex("ladder"))!;
+#endif
+	}
+
+#if CLIENT_DLL
+	private SurfaceData_ptr GetFootstepSurface(Vector3 origin, ReadOnlySpan<char> v) => physprops.GetSurfaceData(physprops.GetSurfaceIndex(v))!;
+#endif
+
+	private void GetStepSoundVelocities(out float velwalk, out float velrun) {
+		if ((GetFlags() & EntityFlags.Ducking) != 0 || GetMoveType() == Source.MoveType.Ladder) {
+			velwalk = 60;
+			velrun = 80;
+		}
+		else {
+			velwalk = 90;
+			velrun = 220;
+		}
+	}
+
+	private void SetStepSoundTime(StepSoundTimes stepSoundTime, bool walking) {
+		switch (stepSoundTime) {
+			case StepSoundTimes.Normal:
+			case StepSoundTimes.WaterFoot:
+				StepSoundTime = walking ? 400.0f : 300.0f;
+				break;
+			case StepSoundTimes.OnLadder:
+				StepSoundTime = 350.0f;
+				break;
+			case StepSoundTimes.WaterKnee:
+				StepSoundTime = 600.0f;
+				break;
+			default:
+				Assert(false);
+				break;
+		}
+
+		if ((GetFlags() & EntityFlags.Ducking) != 0 || (GetMoveType() == Source.MoveType.Ladder))
+			StepSoundTime += 100.0f;
+	}
+
+
+	Vector3 GetPlayerMins() {
+		if (IsObserver())
+			return VEC_OBS_HULL_MIN_SCALED(this);
+		else {
+			if ((GetFlags() & EntityFlags.Ducking) != 0)
+				return VEC_DUCK_HULL_MIN_SCALED(this);
+			else
+				return VEC_HULL_MIN_SCALED(this);
+		}
+	}
+
+	Vector3 GetPlayerMaxs() {
+		if (IsObserver())
+			return VEC_OBS_HULL_MAX_SCALED(this);
+		else {
+			if ((GetFlags() & EntityFlags.Ducking) != 0)
+				return VEC_DUCK_HULL_MAX_SCALED(this);
+			else
+				return VEC_HULL_MAX_SCALED(this);
+		}
+	}
+
 
 	public void ViewPunch(in QAngle angleOffset) {
 		//See if we're suppressing the view punching
@@ -323,7 +585,7 @@ public partial class
 #if CLIENT_DLL
 			if (vehicle.IsPredicted())
 #endif
-			vehicle.ItemPostFrame(this);
+				vehicle.ItemPostFrame(this);
 
 			if (!usingStandardWeapons || GetVehicle() == null)
 				return;
@@ -347,7 +609,7 @@ public partial class
 				// Not predicting this weapon
 				if (GetActiveWeapon()!.IsPredicted())
 #endif
-				GetActiveWeapon()!.ItemPostFrame();
+					GetActiveWeapon()!.ItemPostFrame();
 			}
 		}
 

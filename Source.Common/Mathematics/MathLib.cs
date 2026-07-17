@@ -1721,6 +1721,7 @@ public static class MathLib
 	}
 
 	public static float VectorLength(in Vector3 delta) => delta.Length();
+	public static float Vector2DLength(in Vector2 v) => MathF.Sqrt(DotProduct2D(v, v));
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Vector3 Cross(this Vector3 vec, Vector3 other) {
@@ -2354,7 +2355,7 @@ public static class MathLib
 
 		if ((uint)i > 4095) {
 			if (i < 0)
-				i = 0;    
+				i = 0;
 			else
 				i = 4095;
 		}
