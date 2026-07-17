@@ -22,7 +22,7 @@ public class IPredictionSystem
 	public void SetSuppressEvent(bool state) => SuppressEvent = state;
 	public void SetSuppressHost(BaseEntity? host) => SuppressHost = host;
 	public BaseEntity? GetSuppressHost() => DisableFiltering() ? null : SuppressHost;
-	public bool CanPredict() => DisableFiltering() ? false : SuppressEvent;
+	public bool CanPredict() => DisableFiltering() ? false : !SuppressEvent;
 
 	public static void SuppressEvents(bool state) {
 		IPredictionSystem? sys = PredictionSystems;

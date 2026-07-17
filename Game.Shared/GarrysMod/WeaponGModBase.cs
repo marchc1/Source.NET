@@ -99,10 +99,19 @@ namespace Game.Server
 			ReadOnlySpan<char> shootsound = GetWpnData().ShootSounds[(int)soundType].AsSpan().SliceNullTerminatedString();
 			if (shootsound.IsEmpty || shootsound[0] == '\0')
 				return;
+
+			BroadcastRecipientFilter filter = new();
+
+			// if (!te.CanPredict()) // TODO
+			// 	return;
+
+			EmitSound(filter, GetPlayerOwner()!.EntIndex(), shootsound, in GetPlayerOwner()!.GetAbsOrigin(), soundTime, out _);
 #else
-	base.WeaponSound(soundType, soundTime);
+			base.WeaponSound(soundType, soundTime);
 #endif
 		}
+
+		public BasePlayer? GetPlayerOwner() => ToBasePlayer(GetOwner());
 	}
 
 	// ====================================================================================================== //

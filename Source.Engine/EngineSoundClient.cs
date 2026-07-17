@@ -149,7 +149,8 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 	}
 
 	public float GetSoundDuration(ReadOnlySpan<char> sample) {
-		throw new NotImplementedException();
+		// TODO: return AudioSource_GetSoundDuration(sample);
+		return 0;
 	}
 
 	public bool IsSoundPrecached(ReadOnlySpan<char> sample) {
