@@ -95,7 +95,22 @@ public class KeyValues : IEnumerable<KeyValues>
 		if (stream == null) return false;
 
 		using StreamReader reader = new StreamReader(stream);
-		return ReadKV(reader);
+		return LoadFromBuffer(reader);
+	}
+
+	private bool LoadFromBuffer(StreamReader reader) {
+		LinkedList<KeyValues> peers = [];
+		KeyValues? current = this;
+		while (SkipUntilParseableTextOrEOF(reader)) {
+			current ??= new() { evaluateConditionals = evaluateConditionals, useEscapeSequences = useEscapeSequences };
+			if (current.ReadKV(reader)) {
+				current.node = peers.AddLast(current);
+				current = null;
+			}
+			else
+				current.Clear();
+		}
+		return node.List == peers;
 	}
 
 	// Returns true if we did anything at all to skip whitespace.
