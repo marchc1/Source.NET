@@ -14,7 +14,27 @@ namespace Source.Engine;
 public class EngineSoundClient(Sound Sound) : IEngineSound
 {
 	public void EmitAmbientSound(ReadOnlySpan<char> pSample, float volume, int pitch = 100, int flags = 0, double soundTime = 0) {
-		throw new NotImplementedException();
+		float delay = 0.0f;
+		if (soundTime != 0.0f)
+			delay = (float)(soundTime - cl.LastServerTickTime);
+
+		SfxTable? sound = Sound.PrecacheSound(pSample);
+
+		StartSoundParams parms = default;
+		parms.StaticSound = true;
+		parms.SoundSource = SOUND_FROM_LOCAL_PLAYER;
+		parms.EntChannel = SoundEntityChannel.Static;
+		parms.Sfx = sound;
+		parms.Origin = vec3_origin;
+		parms.Volume = volume;
+		parms.SoundLevel = SoundLevel.LvlNone;
+		parms.Flags = (SoundFlags)flags;
+		parms.Pitch = pitch;
+		parms.SpecialDSP = 0;
+		parms.FromServer = false;
+		parms.Delay = delay;
+
+		Sound.StartSound(in parms);
 	}
 
 	public void EmitSentenceByIndex<T>(scoped in T filter, int entIndex, int channel, int sentenceIndex, float volume, SoundLevel soundlevel, SoundFlags flags = SoundFlags.NoFlags, int pitch = 100, int specialDSP = 0, in Vector3 origin = default, in Vector3 direction = default, ReadOnlySpan<Vector3> origins = default, bool updatePositions = true, double soundTime = 0, int speakerEntity = -1) where T : IRecipientFilter {
