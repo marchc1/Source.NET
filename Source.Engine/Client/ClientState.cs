@@ -548,6 +548,18 @@ public class ClientState : BaseClientState
 	}
 	readonly LinkedList<EventInfo> Events = [];
 
+	protected override bool ProcessGMod_ServerToClient(SVC_GMod_ServerToClient msg) {
+		switch (msg.MessageType) {
+			case GModMessageType.RequestLuaFiles: {
+					var luaFile = new CLC_GMod_ClientToServer(GModMessageType.LuaFile);
+					g_ClientDLL!.GMod_RequestLuaFiles(luaFile);
+					NetChannel!.SendNetMsg(luaFile);
+				}
+				return true;
+		}
+		return base.ProcessGMod_ServerToClient(msg);
+	}
+
 	protected override bool ProcessTempEntities(SVC_TempEntities msg) {
 		bool reliable = false;
 
@@ -693,8 +705,6 @@ public class ClientState : BaseClientState
 			return;
 
 		SendClientInfo();
-		var msg1 = new CLC_GMod_ClientToServer(GModMessageType.LuaFile);
-		NetChannel.SendNetMsg(msg1);
 		var msg = new NET_SignonState(SignOnState, ServerCount);
 		NetChannel.SendNetMsg(msg);
 	}

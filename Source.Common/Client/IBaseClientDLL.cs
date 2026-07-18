@@ -1,6 +1,7 @@
 ﻿using Source.Common.Bitbuffers;
 using Source.Common.Input;
 using Source.Common.MaterialSystem;
+using Source.Common.Networking;
 
 namespace Source.Common.Client;
 
@@ -44,4 +45,5 @@ public interface IBaseClientDLL
 	LookupProxyInterfaceFn GetMaterialProxyInterfaceFn();
 	void LevelInitPreEntity(ReadOnlySpan<char> mapname);
 	void LevelInitPostEntity();
+	void GMod_RequestLuaFiles(CLC_GMod_ClientToServer luaFile);
 }

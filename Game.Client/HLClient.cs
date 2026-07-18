@@ -15,6 +15,7 @@ using Source.Common.Engine;
 using Source.Common.GUI;
 using Source.Common.Input;
 using Source.Common.MaterialSystem;
+using Source.Common.Networking;
 using Source.Engine;
 
 using System.Runtime.CompilerServices;
@@ -78,7 +79,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		}
 	}
 
-	public void LevelInitPostEntity(){
+	public void LevelInitPostEntity() {
 		IGameSystem.LevelInitPostEntityAllSystems();
 	}
 
@@ -310,7 +311,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		ClientThinkList().PerformThinkFunctions();
 		C_BaseEntityIterator iterator = new C_BaseEntityIterator();
 		C_BaseEntity? ent;
-		while((ent = iterator.Next()) != null)
+		while ((ent = iterator.Next()) != null)
 			ent.Simulate();
 	}
 
@@ -413,5 +414,9 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 	public bool IN_IsKeyDown(ReadOnlySpan<char> name, out bool isDown) {
 		throw new NotImplementedException();
+	}
+
+	public void GMod_RequestLuaFiles(CLC_GMod_ClientToServer luaFile) {
+
 	}
 }

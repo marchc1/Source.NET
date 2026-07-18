@@ -1066,9 +1066,15 @@ public struct GMod_RequestLuaFiles
 
 }
 
+public struct GMod_LuaSingleFile{
+	public ushort StringTableEntryID;
+	public CRC32_t SHA256;
+	public Memory<byte> Data;
+}
+
 public struct GMod_LuaFile
 {
-
+	public GMod_LuaSingleFile[] Files;
 }
 
 public abstract class BaseGModNetMessage(int type, GModMessageType messageType) : NetMessage(type)
@@ -1146,7 +1152,7 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 
 				break;
 			case GModMessageType.LuaFile:
-
+				
 				break;
 		}
 

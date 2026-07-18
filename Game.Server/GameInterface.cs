@@ -607,9 +607,7 @@ public class ServerGameClients : IServerGameClients
 
 	public void GMOD_SentClientStringTables(IClient client) {
 		INetChannel netchan = client.GetNetChannel()!;
-		SVC_GMod_ServerToClient msg = new SVC_GMod_ServerToClient();
-		msg.
-
+		SVC_GMod_ServerToClient msg = new SVC_GMod_ServerToClient(GModMessageType.RequestLuaFiles);
 		netchan.SendNetMsg(msg);
 	}
 }
