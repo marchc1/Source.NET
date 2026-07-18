@@ -73,7 +73,7 @@ public class BassAudioMemorySource : BassAudioSource, IDisposable
 		if (data == null)
 			return;
 
-		BassHandle = Bass.SampleLoad(data, 0, data.Length, MAX_CHANNELS, BassFlags.Default);
+		BassHandle = Bass.SampleLoad(data, 0, data.Length, MAX_CHANNELS, BassFlags.Bass3D | BassFlags.Mono);
 		if (BassHandle == 0) {
 			Dbg.Msg($"BASS: {Bass.LastError}\n");
 		}
@@ -134,10 +134,23 @@ public class AudioSystem : IAudioSystem
 	}
 
 	public bool Init() {
-		if (!Bass.Init(1))
+		if (!Bass.Init(1, 44100, DeviceInitFlags.Device3D))
 			return false;
 
 		return true;
+	}
+
+	private static Vector3D ToBass(in Vector3 v) => new(-v.Y, v.Z, v.X);
+
+	private static void Spatialize(int channel, in StartSoundParams parms) {
+		if (parms.SoundLevel == SoundLevel.LvlNone) {
+			Bass.ChannelSet3DAttributes(channel, Mode3D.Off, -1, -1, -1, -1, -1);
+			return;
+		}
+
+		float minDist = 36.0f * MathF.Pow(10.0f, ((int)parms.SoundLevel - 60) / 20.0f);
+		Bass.ChannelSet3DAttributes(channel, Mode3D.Normal, minDist, 10000000.0f, -1, -1, -1);
+		Bass.ChannelSet3DPosition(channel, ToBass(parms.Origin), default, default);
 	}
 
 	public bool IsActive() {
@@ -174,7 +187,12 @@ public class AudioSystem : IAudioSystem
 	}
 
 	private void PlaySound(in StartSoundParams parms, int targetChannel) {
+		Spatialize(targetChannel, in parms);
+		ChannelInfo info = Bass.ChannelGetInfo(targetChannel);
+		Bass.ChannelSetAttribute(targetChannel, ChannelAttribute.Frequency, info.Frequency * parms.Pitch / 100f);
+		Bass.ChannelSetAttribute(targetChannel, ChannelAttribute.Volume, parms.Volume);
 		Bass.ChannelPlay(targetChannel);
+		Bass.Apply3D();
 	}
 
 	private int PickDynamicChannel(int soundSource, SoundEntityChannel entChannel, Vector3 origin, SfxTable? sfx, float delay, bool doNotOverwriteExisting) {
@@ -227,9 +245,12 @@ public class AudioSystem : IAudioSystem
 		if (targetChannel == 0)
 			return 0;
 
+		Spatialize(targetChannel, in parms);
+		ChannelInfo info = Bass.ChannelGetInfo(targetChannel);
+		Bass.ChannelSetAttribute(targetChannel, ChannelAttribute.Frequency, info.Frequency * parms.Pitch / 100f);
+		Bass.ChannelSetAttribute(targetChannel, ChannelAttribute.Volume, parms.Volume);
 		Bass.ChannelPlay(targetChannel);
-		Bass.ChannelSetAttribute(targetChannel, ChannelAttribute.Frequency, parms.Pitch / 100f);
-		Bass.ChannelSetAttribute(targetChannel, ChannelAttribute.Volume, parms.Volume / 100f);
+		Bass.Apply3D();
 
 		return 0;
 	}
@@ -245,7 +266,8 @@ public class AudioSystem : IAudioSystem
 	}
 
 	public void UpdateListener(in Vector3 listenerOrigin, in Vector3 listenerForward, in Vector3 listenerRight, in Vector3 listenerUp, bool isListenerUnderwater) {
-
+		Bass.Set3DPosition(ToBass(listenerOrigin), default, ToBass(listenerForward), ToBass(listenerUp));
+		Bass.Apply3D();
 	}
 
 	readonly static ConVar volume = new("volume", "1.0", FCvar.Archive, "Sound volume", 0.0, 1.0);

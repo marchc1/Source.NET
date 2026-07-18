@@ -270,7 +270,7 @@ public class Host(
 				throw new NotImplementedException("Threaded Host.RunFrame path is not implemented yet");
 			}
 
-			if(shouldRender){
+			if (shouldRender) {
 				_RunFrame_Render();
 				_RunFrame_Sound();
 			}
@@ -278,7 +278,7 @@ public class Host(
 			// updatedynamicmodels
 
 #if !SWDS
-			if(!sv.IsDedicated()){
+			if (!sv.IsDedicated()) {
 				ClientDLL.Update();
 			}
 #endif
@@ -323,6 +323,8 @@ public class Host(
 	}
 
 	AudioState audioState;
+
+	public void SetAudioState(in AudioState state) => audioState = state;
 
 	public void UpdateSounds() {
 		if (cl.IsActive()) {
@@ -616,7 +618,7 @@ public class Host(
 
 	public void Disconnect(bool showMainMenu, ReadOnlySpan<char> reason = default) {
 #if !SWDS
-		if (!sv.IsDedicated()) 
+		if (!sv.IsDedicated())
 			cl.Disconnect(reason, showMainMenu);
 #endif
 		HostState.GameShutdown();

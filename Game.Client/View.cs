@@ -224,6 +224,16 @@ public class ViewRender : IViewRender
 		ComputeCameraVariables(ViewRender.g_VecRenderOrigin, ViewRender.g_VecRenderAngles,
 			out ViewRender.g_VecVForward, out ViewRender.g_VecVRight, out ViewRender.g_VecVUp, ref ViewRender.g_MatCamInverse);
 
+		AudioState audioState = default;
+		audioState.Origin = viewEye.Origin;
+		audioState.Angles = viewEye.Angles;
+		audioState.IsUnderwater = player != null && player.AudioStateIsUnderwater(viewEye.Origin);
+
+		viewEye.Origin = audioState.Origin;
+		viewEye.Angles = audioState.Angles;
+
+		engine.SetAudioState(in audioState);
+
 		C_BaseAnimating.PopAllowBoneAccess(new("OnRenderStart->ViewRender.SetUpView")); // pops the (true, false) bone access set in OnRenderStart
 		C_BaseAnimating.PushAllowBoneAccess(true, true, new("ViewRender.SetUpView->OnRenderEnd")); // pop is in OnRenderEnd()
 	}

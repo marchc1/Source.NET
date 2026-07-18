@@ -5,6 +5,7 @@ using Source.Common;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Commands;
+using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
 using Source.Engine;
@@ -112,6 +113,15 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public bool HasFiredWeapon() => FiredWeapon;
 	public void SetFiredWeapon(bool flag) => FiredWeapon = flag;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
+
+	public bool AudioStateIsUnderwater(Vector3 mainViewOrigin) {
+		if (IsObserver()) {
+			Contents cont = enginetrace.GetPointContents(mainViewOrigin, out _);
+			return (cont & (Contents)Mask.Water) != 0;
+		}
+
+		return GetWaterLevel() >= Shared.WaterLevel.Eyes;
+	}
 
 	public static readonly RecvTable DT_LocalPlayerExclusive = new([
 		RecvPropDataTable(nameof(Local), FIELD.OF(nameof(Local)), PlayerLocalData.DT_Local, 0, DataTableRecvProxy_PointerDataTable),

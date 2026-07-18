@@ -94,7 +94,7 @@ namespace Game.Server
 			SetPredictionEligible(true);
 		}
 
-		public new void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
+		public override void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
 #if CLIENT_DLL
 			ReadOnlySpan<char> shootsound = GetWpnData().ShootSounds[(int)soundType].AsSpan().SliceNullTerminatedString();
 			if (shootsound.IsEmpty || shootsound[0] == '\0')
