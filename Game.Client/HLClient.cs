@@ -19,6 +19,7 @@ using Source.Common.Networking;
 using Source.Engine;
 
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Game.Client;
 
@@ -179,10 +180,25 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 	public void InstallStringTableCallback(ReadOnlySpan<char> tableName) {
 		// TODO: what to do here, if anything
-		switch(tableName){
+		switch (tableName) {
 			case "client_lua_files":
 				g_ClientLuaFiles = networkstringtable.FindTable(tableName)!;
+				g_ClientLuaFiles.SetStringChangedCallback(this, OnReceiveLuaFileString);
 				break;
+		}
+	}
+
+	private void OnReceiveLuaFileString(object? context, INetworkStringTable stringTable, int stringNumber, ReadOnlySpan<char> newString, ReadOnlySpan<byte> newData) {
+		if (stringNumber == 0 && newString.Equals("paths", StringComparison.Ordinal)) {
+			// Load paths
+			Span<char> paths = stackalloc char[Encoding.ASCII.GetCharCount(newData)];
+			Encoding.ASCII.GetChars(newData, paths);
+			var splitter = paths.Split(";");
+			while(splitter.MoveNext()){
+				ReadOnlySpan<char> path = paths[splitter.Current].SliceNullTerminatedString();
+				// This sucks! TODO: Fix this!!!
+				filesystem.AddSearchPath(Path.Combine(AppContext.BaseDirectory, "garrysmod", new string(path.Trim('/'))), "LUA");
+			}
 		}
 	}
 
