@@ -1061,27 +1061,20 @@ public struct GMod_LuaError
 
 }
 
-public struct GMod_RequestLuaFiles
-{
-
-}
-
-public struct GMod_LuaSingleFile{
-	public ushort StringTableEntryID;
-	public CRC32_t SHA256;
-	public Memory<byte> Data;
-}
+public struct GMod_RequestLuaFiles;
 
 public struct GMod_LuaFile
 {
-	public GMod_LuaSingleFile[] Files;
+	public ushort FileStringTableEntryID;
+	public SHA256 FileSHA256;
+	public Memory<byte> FileContents;
 }
 
 public abstract class BaseGModNetMessage(int type, GModMessageType messageType) : NetMessage(type)
 {
 	// message length (bits)
 	public const int GMOD_NETMESSAGE_LENGTH_BITS = 20;
-	public int Bits;
+	protected int Bits;
 	// message type
 	public GModMessageType MessageType = messageType;
 	// message contents
@@ -1092,12 +1085,14 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 	public GMod_LuaFile LuaFile;
 
 	public override bool ReadFromBuffer(bf_read buffer) {
-		Bits = (int)buffer.ReadUBitLong(GMOD_NETMESSAGE_LENGTH_BITS);
+		int bits = (int)buffer.ReadUBitLong(GMOD_NETMESSAGE_LENGTH_BITS);
+		Bits = bits;
+
 		MessageType = (GModMessageType)buffer.ReadByte();
-		if (Bits < 1)
+		if (bits < 1)
 			return true;
 
-		if (Bits < 0) {
+		if (bits < 0) {
 			Warning("Received invalid Garry's Mod net message\n");
 			return true;
 		}
@@ -1106,8 +1101,8 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 		switch (MessageType) {
 			case GModMessageType.NetMessage:
 				NetMessage.NetMessageID = buffer.ReadWord();
-				NetMessage.Data = new byte[Bits];
-				if ((toRead = Bits - 8 - 16) > 0)
+				NetMessage.Data = new byte[bits];
+				if ((toRead = bits - 8 - 16) > 0)
 					buffer.ReadBits(NetMessage.Data.Span, toRead);
 				break;
 			case GModMessageType.LuaAutoRefresh:
@@ -1123,10 +1118,7 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 
 				break;
 			case GModMessageType.LuaFile:
-				NetMessage.NetMessageID = buffer.ReadWord();
-				NetMessage.Data = new byte[Bits];
-				if ((toRead = Bits - 8 - 16) > 0) 
-					buffer.ReadBits(NetMessage.Data.Span, toRead);
+				ReadLuaFile(buffer);
 				break;
 		}
 
@@ -1134,10 +1126,8 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 	}
 
 	public override bool WriteToBuffer(bf_write buffer) {
-		buffer.WriteNetMessageType(this);
-		buffer.WriteUBitLong((uint)Bits, GMOD_NETMESSAGE_LENGTH_BITS);
-		buffer.WriteByte((byte)MessageType);
-
+		// Length determination
+		int bits = 8;
 		switch (MessageType) {
 			case GModMessageType.NetMessage:
 
@@ -1152,12 +1142,39 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 
 				break;
 			case GModMessageType.LuaFile:
-				
+				bits += 16;
+				break;
+		}
+
+		Bits = bits;
+		buffer.WriteNetMessageType(this);
+		buffer.WriteUBitLong((uint)bits, GMOD_NETMESSAGE_LENGTH_BITS);
+		buffer.WriteByte((byte)MessageType);
+
+		// Send value
+		switch (MessageType) {
+			case GModMessageType.NetMessage:
+
+				break;
+			case GModMessageType.LuaAutoRefresh:
+
+				break;
+			case GModMessageType.LuaError:
+
+				break;
+			case GModMessageType.RequestLuaFiles:
+
+				break;
+			case GModMessageType.LuaFile:
+				WriteLuaFile(buffer);
 				break;
 		}
 
 		return true;
 	}
+
+	public abstract void ReadLuaFile(bf_read buffer);
+	public abstract void WriteLuaFile(bf_write buffer);
 }
 
 public class SVC_GMod_ServerToClient : BaseGModNetMessage
@@ -1165,6 +1182,13 @@ public class SVC_GMod_ServerToClient : BaseGModNetMessage
 	public SVC_GMod_ServerToClient() : base(SVC.GMod_ServerToClient, 0) { }
 	public SVC_GMod_ServerToClient(GModMessageType messageType) : base(SVC.GMod_ServerToClient, messageType) { }
 	public override string ToString() => $"SVC_GMod_ServerToClient: length {Bits2Bytes(Bits)}";
+
+	public override void ReadLuaFile(bf_read buffer) {
+
+	}
+	public override void WriteLuaFile(bf_write buffer) {
+		throw new NotImplementedException();
+	}
 }
 
 public class CLC_GMod_ClientToServer : BaseGModNetMessage
@@ -1173,5 +1197,19 @@ public class CLC_GMod_ClientToServer : BaseGModNetMessage
 	public CLC_GMod_ClientToServer(GModMessageType messageType) : base(CLC.GMod_ClientToServer, messageType) { }
 
 	public override string ToString() => $"CLC_GMod_ClientToServer: length {Bits2Bytes(Bits)}";
+
+	public override void ReadLuaFile(bf_read buffer) {
+		LuaFile.FileStringTableEntryID = buffer.ReadWord();
+		Span<byte> sha256 = stackalloc byte[32];
+		buffer.ReadBits(sha256, 32 * 8);
+		LuaFile.FileSHA256 = SHA256.FromBytes(sha256);
+		int fileSize = (int)buffer.BytesLeft;
+		NetMessage.Data = new byte[fileSize];
+		buffer.ReadBits(NetMessage.Data.Span, fileSize << 3);
+	}
+
+	public override void WriteLuaFile(bf_write buffer) {
+		buffer.WriteUBitLong(LuaFile.FileStringTableEntryID, 16);
+	}
 }
 #endif

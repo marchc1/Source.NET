@@ -175,8 +175,15 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		view.Render(rects);
 	}
 
+	public static INetworkStringTable g_ClientLuaFiles = null!;
+
 	public void InstallStringTableCallback(ReadOnlySpan<char> tableName) {
 		// TODO: what to do here, if anything
+		switch(tableName){
+			case "client_lua_files":
+				g_ClientLuaFiles = networkstringtable.FindTable(tableName)!;
+				break;
+		}
 	}
 
 	public int IN_KeyEvent(int eventcode, ButtonCode keynum, ReadOnlySpan<char> currentBinding) {

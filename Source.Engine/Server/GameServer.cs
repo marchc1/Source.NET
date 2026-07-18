@@ -99,7 +99,7 @@ public class GameServer : BaseServer
 		StringTables!.SetTick(TickCount);
 
 		int size = Unsafe.SizeOf<PrecacheUserData>();
-		DownloadableFileTable = StringTables.CreateStringTable("downloadables", 8192, 0, 0); // DOWNLOADABLE_FILE_TABLENAME, MAX_DOWNLOADABLE_FILES
+		DownloadableFileTable = StringTables.CreateStringTable(Protocol.DOWNLOADABLES_TABLENAME, 8192, 0, 0); // DOWNLOADABLE_FILE_TABLENAME, MAX_DOWNLOADABLE_FILES
 		ModelPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.MODEL_PRECACHE_TABLENAME, PrecacheItem.MAX_MODELS, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
 		GenericPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.GENERIC_PRECACHE_TABLENAME, PrecacheItem.MAX_GENERIC, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
 		SoundPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.SOUND_PRECACHE_TABLENAME, PrecacheItem.MAX_SOUNDS, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
@@ -107,7 +107,8 @@ public class GameServer : BaseServer
 		InstanceBaselineTable = StringTables.CreateStringTable(Protocol.INSTANCE_BASELINE_TABLENAME, Constants.MAX_DATATABLES);
 		LightStyleTable = StringTables.CreateStringTable(Protocol.LIGHT_STYLES_TABLENAME, BSPFileCommon.MAX_LIGHTSTYLES);
 		UserInfoTable = StringTables.CreateStringTable(Protocol.USER_INFO_TABLENAME, 1 << Constants.ABSOLUTE_PLAYER_LIMIT_DW);
-		DynamicModelsTable = StringTables.CreateStringTable("DynamicModels", 2048, 1, 1);
+		DynamicModelsTable = StringTables.CreateStringTable(Protocol.DYNAMIC_MODELS_TABLENAME, 2048, 1, 1);
+		ClientLuaFilesTable = StringTables.CreateStringTable(Protocol.CLIENT_LUA_FILES_TABLENAME, 8192, 1, 1);
 		// ServerStartupDataTable = StringTables.CreateStringTable(Protocol.SERVER_STARTUP_DATA_TABLENAME, 4);
 
 		SetQueryPortFromSteamServer();
@@ -689,6 +690,8 @@ public class GameServer : BaseServer
 	INetworkStringTable? DecalPrecacheTable;
 
 	INetworkStringTable? DynamicModelsTable;
+
+	INetworkStringTable? ClientLuaFilesTable;
 
 	bool Hibernating;    // Are we hibernating.  Hibernation makes server process consume approx 0 CPU when no clients are connected
 

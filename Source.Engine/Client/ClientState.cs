@@ -547,13 +547,14 @@ public class ClientState : BaseClientState
 		g_ClientSidePrediction.PostNetworkDataReceived(commandsAcknowledged);
 	}
 	readonly LinkedList<EventInfo> Events = [];
+	CLC_GMod_ClientToServer? luaFileMessage;
 
 	protected override bool ProcessGMod_ServerToClient(SVC_GMod_ServerToClient msg) {
 		switch (msg.MessageType) {
 			case GModMessageType.RequestLuaFiles: {
-					var luaFile = new CLC_GMod_ClientToServer(GModMessageType.LuaFile);
-					g_ClientDLL!.GMod_RequestLuaFiles(luaFile);
-					NetChannel!.SendNetMsg(luaFile);
+					var luaFileMessage = new CLC_GMod_ClientToServer(GModMessageType.LuaFile);
+					g_ClientDLL!.GMod_RequestLuaFiles(luaFileMessage);
+					NetChannel!.SendNetMsg(luaFileMessage!);
 				}
 				return true;
 		}
