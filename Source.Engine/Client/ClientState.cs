@@ -693,7 +693,7 @@ public class ClientState : BaseClientState
 			return;
 
 		SendClientInfo();
-		var msg1 = new CLC_GMod_ClientToServer();
+		var msg1 = new CLC_GMod_ClientToServer(GModMessageType.LuaFile);
 		NetChannel.SendNetMsg(msg1);
 		var msg = new NET_SignonState(SignOnState, ServerCount);
 		NetChannel.SendNetMsg(msg);

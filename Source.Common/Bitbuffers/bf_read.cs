@@ -120,11 +120,7 @@ public unsafe class bf_read : BitBuffer
 		return r;
 	}
 
-	public void ReadBits(byte[] pOutData, int nBits) {
-		fixed (byte* pOutRO = pOutData) {
-			ReadBits(new Span<byte>(pOutRO, pOutData.Length), nBits);
-		}
-	}
+	public void ReadBits(byte[] pOutData, int nBits) => ReadBits(pOutData.AsSpan(), nBits);
 
 	public int ReadBitsClamped(byte[] pOut, uint nBits) => ReadBitsClamped_ptr(pOut, (uint)pOut.Length, nBits);
 
@@ -432,12 +428,12 @@ public unsafe class bf_read : BitBuffer
 		int numbits = 0;
 
 		if (bIntegral) {
-			if ((flags & ReadBitCoordMPBitsFlags.INTVAL) != 0) 
+			if ((flags & ReadBitCoordMPBitsFlags.INTVAL) != 0)
 				numbits = (flags & ReadBitCoordMPBitsFlags.INBOUNDS) != 0 ? 1 + (int)COORD_INTEGER_BITS_MP : 1 + (int)COORD_INTEGER_BITS;
-			else 
+			else
 				return (uint)flags; // no extra bits
 		}
-		else 
+		else
 			numbits = ReadBitCoordMPBits_numbits_table[(uint)flags + (bLowPrecision ? 1u : 0u) * 4];
 
 		return (uint)flags + ReadUBitLong(numbits) * 4;

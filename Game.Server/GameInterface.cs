@@ -13,6 +13,7 @@ using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Mathematics;
+using Source.Common.Networking;
 using Source.Common.Server;
 
 using System.Numerics;
@@ -603,6 +604,14 @@ public class ServerGameClients : IServerGameClients
 
 	public static int CommandClientIndex = 0;
 	public void SetCommandClient(int index) => CommandClientIndex = index;
+
+	public void GMOD_SentClientStringTables(IClient client) {
+		INetChannel netchan = client.GetNetChannel()!;
+		SVC_GMod_ServerToClient msg = new SVC_GMod_ServerToClient();
+		msg.
+
+		netchan.SendNetMsg(msg);
+	}
 }
 
 public class ServerGameEnts : IServerGameEnts

@@ -140,4 +140,5 @@ public interface IServerGameClients
 	void NetworkIDValidated(ReadOnlySpan<char> userName, ReadOnlySpan<char> networkID);
 	void ClientCommandKeyValues(Edict entity, KeyValues keyValues);
 	void ClientSpawned(Edict player);
+	void GMOD_SentClientStringTables(IClient client);
 }
