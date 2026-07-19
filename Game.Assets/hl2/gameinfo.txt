@@ -15,17 +15,17 @@
 
 		SearchPaths
 		{
-			game+game_write		hl2
-			
 			game+mod			hl2/garrysmod.vpk
-			
+
 			game+mod			hl2/content_hl2_dir.vpk
 			game				hl2/hl2_textures.vpk
 			game				hl2/hl2_sound_misc.vpk
 			game				hl2/hl2_misc.vpk
-			
+
 			mod+mod_write+default_write_path		|gameinfo_path|.
-			
+
+			game+game_write		hl2
+
 			// last, mount in shared hl2 loose files
 			game				|all_source_engine_paths|hl2
 		}
