@@ -634,6 +634,19 @@ public partial class
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void EyeVectors(out Vector3 forward, out Vector3 right) => EyeVectors(out forward, out right, out _);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void EyeVectors(out Vector3 forward) => EyeVectors(out forward, out _, out _);
+
+	public void EyePositionAndVectors(out Vector3 position, out Vector3 forward, out Vector3 right, out Vector3 up) {
+		if (GetVehicle() != null) {
+			// CacheVehicleView();
+			// AngleVectors(m_vecVehicleViewAngles, pForward, pRight, pUp);
+			// if (pPosition != NULL) *pPosition = m_vecVehicleViewOrigin;
+			position = forward = right = up = default;
+		}
+		else {
+			position = base.EyePosition();
+			MathLib.AngleVectors(EyeAngles(), out forward, out right, out up);
+		}
+	}
 	public void ClearPlayerSimulationList() {
 		int c = SimulatedByThisPlayer.Count;
 		int i;

@@ -138,6 +138,49 @@ public class SoundEmitterSystem : BaseGameSystem
 
 		EmitSoundByHandle(filter, entindex, ep, ref ep.SoundScriptHandle);
 	}
+
+	internal void StopSoundByHandle(int entindex, ReadOnlySpan<char> soundname, ref HSOUNDSCRIPTHANDLE handle) {
+		if (handle == SOUNDEMITTER_INVALID_HANDLE)
+			handle = (HSOUNDSCRIPTHANDLE)soundemitterbase.GetSoundIndex(soundname);
+
+		if (handle == SOUNDEMITTER_INVALID_HANDLE)
+			return;
+
+		ref SoundParametersInternal parms = ref soundemitterbase.InternalGetParametersForSound(handle);
+		if (Unsafe.IsNullRef(ref parms))
+			return;
+
+		int c = parms.NumSoundNames();
+		for (int i = 0; i < c; ++i) {
+			ReadOnlySpan<char> wavename = soundemitterbase.GetWaveName(parms.GetSoundNames()[i].Symbol);
+			Assert(!wavename.IsEmpty);
+
+			enginesound.StopSound(
+				entindex,
+				(int)parms.GetChannel(),
+				wavename);
+
+			// TraceEmitSound( "StopSound:  '%s' stopped as '%s' (ent %i)\n", soundname, wavename, entindex );
+		}
+	}
+
+	public void StopSound(int entindex, ReadOnlySpan<char> soundname) {
+		HSOUNDSCRIPTHANDLE handle = (HSOUNDSCRIPTHANDLE)soundemitterbase.GetSoundIndex(soundname);
+		if (handle == SOUNDEMITTER_INVALID_HANDLE)
+			return;
+
+		StopSoundByHandle(entindex, soundname, ref handle);
+	}
+
+	public void StopSound(int entindex, int channel, ReadOnlySpan<char> sample) {
+		if (!sample.IsEmpty && (!stristr(sample, ".wav").IsEmpty || !stristr(sample, ".mp3").IsEmpty || sample[0] == '!')) {
+			enginesound.StopSound(entindex, channel, sample);
+
+			// TraceEmitSound( "StopSound:  Raw wave stopped '%s' (ent %i)\n", sample, entindex );
+		}
+		else
+			StopSound(entindex, sample);
+	}
 }
 
 public static class SoundEmitterSystemGlobals
@@ -152,6 +195,8 @@ C_BaseEntity
 BaseEntity
 #endif
 {
+	public static void StopSound(int entIndex, int channel, ReadOnlySpan<char> sample) => g_SoundEmitterSystem.StopSound(entIndex, channel, sample);
+
 	public static SoundLevel LookupSoundLevel(ReadOnlySpan<char> soundname) {
 		return soundemitterbase.LookupSoundLevel(soundname);
 	}

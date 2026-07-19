@@ -1564,6 +1564,11 @@ public static class MathLib
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool VectorsAreEqual(in Vector3 src1, in Vector3 src2, float tolerance = 0.0f) =>
+		MathF.Abs(src1.X - src2.X) <= tolerance &&
+		MathF.Abs(src1.Y - src2.Y) <= tolerance &&
+		MathF.Abs(src1.Z - src2.Z) <= tolerance;
+
 	public static float Approach(float target, float value, float speed) {
 		float delta = target - value;
 

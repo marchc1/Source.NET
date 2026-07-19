@@ -243,8 +243,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 			}
 #endif
 
-			// Soundscape_Update(m_Local.m_audio);
-			// ^^ todo
+			Soundscape_Update(ref Local.Audio);
 
 			// todo
 			// if (OldFogController != Local.PlayerFog.Ctrl) 

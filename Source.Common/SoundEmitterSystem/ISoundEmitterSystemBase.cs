@@ -45,11 +45,12 @@ public struct Interval
 
 		int comma = str.IndexOf(',');
 		if (comma >= 0) {
-			tmp.Start = float.Parse(str.Slice(0, comma));
-			tmp.Range = float.Parse(str.Slice(comma + 1)) - tmp.Start;
+			float.TryParse(str.Slice(0, comma), out tmp.Start);
+			float.TryParse(str.Slice(comma + 1), out float range);
+			tmp.Range = range - tmp.Start;
 		}
 		else if (str.Length > 0) {
-			tmp.Start = float.Parse(str);
+			float.TryParse(str, out tmp.Start);
 		}
 
 		return tmp;
@@ -197,36 +198,36 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 	}).ToFrozenDictionary();
 
 	static readonly FrozenDictionary<ulong, SoundLevel> g_pSoundLevelsRev = (new Dictionary<ulong, SoundLevel> {
-		{ "SNDLVL_NONE".Hash(invariant: false) , Audio.SoundLevel.LvlNone},
-		{ "SNDLVL_20dB".Hash(invariant: false) , Audio.SoundLevel.Lvl20dB},
-		{ "SNDLVL_25dB".Hash(invariant: false) , Audio.SoundLevel.Lvl25dB},
-		{ "SNDLVL_30dB".Hash(invariant: false) , Audio.SoundLevel.Lvl30dB},
-		{ "SNDLVL_35dB".Hash(invariant: false) , Audio.SoundLevel.Lvl35dB},
-		{ "SNDLVL_40dB".Hash(invariant: false) , Audio.SoundLevel.Lvl40dB},
-		{ "SNDLVL_45dB".Hash(invariant: false) , Audio.SoundLevel.Lvl45dB},
-		{ "SNDLVL_50dB".Hash(invariant: false) , Audio.SoundLevel.Lvl50dB},
-		{ "SNDLVL_55dB".Hash(invariant: false) , Audio.SoundLevel.Lvl55dB},
-		{ "SNDLVL_IDLE".Hash(invariant: false) , Audio.SoundLevel.LvlIdle},
-		{ "SNDLVL_TALKING".Hash(invariant: false) , Audio.SoundLevel.LvlTalking},
-		{ "SNDLVL_60dB".Hash(invariant: false) , Audio.SoundLevel.Lvl60dB},
-		{ "SNDLVL_65dB".Hash(invariant: false) , Audio.SoundLevel.Lvl65dB},
-		{ "SNDLVL_STATIC" .Hash(invariant: false) , Audio.SoundLevel.LvlStatic},
-		{ "SNDLVL_70dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl70dB}   ,
-		{ "SNDLVL_NORM" .Hash(invariant: false) , Audio.SoundLevel.LvlNorm}   ,
-		{ "SNDLVL_75dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl75dB}   ,
-		{ "SNDLVL_80dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl80dB}   ,
-		{ "SNDLVL_85dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl85dB}   ,
-		{ "SNDLVL_90dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl90dB}   ,
-		{ "SNDLVL_95dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl95dB}   ,
-		{ "SNDLVL_100dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl100dB},
-		{ "SNDLVL_105dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl105dB},
-		{ "SNDLVL_110dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl110dB},
-		{ "SNDLVL_120dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl120dB},
-		{ "SNDLVL_130dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl130dB},
-		{ "SNDLVL_GUNFIRE".Hash(invariant: false) , Audio.SoundLevel.LvlGunfire},
-		{ "SNDLVL_140dB".Hash(invariant: false) , Audio.SoundLevel.Lvl140dB},
-		{ "SNDLVL_150dB".Hash(invariant: false) , Audio.SoundLevel.Lvl150dB},
-		{ "SNDLVL_180dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl180dB},
+		{ "SNDLVL_NONE".Hash(invariant: true) , Audio.SoundLevel.LvlNone},
+		{ "SNDLVL_20dB".Hash(invariant: true) , Audio.SoundLevel.Lvl20dB},
+		{ "SNDLVL_25dB".Hash(invariant: true) , Audio.SoundLevel.Lvl25dB},
+		{ "SNDLVL_30dB".Hash(invariant: true) , Audio.SoundLevel.Lvl30dB},
+		{ "SNDLVL_35dB".Hash(invariant: true) , Audio.SoundLevel.Lvl35dB},
+		{ "SNDLVL_40dB".Hash(invariant: true) , Audio.SoundLevel.Lvl40dB},
+		{ "SNDLVL_45dB".Hash(invariant: true) , Audio.SoundLevel.Lvl45dB},
+		{ "SNDLVL_50dB".Hash(invariant: true) , Audio.SoundLevel.Lvl50dB},
+		{ "SNDLVL_55dB".Hash(invariant: true) , Audio.SoundLevel.Lvl55dB},
+		{ "SNDLVL_IDLE".Hash(invariant: true) , Audio.SoundLevel.LvlIdle},
+		{ "SNDLVL_TALKING".Hash(invariant: true) , Audio.SoundLevel.LvlTalking},
+		{ "SNDLVL_60dB".Hash(invariant: true) , Audio.SoundLevel.Lvl60dB},
+		{ "SNDLVL_65dB".Hash(invariant: true) , Audio.SoundLevel.Lvl65dB},
+		{ "SNDLVL_STATIC" .Hash(invariant: true) , Audio.SoundLevel.LvlStatic},
+		{ "SNDLVL_70dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl70dB}   ,
+		{ "SNDLVL_NORM" .Hash(invariant: true) , Audio.SoundLevel.LvlNorm}   ,
+		{ "SNDLVL_75dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl75dB}   ,
+		{ "SNDLVL_80dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl80dB}   ,
+		{ "SNDLVL_85dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl85dB}   ,
+		{ "SNDLVL_90dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl90dB}   ,
+		{ "SNDLVL_95dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl95dB}   ,
+		{ "SNDLVL_100dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl100dB},
+		{ "SNDLVL_105dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl105dB},
+		{ "SNDLVL_110dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl110dB},
+		{ "SNDLVL_120dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl120dB},
+		{ "SNDLVL_130dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl130dB},
+		{ "SNDLVL_GUNFIRE".Hash(invariant: true) , Audio.SoundLevel.LvlGunfire},
+		{ "SNDLVL_140dB".Hash(invariant: true) , Audio.SoundLevel.Lvl140dB},
+		{ "SNDLVL_150dB".Hash(invariant: true) , Audio.SoundLevel.Lvl150dB},
+		{ "SNDLVL_180dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl180dB},
 	}).ToFrozenDictionary();
 
 	static readonly FrozenDictionary<SoundEntityChannel, string> g_pChannelNames = (new Dictionary<SoundEntityChannel, string> {
@@ -360,13 +361,13 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 	}
 	public const string SNDLVL_PREFIX = "SNDLVL_";
 
-	public SoundLevel TextToSoundLevel(ReadOnlySpan<char> key) {
+	public static SoundLevel TextToSoundLevel(ReadOnlySpan<char> key) {
 		if (key.IsEmpty) {
 			Assert(0);
 			return Audio.SoundLevel.LvlNorm;
 		}
 
-		if (g_pSoundLevelsRev.TryGetValue(key.Hash(invariant: false), out SoundLevel level))
+		if (g_pSoundLevelsRev.TryGetValue(key.Hash(invariant: true), out SoundLevel level))
 			return level;
 
 		if (0 == stricmp(key[..Math.Min((int)strlen(SNDLVL_PREFIX), key.Length)], SNDLVL_PREFIX)) {

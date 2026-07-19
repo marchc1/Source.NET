@@ -210,11 +210,13 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 	}
 
 	public void SetPlayerDSP<T>(scoped in T filter, int dspType, bool fastReset) where T : IRecipientFilter {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		//TODO
 	}
 
 	public void SetRoomType<T>(scoped in T filter, int roomType) where T : IRecipientFilter {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		//TODO
 	}
 
 	public void SetVolumeByGuid(int guid, float fvol) {

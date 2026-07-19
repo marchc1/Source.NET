@@ -115,6 +115,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		IGameSystem.Add(Singleton<ClientLeafSystem>());
 		IGameSystem.Add(DetailObjectSystem.GetDetailObjectSystem());
 		IGameSystem.Add(Singleton<ViewportClientSystem>());
+		IGameSystem.Add(ClientSoundscapeSystem());
 
 		vgui = services.GetService<IVGui>();
 
