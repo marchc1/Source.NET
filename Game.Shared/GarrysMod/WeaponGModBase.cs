@@ -102,8 +102,8 @@ namespace Game.Server
 
 			BroadcastRecipientFilter filter = new();
 
-			// if (!te.CanPredict()) // TODO
-			// 	return;
+			if (!te.CanPredict())
+				return;
 
 			EmitSound(filter, GetPlayerOwner()!.EntIndex(), shootsound, in GetPlayerOwner()!.GetAbsOrigin(), soundTime, out _);
 #else

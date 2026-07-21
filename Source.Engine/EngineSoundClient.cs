@@ -20,7 +20,7 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 
 		SfxTable? sound = Sound.PrecacheSound(pSample);
 
-		StartSoundParams parms = default;
+		StartSoundParams parms = new();
 		parms.StaticSound = true;
 		parms.SoundSource = SOUND_FROM_LOCAL_PLAYER;
 		parms.EntChannel = SoundEntityChannel.Static;
@@ -132,7 +132,7 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 				delay = 1e-6f;
 		}
 
-		StartSoundParams parms = default;
+		StartSoundParams parms = new();
 		parms.StaticSound = channel == (int)SoundEntityChannel.Static;
 		parms.SoundSource = soundSource;
 		parms.EntChannel = (SoundEntityChannel)channel;
