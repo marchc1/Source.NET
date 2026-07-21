@@ -260,7 +260,7 @@ public class AudioSystem : IAudioSystem
 	}
 
 	public void Update(double v) {
-		Bass.GlobalSampleVolume = (int)(volume.GetFloat() * 10000);
+		Bass.GlobalSampleVolume = (int)(volume_sfx.GetFloat() * volume.GetFloat() * 10000);
 		Bass.GlobalMusicVolume = (int)(snd_musicvolume.GetFloat() * volume.GetFloat() * 10000);
 		Bass.Update((int)(float)(v * 1000));
 	}
@@ -272,5 +272,6 @@ public class AudioSystem : IAudioSystem
 
 	readonly static ConVar volume = new("volume", "1.0", FCvar.Archive, "Sound volume", 0.0, 1.0);
 	readonly ConVar snd_musicvolume = new("snd_musicvolume", "1.0", FCvar.Archive, "Music volume", 0.0, 1.0);
+	readonly static ConVar volume_sfx = new("volume_sfx", "1.0", FCvar.Archive, "Sound effects volume", 0.0, 1.0);
 
 }
