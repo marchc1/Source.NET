@@ -160,7 +160,7 @@ public class MoveHelperServer : IMoveHelperServer
 		if (gpGlobals.MaxClients == 1) {
 			// Always send sounds down in SP
 
-			scoped EmitSound_t ep = default;
+			scoped EmitSound_t ep = new();
 			ep.Channel = channel;
 			ep.SoundName = sample;
 			ep.Volume = volume;
@@ -174,7 +174,7 @@ public class MoveHelperServer : IMoveHelperServer
 		else {
 			filter.UsePredictionRules();
 
-			scoped EmitSound_t ep = default;
+			scoped EmitSound_t ep = new();
 			ep.Channel = channel;
 			ep.SoundName = sample;
 			ep.Volume = volume;

@@ -206,7 +206,7 @@ BaseEntity
 	public void EmitSound(ReadOnlySpan<char> soundname, TimeUnit_t soundtime = 0) {
 		PASAttenuationFilter filter = new(this, soundname);
 
-		scoped EmitSound_t parms = default;
+		scoped EmitSound_t parms = new();
 		parms.SoundName = soundname;
 		parms.SoundTime = soundtime;
 		parms.SoundDuration = ref Unsafe.NullRef<TimeUnit_t>();
@@ -219,7 +219,7 @@ BaseEntity
 		duration = default;
 		PASAttenuationFilter filter = new(this, soundname);
 
-		scoped EmitSound_t parms = default;
+		scoped EmitSound_t parms = new();
 		parms.SoundName = soundname;
 		parms.SoundTime = soundtime;
 		parms.SoundDuration = ref duration;
