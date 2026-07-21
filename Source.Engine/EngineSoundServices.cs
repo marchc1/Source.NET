@@ -1,4 +1,5 @@
-﻿using Source.Common.Audio;
+﻿using Source.Common;
+using Source.Common.Audio;
 using Source.Engine.Client;
 
 using System;
@@ -11,6 +12,20 @@ public class EngineSoundServices : ISoundServices
 {
 	Host? host;
 	TimeUnit_t frameTime;
+	readonly IClientEntityList? entitylist = OptionalSingleton<IClientEntityList>();
+
+	public bool GetSoundSpatialization(int entIndex, ref SpatializationInfo info) {
+		if (entitylist == null)
+			return false;
+
+		IClientEntity? clientEntity = entitylist.GetClientEntity(entIndex);
+		if (clientEntity == null)
+			return false;
+
+		bool result = clientEntity.GetSoundSpatialization(ref info);
+
+		return result;
+	}
 
 	public void CacheBuildingFinish() {
 		throw new NotImplementedException();

@@ -7,4 +7,5 @@ public interface IClientEntity : IClientUnknown, IClientRenderable, IClientNetwo
 {
 	ref readonly Vector3 GetAbsOrigin();
 	ref readonly QAngle GetAbsAngles();
+	bool GetSoundSpatialization(ref SpatializationInfo info);
 }

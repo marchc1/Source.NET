@@ -166,6 +166,6 @@ public partial class Sound
 		if (!AudioSystem.IsActive())
 			return;
 
-		// todo
+		AudioSystem.StopAllSounds(clear);
 	}
 }

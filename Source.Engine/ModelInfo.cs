@@ -282,9 +282,7 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException();
 	}
 
-	public float GetModelRadius(Model? model) {
-		throw new NotImplementedException();
-	}
+	public float GetModelRadius(Model? model) => model?.Radius ?? 0;
 
 	public StudioHeader? FindModel(StudioHeader? studioHdr, ref object? cache, ReadOnlySpan<char> modelname) {
 		throw new NotImplementedException();

@@ -4,13 +4,14 @@ using Source.Common;
 using Source.Common.Audio;
 using Source.Common.Commands;
 using Source.Common.Filesystem;
+using Source.Common.Mathematics;
 
 using System.Buffers.Binary;
 using System.Numerics;
 
 using static Source.AudioSystem.AudioGlobals;
-using static Source.AudioSystem.BassAudioMemorySource;
 using static Source.AudioSystem.SndChannels;
+
 namespace Source.AudioSystem;
 
 [EngineComponent]
@@ -237,6 +238,68 @@ public class AudioSystem : IAudioSystem
 		Bass.ChannelSet3DPosition(channel, ToBass(parms.Origin), default, default);
 	}
 
+	private static void Spatialize(ref Channel ch) {
+		// todo, this has a LOT more
+		// TODO SoundMixer ^
+
+		ch.DspFace = 1.0f;
+		ch.DspMix = 0;
+		ch.DistMix = 0;
+
+		QAngle sourceAngles = new();
+		sourceAngles.Init(0.0f, 0.0f, 0.0f);
+		Vector3 entOrigin = ch.Origin;
+
+		scoped SpatializationInfo si = default;
+
+		si.Type = SpatializationType.InSpatialization;
+		si.Origin = ref entOrigin;
+		si.Angles = ref sourceAngles;
+		if (ch.SoundSource != 0 && ch.Radius == 0)
+			si.Radius = ref ch.Radius;
+
+		soundServices.GetSoundSpatialization(ch.SoundSource, ref si);
+
+		if (ch.Flags.UpdatePositions) {
+			MathLib.AngleVectors(sourceAngles, out ch.Direction);
+			ch.Origin = entOrigin;
+		}
+		else
+			MathLib.VectorAngles(ch.Direction, out sourceAngles);
+
+		Bass.ChannelSet3DPosition(ch.BassChannel, ToBass(ch.Origin), default, default);
+
+		// if (SND_IsInGame() || toolframework.InToolMode())
+		ch.Flags.FirstPass = false;
+	}
+
+	public void StopAllSounds(bool clear) {
+		TotalChannels = MAX_DYNAMIC_CHANNELS;
+
+		ChannelList list = new();
+		g_ActiveChannels.GetActiveChannels(list);
+		int i = 0;
+		for (int listIndex = 0; listIndex < list.Count(); listIndex++) {
+			ref Channel channel = ref list.GetChannel(listIndex);
+			if (channel.Sfx != null)
+				DevMsg(1, $"{i,2}:Stopped sound {channel.Sfx.GetName()}.\n");
+
+			SndMix.FreeChannel(ref channel);
+			++i;
+		}
+
+		Channels[..].Clear();
+		for (int channelIndex = 0; channelIndex < MAX_CHANNELS; channelIndex++)
+			Channels[channelIndex].Index = (short)channelIndex;
+
+		// if (clear)
+		// 	ClearBuffer();
+
+		// soundfade = default;
+
+		Assert(g_ActiveChannels.GetActiveCount() == 0);
+	}
+
 	public bool IsActive() {
 		return true;
 	}
@@ -262,10 +325,21 @@ public class AudioSystem : IAudioSystem
 			return 0;
 
 		int targetChannel = PickDynamicChannel(parms.SoundSource, parms.EntChannel, parms.Origin, parms.Sfx, parms.Delay, (parms.Flags & SoundFlags.DoNotOverwriteExistingOnChannel) != 0);
-		if (targetChannel == 0)
+		if (targetChannel == -1)
 			return 0;
 
-		PlaySound(in parms, targetChannel);
+		ref Channel ch = ref Channels[targetChannel];
+		ch.Sfx = sfx;
+		ch.SoundSource = parms.SoundSource;
+		ch.EntChannel = (int)parms.EntChannel;
+		ch.MasterVol = (short)vol;
+		ch.BasePitch = (short)parms.Pitch;
+		ch.Origin = parms.Origin;
+		ch.Flags.UpdatePositions = parms.UpdatePositions && (parms.SoundSource != 0);
+		ch.BassChannel = Bass.SampleGetChannel(((BassAudioSource)sfx.Source!).BassHandle, OnlyNew: false);
+		g_ActiveChannels.Add(ref ch);
+
+		PlaySound(in parms, ch.BassChannel);
 
 		return 0;
 	}
@@ -279,13 +353,193 @@ public class AudioSystem : IAudioSystem
 		Bass.Apply3D();
 	}
 
-	private int PickDynamicChannel(int soundSource, SoundEntityChannel entChannel, Vector3 origin, SfxTable? sfx, float delay, bool doNotOverwriteExisting) {
-		Precache(sfx!);
-		BassAudioSource? source = sfx!.Source as BassAudioSource;
-		if (source == null)
+	private static int ChannelGetMaxVol(ref Channel ch) {
+		float max = 0.0f;
+
+		for (int i = 0; i < (int)ChanVolume.Count; i++)
+			if (ch.Volume[i] > max)
+				max = ch.Volume[i];
+
+		return (int)max;
+	}
+
+	private static uint RemainingSamples(ref Channel channel) {
+		if (channel.Sfx == null || channel.Sfx.Source == null)
 			return 0;
 
-		return source.PickDynamicChannel(soundSource, entChannel, origin, sfx, delay, doNotOverwriteExisting);
+		// uint timeLeft = channel.Sfx.Source.SampleCount();
+
+		// if (channel.Sfx.Source.IsLooped())
+		// 	return channel.Sfx.Source.SampleRate();
+
+		// if (channel.Mixer != null)
+		// 	timeLeft -= channel.Mixer.GetSamplePosition();
+
+		// return timeLeft;
+		return 0;
+	}
+
+	private static int StealDynamicChannel(SoundSource soundsource, int entchannel, in Vector3 origin, SfxTable? sfx, float delay, bool doNotOverwriteExisting) {
+		Span<int> canSteal = stackalloc int[MAX_DYNAMIC_CHANNELS];
+		int canStealCount = 0;
+
+		int sameSoundCount = 0;
+		uint sameSoundRemaining = 0xFFFFFFFF;
+		int sameSoundIndex = -1;
+		int sameVol = 0xFFFF;
+		int availableChannel = -1;
+		bool delaySame = false;
+
+		Span<int> exactMatch = stackalloc int[MAX_DYNAMIC_CHANNELS];
+		int exactCount = 0;
+
+		for (int chIdx = 0; chIdx < MAX_DYNAMIC_CHANNELS; chIdx++) {
+			ref Channel ch = ref Channels[chIdx];
+
+			if (ch.ActiveIndex != 0) {
+				if (entchannel != (int)SoundEntityChannel.Auto) {
+					int checkChannel = entchannel;
+					if (checkChannel == -1) {
+						if (ch.EntChannel != (int)SoundEntityChannel.Stream && ch.EntChannel != (int)SoundEntityChannel.Voice && ch.EntChannel != (int)SoundEntityChannel.Voice2)
+							checkChannel = ch.EntChannel;
+					}
+					if (ch.SoundSource == soundsource && (soundsource != -1) && ch.EntChannel == checkChannel) {
+						if (doNotOverwriteExisting)
+							return -1;
+
+						if (ch.Flags.DelayedStart) {
+							exactMatch[exactCount] = chIdx;
+							exactCount++;
+							continue;
+						}
+						return chIdx;
+					}
+				}
+
+				if (ch.EntChannel == (int)SoundEntityChannel.Stream || ch.EntChannel == (int)SoundEntityChannel.Voice || ch.EntChannel == (int)SoundEntityChannel.Voice2)
+					continue;
+
+				if (soundServices.IsPlayer(ch.SoundSource) && !soundServices.IsPlayer(soundsource))
+					continue;
+
+				if (ch.Sfx == sfx) {
+					delaySame = ch.Flags.DelayedStart || delaySame;
+					sameSoundCount++;
+					int maxVolume = ChannelGetMaxVol(ref ch);
+					uint remaining = RemainingSamples(ref ch);
+					if (maxVolume < sameVol || (maxVolume == sameVol && remaining < sameSoundRemaining)) {
+						sameSoundIndex = chIdx;
+						sameVol = maxVolume;
+						sameSoundRemaining = remaining;
+					}
+				}
+				canSteal[canStealCount++] = chIdx;
+			}
+			else {
+				if (availableChannel < 0)
+					availableChannel = chIdx;
+			}
+		}
+
+		if (exactCount > 0) {
+			// uint freeSampleTime = g_paintedtime + (uint)(delay * SOUND_DMA_SPEED);
+			int returnChannel = exactMatch[0];
+			uint minRemaining = RemainingSamples(ref Channels[returnChannel]);
+			// if (Channels[returnChannel].FreeChannelAtSampleTime == 0 || Channels[returnChannel].FreeChannelAtSampleTime > freeSampleTime)
+			// 	Channels[returnChannel].FreeChannelAtSampleTime = freeSampleTime;
+			for (int i = 1; i < exactCount; i++) {
+				int channel = exactMatch[i];
+				// if (Channels[channel].FreeChannelAtSampleTime == 0 || Channels[channel].FreeChannelAtSampleTime > freeSampleTime)
+				// 	Channels[channel].FreeChannelAtSampleTime = freeSampleTime;
+				uint remain = RemainingSamples(ref Channels[channel]);
+				if (remain < minRemaining) {
+					returnChannel = channel;
+					minRemaining = remain;
+				}
+			}
+
+			if (exactCount > 1)
+				return returnChannel;
+		}
+
+		if (voice_steal.GetInt() > 1 && sameSoundIndex >= 0) {
+			int maxSameSounds = delaySame ? 5 : 4;
+			// float distSqr = 0.0f;
+			if (sfx!.Source != null) {
+				// distSqr = origin.DistToSqr(listener_origin);
+				if (sfx.Source is BassAudioSource source && source.IsLooped())
+					maxSameSounds = 3;
+			}
+
+			if (sameSoundCount >= maxSameSounds) {
+				// ref Channel ch = ref Channels[sameSoundIndex];
+				// if (distSqr > 0.0f && ch.Origin.DistToSqr(listener_origin) < distSqr && entchannel != (int)SoundEntityChannel.Weapon)
+				// 	return -1;
+
+				return sameSoundIndex;
+			}
+		}
+
+		if (availableChannel >= 0)
+			return availableChannel;
+
+		float lifeLeft = float.MaxValue;
+		int firstToDie = -1;
+		bool allowVoiceSteal = voice_steal.GetBool();
+
+		for (int i = 0; i < canStealCount; i++) {
+			int chIdx = canSteal[i];
+			ref Channel ch = ref Channels[chIdx];
+			float timeLeft = 0;
+			if (allowVoiceSteal) {
+				int maxVolume = ChannelGetMaxVol(ref ch);
+				if (maxVolume < 5)
+					return chIdx;
+
+				if (ch.Sfx != null && ch.Sfx.Source != null) {
+					uint sampleCount = RemainingSamples(ref ch);
+					// timeLeft = (float)sampleCount / (float)ch.Sfx.Source.SampleRate();
+				}
+			}
+			else {
+				if (ch.Sfx != null)
+					timeLeft = 1;
+			}
+
+			if (timeLeft < lifeLeft) {
+				lifeLeft = timeLeft;
+				firstToDie = chIdx;
+			}
+		}
+
+		if (firstToDie >= 0)
+			return firstToDie;
+
+		return -1;
+	}
+
+	private int PickDynamicChannel(SoundSource soundsource, SoundEntityChannel entchannel, in Vector3 origin, SfxTable? sfx, float delay, bool doNotOverwriteExisting) {
+		Precache(sfx!);
+
+		int channel = StealDynamicChannel(soundsource, (int)entchannel, in origin, sfx, delay, doNotOverwriteExisting);
+		if (channel == -1)
+			return -1;
+
+		ref Channel ch = ref Channels[channel];
+
+		if (ch.Sfx != null) {
+			AudioSource? source = ch.Sfx.Source;
+			if (source != null) {
+				if (source is BassAudioSource bassSource && bassSource.IsLooped()) {
+					if (ch.SoundSource == soundsource && ch.EntChannel == (int)entchannel && ch.Sfx == sfx)
+						return -1;
+				}
+			}
+
+			SndMix.FreeChannel(ref ch);
+		}
+
+		return channel;
 	}
 
 	private int PickStaticChannel(int soundSource, SfxTable? sfx) {
@@ -336,6 +590,7 @@ public class AudioSystem : IAudioSystem
 		ch.MasterVol = (short)vol;
 		ch.BasePitch = (short)parms.Pitch;
 		ch.Origin = parms.Origin;
+		ch.Flags.UpdatePositions = parms.UpdatePositions && (parms.SoundSource != 0);
 		ch.BassChannel = Bass.SampleGetChannel(((BassAudioSource)sfx.Source!).BassHandle, OnlyNew: false);
 		g_ActiveChannels.Add(ref ch);
 
@@ -409,6 +664,60 @@ public class AudioSystem : IAudioSystem
 	public void Update(double v) {
 		Bass.GlobalSampleVolume = (int)(volume_sfx.GetFloat() * volume.GetFloat() * 10000);
 		Bass.GlobalMusicVolume = (int)(snd_musicvolume.GetFloat() * volume.GetFloat() * 10000);
+
+		// int voiceChannelCount = 0;
+		// int voiceChannelMaxVolume = 0;
+
+		// g_snd_trace_count = 0;
+
+		// SND_SetSpatialDelays();
+
+		// DAS_CheckNewRoomDSP();
+
+		ChannelList list = new();
+		g_ActiveChannels.GetActiveChannels(list);
+
+		if (snd_spatialize_roundrobin.GetInt() == 0) {
+			for (int i = 0; i < list.Count(); i++) {
+				ref Channel ch = ref list.GetChannel(i);
+				Assert(ch.Sfx);
+				Assert(ch.ActiveIndex > 0);
+
+				Spatialize(ref ch);
+
+				// if (ch.Sfx.Source != null && ch.Sfx.Source.IsVoiceSource()) {
+				// 	voiceChannelCount++;
+				// 	voiceChannelMaxVolume = max(voiceChannelMaxVolume, ChannelGetMaxVol(ref ch));
+				// }
+			}
+		}
+		else {
+			uint robinmask = (uint)((1 << snd_spatialize_roundrobin.GetInt()) - 1);
+			uint i = 0;
+
+			for (int listIndex = 0; listIndex < list.Count(); listIndex++) {
+				ref Channel ch = ref list.GetChannel(listIndex);
+				Assert(ch.Sfx);
+				Assert(ch.ActiveIndex > 0);
+
+				if (ch.Flags.FirstPass || (robinmask & s_roundrobin) == (i & robinmask))
+					Spatialize(ref ch);
+
+				// if (ch.Sfx.Source != null && ch.Sfx.Source.IsVoiceSource()) {
+				// 	voiceChannelCount++;
+				// 	voiceChannelMaxVolume = max(voiceChannelMaxVolume, ChannelGetMaxVol(ref ch));
+				// }
+
+				++i;
+			}
+
+			++s_roundrobin;
+		}
+
+		// SND_ChannelTraceReset();
+
+		Bass.Apply3D();
+
 		Bass.Update((int)(float)(v * 1000));
 	}
 
@@ -420,5 +729,8 @@ public class AudioSystem : IAudioSystem
 	readonly static ConVar volume = new("volume", "1.0", FCvar.Archive, "Sound volume", 0.0, 1.0);
 	readonly ConVar snd_musicvolume = new("snd_musicvolume", "1.0", FCvar.Archive, "Music volume", 0.0, 1.0);
 	readonly static ConVar volume_sfx = new("volume_sfx", "1.0", FCvar.Archive, "Sound effects volume", 0.0, 1.0);
+	readonly static ConVar snd_spatialize_roundrobin = new("snd_spatialize_roundrobin", "0", FCvar.None, "Lowend optimization: if nonzero, spatialize only a fraction of sound channels each frame. 1/2^x of channels will be spatialized per frame.");
+	readonly static ConVar voice_steal = new("voice_steal", "2");
+	static uint s_roundrobin = 0;
 
 }

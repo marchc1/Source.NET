@@ -906,6 +906,36 @@ public partial class C_BaseEntity : IClientEntity
 	}
 	public ref readonly Vector3 GetViewOffset() => ref ViewOffset;
 
+	public virtual bool GetSoundSpatialization(ref SpatializationInfo info) {
+		if (EntIndex() == 0)
+			return true;
+
+		if (IsDormant())
+			return false;
+
+		Model? model = GetModel();
+
+		if (!Unsafe.IsNullRef(ref info.Radius))
+			info.Radius = modelinfo.GetModelRadius(model);
+
+		if (!Unsafe.IsNullRef(ref info.Origin)) {
+			info.Origin = GetAbsOrigin();
+
+			if (modelinfo.GetModelType(model) == ModelType.Brush) {
+				modelinfo.GetModelBounds(model, out Vector3 mins, out Vector3 maxs);
+				MathLib.VectorAdd(mins, maxs, out Vector3 center);
+				MathLib.VectorScale(center, 0.5f, out center);
+
+				info.Origin += center;
+			}
+		}
+
+		if (!Unsafe.IsNullRef(ref info.Angles))
+			info.Angles = GetAbsAngles();
+
+		return true;
+	}
+
 	public virtual ClientClass GetClientClass() => ClientClassRetriever.GetOrError(GetType());
 
 
