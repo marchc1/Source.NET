@@ -5,6 +5,7 @@ using Source.Common.Audio;
 using Source.Common.Commands;
 using Source.Common.Filesystem;
 
+using System.Buffers.Binary;
 using System.Numerics;
 
 using static Source.AudioSystem.AudioGlobals;
@@ -69,14 +70,22 @@ public class BassAudioMemorySource : BassAudioSource, IDisposable
 {
 	int staticChannel;
 	private SampleInfo Info;
+	int LoopStart;
 
 	public BassAudioMemorySource(ReadOnlySpan<char> file) {
 		Info = null!;
+		LoopStart = -1;
 		byte[]? data = audiocache.Lookup(file);
 		if (data == null)
 			return;
 
-		BassHandle = Bass.SampleLoad(data, 0, data.Length, MAX_CHANNELS, BassFlags.Bass3D | BassFlags.Mono);
+		ParseChunks(data, file);
+
+		BassFlags flags = BassFlags.Bass3D | BassFlags.Mono;
+		if (IsLooped())
+			flags |= BassFlags.Loop;
+
+		BassHandle = Bass.SampleLoad(data, 0, data.Length, MAX_CHANNELS, flags);
 		if (BassHandle == 0) {
 			Dbg.Msg($"BASS: {Bass.LastError}\n");
 		}
@@ -92,8 +101,59 @@ public class BassAudioMemorySource : BassAudioSource, IDisposable
 		Info = null!;
 	}
 
+	const uint WAVE_CUE = 'c' | ('u' << 8) | ('e' << 16) | (' ' << 24);
+	const uint WAVE_SAMPLER = 's' | ('m' << 8) | ('p' << 16) | ('l' << 24);
+
+	private void ParseChunks(ReadOnlySpan<byte> data, ReadOnlySpan<char> file) {
+		if (data.Length < 12)
+			return;
+
+		int walk = 12;
+		while (walk + 8 <= data.Length) {
+			uint chunkName = BinaryPrimitives.ReadUInt32LittleEndian(data[walk..]);
+			int chunkSize = BinaryPrimitives.ReadInt32LittleEndian(data[(walk + 4)..]);
+			walk += 8;
+			if (chunkSize < 0 || walk + chunkSize > data.Length)
+				break;
+
+			switch (chunkName) {
+				case WAVE_CUE:
+					ParseCueChunk(data.Slice(walk, chunkSize));
+					break;
+				case WAVE_SAMPLER:
+					ParseSamplerChunk(data.Slice(walk, chunkSize), file);
+					break;
+			}
+
+			walk += chunkSize + (chunkSize & 1);
+		}
+	}
+
+	private void ParseCueChunk(ReadOnlySpan<byte> walk) {
+		if (walk.Length < 4)
+			return;
+
+		int cueCount = BinaryPrimitives.ReadInt32LittleEndian(walk);
+		if (cueCount > 0 && walk.Length >= 4 + 24)
+			LoopStart = BinaryPrimitives.ReadInt32LittleEndian(walk[(4 + 20)..]);
+	}
+
+	private void ParseSamplerChunk(ReadOnlySpan<byte> walk, ReadOnlySpan<char> file) {
+		if (walk.Length < 36 + 24)
+			return;
+
+		if (BinaryPrimitives.ReadUInt32LittleEndian(walk[28..]) > 0) {
+			if (BinaryPrimitives.ReadUInt32LittleEndian(walk[(36 + 4)..]) == 0)
+				LoopStart = BinaryPrimitives.ReadInt32LittleEndian(walk[(36 + 8)..]);
+#if DEBUG
+			else
+				Msg($"Unknown sampler chunk type {BinaryPrimitives.ReadUInt32LittleEndian(walk[(36 + 4)..])} on {file}\n");
+#endif
+		}
+	}
+
 	public override bool IsLooped() {
-		return false; // todo
+		return LoopStart >= 0;
 	}
 
 	public override int PickDynamicChannel(int soundsource, SoundEntityChannel entchannel, in Vector3 origin, SfxTable sfx, double delay, bool doNotOverwriteExisting) {
