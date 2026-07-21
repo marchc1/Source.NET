@@ -1,5 +1,6 @@
 ﻿using ManagedBass;
 
+using Source.Common;
 using Source.Common.Audio;
 using Source.Common.Commands;
 using Source.Common.Filesystem;
@@ -8,6 +9,7 @@ using System.Numerics;
 
 using static Source.AudioSystem.AudioGlobals;
 using static Source.AudioSystem.BassAudioMemorySource;
+using static Source.AudioSystem.SndChannels;
 namespace Source.AudioSystem;
 
 [EngineComponent]
@@ -15,6 +17,7 @@ public static class AudioGlobals
 {
 	[Dependency] public static IFileSystem filesystem = null!;
 	[Dependency] public static AudioCache audiocache = null!;
+	[Dependency] public static ISoundServices soundServices = null!;
 }
 
 
@@ -102,7 +105,22 @@ public class BassAudioMemorySource : BassAudioSource, IDisposable
 	}
 
 	public override int PickStaticChannel(int soundsource, SfxTable sfx) {
-		return staticChannel;
+		int i;
+
+		for (i = MAX_DYNAMIC_CHANNELS; i < TotalChannels; i++)
+			if (Channels[i].Sfx == null)
+				break;
+
+		if (i < TotalChannels)
+			return i;
+		else {
+			if (TotalChannels == MAX_CHANNELS) {
+				DevMsg("total_channels == MAX_CHANNELS\n");
+				return -1;
+			}
+
+			return TotalChannels++;
+		}
 	}
 }
 
@@ -136,6 +154,12 @@ public class AudioSystem : IAudioSystem
 	public bool Init() {
 		if (!Bass.Init(1, 44100, DeviceInitFlags.Device3D))
 			return false;
+
+		for (int i = 0; i < MAX_CHANNELS; i++)
+			Channels[i].Index = (short)i;
+
+		TotalChannels = MAX_DYNAMIC_CHANNELS;
+		g_ActiveChannels.Init();
 
 		return true;
 	}
@@ -242,21 +266,84 @@ public class AudioSystem : IAudioSystem
 			return 0;
 
 		int targetChannel = PickStaticChannel(parms.SoundSource, sfx);
-		if (targetChannel == 0)
+		if (targetChannel == -1)
 			return 0;
 
-		Spatialize(targetChannel, in parms);
-		ChannelInfo info = Bass.ChannelGetInfo(targetChannel);
-		Bass.ChannelSetAttribute(targetChannel, ChannelAttribute.Frequency, info.Frequency * parms.Pitch / 100f);
-		Bass.ChannelSetAttribute(targetChannel, ChannelAttribute.Volume, parms.Volume);
-		Bass.ChannelPlay(targetChannel);
+		ref Channel ch = ref Channels[targetChannel];
+		ch.Sfx = sfx;
+		ch.SoundSource = parms.SoundSource;
+		ch.EntChannel = (int)parms.EntChannel;
+		ch.MasterVol = (short)vol;
+		ch.BasePitch = (short)parms.Pitch;
+		ch.Origin = parms.Origin;
+		ch.BassChannel = Bass.SampleGetChannel(((BassAudioSource)sfx.Source!).BassHandle, OnlyNew: false);
+		g_ActiveChannels.Add(ref ch);
+
+		Spatialize(ch.BassChannel, in parms);
+		ChannelInfo info = Bass.ChannelGetInfo(ch.BassChannel);
+		Bass.ChannelSetAttribute(ch.BassChannel, ChannelAttribute.Frequency, info.Frequency * parms.Pitch / 100f);
+		Bass.ChannelSetAttribute(ch.BassChannel, ChannelAttribute.Volume, parms.Volume);
+		Bass.ChannelPlay(ch.BassChannel);
 		Bass.Apply3D();
 
 		return 0;
 	}
 
 	private bool AlterChannel(int soundSource, SoundEntityChannel entChannel, SfxTable? sfx, int vol, int pitch, SoundFlags flags) {
-		return false;
+		ReadOnlySpan<char> name = sfx!.GetName();
+		if (!name.IsEmpty && SoundCharsUtils.TestSoundChar(name, SoundChars.Sentence)) {
+			ChannelList sentenceList = new();
+			SndChannels.g_ActiveChannels.GetActiveChannels(sentenceList);
+			for (int i = 0; i < sentenceList.Count(); i++) {
+				ref Channel ch = ref sentenceList.GetChannel(i);
+				if (ch.SoundSource == soundSource && ch.EntChannel == (int)entChannel && ch.Sfx != null) {
+					if ((flags & SoundFlags.ChangePitch) != 0)
+						ch.BasePitch = (short)pitch;
+
+					if ((flags & SoundFlags.ChangeVolume) != 0)
+						ch.MasterVol = (short)vol;
+
+					if ((flags & SoundFlags.Stop) != 0)
+						SndMix.FreeChannel(ref ch);
+
+					return true;
+				}
+			}
+			return false;
+		}
+
+		ChannelList list = new();
+		g_ActiveChannels.GetActiveChannels(list);
+
+		bool success = false;
+
+		for (int i = 0; i < list.Count(); i++) {
+			ref Channel ch = ref list.GetChannel(i);
+			if (ch.SoundSource == soundSource &&
+				((flags & SoundFlags.IgnoreName) != 0 ||
+				 (ch.EntChannel == (int)entChannel && ch.Sfx == sfx))) {
+				if ((flags & SoundFlags.ChangePitch) != 0) {
+					ch.BasePitch = (short)pitch;
+					ChannelInfo pitchInfo = Bass.ChannelGetInfo(ch.BassChannel);
+					Bass.ChannelSetAttribute(ch.BassChannel, ChannelAttribute.Frequency, pitchInfo.Frequency * pitch / 100f);
+				}
+
+				if ((flags & SoundFlags.ChangeVolume) != 0) {
+					ch.MasterVol = (short)vol;
+					Bass.ChannelSetAttribute(ch.BassChannel, ChannelAttribute.Volume, vol / 255f);
+				}
+
+				if ((flags & SoundFlags.Stop) != 0)
+					SndMix.FreeChannel(ref ch);
+
+				if ((flags & SoundFlags.IgnoreName) == 0)
+					return true;
+				else
+					success = true;
+			}
+		}
+
+		return success;
 	}
 
 	public void Update(double v) {
