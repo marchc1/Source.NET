@@ -544,7 +544,7 @@ public class GameServer : BaseServer
 		serverGlobalVariables.TickCount = TickCount;
 		serverGlobalVariables.CurTime = GetTime();
 
-		g_pFileSystem.AddSearchPath(mapFile, "GAME", SearchPathAdd.ToHead);
+		g_pFileSystem.AddSearchPath(mapFile, "GAME", SearchPathAdd.ToHead, groupName: PathGroupName.Map);
 		g_pFileSystem.BeginMapAccess();
 
 		Common.TimestampedLog($"modelloader->GetModelForName({mapFile}) -- Start");

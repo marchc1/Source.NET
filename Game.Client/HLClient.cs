@@ -198,7 +198,8 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 			while(splitter.MoveNext()){
 				ReadOnlySpan<char> path = paths[splitter.Current].SliceNullTerminatedString();
 				// This sucks! TODO: Fix this!!!
-				filesystem.AddSearchPath(Path.Combine(AppContext.BaseDirectory, "garrysmod", new string(path.Trim('/'))), "LUA");
+				ReadOnlySpan<char> absPath = $"{engine.GetGameDirectory()}{path}";
+				filesystem.AddSearchPath(absPath, "lcl", groupName: Source.Common.Filesystem.PathGroupName.Lua);
 			}
 		}
 	}

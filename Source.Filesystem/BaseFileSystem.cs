@@ -36,8 +36,8 @@ public class BaseFileSystem : IFileSystem
 
 	public BaseFileSystem() {
 		RemoveSearchPaths("EXECUTABLE_PATH");
-		AddSearchPath(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "EXECUTABLE_PATH");
-		AddSearchPath(AppContext.BaseDirectory, "BASE_PATH");
+		AddSearchPath(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "EXECUTABLE_PATH", name: PathGroupName.EngineCore);
+		AddSearchPath(AppContext.BaseDirectory, "BASE_PATH", name: PathGroupName.EngineCore);
 	}
 
 	private void AddMapPackFile(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType, PathGroupName groupName) {
@@ -408,12 +408,11 @@ public class BaseFileSystem : IFileSystem
 	}
 
 	public void PrintSearchPaths() {
-		Msg("---------------\n");
 		Msg("Paths:\n");
 
 		for (int i = 0; i < SearchPathGroups.Length; i++) {
 			var searchpathgroup = SearchPathGroups[i];
-			if (searchpathgroup.Count == 0)
+			if (searchpathgroup == null || searchpathgroup.Count == 0)
 				continue;
 
 			PathGroupName groupName = (PathGroupName)i;
