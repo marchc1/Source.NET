@@ -456,4 +456,8 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		Msg($"  Contents            : \n");
 		Msg($"{Encoding.UTF8.GetString(decompressed)}\n");
 	}
+
+	public void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {
+		throw new NotImplementedException();
+	}
 }

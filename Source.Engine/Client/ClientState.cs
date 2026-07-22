@@ -19,6 +19,7 @@ using Source.Engine.Server;
 using Steamworks;
 
 using System.Buffers;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -660,21 +661,38 @@ public class ClientState : BaseClientState
 		ArrayPool<byte>.Shared.Return(data);
 		return true;
 	}
+	public static readonly ConVar cl_allowupload = new("cl_allowupload", "1", FCvar.Archive, "Client uploads customization files");
 
 	public override void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
+		CL.FileReceived(fileName, transferID);
+		g_ClientDLL?.FileReceived(fileName, transferID);
 	}
 	public override void FileRequested(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
+		ConMsg($"File '{fileName}' requested from server {NetChannel!.GetAddress()}.\n");
+
+		if (!cl_allowupload.GetBool()) {
+			ConMsg("File uploading disabled.\n");
+			NetChannel.DenyFile(fileName, transferID);
+			return;
+		}
+
+		// TODO check if file valid for uploading
+		NetChannel.SendFile(fileName, transferID);
 	}
 	public override void FileDenied(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
+		CL.FileDenied(fileName, transferID);
 	}
 	public override void FileSent(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
+
 	}
 	public override void ConnectionCrashed(ReadOnlySpan<char> reason) {
-		throw new NotImplementedException();
+		if (SignOnState > SignOnState.None) {
+			Debugger.Break();
+
+			Common.ExplainDisconnection(true, $"Disconnect: {reason.SliceNullTerminatedString()}.\n");
+			Scr.EndLoadingPlaque();
+			Host.EndGame(true, reason);
+		}
 	}
 	public void StartUpdatingSteamResources() {
 		// for now; just make signon state new
@@ -1086,6 +1104,12 @@ public class ClientState : BaseClientState
 	}
 
 	internal void SendServerCmdKeyValues(KeyValues keyValues) {
-		throw new NotImplementedException();
+		if (keyValues == null)
+			return;
+		if (NetChannel == null)
+			return;
+
+		// CLC_CmdKeyValues might not exist?
+		// What was this anyway
 	}
 }

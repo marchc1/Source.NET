@@ -344,6 +344,14 @@ public partial class CL(IServiceProvider services, Net Net,
 		return true;
 	}
 
+	internal void FileDenied(ReadOnlySpan<char> fileName, uint transferID) {
+		throw new NotImplementedException();
+	}
+
+	internal void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {
+		throw new NotImplementedException();
+	}
+
 	internal void RegisterResources() {
 		host_state.SetWorldModel(cl.GetModel(1));
 		if (host_state.WorldModel == null)
