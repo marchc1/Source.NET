@@ -439,7 +439,9 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		throw new NotImplementedException();
 	}
 
-	public void GMod_RequestLuaFiles(CLC_GMod_ClientToServer luaFile) {
-
+	public void GMod_RequestLuaFiles(INetChannel netchan) {
+		var luaFileMessage = new CLC_GMod_ClientToServer(GModMessageType.LuaFile);
+		luaFileMessage.LuaFile.FileStringTableEntryID = (ushort)g_ClientLuaFiles.FindStringIndex("lua/autorun/properties/drive.lua");
+		netchan!.SendNetMsg(luaFileMessage!);
 	}
 }

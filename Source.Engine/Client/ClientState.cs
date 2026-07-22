@@ -20,6 +20,7 @@ using Steamworks;
 
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 using static Source.Constants;
 
@@ -552,9 +553,11 @@ public class ClientState : BaseClientState
 	protected override bool ProcessGMod_ServerToClient(SVC_GMod_ServerToClient msg) {
 		switch (msg.MessageType) {
 			case GModMessageType.RequestLuaFiles: {
-					var luaFileMessage = new CLC_GMod_ClientToServer(GModMessageType.LuaFile);
-					g_ClientDLL!.GMod_RequestLuaFiles(luaFileMessage);
-					NetChannel!.SendNetMsg(luaFileMessage!);
+					g_ClientDLL!.GMod_RequestLuaFiles(NetChannel!);
+				}
+				return true;
+			case GModMessageType.LuaFile: {
+					// TODO
 				}
 				return true;
 		}

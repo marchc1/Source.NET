@@ -45,5 +45,5 @@ public interface IBaseClientDLL
 	LookupProxyInterfaceFn GetMaterialProxyInterfaceFn();
 	void LevelInitPreEntity(ReadOnlySpan<char> mapname);
 	void LevelInitPostEntity();
-	void GMod_RequestLuaFiles(CLC_GMod_ClientToServer luaFile);
+	void GMod_RequestLuaFiles(INetChannel netchan);
 }

@@ -11,6 +11,7 @@ using Source.Common.Bitbuffers;
 using Source.Common.Hashing;
 using Source.Common.Mathematics;
 using System.Text;
+using CommunityToolkit.HighPerformance;
 
 public static class NetMessageExtensions
 {
@@ -1142,7 +1143,7 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 
 				break;
 			case GModMessageType.LuaFile:
-				bits += 16;
+				bits += GetLuaFileMessageBits();
 				break;
 		}
 
@@ -1175,6 +1176,7 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 
 	public abstract void ReadLuaFile(bf_read buffer);
 	public abstract void WriteLuaFile(bf_write buffer);
+	public abstract int GetLuaFileMessageBits();
 }
 
 public class SVC_GMod_ServerToClient : BaseGModNetMessage
@@ -1184,9 +1186,18 @@ public class SVC_GMod_ServerToClient : BaseGModNetMessage
 	public override string ToString() => $"SVC_GMod_ServerToClient: length {Bits2Bytes(Bits)}";
 
 	public override void ReadLuaFile(bf_read buffer) {
+		LuaFile.FileStringTableEntryID = (ushort)buffer.ReadUBitLong(16);
+		buffer.ReadBytes(new Span<SHA256>(ref LuaFile.FileSHA256).Cast<SHA256, byte>());
+		int fileSize = (int)buffer.BytesLeft;
+		LuaFile.FileContents = new byte[fileSize];
+		buffer.ReadBytes(LuaFile.FileContents.Span);
+	}
+
+	public override void WriteLuaFile(bf_write buffer) {
 
 	}
-	public override void WriteLuaFile(bf_write buffer) {
+
+	public override int GetLuaFileMessageBits() {
 		throw new NotImplementedException();
 	}
 }
@@ -1210,6 +1221,9 @@ public class CLC_GMod_ClientToServer : BaseGModNetMessage
 
 	public override void WriteLuaFile(bf_write buffer) {
 		buffer.WriteUBitLong(LuaFile.FileStringTableEntryID, 16);
+	}
+	public override int GetLuaFileMessageBits() {
+		return 16;
 	}
 }
 #endif
