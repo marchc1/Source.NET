@@ -829,6 +829,59 @@ public class SVC_PacketEntities : NetMessage
 	}
 }
 
+public class SVC_VoiceData : NetMessage
+{
+	public SVC_VoiceData() : base(SVC.VoiceData) { reliable = false; }
+	public override NetChannelGroup GetGroup() => NetChannelGroup.Voice;
+
+	public int FromClient;
+	public bool Proximity;
+	public int Length;
+	public readonly bf_read DataIn;
+	public byte[]? DataOut;
+
+	public override bool ReadFromBuffer(bf_read buffer) {
+		FromClient = buffer.ReadByte();
+		Proximity = buffer.ReadByte() == 0;
+		Length = buffer.ReadWord();
+
+		buffer.CopyTo(DataIn);
+		return buffer.SeekRelative(Length);
+	}
+
+	public override bool WriteToBuffer(bf_write buffer) {
+		buffer.WriteNetMessageType(this);
+		buffer.WriteByte(FromClient);
+		buffer.WriteByte(Proximity ? 1 : 0);
+		buffer.WriteWord(Length);
+
+		return buffer.WriteBits(DataOut, Length);
+	}
+}
+
+public class CLC_VoiceData : NetMessage
+{
+	public CLC_VoiceData() : base(CLC.VoiceData) { reliable = false; }
+	public override NetChannelGroup GetGroup() => NetChannelGroup.Voice;
+
+	public int Length;
+	public readonly bf_read DataIn = new();
+	public readonly bf_write DataOut = new();
+
+	public override bool ReadFromBuffer(bf_read buffer) {
+		Length = buffer.ReadWord();  // length in bits
+		buffer.CopyTo(DataIn);
+		return buffer.SeekRelative(Length);
+	}
+
+	public override bool WriteToBuffer(bf_write buffer) {
+		buffer.WriteNetMessageType(this);
+		Length = DataOut.BitsWritten;
+		buffer.WriteWord(Length);    // length in bits
+		return buffer.WriteBits(DataOut.GetData(), Length);
+	}
+}
+
 public class CLC_Move : NetMessage
 {
 	public CLC_Move() : base(CLC.Move) { reliable = false; }

@@ -106,6 +106,7 @@ public interface IAudioSystem
 	bool Init();
 	long StartDynamicSound(in StartSoundParams parms);
 	long StartStaticSound(in StartSoundParams parms);
+	IVoiceRecord? CreateVoiceRecord(int v);
 }
 public class SfxTable
 {

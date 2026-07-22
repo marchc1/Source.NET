@@ -26,12 +26,13 @@ class SteamworksExts
 	static Assembly Steamworks;
 	static Dictionary<string, Type> TypeLookup;
 	static GetPtrFn CSteamAPIContext_GetSteamClient;
+	static GetPtrFn CSteamAPIContext_GetSteamUser;
 	static GetPtrFn CSteamGameServerAPIContext_GetSteamClient;
 
-	static GetPtrFn RetrievePtrFn(string searchClass) {
+	static GetPtrFn RetrievePtrFn(string searchClass, string searchMethod) {
 		Type typeSearch;
 		typeSearch = TypeLookup[searchClass];
-		MethodInfo methodThatReturnsPtr = typeSearch.GetMethod("GetSteamClient", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!;
+		MethodInfo methodThatReturnsPtr = typeSearch.GetMethod(searchMethod, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!;
 		return methodThatReturnsPtr.CreateDelegate<GetPtrFn>();
 	}
 
@@ -48,10 +49,12 @@ class SteamworksExts
 					TypeLookup[t.Name] = t;
 		}
 		// Load these pointers
-		CSteamAPIContext_GetSteamClient = RetrievePtrFn("CSteamAPIContext");
-		CSteamGameServerAPIContext_GetSteamClient = RetrievePtrFn("CSteamGameServerAPIContext");
+		CSteamAPIContext_GetSteamClient = RetrievePtrFn("CSteamAPIContext", "GetSteamClient");
+		CSteamAPIContext_GetSteamUser = RetrievePtrFn("CSteamAPIContext", "GetSteamUser");
+		CSteamGameServerAPIContext_GetSteamClient = RetrievePtrFn("CSteamGameServerAPIContext", "GetSteamClient");
 	}
 
+	public static IntPtr GetSteamUser() => CSteamAPIContext_GetSteamUser();
 	public static bool HasSteamClient() => CSteamAPIContext_GetSteamClient() != IntPtr.Zero;
 	public static bool HasSteamGameServer() => CSteamGameServerAPIContext_GetSteamClient() != IntPtr.Zero;
 }

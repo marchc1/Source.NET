@@ -344,6 +344,27 @@ public partial class CL(IServiceProvider services, Net Net,
 		return true;
 	}
 
+	readonly byte[] voiceData = new byte[2048];
+
+	public void SendVoicePacket(bool final){
+		if (!Voice.IsRecording())
+			return;
+
+		CLC_VoiceData voiceMsg = new();
+
+		voiceMsg.DataOut.StartWriting(voiceData, voiceData.Length);
+
+		voiceMsg.Length = Voice.GetCompressedData(voiceData.AsSpan(), final) * 8;
+
+		if (voiceMsg.Length == 0)
+			return;
+
+		voiceMsg.DataOut.Seek(voiceMsg.Length);    // set correct writing position
+
+		if (cl.IsActive())
+			cl.NetChannel!.SendNetMsg(voiceMsg);
+	}
+
 	internal void FileDenied(ReadOnlySpan<char> fileName, uint transferID) {
 		throw new NotImplementedException();
 	}
