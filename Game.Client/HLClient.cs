@@ -13,6 +13,7 @@ using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Engine;
 using Source.Common.GUI;
+using Source.Common.Hashing;
 using Source.Common.Input;
 using Source.Common.MaterialSystem;
 using Source.Common.Networking;
@@ -443,5 +444,15 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		var luaFileMessage = new CLC_GMod_ClientToServer(GModMessageType.LuaFile);
 		luaFileMessage.LuaFile.FileStringTableEntryID = (ushort)g_ClientLuaFiles.FindStringIndex("lua/autorun/properties/drive.lua");
 		netchan!.SendNetMsg(luaFileMessage!);
+	}
+
+	public void GMod_ReceiveLuaFile(ReadOnlySpan<char> fileName, in SHA256 sha256, ReadOnlySpan<byte> compressed, ReadOnlySpan<byte> decompressed) {
+		Msg($"Got Lua file\n");
+		Msg($"  Filename            : {fileName}\n");
+		Msg($"  SHA256              : {sha256}\n");
+		Msg($"  Compressed Size     : {compressed.Length} bytes\n");
+		Msg($"  Decompressed Size   : {decompressed.Length} bytes\n");
+		Msg($"  Contents            : \n");
+		Msg($"{Encoding.UTF8.GetString(decompressed)}\n");
 	}
 }

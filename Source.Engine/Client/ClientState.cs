@@ -101,6 +101,7 @@ public class ClientState : BaseClientState
 	public INetworkStringTable? UserInfoTable;
 	public INetworkStringTable? ServerStartupTable;
 	public INetworkStringTable? DynamicModelsTable;
+	public INetworkStringTable? ClientLuaFiles;
 
 
 	readonly PrecacheItem[] ModelPrecache = ClassUtils.BlankInstantiatedArray<PrecacheItem>(PrecacheItem.MAX_MODELS);
@@ -248,6 +249,11 @@ public class ClientState : BaseClientState
 				return true;
 			case Protocol.USER_INFO_TABLENAME:
 				UserInfoTable = table;
+				return true;
+			case Protocol.CLIENT_LUA_FILES_TABLENAME:
+				ClientLuaFiles = table;
+				// allow client dll to grab this
+				Host.clientDLL?.InstallStringTableCallback(tableName);
 				return true;
 		}
 
@@ -549,6 +555,8 @@ public class ClientState : BaseClientState
 	}
 	readonly LinkedList<EventInfo> Events = [];
 	CLC_GMod_ClientToServer? luaFileMessage;
+	readonly MemoryStream luaFileData = new(new byte[500_000], 0, 500_000, true, true);
+
 
 	protected override bool ProcessGMod_ServerToClient(SVC_GMod_ServerToClient msg) {
 		switch (msg.MessageType) {
@@ -558,6 +566,11 @@ public class ClientState : BaseClientState
 				return true;
 			case GModMessageType.LuaFile: {
 					// TODO
+					luaFileData.Position = 0;
+					luaFileData.SetLength(0);
+					Bootil.Compression.LZMA.Extract(msg.LuaFile.FileContents.Span, luaFileData);
+					g_ClientDLL!.GMod_ReceiveLuaFile(ClientLuaFiles.GetString(msg.LuaFile.FileStringTableEntryID), in msg.LuaFile.FileSHA256, msg.LuaFile.FileContents.Span, luaFileData.GetBuffer().AsSpan()[..(int)luaFileData.Length]);
+
 				}
 				return true;
 		}
