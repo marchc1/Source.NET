@@ -18,19 +18,20 @@ namespace Source.FileSystem;
 // Maybe we redo this one day...
 public class BaseFileSystem : IFileSystem
 {
+	readonly record struct searchPathInternal(ISearchPath path, string pathID);
 	private readonly SearchPathIDCollection SearchPaths = [];
-	private readonly List<ISearchPath>[] SearchPathGroups = new List<ISearchPath>[(int)PathGroupName.Fallbacks + 1];
-	private List<ISearchPath> GetSearchPathGroupsFor(PathGroupName groupName) => SearchPathGroups[(int)groupName] ??= [];
-	private void AddSearchPathFromGroup(ISearchPath searchPath) => GetSearchPathGroupsFor(searchPath.GetGroupName()).Add(searchPath);
-	private void RemoveSearchPathFromGroup(ISearchPath searchPath) => GetSearchPathGroupsFor(searchPath.GetGroupName()).Remove(searchPath);
+	private readonly List<searchPathInternal>[] SearchPathGroups = new List<searchPathInternal>[(int)PathGroupName.Fallbacks + 1];
+	private List<searchPathInternal> GetSearchPathGroupsFor(PathGroupName groupName) => SearchPathGroups[(int)groupName] ??= [];
+	private void AddSearchPathFromGroup(ISearchPath searchPath, ReadOnlySpan<char> pathID) => GetSearchPathGroupsFor(searchPath.GetGroupName()).Add(new(searchPath, new(pathID.SliceNullTerminatedString())));
+	private void RemoveSearchPathFromGroup(ISearchPath searchPath, ReadOnlySpan<char> pathID) => GetSearchPathGroupsFor(searchPath.GetGroupName()).Remove(new(searchPath, new(pathID.SliceNullTerminatedString())));
 
-	private void AddSearchPathFinal(ISearchPath searchPath, SearchPathAdd addType, SearchPathCollection collection, PathGroupName groupName) {
+	private void AddSearchPathFinal(ISearchPath searchPath, SearchPathAdd addType, SearchPathCollection collection, PathGroupName groupName, ReadOnlySpan<char> pathID) {
 		if (addType == SearchPathAdd.ToHead)
 			collection.Insert(0, searchPath);
 		else
 			collection.Add(searchPath);
 		searchPath.SetGroupName(groupName);
-		AddSearchPathFromGroup(searchPath);
+		AddSearchPathFromGroup(searchPath, pathID);
 	}
 
 	public BaseFileSystem() {
@@ -65,7 +66,7 @@ public class BaseFileSystem : IFileSystem
 					if ((addType == SearchPathAdd.ToHead && i == 0) || addType == SearchPathAdd.ToTail)
 						return;
 					else {
-						RemoveSearchPathFromGroup(searchPath);
+						RemoveSearchPathFromGroup(searchPath, pathID);
 						collection.RemoveAt(i);
 						i--;
 						c--;
@@ -81,7 +82,7 @@ public class BaseFileSystem : IFileSystem
 			return;
 		}
 
-		AddSearchPathFinal(zip, addType, collection, groupName);
+		AddSearchPathFinal(zip, addType, collection, groupName, pathID);
 	}
 
 	private void AddVPKFile(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType, PathGroupName groupName) {
@@ -94,7 +95,7 @@ public class BaseFileSystem : IFileSystem
 					if ((addType == SearchPathAdd.ToHead && i == 0) || addType == SearchPathAdd.ToTail)
 						return;
 					else {
-						RemoveSearchPathFromGroup(searchPath); 
+						RemoveSearchPathFromGroup(searchPath, pathID);
 						collection.RemoveAt(i);
 						i--;
 						c--;
@@ -105,7 +106,7 @@ public class BaseFileSystem : IFileSystem
 		}
 
 		ISearchPath createdSearchPath = new PackStoreSearchPath(this, newPath);
-		AddSearchPathFinal(createdSearchPath, addType, collection, groupName);
+		AddSearchPathFinal(createdSearchPath, addType, collection, groupName, pathID);
 	}
 	private void AddPackFiles(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType) { } // TODO 
 	private void AddSeparatorAndFixPath(ref string path) { // this sucks fix it later
@@ -129,7 +130,7 @@ public class BaseFileSystem : IFileSystem
 					if ((addType == SearchPathAdd.ToHead && i == 0) || addType == SearchPathAdd.ToTail)
 						return;
 					else {
-						RemoveSearchPathFromGroup(searchPath); 
+						RemoveSearchPathFromGroup(searchPath, pathID);
 						collection.RemoveAt(i);
 						i--;
 						c--;
@@ -144,7 +145,7 @@ public class BaseFileSystem : IFileSystem
 		}
 
 		ISearchPath createdSearchPath = new DiskSearchPath(this, newPath);
-		AddSearchPathFinal(createdSearchPath, addType, collection, groupName);
+		AddSearchPathFinal(createdSearchPath, addType, collection, groupName, pathID);
 	}
 
 	public void AddSearchPath(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType = SearchPathAdd.ToTail, PathGroupName name = PathGroupName.Default) {
@@ -158,7 +159,7 @@ public class BaseFileSystem : IFileSystem
 				if ((addType == SearchPathAdd.ToHead && i == 0) || addType == SearchPathAdd.ToTail)
 					return;
 				else {
-					RemoveSearchPathFromGroup(searchPath); 
+					RemoveSearchPathFromGroup(searchPath, pathID);
 					collection.RemoveAt(i);
 					i--;
 					c--;
@@ -167,7 +168,7 @@ public class BaseFileSystem : IFileSystem
 			}
 		}
 
-		AddSearchPathFinal(path, addType, collection, groupName);
+		AddSearchPathFinal(path, addType, collection, groupName, pathID);
 	}
 
 	public IEnumerable<ISearchPath> GetCollections(ulong hashID) {
@@ -277,7 +278,7 @@ public class BaseFileSystem : IFileSystem
 		for (int i = collection.Count - 1; i >= 0; i--) {
 			if (collection[i].GetDiskPath() != path)
 				continue;
-			RemoveSearchPathFromGroup(collection[i]); 
+			RemoveSearchPathFromGroup(collection[i], pathID);
 			collection.RemoveAt(i);
 			ret = true;
 		}
@@ -289,6 +290,13 @@ public class BaseFileSystem : IFileSystem
 		ulong hash = pathID.Hash();
 		if (hash == 0) return;
 		SearchPaths.Remove(hash);
+		foreach (var group in SearchPathGroups) {
+			if (group == null)
+				continue;
+			for (int i = group.Count - 1; i >= 0; i--)
+				if (group[i].pathID.Equals(pathID, StringComparison.OrdinalIgnoreCase))
+					group.RemoveAt(i);
+		}
 	}
 
 	public unsafe bool RenameFile(ReadOnlySpan<char> oldPath, ReadOnlySpan<char> newPath, ReadOnlySpan<char> pathID) {
@@ -403,9 +411,16 @@ public class BaseFileSystem : IFileSystem
 		Msg("---------------\n");
 		Msg("Paths:\n");
 
-		foreach (var searchpath in SearchPaths) {
-			ReadOnlySpan<char> pathID = SearchPaths.GetName(searchpath.Key);
-			foreach (var spi in searchpath.Value) {
+		for (int i = 0; i < SearchPathGroups.Length; i++) {
+			var searchpathgroup = SearchPathGroups[i];
+			if (searchpathgroup.Count == 0)
+				continue;
+
+			PathGroupName groupName = (PathGroupName)i;
+			Msg($"  --- {groupName.ToString().ToUpper()} --- \n");
+			foreach (var searchpath in searchpathgroup) {
+				ReadOnlySpan<char> pathID = searchpath.pathID;
+				ISearchPath spi = searchpath.path;
 				ReadOnlySpan<char> pack = "";
 				ReadOnlySpan<char> type = "";
 				if (false /* TODO: Map-based pack files */) {
@@ -419,10 +434,9 @@ public class BaseFileSystem : IFileSystem
 					pack = dsp.DiskPath;
 				}
 
-				Msg($"\"{pack}\" \"{pathID}\" {type}\n");
+				Msg($"    \"{pack}\" \"{pathID}\" {type}\n");
 			}
 		}
-
 	}
 
 	readonly Dictionary<ulong, FileNameHandle_t> fileNameHandles = [];
@@ -628,7 +642,7 @@ public class BaseFileSystem : IFileSystem
 		for (int i = collection.Count - 1; i >= 0; i--) {
 			if (collection[i] != searchPathImpl)
 				continue;
-			RemoveSearchPathFromGroup(collection[i]);
+			RemoveSearchPathFromGroup(collection[i], pathID);
 			collection.RemoveAt(i);
 			ret = true;
 		}
@@ -648,7 +662,7 @@ public class BaseFileSystem : IFileSystem
 		for (int i = collection.Count - 1; i >= 0; i--) {
 			if (!search(collection[i]))
 				continue;
-			RemoveSearchPathFromGroup(collection[i]);
+			RemoveSearchPathFromGroup(collection[i], pathID);
 			collection.RemoveAt(i);
 			ret = true;
 		}
