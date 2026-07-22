@@ -33,7 +33,7 @@ public class FileSystem(IFileSystem fileSystem, IServiceProvider services) {
 		Dbg.Error($"{msg}\n");
 		return ret;
 	}
-	public FSReturnCode LoadSearchPaths(in CFSSearchPathsInit initInfo) {
+	public FSReturnCode LoadSearchPaths(ref CFSSearchPathsInit initInfo) {
 		if (initInfo.FileSystem == null || initInfo.DirectoryName == null)
 			return SetupFileSystemError(false, FSReturnCode.InvalidParameters, "FileSystem.LoadSearchPaths: Invalid parameters specified.");
 
@@ -45,6 +45,8 @@ public class FileSystem(IFileSystem fileSystem, IServiceProvider services) {
 		string baseDir;
 		if(!GetBaseDir(out baseDir))
 			return SetupFileSystemError(false, FSReturnCode.InvalidParameters, "FileSystem.GetBaseDir: failed.");
+
+		initInfo.ModPath = initInfo.DirectoryName;
 
 		const string GAMEINFOPATH_TOKEN = "|gameinfo_path|";
 		const string BASESOURCEPATHS_TOKEN = "|all_source_engine_paths|";

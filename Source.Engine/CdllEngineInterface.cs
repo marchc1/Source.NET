@@ -242,7 +242,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public ReadOnlySpan<char> GetGameDirectory() {
-		throw new NotImplementedException();
+		return Common.Gamedir;
 	}
 
 	public ref readonly Matrix4x4 WorldToScreenMatrix() => ref g_EngineRenderer.WorldToScreenMatrix();
