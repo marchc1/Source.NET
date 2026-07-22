@@ -8,7 +8,7 @@ using Source.Common.Filesystem;
 
 namespace Source.FileSystem;
 
-public class DiskSearchPath : SearchPath
+public class DiskSearchPath : BaseSearchPath
 {
 #if FORCE_CASE_INSENSITIVE_ON_DISK
 	class CaseInsensitiveCache {
@@ -50,7 +50,7 @@ public class DiskSearchPath : SearchPath
 		if (!Path.IsPathFullyQualified(absPath))
 			absPath = Path.GetFullPath(absPath);
 
-		SetPath(absPath);
+		SetDiskPath(absPath);
 	}
 
 	private string GetAbsPath(ReadOnlySpan<char> relPath) => ResolveDiskPath(Path.Combine(DiskPath!, new(relPath)));
@@ -149,13 +149,13 @@ public class DiskSearchPath : SearchPath
 		return info.LastWriteTimeUtc;
 	}
 
-	internal override ReadOnlySpan<char> GetPathString() => DiskPath;
+	public override ReadOnlySpan<char> GetPathString() => DiskPath;
 
-	internal override object? GetPackFile() {
+	public override object? GetPackFile() {
 		return null;
 	}
 
-	internal override object? GetPackedStore() {
+	public override object? GetPackedStore() {
 		return null;
 	}
 

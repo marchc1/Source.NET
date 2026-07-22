@@ -1,7 +1,89 @@
 ﻿
 using Source.Common.Formats.Keyvalues;
+using Source.Common.Utilities;
 
 namespace Source.Common.Filesystem;
+
+public enum PathGroupName
+{
+	Default,
+	EngineCore,
+	Lua,
+	Map,
+	AddonContent,
+	GMContent,
+	GModCore,
+	CurrentGame,
+	SourceSDK,
+	BAddonContent,
+	GameContent,
+	MountCfg,
+	Downloads,
+	Fallbacks
+}
+
+public interface ISearchPath
+{
+	bool Exists(ReadOnlySpan<char> path); // Returns if the file or directory exists
+	bool IsDirectory(ReadOnlySpan<char> path); // Returns true if the path is a directory
+	bool IsFileWritable(ReadOnlySpan<char> path); // Returns true if the path can be written to
+	IFileHandle? Open(ReadOnlySpan<char> path, FileOpenOptions options); // Can return null if something went wrong
+	bool RemoveFile(ReadOnlySpan<char> path); // Return true if the file was deleted
+	bool RenameFile(ReadOnlySpan<char> oldPath, ReadOnlySpan<char> newPath); // Renames a single file, returns true if it worked
+	bool SetFileWritable(ReadOnlySpan<char> path, bool writable); // Determines if the file is writable
+	long Size(ReadOnlySpan<char> path); // Gets the size of a file
+	/// <summary>
+	/// Gets the last modified time of a file (UTC)
+	/// </summary>
+	/// <param name="path"></param>
+	/// <returns></returns>
+	DateTime Time(ReadOnlySpan<char> path);
+	ReadOnlySpan<char> GetPathString();
+	object? GetPackFile();
+	object? GetPackedStore();
+	void UnlockFinds();
+	void LockFinds(UtlSymbol wildcard, HashSet<ulong> foundAlready);
+	string? FindAt(int index);
+	PathGroupName GetGroupName();
+	void SetGroupName(PathGroupName name);
+	ReadOnlySpan<char> GetDiskPath();
+
+
+
+	public static ReadOnlySpan<char> Normalize(ReadOnlySpan<char> unnormalizedString, Span<char> normalizedOutput) {
+		int len = Math.Min(normalizedOutput.Length, unnormalizedString.Length);
+
+		for (int i = 0; i < len; i++) {
+			char c = unnormalizedString[i];
+			normalizedOutput[i] = c == '\\' ? '/' : c;
+		}
+
+		return normalizedOutput[..len];
+	}
+	public static ReadOnlySpan<char> Concat(ISearchPath searchPath, ReadOnlySpan<char> fileNameUnnormalized, Span<char> target) {
+		Span<char> fileNameNormalized = stackalloc char[MAX_PATH];
+		ReadOnlySpan<char> fileName = Normalize(fileNameUnnormalized, fileNameNormalized);
+
+		int writePtr = 0;
+		ReadOnlySpan<char> diskpath = searchPath.GetDiskPath();
+		diskpath.CopyTo(target[writePtr..]); writePtr += diskpath.Length;
+		if (diskpath.EndsWith('\\'))
+			target[writePtr - 1] = '/';
+
+		bool hasSlash = target[writePtr - 1] == '/';
+		if (!hasSlash) {
+			// Write a slash now
+			target[writePtr] = '/'; writePtr++;
+			hasSlash = true;
+		}
+		// Confirm we arent writing another slash
+		if ((fileName.Length > 0 && (fileName[0] == '/' || fileName[0] == '\\')) && hasSlash)
+			fileName = fileName[1..];
+
+		fileName.ClampedCopyTo(target[writePtr..]); writePtr += fileName.Length;
+		return target[..writePtr];
+	}
+}
 
 public interface IBaseFileSystem
 {
@@ -80,13 +162,26 @@ public interface IFileSystem : IBaseFileSystem
 	/// <param name="path"></param>
 	/// <param name="pathID"></param>
 	/// <param name="addType"></param>
-	public void AddSearchPath(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType = SearchPathAdd.ToTail);
+	public void AddSearchPath(ReadOnlySpan<char> diskPath, ReadOnlySpan<char> pathID, SearchPathAdd addType = SearchPathAdd.ToTail, PathGroupName groupName = PathGroupName.Default);
 	/// <summary>
-	/// Remove a search path.
+	/// Add a search path.
 	/// </summary>
 	/// <param name="path"></param>
 	/// <param name="pathID"></param>
-	public bool RemoveSearchPath(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID);
+	/// <param name="addType"></param>
+	public void AddSearchPath(ISearchPath searchPathImpl, ReadOnlySpan<char> pathID, SearchPathAdd addType = SearchPathAdd.ToTail, PathGroupName groupName = PathGroupName.Default);
+	/// <summary>
+	/// Remove a search path.
+	/// </summary>
+	public bool RemoveSearchPath(ReadOnlySpan<char> diskPath, ReadOnlySpan<char> pathID);
+	/// <summary>
+	/// Remove a search path.
+	/// </summary>
+	public bool RemoveSearchPath(ISearchPath searchPathImpl, ReadOnlySpan<char> pathID);
+	/// <summary>
+	/// Remove a search path.
+	/// </summary>
+	public bool RemoveSearchPath(Predicate<ISearchPath> search, ReadOnlySpan<char> pathID);
 	/// <summary>
 	/// Remove all search paths.
 	/// </summary>
@@ -135,7 +230,6 @@ public interface IFileSystem : IBaseFileSystem
 	void FindClose(ulong findHandle);
 
 	ReadOnlySpan<char> String(FileNameHandle_t nameHandle);
-	void GetSearchPaths(List<string> vecSearchPaths, ReadOnlySpan<char> pathID);
 
 	public enum KeyValuesPreloadType
 	{

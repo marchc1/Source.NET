@@ -26,7 +26,7 @@ public class VpkFileHandle(IFileSystem filesystem, FileNameHandle_t fileName, Me
 	public bool IsOK() => !disposedValue && data != null;
 }
 
-public class PackStoreSearchPath : SearchPath
+public class PackStoreSearchPath : BaseSearchPath
 {
 	private readonly IFileSystem parent;
 	private readonly VpkArchive vpk;
@@ -69,7 +69,7 @@ public class PackStoreSearchPath : SearchPath
 		if (!Path.IsPathFullyQualified(absPath))
 			absPath = Path.GetFullPath(absPath);
 
-		SetPath(absPath);
+		SetDiskPath(absPath);
 	}
 
 	public override bool Exists(ReadOnlySpan<char> path) {
@@ -107,15 +107,15 @@ public class PackStoreSearchPath : SearchPath
 		return DateTime.MinValue;
 	}
 
-	internal override object? GetPackedStore() {
+	public override object? GetPackedStore() {
 		return null; // TODO: Review GetPackedStore again
 	}
 
-	internal override object? GetPackFile() {
+	public override object? GetPackFile() {
 		return null; // TODO: Review GetPackFile again
 	}
 
-	internal override ReadOnlySpan<char> GetPathString() {
+	public override ReadOnlySpan<char> GetPathString() {
 		return DiskPath;
 	}
 
