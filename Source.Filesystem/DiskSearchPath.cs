@@ -68,11 +68,11 @@ public class DiskSearchPath : BaseSearchPath
 		var info = new FileInfo(absPath);
 
 		// Scram early if the file doesn't even exist
-		if (!info.Exists) return null;
+		if (!info.Exists && (options == FileOpenOptions.Read || options == FileOpenOptions.ReadEx)) return null;
 
 		// Check file options for invalid access
 		FileOpenOptions operation = options.GetOperation();
-		if (operation == FileOpenOptions.Write && info.IsReadOnly)
+		if (operation == FileOpenOptions.Write && info.IsReadOnly && info.Exists)
 			return null;
 
 		// Open the file stream
