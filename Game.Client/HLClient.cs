@@ -182,7 +182,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	public void InstallStringTableCallback(ReadOnlySpan<char> tableName) {
 		// TODO: what to do here, if anything
 		switch (tableName) {
-			case "client_lua_files":
+			case Protocol.CLIENT_LUA_FILES_TABLENAME:
 				g_ClientLuaFiles = networkstringtable.FindTable(tableName)!;
 				g_ClientLuaFiles.SetStringChangedCallback(this, OnReceiveLuaFileString);
 				break;

@@ -1252,11 +1252,13 @@ public class SVC_GMod_ServerToClient : BaseGModNetMessage
 	}
 
 	public override void WriteLuaFile(bf_write buffer) {
-
+		buffer.WriteUBitLong(LuaFile.FileStringTableEntryID, 16);
+		buffer.WriteBytes(new ReadOnlySpan<SHA256>(ref LuaFile.FileSHA256).Cast<SHA256, byte>());
+		buffer.WriteBytes(LuaFile.FileContents.Span);
 	}
 
 	public override int GetLuaFileMessageBits() {
-		throw new NotImplementedException();
+		return 16 + 256 + (LuaFile.FileContents.Length * 8);
 	}
 }
 
@@ -1269,6 +1271,8 @@ public class CLC_GMod_ClientToServer : BaseGModNetMessage
 
 	public override void ReadLuaFile(bf_read buffer) {
 		LuaFile.FileStringTableEntryID = buffer.ReadWord();
+		if (LuaFile.FileStringTableEntryID == ushort.MaxValue)
+			return;
 		Span<byte> sha256 = stackalloc byte[32];
 		buffer.ReadBits(sha256, 32 * 8);
 		LuaFile.FileSHA256 = SHA256.FromBytes(sha256);

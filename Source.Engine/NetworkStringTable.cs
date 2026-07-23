@@ -771,7 +771,7 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 	public static readonly ConVar sv_compressstringtablebaselines_threshhold = new("sv_compressstringtablebaselines_threshold", "2048", 0, "Minimum size (in bytes) for stringtablebaseline buffer to be compressed.");
 
 
-	public void WriteBaselines(bf_write buf, BaseClient client) {
+	public void WriteBaselines(bf_write buf) {
 		SVC_CreateStringTable msg = new();
 
 		nint msg_buffer_size = 2 * Protocol.MAX_PAYLOAD;
@@ -811,8 +811,6 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 			int after = buf.BytesWritten;
 			if (sv_dumpstringtables.GetBool())
 				DevMsg($"NetworkStringTableContainer.WriteBaselines wrote {after - before} bytes for table {table.GetTableName()} [space remaining {buf.BytesLeft} bytes]\n");
-
-			serverGameClients.GMOD_SentClientStringTables(client);
 		}
 	}
 
