@@ -12,6 +12,10 @@ public partial class Sound
 		return Initialized;
 	}
 
+	internal bool IsSoundStillPlaying(long guid) {
+		return false; // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO 
+	}
+
 	internal void StopSound(int soundsource, int entchannel) {
 		// todo
 	}

@@ -59,13 +59,13 @@ public class VoiceChannel
 	public double LastFraction;
 	public short LastSample;
 	public bool Starved;
-	public float TimePad;
+	public TimeUnit_t TimePad;
 	public IVoiceCodec? VoiceCodec;
 	public readonly AutoGain AutoGain = new();
 	public VoiceChannel? Next;
 	public bool Proximity;
 	public int ViewEntityIndex;
-	public int SoundGuid;
+	public long SoundGuid;
 
 	public VoiceChannel() {
 		Entity = -1;
@@ -92,9 +92,11 @@ public class VoiceWriter
 [EngineComponent]
 public static class Voice
 {
+	[Dependency] public static Sound Sound { get; set; } = null!;
 	public static readonly VoiceChannel[] VoiceChannels = new VoiceChannel[VOICE_NUM_CHANNELS];
 	static Voice() {
-		VoiceChannels.Initialize();
+		for (int i = 0; i < VoiceChannels.Length; i++) 
+			VoiceChannels[i] = new();
 	}
 
 	public static byte[]? UncompressedFileData = null;
@@ -110,6 +112,8 @@ public static class Voice
 	public static readonly ConVar voice_writevoices = new("voice_writevoices", "0", 0, "Saves each speaker's voice data into separate .wav files");
 	public static readonly ConVar voice_buffer_ms = new("voice_buffer_ms", "100", 0, "How many milliseconds of voice to buffer to avoid dropouts due to jitter and frame time differences.");
 	public static readonly ConVar voice_enable = new("voice_enable", "1", FCvar.Archive);      // Globally enable or disable voice.
+	public static readonly ConVar voice_fadeouttime = new("voice_fadeouttime", "0.1");
+	public static readonly ConVar voice_loopback = new("voice_loopback", "0", FCvar.UserInfo);
 	public static readonly ConVar sv_use_steam_voice = new("sv_use_steam_voice", "1", FCvar.Replicated, "Enable/disable using Steam Voice instead of the old voice codec");
 	static readonly VoiceWriter VoiceWriter = new();
 
@@ -570,9 +574,92 @@ public static class Voice
 	}
 
 	public static bool bLocalPlayerTalkingAck;
+	public static TimeUnit_t LocalPlayerTalkingTimeout;
 	internal static void LocalPlayerTalkingAck() {
 		if (!bLocalPlayerTalkingAck)
 			g_SoundServices.OnChangeVoiceStatus(-2, true);
 		bLocalPlayerTalkingAck = true;
+		LocalPlayerTalkingTimeout = 0;
+	}
+
+	const TimeUnit_t LOCALPLAYERTALKING_TIMEOUT = (TimeUnit_t)0.2;
+
+	static int FadeSamples;
+	static TimeUnit_t FadeMul;
+
+	internal static void Idle(TimeUnit_t frametime) {
+		if (voice_enable.GetInt() == 0) {
+			Deinit();
+			return;
+		}
+
+		if (bLocalPlayerTalkingAck) {
+			LocalPlayerTalkingTimeout += frametime;
+			if (LocalPlayerTalkingTimeout > LOCALPLAYERTALKING_TIMEOUT) {
+				bLocalPlayerTalkingAck = false;
+
+				// Tell the client DLL.
+				g_SoundServices.OnChangeVoiceStatus(-2, false);
+			}
+		}
+
+		// Precalculate these to speedup the voice fadeout.
+		FadeSamples = Math.Max((int)(voice_fadeouttime.GetFloat() * g_VoiceSampleFormat_SamplesPerSec), 2);
+		FadeMul = 1.0f / (FadeSamples - 1);
+
+		VoiceRecord?.Idle();
+
+		// If we're in voice tweak mode, feed our own data back to us.
+		UpdateVoiceTweakMode();
+
+		// Age the channels.
+		int nActive = 0;
+		for (int i = 0; i < VOICE_NUM_CHANNELS; i++) {
+			VoiceChannel channel = VoiceChannels[i];
+
+			if (channel.Entity != -1) {
+				if (channel.Starved) {
+					Voice.EndChannel(i);
+					channel.SoundGuid = -1;
+				}
+				else {
+					TimeUnit_t oldpad = channel.TimePad;
+					channel.TimePad -= frametime;
+					if (oldpad > 0 && channel.TimePad <= 0) {
+						// Start its audio.
+						channel.ViewEntityIndex = g_SoundServices.GetViewEntity();
+						channel.SoundGuid = VoiceSE.StartChannel(i, channel.Entity, channel.Proximity, channel.ViewEntityIndex);
+						g_SoundServices.OnChangeVoiceStatus(channel.Entity, true);
+
+						VoiceSE.InitMouth(channel.Entity);
+					}
+
+					++nActive;
+				}
+			}
+		}
+
+		if (nActive == 0)
+			VoiceSE.EndOverdrive();
+
+		VoiceSE.Idle(frametime);
+	}
+
+	private static void UpdateVoiceTweakMode() {
+		if (!InTweakMode || VoiceRecord == null)
+			return;
+
+		VoiceChannel tweakChannel = GetVoiceChannel(0)!;
+
+		if (tweakChannel.SoundGuid != -1 && !Sound.IsSoundStillPlaying(tweakChannel.SoundGuid)) {
+			Tweak_EndVoiceTweakMode();
+			return;
+		}
+
+		Span<byte> uchVoiceData = stackalloc byte[4096];
+		bool bFinal = false;
+		int nDataLength = GetCompressedData(uchVoiceData, bFinal);
+
+		AddIncomingData(TWEAKMODE_CHANNELINDEX, uchVoiceData, nDataLength, 0);
 	}
 }

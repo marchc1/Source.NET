@@ -331,7 +331,8 @@ public partial class CL(IServiceProvider services, Net Net,
 	}
 
 	internal void ProcessVoiceData() {
-
+		Voice.Idle(Host.FrameTime);
+		SendVoicePacket(false);
 	}
 
 	internal void TakeSnapshotAndSwap() {
