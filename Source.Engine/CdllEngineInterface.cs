@@ -7,6 +7,7 @@ using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GarrysMod;
 using Source.Common.Input;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
@@ -15,6 +16,8 @@ using Source.Common.Networking;
 using Source.Common.Physics;
 using Source.Engine.Client;
 using Source.Engine.Server;
+
+using Steamworks;
 
 using System.Numerics;
 
@@ -516,6 +519,82 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	public void DisconnectInternal() => Host.Disconnect(true, "");
 
 	public int GetInstancesRunningCount() {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_SetTimeManipulator(float scaleFramerate) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_SendToServer(ReadOnlySpan<byte> data, bool reliable) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_PlaceDecalMaterial(IMaterial material, bool unk1, int unk2, IClientEntity ent, in Vector3 origin, in Vector3 normal, in Color color, float unk3, float unk4) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_GetSpew(Span<char> spewBuffer) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_SetViewEntity(ClientEntityHandle entity) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_BrushMaterialOverride(IMaterial? matOverride) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_R_RedownloadAllLightmaps(bool unk) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_RawClientCmd_Unrestricted(ReadOnlySpan<char> command) {
+		throw new NotImplementedException();
+	}
+
+	public IGMODDataTable GMOD_CreateDataTable(GMOD_CreateDataTableFn fnCallback) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_DestroyDataTable(IGMODDataTable dataTable) {
+		throw new NotImplementedException();
+	}
+
+	public uint GMOD_LoadModel(ReadOnlySpan<char> path) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_DecalRemoveEntity(int index) {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> GMOD_TranslateAlias(ReadOnlySpan<char> cmd) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_R_StudioInitLightingCache() {
+		throw new NotImplementedException();
+	}
+
+	public int PrecacheSentenceFile(ReadOnlySpan<char> fileName) {
+		throw new NotImplementedException();
+	}
+
+	public float GetPlayerVoiceVolume(CSteamID steamID) {
+		throw new NotImplementedException();
+	}
+
+	public void SetPlayerVoiceVolume(CSteamID steamID, float volume) {
+		throw new NotImplementedException();
+	}
+
+	public bool NET_IsHostLocal(ReadOnlySpan<char> hostName) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsDedicatedServer() {
 		throw new NotImplementedException();
 	}
 }

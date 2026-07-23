@@ -64,16 +64,16 @@ public struct LoadingProgressDescription
 public interface IEngineVGuiInternal : IEngineVGui
 {
 	// Level loading
-	public void OnLevelLoadingStarted();
-	public void OnLevelLoadingFinished();
-	public void NotifyOfServerConnect(ReadOnlySpan<char> game, int IP, int connectionPort, int queryPort);
-	public void NotifyOfServerDisconnect();
-	public void EnabledProgressBarForNextLoad();
-	public void UpdateProgressBar(LevelLoadingProgress progress);
-	public void UpdateCustomProgressBar(float progress, ReadOnlySpan<char> desc);
-	public void StartCustomProgress();
-	public void FinishCustomProgress();
-	public void ShowErrorMessage();
+	void OnLevelLoadingStarted();
+	void OnLevelLoadingFinished();
+	void NotifyOfServerConnect(ReadOnlySpan<char> game, int IP, int connectionPort, int queryPort);
+	void NotifyOfServerDisconnect();
+	void EnabledProgressBarForNextLoad();
+	void UpdateProgressBar(LevelLoadingProgress progress);
+	void UpdateCustomProgressBar(float progress, ReadOnlySpan<char> desc);
+	void StartCustomProgress();
+	void FinishCustomProgress();
+	void ShowErrorMessage();
 	void SetNotAllowedToHideGameUI(bool notAllowed);
 	void SetNotAllowedToShowGameUI(bool notAllowed);
 	void Simulate();

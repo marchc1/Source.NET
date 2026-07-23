@@ -1141,7 +1141,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		signonTick.WriteToBuffer(msg);
 
 		// write stringtable baselines
-		Server.StringTables.WriteBaselines(msg, this);
+		Server.StringTables.WriteBaselines(msg);
 
 		// Write replicated ConVars to non-listen server clients only
 		if (!NetChannel.IsLoopback()) {
@@ -1163,6 +1163,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 			Disconnect("Server info data overflow");
 			return false;
 		}
+		serverGameClients.GMOD_SentClientStringTables(this);
 
 		Common.TimestampedLog(" BaseClient.SendServerInfo(finished)");
 

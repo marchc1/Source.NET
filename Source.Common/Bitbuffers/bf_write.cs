@@ -607,6 +607,11 @@ public unsafe class bf_write : BitBuffer
 			return WriteBits(pBufTemp, nBytes << 3);
 		}
 	}
+	public bool WriteBytes(Span<byte> pBuf) {
+		fixed (byte* pBufTemp = pBuf) {
+			return WriteBits(pBufTemp, pBuf.Length << 3);
+		}
+	}
 
 
 	public bool WriteBytes(ReadOnlySpan<byte> pBuf) {

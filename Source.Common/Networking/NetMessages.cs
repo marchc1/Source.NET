@@ -11,7 +11,6 @@ using Source.Common.Bitbuffers;
 using Source.Common.Hashing;
 using Source.Common.Mathematics;
 using System.Text;
-using CommunityToolkit.HighPerformance;
 using Source.Common.Commands;
 
 public static class NetMessageExtensions
@@ -235,7 +234,7 @@ public class SVC_ServerInfo : NetMessage
 		buffer.WriteOneBit(IsDedicated ? 1 : 0);
 		buffer.WriteLong(unchecked((int)0xffffffff));  // Used to be client.dll CRC.  This was far before signed binaries, VAC, and cross-platform play
 		buffer.WriteWord(MaxClasses);
-		buffer.WriteBytes(MapMD5.Bits, MD5Value.DIGEST_LENGTH);       // To prevent cheating with hacked maps
+		buffer.WriteBytes(MD5Value.ToEditableBytes(ref MapMD5));       // To prevent cheating with hacked maps
 		buffer.WriteByte(PlayerSlot);
 		buffer.WriteByte(MaxClients);
 		buffer.WriteFloat((float)TickInterval);
@@ -259,7 +258,7 @@ public class SVC_ServerInfo : NetMessage
 		MaxClasses = buffer.ReadWord();
 
 		// Prevent cheating with hacked maps
-		buffer.ReadBytes(MapMD5.Bits);
+		buffer.ReadBytes(MD5Value.ToEditableBytes(ref MapMD5));
 
 		PlayerSlot = buffer.ReadByte();
 		MaxClients = buffer.ReadByte();
@@ -1122,10 +1121,15 @@ public struct GMod_LuaError
 
 public struct GMod_RequestLuaFiles;
 
-public struct GMod_LuaFile
+public struct GMod_LuaFile_CLC
+{
+	public InlineArray8192<ushort> FileStringTableEntryIDs;
+}
+
+public struct GMod_LuaFile_SVC
 {
 	public ushort FileStringTableEntryID;
-	public SHA256 FileSHA256;
+	public SHA256Value FileSHA256;
 	public Memory<byte> FileContents;
 }
 
@@ -1141,12 +1145,11 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 	public GMod_LuaAutoRefresh LuaAutoRefresh;
 	public GMod_LuaError LuaError;
 	public GMod_RequestLuaFiles RequestLuaFiles;
-	public GMod_LuaFile LuaFile;
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		int bits = (int)buffer.ReadUBitLong(GMOD_NETMESSAGE_LENGTH_BITS);
 		Bits = bits;
-
+		int endBit = buffer.BitsRead + bits;
 		MessageType = (GModMessageType)buffer.ReadByte();
 		if (bits < 1)
 			return true;
@@ -1177,7 +1180,7 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 
 				break;
 			case GModMessageType.LuaFile:
-				ReadLuaFile(buffer);
+				ReadLuaFile(buffer, endBit);
 				break;
 		}
 
@@ -1232,56 +1235,73 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 		return true;
 	}
 
-	public abstract void ReadLuaFile(bf_read buffer);
+	public abstract void ReadLuaFile(bf_read buffer, int endBit);
 	public abstract void WriteLuaFile(bf_write buffer);
 	public abstract int GetLuaFileMessageBits();
 }
 
 public class SVC_GMod_ServerToClient : BaseGModNetMessage
 {
+	public GMod_LuaFile_SVC LuaFile;
+
 	public SVC_GMod_ServerToClient() : base(SVC.GMod_ServerToClient, 0) { }
 	public SVC_GMod_ServerToClient(GModMessageType messageType) : base(SVC.GMod_ServerToClient, messageType) { }
 	public override string ToString() => $"SVC_GMod_ServerToClient: length {Bits2Bytes(Bits)}";
 
-	public override void ReadLuaFile(bf_read buffer) {
+	public override void ReadLuaFile(bf_read buffer, int endBit) {
 		LuaFile.FileStringTableEntryID = (ushort)buffer.ReadUBitLong(16);
-		buffer.ReadBytes(new Span<SHA256>(ref LuaFile.FileSHA256).Cast<SHA256, byte>());
-		int fileSize = (int)buffer.BytesLeft;
-		LuaFile.FileContents = new byte[fileSize];
-		buffer.ReadBytes(LuaFile.FileContents.Span);
+		buffer.ReadBytes(SHA256Value.ToEditableBytes(ref LuaFile.FileSHA256));
+
+		int fileBits = endBit - buffer.BitsRead;
+		LuaFile.FileContents = new byte[fileBits >> 3];
+		buffer.ReadBits(LuaFile.FileContents.Span, fileBits);
 	}
 
 	public override void WriteLuaFile(bf_write buffer) {
-
+		buffer.WriteWord((int)LuaFile.FileStringTableEntryID);
+		buffer.WriteBytes(SHA256Value.ToBytes(ref LuaFile.FileSHA256));
+		buffer.WriteBytes(LuaFile.FileContents.Span);
 	}
 
-	public override int GetLuaFileMessageBits() {
-		throw new NotImplementedException();
-	}
+	public override int GetLuaFileMessageBits() => 8 * (sizeof(ushort) + SHA256Value.SIZE_BYTES + LuaFile.FileContents.Length);
 }
 
 public class CLC_GMod_ClientToServer : BaseGModNetMessage
 {
+	public GMod_LuaFile_CLC LuaFile;
+
 	public CLC_GMod_ClientToServer() : base(CLC.GMod_ClientToServer, 0) { }
 	public CLC_GMod_ClientToServer(GModMessageType messageType) : base(CLC.GMod_ClientToServer, messageType) { }
 
 	public override string ToString() => $"CLC_GMod_ClientToServer: length {Bits2Bytes(Bits)}";
 
-	public override void ReadLuaFile(bf_read buffer) {
-		LuaFile.FileStringTableEntryID = buffer.ReadWord();
-		Span<byte> sha256 = stackalloc byte[32];
-		buffer.ReadBits(sha256, 32 * 8);
-		LuaFile.FileSHA256 = SHA256.FromBytes(sha256);
-		int fileSize = (int)buffer.BytesLeft;
-		NetMessage.Data = new byte[fileSize];
-		buffer.ReadBits(NetMessage.Data.Span, fileSize << 3);
+	public override void ReadLuaFile(bf_read buffer, int endBit) {
+		Span<ushort> write = LuaFile.FileStringTableEntryIDs;
+		for (int i = 0; i < write.Length; i++) {
+			ushort read = buffer.ReadWord();
+			if (read == 0) {
+				write[i] = 0;
+				break;
+			}
+			write[i] = read;
+		}
 	}
 
 	public override void WriteLuaFile(bf_write buffer) {
-		buffer.WriteUBitLong(LuaFile.FileStringTableEntryID, 16);
+		Span<ushort> write = LuaFile.FileStringTableEntryIDs;
+		for (int i = 0; i < write.Length; i++) {
+			buffer.WriteUBitLong(write[i], 16);
+
+			if (write[i] == 0)
+				break;
+		}
 	}
+
 	public override int GetLuaFileMessageBits() {
-		return 16;
+		Span<ushort> write = LuaFile.FileStringTableEntryIDs;
+		int idx = write.IndexOf((ushort)0);
+		int count = idx < 0 ? write.Length : idx + 1;
+		return count * 16;
 	}
 }
 #endif

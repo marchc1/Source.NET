@@ -12,6 +12,7 @@ using Source.Common;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Engine;
+using Source.Common.Filesystem;
 using Source.Common.GUI;
 using Source.Common.Hashing;
 using Source.Common.Input;
@@ -184,7 +185,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	public void InstallStringTableCallback(ReadOnlySpan<char> tableName) {
 		// TODO: what to do here, if anything
 		switch (tableName) {
-			case "client_lua_files":
+			case Protocol.CLIENT_LUA_FILES_TABLENAME:
 				g_ClientLuaFiles = networkstringtable.FindTable(tableName)!;
 				g_ClientLuaFiles.SetStringChangedCallback(this, OnReceiveLuaFileString);
 				break;
@@ -197,7 +198,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 			Span<char> paths = stackalloc char[Encoding.ASCII.GetCharCount(newData)];
 			Encoding.ASCII.GetChars(newData, paths);
 			var splitter = paths.Split(";");
-			while(splitter.MoveNext()){
+			while (splitter.MoveNext()) {
 				ReadOnlySpan<char> path = paths[splitter.Current].SliceNullTerminatedString();
 				// This sucks! TODO: Fix this!!!
 				ReadOnlySpan<char> absPath = $"{engine.GetGameDirectory()}{path}";
@@ -443,20 +444,51 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		throw new NotImplementedException();
 	}
 
+	const string LUA_PREFIX = "lua/";
+	const string LUA_SUFFIX = ".lua";
+
+	int filesRequesting_Total;
+	int filesRequesting_Recv;
+
 	public void GMod_RequestLuaFiles(INetChannel netchan) {
+		Span<char> shaBuffer = stackalloc char[LUA_PREFIX.Length + SHA256Value.SIZE_HEX_CHARACTERS + LUA_SUFFIX.Length];
+		LUA_PREFIX.CopyTo(shaBuffer);
+
 		var luaFileMessage = new CLC_GMod_ClientToServer(GModMessageType.LuaFile);
-		luaFileMessage.LuaFile.FileStringTableEntryID = (ushort)g_ClientLuaFiles.FindStringIndex("lua/autorun/properties/drive.lua");
+
+		int filesRequesting = 0;
+		for (int i = 1; i < g_ClientLuaFiles.GetNumStrings(); i++) {
+			ReadOnlySpan<char> filename = g_ClientLuaFiles.GetString(i);
+			byte[]? filehash = g_ClientLuaFiles.GetStringUserData(i);
+			SHA256Value.FromBytes(filehash).ToString(shaBuffer[LUA_PREFIX.Length..]);
+			LUA_SUFFIX.CopyTo(shaBuffer.Slice(LUA_PREFIX.Length + SHA256Value.SIZE_HEX_CHARACTERS, LUA_SUFFIX.Length));
+			if (!filesystem.FileExists(shaBuffer, "CACHE")) {
+				luaFileMessage.LuaFile.FileStringTableEntryIDs[filesRequesting] = (ushort)i;
+				filesRequesting++;
+			}
+		}
+
 		netchan!.SendNetMsg(luaFileMessage!);
+
+		filesRequesting_Total = filesRequesting;
+		filesRequesting_Recv = 0;
 	}
 
-	public void GMod_ReceiveLuaFile(ReadOnlySpan<char> fileName, in SHA256 sha256, ReadOnlySpan<byte> compressed, ReadOnlySpan<byte> decompressed) {
-		Msg($"Got Lua file\n");
-		Msg($"  Filename            : {fileName}\n");
-		Msg($"  SHA256              : {sha256}\n");
-		Msg($"  Compressed Size     : {compressed.Length} bytes\n");
-		Msg($"  Decompressed Size   : {decompressed.Length} bytes\n");
-		Msg($"  Contents            : \n");
-		Msg($"{Encoding.UTF8.GetString(decompressed)}\n");
+	public void GMod_ReceiveLuaFile(ReadOnlySpan<char> fileName, in SHA256Value sha256, ReadOnlySpan<byte> compressed) {
+		Span<char> shaBuffer = stackalloc char[LUA_PREFIX.Length + SHA256Value.SIZE_HEX_CHARACTERS + LUA_SUFFIX.Length];
+		LUA_PREFIX.CopyTo(shaBuffer);
+		sha256.ToString(shaBuffer[LUA_PREFIX.Length..]);
+		LUA_SUFFIX.CopyTo(shaBuffer.Slice(LUA_PREFIX.Length + SHA256Value.SIZE_HEX_CHARACTERS, LUA_SUFFIX.Length));
+
+		using IFileHandle? h = filesystem.Open(shaBuffer, FileOpenOptions.Write, "CACHE");
+		if (h == null)
+			return;
+		h.Stream.Write(compressed);
+		filesRequesting_Recv++;
+
+		if (filesRequesting_Recv != filesRequesting_Total) 
+			gameUI.UpdateProgressBar(filesRequesting_Recv / (float)filesRequesting_Total, $"Received {filesRequesting_Recv}/{filesRequesting_Total} Lua files...");
+		
 	}
 
 	public void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {

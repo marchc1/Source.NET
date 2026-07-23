@@ -10,6 +10,7 @@ using Source.Common.Commands;
 using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.GameUI;
 using Source.Common.GUI;
 using Source.Common.MaterialSystem;
 using Source.Common.SoundEmitterSystem;
@@ -65,6 +66,7 @@ public static class SourceDllMain
 	[Dependency] public static IVModelInfoClient modelinfo { get; private set; } = null!;
 	[Dependency] public static IGameEventManager2 gameeventmanager { get; private set; } = null!;
 	[Dependency] public static IDataCache datacache { get; private set; } = null!;
+	[Dependency] public static IGameUI gameUI { get; private set; } = null!;
 	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;
 	[Dependency] public static ICenterPrint centerprint { get; private set; } = null!;
 	[Dependency] public static IMaterialSystem materials { get; private set; } = null!;
