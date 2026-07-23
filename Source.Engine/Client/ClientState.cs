@@ -554,7 +554,6 @@ public class ClientState : BaseClientState
 	}
 	readonly LinkedList<EventInfo> Events = [];
 	CLC_GMod_ClientToServer? luaFileMessage;
-	readonly MemoryStream luaFileData = new(new byte[500_000], 0, 500_000, true, true);
 
 
 	protected override bool ProcessGMod_ServerToClient(SVC_GMod_ServerToClient msg) {
@@ -564,11 +563,13 @@ public class ClientState : BaseClientState
 				}
 				return true;
 			case GModMessageType.LuaFile: {
-					// TODO
-					luaFileData.Position = 0;
-					luaFileData.SetLength(0);
-					Bootil.Compression.LZMA.Extract(msg.LuaFile.FileContents.Span, luaFileData);
-					g_ClientDLL!.GMod_ReceiveLuaFile(ClientLuaFiles.GetString(msg.LuaFile.FileStringTableEntryID), in msg.LuaFile.FileSHA256, msg.LuaFile.FileContents.Span, luaFileData.GetBuffer().AsSpan()[..(int)luaFileData.Length]);
+					// FOR FUTURE REFERENCE (when moving to client dll)
+					// This is how you would decode the Lua file data:
+					// readonly MemoryStream luaFileData = new(new byte[500_000], 0, 500_000, true, true);
+					// luaFileData.Position = 0;
+					// luaFileData.SetLength(0);
+					// Bootil.Compression.LZMA.Extract(msg.LuaFile.FileContents.Span, luaFileData);
+					g_ClientDLL!.GMod_ReceiveLuaFile(ClientLuaFiles.GetString(msg.LuaFile.FileStringTableEntryID), in msg.LuaFile.FileSHA256, msg.LuaFile.FileContents.Span);
 
 				}
 				return true;
