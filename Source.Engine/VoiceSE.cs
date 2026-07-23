@@ -2,6 +2,7 @@
 using Source.Common.Commands;
 
 using System.Runtime.CompilerServices;
+using System.Threading.Channels;
 
 namespace Source.Engine;
 
@@ -34,5 +35,28 @@ public static class VoiceSE
 
 		SND_VoiceOverdriveInt = 256;
 		return true;
+	}
+
+	internal static void Term() {
+
+	}
+
+	internal static void CloseMouth(int ent) {
+
+	}
+
+	internal static void EndChannel(int idx, int ent) {
+		Sound.StopSound(ent, (int)SoundEntityChannel.VoiceBase + idx);
+
+		SfxTable sfx = VoiceSfx[idx];
+		sfx.Source = null;
+	}
+
+	internal static void StartOverdrive() {
+		VoiceOverdriveOn = true;
+	}
+
+	internal static void EndOverdrive() {
+		VoiceOverdriveOn = false;
 	}
 }

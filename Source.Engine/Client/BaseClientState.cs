@@ -302,6 +302,7 @@ public abstract class BaseClientState(
 			case SVC_ClassInfo msg: return ProcessClassInfo(msg);
 			case SVC_BSPDecal msg: return ProcessBSPDecal(msg);
 			case SVC_VoiceInit msg: return ProcessVoiceInit(msg);
+			case SVC_VoiceData msg: return ProcessVoiceData(msg);
 			case SVC_Sounds msg: return ProcessSounds(msg);
 			case SVC_GameEvent msg: return ProcessGameEvent(msg);
 			case SVC_GameEventList msg: return ProcessGameEventList(msg);
@@ -392,6 +393,10 @@ public abstract class BaseClientState(
 	}
 
 	protected virtual bool ProcessVoiceInit(SVC_VoiceInit msg) {
+		return true;
+	}
+
+	protected virtual bool ProcessVoiceData(SVC_VoiceData msg) {
 		return true;
 	}
 

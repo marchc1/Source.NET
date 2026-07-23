@@ -54,6 +54,7 @@ public static class SourceDllMain
 	[Dependency] public static Render R { get; private set; } = null!;
 	[Dependency] public static EngineToolImpl g_EngineTool { get; private set; } = null!;
 	[Dependency] public static IAudioSystem g_AudioSystem { get; private set; } = null!;
+	[Dependency] public static ISoundServices g_SoundServices { get; private set; } = null!;
 	[Dependency(Required = false)] public static IPrediction g_ClientSidePrediction { get; private set; } = null!;
 	[Dependency] public static ClientGlobalVariables clientGlobalVariables { get; private set; } = null!;
 	[Dependency] public static ServerGlobalVariables serverGlobalVariables { get; private set; } = null!;

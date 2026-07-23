@@ -1,5 +1,9 @@
 ﻿global using static Source.Engine.VoiceGlobals;
 
+using CommunityToolkit.HighPerformance;
+
+using DStruct.Tries;
+
 using Source.Common;
 using Source.Common.Audio;
 using Source.Common.Commands;
@@ -11,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Channels;
 
 namespace Source.Engine;
 
@@ -20,6 +25,12 @@ public static class VoiceGlobals
 	public const int VOICE_OUTPUT_SAMPLE_RATE_HIGH = 22050; // Sample rate that we feed to the mixer.
 	public const int VOICE_OUTPUT_SAMPLE_RATE_MAX = 22050;  // Sample rate that we feed to the mixer.
 	public const int BYTES_PER_SAMPLE = 2;
+
+	public const int TWEAKMODE_ENTITYINDEX = -500;
+	public const int TWEAKMODE_CHANNELINDEX = -100;
+
+	public const int VOICE_CHANNEL_ERROR = -1;
+	public const int VOICE_CHANNEL_IN_TWEAK_MODE = -2;
 
 	public const int VOICE_RECEIVE_BUFFER_SIZE = VOICE_OUTPUT_SAMPLE_RATE_MAX * BYTES_PER_SAMPLE;
 	public const int VOICE_NUM_CHANNELS = 5; // review
@@ -73,7 +84,7 @@ public class VoiceWriter
 
 	}
 
-	public void AddDecompressedData() {
+	public void AddDecompressedData(VoiceChannel ch, ReadOnlySpan<byte> data) {
 
 	}
 }
@@ -99,7 +110,7 @@ public static class Voice
 	public static readonly ConVar voice_writevoices = new("voice_writevoices", "0", 0, "Saves each speaker's voice data into separate .wav files");
 	public static readonly ConVar voice_buffer_ms = new("voice_buffer_ms", "100", 0, "How many milliseconds of voice to buffer to avoid dropouts due to jitter and frame time differences.");
 	public static readonly ConVar voice_enable = new("voice_enable", "1", FCvar.Archive);      // Globally enable or disable voice.
-
+	public static readonly ConVar sv_use_steam_voice = new("sv_use_steam_voice", "1", FCvar.Replicated, "Enable/disable using Steam Voice instead of the old voice codec");
 	static readonly VoiceWriter VoiceWriter = new();
 
 	public static IVoiceRecord? VoiceRecord = null;
@@ -108,6 +119,7 @@ public static class Voice
 
 	public static bool VoiceAtLeastPartiallyInitted = false;
 	public static bool InTweakMode = false;
+	public static int VoiceTweakSpeakingVolume = 0;
 	public static bool VoiceRecording = false;
 	public static bool VoiceRecordStopping = false;
 	public static bool UsingSteamVoice = false;
@@ -158,7 +170,7 @@ public static class Voice
 			// rate.
 			SetSampleRate(44100); // SOUND_DMA_SPEED
 		}
-		else 
+		else
 			SetSampleRate(sampleRate);
 
 		if (!VoiceSE.Init())
@@ -177,8 +189,78 @@ public static class Voice
 		return true;
 	}
 
-	private static void Deinit() {
-		throw new NotImplementedException();
+	internal static void EndChannel(int idx) {
+		Assert(idx >= 0 && idx < VOICE_NUM_CHANNELS);
+
+		VoiceChannel channel = VoiceChannels[idx];
+
+		if (channel.Entity != -1) {
+			int ent = channel.Entity;
+			channel.Entity = -1;
+
+			if (channel.Proximity == true)
+				VoiceSE.EndChannel(idx, ent);
+			else
+				VoiceSE.EndChannel(idx, channel.ViewEntityIndex);
+
+			g_SoundServices.OnChangeVoiceStatus(ent, false);
+			VoiceSE.CloseMouth(ent);
+
+			channel.ViewEntityIndex = -1;
+			channel.SoundGuid = -1;
+
+			// If the tweak mode channel is ending
+			if (idx == 0 && InTweakMode)
+				Tweak_EndVoiceTweakMode();
+		}
+	}
+
+	private static void Tweak_EndVoiceTweakMode() {
+		if (!InTweakMode) {
+			AssertMsg(false, "Voice.Tweak_EndVoiceTweakMode called when not in tweak mode.");
+			return;
+		}
+
+		InTweakMode = false;
+		RecordStop();
+	}
+
+	internal static void EndAllChannels() {
+		for (int i = 0; i < VOICE_NUM_CHANNELS; i++)
+			EndChannel(i);
+
+	}
+
+	internal static void Deinit() {
+		if (!VoiceAtLeastPartiallyInitted)
+			return;
+
+		if (EngineTool.SuppressDeInit())
+			return;
+
+		EndAllChannels();
+
+		RecordStop();
+
+		for (int i = 0; i < VOICE_NUM_CHANNELS; i++) {
+			VoiceChannel channel = VoiceChannels[i];
+
+			if (channel.VoiceCodec != null)
+				channel.VoiceCodec = null;
+		}
+
+		if (EncodeCodec != null)
+			EncodeCodec = null;
+
+		if (VoiceRecord != null)
+			VoiceRecord = null;
+
+		VoiceSE.Term();
+
+		VoiceAtLeastPartiallyInitted = false;
+		VoiceCodec = null;
+		RequestedSampleRate = -1;
+		UsingSteamVoice = false;
 	}
 
 	internal static bool Record_Start(ReadOnlySpan<char> uncompressedFile, ReadOnlySpan<char> decompressedFile, ReadOnlySpan<char> micInputFile) {
@@ -196,7 +278,7 @@ public static class Voice
 			return;
 
 		VoiceRecordStopping = true;
-		// SoundServices->OnChangeVoiceStatus(-1, false);       // Tell the client DLL.
+		g_SoundServices.OnChangeVoiceStatus(-1, false);       // Tell the client DLL.
 
 		// If we're using Steam voice, we'll keep recording until Steam tells us we
 		// received all the data.
@@ -240,6 +322,9 @@ public static class Voice
 	[DllImport("steam_api64", CallingConvention = CallingConvention.Cdecl, EntryPoint = "SteamAPI_ISteamUser_GetVoice")]
 	static unsafe extern EVoiceResult ISteamUser_GetVoice(IntPtr instancePtr, [MarshalAs(UnmanagedType.I1)] bool bWantCompressed, byte* pDestBuffer, uint cbDestBufferSize, out uint nBytesWritten, [MarshalAs(UnmanagedType.I1)] bool bWantUncompressed_Deprecated, IntPtr pUncompressedDestBuffer_Deprecated, uint cbUncompressedDestBufferSize_Deprecated, IntPtr nUncompressBytesWritten_Deprecated, uint nUncompressedVoiceDesiredSampleRate_Deprecated);
 
+	[DllImport("steam_api64", CallingConvention = CallingConvention.Cdecl, EntryPoint = "SteamAPI_ISteamUser_DecompressVoice")]
+	static unsafe extern EVoiceResult ISteamUser_DecompressVoice(IntPtr instancePtr, byte* pCompressed, uint cbCompressed, byte* pDestBuffer, uint cbDestBufferSize, out uint nBytesWritten, uint nDesiredSampleRate);
+
 
 	internal unsafe static int GetCompressedData(Span<byte> dest, bool final) {
 		fixed (byte* destPtr = dest)
@@ -258,13 +343,13 @@ public static class Voice
 				EVoiceResult result = SteamUser.GetAvailableVoice(out uncompressed);
 				if (result == EVoiceResult.k_EVoiceResultOK) {
 					result = ISteamUser_GetVoice(GetSteamUser(), true, destPtr, (uint)dest.Length, out compressedWritten, false, 0, 0, 0, 0);
-					// TODO: g_pSoundServices->OnChangeVoiceStatus(-3, true);
+					g_SoundServices.OnChangeVoiceStatus(-3, true);
 				}
 				else {
 					if (result == EVoiceResult.k_EVoiceResultNotRecording && Voice.VoiceRecording)
 						Voice.RecordStop();
 
-					// TODO: g_pSoundServices->OnChangeVoiceStatus(-3, false);
+					g_SoundServices.OnChangeVoiceStatus(-3, false);
 				}
 
 				return (int)compressedWritten;
@@ -308,5 +393,186 @@ public static class Voice
 		int rate = g_VoiceSampleFormat_SamplesPerSec;
 		EngineTool.OverrideSampleRate(ref rate);
 		return (rate * g_VoiceSampleFormat_BitsPerSample) >> 3;
+	}
+
+	internal static ReadOnlySpan<char> ConfiguredCodec() => VoiceCodec;
+	internal static int ConfiguredSampleRate() => RequestedSampleRate;
+
+	public const string VOICE_FALLBACK_CODEC = "vaudio_celt";
+
+	public static int GetDefaultSampleRate(ReadOnlySpan<char> codec) {
+		switch (codec) {
+			case "vaudio_speex": return VOICE_OUTPUT_SAMPLE_RATE_LOW;
+			case "steam": return 0;
+			default: return VOICE_OUTPUT_SAMPLE_RATE_HIGH;
+		}
+	}
+	public static bool InitWithDefault(ReadOnlySpan<char> codecName) {
+		if (codecName.IsStringEmpty)
+			return false;
+
+		int rate = GetDefaultSampleRate(codecName);
+		if (rate < 0) {
+			Msg($"Voice_InitWithDefault: Unable to determine defaults for codec \"{codecName}\"\n");
+			return false;
+		}
+
+		return Init(codecName, rate);
+	}
+	public static void ForceInit() {
+		if (!voice_enable.GetBool())
+			return;
+
+		ReadOnlySpan<char> voiceCodec;
+		if (sv_use_steam_voice.GetBool())
+			voiceCodec = "steam";
+		else
+			throw new Exception("Non-steam voice codec, todo");
+
+		if (!InitWithDefault(voiceCodec))
+			InitWithDefault(VOICE_FALLBACK_CODEC);
+
+	}
+
+	internal static bool Enabled() => voice_enable.GetBool();
+
+	internal static int GetChannel(int entity) {
+		for (int i = 0; i < VOICE_NUM_CHANNELS; i++)
+			if (VoiceChannels[i].Entity == entity)
+				return i;
+
+		return VOICE_CHANNEL_ERROR;
+	}
+
+	internal static int AssignChannel(int entity, bool proximity) {
+		if (InTweakMode)
+			return VOICE_CHANNEL_IN_TWEAK_MODE;
+
+		int free = -1;
+		for (int i = 0; i < VOICE_NUM_CHANNELS; i++) {
+			VoiceChannel channel = VoiceChannels[i];
+
+			if (channel.Entity == entity)
+				return i;
+			else if (channel.Entity == -1 && (channel.VoiceCodec != null || UsingSteamVoice)) {
+				channel.VoiceCodec?.ResetState();
+
+				free = i;
+				break;
+			}
+		}
+
+		if (free == -1)
+			return VOICE_CHANNEL_ERROR;
+
+		VoiceChannel newChannel = VoiceChannels[free];
+		newChannel.Init(entity);
+		newChannel.Proximity = proximity;
+		VoiceSE.StartOverdrive();
+
+		return free;
+	}
+
+	public static readonly ConVar voice_profile = new("voice_profile", "0");
+	public static readonly ConVar voice_showchannels = new("voice_showchannels", "0");
+	public static readonly ConVar voice_showincoming = new("voice_showincoming", "0");
+
+	internal static int AddIncomingData(int nChannel, Span<byte> data, int count, int sequenceNumber) {
+		VoiceChannel? channel;
+
+		if (InTweakMode) {
+			if (nChannel == TWEAKMODE_CHANNELINDEX)
+				nChannel = 0;
+			else
+				return 0;
+		}
+
+		if ((channel = GetVoiceChannel(nChannel)) == null || (!UsingSteamVoice && channel.VoiceCodec == null))
+			return 0;
+
+
+		channel.Starved = false;
+
+		Span<byte> decompressed = stackalloc byte[22528];
+
+
+		int nDecompressed = 0;
+		if (UsingSteamVoice) {
+			// dimhotepus: NO_STEAM
+			uint nBytesWritten = 0;
+			unsafe {
+				fixed (byte* pData = data)
+				fixed (byte* pDecompressed = decompressed) {
+					EVoiceResult result = ISteamUser_DecompressVoice(GetSteamUser(), pData, (uint)count, pDecompressed, (uint)decompressed.Length, out nBytesWritten, (uint)Voice.SamplesPerSec());
+					if (result == EVoiceResult.k_EVoiceResultOK)
+						nDecompressed = (int)(nBytesWritten / BYTES_PER_SAMPLE);
+				}
+			}
+		}
+		else
+			nDecompressed = channel.VoiceCodec.Decompress(data[..count], decompressed);
+
+		if (InTweakMode) {
+			Span<short> shortData = reinterpret<byte, short>(decompressed);
+			VoiceTweakSpeakingVolume = 0;
+
+			for (int i = 0; i < nDecompressed; ++i)
+				VoiceTweakSpeakingVolume = Math.Max((int)Math.Abs(shortData[i]), VoiceTweakSpeakingVolume);
+
+			VoiceTweakSpeakingVolume &= 0xFE00;
+		}
+
+		// TODO: channel.AutoGain.ProcessSamples(reinterpret<byte, short>(decompressed), nDecompressed);
+
+		channel.LastFraction = UpsampleIntoBuffer(reinterpret<byte, short>(decompressed),
+													   nDecompressed,
+													   channel.Buffer,
+													   channel.LastFraction,
+													   (double)Voice.SamplesPerSec() / g_VoiceSampleFormat_SamplesPerSec);
+		channel.LastSample = decompressed[nDecompressed];
+
+		VoiceWriter.AddDecompressedData(channel, decompressed[..(nDecompressed * 2)]);
+
+		if (voice_showincoming.GetInt() != 0)
+			Msg("Voice - %d incoming samples added to channel %d\n", nDecompressed, nChannel);
+
+		return nChannel;
+	}
+	public static double UpsampleIntoBuffer(ReadOnlySpan<short> src, int srcSamples, SizedCircularBuffer<byte> buffer, double startFraction, double rate) {
+		double maxFraction = srcSamples - 1;
+
+		while (true) {
+			if (startFraction >= maxFraction)
+				break;
+
+			int sample = (int)startFraction;
+			double frac = startFraction - Math.Floor(startFraction);
+
+			double val1 = src[sample];
+			double val2 = src[sample + 1];
+			short newSample = (short)(val1 + (val2 - val1) * frac);
+			buffer.PushFront(new ReadOnlySpan<short>(in newSample).Cast<short, byte>());
+
+			startFraction += rate;
+		}
+
+		return startFraction - Math.Floor(startFraction);
+	}
+	private static VoiceChannel? GetVoiceChannel(int channel, bool assert = true) {
+		if (channel < 0 || channel >= VOICE_NUM_CHANNELS) {
+			if (assert)
+				Assert(false);
+
+			return null;
+		}
+		else
+			return VoiceChannels[channel];
+	}
+
+	public static bool bLocalPlayerTalkingAck;
+	internal static void LocalPlayerTalkingAck() {
+		if (!bLocalPlayerTalkingAck)
+			g_SoundServices.OnChangeVoiceStatus(-2, true);
+		bLocalPlayerTalkingAck = true;
 	}
 }

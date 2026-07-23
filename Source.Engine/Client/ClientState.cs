@@ -694,6 +694,50 @@ public class ClientState : BaseClientState
 			Host.EndGame(true, reason);
 		}
 	}
+	protected override bool ProcessVoiceInit(SVC_VoiceInit msg) {
+		if (string.IsNullOrEmpty(msg.VoiceCodec) || msg.VoiceCodec[0] == '\0') 
+			Voice.Deinit();
+		else 
+			Voice.Init(msg.VoiceCodec, msg.SampleRate);
+		
+		return true;
+	}
+	static readonly ConVar cl_voice_filter = new( "cl_voice_filter", "", 0, "Filter voice by name substring" ); // filter incoming voice data
+
+	protected override bool ProcessVoiceData(SVC_VoiceData msg) {
+		Span<byte> received = stackalloc byte[4096];
+		int bitsRead = (int)msg.DataIn.ReadBitsClamped(received, (uint)msg.Length);
+
+		int entity = msg.FromClient + 1;
+		if (entity == (PlayerSlot + 1)) 
+			Voice.LocalPlayerTalkingAck();
+
+		engineClient.GetPlayerInfo(entity, out PlayerInfo playerinfo);
+
+		if (!cl_voice_filter.GetString().IsStringEmpty && strstr(playerinfo.Name, cl_voice_filter.GetString()).IsEmpty)
+			return true;
+
+		if (bitsRead == 0)
+			return true;
+
+		if (!Voice.Enabled()) 
+			return true;
+
+		int channel = Voice.GetChannel(entity);
+		if (channel == VOICE_CHANNEL_ERROR) {
+			channel = Voice.AssignChannel(entity, msg.Proximity);
+			if (channel == VOICE_CHANNEL_ERROR) {
+				if (Sound.IsInitted())
+					ConDMsg($"ProcessVoiceData: Voice.AssignChannel failed for client {entity - 1}!\n");
+
+				return true;
+			}
+		}
+
+		Voice.AddIncomingData(channel, received, Protocol.Bits2Bytes(bitsRead), CurrentSequence);
+		return true;
+	}
+
 	public void StartUpdatingSteamResources() {
 		// for now; just make signon state new
 		FinishSignonState_New();

@@ -204,6 +204,16 @@ public class SizedCircularBuffer<T> : IEnumerable<T>
 		}
 	}
 
+	public void PushBack(ReadOnlySpan<T> items) {
+		for (int i = 0; i < items.Length; i++)
+			PushBack(items[i]);
+	}
+
+	public void PushFront(ReadOnlySpan<T> items) {
+		for (int i = 0; i < items.Length; i++)
+			PushFront(items[i]);
+	}
+
 	/// <summary>
 	/// Removes the element at the back of the buffer. Decreasing the 
 	/// Buffer size by 1.

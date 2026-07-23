@@ -122,9 +122,9 @@ public unsafe class bf_read : BitBuffer
 
 	public void ReadBits(byte[] pOutData, int nBits) => ReadBits(pOutData.AsSpan(), nBits);
 
-	public int ReadBitsClamped(byte[] pOut, uint nBits) => ReadBitsClamped_ptr(pOut, (uint)pOut.Length, nBits);
+	public int ReadBitsClamped(Span<byte> pOut, uint nBits) => ReadBitsClamped_ptr(pOut, (uint)pOut.Length, nBits);
 
-	private int ReadBitsClamped_ptr(byte[] pOutData, uint outSizeBytes, uint nBits) {
+	private int ReadBitsClamped_ptr(Span<byte> pOutData, uint outSizeBytes, uint nBits) {
 		uint outSizeBits = outSizeBytes * 8;
 		uint readSizeBits = nBits;
 		int skippedBits = 0;
