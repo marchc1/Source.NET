@@ -56,7 +56,7 @@ public static class ChecksumEngine
 			}
 		}
 
-		md5Value.Bits = md5.GetHashAndReset();
+		md5.GetHashAndReset(MD5Value.ToEditableBytes(ref md5Value));
 
 #if DEBUG
 		ConWarning($"MD5 for map [{fileName}]: {md5Value}\n");

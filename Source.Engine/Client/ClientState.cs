@@ -193,9 +193,7 @@ public class ClientState : BaseClientState
 		GenericPrecache.ClearInstantiatedReferences();
 
 		IsHLTV = false;
-
-		if (ServerMD5.Bits != null) // RaphaelIT7: Yes... We can be called so early that the other's constructor's weren't called yet.
-			Array.Clear(ServerMD5.Bits, 0, ServerMD5.Bits.Length);
+		ServerMD5 = default;
 
 		LastCommandAck = 0;
 		CommandAck = 0;

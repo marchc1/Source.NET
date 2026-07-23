@@ -2,19 +2,19 @@
 
 using System.Runtime.InteropServices;
 
-using FIELD_W_TYPE = System.UInt32;
-using FIELD_X_TYPE = System.UInt32;
-using FIELD_Y_TYPE = System.UInt32;
-using FIELD_Z_TYPE = System.UInt32;
-using HASH_ALGORITHM = System.Security.Cryptography.MD5;
-using STRUCT_TYPE = Source.Common.Hashing.MD5Value;
+using FIELD_W_TYPE = System.UInt64;
+using FIELD_X_TYPE = System.UInt64;
+using FIELD_Y_TYPE = System.UInt64;
+using FIELD_Z_TYPE = System.UInt64;
+using HASH_ALGORITHM = System.Security.Cryptography.SHA256;
+using STRUCT_TYPE = Source.Common.Hashing.SHA256Value;
 
 namespace Source.Common.Hashing;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1, Size = SIZE_BYTES)]
-public readonly record struct MD5Value
+public readonly record struct SHA256Value
 {
-	public MD5Value(ReadOnlySpan<byte> data) => data[..SIZE_BYTES].CopyTo(ToEditableBytes(ref this));
+	public SHA256Value(ReadOnlySpan<byte> data) => data[..SIZE_BYTES].CopyTo(ToEditableBytes(ref this));
 
 	public readonly Span<byte> ToBytes(Span<byte> bytes) {
 		ToBytes(in this).CopyTo(bytes);

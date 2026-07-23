@@ -235,7 +235,7 @@ public class SVC_ServerInfo : NetMessage
 		buffer.WriteOneBit(IsDedicated ? 1 : 0);
 		buffer.WriteLong(unchecked((int)0xffffffff));  // Used to be client.dll CRC.  This was far before signed binaries, VAC, and cross-platform play
 		buffer.WriteWord(MaxClasses);
-		buffer.WriteBytes(MapMD5.Bits, MD5Value.DIGEST_LENGTH);       // To prevent cheating with hacked maps
+		buffer.WriteBytes(MD5Value.ToEditableBytes(ref MapMD5));       // To prevent cheating with hacked maps
 		buffer.WriteByte(PlayerSlot);
 		buffer.WriteByte(MaxClients);
 		buffer.WriteFloat((float)TickInterval);
@@ -259,7 +259,7 @@ public class SVC_ServerInfo : NetMessage
 		MaxClasses = buffer.ReadWord();
 
 		// Prevent cheating with hacked maps
-		buffer.ReadBytes(MapMD5.Bits);
+		buffer.ReadBytes(MD5Value.ToEditableBytes(ref MapMD5));
 
 		PlayerSlot = buffer.ReadByte();
 		MaxClients = buffer.ReadByte();
@@ -1125,7 +1125,7 @@ public struct GMod_RequestLuaFiles;
 public struct GMod_LuaFile
 {
 	public ushort FileStringTableEntryID;
-	public SHA256 FileSHA256;
+	public SHA256Value FileSHA256;
 	public Memory<byte> FileContents;
 }
 
@@ -1245,7 +1245,7 @@ public class SVC_GMod_ServerToClient : BaseGModNetMessage
 
 	public override void ReadLuaFile(bf_read buffer) {
 		LuaFile.FileStringTableEntryID = (ushort)buffer.ReadUBitLong(16);
-		buffer.ReadBytes(new Span<SHA256>(ref LuaFile.FileSHA256).Cast<SHA256, byte>());
+		buffer.ReadBytes(new Span<SHA256Value>(ref LuaFile.FileSHA256).Cast<SHA256Value, byte>());
 		int fileSize = (int)buffer.BytesLeft;
 		LuaFile.FileContents = new byte[fileSize];
 		buffer.ReadBytes(LuaFile.FileContents.Span);
@@ -1253,7 +1253,7 @@ public class SVC_GMod_ServerToClient : BaseGModNetMessage
 
 	public override void WriteLuaFile(bf_write buffer) {
 		buffer.WriteUBitLong(LuaFile.FileStringTableEntryID, 16);
-		buffer.WriteBytes(new ReadOnlySpan<SHA256>(ref LuaFile.FileSHA256).Cast<SHA256, byte>());
+		buffer.WriteBytes(new ReadOnlySpan<SHA256Value>(ref LuaFile.FileSHA256).Cast<SHA256Value, byte>());
 		buffer.WriteBytes(LuaFile.FileContents.Span);
 	}
 
@@ -1275,7 +1275,7 @@ public class CLC_GMod_ClientToServer : BaseGModNetMessage
 			return;
 		Span<byte> sha256 = stackalloc byte[32];
 		buffer.ReadBits(sha256, 32 * 8);
-		LuaFile.FileSHA256 = SHA256.FromBytes(sha256);
+		LuaFile.FileSHA256 = SHA256Value.FromBytes(sha256);
 		int fileSize = (int)buffer.BytesLeft;
 		NetMessage.Data = new byte[fileSize];
 		buffer.ReadBits(NetMessage.Data.Span, fileSize << 3);
