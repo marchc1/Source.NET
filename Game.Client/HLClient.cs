@@ -444,8 +444,11 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 	const string LUA_PREFIX = "lua/";
 	const string LUA_SUFFIX = ".lua";
-	public void GMod_RequestLuaFiles(INetChannel netchan) {
 
+	int filesRequesting_Total;
+	int filesRequesting_Recv;
+
+	public void GMod_RequestLuaFiles(INetChannel netchan) {
 		Span<char> shaBuffer = stackalloc char[LUA_PREFIX.Length + SHA256Value.SIZE_HEX_CHARACTERS + LUA_SUFFIX.Length];
 		LUA_PREFIX.CopyTo(shaBuffer);
 
@@ -464,7 +467,9 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		}
 
 		netchan!.SendNetMsg(luaFileMessage!);
-		Msg($"Requesting {filesRequesting} Lua files from the server...\n");
+
+		filesRequesting_Total = filesRequesting;
+		filesRequesting_Recv = 0;
 	}
 
 	public void GMod_ReceiveLuaFile(ReadOnlySpan<char> fileName, in SHA256Value sha256, ReadOnlySpan<byte> compressed) {
@@ -477,6 +482,11 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		if (h == null)
 			return;
 		h.Stream.Write(compressed);
+		filesRequesting_Recv++;
+
+		if (filesRequesting_Recv != filesRequesting_Total) 
+			gameUI.UpdateProgressBar(filesRequesting_Recv / (float)filesRequesting_Total, $"Received {filesRequesting_Recv}/{filesRequesting_Total} Lua files...");
+		
 	}
 
 	public void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {
