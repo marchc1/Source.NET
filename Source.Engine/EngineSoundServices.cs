@@ -4,10 +4,12 @@ using Source.Engine.Client;
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Source.Engine;
 
+[EngineComponent]
 public class EngineSoundServices : ISoundServices
 {
 	Host? host;
@@ -26,6 +28,8 @@ public class EngineSoundServices : ISoundServices
 
 		return result;
 	}
+
+	[Dependency] public Sound Sound = null!;
 
 	public void CacheBuildingFinish() {
 		throw new NotImplementedException();
@@ -114,7 +118,7 @@ public class EngineSoundServices : ISoundServices
 	}
 
 	public void RestartSoundSystem() {
-		throw new NotImplementedException();
+		Sound.Restart();
 	}
 
 	public void SetSoundFrametime(TimeUnit_t realDT, TimeUnit_t hostDt) {

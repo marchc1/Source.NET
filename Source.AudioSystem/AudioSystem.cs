@@ -726,6 +726,10 @@ public class AudioSystem : IAudioSystem
 		Bass.Apply3D();
 	}
 
+	public IVoiceRecord? CreateVoiceRecord(int v) {
+		return null;
+	}
+
 	readonly static ConVar volume = new("volume", "1.0", FCvar.Archive, "Sound volume", 0.0, 1.0);
 	readonly ConVar snd_musicvolume = new("snd_musicvolume", "1.0", FCvar.Archive, "Music volume", 0.0, 1.0);
 	readonly static ConVar volume_sfx = new("volume_sfx", "1.0", FCvar.Archive, "Sound effects volume", 0.0, 1.0);

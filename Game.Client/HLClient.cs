@@ -13,11 +13,14 @@ using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Engine;
 using Source.Common.GUI;
+using Source.Common.Hashing;
 using Source.Common.Input;
 using Source.Common.MaterialSystem;
+using Source.Common.Networking;
 using Source.Engine;
 
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Game.Client;
 
@@ -176,8 +179,31 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		view.Render(rects);
 	}
 
+	public static INetworkStringTable g_ClientLuaFiles = null!;
+
 	public void InstallStringTableCallback(ReadOnlySpan<char> tableName) {
 		// TODO: what to do here, if anything
+		switch (tableName) {
+			case "client_lua_files":
+				g_ClientLuaFiles = networkstringtable.FindTable(tableName)!;
+				g_ClientLuaFiles.SetStringChangedCallback(this, OnReceiveLuaFileString);
+				break;
+		}
+	}
+
+	private void OnReceiveLuaFileString(object? context, INetworkStringTable stringTable, int stringNumber, ReadOnlySpan<char> newString, ReadOnlySpan<byte> newData) {
+		if (stringNumber == 0 && newString.Equals("paths", StringComparison.Ordinal)) {
+			// Load paths
+			Span<char> paths = stackalloc char[Encoding.ASCII.GetCharCount(newData)];
+			Encoding.ASCII.GetChars(newData, paths);
+			var splitter = paths.Split(";");
+			while(splitter.MoveNext()){
+				ReadOnlySpan<char> path = paths[splitter.Current].SliceNullTerminatedString();
+				// This sucks! TODO: Fix this!!!
+				ReadOnlySpan<char> absPath = $"{engine.GetGameDirectory()}{path}";
+				filesystem.AddSearchPath(absPath, "lcl", groupName: Source.Common.Filesystem.PathGroupName.Lua);
+			}
+		}
 	}
 
 	public int IN_KeyEvent(int eventcode, ButtonCode keynum, ReadOnlySpan<char> currentBinding) {
@@ -414,6 +440,26 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public bool IN_IsKeyDown(ReadOnlySpan<char> name, out bool isDown) {
+		throw new NotImplementedException();
+	}
+
+	public void GMod_RequestLuaFiles(INetChannel netchan) {
+		var luaFileMessage = new CLC_GMod_ClientToServer(GModMessageType.LuaFile);
+		luaFileMessage.LuaFile.FileStringTableEntryID = (ushort)g_ClientLuaFiles.FindStringIndex("lua/autorun/properties/drive.lua");
+		netchan!.SendNetMsg(luaFileMessage!);
+	}
+
+	public void GMod_ReceiveLuaFile(ReadOnlySpan<char> fileName, in SHA256 sha256, ReadOnlySpan<byte> compressed, ReadOnlySpan<byte> decompressed) {
+		Msg($"Got Lua file\n");
+		Msg($"  Filename            : {fileName}\n");
+		Msg($"  SHA256              : {sha256}\n");
+		Msg($"  Compressed Size     : {compressed.Length} bytes\n");
+		Msg($"  Decompressed Size   : {decompressed.Length} bytes\n");
+		Msg($"  Contents            : \n");
+		Msg($"{Encoding.UTF8.GetString(decompressed)}\n");
+	}
+
+	public void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {
 		throw new NotImplementedException();
 	}
 }

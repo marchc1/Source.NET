@@ -19,6 +19,9 @@
 	<ItemGroup>
 		<PackageReference Include="ppy.SDL3-CS" Version="2025.703.0" />
 	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="GarrysMod\" />
+	</ItemGroup>
 
 	<PropertyGroup>
 		<SourceRevisionId>

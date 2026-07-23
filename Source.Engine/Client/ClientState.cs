@@ -19,7 +19,9 @@ using Source.Engine.Server;
 using Steamworks;
 
 using System.Buffers;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 using static Source.Constants;
 
@@ -100,6 +102,7 @@ public class ClientState : BaseClientState
 	public INetworkStringTable? UserInfoTable;
 	public INetworkStringTable? ServerStartupTable;
 	public INetworkStringTable? DynamicModelsTable;
+	public INetworkStringTable? ClientLuaFiles;
 
 
 	readonly PrecacheItem[] ModelPrecache = ClassUtils.BlankInstantiatedArray<PrecacheItem>(PrecacheItem.MAX_MODELS);
@@ -247,6 +250,11 @@ public class ClientState : BaseClientState
 				return true;
 			case Protocol.USER_INFO_TABLENAME:
 				UserInfoTable = table;
+				return true;
+			case Protocol.CLIENT_LUA_FILES_TABLENAME:
+				ClientLuaFiles = table;
+				// allow client dll to grab this
+				Host.clientDLL?.InstallStringTableCallback(tableName);
 				return true;
 		}
 
@@ -547,6 +555,28 @@ public class ClientState : BaseClientState
 		g_ClientSidePrediction.PostNetworkDataReceived(commandsAcknowledged);
 	}
 	readonly LinkedList<EventInfo> Events = [];
+	CLC_GMod_ClientToServer? luaFileMessage;
+	readonly MemoryStream luaFileData = new(new byte[500_000], 0, 500_000, true, true);
+
+
+	protected override bool ProcessGMod_ServerToClient(SVC_GMod_ServerToClient msg) {
+		switch (msg.MessageType) {
+			case GModMessageType.RequestLuaFiles: {
+					g_ClientDLL!.GMod_RequestLuaFiles(NetChannel!);
+				}
+				return true;
+			case GModMessageType.LuaFile: {
+					// TODO
+					luaFileData.Position = 0;
+					luaFileData.SetLength(0);
+					Bootil.Compression.LZMA.Extract(msg.LuaFile.FileContents.Span, luaFileData);
+					g_ClientDLL!.GMod_ReceiveLuaFile(ClientLuaFiles.GetString(msg.LuaFile.FileStringTableEntryID), in msg.LuaFile.FileSHA256, msg.LuaFile.FileContents.Span, luaFileData.GetBuffer().AsSpan()[..(int)luaFileData.Length]);
+
+				}
+				return true;
+		}
+		return base.ProcessGMod_ServerToClient(msg);
+	}
 
 	protected override bool ProcessTempEntities(SVC_TempEntities msg) {
 		bool reliable = false;
@@ -631,22 +661,83 @@ public class ClientState : BaseClientState
 		ArrayPool<byte>.Shared.Return(data);
 		return true;
 	}
+	public static readonly ConVar cl_allowupload = new("cl_allowupload", "1", FCvar.Archive, "Client uploads customization files");
 
 	public override void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
+		CL.FileReceived(fileName, transferID);
+		g_ClientDLL?.FileReceived(fileName, transferID);
 	}
 	public override void FileRequested(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
+		ConMsg($"File '{fileName}' requested from server {NetChannel!.GetAddress()}.\n");
+
+		if (!cl_allowupload.GetBool()) {
+			ConMsg("File uploading disabled.\n");
+			NetChannel.DenyFile(fileName, transferID);
+			return;
+		}
+
+		// TODO check if file valid for uploading
+		NetChannel.SendFile(fileName, transferID);
 	}
 	public override void FileDenied(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
+		CL.FileDenied(fileName, transferID);
 	}
 	public override void FileSent(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
+
 	}
 	public override void ConnectionCrashed(ReadOnlySpan<char> reason) {
-		throw new NotImplementedException();
+		if (SignOnState > SignOnState.None) {
+			Debugger.Break();
+
+			Common.ExplainDisconnection(true, $"Disconnect: {reason.SliceNullTerminatedString()}.\n");
+			Scr.EndLoadingPlaque();
+			Host.EndGame(true, reason);
+		}
 	}
+	protected override bool ProcessVoiceInit(SVC_VoiceInit msg) {
+		if (string.IsNullOrEmpty(msg.VoiceCodec) || msg.VoiceCodec[0] == '\0') 
+			Voice.Deinit();
+		else 
+			Voice.Init(msg.VoiceCodec, msg.SampleRate);
+		
+		return true;
+	}
+	static readonly ConVar cl_voice_filter = new( "cl_voice_filter", "", 0, "Filter voice by name substring" ); // filter incoming voice data
+
+	protected override bool ProcessVoiceData(SVC_VoiceData msg) {
+		Span<byte> received = stackalloc byte[4096];
+		int bitsRead = (int)msg.DataIn.ReadBitsClamped(received, (uint)msg.Length);
+
+		int entity = msg.FromClient + 1;
+		if (entity == (PlayerSlot + 1)) 
+			Voice.LocalPlayerTalkingAck();
+
+		engineClient.GetPlayerInfo(entity, out PlayerInfo playerinfo);
+
+		if (!cl_voice_filter.GetString().IsStringEmpty && strstr(playerinfo.Name, cl_voice_filter.GetString()).IsEmpty)
+			return true;
+
+		if (bitsRead == 0)
+			return true;
+
+		if (!Voice.Enabled()) 
+			return true;
+
+		int channel = Voice.GetChannel(entity);
+		if (channel == VOICE_CHANNEL_ERROR) {
+			channel = Voice.AssignChannel(entity, msg.Proximity);
+			if (channel == VOICE_CHANNEL_ERROR) {
+				if (Sound.IsInitted())
+					ConDMsg($"ProcessVoiceData: Voice.AssignChannel failed for client {entity - 1}!\n");
+
+				return true;
+			}
+		}
+
+		Voice.AddIncomingData(channel, received, Protocol.Bits2Bytes(bitsRead), CurrentSequence);
+		return true;
+	}
+
 	public void StartUpdatingSteamResources() {
 		// for now; just make signon state new
 		FinishSignonState_New();
@@ -693,8 +784,6 @@ public class ClientState : BaseClientState
 			return;
 
 		SendClientInfo();
-		var msg1 = new CLC_GMod_ClientToServer();
-		NetChannel.SendNetMsg(msg1);
 		var msg = new NET_SignonState(SignOnState, ServerCount);
 		NetChannel.SendNetMsg(msg);
 	}
@@ -1059,6 +1148,12 @@ public class ClientState : BaseClientState
 	}
 
 	internal void SendServerCmdKeyValues(KeyValues keyValues) {
-		throw new NotImplementedException();
+		if (keyValues == null)
+			return;
+		if (NetChannel == null)
+			return;
+
+		// CLC_CmdKeyValues might not exist?
+		// What was this anyway
 	}
 }

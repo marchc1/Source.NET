@@ -1,5 +1,5 @@
 #if GMOD_DLL
-namespace Source.Engine.GarrysMod;
+namespace Source.Common;
 public enum GModMessageType
 {
 	/// <summary> <b>[Server <- -> Client]</b> A Lua net message </summary>

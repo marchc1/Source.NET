@@ -385,7 +385,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 				}
 				break;
 			case ModelType.Brush: {
-					fileSystem.AddSearchPath(mod.StrName, "GAME", SearchPathAdd.ToHead);
+					fileSystem.AddSearchPath(mod.StrName, "GAME", SearchPathAdd.ToHead, groupName: PathGroupName.Map);
 
 					// exclude textures later
 

@@ -6,12 +6,17 @@ using Source.Common.Utilities;
 
 namespace Source.FileSystem;
 
-public abstract class SearchPath
+public abstract class BaseSearchPath : ISearchPath
 {
 	public string? DiskPath { get; private set; }
-	public void SetPath(ReadOnlySpan<char> diskPath) {
-		DiskPath = new(diskPath);
+	public ReadOnlySpan<char> GetDiskPath() => DiskPath;
+	public void SetDiskPath(ReadOnlySpan<char> diskPath) {
+		DiskPath = new(diskPath.SliceNullTerminatedString());
 	}
+	PathGroupName name;
+	public PathGroupName GetGroupName() => name;
+	public void SetGroupName(PathGroupName value) => name = value;
+
 
 	public abstract bool Exists(ReadOnlySpan<char> path); // Returns if the file or directory exists
 	public abstract bool IsDirectory(ReadOnlySpan<char> path); // Returns true if the path is a directory
@@ -27,40 +32,16 @@ public abstract class SearchPath
 	/// <param name="path"></param>
 	/// <returns></returns>
 	public abstract DateTime Time(ReadOnlySpan<char> path);
-	internal abstract ReadOnlySpan<char> GetPathString();
-	internal abstract object? GetPackFile();
-	internal abstract object? GetPackedStore();
-
-	internal virtual ReadOnlySpan<char> Concat(ReadOnlySpan<char> fileNameUnnormalized, Span<char> target) {
-		Span<char> fileNameNormalized = stackalloc char[MAX_PATH];
-		ReadOnlySpan<char> fileName = BaseFileSystem.Normalize(fileNameUnnormalized, fileNameNormalized);
-
-		int writePtr = 0;
-		string diskpath = DiskPath ?? "";
-		diskpath.CopyTo(target[writePtr..]); writePtr += diskpath.Length;
-		if (diskpath.EndsWith('\\'))
-			target[writePtr - 1] = '/';
-
-		bool hasSlash = target[writePtr - 1] == '/';
-		if (!hasSlash) {
-			// Write a slash now
-			target[writePtr] = '/'; writePtr++;
-			hasSlash = true;
-		}
-		// Confirm we arent writing another slash
-		if ((fileName.Length > 0 && (fileName[0] == '/' || fileName[0] == '\\')) && hasSlash)
-			fileName = fileName[1..];
-
-		fileName.ClampedCopyTo(target[writePtr..]); writePtr += fileName.Length;
-		return target[..writePtr];
-	}
+	public abstract ReadOnlySpan<char> GetPathString();
+	public abstract object? GetPackFile();
+	public abstract object? GetPackedStore();
 
 	protected abstract void PrepareFinds(List<string> files, List<string> dirs, string? wildcard);
 
 	uint FindsIdx;
 	readonly List<string> files = [];
 	readonly List<string> dirs = [];
-	internal void LockFinds(UtlSymbol wildcard, HashSet<UtlSymId_t> foundAlready) {
+	public void LockFinds(UtlSymbol wildcard, HashSet<UtlSymId_t> foundAlready) {
 		if (Interlocked.Increment(ref FindsIdx) == 1) {
 			// Prepare the find buffers...
 			// unfortunately requires a lock here.
@@ -79,7 +60,7 @@ public abstract class SearchPath
 
 		}
 	}
-	internal void UnlockFinds() {
+	public void UnlockFinds() {
 		Interlocked.Decrement(ref FindsIdx);
 	}
 	public string? FindAt(int index) {

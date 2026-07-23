@@ -1141,7 +1141,7 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 		signonTick.WriteToBuffer(msg);
 
 		// write stringtable baselines
-		Server.StringTables.WriteBaselines(msg);
+		Server.StringTables.WriteBaselines(msg, this);
 
 		// Write replicated ConVars to non-listen server clients only
 		if (!NetChannel.IsLoopback()) {

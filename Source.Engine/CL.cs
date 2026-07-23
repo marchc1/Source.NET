@@ -331,7 +331,8 @@ public partial class CL(IServiceProvider services, Net Net,
 	}
 
 	internal void ProcessVoiceData() {
-
+		Voice.Idle(Host.FrameTime);
+		SendVoicePacket(false);
 	}
 
 	internal void TakeSnapshotAndSwap() {
@@ -342,6 +343,35 @@ public partial class CL(IServiceProvider services, Net Net,
 
 	internal bool CheckCRCs(ReadOnlySpan<char> levelFileName) {
 		return true;
+	}
+
+	readonly byte[] voiceData = new byte[2048];
+
+	public void SendVoicePacket(bool final){
+		if (!Voice.IsRecording())
+			return;
+
+		CLC_VoiceData voiceMsg = new();
+
+		voiceMsg.DataOut.StartWriting(voiceData, voiceData.Length);
+
+		voiceMsg.Length = Voice.GetCompressedData(voiceData.AsSpan(), final) * 8;
+
+		if (voiceMsg.Length == 0)
+			return;
+
+		voiceMsg.DataOut.Seek(voiceMsg.Length);    // set correct writing position
+
+		if (cl.IsActive())
+			cl.NetChannel!.SendNetMsg(voiceMsg);
+	}
+
+	internal void FileDenied(ReadOnlySpan<char> fileName, uint transferID) {
+		throw new NotImplementedException();
+	}
+
+	internal void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {
+		throw new NotImplementedException();
 	}
 
 	internal void RegisterResources() {

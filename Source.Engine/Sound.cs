@@ -95,6 +95,29 @@ public partial class Sound
 		return table;
 	}
 
+	bool FirstTime;
+
+	public void Restart() {
+		Span<char> voiceCodec = stackalloc char[MAX_PATH];
+		int voiceSampleRate = Voice.ConfiguredSampleRate();
+
+		{
+			ReadOnlySpan<char> previousCodec = Voice.ConfiguredCodec();
+			if (!previousCodec.IsStringEmpty)
+				strcpy(voiceCodec, previousCodec);
+
+		}
+
+		Shutdown();
+		FirstTime = true;
+		cl.ClearSounds();
+		Init();
+
+		if (voiceCodec[0] != '\0')
+			Voice.Init(voiceCodec, voiceSampleRate);
+	}
+
+
 	public void MarkUISound(SfxTable sound) {
 		sound.IsUISound = true;
 	}

@@ -23,6 +23,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Source.Filesystem", "Source.Filesystem\Source.Filesystem.csproj", "{29AE1289-1EEE-4B35-95A4-7BD303C507A6}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "1. Engine Common", "1. Engine Common", "{6C519EE4-0567-4180-A0F3-C4D73222A263}"
+	ProjectSection(SolutionItems) = preProject
+		Source.Engine\GarrysMod\GModMessageType.cs = Source.Engine\GarrysMod\GModMessageType.cs
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4. Post-Engine Components", "4. Post-Engine Components", "{4B578BC3-0E56-46A4-9316-23258535813E}"
 EndProject

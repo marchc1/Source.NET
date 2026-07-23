@@ -350,6 +350,16 @@ public class GameClient : BaseClient
 		Common.TimestampedLog("CGameClient::ActivatePlayer -end");
 	}
 
+	protected override bool ProcessGMod_ClientToServer(CLC_GMod_ClientToServer msg) {
+		switch (msg.MessageType) {
+			case GModMessageType.LuaFile: {
+					// todo
+				}
+				return true;
+		}
+		return base.ProcessGMod_ClientToServer(msg);
+	}
+
 	protected override bool SendSignonData() {
 		bool clientHasDifferentTables = false;
 

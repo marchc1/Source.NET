@@ -35,10 +35,7 @@ public class CommonHostState
 	}
 }
 
-public class Host(
-	EngineParms host_parms, CommonHostState host_state,
-	IServiceProvider services, ICommandLine CommandLine, IFileSystem fileSystem
-	)
+public class Host
 {
 	public int TimeToTicks(TimeUnit_t dt) => (int)(0.5 + dt / host_state.IntervalPerTick);
 	public TimeUnit_t TicksToTime(int dt) => host_state.IntervalPerTick * dt;
@@ -446,7 +443,7 @@ public class Host(
 		if (!Initialized)
 			return;
 
-		if (!isUserRequested && CommandLine.CheckParm("-default"))
+		if (!isUserRequested && commandLine.CheckParm("-default"))
 			return;
 
 		if (sv.IsDedicated())
@@ -1066,6 +1063,60 @@ public class Host(
 #endif
 	}
 
+	readonly ConVar voice_recordtofile = new("voice_recordtofile", "0", 0, "Record mic data and decompressed voice data into 'voice_micdata.wav' and 'voice_decompressed.wav'");
+	readonly ConVar voice_inputfromfile;
+	readonly ConVar sv_allow_voice_from_file;
+
+	private void voiceconvar_file_changed_f(IConVar conVar, in ConVarChangeContext ctx) {
+# if !SWDS
+		ConVarRef var = new(conVar);
+		if (var.GetInt() == 0)
+			Host_VoiceRecordStop();
+#endif
+	}
+
+
+#if !SWDS
+	[ConCommand(name: "+voicerecord")]
+	public void Host_VoiceRecordStart() {
+		if (cl.IsActive()) {
+			ReadOnlySpan<char> uncompressedFile = null;
+			ReadOnlySpan<char> decompressedFile = null;
+			ReadOnlySpan<char> inputFile = null;
+
+			if (voice_recordtofile.GetInt() != 0) {
+				uncompressedFile = "voice_micdata.wav";
+				decompressedFile = "voice_decompressed.wav";
+			}
+
+			if (voice_inputfromfile.GetInt() != 0) 
+				inputFile = "voice_input.wav";
+			
+			if (!sv_allow_voice_from_file.GetBool()) 
+				inputFile = null;
+			
+#if !NO_VOICE
+			if (Voice.Record_Start(uncompressedFile, decompressedFile, inputFile))
+				Msg("Started voice recording...\n");
+#endif
+		}
+	}
+	
+	[ConCommand(name: "-voicerecord")]
+	public void Host_VoiceRecordStop() {
+		if (cl.IsActive()) {
+#if ! NO_VOICE
+			if (Voice.IsRecording()) {
+				CL.SendVoicePacket(Voice.UsingSteamVoice ? false : true);
+				Voice.UserDesiresStop();
+
+				Msg("Stopped voice recording...\n");
+			}
+#endif
+		}
+	}
+#endif
+
 	public string CleanupConVarStringValue(string v) {
 		// todo.
 		return v;
@@ -1194,6 +1245,25 @@ public class Host(
 	public readonly ConVar skill = new("skill", "1", FCvar.Archive, "Game skill level (1-3).", 1, 3);
 	public readonly ConVar deathmatch = new("deathmatch", "0", FCvar.Notify | FCvar.InternalUse, "Running a deathmatch server.");
 	public readonly ConVar coop = new("coop", "0", FCvar.Notify, "Cooperative play.");
+	private readonly EngineParms host_parms;
+	private readonly CommonHostState host_state;
+	private readonly IServiceProvider services;
+	private readonly ICommandLine commandLine;
+	private readonly IFileSystem fileSystem;
+
+	public Host(
+		EngineParms host_parms, CommonHostState host_state,
+		IServiceProvider services, ICommandLine CommandLine, IFileSystem fileSystem
+	) {
+		this.host_parms = host_parms;
+		this.host_state = host_state;
+		this.services = services;
+		commandLine = CommandLine;
+		this.fileSystem = fileSystem;
+
+		voice_inputfromfile = new("voice_inputfromfile", "0", 0, "Get voice input from 'voice_input.wav' rather than from the microphone.", callback: voiceconvar_file_changed_f);
+		sv_allow_voice_from_file = new("sv_allow_voice_from_file", "1", FCvar.Replicated, "Allow or disallow clients from using voice_inputfromfile on this server.", callback: voiceconvar_file_changed_f);
+	}
 
 	internal bool ValidGame() {
 		if (sv.IsMultiplayer()) {

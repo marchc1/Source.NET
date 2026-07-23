@@ -1,6 +1,8 @@
 ﻿using Source.Common.Bitbuffers;
+using Source.Common.Hashing;
 using Source.Common.Input;
 using Source.Common.MaterialSystem;
+using Source.Common.Networking;
 
 namespace Source.Common.Client;
 
@@ -44,4 +46,7 @@ public interface IBaseClientDLL
 	LookupProxyInterfaceFn GetMaterialProxyInterfaceFn();
 	void LevelInitPreEntity(ReadOnlySpan<char> mapname);
 	void LevelInitPostEntity();
+	void GMod_RequestLuaFiles(INetChannel netchan);
+	void GMod_ReceiveLuaFile(ReadOnlySpan<char> fileName, in SHA256 sha256, ReadOnlySpan<byte> compressed, ReadOnlySpan<byte> decompressed);
+	void FileReceived(ReadOnlySpan<char> fileName, uint transferID);
 }
