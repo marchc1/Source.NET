@@ -12,6 +12,7 @@ using Source.Common.Hashing;
 using Source.Common.Mathematics;
 using System.Text;
 using CommunityToolkit.HighPerformance;
+using Source.Common.Commands;
 
 public static class NetMessageExtensions
 {
@@ -479,6 +480,10 @@ public class SVC_VoiceInit : NetMessage
 
 	public override bool ReadFromBuffer(bf_read buffer) {
 		VoiceCodec = buffer.ReadString(260) ?? "";
+		// This is a HACK!!!!!!
+		ConVarRef sv_use_steam_voice = new("sv_use_steam_voice");
+		if (sv_use_steam_voice.GetBool())
+			VoiceCodec = "steam";
 
 		byte legacyQuality = buffer.ReadByte();
 		if (legacyQuality == 255) {
