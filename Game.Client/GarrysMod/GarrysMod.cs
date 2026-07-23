@@ -21,6 +21,7 @@ public class GarrysMod
 	}
 
 	public void InitializeMod(IServiceProvider services){
-
+		ReadOnlySpan<char> absPath = $"{engine.GetGameDirectory()}/cache";
+		filesystem.AddSearchPath(absPath, "CACHE");
 	}
 }

@@ -442,12 +442,31 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public void GMod_RequestLuaFiles(INetChannel netchan) {
+		const string LUA_PREFIX = "lua/";
+		const string LUA_SUFFIX = ".lua";
+
+		Span<char> shaBuffer = stackalloc char[LUA_PREFIX.Length + SHA256Value.SIZE_HEX_CHARACTERS + LUA_SUFFIX.Length];
+		LUA_PREFIX.CopyTo(shaBuffer);
+
 		var luaFileMessage = new CLC_GMod_ClientToServer(GModMessageType.LuaFile);
-		luaFileMessage.LuaFile.FileStringTableEntryID = (ushort)g_ClientLuaFiles.FindStringIndex("lua/autorun/properties/drive.lua");
-		netchan!.SendNetMsg(luaFileMessage!);
+
+		int filesRequesting = 0;
+		for (int i = 0; i < g_ClientLuaFiles.GetNumStrings(); i++) {
+			ReadOnlySpan<char> filename = g_ClientLuaFiles.GetString(i);
+			byte[]? filehash = g_ClientLuaFiles.GetStringUserData(i);
+			ReadOnlySpan<char> shaHash = SHA256Value.FromBytes(filehash).ToString(shaBuffer[LUA_PREFIX.Length..]);
+			LUA_SUFFIX.CopyTo(shaBuffer.Slice(LUA_PREFIX.Length + SHA256Value.SIZE_HEX_CHARACTERS, LUA_SUFFIX.Length));
+			if(!filesystem.FileExists(shaBuffer, "CACHE")){
+				luaFileMessage.LuaFile.FileStringTableEntryID = (ushort)i;
+				netchan!.SendNetMsg(luaFileMessage!);
+				filesRequesting++;
+			}
+		}
+
+		Msg($"Requesting {filesRequesting} Lua files from the server...\n");
 	}
 
-	public void GMod_ReceiveLuaFile(ReadOnlySpan<char> fileName, in SHA256 sha256, ReadOnlySpan<byte> compressed, ReadOnlySpan<byte> decompressed) {
+	public void GMod_ReceiveLuaFile(ReadOnlySpan<char> fileName, in SHA256Value sha256, ReadOnlySpan<byte> compressed, ReadOnlySpan<byte> decompressed) {
 		Msg($"Got Lua file\n");
 		Msg($"  Filename            : {fileName}\n");
 		Msg($"  SHA256              : {sha256}\n");
