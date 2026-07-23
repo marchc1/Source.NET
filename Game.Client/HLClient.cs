@@ -451,29 +451,29 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		var luaFileMessage = new CLC_GMod_ClientToServer(GModMessageType.LuaFile);
 
 		int filesRequesting = 0;
-		for (int i = 0; i < g_ClientLuaFiles.GetNumStrings(); i++) {
+		for (int i = 1; i < g_ClientLuaFiles.GetNumStrings(); i++) {
 			ReadOnlySpan<char> filename = g_ClientLuaFiles.GetString(i);
 			byte[]? filehash = g_ClientLuaFiles.GetStringUserData(i);
-			ReadOnlySpan<char> shaHash = SHA256Value.FromBytes(filehash).ToString(shaBuffer[LUA_PREFIX.Length..]);
+			SHA256Value.FromBytes(filehash).ToString(shaBuffer[LUA_PREFIX.Length..]);
 			LUA_SUFFIX.CopyTo(shaBuffer.Slice(LUA_PREFIX.Length + SHA256Value.SIZE_HEX_CHARACTERS, LUA_SUFFIX.Length));
 			if(!filesystem.FileExists(shaBuffer, "CACHE")){
-				luaFileMessage.LuaFile.FileStringTableEntryID = (ushort)i;
-				netchan!.SendNetMsg(luaFileMessage!);
+				luaFileMessage.LuaFile.FileStringTableEntryIDs[filesRequesting] = (ushort)i;
 				filesRequesting++;
 			}
 		}
 
+		netchan!.SendNetMsg(luaFileMessage!);
 		Msg($"Requesting {filesRequesting} Lua files from the server...\n");
 	}
 
 	public void GMod_ReceiveLuaFile(ReadOnlySpan<char> fileName, in SHA256Value sha256, ReadOnlySpan<byte> compressed, ReadOnlySpan<byte> decompressed) {
-		Msg($"Got Lua file\n");
+		// Msg($"Got Lua file\n");
 		Msg($"  Filename            : {fileName}\n");
-		Msg($"  SHA256              : {sha256}\n");
-		Msg($"  Compressed Size     : {compressed.Length} bytes\n");
-		Msg($"  Decompressed Size   : {decompressed.Length} bytes\n");
-		Msg($"  Contents            : \n");
-		Msg($"{Encoding.UTF8.GetString(decompressed)}\n");
+		// Msg($"  SHA256              : {sha256}\n");
+		// Msg($"  Compressed Size     : {compressed.Length} bytes\n");
+		// Msg($"  Decompressed Size   : {decompressed.Length} bytes\n");
+		// Msg($"  Contents            : \n");
+		// Msg($"{Encoding.UTF8.GetString(decompressed)}\n");
 	}
 
 	public void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {
