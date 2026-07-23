@@ -21,7 +21,10 @@ public class GarrysMod
 	}
 
 	public void InitializeMod(IServiceProvider services){
-		ReadOnlySpan<char> absPath = $"{engine.GetGameDirectory()}/cache";
+		string absPath = $"{engine.GetGameDirectory()}/cache";
+		Directory.CreateDirectory(absPath);
+		Directory.CreateDirectory(Path.Combine(absPath, "lua"));
+		Directory.CreateDirectory(Path.Combine(absPath, "workshop"));
 		filesystem.AddSearchPath(absPath, "CACHE");
 	}
 }
