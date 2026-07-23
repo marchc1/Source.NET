@@ -27,17 +27,13 @@ public class GarrysMod
 
 	}
 
-  public void InitializeMod(IServiceProvider services){
+  	public void InitializeMod(IServiceProvider services){
 		string absPath = $"{engine.GetGameDirectory()}/cache";
 		Directory.CreateDirectory(absPath);
 		Directory.CreateDirectory(Path.Combine(absPath, "lua"));
 		Directory.CreateDirectory(Path.Combine(absPath, "workshop"));
 		filesystem.AddSearchPath(absPath, "CACHE");
-  }
-
-	public void InitializeMod(IServiceProvider services) {
-
-	}
+  	}
 }
 
 public class GModRichPresence : AutoGameSystemPerFrame
