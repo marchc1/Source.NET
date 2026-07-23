@@ -3,6 +3,7 @@ using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Engine;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GarrysMod;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
 
@@ -319,4 +320,19 @@ public interface IEngineServer
 
 	// Server version from the steam.inf, this will be compared to the GC version
 	int GetServerVersion();
+
+	Span<float> GMOD_SetTimeManipulator(float scaleFramerate);
+	void GMOD_SendToClient<IRF>(ref IRF filter, ReadOnlySpan<byte> data) where IRF : IRecipientFilter;
+	void GMOD_SendToClient(int client, ReadOnlySpan<byte> data);
+	void GMOD_RawServerCommand(ReadOnlySpan<char> command);
+	IGMODDataTable GMOD_CreateDataTable();
+	void GMOD_DestroyDataTable(IGMODDataTable dataTable);
+	ReadOnlySpan<char> GMOD_GetServerAddress();
+	MDLHandle_t GMOD_LoadModel(ReadOnlySpan<char> path);
+	float GetClientConVarFloat(int client, ReadOnlySpan<char> cvar, float fallback);
+	ref CSteamID GMOD_GetPlayerOwnerSteamID(Edict client);
+	bool GMOD_GetPlayerIsSpeaking(Edict client);
+	bool GMOD_GetPlayerIsBot(Edict client);
+	bool GMOD_ShouldUpdateVoiceMasks();
+	bool NET_IsHostLocal(ReadOnlySpan<char> unknwon);
 }

@@ -335,6 +335,18 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		return true;
 	}
 
+	public bool GMOD_CheckPassword(Steamworks.CSteamID steamID, ReadOnlySpan<char> ipAddress, ReadOnlySpan<char> serverPassword, ReadOnlySpan<char> clientPassword, ReadOnlySpan<char> name, Span<char> rejectionMessage) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_ClientSignOnStateChanged(int userID, int oldState, int newState) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_OnAllSoundsStoppedSV() {
+		throw new NotImplementedException();
+	}
+
 	public void InvalidateMdlCache() {
 		throw new NotImplementedException();
 	}
@@ -609,6 +621,14 @@ public class ServerGameClients : IServerGameClients
 		INetChannel netchan = client.GetNetChannel()!;
 		SVC_GMod_ServerToClient msg = new SVC_GMod_ServerToClient(GModMessageType.RequestLuaFiles);
 		netchan.SendNetMsg(msg);
+	}
+
+	public void GMOD_ReceiveClientMessage(int userID, Edict player, bf_read msg, int bits) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_ClientConnected(int userID) {
+		throw new NotImplementedException();
 	}
 }
 
