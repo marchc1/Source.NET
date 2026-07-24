@@ -779,9 +779,9 @@ public class ConsoleDialog : Frame
 					ExtraItem item = new();
 					ReadOnlySpan<char> type = itemKv.GetString("type");
 
-					if (type == "Cvar") item.Type = ExtraItemType.Cvar;
-					else if (type == "Command") item.Type = ExtraItemType.Command;
-					else if (type == "Separator") item.Type = ExtraItemType.Separator;
+					if (type.SequenceEqual("Cvar")) item.Type = ExtraItemType.Cvar;
+					else if (type.SequenceEqual("Command")) item.Type = ExtraItemType.Command;
+					else if (type.SequenceEqual("Separator")) item.Type = ExtraItemType.Separator;
 
 					item.Text = itemKv.GetString("text").ToString();
 					item.Cmd = itemKv.GetString("cmd").ToString();
