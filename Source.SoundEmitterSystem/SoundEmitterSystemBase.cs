@@ -17,8 +17,6 @@ using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Xml.Linq;
 
-using Interval = Source.Common.SoundEmitterSystem.Interval;
-
 namespace Source.SoundEmitterSystem;
 
 class SoundEmitterUniformRandomStream : IUniformRandomStream
