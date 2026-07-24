@@ -18,6 +18,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="ppy.SDL3-CS" Version="2025.703.0" />
+		<PackageReference Include="SharpZipLib" Version="1.4.2" />
 	</ItemGroup>
 	<ItemGroup>
 	  <Folder Include="GarrysMod\" />

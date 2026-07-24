@@ -117,10 +117,12 @@ public class ClientState : BaseClientState
 
 	readonly Common Common;
 	readonly Sound Sound;
+	readonly HttpDownloader httpDownloader;
+
 	public ClientState(Host Host, IFileSystem fileSystem, Net Net, CommonHostState host_state, Common Common,
 		Cbuf Cbuf, Cmd Cmd, ICvar cvar, IHostState HostState, Scr Scr, IEngineAPI engineAPI,
 		IServiceProvider services,
-		IModelLoader modelloader, ICommandLine commandLine,
+IModelLoader modelloader, ICommandLine commandLine, HttpDownloader httpDownloader,
 		[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient,
 
 #if !SWDS
@@ -154,6 +156,7 @@ public class ClientState : BaseClientState
 		engineClient_LAZY = new(ProduceEngineClient);
 		CommandLine = commandLine;
 		this.RecvTable = RecvTable;
+		this.httpDownloader = httpDownloader;
 	}
 
 	private IEngineClient ProduceEngineClient() => services.GetRequiredService<IEngineClient>();
@@ -774,6 +777,12 @@ public class ClientState : BaseClientState
 
 		CL.RegisterResources();
 
+		if (host_state.WorldModel == null) {
+			Host.Disconnect(true, $"Couldn't load map {LevelFileName}\n");
+			
+			return;
+		}
+
 		// We can start loading the world now
 		Host.Render.LevelInit(); // Tells the rendering system that a new set of world moels exists
 
@@ -870,6 +879,8 @@ public class ClientState : BaseClientState
 
 		ReadOnlySpan<char> name = ModelPrecacheTable.GetString(index);
 
+		httpDownloader.EnsureFile(name);
+
 		model = modelloader.GetModelForName(name, ModelLoaderFlags.Client);
 		if (model == null) {
 			ref PrecacheUserData data = ref CL.GetPrecacheUserData(ModelPrecacheTable, index);
@@ -902,6 +913,11 @@ public class ClientState : BaseClientState
 		else if (CommandLine.FindParm("-preload") != 0)
 			loadNow = true;
 
+		if (tableIndex == 1) {
+			loadNow = true;
+			httpDownloader.EnsureFile(name);
+		}
+		
 		if (loadNow)
 			p.SetModel(modelloader.GetModelForName(name, ModelLoaderFlags.Client));
 		else
