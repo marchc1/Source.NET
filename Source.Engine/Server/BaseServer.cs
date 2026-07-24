@@ -44,7 +44,7 @@ public abstract class BaseServer : IServer
 	internal static readonly ConVar sv_allow_color_correction = new("sv_allow_color_correction", "1", FCvar.Replicated, "Allow or disallow clients to use color correction on this server.");
 	internal static readonly ConVar sv_tags = new("sv_tags", "", FCvar.Notify, "Server tags. Used to provide extra information to clients when they're browsing for servers. Separate tags with a comma.", callback: SvTagsChangeCallback);
 	internal static readonly ConVar sv_debugtempentities = new("sv_debugtempentities", "0", FCvar.None, "Show temp entity bandwidth usage.");
-
+	internal static readonly ConVar sv_downloadurl = new("sv_downloadurl", "", FCvar.Replicated | FCvar.Notify, "Location from which clients can fast-download missing content (maps, models, sounds, materials) over HTTP.");
 	static bool bTagsChangeCallback = false;
 	private static void SvTagsChangeCallback(IConVar var, in ConVarChangeContext ctx) {
 		if (bTagsChangeCallback)
