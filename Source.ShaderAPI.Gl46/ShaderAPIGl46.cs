@@ -552,7 +552,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		return ImageFormat.RGBA8888;
 	}
 	public void GetBackBufferDimensions(out int width, out int height) {
-		Singleton<ILauncherManager>().DisplayedSize(out width, out height);
+		width = PresentParameters.DisplayMode.Width;
+		height = PresentParameters.DisplayMode.Height;
 	}
 
 	ShaderDeviceInfo PresentParameters;

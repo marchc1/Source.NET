@@ -358,7 +358,7 @@ public class MatRenderContext : IMatRenderContextInternal
 
 		ref RenderTargetStackElement element = ref RenderTargetStack.Top();
 
-		for (int rt = 0, size = Math.Max(1, element.Size); rt < size; rt++) {
+		for (int rt = 0, size = element.Size; rt < size; rt++) {
 			if (element[rt] == null) {
 				shaderAPI.SetRenderTargetEx(rt);
 

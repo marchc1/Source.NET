@@ -480,13 +480,9 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 				using MatRenderContextPtr renderContext = new(materials);
 				ITexture? thisTexture = GetEmbeddedTexture(0);
 				renderContext.PushRenderTargetAndViewport(thisTexture);
-				try {
-					ShaderAPI.ClearColor4ub(0, 0, 0, 0xFF);
-					ShaderAPI.ClearBuffers(true, false, false, DimsActual.Width, DimsActual.Height);
-				}
-				finally {
-					renderContext.PopRenderTargetAndViewport();
-				}
+				ShaderAPI.ClearColor4ub(0, 0, 0, 0xFF);
+				ShaderAPI.ClearBuffers(true, false, false, DimsActual.Width, DimsActual.Height);
+				renderContext.PopRenderTargetAndViewport();
 			}
 
 			return;
