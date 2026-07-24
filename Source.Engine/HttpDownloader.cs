@@ -92,22 +92,20 @@ public class HttpDownloader(IFileSystem fileSystem, ICvar cvar)
 	}
 
 	bool WriteFile(ReadOnlySpan<char> relative, byte[] data) {
-		ReadOnlySpan<char> downloadPath = $"download/{relative}";
-
-		int lastSlash = downloadPath.LastIndexOf('/');
+		int lastSlash = relative.LastIndexOf('/');
 		if (lastSlash > 0)
-			fileSystem.CreateDirHierarchy(downloadPath[..lastSlash], "MOD");
+			fileSystem.CreateDirHierarchy(relative[..lastSlash], "download");
 
-		using (IFileHandle? handle = fileSystem.Open(downloadPath, FileOpenOptions.WriteEx, "MOD")) {
+		using (IFileHandle? handle = fileSystem.Open(relative, FileOpenOptions.WriteEx, "download")) {
 			if (handle == null || !handle.IsOK()) {
-				Warning($"Could not open '{downloadPath}' for writing after download\n");
+				Warning($"Could not open '{relative}' for writing after download\n");
 				return false;
 			}
 
 			handle.Stream.Write(data, 0, data.Length);
 		}
 
-		ConMsg($"Downloaded '{relative}' ({data.Length} bytes) to {downloadPath}\n");
+		ConMsg($"Downloaded '{relative}' ({data.Length} bytes) to download/{relative}\n");
 		return true;
 	}
 
