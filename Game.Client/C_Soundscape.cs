@@ -339,7 +339,7 @@ public class C_SoundscapeSystem : AutoGameSystemPerFrame
 	public int AddRandomSound(in RandomSound sound) {
 		RandomSounds.Add(sound);
 		int index = RandomSounds.Count - 1;
-		RandomSounds.AsSpan()[index].NextPlayTime = (float)gpGlobals.CurTime + 0.5f * RandomInterval(sound.Time);
+		RandomSounds.AsSpan()[index].NextPlayTime = (float)gpGlobals.CurTime + 0.5f * Interval.Random(sound.Time);
 		return index;
 	}
 
@@ -361,7 +361,7 @@ public class C_SoundscapeSystem : AutoGameSystemPerFrame
 			return;
 
 		if (sound.IsAmbient)
-			enginesound.EmitAmbientSound(waveName, sound.MasterVolume * RandomInterval(sound.Volume), (int)RandomInterval(sound.Pitch));
+			enginesound.EmitAmbientSound(waveName, sound.MasterVolume * Interval.Random(sound.Volume), (int)Interval.Random(sound.Pitch));
 		else {
 			LocalPlayerFilter filter = new();
 
@@ -371,9 +371,9 @@ public class C_SoundscapeSystem : AutoGameSystemPerFrame
 			EmitSound_t ep = new() {
 				Channel = (int)SoundEntityChannel.Static,
 				SoundName = waveName,
-				Volume = sound.MasterVolume * RandomInterval(sound.Volume),
-				SoundLevel = (SoundLevel)(int)RandomInterval(sound.SoundLevel),
-				Pitch = (int)RandomInterval(sound.Pitch),
+				Volume = sound.MasterVolume * Interval.Random(sound.Volume),
+				SoundLevel = (SoundLevel)(int)Interval.Random(sound.SoundLevel),
+				Pitch = (int)Interval.Random(sound.Pitch),
 				Origin = ref sound.Position
 			};
 
@@ -391,7 +391,7 @@ public class C_SoundscapeSystem : AutoGameSystemPerFrame
 		for (int i = RandomSounds.Count - 1; i >= 0; i--) {
 			if (gameClock >= randomSounds[i].NextPlayTime) {
 				PlayRandomSound(ref randomSounds[i]);
-				randomSounds[i].NextPlayTime = gameClock + RandomInterval(randomSounds[i].Time);
+				randomSounds[i].NextPlayTime = gameClock + Interval.Random(randomSounds[i].Time);
 			}
 
 			if (randomSounds[i].NextPlayTime < NextRandomTime)
@@ -510,20 +510,20 @@ public class C_SoundscapeSystem : AutoGameSystemPerFrame
 		KeyValues? key = playLooping!.GetFirstSubKey();
 		while (key != null) {
 			if (stricmp(key.Name, "volume") == 0)
-				volume = parms.MasterVolume * RandomInterval(ReadInterval(key.GetString()));
+				volume = parms.MasterVolume * Interval.Random(Interval.Read(key.GetString()));
 			else if (stricmp(key.Name, "pitch") == 0)
-				pitch = (int)RandomInterval(ReadInterval(key.GetString()));
+				pitch = (int)Interval.Random(Interval.Read(key.GetString()));
 			else if (stricmp(key.Name, "wave") == 0)
 				soundName = key.GetString();
 			else if (stricmp(key.Name, "position") == 0)
 				positionIndex = parms.StartingPosition + key.GetInt();
 			else if (stricmp(key.Name, "attenuation") == 0)
-				soundlevel = ATTN_TO_SNDLVL(RandomInterval(ReadInterval(key.GetString())));
+				soundlevel = ATTN_TO_SNDLVL(Interval.Random(Interval.Read(key.GetString())));
 			else if (stricmp(key.Name, "soundlevel") == 0) {
 				if (strnicmp(key.GetString(), "SNDLVL_", "SNDLVL_".Length) == 0)
 					soundlevel = SoundParametersInternal.TextToSoundLevel(key.GetString());
 				else
-					soundlevel = (SoundLevel)(int)RandomInterval(ReadInterval(key.GetString()));
+					soundlevel = (SoundLevel)(int)Interval.Random(Interval.Read(key.GetString()));
 			}
 			else if (stricmp(key.Name, "suppress_on_restore") == 0)
 				suppress = key.GetInt() != 0;
@@ -562,11 +562,11 @@ public class C_SoundscapeSystem : AutoGameSystemPerFrame
 		KeyValues? key = playRandom!.GetFirstSubKey();
 		while (key != null) {
 			if (stricmp(key.Name, "volume") == 0)
-				sound.Volume = ReadInterval(key.GetString());
+				sound.Volume = Interval.Read(key.GetString());
 			else if (stricmp(key.Name, "pitch") == 0)
-				sound.Pitch = ReadInterval(key.GetString());
+				sound.Pitch = Interval.Read(key.GetString());
 			else if (stricmp(key.Name, "attenuation") == 0) {
-				Source.Common.Interval atten = ReadInterval(key.GetString());
+				Source.Common.Interval atten = Interval.Read(key.GetString());
 				sound.SoundLevel.Start = (float)ATTN_TO_SNDLVL(atten.Start);
 				sound.SoundLevel.Range = (float)ATTN_TO_SNDLVL(atten.Start + atten.Range) - sound.SoundLevel.Start;
 			}
@@ -576,10 +576,10 @@ public class C_SoundscapeSystem : AutoGameSystemPerFrame
 					sound.SoundLevel.Range = 0;
 				}
 				else
-					sound.SoundLevel = ReadInterval(key.GetString());
+					sound.SoundLevel = Interval.Read(key.GetString());
 			}
 			else if (stricmp(key.Name, "time") == 0)
-				sound.Time = ReadInterval(key.GetString());
+				sound.Time = Interval.Read(key.GetString());
 			else if (stricmp(key.Name, "rndwave") == 0) {
 				KeyValues? waves = key.GetFirstSubKey();
 				sound.Waves = waves;
@@ -645,7 +645,7 @@ public class C_SoundscapeSystem : AutoGameSystemPerFrame
 		ReadOnlySpan<char> soundscapeName = default;
 		while (key != null) {
 			if (stricmp(key.Name, "volume") == 0)
-				subParams.MasterVolume = paramsIn.MasterVolume * RandomInterval(ReadInterval(key.GetString()));
+				subParams.MasterVolume = paramsIn.MasterVolume * Interval.Random(Interval.Read(key.GetString()));
 			else if (stricmp(key.Name, "position") == 0)
 				subParams.StartingPosition = paramsIn.StartingPosition + key.GetInt();
 			else if (stricmp(key.Name, "positionoverride") == 0) {
