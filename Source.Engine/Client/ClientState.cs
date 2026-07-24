@@ -778,7 +778,7 @@ IModelLoader modelloader, ICommandLine commandLine, HttpDownloader httpDownloade
 		CL.RegisterResources();
 
 		if (host_state.WorldModel == null) {
-			Host.Disconnect(true, $"Coudln't load map {LevelFileName}\n");
+			Host.Disconnect(true, $"Couldn't load map {LevelFileName}\n");
 			
 			return;
 		}
