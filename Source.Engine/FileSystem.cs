@@ -62,8 +62,7 @@ public class FileSystem(IFileSystem fileSystem, IServiceProvider services) {
 				lBaseDir = initInfo.DirectoryName;
 			}
 			else if (location.Contains(BASESOURCEPATHS_TOKEN, StringComparison.OrdinalIgnoreCase)) {
-				Dbg.Warning($"all_source_engine_paths not implemented, ignoring.\n");
-				continue;
+				location = location[BASESOURCEPATHS_TOKEN.Length..];
 			}
 
 			ReadOnlySpan<char> absSearchPath;

@@ -18,6 +18,8 @@ public static class SoundConstants
 {
 	public const int SOUND_SEQNUMBER_BITS = 10;
 	public const int MAX_SNDLVL_BITS = 9;
+	public const int MIN_SNDLVL_VALUE = 0;
+	public const int MAX_SNDLVL_VALUE = (1 << MAX_SNDLVL_BITS) - 1;
 	public const int SOUND_SEQNUMBER_MASK = (1 << SOUND_SEQNUMBER_BITS) - 1;
 	public const float SOUND_DELAY_OFFSET = 0.1f;
 	public const int MAX_SOUND_DELAY_MSEC_ENCODE_BITS = 13;

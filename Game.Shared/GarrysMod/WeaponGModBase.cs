@@ -94,15 +94,24 @@ namespace Game.Server
 			SetPredictionEligible(true);
 		}
 
-		public new void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
+		public override void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
 #if CLIENT_DLL
 			ReadOnlySpan<char> shootsound = GetWpnData().ShootSounds[(int)soundType].AsSpan().SliceNullTerminatedString();
 			if (shootsound.IsEmpty || shootsound[0] == '\0')
 				return;
+
+			BroadcastRecipientFilter filter = new();
+
+			if (!te.CanPredict())
+				return;
+
+			EmitSound(filter, GetPlayerOwner()!.EntIndex(), shootsound, in GetPlayerOwner()!.GetAbsOrigin(), soundTime, out _);
 #else
-	base.WeaponSound(soundType, soundTime);
+			base.WeaponSound(soundType, soundTime);
 #endif
 		}
+
+		public BasePlayer? GetPlayerOwner() => ToBasePlayer(GetOwner());
 	}
 
 	// ====================================================================================================== //

@@ -730,7 +730,7 @@ public partial class CL(IServiceProvider services, Net Net,
 
 		// snd_show
 
-		StartSoundParams parms = default;
+		StartSoundParams parms = new();
 		parms.StaticSound = (sound.Channel == SoundEntityChannel.Static) ? true : false;
 		parms.SoundSource = sound.EntityIndex;
 		parms.EntChannel = parms.StaticSound ? SoundEntityChannel.Static : sound.Channel;

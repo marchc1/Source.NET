@@ -8,6 +8,7 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Reflection.Emit;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -15,7 +16,7 @@ using System.Threading.Channels;
 using System.Xml.Linq;
 
 using PitchInterval = Source.Common.SoundEmitterSystem.SoundInterval<System.Byte>;
-using SoundLevelInterval = Source.Common.SoundEmitterSystem.SoundInterval<Source.Common.Audio.SoundLevel>;
+using SoundLevelInterval = Source.Common.SoundEmitterSystem.SoundInterval<System.UInt16>;
 using VolumeInterval = Source.Common.SoundEmitterSystem.SoundInterval<System.Half>;
 
 namespace Source.Common.SoundEmitterSystem;
@@ -23,43 +24,6 @@ namespace Source.Common.SoundEmitterSystem;
 public static class SoundEmitterSystemGlobals
 {
 	public const HSOUNDSCRIPTHANDLE SOUNDEMITTER_INVALID_HANDLE = unchecked((HSOUNDSCRIPTHANDLE)(-1));
-}
-
-public struct Interval
-{
-	public float Start;
-	public float Range;
-	public static bool Compare(in Interval i1, in Interval i2) {
-		return memcmp(in i1, in i2) == 0;
-	}
-
-	public static bool Compare<T>(in SoundInterval<T> i1, in SoundInterval<T> i2) where T : unmanaged {
-		return memcmp(in i1, in i2) == 0;
-	}
-
-	public static Interval Read(ReadOnlySpan<char> str) {
-		Interval tmp;
-		tmp.Start = 0;
-		tmp.Range = 0;
-
-		int comma = str.IndexOf(',');
-		if (comma >= 0) {
-			float.TryParse(str[..comma], out tmp.Start);
-			float.TryParse(str[(comma + 1)..], out float range);
-			tmp.Range = range - tmp.Start;
-		}
-		else if (!str.IsEmpty)
-			float.TryParse(str, out tmp.Start);
-
-		return tmp;
-	}
-
-	public static float Random(in Interval interval) {
-		float ret = interval.Start;
-		if (interval.Range != 0)
-			ret += RandomFloat(0, interval.Range);
-		return ret;
-	}
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -76,20 +40,20 @@ public struct SoundFile
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public struct SoundInterval<T>
+public struct SoundInterval<T> where T : INumber<T>
 {
 	public T Start;
 	public T Range;
 	public readonly ref Interval ToInterval(ref Interval dest) {
-		dest.Start = (float?)(object?)Start ?? 0;
-		dest.Range = (float?)(object?)Range ?? 0;
+		dest.Start = float.CreateTruncating(Start);
+		dest.Range = float.CreateTruncating(Range);
 		return ref dest;
 	}
 	public void FromInterval(in Interval from) {
-		Start = (T)(object)from.Start;
-		Range = (T)(object)from.Range;
+		Start = T.CreateTruncating(from.Start);
+		Range = T.CreateTruncating(from.Range);
 	}
-	public readonly float Random() => RandomFloat((float?)(object?)Start ?? 0, ((float?)(object?)(Start) ?? 0) + ((float?)(object?)(Range) ?? 0));
+	public readonly float Random() => RandomFloat(float.CreateTruncating(Start), float.CreateTruncating(Start) + float.CreateTruncating(Range));
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -203,36 +167,36 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 	}).ToFrozenDictionary();
 
 	static readonly FrozenDictionary<ulong, SoundLevel> g_pSoundLevelsRev = (new Dictionary<ulong, SoundLevel> {
-		{ "SNDLVL_NONE".Hash(invariant: false) , Audio.SoundLevel.LvlNone},
-		{ "SNDLVL_20dB".Hash(invariant: false) , Audio.SoundLevel.Lvl20dB},
-		{ "SNDLVL_25dB".Hash(invariant: false) , Audio.SoundLevel.Lvl25dB},
-		{ "SNDLVL_30dB".Hash(invariant: false) , Audio.SoundLevel.Lvl30dB},
-		{ "SNDLVL_35dB".Hash(invariant: false) , Audio.SoundLevel.Lvl35dB},
-		{ "SNDLVL_40dB".Hash(invariant: false) , Audio.SoundLevel.Lvl40dB},
-		{ "SNDLVL_45dB".Hash(invariant: false) , Audio.SoundLevel.Lvl45dB},
-		{ "SNDLVL_50dB".Hash(invariant: false) , Audio.SoundLevel.Lvl50dB},
-		{ "SNDLVL_55dB".Hash(invariant: false) , Audio.SoundLevel.Lvl55dB},
-		{ "SNDLVL_IDLE".Hash(invariant: false) , Audio.SoundLevel.LvlIdle},
-		{ "SNDLVL_TALKING".Hash(invariant: false) , Audio.SoundLevel.LvlTalking},
-		{ "SNDLVL_60dB".Hash(invariant: false) , Audio.SoundLevel.Lvl60dB},
-		{ "SNDLVL_65dB".Hash(invariant: false) , Audio.SoundLevel.Lvl65dB},
-		{ "SNDLVL_STATIC" .Hash(invariant: false) , Audio.SoundLevel.LvlStatic},
-		{ "SNDLVL_70dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl70dB}   ,
-		{ "SNDLVL_NORM" .Hash(invariant: false) , Audio.SoundLevel.LvlNorm}   ,
-		{ "SNDLVL_75dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl75dB}   ,
-		{ "SNDLVL_80dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl80dB}   ,
-		{ "SNDLVL_85dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl85dB}   ,
-		{ "SNDLVL_90dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl90dB}   ,
-		{ "SNDLVL_95dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl95dB}   ,
-		{ "SNDLVL_100dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl100dB},
-		{ "SNDLVL_105dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl105dB},
-		{ "SNDLVL_110dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl110dB},
-		{ "SNDLVL_120dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl120dB},
-		{ "SNDLVL_130dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl130dB},
-		{ "SNDLVL_GUNFIRE".Hash(invariant: false) , Audio.SoundLevel.LvlGunfire},
-		{ "SNDLVL_140dB".Hash(invariant: false) , Audio.SoundLevel.Lvl140dB},
-		{ "SNDLVL_150dB".Hash(invariant: false) , Audio.SoundLevel.Lvl150dB},
-		{ "SNDLVL_180dB" .Hash(invariant: false) , Audio.SoundLevel.Lvl180dB},
+		{ "SNDLVL_NONE".Hash(invariant: true) , Audio.SoundLevel.LvlNone},
+		{ "SNDLVL_20dB".Hash(invariant: true) , Audio.SoundLevel.Lvl20dB},
+		{ "SNDLVL_25dB".Hash(invariant: true) , Audio.SoundLevel.Lvl25dB},
+		{ "SNDLVL_30dB".Hash(invariant: true) , Audio.SoundLevel.Lvl30dB},
+		{ "SNDLVL_35dB".Hash(invariant: true) , Audio.SoundLevel.Lvl35dB},
+		{ "SNDLVL_40dB".Hash(invariant: true) , Audio.SoundLevel.Lvl40dB},
+		{ "SNDLVL_45dB".Hash(invariant: true) , Audio.SoundLevel.Lvl45dB},
+		{ "SNDLVL_50dB".Hash(invariant: true) , Audio.SoundLevel.Lvl50dB},
+		{ "SNDLVL_55dB".Hash(invariant: true) , Audio.SoundLevel.Lvl55dB},
+		{ "SNDLVL_IDLE".Hash(invariant: true) , Audio.SoundLevel.LvlIdle},
+		{ "SNDLVL_TALKING".Hash(invariant: true) , Audio.SoundLevel.LvlTalking},
+		{ "SNDLVL_60dB".Hash(invariant: true) , Audio.SoundLevel.Lvl60dB},
+		{ "SNDLVL_65dB".Hash(invariant: true) , Audio.SoundLevel.Lvl65dB},
+		{ "SNDLVL_STATIC" .Hash(invariant: true) , Audio.SoundLevel.LvlStatic},
+		{ "SNDLVL_70dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl70dB}   ,
+		{ "SNDLVL_NORM" .Hash(invariant: true) , Audio.SoundLevel.LvlNorm}   ,
+		{ "SNDLVL_75dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl75dB}   ,
+		{ "SNDLVL_80dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl80dB}   ,
+		{ "SNDLVL_85dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl85dB}   ,
+		{ "SNDLVL_90dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl90dB}   ,
+		{ "SNDLVL_95dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl95dB}   ,
+		{ "SNDLVL_100dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl100dB},
+		{ "SNDLVL_105dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl105dB},
+		{ "SNDLVL_110dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl110dB},
+		{ "SNDLVL_120dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl120dB},
+		{ "SNDLVL_130dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl130dB},
+		{ "SNDLVL_GUNFIRE".Hash(invariant: true) , Audio.SoundLevel.LvlGunfire},
+		{ "SNDLVL_140dB".Hash(invariant: true) , Audio.SoundLevel.Lvl140dB},
+		{ "SNDLVL_150dB".Hash(invariant: true) , Audio.SoundLevel.Lvl150dB},
+		{ "SNDLVL_180dB" .Hash(invariant: true) , Audio.SoundLevel.Lvl180dB},
 	}).ToFrozenDictionary();
 
 	static readonly FrozenDictionary<SoundEntityChannel, string> g_pChannelNames = (new Dictionary<SoundEntityChannel, string> {
@@ -366,13 +330,13 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 	}
 	public const string SNDLVL_PREFIX = "SNDLVL_";
 
-	public SoundLevel TextToSoundLevel(ReadOnlySpan<char> key) {
+	public static SoundLevel TextToSoundLevel(ReadOnlySpan<char> key) {
 		if (key.IsEmpty) {
 			Assert(0);
 			return Audio.SoundLevel.LvlNorm;
 		}
 
-		if (g_pSoundLevelsRev.TryGetValue(key.Hash(invariant: false), out SoundLevel level))
+		if (g_pSoundLevelsRev.TryGetValue(key.Hash(invariant: true), out SoundLevel level))
 			return level;
 
 		if (0 == stricmp(key[..Math.Min((int)strlen(SNDLVL_PREFIX), key.Length)], SNDLVL_PREFIX)) {
@@ -404,8 +368,8 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 			Pitch.FromInterval(Interval.Read(sz));
 	}
 	public void SoundLevelFromString(ReadOnlySpan<char> sz) {
-		if (0 == strcmp(sz[..Math.Max(sz.Length, "SNDLVL_".Length - 1)], "SNDLVL_")) {
-			SoundLevel.Start = TextToSoundLevel(sz);
+		if (0 == strnicmp(sz, "SNDLVL_", "SNDLVL_".Length)) {
+			SoundLevel.Start = (ushort)TextToSoundLevel(sz);
 			SoundLevel.Range = 0;
 		}
 		else
@@ -427,7 +391,7 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 	public void SetChannel(int newChannel) => Channel = (SoundEntityChannel)newChannel;
 	public void SetVolume(float start, float range = 0.0f) { Volume.Start = (Half)start; Volume.Range = (Half)range; }
 	public void SetPitch(float start, float range = 0.0f) { Pitch.Start = (byte)start; Pitch.Range = (byte)range; }
-	public void SetSoundLevel(float start, float range = 0.0f) { SoundLevel.Start = (SoundLevel)start; SoundLevel.Range = (SoundLevel)range; }
+	public void SetSoundLevel(float start, float range = 0.0f) { SoundLevel.Start = (ushort)start; SoundLevel.Range = (ushort)range; }
 	public void SetDelayMsec(int delay) => DelayMsec = (ushort)delay;
 	public void SetShouldPreload(bool bShouldPreload) => this.bShouldPreload = bShouldPreload;
 	public void SetOnlyPlayToOwner(bool b) => bPlayToOwnerOnly = b;
@@ -447,7 +411,8 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 		if (destCount == 1) {
 			// NOTE: when there's only one soundfile in the list, we store it
 			// packed into the pointer itself, the four bytes for the pointer is just used to store the sound file!
-			dest![0] = source;
+			dest = new SoundFile[1];
+			dest[0] = source;
 		}
 		else {
 			SoundFile temp = default;
@@ -559,7 +524,7 @@ public interface ISoundEmitterSystemBase
 	int FindSoundScript(ReadOnlySpan<char> name);
 	void SaveChangesToSoundScript(int scriptindex);
 
-	void ExpandSoundNameMacros(in SoundParametersInternal parms, ReadOnlySpan<char> wavename);
+	void ExpandSoundNameMacros(ref SoundParametersInternal parms, ReadOnlySpan<char> wavename);
 	Gender GetActorGender(ReadOnlySpan<char> actormodel);
 	void GenderExpandString(ReadOnlySpan<char> actormodel, ReadOnlySpan<char> inText, Span<char> outText);
 	void GenderExpandString(Gender gender, ReadOnlySpan<char> inText, Span<char> outText);

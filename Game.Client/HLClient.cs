@@ -115,9 +115,11 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 #if GMOD_DLL
 		garrysmod.InitializeMod(services);
 #endif
+		IGameSystem.Add(g_SoundEmitterSystem);
 		IGameSystem.Add(Singleton<ClientLeafSystem>());
 		IGameSystem.Add(DetailObjectSystem.GetDetailObjectSystem());
 		IGameSystem.Add(Singleton<ViewportClientSystem>());
+		IGameSystem.Add(ClientSoundscapeSystem());
 
 		vgui = services.GetService<IVGui>();
 

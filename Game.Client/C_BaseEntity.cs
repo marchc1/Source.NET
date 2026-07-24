@@ -906,6 +906,36 @@ public partial class C_BaseEntity : IClientEntity
 	}
 	public ref readonly Vector3 GetViewOffset() => ref ViewOffset;
 
+	public virtual bool GetSoundSpatialization(ref SpatializationInfo info) {
+		if (EntIndex() == 0)
+			return true;
+
+		if (IsDormant())
+			return false;
+
+		Model? model = GetModel();
+
+		if (!Unsafe.IsNullRef(ref info.Radius))
+			info.Radius = modelinfo.GetModelRadius(model);
+
+		if (!Unsafe.IsNullRef(ref info.Origin)) {
+			info.Origin = GetAbsOrigin();
+
+			if (modelinfo.GetModelType(model) == ModelType.Brush) {
+				modelinfo.GetModelBounds(model, out Vector3 mins, out Vector3 maxs);
+				MathLib.VectorAdd(mins, maxs, out Vector3 center);
+				MathLib.VectorScale(center, 0.5f, out center);
+
+				info.Origin += center;
+			}
+		}
+
+		if (!Unsafe.IsNullRef(ref info.Angles))
+			info.Angles = GetAbsAngles();
+
+		return true;
+	}
+
 	public virtual ClientClass GetClientClass() => ClientClassRetriever.GetOrError(GetType());
 
 
@@ -2607,7 +2637,9 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual Vector3 GetSoundEmissionOrigin() => WorldSpaceCenter();
 
 	public static void EmitSound<IRF>(scoped in IRF filter, int entIndex, scoped in EmitSound_t parms) where IRF : IRecipientFilter {
-
+		C_BaseEntity? entity = cl_entitylist.GetEnt(entIndex);
+		entity?.ModifyEmitSoundParams(ref Unsafe.AsRef(in parms));
+		g_SoundEmitterSystem.EmitSound(filter, entIndex, ref Unsafe.AsRef(in parms));
 	}
 
 

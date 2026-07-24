@@ -527,7 +527,7 @@ public class EngineVGui(
 		if (sound != null) {
 			Sound.MarkUISound(sound);
 
-			StartSoundParams parms = default;
+			StartSoundParams parms = new();
 			parms.StaticSound = false;
 			parms.SoundSource = cl.ViewEntity;
 			parms.EntChannel = SoundEntityChannel.Auto;

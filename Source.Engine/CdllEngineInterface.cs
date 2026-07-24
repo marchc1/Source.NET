@@ -319,7 +319,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public void SetAudioState(in AudioState state) {
-		throw new NotImplementedException();
+		Host.SetAudioState(in state);
 	}
 
 	public int SentenceGroupPick(int groupIndex, Span<char> name, int nameBufLen) {
