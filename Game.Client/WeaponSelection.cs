@@ -15,6 +15,8 @@ public class BaseHudWeaponSelection : EditableHudElement
 	public const int HUDTYPE_PLUS = 2;
 	public const int HUDTYPE_CAROUSEL = 3;
 
+	public const int MAX_SELECTABLE_SLOTS = 10;
+
 	public static ConVar hud_drawhistory_time = new("hud_drawhistory_time", "5", 0);
 	public static ConVar hud_fastswitch = new("hud_fastswitch", "0", FCvar.Archive);
 	public double SelectionTime;
@@ -99,6 +101,8 @@ public class BaseHudWeaponSelection : EditableHudElement
 	public virtual void OpenSelection() {
 		SelectionVisible = true;
 		// lockrendergroup todo
+
+		input.ClearInputButton(InButtons.Attack | InButtons.Attack2);
 	}
 
 	public virtual void HideSelection() {
@@ -152,7 +156,7 @@ public class BaseHudWeaponSelection : EditableHudElement
 	[ConCommand("slot9", flags: FCvar.ServerCanExecute)]
 	static void UserCmd_Slot9() => UserCmd_Slot(9);
 	[ConCommand("slot0", flags: FCvar.ServerCanExecute)]
-	static void UserCmd_Slot0() => UserCmd_Slot(0);
+	static void UserCmd_Slot0() => UserCmd_Slot(10);
 	[ConCommand("slot10", flags: FCvar.ServerCanExecute)]
 	static void UserCmd_Slot10() => UserCmd_Slot(10);
 
@@ -269,55 +273,36 @@ public class BaseHudWeaponSelection : EditableHudElement
 			engine.ClientCmd("escape\n");
 	}
 
-	public BaseCombatWeapon? GetFirstPos(int slot) {
-		int lowestPosition = MAX_WEAPON_POSITIONS;
-		BaseCombatWeapon? firstWeapon = null;
+	public List<BaseCombatWeapon> GetWeaponsInSlot(int slot) {
+		List<BaseCombatWeapon> weapons = [];
 
 		BasePlayer? player = BasePlayer.GetLocalPlayer();
 		if (player == null)
-			return firstWeapon;
+			return weapons;
 
 		for (int i = 0; i < MAX_WEAPONS; i++) {
 			BaseCombatWeapon? weapon = player.GetWeapon(i);
-			if (weapon == null)
-				continue;
-
-			if (weapon.GetSlot() == slot && weapon.VisibleInWeaponSelection()) {
-				if (weapon.GetPosition() < lowestPosition) {
-					lowestPosition = weapon.GetPosition();
-					firstWeapon = weapon;
-				}
-			}
+			if (weapon != null && weapon.GetSlot() == slot && weapon.VisibleInWeaponSelection())
+				weapons.Add(weapon);
 		}
 
-		return firstWeapon;
+		weapons.Sort((a, b) => a.GetPosition() != b.GetPosition() ? a.GetPosition() - b.GetPosition() : a.EntIndex() - b.EntIndex());
+		return weapons;
+	}
+
+	public int GetWeaponPosition(BaseCombatWeapon weapon) => GetWeaponsInSlot(weapon.GetSlot()).IndexOf(weapon);
+
+	public BaseCombatWeapon? GetFirstPos(int slot) {
+		List<BaseCombatWeapon> weapons = GetWeaponsInSlot(slot);
+		return weapons.Count > 0 ? weapons[0] : null;
 	}
 
 	public BaseCombatWeapon? GetNextActivePos(int slot, int slotPos) {
-		if (slotPos >= MAX_WEAPON_POSITIONS || slot >= MAX_WEAPON_SLOTS)
+		if (slot >= MAX_SELECTABLE_SLOTS)
 			return null;
 
-		int lowestPosition = MAX_WEAPON_POSITIONS;
-		BaseCombatWeapon? nextWeapon = null;
-
-		BasePlayer? player = BasePlayer.GetLocalPlayer();
-		if (player == null)
-			return nextWeapon;
-
-		for (int i = 0; i < MAX_WEAPONS; i++) {
-			BaseCombatWeapon? weapon = player.GetWeapon(i);
-			if (weapon == null)
-				continue;
-
-			if (weapon.GetSlot() == slot && weapon.VisibleInWeaponSelection()) {
-				if (weapon.GetPosition() >= slotPos && weapon.GetPosition() < lowestPosition) {
-					lowestPosition = weapon.GetPosition();
-					nextWeapon = weapon;
-				}
-			}
-		}
-
-		return nextWeapon;
+		List<BaseCombatWeapon> weapons = GetWeaponsInSlot(slot);
+		return slotPos >= 0 && slotPos < weapons.Count ? weapons[slotPos] : null;
 	}
 
 	public virtual void CycleToNextWeapon() { }
