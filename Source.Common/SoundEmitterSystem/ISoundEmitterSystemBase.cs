@@ -20,7 +20,8 @@ using VolumeInterval = Source.Common.SoundEmitterSystem.SoundInterval<System.Hal
 
 namespace Source.Common.SoundEmitterSystem;
 
-public static class SoundEmitterSystemGlobals {
+public static class SoundEmitterSystemGlobals
+{
 	public const HSOUNDSCRIPTHANDLE SOUNDEMITTER_INVALID_HANDLE = unchecked((HSOUNDSCRIPTHANDLE)(-1));
 }
 
@@ -43,14 +44,21 @@ public struct Interval
 
 		int comma = str.IndexOf(',');
 		if (comma >= 0) {
-			tmp.Start = float.Parse(str.Slice(0, comma));
-			tmp.Range = float.Parse(str.Slice(comma + 1)) - tmp.Start;
+			float.TryParse(str[..comma], out tmp.Start);
+			float.TryParse(str[(comma + 1)..], out float range);
+			tmp.Range = range - tmp.Start;
 		}
-		else if (str.Length > 0) {
-			tmp.Start = float.Parse(str);
-		}
+		else if (!str.IsEmpty)
+			float.TryParse(str, out tmp.Start);
 
 		return tmp;
+	}
+
+	public static float Random(in Interval interval) {
+		float ret = interval.Start;
+		if (interval.Range != 0)
+			ret += RandomFloat(0, interval.Range);
+		return ret;
 	}
 }
 
@@ -101,7 +109,7 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 		Volume = src.Volume;
 		Pitch = src.Pitch;
 		SoundLevel = src.SoundLevel;
-		DelayMsec= src.DelayMsec;
+		DelayMsec = src.DelayMsec;
 		bPlayToOwnerOnly = src.bPlayToOwnerOnly;
 
 		SoundNamesCount = src.SoundNamesCount;
@@ -114,7 +122,7 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 				SoundNames = src.SoundNames;
 			}
 		}
-		else 
+		else
 			SoundNames = null;
 
 		ConvertedNamesCount = src.ConvertedNamesCount;
@@ -127,7 +135,7 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 				ConvertedNames = src.ConvertedNames;
 			}
 		}
-		else 
+		else
 			ConvertedNames = null;
 
 		bHadMissingWaveFiles = src.bHadMissingWaveFiles;
@@ -451,24 +459,24 @@ public struct SoundParametersInternal : IEquatable<SoundParametersInternal>
 			Array.Resize(ref dest, destCount);
 			dest[destCount - 1] = source;
 
-			if (destCount == 2) 
+			if (destCount == 2)
 				dest[0] = temp;
 		}
 	}
 
-	SoundFile[]? SoundNames;     
-	SoundFile[]? ConvertedNames; 
+	SoundFile[]? SoundNames;
+	SoundFile[]? ConvertedNames;
 
-	ushort ConvertedNamesCount; 
-	ushort SoundNamesCount;     
+	ushort ConvertedNamesCount;
+	ushort SoundNamesCount;
 
-	VolumeInterval Volume;         
-	SoundLevelInterval SoundLevel; 
-	PitchInterval Pitch;           
-	SoundEntityChannel Channel;    
-	ushort DelayMsec;              
+	VolumeInterval Volume;
+	SoundLevelInterval SoundLevel;
+	PitchInterval Pitch;
+	SoundEntityChannel Channel;
+	ushort DelayMsec;
 
-	bool bPlayToOwnerOnly; 
+	bool bPlayToOwnerOnly;
 	bool bHadMissingWaveFiles;
 	bool bUsesGenderToken;
 	bool bShouldPreload;
