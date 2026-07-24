@@ -1,10 +1,4 @@
-﻿using Source.Common.Hashing;
-
-using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Source.Common.GarrysMod;
+﻿namespace Source.Common.GarrysMod;
 
 public static class GMOD
 {

@@ -48,6 +48,6 @@
 	  </EmbeddedResource>
 	</ItemGroup>
 	<ItemGroup>
-	  <Folder Include="Steam\" />
+	  <Folder Include="GarrysMod\Lua\" />
 	</ItemGroup>
 </Project>
