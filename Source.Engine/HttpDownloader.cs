@@ -2,6 +2,7 @@ using ICSharpCode.SharpZipLib.BZip2;
 
 using Source.Common.Commands;
 using Source.Common.Filesystem;
+using Source.Engine.Server;
 
 namespace Source.Engine;
 
@@ -34,7 +35,7 @@ public class HttpDownloader(IFileSystem fileSystem, ICvar cvar)
 			(relative.EndsWith(".wav", StringComparison.OrdinalIgnoreCase) || relative.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase)))
 			return false;
 
-		string baseUrl = cvar.FindVar("sv_downloadurl")?.GetString().ToString() ?? "";
+		string baseUrl = BaseServer.sv_downloadurl.GetString().ToString();
 		if (string.IsNullOrWhiteSpace(baseUrl)) {
 			Warning($"Cannot download '{relative}': sv_downloadurl not set by server\n");
 			return false;
@@ -90,20 +91,22 @@ public class HttpDownloader(IFileSystem fileSystem, ICvar cvar)
 	}
 
 	bool WriteFile(string relative, byte[] data) {
-		int lastSlash = relative.LastIndexOf('/');
-		if (lastSlash > 0)
-			fileSystem.CreateDirHierarchy(relative[..lastSlash], "MOD");
+		string downloadPath = "download/" + relative;
 
-		using (IFileHandle? handle = fileSystem.Open(relative, FileOpenOptions.WriteEx, "MOD")) {
+		int lastSlash = downloadPath.LastIndexOf('/');
+		if (lastSlash > 0)
+			fileSystem.CreateDirHierarchy(downloadPath.AsSpan(0, lastSlash), "MOD");
+
+		using (IFileHandle? handle = fileSystem.Open(downloadPath, FileOpenOptions.WriteEx, "MOD")) {
 			if (handle == null || !handle.IsOK()) {
-				Warning($"Could not open '{relative}' for writing after download\n");
+				Warning($"Could not open '{downloadPath}' for writing after download\n");
 				return false;
 			}
 
 			handle.Stream.Write(data, 0, data.Length);
 		}
 
-		ConMsg($"Downloaded '{relative}' ({data.Length} bytes)\n");
+		ConMsg($"Downloaded '{relative}' ({data.Length} bytes) to {downloadPath}\n");
 		return true;
 	}
 
