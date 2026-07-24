@@ -680,7 +680,7 @@ public class Menu : Panel
 		if (MenuItems.Count <= 0)
 			return;
 
-		double CurrentTime = System.GetCurrentTime();
+		double CurrentTime = system.GetCurrentTime();
 		if (CurrentTime - LastTypeAheadTime > 0.5f) {
 			NumTypeAheadChars = 0;
 			TypeAheadBuffer[0] = '\0';
@@ -1349,13 +1349,13 @@ public class Menu : Panel
 		menu.SetParent(parent);
 		menu.AddActionSignalTarget(parent);
 
-		parent.Input.GetCursorPos(out int cursorX, out int cursorY);
+		Input.GetCursorPos(out int cursorX, out int cursorY);
 
 		menu.SetVisible(true);
 		menu.InvalidateLayout(true);
 		menu.GetSize(out int menuWide, out int menuTall);
 
-		parent.Surface.GetScreenSize(out int wide, out int tall);
+		Surface.GetScreenSize(out int wide, out int tall);
 
 		if (wide - menuWide > cursorX) {
 			if (tall - menuTall > cursorY)
@@ -1417,7 +1417,6 @@ public class Menu : Panel
 
 class MenuManager
 {
-	private IVGuiInput Input = OptionalSingleton<IVGuiInput>()!;
 	private readonly List<Menu> Menus = [];
 	public static MenuManager Instance = new();
 

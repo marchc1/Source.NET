@@ -473,7 +473,7 @@ class RenderTextureEditor : Frame
 			Span<char> resolveName = stackalloc char[256];
 			Span<char> resolveNameArg = stackalloc char[256];
 			sprintf(resolveNameArg, "materials/%s.vtf").S(Info.GetString(TextureListPanel.KeyName_Name));
-			ReadOnlySpan<char> resolvedName = fileSystem.RelativePathToFullPath(resolveNameArg, "game", resolveName);
+			ReadOnlySpan<char> resolvedName = g_pFileSystem.RelativePathToFullPath(resolveNameArg, "game", resolveName);
 			if (!resolvedName.IsEmpty)
 				Explore.SetVisible(true);
 
@@ -603,7 +603,7 @@ class RenderTextureEditor : Frame
 		Span<char> resolveName = stackalloc char[256];
 		Span<char> resolveNameArg = stackalloc char[256];
 		sprintf(resolveNameArg, "materials/%s.vtf").S(textureFile);
-		ReadOnlySpan<char> resolvedName = fileSystem.RelativePathToFullPath(resolveNameArg, "game", resolveName);
+		ReadOnlySpan<char> resolvedName = g_pFileSystem.RelativePathToFullPath(resolveNameArg, "game", resolveName);
 
 		ReadOnlySpan<char> printFilePrefix = !resolvedName.IsEmpty ? "" : "[?]/";
 		ReadOnlySpan<char> printFileName = !resolvedName.IsEmpty ? resolvedName : textureFile;
@@ -1729,7 +1729,7 @@ class TextureListPanel : Frame
 				resolveName.Clear();
 				resolveNameArg.Clear();
 				sprintf(resolveNameArg, "materials/%s.vtf").S(cur.GetString(KeyName_Name));
-				ReadOnlySpan<char> resolvedName = fileSystem.RelativePathToFullPath(resolveNameArg, "game", resolveName);
+				ReadOnlySpan<char> resolvedName = g_pFileSystem.RelativePathToFullPath(resolveNameArg, "game", resolveName);
 				if (resolveName.Length > 0)
 					cur.SetString(KeyName_Path, resolvedName);
 			}

@@ -85,7 +85,7 @@ class TreeNodeText : TextEntry
 		base.OnTick();
 
 		if (ArmForEditing) {
-			long msecSinceArming = System.GetTimeMillis() - ArmingTime;
+			long msecSinceArming = system.GetTimeMillis() - ArmingTime;
 			if (msecSinceArming >= CLICK_TO_EDIT_DELAY_MS) {
 				ArmForEditing = false;
 				WaitingForRelease = false;
@@ -104,7 +104,7 @@ class TreeNodeText : TextEntry
 		if (WaitingForRelease /*&& !IsBeingDragged()*/) { //todo 
 			ArmForEditing = true;
 			WaitingForRelease = false;
-			ArmingTime = System.GetTimeMillis();
+			ArmingTime = system.GetTimeMillis();
 			VGui.AddTickSignal(this);
 		}
 		else

@@ -84,7 +84,7 @@ class PageTab : Button
 	}
 
 	public override void OnCursorEntered() {
-		DropHoverTime = System.GetTimeMillis();
+		DropHoverTime = system.GetTimeMillis();
 	}
 
 	public override void OnCursorExited() {
@@ -93,7 +93,7 @@ class PageTab : Button
 
 	public override void OnThink() {
 		if (AttemptingDrop && HoverActivePageTime >= 0 && DropHoverTime >= 0) {
-			long hoverTime = System.GetTimeMillis() - DropHoverTime;
+			long hoverTime = system.GetTimeMillis() - DropHoverTime;
 			if (hoverTime > HoverActivePageTime) {
 				FireActionSignal();
 				SetSelected(true);

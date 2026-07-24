@@ -752,7 +752,7 @@ public class BaseHudChat : EditableHudElement
 		ChatInput.SetMouseInputEnabled(true);
 
 		GetChatHistory().GetBounds(out int x, out int y, out int w, out int h);
-		Input.SetCursorPos(x + (w / 2), y + (h / 2));
+		vguiInput.SetCursorPos(x + (w / 2), y + (h / 2));
 
 		HistoryFadeTime = gpGlobals.CurTime + CHAT_HISTORY_FADE_TIME;
 

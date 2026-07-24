@@ -6,10 +6,6 @@ namespace Source.GUI.Controls;
 
 public class BaseTooltip : IDisposable
 {
-	public ISystem System = Singleton<ISystem>();
-	public IVGuiInput Input = Singleton<IVGuiInput>();
-	public ISurface Surface = Singleton<ISurface>();
-
 	Panel Parent;
 	public string Text;
 	long Delay;
@@ -44,7 +40,7 @@ public class BaseTooltip : IDisposable
 
 	public void ResetDelay() {
 		IsDirty = true;
-		Delay = System.GetTimeMillis() + GetTooltipDelay();
+		Delay = system.GetTimeMillis() + GetTooltipDelay();
 	}
 
 	public void SetTooltipDelay(int tooltipDelay) => TooltipDelayOverride = tooltipDelay;
@@ -72,7 +68,7 @@ public class BaseTooltip : IDisposable
 		if (!MakeVisible)
 			return false;
 
-		if (Delay > System.GetTimeMillis())
+		if (Delay > system.GetTimeMillis())
 			return false;
 
 		return IsDirty;

@@ -244,7 +244,7 @@ public class VisualizeLayoutPanel : Panel
 
 		if (LayoutVisualizations.Count == 0) return;
 
-		double time = System.GetCurrentTime();
+		double time = system.GetCurrentTime();
 		List<Panel> toRemove = [];
 
 		foreach (var (panel, expireTime) in LayoutVisualizations) {

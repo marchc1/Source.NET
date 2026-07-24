@@ -96,8 +96,6 @@ struct HistoryItem
 
 public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 {
-	readonly public ICvar Cvar = Singleton<ICvar>();
-
 	internal RichText History;
 	internal TextEntry Entry;
 	internal Button Submit;
@@ -274,7 +272,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		if (space != -1)
 			command[space] = '\0';
 
-		ConCommand? cmd = Cvar.FindCommand(command.SliceNullTerminatedString());
+		ConCommand? cmd = cvar.FindCommand(command.SliceNullTerminatedString());
 		if (cmd == null)
 			return null;
 
@@ -350,7 +348,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 		}
 
 		if (NormalBuild) {
-			foreach (ConCommandBase cmd in Cvar.GetCommands()) {
+			foreach (ConCommandBase cmd in cvar.GetCommands()) {
 				if (cmd.IsFlagSet(FCvar.DevelopmentOnly) || cmd.IsFlagSet(FCvar.Hidden))
 					continue;
 
@@ -444,7 +442,7 @@ public class ConsolePanel : EditablePanel, IConsoleDisplayFunc
 
 		AutoCompleteMode = false;
 
-		Cvar!.InstallConsoleDisplayFunc(this);
+		cvar!.InstallConsoleDisplayFunc(this);
 	}
 
 

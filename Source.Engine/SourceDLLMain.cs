@@ -8,6 +8,7 @@ using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.GUI;
+using Source.Common.Input;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.Physics;
@@ -76,6 +77,12 @@ public static class SourceDllMain
 	[KeyedDependency(Key = Realm.Client)] public static NetworkStringTableContainer networkStringTableContainerClient { get; private set; } = null!;
 	[Dependency] public static IVideoMode videoMode { get; private set; } = null!;
 	[Dependency] public static IMatSystemSurface surface { get; private set; } = null!;
+	[Dependency] public static ISurface Surface { get; private set; } = null!;
+	[Dependency] public static ISchemeManager SchemeManager { get; private set; } = null!;
+	[Dependency] public static IVGui VGui { get; private set; } = null!;
+	[Dependency] public static IVGuiInput Input { get; private set; } = null!;
+	[Dependency] public static ILocalize Localize { get; private set; } = null!;
+	[Dependency] public static ISystem system { get; private set; } = null!;
 #else
 	public static IClientEntityList entitylist { get; private set; } = null!;
 #endif

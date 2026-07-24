@@ -9,7 +9,6 @@ namespace Source.GUI.Controls;
 public class EditablePanel : Panel
 {
 	public static Panel Create_EditablePanel() => new EditablePanel(null, null, null);
-	readonly public IFileSystem fileSystem = Singleton<IFileSystem>();
 
 	public FocusNavGroup GetFocusNavGroup() => NavGroup;
 	BuildGroup BuildGroup;
@@ -82,7 +81,7 @@ public class EditablePanel : Panel
 	}
 
 	public void LoadUserConfig(ReadOnlySpan<char> configName, int dialogID = 0) {
-		KeyValues? data = System.GetUserConfigFileData(configName, dialogID);
+		KeyValues? data = system.GetUserConfigFileData(configName, dialogID);
 		ConfigName = configName.ToString();
 		ConfigID = dialogID;
 
@@ -94,7 +93,7 @@ public class EditablePanel : Panel
 		if (ConfigName == null)
 			return;
 
-		KeyValues? data = System.GetUserConfigFileData(ConfigName, ConfigID);
+		KeyValues? data = system.GetUserConfigFileData(ConfigName, ConfigID);
 		if (data != null)
 			GetUserConfigSettings(data);
 	}

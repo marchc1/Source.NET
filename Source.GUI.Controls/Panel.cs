@@ -276,20 +276,6 @@ public class Panel : IPanel
 		AnimationPropertyConverters[hash] = converter;
 	}
 
-	// These aren't made readonly since a few internal panel things don't like that.
-	// HACK: FORCE SOME DEPENDENCIES NOT TO LOAD DUE TO CYCLIC DEPENDENCIES.
-	// I REALLY HATE THIS.
-	public static bool AllowDependencyInjection = true;
-	public ISurface Surface = AllowDependencyInjection ? null! : Singleton<ISurface>();
-	public ISchemeManager SchemeManager = AllowDependencyInjection ? null! : Singleton<ISchemeManager>();
-	public IVGui VGui = AllowDependencyInjection ? null! : Singleton<IVGui>();
-	public IVGuiInput Input = AllowDependencyInjection ? null! : Singleton<IVGuiInput>();
-	public IEngineAPI EngineAPI = AllowDependencyInjection ? null! : Singleton<IEngineAPI>();
-	public ILocalize Localize = AllowDependencyInjection ? null! : Singleton<ILocalize>();
-	public ILauncherManager Launcher = AllowDependencyInjection ? null! : Singleton<ILauncherManager>();
-	public ISystem System = AllowDependencyInjection ? null! : Singleton<ISystem>();
-	public IMaterialSystem Materials = AllowDependencyInjection ? null! : Singleton<IMaterialSystem>();
-
 	private AnimationController? ac;
 	public AnimationController GetAnimationController() => ac ??= EngineAPI.GetRequiredService<AnimationController>();
 
@@ -657,7 +643,7 @@ public class Panel : IPanel
 					wide = ComputeTall(panel, ref buildFlags, resourceData, parentWide, parentTall, true);
 
 					if (panel.IsProportional())
-						wide = panel.SchemeManager.GetProportionalNormalizedValue(wide);
+						wide = SchemeManager.GetProportionalNormalizedValue(wide);
 				}
 				else if (str[0] == 'p' || str[0] == 'P') {
 					buildFlags |= BuildModeFlags.SaveWideProportional;
@@ -675,11 +661,11 @@ public class Panel : IPanel
 
 
 			if (0 != (buildFlags & BuildModeFlags.SaveWideProportionalTall)) {
-				wide = panel.SchemeManager.GetProportionalScaledValueEx(panel.GetScheme()!, wide);
+				wide = SchemeManager.GetProportionalScaledValueEx(panel.GetScheme()!, wide);
 				wide = (int)(wide * flWide);
 			}
 			else if (0 != (buildFlags & BuildModeFlags.SaveWideProportional)) {
-				wide = panel.SchemeManager.GetProportionalScaledValueEx(panel.GetScheme()!, wide);
+				wide = SchemeManager.GetProportionalScaledValueEx(panel.GetScheme()!, wide);
 				wide = parentWide - wide;
 				wide = (int)(wide * flWide);
 			}
@@ -688,7 +674,7 @@ public class Panel : IPanel
 			}
 			else {
 				if (panel.IsProportional())
-					wide = panel.SchemeManager.GetProportionalScaledValueEx(panel.GetScheme()!, wide);
+					wide = SchemeManager.GetProportionalScaledValueEx(panel.GetScheme()!, wide);
 
 				if (0 != (buildFlags & BuildModeFlags.SaveWideFull))
 					wide = parentWide - wide;
@@ -717,7 +703,7 @@ public class Panel : IPanel
 					buildFlags |= BuildModeFlags.SaveTallProportionalWide;
 					tall = ComputeWide(panel, ref buildFlags, resourceData, parentWide, parentTall, true);
 					if (panel.IsProportional())
-						tall = panel.SchemeManager.GetProportionalNormalizedValue(tall);
+						tall = SchemeManager.GetProportionalNormalizedValue(tall);
 				}
 				else if (str[0] == 'p' || str[0] == 'P') {
 					buildFlags |= BuildModeFlags.SaveTallProportional;
@@ -734,11 +720,11 @@ public class Panel : IPanel
 				tall = int.TryParse(str, out int __r2) ? __r2 : 0;
 
 			if (0 != (buildFlags & BuildModeFlags.SaveTallProportionalWide)) {
-				tall = panel.SchemeManager.GetProportionalScaledValueEx(panel.GetScheme()!, tall);
+				tall = SchemeManager.GetProportionalScaledValueEx(panel.GetScheme()!, tall);
 				tall = (int)(tall * flTall);
 			}
 			else if (0 != (buildFlags & BuildModeFlags.SaveTallProportional)) {
-				tall = panel.SchemeManager.GetProportionalScaledValueEx(panel.GetScheme()!, tall);
+				tall = SchemeManager.GetProportionalScaledValueEx(panel.GetScheme()!, tall);
 				tall = parentTall - tall;
 				tall = (int)(tall * flTall);
 			}
@@ -747,7 +733,7 @@ public class Panel : IPanel
 			}
 			else {
 				if (panel.IsProportional())
-					tall = panel.SchemeManager.GetProportionalScaledValueEx(panel.GetScheme()!, tall);
+					tall = SchemeManager.GetProportionalScaledValueEx(panel.GetScheme()!, tall);
 
 				if (0 != (buildFlags & BuildModeFlags.SaveTallFull))
 					tall = parentTall - tall;
@@ -789,7 +775,7 @@ public class Panel : IPanel
 			float flProportion = 1;
 			if (panel.IsProportional()) {
 				int nOldPos = newPos;
-				newPos = panel.SchemeManager.GetProportionalScaledValueEx(panel.GetScheme()!, newPos);
+				newPos = SchemeManager.GetProportionalScaledValueEx(panel.GetScheme()!, newPos);
 				flProportion = (float)newPos / nOldPos;
 			}
 
@@ -1541,7 +1527,7 @@ public class Panel : IPanel
 #if DEBUG
 	public static readonly ConVar sdn_vgui_visualizelayout = new("sdn_vgui_visualizelayout", "0", FCvar.None);
 	public static readonly Dictionary<Panel, double> LayoutVisualizations = [];
-	internal void VisualizeLayout(Panel panel) => LayoutVisualizations[panel] = System.GetCurrentTime() + 0.3;
+	internal void VisualizeLayout(Panel panel) => LayoutVisualizations[panel] = system.GetCurrentTime() + 0.3;
 #endif
 
 	static readonly ConVar sdn_vgui_debug = new("0", FCvar.None, "Show debug info for panels under the mouse cursor.");
@@ -2991,14 +2977,12 @@ class ProportialIntProperty : IPanelAnimationPropertyConverter
 }
 class TextureIdProperty : IPanelAnimationPropertyConverter
 {
-	ISurface? _surface;
-	ISurface surface => _surface ??= Singleton<ISurface>();
 	public void GetData(Panel panel, KeyValues kv, ref PanelAnimationMapEntry entry) {
 		object? data = entry.Get(panel);
 		if (data == null) return;
 
 		int currentId = (int)data;
-		if (currentId != -1 && surface.DrawGetTextureFile(currentId, out ReadOnlySpan<char> textureName))
+		if (currentId != -1 && Surface.DrawGetTextureFile(currentId, out ReadOnlySpan<char> textureName))
 			kv.SetString(entry.ScriptName, textureName);
 		else
 			kv.SetString(entry.ScriptName, "");
@@ -3011,10 +2995,10 @@ class TextureIdProperty : IPanelAnimationPropertyConverter
 		string textureName = new(kv.GetString(entry.ScriptName));
 
 		if (!string.IsNullOrEmpty(textureName)) {
-			currentId = surface.DrawGetTextureId(textureName);
+			currentId = Surface.DrawGetTextureId(textureName);
 			if (currentId == -1)
-				currentId = surface.CreateNewTextureID();
-			surface.DrawSetTextureFile(currentId, textureName, 0, true);
+				currentId = Surface.CreateNewTextureID();
+			Surface.DrawSetTextureFile(currentId, textureName, 0, true);
 		}
 
 		entry.Set(panel, (int)currentId);
@@ -3027,10 +3011,10 @@ class TextureIdProperty : IPanelAnimationPropertyConverter
 		string textureName = entry.DefaultValue;
 
 		if (!string.IsNullOrEmpty(textureName)) {
-			currentId = surface.DrawGetTextureId(textureName);
+			currentId = Surface.DrawGetTextureId(textureName);
 			if (currentId == -1)
-				currentId = surface.CreateNewTextureID();
-			surface.DrawSetTextureFile(currentId, textureName, 0, true);
+				currentId = Surface.CreateNewTextureID();
+			Surface.DrawSetTextureFile(currentId, textureName, 0, true);
 		}
 
 		entry.Set(panel, (int)currentId);

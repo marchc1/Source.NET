@@ -206,7 +206,7 @@ public class BaseViewport : EditablePanel, IViewPort
 		ReadOnlySpan<char> file = "scripts/hudanimations_manifest.txt";
 		KeyValues? manifest = new(file);
 
-		if (manifest.LoadFromFile(fileSystem, file, "GAME") == false)
+		if (manifest.LoadFromFile(filesystem, file, "GAME") == false)
 			return false;
 
 		bool clearScript = true;

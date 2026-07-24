@@ -5,8 +5,6 @@ namespace Source.GUI.Controls;
 
 public class FocusNavGroup
 {
-	readonly public IVGui VGui = Singleton<IVGui>();
-	readonly public ISurface Surface = Singleton<ISurface>();
 	readonly WeakReference<Panel?> DefaultButton = new(null);
 	readonly WeakReference<Panel?> CurrentDefaultButton = new(null);
 	readonly WeakReference<Panel?> CurrentFocus = new(null);

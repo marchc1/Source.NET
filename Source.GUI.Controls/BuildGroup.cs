@@ -8,11 +8,6 @@ namespace Source.GUI.Controls;
 
 public class BuildGroup
 {
-	readonly public IFileSystem fileSystem = Singleton<IFileSystem>();
-	readonly public ICommandLine CommandLine = Singleton<ICommandLine>();
-	readonly public IVGui Vgui = Singleton<IVGui>();
-	readonly public IVGuiInput Input = Singleton<IVGuiInput>();
-
 	public string? ResourceName;
 	public string? ResourcePathID;
 	public Panel? BuildContext;
@@ -304,7 +299,7 @@ public class BuildGroup
 		CurrentPanel = ParentPanel;
 		KeyValues keyval = new KeyValues("SetActiveControl");
 		keyval.SetPtr("PanelPtr", GetCurrentPanel());
-		Vgui.PostMessage(BuildDialog, keyval, null);
+		VGui.PostMessage(BuildDialog, keyval, null);
 	}
 
 	public bool IsEnabled() => Enabled;

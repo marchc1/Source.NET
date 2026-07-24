@@ -91,11 +91,11 @@ public class OptionsSubKeyboard : PropertyPage
 		Span<char> binding = stackalloc char[256];
 		Span<char> description = stackalloc char[256];
 
-		long size = fileSystem.Size("scripts/kb_act.lst");
+		long size = g_pFileSystem.Size("scripts/kb_act.lst");
 		if (size <= 0) return;
 
 		Span<byte> fileData = stackalloc byte[(int)size];
-		if (!fileSystem.ReadFile("scripts/kb_act.lst", null, fileData.AsBytes(), 0))
+		if (!g_pFileSystem.ReadFile("scripts/kb_act.lst", null, fileData.AsBytes(), 0))
 			return;
 
 		ReadOnlySpan<byte> data = fileData;
@@ -258,11 +258,11 @@ public class OptionsSubKeyboard : PropertyPage
 	}
 
 	public void FillInDefaultBindings() {
-		long size = fileSystem.Size("cfg/config_default.cfg");
+		long size = g_pFileSystem.Size("cfg/config_default.cfg");
 		if (size <= 0) return;
 
 		Span<byte> fileData = stackalloc byte[(int)size];
-		if (!fileSystem.ReadFile("cfg/config_default.cfg", null, fileData.AsBytes(), 0))
+		if (!g_pFileSystem.ReadFile("cfg/config_default.cfg", null, fileData.AsBytes(), 0))
 			return;
 
 		ClearBindItems();

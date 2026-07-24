@@ -563,7 +563,7 @@ public class RichText : Panel
 			if (ResetFades == false) {
 				ref Fade fade = ref FormatStream.AsSpan()[renderState.FormatStreamIndex].Fade;
 				if (fade.FadeLength != -1.0f) {
-					float frac = (float)((fade.FadeStartTime - System.GetCurrentTime()) / fade.FadeLength);
+					float frac = (float)((fade.FadeStartTime - system.GetCurrentTime()) / fade.FadeLength);
 
 					int alpha = (int)(frac * fade.OriginalAlpha);
 					alpha = Math.Clamp(alpha, 0, fade.OriginalAlpha);
@@ -936,13 +936,13 @@ public class RichText : Panel
 			for (int i = 1; i < formatStream.Length; i++) {
 				ref FormatStreamPiece streamPiece = ref formatStream[i];
 				if (onlyExpired == true)
-					if (streamPiece.Fade.FadeStartTime >= System.GetCurrentTime())
+					if (streamPiece.Fade.FadeStartTime >= system.GetCurrentTime())
 						continue;
 
 				if (newSustain == -1.0f)
 					newSustain = streamPiece.Fade.FadeSustain;
 
-				streamPiece.Fade.FadeStartTime = System.GetCurrentTime() + newSustain;
+				streamPiece.Fade.FadeStartTime = system.GetCurrentTime() + newSustain;
 			}
 		}
 	}
@@ -950,7 +950,7 @@ public class RichText : Panel
 		Span<FormatStreamPiece> formatStream = FormatStream.AsSpan();
 		ref FormatStreamPiece prevItem = ref formatStream[^1];
 		if (prevItem.TextStreamIndex == TextStream.Count) {
-			prevItem.Fade.FadeStartTime = System.GetCurrentTime() + sustain;
+			prevItem.Fade.FadeStartTime = system.GetCurrentTime() + sustain;
 			prevItem.Fade.FadeSustain = sustain;
 			prevItem.Fade.FadeLength = length;
 			prevItem.Fade.OriginalAlpha = prevItem.Color.A;
@@ -958,7 +958,7 @@ public class RichText : Panel
 		else {
 			FormatStreamPiece streamItem = prevItem;
 
-			prevItem.Fade.FadeStartTime = System.GetCurrentTime() + sustain;
+			prevItem.Fade.FadeStartTime = system.GetCurrentTime() + sustain;
 			prevItem.Fade.FadeLength = length;
 			prevItem.Fade.FadeSustain = sustain;
 			prevItem.Fade.OriginalAlpha = prevItem.Color.A;
