@@ -66,20 +66,27 @@ public class HttpDownloader(IFileSystem fileSystem, ICvar cvar)
 		ConMsg($"Downloading '{relativePath}' from {url}\n");
 
 		try {
-			using HttpResponseMessage response = http.GetAsync(url).GetAwaiter().GetResult();
+			using HttpResponseMessage response = WaitWithPump(http.GetAsync(url));
 			if (!response.IsSuccessStatusCode) {
 				if (!(quietNotFound && response.StatusCode == System.Net.HttpStatusCode.NotFound))
 					Warning($"Download failed ({(int)response.StatusCode} {response.ReasonPhrase}): {url}\n");
 				return false;
 			}
 
-			data = response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+			data = WaitWithPump(response.Content.ReadAsByteArrayAsync());
 			return true;
 		}
 		catch (Exception ex) {
 			Warning($"Download failed: {url} ({ex.Message})\n");
 			return false;
 		}
+	}
+
+	static T WaitWithPump<T>(Task<T> task) {
+		while (!task.Wait(15))
+			Singleton<ClientLauncherAPI>().PumpMessages();
+
+		return task.GetAwaiter().GetResult();
 	}
 
 	bool WriteFile(string relative, byte[] data) {
