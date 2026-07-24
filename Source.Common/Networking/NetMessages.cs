@@ -1168,17 +1168,12 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 					buffer.ReadBits(NetMessage.Data.Span, toRead);
 				break;
 			case GModMessageType.LuaAutoRefresh:
-
-
+				Warning($"LuaAutoRefresh needs to be implemented!\n");
 				break;
 			case GModMessageType.LuaError:
-
-
+				Warning($"LuaError needs to be implemented!\n");
 				break;
-			case GModMessageType.RequestLuaFiles:
-
-
-				break;
+			case GModMessageType.RequestLuaFiles: /* no body */  break;
 			case GModMessageType.LuaFile:
 				ReadLuaFile(buffer, endBit);
 				break;
@@ -1192,7 +1187,8 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 		int bits = 8;
 		switch (MessageType) {
 			case GModMessageType.NetMessage:
-
+				bits += sizeof(ushort) * 8;
+				bits += NetMessage.Data.Length * 8;
 				break;
 			case GModMessageType.LuaAutoRefresh:
 
@@ -1200,9 +1196,7 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 			case GModMessageType.LuaError:
 
 				break;
-			case GModMessageType.RequestLuaFiles:
-
-				break;
+			case GModMessageType.RequestLuaFiles: /* no body */  break;
 			case GModMessageType.LuaFile:
 				bits += GetLuaFileMessageBits();
 				break;
@@ -1216,17 +1210,16 @@ public abstract class BaseGModNetMessage(int type, GModMessageType messageType) 
 		// Send value
 		switch (MessageType) {
 			case GModMessageType.NetMessage:
-
+				buffer.WriteWord(NetMessage.NetMessageID);
+				buffer.WriteBits(NetMessage.Data.Span, NetMessage.Data.Length * 8);
 				break;
 			case GModMessageType.LuaAutoRefresh:
-
+				Warning($"LuaAutoRefresh needs to be implemented!\n");
 				break;
 			case GModMessageType.LuaError:
-
+				Warning($"LuaAutoRefresh needs to be implemented!\n");
 				break;
-			case GModMessageType.RequestLuaFiles:
-
-				break;
+			case GModMessageType.RequestLuaFiles: /* no body */  break;
 			case GModMessageType.LuaFile:
 				WriteLuaFile(buffer);
 				break;

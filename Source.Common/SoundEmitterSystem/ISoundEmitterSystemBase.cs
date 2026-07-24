@@ -45,15 +45,21 @@ public struct Interval
 
 		int comma = str.IndexOf(',');
 		if (comma >= 0) {
-			float.TryParse(str.Slice(0, comma), out tmp.Start);
-			float.TryParse(str.Slice(comma + 1), out float range);
+			float.TryParse(str[..comma], out tmp.Start);
+			float.TryParse(str[(comma + 1)..], out float range);
 			tmp.Range = range - tmp.Start;
 		}
-		else if (str.Length > 0) {
+		else if (!str.IsEmpty)
 			float.TryParse(str, out tmp.Start);
-		}
 
 		return tmp;
+	}
+
+	public static float Random(in Interval interval) {
+		float ret = interval.Start;
+		if (interval.Range != 0)
+			ret += RandomFloat(0, interval.Range);
+		return ret;
 	}
 }
 
