@@ -8,8 +8,8 @@ using Source.Common.Engine;
 using Source.Common.Hashing;
 using Source.Common.Networking;
 using Source.Common.Server;
+using Source.Common.Steam;
 using Source.Common.Utilities;
-using Source.Engine.Steam;
 
 using Steamworks;
 

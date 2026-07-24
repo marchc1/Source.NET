@@ -6,6 +6,8 @@ using Steamworks;
 
 namespace Source.Common.GarrysMod;
 
+public interface IMotionSensor; // todo
+
 public interface IGet
 {
 	void OnLoadFailed( ReadOnlySpan<char> reason );
@@ -41,7 +43,7 @@ public interface IGet
 	ReadOnlySpan<char> VersionStr();
 	IGMod_Audio Audio();
 	ReadOnlySpan<char> VersionTimeStr();
-	IAnalytics Analytics();
+	// IAnalytics Analytics();
 	void UpdateRichPresense( ReadOnlySpan<char> status );
 	void ResetRichPresense();
 	void FilterText(ReadOnlySpan<char> unk1, Span<char> unk2, /*There was an int here: I am guessing it is unk2's size.*/ ETextFilteringContext unk3, CSteamID unk4);

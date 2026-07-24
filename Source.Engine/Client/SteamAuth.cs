@@ -1,7 +1,6 @@
 ﻿global using static Source.Engine.Client.Steam3ClientAccessor;
 
 using Source.Common.Steam;
-using Source.Engine.Steam;
 
 using Steamworks;
 

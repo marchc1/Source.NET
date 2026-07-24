@@ -1,5 +1,6 @@
 ﻿using Steamworks;
 
+using static Source.Common.Steam.SteamworksExts;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -7,7 +8,7 @@ using System.Runtime.InteropServices;
 namespace Source.Common.Steam;
 
 // I am very annoyed
-class SteamworksDotNetBoasts100PercentCoverageOfTheNativeSteamworksAPIAcrossAllInterfaces
+public class SteamworksDotNetBoasts100PercentCoverageOfTheNativeSteamworksAPIAcrossAllInterfaces
 {
 	[DllImport("steam_api64", CallingConvention = CallingConvention.Cdecl)] public static extern void SteamGameServer_RunCallbacks();
 	[DllImport("steam_api64", CallingConvention = CallingConvention.Cdecl)] public static extern void SteamAPI_SetBreakpadAppID(uint unAppID);
@@ -16,7 +17,7 @@ class SteamworksDotNetBoasts100PercentCoverageOfTheNativeSteamworksAPIAcrossAllI
 // These are some hacks to access the internal pointers for steamclient
 // since we need to test if these are available (but don't want to try/catch exceptions,
 // for performance reasons)
-class SteamworksExts
+public class SteamworksExts
 {
 	delegate IntPtr GetPtrFn();
 

@@ -4,6 +4,6 @@ public interface LuaCurlHTTPRequest {
 	void Run();
 	void OnThreadFinished();
 	bool IsFinished();
-	void DoFinish(ILuaBase luaBase);
+	void DoFinish(Lua.ILuaBase luaBase);
 	void DestroyForced();
 }

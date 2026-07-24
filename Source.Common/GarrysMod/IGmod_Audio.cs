@@ -1,4 +1,5 @@
-﻿using Source.Common.GarrysMod;
+﻿using Source.Common.Audio;
+using Source.Common.GarrysMod;
 
 using System.Numerics;
 

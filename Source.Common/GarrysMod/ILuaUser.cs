@@ -3,5 +3,5 @@
 public interface ILuaUser
 {
 	bool IsUsingLua();
-	void InitLibraries(ILuaInterface unk1);
+	void InitLibraries(Lua.ILuaInterface unk1);
 }
