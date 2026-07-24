@@ -378,9 +378,7 @@ public partial class Input(ISurface Surface, IViewRender view, ThirdPersonManage
 				return 0;
 		}
 
-		clientMode?.KeyInput(down, code, currentBinding);
-
-		return 1;
+		return clientMode?.KeyInput(down, code, currentBinding) ?? 1;
 	}
 
 	public void ExtraMouseSample(double frametime, bool active) {
