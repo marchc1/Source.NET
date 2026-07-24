@@ -548,7 +548,7 @@ public struct BSPMSurfaceLighting
 {
 	public nint SurfNum;
 
-	public unsafe Span<ColorRGBExp32> AvgLightColor(int lightStyleIndex) {
+	public Span<ColorRGBExp32> AvgLightColor(int lightStyleIndex) {
 		if (lightStyleIndex < 0 || lightStyleIndex >= (Samples.Length))
 			throw new IndexOutOfRangeException();
 
@@ -638,6 +638,36 @@ public struct LightZBuffer
 	const int SHADOW_ZBUF_RES = 8;
 	public InlineArray384<LightShadowZBufferSample> Samples;
 	public unsafe ref LightShadowZBufferSample this[int face, int x, int y] => ref Samples[face * SHADOW_ZBUF_RES * SHADOW_ZBUF_RES + x * SHADOW_ZBUF_RES + y];
+
+	public void GetCoords(in Vector3 vecNormalizedDirection, out int nX, out int nY, out int nFace) {
+		int nLargest = 0;
+		int nAxis0 = 1;
+		int nAxis1 = 2;
+		if (MathF.Abs(vecNormalizedDirection[1]) > MathF.Abs(vecNormalizedDirection[0])) {
+			nLargest = 1;
+			nAxis0 = 0;
+			nAxis1 = 2;
+		}
+		if (MathF.Abs(vecNormalizedDirection[2]) > MathF.Abs(vecNormalizedDirection[nLargest])) {
+			nLargest = 2;
+			nAxis0 = 0;
+			nAxis1 = 1;
+		}
+		float flZ = vecNormalizedDirection[nLargest];
+		if (flZ < 0) {
+			flZ = -flZ;
+			nLargest += 3;
+		}
+		nFace = nLargest;
+		flZ = 1.0f / flZ;
+		nX = (int)MathLib.RemapValClamped(vecNormalizedDirection[nAxis0] * flZ, -1, 1, 0, SHADOW_ZBUF_RES - 1);
+		nY = (int)MathLib.RemapValClamped(vecNormalizedDirection[nAxis1] * flZ, -1, 1, 0, SHADOW_ZBUF_RES - 1);
+	}
+
+	public ref LightShadowZBufferSample GetSample(in Vector3 vecNormalizedDirection) {
+		GetCoords(vecNormalizedDirection, out int nX, out int nY, out int nFace);
+		return ref this[nFace, nX, nY];
+	}
 }
 
 public interface IDispInfo
@@ -1046,9 +1076,15 @@ public enum EmitType
 
 public record struct BSPDWorldLightPtr
 {
-	public readonly WorldBrushData Data;
+	public readonly BSPDWorldLight[] Lights;
 	public readonly nint Index;
-	public readonly ref BSPDWorldLight Dereference() => ref Data.WorldLights![Index];
+
+	public BSPDWorldLightPtr(BSPDWorldLight[] lights, nint index) {
+		Lights = lights;
+		Index = index;
+	}
+
+	public readonly ref BSPDWorldLight Dereference() => ref Lights[Index];
 }
 
 /// <summary>

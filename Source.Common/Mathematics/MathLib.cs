@@ -441,6 +441,13 @@ public static class MathLib
 		return Mathlib_GammaToLinear[index];
 	}
 
+	public static byte LinearToLightmap(float f) {
+		int i = RoundFloatToInt(f * 1024.0f);
+		if ((uint)i > 4095)
+			i = i < 0 ? 0 : 4095;
+		return lineartolightmap[i];
+	}
+
 	public static float LinearToGamma(float linear) {
 		Assert(MathlibInitialized);
 		if (linear < 0.0f) {
@@ -1247,6 +1254,40 @@ public static class MathLib
 		closestOut.Z = Math.Clamp(point.Z, mins.Z, maxs.Z);
 	}
 
+	public static float CalcSqrDistanceToAABB(in Vector3 mins, in Vector3 maxs, in Vector3 point) {
+		float delta;
+		float distSqr = 0.0f;
+
+		if (point.X < mins.X) {
+			delta = mins.X - point.X;
+			distSqr += delta * delta;
+		}
+		else if (point.X > maxs.X) {
+			delta = point.X - maxs.X;
+			distSqr += delta * delta;
+		}
+
+		if (point.Y < mins.Y) {
+			delta = mins.Y - point.Y;
+			distSqr += delta * delta;
+		}
+		else if (point.Y > maxs.Y) {
+			delta = point.Y - maxs.Y;
+			distSqr += delta * delta;
+		}
+
+		if (point.Z < mins.Z) {
+			delta = mins.Z - point.Z;
+			distSqr += delta * delta;
+		}
+		else if (point.Z > maxs.Z) {
+			delta = point.Z - maxs.Z;
+			distSqr += delta * delta;
+		}
+
+		return distSqr;
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector2 v) => !Vector2.AnyWhereAllBitsSet(Vector2.IsNaN(v));
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector3 v) => !Vector3.AnyWhereAllBitsSet(Vector3.IsNaN(v));
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsValid(this ref Vector4 v) => !Vector4.AnyWhereAllBitsSet(Vector4.IsNaN(v));
@@ -1706,6 +1747,16 @@ public static class MathLib
 		);
 
 		return Vector3.Add(dotResult, translation);
+	}
+
+	public static void VectorITransform(in Vector3 in1, in Matrix3x4 in2, out Vector3 vecOut) {
+		Vector3 in1t = new(in1.X - in2.M03, in1.Y - in2.M13, in1.Z - in2.M23);
+
+		vecOut = new(
+			in1t.X * in2.M00 + in1t.Y * in2.M10 + in1t.Z * in2.M20,
+			in1t.X * in2.M01 + in1t.Y * in2.M11 + in1t.Z * in2.M21,
+			in1t.X * in2.M02 + in1t.Y * in2.M12 + in1t.Z * in2.M22
+		);
 	}
 
 	public static void TransformAABB(in Matrix3x4 transform, in Vector3 minsIn, in Vector3 maxsIn, out Vector3 minsOut, out Vector3 maxsOut) {
@@ -2355,6 +2406,8 @@ public static class MathLib
 		dst.Z = src1[2][0] * src2.X + src1[2][1] * src2.Y + src1[2][2] * src2.Z + src1[2][3];
 	}
 
+	public static byte FastFToC(float c) => (byte)(int)(c * 255.0f);
+
 	public static float LinearToVertexLight(float f) {
 		int i = RoundFloatToInt(f * 1024f);
 
@@ -2367,6 +2420,172 @@ public static class MathLib
 
 		return lineartovertex[i];
 	}
+
+	const int NUMVERTEXNORMALS = 162;
+	public static readonly Vector3[] Anorms = [
+		new(-0.525731f, 0.000000f, 0.850651f),
+		new(-0.442863f, 0.238856f, 0.864188f),
+		new(-0.295242f, 0.000000f, 0.955423f),
+		new(-0.309017f, 0.500000f, 0.809017f),
+		new(-0.162460f, 0.262866f, 0.951056f),
+		new(0.000000f, 0.000000f, 1.000000f),
+		new(0.000000f, 0.850651f, 0.525731f),
+		new(-0.147621f, 0.716567f, 0.681718f),
+		new(0.147621f, 0.716567f, 0.681718f),
+		new(0.000000f, 0.525731f, 0.850651f),
+		new(0.309017f, 0.500000f, 0.809017f),
+		new(0.525731f, 0.000000f, 0.850651f),
+		new(0.295242f, 0.000000f, 0.955423f),
+		new(0.442863f, 0.238856f, 0.864188f),
+		new(0.162460f, 0.262866f, 0.951056f),
+		new(-0.681718f, 0.147621f, 0.716567f),
+		new(-0.809017f, 0.309017f, 0.500000f),
+		new(-0.587785f, 0.425325f, 0.688191f),
+		new(-0.850651f, 0.525731f, 0.000000f),
+		new(-0.864188f, 0.442863f, 0.238856f),
+		new(-0.716567f, 0.681718f, 0.147621f),
+		new(-0.688191f, 0.587785f, 0.425325f),
+		new(-0.500000f, 0.809017f, 0.309017f),
+		new(-0.238856f, 0.864188f, 0.442863f),
+		new(-0.425325f, 0.688191f, 0.587785f),
+		new(-0.716567f, 0.681718f, -0.147621f),
+		new(-0.500000f, 0.809017f, -0.309017f),
+		new(-0.525731f, 0.850651f, 0.000000f),
+		new(0.000000f, 0.850651f, -0.525731f),
+		new(-0.238856f, 0.864188f, -0.442863f),
+		new(0.000000f, 0.955423f, -0.295242f),
+		new(-0.262866f, 0.951056f, -0.162460f),
+		new(0.000000f, 1.000000f, 0.000000f),
+		new(0.000000f, 0.955423f, 0.295242f),
+		new(-0.262866f, 0.951056f, 0.162460f),
+		new(0.238856f, 0.864188f, 0.442863f),
+		new(0.262866f, 0.951056f, 0.162460f),
+		new(0.500000f, 0.809017f, 0.309017f),
+		new(0.238856f, 0.864188f, -0.442863f),
+		new(0.262866f, 0.951056f, -0.162460f),
+		new(0.500000f, 0.809017f, -0.309017f),
+		new(0.850651f, 0.525731f, 0.000000f),
+		new(0.716567f, 0.681718f, 0.147621f),
+		new(0.716567f, 0.681718f, -0.147621f),
+		new(0.525731f, 0.850651f, 0.000000f),
+		new(0.425325f, 0.688191f, 0.587785f),
+		new(0.864188f, 0.442863f, 0.238856f),
+		new(0.688191f, 0.587785f, 0.425325f),
+		new(0.809017f, 0.309017f, 0.500000f),
+		new(0.681718f, 0.147621f, 0.716567f),
+		new(0.587785f, 0.425325f, 0.688191f),
+		new(0.955423f, 0.295242f, 0.000000f),
+		new(1.000000f, 0.000000f, 0.000000f),
+		new(0.951056f, 0.162460f, 0.262866f),
+		new(0.850651f, -0.525731f, 0.000000f),
+		new(0.955423f, -0.295242f, 0.000000f),
+		new(0.864188f, -0.442863f, 0.238856f),
+		new(0.951056f, -0.162460f, 0.262866f),
+		new(0.809017f, -0.309017f, 0.500000f),
+		new(0.681718f, -0.147621f, 0.716567f),
+		new(0.850651f, 0.000000f, 0.525731f),
+		new(0.864188f, 0.442863f, -0.238856f),
+		new(0.809017f, 0.309017f, -0.500000f),
+		new(0.951056f, 0.162460f, -0.262866f),
+		new(0.525731f, 0.000000f, -0.850651f),
+		new(0.681718f, 0.147621f, -0.716567f),
+		new(0.681718f, -0.147621f, -0.716567f),
+		new(0.850651f, 0.000000f, -0.525731f),
+		new(0.809017f, -0.309017f, -0.500000f),
+		new(0.864188f, -0.442863f, -0.238856f),
+		new(0.951056f, -0.162460f, -0.262866f),
+		new(0.147621f, 0.716567f, -0.681718f),
+		new(0.309017f, 0.500000f, -0.809017f),
+		new(0.425325f, 0.688191f, -0.587785f),
+		new(0.442863f, 0.238856f, -0.864188f),
+		new(0.587785f, 0.425325f, -0.688191f),
+		new(0.688191f, 0.587785f, -0.425325f),
+		new(-0.147621f, 0.716567f, -0.681718f),
+		new(-0.309017f, 0.500000f, -0.809017f),
+		new(0.000000f, 0.525731f, -0.850651f),
+		new(-0.525731f, 0.000000f, -0.850651f),
+		new(-0.442863f, 0.238856f, -0.864188f),
+		new(-0.295242f, 0.000000f, -0.955423f),
+		new(-0.162460f, 0.262866f, -0.951056f),
+		new(0.000000f, 0.000000f, -1.000000f),
+		new(0.295242f, 0.000000f, -0.955423f),
+		new(0.162460f, 0.262866f, -0.951056f),
+		new(-0.442863f, -0.238856f, -0.864188f),
+		new(-0.309017f, -0.500000f, -0.809017f),
+		new(-0.162460f, -0.262866f, -0.951056f),
+		new(0.000000f, -0.850651f, -0.525731f),
+		new(-0.147621f, -0.716567f, -0.681718f),
+		new(0.147621f, -0.716567f, -0.681718f),
+		new(0.000000f, -0.525731f, -0.850651f),
+		new(0.309017f, -0.500000f, -0.809017f),
+		new(0.442863f, -0.238856f, -0.864188f),
+		new(0.162460f, -0.262866f, -0.951056f),
+		new(0.238856f, -0.864188f, -0.442863f),
+		new(0.500000f, -0.809017f, -0.309017f),
+		new(0.425325f, -0.688191f, -0.587785f),
+		new(0.716567f, -0.681718f, -0.147621f),
+		new(0.688191f, -0.587785f, -0.425325f),
+		new(0.587785f, -0.425325f, -0.688191f),
+		new(0.000000f, -0.955423f, -0.295242f),
+		new(0.000000f, -1.000000f, 0.000000f),
+		new(0.262866f, -0.951056f, -0.162460f),
+		new(0.000000f, -0.850651f, 0.525731f),
+		new(0.000000f, -0.955423f, 0.295242f),
+		new(0.238856f, -0.864188f, 0.442863f),
+		new(0.262866f, -0.951056f, 0.162460f),
+		new(0.500000f, -0.809017f, 0.309017f),
+		new(0.716567f, -0.681718f, 0.147621f),
+		new(0.525731f, -0.850651f, 0.000000f),
+		new(-0.238856f, -0.864188f, -0.442863f),
+		new(-0.500000f, -0.809017f, -0.309017f),
+		new(-0.262866f, -0.951056f, -0.162460f),
+		new(-0.850651f, -0.525731f, 0.000000f),
+		new(-0.716567f, -0.681718f, -0.147621f),
+		new(-0.716567f, -0.681718f, 0.147621f),
+		new(-0.525731f, -0.850651f, 0.000000f),
+		new(-0.500000f, -0.809017f, 0.309017f),
+		new(-0.238856f, -0.864188f, 0.442863f),
+		new(-0.262866f, -0.951056f, 0.162460f),
+		new(-0.864188f, -0.442863f, 0.238856f),
+		new(-0.809017f, -0.309017f, 0.500000f),
+		new(-0.688191f, -0.587785f, 0.425325f),
+		new(-0.681718f, -0.147621f, 0.716567f),
+		new(-0.442863f, -0.238856f, 0.864188f),
+		new(-0.587785f, -0.425325f, 0.688191f),
+		new(-0.309017f, -0.500000f, 0.809017f),
+		new(-0.147621f, -0.716567f, 0.681718f),
+		new(-0.425325f, -0.688191f, 0.587785f),
+		new(-0.162460f, -0.262866f, 0.951056f),
+		new(0.442863f, -0.238856f, 0.864188f),
+		new(0.162460f, -0.262866f, 0.951056f),
+		new(0.309017f, -0.500000f, 0.809017f),
+		new(0.147621f, -0.716567f, 0.681718f),
+		new(0.000000f, -0.525731f, 0.850651f),
+		new(0.425325f, -0.688191f, 0.587785f),
+		new(0.587785f, -0.425325f, 0.688191f),
+		new(0.688191f, -0.587785f, 0.425325f),
+		new(-0.955423f, 0.295242f, 0.000000f),
+		new(-0.951056f, 0.162460f, 0.262866f),
+		new(-1.000000f, 0.000000f, 0.000000f),
+		new(-0.850651f, 0.000000f, 0.525731f),
+		new(-0.955423f, -0.295242f, 0.000000f),
+		new(-0.951056f, -0.162460f, 0.262866f),
+		new(-0.864188f, 0.442863f, -0.238856f),
+		new(-0.951056f, 0.162460f, -0.262866f),
+		new(-0.809017f, 0.309017f, -0.500000f),
+		new(-0.864188f, -0.442863f, -0.238856f),
+		new(-0.951056f, -0.162460f, -0.262866f),
+		new(-0.809017f, -0.309017f, -0.500000f),
+		new(-0.681718f, 0.147621f, -0.716567f),
+		new(-0.681718f, -0.147621f, -0.716567f),
+		new(-0.850651f, 0.000000f, -0.525731f),
+		new(-0.688191f, 0.587785f, -0.425325f),
+		new(-0.587785f, 0.425325f, -0.688191f),
+		new(-0.425325f, 0.688191f, -0.587785f),
+		new(-0.425325f, -0.688191f, -0.587785f),
+		new(-0.587785f, -0.425325f, -0.688191f),
+		new(-0.688191f, -0.587785f, -0.425325f)
+	];
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 16, Size = sizeof(float) * 4 * 3)]

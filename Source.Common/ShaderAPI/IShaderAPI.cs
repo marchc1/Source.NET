@@ -70,7 +70,7 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void BeginFrame();
 	void EndFrame();
 	int GetCurrentDynamicVBSize();
-	void TexImage2D(int mip, int face,  ImageFormat dstFormat, int zOffset, int width, int height, ImageFormat srcFormat, bool srcIsTiled, Span<byte> imageData);
+	void TexImage2D(int mip, int face, ImageFormat dstFormat, int zOffset, int width, int height, ImageFormat srcFormat, bool srcIsTiled, Span<byte> imageData);
 	void TexSubImage2D(int mip, int face, int x, int y, int z, int width, int height, ImageFormat srcFormat, int srcStride, Span<byte> imageData);
 	bool DoRenderTargetsNeedSeparateDepthBuffer();
 	void EnableLinearColorSpaceFrameBuffer(bool v);
@@ -131,4 +131,10 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void SetStandardTextureHandle(StandardTextureId id, int handle);
 	float LinearToGamma_HardwareSpecific(float fLookupResult);
 	void SetLinearToGammaConversionTextures(int linearToGammaTableTextureHandle, int linearToGammaIdentityTableTextureHandle);
+	void SetAmbientLightCube(ReadOnlySpan<System.Numerics.Vector4> cube);
+	void SetLightingOrigin(System.Numerics.Vector3 lightingOrigin);
+	void SetAmbientLight(float r, float g, float b);
+	void SetLight(int lightNum, in LightDesc desc);
+	void DisableAllLocalLights();
+	int GetMaxLights();
 }

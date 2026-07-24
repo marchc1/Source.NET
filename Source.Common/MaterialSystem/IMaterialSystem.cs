@@ -42,6 +42,13 @@ public enum MaterialFogMode
 	LinearBelowFogZ
 }
 
+public enum MaterialHeightClipMode
+{
+	Disable,
+	RenderAboveHeight,
+	RenderBelowHeight
+}
+
 public enum ShaderParamType
 {
 	Texture,
@@ -327,6 +334,7 @@ public interface IMatRenderContext
 	void GetWindowSize(out int w, out int h);
 	ITexture? GetRenderTarget();
 	IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material);
+	void DestroyStaticMesh(IMesh mesh);
 	int GetMaxVerticesToRender(IMaterial material);
 	int GetMaxIndicesToRender();
 	void LoadMatrix(in Matrix3x4 matrix);
@@ -334,12 +342,19 @@ public interface IMatRenderContext
 	float ComputePixelDiameterOfSphere(Vector3 origin, float radius);
 	float ComputePixelWidthOfSphere(Vector3 origin, float radius);
 	void SetNumBoneWeights(int v);
+	void SetAmbientLightCube(ReadOnlySpan<Vector4> cube);
 	void LoadBoneMatrix(int hardwareID, in Matrix3x4 matrix4x4);
 	void GetWorldSpaceCameraPosition(out Vector3 vecCameraPos);
 	void BindLightmapPage(int lightmapPageID);
 	void BindLightmap(Sampler sampler);
 	void BindStandardTexture(Sampler sampler, StandardTextureId id);
 	void BindLocalCubemap(ITexture tex);
+	ITexture? GetLocalCubemap();
+	void SetLightingOrigin(Vector3 lightingOrigin);
+	void SetAmbientLight(float r, float g, float b);
+	void SetLight(int lightNum, in Source.Common.Mathematics.LightDesc desc);
+	void DisableAllLocalLights();
+	int GetMaxLights();
 }
 
 public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
@@ -402,6 +417,8 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 
 	public IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material = null) => ctx.CreateStaticMesh(format, textureGroup, material);
 
+	public void DestroyStaticMesh(IMesh mesh) => ctx.DestroyStaticMesh(mesh);
+
 	public int GetMaxVerticesToRender(IMaterial material) => ctx.GetMaxVerticesToRender(material);
 	public int GetMaxIndicesToRender() => ctx.GetMaxIndicesToRender();
 
@@ -418,6 +435,7 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public float ComputePixelWidthOfSphere(Vector3 origin, float radius) => ctx.ComputePixelWidthOfSphere(origin, radius);
 
 	public void SetNumBoneWeights(int v) => ctx.SetNumBoneWeights(v);
+	public void SetAmbientLightCube(ReadOnlySpan<Vector4> cube) => ctx.SetAmbientLightCube(cube);
 
 	public void LoadBoneMatrix(int hardwareID, in Matrix3x4 matrix) => ctx.LoadBoneMatrix(hardwareID, in matrix);
 
@@ -427,4 +445,10 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 
 	public void BindStandardTexture(Sampler sampler, StandardTextureId id) => ctx.BindStandardTexture(sampler, id);
 	public void BindLocalCubemap(ITexture texture) => ctx.BindLocalCubemap(texture);
+	public ITexture? GetLocalCubemap() => ctx.GetLocalCubemap();
+	public void SetLightingOrigin(Vector3 lightingOrigin) => ctx.SetLightingOrigin(lightingOrigin);
+	public void SetAmbientLight(float r, float g, float b) => ctx.SetAmbientLight(r, g, b);
+	public void SetLight(int lightNum, in Mathematics.LightDesc desc) => ctx.SetLight(lightNum, desc);
+	public void DisableAllLocalLights() => ctx.DisableAllLocalLights();
+	public int GetMaxLights() => ctx.GetMaxLights();
 }

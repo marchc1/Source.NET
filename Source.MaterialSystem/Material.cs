@@ -71,6 +71,7 @@ public class Material : IMaterialInternal
 		}
 		ShaderParams = null;
 		MappingWidth = MappingHeight = 0;
+		Reflectivity = new(0.2f, 0.2f, 0.2f);
 		if (keyValues != null) {
 			flags |= MaterialFlags.IsManuallyCreated;
 		}
@@ -209,12 +210,8 @@ public class Material : IMaterialInternal
 		IMaterialVar? textureVar = FindVar("$basetexture", out found, false);
 		if (found && textureVar.GetVarType() == MaterialVarType.Texture) {
 			ITextureInternal? texture = (ITextureInternal?)textureVar.GetTextureValue();
-			if (representativeTexture != null)
-				representativeTexture.Precache();
-			else {
-				representativeTexture = materials.TextureSystem.ErrorTexture();
-				Assert(representativeTexture);
-			}
+			if (texture != null)
+				texture.GetReflectivity(out Reflectivity);
 		}
 		if (!found || textureVar.GetVarType() != MaterialVarType.Texture) {
 			textureVar = FindVar("$envmapmask", out found, false);
@@ -970,6 +967,11 @@ public class Material : IMaterialInternal
 		return MappingHeight;
 	}
 
+	public void GetReflectivity(out Vector3 reflect) {
+		Precache();
+		reflect = Reflectivity;
+	}
+
 	public void Refresh() {
 		if (materials.ShaderDevice.IsUsingGraphics()) {
 			Uncache();
@@ -1107,6 +1109,39 @@ public class Material : IMaterialInternal
 		if (IsValidRenderState())
 			return (GetMaterialVarFlags2() & MaterialVarFlags2.LightingVertexLit) != 0;
 		return false;
+	}
+
+	public bool NeedsSoftwareSkinning() {
+		Precache();
+		Assert(Shader != null);
+		if (Shader == null)
+			return false;
+		Assert(ShaderParams != null);
+		return (GetMaterialVarFlags() & MaterialVarFlags.NeedsSoftwareSkinning) != 0;
+	}
+
+	public bool NeedsSoftwareLighting() {
+		Precache();
+		Assert(Shader != null);
+		if (Shader == null)
+			return false;
+		Assert(ShaderParams != null);
+		return (GetMaterialVarFlags2() & MaterialVarFlags2.NeedsSoftwareLighting) != 0;
+	}
+
+	public void SetMaterialVarFlags2(MaterialVarFlags2 flags, bool on) {
+		if (ShaderParams == null) {
+			Assert(false);
+			return;
+		}
+
+		MaterialVarFlags2 val = on ? (GetMaterialVarFlags2() | flags) : (GetMaterialVarFlags2() & (~flags));
+		ShaderParams[(int)ShaderMaterialVars.Flags2].SetIntValue((int)val);
+		ShaderParams[(int)ShaderMaterialVars.FlagsDefined2].SetIntValue(ShaderParams[(int)ShaderMaterialVars.FlagsDefined2].GetIntValue() | (int)flags);
+	}
+
+	public void SetUseFixedFunctionBakedLighting(bool enable) {
+		SetMaterialVarFlags2(MaterialVarFlags2.UseFixedFunctionBakedLighting, enable);
 	}
 
 	public int GetNumAnimationFrames() {

@@ -1,7 +1,20 @@
 #version 460
+//	STATIC: "CUBEMAP"					"0..1"
+//	STATIC: "ENVMAPMASK"				"0..1"
+//	STATIC: "BASEALPHAENVMAPMASK"		"0..1"
+//	STATIC: "NORMALMAPALPHAENVMAPMASK"	"0..1"
+//	STATIC: "SELFILLUM"					"0..1"
+//	STATIC: "VERTEXCOLOR"				"0..1"
 
 in vec2 vs_TexCoord;
 in vec4 vs_Color;
+#if VERTEXCOLOR
+in vec4 vs_VertexColor;
+#endif
+#if CUBEMAP
+in vec3 vs_WorldNormal;
+in vec3 vs_WorldVertToEye;
+#endif
 
 layout(std140, binding = 3) uniform source_pixel_sharedUBO {
     bool isAlphaTesting;
@@ -9,13 +22,33 @@ layout(std140, binding = 3) uniform source_pixel_sharedUBO {
     float alphaTestRef;
 };
 
+layout(std140, binding = 6) uniform source_ps_constants {
+    vec4 ps_const[256];
+};
+
 const int VertexColor = 16;
 const int VertexAlpha = 32;
+const int PIXEL_SHADER_SELFILLUM_TINT = 1;
+const int PIXEL_SHADER_ENVMAP_TINT = 2;
+const int PIXEL_SHADER_MODULATION = 3;
+const int PIXEL_SHADER_ENVMAP_CONTRAST = 4;
+const int PIXEL_SHADER_ENVMAP_SATURATION = 5;
 
 uniform int flags;
-uniform sampler2D basetexture;
+layout(binding = 0) uniform sampler2D basetexture;
+#if CUBEMAP
+layout(binding = 1) uniform samplerCube envmap;
+#if ENVMAPMASK
+layout(binding = 2) uniform sampler2D envmapmask;
+#endif
+#if NORMALMAPALPHAENVMAPMASK
+layout(binding = 4) uniform sampler2D bumpmap;
+#endif
+#endif
 
 out vec4 fragColor;
+
+#include "common_gl460.fs"
 
 void main()
 {
@@ -32,20 +65,44 @@ void main()
         }
     }
 
-    vec4 vertexColor = vec4(1.0, 1.0, 1.0, 1.0);
+    vec3 albedo = GammaToLinear(texelColor.rgb) * ps_const[PIXEL_SHADER_MODULATION].rgb;
 
-    if((flags & VertexColor) != 0){
-        vertexColor.r = vs_Color.r;
-        vertexColor.g = vs_Color.g;
-        vertexColor.b = vs_Color.b;
-    }
+#if VERTEXCOLOR
+    albedo *= GammaToLinear(vs_VertexColor.rgb);
+#endif
 
-    if((flags & VertexAlpha) != 0){
-        vertexColor.a = vs_Color.a;
-    }
+    vec3 linearColor = albedo * vs_Color.rgb;
 
-    // Final product: texture color * vertex color if applicable
-    fragColor = texelColor * vertexColor;
+#if SELFILLUM
+    vec3 selfIllumComponent = albedo * ps_const[PIXEL_SHADER_SELFILLUM_TINT].rgb;
+    linearColor = mix(linearColor, selfIllumComponent, texelColor.a);
+#endif
+
+#if CUBEMAP
+    vec3 specularFactor = vec3(1.0);
+#if ENVMAPMASK
+    specularFactor *= texture(envmapmask, vs_TexCoord).rgb;
+#endif
+#if BASEALPHAENVMAPMASK
+    specularFactor *= 1.0 - texelColor.a;
+#endif
+#if NORMALMAPALPHAENVMAPMASK
+    specularFactor *= texture(bumpmap, vs_TexCoord).a;
+#endif
+
+    vec3 reflectVect = 2.0 * vs_WorldNormal * dot(vs_WorldNormal, vs_WorldVertToEye) - vs_WorldVertToEye * dot(vs_WorldNormal, vs_WorldNormal);
+    vec3 specularLighting = GammaToLinear(texture(envmap, reflectVect).rgb);
+    specularLighting *= specularFactor;
+    specularLighting *= ps_const[PIXEL_SHADER_ENVMAP_TINT].rgb;
+    vec3 specularLightingSquared = specularLighting * specularLighting;
+    specularLighting = mix(specularLighting, specularLightingSquared, ps_const[PIXEL_SHADER_ENVMAP_CONTRAST].rgb);
+    vec3 greyScale = vec3(dot(specularLighting, vec3(0.299, 0.587, 0.114)));
+    specularLighting = mix(greyScale, specularLighting, ps_const[PIXEL_SHADER_ENVMAP_SATURATION].rgb);
+    linearColor += specularLighting;
+#endif
+
+    fragColor.rgb = LinearToGamma(linearColor);
+    fragColor.a = texelColor.a * ps_const[PIXEL_SHADER_MODULATION].a;
 
     // Gradient for testing
     //fragColor = vec4(vs_TexCoord.x, vs_TexCoord.y, 1.0, 1.0);

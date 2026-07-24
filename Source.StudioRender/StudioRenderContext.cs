@@ -27,6 +27,9 @@ public class StudioRenderCtx
 	public Vector3 ViewRight;
 	public Vector3 ViewUp;
 	public Vector3 ViewPlaneNormal;
+	public InlineArray6<Vector4> LightBoxColors;
+	public int NumLocalLights;
+	public InlineArray4<LightDesc> LocalLights;
 	public Vector3 ColorMod;
 	public float AlphaMod;
 	public IMaterial? ForcedMaterial;
@@ -46,8 +49,12 @@ public enum OverrideType
 /// </summary>
 public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCache studioDataCache, StudioRender studioRenderImp) : IStudioRender
 {
+	readonly IMaterialSystemHardwareConfig hardwareConfig = Singleton<IMaterialSystemHardwareConfig>();
+
 	public void BeginFrame() {
-		throw new NotImplementedException();
+		RC.Config.SupportsVertexAndPixelShaders = hardwareConfig.SupportsVertexAndPixelShaders();
+
+
 	}
 
 	public void EndFrame() {
@@ -550,8 +557,8 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 	static uint bumpvarCache = 0;
 
 	private void ComputeMaterialFlags(StudioHeader hdr, StudioLODData lodData, IMaterial material) {
-		//  if (material.UsesEnvCubemap()) 
-		//  	hdr.Flags |= StudioHdrFlags.UsesEnvCubemap;
+		if (material.UsesEnvCubemap())
+			hdr.Flags |= StudioHdrFlags.UsesEnvCubemap;
 
 		//  if (material.NeedsPowerOfTwoFrameBufferTexture(false)) // The false checks if it will ever need the frame buffer, not just this frame
 		//  	hdr.Flags |= StudioHdrFlags.UsesFbTexture;
@@ -610,7 +617,7 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 		// get skinref array
 		int nSkin = (RC.Config.Skin > 0) ? RC.Config.Skin : info.Skin;
 		Span<short> pSkinRef = info.StudioHdr.SkinRef(0);
-		if (nSkin > 0 && nSkin < info.StudioHdr.NumSkinFamilies) 
+		if (nSkin > 0 && nSkin < info.StudioHdr.NumSkinFamilies)
 			pSkinRef = pSkinRef[(nSkin * info.StudioHdr.NumSkinRef)..];
 
 		// This is used to ensure proxies are only called once
@@ -673,5 +680,105 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 
 	public void SetAlphaModulation(float alpha) {
 		RC.AlphaMod = alpha;
+	}
+
+	static readonly Vector3[] AmbientLightDir = [
+		new( 1,  0,  0),
+		new(-1,  0,  0),
+		new( 0,  1,  0),
+		new( 0, -1,  0),
+		new( 0,  0,  1),
+		new( 0,  0, -1)
+	];
+
+	public int GetNumAmbientLightSamples() => 6;
+
+	public ReadOnlySpan<Vector3> GetAmbientLightDirections() => AmbientLightDir;
+
+	public void SetAmbientLightColors(ReadOnlySpan<Vector3> colors) {
+		for (int i = 0; i < 6; i++) {
+			MathLib.VectorCopy(colors[i], out RC.LightBoxColors[i].AsVector3D());
+			RC.LightBoxColors[i].W = 1.0f;
+		}
+
+		// S-FIXME: Would like to get this into the render thread, but there's systemic confusion
+		// about whether to set lighting state here or in the material system
+		using MatRenderContextPtr renderContext = new(materialSystem);
+		renderContext.SetAmbientLightCube(RC.LightBoxColors);
+	}
+
+	public void SetLocalLights(int lightCount, ReadOnlySpan<LightDesc> lights) {
+		RC.NumLocalLights = CopyLocalLightingState(StudioRender.MAXLOCALLIGHTS, RC.LocalLights, lightCount, lights);
+
+		using MatRenderContextPtr renderContext = new(materialSystem);
+
+		renderContext.SetAmbientLightCube(RC.LightBoxColors);
+
+		if (RC.Config.SoftwareLighting || RC.NumLocalLights == 0)
+			renderContext.DisableAllLocalLights();
+		else {
+			int i;
+			int maxLightCount = renderContext.GetMaxLights();
+			int localLightCount = Math.Min(RC.NumLocalLights, maxLightCount);
+			LightDesc desc = default;
+			desc.Type = LightType.Disable;
+
+			for (i = 0; i < localLightCount; ++i)
+				renderContext.SetLight(i, RC.LocalLights[i]);
+			for (; i < maxLightCount; ++i)
+				renderContext.SetLight(i, desc);
+		}
+	}
+
+	public void ComputeLighting(ReadOnlySpan<Vector3> ambient, int lightCount, Span<LightDesc> lights, in Vector3 pt, in Vector3 normal, out Vector3 lighting) {
+		if (RC.Config.FullBright != 0) {
+			lighting = new(1.0f, 1.0f, 1.0f);
+			return;
+		}
+
+		if (lightCount > StudioRender.MAXLOCALLIGHTS)
+			lightCount = StudioRender.MAXLOCALLIGHTS;
+
+		// todo fixme
+		Span<LightPos> lightPos = stackalloc LightPos[StudioRender.MAXLOCALLIGHTS];
+		StudioRender.R_LightStrengthWorld(in pt, lightCount, lights, lightPos);
+		StudioRender.R_LightAmbient_3D(in normal, ambient, out lighting);
+		StudioRender.R_LightEffectsWorld3(lights, lightPos, in normal, ref lighting, lightCount);
+	}
+
+	public void ComputeLightingConstDirectional(ReadOnlySpan<Vector3> ambient, int lightCount, Span<LightDesc> lights, in Vector3 pt, in Vector3 normal, out Vector3 lighting, float directionalAmount) {
+		if (RC.Config.FullBright != 0) {
+			lighting = new(1.0f, 1.0f, 1.0f);
+			return;
+		}
+
+		if (lightCount > StudioRender.MAXLOCALLIGHTS) {
+			AssertMsg(false, "Light count out of range in ComputeLighting\n");
+			lightCount = StudioRender.MAXLOCALLIGHTS;
+		}
+
+		// todo fixme
+		Span<LightPos> lightPos = stackalloc LightPos[StudioRender.MAXLOCALLIGHTS];
+		StudioRender.R_LightStrengthWorld(in pt, lightCount, lights, lightPos);
+		StudioRender.R_LightAmbient_3D(in normal, ambient, out lighting);
+	}
+
+	private static int CopyLocalLightingState(int maxLights, Span<LightDesc> dest, int lightCount, ReadOnlySpan<LightDesc> src) {
+		if (lightCount > maxLights)
+			lightCount = maxLights;
+
+		for (int i = 0; i < lightCount; i++) {
+			dest[i] = src[i];
+			LightTypeOptimizationFlags flags = 0;
+			if (dest[i].Attenuation0 != 0.0f)
+				flags |= LightTypeOptimizationFlags.HasAttenuation0;
+			if (dest[i].Attenuation1 != 0.0f)
+				flags |= LightTypeOptimizationFlags.HasAttenuation1;
+			if (dest[i].Attenuation2 != 0.0f)
+				flags |= LightTypeOptimizationFlags.HasAttenuation2;
+			dest[i].Flags = (uint)flags;
+		}
+
+		return lightCount;
 	}
 }

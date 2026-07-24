@@ -173,6 +173,11 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 	}
 
 
+	public void GetReflectivity(out Vector3 reflectivity) {
+		Precache();
+		reflectivity = Reflectivity;
+	}
+
 	public void Precache() {
 		if (IsRenderTarget() || IsProcedural())
 			return;
@@ -965,7 +970,7 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 
 	private ushort ComputeActualMipCount(TexDimensions actualDims, uint flags) {
 		if ((flags & (uint)TextureFlags.EnvMap) > 0) {
-			if (materials.HardwareConfig.SupportsMipmappedCubemaps()) {
+			if (!materials.HardwareConfig.SupportsMipmappedCubemaps()) {
 				return 1;
 			}
 		}

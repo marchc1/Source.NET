@@ -452,6 +452,10 @@ public class MatRenderContext : IMatRenderContextInternal
 		return materials.ShaderDevice.CreateStaticMesh(format, textureGroup, material);
 	}
 
+	public void DestroyStaticMesh(IMesh mesh) {
+		materials.ShaderDevice.DestroyStaticMesh(mesh);
+	}
+
 	public int GetMaxVerticesToRender(IMaterial material) => materials.ShaderAPI.GetMaxVerticesToRender(material);
 	public int GetMaxIndicesToRender() => materials.ShaderAPI.GetMaxIndicesToRender();
 
@@ -551,6 +555,8 @@ public class MatRenderContext : IMatRenderContextInternal
 		shaderAPI.SetNumBoneWeights(numBones);
 	}
 
+	public void SetAmbientLightCube(ReadOnlySpan<Vector4> cube) => shaderAPI.SetAmbientLightCube(cube);
+
 	public void LoadBoneMatrix(int boneIndex, in Matrix3x4 matrix) {
 		shaderAPI.LoadBoneMatrix(boneIndex, in matrix);
 	}
@@ -588,7 +594,7 @@ public class MatRenderContext : IMatRenderContextInternal
 
 	ITexture? LocalCubemapTexture;
 
-	public void BindLocalCubemap(ITexture? texture){
+	public void BindLocalCubemap(ITexture? texture) {
 		ITexture? previousTexture = LocalCubemapTexture;
 
 		LocalCubemapTexture = texture ?? materials.TextureSystem.ErrorTexture();
@@ -596,6 +602,14 @@ public class MatRenderContext : IMatRenderContextInternal
 		if (LocalCubemapTexture != previousTexture)
 			shaderAPI.FlushBufferedPrimitives();
 	}
+
+	public ITexture? GetLocalCubemap() => LocalCubemapTexture;
+
+	public void SetLightingOrigin(Vector3 lightingOrigin) => shaderAPI.SetLightingOrigin(lightingOrigin);
+	public void SetAmbientLight(float r, float g, float b) => shaderAPI.SetAmbientLight(r, g, b);
+	public void SetLight(int lightNum, in LightDesc desc) => shaderAPI.SetLight(lightNum, desc);
+	public void DisableAllLocalLights() => shaderAPI.DisableAllLocalLights();
+	public int GetMaxLights() => shaderAPI.GetMaxLights();
 
 	public MatLightmaps GetLightmaps() => materials.MatLightmaps;
 

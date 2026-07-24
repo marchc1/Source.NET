@@ -274,24 +274,24 @@ public static class ImageLoader
 		ImageFormat.R32F => GL_RED,
 		ImageFormat.RGB323232F => GL_RGB,
 		ImageFormat.RGBA32323232F => GL_RGBA,
-		ImageFormat.I8 => GL_R8,
+		ImageFormat.I8 => GL_RED,
 	};
 	public static int GetGLImageInternalFormat(ImageFormat format) => format switch {
 		// Uncompressed color formats
 		ImageFormat.RGBA8888 => GL_RGBA8,
 		ImageFormat.ABGR8888 => 0x8000, // Supposedly GL_ABGR_EXT?
 		ImageFormat.RGB888 => GL_RGB8,
-		ImageFormat.BGR888 => Gl46.GL_BGR,
+		ImageFormat.BGR888 => GL_RGB8,
 		ImageFormat.RGB565 => GL_RGB565,
 		// ImageFormat.BGR565 => Gl46.GL_BGR565, No GL_BGR565 - :(
 		ImageFormat.I8 => GL_R8,
 		ImageFormat.IA88 => GL_RG8,
 		ImageFormat.A8 => GL_RGBA8,
 		ImageFormat.RGB888_Bluescreen => GL_RGB8,
-		ImageFormat.BGR888_Bluescreen => Gl46.GL_BGR, // TODO: what does bluescreen mean here
+		ImageFormat.BGR888_Bluescreen => GL_RGB8, // TODO: what does bluescreen mean here
 																									// ImageFormat.ARGB8888 => Gl46.ARGB,
-		ImageFormat.BGRA8888 => Gl46.GL_BGRA8_EXT,
-		ImageFormat.BGRX8888 => Gl46.GL_BGRA8_EXT,
+		ImageFormat.BGRA8888 => GL_RGBA8,
+		ImageFormat.BGRX8888 => GL_RGBA8,
 		// ImageFormat.BGRX5551 => GL_RGBA8,
 		// ImageFormat.BGRA4444 => GL_RGBA4,
 		// ImageFormat.BGRA5551 => GL_RGB5_A1,

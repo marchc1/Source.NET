@@ -13,11 +13,9 @@ using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
 using System.Buffers;
-using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Xml.Linq;
 
 using static Source.Engine.DispMapload;
 
@@ -178,7 +176,7 @@ public ref struct MapLoadHelper
 public class MDLCacheNotify : IMDLCacheNotify
 {
 	public void OnDataLoaded(MDLCacheDataType type, uint handle) {
-		Model? model = Singleton<IMDLCache>().GetUserData<Model>(handle);
+		Model? model = mdlcache.GetUserData<Model>(handle);
 
 		if (model == null)
 			return;
@@ -200,7 +198,7 @@ public class MDLCacheNotify : IMDLCacheNotify
 	}
 
 	private void ComputeModelFlags(Model model, uint handle) {
-		StudioHeader studioHdr = Singleton<IMDLCache>().GetStudioHdr(handle)!;
+		StudioHeader studioHdr = mdlcache.GetStudioHdr(handle)!;
 
 		model.Flags &= ~(ModelFlag.TranslucentTwoPass | ModelFlag.VertexLit | ModelFlag.Translucent | ModelFlag.MaterialProxy | ModelFlag.FramebufferTexture | ModelFlag.UsesFBTexture | ModelFlag.UsesBumpMapping | ModelFlag.UsesEnvCubemap);
 
@@ -220,7 +218,7 @@ public class MDLCacheNotify : IMDLCacheNotify
 			model.Flags |= ModelFlag.DoNotCastShadows;
 
 		Span<IMaterial> materials = new IMaterial[128];
-		int materialCount = ((ModelLoader)Singleton<IModelLoader>()).Mod_GetModelMaterials(model, materials);
+		int materialCount = modelLoader.Mod_GetModelMaterials(model, materials);
 
 		for (int i = 0; i < materialCount; ++i) {
 			IMaterial material = materials[i];
@@ -242,7 +240,7 @@ public class MDLCacheNotify : IMDLCacheNotify
 	}
 
 	private void SetBoundsFromStudioHdr(Model model, uint handle) {
-		StudioHeader studioHdr = Singleton<IMDLCache>().GetStudioHdr(handle)!;
+		StudioHeader studioHdr = mdlcache.GetStudioHdr(handle)!;
 		model.Mins = studioHdr.HullMin;
 		model.Maxs = studioHdr.HullMax;
 		model.Radius = 0.0f;
@@ -1100,6 +1098,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 			ref BSPMCubeMapSample outCurrent = ref outSample[i];
 			outCurrent.Origin.Init((float)inCurrent.Origin[0], (float)inCurrent.Origin[1], (float)inCurrent.Origin[2]);
 			outCurrent.Size = inCurrent.Size;
+			textureName.Clear();
 			sprintf(textureName, "maps/%s/c%d_%d_%d%s").S(loadName).D((int)inCurrent.Origin[0]).D((int)inCurrent.Origin[1]).D((int)inCurrent.Origin[2]).S(hdrExtension);
 			ReadOnlySpan<char> cubemapName = textureName.SliceNullTerminatedString();
 			outCurrent.Texture = materialSystem.FindTexture(cubemapName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
@@ -1107,13 +1106,17 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 				if (hdr) {
 					Warning($"Couldn't get HDR '{cubemapName}' -- ");
 					// try non hdr version
+					textureName.Clear();
 					sprintf(textureName, "maps/%s/c%d_%d_%d").S(loadName).D((int)inCurrent.Origin[0]).D((int)inCurrent.Origin[1]).D((int)inCurrent.Origin[2]);
+					cubemapName = textureName.SliceNullTerminatedString();
 					Warning($"Trying non HDR '{cubemapName}'\n");
 					outCurrent.Texture = materialSystem.FindTexture(cubemapName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true);
 				}
 
 				if (ITexture.IsError(outCurrent.Texture)) {
+					textureName.Clear();
 					sprintf(textureName, "maps/%s/cubemapdefault").S(loadName);
+					cubemapName = textureName.SliceNullTerminatedString();
 					outCurrent.Texture = materialSystem.FindTexture(cubemapName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
 					if (ITexture.IsError(outCurrent.Texture))
 						outCurrent.Texture = materialSystem.FindTexture("engine/defaultcubemap", MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
@@ -1133,8 +1136,9 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 				Sys.Error($"Map \"{lh.GetMapName()}\" does not have cubemaps!");
 
 			ITexture? pTexture;
+			textureName.Clear();
 			sprintf(textureName, "maps/%s/cubemapdefault").S(loadName);
-			pTexture = materialSystem.FindTexture(textureName, MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
+			pTexture = materialSystem.FindTexture(textureName.SliceNullTerminatedString(), MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
 			if (ITexture.IsError(pTexture))
 				pTexture = materialSystem.FindTexture("engine/defaultcubemap", MaterialDefines.TEXTURE_GROUP_CUBE_MAP, true, (int)createFlags);
 
@@ -1552,6 +1556,41 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.PrimIndices);
 		lh.GetMap().PrimIndices = lh.LoadLumpData<ushort>();
 	}
+	public static void Mod_LeafAmbientColorAtPos(Span<Vector3> outColors, in Vector3 pos, int leafIndex) {
+		for (int i = 0; i < 6; i++)
+			outColors[i].Init();
+
+		ref MLeafAmbientIndex ambient = ref host_state.WorldBrush!.LeafAmbient![leafIndex];
+		if (ambient.AmbientSampleCount == 0 && ambient.FirstAmbientSample != 0) {
+			leafIndex = ambient.FirstAmbientSample;
+			ambient = ref host_state.WorldBrush!.LeafAmbient![leafIndex];
+		}
+		int count = ambient.AmbientSampleCount;
+		if (count > 0) {
+			int start = host_state.WorldBrush!.LeafAmbient![leafIndex].FirstAmbientSample;
+			MLeafAmbientLighting[] samples = host_state.WorldBrush!.AmbientSamples!;
+			BSPMLeaf leaf = host_state.WorldBrush!.Leafs![leafIndex];
+			float totalFactor = 0;
+			for (int i = 0; i < count; i++) {
+				ref MLeafAmbientLighting sample = ref samples[start + i];
+				Vector3 samplePos = leaf.Center - leaf.HalfDiagonal;
+				samplePos.X += sample.X * leaf.HalfDiagonal.X * (2.0f / 255.0f);
+				samplePos.Y += sample.Y * leaf.HalfDiagonal.Y * (2.0f / 255.0f);
+				samplePos.Z += sample.Z * leaf.HalfDiagonal.Z * (2.0f / 255.0f);
+
+				float dist = (samplePos - pos).LengthSqr();
+				float factor = 1.0f / (dist + 1.0f);
+				totalFactor += factor;
+				for (int j = 0; j < 6; j++) {
+					MathLib.ColorRGBExp32ToVector(sample.Cube.Color[j], out Vector3 v);
+					outColors[j] += v * factor;
+				}
+			}
+			for (int i = 0; i < 6; i++)
+				outColors[i] *= (1.0f / totalFactor);
+		}
+	}
+
 	public static ref BSPDFace FaceHandleFromIndex(int surfaceIndex, WorldBrushData data) => ref data.Faces![surfaceIndex];
 	public static ref BSPMSurface2 SurfaceHandleFromIndex(int surfaceIndex, WorldBrushData? data = null) => ref (data ?? host_state.WorldBrush)!.Surfaces2![surfaceIndex];
 	public static ref CollisionPlane MSurf_Plane(ref BSPMSurface2 surfID) => ref surfID.Plane.GetReference();
@@ -1573,6 +1612,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		return data!.SurfaceLighting![surfaceIndex].LightmapExtents;
 	}
 	public static ref SurfDraw MSurf_Flags(ref BSPMSurface2 surfID) => ref surfID.Flags;
+	public static ref int MSurf_VisFrame(ref BSPMSurface2 surfID) => ref surfID.VisFrame;
 	public static bool SurfaceHasDispInfo(ref BSPMSurface2 surfID) => (MSurf_Flags(ref surfID) & SurfDraw.HasDisp) != 0;
 	public static ref ushort MSurf_VertBufferIndex(ref BSPMSurface2 surfID) => ref surfID.VertBufferIndex;
 	public static ref ShadowDecalHandle_t MSurf_ShadowDecals(ref BSPMSurface2 surfID) => ref surfID.ShadowDecals;
@@ -1710,7 +1750,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		light.LightmapMins[0] = (short)_in.LightmapTextureMinsInLuxels[0];
 		light.LightmapMins[1] = (short)_in.LightmapTextureMinsInLuxels[1];
 
-		int i = _in.LightOffset / 4;
+		int i = _in.LightOffset;
 
 		if (i == -1 || lightData == null) {
 			light.Samples = null;
@@ -1719,7 +1759,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 				light.Styles[i] = 255;
 		}
 		else {
-			light.Samples = lightData.AsMemory()[i..];
+			light.Samples = lightData.AsMemory()[(i / 4)..];
 
 			for (i = 0; i < BSPFileCommon.MAXLIGHTMAPS; ++i)
 				light.Styles[i] = _in.Styles[i];
@@ -2022,7 +2062,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		if (outBuffer.Length < outSize)
 			return false;
 
-		Stream? file = Singleton<IFileSystem>().Open(g_GameLumpFilename, FileOpenOptions.Read | FileOpenOptions.Binary)?.Stream;
+		Stream? file = g_pFileSystem.Open(g_GameLumpFilename, FileOpenOptions.Read | FileOpenOptions.Binary)?.Stream;
 		if (file == null)
 			return false;
 
@@ -2068,7 +2108,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 				ReadOnlySpan<BSPDGameLump> gameLump = lh.LoadLumpBaseRaw().AsSpan()[Unsafe.SizeOf<BSPDGameLumpHeader>()..].Cast<byte, BSPDGameLump>();
 				for (int i = 0; i < gameLumpHeader.LumpCount; ++i) {
 					if (gameLump[i].fileofs >= 0 && (uint)gameLump[i].fileofs >= (uint)lh.LumpOffset && (uint)gameLump[i].fileofs < (uint)lh.LumpOffset + lhSize && gameLump[i].filelen > 0) {
-						uint compressedSize = 0;
+						uint compressedSize;
 						if (gameLump[i].fileofs >= 0 && (uint)gameLump[i].fileofs >= (uint)lh.LumpOffset && (uint)gameLump[i].fileofs < (uint)lh.LumpOffset + lhSize && gameLump[i].filelen > 0)
 							compressedSize = (uint)gameLump[i + 1].fileofs - (uint)gameLump[i].fileofs;
 						else

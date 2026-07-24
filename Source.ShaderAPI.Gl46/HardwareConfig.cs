@@ -110,8 +110,10 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 		return (int)maxAniso;
 	}
 
+	public const int MAX_NUM_LIGHTS = 4;
+
 	public int MaxNumLights() {
-		throw new NotImplementedException();
+		return MAX_NUM_LIGHTS;
 	}
 
 	public int MaxTextureAspectRatio() {
@@ -201,7 +203,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool SupportsColorOnSecondStream() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsCompressedTextures() {
@@ -275,7 +277,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool SupportsStaticPlusDynamicLighting() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsStreamOffset() {
@@ -283,7 +285,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool SupportsVertexAndPixelShaders() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsVertexShaders_2_0() {

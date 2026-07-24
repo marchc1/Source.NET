@@ -61,6 +61,12 @@ public partial class Render(
 	ModelLoader? _modelLoader;
 	ModelLoader modelLoader => _modelLoader ??= (ModelLoader)Singleton<IModelLoader>();
 
+	IStudioRender? _studioRender;
+	IStudioRender studioRender => _studioRender ??= Singleton<IStudioRender>();
+
+	IEngineTrace? _engineTrace;
+	IEngineTrace engineTrace => _engineTrace ??= KeyedSingleton<IEngineTrace>(Realm.Client);
+
 	int LightmapUpdateDepth;
 	float yFOV;
 	float Framerate;
@@ -81,6 +87,14 @@ public partial class Render(
 	bool CanAccessCurrentView;
 
 	public void FrameBegin() {
+		if (host_state.WorldModel != null) {
+			r_framecount++;
+			// R_AnimateLight();
+			// R_PushDlights();
+		}
+
+		// UpdateStudioRenderConfig();
+		studioRender.BeginFrame();
 
 		FrameCount++;
 	}
@@ -356,7 +370,11 @@ public partial class Render(
 		if (!success)
 			ConDMsg($"Unable to load sky {requestedsky}\n");
 	}
-	private void InitStudio() { }
+	private void InitStudio() {
+#if !SWDS
+		R_StudioInitLightingCache();
+#endif
+	}
 	private void LoadWorldGeometry() {
 		if (host_state.WorldModel == null)
 			return;
