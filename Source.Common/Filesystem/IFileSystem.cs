@@ -25,20 +25,20 @@ public enum PathGroupName
 
 public interface ISearchPath
 {
-	bool Exists(ReadOnlySpan<char> path); // Returns if the file or directory exists
-	bool IsDirectory(ReadOnlySpan<char> path); // Returns true if the path is a directory
-	bool IsFileWritable(ReadOnlySpan<char> path); // Returns true if the path can be written to
-	IFileHandle? Open(ReadOnlySpan<char> path, FileOpenOptions options); // Can return null if something went wrong
-	bool RemoveFile(ReadOnlySpan<char> path); // Return true if the file was deleted
-	bool RenameFile(ReadOnlySpan<char> oldPath, ReadOnlySpan<char> newPath); // Renames a single file, returns true if it worked
-	bool SetFileWritable(ReadOnlySpan<char> path, bool writable); // Determines if the file is writable
-	long Size(ReadOnlySpan<char> path); // Gets the size of a file
+	bool Exists(scoped ReadOnlySpan<char> path); // Returns if the file or directory exists
+	bool IsDirectory(scoped ReadOnlySpan<char> path); // Returns true if the path is a directory
+	bool IsFileWritable(scoped ReadOnlySpan<char> path); // Returns true if the path can be written to
+	IFileHandle? Open(scoped ReadOnlySpan<char> path, FileOpenOptions options); // Can return null if something went wrong
+	bool RemoveFile(scoped ReadOnlySpan<char> path); // Return true if the file was deleted
+	bool RenameFile(scoped ReadOnlySpan<char> oldPath, ReadOnlySpan<char> newPath); // Renames a single file, returns true if it worked
+	bool SetFileWritable(scoped ReadOnlySpan<char> path, bool writable); // Determines if the file is writable
+	long Size(scoped ReadOnlySpan<char> path); // Gets the size of a file
 	/// <summary>
 	/// Gets the last modified time of a file (UTC)
 	/// </summary>
 	/// <param name="path"></param>
 	/// <returns></returns>
-	DateTime Time(ReadOnlySpan<char> path);
+	DateTime Time(scoped ReadOnlySpan<char> path);
 	ReadOnlySpan<char> GetPathString();
 	object? GetPackFile();
 	object? GetPackedStore();
@@ -51,7 +51,7 @@ public interface ISearchPath
 
 
 
-	public static ReadOnlySpan<char> Normalize(ReadOnlySpan<char> unnormalizedString, Span<char> normalizedOutput) {
+	public static ReadOnlySpan<char> Normalize(scoped ReadOnlySpan<char> unnormalizedString, Span<char> normalizedOutput) {
 		int len = Math.Min(normalizedOutput.Length, unnormalizedString.Length);
 
 		for (int i = 0; i < len; i++) {
@@ -61,7 +61,7 @@ public interface ISearchPath
 
 		return normalizedOutput[..len];
 	}
-	public static ReadOnlySpan<char> Concat(ISearchPath searchPath, ReadOnlySpan<char> fileNameUnnormalized, Span<char> target) {
+	public static ReadOnlySpan<char> Concat(ISearchPath searchPath, scoped ReadOnlySpan<char> fileNameUnnormalized, Span<char> target) {
 		Span<char> fileNameNormalized = stackalloc char[MAX_PATH];
 		ReadOnlySpan<char> fileName = Normalize(fileNameUnnormalized, fileNameNormalized);
 

@@ -188,7 +188,13 @@ public class BaseFileSystem : IFileSystem
 				yield return searchPath;
 		}
 	}
-	delegate T FileSystemFuncPost<T>(ISearchPath searchPath, ReadOnlySpan<char> providedFileName);
+
+	interface IFirstToThePostOp<T>
+	{
+		T Invoke(ISearchPath p, scoped ReadOnlySpan<char> name);
+		bool Win(T v);
+	}
+
 	/// <summary>
 	/// Iterates through all <see cref="SearchPathCollection"/>'s (or a single lookup if pathID != null), and returns the first time <paramref name="winCondition"/> returns true.
 	/// <br/> 
@@ -201,21 +207,20 @@ public class BaseFileSystem : IFileSystem
 	/// <param name="loseDefault">If no search paths won, then this value is returned.</param>
 	/// <param name="winner">The <see cref="ISearchPath"/> that won (if the method returns true)</param>
 	/// <returns>True if a <see cref="ISearchPath"/> won.</returns>
-	private T? FirstToThePost<T>(
+	private T? FirstToThePost<T, TOp>(
 		ReadOnlySpan<char> filename,
 		ReadOnlySpan<char> pathID,
-		FileSystemFuncPost<T> func,
-		Func<T, bool> winCondition,
+		in TOp op,
 		T? loseDefault,
 		[NotNullWhen(true)] out ISearchPath? winner
-	) {
+	) where TOp : struct, IFirstToThePostOp<T>, allows ref struct {
 		filename = filename.SliceNullTerminatedString();
 		Span<char> filenameNormalizedBuffer = stackalloc char[MAX_PATH];
 		ReadOnlySpan<char> filenameNormalized = ISearchPath.Normalize(filename, filenameNormalizedBuffer);
 		ulong hashID = pathID.Hash();
 		foreach (var path in GetCollections(hashID)) {
-			T? ret = func(path, filenameNormalized);
-			if (winCondition(ret)) {
+			T? ret = op.Invoke(path, filenameNormalized);
+			if (op.Win(ret)) {
 				winner = path;
 				return ret;
 			}
@@ -223,23 +228,41 @@ public class BaseFileSystem : IFileSystem
 		winner = null;
 		return loseDefault;
 	}
+
+	readonly ref struct RelativePathToFullPath_Op() : IFirstToThePostOp<bool>
+	{
+		public bool Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.Exists(name);
+		public bool Win(bool v) => v;
+	}
+
 	public ReadOnlySpan<char> RelativePathToFullPath(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID, Span<char> dest, PathTypeFilter filter = PathTypeFilter.None) {
 		fileName = fileName.SliceNullTerminatedString();
-		if (!FirstToThePost(fileName, pathID, (path, filename) => path.Exists(filename), boolWin, false, out ISearchPath? winner))
+		if (!FirstToThePost(fileName, pathID, new RelativePathToFullPath_Op(), false, out ISearchPath? winner))
 			return null;
 
 		Span<char> concatBuffer = stackalloc char[MAX_PATH];
 		return ISearchPath.Concat(winner, fileName, dest);
 	}
 
-	private static bool boolWin(bool inp) => inp;
-	private static bool notNullWin<T>(T? v) => v != null;
+	readonly ref struct IsDirectory_Op() : IFirstToThePostOp<bool>
+	{
+		public bool Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.IsDirectory(name);
+		public bool Win(bool v) => v;
+	}
 
 	public bool IsDirectory(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID) {
-		return FirstToThePost(fileName, pathID, (path, filename) => path.IsDirectory(filename), boolWin, false, out _);
+		return FirstToThePost(fileName, pathID, new IsDirectory_Op(), false, out _);
 	}
+
+	readonly ref struct IsFileWritable_Op() : IFirstToThePostOp<bool>
+	{
+		public bool Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.IsFileWritable(name);
+		public bool Win(bool v) => v;
+	}
+
+
 	public bool IsFileWritable(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID) {
-		return FirstToThePost(fileName, pathID, (path, filename) => path.IsFileWritable(filename), boolWin, false, out _);
+		return FirstToThePost(fileName, pathID, new IsFileWritable_Op(), false, out _);
 	}
 
 	public void MarkPathIDByRequestOnly(ReadOnlySpan<char> pathID, bool requestOnly) {
@@ -255,8 +278,15 @@ public class BaseFileSystem : IFileSystem
 		throw new NotImplementedException(); // todo
 	}
 
+	readonly ref struct Open_Op(FileOpenOptions options) : IFirstToThePostOp<IFileHandle?>
+	{
+		readonly FileOpenOptions Options = options;
+		public IFileHandle? Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.Open(name, Options);
+		public bool Win(IFileHandle? v) => v != null;
+	}
+
 	public IFileHandle? Open(ReadOnlySpan<char> fileName, FileOpenOptions options, ReadOnlySpan<char> pathID) {
-		return FirstToThePost(fileName, pathID, (path, filename) => path.Open(filename, options), notNullWin, null, out _);
+		return FirstToThePost<IFileHandle?, Open_Op>(fileName, pathID, new Open_Op(options), null, out _);
 	}
 
 
@@ -264,9 +294,15 @@ public class BaseFileSystem : IFileSystem
 		SearchPaths.Clear();
 	}
 
+	readonly ref struct RemoveFile_Op() : IFirstToThePostOp<bool>
+	{
+		public bool Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.RemoveFile(name);
+		public bool Win(bool v) => v;
+	}
+
 	public bool RemoveFile(ReadOnlySpan<char> relativePath, ReadOnlySpan<char> pathID) {
 		string fn = new(relativePath);
-		return FirstToThePost(relativePath, pathID, (path, filename) => path.RemoveFile(filename), boolWin, false, out _);
+		return FirstToThePost(relativePath, pathID, new RemoveFile_Op(), false, out _);
 	}
 	public bool RemoveSearchPath(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID) {
 		ulong hash = pathID.Hash();
@@ -301,28 +337,56 @@ public class BaseFileSystem : IFileSystem
 		}
 	}
 
+	readonly ref struct RenameFile_Op(ReadOnlySpan<char> newPath) : IFirstToThePostOp<bool>
+	{
+		readonly ReadOnlySpan<char> NewPath = newPath;
+		public bool Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.RenameFile(name, NewPath);
+		public bool Win(bool v) => v;
+	}
+
 	public unsafe bool RenameFile(ReadOnlySpan<char> oldPath, ReadOnlySpan<char> newPath, ReadOnlySpan<char> pathID) {
-		int newPathLength = newPath.Length;
-		fixed (char* nPath = newPath) {
-			char** reallyBadHack = &nPath;
-			return FirstToThePost(oldPath, pathID, (path, filename) => path.RenameFile(filename, new(*reallyBadHack, newPathLength)), boolWin, false, out _);
-		}
+		return FirstToThePost(oldPath, pathID, new RenameFile_Op(newPath), false, out _);
+	}
+
+	readonly ref struct SetFileWritable_Op(bool writable) : IFirstToThePostOp<bool>
+	{
+		readonly bool Writable = writable;
+		public bool Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.SetFileWritable(name, Writable);
+		public bool Win(bool v) => v;
 	}
 
 	public bool SetFileWritable(ReadOnlySpan<char> fileName, bool writable, ReadOnlySpan<char> pathID) {
-		return FirstToThePost(fileName, pathID, (path, filename) => path.SetFileWritable(filename, writable), boolWin, false, out _);
+		return FirstToThePost(fileName, pathID, new SetFileWritable_Op(writable), false, out _);
+	}
+
+	readonly ref struct Size_Op() : IFirstToThePostOp<long>
+	{
+		public long Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.Size(name);
+		public bool Win(long v) => v != -1;
 	}
 
 	public long Size(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID) {
-		return FirstToThePost(fileName, pathID, (path, filename) => path.Size(filename), (v) => v != -1, -1, out _);
+		return FirstToThePost<long, Size_Op>(fileName, pathID, new Size_Op(), -1, out _);
+	}
+
+	readonly ref struct GetFileTime_Op() : IFirstToThePostOp<DateTime>
+	{
+		public DateTime Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.Time(name);
+		public bool Win(DateTime v) => v != DateTime.UnixEpoch;
 	}
 
 	public DateTime GetFileTime(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID) {
-		return FirstToThePost(fileName, pathID, (path, filename) => path.Time(filename), (v) => v != DateTime.UnixEpoch, DateTime.UnixEpoch, out _);
+		return FirstToThePost(fileName, pathID, new GetFileTime_Op(), DateTime.UnixEpoch, out _);
+	}
+
+	readonly ref struct FileExists_Op() : IFirstToThePostOp<bool>
+	{
+		public bool Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.Exists(name);
+		public bool Win(bool v) => v;
 	}
 
 	public bool FileExists(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID) {
-		return FirstToThePost(fileName, pathID, (path, filename) => path.Exists(filename), boolWin, false, out _);
+		return FirstToThePost(fileName, pathID, new FileExists_Op(), false, out _);
 	}
 
 	public void CreateDirHierarchy(ReadOnlySpan<char> relativePath, ReadOnlySpan<char> pathID) {
@@ -401,8 +465,10 @@ public class BaseFileSystem : IFileSystem
 		// Todo
 	}
 
+
+
 	public ReadOnlySpan<char> WhereIsFile(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID = default) {
-		if (FirstToThePost(fileName, pathID, (path, filename) => path.Exists(filename), boolWin, false, out ISearchPath? path)) {
+		if (FirstToThePost(fileName, pathID, new FileExists_Op(), false, out ISearchPath? path)) {
 			Span<char> concatBuffer = stackalloc char[MAX_PATH];
 			return new string(ISearchPath.Concat(path, fileName, concatBuffer));
 		}
