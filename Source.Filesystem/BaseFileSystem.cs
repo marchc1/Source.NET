@@ -496,6 +496,8 @@ public class BaseFileSystem : IFileSystem
 		ISearchPath? currentPath;
 		HashSet<FileNameHandle_t>? foundAlready;
 
+		public bool IsDirectory;
+
 		public void FullyLock(BaseFileSystem system, FileFindHandle_t lockedIdx, ReadOnlySpan<char> wildcard, ReadOnlySpan<char> pathID) {
 			this.system = system;
 			Reset();
@@ -562,15 +564,15 @@ public class BaseFileSystem : IFileSystem
 			}
 
 		findFileDir:
-			string? currentFile = currentPath.FindAt(Interlocked.Increment(ref FileIdx));
-			if (currentFile == null) {
+			var currentFile = currentPath.FindAt(Interlocked.Increment(ref FileIdx));
+			if (!currentFile.HasValue) {
 				// Search for a new path?
 				currentPath.UnlockFinds();
 				currentPath = null;
 				goto findPath;
 			}
-
-			return currentFile;
+			IsDirectory = currentFile.Value.Item2;
+			return currentFile.Value.Item1;
 		}
 
 		public void Close() {
@@ -605,6 +607,11 @@ public class BaseFileSystem : IFileSystem
 	public ReadOnlySpan<char> FindNext(FileFindHandle_t findHandle) {
 		ref FileFindContext ctx = ref contexts[(int)(findHandle % MAX_FILE_HANDLES)];
 		return ctx.Next();
+	}
+
+	public bool FindIsDirectory(FileFindHandle_t findHandle) {
+		ref FileFindContext ctx = ref contexts[(int)(findHandle % MAX_FILE_HANDLES)];
+		return ctx.IsDirectory;
 	}
 
 	public void FindClose(FileFindHandle_t findHandle) {
@@ -694,7 +701,12 @@ public class BaseFileSystem : IFileSystem
 	public LegacyAddons.System LegacyAddons() => g_LegacyAddons;
 	public Language Language() => g_LanguageSystem;
 
-	public void DoFilesystemRefresh() => Msg("BaseFileSystem.DoFilesystemRefresh\n");
+	public void DoFilesystemRefresh() {
+		g_LegacyAddons.Refresh();
+		g_AddonFileSystem.Refresh();
+		g_GameDepotSystem.Refresh();
+		g_GamemodeSystem.Refresh();
+	}
 
 	public int LastFilesystemRefresh() {
 		Msg("BaseFileSystem.LastFilesystemRefresh\n");

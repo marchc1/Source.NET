@@ -37,7 +37,7 @@ public class GamemodeSystem : Gamemode.System
 	}
 
 	public void Refresh() {
-		throw new NotImplementedException();
+
 	}
 
 	public void SetActive(ReadOnlySpan<char> unk1) {

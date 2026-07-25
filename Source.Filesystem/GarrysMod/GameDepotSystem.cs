@@ -29,7 +29,7 @@ public class GameDepotSystem : GameDepot.System
 	}
 
 	public void Refresh() {
-		throw new NotImplementedException();
+
 	}
 
 	public void Save() {

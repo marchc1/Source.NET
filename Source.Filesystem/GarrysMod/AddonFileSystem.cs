@@ -95,7 +95,7 @@ public class AddonFileSystem : Addon.FileSystem
 	}
 
 	public void Refresh() {
-		throw new NotImplementedException();
+
 	}
 
 	public void Save() {

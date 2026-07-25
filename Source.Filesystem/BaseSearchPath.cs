@@ -63,7 +63,7 @@ public abstract class BaseSearchPath : ISearchPath
 	public void UnlockFinds() {
 		Interlocked.Decrement(ref FindsIdx);
 	}
-	public string? FindAt(int index) {
+	public (string, bool)? FindAt(int index) {
 		if (Interlocked.CompareExchange(ref FindsIdx, 0, 0) == 0) {
 			AssertMsg(false, "Unlocked find attempt");
 			return null;
@@ -73,9 +73,9 @@ public abstract class BaseSearchPath : ISearchPath
 			if (index >= (files.Count + dirs.Count))
 				return null;
 			else
-				return dirs[index - files.Count];
+				return (dirs[index - files.Count], true);
 		}
 		else
-			return files[index];
+			return (files[index], false);
 	}
 }

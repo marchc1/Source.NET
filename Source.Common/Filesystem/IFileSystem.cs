@@ -44,7 +44,7 @@ public interface ISearchPath
 	object? GetPackedStore();
 	void UnlockFinds();
 	void LockFinds(UtlSymbol wildcard, HashSet<ulong> foundAlready);
-	string? FindAt(int index);
+	(string, bool)? FindAt(int index);
 	PathGroupName GetGroupName();
 	void SetGroupName(PathGroupName name);
 	ReadOnlySpan<char> GetDiskPath();
@@ -258,6 +258,8 @@ public interface IFileSystem : IBaseFileSystem
 	void GMOD_SetupDefaultPaths(ReadOnlySpan<char> path, ReadOnlySpan<char> game);
 	void GMOD_FixPathCase(Span<char> a);
 #endif
+
+	bool FindIsDirectory(FileFindHandle_t findHandle);
 }
 
 public enum PathTypeFilter
