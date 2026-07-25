@@ -1,29 +1,36 @@
-﻿namespace Source.Common.GarrysMod;
+﻿using Steamworks;
 
-public static class IGameDepotSystem {
+namespace Source.Common.GarrysMod;
+
+public static class IGameDepotSystem
+{
 	public struct Information
 	{
-		public uint Placeholder1;
+		public AppId_t AppID;
 		public uint Depot;
 		public string Title;
 		public string Folder;
-		public bool Mounted;
-		public bool Placeholder6;
-		public bool Owned;
-		public bool Installed;
+		public bool Mounted;               
+		public bool Enabled;               
+		public bool Owned;                 
+		public bool Installed;             
+		public bool Retail;                
+		public bool Bundled;               
+		public List<string> ExtraFolders;  
 	}
 }
 
-public static class GameDepot {
+public static class GameDepot
+{
 	public interface System
 	{
 		void Refresh();
 		void Clear();
 		void Save();
-		void SetMount(uint unk1, bool unk2);
-		void MarkGameAsMounted(ReadOnlySpan<char> unk1);
+		void SetMount(AppId_t appID, bool shouldMount);
+		void MarkGameAsMounted(ReadOnlySpan<char> folder);
 		List<IGameDepotSystem.Information> GetList();
-		void MountAsMapFix(uint unk1);
-		void MountCurrentGame(ReadOnlySpan<char> unk1);
+		void MountAsMapFix(AppId_t appID);
+		void MountCurrentGame(ReadOnlySpan<char> game);
 	}
 }

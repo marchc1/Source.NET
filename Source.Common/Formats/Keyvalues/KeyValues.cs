@@ -3,6 +3,7 @@ using Source.Common.Filesystem;
 using System.Collections;
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 
 namespace Source.Common.Formats.Keyvalues;
 
@@ -97,6 +98,64 @@ public class KeyValues : IEnumerable<KeyValues>
 		using StreamReader reader = new StreamReader(stream);
 		return LoadFromBuffer(reader);
 	}
+
+	public bool WriteToStream(Stream? stream) {
+		// Clear();
+		if (stream == null) return false;
+
+		using StreamWriter writer = new StreamWriter(stream);
+		return WriteToBuffer(writer);
+	}
+
+	private void WriteStringToBuffer(StreamWriter writer, string value) {
+		if (useEscapeSequences)
+			value = value.Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
+		writer.Write(value);
+	}
+
+	private bool WriteToBuffer(StreamWriter writer, int recursionLevel = 0) {
+		writer.Write(new string('\t', recursionLevel));
+		writer.Write("\"");
+		WriteStringToBuffer(writer, Name);
+		writer.WriteLine("\"");
+		if (children.Count != 0) {
+			writer.WriteLine("\"");
+			writer.WriteLine("{");
+			foreach (var child in children)
+				child.WriteToBuffer(writer, 1);
+			writer.WriteLine("}");
+		}
+		else {
+			switch (Type) {
+				case Types.None:
+					writer.WriteLine();
+					break;
+				case Types.String:
+					writer.Write("\"");
+					WriteStringToBuffer(writer, Value is string str ? (str ?? "") : "");
+					writer.WriteLine("\"");
+					break;
+				case Types.Int:
+					writer.Write("\"");
+					WriteStringToBuffer(writer, (Value is long l ? l : Value is int i1 ? i1 : 0).ToString());
+					writer.WriteLine("\"");
+					break;
+				case Types.Double:
+					writer.Write("\"");
+					WriteStringToBuffer(writer, (Value is double d ? d : Value is int i2 ? i2 : 0).ToString());
+					writer.WriteLine("\"");
+					break;
+				case Types.Pointer:
+					throw new NotImplementedException();
+				case Types.Color:
+					throw new NotImplementedException();
+				case Types.Uint64:
+					throw new NotImplementedException();
+			}
+		}
+		return true;
+	}
+
 
 	private bool LoadFromBuffer(StreamReader reader) {
 		LinkedList<KeyValues> peers = [];
@@ -341,8 +400,8 @@ public class KeyValues : IEnumerable<KeyValues>
 			KeyValues kvpair = new() { evaluateConditionals = this.evaluateConditionals, useEscapeSequences = this.useEscapeSequences };
 
 			if (kvpair.ReadKV(reader) && matches) // When conditional, still need to waste time on parsing, but we throw it away after
-																						// There's definitely a better way to handle this, but it would need more testing scenarios
-																						// The ReadKV call can also determine its condition and will return false if it doesnt want to be added.
+												  // There's definitely a better way to handle this, but it would need more testing scenarios
+												  // The ReadKV call can also determine its condition and will return false if it doesnt want to be added.
 				AddToTail(kvpair);
 		}
 	}
@@ -354,7 +413,7 @@ public class KeyValues : IEnumerable<KeyValues>
 			// We need to check the stream for another /
 			reader.Read();
 			if (reader.Peek() == '/') { // We got //, its a comment
-																	// We read until the end of the line.
+										// We read until the end of the line.
 				didAnything = true;
 				int val;
 				while ((val = reader.Read()) != -1) {
@@ -473,6 +532,21 @@ public class KeyValues : IEnumerable<KeyValues>
 		return ok;
 	}
 
+	public bool WriteToFile(string? filepath) {
+		if (filepath == null) return false;
+
+		if (!Path.IsPathFullyQualified(filepath))
+			filepath = Path.Combine(AppContext.BaseDirectory, filepath);
+
+		FileInfo info = new(filepath);
+		FileStream stream;
+		try { stream = info.OpenRead(); }
+		catch { return false; }
+
+		bool ok = WriteToStream(stream);
+		stream.Dispose();
+		return ok;
+	}
 
 	public KeyValues? FindKey(ReadOnlySpan<char> searchStr, bool create = false) {
 		foreach (var child in this.children) {
@@ -606,6 +680,15 @@ public class KeyValues : IEnumerable<KeyValues>
 	public bool LoadFromFile(IFileSystem fileSystem, ReadOnlySpan<char> path) {
 		return LoadFromStream(fileSystem.Open(path, FileOpenOptions.Read, null)?.Stream);
 	}
+
+	public bool WriteToFile(IFileSystem fileSystem, ReadOnlySpan<char> path, ReadOnlySpan<char> pathID) {
+		return WriteToStream(fileSystem.Open(path, FileOpenOptions.Read, pathID)?.Stream);
+	}
+	public bool WriteToFile(IFileSystem fileSystem, ReadOnlySpan<char> path) {
+		return WriteToStream(fileSystem.Open(path, FileOpenOptions.Read, null)?.Stream);
+	}
+
+
 
 	public KeyValues? GetFirstSubKey() => children.First?.Value;
 	public KeyValues? GetFirstTrueSubKey() {
@@ -787,6 +870,10 @@ public class KeyValues : IEnumerable<KeyValues>
 
 	public bool GetBool(ReadOnlySpan<char> name, bool defaultValue) {
 		return GetInt(name, defaultValue ? 1 : 0) != 0;
+	}
+
+	public bool GetBool() {
+		return GetInt() != 0;
 	}
 
 	public object? GetPtr() {

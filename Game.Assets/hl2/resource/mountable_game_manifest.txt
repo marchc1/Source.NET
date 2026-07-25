@@ -1,0 +1,274 @@
+// In Garry's Mod, this lives in filesystem_stdio statically.
+"defaults"
+{
+	"220"
+	{
+		"title"		"Half-Life 2 & Episodes"
+		"folder"	"hl2"
+		"mount"		"1"
+		"retail"	"1"
+		"bundled"	"1"
+		"extra"
+		{
+			"1"		"episodic"
+			"2"		"ep2"
+			"3"		"lostcoast"
+		}
+	}
+	"240"
+	{
+		"title"		"Counter-Strike: Source"
+		"folder"	"cstrike"
+		"mount"		"1"
+		"retail"	"1"
+		"bundled"	"1"
+	}
+	"440"
+	{
+		"title"		"Team Fortress 2"
+		"folder"	"tf"
+		"mount"		"1"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"300"
+	{
+		"title"		"Day of Defeat: Source"
+		"folder"	"dod"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"320"
+	{
+		"title"		"Half-Life 2: Deathmatch"
+		"folder"	"hl2mp"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"280"
+	{
+		"title"		"Half-Life: Source"
+		"folder"	"hl1"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"360"
+	{
+		"title"		"Half-Life Deathmatch: Source"
+		"folder"	"hl1mp"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+		"extra"
+		{
+			"1"		"hl1"
+		}
+	}
+	"22208"
+	{
+		"title"		"Zeno Clash (Model Pack)"
+		"folder"	"zeno_clash"
+		"mount"		"0"
+		"retail"	"0"
+		"bundled"	"0"
+	}
+	"400"
+	{
+		"title"		"Portal"
+		"folder"	"portal"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"17530"
+	{
+		"title"		"D.I.P.R.I.P."
+		"folder"	"diprip"
+		"mount"		"0"
+		"retail"	"0"
+		"bundled"	"0"
+	}
+	"17500"
+	{
+		"title"		"Zombie Panic! Source"
+		"folder"	"zps"
+		"mount"		"0"
+		"retail"	"0"
+		"bundled"	"0"
+		"extra"
+		{
+			"1"		"vpks"
+		}
+	}
+	"17570"
+	{
+		"title"		"Pirates, Vikings and Knights II"
+		"folder"	"pvkii"
+		"mount"		"0"
+		"retail"	"0"
+		"bundled"	"0"
+	}
+	"17580"
+	{
+		"title"		"Dystopia"
+		"folder"	"dystopia"
+		"mount"		"0"
+		"retail"	"0"
+		"bundled"	"0"
+	}
+	"17700"
+	{
+		"title"		"Insurgency (Source Mod)"
+		"folder"	"insurgency"
+		"mount"		"0"
+		"retail"	"0"
+		"bundled"	"0"
+	}
+	"17510"
+	{
+		"title"		"Age of Chivalry"
+		"folder"	"ageofchivalry"
+		"mount"		"0"
+		"retail"	"0"
+		"bundled"	"0"
+	}
+	"550"
+	{
+		"title"		"Left 4 Dead 2"
+		"folder"	"left4dead2"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+		"extra"
+		{
+			"1"		"left4dead2_dlc1"
+			"2"		"left4dead2_dlc2"
+			"3"		"left4dead2_dlc3"
+			"4"		"update"
+		}
+	}
+	"500"
+	{
+		"title"		"Left 4 Dead"
+		"folder"	"left4dead"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+		"extra"
+		{
+			"1"		"left4dead_dlc3"
+		}
+	}
+	"620"
+	{
+		"title"		"Portal 2"
+		"folder"	"portal2"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+		"extra"
+		{
+			"1"		"portal2_dlc1"
+			"2"		"portal2_dlc2"
+		}
+	}
+	"630"
+	{
+		"title"		"Alien Swarm"
+		"folder"	"swarm"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"17710"
+	{
+		"title"		"Nuclear Dawn"
+		"folder"	"nucleardawn"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"70000"
+	{
+		"title"		"Dino D-Day"
+		"folder"	"dinodday"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"730"
+	{
+		"title"		"Counter-Strike: GO (Legacy Branch)"
+		"folder"	"csgo"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"225600"
+	{
+		"title"		"Blade Symphony"
+		"folder"	"berimbau"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"251110"
+	{
+		"title"		"INFRA"
+		"folder"	"infra"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"265630"
+	{
+		"title"		"Fistful of Frags"
+		"folder"	"fof"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"221910"
+	{
+		"title"		"The Stanley Parable"
+		"folder"	"thestanleyparable"
+		"mount"		"0"
+		"retail"	"0"
+		"bundled"	"0"
+	}
+	"1224600"
+	{
+		"title"		"G String Game"
+		"folder"	"gstringv2"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"1786950"
+	{
+		"title"		"Klaus Veen's Treason"
+		"folder"	"treason"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"1012110"
+	{
+		"title"		"Military Conflict: Vietnam"
+		"folder"	"treason"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+	"362890"
+	{
+		"title"		"Black Mesa"
+		"folder"	"bms"
+		"mount"		"0"
+		"retail"	"1"
+		"bundled"	"0"
+	}
+}
