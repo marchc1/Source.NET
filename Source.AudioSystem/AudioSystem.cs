@@ -336,6 +336,7 @@ public class AudioSystem : IAudioSystem
 		ch.BasePitch = (short)parms.Pitch;
 		ch.Origin = parms.Origin;
 		ch.Flags.UpdatePositions = parms.UpdatePositions && (parms.SoundSource != 0);
+		ch.Flags.FirstPass = true;
 		ch.BassChannel = Bass.SampleGetChannel(((BassAudioSource)sfx.Source!).BassHandle, OnlyNew: false);
 		g_ActiveChannels.Add(ref ch);
 
@@ -591,6 +592,7 @@ public class AudioSystem : IAudioSystem
 		ch.BasePitch = (short)parms.Pitch;
 		ch.Origin = parms.Origin;
 		ch.Flags.UpdatePositions = parms.UpdatePositions && (parms.SoundSource != 0);
+		ch.Flags.FirstPass = true;
 		ch.BassChannel = Bass.SampleGetChannel(((BassAudioSource)sfx.Source!).BassHandle, OnlyNew: false);
 		g_ActiveChannels.Add(ref ch);
 
@@ -661,9 +663,20 @@ public class AudioSystem : IAudioSystem
 		return success;
 	}
 
+	readonly ChannelList reap =new();
 	public void Update(double v) {
 		Bass.GlobalSampleVolume = (int)(volume_sfx.GetFloat() * volume.GetFloat() * 10000);
 		Bass.GlobalMusicVolume = (int)(snd_musicvolume.GetFloat() * volume.GetFloat() * 10000);
+
+		reap.Clear();
+		g_ActiveChannels.GetActiveChannels(reap);
+		for (int i = 0; i < reap.Count(); i++) {
+			ref Channel ch = ref reap.GetChannel(i);
+			if (ch.Sfx == null || ch.Flags.FirstPass || ch.BassChannel == 0)
+				continue;
+			if (Bass.ChannelIsActive(ch.BassChannel) == PlaybackState.Stopped)
+				SndMix.FreeChannel(ref ch);
+		}
 
 		// int voiceChannelCount = 0;
 		// int voiceChannelMaxVolume = 0;

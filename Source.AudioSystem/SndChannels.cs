@@ -114,6 +114,17 @@ public class ChannelList
 	public bool Has22kChannels;
 	public bool Has44kChannels;
 
+	public void Clear() {
+		iCount = 0;
+		SpecialDSPs.Clear();
+
+		HasSpeakerChannels = default;
+		HasDryChannels = default;
+		Has11kChannels = default;
+		Has22kChannels = default;
+		Has44kChannels = default;
+	}
+
 	public int Count() => iCount;
 
 	public int GetChannelIndex(int listIndex) => List[listIndex];
