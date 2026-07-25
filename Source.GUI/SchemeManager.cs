@@ -52,33 +52,52 @@ public class SchemeManager : ISchemeManager
 	struct CachedBitmapHandle
 	{
 		public Bitmap? Bitmap;
+		public bool IsProportional;
 	}
 
 	readonly List<CachedBitmapHandle> Bitmaps = [];
 
+	static string? searchString;
+
 	public IImage? GetImage(ReadOnlySpan<char> imageName, bool hardwareFiltered) {
+		return GetImage(imageName, hardwareFiltered, false);
+	}
+
+	public IImage? GetImage(ReadOnlySpan<char> imageName, bool hardwareFiltered, bool proportional) {
 		if (imageName.IsEmpty)
 			return null;
 
 		CachedBitmapHandle searchBitmap = new() { Bitmap = null };
 
 		Span<char> fileName = stackalloc char[MAX_PATH];
+		int len;
 		if (imageName.IndexOf(".pic", StringComparison.OrdinalIgnoreCase) != -1)
-			sprintf(fileName, "%s").S(imageName);
+			len = sprintf(fileName, "%s").S(imageName);
 		else
-			sprintf(fileName, "vgui/%s").S(imageName);
+			len = sprintf(fileName, "vgui/%s").S(imageName);
+		fileName = fileName[..len];
 
-		int index = Bitmaps.FindIndex(b => BitmapHandleSearchFunc(searchBitmap, b));
-		if (index >= 0)
-			return Bitmaps[index].Bitmap;
+		searchString = new(fileName);
+		int i = Bitmaps.FindIndex(b => !BitmapHandleSearchFunc(b, searchBitmap) && !BitmapHandleSearchFunc(searchBitmap, b));
+		if (i >= 0)
+			return Bitmaps[i].Bitmap;
 
-		CachedBitmapHandle bitmap = new() { Bitmap = new(fileName, hardwareFiltered) };
-		Bitmaps.Add(bitmap);
-		return bitmap.Bitmap;
+		Bitmap bitmap = new(fileName, hardwareFiltered);
+		if (proportional) {
+			bitmap.GetSize(out int wide, out int tall);
+			bitmap.SetSize(GetProportionalScaledValue(wide), GetProportionalScaledValue(tall));
+		}
+		CachedBitmapHandle hBitmap = new() { Bitmap = bitmap, IsProportional = proportional };
+		Bitmaps.Add(hBitmap);
+		return hBitmap.Bitmap;
 	}
 
 	static bool BitmapHandleSearchFunc(CachedBitmapHandle lhs, CachedBitmapHandle rhs) {
-		return lhs.Bitmap == rhs.Bitmap; // TODO
+		if (lhs.Bitmap != null && rhs.Bitmap != null)
+			return stricmp(lhs.Bitmap.GetName(), rhs.Bitmap.GetName()) > 0 && lhs.IsProportional && !rhs.IsProportional;
+		else if (lhs.Bitmap != null)
+			return stricmp(lhs.Bitmap.GetName(), searchString) > 0;
+		return stricmp(searchString, rhs.Bitmap!.GetName()) > 0;
 	}
 
 	public int GetProportionalNormalizedValue(int scaled) {
@@ -143,6 +162,7 @@ public class SchemeManager : ISchemeManager
 	public IScheme? LoadSchemeFromFileEx(IPanel? sizingPanel, ReadOnlySpan<char> fileName, ReadOnlySpan<char> tag) {
 		IScheme? scheme = FindLoadedScheme(fileName);
 		if (scheme != null) {
+			((Scheme)scheme).ReloadFontGlyphs();
 			return scheme;
 		}
 
@@ -170,6 +190,12 @@ public class SchemeManager : ISchemeManager
 	readonly List<Scheme> Schemes = [];
 
 	private IScheme? FindLoadedScheme(ReadOnlySpan<char> fileName) {
+		for (int i = 0; i < Schemes.Count; i++) {
+			ReadOnlySpan<char> schemeFileName = Schemes[i].GetFileName();
+			if (stricmp(schemeFileName, fileName) == 0)
+				return Schemes[i];
+		}
+
 		return null;
 	}
 

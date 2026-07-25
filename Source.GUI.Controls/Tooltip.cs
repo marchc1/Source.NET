@@ -16,8 +16,7 @@ public class BaseTooltip : IDisposable
 	public bool IsDirty;
 	bool Enabled;
 
-	// TODO: gmod creates a cvar for this in lua, so for non-lua panels, we should rename this at some point
-	static ConVar tooltip_delay = new("tooltip_delay", "0.5", FCvar.Archive, "Delay (in seconds) between hovering over a panel, and a tooltip appearing, if it has one.", callback: TooltipDelayChangeCallback);
+	static ConVar tooltip_delay = new("vgui_tooltip_delay", "0.5", FCvar.Archive, "Delay (in seconds) between hovering over a panel, and a tooltip appearing, if it has one.", callback: TooltipDelayChangeCallback);
 	static void TooltipDelayChangeCallback(IConVar var, in ConVarChangeContext ctx) => TooltipDelay = (int)(tooltip_delay.GetFloat() * 1000);
 
 
