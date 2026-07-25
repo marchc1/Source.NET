@@ -531,7 +531,7 @@ public class BaseFileSystem : IFileSystem
 				currentCollection = PathID == 0
 					? system.SearchPaths.At(Interlocked.Increment(ref CollectionIdx))
 					: Interlocked.CompareExchange(ref ranAtLeastOnce, 1, 0) == 0
-						? system.SearchPaths[PathID]
+					? (system.SearchPaths.TryGetValue(PathID, out var found) ? found : null)
 						: null;
 
 				if (currentCollection != null) {
