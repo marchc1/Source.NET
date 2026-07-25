@@ -1,20 +1,29 @@
-﻿using Source.VPK.Exceptions;
+﻿using Microsoft.Win32.SafeHandles;
+
+using Source.VPK.Exceptions;
 using Source.VPK.V1;
 
 namespace Source.VPK
 {
-	public class VpkArchive
+	public class VpkArchive : IDisposable
 	{
 		public List<VpkDirectory> Directories { get; set; }
 		public bool IsMultiPart { get; set; }
 		private VpkReaderBase _reader;
 		internal List<ArchivePart> Parts { get; set; }
 		internal string ArchivePath { get; set; }
+		public readonly SafeFileHandle FileHandle;
 
 		public override string ToString() => $"VpkArchive '{ArchivePath}' [{Directories.Count} directories, {Parts.Count} parts]";
 
 		public VpkArchive() {
 			Directories = new List<VpkDirectory>();
+		}
+
+		public void Dispose(){
+			foreach (var part in Parts)
+				part.Dispose();
+			FileHandle.Dispose();
 		}
 
 		public void Load(string filename, VpkVersions.Versions version = VpkVersions.Versions.Any) {

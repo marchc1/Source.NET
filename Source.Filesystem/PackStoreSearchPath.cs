@@ -34,6 +34,10 @@ public class PackStoreSearchPath : BaseSearchPath
 	private Dictionary<UtlSymId_t, VpkEntry> vpkEntryLookups = [];
 	private Dictionary<UtlSymId_t, VpkDirectory> vpkDirectoryLookups = [];
 
+	~PackStoreSearchPath(){
+		vpk.Dispose();
+	}
+
 	public PackStoreSearchPath(IFileSystem filesystem, string absPath) {
 		absPath = absPath.EndsWith(".vpk") ? absPath.Substring(0, absPath.Length - ".vpk".Length) : absPath;
 		absPath = absPath.EndsWith("_dir") ? absPath.Substring(0, absPath.Length - "_dir".Length) : absPath;

@@ -34,6 +34,7 @@
 			Filename = filename;
 			FilenameAndExtension = filename + "." + Extension;
 			HasPreloadData = preloadBytes > 0;
+
 		}
 
 		private byte[] ReadPreloadData() {
@@ -50,32 +51,35 @@
 		}
 
 		private byte[]? dataCache;
+		ArchivePart? partFile;
+
 		private byte[] ReadData() {
 			if (dataCache != null)
 				return dataCache;
 
-			var partFile = ParentArchive.Parts.FirstOrDefault(part => part.Index == ArchiveIndex);
+			if (partFile == null) {
+				List<ArchivePart> parentParts = ParentArchive.Parts;
+				for (int i = 0, c = parentParts.Count; i < c; i++) {
+					ArchivePart part = parentParts[i];
+					if (part.Index == ArchiveIndex) {
+						partFile = part;
+						break;
+					}
+				}
+			}
+
 			if (partFile == null)
 				throw new Exception("Part file was null!");
 
 			if (HasPreloadData) {
 				dataCache = new byte[PreloadBytes + EntryLength];
-				using (var fs = new FileStream(ParentArchive.ArchivePath, FileMode.Open, FileAccess.Read)) {
-					fs.Seek((long)PreloadDataOffset, SeekOrigin.Begin);
-					fs.Read(dataCache, 0, PreloadBytes);
-				}
 
-				using (var fs = new FileStream(partFile.Filename, FileMode.Open, FileAccess.Read)) {
-					fs.Seek(EntryOffset, SeekOrigin.Begin);
-					fs.Read(dataCache, PreloadBytes, (int)EntryLength);
-				}
+				RandomAccess.Read(ParentArchive.FileHandle, dataCache.AsSpan()[..PreloadBytes], (long)PreloadDataOffset);
+				RandomAccess.Read(ParentArchive.FileHandle, dataCache.AsSpan()[PreloadBytes..][..(int)EntryLength], (long)EntryOffset);
 			}
 			else {
 				dataCache = new byte[EntryLength];
-				using (var fs = new FileStream(partFile.Filename, FileMode.Open, FileAccess.Read)) {
-					fs.Seek(EntryOffset, SeekOrigin.Begin);
-					fs.Read(dataCache, 0, dataCache.Length);
-				}
+				RandomAccess.Read(partFile.FileHandle, dataCache.AsSpan(), (long)EntryOffset);
 			}
 
 			return dataCache;
