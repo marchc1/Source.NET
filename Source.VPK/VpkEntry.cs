@@ -12,7 +12,7 @@
 
 		public readonly uint CRC;
 		public readonly ushort PreloadBytes;
-		public readonly uint PreloadDataOffset;
+		public readonly nuint PreloadDataOffset;
 		public readonly ushort ArchiveIndex;
 		public readonly uint EntryOffset;
 		public readonly uint EntryLength;
@@ -20,7 +20,7 @@
 
 		public override string ToString() => $"VpkEntry '{Path}/{Filename}.{Extension}' [crc {CRC}, entry<{EntryOffset}-{EntryLength}>]";
 
-		internal VpkEntry(VpkArchive parentArchive, uint crc, ushort preloadBytes, uint preloadDataOffset, ushort archiveIndex, uint entryOffset,
+		internal VpkEntry(VpkArchive parentArchive, uint crc, ushort preloadBytes, nuint preloadDataOffset, ushort archiveIndex, uint entryOffset,
 			uint entryLength, string extension, string path, string filename) {
 			ParentArchive = parentArchive;
 			CRC = crc;
@@ -41,7 +41,7 @@
 				var buff = new byte[PreloadBytes];
 				using (var fs = new FileStream(ParentArchive.ArchivePath, FileMode.Open, FileAccess.Read)) {
 					buff = new byte[PreloadBytes];
-					fs.Seek(PreloadDataOffset, SeekOrigin.Begin);
+					fs.Seek((long)PreloadDataOffset, SeekOrigin.Begin);
 					fs.Read(buff, 0, buff.Length);
 				}
 				return buff;
@@ -61,7 +61,7 @@
 			if (HasPreloadData) {
 				dataCache = new byte[PreloadBytes + EntryLength];
 				using (var fs = new FileStream(ParentArchive.ArchivePath, FileMode.Open, FileAccess.Read)) {
-					fs.Seek(PreloadDataOffset, SeekOrigin.Begin);
+					fs.Seek((long)PreloadDataOffset, SeekOrigin.Begin);
 					fs.Read(dataCache, 0, PreloadBytes);
 				}
 

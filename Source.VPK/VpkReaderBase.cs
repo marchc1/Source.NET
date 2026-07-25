@@ -1,92 +1,97 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.IO.MemoryMappedFiles;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Source.VPK
 {
 	internal abstract class VpkReaderBase
-    {
-        public BinaryReader Reader;
-        private readonly StringBuilder _strBuilder;
+	{
+		private readonly byte[] memoryFile;
+		private nuint ptr;
 
-        protected VpkReaderBase(string filename)
-        {
-            Reader = new BinaryReader(new FileStream(filename, FileMode.Open, FileAccess.Read));
-            _strBuilder = new StringBuilder(256);
-        }
+		protected VpkReaderBase(string filename) {
+			memoryFile = File.ReadAllBytes(filename);
+		}
 
-        protected VpkReaderBase(byte[] file)
-        {
-            Reader = new BinaryReader(new MemoryStream(file));
-            _strBuilder = new StringBuilder(256);
-        }
+		protected VpkReaderBase(byte[] file) {
+			memoryFile = file;
+		}
 
-        public abstract IVpkArchiveHeader ReadArchiveHeader();
+		protected ReadOnlySpan<byte> GetMemoryFileNoOffset() => memoryFile;
+		protected ReadOnlySpan<byte> GetMemoryFileWithOffset() => memoryFile.AsSpan()[(int)ptr..];
+		protected ReadOnlySpan<byte> GetMemoryFileWithOffsetAndSize(nuint size) => memoryFile.AsSpan()[(int)ptr..][..(int)size];
 
-        public string ReadNullTerminatedString()
-        {
-            _strBuilder.Clear();
-            char chr;
-            while ((chr = (char)Reader.ReadByte()) != 0x0)
-                _strBuilder.Append(chr);
-            return _strBuilder.ToString();
-        }
+		public abstract IVpkArchiveHeader ReadArchiveHeader();
 
-        protected T BytesToStructure<T>(byte[] bytearray)
-        {
-            var structSize = Marshal.SizeOf(typeof (T));
-            var pStruct = Marshal.AllocHGlobal(structSize);
-            Marshal.Copy(bytearray, 0, pStruct, structSize);
-            var @struct = (T)Marshal.PtrToStructure(pStruct, typeof(T));
-            Marshal.FreeHGlobal(pStruct);
+		public string ReadNullTerminatedString() {
+			ReadOnlySpan<byte> rest = GetMemoryFileWithOffset();
+			int len = rest.IndexOf((byte)0);
+			string s = Encoding.ASCII.GetString(rest[..len]);
+			ptr += (nuint)len + 1;
+			return s;
+		}
 
-            return @struct;
-        }
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		protected static ref readonly T BytesToStructure<T>(ReadOnlySpan<byte> bytearray) where T : unmanaged {
+			return ref MemoryMarshal.Cast<byte, T>(bytearray[..Unsafe.SizeOf<T>()])[0];
+		}
 
-        #region default
-        public IEnumerable<VpkDirectory> ReadDirectories(VpkArchive parentArchive)
-        {
-            while (true)
-            {
-                var ext = ReadNullTerminatedString();
-                if (string.IsNullOrEmpty(ext))
-                    break;
-                while (true)
-                {
-                    var path = ReadNullTerminatedString();
-                    if (string.IsNullOrEmpty(path))
-                        break;
+		#region default
+		public IEnumerable<VpkDirectory> ReadDirectories(VpkArchive parentArchive) {
+			while (true) {
+				var ext = ReadNullTerminatedString();
+				if (string.IsNullOrEmpty(ext))
+					break;
+				while (true) {
+					var path = ReadNullTerminatedString();
+					if (string.IsNullOrEmpty(path))
+						break;
 
-                    var entries = ReadEntries(parentArchive, ext, path).ToList();
-                    yield return new VpkDirectory(parentArchive, path, entries);
-                }
-            }
-        }
+					var entries = ReadEntries(parentArchive, ext, path).ToList();
+					yield return new VpkDirectory(parentArchive, path, entries);
+				}
+			}
+		}
 
-        public IEnumerable<VpkEntry> ReadEntries(VpkArchive parentArchive, string ext, string path)
-        {
-            while (true)
-            {
-                var fileName = ReadNullTerminatedString();
-                if (string.IsNullOrEmpty(fileName))
-                    break;
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		protected ref readonly T Read<T>() where T : unmanaged {
+			int sizeofT = Unsafe.SizeOf<T>();
+			ref readonly T val = ref MemoryMarshal.Cast<byte, T>(GetMemoryFileWithOffsetAndSize((nuint)sizeofT))[0];
+			ptr += (nuint)sizeofT;
+			return ref val;
+		}
 
-                var crc = Reader.ReadUInt32();
-                var preloadBytes = Reader.ReadUInt16();
-                var archiveIdx = Reader.ReadUInt16();
-                var entryOffset = Reader.ReadUInt32();
-                var entryLen = Reader.ReadUInt32();
-                // skip terminator
-                Reader.ReadUInt16();
-                var preloadDataOffset = (uint)Reader.BaseStream.Position;
-                if (preloadBytes > 0) 
-                    Reader.BaseStream.Position += preloadBytes;
+		protected ReadOnlySpan<byte> ReadBytes(int bytes) {
+			ReadOnlySpan<byte> subspan = GetMemoryFileWithOffsetAndSize((nuint)bytes);
+			ptr += (nuint)bytes;
+			return subspan;
+		}
 
-                yield return new VpkEntry(parentArchive, crc, preloadBytes, preloadDataOffset, archiveIdx, entryOffset, entryLen, ext.ToLower(), path.ToLower(), fileName.ToLower());
-            }
-        }
-        #endregion
 
-        public abstract uint CalculateEntryOffset(uint offset);
-    }
+		public IEnumerable<VpkEntry> ReadEntries(VpkArchive parentArchive, string ext, string path) {
+			while (true) {
+				var fileName = ReadNullTerminatedString();
+				if (string.IsNullOrEmpty(fileName))
+					break;
+
+				var crc = Read<uint>();
+				var preloadBytes = Read<ushort>();
+				var archiveIdx = Read<ushort>();
+				var entryOffset = Read<uint>();
+				var entryLen = Read<uint>();
+				// skip terminator
+				Read<ushort>();
+				nuint preloadDataOffset = ptr;
+				if (preloadBytes > 0)
+					ptr += preloadBytes;
+
+				yield return new VpkEntry(parentArchive, crc, preloadBytes, preloadDataOffset, archiveIdx, entryOffset, entryLen, ext.ToLower(), path.ToLower(), fileName.ToLower());
+			}
+		}
+		#endregion
+
+		public abstract uint CalculateEntryOffset(uint offset);
+	}
 }
 
