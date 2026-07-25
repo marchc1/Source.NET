@@ -173,20 +173,68 @@ public class BaseFileSystem : IFileSystem
 		AddSearchPathFinal(path, addType, collection, groupName, pathID);
 	}
 
-	public IEnumerable<ISearchPath> GetCollections(ulong hashID) {
-		if (hashID == 0) {
-			foreach (var path in SearchPaths.Values)
-				if (!path.RequestOnly)
-					foreach (var searchPath in path)
-						yield return searchPath;
-		}
-		else {
-			if (!SearchPaths.TryGetValue(hashID, out var collection))
-				yield break;
+	public struct CollectionIterator(ulong hashID, SearchPathIDCollection collections)
+	{
+		readonly ulong HashID = hashID;
+		readonly SearchPathIDCollection Collections = collections;
+		bool iterateCollections;
 
-			foreach (var searchPath in collection)
-				yield return searchPath;
+		int currentCollectionIdx;
+		int currentSearchPathIdx;
+
+		SearchPathCollection? currentCollection;
+		ISearchPath? currentSearchPath;
+
+		bool initialized;
+
+		public bool MoveNext() {
+			if (!initialized) {
+				currentCollectionIdx = 0;
+				currentSearchPathIdx = 0;
+				if (HashID == 0) {
+					iterateCollections = true;
+					currentCollection = Collections.At(0);
+				}
+				else {
+					iterateCollections = false;
+					Collections.TryGetValue(HashID, out currentCollection);
+				}
+				initialized = true;
+			}
+
+		checkCollection:
+			if (currentCollection == null)
+				return false;
+
+			currentSearchPath = currentCollection.At(currentSearchPathIdx);
+			if (currentSearchPath == null) {
+				if (iterateCollections) {
+					currentCollectionIdx++;
+					currentSearchPathIdx = 0;
+					currentCollection = Collections.At(currentCollectionIdx);
+					goto checkCollection;
+				}
+				return false;
+			}
+
+			currentSearchPathIdx++;   // advance for next call
+			return true;
 		}
+
+		public readonly ISearchPath Current => currentSearchPath!;
+
+		public void Reset(){
+			initialized = false;
+			iterateCollections = false;
+			currentCollectionIdx = 0;
+			currentSearchPathIdx = 0;
+			currentCollection = null;
+			currentSearchPath = null;
+		}
+	}
+
+	public CollectionIterator GetCollections(ulong hashID) {
+		return new CollectionIterator(hashID, SearchPaths);   
 	}
 
 	interface IFirstToThePostOp<T>
@@ -218,7 +266,9 @@ public class BaseFileSystem : IFileSystem
 		Span<char> filenameNormalizedBuffer = stackalloc char[MAX_PATH];
 		ReadOnlySpan<char> filenameNormalized = ISearchPath.Normalize(filename, filenameNormalizedBuffer);
 		ulong hashID = pathID.Hash();
-		foreach (var path in GetCollections(hashID)) {
+		CollectionIterator iterator = GetCollections(hashID);
+		while (iterator.MoveNext()){ 
+			ISearchPath path = iterator.Current;
 			T? ret = op.Invoke(path, filenameNormalized);
 			if (op.Win(ret)) {
 				winner = path;
