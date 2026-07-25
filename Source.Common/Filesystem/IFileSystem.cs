@@ -1,5 +1,6 @@
 ﻿
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GarrysMod;
 using Source.Common.Utilities;
 
 namespace Source.Common.Filesystem;
@@ -242,6 +243,21 @@ public interface IFileSystem : IBaseFileSystem
 	void LoadCompiledKeyValues(KeyValuesPreloadType type, ReadOnlySpan<char> archiveFile);
 	KeyValues? LoadKeyValues(KeyValuesPreloadType type, ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID = default);
 	bool LoadKeyValues(KeyValues head, KeyValuesPreloadType type, ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID = default);
+
+#if GMOD_DLL
+	void RemoveSearchPathsByGroup(int unk1);
+	void SetGet(IGet get);
+	Addon.FileSystem Addons();
+	Gamemode.System Gamemodes();
+	GameDepot.System Games();
+	LegacyAddons.System LegacyAddons();
+	Language Language();
+	void DoFilesystemRefresh();
+	int LastFilesystemRefresh();
+	void AddVPKFileFromPath(ReadOnlySpan<char> vpk, ReadOnlySpan<char> path, uint id);
+	void GMOD_SetupDefaultPaths(ReadOnlySpan<char> path, ReadOnlySpan<char> game);
+	void GMOD_FixPathCase(Span<char> a);
+#endif
 }
 
 public enum PathTypeFilter

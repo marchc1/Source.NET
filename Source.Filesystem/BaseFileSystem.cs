@@ -6,8 +6,10 @@ using CommunityToolkit.HighPerformance;
 using Source.Common.Filesystem;
 using Source.Common.Formats.BSP;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GarrysMod;
 using Source.Common.Utilities;
 using Source.Filesystem;
+using Source.Filesystem.GarrysMod;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -668,4 +670,47 @@ public class BaseFileSystem : IFileSystem
 
 		return ret;
 	}
+
+	public void RemoveSearchPathsByGroup(int unk1) {
+		throw new NotImplementedException();
+	}
+
+
+#if GMOD_DLL
+	static IGet get = null!;
+	static readonly AddonFileSystem g_AddonFileSystem = new();
+	static readonly GamemodeSystem g_GamemodeSystem = new();
+	static readonly GameDepotSystem g_GameDepotSystem = new();
+	static readonly LegacyAddonSystem g_LegacyAddons = new();
+	static readonly Language2 g_LanguageSystem = new();
+
+	public void SetGet(IGet get) {
+		BaseFileSystem.get = get;
+	}
+
+	public Addon.FileSystem Addons() => g_AddonFileSystem;
+	public Gamemode.System Gamemodes() => g_GamemodeSystem;
+	public GameDepot.System Games() => g_GameDepotSystem;
+	public LegacyAddons.System LegacyAddons() => g_LegacyAddons;
+	public Language Language() => g_LanguageSystem;
+
+	public void DoFilesystemRefresh() => Msg("BaseFileSystem.DoFilesystemRefresh\n");
+
+	public int LastFilesystemRefresh() {
+		Msg("BaseFileSystem.LastFilesystemRefresh\n");
+		return 1;
+	}
+
+	public void AddVPKFileFromPath(ReadOnlySpan<char> vpk, ReadOnlySpan<char> path, uint id) {
+		AddVPKFile(vpk, path, (SearchPathAdd)id, PathGroupName.Default);
+	}
+
+	public void GMOD_SetupDefaultPaths(ReadOnlySpan<char> path, ReadOnlySpan<char> game) {
+
+	}
+
+	public void GMOD_FixPathCase(Span<char> a) {
+
+	}
+#endif
 }
