@@ -44,8 +44,7 @@ public class GameServer : BaseServer
 	}
 
 	public override void Shutdown() {
-
-
+		DownloadListGenerator.OnLevelLoadEnd();
 	}
 
 	protected override BaseClient CreateNewClient(int slot) {
@@ -142,7 +141,7 @@ public class GameServer : BaseServer
 			Assert(j == i);
 		}
 
-		// DownloadListGenerator.SetStringTable(DownloadableFileTable);
+		DownloadListGenerator.SetStringTable(DownloadableFileTable);
 	}
 
 	public INetworkStringTable? GetModelPrecacheTable() => ModelPrecacheTable;

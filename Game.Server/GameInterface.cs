@@ -197,6 +197,10 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		services.AddSingleton<BaseEntityList>(x => x.GetRequiredService<GlobalEntityList>());
 	}
 
+	public PrepareLevelResourcesResult AsyncPrepareLevelResources(Span<char> mapName, Span<char> mapFile, out float progress) {
+		throw new NotImplementedException();
+	}
+
 	public void BuildAdjacentMapList() {
 		throw new NotImplementedException();
 	}
@@ -460,6 +464,10 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 			return;
 
 		IGameSystem.PreClientUpdateAllSystems();
+	}
+
+	public void PrepareLevelResources(Span<char> mapName, Span<char> mapFile) {
+		throw new NotImplementedException();
 	}
 
 	public void PreSaveGameLoaded(ReadOnlySpan<char> pSaveName, bool bCurrentlyInGame) {

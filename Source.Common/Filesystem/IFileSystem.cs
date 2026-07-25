@@ -260,6 +260,9 @@ public interface IFileSystem : IBaseFileSystem
 #endif
 
 	bool FindIsDirectory(FileFindHandle_t findHandle);
+	WaitForResourcesHandle_t WaitForResources(ReadOnlySpan<char> levelBaseName);
+	bool GetWaitForResourcesProgress(int waitForResourcesHandle, out float progress, out bool complete);
+	void CancelWaitForResources(WaitForResourcesHandle_t handle);
 }
 
 public enum PathTypeFilter

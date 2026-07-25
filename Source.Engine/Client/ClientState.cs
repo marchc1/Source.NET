@@ -14,6 +14,7 @@ using Source.Common.Formats.Keyvalues;
 using Source.Common.Hashing;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
+using Source.Common.Server;
 using Source.Engine.Server;
 
 using Steamworks;
@@ -103,6 +104,7 @@ public class ClientState : BaseClientState
 	public INetworkStringTable? ServerStartupTable;
 	public INetworkStringTable? DynamicModelsTable;
 	public INetworkStringTable? ClientLuaFiles;
+	public INetworkStringTable? DownloadableFileTable;
 
 
 	readonly PrecacheItem[] ModelPrecache = ClassUtils.BlankInstantiatedArray<PrecacheItem>(PrecacheItem.MAX_MODELS);
@@ -117,12 +119,11 @@ public class ClientState : BaseClientState
 
 	readonly Common Common;
 	readonly Sound Sound;
-	readonly HttpDownloader httpDownloader;
 
 	public ClientState(Host Host, IFileSystem fileSystem, Net Net, CommonHostState host_state, Common Common,
 		Cbuf Cbuf, Cmd Cmd, ICvar cvar, IHostState HostState, Scr Scr, IEngineAPI engineAPI,
 		IServiceProvider services,
-IModelLoader modelloader, ICommandLine commandLine, HttpDownloader httpDownloader,
+IModelLoader modelloader, ICommandLine commandLine,
 		[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient,
 
 #if !SWDS
@@ -156,7 +157,6 @@ IModelLoader modelloader, ICommandLine commandLine, HttpDownloader httpDownloade
 		engineClient_LAZY = new(ProduceEngineClient);
 		CommandLine = commandLine;
 		this.RecvTable = RecvTable;
-		this.httpDownloader = httpDownloader;
 	}
 
 	private IEngineClient ProduceEngineClient() => services.GetRequiredService<IEngineClient>();
@@ -172,6 +172,7 @@ IModelLoader modelloader, ICommandLine commandLine, HttpDownloader httpDownloade
 		UserInfoTable = null;
 		ServerStartupTable = null;
 		DynamicModelsTable = null;
+		DownloadableFileTable = null;
 
 		Array.Clear(AreaBits, 0, AreaBits.Length);
 		UpdateSteamResources = false;
@@ -251,6 +252,9 @@ IModelLoader modelloader, ICommandLine commandLine, HttpDownloader httpDownloade
 				return true;
 			case Protocol.USER_INFO_TABLENAME:
 				UserInfoTable = table;
+				return true;
+			case Protocol.DOWNLOADABLES_TABLENAME:
+				DownloadableFileTable = table;
 				return true;
 			case Protocol.CLIENT_LUA_FILES_TABLENAME:
 				ClientLuaFiles = table;
@@ -740,11 +744,132 @@ IModelLoader modelloader, ICommandLine commandLine, HttpDownloader httpDownloade
 		return true;
 	}
 
+	WaitForResourcesHandle_t WaitForResourcesHandle;
 	public void StartUpdatingSteamResources() {
-		// for now; just make signon state new
-		FinishSignonState_New();
+		Assert(SignOnState == SignOnState.New);
+
+		WaitForResourcesHandle = g_pFileSystem.WaitForResources(LevelBaseName);
+		UpdateSteamResources = true;
+		ShownSteamResourceUpdateProgress = false;
+		DownloadResources = false;
+		PrepareClientDLL = false;
 	}
-	public void CheckUpdatingSteamResources() { }
+
+	public void CheckUpdatingSteamResources() {
+		if (PrepareClientDLL) {
+			float prepareProgress = 0f;
+			Span<char> szMutableLevelName = stackalloc char[LevelBaseName.Length];
+			strcpy(szMutableLevelName, LevelBaseName);
+
+			// if the game .dll doesn't support this call assume everything is prepared
+#if !GMOD_DLL
+			PrepareLevelResourcesResult result = serverGameDLL.AsyncPrepareLevelResources(szMutableLevelName, _LevelFileName, out PrepareProgress);
+
+			switch (result) {
+				case PrepareLevelResourcesResult.InProgress:
+					if (!ShownSteamResourceUpdateProgress) {
+						// make sure the loading dialog is up
+						EngineVGui().StartCustomProgress();
+						EngineVGui().ActivateGameUI();
+						ShownSteamResourceUpdateProgress = true;
+					}
+					EngineVGui().UpdateCustomProgressBar(PrepareProgress, g_Localize.Find("#Valve_UpdatingSteamResources"));
+					break;
+				default:
+				case PrepareLevelResourcesResult.Prepared:
+					PrepareProgress = 100.f;
+					PrepareClientDLL = false;
+					UpdateSteamResources = true;
+					break;
+			}
+#else
+			prepareProgress = 100f;
+			PrepareClientDLL = false;
+			UpdateSteamResources = true;
+#endif
+		}
+
+		if (UpdateSteamResources) {
+			bool complete = false;
+			float progress = 0.0f;
+			g_pFileSystem.GetWaitForResourcesProgress(WaitForResourcesHandle, out progress, out complete);
+
+			if (complete) {
+				WaitForResourcesHandle = 0;
+				UpdateSteamResources = false;
+				DownloadResources = false;
+
+				if (DownloadableFileTable != null) {
+					bool allowDownloads = true;
+					bool allowSoundDownloads = true;
+					bool allowNonMaps = true;
+					if (0 == stricmp(cl_downloadfilter.GetString(), "none")) 
+						allowDownloads = allowSoundDownloads = allowNonMaps = false;
+					else if (0 == stricmp(cl_downloadfilter.GetString(), "nosounds")) 
+						allowSoundDownloads = false;
+					else if (0 == stricmp(cl_downloadfilter.GetString(), "mapsonly")) 
+						allowNonMaps = false;
+
+					if (allowDownloads) {
+						Span<char> extension = stackalloc char[MAX_PATH];
+						for (int i = 0; i < DownloadableFileTable.GetNumStrings(); ++i) {
+							ReadOnlySpan<char> fname = DownloadableFileTable.GetString(i);
+							scoped ReadOnlySpan<char> ext = Path.GetExtension(fname);
+							ext = extension[..ext.ToLowerInvariant(extension)];
+
+							if (!allowSoundDownloads) 
+								if (0 == stricmp(extension, "wav") || 0 == stricmp(extension, "mp3")) 
+									continue;
+
+							if (!allowNonMaps) {
+								// The user wants maps only.
+								// If the extension is not bsp, skip it.
+								if (0 != stricmp(extension, "bsp")) 
+									continue;
+							}
+
+							CL.QueueDownload(fname);
+						}
+					}
+
+					if (CL.GetDownloadQueueSize() != 0) {
+						// make sure the loading dialog is up
+						EngineVGui().StartCustomProgress();
+						EngineVGui().ActivateGameUI();
+						DownloadResources = true;
+					}
+					else {
+						DownloadResources = false;
+						FinishSignonState_New();
+					}
+				}
+				else {
+					Host.Error("Invalid download file table.");
+				}
+			}
+			else if (progress > 0.0f) {
+				if (!ShownSteamResourceUpdateProgress) {
+					// make sure the loading dialog is up
+					EngineVGui().StartCustomProgress();
+					EngineVGui().ActivateGameUI();
+					ShownSteamResourceUpdateProgress = true;
+				}
+
+				// change it to be updating steam resources
+				EngineVGui().UpdateCustomProgressBar(progress, g_Localize.Find("#Valve_UpdatingSteamResources"));
+			}
+		}
+
+		if (DownloadResources) {
+			// Check on any HTTP downloads in progress
+			bool stillDownloading = CL.DownloadUpdate();
+
+			if (!stillDownloading) {
+				DownloadResources = false;
+				FinishSignonState_New();
+			}
+		}
+	}
 	public void CheckFileCRCsWithServer() { }
 	public void SendClientInfo() {
 		CLC_ClientInfo info = new CLC_ClientInfo();
@@ -879,8 +1004,6 @@ IModelLoader modelloader, ICommandLine commandLine, HttpDownloader httpDownloade
 
 		ReadOnlySpan<char> name = ModelPrecacheTable.GetString(index);
 
-		httpDownloader.EnsureFile(name);
-
 		model = modelloader.GetModelForName(name, ModelLoaderFlags.Client);
 		if (model == null) {
 			ref PrecacheUserData data = ref CL.GetPrecacheUserData(ModelPrecacheTable, index);
@@ -915,9 +1038,8 @@ IModelLoader modelloader, ICommandLine commandLine, HttpDownloader httpDownloade
 
 		if (tableIndex == 1) {
 			loadNow = true;
-			httpDownloader.EnsureFile(name);
 		}
-		
+
 		if (loadNow)
 			p.SetModel(modelloader.GetModelForName(name, ModelLoaderFlags.Client));
 		else

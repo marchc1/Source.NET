@@ -11,6 +11,7 @@ using Source.Common.Engine;
 using Source.Common.Launcher;
 using Source.Common.Networking;
 using Source.Engine.Client;
+using Source.Engine.Server;
 
 using System.Buffers;
 using System.Runtime.CompilerServices;
@@ -364,14 +365,6 @@ public partial class CL(IServiceProvider services, Net Net,
 
 		if (cl.IsActive())
 			cl.NetChannel!.SendNetMsg(voiceMsg);
-	}
-
-	internal void FileDenied(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
-	}
-
-	internal void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
 	}
 
 	internal void RegisterResources() {
@@ -790,10 +783,6 @@ public partial class CL(IServiceProvider services, Net Net,
 			LocalNetworkBackdoor.ClearState();
 
 		cl.Clear();
-	}
-
-	internal void HTTPStop_f() {
-
 	}
 }
 

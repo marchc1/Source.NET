@@ -64,8 +64,14 @@ public abstract class BaseClientState(
 	public double PausedExpireTime;
 	public int ViewEntity;
 	public int PlayerSlot;
-	public string? LevelFileName;
-	public string? LevelBaseName;
+
+	protected InlineArray128<char> _LevelFileName;
+	protected InlineArray128<char> _LevelBaseName;
+
+	public ReadOnlySpan<char> LevelFileName { get => ((ReadOnlySpan<char>)_LevelFileName).SliceNullTerminatedString(); set => strcpy(_LevelFileName, value); }
+	public ReadOnlySpan<char> LevelBaseName { get => ((ReadOnlySpan<char>)_LevelBaseName).SliceNullTerminatedString(); set => strcpy(_LevelBaseName, value); }
+
+
 	public int MaxClients;
 
 	public InlineArray2<InlineArrayMaxEdicts<PackedEntity?>> EntityBaselines;
@@ -77,6 +83,7 @@ public abstract class BaseClientState(
 	public uint EncryptionKeySize;
 
 	// Source does it differently but who really cares, this works fine... I think
+	// TODO: Review that comment.... wtf
 	public NetworkStringTableContainer? StringTableContainer;
 
 	public bool RestrictServerCommands;
@@ -153,8 +160,8 @@ public abstract class BaseClientState(
 		CurrentSequence = 0;
 		ServerClassBits = 0;
 		PlayerSlot = 0;
-		LevelFileName = "";
-		LevelBaseName = "";
+		_LevelFileName[0] = '\0';
+		_LevelBaseName[0] = '\0';
 		MaxClients = 0;
 
 		StringTableContainer?.RemoveAllTables();
@@ -543,8 +550,7 @@ public abstract class BaseClientState(
 			ConMsg($"Interval_per_tick {msg.TickInterval} out of range [{Constants.MINIMUM_TICK_INTERVAL} to {Constants.MAXIMUM_TICK_INTERVAL}]");
 			return false;
 		}
-
-		LevelBaseName = msg.MapName;
+		strcpy(_LevelBaseName, msg.MapName);
 
 		ConVar? skyname = cvar.FindVar("sv_skyname");
 		skyname?.SetValue(msg.SkyName);
@@ -553,7 +559,7 @@ public abstract class BaseClientState(
 
 		Span<char> levelFileName = stackalloc char[MAX_PATH];
 		Host.DefaultMapFileName(msg.MapName, levelFileName);
-		LevelFileName = new(levelFileName.SliceNullTerminatedString());
+		strcpy(_LevelFileName, levelFileName);
 
 		return true;
 	}

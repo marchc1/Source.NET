@@ -109,10 +109,18 @@ public interface IServerGameDLL
 	// Get gamedata string to send to the master serer updater.
 	ReadOnlySpan<char> GetServerBrowserGameData();
 
+	void PrepareLevelResources(Span<char> mapName, Span<char> mapFile);
+	PrepareLevelResourcesResult AsyncPrepareLevelResources(Span<char> mapName, Span<char> mapFile, out float progress);
 
 	bool GMOD_CheckPassword(CSteamID steamID, ReadOnlySpan<char> ipAddress, ReadOnlySpan<char> serverPassword, ReadOnlySpan<char> clientPassword, ReadOnlySpan<char> name, Span<char> rejectionMessage);
 	void GMOD_ClientSignOnStateChanged(int userID, int oldState, int newState);
 	void GMOD_OnAllSoundsStoppedSV();
+}
+
+public enum PrepareLevelResourcesResult
+{
+	Prepared,
+	InProgress
 }
 
 /// <summary>

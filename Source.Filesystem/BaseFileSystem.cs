@@ -840,5 +840,19 @@ public class BaseFileSystem : IFileSystem
 	public void GMOD_FixPathCase(Span<char> a) {
 
 	}
+
+	public WaitForResourcesHandle_t WaitForResources(ReadOnlySpan<char> resourcelist) {
+		return 1;
+	}
+
+	public bool GetWaitForResourcesProgress(int waitForResourcesHandle, out float progress, out bool complete) {
+		progress = 0.0f;
+		complete = true;
+		return true; 
+	}
+
+	public void CancelWaitForResources(WaitForResourcesHandle_t handle){
+
+	}
 #endif
 }

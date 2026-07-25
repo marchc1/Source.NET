@@ -59,6 +59,7 @@ global using GameLumpId_t = int;
 global using LeafFogVolume_t = short;
 global using ShadowHandle_t = ushort;
 global using SurfaceHandle_t = int;
+global using WaitForResourcesHandle_t = int;
 global using DispShadowHandle = ushort;
 global using DispDecalHandle = short;
 global using fltx4 = System.Runtime.Intrinsics.Vector128<float>;

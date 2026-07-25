@@ -840,6 +840,8 @@ public class Host
 		if (host_name.GetString().Length == 0)
 			host_name.SetValue(serverDLL!.GetGameDescription());
 
+		DownloadListGenerator.OnLevelLoadStart(mapName);
+
 		if (!sv.SpawnServer(mapName, _mapFile, null))
 			return false;
 
