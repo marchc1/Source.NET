@@ -42,5 +42,6 @@ public class LegacyAddonSystem : LegacyAddons.System
 
 			filename = g_FullFileSystem.FindNext(findHandle);
 		}
+		g_FullFileSystem.FindClose(findHandle);
 	}
 }
