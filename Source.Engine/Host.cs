@@ -21,6 +21,8 @@ using static Source.Constants;
 
 namespace Source.Engine;
 
+public sealed class HostErrorException(string message) : Exception(message);
+
 public class CommonHostState
 {
 	public Model? WorldModel;
@@ -1207,6 +1209,11 @@ public class Host
 		ConMsg($"\nHost_Error: {error}\n\n");
 		Disconnect(true, error);
 		inerror = false;
+
+		// Unwind back to the host-state loop (IHostState.Frame), mirroring the
+		// reference engine's longjmp(host_abortserver). This stops the caller
+		// from continuing to parse/execute on the now-disconnected state.
+		throw new HostErrorException(new string(error));
 	}
 
 	static readonly ConVar singlestep = new("singlestep", "0", FCvar.Cheat, "Run engine in single step mode ( set next to 1 to advance a frame )");
