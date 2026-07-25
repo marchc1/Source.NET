@@ -585,6 +585,12 @@ public partial class CL(IServiceProvider services, Net Net,
 			RecvTable.Decode(recvTable, ent.GetDataTableBasePtr(), u.Buf, u.NewEntity, true);
 		}
 
+		// A decode that overflows the buffer means this entity's datatable consumed
+		// the wrong number of bits and the rest of the packet is now misaligned. This
+		// is the point where a stream desync first becomes detectable.
+		if (u.Buf.Overflowed)
+			Warning($"CL.CopyNewEntity: buffer overflow decoding new ent {u.NewEntity} class {iClass} '{pClass?.NetworkName}' - entity stream desynced\n");
+
 		AddPostDataUpdateCall(u, u.NewEntity, updateType);
 
 		Assert(u.To!.LastEntity <= u.NewEntity);
@@ -592,6 +598,13 @@ public partial class CL(IServiceProvider services, Net Net,
 		u.To!.TransmitEntity.Set(u.NewEntity);
 
 		int bit_count = u.Buf.BitsRead - start_bit;
+
+		// Per-entity bit accounting. Enable cl_entitydecode_report to trace exactly
+		// which datatable consumed how many bits; the last entity logged before a
+		// "missing client entity"/overflow error is the one whose decode desynced.
+		if (cl_entitydecode_report.GetBool())
+			DevMsg($"cl decode: ent {u.NewEntity,4} class {iClass,3} '{pClass?.NetworkName}' consumed {bit_count} bits (buf pos {u.Buf.BitsRead}, {u.Buf.BitsLeft} left)\n");
+
 		if (cl_entityreport.GetBool())
 			RecordEntityBits(u.NewEntity, bit_count);
 
@@ -613,7 +626,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		if ((clientClass = cl.ServerClasses[iClass]?.ClientClass) != null) {
 			RecordAddEntity(iEnt);
 			if (!cl.IsActive())
-				Common.TimestampedLog($"cl:  create '{clientClass.NetworkName}'\n");
+				Common.TimestampedLog($"cl:  create({iEnt}, {iClass}, {iSerialNum}) '{clientClass.NetworkName}'\n");
 
 			return clientClass.CreateFn(iEnt, iSerialNum);
 		}
