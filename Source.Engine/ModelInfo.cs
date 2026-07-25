@@ -255,7 +255,8 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 	}
 
 	public void GetModelBounds(Model? model, out Vector3 mins, out Vector3 maxs) {
-		throw new NotImplementedException();
+		mins = model!.Mins;
+		maxs = model!.Maxs;
 	}
 
 	public bool ModelHasMaterialProxy(Model? model) => model != null && (model.Flags & ModelFlag.MaterialProxy) != 0;
