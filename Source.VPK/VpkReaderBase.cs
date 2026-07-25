@@ -37,22 +37,74 @@ namespace Source.VPK
 			return ref MemoryMarshal.Cast<byte, T>(bytearray[..Unsafe.SizeOf<T>()])[0];
 		}
 
-		#region default
-		public IEnumerable<VpkDirectory> ReadDirectories(VpkArchive parentArchive) {
-			while (true) {
-				var ext = ReadNullTerminatedString();
-				if (string.IsNullOrEmpty(ext))
-					break;
-				while (true) {
-					var path = ReadNullTerminatedString();
-					if (string.IsNullOrEmpty(path))
-						break;
+		public struct DirectoryReader(VpkReaderBase reader, VpkArchive parentArchive)
+		{
+			readonly VpkReaderBase Reader = reader;
+			readonly VpkArchive ParentArchive = parentArchive;
+			string? ext = null;
+			public VpkDirectory Current = null!;
 
-					var entries = ReadEntries(parentArchive, ext, path).ToList();
-					yield return new VpkDirectory(parentArchive, path, entries);
+			public bool MoveNext() {
+				while (true) {
+					if (ext == null) {
+						ext = Reader.ReadNullTerminatedString();
+						if (string.IsNullOrEmpty(ext))
+							return false;            // end of tree
+						ext = ext.ToLowerInvariant(); // once per extension block
+					}
+
+					var path = Reader.ReadNullTerminatedString();
+					if (string.IsNullOrEmpty(path)) {
+						ext = null;                   // end of this ext's paths, get the next one
+						continue;
+					}
+
+					Current = new VpkDirectory(ParentArchive, path,
+						Reader.ReadEntries(ParentArchive, ext, path).ToList());
+					return true;
 				}
 			}
 		}
+
+		#region default
+		public DirectoryReader ReadDirectories(VpkArchive parentArchive) => new(this, parentArchive);
+
+		public struct EntryReader(VpkReaderBase reader, VpkArchive parentArchive, string ext, string path)
+		{
+			readonly VpkReaderBase Reader = reader;
+			readonly VpkArchive ParentArchive = parentArchive;
+			readonly string Ext = ext;
+			readonly string Path = path;
+			public bool MoveNext() {
+				var fileName = Reader.ReadNullTerminatedString();
+				if (string.IsNullOrEmpty(fileName))
+					return false;
+
+				var crc = Reader.Read<uint>();
+				var preloadBytes = Reader.Read<ushort>();
+				var archiveIdx = Reader.Read<ushort>();
+				var entryOffset = Reader.Read<uint>();
+				var entryLen = Reader.Read<uint>();
+				// skip terminator
+				Reader.Read<ushort>();
+				nuint preloadDataOffset = Reader.ptr;
+				if (preloadBytes > 0)
+					Reader.ptr += preloadBytes;
+
+				Current = new VpkEntry(ParentArchive, crc, preloadBytes, preloadDataOffset, archiveIdx, entryOffset, entryLen, Ext, Path, fileName.ToLowerInvariant());
+				return true;
+			}
+
+			public List<VpkEntry> ToList() {
+				List<VpkEntry> entries = [];
+				while (MoveNext())
+					entries.Add(Current);
+				return entries;
+			}
+
+			public VpkEntry Current = null!;
+		}
+		public EntryReader ReadEntries(VpkArchive parentArchive, string ext, string path) => new(this, parentArchive, ext.ToLowerInvariant(), path.ToLowerInvariant());
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		protected ref readonly T Read<T>() where T : unmanaged {
@@ -68,27 +120,6 @@ namespace Source.VPK
 			return subspan;
 		}
 
-
-		public IEnumerable<VpkEntry> ReadEntries(VpkArchive parentArchive, string ext, string path) {
-			while (true) {
-				var fileName = ReadNullTerminatedString();
-				if (string.IsNullOrEmpty(fileName))
-					break;
-
-				var crc = Read<uint>();
-				var preloadBytes = Read<ushort>();
-				var archiveIdx = Read<ushort>();
-				var entryOffset = Read<uint>();
-				var entryLen = Read<uint>();
-				// skip terminator
-				Read<ushort>();
-				nuint preloadDataOffset = ptr;
-				if (preloadBytes > 0)
-					ptr += preloadBytes;
-
-				yield return new VpkEntry(parentArchive, crc, preloadBytes, preloadDataOffset, archiveIdx, entryOffset, entryLen, ext.ToLower(), path.ToLower(), fileName.ToLower());
-			}
-		}
 		#endregion
 
 		public abstract uint CalculateEntryOffset(uint offset);

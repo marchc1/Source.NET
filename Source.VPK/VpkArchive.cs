@@ -53,7 +53,9 @@ namespace Source.VPK
 					break;
 			}
 
-			Directories.AddRange(_reader.ReadDirectories(this));
+			var reader = _reader.ReadDirectories(this);
+			while (reader.MoveNext())
+				Directories.Add(reader.Current);
 		}
 
 		public void Load(byte[] file, VpkVersions.Versions version = VpkVersions.Versions.V1) {
@@ -87,7 +89,9 @@ namespace Source.VPK
 					break;
 			}
 
-			Directories.AddRange(_reader.ReadDirectories(this));
+			var reader = _reader.ReadDirectories(this);
+			while (reader.MoveNext())
+				Directories.Add(reader.Current);
 		}
 
 		private void LoadParts(string filePath) {
