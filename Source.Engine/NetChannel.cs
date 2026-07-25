@@ -1046,6 +1046,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 			return;
 
 		// write fragemnts for both streams
+		Span<char> compressedfilenameBuffer = stackalloc char[MAX_OSPATH];
+
 		for (int i = 0; i < (int)FragmentStream.Max; i++) {
 			if (WaitingList[i].Count == 0)
 				continue;
@@ -1090,12 +1092,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 			{
 				Assert(data.File != null);
 
-				Span<char> compressedfilename = stackalloc char[MAX_OSPATH];
 				long compressedFileSize = -1;
 				IFileHandle? hZipFile = null;
 
 				// check to see if there is a compressed version of the file
-				sprintf(compressedfilename, "%s.ztmp").S(data.Filename);
+				ReadOnlySpan<char> compressedfilename = sprintf(compressedfilenameBuffer, "%s.ztmp").S(data.Filename).ToSpan();
 
 				// check the timestamps 
 				DateTime compressedFileTime = g_pFileSystem.GetFileTime(compressedfilename);
@@ -1121,7 +1122,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 					Span<byte> compressed = compressedArray.AsSpan();
 
 					// read in source file
-					data.File!.Stream.Read(uncompressed);
+					data.File!.Stream.ReadExactly(uncompressed);
 
 					// compress into buffer
 					if (Source.Engine.Common.BufferToBufferCompress_Snappy(ref compressed, uncompressed)) {

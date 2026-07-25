@@ -26,7 +26,7 @@ namespace Source.Engine;
 /// CL_MethodName's in the static global namespace
 /// </summary>
 public partial class CL(IServiceProvider services, Net Net,
-	ClientGlobalVariables clientGlobalVariables, ServerGlobalVariables serverGlobalVariables,
+	ClientGlobalVariables clientGlobalVariables,
 	CommonHostState host_state, Host Host, Cbuf Cbuf, Scr Scr,
 #if !SWDS
 	IEngineVGuiInternal? EngineVGui,
@@ -39,8 +39,8 @@ public partial class CL(IServiceProvider services, Net Net,
 	public IClientLeafSystemEngine ClientLeafSystem => ClientDLL.ClientLeafSystem;
 
 
-	public IBaseClientDLL clientDLL;
-	public IEngineClient engineClient;
+	public IBaseClientDLL clientDLL = null!;
+	public IEngineClient engineClient = null!;
 	public void ApplyAddAngle() {
 
 	}
@@ -163,7 +163,7 @@ public partial class CL(IServiceProvider services, Net Net,
 
 		bool sendPacket = true;
 
-		if (Net.Time < cl.NextCmdTime || !cl.NetChannel.CanPacket())
+		if (Net.Time < cl.NextCmdTime || !cl.NetChannel!.CanPacket())
 			sendPacket = false;
 
 		if (cl.IsActive()) {
@@ -203,7 +203,7 @@ public partial class CL(IServiceProvider services, Net Net,
 			cl.NetChannel?.SendNetMsg(mymsg);
 		}
 
-		cl.LastOutgoingCommand = cl.NetChannel.SendDatagram(null);
+		cl.LastOutgoingCommand = cl.NetChannel!.SendDatagram(null);
 		cl.ChokedCommands = 0;
 
 		if (cl.IsActive()) {
@@ -239,7 +239,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		clientDLL.LevelInitPostEntity();
 
 		// Start notifying dependencies
-		uint ip = cl.NetChannel.GetRemoteAddress()!.GetIPHostByteOrder();
+		uint ip = cl.NetChannel!.GetRemoteAddress()!.GetIPHostByteOrder();
 		short port = cl.NetChannel.GetRemoteAddress()!.GetPort();
 
 		if (port == 0) {
@@ -520,7 +520,7 @@ public partial class CL(IServiceProvider services, Net Net,
 			return;
 		}
 
-		ClientClass? pClass = cl.ServerClasses[iClass]?.ClientClass;
+		ClientClass? pClass = cl.ServerClasses![iClass]?.ClientClass;
 		bool bNew = false;
 		if (ent != null) {
 			if (ent.GetIClientUnknown()!.GetRefEHandle()!.GetSerialNumber() != iSerialNum) {
@@ -623,7 +623,7 @@ public partial class CL(IServiceProvider services, Net Net,
 
 	private IClientNetworkable? CreateDLLEntity(int iEnt, int iClass, int iSerialNum) {
 		ClientClass? clientClass;
-		if ((clientClass = cl.ServerClasses[iClass]?.ClientClass) != null) {
+		if ((clientClass = cl.ServerClasses![iClass]?.ClientClass) != null) {
 			RecordAddEntity(iEnt);
 			if (!cl.IsActive())
 				Common.TimestampedLog($"cl:  create({iEnt}, {iClass}, {iSerialNum}) '{clientClass.NetworkName}'\n");
@@ -801,17 +801,17 @@ public partial class CL(IServiceProvider services, Net Net,
 /// Loads and shuts down the client DLL
 /// </summary>
 /// <param name="services"></param>
-public class ClientDLL(IServiceProvider services, Sys Sys
+public class ClientDLL(IServiceProvider services
 #if !SWDS
 , EngineRecvTable RecvTable
 #endif
 )
 {
-	public IBaseClientDLL clientDLL;
-	public IPrediction ClientSidePrediction;
-	public IClientEntityList EntityList;
-	public ICenterPrint CenterPrint;
-	public IClientLeafSystemEngine ClientLeafSystem;
+	public IBaseClientDLL clientDLL = null!;
+	public IPrediction ClientSidePrediction = null!;
+	public IClientEntityList EntityList = null!;
+	public ICenterPrint CenterPrint = null!;
+	public IClientLeafSystemEngine ClientLeafSystem = null!;
 	public void Init() {
 		clientDLL = services.GetRequiredService<IBaseClientDLL>();
 

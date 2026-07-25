@@ -24,7 +24,7 @@ public interface INetChannel : INetChannelInfo
 	bool SendFile(ReadOnlySpan<char> filename, uint transferID);
 	void DenyFile(ReadOnlySpan<char> filename, uint transferID);
 	void SetChoked();
-	int SendDatagram(bf_write data);
+	int SendDatagram(bf_write? data);
 	bool Transmit(bool onlyReliable = false);
 
 	NetAddress? GetRemoteAddress();
@@ -43,7 +43,6 @@ public interface INetChannel : INetChannelInfo
 	void SetFileTransmissionMode(bool backgroundMode);
 	void SetCompressionMode(bool useCompression);
 	uint RequestFile(ReadOnlySpan<char> filename);
-	TimeUnit_t GetTimeSinceLastReceived();
 	void SetMaxBufferSize(bool reliable, int bytes, bool voice = false);
 	bool IsNull();
 	int GetNumBitsWritten(bool reliable);

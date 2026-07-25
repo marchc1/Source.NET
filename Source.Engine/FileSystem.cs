@@ -54,7 +54,7 @@ public class FileSystem(IFileSystem fileSystem, IServiceProvider services)
 
 		// todo: extraSearchPath.
 		bool lowViolence = initInfo.LowViolence;
-		bool firstGamePath = true;
+		// bool firstGamePath = true;
 		foreach (KeyValues cur in searchPaths!) {
 			ReadOnlySpan<char> location = cur.GetString();
 			string lBaseDir = baseDir;

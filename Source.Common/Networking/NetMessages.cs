@@ -841,7 +841,7 @@ public class SVC_VoiceData : NetMessage
 	public int FromClient;
 	public bool Proximity;
 	public int Length;
-	public readonly bf_read DataIn;
+	public readonly bf_read DataIn = new();
 	public byte[]? DataOut;
 
 	public override bool ReadFromBuffer(bf_read buffer) {

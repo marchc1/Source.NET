@@ -15,6 +15,7 @@ using Source.Engine.Server;
 
 using Steamworks;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 using static Source.Constants;
@@ -52,33 +53,33 @@ public class Host
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 	public GameClient? Client;
-	public ClientGlobalVariables clientGlobalVariables;
-	public CL CL;
-	public MatSysInterface MatSysInterface;
-	public IModelLoader modelloader;
-	public SV SV;
-	public ServerGlobalVariables serverGlobalVariables;
-	public Cbuf Cbuf;
-	public Cmd Cmd;
-	public Con Con;
-	public Key Key;
+	public ClientGlobalVariables clientGlobalVariables = null!;
+	public CL CL = null!;
+	public MatSysInterface MatSysInterface = null!;
+	public IModelLoader modelloader = null!;
+	public SV SV = null!;
+	public ServerGlobalVariables serverGlobalVariables = null!;
+	public Cbuf Cbuf = null!;
+	public Cmd Cmd = null!;
+	public Con Con = null!;
+	public Key Key = null!;
 #if !SWDS
-	public EngineVGui EngineVGui;
+	public EngineVGui EngineVGui = null!;
 #endif
-	public Cvar Cvar;
-	public View View;
-	public Render Render;
-	public Common Common;
-	public IEngine Engine;
-	public Scr Scr;
-	public Net Net;
-	public Sys Sys;
-	public ISoundServices soundServices;
-	public ClientDLL ClientDLL;
-	public Sound Sound;
-	public IHostState HostState;
+	public Cvar Cvar = null!;
+	public View View = null!;
+	public Render Render = null!;
+	public Common Common = null!;
+	public IEngine Engine = null!;
+	public Scr Scr = null!;
+	public Net Net = null!;
+	public Sys Sys = null!;
+	public ISoundServices soundServices = null!;
+	public ClientDLL ClientDLL = null!;
+	public Sound Sound = null!;
+	public IHostState HostState = null!;
 	public IBaseClientDLL? clientDLL;
-	public IGameEventManager2 GameEventManager;
+	public IGameEventManager2 GameEventManager = null!;
 	public IServerGameDLL? serverDLL;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
@@ -733,8 +734,9 @@ public class Host
 
 		ReadOnlySpan<char> filename = fileSystem.FindFirstEx("maps/*.bsp", null, out FileFindHandle_t findHandle);
 		while (!filename.IsEmpty) {
-			Span<char> mapName = stackalloc char[256];
-			filename.StripExtension(mapName);
+#pragma warning disable CA2014 // Do not use stackalloc in loops
+			ReadOnlySpan<char> mapName = filename.StripExtension(stackalloc char[256]);
+#pragma warning restore CA2014 // Do not use stackalloc in loops
 			string name = mapName.SliceNullTerminatedString().ToString();
 			if (name.StartsWith(arg, StringComparison.OrdinalIgnoreCase))
 				yield return prefix + name;
@@ -798,8 +800,10 @@ public class Host
 		}
 		internal void Reset() { CurPosition = 0; Line[0] = '\0'; }
 		internal void InsertEmptyColumn(int columnWidth) => CurPosition += columnWidth + 1;
-		internal unsafe ReadOnlySpan<char> GetLine() {
+		internal readonly unsafe ReadOnlySpan<char> GetLine() {
+#pragma warning disable CS9084 // Struct member returns 'this' or other instance members by reference
 			return ((ReadOnlySpan<char>)Line).SliceNullTerminatedString();
+#pragma warning restore CS9084 // Struct member returns 'this' or other instance members by reference
 		}
 	}
 
@@ -1070,7 +1074,7 @@ public class Host
 	readonly ConVar sv_allow_voice_from_file;
 
 	private void voiceconvar_file_changed_f(IConVar conVar, in ConVarChangeContext ctx) {
-# if !SWDS
+#if !SWDS
 		ConVarRef var = new(conVar);
 		if (var.GetInt() == 0)
 			Host_VoiceRecordStop();
@@ -1091,23 +1095,23 @@ public class Host
 				decompressedFile = "voice_decompressed.wav";
 			}
 
-			if (voice_inputfromfile.GetInt() != 0) 
+			if (voice_inputfromfile.GetInt() != 0)
 				inputFile = "voice_input.wav";
-			
-			if (!sv_allow_voice_from_file.GetBool()) 
+
+			if (!sv_allow_voice_from_file.GetBool())
 				inputFile = null;
-			
+
 #if !NO_VOICE
 			if (Voice.Record_Start(uncompressedFile, decompressedFile, inputFile))
 				Msg("Started voice recording...\n");
 #endif
 		}
 	}
-	
+
 	[ConCommand(name: "-voicerecord")]
 	public void Host_VoiceRecordStop() {
 		if (cl.IsActive()) {
-#if ! NO_VOICE
+#if !NO_VOICE
 			if (Voice.IsRecording()) {
 				CL.SendVoicePacket(Voice.UsingSteamVoice ? false : true);
 				Voice.UserDesiresStop();
@@ -1194,6 +1198,7 @@ public class Host
 
 	bool inerror;
 
+	[DoesNotReturn]
 	public void Error(ReadOnlySpan<char> error) {
 		if (inerror)
 			Sys.Error("Host_Error: recursively entered");
