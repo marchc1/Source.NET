@@ -833,11 +833,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 		if (cmd == NET.File) {
 			uint transferID = buf.ReadUBitLong(32);
 			buf.ReadString(out str, 1024);
-			if (buf.ReadOneBit() != 0 && IsValidFileForTransfer(str)) 
+			if (buf.ReadOneBit() != 0 && IsValidFileForTransfer(str))
 				MessageHandler!.FileRequested(str, transferID);
-			else 
+			else
 				MessageHandler!.FileDenied(str, transferID);
-			
+
 			return true;
 		}
 
@@ -1080,7 +1080,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 	public const int IN_RELIABLE_STATE_BITS = 16;
 
-	void CompressFragments(){
+	void CompressFragments() {
 		if (!UseCompression)
 			return;
 
@@ -1631,38 +1631,35 @@ public class NetChannel : INetChannelInfo, INetChannel
 		uint offset = 0;
 		uint length = 0;
 
+		bool singleBlock = buf.ReadOneBit() == 0; // is single block ?
 
-		bool bSingleBlock = buf.ReadOneBit() == 0; // is single block ?
-
-		if (!bSingleBlock) {
+		if (!singleBlock) {
 			startFragment = (int)buf.ReadUBitLong(MAX_FILE_SIZE_BITS - FRAGMENT_BITS); // 16 MiB max
 			numFragments = (int)buf.ReadUBitLong(MAX_FRAGMENTS_PER_PACKET_BITS);  // 8 fragments per packet max
 			offset = (uint)(startFragment * FRAGMENT_SIZE);
 			length = (uint)(numFragments * FRAGMENT_SIZE);
 		}
 
-		if (offset == 0) // first fragment, read header info
-		{
+		// first fragment, read header info
+		if (offset == 0) {
 			data.Filename = null;
 			data.Compressed = false;
 			data.TransferID = 0;
 
-			if (bSingleBlock) {
+			if (singleBlock) {
 				// data compressed ?
 				if (buf.ReadOneBit() == 1) {
 					data.Compressed = true;
 					data.UncompressedSize = buf.ReadUBitLong(MAX_FILE_SIZE_BITS);
 				}
-				else {
+				else
 					data.Compressed = false;
-				}
 
 				data.Bytes = buf.ReadVarInt32();
 			}
 			else {
-
-				if (buf.ReadOneBit() == 1) // is it a file ?
-				{
+				// is it a file ?
+				if (buf.ReadOneBit() == 1) {
 					data.TransferID = buf.ReadUBitLong(32);
 					data.Filename = buf.ReadString(MAX_PATH);
 				}
@@ -1672,9 +1669,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 					data.Compressed = true;
 					data.UncompressedSize = buf.ReadUBitLong(MAX_FILE_SIZE_BITS);
 				}
-				else {
+				else 
 					data.Compressed = false;
-				}
 
 				data.Bytes = buf.ReadUBitLong(MAX_FILE_SIZE_BITS);
 			}
@@ -1691,9 +1687,9 @@ public class NetChannel : INetChannelInfo, INetChannel
 			data.AsTCP = false;
 			data.NumFragments = BYTES2FRAGMENTS((int)data.Bytes);
 			data.AckedFragments = 0;
-			//data.file = FILESYSTEM_INVALID_HANDLE;
+			data.File = null;
 
-			if (bSingleBlock) {
+			if (singleBlock) {
 				numFragments = data.NumFragments;
 				length = (uint)(numFragments * FRAGMENT_SIZE);
 			}

@@ -253,7 +253,7 @@ IModelLoader modelloader, ICommandLine commandLine,
 			case Protocol.USER_INFO_TABLENAME:
 				UserInfoTable = table;
 				return true;
-			case Protocol.DOWNLOADABLES_TABLENAME:
+			case Protocol.DOWNLOADABLE_FILE_TABLENAME:
 				DownloadableFileTable = table;
 				return true;
 			case Protocol.CLIENT_LUA_FILES_TABLENAME:
