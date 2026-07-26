@@ -832,11 +832,14 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 		if (cmd == NET.File) {
 			uint transferID = buf.ReadUBitLong(32);
-			buf.ReadString(out str, 1024);
-			if (buf.ReadOneBit() != 0 && IsValidFileForTransfer(str))
-				MessageHandler!.FileRequested(str, transferID);
-			else
-				MessageHandler!.FileDenied(str, transferID);
+			if (buf.ReadOneBit() == 0) {
+				MessageHandler?.FileDenied(transferID);
+			}
+			else {
+				RequestFile type = (RequestFile)buf.ReadOneBit();
+				uint value = buf.ReadUBitLong(32);
+				MessageHandler?.FileRequested(type, value, transferID);
+			}
 
 			return true;
 		}
@@ -2036,7 +2039,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			return false;
 
 		if (!CreateFragmentsFromFile(sendfile, FragmentStream.File, transferID)) {
-			DenyFile(sendfile, transferID); // send host a deny message
+			DenyFile(transferID); // send host a deny message
 			return false;
 		}
 
@@ -2115,13 +2118,12 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return true;
 	}
 
-	public void DenyFile(ReadOnlySpan<char> filename, uint transferID) {
+	public void DenyFile(uint transferID) {
 		if (Net.net_showfragments.GetInt() == 2)
-			DevMsg($"DenyFile: {filename} (ID {transferID})\n");
+			DevMsg($"DenyFile: (ID {transferID})\n");
 
 		StreamReliable.WriteUBitLong(NET.File, NETMSG_TYPE_BITS);
 		StreamReliable.WriteUBitLong(transferID, 32);
-		StreamReliable.WriteString(filename);
 		StreamReliable.WriteOneBit(0); // deny this file
 	}
 
@@ -2175,19 +2177,19 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 	public void SetCompressionMode(bool useCompression) => UseCompression = useCompression;
 
-	public uint RequestFile(ReadOnlySpan<char> filename) {
-		filename = filename.SliceNullTerminatedString();
-		FileRequestCounter++;
+	public uint RequestFile(RequestFile type, uint value) {
+		uint transferID = FileRequestCounter++;
 
 		if (Net.net_showfragments.GetInt() == 2)
-			DevMsg($"RequestFile: {filename} (ID {FileRequestCounter})\n");
+			DevMsg($"RequestFile: type {type} value {value} (ID {transferID})\n");
 
 		StreamReliable.WriteUBitLong(NET.File, NETMSG_TYPE_BITS);
-		StreamReliable.WriteUBitLong(FileRequestCounter, 32);
-		StreamReliable.WriteString(filename);
-		StreamReliable.WriteOneBit(1); // request this file
+		StreamReliable.WriteUBitLong(transferID, 32);
+		StreamReliable.WriteOneBit(1);              // request (vs. deny)
+		StreamReliable.WriteOneBit((int)type);      // RequestFile_t
+		StreamReliable.WriteUBitLong(value, 32);
 
-		return FileRequestCounter;
+		return transferID;
 	}
 
 	public bool IsNull() => RemoteAddress?.Type == NetAddressType.Null;

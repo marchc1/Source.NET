@@ -289,9 +289,9 @@ public abstract class BaseClientState(
 	public virtual void PacketStart(int incomingSequence, int outgoingAcknowledged) { }
 	public virtual void PacketEnd() { }
 
-	public abstract void FileRequested(ReadOnlySpan<char> fileName, uint transferID);
+	public abstract void FileRequested(RequestFile type, uint value, uint transferID);
 	public abstract void FileReceived(ReadOnlySpan<char> fileName, uint transferID);
-	public abstract void FileDenied(ReadOnlySpan<char> fileName, uint transferID);
+	public abstract void FileDenied(uint transferID);
 	public abstract void FileSent(ReadOnlySpan<char> fileName, uint transferID);
 
 	// todo: determine if using explicit generics like this

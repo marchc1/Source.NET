@@ -538,13 +538,18 @@ public class GameClient : BaseClient
 
 	// void FileReceived(ReadOnlySpan<char> fileName, uint transferID) { }
 
-	public override void FileRequested(ReadOnlySpan<char> fileName, uint transferID) {
-		DevMsg($"File '{fileName}' requested from client {NetChannel.GetAddress()}.\n");
+	public override void FileRequested(RequestFile type, uint value, uint transferID) {
+		DevMsg($"File request (type {type}, value {value}) from client {NetChannel.GetAddress()}.\n");
+		// TODO: User data for I think sprays?
+		if (sv_allowdownload.GetBool() && type == RequestFile.Downloadable && sv.DownloadableFileTable is INetworkStringTable table && value < (uint)table.GetNumStrings()) {
+			ReadOnlySpan<char> name = table.GetString((int)value);
+			if (!name.IsStringEmpty) {
+				NetChannel.SendFile(name, transferID);
+				return;
+			}
+		}
 
-		if (sv_allowdownload.GetBool())
-			NetChannel.SendFile(fileName, transferID);
-		else
-			NetChannel.DenyFile(fileName, transferID);
+		NetChannel.DenyFile(transferID);
 	}
 
 	// void FileDenied(ReadOnlySpan<char> fileName, uint transferID) { }
