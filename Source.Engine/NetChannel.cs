@@ -752,8 +752,49 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return true;
 	}
 
-	public void HandleUpload(DataFragments buffer, INetChannelHandler handler) {
-		// todo
+	public void HandleUpload(DataFragments data, INetChannelHandler handler) {
+		string? errorStr = null;
+
+		ConVar? allowUpload = cvar.FindVar("sv_allowupload");
+		if (allowUpload != null && !allowUpload.GetBool()) {
+			errorStr = "ignored. File uploads are disabled!";
+		}
+		else if (data.Filename == null || !IsValidFileForTransfer(data.Filename)) {
+			errorStr = "has invalid path or extension!";
+		}
+		else {
+			const string pathID = "download";
+
+			if (g_pFileSystem.FileExists(data.Filename, pathID)) {
+				errorStr = "already exists!";
+			}
+			else {
+				ReadOnlySpan<char> filename = data.Filename;
+				int lastSlash = filename.LastIndexOfAny('/', '\\');
+				if (lastSlash > 0)
+					g_pFileSystem.CreateDirHierarchy(filename[..lastSlash], pathID);
+
+				data.File = g_pFileSystem.Open(data.Filename, Filesystem.FileOpenOptions.Write | Filesystem.FileOpenOptions.Binary, pathID);
+
+				if (data.File == null) {
+					errorStr = "failed to write!";
+				}
+				else {
+					if (data.Buffer != null)
+						data.File.Stream.Write(data.Buffer, 0, (int)data.Bytes);
+					data.File.Dispose();
+					data.File = null;
+
+					if (Net.net_showfragments.GetInt() == 2)
+						DevMsg($"FileReceived: {data.Filename}, {data.Bytes} bytes (ID {data.TransferID})\n");
+
+					handler.FileReceived(data.Filename, data.TransferID);
+				}
+			}
+		}
+
+		if (errorStr != null)
+			Msg($"Download file '{data.Filename}' {errorStr}\n");
 	}
 
 	public void UncompressFragments(DataFragments data) {
@@ -792,8 +833,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 		if (cmd == NET.File) {
 			uint transferID = buf.ReadUBitLong(32);
 			buf.ReadString(out str, 1024);
-			if (buf.ReadOneBit() != 0 && false) {
-				MessageHandler.FileRequested(str, transferID);
+			if (buf.ReadOneBit() != 0) {
+				MessageHandler?.FileRequested(str, transferID);
 			}
 			else {
 				MessageHandler?.FileDenied(str, transferID);

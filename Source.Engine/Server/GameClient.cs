@@ -538,7 +538,14 @@ public class GameClient : BaseClient
 
 	// void FileReceived(ReadOnlySpan<char> fileName, uint transferID) { }
 
-	// void FileRequested(ReadOnlySpan<char> fileName, uint transferID) { }
+	public override void FileRequested(ReadOnlySpan<char> fileName, uint transferID) {
+		DevMsg($"File '{fileName}' requested from client {NetChannel.GetAddress()}.\n");
+
+		if (sv_allowdownload.GetBool())
+			NetChannel.SendFile(fileName, transferID);
+		else
+			NetChannel.DenyFile(fileName, transferID);
+	}
 
 	// void FileDenied(ReadOnlySpan<char> fileName, uint transferID) { }
 
