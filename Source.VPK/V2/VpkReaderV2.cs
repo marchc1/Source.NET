@@ -18,7 +18,7 @@ namespace Source.VPK.V2
         public override IVpkArchiveHeader ReadArchiveHeader()
         {
             var hdrStructSize = Unsafe.SizeOf<VpkArchiveHeaderV2>();
-            var hdrBuff = ReadBytes(hdrStructSize);
+            var hdrBuff = ReadBytes(stackalloc byte[hdrStructSize]);
             // skip unknown values
             Read<int>();
             var hdr = BytesToStructure<VpkArchiveHeaderV2>(hdrBuff);
