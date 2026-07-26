@@ -1846,7 +1846,7 @@ public static class ReflectionUtils
 /// Marks the class as being injectable into the <see cref="IEngineAPI"/> dependency injection collection.
 /// <br/>
 /// Is handled by <see cref="Source.Engine.EngineBuilder"/> later on.
-/// </summary
+/// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class EngineComponentAttribute : Attribute;
 
