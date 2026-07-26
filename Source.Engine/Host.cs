@@ -539,6 +539,8 @@ public class Host
 
 		Disconnect(true);
 
+		CM.FreeMap();
+
 #if !SWDS
 		Scr.DisabledForLoading = true;
 		if (!sv.IsDedicated()) {
@@ -549,7 +551,7 @@ public class Host
 			ClientDLL.Shutdown();
 			// TextMessageShutdown();
 			EngineVGui.Shutdown();
-			// StaticPropMgr.Shutdown();
+			g_StaticPropMgr.Shutdown();
 			modelloader.Shutdown();
 			// ShutdownStudioRender();
 			// ShutdownMaterialSystem();
@@ -1184,8 +1186,9 @@ public class Host
 
 #endif
 		// static prop manager
-		// free state and world
+		FreeStateAndWorld(true);
 		sv.Shutdown();
+		FreeToLowMark(true);
 		GC.WaitForPendingFinalizers();
 		GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive);
 	}
@@ -1291,7 +1294,52 @@ public class Host
 		return false;
 	}
 
-	internal void FreeStateAndWorld(bool v) {
+	internal void FreeStateAndWorld(bool server) {
+		bool needsPurge = false;
 
+		Assert(Initialized);
+		Assert(HunkLevel != 0);
+
+		if (!server && sv.IsActive())
+			return;
+
+#if !SWDS
+		if (server && !sv.IsDedicated())
+			CL.ClearState();
+#endif
+
+		if (host_state.WorldModel != null) {
+			modelloader.UnreferenceModel(host_state.WorldModel, ModelLoaderFlags.Server);
+			modelloader.UnreferenceModel(host_state.WorldModel, ModelLoaderFlags.Client);
+			host_state.SetWorldModel(null);
+			needsPurge = server && true;
+		}
+
+		if (server) {
+			modelInfo.OnLevelChange();
+		}
+#if !SWDS
+		else {
+			// modelinfoclient.OnLevelChange();
+		}
+#endif
+
+		// modelloader.UnloadUnreferencedModels();
+
+		// TimeLastMemTest = 0;
+	}
+
+	internal void FreeToLowMark(bool server) {
+		Assert(Initialized);
+		Assert(HunkLevel != 0);
+
+		if (!server && sv.IsActive())
+			return;
+
+		CM.FreeMap();
+
+		// if (HunkLevel != 0) {
+		// 	Hunk_FreeToLowMark(HunkLevel);
+		// }
 	}
 }

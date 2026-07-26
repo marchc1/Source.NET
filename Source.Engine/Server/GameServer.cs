@@ -469,6 +469,7 @@ public class GameServer : BaseServer
 		Common.TimestampedLog("Host_FreeToLowMark");
 
 		Host.FreeStateAndWorld(true);
+		Host.FreeToLowMark(true);
 
 		serverGlobalVariables.MapVersion = 0;
 

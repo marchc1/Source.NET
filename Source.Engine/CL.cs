@@ -782,6 +782,9 @@ public partial class CL(IServiceProvider services, Net Net,
 		if (LocalNetworkBackdoor != null)
 			LocalNetworkBackdoor.ClearState();
 
+		Host.FreeStateAndWorld(false);
+		Host.FreeToLowMark(false);
+
 		cl.Clear();
 	}
 }

@@ -1979,7 +1979,8 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 	}
 
 	public void UnreferenceModel(Model model, ModelLoaderFlags referenceType) {
-		throw new NotImplementedException();
+		AssertMsg((referenceType & ModelLoaderFlags.Dynamic) == 0, "UnreferenceModel: do not use for dynamic models");
+		model.LoadFlags &= ~referenceType;
 	}
 
 	internal static int MSurf_FirstPrimID(ref BSPMSurface2 surfID, WorldBrushData bsp) {
