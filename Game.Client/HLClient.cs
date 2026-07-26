@@ -492,6 +492,6 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	}
 
 	public void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
+
 	}
 }
