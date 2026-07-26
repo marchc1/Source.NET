@@ -98,7 +98,10 @@ public class VideoMode_Common(Sys Sys, IServiceProvider services, IFileSystem fi
 			);
 
 		game.SetWindowSize(width, height);
-		launcherMgr.CenterWindow(windowRect.Right - windowRect.Left, windowRect.Bottom - windowRect.Top);
+		if (windowed || borderless) {
+			launcherMgr.SizeWindow(width, height);
+			launcherMgr.CenterWindow(windowRect.Right - windowRect.Left, windowRect.Bottom - windowRect.Top);
+		}
 		MarkClientViewRectDirty();
 	}
 

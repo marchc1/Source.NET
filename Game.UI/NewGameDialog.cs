@@ -273,20 +273,20 @@ class NewGameDialog : Frame
 		int chapterIndex = 0;
 
 		ReadOnlySpan<char> fileName = "cfg/chapter*.cfg";
-		fileName = fileSystem.FindFirstEx(fileName, null, out FileFindHandle_t findHandle);
+		fileName = g_pFileSystem.FindFirstEx(fileName, null, out FileFindHandle_t findHandle);
 
 		while (!fileName.IsEmpty && chapterIndex < MAX_CHAPTERS) {
 			sprintf(fullFileName, "cfg/%s").S(fileName);
-			IFileHandle? f = fileSystem.Open(fullFileName, FileOpenOptions.Read);
+			IFileHandle? f = g_pFileSystem.Open(fullFileName, FileOpenOptions.Read);
 			if (f != null) {
-				if (fileSystem.Size(fullFileName) > 0) {
+				if (g_pFileSystem.Size(fullFileName) > 0) {
 					chapters[chapterIndex].Filename = new(fileName);
 					++chapterIndex;
 				}
-				fileSystem.FindClose(findHandle);
+				g_pFileSystem.FindClose(findHandle);
 			}
 
-			fileName = fileSystem.FindNext(findHandle);
+			fileName = g_pFileSystem.FindNext(findHandle);
 		}
 
 		ConVarRef sv_unlockedchapters = new("sv_unlockedchapters");

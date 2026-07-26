@@ -59,6 +59,7 @@ public class Bootloader : IDisposable
 				.WithAssembly("Source.GUI")
 				.WithAssembly("Source.GUI.Controls")
 				.WithAssembly("Source.VTF")
+				.WithAssembly("Game.ServerBrowser")
 				// Base file system implementation
 				.WithComponent<IFileSystem, BaseFileSystem>()
 				// SDL3 specific components. This provides ILauncherManager and IGraphicsProvider (the current implementation merges both classes)

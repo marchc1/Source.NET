@@ -244,7 +244,7 @@ public class VisualizeLayoutPanel : Panel
 
 		if (LayoutVisualizations.Count == 0) return;
 
-		double time = System.GetCurrentTime();
+		double time = system.GetCurrentTime();
 		List<Panel> toRemove = [];
 
 		foreach (var (panel, expireTime) in LayoutVisualizations) {
@@ -704,7 +704,10 @@ public class EngineVGui(
 		// materials.CacheUsedMaterials(); todo
 
 		localize.AddFile($"resource/valve_%language%.txt");
-		localize.AddFile($"resource/{engineAPI.GetRequiredService<EngineParms>().Mod}_%language%.txt");
+		// localize.AddFile($"resource/{engineAPI.GetRequiredService<EngineParms>().Mod}_%language%.txt");
+		localize.AddFile($"resource/hl2_%language%.txt");
+		localize.AddFile($"resource/garrysmod_%language%.txt");
+
 
 		staticGameUIFuncs.Initialize(engineAPI);
 		staticGameUIFuncs.Start();

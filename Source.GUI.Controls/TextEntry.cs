@@ -39,7 +39,7 @@ public class TextEntry : Panel
 
 	public override void OnKeyFocusTicked() {
 		base.OnKeyFocusTicked();
-		long time = System.GetTimeMillis();
+		long time = system.GetTimeMillis();
 		if (time > CursorNextBlinkTime) {
 			CursorBlink = !CursorBlink;
 			CursorNextBlinkTime = time + CursorBlinkRate;
@@ -1587,7 +1587,7 @@ public class TextEntry : Panel
 				buf.Add(TextStream[i]);
 			}
 			buf.Add('\0');
-			System.SetClipboardText(buf.AsSpan());
+			system.SetClipboardText(buf.AsSpan());
 		}
 
 		RequestFocus();
@@ -1601,7 +1601,7 @@ public class TextEntry : Panel
 			return;
 
 		List<char> buf = [];
-		int bufferSize = (int)System.GetClipboardTextCount();
+		int bufferSize = (int)system.GetClipboardTextCount();
 		if (!AutoProgressOnHittingCharLimit)
 			bufferSize = MaxCharCount > 0 ? MaxCharCount + 1 : bufferSize;
 
@@ -1609,7 +1609,7 @@ public class TextEntry : Panel
 		for (int i = 0; i < bufferSize; i++)
 			buf.Add('\0');
 
-		int len = (int)System.GetClipboardText(0, buf.AsSpan());
+		int len = (int)system.GetClipboardText(0, buf.AsSpan());
 		if (len < 1)
 			return;
 
@@ -1621,7 +1621,7 @@ public class TextEntry : Panel
 				if (TextStream.Count == MaxCharCount) {
 					RequestFocusNext();
 					Span<char> remainingText = buf.AsSpan()[i..];
-					System.SetClipboardText(remainingText[..(len - i - 1)]);
+					system.SetClipboardText(remainingText[..(len - i - 1)]);
 					if (GetParent() != null && GetCurrentKeyFocus() != this) {
 						haveMovedFocusAwayFromCurrentEntry = true;
 						GetCurrentKeyFocus()?.SendMessage(new KeyValues("DoPaste"), this);
@@ -1634,7 +1634,7 @@ public class TextEntry : Panel
 		}
 
 		if (AutoProgressOnHittingCharLimit)
-			System.SetClipboardText(buf.AsSpan()[..bufferSize]);
+			system.SetClipboardText(buf.AsSpan()[..bufferSize]);
 
 		DataChanged = true;
 		FireActionSignal();
@@ -1757,7 +1757,7 @@ public class TextEntry : Panel
 
 	private void ResetCursorBlink() {
 		CursorBlink = false;
-		CursorNextBlinkTime = System.GetTimeMillis() + CursorBlinkRate;
+		CursorNextBlinkTime = system.GetTimeMillis() + CursorBlinkRate;
 	}
 
 	public void SetTextHidden(bool hideText) {

@@ -667,7 +667,7 @@ public class OptionsSubVideo : PropertyPage
 
 		LoadControlSettings("resource/OptionsSubVideo.res");
 
-		Benchmark.SetVisible(fileSystem.FileExists("maps/test_hardware.bsp"));
+		Benchmark.SetVisible(g_pFileSystem.FileExists("maps/test_hardware.bsp"));
 		if (!ModInfo.SupportsVR()) VRMode.SetVisible(false);
 		if (!ModInfo.HasHDContent()) HDContent.SetVisible(false);
 		ThirdPartyCredits.SetVisible(false);

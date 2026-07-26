@@ -1013,9 +1013,16 @@ public class BasePanel : Panel
 		}
 	}
 
+	int LastGameMenuState = -1;
 	private void UpdateGameMenus() {
 		bool isInGame = GameUI.IsInLevel();
 		bool isMulti = isInGame && engine.GetMaxClients() > 1;
+
+		int state = (isInGame ? 1 : 0) | (isMulti ? 2 : 0);
+		if (state == LastGameMenuState) // prevent unnecessary vgui layouts per frame
+			return;
+		LastGameMenuState = state;
+
 		GameMenu!.UpdateMenuItemState(isInGame, isMulti);
 
 		InvalidateLayout();

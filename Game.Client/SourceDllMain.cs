@@ -81,6 +81,11 @@ public static class SourceDllMain
 	[Dependency] public static ILocalize localize { get; private set; } = null!;
 	[Dependency] public static IViewEffects vieweffects { get; private set; } = null!;
 	[Dependency] public static ICommandLine commandLine { get; private set; } = null!;
+	[Dependency] public static ISurface Surface { get; private set; } = null!;
+	[Dependency] public static ISchemeManager SchemeManager { get; private set; } = null!;
+	[Dependency] public static IVGui VGui { get; private set; } = null!;
+	[Dependency] public static ILocalize Localize { get; private set; } = null!;
+	[Dependency] public static IVGuiInput vguiInput { get; private set; } = null!;
 
 	[KeyedDependency(Key = Realm.Client)] public static INetworkStringTableContainer networkstringtable { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Client)] public static IEngineTrace enginetrace { get; private set; } = null!;

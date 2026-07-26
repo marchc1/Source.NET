@@ -302,20 +302,20 @@ public class LoadingDialog : Frame
 			LoadControlSettings("resource/LoadingDialogDualProgress.res");
 			ShowingSecondaryProgress = true;
 			Progress2.SetVisible(true);
-			SecondaryProgressStartTime = System.GetFrameTime();
+			SecondaryProgressStartTime = system.GetFrameTime();
 		}
 
 		if (progress > SecondaryProgress) {
 			Progress2.SetProgress(progress);
 			SecondaryProgress = progress;
-			LastSecondaryProgressUpdateTime = System.GetFrameTime();
+			LastSecondaryProgressUpdateTime = system.GetFrameTime();
 		}
 
 		if (progress < SecondaryProgress) {
 			Progress2.SetProgress(progress);
 			SecondaryProgress = progress;
-			LastSecondaryProgressUpdateTime = System.GetFrameTime();
-			SecondaryProgressStartTime = System.GetFrameTime();
+			LastSecondaryProgressUpdateTime = system.GetFrameTime();
+			SecondaryProgressStartTime = system.GetFrameTime();
 		}
 	}
 
@@ -345,7 +345,7 @@ public class LoadingDialog : Frame
 			Span<char> unicode = stackalloc char[512];
 			if (SecondaryProgress >= 1.0f)
 				TimeRemainingLabel.SetText("complete");
-			else if (ProgressBar.ConstructTimeRemainingString(unicode, SecondaryProgressStartTime, System.GetFrameTime(), SecondaryProgress, (float)LastSecondaryProgressUpdateTime, true))
+			else if (ProgressBar.ConstructTimeRemainingString(unicode, SecondaryProgressStartTime, system.GetFrameTime(), SecondaryProgress, (float)LastSecondaryProgressUpdateTime, true))
 				TimeRemainingLabel.SetText(unicode);
 			else
 				TimeRemainingLabel.SetText("");

@@ -800,8 +800,6 @@ public class AnimationController : Panel, IAnimationController
 		return LoadScriptFile(fileName);
 	}
 
-	static readonly IFileSystem fileSystem = Singleton<IFileSystem>();
-
 	public bool LoadScriptFile(ReadOnlySpan<char> filename) {
 		using IFileHandle? f = fileSystem.Open(filename, FileOpenOptions.Read | FileOpenOptions.Text);
 

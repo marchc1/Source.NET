@@ -190,7 +190,7 @@ class DebugOptionsPanel : PropertyDialog
 
 		KeyValues? kv = new("DebugOptions");
 		if (kv != null) {
-			kv.LoadFromFile(fileSystem, "scripts/debugoptions.txt");
+			kv.LoadFromFile(g_pFileSystem, "scripts/debugoptions.txt");
 			for (KeyValues? pageKv = kv.GetFirstSubKey(); pageKv != null; pageKv = pageKv.GetNextKey()) {
 				if (pageKv.Name.Equals("width", StringComparison.OrdinalIgnoreCase)) {
 					SetWide(pageKv.GetInt());
@@ -212,7 +212,7 @@ class DebugOptionsPanel : PropertyDialog
 		SetPos(((VideoMode_Common)videoMode).GetModeStereoWidth() - GetWide() - 10, 10);
 		SetVisible(true);
 
-		if (fileSystem.FileExists("resource/DebugOptionsPanel.res"))
+		if (g_pFileSystem.FileExists("resource/DebugOptionsPanel.res"))
 			LoadControlSettings("resource/DebugOptionsPanel.res");
 	}
 }

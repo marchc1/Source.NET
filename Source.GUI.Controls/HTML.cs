@@ -602,7 +602,7 @@ public class HTML : Panel
 
 	public override void OnKeyCodeReleased(ButtonCode code) => SteamHTMLSurface.KeyUp(BrowserHandle, KeyCode_VGUIToVirtualKey(code), (EHTMLKeyModifiers)GetKeyModifiers());
 
-	static uint KeyCode_VGUIToVirtualKey(ButtonCode code) => (uint)Singleton<IInputSystem>().ButtonCodeToVirtualKey(code);
+	static uint KeyCode_VGUIToVirtualKey(ButtonCode code) => (uint)input.ButtonCodeToVirtualKey(code);
 
 	public override void OnMouseWheeled(int delta) {
 		if (VBar != null) {
@@ -1004,14 +1004,13 @@ public class HTML : Panel
 #if DEBUG
 	[ConCommand("sdn_createhtml")]
 	static void CreateHTML(in TokenizedCommand args) {
-		ISurface surface = Singleton<ISurface>();
-		surface.GetScreenSize(out int screenWide, out int screenTall);
+		Surface.GetScreenSize(out int screenWide, out int screenTall);
 
 		int wide = screenWide / 2;
 		int tall = screenTall / 2;
 
 		Frame frame = new(null, "TestHTMLFrame");
-		frame.SetParent(surface.GetEmbeddedPanel());
+		frame.SetParent(Surface.GetEmbeddedPanel());
 		frame.SetTitle("HTML Test", true);
 		frame.SetSize(wide, tall);
 		frame.MoveToCenterOfScreen();
