@@ -462,7 +462,7 @@ public class GameServer : BaseServer
 		Common.TimestampedLog("StaticPropMgr()->LevelShutdown()");
 
 #if !SWDS
-		// g_pShadowMgr->LevelShutdown();
+		// g_ShadowMgr->LevelShutdown();
 #endif
 		// StaticPropMgr()->LevelShutdown();
 

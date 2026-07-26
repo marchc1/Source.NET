@@ -412,7 +412,7 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 			ref BSPMSurface2 surf = ref ModelLoader.SurfaceHandleFromIndex(cur);
 			ShadowDecalHandle_t decalHandle = ModelLoader.MSurf_ShadowDecals(ref surf);
 			if (decalHandle != SHADOW_DECAL_HANDLE_INVALID) {
-				// g_pShadowMgr.AddShadowsOnSurfaceToRenderList(decalHandle) // todo
+				// g_ShadowMgr.AddShadowsOnSurfaceToRenderList(decalHandle) // todo
 			}
 		}
 
@@ -420,17 +420,17 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 
 		// todo
 
-		// g_pShadowMgr.RenderFlashlights(flashlightMask)
+		// g_ShadowMgr.RenderFlashlights(flashlightMask)
 		// OverlayMgr().RenderOverlays(sortGroup)
-		// g_pShadowMgr.DrawFlashlightOverlays(sortGroup, flashlightMask
+		// g_ShadowMgr.DrawFlashlightOverlays(sortGroup, flashlightMask
 		// OverlayMgr().ClearRenderLists(sortGroup)
 
 		// DispInfo_BatchDecals(visibleDisps, visibleDispCount);
 		// DispInfo_DrawDecals(visibleDisps, visibleDispCount);
 
-		// g_pShadowMgr.DrawFlashlightDecalsOnDisplacements(sortGroup, visibleDisps, visibleDispCount, flashlightMask)
-		// g_pShadowMgr.RenderShadows()
-		// g_pShadowMgr.ClearShadowRenderList()
+		// g_ShadowMgr.DrawFlashlightDecalsOnDisplacements(sortGroup, visibleDisps, visibleDispCount, flashlightMask)
+		// g_ShadowMgr.RenderShadows()
+		// g_ShadowMgr.ClearShadowRenderList()
 
 		DispInfo_DrawDebugInformation(list, listCount);
 	}
