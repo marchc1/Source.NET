@@ -15,7 +15,7 @@
 #define TCOMBINE_MULTIPLY 8
 #define TCOMBINE_MASK_BASE_BY_DETAIL_ALPHA 9                // use alpha channel of detail to mask base
 #define TCOMBINE_SSBUMP_BUMP 10								// use detail to modulate lighting as an ssbump
-#define TCOMBINE_SSBUMP_NOBUMP 11					// detail is an ssbump but use it as an albedo. shader does the magic here - no user needs to specify mode 11
+#define TCOMBINE_SSBUMP_NOBUMP 11					        // detail is an ssbump but use it as an albedo. shader does the magic here - no user needs to specify mode 11
 
 vec4 TextureCombine(vec4 baseColor, vec4 detailColor, int combine_mode, float fBlendFactor)
 {
@@ -24,37 +24,29 @@ vec4 TextureCombine(vec4 baseColor, vec4 detailColor, int combine_mode, float fB
         vec3 dc = vec3(mix(detailColor.r, detailColor.a, baseColor.a));
         baseColor.rgb *= mix(vec3(1, 1, 1), 2.0 * dc, fBlendFactor);
     }
-    if (combine_mode == TCOMBINE_RGB_EQUALS_BASE_x_DETAILx2)
+    else if (combine_mode == TCOMBINE_RGB_EQUALS_BASE_x_DETAILx2)
         baseColor.rgb *= mix(vec3(1, 1, 1), 2.0 * detailColor.rgb, fBlendFactor);
-    if (combine_mode == TCOMBINE_RGB_ADDITIVE)
+    else if (combine_mode == TCOMBINE_RGB_ADDITIVE)
         baseColor.rgb += fBlendFactor * detailColor.rgb;
-    if (combine_mode == TCOMBINE_DETAIL_OVER_BASE)
+    else if (combine_mode == TCOMBINE_DETAIL_OVER_BASE)
     {
         float fblend = fBlendFactor * detailColor.a;
         baseColor.rgb = mix(baseColor.rgb, detailColor.rgb, fblend);
     }
-    if (combine_mode == TCOMBINE_FADE)
-    {
+    else if (combine_mode == TCOMBINE_FADE)
         baseColor = mix(baseColor, detailColor, fBlendFactor);
-    }
-    if (combine_mode == TCOMBINE_BASE_OVER_DETAIL)
+    else if (combine_mode == TCOMBINE_BASE_OVER_DETAIL)
     {
         float fblend = fBlendFactor * (1.0 - baseColor.a);
         baseColor.rgb = mix(baseColor.rgb, detailColor.rgb, fblend);
         baseColor.a = detailColor.a;
     }
-    if (combine_mode == TCOMBINE_MULTIPLY)
-    {
+    else if (combine_mode == TCOMBINE_MULTIPLY)
         baseColor = mix(baseColor, baseColor * detailColor, fBlendFactor);
-    }
-    if (combine_mode == TCOMBINE_MASK_BASE_BY_DETAIL_ALPHA)
-    {
+    else if (combine_mode == TCOMBINE_MASK_BASE_BY_DETAIL_ALPHA)
         baseColor.a = mix(baseColor.a, baseColor.a * detailColor.a, fBlendFactor);
-    }
-    if (combine_mode == TCOMBINE_SSBUMP_NOBUMP)
-    {
+    else if (combine_mode == TCOMBINE_SSBUMP_NOBUMP)
         baseColor.rgb = baseColor.rgb * dot(detailColor.rgb, vec3(2.0 / 3.0));
-    }
     return baseColor;
 }
 
@@ -67,7 +59,7 @@ vec3 TextureCombinePostLighting(vec3 lit_baseColor, vec4 detailColor, int combin
 {
     if (combine_mode == TCOMBINE_RGB_ADDITIVE_SELFILLUM)
         lit_baseColor += fBlendFactor * detailColor.rgb;
-    if (combine_mode == TCOMBINE_RGB_ADDITIVE_SELFILLUM_THRESHOLD_FADE)
+    else if (combine_mode == TCOMBINE_RGB_ADDITIVE_SELFILLUM_THRESHOLD_FADE)
     {
         // fade in an unusual way - instead of fading out color, remap an increasing band of it from
         // 0..1
