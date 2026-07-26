@@ -776,7 +776,7 @@ public static class GLRSurf
 
 		fogVolume.InFogVolume = true;
 
-		ref BSPDLeafWaterData leafWaterData = ref host_state.WorldBrush!.LeafWaterData![leaf.LeafWaterDataID];
+		ref BSPMLeafWaterData leafWaterData = ref host_state.WorldBrush!.LeafWaterData![leaf.LeafWaterDataID];
 		if (leafWaterData.SurfaceTexInfoID == -1) {
 			fogVolume.State.FogEnabled = false;
 			return;

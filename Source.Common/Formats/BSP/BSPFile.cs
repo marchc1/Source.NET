@@ -458,7 +458,7 @@ public class BSPMNode
 	public ushort NumSurfaces;
 }
 
-public class BSPMLeafWaterData
+public struct BSPMLeafWaterData
 {
 	public float SurfaceZ;
 	public float MinZ;

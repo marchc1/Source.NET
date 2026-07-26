@@ -229,7 +229,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		// modelloader.FlushDynamicModels();
 
 		// Purge unused models
-		// modelloader.PurgeUnusedModels();
+		modelloader.PurgeUnusedModels();
 
 		// Shutdown preload data
 		// MDLCache.ShutdownPreloadData();
@@ -348,7 +348,7 @@ public partial class CL(IServiceProvider services, Net Net,
 
 	readonly byte[] voiceData = new byte[2048];
 
-	public void SendVoicePacket(bool final){
+	public void SendVoicePacket(bool final) {
 		if (!Voice.IsRecording())
 			return;
 
@@ -826,7 +826,7 @@ public class ClientDLL(IServiceProvider services
 		}
 #if !SWDS
 		RecvTable.Init(recvTables.AsSpan()[..nRecvTables]!); // << ! is acceptable here; anything beyond recvTables is null, anything before it shouldnt be
-															 // (and if something is null before that point something else is already horribly broken)
+																												 // (and if something is null before that point something else is already horribly broken)
 #endif
 	}
 
