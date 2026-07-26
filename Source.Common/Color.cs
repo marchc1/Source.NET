@@ -18,6 +18,7 @@ public struct ColorRGBExp32 {
 public struct Color24 {
 	public byte R, G, B;
 }
+
 public struct Color : IEquatable<Color>
 {
 	public ColorType R, G, B, A;

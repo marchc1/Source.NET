@@ -838,7 +838,6 @@ public class NetChannel : INetChannelInfo, INetChannel
 			else 
 				MessageHandler!.FileDenied(str, transferID);
 			
-
 			return true;
 		}
 
@@ -2190,7 +2189,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		StreamReliable.WriteUBitLong(NET.File, NETMSG_TYPE_BITS);
 		StreamReliable.WriteUBitLong(FileRequestCounter, 32);
 		StreamReliable.WriteString(filename);
-		StreamReliable.WriteOneBit(1); // reqest this file
+		StreamReliable.WriteOneBit(1); // request this file
 
 		return FileRequestCounter;
 	}
