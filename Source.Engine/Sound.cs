@@ -191,4 +191,8 @@ public partial class Sound
 
 		AudioSystem.StopAllSounds(clear);
 	}
+
+	public bool IsSoundStillPlaying(int guid) => AudioSystem?.IsSoundStillPlaying(guid) ?? false;
+	public void StopSoundByGuid(int guid) => AudioSystem?.StopSoundByGuid(guid);
+	public void SetVolumeByGuid(int guid, float fvol) => AudioSystem?.SetVolumeByGuid(guid, fvol);
 }

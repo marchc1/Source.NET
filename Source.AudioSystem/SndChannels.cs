@@ -46,6 +46,7 @@ public struct ChannelFlags
 	public bool CompatibilityAttenuation;
 	public bool ShouldPause;
 	public bool IgnorePhonemes;
+	public bool Music;
 }
 
 public struct Channel

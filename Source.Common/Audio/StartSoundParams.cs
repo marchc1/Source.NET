@@ -107,6 +107,9 @@ public interface IAudioSystem
 	long StartDynamicSound(in StartSoundParams parms);
 	long StartStaticSound(in StartSoundParams parms);
 	void StopAllSounds(bool clear);
+	bool IsSoundStillPlaying(int guid);
+	void StopSoundByGuid(int guid);
+	void SetVolumeByGuid(int guid, float fvol);
 	IVoiceRecord? CreateVoiceRecord(int v);
 }
 public class SfxTable
