@@ -1,3 +1,4 @@
+using Source.Common.Bitmap;
 using Source.Common.Engine;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
@@ -12,11 +13,22 @@ public static class MaterialVertexFormat {
 	public static readonly VertexFormat Color = VertexFormat.Specular;
 }
 
+public struct ColorTexelsInfo {
+	public int Width;
+	public int Height;
+	public int MipmapCount;
+	public ImageFormat ImageFormat;
+	public int ByteCount;
+	public byte[]? TexelData;
+}
+
 public struct ColorMeshInfo {
 	public IMesh? Mesh;
+	public IPooledVBAllocator? PooledVBAllocator;
 	public int VertOffsetInBytes;
 	public int NumVerts;
 	public ITexture? Lightmap;
+	public ColorTexelsInfo? LightmapData;
 }
 
 public struct DrawModelInfo {
@@ -30,7 +42,8 @@ public struct DrawModelInfo {
 	public ColorMeshInfo[]? ColorMeshes;
 	public bool StaticLighting;
 	public InlineArray6<Vector3> AmbientCube;
-	// todo: lights
+	public int NumLocalLights;
+	public InlineArray4<LightDesc> LocalLightDescs;
 }
 
 public struct StudioRenderConfig {
@@ -54,6 +67,7 @@ public struct StudioRenderConfig {
 	public bool DrawTangentFrame;
 	public bool DrawZBufferedWireframe;
 	public bool SoftwareLighting;
+	public bool SupportsVertexAndPixelShaders;
 	public bool ShowEnvCubemapOnly;
 	public bool WireframeDecals;
 	public bool EnableHWMorph;
@@ -83,4 +97,11 @@ public interface IStudioRender {
 	void SetViewState(in Vector3 currentViewOrigin, in Vector3 currentViewRight, in Vector3 currentViewUp, in Vector3 currentViewForward);
 	void SetColorModulation(Vector3 r_colormod);
 	void SetAlphaModulation(float r_blend);
+
+	int GetNumAmbientLightSamples();
+	ReadOnlySpan<Vector3> GetAmbientLightDirections();
+	void SetAmbientLightColors(ReadOnlySpan<Vector3> ambientOnlyColors);
+	void SetLocalLights(int lightCount, ReadOnlySpan<LightDesc> lights);
+	void ComputeLighting(ReadOnlySpan<Vector3> ambient, int lightCount, Span<LightDesc> lights, in Vector3 pt, in Vector3 normal, out Vector3 lighting);
+	void ComputeLightingConstDirectional(ReadOnlySpan<Vector3> ambient, int lightCount, Span<LightDesc> lights, in Vector3 pt, in Vector3 normal, out Vector3 lighting, float directionalAmount);
 }

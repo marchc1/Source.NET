@@ -162,6 +162,10 @@ public class MeshMgr : IMeshMgr
 		return mesh;
 	}
 
+	internal void DestroyStaticMesh(IMesh mesh) {
+		// todo
+	}
+
 	internal int GetMaxIndicesToRender() {
 		return IMesh.INDEX_BUFFER_SIZE;
 	}

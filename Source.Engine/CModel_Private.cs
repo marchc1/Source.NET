@@ -153,6 +153,15 @@ public static partial class CM
 		return -1 - num;
 	}
 
+	public static Contents LeafContents(int leafnum) {
+		CollisionBSPData bspData = GetCollisionBSPData();
+
+		Assert(leafnum >= 0);
+		Assert(leafnum < bspData.NumLeafs);
+
+		return bspData.MapLeafs.AsSpan()[leafnum].Contents;
+	}
+
 	public static int LeafCluster(int leafnum) {
 		CollisionBSPData bspData = GetCollisionBSPData();
 
@@ -160,6 +169,44 @@ public static partial class CM
 		Assert(leafnum < bspData.NumLeafs);
 
 		return bspData.MapLeafs.AsSpan()[leafnum].Cluster;
+	}
+
+	static void SnapPointToReferenceLeaf_r(CollisionBSPData bspData, in Vector3 p, int num, float tolerance, ref Vector3 snapPoint) {
+		float d, snapDist;
+		ref CollisionNode node = ref Unsafe.NullRef<CollisionNode>();
+		ref CollisionPlane plane = ref Unsafe.NullRef<CollisionPlane>();
+
+		while (num >= 0) {
+			node = ref bspData.MapNodes.AsSpan()[bspData.MapRootNode + num];
+			plane = ref bspData.MapPlanes.AsSpan()[node.CollisionPlaneIdx];
+
+			if ((int)plane.Type < 3) {
+				d = p[(int)plane.Type] - plane.Dist;
+				snapDist = snapPoint[(int)plane.Type] - plane.Dist;
+			}
+			else {
+				d = MathLib.DotProduct(plane.Normal, p) - plane.Dist;
+				snapDist = MathLib.DotProduct(plane.Normal, snapPoint) - plane.Dist;
+			}
+
+			if (d < 0) {
+				num = node.Children[1];
+				if (snapDist > 0)
+					snapPoint -= plane.Normal * (snapDist + tolerance);
+			}
+			else {
+				num = node.Children[0];
+				if (snapDist < 0)
+					snapPoint += plane.Normal * (-snapDist + tolerance);
+			}
+		}
+	}
+
+	public static void SnapPointToReferenceLeaf(in Vector3 referenceLeafPoint, float tolerance, ref Vector3 snapPoint) {
+		CollisionBSPData bspData = GetCollisionBSPData();
+
+		if (bspData.NumPlanes != 0)
+			SnapPointToReferenceLeaf_r(bspData, referenceLeafPoint, 0, tolerance, ref snapPoint);
 	}
 
 	public static int LeafFlags(int leafnum) {
@@ -232,6 +279,12 @@ public static partial class CM
 			}
 		} while (outIdx < numClusterBytes);
 	}
+
+	private static readonly byte[] PVSRow = new byte[BSPFileCommon.MAX_MAP_LEAFS / 8];
+
+	public static int ClusterPVSSize() => PVSRow.Length;
+
+	public static Span<byte> ClusterPVS(int cluster) => Vis(PVSRow, ClusterPVSSize(), cluster, DVIS_PVS);
 
 	public static Span<byte> Vis(Span<byte> dest, int destlen, int cluster, int visType) {
 		CollisionBSPData bspData = GetCollisionBSPData();

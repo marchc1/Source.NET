@@ -469,6 +469,7 @@ public unsafe static class Gl46
     public const GLenum GL_TEXTURE_WRAP_S = 0x2802;
     public const GLenum GL_TEXTURE_WRAP_T = 0x2803;
     public const GLenum GL_REPEAT = 0x2901;
+    public const GLenum GL_TEXTURE_MAX_ANISOTROPY_EXT = 0x84FF;
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void PFNGLCULLFACEPROC(GLenum mode);

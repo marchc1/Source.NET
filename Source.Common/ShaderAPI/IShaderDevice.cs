@@ -66,6 +66,7 @@ public static class GraphicsAPIVersion_Exts
 public interface IShaderDevice
 {
 	IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material);
+	void DestroyStaticMesh(IMesh mesh);
 	bool IsDeactivated();
 	bool IsUsingGraphics();
 	int GetCurrentAdapter();

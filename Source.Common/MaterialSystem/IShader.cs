@@ -38,8 +38,8 @@ public interface IShaderInit
 {
 	public void LoadTexture(IMaterialVar textureVar, ReadOnlySpan<char> textureGroupName, int additionalCreationFlags = 0);
 	public void LoadCubeMap(IMaterialVar[] parms, IMaterialVar textureVar, int additionalCreationFlags = 0);
-	VertexShaderHandle LoadVertexShader(ReadOnlySpan<char> name);
-	PixelShaderHandle LoadPixelShader(ReadOnlySpan<char> name);
+	VertexShaderHandle LoadVertexShader(ReadOnlySpan<char> name, ReadOnlySpan<char> defines = default);
+	PixelShaderHandle LoadPixelShader(ReadOnlySpan<char> name, ReadOnlySpan<char> defines = default);
 }
 
 
@@ -73,6 +73,29 @@ public struct ShaderViewport
 	}
 }
 
+public ref struct DynamicShaderIndex(IShaderDynamicAPI shaderAPI, ShaderType type)
+{
+	readonly IShaderDynamicAPI shaderAPI = shaderAPI;
+	readonly ShaderType type = type;
+	int index = 0;
+
+	public void Set(ReadOnlySpan<char> name, int value) => index += value * shaderAPI.GetDynamicComboScale(type, name);
+	public void Set(ReadOnlySpan<char> name, bool value) => Set(name, value ? 1 : 0);
+	public readonly int GetIndex() => index;
+}
+
+public ref struct StaticShaderIndex(IShaderShadow shaderShadow, ShaderType type, ReadOnlySpan<char> fileName)
+{
+	readonly IShaderShadow shaderShadow = shaderShadow;
+	readonly ShaderType type = type;
+	readonly ReadOnlySpan<char> fileName = fileName;
+	int index = 0;
+
+	public void Set(ReadOnlySpan<char> name, int value) => index += value * shaderShadow.GetStaticComboScale(type, fileName, name);
+	public void Set(ReadOnlySpan<char> name, bool value) => Set(name, value ? 1 : 0);
+	public readonly int GetIndex() => index;
+}
+
 public interface IShaderDynamicAPI
 {
 	MaterialFogMode GetSceneFogMode();
@@ -85,6 +108,9 @@ public interface IShaderDynamicAPI
 
 	void BindVertexShader(in VertexShaderHandle vertexShader);
 	void BindPixelShader(in PixelShaderHandle pixelShader);
+	void SetVertexShaderIndex(int index);
+	void SetPixelShaderIndex(int index);
+	int GetDynamicComboScale(ShaderType type, ReadOnlySpan<char> name);
 
 	int LocateShaderUniform(ReadOnlySpan<char> name);
 
@@ -103,5 +129,17 @@ public interface IShaderDynamicAPI
 	void BindStandardTexture(Sampler sampler, StandardTextureId id);
 	void SetVertexShaderConstant(int var, Span<float> vec);
 	void SetPixelShaderConstant(int var, Span<float> vec);
+	void SetVertexShaderStateAmbientLightCube();
 	void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 dst);
+	void CommitVertexShaderLighting();
+	void GetLightState(out LightState state);
+}
+
+public struct LightState
+{
+	public int NumLights;
+	public bool AmbientLight;
+	public bool StaticLightVertex;
+	public bool StaticLightTexel;
+	public readonly int HasDynamicLight() => (AmbientLight || (NumLights > 0)) ? 1 : 0;
 }

@@ -276,6 +276,10 @@ public abstract class BaseVSShader : BaseShader
 		ShaderSystem.Draw(makeActualDrawCall);
 	}
 
+	public void SetAmbientCubeDynamicStateVertexShader() {
+		ShaderAPI!.SetVertexShaderStateAmbientLightCube();
+	}
+
 	public void LoadViewMatrixIntoVertexShaderConstant(int vertexReg) {
 		ShaderAPI!.GetMatrix(MaterialMatrixMode.View, out Matrix4x4 mat);
 
