@@ -148,7 +148,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	}
 
 	public TimeUnit_t GetSequenceMoveDist(StudioHdr? studioHdr, int sequence) {
-		Animation.GetSequenceLinearMotion(studioHdr, Sequence, PoseParameter, out Vector3 vecReturn);
+		Animation.GetSequenceLinearMotion(studioHdr, sequence, PoseParameter, out Vector3 vecReturn);
 
 		return vecReturn.Length();
 	}
