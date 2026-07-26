@@ -390,6 +390,89 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		Lights[lightNum] = light;
 	}
 
+	FlashlightState FlashlightState;
+	Matrix4x4 FlashlightWorldToTexture;
+	ITexture? FlashlightDepthTexture;
+
+	StencilOperation StencilFailOperation = StencilOperation.Keep;
+	StencilOperation StencilZFailOperation = StencilOperation.Keep;
+	StencilOperation StencilPassOperation = StencilOperation.Keep;
+	StencilComparisonFunction StencilCompareFunction = StencilComparisonFunction.Always;
+	int StencilReferenceValue;
+	uint StencilTestMask = 0xFFFFFFFF;
+
+	public void SetFlashlightStateEx(in FlashlightState state, in Matrix4x4 worldToTexture, ITexture? flashlightDepthTexture) {
+		FlushBufferedPrimitives();
+		FlashlightState = state;
+		FlashlightWorldToTexture = worldToTexture;
+		FlashlightDepthTexture = flashlightDepthTexture;
+	}
+
+	public void SetStencilEnable(bool onoff) {
+		FlushBufferedPrimitives();
+		if (onoff)
+			glEnable(GL_STENCIL_TEST);
+		else
+			glDisable(GL_STENCIL_TEST);
+	}
+
+	public void SetStencilFailOperation(StencilOperation op) {
+		FlushBufferedPrimitives();
+		StencilFailOperation = op;
+		ApplyStencilOperations();
+	}
+
+	public void SetStencilZFailOperation(StencilOperation op) {
+		FlushBufferedPrimitives();
+		StencilZFailOperation = op;
+		ApplyStencilOperations();
+	}
+
+	public void SetStencilPassOperation(StencilOperation op) {
+		FlushBufferedPrimitives();
+		StencilPassOperation = op;
+		ApplyStencilOperations();
+	}
+
+	public void SetStencilCompareFunction(StencilComparisonFunction cmpfn) {
+		FlushBufferedPrimitives();
+		StencilCompareFunction = cmpfn;
+		ApplyStencilFunc();
+	}
+
+	public void SetStencilReferenceValue(int reference) {
+		FlushBufferedPrimitives();
+		StencilReferenceValue = reference;
+		ApplyStencilFunc();
+	}
+
+	public void SetStencilTestMask(uint msk) {
+		FlushBufferedPrimitives();
+		StencilTestMask = msk;
+		ApplyStencilFunc();
+	}
+
+	public void SetStencilWriteMask(uint msk) {
+		FlushBufferedPrimitives();
+		glStencilMask(msk);
+	}
+
+	void ApplyStencilOperations() => glStencilOp(StencilFailOperation.GLEnum(), StencilZFailOperation.GLEnum(), StencilPassOperation.GLEnum());
+
+	void ApplyStencilFunc() => glStencilFunc(StencilCompareFunction.GLEnum(), StencilReferenceValue, StencilTestMask);
+
+	public void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor) {
+		FlushBufferedPrimitives();
+		if (!enableScissor) {
+			glDisable(GL_SCISSOR_TEST);
+			return;
+		}
+
+		GetBackBufferDimensions(out _, out int height);
+		glEnable(GL_SCISSOR_TEST);
+		glScissor(left, height - bottom, right - left, bottom - top);
+	}
+
 	public void DisableAllLocalLights() {
 		bool flushed = false;
 		for (int lightNum = 0; lightNum < MAX_NUM_LIGHTS; lightNum++) {

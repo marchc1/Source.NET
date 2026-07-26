@@ -1310,6 +1310,15 @@ public static class MathLib
 			return !Vector3.AnyWhereAllBitsSet(Vector3.IsNaN(*(Vector3*)pR));
 	}
 
+	public static void MatrixInverseGeneral(in Matrix4x4 src, out Matrix4x4 dst) => Matrix4x4.Invert(src, out dst);
+
+	public static void V3Mul(this in Matrix4x4 m, in Vector3 vIn, out Vector3 vOut) {
+		float rw = 1.0f / (m[3, 0] * vIn.X + m[3, 1] * vIn.Y + m[3, 2] * vIn.Z + m[3, 3]);
+		vOut.X = (m[0, 0] * vIn.X + m[0, 1] * vIn.Y + m[0, 2] * vIn.Z + m[0, 3]) * rw;
+		vOut.Y = (m[1, 0] * vIn.X + m[1, 1] * vIn.Y + m[1, 2] * vIn.Z + m[1, 3]) * rw;
+		vOut.Z = (m[2, 0] * vIn.X + m[2, 1] * vIn.Y + m[2, 2] * vIn.Z + m[2, 3]) * rw;
+	}
+
 	public static void Init(this ref Matrix4x4 m, in Matrix3x4 m3x4) {
 		new ReadOnlySpan<Matrix3x4>(in m3x4).Cast<Matrix3x4, float>().CopyTo(new Span<Matrix4x4>(ref m).Cast<Matrix4x4, float>());
 
@@ -1965,6 +1974,14 @@ public static class MathLib
 		return 4;
 	}
 
+	public static void ComputeTrianglePlane(in Vector3 v1, in Vector3 v2, in Vector3 v3, out Vector3 normal, out float intercept) {
+		VectorSubtract(v2, v1, out Vector3 e1);
+		VectorSubtract(v3, v1, out Vector3 e2);
+		CrossProduct(e1, e2, out normal);
+		VectorNormalize(ref normal);
+		intercept = DotProduct(normal, v1);
+	}
+
 	public static int ClipPolyToPlane(Span<Vector3> inVerts, int vertCount, Span<Vector3> outVerts, in Vector3 normal, float dist, float onPlaneEpsilon = 0.1f) {
 		Span<float> dists = stackalloc float[vertCount * 4]; //4x vertcount should cover all cases
 		Span<int> sides = stackalloc int[vertCount * 4];
@@ -2404,6 +2421,49 @@ public static class MathLib
 		dst.X = src1[0][0] * src2.X + src1[0][1] * src2.Y + src1[0][2] * src2.Z + src1[0][3];
 		dst.Y = src1[1][0] * src2.X + src1[1][1] * src2.Y + src1[1][2] * src2.Z + src1[1][3];
 		dst.Z = src1[2][0] * src2.X + src1[2][1] * src2.Y + src1[2][2] * src2.Z + src1[2][3];
+	}
+
+	public static void Vector3DMultiply(in Matrix4x4 src1, in Vector3 src2, out Vector3 dst) {
+		dst.X = src1[0][0] * src2.X + src1[0][1] * src2.Y + src1[0][2] * src2.Z;
+		dst.Y = src1[1][0] * src2.X + src1[1][1] * src2.Y + src1[1][2] * src2.Z;
+		dst.Z = src1[2][0] * src2.X + src1[2][1] * src2.Y + src1[2][2] * src2.Z;
+	}
+
+	public static void MatrixSetColumn(ref Matrix4x4 src, int col, in Vector3 column) {
+		Assert((col >= 0) && (col <= 3));
+
+		src[0, col] = column.X;
+		src[1, col] = column.Y;
+		src[2, col] = column.Z;
+	}
+
+	public static ref Vector3 GetTranslation(this in Matrix4x4 m, ref Vector3 trans) {
+		trans.X = m[0, 3];
+		trans.Y = m[1, 3];
+		trans.Z = m[2, 3];
+		return ref trans;
+	}
+
+	public static void MatrixTransformPlane(in Matrix4x4 src, in CollisionPlane inPlane, out CollisionPlane outPlane) {
+		Vector3 trans = default;
+		outPlane = default;
+		Vector3DMultiply(in src, in inPlane.Normal, out outPlane.Normal);
+		outPlane.Dist = inPlane.Dist * DotProduct(outPlane.Normal, outPlane.Normal);
+		outPlane.Dist += DotProduct(outPlane.Normal, src.GetTranslation(ref trans));
+	}
+
+	public static void MatrixInverseTR(in Matrix4x4 src, out Matrix4x4 dst) {
+		dst = default;
+		dst[0, 0] = src[0, 0]; dst[0, 1] = src[1, 0]; dst[0, 2] = src[2, 0];
+		dst[1, 0] = src[0, 1]; dst[1, 1] = src[1, 1]; dst[1, 2] = src[2, 1];
+		dst[2, 0] = src[0, 2]; dst[2, 1] = src[1, 2]; dst[2, 2] = src[2, 2];
+
+		Vector3 trans = new(-src[0, 3], -src[1, 3], -src[2, 3]);
+		Vector3DMultiply(in dst, in trans, out Vector3 newTrans);
+		MatrixSetColumn(ref dst, 3, in newTrans);
+
+		dst[3, 0] = dst[3, 1] = dst[3, 2] = 0.0f;
+		dst[3, 3] = 1.0f;
 	}
 
 	public static byte FastFToC(float c) => (byte)(int)(c * 255.0f);

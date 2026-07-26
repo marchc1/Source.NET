@@ -1758,8 +1758,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 				}
 			}
 
-			// todo
-			// _out2.ShadowDecals = SHADOW_DECAL_HANDLE_INVALID;
+			surfID.ShadowDecals = SHADOW_DECAL_HANDLE_INVALID;
 			// _out2.Decals = WORLD_DECAL_HANDLE_INVALID;
 
 			// out2.FirstOverlayFragment = OVERLAY_FRAGMENT_INVALID;

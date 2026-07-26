@@ -187,11 +187,11 @@ public struct FlashlightState
 	public int GetBottom() => Bottom;
 
 
-	bool Scissor;
-	int Left;
-	int Top;
-	int Right;
-	int Bottom;
+	public bool Scissor;
+	public int Left;
+	public int Top;
+	public int Right;
+	public int Bottom;
 }
 
 public enum CreateRenderTargetFlags
@@ -355,6 +355,20 @@ public interface IMatRenderContext
 	void SetLight(int lightNum, in Source.Common.Mathematics.LightDesc desc);
 	void DisableAllLocalLights();
 	int GetMaxLights();
+	void SetFlashlightMode(bool enable);
+	bool GetFlashlightMode();
+	void SetFlashlightState(in FlashlightState state, in Matrix4x4 worldToTexture);
+	void SetFlashlightStateEx(in FlashlightState state, in Matrix4x4 worldToTexture, ITexture? flashlightDepthTexture);
+	void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 matrix);
+	void SetStencilEnable(bool onoff);
+	void SetStencilFailOperation(StencilOperation op);
+	void SetStencilZFailOperation(StencilOperation op);
+	void SetStencilPassOperation(StencilOperation op);
+	void SetStencilCompareFunction(StencilComparisonFunction cmpfn);
+	void SetStencilReferenceValue(int reference);
+	void SetStencilTestMask(uint msk);
+	void SetStencilWriteMask(uint msk);
+	void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor);
 }
 
 public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
@@ -451,4 +465,18 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public void SetLight(int lightNum, in Mathematics.LightDesc desc) => ctx.SetLight(lightNum, desc);
 	public void DisableAllLocalLights() => ctx.DisableAllLocalLights();
 	public int GetMaxLights() => ctx.GetMaxLights();
+	public void SetFlashlightMode(bool enable) => ctx.SetFlashlightMode(enable);
+	public bool GetFlashlightMode() => ctx.GetFlashlightMode();
+	public void SetFlashlightState(in FlashlightState state, in Matrix4x4 worldToTexture) => ctx.SetFlashlightState(state, worldToTexture);
+	public void SetFlashlightStateEx(in FlashlightState state, in Matrix4x4 worldToTexture, ITexture? flashlightDepthTexture) => ctx.SetFlashlightStateEx(state, worldToTexture, flashlightDepthTexture);
+	public void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 matrix) => ctx.GetMatrix(matrixMode, out matrix);
+	public void SetStencilEnable(bool onoff) => ctx.SetStencilEnable(onoff);
+	public void SetStencilFailOperation(StencilOperation op) => ctx.SetStencilFailOperation(op);
+	public void SetStencilZFailOperation(StencilOperation op) => ctx.SetStencilZFailOperation(op);
+	public void SetStencilPassOperation(StencilOperation op) => ctx.SetStencilPassOperation(op);
+	public void SetStencilCompareFunction(StencilComparisonFunction cmpfn) => ctx.SetStencilCompareFunction(cmpfn);
+	public void SetStencilReferenceValue(int reference) => ctx.SetStencilReferenceValue(reference);
+	public void SetStencilTestMask(uint msk) => ctx.SetStencilTestMask(msk);
+	public void SetStencilWriteMask(uint msk) => ctx.SetStencilWriteMask(msk);
+	public void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor) => ctx.SetScissorRect(left, top, right, bottom, enableScissor);
 }

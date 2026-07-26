@@ -22,6 +22,31 @@ public static class CollisionUtils
 		return false;
 	}
 
+	public static bool IsBoxIntersectingRay(in Vector3 boxMin, in Vector3 boxMax, in Ray ray, float tolerance = 0.0f) {
+		if (!ray.IsSwept) {
+			Vector3 rayMins = ray.Start - ray.Extents;
+			Vector3 rayMaxs = ray.Start + ray.Extents;
+			rayMins += new Vector3(tolerance);
+			rayMaxs += new Vector3(tolerance);
+
+			return IsBoxIntersectingBox(boxMin, boxMax, rayMins, rayMaxs);
+		}
+
+		Vector3 expandedBoxMin = boxMin - ray.Extents;
+		Vector3 expandedBoxMax = boxMax + ray.Extents;
+
+		return IsBoxIntersectingRay(expandedBoxMin, expandedBoxMax, ray.Start, ray.Delta, Vector3.One / ray.Delta, tolerance);
+	}
+
+	public static float IntersectRayWithPlane(in Vector3 org, in Vector3 dir, in Vector3 normal, float dist) {
+		float denom = MathLib.DotProduct(dir, normal);
+		if (denom == 0.0f)
+			return 0.0f;
+
+		denom = 1.0f / denom;
+		return (dist - MathLib.DotProduct(org, normal)) * denom;
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float IntersectRayWithTriangle(in Ray ray, in Vector3 v1, in Vector3 v2, in Vector3 v3, bool oneSided) {
 		Vector3 edge1 = v2 - v1;
@@ -140,6 +165,40 @@ public static class CollisionUtils
 		Vector3 delta = Vector3.Abs(boxCenter1 - boxCenter2);
 		Vector3 size = boxHalfDiagonal1 + boxHalfDiagonal2;
 		return delta.X <= size.X && delta.Y <= size.Y && delta.Z <= size.Z;
+	}
+
+	public static bool IsBoxIntersectingSphere(in Vector3 boxMin, in Vector3 boxMax, in Vector3 center, float radius) {
+		float dmin = 0.0f;
+		float delta;
+
+		if (center[0] < boxMin[0]) {
+			delta = center[0] - boxMin[0];
+			dmin += delta * delta;
+		}
+		else if (center[0] > boxMax[0]) {
+			delta = boxMax[0] - center[0];
+			dmin += delta * delta;
+		}
+
+		if (center[1] < boxMin[1]) {
+			delta = center[1] - boxMin[1];
+			dmin += delta * delta;
+		}
+		else if (center[1] > boxMax[1]) {
+			delta = boxMax[1] - center[1];
+			dmin += delta * delta;
+		}
+
+		if (center[2] < boxMin[2]) {
+			delta = center[2] - boxMin[2];
+			dmin += delta * delta;
+		}
+		else if (center[2] > boxMax[2]) {
+			delta = boxMax[2] - center[2];
+			dmin += delta * delta;
+		}
+
+		return dmin < radius * radius;
 	}
 
 	public static bool IsBoxIntersectingSphereExtents(in Vector3 boxCenter, in Vector3 boxHalfDiag, in Vector3 center, float radius) {

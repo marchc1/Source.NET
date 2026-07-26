@@ -27,11 +27,11 @@ public interface IShadowMgrInternal : IShadowMgr
 
 	void AddShadowsOnSurfaceToRenderList(ShadowDecalHandle_t decalHandle);
 
-	void RenderProjectedTextures(in Matrix4x4? modelToWorld);
+	void RenderProjectedTextures(Matrix4x4? modelToWorld = null);
 
-	void RenderShadows(in Matrix4x4? modelToWorld);
+	void RenderShadows(Matrix4x4? modelToWorld = null);
 
-	void RenderFlashlights(bool doMasking, in Matrix4x4? modelToWorld);
+	void RenderFlashlights(bool doMasking, Matrix4x4? modelToWorld = null);
 
 	void ClearShadowRenderList();
 

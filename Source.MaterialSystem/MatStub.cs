@@ -452,4 +452,18 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public void SetLight(int lightNum, in LightDesc desc) { }
 	public void DisableAllLocalLights() { }
 	public int GetMaxLights() => 0;
+	public void SetFlashlightMode(bool enable) { }
+	public bool GetFlashlightMode() => false;
+	public void SetFlashlightState(in FlashlightState state, in Matrix4x4 worldToTexture) { }
+	public void SetFlashlightStateEx(in FlashlightState state, in Matrix4x4 worldToTexture, ITexture? flashlightDepthTexture) { }
+	public void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 matrix) => matrix = Matrix4x4.Identity;
+	public void SetStencilEnable(bool onoff) { }
+	public void SetStencilFailOperation(StencilOperation op) { }
+	public void SetStencilZFailOperation(StencilOperation op) { }
+	public void SetStencilPassOperation(StencilOperation op) { }
+	public void SetStencilCompareFunction(StencilComparisonFunction cmpfn) { }
+	public void SetStencilReferenceValue(int reference) { }
+	public void SetStencilTestMask(uint msk) { }
+	public void SetStencilWriteMask(uint msk) { }
+	public void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor) { }
 }

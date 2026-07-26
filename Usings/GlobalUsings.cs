@@ -67,6 +67,8 @@ global using ShadowSurfaceIndex_t = int;
 global using FlashlightHandle_t = ushort;
 global using SurfaceBoundsCacheIndex_t = ushort;
 global using DispDecalHandle = short;
+global using DispDecalFragmentHandle = ushort;
+global using DispShadowFragmentHandle = ushort;
 global using fltx4 = System.Runtime.Intrinsics.Vector128<float>;
 global using static Source.Common.ClientRenderHandleGlobals;
 global using static Source.Common.Audio.AudioConstants;

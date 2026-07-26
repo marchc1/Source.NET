@@ -537,7 +537,7 @@ public class MatRenderContext : IMatRenderContextInternal
 		VecViewUp = new(viewMatrix[1][0], viewMatrix[1][1], viewMatrix[1][2]);
 	}
 
-	private void GetMatrix(MaterialMatrixMode mode, out Matrix4x4 viewMatrix) {
+	public void GetMatrix(MaterialMatrixMode mode, out Matrix4x4 viewMatrix) {
 		var stack = MatrixStacks[(int)mode];
 		if (stack.Count == 0) {
 			viewMatrix = Matrix4x4.Identity;
@@ -610,6 +610,26 @@ public class MatRenderContext : IMatRenderContextInternal
 	public void SetLight(int lightNum, in LightDesc desc) => shaderAPI.SetLight(lightNum, desc);
 	public void DisableAllLocalLights() => shaderAPI.DisableAllLocalLights();
 	public int GetMaxLights() => shaderAPI.GetMaxLights();
+
+	public void SetFlashlightMode(bool enable) {
+		if (enable != FlashlightEnable) {
+			shaderAPI.FlushBufferedPrimitives();
+			FlashlightEnable = enable;
+		}
+	}
+	public bool GetFlashlightMode() => FlashlightEnable;
+	public void SetFlashlightState(in FlashlightState state, in Matrix4x4 worldToTexture) => SetFlashlightStateEx(state, worldToTexture, null);
+	public void SetFlashlightStateEx(in FlashlightState state, in Matrix4x4 worldToTexture, ITexture? flashlightDepthTexture) => shaderAPI.SetFlashlightStateEx(state, worldToTexture, flashlightDepthTexture);
+
+	public void SetStencilEnable(bool onoff) => shaderAPI.SetStencilEnable(onoff);
+	public void SetStencilFailOperation(StencilOperation op) => shaderAPI.SetStencilFailOperation(op);
+	public void SetStencilZFailOperation(StencilOperation op) => shaderAPI.SetStencilZFailOperation(op);
+	public void SetStencilPassOperation(StencilOperation op) => shaderAPI.SetStencilPassOperation(op);
+	public void SetStencilCompareFunction(StencilComparisonFunction cmpfn) => shaderAPI.SetStencilCompareFunction(cmpfn);
+	public void SetStencilReferenceValue(int reference) => shaderAPI.SetStencilReferenceValue(reference);
+	public void SetStencilTestMask(uint msk) => shaderAPI.SetStencilTestMask(msk);
+	public void SetStencilWriteMask(uint msk) => shaderAPI.SetStencilWriteMask(msk);
+	public void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor) => shaderAPI.SetScissorRect(left, top, right, bottom, enableScissor);
 
 	public MatLightmaps GetLightmaps() => materials.MatLightmaps;
 
