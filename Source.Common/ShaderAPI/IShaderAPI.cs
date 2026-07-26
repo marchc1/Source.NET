@@ -3,6 +3,8 @@ using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
+using System.Numerics;
+
 namespace Source.Common.ShaderAPI;
 
 public enum CreateTextureFlags
@@ -137,4 +139,14 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void SetLight(int lightNum, in LightDesc desc);
 	void DisableAllLocalLights();
 	int GetMaxLights();
+	void SetFlashlightStateEx(in FlashlightState state, in Matrix4x4 worldToTexture, ITexture? flashlightDepthTexture);
+	void SetStencilEnable(bool onoff);
+	void SetStencilFailOperation(StencilOperation op);
+	void SetStencilZFailOperation(StencilOperation op);
+	void SetStencilPassOperation(StencilOperation op);
+	void SetStencilCompareFunction(StencilComparisonFunction cmpfn);
+	void SetStencilReferenceValue(int reference);
+	void SetStencilTestMask(uint msk);
+	void SetStencilWriteMask(uint msk);
+	void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor);
 }

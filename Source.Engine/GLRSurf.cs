@@ -868,10 +868,24 @@ public static class GLRSurf
 			Shader_DrawChains(renderList, sortGroup, false);
 			AddProjectedTextureDecalsToList(renderList, sortGroup);
 
-			// g_ShadowMgr.AddShadowsOnSurfaceToRenderList // todo
+			for (int j = renderList.ShadowHandles[sortGroup].Count - 1; j >= 0; --j)
+				g_ShadowMgr.AddShadowsOnSurfaceToRenderList(renderList.ShadowHandles[sortGroup].ElementAt(j));
+
 			renderList.ShadowHandles[sortGroup].Clear();
 
-			// g_ShadowMgr flashlights + OverlayMgr + DecalSurfaceDraw + RenderShadows // todo
+			bool flashlightMask = !((flags & DrawWorldListFlags.Refraction) != 0 || (flags & DrawWorldListFlags.Reflection) != 0);
+
+			g_ShadowMgr.SetFlashlightStencilMasks(flashlightMask);
+			g_ShadowMgr.RenderFlashlights(flashlightMask);
+
+			// OverlayMgr + DecalSurfaceDraw // todo
+
+			g_ShadowMgr.DrawFlashlightOverlays(sortGroup, flashlightMask);
+
+			g_ShadowMgr.DrawFlashlightDecals(sortGroup, flashlightMask);
+
+			g_ShadowMgr.RenderShadows();
+			g_ShadowMgr.ClearShadowRenderList();
 
 			if (sortGroup == (int)MatSortGroup.WaterSurface && waterZAdjust != 0.0f) {
 				renderCtx.MatrixMode(MaterialMatrixMode.Model);

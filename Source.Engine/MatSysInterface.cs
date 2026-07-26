@@ -370,6 +370,12 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		Skybox3DMeshesIndices.Clear();
 
 		int sortIDs = materials.GetNumSortIDs();
+		if (sortIDs == 0) {
+			Assert(false);
+			return;
+		}
+
+		g_ShadowMgr.SetNumWorldMaterialBuckets(sortIDs);
 
 		Assert(WorldStaticMeshes.Count == 0);
 		WorldStaticMeshes.EnsureCountDefault(sortIDs);
