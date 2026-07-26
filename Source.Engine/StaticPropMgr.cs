@@ -436,8 +436,29 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 					}
 				case 7:
 				case 10:
-					buf.ReadToStruct(ref lump);
+					if (MapLoadHelper.MapHeader.Version == 21) {
+						StaticPropLumpV10_21 v = default;
+						buf.ReadToStruct(ref v);
+						lump = v;
+					}
+					else {
+						StaticPropLumpV10 v = default;
+						buf.ReadToStruct(ref v);
+						lump = v;
+					}
 					break;
+				case 9: {
+						StaticPropLumpV9 v = default;
+						buf.ReadToStruct(ref v);
+						lump = v;
+						break;
+					}
+				case 11: {
+						StaticPropLumpV11 v = default;
+						buf.ReadToStruct(ref v);
+						lump = v;
+						break;
+					}
 				default:
 					Sys.Error($"Unexpected lump version {lumpVersion} while deserializing lumps.");
 					break;
