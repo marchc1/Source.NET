@@ -814,7 +814,7 @@ public partial class Render
 
 		for (int i = 1; i < BSPFileCommon.MAX_LIGHTSTYLES; i++) {
 			int byt = i >> 3;
-			int bit = i & 0xf;
+			int bit = i & 0x7;
 			if ((cache.Lightstyles[byt] & (1 << bit)) != 0)
 				return false;
 		}
@@ -1766,8 +1766,8 @@ public partial class Render
 	float MinLightingValue = 1.0f;
 	public void InitDLightGlobals(int mapVersion) {
 		if (mapVersion >= 20)
-			MinLightingValue = 1 / 256;
+			MinLightingValue = 1.0f / 256.0f;
 		else
-			MinLightingValue = 20 / 256;
+			MinLightingValue = 20.0f / 256.0f;
 	}
 }
