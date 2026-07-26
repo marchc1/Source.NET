@@ -833,12 +833,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 		if (cmd == NET.File) {
 			uint transferID = buf.ReadUBitLong(32);
 			buf.ReadString(out str, 1024);
-			if (buf.ReadOneBit() != 0) {
-				MessageHandler?.FileRequested(str, transferID);
-			}
-			else {
-				MessageHandler?.FileDenied(str, transferID);
-			}
+			if (buf.ReadOneBit() != 0 && IsValidFileForTransfer(str)) 
+				MessageHandler!.FileRequested(str, transferID);
+			else 
+				MessageHandler!.FileDenied(str, transferID);
+			
 
 			return true;
 		}
