@@ -85,8 +85,8 @@ public class DownloadListGenerator
 		ReadOnlySpan<char> fixedGameDir = new PrintF(gameDir, "%s/").S(Common.Gamedir).ToSpan();
 		gameDir = gameDir[..fixedGameDir.Length];
 		StrTools.FixSlashes(gameDir);
-		GameDir = new string(gameDir);
 
+		GameDir = new string(gameDir.SliceNullTerminatedString());
 		// save off the map name
 		MapName = new string(levelName.SliceNullTerminatedString());
 	}
@@ -171,8 +171,7 @@ public class DownloadListGenerator
 			return; // the game dir must be part of the full name
 
 		// make sure the filename hasn't already been written
-		string fullKey = new(full);
-		if (AlreadyWrittenFileNames.Find(fullKey) == UTL_INVAL_SYMBOL)
+		if (AlreadyWrittenFileNames.Find(full) == UTL_INVAL_SYMBOL)
 			return;
 
 		// add extras for mdl's
