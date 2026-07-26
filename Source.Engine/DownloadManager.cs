@@ -455,6 +455,8 @@ public class DownloadManager
 
 		Span<char> szBasePath = stackalloc char[MAX_PATH];
 		strcpy(szBasePath, Source.Engine.Common.Gamedir);
+		StrTools.AppendSlash(szBasePath);
+		strcat(szBasePath, DownloadCache.DownloadPathID);
 
 		strcpy(rc.GamePath, pGamePath);
 		if (bCompressed)
