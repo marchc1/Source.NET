@@ -13,6 +13,11 @@ public struct ColorRGBExp32 {
 	public byte R, G, B;
 	public sbyte Exponent;
 }
+
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
+public struct Color24 {
+	public byte R, G, B;
+}
 public struct Color : IEquatable<Color>
 {
 	public ColorType R, G, B, A;

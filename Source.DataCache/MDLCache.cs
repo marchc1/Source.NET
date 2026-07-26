@@ -63,6 +63,8 @@ public class MDLCache : IMDLCache, IStudioDataCache
 	static readonly ConVar mod_load_vcollide_async = new("mod_load_vcollide_async", "0", 0);
 
 	static readonly ConVar mod_trace_load = new("mod_trace_load", "0", 0);
+	private static void MdlCacheMsg(string v) { if (mod_trace_load.GetBool()) Msg(v); }
+
 	static readonly ConVar mod_lock_mdls_on_load = new("mod_lock_mdls_on_load", "0", 0);
 	static readonly ConVar mod_load_fakestall = new("mod_load_fakestall", "0", 0, "Forces all ANI file loading to stall for specified ms\n");
 
@@ -234,7 +236,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 			return false;
 		}
 
-		Msg($"MDLCache: Begin load VTX {GetModelName(handle)}\n");
+		MdlCacheMsg($"MDLCache: Begin load VTX {GetModelName(handle)}\n");
 		return BuildHardwareData(handle, studioData, studioHdr);
 	}
 	IStudioRender? studioRender;
@@ -330,7 +332,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 		StrTools.FixSlashes(fileName);
 		fileName = fileName.SliceNullTerminatedString();
 
-		Msg($"MDLCache: Load studiohdr {fileName}\n");
+		MdlCacheMsg($"MDLCache: Load studiohdr {fileName}\n");
 
 		bool ok = ReadFileNative(fileName, "GAME", buf);
 		if (!ok) {
@@ -579,7 +581,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 		fileName = fileName.SliceNullTerminatedString();
 		bool asyncLoad = false;
 
-		Msg($"MDLCache: {(asyncLoad ? "Async" : "Sync")} load vcollide {GetModelName(handle)}\n");
+		MdlCacheMsg($"MDLCache: {(asyncLoad ? "Async" : "Sync")} load vcollide {GetModelName(handle)}\n");
 	}
 
 	private void MakeFilename(MDLHandle_t handle, ReadOnlySpan<char> extension, Span<char> fileName) {
@@ -808,7 +810,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 		MakeFilename(handle, ".vvd", fileName);
 		fileName = fileName.SliceNullTerminatedString();
 
-		Msg($"MDLCache: Begin load VVD {fileName}\n");
+		MdlCacheMsg($"MDLCache: Begin load VVD {fileName}\n");
 		MemoryStream vvdHeader = new();
 		if (!ReadFileNative(fileName, "GAME", vvdHeader))
 			return null;
@@ -824,7 +826,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 		MDLHandle_t handle = (MDLHandle_t)(nint)studioHdr.VirtualModel & 0xffff;
 		VertexFileHeader? vvdHdr;
 
-		Msg($"MDLCache: Load VVD for {studioHdr.GetName()}\n");
+		MdlCacheMsg($"MDLCache: Load VVD for {studioHdr.GetName()}\n");
 
 		Assert(rawVvdHdr != null);
 
@@ -850,7 +852,7 @@ public class MDLCache : IMDLCache, IStudioDataCache
 		int rootLOD = Math.Min((int)studioHdr.RootLOD, rawVvdHdr.NumLODs - 1);
 
 		// determine final cache footprint, possibly truncated due to lod
-		Msg($"MDLCache: Alloc VVD {GetModelName(handle)}\n");
+		MdlCacheMsg($"MDLCache: Alloc VVD {GetModelName(handle)}\n");
 
 		// allocate cache space
 		vvdHdr = new(new byte[Studio_VertexDataSize(rawVvdHdr, rootLOD, needsTangentS)]);

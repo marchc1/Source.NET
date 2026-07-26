@@ -173,6 +173,11 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 	}
 
 
+	public void GetReflectivity(out Vector3 reflectivity) {
+		Precache();
+		reflectivity = Reflectivity;
+	}
+
 	public void Precache() {
 		if (IsRenderTarget() || IsProcedural())
 			return;

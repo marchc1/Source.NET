@@ -85,13 +85,21 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override ITexture? GetTextureValue() {
-		if (owningMaterial != null)
-			owningMaterial.Precache();
+		ITexture? retVal = null;
 
-		if (Type == MaterialVarType.Texture)
-			return TextureValue;
+		owningMaterial?.Precache();
 
-		return null;
+		if (Type == MaterialVarType.Texture) {
+			if (!ITextureInternal.IsTextureInternalEnvCubemap(TextureValue))
+				retVal = TextureValue;
+			else
+				retVal = ((Material)owningMaterial).materials.GetRenderContext().GetLocalCubemap();
+
+			if (retVal == null)
+				Warning("Invalid texture value in CMaterialVar::GetTextureValue\n");
+		}
+
+		return retVal;
 	}
 
 	public override unsafe void GetVecValue(Span<float> val) {
