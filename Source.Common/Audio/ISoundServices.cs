@@ -11,6 +11,7 @@ public interface ISoundServices
 	void SetSoundFrametime(TimeUnit_t realDt, TimeUnit_t hostDt);
 	int GetServerCount();
 	bool IsPlayer(SoundSource source);
+	bool GetSoundSpatialization(int entIndex, ref SpatializationInfo info);
 	void OnChangeVoiceStatus(int entity, bool status);
 	bool IsConnected();
 	void EmitSentenceCloseCaption(ReadOnlySpan<char> tokenstream );

@@ -6,6 +6,8 @@ using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Formats.Keyvalues;
 
+using Steamworks;
+
 using System.Collections.Generic;
 using System.Drawing;
 using System.Numerics;
@@ -106,6 +108,19 @@ public interface IServerGameDLL
 
 	// Get gamedata string to send to the master serer updater.
 	ReadOnlySpan<char> GetServerBrowserGameData();
+
+	void PrepareLevelResources(Span<char> mapName, Span<char> mapFile);
+	PrepareLevelResourcesResult AsyncPrepareLevelResources(Span<char> mapName, Span<char> mapFile, out float progress);
+
+	bool GMOD_CheckPassword(CSteamID steamID, ReadOnlySpan<char> ipAddress, ReadOnlySpan<char> serverPassword, ReadOnlySpan<char> clientPassword, ReadOnlySpan<char> name, Span<char> rejectionMessage);
+	void GMOD_ClientSignOnStateChanged(int userID, int oldState, int newState);
+	void GMOD_OnAllSoundsStoppedSV();
+}
+
+public enum PrepareLevelResourcesResult
+{
+	Prepared,
+	InProgress
 }
 
 /// <summary>
@@ -140,4 +155,8 @@ public interface IServerGameClients
 	void NetworkIDValidated(ReadOnlySpan<char> userName, ReadOnlySpan<char> networkID);
 	void ClientCommandKeyValues(Edict entity, KeyValues keyValues);
 	void ClientSpawned(Edict player);
+
+	void GMOD_ReceiveClientMessage(int userID, Edict player, bf_read msg, int bits);
+	void GMOD_ClientConnected(int userID);
+	void GMOD_SentClientStringTables(IClient client);
 }

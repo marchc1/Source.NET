@@ -4,6 +4,7 @@ using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Engine;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GarrysMod;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
 using Source.Common.Server;
@@ -718,4 +719,60 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	}
 
 	public SharedEdictChangeInfo GetSharedEdictChangeInfo() => g_roSharedEdictChangeInfo;
+
+	public Span<float> GMOD_SetTimeManipulator(float scaleFramerate) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_SendToClient<IRF>(ref IRF filter, ReadOnlySpan<byte> data) where IRF : IRecipientFilter {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_SendToClient(int client, ReadOnlySpan<byte> data) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_RawServerCommand(ReadOnlySpan<char> command) {
+		throw new NotImplementedException();
+	}
+
+	public IGMODDataTable GMOD_CreateDataTable() {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_DestroyDataTable(IGMODDataTable dataTable) {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> GMOD_GetServerAddress() {
+		throw new NotImplementedException();
+	}
+
+	public uint GMOD_LoadModel(ReadOnlySpan<char> path) {
+		throw new NotImplementedException();
+	}
+
+	public float GetClientConVarFloat(int client, ReadOnlySpan<char> cvar, float fallback) {
+		throw new NotImplementedException();
+	}
+
+	public ref CSteamID GMOD_GetPlayerOwnerSteamID(Edict client) {
+		throw new NotImplementedException();
+	}
+
+	public bool GMOD_GetPlayerIsSpeaking(Edict client) {
+		throw new NotImplementedException();
+	}
+
+	public bool GMOD_GetPlayerIsBot(Edict client) {
+		throw new NotImplementedException();
+	}
+
+	public bool GMOD_ShouldUpdateVoiceMasks() {
+		throw new NotImplementedException();
+	}
+
+	public bool NET_IsHostLocal(ReadOnlySpan<char> unknwon) {
+		throw new NotImplementedException();
+	}
 }

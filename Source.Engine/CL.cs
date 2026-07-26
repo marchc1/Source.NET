@@ -11,6 +11,7 @@ using Source.Common.Engine;
 using Source.Common.Launcher;
 using Source.Common.Networking;
 using Source.Engine.Client;
+using Source.Engine.Server;
 
 using System.Buffers;
 using System.Runtime.CompilerServices;
@@ -26,7 +27,7 @@ namespace Source.Engine;
 /// CL_MethodName's in the static global namespace
 /// </summary>
 public partial class CL(IServiceProvider services, Net Net,
-	ClientGlobalVariables clientGlobalVariables, ServerGlobalVariables serverGlobalVariables,
+	ClientGlobalVariables clientGlobalVariables,
 	CommonHostState host_state, Host Host, Cbuf Cbuf, Scr Scr,
 #if !SWDS
 	IEngineVGuiInternal? EngineVGui,
@@ -39,8 +40,8 @@ public partial class CL(IServiceProvider services, Net Net,
 	public IClientLeafSystemEngine ClientLeafSystem => ClientDLL.ClientLeafSystem;
 
 
-	public IBaseClientDLL clientDLL;
-	public IEngineClient engineClient;
+	public IBaseClientDLL clientDLL = null!;
+	public IEngineClient engineClient = null!;
 	public void ApplyAddAngle() {
 
 	}
@@ -163,7 +164,7 @@ public partial class CL(IServiceProvider services, Net Net,
 
 		bool sendPacket = true;
 
-		if (Net.Time < cl.NextCmdTime || !cl.NetChannel.CanPacket())
+		if (Net.Time < cl.NextCmdTime || !cl.NetChannel!.CanPacket())
 			sendPacket = false;
 
 		if (cl.IsActive()) {
@@ -203,7 +204,7 @@ public partial class CL(IServiceProvider services, Net Net,
 			cl.NetChannel?.SendNetMsg(mymsg);
 		}
 
-		cl.LastOutgoingCommand = cl.NetChannel.SendDatagram(null);
+		cl.LastOutgoingCommand = cl.NetChannel!.SendDatagram(null);
 		cl.ChokedCommands = 0;
 
 		if (cl.IsActive()) {
@@ -239,7 +240,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		clientDLL.LevelInitPostEntity();
 
 		// Start notifying dependencies
-		uint ip = cl.NetChannel.GetRemoteAddress()!.GetIPHostByteOrder();
+		uint ip = cl.NetChannel!.GetRemoteAddress()!.GetIPHostByteOrder();
 		short port = cl.NetChannel.GetRemoteAddress()!.GetPort();
 
 		if (port == 0) {
@@ -331,7 +332,8 @@ public partial class CL(IServiceProvider services, Net Net,
 	}
 
 	internal void ProcessVoiceData() {
-
+		Voice.Idle(Host.FrameTime);
+		SendVoicePacket(false);
 	}
 
 	internal void TakeSnapshotAndSwap() {
@@ -342,6 +344,27 @@ public partial class CL(IServiceProvider services, Net Net,
 
 	internal bool CheckCRCs(ReadOnlySpan<char> levelFileName) {
 		return true;
+	}
+
+	readonly byte[] voiceData = new byte[2048];
+
+	public void SendVoicePacket(bool final){
+		if (!Voice.IsRecording())
+			return;
+
+		CLC_VoiceData voiceMsg = new();
+
+		voiceMsg.DataOut.StartWriting(voiceData, voiceData.Length);
+
+		voiceMsg.Length = Voice.GetCompressedData(voiceData.AsSpan(), final) * 8;
+
+		if (voiceMsg.Length == 0)
+			return;
+
+		voiceMsg.DataOut.Seek(voiceMsg.Length);    // set correct writing position
+
+		if (cl.IsActive())
+			cl.NetChannel!.SendNetMsg(voiceMsg);
 	}
 
 	internal void RegisterResources() {
@@ -490,7 +513,7 @@ public partial class CL(IServiceProvider services, Net Net,
 			return;
 		}
 
-		ClientClass? pClass = cl.ServerClasses[iClass]?.ClientClass;
+		ClientClass? pClass = cl.ServerClasses![iClass]?.ClientClass;
 		bool bNew = false;
 		if (ent != null) {
 			if (ent.GetIClientUnknown()!.GetRefEHandle()!.GetSerialNumber() != iSerialNum) {
@@ -555,6 +578,12 @@ public partial class CL(IServiceProvider services, Net Net,
 			RecvTable.Decode(recvTable, ent.GetDataTableBasePtr(), u.Buf, u.NewEntity, true);
 		}
 
+		// A decode that overflows the buffer means this entity's datatable consumed
+		// the wrong number of bits and the rest of the packet is now misaligned. This
+		// is the point where a stream desync first becomes detectable.
+		if (u.Buf.Overflowed)
+			Warning($"CL.CopyNewEntity: buffer overflow decoding new ent {u.NewEntity} class {iClass} '{pClass?.NetworkName}' - entity stream desynced\n");
+
 		AddPostDataUpdateCall(u, u.NewEntity, updateType);
 
 		Assert(u.To!.LastEntity <= u.NewEntity);
@@ -562,6 +591,13 @@ public partial class CL(IServiceProvider services, Net Net,
 		u.To!.TransmitEntity.Set(u.NewEntity);
 
 		int bit_count = u.Buf.BitsRead - start_bit;
+
+		// Per-entity bit accounting. Enable cl_entitydecode_report to trace exactly
+		// which datatable consumed how many bits; the last entity logged before a
+		// "missing client entity"/overflow error is the one whose decode desynced.
+		if (cl_entitydecode_report.GetBool())
+			DevMsg($"cl decode: ent {u.NewEntity,4} class {iClass,3} '{pClass?.NetworkName}' consumed {bit_count} bits (buf pos {u.Buf.BitsRead}, {u.Buf.BitsLeft} left)\n");
+
 		if (cl_entityreport.GetBool())
 			RecordEntityBits(u.NewEntity, bit_count);
 
@@ -580,10 +616,10 @@ public partial class CL(IServiceProvider services, Net Net,
 
 	private IClientNetworkable? CreateDLLEntity(int iEnt, int iClass, int iSerialNum) {
 		ClientClass? clientClass;
-		if ((clientClass = cl.ServerClasses[iClass]?.ClientClass) != null) {
+		if ((clientClass = cl.ServerClasses![iClass]?.ClientClass) != null) {
 			RecordAddEntity(iEnt);
 			if (!cl.IsActive())
-				Common.TimestampedLog($"cl:  create '{clientClass.NetworkName}'\n");
+				Common.TimestampedLog($"cl:  create({iEnt}, {iClass}, {iSerialNum}) '{clientClass.NetworkName}'\n");
 
 			return clientClass.CreateFn(iEnt, iSerialNum);
 		}
@@ -700,7 +736,7 @@ public partial class CL(IServiceProvider services, Net Net,
 
 		// snd_show
 
-		StartSoundParams parms = default;
+		StartSoundParams parms = new();
 		parms.StaticSound = (sound.Channel == SoundEntityChannel.Static) ? true : false;
 		parms.SoundSource = sound.EntityIndex;
 		parms.EntChannel = parms.StaticSound ? SoundEntityChannel.Static : sound.Channel;
@@ -748,27 +784,23 @@ public partial class CL(IServiceProvider services, Net Net,
 
 		cl.Clear();
 	}
-
-	internal void HTTPStop_f() {
-
-	}
 }
 
 /// <summary>
 /// Loads and shuts down the client DLL
 /// </summary>
 /// <param name="services"></param>
-public class ClientDLL(IServiceProvider services, Sys Sys
+public class ClientDLL(IServiceProvider services
 #if !SWDS
 , EngineRecvTable RecvTable
 #endif
 )
 {
-	public IBaseClientDLL clientDLL;
-	public IPrediction ClientSidePrediction;
-	public IClientEntityList EntityList;
-	public ICenterPrint CenterPrint;
-	public IClientLeafSystemEngine ClientLeafSystem;
+	public IBaseClientDLL clientDLL = null!;
+	public IPrediction ClientSidePrediction = null!;
+	public IClientEntityList EntityList = null!;
+	public ICenterPrint CenterPrint = null!;
+	public IClientLeafSystemEngine ClientLeafSystem = null!;
 	public void Init() {
 		clientDLL = services.GetRequiredService<IBaseClientDLL>();
 

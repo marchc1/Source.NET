@@ -22,6 +22,7 @@ public partial class CL
 	internal readonly EntityBits[] EntityBits = new EntityBits[Constants.MAX_EDICTS];
 	public static readonly ConVar cl_entityreport = new("cl_entityreport", "0", FCvar.Cheat, "For debugging, draw entity states to console");
 	public static readonly ConVar cl_entityreport_sorted = new("cl_entityreport_sorted", "0", FCvar.Cheat, "For debugging, draw entity states to console in sorted order. [0 = disabled, 1 = average, 2 = current, 3 = peak");
+	public static readonly ConVar cl_entitydecode_report = new("cl_entitydecode_report", "0", FCvar.Cheat, "For debugging entity stream desyncs: logs the class and consumed bit count of every entity decoded in a packet.");
 
 	IClientEntityList entitylist = OptionalSingleton<IClientEntityList>()!;
 

@@ -1,92 +1,128 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.IO.MemoryMappedFiles;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Source.VPK
 {
 	internal abstract class VpkReaderBase
-    {
-        public BinaryReader Reader;
-        private readonly StringBuilder _strBuilder;
+	{
+		private readonly byte[] memoryFile;
+		private nuint ptr;
 
-        protected VpkReaderBase(string filename)
-        {
-            Reader = new BinaryReader(new FileStream(filename, FileMode.Open, FileAccess.Read));
-            _strBuilder = new StringBuilder(256);
-        }
+		protected VpkReaderBase(string filename) {
+			memoryFile = File.ReadAllBytes(filename);
+		}
 
-        protected VpkReaderBase(byte[] file)
-        {
-            Reader = new BinaryReader(new MemoryStream(file));
-            _strBuilder = new StringBuilder(256);
-        }
+		protected VpkReaderBase(byte[] file) {
+			memoryFile = file;
+		}
 
-        public abstract IVpkArchiveHeader ReadArchiveHeader();
+		protected ReadOnlySpan<byte> GetMemoryFileNoOffset() => memoryFile;
+		protected ReadOnlySpan<byte> GetMemoryFileWithOffset() => memoryFile.AsSpan()[(int)ptr..];
+		protected ReadOnlySpan<byte> GetMemoryFileWithOffsetAndSize(nuint size) => memoryFile.AsSpan()[(int)ptr..][..(int)size];
 
-        public string ReadNullTerminatedString()
-        {
-            _strBuilder.Clear();
-            char chr;
-            while ((chr = (char)Reader.ReadByte()) != 0x0)
-                _strBuilder.Append(chr);
-            return _strBuilder.ToString();
-        }
+		public abstract IVpkArchiveHeader ReadArchiveHeader();
 
-        protected T BytesToStructure<T>(byte[] bytearray)
-        {
-            var structSize = Marshal.SizeOf(typeof (T));
-            var pStruct = Marshal.AllocHGlobal(structSize);
-            Marshal.Copy(bytearray, 0, pStruct, structSize);
-            var @struct = (T)Marshal.PtrToStructure(pStruct, typeof(T));
-            Marshal.FreeHGlobal(pStruct);
+		public string ReadNullTerminatedString() {
+			ReadOnlySpan<byte> rest = GetMemoryFileWithOffset();
+			int len = rest.IndexOf((byte)0);
+			string s = Encoding.ASCII.GetString(rest[..len]);
+			ptr += (nuint)len + 1;
+			return s;
+		}
 
-            return @struct;
-        }
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		protected static ref readonly T BytesToStructure<T>(ReadOnlySpan<byte> bytearray) where T : unmanaged {
+			return ref MemoryMarshal.Cast<byte, T>(bytearray[..Unsafe.SizeOf<T>()])[0];
+		}
 
-        #region default
-        public IEnumerable<VpkDirectory> ReadDirectories(VpkArchive parentArchive)
-        {
-            while (true)
-            {
-                var ext = ReadNullTerminatedString();
-                if (string.IsNullOrEmpty(ext))
-                    break;
-                while (true)
-                {
-                    var path = ReadNullTerminatedString();
-                    if (string.IsNullOrEmpty(path))
-                        break;
+		public struct DirectoryReader(VpkReaderBase reader, VpkArchive parentArchive)
+		{
+			readonly VpkReaderBase Reader = reader;
+			readonly VpkArchive ParentArchive = parentArchive;
+			string? ext = null;
+			public VpkDirectory Current = null!;
 
-                    var entries = ReadEntries(parentArchive, ext, path).ToList();
-                    yield return new VpkDirectory(parentArchive, path, entries);
-                }
-            }
-        }
+			public bool MoveNext() {
+				while (true) {
+					if (ext == null) {
+						ext = Reader.ReadNullTerminatedString();
+						if (string.IsNullOrEmpty(ext))
+							return false;            // end of tree
+						ext = ext.ToLowerInvariant(); // once per extension block
+					}
 
-        public IEnumerable<VpkEntry> ReadEntries(VpkArchive parentArchive, string ext, string path)
-        {
-            while (true)
-            {
-                var fileName = ReadNullTerminatedString();
-                if (string.IsNullOrEmpty(fileName))
-                    break;
+					var path = Reader.ReadNullTerminatedString();
+					if (string.IsNullOrEmpty(path)) {
+						ext = null;                   // end of this ext's paths, get the next one
+						continue;
+					}
 
-                var crc = Reader.ReadUInt32();
-                var preloadBytes = Reader.ReadUInt16();
-                var archiveIdx = Reader.ReadUInt16();
-                var entryOffset = Reader.ReadUInt32();
-                var entryLen = Reader.ReadUInt32();
-                // skip terminator
-                Reader.ReadUInt16();
-                var preloadDataOffset = (uint)Reader.BaseStream.Position;
-                if (preloadBytes > 0) 
-                    Reader.BaseStream.Position += preloadBytes;
+					Current = new VpkDirectory(ParentArchive, path,
+						Reader.ReadEntries(ParentArchive, ext, path).ToList());
+					return true;
+				}
+			}
+		}
 
-                yield return new VpkEntry(parentArchive, crc, preloadBytes, preloadDataOffset, archiveIdx, entryOffset, entryLen, ext.ToLower(), path.ToLower(), fileName.ToLower());
-            }
-        }
-        #endregion
+		#region default
+		public DirectoryReader ReadDirectories(VpkArchive parentArchive) => new(this, parentArchive);
 
-        public abstract uint CalculateEntryOffset(uint offset);
-    }
+		public struct EntryReader(VpkReaderBase reader, VpkArchive parentArchive, string ext, string path)
+		{
+			readonly VpkReaderBase Reader = reader;
+			readonly VpkArchive ParentArchive = parentArchive;
+			readonly string Ext = ext;
+			readonly string Path = path;
+			public bool MoveNext() {
+				var fileName = Reader.ReadNullTerminatedString();
+				if (string.IsNullOrEmpty(fileName))
+					return false;
+
+				var crc = Reader.Read<uint>();
+				var preloadBytes = Reader.Read<ushort>();
+				var archiveIdx = Reader.Read<ushort>();
+				var entryOffset = Reader.Read<uint>();
+				var entryLen = Reader.Read<uint>();
+				// skip terminator
+				Reader.Read<ushort>();
+				nuint preloadDataOffset = Reader.ptr;
+				if (preloadBytes > 0)
+					Reader.ptr += preloadBytes;
+
+				Current = new VpkEntry(ParentArchive, crc, preloadBytes, preloadDataOffset, archiveIdx, entryOffset, entryLen, Ext, Path, fileName.ToLowerInvariant());
+				return true;
+			}
+
+			public List<VpkEntry> ToList() {
+				List<VpkEntry> entries = [];
+				while (MoveNext())
+					entries.Add(Current);
+				return entries;
+			}
+
+			public VpkEntry Current = null!;
+		}
+		public EntryReader ReadEntries(VpkArchive parentArchive, string ext, string path) => new(this, parentArchive, ext.ToLowerInvariant(), path.ToLowerInvariant());
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		protected ref readonly T Read<T>() where T : unmanaged {
+			int sizeofT = Unsafe.SizeOf<T>();
+			ref readonly T val = ref MemoryMarshal.Cast<byte, T>(GetMemoryFileWithOffsetAndSize((nuint)sizeofT))[0];
+			ptr += (nuint)sizeofT;
+			return ref val;
+		}
+
+		protected ReadOnlySpan<byte> ReadBytes(int bytes) {
+			ReadOnlySpan<byte> subspan = GetMemoryFileWithOffsetAndSize((nuint)bytes);
+			ptr += (nuint)bytes;
+			return subspan;
+		}
+
+		#endregion
+
+		public abstract uint CalculateEntryOffset(uint offset);
+	}
 }
 

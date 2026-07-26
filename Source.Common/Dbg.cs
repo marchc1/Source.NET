@@ -54,7 +54,7 @@ public static class Dbg
 	static SpewOutputFunc _SpewOutputFunc = DefaultSpewFunc;
 	static AssertFailedNotifyFunc? _AssertFailedNotifyFunc = null;
 
-	static string FileName;
+	static string? FileName;
 	static int Line;
 	static SpewType SpewType;
 
@@ -216,7 +216,9 @@ public static class Dbg
 
 	[DoesNotReturn]
 	public static void Error([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args)
+#pragma warning disable CS8763 // A method marked [DoesNotReturn] should not return. (it likely wont return if the spew handler is handling it... kinda gross)
 		=> _SpewMessage(SpewType.Error, msgFormat, args);
+#pragma warning restore CS8763 // A method marked [DoesNotReturn] should not return.
 
 
 	public static void ErrorIfNot([DoesNotReturnIf(false)] bool condition, ReadOnlySpan<char> msg) {

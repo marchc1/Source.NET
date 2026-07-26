@@ -389,7 +389,9 @@ public partial class BaseEntity : IServerEntity
 
 
 	public static void EmitSound<IRF>(scoped in IRF filter, int entIndex, scoped in EmitSound_t parms) where IRF : IRecipientFilter {
-
+		BaseEntity? entity = Util.EntityByIndex(entIndex);
+		entity?.ModifyEmitSoundParams(ref Unsafe.AsRef(in parms));
+		g_SoundEmitterSystem.EmitSound(filter, entIndex, ref Unsafe.AsRef(in parms));
 	}
 
 	public virtual Vector3 GetSoundEmissionOrigin() => WorldSpaceCenter();
@@ -761,20 +763,20 @@ public partial class BaseEntity : IServerEntity
 		if (name.IsStringEmpty)
 			return -1;
 
-		if (!BaseEntity.IsPrecacheAllowed()) 
-			if (!engine.IsModelPrecached(name)) 
+		if (!BaseEntity.IsPrecacheAllowed())
+			if (!engine.IsModelPrecached(name))
 				DevMsg($"Late precache of {name} -- not necessarily a bug now that we allow ~everything to be dynamically loaded.\n");
 
 		int idx = engine.PrecacheModel(name, preload);
-		if (idx != -1) 
+		if (idx != -1)
 			PrecacheModelComponents(idx);
-		
+
 		return idx;
 	}
 
-	public void PrecacheModelComponents(int modelIndex){
+	public void PrecacheModelComponents(int modelIndex) {
 		Model? model = (Model?)modelinfo.GetModel(modelIndex);
-		if (model != null || modelinfo.GetModelType(model) != ModelType.Studio) 
+		if (model != null || modelinfo.GetModelType(model) != ModelType.Studio)
 			return;
 
 		// sounds
@@ -783,18 +785,18 @@ public partial class BaseEntity : IServerEntity
 			if (!g_ModelSoundsCache.TryGetValue(name.Hash(), out _)) {
 				ReadOnlySpan<char> extension = Path.GetExtension(name);
 
-				if (!stristr(extension, "mdl").IsEmpty) 
+				if (!stristr(extension, "mdl").IsEmpty)
 					DevMsg(2, $"Late precache of {name}, need to rebuild modelsounds.cache\n");
 				else {
-					if (extension[0] == '\0') 
+					if (extension[0] == '\0')
 						Warning($"Precache of {name} ambigious (no extension specified)\n");
-					else 
+					else
 						Warning($"Late precache of {name} (file missing?)\n");
 					return;
 				}
 			}
 
-			if (g_ModelSoundsCache.TryGetValue(name.Hash(), out ModelSoundsCache? entry)) 
+			if (g_ModelSoundsCache.TryGetValue(name.Hash(), out ModelSoundsCache? entry))
 				entry.PrecacheSoundList();
 		}
 	}

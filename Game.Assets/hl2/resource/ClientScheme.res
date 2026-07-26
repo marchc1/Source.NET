@@ -29,6 +29,10 @@ Scheme
 
 		"Panel.FgColor"			"255 220 0 100"
 		"Panel.BgColor"			"0 0 0 76"
+
+		// GMOD: Since above alphas are set to 255, create new vars for HL2 HUD
+		"FgColorHud"		"255 220 0 220"
+		"BgColorHud"		"0 0 0 90"
 		
 		"BrightFg"		"255 220 0 255"
 

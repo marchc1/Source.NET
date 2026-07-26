@@ -6,8 +6,10 @@ using CommunityToolkit.HighPerformance;
 using Source.Common.Filesystem;
 using Source.Common.Formats.BSP;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GarrysMod;
 using Source.Common.Utilities;
 using Source.Filesystem;
+using Source.Filesystem.GarrysMod;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -18,26 +20,29 @@ namespace Source.FileSystem;
 // Maybe we redo this one day...
 public class BaseFileSystem : IFileSystem
 {
-	private SearchPathIDCollection SearchPaths = [];
+	readonly record struct searchPathInternal(ISearchPath path, string pathID);
+	private readonly SearchPathIDCollection SearchPaths = [];
+	private readonly List<searchPathInternal>[] SearchPathGroups = new List<searchPathInternal>[(int)PathGroupName.Fallbacks + 1];
+	private List<searchPathInternal> GetSearchPathGroupsFor(PathGroupName groupName) => SearchPathGroups[(int)groupName] ??= [];
+	private void AddSearchPathFromGroup(ISearchPath searchPath, ReadOnlySpan<char> pathID) => GetSearchPathGroupsFor(searchPath.GetGroupName()).Add(new(searchPath, new(pathID.SliceNullTerminatedString())));
+	private void RemoveSearchPathFromGroup(ISearchPath searchPath, ReadOnlySpan<char> pathID) => GetSearchPathGroupsFor(searchPath.GetGroupName()).Remove(new(searchPath, new(pathID.SliceNullTerminatedString())));
+
+	private void AddSearchPathFinal(ISearchPath searchPath, SearchPathAdd addType, SearchPathCollection collection, PathGroupName groupName, ReadOnlySpan<char> pathID) {
+		if (addType == SearchPathAdd.ToHead)
+			collection.Insert(0, searchPath);
+		else
+			collection.Add(searchPath);
+		searchPath.SetGroupName(groupName);
+		AddSearchPathFromGroup(searchPath, pathID);
+	}
 
 	public BaseFileSystem() {
 		RemoveSearchPaths("EXECUTABLE_PATH");
-		AddSearchPath(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "EXECUTABLE_PATH");
-		AddSearchPath(AppContext.BaseDirectory, "BASE_PATH");
+		AddSearchPath(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "EXECUTABLE_PATH", name: PathGroupName.EngineCore);
+		AddSearchPath(AppContext.BaseDirectory, "BASE_PATH", name: PathGroupName.EngineCore);
 	}
 
-	internal static ReadOnlySpan<char> Normalize(ReadOnlySpan<char> unnormalizedString, Span<char> normalizedOutput) {
-		int len = Math.Min(normalizedOutput.Length, unnormalizedString.Length);
-
-		for (int i = 0; i < len; i++) {
-			char c = unnormalizedString[i];
-			normalizedOutput[i] = c == '\\' ? '/' : c;
-		}
-
-		return normalizedOutput[..len];
-	}
-
-	private void AddMapPackFile(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType) {
+	private void AddMapPackFile(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType, PathGroupName groupName) {
 		using IFileHandle? file = Open(path, FileOpenOptions.Read | FileOpenOptions.Binary, "GAME");
 		if (file == null) {
 			Warning("Couldn't open BSP for embedded pack file\n");
@@ -59,10 +64,11 @@ public class BaseFileSystem : IFileSystem
 		if (!SearchPaths.OpenOrCreateCollection(pathID, out SearchPathCollection collection)) {
 			for (int i = 0, c = collection.Count; i < c; i++) {
 				var searchPath = collection[i];
-				if (searchPath.DiskPath == newPath) {
+				if (searchPath.GetDiskPath() == newPath) {
 					if ((addType == SearchPathAdd.ToHead && i == 0) || addType == SearchPathAdd.ToTail)
 						return;
 					else {
+						RemoveSearchPathFromGroup(searchPath, pathID);
 						collection.RemoveAt(i);
 						i--;
 						c--;
@@ -78,22 +84,20 @@ public class BaseFileSystem : IFileSystem
 			return;
 		}
 
-		if (addType == SearchPathAdd.ToHead)
-			collection.Insert(0, zip);
-		else
-			collection.Add(zip);
+		AddSearchPathFinal(zip, addType, collection, groupName, pathID);
 	}
 
-	private void AddVPKFile(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType) {
+	private void AddVPKFile(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType, PathGroupName groupName) {
 		string newPath = Path.IsPathFullyQualified(path) ? new(path) : Path.GetFullPath(new(path));
 
 		if (!SearchPaths.OpenOrCreateCollection(pathID, out SearchPathCollection collection)) {
 			for (int i = 0, c = collection.Count; i < c; i++) {
 				var searchPath = collection[i];
-				if (searchPath.DiskPath == newPath) {
+				if (searchPath.GetDiskPath() == newPath) {
 					if ((addType == SearchPathAdd.ToHead && i == 0) || addType == SearchPathAdd.ToTail)
 						return;
 					else {
+						RemoveSearchPathFromGroup(searchPath, pathID);
 						collection.RemoveAt(i);
 						i--;
 						c--;
@@ -103,21 +107,19 @@ public class BaseFileSystem : IFileSystem
 			}
 		}
 
-		if (addType == SearchPathAdd.ToHead)
-			collection.Insert(0, new PackStoreSearchPath(this, newPath));
-		else
-			collection.Add(new PackStoreSearchPath(this, newPath));
+		ISearchPath createdSearchPath = new PackStoreSearchPath(this, newPath);
+		AddSearchPathFinal(createdSearchPath, addType, collection, groupName, pathID);
 	}
 	private void AddPackFiles(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType) { } // TODO 
 	private void AddSeparatorAndFixPath(ref string path) { // this sucks fix it later
 		path = (path.TrimEnd('\\').TrimEnd('/') + "/").Replace("\\", "/");
 	}
-	private void AddSearchPathInternal(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType, bool addPackFiles) {
+	private void AddSearchPathDiskInternal(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType, PathGroupName groupName, bool addPackFiles) {
 		var ext = Path.GetExtension(path);
 
 		switch (ext) {
-			case ".bsp": AddMapPackFile(path, pathID, addType); return;
-			case ".vpk": AddVPKFile(path, pathID, addType); return;
+			case ".bsp": AddMapPackFile(path, pathID, addType, groupName); return;
+			case ".vpk": AddVPKFile(path, pathID, addType, groupName); return;
 		}
 
 		string newPath = Path.IsPathFullyQualified(path) ? new(path) : Path.GetFullPath(new(path));
@@ -126,10 +128,11 @@ public class BaseFileSystem : IFileSystem
 		if (!SearchPaths.OpenOrCreateCollection(pathID, out SearchPathCollection collection)) {
 			for (int i = 0, c = collection.Count; i < c; i++) {
 				var searchPath = collection[i];
-				if (searchPath.DiskPath == newPath) {
+				if (searchPath.GetDiskPath() == newPath) {
 					if ((addType == SearchPathAdd.ToHead && i == 0) || addType == SearchPathAdd.ToTail)
 						return;
 					else {
+						RemoveSearchPathFromGroup(searchPath, pathID);
 						collection.RemoveAt(i);
 						i--;
 						c--;
@@ -143,33 +146,103 @@ public class BaseFileSystem : IFileSystem
 			AddPackFiles(newPath, pathID, addType);
 		}
 
-		if (addType == SearchPathAdd.ToHead)
-			collection.Insert(0, new DiskSearchPath(this, newPath));
-		else
-			collection.Add(new DiskSearchPath(this, newPath));
-
+		ISearchPath createdSearchPath = new DiskSearchPath(this, newPath);
+		AddSearchPathFinal(createdSearchPath, addType, collection, groupName, pathID);
 	}
 
-	public void AddSearchPath(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType = SearchPathAdd.ToTail) {
-		AddSearchPathInternal(path, pathID, addType, true);
+	public void AddSearchPath(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType = SearchPathAdd.ToTail, PathGroupName name = PathGroupName.Default) {
+		AddSearchPathDiskInternal(path, pathID, addType, name, true);
 	}
 
-	public IEnumerable<SearchPath> GetCollections(ulong hashID) {
-		if (hashID == 0) {
-			foreach (var path in SearchPaths.Values)
-				if (!path.RequestOnly)
-					foreach (var searchPath in path)
-						yield return searchPath;
+	public void AddSearchPath(ISearchPath path, ReadOnlySpan<char> pathID, SearchPathAdd addType = SearchPathAdd.ToTail, PathGroupName groupName = PathGroupName.Default) {
+		if (!SearchPaths.OpenOrCreateCollection(pathID, out SearchPathCollection collection)) {
+			for (int i = 0, c = collection.Count; i < c; i++) {
+				var searchPath = collection[i];
+				if ((addType == SearchPathAdd.ToHead && i == 0) || addType == SearchPathAdd.ToTail)
+					return;
+				else {
+					RemoveSearchPathFromGroup(searchPath, pathID);
+					collection.RemoveAt(i);
+					i--;
+					c--;
+					break;
+				}
+			}
 		}
-		else {
-			if (!SearchPaths.TryGetValue(hashID, out var collection))
-				yield break;
 
-			foreach (var searchPath in collection)
-				yield return searchPath;
+		AddSearchPathFinal(path, addType, collection, groupName, pathID);
+	}
+
+	public struct CollectionIterator(ulong hashID, SearchPathIDCollection collections)
+	{
+		readonly ulong HashID = hashID;
+		readonly SearchPathIDCollection Collections = collections;
+		bool iterateCollections;
+
+		int currentCollectionIdx;
+		int currentSearchPathIdx;
+
+		SearchPathCollection? currentCollection;
+		ISearchPath? currentSearchPath;
+
+		bool initialized;
+
+		public bool MoveNext() {
+			if (!initialized) {
+				currentCollectionIdx = 0;
+				currentSearchPathIdx = 0;
+				if (HashID == 0) {
+					iterateCollections = true;
+					currentCollection = Collections.At(0);
+				}
+				else {
+					iterateCollections = false;
+					Collections.TryGetValue(HashID, out currentCollection);
+				}
+				initialized = true;
+			}
+
+		checkCollection:
+			if (currentCollection == null)
+				return false;
+
+			currentSearchPath = currentCollection.At(currentSearchPathIdx);
+			if (currentSearchPath == null) {
+				if (iterateCollections) {
+					currentCollectionIdx++;
+					currentSearchPathIdx = 0;
+					currentCollection = Collections.At(currentCollectionIdx);
+					goto checkCollection;
+				}
+				return false;
+			}
+
+			currentSearchPathIdx++;   // advance for next call
+			return true;
+		}
+
+		public readonly ISearchPath Current => currentSearchPath!;
+
+		public void Reset(){
+			initialized = false;
+			iterateCollections = false;
+			currentCollectionIdx = 0;
+			currentSearchPathIdx = 0;
+			currentCollection = null;
+			currentSearchPath = null;
 		}
 	}
-	delegate T FileSystemFuncPost<T>(SearchPath searchPath, ReadOnlySpan<char> providedFileName);
+
+	public CollectionIterator GetCollections(ulong hashID) {
+		return new CollectionIterator(hashID, SearchPaths);   
+	}
+
+	interface IFirstToThePostOp<T>
+	{
+		T Invoke(ISearchPath p, scoped ReadOnlySpan<char> name);
+		bool Win(T v);
+	}
+
 	/// <summary>
 	/// Iterates through all <see cref="SearchPathCollection"/>'s (or a single lookup if pathID != null), and returns the first time <paramref name="winCondition"/> returns true.
 	/// <br/> 
@@ -177,26 +250,27 @@ public class BaseFileSystem : IFileSystem
 	/// </summary>
 	/// <param name="filename">A local-to-searchpath filename</param>
 	/// <param name="pathID">A pathID. If null, will search through every <see cref="SearchPathCollection"/>; otherwise searches for the single collection in the <see cref="SearchPaths"/> lookup table.</param>
-	/// <param name="func">A delegate to run on every <see cref="SearchPath"/></param>
+	/// <param name="func">A delegate to run on every <see cref="ISearchPath"/></param>
 	/// <param name="winCondition">Compares the return value from the search path. Return true if the search path won.</param>
 	/// <param name="loseDefault">If no search paths won, then this value is returned.</param>
-	/// <param name="winner">The <see cref="SearchPath"/> that won (if the method returns true)</param>
-	/// <returns>True if a <see cref="SearchPath"/> won.</returns>
-	private T? FirstToThePost<T>(
+	/// <param name="winner">The <see cref="ISearchPath"/> that won (if the method returns true)</param>
+	/// <returns>True if a <see cref="ISearchPath"/> won.</returns>
+	private T? FirstToThePost<T, TOp>(
 		ReadOnlySpan<char> filename,
 		ReadOnlySpan<char> pathID,
-		FileSystemFuncPost<T> func,
-		Func<T, bool> winCondition,
+		in TOp op,
 		T? loseDefault,
-		[NotNullWhen(true)] out SearchPath? winner
-	) {
+		[NotNullWhen(true)] out ISearchPath? winner
+	) where TOp : struct, IFirstToThePostOp<T>, allows ref struct {
 		filename = filename.SliceNullTerminatedString();
 		Span<char> filenameNormalizedBuffer = stackalloc char[MAX_PATH];
-		ReadOnlySpan<char> filenameNormalized = Normalize(filename, filenameNormalizedBuffer);
+		ReadOnlySpan<char> filenameNormalized = ISearchPath.Normalize(filename, filenameNormalizedBuffer);
 		ulong hashID = pathID.Hash();
-		foreach (var path in GetCollections(hashID)) {
-			T? ret = func(path, filenameNormalized);
-			if (winCondition(ret)) {
+		CollectionIterator iterator = GetCollections(hashID);
+		while (iterator.MoveNext()){ 
+			ISearchPath path = iterator.Current;
+			T? ret = op.Invoke(path, filenameNormalized);
+			if (op.Win(ret)) {
 				winner = path;
 				return ret;
 			}
@@ -204,23 +278,41 @@ public class BaseFileSystem : IFileSystem
 		winner = null;
 		return loseDefault;
 	}
+
+	readonly ref struct RelativePathToFullPath_Op() : IFirstToThePostOp<bool>
+	{
+		public bool Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.Exists(name);
+		public bool Win(bool v) => v;
+	}
+
 	public ReadOnlySpan<char> RelativePathToFullPath(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID, Span<char> dest, PathTypeFilter filter = PathTypeFilter.None) {
 		fileName = fileName.SliceNullTerminatedString();
-		if (!FirstToThePost(fileName, pathID, (path, filename) => path.Exists(filename), boolWin, false, out SearchPath? winner))
+		if (!FirstToThePost(fileName, pathID, new RelativePathToFullPath_Op(), false, out ISearchPath? winner))
 			return null;
 
 		Span<char> concatBuffer = stackalloc char[MAX_PATH];
-		return winner.Concat(fileName, dest);
+		return ISearchPath.Concat(winner, fileName, dest);
 	}
 
-	private static bool boolWin(bool inp) => inp;
-	private static bool notNullWin<T>(T? v) => v != null;
+	readonly ref struct IsDirectory_Op() : IFirstToThePostOp<bool>
+	{
+		public bool Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.IsDirectory(name);
+		public bool Win(bool v) => v;
+	}
 
 	public bool IsDirectory(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID) {
-		return FirstToThePost(fileName, pathID, (path, filename) => path.IsDirectory(filename), boolWin, false, out _);
+		return FirstToThePost(fileName, pathID, new IsDirectory_Op(), false, out _);
 	}
+
+	readonly ref struct IsFileWritable_Op() : IFirstToThePostOp<bool>
+	{
+		public bool Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.IsFileWritable(name);
+		public bool Win(bool v) => v;
+	}
+
+
 	public bool IsFileWritable(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID) {
-		return FirstToThePost(fileName, pathID, (path, filename) => path.IsFileWritable(filename), boolWin, false, out _);
+		return FirstToThePost(fileName, pathID, new IsFileWritable_Op(), false, out _);
 	}
 
 	public void MarkPathIDByRequestOnly(ReadOnlySpan<char> pathID, bool requestOnly) {
@@ -236,8 +328,15 @@ public class BaseFileSystem : IFileSystem
 		throw new NotImplementedException(); // todo
 	}
 
+	readonly ref struct Open_Op(FileOpenOptions options) : IFirstToThePostOp<IFileHandle?>
+	{
+		readonly FileOpenOptions Options = options;
+		public IFileHandle? Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.Open(name, Options);
+		public bool Win(IFileHandle? v) => v != null;
+	}
+
 	public IFileHandle? Open(ReadOnlySpan<char> fileName, FileOpenOptions options, ReadOnlySpan<char> pathID) {
-		return FirstToThePost(fileName, pathID, (path, filename) => path.Open(filename, options), notNullWin, null, out _);
+		return FirstToThePost<IFileHandle?, Open_Op>(fileName, pathID, new Open_Op(options), null, out _);
 	}
 
 
@@ -245,9 +344,15 @@ public class BaseFileSystem : IFileSystem
 		SearchPaths.Clear();
 	}
 
+	readonly ref struct RemoveFile_Op() : IFirstToThePostOp<bool>
+	{
+		public bool Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.RemoveFile(name);
+		public bool Win(bool v) => v;
+	}
+
 	public bool RemoveFile(ReadOnlySpan<char> relativePath, ReadOnlySpan<char> pathID) {
 		string fn = new(relativePath);
-		return FirstToThePost(relativePath, pathID, (path, filename) => path.RemoveFile(filename), boolWin, false, out _);
+		return FirstToThePost(relativePath, pathID, new RemoveFile_Op(), false, out _);
 	}
 	public bool RemoveSearchPath(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID) {
 		ulong hash = pathID.Hash();
@@ -259,8 +364,9 @@ public class BaseFileSystem : IFileSystem
 		bool ret = false;
 
 		for (int i = collection.Count - 1; i >= 0; i--) {
-			if (collection[i].DiskPath != path)
+			if (collection[i].GetDiskPath() != path)
 				continue;
+			RemoveSearchPathFromGroup(collection[i], pathID);
 			collection.RemoveAt(i);
 			ret = true;
 		}
@@ -272,30 +378,65 @@ public class BaseFileSystem : IFileSystem
 		ulong hash = pathID.Hash();
 		if (hash == 0) return;
 		SearchPaths.Remove(hash);
-	}
-
-	public unsafe bool RenameFile(ReadOnlySpan<char> oldPath, ReadOnlySpan<char> newPath, ReadOnlySpan<char> pathID) {
-		int newPathLength = newPath.Length;
-		fixed (char* nPath = newPath) {
-			char** reallyBadHack = &nPath;
-			return FirstToThePost(oldPath, pathID, (path, filename) => path.RenameFile(filename, new(*reallyBadHack, newPathLength)), boolWin, false, out _);
+		foreach (var group in SearchPathGroups) {
+			if (group == null)
+				continue;
+			for (int i = group.Count - 1; i >= 0; i--)
+				if (group[i].pathID.Equals(pathID, StringComparison.OrdinalIgnoreCase))
+					group.RemoveAt(i);
 		}
 	}
 
+	readonly ref struct RenameFile_Op(ReadOnlySpan<char> newPath) : IFirstToThePostOp<bool>
+	{
+		readonly ReadOnlySpan<char> NewPath = newPath;
+		public bool Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.RenameFile(name, NewPath);
+		public bool Win(bool v) => v;
+	}
+
+	public unsafe bool RenameFile(ReadOnlySpan<char> oldPath, ReadOnlySpan<char> newPath, ReadOnlySpan<char> pathID) {
+		return FirstToThePost(oldPath, pathID, new RenameFile_Op(newPath), false, out _);
+	}
+
+	readonly ref struct SetFileWritable_Op(bool writable) : IFirstToThePostOp<bool>
+	{
+		readonly bool Writable = writable;
+		public bool Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.SetFileWritable(name, Writable);
+		public bool Win(bool v) => v;
+	}
+
 	public bool SetFileWritable(ReadOnlySpan<char> fileName, bool writable, ReadOnlySpan<char> pathID) {
-		return FirstToThePost(fileName, pathID, (path, filename) => path.SetFileWritable(filename, writable), boolWin, false, out _);
+		return FirstToThePost(fileName, pathID, new SetFileWritable_Op(writable), false, out _);
+	}
+
+	readonly ref struct Size_Op() : IFirstToThePostOp<long>
+	{
+		public long Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.Size(name);
+		public bool Win(long v) => v != -1;
 	}
 
 	public long Size(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID) {
-		return FirstToThePost(fileName, pathID, (path, filename) => path.Size(filename), (v) => v != -1, -1, out _);
+		return FirstToThePost<long, Size_Op>(fileName, pathID, new Size_Op(), -1, out _);
+	}
+
+	readonly ref struct GetFileTime_Op() : IFirstToThePostOp<DateTime>
+	{
+		public DateTime Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.Time(name);
+		public bool Win(DateTime v) => v != DateTime.UnixEpoch;
 	}
 
 	public DateTime GetFileTime(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID) {
-		return FirstToThePost(fileName, pathID, (path, filename) => path.Time(filename), (v) => v != DateTime.UnixEpoch, DateTime.UnixEpoch, out _);
+		return FirstToThePost(fileName, pathID, new GetFileTime_Op(), DateTime.UnixEpoch, out _);
+	}
+
+	readonly ref struct FileExists_Op() : IFirstToThePostOp<bool>
+	{
+		public bool Invoke(ISearchPath p, scoped ReadOnlySpan<char> name) => p.Exists(name);
+		public bool Win(bool v) => v;
 	}
 
 	public bool FileExists(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID) {
-		return FirstToThePost(fileName, pathID, (path, filename) => path.Exists(filename), boolWin, false, out _);
+		return FirstToThePost(fileName, pathID, new FileExists_Op(), false, out _);
 	}
 
 	public void CreateDirHierarchy(ReadOnlySpan<char> relativePath, ReadOnlySpan<char> pathID) {
@@ -309,7 +450,7 @@ public class BaseFileSystem : IFileSystem
 		}
 		Directory.CreateDirectory(new(scratchFileName.SliceNullTerminatedString()));
 	}
-	private SearchPath? FindWritePath(ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID) {
+	private ISearchPath? FindWritePath(ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID) {
 		ulong hash = pathID.Hash();
 		if (hash == 0) return null;
 
@@ -325,7 +466,7 @@ public class BaseFileSystem : IFileSystem
 		return null;
 	}
 	private ReadOnlySpan<char> GetWritePath(ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID) {
-		SearchPath? searchPath = null;
+		ISearchPath? searchPath = null;
 		if (!pathID.IsEmpty && pathID.Length > 0) {
 			if (pathID.Equals("game", StringComparison.OrdinalIgnoreCase))
 				searchPath = FindWritePath(filename, "game_write");
@@ -374,21 +515,29 @@ public class BaseFileSystem : IFileSystem
 		// Todo
 	}
 
+
+
 	public ReadOnlySpan<char> WhereIsFile(ReadOnlySpan<char> fileName, ReadOnlySpan<char> pathID = default) {
-		if (FirstToThePost(fileName, pathID, (path, filename) => path.Exists(filename), boolWin, false, out SearchPath? path)) {
+		if (FirstToThePost(fileName, pathID, new FileExists_Op(), false, out ISearchPath? path)) {
 			Span<char> concatBuffer = stackalloc char[MAX_PATH];
-			return new string(path.Concat(fileName, concatBuffer));
+			return new string(ISearchPath.Concat(path, fileName, concatBuffer));
 		}
 		return null;
 	}
 
 	public void PrintSearchPaths() {
-		Msg("---------------\n");
 		Msg("Paths:\n");
 
-		foreach (var searchpath in SearchPaths) {
-			ReadOnlySpan<char> pathID = SearchPaths.GetName(searchpath.Key);
-			foreach (var spi in searchpath.Value) {
+		for (int i = 0; i < SearchPathGroups.Length; i++) {
+			var searchpathgroup = SearchPathGroups[i];
+			if (searchpathgroup == null || searchpathgroup.Count == 0)
+				continue;
+
+			PathGroupName groupName = (PathGroupName)i;
+			Msg($"  --- {groupName.ToString().ToUpper()} --- \n");
+			foreach (var searchpath in searchpathgroup) {
+				ReadOnlySpan<char> pathID = searchpath.pathID;
+				ISearchPath spi = searchpath.path;
 				ReadOnlySpan<char> pack = "";
 				ReadOnlySpan<char> type = "";
 				if (false /* TODO: Map-based pack files */) {
@@ -402,10 +551,9 @@ public class BaseFileSystem : IFileSystem
 					pack = dsp.DiskPath;
 				}
 
-				Msg($"\"{pack}\" \"{pathID}\" {type}\n");
+				Msg($"    \"{pack}\" \"{pathID}\" {type}\n");
 			}
 		}
-
 	}
 
 	readonly Dictionary<ulong, FileNameHandle_t> fileNameHandles = [];
@@ -447,7 +595,8 @@ public class BaseFileSystem : IFileSystem
 
 	}
 
-	public struct FileFindContext {
+	public struct FileFindContext
+	{
 		public int Locked;
 
 		public UtlSymbol Wildcard;
@@ -460,8 +609,10 @@ public class BaseFileSystem : IFileSystem
 		int ranAtLeastOnce;
 		BaseFileSystem system;
 		SearchPathCollection? currentCollection;
-		SearchPath? currentPath;
+		ISearchPath? currentPath;
 		HashSet<FileNameHandle_t>? foundAlready;
+
+		public bool IsDirectory;
 
 		public void FullyLock(BaseFileSystem system, FileFindHandle_t lockedIdx, ReadOnlySpan<char> wildcard, ReadOnlySpan<char> pathID) {
 			this.system = system;
@@ -488,18 +639,18 @@ public class BaseFileSystem : IFileSystem
 			foundAlready.Clear();
 		}
 
-		
+
 
 		public ReadOnlySpan<char> Next() {
-			findCollection:
-			if(currentCollection == null) {
+		findCollection:
+			if (currentCollection == null) {
 				currentCollection = PathID == 0
 					? system.SearchPaths.At(Interlocked.Increment(ref CollectionIdx))
 					: Interlocked.CompareExchange(ref ranAtLeastOnce, 1, 0) == 0
-						? system.SearchPaths[PathID]
+					? (system.SearchPaths.TryGetValue(PathID, out var found) ? found : null)
 						: null;
 
-				if(currentCollection != null) {
+				if (currentCollection != null) {
 					// Reset these parts...
 					Interlocked.Exchange(ref FileIdx, -1);
 					Interlocked.Exchange(ref PathIdx, -1);
@@ -509,8 +660,8 @@ public class BaseFileSystem : IFileSystem
 			if (currentCollection == null)
 				return null; // Cannot continue.
 
-			findPath:
-			if(currentPath == null) {
+		findPath:
+			if (currentPath == null) {
 				// Find the next collection.
 				currentPath = currentCollection.At(Interlocked.Increment(ref PathIdx));
 
@@ -522,26 +673,26 @@ public class BaseFileSystem : IFileSystem
 				}
 			}
 
-			if(currentPath == null) {
+			if (currentPath == null) {
 				// Search for a new collection?
 				currentCollection = null;
 				goto findCollection;
 			}
 
 		findFileDir:
-			string? currentFile = currentPath.FindAt(Interlocked.Increment(ref FileIdx));
-			if(currentFile == null) {
+			var currentFile = currentPath.FindAt(Interlocked.Increment(ref FileIdx));
+			if (!currentFile.HasValue) {
 				// Search for a new path?
 				currentPath.UnlockFinds();
 				currentPath = null;
 				goto findPath;
 			}
-
-			return currentFile;
+			IsDirectory = currentFile.Value.Item2;
+			return currentFile.Value.Item1;
 		}
 
 		public void Close() {
-			if(Locked == 0) {
+			if (Locked == 0) {
 				Warning("Tried to unlock a file handle that was already unlocked!!!\n");
 				Assert(false);
 				return;
@@ -574,6 +725,11 @@ public class BaseFileSystem : IFileSystem
 		return ctx.Next();
 	}
 
+	public bool FindIsDirectory(FileFindHandle_t findHandle) {
+		ref FileFindContext ctx = ref contexts[(int)(findHandle % MAX_FILE_HANDLES)];
+		return ctx.IsDirectory;
+	}
+
 	public void FindClose(FileFindHandle_t findHandle) {
 		ref FileFindContext ctx = ref contexts[(int)(findHandle % MAX_FILE_HANDLES)];
 		ctx.Close();
@@ -581,12 +737,6 @@ public class BaseFileSystem : IFileSystem
 
 	public ReadOnlySpan<char> String(FileNameHandle_t handle) {
 		return fileNameStrings.TryGetValue(handle, out string? v) ? v : null;
-	}
-
-	public void GetSearchPaths(List<string> paths, ReadOnlySpan<char> pathID) {
-		ulong hashID = pathID.Hash();
-		foreach (var path in GetCollections(hashID)) 
-			paths.Add(path.DiskPath ?? throw new Exception());
 	}
 
 	public void LoadCompiledKeyValues(IFileSystem.KeyValuesPreloadType type, ReadOnlySpan<char> archiveFile) {
@@ -601,6 +751,108 @@ public class BaseFileSystem : IFileSystem
 	}
 
 	public bool LoadKeyValues(KeyValues head, IFileSystem.KeyValuesPreloadType type, ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID = default) {
-		return head.LoadFromFile(this, filename, pathID);	
+		return head.LoadFromFile(this, filename, pathID);
 	}
+
+	public bool RemoveSearchPath(ISearchPath searchPathImpl, ReadOnlySpan<char> pathID) {
+		ulong hash = pathID.Hash();
+		if (hash == 0) return false;
+
+		if (!SearchPaths.TryGetValue(hash, out var collection))
+			return false;
+
+		bool ret = false;
+
+		for (int i = collection.Count - 1; i >= 0; i--) {
+			if (collection[i] != searchPathImpl)
+				continue;
+			RemoveSearchPathFromGroup(collection[i], pathID);
+			collection.RemoveAt(i);
+			ret = true;
+		}
+
+		return ret;
+	}
+
+	public bool RemoveSearchPath(Predicate<ISearchPath> search, ReadOnlySpan<char> pathID) {
+		ulong hash = pathID.Hash();
+		if (hash == 0) return false;
+
+		if (!SearchPaths.TryGetValue(hash, out var collection))
+			return false;
+
+		bool ret = false;
+
+		for (int i = collection.Count - 1; i >= 0; i--) {
+			if (!search(collection[i]))
+				continue;
+			RemoveSearchPathFromGroup(collection[i], pathID);
+			collection.RemoveAt(i);
+			ret = true;
+		}
+
+		return ret;
+	}
+
+	public void RemoveSearchPathsByGroup(int unk1) {
+		throw new NotImplementedException();
+	}
+
+
+#if GMOD_DLL
+	static IGet get = null!;
+	static readonly AddonFileSystem g_AddonFileSystem = new();
+	static readonly GamemodeSystem g_GamemodeSystem = new();
+	static readonly GameDepotSystem g_GameDepotSystem = new();
+	static readonly LegacyAddonSystem g_LegacyAddons = new();
+	static readonly Language2 g_LanguageSystem = new();
+
+	public void SetGet(IGet get) {
+		BaseFileSystem.get = get;
+	}
+
+	public Addon.FileSystem Addons() => g_AddonFileSystem;
+	public Gamemode.System Gamemodes() => g_GamemodeSystem;
+	public GameDepot.System Games() => g_GameDepotSystem;
+	public LegacyAddons.System LegacyAddons() => g_LegacyAddons;
+	public Language Language() => g_LanguageSystem;
+
+	public void DoFilesystemRefresh() {
+		g_LegacyAddons.Refresh();
+		g_AddonFileSystem.Refresh();
+		g_GameDepotSystem.Refresh();
+		g_GamemodeSystem.Refresh();
+	}
+
+	public int LastFilesystemRefresh() {
+		Msg("BaseFileSystem.LastFilesystemRefresh\n");
+		return 1;
+	}
+
+	public void AddVPKFileFromPath(ReadOnlySpan<char> vpk, ReadOnlySpan<char> path, uint id) {
+		AddVPKFile(vpk, path, (SearchPathAdd)id, PathGroupName.Default);
+	}
+
+	public void GMOD_SetupDefaultPaths(ReadOnlySpan<char> path, ReadOnlySpan<char> game) {
+
+	}
+
+	public void GMOD_FixPathCase(Span<char> a) {
+
+	}
+
+	public WaitForResourcesHandle_t WaitForResources(ReadOnlySpan<char> resourcelist) {
+		return 1;
+	}
+
+	public bool GetWaitForResourcesProgress(int waitForResourcesHandle, out float progress, out bool complete) {
+		progress = 0.0f;
+		complete = true;
+		return true; 
+	}
+
+	public void CancelWaitForResources(WaitForResourcesHandle_t handle){
+
+	}
+#endif
 }

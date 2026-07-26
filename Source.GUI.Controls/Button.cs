@@ -207,7 +207,7 @@ public class Button : Label
 		else
 			blended = DefaultFgColor;
 
-		float fBlink = (MathF.Sin(System.GetTimeMillis() * 0.01f) + 1.0f) * 0.5f;
+		float fBlink = (MathF.Sin(system.GetTimeMillis() * 0.01f) + 1.0f) * 0.5f;
 
 		if (0 != (ButtonFlags & ButtonFlags.Blink)) {
 			blended[0] = (byte)Math.Clamp(blended[0] * fBlink + (float)BlinkFgColor[0] * (1.0f - fBlink), 0, 255);

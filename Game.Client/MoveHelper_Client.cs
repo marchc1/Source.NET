@@ -105,7 +105,7 @@ public class MoveHelperClient : IMoveHelper
 			LocalPlayerFilter filter = new();
 			filter.UsePredictionRules();
 
-			scoped EmitSound_t ep = default;
+			scoped EmitSound_t ep = new();
 			ep.Channel = channel;
 			ep.SoundName = sample;
 			ep.Volume = volume;

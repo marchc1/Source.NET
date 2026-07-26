@@ -307,7 +307,7 @@ public class Hud(HudElementHelper HudElementHelper)
 						tex.CharacterInFont = temp.GetString("character", "\0")[0];
 						strcpy(tex.TextureFile, temp.GetString("font"));
 
-						list.Add(((ReadOnlySpan<char>)tex.ShortName).Hash(false), tex);
+						list.TryAdd(((ReadOnlySpan<char>)tex.ShortName).Hash(false), tex);
 					}
 					else {
 						int iTexLeft = temp.GetInt("x", 0),
@@ -330,7 +330,7 @@ public class Hud(HudElementHelper HudElementHelper)
 								strcpy(tex.ShortName[(int)hudTextureFileRefs[i].PrefixLength..], temp.Name.SliceNullTerminatedString());
 								strcpy(tex.TextureFile, fileName);
 
-								list.Add(((ReadOnlySpan<char>)tex.ShortName).Hash(false), tex);
+								list.TryAdd(((ReadOnlySpan<char>)tex.ShortName).Hash(false), tex);
 							}
 						}
 					}

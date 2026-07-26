@@ -42,7 +42,7 @@ public class ZipArchiveEntryHandle : IFileHandle
 	public bool IsOK() => entry != null && stream != null;
 }
 
-public class ZipPackFileSearchPath : SearchPath
+public class ZipPackFileSearchPath : BaseSearchPath
 {
 	readonly IFileSystem filesystem;
 	readonly bool valid;
@@ -51,7 +51,7 @@ public class ZipPackFileSearchPath : SearchPath
 	readonly Dictionary<FileNameHandle_t, ZipArchiveEntry> Entries = [];
 	public ZipPackFileSearchPath(IFileSystem filesystem, string path, Stream stream, in BSPLump lump) {
 		this.filesystem = filesystem;
-		SetPath(path);
+		SetDiskPath(path);
 		byte[] data = lump.ReadBytes(stream);
 
 		// Unpack the zip
@@ -102,11 +102,11 @@ public class ZipPackFileSearchPath : SearchPath
 		return default;
 	}
 
-	internal override object? GetPackedStore() => null;
+	public override object? GetPackedStore() => null;
 
-	internal override object? GetPackFile() => null;
+	public override object? GetPackFile() => null;
 
-	internal override ReadOnlySpan<char> GetPathString() => this.DiskPath;
+	public override ReadOnlySpan<char> GetPathString() => this.DiskPath;
 
 	protected override void PrepareFinds(List<string> files, List<string> dirs, string? wildcard) {
 		// TODO.

@@ -151,7 +151,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 		int cWeapons = 0;
 		int lastSelectedWeaponBox = -1;
-		for (int i = 0; i < MAX_WEAPON_SLOTS; i++) {
+		for (int i = 0; i < MAX_SELECTABLE_SLOTS; i++) {
 			for (int slotPos = 0; slotPos < MAX_WEAPON_POSITIONS; slotPos++) {
 				BaseCombatWeapon? weapon = GetWeaponInSlot(i, slotPos);
 				if (weapon == null)
@@ -391,13 +391,18 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 				}
 				break;
 			case HUDTYPE_BUCKETS: {
-					width = (MAX_WEAPON_SLOTS - 1) * (int)(SmallBoxSize + BoxGap) + largeBoxWide;
+					int numSlots = MAX_WEAPON_SLOTS;
+					for (int i = MAX_WEAPON_SLOTS; i < MAX_SELECTABLE_SLOTS; i++)
+						if (GetFirstPos(i) != null)
+							numSlots = i + 1;
+
+					width = (numSlots - 1) * (int)(SmallBoxSize + BoxGap) + largeBoxWide;
 					xpos = (GetWide() - width) / 2;
 					ypos = 0;
 
 					int activeSlot = SelectedWeapon != null ? SelectedWeapon.GetSlot() : -1;
 
-					for (int i = 0; i < MAX_WEAPON_SLOTS; i++) {
+					for (int i = 0; i < numSlots; i++) {
 						if (i == activeSlot) {
 							bool drawBucketNumber = true;
 							int lastPos = GetLastPosInSlot(i);
@@ -407,11 +412,11 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 								if (weapon == null) {
 									if (!hud_showemptyweaponslots.GetBool())
 										continue;
-									DrawBox(xpos, ypos, largeBoxWide, largeBoxTall, EmptyBoxColor, AlphaOverride, drawBucketNumber ? i + 1 : -1);
+									DrawBox(xpos, ypos, largeBoxWide, largeBoxTall, EmptyBoxColor, AlphaOverride, drawBucketNumber ? (i + 1) % 10 : -1);
 								}
 								else {
 									bool bSelected = weapon == SelectedWeapon;
-									DrawLargeWeaponBox(weapon, bSelected, xpos, ypos, largeBoxWide, largeBoxTall, bSelected ? selectedColor : BoxColor, (byte)GetWeaponBoxAlpha(bSelected), drawBucketNumber ? i + 1 : -1);
+									DrawLargeWeaponBox(weapon, bSelected, xpos, ypos, largeBoxWide, largeBoxTall, bSelected ? selectedColor : BoxColor, (byte)GetWeaponBoxAlpha(bSelected), drawBucketNumber ? (i + 1) % 10 : -1);
 								}
 
 								ypos += (int)(largeBoxTall + BoxGap);
@@ -422,7 +427,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 						}
 						else {
 							if (GetFirstPos(i) != null)
-								DrawBox(xpos, ypos, (int)SmallBoxSize, (int)SmallBoxSize, BoxColor, AlphaOverride, i + 1);
+								DrawBox(xpos, ypos, (int)SmallBoxSize, (int)SmallBoxSize, BoxColor, AlphaOverride, (i + 1) % 10);
 							else
 								DrawBox(xpos, ypos, (int)SmallBoxSize, (int)SmallBoxSize, EmptyBoxColor, AlphaOverride, -1);
 
@@ -594,7 +599,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 	void DrawBox(int x, int y, int wide, int tall, Color color, float normalizedAlpha, int number) {
 		base.DrawBox(x, y, wide, tall, color, normalizedAlpha / 255.0f);
 
-		if (number > 0) {
+		if (number >= 0) {
 			Color numberColor = NumberColor;
 			numberColor.A *= (byte)(normalizedAlpha / 255.0f);
 			Surface.DrawSetTextColor(numberColor);
@@ -642,7 +647,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 			return null;
 
 		BaseCombatWeapon? nextWeapon = null;
-		int lowestNextSlot = MAX_WEAPON_SLOTS;
+		int lowestNextSlot = MAX_SELECTABLE_SLOTS;
 		int lowestNextPosition = MAX_WEAPON_POSITIONS;
 
 		for (int i = 0; i < MAX_WEAPONS; i++) {
@@ -652,7 +657,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 			if (CanBeSelectedInHUD(weapon)) {
 				int weaponSlot = weapon.GetSlot();
-				int weaponPosition = weapon.GetPosition();
+				int weaponPosition = GetWeaponPosition(weapon);
 
 				if (weaponSlot > currentSlot || (weaponSlot == currentSlot && weaponPosition > currentPosition)) {
 					if (weaponSlot < lowestNextSlot || (weaponSlot == lowestNextSlot && weaponPosition < lowestNextPosition)) {
@@ -683,7 +688,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 
 			if (CanBeSelectedInHUD(weapon)) {
 				int weaponSlot = weapon.GetSlot();
-				int weaponPosition = weapon.GetPosition();
+				int weaponPosition = GetWeaponPosition(weapon);
 
 				if (weaponSlot < currentSlot || (weaponSlot == currentSlot && weaponPosition < currentPosition)) {
 					if (weaponSlot > highestPrevSlot || (weaponSlot == highestPrevSlot && weaponPosition > highestPrevPosition)) {
@@ -711,12 +716,12 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 			if (weapon == null)
 				return;
 
-			nextWeapon = FindNextWeaponInWeaponSelection(weapon.GetSlot(), weapon.GetPosition());
+			nextWeapon = FindNextWeaponInWeaponSelection(weapon.GetSlot(), GetWeaponPosition(weapon));
 		}
 		else {
 			nextWeapon = player.GetActiveWeapon();
 			if (nextWeapon != null)
-				nextWeapon = FindNextWeaponInWeaponSelection(nextWeapon.GetSlot(), nextWeapon.GetPosition());
+				nextWeapon = FindNextWeaponInWeaponSelection(nextWeapon.GetSlot(), GetWeaponPosition(nextWeapon));
 		}
 
 		nextWeapon ??= FindNextWeaponInWeaponSelection(-1, -1);
@@ -746,15 +751,15 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 			if (weapon == null)
 				return;
 
-			prevWeapon = FindPrevWeaponInWeaponSelection(weapon.GetSlot(), weapon.GetPosition());
+			prevWeapon = FindPrevWeaponInWeaponSelection(weapon.GetSlot(), GetWeaponPosition(weapon));
 		}
 		else {
 			prevWeapon = player.GetActiveWeapon();
 			if (prevWeapon != null)
-				prevWeapon = FindPrevWeaponInWeaponSelection(prevWeapon.GetSlot(), prevWeapon.GetPosition());
+				prevWeapon = FindPrevWeaponInWeaponSelection(prevWeapon.GetSlot(), GetWeaponPosition(prevWeapon));
 		}
 
-		prevWeapon ??= FindPrevWeaponInWeaponSelection(MAX_WEAPON_SLOTS, MAX_WEAPON_POSITIONS);
+		prevWeapon ??= FindPrevWeaponInWeaponSelection(MAX_SELECTABLE_SLOTS, MAX_WEAPON_POSITIONS);
 
 		if (prevWeapon != null) {
 			SetSelectedWeapon(prevWeapon);
@@ -769,39 +774,11 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		}
 	}
 
-	int GetLastPosInSlot(int slot) {
-		BasePlayer? player = BasePlayer.GetLocalPlayer();
-		if (player == null)
-			return -1;
-
-		int maxSlotPos = -1;
-		for (int i = 0; i < MAX_WEAPONS; i++) {
-			if (player.GetWeapon(i) is not BaseCombatWeapon weapon)
-				continue;
-
-			if (weapon.GetSlot() == slot && weapon.GetPosition() > maxSlotPos)
-				maxSlotPos = weapon.GetPosition();
-		}
-
-		return maxSlotPos;
-	}
+	int GetLastPosInSlot(int slot) => GetWeaponsInSlot(slot).Count - 1;
 
 	BaseCombatWeapon? GetWeaponInSlot(int slot, int slotPos) {
-		C_BasePlayer? player = C_BasePlayer.GetLocalPlayer();
-		if (player == null)
-			return null;
-
-		for (int i = 0; i < MAX_WEAPONS; i++) {
-			C_BaseCombatWeapon? weapon = player.GetWeapon(i);
-
-			if (weapon == null)
-				continue;
-
-			if (weapon.GetSlot() == slot && weapon.GetPosition() == slotPos)
-				return weapon;
-		}
-
-		return null;
+		List<BaseCombatWeapon> weapons = GetWeaponsInSlot(slot);
+		return slotPos >= 0 && slotPos < weapons.Count ? weapons[slotPos] : null;
 	}
 
 	void FastWeaponSwitch(int weaponSlot) {
@@ -814,7 +791,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		int position = -1;
 		BaseCombatWeapon? activeWeapon = player.GetActiveWeapon();
 		if (activeWeapon != null && activeWeapon.GetSlot() == weaponSlot)
-			position = activeWeapon.GetPosition();
+			position = GetWeaponPosition(activeWeapon);
 
 		BaseCombatWeapon? nextWeapon = FindNextWeaponInWeaponSelection(weaponSlot, position);
 
@@ -891,7 +868,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 		if (player == null)
 			return;
 
-		if (slot >= MAX_WEAPON_SLOTS)
+		if (slot >= MAX_SELECTABLE_SLOTS)
 			return;
 
 		// if (!player.IsAllowToSwitchWeapons()) todo
@@ -916,7 +893,7 @@ class HudWeaponSelection : BaseHudWeaponSelection, IHudElement
 					BaseCombatWeapon? activeWeapon = GetSelectedWeapon();
 
 					if (IsInSelectionMode() && activeWeapon != null && activeWeapon.GetSlot() == slot)
-						slotPos = activeWeapon.GetPosition() + 1;
+						slotPos = GetWeaponPosition(activeWeapon) + 1;
 
 					activeWeapon = GetNextActivePos(slot, slotPos);
 					activeWeapon ??= GetNextActivePos(slot, 0);

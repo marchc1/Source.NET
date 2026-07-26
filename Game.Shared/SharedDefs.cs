@@ -704,6 +704,21 @@ public struct StepSimulationData
 
 public ref struct EmitSound_t
 {
+	public EmitSound_t() {
+		Channel = 0;
+		Volume = VOL_NORM;
+		SoundLevel = SoundLevel.LvlNone;
+		Flags = 0;
+		Pitch = PITCH_NORM;
+		SpecialDSP = 0;
+		SoundTime = 0.0f;
+		EmitCloseCaption = true;
+		WarnOnMissingCloseCaption = false;
+		WarnOnDirectWaveReference = false;
+		SpeakerEntity = -1;
+		SoundScriptHandle = -1;
+	}
+
 	public int Channel;
 	public ReadOnlySpan<char> SoundName;
 	public float Volume;

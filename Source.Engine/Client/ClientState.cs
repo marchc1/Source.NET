@@ -14,12 +14,15 @@ using Source.Common.Formats.Keyvalues;
 using Source.Common.Hashing;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
+using Source.Common.Server;
 using Source.Engine.Server;
 
 using Steamworks;
 
 using System.Buffers;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 using static Source.Constants;
 
@@ -100,6 +103,8 @@ public class ClientState : BaseClientState
 	public INetworkStringTable? UserInfoTable;
 	public INetworkStringTable? ServerStartupTable;
 	public INetworkStringTable? DynamicModelsTable;
+	public INetworkStringTable? ClientLuaFiles;
+	public INetworkStringTable? DownloadableFileTable;
 
 
 	readonly PrecacheItem[] ModelPrecache = ClassUtils.BlankInstantiatedArray<PrecacheItem>(PrecacheItem.MAX_MODELS);
@@ -114,10 +119,11 @@ public class ClientState : BaseClientState
 
 	readonly Common Common;
 	readonly Sound Sound;
+
 	public ClientState(Host Host, IFileSystem fileSystem, Net Net, CommonHostState host_state, Common Common,
 		Cbuf Cbuf, Cmd Cmd, ICvar cvar, IHostState HostState, Scr Scr, IEngineAPI engineAPI,
 		IServiceProvider services,
-		IModelLoader modelloader, ICommandLine commandLine,
+IModelLoader modelloader, ICommandLine commandLine,
 		[FromKeyedServices(Realm.Client)] NetworkStringTableContainer networkStringTableContainerClient,
 
 #if !SWDS
@@ -166,6 +172,7 @@ public class ClientState : BaseClientState
 		UserInfoTable = null;
 		ServerStartupTable = null;
 		DynamicModelsTable = null;
+		DownloadableFileTable = null;
 
 		Array.Clear(AreaBits, 0, AreaBits.Length);
 		UpdateSteamResources = false;
@@ -190,9 +197,7 @@ public class ClientState : BaseClientState
 		GenericPrecache.ClearInstantiatedReferences();
 
 		IsHLTV = false;
-
-		if (ServerMD5.Bits != null) // RaphaelIT7: Yes... We can be called so early that the other's constructor's weren't called yet.
-			Array.Clear(ServerMD5.Bits, 0, ServerMD5.Bits.Length);
+		ServerMD5 = default;
 
 		LastCommandAck = 0;
 		CommandAck = 0;
@@ -247,6 +252,14 @@ public class ClientState : BaseClientState
 				return true;
 			case Protocol.USER_INFO_TABLENAME:
 				UserInfoTable = table;
+				return true;
+			case Protocol.DOWNLOADABLES_TABLENAME:
+				DownloadableFileTable = table;
+				return true;
+			case Protocol.CLIENT_LUA_FILES_TABLENAME:
+				ClientLuaFiles = table;
+				// allow client dll to grab this
+				Host.clientDLL?.InstallStringTableCallback(tableName);
 				return true;
 		}
 
@@ -547,6 +560,29 @@ public class ClientState : BaseClientState
 		g_ClientSidePrediction.PostNetworkDataReceived(commandsAcknowledged);
 	}
 	readonly LinkedList<EventInfo> Events = [];
+	CLC_GMod_ClientToServer? luaFileMessage;
+
+
+	protected override bool ProcessGMod_ServerToClient(SVC_GMod_ServerToClient msg) {
+		switch (msg.MessageType) {
+			case GModMessageType.RequestLuaFiles: {
+					g_ClientDLL!.GMod_RequestLuaFiles(NetChannel!);
+				}
+				return true;
+			case GModMessageType.LuaFile: {
+					// FOR FUTURE REFERENCE (when moving to client dll)
+					// This is how you would decode the Lua file data:
+					// readonly MemoryStream luaFileData = new(new byte[500_000], 0, 500_000, true, true);
+					// luaFileData.Position = 0;
+					// luaFileData.SetLength(0);
+					// Bootil.Compression.LZMA.Extract(msg.LuaFile.FileContents.Span, luaFileData);
+					g_ClientDLL!.GMod_ReceiveLuaFile(ClientLuaFiles.GetString(msg.LuaFile.FileStringTableEntryID), in msg.LuaFile.FileSHA256, msg.LuaFile.FileContents.Span);
+
+				}
+				return true;
+		}
+		return base.ProcessGMod_ServerToClient(msg);
+	}
 
 	protected override bool ProcessTempEntities(SVC_TempEntities msg) {
 		bool reliable = false;
@@ -631,27 +667,209 @@ public class ClientState : BaseClientState
 		ArrayPool<byte>.Shared.Return(data);
 		return true;
 	}
+	public static readonly ConVar cl_allowupload = new("cl_allowupload", "1", FCvar.Archive, "Client uploads customization files");
 
 	public override void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
+		CL.FileReceived(fileName, transferID);
+		g_ClientDLL?.FileReceived(fileName, transferID);
 	}
 	public override void FileRequested(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
+		ConMsg($"File '{fileName}' requested from server {NetChannel!.GetAddress()}.\n");
+
+		if (!cl_allowupload.GetBool()) {
+			ConMsg("File uploading disabled.\n");
+			NetChannel.DenyFile(fileName, transferID);
+			return;
+		}
+
+		// TODO check if file valid for uploading
+		NetChannel.SendFile(fileName, transferID);
 	}
 	public override void FileDenied(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
+		CL.FileDenied(fileName, transferID);
 	}
 	public override void FileSent(ReadOnlySpan<char> fileName, uint transferID) {
-		throw new NotImplementedException();
+
 	}
 	public override void ConnectionCrashed(ReadOnlySpan<char> reason) {
-		throw new NotImplementedException();
+		if (SignOnState > SignOnState.None) {
+			Debugger.Break();
+
+			Common.ExplainDisconnection(true, $"Disconnect: {reason.SliceNullTerminatedString()}.\n");
+			Scr.EndLoadingPlaque();
+			Host.EndGame(true, reason);
+		}
 	}
+	protected override bool ProcessVoiceInit(SVC_VoiceInit msg) {
+		if (string.IsNullOrEmpty(msg.VoiceCodec) || msg.VoiceCodec[0] == '\0') 
+			Voice.Deinit();
+		else 
+			Voice.Init(msg.VoiceCodec, msg.SampleRate);
+		
+		return true;
+	}
+	static readonly ConVar cl_voice_filter = new( "cl_voice_filter", "", 0, "Filter voice by name substring" ); // filter incoming voice data
+
+	protected override bool ProcessVoiceData(SVC_VoiceData msg) {
+		Span<byte> received = stackalloc byte[4096];
+		int bitsRead = (int)msg.DataIn.ReadBitsClamped(received, (uint)msg.Length);
+
+		int entity = msg.FromClient + 1;
+		if (entity == (PlayerSlot + 1)) 
+			Voice.LocalPlayerTalkingAck();
+
+		engineClient.GetPlayerInfo(entity, out PlayerInfo playerinfo);
+
+		if (!cl_voice_filter.GetString().IsStringEmpty && strstr(playerinfo.Name, cl_voice_filter.GetString()).IsEmpty)
+			return true;
+
+		if (bitsRead == 0)
+			return true;
+
+		if (!Voice.Enabled()) 
+			return true;
+
+		int channel = Voice.GetChannel(entity);
+		if (channel == VOICE_CHANNEL_ERROR) {
+			channel = Voice.AssignChannel(entity, msg.Proximity);
+			if (channel == VOICE_CHANNEL_ERROR) {
+				if (Sound.IsInitted())
+					ConDMsg($"ProcessVoiceData: Voice.AssignChannel failed for client {entity - 1}!\n");
+
+				return true;
+			}
+		}
+
+		Voice.AddIncomingData(channel, received, Protocol.Bits2Bytes(bitsRead), CurrentSequence);
+		return true;
+	}
+
+	WaitForResourcesHandle_t WaitForResourcesHandle;
 	public void StartUpdatingSteamResources() {
-		// for now; just make signon state new
-		FinishSignonState_New();
+		Assert(SignOnState == SignOnState.New);
+
+		WaitForResourcesHandle = g_pFileSystem.WaitForResources(LevelBaseName);
+		UpdateSteamResources = true;
+		ShownSteamResourceUpdateProgress = false;
+		DownloadResources = false;
+		PrepareClientDLL = false;
 	}
-	public void CheckUpdatingSteamResources() { }
+
+	public void CheckUpdatingSteamResources() {
+		if (PrepareClientDLL) {
+			float prepareProgress = 0f;
+			Span<char> szMutableLevelName = stackalloc char[LevelBaseName.Length];
+			strcpy(szMutableLevelName, LevelBaseName);
+
+			// if the game .dll doesn't support this call assume everything is prepared
+#if !GMOD_DLL
+			PrepareLevelResourcesResult result = serverGameDLL.AsyncPrepareLevelResources(szMutableLevelName, _LevelFileName, out PrepareProgress);
+
+			switch (result) {
+				case PrepareLevelResourcesResult.InProgress:
+					if (!ShownSteamResourceUpdateProgress) {
+						// make sure the loading dialog is up
+						EngineVGui().StartCustomProgress();
+						EngineVGui().ActivateGameUI();
+						ShownSteamResourceUpdateProgress = true;
+					}
+					EngineVGui().UpdateCustomProgressBar(PrepareProgress, g_Localize.Find("#Valve_UpdatingSteamResources"));
+					break;
+				default:
+				case PrepareLevelResourcesResult.Prepared:
+					PrepareProgress = 100.f;
+					PrepareClientDLL = false;
+					UpdateSteamResources = true;
+					break;
+			}
+#else
+			prepareProgress = 100f;
+			PrepareClientDLL = false;
+			UpdateSteamResources = true;
+#endif
+		}
+
+		if (UpdateSteamResources) {
+			bool complete = false;
+			float progress = 0.0f;
+			g_pFileSystem.GetWaitForResourcesProgress(WaitForResourcesHandle, out progress, out complete);
+
+			if (complete) {
+				WaitForResourcesHandle = 0;
+				UpdateSteamResources = false;
+				DownloadResources = false;
+
+				if (DownloadableFileTable != null) {
+					bool allowDownloads = true;
+					bool allowSoundDownloads = true;
+					bool allowNonMaps = true;
+					if (0 == stricmp(cl_downloadfilter.GetString(), "none")) 
+						allowDownloads = allowSoundDownloads = allowNonMaps = false;
+					else if (0 == stricmp(cl_downloadfilter.GetString(), "nosounds")) 
+						allowSoundDownloads = false;
+					else if (0 == stricmp(cl_downloadfilter.GetString(), "mapsonly")) 
+						allowNonMaps = false;
+
+					if (allowDownloads) {
+						Span<char> extension = stackalloc char[MAX_PATH];
+						for (int i = 0; i < DownloadableFileTable.GetNumStrings(); ++i) {
+							ReadOnlySpan<char> fname = DownloadableFileTable.GetString(i);
+							scoped ReadOnlySpan<char> ext = Path.GetExtension(fname);
+							ext = extension[..ext.ToLowerInvariant(extension)];
+
+							if (!allowSoundDownloads) 
+								if (0 == stricmp(extension, "wav") || 0 == stricmp(extension, "mp3")) 
+									continue;
+
+							if (!allowNonMaps) {
+								// The user wants maps only.
+								// If the extension is not bsp, skip it.
+								if (0 != stricmp(extension, "bsp")) 
+									continue;
+							}
+
+							CL.QueueDownload(fname);
+						}
+					}
+
+					if (CL.GetDownloadQueueSize() != 0) {
+						// make sure the loading dialog is up
+						EngineVGui().StartCustomProgress();
+						EngineVGui().ActivateGameUI();
+						DownloadResources = true;
+					}
+					else {
+						DownloadResources = false;
+						FinishSignonState_New();
+					}
+				}
+				else {
+					Host.Error("Invalid download file table.");
+				}
+			}
+			else if (progress > 0.0f) {
+				if (!ShownSteamResourceUpdateProgress) {
+					// make sure the loading dialog is up
+					EngineVGui().StartCustomProgress();
+					EngineVGui().ActivateGameUI();
+					ShownSteamResourceUpdateProgress = true;
+				}
+
+				// change it to be updating steam resources
+				EngineVGui().UpdateCustomProgressBar(progress, g_Localize.Find("#Valve_UpdatingSteamResources"));
+			}
+		}
+
+		if (DownloadResources) {
+			// Check on any HTTP downloads in progress
+			bool stillDownloading = CL.DownloadUpdate();
+
+			if (!stillDownloading) {
+				DownloadResources = false;
+				FinishSignonState_New();
+			}
+		}
+	}
 	public void CheckFileCRCsWithServer() { }
 	public void SendClientInfo() {
 		CLC_ClientInfo info = new CLC_ClientInfo();
@@ -684,6 +902,12 @@ public class ClientState : BaseClientState
 
 		CL.RegisterResources();
 
+		if (host_state.WorldModel == null) {
+			Host.Disconnect(true, $"Couldn't load map {LevelFileName}\n");
+			
+			return;
+		}
+
 		// We can start loading the world now
 		Host.Render.LevelInit(); // Tells the rendering system that a new set of world moels exists
 
@@ -693,8 +917,6 @@ public class ClientState : BaseClientState
 			return;
 
 		SendClientInfo();
-		var msg1 = new CLC_GMod_ClientToServer();
-		NetChannel.SendNetMsg(msg1);
 		var msg = new NET_SignonState(SignOnState, ServerCount);
 		NetChannel.SendNetMsg(msg);
 	}
@@ -813,6 +1035,10 @@ public class ClientState : BaseClientState
 			loadNow = false;
 		else if (CommandLine.FindParm("-preload") != 0)
 			loadNow = true;
+
+		if (tableIndex == 1) {
+			loadNow = true;
+		}
 
 		if (loadNow)
 			p.SetModel(modelloader.GetModelForName(name, ModelLoaderFlags.Client));
@@ -1059,6 +1285,12 @@ public class ClientState : BaseClientState
 	}
 
 	internal void SendServerCmdKeyValues(KeyValues keyValues) {
-		throw new NotImplementedException();
+		if (keyValues == null)
+			return;
+		if (NetChannel == null)
+			return;
+
+		// CLC_CmdKeyValues might not exist?
+		// What was this anyway
 	}
 }

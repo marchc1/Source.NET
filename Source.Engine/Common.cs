@@ -113,9 +113,9 @@ public class Common(IServiceProvider providers, Sys Sys)
 
 		AssetLinker.CheckRequired();
 
-		FileSystem.LoadSearchPaths(in initInfo);
+		FileSystem.LoadSearchPaths(ref initInfo);
+		Common.Gamedir = Path.Combine(AppContext.BaseDirectory, initInfo.ModPath ?? throw new Exception("Mod path null"));
 
-		Gamedir = initInfo.ModPath ?? "";
 	}
 
 	public bool Initialized { get; private set; }

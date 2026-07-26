@@ -1,12 +1,14 @@
 ﻿global using static Source.Engine.SourceDllMain;
 
 using Source.Common;
+using Source.Common.Audio;
 using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.GUI;
+using Source.Common.Input;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.Physics;
@@ -32,6 +34,8 @@ public static class SourceDllMain
 	[Dependency] public static GameServer sv { get; private set; } = null!;
 	[Dependency(Required = false)] public static IBaseClientDLL? g_ClientDLL { get; private set; } = null!;
 	[Dependency] public static IServerGameDLL serverGameDLL { get; private set; } = null!;
+	[Dependency] public static IServerGameClients serverGameClients { get; private set; } = null!;
+	[Dependency] public static IServerGameEnts serverGameEnts { get; private set; } = null!;
 	[Dependency(Required = false)] public static ILocalize g_Localize { get; private set; } = null!;
 	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;
 	[Dependency] public static ModelLoader modelLoader { get; private set; } = null!;
@@ -49,6 +53,9 @@ public static class SourceDllMain
 	[Dependency] public static RenderUtils renderUtils { get; private set; } = null!;
 	[Dependency] public static CommonHostState host_state { get; private set; } = null!;
 	[Dependency] public static Render R { get; private set; } = null!;
+	[Dependency] public static EngineToolImpl g_EngineTool { get; private set; } = null!;
+	[Dependency] public static IAudioSystem g_AudioSystem { get; private set; } = null!;
+	[Dependency] public static ISoundServices g_SoundServices { get; private set; } = null!;
 	[Dependency(Required = false)] public static IPrediction g_ClientSidePrediction { get; private set; } = null!;
 	[Dependency] public static ClientGlobalVariables clientGlobalVariables { get; private set; } = null!;
 	[Dependency] public static ServerGlobalVariables serverGlobalVariables { get; private set; } = null!;
@@ -70,6 +77,12 @@ public static class SourceDllMain
 	[KeyedDependency(Key = Realm.Client)] public static NetworkStringTableContainer networkStringTableContainerClient { get; private set; } = null!;
 	[Dependency] public static IVideoMode videoMode { get; private set; } = null!;
 	[Dependency] public static IMatSystemSurface surface { get; private set; } = null!;
+	[Dependency] public static ISurface Surface { get; private set; } = null!;
+	[Dependency] public static ISchemeManager SchemeManager { get; private set; } = null!;
+	[Dependency] public static IVGui VGui { get; private set; } = null!;
+	[Dependency] public static IVGuiInput Input { get; private set; } = null!;
+	[Dependency] public static ILocalize Localize { get; private set; } = null!;
+	[Dependency] public static ISystem system { get; private set; } = null!;
 #else
 	public static IClientEntityList entitylist { get; private set; } = null!;
 #endif

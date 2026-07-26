@@ -1605,6 +1605,11 @@ public static class MathLib
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static bool VectorsAreEqual(in Vector3 src1, in Vector3 src2, float tolerance = 0.0f) =>
+		MathF.Abs(src1.X - src2.X) <= tolerance &&
+		MathF.Abs(src1.Y - src2.Y) <= tolerance &&
+		MathF.Abs(src1.Z - src2.Z) <= tolerance;
+
 	public static float Approach(float target, float value, float speed) {
 		float delta = target - value;
 
@@ -1772,6 +1777,7 @@ public static class MathLib
 	}
 
 	public static float VectorLength(in Vector3 delta) => delta.Length();
+	public static float Vector2DLength(in Vector2 v) => MathF.Sqrt(DotProduct2D(v, v));
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static Vector3 Cross(this Vector3 vec, Vector3 other) {

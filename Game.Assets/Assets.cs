@@ -17,7 +17,7 @@ static class AssetUtils
 	public static void CheckRequired() {
 		string? root = Path.Combine(FindProjectRoot(), "Game.Assets");
 
-		if (File.Exists(Path.Combine(root, "hl2", "garrysmod_dir.vpk")))
+		if (File.Exists(Path.Combine(root, "hl2", "garrysmod_dir.vpk")) && File.Exists(Path.Combine(root, "sourceengine", "scripts", "surfaceproperties_manifest.txt")))
 			return;
 
 		bool result = Singleton<MessageBoxFn>()("Source.NET", "Missing required content, should we automatically link it?", true);
@@ -28,28 +28,16 @@ static class AssetUtils
 
 	public static List<AssetMapping> GetRequiredAssets() {
 		List<AssetMapping> list = [
-			new("hl2/steam.inf", "garrysmod/steam.inf")
+			new("hl2/steam.inf", "garrysmod/steam.inf"),
+			new("sourceengine", "sourceengine", IsDirectory: true),
+			new("platform", "platform", IsDirectory: true),
+			// Would be nice, but causes some issues rn
+			// new("hl2/resource", "garrysmod/resource", IsDirectory: true)
 		];
 
 		string[] specificGmodVpks = ["dir", "000", "001", "002"];
 		foreach (var suffix in specificGmodVpks)
 			list.Add(new($"hl2/garrysmod_{suffix}.vpk", $"garrysmod/garrysmod_{suffix}.vpk"));
-
-		string[] specificHl2Vpks = ["dir", "000", "001", "002", "003", "004", "005", "006"];
-		foreach (var suffix in specificHl2Vpks)
-			list.Add(new($"hl2/content_hl2_{suffix}.vpk", $"sourceengine/content_hl2_{suffix}.vpk"));
-
-		string[] misc = ["dir", "000", "001", "002", "003"];
-		foreach (var suffix in misc)
-			list.Add(new($"hl2/hl2_misc_{suffix}.vpk", $"sourceengine/hl2_misc_{suffix}.vpk"));
-
-		string[] sound = ["dir", "000", "001", "002"];
-		foreach (var suffix in sound)
-			list.Add(new($"hl2/hl2_sound_misc_{suffix}.vpk", $"sourceengine/hl2_sound_misc_{suffix}.vpk"));
-
-		string[] tex = ["dir", "000", "001", "002", "003", "004", "005", "006", "007", "008", "009", "010"];
-		foreach (var suffix in tex)
-			list.Add(new($"hl2/hl2_textures_{suffix}.vpk", $"sourceengine/hl2_textures_{suffix}.vpk"));
 
 		return list;
 	}

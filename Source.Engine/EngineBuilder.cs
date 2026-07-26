@@ -9,6 +9,7 @@ using Source.Common.GameUI;
 using Source.Common.MaterialSystem;
 using Source.Common.Networking;
 using Source.Common.Server;
+using Source.Common.ToolFramework;
 using Source.Engine.Client;
 using Source.Engine.Server;
 
@@ -187,6 +188,9 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<ISoundServices, EngineSoundServices>();
 		this.AddSingleton<IGameUIFuncs, GameUIFuncs>();
 		this.AddSingleton<DtCommonEng>();
+		this.AddSingleton<EngineToolImpl>();
+		this.AddSingleton<IEngineToolInternal>(x => x.GetRequiredService<EngineToolImpl>());
+		this.AddSingleton<IEngineTool>(x => x.GetRequiredService<EngineToolImpl>());
 	}
 
 	T PostBuildAllForms<T>() where T : IEngineAPI {

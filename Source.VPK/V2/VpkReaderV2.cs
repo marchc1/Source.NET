@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Source.VPK.V2
 {
@@ -16,13 +17,13 @@ namespace Source.VPK.V2
 
         public override IVpkArchiveHeader ReadArchiveHeader()
         {
-            var hdrStructSize = Marshal.SizeOf(typeof(VpkArchiveHeaderV2));
-            var hdrBuff = Reader.ReadBytes(hdrStructSize);
+            var hdrStructSize = Unsafe.SizeOf<VpkArchiveHeaderV2>();
+            var hdrBuff = ReadBytes(hdrStructSize);
             // skip unknown values
-            Reader.ReadInt32();
+            Read<int>();
             var hdr = BytesToStructure<VpkArchiveHeaderV2>(hdrBuff);
-            hdr.FooterLength = (uint)Reader.ReadInt32();
-            Reader.ReadInt32();
+            hdr.FooterLength = (uint)Read<int>();
+            Read<int>();
             return hdr;
         }
 

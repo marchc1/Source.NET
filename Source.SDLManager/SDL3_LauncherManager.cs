@@ -299,8 +299,14 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 	public void PumpWindowsMessageLoop() => window?.PumpMessages();
 	public int GetEvents(WindowEvent[] eventBuffer, int length) => window.GetEvents(eventBuffer, length);
 
-	public void CenterWindow(int v2, int v3) {
+	public void CenterWindow(int width, int height) {
+		SDL_Rect bounds;
+		if (!SDL3.SDL_GetDisplayBounds(SDL3.SDL_GetDisplayForWindow(window.HardwareHandle), &bounds))
+			return;
 
+		int x = bounds.x + (bounds.w - width) / 2;
+		int y = bounds.y + (bounds.h - height) / 2;
+		SDL3.SDL_SetWindowPosition(window.HardwareHandle, x, y);
 	}
 
 	public bool PrepareContext(GraphicsDriver driver) {

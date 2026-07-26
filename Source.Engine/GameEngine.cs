@@ -1,6 +1,6 @@
-﻿using Source.Common.Commands;
+﻿using Source.Common.Client;
+using Source.Common.Commands;
 using Source.Common.Engine;
-using Source.Engine.Server;
 
 using static Source.Constants;
 
@@ -10,11 +10,25 @@ public class GameEngine : IEngine
 {
 	const string DEFAULT_FPS_MAX_S = "300";
 
-	ConVar fps_max = new("fps_max", DEFAULT_FPS_MAX_S, FCvar.NotConnected, "Frame rate limiter, cannot be set");
+	static readonly ConVar fps_max = new("fps_max", DEFAULT_FPS_MAX_S, FCvar.Archive, "Frame rate limiter. 0 = unlimited", callback: FpsMaxChanged);
+	static readonly ConVar fps_max_menu = new("fps_max_menu", "60", FCvar.Archive, "Frame rate limiter while in the main menu. 0 = use fps_max.");
+	static readonly ConVar fps_max_nofocus = new("fps_max_nofocus", "20", FCvar.Archive, "Frame rate limiter when the game is not focused. 0 = use fps_max(_menu).");
+
+	static void FpsMaxChanged(IConVar var, in ConVarChangeContext ctx) {
+		if (Host.CanCheat())
+			return;
+
+		double fps = double.TryParse(ctx.New, out double d) ? d : 0;
+		if (fps != 0 && fps < 30) {
+			Warning("sv_cheats is 0 and fps_max is being limited to a minimum of 30 (or set to 0).\n");
+			var.SetValue(30.0f);
+		}
+	}
 
 	readonly Sys Sys;
 	readonly IHostState HostState;
 	readonly Host Host;
+	IGame Game => field ??= Singleton<IGame>();
 	private bool FilterTime(double dt) {
 		if (sv.IsDedicated()) {
 			MinFrameTime = Host.NextTick;
@@ -22,7 +36,21 @@ public class GameEngine : IEngine
 		}
 
 		MinFrameTime = 0;
-		double fps = fps_max.GetDouble(); 
+
+		double fps = fps_max.GetDouble();
+
+		if (!cl.IsConnected()) {
+			double menu = fps_max_menu.GetDouble();
+			if (menu > 0)
+				fps = fps > 0 ? Math.Min(fps, menu) : menu;
+		}
+
+		if (!Game.IsActiveApp()) {
+			double nofocus = fps_max_nofocus.GetDouble();
+			if (nofocus > 0)
+				fps = fps > 0 ? Math.Min(fps, nofocus) : nofocus;
+		}
+
 		if (fps > 0) {
 			fps = Math.Clamp(fps, MIN_FPS, MAX_FPS);
 			double minFrametime = 1 / fps;
@@ -69,7 +97,7 @@ public class GameEngine : IEngine
 		bool success = false;
 
 		State = NextState = IEngine.State.Active;
-		if(Sys.InitGame(dedicated, rootDirectory)) {
+		if (Sys.InitGame(dedicated, rootDirectory)) {
 			success = true;
 		}
 
@@ -110,7 +138,8 @@ public class GameEngine : IEngine
 			}
 		}
 		FilteredTime = 0;
-		if (!sv.IsDedicated()) { }
+		if (!sv.IsDedicated())
+			g_ClientDLL?.FrameStageNotify(ClientFrameStage.Start);
 
 		switch (State) {
 			case IEngine.State.Paused:

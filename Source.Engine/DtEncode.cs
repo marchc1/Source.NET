@@ -586,22 +586,22 @@ public struct PropTypeFns
 		writeOut.WriteUBitLong((uint)nElements, prop.GetNumArrayLengthBits());
 
 		for (int iElement = 0; iElement < nElements; iElement++) {
-			DVariant arrayVar;
-
+			// TODO	
+			// DVariant arrayVar;
 			// arrayProp.GetProxyFn()(arrayProp, instance, ) ??? how fieldinfo
 		}
 	}
 	public static ReadOnlySpan<char> Array_GetTypeNameString() => "DPT_Array";
-	public static bool Array_IsEncodedZero(SendProp prop, bf_read p){
+	public static bool Array_IsEncodedZero(SendProp prop, bf_read p) {
 		SendProp arrayProp = prop.GetArrayProp()!;
 		int nElements = (int)p.ReadUBitLong(prop.GetNumArrayLengthBits());
 
-		for (int i = 0; i < nElements; i++) 
+		for (int i = 0; i < nElements; i++)
 			g_PropTypeFns[(int)arrayProp.GetPropType()].IsEncodedZero(arrayProp, p);
 
 		return nElements == 0;
 	}
-	public static bool Array_IsZero(object instance, ref DVariant var, SendProp prop){
+	public static bool Array_IsZero(object instance, ref DVariant var, SendProp prop) {
 		int nElements = Array_GetLength(instance, prop, -1);
 		return nElements == 0;
 	}

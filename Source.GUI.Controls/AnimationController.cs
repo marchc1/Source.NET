@@ -800,8 +800,6 @@ public class AnimationController : Panel, IAnimationController
 		return LoadScriptFile(fileName);
 	}
 
-	static readonly IFileSystem fileSystem = Singleton<IFileSystem>();
-
 	public bool LoadScriptFile(ReadOnlySpan<char> filename) {
 		using IFileHandle? f = fileSystem.Open(filename, FileOpenOptions.Read | FileOpenOptions.Text);
 
@@ -912,6 +910,8 @@ public class AnimationController : Panel, IAnimationController
 							if (col == default_invisible_black) {
 								Color error_pink = new(255, 0, 255, 255); // make it extremely obvious if a scheme lookup fails
 								col = scheme.GetColor(token, error_pink);
+								if (col == error_pink)
+									Warning($"AnimationController: missing scheme color '{token.SliceNullTerminatedString()}'\n");
 							}
 
 							cmdAnimate.Target.A = col[0];

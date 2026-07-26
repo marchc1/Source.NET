@@ -639,6 +639,8 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 				}
 			}
 		}
+
+		InternalFlags &= ~(uint)InternalTextureFlags.Allocated;
 	}
 
 	private void MigrateShaderAPITextures() {
