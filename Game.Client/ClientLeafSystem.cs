@@ -25,6 +25,11 @@ public class ClientLeafSubSystemData
 {
 }
 
+public interface IClientLeafShadowEnum
+{
+	void EnumShadow(ClientShadowHandle_t userId);
+}
+
 public struct RenderableInfo
 {
 	public IClientRenderable? Renderable;
