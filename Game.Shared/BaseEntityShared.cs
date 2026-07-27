@@ -121,8 +121,21 @@ public partial class
 			// TODO: mark dirty
 		}
 
-		if ((changeFlags & InvalidatePhysicsBits.PositionChanged) != 0) {
+		// NOTE: This has to be done after velocity + position because we change the
+		// changeFlags for child entities. An angle change also requires recomputing position.
+		if ((changeFlags & InvalidatePhysicsBits.AnglesChanged) != 0) {
 			dirtyFlags |= EFL.DirtyAbsTransform;
+			if (CollisionProp().DoesRotationInvalidateSurroundingBox()) 
+				// NOTE: This will handle the KD-tree, surrounding bounds, PVS
+				// render-to-texture shadow, shadow projection, and client leaf dirty
+				CollisionProp().MarkSurroundingBoundsDirty();
+			else {
+#if CLIENT_DLL
+				// MarkRenderHandleDirty();
+				// g_pClientShadowMgr.AddToDirtyShadowList(this);
+				// g_pClientShadowMgr.MarkRenderToTextureShadowDirty(GetShadowHandle());
+#endif
+			}
 			changeFlags |= InvalidatePhysicsBits.PositionChanged | InvalidatePhysicsBits.VelocityChanged;
 		}
 

@@ -244,8 +244,30 @@ public class CollisionProperty : ICollideable
 		// todo
 	}
 
+	public bool IsBoundsDefinedInEntitySpace() => (((Source.SolidFlags)SolidFlags) & Source.SolidFlags.ForceWorldAligned) == 0 || (SolidType != (byte)Source.SolidType.BBox) && (SolidType != (byte)Source.SolidType.None);
 
-	private void MarkSurroundingBoundsDirty() {
+	public bool DoesRotationInvalidateSurroundingBox() {
+		if (IsSolidFlagSet(Source.SolidFlags.RootParentAligned))
+			return true;
+		switch ((SurroundingBoundsType)SurroundType) {
+			case SurroundingBoundsType.UseCollisionBoundsNeverVPhysics:
+			case SurroundingBoundsType.UseOBBCollisionBounds:
+			case SurroundingBoundsType.UseBestCollisionBounds:
+				return IsBoundsDefinedInEntitySpace();
+			case SurroundingBoundsType.UseHitboxes:
+			case SurroundingBoundsType.UseGameCode:
+				return true;
+			case SurroundingBoundsType.UseRotationExpandedBounds:
+			case SurroundingBoundsType.UseSpecifiedBounds:
+				return false;
+			default:
+				Assert(false);
+				return true;
+		}
+	}
+
+
+	public void MarkSurroundingBoundsDirty() {
 
 	}
 

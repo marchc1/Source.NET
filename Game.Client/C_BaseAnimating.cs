@@ -549,6 +549,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	private void GetPoseParameters(StudioHdr? hdr, Span<float> poseparam) {
 		if (hdr == null)
 			return;
+
 		int i;
 		for (i = 0; i < Studio.MAXSTUDIOPOSEPARAM; i++)
 			poseparam[i] = PoseParameter[i];

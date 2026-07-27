@@ -253,6 +253,7 @@ public partial class C_BaseEntity : IClientEntity
 		}
 
 		// Enable extrapolation?
+		using InterpolationContext context = new();
 		InterpolationContext.SetLastTimeStamp(engine.GetLastTimeStamp());
 		if (cl_extrapolate.GetBool() && !engine.IsPaused())
 			InterpolationContext.EnableExtrapolation(true);
@@ -462,7 +463,6 @@ public partial class C_BaseEntity : IClientEntity
 		C_BaseEntity pEntity = (C_BaseEntity)instance;
 
 		long t = gpGlobals.GetNetworkBase(gpGlobals.TickCount, pEntity.EntIndex()) + data.Value.Int;
-		t += data.Value.Int;
 
 		while (t < gpGlobals.TickCount - 127)
 			t += 256;
