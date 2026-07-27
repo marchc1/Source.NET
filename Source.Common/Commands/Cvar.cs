@@ -194,29 +194,29 @@ public class Cvar : ICvar
 						if (!childVar.defaultValue.Equals(parentVar.defaultValue, StringComparison.OrdinalIgnoreCase))
 							Dbg.Warning($"Parent and child ConVars with different default values! " +
 								$"{childVar.defaultValue} child, {childVar.defaultValue} parent (parent wins)\n");
-
-						childVar.parent = parentVar.parent;
-						parentVar.Flags |= childVar.Flags & (FCvar.AccessibleFromThreads);
-						if (childVar.HasChangeCallback) {
-							if (!parentVar.HasChangeCallback)
-								parentVar.SyncChangeTo(childVar);
-						}
-
-						if (!string.IsNullOrEmpty(childVar.HelpString)) {
-							if (!string.IsNullOrEmpty(parentVar.HelpString)) {
-								if (!parentVar.HelpString.Equals(childVar.HelpString, StringComparison.OrdinalIgnoreCase))
-									Dbg.Warning($"Convar {variable.GetName()} has multiple help strings (parent wins)\n");
-							}
-							else {
-								parentVar.HelpString = childVar.HelpString;
-							}
-						}
-
-						if ((childVar.Flags & FCvar.Cheat) != (parentVar.Flags & FCvar.Cheat))
-							Dbg.Warning($"Convar {variable.GetName()} has conflicting Cheat flags (parent wins)\n");
-						if ((childVar.Flags & FCvar.Replicated) != (parentVar.Flags & FCvar.Replicated))
-							Dbg.Warning($"Convar {variable.GetName()} has conflicting Replicated flags (parent wins)\n");
 					}
+
+					childVar.parent = parentVar.parent;
+					parentVar.Flags |= childVar.Flags & (FCvar.AccessibleFromThreads);
+					if (childVar.HasChangeCallback) {
+						if (!parentVar.HasChangeCallback)
+							parentVar.SyncChangeTo(childVar);
+					}
+
+					if (!string.IsNullOrEmpty(childVar.HelpString)) {
+						if (!string.IsNullOrEmpty(parentVar.HelpString)) {
+							if (!parentVar.HelpString.Equals(childVar.HelpString, StringComparison.OrdinalIgnoreCase))
+								Dbg.Warning($"Convar {variable.GetName()} has multiple help strings (parent wins)\n");
+						}
+						else {
+							parentVar.HelpString = childVar.HelpString;
+						}
+					}
+
+					if ((childVar.Flags & FCvar.Cheat) != (parentVar.Flags & FCvar.Cheat))
+						Dbg.Warning($"Convar {variable.GetName()} has conflicting Cheat flags (parent wins)\n");
+					if ((childVar.Flags & FCvar.Replicated) != (parentVar.Flags & FCvar.Replicated))
+						Dbg.Warning($"Convar {variable.GetName()} has conflicting Replicated flags (parent wins)\n");
 				}
 			}
 
