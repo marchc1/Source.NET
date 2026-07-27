@@ -1,4 +1,6 @@
-﻿using System.IO.MemoryMappedFiles;
+﻿using Microsoft.Win32.SafeHandles;
+
+using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -7,29 +9,23 @@ namespace Source.VPK
 {
 	internal abstract class VpkReaderBase
 	{
-		private readonly byte[] memoryFile;
-		private nuint ptr;
+		readonly BinaryReader reader;
 
-		protected VpkReaderBase(string filename) {
-			memoryFile = File.ReadAllBytes(filename);
-		}
-
-		protected VpkReaderBase(byte[] file) {
-			memoryFile = file;
-		}
-
-		protected ReadOnlySpan<byte> GetMemoryFileNoOffset() => memoryFile;
-		protected ReadOnlySpan<byte> GetMemoryFileWithOffset() => memoryFile.AsSpan()[(int)ptr..];
-		protected ReadOnlySpan<byte> GetMemoryFileWithOffsetAndSize(nuint size) => memoryFile.AsSpan()[(int)ptr..][..(int)size];
+		protected VpkReaderBase(string filename) => reader = new(File.OpenRead(filename));
+		protected VpkReaderBase(byte[] file) =>reader = new(new MemoryStream(file));
 
 		public abstract IVpkArchiveHeader ReadArchiveHeader();
 
+		readonly List<char> StringBuffer = [];
 		public string ReadNullTerminatedString() {
-			ReadOnlySpan<byte> rest = GetMemoryFileWithOffset();
-			int len = rest.IndexOf((byte)0);
-			string s = Encoding.ASCII.GetString(rest[..len]);
-			ptr += (nuint)len + 1;
-			return s;
+			StringBuffer.Clear();
+			do {
+				int ic = reader.ReadByte();
+				if (ic == -1 || ic == 0)
+					break;
+				StringBuffer.Add((char)ic);
+			} while (reader.BaseStream.Position < reader.BaseStream.Length);
+			return new(CollectionsMarshal.AsSpan(StringBuffer)[..StringBuffer.Count]);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -87,9 +83,9 @@ namespace Source.VPK
 				var entryLen = Reader.Read<uint>();
 				// skip terminator
 				Reader.Read<ushort>();
-				nuint preloadDataOffset = Reader.ptr;
+				nuint preloadDataOffset = (nuint)Reader.reader.BaseStream.Position;
 				if (preloadBytes > 0)
-					Reader.ptr += preloadBytes;
+					Reader.reader.Read(stackalloc byte[preloadBytes]);
 
 				Current = new VpkEntry(ParentArchive, crc, preloadBytes, preloadDataOffset, archiveIdx, entryOffset, entryLen, Ext, Path, fileName.ToLowerInvariant());
 				return true;
@@ -107,17 +103,16 @@ namespace Source.VPK
 		public EntryReader ReadEntries(VpkArchive parentArchive, string ext, string path) => new(this, parentArchive, ext.ToLowerInvariant(), path.ToLowerInvariant());
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		protected ref readonly T Read<T>() where T : unmanaged {
+		protected T Read<T>() where T : unmanaged {
 			int sizeofT = Unsafe.SizeOf<T>();
-			ref readonly T val = ref MemoryMarshal.Cast<byte, T>(GetMemoryFileWithOffsetAndSize((nuint)sizeofT))[0];
-			ptr += (nuint)sizeofT;
-			return ref val;
+			Span<byte> data = stackalloc byte[sizeofT];
+			reader.Read(data);
+			return MemoryMarshal.Cast<byte, T>(data)[0];
 		}
 
-		protected ReadOnlySpan<byte> ReadBytes(int bytes) {
-			ReadOnlySpan<byte> subspan = GetMemoryFileWithOffsetAndSize((nuint)bytes);
-			ptr += (nuint)bytes;
-			return subspan;
+		protected ReadOnlySpan<byte> ReadBytes(Span<byte> data) {
+			reader.Read(data);
+			return data;
 		}
 
 		#endregion

@@ -248,7 +248,7 @@ public static class Protocol
 	public const string LIGHT_STYLES_TABLENAME = "lightstyles";
 	public const string USER_INFO_TABLENAME = "userinfo";
 	public const string SERVER_STARTUP_DATA_TABLENAME = "server_query_info";
-	public const string DOWNLOADABLES_TABLENAME = "downloadables";
+	public const string DOWNLOADABLE_FILE_TABLENAME = "downloadables";
 	public const string DYNAMIC_MODELS_TABLENAME = "DynamicModels";
 #if GMOD_DLL
 	public const string CLIENT_LUA_FILES_TABLENAME = "client_lua_files";

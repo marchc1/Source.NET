@@ -294,22 +294,29 @@ public unsafe class VertexBufferGl46 : IDisposable
 			baseVertexIndex = 0;
 			return null;
 		}
+
+		bool discard = false;
 		if (Dynamic) {
-			if (Flush || !HasEnoughRoom(numVerts)) {
+			if (Position == 0 || Flush || !HasEnoughRoom(numVerts)) {
 				if (SysmemBuffer != null)
 					LateCreateShouldDiscard = true;
 
 				Flush = false;
 				Position = 0;
+				discard = true;
 			}
 		}
 		else {
 			Position = 0;
 		}
+
 		baseVertexIndex = VertexSize == 0 ? 0 : (Position / VertexSize);
-		if (SysmemBuffer == null) {
+		if (SysmemBuffer == null) 
 			RecomputeVBO();
-		}
+		else if (discard) 
+			glNamedBufferData((uint)vbo, BufferSize, null, GL_DYNAMIC_DRAW);
+		
+
 		Locked = true;
 		return (byte*)((nint)SysmemBuffer + Position);
 	}

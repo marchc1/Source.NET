@@ -44,7 +44,7 @@ public class GameServer : BaseServer
 	}
 
 	public override void Shutdown() {
-		DownloadListGenerator.OnLevelLoadEnd();
+		g_DownloadListGenerator.OnLevelLoadEnd();
 	}
 
 	protected override BaseClient CreateNewClient(int slot) {
@@ -98,7 +98,7 @@ public class GameServer : BaseServer
 		StringTables!.SetTick(TickCount);
 
 		int size = Unsafe.SizeOf<PrecacheUserData>();
-		DownloadableFileTable = StringTables.CreateStringTable(Protocol.DOWNLOADABLES_TABLENAME, 8192, 0, 0); // DOWNLOADABLE_FILE_TABLENAME, MAX_DOWNLOADABLE_FILES
+		DownloadableFileTable = StringTables.CreateStringTable(Protocol.DOWNLOADABLE_FILE_TABLENAME, 8192, 0, 0); // DOWNLOADABLE_FILE_TABLENAME, MAX_DOWNLOADABLE_FILES
 		ModelPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.MODEL_PRECACHE_TABLENAME, PrecacheItem.MAX_MODELS, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
 		GenericPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.GENERIC_PRECACHE_TABLENAME, PrecacheItem.MAX_GENERIC, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
 		SoundPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.SOUND_PRECACHE_TABLENAME, PrecacheItem.MAX_SOUNDS, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
@@ -127,21 +127,20 @@ public class GameServer : BaseServer
 
 		int j;
 
+			Span<char> nameBuffer = stackalloc char[8];
 		for (int i = 0; i < BSPFileCommon.MAX_LIGHTSTYLES; i++) {
-			Span<char> name = stackalloc char[8];
-			sprintf(name, "%i").I(i);
+			ReadOnlySpan<char> name = sprintf(nameBuffer, "%i").I(i);
 			j = LightStyleTable.AddString(true, name);
 			Assert(j == i);
 		}
 
 		for (int i = 0; i < GetMaxClients(); i++) {
-			Span<char> name = stackalloc char[8];
-			sprintf(name, "%i").I(i);
+			ReadOnlySpan<char> name = sprintf(nameBuffer, "%i").I(i);
 			j = UserInfoTable.AddString(true, name);
 			Assert(j == i);
 		}
 
-		DownloadListGenerator.SetStringTable(DownloadableFileTable);
+		g_DownloadListGenerator.SetStringTable(DownloadableFileTable);
 	}
 
 	public INetworkStringTable? GetModelPrecacheTable() => ModelPrecacheTable;
@@ -149,7 +148,6 @@ public class GameServer : BaseServer
 	public INetworkStringTable? GetSoundPrecacheTable() => SoundPrecacheTable;
 	public INetworkStringTable? GetDecalPrecacheTable() => DecalPrecacheTable;
 	public INetworkStringTable? GetDynamicModelsTable() => DynamicModelsTable;
-
 
 	public int PrecacheModel(ReadOnlySpan<char> name, Res flags, Model? model = null) {
 		if (ModelPrecacheTable == null)

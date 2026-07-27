@@ -1261,6 +1261,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		}
 
 		Device!.SwapBuffers();
+		MeshMgr.DiscardVertexBuffers();
 	}
 
 	bool IShaderDevice.IsDeactivated() => IsDeactivated();

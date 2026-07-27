@@ -13,6 +13,8 @@ namespace Source.Engine;
 
 public class EngineSoundClient(Sound Sound) : IEngineSound
 {
+	int lastGuid;
+
 	public void EmitAmbientSound(ReadOnlySpan<char> pSample, float volume, int pitch = 100, int flags = 0, double soundTime = 0) {
 		float delay = 0.0f;
 		if (soundTime != 0.0f)
@@ -34,7 +36,7 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 		parms.FromServer = false;
 		parms.Delay = delay;
 
-		Sound.StartSound(in parms);
+		lastGuid = (int)Sound.StartSound(in parms);
 	}
 
 	public void EmitSentenceByIndex<T>(scoped in T filter, int entIndex, int channel, int sentenceIndex, float volume, SoundLevel soundlevel, SoundFlags flags = SoundFlags.NoFlags, int pitch = 100, int specialDSP = 0, in Vector3 origin = default, in Vector3 direction = default, ReadOnlySpan<Vector3> origins = default, bool updatePositions = true, double soundTime = 0, int speakerEntity = -1) where T : IRecipientFilter {
@@ -149,7 +151,7 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 		parms.Delay = delay;
 		parms.SpeakerEntity = speakerEntity;
 
-		Sound.StartSound(in parms);
+		lastGuid = (int)Sound.StartSound(in parms);
 	}
 
 	public ref SndInfo GetActiveSound() {
@@ -161,11 +163,11 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 	}
 
 	public float GetDistGainFromSoundLevel(SoundLevel soundlevel, float dist) {
-		throw new NotImplementedException();
+		return SndGain.S_GetGainFromSoundLevel(soundlevel, dist);
 	}
 
 	public int GetGuidForLastSoundEmitted() {
-		throw new NotImplementedException();
+		return lastGuid;
 	}
 
 	public float GetSoundDuration(ReadOnlySpan<char> sample) {
@@ -178,7 +180,7 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 	}
 
 	public bool IsSoundStillPlaying(int guid) {
-		throw new NotImplementedException();
+		return Sound.IsSoundStillPlaying(guid);
 	}
 
 	public void NotifyBeginMoviePlayback() {
@@ -220,18 +222,29 @@ public class EngineSoundClient(Sound Sound) : IEngineSound
 	}
 
 	public void SetVolumeByGuid(int guid, float fvol) {
-		throw new NotImplementedException();
+		Sound.SetVolumeByGuid(guid, fvol);
 	}
 
 	public void StopAllSounds(bool clearBuffers) {
-		throw new NotImplementedException();
+		Sound.StopAllSounds(clearBuffers);
 	}
 
 	public void StopSound(int entIndex, int channel, ReadOnlySpan<char> pSample) {
-		throw new NotImplementedException();
+		SfxTable? sound = Sound.PrecacheSound(pSample);
+		if (sound == null)
+			return;
+
+		StartSoundParams parms = new();
+		parms.StaticSound = channel == (int)SoundEntityChannel.Static;
+		parms.SoundSource = entIndex;
+		parms.EntChannel = (SoundEntityChannel)channel;
+		parms.Sfx = sound;
+		parms.Flags = SoundFlags.Stop;
+
+		Sound.StartSound(in parms);
 	}
 
 	public void StopSoundByGuid(int guid) {
-		throw new NotImplementedException();
+		Sound.StopSoundByGuid(guid);
 	}
 }

@@ -53,9 +53,9 @@ public abstract class BaseClient : IGameEventListener2, IClient, IClientMessageH
 	public virtual void ConnectionCrashed(ReadOnlySpan<char> reason) { }
 	public virtual void PacketStart(int incomingSequence, int outgoingAcknowledged) { }
 	public virtual void PacketEnd() { }
-	public virtual void FileRequested(ReadOnlySpan<char> fileName, uint transferID) { }
+	public virtual void FileRequested(RequestFile type, uint value, uint transferID) { }
 	public virtual void FileReceived(ReadOnlySpan<char> fileName, uint transferID) { }
-	public virtual void FileDenied(ReadOnlySpan<char> fileName, uint transferID) { }
+	public virtual void FileDenied(uint transferID) { }
 	public virtual void FileSent(ReadOnlySpan<char> fileName, uint transferID) { }
 
 	public bool ProcessMessage<T>(T message) where T : INetMessage {

@@ -43,9 +43,10 @@ public class RequestContext
 	public volatile bool ShouldStop;
 	public volatile bool ThreadDone;
 
-	public bool IsBZ2;         
-	public bool AsHTTP;        
-	public uint RequestID;     
+	public bool IsBZ2;
+	public bool AsHTTP;
+	public uint RequestID;
+	public int DownloadableIndex = -1; // index into the downloadables string table (for NetChan RequestFile)
 
 	public volatile HTTPStatus Status;
 	public uint FetchStatus;          
@@ -397,7 +398,7 @@ public class DownloadManager
 		m_downloadedMaps.Add(new string(serverMapName.SliceNullTerminatedString()));
 	}
 
-	public bool FileDenied(ReadOnlySpan<char> filename, uint requestID) {
+	public bool FileDenied(uint requestID) {
 		if (m_activeRequest == null)
 			return false;
 		if (m_activeRequest.RequestID != requestID)
@@ -436,7 +437,7 @@ public class DownloadManager
 		return true;
 	}
 
-	void QueueInternal(ReadOnlySpan<char> pBaseURL, ReadOnlySpan<char> pURLPath, ReadOnlySpan<char> pGamePath, bool bAsHttp, bool bCompressed) {
+	void QueueInternal(ReadOnlySpan<char> pBaseURL, ReadOnlySpan<char> pURLPath, ReadOnlySpan<char> pGamePath, bool bAsHttp, bool bCompressed, int downloadableIndex) {
 		// NOTE: Assumes valid game path (i.e. CL.IsGamePathValidAndSafeForDownload() has been called already)
 
 		++m_totalRequests;
@@ -451,10 +452,13 @@ public class DownloadManager
 
 		rc.IsBZ2 = bCompressed;
 		rc.AsHTTP = bAsHttp;
+		rc.DownloadableIndex = downloadableIndex;
 		rc.Status = HTTPStatus.Connecting;
 
 		Span<char> szBasePath = stackalloc char[MAX_PATH];
 		strcpy(szBasePath, Source.Engine.Common.Gamedir);
+		StrTools.AppendSlash(szBasePath);
+		strcat(szBasePath, DownloadCache.DownloadPathID);
 
 		strcpy(rc.GamePath, pGamePath);
 		if (bCompressed)
@@ -487,7 +491,7 @@ public class DownloadManager
 	}
 
 
-	public void Queue(ReadOnlySpan<char> baseURL, ReadOnlySpan<char> urlPath, ReadOnlySpan<char> gamePath) {
+	public void Queue(ReadOnlySpan<char> baseURL, ReadOnlySpan<char> urlPath, ReadOnlySpan<char> gamePath, int downloadableIndex) {
 		if (!CL.IsGamePathValidAndSafeForDownload(gamePath))
 			return;
 
@@ -497,15 +501,15 @@ public class DownloadManager
 
 #if !DEBUG
 		if (sv.IsActive())
-			return; 
+			return;
 #endif
 
 		bool bAsHTTP = !baseURL.IsStringEmpty && (strnicmp(baseURL, "http://", 7) == 0 || strnicmp(baseURL, "https://", 8) == 0);
 
-		if (bAsHTTP && ShouldAttemptCompressedFileDownload() && !g_pFileSystem.FileExists($"{gamePath}.bz2")) 
-			QueueInternal(baseURL, urlPath, gamePath, true, true);
+		if (bAsHTTP && ShouldAttemptCompressedFileDownload() && !g_pFileSystem.FileExists($"{gamePath}.bz2"))
+			QueueInternal(baseURL, urlPath, gamePath, true, true, downloadableIndex);
 
-		QueueInternal(baseURL, urlPath, gamePath, bAsHTTP, false);
+		QueueInternal(baseURL, urlPath, gamePath, bAsHTTP, false, downloadableIndex);
 
 		if (DownloadCache.download_debug.GetBool())
 			ConDColorMsg(DownloadCache.DownloadColor, $"Queueing {baseURL}{gamePath}.\n");
@@ -654,7 +658,11 @@ public class DownloadManager
 
 			m_lastPercent = 0;
 
-			m_activeRequest.RequestID = cl.NetChannel?.RequestFile(((ReadOnlySpan<char>)m_activeRequest.GamePath).SliceNullTerminatedString()) ?? 0;
+			// GMod requests downloadables by their index in the downloadables string table, not by filename.
+			if (m_activeRequest.DownloadableIndex >= 0)
+				m_activeRequest.RequestID = cl.NetChannel?.RequestFile(RequestFile.Downloadable, (uint)m_activeRequest.DownloadableIndex) ?? 0;
+			else if (DownloadCache.download_debug.GetBool())
+				ConDColorMsg(DownloadCache.DownloadErrorColor, $"Cannot NetChan-download '{((ReadOnlySpan<char>)m_activeRequest.GamePath).SliceNullTerminatedString()}': no downloadables index.\n");
 		}
 	}
 
@@ -861,8 +869,8 @@ public partial class CL
 	internal static bool DownloadUpdate() => s_DownloadManager.Update();
 	internal static void HTTPStop_f() => s_DownloadManager.Stop();
 	internal static bool FileReceived(ReadOnlySpan<char> filename, uint requestID) => s_DownloadManager.FileReceived(filename, requestID);
-	internal static bool FileDenied(ReadOnlySpan<char> filename, uint requestID) => s_DownloadManager.FileDenied(filename, requestID);
-	internal static void QueueDownload(ReadOnlySpan<char> filename) => s_DownloadManager.Queue(BaseServer.sv_downloadurl.GetString(), null, filename);
+	internal static bool FileDenied(uint requestID) => s_DownloadManager.FileDenied(requestID);
+	internal static void QueueDownload(ReadOnlySpan<char> filename, int downloadableIndex) => s_DownloadManager.Queue(BaseServer.sv_downloadurl.GetString(), null, filename, downloadableIndex);
 	internal static int GetDownloadQueueSize() => s_DownloadManager.GetQueueSize();
 
 	internal static int CanUseHTTPDownload() {

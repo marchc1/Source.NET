@@ -1,38 +1,60 @@
+global using static Source.Engine.Server.DownloadListGeneratorGlobals;
+
 using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.Utilities;
 
-using System.Collections.Generic;
+using System.Numerics;
 
 namespace Source.Engine.Server;
 
-// Collates the list of resources a client may need for a level and adds them to the "downloadables"
-// network string table, which the client reads to queue HTTP/NetChan downloads. Faithful port of
-// obsolete-source-engine/engine/DownloadListGenerator.cpp (minus the .lst reslist logging, which is
-// only a server-side diagnostic artifact and not needed for downloads to work).
-public static class DownloadListGenerator
+public enum ConsistencyType : byte
 {
-	// Files a server operator wants clients to fast-download are listed in maps/<mapname>.res, plus the
-	// map's bsp/nav/nodegraph. Consistency-forced materials/models are added via the precache hooks.
+	None,
+	Exact,
+	SimpleMaterial,
+	Bounds
+}
 
-	static INetworkStringTable? m_pStringTable;
-	static string m_gameDir = "";
-	static string m_mapName = "";
-	// dedup so we don't add the same file twice (keyed on full disk path, case-insensitive)
-	static readonly HashSet<string> m_AlreadyWrittenFileNames = new(System.StringComparer.OrdinalIgnoreCase);
+public struct ExactFileUserData
+{
+	public ConsistencyType ConsistencyType;
+	public CRC32_t CRC;
+}
+
+public struct ModelBoundsUserData
+{
+	public ConsistencyType ConsistencyType;
+	public Vector3 Mins;
+	public Vector3 Maxs;
+}
+
+public static class DownloadListGeneratorGlobals
+{
+	public static readonly DownloadListGenerator g_DownloadListGenerator = new DownloadListGenerator();
+}
+
+public class DownloadListGenerator
+{
+	INetworkStringTable? StringTable;
+	string GameDir = "";
+	string MapName = "";
+	IFileHandle? ReslistFile;
+	readonly UtlSymbolTable AlreadyWrittenFileNames = new();
 
 	static readonly string[] ModelSiblingExtensions = [".vvd", ".ani", ".dx80.vtx", ".dx90.vtx", ".sw.vtx", ".phy", ".jpg"];
 
-	public static void SetStringTable(INetworkStringTable? pStringTable) {
-		m_pStringTable = pStringTable;
+	public void SetStringTable(INetworkStringTable? pStringTable) {
+		StringTable = pStringTable;
 
 		// reset the duplication list
-		m_AlreadyWrittenFileNames.Clear();
+		AlreadyWrittenFileNames.Clear();
 
 		// add in the bsp file to the list, and its node graph and nav mesh
 		Span<char> path = stackalloc char[MAX_PATH];
-		OnResourcePrecached(new PrintF(path, "maps/%s.bsp").S(m_mapName).ToSpan());
+		OnResourcePrecached(new PrintF(path, "maps/%s.bsp").S(MapName).ToSpan());
 
 		bool useNodeGraph = true;
 		KeyValues modinfo = new("ModInfo");
@@ -40,12 +62,12 @@ public static class DownloadListGenerator
 			useNodeGraph = modinfo.GetInt("nodegraph", 1) != 0;
 
 		if (useNodeGraph)
-			OnResourcePrecached(new PrintF(path, "maps/graphs/%s.ain").S(m_mapName).ToSpan());
+			OnResourcePrecached(new PrintF(path, "maps/graphs/%s.ain").S(MapName).ToSpan());
 
-		OnResourcePrecached(new PrintF(path, "maps/%s.nav").S(m_mapName).ToSpan());
+		OnResourcePrecached(new PrintF(path, "maps/%s.nav").S(MapName).ToSpan());
 
 		Span<char> resfilename = stackalloc char[MAX_PATH];
-		ReadOnlySpan<char> resfile = new PrintF(resfilename, "maps/%s.res").S(m_mapName).ToSpan();
+		ReadOnlySpan<char> resfile = new PrintF(resfilename, "maps/%s.res").S(MapName).ToSpan();
 		KeyValues resfilekeys = new("resourcefiles");
 		if (resfilekeys.LoadFromFile(g_pFileSystem, resfile, "GAME")) {
 			for (KeyValues? entry = resfilekeys.GetFirstSubKey(); entry != null; entry = entry.GetNextKey())
@@ -54,28 +76,28 @@ public static class DownloadListGenerator
 	}
 
 	// call to mark level load start
-	public static void OnLevelLoadStart(ReadOnlySpan<char> levelName) {
+	public void OnLevelLoadStart(ReadOnlySpan<char> levelName) {
 		// reset the duplication list
-		m_AlreadyWrittenFileNames.Clear();
+		AlreadyWrittenFileNames.Clear();
 
 		// add a slash to the end of the game dir, so we can only deal with files for this mod
 		Span<char> gameDir = stackalloc char[MAX_PATH];
 		ReadOnlySpan<char> fixedGameDir = new PrintF(gameDir, "%s/").S(Common.Gamedir).ToSpan();
 		gameDir = gameDir[..fixedGameDir.Length];
 		StrTools.FixSlashes(gameDir);
-		m_gameDir = new string(gameDir);
 
+		GameDir = new string(gameDir.SliceNullTerminatedString());
 		// save off the map name
-		m_mapName = new string(levelName.SliceNullTerminatedString());
+		MapName = new string(levelName.SliceNullTerminatedString());
 	}
 
 	// call to mark level load end
-	public static void OnLevelLoadEnd() {
-		m_pStringTable = null;
+	public void OnLevelLoadEnd() {
+		StringTable = null;
 	}
 
 	// logs the precache as a file access
-	public static void OnResourcePrecached(ReadOnlySpan<char> relativePathFileName) {
+	public void OnResourcePrecached(ReadOnlySpan<char> relativePathFileName) {
 		relativePathFileName = relativePathFileName.SliceNullTerminatedString();
 
 		// ignore empty string
@@ -93,7 +115,7 @@ public static class DownloadListGenerator
 	}
 
 	// logs and handles mdl files being precached
-	public static void OnModelPrecached(ReadOnlySpan<char> relativePathFileName) {
+	public void OnModelPrecached(ReadOnlySpan<char> relativePathFileName) {
 		relativePathFileName = relativePathFileName.SliceNullTerminatedString();
 
 		if (stristr(relativePathFileName, ".vmt").IsEmpty) {
@@ -121,7 +143,7 @@ public static class DownloadListGenerator
 	}
 
 	// logs sound file access
-	public static void OnSoundPrecached(ReadOnlySpan<char> relativePathFileName) {
+	public void OnSoundPrecached(ReadOnlySpan<char> relativePathFileName) {
 		relativePathFileName = relativePathFileName.SliceNullTerminatedString();
 
 		// skip any special characters
@@ -140,17 +162,16 @@ public static class DownloadListGenerator
 	}
 
 	// logs out file access to a file
-	static void OnResourcePrecachedFullPath(ReadOnlySpan<char> fullPathFileName, ReadOnlySpan<char> relativeFileName) {
+	void OnResourcePrecachedFullPath(ReadOnlySpan<char> fullPathFileName, ReadOnlySpan<char> relativeFileName) {
 		Span<char> full = stackalloc char[MAX_PATH];
 		full = full[..strcpy(full, fullPathFileName)];
 		StrTools.FixSlashes(full);
 
-		if (strnicmp(m_gameDir, full, m_gameDir.Length) != 0)
+		if (strnicmp(GameDir, full, GameDir.Length) != 0)
 			return; // the game dir must be part of the full name
 
 		// make sure the filename hasn't already been written
-		string fullKey = new(full);
-		if (!m_AlreadyWrittenFileNames.Add(fullKey))
+		if (AlreadyWrittenFileNames.Find(full) == UTL_INVAL_SYMBOL)
 			return;
 
 		// add extras for mdl's
@@ -162,7 +183,7 @@ public static class DownloadListGenerator
 				OnResourcePrecached(new PrintF(sibling, "%s%s").S(baseName).S(extension).ToSpan());
 		}
 
-		m_pStringTable?.AddString(true, relativeFileName.SliceNullTerminatedString());
+		StringTable?.AddString(true, relativeFileName.SliceNullTerminatedString());
 	}
 
 	static int IndexOfExtension(ReadOnlySpan<char> path, ReadOnlySpan<char> extension) {

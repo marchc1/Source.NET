@@ -73,23 +73,30 @@ public class BassAudioMemorySource : BassAudioSource, IDisposable
 	private SampleInfo Info;
 	int LoopStart;
 
-	public BassAudioMemorySource(ReadOnlySpan<char> file) {
+	public int LoopStartSample => LoopStart;
+
+	public BassAudioMemorySource(SfxTable sfx) {
 		Info = null!;
 		LoopStart = -1;
+		ReadOnlySpan<char> file = sfx.GetFileName();
 		byte[]? data = audiocache.Lookup(file);
 		if (data == null)
 			return;
 
 		ParseChunks(data, file);
 
-		BassFlags flags = BassFlags.Bass3D | BassFlags.Mono;
-		if (IsLooped())
+		ReadOnlySpan<char> rawName = sfx.GetName();
+		bool is2D = sfx.IsUISound
+			|| (!rawName.IsEmpty && (SoundCharsUtils.TestSoundChar(rawName, SoundChars.Stream) || SoundCharsUtils.TestSoundChar(rawName, SoundChars.DryMix)));
+
+		BassFlags flags = is2D ? BassFlags.Default : (BassFlags.Bass3D | BassFlags.Mono);
+		if (IsLooped() && LoopStart <= 0)
 			flags |= BassFlags.Loop;
 
 		BassHandle = Bass.SampleLoad(data, 0, data.Length, MAX_CHANNELS, flags);
-		if (BassHandle == 0) {
-			Dbg.Msg($"BASS: {Bass.LastError}\n");
-		}
+		if (BassHandle == 0) 
+			Msg($"BASS: {Bass.LastError}\n");
+		
 		staticChannel = Bass.SampleGetChannel(BassHandle, OnlyNew: true);
 		Bass.ChannelSetAttribute(staticChannel, ChannelAttribute.NoRamp, 1);
 		// Make it so further dynamic attempts dont work
@@ -212,9 +219,13 @@ public class AudioSystem : IAudioSystem
 		return 0;
 	}
 
+	const float IN_TO_METERS = 0.0254f;
+
 	public bool Init() {
 		if (!Bass.Init(1, 44100, DeviceInitFlags.Device3D))
 			return false;
+
+		Bass.Set3DFactors(IN_TO_METERS, 0.0f, 1.0f);
 
 		for (int i = 0; i < MAX_CHANNELS; i++)
 			Channels[i].Index = (short)i;
@@ -225,20 +236,23 @@ public class AudioSystem : IAudioSystem
 		return true;
 	}
 
-	private static Vector3D ToBass(in Vector3 v) => new(-v.Y, v.Z, v.X);
+	Vector3 listener_origin;
+	long s_SoundGuid;
 
-	private static void Spatialize(int channel, in StartSoundParams parms) {
+	private Vector3D ToBass(in Vector3 v) => new(-v.Y, v.Z, v.X);
+
+	private void SetupSpatialization(int channel, in StartSoundParams parms) {
 		if (parms.SoundLevel == SoundLevel.LvlNone) {
+			// 2D sound (UI/music/ambient): no positioning, plays centered.
 			Bass.ChannelSet3DAttributes(channel, Mode3D.Off, -1, -1, -1, -1, -1);
 			return;
 		}
 
-		float minDist = 36.0f * MathF.Pow(10.0f, ((int)parms.SoundLevel - 60) / 20.0f);
-		Bass.ChannelSet3DAttributes(channel, Mode3D.Normal, minDist, 10000000.0f, -1, -1, -1);
+		Bass.ChannelSet3DAttributes(channel, Mode3D.Normal, -1, -1, -1, -1, -1);
 		Bass.ChannelSet3DPosition(channel, ToBass(parms.Origin), default, default);
 	}
 
-	private static void Spatialize(ref Channel ch) {
+	private void Spatialize(ref Channel ch) {
 		// todo, this has a LOT more
 		// TODO SoundMixer ^
 
@@ -269,9 +283,54 @@ public class AudioSystem : IAudioSystem
 
 		Bass.ChannelSet3DPosition(ch.BassChannel, ToBass(ch.Origin), default, default);
 
+		ApplyChannelVolume(ref ch);
+	
+		// TODO: Some sort of impl, maybe in engine API?
 		// if (SND_IsInGame() || toolframework.InToolMode())
 		ch.Flags.FirstPass = false;
 	}
+
+	private void ApplyChannelVolume(ref Channel ch) {
+		if (ch.BassChannel == 0)
+			return;
+
+		bool music = ch.Flags.Music;
+		bool player = ch.SoundSource != 0 && soundServices.IsPlayer(ch.SoundSource);
+		bool looping = ch.Sfx?.Source is BassAudioSource bs && bs.IsLooped();
+
+		float dist = Vector3.Distance(listener_origin, ch.Origin);
+		float gain = ChannelGain.SND_GetGain(ref ch, player, music, looping, dist, ch.DistMult != 0.0f);
+
+		float finalVol = Math.Clamp((ch.MasterVol / 255.0f) * gain, 0.0f, 1.0f);
+		Bass.ChannelSetAttribute(ch.BassChannel, ChannelAttribute.Volume, finalVol);
+
+		float vol255 = finalVol * 255.0f;
+		ch.Volume[(int)ChanVolume.FrontLeft] = vol255;
+		ch.Volume[(int)ChanVolume.FrontRight] = vol255;
+		ch.LastVol = gain * (ch.MasterVol / 255.0f);
+	}
+
+	private static bool IsMusicSound(SfxTable sfx) {
+		if (sfx.IsUISound)
+			return true;
+		ReadOnlySpan<char> name = sfx.GetName();
+		return !name.IsEmpty && SoundCharsUtils.TestSoundChar(name, SoundChars.Stream);
+	}
+
+	static readonly Dictionary<int, SyncProcedure> LoopSyncProcs = [];
+	private static void SetupLoop(ref Channel ch, int freq) {
+		if (ch.Sfx?.Source is not BassAudioMemorySource src)
+			return;
+		if (!src.IsLooped() || src.LoopStartSample <= 0)
+			return;
+
+		int handle = ch.BassChannel;
+		long loopBytes = Bass.ChannelSeconds2Bytes(handle, (double)src.LoopStartSample / freq);
+		SyncProcedure proc = (h, chan, data, user) => Bass.ChannelSetPosition(chan, loopBytes, PositionFlags.Bytes);
+		LoopSyncProcs[handle] = proc;
+		Bass.ChannelSetSync(handle, SyncFlags.End | SyncFlags.Mixtime, 0, proc);
+	}
+	internal static void RemoveLoopSync(int handle) => LoopSyncProcs.Remove(handle);
 
 	public void StopAllSounds(bool clear) {
 		TotalChannels = MAX_DYNAMIC_CHANNELS;
@@ -335,22 +394,29 @@ public class AudioSystem : IAudioSystem
 		ch.MasterVol = (short)vol;
 		ch.BasePitch = (short)parms.Pitch;
 		ch.Origin = parms.Origin;
+		ch.DistMult = SndGain.SNDLVL_TO_DIST_MULT((int)parms.SoundLevel);
 		ch.Flags.UpdatePositions = parms.UpdatePositions && (parms.SoundSource != 0);
 		ch.Flags.FirstPass = true;
+		ch.Flags.Music = IsMusicSound(sfx);
 		ch.BassChannel = Bass.SampleGetChannel(((BassAudioSource)sfx.Source!).BassHandle, OnlyNew: false);
+		ch.Guid = (int)++s_SoundGuid;
 		g_ActiveChannels.Add(ref ch);
 
-		PlaySound(in parms, ch.BassChannel);
+		PlaySound(in parms, ref ch);
 
-		return 0;
+		StartSoundParams startedParms = parms;
+		soundServices.OnSoundStarted(ch.Guid, ref startedParms, sndname);
+		return ch.Guid;
 	}
 
-	private void PlaySound(in StartSoundParams parms, int targetChannel) {
-		Spatialize(targetChannel, in parms);
-		ChannelInfo info = Bass.ChannelGetInfo(targetChannel);
-		Bass.ChannelSetAttribute(targetChannel, ChannelAttribute.Frequency, info.Frequency * parms.Pitch / 100f);
-		Bass.ChannelSetAttribute(targetChannel, ChannelAttribute.Volume, parms.Volume);
-		Bass.ChannelPlay(targetChannel);
+	private void PlaySound(in StartSoundParams parms, ref Channel ch) {
+		int bassChannel = ch.BassChannel;
+		SetupSpatialization(bassChannel, in parms);
+		ChannelInfo info = Bass.ChannelGetInfo(bassChannel);
+		Bass.ChannelSetAttribute(bassChannel, ChannelAttribute.Frequency, info.Frequency * parms.Pitch / 100f);
+		SetupLoop(ref ch, info.Frequency);
+		ApplyChannelVolume(ref ch);
+		Bass.ChannelPlay(bassChannel);
 		Bass.Apply3D();
 	}
 
@@ -365,19 +431,25 @@ public class AudioSystem : IAudioSystem
 	}
 
 	private static uint RemainingSamples(ref Channel channel) {
-		if (channel.Sfx == null || channel.Sfx.Source == null)
+		if (channel.Sfx?.Source is not BassAudioSource source)
 			return 0;
 
-		// uint timeLeft = channel.Sfx.Source.SampleCount();
+		int handle = channel.BassChannel;
+		if (handle == 0)
+			return 0;
 
-		// if (channel.Sfx.Source.IsLooped())
-		// 	return channel.Sfx.Source.SampleRate();
+		ChannelInfo info = Bass.ChannelGetInfo(handle);
 
-		// if (channel.Mixer != null)
-		// 	timeLeft -= channel.Mixer.GetSamplePosition();
+		if (source.IsLooped())
+			return (uint)info.Frequency;
 
-		// return timeLeft;
-		return 0;
+		long lenBytes = Bass.ChannelGetLength(handle, PositionFlags.Bytes);
+		long posBytes = Bass.ChannelGetPosition(handle, PositionFlags.Bytes);
+		if (lenBytes <= 0 || posBytes < 0 || posBytes >= lenBytes)
+			return 0;
+
+		double secondsLeft = Bass.ChannelBytes2Seconds(handle, lenBytes - posBytes);
+		return (uint)(secondsLeft * info.Frequency);
 	}
 
 	private static int StealDynamicChannel(SoundSource soundsource, int entchannel, in Vector3 origin, SfxTable? sfx, float delay, bool doNotOverwriteExisting) {
@@ -497,10 +569,8 @@ public class AudioSystem : IAudioSystem
 				if (maxVolume < 5)
 					return chIdx;
 
-				if (ch.Sfx != null && ch.Sfx.Source != null) {
-					uint sampleCount = RemainingSamples(ref ch);
-					// timeLeft = (float)sampleCount / (float)ch.Sfx.Source.SampleRate();
-				}
+				if (ch.Sfx != null && ch.Sfx.Source != null)
+					timeLeft = RemainingSamples(ref ch);
 			}
 			else {
 				if (ch.Sfx != null)
@@ -555,7 +625,7 @@ public class AudioSystem : IAudioSystem
 	private void Precache(SfxTable sfx) {
 		BassAudioSource? src = (BassAudioSource?)sfx.Source;
 		if (src == null) {
-			src = new BassAudioMemorySource(sfx.GetFileName());
+			src = new BassAudioMemorySource(sfx);
 			sfx.Source = src;
 		}
 	}
@@ -591,19 +661,19 @@ public class AudioSystem : IAudioSystem
 		ch.MasterVol = (short)vol;
 		ch.BasePitch = (short)parms.Pitch;
 		ch.Origin = parms.Origin;
+		ch.DistMult = SndGain.SNDLVL_TO_DIST_MULT((int)parms.SoundLevel);
 		ch.Flags.UpdatePositions = parms.UpdatePositions && (parms.SoundSource != 0);
 		ch.Flags.FirstPass = true;
+		ch.Flags.Music = IsMusicSound(sfx);
 		ch.BassChannel = Bass.SampleGetChannel(((BassAudioSource)sfx.Source!).BassHandle, OnlyNew: false);
+		ch.Guid = (int)++s_SoundGuid;
 		g_ActiveChannels.Add(ref ch);
 
-		Spatialize(ch.BassChannel, in parms);
-		ChannelInfo info = Bass.ChannelGetInfo(ch.BassChannel);
-		Bass.ChannelSetAttribute(ch.BassChannel, ChannelAttribute.Frequency, info.Frequency * parms.Pitch / 100f);
-		Bass.ChannelSetAttribute(ch.BassChannel, ChannelAttribute.Volume, parms.Volume);
-		Bass.ChannelPlay(ch.BassChannel);
-		Bass.Apply3D();
+		PlaySound(in parms, ref ch);
 
-		return 0;
+		StartSoundParams startedParms = parms;
+		soundServices.OnSoundStarted(ch.Guid, ref startedParms, sndname);
+		return ch.Guid;
 	}
 
 	private bool AlterChannel(int soundSource, SoundEntityChannel entChannel, SfxTable? sfx, int vol, int pitch, SoundFlags flags) {
@@ -665,8 +735,7 @@ public class AudioSystem : IAudioSystem
 
 	readonly ChannelList reap =new();
 	public void Update(double v) {
-		Bass.GlobalSampleVolume = (int)(volume_sfx.GetFloat() * volume.GetFloat() * 10000);
-		Bass.GlobalMusicVolume = (int)(snd_musicvolume.GetFloat() * volume.GetFloat() * 10000);
+		Bass.GlobalSampleVolume = (int)(volume.GetFloat() * 10000);
 
 		reap.Clear();
 		g_ActiveChannels.GetActiveChannels(reap);
@@ -735,6 +804,7 @@ public class AudioSystem : IAudioSystem
 	}
 
 	public void UpdateListener(in Vector3 listenerOrigin, in Vector3 listenerForward, in Vector3 listenerRight, in Vector3 listenerUp, bool isListenerUnderwater) {
+		listener_origin = listenerOrigin;
 		Bass.Set3DPosition(ToBass(listenerOrigin), default, ToBass(listenerForward), ToBass(listenerUp));
 		Bass.Apply3D();
 	}
@@ -743,9 +813,43 @@ public class AudioSystem : IAudioSystem
 		return null;
 	}
 
+	public bool IsSoundStillPlaying(int guid) {
+		ChannelList list = new();
+		g_ActiveChannels.GetActiveChannels(list);
+		for (int i = 0; i < list.Count(); i++) {
+			ref Channel ch = ref list.GetChannel(i);
+			if (ch.Guid == guid && ch.Sfx != null)
+				return true;
+		}
+		return false;
+	}
+
+	public void StopSoundByGuid(int guid) {
+		ChannelList list = new();
+		g_ActiveChannels.GetActiveChannels(list);
+		for (int i = 0; i < list.Count(); i++) {
+			ref Channel ch = ref list.GetChannel(i);
+			if (ch.Guid == guid) {
+				SndMix.FreeChannel(ref ch);
+				return;
+			}
+		}
+	}
+
+	public void SetVolumeByGuid(int guid, float fvol) {
+		ChannelList list = new();
+		g_ActiveChannels.GetActiveChannels(list);
+		for (int i = 0; i < list.Count(); i++) {
+			ref Channel ch = ref list.GetChannel(i);
+			if (ch.Guid == guid) {
+				ch.MasterVol = (short)(255.0f * Math.Clamp(fvol, 0.0f, 1.0f));
+				ApplyChannelVolume(ref ch);
+				return;
+			}
+		}
+	}
+
 	readonly static ConVar volume = new("volume", "1.0", FCvar.Archive, "Sound volume", 0.0, 1.0);
-	readonly ConVar snd_musicvolume = new("snd_musicvolume", "1.0", FCvar.Archive, "Music volume", 0.0, 1.0);
-	readonly static ConVar volume_sfx = new("volume_sfx", "1.0", FCvar.Archive, "Sound effects volume", 0.0, 1.0);
 	readonly static ConVar snd_spatialize_roundrobin = new("snd_spatialize_roundrobin", "0", FCvar.None, "Lowend optimization: if nonzero, spatialize only a fraction of sound channels each frame. 1/2^x of channels will be spatialized per frame.");
 	readonly static ConVar voice_steal = new("voice_steal", "2");
 	static uint s_roundrobin = 0;

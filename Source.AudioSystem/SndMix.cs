@@ -21,6 +21,7 @@ public static class SndMix
 		ch.Flags.IsSentence = false;
 
 		// ch.Mixer = null;
+		AudioSystem.RemoveLoopSync(ch.BassChannel);
 		Bass.ChannelStop(ch.BassChannel);
 		ch.BassChannel = 0;
 		ch.Sfx = null;

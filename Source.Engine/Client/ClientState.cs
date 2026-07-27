@@ -253,7 +253,7 @@ IModelLoader modelloader, ICommandLine commandLine,
 			case Protocol.USER_INFO_TABLENAME:
 				UserInfoTable = table;
 				return true;
-			case Protocol.DOWNLOADABLES_TABLENAME:
+			case Protocol.DOWNLOADABLE_FILE_TABLENAME:
 				DownloadableFileTable = table;
 				return true;
 			case Protocol.CLIENT_LUA_FILES_TABLENAME:
@@ -673,20 +673,12 @@ IModelLoader modelloader, ICommandLine commandLine,
 		CL.FileReceived(fileName, transferID);
 		g_ClientDLL?.FileReceived(fileName, transferID);
 	}
-	public override void FileRequested(ReadOnlySpan<char> fileName, uint transferID) {
-		ConMsg($"File '{fileName}' requested from server {NetChannel!.GetAddress()}.\n");
-
-		if (!cl_allowupload.GetBool()) {
-			ConMsg("File uploading disabled.\n");
-			NetChannel.DenyFile(fileName, transferID);
-			return;
-		}
-
-		// TODO check if file valid for uploading
-		NetChannel.SendFile(fileName, transferID);
+	public override void FileRequested(RequestFile type, uint value, uint transferID) {
+		// todo
+		NetChannel!.DenyFile(transferID);
 	}
-	public override void FileDenied(ReadOnlySpan<char> fileName, uint transferID) {
-		CL.FileDenied(fileName, transferID);
+	public override void FileDenied(uint transferID) {
+		CL.FileDenied(transferID);
 	}
 	public override void FileSent(ReadOnlySpan<char> fileName, uint transferID) {
 
@@ -828,7 +820,7 @@ IModelLoader modelloader, ICommandLine commandLine,
 									continue;
 							}
 
-							CL.QueueDownload(fname);
+							CL.QueueDownload(fname, i);
 						}
 					}
 
