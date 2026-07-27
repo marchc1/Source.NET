@@ -18,6 +18,12 @@ public class MeshMgr : IMeshMgr
 		}
 	}
 
+	internal void DiscardVertexBuffers() {
+		for (int i = 0; i < DynamicVertexBuffers.Count; i++)
+			DynamicVertexBuffers[i].FlushASAP();
+		DynamicIndexBuffer?.FlushASAP();
+	}
+
 	public IMesh GetDynamicMesh(IMaterial? material, VertexFormat vertexFormat, int hwSkinBoneCount, bool buffered, IMesh? vertexOverride, IMesh? indexOverride) {
 		Assert(material == null || ((IMaterialInternal)material).IsRealTimeVersion());
 

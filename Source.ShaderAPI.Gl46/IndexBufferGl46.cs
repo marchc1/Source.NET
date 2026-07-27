@@ -50,13 +50,16 @@ public unsafe class IndexBufferGl46 : IDisposable
 
 	public short* Lock(bool readOnly, int indexCount, out int startIndex, int firstIndex) {
 		Assert(!Locked);
+
+		bool discard = false;
 		if (Dynamic) {
-			if (Flush || !HasEnoughRoom(indexCount)) {
+			if (Position == 0 || Flush || !HasEnoughRoom(indexCount)) {
 				if (SysmemBuffer != null)
 					LateCreateShouldDiscard = true;
 
 				Flush = false;
 				Position = 0;
+				discard = true;
 			}
 		}
 		else {
@@ -70,6 +73,9 @@ public unsafe class IndexBufferGl46 : IDisposable
 		startIndex = position;
 		if (SysmemBuffer == null) {
 			RecomputeIBO();
+		}
+		else if (discard) {
+			glNamedBufferData((uint)ibo, BufferSize, null, GL_DYNAMIC_DRAW);
 		}
 		Locked = true;
 		return (short*)SysmemBuffer + position;

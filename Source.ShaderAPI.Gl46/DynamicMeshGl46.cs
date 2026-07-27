@@ -56,6 +56,13 @@ public unsafe class DynamicMeshGl46 : MeshGl46
 		}
 
 		Lock(vertexCount, false, ref desc.Vertex);
+
+		if (FirstVertex < 0)
+			FirstVertex = desc.Vertex.FirstVertex;
+
+		if (IndexOverride || HasFlexMesh())
+			desc.Vertex.FirstVertex -= FirstVertex;
+
 		int firstIndex = Lock(false, -1, indexCount, ref desc.Index);
 		if (FirstIndex < 0)
 			FirstIndex = firstIndex;
@@ -151,10 +158,6 @@ public unsafe class DynamicMeshGl46 : MeshGl46
 			s_PrimsCount = 1;
 
 			DrawMesh();
-			
-			// DEVIATION: Flush ASAP after a dynamic mesh draw call
-			VertexBuffer.FlushASAP();
-			IndexBuffer.FlushASAP();
 
 			s_Prims = null;
 		}
