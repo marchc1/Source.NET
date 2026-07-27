@@ -950,6 +950,45 @@ public static class MathLib
 		matrix[2, 3] = 0.0f;
 	}
 
+	public static void AngleIMatrix(in QAngle angles, out Matrix3x4 matrix) {
+		matrix = default;
+
+		SinCos(DEG2RAD(angles[YAW]), out float sy, out float cy);
+		SinCos(DEG2RAD(angles[PITCH]), out float sp, out float cp);
+		SinCos(DEG2RAD(angles[ROLL]), out float sr, out float cr);
+
+		matrix[0, 0] = cp * cy;
+		matrix[0, 1] = cp * sy;
+		matrix[0, 2] = -sp;
+		matrix[1, 0] = sr * sp * cy + cr * -sy;
+		matrix[1, 1] = sr * sp * sy + cr * cy;
+		matrix[1, 2] = sr * cp;
+		matrix[2, 0] = (cr * sp * cy + -sr * -sy);
+		matrix[2, 1] = (cr * sp * sy + -sr * cy);
+		matrix[2, 2] = cr * cp;
+		matrix[0, 3] = 0.0f;
+		matrix[1, 3] = 0.0f;
+		matrix[2, 3] = 0.0f;
+	}
+
+	public static void AngleIMatrix(in QAngle angles, in Vector3 position, out Matrix3x4 mat) {
+		AngleIMatrix(angles, out mat);
+
+		VectorRotate(position, mat, out Vector3 translation);
+		translation *= -1.0f;
+		MatrixSetColumn(translation, 3, ref mat);
+	}
+
+	public static float MatrixRowDotProduct(in Matrix3x4 in1, int row, in Vector3 in2) {
+		Assert((row >= 0) && (row < 3));
+		return in1[row, 0] * in2[0] + in1[row, 1] * in2[1] + in1[row, 2] * in2[2];
+	}
+
+	public static float MatrixColumnDotProduct(in Matrix3x4 in1, int col, in Vector3 in2) {
+		Assert((col >= 0) && (col < 4));
+		return in1[0, col] * in2[0] + in1[1, col] * in2[1] + in1[2, col] * in2[2];
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void NormalizeAngles(ref QAngle angles) {
 		int i;

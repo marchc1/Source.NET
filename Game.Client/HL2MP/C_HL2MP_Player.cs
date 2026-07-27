@@ -104,6 +104,13 @@ public partial class C_HL2MP_Player : C_BaseHLPlayer
 		PlayerAnimState.Update();
 	}
 
+	public override ShadowType ShadowCastType() {
+		if (!IsVisible())
+			return ShadowType.None;
+
+		return ShadowType.RenderToTextureDynamic;
+	}
+
 	public override ref readonly QAngle GetRenderAngles() => ref PlayerAnimState.GetRenderAngles();
 }
 

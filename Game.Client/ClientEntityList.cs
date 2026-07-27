@@ -1,4 +1,5 @@
 ﻿global using static Game.Client.ClientEntityGlobals;
+
 using Game.Shared;
 
 using Source;
@@ -6,7 +7,8 @@ using Source.Common;
 
 namespace Game.Client;
 
-public static class ClientEntityGlobals {
+public static class ClientEntityGlobals
+{
 	public static readonly BaseHandle INVALID_CLIENTENTITY_HANDLE = new(Constants.INVALID_EHANDLE_INDEX);
 }
 public static class ClientEntityExts
@@ -39,7 +41,29 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 	}
 
 	public IClientNetworkable? GetClientNetworkableFromHandle(in BaseHandle ent) {
-		throw new NotImplementedException();
+		IClientUnknown? pEnt = GetClientUnknownFromHandle(ent);
+		return pEnt == null ? null : pEnt.GetClientNetworkable();
+	}
+
+	public void Release() {
+		BaseHandle iter = FirstHandle();
+		while (iter != InvalidHandle()) {
+			IClientNetworkable? net = GetClientNetworkableFromHandle(iter);
+			if (net != null)
+				net.Release();
+			else {
+				IClientThinkable? thinkable = GetClientThinkableFromHandle(iter);
+				thinkable?.Release();
+			}
+			RemoveEntity(iter);
+
+			iter = FirstHandle();
+		}
+
+		NumServerEnts = 0;
+		MaxServerEnts = 0;
+		NumClientNonNetworkable = 0;
+		MaxUsedServerIndex = -1;
 	}
 
 	public IClientUnknown? GetClientUnknownFromHandle(in BaseHandle ent) {

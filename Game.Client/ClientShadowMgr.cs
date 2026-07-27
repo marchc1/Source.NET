@@ -1,5 +1,6 @@
 global using static Game.Client.ClientShadowMgrGlobals;
 using static Source.Engine.ShadowMgrGlobals;
+using static Source.Engine.StaticPropMgrGlobals;
 
 using CommunityToolkit.HighPerformance;
 
@@ -48,6 +49,65 @@ public static class ClientShadowMgrGlobals
 
 	public static readonly List<C_BaseAnimating> s_NPCShadowBoneSetups = [];
 	public static readonly List<C_BaseAnimating> s_NonNPCShadowBoneSetups = [];
+
+	[ConCommand("r_shadowangles", "Set shadow angles", FCvar.Cheat)]
+	public static void r_shadowangles(in TokenizedCommand args) {
+		if (args.ArgC() == 1) {
+			Vector3 dir = s_ClientShadowMgr.GetShadowDirection();
+			MathLib.VectorAngles(dir, out QAngle angles);
+			Msg($"Shadow angles {angles.X} {angles.Y} {angles.Z}\n");
+			return;
+		}
+
+		if (args.ArgC() == 4) {
+			QAngle angles = default;
+			angles.X = float.Parse(args[1]);
+			angles.Y = float.Parse(args[2]);
+			angles.Z = float.Parse(args[3]);
+			MathLib.AngleVectors(angles, out Vector3 dir);
+			s_ClientShadowMgr.SetShadowDirection(dir);
+		}
+	}
+
+	[ConCommand("r_shadowcolor", "Set shadow color", FCvar.Cheat)]
+	public static void r_shadowcolor(in TokenizedCommand args) {
+		if (args.ArgC() == 1) {
+			s_ClientShadowMgr.GetShadowColor(out byte r, out byte g, out byte b);
+			Msg($"Shadow color {r} {g} {b}\n");
+			return;
+		}
+
+		if (args.ArgC() == 4) {
+			int r = int.Parse(args[1]);
+			int g = int.Parse(args[2]);
+			int b = int.Parse(args[3]);
+			s_ClientShadowMgr.SetShadowColor((byte)r, (byte)g, (byte)b);
+		}
+	}
+
+	[ConCommand("r_shadowdist", "Set shadow distance", FCvar.Cheat)]
+	public static void r_shadowdist(in TokenizedCommand args) {
+		if (args.ArgC() == 1) {
+			float dist = s_ClientShadowMgr.GetShadowDistance();
+			Msg($"Shadow distance {dist:F2}\n");
+			return;
+		}
+
+		if (args.ArgC() == 2)
+			s_ClientShadowMgr.SetShadowDistance(float.Parse(args[1]));
+	}
+
+	[ConCommand("r_shadowblobbycutoff", "some shadow stuff", FCvar.Cheat)]
+	public static void r_shadowblobbycutoff(in TokenizedCommand args) {
+		if (args.ArgC() == 1) {
+			float area = s_ClientShadowMgr.GetBlobbyCutoffArea();
+			Msg($"Cutoff area {area:F2}\n");
+			return;
+		}
+
+		if (args.ArgC() == 2)
+			s_ClientShadowMgr.SetShadowBlobbyCutoffArea(float.Parse(args[1]));
+	}
 }
 
 public class TextureAllocator
@@ -395,7 +455,24 @@ public class ClientShadowMgr : IClientShadowMgr
 
 	public void UpdateProjectedTexture(ClientShadowHandle_t handle, bool force = false) => throw new NotImplementedException();
 
-	public void ComputeBoundingSphere(IClientRenderable? renderable, out Vector3 origin, out float radius) => throw new NotImplementedException();
+	public void ComputeBoundingSphere(IClientRenderable? renderable, out Vector3 origin, out float radius) {
+		Assert(renderable != null);
+		renderable!.GetShadowRenderBounds(out Vector3 mins, out Vector3 maxs, GetActualShadowCastType(renderable));
+		MathLib.VectorSubtract(maxs, mins, out Vector3 size);
+		radius = size.Length() * 0.5f;
+
+		MathLib.VectorAdd(mins, maxs, out Vector3 centroid);
+		centroid *= 0.5f;
+
+		Span<Vector3> vec = stackalloc Vector3[3];
+		MathLib.AngleVectors(renderable.GetRenderAngles(), out vec[0], out vec[1], out vec[2]);
+		vec[1] *= -1.0f;
+
+		MathLib.VectorCopy(renderable.GetRenderOrigin(), out origin);
+		MathLib.VectorMA(origin, centroid.X, vec[0], out origin);
+		MathLib.VectorMA(origin, centroid.Y, vec[1], out origin);
+		MathLib.VectorMA(origin, centroid.Z, vec[2], out origin);
+	}
 
 	public void AddToDirtyShadowList(ClientShadowHandle_t handle, bool force = false) {
 		if (UpdatingDirtyShadows)
@@ -450,9 +527,76 @@ public class ClientShadowMgr : IClientShadowMgr
 		}
 	}
 
-	public void AddShadowToReceiver(ClientShadowHandle_t handle, IClientRenderable? renderable, ShadowReceiver type) => throw new NotImplementedException();
+	public void AddShadowToReceiver(ClientShadowHandle_t handle, IClientRenderable? renderable, ShadowReceiver type) {
+		ref ClientShadow_t shadow = ref Shadows[handle].Shadow;
 
-	public void RemoveAllShadowsFromReceiver(IClientRenderable? renderable, ShadowReceiver type) => throw new NotImplementedException();
+		IClientRenderable? sourceRenderable = cl_entitylist.GetClientRenderableFromHandle(shadow.Entity);
+
+		if (sourceRenderable == renderable)
+			return;
+
+		if (!renderable!.ShouldReceiveProjectedTextures(ShadowFlags.ProjectedTextureTypeMask))
+			return;
+
+		if (CullReceiver(handle, renderable, sourceRenderable))
+			return;
+
+		switch (type) {
+			case ShadowReceiver.BrushModel:
+				if ((shadow.Flags & (int)ShadowFlags.Flashlight) != 0) {
+					if (!shadow.TargetEntity.IsValid() || IsFlashlightTarget(handle, renderable)) {
+						g_ShadowMgr.AddShadowToBrushModel(shadow.ShadowHandle, renderable.GetModel(), renderable.GetRenderOrigin(), renderable.GetRenderAngles());
+						g_ShadowMgr.AddFlashlightRenderable(shadow.ShadowHandle, renderable);
+					}
+				}
+				else
+					g_ShadowMgr.AddShadowToBrushModel(shadow.ShadowHandle, renderable.GetModel(), renderable.GetRenderOrigin(), renderable.GetRenderAngles());
+				break;
+
+			case ShadowReceiver.StaticProp:
+				if (GetActualShadowCastType(handle) == ShadowType.RenderToTexture) {
+					C_BaseEntity? ent = sourceRenderable!.GetIClientUnknown()!.GetBaseEntity();
+					if (ent != null && (ent.GetFlags() & (EntityFlags.NPC | EntityFlags.Client)) != 0)
+						g_StaticPropMgr.AddShadowToStaticProp(shadow.ShadowHandle, renderable);
+				}
+				else if ((shadow.Flags & (int)ShadowFlags.Flashlight) != 0) {
+					if (!shadow.TargetEntity.IsValid() || IsFlashlightTarget(handle, renderable)) {
+						g_StaticPropMgr.AddShadowToStaticProp(shadow.ShadowHandle, renderable);
+						g_ShadowMgr.AddFlashlightRenderable(shadow.ShadowHandle, renderable);
+					}
+				}
+				break;
+
+			case ShadowReceiver.StudioModel:
+				if ((shadow.Flags & (int)ShadowFlags.Flashlight) != 0) {
+					if (!shadow.TargetEntity.IsValid() || IsFlashlightTarget(handle, renderable)) {
+						renderable.CreateModelInstance();
+						g_ShadowMgr.AddShadowToModel(shadow.ShadowHandle, renderable.GetModelInstance());
+						g_ShadowMgr.AddFlashlightRenderable(shadow.ShadowHandle, renderable);
+					}
+				}
+				break;
+		}
+	}
+
+	public void RemoveAllShadowsFromReceiver(IClientRenderable? renderable, ShadowReceiver type) {
+		if (!renderable!.ShouldReceiveProjectedTextures(ShadowFlags.ProjectedTextureTypeMask))
+			return;
+
+		switch (type) {
+			case ShadowReceiver.BrushModel:
+				Model? model = renderable.GetModel();
+				g_ShadowMgr.RemoveAllShadowsFromBrushModel(model);
+				break;
+			case ShadowReceiver.StaticProp:
+				g_StaticPropMgr.RemoveAllShadowsFromStaticProp(renderable);
+				break;
+			case ShadowReceiver.StudioModel:
+				if (renderable.GetModelInstance() != MODEL_INSTANCE_INVALID)
+					g_ShadowMgr.RemoveAllShadowsFromModel(renderable.GetModelInstance());
+				break;
+		}
+	}
 
 	public void ComputeShadowTextures(in ViewSetup view, int leafCount, ReadOnlySpan<LeafIndex_t> leafList) => throw new NotImplementedException();
 
@@ -886,7 +1030,29 @@ public class ClientShadowMgr : IClientShadowMgr
 
 	void BuildFlashlight(ClientShadowHandle_t handle) => throw new NotImplementedException();
 
-	void SetupRenderToTextureShadow(ClientShadowHandle_t h) => throw new NotImplementedException();
+	void SetupRenderToTextureShadow(ClientShadowHandle_t h) {
+		ref ClientShadow_t shadow = ref Shadows[h].Shadow;
+
+		IClientRenderable? renderable = cl_entitylist.GetClientRenderableFromHandle(shadow.Entity);
+		if (renderable == null)
+			return;
+
+		Vector3 mins, maxs;
+		renderable.GetShadowRenderBounds(out mins, out maxs, GetActualShadowCastType(h));
+
+		Vector3 size;
+		MathLib.VectorSubtract(maxs, mins, out size);
+		float maxSize = Math.Max(size.X, size.Y);
+		maxSize = Math.Max(maxSize, size.Z);
+
+		float texelCount = TEXEL_SIZE_PER_CASTER_SIZE * maxSize;
+
+		int textureSize = 1;
+		while (textureSize < texelCount)
+			textureSize <<= 1;
+
+		shadow.ShadowTexture = ShadowAllocator.AllocateTexture(textureSize, textureSize);
+	}
 	void CleanUpRenderToTextureShadow(ClientShadowHandle_t h) {
 		ref ClientShadow_t shadow = ref Shadows[h].Shadow;
 		if (RenderToTextureActive && (shadow.Flags & (int)ClientShadowFlags.UseRenderToTexture) != 0) {
@@ -900,9 +1066,66 @@ public class ClientShadowMgr : IClientShadowMgr
 	void ClearExtraClipPlanes(ClientShadowHandle_t h) => throw new NotImplementedException();
 	void AddExtraClipPlane(ClientShadowHandle_t h, in Vector3 normal, float dist) => throw new NotImplementedException();
 
-	bool CullReceiver(ClientShadowHandle_t handle, IClientRenderable? renderable, IClientRenderable? sourceRenderable) => throw new NotImplementedException();
+	bool CullReceiver(ClientShadowHandle_t handle, IClientRenderable? renderable, IClientRenderable? sourceRenderable) {
+		if ((Shadows[handle].Shadow.Flags & (int)ShadowFlags.Flashlight) != 0) {
+			Assert(sourceRenderable == null);
+			Frustum_t frustum = g_ShadowMgr.GetFlashlightFrustum(Shadows[handle].Shadow.ShadowHandle);
 
-	bool ComputeSeparatingPlane(IClientRenderable? rend1, IClientRenderable? rend2, out CollisionPlane plane) => throw new NotImplementedException();
+			renderable!.GetRenderBoundsWorldspace(out Vector3 mins, out Vector3 maxs);
+
+			return MathLib.R_CullBox(mins, maxs, frustum);
+		}
+
+		Assert(sourceRenderable != null);
+		ComputeBoundingSphere(renderable, out Vector3 origin, out float radius);
+
+		ref ClientShadow_t shadow = ref Shadows[handle].Shadow;
+		ref readonly Source.Common.Engine.ShadowInfo_t info = ref g_ShadowMgr.GetInfo(shadow.ShadowHandle);
+		MathLib.Vector3DMultiplyPosition(shadow.WorldToShadow, origin, out Vector3 localOrigin);
+
+		Vector3 shadowMin = new(-shadow.WorldSize.X * 0.5f, -shadow.WorldSize.Y * 0.5f, 0);
+		Vector3 shadowMax = new(shadow.WorldSize.X * 0.5f, shadow.WorldSize.Y * 0.5f, info.MaxDist);
+
+		if (!CollisionUtils.IsBoxIntersectingSphere(shadowMin, shadowMax, localOrigin, radius))
+			return true;
+
+		ComputeBoundingSphere(sourceRenderable, out Vector3 originSource, out float radiusSource);
+
+		bool foundSeparatingPlane;
+		CollisionPlane plane;
+		if (!CollisionUtils.IsSphereIntersectingSphere(originSource, radiusSource, origin, radius)) {
+			foundSeparatingPlane = true;
+			plane = default;
+
+			MathLib.VectorSubtract(origin, originSource, out plane.Normal);
+		}
+		else
+			foundSeparatingPlane = ComputeSeparatingPlane(renderable, sourceRenderable, out plane);
+
+		if (foundSeparatingPlane) {
+			Vector3 shadowDir = GetShadowDirection(sourceRenderable);
+			float shadowDot = MathLib.DotProduct(shadowDir, plane.Normal);
+			float receiverDot = MathLib.DotProduct(plane.Normal, origin);
+			float sourceDot = MathLib.DotProduct(plane.Normal, originSource);
+
+			if (shadowDot > 0.0f) {
+				if (receiverDot <= sourceDot)
+					return true;
+			}
+			else {
+				if (receiverDot >= sourceDot)
+					return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool ComputeSeparatingPlane(IClientRenderable? rend1, IClientRenderable? rend2, out CollisionPlane plane) {
+		rend1!.GetShadowRenderBounds(out Vector3 min1, out Vector3 max1, GetActualShadowCastType(rend1));
+		rend2!.GetShadowRenderBounds(out Vector3 min2, out Vector3 max2, GetActualShadowCastType(rend2));
+		return CollisionUtils.ComputeSeparatingPlane(rend1.GetRenderOrigin(), rend1.GetRenderAngles(), min1, max1, rend2.GetRenderOrigin(), rend2.GetRenderAngles(), min2, max2, 3.0f, out plane);
+	}
 
 	void UpdateAllShadows() {
 		foreach (ClientShadowHandle_t i in ValidShadowHandles) {
@@ -1020,9 +1243,9 @@ public class ClientShadowMgr : IClientShadowMgr
 			ShadowAllocator.Reset();
 			RenderTargetNeedsClear = true;
 
-			float fr = (float)AmbientLightColor.R / 255.0f;
-			float fg = (float)AmbientLightColor.G / 255.0f;
-			float fb = (float)AmbientLightColor.B / 255.0f;
+			float fr = AmbientLightColor.R / 255.0f;
+			float fg = AmbientLightColor.G / 255.0f;
+			float fb = AmbientLightColor.B / 255.0f;
 			RenderShadow!.ColorModulate(fr, fg, fb);
 			RenderModelShadow!.ColorModulate(fr, fg, fb);
 
@@ -1073,6 +1296,9 @@ public class ClientShadowMgr : IClientShadowMgr
 			if (modelType == ModelType.Brush)
 				flags |= (int)ShadowFlags_t.BrushModel;
 		}
+
+		while (curShadowHandleIdx == CLIENTSHADOW_INVALID_HANDLE || Shadows.ContainsKey(curShadowHandleIdx))
+			curShadowHandleIdx++;
 
 		ClientShadowHandle_t h = curShadowHandleIdx++;
 		Shadows[h] = new();

@@ -411,7 +411,8 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 
 		modemanager.LevelShutdown();
 		// tempents.LevelShutdown();
-		// cl_entitylist.Release()
+
+		cl_entitylist.Release();
 
 		// C_BaseEntityClassList classList = s_pClassLists;
 		// while (classList != null) {

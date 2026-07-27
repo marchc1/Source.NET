@@ -985,7 +985,22 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 
 	public void AddShadowToModel(ShadowHandle_t handle, ModelInstanceHandle_t model) => throw new NotImplementedException();
 
-	public void RemoveAllShadowsFromModel(ModelInstanceHandle_t model) => throw new NotImplementedException();
+	public void RemoveAllShadowsFromModel(ModelInstanceHandle_t model) {
+		if (model != MODEL_INSTANCE_INVALID) {
+			ShadowsOnModels.RemoveBucket(model);
+
+			foreach (FlashlightHandle_t i in ValidFlashlightHandles) {
+				ref FlashlightInfo info = ref FlashlightStates[i].Info;
+
+				for (int j = 0; j < info.Renderables.Count; j++) {
+					if (info.Renderables[j]!.GetModelInstance() == model) {
+						info.Renderables.RemoveAt(j);
+						break;
+					}
+				}
+			}
+		}
+	}
 
 	void RemoveAllModelsFromShadow(ShadowHandle_t handle) {
 		ShadowsOnModels.RemoveElement(handle);
@@ -1178,9 +1193,44 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 		return true;
 	}
 
-	public void AddShadowToBrushModel(ShadowHandle_t handle, Model? model, in Vector3 origin, in QAngle angles) => throw new NotImplementedException();
+	public void AddShadowToBrushModel(ShadowHandle_t handle, Model? model, in Vector3 origin, in QAngle angles) {
+		if (r_shadows.GetInt() == 0)
+			return;
 
-	public void RemoveAllShadowsFromBrushModel(Model? model) => throw new NotImplementedException();
+		ref Shadow shadow = ref Shadows[handle];
+
+		Vector3 shadowDirInModelSpace = default;
+		bool isFlashlight = (shadow.Flags & ShadowCreateFlags.Flashlight) != 0;
+		if (!isFlashlight) {
+			MathLib.AngleIMatrix(angles, out Matrix3x4 worldToModel);
+			MathLib.VectorRotate(shadow.ProjectionDir, worldToModel, out shadowDirInModelSpace);
+		}
+
+		for (int i = 0; i < model!.Brush.NumModelSurfaces; ++i) {
+			SurfaceHandle_t surfID = model.Brush.FirstModelSurface + i;
+			ref BSPMSurface2 surf = ref ModelLoader.SurfaceHandleFromIndex(surfID, model.Brush.Shared);
+
+			SurfDraw flags = ModelLoader.MSurf_Flags(ref surf);
+			if ((flags & SurfDraw.NoDraw) != 0)
+				continue;
+
+			if (!isFlashlight) {
+				if ((flags & SurfDraw.NoCull) == 0) {
+					ref CollisionPlane surfPlane = ref ModelLoader.MSurf_Plane(ref surf);
+					float dot = MathLib.DotProduct(shadowDirInModelSpace, surfPlane.Normal);
+					if (dot > 0)
+						continue;
+				}
+			}
+
+			AddSurfaceToShadow(handle, surfID);
+		}
+	}
+
+	public void RemoveAllShadowsFromBrushModel(Model? model) {
+		for (int i = 0; i < model!.Brush.NumModelSurfaces; ++i)
+			RemoveAllShadowsFromSurface(model.Brush.FirstModelSurface + i);
+	}
 
 	public void AddShadowsOnSurfaceToRenderList(ShadowDecalHandle_t decalHandle) {
 		if (r_shadows.GetInt() == 0)

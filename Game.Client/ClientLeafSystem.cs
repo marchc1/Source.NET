@@ -127,7 +127,13 @@ public class ClientLeafSystem : IClientLeafSystem, ISpatialLeafEnumerator
 
 	void RemoveFromTree(ClientRenderHandle_t handle) {
 		RenderablesInLeaf.RemoveElement(handle);
-		// todo
+
+		ShadowsOnRenderable.RemoveBucket(handle);
+
+		if ((Renderables[handle].Info.Flags & RenderFlags.BrushModel) != 0)
+			g_ClientShadowMgr.RemoveAllShadowsFromReceiver(Renderables[handle].Info.Renderable, ShadowReceiver.BrushModel);
+		else if ((Renderables[handle].Info.Flags & RenderFlags.StudioModel) != 0)
+			g_ClientShadowMgr.RemoveAllShadowsFromReceiver(Renderables[handle].Info.Renderable, ShadowReceiver.StudioModel);
 	}
 
 	public bool EnumerateLeaf(int leaf, nint context) {
