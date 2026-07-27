@@ -69,6 +69,9 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void ClearColor4ub(byte r, byte g, byte b, byte a);
 	void GetBackBufferDimensions(out int width, out int height);
 	ImageFormat GetBackBufferFormat();
+	bool SupportsShadowDepthTextures();
+	ImageFormat GetShadowDepthTextureFormat();
+	ImageFormat GetNullTextureFormat();
 	void BeginFrame();
 	void EndFrame();
 	int GetCurrentDynamicVBSize();

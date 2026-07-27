@@ -71,6 +71,7 @@ global using DispDecalFragmentHandle = ushort;
 global using DispShadowFragmentHandle = ushort;
 global using fltx4 = System.Runtime.Intrinsics.Vector128<float>;
 global using static Source.Common.ClientRenderHandleGlobals;
+global using static Source.Common.ClientRenderableGlobals;
 global using static Source.Common.Audio.AudioConstants;
 global using static Source.Common.Engine.EdictGlobals;
 global using static Source.Common.Engine.ShadowGlobals;

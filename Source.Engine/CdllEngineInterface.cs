@@ -275,7 +275,11 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	}
 
 	public void GetAmbientLightColor(out Vector3 color) {
-		throw new NotImplementedException();
+		BSPDWorldLight? worldLight = ((Render)g_EngineRenderer).FindAmbientLight();
+		if (worldLight == null)
+			color = new(0, 0, 0);
+		else
+			MathLib.VectorCopy(worldLight.Value.Intensity, out color);
 	}
 
 	public int GetDXSupportLevel() {

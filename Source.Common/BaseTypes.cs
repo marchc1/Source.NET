@@ -44,4 +44,8 @@ public struct Interval
 public static class BaseTypesGlobals
 {
 	public static int PAD_NUMBER(int number, int boundary) => (number + (boundary - 1)) / boundary * boundary;
+
+	public static float FloatMakeNegative(vec_t f) => -MathF.Abs(f);
+	public static float FloatMakePositive(vec_t f) => MathF.Abs(f);
+	public static float FloatNegate(vec_t f) => -f;
 }

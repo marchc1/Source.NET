@@ -97,6 +97,31 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		base.ResetLatched();
 	}
 	public bool IsRagdoll() => Ragdoll != null && RenderFX == (byte)RenderFx.Ragdoll;
+
+	public override ShadowType ShadowCastType() {
+		StudioHdr? studioHdr = GetModelPtr();
+		if (studioHdr == null || !studioHdr.SequencesAvailable())
+			return ShadowType.None;
+
+		if (IsEffectActive(EntityEffects.NoDraw | EntityEffects.NoShadow))
+			return ShadowType.None;
+
+		if (studioHdr.GetNumSeq() == 0)
+			return ShadowType.RenderToTexture;
+
+		if (!IsRagdoll()) {
+			if (studioHdr.GetNumPoseParameters() > 0)
+				return ShadowType.RenderToTextureDynamic;
+
+			if (studioHdr.GetRenderHdr().NumBoneControllers > 0)
+				return ShadowType.RenderToTextureDynamic;
+
+			if (studioHdr.GetRenderHdr().NumIKChains > 0)
+				return ShadowType.RenderToTextureDynamic;
+		}
+
+		return ShadowType.RenderToTexture;
+	}
 	public bool IsAboutToRagdoll() => RenderFX == (byte)RenderFx.Ragdoll;
 	public override void ClientThink() {
 		base.ClientThink();
@@ -370,6 +395,8 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 		if (!GetPredictable())
 			RemoveVar(this, DA_Cycle, false);
 	}
+
+	public bool ComputeHitboxSurroundingBox(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) => throw new NotImplementedException();
 
 	public override bool SetupBones(Span<Matrix3x4> boneToWorldOut, int maxBones, int boneMask, double currentTime) {
 		if (!boneToWorldOut.IsEmpty && !IsBoneAccessAllowed()) {

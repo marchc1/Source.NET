@@ -46,6 +46,11 @@ public class ClientEntityList : BaseEntityList, IClientEntityList
 		return (IClientUnknown?)LookupEntity(ent);
 	}
 
+	public IClientRenderable? GetClientRenderableFromHandle(in BaseHandle ent) {
+		IClientUnknown? pEnt = GetClientUnknownFromHandle(ent);
+		return pEnt == null ? null : pEnt.GetClientRenderable();
+	}
+
 	public int GetHighestEntityIndex() {
 		return MaxUsedServerIndex;
 	}

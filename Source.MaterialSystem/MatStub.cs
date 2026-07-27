@@ -389,6 +389,9 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 			width = height = 32;
 	}
 	public IMaterialProxyFactory? GetMaterialProxyFactory() => null;
+	public void AddRestoreFunc(Action<int> func) { }
+	public void RemoveRestoreFunc(Action<int> func) { }
+	public bool SupportsShadowDepthTextures() => false;
 	public int GetMaxIndicesToRender() => 32768;
 	public int GetMaxVerticesToRender(IMaterial material) => 32768;
 	public int GetNumSortIDs() => 10;
@@ -466,4 +469,6 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public void SetStencilTestMask(uint msk) { }
 	public void SetStencilWriteMask(uint msk) { }
 	public void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor) { }
+	public ImageFormat GetShadowDepthTextureFormat() => ImageFormat.Unknown;
+	public ImageFormat GetNullTextureFormat() => ImageFormat.Unknown;
 }

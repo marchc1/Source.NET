@@ -811,7 +811,9 @@ public static class GLRSurf
 
 		ResetWorldRenderList(renderList);
 
-		// TODO decal/overlaymgr/shadowmgr
+		// TODO decal/overlaymgr
+
+		g_ShadowMgr.ClearShadowRenderList();
 	}
 	static void Shader_WorldZFillSurfChain(in MSurfaceSortList sortList, in SurfaceSortGroup group, MeshBuilder meshBuilder, ref nint startVertIn, uint includeFlags) => throw new NotImplementedException();
 	static void Shader_WorldShadowDepthFill(WorldRenderList renderList, DrawWorldListFlags flags) => throw new NotImplementedException();
@@ -1865,7 +1867,19 @@ public class EngineBSPTree : ISpatialQuery
 		}
 	}
 
-	public bool EnumerateLeavesAlongRay<T>(in Ray ray, ref T pEnum, nint context) where T : ISpatialLeafEnumerator => throw new NotImplementedException();
+	public bool EnumerateLeavesAlongRay<T>(in Ray ray, ref T pEnum, nint context) where T : ISpatialLeafEnumerator {
+		if (!ray.IsSwept) {
+			MathLib.VectorAdd(in ray.Start, in ray.Extents, out Vector3 maxs);
+			MathLib.VectorSubtract(in ray.Start, in ray.Extents, out Vector3 mins);
+
+			return EnumerateLeavesInBox(in mins, in maxs, ref pEnum, context);
+		}
+
+		if (ray.IsRay)
+			return EnumerateLeavesAlongRay_R(host_state.WorldBrush!.Nodes![0], in ray, 0.0f, 1.0f, pEnum, context);
+		else
+			return EnumerateLeavesAlongExtrudedRay_R(host_state.WorldBrush!.Nodes![0], in ray, 0.0f, 1.0f, pEnum, context);
+	}
 
 	static bool EnumerateLeafInBox_R<T>(BSPMNode node, ref EnumLeafBoxInfo<T> info) where T : ISpatialLeafEnumerator {
 		if (node.Contents == (int)Contents.Solid)
@@ -1919,9 +1933,112 @@ public class EngineBSPTree : ISpatialQuery
 		}
 	}
 
-	static bool EnumerateLeavesAlongRay_R(BSPMNode node, in Ray ray, float start, float end, ISpatialLeafEnumerator pEnum, nint context) => throw new NotImplementedException();
+	static bool EnumerateLeavesAlongRay_R(BSPMNode node, in Ray ray, float start, float end, ISpatialLeafEnumerator pEnum, nint context) {
+		if (node.Contents == (int)Contents.Solid)
+			return true;
 
-	static bool EnumerateLeavesAlongExtrudedRay_R(BSPMNode node, in Ray ray, float start, float end, ISpatialLeafEnumerator pEnum, nint context) => throw new NotImplementedException();
+		if (node.Contents >= 0)
+			return pEnum.EnumerateLeaf(((BSPMLeaf)node).Index, context);
+
+		ref CollisionPlane plane = ref node.Plane;
+
+		float startDotN, deltaDotN;
+		if ((byte)plane.Type <= 2) {
+			startDotN = ray.Start[(byte)plane.Type];
+			deltaDotN = ray.Delta[(byte)plane.Type];
+		}
+		else {
+			startDotN = MathLib.DotProduct(ray.Start, plane.Normal);
+			deltaDotN = MathLib.DotProduct(ray.Delta, plane.Normal);
+		}
+
+		float front = startDotN + start * deltaDotN - plane.Dist;
+		float back = startDotN + end * deltaDotN - plane.Dist;
+
+		int side = front < 0 ? 1 : 0;
+
+		if ((back < 0 ? 1 : 0) == side)
+			return EnumerateLeavesAlongRay_R(node.Children[side]!, in ray, start, end, pEnum, context);
+
+		float frac = front / (front - back);
+		float mid = start * (1.0f - frac) + end * frac;
+
+		bool ok = EnumerateLeavesAlongRay_R(node.Children[side]!, in ray, start, mid, pEnum, context);
+		if (!ok)
+			return ok;
+
+		return EnumerateLeavesAlongRay_R(node.Children[side != 0 ? 0 : 1]!, in ray, mid, end, pEnum, context);
+	}
+
+	static bool EnumerateLeavesAlongExtrudedRay_R(BSPMNode node, in Ray ray, float start, float end, ISpatialLeafEnumerator pEnum, nint context) {
+		if (node.Contents == (int)Contents.Solid)
+			return true;
+
+		if (node.Contents >= 0)
+			return pEnum.EnumerateLeaf(((BSPMLeaf)node).Index, context);
+
+		ref CollisionPlane plane = ref node.Plane;
+
+		float t1, t2, offset;
+		float startDotN, deltaDotN;
+		if ((byte)plane.Type <= 2) {
+			startDotN = ray.Start[(byte)plane.Type];
+			deltaDotN = ray.Delta[(byte)plane.Type];
+			offset = ray.Extents[(byte)plane.Type] + DIST_EPSILON;
+		}
+		else {
+			startDotN = MathLib.DotProduct(ray.Start, plane.Normal);
+			deltaDotN = MathLib.DotProduct(ray.Delta, plane.Normal);
+			offset = MathF.Abs(ray.Extents[0] * plane.Normal[0]) +
+					MathF.Abs(ray.Extents[1] * plane.Normal[1]) +
+					MathF.Abs(ray.Extents[2] * plane.Normal[2]) + DIST_EPSILON;
+		}
+		t1 = startDotN + start * deltaDotN - plane.Dist;
+		t2 = startDotN + end * deltaDotN - plane.Dist;
+
+		if (t1 > offset && t2 > offset)
+			return EnumerateLeavesAlongExtrudedRay_R(node.Children[0]!, in ray, start, end, pEnum, context);
+
+		if (t1 < -offset && t2 < -offset)
+			return EnumerateLeavesAlongExtrudedRay_R(node.Children[1]!, in ray, start, end, pEnum, context);
+
+		if (MathF.Abs(t1 - t2) < DIST_EPSILON) {
+			bool parallelRet = EnumerateLeavesAlongExtrudedRay_R(node.Children[0]!, in ray, start, end, pEnum, context);
+			if (!parallelRet)
+				return false;
+			return EnumerateLeavesAlongExtrudedRay_R(node.Children[1]!, in ray, start, end, pEnum, context);
+		}
+
+		float idist, frac2, frac;
+		int side;
+		if (t1 < t2) {
+			idist = 1.0f / (t1 - t2);
+			side = 1;
+			frac2 = (t1 + offset) * idist;
+			frac = (t1 - offset) * idist;
+		}
+		else if (t1 > t2) {
+			idist = 1.0f / (t1 - t2);
+			side = 0;
+			frac2 = (t1 - offset) * idist;
+			frac = (t1 + offset) * idist;
+		}
+		else {
+			side = 0;
+			frac = 1;
+			frac2 = 0;
+		}
+
+		frac = Math.Clamp(frac, 0f, 1f);
+		float midf = start + (end - start) * frac;
+		bool ret = EnumerateLeavesAlongExtrudedRay_R(node.Children[side]!, in ray, start, midf, pEnum, context);
+		if (!ret)
+			return ret;
+
+		frac2 = Math.Clamp(frac2, 0f, 1f);
+		midf = start + (end - start) * frac2;
+		return EnumerateLeavesAlongExtrudedRay_R(node.Children[side != 0 ? 0 : 1]!, in ray, midf, end, pEnum, context);
+	}
 
 	static bool EnumerateLeafInSphere_R<T>(BSPMNode node, ref EnumLeafSphereInfo<T> info, int testFlags) where T : ISpatialLeafEnumerator {
 		while (true) {

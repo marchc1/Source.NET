@@ -119,6 +119,7 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		IGameSystem.Add(Singleton<ClientLeafSystem>());
 		IGameSystem.Add(DetailObjectSystem.GetDetailObjectSystem());
 		IGameSystem.Add(Singleton<ViewportClientSystem>());
+		IGameSystem.Add(g_ClientShadowMgr);
 		IGameSystem.Add(ClientSoundscapeSystem());
 
 		vgui = services.GetService<IVGui>();
@@ -486,9 +487,9 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		h.Stream.Write(compressed);
 		filesRequesting_Recv++;
 
-		if (filesRequesting_Recv != filesRequesting_Total) 
+		if (filesRequesting_Recv != filesRequesting_Total)
 			gameUI.UpdateProgressBar(filesRequesting_Recv / (float)filesRequesting_Total, $"Received {filesRequesting_Recv}/{filesRequesting_Total} Lua files...");
-		
+
 	}
 
 	public void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {

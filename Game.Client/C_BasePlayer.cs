@@ -41,6 +41,8 @@ public struct C_PredictionError
 [LinkEntityToClass("player")]
 public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 {
+	public override ShadowType ShadowCastType() => ShadowType.None;
+
 	public static readonly DataMap PM_PlayerState = new(typeof(PlayerState), [
 		DEFINE<PlayerState>.PRED_FIELD( nameof(PlayerState.DeadFlag), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
 	]);

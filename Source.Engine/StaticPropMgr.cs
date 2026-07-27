@@ -713,8 +713,8 @@ public class StaticProp : IClientUnknown, IClientRenderable, ICollideable
 		else
 			return false;
 	}
-	public bool GetShadowCastDistance(out float dist, ShadowType shadowType) { dist = 0; return false; }
-	public bool GetShadowCastDirection(out Vector3 direction, ShadowType shadowType) { direction = default; return false; }
+	public bool GetShadowCastDistance(ref float dist, ShadowType shadowType) { return false; }
+	public bool GetShadowCastDirection(ref Vector3 direction, ShadowType shadowType) { return false; }
 	public bool UsesPowerOfTwoFrameBufferTexture() => throw new NotImplementedException();
 	public bool UsesFullFrameBufferTexture() => throw new NotImplementedException();
 	public ClientShadowHandle_t GetShadowHandle() => unchecked((ClientShadowHandle_t)~0);

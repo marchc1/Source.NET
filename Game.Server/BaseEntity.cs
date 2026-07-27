@@ -963,6 +963,12 @@ public partial class BaseEntity : IServerEntity
 	public void ClearSolidFlags() => CollisionProp().ClearSolidFlags();
 	public object? GetBaseEntity() => this;
 	public virtual BaseAnimating? GetBaseAnimating() => null;
+
+	public virtual void ComputeWorldSpaceSurroundingBox(out Vector3 vecMins, out Vector3 vecMaxs) {
+		Assert(false);
+		vecMins = default;
+		vecMaxs = default;
+	}
 	private float GetFriction() => Friction;
 
 	public void NetworkStateChanged() => NetworkProp().NetworkStateChanged();

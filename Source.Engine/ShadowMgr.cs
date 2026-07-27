@@ -15,8 +15,6 @@ namespace Source.Engine;
 
 public static class ShadowMgrGlobals
 {
-	public static readonly ShadowMgr g_ShadowMgr = new();
-
 	public const int SHADOW_VERTEX_SMALL_CACHE_COUNT = 8;
 	public const int SHADOW_VERTEX_LARGE_CACHE_COUNT = 32;
 	public const int SHADOW_VERTEX_TEMP_COUNT = 48;
@@ -39,6 +37,8 @@ public static class ShadowMgrGlobals
 	public static readonly ConVar r_flashlightrender = new("r_flashlightrender", "1");
 	public static readonly ConVar r_flashlightculldepth = new("r_flashlightculldepth", "1");
 	public static readonly ConVar r_flashlight_version2 = new("r_flashlight_version2", "0", FCvar.Cheat | FCvar.DevelopmentOnly);
+
+	public static readonly ShadowMgr g_ShadowMgr = new();
 
 	public static bool ScreenSpaceRectFromPoints(MatRenderContextPtr renderContext, Vector3[][] clippedPolygons, Span<int> numPoints, int numPolygons, out int left, out int top, out int right, out int bottom) {
 		left = top = right = bottom = 0;
@@ -254,7 +254,7 @@ public static class ShadowMgrGlobals
 		return numPoints;
 	}
 
-	public static ref uint FirstShadowOnModel(ModelInstanceHandle_t h) => throw new NotImplementedException();
+	public static ref uint FirstShadowOnModel(ModelInstanceHandle_t h) => ref ((ModelRender)modelrender).FirstShadowOnModelInstance(h);
 
 	public static ref uint FirstModelInShadow(ShadowHandle_t h) => ref g_ShadowMgr.FirstModelInShadow(h);
 }
@@ -575,6 +575,14 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 	nint[] ShadowDecalCache = new nint[SHADOW_DECAL_CACHE_COUNT];
 	DispShadowHandle[] DispShadowDecalCache = new DispShadowHandle[SHADOW_DECAL_CACHE_COUNT];
 
+	public ShadowMgr() {
+		ShadowsOnModels.Init(FirstShadowOnModel, FirstModelInShadow);
+		NumWorldMaterialBuckets = 0;
+		SurfaceBounds = null;
+		Initialized = false;
+		ClearShadowRenderList();
+	}
+
 	public void LevelInit(int surfCount) {
 		if (Initialized)
 			return;
@@ -631,7 +639,7 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 		shadow.ModelMaterial?.DecrementReferenceCount();
 	}
 
-	public int InvalidShadowIndex() => throw new NotImplementedException();
+	public int InvalidShadowIndex() => BidirectionalSet<ModelInstanceHandle_t, ShadowHandle_t>.InvalidIndex;
 
 	public ShadowHandle_t CreateShadow(IMaterial? material, IMaterial? modelMaterial, object? bindProxy, int creationFlags) => CreateShadowEx(material, modelMaterial, bindProxy, creationFlags);
 
@@ -1925,5 +1933,5 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 
 	public void AddFlashlightRenderable(ShadowHandle_t shadowHandle, IClientRenderable? renderable) => throw new NotImplementedException();
 
-	public ref uint FirstModelInShadow(ShadowHandle_t h) => throw new NotImplementedException();
+	public ref uint FirstModelInShadow(ShadowHandle_t h) => ref Shadows[h].FirstModel;
 }

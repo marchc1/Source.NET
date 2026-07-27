@@ -269,7 +269,7 @@ public interface IMaterialSystem
 	IMaterial CreateMaterial(ReadOnlySpan<char> name, ReadOnlySpan<char> textureGroupName, KeyValues keyValues);
 	IMaterial CreateMaterial(ReadOnlySpan<char> name, KeyValues keyValues);
 	bool CanUseEditorMaterials();
-	IMaterial FindMaterial(ReadOnlySpan<char> filename, ReadOnlySpan<char> textureGroup, bool complain = false, ReadOnlySpan<char> complainPrefix = default);
+	IMaterial FindMaterial(ReadOnlySpan<char> filename, ReadOnlySpan<char> textureGroup, bool complain = true, ReadOnlySpan<char> complainPrefix = default);
 	IMaterial? FindProceduralMaterial(ReadOnlySpan<char> materialName, ReadOnlySpan<char> textureGroupName, KeyValues keyValues);
 	void RestoreShaderObjects(IServiceProvider services, int changeFlags);
 	ITexture CreateProceduralTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroup, int wide, int tall, ImageFormat format, TextureFlags flags);
@@ -293,6 +293,11 @@ public interface IMaterialSystem
 	void EndUpdateLightmaps();
 	void SetMaterialProxyFactory(IMaterialProxyFactory? factory);
 	IMaterialProxyFactory? GetMaterialProxyFactory();
+	void AddRestoreFunc(Action<int> func);
+	void RemoveRestoreFunc(Action<int> func);
+	bool SupportsShadowDepthTextures();
+	ImageFormat GetShadowDepthTextureFormat();
+	ImageFormat GetNullTextureFormat();
 }
 
 public interface IMatRenderContext

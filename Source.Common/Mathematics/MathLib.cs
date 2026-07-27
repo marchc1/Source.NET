@@ -549,6 +549,9 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorDivide(in Vector3 inVec, vec_t scale, out Vector3 result) => result = Vector3.Divide(inVec, scale);
 
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorMin(in Vector3 a, in Vector3 b, out Vector3 result) => result = Vector3.Min(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorMax(in Vector3 a, in Vector3 b, out Vector3 result) => result = Vector3.Max(a, b);
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float VectorMaximum(in Vector3 v) => MathF.Max(v.X, MathF.Max(v.Y, v.Z));
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static int RoundFloatToInt(float f) => (int)f;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static byte RoundFloatToByte(float f) => (byte)RoundFloatToInt(f);
@@ -1682,6 +1685,8 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DSubtract(in Vector2 a, in Vector2 b, out Vector2 c) => c = a - b;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DMultiply(in Vector2 a, float b, out Vector2 c) => c = a * b;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DMultiply(in Vector2 a, in Vector2 b, out Vector2 c) => c = a * b;
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DMin(in Vector2 a, in Vector2 b, out Vector2 c) => c = Vector2.Min(a, b);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DMax(in Vector2 a, in Vector2 b, out Vector2 c) => c = Vector2.Max(a, b);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float VectorNormalizeFast(ref Vector3 v) {

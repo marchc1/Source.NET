@@ -110,6 +110,8 @@ public class BaseAnimating : BaseEntity
 		ResetSequenceInfo();
 	}
 
+	public bool ComputeHitboxSurroundingBox(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) => throw new NotImplementedException();
+
 	public Activity LookupActivity(ReadOnlySpan<char> label) {
 		return Animation.LookupActivity(GetModelPtr(), label);
 	}
@@ -169,7 +171,7 @@ public class BaseAnimating : BaseEntity
 							pStudioHdrContainer.Init(pStudioHdr, mdlcache);
 						}
 					}
-					else 
+					else
 						pStudioHdrContainer = StudioHdr;
 
 					Assert((pStudioHdr == null && pStudioHdrContainer == null) || (pStudioHdrContainer != null && pStudioHdrContainer.GetRenderHdr() == pStudioHdr));

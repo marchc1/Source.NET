@@ -32,6 +32,7 @@ public class ModelInstance
 	public LightCacheHandle_t LightCacheHandle;
 	public StudioDecalHandle_t DecalHandle = ModelRender.STUDIORENDER_DECAL_INVALID;
 	public DataCacheHandle_t ColorMeshHandle;
+	public uint FirstShadow;
 }
 
 public struct ColorMeshParams
@@ -186,6 +187,8 @@ public class ModelRender : IModelRender
 	ModelInstanceHandle_t curModelHandle;
 	readonly Dictionary<ModelInstanceHandle_t, ModelInstance> ModelInstances = [];
 
+	public ref uint FirstShadowOnModelInstance(ModelInstanceHandle_t handle) => ref ModelInstances[handle].FirstShadow;
+
 	ModelInstanceHandle_t NewHandle() {
 		ModelInstanceHandle_t handle = Interlocked.Increment(ref curModelHandle);
 		ModelInstances[handle] = new();
@@ -208,6 +211,10 @@ public class ModelRender : IModelRender
 
 		for (int i = 0; i < 6; ++i)
 			instance.AmbientLightingState.BoxColor[i].X = 1.0f;
+
+#if !SWDS
+		instance.FirstShadow = unchecked((uint)g_ShadowMgr.InvalidShadowIndex());
+#endif
 
 		// Static props use baked lighting for performance reasons
 		if (cache != null) {

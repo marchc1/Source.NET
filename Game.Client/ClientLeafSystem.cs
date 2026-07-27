@@ -61,7 +61,7 @@ public struct ShadowInfo_t
 	public uint FirstLeaf;
 	public uint FirstRenderable;
 	public int EnumCount;
-	// public ClientShadowHandle_t Shadow;
+	public ClientShadowHandle_t Shadow;
 	public ushort Flags;
 }
 public class EnumResult
@@ -81,6 +81,11 @@ class RenderableInfoBox
 	public RenderableInfo Info = new();
 }
 
+class ShadowInfoBox
+{
+	public ShadowInfo_t Info;
+}
+
 public class ClientLeafSystem : IClientLeafSystem, ISpatialLeafEnumerator
 {
 	public const int CLSUBSYSTEM_DETAILOBJECTS = 0;
@@ -95,16 +100,26 @@ public class ClientLeafSystem : IClientLeafSystem, ISpatialLeafEnumerator
 	bool DrawStaticProps = true;
 
 	readonly BidirectionalSet<int, ClientRenderHandle_t> RenderablesInLeaf = new();
+	readonly BidirectionalSet<int, ClientLeafShadowHandle_t> ShadowsInLeaf = new();
+	readonly BidirectionalSet<ClientRenderHandle_t, ClientLeafShadowHandle_t> ShadowsOnRenderable = new();
+	readonly Dictionary<ClientLeafShadowHandle_t, ShadowInfoBox> Shadows = [];
+	ClientLeafShadowHandle_t curShadowHandleIdx;
 	int ShadowEnum;
 	readonly Queue<EnumResultList> DeferredInserts = new();
 
 	public ClientLeafSystem() {
 		RenderablesInLeaf.Init(FirstRenderableInLeaf, FirstLeafInRenderable);
+		ShadowsInLeaf.Init(FirstShadowInLeaf, FirstLeafInShadow);
+		ShadowsOnRenderable.Init(FirstShadowOnRenderable, FirstRenderableInShadow);
 		IClientLeafSystemEngine.DefaultRenderBoundsWorldspaceEv += DefaultRenderBoundsWorldspace;
 	}
 
 	ref uint FirstRenderableInLeaf(int leaf) => ref Leaf.AsSpan()[leaf].FirstElement;
 	ref uint FirstLeafInRenderable(ClientRenderHandle_t renderable) => ref Renderables[renderable].Info.LeafList;
+	ref uint FirstShadowInLeaf(int leaf) => ref Leaf.AsSpan()[leaf].FirstShadow;
+	ref uint FirstLeafInShadow(ClientLeafShadowHandle_t shadow) => ref Shadows[shadow].Info.FirstLeaf;
+	ref uint FirstShadowOnRenderable(ClientRenderHandle_t renderable) => ref Renderables[renderable].Info.FirstShadow;
+	ref uint FirstRenderableInShadow(ClientLeafShadowHandle_t shadow) => ref Shadows[shadow].Info.FirstRenderable;
 
 	void AddRenderableToLeaf(int leaf, ClientRenderHandle_t renderable) {
 		RenderablesInLeaf.AddElementToBucket(leaf, renderable);
@@ -690,6 +705,99 @@ public class ClientLeafSystem : IClientLeafSystem, ISpatialLeafEnumerator
 		RemoveFromTree(handle);
 		ValidHandles.Remove(handle);
 		Renderables.Remove(handle);
+	}
+
+	public ClientLeafShadowHandle_t AddShadow(ClientShadowHandle_t userId, ushort flags) {
+		ClientLeafShadowHandle_t idx = curShadowHandleIdx++;
+		Shadows[idx] = new();
+		ref ShadowInfo_t shadow = ref Shadows[idx].Info;
+		shadow.Shadow = userId;
+		shadow.FirstLeaf = unchecked((uint)BidirectionalSet<int, ClientLeafShadowHandle_t>.InvalidIndex);
+		shadow.FirstRenderable = unchecked((uint)BidirectionalSet<ClientRenderHandle_t, ClientLeafShadowHandle_t>.InvalidIndex);
+		shadow.EnumCount = 0;
+		shadow.Flags = flags;
+		return idx;
+	}
+
+	public void RemoveShadow(ClientLeafShadowHandle_t handle) {
+		RemoveShadowFromLeaves(handle);
+		RemoveShadowFromRenderables(handle);
+
+		Shadows.Remove(handle);
+	}
+
+	bool ShouldRenderableReceiveShadow(ClientRenderHandle_t renderHandle, ShadowFlags shadowFlags) {
+		ref RenderableInfo renderable = ref Renderables[renderHandle].Info;
+		if ((renderable.Flags & (RenderFlags.BrushModel | RenderFlags.StaticProp | RenderFlags.StudioModel)) == 0)
+			return false;
+
+		return renderable.Renderable!.ShouldReceiveProjectedTextures(shadowFlags);
+	}
+
+	void AddShadowToRenderable(ClientRenderHandle_t renderHandle, ClientLeafShadowHandle_t shadowHandle) {
+		ShadowFlags shadowFlags = (ShadowFlags)Shadows[shadowHandle].Info.Flags;
+		if (!ShouldRenderableReceiveShadow(renderHandle, shadowFlags))
+			return;
+
+		ShadowsOnRenderable.AddElementToBucket(renderHandle, shadowHandle);
+
+		if ((Renderables[renderHandle].Info.Flags & RenderFlags.BrushModel) != 0) {
+			IClientRenderable? renderable = Renderables[renderHandle].Info.Renderable;
+			g_ClientShadowMgr.AddShadowToReceiver(Shadows[shadowHandle].Info.Shadow, renderable, ShadowReceiver.BrushModel);
+		}
+		else if ((Renderables[renderHandle].Info.Flags & RenderFlags.StaticProp) != 0) {
+			IClientRenderable? renderable = Renderables[renderHandle].Info.Renderable;
+			g_ClientShadowMgr.AddShadowToReceiver(Shadows[shadowHandle].Info.Shadow, renderable, ShadowReceiver.StaticProp);
+		}
+		else if ((Renderables[renderHandle].Info.Flags & RenderFlags.StudioModel) != 0) {
+			IClientRenderable? renderable = Renderables[renderHandle].Info.Renderable;
+			g_ClientShadowMgr.AddShadowToReceiver(Shadows[shadowHandle].Info.Shadow, renderable, ShadowReceiver.StudioModel);
+		}
+	}
+
+	void RemoveShadowFromRenderables(ClientLeafShadowHandle_t handle) => ShadowsOnRenderable.RemoveElement(handle);
+
+	void AddShadowToLeaf(int leaf, ClientLeafShadowHandle_t shadow) {
+		ShadowsInLeaf.AddElementToBucket(leaf, shadow);
+
+		int i = RenderablesInLeaf.FirstElementInBucket(leaf);
+		while (i != BidirectionalSet<int, ClientRenderHandle_t>.InvalidIndex) {
+			ClientRenderHandle_t renderable = RenderablesInLeaf.Element(i);
+			ref RenderableInfo info = ref Renderables[renderable].Info;
+
+			if (info.EnumCount != ShadowEnum) {
+				AddShadowToRenderable(renderable, shadow);
+				info.EnumCount = ShadowEnum;
+			}
+
+			i = RenderablesInLeaf.NextElement(i);
+		}
+	}
+
+	void RemoveShadowFromLeaves(ClientLeafShadowHandle_t handle) => ShadowsInLeaf.RemoveElement(handle);
+
+	public void ProjectShadow(ClientLeafShadowHandle_t handle, int leafCount, ReadOnlySpan<int> leafList) {
+		RemoveShadowFromLeaves(handle);
+		RemoveShadowFromRenderables(handle);
+
+		Assert(((ShadowFlags)Shadows[handle].Info.Flags & ShadowFlags.ProjectedTextureTypeMask) == ShadowFlags.Shadow);
+
+		++ShadowEnum;
+
+		for (int i = 0; i < leafCount; ++i)
+			AddShadowToLeaf(leafList[i], handle);
+	}
+
+	public void ProjectFlashlight(ClientLeafShadowHandle_t handle, int leafCount, ReadOnlySpan<int> leafList) {
+		RemoveShadowFromLeaves(handle);
+		RemoveShadowFromRenderables(handle);
+
+		Assert(((ShadowFlags)Shadows[handle].Info.Flags & ShadowFlags.ProjectedTextureTypeMask) == ShadowFlags.Flashlight);
+
+		++ShadowEnum;
+
+		for (int i = 0; i < leafCount; ++i)
+			AddShadowToLeaf(leafList[i], handle);
 	}
 
 	public void RenderableChanged(ClientRenderHandle_t handle) {
