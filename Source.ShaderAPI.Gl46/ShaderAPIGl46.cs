@@ -1028,6 +1028,11 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		// PresentParameters.BackBufferFormat but what actually sets that I'm not sure yet
 		return ImageFormat.RGBA8888;
 	}
+
+	public bool SupportsShadowDepthTextures() => ((HardwareConfig)HardwareConfig).SupportsShadowDepthTexturesCap;
+	public ImageFormat GetShadowDepthTextureFormat() => ((HardwareConfig)HardwareConfig).ShadowDepthTextureFormat;
+	public ImageFormat GetNullTextureFormat() => ((HardwareConfig)HardwareConfig).NullTextureFormat;
+
 	public void GetBackBufferDimensions(out int width, out int height) {
 		width = PresentParameters.DisplayMode.Width;
 		height = PresentParameters.DisplayMode.Height;
