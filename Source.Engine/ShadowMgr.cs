@@ -1502,7 +1502,32 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 		return baseIndex;
 	}
 
-	void RenderDebuggingInfo(in ShadowRenderInfo info, ShadowDebugFunc func) => throw new NotImplementedException();
+	void RenderDebuggingInfo(in ShadowRenderInfo info, ShadowDebugFunc func) {
+		for (int i = 0; i < info.Count; ++i) {
+			ref ShadowVertexCache vertexCache = ref (info.Cache![i] < 0 ? ref TempVertexCache.AsSpan()[(int)(-info.Cache[i] - 1)] : ref VertexCache[(int)info.Cache[i]]);
+
+			Span<ShadowVertex> verts = GetCachedVerts(vertexCache);
+
+			float totalArea = 0.0f;
+			Vector3 centroid = new(0, 0, 0);
+			Vector3 apex = verts[0].Position;
+			int count = vertexCache.Count;
+
+			for (int j = 0; j < count - 2; ++j) {
+				Vector3 v1 = verts[j + 1].Position;
+				Vector3 v2 = verts[j + 2].Position;
+				MathLib.CrossProduct(v2 - v1, v1 - apex, out Vector3 normal);
+				float area = normal.Length();
+				totalArea += area;
+				centroid += (apex + v1 + v2) * area / 3.0f;
+			}
+
+			if (totalArea != 0)
+				centroid /= totalArea;
+
+			func(vertexCache.Shadow, centroid);
+		}
+	}
 
 	static void DrawShadowID(ShadowHandle_t shadowHandle, in Vector3 centroid) {
 #if !SWDS

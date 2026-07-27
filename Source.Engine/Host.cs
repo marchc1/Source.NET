@@ -593,13 +593,21 @@ public class Host
 	}
 
 	private void OverlayText_SetEndTimeFn(OverlayText text, TimeUnit_t duration) {
+		text.ServerCount = cl.ServerCount;
 
+		if (duration <= 0.0f) {
+			text.EndTime = 0.0f;
+			text.CreationTick = (int)GetOverlayTick();
+			return;
+		}
+
+		if (duration == IVDebugOverlay.NDEBUG_PERSIST_TILL_NEXT_SERVER)
+			text.EndTime = IVDebugOverlay.NDEBUG_PERSIST_TILL_NEXT_SERVER;
+		else
+			text.EndTime = cl.GetTime() + duration;
 	}
 
 	private bool OverlayText_IsDeadFn(OverlayText text) {
-		if (cl.IsPaused())
-			return false;
-
 		if (text.ServerCount != cl.ServerCount)
 			return true;
 
