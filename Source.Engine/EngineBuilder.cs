@@ -402,14 +402,14 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 						// Pull a static reference out to link
 						ConVar? cv = (ConVar?)getMethod.Invoke(null, null);
 						if (cv == null) continue;
-						if (cv.GetName() == null) cv.SetName(prop.Name);
+						if (cv.GetName() == null!) cv.SetName(prop.Name);
 						cvar.RegisterConCommand(cv);
 					}
 					else {
 						object? instance = DetermineInstance(engineAPI, type, false, prop.Name);
 						ConVar? cv = (ConVar?)getMethod.Invoke(instance, null);
 						if (cv == null) continue;
-						if (cv.GetName() == null) cv.SetName(prop.Name);
+						if (cv.GetName() == null!) cv.SetName(prop.Name);
 						cvar.RegisterConCommand(cv);
 					}
 				}
@@ -425,14 +425,14 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 						// Pull a static reference out to link
 						ConVar? cv = (ConVar?)field.GetValue(null);
 						if (cv == null) continue;
-						if (cv.GetName() == null) cv.SetName(field.Name);
+						if (cv.GetName() == null!) cv.SetName(field.Name);
 						cvar.RegisterConCommand(cv);
 					}
 					else {
 						object? instance = DetermineInstance(engineAPI, type, false, field.Name);
 						ConVar? cv = (ConVar?)field.GetValue(instance);
 						if (cv == null) continue;
-						if (cv.GetName() == null) cv.SetName(field.Name);
+						if (cv.GetName() == null!) cv.SetName(field.Name);
 						cvar.RegisterConCommand(cv);
 					}
 				}
@@ -459,11 +459,11 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 					ConCommand cmd;
 
 					if (method.TryToDelegate<FnCommandCallbackVoid>(instance, out var callbackVoid))
-						cmd = new(cmdName, callbackVoid, helpText, flags, completionCallback);
+						cmd = new ConCommand(cmdName, callbackVoid, helpText, flags, completionCallback);
 					else if (method.TryToDelegate<FnCommandCallback>(instance, out var callback))
-						cmd = new(cmdName, callback, helpText, flags, completionCallback);
+						cmd = new ConCommand(cmdName, callback, helpText, flags, completionCallback);
 					else if (method.TryToDelegate<FnCommandCallbackSourced>(instance, out var callbackSourced))
-						cmd = new(cmdName, callbackSourced, helpText, flags, completionCallback);
+						cmd = new ConCommand(cmdName, callbackSourced, helpText, flags, completionCallback);
 					else
 						throw new ArgumentException("Cannot dynamically produce ConCommand with the arguments we were given");
 
