@@ -12,6 +12,7 @@ using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.Utilities;
 
+using System.Collections.Concurrent;
 using System.Drawing;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -2695,8 +2696,8 @@ public class Panel : IPanel
 	public virtual PanelAnimationMap GetAnimMap() => PanelAnimationDictionary.FindOrAddPanelAnimationMap(GetType().Name);
 
 	delegate Panel CreatePanelFactoryFn();
-	static readonly Dictionary<UtlSymId_t, CreatePanelFactoryFn> PanelFactories = [];
-	static readonly Dictionary<UtlSymId_t, Type> PanelNames = [];
+	static readonly ConcurrentDictionary<UtlSymId_t, CreatePanelFactoryFn> PanelFactories = [];
+	static readonly ConcurrentDictionary<UtlSymId_t, Type> PanelNames = [];
 
 	public static void InitializeControls() {
 		List<Type> list = [];
