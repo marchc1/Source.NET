@@ -20,22 +20,28 @@ public class DiskSearchPath : BaseSearchPath
 		if(cache.TryGetValue(hash, out CaseInsensitiveCache? found))
 			return found.RealPath;
 
-		string directory = Path.GetDirectoryName(path) ?? throw new Exception();
-		string pattern = Path.GetFileName(path);
-		if (!Directory.Exists(directory))
+		if (Path.Exists(path))
 			return path;
 
-		IEnumerable<string> foundFiles = Directory.EnumerateFiles(directory, pattern);
+		string? directory = Path.GetDirectoryName(path);
+		if (directory == null)
+			return path;
 
-		if (foundFiles.Any()) {
-			string realPath = foundFiles.First();
-			cache[hash] = new() {
-				RealPath = realPath
-			};
-			return realPath;
+		string resolvedDir = ResolveDiskPath(directory);
+		if (!Directory.Exists(resolvedDir))
+			return path;
+
+		string fileName = Path.GetFileName(path);
+		foreach (string entry in Directory.EnumerateFileSystemEntries(resolvedDir)) {
+			if (string.Equals(Path.GetFileName(entry), fileName, StringComparison.OrdinalIgnoreCase)) {
+				cache[hash] = new() {
+					RealPath = entry
+				};
+				return entry;
+			}
 		}
-		else
-			return path;
+
+		return path;
 	}
 #else
 	static string ResolveDiskPath(string path) {
