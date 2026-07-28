@@ -4,7 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common.Client;
 using Source.Common.Server;
+using Source.Common.Utilities;
 
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -23,8 +25,22 @@ public class Cvar : ICvar
 	public event FnChangeCallback? Changed;
 	List<IConsoleDisplayFunc> DisplayFuncs = [];
 	Assembly? NextDLLIdentifier;
+	
+	// Linked list of concommands
 	ConCommandBase? ConCommandList;
+	private readonly ConcurrentDictionary<UtlSymId_t, ConCommandBase> StringToConCommand = [];
+	private readonly ConcurrentDictionary<ConCommandBase, UtlSymId_t> ConCommandToString = [];
 
+	public void NotifyConCommandNameChanged(ConCommandBase cmd, ReadOnlySpan<char> name) {
+		// Remove the old name.
+		if(ConCommandToString.TryGetValue(cmd, out UtlSymId_t oldName))
+			StringToConCommand.Remove(oldName, out _);
+
+		UtlSymId_t newName = name.Hash();
+		StringToConCommand[newName] = cmd;
+		ConCommandToString[cmd] = newName;
+	}
+	
 	IBaseClientDLL? clientDLL;
 	IServerGameDLL? serverDLL;
 
@@ -98,11 +114,7 @@ public class Cvar : ICvar
 	}
 
 	public ConCommandBase? FindCommandBase(ReadOnlySpan<char> name) {
-		foreach (var cmd in GetCommands())
-			if (cmd.Name.AsSpan().Equals(name, StringComparison.OrdinalIgnoreCase))
-				return cmd;
-
-		return null;
+		return StringToConCommand.GetValueOrDefault(name.Hash());
 	}
 
 	public ConVar? FindVar(ReadOnlySpan<char> name) {
@@ -225,9 +237,12 @@ public class Cvar : ICvar
 			return;
 		}
 
-		variable.Next = ConCommandList;
-		ConCommandList = variable;
+		if (!variable.IsFlagSet(FCvar.Unregistered)) {
+			variable.Next = ConCommandList;
+			ConCommandList = variable;
+		}
 
+		NotifyConCommandNameChanged(variable, variable.GetName());
 		variable.Assembly = NextDLLIdentifier;
 	}
 
@@ -256,6 +271,11 @@ public class Cvar : ICvar
 			command.Next = null;
 			break;
 		}
+		
+		if (ConCommandToString.TryGetValue(commandToRemove, out UtlSymId_t oldName)) {
+			StringToConCommand.Remove(oldName, out _);
+			ConCommandToString.Remove(commandToRemove, out _);
+		}
 	}
 
 	public void UnregisterConCommands(Assembly sourceAssembly) {
@@ -270,6 +290,11 @@ public class Cvar : ICvar
 			else {
 				command.Registered = false;
 				command.Next = null;
+			}
+
+			if (ConCommandToString.TryGetValue(command, out UtlSymId_t oldName)) {
+				StringToConCommand.Remove(oldName, out _);
+				ConCommandToString.Remove(command, out _);
 			}
 
 			command = next;

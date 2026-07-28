@@ -51,4 +51,6 @@ public interface ICvar
 	void ConsoleDPrintf(ReadOnlySpan<char> format, params object?[]? args);
 
 	void RevertFlaggedConVars(FCvar flag);
+
+	void NotifyConCommandNameChanged(ConCommandBase cmd, ReadOnlySpan<char> name);
 }

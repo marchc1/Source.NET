@@ -21,7 +21,7 @@ public class ConCommandBase
 	public virtual void AddFlags(FCvar flags) => Flags |= flags;
 	public virtual string GetName() => Name;
 	/// <summary>
-	/// For internal use only
+	/// For internal use only!!! But if you call this AFTER RegisterConCommand, make sure to call NotifyConCommandNameChanged!!!!!!
 	/// </summary>
 	/// <param name="name"></param>
 	/// <returns></returns>
@@ -35,13 +35,6 @@ public class ConCommandBase
 		Name = name;
 		HelpString = helpString;
 		Flags = flags;
-		if ((flags & FCvar.Unregistered) != FCvar.Unregistered) {
-			Next = ConCommandBases;
-			ConCommandBases = this;
-		}
-		else {
-			Next = null;
-		}
 	}
 
 	internal ConCommandBase? Next;
@@ -50,5 +43,4 @@ public class ConCommandBase
 	internal string? HelpString;
 	internal FCvar Flags;
 	internal Assembly? Assembly;
-	protected static ConCommandBase? ConCommandBases;
 }
