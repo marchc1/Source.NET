@@ -2699,9 +2699,14 @@ public class Panel : IPanel
 	static readonly Dictionary<UtlSymId_t, Type> PanelNames = [];
 
 	public static void InitializeControls() {
-		var types = ReflectionUtils.GetLoadedTypes().Where(type => typeof(Panel).IsAssignableFrom(type));
+		List<Type> list = [];
+		
+		foreach (Type type in ReflectionUtils.GetLoadedTypes()) 
+			if (typeof(Panel).IsAssignableFrom(type)) 
+				list.Add(type);
+		
 		int count = 0;
-		foreach (var type in types) {
+		Parallel.ForEach(list, type => {
 			ChainToAnimationMap(type);
 			//Msg($"VGUI: Initializing {type.Name}\n");
 
@@ -2720,8 +2725,9 @@ public class Panel : IPanel
 					PanelFactories[aliasSymbol] = method.CreateDelegate<CreatePanelFactoryFn>();
 			}
 
-			count++;
-		}
+			Interlocked.Increment(ref count);
+		});
+		
 		Msg($"Initialized {count} VGUI controls in all currently loaded assemblies\n");
 	}
 
