@@ -12,9 +12,11 @@ using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GarrysMod;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
 using Source.Common.Server;
+using Source.Common.Lua;
 
 using System.Numerics;
 
@@ -209,6 +211,25 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		// throw new NotImplementedException();
 
 		GameRulesRegister.CreateNetworkStringTables_GameRules();
+	}
+
+	public bool PreInit(IServiceProvider services) {
+		IGet? get = services.GetService<IGet>(); // GMod passes this as a second argument to PreInit!
+		if (get == null)
+			Error("Missing IGet!\n");
+
+		IEngineServer? engine = services.GetService<IEngineServer>();
+		if (engine == null)
+			return false;
+
+		ILuaShared? luaShared = get.LuaShared();
+		if (luaShared == null)
+			Error("Missing LuaShared interface!\n");
+
+		// RaphaelIT7: IMPORTANT! GMod depends on the server.dll calling ILuaShared::Init
+		luaShared.Init(services, engine.IsDedicatedServer());
+
+		return true;
 	}
 
 	public bool DLLInit(IServiceProvider services) {

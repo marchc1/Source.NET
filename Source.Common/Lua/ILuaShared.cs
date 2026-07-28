@@ -2,6 +2,6 @@
 
 public interface ILuaShared
 {
-	void Init();
+	void Init(IServiceProvider services, bool isDedicated);
 	ILuaInterface CreateLuaInterface(byte realm);
 }
