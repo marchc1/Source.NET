@@ -439,15 +439,17 @@ public class BaseFileSystem : IFileSystem
 		return FirstToThePost(fileName, pathID, new FileExists_Op(), false, out _);
 	}
 
-	public void CreateDirHierarchy(ReadOnlySpan<char> relativePath, ReadOnlySpan<char> pathID) {
+	public void CreateDirHierarchy(ReadOnlySpan<char> relativePath, ReadOnlySpan<char> pathId) {
 		Span<char> scratchFileName = stackalloc char[MAX_PATH];
-		if (!Path.IsPathFullyQualified(relativePath)) {
-			Assert(!pathID.IsEmpty);
-			ComputeFullWritePath(scratchFileName, relativePath, pathID);
+		ReadOnlySpan<char> relativePathNormalized = ISearchPath.Normalize(relativePath, scratchFileName);
+		if (!Path.IsPathFullyQualified(relativePathNormalized)) {
+			Assert(!pathId.IsEmpty);
+			ComputeFullWritePath(scratchFileName, relativePathNormalized, pathId);
 		}
 		else {
-			relativePath.CopyTo(scratchFileName);
+			relativePathNormalized.CopyTo(scratchFileName);
 		}
+		
 		Directory.CreateDirectory(new(scratchFileName.SliceNullTerminatedString()));
 	}
 	private ISearchPath? FindWritePath(ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID) {
