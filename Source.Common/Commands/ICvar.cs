@@ -27,28 +27,28 @@ public interface ICvarQuery
 
 public interface ICvar
 {
-	public void RegisterConCommand(ConCommandBase commandBase);
-	public void UnregisterConCommand(ConCommandBase commandBase);
-	public void UnregisterConCommands(Assembly sourceAssembly);
+	void RegisterConCommand(ConCommandBase commandBase);
+	void UnregisterConCommand(ConCommandBase commandBase);
+	void UnregisterConCommands(Assembly sourceAssembly);
 
-	public void SetAssemblyIdentifier(Assembly assembly);
+	void SetAssemblyIdentifier(Assembly assembly);
+	
+	string? GetCommandLineValue(ReadOnlySpan<char> variableName);
 
-	public string? GetCommandLineValue(ReadOnlySpan<char> variableName);
+	ConCommandBase? FindCommandBase(ReadOnlySpan<char> name);
+	ConVar? FindVar(ReadOnlySpan<char> name);
+	ConCommand? FindCommand(ReadOnlySpan<char> name);
 
-	public ConCommandBase? FindCommandBase(ReadOnlySpan<char> name);
-	public ConVar? FindVar(ReadOnlySpan<char> name);
-	public ConCommand? FindCommand(ReadOnlySpan<char> name);
+	IEnumerable<ConCommandBase> GetCommands();
 
-	public IEnumerable<ConCommandBase> GetCommands();
+	event FnChangeCallback? Changed;
 
-	public event FnChangeCallback? Changed;
+	void InstallConsoleDisplayFunc(IConsoleDisplayFunc displayFunc);
+	void RemoveConsoleDisplayFunc(IConsoleDisplayFunc displayFunc);
 
-	public void InstallConsoleDisplayFunc(IConsoleDisplayFunc displayFunc);
-	public void RemoveConsoleDisplayFunc(IConsoleDisplayFunc displayFunc);
+	void ConsoleColorPrintf(in Color clr, ReadOnlySpan<char> format, params object?[]? args);
+	void ConsolePrintf(ReadOnlySpan<char> format, params object?[]? args);
+	void ConsoleDPrintf(ReadOnlySpan<char> format, params object?[]? args);
 
-	public void ConsoleColorPrintf(in Color clr, ReadOnlySpan<char> format, params object?[]? args);
-	public void ConsolePrintf(ReadOnlySpan<char> format, params object?[]? args);
-	public void ConsoleDPrintf(ReadOnlySpan<char> format, params object?[]? args);
-
-	public void RevertFlaggedConVars(FCvar flag);
+	void RevertFlaggedConVars(FCvar flag);
 }

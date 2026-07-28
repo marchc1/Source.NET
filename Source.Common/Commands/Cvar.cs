@@ -29,7 +29,7 @@ public class Cvar : ICvar
 	IServerGameDLL? serverDLL;
 
 	FCvar assemblyFlags = FCvar.None;
-	public void SetAssemblyIdentifier(Assembly assembly) {
+	public void SetAssemblyIdentifier(Assembly? assembly) {
 		NextDLLIdentifier = assembly;
 
 		// Pull in dependencies if they weren't resolved already
@@ -38,12 +38,13 @@ public class Cvar : ICvar
 		serverDLL ??= services.GetService<IServerGameDLL>();
 		assemblyFlags = FCvar.None;
 
-		if (assembly != null) {
-			if (clientDLL != null && assembly == clientDLL.GetType().Assembly)
-				assemblyFlags |= FCvar.ClientDLL;
-			else if (serverDLL != null && assembly == serverDLL.GetType().Assembly)
-				assemblyFlags |= FCvar.GameDLL;
-		}
+		if (assembly == null) 
+			return;
+
+		if (clientDLL != null && assembly == clientDLL.GetType().Assembly)
+			assemblyFlags |= FCvar.ClientDLL;
+		else if (serverDLL != null && assembly == serverDLL.GetType().Assembly)
+			assemblyFlags |= FCvar.GameDLL;
 	}
 
 	public void ConsoleColorPrintf(in Color clr, ReadOnlySpan<char> format, params object?[]? args) {
@@ -239,7 +240,7 @@ public class Cvar : ICvar
 			return;
 
 		commandToRemove.Registered = false;
-
+		
 		ConCommandBase? prev = null;
 		for (ConCommandBase? command = ConCommandList; command != null; command = command.Next) {
 			if (command != commandToRemove) {
