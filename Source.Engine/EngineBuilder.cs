@@ -360,7 +360,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		var engineAPI = Singleton<IEngineAPI>();
 		ICvar cvar = engineAPI.GetRequiredService<ICvar>();
 		var assemblies = AppDomain.CurrentDomain.GetAssemblies()
-			.Where(ReflectionUtils.IsOkAssembly);
+			.Where(ReflectionUtils.IsSourceEngineAssembly);
 
 		Type CVAR = typeof(ConVar);
 		Type CCMD = typeof(ConCommand);

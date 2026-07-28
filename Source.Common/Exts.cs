@@ -1760,7 +1760,7 @@ public static class ReflectionUtils
 		return info != null;
 	}
 	static IEnumerable<Type> safeTypeGet(Assembly assembly) {
-		if (!IsOkAssembly(assembly))
+		if (!IsSourceEngineAssembly(assembly))
 			yield break;
 
 		IEnumerable<Type?> types;
@@ -1775,16 +1775,11 @@ public static class ReflectionUtils
 			yield return t!;
 	}
 
-	public static bool IsOkAssembly(Assembly assembly) {
-		// ugh, what a hack - but for now, this is the only way to get things sanely. Need a better way.
-		if (!assembly.GetName().Name!.StartsWith("Source") && !assembly.GetName().Name!.StartsWith("Game"))
-			return false;
-
-		return true;
-	}
-
+	public static bool IsSourceEngineAssembly(Assembly assembly) =>
+		assembly.GetCustomAttribute<SourceDllAttribute>() != null;
+	
 	public static IEnumerable<Assembly> GetAssemblies()
-		=> AppDomain.CurrentDomain.GetAssemblies().Where(IsOkAssembly);
+		=> AppDomain.CurrentDomain.GetAssemblies().Where(IsSourceEngineAssembly);
 	public static IEnumerable<Type> GetLoadedTypes()
 		=> AppDomain.CurrentDomain.GetAssemblies()
 			.SelectMany(safeTypeGet);

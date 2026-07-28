@@ -72,3 +72,5 @@ global using static Source.Common.Engine.ShadowGlobals;
 global using static Source.Common.SoundConstants;
 global using static Source.Common.Audio.AttenuationValues;
 global using static Source.Common.WorldSize;
+
+[assembly: Source.Common.SourceDll]
