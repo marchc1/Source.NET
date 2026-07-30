@@ -358,6 +358,8 @@ public class ViewRender : IViewRender
 			ITexture? saveRenderTarget = renderContext.GetRenderTarget();
 		}
 
+		g_ClientShadowMgr.AdvanceFrame();
+
 		RenderingView = true;
 		render.SceneBegin();
 		using (renderContext = new MatRenderContextPtr(materials))

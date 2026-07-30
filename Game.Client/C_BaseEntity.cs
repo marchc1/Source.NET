@@ -760,6 +760,9 @@ public partial class C_BaseEntity : IClientEntity
 
 	public EntClientFlags EntClientFlags;
 
+	public Source.InlineArray4<float> RenderingClipPlane;
+	public bool EnableRenderingClipPlane;
+
 	public Vector3 Origin;
 	public readonly InterpolatedVar<Vector3> IV_Origin = new("Origin");
 	public QAngle Rotation;
@@ -2976,8 +2979,10 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual int LookupAttachment(ReadOnlySpan<char> attachmentName) => -1;
 
 	public Span<float> GetRenderClipPlane() {
-		// todo
-		return null;
+		if (EnableRenderingClipPlane)
+			return RenderingClipPlane;
+		else
+			return null;
 	}
 
 	public virtual int GetSkin() => 0;

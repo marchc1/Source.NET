@@ -74,6 +74,14 @@ public struct StudioRenderConfig {
 	public bool StatsMode;
 }
 
+public enum OverrideType
+{
+	Normal,
+	BuildShadows,
+	DepthWrite,
+	SSAODepthWrite
+}
+
 public struct DrawModelResults {
 	public int ActualTriCount;
 	public int TextureMemoryBytes;
@@ -97,6 +105,9 @@ public interface IStudioRender {
 	void SetViewState(in Vector3 currentViewOrigin, in Vector3 currentViewRight, in Vector3 currentViewUp, in Vector3 currentViewForward);
 	void SetColorModulation(Vector3 r_colormod);
 	void SetAlphaModulation(float r_blend);
+	void SetEyeViewTarget(StudioHeader? studioHdr, int bodyPart, in Vector3 viewtarget);
+	void ForcedMaterialOverride(IMaterial? newMaterial, OverrideType overrideType = OverrideType.Normal);
+	int ComputeModelLod(StudioHWData hardwareData, float unitSphereSize);
 
 	int GetNumAmbientLightSamples();
 	ReadOnlySpan<Vector3> GetAmbientLightDirections();

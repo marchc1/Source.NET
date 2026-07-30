@@ -478,8 +478,8 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 		public ITexture? FlashlightDepthTexture;
 
 		public ushort ClipPlaneCount;
-		public Vector3[] ClipPlane;
-		public float[] ClipDist;
+		public InlineArray4<Vector3> ClipPlane;
+		public InlineArray4<float> ClipDist;
 
 		public ShadowSurfaceIndex_t FirstDecal;
 

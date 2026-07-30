@@ -782,6 +782,30 @@ public class ClientLeafSystem : IClientLeafSystem, ISpatialLeafEnumerator
 
 	void RemoveShadowFromLeaves(ClientLeafShadowHandle_t handle) => ShadowsInLeaf.RemoveElement(handle);
 
+	public void EnumerateShadowsInLeaves(int leafCount, List<LeafIndex_t> leaves, IClientLeafShadowEnum enumerator) {
+		if (leafCount == 0)
+			return;
+
+		++ShadowEnum;
+
+		for (int i = 0; i < leafCount; ++i) {
+			int leaf = leaves[i];
+
+			int j = ShadowsInLeaf.FirstElementInBucket(leaf);
+			while (j != BidirectionalSet<int, ClientLeafShadowHandle_t>.InvalidIndex) {
+				ClientLeafShadowHandle_t shadow = ShadowsInLeaf.Element(j);
+				ref ShadowInfo_t info = ref Shadows[shadow].Info;
+
+				if (info.EnumCount != ShadowEnum) {
+					enumerator.EnumShadow(info.Shadow);
+					info.EnumCount = ShadowEnum;
+				}
+
+				j = ShadowsInLeaf.NextElement(j);
+			}
+		}
+	}
+
 	public void ProjectShadow(ClientLeafShadowHandle_t handle, int leafCount, ReadOnlySpan<int> leafList) {
 		RemoveShadowFromLeaves(handle);
 		RemoveShadowFromRenderables(handle);

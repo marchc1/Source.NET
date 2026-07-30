@@ -41,7 +41,7 @@ public interface IClientShadowMgr : IGameSystemPerFrame
 
 	void RemoveAllShadowsFromReceiver(IClientRenderable? renderable, ShadowReceiver type);
 
-	void ComputeShadowTextures(in ViewSetup view, int leafCount, ReadOnlySpan<LeafIndex_t> leafList);
+	void ComputeShadowTextures(in ViewSetup view, int leafCount, List<LeafIndex_t> leafList);
 
 	void UnlockAllShadowDepthTextures();
 

@@ -322,6 +322,87 @@ public class ModelRender : IModelRender
 		return true;
 	}
 
+	static readonly ConVar r_shadowlod = new("r_shadowlod", "-1");
+	static readonly ConVar r_shadowlodbias = new("r_shadowlodbias", "2");
+
+	public bool DrawModelShadowSetup(IClientRenderable renderable, int body, int skin, ref DrawModelInfo info, Span<Matrix3x4> customBoneToWorld, out Span<Matrix3x4> boneToWorldOut) {
+		boneToWorldOut = default;
+
+		Model? model = renderable.GetModel();
+		if (model == null)
+			return false;
+
+		if (model.Type != ModelType.Studio)
+			return false;
+
+		// Assert(modelloader.IsLoaded(model) && model.Type == ModelType.Studio);//2do
+
+		info.StudioHdr = MDLCache.GetStudioHdr(model.Studio)!;
+		info.ColorMeshes = null;
+
+		if (info.StudioHdr.NumBodyParts == 0)
+			return false;
+
+		Assert(renderable != null);
+		info.HardwareData = MDLCache.GetHardwareData(model.Studio)!;
+		if (info.HardwareData == null)
+			return false;
+
+		info.Skin = skin;
+		info.Body = body;
+		info.ClientEntity = renderable;
+		info.HitboxSet = 0;
+
+		info.Lod = r_shadowlod.GetInt();
+		if ((info.StudioHdr.Flags & StudioHdrFlags.HasShadowLod) != 0)
+			info.Lod = info.HardwareData.NumLODs - 1;
+		else if (info.Lod == Studio.USESHADOWLOD) {
+			int lastlod = info.HardwareData.NumLODs - 1;
+			info.Lod = lastlod;
+		}
+		else if (info.Lod < 0) {
+			using MatRenderContextPtr renderContext = new(materialSystem);
+			float factor = r_shadowlodbias.GetFloat() > 0.0f ? 1.0f / r_shadowlodbias.GetFloat() : 1.0f;
+			float screenSize = factor * renderContext.ComputePixelWidthOfSphere(renderable!.GetRenderOrigin(), 0.5f);
+			info.Lod = StudioRender.ComputeModelLod(info.HardwareData, screenSize);
+			info.Lod = info.HardwareData.NumLODs - 2;
+			if (info.Lod < 0) {
+				info.Lod = 0;
+			}
+		}
+
+		if (info.Lod < info.HardwareData.RootLOD)
+			info.Lod = info.HardwareData.RootLOD;
+
+		Span<Matrix3x4> boneToWorld = customBoneToWorld;
+		if (boneToWorld.IsEmpty)
+			boneToWorld = StudioRender.LockBoneMatrices(info.StudioHdr.NumBones);
+		bool ok = renderable!.SetupBones(boneToWorld, info.StudioHdr.NumBones, Studio.BONE_USED_BY_VERTEX_AT_LOD(info.Lod), cl.GetTime());
+		StudioRender.UnlockBoneMatrices();
+		if (!ok)
+			return false;
+
+		boneToWorldOut = boneToWorld;
+		return true;
+	}
+
+	public void DrawModelShadow(IClientRenderable renderable, in DrawModelInfo info, Span<Matrix3x4> boneToWorld) {
+		StudioRender.SetEyeViewTarget(info.StudioHdr, info.Body, in vec3_origin);
+
+		Vector3 white = new(1, 1, 1);
+		StudioRender.SetColorModulation(white);
+		StudioRender.SetAlphaModulation(1.0f);
+
+		if ((info.StudioHdr.Flags & StudioHdrFlags.UseShadowLodMaterials) == 0) {
+			StudioRender.ForcedMaterialOverride(MatSys.MaterialShadowBuild, OverrideType.BuildShadows);
+		}
+
+		DrawModelInfo drawInfo = info;
+		StudioRender.DrawModel(ref Unsafe.NullRef<DrawModelResults>(), ref drawInfo, boneToWorld, null, null, renderable.GetRenderOrigin(),
+			StudioRenderFlags.DrawNoShadows | StudioRenderFlags.DrawEntireModel | StudioRenderFlags.DrawNoFlexes);
+		StudioRender.ForcedMaterialOverride(null);
+	}
+
 	readonly IMDLCache MDLCache;
 	readonly IStudioRender StudioRender;
 	readonly IMaterialSystem materials;

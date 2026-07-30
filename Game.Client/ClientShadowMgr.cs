@@ -9,6 +9,7 @@ using Source.Common;
 using Source.Common.Bitmap;
 using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.Formats.Keyvalues;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
@@ -35,7 +36,6 @@ public static class ClientShadowMgrGlobals
 	public const int MAX_CLIP_PLANE_COUNT = 4;
 	public const float SHADOW_CULL_TOLERANCE = 0.5f;
 
-	public static readonly ConVar r_shadows = new("r_shadows", "1");
 	public static readonly ConVar r_shadowmaxrendered = new("r_shadowmaxrendered", "32");
 
 	public static readonly ClientShadowMgr s_ClientShadowMgr = new();
@@ -61,9 +61,9 @@ public static class ClientShadowMgrGlobals
 
 		if (args.ArgC() == 4) {
 			QAngle angles = default;
-			angles.X = float.Parse(args[1]);
-			angles.Y = float.Parse(args[2]);
-			angles.Z = float.Parse(args[3]);
+			_ = float.TryParse(args[1], out angles.X);
+			_ = float.TryParse(args[2], out angles.Y);
+			_ = float.TryParse(args[3], out angles.Z);
 			MathLib.AngleVectors(angles, out Vector3 dir);
 			s_ClientShadowMgr.SetShadowDirection(dir);
 		}
@@ -78,9 +78,9 @@ public static class ClientShadowMgrGlobals
 		}
 
 		if (args.ArgC() == 4) {
-			int r = int.Parse(args[1]);
-			int g = int.Parse(args[2]);
-			int b = int.Parse(args[3]);
+			_ = int.TryParse(args[1], out int r);
+			_ = int.TryParse(args[2], out int g);
+			_ = int.TryParse(args[3], out int b);
 			s_ClientShadowMgr.SetShadowColor((byte)r, (byte)g, (byte)b);
 		}
 	}
@@ -93,8 +93,10 @@ public static class ClientShadowMgrGlobals
 			return;
 		}
 
-		if (args.ArgC() == 2)
-			s_ClientShadowMgr.SetShadowDistance(float.Parse(args[1]));
+		if (args.ArgC() == 2) {
+			_ = float.TryParse(args[1], out float dist);
+			s_ClientShadowMgr.SetShadowDistance(dist);
+		}
 	}
 
 	[ConCommand("r_shadowblobbycutoff", "some shadow stuff", FCvar.Cheat)]
@@ -136,6 +138,9 @@ public class TextureAllocator
 		public TextureHandle_t Texture;
 
 		public uint FrameUsed;
+
+		public FragmentHandle_t Prev;
+		public FragmentHandle_t Next;
 	}
 
 	public struct BlockInfo_t
@@ -145,52 +150,310 @@ public class TextureAllocator
 
 	public struct Cache_t
 	{
-		public ushort List;
+		public FragmentHandle_t Head;
+		public FragmentHandle_t Tail;
 	}
 
-	ITexture? TexturePage;
+	readonly TextureReference TexturePage = new();
 
 	readonly PooledLinkedList<TextureInfo_t> Textures = new();
-	readonly PooledLinkedList<FragmentInfo_t> Fragments = new();
+	readonly List<FragmentInfo_t> Fragments = new(256);
 
 	Cache_t[] Cache = new Cache_t[MAX_TEXTURE_POWER + 1];
 	BlockInfo_t[] Blocks = new BlockInfo_t[BLOCK_COUNT];
 	uint CurrentFrame;
 
-	public void Init() => throw new NotImplementedException();
-	public void Shutdown() => throw new NotImplementedException();
+	Span<FragmentInfo_t> Frags => Fragments.AsSpan();
 
-	public void Reset() => throw new NotImplementedException();
+	public void Init() {
+		for (int i = 0; i <= MAX_TEXTURE_POWER; ++i) {
+			Cache[i].Head = INVALID_FRAGMENT_HANDLE;
+			Cache[i].Tail = INVALID_FRAGMENT_HANDLE;
+		}
 
-	public void DeallocateAllTextures() => throw new NotImplementedException();
+		TexturePage.InitRenderTarget(TEXTURE_PAGE_SIZE, TEXTURE_PAGE_SIZE, RenderTargetSizeMode.NoChange, ImageFormat.ARGB8888, MaterialRenderTargetDepth.None, false, "_rt_Shadows");
+	}
 
-	public TextureHandle_t AllocateTexture(int w, int h) => throw new NotImplementedException();
-	public void DeallocateTexture(TextureHandle_t h) => throw new NotImplementedException();
+	public void Shutdown() => TexturePage.Shutdown();
 
-	public bool UseTexture(TextureHandle_t h, bool willRedraw, float area) => throw new NotImplementedException();
-	public bool HasValidTexture(TextureHandle_t h) => throw new NotImplementedException();
+	public void Reset() {
+		DeallocateAllTextures();
 
-	public void AdvanceFrame() => throw new NotImplementedException();
+		Fragments.EnsureCapacity(256);
 
-	public void GetTextureRect(TextureHandle_t handle, out int x, out int y, out int w, out int h) => throw new NotImplementedException();
+		Blocks[0].FragmentPower = MAX_TEXTURE_POWER - 4;
+		Blocks[1].FragmentPower = MAX_TEXTURE_POWER - 3;
+		Blocks[2].FragmentPower = MAX_TEXTURE_POWER - 2;
+		Blocks[3].FragmentPower = MAX_TEXTURE_POWER - 2;
+		Blocks[4].FragmentPower = MAX_TEXTURE_POWER - 1;
+		Blocks[5].FragmentPower = MAX_TEXTURE_POWER - 1;
+		Blocks[6].FragmentPower = MAX_TEXTURE_POWER - 1;
+		Blocks[7].FragmentPower = MAX_TEXTURE_POWER - 1;
+		Blocks[8].FragmentPower = MAX_TEXTURE_POWER - 1;
+		Blocks[9].FragmentPower = MAX_TEXTURE_POWER - 1;
+		Blocks[10].FragmentPower = MAX_TEXTURE_POWER;
+		Blocks[11].FragmentPower = MAX_TEXTURE_POWER;
+		Blocks[12].FragmentPower = MAX_TEXTURE_POWER;
+		Blocks[13].FragmentPower = MAX_TEXTURE_POWER;
+		Blocks[14].FragmentPower = MAX_TEXTURE_POWER;
+		Blocks[15].FragmentPower = MAX_TEXTURE_POWER;
 
-	public ITexture? GetTexture() => throw new NotImplementedException();
+		int i;
+		for (i = 0; i <= MAX_TEXTURE_POWER; ++i) {
+			Cache[i].Head = INVALID_FRAGMENT_HANDLE;
+			Cache[i].Tail = INVALID_FRAGMENT_HANDLE;
+		}
 
-	public void GetTotalTextureSize(out int w, out int h) => throw new NotImplementedException();
+		for (i = 0; i < BLOCK_COUNT; ++i)
+			AddBlockToLRU(i);
 
-	public void DebugPrintCache() => throw new NotImplementedException();
+		CurrentFrame = 0;
+	}
 
-	void AddBlockToLRU(int block) => throw new NotImplementedException();
+	public void DeallocateAllTextures() {
+		Textures.Clear();
+		Fragments.Clear();
+		for (int i = 0; i <= MAX_TEXTURE_POWER; ++i) {
+			Cache[i].Head = INVALID_FRAGMENT_HANDLE;
+			Cache[i].Tail = INVALID_FRAGMENT_HANDLE;
+		}
+	}
 
-	void UnlinkFragmentFromCache(ref Cache_t cache, FragmentHandle_t fragment) => throw new NotImplementedException();
+	public void DebugPrintCache() {
+		int numFragments = Fragments.Count;
+		int numInvalidFragments = 0;
 
-	void MarkUsed(FragmentHandle_t fragment) => throw new NotImplementedException();
+		Warning($"Fragments ({numFragments}):\n===============\n");
 
-	void MarkUnused(FragmentHandle_t fragment) => throw new NotImplementedException();
+		Span<FragmentInfo_t> frags = Frags;
+		for (int f = 0; f < numFragments; f++) {
+			if (frags[f].FrameUsed != 0 && frags[f].Texture != INVALID_TEXTURE_HANDLE)
+				Warning($"Fragment {f}, Block: {frags[f].Block}, Index: {frags[f].Index}, Texture: {frags[f].Texture} Frame Used: {frags[f].FrameUsed}\n");
+			else
+				numInvalidFragments++;
+		}
 
-	void DisconnectTextureFromFragment(FragmentHandle_t f) => throw new NotImplementedException();
+		Warning($"Invalid Fragments: {numInvalidFragments}\n");
+	}
 
-	int GetFragmentPower(FragmentHandle_t f) => throw new NotImplementedException();
+	void AddBlockToLRU(int block) {
+		int power = Blocks[block].FragmentPower;
+		int size = 1 << power;
+
+		int fragmentCount = MAX_TEXTURE_SIZE / size;
+		fragmentCount *= fragmentCount;
+
+		while (--fragmentCount >= 0) {
+			FragmentHandle_t f = (FragmentHandle_t)Fragments.Count;
+			Fragments.Add(new FragmentInfo_t() {
+				Block = (ushort)block,
+				Index = (ushort)fragmentCount,
+				Texture = INVALID_TEXTURE_HANDLE,
+				FrameUsed = 0xFFFFFFFF,
+				Prev = INVALID_FRAGMENT_HANDLE,
+				Next = INVALID_FRAGMENT_HANDLE
+			});
+			LinkToHead(ref Cache[power], f);
+		}
+	}
+
+	void LinkToHead(ref Cache_t cache, FragmentHandle_t fragment) {
+		Unlink(ref cache, fragment);
+
+		Span<FragmentInfo_t> frags = Frags;
+		frags[fragment].Next = cache.Head;
+		if (cache.Head != INVALID_FRAGMENT_HANDLE)
+			frags[cache.Head].Prev = fragment;
+		else
+			cache.Tail = fragment;
+		cache.Head = fragment;
+	}
+
+	void LinkToTail(ref Cache_t cache, FragmentHandle_t fragment) {
+		Unlink(ref cache, fragment);
+
+		Span<FragmentInfo_t> frags = Frags;
+		frags[fragment].Prev = cache.Tail;
+		if (cache.Tail != INVALID_FRAGMENT_HANDLE)
+			frags[cache.Tail].Next = fragment;
+		else
+			cache.Head = fragment;
+		cache.Tail = fragment;
+	}
+
+	void Unlink(ref Cache_t cache, FragmentHandle_t fragment) {
+		Span<FragmentInfo_t> frags = Frags;
+		FragmentHandle_t prev = frags[fragment].Prev;
+		FragmentHandle_t next = frags[fragment].Next;
+
+		if (prev != INVALID_FRAGMENT_HANDLE)
+			frags[prev].Next = next;
+		else if (cache.Head == fragment)
+			cache.Head = next;
+
+		if (next != INVALID_FRAGMENT_HANDLE)
+			frags[next].Prev = prev;
+		else if (cache.Tail == fragment)
+			cache.Tail = prev;
+
+		frags[fragment].Prev = INVALID_FRAGMENT_HANDLE;
+		frags[fragment].Next = INVALID_FRAGMENT_HANDLE;
+	}
+
+	void UnlinkFragmentFromCache(ref Cache_t cache, FragmentHandle_t fragment) => Unlink(ref cache, fragment);
+
+	void MarkUsed(FragmentHandle_t fragment) {
+		int block = Frags[fragment].Block;
+		int power = Blocks[block].FragmentPower;
+
+		LinkToTail(ref Cache[power], fragment);
+		Frags[fragment].FrameUsed = CurrentFrame;
+	}
+
+	void MarkUnused(FragmentHandle_t fragment) {
+		int block = Frags[fragment].Block;
+		int power = Blocks[block].FragmentPower;
+
+		LinkToHead(ref Cache[power], fragment);
+	}
+
+	public TextureHandle_t AllocateTexture(int w, int h) {
+		Assert(w == h);
+
+		if (w < MIN_TEXTURE_SIZE)
+			w = MIN_TEXTURE_SIZE;
+		else if (w > MAX_TEXTURE_SIZE)
+			w = MAX_TEXTURE_SIZE;
+
+		TextureHandle_t handle = (TextureHandle_t)Textures.Alloc();
+		Textures[handle].Fragment = INVALID_FRAGMENT_HANDLE;
+		Textures[handle].Size = (ushort)w;
+
+		int power = 0;
+		int size = 1;
+		while (size < w) {
+			size <<= 1;
+			++power;
+		}
+		Assert(size == w);
+
+		Textures[handle].Power = (ushort)power;
+
+		return handle;
+	}
+
+	public void DeallocateTexture(TextureHandle_t h) {
+		if (Textures[h].Fragment != INVALID_FRAGMENT_HANDLE) {
+			MarkUnused(Textures[h].Fragment);
+			Frags[Textures[h].Fragment].FrameUsed = 0xFFFFFFFF;
+			DisconnectTextureFromFragment(Textures[h].Fragment);
+		}
+		Textures.Remove(h);
+	}
+
+	void DisconnectTextureFromFragment(FragmentHandle_t f) {
+		ref FragmentInfo_t info = ref Frags[f];
+		if (info.Texture != INVALID_TEXTURE_HANDLE) {
+			Textures[info.Texture].Fragment = INVALID_FRAGMENT_HANDLE;
+			info.Texture = INVALID_TEXTURE_HANDLE;
+		}
+	}
+
+	public bool HasValidTexture(TextureHandle_t h) {
+		ref TextureInfo_t info = ref Textures[h];
+		FragmentHandle_t currentFragment = info.Fragment;
+		return currentFragment != INVALID_FRAGMENT_HANDLE;
+	}
+
+	public bool UseTexture(TextureHandle_t h, bool willRedraw, float area) {
+		ref TextureInfo_t info = ref Textures[h];
+
+		int desiredPower = MIN_TEXTURE_POWER;
+		int desiredWidth = MIN_TEXTURE_SIZE;
+		while (desiredWidth * desiredWidth < area) {
+			if (desiredPower >= info.Power) {
+				desiredPower = info.Power;
+				break;
+			}
+
+			++desiredPower;
+			desiredWidth <<= 1;
+		}
+
+		int currentPower = -1;
+		FragmentHandle_t currentFragment = info.Fragment;
+		if (currentFragment != INVALID_FRAGMENT_HANDLE) {
+			currentPower = GetFragmentPower(info.Fragment);
+			Assert(currentPower <= info.Power);
+			bool shouldKeepTexture = !willRedraw && desiredPower < 8 && desiredPower - currentPower <= 1;
+			if (currentPower == desiredPower || shouldKeepTexture) {
+				MarkUsed(currentFragment);
+				return false;
+			}
+		}
+
+		int power = desiredPower;
+
+		FragmentHandle_t f = INVALID_FRAGMENT_HANDLE;
+		bool done = false;
+		while (!done && power >= 0) {
+			f = Cache[power].Head;
+
+			if (f != INVALID_FRAGMENT_HANDLE && Frags[f].FrameUsed != CurrentFrame)
+				done = true;
+			else
+				--power;
+		}
+
+		if (currentFragment != INVALID_FRAGMENT_HANDLE) {
+			if (power <= currentPower) {
+				MarkUsed(currentFragment);
+				return false;
+			}
+			else {
+				DisconnectTextureFromFragment(currentFragment);
+			}
+		}
+
+		if (f == INVALID_FRAGMENT_HANDLE)
+			return false;
+
+		DisconnectTextureFromFragment(f);
+
+		info.Fragment = f;
+		Frags[f].Texture = h;
+
+		MarkUsed(f);
+
+		return true;
+	}
+
+	int GetFragmentPower(FragmentHandle_t f) => Blocks[Frags[f].Block].FragmentPower;
+
+	public void AdvanceFrame() => CurrentFrame++;
+
+	public ITexture? GetTexture() => TexturePage.Get();
+
+	public void GetTotalTextureSize(out int w, out int h) => w = h = TEXTURE_PAGE_SIZE;
+
+	public void GetTextureRect(TextureHandle_t handle, out int x, out int y, out int w, out int h) {
+		ref TextureInfo_t info = ref Textures[handle];
+		Assert(info.Fragment != INVALID_FRAGMENT_HANDLE);
+
+		ref FragmentInfo_t fragment = ref Frags[info.Fragment];
+		int blockY = fragment.Block / BLOCKS_PER_ROW;
+		int blockX = fragment.Block - blockY * BLOCKS_PER_ROW;
+
+		int fragmentSize = 1 << Blocks[fragment.Block].FragmentPower;
+		int fragmentsPerRow = BLOCK_SIZE / fragmentSize;
+		int fragmentY = fragment.Index / fragmentsPerRow;
+		int fragmentX = fragment.Index - fragmentY * fragmentsPerRow;
+
+		x = blockX * BLOCK_SIZE + fragmentX * fragmentSize;
+		y = blockY * BLOCK_SIZE + fragmentY * fragmentSize;
+		w = fragmentSize;
+		h = fragmentSize;
+	}
 }
 
 public struct VisibleShadowInfo_t
@@ -205,14 +468,83 @@ public class VisibleShadowList : IClientLeafShadowEnum
 	readonly List<VisibleShadowInfo_t> ShadowsInView = [];
 	readonly List<int> PriorityIndex = [];
 
-	public int FindShadows(in ViewSetup view, int leafCount, ReadOnlySpan<LeafIndex_t> leafList) => throw new NotImplementedException();
 	public int GetVisibleShadowCount() => ShadowsInView.Count;
 
 	public ref readonly VisibleShadowInfo_t GetVisibleShadow(int i) => ref ShadowsInView.AsSpan()[PriorityIndex[i]];
 
-	public void EnumShadow(ClientShadowHandle_t clientShadowHandle) => throw new NotImplementedException();
-	float ComputeScreenArea(in Vector3 center, float r) => throw new NotImplementedException();
-	void PrioritySort() => throw new NotImplementedException();
+	float ComputeScreenArea(in Vector3 center, float r) {
+		IMatRenderContext renderContext = materials.GetRenderContext();
+		float screenDiameter = renderContext.ComputePixelDiameterOfSphere(center, r);
+		return screenDiameter * screenDiameter;
+	}
+
+	public void EnumShadow(ClientShadowHandle_t clientShadowHandle) {
+		ref ClientShadowMgr.ClientShadow_t shadow = ref s_ClientShadowMgr.Shadows[clientShadowHandle].Shadow;
+
+		if (shadow.RenderFrame == gpGlobals.FrameCount)
+			return;
+
+		if (s_ClientShadowMgr.GetActualShadowCastType(clientShadowHandle) != ShadowType.RenderToTexture)
+			return;
+
+		ref readonly Source.Common.Engine.ShadowInfo_t shadowInfo = ref g_ShadowMgr.GetInfo(shadow.ShadowHandle);
+		if (shadowInfo.FalloffBias == 255)
+			return;
+
+		IClientRenderable? renderable = cl_entitylist.GetClientRenderableFromHandle(shadow.Entity);
+		Assert(renderable != null);
+
+		if (s_ClientShadowMgr.ShouldUseParentShadow(renderable) || s_ClientShadowMgr.WillParentRenderBlobbyShadow(renderable))
+			return;
+
+		s_ClientShadowMgr.ComputeBoundingSphere(renderable, out Vector3 absCenter, out float radius);
+
+		s_ClientShadowMgr.ComputeShadowBBox(renderable, in absCenter, radius, out Vector3 absMins, out Vector3 absMaxs);
+
+		if (engine.CullBox(in absMins, in absMaxs))
+			return;
+
+		VisibleShadowInfo_t info = default;
+		info.Shadow = clientShadowHandle;
+		info.Area = ComputeScreenArea(in absCenter, radius);
+		ShadowsInView.Add(info);
+
+		shadow.RenderFrame = gpGlobals.FrameCount;
+	}
+
+	void PrioritySort() {
+		int count = ShadowsInView.Count;
+		PriorityIndex.EnsureCapacity(count);
+
+		PriorityIndex.Clear();
+
+		int i, j;
+		for (i = 0; i < count; ++i)
+			PriorityIndex.Add(i);
+
+		for (i = 0; i < count - 1; ++i) {
+			int largestInd = i;
+			float largestArea = ShadowsInView[PriorityIndex[i]].Area;
+			for (j = i + 1; j < count; ++j) {
+				int index = PriorityIndex[j];
+				if (largestArea < ShadowsInView[index].Area) {
+					largestInd = j;
+					largestArea = ShadowsInView[index].Area;
+				}
+			}
+			(PriorityIndex[i], PriorityIndex[largestInd]) = (PriorityIndex[largestInd], PriorityIndex[i]);
+		}
+	}
+
+	public int FindShadows(in ViewSetup view, int leafCount, List<LeafIndex_t> leafList) {
+		ShadowsInView.Clear();
+		clientLeafSystem.EnumerateShadowsInLeaves(leafCount, leafList, this);
+		int count = ShadowsInView.Count;
+		if (count != 0)
+			PrioritySort();
+
+		return count;
+	}
 }
 
 public class ShadowLeafEnum : ISpatialLeafEnumerator
@@ -252,7 +584,7 @@ public class ClientShadowMgr : IClientShadowMgr
 		public QAngle LastAngles;
 		public TextureHandle_t ShadowTexture;
 		public ITexture? ShadowDepthTexture;
-		public int RenderFrame;
+		public long RenderFrame;
 		public EHANDLE TargetEntity;
 	}
 
@@ -262,7 +594,7 @@ public class ClientShadowMgr : IClientShadowMgr
 	IMaterial? RenderShadow;
 	IMaterial? RenderModelShadow;
 	ITexture? DummyColorTexture;
-	readonly Dictionary<ClientShadowHandle_t, ClientShadowBox> Shadows = [];
+	internal readonly Dictionary<ClientShadowHandle_t, ClientShadowBox> Shadows = [];
 	readonly List<ClientShadowHandle_t> ValidShadowHandles = [];
 	ClientShadowHandle_t curShadowHandleIdx;
 	readonly TextureAllocator ShadowAllocator = new();
@@ -598,15 +930,75 @@ public class ClientShadowMgr : IClientShadowMgr
 		}
 	}
 
-	public void ComputeShadowTextures(in ViewSetup view, int leafCount, ReadOnlySpan<LeafIndex_t> leafList) => throw new NotImplementedException();
+	public void ComputeShadowTextures(in ViewSetup view, int leafCount, List<LeafIndex_t> leafList) {
+		if (!RenderToTextureActive || r_shadows.GetInt() == 0 || r_shadows_gamecontrol.GetInt() == 0)
+			return;
+
+		Threaded = false;
+
+		int count = s_VisibleShadowList.FindShadows(in view, leafCount, leafList);
+		if (count == 0)
+			return;
+
+		using MatRenderContextPtr renderContext = new(materials);
+
+		renderContext.ClearColor4ub(255, 255, 255, 0);
+
+		MaterialHeightClipMode oldHeightClipMode = renderContext.GetHeightClipMode();
+		renderContext.SetHeightClipMode(MaterialHeightClipMode.Disable);
+
+		renderContext.MatrixMode(MaterialMatrixMode.Projection);
+		renderContext.PushMatrix();
+		renderContext.LoadIdentity();
+		renderContext.Scale(1, -1, 1);
+		renderContext.Ortho(0, 0, 1, 1, -9999, 0);
+
+		renderContext.MatrixMode(MaterialMatrixMode.View);
+		renderContext.PushMatrix();
+
+		renderContext.PushRenderTargetAndViewport(ShadowAllocator.GetTexture());
+
+		if (RenderTargetNeedsClear) {
+			renderContext.ClearBuffers(true, false);
+			RenderTargetNeedsClear = false;
+		}
+
+		int maxShadows = r_shadowmaxrendered.GetInt();
+		int modelsRendered = 0;
+		int i;
+
+		for (i = 0; i < count; ++i) {
+			ref readonly VisibleShadowInfo_t info = ref s_VisibleShadowList.GetVisibleShadow(i);
+			if (modelsRendered < maxShadows) {
+				if (DrawRenderToTextureShadow(info.Shadow, info.Area))
+					++modelsRendered;
+			}
+			else
+				DrawRenderToTextureShadowLOD(info.Shadow);
+		}
+
+		renderContext.PopRenderTargetAndViewport();
+
+		renderContext.MatrixMode(MaterialMatrixMode.Projection);
+		renderContext.PopMatrix();
+
+		renderContext.MatrixMode(MaterialMatrixMode.View);
+		renderContext.PopMatrix();
+
+		renderContext.SetHeightClipMode(oldHeightClipMode);
+
+		renderContext.SetHeightClipMode(oldHeightClipMode);
+
+		renderContext.ClearColor3ub(0, 0, 0);
+	}
 
 	public void ComputeShadowDepthTextures(in ViewSetup view) => throw new NotImplementedException();
 
 	public void FreeShadowDepthTextures() => throw new NotImplementedException();
 
-	public ITexture? GetShadowTexture(ushort h) => throw new NotImplementedException();
+	public ITexture? GetShadowTexture(ushort h) => ShadowAllocator.GetTexture();
 
-	public ref readonly ShadowInfo_t GetShadowInfo(ClientShadowHandle_t h) => throw new NotImplementedException();
+	public ref readonly Source.Common.Engine.ShadowInfo_t GetShadowInfo(ClientShadowHandle_t h) => ref g_ShadowMgr.GetInfo(Shadows[h].Shadow.ShadowHandle);
 
 	public void RenderShadowTexture(int w, int h) => throw new NotImplementedException();
 
@@ -667,7 +1059,25 @@ public class ClientShadowMgr : IClientShadowMgr
 		RenderTargetNeedsClear = true;
 	}
 
-	public void ComputeShadowBBox(IClientRenderable? renderable, in Vector3 absCenter, float radius, out Vector3 absMins, out Vector3 absMaxs) => throw new NotImplementedException();
+	public void ComputeShadowBBox(IClientRenderable? renderable, in Vector3 absCenter, float radius, out Vector3 absMins, out Vector3 absMaxs) {
+		absMins = default;
+		absMaxs = default;
+
+		Vector3 shadowDir = GetShadowDirection(renderable);
+		for (int i = 0; i < 3; ++i) {
+			float shadowCastDistance = GetShadowDistance(renderable);
+			float dist = shadowCastDistance * shadowDir[i];
+
+			if (shadowDir[i] < 0) {
+				absMins[i] = absCenter[i] - radius + dist;
+				absMaxs[i] = absCenter[i] + radius;
+			}
+			else {
+				absMins[i] = absCenter[i] - radius;
+				absMaxs[i] = absCenter[i] + radius + dist;
+			}
+		}
+	}
 
 	public bool WillParentRenderBlobbyShadow(IClientRenderable? renderable) {
 		if (renderable == null)
@@ -845,6 +1255,24 @@ public class ClientShadowMgr : IClientShadowMgr
 		MathLib.MatrixInverseGeneral(in matWorldToShadow, out matWorldToShadow);
 	}
 
+	static void BuildOrthoWorldToShadowMatrix(out Matrix4x4 worldToShadow, in Vector3 origin, in Vector3 dir, in Vector3 xvec, in Vector3 yvec) {
+		Assert(MathF.Abs(MathLib.DotProduct(dir, xvec)) < 1e-3f);
+		Assert(MathF.Abs(MathLib.DotProduct(dir, yvec)) < 1e-3f);
+		Assert(MathF.Abs(MathLib.DotProduct(xvec, yvec)) < 1e-3f);
+
+		worldToShadow = default;
+		worldToShadow.SetBasisVectors(in xvec, in yvec, in dir);
+		MathLib.MatrixTranspose(in worldToShadow, out worldToShadow);
+
+		MathLib.Vector3DMultiply(in worldToShadow, in origin, out Vector3 translation);
+
+		translation *= -1.0f;
+		worldToShadow.SetTranslation(in translation);
+
+		worldToShadow[3, 0] = worldToShadow[3, 1] = worldToShadow[3, 2] = 0.0f;
+		worldToShadow[3, 3] = 1.0f;
+	}
+
 	static void BuildWorldToTextureMatrix(in Matrix4x4 matWorldToShadow, in Vector2 size, out Matrix4x4 matWorldToTexture) {
 		MathLib.MatrixBuildScale(out Matrix4x4 shadowToUnit, 1.0f / size.X, 1.0f / size.Y, 1.0f);
 		shadowToUnit[0, 3] = shadowToUnit[1, 3] = 0.5f;
@@ -931,7 +1359,7 @@ public class ClientShadowMgr : IClientShadowMgr
 		}
 	}
 
-	ShadowType GetActualShadowCastType(ClientShadowHandle_t handle) {
+	internal ShadowType GetActualShadowCastType(ClientShadowHandle_t handle) {
 		if (handle == CLIENTSHADOW_INVALID_HANDLE)
 			return ShadowType.None;
 
@@ -1026,7 +1454,70 @@ public class ClientShadowMgr : IClientShadowMgr
 		clientLeafSystem.ProjectShadow(Shadows[handle].Shadow.ClientLeafShadowHandle, pLeafList.Length, pLeafList);
 	}
 
-	void BuildRenderToTextureShadow(IClientRenderable? renderable, ClientShadowHandle_t handle, in Vector3 mins, in Vector3 maxs) => throw new NotImplementedException();
+	void BuildRenderToTextureShadow(IClientRenderable? renderable, ClientShadowHandle_t handle, in Vector3 mins, in Vector3 maxs) {
+		if (DebugViewRender.cl_drawshadowtexture.GetInt() != 0)
+			DrawRenderToTextureDebugInfo(renderable, in mins, in maxs);
+
+		Span<Vector3> vec = stackalloc Vector3[3];
+		MathLib.AngleVectors(renderable!.GetRenderAngles(), out vec[0], out vec[1], out vec[2]);
+		vec[1] *= -1.0f;
+
+		Vector3 shadowDir = GetShadowDirection(renderable);
+
+		Vector3 localShadowDir = default;
+		localShadowDir[0] = MathLib.DotProduct(vec[0], shadowDir);
+		localShadowDir[1] = MathLib.DotProduct(vec[1], shadowDir);
+		localShadowDir[2] = MathLib.DotProduct(vec[2], shadowDir);
+
+		MathLib.VectorSubtract(in maxs, in mins, out Vector3 boxSize);
+
+		Vector3 yvec = vec3_origin;
+		float projMax = 0.0f;
+		for (int i = 0; i < 3; ++i) {
+			Vector3 test = vec[i] - shadowDir * MathLib.DotProduct(shadowDir, vec[i]);
+			test *= boxSize[i];
+			float lengthSqr = test.LengthSquared();
+			if (lengthSqr > projMax) {
+				projMax = lengthSqr;
+				yvec = test;
+			}
+		}
+
+		MathLib.VectorNormalize(ref yvec);
+
+		MathLib.CrossProduct(in yvec, in shadowDir, out Vector3 xvec);
+
+		Vector2 size;
+		size.X = boxSize.X * MathF.Abs(MathLib.DotProduct(vec[0], xvec)) + boxSize.Y * MathF.Abs(MathLib.DotProduct(vec[1], xvec)) + boxSize.Z * MathF.Abs(MathLib.DotProduct(vec[2], xvec));
+		size.Y = boxSize.X * MathF.Abs(MathLib.DotProduct(vec[0], yvec)) + boxSize.Y * MathF.Abs(MathLib.DotProduct(vec[1], yvec)) + boxSize.Z * MathF.Abs(MathLib.DotProduct(vec[2], yvec));
+
+		size.X += 2.0f * TEXEL_SIZE_PER_CASTER_SIZE;
+		size.Y += 2.0f * TEXEL_SIZE_PER_CASTER_SIZE;
+
+		float falloffStart = ComputeLocalShadowOrigin(renderable, in mins, in maxs, in localShadowDir, 1.0f, out Vector3 org);
+
+		Vector3 worldOrigin = renderable.GetRenderOrigin();
+		MathLib.VectorMA(in worldOrigin, org.X, vec[0], out worldOrigin);
+		MathLib.VectorMA(in worldOrigin, org.Y, vec[1], out worldOrigin);
+		MathLib.VectorMA(in worldOrigin, org.Z, vec[2], out worldOrigin);
+
+		BuildOrthoWorldToShadowMatrix(out Shadows[handle].Shadow.WorldToShadow, in worldOrigin, in shadowDir, in xvec, in yvec);
+		BuildWorldToTextureMatrix(in Shadows[handle].Shadow.WorldToShadow, in size, out Matrix4x4 matWorldToTexture);
+		MathLib.Vector2DCopy(in size, out Shadows[handle].Shadow.WorldSize);
+
+		float shadowCastDistance = GetShadowDistance(renderable);
+		float maxHeight = shadowCastDistance + falloffStart;
+
+		ShadowLeafEnum leafList = new();
+		BuildShadowLeafList(leafList, in worldOrigin, in shadowDir, in size, maxHeight);
+		Span<int> pLeafList = leafList.LeafList.AsSpan();
+
+		g_ShadowMgr.ProjectShadow(Shadows[handle].Shadow.ShadowHandle, in worldOrigin, in shadowDir, in matWorldToTexture, in size, pLeafList, maxHeight, falloffStart, MAX_FALLOFF_AMOUNT, renderable.GetRenderOrigin());
+
+		ComputeExtraClipPlanes(renderable, handle, vec, in mins, in maxs, in localShadowDir);
+
+		clientLeafSystem.ProjectShadow(Shadows[handle].Shadow.ClientLeafShadowHandle, pLeafList.Length, pLeafList);
+	}
 
 	void BuildFlashlight(ClientShadowHandle_t handle) => throw new NotImplementedException();
 
@@ -1061,10 +1552,42 @@ public class ClientShadowMgr : IClientShadowMgr
 		}
 	}
 
-	void ComputeExtraClipPlanes(IClientRenderable? renderable, ClientShadowHandle_t handle, ReadOnlySpan<Vector3> vec, in Vector3 mins, in Vector3 maxs, in Vector3 localShadowDir) => throw new NotImplementedException();
+	void ComputeExtraClipPlanes(IClientRenderable? renderable, ClientShadowHandle_t handle, ReadOnlySpan<Vector3> vec, in Vector3 mins, in Vector3 maxs, in Vector3 localShadowDir) {
+		Vector3 origin = renderable!.GetRenderOrigin();
+		Span<float> dir = stackalloc float[3];
 
-	void ClearExtraClipPlanes(ClientShadowHandle_t h) => throw new NotImplementedException();
-	void AddExtraClipPlane(ClientShadowHandle_t h, in Vector3 normal, float dist) => throw new NotImplementedException();
+		int i;
+		for (i = 0; i < 3; ++i) {
+			if (localShadowDir[i] < 0.0f) {
+				MathLib.VectorMA(in origin, maxs[i], vec[i], out origin);
+				dir[i] = 1;
+			}
+			else {
+				MathLib.VectorMA(in origin, mins[i], vec[i], out origin);
+				dir[i] = -1;
+			}
+		}
+
+		Vector3 normal = default;
+		ClearExtraClipPlanes(handle);
+		for (i = 0; i < 3; ++i) {
+			MathLib.VectorMultiply(vec[i], dir[i], out normal);
+			float dist = MathLib.DotProduct(normal, origin);
+			AddExtraClipPlane(handle, in normal, dist);
+		}
+
+		ref ClientShadow_t shadow = ref Shadows[handle].Shadow;
+		C_BaseEntity? entity = cl_entitylist.GetBaseEntityFromHandle(shadow.Entity);
+		if (entity != null && entity.EnableRenderingClipPlane) {
+			normal[0] = -entity.RenderingClipPlane[0];
+			normal[1] = -entity.RenderingClipPlane[1];
+			normal[2] = -entity.RenderingClipPlane[2];
+			AddExtraClipPlane(handle, in normal, -entity.RenderingClipPlane[3] - 0.5f);
+		}
+	}
+
+	void ClearExtraClipPlanes(ClientShadowHandle_t h) => g_ShadowMgr.ClearExtraClipPlanes(Shadows[h].Shadow.ShadowHandle);
+	void AddExtraClipPlane(ClientShadowHandle_t h, in Vector3 normal, float dist) => g_ShadowMgr.AddExtraClipPlane(Shadows[h].Shadow.ShadowHandle, in normal, dist);
 
 	bool CullReceiver(ClientShadowHandle_t handle, IClientRenderable? renderable, IClientRenderable? sourceRenderable) {
 		if ((Shadows[handle].Shadow.Flags & (int)ShadowFlags.Flashlight) != 0) {
@@ -1143,19 +1666,237 @@ public class ClientShadowMgr : IClientShadowMgr
 		}
 	}
 
-	bool DrawRenderToTextureShadow(ushort clientShadowHandle, float area) => throw new NotImplementedException();
-	void DrawRenderToTextureShadowLOD(ushort clientShadowHandle) => throw new NotImplementedException();
+	bool DrawRenderToTextureShadow(ushort clientShadowHandle, float area) {
+		ref ClientShadow_t shadow = ref Shadows[clientShadowHandle].Shadow;
 
-	bool DrawShadowHierarchy(IClientRenderable? renderable, in ClientShadow_t shadow, bool child = false) => throw new NotImplementedException();
+		bool previouslyUsingLODShadow = (shadow.Flags & (int)ShadowFlags_t.UsingLodShadow) != 0;
+		shadow.Flags &= unchecked((ushort)~(int)ShadowFlags_t.UsingLodShadow);
+		if (previouslyUsingLODShadow)
+			g_ShadowMgr.SetShadowMaterial(shadow.ShadowHandle, RenderShadow, RenderModelShadow, clientShadowHandle);
 
-	bool BuildSetupListForRenderToTextureShadow(ushort clientShadowHandle, float area) => throw new NotImplementedException();
-	bool BuildSetupShadowHierarchy(IClientRenderable? renderable, in ClientShadow_t shadow, bool child = false) => throw new NotImplementedException();
+		bool dirtyTexture = (shadow.Flags & (int)ShadowFlags_t.TextureDirty) != 0;
+		bool drewTexture = false;
+		bool needsRedraw = !Threaded && ShadowAllocator.UseTexture(shadow.ShadowTexture, dirtyTexture, area);
 
-	void SetRenderToTextureShadowTexCoords(ShadowHandle_t handle, int x, int y, int w, int h) => throw new NotImplementedException();
+		if (!ShadowAllocator.HasValidTexture(shadow.ShadowTexture)) {
+			DrawRenderToTextureShadowLOD(clientShadowHandle);
+			return false;
+		}
 
-	void DrawRenderToTextureDebugInfo(IClientRenderable? renderable, in Vector3 mins, in Vector3 maxs) => throw new NotImplementedException();
+		if (needsRedraw || dirtyTexture) {
+			IClientRenderable? renderable = cl_entitylist.GetClientRenderableFromHandle(shadow.Entity);
 
-	public void AdvanceFrame() => throw new NotImplementedException();
+			using MatRenderContextPtr renderContext = new(materials);
+
+			ShadowAllocator.GetTextureRect(shadow.ShadowTexture, out int x, out int y, out int w, out int h);
+			renderContext.Viewport(x, y, w, h);
+
+			renderContext.ClearBuffers(true, false);
+
+			renderContext.MatrixMode(MaterialMatrixMode.View);
+			renderContext.LoadMatrix(g_ShadowMgr.GetInfo(shadow.ShadowHandle).WorldToShadow);
+
+			if (DrawShadowHierarchy(renderable, in shadow))
+				drewTexture = true;
+			else
+				DevMsg("Didn't draw shadow hierarchy.. bad shadow texcoords probably going to happen..grab Brian!\n");
+
+			if ((shadow.Flags & (int)ClientShadowFlags.AnimatingSource) == 0)
+				shadow.Flags &= unchecked((ushort)~(int)ShadowFlags_t.TextureDirty);
+
+			SetRenderToTextureShadowTexCoords(shadow.ShadowHandle, x, y, w, h);
+		}
+		else if (previouslyUsingLODShadow) {
+			ShadowAllocator.GetTextureRect(shadow.ShadowTexture, out int x, out int y, out int w, out int h);
+			SetRenderToTextureShadowTexCoords(shadow.ShadowHandle, x, y, w, h);
+		}
+
+		return drewTexture;
+	}
+	void DrawRenderToTextureShadowLOD(ushort clientShadowHandle) {
+		ref ClientShadow_t shadow = ref Shadows[clientShadowHandle].Shadow;
+		if ((shadow.Flags & (int)ShadowFlags_t.UsingLodShadow) == 0) {
+			g_ShadowMgr.SetShadowMaterial(shadow.ShadowHandle, SimpleShadow, SimpleShadow, CLIENTSHADOW_INVALID_HANDLE);
+			g_ShadowMgr.SetShadowTexCoord(shadow.ShadowHandle, 0, 0, 1, 1);
+			ClearExtraClipPlanes(clientShadowHandle);
+			shadow.Flags |= (ushort)ShadowFlags_t.UsingLodShadow;
+		}
+	}
+
+	bool DrawShadowHierarchy(IClientRenderable? renderable, in ClientShadow_t shadow, bool child = false) {
+		bool drewTexture = false;
+
+		ShadowType shadowType = GetActualShadowCastType(renderable);
+		if (renderable != null && shadowType == ShadowType.Simple)
+			return false;
+
+		if (renderable == null || shadowType != ShadowType.None) {
+			bool drawModelShadow;
+			bool drawBrushShadow;
+			if (!child) {
+				drawModelShadow = (shadow.Flags & (int)ShadowFlags_t.BrushModel) == 0;
+				drawBrushShadow = !drawModelShadow;
+			}
+			else {
+				ModelType modelType = modelinfo.GetModelType(renderable!.GetModel());
+				drawModelShadow = modelType == ModelType.Studio;
+				drawBrushShadow = modelType == ModelType.Brush;
+			}
+
+			if (drawModelShadow) {
+				DrawModelInfo info = default;
+				if (modelrender.DrawModelShadowSetup(renderable!, renderable!.GetBody(), renderable.GetSkin(), ref info, default, out Span<Matrix3x4> boneToWorld))
+					modelrender.DrawModelShadow(renderable, in info, boneToWorld);
+				drewTexture = true;
+			}
+			else if (drawBrushShadow) {
+				render.DrawBrushModelShadow(renderable!);
+				drewTexture = true;
+			}
+		}
+
+		if (renderable == null)
+			return drewTexture;
+
+		for (IClientRenderable? pChild = renderable.FirstShadowChild(); pChild != null; pChild = pChild.NextShadowPeer()) {
+			if (DrawShadowHierarchy(pChild, in shadow, true))
+				drewTexture = true;
+		}
+		return drewTexture;
+	}
+
+	bool BuildSetupListForRenderToTextureShadow(ushort clientShadowHandle, float area) {
+		ref ClientShadow_t shadow = ref Shadows[clientShadowHandle].Shadow;
+		bool dirtyTexture = (shadow.Flags & (int)ShadowFlags_t.TextureDirty) != 0;
+		bool needsRedraw = ShadowAllocator.UseTexture(shadow.ShadowTexture, dirtyTexture, area);
+		if (needsRedraw || dirtyTexture) {
+			shadow.Flags |= (ushort)ShadowFlags_t.TextureDirty;
+
+			if (!ShadowAllocator.HasValidTexture(shadow.ShadowTexture))
+				return false;
+
+			IClientRenderable? renderable = cl_entitylist.GetClientRenderableFromHandle(shadow.Entity);
+
+			if (BuildSetupShadowHierarchy(renderable, in shadow))
+				return true;
+		}
+		return false;
+	}
+
+	bool BuildSetupShadowHierarchy(IClientRenderable? renderable, in ClientShadow_t shadow, bool child = false) {
+		bool drewTexture = false;
+
+		ShadowType shadowType = GetActualShadowCastType(renderable);
+		if (renderable != null && shadowType == ShadowType.Simple)
+			return false;
+
+		if (renderable == null || shadowType != ShadowType.None) {
+			bool drawModelShadow;
+			if (!child) {
+				drawModelShadow = (shadow.Flags & (int)ShadowFlags_t.BrushModel) == 0;
+			}
+			else {
+				ModelType modelType = modelinfo.GetModelType(renderable!.GetModel());
+				drawModelShadow = modelType == ModelType.Studio;
+			}
+
+			if (drawModelShadow) {
+				C_BaseEntity? entity = renderable?.GetIClientUnknown()?.GetBaseEntity();
+				if (entity != null) {
+					if (entity.IsNPC())
+						s_NPCShadowBoneSetups.Add((C_BaseAnimating)entity);
+					else if (entity.GetBaseAnimating() != null)
+						s_NonNPCShadowBoneSetups.Add((C_BaseAnimating)entity);
+				}
+				drewTexture = true;
+			}
+		}
+
+		if (renderable == null)
+			return drewTexture;
+
+		for (IClientRenderable? pChild = renderable.FirstShadowChild(); pChild != null; pChild = pChild.NextShadowPeer()) {
+			if (BuildSetupShadowHierarchy(pChild, in shadow, true))
+				drewTexture = true;
+		}
+		return drewTexture;
+	}
+
+	void SetRenderToTextureShadowTexCoords(ShadowHandle_t handle, int x, int y, int w, int h) {
+		ShadowAllocator.GetTotalTextureSize(out int textureW, out int textureH);
+
+		float u, v, du, dv;
+
+		u = ((float)x + 0.5f) / (float)textureW;
+		v = ((float)y + 0.5f) / (float)textureH;
+		du = ((float)w - 1) / (float)textureW;
+		dv = ((float)h - 1) / (float)textureH;
+
+		g_ShadowMgr.SetShadowTexCoord(handle, u, v, du, dv);
+	}
+
+	void DrawRenderToTextureDebugInfo(IClientRenderable? renderable, in Vector3 mins, in Vector3 maxs) {
+		if (debugoverlay == null)
+			return;
+
+		Span<Vector3> vec = stackalloc Vector3[3];
+		MathLib.AngleVectors(renderable!.GetRenderAngles(), out vec[0], out vec[1], out vec[2]);
+		vec[1] *= -1.0f;
+
+		MathLib.VectorSubtract(in maxs, in mins, out Vector3 size);
+
+		Vector3 origin = renderable.GetRenderOrigin();
+		Vector3 start, end, end2;
+
+		MathLib.VectorMA(in origin, mins.X, vec[0], out start);
+		MathLib.VectorMA(in start, mins.Y, vec[1], out start);
+		MathLib.VectorMA(in start, mins.Z, vec[2], out start);
+
+		MathLib.VectorMA(in start, size.X, vec[0], out end);
+		MathLib.VectorMA(in end, size.Z, vec[2], out end2);
+		debugoverlay.AddLineOverlay(in start, in end, 255, 0, 0, true, 0.01f);
+		debugoverlay.AddLineOverlay(in end2, in end, 255, 0, 0, true, 0.01f);
+
+		MathLib.VectorMA(in start, size.Y, vec[1], out end);
+		MathLib.VectorMA(in end, size.Z, vec[2], out end2);
+		debugoverlay.AddLineOverlay(in start, in end, 255, 0, 0, true, 0.01f);
+		debugoverlay.AddLineOverlay(in end2, in end, 255, 0, 0, true, 0.01f);
+
+		MathLib.VectorMA(in start, size.Z, vec[2], out end);
+		debugoverlay.AddLineOverlay(in start, in end, 255, 0, 0, true, 0.01f);
+
+		start = end;
+		MathLib.VectorMA(in start, size.X, vec[0], out end);
+		debugoverlay.AddLineOverlay(in start, in end, 255, 0, 0, true, 0.01f);
+
+		MathLib.VectorMA(in start, size.Y, vec[1], out end);
+		debugoverlay.AddLineOverlay(in start, in end, 255, 0, 0, true, 0.01f);
+
+		MathLib.VectorMA(in end, size.X, vec[0], out start);
+		MathLib.VectorMA(in start, -size.X, vec[0], out end);
+		debugoverlay.AddLineOverlay(in start, in end, 255, 0, 0, true, 0.01f);
+
+		MathLib.VectorMA(in start, -size.Y, vec[1], out end);
+		debugoverlay.AddLineOverlay(in start, in end, 255, 0, 0, true, 0.01f);
+
+		MathLib.VectorMA(in start, -size.Z, vec[2], out end);
+		debugoverlay.AddLineOverlay(in start, in end, 255, 0, 0, true, 0.01f);
+
+		start = end;
+		MathLib.VectorMA(in start, -size.X, vec[0], out end);
+		debugoverlay.AddLineOverlay(in start, in end, 255, 0, 0, true, 0.01f);
+
+		MathLib.VectorMA(in start, -size.Y, vec[1], out end);
+		debugoverlay.AddLineOverlay(in start, in end, 255, 0, 0, true, 0.01f);
+
+		C_BaseEntity? ent = renderable.GetIClientUnknown()?.GetBaseEntity();
+		if (ent != null)
+			debugoverlay.AddTextOverlay(in origin, 0, $"{ent.EntIndex()}");
+		else
+			debugoverlay.AddTextOverlay(in origin, 0, $"{renderable}");
+	}
+
+	public void AdvanceFrame() => ShadowAllocator.AdvanceFrame();
 
 	float GetShadowDistance(IClientRenderable? renderable) {
 		float dist = ShadowCastDist;
@@ -1186,10 +1927,8 @@ public class ClientShadowMgr : IClientShadowMgr
 
 			DepthTextureCache.Clear();
 			DepthTextureCacheLocks.Clear();
+			Span<char> strRTName = stackalloc char[64];
 			for (int i = 0; i < MaxDepthTextureShadows; i++) {
-				bool @false = false;
-
-				Span<char> strRTName = stackalloc char[64];
 				sprintf(strRTName, "_rt_ShadowDepthTexture_%d").D(i);
 
 				ITexture? depthTex = InitRenderTarget(DepthTextureResolution, DepthTextureResolution, RenderTargetSizeMode.Offscreen, dstFormat, MaterialRenderTargetDepth.None, false, strRTName.SliceNullTerminatedString());
@@ -1200,7 +1939,7 @@ public class ClientShadowMgr : IClientShadowMgr
 				}
 
 				DepthTextureCache.Add(depthTex);
-				DepthTextureCacheLocks.Add(@false);
+				DepthTextureCacheLocks.Add(false);
 			}
 
 			materials.EndRenderTargetAllocation();
@@ -1352,4 +2091,72 @@ public class ClientShadowMgr : IClientShadowMgr
 	int BuildActiveShadowDepthList(in ViewSetup viewSetup, int maxDepthShadows, Span<ClientShadowHandle_t> activeDepthShadows) => throw new NotImplementedException();
 
 	void SetViewFlashlightState(int activeFlashlightCount, ReadOnlySpan<ClientShadowHandle_t> activeFlashlights) => throw new NotImplementedException();
+}
+
+[ExposeMaterialProxy(Name = "Shadow")]
+public class ShadowProxy : IMaterialProxy
+{
+	IMaterialVar? BaseTextureVar;
+
+	public bool Init(IMaterial material, KeyValues keyValues) {
+		BaseTextureVar = material.FindVar("$basetexture", out bool foundVar, false);
+		return foundVar;
+	}
+
+	public void OnBind(object? proxyData) {
+		ClientShadowHandle_t clientShadowHandle = (ClientShadowHandle_t)(proxyData ?? CLIENTSHADOW_INVALID_HANDLE);
+		ITexture? tex = s_ClientShadowMgr.GetShadowTexture(clientShadowHandle);
+		BaseTextureVar!.SetTextureValue(tex);
+	}
+
+	public void Release() { }
+
+	public IMaterial GetMaterial() => BaseTextureVar!.GetOwningMaterial();
+}
+
+[ExposeMaterialProxy(Name = "ShadowModel")]
+public class ShadowModelProxy : IMaterialProxy
+{
+	IMaterialVar? BaseTextureVar;
+	IMaterialVar? BaseTextureOffsetVar;
+	IMaterialVar? BaseTextureScaleVar;
+	IMaterialVar? BaseTextureMatrixVar;
+	IMaterialVar? FalloffOffsetVar;
+	IMaterialVar? FalloffDistanceVar;
+	IMaterialVar? FalloffAmountVar;
+
+	public bool Init(IMaterial material, KeyValues keyValues) {
+		BaseTextureVar = material.FindVar("$basetexture", out bool foundVar, false);
+		if (!foundVar) return false;
+		BaseTextureOffsetVar = material.FindVar("$basetextureoffset", out foundVar, false);
+		if (!foundVar) return false;
+		BaseTextureScaleVar = material.FindVar("$basetexturescale", out foundVar, false);
+		if (!foundVar) return false;
+		BaseTextureMatrixVar = material.FindVar("$basetexturetransform", out foundVar, false);
+		if (!foundVar) return false;
+		FalloffOffsetVar = material.FindVar("$falloffoffset", out foundVar, false);
+		if (!foundVar) return false;
+		FalloffDistanceVar = material.FindVar("$falloffdistance", out foundVar, false);
+		if (!foundVar) return false;
+		FalloffAmountVar = material.FindVar("$falloffamount", out foundVar, false);
+		return foundVar;
+	}
+
+	public void OnBind(object? proxyData) {
+		ClientShadowHandle_t clientShadowHandle = (ClientShadowHandle_t)(proxyData ?? CLIENTSHADOW_INVALID_HANDLE);
+		ITexture? tex = s_ClientShadowMgr.GetShadowTexture(clientShadowHandle);
+		BaseTextureVar!.SetTextureValue(tex);
+
+		ref readonly Source.Common.Engine.ShadowInfo_t info = ref s_ClientShadowMgr.GetShadowInfo(clientShadowHandle);
+		BaseTextureMatrixVar!.SetMatrixValue(in info.WorldToShadow);
+		BaseTextureOffsetVar!.SetVecValue(in info.TexOrigin);
+		BaseTextureScaleVar!.SetVecValue(in info.TexSize);
+		FalloffOffsetVar!.SetFloatValue(info.FalloffOffset);
+		FalloffDistanceVar!.SetFloatValue(info.MaxDist);
+		FalloffAmountVar!.SetFloatValue(info.FalloffAmount);
+	}
+
+	public void Release() { }
+
+	public IMaterial GetMaterial() => BaseTextureVar!.GetOwningMaterial();
 }

@@ -72,6 +72,8 @@ public interface IClientLeafSystem : IClientLeafSystemEngine, IGameSystemPerFram
 	void ProjectShadow(ClientLeafShadowHandle_t handle, int leafCount, ReadOnlySpan<int> leafList);
 	void ProjectFlashlight(ClientLeafShadowHandle_t handle, int leafCount, ReadOnlySpan<int> leafList);
 
+	void EnumerateShadowsInLeaves(int leafCount, List<LeafIndex_t> leaves, IClientLeafShadowEnum enumerator);
+
 	void RenderableChanged(ClientRenderHandle_t handle);
 	void SetRenderGroup(ClientRenderHandle_t handle, RenderGroup group);
 

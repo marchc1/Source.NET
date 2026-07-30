@@ -1768,9 +1768,13 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			return;
 
 		UnbindTexture(handle);
+
+		InternalTextureInfo tex = GetTexture(handle);
+		uint[] copies = tex.GetTextureArray();
+		fixed (uint* h = copies)
+			glDeleteTextures(tex.NumCopies, h);
+
 		Textures.Remove(handle);
-		uint h = (uint)handle;
-		glDeleteTextures(1, &h);
 	}
 
 	public void UnbindTexture(int handle) {
@@ -2033,7 +2037,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		FlushBufferedPrimitives();
 
 		if (colorTextureHandle == -1 && depthTextureHandle == -1) {
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			if (renderTargetID == 0)
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			return;
 		}
 
@@ -2042,16 +2047,16 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		if (colorTextureHandle == -2)
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
 		else if (colorTextureHandle >= 0)
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, (uint)colorTextureHandle, 0);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, GetGL46Texture(colorTextureHandle), 0);
 
 		if (depthTextureHandle == -2)
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
 		else if (depthTextureHandle >= 0)
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, (uint)depthTextureHandle, 0);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, GetGL46Texture(depthTextureHandle), 0);
 
 		var status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 		Assert(status == GL_FRAMEBUFFER_COMPLETE, "Framebuffer incomplete");
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		// glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
 	public IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material) {

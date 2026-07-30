@@ -2481,6 +2481,44 @@ public static class MathLib
 		src[2, col] = column.Z;
 	}
 
+	public static void SetForward(ref this Matrix4x4 m, in Vector3 forward) {
+		m[0, 0] = forward.X;
+		m[1, 0] = forward.Y;
+		m[2, 0] = forward.Z;
+	}
+
+	public static void SetLeft(ref this Matrix4x4 m, in Vector3 left) {
+		m[0, 1] = left.X;
+		m[1, 1] = left.Y;
+		m[2, 1] = left.Z;
+	}
+
+	public static void SetUp(ref this Matrix4x4 m, in Vector3 up) {
+		m[0, 2] = up.X;
+		m[1, 2] = up.Y;
+		m[2, 2] = up.Z;
+	}
+
+	public static void SetBasisVectors(ref this Matrix4x4 m, in Vector3 forward, in Vector3 left, in Vector3 up) {
+		m.SetForward(in forward);
+		m.SetLeft(in left);
+		m.SetUp(in up);
+	}
+
+	public static void SetTranslation(ref this Matrix4x4 m, in Vector3 trans) {
+		m[0, 3] = trans.X;
+		m[1, 3] = trans.Y;
+		m[2, 3] = trans.Z;
+	}
+
+	public static void MatrixTranspose(in Matrix4x4 src, out Matrix4x4 dst) {
+		dst = default;
+		dst[0, 0] = src[0, 0]; dst[0, 1] = src[1, 0]; dst[0, 2] = src[2, 0]; dst[0, 3] = src[3, 0];
+		dst[1, 0] = src[0, 1]; dst[1, 1] = src[1, 1]; dst[1, 2] = src[2, 1]; dst[1, 3] = src[3, 1];
+		dst[2, 0] = src[0, 2]; dst[2, 1] = src[1, 2]; dst[2, 2] = src[2, 2]; dst[2, 3] = src[3, 2];
+		dst[3, 0] = src[0, 3]; dst[3, 1] = src[1, 3]; dst[3, 2] = src[2, 3]; dst[3, 3] = src[3, 3];
+	}
+
 	public static ref Vector3 GetTranslation(this in Matrix4x4 m, ref Vector3 trans) {
 		trans.X = m[0, 3];
 		trans.Y = m[1, 3];

@@ -77,6 +77,8 @@ public class RenderView(EngineVGui EngineVGui, Render engineRenderer) : IRenderV
 		R_DrawBrushModel(baseentity, model, origin, angles, RenderDepthMode.Normal, true, true);
 	}
 
+	public void DrawBrushModelShadow(IClientRenderable renderable) => R_DrawBrushModelShadow(renderable);
+
 	public void DrawIdentityBrushModel(IWorldRenderList list, Model model) {
 		throw new NotImplementedException();
 	}

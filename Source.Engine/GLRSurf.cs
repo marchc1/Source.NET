@@ -838,10 +838,10 @@ public static class GLRSurf
 				if ((flags & DrawWorldListFlags.ClipSkybox) != 0)
 					g_EngineRenderer.DrawSkybox(g_EngineRenderer.GetZFar());
 				else {
-					// MaterialHeightClipMode clipMode = renderCtx.GetHeightClipMode(); // todo
-					// renderCtx.SetHeightClipMode(MaterialHeightClipMode.Disable);
+					MaterialHeightClipMode clipMode = renderCtx.GetHeightClipMode();
+					renderCtx.SetHeightClipMode(MaterialHeightClipMode.Disable);
 					g_EngineRenderer.DrawSkybox(g_EngineRenderer.GetZFar());
-					// renderCtx.SetHeightClipMode(clipMode);
+					renderCtx.SetHeightClipMode(clipMode);
 				}
 			}
 		}
@@ -1236,7 +1236,18 @@ public static class GLRSurf
 			g_ShaderDebug.TestAnyDebug();
 		}
 	}
-	public static void R_DrawBrushModelShadow(IClientRenderable renderable) => throw new NotImplementedException();
+	public static void R_DrawBrushModelShadow(IClientRenderable renderable) {
+		if (r_drawbrushmodels.GetInt() == 0)
+			return;
+
+		Model? model = renderable.GetModel();
+		Vector3 origin = renderable.GetRenderOrigin();
+		QAngle angles = renderable.GetRenderAngles();
+
+		using MatRenderContextPtr renderContext = new(materials);
+		using BrushModelTransform brushTransform = new(origin, angles, renderContext);
+		g_BrushBatchRenderer.DrawBrushModelShadow(model, renderable);
+	}
 	public static void R_DrawIdentityBrushModel(IWorldRenderList renderListIn, Model? model) => throw new NotImplementedException();
 }
 
@@ -1773,7 +1784,48 @@ public class BrushBatchRender
 		}
 	}
 
-	public void DrawBrushModelShadow(Model? model, IClientRenderable renderable) => throw new NotImplementedException();
+	public void DrawBrushModelShadow(Model? model, IClientRenderable renderable) {
+		BrushRender? render = FindOrCreateRenderBatch(model!);
+		if (render == null)
+			return;
+
+		using MatRenderContextPtr renderContext = new(materials);
+
+		renderContext.Bind(MatSys.MaterialShadowBuild!, renderable);
+
+		SurfaceHandle_t surfID = model!.Brush.FirstModelSurface;
+		IMesh mesh = renderContext.GetDynamicMesh();
+		MeshBuilder meshBuilder = new();
+		meshBuilder.Begin(mesh, MaterialPrimitiveType.Triangles, render.TotalVertexCount, render.TotalIndexCount);
+
+		for (int i = 0; i < model.Brush.NumModelSurfaces; i++, surfID++) {
+			ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID, model.Brush.Shared);
+			Assert((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.NoDraw) == 0);
+
+			if ((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.Trans) != 0)
+				continue;
+
+			int startVert = ModelLoader.MSurf_FirstVertIndex(ref surface);
+			int vertCount = ModelLoader.MSurf_VertCount(ref surface);
+			int startIndex = meshBuilder.GetCurrentVertex();
+			int j;
+			for (j = 0; j < vertCount; j++) {
+				int vertIndex = model.Brush.Shared!.VertIndices![startVert + j];
+
+				meshBuilder.Position3fv(model.Brush.Shared.Vertexes![vertIndex].Position);
+				meshBuilder.TexCoord2f(0, 0.0f, 0.0f);
+				meshBuilder.AdvanceVertex();
+			}
+
+			for (j = 0; j < vertCount - 2; j++) {
+				meshBuilder.FastIndex((ushort)startIndex);
+				meshBuilder.FastIndex((ushort)(startIndex + j + 1));
+				meshBuilder.FastIndex((ushort)(startIndex + j + 2));
+			}
+		}
+		meshBuilder.End();
+		mesh.Draw();
+	}
 }
 
 public class BrushModelTransform : IDisposable

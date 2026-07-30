@@ -315,6 +315,9 @@ public interface IMatRenderContext
 	void ClearColor4ub(byte r, byte g, byte b, byte a);
 	void DepthRange(double near, double far);
 
+	MaterialHeightClipMode GetHeightClipMode();
+	void SetHeightClipMode(MaterialHeightClipMode heightClipMode);
+
 	void MatrixMode(MaterialMatrixMode mode);
 	void PushMatrix();
 	void PopMatrix();
@@ -403,6 +406,8 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public void ClearColor3ub(byte r, byte g, byte b) => ctx.ClearColor3ub(r, g, b);
 	public void ClearColor4ub(byte r, byte g, byte b, byte a) => ctx.ClearColor4ub(r, g, b, a);
 	public void DepthRange(double near, double far) => ctx.DepthRange(near, far);
+	public MaterialHeightClipMode GetHeightClipMode() => ctx.GetHeightClipMode();
+	public void SetHeightClipMode(MaterialHeightClipMode heightClipMode) => ctx.SetHeightClipMode(heightClipMode);
 	public void MatrixMode(MaterialMatrixMode mode) => ctx.MatrixMode(mode);
 	public void PushMatrix() => ctx.PushMatrix();
 	public void LoadIdentity() => ctx.LoadIdentity();

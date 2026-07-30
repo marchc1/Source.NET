@@ -420,6 +420,8 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public void LoadIdentity() { }
 	public void LoadMatrix(in Matrix3x4 matrix) { }
 	public void LoadMatrix(in Matrix4x4 matrix) { }
+	public MaterialHeightClipMode GetHeightClipMode() => MaterialHeightClipMode.Disable;
+	public void SetHeightClipMode(MaterialHeightClipMode heightClipMode) { }
 	public void MatrixMode(MaterialMatrixMode mode) { }
 	public void ModInit() { }
 	public void ModShutdown() { }
