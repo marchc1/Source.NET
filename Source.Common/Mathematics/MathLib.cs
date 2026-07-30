@@ -707,6 +707,48 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static float DEG2RAD(float x) => x * (MathF.PI / 180);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static double DEG2RAD(double x) => x * (Math.PI / 180);
 
+	private static void FrustumPlanesFromMatrixHelper(in Matrix4x4 shadowToWorld, in Vector3 p1, in Vector3 p2, in Vector3 p3, out Vector3 normal, out float dist) {
+		Vector3DMultiplyPositionProjective(in shadowToWorld, in p1, out Vector3 world1);
+		Vector3DMultiplyPositionProjective(in shadowToWorld, in p2, out Vector3 world2);
+		Vector3DMultiplyPositionProjective(in shadowToWorld, in p3, out Vector3 world3);
+
+		VectorSubtract(world2, world1, out Vector3 v1);
+		VectorSubtract(world3, world1, out Vector3 v2);
+
+		CrossProduct(v1, v2, out normal);
+		VectorNormalize(ref normal);
+		dist = DotProduct(normal, world1);
+	}
+
+	public static void FrustumPlanesFromMatrix(in Matrix4x4 clipToWorld, Frustum_t frustum) {
+		Vector3 normal;
+		float dist;
+
+		FrustumPlanesFromMatrixHelper(in clipToWorld,
+			new(0.0f, 0.0f, 0.0f), new(1.0f, 0.0f, 0.0f), new(0.0f, 1.0f, 0.0f), out normal, out dist);
+		frustum.SetPlane((int)FrustumPlane.NearZ, 5, normal, dist);
+
+		FrustumPlanesFromMatrixHelper(in clipToWorld,
+			new(0.0f, 0.0f, 1.0f), new(0.0f, 1.0f, 1.0f), new(1.0f, 0.0f, 1.0f), out normal, out dist);
+		frustum.SetPlane((int)FrustumPlane.FarZ, 5, normal, dist);
+
+		FrustumPlanesFromMatrixHelper(in clipToWorld,
+			new(1.0f, 0.0f, 0.0f), new(1.0f, 1.0f, 1.0f), new(1.0f, 1.0f, 0.0f), out normal, out dist);
+		frustum.SetPlane((int)FrustumPlane.Right, 5, normal, dist);
+
+		FrustumPlanesFromMatrixHelper(in clipToWorld,
+			new(0.0f, 0.0f, 0.0f), new(0.0f, 1.0f, 1.0f), new(0.0f, 0.0f, 1.0f), out normal, out dist);
+		frustum.SetPlane((int)FrustumPlane.Left, 5, normal, dist);
+
+		FrustumPlanesFromMatrixHelper(in clipToWorld,
+			new(1.0f, 1.0f, 0.0f), new(1.0f, 1.0f, 1.0f), new(0.0f, 1.0f, 1.0f), out normal, out dist);
+		frustum.SetPlane((int)FrustumPlane.Top, 5, normal, dist);
+
+		FrustumPlanesFromMatrixHelper(in clipToWorld,
+			new(1.0f, 0.0f, 0.0f), new(0.0f, 0.0f, 1.0f), new(1.0f, 0.0f, 1.0f), out normal, out dist);
+		frustum.SetPlane((int)FrustumPlane.Bottom, 5, normal, dist);
+	}
+
 	public static void GeneratePerspectiveFrustum(in Vector3 origin, in Vector3 forward, in Vector3 right, in Vector3 up, float zNear, float zFar, float fovX, float fovY, Frustum_t frustum) {
 		float intercept = DotProduct(origin, forward);
 
@@ -1237,6 +1279,85 @@ public static class MathLib
 		dst[2, 3] = znear * zfar / (znear - zfar);
 	}
 
+	private static void CalculateAABBForNormalizedFrustum_Helper(float x, float y, float z, in Matrix4x4 volumeToWorld, ref Vector3 mins, ref Vector3 maxs) {
+		Vector3 volumeSpacePos = new(x, y, z);
+
+		Assert(volumeSpacePos[0] >= -1e-3f);
+		Assert(volumeSpacePos[0] - 1.0f <= 1e-3f);
+		Assert(volumeSpacePos[1] >= -1e-3f);
+		Assert(volumeSpacePos[1] - 1.0f <= 1e-3f);
+		Assert(volumeSpacePos[2] >= -1e-3f);
+		Assert(volumeSpacePos[2] - 1.0f <= 1e-3f);
+
+		Vector3DMultiplyPositionProjective(in volumeToWorld, in volumeSpacePos, out Vector3 worldPos);
+		AddPointToBounds(in worldPos, ref mins, ref maxs);
+	}
+
+	public static void CalculateAABBFromProjectionMatrixInverse(in Matrix4x4 volumeToWorld, out Vector3 mins, out Vector3 maxs) {
+		ClearBounds(out mins, out maxs);
+		CalculateAABBForNormalizedFrustum_Helper(0, 0, 0, in volumeToWorld, ref mins, ref maxs);
+		CalculateAABBForNormalizedFrustum_Helper(0, 0, 1, in volumeToWorld, ref mins, ref maxs);
+		CalculateAABBForNormalizedFrustum_Helper(0, 1, 0, in volumeToWorld, ref mins, ref maxs);
+		CalculateAABBForNormalizedFrustum_Helper(0, 1, 1, in volumeToWorld, ref mins, ref maxs);
+		CalculateAABBForNormalizedFrustum_Helper(1, 0, 0, in volumeToWorld, ref mins, ref maxs);
+		CalculateAABBForNormalizedFrustum_Helper(1, 0, 1, in volumeToWorld, ref mins, ref maxs);
+		CalculateAABBForNormalizedFrustum_Helper(1, 1, 0, in volumeToWorld, ref mins, ref maxs);
+		CalculateAABBForNormalizedFrustum_Helper(1, 1, 1, in volumeToWorld, ref mins, ref maxs);
+	}
+
+	public static void CalculateAABBFromProjectionMatrix(in Matrix4x4 worldToVolume, out Vector3 mins, out Vector3 maxs) {
+		MatrixInverseGeneral(in worldToVolume, out Matrix4x4 volumeToWorld);
+		CalculateAABBFromProjectionMatrixInverse(in volumeToWorld, out mins, out maxs);
+	}
+
+	public static void CalculateSphereFromProjectionMatrixInverse(in Matrix4x4 volumeToWorld, out Vector3 center, out float radius) {
+		Vector3DMultiplyPositionProjective(in volumeToWorld, new(0.5f, 0.5f, 0.0f), out Vector3 centerNear);
+		Vector3DMultiplyPositionProjective(in volumeToWorld, new(0.5f, 0.5f, 1.0f), out Vector3 centerFar);
+		Vector3DMultiplyPositionProjective(in volumeToWorld, new(0.0f, 0.0f, 0.0f), out Vector3 nearEdge);
+		Vector3DMultiplyPositionProjective(in volumeToWorld, new(0.0f, 0.0f, 1.0f), out Vector3 farEdge);
+
+		VectorSubtract(centerFar, centerNear, out Vector3 delta);
+		float l = delta.Length();
+		float h1Sqr = centerNear.DistToSqr(nearEdge);
+		float h2Sqr = centerFar.DistToSqr(farEdge);
+		float x = (l * l + h2Sqr - h1Sqr) / (2.0f * l);
+		VectorMA(centerNear, x / l, delta, out center);
+		radius = MathF.Sqrt(h1Sqr + x * x);
+	}
+
+	public static void CalculateSphereFromProjectionMatrix(in Matrix4x4 worldToVolume, out Vector3 center, out float radius) {
+		MatrixInverseGeneral(in worldToVolume, out Matrix4x4 volumeToWorld);
+		CalculateSphereFromProjectionMatrixInverse(in volumeToWorld, out center, out radius);
+	}
+
+	public static void MatrixBuildPerspective(out Matrix4x4 dst, float fovX, float fovY, float zNear, float zFar) {
+		float width = 2 * zNear * MathF.Tan(fovX * (MathF.PI / 180.0f) * 0.5f);
+		float height = 2 * zNear * MathF.Tan(fovY * (MathF.PI / 180.0f) * 0.5f);
+
+		dst = default;
+		dst[0, 0] = 2.0f * zNear / width;
+		dst[1, 1] = 2.0f * zNear / height;
+		dst[2, 2] = -zFar / (zNear - zFar);
+		dst[3, 2] = 1.0f;
+		dst[2, 3] = zNear * zFar / (zNear - zFar);
+
+		Matrix4x4 negateXY = Matrix4x4.Identity;
+		negateXY[0, 0] = -1.0f;
+		negateXY[1, 1] = -1.0f;
+		MatrixMultiply(in negateXY, in dst, out dst);
+
+		Matrix4x4 addW = Matrix4x4.Identity;
+		addW[0, 3] = 1.0f;
+		addW[1, 3] = 1.0f;
+		addW[2, 3] = 0.0f;
+		MatrixMultiply(in addW, in dst, out dst);
+
+		Matrix4x4 scaleHalf = Matrix4x4.Identity;
+		scaleHalf[0, 0] = 0.5f;
+		scaleHalf[1, 1] = 0.5f;
+		MatrixMultiply(in scaleHalf, in dst, out dst);
+	}
+
 	public static bool IsZero(this in Vector3 v, float tolerance = 0.01f) {
 		Vector3 zero = Vector3.Zero;
 		Vector3 diff = Vector3.Abs(v - zero);
@@ -1465,6 +1586,23 @@ public static class MathLib
 		dst[0, 3] = x;
 		dst[1, 3] = y;
 		dst[2, 3] = z;
+	}
+
+	public static void BasisToQuaternion(in Vector3 forward, in Vector3 right, in Vector3 up, out Quaternion q) {
+		Assert(MathF.Abs(forward.LengthSquared() - 1.0f) < 1e-3);
+		Assert(MathF.Abs(right.LengthSquared() - 1.0f) < 1e-3);
+		Assert(MathF.Abs(up.LengthSquared() - 1.0f) < 1e-3);
+
+		VectorMultiply(in right, -1.0f, out Vector3 left);
+
+		Matrix3x4 mat = default;
+		MatrixSetColumn(in forward, 0, ref mat);
+		MatrixSetColumn(in left, 1, ref mat);
+		MatrixSetColumn(in up, 2, ref mat);
+
+		MatrixAngles(in mat, out QAngle angles);
+
+		AngleQuaternion(in angles, out q);
 	}
 
 	public static void MatrixAngles(in Matrix3x4 matrix, out QAngle angles) {
@@ -1780,6 +1918,11 @@ public static class MathLib
 		outVec.Y = inMatrix[1][column];
 		outVec.Z = inMatrix[2][column];
 	}
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void PositionMatrix(in Vector3 position, ref Matrix3x4 mat) {
+		MatrixSetColumn(in position, 3, ref mat);
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static void MatrixPosition(in Matrix3x4 matrix, out Vector3 origin) {
 		MatrixGetColumn(matrix, 3, out origin);
@@ -2473,6 +2616,41 @@ public static class MathLib
 		dst.Z = src1[2][0] * src2.X + src1[2][1] * src2.Y + src1[2][2] * src2.Z;
 	}
 
+	public static void ClearBounds(out Vector3 mins, out Vector3 maxs) {
+		mins = new(99999, 99999, 99999);
+		maxs = new(-99999, -99999, -99999);
+	}
+
+	public static void AddPointToBounds(in Vector3 v, ref Vector3 mins, ref Vector3 maxs) {
+		vec_t val = v.X;
+		if (val < mins.X)
+			mins.X = val;
+		if (val > maxs.X)
+			maxs.X = val;
+
+		val = v.Y;
+		if (val < mins.Y)
+			mins.Y = val;
+		if (val > maxs.Y)
+			maxs.Y = val;
+
+		val = v.Z;
+		if (val < mins.Z)
+			mins.Z = val;
+		if (val > maxs.Z)
+			maxs.Z = val;
+	}
+
+	public static void Vector3DMultiplyPositionProjective(in Matrix4x4 src1, in Vector3 src2, out Vector3 dst) {
+		float w = src1[3][0] * src2.X + src1[3][1] * src2.Y + src1[3][2] * src2.Z + src1[3][3];
+		if (w != 0.0f)
+			w = 1.0f / w;
+
+		dst.X = (src1[0][0] * src2.X + src1[0][1] * src2.Y + src1[0][2] * src2.Z + src1[0][3]) * w;
+		dst.Y = (src1[1][0] * src2.X + src1[1][1] * src2.Y + src1[1][2] * src2.Z + src1[1][3]) * w;
+		dst.Z = (src1[2][0] * src2.X + src1[2][1] * src2.Y + src1[2][2] * src2.Z + src1[2][3]) * w;
+	}
+
 	public static void MatrixSetColumn(ref Matrix4x4 src, int col, in Vector3 column) {
 		Assert((col >= 0) && (col <= 3));
 
@@ -2497,6 +2675,12 @@ public static class MathLib
 		m[0, 2] = up.X;
 		m[1, 2] = up.Y;
 		m[2, 2] = up.Z;
+	}
+
+	public static void GetBasisVectors(this in Matrix4x4 m, out Vector3 forward, out Vector3 left, out Vector3 up) {
+		forward = new(m[0, 0], m[1, 0], m[2, 0]);
+		left = new(m[0, 1], m[1, 1], m[2, 1]);
+		up = new(m[0, 2], m[1, 2], m[2, 2]);
 	}
 
 	public static void SetBasisVectors(ref this Matrix4x4 m, in Vector3 forward, in Vector3 left, in Vector3 up) {

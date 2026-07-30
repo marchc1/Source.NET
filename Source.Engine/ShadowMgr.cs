@@ -533,6 +533,14 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 
 	internal struct FlashlightInfo
 	{
+		public FlashlightInfo() {
+			FlashlightState = new();
+			Frustum = new();
+			MaterialBuckets = new();
+			OccluderBuckets = new();
+			Renderables = [];
+		}
+
 		public FlashlightState FlashlightState;
 		public ShadowHandle_t Shadow;
 		public Frustum_t Frustum;
@@ -983,7 +991,15 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 		ModelLoader.MSurf_ShadowDecals(ref surface) = SHADOW_DECAL_HANDLE_INVALID;
 	}
 
-	public void AddShadowToModel(ShadowHandle_t handle, ModelInstanceHandle_t model) => throw new NotImplementedException();
+	public void AddShadowToModel(ShadowHandle_t handle, ModelInstanceHandle_t model) {
+		if (model == MODEL_INSTANCE_INVALID)
+			return;
+
+		if (r_flashlightrender.GetBool() == false)
+			return;
+
+		ShadowsOnModels.AddElementToBucket(model, handle);
+	}
 
 	public void RemoveAllShadowsFromModel(ModelInstanceHandle_t model) {
 		if (model != MODEL_INSTANCE_INVALID) {
@@ -1102,9 +1118,105 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 			EnumerateLeaf(leafList[i], 0);
 	}
 
-	public void ProjectFlashlight(ShadowHandle_t handle, in Matrix4x4 worldToShadow, ReadOnlySpan<int> leafList) => throw new NotImplementedException();
+	public void ProjectFlashlight(ShadowHandle_t handle, in Matrix4x4 worldToShadow, ReadOnlySpan<int> leafList) {
+		ref Shadow shadow = ref Shadows[handle];
 
-	void ApplyFlashlightToLeaf(in Shadow shadow, BSPMLeaf? leaf, ref ShadowBuildInfo build) => throw new NotImplementedException();
+		if (r_flashlight_version2.GetInt() == 0) {
+			RemoveAllSurfacesFromShadow(handle);
+			RemoveAllModelsFromShadow(handle);
+
+			FlashlightStates[shadow.FlashlightHandle].Info.OccluderBuckets.Flush();
+		}
+
+		if ((Shadows[handle].Flags & SHADOW_DISABLED) != 0)
+			return;
+
+		if (r_shadows.GetInt() == 0)
+			return;
+
+		shadow.Info.WorldToShadow = worldToShadow;
+
+		MathLib.MatrixInverseGeneral(in shadow.Info.WorldToShadow, out Matrix4x4 shadowToWorld);
+
+		Assert((shadow.Flags & (ShadowCreateFlags)ShadowFlags.Flashlight) != 0);
+		Frustum_t frustum = FlashlightStates[shadow.FlashlightHandle].Info.Frustum;
+		MathLib.FrustumPlanesFromMatrix(in shadowToWorld, frustum);
+		MathLib.CalculateSphereFromProjectionMatrixInverse(in shadowToWorld, out shadow.SphereCenter, out shadow.SphereRadius);
+
+		if (leafList.Length == 0)
+			return;
+
+		++r_surfacevisframe;
+
+		DispInfo.DispInfo_ClearAllTags(host_state.WorldBrush!.DispInfos);
+
+		EnumerateBuild = default;
+		EnumerateBuild.Shadow = handle;
+		EnumerateBuild.RayStart = FlashlightStates[shadow.FlashlightHandle].Info.FlashlightState.LightOrigin;
+		EnumerateBuild.Vis = null;
+		EnumerateBuild.SphereCenter = shadow.SphereCenter;
+		EnumerateBuild.SphereRadius = shadow.SphereRadius;
+
+		if (r_flashlightdrawfrustumbbox.GetBool()) {
+			MathLib.CalculateAABBFromProjectionMatrixInverse(in shadowToWorld, out Vector3 mins, out Vector3 maxs);
+			debugoverlay?.AddBoxOverlay(new Vector3(0.0f, 0.0f, 0.0f), in mins, in maxs, new QAngle(0, 0, 0),
+				0, 0, 255, 100, 0.0f);
+		}
+
+		for (int i = 0; i < leafList.Length; ++i)
+			EnumerateLeaf(leafList[i], 0);
+	}
+
+	void ApplyFlashlightToLeaf(in Shadow shadow, BSPMLeaf? leaf, ref ShadowBuildInfo build) {
+		MathLib.VectorAdd(leaf!.Center, leaf.HalfDiagonal, out Vector3 leafMaxs);
+		MathLib.VectorSubtract(leaf.Center, leaf.HalfDiagonal, out Vector3 leafMins);
+
+		if (MathLib.R_CullBox(in leafMins, in leafMaxs, GetFlashlightFrustum(build.Shadow)))
+			return;
+
+		bool cullDepth = r_flashlightculldepth.GetBool();
+
+		for (int i = 0; i < leaf.NumMarkSurfaces; i++) {
+			SurfaceHandle_t surfID = host_state.WorldBrush!.MarkSurfaces![leaf.FirstMarkSurface + i];
+
+			ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+
+			if (ModelLoader.MSurf_VisFrame(ref surface) == r_surfacevisframe)
+				continue;
+
+			ModelLoader.MSurf_VisFrame(ref surface) = r_surfacevisframe;
+			Assert(surface.DispInfo == null);
+
+			int vertIndex = host_state.WorldBrush.VertIndices![ModelLoader.MSurf_FirstVertIndex(ref surface)];
+			ref Vector3 worldPos = ref host_state.WorldBrush.Vertexes![vertIndex].Position;
+
+			MathLib.VectorSubtract(worldPos, build.RayStart, out Vector3 lookdir);
+			MathLib.VectorNormalize(ref lookdir);
+
+			ref CollisionPlane surfPlane = ref ModelLoader.MSurf_Plane(ref surface);
+
+			float dist = MathLib.DotProduct(surfPlane.Normal, build.SphereCenter) - surfPlane.Dist;
+			if (MathF.Abs(dist) >= build.SphereRadius)
+				continue;
+
+			ApplyShadowToSurface(ref build, surfID);
+
+			if (cullDepth) {
+				if ((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.NoCull) == 0) {
+					if (MathLib.DotProduct(surfPlane.Normal, lookdir) < BACKFACE_EPSILON)
+						continue;
+				}
+				else {
+					float dot = MathLib.DotProduct(surfPlane.Normal, lookdir);
+					if (MathF.Abs(dot) < BACKFACE_EPSILON)
+						continue;
+				}
+			}
+
+			FlashlightInfoBox flashlightInfo = FlashlightStates[shadow.FlashlightHandle];
+			flashlightInfo.Info.OccluderBuckets.AddElement(ModelLoader.MSurf_MaterialSortID(ref surface), surfID);
+		}
+	}
 
 	void ApplyShadowToLeaf(in Shadow shadow, BSPMLeaf leaf, ref ShadowBuildInfo build) {
 		for (int i = 0; i < leaf.NumMarkSurfaces; i++) {
@@ -1668,9 +1780,14 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 		FlashlightStates[flashlightID].Info.OccluderBuckets.SetNumMaterialSortIDs(NumWorldMaterialBuckets);
 	}
 
-	public void UpdateFlashlightState(ShadowHandle_t shadowHandle, in FlashlightState lightState) => throw new NotImplementedException();
+	public void UpdateFlashlightState(ShadowHandle_t shadowHandle, in FlashlightState lightState) {
+		FlashlightStates[Shadows[shadowHandle].FlashlightHandle].Info.FlashlightState = lightState;
+	}
 
-	public void SetFlashlightDepthTexture(ShadowHandle_t shadowHandle, ITexture? flashlightDepthTexture, byte shadowStencilBit) => throw new NotImplementedException();
+	public void SetFlashlightDepthTexture(ShadowHandle_t shadowHandle, ITexture? flashlightDepthTexture, byte shadowStencilBit) {
+		Shadows[shadowHandle].FlashlightDepthTexture = flashlightDepthTexture;
+		Shadows[shadowHandle].ShadowStencilBit = shadowStencilBit;
+	}
 
 	void SetStencilAndScissor(MatRenderContextPtr renderContext, ref FlashlightInfo flashlightInfo, bool useStencil) {
 		MathLib.MatrixInverseGeneral(Shadows[flashlightInfo.Shadow].Info.WorldToShadow, out Matrix4x4 matFlashlightToWorld);
@@ -2006,7 +2123,13 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 
 	public void DrawFlashlightDepthTexture() => throw new NotImplementedException();
 
-	public void AddFlashlightRenderable(ShadowHandle_t shadowHandle, IClientRenderable? renderable) => throw new NotImplementedException();
+	public void AddFlashlightRenderable(ShadowHandle_t shadowHandle, IClientRenderable? renderable) {
+		ref Shadow shadow = ref Shadows[shadowHandle];
+		FlashlightInfoBox flashlightInfo = FlashlightStates[shadow.FlashlightHandle];
+
+		if (renderable!.GetModelInstance() != MODEL_INSTANCE_INVALID)
+			flashlightInfo.Info.Renderables.Add(renderable);
+	}
 
 	public ref uint FirstModelInShadow(ShadowHandle_t h) => ref Shadows[h].FirstModel;
 }

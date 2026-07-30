@@ -362,7 +362,7 @@ public partial class C_BaseAnimating : C_BaseEntity, IModelLoadCallback
 	public void DelayedInitModelEffects() { /* todo */ }
 	public void ClearRagdoll() { /* todo */ }
 
-	public virtual void Simulate() {
+	public override void Simulate() {
 		if (DelayInitModelEffects)
 			DelayedInitModelEffects();
 

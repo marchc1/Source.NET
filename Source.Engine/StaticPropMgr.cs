@@ -223,11 +223,18 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 	}
 
 	public void AddShadowToStaticProp(ushort shadowHandle, IClientRenderable renderable) {
-		throw new NotImplementedException();
+		Assert(renderable as StaticProp != null);
+
+		StaticProp prop = (StaticProp)renderable;
+
+		g_ShadowMgr.AddShadowToModel(shadowHandle, prop.GetModelInstance());
 	}
 
 	public void RemoveAllShadowsFromStaticProp(IClientRenderable renderable) {
-		throw new NotImplementedException();
+		Assert(renderable as StaticProp != null);
+		StaticProp prop = (StaticProp)renderable;
+		if (prop.GetModelInstance() != MODEL_INSTANCE_INVALID)
+			g_ShadowMgr.RemoveAllShadowsFromModel(prop.GetModelInstance());
 	}
 
 	public void GetStaticPropMaterialColorAndLighting(Trace trace, int staticPropIndex, out Vector3 lighting, out Vector3 matColor) {

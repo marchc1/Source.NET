@@ -15,6 +15,8 @@ using Source.Common.Mathematics;
 
 using System.Numerics;
 
+using Game.Shared;
+
 namespace Game.Client;
 
 public static class ClientShadowMgrGlobals
@@ -22,7 +24,6 @@ public static class ClientShadowMgrGlobals
 	public static readonly ConVar r_flashlightdrawfrustum = new("r_flashlightdrawfrustum", "0");
 	public static readonly ConVar r_flashlightmodels = new("r_flashlightmodels", "1");
 	public static readonly ConVar r_shadowrendertotexture = new("r_shadowrendertotexture", "0");
-	public static readonly ConVar r_flashlight_version2 = new("r_flashlight_version2", "0", FCvar.Cheat | FCvar.DevelopmentOnly);
 
 	public static readonly ConVar r_flashlightdepthtexture = new("r_flashlightdepthtexture", "1");
 	public static readonly ConVar r_flashlightdepthres = new("r_flashlightdepthres", "1024");
@@ -559,7 +560,7 @@ public class ShadowLeafEnum : ISpatialLeafEnumerator
 
 public class ClientShadowBox
 {
-	public ClientShadowMgr.ClientShadow_t Shadow;
+	public ClientShadowMgr.ClientShadow_t Shadow = new();
 }
 
 public class ClientShadowMgr : IClientShadowMgr
@@ -574,6 +575,7 @@ public class ClientShadowMgr : IClientShadowMgr
 
 	public struct ClientShadow_t
 	{
+		public ClientShadow_t() => TargetEntity = new();
 		public ClientEntityHandle Entity;
 		public ShadowHandle_t ShadowHandle;
 		public ClientLeafShadowHandle_t ClientLeafShadowHandle;
@@ -781,11 +783,42 @@ public class ClientShadowMgr : IClientShadowMgr
 		ValidShadowHandles.Remove(handle);
 	}
 
-	public ClientShadowHandle_t CreateFlashlight(in FlashlightState lightState) => throw new NotImplementedException();
-	public void UpdateFlashlightState(ClientShadowHandle_t shadowHandle, in FlashlightState lightState) => throw new NotImplementedException();
-	public void DestroyFlashlight(ClientShadowHandle_t shadowHandle) => throw new NotImplementedException();
+	public ClientShadowHandle_t CreateFlashlight(in FlashlightState lightState) {
+		ClientEntityHandle invalidHandle = INVALID_CLIENTENTITY_HANDLE;
 
-	public void UpdateProjectedTexture(ClientShadowHandle_t handle, bool force = false) => throw new NotImplementedException();
+		int shadowFlags = (int)ShadowFlags.Flashlight | (int)ShadowFlags_t.LightWorld;
+		if (lightState.EnableShadows && r_flashlightdepthtexture.GetBool()) {
+			shadowFlags |= (int)ClientShadowFlags.UseDepthTexture;
+		}
+
+		ClientShadowHandle_t shadowHandle = CreateProjectedTexture(invalidHandle, shadowFlags);
+
+		UpdateFlashlightState(shadowHandle, in lightState);
+		UpdateProjectedTexture(shadowHandle, true);
+		return shadowHandle;
+	}
+
+	public void UpdateFlashlightState(ClientShadowHandle_t shadowHandle, in FlashlightState lightState) {
+		BuildPerspectiveWorldToFlashlightMatrix(out Shadows[shadowHandle].Shadow.WorldToShadow, in lightState);
+
+		g_ShadowMgr.UpdateFlashlightState(Shadows[shadowHandle].Shadow.ShadowHandle, in lightState);
+	}
+
+	public void DestroyFlashlight(ClientShadowHandle_t shadowHandle) => DestroyShadow(shadowHandle);
+
+	public void UpdateProjectedTexture(ClientShadowHandle_t handle, bool force = false) {
+		if (handle == CLIENTSHADOW_INVALID_HANDLE)
+			return;
+
+		ref ClientShadow_t shadow = ref Shadows[handle].Shadow;
+		if ((shadow.Flags & (int)ShadowFlags.Flashlight) == 0) {
+			Warning("CClientShadowMgr::UpdateProjectedTexture can only be used with flashlights!\n");
+			return;
+		}
+
+		UpdateProjectedTextureInternal(handle, force);
+		RemoveShadowFromDirtyList(handle);
+	}
 
 	public void ComputeBoundingSphere(IClientRenderable? renderable, out Vector3 origin, out float radius) {
 		Assert(renderable != null);
@@ -1306,9 +1339,36 @@ public class ClientShadowMgr : IClientShadowMgr
 		}
 	}
 
-	void BuildWorldToShadowMatrix(out Matrix4x4 matWorldToShadow, in Vector3 origin, in Quaternion quatOrientation) => throw new NotImplementedException();
+	void BuildWorldToShadowMatrix(out Matrix4x4 matWorldToShadow, in Vector3 origin, in Quaternion quatOrientation) {
+		MathLib.QuaternionMatrix(in quatOrientation, out Matrix3x4 matOrientation);
+		MathLib.PositionMatrix(in vec3_origin, ref matOrientation);
 
-	void BuildPerspectiveWorldToFlashlightMatrix(out Matrix4x4 matWorldToShadow, in FlashlightState flashlightState) => throw new NotImplementedException();
+		Matrix4x4 matBasis = matOrientation;
+
+		matBasis.GetBasisVectors(out Vector3 forward, out Vector3 left, out Vector3 up);
+		matBasis.SetForward(in left);
+		matBasis.SetLeft(in up);
+		matBasis.SetUp(in forward);
+		MathLib.MatrixTranspose(in matBasis, out matWorldToShadow);
+
+		MathLib.Vector3DMultiply(in matWorldToShadow, in origin, out Vector3 translation);
+
+		translation *= -1.0f;
+		matWorldToShadow.SetTranslation(in translation);
+
+		matWorldToShadow[3, 0] = matWorldToShadow[3, 1] = matWorldToShadow[3, 2] = 0.0f;
+		matWorldToShadow[3, 3] = 1.0f;
+	}
+
+	void BuildPerspectiveWorldToFlashlightMatrix(out Matrix4x4 matWorldToShadow, in FlashlightState flashlightState) {
+		BuildWorldToShadowMatrix(out Matrix4x4 matWorldToShadowView, in flashlightState.LightOrigin, in flashlightState.Orientation);
+
+		MathLib.MatrixBuildPerspective(out Matrix4x4 matPerspective, flashlightState.HorizontalFOVDegrees,
+			flashlightState.VerticalFOVDegrees,
+			flashlightState.NearZ, flashlightState.FarZ);
+
+		MathLib.MatrixMultiply(in matPerspective, in matWorldToShadowView, out matWorldToShadow);
+	}
 
 	void UpdateProjectedTextureInternal(ClientShadowHandle_t handle, bool force) {
 		ref ClientShadow_t shadow = ref Shadows[handle].Shadow;
@@ -1519,7 +1579,67 @@ public class ClientShadowMgr : IClientShadowMgr
 		clientLeafSystem.ProjectShadow(Shadows[handle].Shadow.ClientLeafShadowHandle, pLeafList.Length, pLeafList);
 	}
 
-	void BuildFlashlight(ClientShadowHandle_t handle) => throw new NotImplementedException();
+	static void BuildFlashlightLeafList(ShadowLeafEnum shadowEnum, in Matrix4x4 worldToShadow) {
+		MathLib.CalculateAABBFromProjectionMatrix(in worldToShadow, out Vector3 mins, out Vector3 maxs);
+		ISpatialQuery query = engine.GetBSPTreeQuery()!;
+		ISpatialLeafEnumerator queryRef = shadowEnum;
+		query.EnumerateLeavesInBox(in mins, in maxs, ref queryRef, 0);
+	}
+
+	void BuildFlashlight(ClientShadowHandle_t handle) {
+		ref ClientShadow_t shadow = ref Shadows[handle].Shadow;
+		if (r_flashlight_version2.GetInt() != 0) {
+			g_ShadowMgr.ProjectFlashlight(shadow.ShadowHandle, in shadow.WorldToShadow, default);
+			return;
+		}
+
+		bool lightModels = r_flashlightmodels.GetBool();
+		bool lightSpecificEntity = shadow.TargetEntity.Get() != null;
+		bool lightWorld = (shadow.Flags & (int)ShadowFlags_t.LightWorld) != 0;
+		int count = 0;
+		ReadOnlySpan<int> leafList = default;
+
+		ShadowLeafEnum leafEnum = new();
+		if (lightWorld || (lightModels && !lightSpecificEntity)) {
+			BuildFlashlightLeafList(leafEnum, in shadow.WorldToShadow);
+			count = leafEnum.LeafList.Count;
+			leafList = leafEnum.LeafList.AsSpan();
+		}
+
+		if (lightWorld)
+			g_ShadowMgr.ProjectFlashlight(shadow.ShadowHandle, in shadow.WorldToShadow, leafList);
+		else {
+			g_ShadowMgr.EnableShadow(shadow.ShadowHandle, false);
+			g_ShadowMgr.EnableShadow(shadow.ShadowHandle, true);
+		}
+
+		if (!lightModels)
+			return;
+
+		if (!lightSpecificEntity) {
+			clientLeafSystem.ProjectFlashlight(shadow.ClientLeafShadowHandle, count, leafList);
+			return;
+		}
+
+		Assert(shadow.TargetEntity.Get()!.GetModel() != null);
+
+		C_BaseEntity? child = shadow.TargetEntity.Get()!.FirstMoveChild();
+		while (child != null) {
+			ModelType modelType = modelinfo.GetModelType(child.GetModel());
+			if (modelType == ModelType.Brush)
+				AddShadowToReceiver(handle, child, ShadowReceiver.BrushModel);
+			else if (modelType == ModelType.Studio)
+				AddShadowToReceiver(handle, child, ShadowReceiver.StudioModel);
+
+			child = child.NextMovePeer();
+		}
+
+		ModelType targetModelType = modelinfo.GetModelType(shadow.TargetEntity.Get()!.GetModel());
+		if (targetModelType == ModelType.Brush)
+			AddShadowToReceiver(handle, shadow.TargetEntity.Get(), ShadowReceiver.BrushModel);
+		else if (targetModelType == ModelType.Studio)
+			AddShadowToReceiver(handle, shadow.TargetEntity.Get(), ShadowReceiver.StudioModel);
+	}
 
 	void SetupRenderToTextureShadow(ClientShadowHandle_t h) {
 		ref ClientShadow_t shadow = ref Shadows[h].Shadow;
@@ -2082,11 +2202,45 @@ public class ClientShadowMgr : IClientShadowMgr
 	bool LockShadowDepthTexture(ref ITexture? shadowDepthTexture) => throw new NotImplementedException();
 	public void UnlockAllShadowDepthTextures() => throw new NotImplementedException();
 
-	public void SetFlashlightTarget(ClientShadowHandle_t shadowHandle, EHANDLE targetEntity) => throw new NotImplementedException();
+	public void SetFlashlightTarget(ClientShadowHandle_t shadowHandle, EHANDLE targetEntity) {
+		Assert(Shadows.ContainsKey(shadowHandle));
 
-	public void SetFlashlightLightWorld(ClientShadowHandle_t shadowHandle, bool lightWorld) => throw new NotImplementedException();
+		ref ClientShadow_t shadow = ref Shadows[shadowHandle].Shadow;
+		if ((shadow.Flags & (int)ShadowFlags.Flashlight) == 0)
+			return;
 
-	bool IsFlashlightTarget(ClientShadowHandle_t shadowHandle, IClientRenderable? renderable) => throw new NotImplementedException();
+		shadow.TargetEntity = targetEntity;
+	}
+
+	public void SetFlashlightLightWorld(ClientShadowHandle_t shadowHandle, bool lightWorld) {
+		Assert(Shadows.ContainsKey(shadowHandle));
+
+		ref ClientShadow_t shadow = ref Shadows[shadowHandle].Shadow;
+		if ((shadow.Flags & (int)ShadowFlags.Flashlight) == 0)
+			return;
+
+		if (lightWorld)
+			shadow.Flags |= (ushort)ShadowFlags_t.LightWorld;
+		else
+			shadow.Flags &= unchecked((ushort)~(int)ShadowFlags_t.LightWorld);
+	}
+
+	bool IsFlashlightTarget(ClientShadowHandle_t shadowHandle, IClientRenderable? renderable) {
+		ref ClientShadow_t shadow = ref Shadows[shadowHandle].Shadow;
+
+		if (shadow.TargetEntity.Get()!.GetClientRenderable() == renderable)
+			return true;
+
+		C_BaseEntity? child = shadow.TargetEntity.Get()!.FirstMoveChild();
+		while (child != null) {
+			if (child.GetClientRenderable() == renderable)
+				return true;
+
+			child = child.NextMovePeer();
+		}
+
+		return false;
+	}
 
 	int BuildActiveShadowDepthList(in ViewSetup viewSetup, int maxDepthShadows, Span<ClientShadowHandle_t> activeDepthShadows) => throw new NotImplementedException();
 

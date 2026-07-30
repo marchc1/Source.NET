@@ -418,6 +418,16 @@ public static class Dbg
 		params object?[] args
 	) => _AssertMsg(i1 == null ? i2 == null : i1.Equals(i2), "Expected {0} but got {1}!", args, ____fileP ?? "<nofile>", ____lineNum, false);
 
+	[Conditional("DBGFLAG_ASSERT")]
+#if DBGFLAG_HIDE_ASSERTS_FROM_DEBUGGING_STACK
+	[DebuggerHidden]
+#endif
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void AssertFloatEquals(float exp, float expectedValue, float tol,
+		[CallerFilePath] string? ____fileP = null,
+		[CallerLineNumber] int ____lineNum = -1
+	) => _AssertMsg(MathF.Abs(exp - expectedValue) <= tol, $"Expected {expectedValue} but got {exp}!", ____fileP ?? "<nofile>", ____lineNum, false);
+
 	public static void SpewActivate(string groupName, int level) {
 		Assert(groupName != null);
 

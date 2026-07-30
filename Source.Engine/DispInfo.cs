@@ -112,8 +112,28 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 
 	// public DispDecalHandle NotifyAddDecal(Decal decal, float flSize) => throw new NotImplementedException();
 	public void NotifyRemoveDecal(DispDecalHandle h) => throw new NotImplementedException();
-	public DispShadowHandle AddShadowDecal(ShadowHandle_t shadowHandle) => throw new NotImplementedException();
-	public void RemoveShadowDecal(DispShadowHandle handle) => throw new NotImplementedException();
+	public DispShadowHandle AddShadowDecal(ShadowHandle_t shadowHandle) {
+		DispShadowHandle h = unchecked((DispShadowHandle)s_DispShadowDecals.Alloc());
+		if (FirstShadowDecal != DISP_SHADOW_HANDLE_INVALID)
+			s_DispShadowDecals.LinkBefore(FirstShadowDecal, h);
+		FirstShadowDecal = h;
+
+		ref DispShadowDecal shadowDecal = ref s_DispShadowDecals[h];
+		shadowDecal.Base.NTris = 0;
+		shadowDecal.Base.NVerts = 0;
+		shadowDecal.Shadow = shadowHandle;
+		shadowDecal.FirstFragment = DISP_SHADOW_FRAGMENT_HANDLE_INVALID;
+
+		return h;
+	}
+	public void RemoveShadowDecal(DispShadowHandle handle) {
+		ClearShadowDecalFragments(handle);
+
+		if (FirstShadowDecal == handle)
+			FirstShadowDecal = unchecked((DispShadowHandle)s_DispShadowDecals.Next(handle));
+
+		s_DispShadowDecals.Remove(handle);
+	}
 
 	public bool ComputeShadowFragments(DispShadowHandle h, out int vertexCount, out int indexCount) => throw new NotImplementedException();
 
@@ -387,7 +407,24 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 
 	// DispShadowFragment AllocateShadowDecalFragment(DispShadowHandle h, int nCount) => throw new NotImplementedException();
 
-	// void ClearShadowDecalFragments(DispShadowHandle h) => throw new NotImplementedException();
+	void ClearShadowDecalFragments(DispShadowHandle h) {
+		ref DispShadowDecal decal = ref s_DispShadowDecals[h];
+		DispShadowFragmentHandle f = decal.FirstFragment;
+		DispShadowFragmentHandle next;
+		while (f != DISP_SHADOW_FRAGMENT_HANDLE_INVALID) {
+			next = unchecked((DispShadowFragmentHandle)s_DispShadowFragments.Next(f));
+			s_DispShadowFragments.Remove(f);
+			f = next;
+		}
+
+		decal.FirstFragment = DISP_SHADOW_FRAGMENT_HANDLE_INVALID;
+
+		decal.Base.Flags &= ~DecalFlags.FragmentsComputed;
+
+		decal.Base.NTris = 0;
+		decal.Base.NVerts = 0;
+	}
+
 	void ClearAllShadowDecalFragments() => throw new NotImplementedException();
 
 	void GenerateDecalFragments_R(in VertIndex nodeIndex, int nodeBitIndex, ushort decalHandle, DispDecalBase dispDecal, int level) => throw new NotImplementedException();
