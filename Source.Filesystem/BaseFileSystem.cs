@@ -23,15 +23,22 @@ public class BaseFileSystem : IFileSystem
 	readonly record struct searchPathInternal(ISearchPath path, string pathID);
 	private readonly SearchPathIDCollection SearchPaths = [];
 	private readonly List<searchPathInternal>[] SearchPathGroups = new List<searchPathInternal>[(int)PathGroupName.Fallbacks + 1];
-	private List<searchPathInternal> GetSearchPathGroupsFor(PathGroupName groupName) => SearchPathGroups[(int)groupName] ??= [];
-	private void AddSearchPathFromGroup(ISearchPath searchPath, ReadOnlySpan<char> pathID) => GetSearchPathGroupsFor(searchPath.GetGroupName()).Add(new(searchPath, new(pathID.SliceNullTerminatedString())));
-	private void RemoveSearchPathFromGroup(ISearchPath searchPath, ReadOnlySpan<char> pathID) => GetSearchPathGroupsFor(searchPath.GetGroupName()).Remove(new(searchPath, new(pathID.SliceNullTerminatedString())));
+
+	private List<searchPathInternal> GetSearchPathGroupsFor(PathGroupName groupName) 
+		=> SearchPathGroups[(int)groupName] ??= [];
+
+	private void AddSearchPathFromGroup(ISearchPath searchPath, ReadOnlySpan<char> pathID) 
+		=> GetSearchPathGroupsFor(searchPath.GetGroupName()).Add(new(searchPath, new(pathID.SliceNullTerminatedString())));
+
+	private void RemoveSearchPathFromGroup(ISearchPath searchPath, ReadOnlySpan<char> pathID) 
+		=> GetSearchPathGroupsFor(searchPath.GetGroupName()).Remove(new(searchPath, new(pathID.SliceNullTerminatedString())));
 
 	private void AddSearchPathFinal(ISearchPath searchPath, SearchPathAdd addType, SearchPathCollection collection, PathGroupName groupName, ReadOnlySpan<char> pathID) {
 		if (addType == SearchPathAdd.ToHead)
-			collection.Insert(0, searchPath);
+			collection.GetAddOrder().Insert(0, searchPath);
 		else
-			collection.Add(searchPath);
+			collection.GetAddOrder().Add(searchPath);
+		collection.InvalidateOrder();
 		searchPath.SetGroupName(groupName);
 		AddSearchPathFromGroup(searchPath, pathID);
 	}
@@ -63,13 +70,14 @@ public class BaseFileSystem : IFileSystem
 
 		if (!SearchPaths.OpenOrCreateCollection(pathID, out SearchPathCollection collection)) {
 			for (int i = 0, c = collection.Count; i < c; i++) {
-				var searchPath = collection[i];
+				var searchPath = collection.GetAddOrder()[i];
 				if (searchPath.GetDiskPath() == newPath) {
 					if ((addType == SearchPathAdd.ToHead && i == 0) || addType == SearchPathAdd.ToTail)
 						return;
 					else {
 						RemoveSearchPathFromGroup(searchPath, pathID);
-						collection.RemoveAt(i);
+						collection.GetAddOrder().RemoveAt(i);
+						collection.InvalidateOrder();
 						i--;
 						c--;
 						break;
@@ -92,13 +100,14 @@ public class BaseFileSystem : IFileSystem
 
 		if (!SearchPaths.OpenOrCreateCollection(pathID, out SearchPathCollection collection)) {
 			for (int i = 0, c = collection.Count; i < c; i++) {
-				var searchPath = collection[i];
+				var searchPath = collection.GetAddOrder()[i];
 				if (searchPath.GetDiskPath() == newPath) {
 					if ((addType == SearchPathAdd.ToHead && i == 0) || addType == SearchPathAdd.ToTail)
 						return;
 					else {
 						RemoveSearchPathFromGroup(searchPath, pathID);
-						collection.RemoveAt(i);
+						collection.GetAddOrder().RemoveAt(i);
+						collection.InvalidateOrder();
 						i--;
 						c--;
 						break;
@@ -127,13 +136,14 @@ public class BaseFileSystem : IFileSystem
 
 		if (!SearchPaths.OpenOrCreateCollection(pathID, out SearchPathCollection collection)) {
 			for (int i = 0, c = collection.Count; i < c; i++) {
-				var searchPath = collection[i];
+				var searchPath = collection.GetAddOrder()[i];
 				if (searchPath.GetDiskPath() == newPath) {
 					if ((addType == SearchPathAdd.ToHead && i == 0) || addType == SearchPathAdd.ToTail)
 						return;
 					else {
 						RemoveSearchPathFromGroup(searchPath, pathID);
-						collection.RemoveAt(i);
+						collection.GetAddOrder().RemoveAt(i);
+						collection.InvalidateOrder();
 						i--;
 						c--;
 						break;
@@ -157,12 +167,13 @@ public class BaseFileSystem : IFileSystem
 	public void AddSearchPath(ISearchPath path, ReadOnlySpan<char> pathID, SearchPathAdd addType = SearchPathAdd.ToTail, PathGroupName groupName = PathGroupName.Default) {
 		if (!SearchPaths.OpenOrCreateCollection(pathID, out SearchPathCollection collection)) {
 			for (int i = 0, c = collection.Count; i < c; i++) {
-				var searchPath = collection[i];
+				var searchPath = collection.GetAddOrder()[i];
 				if ((addType == SearchPathAdd.ToHead && i == 0) || addType == SearchPathAdd.ToTail)
 					return;
 				else {
 					RemoveSearchPathFromGroup(searchPath, pathID);
-					collection.RemoveAt(i);
+					collection.GetAddOrder().RemoveAt(i);
+					collection.InvalidateOrder();
 					i--;
 					c--;
 					break;
@@ -206,7 +217,7 @@ public class BaseFileSystem : IFileSystem
 			if (currentCollection == null)
 				return false;
 
-			currentSearchPath = currentCollection.At(currentSearchPathIdx);
+			currentSearchPath = currentCollection.AtSorted(currentSearchPathIdx);
 			if (currentSearchPath == null) {
 				if (iterateCollections) {
 					currentCollectionIdx++;
@@ -364,10 +375,11 @@ public class BaseFileSystem : IFileSystem
 		bool ret = false;
 
 		for (int i = collection.Count - 1; i >= 0; i--) {
-			if (collection[i].GetDiskPath() != path)
+			if (collection.GetAddOrder()[i].GetDiskPath() != path)
 				continue;
-			RemoveSearchPathFromGroup(collection[i], pathID);
-			collection.RemoveAt(i);
+			RemoveSearchPathFromGroup(collection.GetAddOrder()[i], pathID);
+			collection.GetAddOrder().RemoveAt(i);
+			collection.InvalidateOrder();
 			ret = true;
 		}
 
@@ -457,7 +469,7 @@ public class BaseFileSystem : IFileSystem
 		if (hash == 0) return null;
 
 		foreach (var searchPaths in SearchPaths) {
-			foreach (var searchPath in searchPaths.Value) {
+			foreach (var searchPath in searchPaths.Value.GetSortOrder()) {
 				if (searchPath is not DiskSearchPath)
 					continue;
 
@@ -665,7 +677,7 @@ public class BaseFileSystem : IFileSystem
 		findPath:
 			if (currentPath == null) {
 				// Find the next collection.
-				currentPath = currentCollection.At(Interlocked.Increment(ref PathIdx));
+				currentPath = currentCollection.AtSorted(Interlocked.Increment(ref PathIdx));
 
 				if (currentPath != null) {
 					currentPath.LockFinds(Wildcard, foundAlready!);
@@ -766,10 +778,11 @@ public class BaseFileSystem : IFileSystem
 		bool ret = false;
 
 		for (int i = collection.Count - 1; i >= 0; i--) {
-			if (collection[i] != searchPathImpl)
+			if (collection.GetAddOrder()[i] != searchPathImpl)
 				continue;
-			RemoveSearchPathFromGroup(collection[i], pathID);
-			collection.RemoveAt(i);
+			RemoveSearchPathFromGroup(collection.GetAddOrder()[i], pathID);
+			collection.GetAddOrder().RemoveAt(i);
+			collection.InvalidateOrder();
 			ret = true;
 		}
 
@@ -786,10 +799,11 @@ public class BaseFileSystem : IFileSystem
 		bool ret = false;
 
 		for (int i = collection.Count - 1; i >= 0; i--) {
-			if (!search(collection[i]))
+			if (!search(collection.GetAddOrder()[i]))
 				continue;
-			RemoveSearchPathFromGroup(collection[i], pathID);
-			collection.RemoveAt(i);
+			RemoveSearchPathFromGroup(collection.GetAddOrder()[i], pathID);
+			collection.GetAddOrder().RemoveAt(i);
+			collection.InvalidateOrder();
 			ret = true;
 		}
 

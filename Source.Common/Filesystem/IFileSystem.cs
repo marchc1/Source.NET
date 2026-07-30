@@ -5,6 +5,9 @@ using Source.Common.Utilities;
 
 namespace Source.Common.Filesystem;
 
+/// <summary>
+/// This enum is both organizational and drives path priority
+/// </summary>
 public enum PathGroupName
 {
 	Default,
