@@ -215,8 +215,8 @@ public class DetailModel : IClientUnknown, IClientRenderable
 	public IPVSNotify? GetPVSNotifyInterface() => null;
 	public void GetRenderBoundsWorldspace(out Vector3 mins, out Vector3 maxs) => IClientLeafSystemEngine.DefaultRenderBoundsWorldspace(this, out mins, out maxs);
 	public bool ShouldReceiveProjectedTextures(ShadowFlags flags) => false;
-	public bool GetShadowCastDistance(out float dist, ShadowType shadowType) { dist = 0; return false; }
-	public bool GetShadowCastDirection(out Vector3 direction, ShadowType shadowType) { direction = default; return false; }
+	public bool GetShadowCastDistance(ref float dist, ShadowType shadowType) { return false; }
+	public bool GetShadowCastDirection(ref Vector3 direction, ShadowType shadowType) { return false; }
 	public bool UsesPowerOfTwoFrameBufferTexture() => false;
 	public bool UsesFullFrameBufferTexture() => false;
 	public bool IgnoresZBuffer() => false;

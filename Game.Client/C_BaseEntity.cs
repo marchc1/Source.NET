@@ -760,6 +760,9 @@ public partial class C_BaseEntity : IClientEntity
 
 	public EntClientFlags EntClientFlags;
 
+	public Source.InlineArray4<float> RenderingClipPlane;
+	public bool EnableRenderingClipPlane;
+
 	public Vector3 Origin;
 	public readonly InterpolatedVar<Vector3> IV_Origin = new("Origin");
 	public QAngle Rotation;
@@ -1667,6 +1670,18 @@ public partial class C_BaseEntity : IClientEntity
 
 	ClientRenderHandle_t renderHandle;
 
+	public virtual void ComputeWorldSpaceSurroundingBox(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) {
+		Assert(false);
+		vecWorldMins = default;
+		vecWorldMaxs = default;
+	}
+
+	public void MarkRenderHandleDirty() {
+		ClientRenderHandle_t handle = GetRenderHandle();
+		if (handle != INVALID_CLIENT_RENDER_HANDLE)
+			clientLeafSystem.RenderableChanged(handle);
+	}
+
 	public ClientRenderHandle_t GetRenderHandle() => renderHandle;
 	public ref ClientRenderHandle_t RenderHandle() => ref renderHandle;
 
@@ -1695,7 +1710,7 @@ public partial class C_BaseEntity : IClientEntity
 			clientLeafSystem.RemoveRenderable(renderHandle);
 			renderHandle = INVALID_CLIENT_RENDER_HANDLE;
 		}
-		// DestroyShadow();
+		DestroyShadow();
 	}
 
 
@@ -1827,7 +1842,26 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	private void CreateShadow() {
+		ShadowType shadowType = ShadowCastType();
+		if (shadowType == ShadowType.None)
+			DestroyShadow();
+		else {
+			if (ShadowHandle == CLIENTSHADOW_INVALID_HANDLE) {
+				int flags = (int)ShadowFlags.Shadow;
+				if (shadowType != ShadowType.Simple)
+					flags |= (int)ClientShadowFlags.UseRenderToTexture;
+				if (shadowType == ShadowType.RenderToTextureDynamic)
+					flags |= (int)ClientShadowFlags.AnimatingSource;
+				ShadowHandle = g_ClientShadowMgr.CreateShadow(GetClientHandle(), flags);
+			}
+		}
+	}
 
+	private void DestroyShadow() {
+		if (ShadowHandle != CLIENTSHADOW_INVALID_HANDLE) {
+			g_ClientShadowMgr.DestroyShadow(ShadowHandle);
+			ShadowHandle = CLIENTSHADOW_INVALID_HANDLE;
+		}
 	}
 
 	public virtual void Spawn() { }
@@ -2851,7 +2885,7 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
-	ClientShadowHandle_t ShadowHandle = 0;
+	ClientShadowHandle_t ShadowHandle = CLIENTSHADOW_INVALID_HANDLE;
 
 	public bool UsesPowerOfTwoFrameBufferTexture() => false;
 	public bool UsesFullFrameBufferTexture() => false;
@@ -2893,21 +2927,19 @@ public partial class C_BaseEntity : IClientEntity
 		return true;
 	}
 
-	public bool GetShadowCastDistance(out float dist, ShadowType shadowType) {
+	public bool GetShadowCastDistance(ref float dist, ShadowType shadowType) {
 		if (ShadowCastDistance != 0.0f) {
 			dist = ShadowCastDistance;
 			return true;
 		}
-		dist = default;
 		return false;
 	}
 
 	EHANDLE ShadowDirUseOtherEntity = default;
 
-	public bool GetShadowCastDirection(out Vector3 direction, ShadowType shadowType) {
+	public bool GetShadowCastDirection(ref Vector3 direction, ShadowType shadowType) {
 		if (ShadowDirUseOtherEntity.Get() != null)
-			return ShadowDirUseOtherEntity.Get()!.GetShadowCastDirection(out direction, shadowType);
-		direction = default;
+			return ShadowDirUseOtherEntity.Get()!.GetShadowCastDirection(ref direction, shadowType);
 		return false;
 	}
 
@@ -2934,7 +2966,7 @@ public partial class C_BaseEntity : IClientEntity
 		return parent?.GetClientRenderable();
 	}
 
-	public ShadowType ShadowCastType() {
+	public virtual ShadowType ShadowCastType() {
 		if (IsEffectActive(EntityEffects.NoDraw | EntityEffects.NoShadow))
 			return ShadowType.None;
 
@@ -2947,8 +2979,10 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual int LookupAttachment(ReadOnlySpan<char> attachmentName) => -1;
 
 	public Span<float> GetRenderClipPlane() {
-		// todo
-		return null;
+		if (EnableRenderingClipPlane)
+			return RenderingClipPlane;
+		else
+			return null;
 	}
 
 	public virtual int GetSkin() => 0;

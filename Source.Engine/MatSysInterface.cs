@@ -277,6 +277,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		MaterialWireframe = GL_LoadMaterial("debug/debugwireframe", MaterialDefines.TEXTURE_GROUP_OTHER);
 		MaterialWorldWireframe = GL_LoadMaterial("debug/debugworldwireframe", MaterialDefines.TEXTURE_GROUP_OTHER);
 		MaterialWorldWireframeZBuffer = GL_LoadMaterial("debug/debugworldwireframezbuffer", MaterialDefines.TEXTURE_GROUP_OTHER);
+		MaterialShadowBuild = GL_LoadMaterial("engine/shadowbuild", MaterialDefines.TEXTURE_GROUP_OTHER);
 		// TODO: the rest of these important materials
 #endif
 	}
@@ -370,6 +371,12 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 		Skybox3DMeshesIndices.Clear();
 
 		int sortIDs = materials.GetNumSortIDs();
+		if (sortIDs == 0) {
+			Assert(false);
+			return;
+		}
+
+		g_ShadowMgr.SetNumWorldMaterialBuckets(sortIDs);
 
 		Assert(WorldStaticMeshes.Count == 0);
 		WorldStaticMeshes.EnsureCountDefault(sortIDs);
@@ -838,6 +845,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	public IMaterial? MaterialWireframe;
 	public IMaterial? MaterialWorldWireframe;
 	public IMaterial? MaterialWorldWireframeZBuffer;
+	public IMaterial? MaterialShadowBuild;
 #endif
 
 	public IMaterial GL_LoadMaterial(ReadOnlySpan<char> name, ReadOnlySpan<char> textureGroupName) {

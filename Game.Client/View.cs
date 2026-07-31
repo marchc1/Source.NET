@@ -358,6 +358,8 @@ public class ViewRender : IViewRender
 			ITexture? saveRenderTarget = renderContext.GetRenderTarget();
 		}
 
+		g_ClientShadowMgr.AdvanceFrame();
+
 		RenderingView = true;
 		render.SceneBegin();
 		using (renderContext = new MatRenderContextPtr(materials))
@@ -452,6 +454,12 @@ public class ViewRender : IViewRender
 		IGameSystem.PreRenderAllSystems();
 		SetupVis(in viewRender, out uint visFlags);
 
+		g_ClientShadowMgr.PreRender();
+
+		// todo
+		// if (r_flashlightdepthtexture.GetBool() && viewID == ViewID.Main)
+		// 	g_ClientShadowMgr.ComputeShadowDepthTextures(viewRender);
+
 		bool drawSkybox = ViewRenderConVars.r_skybox.GetBool();
 		if (drew3dSkybox || skyboxVisible == SkyboxVisibility.NotVisible)
 			drawSkybox = false;
@@ -459,6 +467,10 @@ public class ViewRender : IViewRender
 		DrawWorldAndEntities(drawSkybox, in viewRender, clearFlags);
 
 		DebugViewRender.Draw3DDebuggingInfo(in viewRender);
+
+		// todo
+		// if (r_flashlightdepthtexture.GetBool())
+		// 	g_ClientShadowMgr.UnlockAllShadowDepthTextures();
 	}
 
 	private void DrawWorldAndEntities(bool drawSkybox, in ViewSetup viewRender, ClearFlags clearFlags) {

@@ -44,13 +44,13 @@ public class DebugOverlay : Panel
 			SetVisible(visible);
 	}
 
-	private bool ShouldDraw() => debugoverlay != null && false;//debugoverlay.GetFirst() != null; //todo
+	private bool ShouldDraw() => debugoverlay != null && debugoverlay.GetFirst() != null;
 
 	public override void Paint() {
 		if (debugoverlay == null)
 			return;
 
-		OverlayText? curText = null;//debugoverlay.GetFirst(); //TODO
+		OverlayText? curText = debugoverlay.GetFirst();
 		while (curText != null) {
 			if (curText.Text[0] != '\0') {
 				byte r = (byte)curText.R;

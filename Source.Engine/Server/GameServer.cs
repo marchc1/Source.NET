@@ -460,13 +460,14 @@ public class GameServer : BaseServer
 		Common.TimestampedLog("StaticPropMgr()->LevelShutdown()");
 
 #if !SWDS
-		// g_pShadowMgr->LevelShutdown();
+		g_ShadowMgr.LevelShutdown();
 #endif
-		// StaticPropMgr()->LevelShutdown();
+		StaticPropMgr().LevelShutdown();
 
 		Common.TimestampedLog("Host_FreeToLowMark");
 
 		Host.FreeStateAndWorld(true);
+		Host.FreeToLowMark(true);
 
 		serverGlobalVariables.MapVersion = 0;
 

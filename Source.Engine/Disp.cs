@@ -15,6 +15,10 @@ public static class Disp
 	public const int MAX_STATIC_BUFFER_INDICES = (8 * 1024);
 	public const int MAX_DISP_DECALS = 32;
 
+	public const DispShadowHandle DISP_SHADOW_HANDLE_INVALID = unchecked((DispShadowHandle)~0);
+	public const DispDecalFragmentHandle DISP_DECAL_FRAGMENT_HANDLE_INVALID = unchecked((DispDecalFragmentHandle)~0);
+	public const DispShadowFragmentHandle DISP_SHADOW_FRAGMENT_HANDLE_INVALID = unchecked((DispShadowFragmentHandle)~0);
+
 	public static readonly List<byte> g_DispLMAlpha = [];
 	public static readonly List<byte> g_DispLightmapSamplePositions = [];
 	public static readonly List<DispGroup> g_DispGroups = [];
@@ -77,24 +81,49 @@ struct SideVertCorners
 	public InlineArray2<FourVerts> Corners;
 }
 
-public class DispDecalBase
+[Flags]
+public enum DecalFlags : byte
 {
-
+	NodeBitfieldComputed = 0x1,
+	DecalShadow = 0x2,
+	NoIntersection = 0x4,
+	FragmentsComputed = 0x8,
 }
 
-public class DispDecal : DispDecalBase
+public struct DispDecalBase
 {
+	public DispNodeIntersectBitVec NodeIntersect;
 
+	public DecalFlags Flags;
+	public ushort NVerts;
+	public ushort NTris;
 }
 
-class DispShadowDecal : DispDecalBase
+public struct DispDecal
 {
+	public DispDecalBase Base;
 
+	// public Decal? Decal;
+	public InlineArray2<float> DecalWorldScale;
+	public InlineArray3<Vector3> TextureSpaceBasis;
+	public float Size;
+	public DispDecalFragmentHandle FirstFragment;
 }
 
-class DispShadowFragment
+public struct DispShadowDecal
 {
+	public DispDecalBase Base;
 
+	public ShadowHandle_t Shadow;
+	public DispShadowFragmentHandle FirstFragment;
+}
+
+public struct DispShadowFragment
+{
+	public const int MAX_VERTS = 12;
+
+	public int NVerts;
+	public ShadowVertex[]? ShadowVerts;
 }
 
 public struct DispRenderVert

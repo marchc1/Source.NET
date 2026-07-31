@@ -41,6 +41,10 @@ public struct C_PredictionError
 [LinkEntityToClass("player")]
 public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 {
+	const int FLASHLIGHT_DISTANCE = 1000;
+
+	public override ShadowType ShadowCastType() => ShadowType.None;
+
 	public static readonly DataMap PM_PlayerState = new(typeof(PlayerState), [
 		DEFINE<PlayerState>.PRED_FIELD( nameof(PlayerState.DeadFlag), FieldType.Boolean, FieldTypeDescFlags.InSendTable ),
 	]);
@@ -153,6 +157,45 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 		}
 	}
 	public virtual void UpdateFogController() { }
+
+	public void UpdateFlashlight() {
+		if (IsEffectActive(EntityEffects.DimLight)) {
+			if (PointFlashlight == null) {
+				PointFlashlight = new FlashlightEffect(Index);
+
+				if (PointFlashlight == null)
+					return;
+
+				PointFlashlight.TurnOn();
+			}
+
+			EyeVectors(out Vector3 forward, out Vector3 right, out Vector3 up);
+
+			PointFlashlight.UpdateLight(EyePosition(), in forward, in right, in up, FLASHLIGHT_DISTANCE);
+		}
+		else {
+			PointFlashlight?.Dispose();
+			PointFlashlight = null;
+		}
+	}
+
+	public void Flashlight() => UpdateFlashlight();
+
+	public override void Simulate() {
+		if (this == GetLocalPlayer()) {
+			Flashlight();
+
+			UpdateFogController();
+		}
+		else {
+			// todo
+		}
+
+		base.Simulate();
+		if (IsNoInterpolationFrame() || Teleported())
+			ResetLatched();
+	}
+
 	public virtual void PreThink() {
 		ItemPreFrame();
 
@@ -457,6 +500,7 @@ public partial class C_BasePlayer : C_BaseCombatCharacter, IGameEventListener2
 	public int TickBase;
 	public long FinalPredictedTick;
 	InlineArray32<char> AnimExtension;
+	FlashlightEffect? PointFlashlight;
 
 	public int GetHealth() => Health;
 	public bool IsSuitEquipped() => Local.WearingSuit;

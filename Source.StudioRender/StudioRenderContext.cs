@@ -36,14 +36,6 @@ public class StudioRenderCtx
 	public OverrideType ForcedMaterialType;
 }
 
-public enum OverrideType
-{
-	Normal,
-	BuildShadows,
-	DepthWrite,
-	SSAODepthWrite
-}
-
 /// <summary>
 /// Analog of CStudioRenderContext
 /// </summary>
@@ -681,6 +673,15 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 	public void SetAlphaModulation(float alpha) {
 		RC.AlphaMod = alpha;
 	}
+
+	public void SetEyeViewTarget(StudioHeader? studioHdr, int bodyPart, in Vector3 viewtarget) => RC.ViewTarget = viewtarget;
+
+	public void ForcedMaterialOverride(IMaterial? newMaterial, OverrideType overrideType = OverrideType.Normal) {
+		RC.ForcedMaterial = newMaterial;
+		RC.ForcedMaterialType = overrideType;
+	}
+
+	public int ComputeModelLod(StudioHWData hardwareData, float unitSphereSize) => ComputeModelLODAndMetric(hardwareData, unitSphereSize, out _);
 
 	static readonly Vector3[] AmbientLightDir = [
 		new( 1,  0,  0),

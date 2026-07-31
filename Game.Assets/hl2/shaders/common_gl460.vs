@@ -111,14 +111,10 @@ float GetVertexAttenForLight(vec3 worldPos, int lightNum, bool useStaticControlF
     if (useStaticControlFlow)
     {
         if (g_bLightEnabled[lightNum])
-        {
             result = VertexAttenInternal(worldPos, lightNum);
-        }
     }
     else
-    {
         result = VertexAttenInternal(worldPos, lightNum);
-    }
 
     return result;
 }
@@ -137,9 +133,7 @@ vec3 DoLightingUnrolled(vec3 worldPos, vec3 worldNormal,
     vec3 linearColor = vec3(0.0, 0.0, 0.0);
 
     if (bStaticLight)			// Static light
-    {
         linearColor += GammaToLinear(staticLightingColor * cOverbright);
-    }
 
     if (bDynamicLight)			// Ambient light
     {
@@ -154,9 +148,7 @@ vec3 DoLightingUnrolled(vec3 worldPos, vec3 worldNormal,
     }
 
     if (bDynamicLight)
-    {
         linearColor += AmbientLight(worldNormal); //ambient light is already remapped
-    }
 
     return linearColor;
 }

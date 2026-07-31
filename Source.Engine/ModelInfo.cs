@@ -352,7 +352,10 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 	}
 
 	public void OnLevelChange() {
-		throw new NotImplementedException();
+		NetworkedDynamicModels.Clear();
+
+		// TODO
+		// modelloader.ForceUnloadNonClientDynamicModels();
 	}
 
 	public int RegisterDynamicModel(ReadOnlySpan<char> name, bool bClientSide) {

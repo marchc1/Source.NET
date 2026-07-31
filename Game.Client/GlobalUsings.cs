@@ -1,4 +1,7 @@
 global using EHANDLE = Source.Common.Handle<Game.Client.C_BaseEntity>;
+global using ClientLeafShadowHandle_t = uint;
+global using TextureHandle_t = ushort;
+global using FragmentHandle_t = ushort;
 global using static Game.Client.SourceDllMain;
 global using static Game.Client.BeamDraw;
 
