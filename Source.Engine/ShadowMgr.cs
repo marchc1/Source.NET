@@ -184,7 +184,6 @@ public static class ShadowMgrGlobals
 		up.NormalizeInPlace();
 
 		Vector3 centerNear = view.Origin + forward * (view.ZNear + planeEpsilon);
-		Vector3 centerFar = view.Origin + forward * (view.ZFar - planeEpsilon);
 
 		Vector3 rightHalfNearWidth = right * halfNearWidth;
 		Vector3 upHalfNearHeight = up * halfNearHeight;
@@ -1420,10 +1419,10 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 
 		for (int i = 0; i < shadow.ClipPlaneCount; ++i) {
 			if (worldToModel != null) {
-				CollisionPlane worldPlane = default, modelPlane;
+				CollisionPlane worldPlane = default;
 				worldPlane.Normal = shadow.ClipPlane[i];
 				worldPlane.Dist = shadow.ClipDist[i];
-				MathLib.MatrixTransformPlane(worldToModel.Value, in worldPlane, out modelPlane);
+				MathLib.MatrixTransformPlane(worldToModel.Value, in worldPlane, out CollisionPlane modelPlane);
 				ClipPlane.SetPlane(modelPlane.Normal, modelPlane.Dist);
 			}
 			else
@@ -1839,13 +1838,11 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 		Span<Vector3> nearPlane = stackalloc Vector3[4];
 		Span<Vector3> farPlane = stackalloc Vector3[4];
 		ConstructNearAndFarPolygons(nearPlane, farPlane, planeEpsilon);
-		bool isNearPlane = false;
 
 		int nearClipCount = ClipPlaneToFrustum(nearPlane, clippedPolygons[numPolygons], worldFrustumPoints);
 		if (nearClipCount > 2) {
 			numVertices[numPolygons] = nearClipCount;
 			numPolygons++;
-			isNearPlane = true;
 		}
 
 		for (int i = 0; i < numPolygons; i++) {

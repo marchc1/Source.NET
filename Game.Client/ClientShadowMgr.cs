@@ -1648,11 +1648,9 @@ public class ClientShadowMgr : IClientShadowMgr
 		if (renderable == null)
 			return;
 
-		Vector3 mins, maxs;
-		renderable.GetShadowRenderBounds(out mins, out maxs, GetActualShadowCastType(h));
+		renderable.GetShadowRenderBounds(out Vector3 mins, out Vector3 maxs, GetActualShadowCastType(h));
 
-		Vector3 size;
-		MathLib.VectorSubtract(maxs, mins, out size);
+		MathLib.VectorSubtract(maxs, mins, out Vector3 size);
 		float maxSize = Math.Max(size.X, size.Y);
 		maxSize = Math.Max(maxSize, size.Z);
 
@@ -1966,14 +1964,13 @@ public class ClientShadowMgr : IClientShadowMgr
 		MathLib.VectorSubtract(in maxs, in mins, out Vector3 size);
 
 		Vector3 origin = renderable.GetRenderOrigin();
-		Vector3 start, end, end2;
 
-		MathLib.VectorMA(in origin, mins.X, vec[0], out start);
+		MathLib.VectorMA(in origin, mins.X, vec[0], out Vector3 start);
 		MathLib.VectorMA(in start, mins.Y, vec[1], out start);
 		MathLib.VectorMA(in start, mins.Z, vec[2], out start);
 
-		MathLib.VectorMA(in start, size.X, vec[0], out end);
-		MathLib.VectorMA(in end, size.Z, vec[2], out end2);
+		MathLib.VectorMA(in start, size.X, vec[0], out Vector3 end);
+		MathLib.VectorMA(in end, size.Z, vec[2], out Vector3 end2);
 		debugoverlay.AddLineOverlay(in start, in end, 255, 0, 0, true, 0.01f);
 		debugoverlay.AddLineOverlay(in end2, in end, 255, 0, 0, true, 0.01f);
 
