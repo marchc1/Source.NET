@@ -28,6 +28,7 @@ public class SearchPathCollection
 	public ISearchPath? AtSorted(int index) {
 		if (index >= Count)
 			return null;
+		ValidateOrder();
 		return sortOrder[index];
 	}
 
