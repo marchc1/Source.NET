@@ -1537,8 +1537,10 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 
 		Matrix4x4 modelToShadow = Shadows[decal.Shadow].Info.WorldToShadow;
 
-		if (modelToWorld != null)
-			modelToShadow = Matrix4x4.Multiply(modelToShadow, modelToWorld.Value);
+		if (modelToWorld != null) {
+			Matrix4x4 modelToWorldValue = modelToWorld.Value;
+			MathLib.MatrixMultiply(in modelToShadow, in modelToWorldValue, out modelToShadow);
+		}
 		else
 			worldToModel = null;
 

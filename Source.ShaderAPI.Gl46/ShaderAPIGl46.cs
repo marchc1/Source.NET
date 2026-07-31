@@ -127,7 +127,20 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		if (clearStencil)
 			glStencilMask(0xFF);
 
-		glClear(flags);
+		if (flags != 0) {
+			bool renderTargetMatchesViewport =
+				(renderTargetWidth == -1 && renderTargetHeight == -1) ||
+				(renderTargetWidth == Viewport.Width && renderTargetHeight == Viewport.Height);
+
+			if (renderTargetMatchesViewport)
+				glClear(flags);
+			else {
+				glEnable(GL_SCISSOR_TEST);
+				glScissor(Viewport.X, renderTargetHeight - (Viewport.Y + Viewport.Height), Viewport.Width, Viewport.Height);
+				glClear(flags);
+				glDisable(GL_SCISSOR_TEST);
+			}
+		}
 	}
 
 	public void ClearColor3ub(byte r, byte g, byte b) => glClearColor(r / 255f, g / 255f, b / 255f, 1);
@@ -979,13 +992,17 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	bool UsingTextureRenderTarget;
+	int ViewportMaxWidth;
+	int ViewportMaxHeight;
+	GfxViewport Viewport;
 
 	public void SetViewports(ReadOnlySpan<ShaderViewport> viewports) {
 		Assert(viewports.Length == 1);
 		if (viewports.Length != 1)
 			return;
 
-		GfxViewport viewport = new();
+		ref GfxViewport viewport = ref Viewport;
+		viewport = new();
 		viewport.X = viewports[0].TopLeftX;
 		viewport.Y = viewports[0].TopLeftY;
 		viewport.Width = viewports[0].Width;
@@ -993,16 +1010,33 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		viewport.MinZ = viewports[0].MinZ;
 		viewport.MaxZ = viewports[0].MaxZ;
 
-		if (UsingTextureRenderTarget) {
-			int maxWidth = 0, maxHeight = 0;
-			GetBackBufferDimensions(out maxWidth, out maxHeight);
+		int targetHeight;
+		if (!UsingTextureRenderTarget) {
+			GetBackBufferDimensions(out int maxWidth, out int maxHeight);
+
+			if (viewport.Width > maxWidth && maxWidth > 0)
+				viewport.Width = maxWidth;
+
+			if (viewport.Height > maxHeight && maxHeight > 0)
+				viewport.Height = maxHeight;
+
+			targetHeight = maxHeight;
 		}
-		// TODO: this has a lot more logic...
+		else {
+			if (viewport.Width > ViewportMaxWidth)
+				viewport.Width = ViewportMaxWidth;
+			if (viewport.Height > ViewportMaxHeight)
+				viewport.Height = ViewportMaxHeight;
+
+			targetHeight = ViewportMaxHeight;
+		}
+
 		FlushBufferedPrimitives();
-		// HACK BECAUSE SOMETHING IS REALLY WRONG: We report the right viewport width/height to OpenGL, but regardless the first couple of frames it decides that we didn't. So this hack 
-		// skips the first couple of loading screen frames. 
+		// HACK BECAUSE SOMETHING IS REALLY WRONG: We report the right viewport width/height to OpenGL, but regardless the first couple of frames it decides that we didn't. So this hack
+		// skips the first couple of loading screen frames.
+		// TODO: Is this hack still needed?
 		if (frame >= 2) {
-			glViewport(viewport.X, viewport.Y, viewport.Width, viewport.Height);
+			glViewport(viewport.X, targetHeight - (viewport.Y + viewport.Height), viewport.Width, viewport.Height);
 			glDepthRangef(viewport.MinZ, viewport.MaxZ);
 		}
 		frame++;
@@ -2036,13 +2070,29 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public void SetRenderTargetEx(int renderTargetID, ShaderAPITextureHandle_t colorTextureHandle = -1, ShaderAPITextureHandle_t depthTextureHandle = -1) {
 		FlushBufferedPrimitives();
 
+		bool usingTextureTarget = false;
+
 		if (colorTextureHandle == -1 && depthTextureHandle == -1) {
-			if (renderTargetID == 0)
+			if (renderTargetID == 0) {
 				glBindFramebuffer(GL_FRAMEBUFFER, 0);
+				UsingTextureRenderTarget = usingTextureTarget;
+			}
 			return;
 		}
 
+		if (colorTextureHandle >= 0)
+			usingTextureTarget = true;
+
+		if (renderTargetID == 0)
+			UsingTextureRenderTarget = usingTextureTarget;
+
 		glBindFramebuffer(GL_FRAMEBUFFER, renderFBO);
+
+		if (UsingTextureRenderTarget && renderTargetID == 0) {
+			InternalTextureInfo tex = GetTexture(depthTextureHandle < 0 ? colorTextureHandle : depthTextureHandle);
+			ViewportMaxWidth = tex.Width;
+			ViewportMaxHeight = tex.Height;
+		}
 
 		if (colorTextureHandle == -2)
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
