@@ -125,8 +125,8 @@ public class LightmappedGeneric : BaseVSShader
 
 		LoadTexture((int)ShaderMaterialVars.FlashLightTexture);
 
-		// if (ShouldUseBumpmapping(Params))
-		// 	LoadBumpMap(BUMPMAP);
+		if (ShouldUseBumpmapping(vars))
+			LoadBumpMap(BUMPMAP);
 
 		InitUnlitGeneric((int)ShaderMaterialVars.BaseTexture, DETAIL, ENVMAP, ENVMAPMASK);
 		if (vars[(int)ShaderMaterialVars.BaseTexture].IsDefined()) {

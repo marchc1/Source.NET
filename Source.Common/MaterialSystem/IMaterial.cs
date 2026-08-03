@@ -482,6 +482,8 @@ public interface IMaterialInternal : IMaterial
 	bool IsUsingVertexID();
 	void Precache();
 	bool PrecacheVars(KeyValues? inVmtKeyValues = null, KeyValues? inPatchKeyValues = null, List<FileNameHandle_t>? includes = null, MaterialFindContext findContext = 0);
+	void ReportVarChanged(IMaterialVar? var);
+	uint GetChangeID();
 	void SetEnumerationID(int id);
 	void SetMaxLightmapPageID(int value);
 	void SetMinLightmapPageID(int value);

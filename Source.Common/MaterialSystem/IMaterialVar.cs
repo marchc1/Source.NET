@@ -66,6 +66,7 @@ public abstract class IMaterialVar
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetVecValue(in Vector4 xyzw) => SetVecValue(xyzw.X, xyzw.Y, xyzw.Z, xyzw.W);
 
 	public abstract void GetVecValue(Span<float> color);
+	public abstract Span<float> GetVecValue();
 
 	public void GetLinearVecValue(Span<float> pVal, int numComps) {
 		Assert(numComps <= 4);
@@ -111,7 +112,6 @@ public abstract class IMaterialVar
 		GetVecValue(retv);
 		vec = new(retv[0], retv[1], retv[2], retv[3]);
 	}
-
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public Vector2 GetVec2Value() {

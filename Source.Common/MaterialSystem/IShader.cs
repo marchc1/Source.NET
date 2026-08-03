@@ -28,7 +28,7 @@ public interface IShader
 	string? GetFallbackShader(IMaterialVar[] vars);
 	void InitShaderParams(IMaterialVar[] vars, IShaderAPI shaderAPI, ReadOnlySpan<char> materialName);
 	void InitShaderInstance(IMaterialVar[] shaderParams, IShaderAPI shaderAPI, IShaderInit shaderManager, ReadOnlySpan<char> materialName, ReadOnlySpan<char> textureGroupName);
-	void DrawElements(IMaterialVar[] shaderParams, IShaderShadow? shadow, IShaderDynamicAPI? shaderAPI, VertexCompressionType none);
+	void DrawElements(IMaterialVar[] shaderParams, IShaderShadow? shadow, IShaderDynamicAPI? shaderAPI, VertexCompressionType none, ref BasePerMaterialContextData? contextData);
 	bool IsTranslucent(IMaterialVar[]? shaderParams);
 	bool NeedsPowerOfTwoFrameBufferTexture(IMaterialVar[]? shaderParams, bool checkSpecificToThisFrame);
 	bool NeedsFullFrameBufferTexture(IMaterialVar[]? shaderParams, bool checkSpecificToThisFrame);
@@ -40,6 +40,7 @@ public interface IShaderInit
 	public void LoadCubeMap(IMaterialVar[] parms, IMaterialVar textureVar, int additionalCreationFlags = 0);
 	VertexShaderHandle LoadVertexShader(ReadOnlySpan<char> name, ReadOnlySpan<char> defines = default);
 	PixelShaderHandle LoadPixelShader(ReadOnlySpan<char> name, ReadOnlySpan<char> defines = default);
+	void LoadBumpMap(IMaterialVar nameVar, string? textureGroupName);
 }
 
 
@@ -133,6 +134,18 @@ public interface IShaderDynamicAPI
 	void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 dst);
 	void CommitVertexShaderLighting();
 	void GetLightState(out LightState state);
+	void GetBackBufferDimensions(out int width, out int height);
+	FlashlightState GetFlashlightState(out Matrix4x4 worldToTexture);
+	bool IsHWMorphingEnabled();
+	void GetWorldSpaceCameraPosition(ref Span<float> eyePos);
+	int GetPixelFogCombo();
+	FlashlightState GetFlashlightStateEx(out Matrix4x4 worldToTexture, out ITexture? flashlightDepthTexture);
+	bool ShouldWriteDepthToDestAlpha();
+	void MarkUnusedVertexFields(int v, Span<bool> unusedTexCoords);
+	int GetIntRenderingParameter(RenderParamInt parm);
+	void ExecuteCommandBuffer(ICommandStorageBuffer storage);
+	void CommitPixelShaderLighting(int lightInfoArray);
+	void SetPixelShaderStateAmbientLightCube(int ambientCube, bool v);
 }
 
 public struct LightState
@@ -142,4 +155,10 @@ public struct LightState
 	public bool StaticLightVertex;
 	public bool StaticLightTexel;
 	public readonly int HasDynamicLight() => (AmbientLight || (NumLights > 0)) ? 1 : 0;
+}
+
+public class BasePerMaterialContextData()
+{
+	public UInt32 VarChangeID = 0xffffffff;
+	public bool MaterialVarsChanged = true;
 }

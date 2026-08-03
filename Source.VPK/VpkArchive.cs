@@ -20,7 +20,7 @@ namespace Source.VPK
 			Directories = new List<VpkDirectory>();
 		}
 
-		public void Dispose(){
+		public void Dispose() {
 			foreach (var part in Parts)
 				part.Dispose();
 			FileHandle.Dispose();
@@ -125,7 +125,7 @@ namespace Source.VPK
 
 				var subFileName = Path.GetFileName(subFile);
 
-				if (!subFileName.Contains("_")) {
+				if (!subFileName.Contains('_')) {
 					continue;
 				}
 

@@ -27,6 +27,7 @@ public class TextureManager : ITextureManager
 
 	private ITextureInternal errorTexture;
 	private ITextureInternal whiteTexture;
+	private ITextureInternal signedNormalizationCubemap;
 
 	const int ERROR_TEXTURE_SIZE = 32;
 	const int WHITE_TEXTURE_SIZE = 1;
@@ -54,7 +55,7 @@ public class TextureManager : ITextureManager
 	private void CreateCheckerboardTexture(ITexture errorTexture, int checkerSize, Color color1, Color color2)
 		=> errorTexture.SetTextureRegenerator(new CheckerboardTexture(checkerSize, color1, color2));
 
-	private void CreateSolidTexture(ITexture tex, Color color) 
+	private void CreateSolidTexture(ITexture tex, Color color)
 		=> tex.SetTextureRegenerator(new SolidTexture(color));
 
 	public ITextureInternal? CreateProceduralTexture(ReadOnlySpan<char> name, ReadOnlySpan<char> textureGroup, int w, int h, int d, ImageFormat imageFormat, TextureFlags flags, ITextureRegenerator? generator = null) {
@@ -81,7 +82,7 @@ public class TextureManager : ITextureManager
 		ITextureInternal? texture = FindTexture(textureName);
 		if (texture == null) {
 			texture = LoadTexture(textureName, textureGroupName, additionalCreationFlags);
-			if (texture != null) 
+			if (texture != null)
 				TextureList.Add(texture.GetName().Hash(), texture);
 		}
 
@@ -90,7 +91,7 @@ public class TextureManager : ITextureManager
 
 	public ITextureInternal? LoadTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroupName, int additionalCreationFlags, bool download = true) {
 		ITextureInternal? newTexture = CreateFileTexture(textureName, textureGroupName);
-		if(newTexture != null) {
+		if (newTexture != null) {
 			if (download)
 				newTexture.Download();
 		}
@@ -121,7 +122,7 @@ public class TextureManager : ITextureManager
 	}
 
 	internal void RestoreNonRenderTargetTextures() {
-		foreach(var tex in TextureList) 
+		foreach (var tex in TextureList)
 			if (!tex.Value.IsRenderTarget())
 				RestoreTexture(tex.Value);
 	}
@@ -143,9 +144,9 @@ public class TextureManager : ITextureManager
 
 	internal ITextureInternal? CreateRenderTargetTexture(ReadOnlySpan<char> rtName, int w, int h, RenderTargetSizeMode sizeMode, ImageFormat format, RenderTargetType type, TextureFlags textureFlags, CreateRenderTargetFlags renderTargetFlags) {
 		ITextureInternal? texture;
-		if(!rtName.IsEmpty) {
+		if (!rtName.IsEmpty) {
 			texture = FindTexture(rtName);
-			if(texture != null) {
+			if (texture != null) {
 				((Texture)texture)!.InitRenderTarget(texture.GetName(), w, h, sizeMode, format, type, textureFlags, renderTargetFlags);
 				texture.Download();
 				return texture;
@@ -159,5 +160,9 @@ public class TextureManager : ITextureManager
 		TextureList[new UtlSymbol(rtName)] = texture;
 		texture.Download();
 		return texture;
+	}
+
+	public ITextureInternal SignedNormalizationCubemap() {
+		return errorTexture; // TODO!
 	}
 }

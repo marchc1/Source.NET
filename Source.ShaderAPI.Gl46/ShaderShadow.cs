@@ -1,6 +1,7 @@
 using Source.Common.MaterialSystem;
 using Source.Common.ShaderAPI;
 
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Source.ShaderAPI.Gl46;
@@ -51,6 +52,8 @@ public class ShadowStateGl46 : IShaderShadow
 
 	public VertexShaderHandle VertexShader;
 	public PixelShaderHandle PixelShader;
+
+	public BasePerMaterialContextData? ContextData;
 
 	List<IMaterialVar> shaderUniforms = [];
 
@@ -340,7 +343,8 @@ public class ShadowStateGl46 : IShaderShadow
 	}
 
 	public void SetShadowDepthFiltering(Sampler stage) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		// TODO!
 	}
 
 	public void BlendOp(ShaderBlendOp blendOp) {
@@ -367,6 +371,16 @@ public class ShadowStateGl46 : IShaderShadow
 		BlendOpSeparateAlpha(ShaderBlendOp.Add);
 		EnablePolyOffset(PolygonOffsetMode.Disable);
 	}
+
+	public void EnableSRGBRead(Sampler sampler, bool state) {
+		// throw new NotImplementedException();
+		// TODO!
+	}
+
+	public void EnableSRGBWrite(bool state) {
+		// throw new NotImplementedException();
+		// TODO!
+	}
 }
 
 internal sealed class ShaderComboState(IShaderSystemInternal shaders, ShaderType type)
@@ -379,17 +393,21 @@ internal sealed class ShaderComboState(IShaderSystemInternal shaders, ShaderType
 	int numDynamicCombos = 1;
 	int staticComboIndex;
 	readonly Dictionary<int, nint> variants = [];
+	readonly StringBuilder defines = new(256);
 
 	public nint SetShader(string fileName, int staticIndex) {
 		file = fileName;
 		staticComboIndex = staticIndex;
 
 		var (statics, dynamics) = ((ShaderSystem)shaders).GetShaderCombos(fileName);
+
 		staticCombos = [.. statics];
 		dynamicCombos = [.. dynamics];
 
 		staticComboScales = ComputeComboScales(staticCombos, out _);
 		dynamicComboScales = ComputeComboScales(dynamicCombos, out numDynamicCombos);
+
+		variants.Clear();
 
 		return GetVariant(0);
 	}
@@ -425,11 +443,14 @@ internal sealed class ShaderComboState(IShaderSystemInternal shaders, ShaderType
 
 	private static void AppendComboDefines(StringBuilder defines, ShaderCombo[] combos, int[] scales, int index) {
 		for (int i = 0; i < combos.Length; i++) {
-			if (defines.Length > 0)
+			if (defines.Length != 0)
 				defines.Append(';');
-			defines.Append(combos[i].Name);
+
+			ref readonly var combo = ref combos[i];
+
+			defines.Append(combo.Name);
 			defines.Append(' ');
-			defines.Append(combos[i].Min + (index / scales[i]) % combos[i].Range);
+			defines.Append(combo.Min + (index / scales[i]) % combo.Range);
 		}
 	}
 
@@ -437,7 +458,7 @@ internal sealed class ShaderComboState(IShaderSystemInternal shaders, ShaderType
 		int staticIndex = variant / numDynamicCombos;
 		int dynamicIndex = variant % numDynamicCombos;
 
-		StringBuilder defines = new();
+		defines.Clear();
 		AppendComboDefines(defines, staticCombos, staticComboScales, staticIndex);
 		AppendComboDefines(defines, dynamicCombos, dynamicComboScales, dynamicIndex);
 
@@ -449,7 +470,7 @@ internal sealed class ShaderComboState(IShaderSystemInternal shaders, ShaderType
 		int variant = staticComboIndex * numDynamicCombos + dynamicIndex;
 		if (!variants.TryGetValue(variant, out nint handle)) {
 			handle = Compile(variant);
-			variants[variant] = handle;
+			variants.Add(variant, handle);
 		}
 		return handle;
 	}

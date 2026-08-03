@@ -1,4 +1,5 @@
 using Source.Common.MaterialSystem;
+using Source.Common.Mathematics;
 using Source.Common.ShaderAPI;
 using Source.Common.ShaderLib;
 
@@ -90,21 +91,14 @@ public abstract class BaseShader : IShader
 		Params = null;
 	}
 
-	protected virtual void OnInitShaderParams(IMaterialVar[] vars, ReadOnlySpan<char> materialName) {
-
-	}
-
-	protected virtual void OnInitShaderInstance(IMaterialVar[] vars, ReadOnlySpan<char> materialName) {
-
-	}
-
-	protected virtual void OnDrawElements(IMaterialVar[] vars, IShaderDynamicAPI shaderAPI, VertexCompressionType vertexCompression) {
-
-	}
+	protected virtual void OnInitShaderParams(IMaterialVar[] vars, ReadOnlySpan<char> materialName) { }
+	protected virtual void OnInitShaderInstance(IMaterialVar[] vars, ReadOnlySpan<char> materialName) { }
+	protected virtual void OnDrawElements(IMaterialVar[] vars, IShaderDynamicAPI shaderAPI, VertexCompressionType vertexCompression, ref BasePerMaterialContextData? contextData) => OnDrawElements(vars, shaderAPI, vertexCompression);
+	protected virtual void OnDrawElements(IMaterialVar[] vars, IShaderDynamicAPI shaderAPI, VertexCompressionType vertexCompression) { }
 
 	public virtual bool IsTranslucent(IMaterialVar[]? parms) => IsFlagSet(parms, (int)MaterialVarFlags.Translucent);
 
-	public void DrawElements(IMaterialVar[] vars, IShaderShadow? shadow, IShaderDynamicAPI? shaderAPI, VertexCompressionType vertexCompression) {
+	public void DrawElements(IMaterialVar[] vars, IShaderShadow? shadow, IShaderDynamicAPI? shaderAPI, VertexCompressionType vertexCompression, ref BasePerMaterialContextData? contextData) {
 		Assert(Params == null);
 		Params = vars;
 		ShaderShadow = shadow;
@@ -113,7 +107,7 @@ public abstract class BaseShader : IShader
 		if (IsSnapshotting())
 			SetInitialShadowState();
 
-		OnDrawElements(vars, shaderAPI, vertexCompression);
+		OnDrawElements(vars, shaderAPI, vertexCompression, ref contextData);
 
 		Params = null;
 		ShaderShadow = null;
@@ -121,7 +115,7 @@ public abstract class BaseShader : IShader
 		// MeshBuilder = null
 	}
 
-	private void SetInitialShadowState() {
+	internal void SetInitialShadowState() {
 		ShaderShadow!.SetDefaultState();
 		MaterialVarFlags flags = (MaterialVarFlags)Params![(int)ShaderMaterialVars.Flags].GetIntValue();
 
@@ -150,7 +144,7 @@ public abstract class BaseShader : IShader
 	}
 
 	[MemberNotNullWhen(true, nameof(ShaderShadow))]
-	protected bool IsSnapshotting() => ShaderShadow != null;
+	internal bool IsSnapshotting() => ShaderShadow != null;
 
 	public bool TextureIsTranslucent(int textureVar = -1, bool isBaseTexture = true) {
 		if (textureVar < 0)
@@ -300,9 +294,54 @@ public abstract class BaseShader : IShader
 	}
 
 	public bool NeedsPowerOfTwoFrameBufferTexture(IMaterialVar[]? shaderParams, bool checkSpecificToThisFrame)
-	=> IsFlag2Set(shaderParams, MaterialVarFlags2.NeedsPowerOfTwoFrameBufferTexture);
+		=> IsFlag2Set(shaderParams, MaterialVarFlags2.NeedsPowerOfTwoFrameBufferTexture);
 
 	public bool NeedsFullFrameBufferTexture(IMaterialVar[]? shaderParams, bool checkSpecificToThisFrame)
-	=> IsFlag2Set(shaderParams, MaterialVarFlags2.NeedsFullFrameBufferTexture);
+		=> IsFlag2Set(shaderParams, MaterialVarFlags2.NeedsFullFrameBufferTexture);
 
+	protected void EnableAlphaBlending(ShaderBlendFactor srcFactor, ShaderBlendFactor dstFactor) {
+		ShaderShadow!.EnableBlending(true);
+		ShaderShadow!.BlendFunc(srcFactor, dstFactor);
+		ShaderShadow!.EnableDepthWrites(false);
+	}
+
+	protected void DisableAlphaBlending() {
+		ShaderShadow!.EnableBlending(false);
+	}
+
+	internal void SetBlendingShadowState(BlendType blendType) {
+		switch (blendType) {
+			case BlendType.None:
+				DisableAlphaBlending();
+				break;
+			case BlendType.Blend:
+				EnableAlphaBlending(ShaderBlendFactor.SrcAlpha, ShaderBlendFactor.OneMinusSrcAlpha);
+				break;
+			case BlendType.Add:
+				EnableAlphaBlending(ShaderBlendFactor.One, ShaderBlendFactor.One);
+				break;
+			case BlendType.BlendAdd:
+				EnableAlphaBlending(ShaderBlendFactor.SrcAlpha, ShaderBlendFactor.One);
+				break;
+		}
+	}
+
+	internal void LoadBumpMap(int textureVar) {
+		if (Params == null || textureVar == -1)
+			return;
+
+		IMaterialVar? nameVar = Params[textureVar];
+		if (nameVar != null && nameVar.IsDefined())
+			ShaderInit!.LoadBumpMap(nameVar, TextureGroupName);
+	}
+
+	internal void HashShadow2DJitter(float shadowJitterSeed, out float v1, out float v2) {
+		const int texRes = 32;
+		const int texResx2 = texRes * texRes;
+		int seed = (int)(MathLib.Fmod(shadowJitterSeed, 1.0f) * texResx2);
+		int row = seed / texRes;
+		int col = seed % texRes;
+		v1 = row / (float)texRes;
+		v2 = col / (float)texRes;
+	}
 }

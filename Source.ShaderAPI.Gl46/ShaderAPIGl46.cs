@@ -297,7 +297,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	public void SetAmbientLight(float r, float g, float b) {
-		// todo
+		// todo todo
 	}
 
 	public const int MAX_NUM_LIGHTS = 4;
@@ -2313,5 +2313,195 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	public void BindStandardTexture(Sampler sampler, StandardTextureId id) {
 		ShaderUtil.BindStandardTexture(sampler, id);
+	}
+
+	public FlashlightState GetFlashlightState(out Matrix4x4 worldToTexture) {
+		worldToTexture = FlashlightWorldToTexture;
+		return FlashlightState;
+	}
+
+	public FlashlightState GetFlashlightStateEx(out Matrix4x4 worldToTexture, out ITexture? flashlightDepthTexture) {
+		worldToTexture = FlashlightWorldToTexture;
+		flashlightDepthTexture = FlashlightDepthTexture;
+		return FlashlightState;
+	}
+
+	public bool IsHWMorphingEnabled() {
+		throw new NotImplementedException();
+	}
+
+	public void GetWorldSpaceCameraPosition(ref Span<float> eyePos) {
+		eyePos[0] = WorldSpaceCameraPosition.X;
+		eyePos[1] = WorldSpaceCameraPosition.Y;
+		eyePos[2] = WorldSpaceCameraPosition.Z;
+		eyePos[3] = WorldSpaceCameraPosition.W;
+	}
+
+	public int GetPixelFogCombo() {
+		// throw new NotImplementedException();
+		return (int)MaterialFogMode.None; // TODO!
+	}
+
+	public bool ShouldWriteDepthToDestAlpha() {
+		// throw new NotImplementedException();
+		return true; // TODO!
+	}
+
+	public void MarkUnusedVertexFields(int v, Span<bool> unusedTexCoords) {
+		throw new NotImplementedException();
+	}
+
+	public void ExecuteCommandBuffer(ICommandStorageBuffer storage) {
+		ExecuteCommandBuffer(storage, storage.Base());
+	}
+
+	private void ExecuteCommandBuffer(ICommandStorageBuffer storage, Span<byte> cmdBuf) {
+		while (true) {
+			int offset = 0;
+
+			while (true) {
+				CommandBufferCommand cmd = (CommandBufferCommand)MemoryMarshal.Read<int>(cmdBuf[offset..]);
+				switch (cmd) {
+					case CommandBufferCommand.End:
+						return;
+
+					case CommandBufferCommand.Jump: {
+							int reference = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							storage = storage.Reference(reference);
+							cmdBuf = storage.Base();
+							offset = 0;
+							continue;
+						}
+
+					case CommandBufferCommand.Jsr: {
+							int reference = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							ExecuteCommandBuffer(storage.Reference(reference));
+							offset += 8;
+							break;
+						}
+
+					case CommandBufferCommand.SetPixelShaderFloatConst: {
+							int firstReg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							int numRegs = MemoryMarshal.Read<int>(cmdBuf[(offset + 8)..]);
+
+#if DEBUG
+							Assert(numRegs > 0);
+							Assert(offset + 12 + numRegs * 16 <= cmdBuf.Length);
+#endif
+
+							Span<float> values = MemoryMarshal.Cast<byte, float>(cmdBuf.Slice(offset + 12, numRegs * 16));
+
+							SetPixelShaderConstantInternal(firstReg, values);
+
+							offset += 12 + numRegs * 16;
+							break;
+						}
+
+					case CommandBufferCommand.SetVertexShaderFloatConst: {
+							int firstReg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							int numRegs = MemoryMarshal.Read<int>(cmdBuf[(offset + 8)..]);
+
+#if DEBUG
+							Assert(numRegs > 0);
+							Assert(offset + 12 + numRegs * 16 <= cmdBuf.Length);
+#endif
+
+							Span<float> values = MemoryMarshal.Cast<byte, float>(cmdBuf.Slice(offset + 12, numRegs * 16));
+
+							SetVertexShaderConstantInternal(firstReg, values);
+
+							offset += 12 + numRegs * 16;
+							break;
+						}
+
+					case CommandBufferCommand.SetPixelShaderFogParams: {
+							int reg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							// SetPixelShaderFogParams(reg);
+							offset += 8;
+							break;
+						}
+
+					case CommandBufferCommand.StoreEyePosInPsConst: {
+							int reg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							SetPixelShaderConstantInternal(reg, MemoryMarshal.CreateSpan(ref WorldSpaceCameraPosition.X, 4));
+							offset += 8;
+							break;
+						}
+
+					case CommandBufferCommand.CommitPixelShaderLighting: {
+							int reg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							CommitPixelShaderLighting(reg);
+							offset += 8;
+							break;
+						}
+
+					case CommandBufferCommand.SetPixelShaderStateAmbientLightCube: {
+							int reg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							SetPixelShaderConstantInternal(reg, MemoryMarshal.CreateSpan(ref AmbientLightCube[0].X, 24));
+							offset += 8;
+							break;
+						}
+
+					case CommandBufferCommand.SetAmbientCubeDynamicStateVertexShader: {
+							SetVertexShaderStateAmbientLightCube();
+							offset += 4;
+							break;
+						}
+
+					case CommandBufferCommand.SetDepthFeatheringConst: {
+							int reg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							float scale = MemoryMarshal.Read<float>(cmdBuf[(offset + 8)..]);
+							// SetDepthFeatheringPixelShaderConstant(reg, scale);
+							offset += 12;
+							break;
+						}
+
+					case CommandBufferCommand.BindStandardTexture: {
+							Sampler sampler = (Sampler)MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							StandardTextureId texture = (StandardTextureId)MemoryMarshal.Read<int>(cmdBuf[(offset + 8)..]);
+							BindStandardTexture(sampler, texture);
+							offset += 12;
+							break;
+						}
+
+					case CommandBufferCommand.BindShaderApiTextureHandle: {
+							Sampler sampler = (Sampler)MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							ShaderAPITextureHandle_t texture = (ShaderAPITextureHandle_t)MemoryMarshal.Read<nint>(cmdBuf[(offset + 8)..]);
+							BindTexture(sampler, texture);
+							offset += 8 + IntPtr.Size;
+							break;
+						}
+
+					case CommandBufferCommand.SetPsHIndex: {
+							SetPixelShaderIndex(MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]));
+							offset += 8;
+							break;
+						}
+
+					case CommandBufferCommand.SetVsHIndex: {
+							SetVertexShaderIndex(MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]));
+							offset += 8;
+							break;
+						}
+
+					default:
+						throw new InvalidOperationException($"Unknown command {(int)cmd}");
+				}
+			}
+		}
+	}
+
+	public int GetIntRenderingParameter(RenderParamInt parm) {
+		// throw new NotImplementedException();
+		return 0;// todo
+	}
+
+	public void SetPixelShaderStateAmbientLightCube(int reg, bool forceToBlack) {
+		if (forceToBlack) {
+			Span<Vector4> tempCube = stackalloc Vector4[6];
+			SetPixelShaderConstant(reg, MemoryMarshal.Cast<Vector4, float>(tempCube));
+		}
+		else
+			SetPixelShaderConstant(reg, MemoryMarshal.Cast<Vector4, float>(MemoryMarshal.CreateSpan(ref AmbientLightCube[0], 6)));
 	}
 }

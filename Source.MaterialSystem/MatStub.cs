@@ -265,6 +265,8 @@ public class DummyMaterialVar : IMaterialVar
 			val[i] = 1;
 	}
 	protected override int VectorSizeInternal() => 3;
+
+	public override Span<float> GetVecValue() => vecvalX4;
 }
 
 public class DummyMaterial : IMaterial

@@ -917,6 +917,10 @@ public class Material : IMaterialInternal
 	IShaderShadow ShaderRenderState;
 	static uint DebugVarsSignature = 0;
 
+	public void ReportVarChanged(IMaterialVar? var) => ChangeID++;
+
+	public uint GetChangeID() => ChangeID;
+
 	public void DrawMesh(VertexCompressionType vertexCompression) {
 		if (Shader != null) {
 			if ((GetMaterialVarFlags() & MaterialVarFlags.Debug) == 0) {
