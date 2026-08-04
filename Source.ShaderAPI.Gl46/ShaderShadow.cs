@@ -1,6 +1,7 @@
 using Source.Common.MaterialSystem;
 using Source.Common.ShaderAPI;
 
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -20,12 +21,16 @@ public struct SourceSharedShadowState
 public struct SourceVertexSharedShadowState
 {
 	public int NumBones;
+	public int LightCount;
+	public int Pad0;
+	public int Pad1;
+	public Vector4 LightEnabled;
 }
 
 /// <summary>
 /// Uniforms for the pixel shader the ShadowState represents.
 /// </summary>
-public unsafe struct SourcePixelSharedShadowState
+public struct SourcePixelSharedShadowState
 {
 	public int IsAlphaTesting;
 	public int AlphaTestFunc;
@@ -40,6 +45,7 @@ public class ShadowStateGl46 : IShaderShadow
 {
 	internal readonly IShaderSystemInternal Shaders;
 	internal readonly IShaderAPI ShaderAPI;
+	readonly IMaterialSystemHardwareConfig HardwareConfig = Singleton<IMaterialSystemHardwareConfig>();
 
 	public uint BASE_UBO;
 	public uint VERTEX_UBO;
@@ -144,15 +150,16 @@ public class ShadowStateGl46 : IShaderShadow
 	}
 
 	private unsafe void ReuploadBuffers() {
-		int curBones = ShaderAPI.GetCurrentNumBones();
-		if (curBones != Vertex.NumBones)
+		SourceVertexSharedShadowState curVertex = ((ShaderAPIGl46)ShaderAPI).GetVertexSharedState();
+		curVertex.NumBones = ShaderAPI.GetCurrentNumBones();
+		if (curVertex.NumBones != Vertex.NumBones || curVertex.LightCount != Vertex.LightCount || curVertex.LightEnabled != Vertex.LightEnabled)
 			needsBufferUpload = true;
 
 		if (!needsBufferUpload)
 			return;
 
 		// Reupload UBO states.
-		Vertex.NumBones = curBones;
+		Vertex = curVertex;
 
 		fixed (SourceSharedShadowState* pBase = &Base)
 		fixed (SourceVertexSharedShadowState* pVertex = &Vertex)
@@ -236,7 +243,8 @@ public class ShadowStateGl46 : IShaderShadow
 	}
 
 	public void VertexShaderVertexFormat(VertexFormat format, int texCoordCount, Span<int> texCoordDimensions, int userDataSize) {
-		VertexFormat = format;
+		// TODO: MeshMgr.ComputeVertexFormat
+		VertexFormat = format | VertexFormat.BoneIndex | VertexFormat.BoneWeights2 | VertexFormat.UserData4 | VertexFormat.TexCoord2D_0;
 	}
 
 	public GraphicsDriver GetDriver() => ShaderAPI.GetDriver();
@@ -377,9 +385,11 @@ public class ShadowStateGl46 : IShaderShadow
 		// TODO!
 	}
 
-	public void EnableSRGBWrite(bool state) {
-		// throw new NotImplementedException();
-		// TODO!
+	public void EnableSRGBWrite(bool enable) {
+		if (HardwareConfig.SupportsSRGB())
+			State.SRGBWriteEnable = enable;
+		else
+			State.SRGBWriteEnable = false;
 	}
 }
 

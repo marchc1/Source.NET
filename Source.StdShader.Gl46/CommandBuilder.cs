@@ -137,7 +137,7 @@ public class CommandBufferBuilder<TStorage> where TStorage : ICommandStorageBuff
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void SetPixelShaderConstant(int firstConstant, int var) {
-		Span<float> vec = default;
+		Span<float> vec = stackalloc float[4];
 		Param(var).GetVecValue(vec);
 		SetPixelShaderConstant(firstConstant, vec);
 	}

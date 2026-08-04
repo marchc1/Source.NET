@@ -286,7 +286,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool SupportsSRGB() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsStaticControlFlow() {

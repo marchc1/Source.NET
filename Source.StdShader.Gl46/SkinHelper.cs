@@ -11,6 +11,8 @@ namespace Source.StdShader.Gl46;
 
 public partial class BaseVSShader
 {
+	internal readonly static ConVar r_rimlight = new("r_rimlight", "1", FCvar.Cheat);
+
 	private void InitParamsSkin(BaseVSShader shader, IMaterialVar[] parms, ReadOnlySpan<char> materialName, ref VertexLitGeneric_Vars info) {
 		Assert(info.FlashlightTexture >= 0);
 
@@ -57,7 +59,7 @@ public partial class BaseVSShader
 
 	public static readonly ConVar r_flashlight_version2 = new("r_flashlight_version2", "0", FCvar.Cheat | FCvar.DevelopmentOnly);
 	internal void DrawSkin(BaseVSShader shader, IMaterialVar[] parms, IShaderDynamicAPI? shaderAPI, IShaderShadow? shaderShadow, ref VertexLitGeneric_Vars info, VertexCompressionType vertexCompression, ref BasePerMaterialContextData? contextData) {
-		bool hasFlashlight = false;//UsingFlashlight(); todo
+		bool hasFlashlight = shader.UsingFlashlight(parms);
 
 		if (hasFlashlight || r_flashlight_version2.GetBool()) {
 			DrawSkin_Internal(shader, parms, shaderAPI, shaderShadow, false, ref info, vertexCompression, ref contextData);
@@ -152,7 +154,7 @@ public partial class BaseVSShader
 		bool hasPhongWarp = (info.PhongWarpTexture != -1) && parms[info.PhongWarpTexture].IsTexture();
 		bool hasNormalMapAlphaEnvmapMask = IsFlagSet(parms, MaterialVarFlags.NormalMapAlphaEnvMapMask);
 		bool isDecal = IsFlagSet(parms, MaterialVarFlags.Decal);
-		bool hasRimLight = /*r_rimlight.GetBool()*/ true && hasPhong && (info.RimLight != -1) && (parms[info.RimLight].GetIntValue() != 0);
+		bool hasRimLight = r_rimlight.GetBool() && hasPhong && (info.RimLight != -1) && (parms[info.RimLight].GetIntValue() != 0);
 		bool hasRimMapMask = hasSpecularExponentTexture && hasRimLight && (info.RimMask != -1) && (parms[info.RimMask].GetIntValue() != 0);
 		float blendFactor = (info.DetailTextureBlendFactor == -1) ? 1 : parms[info.DetailTextureBlendFactor].GetFloatValue();
 		bool hasDetailTexture = (info.Detail != -1) && parms[info.Detail].IsTexture();
@@ -310,7 +312,7 @@ public partial class BaseVSShader
 				pshIndex.Set("CONVERT_TO_SRGB", 0);
 				pshIndex.Set("FASTPATH_NOBUMP", contextData.FastPath);
 				pshIndex.Set("BLENDTINTBYBASEALPHA", blendTintByBaseAlpha);
-				shaderShadow.SetPixelShader("skin", vshIndex.GetIndex());
+				shaderShadow.SetPixelShader("skin", pshIndex.GetIndex());
 			}
 			else {
 				SetFlags2(parms, MaterialVarFlags2.UsesVertexID);
@@ -334,7 +336,7 @@ public partial class BaseVSShader
 				pshIndex.Set("CONVERT_TO_SRGB", 0);
 				pshIndex.Set("FASTPATH_NOBUMP", contextData.FastPath);
 				pshIndex.Set("BLENDTINTBYBASEALPHA", blendTintByBaseAlpha);
-				shaderShadow.SetPixelShader("skin", vshIndex.GetIndex());
+				shaderShadow.SetPixelShader("skin", pshIndex.GetIndex());
 			}
 
 			// if (hasFlashlight)
@@ -345,7 +347,7 @@ public partial class BaseVSShader
 			shaderShadow.EnableAlphaWrites(fullyOpaque);
 		}
 		else if (shaderAPI != null) {
-			bool lightingOnly = /*mat_fullbright.GetInt() == 2*/ false && !IsFlagSet(parms, MaterialVarFlags.NoDebugOverride);
+			bool lightingOnly = mat_fullbright.GetInt() == 2 && !IsFlagSet(parms, MaterialVarFlags.NoDebugOverride);
 			bool hasEnvmap = !hasFlashlight && parms[info.Envmap].IsTexture();
 
 			if (hasBaseTexture)
@@ -363,10 +365,10 @@ public partial class BaseVSShader
 			}
 
 			if (hasDiffuseWarp && hasPhong) {
-				// if (r_lightwarpidentity.GetBool()) TODO
-				// 	ShaderAPI.BindStandardTexture(Sampler.Sampler2, StandardTextureId.IdentityLightwarp);
-				// else
-				shader.BindTexture(Sampler.Sampler2, info.DiffuseWarpTexture);
+				if (r_lightwarpidentity.GetBool())
+					shaderAPI.BindStandardTexture(Sampler.Sampler2, StandardTextureId.IdentityLightwarp);
+				else
+					shader.BindTexture(Sampler.Sampler2, info.DiffuseWarpTexture);
 			}
 
 			if (hasPhongWarp)

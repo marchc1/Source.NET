@@ -300,6 +300,12 @@ public class MatRenderContext : IMatRenderContextInternal
 		return FlashlightEnable;
 	}
 
+	float CurToneMapScale = 1.0f;
+
+	public void TurnOnToneMapping() => SetToneMappingScaleLinear(new(CurToneMapScale, CurToneMapScale, CurToneMapScale));
+
+	public void SetToneMappingScaleLinear(in Vector3 scale) => shaderAPI.SetToneMappingScaleLinear(in scale);
+
 	public void BeginFrame() => shaderAPI.BeginFrame();
 	public void EndFrame() => shaderAPI.EndFrame();
 

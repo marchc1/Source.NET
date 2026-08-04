@@ -475,4 +475,6 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor) { }
 	public ImageFormat GetShadowDepthTextureFormat() => ImageFormat.Unknown;
 	public ImageFormat GetNullTextureFormat() => ImageFormat.Unknown;
+	public void TurnOnToneMapping() { }
+	public void SetToneMappingScaleLinear(in Vector3 scale) { }
 }

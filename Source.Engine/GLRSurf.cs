@@ -441,7 +441,7 @@ public static class GLRSurf
 	public static void Shader_DrawChainsDynamic(in MSurfaceSortList sortList, int sortGroup, bool shadowDepth) => throw new NotImplementedException();
 	public static void Shader_DrawChainsStatic(in MSurfaceSortList sortList, int sortGroup, bool shadowDepth) {
 		List<VertexFormatList> meshList = [];
-		int[] meshMap = new int[MAX_VERTEX_FORMAT_CHANGES];
+		InlineArray256<int> meshMap = new();
 		List<BatchList> batchList = [];
 		List<SurfaceSortGroup> dynamicGroups = [];
 		bool bWarn = true;
@@ -511,7 +511,7 @@ public static class GLRSurf
 				Assert(indexCount + numIndex < nMaxIndices);
 				indexCount += numIndex;
 
-				CollectionsMarshal.AsSpan(meshList)[meshIndex].NumBatches++;
+				meshList.AsSpan()[meshIndex].NumBatches++;
 
 				for (short blockIndex = group.ListHead; blockIndex != -1; blockIndex = sortList.GetSurfaceBlock(blockIndex).NextBlock) {
 					ref MaterialList matList = ref sortList.GetSurfaceBlock(blockIndex);

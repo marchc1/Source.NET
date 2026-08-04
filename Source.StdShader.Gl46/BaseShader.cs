@@ -299,6 +299,13 @@ public abstract class BaseShader : IShader
 	public bool NeedsFullFrameBufferTexture(IMaterialVar[]? shaderParams, bool checkSpecificToThisFrame)
 		=> IsFlag2Set(shaderParams, MaterialVarFlags2.NeedsFullFrameBufferTexture);
 
+	internal bool UsingFlashlight(IMaterialVar[] shaderParams) {
+		if (IsSnapshotting())
+			return IsFlag2Set(shaderParams, MaterialVarFlags2.UseFlashlight);
+		else
+			return ShaderAPI!.InFlashlightMode();
+	}
+
 	protected void EnableAlphaBlending(ShaderBlendFactor srcFactor, ShaderBlendFactor dstFactor) {
 		ShaderShadow!.EnableBlending(true);
 		ShaderShadow!.BlendFunc(srcFactor, dstFactor);

@@ -10,6 +10,9 @@ namespace Source.StdShader.Gl46;
 
 public partial class BaseVSShader
 {
+	internal readonly static ConVar mat_fullbright = new("mat_fullbright", "0", FCvar.Cheat);
+	internal readonly static ConVar r_lightwarpidentity = new("r_lightwarpidentity", "0", FCvar.Cheat);
+
 	private static bool WantsSkinShader(IMaterialVar[] parms, ref VertexLitGeneric_Vars info) {
 		if (info.Phong == -1)
 			return false;
@@ -150,7 +153,7 @@ public partial class BaseVSShader
 		}
 
 		bool receiveFlashlight = vertexLitGeneric;
-		bool hasFlashlight = receiveFlashlight; //&& UsingFlashlight(parms); todo
+		bool hasFlashlight = receiveFlashlight && shader.UsingFlashlight(parms);
 
 		DrawVertexLitGeneric_Internal(shader, parms, shaderAPI, shaderShadow, vertexLitGeneric, hasFlashlight, ref info, vertexCompression, ref contextData);
 	}
@@ -353,14 +356,14 @@ public partial class BaseVSShader
 					if (!HardwareConfig.HasFastVertexTextures()) {
 						bool useStaticControlFlow = HardwareConfig.SupportsStaticControlFlow();
 
-						StaticShaderIndex vshIndex = new(shaderShadow, ShaderType.Vertex, "vertexlitgeneric");
+						StaticShaderIndex vshIndex = new(shaderShadow, ShaderType.Vertex, "vertexlitgeneric_bump");
 						vshIndex.Set("HALFLAMBERT", halfLambert);
 						vshIndex.Set("USE_WITH_2B", HardwareConfig.SupportsPixelShaders_2_b());
 						vshIndex.Set("USE_STATIC_CONTROL_FLOW", useStaticControlFlow);
-						shaderShadow.SetVertexShader("vertexlitgeneric", vshIndex.GetIndex());
+						shaderShadow.SetVertexShader("vertexlitgeneric_bump", vshIndex.GetIndex());
 
 						if (HardwareConfig.SupportsPixelShaders_2_b() || HardwareConfig.ShouldAlwaysUseShaderModel2bShaders()) {
-							StaticShaderIndex pshIndex = new(shaderShadow, ShaderType.Pixel, "vertexlitgeneric");
+							StaticShaderIndex pshIndex = new(shaderShadow, ShaderType.Pixel, "vertexlitgeneric_bump");
 							pshIndex.Set("CUBEMAP", hasEnvmap);
 							pshIndex.Set("DIFFUSELIGHTING", hasDiffuseLighting);
 							pshIndex.Set("LIGHTWARPTEXTURE", hasDiffuseWarp && !hasSelfIllumFresnel);
@@ -373,10 +376,10 @@ public partial class BaseVSShader
 							pshIndex.Set("DETAIL_BLEND_MODE", detailBlendMode);
 							pshIndex.Set("FLASHLIGHTDEPTHFILTERMODE", shadowFilterMode);
 							pshIndex.Set("BLENDTINTBYBASEALPHA", blendTintByBaseAlpha);
-							shaderShadow.SetPixelShader("vertexlitgeneric", pshIndex.GetIndex());
+							shaderShadow.SetPixelShader("vertexlitgeneric_bump", pshIndex.GetIndex());
 						}
 						else {
-							StaticShaderIndex pshIndex = new(shaderShadow, ShaderType.Pixel, "vertexlitgeneric");
+							StaticShaderIndex pshIndex = new(shaderShadow, ShaderType.Pixel, "vertexlitgeneric_bump");
 							pshIndex.Set("CUBEMAP", hasEnvmap);
 							pshIndex.Set("DIFFUSELIGHTING", hasDiffuseLighting);
 							pshIndex.Set("LIGHTWARPTEXTURE", hasDiffuseWarp && !hasSelfIllumFresnel);
@@ -388,19 +391,19 @@ public partial class BaseVSShader
 							pshIndex.Set("DETAILTEXTURE", hasDetailTexture);
 							pshIndex.Set("DETAIL_BLEND_MODE", detailBlendMode);
 							pshIndex.Set("BLENDTINTBYBASEALPHA", blendTintByBaseAlpha);
-							shaderShadow.SetPixelShader("vertexlitgeneric", pshIndex.GetIndex());
+							shaderShadow.SetPixelShader("vertexlitgeneric_bump", pshIndex.GetIndex());
 						}
 					}
 					else {
 						SetFlags2(parms, MaterialVarFlags2.UsesVertexID);
 
-						StaticShaderIndex vshIndex = new(shaderShadow, ShaderType.Vertex, "vertexlitgeneric");
+						StaticShaderIndex vshIndex = new(shaderShadow, ShaderType.Vertex, "vertexlitgeneric_bump");
 						vshIndex.Set("HALFLAMBERT", halfLambert);
 						vshIndex.Set("USE_WITH_2B", true);
 						vshIndex.Set("DECAL", isDecal);
-						shaderShadow.SetVertexShader("vertexlitgeneric", vshIndex.GetIndex());
+						shaderShadow.SetVertexShader("vertexlitgeneric_bump", vshIndex.GetIndex());
 
-						StaticShaderIndex pshIndex = new(shaderShadow, ShaderType.Pixel, "vertexlitgeneric");
+						StaticShaderIndex pshIndex = new(shaderShadow, ShaderType.Pixel, "vertexlitgeneric_bump");
 						pshIndex.Set("CUBEMAP", hasEnvmap);
 						pshIndex.Set("DIFFUSELIGHTING", hasDiffuseLighting);
 						pshIndex.Set("LIGHTWARPTEXTURE", hasDiffuseWarp && !hasSelfIllumFresnel);
@@ -413,7 +416,7 @@ public partial class BaseVSShader
 						pshIndex.Set("DETAIL_BLEND_MODE", detailBlendMode);
 						pshIndex.Set("FLASHLIGHTDEPTHFILTERMODE", shadowFilterMode);
 						pshIndex.Set("BLENDTINTBYBASEALPHA", blendTintByBaseAlpha);
-						shaderShadow.SetPixelShader("vertexlitgeneric", pshIndex.GetIndex());
+						shaderShadow.SetPixelShader("vertexlitgeneric_bump", pshIndex.GetIndex());
 					}
 				}
 				else {
@@ -687,10 +690,10 @@ public partial class BaseVSShader
 				}
 
 				if (hasDiffuseWarp && (!hasFlashlight) && !hasSelfIllumFresnel) {
-					// if (r_lightwarpidentity.GetBool()) // TODO
-						// contextData.SemiStaticCmdsOut.BindStandardTexture(Sampler.Sampler9, StandardTextureId.IdentityLightwarp);
-					// else
-					contextData.SemiStaticCmdsOut.BindTexture(shader, Sampler.Sampler9, info.DiffuseWarpTexture, -1);
+					if (r_lightwarpidentity.GetBool()) // TODO
+						contextData.SemiStaticCmdsOut.BindStandardTexture(Sampler.Sampler9, StandardTextureId.IdentityLightwarp);
+					else
+						contextData.SemiStaticCmdsOut.BindTexture(shader, Sampler.Sampler9, info.DiffuseWarpTexture, -1);
 				}
 
 				if (hasFlashlight) {
@@ -711,7 +714,7 @@ public partial class BaseVSShader
 				if ((!hasFlashlight) && (info.EnvmapContrast != -1))
 					contextData.SemiStaticCmdsOut.SetPixelShaderConstant(2, info.EnvmapContrast);
 
-				bool lightingOnly = vertexLitGeneric /*&& mat_fullbright.GetInt() == 2*/ && false && !IsFlagSet(parms, MaterialVarFlags.NoDebugOverride);
+				bool lightingOnly = vertexLitGeneric && mat_fullbright.GetInt() == 2 && false && !IsFlagSet(parms, MaterialVarFlags.NoDebugOverride);
 				if (lightingOnly) {
 					if (hasBaseTexture) {
 						if (hasSelfIllum && !hasSelfIllumInEnvMapMask)

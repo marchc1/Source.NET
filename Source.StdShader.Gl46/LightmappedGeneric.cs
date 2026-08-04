@@ -157,7 +157,7 @@ public class LightmappedGeneric : BaseVSShader
 			SetFlags2(Params!, MaterialVarFlags2.NeedsTangentSpaces);
 	}
 	protected override void OnDrawElements(IMaterialVar[] vars, IShaderDynamicAPI shaderAPI, VertexCompressionType vertexCompression) {
-		bool hasFlashlight = false; // UsingFlashlight(Params!);
+		bool hasFlashlight = UsingFlashlight(Params!);
 		bool bump = ShouldUseBumpmapping(Params!) && Params![BUMPMAP].IsTexture() && Params![NODIFFUSEBUMPLIGHTING].GetIntValue() == 0;
 		bool ssBump = bump && Params![SSBUMP].GetIntValue() != 0;
 

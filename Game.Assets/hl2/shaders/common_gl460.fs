@@ -3,6 +3,40 @@
 
 #include "common_gl460.glsl"
 
+// System defined pixel shader constants
+
+// NOTE: w == 1.0f / (Dest alpha compressed depth range).
+#define g_LinearFogColor            ps_const[29]
+#define OO_DESTALPHA_DEPTH_RANGE    (g_LinearFogColor.w)
+
+// Linear and gamma light scale values
+#define cLightScale                 ps_const[30]
+#define LINEAR_LIGHT_SCALE          (cLightScale.x)
+#define LIGHT_MAP_SCALE             (cLightScale.y)
+#define ENV_MAP_SCALE               (cLightScale.z)
+#define GAMMA_LIGHT_SCALE           (cLightScale.w)
+
+// Flashlight constants
+#define cFlashlightColor            ps_const[28]
+#define cFlashlightScreenScale      ps_const[31] // .zw are currently unused
+#define flFlashlightNoLambertValue  cFlashlightColor.w // This is either 0.0 or 2.0
+
+#define HDR_INPUT_MAP_SCALE 16.0
+
+#define TONEMAP_SCALE_NONE 0
+#define TONEMAP_SCALE_LINEAR 1
+#define TONEMAP_SCALE_GAMMA 2
+
+#define PIXEL_FOG_TYPE_NONE -1 //MATERIAL_FOG_NONE is handled by PIXEL_FOG_TYPE_RANGE, this is for explicitly disabling fog in the shader
+#define PIXEL_FOG_TYPE_RANGE 0 //range+none packed together in ps2b. Simply none in ps20 (instruction limits)
+#define PIXEL_FOG_TYPE_HEIGHT 1
+#define PIXEL_FOG_TYPE_RANGE_RADIAL 2
+
+// If you change these, make the corresponding change in hardwareconfig.cpp
+#define NVIDIA_PCF_POISSON	0
+#define ATI_NOPCF			1
+#define ATI_NO_PCF_FETCH4	2
+
 // texture combining modes for combining base and detail/basetexture2
 #define TCOMBINE_RGB_EQUALS_BASE_x_DETAILx2 0				// original mode
 #define TCOMBINE_RGB_ADDITIVE 1								// base.rgb+detail.rgb*fblend
@@ -69,6 +103,135 @@ vec3 TextureCombinePostLighting(vec3 lit_baseColor, vec4 detailColor, int combin
         lit_baseColor += clamp(fMult * detailColor.rgb + fAdd, 0.0, 1.0);
     }
     return lit_baseColor;
+}
+
+float CalcWaterFogAlpha(float flWaterZ, float flEyePosZ, float flWorldPosZ, float flProjPosZ, float flFogOORange)
+{
+    float flDepthFromWater = flWaterZ - flWorldPosZ;
+
+    // Calculate the ratio of water fog to regular fog (ie. how much of the distance from the viewer
+    // to the vert is actually underwater.
+    float flDepthFromEye = flEyePosZ - flWorldPosZ;
+    float f = clamp(flDepthFromWater * (1.0 / flDepthFromEye), 0.0, 1.0);
+
+    // $tmp.w is now the distance that we see through water.
+    return clamp(f * flProjPosZ * flFogOORange, 0.0, 1.0);
+}
+
+float CalcRangeFog(float flProjPosZ, float flFogStartOverRange, float flFogMaxDensity, float flFogOORange)
+{
+    return clamp(min(flFogMaxDensity, (flProjPosZ * flFogOORange) - flFogStartOverRange), 0.0, 1.0);
+}
+
+float CalcPixelFogFactor(int iPIXELFOGTYPE, vec4 fogParams, float flEyePosZ, float flWorldPosZ, float flProjPosZ)
+{
+    float retVal = 0.0;
+    if (iPIXELFOGTYPE == PIXEL_FOG_TYPE_NONE)
+    {
+        retVal = 0.0;
+    }
+    else if (iPIXELFOGTYPE == PIXEL_FOG_TYPE_RANGE) //range fog, or no fog depending on fog parameters
+    {
+        retVal = CalcRangeFog(flProjPosZ, fogParams.x, fogParams.z, fogParams.w);
+    }
+    else if (iPIXELFOGTYPE == PIXEL_FOG_TYPE_HEIGHT) //height fog
+    {
+        retVal = CalcWaterFogAlpha(fogParams.y, flEyePosZ, flWorldPosZ, flProjPosZ, fogParams.w);
+    }
+
+    return retVal;
+}
+
+//g_FogParams not defined by default, but this is the same layout for every shader that does define it
+#define g_FogEndOverRange	g_FogParams.x
+#define g_WaterZ			g_FogParams.y
+#define g_FogMaxDensity		g_FogParams.z
+#define g_FogOORange		g_FogParams.w
+
+vec3 BlendPixelFog(vec3 vShaderColor, float pixelFogFactor, vec3 vFogColor, int iPIXELFOGTYPE)
+{
+    if (iPIXELFOGTYPE == PIXEL_FOG_TYPE_RANGE || iPIXELFOGTYPE == PIXEL_FOG_TYPE_RANGE_RADIAL) //either range fog or no fog depending on fog parameters and whether this is ps20 or ps2b
+    {
+        pixelFogFactor = clamp(pixelFogFactor, 0.0, 1.0);
+        return mix(vShaderColor.rgb, vFogColor.rgb, pixelFogFactor * pixelFogFactor); //squaring the factor will get the middle range mixing closer to hardware fog
+    }
+    else if (iPIXELFOGTYPE == PIXEL_FOG_TYPE_HEIGHT)
+    {
+        return mix(vShaderColor.rgb, vFogColor.rgb, clamp(pixelFogFactor, 0.0, 1.0));
+    }
+    return vShaderColor;
+}
+
+// The framebuffer performs the linear->gamma conversion for us (GL_FRAMEBUFFER_SRGB), which is
+// the equivalent of the CONVERT_TO_SRGB == 0 path.
+vec3 SRGBOutput(vec3 vShaderColor)
+{
+    return vShaderColor;
+}
+
+float SoftParticleDepth(float flDepth)
+{
+    return flDepth * OO_DESTALPHA_DEPTH_RANGE;
+}
+
+float DepthToDestAlpha(float flProjZ)
+{
+    return SoftParticleDepth(flProjZ);
+}
+
+vec4 FinalOutput(vec4 vShaderColor, float pixelFogFactor, int iPIXELFOGTYPE, int iTONEMAP_SCALE_TYPE, bool bWriteDepthToDestAlpha, float flProjZ)
+{
+    vec4 result;
+    if (iTONEMAP_SCALE_TYPE == TONEMAP_SCALE_LINEAR)
+    {
+        result.rgb = vShaderColor.rgb * LINEAR_LIGHT_SCALE;
+    }
+    else if (iTONEMAP_SCALE_TYPE == TONEMAP_SCALE_GAMMA)
+    {
+        result.rgb = vShaderColor.rgb * GAMMA_LIGHT_SCALE;
+    }
+    else if (iTONEMAP_SCALE_TYPE == TONEMAP_SCALE_NONE)
+    {
+        result.rgb = vShaderColor.rgb;
+    }
+
+    if (bWriteDepthToDestAlpha)
+        result.a = DepthToDestAlpha(flProjZ);
+    else
+        result.a = vShaderColor.a;
+
+    // TODO: fog
+    // result.rgb = BlendPixelFog(result.rgb, pixelFogFactor, g_LinearFogColor.rgb, iPIXELFOGTYPE);
+
+    result.rgb = SRGBOutput(result.rgb); //SRGB in pixel shader conversion
+
+    return result;
+}
+
+vec4 FinalOutput(vec4 vShaderColor, float pixelFogFactor, int iPIXELFOGTYPE, int iTONEMAP_SCALE_TYPE)
+{
+    return FinalOutput(vShaderColor, pixelFogFactor, iPIXELFOGTYPE, iTONEMAP_SCALE_TYPE, false, 1.0);
+}
+
+float RemapValClamped(float val, float A, float B, float C, float D)
+{
+    float cVal = (val - A) / (B - A);
+    cVal = clamp(cVal, 0.0, 1.0);
+
+    return C + (D - C) * cVal;
+}
+
+float DepthFeathering(sampler2D DepthSampler, vec2 vScreenPos, float fProjZ, float fProjW, vec4 vDepthBlendConstants)
+{
+    float flFeatheredAlpha;
+    float flSceneDepth = texture(DepthSampler, vScreenPos).a;	// PC uses dest alpha of the frame buffer
+    float flSpriteDepth = SoftParticleDepth(fProjZ);
+
+    flFeatheredAlpha = abs(flSceneDepth - flSpriteDepth) * vDepthBlendConstants.x;
+    flFeatheredAlpha = max(smoothstep(0.75, 1.0, flSceneDepth), flFeatheredAlpha); //as the sprite approaches the edge of our compressed depth space, the math stops working. So as the sprite approaches the far depth, smoothly remove feathering.
+    flFeatheredAlpha = clamp(flFeatheredAlpha, 0.0, 1.0);
+
+    return flFeatheredAlpha;
 }
 
 #endif // COMMON_GL460_FS

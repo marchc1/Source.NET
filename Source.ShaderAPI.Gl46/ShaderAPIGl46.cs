@@ -194,6 +194,10 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	uint uboVertexConstants;
 	uint uboPixelConstants;
 
+	SourceVertexSharedShadowState vertexShared;
+
+	internal SourceVertexSharedShadowState GetVertexSharedState() => vertexShared;
+
 	private unsafe void CreateMatrixStacks() {
 		uboMatrices = glCreateBuffer();
 		glObjectLabel(GL_BUFFER, uboMatrices, "ShaderAPI Shared Matrix UBO");
@@ -232,6 +236,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 		if (!IsDeactivated())
 			ResetRenderState();
+
+		SetToneMappingScaleLinear(new Vector3(1.0f, 1.0f, 1.0f));
 	}
 
 	public void SetPresentParameters(in ShaderDeviceInfo info) {
@@ -662,7 +668,14 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			SetVertexShaderConstant(VertexShaderConst.Lights + i * 5, MemoryMarshal.Cast<Vector4, float>(lightState));
 		}
 
-		// todo
+		vertexShared.LightCount = NumLights;
+
+		Span<float> lightEnable = stackalloc float[MAX_NUM_LIGHTS];
+		lightEnable.Clear();
+		for (i = 0; i < NumLights; ++i)
+			lightEnable[i] = 1.0f;
+
+		vertexShared.LightEnabled = new(lightEnable[0], lightEnable[1], lightEnable[2], lightEnable[3]);
 	}
 
 	public void GetLightState(out LightState state) {
@@ -926,6 +939,55 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public bool InEditorMode() {
 		return false; // todo...?
 	}
+
+	Vector4 ToneMappingScale = new(1.0f, 1.0f, 1.0f, 1.0f);
+
+	private float GetLightMapScaleFactor() {
+		switch (HardwareConfig.GetHDRType()) {
+			case HDRType.Float:
+				return 1.0f;
+
+			case HDRType.Integer:
+				return 16.0f;
+
+			case HDRType.None:
+			default:
+				return MathLib.GammaToLinearFullRange(2.0f);
+		}
+	}
+
+	public void SetToneMappingScaleLinear(in Vector3 scale) {
+		if (HardwareConfig.SupportsPixelShaders_2_0()) {
+			FlushBufferedPrimitives();
+
+			Vector3 scaleToUse = scale;
+			ToneMappingScale = new(scaleToUse, ToneMappingScale.W);
+
+			switch (HardwareConfig.GetHDRType()) {
+				case HDRType.None:
+					ToneMappingScale.X = 1.0f;
+					ToneMappingScale.Z = 1.0f;
+					break;
+
+				case HDRType.Float:
+					ToneMappingScale.X = scaleToUse.X;
+					ToneMappingScale.Z = 1.0f;
+					break;
+
+				case HDRType.Integer:
+					ToneMappingScale.X = scaleToUse.X;
+					ToneMappingScale.Z = 16.0f;
+					break;
+			}
+
+			ToneMappingScale.Y = GetLightMapScaleFactor();
+
+			ToneMappingScale.W = MathLib.LinearToGammaFullRange(ToneMappingScale.X);
+			SetPixelShaderConstant((int)PixelShaderConst.LightScale, MemoryMarshal.CreateSpan(ref ToneMappingScale.X, 4));
+		}
+	}
+
+	public ref readonly Vector3 GetToneMappingScaleLinear() => ref Unsafe.As<Vector4, Vector3>(ref ToneMappingScale);
 
 	public void SetVertexShaderConstant(int var, Span<float> vec) {
 		SetVertexShaderConstantInternal(var, vec);
@@ -2030,6 +2092,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			glPolygonMode(GL_FRONT_AND_BACK, state.FillMode.GLEnum());
 			glToggle(GL_CULL_FACE, state.CullEnable);
 			glToggle(GL_SAMPLE_ALPHA_TO_COVERAGE, state.AlphaToCoverage);
+			glToggle(GL_FRAMEBUFFER_SRGB, state.SRGBWriteEnable);
 
 			bool polyOffsetEnabled = state.ZBias != PolygonOffsetMode.Disable;
 			glToggle(GL_POLYGON_OFFSET_FILL, polyOffsetEnabled && state.FillMode == ShaderPolyMode.Fill);
@@ -2229,6 +2292,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		if (this.numBones != numBones) {
 			FlushBufferedPrimitives();
 			this.numBones = numBones;
+			vertexShared.NumBones = numBones;
 		}
 	}
 
@@ -2342,10 +2406,10 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		return (int)MaterialFogMode.None; // TODO!
 	}
 
-	public bool ShouldWriteDepthToDestAlpha() {
-		// throw new NotImplementedException();
-		return true; // TODO!
-	}
+	public bool ShouldWriteDepthToDestAlpha() =>
+		HardwareConfig.SupportsPixelShaders_2_b() &&
+		(SceneFogMode != MaterialFogMode.LinearBelowFogZ) &&
+		(GetIntRenderingParameter(RenderParamInt.WriteDepthToDestAlpha) != 0);
 
 	public void MarkUnusedVertexFields(int v, Span<bool> unusedTexCoords) {
 		throw new NotImplementedException();
@@ -2451,7 +2515,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 					case CommandBufferCommand.SetDepthFeatheringConst: {
 							int reg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
 							float scale = MemoryMarshal.Read<float>(cmdBuf[(offset + 8)..]);
-							// SetDepthFeatheringPixelShaderConstant(reg, scale);
+							SetDepthFeatheringPixelShaderConstant(reg, scale);
 							offset += 12;
 							break;
 						}
@@ -2489,6 +2553,16 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				}
 			}
 		}
+	}
+
+	private void SetDepthFeatheringPixelShaderConstant(int reg, float scale) {
+		// TODO!
+		// Span<float> consts = [0, 0, 0, 0];
+
+		// consts[0] = DestAlphaDepthRange / scale;
+		// consts[1] = consts[2] = consts[3] = 0.0f;
+
+		// SetPixelShaderConstant(reg, consts);
 	}
 
 	public int GetIntRenderingParameter(RenderParamInt parm) {

@@ -26,7 +26,7 @@ public interface IStaticPropMgrClient : IStaticPropMgr
 	void GetAllStaticProps(List<ICollideable> output);
 	void GetAllStaticPropsInAABB(Vector3 mins, Vector3 maxs, List<ICollideable> output);
 	void GetAllStaticPropsInOBB(Vector3 origin, Vector3 extent1, Vector3 extent2, Vector3 extent3, List<ICollideable> output);
-	void DrawStaticProps(IClientRenderable[] props, int count, bool shadowDepth, bool drawVCollideWireframe);
+	void DrawStaticProps(ref InlineArray512<IClientRenderable> props, int count, bool shadowDepth, bool drawVCollideWireframe);
 }
 
 public interface IStaticPropMgrServer : IStaticPropMgr

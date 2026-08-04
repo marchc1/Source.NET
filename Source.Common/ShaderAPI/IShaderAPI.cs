@@ -42,6 +42,7 @@ public struct GraphicsBoardState
 	public bool DepthWrite;
 	public bool CullEnable;
 	public bool AlphaToCoverage;
+	public bool SRGBWriteEnable;
 
 	public ShaderDepthFunc DepthFunc;
 	public ShaderPolyMode FillMode;
@@ -57,6 +58,9 @@ public interface IShaderAPI : IShaderDynamicAPI
 {
 	void SetViewports(ReadOnlySpan<ShaderViewport> viewports);
 	void GetViewports(Span<ShaderViewport> viewports);
+
+	void SetToneMappingScaleLinear(in Vector3 scale);
+	ref readonly Vector3 GetToneMappingScaleLinear();
 
 	void PreInit(IShaderUtil shaderUtil, IServiceProvider services);
 	void DrawMesh(IMesh mesh);
