@@ -54,7 +54,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	public unsafe int GetSamplerCount() {
 		int count;
 		glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &count);
-		return count;
+		return Math.Min(count, (int)Sampler.MaxSamplers);
 	}
 
 	public ReadOnlySpan<char> GetShaderDLLName() {

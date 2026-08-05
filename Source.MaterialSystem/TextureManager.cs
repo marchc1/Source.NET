@@ -93,7 +93,7 @@ public class TextureManager : ITextureManager
 		ITextureInternal? newTexture = CreateFileTexture(textureName, textureGroupName);
 		if (newTexture != null) {
 			if (download)
-				newTexture.Download();
+				newTexture.Download(default, additionalCreationFlags);
 		}
 
 		return newTexture;

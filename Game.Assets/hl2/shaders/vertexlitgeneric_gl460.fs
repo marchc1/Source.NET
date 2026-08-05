@@ -55,6 +55,12 @@ layout(std140, binding = 6) uniform source_ps_constants {
     vec4 ps_const[256];
 };
 
+layout(std140, binding = 3) uniform source_pixel_sharedUBO {
+    bool isAlphaTesting;
+    int alphaTestFunc;
+    float alphaTestRef;
+};
+
 out vec4 fragColor;
 
 #include "common_flashlight_gl460.fs"
@@ -187,6 +193,18 @@ void main()
 #endif
 
 #endif // !SEAMLESS_BASE
+
+    if(isAlphaTesting){
+        switch(alphaTestFunc){
+            case 0: discard; break;
+            case 1: if(baseColor.a >= alphaTestRef){ discard; } break;
+            case 2: if(baseColor.a != alphaTestRef){ discard; } break;
+            case 3: if(baseColor.a > alphaTestRef){ discard; } break;
+            case 4: if(baseColor.a <= alphaTestRef){ discard; } break;
+            case 5: if(baseColor.a == alphaTestRef){ discard; } break;
+            case 6: if(baseColor.a < alphaTestRef){ discard; } break;
+        }
+    }
 
 #if DISTANCEALPHA
     float distAlphaMask = baseColor.a;

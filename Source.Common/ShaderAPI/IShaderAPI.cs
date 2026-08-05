@@ -4,6 +4,7 @@ using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Source.Common.ShaderAPI;
 
@@ -21,11 +22,24 @@ public enum CreateTextureFlags
 	SRGB = 0x4000,
 }
 
+public struct SamplerShadowState
+{
+	public bool SRGBReadEnable;
+}
+
+[InlineArray((int)Sampler.MaxSamplers)]
+public struct SamplerShadowStates
+{
+	private SamplerShadowState element;
+}
+
 /// <summary>
 /// A basic representation of the graphics state machine
 /// </summary>
 public struct GraphicsBoardState
 {
+	public SamplerShadowStates SamplerState;
+
 	public bool Blending;
 	public ShaderBlendFactor SourceBlend;
 	public ShaderBlendFactor DestinationBlend;

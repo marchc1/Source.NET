@@ -130,6 +130,8 @@ public class ShadowStateGl46 : IShaderShadow
 		CreateShaderObjects(); // Recreate UBO's, if we were lazy-loaded
 		ReuploadBuffers(); // Reupload UBO's, if needed
 
+		ComputeAggregateShadowState();
+
 		// Set GL states. We compare our last upload state to the current desired state and adjust if it differs.
 		ShaderAPI.SetBoardState(in State);
 
@@ -334,6 +336,15 @@ public class ShadowStateGl46 : IShaderShadow
 		State.AlphaDestinationBlend = dstFactor;
 	}
 
+	public void ComputeAggregateShadowState() {
+		// Alpha to coverage
+		if (State.AlphaToCoverage) {
+			// Only allow this to be enabled if blending is disabled and testing is enabled
+			if ((State.Blending == true) || (Pixel.IsAlphaTesting == 0))
+				State.AlphaToCoverage = false;
+		}
+	}
+
 	public void FogMode(ShaderFogMode fogMode) {
 		throw new NotImplementedException();
 	}
@@ -366,9 +377,10 @@ public class ShadowStateGl46 : IShaderShadow
 	public void SetDefaultState() {
 		DepthFunc(ShaderDepthFunc.NearerOrEqual);
 		EnableColorWrites(true);
-		EnableAlphaWrites(true);
+		EnableAlphaWrites(false);
 		EnableDepthWrites(true);
 		EnableDepthTest(true);
+		EnableAlphaTest(false);
 		EnableBlending(false);
 		EnableCulling(true);
 		PolyMode(ShaderPolyModeFace.FrontAndBack, ShaderPolyMode.Fill);
@@ -377,12 +389,28 @@ public class ShadowStateGl46 : IShaderShadow
 		EnableBlendingSeparateAlpha(false);
 		BlendFuncSeparateAlpha(ShaderBlendFactor.One, ShaderBlendFactor.Zero);
 		BlendOpSeparateAlpha(ShaderBlendOp.Add);
+		AlphaFunc(ShaderAlphaFunc.GreaterEqual, 0.7f);
+		EnableAlphaToCoverage(false);
+		EnableSRGBWrite(false);
 		EnablePolyOffset(PolygonOffsetMode.Disable);
+
+		int samplerCount = HardwareConfig.GetSamplerCount();
+		for (int i = 0; i < samplerCount; i++) {
+			EnableTexture((Sampler)i, false);
+			EnableSRGBRead((Sampler)i, false);
+		}
 	}
 
-	public void EnableSRGBRead(Sampler sampler, bool state) {
-		// throw new NotImplementedException();
-		// TODO!
+	public void EnableSRGBRead(Sampler sampler, bool enable) {
+		if (!HardwareConfig.SupportsSRGB()) {
+			State.SamplerState[(int)sampler].SRGBReadEnable = false;
+			return;
+		}
+
+		if ((int)sampler < HardwareConfig.GetSamplerCount())
+			State.SamplerState[(int)sampler].SRGBReadEnable = enable;
+		else
+			Warning($"Attempting set SRGBRead state on an invalid sampler ({(int)sampler})!\n");
 	}
 
 	public void EnableSRGBWrite(bool enable) {

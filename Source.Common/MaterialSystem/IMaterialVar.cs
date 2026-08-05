@@ -102,13 +102,13 @@ public abstract class IMaterialVar
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void GetVecValue(out Vector3 vec) {
-		Span<float> retv = stackalloc float[2];
+		Span<float> retv = stackalloc float[3];
 		GetVecValue(retv);
 		vec = new(retv[0], retv[1], retv[2]);
 	}
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void GetVecValue(out Vector4 vec) {
-		Span<float> retv = stackalloc float[2];
+		Span<float> retv = stackalloc float[4];
 		GetVecValue(retv);
 		vec = new(retv[0], retv[1], retv[2], retv[3]);
 	}

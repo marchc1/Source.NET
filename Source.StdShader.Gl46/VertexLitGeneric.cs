@@ -2,6 +2,8 @@ using Source.Common.MaterialSystem;
 using Source.Common.ShaderAPI;
 using Source.Common.ShaderLib;
 
+using System.Runtime.InteropServices;
+
 namespace Source.StdShader.Gl46;
 
 public class VertexLitGeneric : BaseVSShader
@@ -145,7 +147,7 @@ public class VertexLitGeneric : BaseVSShader
 
 
 	protected override void OnInitShaderParams(IMaterialVar[] parms, ReadOnlySpan<char> materialName) {
-		VertexLitGeneric_Vars shaderVars = default;
+		VertexLitGeneric_Vars shaderVars = new();
 		SetupVars(ref shaderVars);
 		InitParamsVertexLitGeneric(this, parms, materialName, true, ref shaderVars);
 
@@ -214,7 +216,7 @@ public class VertexLitGeneric : BaseVSShader
 			return ShaderParams[paramIndex - baseClassParamCount].GetDefaultValue();
 	}
 	protected override void OnInitShaderInstance(IMaterialVar[] parms, ReadOnlySpan<char> materialName) {
-		VertexLitGeneric_Vars vars = default;
+		VertexLitGeneric_Vars vars = new();
 		SetupVars(ref vars);
 		InitVertexLitGeneric(this, parms, true, ref vars);
 
@@ -250,7 +252,7 @@ public class VertexLitGeneric : BaseVSShader
 		}
 
 		if (drawStandardPass) {
-			VertexLitGeneric_Vars shaderVars = default;
+			VertexLitGeneric_Vars shaderVars = new();
 			SetupVars(ref shaderVars);
 			DrawVertexLitGeneric(this, vars, ShaderAPI, ShaderShadow, true, ref shaderVars, vertexCompression, ref contextData);
 		}
@@ -342,6 +344,8 @@ public class VertexLitGeneric : BaseVSShader
 
 struct VertexLitGeneric_Vars
 {
+	public VertexLitGeneric_Vars() => memset(MemoryMarshal.AsBytes(new Span<VertexLitGeneric_Vars>(ref this)), (byte)0xFF);
+
 	public int BaseTexture;
 	public int Wrinkle;
 	public int Stretch;

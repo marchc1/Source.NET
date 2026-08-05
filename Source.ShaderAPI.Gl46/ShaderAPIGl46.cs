@@ -1464,6 +1464,30 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		glProgramUniform1fv(GetCurrentProgramInternal(), uniform, flConsts);
 	}
 
+	const int GL_TEXTURE_SRGB_DECODE_EXT = 0x8A48;
+	const int GL_DECODE_EXT = 0x8A49;
+	const int GL_SKIP_DECODE_EXT = 0x8A4A;
+
+	bool? supportsSRGBDecode;
+	private unsafe bool SupportsSRGBDecode() {
+		if (supportsSRGBDecode == null) {
+			supportsSRGBDecode = false;
+			int count;
+			glGetIntegerv(GL_NUM_EXTENSIONS, &count);
+			for (uint i = 0; i < count; i++) {
+				if (MemoryMarshal.CreateReadOnlySpanFromNullTerminated(glGetStringi(GL_EXTENSIONS, i)).SequenceEqual("GL_EXT_texture_sRGB_decode"u8)) {
+					supportsSRGBDecode = true;
+					break;
+				}
+			}
+
+			if (supportsSRGBDecode == false)
+				Warning("GL_EXT_texture_sRGB_decode unsupported\n");
+		}
+
+		return supportsSRGBDecode.Value;
+	}
+
 	readonly int[] LastBoundTextures = new int[(int)Sampler.MaxSamplers];
 	int lastActiveTexture = -1;
 	public void BindTexture(Sampler sampler, ShaderAPITextureHandle_t textureHandle) {
@@ -1479,6 +1503,13 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			}
 			glBindTexture(GetTexture(textureHandle).DetermineGLObjectType(), GetGL46Texture(textureHandle));
 			LastBoundTextures[(int)sampler] = textureHandle;
+		}
+
+		// D3D9 takes sRGB read from sampler state, but GL bakes it into the internal format. The same
+		// texture is shared by shaders that disagree, so skip the decode when the shadow state wants linear.
+		if (SupportsSRGBDecode()) {
+			bool srgbRead = currentShadow != null && currentShadow.State.SamplerState[(int)sampler].SRGBReadEnable;
+			glTextureParameteri(GetGL46Texture(textureHandle), GL_TEXTURE_SRGB_DECODE_EXT, srgbRead ? GL_DECODE_EXT : GL_SKIP_DECODE_EXT);
 		}
 	}
 
@@ -1508,6 +1539,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		public ImageFormat SrcFormat;
 		public Span<byte> SrcData;
 		public bool TextureIsLockable;
+		public bool SRGB;
 	}
 
 	public void TexImageFromVTF(IVTFTexture? vtf, int vtfFrame) {
@@ -1532,6 +1564,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		info.SrcFormat = vtf.Format();
 		info.SrcData = null;
 		info.TextureIsLockable = (tex.Flags & InternalTextureFlags.IsLockable) != 0;
+		info.SRGB = (tex.CreationFlags & CreateTextureFlags.SRGB) != 0;
 		if (vtf.Depth() > 1) {
 			throw new NotImplementedException("Multidepth textures not supported yet");
 		}
@@ -1577,7 +1610,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				Span<byte> data = vtf.ImageData(vtfFrame, face, mip);
 				if (info.SrcFormat.IsCompressed()) {
 					fixed (byte* bytes = data)
-						glCompressedTextureSubImage3D((uint)info.Texture, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
+						glCompressedTextureSubImage3D((uint)info.Texture, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageInternalFormat(info.SrcFormat, info.SRGB), data.Length, bytes);
 				}
 				else {
 					ConvertDataToAcceptableGLFormat(info.SrcFormat, data, out ImageFormat uploadFormat, out Span<byte> convertedData);
@@ -1595,7 +1628,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		if (info.SrcFormat.IsCompressed()) {
 			Span<byte> data = vtf.ImageData(vtfFrame, 0, info.Level);
 			fixed (byte* bytes = data)
-				glCompressedTextureSubImage2D((uint)info.Texture, info.Level, 0, 0, w, h, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
+				glCompressedTextureSubImage2D((uint)info.Texture, info.Level, 0, 0, w, h, ImageLoader.GetGLImageInternalFormat(info.SrcFormat, info.SRGB), data.Length, bytes);
 			// Msg("err: " + glGetErrorName() + "\n");
 		}
 		else {
@@ -1667,7 +1700,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			if (copies <= 1) {
 				texture.NumCopies = 1;
 				uint glTex = glCreateTexture(texture.DetermineGLObjectType());
-				glTextureStorage2D(glTex, mipCount, ImageLoader.GetGLImageInternalFormat(dstFormat), width, height);
+				glTextureStorage2D(glTex, mipCount, ImageLoader.GetGLImageInternalFormat(dstFormat, isSRGB), width, height);
+				SetLuminanceSwizzle(glTex, dstFormat);
 				glObjectLabel(GL_TEXTURE, glTex, $"ShaderAPI Texture '{debugName.SliceNullTerminatedString()}' [frame {i}]");
 				texture.SetTexture(glTex);
 			}
@@ -1676,7 +1710,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				texture.TextureCopies = new uint[copies];
 				for (int k = 0; k < copies; k++) {
 					uint glTex = glCreateTexture(texture.DetermineGLObjectType());
-					glTextureStorage2D(glTex, mipCount, ImageLoader.GetGLImageInternalFormat(dstFormat), width, height);
+					glTextureStorage2D(glTex, mipCount, ImageLoader.GetGLImageInternalFormat(dstFormat, isSRGB), width, height);
+					SetLuminanceSwizzle(glTex, dstFormat);
 					glObjectLabel(GL_TEXTURE, glTex, $"ShaderAPI Texture '{debugName.SliceNullTerminatedString()}' [frame {i} copy {k}]");
 					texture.SetTexture(k, glTex);
 				}
@@ -1685,6 +1720,23 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			texture.CurrentCopy = 0;
 
 			ComputeStatsInfo(textureHandles[i], isCubeMap, depth > 1);
+		}
+	}
+
+	private static void SetLuminanceSwizzle(uint glTex, ImageFormat format) {
+		switch (format) {
+			case ImageFormat.I8:
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_R, GL_RED);
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_G, GL_RED);
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_B, GL_RED);
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_A, GL_ONE);
+				break;
+			case ImageFormat.IA88:
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_R, GL_RED);
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_G, GL_RED);
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_B, GL_RED);
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_A, GL_GREEN);
+				break;
 		}
 	}
 
@@ -1925,6 +1977,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		info.SrcFormat = srcFormat;
 		info.SrcData = imageData;
 		info.TextureIsLockable = (tex.Flags & InternalTextureFlags.IsLockable) != 0;
+		info.SRGB = (tex.CreationFlags & CreateTextureFlags.SRGB) != 0;
 		LoadTexture(ref info);
 		SetModifyTexture(info.Texture);
 	}
