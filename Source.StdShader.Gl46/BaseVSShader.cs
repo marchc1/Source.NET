@@ -551,9 +551,9 @@ public partial class BaseVSShader : BaseShader
 	internal void SetModulationPixelShaderDynamicState_LinearColorSpace_LinearScale(int modulationVar, float scale) {
 		Span<float> color = [1.0f, 1.0f, 1.0f, 1.0f];
 		ComputeModulationColor(color);
-		color[0] = color[0] > 1.0f ? color[0] : MathLib.GammaToLinear(color[0]) * scale;
-		color[1] = color[1] > 1.0f ? color[1] : MathLib.GammaToLinear(color[1]) * scale;
-		color[2] = color[2] > 1.0f ? color[2] : MathLib.GammaToLinear(color[2]) * scale;
+		color[0] = (color[0] > 1.0f ? color[0] : MathLib.GammaToLinear(color[0])) * scale;
+		color[1] = (color[1] > 1.0f ? color[1] : MathLib.GammaToLinear(color[1])) * scale;
+		color[2] = (color[2] > 1.0f ? color[2] : MathLib.GammaToLinear(color[2])) * scale;
 
 		ShaderAPI!.SetPixelShaderConstant(modulationVar, color);
 	}

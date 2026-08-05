@@ -5,7 +5,6 @@ using Source.Common.ShaderAPI;
 using Source.Common.ShaderLib;
 
 using System.Numerics;
-using System.Runtime.CompilerServices;
 
 namespace Source.StdShader.Gl46;
 
@@ -464,7 +463,7 @@ public partial class BaseVSShader
 				pshIndex.Set("WRITE_DEPTH_TO_DESTALPHA", writeDepthToAlpha);
 				pshIndex.Set("PIXELFOGTYPE", shaderAPI.GetPixelFogCombo());
 				pshIndex.Set("FLASHLIGHTSHADOWS", flashlightShadows);
-				shaderAPI.SetVertexShaderIndex(pshIndex.GetIndex());
+				shaderAPI.SetPixelShaderIndex(pshIndex.GetIndex());
 			}
 			else {
 				// shader.SetHWMorphVertexShaderState(VertexShaderConst.ShaderSpecificConst6, VertexShaderConst.ShaderSpecificConst7, SHADER_VERTEXTEXTURE_SAMPLER0);
@@ -483,7 +482,7 @@ public partial class BaseVSShader
 				pshIndex.Set("WRITE_DEPTH_TO_DESTALPHA", writeDepthToAlpha);
 				pshIndex.Set("PIXELFOGTYPE", shaderAPI.GetPixelFogCombo());
 				pshIndex.Set("FLASHLIGHTSHADOWS", flashlightShadows);
-				shaderAPI.SetVertexShaderIndex(pshIndex.GetIndex());
+				shaderAPI.SetPixelShaderIndex(pshIndex.GetIndex());
 
 				Span<bool> unusedTexCoords = [false, false, !shaderAPI.IsHWMorphingEnabled() || !isDecal];
 				shaderAPI.MarkUnusedVertexFields(0, unusedTexCoords);
@@ -568,7 +567,7 @@ public partial class BaseVSShader
 			}
 
 			if ((info.PhongTint != -1) && parms[info.PhongTint].IsDefined())
-				parms[info.PhongTint].GetVecValue(specularTint);
+				parms[info.PhongTint].GetVecValue(specularTint[..3]);
 
 			if (hasRimLight && (info.RimLightPower != -1) && parms[info.RimLightPower].IsDefined()) {
 				specularTint[3] = parms[info.RimLightPower].GetFloatValue();
@@ -607,7 +606,7 @@ public partial class BaseVSShader
 			}
 
 			if ((info.PhongFresnelRanges != -1) && parms[info.PhongFresnelRanges].IsDefined()) {
-				parms[info.PhongFresnelRanges].GetVecValue(fresnelRanges_SpecBoost);
+				parms[info.PhongFresnelRanges].GetVecValue(fresnelRanges_SpecBoost[..3]);
 				fresnelRanges_SpecBoost[0] = (fresnelRanges_SpecBoost[1] - fresnelRanges_SpecBoost[0]) * 2;
 				fresnelRanges_SpecBoost[2] = (fresnelRanges_SpecBoost[2] - fresnelRanges_SpecBoost[1]) * 2;
 			}
