@@ -407,6 +407,10 @@ public partial class C_BaseEntity : IClientEntity
 
 			ent.UpdateVisibility();
 		}
+
+#if DEBUG
+		DrawEntityDebugOverlays();
+#endif
 	}
 
 	public bool IsNoInterpolationFrame() => OldInterpolationFrame != InterpolationFrame;
@@ -642,6 +646,7 @@ public partial class C_BaseEntity : IClientEntity
 		DataChangeEventRef.Struct = unchecked((ulong)-1);
 		EntClientFlags = 0;
 
+		ColorRender = new(255, 255, 255, 255);
 		RenderFXBlend = 255;
 		Predictable = false;
 
@@ -871,6 +876,33 @@ public partial class C_BaseEntity : IClientEntity
 	public CollisionProperty CollisionProp() => Collision;
 
 	static readonly ConVar r_drawrenderboxes = new("r_drawrenderboxes", "0", FCvar.Cheat);
+
+#if DEBUG
+	internal static readonly ConVar sdn_entdebug = new("sdn_entdebug", "0");
+
+	internal static void DrawEntityDebugOverlays() {
+		if (!sdn_entdebug.GetBool())
+			return;
+
+		Span<char> text = stackalloc char[256];
+		int highest = cl_entitylist.GetHighestEntityIndex();
+		for (int i = 0; i <= highest; i++) {
+			C_BaseEntity? ent = cl_entitylist.GetBaseEntity(i);
+			if (ent == null)
+				continue;
+
+			text.Clear();
+
+			ref readonly Vector3 origin = ref ent.GetAbsOrigin();
+			sprintf(text, "[%d] %s midx=%d model=%s (%d %d %d)%s")
+				.D(i).S(ent.GetClassname()).D(ent.ModelIndex).S(ent.Model == null ? "NULL" : "ok")
+				.D((int)origin.X).D((int)origin.Y).D((int)origin.Z)
+				.S(ent.ShouldDraw() ? "" : ent.IsEffectActive(EntityEffects.NoDraw) ? " EF_NODRAW" : " NODRAW");
+
+			debugoverlay.AddTextOverlay(in origin, i & 7, 0, text.SliceNullTerminatedString());
+		}
+	}
+#endif
 
 	public void DrawBBoxVisualizations() {
 		if (r_drawrenderboxes.GetInt() != 0) {
@@ -2445,7 +2477,7 @@ public partial class C_BaseEntity : IClientEntity
 	public bool IsVisible() => renderHandle != INVALID_CLIENT_RENDER_HANDLE;
 
 
-	public bool IsFollowingEntity() => IsEffectActive(EntityEffects.BoneMerge) && (GetMoveType() != Source.MoveType.None && GetMoveParent() != null);
+	public bool IsFollowingEntity() => IsEffectActive(EntityEffects.BoneMerge) && (GetMoveType() == Source.MoveType.None) && GetMoveParent() != null;
 
 	public virtual C_BaseEntity? GetFollowedEntity() {
 		if (!IsFollowingEntity())

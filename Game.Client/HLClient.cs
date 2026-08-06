@@ -283,6 +283,8 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 		}
 
 		C_BaseEntity.CalcAimEntPositions();
+
+		C_BaseEntity.AddVisibleEntities();
 	}
 
 	class DataChangedEvent : IPoolableObject

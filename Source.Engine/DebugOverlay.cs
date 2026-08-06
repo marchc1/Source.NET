@@ -235,7 +235,25 @@ public class DebugOverlay : IVDebugOverlay
 	}
 
 	public void AddTextOverlay(in Vector3 origin, int line_offset, float duration, ReadOnlySpan<char> text) {
-		throw new NotImplementedException();
+		if (cl.IsPaused())
+			return;
+
+		lock (s_OverlayMutex) {
+			OverlayText new_overlay = new();
+
+			MathLib.VectorCopy(origin, out new_overlay.Origin);
+			strcpy(new_overlay.Text, text);
+			new_overlay.UseOrigin = true;
+			new_overlay.LineOffset = line_offset;
+			new_overlay.SetEndTime(duration);
+			new_overlay.R = 255;
+			new_overlay.G = 255;
+			new_overlay.B = 255;
+			new_overlay.A = 255;
+
+			new_overlay.NextOverlayText = s_pOverlayText;
+			s_pOverlayText = new_overlay;
+		}
 	}
 
 	public void AddTextOverlay(in Vector3 origin, int line_offset, float duration, int r, int g, int b, int a, ReadOnlySpan<char> text) {
