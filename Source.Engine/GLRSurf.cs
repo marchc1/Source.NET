@@ -154,6 +154,7 @@ public class WorldRenderList : IWorldRenderList
 
 	public VarBitVec VisitedSurfs = new();
 	public bool SkyVisible;
+	int Refs = 1;
 
 	static readonly Stack<WorldRenderList> g_Pool = new();
 
@@ -225,7 +226,16 @@ public class WorldRenderList : IWorldRenderList
 		VisitedSurfs.ClearAll();
 	}
 
-	public void AddRef() { }
+	public int AddRef() => ++Refs;
+
+	public int Release() {
+		int result = --Refs;
+		if (result != 0)
+			return result;
+
+		OnFinalRelease();
+		return 0;
+	}
 }
 
 public static class GLRSurf

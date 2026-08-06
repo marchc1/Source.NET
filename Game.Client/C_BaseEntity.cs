@@ -899,7 +899,7 @@ public partial class C_BaseEntity : IClientEntity
 				.D((int)origin.X).D((int)origin.Y).D((int)origin.Z)
 				.S(ent.ShouldDraw() ? "" : ent.IsEffectActive(EntityEffects.NoDraw) ? " EF_NODRAW" : " NODRAW");
 
-			debugoverlay.AddTextOverlay(in origin, i & 7, 0, text.SliceNullTerminatedString());
+			debugoverlay.AddTextOverlay(in origin, i & 14, 0, text.SliceNullTerminatedString());
 		}
 	}
 #endif

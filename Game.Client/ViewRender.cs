@@ -168,6 +168,8 @@ public class Rendering3dView : Base3dView
 	}
 
 	protected void BuildWorldRenderLists(bool drawEntities, int forceViewLeaf = -1, bool useCacheIfEnabled = true, bool shadowDepth = false, Span<float> reflectionWaterHeight = default) {
+		Assert(WorldRenderList == null);
+
 		mainView.IncWorldListsNumber();
 
 		WorldRenderList = render.CreateWorldList();
@@ -217,6 +219,8 @@ public class Rendering3dView : Base3dView
 		RenderablesList = ClientRenderablesList.Shared.Alloc();
 	}
 	public virtual void ReleaseLists() {
+		WorldRenderList?.Release();
+		WorldRenderList = null;
 		ClientRenderablesList.Shared.Free(RenderablesList);
 	}
 	public override DrawFlags GetDrawFlags() {
