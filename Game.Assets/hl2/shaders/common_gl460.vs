@@ -219,7 +219,7 @@ vec3 DoLightingUnrolled(vec3 worldPos, vec3 worldNormal,
 }
 
 void SkinPositionAndNormal(bool bSkinning, vec4 modelPos, vec3 modelNormal,
-                           ivec2 boneIndices, vec2 boneWeights,
+                           ivec4 boneIndices, vec2 boneWeights,
                            out vec3 worldPos, out vec3 worldNormal)
 {
     if (!bSkinning || numBones == 0)
@@ -227,29 +227,24 @@ void SkinPositionAndNormal(bool bSkinning, vec4 modelPos, vec3 modelNormal,
         worldPos = (modelMatrix * modelPos).xyz;
         worldNormal = mat3(modelMatrix) * modelNormal;
     }
-    else
+    else // skinning - always three bones
     {
-        vec4 localPos = vec4(0.0);
-        worldNormal = vec3(0.0);
+        vec3 weights;
+        weights[0] = boneWeights.x;
+        weights[1] = boneWeights.y;
+        weights[2] = 1.0 - (boneWeights.x + boneWeights.y);
 
-        if (numBones >= 1)
-        {
-            localPos += (bones[boneIndices.x] * modelPos) * boneWeights.x;
-            worldNormal += (mat3(bones[boneIndices.x]) * modelNormal) * boneWeights.x;
-        }
+        mat4 blendMatrix = bones[boneIndices[0]] * weights[0] +
+                           bones[boneIndices[1]] * weights[1] +
+                           bones[boneIndices[2]] * weights[2];
 
-        if (numBones >= 2)
-        {
-            localPos += (bones[boneIndices.y] * modelPos) * boneWeights.y;
-            worldNormal += (mat3(bones[boneIndices.y]) * modelNormal) * boneWeights.y;
-        }
-
-        worldPos = localPos.xyz;
+        worldPos = (blendMatrix * modelPos).xyz;
+        worldNormal = mat3(blendMatrix) * modelNormal;
     }
 }
 
 void SkinPositionNormalAndTangentSpace(bool bSkinning, vec4 modelPos, vec3 modelNormal, vec4 modelTangentS,
-                                       ivec2 boneIndices, vec2 boneWeights,
+                                       ivec4 boneIndices, vec2 boneWeights,
                                        out vec3 worldPos, out vec3 worldNormal,
                                        out vec3 worldTangentS, out vec3 worldTangentT)
 {
@@ -259,27 +254,20 @@ void SkinPositionNormalAndTangentSpace(bool bSkinning, vec4 modelPos, vec3 model
         worldNormal = mat3(modelMatrix) * modelNormal;
         worldTangentS = mat3(modelMatrix) * modelTangentS.xyz;
     }
-    else
+    else // skinning - always three bones
     {
-        vec4 localPos = vec4(0.0);
-        worldNormal = vec3(0.0);
-        worldTangentS = vec3(0.0);
+        vec3 weights;
+        weights[0] = boneWeights.x;
+        weights[1] = boneWeights.y;
+        weights[2] = 1.0 - (boneWeights.x + boneWeights.y);
 
-        if (numBones >= 1)
-        {
-            localPos += (bones[boneIndices.x] * modelPos) * boneWeights.x;
-            worldNormal += (mat3(bones[boneIndices.x]) * modelNormal) * boneWeights.x;
-            worldTangentS += (mat3(bones[boneIndices.x]) * modelTangentS.xyz) * boneWeights.x;
-        }
+        mat4 blendMatrix = bones[boneIndices[0]] * weights[0] +
+                           bones[boneIndices[1]] * weights[1] +
+                           bones[boneIndices[2]] * weights[2];
 
-        if (numBones >= 2)
-        {
-            localPos += (bones[boneIndices.y] * modelPos) * boneWeights.y;
-            worldNormal += (mat3(bones[boneIndices.y]) * modelNormal) * boneWeights.y;
-            worldTangentS += (mat3(bones[boneIndices.y]) * modelTangentS.xyz) * boneWeights.y;
-        }
-
-        worldPos = localPos.xyz;
+        worldPos = (blendMatrix * modelPos).xyz;
+        worldNormal = mat3(blendMatrix) * modelNormal;
+        worldTangentS = mat3(blendMatrix) * modelTangentS.xyz;
     }
 
     worldTangentT = cross(worldNormal, worldTangentS) * modelTangentS.w;
