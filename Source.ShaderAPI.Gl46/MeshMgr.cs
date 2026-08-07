@@ -3,7 +3,8 @@ using Source.Common.ShaderAPI;
 
 namespace Source.ShaderAPI.Gl46;
 
-public enum DeviceState {
+public enum DeviceState
+{
 	OK,
 	NeedsReset
 }
@@ -137,13 +138,37 @@ public class MeshMgr : IMeshMgr
 
 		VertexBufferGl46 buffer = DynamicVertexBuffers[dynamicBufferID];
 
-		if (buffer.VertexSize != vertexSize) {
+		if (buffer.VertexSize != vertexSize || buffer.VertexBufferFormat != vertexFormat) {
 			int bufferMemory = ShaderAPI.GetCurrentDynamicVBSize();
 			buffer.VertexSize = vertexSize;
 			buffer.ChangeConfiguration(vertexFormat, vertexSize, bufferMemory);
 		}
 
 		return DynamicVertexBuffers[dynamicBufferID];
+	}
+
+	internal VertexFormat ComputeVertexFormat(VertexFormat flags, int texCoordArraySize, Span<int> texCoordDimensions, int numBoneWeights, int userDataSize) {
+		VertexFormat fmt = flags;
+
+		Assert(numBoneWeights <= 4);
+
+		if (numBoneWeights > 0)
+			fmt |= VertexFormat.BoneWeights2;
+
+		Assert(userDataSize <= 4);
+		fmt |= VertexExts.GetUserDataSize(userDataSize);
+
+		texCoordArraySize = Math.Min(texCoordArraySize, VertexExts.VERTEX_MAX_TEXTURE_COORDINATES);
+		for (int i = 0; i < texCoordArraySize; ++i) {
+			if (!texCoordDimensions.IsEmpty) {
+				Assert(texCoordDimensions[i] >= 0 && texCoordDimensions[i] <= 4);
+				fmt |= VertexExts.GetTexCoordSize(i, texCoordDimensions[i]);
+			}
+			else
+				fmt |= VertexExts.GetTexCoordSize(i, 2);
+		}
+
+		return fmt;
 	}
 
 	internal unsafe int VertexFormatSize(VertexFormat vertexFormat) {

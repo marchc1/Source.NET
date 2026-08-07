@@ -245,8 +245,7 @@ public class ShadowStateGl46 : IShaderShadow
 	}
 
 	public void VertexShaderVertexFormat(VertexFormat format, int texCoordCount, Span<int> texCoordDimensions, int userDataSize) {
-		// TODO: MeshMgr.ComputeVertexFormat
-		VertexFormat = format | VertexFormat.BoneIndex | VertexFormat.BoneWeights2 | VertexFormat.UserData4 | VertexFormat.TexCoord2D_0;
+		VertexFormat = ((ShaderAPIGl46)ShaderAPI).MeshMgr.ComputeVertexFormat(format | VertexFormat.BoneIndex | VertexFormat.BoneWeights2 | VertexFormat.UserData4, texCoordCount, texCoordDimensions, 0, userDataSize);
 	}
 
 	public GraphicsDriver GetDriver() => ShaderAPI.GetDriver();

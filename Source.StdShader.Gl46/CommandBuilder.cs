@@ -257,9 +257,8 @@ public class CommandBufferBuilder<TStorage> where TStorage : ICommandStorageBuff
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void SetEnvMapTintPixelShaderDynamicState(int pixelReg, int tintVar) {
-		if (Config.ShowSpecular/* && mat_fullbright.GetInt() != 2*/) {
+		if (Config.ShowSpecular/* && mat_fullbright.GetInt() != 2*/)
 			SetPixelShaderConstant(pixelReg, Param(tintVar).GetVecValue());
-		}
 		else
 			SetPixelShaderConstant4(pixelReg, 0.0f, 0.0f, 0.0f, 0.0f);
 	}

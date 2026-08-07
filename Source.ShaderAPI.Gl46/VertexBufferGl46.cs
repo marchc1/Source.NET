@@ -6,7 +6,7 @@ namespace Source.ShaderAPI.Gl46;
 
 public unsafe class VertexBufferGl46 : IDisposable
 {
-	VertexFormat VertexBufferFormat;
+	internal VertexFormat VertexBufferFormat;
 	internal int Position;
 	internal int VertexCount;
 	internal int VertexSize;
