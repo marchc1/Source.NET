@@ -660,7 +660,7 @@ public partial class Render(
 	internal float ComputeViewMatrices(ref Matrix4x4 worldToView, ref Matrix4x4 viewToProjection, ref Matrix4x4 worldToProjection, in ViewSetup viewSetup) {
 		float aspectRatio = viewSetup.AspectRatio;
 		if (aspectRatio == 0.0f)
-			aspectRatio = (viewSetup.Height != 0) ? ((float)viewSetup.Height / (float)viewSetup.Width) : 1.0f;
+			aspectRatio = (viewSetup.Height != 0) ? ((float)viewSetup.Width / (float)viewSetup.Height) : 1.0f;
 
 		// (-12152) + (MathF.Sin((float)gpGlobals.CurTime * 1) * 64))
 		// ComputeViewMatrix(ref worldToView, new(-852, 907, (-12152) + (MathF.Sin((float)gpGlobals.CurTime * 1) * 64)), new QAngle(17.68f, -53.19f, 0));
