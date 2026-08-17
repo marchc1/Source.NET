@@ -3,53 +3,198 @@
 #define FORCE_CASE_INSENSITIVE_ON_DISK
 #endif
 
+using SharpCompress.Common;
 
+using Source.Common.Commands;
 using Source.Common.Filesystem;
+using Source.Common.Utilities;
+
+using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Source.FileSystem;
 
-public class DiskSearchPath : BaseSearchPath
+public sealed class DiskEntityCache
 {
-#if FORCE_CASE_INSENSITIVE_ON_DISK
-	class CaseInsensitiveCache {
-		public required string RealPath;
+	public readonly DirectoryCache Root;
+	/// <summary>
+	/// The platform-specific absolute path.
+	/// </summary>
+	public readonly string AbsolutePath = "";
+	/// <summary>
+	/// The platform-agnostic relative path. (slashing is always /)
+	/// </summary>
+	public readonly string RelativePath = "";
+	// public readonly UtlSymId_t AbsoluteHash;
+	// public readonly UtlSymId_t RelativeHash;
+	public bool IsDirectory;
+
+	public DiskEntityCache(DirectoryCache root, string absolutePath, string relativePath, bool isDirectory) {
+		Root = root;
+		AbsolutePath = absolutePath;
+		RelativePath = relativePath;
+		IsDirectory = isDirectory;
+		// AbsoluteHash = absolutePath.Hash();
+		// RelativeHash = relativePath.Hash();
 	}
-	static readonly Dictionary<ulong, CaseInsensitiveCache> cache = [];
-	static string ResolveDiskPath(string path) {
-		ulong hash = path.Hash(invariant: true);
-		if(cache.TryGetValue(hash, out CaseInsensitiveCache? found))
-			return found.RealPath;
+}
 
-		if (Path.Exists(path))
-			return path;
+public sealed class DirectoryCache
+{
+	public static string CreateRelativePath(string basePath, string absolutePath) {
+		return System.IO.Path.GetRelativePath(basePath, absolutePath).Replace('\\', '/').ToLowerInvariant();
+	}
 
-		string? directory = Path.GetDirectoryName(path);
-		if (directory == null)
-			return path;
+	public readonly string Path;
+	readonly ConcurrentDictionary<UtlSymId_t, DiskEntityCache> items = [];
+	FileSystemWatcher watcher;
 
-		string resolvedDir = ResolveDiskPath(directory);
-		if (!Directory.Exists(resolvedDir))
-			return path;
+	public DirectoryCache(ReadOnlySpan<char> path) {
+		path = path.SliceNullTerminatedString();
+		Path = new(path);
 
-		string fileName = Path.GetFileName(path);
-		foreach (string entry in Directory.EnumerateFileSystemEntries(resolvedDir)) {
-			if (string.Equals(Path.GetFileName(entry), fileName, StringComparison.OrdinalIgnoreCase)) {
-				cache[hash] = new() {
-					RealPath = entry
-				};
-				return entry;
+		ReinitializeWatcher();
+	}
+
+	[MemberNotNull(nameof(watcher))]
+	private void ReinitializeWatcher() {
+		items.Clear();
+
+		Directory.CreateDirectory(Path);
+		
+		if (watcher != null) {
+			watcher.EnableRaisingEvents = false;
+			watcher.Dispose();
+		}
+
+		watcher = new(Path) {
+			InternalBufferSize = 1024 * 64,
+			IncludeSubdirectories = true
+		};
+
+		watcher.Changed += (_, args) => OnChanged(args);
+		watcher.Created += (_, args) => OnCreated(args);
+		watcher.Deleted += (_, args) => OnDeleted(args);
+		watcher.Error += (_, _) => ReinitializeWatcher();
+		watcher.Renamed += (_, args) => OnRenamed(args);
+
+		watcher.NotifyFilter |= 
+								NotifyFilters.FileName | 
+								NotifyFilters.CreationTime | 
+								NotifyFilters.Attributes | 
+								NotifyFilters.LastWrite | 
+								NotifyFilters.DirectoryName | 
+								NotifyFilters.Size;
+
+		watcher.EnableRaisingEvents = true;
+
+		foreach (var entry in new DirectoryInfo(Path).EnumerateFileSystemInfos("*", new EnumerationOptions() {
+			MatchCasing = MatchCasing.CaseInsensitive,
+			MatchType = MatchType.Simple,
+			RecurseSubdirectories = true,
+			ReturnSpecialDirectories = true,
+			IgnoreInaccessible = true
+		})) {
+			// Create a relative path
+			string relativePath = CreateRelativePath(Path, entry.FullName);
+			bool isDirectory = (entry.Attributes & FileAttributes.Directory) != 0;
+			items[relativePath.Hash(invariant: true)] = new(this, entry.FullName, relativePath, isDirectory);
+		}
+	}
+	private void OnChanged(FileSystemEventArgs args) {
+
+	}
+	private void OnCreated(FileSystemEventArgs args) {
+		string relativePath = CreateRelativePath(Path, args.FullPath);
+		items.GetOrAdd(relativePath.Hash(invariant: true), (_) => new(this, args.FullPath, relativePath, Directory.Exists(args.FullPath)));
+	}
+	private void OnDeleted(FileSystemEventArgs args) {
+		string relativePath = CreateRelativePath(Path, args.FullPath);
+		items.TryRemove(relativePath.Hash(invariant: true), out _);
+	}
+	private void OnRenamed(RenamedEventArgs args) {
+		string oldRelativePath = CreateRelativePath(Path, args.OldFullPath);
+		items.TryRemove(oldRelativePath.Hash(invariant: true), out _);
+
+		string relativePath = CreateRelativePath(Path, args.FullPath);
+		items.GetOrAdd(relativePath.Hash(invariant: true), (_) => new(this, args.FullPath, relativePath, Directory.Exists(args.FullPath)));
+	}
+
+	private string GetAbsolutePath(ReadOnlySpan<char> path) {
+		string p = path.ToString();
+		return System.IO.Path.IsPathFullyQualified(p) ? p : System.IO.Path.Combine(Path, p);
+	}
+
+	private UtlSymId_t GetRelativeKey(ReadOnlySpan<char> path)		=> CreateRelativePath(Path, GetAbsolutePath(path)).Hash(invariant: true);
+	internal bool Directory_Exists(ReadOnlySpan<char> path)		=> items.TryGetValue(GetRelativeKey(path), out var entity) && entity.IsDirectory;
+	internal bool Path_Exists(ReadOnlySpan<char> path)		=> items.ContainsKey(GetRelativeKey(path));
+
+	internal FileInfo Info(ReadOnlySpan<char> path) {
+		if (items.TryGetValue(GetRelativeKey(path), out var entity))
+			return new FileInfo(entity.AbsolutePath);
+		return new FileInfo(GetAbsolutePath(path));
+	}
+
+	internal void Rename(ReadOnlySpan<char> oldPath, ReadOnlySpan<char> newPath) {
+		string oldAbsolute = items.TryGetValue(GetRelativeKey(oldPath), out var entity)
+			? entity.AbsolutePath
+			: GetAbsolutePath(oldPath);
+		string newAbsolute = GetAbsolutePath(newPath);
+
+		if (Directory.Exists(oldAbsolute))
+			Directory.Move(oldAbsolute, newAbsolute);
+		else
+			File.Move(oldAbsolute, newAbsolute, overwrite: true);
+	}
+
+	internal void Find(List<string> files, List<string> dirs, string? wildcard) {
+		string relativeDir;
+		string pattern;
+		if (string.IsNullOrEmpty(wildcard)) {
+			relativeDir = "";
+			pattern = "*";
+		}
+		else {
+			string normalized = wildcard.Replace('\\', '/');
+			int lastSlash = normalized.LastIndexOf('/');
+			if (lastSlash >= 0) {
+				relativeDir = normalized[..lastSlash].ToLowerInvariant();
+				pattern = normalized[(lastSlash + 1)..];
+			}
+			else {
+				relativeDir = "";
+				pattern = normalized;
 			}
 		}
 
-		return path;
-	}
-#else
-	static string ResolveDiskPath(string path) {
-		return path;
-	}
-#endif
+		foreach (var entity in items.Values) {
+			string rel = entity.RelativePath;
+			int slash = rel.LastIndexOf('/');
+			string parent = slash >= 0 ? rel[..slash] : "";
 
+			if (parent != relativeDir)
+				continue;
+
+			string name = System.IO.Path.GetFileName(entity.AbsolutePath);
+			if (name is "." or "..")
+				continue;
+
+			if (!System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(pattern, name, ignoreCase: true))
+				continue;
+
+			if (entity.IsDirectory)
+				dirs.Add(name);
+			else
+				files.Add(name);
+		}
+	}
+}
+
+public class DiskSearchPath : BaseSearchPath
+{
+	private DirectoryCache dir;
 	private IFileSystem parent;
+
 	public DiskSearchPath(IFileSystem filesystem, string absPath) {
 		parent = filesystem;
 
@@ -57,21 +202,19 @@ public class DiskSearchPath : BaseSearchPath
 			absPath = Path.GetFullPath(absPath);
 
 		SetDiskPath(absPath);
+		dir = new(absPath);
 	}
 
-	private string GetAbsPath(ReadOnlySpan<char> relPath) => ResolveDiskPath(Path.Combine(DiskPath!, new(relPath)));
-
-	public override bool Exists(ReadOnlySpan<char> path) => Path.Exists(GetAbsPath(path));
-	public override bool IsDirectory(ReadOnlySpan<char> path) => Directory.Exists(GetAbsPath(path));
+	public override bool Exists(ReadOnlySpan<char> path) => dir.Path_Exists(path);
+	public override bool IsDirectory(ReadOnlySpan<char> path) => dir.Directory_Exists(path);
 
 	public override bool IsFileWritable(ReadOnlySpan<char> path) {
-		var info = new FileInfo(GetAbsPath(path));
+		var info = dir.Info(path);
 		return info.Exists && !info.IsReadOnly;
 	}
 
 	public override IFileHandle? Open(ReadOnlySpan<char> path, FileOpenOptions options) {
-		string absPath = GetAbsPath(path);
-		var info = new FileInfo(absPath);
+		var info = dir.Info(path);
 
 		// Scram early if the file doesn't even exist
 		if (!info.Exists && (options == FileOpenOptions.Read || options == FileOpenOptions.ReadEx)) return null;
@@ -105,8 +248,8 @@ public class DiskSearchPath : BaseSearchPath
 	}
 
 	public override bool RemoveFile(ReadOnlySpan<char> path) {
-		var absPath = GetAbsPath(path);
-		var info = new FileInfo(absPath);
+		var info = dir.Info(path);
+
 		if (!info.Exists) return false;
 		if (info.IsReadOnly) return false;
 
@@ -121,13 +264,13 @@ public class DiskSearchPath : BaseSearchPath
 	}
 
 	public override bool RenameFile(ReadOnlySpan<char> oldPath, ReadOnlySpan<char> newPath) {
-		var absPath = GetAbsPath(oldPath);
-		var info = new FileInfo(absPath);
+		var info = dir.Info(oldPath);
+
 		if (!info.Exists) return false;
 		if (info.IsReadOnly) return false;
 
 		try {
-			info.MoveTo(GetAbsPath(newPath));
+			dir.Rename(oldPath, newPath);
 		}
 		catch {
 			return false;
@@ -140,16 +283,14 @@ public class DiskSearchPath : BaseSearchPath
 	public override bool SetFileWritable(ReadOnlySpan<char> path, bool writable) => false;
 
 	public override long Size(ReadOnlySpan<char> path) {
-		var absPath = GetAbsPath(path);
-		var info = new FileInfo(absPath);
+		var info = dir.Info(path);
 		if (!info.Exists) return -1;
 
 		return info.Length;
 	}
 
 	public override DateTime Time(ReadOnlySpan<char> path) {
-		var absPath = GetAbsPath(path);
-		var info = new FileInfo(absPath);
+		var info = dir.Info(path);
 		if (!info.Exists) return DateTime.UnixEpoch;
 
 		return info.LastWriteTimeUtc;
@@ -166,25 +307,6 @@ public class DiskSearchPath : BaseSearchPath
 	}
 
 	protected override void PrepareFinds(List<string> files, List<string> dirs, string? wildcard) {
-		IEnumerable<string> fileSearch, dirSearch;
-
-		if (wildcard != null) {
-			var directory = Path.GetDirectoryName(Path.Combine(DiskPath!, wildcard));
-			var pattern = Path.GetFileName(wildcard);
-			if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
-				return;
-
-			fileSearch = Directory.EnumerateFiles(DiskPath!, wildcard);
-			dirSearch = Directory.EnumerateDirectories(DiskPath!, wildcard);
-		}
-		else {
-			fileSearch = Directory.EnumerateFiles(DiskPath!);
-			dirSearch = Directory.EnumerateDirectories(DiskPath!);
-		}
-
-		foreach (var file in fileSearch)
-			files.Add(Path.GetFileName(file));
-		foreach (var dir in dirSearch)
-			dirs.Add(Path.GetFileName(dir));
+		dir.Find(files, dirs, wildcard);
 	}
 }
