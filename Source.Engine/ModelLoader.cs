@@ -1061,7 +1061,31 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 	private void Map_SetRenderInfoAllocated(bool allocated) => MapRenderInfoLoaded = allocated;
 
 	private void Mod_LoadLeafWaterData() {
+		MapLoadHelper lh = new(LumpIndex.LeafWaterData);
 
+		BSPDLeafWaterData[] _in = lh.LoadLumpData<BSPDLeafWaterData>();
+		if ((lh.LumpSize % Unsafe.SizeOf<BSPDLeafWaterData>()) != 0)
+			Host.Error($"Mod_LoadLeafs: funny lump size in {lh.GetMapName()}");
+		int count = lh.LumpSize / Unsafe.SizeOf<BSPDLeafWaterData>();
+		BSPMLeafWaterData[] _out = new BSPMLeafWaterData[count];
+
+		lh.GetMap().LeafWaterData = _out;
+		for (int i = 0; i < count; i++) {
+			_out[i].MinZ = _in[i].MinZ;
+			_out[i].SurfaceTexInfoID = _in[i].SurfaceTexInfoID;
+			_out[i].SurfaceZ = _in[i].SurfaceZ;
+			_out[i].FirstLeafIndex = -1;
+		}
+
+		if (count == 1) {
+			WorldBrushData brush = lh.GetMap();
+			for (int i = 0; i < brush.NumLeafs; i++) {
+				if (brush.Leafs![i].LeafWaterDataID >= 0) {
+					brush.LeafWaterData![0].FirstLeafIndex = (short)i;
+					break;
+				}
+			}
+		}
 	}
 
 	private void Mod_LoadCubemapSamples() {
@@ -1734,8 +1758,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 				}
 			}
 
-			// todo
-			// _out2.ShadowDecals = SHADOW_DECAL_HANDLE_INVALID;
+			surfID.ShadowDecals = SHADOW_DECAL_HANDLE_INVALID;
 			// _out2.Decals = WORLD_DECAL_HANDLE_INVALID;
 
 			// out2.FirstOverlayFragment = OVERLAY_FRAGMENT_INVALID;
@@ -1946,7 +1969,8 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 	}
 
 	public void ResetModelServerCounts() {
-
+		foreach (Model model in Models.Values)
+			model.ServerCount = -1;
 	}
 
 	public void UnreferenceAllModels(ModelLoaderFlags referenceType) {
@@ -1954,7 +1978,8 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 	}
 
 	public void UnreferenceModel(Model model, ModelLoaderFlags referenceType) {
-		throw new NotImplementedException();
+		AssertMsg((referenceType & ModelLoaderFlags.Dynamic) == 0, "UnreferenceModel: do not use for dynamic models");
+		model.LoadFlags &= ~referenceType;
 	}
 
 	internal static int MSurf_FirstPrimID(ref BSPMSurface2 surfID, WorldBrushData bsp) {

@@ -8,6 +8,11 @@ using System.Runtime.CompilerServices;
 
 namespace Source.Common;
 
+public static class ClientRenderableGlobals
+{
+	public const ClientShadowHandle_t CLIENTSHADOW_INVALID_HANDLE = unchecked((ClientShadowHandle_t)~0);
+}
+
 public enum ShadowType
 {
 	None = 0,
@@ -85,8 +90,8 @@ public interface IClientRenderable
 	bool ShouldReceiveProjectedTextures(ShadowFlags flags);
 
 	// These methods return true if we want a per-renderable shadow cast direction + distance
-	bool GetShadowCastDistance(out float dist, ShadowType shadowType);
-	bool GetShadowCastDirection(out Vector3 direction, ShadowType shadowType);
+	bool GetShadowCastDistance(ref float dist, ShadowType shadowType);
+	bool GetShadowCastDirection(ref Vector3 direction, ShadowType shadowType);
 
 	// Other methods related to shadow rendering
 	bool IsShadowDirty();
@@ -214,11 +219,11 @@ public abstract class DefaultClientRenderable : IClientUnknown, IClientRenderabl
 		throw new NotImplementedException();
 	}
 
-	public bool GetShadowCastDistance(out float dist, ShadowType shadowType) {
+	public bool GetShadowCastDistance(ref float dist, ShadowType shadowType) {
 		throw new NotImplementedException();
 	}
 
-	public bool GetShadowCastDirection(out Vector3 direction, ShadowType shadowType) {
+	public bool GetShadowCastDirection(ref Vector3 direction, ShadowType shadowType) {
 		throw new NotImplementedException();
 	}
 

@@ -336,6 +336,20 @@ public abstract class BaseVSShader : BaseShader
 		ShaderAPI!.SetVertexShaderConstant(vertexReg, transformation);
 	}
 
+	public void SetVertexShaderMatrix3x4(int vertexReg, int matrixVar) {
+		IMaterialVar? translationVar = Params![matrixVar];
+		if (translationVar != null) {
+			Matrix4x4 mat = translationVar.GetMatrixValue();
+			Span<float> rows = [mat.M11, mat.M12, mat.M13, mat.M14, mat.M21, mat.M22, mat.M23, mat.M24, mat.M31, mat.M32, mat.M33, mat.M34];
+			ShaderAPI!.SetVertexShaderConstant(vertexReg, rows);
+		}
+		else {
+			Matrix4x4 matrix = Matrix4x4.Identity;
+			Span<float> rows = [matrix.M11, matrix.M12, matrix.M13, matrix.M14, matrix.M21, matrix.M22, matrix.M23, matrix.M24, matrix.M31, matrix.M32, matrix.M33, matrix.M34];
+			ShaderAPI!.SetVertexShaderConstant(vertexReg, rows);
+		}
+	}
+
 	public static void ColorVarsToVector(int colorVar, int alphaVar, Span<float> color) {
 		IMaterialVar[] shaderParams = Params!;
 

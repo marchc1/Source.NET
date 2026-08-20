@@ -112,7 +112,14 @@ public class BaseWorldView : Rendering3dView
 	}
 
 	protected void DrawExecute(float waterHeight, ViewID viewID, float waterZAdjust) {
+		ViewID savedViewID = ViewRender.g_CurrentViewID;
+
+		ViewRender.g_CurrentViewID = ViewID.ShadowDepthTexture;
 		MaybeInvalidateLocalPlayerAnimation();
+		g_ClientShadowMgr.ComputeShadowTextures(in setup, WorldListInfo.LeafCount, WorldListInfo.LeafList);
+		MaybeInvalidateLocalPlayerAnimation();
+
+		ViewRender.g_CurrentViewID = savedViewID;
 
 		using MatRenderContextPtr renderContext = new(mainView.materials);
 		renderContext.ClearBuffers(false, true, false);
@@ -595,6 +602,8 @@ public class SkyboxView : Rendering3dView
 		BuildWorldRenderLists(true, -1, true);
 		BuildRenderableRenderLists(skyBoxViewID);
 		// render.EndUpdateLightmaps();
+
+		g_ClientShadowMgr.ComputeShadowTextures(in setup, WorldListInfo.LeafCount, WorldListInfo.LeafList);
 
 		DrawWorld(0);
 

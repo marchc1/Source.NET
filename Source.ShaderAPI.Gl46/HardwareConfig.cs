@@ -1,3 +1,4 @@
+using Source.Common.Bitmap;
 using Source.Common.Commands;
 using Source.Common.MaterialSystem;
 
@@ -5,6 +6,10 @@ namespace Source.ShaderAPI.Gl46;
 
 public class HardwareConfig : IMaterialSystemHardwareConfig
 {
+	public bool SupportsShadowDepthTexturesCap = true;
+	public ImageFormat ShadowDepthTextureFormat = ImageFormat.NV_DST24;
+	public ImageFormat NullTextureFormat = ImageFormat.NV_NULL;
+
 	public bool ActuallySupportsPixelShaders_2_b() {
 		throw new NotImplementedException();
 	}

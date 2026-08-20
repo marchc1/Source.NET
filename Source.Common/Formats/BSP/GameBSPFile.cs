@@ -144,6 +144,135 @@ public struct StaticPropLumpV6
 	public ushort MaxDXLevel;
 }
 
+public struct StaticPropLumpV7
+{
+	public Vector3 Origin;
+	public QAngle Angles;
+	public ushort PropType;
+	public ushort FirstLeaf;
+	public ushort LeafCount;
+	public byte Solid;
+	public byte Flags;
+	public int Skin;
+	public float FadeMinDist;
+	public float FadeMaxDist;
+	public Vector3 LightingOrigin;
+	public float ForcedFadeScale;
+	public ushort MinDXLevel;
+	public ushort MaxDXLevel;
+	public Color DiffuseModulation;
+}
+
+public struct StaticPropLumpV8
+{
+	public Vector3 Origin;
+	public QAngle Angles;
+	public ushort PropType;
+	public ushort FirstLeaf;
+	public ushort LeafCount;
+	public byte Solid;
+	public byte Flags;
+	public int Skin;
+	public float FadeMinDist;
+	public float FadeMaxDist;
+	public Vector3 LightingOrigin;
+	public float ForcedFadeScale;
+	public byte MinCPULevel;
+	public byte MaxCPULevel;
+	public byte MinGPULevel;
+	public byte MaxGPULevel;
+	public Color DiffuseModulation;
+}
+
+public struct StaticPropLumpV9
+{
+	public Vector3 Origin;
+	public QAngle Angles;
+	public ushort PropType;
+	public ushort FirstLeaf;
+	public ushort LeafCount;
+	public byte Solid;
+	public byte Flags;
+	public int Skin;
+	public float FadeMinDist;
+	public float FadeMaxDist;
+	public Vector3 LightingOrigin;
+	public float ForcedFadeScale;
+	public byte MinCPULevel;
+	public byte MaxCPULevel;
+	public byte MinGPULevel;
+	public byte MaxGPULevel;
+	public Color DiffuseModulation;
+	public bool DisableX360;
+}
+
+public struct StaticPropLumpV10
+{
+	public Vector3 Origin;
+	public QAngle Angles;
+	public ushort PropType;
+	public ushort FirstLeaf;
+	public ushort LeafCount;
+	public byte Solid;
+	public int Skin;
+	public float FadeMinDist;
+	public float FadeMaxDist;
+	public Vector3 LightingOrigin;
+	public float ForcedFadeScale;
+	public ushort MinDXLevel;
+	public ushort MaxDXLevel;
+	public uint Flags;
+	public ushort LightmapResolutionX;
+	public ushort LightmapResolutionY;
+}
+
+public struct StaticPropLumpV10_21
+{
+	public Vector3 Origin;
+	public QAngle Angles;
+	public ushort PropType;
+	public ushort FirstLeaf;
+	public ushort LeafCount;
+	public byte Solid;
+	public byte Flags;
+	public int Skin;
+	public float FadeMinDist;
+	public float FadeMaxDist;
+	public Vector3 LightingOrigin;
+	public float ForcedFadeScale;
+	public byte MinCPULevel;
+	public byte MaxCPULevel;
+	public byte MinGPULevel;
+	public byte MaxGPULevel;
+	public Color DiffuseModulation;
+	public bool DisableX360;
+	public int FlagsEx;
+}
+
+public struct StaticPropLumpV11
+{
+	public Vector3 Origin;
+	public QAngle Angles;
+	public ushort PropType;
+	public ushort FirstLeaf;
+	public ushort LeafCount;
+	public byte Solid;
+	public byte Flags;
+	public int Skin;
+	public float FadeMinDist;
+	public float FadeMaxDist;
+	public Vector3 LightingOrigin;
+	public float ForcedFadeScale;
+	public byte MinCPULevel;
+	public byte MaxCPULevel;
+	public byte MinGPULevel;
+	public byte MaxGPULevel;
+	public Color DiffuseModulation;
+	public bool DisableX360;
+	public int FlagsEx;
+	public float PropScale;
+}
+
 public struct StaticPropLump
 {
 	public Vector3 Origin;
@@ -162,6 +291,10 @@ public struct StaticPropLump
 	public uint Flags;
 	public ushort LightmapResolutionX;
 	public ushort LightmapResolutionY;
+
+	public Color DiffuseModulation;
+	public bool DisableX360;
+	public int FlagsEx;
 
 	public static implicit operator StaticPropLump(StaticPropLumpV4 rhs) {
 		StaticPropLump lump = default;
@@ -182,6 +315,7 @@ public struct StaticPropLump
 		lump.MaxDXLevel = 0;
 		lump.LightmapResolutionX = 0;
 		lump.LightmapResolutionY = 0;
+		lump.DiffuseModulation = default;
 
 		lump.Flags |= (uint)StaticPropFlags.NoPerTexelLighting;
 		return lump;
@@ -198,6 +332,30 @@ public struct StaticPropLump
 		lump.MinDXLevel = rhs.MinDXLevel;
 		lump.MaxDXLevel = rhs.MaxDXLevel;
 		return lump;
+	}
+
+	public static implicit operator StaticPropLump(StaticPropLumpV9 rhs) {
+		StaticPropLump lump = MemoryMarshal.Cast<StaticPropLumpV9, StaticPropLumpV5>(MemoryMarshal.CreateSpan(ref rhs, 1))[0];
+		lump.DiffuseModulation = rhs.DiffuseModulation;
+		return lump;
+	}
+
+	public static implicit operator StaticPropLump(StaticPropLumpV10 rhs) {
+		StaticPropLump lump = MemoryMarshal.Cast<StaticPropLumpV10, StaticPropLumpV6>(MemoryMarshal.CreateSpan(ref rhs, 1))[0];
+		lump.Flags = rhs.Flags;
+		lump.LightmapResolutionX = rhs.LightmapResolutionX;
+		lump.LightmapResolutionY = rhs.LightmapResolutionY;
+		return lump;
+	}
+
+	public static implicit operator StaticPropLump(StaticPropLumpV10_21 rhs) {
+		StaticPropLump lump = MemoryMarshal.Cast<StaticPropLumpV10_21, StaticPropLumpV9>(MemoryMarshal.CreateSpan(ref rhs, 1))[0];
+		lump.FlagsEx = rhs.FlagsEx;
+		return lump;
+	}
+
+	public static implicit operator StaticPropLump(StaticPropLumpV11 rhs) {
+		return MemoryMarshal.Cast<StaticPropLumpV11, StaticPropLumpV10_21>(MemoryMarshal.CreateSpan(ref rhs, 1))[0];
 	}
 }
 

@@ -506,7 +506,7 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 	private ITexture? GetEmbeddedTexture(int index) => index == 0 ? this : null;
 
 	private bool IsDepthTextureFormat(ImageFormat imageFormat) => imageFormat == ImageFormat.NV_DST16 ||
-			 imageFormat == ImageFormat.ATI_DST24 ||
+			 imageFormat == ImageFormat.NV_DST24 ||
 			 imageFormat == ImageFormat.NV_IntZ ||
 			 imageFormat == ImageFormat.NV_RawZ ||
 			 imageFormat == ImageFormat.ATI_DST16 ||

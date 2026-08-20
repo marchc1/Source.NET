@@ -170,6 +170,25 @@ public struct MaxDispVertsBitVec
 
 
 /// <summary>
+/// An inline bit-vector array able to hold the 85 nodes of a 17x17 displacement.
+/// </summary>
+[InlineArray((85 + 31) / 32 * 4)]
+public struct DispNodeIntersectBitVec
+{
+	public byte bytes;
+	public uint GetDWord(int i) => BitVecBase.GetDWord(this, i);
+	public void SetDWord(int i, uint val) => BitVecBase.SetDWord(this, i, val);
+	public int GetNumDWords() => (85 + 31) / 32;
+	public int Get(int bit) => BitVecBase.IsBitSet(this, bit) ? 1 : 0;
+	public bool IsBitSet(int bit) => BitVecBase.IsBitSet(this, bit);
+	public void Set(int bit) => BitVecBase.Set(this, bit);
+	public void Clear(int bit) => BitVecBase.Clear(this, bit);
+	public void Set(int bit, bool newVal) => BitVecBase.Set(this, bit, newVal);
+	public int FindNextSetBit(int startBit) => BitVecBase.FindNextSetBit(this, startBit);
+	public void ClearAll() => BitVecBase.ClearAll(this);
+}
+
+/// <summary>
 /// An inline bit-vector array of MAX_EDICTS >> 3 bytes.
 /// </summary>
 [InlineArray(Constants.MAX_EDICTS >> 3)]

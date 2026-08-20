@@ -389,6 +389,9 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 			width = height = 32;
 	}
 	public IMaterialProxyFactory? GetMaterialProxyFactory() => null;
+	public void AddRestoreFunc(Action<int> func) { }
+	public void RemoveRestoreFunc(Action<int> func) { }
+	public bool SupportsShadowDepthTextures() => false;
 	public int GetMaxIndicesToRender() => 32768;
 	public int GetMaxVerticesToRender(IMaterial material) => 32768;
 	public int GetNumSortIDs() => 10;
@@ -417,6 +420,8 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public void LoadIdentity() { }
 	public void LoadMatrix(in Matrix3x4 matrix) { }
 	public void LoadMatrix(in Matrix4x4 matrix) { }
+	public MaterialHeightClipMode GetHeightClipMode() => MaterialHeightClipMode.Disable;
+	public void SetHeightClipMode(MaterialHeightClipMode heightClipMode) { }
 	public void MatrixMode(MaterialMatrixMode mode) { }
 	public void ModInit() { }
 	public void ModShutdown() { }
@@ -452,4 +457,20 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public void SetLight(int lightNum, in LightDesc desc) { }
 	public void DisableAllLocalLights() { }
 	public int GetMaxLights() => 0;
+	public void SetFlashlightMode(bool enable) { }
+	public bool GetFlashlightMode() => false;
+	public void SetFlashlightState(in FlashlightState state, in Matrix4x4 worldToTexture) { }
+	public void SetFlashlightStateEx(in FlashlightState state, in Matrix4x4 worldToTexture, ITexture? flashlightDepthTexture) { }
+	public void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 matrix) => matrix = Matrix4x4.Identity;
+	public void SetStencilEnable(bool onoff) { }
+	public void SetStencilFailOperation(StencilOperation op) { }
+	public void SetStencilZFailOperation(StencilOperation op) { }
+	public void SetStencilPassOperation(StencilOperation op) { }
+	public void SetStencilCompareFunction(StencilComparisonFunction cmpfn) { }
+	public void SetStencilReferenceValue(int reference) { }
+	public void SetStencilTestMask(uint msk) { }
+	public void SetStencilWriteMask(uint msk) { }
+	public void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor) { }
+	public ImageFormat GetShadowDepthTextureFormat() => ImageFormat.Unknown;
+	public ImageFormat GetNullTextureFormat() => ImageFormat.Unknown;
 }

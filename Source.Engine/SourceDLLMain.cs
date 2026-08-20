@@ -69,6 +69,7 @@ public static class SourceDllMain
 	[Dependency] public static IMaterialSystemHardwareConfig HardwareConfig { get; private set; } = null!;
 	[Dependency] public static ICommandLine commandLine { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Server)] public static NetworkStringTableContainer networkStringTableContainerServer { get; private set; } = null!;
+	[Dependency] public static IVDebugOverlay debugoverlay { get; private set; } = null!;
 
 
 #if !SWDS

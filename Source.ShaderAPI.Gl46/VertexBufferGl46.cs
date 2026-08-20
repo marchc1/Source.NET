@@ -310,15 +310,17 @@ public unsafe class VertexBufferGl46 : IDisposable
 			Position = 0;
 		}
 
-		baseVertexIndex = VertexSize == 0 ? 0 : (Position / VertexSize);
-		if (SysmemBuffer == null) 
+		int lockOffset = NextLockOffset();
+		baseVertexIndex = VertexSize == 0 ? 0 : (lockOffset / VertexSize);
+		if (SysmemBuffer == null)
 			RecomputeVBO();
-		else if (discard) 
+		else if (discard)
 			glNamedBufferData((uint)vbo, BufferSize, null, GL_DYNAMIC_DRAW);
-		
+
 
 		Locked = true;
-		return (byte*)((nint)SysmemBuffer + Position);
+		Position = lockOffset;
+		return (byte*)((nint)SysmemBuffer + lockOffset);
 	}
 
 	public void Unlock(int vertexCount) {

@@ -34,7 +34,7 @@ public enum ShadowCreateFlags
 public struct ShadowInfo_t
 {
 	// Transforms from world space into texture space of the shadow
-	public Matrix4x4 m_WorldToShadow;
+	public Matrix4x4 WorldToShadow;
 
 	// The shadow should no longer be drawn once it's further than MaxDist
 	// along z in shadow texture coordinates.
@@ -81,7 +81,7 @@ public interface IShadowMgr
 	// Gets at information about a particular shadow
 	ref readonly ShadowInfo_t GetInfo(ShadowHandle_t handle);
 
-	ref readonly Frustum GetFlashlightFrustum(ShadowHandle_t handle);
+	Frustum_t GetFlashlightFrustum(ShadowHandle_t handle);
 
 	// Methods related to shadows on brush models
 	void AddShadowToBrushModel(ShadowHandle_t handle, Model? model, in Vector3 origin, in QAngle angles);

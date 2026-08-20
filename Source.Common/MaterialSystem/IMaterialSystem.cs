@@ -187,11 +187,11 @@ public struct FlashlightState
 	public int GetBottom() => Bottom;
 
 
-	bool Scissor;
-	int Left;
-	int Top;
-	int Right;
-	int Bottom;
+	public bool Scissor;
+	public int Left;
+	public int Top;
+	public int Right;
+	public int Bottom;
 }
 
 public enum CreateRenderTargetFlags
@@ -269,7 +269,7 @@ public interface IMaterialSystem
 	IMaterial CreateMaterial(ReadOnlySpan<char> name, ReadOnlySpan<char> textureGroupName, KeyValues keyValues);
 	IMaterial CreateMaterial(ReadOnlySpan<char> name, KeyValues keyValues);
 	bool CanUseEditorMaterials();
-	IMaterial FindMaterial(ReadOnlySpan<char> filename, ReadOnlySpan<char> textureGroup, bool complain = false, ReadOnlySpan<char> complainPrefix = default);
+	IMaterial FindMaterial(ReadOnlySpan<char> filename, ReadOnlySpan<char> textureGroup, bool complain = true, ReadOnlySpan<char> complainPrefix = default);
 	IMaterial? FindProceduralMaterial(ReadOnlySpan<char> materialName, ReadOnlySpan<char> textureGroupName, KeyValues keyValues);
 	void RestoreShaderObjects(IServiceProvider services, int changeFlags);
 	ITexture CreateProceduralTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroup, int wide, int tall, ImageFormat format, TextureFlags flags);
@@ -293,6 +293,11 @@ public interface IMaterialSystem
 	void EndUpdateLightmaps();
 	void SetMaterialProxyFactory(IMaterialProxyFactory? factory);
 	IMaterialProxyFactory? GetMaterialProxyFactory();
+	void AddRestoreFunc(Action<int> func);
+	void RemoveRestoreFunc(Action<int> func);
+	bool SupportsShadowDepthTextures();
+	ImageFormat GetShadowDepthTextureFormat();
+	ImageFormat GetNullTextureFormat();
 }
 
 public interface IMatRenderContext
@@ -309,6 +314,9 @@ public interface IMatRenderContext
 	void ClearColor3ub(byte r, byte g, byte b);
 	void ClearColor4ub(byte r, byte g, byte b, byte a);
 	void DepthRange(double near, double far);
+
+	MaterialHeightClipMode GetHeightClipMode();
+	void SetHeightClipMode(MaterialHeightClipMode heightClipMode);
 
 	void MatrixMode(MaterialMatrixMode mode);
 	void PushMatrix();
@@ -355,6 +363,20 @@ public interface IMatRenderContext
 	void SetLight(int lightNum, in Source.Common.Mathematics.LightDesc desc);
 	void DisableAllLocalLights();
 	int GetMaxLights();
+	void SetFlashlightMode(bool enable);
+	bool GetFlashlightMode();
+	void SetFlashlightState(in FlashlightState state, in Matrix4x4 worldToTexture);
+	void SetFlashlightStateEx(in FlashlightState state, in Matrix4x4 worldToTexture, ITexture? flashlightDepthTexture);
+	void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 matrix);
+	void SetStencilEnable(bool onoff);
+	void SetStencilFailOperation(StencilOperation op);
+	void SetStencilZFailOperation(StencilOperation op);
+	void SetStencilPassOperation(StencilOperation op);
+	void SetStencilCompareFunction(StencilComparisonFunction cmpfn);
+	void SetStencilReferenceValue(int reference);
+	void SetStencilTestMask(uint msk);
+	void SetStencilWriteMask(uint msk);
+	void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor);
 }
 
 public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
@@ -384,6 +406,8 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public void ClearColor3ub(byte r, byte g, byte b) => ctx.ClearColor3ub(r, g, b);
 	public void ClearColor4ub(byte r, byte g, byte b, byte a) => ctx.ClearColor4ub(r, g, b, a);
 	public void DepthRange(double near, double far) => ctx.DepthRange(near, far);
+	public MaterialHeightClipMode GetHeightClipMode() => ctx.GetHeightClipMode();
+	public void SetHeightClipMode(MaterialHeightClipMode heightClipMode) => ctx.SetHeightClipMode(heightClipMode);
 	public void MatrixMode(MaterialMatrixMode mode) => ctx.MatrixMode(mode);
 	public void PushMatrix() => ctx.PushMatrix();
 	public void LoadIdentity() => ctx.LoadIdentity();
@@ -451,4 +475,18 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public void SetLight(int lightNum, in Mathematics.LightDesc desc) => ctx.SetLight(lightNum, desc);
 	public void DisableAllLocalLights() => ctx.DisableAllLocalLights();
 	public int GetMaxLights() => ctx.GetMaxLights();
+	public void SetFlashlightMode(bool enable) => ctx.SetFlashlightMode(enable);
+	public bool GetFlashlightMode() => ctx.GetFlashlightMode();
+	public void SetFlashlightState(in FlashlightState state, in Matrix4x4 worldToTexture) => ctx.SetFlashlightState(state, worldToTexture);
+	public void SetFlashlightStateEx(in FlashlightState state, in Matrix4x4 worldToTexture, ITexture? flashlightDepthTexture) => ctx.SetFlashlightStateEx(state, worldToTexture, flashlightDepthTexture);
+	public void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 matrix) => ctx.GetMatrix(matrixMode, out matrix);
+	public void SetStencilEnable(bool onoff) => ctx.SetStencilEnable(onoff);
+	public void SetStencilFailOperation(StencilOperation op) => ctx.SetStencilFailOperation(op);
+	public void SetStencilZFailOperation(StencilOperation op) => ctx.SetStencilZFailOperation(op);
+	public void SetStencilPassOperation(StencilOperation op) => ctx.SetStencilPassOperation(op);
+	public void SetStencilCompareFunction(StencilComparisonFunction cmpfn) => ctx.SetStencilCompareFunction(cmpfn);
+	public void SetStencilReferenceValue(int reference) => ctx.SetStencilReferenceValue(reference);
+	public void SetStencilTestMask(uint msk) => ctx.SetStencilTestMask(msk);
+	public void SetStencilWriteMask(uint msk) => ctx.SetStencilWriteMask(msk);
+	public void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor) => ctx.SetScissorRect(left, top, right, bottom, enableScissor);
 }

@@ -776,7 +776,7 @@ public static class GLRSurf
 
 		fogVolume.InFogVolume = true;
 
-		ref BSPDLeafWaterData leafWaterData = ref host_state.WorldBrush!.LeafWaterData![leaf.LeafWaterDataID];
+		ref BSPMLeafWaterData leafWaterData = ref host_state.WorldBrush!.LeafWaterData![leaf.LeafWaterDataID];
 		if (leafWaterData.SurfaceTexInfoID == -1) {
 			fogVolume.State.FogEnabled = false;
 			return;
@@ -811,7 +811,9 @@ public static class GLRSurf
 
 		ResetWorldRenderList(renderList);
 
-		// TODO decal/overlaymgr/shadowmgr
+		// TODO decal/overlaymgr
+
+		g_ShadowMgr.ClearShadowRenderList();
 	}
 	static void Shader_WorldZFillSurfChain(in MSurfaceSortList sortList, in SurfaceSortGroup group, MeshBuilder meshBuilder, ref nint startVertIn, uint includeFlags) => throw new NotImplementedException();
 	static void Shader_WorldShadowDepthFill(WorldRenderList renderList, DrawWorldListFlags flags) => throw new NotImplementedException();
@@ -836,10 +838,10 @@ public static class GLRSurf
 				if ((flags & DrawWorldListFlags.ClipSkybox) != 0)
 					g_EngineRenderer.DrawSkybox(g_EngineRenderer.GetZFar());
 				else {
-					// MaterialHeightClipMode clipMode = renderCtx.GetHeightClipMode(); // todo
-					// renderCtx.SetHeightClipMode(MaterialHeightClipMode.Disable);
+					MaterialHeightClipMode clipMode = renderCtx.GetHeightClipMode();
+					renderCtx.SetHeightClipMode(MaterialHeightClipMode.Disable);
 					g_EngineRenderer.DrawSkybox(g_EngineRenderer.GetZFar());
-					// renderCtx.SetHeightClipMode(clipMode);
+					renderCtx.SetHeightClipMode(clipMode);
 				}
 			}
 		}
@@ -868,10 +870,24 @@ public static class GLRSurf
 			Shader_DrawChains(renderList, sortGroup, false);
 			AddProjectedTextureDecalsToList(renderList, sortGroup);
 
-			// g_pShadowMgr.AddShadowsOnSurfaceToRenderList // todo
+			for (int j = renderList.ShadowHandles[sortGroup].Count - 1; j >= 0; --j)
+				g_ShadowMgr.AddShadowsOnSurfaceToRenderList(renderList.ShadowHandles[sortGroup].ElementAt(j));
+
 			renderList.ShadowHandles[sortGroup].Clear();
 
-			// g_pShadowMgr flashlights + OverlayMgr + DecalSurfaceDraw + RenderShadows // todo
+			bool flashlightMask = !((flags & DrawWorldListFlags.Refraction) != 0 || (flags & DrawWorldListFlags.Reflection) != 0);
+
+			g_ShadowMgr.SetFlashlightStencilMasks(flashlightMask);
+			g_ShadowMgr.RenderFlashlights(flashlightMask);
+
+			// OverlayMgr + DecalSurfaceDraw // todo
+
+			g_ShadowMgr.DrawFlashlightOverlays(sortGroup, flashlightMask);
+
+			g_ShadowMgr.DrawFlashlightDecals(sortGroup, flashlightMask);
+
+			g_ShadowMgr.RenderShadows();
+			g_ShadowMgr.ClearShadowRenderList();
 
 			if (sortGroup == (int)MatSortGroup.WaterSurface && waterZAdjust != 0.0f) {
 				renderCtx.MatrixMode(MaterialMatrixMode.Model);
@@ -1220,7 +1236,18 @@ public static class GLRSurf
 			g_ShaderDebug.TestAnyDebug();
 		}
 	}
-	public static void R_DrawBrushModelShadow(IClientRenderable renderable) => throw new NotImplementedException();
+	public static void R_DrawBrushModelShadow(IClientRenderable renderable) {
+		if (r_drawbrushmodels.GetInt() == 0)
+			return;
+
+		Model? model = renderable.GetModel();
+		Vector3 origin = renderable.GetRenderOrigin();
+		QAngle angles = renderable.GetRenderAngles();
+
+		using MatRenderContextPtr renderContext = new(materials);
+		using BrushModelTransform brushTransform = new(origin, angles, renderContext);
+		g_BrushBatchRenderer.DrawBrushModelShadow(model, renderable);
+	}
 	public static void R_DrawIdentityBrushModel(IWorldRenderList renderListIn, Model? model) => throw new NotImplementedException();
 }
 
@@ -1757,7 +1784,48 @@ public class BrushBatchRender
 		}
 	}
 
-	public void DrawBrushModelShadow(Model? model, IClientRenderable renderable) => throw new NotImplementedException();
+	public void DrawBrushModelShadow(Model? model, IClientRenderable renderable) {
+		BrushRender? render = FindOrCreateRenderBatch(model!);
+		if (render == null)
+			return;
+
+		using MatRenderContextPtr renderContext = new(materials);
+
+		renderContext.Bind(MatSys.MaterialShadowBuild!, renderable);
+
+		SurfaceHandle_t surfID = model!.Brush.FirstModelSurface;
+		IMesh mesh = renderContext.GetDynamicMesh();
+		MeshBuilder meshBuilder = new();
+		meshBuilder.Begin(mesh, MaterialPrimitiveType.Triangles, render.TotalVertexCount, render.TotalIndexCount);
+
+		for (int i = 0; i < model.Brush.NumModelSurfaces; i++, surfID++) {
+			ref BSPMSurface2 surface = ref ModelLoader.SurfaceHandleFromIndex(surfID, model.Brush.Shared);
+			Assert((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.NoDraw) == 0);
+
+			if ((ModelLoader.MSurf_Flags(ref surface) & SurfDraw.Trans) != 0)
+				continue;
+
+			int startVert = ModelLoader.MSurf_FirstVertIndex(ref surface);
+			int vertCount = ModelLoader.MSurf_VertCount(ref surface);
+			int startIndex = meshBuilder.GetCurrentVertex();
+			int j;
+			for (j = 0; j < vertCount; j++) {
+				int vertIndex = model.Brush.Shared!.VertIndices![startVert + j];
+
+				meshBuilder.Position3fv(model.Brush.Shared.Vertexes![vertIndex].Position);
+				meshBuilder.TexCoord2f(0, 0.0f, 0.0f);
+				meshBuilder.AdvanceVertex();
+			}
+
+			for (j = 0; j < vertCount - 2; j++) {
+				meshBuilder.FastIndex((ushort)startIndex);
+				meshBuilder.FastIndex((ushort)(startIndex + j + 1));
+				meshBuilder.FastIndex((ushort)(startIndex + j + 2));
+			}
+		}
+		meshBuilder.End();
+		mesh.Draw();
+	}
 }
 
 public class BrushModelTransform : IDisposable
@@ -1851,7 +1919,19 @@ public class EngineBSPTree : ISpatialQuery
 		}
 	}
 
-	public bool EnumerateLeavesAlongRay<T>(in Ray ray, ref T pEnum, nint context) where T : ISpatialLeafEnumerator => throw new NotImplementedException();
+	public bool EnumerateLeavesAlongRay<T>(in Ray ray, ref T pEnum, nint context) where T : ISpatialLeafEnumerator {
+		if (!ray.IsSwept) {
+			MathLib.VectorAdd(in ray.Start, in ray.Extents, out Vector3 maxs);
+			MathLib.VectorSubtract(in ray.Start, in ray.Extents, out Vector3 mins);
+
+			return EnumerateLeavesInBox(in mins, in maxs, ref pEnum, context);
+		}
+
+		if (ray.IsRay)
+			return EnumerateLeavesAlongRay_R(host_state.WorldBrush!.Nodes![0], in ray, 0.0f, 1.0f, pEnum, context);
+		else
+			return EnumerateLeavesAlongExtrudedRay_R(host_state.WorldBrush!.Nodes![0], in ray, 0.0f, 1.0f, pEnum, context);
+	}
 
 	static bool EnumerateLeafInBox_R<T>(BSPMNode node, ref EnumLeafBoxInfo<T> info) where T : ISpatialLeafEnumerator {
 		if (node.Contents == (int)Contents.Solid)
@@ -1905,9 +1985,112 @@ public class EngineBSPTree : ISpatialQuery
 		}
 	}
 
-	static bool EnumerateLeavesAlongRay_R(BSPMNode node, in Ray ray, float start, float end, ISpatialLeafEnumerator pEnum, nint context) => throw new NotImplementedException();
+	static bool EnumerateLeavesAlongRay_R(BSPMNode node, in Ray ray, float start, float end, ISpatialLeafEnumerator pEnum, nint context) {
+		if (node.Contents == (int)Contents.Solid)
+			return true;
 
-	static bool EnumerateLeavesAlongExtrudedRay_R(BSPMNode node, in Ray ray, float start, float end, ISpatialLeafEnumerator pEnum, nint context) => throw new NotImplementedException();
+		if (node.Contents >= 0)
+			return pEnum.EnumerateLeaf(((BSPMLeaf)node).Index, context);
+
+		ref CollisionPlane plane = ref node.Plane;
+
+		float startDotN, deltaDotN;
+		if ((byte)plane.Type <= 2) {
+			startDotN = ray.Start[(byte)plane.Type];
+			deltaDotN = ray.Delta[(byte)plane.Type];
+		}
+		else {
+			startDotN = MathLib.DotProduct(ray.Start, plane.Normal);
+			deltaDotN = MathLib.DotProduct(ray.Delta, plane.Normal);
+		}
+
+		float front = startDotN + start * deltaDotN - plane.Dist;
+		float back = startDotN + end * deltaDotN - plane.Dist;
+
+		int side = front < 0 ? 1 : 0;
+
+		if ((back < 0 ? 1 : 0) == side)
+			return EnumerateLeavesAlongRay_R(node.Children[side]!, in ray, start, end, pEnum, context);
+
+		float frac = front / (front - back);
+		float mid = start * (1.0f - frac) + end * frac;
+
+		bool ok = EnumerateLeavesAlongRay_R(node.Children[side]!, in ray, start, mid, pEnum, context);
+		if (!ok)
+			return ok;
+
+		return EnumerateLeavesAlongRay_R(node.Children[side != 0 ? 0 : 1]!, in ray, mid, end, pEnum, context);
+	}
+
+	static bool EnumerateLeavesAlongExtrudedRay_R(BSPMNode node, in Ray ray, float start, float end, ISpatialLeafEnumerator pEnum, nint context) {
+		if (node.Contents == (int)Contents.Solid)
+			return true;
+
+		if (node.Contents >= 0)
+			return pEnum.EnumerateLeaf(((BSPMLeaf)node).Index, context);
+
+		ref CollisionPlane plane = ref node.Plane;
+
+		float t1, t2, offset;
+		float startDotN, deltaDotN;
+		if ((byte)plane.Type <= 2) {
+			startDotN = ray.Start[(byte)plane.Type];
+			deltaDotN = ray.Delta[(byte)plane.Type];
+			offset = ray.Extents[(byte)plane.Type] + DIST_EPSILON;
+		}
+		else {
+			startDotN = MathLib.DotProduct(ray.Start, plane.Normal);
+			deltaDotN = MathLib.DotProduct(ray.Delta, plane.Normal);
+			offset = MathF.Abs(ray.Extents[0] * plane.Normal[0]) +
+					MathF.Abs(ray.Extents[1] * plane.Normal[1]) +
+					MathF.Abs(ray.Extents[2] * plane.Normal[2]) + DIST_EPSILON;
+		}
+		t1 = startDotN + start * deltaDotN - plane.Dist;
+		t2 = startDotN + end * deltaDotN - plane.Dist;
+
+		if (t1 > offset && t2 > offset)
+			return EnumerateLeavesAlongExtrudedRay_R(node.Children[0]!, in ray, start, end, pEnum, context);
+
+		if (t1 < -offset && t2 < -offset)
+			return EnumerateLeavesAlongExtrudedRay_R(node.Children[1]!, in ray, start, end, pEnum, context);
+
+		if (MathF.Abs(t1 - t2) < DIST_EPSILON) {
+			bool parallelRet = EnumerateLeavesAlongExtrudedRay_R(node.Children[0]!, in ray, start, end, pEnum, context);
+			if (!parallelRet)
+				return false;
+			return EnumerateLeavesAlongExtrudedRay_R(node.Children[1]!, in ray, start, end, pEnum, context);
+		}
+
+		float idist, frac2, frac;
+		int side;
+		if (t1 < t2) {
+			idist = 1.0f / (t1 - t2);
+			side = 1;
+			frac2 = (t1 + offset) * idist;
+			frac = (t1 - offset) * idist;
+		}
+		else if (t1 > t2) {
+			idist = 1.0f / (t1 - t2);
+			side = 0;
+			frac2 = (t1 - offset) * idist;
+			frac = (t1 + offset) * idist;
+		}
+		else {
+			side = 0;
+			frac = 1;
+			frac2 = 0;
+		}
+
+		frac = Math.Clamp(frac, 0f, 1f);
+		float midf = start + (end - start) * frac;
+		bool ret = EnumerateLeavesAlongExtrudedRay_R(node.Children[side]!, in ray, start, midf, pEnum, context);
+		if (!ret)
+			return ret;
+
+		frac2 = Math.Clamp(frac2, 0f, 1f);
+		midf = start + (end - start) * frac2;
+		return EnumerateLeavesAlongExtrudedRay_R(node.Children[side != 0 ? 0 : 1]!, in ray, midf, end, pEnum, context);
+	}
 
 	static bool EnumerateLeafInSphere_R<T>(BSPMNode node, ref EnumLeafSphereInfo<T> info, int testFlags) where T : ISpatialLeafEnumerator {
 		while (true) {

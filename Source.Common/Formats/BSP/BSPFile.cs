@@ -458,7 +458,7 @@ public class BSPMNode
 	public ushort NumSurfaces;
 }
 
-public class BSPMLeafWaterData
+public struct BSPMLeafWaterData
 {
 	public float SurfaceZ;
 	public float MinZ;
@@ -673,6 +673,15 @@ public struct LightZBuffer
 public interface IDispInfo
 {
 	ref BSPMSurface2 GetParent();
+
+	void GetBoundingBox(out Vector3 bbMin, out Vector3 bbMax);
+
+	bool GetTag();
+	void SetTag();
+
+	DispShadowHandle AddShadowDecal(ShadowHandle_t shadowHandle);
+	void RemoveShadowDecal(DispShadowHandle handle);
+	bool ComputeShadowFragments(DispShadowHandle h, out int vertexCount, out int indexCount);
 }
 
 public struct BSPMSurface2

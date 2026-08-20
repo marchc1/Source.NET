@@ -223,11 +223,18 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 	}
 
 	public void AddShadowToStaticProp(ushort shadowHandle, IClientRenderable renderable) {
-		throw new NotImplementedException();
+		Assert(renderable as StaticProp != null);
+
+		StaticProp prop = (StaticProp)renderable;
+
+		g_ShadowMgr.AddShadowToModel(shadowHandle, prop.GetModelInstance());
 	}
 
 	public void RemoveAllShadowsFromStaticProp(IClientRenderable renderable) {
-		throw new NotImplementedException();
+		Assert(renderable as StaticProp != null);
+		StaticProp prop = (StaticProp)renderable;
+		if (prop.GetModelInstance() != MODEL_INSTANCE_INVALID)
+			g_ShadowMgr.RemoveAllShadowsFromModel(prop.GetModelInstance());
 	}
 
 	public void GetStaticPropMaterialColorAndLighting(Trace trace, int staticPropIndex, out Vector3 lighting, out Vector3 matColor) {
@@ -436,8 +443,29 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 					}
 				case 7:
 				case 10:
-					buf.ReadToStruct(ref lump);
+					if (MapLoadHelper.MapHeader.Version == 21) {
+						StaticPropLumpV10_21 v = default;
+						buf.ReadToStruct(ref v);
+						lump = v;
+					}
+					else {
+						StaticPropLumpV10 v = default;
+						buf.ReadToStruct(ref v);
+						lump = v;
+					}
 					break;
+				case 9: {
+						StaticPropLumpV9 v = default;
+						buf.ReadToStruct(ref v);
+						lump = v;
+						break;
+					}
+				case 11: {
+						StaticPropLumpV11 v = default;
+						buf.ReadToStruct(ref v);
+						lump = v;
+						break;
+					}
 				default:
 					Sys.Error($"Unexpected lump version {lumpVersion} while deserializing lumps.");
 					break;
@@ -692,8 +720,8 @@ public class StaticProp : IClientUnknown, IClientRenderable, ICollideable
 		else
 			return false;
 	}
-	public bool GetShadowCastDistance(out float dist, ShadowType shadowType) { dist = 0; return false; }
-	public bool GetShadowCastDirection(out Vector3 direction, ShadowType shadowType) { direction = default; return false; }
+	public bool GetShadowCastDistance(ref float dist, ShadowType shadowType) { return false; }
+	public bool GetShadowCastDirection(ref Vector3 direction, ShadowType shadowType) { return false; }
 	public bool UsesPowerOfTwoFrameBufferTexture() => throw new NotImplementedException();
 	public bool UsesFullFrameBufferTexture() => throw new NotImplementedException();
 	public ClientShadowHandle_t GetShadowHandle() => unchecked((ClientShadowHandle_t)~0);
