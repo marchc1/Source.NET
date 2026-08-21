@@ -1,6 +1,7 @@
 using Source.Common;
 
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -48,6 +49,13 @@ public static class Platform
 	}
 
 	public static void Initialize() {
+		// Source's data files (KeyValues, .res, .vmt, convar values) are always en-US formatted, so the
+		// process must not follow the user's locale - float.Parse("0.25") throws under fr-FR otherwise.
+		CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+		CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+		Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+		Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
+
 		ThreadUtils.SetMainThread();
 	}
 }
