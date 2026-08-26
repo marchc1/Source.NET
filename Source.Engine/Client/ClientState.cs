@@ -250,6 +250,12 @@ IModelLoader modelloader, ICommandLine commandLine,
 			case PrecacheItem.DECAL_PRECACHE_TABLENAME:
 				DecalPrecacheTable = table;
 				return true;
+			case Protocol.INSTANCE_BASELINE_TABLENAME:
+				InstanceBaselineTable = table;
+				return true;
+			case Protocol.LIGHT_STYLES_TABLENAME:
+				LightStyleTable = table;
+				return true;
 			case Protocol.USER_INFO_TABLENAME:
 				UserInfoTable = table;
 				return true;

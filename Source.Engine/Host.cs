@@ -316,6 +316,7 @@ public class Host
 
 	private void _RunFrame_Render() {
 		UpdateScreen();
+		CL.DecayLights();
 	}
 
 	private void _RunFrame_Sound() {

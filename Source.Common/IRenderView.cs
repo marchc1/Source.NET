@@ -66,6 +66,7 @@ public enum RenderDepthMode
 public interface IRenderView
 {
 	public const uint VIEW_SETUP_VIS_EX_RETURN_FLAGS_USES_RADIAL_VIS = 1;
+	void TouchLight(DLight light);
 	void DrawBrushModel(IClientEntity baseentity, Model model, in Vector3 origin, in QAngle angles);
 	void DrawIdentityBrushModel(IWorldRenderList list, Model model);
 	void DrawBrushModelShadow(IClientRenderable renderable);

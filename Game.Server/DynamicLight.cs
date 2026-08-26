@@ -16,8 +16,8 @@ public class DynamicLight : BaseEntity
 		SendPropInt(FIELD.OF(nameof(LightStyle)), 4, PropFlags.Unsigned),
 		SendPropFloat(FIELD.OF(nameof(Radius)), 0, PropFlags.NoScale),
 		SendPropInt(FIELD.OF(nameof(Exponent)), 8),
-		SendPropFloat(FIELD.OF(nameof(InnerAngle)), 8, 0, 360),
-		SendPropFloat(FIELD.OF(nameof(OuterAngle)), 8, 0, 360),
+		SendPropFloat(FIELD.OF(nameof(InnerAngle)), 8, 0, 0.0f, 360.0f),
+		SendPropFloat(FIELD.OF(nameof(OuterAngle)), 8, 0, 0.0f, 360.0f),
 		SendPropFloat(FIELD.OF(nameof(SpotRadius)), 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("DynamicLight", DT_DynamicLight).WithManualClassID(StaticClassIndices.CDynamicLight);

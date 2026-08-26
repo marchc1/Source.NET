@@ -56,6 +56,12 @@ public class View(Host Host, IEngineVGuiInternal EngineVGui, IMaterialSystem mat
 #if !SWDS
 public class RenderView(EngineVGui EngineVGui, Render engineRenderer) : IRenderView
 {
+	public void TouchLight(DLight light) {
+		int i = Array.IndexOf(CL.DLights, light);
+		if (i >= 0 && i < Constants.MAX_DLIGHTS)
+			Render.DLightChanged |= 1 << i;
+	}
+
 	public virtual void Push2DView(ViewSetup view, ClearFlags flags, ITexture? renderTarget, Frustum frustumPlanes) {
 		engineRenderer.Push2DView(in view, flags, renderTarget, frustumPlanes);
 	}

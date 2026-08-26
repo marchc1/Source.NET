@@ -355,7 +355,7 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 	void DrawStaticProps_FastPipeline(IClientRenderable[] props, int count, bool shadowDepth) => throw new NotImplementedException();
 
 	void OutputLevelStats() => throw new NotImplementedException();
-	void PrecacheLighting() {
+	void PrecacheLighting() { // FIXME: This is very slow... 
 		Common.TimestampedLog("CStaticPropMgr::PrecacheLighting - start");
 
 		for (int i = StaticProps.Count; --i >= 0;) {
