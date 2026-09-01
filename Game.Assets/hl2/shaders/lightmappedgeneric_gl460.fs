@@ -30,6 +30,11 @@
 // DYNAMIC: "WRITEWATERFOGTODESTALPHA"	"0..1"
 // DYNAMIC: "LIGHTING_PREVIEW"			"0..1"
 
+// SDN: FIXME something about cubemaps is wrong, wether its as simple as a typo, I've yet to figure out
+// But for now, instead of messed up reflections etc, i'm just gonna disable it -Callum
+#undef CUBEMAP
+#define CUBEMAP 0
+
 #if SEAMLESS
 in vec3 vs_SeamlessTexCoord;						// zy xz
 in vec4 vs_DetailOrBumpAndEnvmapMaskTexCoord;		// envmap mask
