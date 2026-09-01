@@ -7,6 +7,7 @@ namespace Source.MaterialSystem;
 public sealed class MaterialVar : IMaterialVar
 {
 	IMaterialInternal owningMaterial;
+	Matrix4x4 MatrixVal = Matrix4x4.Identity;
 
 	void VarChanged() => owningMaterial?.ReportVarChanged(this);
 
@@ -71,7 +72,7 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override Matrix4x4 GetMatrixValue() {
-		throw new NotImplementedException();
+		return MatrixVal;
 	}
 
 	public override ReadOnlySpan<char> GetName() {
@@ -140,6 +141,8 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override void SetMatrixValue(in Matrix4x4 matrix) {
+		MatrixVal = matrix;
+		Type = MaterialVarType.Matrix;
 		VarChanged();
 	}
 
