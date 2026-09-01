@@ -1,4 +1,6 @@
-﻿using Source.Common.MaterialSystem;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source.Common.MaterialSystem;
 
 using System.Numerics;
 
@@ -230,5 +232,5 @@ public sealed class MaterialVar : IMaterialVar
 		return NumVectorComps;
 	}
 
-	public override Span<float> GetVecValue() => new[] { VecVal.X, VecVal.Y, VecVal.Z, VecVal.W };
+	public override Span<float> GetVecValue() => new Span<Vector4>(ref VecVal).Cast<Vector4, float>();
 }
