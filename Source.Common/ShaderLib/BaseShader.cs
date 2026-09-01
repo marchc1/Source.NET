@@ -69,3 +69,47 @@ public static class VertexShaderConst
 	public const int FlexWeights = 1024;
 	public const int MaxFlexWeightCount = 512;
 }
+
+public enum PixelShaderConst
+{
+	SelfIllumTint = 0,
+	DiffuseModulation = 1,
+	EnvMapTintShadowTweaks = 2,
+	SelfIllumScaleBiasExp = 3,
+	AmbientCube = 4,
+	Constant05 = 5,
+	Constant06 = 6,
+	Constant07 = 7,
+	Constant08 = 8,
+	Constant09 = 9,
+	EnvMapFresnelSelfIllumMask = 10,
+	EyePosSpecExponent = 11,
+	FogParams = 12,
+	FlashlightAttenuation = 13,
+	FlashlightPositionRimBoost = 14,
+	FlashlightToWorldTexture = 15,
+	Constant16 = 16,
+	Constant17 = 17,
+	Constant18 = 18,
+	FresnelSpecParams = 19,
+	LightInfoArray = 20,
+	Constant21 = 21,
+	Constant22 = 22,
+	Constant23 = 23,
+	Constant24 = 24,
+	Constant25 = 25,
+	SpecRimParams = 26,
+	Constant27 = 27,
+	FlashlightColor = 28,
+	LinearFogColor = 29,
+	LightScale = 30,
+	FlashlightScreenScale = 31
+}
+
+public enum BlendType
+{
+	None = 0,
+	Blend,
+	Add,
+	BlendAdd
+}

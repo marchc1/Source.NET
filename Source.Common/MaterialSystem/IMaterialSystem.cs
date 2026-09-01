@@ -350,6 +350,8 @@ public interface IMatRenderContext
 	float ComputePixelDiameterOfSphere(Vector3 origin, float radius);
 	float ComputePixelWidthOfSphere(Vector3 origin, float radius);
 	void SetNumBoneWeights(int v);
+	void TurnOnToneMapping();
+	void SetToneMappingScaleLinear(in Vector3 scale);
 	void SetAmbientLightCube(ReadOnlySpan<Vector4> cube);
 	void LoadBoneMatrix(int hardwareID, in Matrix3x4 matrix4x4);
 	void GetWorldSpaceCameraPosition(out Vector3 vecCameraPos);
@@ -446,9 +448,8 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public int GetMaxVerticesToRender(IMaterial material) => ctx.GetMaxVerticesToRender(material);
 	public int GetMaxIndicesToRender() => ctx.GetMaxIndicesToRender();
 
-	public void TurnOnToneMapping() {
-		// todo
-	}
+	public void TurnOnToneMapping() => ctx.TurnOnToneMapping();
+	public void SetToneMappingScaleLinear(in Vector3 scale) => ctx.SetToneMappingScaleLinear(in scale);
 
 	public void PushRenderTargetAndViewport(ITexture? rtColor, ITexture? rtDepth, int x, int y, int width, int height) => ctx.PushRenderTargetAndViewport(rtColor, rtDepth, x, y, width, height);
 

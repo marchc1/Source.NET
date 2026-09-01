@@ -168,6 +168,8 @@ public class Rendering3dView : Base3dView
 	}
 
 	protected void BuildWorldRenderLists(bool drawEntities, int forceViewLeaf = -1, bool useCacheIfEnabled = true, bool shadowDepth = false, Span<float> reflectionWaterHeight = default) {
+		Assert(WorldRenderList == null);
+
 		mainView.IncWorldListsNumber();
 
 		WorldRenderList = render.CreateWorldList();
@@ -217,6 +219,8 @@ public class Rendering3dView : Base3dView
 		RenderablesList = ClientRenderablesList.Shared.Alloc();
 	}
 	public virtual void ReleaseLists() {
+		WorldRenderList?.Release();
+		WorldRenderList = null;
 		ClientRenderablesList.Shared.Free(RenderablesList);
 	}
 	public override DrawFlags GetDrawFlags() {
@@ -245,7 +249,7 @@ public class Rendering3dView : Base3dView
 		render.SetBlend(1.0f);
 
 		const int MAX_STATICS_PER_BATCH = 512;
-		IClientRenderable[] statics = new IClientRenderable[MAX_STATICS_PER_BATCH];
+		InlineArray512<IClientRenderable> statics = new();
 
 		int numScheduled = 0, numAvailable = MAX_STATICS_PER_BATCH;
 
@@ -258,13 +262,13 @@ public class Rendering3dView : Base3dView
 			if (--numAvailable > 0)
 				continue;
 
-			StaticPropMgrGlobals.g_StaticPropMgr.DrawStaticProps(statics, numScheduled, depthMode != RenderDepthMode.Normal, false /*vcollide_wireframe*/);
+			StaticPropMgrGlobals.g_StaticPropMgr.DrawStaticProps(ref statics, numScheduled, depthMode != RenderDepthMode.Normal, false /*vcollide_wireframe*/);
 			numScheduled = 0;
 			numAvailable = MAX_STATICS_PER_BATCH;
 		}
 
 		if (numScheduled != 0)
-			StaticPropMgrGlobals.g_StaticPropMgr.DrawStaticProps(statics, numScheduled, depthMode != RenderDepthMode.Normal, false /*vcollide_wireframe*/);
+			StaticPropMgrGlobals.g_StaticPropMgr.DrawStaticProps(ref statics, numScheduled, depthMode != RenderDepthMode.Normal, false /*vcollide_wireframe*/);
 	}
 
 	private void DrawOpaqueRenderables_Range(RenderGroup group, RenderDepthMode depthMode) {

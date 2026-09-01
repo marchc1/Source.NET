@@ -889,9 +889,8 @@ public partial class Render
 			return null;
 	}
 
-	private byte[]? ComputeStaticLightingForCacheEntry(BaseLightCache cache, in Vector3 origin, int leaf, bool staticProp = false) {
-		// todo
-		byte[]? vis = null;
+	private ReadOnlySpan<byte> ComputeStaticLightingForCacheEntry(BaseLightCache cache, scoped in Vector3 origin, int leaf, bool staticProp = false) {
+		ReadOnlySpan<byte> vis = CM.ClusterPVS(CM.LeafCluster(leaf));
 
 		R_StudioGetAmbientLightForPoint(leaf, origin, cache.StaticLightingState.BoxColor, staticProp, out bool addedLeafAmbientCube);
 
@@ -901,7 +900,7 @@ public partial class Render
 		return vis;
 	}
 
-	private byte[]? PrecalcLightingState(LightCache cache, byte[]? vis) {
+	private ReadOnlySpan<byte> PrecalcLightingState(LightCache cache, ReadOnlySpan<byte> vis) {
 		LightingState lightingState = default;
 		lightingState.ZeroLightingState();
 
@@ -933,7 +932,7 @@ public partial class Render
 			lightingState.LocalLight[i] = cache.StaticPrecalcLocalLight[i];
 	}
 
-	private byte[]? AddLightingState(ref LightingState dst, in LightingState src, LightingStateInfo info, in Vector3 bucketOrigin, byte[]? vis, bool dynamic, bool ignoreVis) {
+	private ReadOnlySpan<byte> AddLightingState(scoped ref LightingState dst, scoped in LightingState src, LightingStateInfo info, scoped in Vector3 bucketOrigin, ReadOnlySpan<byte> vis, bool dynamic, bool ignoreVis) {
 		int i;
 		for (i = 0; i < src.NumLights; i++)
 			vis = AddWorldLightToLightingState(src.LocalLight[i], null, ref dst, info, bucketOrigin, vis, dynamic, ignoreVis);
@@ -972,12 +971,12 @@ public partial class Render
 		}
 	}
 
-	private byte[]? FastRejectLightSource(bool ignoreVis, byte[]? vis, in Vector3 bucketOrigin, EmitType lightType, int lightCluster, out bool reject) {
+	private ReadOnlySpan<byte> FastRejectLightSource(bool ignoreVis, ReadOnlySpan<byte> vis, scoped in Vector3 bucketOrigin, EmitType lightType, int lightCluster, out bool reject) {
 		reject = false;
 		if (!ignoreVis) {
-			if (vis == null) {
+			if (vis.IsEmpty) {
 				int bucketOriginLeaf = CM.PointLeafnum(bucketOrigin);
-				vis = CM.ClusterPVS(CM.LeafCluster(bucketOriginLeaf)).ToArray();
+				vis = CM.ClusterPVS(CM.LeafCluster(bucketOriginLeaf));
 			}
 			if (lightType == EmitType.SkyLight) {
 				int bucketOriginLeaf = CM.PointLeafnum(bucketOrigin);
@@ -993,7 +992,7 @@ public partial class Render
 		return vis;
 	}
 
-	private byte[]? AddWorldLightToLightingState(in BSPDWorldLightPtr light, LightZBuffer[]? zBuf, ref LightingState lightingState, LightingStateInfo info, in Vector3 bucketOrigin, byte[]? vis, bool dynamic = false, bool ignoreVis = false, bool ignoreVisTest = false) {
+	private ReadOnlySpan<byte> AddWorldLightToLightingState(scoped in BSPDWorldLightPtr light, LightZBuffer[]? zBuf, scoped ref LightingState lightingState, LightingStateInfo info, scoped in Vector3 bucketOrigin, ReadOnlySpan<byte> vis, bool dynamic = false, bool ignoreVis = false, bool ignoreVisTest = false) {
 		Assert(lightingState.NumLights >= 0 && lightingState.NumLights <= MAXLOCALLIGHTS);
 
 		BSPDWorldLightPtr worldLightPtr = light;
@@ -1063,7 +1062,7 @@ public partial class Render
 		return vis;
 	}
 
-	private void AddStaticLighting(BaseLightCache cache, in Vector3 origin, byte[]? vis, bool staticProp, bool addedLeafAmbientCube) {
+	private void AddStaticLighting(BaseLightCache cache, in Vector3 origin, ReadOnlySpan<byte> vis, bool staticProp, bool addedLeafAmbientCube) {
 		int i;
 		cache.StaticLightingState.NumLights = 0;
 		cache.LightingStateHasSkylight = false;
@@ -1112,7 +1111,7 @@ public partial class Render
 		}
 	}
 
-	private byte[]? ComputeLightStyles(LightCache cache, ref LightingState lightingState, in Vector3 origin, int leaf, byte[]? vis) {
+	private ReadOnlySpan<byte> ComputeLightStyles(LightCache cache, scoped ref LightingState lightingState, scoped in Vector3 origin, int leaf, ReadOnlySpan<byte> vis) {
 		LightingStateInfo info = new();
 
 		lightingState.ZeroLightingState();
@@ -1127,8 +1126,8 @@ public partial class Render
 			if ((cache.Lightstyles[b] & (1 << bit)) == 0)
 				continue;
 
-			if (vis == null)
-				vis = CM.ClusterPVS(CM.LeafCluster(leaf)).ToArray();
+			if (vis.IsEmpty)
+				vis = CM.ClusterPVS(CM.LeafCluster(leaf));
 
 			AddWorldLightToLightingState(wl, null, ref lightingState, info, origin, vis);
 		}
@@ -1136,7 +1135,7 @@ public partial class Render
 		return vis;
 	}
 
-	private byte[]? ComputeDynamicLighting(LightCache cache, ref LightingState lightingState, in Vector3 lightingOrigin, int leaf, byte[]? vis) {
+	private ReadOnlySpan<byte> ComputeDynamicLighting(LightCache cache, scoped ref LightingState lightingState, scoped in Vector3 lightingOrigin, int leaf, ReadOnlySpan<byte> vis) {
 		cache.DynamicLightingState.ZeroLightingState();
 		// todo
 		return vis;
@@ -1224,7 +1223,7 @@ public partial class Render
 			BSPDWorldLightPtr wl = new(host_state.WorldBrush!.WorldLights!, pcache.LightStyleWorldLights[i]);
 			Assert(wl.Dereference().Style != 0);
 
-			AddWorldLightToLightingState(wl, null, ref lightingState, pcache, pcache.LightingOrigin, null, false, true);
+			AddWorldLightToLightingState(wl, null, ref lightingState, pcache, pcache.LightingOrigin, default, false, true);
 		}
 	}
 
@@ -1241,7 +1240,7 @@ public partial class Render
 
 		int bucket = LightcacheHashKey(x, y, z, originLeaf);
 
-		byte[]? vis = null;
+		ReadOnlySpan<byte> vis = default;
 		bool computeLightStyles = (flags & LightCacheFlags.LightStyle) != 0;
 
 		LightCache? cache = FindInCache(bucket, x, y, z, originLeaf);

@@ -481,9 +481,16 @@ public unsafe class StudioRender
 			color = alphaMask;
 	}
 
-	private static void R_TransformVert(in Vector3 srcPos, in Vector3 srcNorm, in Matrix3x4 skinMat, out Vector3 pos, out Vector3 norm) {
+	private static void R_TransformVert(in Vector3 srcPos, in Vector3 srcNorm, in Vector4 srcTangentS, in Matrix3x4 skinMat, out Vector3 pos, out Vector3 norm, out Vector4 tangentS, bool hasTangentSpace) {
 		MathLib.VectorTransform(in srcPos, in skinMat, out pos);
 		MathLib.VectorRotate(in srcNorm, in skinMat, out norm);
+
+		if (hasTangentSpace) {
+			MathLib.VectorRotate(new Vector3(srcTangentS.X, srcTangentS.Y, srcTangentS.Z), in skinMat, out Vector3 rotated);
+			tangentS = new Vector4(rotated.X, rotated.Y, rotated.Z, srcTangentS.W);
+		}
+		else
+			tangentS = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
 	}
 
 	private void R_StudioSoftwareProcessMesh(MStudioMesh mesh, ref MeshBuilder meshBuilder, int numVertices, ushort[] groupToMesh, StudioModelLighting lighting, bool doFlex, float blend, bool needsTangentSpace, bool dx8Vertex, IMaterial material) {
@@ -493,10 +500,10 @@ public unsafe class StudioRender
 
 		MStudioMeshVertexData? vertData = GetFatVertexData(mesh, StudioHdr!);
 		if (vertData != null)
-			R_StudioSoftwareProcessMesh(vertData, PoseToWorld, ref meshBuilder, numVertices, groupToMesh, alphaMask, lighting, material);
+			R_StudioSoftwareProcessMesh(vertData, PoseToWorld, ref meshBuilder, numVertices, groupToMesh, alphaMask, lighting, material, needsTangentSpace, dx8Vertex);
 	}
 
-	private void R_StudioSoftwareProcessMesh(MStudioMeshVertexData vertData, Span<Matrix3x4> poseToWorld, ref MeshBuilder meshBuilder, int numVertices, ushort[] groupToMesh, uint alphaMask, StudioModelLighting lighting, IMaterial material) {
+	private void R_StudioSoftwareProcessMesh(MStudioMeshVertexData vertData, Span<Matrix3x4> poseToWorld, ref MeshBuilder meshBuilder, int numVertices, ushort[] groupToMesh, uint alphaMask, StudioModelLighting lighting, IMaterial material, bool hasTangentSpace, bool dx8Vertex) {
 		Assert(numVertices > 0);
 
 		float illum = 1.0f;
@@ -509,8 +516,10 @@ public unsafe class StudioRender
 
 			Matrix3x4 skinMat = ComputeSkinMatrix(in vert.BoneWeights, poseToWorld);
 
+			Vector4 srcTangentS = hasTangentSpace ? vertData.TangentS(n) : default;
+
 			// todo: flex
-			R_TransformVert(in vert.Position, in vert.Normal, in skinMat, out Vector3 pos, out Vector3 norm);
+			R_TransformVert(in vert.Position, in vert.Normal, in srcTangentS, in skinMat, out Vector3 pos, out Vector3 norm, out Vector4 tangentS, hasTangentSpace);
 
 			R_PerformLighting(in forward, illum, in pos, in norm, alphaMask, out uint color, lighting);
 
@@ -518,6 +527,8 @@ public unsafe class StudioRender
 			meshBuilder.Normal3fv(in norm);
 			meshBuilder.Color4ubv([(byte)(color >> 16), (byte)(color >> 8), (byte)color, (byte)(color >> 24)]);
 			meshBuilder.TexCoord2fv(0, in vert.TexCoord);
+			if (dx8Vertex)
+				meshBuilder.UserData(in tangentS);
 			meshBuilder.AdvanceVertex();
 		}
 	}

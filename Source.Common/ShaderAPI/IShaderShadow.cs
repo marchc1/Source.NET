@@ -324,4 +324,6 @@ public interface IShaderShadow
 
 	ShaderFlags GetFlags();
 	void SetFlags(ShaderFlags flags);
+	void EnableSRGBRead(Sampler sampler, bool state);
+	void EnableSRGBWrite(bool state);
 }

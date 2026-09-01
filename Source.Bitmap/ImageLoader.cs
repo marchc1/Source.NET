@@ -241,6 +241,11 @@ public static class ImageLoader
 	const int GL_DEPTH_COMPONENT16 = 0x81A5;
 	const int GL_DEPTH_COMPONENT24 = 0x81A6;
 	const int GL_DEPTH_COMPONENT32 = 0x81A7;
+	const int GL_SRGB8 = 0x8C41;
+	const int GL_SRGB8_ALPHA8 = 0x8C43;
+	const int GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT = 0x8C4D;
+	const int GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT = 0x8C4E;
+	const int GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT = 0x8C4F;
 
 	// An uncomfortable amount of this is guessing...
 	// The various forms of oddly rearranged formatting needs transmutations - we'll figure that out later as well.
@@ -260,6 +265,7 @@ public static class ImageLoader
 	const int GL_RGBA = 0x1908;
 	const int GL_BGR = 0x80E0;
 	const int GL_BGRA = 0x80E1;
+	const int GL_RG = 0x8227;
 	public static int GetGLImageUploadFormat(ImageFormat format) => format switch {
 		ImageFormat.RGBA8888 => GL_RGBA,
 		ImageFormat.RGB888 => GL_RGB,
@@ -275,7 +281,30 @@ public static class ImageLoader
 		ImageFormat.RGB323232F => GL_RGB,
 		ImageFormat.RGBA32323232F => GL_RGBA,
 		ImageFormat.I8 => GL_RED,
+		ImageFormat.IA88 => GL_RG,
 	};
+	public static int GetGLImageInternalFormat(ImageFormat format, bool srgb) => srgb ? GetGLImageInternalFormatSRGB(format) : GetGLImageInternalFormat(format);
+
+	private static int GetGLImageInternalFormatSRGB(ImageFormat format) => format switch {
+		ImageFormat.RGBA8888 => GL_SRGB8_ALPHA8,
+		ImageFormat.RGB888 => GL_SRGB8,
+		ImageFormat.BGR888 => GL_SRGB8,
+		ImageFormat.ARGB8888 => GL_SRGB8_ALPHA8,
+		ImageFormat.BGRA8888 => GL_SRGB8_ALPHA8,
+		ImageFormat.BGRX8888 => GL_SRGB8_ALPHA8,
+		ImageFormat.RGB888_Bluescreen => GL_SRGB8,
+		ImageFormat.BGR888_Bluescreen => GL_SRGB8,
+
+		ImageFormat.DXT1 => GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT,
+		ImageFormat.DXT3 => GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT,
+		ImageFormat.DXT5 => GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT,
+		ImageFormat.DXT1_OneBitAlpha => GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT,
+		ImageFormat.DXT1_Runtime => GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT,
+		ImageFormat.DXT5_Runtime => GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT,
+
+		_ => GetGLImageInternalFormat(format),
+	};
+
 	public static int GetGLImageInternalFormat(ImageFormat format) => format switch {
 		// Uncompressed color formats
 		ImageFormat.RGBA8888 => GL_RGBA8,

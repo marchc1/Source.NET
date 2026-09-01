@@ -3,6 +3,27 @@
 
 #include "common_gl460.glsl"
 
+#define FOGTYPE_RANGE				0
+#define FOGTYPE_HEIGHT				1
+#define FOGTYPE_RANGE_RADIAL		2
+
+#define cOverbright			2.0
+#define cOOOverbright		(1.0 / 2.0)
+
+#define cEyePosWaterZ		vs_const[VERTEX_SHADER_CAMERA_POS]
+#define cEyePos				cEyePosWaterZ.xyz
+
+#define cViewProjZ			vs_const[13]
+
+#define cFogParams			vs_const[16]
+#define cFogEndOverFogRange cFogParams.x
+#define cFogOne				cFogParams.y
+#define cFogMaxDensity		cFogParams.z
+#define cOOFogRange			cFogParams.w
+
+#define g_bLightEnabled		lightEnabled
+#define g_nLightCount		lightCount
+
 struct LightInfo
 {
     vec4 color;
@@ -11,8 +32,6 @@ struct LightInfo
     vec4 spotParams;
     vec4 atten;
 };
-
-bool g_bLightEnabled[4];
 
 // Four lights x 5 constants each = 20 constants
 LightInfo cLightInfo[4];
@@ -38,6 +57,24 @@ vec3 AmbientLight(vec3 worldNormal)
     color += nSquared.y * vs_const[VERTEX_SHADER_AMBIENT_LIGHT + 2 + isNegative.y].rgb;
     color += nSquared.z * vs_const[VERTEX_SHADER_AMBIENT_LIGHT + 4 + isNegative.z].rgb;
     return color;
+}
+
+float RangeFog(vec3 projPos)
+{
+    return max(cFogMaxDensity, (-projPos.z * cOOFogRange + cFogEndOverFogRange));
+}
+
+float CalcFog(vec3 worldPos, vec3 projPos, int fogType)
+{
+    if (fogType == FOGTYPE_RANGE)
+    {
+        return RangeFog(projPos);
+    }
+    else
+    {
+        // We do this work in the pixel shader in dx9, so don't do any fog here.
+        return 1.0;
+    }
 }
 
 // The following "internal" routines are called "privately" by other routines in this file which
@@ -110,7 +147,7 @@ float GetVertexAttenForLight(vec3 worldPos, int lightNum, bool useStaticControlF
 
     if (useStaticControlFlow)
     {
-        if (g_bLightEnabled[lightNum])
+        if (g_bLightEnabled[lightNum] != 0.0)
             result = VertexAttenInternal(worldPos, lightNum);
     }
     else
@@ -124,6 +161,34 @@ vec3 DoLightInternal(vec3 worldPos, vec3 worldNormal, int lightNum, bool bHalfLa
     return cLightInfo[lightNum].color.xyz *
         CosineTermInternal(worldPos, worldNormal, lightNum, bHalfLambert) *
         VertexAttenInternal(worldPos, lightNum);
+}
+
+vec3 DoLighting(vec3 worldPos, vec3 worldNormal,
+                vec3 staticLightingColor, bool bStaticLight,
+                bool bDynamicLight, bool bHalfLambert)
+{
+    vec3 linearColor = vec3(0.0, 0.0, 0.0);
+
+    if (bStaticLight)			// Static light
+    {
+        vec3 col = staticLightingColor * cOverbright;
+        linearColor += GammaToLinear(col);
+    }
+
+    if (bDynamicLight)			// Dynamic light
+    {
+        for (int i = 0; i < g_nLightCount; i++)
+        {
+            linearColor += DoLightInternal(worldPos, worldNormal, i, bHalfLambert);
+        }
+    }
+
+    if (bDynamicLight)
+    {
+        linearColor += AmbientLight(worldNormal); //ambient light is already remapped
+    }
+
+    return linearColor;
 }
 
 vec3 DoLightingUnrolled(vec3 worldPos, vec3 worldNormal,
@@ -151,6 +216,61 @@ vec3 DoLightingUnrolled(vec3 worldPos, vec3 worldNormal,
         linearColor += AmbientLight(worldNormal); //ambient light is already remapped
 
     return linearColor;
+}
+
+void SkinPositionAndNormal(bool bSkinning, vec4 modelPos, vec3 modelNormal,
+                           ivec4 boneIndices, vec2 boneWeights,
+                           out vec3 worldPos, out vec3 worldNormal)
+{
+    if (!bSkinning || numBones == 0)
+    {
+        worldPos = (modelMatrix * modelPos).xyz;
+        worldNormal = mat3(modelMatrix) * modelNormal;
+    }
+    else // skinning - always three bones
+    {
+        vec3 weights;
+        weights[0] = boneWeights.x;
+        weights[1] = boneWeights.y;
+        weights[2] = 1.0 - (boneWeights.x + boneWeights.y);
+
+        mat4 blendMatrix = bones[boneIndices[0]] * weights[0] +
+                           bones[boneIndices[1]] * weights[1] +
+                           bones[boneIndices[2]] * weights[2];
+
+        worldPos = (blendMatrix * modelPos).xyz;
+        worldNormal = mat3(blendMatrix) * modelNormal;
+    }
+}
+
+void SkinPositionNormalAndTangentSpace(bool bSkinning, vec4 modelPos, vec3 modelNormal, vec4 modelTangentS,
+                                       ivec4 boneIndices, vec2 boneWeights,
+                                       out vec3 worldPos, out vec3 worldNormal,
+                                       out vec3 worldTangentS, out vec3 worldTangentT)
+{
+    if (!bSkinning || numBones == 0)
+    {
+        worldPos = (modelMatrix * modelPos).xyz;
+        worldNormal = mat3(modelMatrix) * modelNormal;
+        worldTangentS = mat3(modelMatrix) * modelTangentS.xyz;
+    }
+    else // skinning - always three bones
+    {
+        vec3 weights;
+        weights[0] = boneWeights.x;
+        weights[1] = boneWeights.y;
+        weights[2] = 1.0 - (boneWeights.x + boneWeights.y);
+
+        mat4 blendMatrix = bones[boneIndices[0]] * weights[0] +
+                           bones[boneIndices[1]] * weights[1] +
+                           bones[boneIndices[2]] * weights[2];
+
+        worldPos = (blendMatrix * modelPos).xyz;
+        worldNormal = mat3(blendMatrix) * modelNormal;
+        worldTangentS = mat3(blendMatrix) * modelTangentS.xyz;
+    }
+
+    worldTangentT = cross(worldNormal, worldTangentS) * modelTangentS.w;
 }
 
 #endif // COMMON_GL460_VS

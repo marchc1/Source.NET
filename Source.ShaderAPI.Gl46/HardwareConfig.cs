@@ -54,17 +54,28 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	public unsafe int GetSamplerCount() {
 		int count;
 		glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &count);
-		return count;
+		return Math.Min(count, (int)Sampler.MaxSamplers);
 	}
 
 	public ReadOnlySpan<char> GetShaderDLLName() {
 		throw new NotImplementedException();
 	}
 
-	public int GetShadowFilterMode() {
-		throw new NotImplementedException();
+	public enum ShadowFilterMode
+	{
+		None = 0,
+		NvidiaPcfPoisson = 0,
+		AtiNoPcf = 1,
+		AtiNoPcfFetch4 = 2
 	}
 
+	public int GetShadowFilterMode() {
+		return ShadowDepthTextureFormat switch {
+			ImageFormat.NV_DST16 or ImageFormat.NV_DST24 => (int)ShadowFilterMode.NvidiaPcfPoisson,
+			ImageFormat.ATI_DST16 or ImageFormat.ATI_DST24 => (int)ShadowFilterMode.AtiNoPcfFetch4,
+			_ => (int)ShadowFilterMode.None,
+		};
+	}
 	public int GetTextureStageCount() {
 		return GetSamplerCount();
 	}
@@ -78,7 +89,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool HasFastVertexTextures() {
-		throw new NotImplementedException();
+		return false;
 	}
 
 	public bool HasProjectedBumpEnv() {
@@ -204,7 +215,8 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool SupportsBorderColor() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsColorOnSecondStream() {
@@ -274,11 +286,12 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool SupportsSRGB() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsStaticControlFlow() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsStaticPlusDynamicLighting() {

@@ -154,6 +154,7 @@ public class WorldRenderList : IWorldRenderList
 
 	public VarBitVec VisitedSurfs = new();
 	public bool SkyVisible;
+	int Refs = 1;
 
 	static readonly Stack<WorldRenderList> g_Pool = new();
 
@@ -225,7 +226,16 @@ public class WorldRenderList : IWorldRenderList
 		VisitedSurfs.ClearAll();
 	}
 
-	public void AddRef() { }
+	public int AddRef() => ++Refs;
+
+	public int Release() {
+		int result = --Refs;
+		if (result != 0)
+			return result;
+
+		OnFinalRelease();
+		return 0;
+	}
 }
 
 public static class GLRSurf
@@ -441,7 +451,7 @@ public static class GLRSurf
 	public static void Shader_DrawChainsDynamic(in MSurfaceSortList sortList, int sortGroup, bool shadowDepth) => throw new NotImplementedException();
 	public static void Shader_DrawChainsStatic(in MSurfaceSortList sortList, int sortGroup, bool shadowDepth) {
 		List<VertexFormatList> meshList = [];
-		int[] meshMap = new int[MAX_VERTEX_FORMAT_CHANGES];
+		InlineArray256<int> meshMap = new();
 		List<BatchList> batchList = [];
 		List<SurfaceSortGroup> dynamicGroups = [];
 		bool bWarn = true;
@@ -511,7 +521,7 @@ public static class GLRSurf
 				Assert(indexCount + numIndex < nMaxIndices);
 				indexCount += numIndex;
 
-				CollectionsMarshal.AsSpan(meshList)[meshIndex].NumBatches++;
+				meshList.AsSpan()[meshIndex].NumBatches++;
 
 				for (short blockIndex = group.ListHead; blockIndex != -1; blockIndex = sortList.GetSurfaceBlock(blockIndex).NextBlock) {
 					ref MaterialList matList = ref sortList.GetSurfaceBlock(blockIndex);
