@@ -452,8 +452,10 @@ public partial class Render
 
 		int i;
 		if (MatSysInterface.MaterialSystemConfig.Fullbright == 1) {
+#if !SWDS
 			for (i = studiorender.GetNumAmbientLightSamples(); --i >= 0;)
 				lightBoxColor[i].Init(1.0f, 1.0f, 1.0f);
+#endif
 			return;
 		}
 
@@ -478,8 +480,10 @@ public partial class Render
 					ComputeAmbientFromLeaf(start, leafID, lightBoxColor, ref addedLeafAmbientCube);
 				break;
 			default:
+#if !SWDS
 				for (i = studiorender.GetNumAmbientLightSamples(); --i >= 0;)
 					lightBoxColor[i].Init(0.0f, 0.0f, 0.0f);
+#endif
 				break;
 		}
 	}
@@ -788,6 +792,7 @@ public partial class Render
 			ComputeAmbientFromSurface(surfID, skylight, ref radcolor[i]);
 		}
 
+#if !SWDS
 		ReadOnlySpan<Vector3> boxDirs = studiorender.GetAmbientLightDirections();
 		for (int j = studiorender.GetNumAmbientLightSamples(); --j >= 0;) {
 			float c, t = 0;
@@ -806,6 +811,7 @@ public partial class Render
 
 			MathLib.VectorMultiply(lightBoxColor[j], 1 / t, out lightBoxColor[j]);
 		}
+#endif
 	}
 
 	private static bool IsCachedLightStylesValid(BaseLightCache cache) {
@@ -962,6 +968,7 @@ public partial class Render
 		if (ratio == 0.0f)
 			return;
 
+#if !SWDS
 		ReadOnlySpan<Vector3> boxDir = studiorender.GetAmbientLightDirections();
 
 		for (int j = studiorender.GetNumAmbientLightSamples(); --j >= 0;) {
@@ -969,6 +976,7 @@ public partial class Render
 			if (t > 0)
 				MathLib.VectorMA(boxColor[j], ratio * t, worldLight.Intensity, out boxColor[j]);
 		}
+#endif
 	}
 
 	private ReadOnlySpan<byte> FastRejectLightSource(bool ignoreVis, ReadOnlySpan<byte> vis, scoped in Vector3 bucketOrigin, EmitType lightType, int lightCluster, out bool reject) {

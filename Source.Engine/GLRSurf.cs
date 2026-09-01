@@ -241,9 +241,12 @@ public class WorldRenderList : IWorldRenderList
 public static class GLRSurf
 {
 	internal static readonly MatSysInterface MatSys = Singleton<MatSysInterface>();
+#if !SWDS
 	static readonly RenderView RenderView = (RenderView)Singleton<IRenderView>();
+#endif
 
 	public static void ModulateMaterial(IMaterial material, Span<float> oldColor) {
+#if !SWDS
 		if (RenderView.IsBlendingOrModulating) {
 			oldColor[3] = material.GetAlphaModulation();
 			material.GetColorModulation(out float r, out float g, out float b);
@@ -253,13 +256,16 @@ public static class GLRSurf
 			material.AlphaModulate(RenderView.r_blend);
 			material.ColorModulate(RenderView.r_colormod.X, RenderView.r_colormod.Y, RenderView.r_colormod.Z);
 		}
+#endif
 	}
 
 	public static void UnModulateMaterial(IMaterial material, Span<float> oldColor) {
+#if !SWDS
 		if (RenderView.IsBlendingOrModulating) {
 			material.AlphaModulate(oldColor[3]);
 			material.ColorModulate(oldColor[0], oldColor[1], oldColor[2]);
 		}
+#endif
 	}
 
 	public static void Shader_BrushBegin(Model? model, IClientEntity? baseEntity = null) {
@@ -611,7 +617,9 @@ public static class GLRSurf
 
 		using MatRenderContextPtr renderContext = new(materials);
 
+#if !SWDS
 		renderContext.Bind(MatSys.MaterialWorldWireframe!, null);
+#endif
 		IMesh mesh = renderContext.GetDynamicMesh(false);
 		MeshBuilder meshBuilder = new();
 		meshBuilder.Begin(mesh, MaterialPrimitiveType.Lines, lineCount);
@@ -653,10 +661,12 @@ public static class GLRSurf
 
 			default: {
 					using MatRenderContextPtr renderContext = new(materials);
+#if !SWDS
 					if (wireFrameMode == 2)
 						renderContext.Bind(MatSys.MaterialWorldWireframeZBuffer!, null);
 					else
 						renderContext.Bind(MatSys.MaterialWorldWireframe!, null);
+#endif
 					for (int i = 0; i < surfaceList.Count; i++) {
 						SurfaceHandle_t surfID = surfaceList[i];
 						Assert(!ModelLoader.SurfaceHasDispInfo(ref ModelLoader.SurfaceHandleFromIndex(surfID)));
@@ -1801,7 +1811,9 @@ public class BrushBatchRender
 
 		using MatRenderContextPtr renderContext = new(materials);
 
+#if !SWDS
 		renderContext.Bind(MatSys.MaterialShadowBuild!, renderable);
+#endif
 
 		SurfaceHandle_t surfID = model!.Brush.FirstModelSurface;
 		IMesh mesh = renderContext.GetDynamicMesh();

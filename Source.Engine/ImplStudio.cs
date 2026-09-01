@@ -394,7 +394,9 @@ public class ModelRender : IModelRender
 		StudioRender.SetAlphaModulation(1.0f);
 
 		if ((info.StudioHdr.Flags & StudioHdrFlags.UseShadowLodMaterials) == 0) {
+#if !SWDS
 			StudioRender.ForcedMaterialOverride(MatSys.MaterialShadowBuild, OverrideType.BuildShadows);
+#endif
 		}
 
 		DrawModelInfo drawInfo = info;
