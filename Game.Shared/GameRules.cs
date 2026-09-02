@@ -164,6 +164,10 @@ public abstract class
 	internal ReadOnlySpan<char> GetChatLocation(bool teamOnly, BasePlayer? player) {
 		return "";
 	}
+
+	internal virtual float DefaultFOV() {
+		return 90;
+	}
 #endif
 }
 #endif

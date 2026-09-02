@@ -110,6 +110,17 @@ public partial class
 		return base.EyePosition();
 	}
 
+	public void ResetObserverMode() {
+		ObserverTarget.Set(null);
+		ObserverMode = (int)Shared.ObserverMode.None;
+
+#if !CLIENT_DLL
+		ObserverLastMode = (int)Shared.ObserverMode.Roaming;
+		ForcedObserverMode = false;
+		PhysicsFlags &= ~PlayerPhysFlag.Observer;
+#endif
+	}
+
 	public ref readonly QAngle LocalEyeAngles() => ref pl.ViewingAngle;
 
 	static QAngle angEyeWorld;
