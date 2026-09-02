@@ -86,9 +86,7 @@ public ref struct MapLoadHelper
 		Map = null;
 	}
 
-	private static void InitDLightGlobals(int version) {
-
-	}
+	private static void InitDLightGlobals(int version) => Render.InitDLightGlobals(version);
 
 	public readonly WorldBrushData GetMap() => Map!;
 
@@ -483,6 +481,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		return;
 	}
 
+	public static readonly ConVar r_unloadlightmaps = new("r_unloadlightmaps", "0", FCvar.Cheat);
 	static readonly ConVar mod_touchalldata = new("1", 0, "Touch model data during level startup");
 	static readonly ConVar mod_forcetouchdata = new("1", 0, "Forces all model file data into cache on model load.");
 

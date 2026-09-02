@@ -209,6 +209,31 @@ public static class CollisionUtils
 		return dmin < radius * radius;
 	}
 
+	public static bool IsCircleIntersectingRectangle(in Vector2 boxMin, in Vector2 boxMax, in Vector2 center, float radius) {
+		float dmin = 0.0f;
+		float delta;
+
+		if (center[0] < boxMin[0]) {
+			delta = center[0] - boxMin[0];
+			dmin += delta * delta;
+		}
+		else if (center[0] > boxMax[0]) {
+			delta = boxMax[0] - center[0];
+			dmin += delta * delta;
+		}
+
+		if (center[1] < boxMin[1]) {
+			delta = center[1] - boxMin[1];
+			dmin += delta * delta;
+		}
+		else if (center[1] > boxMax[1]) {
+			delta = boxMax[1] - center[1];
+			dmin += delta * delta;
+		}
+
+		return dmin < radius * radius;
+	}
+
 	public static bool IsBoxIntersectingSphereExtents(in Vector3 boxCenter, in Vector3 boxHalfDiag, in Vector3 center, float radius) {
 		float dmin = 0.0f;
 		float delta, diff;

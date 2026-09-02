@@ -770,6 +770,109 @@ public partial class CL(IServiceProvider services, Net Net,
 
 		cl.Clear();
 	}
+
+	public static readonly DLight[] DLights = new DLight[MAX_DLIGHTS].InstantiateArray();
+	public static readonly DLight[] ELights = new DLight[MAX_ELIGHTS].InstantiateArray();
+	public static bool ActiveDlights;
+	public static bool ActiveElights;
+
+	static int AllocLightFromArray(DLight[] lights, int lightCount, int key) {
+		int i;
+
+		if (key != 0) {
+			for (i = 0; i < lightCount; i++) {
+				if (lights[i].Key == key)
+					return i;
+			}
+		}
+
+		for (i = 0; i < lightCount; i++) {
+			if (lights[i].Die < cl.GetTime())
+				return i;
+		}
+
+		return 0;
+	}
+
+	public static DLight AllocDlight(int key) {
+		int i = AllocLightFromArray(DLights, MAX_DLIGHTS, key);
+		DLight dl = DLights[i];
+		Render.MarkDLightNotVisible(i);
+		dl.Clear();
+		dl.Key = key;
+		Render.DLightChanged |= 1 << i;
+		Render.DLightActive |= 1 << i;
+		ActiveDlights = true;
+		return dl;
+	}
+
+	public static DLight AllocElight(int key) {
+		int i = AllocLightFromArray(ELights, MAX_ELIGHTS, key);
+		DLight el = ELights[i];
+		el.Clear();
+		el.Key = key;
+		ActiveElights = true;
+		return el;
+	}
+
+	public static void DecayLights() {
+		double time = cl.GetFrameTime();
+		if (time <= 0.0f)
+			return;
+
+		ActiveDlights = false;
+		ActiveElights = false;
+
+		Render.DLightChanged = 0;
+		Render.DLightActive = 0;
+
+		for (int i = 0; i < MAX_DLIGHTS; i++) {
+			DLight dl = DLights[i];
+
+			if (!dl.IsRadiusGreaterThanZero()) {
+				Render.MarkDLightNotVisible(i);
+				continue;
+			}
+
+			if (dl.Die < cl.GetTime()) {
+				Render.DLightChanged |= 1 << i;
+				dl.Radius = 0;
+			}
+			else if (dl.Decay != 0) {
+				Render.DLightChanged |= 1 << i;
+
+				dl.Radius -= (float)time * dl.Decay;
+				if (dl.Radius < 0)
+					dl.Radius = 0;
+			}
+
+			if (dl.IsRadiusGreaterThanZero()) {
+				ActiveDlights = true;
+				Render.DLightActive |= 1 << i;
+			}
+			else
+				Render.MarkDLightNotVisible(i);
+		}
+
+		for (int i = 0; i < MAX_ELIGHTS; i++) {
+			DLight el = ELights[i];
+
+			if (!el.IsRadiusGreaterThanZero())
+				continue;
+
+			if (el.Die < cl.GetTime()) {
+				el.Radius = 0;
+				continue;
+			}
+
+			el.Radius -= (float)time * el.Decay;
+			if (el.Radius < 0)
+				el.Radius = 0;
+
+			if (el.IsRadiusGreaterThanZero())
+				ActiveElights = true;
+		}
+	}
 }
 
 /// <summary>

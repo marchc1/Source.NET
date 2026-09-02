@@ -236,8 +236,39 @@ public class CollisionBSPData
 	}
 
 	private void CollisionBSPData_LoadLeafs_Version_0(MapLoadHelper lh) {
-		// For now, gm_flatgrass is the only map being tested, which is Version 1, so this can be implemented later
-		throw new NotImplementedException();
+		BSPDLeafVersion0[] inData = lh.LoadLumpData<BSPDLeafVersion0>(throwIfNoElements: true, BSPFileCommon.MAX_MAP_PLANES, sysErrorIfOOB: true);
+		int count = inData.Length;
+		MapLeafs.Clear(); MapLeafs.EnsureCount(count + 1);
+
+		NumLeafs = count;
+		NumClusters = 0;
+
+		Span<CollisionLeaf> mapLeafs = MapLeafs.AsSpan();
+		for (int i = 0; i < count; i++) {
+			ref BSPDLeafVersion0 _in = ref inData[i];
+			ref CollisionLeaf _out = ref mapLeafs[i];
+			_out.Contents = (Contents)_in.Contents;
+			_out.Cluster = _in.Cluster;
+			_out.Area = _in.Area;
+			_out.Flags = _in.Flags;
+			_out.FirstLeafBrush = _in.FirstLeafBrush;
+			_out.NumLeafBrushes = _in.NumLeafBrushes;
+
+			_out.DispCount = 0;
+
+			if (_out.Cluster >= NumClusters)
+				NumClusters = _out.Cluster + 1;
+
+		}
+
+		if (mapLeafs[0].Contents != Contents.Solid)
+			Sys.Error("Map leaf 0 is not Contents.Solid");
+
+
+		SolidLeaf = 0;
+		EmptyLeaf = NumLeafs;
+		memreset(ref MapLeafs.AsSpan()[EmptyLeaf]);
+		NumLeafs++;
 	}
 
 	internal void LoadLeafBrushes() {

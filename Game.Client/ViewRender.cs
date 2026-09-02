@@ -91,11 +91,15 @@ public class BaseWorldView : Rendering3dView
 		ViewID savedViewID = ViewRender.g_CurrentViewID;
 		ViewRender.g_CurrentViewID = ViewID.Illegal;
 
+		render.BeginUpdateLightmaps();
+
 		bool drawEntities = (setupFlags & DrawFlags.DrawEntities) != 0;
 		BuildWorldRenderLists(drawEntities, -1, true);
 
 		if (drawEntities)
 			BuildRenderableRenderLists(savedViewID);
+
+		render.EndUpdateLightmaps();
 
 		ViewRender.g_CurrentViewID = savedViewID;
 	}

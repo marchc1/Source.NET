@@ -78,6 +78,8 @@ public class WorldVertexTransition : BaseVSShader
 
 
 	protected override void OnInitShaderParams(IMaterialVar[] vars, ReadOnlySpan<char> materialName) {
+		SetFlags2(vars, MaterialVarFlags2.LightingLightmap);
+
 		Params![(int)ShaderMaterialVars.FlashLightTexture].SetStringValue("effects/flashlight001");
 		if (!Params[ENVMAPMASKSCALE].IsDefined())
 			Params[ENVMAPMASKSCALE].SetFloatValue(1.0f);

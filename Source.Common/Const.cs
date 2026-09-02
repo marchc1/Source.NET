@@ -232,6 +232,9 @@ public static class Constants
 
 	public const int NUM_BUMP_VECTS = 3;
 
+	public const int MAX_DLIGHTS = 32;
+	public const int MAX_ELIGHTS = 64;
+
 	public const int MAX_EDICTS = 1 << MAX_EDICT_BITS;
 	public const int MAX_EDICT_BITS = 13;
 

@@ -679,6 +679,9 @@ public interface IDispInfo
 	bool GetTag();
 	void SetTag();
 
+	void AddDynamicLights(DLight[] lights, uint lightMask);
+	uint ComputeDynamicLightMask(DLight[] lights);
+
 	DispShadowHandle AddShadowDecal(ShadowHandle_t shadowHandle);
 	void RemoveShadowDecal(DispShadowHandle handle);
 	bool ComputeShadowFragments(DispShadowHandle h, out int vertexCount, out int indexCount);

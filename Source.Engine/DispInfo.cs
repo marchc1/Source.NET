@@ -107,8 +107,8 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 		return ref brush.Surfaces2![ParentSurfPointer];
 	}
 
-	// public void AddDynamicLights(DLight[] lights, uint lightMask) => throw new NotImplementedException();
-	// public uint ComputeDynamicLightMask(DLight[] lights) => throw new NotImplementedException();
+	public void AddDynamicLights(DLight[] lights, uint lightMask) => throw new NotImplementedException();
+	public uint ComputeDynamicLightMask(DLight[] lights) => throw new NotImplementedException();
 
 	// public DispDecalHandle NotifyAddDecal(Decal decal, float flSize) => throw new NotImplementedException();
 	public void NotifyRemoveDecal(DispDecalHandle h) => throw new NotImplementedException();

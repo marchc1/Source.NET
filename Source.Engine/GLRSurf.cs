@@ -769,7 +769,7 @@ public static class GLRSurf
 		}
 	}
 	static void Shader_BuildDynamicLightmaps(WorldRenderList renderList) {
-		// R_DLightStartView(); // todo
+		Render.DLightStartView();
 
 		for (int sortGroup = 0; sortGroup < (int)MatSortGroup.Max; ++sortGroup) {
 			for (int i = renderList.DlightSurfaces[sortGroup].Count - 1; i >= 0; --i) {
@@ -781,7 +781,7 @@ public static class GLRSurf
 			}
 		}
 
-		// R_DLightEndView(); // todo
+		Render.DLightEndView();
 	}
 	static void ComputeFogVolumeInfo(ref FogVolumeInfo fogVolume) {
 		fogVolume.InFogVolume = false;

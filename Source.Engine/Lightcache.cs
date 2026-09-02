@@ -979,6 +979,96 @@ public partial class Render
 #endif
 	}
 
+	private static void WorldLightFromDynamicLight(DLight dynamicLight, ref BSPDWorldLight worldLight) {
+		MathLib.VectorCopy(dynamicLight.Origin, out worldLight.Origin);
+		worldLight.Type = EmitType.Point;
+
+		worldLight.Intensity[0] = MathLib.TexLightToLinear(dynamicLight.Color.R, dynamicLight.Color.Exponent);
+		worldLight.Intensity[1] = MathLib.TexLightToLinear(dynamicLight.Color.G, dynamicLight.Color.Exponent);
+		worldLight.Intensity[2] = MathLib.TexLightToLinear(dynamicLight.Color.B, dynamicLight.Color.Exponent);
+		worldLight.Style = dynamicLight.Style;
+
+		worldLight.Cluster = CM.LeafCluster(CM.PointLeafnum(worldLight.Origin));
+
+		float minlight = MathF.Max(dynamicLight.MinLight, MinLightingValue);
+		float radius = dynamicLight.GetRadius();
+		if (radius < 0.1f)
+			radius = 0.1f;
+
+		worldLight.ConstantAttn = 0;
+		worldLight.LinearAttn = 0;
+		worldLight.QuadraticAttn = 1.0f / (minlight * radius * radius);
+
+		worldLight.Radius = radius;
+
+		if (dynamicLight.OuterAngle > 0.0f) {
+			worldLight.Type = EmitType.SpotLight;
+			MathLib.VectorCopy(dynamicLight.Direction, out worldLight.Normal);
+			worldLight.StopDot = MathF.Cos(dynamicLight.InnerAngle * MathF.PI / 180.0f);
+			worldLight.StopDot2 = MathF.Cos(dynamicLight.OuterAngle * MathF.PI / 180.0f);
+		}
+	}
+
+	static readonly BSPDWorldLight[] s_pDynamicLight = new BSPDWorldLight[Constants.MAX_DLIGHTS + Constants.MAX_ELIGHTS];
+
+	private ReadOnlySpan<byte> AddDLights(LightingStateInfo info, scoped ref LightingState lightingState, scoped in Vector3 origin, int leaf, ReadOnlySpan<byte> vis) {
+		if (!CL.ActiveDlights)
+			return vis;
+
+		const bool ignoreVis = false;
+		const bool ignoreVisTest = true;
+
+		for (int i = 0; i < Constants.MAX_DLIGHTS; ++i) {
+			DLight dl = CL.DLights[i];
+
+			if ((Render.DLightActive & (1 << i)) == 0)
+				continue;
+
+			if ((dl.Flags & (DLightFlags.NoModelIllumination | DLightFlags.DisplacementMask)) != 0)
+				continue;
+
+			int lightCluster = CM.LeafCluster(CM.PointLeafnum(dl.Origin));
+			vis = FastRejectLightSource(ignoreVis, vis, origin, EmitType.Point, lightCluster, out bool reject);
+			if (reject)
+				continue;
+
+			WorldLightFromDynamicLight(dl, ref s_pDynamicLight[i]);
+
+			vis = AddWorldLightToLightingState(new BSPDWorldLightPtr(s_pDynamicLight, i), null, ref lightingState, info, origin, vis, true, ignoreVis, ignoreVisTest);
+		}
+
+		return vis;
+	}
+
+	private ReadOnlySpan<byte> AddELights(LightingStateInfo info, scoped ref LightingState lightingState, scoped in Vector3 origin, int leaf, ReadOnlySpan<byte> vis) {
+		if (!CL.ActiveElights)
+			return vis;
+
+		const bool ignoreVis = false;
+		const bool ignoreVisTest = true;
+
+		for (int i = 0; i < Constants.MAX_ELIGHTS; ++i) {
+			DLight dl = CL.ELights[i];
+
+			if (!dl.IsRadiusGreaterThanZero())
+				continue;
+
+			if ((dl.Flags & (DLightFlags.NoModelIllumination | DLightFlags.DisplacementMask)) != 0)
+				continue;
+
+			int lightCluster = CM.LeafCluster(CM.PointLeafnum(dl.Origin));
+			vis = FastRejectLightSource(ignoreVis, vis, origin, EmitType.Point, lightCluster, out bool reject);
+			if (reject)
+				continue;
+
+			WorldLightFromDynamicLight(dl, ref s_pDynamicLight[Constants.MAX_DLIGHTS + i]);
+
+			vis = AddWorldLightToLightingState(new BSPDWorldLightPtr(s_pDynamicLight, Constants.MAX_DLIGHTS + i), null, ref lightingState, info, origin, vis, true, ignoreVis, ignoreVisTest);
+		}
+
+		return vis;
+	}
+
 	private ReadOnlySpan<byte> FastRejectLightSource(bool ignoreVis, ReadOnlySpan<byte> vis, scoped in Vector3 bucketOrigin, EmitType lightType, int lightCluster, out bool reject) {
 		reject = false;
 		if (!ignoreVis) {
@@ -1144,8 +1234,19 @@ public partial class Render
 	}
 
 	private ReadOnlySpan<byte> ComputeDynamicLighting(LightCache cache, scoped ref LightingState lightingState, scoped in Vector3 lightingOrigin, int leaf, ReadOnlySpan<byte> vis) {
-		cache.DynamicLightingState.ZeroLightingState();
-		// todo
+		if (cache.LastFrameUpdatedDynamicLighting != r_framecount) {
+			LightingStateInfo info = new();
+
+			cache.DynamicLightingState.ZeroLightingState();
+
+			vis = AddDLights(info, ref cache.DynamicLightingState, lightingOrigin, leaf, vis);
+			vis = AddELights(info, ref cache.DynamicLightingState, lightingOrigin, leaf, vis);
+
+			cache.LastFrameUpdatedDynamicLighting = r_framecount;
+		}
+
+		Assert(cache.DynamicLightingState.NumLights >= 0 && cache.DynamicLightingState.NumLights <= MAXLOCALLIGHTS);
+		lightingState = cache.DynamicLightingState;
 		return vis;
 	}
 
@@ -1239,7 +1340,7 @@ public partial class Render
 		// todo
 	}
 
-	public ITexture? LightcacheGetDynamic(in Vector3 origin, ref LightingState lightingState, ref LightcacheGetDynamic_Stats stats, LightCacheFlags flags = (LightCacheFlags.Static | LightCacheFlags.Dynamic | LightCacheFlags.Dynamic), bool debugModel = false) {
+	public ITexture? LightcacheGetDynamic(in Vector3 origin, ref LightingState lightingState, ref LightcacheGetDynamic_Stats stats, LightCacheFlags flags = (LightCacheFlags.Static | LightCacheFlags.Dynamic | LightCacheFlags.LightStyle), bool debugModel = false) {
 		LightingStateInfo info = new();
 
 		int originLeaf = CM.PointLeafnum(origin);
@@ -1770,8 +1871,8 @@ public partial class Render
 
 	}
 
-	float MinLightingValue = 1.0f;
-	public void InitDLightGlobals(int mapVersion) {
+	public static float MinLightingValue = 1.0f;
+	public static void InitDLightGlobals(int mapVersion) {
 		if (mapVersion >= 20)
 			MinLightingValue = 1.0f / 256.0f;
 		else

@@ -150,6 +150,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<SV>();
 		this.AddSingleton<Sys>();
 		this.AddSingleton<View>();
+		this.AddSingleton<IVEfx, VEfx>();
 		// Engine components that we provide.
 		this.AddSingleton<ICvar, Cvar>((services) => services.GetRequiredService<Cvar>());
 		this.AddSingleton<ICvarQuery, DefaultCvarQuery>();

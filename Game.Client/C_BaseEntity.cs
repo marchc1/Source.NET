@@ -158,6 +158,8 @@ public partial class C_BaseEntity : IClientEntity
 	static bool g_bWasThreaded;
 	static bool s_bAbsQueriesValid = true;
 	static bool s_bAbsRecomputationEnabled = true;
+	static readonly bool[] AbsRecomputationStack = new bool[8];
+	static ushort AbsRecomputationStackPos = 0;
 	static ConVar cl_interpolate = new("cl_interpolate", "1", FCvar.UserInfo | FCvar.DevelopmentOnly);
 
 	ClientThinkHandle_t thinkHandle;
@@ -335,9 +337,37 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public static bool IsAbsRecomputationsEnabled() => !ThreadInMainThread() || s_bAbsRecomputationEnabled;
+
+	public static void PushEnableAbsRecomputations(bool enable) {
+		if (!ThreadInMainThread())
+			return;
+
+		if (AbsRecomputationStackPos < AbsRecomputationStack.Length) {
+			AbsRecomputationStack[AbsRecomputationStackPos] = s_bAbsRecomputationEnabled;
+			++AbsRecomputationStackPos;
+			s_bAbsRecomputationEnabled = enable;
+		}
+		else
+			Assert(false);
+	}
+
+	public static void PopEnableAbsRecomputations() {
+		if (!ThreadInMainThread())
+			return;
+
+		if (AbsRecomputationStackPos > 0) {
+			--AbsRecomputationStackPos;
+			s_bAbsRecomputationEnabled = AbsRecomputationStack[AbsRecomputationStackPos];
+		}
+		else
+			Assert(false);
+	}
+
 	public static void EnableAbsRecomputations(bool enable) {
 		if (!ThreadInMainThread())
 			return;
+
+		Assert(AbsRecomputationStackPos == 0);
 
 		s_bAbsRecomputationEnabled = enable;
 	}
@@ -2934,7 +2964,7 @@ public partial class C_BaseEntity : IClientEntity
 		EntClientFlags &= ~EntClientFlags.GettingShadowRenderBounds;
 	}
 
-	public Color GetRenderColor() => new(255, 255, 255, 255);
+	public Color GetRenderColor() => ColorRender;
 	public RenderMode GetRenderMode() => (RenderMode)RenderMode;
 
 	public bool ShouldReceiveProjectedTextures(ShadowFlags flags) {
