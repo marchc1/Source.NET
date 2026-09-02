@@ -253,7 +253,9 @@ public static class ShadowMgrGlobals
 		return numPoints;
 	}
 
+#if !SWDS
 	public static ref uint FirstShadowOnModel(ModelInstanceHandle_t h) => ref ((ModelRender)modelrender).FirstShadowOnModelInstance(h);
+#endif
 
 	public static ref uint FirstModelInShadow(ShadowHandle_t h) => ref g_ShadowMgr.FirstModelInShadow(h);
 }
@@ -583,7 +585,9 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 	DispShadowHandle[] DispShadowDecalCache = new DispShadowHandle[SHADOW_DECAL_CACHE_COUNT];
 
 	public ShadowMgr() {
+#if !SWDS
 		ShadowsOnModels.Init(FirstShadowOnModel, FirstModelInShadow);
+#endif
 		NumWorldMaterialBuckets = 0;
 		SurfaceBounds = null;
 		Initialized = false;
@@ -1719,10 +1723,14 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 
 		ref Shadow shadow = ref Shadows[ShadowDecals[decalHandle].Shadow];
 
+#if !SWDS
 		if (r_shadowwireframe.GetInt() == 0)
 			renderContext.Bind(shadow.Material!, shadow.BindProxy);
 		else
 			renderContext.Bind(MatSys.MaterialWorldWireframe!, null);
+#else
+		renderContext.Bind(shadow.Material!, shadow.BindProxy);
+#endif
 
 		ClearTempCache();
 

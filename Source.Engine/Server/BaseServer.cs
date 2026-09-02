@@ -818,7 +818,7 @@ public abstract class BaseServer : IServer
 		serverinfo.MaxClasses = ServerClasses;
 		serverinfo.IsDedicated = IsDedicated();
 		serverinfo.TickInterval = GetTickInterval();
-		serverinfo.GameDirectory = Common.Gamedir;
+		serverinfo.GameDirectory = "garrysmod"; // TODO: Common.Gamedir. For now, lie!
 		serverinfo.MapName = new(GetMapName());
 		serverinfo.SkyName = new(((ReadOnlySpan<char>)Skyname).SliceNullTerminatedString());
 		serverinfo.HostName = new(GetName());

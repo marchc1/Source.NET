@@ -86,6 +86,10 @@ public static class BitVecBase
 			return -1;
 		return startBit;
 	}
+
+	public static int GetNumDWords(this Span<byte> bytes) {
+		return bytes.Length == 0 ? 0 : (1 + ((bytes.Length - 1) / 4));
+	}
 }
 
 /// <summary>
@@ -203,6 +207,7 @@ public struct MaxEdictsBitVec
 	public void Set(int bit, bool newVal) => BitVecBase.Set(this, bit, newVal);
 	public int FindNextSetBit(int startBit) => BitVecBase.FindNextSetBit(this, startBit);
 	public void ClearAll() => BitVecBase.ClearAll(this);
+	public int GetNumDWords() => BitVecBase.GetNumDWords(this);
 }
 
 /// <summary>

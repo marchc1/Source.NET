@@ -3,6 +3,7 @@ using Source.Common.Mathematics;
 using Source.GUI.Controls;
 
 namespace Source.Engine;
+#if !SWDS
 
 class BudgetPanelEngine : BudgetPanelShared
 {
@@ -79,3 +80,4 @@ class BudgetPanelEngine : BudgetPanelShared
 	[ConCommand("-showbudget")]
 	static void IN_BudgetUp(in TokenizedCommand args) => GetBudgetPanel().UserCmd_HideBudgetPanel();
 }
+#endif

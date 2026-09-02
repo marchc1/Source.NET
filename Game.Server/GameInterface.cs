@@ -504,6 +504,8 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	public void Think(bool finalTick) {
 
 	}
+
+	public StandardSendProxies GetStandardSendProxies() => StandardSendProxies.g_StandardSendProxies;
 }
 
 

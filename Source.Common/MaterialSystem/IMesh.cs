@@ -246,6 +246,13 @@ public unsafe struct VertexBuilder
 		*pDst = z;
 	}
 
+	public void UserData(ReadOnlySpan<float> pData) {
+		int userDataSize = 4;
+		float* pUserData = OffsetFloatPointer(Desc.UserData, CurrentVertex, Desc.UserDataSize);
+		fixed (float* src = pData)
+			memcpy(pUserData, src, sizeof(float) * userDataSize);
+	}
+
 	public void Color3f(float r, float g, float b) {
 		byte* pDst = CurrColor;
 		*pDst++ = (byte)Math.Clamp(r * 255, 0, 255);
@@ -912,7 +919,11 @@ public unsafe struct MeshBuilder : IDisposable
 	public void BoneMatrix(int idx, int matrixIndex) => VertexBuilder.BoneMatrix(idx, (byte)matrixIndex);
 
 	// Generic per-vertex data
-	public void UserData(ReadOnlySpan<float> pData) => throw new NotImplementedException();
+	public void UserData(ReadOnlySpan<float> pData) => VertexBuilder.UserData(pData);
+	public void UserData(in Vector4 vec) {
+		fixed (Vector4* ptr = &vec)
+			VertexBuilder.UserData(new((float*)ptr, 4));
+	}
 
 	// Used to define the indices (only used if you aren't using primitives)
 	public void Index(ushort index) => IndexBuilder.Index(index);

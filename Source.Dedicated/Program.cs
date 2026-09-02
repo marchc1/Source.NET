@@ -19,6 +19,7 @@ using Source.GUI.Controls;
 using Source.MaterialSystem;
 using Source.Physics;
 using Source.SoundEmitterSystem;
+using Source.StudioRender;
 
 using Steamworks;
 
@@ -39,7 +40,7 @@ public class DedicatedExports(IDedicatedServerAPI engine) : IDedicatedExports
 		DoRunVGUIFrame(true);
 		consoleUserInput.OnEnter += ConsoleUserInput_OnEnter;
 		bool done = false;
-		while(!done){
+		while (!done) {
 			if (!DoRunVGUIFrame())
 				ProcessConsoleInput();
 
@@ -102,10 +103,12 @@ public class Bootloader : IDisposable
 			.WithComponent<IDataCache, DataCache.DataCache>()
 			.WithComponent<IDedicatedExports, DedicatedExports>()
 			.WithComponent<MDLCache>()
+			.WithComponent<IStudioRender, StudioRenderContext>()
 			.WithResolvedComponent<IMDLCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
 			.WithResolvedComponent<IStudioDataCache, MDLCache>(x => x.GetRequiredService<MDLCache>())
 			// Our game DLL'
 			.WithGameDLL<ServerGameDLL>()
+
 			// Let the engine builder take over and inject engine-specific dependencies
 			.BuildServer();
 

@@ -25,6 +25,7 @@ public interface IShaderSystem
 	void DrawElements(IShader shader, IMaterialVar[] parms, IShaderShadow renderState, VertexCompressionType vertexCompression, uint materialVarTimeStamp);
 	IEnumerable<IShader> GetShaders();
 	ReadOnlySpan<char> ShaderStateString(int i);
+	int GetShaderAPITextureBindHandle(ITexture? texture, int v, int textureChannel);
 }
 public interface IShaderDLL
 {

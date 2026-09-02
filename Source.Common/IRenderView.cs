@@ -7,7 +7,7 @@ using System.Numerics;
 
 namespace Source.Common;
 
-public interface IWorldRenderList
+public interface IWorldRenderList : IRefCounted
 {
 
 }

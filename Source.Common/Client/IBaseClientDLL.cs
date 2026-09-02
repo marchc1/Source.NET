@@ -49,4 +49,5 @@ public interface IBaseClientDLL
 	void GMod_RequestLuaFiles(INetChannel netchan);
 	void GMod_ReceiveLuaFile(ReadOnlySpan<char> fileName, in SHA256Value sha256, ReadOnlySpan<byte> compressed);
 	void FileReceived(ReadOnlySpan<char> fileName, uint transferID);
+	StandardRecvProxies GetStandardRecvProxies();
 }

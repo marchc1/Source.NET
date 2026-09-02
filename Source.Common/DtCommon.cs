@@ -4,6 +4,22 @@ using System.Numerics;
 
 namespace Source.Common;
 
+public struct FastLocalTransferPropInfo()
+{
+	public ushort RecvOffset;
+	public ushort SendOffset;
+	public ushort Prop;
+}
+
+public class FastLocalTransferInfo
+{
+	public readonly List<FastLocalTransferPropInfo> FastInt32 = [];
+	public readonly List<FastLocalTransferPropInfo> FastInt16 = [];
+	public readonly List<FastLocalTransferPropInfo> FastInt8 = [];
+	public readonly List<FastLocalTransferPropInfo> FastVector = [];
+	public readonly List<FastLocalTransferPropInfo> OtherProps = [];
+}
+
 public static class DtCommon
 {
 	public static int NumBitsForCount(int maxElements) {

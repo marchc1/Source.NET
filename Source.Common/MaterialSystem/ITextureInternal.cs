@@ -13,8 +13,9 @@ public interface ITextureInternal : ITexture
 		return Path.ChangeExtension(new(name.SliceNullTerminatedString()), null); // todo.
 	}
 
+	void Bind(Sampler sampler);
 	void Bind(Sampler sampler, int frame);
-	int GetTextureHandle(int v);
+	int GetTextureHandle(int frame, int textureChannel = 0);
 	void OnRestore();
 	void Precache();
 	bool SetRenderTarget(int rt, ITexture? depthTexture = null);
@@ -60,10 +61,12 @@ file sealed class EnvCubemapSentinel : ITextureInternal
 	public void ForceLODOverride(int numLodOverrideUpOrDown) => throw new NotSupportedException();
 	public bool SaveToFile(ReadOnlySpan<char> fileName) => throw new NotSupportedException();
 	public void Dispose() { }
+	public void Bind(Sampler sampler) => throw new NotImplementedException();
 	public void Bind(Sampler sampler, int frame) => throw new NotSupportedException();
 	public int GetTextureHandle(int v) => throw new NotSupportedException();
 	public void OnRestore() => throw new NotSupportedException();
 	public void Precache() => throw new NotSupportedException();
 	public bool SetRenderTarget(int rt, ITexture? depthTexture = null) => throw new NotSupportedException();
 	public void GetReflectivity(out Vector3 reflectivity) => throw new NotSupportedException();
+	public int GetTextureHandle(int frame, int textureChannel = 0) => throw new NotImplementedException();
 }

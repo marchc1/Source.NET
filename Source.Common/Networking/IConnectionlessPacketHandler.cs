@@ -203,7 +203,7 @@ public class NetAddress
 	}
 
 	public bool IsLoopback() {
-		return Endpoint!.Address == IPAddress.Loopback;
+		return Type == NetAddressType.Loopback;
 	}
 
 	public bool IsLocalhost() {

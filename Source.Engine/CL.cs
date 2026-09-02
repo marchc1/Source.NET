@@ -58,24 +58,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		SetupLocalNetworkBackDoor(useBackdoor);
 	}
 
-	readonly LocalNetworkBackdoor localNetworkBackdoor = new();
-	public static LocalNetworkBackdoor? LocalNetworkBackdoor;
 
-	public void SetupLocalNetworkBackDoor(bool useBackdoor) {
-		if (useBackdoor) {
-			if (LocalNetworkBackdoor == null) {
-				LocalNetworkBackdoor = localNetworkBackdoor;
-				LocalNetworkBackdoor.StartBackdoorMode();
-			}
-		}
-		else {
-			if (LocalNetworkBackdoor != null) {
-				LocalNetworkBackdoor.StopBackdoorMode();
-				LocalNetworkBackdoor = null;
-				cl.ForceFullUpdate();
-			}
-		}
-	}
 
 	public void ExtraMouseUpdate(double frameTime) {
 		if (!cl.IsActive())
@@ -902,15 +885,12 @@ public class ClientDLL(IServiceProvider services
 #endif
 )
 {
-	public IBaseClientDLL clientDLL = null!;
 	public IPrediction ClientSidePrediction = null!;
 	public IClientEntityList EntityList = null!;
 	public ICenterPrint CenterPrint = null!;
 	public IClientLeafSystemEngine ClientLeafSystem = null!;
 	public void Init() {
-		clientDLL = services.GetRequiredService<IBaseClientDLL>();
-
-		if (!clientDLL.Init())
+		if (!g_ClientDLL!.Init())
 			Sys.Error("Client.dll Init() in library client failed.");
 
 		ClientSidePrediction = services.GetRequiredService<IPrediction>();
@@ -940,20 +920,20 @@ public class ClientDLL(IServiceProvider services
 		if (sv.IsDedicated())
 			return;
 
-		if (clientDLL == null)
+		if (g_ClientDLL == null)
 			return;
 
-		clientDLL.HudUpdate(true);
+		g_ClientDLL.HudUpdate(true);
 	}
 
 	public void ProcessInput() => g_ClientDLL?.HudProcessInput(cl.IsConnected());
 
-	public void FrameStageNotify(ClientFrameStage stage) {
-		clientDLL.FrameStageNotify(stage);
+	public static void FrameStageNotify(ClientFrameStage stage) {
+		g_ClientDLL?.FrameStageNotify(stage);
 	}
 
 	public ClientClass? GetAllClasses() {
-		return clientDLL != null ? clientDLL.GetAllClasses() : ClientClass.Head;
+		return g_ClientDLL != null ? g_ClientDLL.GetAllClasses() : ClientClass.Head;
 	}
 
 	internal void Shutdown() {

@@ -116,6 +116,9 @@ public class GameDepotSystem : GameDepot.System
 	}
 
 	private void LoadGameList() {
+#if SWDS
+
+#else
 		Games.Clear();
 
 		KeyValues manifest = new("mountable_games");
@@ -138,6 +141,7 @@ public class GameDepotSystem : GameDepot.System
 
 			GamesNameLUT[game.GetString("folder").Hash()] = Games.Count - 1;
 		}
+#endif
 	}
 
 	private void UnmountAll() {
@@ -157,7 +161,7 @@ public class GameDepotSystem : GameDepot.System
 
 		Span<IGameDepotSystem.Information> games = Games.AsSpan();
 		for (int i = 0; i < games.Length; i++) {
-				ref IGameDepotSystem.Information game = ref games[i];
+			ref IGameDepotSystem.Information game = ref games[i];
 			if (game.Mounted)
 				gamedepotsystem.SetString(game.Folder, "1");
 		}

@@ -425,9 +425,13 @@ public class MStudioModelVertexData
 		return i + (model.VertexIndex / Unsafe.SizeOf<MStudioVertex>());
 	}
 
+	public int GetGlobalTangentIndex(int i) {
+		return i + (model.TangentsIndex / Unsafe.SizeOf<Vector4>());
+	}
+
 	public ref Vector3 Position(int i) => ref Vertex(i).Position;
 	public ref Vector3 Normal(int i) => ref Vertex(i).Normal;
-	public ref Vector4 TangentS(int i) => ref ((Memory<Vector4>)GetTangentData()!).Span[i];
+	public ref Vector4 TangentS(int i) => ref ((Memory<Vector4>)GetTangentData()!).Span[GetGlobalTangentIndex(i)];
 	public ref Vector2 TexCoord(int i) => ref Vertex(i).TexCoord;
 	public ref MStudioBoneWeight BoneWeights(int i) => ref Vertex(i).BoneWeights;
 	public ref MStudioVertex Vertex(int i) => ref GetVertexData().Span.Cast<byte, MStudioVertex>()[GetGlobalVertexIndex(i)];

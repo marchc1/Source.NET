@@ -431,6 +431,8 @@ public class KeyValues : IEnumerable<KeyValues>
 		return didAnything;
 	}
 
+	// TODO FIXME: These should... return early if parsed successfully
+	// but rn doing that breaks some things :[
 	private void DetermineValueType(string input) {
 		// Try Int32
 		if (int.TryParse(input, NumberStyles.Integer, CultureInfo.InvariantCulture, out int i32)) {

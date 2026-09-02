@@ -330,15 +330,15 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 #endif
 	}
 
-	public void DrawStaticProps(IClientRenderable[] props, int count, bool shadowDepth, bool drawVCollideWireframe) {
+	public void DrawStaticProps(ref InlineArray512<IClientRenderable> props, int count, bool shadowDepth, bool drawVCollideWireframe) {
 		if (!r_drawstaticprops.GetBool())
 			return;
 
 		// todo: fast pipeline
-		DrawStaticProps_Slow(props, count, shadowDepth, drawVCollideWireframe);
+		DrawStaticProps_Slow(ref props, count, shadowDepth, drawVCollideWireframe);
 	}
 
-	void DrawStaticProps_Slow(IClientRenderable[] props, int count, bool shadowDepth, bool drawVCollideWireframe) {
+	void DrawStaticProps_Slow(ref InlineArray512<IClientRenderable> props, int count, bool shadowDepth, bool drawVCollideWireframe) {
 		StudioFlags flags = StudioFlags.Render;
 		if (shadowDepth)
 			flags |= StudioFlags.ShadowDepthTexture;
@@ -351,8 +351,8 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 		}
 	}
 
-	void DrawStaticProps_Fast(IClientRenderable[] props, int count, bool shadowDepth) => throw new NotImplementedException();
-	void DrawStaticProps_FastPipeline(IClientRenderable[] props, int count, bool shadowDepth) => throw new NotImplementedException();
+	void DrawStaticProps_Fast(ref InlineArray512<IClientRenderable> props, int count, bool shadowDepth) => throw new NotImplementedException();
+	void DrawStaticProps_FastPipeline(ref InlineArray512<IClientRenderable> props, int count, bool shadowDepth) => throw new NotImplementedException();
 
 	void OutputLevelStats() => throw new NotImplementedException();
 	void PrecacheLighting() { // FIXME: This is very slow... 

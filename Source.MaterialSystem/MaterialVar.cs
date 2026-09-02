@@ -1,4 +1,6 @@
-﻿using Source.Common.MaterialSystem;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source.Common.MaterialSystem;
 
 using System.Numerics;
 
@@ -7,6 +9,9 @@ namespace Source.MaterialSystem;
 public sealed class MaterialVar : IMaterialVar
 {
 	IMaterialInternal owningMaterial;
+	Matrix4x4 MatrixVal = Matrix4x4.Identity;
+
+	void VarChanged() => owningMaterial?.ReportVarChanged(this);
 
 	void Init() {
 
@@ -69,7 +74,7 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override Matrix4x4 GetMatrixValue() {
-		throw new NotImplementedException();
+		return MatrixVal;
 	}
 
 	public override ReadOnlySpan<char> GetName() {
@@ -119,6 +124,7 @@ public sealed class MaterialVar : IMaterialVar
 		VecVal[0] = VecVal[1] = VecVal[2] = VecVal[3] = val;
 		IntVal = (int)val;
 		Type = MaterialVarType.Float;
+		VarChanged();
 	}
 
 	public override void SetFourCCValue(ulong type, object? data) {
@@ -129,6 +135,7 @@ public sealed class MaterialVar : IMaterialVar
 		IntVal = val;
 		VecVal[0] = VecVal[1] = VecVal[2] = VecVal[3] = val;
 		Type = MaterialVarType.Int;
+		VarChanged();
 	}
 
 	public override void SetMaterialValue(IMaterial? material) {
@@ -136,21 +143,26 @@ public sealed class MaterialVar : IMaterialVar
 	}
 
 	public override void SetMatrixValue(in Matrix4x4 matrix) {
-
+		MatrixVal = matrix;
+		Type = MaterialVarType.Matrix;
+		VarChanged();
 	}
 
 	public override void SetStringValue(ReadOnlySpan<char> val) {
 		StringVal = new(val.SliceNullTerminatedString());
 		Type = MaterialVarType.String;
+		VarChanged();
 	}
 
 	public override void SetTextureValue(ITexture? texture) {
 		Type = MaterialVarType.Texture;
 		TextureValue = texture;
+		VarChanged();
 	}
 
 	public override void SetUndefined() {
 		Type = MaterialVarType.Undefined;
+		VarChanged();
 	}
 
 	public override void SetValueAutodetectType(ReadOnlySpan<char> val) {
@@ -167,6 +179,7 @@ public sealed class MaterialVar : IMaterialVar
 		Type = MaterialVarType.Vector;
 		NumVectorComps = (byte)Math.Min(val.Length, 4);
 		IntVal = (int)VecVal[0];
+		VarChanged();
 	}
 
 	public override void SetVecValue(float x, float y) {
@@ -175,6 +188,7 @@ public sealed class MaterialVar : IMaterialVar
 		Type = MaterialVarType.Vector;
 		NumVectorComps = 2;
 		IntVal = (int)VecVal[0];
+		VarChanged();
 	}
 
 	public override void SetVecValue(float x, float y, float z) {
@@ -184,10 +198,18 @@ public sealed class MaterialVar : IMaterialVar
 		Type = MaterialVarType.Vector;
 		NumVectorComps = 3;
 		IntVal = (int)VecVal[0];
+		VarChanged();
 	}
 
 	public override void SetVecValue(float x, float y, float z, float w) {
-		throw new NotImplementedException();
+		VecVal[0] = x;
+		VecVal[1] = y;
+		VecVal[2] = z;
+		VecVal[3] = w;
+		Type = MaterialVarType.Vector;
+		NumVectorComps = 4;
+		IntVal = (int)VecVal[0];
+		VarChanged();
 	}
 
 	protected override float GetFloatValueInternal() {
@@ -209,4 +231,6 @@ public sealed class MaterialVar : IMaterialVar
 	protected override int VectorSizeInternal() {
 		return NumVectorComps;
 	}
+
+	public override Span<float> GetVecValue() => new Span<Vector4>(ref VecVal).Cast<Vector4, float>();
 }

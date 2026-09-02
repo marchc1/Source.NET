@@ -9,6 +9,7 @@ using Source.Common.ShaderLib;
 using Source.Common.Utilities;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -701,8 +702,17 @@ public class Material : IMaterialInternal
 				IMaterialVar? matrixVar = CreateMatrixVarFromKeyValue(material, keyValue);
 				if (matrixVar != null) return matrixVar;
 
-				if (!IsVector(str))
+				if (!IsVector(str)) {
+					// FIXME KeyValues is meant to handle this
+					{
+						if (int.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out int i32))
+							return new MaterialVar(material, name, i32);
+
+						if (float.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture, out float f32))
+							return new MaterialVar(material, name, f32);
+					}
 					return new MaterialVar(material, name, str);
+				}
 
 				return CreateVectorMaterialVarFromKeyValue(material, keyValue);
 		}
@@ -916,6 +926,10 @@ public class Material : IMaterialInternal
 	// IMaterialProxy
 	IShaderShadow ShaderRenderState;
 	static uint DebugVarsSignature = 0;
+
+	public void ReportVarChanged(IMaterialVar? var) => ChangeID++;
+
+	public uint GetChangeID() => ChangeID;
 
 	public void DrawMesh(VertexCompressionType vertexCompression) {
 		if (Shader != null) {

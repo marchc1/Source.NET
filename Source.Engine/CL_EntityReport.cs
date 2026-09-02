@@ -34,10 +34,12 @@ public partial class CL
 	internal const int FENTITYBITS_LEAVEPVS = 0x02;
 	internal const int FENTITYBITS_DELETE = 0x04;
 
+#if !SWDS
 	EntityReportPanel? entityReportPanel;
 	public void CreateEntityReportPanel(Panel parent) {
 		entityReportPanel = new(parent);
 	}
+#endif
 
 	internal int CompareEntityBits(int indexA, int indexB) {
 		ref var entryA = ref EntityBits[indexA];
@@ -158,6 +160,7 @@ enum EntitySort
 	CURRENT = 2,
 	PEAK = 3
 }
+#if !SWDS
 /// <summary>
 /// Entity report panel for debugging entity states
 /// </summary>
@@ -391,3 +394,4 @@ public class EntityReportPanel : Panel
 		}
 	}
 }
+#endif

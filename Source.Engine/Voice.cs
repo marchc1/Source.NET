@@ -95,7 +95,7 @@ public static class Voice
 	[Dependency] public static Sound Sound { get; set; } = null!;
 	public static readonly VoiceChannel[] VoiceChannels = new VoiceChannel[VOICE_NUM_CHANNELS];
 	static Voice() {
-		for (int i = 0; i < VoiceChannels.Length; i++) 
+		for (int i = 0; i < VoiceChannels.Length; i++)
 			VoiceChannels[i] = new();
 	}
 
@@ -132,6 +132,7 @@ public static class Voice
 	internal static bool IsRecording() => VoiceRecording && !InTweakMode;
 
 	public static bool Init(ReadOnlySpan<char> codecName, int sampleRate) {
+#if !SWDS
 		if (voice_enable.GetInt() == 0)
 			return false;
 
@@ -189,7 +190,7 @@ public static class Voice
 		if (!isSteam) {
 			throw new Exception("Non-Steam voice codecs are not yet implemented");
 		}
-
+#endif
 		return true;
 	}
 

@@ -1286,8 +1286,23 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 		return true;
 	}
 
-	public int GetTextureHandle(int v) {
-		return TextureHandles![v];
+	public int GetTextureHandle(int frame, int textureChannel = 0) {
+		if (frame < 0) {
+			frame = 0;
+			Warning("CTexture::GetTextureHandle(): nFrame is < 0!\n");
+		}
+
+		if (frame >= FrameCount) {
+			Assert(frame < FrameCount);
+			return INVALID_SHADERAPI_TEXTURE_HANDLE;
+		}
+
+		Assert(TextureHandles);
+		Assert(HasBeenAllocated());
+		if (TextureHandles == null || !HasBeenAllocated())
+			return INVALID_SHADERAPI_TEXTURE_HANDLE;
+
+		return TextureHandles![frame];
 	}
 
 	Vector3 Reflectivity;

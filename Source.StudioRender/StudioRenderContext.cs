@@ -314,7 +314,8 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 
 		meshBuilder.TexCoord2fv(0, in vert.TexCoord);
 
-		// TODO: Tangents
+		if (vertData.HasTangentData())
+			meshBuilder.UserData(in vertData.TangentS(idx));
 
 		meshBuilder.Color4ub(255, 255, 255, 255);
 
@@ -414,7 +415,20 @@ public class StudioRenderContext(IMaterialSystem materialSystem, IStudioDataCach
 	}
 
 	private bool MeshNeedsTangentSpace(StudioHeader studioHdr, StudioLODData studioLodData, MStudioMesh mesh) {
-		return false; // For now, todo
+		if (studioHdr == null || studioHdr.NumSkinFamilies == 0)
+			return false;
+
+		Span<short> skinref = studioHdr.SkinRef(0);
+		for (int i = 0; i < studioHdr.NumSkinFamilies; i++) {
+			IMaterial? material = studioLodData.Materials?[skinref[mesh.Material]];
+			Assert(material != null);
+			if (material == null)
+				continue;
+
+			if (material.NeedsTangentSpace())
+				return true;
+		}
+		return false;
 	}
 
 	private VertexFormat CalculateVertexFormat(StudioHeader studioHdr, StudioLODData studioLodData, MStudioMesh mesh, OptimizedModel.StripGroupHeader group, bool isHwSkinned) {

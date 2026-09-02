@@ -8,6 +8,10 @@ public delegate void StringChangedDelegate(
 	ReadOnlySpan<byte> newData
 );
 
+public delegate void FullUpdateCallback(
+	INetworkStringTable stringTable
+);
+
 public interface INetworkStringTable
 {
 	public const int INVALID_STRING_TABLE = -1;
@@ -19,14 +23,23 @@ public interface INetworkStringTable
 	int GetNumStrings();
 	int GetMaxStrings();
 	int GetEntryBits();
+
 	void SetTick(int tick);
 	bool ChangedSinceTick(int tick);
+
 	int AddString(bool isServer, ReadOnlySpan<char> value, int length = -1, ReadOnlySpan<byte> userData = default);
+
 	ReadOnlySpan<char> GetString(int stringNumber);
 	void SetStringUserData(int stringNumber, int length, ReadOnlySpan<byte> userData);
 	byte[]? GetStringUserData(int stringNumber);
 	int FindStringIndex(ReadOnlySpan<char> value);
+
 	void SetStringChangedCallback(object? context, StringChangedDelegate callback);
+	void SetFullUpdateCallback(FullUpdateCallback changeFunc);
+	StringChangedDelegate? GetCallback();
+	FullUpdateCallback? GetFullUpdateCallback();
+
+	void DeleteAllStrings(bool reNetwork = false);
 }
 
 public interface INetworkStringTableContainer

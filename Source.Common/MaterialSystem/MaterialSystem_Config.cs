@@ -106,6 +106,7 @@ public class MaterialSystem_Config
 	public bool UseSpecular() => (Flags & (int)MaterialSystem_Config_Flags.DisableSpecular) == 0;
 	public bool DisableSpecular() => (Flags & (int)MaterialSystem_Config_Flags.DisableSpecular) != 0;
 	public bool DisableBumpmap() => (Flags & (int)MaterialSystem_Config_Flags.DisableBumpmap) != 0;
+	public bool UseBumpmapping() => (Flags & (int)MaterialSystem_Config_Flags.DisableBumpmap) == 0;
 	public bool EnableParallaxMapping() => (Flags & (int)MaterialSystem_Config_Flags.EnableParallaxMapping) != 0;
 	public bool UseZPrefill() => (Flags & (int)MaterialSystem_Config_Flags.UseZPrefill) != 0;
 	public bool ReduceFillrate() => (Flags & (int)MaterialSystem_Config_Flags.ReduceFillrate) != 0;
@@ -113,6 +114,7 @@ public class MaterialSystem_Config
 	public bool ScaleToOutputResolution() => (Flags & (int)MaterialSystem_Config_Flags.ScaleToOutputResolution) != 0;
 	public bool UsingMultipleWindows() => (Flags & (int)MaterialSystem_Config_Flags.UsingMultipleWindows) != 0;
 	public bool DisablePhong() => (Flags & (int)MaterialSystem_Config_Flags.DisablePhong) != 0;
+	public bool UsePhong() => (Flags & (int)MaterialSystem_Config_Flags.DisablePhong) == 0;
 	public bool VRMode() => (Flags & (int)MaterialSystem_Config_Flags.VRMode) != 0;
 
 	public MaterialSystem_Config() {

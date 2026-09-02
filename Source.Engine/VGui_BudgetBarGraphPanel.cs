@@ -2,6 +2,7 @@ using Source.Common.Commands;
 using Source.GUI.Controls;
 
 namespace Source.Engine;
+#if !SWDS
 
 class BudgetBarGraphPanel : Panel
 {
@@ -173,3 +174,4 @@ class BudgetBarGraphPanel : Panel
 		if (budget_show_averages.GetBool()) DrawAverages();
 	}
 }
+#endif

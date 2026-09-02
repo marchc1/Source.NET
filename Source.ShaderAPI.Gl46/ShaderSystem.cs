@@ -7,6 +7,7 @@ using Source.Common.ShaderLib;
 using Source.MaterialSystem;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Numerics;
 using System.Text;
 
@@ -27,6 +28,7 @@ public class ShaderSystem : IShaderSystemInternal
 	private IMaterialSystem MaterialSystem => _MaterialSystem ??= Singleton<IMaterialSystem>();
 	private IShaderAPI ShaderAPI => _ShaderAPI ??= Singleton<IShaderAPI>();
 	private MaterialSystem_Config Config => _Config ??= Singleton<MaterialSystem_Config>();
+	readonly ITextureManager TextureSystem = Singleton<ITextureManager>()!;
 
 	public void BindTexture(Sampler sampler, ITexture texture, int frame) {
 		if (texture == null) return;
@@ -55,7 +57,14 @@ public class ShaderSystem : IShaderSystemInternal
 
 			PrepForShaderDraw(shader, parms, renderState);
 
-			shader.DrawElements(parms, null, ShaderAPI, vertexCompression);
+			ref BasePerMaterialContextData? contextData = ref ((ShadowStateGl46)renderState).ContextData;
+
+			if (contextData != null && contextData.VarChangeID != materialVarTimeStamp) {
+				contextData.MaterialVarsChanged = true;
+				contextData.VarChangeID = materialVarTimeStamp;
+			}
+
+			shader.DrawElements(parms, null, ShaderAPI, vertexCompression, ref contextData);
 			DoneWithShaderDraw();
 		}
 	}
@@ -287,7 +296,7 @@ public class ShaderSystem : IShaderSystemInternal
 
 	private void InitState(IShader shader, IMaterialVar[] shaderParams, ref IShaderShadow renderState) {
 		PrepForShaderDraw(shader, shaderParams, renderState);
-		shader.DrawElements(shaderParams, renderState, null, VertexCompressionType.None);
+		shader.DrawElements(shaderParams, renderState, null, VertexCompressionType.None, ref ((ShadowStateGl46)renderState).ContextData);
 		DoneWithShaderDraw();
 	}
 
@@ -574,7 +583,7 @@ public class ShaderSystem : IShaderSystemInternal
 		return vsh;
 	}
 
-	public unsafe PixelShaderHandle LoadPixelShader(ReadOnlySpan<char> name, ReadOnlySpan<char> defines = default) {
+	public PixelShaderHandle LoadPixelShader(ReadOnlySpan<char> name, ReadOnlySpan<char> defines = default) {
 		ulong symbol = ComboSymbol(name, defines);
 		if (pshs.TryGetValue(symbol, out PixelShaderHandle value))
 			return value;
@@ -588,4 +597,30 @@ public class ShaderSystem : IShaderSystemInternal
 		return psh;
 	}
 
+	public int GetShaderAPITextureBindHandle(ITexture? texture, int frame, int textureChannel) {
+		Assert(!ITextureInternal.IsTextureInternalEnvCubemap((ITextureInternal?)texture));
+		if (texture != null) {
+			ITextureInternal tex = (ITextureInternal)texture;
+			// RequestAllMipmaps todo
+
+			return tex.GetTextureHandle(frame, textureChannel);
+		}
+		else
+			return INVALID_SHADERAPI_TEXTURE_HANDLE;
+	}
+
+	public void LoadBumpMap(IMaterialVar textureVar, string? textureGroupName) {
+		Assert(textureVar);
+
+		if (textureVar.GetVarType() != MaterialVarType.String) {
+			if (textureVar.GetVarType() != MaterialVarType.Texture)
+				textureVar.SetTextureValue(TextureSystem.ErrorTexture());
+			return;
+		}
+
+		ITexture? text = MaterialSystem.FindTexture(textureVar.GetStringValue(), textureGroupName, false, 0);
+		text ??= TextureSystem.ErrorTexture();
+
+		textureVar.SetTextureValue(text);
+	}
 }
