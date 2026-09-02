@@ -1285,4 +1285,9 @@ IModelLoader modelloader, ICommandLine commandLine,
 		// CLC_CmdKeyValues might not exist?
 		// What was this anyway
 	}
+
+	internal ClientClass? GetClientClass(int index) {
+		Assert(index < NumServerClasses);
+		return ServerClasses![index].ClientClass;
+	}
 }

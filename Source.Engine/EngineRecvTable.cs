@@ -133,14 +133,49 @@ public abstract class DatatableStack
 		ObjectID = objectID;
 	}
 
+	protected static readonly object Uncomputed = new();
+
 	public void Init(bool explicitRoutes = false) {
 		if (explicitRoutes) {
-
+			int count = Precalc.ProxyPaths.Count;
+			for (int i = 0; i < count; i++)
+				Proxies[i] = Uncomputed;
 		}
 		else {
 			RecurseAndCallProxies(Precalc.Root, Instance);
 		}
 		Initted = true;
+	}
+
+	protected virtual object? CallExplicitProxy(object structBase, int datatableProp) {
+		SendProp prop = Precalc.GetDatatableProp(datatableProp)!;
+		return prop.GetDataTableProxyFn()(prop, structBase, prop.FieldInfo, s_Recipients, GetObjectID());
+	}
+
+	public object? UpdateRoutesExplicit() {
+		ushort iPropProxyIndex = Precalc.PropProxyIndices[CurPropIndex];
+		if (!ReferenceEquals(Proxies[iPropProxyIndex], Uncomputed))
+			return Proxies[iPropProxyIndex];
+
+		object? structBase = Instance;
+
+		SendTablePrecalc.ProxyPath proxyPath = Precalc.ProxyPaths[iPropProxyIndex];
+		for (ushort i = 0; i < proxyPath.Entries; i++) {
+			SendTablePrecalc.ProxyPathEntry entry = Precalc.ProxyPathEntries[proxyPath.FirstEntry + i];
+			int iProxy = entry.Proxy;
+
+			if (ReferenceEquals(Proxies[iProxy], Uncomputed)) {
+				Proxies[iProxy] = CallExplicitProxy(structBase!, entry.DataTableProp);
+				if (Proxies[iProxy] == null) {
+					Proxies[iPropProxyIndex] = null;
+					break;
+				}
+			}
+
+			structBase = Proxies[iProxy];
+		}
+
+		return structBase;
 	}
 
 	public virtual void RecurseAndCallProxies(SendNode node, object? instance) {
@@ -210,6 +245,12 @@ public class ClientDatatableStack : DatatableStack
 		}
 	}
 
+	protected override object? CallExplicitProxy(object structBase, int datatableProp) {
+		RecvProp prop = Decoder.GetDatatableProp(datatableProp);
+		prop.GetDataTableProxyFn()(prop, out object? val, structBase, prop.FieldInfo, GetObjectID());
+		return val;
+	}
+
 	// TODO: Review why this wasn't overridden. There may have been a good reason for it, I forget. But it's giving compiler warnings.
 	private object? CallPropProxy(SendNode curChild, int prop, object instance) {
 		RecvProp recvProp = Decoder.GetDatatableProp(prop);
@@ -230,6 +271,13 @@ public class ClientDatatableStack : DatatableStack
 		return val;
 	}
 }
+
+public class ServerDatatableStack : DatatableStack
+{
+	public ServerDatatableStack(SendTablePrecalc precalc, object instance, int objectID) : base(precalc, instance, objectID) {
+	}
+}
+
 [EngineComponent]
 public class EngineRecvTable(DtCommonEng DtCommonEng)
 {

@@ -1833,7 +1833,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		Timeout = time;
 	}
 
-	public bool IsLoopback() => false;
+	public bool IsLoopback() => RemoteAddress.IsLoopback();
 	public TimeUnit_t GetAverageLatency(int flow) => DataFlow[flow].AverageLatency;
 	public TimeUnit_t GetAverageLoss(int flow) => DataFlow[flow].AverageLoss;
 	public TimeUnit_t GetAverageChoke(int flow) => DataFlow[flow].AverageChoke;

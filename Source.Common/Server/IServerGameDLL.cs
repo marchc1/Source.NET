@@ -72,7 +72,8 @@ public interface IServerGameDLL
 	// Retrieve info needed for parsing the specified user message
 	bool GetUserMessageInfo(int msg_type, Span<char> name, out int size);
 
-	// GetStandardSendProxies todo
+	StandardSendProxies GetStandardSendProxies();
+
 
 	// Called once during startup, after the game .dll has been loaded and after the client .dll has also been loaded
 	void PostInit();

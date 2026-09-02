@@ -8,8 +8,6 @@ namespace Game.Server;
 [LinkEntityToClass("info_landmark")]
 public class PointEntity : BaseEntity
 {
-	public static readonly new ServerClass ServerClass = new ServerClass("PointEntity", DT_BaseEntity);
-
 	public override void Spawn() {
 		SetSolid(Source.SolidType.None);
 	}

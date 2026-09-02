@@ -29,6 +29,21 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 		throw new NotImplementedException();
 	}
 
+	static readonly SharedEdictChangeInfo g_SharedEdictChangeInfo = new();
+	public static readonly SharedEdictChangeInfo g_pSharedEdictChangeInfo = g_SharedEdictChangeInfo;
+
+	public static void InvalidateSharedEdictChangeInfos() {
+		if (g_SharedEdictChangeInfo.SerialNumber == 0xFFFF) {
+			g_SharedEdictChangeInfo.SerialNumber = 1;
+			for (int i = 0; i < sv.NumEdicts; i++)
+				sv.Edicts![i].SetChangeInfoSerialNumber(0);
+		}
+		else 
+			g_SharedEdictChangeInfo.SerialNumber++;
+		
+		g_SharedEdictChangeInfo.NumChangeInfos = 0;
+	}
+
 	public void ChangeLevel(ReadOnlySpan<char> s1, ReadOnlySpan<char> s2) {
 		Span<char> cmd = stackalloc char[256];
 		Span<char> s1Escaped = stackalloc char[256];
@@ -154,7 +169,7 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	}
 
 	public void CrosshairAngle(Edict clientent, float pitch, float yaw) {
-		
+
 	}
 
 	public void DestroySpatialPartition(ISpatialPartition spatialPartition) {

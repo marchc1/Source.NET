@@ -498,4 +498,6 @@ public class HLClient(IServiceProvider services, ClientGlobalVariables gpGlobals
 	public void FileReceived(ReadOnlySpan<char> fileName, uint transferID) {
 
 	}
+
+	public StandardRecvProxies GetStandardRecvProxies() => StandardRecvProxies.g_StandardRecvProxies;
 }

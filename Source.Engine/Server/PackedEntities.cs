@@ -177,7 +177,34 @@ static class PackedEntities
 	}
 
 	static void NetworkBackDoor(int clientCount, GameClient[] clients, FrameSnapshot snapshot) {
-		throw new NotImplementedException();
+		Assert(clientCount == 1);
+
+		GameClient client = clients[0];   // update variables cl, pInfo, frame for current client
+		CheckTransmitInfo info = client.PackInfo;
+
+		for (int iValidEdict = 0; iValidEdict < snapshot.NumValidEntities; iValidEdict++) {
+			int index = snapshot.ValidEntities![iValidEdict];
+			Edict edict = sv.Edicts![index];
+
+			// this is a bit of a hack to ensure that we get a "preview" of the
+			//  packet timstamp that the server will send so that things that
+			//  are encoded relative to packet time will be correct
+			Assert(edict.NetworkSerialNumber != -1);
+
+			bool shouldTransmit = info.TransmitEdict.Get(index) != 0 ? true : false;
+
+			//CServerDTITimer timer( pSendTable, SERVERDTI_ENCODE );
+			// If we're using the fast path for a single-player game, just pass the entity
+			// directly over to the client.
+			Assert(index < snapshot.NumEntities);
+			ServerClass svClass = snapshot.Entities![index].Class!;
+			CL.LocalNetworkBackdoor!.EntState(index, edict.NetworkSerialNumber, svClass.ClassID, svClass.Table, edict.GetUnknown()!, edict.HasStateChanged(), shouldTransmit);
+			edict.ClearStateChanged();
+		}
+
+		// Tell the client about any entities that are now dormant.
+		CL.LocalNetworkBackdoor!.ProcessDormantEntities();
+		EngineServer.InvalidateSharedEdictChangeInfos();
 	}
 
 	static void Normal(int clientCount, GameClient[] clients, FrameSnapshot snapshot) {
@@ -248,7 +275,39 @@ static class PackedEntities
 		}
 
 		if (CL.LocalNetworkBackdoor != null) {
-			throw new NotImplementedException();
+			sv.StringTables!.DirectUpdate(clients[0].GetMaxAckTickCount());
+			CL.LocalNetworkBackdoor.StartEntityStateUpdate();
+
+#if !SWDS
+			int saveClientTicks = cl.GetClientTickCount();
+			int saveServerTicks = cl.GetServerTickCount();
+			bool bSaveSimulation = cl.InSimulation;
+			TimeUnit_t flSaveLastServerTickTime = cl.LastServerTickTime;
+
+			cl.InSimulation = true;
+			cl.SetClientTickCount((int)sv.TickCount);
+			cl.SetServerTickCount((int)sv.TickCount);
+
+			cl.LastServerTickTime = sv.TickCount * host_state.IntervalPerTick;
+			clientGlobalVariables.TickCount = cl.GetClientTickCount();
+			clientGlobalVariables.CurTime = cl.GetTime();
+#endif
+
+			NetworkBackDoor(clientCount, clients, snapshot);
+
+			CL.LocalNetworkBackdoor.EndEntityStateUpdate();
+
+#if !SWDS
+			cl.SetClientTickCount(saveClientTicks);
+			cl.SetServerTickCount(saveServerTicks);
+			cl.InSimulation = bSaveSimulation;
+			cl.LastServerTickTime = flSaveLastServerTickTime;
+
+			clientGlobalVariables.TickCount = cl.GetClientTickCount();
+			clientGlobalVariables.CurTime = cl.GetTime();
+#endif
+
+			// PrintPartialChangeEntsList();
 		}
 		else
 			Normal(clientCount, clients, snapshot);
