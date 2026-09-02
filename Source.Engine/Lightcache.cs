@@ -1,4 +1,4 @@
-global using AmbientCube = Source.InlineArray6<System.Numerics.Vector3>;
+﻿global using AmbientCube = Source.InlineArray6<System.Numerics.Vector3>;
 
 using Source.Common;
 using Source.Common.Commands;
@@ -1011,7 +1011,7 @@ public partial class Render
 
 	static readonly BSPDWorldLight[] s_pDynamicLight = new BSPDWorldLight[Constants.MAX_DLIGHTS + Constants.MAX_ELIGHTS];
 
-	private byte[]? AddDLights(LightingStateInfo info, ref LightingState lightingState, in Vector3 origin, int leaf, byte[]? vis) {
+	private ReadOnlySpan<byte> AddDLights(LightingStateInfo info, scoped ref LightingState lightingState, scoped in Vector3 origin, int leaf, ReadOnlySpan<byte> vis) {
 		if (!CL.ActiveDlights)
 			return vis;
 
@@ -1040,7 +1040,7 @@ public partial class Render
 		return vis;
 	}
 
-	private byte[]? AddELights(LightingStateInfo info, ref LightingState lightingState, in Vector3 origin, int leaf, byte[]? vis) {
+	private ReadOnlySpan<byte> AddELights(LightingStateInfo info, scoped ref LightingState lightingState, scoped in Vector3 origin, int leaf, ReadOnlySpan<byte> vis) {
 		if (!CL.ActiveElights)
 			return vis;
 
@@ -1233,7 +1233,7 @@ public partial class Render
 		return vis;
 	}
 
-	private byte[]? ComputeDynamicLighting(LightCache cache, ref LightingState lightingState, in Vector3 lightingOrigin, int leaf, byte[]? vis) {
+	private ReadOnlySpan<byte> ComputeDynamicLighting(LightCache cache, scoped ref LightingState lightingState, scoped in Vector3 lightingOrigin, int leaf, ReadOnlySpan<byte> vis) {
 		if (cache.LastFrameUpdatedDynamicLighting != r_framecount) {
 			LightingStateInfo info = new();
 
@@ -1247,6 +1247,7 @@ public partial class Render
 
 		Assert(cache.DynamicLightingState.NumLights >= 0 && cache.DynamicLightingState.NumLights <= MAXLOCALLIGHTS);
 		lightingState = cache.DynamicLightingState;
+		return vis;
 	}
 
 	public void StudioCheckReinitLightingCache() {
