@@ -163,4 +163,10 @@ public class
 	public Color RenderColor;
 	public Vector3 EndPos;
 }
+
+public static class BeamEnt
+{
+	public static int Entity(int x) => x & 0xFFF;
+	public static int Attachment(int x) => (x >> 12) & 0xF;
+}
 #endif

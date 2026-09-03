@@ -1,8 +1,11 @@
 using Source.Common;
 using Source;
+
 using Game.Shared;
+
 using System.Numerics;
 namespace Game.Client;
+
 using FIELD = FIELD<C_TEBeamEntPoint>;
 public class C_TEBeamEntPoint : C_BaseBeam
 {
@@ -12,10 +15,14 @@ public class C_TEBeamEntPoint : C_BaseBeam
 		RecvPropVector(FIELD.OF(nameof(StartPoint))),
 		RecvPropVector(FIELD.OF(nameof(EndPoint))),
 	]);
-	public static readonly new ClientClass ClientClass = new ClientClass("TEBeamEntPoint", DT_TEBeamEntPoint).WithManualClassID(StaticClassIndices.CTEBeamEntPoint);
+	public static readonly new ClientClass ClientClass = new ClientClass("TEBeamEntPoint", DT_TEBeamEntPoint).AsEvent<C_TEBeamEntPoint>().WithManualClassID(StaticClassIndices.CTEBeamEntPoint);
 
 	public int StartEntity;
 	public int EndEntity;
 	public Vector3 StartPoint;
 	public Vector3 EndPoint;
+
+	public override void PostDataUpdate(DataUpdateType updateType) {
+		beams.CreateBeamEntPoint(StartEntity, in StartPoint, EndEntity, in EndPoint, ModelIndex, HaloIndex, 0.0f, Life, Width, EndWidth, FadeLength, Amplitude, A, 0.1f * Speed, StartFrame, 0.1f * FrameRate, R, G, B);
+	}
 }
