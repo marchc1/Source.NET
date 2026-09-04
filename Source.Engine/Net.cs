@@ -504,6 +504,16 @@ public class Net
 				dstLen = CLZSS.Uncompress(src, dst);
 			}
 		}
+		else if (srcLen > sizeof(uint) && MemoryMarshal.Read<uint>(src) == SNAPPY_ID) {
+			// gmod tags Snappy-compressed blobs (e.g. string table baselines) with a leading 4-byte 'SNAP' id.
+			Span<byte> snappy = src.Slice(sizeof(uint), (int)(srcLen - sizeof(uint)));
+			int uDecompressedLen = Snappy.GetUncompressedLength(snappy);
+			if (uDecompressedLen < 0 || uDecompressedLen > dstLen) {
+				Warning($"NET_BufferToBufferDecompress with improperly sized dest buffer ({dstLen} in, {uDecompressedLen} needed)\n");
+				return false;
+			}
+			dstLen = (uint)Snappy.Decompress(snappy, dst);
+		}
 		else {
 			src.CopyTo(dst);
 			dstLen = srcLen;

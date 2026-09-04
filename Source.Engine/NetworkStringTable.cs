@@ -897,15 +897,17 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 				// TERROR: bzip-compress the stringtable before adding it to the packet.  Yes, the whole packet will be bzip'd,
 				// but the uncompressed data also has to be under the NET_MAX_PAYLOAD limit.
 				int numBytes = msg.DataOut.BytesWritten;
-				uint compressedSize = (uint)numBytes;
-				Span<byte> compressedData = new byte[numBytes];
+				// Worst-case sized scratch buffer; BufferToBufferCompress_Snappy reslices it down to the actual compressed length.
+				Span<byte> compressedData = new byte[Common.GetIdealDestinationCompressionBufferSize_Snappy((uint)numBytes)];
 
-				if (Common.BufferToBufferCompress_Snappy(ref compressedData, msg.DataOut.GetData()![..numBytes])) {
+				// Only keep the compressed form if it's actually smaller; otherwise fall through and send uncompressed.
+				if (Common.BufferToBufferCompress_Snappy(ref compressedData, msg.DataOut.GetData()![..numBytes]) && compressedData.Length < numBytes) {
+					int compressedSize = compressedData.Length;
 					msg.DataCompressed = true;
 					msg.DataOut.Reset();
-					msg.DataOut.WriteLong(numBytes);  // uncompressed size
-					msg.DataOut.WriteLong((int)compressedSize);    // compressed size
-					msg.DataOut.WriteBits(compressedData, (int)compressedSize * 8);    // compressed data
+					msg.DataOut.WriteLong(numBytes);           // uncompressed size
+					msg.DataOut.WriteLong(compressedSize);     // compressed size
+					msg.DataOut.WriteBits(compressedData, compressedSize * 8);    // compressed data
 				}
 			}
 
