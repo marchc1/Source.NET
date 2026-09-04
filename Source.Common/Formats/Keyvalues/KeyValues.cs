@@ -48,6 +48,11 @@ public class KeyValues : IEnumerable<KeyValues>
 		Name = new(name);
 	}
 
+	public KeyValues(string? name) : base() {
+		node = new(this);
+		Name = name ?? "";
+	}
+
 	public KeyValues(ReadOnlySpan<char> name, int value) : base() {
 		node = new(this);
 		Name = new(name);
