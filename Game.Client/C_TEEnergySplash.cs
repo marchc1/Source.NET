@@ -17,3 +17,10 @@ public class C_TEEnergySplash : C_BaseTempEntity
 	public Vector3 Dir;
 	public int Explosive;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_EnergySplash(IRecipientFilter filter, float delay, in Vector3 pos, in Vector3 dir, bool explosive) {
+		throw new NotImplementedException();
+	}
+}

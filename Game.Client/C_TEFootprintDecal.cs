@@ -20,3 +20,10 @@ public class C_TEFootprintDecal : C_BaseTempEntity
 	public int Index;
 	public int ChMaterialType;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_FootprintDecal(IRecipientFilter filter, float delay, in Vector3 origin, in Vector3 right, int entity, int index, byte materialType) {
+		throw new NotImplementedException();
+	}
+}

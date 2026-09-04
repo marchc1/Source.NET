@@ -4,6 +4,7 @@ global using TextureHandle_t = ushort;
 global using FragmentHandle_t = ushort;
 global using static Game.Client.SourceDllMain;
 global using static Game.Client.BeamDraw;
+global using static Game.Client.TempEnts;
 
 namespace Game.Client;
 

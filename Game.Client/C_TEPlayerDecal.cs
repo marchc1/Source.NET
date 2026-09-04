@@ -17,3 +17,10 @@ public class C_TEPlayerDecal : C_BaseTempEntity
 	public int Entity;
 	public int Player;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_PlayerDecal(IRecipientFilter filter, float delay, in Vector3 pos, int player, int entity) {
+		throw new NotImplementedException();
+	}
+}

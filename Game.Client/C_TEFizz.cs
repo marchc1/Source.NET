@@ -19,3 +19,10 @@ public class C_TEFizz : C_BaseTempEntity
 	public int Density;
 	public int Current;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_Fizz(IRecipientFilter filter, float delay, C_BaseEntity? ed, int modelIndex, int density, int current) {
+		throw new NotImplementedException();
+	}
+}

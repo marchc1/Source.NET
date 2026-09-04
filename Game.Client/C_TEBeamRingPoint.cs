@@ -17,3 +17,10 @@ public class C_TEBeamRingPoint : C_BaseBeam
 	public float LStartRadius;
 	public float LEndRadius;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_BeamRingPoint(IRecipientFilter filter, float delay, in Vector3 center, float startRadius, float endRadius, int modelIndex, int haloIndex, int startFrame, int frameRate, float life, float width, int spread, float amplitude, int r, int g, int b, int a, int speed, int flags = 0) {
+		throw new NotImplementedException();
+	}
+}

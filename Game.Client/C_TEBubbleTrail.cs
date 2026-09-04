@@ -23,3 +23,10 @@ public class C_TEBubbleTrail : C_BaseTempEntity
 	public int Count;
 	public float Speed;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_BubbleTrail(IRecipientFilter filter, float delay, in Vector3 mins, in Vector3 maxs, float waterZ, int modelIndex, int count, float speed) {
+		throw new NotImplementedException();
+	}
+}

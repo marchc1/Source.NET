@@ -13,3 +13,10 @@ public class C_TEShowLine : C_TEParticleSystem
 
 	public Vector3 End;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_ShowLine(IRecipientFilter filter, float delay, in Vector3 start, in Vector3 end) {
+		throw new NotImplementedException();
+	}
+}

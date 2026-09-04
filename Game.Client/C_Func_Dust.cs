@@ -1,8 +1,9 @@
-﻿using Game.Shared;
+using Game.Shared;
 
 using Source;
 using Source.Common;
 
+using System.Numerics;
 namespace Game.Client;
 using FIELD = FIELD<C_Func_Dust>;
 
@@ -38,3 +39,9 @@ public class C_Func_Dust : C_BaseEntity
 	public bool AffectedByWind;
 }
 
+public static partial class TempEnts
+{
+	public static void TE_Dust(IRecipientFilter filter, float delay, in Vector3 pos, in Vector3 dir, float size, float speed) {
+		throw new NotImplementedException();
+	}
+}

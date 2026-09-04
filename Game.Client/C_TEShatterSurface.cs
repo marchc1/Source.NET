@@ -2,6 +2,7 @@ using Source.Common;
 using Source;
 using Game.Shared;
 using System.Numerics;
+using Source.Common.Mathematics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEShatterSurface>;
 public class C_TEShatterSurface : C_BaseTempEntity
@@ -34,4 +35,11 @@ public class C_TEShatterSurface : C_BaseTempEntity
 	public int SurfaceType;
 	public InlineArray3<byte> UchFrontColor;
 	public InlineArray3<byte> UchBackColor;
+}
+
+public static partial class TempEnts
+{
+	public static void TE_ShatterSurface(IRecipientFilter filter, float delay, in Vector3 pos, in QAngle angle, in Vector3 force, in Vector3 forcePos, float width, float height, float shardSize, int surfaceType, int frontR, int frontG, int frontB, int backR, int backG, int backB) {
+		throw new NotImplementedException();
+	}
 }

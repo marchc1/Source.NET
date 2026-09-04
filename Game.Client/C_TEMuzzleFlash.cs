@@ -2,6 +2,7 @@ using Source.Common;
 using Source;
 using Game.Shared;
 using System.Numerics;
+using Source.Common.Mathematics;
 namespace Game.Client;
 using FIELD = FIELD<C_TEMuzzleFlash>;
 public class C_TEMuzzleFlash : C_BaseTempEntity
@@ -18,4 +19,11 @@ public class C_TEMuzzleFlash : C_BaseTempEntity
 	public Vector3 Angles;
 	public float Scale;
 	public int Type;
+}
+
+public static partial class TempEnts
+{
+	public static void TE_MuzzleFlash(IRecipientFilter filter, float delay, in Vector3 start, in QAngle angles, float scale, int type) {
+		throw new NotImplementedException();
+	}
 }

@@ -26,3 +26,10 @@ public class C_TEBeamSpline : C_BaseTempEntity
 		DevMsg(1, $"Beam spline with {NumPoints} points received\n");
 	}
 }
+
+public static partial class TempEnts
+{
+	public static void TE_BeamSpline(IRecipientFilter filter, float delay, int points, Span<Vector3> rgPoints) {
+		throw new NotImplementedException();
+	}
+}

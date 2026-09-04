@@ -2,6 +2,7 @@ using Source.Common;
 using Source;
 using Game.Shared;
 using System.Numerics;
+using Source.Common.Formats.Keyvalues;
 namespace Game.Client;
 using FIELD = FIELD<C_TEConcussiveExplosion>;
 public class C_TEConcussiveExplosion : C_TEParticleSystem
@@ -18,4 +19,11 @@ public class C_TEConcussiveExplosion : C_TEParticleSystem
 	public float Scale;
 	public int Radius;
 	public int Magnitude;
+}
+
+public static partial class TempEnts
+{
+	public static void TE_ConcussiveExplosion(IRecipientFilter filter, float delay, KeyValues keyValues) {
+		throw new NotImplementedException();
+	}
 }

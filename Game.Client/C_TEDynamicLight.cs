@@ -30,6 +30,14 @@ public class C_TEDynamicLight : C_BaseTempEntity
 	public float Time;
 	public float Decay;
 
+	public override void PostDataUpdate(DataUpdateType updateType) {
+		BroadcastRecipientFilter filter = new();
+		TE_DynamicLight(filter, 0.0f, in Origin, R, G, B, Exponent, Radius, Time, Decay, LIGHT_INDEX_TE_DYNAMIC);
+	}
+}
+
+public static partial class TempEnts
+{
 	public static void TE_DynamicLight(IRecipientFilter filter, float delay, in Vector3 org, int r, int g, int b, int exponent, float radius, float time, float decay, int lightIndex = LIGHT_INDEX_TE_DYNAMIC) {
 		DLight? dl = effects.AllocDlight(lightIndex);
 		if (dl == null)
@@ -43,10 +51,5 @@ public class C_TEDynamicLight : C_BaseTempEntity
 		dl.Color.Exponent = (sbyte)exponent;
 		dl.Die = (float)gpGlobals.CurTime + time;
 		dl.Decay = decay;
-	}
-
-	public override void PostDataUpdate(DataUpdateType updateType) {
-		BroadcastRecipientFilter filter = new();
-		TE_DynamicLight(filter, 0.0f, in Origin, R, G, B, Exponent, Radius, Time, Decay, LIGHT_INDEX_TE_DYNAMIC);
 	}
 }
