@@ -674,12 +674,16 @@ public class GameServer : BaseServer
 		ServerClasses = nClasses;
 		ServerClassBits = (int)(Math.Log2(ServerClasses) + 1);
 
+		// TODO: When our server classes match up, we can make it assign class ID's. For now,
+		// we'll use what the Garry's Mod bindings give us...
+#if false
 		int curID = 0;
 		for (ServerClass c = classes; c != null; c = c.Next) {
 			c.ClassID = curID++;
 
 			// Msg($"{c.ClassID} == '{c.NetworkName}'\n");
 		}
+#endif
 	}
 
 	INetworkStringTable? ModelPrecacheTable;
