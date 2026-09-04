@@ -23,3 +23,10 @@ public class C_TESpriteSpray : C_BaseTempEntity
 	public int Speed;
 	public int Count;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_SpriteSpray(IRecipientFilter filter, float delay, in Vector3 pos, in Vector3 dir, int modelIndex, int speed, float noise, int count) {
+		throw new NotImplementedException();
+	}
+}

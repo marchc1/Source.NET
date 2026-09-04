@@ -1,0 +1,76 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Debug (Dedicated)" />
+    <BuildType Name="Release" />
+    <BuildType Name="Release (Dedicated)" />
+  </Configurations>
+  <Folder Name="/0. Files, Dependencies, &amp; Code Analysis/">
+    <File Path="DATATABLES_COMPLETED.md" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/0. Files, Dependencies, &amp; Code Analysis/External Dependencies/">
+    <Project Path="Dependencies/OpenGL/OpenGL46.csproj" />
+  </Folder>
+  <Folder Name="/0. Files, Dependencies, &amp; Code Analysis/Roslyn Code Analysis/">
+    <Project Path="Source.CodeAnalysis/Source.CodeAnalysis.CodeFixes/Source.CodeAnalysis.CodeFixes.csproj" />
+    <Project Path="Source.CodeAnalysis/Source.CodeAnalysis.Package/Source.CodeAnalysis.Package.csproj" />
+    <Project Path="Source.CodeAnalysis/Source.CodeAnalysis.Test/Source.CodeAnalysis.Test.csproj" />
+    <Project Path="Source.CodeAnalysis/Source.CodeAnalysis.Vsix/Source.CodeAnalysis.Vsix.csproj" />
+    <Project Path="Source.CodeAnalysis/Source.CodeAnalysis/Source.CodeAnalysis.csproj" />
+  </Folder>
+  <Folder Name="/0. Files, Dependencies, &amp; Code Analysis/Usings/">
+    <File Path="Directory.Build.props" />
+    <File Path="Usings/GlobalUsings.cs" />
+    <File Path="Usings/MaterialUsings.cs" />
+    <File Path="Usings/ShaderUsings.cs" />
+    <File Path="usings_readme.txt" />
+  </Folder>
+  <Folder Name="/1. Engine Common/">
+    <File Path="Source.Engine/GarrysMod/GModMessageType.cs" />
+    <Project Path="Source.Bitmap/Source.Bitmap.csproj" />
+    <Project Path="Source.Common/Source.Common.csproj" />
+    <Project Path="Source.VPK/Source.VPK.csproj" />
+    <Project Path="Source.VTF/Source.VTF.csproj" />
+  </Folder>
+  <Folder Name="/2. Pre-Engine Components/">
+    <Project Path="Source.GUI.Controls/Source.GUI.Controls.csproj" />
+    <Project Path="Source.GUI/Source.GUI.csproj" />
+  </Folder>
+  <Folder Name="/3. Engine Main/">
+    <Project Path="Source.Engine/Source.Engine.csproj" />
+  </Folder>
+  <Folder Name="/4. Post-Engine Components/">
+    <Project Path="Source.AudioSystem/Source.AudioSystem.csproj" />
+    <Project Path="Source.DataCache/Source.DataCache.csproj" />
+    <Project Path="Source.Filesystem/Source.Filesystem.csproj" />
+    <Project Path="Source.MaterialSystem/Source.MaterialSystem.csproj" />
+    <Project Path="Source.Physics/Source.Physics.csproj" />
+    <Project Path="Source.SDLInputSystem/Source.SDLInputSystem.csproj" />
+    <Project Path="Source.SDLManager/Source.SDLManager.csproj" />
+    <Project Path="Source.SDLSystem/Source.SDLSystem.csproj" />
+    <Project Path="Source.ShaderAPI.Gl46/Source.ShaderAPI.Gl46.csproj" />
+    <Project Path="Source.SoundEmitterSystem/Source.SoundEmitterSystem.csproj" />
+    <Project Path="Source.StdShader.Gl46/Source.StdShader.Gl46.csproj" />
+    <Project Path="Source.StudioRender/Source.StudioRender.csproj" />
+  </Folder>
+  <Folder Name="/5. Game Realms/">
+    <Project Path="Game.Client/Game.Client.csproj" />
+    <Project Path="Game.Server/Game.Server.csproj" />
+    <Project Path="Game.ServerBrowser/Game.ServerBrowser.csproj" />
+    <Project Path="Game.Shared/Game.Shared.csproj">
+      <Build Project="false" />
+    </Project>
+    <Project Path="Game.UI/Game.UI.csproj" />
+  </Folder>
+  <Folder Name="/6. Executables/">
+    <Project Path="Source.Dedicated/Source.Dedicated.csproj" />
+    <Project Path="Source.Launcher/Source.Launcher.csproj" />
+  </Folder>
+  <Folder Name="/7. Tools/">
+    <Project Path="Source.DatatableToClassDef/Source.DatatableToClassDef.csproj" />
+  </Folder>
+  <Folder Name="/8. Assets/">
+    <Project Path="Game.Assets/Game.Assets.csproj" />
+  </Folder>
+</Solution>

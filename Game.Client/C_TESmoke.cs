@@ -19,3 +19,10 @@ public class C_TESmoke : C_BaseTempEntity
 	public float Scale;
 	public int FrameRate;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_Smoke(IRecipientFilter filter, float delay, in Vector3 pos, int modelIndex, float scale, int frameRate) {
+		throw new NotImplementedException();
+	}
+}

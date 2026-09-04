@@ -13,3 +13,10 @@ public class C_TEBeamFollow : C_BaseBeam
 
 	public int EntIndex;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_BeamFollow(IRecipientFilter filter, float delay, int entIndex, int modelIndex, int haloIndex, float life, float width, float endWidth, float fadeLength, float r, float g, float b, float a) {
+		throw new NotImplementedException();
+	}
+}

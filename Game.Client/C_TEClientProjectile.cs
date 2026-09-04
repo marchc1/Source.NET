@@ -21,3 +21,10 @@ public class C_TEClientProjectile : C_BaseTempEntity
 	public int LifeTime;
 	public int HOwner;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_ClientProjectile(IRecipientFilter filter, float delay, in Vector3 origin, in Vector3 velocity, int modelIndex, int lifetime, C_BaseEntity? owner) {
+		throw new NotImplementedException();
+	}
+}

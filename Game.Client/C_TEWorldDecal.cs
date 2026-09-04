@@ -15,3 +15,10 @@ public class C_TEWorldDecal : C_BaseTempEntity
 	public Vector3 Origin;
 	public int Index;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_WorldDecal(IRecipientFilter filter, float delay, in Vector3 pos, int index) {
+		throw new NotImplementedException();
+	}
+}

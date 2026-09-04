@@ -21,3 +21,10 @@ public class C_TEDecal : C_BaseTempEntity
 	public int Hitbox;
 	public int Index;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_Decal(IRecipientFilter filter, float delay, in Vector3 pos, in Vector3 start, int entity, int hitbox, int index) {
+		throw new NotImplementedException();
+	}
+}

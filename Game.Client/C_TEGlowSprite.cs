@@ -21,3 +21,10 @@ public class C_TEGlowSprite : C_BaseTempEntity
 	public float Life;
 	public int Brightness;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_GlowSprite(IRecipientFilter filter, float delay, in Vector3 pos, int modelIndex, float life, float size, int brightness) {
+		throw new NotImplementedException();
+	}
+}

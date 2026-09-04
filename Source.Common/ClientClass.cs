@@ -119,6 +119,12 @@ public class ClientClass
 		ClassID = -1;
 	}
 
+	public ClientClass AsEvent<T>() where T : IClientNetworkable, new() {
+		T instance = new();
+		CreateEventFn = () => instance;
+		return this;
+	}
+
 	public ReadOnlySpan<char> GetName() => NetworkName;
 }
 
