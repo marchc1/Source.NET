@@ -898,10 +898,10 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 				// but the uncompressed data also has to be under the NET_MAX_PAYLOAD limit.
 				int numBytes = msg.DataOut.BytesWritten;
 				// Worst-case sized scratch buffer; BufferToBufferCompress_Snappy reslices it down to the actual compressed length.
-				Span<byte> compressedData = new byte[Common.GetIdealDestinationCompressionBufferSize_Snappy((uint)numBytes)];
+				Span<byte> compressedData = new byte[Common.GetIdealDestinationCompressionBufferSize_LZSS((uint)numBytes)];
 
 				// Only keep the compressed form if it's actually smaller; otherwise fall through and send uncompressed.
-				if (Common.BufferToBufferCompress_Snappy(ref compressedData, msg.DataOut.GetData()![..numBytes]) && compressedData.Length < numBytes) {
+				if (Common.BufferToBufferCompress_LZSS(ref compressedData, msg.DataOut.GetData()![..numBytes]) && compressedData.Length < numBytes) {
 					int compressedSize = compressedData.Length;
 					msg.DataCompressed = true;
 					msg.DataOut.Reset();

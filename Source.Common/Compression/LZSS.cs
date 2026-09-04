@@ -7,8 +7,8 @@ namespace Source.Common.Compression;
 
 public struct lzss_header_t
 {
-	public uint ID;
-	public uint ActualSize;
+	public uint id;
+	public uint actualSize;
 
 	public const int SIZEOF = sizeof(uint) * 2;
 }
@@ -41,7 +41,7 @@ public class CLZSS
 
 		ref lzss_header_t header = ref MemoryMarshal.Cast<byte, lzss_header_t>(input)[0];
 
-		if (header.ID == LZSS_ID)
+		if (header.id == LZSS_ID)
 			return true;
 
 		return false;
@@ -52,8 +52,8 @@ public class CLZSS
 			return 0;
 
 		ref lzss_header_t header = ref MemoryMarshal.Cast<byte, lzss_header_t>(input)[0];
-		if (header.ID == LZSS_ID) 
-			return header.ActualSize;
+		if (header.id == LZSS_ID) 
+			return header.actualSize;
 		
 		// unrecognized
 		return 0;

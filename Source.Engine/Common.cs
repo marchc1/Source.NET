@@ -1,10 +1,13 @@
 using CommunityToolkit.HighPerformance;
 
+using Game.Assets;
+
 using Microsoft.Extensions.DependencyInjection;
 
 using Snappier;
 
 using Source.Common;
+using Source.Common.Compression;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
 
@@ -14,8 +17,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 using static Source.Common.FilesystemHelpers;
-
-using Game.Assets;
 
 namespace Source.Engine;
 
@@ -273,5 +274,147 @@ public class Common(IServiceProvider providers, Sys Sys)
 			return $"{hours}:{minutes:00}:{(int)seconds:00}";
 		else
 			return $"{minutes}:{(int)seconds:00}";
+	}
+
+	internal static unsafe bool BufferToBufferCompress_LZSS(ref Span<byte> compressedData, ReadOnlySpan<byte> sourceBuffer) {
+		CLZSSProcessor s = new();
+		int compressedLen = 0;
+		fixed (byte* source = sourceBuffer)
+		fixed (byte* dest = compressedData)
+			if (null == s.CompressNoAlloc(source, sourceBuffer.Length, dest, ref compressedLen))
+				return false;
+		compressedData = compressedData[..compressedLen];
+		return true;
+	}
+
+	internal static int GetIdealDestinationCompressionBufferSize_LZSS(uint numBytes) {
+		return (int)numBytes;
+	}
+}
+
+public ref struct CLZSSProcessor
+{
+	unsafe struct lzss_node_t
+	{
+		public byte* pData;
+		public lzss_node_t* pPrev;
+		public lzss_node_t* pNext;
+		public InlineArray4<byte> empty;
+	}
+	unsafe struct lzss_list_t
+	{
+		public lzss_node_t* pStart;
+		public lzss_node_t* pEnd;
+	}
+	unsafe void BuildHash(byte* pData) {
+
+	}
+	unsafe lzss_list_t* m_pHashTable;
+	unsafe lzss_node_t* m_pHashTarget;
+	int m_nWindowSize;
+
+	internal unsafe byte* CompressNoAlloc(byte* pInput, int inputLength, byte* pOutputBuf, ref int pOutputSize) {
+		if (inputLength <= (int)(sizeof(lzss_header_t)) + 8) {
+			return null;
+		}
+
+		// create the compression work buffers, small enough (~64K) for stack
+		lzss_list_t* hashTable = stackalloc lzss_list_t[256];
+		lzss_node_t* hashTarget = stackalloc lzss_node_t[m_nWindowSize];
+
+		m_pHashTable = hashTable;
+		m_pHashTarget = hashTarget;
+
+		// allocate the output buffer, compressed buffer is expected to be less, caller will free
+		byte* pStart = pOutputBuf;
+		// prevent compression failure (inflation), leave enough to allow dribble eof bytes
+		byte* pEnd = pStart + inputLength - sizeof(lzss_header_t) - 8;
+
+		// set the header
+		lzss_header_t* pHeader = (lzss_header_t*)pStart;
+		pHeader->id = CLZSS.LZSS_ID;
+		pHeader->actualSize = (uint)inputLength;
+
+		byte* pOutput = pStart + sizeof(lzss_header_t);
+		byte* pLookAhead = pInput;
+		byte* pWindow = pInput;
+		byte* pEncodedPosition = null;
+		byte* pCmdByte = null;
+		int putCmdByte = 0;
+
+		while (inputLength > 0) {
+			pWindow = pLookAhead - m_nWindowSize;
+			if (pWindow < pInput) {
+				pWindow = pInput;
+			}
+
+			if (0 == putCmdByte) {
+				pCmdByte = pOutput++;
+				*pCmdByte = 0;
+			}
+			putCmdByte = (putCmdByte + 1) & 0x07;
+
+			int encodedLength = 0;
+			int lookAheadLength = inputLength < CLZSS.LZSS_LOOKAHEAD ? inputLength : CLZSS.LZSS_LOOKAHEAD;
+
+			lzss_node_t* pHash = m_pHashTable[pLookAhead[0]].pStart;
+			while (pHash != null) {
+				int matchLength = 0;
+				int length = lookAheadLength;
+				while (length-- != 0 && pHash->pData[matchLength] == pLookAhead[matchLength])
+					matchLength++;
+
+				if (matchLength > encodedLength) {
+					encodedLength = matchLength;
+					pEncodedPosition = pHash->pData;
+				}
+				if (matchLength == lookAheadLength) {
+					break;
+				}
+				pHash = pHash->pNext;
+			}
+
+			if (encodedLength >= 3) {
+				*pCmdByte = unchecked((byte)((*pCmdByte >> 1) | 0x80));
+				*pOutput++ = unchecked((byte)(((pLookAhead - pEncodedPosition - 1) >> CLZSS.LZSS_LOOKSHIFT)));
+				*pOutput++ = unchecked((byte)(((pLookAhead - pEncodedPosition - 1) << CLZSS.LZSS_LOOKSHIFT) | (encodedLength - 1)));
+			}
+			else {
+				encodedLength = 1;
+				*pCmdByte = unchecked((byte)((*pCmdByte >> 1)));
+				*pOutput++ = *pLookAhead;
+			}
+
+			for (int i = 0; i < encodedLength; i++)
+				BuildHash(pLookAhead++);
+
+			inputLength -= encodedLength;
+
+			if (pOutput >= pEnd) {
+				// compression is worse, abandon
+				return null;
+			}
+		}
+
+		if (inputLength != 0) {
+			// unexpected failure
+			Assert(false);
+			return null;
+		}
+
+		if (0 == putCmdByte) {
+			pCmdByte = pOutput++;
+			*pCmdByte = 0x01;
+		}
+		else {
+			*pCmdByte = unchecked((byte)(((*pCmdByte >> 1) | 0x80) >> (7 - putCmdByte)));
+		}
+
+		*pOutput++ = 0;
+		*pOutput++ = 0;
+
+		pOutputSize = (int)(pOutput - pStart);
+
+		return pStart;
 	}
 }
