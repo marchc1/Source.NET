@@ -1183,3 +1183,30 @@ public partial class BaseEntity : IServerEntity
 		return ed.StateFlags;
 	}
 }
+
+[LinkEntityToClass("info_player_start")]
+[LinkEntityToClass("info_landmark")]
+public class PointEntity : BaseEntity
+{
+	public override void Spawn() {
+		SetSolid(Source.SolidType.None);
+	}
+
+	// todo
+	// public override EntityCapabilities ObjectCaps() => base.ObjectCaps() & ~EntityCapabilities.AcrossTransition;
+}
+
+public class ServerOnlyEntity : BaseEntity
+{
+
+}
+
+public class ServerOnlyPointEntity : ServerOnlyEntity
+{
+
+}
+
+public class LogicalEntity : ServerOnlyEntity
+{
+
+}

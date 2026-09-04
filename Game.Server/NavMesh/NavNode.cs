@@ -5,6 +5,8 @@ using System.Numerics;
 using Source;
 using Source.Common.Formats.BSP;
 
+using Game.Shared;
+
 namespace Game.Server.NavMesh;
 
 class NodeHashFuncs : IEqualityComparer<NavNode>

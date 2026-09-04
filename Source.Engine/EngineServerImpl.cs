@@ -1,4 +1,6 @@
-﻿using Source.Common;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source.Common;
 using Source.Common.Audio;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
@@ -411,7 +413,9 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	public bool IsPaused() => sv.IsPaused();
 
 	public void LightStyle(int style, ReadOnlySpan<char> val) {
-		throw new NotImplementedException();
+		// change the string in string table
+		INetworkStringTable stringTable = sv.GetLightStyleTable()!;
+		stringTable!.SetStringUserData(style, val.Length + 1, val.Cast<char, byte>());
 	}
 
 	public void LoadAdjacentEnts(ReadOnlySpan<char> oldLevel, ReadOnlySpan<char> landmarkName) {
