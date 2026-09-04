@@ -496,8 +496,34 @@ public class Host
 		Net = engineAPI.InitSubsystem<Net>(dedicated)!;
 		GameEventManager = engineAPI.InitSubsystem<IGameEventManager2>()!;
 		sv.Init(dedicated);
+
+		// RaphaelIT7: GMod does a few things here
+		// if (!CommandLine()->FindParm("-noworkshop"))
+		// {
+		//    Steam3Server().Activate();
+		// }
+		// get->Initialize(g_pFullFileSystem); // get -> CGet class that GMod has is initialized here
+		SV = services.GetRequiredService<SV>();
+		if (SV.ServerGameDLL == null)
+			Error("No server.dll");
+
+		if (!SV.ServerGameDLL.PreInit(services))
+			Error("serverGameDLL PreINIT");
+
 		SV = services.GetRequiredService<SV>();
 		SV.InitGameDLL();
+
+		// RaphaelIT7: GMod has some code for -noworkshop here too?
+		/*
+		  if ( sv.m_bIsDedicated ) // sv.IsDedicated()
+		  {
+			if ( !CommandLine()->FindParam("-noworkshop") )
+			{
+		      Steam3Server()->Shutdown();
+			  sv->SetMasterServerRulesDirty();
+			}
+		  }
+		*/
 #if !SWDS
 		if (!dedicated) {
 			CL = engineAPI.InitSubsystem<CL>()!;

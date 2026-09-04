@@ -20,6 +20,7 @@ namespace Source.Common.Server;
 /// </summary>
 public interface IServerGameDLL
 {
+	bool PreInit(IServiceProvider services);
 	bool DLLInit(IServiceProvider services);
 
 	// This is called when a new game is started. (restart, map)
