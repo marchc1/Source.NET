@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<BaseBeam>;
-public class BaseBeam : BaseTempEntity
+public class BaseBeam(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_BaseBeam = new([
 		SendPropInt(FIELD.OF(nameof(ModelIndex)), 14, 0),

@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEBloodStream>;
-public class TEBloodStream : TEParticleSystem
+public class TEBloodStream(ReadOnlySpan<char> name) : TEParticleSystem(name)
 {
 	public static readonly SendTable DT_TEBloodStream = new(DT_TEParticleSystem, [
 		SendPropVector(FIELD.OF(nameof(Direction)), 11, 0),

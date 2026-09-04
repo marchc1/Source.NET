@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEExplosion>;
-public class TEExplosion : TEParticleSystem
+public class TEExplosion(ReadOnlySpan<char> name) : TEParticleSystem(name)
 {
 	public static readonly SendTable DT_TEExplosion = new(DT_TEParticleSystem, [
 		SendPropFloat(FIELD.OF(nameof(Scale)), 9, 0),

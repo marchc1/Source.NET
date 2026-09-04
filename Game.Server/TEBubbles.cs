@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEBubbles>;
-public class TEBubbles : BaseTempEntity
+public class TEBubbles(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEBubbles = new(DT_BaseTempEntity, [
 		SendPropVector(FIELD.OF(nameof(Mins)), 0, PropFlags.Coord),

@@ -143,6 +143,18 @@ public static partial class Util
 	public static void LogPrintf(ReadOnlySpan<char> text) {
 		engine.LogPrint(text);
 	}
+	public static void SetMinMaxSize(BaseEntity ent, in Vector3 mins, in Vector3 maxs) {
+		for (int i = 0; i < 3; i++) 
+			if (mins[i] > maxs[i]) 
+				Error($"{((ent != null) ? ent.GetDebugName() : "<NULL>")}: backwards mins/maxs");
+			
+		Assert(ent != null);
+
+		ent.SetCollisionBounds(mins, maxs);
+	}
+	public static void SetSize(BaseEntity ent, in Vector3 min, in Vector3 max){
+		SetMinMaxSize(ent, min, max);
+	}
 
 	public static void SayTextFilter<T>(scoped in T filter, ReadOnlySpan<char> pText, BasePlayer? player, bool chat) where T : IRecipientFilter {
 		UserMessageBegin(filter, "SayText");
@@ -291,20 +303,19 @@ public static partial class Util
 			if (!pEntSafe.IsValid() || entity.IsMarkedForDeletion())
 				return -1;
 
-			// TODO
-			// if (entity.m_iGlobalname != NULL_STRING) {
-			// 	int globalIndex = GlobalEntity_GetIndex(entity.m_iGlobalname);
-			// 	if (globalIndex >= 0) {
-			// 		if (GlobalEntity_GetState(globalIndex) == GLOBAL_DEAD) {
-			// 			entity.Remove();
-			// 			return -1;
-			// 		} else if (!FStrEq(STRING(gpGlobals.mapname), GlobalEntity_GetMap(globalIndex))) {
-			// 			entity.MakeDormant();
-			// 		}
-			// 	} else {
-			// 		GlobalEntity_Add(entity.m_iGlobalname, gpGlobals.mapname, GLOBAL_ON);
-			// 	}
-			// }
+			if (entity.GlobalName != null) {
+				int globalIndex = GlobalEntity.GetIndex(entity.GlobalName);
+				if (globalIndex >= 0) {
+					if (GlobalEntity.GetState(globalIndex) == GlobalEState.Dead) {
+						entity.Remove();
+						return -1;
+					} else if (!FStrEq(gpGlobals.MapName, GlobalEntity.GetMap(globalIndex))) {
+						entity.MakeDormant();
+					}
+				} else 
+					GlobalEntity.Add(entity.GlobalName, gpGlobals.MapName, GlobalEState.On);
+				
+			}
 
 			gEntList.NotifySpawn(entity);
 		}
@@ -399,15 +410,14 @@ public static partial class Util
 	internal static void SetModel(BaseEntity baseEntity, ReadOnlySpan<char> modelName) {
 		int i = modelinfo.GetModelIndex(modelName);
 		if (i == -1)
-			DevWarning($"{baseEntity.EntIndex()}/{baseEntity/*.GetEntityName()*/} - {baseEntity.GetClassname()}:  UTIL_SetModel:  not precached: {modelName}\n");
-		// todo ^ change to Error once precache stuff is done
+			Error($"{baseEntity.EntIndex()}/{baseEntity/*.GetEntityName()*/} - {baseEntity.GetClassname()}:  UTIL_SetModel:  not precached: {modelName}\n");
 
 		BaseAnimating? animating = baseEntity.GetBaseAnimating();
 		animating?.ForceBone = 0;
 
 		baseEntity.SetModelName(modelName);
 		baseEntity.SetModelIndex(i);
-		// SetMinMaxSize(baseEntity, vec3_origin, vec3_origin); // TODO
-		// baseEntity.SetCollisionBoundsFromModel(); todo
+		SetMinMaxSize(baseEntity, vec3_origin, vec3_origin);
+		baseEntity.SetCollisionBoundsFromModel();
 	}
 }

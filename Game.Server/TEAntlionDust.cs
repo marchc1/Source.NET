@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEAntlionDust>;
-public class TEAntlionDust : TEParticleSystem
+public class TEAntlionDust(ReadOnlySpan<char> name) : TEParticleSystem(name)
 {
 	public static readonly SendTable DT_TEAntlionDust = new(DT_TEParticleSystem, [
 		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.NoScale),

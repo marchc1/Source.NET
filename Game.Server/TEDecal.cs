@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEDecal>;
-public class TEDecal : BaseTempEntity
+public class TEDecal(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEDecal = new(DT_BaseTempEntity, [
 		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.Coord),

@@ -2,12 +2,11 @@
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Engine;
-using Source.Engine;
 
 namespace Game.Server;
 
 [EngineComponent]
-public class GameServerClientMethods(Host Host)
+public class GameServerClientMethods
 {
 	public const TimeUnit_t TALK_INTERVAL = 0.66; // min time between say commands from a client
 
@@ -16,7 +15,7 @@ public class GameServerClientMethods(Host Host)
 		BasePlayer? player = ToBasePlayer(Util.GetCommandClient());
 		if (player != null) {
 			if ((player.LastTimePlayerTalked() + TALK_INTERVAL) < gpGlobals.CurTime) {
-				Host.Say(player.Edict(), args, false);
+				HostSV.Host_Say(player.Edict(), args, false);
 				player.NotePlayerTalked();
 			}
 		}
@@ -25,17 +24,51 @@ public class GameServerClientMethods(Host Host)
 		// as would be the case when a client that's connecting generates 
 		// text via a script.  This can be exploited to flood everyone off.
 		else if (Util.GetCommandClientIndex() == 0) {
-			Host.Say(null, args, false);
+			HostSV.Host_Say(null, args, false);
 		}
 	}
 
+	public static void ClientPrecache() {
+		BaseEntity.PrecacheModel("cable/cable.vmt");
+		BaseEntity.PrecacheModel("cable/cable_lit.vmt");
+		BaseEntity.PrecacheModel("cable/chain.vmt");
+		BaseEntity.PrecacheModel("cable/rope.vmt");
+		BaseEntity.PrecacheModel("sprites/blueglow1.vmt");
+		BaseEntity.PrecacheModel("sprites/purpleglow1.vmt");
+		BaseEntity.PrecacheModel("sprites/purplelaser1.vmt");
+
+#if !HL2MP
+		BaseEntity::PrecacheScriptSound("Hud.Hint");
+#endif
+		BaseEntity.PrecacheScriptSound("Player.FallDamage");
+		BaseEntity.PrecacheScriptSound("Player.Swim");
+
+		// General HUD sounds
+		BaseEntity.PrecacheScriptSound("Player.PickupWeapon");
+		BaseEntity.PrecacheScriptSound("Player.DenyWeaponSelection");
+		BaseEntity.PrecacheScriptSound("Player.WeaponSelected");
+		BaseEntity.PrecacheScriptSound("Player.WeaponSelectionClose");
+		BaseEntity.PrecacheScriptSound("Player.WeaponSelectionMoveSlot");
+
+		// General legacy temp ents sounds
+		BaseEntity.PrecacheScriptSound("Bounce.Glass");
+		BaseEntity.PrecacheScriptSound("Bounce.Metal");
+		BaseEntity.PrecacheScriptSound("Bounce.Flesh");
+		BaseEntity.PrecacheScriptSound("Bounce.Wood");
+		BaseEntity.PrecacheScriptSound("Bounce.Shrapnel");
+		BaseEntity.PrecacheScriptSound("Bounce.ShotgunShell");
+		BaseEntity.PrecacheScriptSound("Bounce.Shell");
+		BaseEntity.PrecacheScriptSound("Bounce.Concrete");
+
+		ClientGamePrecache();
+	}
 
 	public static ReadOnlySpan<char> CheckChatText(BasePlayer? player, ReadOnlySpan<char> text) => text[..Math.Min(text.Length, 127)];
 }
 
-public static class HostExts
+public static class HostSV
 {
-	public static void Say(this Host host, Edict? edict, in TokenizedCommand args, bool teamOnly) {
+	public static void Host_Say(Edict? edict, in TokenizedCommand args, bool teamOnly) {
 		BasePlayer? client;
 		nint j;
 		scoped ReadOnlySpan<char> p;
@@ -131,14 +164,14 @@ public static class HostExts
 			if (!(client.IsNetClient()))   // Not a client ? (should never be true)
 				continue;
 
-			if (teamOnly && g_pGameRules!.PlayerCanHearChat(client, player) == GameRulesPlayerRelationship.NotTeammate )
+			if (teamOnly && g_pGameRules!.PlayerCanHearChat(client, player) == GameRulesPlayerRelationship.NotTeammate)
 				continue;
 
 			// if (player != null && !client.CanHearAndReadChatFrom(player))
-				// continue;
+			// continue;
 
 			// if (player != null && GetVoiceGameMgr()?.IsPlayerIgnoringPlayer(player->entindex(), i) ?? false)
-				// continue;
+			// continue;
 
 			SingleUserRecipientFilter user = new(client);
 			user.MakeReliable();

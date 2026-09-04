@@ -523,7 +523,7 @@ public class EntityListSystem : AutoGameSystemPerFrame
 			RespawnAllEntities = false;
 
 			// Don't change globalstate owing to deletion here
-			GlobalEntity_EnableStateUpdates(false);
+			GlobalEntity.EnableStateUpdates(false);
 
 			// Remove all entities
 			int nPlayerIndex = -1;
@@ -541,7 +541,7 @@ public class EntityListSystem : AutoGameSystemPerFrame
 
 			gEntList.CleanupDeleteList();
 
-			GlobalEntity_EnableStateUpdates(true);
+			GlobalEntity.EnableStateUpdates(true);
 
 			// Allows us to immediately re-use the edict indices we just freed to avoid edict overflow
 			engine.AllowImmediateEdictReuse();

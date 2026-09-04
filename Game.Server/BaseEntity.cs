@@ -201,7 +201,48 @@ public partial class BaseEntity : IServerEntity
 	}
 
 	public virtual void StopLoopingSounds() { }
-	string? GlobalName;
+	public string? GlobalName;
+
+	public void Remove() => Util.Remove(this);
+
+	public void MakeDormant(){
+		AddEFlags(EFL.Dormant);
+		SetThink(null);
+
+		if (Edict() == null)
+			return;
+
+		eflags |= EFL.Dormant;
+		AddSolidFlags(SolidFlags.NotSolid);
+		SetMoveType(Source.MoveType.None);
+		AddEffects(EntityEffects.NoDraw);
+		SetNextThink(TICK_NEVER_THINK);
+	}
+
+	public bool IsBSPModel(){
+		if (GetSolid() == SolidType.BSP)
+			return true;
+
+		Model? model = modelinfo.GetModel(GetModelIndex());
+		if (GetSolid() == SolidType.VPhysics && modelinfo.GetModelType(model) == ModelType.Brush)
+			return true;
+
+		return false;
+	}
+
+	public bool IsViewable(){
+		if (IsEffectActive(EntityEffects.NoDraw))
+			return false;
+
+		if (IsBSPModel()) {
+			if (GetMoveType() != Source.MoveType.None)
+				return true;
+		}
+		else if (GetModelIndex() != 0)
+			return true;
+		return false;
+	}
+
 	public virtual void UpdateOnRemove() {
 		Util.g_bReceivedChainedUpdateOnRemove = true;
 
@@ -233,7 +274,7 @@ public partial class BaseEntity : IServerEntity
 			// NOTE: During level shutdown the global list will suppress this
 			// it assumes your changing levels or the game will end
 			// causing the whole list to be flushed
-			GlobalState.GlobalEntity_SetState(GlobalName, GlobalEState.Dead);
+			GlobalEntity.SetState(GlobalName, GlobalEState.Dead);
 		}
 
 		VPhysicsDestroyObject();
@@ -759,7 +800,7 @@ public partial class BaseEntity : IServerEntity
 	public static bool IsPrecacheAllowed() => _AllowPrecache;
 	public static bool SetAllowPrecache(bool allow) => _AllowPrecache = allow;
 
-	public int PrecacheModel(ReadOnlySpan<char> name, bool preload) {
+	public static int PrecacheModel(ReadOnlySpan<char> name, bool preload = true) {
 		if (name.IsStringEmpty)
 			return -1;
 
@@ -774,7 +815,7 @@ public partial class BaseEntity : IServerEntity
 		return idx;
 	}
 
-	public void PrecacheModelComponents(int modelIndex) {
+	public static void PrecacheModelComponents(int modelIndex) {
 		Model? model = (Model?)modelinfo.GetModel(modelIndex);
 		if (model != null || modelinfo.GetModelType(model) != ModelType.Studio)
 			return;
@@ -837,7 +878,78 @@ public partial class BaseEntity : IServerEntity
 
 	public ref readonly BaseHandle GetRefEHandle() => ref RefEHandle;
 
-	public void SetModelIndex(int index) => ModelIndex = index;
+	public bool DynamicModelAllowed;
+	public bool DynamicModelSetBounds;
+	public bool DynamicModelPending;
+
+	public void SetModelIndex(int index) {
+		if (IVModelInfo.IsDynamicModelIndex(index) && !(GetBaseAnimating() != null && DynamicModelAllowed)) {
+			AssertMsg(false, "dynamic model support not enabled on server entity");
+			index = -1;
+		}
+
+		if (index != ModelIndex) {
+			if (DynamicModelPending) {
+				// sg_DynamicLoadHandlers.Remove(this);
+				throw new NotImplementedException("sg_DynamicLoadHandlers.Remove(this)");
+			}
+
+			modelinfo.ReleaseDynamicModel(ModelIndex);
+			modelinfo.AddRefDynamicModel(index);
+			ModelIndex = index;
+
+			DynamicModelSetBounds = false;
+
+			if (IVModelInfo.IsDynamicModelIndex(index)) {
+				DynamicModelPending = true;
+				throw new NotImplementedException("sg_DynamicLoadHandlers[sg_DynamicLoadHandlers.Insert(this)].Register(index)");
+				// sg_DynamicLoadHandlers[sg_DynamicLoadHandlers.Insert(this)].Register(index);
+			}
+			else {
+				DynamicModelPending = false;
+				OnNewModel();
+			}
+		}
+		DispatchUpdateTransmitState();
+	}
+
+	public void OnModelLoadComplete(Model model) {
+		Assert(DynamicModelPending && IVModelInfo.IsDynamicModelIndex(ModelIndex));
+		Assert(model == modelinfo.GetModel(ModelIndex));
+
+		DynamicModelPending = false;
+
+		if (DynamicModelSetBounds) {
+			DynamicModelSetBounds = false;
+			SetCollisionBoundsFromModel();
+		}
+
+		OnNewModel();
+	}
+
+	public Model? GetModel() => modelinfo.GetModel(GetModelIndex());
+
+	public void SetCollisionBoundsFromModel() {
+		if (IsDynamicModelLoading()) {
+			DynamicModelSetBounds = true;
+			return;
+		}
+
+		Model? model = GetModel();
+		if (model != null) {
+			modelinfo.GetModelBounds(model, out Vector3 mns, out Vector3 mxs);
+			Util.SetSize(this, mns, mxs);
+		}
+	}
+
+	protected void EnableDynamicModels() => DynamicModelAllowed = true;
+
+	public bool IsDynamicModelLoading() => DynamicModelPending;
+
+	protected virtual StudioHdr? OnNewModel() {
+		return null;
+	}
+
 
 	BaseHandle RefEHandle;
 	public void SetRefEHandle(in BaseHandle handle) => RefEHandle = handle;

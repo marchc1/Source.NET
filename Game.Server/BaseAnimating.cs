@@ -121,6 +121,25 @@ public class BaseAnimating : BaseEntity
 	}
 	public TimeUnit_t GetSequenceGroundSpeed(int sequence) => GetSequenceGroundSpeed(GetModelPtr(), sequence);
 
+	protected override StudioHdr? OnNewModel() {
+		base.OnNewModel();
+
+		if (IsDynamicModelLoading()) {
+			// Called while dynamic model still loading -> new model, clear deferred state
+			ResetSequenceInfoOnLoad = false;
+			return null;
+		}
+
+		StudioHdr? hdr = GetModelPtr();
+
+		if (ResetSequenceInfoOnLoad) {
+			ResetSequenceInfoOnLoad = false;
+			ResetSequenceInfo();
+		}
+
+		return hdr;
+	}
+
 	public Activity GetSequenceActivity(int sequence) {
 		if (sequence == -1) {
 			return Activity.ACT_INVALID;
@@ -295,7 +314,6 @@ public class BaseAnimating : BaseEntity
 	public float GroundSpeed;
 	public bool SequenceLoops;
 	public bool ResetSequenceInfoOnLoad;
-	public bool DynamicModelLoading;
 	public bool SequenceFinished;
 	public TimeUnit_t LastEventCheck;
 	public TimeUnit_t GetCycle() => Cycle;
@@ -305,7 +323,6 @@ public class BaseAnimating : BaseEntity
 
 		return ret.Length();
 	}
-	public bool IsDynamicModelLoading() => DynamicModelLoading;
 	public float GetSequenceGroundSpeed(StudioHdr? studioHdr, int sequence) {
 		TimeUnit_t t = SequenceDuration(studioHdr, sequence);
 

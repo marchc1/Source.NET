@@ -450,6 +450,4 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 
 		networkStringTableContainerServer.SetAllowCreation(false);
 	}
-
-	internal static int ModelIndex(ReadOnlySpan<char> s) => sv.LookupModelIndex(s);
 }
