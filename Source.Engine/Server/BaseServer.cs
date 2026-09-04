@@ -1007,9 +1007,9 @@ public abstract class BaseServer : IServer
 		return pdc.Data;
 	}
 
-	public INetworkStringTable? GetInstanceBaselineTable() => LightStyleTable ??= StringTables!.FindTable(Protocol.INSTANCE_BASELINE_TABLENAME);
+	public INetworkStringTable? GetInstanceBaselineTable() => InstanceBaselineTable ??= StringTables!.FindTable(Protocol.INSTANCE_BASELINE_TABLENAME);
 	public INetworkStringTable? GetLightStyleTable() => LightStyleTable ??= StringTables!.FindTable(Protocol.LIGHT_STYLES_TABLENAME);
-	public INetworkStringTable? GetUserInfoTable() => LightStyleTable ??= StringTables?.FindTable(Protocol.USER_INFO_TABLENAME);
+	public INetworkStringTable? GetUserInfoTable() => UserInfoTable ??= StringTables?.FindTable(Protocol.USER_INFO_TABLENAME);
 
 	public virtual void RejectConnection(NetAddress adr, int clientChallenge, ReadOnlySpan<char> s) {
 		byte[] msg_buffer = new byte[Protocol.MAX_ROUTABLE_PAYLOAD];
