@@ -6,10 +6,6 @@ namespace Game.Client
 {
 	public static class CDLL_Util
 	{
-		public const int LIGHT_INDEX_TE_DYNAMIC = 0x10000000;
-		public const int LIGHT_INDEX_PLAYER_BRIGHT = 0x20000000;
-		public const int LIGHT_INDEX_MUZZLEFLASH = 0x40000000;
-
 		public static int ScreenWidth() {
 			GetHudSize(out int w, out _);
 			return w;
@@ -19,6 +15,13 @@ namespace Game.Client
 			GetHudSize(out _, out int h);
 			return h;
 		}
+	}
+
+	public enum LightIndex
+	{
+		TEDynamic = 0x10000000,
+		PlayerBright = 0x20000000,
+		MuzzleFlash = 0x30000000
 	}
 }
 

@@ -32,13 +32,13 @@ public class C_TEDynamicLight : C_BaseTempEntity
 
 	public override void PostDataUpdate(DataUpdateType updateType) {
 		BroadcastRecipientFilter filter = new();
-		TE_DynamicLight(filter, 0.0f, in Origin, R, G, B, Exponent, Radius, Time, Decay, LIGHT_INDEX_TE_DYNAMIC);
+		TE_DynamicLight(filter, 0.0f, in Origin, R, G, B, Exponent, Radius, Time, Decay, (int)LightIndex.TEDynamic);
 	}
 }
 
 public static partial class TempEnts
 {
-	public static void TE_DynamicLight(IRecipientFilter filter, float delay, in Vector3 org, int r, int g, int b, int exponent, float radius, float time, float decay, int lightIndex = LIGHT_INDEX_TE_DYNAMIC) {
+	public static void TE_DynamicLight(IRecipientFilter filter, float delay, in Vector3 org, int r, int g, int b, int exponent, float radius, float time, float decay, int lightIndex = (int)LightIndex.TEDynamic) {
 		DLight? dl = effects.AllocDlight(lightIndex);
 		if (dl == null)
 			return;
