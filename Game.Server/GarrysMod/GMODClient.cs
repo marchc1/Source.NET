@@ -78,9 +78,9 @@ public static class GMODClient
 	// Purpose: Precache game-specific models & sounds
 	//-----------------------------------------------------------------------------
 	public static void ClientGamePrecache() {
-		// todo BaseEntity.PrecacheModel("models/player.mdl");
-		// todo BaseEntity.PrecacheModel("models/gibs/agibs.mdl");
-		// todo BaseEntity.PrecacheModel("models/weapons/v_hands.mdl");
+		BaseEntity.PrecacheModel("models/player.mdl");
+		BaseEntity.PrecacheModel("models/gibs/agibs.mdl");
+		BaseEntity.PrecacheModel("models/weapons/v_hands.mdl");
 		BaseEntity.PrecacheScriptSound("HUDQuickInfo.LowAmmo");
 		BaseEntity.PrecacheScriptSound("HUDQuickInfo.LowHealth");
 		BaseEntity.PrecacheScriptSound("FX_AntlionImpact.ShellImpact");

@@ -5,7 +5,7 @@ using System.Numerics;
 namespace Game.Server;
 
 using FIELD = FIELD<TEShatterSurface>;
-public class TEShatterSurface : BaseTempEntity
+public class TEShatterSurface(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEShatterSurface = new(DT_BaseTempEntity, [
 		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.Coord),

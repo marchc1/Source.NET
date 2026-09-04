@@ -5,7 +5,7 @@ using Source.Common;
 namespace Game.Server;
 using FIELD = Source.FIELD<TEPlayerAnimEvent>;
 
-public class TEPlayerAnimEvent : BaseTempEntity
+public class TEPlayerAnimEvent(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEPlayerAnimEvent = new([
 		SendPropEHandle(FIELD.OF(nameof(Player))),

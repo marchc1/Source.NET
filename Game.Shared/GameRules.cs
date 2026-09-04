@@ -168,6 +168,10 @@ public abstract class
 	internal virtual float DefaultFOV() {
 		return 90;
 	}
+
+	public virtual void Precache() {
+	
+	}
 #endif
 }
 #endif

@@ -1,4 +1,6 @@
-﻿using Source.Common;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source.Common;
 using Source.Common.Audio;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
@@ -411,7 +413,9 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	public bool IsPaused() => sv.IsPaused();
 
 	public void LightStyle(int style, ReadOnlySpan<char> val) {
-		throw new NotImplementedException();
+		// change the string in string table
+		INetworkStringTable stringTable = sv.GetLightStyleTable()!;
+		stringTable!.SetStringUserData(style, val.Length + 1, val.Cast<char, byte>());
 	}
 
 	public void LoadAdjacentEnts(ReadOnlySpan<char> oldLevel, ReadOnlySpan<char> landmarkName) {
@@ -536,8 +540,21 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 		throw new NotImplementedException();
 	}
 
+	void PR_CheckEmptyString(ReadOnlySpan<char> s){
+		if (s.Length == 0)
+			Host.Error($"Bad string: {s}");
+	}
+
 	public int PrecacheModel(ReadOnlySpan<char> s, bool preload = false) {
-		throw new NotImplementedException();
+		if (sv.GetModelPrecacheTable()!.GetNumStrings() != 0) // Allow the gamedll to call it with "" if the stringtable is empty. It is most likely recreating the entire stringtable.
+			PR_CheckEmptyString(s);
+
+		int i = SV.FindOrAddModel(s, preload);
+		if (i >= 0) 
+			return i;
+
+		Host.Error($"EngineServer.PrecacheModel: '{s}' overflow, too many models");
+		return 0;
 	}
 
 	public int PrecacheSentenceFile(ReadOnlySpan<char> s, bool preload = false) {

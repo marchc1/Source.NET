@@ -8,6 +8,7 @@ using System.Numerics;
 namespace Game.Server;
 using FIELD = Source.FIELD<Sun>;
 
+[LinkEntityToClass("env_sun")]
 public class Sun : BaseEntity
 {
 	public static readonly SendTable DT_Sun = new([

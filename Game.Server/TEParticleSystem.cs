@@ -5,7 +5,7 @@ using System.Numerics;
 namespace Game.Server;
 
 using FIELD = FIELD<TEParticleSystem>;
-public class TEParticleSystem : BaseTempEntity
+public class TEParticleSystem(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEParticleSystem = new(DT_BaseTempEntity, [
 		SendPropFloat(FIELD.OF_VECTORELEM(nameof(Origin), 0), 0, PropFlags.Coord | PropFlags.NoScale | PropFlags.IsAVectorElem),

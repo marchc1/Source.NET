@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TELargeFunnel>;
-public class TELargeFunnel : TEParticleSystem
+public class TELargeFunnel(ReadOnlySpan<char> name) : TEParticleSystem(name)
 {
 	public static readonly SendTable DT_TELargeFunnel = new(DT_TEParticleSystem, [
 		SendPropInt(FIELD.OF(nameof(Reversed)), 2, PropFlags.Unsigned),

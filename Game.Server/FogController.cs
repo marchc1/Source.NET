@@ -5,6 +5,7 @@ using Source.Common;
 namespace Game.Server;
 using FIELD = Source.FIELD<FogController>;
 
+[LinkEntityToClass("env_fog_controller")]
 public class FogController : BaseEntity
 {
 	public FogParams Fog;

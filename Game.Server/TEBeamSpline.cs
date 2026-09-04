@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEBeamSpline>;
-public class TEBeamSpline : BaseTempEntity
+public class TEBeamSpline(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEBeamSpline = new([
 		SendPropInt(FIELD.OF(nameof(NumPoints)), 5, PropFlags.Unsigned),
