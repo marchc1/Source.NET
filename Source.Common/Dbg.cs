@@ -54,7 +54,7 @@ public static class Dbg
 	static SpewOutputFunc _SpewOutputFunc = DefaultSpewFunc;
 	static AssertFailedNotifyFunc? _AssertFailedNotifyFunc = null;
 
-	static string FileName;
+	static string? FileName;
 	static int Line;
 	static SpewType SpewType;
 
@@ -216,7 +216,9 @@ public static class Dbg
 
 	[DoesNotReturn]
 	public static void Error([StringSyntax(StringSyntaxAttribute.CompositeFormat)] ReadOnlySpan<char> msgFormat, params object?[] args)
+#pragma warning disable CS8763 // A method marked [DoesNotReturn] should not return. (it likely wont return if the spew handler is handling it... kinda gross)
 		=> _SpewMessage(SpewType.Error, msgFormat, args);
+#pragma warning restore CS8763 // A method marked [DoesNotReturn] should not return.
 
 
 	public static void ErrorIfNot([DoesNotReturnIf(false)] bool condition, ReadOnlySpan<char> msg) {
@@ -415,6 +417,16 @@ public static class Dbg
 		[CallerLineNumber] int ____lineNum = -1,
 		params object?[] args
 	) => _AssertMsg(i1 == null ? i2 == null : i1.Equals(i2), "Expected {0} but got {1}!", args, ____fileP ?? "<nofile>", ____lineNum, false);
+
+	[Conditional("DBGFLAG_ASSERT")]
+#if DBGFLAG_HIDE_ASSERTS_FROM_DEBUGGING_STACK
+	[DebuggerHidden]
+#endif
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void AssertFloatEquals(float exp, float expectedValue, float tol,
+		[CallerFilePath] string? ____fileP = null,
+		[CallerLineNumber] int ____lineNum = -1
+	) => _AssertMsg(MathF.Abs(exp - expectedValue) <= tol, $"Expected {expectedValue} but got {exp}!", ____fileP ?? "<nofile>", ____lineNum, false);
 
 	public static void SpewActivate(string groupName, int level) {
 		Assert(groupName != null);

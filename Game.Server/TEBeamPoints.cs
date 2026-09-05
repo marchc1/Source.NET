@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEBeamPoints>;
-public class TEBeamPoints : BaseBeam
+public class TEBeamPoints(ReadOnlySpan<char> name) : BaseBeam(name)
 {
 	public static readonly SendTable DT_TEBeamPoints = new(DT_BaseBeam, [
 		SendPropVector(FIELD.OF(nameof(StartPoint)), 0, PropFlags.Coord),

@@ -34,6 +34,8 @@ public class NetworkStringTableItem
 	public int TickCreated;
 	public List<ItemChange>? ChangeList;
 
+	public int GetTickChanged() => TickChanged;
+
 	public NetworkStringTableItem() {
 		UserData = null;
 		UserDataLength = 0;
@@ -107,6 +109,36 @@ public interface INetworkStringDict
 	public NetworkStringTableItem Element(int index);
 };
 
+public class NetworkStringFilenameDict : INetworkStringDict
+{
+	readonly Dictionary<FileNameHandle_t, NetworkStringTableItem> Items = [];
+
+	public int Count() => Items.Count;
+
+	public NetworkStringTableItem Element(int index) {
+		throw new NotImplementedException();
+	}
+
+	public int Find(string pString) {
+		throw new NotImplementedException();
+	}
+
+	public int Insert(string pString) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsValidIndex(int index) {
+		throw new NotImplementedException();
+	}
+
+	public void Purge() {
+		throw new NotImplementedException();
+	}
+
+	public string String(int index) {
+		throw new NotImplementedException();
+	}
+}
 public class NetworkStringDict : INetworkStringDict
 {
 	private readonly Dictionary<string, NetworkStringTableItem> Lookup = new(StringComparer.OrdinalIgnoreCase);
@@ -161,6 +193,7 @@ public class NetworkStringTable : INetworkStringTable
 	private int EntryBits;
 	private int TickCount;
 	internal int LastChangedTick;
+	internal int LastFullChangedTick;
 
 	private bool ChangeHistoryEnabled;
 	private bool Locked;
@@ -173,6 +206,7 @@ public class NetworkStringTable : INetworkStringTable
 
 	private object? CallbackObject = null;
 	private StringChangedDelegate? ChangeFunc = null;
+	private FullUpdateCallback? FullUpdateFunc = null;
 	private INetworkStringTable? MirrorTable = null;
 
 	private INetworkStringDict Items;
@@ -204,7 +238,7 @@ public class NetworkStringTable : INetworkStringTable
 
 		if (bIsFilenames) {
 			IsFilenames = true;
-			Items = new NetworkStringDict(); //new CNetworkStringFilenameDict;
+			Items = new NetworkStringFilenameDict();
 		}
 		else {
 			IsFilenames = false;
@@ -671,6 +705,76 @@ public class NetworkStringTable : INetworkStringTable
 
 		return entries == msg.NumEntries;
 	}
+
+	internal void UpdateMirrorTable(int tick_ack) {
+		if (MirrorTable == null)
+			return;
+
+		MirrorTable.SetTick(TickCount); // use same tick
+
+		bool bFullUpdate = tick_ack < LastFullChangedTick;
+		if (bFullUpdate)
+			MirrorTable.DeleteAllStrings();
+
+		int count = Items.Count();
+
+		for (int i = 0; i < count; i++) {
+			NetworkStringTableItem p = Items.Element(i);
+
+			// mirror is up to date
+			if (!bFullUpdate && p.GetTickChanged() <= tick_ack)
+				continue;
+
+			byte[]? userData = p.GetUserData(out int length);
+
+			if (length == 0 || userData == null) {
+				length = 0;
+				userData = null;
+			}
+
+			// Check if we are updating an old entry or adding a new one
+			if (i < MirrorTable.GetNumStrings())
+				MirrorTable.SetStringUserData(i, length, userData);
+			else {
+				// Grow the table (entryindex must be the next empty slot)
+				Assert(i == MirrorTable.GetNumStrings());
+				ReadOnlySpan<char> name = Items.String(i);
+				MirrorTable.AddString(true, name, length, userData);
+			}
+		}
+
+		if (bFullUpdate) {
+			FullUpdateFunc?.Invoke(this);
+
+			FullUpdateCallback? mirrorUpdateFunc = MirrorTable.GetFullUpdateCallback();
+			mirrorUpdateFunc?.Invoke(MirrorTable);
+		}
+	}
+
+	public StringChangedDelegate? GetCallback() => ChangeFunc;
+	public FullUpdateCallback? GetFullUpdateCallback() => FullUpdateFunc;
+
+	public void SetFullUpdateCallback(FullUpdateCallback changeFunc) => FullUpdateFunc = changeFunc;
+	public void DeleteAllStrings(bool reNetwork = false) {
+		Items = null!;
+		if (IsFilenames)
+			Items = new NetworkStringFilenameDict();
+		else
+			Items = new NetworkStringDict();
+
+
+		if (ItemsClientSide != null) {
+			ItemsClientSide = null;
+			ItemsClientSide = new NetworkStringDict();
+			ItemsClientSide.Insert("___clientsideitemsplaceholder0___"); // 0 slot can't be used
+			ItemsClientSide.Insert("___clientsideitemsplaceholder1___"); // -1 can't be used since it looks like the "invalid" index from other string lookups
+		}
+
+		if (reNetwork) {
+			LastChangedTick = TickCount; // Mark as changed
+			LastFullChangedTick = TickCount;
+		}
+	}
 }
 
 public class NetworkStringTableContainer : INetworkStringTableContainer
@@ -793,15 +897,17 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 				// TERROR: bzip-compress the stringtable before adding it to the packet.  Yes, the whole packet will be bzip'd,
 				// but the uncompressed data also has to be under the NET_MAX_PAYLOAD limit.
 				int numBytes = msg.DataOut.BytesWritten;
-				uint compressedSize = (uint)numBytes;
-				Span<byte> compressedData = new byte[numBytes];
+				// Worst-case sized scratch buffer; BufferToBufferCompress_Snappy reslices it down to the actual compressed length.
+				Span<byte> compressedData = new byte[Common.GetIdealDestinationCompressionBufferSize_LZSS((uint)numBytes)];
 
-				if (Common.BufferToBufferCompress_Snappy(ref compressedData, msg.DataOut.GetData()![..numBytes])) {
+				// Only keep the compressed form if it's actually smaller; otherwise fall through and send uncompressed.
+				if (Common.BufferToBufferCompress_LZSS(ref compressedData, msg.DataOut.GetData()![..numBytes]) && compressedData.Length < numBytes) {
+					int compressedSize = compressedData.Length;
 					msg.DataCompressed = true;
 					msg.DataOut.Reset();
-					msg.DataOut.WriteLong(numBytes);  // uncompressed size
-					msg.DataOut.WriteLong((int)compressedSize);    // compressed size
-					msg.DataOut.WriteBits(compressedData, (int)compressedSize * 8);    // compressed data
+					msg.DataOut.WriteLong(numBytes);           // uncompressed size
+					msg.DataOut.WriteLong(compressedSize);     // compressed size
+					msg.DataOut.WriteBits(compressedData, compressedSize * 8);    // compressed data
 				}
 			}
 
@@ -841,6 +947,19 @@ public class NetworkStringTableContainer : INetworkStringTableContainer
 
 			if (client != null && client.Tracing != 0)
 				client.TraceNetworkMsg(0, $"Sent update for string table {table.GetTableName()} with {msg.ChangedEntries} changed entries\n");
+		}
+	}
+
+	internal void DirectUpdate(int tick_ack) {
+		for (int i = 0; i < Tables.Count; i++) {
+			NetworkStringTable table = (NetworkStringTable)GetTable(i)!;
+
+			Assert(table != null);
+
+			if (!table.ChangedSinceTick(tick_ack))
+				continue;
+
+			table.UpdateMirrorTable(tick_ack);
 		}
 	}
 }

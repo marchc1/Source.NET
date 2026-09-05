@@ -5,7 +5,7 @@ using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Networking;
 using Source.Common.Server;
-using Source.Engine.Steam;
+using Source.Common.Steam;
 
 using Steamworks;
 

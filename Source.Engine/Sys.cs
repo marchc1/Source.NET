@@ -235,6 +235,7 @@ public class Sys(Host host, ICommandLine CommandLine)
 		return SpewRetval.Continue;
 	}
 
+	[DoesNotReturn]
 	public static void Error(ReadOnlySpan<char> msg) {
 		Singleton<MessageBoxFn>().Invoke("Engine Error", msg, false);
 		Environment.Exit(100);

@@ -5,7 +5,7 @@ using System.Numerics;
 using Source.Common.Mathematics;
 namespace Game.Server;
 using FIELD = FIELD<TEPhysicsProp>;
-public class TEPhysicsProp : BaseTempEntity
+public class TEPhysicsProp(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEPhysicsProp = new(DT_BaseTempEntity, [
 		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.Coord),

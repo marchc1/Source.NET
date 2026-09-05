@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEConcussiveExplosion>;
-public class TEConcussiveExplosion : TEParticleSystem
+public class TEConcussiveExplosion(ReadOnlySpan<char> name) : TEParticleSystem(name)
 {
 	public static readonly SendTable DT_TEConcussiveExplosion = new(DT_TEParticleSystem, [
 		SendPropVector(FIELD.OF(nameof(Normal)), 0, PropFlags.Coord),

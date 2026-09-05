@@ -913,6 +913,8 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 
 		TextureSystem.RestoreRenderTargets();
 		Restore?.Invoke();
+		for (int i = 0; i < RestoreFunc.Count; i++)
+			RestoreFunc[i](changeFlags);
 		TextureSystem.RestoreNonRenderTargetTextures();
 	}
 
@@ -1036,6 +1038,23 @@ public class MaterialSystem : IMaterialSystem, IShaderUtil
 
 	public event Action? Restore;
 
+	readonly List<Action<int>> RestoreFunc = [];
+
+	public void AddRestoreFunc(Action<int> func) {
+		Assert(!RestoreFunc.Contains(func));
+		RestoreFunc.Add(func);
+	}
+
+	public void RemoveRestoreFunc(Action<int> func) {
+		RestoreFunc.Remove(func);
+	}
+
+	public bool SupportsShadowDepthTextures() => ShaderAPI.SupportsShadowDepthTextures();
+
+	public ImageFormat GetShadowDepthTextureFormat() => ShaderAPI.GetShadowDepthTextureFormat();
+
+	public ImageFormat GetNullTextureFormat() => ShaderAPI.GetNullTextureFormat();
+
 	public IMaterialInternal errorMaterial;
 	public readonly MatLightmaps MatLightmaps;
 }
@@ -1071,11 +1090,9 @@ public struct RenderTargetStackElement
 	public int ViewW;
 	public int ViewH;
 
-	public readonly int Size =>
-		(RenderTarget0 != null ? 1 : 0) +
-		(RenderTarget1 != null ? 1 : 0) +
-		(RenderTarget2 != null ? 1 : 0) +
-		(RenderTarget3 != null ? 1 : 0);
+	public const int NUM_RENDER_TARGET_BINDS = 4;
+
+	public readonly int Size => NUM_RENDER_TARGET_BINDS;
 
 	public RenderTargetStackElement(int viewX, int viewY, int viewW, int viewH) {
 		this.ViewX = viewX;

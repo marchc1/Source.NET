@@ -9,7 +9,7 @@ public partial class InfoOverlayAccessor : BaseEntity
 {
 	public static readonly SendTable DT_InfoOverlayAccessor = new([
 		SendPropInt(FIELD.OF(nameof(TextureFrameIndex)), 8, PropFlags.Unsigned),
-		SendPropInt(FIELD.OF(nameof(OverlayID)), 8, PropFlags.Unsigned)
+		SendPropInt(FIELD.OF(nameof(OverlayID)), 32, PropFlags.Unsigned)
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("InfoOverlayAccessor", DT_InfoOverlayAccessor).WithManualClassID(StaticClassIndices.CInfoOverlayAccessor);
 

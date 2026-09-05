@@ -1,3 +1,4 @@
+using Source.Common.Bitmap;
 using Source.Common.Commands;
 using Source.Common.MaterialSystem;
 
@@ -5,6 +6,10 @@ namespace Source.ShaderAPI.Gl46;
 
 public class HardwareConfig : IMaterialSystemHardwareConfig
 {
+	public bool SupportsShadowDepthTexturesCap = true;
+	public ImageFormat ShadowDepthTextureFormat = ImageFormat.NV_DST24;
+	public ImageFormat NullTextureFormat = ImageFormat.NV_NULL;
+
 	public bool ActuallySupportsPixelShaders_2_b() {
 		throw new NotImplementedException();
 	}
@@ -49,17 +54,28 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	public unsafe int GetSamplerCount() {
 		int count;
 		glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &count);
-		return count;
+		return Math.Min(count, (int)Sampler.MaxSamplers);
 	}
 
 	public ReadOnlySpan<char> GetShaderDLLName() {
 		throw new NotImplementedException();
 	}
 
-	public int GetShadowFilterMode() {
-		throw new NotImplementedException();
+	public enum ShadowFilterMode
+	{
+		None = 0,
+		NvidiaPcfPoisson = 0,
+		AtiNoPcf = 1,
+		AtiNoPcfFetch4 = 2
 	}
 
+	public int GetShadowFilterMode() {
+		return ShadowDepthTextureFormat switch {
+			ImageFormat.NV_DST16 or ImageFormat.NV_DST24 => (int)ShadowFilterMode.NvidiaPcfPoisson,
+			ImageFormat.ATI_DST16 or ImageFormat.ATI_DST24 => (int)ShadowFilterMode.AtiNoPcfFetch4,
+			_ => (int)ShadowFilterMode.None,
+		};
+	}
 	public int GetTextureStageCount() {
 		return GetSamplerCount();
 	}
@@ -73,7 +89,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool HasFastVertexTextures() {
-		throw new NotImplementedException();
+		return false;
 	}
 
 	public bool HasProjectedBumpEnv() {
@@ -110,8 +126,10 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 		return (int)maxAniso;
 	}
 
+	public const int MAX_NUM_LIGHTS = 4;
+
 	public int MaxNumLights() {
-		throw new NotImplementedException();
+		return MAX_NUM_LIGHTS;
 	}
 
 	public int MaxTextureAspectRatio() {
@@ -197,11 +215,12 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool SupportsBorderColor() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsColorOnSecondStream() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsCompressedTextures() {
@@ -267,15 +286,16 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool SupportsSRGB() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsStaticControlFlow() {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsStaticPlusDynamicLighting() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsStreamOffset() {
@@ -283,7 +303,7 @@ public class HardwareConfig : IMaterialSystemHardwareConfig
 	}
 
 	public bool SupportsVertexAndPixelShaders() {
-		throw new NotImplementedException();
+		return true;
 	}
 
 	public bool SupportsVertexShaders_2_0() {

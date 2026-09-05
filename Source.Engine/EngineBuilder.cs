@@ -9,6 +9,7 @@ using Source.Common.GameUI;
 using Source.Common.MaterialSystem;
 using Source.Common.Networking;
 using Source.Common.Server;
+using Source.Common.ToolFramework;
 using Source.Engine.Client;
 using Source.Engine.Server;
 
@@ -149,6 +150,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<SV>();
 		this.AddSingleton<Sys>();
 		this.AddSingleton<View>();
+		this.AddSingleton<IVEfx, VEfx>();
 		// Engine components that we provide.
 		this.AddSingleton<ICvar, Cvar>((services) => services.GetRequiredService<Cvar>());
 		this.AddSingleton<ICvarQuery, DefaultCvarQuery>();
@@ -187,6 +189,9 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		this.AddSingleton<ISoundServices, EngineSoundServices>();
 		this.AddSingleton<IGameUIFuncs, GameUIFuncs>();
 		this.AddSingleton<DtCommonEng>();
+		this.AddSingleton<EngineToolImpl>();
+		this.AddSingleton<IEngineToolInternal>(x => x.GetRequiredService<EngineToolImpl>());
+		this.AddSingleton<IEngineTool>(x => x.GetRequiredService<EngineToolImpl>());
 	}
 
 	T PostBuildAllForms<T>() where T : IEngineAPI {
@@ -356,7 +361,7 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 		var engineAPI = Singleton<IEngineAPI>();
 		ICvar cvar = engineAPI.GetRequiredService<ICvar>();
 		var assemblies = AppDomain.CurrentDomain.GetAssemblies()
-			.Where(ReflectionUtils.IsOkAssembly);
+			.Where(ReflectionUtils.IsSourceEngineAssembly);
 
 		Type CVAR = typeof(ConVar);
 		Type CCMD = typeof(ConCommand);
@@ -398,14 +403,14 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 						// Pull a static reference out to link
 						ConVar? cv = (ConVar?)getMethod.Invoke(null, null);
 						if (cv == null) continue;
-						if (cv.GetName() == null) cv.SetName(prop.Name);
+						if (cv.GetName() == null!) cv.SetName(prop.Name);
 						cvar.RegisterConCommand(cv);
 					}
 					else {
 						object? instance = DetermineInstance(engineAPI, type, false, prop.Name);
 						ConVar? cv = (ConVar?)getMethod.Invoke(instance, null);
 						if (cv == null) continue;
-						if (cv.GetName() == null) cv.SetName(prop.Name);
+						if (cv.GetName() == null!) cv.SetName(prop.Name);
 						cvar.RegisterConCommand(cv);
 					}
 				}
@@ -421,14 +426,14 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 						// Pull a static reference out to link
 						ConVar? cv = (ConVar?)field.GetValue(null);
 						if (cv == null) continue;
-						if (cv.GetName() == null) cv.SetName(field.Name);
+						if (cv.GetName() == null!) cv.SetName(field.Name);
 						cvar.RegisterConCommand(cv);
 					}
 					else {
 						object? instance = DetermineInstance(engineAPI, type, false, field.Name);
 						ConVar? cv = (ConVar?)field.GetValue(instance);
 						if (cv == null) continue;
-						if (cv.GetName() == null) cv.SetName(field.Name);
+						if (cv.GetName() == null!) cv.SetName(field.Name);
 						cvar.RegisterConCommand(cv);
 					}
 				}
@@ -455,11 +460,11 @@ public class EngineBuilder(ICommandLine cmdLine) : ServiceCollection
 					ConCommand cmd;
 
 					if (method.TryToDelegate<FnCommandCallbackVoid>(instance, out var callbackVoid))
-						cmd = new(cmdName, callbackVoid, helpText, flags, completionCallback);
+						cmd = new ConCommand(cmdName, callbackVoid, helpText, flags, completionCallback);
 					else if (method.TryToDelegate<FnCommandCallback>(instance, out var callback))
-						cmd = new(cmdName, callback, helpText, flags, completionCallback);
+						cmd = new ConCommand(cmdName, callback, helpText, flags, completionCallback);
 					else if (method.TryToDelegate<FnCommandCallbackSourced>(instance, out var callbackSourced))
-						cmd = new(cmdName, callbackSourced, helpText, flags, completionCallback);
+						cmd = new ConCommand(cmdName, callbackSourced, helpText, flags, completionCallback);
 					else
 						throw new ArgumentException("Cannot dynamically produce ConCommand with the arguments we were given");
 

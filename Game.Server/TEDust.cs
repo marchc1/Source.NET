@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEDust>;
-public class TEDust : TEParticleSystem
+public class TEDust(ReadOnlySpan<char> name) : TEParticleSystem(name)
 {
 	public static readonly SendTable DT_TEDust = new(DT_TEParticleSystem, [
 		SendPropFloat(FIELD.OF(nameof(LSize)), 0, PropFlags.Coord | PropFlags.NoScale),

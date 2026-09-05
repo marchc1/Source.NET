@@ -10,6 +10,25 @@ using System.Runtime.CompilerServices;
 
 namespace Source.Common;
 
+public class StandardRecvProxies
+{
+	public static readonly StandardRecvProxies g_StandardRecvProxies = new();
+
+	public StandardRecvProxies(){
+		Int32ToInt8 = RecvProxy_Int32ToInt8;
+		Int32ToInt16 = RecvProxy_Int32ToInt16;
+		Int32ToInt32 = RecvProxy_Int32ToInt32;
+		FloatToFloat = RecvProxy_FloatToFloat;
+		VectorToVector = RecvProxy_VectorToVector;
+	}
+
+	public RecvVarProxyFn Int32ToInt8;
+	public RecvVarProxyFn Int32ToInt16;
+	public RecvVarProxyFn Int32ToInt32;
+	public RecvVarProxyFn FloatToFloat;
+	public RecvVarProxyFn VectorToVector;
+}
+
 public delegate void ArrayLengthRecvProxyFn(object instance, int objectID, int currentArrayLength);
 public static class RecvPropHelpers
 {
@@ -546,8 +565,10 @@ public class SendTablePrecalc
 	public readonly List<SendProp> DataTableProps = [];
 	public readonly SendNode Root = new();
 	public SendTable SendTable;
+	// TODO: public DTISendTable DTITable;
+	public readonly FastLocalTransferInfo FastLocalTransfer = new();
 	public int DataTableProxies;
-	public readonly Dictionary<ushort, ushort> PropOffsetToIndexMap = [];
+	public readonly Dictionary<IFieldAccessor, ushort> PropAccessorToIndexMap = [];
 }
 
 public class ClientSendProp

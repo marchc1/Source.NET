@@ -27,6 +27,7 @@ SOFTWARE.
 using System;
 using System.Text;
 using System.Security;
+using Source.Common.MaterialSystem;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
@@ -136,6 +137,32 @@ public unsafe static class Gl46
 			ShaderDepthFunc.NotEqual => GL_NOTEQUAL,
 			ShaderDepthFunc.FartherOrEqual => GL_GEQUAL,
 			ShaderDepthFunc.Always => GL_ALWAYS,
+			_ => throw new NotImplementedException()
+		};
+	}
+	public static int GLEnum(this StencilOperation op) {
+		return op switch {
+			StencilOperation.Keep => GL_KEEP,
+			StencilOperation.Zero => GL_ZERO,
+			StencilOperation.Replace => GL_REPLACE,
+			StencilOperation.IncrSat => GL_INCR,
+			StencilOperation.DecrSat => GL_DECR,
+			StencilOperation.Invert => GL_INVERT,
+			StencilOperation.Incr => GL_INCR_WRAP,
+			StencilOperation.Decr => GL_DECR_WRAP,
+			_ => throw new NotImplementedException()
+		};
+	}
+	public static int GLEnum(this StencilComparisonFunction cmpfn) {
+		return cmpfn switch {
+			StencilComparisonFunction.Never => GL_NEVER,
+			StencilComparisonFunction.Less => GL_LESS,
+			StencilComparisonFunction.Equal => GL_EQUAL,
+			StencilComparisonFunction.LessEqual => GL_LEQUAL,
+			StencilComparisonFunction.Greater => GL_GREATER,
+			StencilComparisonFunction.NotEqual => GL_NOTEQUAL,
+			StencilComparisonFunction.GreaterEqual => GL_GEQUAL,
+			StencilComparisonFunction.Always => GL_ALWAYS,
 			_ => throw new NotImplementedException()
 		};
 	}
@@ -469,6 +496,7 @@ public unsafe static class Gl46
     public const GLenum GL_TEXTURE_WRAP_S = 0x2802;
     public const GLenum GL_TEXTURE_WRAP_T = 0x2803;
     public const GLenum GL_REPEAT = 0x2901;
+    public const GLenum GL_TEXTURE_MAX_ANISOTROPY_EXT = 0x84FF;
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void PFNGLCULLFACEPROC(GLenum mode);

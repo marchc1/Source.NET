@@ -4,6 +4,7 @@ using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Source.Engine;
+#if !SWDS
 
 class AskConnectPanel : EditablePanel
 {
@@ -174,3 +175,4 @@ class AskConnectPanel : EditablePanel
 			return false;
 	}
 }
+#endif

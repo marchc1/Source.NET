@@ -8,7 +8,7 @@ using System.Numerics;
 
 namespace Source.StdShader.Gl46;
 
-public abstract class BaseVSShader : BaseShader
+public partial class BaseVSShader : BaseShader
 {
 	public static bool IsTextureSet(int index, Span<IMaterialVar> parms) {
 		return index != -1 && parms[index].GetTextureValue() != null;
@@ -223,6 +223,20 @@ public abstract class BaseVSShader : BaseShader
 			SetNormalBlendingShadowState(baseTextureVar, isBaseTexture);
 	}
 
+	internal BlendType EvaluateBlendRequirements(int textureVar, bool isBaseTexture, int detailTextureVar = -1) {
+		bool isTranslucent = IsAlphaModulating();
+		isTranslucent = isTranslucent || ((CurrentMaterialVarFlags() & (int)MaterialVarFlags.VertexAlpha) != 0);
+		isTranslucent = isTranslucent || (TextureIsTranslucent(textureVar, isBaseTexture) && !((CurrentMaterialVarFlags() & (int)MaterialVarFlags.AlphaTest) != 0));
+
+		if ((detailTextureVar != -1) && (!isTranslucent))
+			isTranslucent = TextureIsTranslucent(detailTextureVar, isBaseTexture);
+
+		if ((CurrentMaterialVarFlags() & (int)MaterialVarFlags.Additive) != 0)
+			return isTranslucent ? BlendType.BlendAdd : BlendType.Add;
+		else
+			return isTranslucent ? BlendType.Blend : BlendType.None;
+	}
+
 	private void SetAdditiveBlendingShadowState(int baseTextureVar, bool isBaseTexture) {
 		Assert(IsSnapshotting());
 		bool isTranslucent = false;
@@ -252,17 +266,7 @@ public abstract class BaseVSShader : BaseShader
 		}
 	}
 
-	protected void EnableAlphaBlending(ShaderBlendFactor srcFactor, ShaderBlendFactor dstFactor) {
-		ShaderShadow!.EnableBlending(true);
-		ShaderShadow!.BlendFunc(srcFactor, dstFactor);
-		ShaderShadow!.EnableDepthWrites(false);
-	}
-
-	protected void DisableAlphaBlending() {
-		ShaderShadow!.EnableBlending(false);
-	}
-
-	protected void BindTexture(Sampler sampler, int textureVarIdx, int frameVarIdx) {
+	protected void BindTexture(Sampler sampler, int textureVarIdx, int frameVarIdx = -1) {
 		IMaterialVar textureVar = Params![textureVarIdx];
 		IMaterialVar? frameVar = frameVarIdx != -1 ? Params[frameVarIdx] : null;
 		var tex = textureVar.GetTextureValue()!;
@@ -270,10 +274,22 @@ public abstract class BaseVSShader : BaseShader
 		ShaderAPI!.SetShaderUniform(ShaderAPI!.LocateShaderUniform(textureVar.GetName()), (int)sampler);
 	}
 
+	private void BindTexture(Sampler sampler, ITexture? texture, int frameVarIdx = -1) {
+		if (texture != null) {
+			IMaterialVar? frameVar = frameVarIdx != -1 ? Params[frameVarIdx] : null;
+			ShaderSystem.BindTexture(sampler, texture, frameVar?.GetIntValue() ?? 0);
+			ShaderAPI!.SetShaderUniform(ShaderAPI!.LocateShaderUniform(texture.GetName()), (int)sampler);
+		}
+	}
+
 	protected void Draw(bool makeActualDrawCall = true) {
 		if (IsSnapshotting())
 			return;
 		ShaderSystem.Draw(makeActualDrawCall);
+	}
+
+	public void SetAmbientCubeDynamicStateVertexShader() {
+		ShaderAPI!.SetVertexShaderStateAmbientLightCube();
 	}
 
 	public void LoadViewMatrixIntoVertexShaderConstant(int vertexReg) {
@@ -332,6 +348,20 @@ public abstract class BaseVSShader : BaseShader
 		ShaderAPI!.SetVertexShaderConstant(vertexReg, transformation);
 	}
 
+	public void SetVertexShaderMatrix3x4(int vertexReg, int matrixVar) {
+		IMaterialVar? translationVar = Params![matrixVar];
+		if (translationVar != null) {
+			Matrix4x4 mat = translationVar.GetMatrixValue();
+			Span<float> rows = [mat.M11, mat.M12, mat.M13, mat.M14, mat.M21, mat.M22, mat.M23, mat.M24, mat.M31, mat.M32, mat.M33, mat.M34];
+			ShaderAPI!.SetVertexShaderConstant(vertexReg, rows);
+		}
+		else {
+			Matrix4x4 matrix = Matrix4x4.Identity;
+			Span<float> rows = [matrix.M11, matrix.M12, matrix.M13, matrix.M14, matrix.M21, matrix.M22, matrix.M23, matrix.M24, matrix.M31, matrix.M32, matrix.M33, matrix.M34];
+			ShaderAPI!.SetVertexShaderConstant(vertexReg, rows);
+		}
+	}
+
 	public static void ColorVarsToVector(int colorVar, int alphaVar, Span<float> color) {
 		IMaterialVar[] shaderParams = Params!;
 
@@ -362,11 +392,10 @@ public abstract class BaseVSShader : BaseShader
 
 	public void SetEnvMapTintPixelShaderDynamicState(int pixelReg, int tintVar, int alphaVar, bool convertFromGammaToLinear = false) {
 		IMaterialVar[] shaderParams = Params!;
-		MaterialSystem_Config config = Materials.GetCurrentConfigForVideoCard();
 
 		Span<float> color = stackalloc float[4];
 		color[0] = color[1] = color[2] = color[3] = 1.0f;
-		if (config.ShowSpecular && config.Fullbright != 2) {
+		if (Config.ShowSpecular && Config.Fullbright != 2) {
 			IMaterialVar? pAlphaVar = alphaVar >= 0 ? shaderParams[alphaVar] : null;
 			if (pAlphaVar != null)
 				color[3] = pAlphaVar.GetFloatValue();
@@ -473,5 +502,81 @@ public abstract class BaseVSShader : BaseShader
 			if (envmapMaskVar >= 0 && shaderParams[envmapMaskVar].IsDefined())
 				LoadTexture(envmapMaskVar);
 		}
+	}
+
+	internal ShaderAPITextureHandle_t GetShaderApiTextureBindHandle(int textureVar, int frameVar, int textureChannel = 0) {
+		Assert(textureVar != -1);
+		Assert(Params);
+
+		IMaterialVar? pFrameVar = (frameVar != -1) ? Params![frameVar] : null;
+		return ShaderSystem.GetShaderAPITextureBindHandle(Params![textureVar].GetTextureValue(), pFrameVar != null ? pFrameVar.GetIntValue() : 0, textureChannel);
+	}
+
+	internal float ShadowAttenFromState(FlashlightState flashlightState) {
+		if (HardwareConfig.UsesSRGBCorrectBlending())
+			return flashlightState.ShadowAtten * .1f;
+		return flashlightState.ShadowAtten;
+	}
+
+	internal float ShadowFilterFromState(FlashlightState flashlightState) {
+		throw new NotImplementedException();
+	}
+
+	internal void SetFlashLightColorFromState(FlashlightState state, IShaderDynamicAPI shaderAPI, int psRegister, bool flashlightNoLambert = false) {
+		float flashlightScale = 0.25f;
+
+		if (!HardwareConfig.GetHDREnabled())
+			flashlightScale = 2.0f;
+
+		if (HardwareConfig.UsesSRGBCorrectBlending())
+			flashlightScale *= 2.5f;
+
+		InlineArray4<float> flashlightColor = state.Color;
+		Span<float> psConst = [flashlightScale * flashlightColor[0], flashlightScale * flashlightColor[1], flashlightScale * flashlightColor[2], flashlightColor[3]];
+		psConst[3] = flashlightNoLambert ? 2.0f : 0.0f;
+
+		ShaderAPI!.SetPixelShaderConstant(psRegister, psConst);
+	}
+
+	internal void SetModulationPixelShaderDynamicState_LinearColorSpace(int modulationVar) {
+		Span<float> color = [1.0f, 1.0f, 1.0f, 1.0f];
+		ComputeModulationColor(color);
+		color[0] = color[0] > 1.0f ? color[0] : MathLib.GammaToLinear(color[0]);
+		color[1] = color[1] > 1.0f ? color[1] : MathLib.GammaToLinear(color[1]);
+		color[2] = color[2] > 1.0f ? color[2] : MathLib.GammaToLinear(color[2]);
+
+		ShaderAPI!.SetPixelShaderConstant(modulationVar, color);
+	}
+
+	internal void SetModulationPixelShaderDynamicState_LinearColorSpace_LinearScale(int modulationVar, float scale) {
+		Span<float> color = [1.0f, 1.0f, 1.0f, 1.0f];
+		ComputeModulationColor(color);
+		color[0] = (color[0] > 1.0f ? color[0] : MathLib.GammaToLinear(color[0])) * scale;
+		color[1] = (color[1] > 1.0f ? color[1] : MathLib.GammaToLinear(color[1])) * scale;
+		color[2] = (color[2] > 1.0f ? color[2] : MathLib.GammaToLinear(color[2])) * scale;
+
+		ShaderAPI!.SetPixelShaderConstant(modulationVar, color);
+	}
+
+	internal bool IsHDREnabled() {
+		// throw new NotImplementedException();
+		return false;
+	}
+
+	internal void SetPixelShaderConstant_W(int pixelReg, int constantVar, float wValue) {
+		Assert(!IsSnapshotting());
+		if ((Params == null) || (constantVar == -1))
+			return;
+
+		IMaterialVar? pixelVar = Params[constantVar];
+		Assert(pixelVar);
+
+		Span<float> val = stackalloc float[4];
+		if (pixelVar.GetVarType() == MaterialVarType.Vector)
+			pixelVar.GetVecValue(val);
+		else
+			val[0] = val[1] = val[2] = val[3] = pixelVar.GetFloatValue();
+		val[3] = wValue;
+		ShaderAPI!.SetPixelShaderConstant(pixelReg, val);
 	}
 }

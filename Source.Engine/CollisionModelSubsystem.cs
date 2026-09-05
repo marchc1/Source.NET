@@ -80,6 +80,47 @@ public class CollisionBSPData
 	internal void PreLoad() {
 		Init();
 	}
+	internal void Destroy() {
+		for (int i = 0; i < MapCollisionModels.Count; i++)
+			physcollision.VCollideUnload(MapCollisionModels[i].VCollisionData);
+
+		// DispCollTrees_FreeLeafList(this);
+		// CM.DestroyDispPhysCollide();
+		// DispCollTrees_Free(CM.g_DispCollTrees);
+		// CM.g_DispCollTrees = null;
+		// CM.g_DispBounds = null;
+		CM.g_DispCollTreeCount = 0;
+
+		MapPlanes.Clear();
+		TextureNames.Clear();
+		MapSurfaces.Clear();
+		// MapAreaPortals.Clear();
+		// PortalOpen.Clear();
+		// MapAreas.Clear();
+		MapEntityString = null;
+		MapBrushes.Clear();
+		MapDispList.Clear();
+		MapCollisionModels.Clear();
+		MapLeafBrushes.Clear();
+		MapLeafs.Clear();
+		MapNodes.Clear();
+		MapBrushSides.Clear();
+		MapVis = null;
+
+		NumBrushSides = 0;
+		EmptyLeaf = SolidLeaf = 0;
+		NumNodes = 0;
+		NumLeafs = 0;
+		NumAreas = 0;
+		NumTextures = 0;
+		// FloodValid = 0;
+		// NumAreaPortals = 0;
+		NumClusters = 0;
+		NumVisibility = 0;
+		// NumPortalOpen = 0;
+		MapName = null;
+		MapRootNode = 0;
+	}
 	internal void LoadTextures() {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.TexData);
 		MapLoadHelper lhStringData = new MapLoadHelper(LumpIndex.TexDataStringData);
@@ -195,8 +236,39 @@ public class CollisionBSPData
 	}
 
 	private void CollisionBSPData_LoadLeafs_Version_0(MapLoadHelper lh) {
-		// For now, gm_flatgrass is the only map being tested, which is Version 1, so this can be implemented later
-		throw new NotImplementedException();
+		BSPDLeafVersion0[] inData = lh.LoadLumpData<BSPDLeafVersion0>(throwIfNoElements: true, BSPFileCommon.MAX_MAP_PLANES, sysErrorIfOOB: true);
+		int count = inData.Length;
+		MapLeafs.Clear(); MapLeafs.EnsureCount(count + 1);
+
+		NumLeafs = count;
+		NumClusters = 0;
+
+		Span<CollisionLeaf> mapLeafs = MapLeafs.AsSpan();
+		for (int i = 0; i < count; i++) {
+			ref BSPDLeafVersion0 _in = ref inData[i];
+			ref CollisionLeaf _out = ref mapLeafs[i];
+			_out.Contents = (Contents)_in.Contents;
+			_out.Cluster = _in.Cluster;
+			_out.Area = _in.Area;
+			_out.Flags = _in.Flags;
+			_out.FirstLeafBrush = _in.FirstLeafBrush;
+			_out.NumLeafBrushes = _in.NumLeafBrushes;
+
+			_out.DispCount = 0;
+
+			if (_out.Cluster >= NumClusters)
+				NumClusters = _out.Cluster + 1;
+
+		}
+
+		if (mapLeafs[0].Contents != Contents.Solid)
+			Sys.Error("Map leaf 0 is not Contents.Solid");
+
+
+		SolidLeaf = 0;
+		EmptyLeaf = NumLeafs;
+		memreset(ref MapLeafs.AsSpan()[EmptyLeaf]);
+		NumLeafs++;
 	}
 
 	internal void LoadLeafBrushes() {
@@ -688,6 +760,11 @@ public static partial class CM
 
 		checksum = 0; // << Wtf, this never gets set in the engine? What's the point then???
 		return;
+	}
+
+	public static void FreeMap() {
+		CollisionBSPData bspData = GetCollisionBSPData();
+		bspData.Destroy();
 	}
 
 	private static void FloodAreaConnections(CollisionBSPData bspData) {

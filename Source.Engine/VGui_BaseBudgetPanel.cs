@@ -3,6 +3,7 @@ using Source.Common.Utilities;
 using Source.GUI.Controls;
 
 namespace Source.Engine;
+#if !SWDS
 
 class BudgetGroupInfo
 {
@@ -352,3 +353,4 @@ class BaseBudgetPanel : Panel
 	public virtual void SetTimeLabelText() { }
 	public virtual void SetHistoryLabelText() { }
 }
+#endif

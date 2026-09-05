@@ -15,11 +15,14 @@ using Source.Engine.Server;
 
 using Steamworks;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 using static Source.Constants;
 
 namespace Source.Engine;
+
+public sealed class HostErrorException(string message) : Exception(message);
 
 public class CommonHostState
 {
@@ -35,10 +38,7 @@ public class CommonHostState
 	}
 }
 
-public class Host(
-	EngineParms host_parms, CommonHostState host_state,
-	IServiceProvider services, ICommandLine CommandLine, IFileSystem fileSystem
-	)
+public class Host
 {
 	public int TimeToTicks(TimeUnit_t dt) => (int)(0.5 + dt / host_state.IntervalPerTick);
 	public TimeUnit_t TicksToTime(int dt) => host_state.IntervalPerTick * dt;
@@ -53,33 +53,33 @@ public class Host(
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 	public GameClient? Client;
-	public ClientGlobalVariables clientGlobalVariables;
-	public CL CL;
-	public MatSysInterface MatSysInterface;
-	public IModelLoader modelloader;
-	public SV SV;
-	public ServerGlobalVariables serverGlobalVariables;
-	public Cbuf Cbuf;
-	public Cmd Cmd;
-	public Con Con;
-	public Key Key;
+	public ClientGlobalVariables clientGlobalVariables = null!;
+	public CL CL = null!;
+	public MatSysInterface MatSysInterface = null!;
+	public IModelLoader modelloader = null!;
+	public SV SV = null!;
+	public ServerGlobalVariables serverGlobalVariables = null!;
+	public Cbuf Cbuf = null!;
+	public Cmd Cmd = null!;
+	public Con Con = null!;
+	public Key Key = null!;
 #if !SWDS
-	public EngineVGui EngineVGui;
+	public EngineVGui EngineVGui = null!;
 #endif
-	public Cvar Cvar;
-	public View View;
-	public Render Render;
-	public Common Common;
-	public IEngine Engine;
-	public Scr Scr;
-	public Net Net;
-	public Sys Sys;
-	public ISoundServices soundServices;
-	public ClientDLL ClientDLL;
-	public Sound Sound;
-	public IHostState HostState;
+	public Cvar Cvar = null!;
+	public View View = null!;
+	public Render Render = null!;
+	public Common Common = null!;
+	public IEngine Engine = null!;
+	public Scr Scr = null!;
+	public Net Net = null!;
+	public Sys Sys = null!;
+	public ISoundServices soundServices = null!;
+	public ClientDLL ClientDLL = null!;
+	public Sound Sound = null!;
+	public IHostState HostState = null!;
 	public IBaseClientDLL? clientDLL;
-	public IGameEventManager2 GameEventManager;
+	public IGameEventManager2 GameEventManager = null!;
 	public IServerGameDLL? serverDLL;
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
@@ -270,7 +270,7 @@ public class Host(
 				throw new NotImplementedException("Threaded Host.RunFrame path is not implemented yet");
 			}
 
-			if(shouldRender){
+			if (shouldRender) {
 				_RunFrame_Render();
 				_RunFrame_Sound();
 			}
@@ -278,7 +278,7 @@ public class Host(
 			// updatedynamicmodels
 
 #if !SWDS
-			if(!sv.IsDedicated()){
+			if (!sv.IsDedicated()) {
 				ClientDLL.Update();
 			}
 #endif
@@ -316,6 +316,7 @@ public class Host(
 
 	private void _RunFrame_Render() {
 		UpdateScreen();
+		CL.DecayLights();
 	}
 
 	private void _RunFrame_Sound() {
@@ -323,6 +324,8 @@ public class Host(
 	}
 
 	AudioState audioState;
+
+	public void SetAudioState(in AudioState state) => audioState = state;
 
 	public void UpdateSounds() {
 		if (cl.IsActive()) {
@@ -444,7 +447,7 @@ public class Host(
 		if (!Initialized)
 			return;
 
-		if (!isUserRequested && CommandLine.CheckParm("-default"))
+		if (!isUserRequested && commandLine.CheckParm("-default"))
 			return;
 
 		if (sv.IsDedicated())
@@ -537,6 +540,8 @@ public class Host(
 
 		Disconnect(true);
 
+		CM.FreeMap();
+
 #if !SWDS
 		Scr.DisabledForLoading = true;
 		if (!sv.IsDedicated()) {
@@ -547,7 +552,7 @@ public class Host(
 			ClientDLL.Shutdown();
 			// TextMessageShutdown();
 			EngineVGui.Shutdown();
-			// StaticPropMgr.Shutdown();
+			g_StaticPropMgr.Shutdown();
 			modelloader.Shutdown();
 			// ShutdownStudioRender();
 			// ShutdownMaterialSystem();
@@ -589,13 +594,21 @@ public class Host(
 	}
 
 	private void OverlayText_SetEndTimeFn(OverlayText text, TimeUnit_t duration) {
+		text.ServerCount = cl.ServerCount;
 
+		if (duration <= 0.0f) {
+			text.EndTime = 0.0f;
+			text.CreationTick = (int)GetOverlayTick();
+			return;
+		}
+
+		if (duration == IVDebugOverlay.NDEBUG_PERSIST_TILL_NEXT_SERVER)
+			text.EndTime = IVDebugOverlay.NDEBUG_PERSIST_TILL_NEXT_SERVER;
+		else
+			text.EndTime = cl.GetTime() + duration;
 	}
 
 	private bool OverlayText_IsDeadFn(OverlayText text) {
-		if (cl.IsPaused())
-			return false;
-
 		if (text.ServerCount != cl.ServerCount)
 			return true;
 
@@ -616,7 +629,7 @@ public class Host(
 
 	public void Disconnect(bool showMainMenu, ReadOnlySpan<char> reason = default) {
 #if !SWDS
-		if (!sv.IsDedicated()) 
+		if (!sv.IsDedicated())
 			cl.Disconnect(reason, showMainMenu);
 #endif
 		HostState.GameShutdown();
@@ -732,8 +745,9 @@ public class Host(
 
 		ReadOnlySpan<char> filename = fileSystem.FindFirstEx("maps/*.bsp", null, out FileFindHandle_t findHandle);
 		while (!filename.IsEmpty) {
-			Span<char> mapName = stackalloc char[256];
-			filename.StripExtension(mapName);
+#pragma warning disable CA2014 // Do not use stackalloc in loops
+			ReadOnlySpan<char> mapName = filename.StripExtension(stackalloc char[256]);
+#pragma warning restore CA2014 // Do not use stackalloc in loops
 			string name = mapName.SliceNullTerminatedString().ToString();
 			if (name.StartsWith(arg, StringComparison.OrdinalIgnoreCase))
 				yield return prefix + name;
@@ -797,8 +811,10 @@ public class Host(
 		}
 		internal void Reset() { CurPosition = 0; Line[0] = '\0'; }
 		internal void InsertEmptyColumn(int columnWidth) => CurPosition += columnWidth + 1;
-		internal unsafe ReadOnlySpan<char> GetLine() {
+		internal readonly unsafe ReadOnlySpan<char> GetLine() {
+#pragma warning disable CS9084 // Struct member returns 'this' or other instance members by reference
 			return ((ReadOnlySpan<char>)Line).SliceNullTerminatedString();
+#pragma warning restore CS9084 // Struct member returns 'this' or other instance members by reference
 		}
 	}
 
@@ -834,6 +850,8 @@ public class Host(
 
 		if (host_name.GetString().Length == 0)
 			host_name.SetValue(serverDLL!.GetGameDescription());
+
+		g_DownloadListGenerator.OnLevelLoadStart(mapName);
 
 		if (!sv.SpawnServer(mapName, _mapFile, null))
 			return false;
@@ -1064,6 +1082,60 @@ public class Host(
 #endif
 	}
 
+	readonly ConVar voice_recordtofile = new("voice_recordtofile", "0", 0, "Record mic data and decompressed voice data into 'voice_micdata.wav' and 'voice_decompressed.wav'");
+	readonly ConVar voice_inputfromfile;
+	readonly ConVar sv_allow_voice_from_file;
+
+	private void voiceconvar_file_changed_f(IConVar conVar, in ConVarChangeContext ctx) {
+#if !SWDS
+		ConVarRef var = new(conVar);
+		if (var.GetInt() == 0)
+			Host_VoiceRecordStop();
+#endif
+	}
+
+
+#if !SWDS
+	[ConCommand(name: "+voicerecord")]
+	public void Host_VoiceRecordStart() {
+		if (cl.IsActive()) {
+			ReadOnlySpan<char> uncompressedFile = null;
+			ReadOnlySpan<char> decompressedFile = null;
+			ReadOnlySpan<char> inputFile = null;
+
+			if (voice_recordtofile.GetInt() != 0) {
+				uncompressedFile = "voice_micdata.wav";
+				decompressedFile = "voice_decompressed.wav";
+			}
+
+			if (voice_inputfromfile.GetInt() != 0)
+				inputFile = "voice_input.wav";
+
+			if (!sv_allow_voice_from_file.GetBool())
+				inputFile = null;
+
+#if !NO_VOICE
+			if (Voice.Record_Start(uncompressedFile, decompressedFile, inputFile))
+				Msg("Started voice recording...\n");
+#endif
+		}
+	}
+
+	[ConCommand(name: "-voicerecord")]
+	public void Host_VoiceRecordStop() {
+		if (cl.IsActive()) {
+#if !NO_VOICE
+			if (Voice.IsRecording()) {
+				CL.SendVoicePacket(Voice.UsingSteamVoice ? false : true);
+				Voice.UserDesiresStop();
+
+				Msg("Stopped voice recording...\n");
+			}
+#endif
+		}
+	}
+#endif
+
 	public string CleanupConVarStringValue(string v) {
 		// todo.
 		return v;
@@ -1123,8 +1195,9 @@ public class Host(
 
 #endif
 		// static prop manager
-		// free state and world
+		FreeStateAndWorld(true);
 		sv.Shutdown();
+		FreeToLowMark(true);
 		GC.WaitForPendingFinalizers();
 		GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive);
 	}
@@ -1139,6 +1212,7 @@ public class Host(
 
 	bool inerror;
 
+	[DoesNotReturn]
 	public void Error(ReadOnlySpan<char> error) {
 		if (inerror)
 			Sys.Error("Host_Error: recursively entered");
@@ -1154,6 +1228,11 @@ public class Host(
 		ConMsg($"\nHost_Error: {error}\n\n");
 		Disconnect(true, error);
 		inerror = false;
+
+		// Unwind back to the host-state loop (IHostState.Frame), mirroring the
+		// reference engine's longjmp(host_abortserver). This stops the caller
+		// from continuing to parse/execute on the now-disconnected state.
+		throw new HostErrorException(new string(error));
 	}
 
 	static readonly ConVar singlestep = new("singlestep", "0", FCvar.Cheat, "Run engine in single step mode ( set next to 1 to advance a frame )");
@@ -1192,6 +1271,25 @@ public class Host(
 	public readonly ConVar skill = new("skill", "1", FCvar.Archive, "Game skill level (1-3).", 1, 3);
 	public readonly ConVar deathmatch = new("deathmatch", "0", FCvar.Notify | FCvar.InternalUse, "Running a deathmatch server.");
 	public readonly ConVar coop = new("coop", "0", FCvar.Notify, "Cooperative play.");
+	private readonly EngineParms host_parms;
+	private readonly CommonHostState host_state;
+	private readonly IServiceProvider services;
+	private readonly ICommandLine commandLine;
+	private readonly IFileSystem fileSystem;
+
+	public Host(
+		EngineParms host_parms, CommonHostState host_state,
+		IServiceProvider services, ICommandLine CommandLine, IFileSystem fileSystem
+	) {
+		this.host_parms = host_parms;
+		this.host_state = host_state;
+		this.services = services;
+		commandLine = CommandLine;
+		this.fileSystem = fileSystem;
+
+		voice_inputfromfile = new("voice_inputfromfile", "0", 0, "Get voice input from 'voice_input.wav' rather than from the microphone.", callback: voiceconvar_file_changed_f);
+		sv_allow_voice_from_file = new("sv_allow_voice_from_file", "1", FCvar.Replicated, "Allow or disallow clients from using voice_inputfromfile on this server.", callback: voiceconvar_file_changed_f);
+	}
 
 	internal bool ValidGame() {
 		if (sv.IsMultiplayer()) {
@@ -1205,7 +1303,52 @@ public class Host(
 		return false;
 	}
 
-	internal void FreeStateAndWorld(bool v) {
+	internal void FreeStateAndWorld(bool server) {
+		bool needsPurge = false;
 
+		Assert(Initialized);
+		Assert(HunkLevel != 0);
+
+		if (!server && sv.IsActive())
+			return;
+
+#if !SWDS
+		if (server && !sv.IsDedicated())
+			CL.ClearState();
+#endif
+
+		if (host_state.WorldModel != null) {
+			modelloader.UnreferenceModel(host_state.WorldModel, ModelLoaderFlags.Server);
+			modelloader.UnreferenceModel(host_state.WorldModel, ModelLoaderFlags.Client);
+			host_state.SetWorldModel(null);
+			needsPurge = server && true;
+		}
+
+		if (server) {
+			modelInfo.OnLevelChange();
+		}
+#if !SWDS
+		else {
+			// modelinfoclient.OnLevelChange();
+		}
+#endif
+
+		// modelloader.UnloadUnreferencedModels();
+
+		// TimeLastMemTest = 0;
+	}
+
+	internal void FreeToLowMark(bool server) {
+		Assert(Initialized);
+		Assert(HunkLevel != 0);
+
+		if (!server && sv.IsActive())
+			return;
+
+		CM.FreeMap();
+
+		// if (HunkLevel != 0) {
+		// 	Hunk_FreeToLowMark(HunkLevel);
+		// }
 	}
 }

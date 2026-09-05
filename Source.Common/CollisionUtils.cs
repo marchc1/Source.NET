@@ -1,3 +1,4 @@
+using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
 using System.Numerics;
@@ -8,6 +9,45 @@ namespace Source.Common;
 
 public static class CollisionUtils
 {
+	public static bool IsSphereIntersectingCone(in Vector3 sphereCenter, float sphereRadius, in Vector3 coneOrigin, in Vector3 coneNormal, float coneSine, float coneCosine) {
+		Vector3 backCenter = coneOrigin - (sphereRadius / coneSine) * coneNormal;
+		Vector3 delta = sphereCenter - backCenter;
+		float deltaLen = delta.Length();
+		if (MathLib.DotProduct(coneNormal, delta) >= deltaLen * coneCosine) {
+			delta = sphereCenter - coneOrigin;
+			deltaLen = delta.Length();
+			if (-MathLib.DotProduct(coneNormal, delta) >= deltaLen * coneSine)
+				return deltaLen <= sphereRadius;
+			return true;
+		}
+		return false;
+	}
+
+	public static bool IsBoxIntersectingRay(in Vector3 boxMin, in Vector3 boxMax, in Ray ray, float tolerance = 0.0f) {
+		if (!ray.IsSwept) {
+			Vector3 rayMins = ray.Start - ray.Extents;
+			Vector3 rayMaxs = ray.Start + ray.Extents;
+			rayMins += new Vector3(tolerance);
+			rayMaxs += new Vector3(tolerance);
+
+			return IsBoxIntersectingBox(boxMin, boxMax, rayMins, rayMaxs);
+		}
+
+		Vector3 expandedBoxMin = boxMin - ray.Extents;
+		Vector3 expandedBoxMax = boxMax + ray.Extents;
+
+		return IsBoxIntersectingRay(expandedBoxMin, expandedBoxMax, ray.Start, ray.Delta, Vector3.One / ray.Delta, tolerance);
+	}
+
+	public static float IntersectRayWithPlane(in Vector3 org, in Vector3 dir, in Vector3 normal, float dist) {
+		float denom = MathLib.DotProduct(dir, normal);
+		if (denom == 0.0f)
+			return 0.0f;
+
+		denom = 1.0f / denom;
+		return (dist - MathLib.DotProduct(org, normal)) * denom;
+	}
+
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public static float IntersectRayWithTriangle(in Ray ray, in Vector3 v1, in Vector3 v2, in Vector3 v3, bool oneSided) {
 		Vector3 edge1 = v2 - v1;
@@ -126,6 +166,72 @@ public static class CollisionUtils
 		Vector3 delta = Vector3.Abs(boxCenter1 - boxCenter2);
 		Vector3 size = boxHalfDiagonal1 + boxHalfDiagonal2;
 		return delta.X <= size.X && delta.Y <= size.Y && delta.Z <= size.Z;
+	}
+
+	public static bool IsSphereIntersectingSphere(in Vector3 center1, float radius1, in Vector3 center2, float radius2) {
+		MathLib.VectorSubtract(center2, center1, out Vector3 delta);
+		float distSq = delta.LengthSquared();
+		float radiusSum = radius1 + radius2;
+		return distSq <= (radiusSum * radiusSum);
+	}
+
+	public static bool IsBoxIntersectingSphere(in Vector3 boxMin, in Vector3 boxMax, in Vector3 center, float radius) {
+		float dmin = 0.0f;
+		float delta;
+
+		if (center[0] < boxMin[0]) {
+			delta = center[0] - boxMin[0];
+			dmin += delta * delta;
+		}
+		else if (center[0] > boxMax[0]) {
+			delta = boxMax[0] - center[0];
+			dmin += delta * delta;
+		}
+
+		if (center[1] < boxMin[1]) {
+			delta = center[1] - boxMin[1];
+			dmin += delta * delta;
+		}
+		else if (center[1] > boxMax[1]) {
+			delta = boxMax[1] - center[1];
+			dmin += delta * delta;
+		}
+
+		if (center[2] < boxMin[2]) {
+			delta = center[2] - boxMin[2];
+			dmin += delta * delta;
+		}
+		else if (center[2] > boxMax[2]) {
+			delta = boxMax[2] - center[2];
+			dmin += delta * delta;
+		}
+
+		return dmin < radius * radius;
+	}
+
+	public static bool IsCircleIntersectingRectangle(in Vector2 boxMin, in Vector2 boxMax, in Vector2 center, float radius) {
+		float dmin = 0.0f;
+		float delta;
+
+		if (center[0] < boxMin[0]) {
+			delta = center[0] - boxMin[0];
+			dmin += delta * delta;
+		}
+		else if (center[0] > boxMax[0]) {
+			delta = boxMax[0] - center[0];
+			dmin += delta * delta;
+		}
+
+		if (center[1] < boxMin[1]) {
+			delta = center[1] - boxMin[1];
+			dmin += delta * delta;
+		}
+		else if (center[1] > boxMax[1]) {
+			delta = boxMax[1] - center[1];
+			dmin += delta * delta;
+		}
+
+		return dmin < radius * radius;
 	}
 
 	public static bool IsBoxIntersectingSphereExtents(in Vector3 boxCenter, in Vector3 boxHalfDiag, in Vector3 center, float radius) {
@@ -254,5 +360,216 @@ public static class CollisionUtils
 		if (MathLib.BoxOnPlaneSide(vecMin, vecMax, plane) != 3) return false;
 
 		return true;
+	}
+
+	static void ComputeCenterMatrix(in Vector3 origin, in QAngle angles, in Vector3 mins, in Vector3 maxs, out Matrix3x4 matrix) {
+		MathLib.VectorAdd(mins, maxs, out Vector3 centroid);
+		centroid *= 0.5f;
+		MathLib.AngleMatrix(angles, out matrix);
+
+		MathLib.VectorRotate(centroid, matrix, out Vector3 worldCentroid);
+		worldCentroid += origin;
+		MathLib.MatrixSetColumn(worldCentroid, 3, ref matrix);
+	}
+
+	static void ComputeCenterIMatrix(in Vector3 origin, in QAngle angles, in Vector3 mins, in Vector3 maxs, out Matrix3x4 matrix) {
+		MathLib.VectorAdd(mins, maxs, out Vector3 centroid);
+		centroid *= -0.5f;
+		MathLib.AngleIMatrix(angles, out matrix);
+
+		MathLib.VectorRotate(origin, matrix, out Vector3 localOrigin);
+		centroid -= localOrigin;
+		MathLib.MatrixSetColumn(centroid, 3, ref matrix);
+	}
+
+	static void ComputeAbsMatrix(in Matrix3x4 input, out Matrix3x4 output) {
+		output = default;
+		output[0, 0] = MathF.Abs(input[0, 0]);
+		output[0, 1] = MathF.Abs(input[0, 1]);
+		output[0, 2] = MathF.Abs(input[0, 2]);
+		output[1, 0] = MathF.Abs(input[1, 0]);
+		output[1, 1] = MathF.Abs(input[1, 1]);
+		output[1, 2] = MathF.Abs(input[1, 2]);
+		output[2, 0] = MathF.Abs(input[2, 0]);
+		output[2, 1] = MathF.Abs(input[2, 1]);
+		output[2, 2] = MathF.Abs(input[2, 2]);
+	}
+
+	static bool ComputeSeparatingPlane(in Matrix3x4 worldToBox1, in Matrix3x4 box2ToWorld, in Vector3 box1Size, in Vector3 box2Size, float tolerance, out CollisionPlane plane) {
+		plane = default;
+
+		MathLib.ConcatTransforms(worldToBox1, box2ToWorld, out Matrix3x4 box2ToBox1);
+		MathLib.MatrixGetColumn(box2ToBox1, 3, out Vector3 box2Origin);
+
+		ComputeAbsMatrix(box2ToBox1, out Matrix3x4 absBox2ToBox1);
+
+		Vector3 tmp;
+		float boxProjectionSum;
+		float originProjection;
+
+		boxProjectionSum = box1Size.X + MathLib.MatrixRowDotProduct(absBox2ToBox1, 0, box2Size);
+		originProjection = FloatMakePositive(box2Origin.X) + tolerance;
+		if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+			plane.Normal = new(worldToBox1[0, 0], worldToBox1[0, 1], worldToBox1[0, 2]);
+			return true;
+		}
+
+		boxProjectionSum = box1Size.Y + MathLib.MatrixRowDotProduct(absBox2ToBox1, 1, box2Size);
+		originProjection = FloatMakePositive(box2Origin.Y) + tolerance;
+		if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+			plane.Normal = new(worldToBox1[1, 0], worldToBox1[1, 1], worldToBox1[1, 2]);
+			return true;
+		}
+
+		boxProjectionSum = box1Size.Z + MathLib.MatrixRowDotProduct(absBox2ToBox1, 2, box2Size);
+		originProjection = FloatMakePositive(box2Origin.Z) + tolerance;
+		if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+			plane.Normal = new(worldToBox1[2, 0], worldToBox1[2, 1], worldToBox1[2, 2]);
+			return true;
+		}
+
+		boxProjectionSum = box2Size.X + MathLib.MatrixColumnDotProduct(absBox2ToBox1, 0, box1Size);
+		originProjection = FloatMakePositive(MathLib.MatrixColumnDotProduct(box2ToBox1, 0, box2Origin)) + tolerance;
+		if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+			MathLib.MatrixGetColumn(box2ToWorld, 0, out plane.Normal);
+			return true;
+		}
+
+		boxProjectionSum = box2Size.Y + MathLib.MatrixColumnDotProduct(absBox2ToBox1, 1, box1Size);
+		originProjection = FloatMakePositive(MathLib.MatrixColumnDotProduct(box2ToBox1, 1, box2Origin)) + tolerance;
+		if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+			MathLib.MatrixGetColumn(box2ToWorld, 1, out plane.Normal);
+			return true;
+		}
+
+		boxProjectionSum = box2Size.Z + MathLib.MatrixColumnDotProduct(absBox2ToBox1, 2, box1Size);
+		originProjection = FloatMakePositive(MathLib.MatrixColumnDotProduct(box2ToBox1, 2, box2Origin)) + tolerance;
+		if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+			MathLib.MatrixGetColumn(box2ToWorld, 2, out plane.Normal);
+			return true;
+		}
+
+		if (absBox2ToBox1[0, 0] < 1.0f - 1e-3f) {
+			boxProjectionSum =
+				box1Size.Y * absBox2ToBox1[2, 0] + box1Size.Z * absBox2ToBox1[1, 0] +
+				box2Size.Y * absBox2ToBox1[0, 2] + box2Size.Z * absBox2ToBox1[0, 1];
+			originProjection = FloatMakePositive(-box2Origin.Y * box2ToBox1[2, 0] + box2Origin.Z * box2ToBox1[1, 0]) + tolerance;
+			if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+				MathLib.MatrixGetColumn(box2ToWorld, 0, out tmp);
+				MathLib.CrossProduct(new(worldToBox1[0, 0], worldToBox1[0, 1], worldToBox1[0, 2]), tmp, out plane.Normal);
+				return true;
+			}
+		}
+
+		if (absBox2ToBox1[0, 1] < 1.0f - 1e-3f) {
+			boxProjectionSum =
+				box1Size.Y * absBox2ToBox1[2, 1] + box1Size.Z * absBox2ToBox1[1, 1] +
+				box2Size.X * absBox2ToBox1[0, 2] + box2Size.Z * absBox2ToBox1[0, 0];
+			originProjection = FloatMakePositive(-box2Origin.Y * box2ToBox1[2, 1] + box2Origin.Z * box2ToBox1[1, 1]) + tolerance;
+			if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+				MathLib.MatrixGetColumn(box2ToWorld, 1, out tmp);
+				MathLib.CrossProduct(new(worldToBox1[0, 0], worldToBox1[0, 1], worldToBox1[0, 2]), tmp, out plane.Normal);
+				return true;
+			}
+		}
+
+		if (absBox2ToBox1[0, 2] < 1.0f - 1e-3f) {
+			boxProjectionSum =
+				box1Size.Y * absBox2ToBox1[2, 2] + box1Size.Z * absBox2ToBox1[1, 2] +
+				box2Size.X * absBox2ToBox1[0, 1] + box2Size.Y * absBox2ToBox1[0, 0];
+			originProjection = FloatMakePositive(-box2Origin.Y * box2ToBox1[2, 2] + box2Origin.Z * box2ToBox1[1, 2]) + tolerance;
+			if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+				MathLib.MatrixGetColumn(box2ToWorld, 2, out tmp);
+				MathLib.CrossProduct(new(worldToBox1[0, 0], worldToBox1[0, 1], worldToBox1[0, 2]), tmp, out plane.Normal);
+				return true;
+			}
+		}
+
+		if (absBox2ToBox1[1, 0] < 1.0f - 1e-3f) {
+			boxProjectionSum =
+				box1Size.X * absBox2ToBox1[2, 0] + box1Size.Z * absBox2ToBox1[0, 0] +
+				box2Size.Y * absBox2ToBox1[1, 2] + box2Size.Z * absBox2ToBox1[1, 1];
+			originProjection = FloatMakePositive(box2Origin.X * box2ToBox1[2, 0] - box2Origin.Z * box2ToBox1[0, 0]) + tolerance;
+			if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+				MathLib.MatrixGetColumn(box2ToWorld, 0, out tmp);
+				MathLib.CrossProduct(new(worldToBox1[1, 0], worldToBox1[1, 1], worldToBox1[1, 2]), tmp, out plane.Normal);
+				return true;
+			}
+		}
+
+		if (absBox2ToBox1[1, 1] < 1.0f - 1e-3f) {
+			boxProjectionSum =
+				box1Size.X * absBox2ToBox1[2, 1] + box1Size.Z * absBox2ToBox1[0, 1] +
+				box2Size.X * absBox2ToBox1[1, 2] + box2Size.Z * absBox2ToBox1[1, 0];
+			originProjection = FloatMakePositive(box2Origin.X * box2ToBox1[2, 1] - box2Origin.Z * box2ToBox1[0, 1]) + tolerance;
+			if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+				MathLib.MatrixGetColumn(box2ToWorld, 1, out tmp);
+				MathLib.CrossProduct(new(worldToBox1[1, 0], worldToBox1[1, 1], worldToBox1[1, 2]), tmp, out plane.Normal);
+				return true;
+			}
+		}
+
+		if (absBox2ToBox1[1, 2] < 1.0f - 1e-3f) {
+			boxProjectionSum =
+				box1Size.X * absBox2ToBox1[2, 2] + box1Size.Z * absBox2ToBox1[0, 2] +
+				box2Size.X * absBox2ToBox1[1, 1] + box2Size.Y * absBox2ToBox1[1, 0];
+			originProjection = FloatMakePositive(box2Origin.X * box2ToBox1[2, 2] - box2Origin.Z * box2ToBox1[0, 2]) + tolerance;
+			if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+				MathLib.MatrixGetColumn(box2ToWorld, 2, out tmp);
+				MathLib.CrossProduct(new(worldToBox1[1, 0], worldToBox1[1, 1], worldToBox1[1, 2]), tmp, out plane.Normal);
+				return true;
+			}
+		}
+
+		if (absBox2ToBox1[2, 0] < 1.0f - 1e-3f) {
+			boxProjectionSum =
+				box1Size.X * absBox2ToBox1[1, 0] + box1Size.Y * absBox2ToBox1[0, 0] +
+				box2Size.Y * absBox2ToBox1[2, 2] + box2Size.Z * absBox2ToBox1[2, 1];
+			originProjection = FloatMakePositive(-box2Origin.X * box2ToBox1[1, 0] + box2Origin.Y * box2ToBox1[0, 0]) + tolerance;
+			if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+				MathLib.MatrixGetColumn(box2ToWorld, 0, out tmp);
+				MathLib.CrossProduct(new(worldToBox1[2, 0], worldToBox1[2, 1], worldToBox1[2, 2]), tmp, out plane.Normal);
+				return true;
+			}
+		}
+
+		if (absBox2ToBox1[2, 1] < 1.0f - 1e-3f) {
+			boxProjectionSum =
+				box1Size.X * absBox2ToBox1[1, 1] + box1Size.Y * absBox2ToBox1[0, 1] +
+				box2Size.X * absBox2ToBox1[2, 2] + box2Size.Z * absBox2ToBox1[2, 0];
+			originProjection = FloatMakePositive(-box2Origin.X * box2ToBox1[1, 1] + box2Origin.Y * box2ToBox1[0, 1]) + tolerance;
+			if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+				MathLib.MatrixGetColumn(box2ToWorld, 1, out tmp);
+				MathLib.CrossProduct(new(worldToBox1[2, 0], worldToBox1[2, 1], worldToBox1[2, 2]), tmp, out plane.Normal);
+				return true;
+			}
+		}
+
+		if (absBox2ToBox1[2, 2] < 1.0f - 1e-3f) {
+			boxProjectionSum =
+				box1Size.X * absBox2ToBox1[1, 2] + box1Size.Y * absBox2ToBox1[0, 2] +
+				box2Size.X * absBox2ToBox1[2, 1] + box2Size.Y * absBox2ToBox1[2, 0];
+			originProjection = FloatMakePositive(-box2Origin.X * box2ToBox1[1, 2] + box2Origin.Y * box2ToBox1[0, 2]) + tolerance;
+			if (originProjection.FloatBits() > boxProjectionSum.FloatBits()) {
+				MathLib.MatrixGetColumn(box2ToWorld, 2, out tmp);
+				MathLib.CrossProduct(new(worldToBox1[2, 0], worldToBox1[2, 1], worldToBox1[2, 2]), tmp, out plane.Normal);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public static bool ComputeSeparatingPlane(in Vector3 org1, in QAngle angles1, in Vector3 min1, in Vector3 max1,
+		in Vector3 org2, in QAngle angles2, in Vector3 min2, in Vector3 max2,
+		float tolerance, out CollisionPlane plane) {
+		ComputeCenterIMatrix(org1, angles1, min1, max1, out Matrix3x4 worldToBox1);
+		ComputeCenterMatrix(org2, angles2, min2, max2, out Matrix3x4 box2ToWorld);
+
+		MathLib.VectorSubtract(max1, min1, out Vector3 box1Size);
+		MathLib.VectorSubtract(max2, min2, out Vector3 box2Size);
+		box1Size *= 0.5f;
+		box2Size *= 0.5f;
+
+		return ComputeSeparatingPlane(worldToBox1, box2ToWorld, box1Size, box2Size, tolerance, out plane);
 	}
 }

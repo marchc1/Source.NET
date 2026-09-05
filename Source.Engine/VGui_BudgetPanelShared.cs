@@ -3,6 +3,7 @@ using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Source.Engine;
+#if !SWDS
 
 [Flags]
 public enum BudgetFlags : ushort
@@ -144,3 +145,4 @@ class BudgetPanelShared : BaseBudgetPanel
 		HistoryLabels[2].SetText("60 fps (16 2/3 ms)");
 	}
 }
+#endif

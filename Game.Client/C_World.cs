@@ -67,17 +67,18 @@ public class C_World : C_BaseEntity
 
 	public void RegisterSharedActivities() {
 		ActivityList.RegisterSharedActivities();
-		// EventList.RegisterSharedEvents();
+		EventList.RegisterSharedEvents();
 	}
 
 	public override void Precache() {
 		ActivityList.Free();
-		// TODO: EventList.Free();
+		EventList.Free();
 
 		RegisterSharedActivities();
 
 		// Get weapon precaches
 		W_Precache();
+
 
 		// Call all registered precachers.
 		PrecacheRegister.Precache();

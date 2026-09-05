@@ -118,11 +118,30 @@ public partial class
 
 		if ((changeFlags & InvalidatePhysicsBits.PositionChanged) != 0) {
 			dirtyFlags |= EFL.DirtyAbsTransform;
-			// TODO: mark dirty
+
+#if !CLIENT_DLL
+			// todo
+			// NetworkProp().MarkPVSInformationDirty();
+#endif
+
+			CollisionProp().MarkPartitionHandleDirty();
 		}
 
-		if ((changeFlags & InvalidatePhysicsBits.PositionChanged) != 0) {
+		// NOTE: This has to be done after velocity + position because we change the
+		// changeFlags for child entities. An angle change also requires recomputing position.
+		if ((changeFlags & InvalidatePhysicsBits.AnglesChanged) != 0) {
 			dirtyFlags |= EFL.DirtyAbsTransform;
+			if (CollisionProp().DoesRotationInvalidateSurroundingBox())
+				// NOTE: This will handle the KD-tree, surrounding bounds, PVS
+				// render-to-texture shadow, shadow projection, and client leaf dirty
+				CollisionProp().MarkSurroundingBoundsDirty();
+			else {
+#if CLIENT_DLL
+				// MarkRenderHandleDirty();
+				g_ClientShadowMgr.AddToDirtyShadowList(this);
+				g_ClientShadowMgr.MarkRenderToTextureShadowDirty(GetShadowHandle());
+#endif
+			}
 			changeFlags |= InvalidatePhysicsBits.PositionChanged | InvalidatePhysicsBits.VelocityChanged;
 		}
 
@@ -172,7 +191,7 @@ public partial class
 		int index = 0;
 		if (context.IsEmpty) {
 #if DEBUG
-			if (CurrentThinkContext != NO_THINK_CONTEXT) 
+			if (CurrentThinkContext != NO_THINK_CONTEXT)
 				Msg($"Warning: Getting base nextthink time within think context {ThinkFunctions[CurrentThinkContext].Context}\n");
 #endif
 
@@ -182,40 +201,40 @@ public partial class
 			// Old system
 			return (long)(TICK_INTERVAL * NextThinkTick);
 		}
-		else 
+		else
 			// Find the think function in our list
 			index = GetIndexForThinkContext(context);
-		
+
 		if (index == NO_THINK_CONTEXT)
 			return TICK_NEVER_THINK;
 
 		ref ThinkFunc tf = ref ThinkFunctions.AsSpan()[index];
 
-		if (tf.NextThinkTick == TICK_NEVER_THINK) 
+		if (tf.NextThinkTick == TICK_NEVER_THINK)
 			return TICK_NEVER_THINK;
-		
+
 		return (long)(TICK_INTERVAL * (tf.NextThinkTick));
 	}
 
-	public TimeUnit_t GetLastThink(ReadOnlySpan<char> context){
+	public TimeUnit_t GetLastThink(ReadOnlySpan<char> context) {
 		// Are we currently in a think function with a context?
 		int index = 0;
 		if (context.IsEmpty) {
 #if DEBUG
-			if (CurrentThinkContext != NO_THINK_CONTEXT) 
+			if (CurrentThinkContext != NO_THINK_CONTEXT)
 				Msg($"Warning: Getting base lastthink time within think context {ThinkFunctions[CurrentThinkContext].Context}\n");
 #endif
 			// Old system
 			return LastThinkTick * TICK_INTERVAL;
 		}
-		else 
+		else
 			// Find the think function in our list
 			index = GetIndexForThinkContext(context);
 
 		return ThinkFunctions.AsSpan()[index].LastThinkTick * TICK_INTERVAL;
 	}
 
-	public long GetLastThinkTick(ReadOnlySpan<char> context){
+	public long GetLastThinkTick(ReadOnlySpan<char> context) {
 		// Are we currently in a think function with a context?
 		int index = 0;
 		if (context.IsEmpty) {
@@ -291,7 +310,7 @@ public partial class
 		}
 
 		int iIndex = GetIndexForThinkContext(context);
-		if (iIndex == NO_THINK_CONTEXT) 
+		if (iIndex == NO_THINK_CONTEXT)
 			iIndex = RegisterThinkContext(context);
 
 		var thinkFns = ThinkFunctions.AsSpan();
@@ -327,11 +346,11 @@ public partial class
 	public void SetNextThink(int contextIndex, TimeUnit_t thinkTime) {
 		int thinkTick = (thinkTime == TICK_NEVER_THINK) ? TICK_NEVER_THINK : TIME_TO_TICKS(thinkTime);
 
-		if (contextIndex < 0) 
+		if (contextIndex < 0)
 			SetNextThink(thinkTime);
-		else 
+		else
 			ThinkFunctions.AsSpan()[contextIndex].NextThinkTick = thinkTick;
-		
+
 		CheckHasThinkFunction(thinkTick == TICK_NEVER_THINK ? false : true);
 	}
 

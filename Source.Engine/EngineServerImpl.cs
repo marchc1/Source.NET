@@ -1,9 +1,12 @@
-﻿using Source.Common;
+﻿using CommunityToolkit.HighPerformance;
+
+using Source.Common;
 using Source.Common.Audio;
 using Source.Common.Bitbuffers;
 using Source.Common.Client;
 using Source.Common.Engine;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GarrysMod;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
 using Source.Common.Server;
@@ -26,6 +29,21 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 
 	public void BuildEntityClusterList(Edict edict, ref PVSInfo pvsInfo) {
 		throw new NotImplementedException();
+	}
+
+	static readonly SharedEdictChangeInfo g_SharedEdictChangeInfo = new();
+	public static readonly SharedEdictChangeInfo g_pSharedEdictChangeInfo = g_SharedEdictChangeInfo;
+
+	public static void InvalidateSharedEdictChangeInfos() {
+		if (g_SharedEdictChangeInfo.SerialNumber == 0xFFFF) {
+			g_SharedEdictChangeInfo.SerialNumber = 1;
+			for (int i = 0; i < sv.NumEdicts; i++)
+				sv.Edicts![i].SetChangeInfoSerialNumber(0);
+		}
+		else 
+			g_SharedEdictChangeInfo.SerialNumber++;
+		
+		g_SharedEdictChangeInfo.NumChangeInfos = 0;
 	}
 
 	public void ChangeLevel(ReadOnlySpan<char> s1, ReadOnlySpan<char> s2) {
@@ -153,7 +171,7 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	}
 
 	public void CrosshairAngle(Edict clientent, float pitch, float yaw) {
-		
+
 	}
 
 	public void DestroySpatialPartition(ISpatialPartition spatialPartition) {
@@ -395,7 +413,9 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	public bool IsPaused() => sv.IsPaused();
 
 	public void LightStyle(int style, ReadOnlySpan<char> val) {
-		throw new NotImplementedException();
+		// change the string in string table
+		INetworkStringTable stringTable = sv.GetLightStyleTable()!;
+		stringTable!.SetStringUserData(style, val.Length + 1, val.Cast<char, byte>());
 	}
 
 	public void LoadAdjacentEnts(ReadOnlySpan<char> oldLevel, ReadOnlySpan<char> landmarkName) {
@@ -520,8 +540,21 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 		throw new NotImplementedException();
 	}
 
+	void PR_CheckEmptyString(ReadOnlySpan<char> s){
+		if (s.Length == 0)
+			Host.Error($"Bad string: {s}");
+	}
+
 	public int PrecacheModel(ReadOnlySpan<char> s, bool preload = false) {
-		throw new NotImplementedException();
+		if (sv.GetModelPrecacheTable()!.GetNumStrings() != 0) // Allow the gamedll to call it with "" if the stringtable is empty. It is most likely recreating the entire stringtable.
+			PR_CheckEmptyString(s);
+
+		int i = SV.FindOrAddModel(s, preload);
+		if (i >= 0) 
+			return i;
+
+		Host.Error($"EngineServer.PrecacheModel: '{s}' overflow, too many models");
+		return 0;
 	}
 
 	public int PrecacheSentenceFile(ReadOnlySpan<char> s, bool preload = false) {
@@ -718,4 +751,60 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 	}
 
 	public SharedEdictChangeInfo GetSharedEdictChangeInfo() => g_roSharedEdictChangeInfo;
+
+	public Span<float> GMOD_SetTimeManipulator(float scaleFramerate) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_SendToClient<IRF>(ref IRF filter, ReadOnlySpan<byte> data) where IRF : IRecipientFilter {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_SendToClient(int client, ReadOnlySpan<byte> data) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_RawServerCommand(ReadOnlySpan<char> command) {
+		throw new NotImplementedException();
+	}
+
+	public IGMODDataTable GMOD_CreateDataTable() {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_DestroyDataTable(IGMODDataTable dataTable) {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> GMOD_GetServerAddress() {
+		throw new NotImplementedException();
+	}
+
+	public uint GMOD_LoadModel(ReadOnlySpan<char> path) {
+		throw new NotImplementedException();
+	}
+
+	public float GetClientConVarFloat(int client, ReadOnlySpan<char> cvar, float fallback) {
+		throw new NotImplementedException();
+	}
+
+	public ref CSteamID GMOD_GetPlayerOwnerSteamID(Edict client) {
+		throw new NotImplementedException();
+	}
+
+	public bool GMOD_GetPlayerIsSpeaking(Edict client) {
+		throw new NotImplementedException();
+	}
+
+	public bool GMOD_GetPlayerIsBot(Edict client) {
+		throw new NotImplementedException();
+	}
+
+	public bool GMOD_ShouldUpdateVoiceMasks() {
+		throw new NotImplementedException();
+	}
+
+	public bool NET_IsHostLocal(ReadOnlySpan<char> unknwon) {
+		throw new NotImplementedException();
+	}
 }

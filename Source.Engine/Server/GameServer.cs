@@ -44,8 +44,7 @@ public class GameServer : BaseServer
 	}
 
 	public override void Shutdown() {
-
-
+		g_DownloadListGenerator.OnLevelLoadEnd();
 	}
 
 	protected override BaseClient CreateNewClient(int slot) {
@@ -99,7 +98,7 @@ public class GameServer : BaseServer
 		StringTables!.SetTick(TickCount);
 
 		int size = Unsafe.SizeOf<PrecacheUserData>();
-		DownloadableFileTable = StringTables.CreateStringTable("downloadables", 8192, 0, 0); // DOWNLOADABLE_FILE_TABLENAME, MAX_DOWNLOADABLE_FILES
+		DownloadableFileTable = StringTables.CreateStringTable(Protocol.DOWNLOADABLE_FILE_TABLENAME, 8192, 0, 0); // DOWNLOADABLE_FILE_TABLENAME, MAX_DOWNLOADABLE_FILES
 		ModelPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.MODEL_PRECACHE_TABLENAME, PrecacheItem.MAX_MODELS, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
 		GenericPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.GENERIC_PRECACHE_TABLENAME, PrecacheItem.MAX_GENERIC, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
 		SoundPrecacheTable = StringTables.CreateStringTableEx(PrecacheItem.SOUND_PRECACHE_TABLENAME, PrecacheItem.MAX_SOUNDS, size, PrecacheItem.PRECACHE_USER_DATA_NUMBITS, false);
@@ -107,7 +106,8 @@ public class GameServer : BaseServer
 		InstanceBaselineTable = StringTables.CreateStringTable(Protocol.INSTANCE_BASELINE_TABLENAME, Constants.MAX_DATATABLES);
 		LightStyleTable = StringTables.CreateStringTable(Protocol.LIGHT_STYLES_TABLENAME, BSPFileCommon.MAX_LIGHTSTYLES);
 		UserInfoTable = StringTables.CreateStringTable(Protocol.USER_INFO_TABLENAME, 1 << Constants.ABSOLUTE_PLAYER_LIMIT_DW);
-		DynamicModelsTable = StringTables.CreateStringTable("DynamicModels", 2048, 1, 1);
+		DynamicModelsTable = StringTables.CreateStringTable(Protocol.DYNAMIC_MODELS_TABLENAME, 2048, 1, 1);
+		ClientLuaFilesTable = StringTables.CreateStringTable(Protocol.CLIENT_LUA_FILES_TABLENAME, 8192, 1, 1);
 		// ServerStartupDataTable = StringTables.CreateStringTable(Protocol.SERVER_STARTUP_DATA_TABLENAME, 4);
 
 		SetQueryPortFromSteamServer();
@@ -127,21 +127,20 @@ public class GameServer : BaseServer
 
 		int j;
 
+			Span<char> nameBuffer = stackalloc char[8];
 		for (int i = 0; i < BSPFileCommon.MAX_LIGHTSTYLES; i++) {
-			Span<char> name = stackalloc char[8];
-			sprintf(name, "%i").I(i);
+			ReadOnlySpan<char> name = sprintf(nameBuffer, "%i").I(i);
 			j = LightStyleTable.AddString(true, name);
 			Assert(j == i);
 		}
 
 		for (int i = 0; i < GetMaxClients(); i++) {
-			Span<char> name = stackalloc char[8];
-			sprintf(name, "%i").I(i);
+			ReadOnlySpan<char> name = sprintf(nameBuffer, "%i").I(i);
 			j = UserInfoTable.AddString(true, name);
 			Assert(j == i);
 		}
 
-		// DownloadListGenerator.SetStringTable(DownloadableFileTable);
+		g_DownloadListGenerator.SetStringTable(DownloadableFileTable);
 	}
 
 	public INetworkStringTable? GetModelPrecacheTable() => ModelPrecacheTable;
@@ -149,7 +148,6 @@ public class GameServer : BaseServer
 	public INetworkStringTable? GetSoundPrecacheTable() => SoundPrecacheTable;
 	public INetworkStringTable? GetDecalPrecacheTable() => DecalPrecacheTable;
 	public INetworkStringTable? GetDynamicModelsTable() => DynamicModelsTable;
-
 
 	public int PrecacheModel(ReadOnlySpan<char> name, Res flags, Model? model = null) {
 		if (ModelPrecacheTable == null)
@@ -462,13 +460,14 @@ public class GameServer : BaseServer
 		Common.TimestampedLog("StaticPropMgr()->LevelShutdown()");
 
 #if !SWDS
-		// g_pShadowMgr->LevelShutdown();
+		g_ShadowMgr.LevelShutdown();
 #endif
-		// StaticPropMgr()->LevelShutdown();
+		StaticPropMgr().LevelShutdown();
 
 		Common.TimestampedLog("Host_FreeToLowMark");
 
 		Host.FreeStateAndWorld(true);
+		Host.FreeToLowMark(true);
 
 		serverGlobalVariables.MapVersion = 0;
 
@@ -543,7 +542,7 @@ public class GameServer : BaseServer
 		serverGlobalVariables.TickCount = TickCount;
 		serverGlobalVariables.CurTime = GetTime();
 
-		g_pFileSystem.AddSearchPath(mapFile, "GAME", SearchPathAdd.ToHead);
+		g_pFileSystem.AddSearchPath(mapFile, "GAME", SearchPathAdd.ToHead, groupName: PathGroupName.Map);
 		g_pFileSystem.BeginMapAccess();
 
 		Common.TimestampedLog($"modelloader->GetModelForName({mapFile}) -- Start");
@@ -675,12 +674,16 @@ public class GameServer : BaseServer
 		ServerClasses = nClasses;
 		ServerClassBits = (int)(Math.Log2(ServerClasses) + 1);
 
+		// TODO: When our server classes match up, we can make it assign class ID's. For now,
+		// we'll use what the Garry's Mod bindings give us...
+#if false
 		int curID = 0;
 		for (ServerClass c = classes; c != null; c = c.Next) {
 			c.ClassID = curID++;
 
 			// Msg($"{c.ClassID} == '{c.NetworkName}'\n");
 		}
+#endif
 	}
 
 	INetworkStringTable? ModelPrecacheTable;
@@ -689,6 +692,8 @@ public class GameServer : BaseServer
 	INetworkStringTable? DecalPrecacheTable;
 
 	INetworkStringTable? DynamicModelsTable;
+
+	INetworkStringTable? ClientLuaFilesTable;
 
 	bool Hibernating;    // Are we hibernating.  Hibernation makes server process consume approx 0 CPU when no clients are connected
 

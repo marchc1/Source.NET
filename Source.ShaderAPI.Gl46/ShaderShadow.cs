@@ -1,6 +1,10 @@
 using Source.Common.MaterialSystem;
 using Source.Common.ShaderAPI;
 
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Text;
+
 namespace Source.ShaderAPI.Gl46;
 
 /// <summary>
@@ -17,12 +21,16 @@ public struct SourceSharedShadowState
 public struct SourceVertexSharedShadowState
 {
 	public int NumBones;
+	public int LightCount;
+	public int Pad0;
+	public int Pad1;
+	public Vector4 LightEnabled;
 }
 
 /// <summary>
 /// Uniforms for the pixel shader the ShadowState represents.
 /// </summary>
-public unsafe struct SourcePixelSharedShadowState
+public struct SourcePixelSharedShadowState
 {
 	public int IsAlphaTesting;
 	public int AlphaTestFunc;
@@ -37,6 +45,7 @@ public class ShadowStateGl46 : IShaderShadow
 {
 	internal readonly IShaderSystemInternal Shaders;
 	internal readonly IShaderAPI ShaderAPI;
+	readonly IMaterialSystemHardwareConfig HardwareConfig = Singleton<IMaterialSystemHardwareConfig>();
 
 	public uint BASE_UBO;
 	public uint VERTEX_UBO;
@@ -49,6 +58,8 @@ public class ShadowStateGl46 : IShaderShadow
 
 	public VertexShaderHandle VertexShader;
 	public PixelShaderHandle PixelShader;
+
+	public BasePerMaterialContextData? ContextData;
 
 	List<IMaterialVar> shaderUniforms = [];
 
@@ -119,10 +130,13 @@ public class ShadowStateGl46 : IShaderShadow
 		CreateShaderObjects(); // Recreate UBO's, if we were lazy-loaded
 		ReuploadBuffers(); // Reupload UBO's, if needed
 
+		ComputeAggregateShadowState();
+
 		// Set GL states. We compare our last upload state to the current desired state and adjust if it differs.
 		ShaderAPI.SetBoardState(in State);
 
 		// Set VSH and PSH. Shader API can bind these whenever it needs to
+		((ShaderAPIGl46)ShaderAPI).SetCurrentShadow(this);
 		ShaderAPI!.BindVertexShader(in VertexShader);
 		ShaderAPI!.BindPixelShader(in PixelShader);
 
@@ -138,15 +152,16 @@ public class ShadowStateGl46 : IShaderShadow
 	}
 
 	private unsafe void ReuploadBuffers() {
-		int curBones = ShaderAPI.GetCurrentNumBones();
-		if (curBones != Vertex.NumBones)
+		SourceVertexSharedShadowState curVertex = ((ShaderAPIGl46)ShaderAPI).GetVertexSharedState();
+		curVertex.NumBones = ShaderAPI.GetCurrentNumBones();
+		if (curVertex.NumBones != Vertex.NumBones || curVertex.LightCount != Vertex.LightCount || curVertex.LightEnabled != Vertex.LightEnabled)
 			needsBufferUpload = true;
 
 		if (!needsBufferUpload)
 			return;
 
 		// Reupload UBO states.
-		Vertex.NumBones = curBones;
+		Vertex = curVertex;
 
 		fixed (SourceSharedShadowState* pBase = &Base)
 		fixed (SourceVertexSharedShadowState* pVertex = &Vertex)
@@ -230,18 +245,32 @@ public class ShadowStateGl46 : IShaderShadow
 	}
 
 	public void VertexShaderVertexFormat(VertexFormat format, int texCoordCount, Span<int> texCoordDimensions, int userDataSize) {
-		VertexFormat = format;
+		// TODO: MeshMgr.ComputeVertexFormat
+		VertexFormat = format | VertexFormat.BoneIndex | VertexFormat.BoneWeights2 | VertexFormat.UserData4 | VertexFormat.TexCoord2D_0;
 	}
 
 	public GraphicsDriver GetDriver() => ShaderAPI.GetDriver();
 
-	public void SetVertexShader(ReadOnlySpan<char> fileName) {
-		VertexShader = Shaders.LoadVertexShader($"{fileName}_{GetDriver().Extension(ShaderType.Vertex)}");
+	ShaderComboState? vertexCombos;
+	ShaderComboState? pixelCombos;
+
+	private ShaderComboState VertexCombos => vertexCombos ??= new(Shaders, ShaderType.Vertex);
+	private ShaderComboState PixelCombos => pixelCombos ??= new(Shaders, ShaderType.Pixel);
+
+	public void SetVertexShader(ReadOnlySpan<char> fileName, int staticIndex = 0) {
+		VertexShader = VertexCombos.SetShader($"{fileName}_{GetDriver().Extension(ShaderType.Vertex)}", staticIndex);
 	}
 
-	public void SetPixelShader(ReadOnlySpan<char> fileName) {
-		PixelShader = Shaders.LoadPixelShader($"{fileName}_{GetDriver().Extension(ShaderType.Pixel)}");
+	public void SetPixelShader(ReadOnlySpan<char> fileName, int staticIndex = 0) {
+		PixelShader = PixelCombos.SetShader($"{fileName}_{GetDriver().Extension(ShaderType.Pixel)}", staticIndex);
 	}
+
+	private ShaderComboState Combos(ShaderType type) => type == ShaderType.Vertex ? VertexCombos : PixelCombos;
+	public int GetStaticComboScale(ShaderType type, ReadOnlySpan<char> fileName, ReadOnlySpan<char> name) => Combos(type).GetStaticComboScale($"{fileName}_{GetDriver().Extension(type)}", name);
+	internal int GetDynamicComboScale(ShaderType type, ReadOnlySpan<char> name) => Combos(type).GetDynamicComboScale(name);
+
+	internal VertexShaderHandle GetVertexShaderVariant(int dynamicIndex) => VertexCombos.GetVariant(dynamicIndex);
+	internal PixelShaderHandle GetPixelShaderVariant(int dynamicIndex) => PixelCombos.GetVariant(dynamicIndex);
 
 	public void EnableVertexBlend(bool enable) {
 		throw new NotImplementedException();
@@ -307,6 +336,15 @@ public class ShadowStateGl46 : IShaderShadow
 		State.AlphaDestinationBlend = dstFactor;
 	}
 
+	public void ComputeAggregateShadowState() {
+		// Alpha to coverage
+		if (State.AlphaToCoverage) {
+			// Only allow this to be enabled if blending is disabled and testing is enabled
+			if ((State.Blending == true) || (Pixel.IsAlphaTesting == 0))
+				State.AlphaToCoverage = false;
+		}
+	}
+
 	public void FogMode(ShaderFogMode fogMode) {
 		throw new NotImplementedException();
 	}
@@ -324,7 +362,8 @@ public class ShadowStateGl46 : IShaderShadow
 	}
 
 	public void SetShadowDepthFiltering(Sampler stage) {
-		throw new NotImplementedException();
+		// throw new NotImplementedException();
+		// TODO!
 	}
 
 	public void BlendOp(ShaderBlendOp blendOp) {
@@ -338,9 +377,10 @@ public class ShadowStateGl46 : IShaderShadow
 	public void SetDefaultState() {
 		DepthFunc(ShaderDepthFunc.NearerOrEqual);
 		EnableColorWrites(true);
-		EnableAlphaWrites(true);
+		EnableAlphaWrites(false);
 		EnableDepthWrites(true);
 		EnableDepthTest(true);
+		EnableAlphaTest(false);
 		EnableBlending(false);
 		EnableCulling(true);
 		PolyMode(ShaderPolyModeFace.FrontAndBack, ShaderPolyMode.Fill);
@@ -349,6 +389,127 @@ public class ShadowStateGl46 : IShaderShadow
 		EnableBlendingSeparateAlpha(false);
 		BlendFuncSeparateAlpha(ShaderBlendFactor.One, ShaderBlendFactor.Zero);
 		BlendOpSeparateAlpha(ShaderBlendOp.Add);
+		AlphaFunc(ShaderAlphaFunc.GreaterEqual, 0.7f);
+		EnableAlphaToCoverage(false);
+		EnableSRGBWrite(false);
 		EnablePolyOffset(PolygonOffsetMode.Disable);
+
+		int samplerCount = HardwareConfig.GetSamplerCount();
+		for (int i = 0; i < samplerCount; i++) {
+			EnableTexture((Sampler)i, false);
+			EnableSRGBRead((Sampler)i, false);
+		}
+	}
+
+	public void EnableSRGBRead(Sampler sampler, bool enable) {
+		if (!HardwareConfig.SupportsSRGB()) {
+			State.SamplerState[(int)sampler].SRGBReadEnable = false;
+			return;
+		}
+
+		if ((int)sampler < HardwareConfig.GetSamplerCount())
+			State.SamplerState[(int)sampler].SRGBReadEnable = enable;
+		else
+			Warning($"Attempting set SRGBRead state on an invalid sampler ({(int)sampler})!\n");
+	}
+
+	public void EnableSRGBWrite(bool enable) {
+		if (HardwareConfig.SupportsSRGB())
+			State.SRGBWriteEnable = enable;
+		else
+			State.SRGBWriteEnable = false;
+	}
+}
+
+internal sealed class ShaderComboState(IShaderSystemInternal shaders, ShaderType type)
+{
+	string? file;
+	ShaderCombo[] staticCombos = [];
+	ShaderCombo[] dynamicCombos = [];
+	int[] staticComboScales = [];
+	int[] dynamicComboScales = [];
+	int numDynamicCombos = 1;
+	int staticComboIndex;
+	readonly Dictionary<int, nint> variants = [];
+	readonly StringBuilder defines = new(256);
+
+	public nint SetShader(string fileName, int staticIndex) {
+		file = fileName;
+		staticComboIndex = staticIndex;
+
+		var (statics, dynamics) = ((ShaderSystem)shaders).GetShaderCombos(fileName);
+
+		staticCombos = [.. statics];
+		dynamicCombos = [.. dynamics];
+
+		staticComboScales = ComputeComboScales(staticCombos, out _);
+		dynamicComboScales = ComputeComboScales(dynamicCombos, out numDynamicCombos);
+
+		variants.Clear();
+
+		return GetVariant(0);
+	}
+
+	private static int[] ComputeComboScales(ShaderCombo[] combos, out int total) {
+		int[] scales = new int[combos.Length];
+		total = 1;
+		for (int i = 0; i < combos.Length; i++) {
+			scales[i] = total;
+			total *= combos[i].Range;
+		}
+		return scales;
+	}
+
+	public int GetStaticComboScale(string fileName, ReadOnlySpan<char> name) {
+		var (statics, _) = ((ShaderSystem)shaders).GetShaderCombos(fileName);
+		int scale = 1;
+		for (int i = 0; i < statics.Count; i++) {
+			if (name.SequenceEqual(statics[i].Name))
+				return scale;
+			scale *= statics[i].Range;
+		}
+		return 0;
+	}
+
+	public int GetDynamicComboScale(ReadOnlySpan<char> name) {
+		for (int i = 0; i < dynamicCombos.Length; i++) {
+			if (name.SequenceEqual(dynamicCombos[i].Name))
+				return dynamicComboScales[i];
+		}
+		return 0;
+	}
+
+	private static void AppendComboDefines(StringBuilder defines, ShaderCombo[] combos, int[] scales, int index) {
+		for (int i = 0; i < combos.Length; i++) {
+			if (defines.Length != 0)
+				defines.Append(';');
+
+			ref readonly var combo = ref combos[i];
+
+			defines.Append(combo.Name);
+			defines.Append(' ');
+			defines.Append(combo.Min + (index / scales[i]) % combo.Range);
+		}
+	}
+
+	private nint Compile(int variant) {
+		int staticIndex = variant / numDynamicCombos;
+		int dynamicIndex = variant % numDynamicCombos;
+
+		defines.Clear();
+		AppendComboDefines(defines, staticCombos, staticComboScales, staticIndex);
+		AppendComboDefines(defines, dynamicCombos, dynamicComboScales, dynamicIndex);
+
+		string source = defines.ToString();
+		return type == ShaderType.Vertex ? (nint)shaders.LoadVertexShader(file!, source) : shaders.LoadPixelShader(file!, source);
+	}
+
+	public nint GetVariant(int dynamicIndex) {
+		int variant = staticComboIndex * numDynamicCombos + dynamicIndex;
+		if (!variants.TryGetValue(variant, out nint handle)) {
+			handle = Compile(variant);
+			variants.Add(variant, handle);
+		}
+		return handle;
 	}
 }

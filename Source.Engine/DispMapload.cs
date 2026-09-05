@@ -373,6 +373,8 @@ public static class DispMapload
 		MapLoadHelper dispLMPositions = new(LumpIndex.DispLightmapSamplePositions);
 		dispLMAlphas.LoadLumpData(g_DispLightmapSamplePositions.AsSpan());
 
+		DispInfo_ReleaseMaterialSystemObjects(world);
+
 		Span<BSPDDispInfo> tempDisps = stackalloc BSPDDispInfo[BSPFileCommon.MAX_MAP_DISPINFO];
 		dispInfos.LoadLumpData(tempDisps);
 
@@ -436,7 +438,31 @@ public static class DispMapload
 		return true;
 	}
 
-	static void DispInfo_ReleaseMaterialSystemObjects(Model world) => throw new NotImplementedException();
+	static void DispInfo_ReleaseMaterialSystemObjects(Model? world) {
+		using MatRenderContextPtr renderContext = new(SourceDllMain.materials);
+
+		foreach (DispGroup group in g_DispGroups) {
+			foreach (GroupMesh mesh in group.Meshes)
+				renderContext.DestroyStaticMesh(mesh.Mesh!);
+
+			group.Meshes.Clear();
+		}
+
+		g_DispGroups.Clear();
+
+		if (world != null) {
+			for (int iDisp = 0; iDisp < world.Brush.Shared!.NumDispInfos; iDisp++) {
+				DispInfo? disp = DispInfo.GetModelDisp(world, iDisp);
+				if (disp == null) {
+					Assert(false);
+					continue;
+				}
+
+				disp.Mesh = null;
+				disp.VertOffset = disp.IndexOffset = 0;
+			}
+		}
+	}
 
 	static void BuildTagData(CoreDispInfo coreDisp, DispInfo disp) {
 		int walkTest = 0;

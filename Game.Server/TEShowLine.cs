@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEShowLine>;
-public class TEShowLine : TEParticleSystem
+public class TEShowLine(ReadOnlySpan<char> name) : TEParticleSystem(name)
 {
 	public static readonly SendTable DT_TEShowLine = new(DT_TEParticleSystem, [
 		SendPropVector(FIELD.OF(nameof(End)), 0, PropFlags.Coord),

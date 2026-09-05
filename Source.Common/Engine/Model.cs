@@ -54,7 +54,7 @@ public class WorldBrushData
 	public int NumLeafs;
 	public MLeafAmbientIndex[]? LeafAmbient;
 	public MLeafAmbientLighting[]? AmbientSamples;
-	public BSPDLeafWaterData[]? LeafWaterData;
+	public BSPMLeafWaterData[]? LeafWaterData;
 	public BSPDertex[]? Vertexes;
 	public BSPDOccluderData[]? Occluders;
 	public BSPDOccluderPolyData[]? OccluderPolys;

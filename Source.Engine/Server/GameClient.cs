@@ -350,6 +350,16 @@ public class GameClient : BaseClient
 		Common.TimestampedLog("CGameClient::ActivatePlayer -end");
 	}
 
+	protected override bool ProcessGMod_ClientToServer(CLC_GMod_ClientToServer msg) {
+		switch (msg.MessageType) {
+			case GModMessageType.LuaFile: {
+					// todo
+				}
+				return true;
+		}
+		return base.ProcessGMod_ClientToServer(msg);
+	}
+
 	protected override bool SendSignonData() {
 		bool clientHasDifferentTables = false;
 
@@ -528,7 +538,19 @@ public class GameClient : BaseClient
 
 	// void FileReceived(ReadOnlySpan<char> fileName, uint transferID) { }
 
-	// void FileRequested(ReadOnlySpan<char> fileName, uint transferID) { }
+	public override void FileRequested(RequestFile type, uint value, uint transferID) {
+		DevMsg($"File request (type {type}, value {value}) from client {NetChannel.GetAddress()}.\n");
+		// TODO: User data for I think sprays?
+		if (sv_allowdownload.GetBool() && type == RequestFile.Downloadable && sv.DownloadableFileTable is INetworkStringTable table && value < (uint)table.GetNumStrings()) {
+			ReadOnlySpan<char> name = table.GetString((int)value);
+			if (!name.IsStringEmpty) {
+				NetChannel.SendFile(name, transferID);
+				return;
+			}
+		}
+
+		NetChannel.DenyFile(transferID);
+	}
 
 	// void FileDenied(ReadOnlySpan<char> fileName, uint transferID) { }
 

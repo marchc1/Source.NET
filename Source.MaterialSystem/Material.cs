@@ -9,6 +9,7 @@ using Source.Common.ShaderLib;
 using Source.Common.Utilities;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -71,6 +72,7 @@ public class Material : IMaterialInternal
 		}
 		ShaderParams = null;
 		MappingWidth = MappingHeight = 0;
+		Reflectivity = new(0.2f, 0.2f, 0.2f);
 		if (keyValues != null) {
 			flags |= MaterialFlags.IsManuallyCreated;
 		}
@@ -209,12 +211,8 @@ public class Material : IMaterialInternal
 		IMaterialVar? textureVar = FindVar("$basetexture", out found, false);
 		if (found && textureVar.GetVarType() == MaterialVarType.Texture) {
 			ITextureInternal? texture = (ITextureInternal?)textureVar.GetTextureValue();
-			if (representativeTexture != null)
-				representativeTexture.Precache();
-			else {
-				representativeTexture = materials.TextureSystem.ErrorTexture();
-				Assert(representativeTexture);
-			}
+			if (texture != null)
+				texture.GetReflectivity(out Reflectivity);
 		}
 		if (!found || textureVar.GetVarType() != MaterialVarType.Texture) {
 			textureVar = FindVar("$envmapmask", out found, false);
@@ -704,8 +702,17 @@ public class Material : IMaterialInternal
 				IMaterialVar? matrixVar = CreateMatrixVarFromKeyValue(material, keyValue);
 				if (matrixVar != null) return matrixVar;
 
-				if (!IsVector(str))
+				if (!IsVector(str)) {
+					// FIXME KeyValues is meant to handle this
+					{
+						if (int.TryParse(str, NumberStyles.Integer, CultureInfo.InvariantCulture, out int i32))
+							return new MaterialVar(material, name, i32);
+
+						if (float.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture, out float f32))
+							return new MaterialVar(material, name, f32);
+					}
 					return new MaterialVar(material, name, str);
+				}
 
 				return CreateVectorMaterialVarFromKeyValue(material, keyValue);
 		}
@@ -920,6 +927,10 @@ public class Material : IMaterialInternal
 	IShaderShadow ShaderRenderState;
 	static uint DebugVarsSignature = 0;
 
+	public void ReportVarChanged(IMaterialVar? var) => ChangeID++;
+
+	public uint GetChangeID() => ChangeID;
+
 	public void DrawMesh(VertexCompressionType vertexCompression) {
 		if (Shader != null) {
 			if ((GetMaterialVarFlags() & MaterialVarFlags.Debug) == 0) {
@@ -968,6 +979,11 @@ public class Material : IMaterialInternal
 	public float GetMappingHeight() {
 		Precache();
 		return MappingHeight;
+	}
+
+	public void GetReflectivity(out Vector3 reflect) {
+		Precache();
+		reflect = Reflectivity;
 	}
 
 	public void Refresh() {
@@ -1107,6 +1123,39 @@ public class Material : IMaterialInternal
 		if (IsValidRenderState())
 			return (GetMaterialVarFlags2() & MaterialVarFlags2.LightingVertexLit) != 0;
 		return false;
+	}
+
+	public bool NeedsSoftwareSkinning() {
+		Precache();
+		Assert(Shader != null);
+		if (Shader == null)
+			return false;
+		Assert(ShaderParams != null);
+		return (GetMaterialVarFlags() & MaterialVarFlags.NeedsSoftwareSkinning) != 0;
+	}
+
+	public bool NeedsSoftwareLighting() {
+		Precache();
+		Assert(Shader != null);
+		if (Shader == null)
+			return false;
+		Assert(ShaderParams != null);
+		return (GetMaterialVarFlags2() & MaterialVarFlags2.NeedsSoftwareLighting) != 0;
+	}
+
+	public void SetMaterialVarFlags2(MaterialVarFlags2 flags, bool on) {
+		if (ShaderParams == null) {
+			Assert(false);
+			return;
+		}
+
+		MaterialVarFlags2 val = on ? (GetMaterialVarFlags2() | flags) : (GetMaterialVarFlags2() & (~flags));
+		ShaderParams[(int)ShaderMaterialVars.Flags2].SetIntValue((int)val);
+		ShaderParams[(int)ShaderMaterialVars.FlagsDefined2].SetIntValue(ShaderParams[(int)ShaderMaterialVars.FlagsDefined2].GetIntValue() | (int)flags);
+	}
+
+	public void SetUseFixedFunctionBakedLighting(bool enable) {
+		SetMaterialVarFlags2(MaterialVarFlags2.UseFixedFunctionBakedLighting, enable);
 	}
 
 	public int GetNumAnimationFrames() {

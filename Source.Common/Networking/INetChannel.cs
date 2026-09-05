@@ -22,9 +22,9 @@ public interface INetChannel : INetChannelInfo
 	bool SendNetMsg(INetMessage msg, bool forceReliable = false, bool voice = false);
 	bool SendData(bf_write msg, bool reliable = true);
 	bool SendFile(ReadOnlySpan<char> filename, uint transferID);
-	void DenyFile(ReadOnlySpan<char> filename, uint transferID);
+	void DenyFile(uint transferID);
 	void SetChoked();
-	int SendDatagram(bf_write data);
+	int SendDatagram(bf_write? data);
 	bool Transmit(bool onlyReliable = false);
 
 	NetAddress? GetRemoteAddress();
@@ -42,8 +42,7 @@ public interface INetChannel : INetChannelInfo
 	bool HasPendingReliableData();
 	void SetFileTransmissionMode(bool backgroundMode);
 	void SetCompressionMode(bool useCompression);
-	uint RequestFile(ReadOnlySpan<char> filename);
-	TimeUnit_t GetTimeSinceLastReceived();
+	uint RequestFile(RequestFile type, uint value);
 	void SetMaxBufferSize(bool reliable, int bytes, bool voice = false);
 	bool IsNull();
 	int GetNumBitsWritten(bool reliable);

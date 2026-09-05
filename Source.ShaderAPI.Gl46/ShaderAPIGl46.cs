@@ -13,6 +13,7 @@ using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 using Source.Common.ShaderAPI;
+using Source.Common.ShaderLib;
 using Source.Common.Utilities;
 
 using System.Numerics;
@@ -59,6 +60,13 @@ public enum CommitFuncType
 {
 	PerDraw,
 	PerPass
+}
+
+public enum TransformDirtyBits
+{
+	StateChangedVertexShader = 0x1,
+	StateChangedFixedFunction = 0x2,
+	StateChanged = 0x3
 }
 
 public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
@@ -119,7 +127,20 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		if (clearStencil)
 			glStencilMask(0xFF);
 
-		glClear(flags);
+		if (flags != 0) {
+			bool renderTargetMatchesViewport =
+				(renderTargetWidth == -1 && renderTargetHeight == -1) ||
+				(renderTargetWidth == Viewport.Width && renderTargetHeight == Viewport.Height);
+
+			if (renderTargetMatchesViewport)
+				glClear(flags);
+			else {
+				glEnable(GL_SCISSOR_TEST);
+				glScissor(Viewport.X, renderTargetHeight - (Viewport.Y + Viewport.Height), Viewport.Width, Viewport.Height);
+				glClear(flags);
+				glDisable(GL_SCISSOR_TEST);
+			}
+		}
 	}
 
 	public void ClearColor3ub(byte r, byte g, byte b) => glClearColor(r / 255f, g / 255f, b / 255f, 1);
@@ -129,6 +150,23 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	PixelShaderHandle activePixelShader = PixelShaderHandle.INVALID;
 	bool pipelineChanged = false;
 	uint lastShader;
+	ShadowStateGl46? currentShadow;
+	internal void SetCurrentShadow(ShadowStateGl46 shadow) {
+		currentShadow = shadow;
+	}
+
+	public void SetVertexShaderIndex(int index) {
+		if (currentShadow != null)
+			BindVertexShader(currentShadow.GetVertexShaderVariant(index));
+	}
+
+	public void SetPixelShaderIndex(int index) {
+		if (currentShadow != null)
+			BindPixelShader(currentShadow.GetPixelShaderVariant(index));
+	}
+
+	public int GetDynamicComboScale(ShaderType type, ReadOnlySpan<char> name) => currentShadow?.GetDynamicComboScale(type, name) ?? 0;
+
 	public void BindVertexShader(in VertexShaderHandle vertexShader) {
 		activeVertexShader = vertexShader;
 		pipelineChanged = true;
@@ -155,6 +193,10 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	uint uboBones;
 	uint uboVertexConstants;
 	uint uboPixelConstants;
+
+	SourceVertexSharedShadowState vertexShared;
+
+	internal SourceVertexSharedShadowState GetVertexSharedState() => vertexShared;
 
 	private unsafe void CreateMatrixStacks() {
 		uboMatrices = glCreateBuffer();
@@ -190,9 +232,12 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public void InitRenderState() {
 		glDisable(GL_DEPTH_TEST);
 		glFrontFace(GL_CW);
+		glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
 		if (!IsDeactivated())
 			ResetRenderState();
+
+		SetToneMappingScaleLinear(new Vector3(1.0f, 1.0f, 1.0f));
 	}
 
 	public void SetPresentParameters(in ShaderDeviceInfo info) {
@@ -238,6 +283,461 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public IShaderShadow NewShaderShadow(ReadOnlySpan<char> materialName) => new ShadowStateGl46(this, (IShaderSystemInternal)ShaderManager, materialName);
 	public bool IsTranslucent(IShaderShadow renderState) => ((ShadowStateGl46)renderState).State.Blending;
 	public bool IsAlphaTested(IShaderShadow renderState) => ((ShadowStateGl46)renderState).Pixel.IsAlphaTesting != 0;
+
+	private InlineArray6<Vector4> AmbientLightCube;
+	private int CachedAmbientLightCube = (int)TransformDirtyBits.StateChanged;
+	public void SetAmbientLightCube(ReadOnlySpan<Vector4> cube) {
+		Span<Vector4> dst = AmbientLightCube;
+		if (!memcmpb(dst, cube)) {
+			memcpy(dst, cube);
+			CachedAmbientLightCube = (int)TransformDirtyBits.StateChanged;
+		}
+	}
+
+	private Vector3 LightingOrigin;
+	public void SetLightingOrigin(Vector3 lightingOrigin) {
+		if (lightingOrigin != LightingOrigin) {
+			FlushBufferedPrimitives();
+			LightingOrigin = lightingOrigin;
+		}
+	}
+
+	public void SetAmbientLight(float r, float g, float b) {
+		// todo todo
+	}
+
+	public const int MAX_NUM_LIGHTS = 4;
+
+	enum VertexShaderLightTypes
+	{
+		None = -1,
+		Spot = 0,
+		Point = 1,
+		Directional = 2,
+		Static = 3
+	}
+
+	struct Light
+	{
+		public LightType Type;
+		public Vector4 Diffuse;
+		public Vector4 Specular;
+		public Vector4 Ambient;
+		public Vector3 Position;
+		public Vector3 Direction;
+		public float Range;
+		public float Falloff;
+		public float Attenuation0;
+		public float Attenuation1;
+		public float Attenuation2;
+		public float Theta;
+		public float Phi;
+	}
+
+	readonly LightDesc[] LightDescs = new LightDesc[MAX_NUM_LIGHTS];
+	readonly Light[] Lights = new Light[MAX_NUM_LIGHTS];
+	readonly bool[] LightEnable = new bool[MAX_NUM_LIGHTS];
+	readonly TransformDirtyBits[] LightEnableChanged = new TransformDirtyBits[MAX_NUM_LIGHTS];
+	readonly TransformDirtyBits[] LightChanged = new TransformDirtyBits[MAX_NUM_LIGHTS];
+	readonly VertexShaderLightTypes[] LightTypes = new VertexShaderLightTypes[MAX_NUM_LIGHTS];
+	int NumLights;
+
+	public int GetMaxLights() => MAX_NUM_LIGHTS;
+
+	public void SetLight(int lightNum, in LightDesc desc) {
+		if (lightNum >= MAX_NUM_LIGHTS || lightNum < 0)
+			return;
+
+		LightDescs[lightNum] = desc;
+
+		FlushBufferedPrimitives();
+
+		if (desc.Type == LightType.Disable) {
+			if (LightEnable[lightNum]) {
+				LightEnableChanged[lightNum] = TransformDirtyBits.StateChanged;
+				LightEnable[lightNum] = false;
+			}
+			return;
+		}
+
+		if (!LightEnable[lightNum]) {
+			LightEnableChanged[lightNum] = TransformDirtyBits.StateChanged;
+			LightEnable[lightNum] = true;
+		}
+
+		Light light = default;
+		switch (desc.Type) {
+			case LightType.Point:
+				light.Type = LightType.Point;
+				light.Range = desc.Range;
+				break;
+
+			case LightType.Directional:
+				light.Type = LightType.Directional;
+				light.Range = 1e12f;
+				break;
+
+			case LightType.Spot:
+				light.Type = LightType.Spot;
+				light.Range = desc.Range;
+				break;
+
+			default:
+				LightEnable[lightNum] = false;
+				return;
+		}
+
+		light.Diffuse = new Vector4(desc.Color, 1.0f);
+		light.Specular = new Vector4(desc.Color, 1.0f);
+		light.Ambient = new Vector4(0, 0, 0, 0);
+		light.Position = desc.Position;
+		light.Direction = desc.Direction;
+		light.Falloff = desc.Falloff;
+		light.Attenuation0 = desc.Attenuation0;
+		light.Attenuation1 = desc.Attenuation1;
+		light.Attenuation2 = desc.Attenuation2;
+
+		light.Theta = desc.Theta;
+		light.Phi = desc.Phi;
+		if (light.Phi > MathF.PI)
+			light.Phi = MathF.PI;
+
+		if (light.Theta - light.Phi > -1e-3f)
+			light.Theta = light.Phi - 1e-3f;
+
+		LightChanged[lightNum] = TransformDirtyBits.StateChanged;
+		Lights[lightNum] = light;
+	}
+
+	FlashlightState FlashlightState;
+	Matrix4x4 FlashlightWorldToTexture;
+	ITexture? FlashlightDepthTexture;
+
+	StencilOperation StencilFailOperation = StencilOperation.Keep;
+	StencilOperation StencilZFailOperation = StencilOperation.Keep;
+	StencilOperation StencilPassOperation = StencilOperation.Keep;
+	StencilComparisonFunction StencilCompareFunction = StencilComparisonFunction.Always;
+	int StencilReferenceValue;
+	uint StencilTestMask = 0xFFFFFFFF;
+
+	public void SetFlashlightStateEx(in FlashlightState state, in Matrix4x4 worldToTexture, ITexture? flashlightDepthTexture) {
+		FlushBufferedPrimitives();
+		FlashlightState = state;
+		FlashlightWorldToTexture = worldToTexture;
+		FlashlightDepthTexture = flashlightDepthTexture;
+	}
+
+	public void SetStencilEnable(bool onoff) {
+		FlushBufferedPrimitives();
+		if (onoff)
+			glEnable(GL_STENCIL_TEST);
+		else
+			glDisable(GL_STENCIL_TEST);
+	}
+
+	public void SetStencilFailOperation(StencilOperation op) {
+		FlushBufferedPrimitives();
+		StencilFailOperation = op;
+		ApplyStencilOperations();
+	}
+
+	public void SetStencilZFailOperation(StencilOperation op) {
+		FlushBufferedPrimitives();
+		StencilZFailOperation = op;
+		ApplyStencilOperations();
+	}
+
+	public void SetStencilPassOperation(StencilOperation op) {
+		FlushBufferedPrimitives();
+		StencilPassOperation = op;
+		ApplyStencilOperations();
+	}
+
+	public void SetStencilCompareFunction(StencilComparisonFunction cmpfn) {
+		FlushBufferedPrimitives();
+		StencilCompareFunction = cmpfn;
+		ApplyStencilFunc();
+	}
+
+	public void SetStencilReferenceValue(int reference) {
+		FlushBufferedPrimitives();
+		StencilReferenceValue = reference;
+		ApplyStencilFunc();
+	}
+
+	public void SetStencilTestMask(uint msk) {
+		FlushBufferedPrimitives();
+		StencilTestMask = msk;
+		ApplyStencilFunc();
+	}
+
+	public void SetStencilWriteMask(uint msk) {
+		FlushBufferedPrimitives();
+		glStencilMask(msk);
+	}
+
+	void ApplyStencilOperations() => glStencilOp(StencilFailOperation.GLEnum(), StencilZFailOperation.GLEnum(), StencilPassOperation.GLEnum());
+
+	void ApplyStencilFunc() => glStencilFunc(StencilCompareFunction.GLEnum(), StencilReferenceValue, StencilTestMask);
+
+	public void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor) {
+		FlushBufferedPrimitives();
+		if (!enableScissor) {
+			glDisable(GL_SCISSOR_TEST);
+			return;
+		}
+
+		GetBackBufferDimensions(out _, out int height);
+		glEnable(GL_SCISSOR_TEST);
+		glScissor(left, height - bottom, right - left, bottom - top);
+	}
+
+	public void DisableAllLocalLights() {
+		bool flushed = false;
+		for (int lightNum = 0; lightNum < MAX_NUM_LIGHTS; lightNum++) {
+			if (LightEnable[lightNum]) {
+				if (!flushed) {
+					FlushBufferedPrimitives();
+					flushed = true;
+				}
+				LightDescs[lightNum].Type = LightType.Disable;
+				LightEnableChanged[lightNum] = TransformDirtyBits.StateChanged;
+				LightEnable[lightNum] = false;
+			}
+		}
+	}
+
+	private VertexShaderLightTypes ComputeLightType(int i) {
+		if (!LightEnable[i])
+			return VertexShaderLightTypes.None;
+
+		return Lights[i].Type switch {
+			LightType.Point => VertexShaderLightTypes.Point,
+			LightType.Directional => VertexShaderLightTypes.Directional,
+			LightType.Spot => VertexShaderLightTypes.Spot,
+			_ => VertexShaderLightTypes.None,
+		};
+	}
+
+	private void SortLights(Span<int> index) {
+		NumLights = 0;
+
+		for (int i = 0; i < MAX_NUM_LIGHTS; ++i) {
+			VertexShaderLightTypes type = ComputeLightType(i);
+			int j = NumLights;
+			if (type != VertexShaderLightTypes.None) {
+				while (--j >= 0) {
+					if (LightTypes[j] <= type)
+						break;
+
+					LightTypes[j + 1] = LightTypes[j];
+					index[j + 1] = index[j];
+				}
+				++j;
+
+				LightTypes[j] = type;
+				index[j] = i;
+
+				++NumLights;
+			}
+		}
+	}
+
+	public const int PSREG_LIGHT_INFO_ARRAY = 20;
+
+	public void CommitPixelShaderLighting(int pshReg) {
+		Span<int> lightIndex = stackalloc int[MAX_NUM_LIGHTS];
+		SortLights(lightIndex);
+
+		const float farAway = 10000.0f;
+
+		Span<Vector4> lightState = stackalloc Vector4[6];
+		for (int i = 0; i < 6; i++)
+			lightState[i] = default;
+
+		int numLights = NumLights;
+		if (numLights > 0) {
+			ref Light light = ref Lights[lightIndex[0]];
+			lightState[0] = new Vector4(light.Diffuse.X, light.Diffuse.Y, light.Diffuse.Z, 0.0f);
+
+			if (light.Type == LightType.Directional) {
+				Vector3 dir = light.Direction;
+				Vector3 pos = LightingOrigin - dir * farAway;
+				lightState[1] = new Vector4(pos.X, pos.Y, pos.Z, 0.0f);
+			}
+			else {
+				lightState[1] = new Vector4(light.Position.X, light.Position.Y, light.Position.Z, 0.0f);
+			}
+
+			if (numLights > 1) {
+				light = ref Lights[lightIndex[1]];
+				lightState[2] = new Vector4(light.Diffuse.X, light.Diffuse.Y, light.Diffuse.Z, 0.0f);
+
+				if (light.Type == LightType.Directional) {
+					Vector3 dir = light.Direction;
+					Vector3 pos = LightingOrigin - dir * farAway;
+					lightState[3] = new Vector4(pos.X, pos.Y, pos.Z, 0.0f);
+				}
+				else
+					lightState[3] = new Vector4(light.Position.X, light.Position.Y, light.Position.Z, 0.0f);
+
+				if (numLights > 2) {
+					light = ref Lights[lightIndex[2]];
+					lightState[4] = new Vector4(light.Diffuse.X, light.Diffuse.Y, light.Diffuse.Z, 0.0f);
+
+					if (light.Type == LightType.Directional) {
+						Vector3 dir = light.Direction;
+						Vector3 pos = LightingOrigin - dir * farAway;
+						lightState[5] = new Vector4(pos.X, pos.Y, pos.Z, 0.0f);
+					}
+					else
+						lightState[5] = new Vector4(light.Position.X, light.Position.Y, light.Position.Z, 0.0f);
+
+					if (numLights > 3) {
+						light = ref Lights[lightIndex[3]];
+						lightState[0].W = light.Diffuse.X;
+						lightState[1].W = light.Diffuse.Y;
+						lightState[2].W = light.Diffuse.Z;
+
+						if (light.Type == LightType.Directional) {
+							Vector3 dir = light.Direction;
+							Vector3 pos = LightingOrigin - dir * farAway;
+							lightState[3].W = pos.X;
+							lightState[4].W = pos.Y;
+							lightState[5].W = pos.Z;
+						}
+						else {
+							lightState[3].W = light.Position.X;
+							lightState[4].W = light.Position.Y;
+							lightState[5].W = light.Position.Z;
+						}
+					}
+				}
+			}
+		}
+
+		SetPixelShaderConstant(pshReg, MemoryMarshal.Cast<Vector4, float>(lightState));
+	}
+
+	private bool VertexShaderLightingChanged(int i) => (LightChanged[i] & TransformDirtyBits.StateChangedVertexShader) != 0;
+	private bool VertexShaderLightingEnableChanged(int i) => (LightEnableChanged[i] & TransformDirtyBits.StateChangedVertexShader) != 0;
+
+	public void CommitVertexShaderLighting() {
+		int i;
+		for (i = 0; i < MAX_NUM_LIGHTS; ++i) {
+			if (VertexShaderLightingChanged(i) || VertexShaderLightingEnableChanged(i))
+				break;
+		}
+
+		if (i == MAX_NUM_LIGHTS)
+			return;
+
+		Span<int> lightIndex = stackalloc int[MAX_NUM_LIGHTS];
+		lightIndex.Clear();
+		SortLights(lightIndex);
+
+		for (i = 0; i < MAX_NUM_LIGHTS; ++i) {
+			LightEnableChanged[i] &= ~TransformDirtyBits.StateChangedVertexShader;
+			LightChanged[i] &= ~TransformDirtyBits.StateChangedVertexShader;
+		}
+
+		Span<Vector4> lightState = stackalloc Vector4[5];
+		for (i = 0; i < NumLights; ++i) {
+			ref Light light = ref Lights[lightIndex[i]];
+
+			float w = (light.Type == LightType.Directional) ? 1.0f : 0.0f;
+			lightState[0] = new Vector4(light.Diffuse.X, light.Diffuse.Y, light.Diffuse.Z, w);
+
+			w = (light.Type == LightType.Spot) ? 1.0f : 0.0f;
+			lightState[1] = new Vector4(light.Direction.X, light.Direction.Y, light.Direction.Z, w);
+
+			lightState[2] = new Vector4(light.Position.X, light.Position.Y, light.Position.Z, 1.0f);
+
+			if (light.Type == LightType.Spot) {
+				float stopDot = MathF.Cos(light.Theta * 0.5f);
+				float stopDot2 = MathF.Cos(light.Phi * 0.5f);
+				float ooDot = (stopDot > stopDot2) ? 1.0f / (stopDot - stopDot2) : 0.0f;
+				lightState[3] = new Vector4(light.Falloff, stopDot, stopDot2, ooDot);
+			}
+			else {
+				lightState[3] = new Vector4(0, 1, 1, 1);
+			}
+
+			lightState[4] = new Vector4(light.Attenuation0, light.Attenuation1, light.Attenuation2, 0.0f);
+
+			SetVertexShaderConstant(VertexShaderConst.Lights + i * 5, MemoryMarshal.Cast<Vector4, float>(lightState));
+		}
+
+		vertexShared.LightCount = NumLights;
+
+		Span<float> lightEnable = stackalloc float[MAX_NUM_LIGHTS];
+		lightEnable.Clear();
+		for (i = 0; i < NumLights; ++i)
+			lightEnable[i] = 1.0f;
+
+		vertexShared.LightEnabled = new(lightEnable[0], lightEnable[1], lightEnable[2], lightEnable[3]);
+	}
+
+	public void GetLightState(out LightState state) {
+		state = default;
+
+		Span<Vector4> cube = AmbientLightCube;
+		bool ambientIsZero = true;
+		for (int i = 0; i < 6; ++i) {
+			if (cube[i].X != 0.0f || cube[i].Y != 0.0f || cube[i].Z != 0.0f) {
+				ambientIsZero = false;
+				break;
+			}
+		}
+		state.AmbientLight = !ambientIsZero;
+
+		Assert(RenderMesh != null);
+		Assert(NumLights <= 4);
+
+		if (HardwareConfig.SupportsPixelShaders_2_b())
+			Assert(NumLights <= MAX_NUM_LIGHTS);
+		else
+			Assert(NumLights <= MAX_NUM_LIGHTS - 2);
+
+		state.NumLights = NumLights;
+		state.StaticLightVertex = RenderMesh?.HasColorMesh() ?? false;
+		state.StaticLightTexel = false;
+	}
+
+	public void SetVertexShaderStateAmbientLightCube() {
+		if ((CachedAmbientLightCube & (int)TransformDirtyBits.StateChangedVertexShader) != 0) {
+			Span<Vector4> cube = AmbientLightCube;
+			SetVertexShaderConstant(VertexShaderConst.AmbientLight, MemoryMarshal.Cast<Vector4, float>(cube));
+			CachedAmbientLightCube &= ~(int)TransformDirtyBits.StateChangedVertexShader;
+		}
+	}
+
+	Vector4 WorldSpaceCameraPosition = new(0, 0, 0.01f, 0); // Don't let z be zero, as some pixel shaders will divide by this
+
+	private void CacheWorldSpaceCameraPosition() {
+		ref Matrix4x4 view = ref Matrices[(int)MaterialMatrixMode.View];
+
+		WorldSpaceCameraPosition.X = -(view.M41 * view.M11 + view.M42 * view.M12 + view.M43 * view.M13);
+		WorldSpaceCameraPosition.Y = -(view.M41 * view.M21 + view.M42 * view.M22 + view.M43 * view.M23);
+		WorldSpaceCameraPosition.Z = -(view.M41 * view.M31 + view.M42 * view.M32 + view.M43 * view.M33);
+		WorldSpaceCameraPosition.W = 1.0f;
+
+		if (MathF.Abs(WorldSpaceCameraPosition.Z) <= 0.00001f)
+			WorldSpaceCameraPosition.Z = 0.01f;
+	}
+
+	private void UpdateVertexShaderFogParams() {
+		// todo: fog params
+
+		Span<float> vertexShaderCameraPos = [
+			WorldSpaceCameraPosition.X,
+			WorldSpaceCameraPosition.Y,
+			WorldSpaceCameraPosition.Z,
+			0.0f, // todo: waterheight
+		];
+
+		SetVertexShaderConstant(VertexShaderConst.CameraPos, vertexShaderCameraPos);
+	}
 
 	private void InitVertexAndPixelShaders() {
 		// TODO; everything before this call
@@ -383,6 +883,9 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	private void CommitStateChanges() {
 		// todo
+
+		CommitVertexShaderLighting();
+
 	}
 
 	private void SetVertexDecl(VertexFormat vertexFormat, bool hasColorMesh, bool hasFleshMesh, bool usingMorph) {
@@ -436,6 +939,55 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public bool InEditorMode() {
 		return false; // todo...?
 	}
+
+	Vector4 ToneMappingScale = new(1.0f, 1.0f, 1.0f, 1.0f);
+
+	private float GetLightMapScaleFactor() {
+		switch (HardwareConfig.GetHDRType()) {
+			case HDRType.Float:
+				return 1.0f;
+
+			case HDRType.Integer:
+				return 16.0f;
+
+			case HDRType.None:
+			default:
+				return MathLib.GammaToLinearFullRange(2.0f);
+		}
+	}
+
+	public void SetToneMappingScaleLinear(in Vector3 scale) {
+		if (HardwareConfig.SupportsPixelShaders_2_0()) {
+			FlushBufferedPrimitives();
+
+			Vector3 scaleToUse = scale;
+			ToneMappingScale = new(scaleToUse, ToneMappingScale.W);
+
+			switch (HardwareConfig.GetHDRType()) {
+				case HDRType.None:
+					ToneMappingScale.X = 1.0f;
+					ToneMappingScale.Z = 1.0f;
+					break;
+
+				case HDRType.Float:
+					ToneMappingScale.X = scaleToUse.X;
+					ToneMappingScale.Z = 1.0f;
+					break;
+
+				case HDRType.Integer:
+					ToneMappingScale.X = scaleToUse.X;
+					ToneMappingScale.Z = 16.0f;
+					break;
+			}
+
+			ToneMappingScale.Y = GetLightMapScaleFactor();
+
+			ToneMappingScale.W = MathLib.LinearToGammaFullRange(ToneMappingScale.X);
+			SetPixelShaderConstant((int)PixelShaderConst.LightScale, MemoryMarshal.CreateSpan(ref ToneMappingScale.X, 4));
+		}
+	}
+
+	public ref readonly Vector3 GetToneMappingScaleLinear() => ref Unsafe.As<Vector4, Vector3>(ref ToneMappingScale);
 
 	public void SetVertexShaderConstant(int var, Span<float> vec) {
 		SetVertexShaderConstantInternal(var, vec);
@@ -502,13 +1054,17 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	}
 
 	bool UsingTextureRenderTarget;
+	int ViewportMaxWidth;
+	int ViewportMaxHeight;
+	GfxViewport Viewport;
 
 	public void SetViewports(ReadOnlySpan<ShaderViewport> viewports) {
 		Assert(viewports.Length == 1);
 		if (viewports.Length != 1)
 			return;
 
-		GfxViewport viewport = new();
+		ref GfxViewport viewport = ref Viewport;
+		viewport = new();
 		viewport.X = viewports[0].TopLeftX;
 		viewport.Y = viewports[0].TopLeftY;
 		viewport.Width = viewports[0].Width;
@@ -516,16 +1072,33 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		viewport.MinZ = viewports[0].MinZ;
 		viewport.MaxZ = viewports[0].MaxZ;
 
-		if (UsingTextureRenderTarget) {
-			int maxWidth = 0, maxHeight = 0;
-			GetBackBufferDimensions(out maxWidth, out maxHeight);
+		int targetHeight;
+		if (!UsingTextureRenderTarget) {
+			GetBackBufferDimensions(out int maxWidth, out int maxHeight);
+
+			if (viewport.Width > maxWidth && maxWidth > 0)
+				viewport.Width = maxWidth;
+
+			if (viewport.Height > maxHeight && maxHeight > 0)
+				viewport.Height = maxHeight;
+
+			targetHeight = maxHeight;
 		}
-		// TODO: this has a lot more logic...
+		else {
+			if (viewport.Width > ViewportMaxWidth)
+				viewport.Width = ViewportMaxWidth;
+			if (viewport.Height > ViewportMaxHeight)
+				viewport.Height = ViewportMaxHeight;
+
+			targetHeight = ViewportMaxHeight;
+		}
+
 		FlushBufferedPrimitives();
-		// HACK BECAUSE SOMETHING IS REALLY WRONG: We report the right viewport width/height to OpenGL, but regardless the first couple of frames it decides that we didn't. So this hack 
-		// skips the first couple of loading screen frames. 
+		// HACK BECAUSE SOMETHING IS REALLY WRONG: We report the right viewport width/height to OpenGL, but regardless the first couple of frames it decides that we didn't. So this hack
+		// skips the first couple of loading screen frames.
+		// TODO: Is this hack still needed?
 		if (frame >= 2) {
-			glViewport(viewport.X, viewport.Y, viewport.Width, viewport.Height);
+			glViewport(viewport.X, targetHeight - (viewport.Y + viewport.Height), viewport.Width, viewport.Height);
 			glDepthRangef(viewport.MinZ, viewport.MaxZ);
 		}
 		frame++;
@@ -551,6 +1124,11 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		// PresentParameters.BackBufferFormat but what actually sets that I'm not sure yet
 		return ImageFormat.RGBA8888;
 	}
+
+	public bool SupportsShadowDepthTextures() => ((HardwareConfig)HardwareConfig).SupportsShadowDepthTexturesCap;
+	public ImageFormat GetShadowDepthTextureFormat() => ((HardwareConfig)HardwareConfig).ShadowDepthTextureFormat;
+	public ImageFormat GetNullTextureFormat() => ((HardwareConfig)HardwareConfig).NullTextureFormat;
+
 	public void GetBackBufferDimensions(out int width, out int height) {
 		width = PresentParameters.DisplayMode.Width;
 		height = PresentParameters.DisplayMode.Height;
@@ -784,6 +1362,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		}
 
 		Device!.SwapBuffers();
+		MeshMgr.DiscardVertexBuffers();
 	}
 
 	bool IShaderDevice.IsDeactivated() => IsDeactivated();
@@ -802,6 +1381,11 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		Matrices[(int)currentMode] = m4x4;
 		Matrix4x4 transposed = Matrix4x4.Transpose(m4x4);
 		glNamedBufferSubData(uboMatrices, loc, szm4x4, &transposed);
+
+		if (currentMode == MaterialMatrixMode.View) {
+			CacheWorldSpaceCameraPosition();
+			UpdateVertexShaderFogParams();
+		}
 	}
 
 	public void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 dst) {
@@ -880,6 +1464,30 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		glProgramUniform1fv(GetCurrentProgramInternal(), uniform, flConsts);
 	}
 
+	const int GL_TEXTURE_SRGB_DECODE_EXT = 0x8A48;
+	const int GL_DECODE_EXT = 0x8A49;
+	const int GL_SKIP_DECODE_EXT = 0x8A4A;
+
+	bool? supportsSRGBDecode;
+	private unsafe bool SupportsSRGBDecode() {
+		if (supportsSRGBDecode == null) {
+			supportsSRGBDecode = false;
+			int count;
+			glGetIntegerv(GL_NUM_EXTENSIONS, &count);
+			for (uint i = 0; i < count; i++) {
+				if (MemoryMarshal.CreateReadOnlySpanFromNullTerminated(glGetStringi(GL_EXTENSIONS, i)).SequenceEqual("GL_EXT_texture_sRGB_decode"u8)) {
+					supportsSRGBDecode = true;
+					break;
+				}
+			}
+
+			if (supportsSRGBDecode == false)
+				Warning("GL_EXT_texture_sRGB_decode unsupported\n");
+		}
+
+		return supportsSRGBDecode.Value;
+	}
+
 	readonly int[] LastBoundTextures = new int[(int)Sampler.MaxSamplers];
 	int lastActiveTexture = -1;
 	public void BindTexture(Sampler sampler, ShaderAPITextureHandle_t textureHandle) {
@@ -893,8 +1501,15 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				glActiveTexture(tex);
 				lastActiveTexture = tex;
 			}
-			glBindTexture(GL_TEXTURE_2D, GetGL46Texture(textureHandle));
+			glBindTexture(GetTexture(textureHandle).DetermineGLObjectType(), GetGL46Texture(textureHandle));
 			LastBoundTextures[(int)sampler] = textureHandle;
+		}
+
+		// D3D9 takes sRGB read from sampler state, but GL bakes it into the internal format. The same
+		// texture is shared by shaders that disagree, so skip the decode when the shadow state wants linear.
+		if (SupportsSRGBDecode()) {
+			bool srgbRead = currentShadow != null && currentShadow.State.SamplerState[(int)sampler].SRGBReadEnable;
+			glTextureParameteri(GetGL46Texture(textureHandle), GL_TEXTURE_SRGB_DECODE_EXT, srgbRead ? GL_DECODE_EXT : GL_SKIP_DECODE_EXT);
 		}
 	}
 
@@ -924,6 +1539,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		public ImageFormat SrcFormat;
 		public Span<byte> SrcData;
 		public bool TextureIsLockable;
+		public bool SRGB;
 	}
 
 	public void TexImageFromVTF(IVTFTexture? vtf, int vtfFrame) {
@@ -948,6 +1564,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		info.SrcFormat = vtf.Format();
 		info.SrcData = null;
 		info.TextureIsLockable = (tex.Flags & InternalTextureFlags.IsLockable) != 0;
+		info.SRGB = (tex.CreationFlags & CreateTextureFlags.SRGB) != 0;
 		if (vtf.Depth() > 1) {
 			throw new NotImplementedException("Multidepth textures not supported yet");
 		}
@@ -984,6 +1601,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			return;
 		}
 
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 		int mipCount = vtf.MipCount();
 		for (int mip = 0; mip < mipCount; ++mip) {
 			vtf.ComputeMipLevelDimensions(mip, out int w, out int h, out _);
@@ -991,14 +1610,16 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				Span<byte> data = vtf.ImageData(vtfFrame, face, mip);
 				if (info.SrcFormat.IsCompressed()) {
 					fixed (byte* bytes = data)
-						glCompressedTextureSubImage3D((uint)info.Texture, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
+						glCompressedTextureSubImage3D((uint)info.Texture, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageInternalFormat(info.SrcFormat, info.SRGB), data.Length, bytes);
 				}
 				else {
-					fixed (byte* bytes = data)
-						glTextureSubImage3D((uint)info.Texture, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageUploadFormat(info.SrcFormat), GL_UNSIGNED_BYTE, bytes);
+					ConvertDataToAcceptableGLFormat(info.SrcFormat, data, out ImageFormat uploadFormat, out Span<byte> convertedData);
+					fixed (byte* bytes = convertedData)
+						glTextureSubImage3D((uint)info.Texture, mip, 0, 0, face, w, h, 1, ImageLoader.GetGLImageUploadFormat(uploadFormat), GL_UNSIGNED_BYTE, bytes);
 				}
 			}
 		}
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 	}
 
 	private unsafe void LoadTextureFromVTF(in TextureLoadInfo info, IVTFTexture vtf, int vtfFrame) {
@@ -1007,7 +1628,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		if (info.SrcFormat.IsCompressed()) {
 			Span<byte> data = vtf.ImageData(vtfFrame, 0, info.Level);
 			fixed (byte* bytes = data)
-				glCompressedTextureSubImage2D((uint)info.Texture, info.Level, 0, 0, w, h, ImageLoader.GetGLImageInternalFormat(info.SrcFormat), data.Length, bytes);
+				glCompressedTextureSubImage2D((uint)info.Texture, info.Level, 0, 0, w, h, ImageLoader.GetGLImageInternalFormat(info.SrcFormat, info.SRGB), data.Length, bytes);
 			// Msg("err: " + glGetErrorName() + "\n");
 		}
 		else {
@@ -1079,7 +1700,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			if (copies <= 1) {
 				texture.NumCopies = 1;
 				uint glTex = glCreateTexture(texture.DetermineGLObjectType());
-				glTextureStorage2D(glTex, mipCount, ImageLoader.GetGLImageInternalFormat(dstFormat), width, height);
+				glTextureStorage2D(glTex, mipCount, ImageLoader.GetGLImageInternalFormat(dstFormat, isSRGB), width, height);
+				SetLuminanceSwizzle(glTex, dstFormat);
 				glObjectLabel(GL_TEXTURE, glTex, $"ShaderAPI Texture '{debugName.SliceNullTerminatedString()}' [frame {i}]");
 				texture.SetTexture(glTex);
 			}
@@ -1088,7 +1710,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				texture.TextureCopies = new uint[copies];
 				for (int k = 0; k < copies; k++) {
 					uint glTex = glCreateTexture(texture.DetermineGLObjectType());
-					glTextureStorage2D(glTex, mipCount, ImageLoader.GetGLImageInternalFormat(dstFormat), width, height);
+					glTextureStorage2D(glTex, mipCount, ImageLoader.GetGLImageInternalFormat(dstFormat, isSRGB), width, height);
+					SetLuminanceSwizzle(glTex, dstFormat);
 					glObjectLabel(GL_TEXTURE, glTex, $"ShaderAPI Texture '{debugName.SliceNullTerminatedString()}' [frame {i} copy {k}]");
 					texture.SetTexture(k, glTex);
 				}
@@ -1097,6 +1720,23 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			texture.CurrentCopy = 0;
 
 			ComputeStatsInfo(textureHandles[i], isCubeMap, depth > 1);
+		}
+	}
+
+	private static void SetLuminanceSwizzle(uint glTex, ImageFormat format) {
+		switch (format) {
+			case ImageFormat.I8:
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_R, GL_RED);
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_G, GL_RED);
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_B, GL_RED);
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_A, GL_ONE);
+				break;
+			case ImageFormat.IA88:
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_R, GL_RED);
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_G, GL_RED);
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_B, GL_RED);
+				glTextureParameteri(glTex, GL_TEXTURE_SWIZZLE_A, GL_GREEN);
+				break;
 		}
 	}
 
@@ -1276,9 +1916,13 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			return;
 
 		UnbindTexture(handle);
+
+		InternalTextureInfo tex = GetTexture(handle);
+		uint[] copies = tex.GetTextureArray();
+		fixed (uint* h = copies)
+			glDeleteTextures(tex.NumCopies, h);
+
 		Textures.Remove(handle);
-		uint h = (uint)handle;
-		glDeleteTextures(1, &h);
 	}
 
 	public void UnbindTexture(int handle) {
@@ -1333,6 +1977,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		info.SrcFormat = srcFormat;
 		info.SrcData = imageData;
 		info.TextureIsLockable = (tex.Flags & InternalTextureFlags.IsLockable) != 0;
+		info.SRGB = (tex.CreationFlags & CreateTextureFlags.SRGB) != 0;
 		LoadTexture(ref info);
 		SetModifyTexture(info.Texture);
 	}
@@ -1500,6 +2145,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 			glPolygonMode(GL_FRONT_AND_BACK, state.FillMode.GLEnum());
 			glToggle(GL_CULL_FACE, state.CullEnable);
 			glToggle(GL_SAMPLE_ALPHA_TO_COVERAGE, state.AlphaToCoverage);
+			glToggle(GL_FRAMEBUFFER_SRGB, state.SRGBWriteEnable);
 
 			bool polyOffsetEnabled = state.ZBias != PolygonOffsetMode.Disable;
 			glToggle(GL_POLYGON_OFFSET_FILL, polyOffsetEnabled && state.FillMode == ShaderPolyMode.Fill);
@@ -1540,30 +2186,51 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 	public void SetRenderTargetEx(int renderTargetID, ShaderAPITextureHandle_t colorTextureHandle = -1, ShaderAPITextureHandle_t depthTextureHandle = -1) {
 		FlushBufferedPrimitives();
 
+		bool usingTextureTarget = false;
+
 		if (colorTextureHandle == -1 && depthTextureHandle == -1) {
-			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			if (renderTargetID == 0) {
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
+				UsingTextureRenderTarget = usingTextureTarget;
+			}
 			return;
 		}
 
+		if (colorTextureHandle >= 0)
+			usingTextureTarget = true;
+
+		if (renderTargetID == 0)
+			UsingTextureRenderTarget = usingTextureTarget;
+
 		glBindFramebuffer(GL_FRAMEBUFFER, renderFBO);
+
+		if (UsingTextureRenderTarget && renderTargetID == 0) {
+			InternalTextureInfo tex = GetTexture(depthTextureHandle < 0 ? colorTextureHandle : depthTextureHandle);
+			ViewportMaxWidth = tex.Width;
+			ViewportMaxHeight = tex.Height;
+		}
 
 		if (colorTextureHandle == -2)
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
 		else if (colorTextureHandle >= 0)
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, (uint)colorTextureHandle, 0);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, GetGL46Texture(colorTextureHandle), 0);
 
 		if (depthTextureHandle == -2)
 			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
 		else if (depthTextureHandle >= 0)
-			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, (uint)depthTextureHandle, 0);
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, GetGL46Texture(depthTextureHandle), 0);
 
 		var status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 		Assert(status == GL_FRAMEBUFFER_COMPLETE, "Framebuffer incomplete");
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		// glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
 	public IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material) {
 		return MeshMgr.CreateStaticMesh(format, textureGroup, material);
+	}
+
+	public void DestroyStaticMesh(IMesh mesh) {
+		MeshMgr.DestroyStaticMesh(mesh);
 	}
 
 	public int GetMaxVerticesToRender(IMaterial material) => MeshMgr.GetMaxVerticesToRender(material);
@@ -1648,7 +2315,8 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.LinearMipmapLinear is invalid\n");
 				break;
 			case TexFilterMode.Anisotropic:
-				Warning("ShaderAPIGl46.TexMagFilter: TexFilterMode.Anisotropic is invalid\n");
+				glTextureParameteri(GetModifyTexture(), GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				glTextureParameterf(GetModifyTexture(), GL_TEXTURE_MAX_ANISOTROPY_EXT, 16.0f);
 				break;
 			default:
 				break;
@@ -1677,6 +2345,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 		if (this.numBones != numBones) {
 			FlushBufferedPrimitives();
 			this.numBones = numBones;
+			vertexShared.NumBones = numBones;
 		}
 	}
 
@@ -1723,7 +2392,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 		Memory<byte> buffer = GetTempLockBuffer(info.Format, width, height);
 		fixed (byte* data = buffer.Span) {
-			glGetTextureSubImage(GetModifyTexture(), 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
+			glGetTextureSubImage(GetModifyTexture(), level, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
 		}
 		writer.SetPixelMemory(info.Format, buffer.Span, width * ImageLoader.SizeInBytes(info.Format));
 		return true;
@@ -1746,7 +2415,7 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 		Memory<byte> buffer = GetTempLockBuffer(info.Format, width, height);
 		fixed (byte* data = buffer.Span) {
-			glGetTextureSubImage(GetModifyTexture(), 0, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
+			glGetTextureSubImage(GetModifyTexture(), level, xOffset, yOffset, 0, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, buffer.Span.Length, data);
 		}
 		writer.SetPixelMemory(info.Format, buffer, width * ImageLoader.SizeInBytes(info.Format));
 		return true;
@@ -1761,5 +2430,205 @@ public class ShaderAPIGl46 : IShaderAPI, IShaderDevice, IDebugTextureInfo
 
 	public void BindStandardTexture(Sampler sampler, StandardTextureId id) {
 		ShaderUtil.BindStandardTexture(sampler, id);
+	}
+
+	public FlashlightState GetFlashlightState(out Matrix4x4 worldToTexture) {
+		worldToTexture = FlashlightWorldToTexture;
+		return FlashlightState;
+	}
+
+	public FlashlightState GetFlashlightStateEx(out Matrix4x4 worldToTexture, out ITexture? flashlightDepthTexture) {
+		worldToTexture = FlashlightWorldToTexture;
+		flashlightDepthTexture = FlashlightDepthTexture;
+		return FlashlightState;
+	}
+
+	public bool IsHWMorphingEnabled() {
+		throw new NotImplementedException();
+	}
+
+	public void GetWorldSpaceCameraPosition(ref Span<float> eyePos) {
+		eyePos[0] = WorldSpaceCameraPosition.X;
+		eyePos[1] = WorldSpaceCameraPosition.Y;
+		eyePos[2] = WorldSpaceCameraPosition.Z;
+		eyePos[3] = WorldSpaceCameraPosition.W;
+	}
+
+	public int GetPixelFogCombo() {
+		// throw new NotImplementedException();
+		return (int)MaterialFogMode.None; // TODO!
+	}
+
+	public bool ShouldWriteDepthToDestAlpha() =>
+		HardwareConfig.SupportsPixelShaders_2_b() &&
+		(SceneFogMode != MaterialFogMode.LinearBelowFogZ) &&
+		(GetIntRenderingParameter(RenderParamInt.WriteDepthToDestAlpha) != 0);
+
+	public void MarkUnusedVertexFields(int v, Span<bool> unusedTexCoords) {
+		throw new NotImplementedException();
+	}
+
+	public void ExecuteCommandBuffer(ICommandStorageBuffer storage) {
+		ExecuteCommandBuffer(storage, storage.Base());
+	}
+
+	private void ExecuteCommandBuffer(ICommandStorageBuffer storage, Span<byte> cmdBuf) {
+		while (true) {
+			int offset = 0;
+
+			while (true) {
+				CommandBufferCommand cmd = (CommandBufferCommand)MemoryMarshal.Read<int>(cmdBuf[offset..]);
+				switch (cmd) {
+					case CommandBufferCommand.End:
+						return;
+
+					case CommandBufferCommand.Jump: {
+							int reference = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							storage = storage.Reference(reference);
+							cmdBuf = storage.Base();
+							offset = 0;
+							continue;
+						}
+
+					case CommandBufferCommand.Jsr: {
+							int reference = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							ExecuteCommandBuffer(storage.Reference(reference));
+							offset += 8;
+							break;
+						}
+
+					case CommandBufferCommand.SetPixelShaderFloatConst: {
+							int firstReg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							int numRegs = MemoryMarshal.Read<int>(cmdBuf[(offset + 8)..]);
+
+#if DEBUG
+							Assert(numRegs > 0);
+							Assert(offset + 12 + numRegs * 16 <= cmdBuf.Length);
+#endif
+
+							Span<float> values = MemoryMarshal.Cast<byte, float>(cmdBuf.Slice(offset + 12, numRegs * 16));
+
+							SetPixelShaderConstantInternal(firstReg, values);
+
+							offset += 12 + numRegs * 16;
+							break;
+						}
+
+					case CommandBufferCommand.SetVertexShaderFloatConst: {
+							int firstReg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							int numRegs = MemoryMarshal.Read<int>(cmdBuf[(offset + 8)..]);
+
+#if DEBUG
+							Assert(numRegs > 0);
+							Assert(offset + 12 + numRegs * 16 <= cmdBuf.Length);
+#endif
+
+							Span<float> values = MemoryMarshal.Cast<byte, float>(cmdBuf.Slice(offset + 12, numRegs * 16));
+
+							SetVertexShaderConstantInternal(firstReg, values);
+
+							offset += 12 + numRegs * 16;
+							break;
+						}
+
+					case CommandBufferCommand.SetPixelShaderFogParams: {
+							int reg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							// SetPixelShaderFogParams(reg);
+							offset += 8;
+							break;
+						}
+
+					case CommandBufferCommand.StoreEyePosInPsConst: {
+							int reg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							SetPixelShaderConstantInternal(reg, MemoryMarshal.CreateSpan(ref WorldSpaceCameraPosition.X, 4));
+							offset += 8;
+							break;
+						}
+
+					case CommandBufferCommand.CommitPixelShaderLighting: {
+							int reg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							CommitPixelShaderLighting(reg);
+							offset += 8;
+							break;
+						}
+
+					case CommandBufferCommand.SetPixelShaderStateAmbientLightCube: {
+							int reg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							SetPixelShaderConstantInternal(reg, MemoryMarshal.CreateSpan(ref AmbientLightCube[0].X, 24));
+							offset += 8;
+							break;
+						}
+
+					case CommandBufferCommand.SetAmbientCubeDynamicStateVertexShader: {
+							SetVertexShaderStateAmbientLightCube();
+							offset += 4;
+							break;
+						}
+
+					case CommandBufferCommand.SetDepthFeatheringConst: {
+							int reg = MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							float scale = MemoryMarshal.Read<float>(cmdBuf[(offset + 8)..]);
+							SetDepthFeatheringPixelShaderConstant(reg, scale);
+							offset += 12;
+							break;
+						}
+
+					case CommandBufferCommand.BindStandardTexture: {
+							Sampler sampler = (Sampler)MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							StandardTextureId texture = (StandardTextureId)MemoryMarshal.Read<int>(cmdBuf[(offset + 8)..]);
+							BindStandardTexture(sampler, texture);
+							offset += 12;
+							break;
+						}
+
+					case CommandBufferCommand.BindShaderApiTextureHandle: {
+							Sampler sampler = (Sampler)MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]);
+							ShaderAPITextureHandle_t texture = (ShaderAPITextureHandle_t)MemoryMarshal.Read<nint>(cmdBuf[(offset + 8)..]);
+							BindTexture(sampler, texture);
+							offset += 8 + IntPtr.Size;
+							break;
+						}
+
+					case CommandBufferCommand.SetPsHIndex: {
+							SetPixelShaderIndex(MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]));
+							offset += 8;
+							break;
+						}
+
+					case CommandBufferCommand.SetVsHIndex: {
+							SetVertexShaderIndex(MemoryMarshal.Read<int>(cmdBuf[(offset + 4)..]));
+							offset += 8;
+							break;
+						}
+
+					default:
+						throw new InvalidOperationException($"Unknown command {(int)cmd}");
+				}
+			}
+		}
+	}
+
+	private void SetDepthFeatheringPixelShaderConstant(int reg, float scale) {
+		// TODO!
+		// Span<float> consts = [0, 0, 0, 0];
+
+		// consts[0] = DestAlphaDepthRange / scale;
+		// consts[1] = consts[2] = consts[3] = 0.0f;
+
+		// SetPixelShaderConstant(reg, consts);
+	}
+
+	public int GetIntRenderingParameter(RenderParamInt parm) {
+		// throw new NotImplementedException();
+		return 0;// todo
+	}
+
+	public void SetPixelShaderStateAmbientLightCube(int reg, bool forceToBlack) {
+		if (forceToBlack) {
+			Span<Vector4> tempCube = stackalloc Vector4[6];
+			SetPixelShaderConstant(reg, MemoryMarshal.Cast<Vector4, float>(tempCube));
+		}
+		else
+			SetPixelShaderConstant(reg, MemoryMarshal.Cast<Vector4, float>(MemoryMarshal.CreateSpan(ref AmbientLightCube[0], 6)));
 	}
 }

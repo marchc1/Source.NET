@@ -76,10 +76,11 @@ public partial class Sound
 	}
 
 	bool SfxTable_IsPrecachedSound(SfxTable self) {
-		if (sv.IsActive())
-			return false; // Todo
-
 		ReadOnlySpan<char> name = SfxTable_GetName(self);
+
+		if (sv.IsActive())
+			return sv.LookupSoundIndex(name) != 0;
+
 		return cl.LookupSoundIndex(name) != -1;
 	}
 
@@ -93,6 +94,29 @@ public partial class Sound
 		table.SetNamePoolIndex(handle);
 		return table;
 	}
+
+	bool FirstTime;
+
+	public void Restart() {
+		Span<char> voiceCodec = stackalloc char[MAX_PATH];
+		int voiceSampleRate = Voice.ConfiguredSampleRate();
+
+		{
+			ReadOnlySpan<char> previousCodec = Voice.ConfiguredCodec();
+			if (!previousCodec.IsStringEmpty)
+				strcpy(voiceCodec, previousCodec);
+
+		}
+
+		Shutdown();
+		FirstTime = true;
+		cl.ClearSounds();
+		Init();
+
+		if (voiceCodec[0] != '\0')
+			Voice.Init(voiceCodec, voiceSampleRate);
+	}
+
 
 	public void MarkUISound(SfxTable sound) {
 		sound.IsUISound = true;
@@ -164,5 +188,11 @@ public partial class Sound
 
 		if (!AudioSystem.IsActive())
 			return;
+
+		AudioSystem.StopAllSounds(clear);
 	}
+
+	public bool IsSoundStillPlaying(int guid) => AudioSystem?.IsSoundStillPlaying(guid) ?? false;
+	public void StopSoundByGuid(int guid) => AudioSystem?.StopSoundByGuid(guid);
+	public void SetVolumeByGuid(int guid, float fvol) => AudioSystem?.SetVolumeByGuid(guid, fvol);
 }

@@ -5,6 +5,9 @@ using Source.Common.Formats.Keyvalues;
 using Source.Common.GUI;
 using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
+
+using System.Runtime.CompilerServices;
+
 namespace Source.MaterialSystem.Surface;
 
 public enum FontPageSize
@@ -25,8 +28,8 @@ public struct CacheEntry
 	public nint Page;
 	public CharTexCoord TexCoord;
 
-	public ulong FontCharHash() {
-		return (ulong)HashCode.Combine(Font, Char);
+	public readonly ulong FontCharHash() {
+		return ((ulong)(uint)RuntimeHelpers.GetHashCode(Font) << 16) | Char;
 	}
 }
 
@@ -106,23 +109,28 @@ public class FontTextureCache
 			Span<NewChar> newChars = stackalloc NewChar[numChars];
 			Span<NewPageEntry> newEntries = stackalloc NewPageEntry[numChars];
 
-			BaseFont? baseFont = FontManager.GetFontForChar(font, chars[0]);
-			if (baseFont == null) {
-				return false;
-			}
+			BaseFont? baseFont = null;
+			bool baseFontResolved = false;
 
 			for (int i = 0; i < numChars; i++) {
 				CacheEntry cacheItem = new();
 				cacheItem.Font = font;
 				cacheItem.Char = chars[i];
 				if (!CharCache.TryGetValue(cacheItem.FontCharHash(), out CacheEntry entry)) {
+					if (!baseFontResolved) {
+						baseFont = FontManager.GetFontForChar(font, chars[0]);
+						baseFontResolved = true;
+						if (baseFont == null)
+							return false;
+					}
+
 					// All characters must come out of the same font
 					if (baseFont != FontManager.GetFontForChar(font, chars[i])) {
 						return false;
 					}
 
 					// get the char details
-					baseFont.GetCharABCwidths(chars[i], out int a, out int b, out int c);
+					baseFont!.GetCharABCwidths(chars[i], out int a, out int b, out int c);
 					int fontWide = Math.Max(b, 1);
 					int fontTall = Math.Max(baseFont.GetHeight(), 1);
 					if (baseFont.GetUnderlined())

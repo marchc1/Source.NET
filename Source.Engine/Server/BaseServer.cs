@@ -8,8 +8,8 @@ using Source.Common.Engine;
 using Source.Common.Hashing;
 using Source.Common.Networking;
 using Source.Common.Server;
+using Source.Common.Steam;
 using Source.Common.Utilities;
-using Source.Engine.Steam;
 
 using Steamworks;
 
@@ -44,7 +44,7 @@ public abstract class BaseServer : IServer
 	internal static readonly ConVar sv_allow_color_correction = new("sv_allow_color_correction", "1", FCvar.Replicated, "Allow or disallow clients to use color correction on this server.");
 	internal static readonly ConVar sv_tags = new("sv_tags", "", FCvar.Notify, "Server tags. Used to provide extra information to clients when they're browsing for servers. Separate tags with a comma.", callback: SvTagsChangeCallback);
 	internal static readonly ConVar sv_debugtempentities = new("sv_debugtempentities", "0", FCvar.None, "Show temp entity bandwidth usage.");
-
+	internal static readonly ConVar sv_downloadurl = new("sv_downloadurl", "", FCvar.Replicated | FCvar.Notify, "Location from which clients can fast-download missing content.");
 	static bool bTagsChangeCallback = false;
 	private static void SvTagsChangeCallback(IConVar var, in ConVarChangeContext ctx) {
 		if (bTagsChangeCallback)
@@ -812,13 +812,13 @@ public abstract class BaseServer : IServer
 	public virtual void FillServerInfo(SVC_ServerInfo serverinfo) {
 		serverinfo.Protocol = Protocol.VERSION;
 		serverinfo.ServerCount = GetSpawnCount();
-		if (WorldmapMD5.Bits != default) // FIXME: singleplayer crash
+		if (WorldmapMD5 != default) // FIXME: singleplayer crash
 			serverinfo.MapMD5 = WorldmapMD5;
 		serverinfo.MaxClients = GetMaxClients();
 		serverinfo.MaxClasses = ServerClasses;
 		serverinfo.IsDedicated = IsDedicated();
 		serverinfo.TickInterval = GetTickInterval();
-		serverinfo.GameDirectory = Common.Gamedir;
+		serverinfo.GameDirectory = "garrysmod"; // TODO: Common.Gamedir. For now, lie!
 		serverinfo.MapName = new(GetMapName());
 		serverinfo.SkyName = new(((ReadOnlySpan<char>)Skyname).SliceNullTerminatedString());
 		serverinfo.HostName = new(GetName());
@@ -1007,9 +1007,9 @@ public abstract class BaseServer : IServer
 		return pdc.Data;
 	}
 
-	public INetworkStringTable? GetInstanceBaselineTable() => LightStyleTable ??= StringTables!.FindTable(Protocol.INSTANCE_BASELINE_TABLENAME);
+	public INetworkStringTable? GetInstanceBaselineTable() => InstanceBaselineTable ??= StringTables!.FindTable(Protocol.INSTANCE_BASELINE_TABLENAME);
 	public INetworkStringTable? GetLightStyleTable() => LightStyleTable ??= StringTables!.FindTable(Protocol.LIGHT_STYLES_TABLENAME);
-	public INetworkStringTable? GetUserInfoTable() => LightStyleTable ??= StringTables?.FindTable(Protocol.USER_INFO_TABLENAME);
+	public INetworkStringTable? GetUserInfoTable() => UserInfoTable ??= StringTables?.FindTable(Protocol.USER_INFO_TABLENAME);
 
 	public virtual void RejectConnection(NetAddress adr, int clientChallenge, ReadOnlySpan<char> s) {
 		byte[] msg_buffer = new byte[Protocol.MAX_ROUTABLE_PAYLOAD];

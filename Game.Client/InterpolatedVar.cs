@@ -394,22 +394,31 @@ public class InterpolatedVarArrayBase<T>(bool isArray) : IInterpolatedVar
 	public int Interpolate(TimeUnit_t currentTime) => Interpolate(currentTime, InterpolationAmount);
 	public int Interpolate(TimeUnit_t currentTime, TimeUnit_t interpolationAmount) {
 		int noMoreChanges = 0;
-		if (!GetInterpolationInfo(out InterpolationInfo info, currentTime, interpolationAmount, out noMoreChanges))
+
+		if (!GetInterpolationInfo(out InterpolationInfo info, currentTime, interpolationAmount, out noMoreChanges)) 
 			return noMoreChanges;
 
 		var history = VarHistory;
+		string branch;
 
-		if (info.Hermite)
+		if (info.Hermite) {
 			_Interpolate_Hermite(Instance, Accessor, info.Fraction, ref history[info.Oldest], ref history[info.Older], ref history[info.Newer]);
+			branch = "hermite";
+		}
 		else if (info.Newer == info.Older) {
 			int realOlder = info.Newer + 1;
-			if (InterpolationContext.IsExtrapolationAllowed() && IsValidIndex(realOlder) && history[realOlder].ChangeTime != 0.0 && interpolationAmount > 0.000001 && InterpolationContext.GetLastTimeStamp() <= LastNetworkedTime)
+			if (InterpolationContext.IsExtrapolationAllowed() && IsValidIndex(realOlder) && history[realOlder].ChangeTime != 0.0 && interpolationAmount > 0.000001 && InterpolationContext.GetLastTimeStamp() <= LastNetworkedTime) {
 				_Extrapolate(Instance, Accessor, ref history[realOlder], ref history[info.Newer], currentTime - interpolationAmount, Interpolation.cl_extrapolate_amount.GetFloat());
-			else
+				branch = "EXTRAP";
+			}
+			else {
 				_Interpolate(Instance, Accessor, info.Fraction, ref history[info.Older], ref history[info.Newer]);
+				branch = "hold";
+			}
 		}
 		else {
 			_Interpolate(Instance, Accessor, info.Fraction, ref history[info.Older], ref history[info.Newer]);
+			branch = "linear";
 		}
 
 		RemoveEntriesPreviousTo(currentTime - interpolationAmount - IInterpolatedVar.EXTRA_INTERPOLATION_HISTORY_STORED);
@@ -610,7 +619,7 @@ public class InterpolatedVarArrayBase<T>(bool isArray) : IInterpolatedVar
 				}
 
 				if (info.Newer == VarHistory.Head()) {
-					if (COMPARE_HISTORY(VarHistory[info.Newer].GetValue(), VarHistory[info.Oldest].GetValue())) {
+					if (COMPARE_HISTORY(VarHistory[info.Newer].GetValue(), VarHistory[info.Older].GetValue())) {
 						if (!info.Hermite || COMPARE_HISTORY(VarHistory[info.Newer].GetValue(), VarHistory[info.Oldest].GetValue()))
 							noMoreChanges = 1;
 					}
@@ -640,9 +649,9 @@ public class InterpolatedVarArrayBase<T>(bool isArray) : IInterpolatedVar
 
 		AddToHead(changeTime, Accessor, true);
 
-		if (updateLastNetworkedValue) {
+		if (updateLastNetworkedValue) 
 			NoteLastNetworkedValue();
-		}
+		
 		RemoveEntriesPreviousTo(gpGlobals.CurTime - interpolationAmount - IInterpolatedVar.EXTRA_INTERPOLATION_HISTORY_STORED);
 
 		return ret;

@@ -4,7 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Source.Common.Client;
 using Source.Common.Server;
+using Source.Common.Utilities;
 
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -23,13 +25,27 @@ public class Cvar : ICvar
 	public event FnChangeCallback? Changed;
 	List<IConsoleDisplayFunc> DisplayFuncs = [];
 	Assembly? NextDLLIdentifier;
+	
+	// Linked list of concommands
 	ConCommandBase? ConCommandList;
+	private readonly ConcurrentDictionary<UtlSymId_t, ConCommandBase> StringToConCommand = [];
+	private readonly ConcurrentDictionary<ConCommandBase, UtlSymId_t> ConCommandToString = [];
 
+	public void NotifyConCommandNameChanged(ConCommandBase cmd, ReadOnlySpan<char> name) {
+		// Remove the old name.
+		if(ConCommandToString.TryGetValue(cmd, out UtlSymId_t oldName))
+			StringToConCommand.Remove(oldName, out _);
+
+		UtlSymId_t newName = name.Hash();
+		StringToConCommand[newName] = cmd;
+		ConCommandToString[cmd] = newName;
+	}
+	
 	IBaseClientDLL? clientDLL;
 	IServerGameDLL? serverDLL;
 
 	FCvar assemblyFlags = FCvar.None;
-	public void SetAssemblyIdentifier(Assembly assembly) {
+	public void SetAssemblyIdentifier(Assembly? assembly) {
 		NextDLLIdentifier = assembly;
 
 		// Pull in dependencies if they weren't resolved already
@@ -38,12 +54,13 @@ public class Cvar : ICvar
 		serverDLL ??= services.GetService<IServerGameDLL>();
 		assemblyFlags = FCvar.None;
 
-		if (assembly != null) {
-			if (clientDLL != null && assembly == clientDLL.GetType().Assembly)
-				assemblyFlags |= FCvar.ClientDLL;
-			else if (serverDLL != null && assembly == serverDLL.GetType().Assembly)
-				assemblyFlags |= FCvar.GameDLL;
-		}
+		if (assembly == null) 
+			return;
+
+		if (clientDLL != null && assembly == clientDLL.GetType().Assembly)
+			assemblyFlags |= FCvar.ClientDLL;
+		else if (serverDLL != null && assembly == serverDLL.GetType().Assembly)
+			assemblyFlags |= FCvar.GameDLL;
 	}
 
 	public void ConsoleColorPrintf(in Color clr, ReadOnlySpan<char> format, params object?[]? args) {
@@ -97,11 +114,7 @@ public class Cvar : ICvar
 	}
 
 	public ConCommandBase? FindCommandBase(ReadOnlySpan<char> name) {
-		foreach (var cmd in GetCommands())
-			if (cmd.Name.AsSpan().Equals(name, StringComparison.OrdinalIgnoreCase))
-				return cmd;
-
-		return null;
+		return StringToConCommand.GetValueOrDefault(name.Hash());
 	}
 
 	public ConVar? FindVar(ReadOnlySpan<char> name) {
@@ -194,29 +207,29 @@ public class Cvar : ICvar
 						if (!childVar.defaultValue.Equals(parentVar.defaultValue, StringComparison.OrdinalIgnoreCase))
 							Dbg.Warning($"Parent and child ConVars with different default values! " +
 								$"{childVar.defaultValue} child, {childVar.defaultValue} parent (parent wins)\n");
-
-						childVar.parent = parentVar.parent;
-						parentVar.Flags |= childVar.Flags & (FCvar.AccessibleFromThreads);
-						if (childVar.HasChangeCallback) {
-							if (!parentVar.HasChangeCallback)
-								parentVar.SyncChangeTo(childVar);
-						}
-
-						if (!string.IsNullOrEmpty(childVar.HelpString)) {
-							if (!string.IsNullOrEmpty(parentVar.HelpString)) {
-								if (!parentVar.HelpString.Equals(childVar.HelpString, StringComparison.OrdinalIgnoreCase))
-									Dbg.Warning($"Convar {variable.GetName()} has multiple help strings (parent wins)\n");
-							}
-							else {
-								parentVar.HelpString = childVar.HelpString;
-							}
-						}
-
-						if ((childVar.Flags & FCvar.Cheat) != (parentVar.Flags & FCvar.Cheat))
-							Dbg.Warning($"Convar {variable.GetName()} has conflicting Cheat flags (parent wins)\n");
-						if ((childVar.Flags & FCvar.Replicated) != (parentVar.Flags & FCvar.Replicated))
-							Dbg.Warning($"Convar {variable.GetName()} has conflicting Replicated flags (parent wins)\n");
 					}
+
+					childVar.parent = parentVar.parent;
+					parentVar.Flags |= childVar.Flags & (FCvar.AccessibleFromThreads);
+					if (childVar.HasChangeCallback) {
+						if (!parentVar.HasChangeCallback)
+							parentVar.SyncChangeTo(childVar);
+					}
+
+					if (!string.IsNullOrEmpty(childVar.HelpString)) {
+						if (!string.IsNullOrEmpty(parentVar.HelpString)) {
+							if (!parentVar.HelpString.Equals(childVar.HelpString, StringComparison.OrdinalIgnoreCase))
+								Dbg.Warning($"Convar {variable.GetName()} has multiple help strings (parent wins)\n");
+						}
+						else {
+							parentVar.HelpString = childVar.HelpString;
+						}
+					}
+
+					if ((childVar.Flags & FCvar.Cheat) != (parentVar.Flags & FCvar.Cheat))
+						Dbg.Warning($"Convar {variable.GetName()} has conflicting Cheat flags (parent wins)\n");
+					if ((childVar.Flags & FCvar.Replicated) != (parentVar.Flags & FCvar.Replicated))
+						Dbg.Warning($"Convar {variable.GetName()} has conflicting Replicated flags (parent wins)\n");
 				}
 			}
 
@@ -224,9 +237,12 @@ public class Cvar : ICvar
 			return;
 		}
 
-		variable.Next = ConCommandList;
-		ConCommandList = variable;
+		if (!variable.IsFlagSet(FCvar.Unregistered)) {
+			variable.Next = ConCommandList;
+			ConCommandList = variable;
+		}
 
+		NotifyConCommandNameChanged(variable, variable.GetName());
 		variable.Assembly = NextDLLIdentifier;
 	}
 
@@ -239,7 +255,7 @@ public class Cvar : ICvar
 			return;
 
 		commandToRemove.Registered = false;
-
+		
 		ConCommandBase? prev = null;
 		for (ConCommandBase? command = ConCommandList; command != null; command = command.Next) {
 			if (command != commandToRemove) {
@@ -255,6 +271,11 @@ public class Cvar : ICvar
 			command.Next = null;
 			break;
 		}
+		
+		if (ConCommandToString.TryGetValue(commandToRemove, out UtlSymId_t oldName)) {
+			StringToConCommand.Remove(oldName, out _);
+			ConCommandToString.Remove(commandToRemove, out _);
+		}
 	}
 
 	public void UnregisterConCommands(Assembly sourceAssembly) {
@@ -269,6 +290,11 @@ public class Cvar : ICvar
 			else {
 				command.Registered = false;
 				command.Next = null;
+			}
+
+			if (ConCommandToString.TryGetValue(command, out UtlSymId_t oldName)) {
+				StringToConCommand.Remove(oldName, out _);
+				ConCommandToString.Remove(command, out _);
 			}
 
 			command = next;

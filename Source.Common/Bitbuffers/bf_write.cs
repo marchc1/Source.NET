@@ -59,17 +59,17 @@ public unsafe class bf_write : BitBuffer
 		overflow = other.overflow;
 	}
 
-	public bf_write(byte[] data, int bytes) {
+	public bf_write(byte[]? data, int bytes) {
 		StartWriting(data, bytes, 0, -1);
 	}
 
-	public bf_write(byte[] data, int bytes, int bits) {
+	public bf_write(byte[]? data, int bytes, int bits) {
 		StartWriting(data, bytes, 0, bits);
 	}
 
-	public unsafe void StartWriting(byte[] inData, nuint bytes, int startBit = 0, int bits = -1)
+	public unsafe void StartWriting(byte[]? inData, nuint bytes, int startBit = 0, int bits = -1)
 		=> StartWriting(inData, (int)bytes, startBit, bits);
-	public unsafe void StartWriting(byte[] inData, int bytes, int startBit = 0, int bits = -1) {
+	public unsafe void StartWriting(byte[]? inData, int bytes, int startBit = 0, int bits = -1) {
 		// Ensure d-word alignment
 		Debug.Assert(bytes % 4 == 0);
 
@@ -605,6 +605,11 @@ public unsafe class bf_write : BitBuffer
 	public bool WriteBytes(byte[] pBuf, int nBytes) {
 		fixed (byte* pBufTemp = pBuf) {
 			return WriteBits(pBufTemp, nBytes << 3);
+		}
+	}
+	public bool WriteBytes(Span<byte> pBuf) {
+		fixed (byte* pBufTemp = pBuf) {
+			return WriteBits(pBufTemp, pBuf.Length << 3);
 		}
 	}
 

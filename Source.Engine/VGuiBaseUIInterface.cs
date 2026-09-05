@@ -64,16 +64,16 @@ public struct LoadingProgressDescription
 public interface IEngineVGuiInternal : IEngineVGui
 {
 	// Level loading
-	public void OnLevelLoadingStarted();
-	public void OnLevelLoadingFinished();
-	public void NotifyOfServerConnect(ReadOnlySpan<char> game, int IP, int connectionPort, int queryPort);
-	public void NotifyOfServerDisconnect();
-	public void EnabledProgressBarForNextLoad();
-	public void UpdateProgressBar(LevelLoadingProgress progress);
-	public void UpdateCustomProgressBar(float progress, ReadOnlySpan<char> desc);
-	public void StartCustomProgress();
-	public void FinishCustomProgress();
-	public void ShowErrorMessage();
+	void OnLevelLoadingStarted();
+	void OnLevelLoadingFinished();
+	void NotifyOfServerConnect(ReadOnlySpan<char> game, int IP, int connectionPort, int queryPort);
+	void NotifyOfServerDisconnect();
+	void EnabledProgressBarForNextLoad();
+	void UpdateProgressBar(LevelLoadingProgress progress);
+	void UpdateCustomProgressBar(float progress, ReadOnlySpan<char> desc);
+	void StartCustomProgress();
+	void FinishCustomProgress();
+	void ShowErrorMessage();
 	void SetNotAllowedToHideGameUI(bool notAllowed);
 	void SetNotAllowedToShowGameUI(bool notAllowed);
 	void Simulate();
@@ -244,7 +244,7 @@ public class VisualizeLayoutPanel : Panel
 
 		if (LayoutVisualizations.Count == 0) return;
 
-		double time = System.GetCurrentTime();
+		double time = system.GetCurrentTime();
 		List<Panel> toRemove = [];
 
 		foreach (var (panel, expireTime) in LayoutVisualizations) {
@@ -527,7 +527,7 @@ public class EngineVGui(
 		if (sound != null) {
 			Sound.MarkUISound(sound);
 
-			StartSoundParams parms = default;
+			StartSoundParams parms = new();
 			parms.StaticSound = false;
 			parms.SoundSource = cl.ViewEntity;
 			parms.EntChannel = SoundEntityChannel.Auto;
@@ -704,7 +704,10 @@ public class EngineVGui(
 		// materials.CacheUsedMaterials(); todo
 
 		localize.AddFile($"resource/valve_%language%.txt");
-		localize.AddFile($"resource/{engineAPI.GetRequiredService<EngineParms>().Mod}_%language%.txt");
+		// localize.AddFile($"resource/{engineAPI.GetRequiredService<EngineParms>().Mod}_%language%.txt");
+		localize.AddFile($"resource/hl2_%language%.txt");
+		localize.AddFile($"resource/garrysmod_%language%.txt");
+
 
 		staticGameUIFuncs.Initialize(engineAPI);
 		staticGameUIFuncs.Start();

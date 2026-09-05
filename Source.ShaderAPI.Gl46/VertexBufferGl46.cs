@@ -241,6 +241,19 @@ public unsafe class VertexBufferGl46 : IDisposable
 			glVertexArrayAttribBinding(vao, bindings[i], 0);
 	}
 
+	internal void BindColorMesh(VertexBufferGl46 colorBuffer, int vertOffsetInBytes) {
+		VertexElement.Specular.GetInformation(out int count, out VertexAttributeType type);
+
+		glEnableVertexArrayAttrib((uint)vao, (uint)OpenGL_ShaderInputAttribute.Specular);
+		glVertexArrayAttribFormat((uint)vao, (uint)OpenGL_ShaderInputAttribute.Specular, count, (int)type, true, 0);
+		glVertexArrayAttribBinding((uint)vao, (uint)OpenGL_ShaderInputAttribute.Specular, 1);
+		glVertexArrayVertexBuffer((uint)vao, 1, colorBuffer.VBO(), vertOffsetInBytes, colorBuffer.VertexSize);
+	}
+
+	internal void UnbindColorMesh() {
+		glDisableVertexArrayAttrib((uint)vao, (uint)OpenGL_ShaderInputAttribute.Specular);
+	}
+
 	public int NextLockOffset() {
 		int nextOffset = VertexSize == 0 ? 0 : (Position + VertexSize - 1) / VertexSize;
 		nextOffset *= VertexSize;
@@ -281,24 +294,33 @@ public unsafe class VertexBufferGl46 : IDisposable
 			baseVertexIndex = 0;
 			return null;
 		}
+
+		bool discard = false;
 		if (Dynamic) {
-			if (Flush || !HasEnoughRoom(numVerts)) {
+			if (Position == 0 || Flush || !HasEnoughRoom(numVerts)) {
 				if (SysmemBuffer != null)
 					LateCreateShouldDiscard = true;
 
 				Flush = false;
 				Position = 0;
+				discard = true;
 			}
 		}
 		else {
 			Position = 0;
 		}
-		baseVertexIndex = VertexSize == 0 ? 0 : (Position / VertexSize);
-		if (SysmemBuffer == null) {
+
+		int lockOffset = NextLockOffset();
+		baseVertexIndex = VertexSize == 0 ? 0 : (lockOffset / VertexSize);
+		if (SysmemBuffer == null)
 			RecomputeVBO();
-		}
+		else if (discard)
+			glNamedBufferData((uint)vbo, BufferSize, null, GL_DYNAMIC_DRAW);
+
+
 		Locked = true;
-		return (byte*)((nint)SysmemBuffer + Position);
+		Position = lockOffset;
+		return (byte*)((nint)SysmemBuffer + lockOffset);
 	}
 
 	public void Unlock(int vertexCount) {

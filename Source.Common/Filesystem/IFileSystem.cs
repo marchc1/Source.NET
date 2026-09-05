@@ -1,7 +1,93 @@
 ﻿
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GarrysMod;
+using Source.Common.Utilities;
 
 namespace Source.Common.Filesystem;
+
+/// <summary>
+/// This enum is both organizational and drives path priority
+/// </summary>
+public enum PathGroupName
+{
+	Default,
+	EngineCore,
+	Lua,
+	Map,
+	AddonContent,
+	GMContent,
+	GModCore,
+	CurrentGame,
+	SourceSDK,
+	BAddonContent,
+	GameContent,
+	MountCfg,
+	Downloads,
+	Fallbacks
+}
+
+public interface ISearchPath
+{
+	bool Exists(scoped ReadOnlySpan<char> path); // Returns if the file or directory exists
+	bool IsDirectory(scoped ReadOnlySpan<char> path); // Returns true if the path is a directory
+	bool IsFileWritable(scoped ReadOnlySpan<char> path); // Returns true if the path can be written to
+	IFileHandle? Open(scoped ReadOnlySpan<char> path, FileOpenOptions options); // Can return null if something went wrong
+	bool RemoveFile(scoped ReadOnlySpan<char> path); // Return true if the file was deleted
+	bool RenameFile(scoped ReadOnlySpan<char> oldPath, ReadOnlySpan<char> newPath); // Renames a single file, returns true if it worked
+	bool SetFileWritable(scoped ReadOnlySpan<char> path, bool writable); // Determines if the file is writable
+	long Size(scoped ReadOnlySpan<char> path); // Gets the size of a file
+	/// <summary>
+	/// Gets the last modified time of a file (UTC)
+	/// </summary>
+	/// <param name="path"></param>
+	/// <returns></returns>
+	DateTime Time(scoped ReadOnlySpan<char> path);
+	ReadOnlySpan<char> GetPathString();
+	object? GetPackFile();
+	object? GetPackedStore();
+	void UnlockFinds();
+	void LockFinds(UtlSymbol wildcard, HashSet<ulong> foundAlready);
+	(string, bool)? FindAt(int index);
+	PathGroupName GetGroupName();
+	void SetGroupName(PathGroupName name);
+	ReadOnlySpan<char> GetDiskPath();
+
+
+
+	public static ReadOnlySpan<char> Normalize(scoped ReadOnlySpan<char> unnormalizedString, Span<char> normalizedOutput) {
+		int len = Math.Min(normalizedOutput.Length, unnormalizedString.Length);
+
+		for (int i = 0; i < len; i++) {
+			char c = unnormalizedString[i];
+			normalizedOutput[i] = c == '\\' ? '/' : c;
+		}
+
+		return normalizedOutput[..len];
+	}
+	public static ReadOnlySpan<char> Concat(ISearchPath searchPath, scoped ReadOnlySpan<char> fileNameUnnormalized, Span<char> target) {
+		Span<char> fileNameNormalized = stackalloc char[MAX_PATH];
+		ReadOnlySpan<char> fileName = Normalize(fileNameUnnormalized, fileNameNormalized);
+
+		int writePtr = 0;
+		ReadOnlySpan<char> diskpath = searchPath.GetDiskPath();
+		diskpath.CopyTo(target[writePtr..]); writePtr += diskpath.Length;
+		if (diskpath.EndsWith('\\'))
+			target[writePtr - 1] = '/';
+
+		bool hasSlash = target[writePtr - 1] == '/';
+		if (!hasSlash) {
+			// Write a slash now
+			target[writePtr] = '/'; writePtr++;
+			hasSlash = true;
+		}
+		// Confirm we arent writing another slash
+		if ((fileName.Length > 0 && (fileName[0] == '/' || fileName[0] == '\\')) && hasSlash)
+			fileName = fileName[1..];
+
+		fileName.ClampedCopyTo(target[writePtr..]); writePtr += fileName.Length;
+		return target[..writePtr];
+	}
+}
 
 public interface IBaseFileSystem
 {
@@ -80,13 +166,26 @@ public interface IFileSystem : IBaseFileSystem
 	/// <param name="path"></param>
 	/// <param name="pathID"></param>
 	/// <param name="addType"></param>
-	public void AddSearchPath(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID, SearchPathAdd addType = SearchPathAdd.ToTail);
+	public void AddSearchPath(ReadOnlySpan<char> diskPath, ReadOnlySpan<char> pathID, SearchPathAdd addType = SearchPathAdd.ToTail, PathGroupName groupName = PathGroupName.Default);
 	/// <summary>
-	/// Remove a search path.
+	/// Add a search path.
 	/// </summary>
 	/// <param name="path"></param>
 	/// <param name="pathID"></param>
-	public bool RemoveSearchPath(ReadOnlySpan<char> path, ReadOnlySpan<char> pathID);
+	/// <param name="addType"></param>
+	public void AddSearchPath(ISearchPath searchPathImpl, ReadOnlySpan<char> pathID, SearchPathAdd addType = SearchPathAdd.ToTail, PathGroupName groupName = PathGroupName.Default);
+	/// <summary>
+	/// Remove a search path.
+	/// </summary>
+	public bool RemoveSearchPath(ReadOnlySpan<char> diskPath, ReadOnlySpan<char> pathID);
+	/// <summary>
+	/// Remove a search path.
+	/// </summary>
+	public bool RemoveSearchPath(ISearchPath searchPathImpl, ReadOnlySpan<char> pathID);
+	/// <summary>
+	/// Remove a search path.
+	/// </summary>
+	public bool RemoveSearchPath(Predicate<ISearchPath> search, ReadOnlySpan<char> pathID);
 	/// <summary>
 	/// Remove all search paths.
 	/// </summary>
@@ -135,7 +234,6 @@ public interface IFileSystem : IBaseFileSystem
 	void FindClose(ulong findHandle);
 
 	ReadOnlySpan<char> String(FileNameHandle_t nameHandle);
-	void GetSearchPaths(List<string> vecSearchPaths, ReadOnlySpan<char> pathID);
 
 	public enum KeyValuesPreloadType
 	{
@@ -148,6 +246,26 @@ public interface IFileSystem : IBaseFileSystem
 	void LoadCompiledKeyValues(KeyValuesPreloadType type, ReadOnlySpan<char> archiveFile);
 	KeyValues? LoadKeyValues(KeyValuesPreloadType type, ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID = default);
 	bool LoadKeyValues(KeyValues head, KeyValuesPreloadType type, ReadOnlySpan<char> filename, ReadOnlySpan<char> pathID = default);
+
+#if GMOD_DLL
+	void RemoveSearchPathsByGroup(int unk1);
+	void SetGet(IGet get);
+	Addon.FileSystem Addons();
+	Gamemode.System Gamemodes();
+	GameDepot.System Games();
+	LegacyAddons.System LegacyAddons();
+	Language Language();
+	void DoFilesystemRefresh();
+	int LastFilesystemRefresh();
+	void AddVPKFileFromPath(ReadOnlySpan<char> vpk, ReadOnlySpan<char> path, uint id);
+	void GMOD_SetupDefaultPaths(ReadOnlySpan<char> path, ReadOnlySpan<char> game);
+	void GMOD_FixPathCase(Span<char> a);
+#endif
+
+	bool FindIsDirectory(FileFindHandle_t findHandle);
+	WaitForResourcesHandle_t WaitForResources(ReadOnlySpan<char> levelBaseName);
+	bool GetWaitForResourcesProgress(int waitForResourcesHandle, out float progress, out bool complete);
+	void CancelWaitForResources(WaitForResourcesHandle_t handle);
 }
 
 public enum PathTypeFilter

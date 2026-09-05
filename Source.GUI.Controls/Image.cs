@@ -6,8 +6,6 @@ namespace Source.GUI.Controls;
 
 public class Image : IImage
 {
-	readonly public ISurface Surface = Singleton<ISurface>();
-
 	int X, Y, Width, Height;
 	Color Color;
 

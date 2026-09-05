@@ -71,10 +71,10 @@ class AnimatingImagePanel : Panel
 	}
 
 	public override void OnTick() {
-		if (!Animating || System.GetTimeMillis() < NextFrameTime)
+		if (!Animating || system.GetTimeMillis() < NextFrameTime)
 			return;
 
-		NextFrameTime = System.GetTimeMillis() + FrameTimeMillis;
+		NextFrameTime = system.GetTimeMillis() + FrameTimeMillis;
 		CurrentImage++;
 		if (CurrentImage >= Frames.Count)
 			CurrentImage = 0;

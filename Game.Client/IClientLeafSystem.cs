@@ -66,6 +66,14 @@ public interface IClientLeafSystem : IClientLeafSystemEngine, IGameSystemPerFram
 	void EnableAlternateSorting(ClientRenderHandle_t renderHandle, bool alternateSorting);
 	bool IsRenderableInPVS(IClientRenderable renderable);
 
+	ClientLeafShadowHandle_t AddShadow(ClientShadowHandle_t userId, ushort flags);
+	void RemoveShadow(ClientLeafShadowHandle_t h);
+
+	void ProjectShadow(ClientLeafShadowHandle_t handle, int leafCount, ReadOnlySpan<int> leafList);
+	void ProjectFlashlight(ClientLeafShadowHandle_t handle, int leafCount, ReadOnlySpan<int> leafList);
+
+	void EnumerateShadowsInLeaves(int leafCount, List<LeafIndex_t> leaves, IClientLeafShadowEnum enumerator);
+
 	void RenderableChanged(ClientRenderHandle_t handle);
 	void SetRenderGroup(ClientRenderHandle_t handle, RenderGroup group);
 

@@ -110,6 +110,8 @@ public class BaseAnimating : BaseEntity
 		ResetSequenceInfo();
 	}
 
+	public bool ComputeHitboxSurroundingBox(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) => throw new NotImplementedException();
+
 	public Activity LookupActivity(ReadOnlySpan<char> label) {
 		return Animation.LookupActivity(GetModelPtr(), label);
 	}
@@ -118,6 +120,25 @@ public class BaseAnimating : BaseEntity
 		return Animation.LookupSequence(GetModelPtr(), label);
 	}
 	public TimeUnit_t GetSequenceGroundSpeed(int sequence) => GetSequenceGroundSpeed(GetModelPtr(), sequence);
+
+	protected override StudioHdr? OnNewModel() {
+		base.OnNewModel();
+
+		if (IsDynamicModelLoading()) {
+			// Called while dynamic model still loading -> new model, clear deferred state
+			ResetSequenceInfoOnLoad = false;
+			return null;
+		}
+
+		StudioHdr? hdr = GetModelPtr();
+
+		if (ResetSequenceInfoOnLoad) {
+			ResetSequenceInfoOnLoad = false;
+			ResetSequenceInfo();
+		}
+
+		return hdr;
+	}
 
 	public Activity GetSequenceActivity(int sequence) {
 		if (sequence == -1) {
@@ -169,7 +190,7 @@ public class BaseAnimating : BaseEntity
 							pStudioHdrContainer.Init(pStudioHdr, mdlcache);
 						}
 					}
-					else 
+					else
 						pStudioHdrContainer = StudioHdr;
 
 					Assert((pStudioHdr == null && pStudioHdrContainer == null) || (pStudioHdrContainer != null && pStudioHdrContainer.GetRenderHdr() == pStudioHdr));
@@ -293,7 +314,6 @@ public class BaseAnimating : BaseEntity
 	public float GroundSpeed;
 	public bool SequenceLoops;
 	public bool ResetSequenceInfoOnLoad;
-	public bool DynamicModelLoading;
 	public bool SequenceFinished;
 	public TimeUnit_t LastEventCheck;
 	public TimeUnit_t GetCycle() => Cycle;
@@ -303,7 +323,6 @@ public class BaseAnimating : BaseEntity
 
 		return ret.Length();
 	}
-	public bool IsDynamicModelLoading() => DynamicModelLoading;
 	public float GetSequenceGroundSpeed(StudioHdr? studioHdr, int sequence) {
 		TimeUnit_t t = SequenceDuration(studioHdr, sequence);
 

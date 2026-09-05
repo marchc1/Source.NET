@@ -5,6 +5,7 @@ using Source.GUI.Controls;
 using System.Drawing;
 
 namespace Source.Engine;
+#if !SWDS
 
 class BudgetHistoryPanel : Panel
 {
@@ -114,3 +115,4 @@ class BudgetHistoryPanel : Panel
 		RangeMax = max;
 	}
 }
+#endif

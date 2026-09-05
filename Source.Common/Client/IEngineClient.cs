@@ -1,11 +1,14 @@
 ﻿using Source.Common.Audio;
 using Source.Common.Engine;
 using Source.Common.Formats.Keyvalues;
+using Source.Common.GarrysMod;
 using Source.Common.Input;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 using Source.Common.Networking;
 using Source.Common.Physics;
+
+using Steamworks;
 
 using System.Numerics;
 using System.Reflection.Emit;
@@ -14,6 +17,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Source.Common.Client;
+
+public delegate void GMOD_CreateDataTableFn(int idx, ref GModVariant variant);
 
 /// <summary>
 /// Engine player info. (replica of player_info_s)
@@ -443,6 +448,26 @@ public interface IEngineClient
 	// Unlike Key_LookupBinding, leading '+' characters are not stripped from bindings.
 	ReadOnlySpan<char> Key_LookupBindingExact(ReadOnlySpan<char> pBinding);
 
+	void GMOD_SetTimeManipulator(float scaleFramerate);
+	void GMOD_SendToServer(ReadOnlySpan<byte> data, bool reliable);
+	void GMOD_PlaceDecalMaterial(IMaterial material, bool unk1, int unk2, IClientEntity ent, in Vector3 origin /*?*/, in Vector3 normal /*?*/, in Color color, float unk3, float unk4);
+	void GMOD_GetSpew(Span<char> spewBuffer);
+	void GMOD_SetViewEntity(BaseHandle entity);
+	void GMOD_BrushMaterialOverride(IMaterial? matOverride);
+	void GMOD_R_RedownloadAllLightmaps(bool unk);
+	void GMOD_RawClientCmd_Unrestricted( ReadOnlySpan<char> command );
+	IGMODDataTable GMOD_CreateDataTable(GMOD_CreateDataTableFn fnCallback);
+	void GMOD_DestroyDataTable(IGMODDataTable dataTable);
+	MDLHandle_t GMOD_LoadModel( ReadOnlySpan<char> path );
+	void GMOD_DecalRemoveEntity(int index);
+	ReadOnlySpan<char> GMOD_TranslateAlias( ReadOnlySpan<char> cmd );
+	void GMOD_R_StudioInitLightingCache();
+	int PrecacheSentenceFile( ReadOnlySpan<char> fileName );
+	float GetPlayerVoiceVolume(CSteamID steamID);
+	void SetPlayerVoiceVolume(CSteamID steamID, float volume);
+	bool NET_IsHostLocal( ReadOnlySpan<char> hostName );
+	bool IsDedicatedServer();
+
 	uint GetProtocolVersion();
 	bool IsWindowedMode();
 
@@ -455,5 +480,4 @@ public interface IEngineClient
 	// Is App Active 
 	bool IsActiveApp();
 	void DisconnectInternal();
-	int GetInstancesRunningCount();
 }

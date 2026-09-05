@@ -1,18 +1,20 @@
-﻿using Source.Common.Mathematics;
+﻿using Source.Common.Formats.BSP;
+using Source.Common.Mathematics;
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Source.Common.Engine;
 
-public enum StudioRenderFlags {
+public enum StudioRenderFlags
+{
 	DrawEntireModel = 0,
 	DrawOpaqueOnly = 0x01,
 	DrawTranslucentOnly = 0x02,
 	DrawGroupMask = 0x03,
 	DrawNoFlexes = 0x04,
 	DrawStaticLighting = 0x08,
-	DrawAccurateTime = 0x10,      
+	DrawAccurateTime = 0x10,
 	DrawNoShadows = 0x20,
 	DrawGetPerfStats = 0x40,
 	DrawWireframe = 0x80,
@@ -22,7 +24,8 @@ public enum StudioRenderFlags {
 	GenerateStats = 0x8000,
 }
 
-public struct DrawModelState {
+public struct DrawModelState
+{
 	public StudioHeader? StudioHdr;
 	public StudioHWData StudioHWData;
 	public IClientRenderable? Renderable;
@@ -38,8 +41,8 @@ public struct ModelRenderInfo
 	public IClientRenderable? Renderable;
 	public Model? Model;
 	public Matrix3x4 ModelToWorld;
-	public Matrix3x4 LightingOffset;
-	public Vector3 LightingOrigin;
+	public Matrix3x4? LightingOffset;
+	public Vector3? LightingOrigin;
 	public StudioFlags Flags;
 	public int EntityIndex;
 	public int Skin;
@@ -58,4 +61,6 @@ public interface IModelRender
 	void DrawModelExecute(ref DrawModelState state, ref ModelRenderInfo info, Span<Matrix3x4> boneToWorldArray);
 	bool DrawModelSetup(ref ModelRenderInfo info, ref DrawModelState state, Span<Matrix3x4> customBoneToWorld, out Span<Matrix3x4> boneToWorldArray);
 	ref Matrix4x4 SetupModelState(IClientRenderable renderable);
+	bool DrawModelShadowSetup(IClientRenderable renderable, int body, int skin, ref Source.Common.DrawModelInfo info, Span<Matrix3x4> customBoneToWorld, out Span<Matrix3x4> boneToWorldOut);
+	void DrawModelShadow(IClientRenderable renderable, in Source.Common.DrawModelInfo info, Span<Matrix3x4> boneToWorld);
 }

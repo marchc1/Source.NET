@@ -158,6 +158,8 @@ public partial class C_BaseEntity : IClientEntity
 	static bool g_bWasThreaded;
 	static bool s_bAbsQueriesValid = true;
 	static bool s_bAbsRecomputationEnabled = true;
+	static readonly bool[] AbsRecomputationStack = new bool[8];
+	static ushort AbsRecomputationStackPos = 0;
 	static ConVar cl_interpolate = new("cl_interpolate", "1", FCvar.UserInfo | FCvar.DevelopmentOnly);
 
 	ClientThinkHandle_t thinkHandle;
@@ -253,6 +255,7 @@ public partial class C_BaseEntity : IClientEntity
 		}
 
 		// Enable extrapolation?
+		using InterpolationContext context = new();
 		InterpolationContext.SetLastTimeStamp(engine.GetLastTimeStamp());
 		if (cl_extrapolate.GetBool() && !engine.IsPaused())
 			InterpolationContext.EnableExtrapolation(true);
@@ -334,9 +337,37 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	public static bool IsAbsRecomputationsEnabled() => !ThreadInMainThread() || s_bAbsRecomputationEnabled;
+
+	public static void PushEnableAbsRecomputations(bool enable) {
+		if (!ThreadInMainThread())
+			return;
+
+		if (AbsRecomputationStackPos < AbsRecomputationStack.Length) {
+			AbsRecomputationStack[AbsRecomputationStackPos] = s_bAbsRecomputationEnabled;
+			++AbsRecomputationStackPos;
+			s_bAbsRecomputationEnabled = enable;
+		}
+		else
+			Assert(false);
+	}
+
+	public static void PopEnableAbsRecomputations() {
+		if (!ThreadInMainThread())
+			return;
+
+		if (AbsRecomputationStackPos > 0) {
+			--AbsRecomputationStackPos;
+			s_bAbsRecomputationEnabled = AbsRecomputationStack[AbsRecomputationStackPos];
+		}
+		else
+			Assert(false);
+	}
+
 	public static void EnableAbsRecomputations(bool enable) {
 		if (!ThreadInMainThread())
 			return;
+
+		Assert(AbsRecomputationStackPos == 0);
 
 		s_bAbsRecomputationEnabled = enable;
 	}
@@ -406,6 +437,10 @@ public partial class C_BaseEntity : IClientEntity
 
 			ent.UpdateVisibility();
 		}
+
+#if DEBUG
+		DrawEntityDebugOverlays();
+#endif
 	}
 
 	public bool IsNoInterpolationFrame() => OldInterpolationFrame != InterpolationFrame;
@@ -462,7 +497,6 @@ public partial class C_BaseEntity : IClientEntity
 		C_BaseEntity pEntity = (C_BaseEntity)instance;
 
 		long t = gpGlobals.GetNetworkBase(gpGlobals.TickCount, pEntity.EntIndex()) + data.Value.Int;
-		t += data.Value.Int;
 
 		while (t < gpGlobals.TickCount - 127)
 			t += 256;
@@ -642,6 +676,7 @@ public partial class C_BaseEntity : IClientEntity
 		DataChangeEventRef.Struct = unchecked((ulong)-1);
 		EntClientFlags = 0;
 
+		ColorRender = new(255, 255, 255, 255);
 		RenderFXBlend = 255;
 		Predictable = false;
 
@@ -760,6 +795,9 @@ public partial class C_BaseEntity : IClientEntity
 
 	public EntClientFlags EntClientFlags;
 
+	public Source.InlineArray4<float> RenderingClipPlane;
+	public bool EnableRenderingClipPlane;
+
 	public Vector3 Origin;
 	public readonly InterpolatedVar<Vector3> IV_Origin = new("Origin");
 	public QAngle Rotation;
@@ -869,6 +907,33 @@ public partial class C_BaseEntity : IClientEntity
 
 	static readonly ConVar r_drawrenderboxes = new("r_drawrenderboxes", "0", FCvar.Cheat);
 
+#if DEBUG
+	internal static readonly ConVar sdn_entdebug = new("sdn_entdebug", "0");
+
+	internal static void DrawEntityDebugOverlays() {
+		if (!sdn_entdebug.GetBool())
+			return;
+
+		Span<char> text = stackalloc char[256];
+		int highest = cl_entitylist.GetHighestEntityIndex();
+		for (int i = 0; i <= highest; i++) {
+			C_BaseEntity? ent = cl_entitylist.GetBaseEntity(i);
+			if (ent == null)
+				continue;
+
+			text.Clear();
+
+			ref readonly Vector3 origin = ref ent.GetAbsOrigin();
+			sprintf(text, "[%d] %s midx=%d model=%s (%d %d %d)%s")
+				.D(i).S(ent.GetClassname()).D(ent.ModelIndex).S(ent.Model == null ? "NULL" : "ok")
+				.D((int)origin.X).D((int)origin.Y).D((int)origin.Z)
+				.S(ent.ShouldDraw() ? "" : ent.IsEffectActive(EntityEffects.NoDraw) ? " EF_NODRAW" : " NODRAW");
+
+			debugoverlay.AddTextOverlay(in origin, i & 14, 0, text.SliceNullTerminatedString());
+		}
+	}
+#endif
+
 	public void DrawBBoxVisualizations() {
 		if (r_drawrenderboxes.GetInt() != 0) {
 			GetRenderBounds(out Vector3 vecRenderMins, out Vector3 vecRenderMaxs);
@@ -905,6 +970,36 @@ public partial class C_BaseEntity : IClientEntity
 		return ref AbsRotation;
 	}
 	public ref readonly Vector3 GetViewOffset() => ref ViewOffset;
+
+	public virtual bool GetSoundSpatialization(ref SpatializationInfo info) {
+		if (EntIndex() == 0)
+			return true;
+
+		if (IsDormant())
+			return false;
+
+		Model? model = GetModel();
+
+		if (!Unsafe.IsNullRef(ref info.Radius))
+			info.Radius = modelinfo.GetModelRadius(model);
+
+		if (!Unsafe.IsNullRef(ref info.Origin)) {
+			info.Origin = GetAbsOrigin();
+
+			if (modelinfo.GetModelType(model) == ModelType.Brush) {
+				modelinfo.GetModelBounds(model, out Vector3 mins, out Vector3 maxs);
+				MathLib.VectorAdd(mins, maxs, out Vector3 center);
+				MathLib.VectorScale(center, 0.5f, out center);
+
+				info.Origin += center;
+			}
+		}
+
+		if (!Unsafe.IsNullRef(ref info.Angles))
+			info.Angles = GetAbsAngles();
+
+		return true;
+	}
 
 	public virtual ClientClass GetClientClass() => ClientClassRetriever.GetOrError(GetType());
 
@@ -1637,6 +1732,18 @@ public partial class C_BaseEntity : IClientEntity
 
 	ClientRenderHandle_t renderHandle;
 
+	public virtual void ComputeWorldSpaceSurroundingBox(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) {
+		Assert(false);
+		vecWorldMins = default;
+		vecWorldMaxs = default;
+	}
+
+	public void MarkRenderHandleDirty() {
+		ClientRenderHandle_t handle = GetRenderHandle();
+		if (handle != INVALID_CLIENT_RENDER_HANDLE)
+			clientLeafSystem.RenderableChanged(handle);
+	}
+
 	public ClientRenderHandle_t GetRenderHandle() => renderHandle;
 	public ref ClientRenderHandle_t RenderHandle() => ref renderHandle;
 
@@ -1665,7 +1772,7 @@ public partial class C_BaseEntity : IClientEntity
 			clientLeafSystem.RemoveRenderable(renderHandle);
 			renderHandle = INVALID_CLIENT_RENDER_HANDLE;
 		}
-		// DestroyShadow();
+		DestroyShadow();
 	}
 
 
@@ -1797,7 +1904,26 @@ public partial class C_BaseEntity : IClientEntity
 	}
 
 	private void CreateShadow() {
+		ShadowType shadowType = ShadowCastType();
+		if (shadowType == ShadowType.None)
+			DestroyShadow();
+		else {
+			if (ShadowHandle == CLIENTSHADOW_INVALID_HANDLE) {
+				int flags = (int)ShadowFlags.Shadow;
+				if (shadowType != ShadowType.Simple)
+					flags |= (int)ClientShadowFlags.UseRenderToTexture;
+				if (shadowType == ShadowType.RenderToTextureDynamic)
+					flags |= (int)ClientShadowFlags.AnimatingSource;
+				ShadowHandle = g_ClientShadowMgr.CreateShadow(GetClientHandle(), flags);
+			}
+		}
+	}
 
+	private void DestroyShadow() {
+		if (ShadowHandle != CLIENTSHADOW_INVALID_HANDLE) {
+			g_ClientShadowMgr.DestroyShadow(ShadowHandle);
+			ShadowHandle = CLIENTSHADOW_INVALID_HANDLE;
+		}
 	}
 
 	public virtual void Spawn() { }
@@ -2381,7 +2507,7 @@ public partial class C_BaseEntity : IClientEntity
 	public bool IsVisible() => renderHandle != INVALID_CLIENT_RENDER_HANDLE;
 
 
-	public bool IsFollowingEntity() => IsEffectActive(EntityEffects.BoneMerge) && (GetMoveType() != Source.MoveType.None && GetMoveParent() != null);
+	public bool IsFollowingEntity() => IsEffectActive(EntityEffects.BoneMerge) && (GetMoveType() == Source.MoveType.None) && GetMoveParent() != null;
 
 	public virtual C_BaseEntity? GetFollowedEntity() {
 		if (!IsFollowingEntity())
@@ -2607,7 +2733,9 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual Vector3 GetSoundEmissionOrigin() => WorldSpaceCenter();
 
 	public static void EmitSound<IRF>(scoped in IRF filter, int entIndex, scoped in EmitSound_t parms) where IRF : IRecipientFilter {
-
+		C_BaseEntity? entity = cl_entitylist.GetEnt(entIndex);
+		entity?.ModifyEmitSoundParams(ref Unsafe.AsRef(in parms));
+		g_SoundEmitterSystem.EmitSound(filter, entIndex, ref Unsafe.AsRef(in parms));
 	}
 
 
@@ -2819,7 +2947,7 @@ public partial class C_BaseEntity : IClientEntity
 		}
 	}
 
-	ClientShadowHandle_t ShadowHandle = 0;
+	ClientShadowHandle_t ShadowHandle = CLIENTSHADOW_INVALID_HANDLE;
 
 	public bool UsesPowerOfTwoFrameBufferTexture() => false;
 	public bool UsesFullFrameBufferTexture() => false;
@@ -2836,7 +2964,7 @@ public partial class C_BaseEntity : IClientEntity
 		EntClientFlags &= ~EntClientFlags.GettingShadowRenderBounds;
 	}
 
-	public Color GetRenderColor() => new(255, 255, 255, 255);
+	public Color GetRenderColor() => ColorRender;
 	public RenderMode GetRenderMode() => (RenderMode)RenderMode;
 
 	public bool ShouldReceiveProjectedTextures(ShadowFlags flags) {
@@ -2861,21 +2989,19 @@ public partial class C_BaseEntity : IClientEntity
 		return true;
 	}
 
-	public bool GetShadowCastDistance(out float dist, ShadowType shadowType) {
+	public bool GetShadowCastDistance(ref float dist, ShadowType shadowType) {
 		if (ShadowCastDistance != 0.0f) {
 			dist = ShadowCastDistance;
 			return true;
 		}
-		dist = default;
 		return false;
 	}
 
 	EHANDLE ShadowDirUseOtherEntity = default;
 
-	public bool GetShadowCastDirection(out Vector3 direction, ShadowType shadowType) {
+	public bool GetShadowCastDirection(ref Vector3 direction, ShadowType shadowType) {
 		if (ShadowDirUseOtherEntity.Get() != null)
-			return ShadowDirUseOtherEntity.Get()!.GetShadowCastDirection(out direction, shadowType);
-		direction = default;
+			return ShadowDirUseOtherEntity.Get()!.GetShadowCastDirection(ref direction, shadowType);
 		return false;
 	}
 
@@ -2902,7 +3028,7 @@ public partial class C_BaseEntity : IClientEntity
 		return parent?.GetClientRenderable();
 	}
 
-	public ShadowType ShadowCastType() {
+	public virtual ShadowType ShadowCastType() {
 		if (IsEffectActive(EntityEffects.NoDraw | EntityEffects.NoShadow))
 			return ShadowType.None;
 
@@ -2915,8 +3041,10 @@ public partial class C_BaseEntity : IClientEntity
 	public virtual int LookupAttachment(ReadOnlySpan<char> attachmentName) => -1;
 
 	public Span<float> GetRenderClipPlane() {
-		// todo
-		return null;
+		if (EnableRenderingClipPlane)
+			return RenderingClipPlane;
+		else
+			return null;
 	}
 
 	public virtual int GetSkin() => 0;

@@ -269,8 +269,9 @@ public interface IShaderShadow
 	void VertexShaderVertexFormat(VertexFormat format, int texCoordCount, Span<int> texCoordDimensions, int userDataSize);
 
 	// Pixel and vertex shader methods
-	void SetVertexShader(ReadOnlySpan<char> fileName);
-	void SetPixelShader(ReadOnlySpan<char> fileName);
+	void SetVertexShader(ReadOnlySpan<char> fileName, int staticIndex = 0);
+	void SetPixelShader(ReadOnlySpan<char> fileName, int staticIndex = 0);
+	int GetStaticComboScale(ShaderType type, ReadOnlySpan<char> fileName, ReadOnlySpan<char> name);
 
 	// Todo.
 	void EnableVertexBlend(bool enable);
@@ -323,4 +324,6 @@ public interface IShaderShadow
 
 	ShaderFlags GetFlags();
 	void SetFlags(ShaderFlags flags);
+	void EnableSRGBRead(Sampler sampler, bool state);
+	void EnableSRGBWrite(bool state);
 }

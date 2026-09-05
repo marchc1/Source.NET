@@ -133,14 +133,49 @@ public abstract class DatatableStack
 		ObjectID = objectID;
 	}
 
+	protected static readonly object Uncomputed = new();
+
 	public void Init(bool explicitRoutes = false) {
 		if (explicitRoutes) {
-
+			int count = Precalc.ProxyPaths.Count;
+			for (int i = 0; i < count; i++)
+				Proxies[i] = Uncomputed;
 		}
 		else {
 			RecurseAndCallProxies(Precalc.Root, Instance);
 		}
 		Initted = true;
+	}
+
+	protected virtual object? CallExplicitProxy(object structBase, int datatableProp) {
+		SendProp prop = Precalc.GetDatatableProp(datatableProp)!;
+		return prop.GetDataTableProxyFn()(prop, structBase, prop.FieldInfo, s_Recipients, GetObjectID());
+	}
+
+	public object? UpdateRoutesExplicit() {
+		ushort iPropProxyIndex = Precalc.PropProxyIndices[CurPropIndex];
+		if (!ReferenceEquals(Proxies[iPropProxyIndex], Uncomputed))
+			return Proxies[iPropProxyIndex];
+
+		object? structBase = Instance;
+
+		SendTablePrecalc.ProxyPath proxyPath = Precalc.ProxyPaths[iPropProxyIndex];
+		for (ushort i = 0; i < proxyPath.Entries; i++) {
+			SendTablePrecalc.ProxyPathEntry entry = Precalc.ProxyPathEntries[proxyPath.FirstEntry + i];
+			int iProxy = entry.Proxy;
+
+			if (ReferenceEquals(Proxies[iProxy], Uncomputed)) {
+				Proxies[iProxy] = CallExplicitProxy(structBase!, entry.DataTableProp);
+				if (Proxies[iProxy] == null) {
+					Proxies[iPropProxyIndex] = null;
+					break;
+				}
+			}
+
+			structBase = Proxies[iProxy];
+		}
+
+		return structBase;
 	}
 
 	public virtual void RecurseAndCallProxies(SendNode node, object? instance) {
@@ -210,6 +245,13 @@ public class ClientDatatableStack : DatatableStack
 		}
 	}
 
+	protected override object? CallExplicitProxy(object structBase, int datatableProp) {
+		RecvProp prop = Decoder.GetDatatableProp(datatableProp);
+		prop.GetDataTableProxyFn()(prop, out object? val, structBase, prop.FieldInfo, GetObjectID());
+		return val;
+	}
+
+	// TODO: Review why this wasn't overridden. There may have been a good reason for it, I forget. But it's giving compiler warnings.
 	private object? CallPropProxy(SendNode curChild, int prop, object instance) {
 		RecvProp recvProp = Decoder.GetDatatableProp(prop);
 
@@ -229,6 +271,13 @@ public class ClientDatatableStack : DatatableStack
 		return val;
 	}
 }
+
+public class ServerDatatableStack : DatatableStack
+{
+	public ServerDatatableStack(SendTablePrecalc precalc, object instance, int objectID) : base(precalc, instance, objectID) {
+	}
+}
+
 [EngineComponent]
 public class EngineRecvTable(DtCommonEng DtCommonEng)
 {
@@ -281,7 +330,7 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 		ClientDatatableStack theStack = new(decoder, instance, objectID);
 
 		theStack.Init();
-		int iStartBit = 0, nIndexBits = 0, iLastBit = inRead.BitsRead;
+		int /* iStartBit = 0, nIndexBits = 0, */ iLastBit = inRead.BitsRead;
 		uint iProp;
 		using DeltaBitsReader deltaBitsReader = new(inRead);
 		//decoder.DumpNames();
@@ -292,12 +341,12 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 			//Msg($"  - decoding: {(recvProp == null ? "NULL PROP???" : recvProp.GetName())}\n");
 
 			DecodeInfo decodeInfo = new();
-			decodeInfo.Object = theStack.GetCurStructBase();
+			decodeInfo.Object = theStack.GetCurStructBase()! /* validate? */;
 
 			if (recvProp != null)
 				decodeInfo.FieldInfo = recvProp.FieldInfo;
 			else
-				decodeInfo.FieldInfo = null;
+				decodeInfo.FieldInfo = null!; 
 
 #if DUMP_DECODE_DEBUGGING_INFO
 			if (!OKDatatables.Contains(table.GetName().Hash()))
@@ -307,7 +356,7 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 					DevMsg($"Decoding [{iProp}] {table.GetName()}/{(recvProp != null ? recvProp.GetName() : "<NULL NAME>")} for {instance}\n");
 #endif
 
-			decodeInfo.RecvProxyData.RecvProp = theStack.IsCurProxyValid() ? recvProp : null;
+			decodeInfo.RecvProxyData.RecvProp = theStack.IsCurProxyValid() ? recvProp! : null!;
 			decodeInfo.Prop = decoder.GetSendProp((int)iProp);
 			decodeInfo.In = inRead;
 			decodeInfo.RecvProxyData.ObjectID = objectID;
@@ -317,14 +366,14 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 
 		return !inRead.Overflowed;
 	}
-	public int MergeDeltas(RecvTable table, bf_read? oldState, bf_read newState, bf_write outState, int objectID = -1, Span<int> changedProps = default, bool updateDTI = false) {
+	public int MergeDeltas(RecvTable? table, bf_read? oldState, bf_read newState, bf_write outState, int objectID = -1, Span<int> changedProps = default, bool updateDTI = false) {
 		using DeltaBitsReader oldStateReader = new(oldState);
 		using DeltaBitsReader newStateReader = new(newState);
 
 		using DeltaBitsWriter deltaBitsWriter = new(outState);
 
-		RecvDecoder? decoder = table.Decoder;
-		ErrorIfNot(decoder != null, $"RecvTable_MergeDeltas: table '{table.GetName()}' is missing its decoder.");
+		RecvDecoder? decoder = table?.Decoder;
+		ErrorIfNot(decoder != null, $"RecvTable_MergeDeltas: table '{(table == null ? "<NULL>" : table.GetName())}' is missing its decoder.");
 
 		int changed = 0;
 
@@ -332,7 +381,7 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 		if (oldState != null)
 			oldProp = oldStateReader.ReadNextPropIndex();
 
-		int iStartBit = 0, nIndexBits = 0, iLastBit = newState.BitsRead;
+		int /* iStartBit = 0, nIndexBits = 0, */ iLastBit = newState.BitsRead;
 
 		uint newProp = newStateReader.ReadNextPropIndex();
 
@@ -365,7 +414,7 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 
 		Assert(changed <= Constants.MAX_DATATABLE_PROPS);
 
-		ErrorIfNot(!(oldState != null && oldState.Overflowed) && !newState.Overflowed && !outState.Overflowed, $"RecvTable_MergeDeltas: overflowed in RecvTable '{table.GetName()}'.");
+		ErrorIfNot(!(oldState != null && oldState.Overflowed) && !newState.Overflowed && !outState.Overflowed, $"RecvTable_MergeDeltas: overflowed in RecvTable '{(table == null ? "<NULL>" : table.GetName())}'.");
 
 		return changed;
 	}
@@ -514,13 +563,13 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 	}
 
 	private void CopySendPropsToRecvProps(Dictionary<SendProp, RecvProp> lookup, List<SendProp> sendProps, List<RecvProp> recvProps) {
-		recvProps.SetSize(sendProps.Count);
+		recvProps!.SetSize(sendProps.Count); // justified suppression since below statement handles it
 		for (int i = 0; i < sendProps.Count; i++) {
 			SendProp sendProp = sendProps[i];
 			if (!lookup.TryGetValue(sendProp, out RecvProp? recv))
 				recvProps[i] = null!;
 			else
-				recvProps[i] = recv == null ? throw new NullReferenceException() : recv;
+				recvProps[i] = recv ?? throw new NullReferenceException();
 		}
 	}
 }

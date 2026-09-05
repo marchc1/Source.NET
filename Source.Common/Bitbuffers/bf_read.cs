@@ -68,25 +68,25 @@ public unsafe class bf_read : BitBuffer
 		overflow = other.overflow;
 	}
 
-	public bf_read(byte[] pData, uint bytes) {
+	public bf_read(byte[]? pData, uint bytes) {
 		StartReading(pData, (int)bytes, 0);
 	}
 
-	public bf_read(byte[] pData, int bytes) {
+	public bf_read(byte[]? pData, int bytes) {
 		StartReading(pData, bytes, 0);
 	}
 
-	public bf_read(byte[] pData, int bytes, int bits) {
+	public bf_read(byte[]? pData, int bytes, int bits) {
 		StartReading(pData, bytes, 0, bits);
 	}
 
-	public bf_read(string name, byte[] pData, int bytes, int bits = 0) {
+	public bf_read(string name, byte[]? pData, int bytes, int bits = 0) {
 		debugName = name;
 		StartReading(pData, bytes, 0, bits);
 	}
 
 
-	public void StartReading(byte[] pData, int bytes, int startBit = 0, int bits = -1) {
+	public void StartReading(byte[]? pData, int bytes, int startBit = 0, int bits = -1) {
 		data = pData;
 		dataBytes = bytes;
 
@@ -120,15 +120,11 @@ public unsafe class bf_read : BitBuffer
 		return r;
 	}
 
-	public void ReadBits(byte[] pOutData, int nBits) {
-		fixed (byte* pOutRO = pOutData) {
-			ReadBits(new Span<byte>(pOutRO, pOutData.Length), nBits);
-		}
-	}
+	public void ReadBits(byte[] pOutData, int nBits) => ReadBits(pOutData.AsSpan(), nBits);
 
-	public int ReadBitsClamped(byte[] pOut, uint nBits) => ReadBitsClamped_ptr(pOut, (uint)pOut.Length, nBits);
+	public int ReadBitsClamped(Span<byte> pOut, uint nBits) => ReadBitsClamped_ptr(pOut, (uint)pOut.Length, nBits);
 
-	private int ReadBitsClamped_ptr(byte[] pOutData, uint outSizeBytes, uint nBits) {
+	private int ReadBitsClamped_ptr(Span<byte> pOutData, uint outSizeBytes, uint nBits) {
 		uint outSizeBits = outSizeBytes * 8;
 		uint readSizeBits = nBits;
 		int skippedBits = 0;
@@ -432,12 +428,12 @@ public unsafe class bf_read : BitBuffer
 		int numbits = 0;
 
 		if (bIntegral) {
-			if ((flags & ReadBitCoordMPBitsFlags.INTVAL) != 0) 
+			if ((flags & ReadBitCoordMPBitsFlags.INTVAL) != 0)
 				numbits = (flags & ReadBitCoordMPBitsFlags.INBOUNDS) != 0 ? 1 + (int)COORD_INTEGER_BITS_MP : 1 + (int)COORD_INTEGER_BITS;
-			else 
+			else
 				return (uint)flags; // no extra bits
 		}
-		else 
+		else
 			numbits = ReadBitCoordMPBits_numbits_table[(uint)flags + (bLowPrecision ? 1u : 0u) * 4];
 
 		return (uint)flags + ReadUBitLong(numbits) * 4;
@@ -649,7 +645,7 @@ public unsafe class bf_read : BitBuffer
 	public bool SeekRelative(int bitDelta) => Seek(curBit + bitDelta);
 
 	public int ReadOneBitNoCheck() {
-		byte value = (byte)(data[curBit >> 3] >> (curBit & 7));
+		byte value = (byte)(data![curBit >> 3] >> (curBit & 7));
 		++curBit;
 		return value & 1;
 	}

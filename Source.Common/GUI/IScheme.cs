@@ -32,6 +32,7 @@ public interface ISchemeManager
 	IScheme GetDefaultScheme();
 	IScheme GetScheme(ReadOnlySpan<char> tag);
 	IImage? GetImage(ReadOnlySpan<char> imageName, bool hardwareFiltered);
+	IImage? GetImage(ReadOnlySpan<char> imageName, bool hardwareFiltered, bool proportional);
 	void Shutdown(bool full = true);
 	int GetProportionalScaledValue(int normalized);
 	int GetProportionalNormalizedValue(int scaled);

@@ -125,8 +125,8 @@ public class LightmappedGeneric : BaseVSShader
 
 		LoadTexture((int)ShaderMaterialVars.FlashLightTexture);
 
-		// if (ShouldUseBumpmapping(Params))
-		// 	LoadBumpMap(BUMPMAP);
+		if (ShouldUseBumpmapping(vars))
+			LoadBumpMap(BUMPMAP);
 
 		InitUnlitGeneric((int)ShaderMaterialVars.BaseTexture, DETAIL, ENVMAP, ENVMAPMASK);
 		if (vars[(int)ShaderMaterialVars.BaseTexture].IsDefined()) {
@@ -157,7 +157,7 @@ public class LightmappedGeneric : BaseVSShader
 			SetFlags2(Params!, MaterialVarFlags2.NeedsTangentSpaces);
 	}
 	protected override void OnDrawElements(IMaterialVar[] vars, IShaderDynamicAPI shaderAPI, VertexCompressionType vertexCompression) {
-		bool hasFlashlight = false; // UsingFlashlight(Params!);
+		bool hasFlashlight = UsingFlashlight(Params!);
 		bool bump = ShouldUseBumpmapping(Params!) && Params![BUMPMAP].IsTexture() && Params![NODIFFUSEBUMPLIGHTING].GetIntValue() == 0;
 		bool ssBump = bump && Params![SSBUMP].GetIntValue() != 0;
 

@@ -13,6 +13,7 @@ using Source.Common.Engine;
 using Source.Common.Filesystem;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Mathematics;
+using Source.Common.Networking;
 using Source.Common.Server;
 
 using System.Numerics;
@@ -196,6 +197,10 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		services.AddSingleton<BaseEntityList>(x => x.GetRequiredService<GlobalEntityList>());
 	}
 
+	public PrepareLevelResourcesResult AsyncPrepareLevelResources(Span<char> mapName, Span<char> mapFile, out float progress) {
+		throw new NotImplementedException();
+	}
+
 	public void BuildAdjacentMapList() {
 		throw new NotImplementedException();
 	}
@@ -213,6 +218,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 
 		gameeventmanager.LoadEventsFromFile("resource/gameevents.res");
 
+		IGameSystem.Add(g_SoundEmitterSystem);
 		IGameSystem.Add(PhysicsGameSystem());
 
 		if (!IGameSystem.InitAllSystems())
@@ -334,6 +340,18 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		return true;
 	}
 
+	public bool GMOD_CheckPassword(Steamworks.CSteamID steamID, ReadOnlySpan<char> ipAddress, ReadOnlySpan<char> serverPassword, ReadOnlySpan<char> clientPassword, ReadOnlySpan<char> name, Span<char> rejectionMessage) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_ClientSignOnStateChanged(int userID, int oldState, int newState) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_OnAllSoundsStoppedSV() {
+		throw new NotImplementedException();
+	}
+
 	public void InvalidateMdlCache() {
 		throw new NotImplementedException();
 	}
@@ -448,6 +466,10 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		IGameSystem.PreClientUpdateAllSystems();
 	}
 
+	public void PrepareLevelResources(Span<char> mapName, Span<char> mapFile) {
+		throw new NotImplementedException();
+	}
+
 	public void PreSaveGameLoaded(ReadOnlySpan<char> pSaveName, bool bCurrentlyInGame) {
 		throw new NotImplementedException();
 	}
@@ -482,6 +504,8 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 	public void Think(bool finalTick) {
 
 	}
+
+	public StandardSendProxies GetStandardSendProxies() => StandardSendProxies.g_StandardSendProxies;
 }
 
 
@@ -603,6 +627,20 @@ public class ServerGameClients : IServerGameClients
 
 	public static int CommandClientIndex = 0;
 	public void SetCommandClient(int index) => CommandClientIndex = index;
+
+	public void GMOD_SentClientStringTables(IClient client) {
+		INetChannel netchan = client.GetNetChannel()!;
+		SVC_GMod_ServerToClient msg = new SVC_GMod_ServerToClient(GModMessageType.RequestLuaFiles);
+		netchan.SendNetMsg(msg);
+	}
+
+	public void GMOD_ReceiveClientMessage(int userID, Edict player, bf_read msg, int bits) {
+		throw new NotImplementedException();
+	}
+
+	public void GMOD_ClientConnected(int userID) {
+		throw new NotImplementedException();
+	}
 }
 
 public class ServerGameEnts : IServerGameEnts

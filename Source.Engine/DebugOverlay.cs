@@ -131,6 +131,7 @@ public class DebugOverlay : IVDebugOverlay
 
 	static readonly object s_OverlayMutex = new();
 	static OverlayBase? s_pOverlays;
+	static OverlayText? s_pOverlayText;
 
 	public void AddBoxOverlay(in Vector3 origin, in Vector3 mins, in Vector3 maxs, in QAngle angles, int r, int g, int b, int a, float duration) {
 		if (cl.IsPaused())
@@ -212,11 +213,47 @@ public class DebugOverlay : IVDebugOverlay
 	}
 
 	public void AddTextOverlay(in Vector3 origin, float duration, ReadOnlySpan<char> text) {
-		// throw new NotImplementedException();
+		if (cl.IsPaused())
+			return;
+
+		lock (s_OverlayMutex) {
+			OverlayText new_overlay = new();
+
+			MathLib.VectorCopy(origin, out new_overlay.Origin);
+			strcpy(new_overlay.Text, text);
+			new_overlay.UseOrigin = true;
+			new_overlay.LineOffset = 0;
+			new_overlay.SetEndTime(duration);
+			new_overlay.R = 255;
+			new_overlay.G = 255;
+			new_overlay.B = 255;
+			new_overlay.A = 255;
+
+			new_overlay.NextOverlayText = s_pOverlayText;
+			s_pOverlayText = new_overlay;
+		}
 	}
 
 	public void AddTextOverlay(in Vector3 origin, int line_offset, float duration, ReadOnlySpan<char> text) {
-		throw new NotImplementedException();
+		if (cl.IsPaused())
+			return;
+
+		lock (s_OverlayMutex) {
+			OverlayText new_overlay = new();
+
+			MathLib.VectorCopy(origin, out new_overlay.Origin);
+			strcpy(new_overlay.Text, text);
+			new_overlay.UseOrigin = true;
+			new_overlay.LineOffset = line_offset;
+			new_overlay.SetEndTime(duration);
+			new_overlay.R = 255;
+			new_overlay.G = 255;
+			new_overlay.B = 255;
+			new_overlay.A = 255;
+
+			new_overlay.NextOverlayText = s_pOverlayText;
+			s_pOverlayText = new_overlay;
+		}
 	}
 
 	public void AddTextOverlay(in Vector3 origin, int line_offset, float duration, int r, int g, int b, int a, ReadOnlySpan<char> text) {
@@ -261,7 +298,7 @@ public class DebugOverlay : IVDebugOverlay
 				s_pOverlays = s_pOverlays.NextOverlay;
 				DestroyOverlay(pOldOverlay);
 			}
-			// todo: overlay text
+			s_pOverlayText = null;
 		}
 
 		s_bDrawGrid = false;
@@ -270,23 +307,57 @@ public class DebugOverlay : IVDebugOverlay
 	void IVDebugOverlay.ClearAllOverlays() => DebugOverlay.ClearAllOverlays();
 
 	public void ClearDeadOverlays() {
-		throw new NotImplementedException();
+		lock (s_OverlayMutex) {
+			OverlayText? currText = s_pOverlayText;
+			OverlayText? lastText = null;
+
+			while (currText != null) {
+				if (currText.IsDead()) {
+					if (lastText != null)
+						lastText.NextOverlayText = currText.NextOverlayText;
+					else
+						s_pOverlayText = currText.NextOverlayText;
+
+					currText = currText.NextOverlayText;
+				}
+				else {
+					lastText = currText;
+					currText = currText.NextOverlayText;
+				}
+			}
+		}
 	}
 
-	public OverlayText? GetFirst() {
-		throw new NotImplementedException();
-	}
+	public OverlayText? GetFirst() => s_pOverlayText;
 
-	public OverlayText? GetNext(OverlayText? current) {
-		throw new NotImplementedException();
-	}
+	public OverlayText? GetNext(OverlayText? current) => current!.NextOverlayText;
 
 	public int ScreenPosition(in Vector3 point, out Vector3 screen) {
-		throw new NotImplementedException();
+		lock (s_OverlayMutex) {
+			int retval = g_EngineRenderer.ClipTransform(point, out screen) ? 1 : 0;
+
+			materials.GetRenderContext().GetViewport(out int x, out int y, out int w, out int h);
+
+			screen[0] = screen[0] * w / 2;
+			screen[1] = -screen[1] * h / 2;
+			screen[0] += w / 2;
+			screen[1] += h / 2;
+			return retval;
+		}
 	}
 
 	public int ScreenPosition(float xPos, float yPos, out Vector3 screen) {
-		throw new NotImplementedException();
+		screen = default;
+		if (xPos > 1.0 || yPos > 1.0 || xPos < 0.0 || yPos < 0.0)
+			return 1;
+
+		lock (s_OverlayMutex) {
+			materials.GetRenderContext().GetViewport(out int x, out int y, out int w, out int h);
+
+			screen[0] = xPos * w;
+			screen[1] = yPos * h;
+			return 0;
+		}
 	}
 
 	static readonly ConVar enable_debug_overlays = new("enable_debug_overlays", "1", FCvar.GameDLL | FCvar.Cheat, "Enable rendering of debug overlays");

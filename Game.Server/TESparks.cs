@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TESparks>;
-public class TESparks : TEParticleSystem
+public class TESparks(ReadOnlySpan<char> name) : TEParticleSystem(name)
 {
 	public static readonly SendTable DT_TESparks = new(DT_TEParticleSystem, [
 		SendPropInt(FIELD.OF(nameof(Magnitude)), 4, PropFlags.Unsigned),

@@ -223,11 +223,18 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 	}
 
 	public void AddShadowToStaticProp(ushort shadowHandle, IClientRenderable renderable) {
-		throw new NotImplementedException();
+		Assert(renderable as StaticProp != null);
+
+		StaticProp prop = (StaticProp)renderable;
+
+		g_ShadowMgr.AddShadowToModel(shadowHandle, prop.GetModelInstance());
 	}
 
 	public void RemoveAllShadowsFromStaticProp(IClientRenderable renderable) {
-		throw new NotImplementedException();
+		Assert(renderable as StaticProp != null);
+		StaticProp prop = (StaticProp)renderable;
+		if (prop.GetModelInstance() != MODEL_INSTANCE_INVALID)
+			g_ShadowMgr.RemoveAllShadowsFromModel(prop.GetModelInstance());
 	}
 
 	public void GetStaticPropMaterialColorAndLighting(Trace trace, int staticPropIndex, out Vector3 lighting, out Vector3 matColor) {
@@ -323,15 +330,15 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 #endif
 	}
 
-	public void DrawStaticProps(IClientRenderable[] props, int count, bool shadowDepth, bool drawVCollideWireframe) {
+	public void DrawStaticProps(ref InlineArray512<IClientRenderable> props, int count, bool shadowDepth, bool drawVCollideWireframe) {
 		if (!r_drawstaticprops.GetBool())
 			return;
 
 		// todo: fast pipeline
-		DrawStaticProps_Slow(props, count, shadowDepth, drawVCollideWireframe);
+		DrawStaticProps_Slow(ref props, count, shadowDepth, drawVCollideWireframe);
 	}
 
-	void DrawStaticProps_Slow(IClientRenderable[] props, int count, bool shadowDepth, bool drawVCollideWireframe) {
+	void DrawStaticProps_Slow(ref InlineArray512<IClientRenderable> props, int count, bool shadowDepth, bool drawVCollideWireframe) {
 		StudioFlags flags = StudioFlags.Render;
 		if (shadowDepth)
 			flags |= StudioFlags.ShadowDepthTexture;
@@ -344,11 +351,11 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 		}
 	}
 
-	void DrawStaticProps_Fast(IClientRenderable[] props, int count, bool shadowDepth) => throw new NotImplementedException();
-	void DrawStaticProps_FastPipeline(IClientRenderable[] props, int count, bool shadowDepth) => throw new NotImplementedException();
+	void DrawStaticProps_Fast(ref InlineArray512<IClientRenderable> props, int count, bool shadowDepth) => throw new NotImplementedException();
+	void DrawStaticProps_FastPipeline(ref InlineArray512<IClientRenderable> props, int count, bool shadowDepth) => throw new NotImplementedException();
 
 	void OutputLevelStats() => throw new NotImplementedException();
-	void PrecacheLighting() {
+	void PrecacheLighting() { // FIXME: This is very slow... 
 		Common.TimestampedLog("CStaticPropMgr::PrecacheLighting - start");
 
 		for (int i = StaticProps.Count; --i >= 0;) {
@@ -436,8 +443,29 @@ public class StaticPropMgrImpl : IStaticPropMgrEngine, IStaticPropMgrClient, ISt
 					}
 				case 7:
 				case 10:
-					buf.ReadToStruct(ref lump);
+					if (MapLoadHelper.MapHeader.Version == 21) {
+						StaticPropLumpV10_21 v = default;
+						buf.ReadToStruct(ref v);
+						lump = v;
+					}
+					else {
+						StaticPropLumpV10 v = default;
+						buf.ReadToStruct(ref v);
+						lump = v;
+					}
 					break;
+				case 9: {
+						StaticPropLumpV9 v = default;
+						buf.ReadToStruct(ref v);
+						lump = v;
+						break;
+					}
+				case 11: {
+						StaticPropLumpV11 v = default;
+						buf.ReadToStruct(ref v);
+						lump = v;
+						break;
+					}
 				default:
 					Sys.Error($"Unexpected lump version {lumpVersion} while deserializing lumps.");
 					break;
@@ -692,8 +720,8 @@ public class StaticProp : IClientUnknown, IClientRenderable, ICollideable
 		else
 			return false;
 	}
-	public bool GetShadowCastDistance(out float dist, ShadowType shadowType) { dist = 0; return false; }
-	public bool GetShadowCastDirection(out Vector3 direction, ShadowType shadowType) { direction = default; return false; }
+	public bool GetShadowCastDistance(ref float dist, ShadowType shadowType) { return false; }
+	public bool GetShadowCastDirection(ref Vector3 direction, ShadowType shadowType) { return false; }
 	public bool UsesPowerOfTwoFrameBufferTexture() => throw new NotImplementedException();
 	public bool UsesFullFrameBufferTexture() => throw new NotImplementedException();
 	public ClientShadowHandle_t GetShadowHandle() => unchecked((ClientShadowHandle_t)~0);

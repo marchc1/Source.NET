@@ -752,8 +752,49 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return true;
 	}
 
-	public void HandleUpload(DataFragments buffer, INetChannelHandler handler) {
-		// todo
+	public void HandleUpload(DataFragments data, INetChannelHandler handler) {
+		string? errorStr = null;
+
+		ConVar? allowUpload = cvar.FindVar("sv_allowupload");
+		if (allowUpload != null && !allowUpload.GetBool()) {
+			errorStr = "ignored. File uploads are disabled!";
+		}
+		else if (data.Filename == null || !IsValidFileForTransfer(data.Filename)) {
+			errorStr = "has invalid path or extension!";
+		}
+		else {
+			const string pathID = "download";
+
+			if (g_pFileSystem.FileExists(data.Filename, pathID)) {
+				errorStr = "already exists!";
+			}
+			else {
+				ReadOnlySpan<char> filename = data.Filename;
+				int lastSlash = filename.LastIndexOfAny('/', '\\');
+				if (lastSlash > 0)
+					g_pFileSystem.CreateDirHierarchy(filename[..lastSlash], pathID);
+
+				data.File = g_pFileSystem.Open(data.Filename, Filesystem.FileOpenOptions.Write | Filesystem.FileOpenOptions.Binary, pathID);
+
+				if (data.File == null) {
+					errorStr = "failed to write!";
+				}
+				else {
+					if (data.Buffer != null)
+						data.File.Stream.Write(data.Buffer, 0, (int)data.Bytes);
+					data.File.Dispose();
+					data.File = null;
+
+					if (Net.net_showfragments.GetInt() == 2)
+						DevMsg($"FileReceived: {data.Filename}, {data.Bytes} bytes (ID {data.TransferID})\n");
+
+					handler.FileReceived(data.Filename, data.TransferID);
+				}
+			}
+		}
+
+		if (errorStr != null)
+			Msg($"Download file '{data.Filename}' {errorStr}\n");
 	}
 
 	public void UncompressFragments(DataFragments data) {
@@ -791,12 +832,13 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 		if (cmd == NET.File) {
 			uint transferID = buf.ReadUBitLong(32);
-			buf.ReadString(out str, 1024);
-			if (buf.ReadOneBit() != 0 && false) {
-				MessageHandler.FileRequested(str, transferID);
+			if (buf.ReadOneBit() == 0) {
+				MessageHandler?.FileDenied(transferID);
 			}
 			else {
-				MessageHandler?.FileDenied(str, transferID);
+				RequestFile type = (RequestFile)buf.ReadOneBit();
+				uint value = buf.ReadUBitLong(32);
+				MessageHandler?.FileRequested(type, value, transferID);
 			}
 
 			return true;
@@ -1041,11 +1083,13 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 	public const int IN_RELIABLE_STATE_BITS = 16;
 
-	void CompressFragments(){
+	void CompressFragments() {
 		if (!UseCompression)
 			return;
 
 		// write fragemnts for both streams
+		Span<char> compressedfilenameBuffer = stackalloc char[MAX_OSPATH];
+
 		for (int i = 0; i < (int)FragmentStream.Max; i++) {
 			if (WaitingList[i].Count == 0)
 				continue;
@@ -1090,12 +1134,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 			{
 				Assert(data.File != null);
 
-				Span<char> compressedfilename = stackalloc char[MAX_OSPATH];
 				long compressedFileSize = -1;
 				IFileHandle? hZipFile = null;
 
 				// check to see if there is a compressed version of the file
-				sprintf(compressedfilename, "%s.ztmp").S(data.Filename);
+				ReadOnlySpan<char> compressedfilename = sprintf(compressedfilenameBuffer, "%s.ztmp").S(data.Filename).ToSpan();
 
 				// check the timestamps 
 				DateTime compressedFileTime = g_pFileSystem.GetFileTime(compressedfilename);
@@ -1121,7 +1164,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 					Span<byte> compressed = compressedArray.AsSpan();
 
 					// read in source file
-					data.File!.Stream.Read(uncompressed);
+					data.File!.Stream.ReadExactly(uncompressed);
 
 					// compress into buffer
 					if (Source.Engine.Common.BufferToBufferCompress_Snappy(ref compressed, uncompressed)) {
@@ -1261,7 +1304,11 @@ public class NetChannel : INetChannelInfo, INetChannel
 			else // if ( data->file != FILESYSTEM_INVALID_HANDLE )
 			{
 				// send from file
-				throw new Exception("Cannot upload file syet!!!");
+				Assert(data.File != null);
+				Span<byte> tmpbuf = stackalloc byte[(int)length];
+				data.File.Stream.Seek(offset, SeekOrigin.Begin);
+				data.File.Stream.ReadExactly(tmpbuf[..(int)length]);
+				buf.WriteBytes(tmpbuf);
 			}
 
 			if (Net.net_showfragments.GetBool())
@@ -1587,38 +1634,35 @@ public class NetChannel : INetChannelInfo, INetChannel
 		uint offset = 0;
 		uint length = 0;
 
+		bool singleBlock = buf.ReadOneBit() == 0; // is single block ?
 
-		bool bSingleBlock = buf.ReadOneBit() == 0; // is single block ?
-
-		if (!bSingleBlock) {
+		if (!singleBlock) {
 			startFragment = (int)buf.ReadUBitLong(MAX_FILE_SIZE_BITS - FRAGMENT_BITS); // 16 MiB max
 			numFragments = (int)buf.ReadUBitLong(MAX_FRAGMENTS_PER_PACKET_BITS);  // 8 fragments per packet max
 			offset = (uint)(startFragment * FRAGMENT_SIZE);
 			length = (uint)(numFragments * FRAGMENT_SIZE);
 		}
 
-		if (offset == 0) // first fragment, read header info
-		{
+		// first fragment, read header info
+		if (offset == 0) {
 			data.Filename = null;
 			data.Compressed = false;
 			data.TransferID = 0;
 
-			if (bSingleBlock) {
+			if (singleBlock) {
 				// data compressed ?
 				if (buf.ReadOneBit() == 1) {
 					data.Compressed = true;
 					data.UncompressedSize = buf.ReadUBitLong(MAX_FILE_SIZE_BITS);
 				}
-				else {
+				else
 					data.Compressed = false;
-				}
 
 				data.Bytes = buf.ReadVarInt32();
 			}
 			else {
-
-				if (buf.ReadOneBit() == 1) // is it a file ?
-				{
+				// is it a file ?
+				if (buf.ReadOneBit() == 1) {
 					data.TransferID = buf.ReadUBitLong(32);
 					data.Filename = buf.ReadString(MAX_PATH);
 				}
@@ -1628,9 +1672,8 @@ public class NetChannel : INetChannelInfo, INetChannel
 					data.Compressed = true;
 					data.UncompressedSize = buf.ReadUBitLong(MAX_FILE_SIZE_BITS);
 				}
-				else {
+				else 
 					data.Compressed = false;
-				}
 
 				data.Bytes = buf.ReadUBitLong(MAX_FILE_SIZE_BITS);
 			}
@@ -1647,9 +1690,9 @@ public class NetChannel : INetChannelInfo, INetChannel
 			data.AsTCP = false;
 			data.NumFragments = BYTES2FRAGMENTS((int)data.Bytes);
 			data.AckedFragments = 0;
-			//data.file = FILESYSTEM_INVALID_HANDLE;
+			data.File = null;
 
-			if (bSingleBlock) {
+			if (singleBlock) {
 				numFragments = data.NumFragments;
 				length = (uint)(numFragments * FRAGMENT_SIZE);
 			}
@@ -1790,7 +1833,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 		Timeout = time;
 	}
 
-	public bool IsLoopback() => false;
+	public bool IsLoopback() => RemoteAddress.IsLoopback();
 	public TimeUnit_t GetAverageLatency(int flow) => DataFlow[flow].AverageLatency;
 	public TimeUnit_t GetAverageLoss(int flow) => DataFlow[flow].AverageLoss;
 	public TimeUnit_t GetAverageChoke(int flow) => DataFlow[flow].AverageChoke;
@@ -1874,12 +1917,10 @@ public class NetChannel : INetChannelInfo, INetChannel
 	}
 
 	public void ProcessPlayback() {
-		// TODO
-		// This requires two things:
-		// 1. This properly gets moved into the engine code (wasnt at the time, and I don't remember why)
-		// 2. Demoplayer subsystem/interface/etc...
+		// TODO: Demoplayer subsystem/interface/etc...
 		throw new NotImplementedException();
 	}
+
 	public bool ProcessStream() {
 		// If I remember correctly, Garry's Mod removed the TCP	socket entirely, and we currently dont support it in SDN anyway.
 		// I'm not sure if other Source games even really use it...
@@ -1998,7 +2039,7 @@ public class NetChannel : INetChannelInfo, INetChannel
 			return false;
 
 		if (!CreateFragmentsFromFile(sendfile, FragmentStream.File, transferID)) {
-			DenyFile(sendfile, transferID); // send host a deny message
+			DenyFile(transferID); // send host a deny message
 			return false;
 		}
 
@@ -2077,13 +2118,12 @@ public class NetChannel : INetChannelInfo, INetChannel
 		return true;
 	}
 
-	public void DenyFile(ReadOnlySpan<char> filename, uint transferID) {
+	public void DenyFile(uint transferID) {
 		if (Net.net_showfragments.GetInt() == 2)
-			DevMsg($"DenyFile: {filename} (ID {transferID})\n");
+			DevMsg($"DenyFile: (ID {transferID})\n");
 
 		StreamReliable.WriteUBitLong(NET.File, NETMSG_TYPE_BITS);
 		StreamReliable.WriteUBitLong(transferID, 32);
-		StreamReliable.WriteString(filename);
 		StreamReliable.WriteOneBit(0); // deny this file
 	}
 
@@ -2137,19 +2177,19 @@ public class NetChannel : INetChannelInfo, INetChannel
 
 	public void SetCompressionMode(bool useCompression) => UseCompression = useCompression;
 
-	public uint RequestFile(ReadOnlySpan<char> filename) {
-		filename = filename.SliceNullTerminatedString();
-		FileRequestCounter++;
+	public uint RequestFile(RequestFile type, uint value) {
+		uint transferID = FileRequestCounter++;
 
 		if (Net.net_showfragments.GetInt() == 2)
-			DevMsg($"RequestFile: {filename} (ID {FileRequestCounter})\n");
+			DevMsg($"RequestFile: type {type} value {value} (ID {transferID})\n");
 
 		StreamReliable.WriteUBitLong(NET.File, NETMSG_TYPE_BITS);
-		StreamReliable.WriteUBitLong(FileRequestCounter, 32);
-		StreamReliable.WriteString(filename);
-		StreamReliable.WriteOneBit(1); // reqest this file
+		StreamReliable.WriteUBitLong(transferID, 32);
+		StreamReliable.WriteOneBit(1);              // request (vs. deny)
+		StreamReliable.WriteOneBit((int)type);      // RequestFile_t
+		StreamReliable.WriteUBitLong(value, 32);
 
-		return FileRequestCounter;
+		return transferID;
 	}
 
 	public bool IsNull() => RemoteAddress?.Type == NetAddressType.Null;

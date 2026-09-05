@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEDynamicLight>;
-public class TEDynamicLight : BaseTempEntity
+public class TEDynamicLight(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEDynamicLight = new(DT_BaseTempEntity, [
 		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.Coord),

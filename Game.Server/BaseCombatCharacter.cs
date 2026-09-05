@@ -28,6 +28,7 @@ public partial class BaseCombatCharacter : BaseFlex
 	public void SetNextAttack(TimeUnit_t wait) => NextAttack = wait;
 
 	public TimeUnit_t NextAttack;
+	public float ImpactEnergyScale;
 	public Handle<BaseCombatWeapon> LastWeapon = new();
 	public Handle<BaseCombatWeapon> ActiveWeapon = new();
 	public InlineArrayNewMaxWeapons<Handle<BaseCombatWeapon>> MyWeapons = new();

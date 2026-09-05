@@ -21,7 +21,7 @@ public class URLLabel : Label
 
 	public override void OnMousePressed(ButtonCode code) {
 		if (code == ButtonCode.MouseLeft && URL != null)
-			System.ShellExecute("open", URL);
+			system.ShellExecute("open", URL);
 	}
 
 	public override void ApplySettings(KeyValues resourceData) {

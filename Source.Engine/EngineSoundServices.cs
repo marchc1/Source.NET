@@ -1,16 +1,35 @@
-﻿using Source.Common.Audio;
+﻿using Source.Common;
+using Source.Common.Audio;
 using Source.Engine.Client;
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Source.Engine;
 
+[EngineComponent]
 public class EngineSoundServices : ISoundServices
 {
 	Host? host;
 	TimeUnit_t frameTime;
+	readonly IClientEntityList? entitylist = OptionalSingleton<IClientEntityList>();
+
+	public bool GetSoundSpatialization(int entIndex, ref SpatializationInfo info) {
+		if (entitylist == null)
+			return false;
+
+		IClientEntity? clientEntity = entitylist.GetClientEntity(entIndex);
+		if (clientEntity == null)
+			return false;
+
+		bool result = clientEntity.GetSoundSpatialization(ref info);
+
+		return result;
+	}
+
+	[Dependency] public Sound Sound = null!;
 
 	public void CacheBuildingFinish() {
 		throw new NotImplementedException();
@@ -99,7 +118,7 @@ public class EngineSoundServices : ISoundServices
 	}
 
 	public void RestartSoundSystem() {
-		throw new NotImplementedException();
+		Sound.Restart();
 	}
 
 	public void SetSoundFrametime(TimeUnit_t realDT, TimeUnit_t hostDt) {

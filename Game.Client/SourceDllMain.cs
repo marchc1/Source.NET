@@ -10,6 +10,7 @@ using Source.Common.Commands;
 using Source.Common.DataCache;
 using Source.Common.Engine;
 using Source.Common.Filesystem;
+using Source.Common.GameUI;
 using Source.Common.GUI;
 using Source.Common.MaterialSystem;
 using Source.Common.SoundEmitterSystem;
@@ -65,11 +66,13 @@ public static class SourceDllMain
 	[Dependency] public static IVModelInfoClient modelinfo { get; private set; } = null!;
 	[Dependency] public static IGameEventManager2 gameeventmanager { get; private set; } = null!;
 	[Dependency] public static IDataCache datacache { get; private set; } = null!;
+	[Dependency] public static IGameUI gameUI { get; private set; } = null!;
 	[Dependency] public static IMDLCache mdlcache { get; private set; } = null!;
 	[Dependency] public static ICenterPrint centerprint { get; private set; } = null!;
 	[Dependency] public static IMaterialSystem materials { get; private set; } = null!;
 	[Dependency] public static IInput input { get; private set; } = null!;
 	[Dependency] public static IModelRender modelrender { get; private set; } = null!;
+	[Dependency] public static IVEfx effects { get; private set; } = null!;
 	[Dependency] public static IFileSystem filesystem { get; private set; } = null!;
 	[Dependency] public static ISchemeManager vguiSchemeManager { get; private set; } = null!;
 	[Dependency] public static IVDebugOverlay debugoverlay { get; private set; } = null!;
@@ -78,6 +81,12 @@ public static class SourceDllMain
 	[Dependency] public static IPredictableList predictables { get; private set; } = null!;
 	[Dependency] public static ILocalize localize { get; private set; } = null!;
 	[Dependency] public static IViewEffects vieweffects { get; private set; } = null!;
+	[Dependency] public static ICommandLine commandLine { get; private set; } = null!;
+	[Dependency] public static ISurface Surface { get; private set; } = null!;
+	[Dependency] public static ISchemeManager SchemeManager { get; private set; } = null!;
+	[Dependency] public static IVGui VGui { get; private set; } = null!;
+	[Dependency] public static ILocalize Localize { get; private set; } = null!;
+	[Dependency] public static IVGuiInput vguiInput { get; private set; } = null!;
 
 	[KeyedDependency(Key = Realm.Client)] public static INetworkStringTableContainer networkstringtable { get; private set; } = null!;
 	[KeyedDependency(Key = Realm.Client)] public static IEngineTrace enginetrace { get; private set; } = null!;

@@ -13,6 +13,7 @@ using Source.Common;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
 using Source.Common.Mathematics;
+using Source.Common.Physics;
 using Source.Engine;
 
 using System.Numerics;
@@ -244,9 +245,169 @@ public class CollisionProperty : ICollideable
 		// todo
 	}
 
+	public bool IsBoundsDefinedInEntitySpace() => (((Source.SolidFlags)SolidFlags) & Source.SolidFlags.ForceWorldAligned) == 0 || (SolidType != (byte)Source.SolidType.BBox) && (SolidType != (byte)Source.SolidType.None);
 
-	private void MarkSurroundingBoundsDirty() {
+	public bool DoesRotationInvalidateSurroundingBox() {
+		if (IsSolidFlagSet(Source.SolidFlags.RootParentAligned))
+			return true;
+		switch ((SurroundingBoundsType)SurroundType) {
+			case SurroundingBoundsType.UseCollisionBoundsNeverVPhysics:
+			case SurroundingBoundsType.UseOBBCollisionBounds:
+			case SurroundingBoundsType.UseBestCollisionBounds:
+				return IsBoundsDefinedInEntitySpace();
+			case SurroundingBoundsType.UseHitboxes:
+			case SurroundingBoundsType.UseGameCode:
+				return true;
+			case SurroundingBoundsType.UseRotationExpandedBounds:
+			case SurroundingBoundsType.UseSpecifiedBounds:
+				return false;
+			default:
+				Assert(false);
+				return true;
+		}
+	}
 
+
+	void ComputeVPhysicsSurroundingBox(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) {
+		bool setBounds = false;
+		vecWorldMins = default;
+		vecWorldMaxs = default;
+		IPhysicsObject? physicsObject = GetOuter().VPhysicsGetObject();
+		if (physicsObject != null) {
+			if (physicsObject.GetCollide() != null) {
+				physcollision.CollideGetAABB(out vecWorldMins, out vecWorldMaxs,
+					physicsObject.GetCollide(), GetCollisionOrigin(), GetCollisionAngles());
+				setBounds = true;
+			}
+			else if (physicsObject.GetSphereRadius() != 0) {
+				float radius = physicsObject.GetSphereRadius();
+				Vector3 extents = new(radius, radius, radius);
+				MathLib.VectorSubtract(in GetCollisionOrigin(), in extents, out vecWorldMins);
+				MathLib.VectorAdd(in GetCollisionOrigin(), in extents, out vecWorldMaxs);
+				setBounds = true;
+			}
+		}
+
+		if (!setBounds) {
+			vecWorldMins = GetCollisionOrigin();
+			vecWorldMaxs = vecWorldMins;
+		}
+
+		if (IsSolidFlagSet(Source.SolidFlags.UseTriggerBounds)) {
+			WorldSpaceTriggerBounds(out Vector3 vecWorldTriggerMins, out Vector3 vecWorldTriggerMaxs);
+			MathLib.VectorMin(in vecWorldTriggerMins, in vecWorldMins, out vecWorldMins);
+			MathLib.VectorMax(in vecWorldTriggerMaxs, in vecWorldMaxs, out vecWorldMaxs);
+		}
+	}
+
+	bool ComputeHitboxSurroundingBox(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) {
+		BaseAnimating? anim = GetOuter().GetBaseAnimating();
+		if (anim != null)
+			return anim.ComputeHitboxSurroundingBox(out vecWorldMins, out vecWorldMaxs);
+
+		vecWorldMins = default;
+		vecWorldMaxs = default;
+		return false;
+	}
+
+	void ComputeRotationExpandedBounds(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) {
+		if (!IsBoundsDefinedInEntitySpace()) {
+			vecWorldMins = Mins;
+			vecWorldMaxs = Maxs;
+		}
+		else {
+			vecWorldMins = default;
+			vecWorldMaxs = default;
+
+			float maxVal;
+			maxVal = Math.Max(FloatMakePositive(Mins.X), FloatMakePositive(Maxs.X));
+			vecWorldMins.X = -maxVal;
+			vecWorldMaxs.X = maxVal;
+
+			maxVal = Math.Max(FloatMakePositive(Mins.Y), FloatMakePositive(Maxs.Y));
+			vecWorldMins.Y = -maxVal;
+			vecWorldMaxs.Y = maxVal;
+
+			maxVal = Math.Max(FloatMakePositive(Mins.Z), FloatMakePositive(Maxs.Z));
+			vecWorldMins.Z = -maxVal;
+			vecWorldMaxs.Z = maxVal;
+		}
+	}
+
+	void ComputeCollisionSurroundingBox(bool useVPhysics, out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) {
+		Assert(GetSolid() != Source.SolidType.Custom);
+
+		if (useVPhysics)
+			ComputeVPhysicsSurroundingBox(out vecWorldMins, out vecWorldMaxs);
+		else
+			WorldSpaceTriggerBounds(out vecWorldMins, out vecWorldMaxs);
+	}
+
+	void ComputeSurroundingBox(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) {
+		if ((GetSolid() == Source.SolidType.Custom) && ((SurroundingBoundsType)SurroundType != SurroundingBoundsType.UseGameCode)) {
+			vecWorldMins = GetCollisionOrigin();
+			vecWorldMaxs = vecWorldMins;
+			return;
+		}
+
+		switch ((SurroundingBoundsType)SurroundType) {
+			case SurroundingBoundsType.UseOBBCollisionBounds: {
+					Assert(GetSolid() != Source.SolidType.Custom);
+					bool useVPhysics = false;
+					if ((GetSolid() == Source.SolidType.VPhysics) && (GetOuter().GetMoveType() == MoveType.VPhysics)) {
+						IPhysicsObject? physics = GetOuter().VPhysicsGetObject();
+						useVPhysics = physics != null && physics.IsAsleep();
+					}
+					ComputeCollisionSurroundingBox(useVPhysics, out vecWorldMins, out vecWorldMaxs);
+				}
+				break;
+
+			case SurroundingBoundsType.UseBestCollisionBounds:
+				Assert(GetSolid() != Source.SolidType.Custom);
+				ComputeCollisionSurroundingBox(GetSolid() == Source.SolidType.VPhysics, out vecWorldMins, out vecWorldMaxs);
+				break;
+
+			case SurroundingBoundsType.UseCollisionBoundsNeverVPhysics:
+				Assert(GetSolid() != Source.SolidType.Custom);
+				ComputeCollisionSurroundingBox(false, out vecWorldMins, out vecWorldMaxs);
+				break;
+
+			case SurroundingBoundsType.UseHitboxes:
+				ComputeHitboxSurroundingBox(out vecWorldMins, out vecWorldMaxs);
+				break;
+
+			case SurroundingBoundsType.UseRotationExpandedBounds:
+				ComputeRotationExpandedBounds(out vecWorldMins, out vecWorldMaxs);
+				break;
+
+			case SurroundingBoundsType.UseSpecifiedBounds:
+				MathLib.VectorAdd(in GetCollisionOrigin(), in SpecifiedSurroundingMins, out vecWorldMins);
+				MathLib.VectorAdd(in GetCollisionOrigin(), in SpecifiedSurroundingMaxs, out vecWorldMaxs);
+				break;
+
+			case SurroundingBoundsType.UseGameCode:
+				GetOuter().ComputeWorldSpaceSurroundingBox(out vecWorldMins, out vecWorldMaxs);
+				Assert(vecWorldMins.X <= vecWorldMaxs.X);
+				Assert(vecWorldMins.Y <= vecWorldMaxs.Y);
+				Assert(vecWorldMins.Z <= vecWorldMaxs.Z);
+				return;
+
+			default:
+				vecWorldMins = default;
+				vecWorldMaxs = default;
+				break;
+		}
+	}
+
+	public void MarkSurroundingBoundsDirty() {
+		GetOuter().AddEFlags(EFL.DirtySurroundingCollisionBounds);
+		MarkPartitionHandleDirty();
+
+#if CLIENT_DLL
+		g_ClientShadowMgr.MarkRenderToTextureShadowDirty(GetOuter().GetShadowHandle());
+#else
+		// GetOuter().NetworkProp().MarkPVSInformationDirty();
+#endif
 	}
 
 	public IHandleEntity? GetEntityHandle() => Outer;
@@ -293,7 +454,17 @@ public class CollisionProperty : ICollideable
 	}
 
 	public void WorldSpaceTriggerBounds(out Vector3 vecWorldMins, out Vector3 vecWorldMaxs) {
-		throw new NotImplementedException();
+		WorldSpaceAABB(out vecWorldMins, out vecWorldMaxs);
+		if ((GetSolidFlags() & (int)Source.SolidFlags.UseTriggerBounds) == 0)
+			return;
+
+		// Don't bloat below, we don't want to trigger it with our heads
+		vecWorldMins.X -= TriggerBloat;
+		vecWorldMins.Y -= TriggerBloat;
+
+		vecWorldMaxs.X += TriggerBloat;
+		vecWorldMaxs.Y += TriggerBloat;
+		vecWorldMaxs.Z += (float)TriggerBloat * 0.5f;
 	}
 
 	public bool TestCollision(in Ray ray, Contents contentsMask, ref Trace tr) {
@@ -312,25 +483,40 @@ public class CollisionProperty : ICollideable
 		throw new NotImplementedException();
 	}
 
-	public ref readonly Vector3 GetCollisionOrigin() {
-		throw new NotImplementedException();
-	}
+	public ref readonly Vector3 GetCollisionOrigin() => ref Outer.GetAbsOrigin();
 
+	static readonly QAngle s_vec3_angle = new(0, 0, 0);
 	public ref readonly QAngle GetCollisionAngles() {
-		throw new NotImplementedException();
+		if (IsBoundsDefinedInEntitySpace())
+			return ref Outer.GetAbsAngles();
+
+		return ref s_vec3_angle;
 	}
 
+	Matrix3x4 CollisionToWorldTransformResult;
 	public ref readonly Matrix3x4 CollisionToWorldTransform() {
-		throw new NotImplementedException();
+		if (IsBoundsDefinedInEntitySpace())
+			return ref Outer.EntityToWorldTransform();
+
+		MathLib.SetIdentityMatrix(out CollisionToWorldTransformResult);
+		MathLib.MatrixSetColumn(in GetCollisionOrigin(), 3, ref CollisionToWorldTransformResult);
+		return ref CollisionToWorldTransformResult;
 	}
 
-	public SolidType GetSolid() {
-		throw new NotImplementedException();
+	public void CollisionAABBToWorldAABB(in Vector3 entityMins, in Vector3 entityMaxs, out Vector3 worldMins, out Vector3 worldMaxs) {
+		if (!IsBoundsDefinedInEntitySpace() || (GetCollisionAngles() == s_vec3_angle)) {
+			MathLib.VectorAdd(in entityMins, in GetCollisionOrigin(), out worldMins);
+			MathLib.VectorAdd(in entityMaxs, in GetCollisionOrigin(), out worldMaxs);
+		}
+		else
+			MathLib.TransformAABB(in CollisionToWorldTransform(), in entityMins, in entityMaxs, out worldMins, out worldMaxs);
 	}
 
-	public int GetSolidFlags() {
-		throw new NotImplementedException();
-	}
+	public void WorldSpaceAABB(out Vector3 worldMins, out Vector3 worldMaxs) => CollisionAABBToWorldAABB(in Mins, in Maxs, out worldMins, out worldMaxs);
+
+	public SolidType GetSolid() => (SolidType)SolidType;
+
+	public int GetSolidFlags() => SolidFlags;
 
 	public IClientUnknown? GetIClientUnknown() {
 		throw new NotImplementedException();
@@ -341,7 +527,17 @@ public class CollisionProperty : ICollideable
 	}
 
 	public void WorldSpaceSurroundingBounds(out Vector3 vecMins, out Vector3 vecMaxs) {
-		throw new NotImplementedException();
+		ref readonly Vector3 absOrigin = ref GetCollisionOrigin();
+		if (GetOuter().IsEFlagSet(EFL.DirtySurroundingCollisionBounds)) {
+			GetOuter().RemoveEFlags(EFL.DirtySurroundingCollisionBounds);
+			ComputeSurroundingBox(out vecMins, out vecMaxs);
+			MathLib.VectorSubtract(in vecMins, in absOrigin, out SurroundingMins);
+			MathLib.VectorSubtract(in vecMaxs, in absOrigin, out SurroundingMaxs);
+		}
+		else {
+			MathLib.VectorAdd(in SurroundingMins, in absOrigin, out vecMins);
+			MathLib.VectorAdd(in SurroundingMaxs, in absOrigin, out vecMaxs);
+		}
 	}
 
 	public bool ShouldTouchTrigger(int triggerSolidFlags) {
@@ -378,7 +574,18 @@ public class CollisionProperty : ICollideable
 	}
 	public ushort GetPartitionHandle() => Partition;
 	public void MarkPartitionHandleDirty() {
+		if (Outer.EntIndex() == 0)
+			return;
 
+		if (!Outer.IsEFlagSet(EFL.DirtySpatialPartition)) {
+			Outer.AddEFlags(EFL.DirtySpatialPartition);
+			DirtySpatialPartitionEntityList.s_DirtyKDTree.AddEntity(Outer);
+		}
+
+#if CLIENT_DLL
+		GetOuter().MarkRenderHandleDirty();
+		g_ClientShadowMgr.AddToDirtyShadowList(GetOuter());
+#endif
 	}
 	public void UpdateServerPartitionMask() {
 #if !CLIENT_DLL
@@ -400,9 +607,9 @@ public class CollisionProperty : ICollideable
 
 		// Make sure it's in the list of all entities
 		bool bIsSolid = IsSolid() || IsSolidFlagSet(Source.SolidFlags.Trigger);
-		if (bIsSolid || Outer.IsEFlagSet(EFL.UsePartitionWhenNotSolid)) 
+		if (bIsSolid || Outer.IsEFlagSet(EFL.UsePartitionWhenNotSolid))
 			partition.Insert(PartitionListMask.EngineNonStaticEdicts, handle);
-		
+
 		if (!bIsSolid)
 			return;
 

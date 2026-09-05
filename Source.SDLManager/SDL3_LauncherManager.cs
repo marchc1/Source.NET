@@ -9,6 +9,7 @@ using Source.Common.ShaderAPI;
 using Source.Common.Bitmap;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -138,6 +139,14 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 			SetWindowPos(hwnd, 0, x, y, width, height, 0x0260 /* FRAMECHANGED|NOOWNERZORDER|SHOWWINDOW */);
 		}
 #endif
+		Rectangle windowRect = Rectangle.FromLTRB(
+			0,
+			0,
+			width,
+			height
+		);
+
+		CenterWindow(windowRect.Right - windowRect.Left, windowRect.Bottom - windowRect.Top);
 
 		return true;
 	}
@@ -299,8 +308,8 @@ public unsafe class SDL3_LauncherManager : ILauncherManager, IGraphicsProvider
 	public void PumpWindowsMessageLoop() => window?.PumpMessages();
 	public int GetEvents(WindowEvent[] eventBuffer, int length) => window.GetEvents(eventBuffer, length);
 
-	public void CenterWindow(int v2, int v3) {
-
+	public void CenterWindow(int width, int height) {
+		SDL3.SDL_SetWindowPosition(window.HardwareHandle, (int)SDL3.SDL_WINDOWPOS_CENTERED, (int)SDL3.SDL_WINDOWPOS_CENTERED);
 	}
 
 	public bool PrepareContext(GraphicsDriver driver) {

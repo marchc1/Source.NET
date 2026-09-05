@@ -2,6 +2,7 @@
 using Game.Shared;
 
 using Source;
+using Source.Common;
 
 using System.Runtime.CompilerServices;
 
@@ -13,6 +14,21 @@ public partial class C_BaseCombatWeapon : C_BaseAnimating
 	public static BaseCombatWeapon? GetActiveWeapon() {
 		BasePlayer? player = C_BasePlayer.GetLocalPlayer();
 		return player?.GetActiveWeapon();
+	}
+
+	public bool IsBeingCarried() => GetOwner() != null;
+
+	public override ShadowType ShadowCastType() {
+		if (IsEffectActive(EntityEffects.NoShadow))
+			return ShadowType.None;
+
+		if (!IsBeingCarried())
+			return ShadowType.RenderToTexture;
+
+		if (IsCarriedByLocalPlayer() && !C_BasePlayer.ShouldDrawLocalPlayer())
+			return ShadowType.None;
+
+		return ShadowType.RenderToTexture;
 	}
 
 	public bool IsCarriedByLocalPlayer() {

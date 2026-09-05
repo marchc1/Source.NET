@@ -265,6 +265,8 @@ public class DummyMaterialVar : IMaterialVar
 			val[i] = 1;
 	}
 	protected override int VectorSizeInternal() => 3;
+
+	public override Span<float> GetVecValue() => vecvalX4;
 }
 
 public class DummyMaterial : IMaterial
@@ -280,6 +282,7 @@ public class DummyMaterial : IMaterial
 	public int GetEnumerationID() => 0;
 	public float GetMappingHeight() => 512;
 	public float GetMappingWidth() => 512;
+	public void GetReflectivity(out Vector3 reflect) => reflect = new(0.2f, 0.2f, 0.2f);
 	public IMaterial GetMaterialPage() => null!;
 	public ReadOnlySpan<char> GetName() => "dummy material";
 	public int GetNumAnimationFrames() => 0;
@@ -310,6 +313,9 @@ public class DummyMaterial : IMaterial
 	public bool IsAlphaTested() => false;
 	public bool UsesEnvCubemap() => false;
 	public bool NeedsTangentSpace() => false;
+	public bool NeedsSoftwareSkinning() => false;
+	public bool NeedsSoftwareLighting() => false;
+	public void SetUseFixedFunctionBakedLighting(bool enable) { }
 	public bool NeedsPowerOfTwoFrameBufferTexture(bool checkSpecificToThisFrame) => false;
 	public bool NeedsFullFrameBufferTexture(bool checkSpecificToThisFrame) => false;
 	public bool NeedsLightmapBlendAlpha() => false;
@@ -352,6 +358,7 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public ITexture? CreateNamedRenderTargetTextureEx(ReadOnlySpan<char> rtName, int w, int h, RenderTargetSizeMode sizeMode, ImageFormat format, MaterialRenderTargetDepth depthMode, TextureFlags textureFlags, CreateRenderTargetFlags renderTargetFlags) => g_DummyTexture;
 	public ITexture CreateProceduralTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroup, int wide, int tall, ImageFormat format, TextureFlags flags) => g_DummyTexture;
 	public IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material) => GetDummyMesh();
+	public void DestroyStaticMesh(IMesh mesh) { }
 	public void DepthRange(double near, double far) { }
 	public void EndFrame() { }
 	public void EndLightmapAllocation() { }
@@ -384,6 +391,9 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 			width = height = 32;
 	}
 	public IMaterialProxyFactory? GetMaterialProxyFactory() => null;
+	public void AddRestoreFunc(Action<int> func) { }
+	public void RemoveRestoreFunc(Action<int> func) { }
+	public bool SupportsShadowDepthTextures() => false;
 	public int GetMaxIndicesToRender() => 32768;
 	public int GetMaxVerticesToRender(IMaterial material) => 32768;
 	public int GetNumSortIDs() => 10;
@@ -412,6 +422,8 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public void LoadIdentity() { }
 	public void LoadMatrix(in Matrix3x4 matrix) { }
 	public void LoadMatrix(in Matrix4x4 matrix) { }
+	public MaterialHeightClipMode GetHeightClipMode() => MaterialHeightClipMode.Disable;
+	public void SetHeightClipMode(MaterialHeightClipMode heightClipMode) { }
 	public void MatrixMode(MaterialMatrixMode mode) { }
 	public void ModInit() { }
 	public void ModShutdown() { }
@@ -432,6 +444,7 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public void SetMaterialProxyFactory(IMaterialProxyFactory? factory) { }
 	public bool SetMode(IWindow window, MaterialSystem_Config config) => true;
 	public void SetNumBoneWeights(int v) { }
+	public void SetAmbientLightCube(ReadOnlySpan<Vector4> cube) { }
 	public void SwapBuffers() { }
 	public void SyncMatrices() { }
 	public void SyncMatrix(MaterialMatrixMode mode) { }
@@ -440,4 +453,28 @@ public class DummyMaterialSystem : IMaterialSystemStub, IShaderUtil, IMatRenderC
 	public void Viewport(int x, int y, int width, int height) { }
 	public void SetRealMaterialSystem(IMaterialSystem? sys) => RealMaterialSystem = sys;
 	public void BindLocalCubemap(ITexture tex) { }
+	public ITexture? GetLocalCubemap() => null;
+	public void SetLightingOrigin(Vector3 lightingOrigin) { }
+	public void SetAmbientLight(float r, float g, float b) { }
+	public void SetLight(int lightNum, in LightDesc desc) { }
+	public void DisableAllLocalLights() { }
+	public int GetMaxLights() => 0;
+	public void SetFlashlightMode(bool enable) { }
+	public bool GetFlashlightMode() => false;
+	public void SetFlashlightState(in FlashlightState state, in Matrix4x4 worldToTexture) { }
+	public void SetFlashlightStateEx(in FlashlightState state, in Matrix4x4 worldToTexture, ITexture? flashlightDepthTexture) { }
+	public void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 matrix) => matrix = Matrix4x4.Identity;
+	public void SetStencilEnable(bool onoff) { }
+	public void SetStencilFailOperation(StencilOperation op) { }
+	public void SetStencilZFailOperation(StencilOperation op) { }
+	public void SetStencilPassOperation(StencilOperation op) { }
+	public void SetStencilCompareFunction(StencilComparisonFunction cmpfn) { }
+	public void SetStencilReferenceValue(int reference) { }
+	public void SetStencilTestMask(uint msk) { }
+	public void SetStencilWriteMask(uint msk) { }
+	public void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor) { }
+	public ImageFormat GetShadowDepthTextureFormat() => ImageFormat.Unknown;
+	public ImageFormat GetNullTextureFormat() => ImageFormat.Unknown;
+	public void TurnOnToneMapping() { }
+	public void SetToneMappingScaleLinear(in Vector3 scale) { }
 }

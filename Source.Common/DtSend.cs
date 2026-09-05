@@ -14,6 +14,55 @@ using System.Runtime.InteropServices;
 
 namespace Source.Common;
 
+public class StandardSendProxiesV1
+{
+	public SendVarProxyFn Int8ToInt32;
+	public SendVarProxyFn Int16ToInt32;
+	public SendVarProxyFn Int32ToInt32;
+	public SendVarProxyFn UInt8ToInt32;
+	public SendVarProxyFn UInt16ToInt32;
+	public SendVarProxyFn UInt32ToInt32;
+	public SendVarProxyFn FloatToFloat;
+	public SendVarProxyFn VectorToVector;
+
+	public StandardSendProxiesV1(){
+		Int8ToInt32 = SendProxy_Int8ToInt32;
+		Int16ToInt32 = SendProxy_Int16ToInt32;
+		Int32ToInt32 = SendProxy_Int32ToInt32;
+		UInt8ToInt32 = SendProxy_UInt8ToInt32;
+		UInt16ToInt32 = SendProxy_UInt16ToInt32;
+		UInt32ToInt32 = SendProxy_UInt32ToInt32;
+		FloatToFloat = SendProxy_FloatToFloat;
+		VectorToVector = SendProxy_VectorToVector;
+	}
+}
+
+public class NonModifiedPointerProxy {
+	public SendTableProxyFn? Fn;
+	public NonModifiedPointerProxy? Next;
+	public static NonModifiedPointerProxy? s_NonModifiedPointerProxyHead;
+
+	public NonModifiedPointerProxy(SendTableProxyFn fn){
+		Next = Interlocked.Exchange(ref s_NonModifiedPointerProxyHead, this);
+		Fn = fn;
+	}
+}
+
+public class StandardSendProxies : StandardSendProxiesV1
+{
+	public static readonly StandardSendProxies g_StandardSendProxies = new();
+
+	public SendTableProxyFn? DataTableToDataTable;
+	public SendTableProxyFn? SendLocalDataTable;
+	public Func<NonModifiedPointerProxy?>? NonModifiedPointerProxies;
+
+	public StandardSendProxies(){
+		DataTableToDataTable = SendProxy_DataTableToDataTable;
+		SendLocalDataTable = SendProxy_SendLocalDataTable;
+		NonModifiedPointerProxies = static () => NonModifiedPointerProxy.s_NonModifiedPointerProxyHead;
+	}
+}
+
 public delegate int ArrayLengthSendProxyFn(object instance, int objectID);
 public static class SendPropHelpers
 {
@@ -66,6 +115,10 @@ public static class SendPropHelpers
 		=> outData.String = prop.GetValue<string>(instance);
 	public static object SendProxy_DataTableToDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID)
 		=> prop.GetValue<object>(instance);
+	public static object SendProxy_SendLocalDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID){
+		recipients.SetOnly(objectID - 1);
+		return prop.GetValue<object>(instance);
+	}
 	public static object SendProxy_DataTablePtrToDataTable(SendProp prop, object instance, IFieldAccessor data, SendProxyRecipients recipients, int objectID)
 		=> instance;
 	public static void SendProxy_Empty(SendProp prop, object instance, IFieldAccessor data, ref DVariant outData, int element, int objectID) { }

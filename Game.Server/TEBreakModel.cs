@@ -7,7 +7,7 @@ using Source.Common.Mathematics;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEBreakModel>;
-public class TEBreakModel : BaseTempEntity
+public class TEBreakModel(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEBreakModel = new(DT_BaseTempEntity, [
 		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.Coord),

@@ -173,6 +173,11 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 	}
 
 
+	public void GetReflectivity(out Vector3 reflectivity) {
+		Precache();
+		reflectivity = Reflectivity;
+	}
+
 	public void Precache() {
 		if (IsRenderTarget() || IsProcedural())
 			return;
@@ -501,7 +506,7 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 	private ITexture? GetEmbeddedTexture(int index) => index == 0 ? this : null;
 
 	private bool IsDepthTextureFormat(ImageFormat imageFormat) => imageFormat == ImageFormat.NV_DST16 ||
-			 imageFormat == ImageFormat.ATI_DST24 ||
+			 imageFormat == ImageFormat.NV_DST24 ||
 			 imageFormat == ImageFormat.NV_IntZ ||
 			 imageFormat == ImageFormat.NV_RawZ ||
 			 imageFormat == ImageFormat.ATI_DST16 ||
@@ -634,6 +639,8 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 				}
 			}
 		}
+
+		InternalFlags &= ~(uint)InternalTextureFlags.Allocated;
 	}
 
 	private void MigrateShaderAPITextures() {
@@ -965,7 +972,7 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 
 	private ushort ComputeActualMipCount(TexDimensions actualDims, uint flags) {
 		if ((flags & (uint)TextureFlags.EnvMap) > 0) {
-			if (materials.HardwareConfig.SupportsMipmappedCubemaps()) {
+			if (!materials.HardwareConfig.SupportsMipmappedCubemaps()) {
 				return 1;
 			}
 		}
@@ -1279,8 +1286,23 @@ public class Texture(MaterialSystem materials) : ITextureInternal
 		return true;
 	}
 
-	public int GetTextureHandle(int v) {
-		return TextureHandles![v];
+	public int GetTextureHandle(int frame, int textureChannel = 0) {
+		if (frame < 0) {
+			frame = 0;
+			Warning("CTexture::GetTextureHandle(): nFrame is < 0!\n");
+		}
+
+		if (frame >= FrameCount) {
+			Assert(frame < FrameCount);
+			return INVALID_SHADERAPI_TEXTURE_HANDLE;
+		}
+
+		Assert(TextureHandles);
+		Assert(HasBeenAllocated());
+		if (TextureHandles == null || !HasBeenAllocated())
+			return INVALID_SHADERAPI_TEXTURE_HANDLE;
+
+		return TextureHandles![frame];
 	}
 
 	Vector3 Reflectivity;

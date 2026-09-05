@@ -246,6 +246,13 @@ public unsafe struct VertexBuilder
 		*pDst = z;
 	}
 
+	public void UserData(ReadOnlySpan<float> pData) {
+		int userDataSize = 4;
+		float* pUserData = OffsetFloatPointer(Desc.UserData, CurrentVertex, Desc.UserDataSize);
+		fixed (float* src = pData)
+			memcpy(pUserData, src, sizeof(float) * userDataSize);
+	}
+
 	public void Color3f(float r, float g, float b) {
 		byte* pDst = CurrColor;
 		*pDst++ = (byte)Math.Clamp(r * 255, 0, 255);
@@ -395,6 +402,18 @@ public unsafe struct VertexBuilder
 		*pDst++ = rgba[1];
 		*pDst++ = rgba[2];
 		*pDst = rgba[3];
+	}
+
+	internal void Specular3ub(byte r, byte g, byte b) {
+		byte* pSpecular = &Desc.Specular[CurrentVertex * Desc.SpecularSize];
+		int col = r | (g << 8) | (b << 16) | unchecked((int)0xFF000000);
+		*(int*)pSpecular = col;
+	}
+
+	internal void Specular3ubv(ReadOnlySpan<byte> c) {
+		byte* pSpecular = &Desc.Specular[CurrentVertex * Desc.SpecularSize];
+		int col = c[0] | (c[1] << 8) | (c[2] << 16) | unchecked((int)0xFF000000);
+		*(int*)pSpecular = col;
 	}
 
 	internal unsafe void CompressedBoneWeight3fv(ReadOnlySpan<float> boneWeights) {
@@ -862,8 +881,8 @@ public unsafe struct MeshBuilder : IDisposable
 	public void Specular4fv(ReadOnlySpan<float> rgba) => throw new NotImplementedException();
 
 	// Faster version of specular
-	public void Specular3ub(byte r, byte g, byte b) => throw new NotImplementedException();
-	public void Specular3ubv(ReadOnlySpan<byte> c) => throw new NotImplementedException();
+	public void Specular3ub(byte r, byte g, byte b) => VertexBuilder.Specular3ub(r, g, b);
+	public void Specular3ubv(ReadOnlySpan<byte> c) => VertexBuilder.Specular3ubv(c);
 	public void Specular4ub(byte r, byte g, byte b, byte a) => throw new NotImplementedException();
 	public void Specular4ubv(ReadOnlySpan<byte> c) => throw new NotImplementedException();
 
@@ -900,7 +919,11 @@ public unsafe struct MeshBuilder : IDisposable
 	public void BoneMatrix(int idx, int matrixIndex) => VertexBuilder.BoneMatrix(idx, (byte)matrixIndex);
 
 	// Generic per-vertex data
-	public void UserData(ReadOnlySpan<float> pData) => throw new NotImplementedException();
+	public void UserData(ReadOnlySpan<float> pData) => VertexBuilder.UserData(pData);
+	public void UserData(in Vector4 vec) {
+		fixed (Vector4* ptr = &vec)
+			VertexBuilder.UserData(new((float*)ptr, 4));
+	}
 
 	// Used to define the indices (only used if you aren't using primitives)
 	public void Index(ushort index) => IndexBuilder.Index(index);

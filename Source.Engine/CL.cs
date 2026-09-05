@@ -11,6 +11,7 @@ using Source.Common.Engine;
 using Source.Common.Launcher;
 using Source.Common.Networking;
 using Source.Engine.Client;
+using Source.Engine.Server;
 
 using System.Buffers;
 using System.Runtime.CompilerServices;
@@ -26,7 +27,7 @@ namespace Source.Engine;
 /// CL_MethodName's in the static global namespace
 /// </summary>
 public partial class CL(IServiceProvider services, Net Net,
-	ClientGlobalVariables clientGlobalVariables, ServerGlobalVariables serverGlobalVariables,
+	ClientGlobalVariables clientGlobalVariables,
 	CommonHostState host_state, Host Host, Cbuf Cbuf, Scr Scr,
 #if !SWDS
 	IEngineVGuiInternal? EngineVGui,
@@ -39,8 +40,8 @@ public partial class CL(IServiceProvider services, Net Net,
 	public IClientLeafSystemEngine ClientLeafSystem => ClientDLL.ClientLeafSystem;
 
 
-	public IBaseClientDLL clientDLL;
-	public IEngineClient engineClient;
+	public IBaseClientDLL clientDLL = null!;
+	public IEngineClient engineClient = null!;
 	public void ApplyAddAngle() {
 
 	}
@@ -57,24 +58,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		SetupLocalNetworkBackDoor(useBackdoor);
 	}
 
-	readonly LocalNetworkBackdoor localNetworkBackdoor = new();
-	public static LocalNetworkBackdoor? LocalNetworkBackdoor;
 
-	public void SetupLocalNetworkBackDoor(bool useBackdoor) {
-		if (useBackdoor) {
-			if (LocalNetworkBackdoor == null) {
-				LocalNetworkBackdoor = localNetworkBackdoor;
-				LocalNetworkBackdoor.StartBackdoorMode();
-			}
-		}
-		else {
-			if (LocalNetworkBackdoor != null) {
-				LocalNetworkBackdoor.StopBackdoorMode();
-				LocalNetworkBackdoor = null;
-				cl.ForceFullUpdate();
-			}
-		}
-	}
 
 	public void ExtraMouseUpdate(double frameTime) {
 		if (!cl.IsActive())
@@ -163,7 +147,7 @@ public partial class CL(IServiceProvider services, Net Net,
 
 		bool sendPacket = true;
 
-		if (Net.Time < cl.NextCmdTime || !cl.NetChannel.CanPacket())
+		if (Net.Time < cl.NextCmdTime || !cl.NetChannel!.CanPacket())
 			sendPacket = false;
 
 		if (cl.IsActive()) {
@@ -203,7 +187,7 @@ public partial class CL(IServiceProvider services, Net Net,
 			cl.NetChannel?.SendNetMsg(mymsg);
 		}
 
-		cl.LastOutgoingCommand = cl.NetChannel.SendDatagram(null);
+		cl.LastOutgoingCommand = cl.NetChannel!.SendDatagram(null);
 		cl.ChokedCommands = 0;
 
 		if (cl.IsActive()) {
@@ -228,7 +212,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		// modelloader.FlushDynamicModels();
 
 		// Purge unused models
-		// modelloader.PurgeUnusedModels();
+		modelloader.PurgeUnusedModels();
 
 		// Shutdown preload data
 		// MDLCache.ShutdownPreloadData();
@@ -239,7 +223,7 @@ public partial class CL(IServiceProvider services, Net Net,
 		clientDLL.LevelInitPostEntity();
 
 		// Start notifying dependencies
-		uint ip = cl.NetChannel.GetRemoteAddress()!.GetIPHostByteOrder();
+		uint ip = cl.NetChannel!.GetRemoteAddress()!.GetIPHostByteOrder();
 		short port = cl.NetChannel.GetRemoteAddress()!.GetPort();
 
 		if (port == 0) {
@@ -331,7 +315,8 @@ public partial class CL(IServiceProvider services, Net Net,
 	}
 
 	internal void ProcessVoiceData() {
-
+		Voice.Idle(Host.FrameTime);
+		SendVoicePacket(false);
 	}
 
 	internal void TakeSnapshotAndSwap() {
@@ -342,6 +327,27 @@ public partial class CL(IServiceProvider services, Net Net,
 
 	internal bool CheckCRCs(ReadOnlySpan<char> levelFileName) {
 		return true;
+	}
+
+	readonly byte[] voiceData = new byte[2048];
+
+	public void SendVoicePacket(bool final) {
+		if (!Voice.IsRecording())
+			return;
+
+		CLC_VoiceData voiceMsg = new();
+
+		voiceMsg.DataOut.StartWriting(voiceData, voiceData.Length);
+
+		voiceMsg.Length = Voice.GetCompressedData(voiceData.AsSpan(), final) * 8;
+
+		if (voiceMsg.Length == 0)
+			return;
+
+		voiceMsg.DataOut.Seek(voiceMsg.Length);    // set correct writing position
+
+		if (cl.IsActive())
+			cl.NetChannel!.SendNetMsg(voiceMsg);
 	}
 
 	internal void RegisterResources() {
@@ -490,7 +496,7 @@ public partial class CL(IServiceProvider services, Net Net,
 			return;
 		}
 
-		ClientClass? pClass = cl.ServerClasses[iClass]?.ClientClass;
+		ClientClass? pClass = cl.ServerClasses![iClass]?.ClientClass;
 		bool bNew = false;
 		if (ent != null) {
 			if (ent.GetIClientUnknown()!.GetRefEHandle()!.GetSerialNumber() != iSerialNum) {
@@ -555,6 +561,12 @@ public partial class CL(IServiceProvider services, Net Net,
 			RecvTable.Decode(recvTable, ent.GetDataTableBasePtr(), u.Buf, u.NewEntity, true);
 		}
 
+		// A decode that overflows the buffer means this entity's datatable consumed
+		// the wrong number of bits and the rest of the packet is now misaligned. This
+		// is the point where a stream desync first becomes detectable.
+		if (u.Buf.Overflowed)
+			Warning($"CL.CopyNewEntity: buffer overflow decoding new ent {u.NewEntity} class {iClass} '{pClass?.NetworkName}' - entity stream desynced\n");
+
 		AddPostDataUpdateCall(u, u.NewEntity, updateType);
 
 		Assert(u.To!.LastEntity <= u.NewEntity);
@@ -562,6 +574,13 @@ public partial class CL(IServiceProvider services, Net Net,
 		u.To!.TransmitEntity.Set(u.NewEntity);
 
 		int bit_count = u.Buf.BitsRead - start_bit;
+
+		// Per-entity bit accounting. Enable cl_entitydecode_report to trace exactly
+		// which datatable consumed how many bits; the last entity logged before a
+		// "missing client entity"/overflow error is the one whose decode desynced.
+		if (cl_entitydecode_report.GetBool())
+			DevMsg($"cl decode: ent {u.NewEntity,4} class {iClass,3} '{pClass?.NetworkName}' consumed {bit_count} bits (buf pos {u.Buf.BitsRead}, {u.Buf.BitsLeft} left)\n");
+
 		if (cl_entityreport.GetBool())
 			RecordEntityBits(u.NewEntity, bit_count);
 
@@ -580,10 +599,10 @@ public partial class CL(IServiceProvider services, Net Net,
 
 	private IClientNetworkable? CreateDLLEntity(int iEnt, int iClass, int iSerialNum) {
 		ClientClass? clientClass;
-		if ((clientClass = cl.ServerClasses[iClass]?.ClientClass) != null) {
+		if ((clientClass = cl.ServerClasses![iClass]?.ClientClass) != null) {
 			RecordAddEntity(iEnt);
 			if (!cl.IsActive())
-				Common.TimestampedLog($"cl:  create '{clientClass.NetworkName}'\n");
+				Common.TimestampedLog($"cl:  create({iEnt}, {iClass}, {iSerialNum}) '{clientClass.NetworkName}'\n");
 
 			return clientClass.CreateFn(iEnt, iSerialNum);
 		}
@@ -700,7 +719,7 @@ public partial class CL(IServiceProvider services, Net Net,
 
 		// snd_show
 
-		StartSoundParams parms = default;
+		StartSoundParams parms = new();
 		parms.StaticSound = (sound.Channel == SoundEntityChannel.Static) ? true : false;
 		parms.SoundSource = sound.EntityIndex;
 		parms.EntChannel = parms.StaticSound ? SoundEntityChannel.Static : sound.Channel;
@@ -746,11 +765,113 @@ public partial class CL(IServiceProvider services, Net Net,
 		if (LocalNetworkBackdoor != null)
 			LocalNetworkBackdoor.ClearState();
 
+		Host.FreeStateAndWorld(false);
+		Host.FreeToLowMark(false);
+
 		cl.Clear();
 	}
 
-	internal void HTTPStop_f() {
+	public static readonly DLight[] DLights = new DLight[MAX_DLIGHTS].InstantiateArray();
+	public static readonly DLight[] ELights = new DLight[MAX_ELIGHTS].InstantiateArray();
+	public static bool ActiveDlights;
+	public static bool ActiveElights;
 
+	static int AllocLightFromArray(DLight[] lights, int lightCount, int key) {
+		int i;
+
+		if (key != 0) {
+			for (i = 0; i < lightCount; i++) {
+				if (lights[i].Key == key)
+					return i;
+			}
+		}
+
+		for (i = 0; i < lightCount; i++) {
+			if (lights[i].Die < cl.GetTime())
+				return i;
+		}
+
+		return 0;
+	}
+
+	public static DLight AllocDlight(int key) {
+		int i = AllocLightFromArray(DLights, MAX_DLIGHTS, key);
+		DLight dl = DLights[i];
+		Render.MarkDLightNotVisible(i);
+		dl.Clear();
+		dl.Key = key;
+		Render.DLightChanged |= 1 << i;
+		Render.DLightActive |= 1 << i;
+		ActiveDlights = true;
+		return dl;
+	}
+
+	public static DLight AllocElight(int key) {
+		int i = AllocLightFromArray(ELights, MAX_ELIGHTS, key);
+		DLight el = ELights[i];
+		el.Clear();
+		el.Key = key;
+		ActiveElights = true;
+		return el;
+	}
+
+	public static void DecayLights() {
+		double time = cl.GetFrameTime();
+		if (time <= 0.0f)
+			return;
+
+		ActiveDlights = false;
+		ActiveElights = false;
+
+		Render.DLightChanged = 0;
+		Render.DLightActive = 0;
+
+		for (int i = 0; i < MAX_DLIGHTS; i++) {
+			DLight dl = DLights[i];
+
+			if (!dl.IsRadiusGreaterThanZero()) {
+				Render.MarkDLightNotVisible(i);
+				continue;
+			}
+
+			if (dl.Die < cl.GetTime()) {
+				Render.DLightChanged |= 1 << i;
+				dl.Radius = 0;
+			}
+			else if (dl.Decay != 0) {
+				Render.DLightChanged |= 1 << i;
+
+				dl.Radius -= (float)time * dl.Decay;
+				if (dl.Radius < 0)
+					dl.Radius = 0;
+			}
+
+			if (dl.IsRadiusGreaterThanZero()) {
+				ActiveDlights = true;
+				Render.DLightActive |= 1 << i;
+			}
+			else
+				Render.MarkDLightNotVisible(i);
+		}
+
+		for (int i = 0; i < MAX_ELIGHTS; i++) {
+			DLight el = ELights[i];
+
+			if (!el.IsRadiusGreaterThanZero())
+				continue;
+
+			if (el.Die < cl.GetTime()) {
+				el.Radius = 0;
+				continue;
+			}
+
+			el.Radius -= (float)time * el.Decay;
+			if (el.Radius < 0)
+				el.Radius = 0;
+
+			if (el.IsRadiusGreaterThanZero())
+				ActiveElights = true;
+		}
 	}
 }
 
@@ -758,21 +879,18 @@ public partial class CL(IServiceProvider services, Net Net,
 /// Loads and shuts down the client DLL
 /// </summary>
 /// <param name="services"></param>
-public class ClientDLL(IServiceProvider services, Sys Sys
+public class ClientDLL(IServiceProvider services
 #if !SWDS
 , EngineRecvTable RecvTable
 #endif
 )
 {
-	public IBaseClientDLL clientDLL;
-	public IPrediction ClientSidePrediction;
-	public IClientEntityList EntityList;
-	public ICenterPrint CenterPrint;
-	public IClientLeafSystemEngine ClientLeafSystem;
+	public IPrediction ClientSidePrediction = null!;
+	public IClientEntityList EntityList = null!;
+	public ICenterPrint CenterPrint = null!;
+	public IClientLeafSystemEngine ClientLeafSystem = null!;
 	public void Init() {
-		clientDLL = services.GetRequiredService<IBaseClientDLL>();
-
-		if (!clientDLL.Init())
+		if (!g_ClientDLL!.Init())
 			Sys.Error("Client.dll Init() in library client failed.");
 
 		ClientSidePrediction = services.GetRequiredService<IPrediction>();
@@ -794,7 +912,7 @@ public class ClientDLL(IServiceProvider services, Sys Sys
 		}
 #if !SWDS
 		RecvTable.Init(recvTables.AsSpan()[..nRecvTables]!); // << ! is acceptable here; anything beyond recvTables is null, anything before it shouldnt be
-															 // (and if something is null before that point something else is already horribly broken)
+																												 // (and if something is null before that point something else is already horribly broken)
 #endif
 	}
 
@@ -802,20 +920,20 @@ public class ClientDLL(IServiceProvider services, Sys Sys
 		if (sv.IsDedicated())
 			return;
 
-		if (clientDLL == null)
+		if (g_ClientDLL == null)
 			return;
 
-		clientDLL.HudUpdate(true);
+		g_ClientDLL.HudUpdate(true);
 	}
 
 	public void ProcessInput() => g_ClientDLL?.HudProcessInput(cl.IsConnected());
 
-	public void FrameStageNotify(ClientFrameStage stage) {
-		clientDLL.FrameStageNotify(stage);
+	public static void FrameStageNotify(ClientFrameStage stage) {
+		g_ClientDLL?.FrameStageNotify(stage);
 	}
 
 	public ClientClass? GetAllClasses() {
-		return clientDLL != null ? clientDLL.GetAllClasses() : ClientClass.Head;
+		return g_ClientDLL != null ? g_ClientDLL.GetAllClasses() : ClientClass.Head;
 	}
 
 	internal void Shutdown() {

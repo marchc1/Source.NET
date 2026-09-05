@@ -14,10 +14,8 @@ using Source.Common.Utilities;
 
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.Intrinsics;
 
 using static Source.Engine.MatSysInterface;
-using static Source.Engine.Render;
 namespace Source.Engine;
 
 public struct ViewStack
@@ -61,6 +59,12 @@ public partial class Render(
 	ModelLoader? _modelLoader;
 	ModelLoader modelLoader => _modelLoader ??= (ModelLoader)Singleton<IModelLoader>();
 
+	IStudioRender? _studioRender;
+	IStudioRender studioRender => _studioRender ??= Singleton<IStudioRender>();
+
+	IEngineTrace? _engineTrace;
+	IEngineTrace engineTrace => _engineTrace ??= KeyedSingleton<IEngineTrace>(Realm.Client);
+
 	int LightmapUpdateDepth;
 	float yFOV;
 	float Framerate;
@@ -81,6 +85,14 @@ public partial class Render(
 	bool CanAccessCurrentView;
 
 	public void FrameBegin() {
+		if (host_state.WorldModel != null) {
+			r_framecount++;
+			GLRLight.AnimateLight();
+			GLRLight.PushDlights();
+		}
+
+		// UpdateStudioRenderConfig();
+		studioRender.BeginFrame();
 
 		FrameCount++;
 	}
@@ -309,9 +321,11 @@ public partial class Render(
 
 		// FIXME: Is this the best place to initialize the kd tree when we're client-only?
 		if (!sv.IsActive()) {
+			g_ShadowMgr.LevelShutdown();
 			StaticPropMgr().LevelShutdown();
 			SpatialPartition().Init(host_state.WorldModel!.Mins, host_state.WorldModel!.Maxs);
 			StaticPropMgr().LevelInit();
+			g_ShadowMgr.LevelInit(host_state.WorldBrush!.NumSurfaces);
 		}
 
 		LoadWorldGeometry();
@@ -355,7 +369,11 @@ public partial class Render(
 		if (!success)
 			ConDMsg($"Unable to load sky {requestedsky}\n");
 	}
-	private void InitStudio() { }
+	private void InitStudio() {
+#if !SWDS
+		R_StudioInitLightingCache();
+#endif
+	}
 	private void LoadWorldGeometry() {
 		if (host_state.WorldModel == null)
 			return;
@@ -560,7 +578,13 @@ public partial class Render(
 	public struct LightmapTransformInfo
 	{
 		public Model? Model;
-		public Matrix4x4 XForm;
+		public Matrix3x4 XForm;
+	}
+
+	bool LightmapPageCompareFunc(LightmapUpdateInfo surf0, LightmapUpdateInfo surf1) {
+		int page0 = MaterialSystem.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref surf0.SurfHandle)].LightmapPageID;
+		int page1 = MaterialSystem.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref surf1.SurfHandle)].LightmapPageID;
+		return page0 - page1 < 0;
 	}
 
 	public bool InLightmapUpdate() => LightmapUpdateDepth != 0;
@@ -571,7 +595,7 @@ public partial class Render(
 			materials.BeginUpdateLightmaps();
 			g_LightmapTransformList.Clear();
 			g_LightmapTransformList.Add(new());
-			int index = g_LightmapTransformList.Count;
+			int index = g_LightmapTransformList.Count - 1;
 			g_LightmapTransformList.AsSpan()[index].Model = host_state.WorldModel;
 			MathLib.SetIdentityMatrix(out g_LightmapTransformList.AsSpan()[index].XForm);
 		}
@@ -584,12 +608,51 @@ public partial class Render(
 	}
 
 	public void EndUpdateLightmaps() {
+		Assert(LightmapUpdateDepth > 0);
 		if (--LightmapUpdateDepth == 0) {
-			// todo
+			if (g_LightmapUpdateList.Count != 0 && r_dynamiclighting.GetBool() && !ModelLoader.r_unloadlightmaps.GetBool()) {
+				DLight[] lights = CL.DLights;
+
+				g_LightmapUpdateList.Sort((a, b) => LightmapPageCompareFunc(a, b) ? -1 : 1);
+				for (int i = g_LightmapUpdateList.Count - 1; i >= 0; --i) {
+					LightmapUpdateInfo lightmapUpdateInfo = g_LightmapUpdateList[i];
+					if (ModelLoader.SurfaceLighting(ref lightmapUpdateInfo.SurfHandle, host_state.WorldBrush!).LastComputedFrame != r_framecount)
+						RenderDynamicLightmaps(lights, ref lightmapUpdateInfo.SurfHandle, in g_LightmapTransformList.AsSpan()[lightmapUpdateInfo.TransformIndex].XForm);
+				}
+			}
 			materials.EndUpdateLightmaps();
 			g_LightmapUpdateList.Clear();
 			g_LightmapTransformList.Clear();
 		}
+	}
+
+	public void RenderDynamicLightmaps(DLight[] lights, ref BSPMSurface2 surfID, in Matrix3x4 xform) {
+		SurfDraw fSurfFlags = ModelLoader.MSurf_Flags(ref surfID);
+
+		if ((fSurfFlags & SurfDraw.NoLight) != 0)
+			return;
+
+		bool changed = false;
+		ref BSPMSurfaceLighting lighting = ref ModelLoader.SurfaceLighting(ref surfID, host_state.WorldBrush!);
+		if ((fSurfFlags & SurfDraw.HasLightStyles) != 0) {
+			for (int maps = 0; maps < BSPFileCommon.MAXLIGHTMAPS && lighting.Styles[maps] != 255; maps++) {
+				if (MatSysInterface.LightStyleFrame[lighting.Styles[maps]] > lighting.LastComputedFrame) {
+					changed = true;
+					break;
+				}
+			}
+		}
+
+		bool dlightChanged = lighting.DLightFrame == r_framecount || lighting.DLightBits != 0;
+		bool onlyUseLightStyles = false;
+
+		if (r_dynamic.GetInt() == 0) {
+			onlyUseLightStyles = true;
+			dlightChanged = false;
+		}
+
+		if (changed || dlightChanged)
+			BuildLightMap(lights, ref surfID, in xform, onlyUseLightStyles);
 	}
 
 	public void Push3DView(in ViewSetup view, ClearFlags clearFlags, ITexture? rtColor, Frustum frustum) => Push3DView(in view, clearFlags, rtColor, frustum, null);
@@ -758,7 +821,7 @@ public partial class Render(
 			for (int surfaceIndex = 0; surfaceIndex < surfaceCount; surfaceIndex++) {
 				ref BSPMSurface2 surfID = ref ModelLoader.SurfaceHandleFromIndex(sortedSurfaceIndices[surfaceIndex], host_state.WorldBrush!);
 
-				BuildLightMap(ref surfID, ref xform, onlyUseLightStyles);
+				BuildLightMap(CL.DLights, ref surfID, ref xform, onlyUseLightStyles);
 			}
 
 			materials.EndUpdateLightmaps();
@@ -770,7 +833,7 @@ public partial class Render(
 		rebuildLightmaps = false;
 	}
 
-	private void BuildLightMap(ref BSPMSurface2 surfID, in Matrix3x4 entityToWorld, bool onlyUseLightStyles) {
+	private void BuildLightMap(DLight[] lights, ref BSPMSurface2 surfID, in Matrix3x4 entityToWorld, bool onlyUseLightStyles) {
 		bool needsBumpmap = SurfNeedsBumpedLightmaps(ref surfID);
 		bool needsLightmap = SurfNeedsLightmap(ref surfID);
 
@@ -786,16 +849,69 @@ public partial class Render(
 		}
 
 		bool bDlightsInLightmap = needsLightmap || needsBumpmap;
-		uint dlightMask = 0; // R_UpdateDlightState(pLights, surfID, entityToWorld, bOnlyUseLightStyles, bDlightsInLightmap);
+		uint dlightMask = UpdateDlightState(lights, ref surfID, in entityToWorld, onlyUseLightStyles, bDlightsInLightmap);
 
 		if (onlyUseLightStyles)
 			dlightMask = 0;
 
-		BuildLightMapGuts(ref surfID, in entityToWorld, dlightMask, needsBumpmap, needsLightmap);
+		BuildLightMapGuts(lights, ref surfID, in entityToWorld, dlightMask, needsBumpmap, needsLightmap);
 	}
 
+	static readonly ConVar r_dynamiclighting = new("r_dynamiclighting", "1", FCvar.Cheat);
 	static readonly ConVar r_avglightmap = new("r_avglightmap", "0", FCvar.Cheat | FCvar.MaterialSystemThread);
 	static readonly ConVar r_maxdlights = new("r_maxdlights", "32", 0);
+
+	public static int DLightChanged;
+	public static int DLightActive;
+
+	static int DLightVisible;
+	static int DLightVisibleThisFrame;
+	static int VisibleDLightCount;
+	static int MaxVisibleDLightCount;
+
+	public static void MarkDLightVisible(int dlight) {
+		if ((DLightVisible & (1 << dlight)) == 0) {
+			++VisibleDLightCount;
+			DLightVisible |= 1 << dlight;
+		}
+	}
+
+	public static void MarkDLightNotVisible(int dlight) {
+		if ((DLightVisible & (1 << dlight)) != 0) {
+			--VisibleDLightCount;
+			DLightVisible &= ~(1 << dlight);
+		}
+	}
+
+	public static void DLightStartView() {
+		DLightVisibleThisFrame = 0;
+		MaxVisibleDLightCount = r_maxdlights.GetInt();
+	}
+
+	public static void DLightEndView() {
+		if (!CL.ActiveDlights)
+			return;
+
+		for (int lnum = 0; lnum < Constants.MAX_DLIGHTS; lnum++) {
+			if ((DLightVisibleThisFrame & (1 << lnum)) != 0)
+				continue;
+
+			MarkDLightNotVisible(lnum);
+		}
+	}
+
+	public static bool CanUseVisibleDLight(int dlight) {
+		DLightVisibleThisFrame |= 1 << dlight;
+
+		if ((DLightVisible & (1 << dlight)) != 0)
+			return true;
+
+		if (VisibleDLightCount >= MaxVisibleDLightCount)
+			return false;
+
+		MarkDLightVisible(dlight);
+		return true;
+	}
 
 	void ComputeLightmapFromLightstyle(ref BSPMSurfaceLighting lighting, bool computeLightmap, bool computeBumpmap, int lightmapSize, bool hasBumpmapLightmapData) {
 		Span<ColorRGBExp32> pLightmap = lighting.Samples.Span;
@@ -931,7 +1047,272 @@ public partial class Render(
 		return (float)MatSysInterface.LightStyleValue[style] * (1.0f / 264f);
 	}
 
-	public void BuildLightMapGuts(ref BSPMSurface2 surfID, in Matrix3x4 entityToWorld, uint dlightMask, bool needsBumpmap, bool needsLightmap) {
+	bool AddSingleDynamicLight(DLight dl, ref BSPMSurface2 surfID, in Vector3 lightOrigin, float perpDistSq, float lightRadiusSq) {
+		Vector3 local;
+
+		if (dl.OuterAngle != 0) {
+			if (dl.OuterAngle < 180.0f) {
+				if (MathLib.DotProduct(dl.Direction, ModelLoader.MSurf_Plane(ref surfID).Normal) >= 0.0f)
+					return false;
+			}
+		}
+
+		ref ModelTexInfo tex = ref ModelLoader.MSurf_TexInfo(ref surfID);
+		local.X = MathLib.DotProduct(lightOrigin, tex.LightmapVecsLuxelsPerWorldUnits[0].AsVector3D()) + tex.LightmapVecsLuxelsPerWorldUnits[0][3];
+		local.Y = MathLib.DotProduct(lightOrigin, tex.LightmapVecsLuxelsPerWorldUnits[1].AsVector3D()) + tex.LightmapVecsLuxelsPerWorldUnits[1][3];
+		local.Z = 0;
+
+		local.X -= ModelLoader.MSurf_LightmapMins(ref surfID)[0];
+		local.Y -= ModelLoader.MSurf_LightmapMins(ref surfID)[1];
+
+		Vector3 intensity;
+		float lightStyleValue = LightStyleValue((byte)dl.Style);
+		intensity.X = MathLib.TexLightToLinear(dl.Color.R, dl.Color.Exponent) * lightStyleValue;
+		intensity.Y = MathLib.TexLightToLinear(dl.Color.G, dl.Color.Exponent) * lightStyleValue;
+		intensity.Z = MathLib.TexLightToLinear(dl.Color.B, dl.Color.Exponent) * lightStyleValue;
+
+		float minlight = MathF.Max(MinLightingValue, dl.MinLight);
+		float ooQuadraticAttn = lightRadiusSq * minlight;
+		float ooRadiusSq = 1.0f / lightRadiusSq;
+
+		int smax = ModelLoader.MSurf_LightmapExtents(ref surfID)[0] + 1;
+		int tmax = ModelLoader.MSurf_LightmapExtents(ref surfID)[1] + 1;
+		for (int t = 0; t < tmax; ++t) {
+			float td = (local.Y - t) * tex.WorldUnitsPerLuxel;
+
+			for (int s = 0; s < smax; ++s) {
+				float sd = (local.X - s) * tex.WorldUnitsPerLuxel;
+
+				float inPlaneDistSq = sd * sd + td * td;
+				float totalDistSq = inPlaneDistSq + perpDistSq;
+				if (totalDistSq < lightRadiusSq) {
+					float scale = (totalDistSq != 0.0f) ? ooQuadraticAttn / totalDistSq : 1.0f;
+
+					scale *= 1.0f - totalDistSq * ooRadiusSq;
+
+					if (scale > 2.0f)
+						scale = 2.0f;
+
+					int idx = t * smax + s;
+
+					blocklights[0][idx][0] += scale * intensity.X;
+					blocklights[0][idx][1] += scale * intensity.Y;
+					blocklights[0][idx][2] += scale * intensity.Z;
+				}
+			}
+		}
+		return true;
+	}
+
+	void AddSingleDynamicLightToBumpLighting(DLight dl, ref BSPMSurface2 surfID, in Vector3 lightOrigin, float perpDistSq, float lightRadiusSq, ReadOnlySpan<Vector3> bumpBasis, in Vector3 luxelBasePosition) {
+		Vector3 local;
+		Assert(dl.OuterAngle == 0.0f);
+
+		ref ModelTexInfo texInfo = ref ModelLoader.MSurf_TexInfo(ref surfID);
+		local.X = MathLib.DotProduct(lightOrigin, texInfo.LightmapVecsLuxelsPerWorldUnits[0].AsVector3D()) + texInfo.LightmapVecsLuxelsPerWorldUnits[0][3];
+		local.Y = MathLib.DotProduct(lightOrigin, texInfo.LightmapVecsLuxelsPerWorldUnits[1].AsVector3D()) + texInfo.LightmapVecsLuxelsPerWorldUnits[1][3];
+		local.Z = 0;
+
+		local.X -= ModelLoader.MSurf_LightmapMins(ref surfID)[0];
+		local.Y -= ModelLoader.MSurf_LightmapMins(ref surfID)[1];
+
+		Vector3 intensity;
+		float lightStyleValue = LightStyleValue((byte)dl.Style);
+		intensity.X = MathLib.TexLightToLinear(dl.Color.R, dl.Color.Exponent) * lightStyleValue;
+		intensity.Y = MathLib.TexLightToLinear(dl.Color.G, dl.Color.Exponent) * lightStyleValue;
+		intensity.Z = MathLib.TexLightToLinear(dl.Color.B, dl.Color.Exponent) * lightStyleValue;
+
+		float minlight = MathF.Max(MinLightingValue, dl.MinLight);
+		float ooQuadraticAttn = lightRadiusSq * minlight;
+		float ooRadiusSq = 1.0f / lightRadiusSq;
+
+		Vector3 lightDirection = new(0, 0, 0);
+		Vector3 texelWorldPosition;
+
+		bool useLightDirection = (dl.OuterAngle != 0.0f) && (MathF.Abs(dl.Direction.LengthSquared() - 1.0f) < 1e-3);
+		if (useLightDirection)
+			MathLib.VectorMultiply(dl.Direction, -1.0f, out lightDirection);
+
+		float fixupFactor = texInfo.WorldUnitsPerLuxel * texInfo.WorldUnitsPerLuxel;
+
+		int smax = ModelLoader.MSurf_LightmapExtents(ref surfID)[0] + 1;
+		int tmax = ModelLoader.MSurf_LightmapExtents(ref surfID)[1] + 1;
+		for (int t = 0; t < tmax; ++t) {
+			float td = (local.Y - t) * texInfo.WorldUnitsPerLuxel;
+
+			MathLib.VectorMA(luxelBasePosition, t * fixupFactor, texInfo.LightmapVecsLuxelsPerWorldUnits[1].AsVector3D(), out texelWorldPosition);
+
+			for (int s = 0; s < smax; ++s) {
+				float sd = (local.X - s) * texInfo.WorldUnitsPerLuxel;
+
+				float inPlaneDistSq = sd * sd + td * td;
+				float totalDistSq = inPlaneDistSq + perpDistSq;
+
+				if (totalDistSq < lightRadiusSq) {
+					float scale = (totalDistSq != 0.0f) ? ooQuadraticAttn / totalDistSq : 1.0f;
+
+					scale *= 1.0f - totalDistSq * ooRadiusSq;
+
+					if (scale > 2.0f)
+						scale = 2.0f;
+
+					int idx = t * smax + s;
+
+					blocklights[0][idx][0] += scale * intensity.X;
+					blocklights[0][idx][1] += scale * intensity.Y;
+					blocklights[0][idx][2] += scale * intensity.Z;
+
+					if (!useLightDirection) {
+						MathLib.VectorSubtract(lightOrigin, texelWorldPosition, out lightDirection);
+						MathLib.VectorNormalize(ref lightDirection);
+					}
+
+					float lDotN = MathLib.DotProduct(lightDirection, ModelLoader.MSurf_Plane(ref surfID).Normal);
+					if (lDotN < 1e-3)
+						lDotN = 1e-3f;
+					scale /= lDotN;
+
+					int i;
+					for (i = 1; i < NUM_BUMP_VECTS + 1; i++) {
+						float dot = MathLib.DotProduct(lightDirection, bumpBasis[i - 1]);
+						if (dot <= 0.0f)
+							continue;
+
+						blocklights[i][idx][0] += dot * scale * intensity.X;
+						blocklights[i][idx][1] += dot * scale * intensity.Y;
+						blocklights[i][idx][2] += dot * scale * intensity.Z;
+					}
+				}
+			}
+
+			MathLib.VectorMA(texelWorldPosition, fixupFactor, texInfo.LightmapVecsLuxelsPerWorldUnits[0].AsVector3D(), out texelWorldPosition);
+		}
+	}
+
+	static void ComputeSurfaceBasis(ref BSPMSurface2 surfID, Span<Vector3> bumpNormals, out Vector3 luxelBasePosition) {
+		Vector3 sVect, tVect;
+		MathLib.VectorCopy(ModelLoader.MSurf_TexInfo(ref surfID).LightmapVecsLuxelsPerWorldUnits[0].AsVector3D(), out sVect);
+		MathLib.VectorNormalize(ref sVect);
+		MathLib.VectorCopy(ModelLoader.MSurf_TexInfo(ref surfID).LightmapVecsLuxelsPerWorldUnits[1].AsVector3D(), out tVect);
+		MathLib.VectorNormalize(ref tVect);
+		BumpVects.GetBumpNormals(in sVect, in tVect, in ModelLoader.MSurf_Plane(ref surfID).Normal, in ModelLoader.MSurf_Plane(ref surfID).Normal, bumpNormals);
+
+		float fixupFactor = ModelLoader.MSurf_TexInfo(ref surfID).WorldUnitsPerLuxel * ModelLoader.MSurf_TexInfo(ref surfID).WorldUnitsPerLuxel;
+
+		MathLib.VectorMultiply(ModelLoader.MSurf_TexInfo(ref surfID).LightmapVecsLuxelsPerWorldUnits[0].AsVector3D(),
+			(ModelLoader.MSurf_LightmapMins(ref surfID)[0] - ModelLoader.MSurf_TexInfo(ref surfID).LightmapVecsLuxelsPerWorldUnits[0][3]) * fixupFactor,
+			out luxelBasePosition);
+
+		MathLib.VectorMA(luxelBasePosition,
+			(ModelLoader.MSurf_LightmapMins(ref surfID)[1] - ModelLoader.MSurf_TexInfo(ref surfID).LightmapVecsLuxelsPerWorldUnits[1][3]) * fixupFactor,
+			ModelLoader.MSurf_TexInfo(ref surfID).LightmapVecsLuxelsPerWorldUnits[1].AsVector3D(),
+			out luxelBasePosition);
+
+		MathLib.VectorMA(luxelBasePosition, ModelLoader.MSurf_Plane(ref surfID).Dist, ModelLoader.MSurf_Plane(ref surfID).Normal, out luxelBasePosition);
+	}
+
+	public uint ComputeDynamicLightMask(DLight[] lights, ref BSPMSurface2 surfID, ref BSPMSurfaceLighting lighting, in Matrix3x4 entityToWorld) {
+		if (ModelLoader.SurfaceHasDispInfo(ref surfID))
+			return surfID.DispInfo!.ComputeDynamicLightMask(lights);
+
+		if (!CL.ActiveDlights)
+			return 0;
+
+		int lightMask = 0;
+		for (int lnum = 0, testBit = 1, mask = DLightActive; lnum < Constants.MAX_DLIGHTS; lnum++, mask >>= 1, testBit <<= 1) {
+			if ((mask & 1) != 0) {
+				if ((lighting.DLightBits & testBit) == 0)
+					continue;
+
+				if ((lights[lnum].Flags & (DLightFlags.NoWorldIllumination | DLightFlags.DisplacementMask)) != 0)
+					continue;
+
+				if (!CanUseVisibleDLight(lnum))
+					continue;
+
+				MathLib.VectorITransform(lights[lnum].Origin, in entityToWorld, out Vector3 lightOrigin);
+
+				float perpDistSq = MathLib.DotProduct(lightOrigin, ModelLoader.MSurf_Plane(ref surfID).Normal) - ModelLoader.MSurf_Plane(ref surfID).Dist;
+				if (perpDistSq < GLRLight.DLIGHT_BEHIND_PLANE_DIST) {
+					lighting.DLightBits &= ~testBit;
+					continue;
+				}
+
+				perpDistSq *= perpDistSq;
+
+				float lightRadiusSq = lights[lnum].GetRadiusSquared();
+				if (lightRadiusSq <= perpDistSq) {
+					lighting.DLightBits &= ~testBit;
+					continue;
+				}
+
+				lightMask |= testBit;
+			}
+		}
+
+		return (uint)lightMask;
+	}
+
+	public void AddDynamicLights(DLight[] lights, ref BSPMSurface2 surfID, in Matrix3x4 entityToWorld, bool needsBumpmap, uint lightMask) {
+		Span<Vector3> bumpNormals = stackalloc Vector3[NUM_BUMP_VECTS];
+		bool computedBumpBasis = false;
+		Vector3 luxelBasePosition = default;
+
+		if (ModelLoader.SurfaceHasDispInfo(ref surfID)) {
+			surfID.DispInfo!.AddDynamicLights(lights, lightMask);
+			return;
+		}
+
+		for (int lnum = 0, testBit = 1, mask = (int)lightMask; lnum < Constants.MAX_DLIGHTS && mask != 0; lnum++, mask >>= 1, testBit <<= 1) {
+			if ((mask & 1) != 0) {
+				MathLib.VectorITransform(lights[lnum].Origin, in entityToWorld, out Vector3 lightOrigin);
+
+				float perpDistSq = MathLib.DotProduct(lightOrigin, ModelLoader.MSurf_Plane(ref surfID).Normal) - ModelLoader.MSurf_Plane(ref surfID).Dist;
+				if (perpDistSq < GLRLight.DLIGHT_BEHIND_PLANE_DIST)
+					continue;
+
+				perpDistSq *= perpDistSq;
+
+				float lightRadiusSq = lights[lnum].GetRadiusSquared();
+				if (lightRadiusSq <= perpDistSq)
+					continue;
+
+				if (!needsBumpmap) {
+					AddSingleDynamicLight(lights[lnum], ref surfID, in lightOrigin, perpDistSq, lightRadiusSq);
+					continue;
+				}
+
+				if (!computedBumpBasis) {
+					ComputeSurfaceBasis(ref surfID, bumpNormals, out luxelBasePosition);
+					computedBumpBasis = true;
+				}
+
+				AddSingleDynamicLightToBumpLighting(lights[lnum], ref surfID, in lightOrigin, perpDistSq, lightRadiusSq, bumpNormals, in luxelBasePosition);
+			}
+		}
+	}
+
+	public uint UpdateDlightState(DLight[] lights, ref BSPMSurface2 surfID, in Matrix3x4 entityToWorld, bool onlyUseLightStyles, bool lightmap) {
+		uint dlightMask = 0;
+		ref BSPMSurfaceLighting lighting = ref ModelLoader.SurfaceLighting(ref surfID, host_state.WorldBrush!);
+
+		lighting.DLightBits &= DLightActive;
+		lighting.LastComputedFrame = r_framecount;
+
+		if (!onlyUseLightStyles) {
+			if (lightmap && lighting.DLightFrame == r_framecount)
+				dlightMask = ComputeDynamicLightMask(lights, ref surfID, ref lighting, in entityToWorld);
+
+			if (dlightMask == 0 || lighting.DLightBits == 0) {
+				lighting.DLightBits = 0;
+				ModelLoader.MSurf_Flags(ref surfID) &= ~SurfDraw.HasDLight;
+			}
+		}
+
+		return dlightMask;
+	}
+
+	public void BuildLightMapGuts(DLight[] lights, ref BSPMSurface2 surfID, in Matrix3x4 entityToWorld, uint dlightMask, bool needsBumpmap, bool needsLightmap) {
 		Assert(!host_state.WorldBrush!.UnloadedLightmaps);
 		int bumpID;
 		ref BSPMSurfaceLighting pLighting = ref ModelLoader.SurfaceLighting(ref surfID, host_state.WorldBrush);
@@ -975,7 +1356,8 @@ public partial class Render(
 			Assert(false);
 		}
 
-		// TODO: Dynamic lights
+		if (dlightMask != 0)
+			AddDynamicLights(lights, ref surfID, in entityToWorld, needsBumpmap, dlightMask);
 
 		// Update the texture state
 		UpdateLightmapTextures(ref surfID, needsBumpmap);
@@ -1061,7 +1443,7 @@ public partial class Render(
 		Assert(list);
 		Assert(LightmapUpdateDepth > 0 || g_LightmapUpdateList.Count == 0);
 
-		if (shadowDepth)
+		if (!shadowDepth)
 			BeginUpdateLightmaps();
 
 		R_BuildWorldLists(list!, ref info, forceViewLeaf, visData, shadowDepth, reflectionWaterHeight);

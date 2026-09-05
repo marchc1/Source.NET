@@ -224,6 +224,16 @@ public class ViewRender : IViewRender
 		ComputeCameraVariables(ViewRender.g_VecRenderOrigin, ViewRender.g_VecRenderAngles,
 			out ViewRender.g_VecVForward, out ViewRender.g_VecVRight, out ViewRender.g_VecVUp, ref ViewRender.g_MatCamInverse);
 
+		AudioState audioState = default;
+		audioState.Origin = viewEye.Origin;
+		audioState.Angles = viewEye.Angles;
+		audioState.IsUnderwater = player != null && player.AudioStateIsUnderwater(viewEye.Origin);
+
+		viewEye.Origin = audioState.Origin;
+		viewEye.Angles = audioState.Angles;
+
+		engine.SetAudioState(in audioState);
+
 		C_BaseAnimating.PopAllowBoneAccess(new("OnRenderStart->ViewRender.SetUpView")); // pops the (true, false) bone access set in OnRenderStart
 		C_BaseAnimating.PushAllowBoneAccess(true, true, new("ViewRender.SetUpView->OnRenderEnd")); // pop is in OnRenderEnd()
 	}
@@ -348,6 +358,8 @@ public class ViewRender : IViewRender
 			ITexture? saveRenderTarget = renderContext.GetRenderTarget();
 		}
 
+		g_ClientShadowMgr.AdvanceFrame();
+
 		RenderingView = true;
 		render.SceneBegin();
 		using (renderContext = new MatRenderContextPtr(materials))
@@ -442,6 +454,12 @@ public class ViewRender : IViewRender
 		IGameSystem.PreRenderAllSystems();
 		SetupVis(in viewRender, out uint visFlags);
 
+		g_ClientShadowMgr.PreRender();
+
+		// todo
+		// if (r_flashlightdepthtexture.GetBool() && viewID == ViewID.Main)
+		// 	g_ClientShadowMgr.ComputeShadowDepthTextures(viewRender);
+
 		bool drawSkybox = ViewRenderConVars.r_skybox.GetBool();
 		if (drew3dSkybox || skyboxVisible == SkyboxVisibility.NotVisible)
 			drawSkybox = false;
@@ -449,6 +467,10 @@ public class ViewRender : IViewRender
 		DrawWorldAndEntities(drawSkybox, in viewRender, clearFlags);
 
 		DebugViewRender.Draw3DDebuggingInfo(in viewRender);
+
+		// todo
+		// if (r_flashlightdepthtexture.GetBool())
+		// 	g_ClientShadowMgr.UnlockAllShadowDepthTextures();
 	}
 
 	private void DrawWorldAndEntities(bool drawSkybox, in ViewSetup viewRender, ClearFlags clearFlags) {

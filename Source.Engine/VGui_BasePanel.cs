@@ -3,6 +3,7 @@ using Source.Common.GUI;
 using Source.GUI.Controls;
 
 namespace Source.Engine;
+#if !SWDS
 
 public abstract class BasePanel : Panel {
 	static ConVar vgui_nav_lock = new("0", FCvar.DevelopmentOnly);
@@ -68,3 +69,4 @@ public abstract class BasePanel : Panel {
 		return x;
 	}
 }
+#endif

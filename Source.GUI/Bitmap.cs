@@ -25,7 +25,7 @@ class Bitmap : IImage
 
 		Procedural = false;
 
-		if (filename.IndexOf(".pic") == 0)
+		if (filename.IndexOf(".pic", StringComparison.OrdinalIgnoreCase) != -1)
 			Procedural = true;
 
 		ID = 0;
@@ -63,7 +63,7 @@ class Bitmap : IImage
 
 	public void SetColor(Color col) => Color = col;
 
-	ReadOnlySpan<char> GetName() => Filename;
+	public ReadOnlySpan<char> GetName() => Filename;
 
 	public void Paint() {
 		if (!Valid)

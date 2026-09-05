@@ -397,6 +397,30 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 
 	public double TimeForceShutdown;
 
+	public static ServerClass? FindServerClass(ReadOnlySpan<char> name) {
+		ServerClass? cur = serverGameDLL.GetAllServerClasses();
+		while (cur != null) {
+			if (stricmp(cur.NetworkName, name) == 0)
+				return cur;
+
+			cur = cur.Next;
+		}
+
+		return null;
+	}
+
+	public static ServerClass? FindServerClass(int index) {
+		ServerClass? cur = serverGameDLL.GetAllServerClasses();
+		int count = 0;
+
+		while ((count < index) && (cur != null)) {
+			count++;
+			cur = cur.Next;
+		}
+
+		return null;
+	}
+
 	private void Think(bool isSimulating) {
 		sv.UpdateHibernationState();
 
@@ -426,6 +450,4 @@ public partial class SV(IServiceProvider services, Cbuf Cbuf, ED ED, Host Host, 
 
 		networkStringTableContainerServer.SetAllowCreation(false);
 	}
-
-	internal static int ModelIndex(ReadOnlySpan<char> s) => sv.LookupModelIndex(s);
 }

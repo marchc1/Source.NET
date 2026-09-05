@@ -223,7 +223,7 @@ public partial class
 		}
 		return baseAct;
 	}
-	
+
 #if GMOD_DLL
 	public virtual ReadOnlySpan<char> GetHoldType() => "normal";
 #endif
@@ -376,7 +376,7 @@ public partial class
 
 		return HasPrimaryAmmo() || HasSecondaryAmmo();
 	}
-	public virtual void AddViewKick(){
+	public virtual void AddViewKick() {
 
 	}
 	public virtual float GetFireRate() => 0;
@@ -1058,7 +1058,6 @@ public partial class
 	public ReadOnlySpan<char> GetShootSound(WeaponSound index) => GetWpnData().ShootSounds[(int)index].SliceNullTerminatedString();
 	public ReadOnlySpan<char> GetShootSound(int index) => GetWpnData().ShootSounds[index].SliceNullTerminatedString();
 	public virtual void WeaponSound(WeaponSound soundType, TimeUnit_t soundTime = 0.0) {
-		if (true) return; // todo fixme
 #if !CLIENT_DLL
 		if (!SoundsEnabled)
 			return;
@@ -1085,7 +1084,7 @@ public partial class
 		else {
 			// Play weapon sound from the owner
 			if (GetOwner() != null) {
-				PASAttenuationFilter filter = new(GetOwner()!, (float)parms.SoundLevel /* << is this correct? */ );
+				PASAttenuationFilter filter = new(GetOwner()!, SNDLVL_TO_ATTN(parms.SoundLevel));
 				if (IsPredicted() && BaseEntity.GetPredictionPlayer() != null)
 					filter.UsePredictionRules();
 
@@ -1098,7 +1097,7 @@ public partial class
 			}
 			// If no owner play from the weapon (this is used for thrown items)
 			else {
-				PASAttenuationFilter filter = new(this, (float)parms.SoundLevel);
+				PASAttenuationFilter filter = new(this, SNDLVL_TO_ATTN(parms.SoundLevel));
 				if (IsPredicted() && BaseEntity.GetPredictionPlayer() != null)
 					filter.UsePredictionRules();
 

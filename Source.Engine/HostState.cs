@@ -67,38 +67,43 @@ public class HostState : IHostState
 	void IHostState.Frame(double time) {
 		while (true) {
 			HostStates oldState = CurrentState;
-			switch (CurrentState) {
-				case HostStates.NewGame:
-					mdlCache.BeginMapLoad();
-					State_NewGame();
-					break;
-				case HostStates.LoadGame:
-					mdlCache.BeginMapLoad();
-					State_LoadGame();
-					break;
-				case HostStates.ChangeLevelMP:
-					mdlCache.BeginMapLoad();
-					ShortFrameTime = 0.5;
-					State_ChangeLevelMP();
-					break;
-				case HostStates.ChangeLevelSP:
-					mdlCache.BeginMapLoad();
-					ShortFrameTime = 1.5;
-					State_ChangeLevelSP();
-					break;
-				case HostStates.Run:
-					State_Run(time);
-					break;
-				case HostStates.GameShutdown:
-					State_GameShutdown();
-					break;
-				case HostStates.Shutdown:
-					State_Shutdown();
-					break;
-				case HostStates.Restart:
-					// mdl cache...
-					State_Restart();
-					break;
+			try {
+				switch (CurrentState) {
+					case HostStates.NewGame:
+						mdlCache.BeginMapLoad();
+						State_NewGame();
+						break;
+					case HostStates.LoadGame:
+						mdlCache.BeginMapLoad();
+						State_LoadGame();
+						break;
+					case HostStates.ChangeLevelMP:
+						mdlCache.BeginMapLoad();
+						ShortFrameTime = 0.5;
+						State_ChangeLevelMP();
+						break;
+					case HostStates.ChangeLevelSP:
+						mdlCache.BeginMapLoad();
+						ShortFrameTime = 1.5;
+						State_ChangeLevelSP();
+						break;
+					case HostStates.Run:
+						State_Run(time);
+						break;
+					case HostStates.GameShutdown:
+						State_GameShutdown();
+						break;
+					case HostStates.Shutdown:
+						State_Shutdown();
+						break;
+					case HostStates.Restart:
+						// mdl cache...
+						State_Restart();
+						break;
+				}
+			}
+			catch (HostErrorException) {
+				break; // exit loop after unwind
 			}
 
 			if (oldState == HostStates.Run) break;

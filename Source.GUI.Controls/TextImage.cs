@@ -10,8 +10,6 @@ public struct ColorChange
 }
 public class TextImage : Image
 {
-	readonly public ILocalize Localize = Singleton<ILocalize>();
-
 	string? Text;
 	IFont? Font;
 	IFont? FallbackFont;

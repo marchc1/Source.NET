@@ -3,6 +3,9 @@ using Source.Common.Launcher;
 using Source.Common.MaterialSystem;
 using Source.Common.Mathematics;
 
+using System.Numerics;
+using System.Runtime.CompilerServices;
+
 namespace Source.Common.ShaderAPI;
 
 public enum CreateTextureFlags
@@ -19,11 +22,24 @@ public enum CreateTextureFlags
 	SRGB = 0x4000,
 }
 
+public struct SamplerShadowState
+{
+	public bool SRGBReadEnable;
+}
+
+[InlineArray((int)Sampler.MaxSamplers)]
+public struct SamplerShadowStates
+{
+	private SamplerShadowState element;
+}
+
 /// <summary>
 /// A basic representation of the graphics state machine
 /// </summary>
 public struct GraphicsBoardState
 {
+	public SamplerShadowStates SamplerState;
+
 	public bool Blending;
 	public ShaderBlendFactor SourceBlend;
 	public ShaderBlendFactor DestinationBlend;
@@ -40,6 +56,7 @@ public struct GraphicsBoardState
 	public bool DepthWrite;
 	public bool CullEnable;
 	public bool AlphaToCoverage;
+	public bool SRGBWriteEnable;
 
 	public ShaderDepthFunc DepthFunc;
 	public ShaderPolyMode FillMode;
@@ -56,6 +73,9 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void SetViewports(ReadOnlySpan<ShaderViewport> viewports);
 	void GetViewports(Span<ShaderViewport> viewports);
 
+	void SetToneMappingScaleLinear(in Vector3 scale);
+	ref readonly Vector3 GetToneMappingScaleLinear();
+
 	void PreInit(IShaderUtil shaderUtil, IServiceProvider services);
 	void DrawMesh(IMesh mesh);
 	void Bind(IMaterial? material);
@@ -67,10 +87,13 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void ClearColor4ub(byte r, byte g, byte b, byte a);
 	void GetBackBufferDimensions(out int width, out int height);
 	ImageFormat GetBackBufferFormat();
+	bool SupportsShadowDepthTextures();
+	ImageFormat GetShadowDepthTextureFormat();
+	ImageFormat GetNullTextureFormat();
 	void BeginFrame();
 	void EndFrame();
 	int GetCurrentDynamicVBSize();
-	void TexImage2D(int mip, int face,  ImageFormat dstFormat, int zOffset, int width, int height, ImageFormat srcFormat, bool srcIsTiled, Span<byte> imageData);
+	void TexImage2D(int mip, int face, ImageFormat dstFormat, int zOffset, int width, int height, ImageFormat srcFormat, bool srcIsTiled, Span<byte> imageData);
 	void TexSubImage2D(int mip, int face, int x, int y, int z, int width, int height, ImageFormat srcFormat, int srcStride, Span<byte> imageData);
 	bool DoRenderTargetsNeedSeparateDepthBuffer();
 	void EnableLinearColorSpaceFrameBuffer(bool v);
@@ -131,4 +154,20 @@ public interface IShaderAPI : IShaderDynamicAPI
 	void SetStandardTextureHandle(StandardTextureId id, int handle);
 	float LinearToGamma_HardwareSpecific(float fLookupResult);
 	void SetLinearToGammaConversionTextures(int linearToGammaTableTextureHandle, int linearToGammaIdentityTableTextureHandle);
+	void SetAmbientLightCube(ReadOnlySpan<System.Numerics.Vector4> cube);
+	void SetLightingOrigin(System.Numerics.Vector3 lightingOrigin);
+	void SetAmbientLight(float r, float g, float b);
+	void SetLight(int lightNum, in LightDesc desc);
+	void DisableAllLocalLights();
+	int GetMaxLights();
+	void SetFlashlightStateEx(in FlashlightState state, in Matrix4x4 worldToTexture, ITexture? flashlightDepthTexture);
+	void SetStencilEnable(bool onoff);
+	void SetStencilFailOperation(StencilOperation op);
+	void SetStencilZFailOperation(StencilOperation op);
+	void SetStencilPassOperation(StencilOperation op);
+	void SetStencilCompareFunction(StencilComparisonFunction cmpfn);
+	void SetStencilReferenceValue(int reference);
+	void SetStencilTestMask(uint msk);
+	void SetStencilWriteMask(uint msk);
+	void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor);
 }

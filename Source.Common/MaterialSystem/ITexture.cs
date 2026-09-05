@@ -67,5 +67,5 @@ public interface ITexture : IDisposable
 
 	bool SaveToFile(ReadOnlySpan<char> fileName);
 
-	public static bool IsError([NotNullWhen(true)] ITexture? tex) => tex != null && !tex.IsError();
+	public static bool IsError([NotNullWhen(false)] ITexture? tex) => tex == null || tex.IsError();
 }

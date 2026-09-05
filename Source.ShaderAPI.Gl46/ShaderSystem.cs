@@ -7,12 +7,15 @@ using Source.Common.ShaderLib;
 using Source.MaterialSystem;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Numerics;
 using System.Text;
 
 namespace Source.ShaderAPI.Gl46;
 
 public interface IShaderSystemInternal : IShaderInit, IShaderSystem;
+
+public readonly record struct ShaderCombo(string Name, int Min, int Range);
 
 public class ShaderSystem : IShaderSystemInternal
 {
@@ -25,6 +28,7 @@ public class ShaderSystem : IShaderSystemInternal
 	private IMaterialSystem MaterialSystem => _MaterialSystem ??= Singleton<IMaterialSystem>();
 	private IShaderAPI ShaderAPI => _ShaderAPI ??= Singleton<IShaderAPI>();
 	private MaterialSystem_Config Config => _Config ??= Singleton<MaterialSystem_Config>();
+	readonly ITextureManager TextureSystem = Singleton<ITextureManager>()!;
 
 	public void BindTexture(Sampler sampler, ITexture texture, int frame) {
 		if (texture == null) return;
@@ -53,7 +57,14 @@ public class ShaderSystem : IShaderSystemInternal
 
 			PrepForShaderDraw(shader, parms, renderState);
 
-			shader.DrawElements(parms, null, ShaderAPI, vertexCompression);
+			ref BasePerMaterialContextData? contextData = ref ((ShadowStateGl46)renderState).ContextData;
+
+			if (contextData != null && contextData.VarChangeID != materialVarTimeStamp) {
+				contextData.MaterialVarsChanged = true;
+				contextData.VarChangeID = materialVarTimeStamp;
+			}
+
+			shader.DrawElements(parms, null, ShaderAPI, vertexCompression, ref contextData);
 			DoneWithShaderDraw();
 		}
 	}
@@ -227,7 +238,7 @@ public class ShaderSystem : IShaderSystemInternal
 		}
 
 		if (stricmp(textureVar.GetStringValue(), "env_cubemap") == 0) {
-			textureVar.SetTextureValue(MaterialSystem.FindTexture("env_cubemap", TEXTURE_GROUP_CUBE_MAP, false));
+			textureVar.SetTextureValue(ITextureInternal.EnvCubemap);
 			SetFlags2(parms, MaterialVarFlags2.UsesEnvCubemap);
 			return;
 		}
@@ -285,7 +296,7 @@ public class ShaderSystem : IShaderSystemInternal
 
 	private void InitState(IShader shader, IMaterialVar[] shaderParams, ref IShaderShadow renderState) {
 		PrepForShaderDraw(shader, shaderParams, renderState);
-		shader.DrawElements(shaderParams, renderState, null, VertexCompressionType.None);
+		shader.DrawElements(shaderParams, renderState, null, VertexCompressionType.None, ref ((ShadowStateGl46)renderState).ContextData);
 		DoneWithShaderDraw();
 	}
 
@@ -383,64 +394,233 @@ public class ShaderSystem : IShaderSystemInternal
 		return true;
 	}
 
-	public unsafe VertexShaderHandle LoadVertexShader(ReadOnlySpan<char> name) {
-		ulong symbol = name.Hash();
-		if (vshs.TryGetValue(symbol, out VertexShaderHandle value))
-			return value;
+	private byte[]? BuildShaderSource(ReadOnlySpan<byte> source, ReadOnlySpan<char> defines, string mainName, List<string> sourceFiles) {
+		string src = Encoding.ASCII.GetString(source);
+		int versionEnd = src.IndexOf('\n');
+		if (versionEnd < 0)
+			return null;
 
+		sourceFiles.Add(mainName);
+
+		StringBuilder sb = new();
+		sb.Append(src.AsSpan(0, versionEnd + 1));
+
+		ReadOnlySpan<char> rest = defines;
+		while (!rest.IsEmpty) {
+			int sep = rest.IndexOf(';');
+			ReadOnlySpan<char> define = (sep < 0 ? rest : rest[..sep]).Trim();
+			rest = sep < 0 ? default : rest[(sep + 1)..];
+			if (define.IsEmpty)
+				continue;
+			sb.Append("#define ");
+			sb.Append(define);
+			sb.Append('\n');
+		}
+
+		sb.Append("#line 2 0\n");
+
+		ProcessSource(sb, src[(versionEnd + 1)..], 0, 2, sourceFiles, 0);
+
+		return Encoding.ASCII.GetBytes(sb.ToString());
+	}
+
+	private void ProcessSource(StringBuilder sb, string source, int fileIndex, int startLine, List<string> sourceFiles, int depth) {
+		if (depth > 32) {
+			sb.Append(source);
+			return;
+		}
+
+		int lineNo = startLine;
+		foreach (string line in source.Split('\n')) {
+			ReadOnlySpan<char> trimmed = line.AsSpan().TrimStart();
+			if (trimmed.StartsWith("#include")) {
+				int q1 = line.IndexOf('"');
+				int q2 = q1 >= 0 ? line.IndexOf('"', q1 + 1) : -1;
+				if (q1 >= 0 && q2 > q1) {
+					string includeName = line[(q1 + 1)..q2];
+					using IFileHandle? includeHandle = FileSystem.Open($"shaders/{includeName}", FileOpenOptions.Read, "game");
+					if (includeHandle != null) {
+						byte[] bytes = new byte[includeHandle.Stream.Length];
+						includeHandle.Stream.ReadExactly(bytes);
+
+						int includeIndex = sourceFiles.Count;
+						sourceFiles.Add(includeName);
+
+						sb.Append("#line 1 ").Append(includeIndex).Append('\n');
+						ProcessSource(sb, Encoding.ASCII.GetString(bytes), includeIndex, 1, sourceFiles, depth + 1);
+						sb.Append("#line ").Append(lineNo + 1).Append(' ').Append(fileIndex).Append('\n');
+						++lineNo;
+						continue;
+					}
+
+					Warning($"Shader include not found: {includeName}\n");
+				}
+			}
+
+			sb.Append(line);
+			sb.Append('\n');
+			++lineNo;
+		}
+	}
+
+	private unsafe uint CompileShader(int glType, ReadOnlySpan<char> name, ReadOnlySpan<char> defines, string typeName) {
 		using IFileHandle? handle = FileSystem.Open($"shaders/{name}", FileOpenOptions.Read, "game");
 		if (handle == null)
-			return VertexShaderHandle.INVALID;
+			return 0;
 
 		Span<byte> source = stackalloc byte[(int)handle.Stream.Length];
-		int read = handle.Stream.Read(source);
-		uint pShader = 0;
-		pShader = glCreateShader(GL_VERTEX_SHADER);
-		int len = source.Length;
-		fixed (byte* pSrc = source)
+		handle.Stream.Read(source);
+
+		List<string> sourceFiles = [];
+		byte[]? built = BuildShaderSource(source, defines, new string(name), sourceFiles);
+		if (built == null)
+			return 0;
+
+		uint pShader = glCreateShader(glType);
+		int len = built.Length;
+		fixed (byte* pSrc = built)
 			glShaderSource(pShader, 1, &pSrc, &len);
 		glCompileShader(pShader);
 
 		if (!IsValidShader(pShader, out string? error)) {
-			Warning("WARNING: Vertex shader compilation error.\n");
+			Warning($"WARNING: {typeName} shader compilation error in {name}.\n");
 			Warning(error);
 			Warning("\n");
-			return VertexShaderHandle.INVALID;
+			for (int i = 0; i < sourceFiles.Count; i++)
+				Warning($"  [source string {i}] = {sourceFiles[i]}\n");
+			Warning("\n");
+			return 0;
 		}
+		else {
+			ReadOnlySpan<char> combos = defines.SliceNullTerminatedString();
+			if (combos.IsEmpty)
+				Msg($"Compiled shader: {name} ({typeName})\n");
+			else
+				Msg($"Compiled shader: {name} ({typeName}) [{combos}]\n");
+		}
+
+		return pShader;
+	}
+
+	Dictionary<string, (List<ShaderCombo> Static, List<ShaderCombo> Dynamic)> comboCache = [];
+
+	internal (List<ShaderCombo> Static, List<ShaderCombo> Dynamic) GetShaderCombos(ReadOnlySpan<char> name) {
+		string key = new(name);
+		if (comboCache.TryGetValue(key, out var cached))
+			return cached;
+
+		List<ShaderCombo> statics = [];
+		List<ShaderCombo> dynamics = [];
+
+		using IFileHandle? handle = FileSystem.Open($"shaders/{key}", FileOpenOptions.Read, "game");
+		if (handle != null) {
+			byte[] bytes = new byte[handle.Stream.Length];
+			handle.Stream.ReadExactly(bytes);
+			string source = Encoding.ASCII.GetString(bytes);
+
+			foreach (string rawLine in source.Split('\n')) {
+				string line = rawLine.Trim();
+
+				if (!line.StartsWith("//"))
+					continue;
+				ReadOnlySpan<char> body = line.AsSpan(2).TrimStart();
+
+				List<ShaderCombo>? list = null;
+				if (body.StartsWith("STATIC:"))
+					list = statics;
+				else if (body.StartsWith("DYNAMIC:"))
+					list = dynamics;
+				if (list == null)
+					continue;
+
+				int q1 = line.IndexOf('"');
+				if (q1 < 0)
+					continue;
+				int q2 = line.IndexOf('"', q1 + 1);
+				if (q2 < 0)
+					continue;
+				string comboName = line[(q1 + 1)..q2];
+
+				int min = 0, max = 1;
+				int q3 = line.IndexOf('"', q2 + 1);
+				int q4 = q3 < 0 ? -1 : line.IndexOf('"', q3 + 1);
+				if (q4 >= 0) {
+					ReadOnlySpan<char> range = line[(q3 + 1)..q4];
+					int dots = range.IndexOf("..");
+					if (dots >= 0) {
+						min = int.Parse(range[..dots]);
+						max = int.Parse(range[(dots + 2)..]);
+					}
+				}
+
+				list.Add(new(comboName, min, max - min + 1));
+			}
+		}
+
+		var result = (statics, dynamics);
+		comboCache[key] = result;
+		return result;
+	}
+
+	private static ulong ComboSymbol(ReadOnlySpan<char> name, ReadOnlySpan<char> defines) {
+		ulong symbol = name.Hash();
+		if (!defines.IsEmpty)
+			symbol ^= defines.Hash();
+		return symbol;
+	}
+
+	public VertexShaderHandle LoadVertexShader(ReadOnlySpan<char> name, ReadOnlySpan<char> defines = default) {
+		ulong symbol = ComboSymbol(name, defines);
+		if (vshs.TryGetValue(symbol, out VertexShaderHandle value))
+			return value;
+
+		uint pShader = CompileShader(GL_VERTEX_SHADER, name, defines, "Vertex");
+		if (pShader == 0)
+			return VertexShaderHandle.INVALID;
 
 		VertexShaderHandle vsh = new((nint)pShader);
 		vshs[symbol] = vsh;
 		return vsh;
 	}
 
-	public unsafe PixelShaderHandle LoadPixelShader(ReadOnlySpan<char> name) {
-		ulong symbol = name.Hash();
+	public PixelShaderHandle LoadPixelShader(ReadOnlySpan<char> name, ReadOnlySpan<char> defines = default) {
+		ulong symbol = ComboSymbol(name, defines);
 		if (pshs.TryGetValue(symbol, out PixelShaderHandle value))
 			return value;
 
-		using IFileHandle? handle = FileSystem.Open($"shaders/{name}", FileOpenOptions.Read, "game");
-		if (handle == null)
+		uint pShader = CompileShader(GL_FRAGMENT_SHADER, name, defines, "Pixel");
+		if (pShader == 0)
 			return PixelShaderHandle.INVALID;
-
-		Span<byte> source = stackalloc byte[(int)handle.Stream.Length];
-		int read = handle.Stream.Read(source);
-		uint pShader = 0;
-		pShader = glCreateShader(GL_FRAGMENT_SHADER);
-		int len = source.Length;
-		fixed (byte* pSrc = source)
-			glShaderSource(pShader, 1, &pSrc, &len);
-		glCompileShader(pShader);
-
-		if (!IsValidShader(pShader, out string? error)) {
-			Warning("WARNING: Pixel shader compilation error.\n");
-			Warning(error);
-			Warning("\n");
-			return PixelShaderHandle.INVALID;
-		}
 
 		PixelShaderHandle psh = new((nint)pShader);
 		pshs[symbol] = psh;
 		return psh;
 	}
 
+	public int GetShaderAPITextureBindHandle(ITexture? texture, int frame, int textureChannel) {
+		Assert(!ITextureInternal.IsTextureInternalEnvCubemap((ITextureInternal?)texture));
+		if (texture != null) {
+			ITextureInternal tex = (ITextureInternal)texture;
+			// RequestAllMipmaps todo
+
+			return tex.GetTextureHandle(frame, textureChannel);
+		}
+		else
+			return INVALID_SHADERAPI_TEXTURE_HANDLE;
+	}
+
+	public void LoadBumpMap(IMaterialVar textureVar, string? textureGroupName) {
+		Assert(textureVar);
+
+		if (textureVar.GetVarType() != MaterialVarType.String) {
+			if (textureVar.GetVarType() != MaterialVarType.Texture)
+				textureVar.SetTextureValue(TextureSystem.ErrorTexture());
+			return;
+		}
+
+		ITexture? text = MaterialSystem.FindTexture(textureVar.GetStringValue(), textureGroupName, false, 0);
+		text ??= TextureSystem.ErrorTexture();
+
+		textureVar.SetTextureValue(text);
+	}
 }

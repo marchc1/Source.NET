@@ -28,12 +28,13 @@ public enum FSReturnCode
 /// <summary>
 /// Internal engine filesystem initializer.
 /// </summary>
-public class FileSystem(IFileSystem fileSystem, IServiceProvider services) {
+public class FileSystem(IFileSystem fileSystem, IServiceProvider services)
+{
 	FSReturnCode SetupFileSystemError(bool run, FSReturnCode ret, ReadOnlySpan<char> msg) {
 		Dbg.Error($"{msg}\n");
 		return ret;
 	}
-	public FSReturnCode LoadSearchPaths(in CFSSearchPathsInit initInfo) {
+	public FSReturnCode LoadSearchPaths(ref CFSSearchPathsInit initInfo) {
 		if (initInfo.FileSystem == null || initInfo.DirectoryName == null)
 			return SetupFileSystemError(false, FSReturnCode.InvalidParameters, "FileSystem.LoadSearchPaths: Invalid parameters specified.");
 
@@ -43,25 +44,26 @@ public class FileSystem(IFileSystem fileSystem, IServiceProvider services) {
 			return retVal;
 
 		string baseDir;
-		if(!GetBaseDir(out baseDir))
+		if (!GetBaseDir(out baseDir))
 			return SetupFileSystemError(false, FSReturnCode.InvalidParameters, "FileSystem.GetBaseDir: failed.");
+
+		initInfo.ModPath = initInfo.DirectoryName;
 
 		const string GAMEINFOPATH_TOKEN = "|gameinfo_path|";
 		const string BASESOURCEPATHS_TOKEN = "|all_source_engine_paths|";
 
 		// todo: extraSearchPath.
 		bool lowViolence = initInfo.LowViolence;
-		bool firstGamePath = true;
-		foreach(KeyValues cur in searchPaths!) {
+		// bool firstGamePath = true;
+		foreach (KeyValues cur in searchPaths!) {
 			ReadOnlySpan<char> location = cur.GetString();
 			string lBaseDir = baseDir;
-			if(location.Contains(GAMEINFOPATH_TOKEN, StringComparison.OrdinalIgnoreCase)) {
+			if (location.Contains(GAMEINFOPATH_TOKEN, StringComparison.OrdinalIgnoreCase)) {
 				location = location[GAMEINFOPATH_TOKEN.Length..];
 				lBaseDir = initInfo.DirectoryName;
 			}
 			else if (location.Contains(BASESOURCEPATHS_TOKEN, StringComparison.OrdinalIgnoreCase)) {
-				Dbg.Warning($"all_source_engine_paths not implemented, ignoring.\n");
-				continue;
+				location = location[BASESOURCEPATHS_TOKEN.Length..];
 			}
 
 			ReadOnlySpan<char> absSearchPath;
@@ -84,6 +86,10 @@ public class FileSystem(IFileSystem fileSystem, IServiceProvider services) {
 		initInfo.FileSystem.MarkPathIDByRequestOnly("mod", true);
 		initInfo.FileSystem.MarkPathIDByRequestOnly("game_write", true);
 		initInfo.FileSystem.MarkPathIDByRequestOnly("mod_write", true);
+
+#if GMOD_DLL
+		initInfo.FileSystem.DoFilesystemRefresh();
+#endif
 
 		return FSReturnCode.OK;
 	}

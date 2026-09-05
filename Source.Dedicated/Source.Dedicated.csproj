@@ -23,6 +23,7 @@
 		<ProjectReference Include="..\Source.MaterialSystem\Source.MaterialSystem.csproj" />
 		<ProjectReference Include="..\Source.Physics\Source.Physics.csproj" />
 		<ProjectReference Include="..\Source.SoundEmitterSystem\Source.SoundEmitterSystem.csproj" />
+		<ProjectReference Include="..\Source.StudioRender\Source.StudioRender.csproj" />
 		<ProjectReference Include="..\Source.VTF\Source.VTF.csproj" />
 	</ItemGroup>
 

@@ -255,7 +255,8 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 	}
 
 	public void GetModelBounds(Model? model, out Vector3 mins, out Vector3 maxs) {
-		throw new NotImplementedException();
+		mins = model!.Mins;
+		maxs = model!.Maxs;
 	}
 
 	public bool ModelHasMaterialProxy(Model? model) => model != null && (model.Flags & ModelFlag.MaterialProxy) != 0;
@@ -282,9 +283,7 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException();
 	}
 
-	public float GetModelRadius(Model? model) {
-		throw new NotImplementedException();
-	}
+	public float GetModelRadius(Model? model) => model?.Radius ?? 0;
 
 	public StudioHeader? FindModel(StudioHeader? studioHdr, ref object? cache, ReadOnlySpan<char> modelname) {
 		throw new NotImplementedException();
@@ -298,10 +297,18 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 		throw new NotImplementedException();
 	}
 
+	private static void R_StudioGetLightingCenter(IClientRenderable? renderable, StudioHeader studioHdr, in Vector3 origin, in QAngle angles, out Vector3 lightingOrigin) {
+		MathLib.AngleMatrix(angles, origin, out Matrix3x4 matrix);
+		ModelRender.R_ComputeLightingOrigin(renderable, studioHdr, matrix, out lightingOrigin);
+	}
+
 	public void GetIlluminationPoint(Model? model, IClientRenderable? renderable, in Vector3 origin, in QAngle angles, out Vector3 lightingCenter) {
-		// throw new NotImplementedException();
-		// TODO!!
-		lightingCenter = origin;
+		Assert(model!.Type == ModelType.Studio);
+		StudioHeader? studioHdr = (StudioHeader?)GetModelExtraData(model);
+		if (studioHdr != null)
+			R_StudioGetLightingCenter(renderable, studioHdr, origin, angles, out lightingCenter);
+		else
+			lightingCenter = origin;
 	}
 
 	public int GetModelContents(int modelIndex) {
@@ -345,7 +352,10 @@ public abstract class ModelInfo(IFileSystem filesystem, IModelLoader modelloader
 	}
 
 	public void OnLevelChange() {
-		throw new NotImplementedException();
+		NetworkedDynamicModels.Clear();
+
+		// TODO
+		// modelloader.ForceUnloadNonClientDynamicModels();
 	}
 
 	public int RegisterDynamicModel(ReadOnlySpan<char> name, bool bClientSide) {

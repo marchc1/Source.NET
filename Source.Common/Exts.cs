@@ -86,6 +86,10 @@ public static class BitVecBase
 			return -1;
 		return startBit;
 	}
+
+	public static int GetNumDWords(this Span<byte> bytes) {
+		return bytes.Length == 0 ? 0 : (1 + ((bytes.Length - 1) / 4));
+	}
 }
 
 /// <summary>
@@ -170,6 +174,25 @@ public struct MaxDispVertsBitVec
 
 
 /// <summary>
+/// An inline bit-vector array able to hold the 85 nodes of a 17x17 displacement.
+/// </summary>
+[InlineArray((85 + 31) / 32 * 4)]
+public struct DispNodeIntersectBitVec
+{
+	public byte bytes;
+	public uint GetDWord(int i) => BitVecBase.GetDWord(this, i);
+	public void SetDWord(int i, uint val) => BitVecBase.SetDWord(this, i, val);
+	public int GetNumDWords() => (85 + 31) / 32;
+	public int Get(int bit) => BitVecBase.IsBitSet(this, bit) ? 1 : 0;
+	public bool IsBitSet(int bit) => BitVecBase.IsBitSet(this, bit);
+	public void Set(int bit) => BitVecBase.Set(this, bit);
+	public void Clear(int bit) => BitVecBase.Clear(this, bit);
+	public void Set(int bit, bool newVal) => BitVecBase.Set(this, bit, newVal);
+	public int FindNextSetBit(int startBit) => BitVecBase.FindNextSetBit(this, startBit);
+	public void ClearAll() => BitVecBase.ClearAll(this);
+}
+
+/// <summary>
 /// An inline bit-vector array of MAX_EDICTS >> 3 bytes.
 /// </summary>
 [InlineArray(Constants.MAX_EDICTS >> 3)]
@@ -184,6 +207,7 @@ public struct MaxEdictsBitVec
 	public void Set(int bit, bool newVal) => BitVecBase.Set(this, bit, newVal);
 	public int FindNextSetBit(int startBit) => BitVecBase.FindNextSetBit(this, startBit);
 	public void ClearAll() => BitVecBase.ClearAll(this);
+	public int GetNumDWords() => BitVecBase.GetNumDWords(this);
 }
 
 /// <summary>
@@ -1760,7 +1784,7 @@ public static class ReflectionUtils
 		return info != null;
 	}
 	static IEnumerable<Type> safeTypeGet(Assembly assembly) {
-		if (!IsOkAssembly(assembly))
+		if (!IsSourceEngineAssembly(assembly))
 			yield break;
 
 		IEnumerable<Type?> types;
@@ -1775,16 +1799,11 @@ public static class ReflectionUtils
 			yield return t!;
 	}
 
-	public static bool IsOkAssembly(Assembly assembly) {
-		// ugh, what a hack - but for now, this is the only way to get things sanely. Need a better way.
-		if (!assembly.GetName().Name!.StartsWith("Source") && !assembly.GetName().Name!.StartsWith("Game"))
-			return false;
-
-		return true;
-	}
-
+	public static bool IsSourceEngineAssembly(Assembly assembly) =>
+		assembly.GetCustomAttribute<SourceDllAttribute>() != null;
+	
 	public static IEnumerable<Assembly> GetAssemblies()
-		=> AppDomain.CurrentDomain.GetAssemblies().Where(IsOkAssembly);
+		=> AppDomain.CurrentDomain.GetAssemblies().Where(IsSourceEngineAssembly);
 	public static IEnumerable<Type> GetLoadedTypes()
 		=> AppDomain.CurrentDomain.GetAssemblies()
 			.SelectMany(safeTypeGet);
@@ -1846,7 +1865,7 @@ public static class ReflectionUtils
 /// Marks the class as being injectable into the <see cref="IEngineAPI"/> dependency injection collection.
 /// <br/>
 /// Is handled by <see cref="Source.Engine.EngineBuilder"/> later on.
-/// </summary
+/// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class EngineComponentAttribute : Attribute;
 

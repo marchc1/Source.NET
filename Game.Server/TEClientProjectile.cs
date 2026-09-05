@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEClientProjectile>;
-public class TEClientProjectile : BaseTempEntity
+public class TEClientProjectile(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEClientProjectile = new(DT_BaseTempEntity, [
 		SendPropVector(FIELD.OF(nameof(Origin)), 0, PropFlags.Coord),

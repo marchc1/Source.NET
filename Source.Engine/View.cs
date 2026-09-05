@@ -56,6 +56,12 @@ public class View(Host Host, IEngineVGuiInternal EngineVGui, IMaterialSystem mat
 #if !SWDS
 public class RenderView(EngineVGui EngineVGui, Render engineRenderer) : IRenderView
 {
+	public void TouchLight(DLight light) {
+		int i = Array.IndexOf(CL.DLights, light);
+		if (i >= 0 && i < Constants.MAX_DLIGHTS)
+			Render.DLightChanged |= 1 << i;
+	}
+
 	public virtual void Push2DView(ViewSetup view, ClearFlags flags, ITexture? renderTarget, Frustum frustumPlanes) {
 		engineRenderer.Push2DView(in view, flags, renderTarget, frustumPlanes);
 	}
@@ -76,6 +82,8 @@ public class RenderView(EngineVGui EngineVGui, Render engineRenderer) : IRenderV
 	public void DrawBrushModel(IClientEntity baseentity, Model model, in Vector3 origin, in QAngle angles) {
 		R_DrawBrushModel(baseentity, model, origin, angles, RenderDepthMode.Normal, true, true);
 	}
+
+	public void DrawBrushModelShadow(IClientRenderable renderable) => R_DrawBrushModelShadow(renderable);
 
 	public void DrawIdentityBrushModel(IWorldRenderList list, Model model) {
 		throw new NotImplementedException();

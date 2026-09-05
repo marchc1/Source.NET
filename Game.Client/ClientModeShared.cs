@@ -79,13 +79,13 @@ public class ClientModeShared : GameEventListener, IClientMode
 		if (engine.Con_IsVisible())
 			return 1;
 
-		if (!currentBinding.IsEmpty && currentBinding.Equals("messagemode", StringComparison.Ordinal) || currentBinding.Equals("say", StringComparison.Ordinal)) {
+		if (!currentBinding.IsEmpty && currentBinding.Equals("messagemode", StringComparison.Ordinal)) {
 			if (down != 0)
 				StartMessageMode(MessageModeType.Say);
 
 			return 0;
 		}
-		else if (!currentBinding.IsEmpty && currentBinding.Equals("messagemode2", StringComparison.Ordinal) || currentBinding.Equals("say_team", StringComparison.Ordinal)) {
+		else if (!currentBinding.IsEmpty && currentBinding.Equals("messagemode2", StringComparison.Ordinal)) {
 			if (down != 0)
 				StartMessageMode(MessageModeType.SayTeam);
 

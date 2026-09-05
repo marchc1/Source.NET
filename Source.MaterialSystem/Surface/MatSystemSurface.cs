@@ -93,10 +93,6 @@ public class MatSystemSurface : IMatSystemSurface
 		if (!ProvidedInterfaces) {
 			VGui ??= services.GetRequiredService<IVGui>();
 			VGuiInput ??= VGui.GetInput();
-			if (EmbeddedPanel is MatEmbeddedPanel embedded) {
-				embedded.VGui ??= VGui;
-				embedded.Input ??= VGuiInput;
-			}
 			ProvidedInterfaces = true;
 		}
 	}
@@ -137,10 +133,7 @@ public class MatSystemSurface : IMatSystemSurface
 
 		DefaultEmbeddedPanel = new MatEmbeddedPanel() {
 			materials = materials,
-			Surface = this,
-			SchemeManager = schemeManager,
 		};
-		Panel.AllowDependencyInjection = false; // We're good now
 		SetEmbeddedPanel(DefaultEmbeddedPanel);
 		this.launcherMgr = launcherMgr;
 	}

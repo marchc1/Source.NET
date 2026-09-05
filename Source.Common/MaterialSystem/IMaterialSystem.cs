@@ -42,6 +42,13 @@ public enum MaterialFogMode
 	LinearBelowFogZ
 }
 
+public enum MaterialHeightClipMode
+{
+	Disable,
+	RenderAboveHeight,
+	RenderBelowHeight
+}
+
 public enum ShaderParamType
 {
 	Texture,
@@ -180,11 +187,11 @@ public struct FlashlightState
 	public int GetBottom() => Bottom;
 
 
-	bool Scissor;
-	int Left;
-	int Top;
-	int Right;
-	int Bottom;
+	public bool Scissor;
+	public int Left;
+	public int Top;
+	public int Right;
+	public int Bottom;
 }
 
 public enum CreateRenderTargetFlags
@@ -262,7 +269,7 @@ public interface IMaterialSystem
 	IMaterial CreateMaterial(ReadOnlySpan<char> name, ReadOnlySpan<char> textureGroupName, KeyValues keyValues);
 	IMaterial CreateMaterial(ReadOnlySpan<char> name, KeyValues keyValues);
 	bool CanUseEditorMaterials();
-	IMaterial FindMaterial(ReadOnlySpan<char> filename, ReadOnlySpan<char> textureGroup, bool complain = false, ReadOnlySpan<char> complainPrefix = default);
+	IMaterial FindMaterial(ReadOnlySpan<char> filename, ReadOnlySpan<char> textureGroup, bool complain = true, ReadOnlySpan<char> complainPrefix = default);
 	IMaterial? FindProceduralMaterial(ReadOnlySpan<char> materialName, ReadOnlySpan<char> textureGroupName, KeyValues keyValues);
 	void RestoreShaderObjects(IServiceProvider services, int changeFlags);
 	ITexture CreateProceduralTexture(ReadOnlySpan<char> textureName, ReadOnlySpan<char> textureGroup, int wide, int tall, ImageFormat format, TextureFlags flags);
@@ -286,6 +293,11 @@ public interface IMaterialSystem
 	void EndUpdateLightmaps();
 	void SetMaterialProxyFactory(IMaterialProxyFactory? factory);
 	IMaterialProxyFactory? GetMaterialProxyFactory();
+	void AddRestoreFunc(Action<int> func);
+	void RemoveRestoreFunc(Action<int> func);
+	bool SupportsShadowDepthTextures();
+	ImageFormat GetShadowDepthTextureFormat();
+	ImageFormat GetNullTextureFormat();
 }
 
 public interface IMatRenderContext
@@ -302,6 +314,9 @@ public interface IMatRenderContext
 	void ClearColor3ub(byte r, byte g, byte b);
 	void ClearColor4ub(byte r, byte g, byte b, byte a);
 	void DepthRange(double near, double far);
+
+	MaterialHeightClipMode GetHeightClipMode();
+	void SetHeightClipMode(MaterialHeightClipMode heightClipMode);
 
 	void MatrixMode(MaterialMatrixMode mode);
 	void PushMatrix();
@@ -327,6 +342,7 @@ public interface IMatRenderContext
 	void GetWindowSize(out int w, out int h);
 	ITexture? GetRenderTarget();
 	IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material);
+	void DestroyStaticMesh(IMesh mesh);
 	int GetMaxVerticesToRender(IMaterial material);
 	int GetMaxIndicesToRender();
 	void LoadMatrix(in Matrix3x4 matrix);
@@ -334,12 +350,35 @@ public interface IMatRenderContext
 	float ComputePixelDiameterOfSphere(Vector3 origin, float radius);
 	float ComputePixelWidthOfSphere(Vector3 origin, float radius);
 	void SetNumBoneWeights(int v);
+	void TurnOnToneMapping();
+	void SetToneMappingScaleLinear(in Vector3 scale);
+	void SetAmbientLightCube(ReadOnlySpan<Vector4> cube);
 	void LoadBoneMatrix(int hardwareID, in Matrix3x4 matrix4x4);
 	void GetWorldSpaceCameraPosition(out Vector3 vecCameraPos);
 	void BindLightmapPage(int lightmapPageID);
 	void BindLightmap(Sampler sampler);
 	void BindStandardTexture(Sampler sampler, StandardTextureId id);
 	void BindLocalCubemap(ITexture tex);
+	ITexture? GetLocalCubemap();
+	void SetLightingOrigin(Vector3 lightingOrigin);
+	void SetAmbientLight(float r, float g, float b);
+	void SetLight(int lightNum, in Source.Common.Mathematics.LightDesc desc);
+	void DisableAllLocalLights();
+	int GetMaxLights();
+	void SetFlashlightMode(bool enable);
+	bool GetFlashlightMode();
+	void SetFlashlightState(in FlashlightState state, in Matrix4x4 worldToTexture);
+	void SetFlashlightStateEx(in FlashlightState state, in Matrix4x4 worldToTexture, ITexture? flashlightDepthTexture);
+	void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 matrix);
+	void SetStencilEnable(bool onoff);
+	void SetStencilFailOperation(StencilOperation op);
+	void SetStencilZFailOperation(StencilOperation op);
+	void SetStencilPassOperation(StencilOperation op);
+	void SetStencilCompareFunction(StencilComparisonFunction cmpfn);
+	void SetStencilReferenceValue(int reference);
+	void SetStencilTestMask(uint msk);
+	void SetStencilWriteMask(uint msk);
+	void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor);
 }
 
 public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
@@ -369,6 +408,8 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public void ClearColor3ub(byte r, byte g, byte b) => ctx.ClearColor3ub(r, g, b);
 	public void ClearColor4ub(byte r, byte g, byte b, byte a) => ctx.ClearColor4ub(r, g, b, a);
 	public void DepthRange(double near, double far) => ctx.DepthRange(near, far);
+	public MaterialHeightClipMode GetHeightClipMode() => ctx.GetHeightClipMode();
+	public void SetHeightClipMode(MaterialHeightClipMode heightClipMode) => ctx.SetHeightClipMode(heightClipMode);
 	public void MatrixMode(MaterialMatrixMode mode) => ctx.MatrixMode(mode);
 	public void PushMatrix() => ctx.PushMatrix();
 	public void LoadIdentity() => ctx.LoadIdentity();
@@ -402,12 +443,13 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 
 	public IMesh CreateStaticMesh(VertexFormat format, ReadOnlySpan<char> textureGroup, IMaterial? material = null) => ctx.CreateStaticMesh(format, textureGroup, material);
 
+	public void DestroyStaticMesh(IMesh mesh) => ctx.DestroyStaticMesh(mesh);
+
 	public int GetMaxVerticesToRender(IMaterial material) => ctx.GetMaxVerticesToRender(material);
 	public int GetMaxIndicesToRender() => ctx.GetMaxIndicesToRender();
 
-	public void TurnOnToneMapping() {
-		// todo
-	}
+	public void TurnOnToneMapping() => ctx.TurnOnToneMapping();
+	public void SetToneMappingScaleLinear(in Vector3 scale) => ctx.SetToneMappingScaleLinear(in scale);
 
 	public void PushRenderTargetAndViewport(ITexture? rtColor, ITexture? rtDepth, int x, int y, int width, int height) => ctx.PushRenderTargetAndViewport(rtColor, rtDepth, x, y, width, height);
 
@@ -418,6 +460,7 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 	public float ComputePixelWidthOfSphere(Vector3 origin, float radius) => ctx.ComputePixelWidthOfSphere(origin, radius);
 
 	public void SetNumBoneWeights(int v) => ctx.SetNumBoneWeights(v);
+	public void SetAmbientLightCube(ReadOnlySpan<Vector4> cube) => ctx.SetAmbientLightCube(cube);
 
 	public void LoadBoneMatrix(int hardwareID, in Matrix3x4 matrix) => ctx.LoadBoneMatrix(hardwareID, in matrix);
 
@@ -427,4 +470,24 @@ public readonly struct MatRenderContextPtr : IDisposable, IMatRenderContext
 
 	public void BindStandardTexture(Sampler sampler, StandardTextureId id) => ctx.BindStandardTexture(sampler, id);
 	public void BindLocalCubemap(ITexture texture) => ctx.BindLocalCubemap(texture);
+	public ITexture? GetLocalCubemap() => ctx.GetLocalCubemap();
+	public void SetLightingOrigin(Vector3 lightingOrigin) => ctx.SetLightingOrigin(lightingOrigin);
+	public void SetAmbientLight(float r, float g, float b) => ctx.SetAmbientLight(r, g, b);
+	public void SetLight(int lightNum, in Mathematics.LightDesc desc) => ctx.SetLight(lightNum, desc);
+	public void DisableAllLocalLights() => ctx.DisableAllLocalLights();
+	public int GetMaxLights() => ctx.GetMaxLights();
+	public void SetFlashlightMode(bool enable) => ctx.SetFlashlightMode(enable);
+	public bool GetFlashlightMode() => ctx.GetFlashlightMode();
+	public void SetFlashlightState(in FlashlightState state, in Matrix4x4 worldToTexture) => ctx.SetFlashlightState(state, worldToTexture);
+	public void SetFlashlightStateEx(in FlashlightState state, in Matrix4x4 worldToTexture, ITexture? flashlightDepthTexture) => ctx.SetFlashlightStateEx(state, worldToTexture, flashlightDepthTexture);
+	public void GetMatrix(MaterialMatrixMode matrixMode, out Matrix4x4 matrix) => ctx.GetMatrix(matrixMode, out matrix);
+	public void SetStencilEnable(bool onoff) => ctx.SetStencilEnable(onoff);
+	public void SetStencilFailOperation(StencilOperation op) => ctx.SetStencilFailOperation(op);
+	public void SetStencilZFailOperation(StencilOperation op) => ctx.SetStencilZFailOperation(op);
+	public void SetStencilPassOperation(StencilOperation op) => ctx.SetStencilPassOperation(op);
+	public void SetStencilCompareFunction(StencilComparisonFunction cmpfn) => ctx.SetStencilCompareFunction(cmpfn);
+	public void SetStencilReferenceValue(int reference) => ctx.SetStencilReferenceValue(reference);
+	public void SetStencilTestMask(uint msk) => ctx.SetStencilTestMask(msk);
+	public void SetStencilWriteMask(uint msk) => ctx.SetStencilWriteMask(msk);
+	public void SetScissorRect(int left, int top, int right, int bottom, bool enableScissor) => ctx.SetScissorRect(left, top, right, bottom, enableScissor);
 }

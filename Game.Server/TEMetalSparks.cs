@@ -4,7 +4,7 @@ using Game.Shared;
 using System.Numerics;
 namespace Game.Server;
 using FIELD = FIELD<TEMetalSparks>;
-public class TEMetalSparks : BaseTempEntity
+public class TEMetalSparks(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEMetalSparks = new([
 		SendPropVector(FIELD.OF(nameof(Pos)), 0, PropFlags.Coord),

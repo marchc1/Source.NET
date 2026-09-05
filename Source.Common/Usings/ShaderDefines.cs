@@ -20,6 +20,8 @@ public static class ShaderDefines
 	public static bool IsFlag2Set(Span<IMaterialVar> shaderParams, int flag) => (shaderParams[(int)ShaderMaterialVars.Flags2].GetIntValue() & flag) != 0;
 	public static bool IsFlag2Set(Span<IMaterialVar> shaderParams, MaterialVarFlags2 flag) => IsFlag2Set(shaderParams, (int)flag);
 
+	public static bool IsParamDefined(Span<IMaterialVar> shaderParams, int parm) => parm >= 0 && shaderParams[parm].IsDefined();
+
 	public static void SetFlags(Span<IMaterialVar> shaderParams, int flag)
 		=> shaderParams[(int)ShaderMaterialVars.Flags].SetIntValue(shaderParams[(int)ShaderMaterialVars.Flags].GetIntValue() | flag);
 	public static void SetFlags(Span<IMaterialVar> shaderParams, MaterialVarFlags flag) => SetFlags(shaderParams, (int)flag);

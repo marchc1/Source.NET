@@ -84,10 +84,17 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 
 	static readonly MatSysInterface MatSys = Singleton<MatSysInterface>();
 
+	static readonly PooledLinkedList<DispShadowDecal> s_DispShadowDecals = new();
+	static readonly PooledLinkedList<DispShadowFragment> s_DispShadowFragments = new();
+	static readonly PooledLinkedList<DispDecal> s_DispDecals = new();
+
 	public void GetIntersectingSurfaces(GetIntersectingSurfaces_Struct pStruct) => throw new NotImplementedException();
 	public void RenderWireframeInLightmapPage(int pageId) => throw new NotImplementedException();
 
-	public void GetBoundingBox(out Vector3 bbMin, out Vector3 bbMax) => throw new NotImplementedException();
+	public void GetBoundingBox(out Vector3 bbMin, out Vector3 bbMax) {
+		bbMin = BBoxMin;
+		bbMax = BBoxMax;
+	}
 
 	internal void SetParent(ref BSPMSurface2 surfID, WorldBrushData brushData) {
 		this.brushData.SetTarget(brushData);
@@ -100,18 +107,38 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 		return ref brush.Surfaces2![ParentSurfPointer];
 	}
 
-	// public void AddDynamicLights(DLight[] lights, uint lightMask) => throw new NotImplementedException();
-	// public uint ComputeDynamicLightMask(DLight[] lights) => throw new NotImplementedException();
+	public void AddDynamicLights(DLight[] lights, uint lightMask) => throw new NotImplementedException();
+	public uint ComputeDynamicLightMask(DLight[] lights) => throw new NotImplementedException();
 
 	// public DispDecalHandle NotifyAddDecal(Decal decal, float flSize) => throw new NotImplementedException();
 	public void NotifyRemoveDecal(DispDecalHandle h) => throw new NotImplementedException();
-	public DispShadowHandle AddShadowDecal(ShadowHandle_t shadowHandle) => throw new NotImplementedException();
-	public void RemoveShadowDecal(DispShadowHandle handle) => throw new NotImplementedException();
+	public DispShadowHandle AddShadowDecal(ShadowHandle_t shadowHandle) {
+		DispShadowHandle h = unchecked((DispShadowHandle)s_DispShadowDecals.Alloc());
+		if (FirstShadowDecal != DISP_SHADOW_HANDLE_INVALID)
+			s_DispShadowDecals.LinkBefore(FirstShadowDecal, h);
+		FirstShadowDecal = h;
+
+		ref DispShadowDecal shadowDecal = ref s_DispShadowDecals[h];
+		shadowDecal.Base.NTris = 0;
+		shadowDecal.Base.NVerts = 0;
+		shadowDecal.Shadow = shadowHandle;
+		shadowDecal.FirstFragment = DISP_SHADOW_FRAGMENT_HANDLE_INVALID;
+
+		return h;
+	}
+	public void RemoveShadowDecal(DispShadowHandle handle) {
+		ClearShadowDecalFragments(handle);
+
+		if (FirstShadowDecal == handle)
+			FirstShadowDecal = unchecked((DispShadowHandle)s_DispShadowDecals.Next(handle));
+
+		s_DispShadowDecals.Remove(handle);
+	}
 
 	public bool ComputeShadowFragments(DispShadowHandle h, out int vertexCount, out int indexCount) => throw new NotImplementedException();
 
-	public bool GetTag() => throw new NotImplementedException();
-	public void SetTag() => throw new NotImplementedException();
+	public bool GetTag() => Tag == DispArray!.CurTag;
+	public void SetTag() => Tag = (ushort)DispArray!.CurTag;
 
 	public DispInfo? GetDispByIndex(int index) => index == 0xFFFF ? null : DispArray!.DispInfos[index];
 
@@ -380,7 +407,24 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 
 	// DispShadowFragment AllocateShadowDecalFragment(DispShadowHandle h, int nCount) => throw new NotImplementedException();
 
-	// void ClearShadowDecalFragments(DispShadowHandle h) => throw new NotImplementedException();
+	void ClearShadowDecalFragments(DispShadowHandle h) {
+		ref DispShadowDecal decal = ref s_DispShadowDecals[h];
+		DispShadowFragmentHandle f = decal.FirstFragment;
+		DispShadowFragmentHandle next;
+		while (f != DISP_SHADOW_FRAGMENT_HANDLE_INVALID) {
+			next = unchecked((DispShadowFragmentHandle)s_DispShadowFragments.Next(f));
+			s_DispShadowFragments.Remove(f);
+			f = next;
+		}
+
+		decal.FirstFragment = DISP_SHADOW_FRAGMENT_HANDLE_INVALID;
+
+		decal.Base.Flags &= ~DecalFlags.FragmentsComputed;
+
+		decal.Base.NTris = 0;
+		decal.Base.NVerts = 0;
+	}
+
 	void ClearAllShadowDecalFragments() => throw new NotImplementedException();
 
 	void GenerateDecalFragments_R(in VertIndex nodeIndex, int nodeBitIndex, ushort decalHandle, DispDecalBase dispDecal, int level) => throw new NotImplementedException();
@@ -393,7 +437,7 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 		return DispInfo_IndexArray(world.Brush.Shared!.DispInfos, i);
 	}
 
-	static readonly ConVar r_DrawDisp = new("r_DrawDisp", "1", FCvar.Cheat, "Toggles rendering of displacment maps");
+	public static readonly ConVar r_DrawDisp = new("r_DrawDisp", "1", FCvar.Cheat, "Toggles rendering of displacment maps");
 	public static void DispInfo_RenderList(int sortGroup, Span<SurfaceHandle_t> list, int listCount, bool ortho, uint flags, RenderDepthMode depthMode) {
 		if (r_DrawDisp.GetInt() == 0 || listCount == 0)
 			return;
@@ -412,7 +456,7 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 			ref BSPMSurface2 surf = ref ModelLoader.SurfaceHandleFromIndex(cur);
 			ShadowDecalHandle_t decalHandle = ModelLoader.MSurf_ShadowDecals(ref surf);
 			if (decalHandle != SHADOW_DECAL_HANDLE_INVALID) {
-				// g_pShadowMgr.AddShadowsOnSurfaceToRenderList(decalHandle) // todo
+				g_ShadowMgr.AddShadowsOnSurfaceToRenderList(decalHandle);
 			}
 		}
 
@@ -420,17 +464,17 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 
 		// todo
 
-		// g_pShadowMgr.RenderFlashlights(flashlightMask)
+		g_ShadowMgr.RenderFlashlights(flashlightMask);
 		// OverlayMgr().RenderOverlays(sortGroup)
-		// g_pShadowMgr.DrawFlashlightOverlays(sortGroup, flashlightMask
+		g_ShadowMgr.DrawFlashlightOverlays(sortGroup, flashlightMask);
 		// OverlayMgr().ClearRenderLists(sortGroup)
 
 		// DispInfo_BatchDecals(visibleDisps, visibleDispCount);
 		// DispInfo_DrawDecals(visibleDisps, visibleDispCount);
 
-		// g_pShadowMgr.DrawFlashlightDecalsOnDisplacements(sortGroup, visibleDisps, visibleDispCount, flashlightMask)
-		// g_pShadowMgr.RenderShadows()
-		// g_pShadowMgr.ClearShadowRenderList()
+		g_ShadowMgr.DrawFlashlightDecalsOnDisplacements(sortGroup, visibleDisps, visibleDispCount, flashlightMask);
+		g_ShadowMgr.RenderShadows();
+		g_ShadowMgr.ClearShadowRenderList();
 
 		DispInfo_DrawDebugInformation(list, listCount);
 	}
@@ -510,6 +554,94 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 			}
 		}
 	}
+	public static void DispInfo_ClearAllTags(object? hArray) {
+		DispArray? array = (DispArray?)hArray;
+		if (array == null)
+			return;
+
+		++array.CurTag;
+		if (array.CurTag == 0xFFFF) {
+			array.CurTag = 1;
+			for (int i = 0; i < array.DispInfos.Length; i++)
+				array.DispInfos[i].Tag = 0;
+		}
+	}
+
+	public static int DispInfo_AddShadowsToMeshBuilder(ref MeshBuilder meshBuilder, DispShadowHandle h, int baseIndex) {
+#if SWDS
+		return 0;
+#else
+		ShadowDecalRenderInfo info = default;
+		ref DispShadowDecal shadowDecal = ref s_DispShadowDecals[h];
+		g_ShadowMgr.ComputeRenderInfo(ref info, shadowDecal.Shadow);
+
+		Assert((shadowDecal.Base.Flags & DecalFlags.FragmentsComputed) != 0);
+
+#if DEBUG
+		int triCount = 0;
+		int vertCount = 0;
+#endif
+
+		Vector2 texCoord;
+		byte c;
+		DispShadowFragmentHandle f = shadowDecal.FirstFragment;
+		while (f != DISP_SHADOW_FRAGMENT_HANDLE_INVALID) {
+			ref DispShadowFragment fragment = ref s_DispShadowFragments[f];
+			Span<ShadowVertex> shadowVerts = fragment.ShadowVerts;
+
+			int i;
+			for (i = 0; i < fragment.NVerts - 2; ++i) {
+				ref ShadowVertex shadowVert = ref shadowVerts[i];
+
+				MathLib.Vector2DMultiply(shadowVert.ShadowSpaceTexCoord.AsVector2D(), info.TexSize, out texCoord);
+				texCoord += info.TexOrigin;
+				c = ((IShadowMgrInternal)g_ShadowMgr).ComputeDarkness(shadowVert.ShadowSpaceTexCoord.Z, in info);
+
+				meshBuilder.Position3fv(shadowVert.Position);
+				meshBuilder.Color4ub(c, c, c, c);
+				meshBuilder.TexCoord2fv(0, texCoord);
+				meshBuilder.AdvanceVertex();
+
+				meshBuilder.FastIndex((ushort)baseIndex);
+				meshBuilder.FastIndex((ushort)(i + baseIndex + 1));
+				meshBuilder.FastIndex((ushort)(i + baseIndex + 2));
+			}
+
+			MathLib.Vector2DMultiply(shadowVerts[i].ShadowSpaceTexCoord.AsVector2D(), info.TexSize, out texCoord);
+			texCoord += info.TexOrigin;
+			c = ((IShadowMgrInternal)g_ShadowMgr).ComputeDarkness(shadowVerts[i].ShadowSpaceTexCoord.Z, in info);
+			meshBuilder.Position3fv(shadowVerts[i].Position);
+			meshBuilder.Color4ub(c, c, c, c);
+			meshBuilder.TexCoord2fv(0, texCoord);
+			meshBuilder.AdvanceVertex();
+			++i;
+
+			MathLib.Vector2DMultiply(shadowVerts[i].ShadowSpaceTexCoord.AsVector2D(), info.TexSize, out texCoord);
+			texCoord += info.TexOrigin;
+			c = ((IShadowMgrInternal)g_ShadowMgr).ComputeDarkness(shadowVerts[i].ShadowSpaceTexCoord.Z, in info);
+			meshBuilder.Position3fv(shadowVerts[i].Position);
+			meshBuilder.Color4ub(c, c, c, c);
+			meshBuilder.TexCoord2fv(0, texCoord);
+			meshBuilder.AdvanceVertex();
+
+			baseIndex += fragment.NVerts;
+			f = (DispShadowFragmentHandle)s_DispShadowFragments.Next(f);
+
+#if DEBUG
+			triCount += fragment.NVerts - 2;
+			vertCount += fragment.NVerts;
+#endif
+		}
+
+#if DEBUG
+		Assert(triCount == shadowDecal.Base.NTris);
+		Assert(vertCount == shadowDecal.Base.NVerts);
+#endif
+
+		return baseIndex;
+#endif
+	}
+
 	static void DispInfo_BatchDecals(DispInfo[] visibleDisps, int visibleDispCount) => throw new NotImplementedException();
 	static void DispInfo_DrawDecals(DispInfo[] visibleDisps, int visibleDispCount) => throw new NotImplementedException();
 	static void DispInfo_DrawDebugInformation(Span<SurfaceHandle_t> list, int listCount) {

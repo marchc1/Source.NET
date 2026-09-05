@@ -6,6 +6,7 @@ using Source.Common.Client;
 using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Formats.BSP;
+using Source.Common.Game.Server;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
 using Source.Engine;
@@ -22,6 +23,167 @@ public enum PlayerConnectedState
 	Connected,
 	Disconnecting,
 	Disconnected
+}
+
+public class GamePlayerInfo : IBotController, IPlayerInfo
+{
+	BasePlayer Parent = null!;
+	public GamePlayerInfo() {
+
+	}
+
+	public void ChangeTeam(int iTeamNum) {
+		throw new NotImplementedException();
+	}
+
+	public QAngle GetAbsAngles() {
+		throw new NotImplementedException();
+	}
+
+	public Vector3 GetAbsOrigin() {
+		throw new NotImplementedException();
+	}
+
+	public int GetArmorValue() {
+		throw new NotImplementedException();
+	}
+
+	public int GetDeathCount() {
+		throw new NotImplementedException();
+	}
+
+	public int GetFragCount() {
+		throw new NotImplementedException();
+	}
+
+	public int GetHealth() {
+		throw new NotImplementedException();
+	}
+
+	public BotCmd GetLastUserCommand() {
+		throw new NotImplementedException();
+	}
+
+	public QAngle GetLocalAngles() {
+		throw new NotImplementedException();
+	}
+
+	public Vector3 GetLocalOrigin() {
+		throw new NotImplementedException();
+	}
+
+	public int GetMaxHealth() {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> GetModelName() {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> GetName() {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> GetNetworkIDString() {
+		throw new NotImplementedException();
+	}
+
+	public Vector3 GetPlayerMaxs() {
+		throw new NotImplementedException();
+	}
+
+	public Vector3 GetPlayerMins() {
+		throw new NotImplementedException();
+	}
+
+	public int GetTeamIndex() {
+		throw new NotImplementedException();
+	}
+
+	public int GetUserID() {
+		throw new NotImplementedException();
+	}
+
+	public ReadOnlySpan<char> GetWeaponName() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsConnected() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsDead() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsEFlagSet(int eflagMask) {
+		throw new NotImplementedException();
+	}
+
+	public bool IsFakeClient() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsHLTV() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsInAVehicle() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsObserver() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsPlayer() {
+		throw new NotImplementedException();
+	}
+
+	public bool IsReplay() {
+		throw new NotImplementedException();
+	}
+
+	public void RemoveAllItems(bool removeSuit) {
+		throw new NotImplementedException();
+	}
+
+	public void RunPlayerMove(ref BotCmd ucmd) {
+		throw new NotImplementedException();
+	}
+
+	public void SetAbsAngles(in QAngle ang) {
+		throw new NotImplementedException();
+	}
+
+	public void SetAbsOrigin(in Vector3 vec) {
+		throw new NotImplementedException();
+	}
+
+	public void SetActiveWeapon(ReadOnlySpan<char> weaponName) {
+		throw new NotImplementedException();
+	}
+
+	public void SetLocalAngles(in QAngle angles) {
+		throw new NotImplementedException();
+	}
+
+	public void SetLocalOrigin(in Vector3 origin) {
+		throw new NotImplementedException();
+	}
+
+	public void SetParent(BasePlayer parent) => Parent = parent;
+}
+
+[Flags]
+public enum PlayerPhysFlag
+{
+	DirOverride = 1 << 0,
+	Ducking = 1 << 1,
+	Using = 1 << 2,
+	Observer = 1 << 3,
+	VPhysicsMotionController = 1 << 4,
+	GamePhysicsRotPush = 1 << 5,
 }
 
 public partial class BasePlayer : BaseCombatCharacter
@@ -95,17 +257,30 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	TimeUnit_t MovementTimeForUserCmdProcessingRemaining;
 	TimeUnit_t LastUserCommandTime;
+	TimeUnit_t LastObjectiveTime;
 	UserCmd LastCmd;
 
+	protected QAngle AutoAim;
+	protected Vector3 AdditionalPVSOrigin;
+	protected Vector3 CameraPVSOrigin;
+
+	int BodyPitchPoseParam;
 	public float ForwardMove;
 	public float SideMove;
 
-	uint PhysicsFlags;
+	public int ObserverLastMode;
+	public bool ForcedObserverMode;
+	PlayerPhysFlag PhysicsFlags;
 
 	int LastDmageAmount;
 	Vector3 DmgOrigin;
+	Vector3 OldOrigin;
+	bool ForceOrigin;
+	Vector3 ForcedOrigin;
+	Vector3 SmoothedVelocity;
 	float DmgTake;
 	float DmgSave;
+	TimeUnit_t FlashTime;
 	DamageType bitsDamageType;
 	int HUDDamage;
 	TimeUnit_t DeathAnimTime;
@@ -116,6 +291,13 @@ public partial class BasePlayer : BaseCombatCharacter
 
 	int PoisonDmg;
 	int PoisonRestored;
+	int LockViewanglesTickNumber;
+	QAngle LockedViewangles;
+
+	int UpdateRate;
+	TimeUnit_t LerpTime;
+	bool LagCompensation;
+	bool PredictWeapons;
 
 	public static void SendProxy_CropFlagsToPlayerFlagBitsLength(SendProp prop, object instance, IFieldAccessor field, ref DVariant outData, int element, int objectID) {
 		int mask = (1 << Constants.PLAYER_FLAG_BITS) - 1;
@@ -132,16 +314,34 @@ public partial class BasePlayer : BaseCombatCharacter
 		return data;
 	}
 
+
+	GamePlayerInfo PlayerInfo = new();
+
 	public static readonly new ServerClass ServerClass = new ServerClass("BasePlayer", DT_BasePlayer).WithManualClassID(StaticClassIndices.CBasePlayer);
+
 
 	public BasePlayer() {
 		AddEFlags(EFL.NoAutoEdictAttach);
 
+#if DEBUG
+		AutoAim.Init();
+		AdditionalPVSOrigin.Init();
+		CameraPVSOrigin.Init();
+		DmgOrigin.Init();
+		LadderNormal.Init();
+
+		OldOrigin.Init();
+		SmoothedVelocity.Init();
+#endif
+
 		if (s_PlayerEdict != null) {
+			// take the assigned edict_t and attach it
+			Assert(s_PlayerEdict != null);
 			NetworkProp().AttachEdict(s_PlayerEdict);
 			s_PlayerEdict = null;
 		}
 
+		FlashTime = -1;
 		pl.FixAngle = (int)FixAngle.Absolute;
 		pl.HLTV = false;
 		pl.Replay = false;
@@ -152,30 +352,30 @@ public partial class BasePlayer : BaseCombatCharacter
 
 		Health = 0;
 		Weapon_SetLast(null);
-		// BitsDamageType = 0;
+		bitsDamageType = 0;
 
-		// ForceOrigin = false;
+		ForceOrigin = false;
 		Vehicle.Set(null);
-		// CurrentCommand = null;
-		// LockViewanglesTickNumber = 0;
-		// AngLockViewangles.Init();
+		CurrentCommand = default;
+		LockViewanglesTickNumber = 0;
+		LockedViewangles.Init();
 
 		// Setup our default FOV
-		DefaultFOV = 75; // GameRules.DefaultFOV();
+		DefaultFOV = g_pGameRules.DefaultFOV();
 
 		ZoomOwner.Set(null);
 
-		// UpdateRate = 20;  // cl_updaterate defualt
-		// LerpTime = 0.1f; // cl_interp default
-		// PredictWeapons = true;
-		// LagCompensation = false;
+		UpdateRate = 20;  // cl_updaterate defualt
+		LerpTime = 0.1f; // cl_interp default
+		PredictWeapons = true;
+		LagCompensation = false;
 		LaggedMovementValue = 1.0f;
 		StuckLast = 0;
-		// ImpactEnergyScale = 1.0f;
-		// LastPlayerTalkTime = 0.0f;
-		// PlayerInfo.SetParent(this);
+		ImpactEnergyScale = 1.0f;
+		LastPlayerTalkTime = 0.0;
+		PlayerInfo.SetParent(this);
 
-		// ResetObserverMode();
+		ResetObserverMode();
 
 		SurfaceProps = 0;
 		SurfaceData = null;
@@ -188,28 +388,29 @@ public partial class BasePlayer : BaseCombatCharacter
 		// ReplayEnd = -1;
 		// ReplayEntity = 0;
 
-		// AutoKickDisabled = false;
+		AutoKickDisabled = false;
 
-		// NumCrouches = 0;
-		// DuckToggled = false;
-		// PhysicsWasFrozen = false;
+		NumCrouches = 0;
+		DuckToggled = false;
+		PhysicsWasFrozen = false;
 
-		// ButtonDisabled = 0;
-		// ButtonForced = 0;
+		// Used to mask off buttons
+		AfButtonDisabled = 0;
+		AfButtonForced = 0;
 
-		// BodyPitchPoseParam = -1;
-		// ForwardMove = 0;
-		// SideMove = 0;
+		BodyPitchPoseParam = -1;
+		ForwardMove = 0;
+		SideMove = 0;
 
-		// // NVNT default to no haptics
-		// HasHaptics = false;
+		// NVNT default to no haptics
+		HasHaptics = false;
 
 		ConstraintCenter = vec3_origin;
 
-		LastUserCommandTime = 0.0f;
-		MovementTimeForUserCmdProcessingRemaining = 0.0f;
+		LastUserCommandTime = 0;
+		MovementTimeForUserCmdProcessingRemaining = 0;
 
-		// LastObjectiveTime = -1.0f;
+		LastObjectiveTime = -1;
 	}
 
 	public readonly PlayerState pl = new();
@@ -229,6 +430,7 @@ public partial class BasePlayer : BaseCombatCharacter
 	public bool IsInAVehicle() => Vehicle.Get() != null;
 	public float GetStepSize() => Local.StepSize;
 
+	bool HasHaptics;
 	bool DisableWorldClicking;
 	float Maxspeed;
 	int ObserverMode;
@@ -258,11 +460,17 @@ public partial class BasePlayer : BaseCombatCharacter
 	public PlayerConnectedState Connected;
 	TimeUnit_t AirFinished;
 	TimeUnit_t PainFinished;
+	public int NumCrouches;
+	public bool DuckToggled;
+	public bool PhysicsWasFrozen;
+	public bool AutoKickDisabled;
 	public bool IsObserver() => GetObserverMode() != Shared.ObserverMode.None;
-	public InButtons AfButtonLast;
+	public InButtons Buttons;
 	public InButtons AfButtonPressed;
 	public InButtons AfButtonReleased;
-	public InButtons Buttons;
+	public InButtons AfButtonLast;
+	public InButtons AfButtonDisabled;
+	public InButtons AfButtonForced;
 
 	public BaseViewModel? GetViewModel(int index = 0, bool observerOK = true) {
 		return ViewModel[index].Get();
@@ -605,7 +813,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		return true; // todo
 	}
 
-	public void SnapEyeAngles(in QAngle viewAngles){
+	public void SnapEyeAngles(in QAngle viewAngles) {
 		pl.ViewingAngle = viewAngles;
 		pl.FixAngle = (int)FixAngle.Absolute;
 	}
