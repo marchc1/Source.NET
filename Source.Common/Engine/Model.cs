@@ -35,6 +35,16 @@ public struct MLeafAmbientLighting
 	public byte Pad;
 }
 
+public struct DecalList
+{
+	public Vector3 Position;
+	public InlineArray128<char> Name;
+	public short EntityIndex;
+	public byte Depth;
+	public byte Flags; // Shouldn't this be a short? oh well
+	public Vector3 ImpactPlaneNormal;
+}
+
 public class WorldBrushData
 {
 	public int NumSubModels;
