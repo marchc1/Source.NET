@@ -265,7 +265,7 @@ public class ClientState : BaseClientState
 		}
 
 		Sound.StopAllSounds(true);
-		R.DecalTermAll();
+		Render.DecalTermAll();
 
 		if (MaxClients > 1)
 			if (EngineVGui!.IsConsoleVisible() == false)

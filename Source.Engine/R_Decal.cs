@@ -318,7 +318,7 @@ public partial class Render
 		throw new NotImplementedException();
 	}
 
-	public static void R_DecalGetMaterialAndSize(int decalIndex, out IMaterial? decalMaterial, out float w, out float h) {
+	public static void DecalGetMaterialAndSize(int decalIndex, out IMaterial? decalMaterial, out float w, out float h) {
 		throw new NotImplementedException();
 	}
 
@@ -330,35 +330,35 @@ public partial class Render
 		throw new NotImplementedException();
 	}
 
-	public static void R_DecalInit() {
+	public static void DecalInit() {
+
+	}
+
+	public static void DecalTerm(WorldBrushData? brushData, bool termPermanentDecals) {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DecalTerm(WorldBrushData? brushData, bool termPermanentDecals) {
+	public static void DecalTermAll() {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DecalTermAll() {
+	static void DecalCacheClear(Decal decal) {
 		throw new NotImplementedException();
 	}
 
-	static void R_DecalCacheClear(Decal decal) {
+	public static void DecalFlushDestroyList() {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DecalFlushDestroyList() {
+	static void DecalAddToDestroyList(Decal decal) {
 		throw new NotImplementedException();
 	}
 
-	static void R_DecalAddToDestroyList(Decal decal) {
+	public static void DecalUnlink(Decal decal, WorldBrushData? data) {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DecalUnlink(Decal decal, WorldBrushData? data) {
-		throw new NotImplementedException();
-	}
-
-	public static int R_FindFreeDecalSlot() {
+	public static int FindFreeDecalSlot() {
 		throw new NotImplementedException();
 	}
 
@@ -366,27 +366,27 @@ public partial class Render
 		throw new NotImplementedException();
 	}
 
-	public static int R_FindDynamicDecalSlot(int startAt) {
+	public static int FindDynamicDecalSlot(int startAt) {
 		throw new NotImplementedException();
 	}
 
-	static Decal? R_DecalAlloc(FDecal flags) {
+	static Decal? DecalAlloc(FDecal flags) {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DecalSurface(SurfaceHandle_t surfID, DecalInfo decalInfo, bool forceForDisplacement) {
+	public static void DecalSurface(SurfaceHandle_t surfID, DecalInfo decalInfo, bool forceForDisplacement) {
 		throw new NotImplementedException();
 	}
 
-	static void R_DecalNodeSurfaces(BSPMNode node, DecalInfo decalInfo) {
+	static void DecalNodeSurfaces(BSPMNode node, DecalInfo decalInfo) {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DecalLeaf(BSPMLeaf leaf, DecalInfo decalInfo) {
+	public static void DecalLeaf(BSPMLeaf leaf, DecalInfo decalInfo) {
 		throw new NotImplementedException();
 	}
 
-	static void R_DecalNode(BSPMNode? node, DecalInfo decalInfo) {
+	static void DecalNode(BSPMNode? node, DecalInfo decalInfo) {
 		throw new NotImplementedException();
 	}
 
@@ -402,35 +402,35 @@ public partial class Render
 		throw new NotImplementedException();
 	}
 
-	static bool R_DecalUnProject(Decal decal, ref DecalList entry) {
+	static bool DecalUnProject(Decal decal, ref DecalList entry) {
 		throw new NotImplementedException();
 	}
 
-	static void R_DecalShoot_(IMaterial? material, int entity, Model? model, in Vector3 position, Vector3? saxis, FDecal flags, in Color rgbaColor, Vector3? normal, object? userData = null) {
+	static void DecalShoot_(IMaterial? material, int entity, Model? model, in Vector3 position, Vector3? saxis, FDecal flags, in Color rgbaColor, Vector3? normal, object? userData = null) {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DecalShoot(int textureIndex, int entity, Model? model, in Vector3 position, Vector3? saxis, FDecal flags, in Color rgbaColor, Vector3? normal) {
+	public static void DecalShoot(int textureIndex, int entity, Model? model, in Vector3 position, Vector3? saxis, FDecal flags, in Color rgbaColor, Vector3? normal) {
 		throw new NotImplementedException();
 	}
 
-	public static void R_PlayerDecalShoot(IMaterial material, object? userData, int entity, Model? model, in Vector3 position, Vector3? saxis, FDecal flags, in Color rgbaColor) {
+	public static void PlayerDecalShoot(IMaterial material, object? userData, int entity, Model? model, in Vector3 position, Vector3? saxis, FDecal flags, in Color rgbaColor) {
 		throw new NotImplementedException();
 	}
 
-	static void R_DecalVertsLight(Span<DecalVert> v, in DecalContext context, SurfaceHandle_t surfID, int vertCount) {
+	static void DecalVertsLight(Span<DecalVert> v, in DecalContext context, SurfaceHandle_t surfID, int vertCount) {
 		throw new NotImplementedException();
 	}
 
-	static Decal? R_DecalFindOverlappingDecals(DecalInfo decalInfo, SurfaceHandle_t surfID) {
+	static Decal? DecalFindOverlappingDecals(DecalInfo decalInfo, SurfaceHandle_t surfID) {
 		throw new NotImplementedException();
 	}
 
-	static void R_AddDecalToSurface(Decal decal, SurfaceHandle_t surfID, DecalInfo decalInfo) {
+	static void AddDecalToSurface(Decal decal, SurfaceHandle_t surfID, DecalInfo decalInfo) {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DecalSortInit() {
+	public static void DecalSortInit() {
 		throw new NotImplementedException();
 	}
 
@@ -438,15 +438,15 @@ public partial class Render
 		throw new NotImplementedException();
 	}
 
-	static void R_DecalMaterialSort(Decal decal, SurfaceHandle_t surfID) {
+	static void DecalMaterialSort(Decal decal, SurfaceHandle_t surfID) {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DecalReSortMaterials() {
+	public static void DecalReSortMaterials() {
 		throw new NotImplementedException();
 	}
 
-	static void R_DecalCreate(DecalInfo decalInfo, SurfaceHandle_t surfID, float x, float y, bool forceForDisplacement) {
+	static void DecalCreate(DecalInfo decalInfo, SurfaceHandle_t surfID, float x, float y, bool forceForDisplacement) {
 		throw new NotImplementedException();
 	}
 
@@ -454,7 +454,7 @@ public partial class Render
 		throw new NotImplementedException();
 	}
 
-	public static Span<DecalVert> R_DecalSetupVerts(ref DecalContext context, Decal decal, SurfaceHandle_t surfID, IMaterial material) {
+	public static Span<DecalVert> DecalSetupVerts(ref DecalContext context, Decal decal, SurfaceHandle_t surfID, IMaterial material) {
 		throw new NotImplementedException();
 	}
 
@@ -474,35 +474,35 @@ public partial class Render
 		throw new NotImplementedException();
 	}
 
-	public static void R_DrawDecalsAllImmediate_GatherDecals(IMatRenderContext renderContext, int group, int treeType, List<Decal> drawDecals) {
+	public static void DrawDecalsAllImmediate_GatherDecals(IMatRenderContext renderContext, int group, int treeType, List<Decal> drawDecals) {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DrawDecalsAllImmediate_Gathered(IMatRenderContext renderContext, Span<Decal> decals, int decalCount, in Vector3 modelOrg, float fade) {
+	public static void DrawDecalsAllImmediate_Gathered(IMatRenderContext renderContext, Span<Decal> decals, int decalCount, in Vector3 modelOrg, float fade) {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DrawDecalsAllImmediate(IMatRenderContext renderContext, int group, int treeType, in Vector3 modelOrg, int checkCount, float fade) {
+	public static void DrawDecalsAllImmediate(IMatRenderContext renderContext, int group, int treeType, in Vector3 modelOrg, int checkCount, float fade) {
 		throw new NotImplementedException();
 	}
 
-	static void R_DrawDecalMeshList(ref DecalMeshList meshList) {
+	static void DrawDecalMeshList(ref DecalMeshList meshList) {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DrawDecalsAll_GatherDecals(IMatRenderContext renderContext, int group, int treeType, List<Decal> drawDecals) {
+	public static void DrawDecalsAll_GatherDecals(IMatRenderContext renderContext, int group, int treeType, List<Decal> drawDecals) {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DecalsGetMaxMesh(IMatRenderContext renderContext, out int decalSortMaxVerts, out int decalSortMaxIndices) {
+	public static void DecalsGetMaxMesh(IMatRenderContext renderContext, out int decalSortMaxVerts, out int decalSortMaxIndices) {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DrawDecalsAll_Gathered(IMatRenderContext renderContext, Span<Decal> decals, int decalCount, in Vector3 modelOrg, float fade) {
+	public static void DrawDecalsAll_Gathered(IMatRenderContext renderContext, Span<Decal> decals, int decalCount, in Vector3 modelOrg, float fade) {
 		throw new NotImplementedException();
 	}
 
-	public static void R_DrawDecalsAll(IMatRenderContext renderContext, int group, int treeType, in Vector3 modelOrg, int checkCount, float fade) {
+	public static void DrawDecalsAll(IMatRenderContext renderContext, int group, int treeType, in Vector3 modelOrg, int checkCount, float fade) {
 		throw new NotImplementedException();
 	}
 
