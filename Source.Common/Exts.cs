@@ -400,6 +400,15 @@ public class ClassMemoryPool<T> where T : class, new()
 		return instance;
 	}
 
+	public int Count() {
+		int count = 0;
+		foreach (KeyValuePair<T, bool> kvp in valueStates)
+			if (kvp.Value)
+				count++;
+
+		return count;
+	}
+
 	public bool IsMemoryPoolAllocated(T value) => valueStates.TryGetValue(value, out _);
 	public void Free(T value) {
 		if (!valueStates.TryGetValue(value, out bool state))
@@ -426,6 +435,7 @@ public sealed class PooledLinkedList<T> where T : struct
 	int _freeHead = -1;
 	int _capacity;
 	int _count;
+	int _growSize;
 
 	public const int INVALID_INDEX = -1;
 
@@ -479,6 +489,13 @@ public sealed class PooledLinkedList<T> where T : struct
 		_count--;
 	}
 
+	public void SetGrowSize(int growSize) => _growSize = growSize;
+
+	public void EnsureCapacity(int num) {
+		if (num > _capacity)
+			Grow(num);
+	}
+
 	public void Clear() {
 		_count = 0;
 		_freeHead = -1;
@@ -490,8 +507,8 @@ public sealed class PooledLinkedList<T> where T : struct
 		}
 	}
 
-	void Grow() {
-		int newCap = _capacity * 2;
+	void Grow(int num = 0) {
+		int newCap = Math.Max(num, _growSize > 0 ? _capacity + _growSize : _capacity * 2);
 		Array.Resize(ref _nodes, newCap);
 		for (int i = newCap - 1; i >= _capacity; --i) {
 			_nodes[i].Next = _freeHead;

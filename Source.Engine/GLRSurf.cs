@@ -240,7 +240,6 @@ public class WorldRenderList : IWorldRenderList
 
 public static class GLRSurf
 {
-	internal static readonly MatSysInterface MatSys = Singleton<MatSysInterface>();
 #if !SWDS
 	static readonly RenderView RenderView = (RenderView)Singleton<IRenderView>();
 #endif

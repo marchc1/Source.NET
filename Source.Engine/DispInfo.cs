@@ -1,4 +1,4 @@
-using CommunityToolkit.HighPerformance;
+﻿using CommunityToolkit.HighPerformance;
 
 using Source.Common;
 using Source.Common.Commands;
@@ -110,7 +110,43 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 	public void AddDynamicLights(DLight[] lights, uint lightMask) => throw new NotImplementedException();
 	public uint ComputeDynamicLightMask(DLight[] lights) => throw new NotImplementedException();
 
-	// public DispDecalHandle NotifyAddDecal(Decal decal, float flSize) => throw new NotImplementedException();
+	public DispDecalHandle NotifyAddDecal(WorldDecalHandle_t decal, float size) {
+		DispDecalHandle h = unchecked((DispDecalHandle)s_DispDecals.Alloc());
+		if (h != DISP_DECAL_HANDLE_INVALID) {
+			int decalCount = 0;
+			DispDecalHandle iDecal = FirstDecal;
+			DispDecalHandle lastDecal = DISP_DECAL_HANDLE_INVALID;
+			while (iDecal != DISP_DECAL_HANDLE_INVALID) {
+				lastDecal = iDecal;
+				iDecal = unchecked((DispDecalHandle)s_DispDecals.Next(iDecal));
+				++decalCount;
+			}
+
+#if !SWDS
+			if (decalCount >= MAX_DISP_DECALS)
+				Engine.Render.DecalUnlink(s_DispDecals[lastDecal].Decal, host_state.WorldBrush);
+#endif
+
+			s_DispDecals.LinkBefore(FirstDecal, h);
+			FirstDecal = h;
+
+			ref DispDecal dispDecal = ref s_DispDecals[h];
+			dispDecal.Decal = Engine.Render.s_DecalPool[decal];
+			dispDecal.FirstFragment = DISP_DECAL_FRAGMENT_HANDLE_INVALID;
+			dispDecal.Base.NVerts = 0;
+			dispDecal.Base.NTris = 0;
+			dispDecal.Size = size;
+
+			Span<DecalVert> outVerts = default;
+			Engine.Render.SetupDecalClip(outVerts, dispDecal.Decal!, ref ModelLoader.MSurf_Plane(ref ParentSurfID).Normal, dispDecal.Decal!.Material!, dispDecal.TextureSpaceBasis, dispDecal.DecalWorldScale);
+
+			SetupDecalNodeIntersect(PowerInfo!.RootNode, 0, ref dispDecal, 0);
+		}
+
+		return h;
+	}
+
+	public void SetupDecalNodeIntersect(VertIndex nodeIndex, int nodeBitIndex, ref DispDecal dispDecal, int level) => throw new NotImplementedException();
 	public void NotifyRemoveDecal(DispDecalHandle h) => throw new NotImplementedException();
 	public DispShadowHandle AddShadowDecal(ShadowHandle_t shadowHandle) {
 		DispShadowHandle h = unchecked((DispShadowHandle)s_DispShadowDecals.Alloc());

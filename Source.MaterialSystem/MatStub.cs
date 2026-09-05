@@ -1,4 +1,4 @@
-﻿using Source.Common;
+using Source.Common;
 using Source.Common.Bitmap;
 using Source.Common.Formats.Keyvalues;
 using Source.Common.Launcher;
@@ -293,6 +293,14 @@ public class DummyMaterial : IMaterial
 	public bool HasProxy() => false;
 	public void IncrementReferenceCount() { }
 	public bool InMaterialPage() => false;
+	public void GetMaterialOffset(Span<float> offset) {
+		offset[0] = 0.0f;
+		offset[1] = 0.0f;
+	}
+	public void GetMaterialScale(Span<float> scale) {
+		scale[0] = 1.0f;
+		scale[1] = 1.0f;
+	}
 	public bool IsErrorMaterialInternal() => false;
 	public bool IsRealTimeVersion() => false;
 	public bool IsTranslucent() => false;

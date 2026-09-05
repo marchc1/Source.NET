@@ -1634,6 +1634,16 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		int surfaceIndex = MSurf_Index(ref surfID, data);
 		return data!.SurfaceLighting![surfaceIndex].LightmapExtents;
 	}
+	public static Span<int> MSurf_TextureMins(ref BSPMSurface2 surfID, WorldBrushData? data = null) {
+		data ??= host_state.WorldBrush;
+		int surfaceIndex = MSurf_Index(ref surfID, data);
+		return data!.Surfaces1![surfaceIndex].TextureMins;
+	}
+	public static Span<short> MSurf_TextureExtents(ref BSPMSurface2 surfID, WorldBrushData? data = null) {
+		data ??= host_state.WorldBrush;
+		int surfaceIndex = MSurf_Index(ref surfID, data);
+		return data!.Surfaces1![surfaceIndex].TextureExtents;
+	}
 	public static ref SurfDraw MSurf_Flags(ref BSPMSurface2 surfID) => ref surfID.Flags;
 	public static ref int MSurf_VisFrame(ref BSPMSurface2 surfID) => ref surfID.VisFrame;
 	public static bool SurfaceHasDispInfo(ref BSPMSurface2 surfID) => (MSurf_Flags(ref surfID) & SurfDraw.HasDisp) != 0;

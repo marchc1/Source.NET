@@ -6,7 +6,8 @@ using System.Runtime.InteropServices;
 
 namespace Source.MaterialSystem;
 
-public struct MaterialLookup(IMaterialInternal? material, ulong symbol, bool manuallyCreated) {
+public struct MaterialLookup(IMaterialInternal? material, ulong symbol, bool manuallyCreated)
+{
 	public readonly ulong Hash() {
 		Span<byte> ugh = stackalloc byte[9];
 		Span<ulong> sym = [symbol]; MemoryMarshal.Cast<ulong, byte>(sym).CopyTo(ugh);
@@ -19,7 +20,8 @@ public struct MaterialLookup(IMaterialInternal? material, ulong symbol, bool man
 	public readonly bool ManuallyCreated => manuallyCreated;
 }
 
-public class MaterialDict(MaterialSystem materials) : IEnumerable<IMaterialInternal> {
+public class MaterialDict(MaterialSystem materials) : IEnumerable<IMaterialInternal>
+{
 	Dictionary<ulong, MaterialLookup> Dict = [];
 	public IMaterialInternal? FindMaterial(ReadOnlySpan<char> name, bool manuallyCreated) {
 		MaterialLookup lookup = new(null, name.Hash(), manuallyCreated);
@@ -57,7 +59,10 @@ public class MaterialDict(MaterialSystem materials) : IEnumerable<IMaterialInter
 	}
 
 	public IMaterialInternal AddMaterialSubRect(Span<char> matNameWithExtension, ReadOnlySpan<char> textureGroupName, KeyValues keyValues, KeyValues pPatchKeyValues) {
-		throw new NotImplementedException();
+		IMaterialInternal material = materials.CreateMaterial(matNameWithExtension, textureGroupName, null);
+		AddMaterialToMaterialList(material);
+		Warning($"AddMaterialSubRect TODO!\n");
+		return material;
 	}
 
 	internal IMaterialInternal AddMaterial(Span<char> name, ReadOnlySpan<char> textureGroupName) {

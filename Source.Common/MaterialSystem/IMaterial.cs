@@ -426,6 +426,8 @@ public interface IMaterial
 	bool IsRealTimeVersion();
 	bool InMaterialPage();
 	IMaterial GetMaterialPage();
+	void GetMaterialOffset(Span<float> offset);
+	void GetMaterialScale(Span<float> scale);
 	float GetMappingWidth();
 	float GetMappingHeight();
 	void GetReflectivity(out Vector3 reflect);

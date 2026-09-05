@@ -626,7 +626,7 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	}
 
 	internal MaterialSystem_SortInfo[]? MaterialSortInfoArray;
-	private int SortInfoToLightmapPage(int sortID) => MaterialSortInfoArray![sortID].LightmapPageID;
+	public int SortInfoToLightmapPage(int sortID) => MaterialSortInfoArray![sortID].LightmapPageID;
 
 	internal void SurfSetupSurfaceContext(ref SurfaceCtx ctx, ref BSPMSurface2 surfID) {
 		materials.GetLightmapPageSize(SortInfoToLightmapPage(ModelLoader.MSurf_MaterialSortID(ref surfID)), out ctx.LightmapPageSize[0], out ctx.LightmapPageSize[1]);
@@ -848,8 +848,11 @@ public class MatSysInterface(IMaterialSystem materials, IServiceProvider service
 	public IMaterial? MaterialShadowBuild;
 #endif
 
+	public void GL_UnloadMaterial(IMaterial? material) => material?.DecrementReferenceCount();
+
 	public IMaterial GL_LoadMaterial(ReadOnlySpan<char> name, ReadOnlySpan<char> textureGroupName) {
 		IMaterial? material = GL_LoadMaterialNoRef(name, textureGroupName);
+		material?.IncrementReferenceCount();
 		return material;
 	}
 

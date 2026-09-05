@@ -1857,6 +1857,7 @@ public static class MathLib
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DCopy(in Vector2 inV, out Vector2 outV) => outV = inV;
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void VectorLerp(in Vector3 src1, in Vector3 src2, float t, out Vector3 dest) => dest = Vector3.Lerp(src1, src2, t);
+	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DLerp(in Vector2 src1, in Vector2 src2, float t, out Vector2 dest) => dest = Vector2.Lerp(src1, src2, t);
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DAdd(in Vector2 a, in Vector2 b, out Vector2 c) => c = a + b;
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Vector2DSubtract(in Vector2 a, in Vector2 b, out Vector2 c) => c = a - b;
