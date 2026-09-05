@@ -44,7 +44,7 @@ public static class RenderAccessors
 
 public partial class Render(
 	CommonHostState host_state,
-	IMaterialSystem materials,
+	// IMaterialSystem materials,
 	Host Host,
 	MatSysInterface MaterialSystem,
 	ClientGlobalVariables gpGlobals

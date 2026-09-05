@@ -1386,7 +1386,11 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 		}
 	}
 
-	public void RenderProjectedTextures(Matrix4x4? modelToWorld = null) => throw new NotImplementedException();
+	public void RenderProjectedTextures(Matrix4x4? modelToWorld = null) {
+		RenderFlashlights(true, modelToWorld);
+		RenderShadows(modelToWorld);
+		ClearShadowRenderList();
+	}
 
 	bool ProjectVerticesIntoShadowSpace(in Matrix4x4 modelToShadow, float maxDist, ReadOnlySpan<Vector3> position, ref ShadowClipState clip) {
 		bool insideVolume = false;
@@ -2063,7 +2067,7 @@ public class ShadowMgr : IShadowMgrInternal, ISpatialLeafEnumerator
 
 			EnableStencilAndScissorMasking(renderContext, flashlightInfo, doMasking);
 
-			// DecalSurfaceDraw(renderContext, sortGroup);
+			Render.DecalSurfaceDraw(renderContext, sortGroup);
 		}
 
 		renderContext.SetFlashlightMode(false);

@@ -149,7 +149,9 @@ public struct DecalBatchList
 public struct DecalMeshList
 {
 	public IMesh? Mesh;
-	public List<DecalBatchList> Batches;
+	public List<DecalBatchList> Batches = new(128);
+
+	public DecalMeshList() { }
 }
 
 public struct DecalContext(IMatRenderContext renderContext, in Vector3 modelOrg)
@@ -165,15 +167,29 @@ public struct DecalContext(IMatRenderContext renderContext, in Vector3 modelOrg)
 	public SurfaceHandle_t Surf = -1; // TODO: global INVALID_SURFACE_HANDLE, shoulda done that sooner
 
 	public void InitSurface(SurfaceHandle_t surfID) {
-		throw new NotImplementedException();
+		if (Surf == surfID)
+			return;
+
+		Surf = surfID;
+		ref BSPMSurface2 surf = ref ModelLoader.SurfaceHandleFromIndex(surfID);
+		ref ModelTexInfo texInfo = ref ModelLoader.MSurf_TexInfo(ref surf);
+
+		materials.GetLightmapPageSize(MatSys.SortInfoToLightmapPage(ModelLoader.MSurf_MaterialSortID(ref surf)), out int lightmapPageWidth, out int lightmapPageHeight);
+
+		SScale = 1.0f / lightmapPageWidth;
+		TScale = 1.0f / lightmapPageHeight;
+		SOffset = texInfo.LightmapVecsLuxelsPerWorldUnits[0].W - ModelLoader.MSurf_LightmapMins(ref surf)[0] + ModelLoader.MSurf_OffsetIntoLightmapPage(ref surf)[0] + 0.5f;
+		TOffset = texInfo.LightmapVecsLuxelsPerWorldUnits[1].W - ModelLoader.MSurf_LightmapMins(ref surf)[1] + ModelLoader.MSurf_OffsetIntoLightmapPage(ref surf)[1] + 0.5f;
+		SAxis = texInfo.LightmapVecsLuxelsPerWorldUnits[0].AsVector3D();
+		TAxis = texInfo.LightmapVecsLuxelsPerWorldUnits[1].AsVector3D();
 	}
 
 	public readonly float ComputeS(in Vector3 pos) {
-		throw new NotImplementedException();
+		return SScale * (Vector3.Dot(pos, SAxis) + SOffset);
 	}
 
 	public readonly float ComputeT(in Vector3 pos) {
-		throw new NotImplementedException();
+		return TScale * (Vector3.Dot(pos, TAxis) + TOffset);
 	}
 }
 
@@ -195,7 +211,31 @@ public class DecalVertCache
 	int FreeTestIndex;
 
 	public void StoreVertsInCache(Decal decal, Span<DecalVert> list) {
-		throw new NotImplementedException();
+		int vertCount = decal.ClippedVertCount;
+		int blockCount = (vertCount + 3) >> 2;
+		FindFreeBlocks(blockCount);
+
+		if (blockCount > FreeBlockCount)
+			return;
+
+		int cacheHandle = AllocBlocks(blockCount);
+		decal.CacheHandle = (ushort)cacheHandle;
+		ref DecalCache cache = ref Cache[cacheHandle];
+		int listIndex = 0;
+		while (blockCount != 0) {
+			Assert(GetIndex(ref cache, DecalIndexOrdinal.DecalIndex) == -1);
+			for (int i = 0; i < 4; i++) {
+				cache.DecalVert[i].Pos = list[listIndex + i].Pos;
+				cache.DecalVert[i].CtCoords = list[listIndex + i].CtCoords;
+				cache.DecalVert[i].CLMCoords = list[listIndex + i].CLMCoords;
+			}
+
+			listIndex += 4;
+			blockCount--;
+			SetIndex(ref cache, DecalIndexOrdinal.DecalIndex, decal.DecalPool);
+			SetIndex(ref cache, DecalIndexOrdinal.FrameCountIndex, Render.r_framecount);
+			cache = ref NextBlock(ref cache);
+		}
 	}
 
 	public void FreeCachedVerts(Decal decal) {
@@ -211,7 +251,36 @@ public class DecalVertCache
 	}
 
 	public Span<DecalVert> GetCachedVerts(Decal decal) {
-		throw new NotImplementedException();
+		int cacheHandle = decal.CacheHandle;
+		if (Render.r_framecount != LastFrameCount) {
+			FrameBlocks = 0;
+			LastFrameCount = Render.r_framecount;
+		}
+
+		if (cacheHandle == Render.INVALID_CACHE_ENTRY)
+			return default;
+
+		ref DecalCache cache = ref Cache[cacheHandle];
+		for (int i = cacheHandle; i != Render.INVALID_CACHE_ENTRY; i = GetIndex(ref Cache[i], DecalIndexOrdinal.NextVertBlockIndex)) {
+			SetIndex(ref cache, DecalIndexOrdinal.FrameCountIndex, Render.r_framecount);
+			Assert(GetIndex(ref cache, DecalIndexOrdinal.DecalIndex) == decal.DecalPool);
+		}
+
+		int vertCount = decal.ClippedVertCount;
+		int blockCount = (vertCount + 3) >> 2;
+		FrameBlocks += blockCount;
+
+		if (blockCount > 1) {
+			int indexOut = 0;
+			while (blockCount != 0) {
+				((Span<DecalVert>)cache.DecalVert).CopyTo(((Span<DecalVert>)Render.g_DecalClipVerts)[indexOut..]);
+				indexOut += 4;
+				blockCount--;
+				cache = ref NextBlock(ref cache);
+			}
+			return Render.g_DecalClipVerts;
+		}
+		return cache.DecalVert;
 	}
 
 	public void Init() {
@@ -237,23 +306,70 @@ public class DecalVertCache
 	bool IsFree(int block) => GetIndex(ref Cache[block], DecalIndexOrdinal.IsFreeIndex) != 0;
 
 	ref DecalCache NextBlock(ref DecalCache cache) {
-		throw new NotImplementedException();
+		int nextIndex = GetIndex(ref cache, DecalIndexOrdinal.NextVertBlockIndex);
+		if (nextIndex == Render.INVALID_CACHE_ENTRY)
+			return ref Unsafe.NullRef<DecalCache>();
+		return ref Cache[nextIndex];
 	}
 
 	void FreeBlock(int cacheIndex) {
-		throw new NotImplementedException();
+		SetFree(cacheIndex, true);
+		SetNext(cacheIndex, FirstFree);
+		SetIndex(ref Cache[cacheIndex], DecalIndexOrdinal.DecalIndex, -1);
+
+		FirstFree = cacheIndex;
+		FreeBlockCount++;
 	}
 
 	void FindFreeBlocks(int blockCount) {
-		throw new NotImplementedException();
+		if (blockCount <= FreeBlockCount)
+			return;
+		int possibleFree = Render.DECALCACHE_ENTRY_COUNT - FrameBlocks;
+		if (blockCount > possibleFree)
+			return;
+
+		int lastTest = (FreeTestIndex + 16) & (Render.DECALCACHE_ENTRY_COUNT - 1);
+
+		for (; FreeTestIndex != lastTest; FreeTestIndex = (FreeTestIndex + 1) & (Render.DECALCACHE_ENTRY_COUNT - 1)) {
+			if (!IsFree(FreeTestIndex)) {
+				int lastFrame = GetIndex(ref Cache[FreeTestIndex], DecalIndexOrdinal.FrameCountIndex);
+				if (Render.r_framecount - lastFrame > 1) {
+					int iDecal = GetIndex(ref Cache[FreeTestIndex], DecalIndexOrdinal.DecalIndex);
+					FreeCachedVerts(Render.s_DecalPool[iDecal]!);
+				}
+			}
+
+			if (FreeBlockCount >= blockCount)
+				break;
+		}
 	}
 
 	int AllocBlock() {
-		throw new NotImplementedException();
+		if (FreeBlockCount == 0)
+			return Render.INVALID_CACHE_ENTRY;
+		Assert(IsFree(FirstFree));
+		int nextFree = GetIndex(ref Cache[FirstFree], DecalIndexOrdinal.NextVertBlockIndex);
+		int cacheIndex = FirstFree;
+		SetFree(cacheIndex, false);
+		FirstFree = nextFree;
+		FreeBlockCount--;
+		return cacheIndex;
 	}
 
 	int AllocBlocks(int blockCount) {
-		throw new NotImplementedException();
+		if (blockCount > FreeBlockCount)
+			return Render.INVALID_CACHE_ENTRY;
+		int firstBlock = AllocBlock();
+		Assert(firstBlock != Render.INVALID_CACHE_ENTRY);
+		int blockHandle = firstBlock;
+		for (int i = 1; i < blockCount; i++) {
+			int nextBlock = AllocBlock();
+			Assert(nextBlock != Render.INVALID_CACHE_ENTRY);
+			SetIndex(ref Cache[blockHandle], DecalIndexOrdinal.NextVertBlockIndex, nextBlock);
+			blockHandle = nextBlock;
+		}
+		SetIndex(ref Cache[blockHandle], DecalIndexOrdinal.NextVertBlockIndex, Render.INVALID_CACHE_ENTRY);
+		return firstBlock;
 	}
 }
 
@@ -277,6 +393,7 @@ public partial class Render
 	public static readonly ConVar r_queued_decals = new("r_queued_decals", "0", 0, "Offloads a bit of decal rendering setup work to the material system queue when enabled.");
 	public static readonly ConVar r_drawdecals = new("r_drawdecals", "1", FCvar.Cheat, "Render decals.");
 	public static readonly ConVar r_drawbatchdecals = new("r_drawbatchdecals", "1", 0, "Render decals batched.");
+	public static readonly ConVar sdn_decals = new("sdn_decals", "0", FCvar.Cheat, "Overlay the pool index of every decal at its position.");
 
 	static uint s_DecalScaleVarCache = 0;
 	static uint s_DecalFadeVarCache = 0;
@@ -330,16 +447,46 @@ public partial class Render
 			return MaterialOrder(decal1.Material, decal2.Material) < 0;
 	}
 
+	static void DrawDecalID(int decalIndex, in Vector3 position) {
+		Span<char> buf = stackalloc char[16];
+		decalIndex.TryFormat(buf, out int written);
+		debugoverlay.AddTextOverlay(position, 0, buf[..written]);
+	}
+
+	static void DrawDecalIDs() {
+		for (int i = 0; i < g_MaxDecals; i++) {
+			Decal? decal = s_DecalPool[i];
+			if (decal == null)
+				continue;
+
+			DrawDecalID(i, in decal.Position);
+		}
+	}
+
 	[ConCommand("r_printdecalinfo")]
 	static void r_printdecalinfo_f() {
-		throw new NotImplementedException();
+		int permanent = 0;
+		int dynamic = 0;
+
+		for (int i = 0; i < g_MaxDecals; i++) {
+			Decal? decal = s_DecalPool[i];
+			if (decal != null) {
+				if ((decal.Flags & FDecal.Permanent) != 0)
+					++permanent;
+				else
+					++dynamic;
+			}
+		}
+
+		Assert(dynamic == g_DynamicDecals);
+		Msg($"{permanent + dynamic} decals: {permanent} permanent, {dynamic} dynamic\nr_decals: {r_decals.GetInt()}\n");
 	}
 
 	public static float ComputeDecalLightmapOffset(SurfaceHandle_t surfID) {
 		float offset;
 		ref BSPMSurface2 surf = ref ModelLoader.SurfaceHandleFromIndex(surfID);
 		if ((ModelLoader.MSurf_Flags(ref surf) & SurfDraw.BumpLight) != 0) {
-			SourceDllMain.materials.GetLightmapPageSize(MatSys.SortInfoToLightmapPage(ModelLoader.MSurf_MaterialSortID(ref surf)), out int width, out int height);
+			materials.GetLightmapPageSize(MatSys.SortInfoToLightmapPage(ModelLoader.MSurf_MaterialSortID(ref surf)), out int width, out int height);
 			int xExtent = ModelLoader.MSurf_LightmapExtents(ref surf)[0] + 1;
 
 			offset = width != 0 ? (float)xExtent / (float)width : 0.0f;
@@ -789,7 +936,10 @@ public partial class Render
 	}
 
 	static void DecalVertsLight(Span<DecalVert> v, in DecalContext context, SurfaceHandle_t surfID, int vertCount) {
-		throw new NotImplementedException();
+		for (int j = 0; j < vertCount; j++) {
+			v[j].CLMCoords.X = context.ComputeS(v[j].Pos);
+			v[j].CLMCoords.Y = context.ComputeT(v[j].Pos);
+		}
 	}
 
 	static Decal? DecalFindOverlappingDecals(DecalInfo decalInfo, SurfaceHandle_t surfID) {
@@ -905,7 +1055,13 @@ public partial class Render
 	}
 
 	public static void DecalSurfacesInit(bool brushModel) {
-		throw new NotImplementedException();
+		if (!brushModel) {
+			g_DecalSortPool.Clear();
+			DecalFlushDestroyList();
+			++g_DecalSortCheckCount;
+		}
+		else
+			++g_BrushModelDecalSortCheckCount;
 	}
 
 	static void DecalMaterialSort(Decal decal, SurfaceHandle_t surfID) {
@@ -1039,11 +1195,76 @@ public partial class Render
 	}
 
 	public static bool DecalUpdate(Decal decal) {
-		throw new NotImplementedException();
+		if (decal.FadeDuration > 0)
+			return cl.GetTime() >= decal.FadeStartTime + decal.FadeDuration;
+		return false;
 	}
 
 	public static Span<DecalVert> DecalSetupVerts(ref DecalContext context, Decal decal, SurfaceHandle_t surfID, IMaterial material) {
-		throw new NotImplementedException();
+		if ((decal.Flags & FDecal.DistanceScale) != 0) {
+			if ((decal.Flags & FDecal.PlayerSpray) == 0) {
+				float scaleFactor, nearScale, farScale, nearDist, farDist;
+				nearScale = r_dscale_nearscale.GetFloat();
+				nearDist = r_dscale_neardist.GetFloat();
+				farScale = r_dscale_farscale.GetFloat();
+				farDist = r_dscale_fardist.GetFloat();
+
+				Vector3 playerOrigin = CurrentViewOrigin();
+
+				float dist;
+				if (decal.EntityIndex == 0)
+					dist = (playerOrigin - decal.Position).Length();
+				else {
+					MathLib.Vector3DMultiplyPosition(in g_BrushToWorldMatrix, in decal.Position, out Vector3 worldSpaceCenter);
+					dist = (playerOrigin - worldSpaceCenter).Length();
+				}
+
+				float fov = g_EngineRenderer.GetFov();
+				if (fov != r_dscale_basefov.GetFloat() && fov > 0 && r_dscale_basefov.GetFloat() > 0) {
+					float fovScale = fov / r_dscale_basefov.GetFloat();
+					nearScale *= fovScale;
+					farScale *= fovScale;
+
+					if (nearScale < 1.0f)
+						nearScale = 1.0f;
+					if (farScale < 1.0f)
+						farScale = 1.0f;
+				}
+
+				if (dist < nearDist)
+					scaleFactor = 1.0f;
+				else if (dist >= farDist)
+					scaleFactor = farScale;
+				else {
+					float percent = (dist - nearDist) / (farDist - nearDist);
+					scaleFactor = nearScale + percent * (farScale - nearScale);
+				}
+
+				scaleFactor = 1.0f / scaleFactor;
+				float originalScale = decal.Scale;
+				float scaledScale = decal.Scale * scaleFactor;
+				decal.Scale = scaledScale;
+
+				context.InitSurface(decal.SurfID);
+
+				Span<DecalVert> distanceScaledVerts = DecalVertsClip(default, decal, surfID, material);
+				if (!distanceScaledVerts.IsEmpty)
+					DecalVertsLight(distanceScaledVerts, in context, surfID, decal.ClippedVertCount);
+				decal.Scale = originalScale;
+				return distanceScaledVerts;
+			}
+		}
+
+		Span<DecalVert> v = g_DecalVertCache.GetCachedVerts(decal);
+		if (v.IsEmpty) {
+			context.InitSurface(decal.SurfID);
+			v = DecalVertsClip(default, decal, surfID, material);
+			if (decal.ClippedVertCount != 0) {
+				DecalVertsLight(v, in context, surfID, decal.ClippedVertCount);
+				g_DecalVertCache.StoreVertsInCache(decal, v);
+			}
+		}
+		return v;
 	}
 
 	public static void DecalUpdateAndDrawSingle(ref DecalContext context, SurfaceHandle_t surfID, Decal decal) {
@@ -1063,19 +1284,247 @@ public partial class Render
 	}
 
 	public static void DrawDecalsAllImmediate_GatherDecals(IMatRenderContext renderContext, int group, int treeType, List<Decal> drawDecals) {
-		throw new NotImplementedException();
+		int checkCount = g_DecalSortCheckCount;
+		if (group == (int)MatSortGroup.Max)
+			checkCount = g_BrushModelDecalSortCheckCount;
+
+		nint sortTreeCount = g_DecalSortTrees.Count;
+		for (nint iSortTree = 0; iSortTree < sortTreeCount; ++iSortTree) {
+			List<DecalMaterialBucket> buckets = g_DecalSortTrees[(int)iSortTree].DecalSortBuckets[group][treeType];
+			nint bucketCount = buckets.Count;
+
+			for (nint iBucket = 0; iBucket < bucketCount; ++iBucket) {
+				if (buckets[(int)iBucket].CheckCount != checkCount)
+					continue;
+
+				nint head = buckets[(int)iBucket].Head;
+
+				nint element = head;
+				while (element != PooledLinkedList<int>.INVALID_INDEX) {
+					Decal? decal = s_DecalPool[g_DecalSortPool[(int)element]];
+					element = g_DecalSortPool.Next((int)element);
+
+					if (decal == null)
+						continue;
+
+					drawDecals.Add(decal);
+				}
+			}
+		}
 	}
 
 	public static void DrawDecalsAllImmediate_Gathered(IMatRenderContext renderContext, Span<Decal> decals, int decalCount, in Vector3 modelOrg, float fade) {
-		throw new NotImplementedException();
+		SurfaceHandle_t lastSurf = -1;
+		DecalContext context = new(renderContext, in modelOrg);
+		bool wireframe = ShouldDrawInWireFrameMode() || r_drawdecals.GetInt() == 2;
+		for (int i = 0; i < decalCount; ++i) {
+			Decal decal = decals[i];
+
+			Assert(decal != null);
+
+			if ((decal.Flags & FDecal.Dynamic) != 0 && (decal.Flags & FDecal.HasUpdated) == 0) {
+				decal.Flags |= FDecal.HasUpdated;
+				if (DecalUpdate(decal)) {
+					DecalAddToDestroyList(decal);
+					continue;
+				}
+			}
+
+			if (decal.SurfID != lastSurf)
+				lastSurf = decal.SurfID;
+
+			Span<DecalVert> verts = DecalSetupVerts(ref context, decal, decal.SurfID, decal.Material!);
+			if (verts.IsEmpty)
+				continue;
+
+			int count = decal.ClippedVertCount;
+
+			ref BSPMSurface2 surf = ref ModelLoader.SurfaceHandleFromIndex(decal.SurfID);
+
+			VertexFormat vertexFormat = 0;
+			if (wireframe)
+				renderContext.Bind(MatSys.MaterialDecalWireframe!, null);
+			else {
+				renderContext.BindLightmapPage(MatSys.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref surf)].LightmapPageID);
+				renderContext.Bind(decal.Material!, decal.UserData);
+				vertexFormat = GetUncompressedFormat(decal.Material!);
+			}
+
+			IMesh? mesh = null;
+			mesh = renderContext.GetDynamicMesh();
+			MeshBuilder meshBuilder = new();
+			meshBuilder.Begin(mesh, MaterialPrimitiveType.Triangles, count, (count - 2) * 3);
+
+			Span<byte> color = [decal.Color.R, decal.Color.G, decal.Color.B, decal.Color.A];
+			if (fade != 1.0f)
+				color[3] = (byte)(color[3] * fade);
+
+			if ((decal.Flags & FDecal.Dynamic) != 0) {
+				float fadeValue;
+
+				if (decal.FadeDuration < 0)
+					fadeValue = -(float)(cl.GetTime() - decal.FadeStartTime) / decal.FadeDuration;
+				else
+					fadeValue = 1.0f - (float)(cl.GetTime() - decal.FadeStartTime) / decal.FadeDuration;
+
+				fadeValue = Math.Clamp(fadeValue, 0.0f, 1.0f);
+
+				color[3] = (byte)(color[3] * fadeValue);
+			}
+
+			Vector3 normal = new(0.0f, 0.0f, 1.0f), tangentS = new(1.0f, 0.0f, 0.0f), tangentT = new(0.0f, 1.0f, 0.0f);
+			if ((vertexFormat & (VertexFormat.Normal | VertexFormat.TangentSpace)) != 0) {
+				normal = ModelLoader.MSurf_Plane(ref surf).Normal;
+				if ((vertexFormat & VertexFormat.TangentSpace) != 0) {
+					bool negate = MatSysInterface.TangentSpaceSurfaceSetup(ref surf, out Vector3 tVect);
+					MatSysInterface.TangentSpaceComputeBasis(out tangentS, out tangentT, normal, ref tVect, negate);
+				}
+			}
+
+			float offset = decal.LightmapOffset;
+			for (int iVert = 0; iVert < count; ++iVert) {
+				meshBuilder.Position3f(verts[iVert].Pos.X, verts[iVert].Pos.Y, verts[iVert].Pos.Z);
+				if ((vertexFormat & VertexFormat.Normal) != 0)
+					meshBuilder.Normal3f(normal.X, normal.Y, normal.Z);
+				meshBuilder.Color4ubv(color);
+				meshBuilder.TexCoord2f(0, verts[iVert].CtCoords.X, verts[iVert].CtCoords.Y);
+				meshBuilder.TexCoord2f(1, verts[iVert].CLMCoords.X, verts[iVert].CLMCoords.Y);
+				meshBuilder.TexCoord1f(2, offset);
+				if ((vertexFormat & VertexFormat.TangentSpace) != 0) {
+					meshBuilder.TangentS3f(tangentS.X, tangentS.Y, tangentS.Z);
+					meshBuilder.TangentT3f(tangentT.X, tangentT.Y, tangentT.Z);
+				}
+
+				meshBuilder.AdvanceVertex();
+			}
+
+			meshBuilder.FastPolygon(0, count - 2);
+
+			meshBuilder.End();
+			mesh.Draw();
+		}
 	}
 
 	public static void DrawDecalsAllImmediate(IMatRenderContext renderContext, int group, int treeType, in Vector3 modelOrg, int checkCount, float fade) {
-		throw new NotImplementedException();
+		SurfaceHandle_t lastSurf = -1;
+		DecalContext context = new(renderContext, in modelOrg);
+		nint sortTreeCount = g_DecalSortTrees.Count;
+		bool wireframe = ShouldDrawInWireFrameMode() || r_drawdecals.GetInt() == 2;
+		for (nint iSortTree = 0; iSortTree < sortTreeCount; ++iSortTree) {
+			List<DecalMaterialBucket> buckets = g_DecalSortTrees[(int)iSortTree].DecalSortBuckets[group][treeType];
+			nint bucketCount = buckets.Count;
+			for (nint iBucket = 0; iBucket < bucketCount; ++iBucket) {
+				if (buckets[(int)iBucket].CheckCount != checkCount)
+					continue;
+
+				nint head = buckets[(int)iBucket].Head;
+
+				int count;
+				nint element = head;
+				while (element != PooledLinkedList<int>.INVALID_INDEX) {
+					Decal? decal = s_DecalPool[g_DecalSortPool[(int)element]];
+					element = g_DecalSortPool.Next((int)element);
+
+					if (decal == null)
+						continue;
+
+					if ((decal.Flags & FDecal.Dynamic) != 0 && (decal.Flags & FDecal.HasUpdated) == 0) {
+						decal.Flags |= FDecal.HasUpdated;
+						if (DecalUpdate(decal)) {
+							DecalAddToDestroyList(decal);
+							continue;
+						}
+					}
+
+					if (decal.SurfID != lastSurf)
+						lastSurf = decal.SurfID;
+
+					Span<DecalVert> verts = DecalSetupVerts(ref context, decal, decal.SurfID, decal.Material!);
+					if (verts.IsEmpty)
+						continue;
+
+					count = decal.ClippedVertCount;
+
+					ref BSPMSurface2 surf = ref ModelLoader.SurfaceHandleFromIndex(decal.SurfID);
+
+					VertexFormat vertexFormat = 0;
+					if (wireframe)
+						renderContext.Bind(MatSys.MaterialDecalWireframe!, null);
+					else {
+						renderContext.BindLightmapPage(MatSys.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref surf)].LightmapPageID);
+						renderContext.Bind(decal.Material!, decal.UserData);
+						vertexFormat = GetUncompressedFormat(decal.Material!);
+					}
+
+					IMesh? mesh;
+					mesh = renderContext.GetDynamicMesh();
+					MeshBuilder meshBuilder = new();
+					meshBuilder.Begin(mesh, MaterialPrimitiveType.Triangles, count, (count - 2) * 3);
+
+					Span<byte> color = [decal.Color.R, decal.Color.G, decal.Color.B, decal.Color.A];
+					if (fade != 1.0f)
+						color[3] = (byte)(color[3] * fade);
+
+					if ((decal.Flags & FDecal.Dynamic) != 0) {
+						float fadeValue;
+
+						if (decal.FadeDuration < 0)
+							fadeValue = -(float)(cl.GetTime() - decal.FadeStartTime) / decal.FadeDuration;
+						else
+							fadeValue = 1.0f - (float)(cl.GetTime() - decal.FadeStartTime) / decal.FadeDuration;
+
+						fadeValue = Math.Clamp(fadeValue, 0.0f, 1.0f);
+
+						color[3] = (byte)(color[3] * fadeValue);
+					}
+
+					Vector3 normal = new(0.0f, 0.0f, 1.0f), tangentS = new(1.0f, 0.0f, 0.0f), tangentT = new(0.0f, 1.0f, 0.0f);
+					if ((vertexFormat & (VertexFormat.Normal | VertexFormat.TangentSpace)) != 0) {
+						normal = ModelLoader.MSurf_Plane(ref surf).Normal;
+						if ((vertexFormat & VertexFormat.TangentSpace) != 0) {
+							bool negate = MatSysInterface.TangentSpaceSurfaceSetup(ref surf, out Vector3 tVect);
+							MatSysInterface.TangentSpaceComputeBasis(out tangentS, out tangentT, normal, ref tVect, negate);
+						}
+					}
+
+					float offset = decal.LightmapOffset;
+					for (int iVert = 0; iVert < count; ++iVert) {
+						meshBuilder.Position3f(verts[iVert].Pos.X, verts[iVert].Pos.Y, verts[iVert].Pos.Z);
+						if ((vertexFormat & VertexFormat.Normal) != 0)
+							meshBuilder.Normal3f(normal.X, normal.Y, normal.Z);
+						meshBuilder.Color4ubv(color);
+						meshBuilder.TexCoord2f(0, verts[iVert].CtCoords.X, verts[iVert].CtCoords.Y);
+						meshBuilder.TexCoord2f(1, verts[iVert].CLMCoords.X, verts[iVert].CLMCoords.Y);
+						meshBuilder.TexCoord1f(2, offset);
+						if ((vertexFormat & VertexFormat.TangentSpace) != 0) {
+							meshBuilder.TangentS3f(tangentS.X, tangentS.Y, tangentS.Z);
+							meshBuilder.TangentT3f(tangentT.X, tangentT.Y, tangentT.Z);
+						}
+
+						meshBuilder.AdvanceVertex();
+					}
+
+					meshBuilder.FastPolygon(0, count - 2);
+
+					meshBuilder.End();
+					mesh.Draw();
+				}
+			}
+		}
 	}
 
 	static void DrawDecalMeshList(ref DecalMeshList meshList) {
-		throw new NotImplementedException();
+		IMatRenderContext renderContext = materials.GetRenderContext();
+
+		foreach (DecalBatchList batch in meshList.Batches) {
+			if (MatSysInterface.MaterialSystemConfig.Fullbright == 1)
+				renderContext.BindLightmapPage(StandardLightmap.White);
+			else
+				renderContext.BindLightmapPage(batch.LightmapPage);
+
+			renderContext.Bind(batch.Material!, batch.Proxy);
+			meshList.Mesh!.Draw(batch.StartIndex, batch.IndexCount);
+		}
 	}
 
 	public static void DrawDecalsAll_GatherDecals(IMatRenderContext renderContext, int group, int treeType, List<Decal> drawDecals) {
@@ -1083,7 +1532,11 @@ public partial class Render
 	}
 
 	public static void DecalsGetMaxMesh(IMatRenderContext renderContext, out int decalSortMaxVerts, out int decalSortMaxIndices) {
-		throw new NotImplementedException();
+		decalSortMaxVerts = g_MaxDecals * 5;
+		decalSortMaxIndices = decalSortMaxVerts * 3;
+		int maxIndices = renderContext.GetMaxIndicesToRender();
+		decalSortMaxIndices = Math.Min(decalSortMaxIndices, maxIndices);
+		decalSortMaxVerts = Math.Min(decalSortMaxVerts, 8192);
 	}
 
 	public static void DrawDecalsAll_Gathered(IMatRenderContext renderContext, Span<Decal> decals, int decalCount, in Vector3 modelOrg, float fade) {
@@ -1091,23 +1544,313 @@ public partial class Render
 	}
 
 	public static void DrawDecalsAll(IMatRenderContext renderContext, int group, int treeType, in Vector3 modelOrg, int checkCount, float fade) {
-		throw new NotImplementedException();
+		DecalMeshList meshList = new();
+		MeshBuilder meshBuilder = new();
+		SurfaceHandle_t lastSurf = -1;
+		DecalContext context = new(renderContext, in modelOrg);
+		Vector3 normal = new(0.0f, 0.0f, 1.0f), tangentS = new(1.0f, 0.0f, 0.0f), tangentT = new(0.0f, 1.0f, 0.0f);
+
+		nint vertCount = 0;
+		nint indexCount = 0;
+
+		DecalsGetMaxMesh(renderContext, out int decalSortMaxVerts, out int decalSortMaxIndices);
+
+		bool wireframe = ShouldDrawInWireFrameMode() || r_drawdecals.GetInt() == 2;
+		float localClientTime = (float)cl.GetTime();
+
+		nint sortTreeCount = g_DecalSortTrees.Count;
+
+		for (nint iSortTree = 0; iSortTree < sortTreeCount; ++iSortTree) {
+			bool meshInit = true;
+
+			DecalSortTrees sortTree = g_DecalSortTrees[(int)iSortTree];
+			List<DecalMaterialBucket> buckets = sortTree.DecalSortBuckets[group][treeType];
+
+			nint bucketCount = buckets.Count;
+			for (nint iBucket = 0; iBucket < bucketCount; ++iBucket) {
+				DecalMaterialBucket bucket = buckets[(int)iBucket];
+				if (bucket.CheckCount != checkCount)
+					continue;
+
+				nint head = bucket.Head;
+				if (!g_DecalSortPool.IsValidIndex((int)head))
+					continue;
+
+				Decal? decalHead = s_DecalPool[g_DecalSortPool[(int)head]];
+				Assert(decalHead!.Material != null);
+				if (decalHead.Material == null)
+					continue;
+
+				VertexFormat vertexFormat = GetUncompressedFormat(decalHead.Material);
+				if (vertexFormat == 0)
+					continue;
+
+				nint batch = -1;
+				bool batchInit = true;
+
+				int count;
+				nint element = head;
+				while (element != PooledLinkedList<int>.INVALID_INDEX) {
+					Decal? decal = s_DecalPool[g_DecalSortPool[(int)element]];
+					element = g_DecalSortPool.Next((int)element);
+
+					if (decal == null || decal.SurfID == -1)
+						continue;
+
+					if ((decal.Flags & FDecal.Dynamic) != 0 && (decal.Flags & FDecal.HasUpdated) == 0) {
+						decal.Flags |= FDecal.HasUpdated;
+						if (DecalUpdate(decal)) {
+							DecalAddToDestroyList(decal);
+							continue;
+						}
+					}
+
+					float offset = 0;
+					if (decal.SurfID != lastSurf) {
+						lastSurf = decal.SurfID;
+						offset = decal.LightmapOffset;
+						if ((vertexFormat & (VertexFormat.Normal | VertexFormat.TangentSpace)) != 0) {
+							normal = ModelLoader.MSurf_Plane(ref ModelLoader.SurfaceHandleFromIndex(decal.SurfID)).Normal;
+							if ((vertexFormat & VertexFormat.TangentSpace) != 0) {
+								bool negate = MatSysInterface.TangentSpaceSurfaceSetup(ref ModelLoader.SurfaceHandleFromIndex(decal.SurfID), out Vector3 tVect);
+								MatSysInterface.TangentSpaceComputeBasis(out tangentS, out tangentT, normal, ref tVect, negate);
+							}
+						}
+					}
+					Span<DecalVert> verts = DecalSetupVerts(ref context, decal, decal.SurfID, decal.Material!);
+					if (verts.IsEmpty)
+						continue;
+					count = decal.ClippedVertCount;
+
+					if (vertCount + count > decalSortMaxVerts || indexCount + (count - 2) > decalSortMaxIndices) {
+						if (batch != -1) {
+							DecalBatchList finishBatch = meshList.Batches[(int)batch];
+							finishBatch.IndexCount = (ushort)(indexCount - finishBatch.StartIndex);
+							meshList.Batches[(int)batch] = finishBatch;
+						}
+
+						meshBuilder.End();
+						DrawDecalMeshList(ref meshList);
+
+						meshInit = true;
+						batch = -1;
+						batchInit = true;
+					}
+
+					if (meshInit) {
+						meshList.Mesh = null;
+						meshList.Batches.Clear();
+
+						if (wireframe)
+							meshList.Mesh = renderContext.GetDynamicMesh(false, null, null, MatSys.MaterialDecalWireframe);
+						else
+							meshList.Mesh = renderContext.GetDynamicMesh(false, null, null, decalHead.Material);
+						meshBuilder.Begin(meshList.Mesh, MaterialPrimitiveType.Triangles, decalSortMaxVerts, decalSortMaxIndices);
+
+						vertCount = 0;
+						indexCount = 0;
+
+						meshInit = false;
+					}
+
+					if (batchInit) {
+						if (meshList.Batches.Count + 1 > meshList.Batches.Capacity) {
+							Warning($"R_DrawDecalsAll: overflowing m_aBatches. Reduce {decalSortMaxVerts * meshList.Batches.Capacity} decals in the scene.\n");
+							meshBuilder.End();
+							DrawDecalMeshList(ref meshList);
+							return;
+						}
+
+						batch = meshList.Batches.Count;
+						DecalBatchList newBatch = new() {
+							StartIndex = (ushort)indexCount
+						};
+
+						if (wireframe)
+							newBatch.Material = MatSys.MaterialDecalWireframe;
+						else {
+							newBatch.Material = decalHead.Material;
+							newBatch.Proxy = decalHead.UserData;
+							newBatch.LightmapPage = MatSys.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref ModelLoader.SurfaceHandleFromIndex(decalHead.SurfID))].LightmapPageID;
+						}
+
+						meshList.Batches.Add(newBatch);
+
+						batchInit = false;
+					}
+					Assert(batch != -1);
+
+					Span<byte> color = [decal.Color.R, decal.Color.G, decal.Color.B, decal.Color.A];
+					if (fade != 1.0f)
+						color[3] = (byte)(color[3] * fade);
+
+					if ((decal.Flags & FDecal.Dynamic) != 0) {
+						float fadeValue;
+
+						if (decal.FadeDuration < 0)
+							fadeValue = -(localClientTime - (float)decal.FadeStartTime) / decal.FadeDuration;
+						else
+							fadeValue = 1.0f - (localClientTime - (float)decal.FadeStartTime) / decal.FadeDuration;
+
+						fadeValue = Math.Clamp(fadeValue, 0.0f, 1.0f);
+
+						color[3] = (byte)(color[3] * fadeValue);
+					}
+
+					for (int iVert = 0; iVert < count; ++iVert) {
+						meshBuilder.Position3f(verts[iVert].Pos.X, verts[iVert].Pos.Y, verts[iVert].Pos.Z);
+						if ((vertexFormat & VertexFormat.Normal) != 0)
+							meshBuilder.Normal3f(normal.X, normal.Y, normal.Z);
+						meshBuilder.Color4ubv(color);
+						meshBuilder.TexCoord2f(0, verts[iVert].CtCoords.X, verts[iVert].CtCoords.Y);
+						meshBuilder.TexCoord2f(1, verts[iVert].CLMCoords.X, verts[iVert].CLMCoords.Y);
+						meshBuilder.TexCoord1f(2, offset);
+						if ((vertexFormat & VertexFormat.TangentSpace) != 0) {
+							meshBuilder.TangentS3f(tangentS.X, tangentS.Y, tangentS.Z);
+							meshBuilder.TangentT3f(tangentT.X, tangentT.Y, tangentT.Z);
+						}
+
+						meshBuilder.AdvanceVertex();
+					}
+
+					int triCount = count - 2;
+					meshBuilder.FastPolygon((int)vertCount, triCount);
+
+					vertCount += count;
+					indexCount += triCount * 3;
+				}
+
+				if (batch != -1) {
+					DecalBatchList finishBatch = meshList.Batches[(int)batch];
+					finishBatch.IndexCount = (ushort)(indexCount - finishBatch.StartIndex);
+					meshList.Batches[(int)batch] = finishBatch;
+				}
+			}
+
+			if (!meshInit) {
+				meshBuilder.End();
+				DrawDecalMeshList(ref meshList);
+			}
+		}
 	}
 
 	public static void DecalSurfaceDraw_NonQueued(IMatRenderContext renderContext, int renderGroup, in Vector3 modelOrg, int checkCount, float fade) {
-		throw new NotImplementedException();
+		if (r_drawbatchdecals.GetBool()) {
+			DrawDecalsAll(renderContext, renderGroup, (int)DecalSortType.PermanentLightmap, in modelOrg, checkCount, fade);
+			DrawDecalsAll(renderContext, renderGroup, (int)DecalSortType.Lightmap, in modelOrg, checkCount, fade);
+			DrawDecalsAll(renderContext, renderGroup, (int)DecalSortType.NonLightmap, in modelOrg, checkCount, fade);
+		}
+		else {
+			DrawDecalsAllImmediate(renderContext, renderGroup, (int)DecalSortType.PermanentLightmap, in modelOrg, checkCount, fade);
+			DrawDecalsAllImmediate(renderContext, renderGroup, (int)DecalSortType.Lightmap, in modelOrg, checkCount, fade);
+			DrawDecalsAllImmediate(renderContext, renderGroup, (int)DecalSortType.NonLightmap, in modelOrg, checkCount, fade);
+		}
 	}
 
 	public static void DecalSurfaceDraw_QueueHelper(bool batched, int renderGroup, Vector3 modelOrg, int checkCount, Span<Decal> decals, int permanentLightmap, int lightmap, int nonLightmap, float fade) {
-		throw new NotImplementedException();
+		IMatRenderContext renderContext = materials.GetRenderContext();
+
+		if (batched) {
+			DrawDecalsAll_Gathered(renderContext, decals, permanentLightmap, in modelOrg, fade);
+			decals = decals[permanentLightmap..];
+			DrawDecalsAll_Gathered(renderContext, decals, lightmap, in modelOrg, fade);
+			decals = decals[lightmap..];
+			DrawDecalsAll_Gathered(renderContext, decals, nonLightmap, in modelOrg, fade);
+		}
+		else {
+			DrawDecalsAllImmediate_Gathered(renderContext, decals, permanentLightmap, in modelOrg, fade);
+			decals = decals[permanentLightmap..];
+			DrawDecalsAllImmediate_Gathered(renderContext, decals, lightmap, in modelOrg, fade);
+			decals = decals[lightmap..];
+			DrawDecalsAllImmediate_Gathered(renderContext, decals, nonLightmap, in modelOrg, fade);
+		}
 	}
 
+	static readonly List<Decal> DrawDecals = [];
+
 	public static void DecalSurfaceDraw(IMatRenderContext renderContext, int renderGroup, float fade = 1.0f) {
-		throw new NotImplementedException();
+		if (!r_drawdecals.GetBool())
+			return;
+
+		int checkCount = g_DecalSortCheckCount;
+		if (renderGroup == (int)MatSortGroup.Max)
+			checkCount = g_BrushModelDecalSortCheckCount;
+
+		if (sdn_decals.GetInt() != 0)
+			DrawDecalIDs();
+
+		if (r_queued_decals.GetBool()) {
+			bool batched = r_drawbatchdecals.GetBool();
+
+			nint permanentLightmap, lightmap, nonLightmap;
+			if (batched) {
+				DrawDecalsAll_GatherDecals(renderContext, renderGroup, (int)DecalSortType.PermanentLightmap, DrawDecals);
+				permanentLightmap = DrawDecals.Count;
+				DrawDecalsAll_GatherDecals(renderContext, renderGroup, (int)DecalSortType.Lightmap, DrawDecals);
+				lightmap = DrawDecals.Count - permanentLightmap;
+				DrawDecalsAll_GatherDecals(renderContext, renderGroup, (int)DecalSortType.NonLightmap, DrawDecals);
+				nonLightmap = DrawDecals.Count - (permanentLightmap + lightmap);
+			}
+			else {
+				DrawDecalsAllImmediate_GatherDecals(renderContext, renderGroup, (int)DecalSortType.PermanentLightmap, DrawDecals);
+				permanentLightmap = DrawDecals.Count;
+				DrawDecalsAllImmediate_GatherDecals(renderContext, renderGroup, (int)DecalSortType.Lightmap, DrawDecals);
+				lightmap = DrawDecals.Count - permanentLightmap;
+				DrawDecalsAllImmediate_GatherDecals(renderContext, renderGroup, (int)DecalSortType.NonLightmap, DrawDecals);
+				nonLightmap = DrawDecals.Count - (permanentLightmap + lightmap);
+			}
+
+			if (DrawDecals.Count != 0) {
+				DecalSurfaceDraw_QueueHelper(batched, renderGroup, ModelOrg, checkCount, DrawDecals.AsSpan(), (int)permanentLightmap, (int)lightmap, (int)nonLightmap, fade);
+
+				DrawDecals.Clear();
+			}
+		}
+		else
+			DecalSurfaceDraw_NonQueued(renderContext, renderGroup, in ModelOrg, checkCount, fade);
 	}
 
 	public static void DecalSurfaceAdd(SurfaceHandle_t surfID, int group) {
-		throw new NotImplementedException();
+		Decal? decalList = MSurf_DecalPointer(surfID);
+		if (decalList == null)
+			return;
+
+		int checkCount = g_DecalSortCheckCount;
+		if (group == (int)MatSortGroup.Max)
+			checkCount = g_BrushModelDecalSortCheckCount;
+
+		int treeType;
+		Decal? next;
+		for (Decal? decal = decalList; decal != null; decal = next) {
+			next = decal.Next;
+
+			if (decal.Material!.GetPropertyFlag(MaterialPropertyTypes.NeedsLightmap)) {
+				if ((decal.Flags & FDecal.Permanent) != 0)
+					treeType = (int)DecalSortType.PermanentLightmap;
+				else
+					treeType = (int)DecalSortType.Lightmap;
+			}
+			else
+				treeType = (int)DecalSortType.NonLightmap;
+
+			decal.Flags &= ~FDecal.HasUpdated;
+			nint pool = g_DecalSortPool.Alloc();
+			if (pool != PooledLinkedList<int>.INVALID_INDEX) {
+				g_DecalSortPool[(int)pool] = decal.DecalPool;
+
+				DecalSortTrees sortTree = g_DecalSortTrees[(int)decal.SortTree];
+				List<DecalMaterialBucket> buckets = sortTree.DecalSortBuckets[group][treeType];
+				DecalMaterialBucket bucket = buckets[(int)decal.SortMaterial];
+				if (bucket.CheckCount == checkCount) {
+					nint head = bucket.Head;
+					g_DecalSortPool.LinkBefore((int)head, (int)pool);
+				}
+
+				bucket.Head = pool;
+				bucket.CheckCount = checkCount;
+				buckets[(int)decal.SortMaterial] = bucket;
+			}
+		}
 	}
 #endif
 }

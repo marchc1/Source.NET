@@ -988,7 +988,7 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 		renderContext.LoadIdentity();
 
 		IMaterial material = DetailSpriteMaterial.Get()!;
-		if (GLCvars.ShouldDrawInWireFrameMode() || r_DrawDetailProps.GetInt() == 2)
+		if (GLRSurfGlobals.ShouldDrawInWireFrameMode() || r_DrawDetailProps.GetInt() == 2)
 			material = DetailWireframeMaterial.Get()!;
 
 		MeshBuilder meshBuilder = new();
@@ -1081,7 +1081,7 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 		renderContext.LoadIdentity();
 
 		IMaterial material = DetailSpriteMaterial.Get()!;
-		if (GLCvars.ShouldDrawInWireFrameMode() || r_DrawDetailProps.GetInt() == 2)
+		if (GLRSurfGlobals.ShouldDrawInWireFrameMode() || r_DrawDetailProps.GetInt() == 2)
 			material = DetailWireframeMaterial.Get()!;
 
 		MeshBuilder meshBuilder = new();
@@ -1163,7 +1163,7 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 		renderContext.LoadIdentity();
 
 		IMaterial material = DetailSpriteMaterial.Get()!;
-		if (GLCvars.ShouldDrawInWireFrameMode() || r_DrawDetailProps.GetInt() == 2)
+		if (GLRSurfGlobals.ShouldDrawInWireFrameMode() || r_DrawDetailProps.GetInt() == 2)
 			material = DetailWireframeMaterial.Get()!;
 
 		MeshBuilder meshBuilder = new();
@@ -1384,7 +1384,7 @@ public class DetailObjectSystem : IDetailObjectSystem, ISpatialLeafEnumerator
 		renderContext.LoadIdentity();
 
 		IMaterial material = DetailSpriteMaterial.Get()!;
-		if (GLCvars.ShouldDrawInWireFrameMode() || r_DrawDetailProps.GetInt() == 2)
+		if (GLRSurfGlobals.ShouldDrawInWireFrameMode() || r_DrawDetailProps.GetInt() == 2)
 			material = DetailWireframeMaterial.Get()!;
 
 		MeshBuilder meshBuilder = new();

@@ -1,4 +1,4 @@
-using CommunityToolkit.HighPerformance;
+﻿using CommunityToolkit.HighPerformance;
 
 using K4os.Hash.xxHash;
 
@@ -488,6 +488,8 @@ public sealed class PooledLinkedList<T> where T : struct
 		_freeHead = index;
 		_count--;
 	}
+
+	public bool IsValidIndex(int index) => index >= 0 && index < _capacity;
 
 	public void SetGrowSize(int growSize) => _growSize = growSize;
 

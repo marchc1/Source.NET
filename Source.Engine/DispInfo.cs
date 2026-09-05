@@ -200,7 +200,7 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 		if (allowDebugModes) {
 			using MatRenderContextPtr renderContext = new(materials);
 
-			if (GLCvars.ShouldDrawInWireFrameMode()) {
+			if (ShouldDrawInWireFrameMode()) {
 				renderContext.Bind(MatSys.MaterialWireframe!, null);
 				SpecifyDynamicMesh();
 				normalRender = false;
@@ -516,7 +516,7 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 	}
 
 	static bool DispInfoRenderDebugModes() {
-		if (GLCvars.ShouldDrawInWireFrameMode() || mat_luxels.GetInt() != 0
+		if (ShouldDrawInWireFrameMode() || mat_luxels.GetInt() != 0
 			// || r_DispWalkable.GetInt() || r_DispBuildable.GetInt() || mat_surfaceid.GetInt() || mat_surfacemat.GetInt() // todo
 			)
 			return true;
