@@ -3152,3 +3152,10 @@ public struct FourVectors
 		return maskX & maskY & maskZ;
 	}
 }
+
+public static class VectorFieldExts
+{
+	// Writable float[3] view over a vector's components (unlike the read-only Vector3 indexer).
+	public static Span<float> Base(this ref Vector3 v) => MemoryMarshal.CreateSpan(ref Unsafe.As<Vector3, float>(ref v), 3);
+	public static Span<float> Base(this ref QAngle a) => MemoryMarshal.CreateSpan(ref Unsafe.As<QAngle, float>(ref a), 3);
+}

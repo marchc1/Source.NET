@@ -9,6 +9,7 @@ using Source.Common.Engine;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
 
+using System.Drawing;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -678,7 +679,7 @@ public partial class BaseEntity : IServerEntity
 	public byte RenderMode;
 	public byte OldRenderMode;
 	public int Effects;
-	public Color ColorRender;
+	public Source.Color ColorRender;
 	public int TeamNum;
 	public int CollisionGroup;
 	public float Elasticity;

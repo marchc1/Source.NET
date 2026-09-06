@@ -24,9 +24,13 @@ namespace Game.Server;
 #endif
 
 using CommunityToolkit.HighPerformance;
+
 using Source;
+
 using System.Numerics;
+
 using Source.Common.Mathematics;
+
 using Game.Shared;
 
 
@@ -45,9 +49,13 @@ using Class =
 #endif
 
 using FIELD = Source.FIELD<BaseEntity>;
+
 using System.Runtime.CompilerServices;
+
 using Source.Common.Formats.BSP;
 using Source.Common.Physics;
+
+using System.Text;
 
 public static class BaseEntityConstants
 {
@@ -602,6 +610,138 @@ public partial class
 		// todo
 		return 0;
 	}
+	public virtual void ParseMapData(EntityMapData mapData){
+		// The map data (and the parser) are byte-based (C++ char*); decode each key/value to ASCII
+		// char spans here so KeyValue can work in ReadOnlySpan<char>.
+		Span<byte> keyNameBytes = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
+		Span<byte> valueBytes = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
+		Span<char> keyName = stackalloc char[EntityMapData.MAPKEY_MAXLENGTH];
+		Span<char> value = stackalloc char[EntityMapData.MAPKEY_MAXLENGTH];
+
+#if DEBUG && GAME_DLL
+		// todo later: ValidateDataDescription();
+#endif
+
+		// loop through all keys in the data block and pass the info back into the object
+		if (mapData.GetFirstKey(keyNameBytes, valueBytes)) {
+			do {
+				int kl = Encoding.ASCII.GetChars(keyNameBytes[..MapEntity.StrLen(keyNameBytes)], keyName);
+				int vl = Encoding.ASCII.GetChars(valueBytes[..MapEntity.StrLen(valueBytes)], value);
+				KeyValue(keyName[..kl], value[..vl]);
+			}
+			while (mapData.GetNextKey(keyNameBytes, valueBytes));
+		}
+	}
+	public void SetRenderColor(byte r, byte g, byte b) => ColorRender = new Color(r, g, b, ColorRender.A);
+	public void SetRenderColorA(byte a) => ColorRender = new Color(ColorRender.R, ColorRender.G, ColorRender.B, a);
+
+	public virtual bool KeyValue(ReadOnlySpan<char> szKeyName, ReadOnlySpan<char> szValue) {
+		//!! temp hack, until worldcraft is fixed
+		// strip the # tokens from (duplicate) key names
+		ReadOnlySpan<char> key = szKeyName;
+		int hash = key.IndexOf('#');
+		if (hash >= 0)
+			key = key[..hash];
+
+		if (FStrEq(key, "rendercolor") || FStrEq(key, "rendercolor32")) {
+			Util.StringToColor32(out Color tmp, szValue);
+			SetRenderColor(tmp.R, tmp.G, tmp.B);
+			// don't copy alpha, legacy support uses renderamt
+			return true;
+		}
+
+		if (FStrEq(key, "renderamt")) {
+			SetRenderColorA((byte)atoi(szValue));
+			return true;
+		}
+
+		if (FStrEq(key, "disableshadows")) {
+			if (atoi(szValue) != 0)
+				AddEffects(EntityEffects.NoShadow);
+			return true;
+		}
+
+		if (FStrEq(key, "mins")) {
+			Vector3 mins = default;
+			UTIL_StringToVector(mins.Base(), szValue);
+			CollisionProp().SetCollisionBounds(mins, CollisionProp().OBBMaxs());
+			return true;
+		}
+
+		if (FStrEq(key, "maxs")) {
+			Vector3 maxs = default;
+			UTIL_StringToVector(maxs.Base(), szValue);
+			CollisionProp().SetCollisionBounds(CollisionProp().OBBMins(), maxs);
+			return true;
+		}
+
+		if (FStrEq(key, "disablereceiveshadows")) {
+			if (atoi(szValue) != 0)
+				AddEffects(EntityEffects.NoReceiveShadow);
+			return true;
+		}
+
+		if (FStrEq(key, "nodamageforces")) {
+			if (atoi(szValue) != 0)
+				AddEFlags(EFL.NoDamageForces);
+			return true;
+		}
+
+		// Fix up single angles
+		if (FStrEq(key, "angle")) {
+			ref readonly QAngle localAngles = ref GetLocalAngles();
+
+			float y = strtof(szValue, out _);
+			string szBuf;
+			if (y >= 0)
+				szBuf = $"{localAngles.X} {y} {localAngles.Z}";
+			else if ((int)y == -1)
+				szBuf = "-90 0 0";
+			else
+				szBuf = "90 0 0";
+
+			// Do this so inherited classes looking for 'angles' don't have to bother with 'angle'
+			return KeyValue(key, szBuf);
+		}
+
+		// NOTE: Have to do these separate because they set two values instead of one
+		if (FStrEq(key, "angles")) {
+			QAngle angles = default;
+			UTIL_StringToVector(angles.Base(), szValue);
+
+			// If you're hitting this assert, it's probably because you're
+			// calling SetLocalAngles from within a KeyValues method.. use SetAbsAngles instead!
+			Assert((GetMoveParent() == null) && !IsEFlagSet(EFL.DirtyAbsTransform));
+			SetAbsAngles(angles);
+			return true;
+		}
+
+		if (FStrEq(key, "origin")) {
+			Vector3 vecOrigin = default;
+			UTIL_StringToVector(vecOrigin.Base(), szValue);
+
+			// If you're hitting this assert, it's probably because you're
+			// calling SetLocalOrigin from within a KeyValues method.. use SetAbsOrigin instead!
+			Assert((GetMoveParent() == null) && !IsEFlagSet(EFL.DirtyAbsTransform));
+			SetAbsOrigin(vecOrigin);
+			return true;
+		}
+
+#if GAME_DLL
+		if (FStrEq(key, "targetname")) {
+			Name = new string(szValue); // m_iName = AllocPooledString(szValue)
+			return true;
+		}
+
+		// TODO: datamap keyfield parsing is not ported yet. C++ loops the entity's data description
+		// chain here (GetDataDescMap()) and calls ::ParseKeyvalue() to place any remaining keys into
+		// [Key]-flagged fields (plus the ent_debugkeys debug path). That subsystem doesn't exist yet.
+#endif
+
+		// key hasn't been handled
+		return false;
+	}
+
 
 	public static float k_flMaxEntityPosCoord = MAX_COORD_FLOAT;
 	public static float k_flMaxEntityEulerAngle = 360.0f * 1000.0f; // really should be restricted to +/-180, but some code doesn't adhere to this.  let's just trap NANs, etc

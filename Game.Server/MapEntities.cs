@@ -34,10 +34,9 @@ public interface IMapEntityFilter
 
 public class PointTemplate : BaseEntity { } // TODO move this
 
-[InlineArray(MapEntities.MAPKEY_MAXLENGTH)] public struct InlineArrayMapKeyMaxLength<T> { T first; }
+[InlineArray(EntityMapData.MAPKEY_MAXLENGTH)] public struct InlineArrayMapKeyMaxLength<T> { T first; }
 public static class MapEntities
 {
-	public const int MAPKEY_MAXLENGTH = 2048;
 	static ref Edict? g_pForceAttachEdict => ref BaseEntity.g_pForceAttachEdict;
 
 	// creates an entity by string name, but does not spawn it
@@ -340,18 +339,10 @@ public static class MapEntities
 				entity = CreateEntityByName(classNameStr);
 
 			// Set up keyvalues.
-			if (entity != null) {
-				// entity.ParseMapData(entData);
-			}
+			if (entity != null) 
+				entity.ParseMapData(entData);
 			else
 				Warning($"Can't init {classNameStr}\n");
-
-#if true // TODO: remove this once ParseMapData is implemented.
-			Span<byte> keyName = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
-			Span<byte> value = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
-			if (entData.GetFirstKey(keyName, value))
-				do { } while (entData.GetNextKey(keyName, value));
-#endif
 		}
 		else {
 			// Just skip past all the keys.

@@ -17,6 +17,7 @@ using Source.Common.Mathematics;
 using Source.Engine;
 
 using System.Drawing.Drawing2D;
+using System.Globalization;
 using System.Numerics;
 
 namespace Game;
@@ -62,6 +63,45 @@ public static partial class Util_Globals
 		return (BaseEntity?)unk?.GetBaseEntity();
 #endif
 	}
+
+	// Parses up to 'count' whitespace-separated floats out of pString into vec, zero-filling the rest.
+	public static void UTIL_StringToFloatArray(Span<float> vec, int count, ReadOnlySpan<char> pString) {
+		vec[..count].Clear();
+
+		int pos = 0;
+		for (int j = 0; j < count; j++) {
+			while (pos < pString.Length && pString[pos] <= ' ')
+				pos++;
+			if (pos >= pString.Length)
+				break;
+
+			int start = pos;
+			while (pos < pString.Length && pString[pos] > ' ')
+				pos++;
+
+			float.TryParse(pString[start..pos], NumberStyles.Float, CultureInfo.InvariantCulture, out vec[j]);
+		}
+	}
+
+	public static void UTIL_StringToVector(Span<float> vec, ReadOnlySpan<char> pString) => UTIL_StringToFloatArray(vec, 3, pString);
+
+	public static void UTIL_StringToIntArray(Span<int> vec, int count, ReadOnlySpan<char> pString) {
+		vec[..count].Clear();
+
+		int pos = 0;
+		for (int j = 0; j < count; j++) {
+			while (pos < pString.Length && pString[pos] <= ' ')
+				pos++;
+			if (pos >= pString.Length)
+				break;
+
+			int start = pos;
+			while (pos < pString.Length && pString[pos] > ' ')
+				pos++;
+
+			vec[j] = atoi(pString[start..pos]);
+		}
+	}
 }
 
 public static partial class Util
@@ -70,6 +110,14 @@ public static partial class Util
 #if CLIENT_DLL
 	public static BasePlayer PlayerByIndex(int entindex) => ToBasePlayer(cl_entitylist.GetEnt(entindex));
 #endif
+
+	// UTIL_StringToColor32: parses "r g b a" into a color.
+	public static void StringToColor32(out Color color, ReadOnlySpan<char> pString) {
+		Span<int> tmp = stackalloc int[4];
+		UTIL_StringToIntArray(tmp, 4, pString);
+		// C++ assigns each channel into a byte (implicit truncation); mask so the ctor's range assert passes.
+		color = new Color(tmp[0] & 0xFF, tmp[1] & 0xFF, tmp[2] & 0xFF, tmp[3] & 0xFF);
+	}
 	public static float VecToYaw(in Vector3 vec) {
 		if (vec.Y == 0 && vec.X == 0)
 			return 0;

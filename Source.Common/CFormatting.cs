@@ -421,6 +421,30 @@ public static class CFormatting
 		return 0;
 	}
 
+	// C atoi: skip leading whitespace, optional sign, parse leading decimal digits, stop at first non-digit.
+	public static int atoi(ReadOnlySpan<char> str) {
+		int i = 0;
+		while (i < str.Length && str[i] is ' ' or '\t' or '\n' or '\r' or '\f' or '\v')
+			i++;
+
+		int sign = 1;
+		if (i < str.Length && (str[i] == '+' || str[i] == '-')) {
+			if (str[i] == '-')
+				sign = -1;
+			i++;
+		}
+
+		long val = 0;
+		while (i < str.Length && str[i] >= '0' && str[i] <= '9') {
+			val = val * 10 + (str[i] - '0');
+			if (val > int.MaxValue)
+				return sign < 0 ? int.MinValue : int.MaxValue;
+			i++;
+		}
+
+		return (int)(sign * val);
+	}
+
 
 	public static void strlower(Span<char> str) {
 		for (int i = 0; i < str.Length; i++)
@@ -437,6 +461,7 @@ public static class CFormatting
 	public static int strnicmp(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b, int c) => a.SliceNullTerminatedString().SliceSafe(c).CompareTo(b.SliceNullTerminatedString().SliceSafe(c), StringComparison.OrdinalIgnoreCase);
 	public static int stricmp(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b) => a.SliceNullTerminatedString().CompareTo(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);
 	public static int strcmpi(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b) => a.SliceNullTerminatedString().CompareTo(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);
+
 
 	public static bool streq(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b) => a.SliceNullTerminatedString().Equals(b.SliceNullTerminatedString(), StringComparison.Ordinal);
 	public static bool strieq(scoped ReadOnlySpan<char> a, scoped ReadOnlySpan<char> b) => a.SliceNullTerminatedString().Equals(b.SliceNullTerminatedString(), StringComparison.OrdinalIgnoreCase);
