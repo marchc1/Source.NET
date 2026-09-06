@@ -864,7 +864,7 @@ public class Host
 		EngineVGui.UpdateProgressBar(LevelLoadingProgress.LevelInit);
 #endif
 
-		serverPluginHandler.LevelInit(mapName, GetCollisionBSPData().MapEntityString, oldMap, landmark, loadGame && !oldSave, backgroundLevel);
+		serverPluginHandler.LevelInit(mapName, GetCollisionBSPData().MapEntityData, oldMap, landmark, loadGame && !oldSave, backgroundLevel);
 
 		if (loadGame && !oldSave) {
 			sv.SetPaused(true);

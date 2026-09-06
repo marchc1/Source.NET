@@ -39,6 +39,7 @@ public class CollisionBSPData
 	public readonly List<string?> TextureNames = [];
 	public static readonly CollisionSurface NullSurface = new() { Name = "**empty**", Flags = 0, SurfaceProps = 0 };
 	public string? MapEntityString;
+	public byte[]? MapEntityData; // raw entity lump bytes (server parse pipeline; C++ char*)
 
 	IMaterialSystem? materials;
 
@@ -510,6 +511,7 @@ public class CollisionBSPData
 	internal void LoadEntityString() {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Entities);
 		byte[] inData = lh.LoadLumpData<byte>(throwIfNoElements: true, sysErrorIfOOB: true);
+		MapEntityData = inData;
 		MapEntityString = Encoding.ASCII.GetString(inData);
 	}
 	internal void LoadDispInfo() {

@@ -647,6 +647,7 @@ public enum DataObjectType
 {
 	GroundLink,
 	TouchLink,
+	/// <summary> TYPE: <see cref="StepSimulationData"/> </summary>
 	StepSimulation,
 	ModelScale,
 	PositionWatcher,

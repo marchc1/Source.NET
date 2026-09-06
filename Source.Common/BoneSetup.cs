@@ -4,9 +4,11 @@ using Source.Common.Commands;
 using Source.Common.Mathematics;
 
 using System.Buffers;
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Source.Common;
 
@@ -16,6 +18,142 @@ public class BoneSetupMemoryPool<T> where T : struct
 
 	public T[] Alloc() => instance.Rent(Studio.MAXSTUDIOBONES);
 	public void Free(T[] p) => instance.Return(p, true);
+}
+
+public ref struct BoneCacheParams
+{
+	public StudioHdr StudioHdr;
+	public Span<Matrix3x4> BoneToWorld;
+	public TimeUnit_t CurTime;
+	public int BoneMask;
+}
+
+public readonly struct BoneCache
+{
+	public static BoneCache CreateResource(in BoneCacheParams parms) {
+		Span<ushort> studioToCachedIndex = stackalloc ushort[Studio.MAXSTUDIOBONES];
+		Span<ushort> cachedToStudioIndex = stackalloc ushort[Studio.MAXSTUDIOBONES];
+		ushort cachedBoneCount = 0;
+		ushort bonesCount = (ushort)Math.Clamp(parms.StudioHdr.NumBones(), 0, Studio.MAXSTUDIOBONES);
+		for (ushort i = 0; i < bonesCount; i++) {
+			// skip bones that aren't part of the boneMask (and aren't the root bone)
+			if (i != 0 && 0 == (parms.StudioHdr.BoneFlags(i) & parms.BoneMask)) {
+				studioToCachedIndex[i] = ushort.MaxValue;
+				continue;
+			}
+			studioToCachedIndex[i] = cachedBoneCount;
+			cachedToStudioIndex[cachedBoneCount] = i;
+			cachedBoneCount++;
+		}
+		nint tableSizeStudio = sizeof(short) * bonesCount;
+		nint tableSizeCached = sizeof(short) * cachedBoneCount;
+		nint matrixSize = Unsafe.SizeOf<Matrix3x4>() * cachedBoneCount;
+		nint size = (nint)((BoneCache_SIZE + tableSizeStudio + tableSizeCached + matrixSize + 3U) & ~3U);
+
+		BoneCache mem = new(ArrayPool<byte>.Shared.Rent((int)size));
+		mem.Construct(parms, (uint)size, studioToCachedIndex, cachedToStudioIndex, cachedBoneCount);
+		return mem;
+	}
+
+	public static int EstimatedSize(in BoneCacheParams parms) => (parms.StudioHdr.NumBones() * (sizeof(short) + sizeof(short) + Unsafe.SizeOf<Matrix3x4>()) + 3) & ~3;
+
+	public void DestroyResource() {
+		ArrayPool<byte>.Shared.Return(backingMemory);
+	}
+
+	public BoneCache GetData() => this;
+	public uint Size() => _Size;
+
+	public bool IsNull() => backingMemory == null;
+
+	public void Construct(in BoneCacheParams parms, uint size, Span<ushort> studioToCached, Span<ushort> cachedToStudio, ushort cachedBoneCount) {
+		Array.Clear(backingMemory);
+		CachedBoneCount = cachedBoneCount;
+		_Size = size;
+		TimeValid = parms.CurTime;
+		BoneMask = parms.BoneMask;
+
+		ushort studioTableSize = (ushort)((parms.StudioHdr.NumBones()) * sizeof(short));
+		CachedToStudioOffset = studioTableSize;
+		memcpy(StudioToCached(), studioToCached, studioTableSize);
+
+		uint cachedTableSize = (uint)(cachedBoneCount * sizeof(short));
+		memcpy(CachedToStudio(), cachedToStudio, (int)cachedTableSize);
+
+		MatrixOffset = (ushort)((CachedToStudioOffset + cachedTableSize + 3U) & ~3U);
+
+		UpdateBones(parms.BoneToWorld, parms.StudioHdr.NumBones(), parms.CurTime);
+	}
+
+	public void UpdateBones(ReadOnlySpan<Matrix3x4> boneToWorld, int numBones, TimeUnit_t curtime) {
+		Span<Matrix3x4> bones = BoneArray();
+		Span<ushort> cachedToStudio = CachedToStudio();
+
+		for (ushort i = 0; i < CachedBoneCount; i++) {
+			ushort index = cachedToStudio[i];
+			MathLib.MatrixCopy(boneToWorld[index], out bones[i]);
+		}
+		TimeValid = curtime;
+	}
+
+	public ref Matrix3x4 GetCachedBone(int studioIndex) {
+		ushort cachedIndex = StudioToCached()[studioIndex];
+		if (cachedIndex != ushort.MaxValue)
+			return ref BoneArray()[cachedIndex];
+
+		return ref Unsafe.NullRef<Matrix3x4>();
+	}
+
+	public void ReadCachedBones(Span<Matrix3x4> boneToWorld) {
+		Span<Matrix3x4> bones = BoneArray();
+		Span<ushort> cachedToStudio = CachedToStudio();
+		for (ushort i = 0; i < CachedBoneCount; i++)
+			MathLib.MatrixCopy(bones[i], out boneToWorld[cachedToStudio[i]]);
+	}
+
+	public void ReadCachedBonePointers(out Span<Matrix3x4> bones, Span<int> boneIndices) {
+		bones = BoneArray();
+		memset(boneIndices, 0);
+		Span<ushort> cachedToStudio = CachedToStudio();
+		for (ushort i = 0; i < CachedBoneCount; i++)
+			boneIndices[cachedToStudio[i]] = i;
+	}
+
+	public bool IsValid(TimeUnit_t curtime, TimeUnit_t dt = 0.1) {
+		if (curtime - TimeValid <= dt)
+			return true;
+		return false;
+	}
+
+	private Span<Matrix3x4> BoneArray() {
+		Span<byte> mem = backingMemory.AsSpan()[1..][MatrixOffset..];
+		int numMatrices = mem.Length / Unsafe.SizeOf<Matrix3x4>();
+		return mem.Cast<byte, Matrix3x4>()[..numMatrices];
+	}
+
+	private Span<ushort> StudioToCached() {
+		Span<byte> mem = backingMemory.AsSpan()[1..];
+		int numPtrs = mem.Length / Unsafe.SizeOf<ushort>();
+		return mem.Cast<byte, ushort>()[..numPtrs];
+	}
+
+	private Span<ushort> CachedToStudio() {
+		Span<byte> mem = backingMemory.AsSpan()[1..][CachedToStudioOffset..];
+		int numPtrs = mem.Length / Unsafe.SizeOf<ushort>();
+		return mem.Cast<byte, ushort>()[..numPtrs];
+	}
+
+	private BoneCache(byte[] mem) => backingMemory = mem;
+	readonly byte[] backingMemory;
+
+	public ref TimeUnit_t TimeValid { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref MemoryMarshal.AsRef<double>(backingMemory.AsSpan(0, 8)); }
+	public ref int BoneMask { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref MemoryMarshal.AsRef<int>(backingMemory.AsSpan(8, 4)); }
+	private ref uint _Size { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref MemoryMarshal.AsRef<uint>(backingMemory.AsSpan(12, 4)); }
+	private ref ushort CachedBoneCount { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref MemoryMarshal.AsRef<ushort>(backingMemory.AsSpan(16, 2)); }
+	private ref ushort MatrixOffset { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref MemoryMarshal.AsRef<ushort>(backingMemory.AsSpan(18, 2)); }
+	private ref ushort CachedToStudioOffset { [MethodImpl(MethodImplOptions.AggressiveInlining)] get => ref MemoryMarshal.AsRef<ushort>(backingMemory.AsSpan(20, 2)); }
+
+	public const int BoneCache_SIZE = 24;
 }
 
 public ref struct BoneSetup
@@ -505,7 +643,7 @@ public ref struct BoneSetup
 		}
 
 		// cross fade in previous zeroframe data
-		if (flStall > 0.0f) 
+		if (flStall > 0.0f)
 			CalcZeroframeData(studioHdr, animStudioHdr, animGroup, animbone, animdesc, fFrame, pos, q, boneMask, (float)flStall);
 
 		// calculate a local hierarchy override
@@ -524,10 +662,10 @@ public ref struct BoneSetup
 				if (iBone >= 0 && ((studioHdr.BoneFlags(iBone) & boneMask) != 0)) {
 					if (hierarchy.NewParent != -1) {
 						int newParent = animGroup.MasterBone[hierarchy.NewParent];
-						if (newParent >= 0 && ((studioHdr.BoneFlags(newParent) & boneMask) != 0)) 
+						if (newParent >= 0 && ((studioHdr.BoneFlags(newParent) & boneMask) != 0))
 							CalcLocalHierarchyAnimation(studioHdr, boneToWorld, ref boneComputed, pos, q, bone, hierarchy, iBone, newParent, (float)cycle, iFrame, s, boneMask);
 					}
-					else 
+					else
 						CalcLocalHierarchyAnimation(studioHdr, boneToWorld, ref boneComputed, pos, q, bone, hierarchy, iBone, -1, (float)cycle, iFrame, s, boneMask);
 				}
 			}

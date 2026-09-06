@@ -263,6 +263,20 @@ public partial class
 		return false;
 	}
 
+	public BaseEntity GetRootMoveParent() {
+		BaseEntity? entity = this;
+		BaseEntity? parent = this.GetMoveParent();
+		while (parent != null) {
+			entity = parent;
+			parent = entity.GetMoveParent();
+		}
+		return entity;
+	}
+
+	public void VPhysicsInitShadow(bool allowPhysicsMovement, bool allowPhysicsRotation, ref Solid solid) {
+
+	}
+	public void VPhysicsInitShadow(bool allowPhysicsMovement, bool allowPhysicsRotation) => VPhysicsInitShadow(allowPhysicsMovement, allowPhysicsRotation, ref Unsafe.NullRef<Solid>());
 	public void VPhysicsDestroyObject() {
 		if (PhysicsObject != null) {
 #if !CLIENT_DLL

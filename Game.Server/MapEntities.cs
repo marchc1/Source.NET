@@ -1,10 +1,14 @@
-﻿global using static Game.Server.MapEntities;
+global using static Game.Server.MapEntities;
 
 using Game.Shared;
 
 using Source;
 using Source.Common;
 using Source.Common.Engine;
+
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Game.Server;
 
@@ -18,7 +22,7 @@ struct HierarchicalSpawn_t
 
 struct HierarchicalSpawnMapData_t
 {
-	public string MapData;
+	public ReadOnlyMemory<byte> MapData;
 	public int MapDataLength;
 };
 
@@ -30,22 +34,13 @@ public interface IMapEntityFilter
 
 public class PointTemplate : BaseEntity { } // TODO move this
 
+[InlineArray(MapEntities.MAPKEY_MAXLENGTH)] public struct InlineArrayMapKeyMaxLength<T> { T first; }
 public static class MapEntities
 {
+	public const int MAPKEY_MAXLENGTH = 2048;
 	static ref Edict? g_pForceAttachEdict => ref BaseEntity.g_pForceAttachEdict;
 
-	public static void MapEntity_ParseAllEntities<IMEF>(ReadOnlySpan<char> mapData, ref IMEF filter, bool activateEntities) where IMEF : IMapEntityFilter {
-		HierarchicalSpawnMapData_t[] pSpawnMapData = new HierarchicalSpawnMapData_t[Constants.NUM_ENT_ENTRIES];
-		HierarchicalSpawn_t[] pSpawnList = new HierarchicalSpawn_t[Constants.NUM_ENT_ENTRIES];
-
-		List<PointTemplate> pPointTemplates = [];
-		int nEntities = 0;
-
-		Span<char> szTokenBuffer = stackalloc char[EntityMapData.MAPKEY_MAXLENGTH];
-		// todo
-		SpawnHierarchicalList(nEntities, pSpawnList, activateEntities);
-	}
-
+	// creates an entity by string name, but does not spawn it
 	public static BaseEntity? CreateEntityByName(ReadOnlySpan<char> className, int forceEdictIndex = -1) {
 		if (forceEdictIndex != -1) {
 			g_pForceAttachEdict = engine.CreateEdict(forceEdictIndex);
@@ -64,38 +59,56 @@ public static class MapEntities
 		return entity;
 	}
 
-	public static void ParseAllEntities(ReadOnlySpan<char> mapData, IMapEntityFilter? filter = null, bool activateEntities = false) {
-		HierarchicalSpawnMapData_t[] pSpawnMapData = new HierarchicalSpawnMapData_t[Constants.NUM_ENT_ENTRIES];
+	// Advance a Memory cursor by parsing one token out of it. Returns the remaining data
+	// (Empty at end-of-data, mirroring MapEntity_ParseToken returning NULL).
+	static ReadOnlyMemory<byte> ParseTokenAdvance(ReadOnlyMemory<byte> data, Span<byte> token) {
+		ReadOnlySpan<byte> rest = MapEntity.ParseToken(data.Span, token);
+		if (rest == null)
+			return ReadOnlyMemory<byte>.Empty;
+		return data[(data.Length - rest.Length)..];
+	}
+
+	// Skip to the beginning of the next entity in the data block (Memory cursor variant).
+	static ReadOnlyMemory<byte> SkipToNextEntity(ReadOnlyMemory<byte> data, Span<byte> workBuffer) {
+		ReadOnlySpan<byte> rest = MapEntity.SkipToNextEntity(data.Span, workBuffer);
+		if (rest == null)
+			return ReadOnlyMemory<byte>.Empty;
+		return data[(data.Length - rest.Length)..];
+	}
+
+	static string TokenString(ReadOnlySpan<byte> token) => Encoding.ASCII.GetString(token[..MapEntity.StrLen(token)]);
+
+	public static void MapEntity_ParseAllEntities(ReadOnlyMemory<byte> mapData, IMapEntityFilter? filter = null, bool activateEntities = false) {
+		HierarchicalSpawnMapData_t[] spawnMapData = new HierarchicalSpawnMapData_t[Constants.NUM_ENT_ENTRIES];
 		HierarchicalSpawn_t[] spawnList = new HierarchicalSpawn_t[Constants.NUM_ENT_ENTRIES];
 
 		List<PointTemplate> pointTemplates = [];
 		int numEntities = 0;
 
-		Span<char> tokenBuffer = new char[EntityMapData.MAPKEY_MAXLENGTH];
+		Span<byte> tokenBuffer = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
 
 		// Allow the tools to spawn different things
-		// if (serverenginetools) { todo?
-		// 	mapData = serverenginetools.GetEntityData(mapData);
-		// }
+		if (serverenginetools != null)
+			mapData = serverenginetools.GetEntityData(mapData);
 
 		//  Loop through all entities in the map data, creating each.
-		for (; true; mapData = MapEntity.SkipToNextEntity(mapData, tokenBuffer)) {
+		Span<byte> token = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
+		for (; true; mapData = SkipToNextEntity(mapData, tokenBuffer)) {
 			// Parse the opening brace.
-			Span<char> token = new char[EntityMapData.MAPKEY_MAXLENGTH];
-			mapData = MapEntity.ParseToken(mapData, token);
+			mapData = ParseTokenAdvance(mapData, token);
 
 			// Check to see if we've finished or not.
 			if (mapData.IsEmpty)
 				break;
 
-			if (token[0] != '{') {
-				Error("MapEntity.ParseAllEntities: found %s when expecting {", token.ToString());
+			if (token[0] != (byte)'{') {
+				Error($"MapEntity_ParseAllEntities: found {TokenString(token)} when expecting {{");
 				continue;
 			}
 
 			// Parse the entity and add it to the spawn list.
-			ReadOnlySpan<char> curMapData = mapData;
-			mapData = ParseEntity(out BaseEntity entity, mapData, filter);
+			ReadOnlyMemory<byte> curMapData = mapData;
+			mapData = ParseEntity(out BaseEntity? entity, mapData, filter);
 			if (entity == null)
 				continue;
 
@@ -103,7 +116,7 @@ public static class MapEntities
 				// It's a template entity. Squirrel away its keyvalue text so that we can
 				// recreate the entity later via a spawner. mapData points at the '}'
 				// so we must add one to include it in the string.
-				// Templates.Add(entity, curMapData, (mapData.Length - curMapData.Length) + 2); TODO
+				Templates.Add(entity, curMapData.Span, (curMapData.Length - mapData.Length) + 2);
 
 				// Remove the template entity so that it does not show up in FindEntityXXX searches.
 				Util.Remove(entity);
@@ -119,31 +132,19 @@ public static class MapEntities
 				continue;
 			}
 
-			// TODO
+			// TODO: CNodeEnt & CLight remove themselves immediately on Spawn(), so they should
+			// dispatch their spawn now to free up the edict slot inside this loop. Those entity
+			// classes are not ported yet, so they fall through to the regular queue for now.
 
 			// if (entity is NodeEnt ne) {
-			// 	// We overflow the max edicts on large maps that have lots of entities.
-			// 	// Nodes & Lights remove themselves immediately on Spawn(), so dispatch their
-			// 	// spawn now, to free up the slot inside this loop.
-			// 	// NOTE: This solution prevents nodes & lights from being used inside point_templates.
-			// 	//
-			// 	// NOTE: Nodes spawn other entities (ai_hint) if they need to have a persistent presence.
-			// 	//		 To ensure keys are copied over into the new entity, we pass the mapdata into the
-			// 	//		 node spawn function.
-			// 	if (ne.Spawn(curMapData) < 0) {
-			// gEntList.CleanupDeleteList();
-			// 	}
+			// 	if (ne.Spawn(curMapData) < 0)
+			// 		gEntList.CleanupDeleteList();
 			// 	continue;
 			// }
 
 			// if (entity is Light light) {
-			// 	// We overflow the max edicts on large maps that have lots of entities.
-			// 	// Nodes & Lights remove themselves immediately on Spawn(), so dispatch their
-			// 	// spawn now, to free up the slot inside this loop.
-			// 	// NOTE: This solution prevents nodes & lights from being used inside point_templates.
-			// 	if (Util.DispatchSpawn(light) < 0) {
+			// 	if (Util.DispatchSpawn(light) < 0)
 			// 		gEntList.CleanupDeleteList();
-			// 	}
 			// 	continue;
 			// }
 
@@ -157,13 +158,13 @@ public static class MapEntities
 				spawnList[numEntities].DeferredParentAttachment = null;
 				spawnList[numEntities].DeferredParent = null;
 
-				pSpawnMapData[numEntities].MapData = curMapData.ToString();
-				pSpawnMapData[numEntities].MapDataLength = (mapData.Length - curMapData.Length) + 2;
+				spawnMapData[numEntities].MapData = curMapData;
+				spawnMapData[numEntities].MapDataLength = (curMapData.Length - mapData.Length) + 2;
 				numEntities++;
 			}
 		}
 
-#if false // TODO
+#if false // TODO: point_template not implemented yet
 		// Now loop through all our point_template entities and tell them to make templates of everything they're pointing to
 		int templates = pointTemplates.Count;
 		for (int i = 0; i < templates; i++) {
@@ -186,7 +187,7 @@ public static class MapEntities
 				for (int iEntNum = 0; iEntNum < numEntities; iEntNum++) {
 					if (spawnList[iEntNum].Entity == entity) {
 						// Give the point_template the mapdata
-						pointTemplate.AddTemplate(entity, pSpawnMapData[iEntNum].MapData, pSpawnMapData[iEntNum].m_iMapDataLength);
+						pointTemplate.AddTemplate(entity, spawnMapData[iEntNum].MapData, spawnMapData[iEntNum].MapDataLength);
 
 						if (pointTemplate.ShouldRemoveTemplateEntities()) {
 							// Remove the template entity so that it does not show up in FindEntityXXX searches.
@@ -314,42 +315,48 @@ public static class MapEntities
 		SpawnAllEntities(entities, spawnList, activateEntities);
 	}
 
-	static ReadOnlySpan<char> ParseEntity(out BaseEntity? entity, ReadOnlySpan<char> EntData, IMapEntityFilter filter) {
-		EntityMapData entData = new(EntData);
-		Span<char> className = new char[EntityMapData.MAPKEY_MAXLENGTH];
+	//-----------------------------------------------------------------------------
+	// Purpose: Takes a block of character data as the input
+	// Input  : entity - Receives the newly constructed entity, null on failure.
+	//			entData - Data block to parse to extract entity keys.
+	// Output : Returns the current position in the entity data block.
+	//-----------------------------------------------------------------------------
+	static ReadOnlyMemory<byte> ParseEntity(out BaseEntity? entity, ReadOnlyMemory<byte> entDataMem, IMapEntityFilter? filter) {
+		EntityMapData entData = new(entDataMem);
+		Span<byte> className = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
 
-		if (!entData.ExtractValue("classname", className))
+		if (!entData.ExtractValue("classname"u8, className))
 			Error("classname missing from entity!\n");
 
-		className = className.SliceNullTerminatedString();
+		ReadOnlySpan<char> classNameStr = Encoding.ASCII.GetString(className[..MapEntity.StrLen(className)]);
 
 		entity = null;
-		if (filter == null || filter.ShouldCreateEntity(className)) {
+		if (filter == null || filter.ShouldCreateEntity(classNameStr)) {
 
 			// Construct via the LINK_ENTITY_TO_CLASS factory.
 			if (filter != null)
-				entity = filter.CreateNextEntity(className);
+				entity = filter.CreateNextEntity(classNameStr);
 			else
-				entity = CreateEntityByName(className);
+				entity = CreateEntityByName(classNameStr);
 
 			// Set up keyvalues.
 			if (entity != null) {
-				// entity.ParseMapData(&entData);
+				// entity.ParseMapData(entData);
 			}
 			else
-				Warning($"Can't init {className}\n");
+				Warning($"Can't init {classNameStr}\n");
 
 #if true // TODO: remove this once ParseMapData is implemented.
-			Span<char> keyName = new char[EntityMapData.MAPKEY_MAXLENGTH];
-			Span<char> value = new char[EntityMapData.MAPKEY_MAXLENGTH];
+			Span<byte> keyName = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
+			Span<byte> value = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
 			if (entData.GetFirstKey(keyName, value))
 				do { } while (entData.GetNextKey(keyName, value));
 #endif
 		}
 		else {
 			// Just skip past all the keys.
-			Span<char> keyName = new char[EntityMapData.MAPKEY_MAXLENGTH];
-			Span<char> value = new char[EntityMapData.MAPKEY_MAXLENGTH];
+			Span<byte> keyName = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
+			Span<byte> value = stackalloc byte[EntityMapData.MAPKEY_MAXLENGTH];
 			if (entData.GetFirstKey(keyName, value)) {
 				do {
 				}

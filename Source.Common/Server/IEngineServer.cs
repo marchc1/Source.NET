@@ -190,7 +190,7 @@ public interface IEngineServer
 	void ClearSaveDir();
 
 	// Get the pristine map entity lump string.  (e.g., used by CS to reload the map entities when restarting a round.)
-	ReadOnlySpan<char> GetMapEntitiesString();
+	ReadOnlyMemory<byte> GetMapEntitiesString();
 
 	// Text message system -- lookup the text message of the specified name
 	ref ClientTextMessage TextMessageGet(ReadOnlySpan<char> name);

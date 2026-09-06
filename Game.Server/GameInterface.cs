@@ -356,7 +356,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 		throw new NotImplementedException();
 	}
 
-	public bool LevelInit(ReadOnlySpan<char> pMapName, ReadOnlySpan<char> pMapEntities, ReadOnlySpan<char> pOldLevel, ReadOnlySpan<char> pLandmarkName, bool loadGame, bool background) {
+	public bool LevelInit(ReadOnlySpan<char> pMapName, ReadOnlyMemory<byte> pMapEntities, ReadOnlySpan<char> pOldLevel, ReadOnlySpan<char> pLandmarkName, bool loadGame, bool background) {
 		// ResetWindspeed();
 		// UpdateChapterRestrictions(pMapName);
 
@@ -374,7 +374,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 			// BeginRestoreEntities();
 			if (!engine.LoadGameState(pMapName, true)) {
 				if (!pOldLevel.IsEmpty)
-					ParseAllEntities(pMapEntities);
+					MapEntity_ParseAllEntities(pMapEntities);
 				else
 					// Regular save load case
 					return false;
@@ -406,7 +406,7 @@ public class ServerGameDLL(IFileSystem filesystem, ICommandLine CommandLine) : I
 			// Clear out entity references, and parse the entities into it.
 			// g_MapEntityRefs.Purge();
 			MapLoadEntityFilter filter = new();
-			ParseAllEntities(pMapEntities, filter);
+			MapEntity_ParseAllEntities(pMapEntities, filter);
 
 			// g_pServerBenchmark.StartBenchmark();
 

@@ -31,7 +31,7 @@ public interface IToolSystem
 	void ServerFrameUpdatePostEntityThink();
 	void ServerPreClientUpdate();
 	void ServerPreSetupVisibility();
-	ReadOnlySpan<char> GetEntityData( ReadOnlySpan<char> pActualEntityData );
+	ReadOnlyMemory<byte> GetEntityData( ReadOnlyMemory<byte> pActualEntityData );
 	void ClientLevelInitPreEntity();
 	void ClientLevelInitPostEntity();
 	void ClientLevelShutdownPreEntity();

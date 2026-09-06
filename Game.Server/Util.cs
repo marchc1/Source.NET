@@ -9,15 +9,20 @@ using Source;
 using Source.Common;
 using Source.Common.Commands;
 using Source.Common.Engine;
+using Source.Common.Mathematics;
 using Source.Engine.Server;
 
 using System;
 using System.Collections.Generic;
+using System.Drawing.Drawing2D;
+using System.Net.Mail;
 using System.Numerics;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Text;
+
+using static Source.Common.Engine.IEngine;
 
 namespace Game;
 
@@ -144,15 +149,15 @@ public static partial class Util
 		engine.LogPrint(text);
 	}
 	public static void SetMinMaxSize(BaseEntity ent, in Vector3 mins, in Vector3 maxs) {
-		for (int i = 0; i < 3; i++) 
-			if (mins[i] > maxs[i]) 
+		for (int i = 0; i < 3; i++)
+			if (mins[i] > maxs[i])
 				Error($"{((ent != null) ? ent.GetDebugName() : "<NULL>")}: backwards mins/maxs");
-			
+
 		Assert(ent != null);
 
 		ent.SetCollisionBounds(mins, maxs);
 	}
-	public static void SetSize(BaseEntity ent, in Vector3 min, in Vector3 max){
+	public static void SetSize(BaseEntity ent, in Vector3 min, in Vector3 max) {
 		SetMinMaxSize(ent, min, max);
 	}
 
@@ -309,12 +314,14 @@ public static partial class Util
 					if (GlobalEntity.GetState(globalIndex) == GlobalEState.Dead) {
 						entity.Remove();
 						return -1;
-					} else if (!FStrEq(gpGlobals.MapName, GlobalEntity.GetMap(globalIndex))) {
+					}
+					else if (!FStrEq(gpGlobals.MapName, GlobalEntity.GetMap(globalIndex))) {
 						entity.MakeDormant();
 					}
-				} else 
+				}
+				else
 					GlobalEntity.Add(entity.GlobalName, gpGlobals.MapName, GlobalEState.On);
-				
+
 			}
 
 			gEntList.NotifySpawn(entity);
@@ -403,8 +410,8 @@ public static partial class Util
 		return null;
 	}
 
-	internal static void SetOrigin(BasePlayer player, Vector3 origin) {
-		throw new NotImplementedException();
+	internal static void SetOrigin(BaseEntity entity, in Vector3 origin) {
+		entity.SetLocalOrigin(origin);
 	}
 
 	internal static void SetModel(BaseEntity baseEntity, ReadOnlySpan<char> modelName) {
@@ -419,5 +426,134 @@ public static partial class Util
 		baseEntity.SetModelIndex(i);
 		SetMinMaxSize(baseEntity, vec3_origin, vec3_origin);
 		baseEntity.SetCollisionBoundsFromModel();
+	}
+
+	public static void ParentToWorldSpace(BaseEntity? entity, ref Vector3 position, ref QAngle angles) {
+		if (entity == null)
+			return;
+
+		// Construct the entity-to-world matrix
+		// Start with making an entity-to-parent matrix
+		Matrix3x4 matEntityToParent;
+		MathLib.AngleMatrix(angles, out matEntityToParent);
+		MathLib.MatrixSetColumn(position, 3, ref matEntityToParent);
+
+		// concatenate with our parent's transform
+		Matrix3x4 matScratch = default, matResult;
+		Matrix3x4 matParentToWorld;
+
+		if (entity.GetParent() != null)
+			matParentToWorld = entity.GetParentToWorldTransform(ref matScratch);
+		else
+			matParentToWorld = entity.EntityToWorldTransform();
+
+
+		MathLib.ConcatTransforms(matParentToWorld, matEntityToParent, out matResult);
+
+		// pull our absolute position out of the matrix
+		MathLib.MatrixGetColumn(matResult, 3, out position);
+		MathLib.MatrixAngles(matResult, out angles);
+	}
+
+	public static void ParentToWorldSpace(BaseEntity? entity, ref Vector3 position, ref Quaternion quat) {
+		if (entity == null)
+			return;
+
+		QAngle angles;
+		MathLib.QuaternionAngles(quat, out angles);
+		ParentToWorldSpace(entity, ref position, ref angles);
+		MathLib.AngleQuaternion(angles, out quat);
+	}
+
+	public static void WorldToParentSpace(BaseEntity? entity, ref Vector3 position, ref QAngle angles) {
+		if (entity == null)
+			return;
+
+		// Construct the entity-to-world matrix
+		// Start with making an entity-to-parent matrix
+		Matrix3x4 matEntityToParent;
+		MathLib.AngleMatrix(angles, out matEntityToParent);
+		MathLib.MatrixSetColumn(position, 3, ref matEntityToParent);
+
+		// concatenate with our parent's transform
+		Matrix3x4 matScratch = default, matResult;
+		Matrix3x4 matWorldToParent;
+
+		if (entity.GetParent() != null)
+			matScratch = entity.GetParentToWorldTransform(ref matScratch);
+		else
+			matScratch = entity.EntityToWorldTransform();
+
+
+		MathLib.MatrixInvert(matScratch, out matWorldToParent);
+		MathLib.ConcatTransforms(matWorldToParent, matEntityToParent, out matResult);
+
+		// pull our absolute position out of the matrix
+		MathLib.MatrixGetColumn(matResult, 3, out position);
+		MathLib.MatrixAngles(matResult, out angles);
+	}
+
+	public static void WorldToParentSpace(BaseEntity? entity, ref Vector3 position, ref Quaternion quat) {
+		if (entity == null)
+			return;
+
+		QAngle angles;
+		MathLib.QuaternionAngles(quat, out angles);
+		WorldToParentSpace(entity, ref position, ref angles);
+		MathLib.AngleQuaternion(angles, out quat);
+	}
+}
+
+public struct EntityMatrix
+{
+	public Matrix4x4 Underlying;
+	public Matrix4x4 Transpose() => Matrix4x4.Transpose(Underlying);
+
+	public static implicit operator Matrix4x4(EntityMatrix matrix) => matrix.Underlying;
+	public static implicit operator EntityMatrix(Matrix4x4 matrix) => new EntityMatrix { Underlying = matrix };
+
+	public void InitFromEntity(BaseEntity? entity, int attachment = 0) {
+		if (entity == null) {
+			Underlying = Matrix4x4.Identity;
+			return;
+		}
+
+		// Get an attachment's matrix?
+		if (attachment != 0) {
+			BaseAnimating? animating = entity.GetBaseAnimating();
+			if (animating != null && animating.GetModelPtr() != null) {
+				Vector3 origin;
+				QAngle angles;
+				if (animating.GetAttachment(attachment, out origin, out angles)) {
+					Underlying.SetupMatrixOrgAngles(origin, angles);
+					return;
+				}
+			}
+		}
+
+		Underlying.SetupMatrixOrgAngles(entity.GetAbsOrigin(), entity.GetAbsAngles());
+	}
+	public void InitFromEntityLocal(BaseEntity? entity, int attachment = 0) {
+		if (entity == null || entity.Edict() == null) {
+			Underlying = Matrix4x4.Identity;
+			return;
+		}
+		Underlying.SetupMatrixOrgAngles(entity.GetLocalOrigin(), entity.GetLocalAngles());
+	}
+
+	public Vector3 LocalToWorld(in Vector3 vVec) {
+		return MathLib.VMul4x3(ref Underlying, vVec);
+	}
+
+	public Vector3 WorldToLocal(in Vector3 vVec) {
+		return MathLib.VMul4x3Transpose(ref Underlying, vVec);
+	}
+
+	public Vector3 LocalToWorldRotation(in Vector3 vVec) {
+		return MathLib.VMul3x3(ref Underlying, vVec);
+	}
+
+	public Vector3 WorldToLocalRotation(in Vector3 vVec) {
+		return MathLib.VMul3x3Transpose(ref Underlying, vVec);
 	}
 }

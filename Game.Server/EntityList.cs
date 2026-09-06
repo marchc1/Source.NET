@@ -555,7 +555,7 @@ public class EntityListSystem : AutoGameSystemPerFrame
 			// NodeEnt.m_nNodeCount = 0; todo
 
 			RespawnEntitiesFilter filter = new();
-			MapEntity_ParseAllEntities(engine.GetMapEntitiesString(), ref filter, true);
+			MapEntity_ParseAllEntities(engine.GetMapEntitiesString(), filter, true);
 
 			// Allocate a CBasePlayer for pev, and call spawn
 			if (nPlayerIndex >= 0) {

@@ -2,10 +2,14 @@
 
 using Source;
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.DataCache;
 using Source.Common.Engine;
+using Source.Common.Mathematics;
 
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Xml.Linq;
 
 namespace Game.Server;
 
@@ -140,6 +144,12 @@ public class BaseAnimating : BaseEntity
 		return hdr;
 	}
 
+	static readonly ConVar npc_height_adjust = new( "npc_height_adjust", "1", FCvar.Archive, "Enable test mode for ik height adjustment" );
+
+	public void UpdateStepOrigin(){
+		// todo
+	}
+
 	public Activity GetSequenceActivity(int sequence) {
 		if (sequence == -1) {
 			return Activity.ACT_INVALID;
@@ -238,6 +248,157 @@ public class BaseAnimating : BaseEntity
 		minValue = 0.0f;
 		maxValue = 1.0f;
 		return false;
+	}
+
+	public void GetBoneTransform(int bone, out Matrix3x4 boneToWorld) {
+		StudioHdr? studioHdr = GetModelPtr();
+
+		if (studioHdr == null) {
+			AssertMsg(false, "BaseAnimating.GetBoneTransform: model missing");
+			boneToWorld = default;
+			return;
+		}
+
+		if (bone < 0 || bone >= studioHdr.NumBones()) {
+			AssertMsg(false, "BaseAnimating.GetBoneTransform: invalid bone index");
+			boneToWorld = default;
+			return;
+		}
+
+		BoneCache cache = GetBoneCache();
+
+		ref Matrix3x4 matrix = ref cache.GetCachedBone(bone);
+
+		if (Unsafe.IsNullRef(ref matrix)) {
+			MathLib.MatrixCopy(EntityToWorldTransform(), out boneToWorld);
+			return;
+		}
+
+		MathLib.MatrixCopy(matrix, out boneToWorld);
+	}
+
+	public memhandle_t BoneCacheHandle;
+
+	public BoneCache GetBoneCache() {
+		StudioHdr? studioHdr = GetModelPtr();
+		Assert(studioHdr != null);
+
+		BoneCache pcache = Studio.GetBoneCache(BoneCacheHandle);
+		int boneMask = Studio.BONE_USED_BY_HITBOX | Studio.BONE_USED_BY_ATTACHMENT;
+
+		if (!pcache.IsNull()) {
+			if (pcache.IsValid(gpGlobals.CurTime) && (pcache.BoneMask & boneMask) == boneMask && pcache.TimeValid <= gpGlobals.CurTime) {
+				// Msg("%s:%s:%s (%x:%x:%8.4f) cache\n", GetClassname(), GetDebugName(), STRING(GetModelName()), boneMask, pcache->m_boneMask, pcache->m_timeValid );
+				// in memory and still valid, use it!
+				return pcache;
+			}
+
+			// in memory, but missing some of the bone masks
+			if ((pcache.BoneMask & boneMask) != boneMask) {
+				Studio.DestroyBoneCache(BoneCacheHandle);
+				BoneCacheHandle = 0;
+				pcache = default;
+			}
+		}
+
+		Span<Matrix3x4> bonetoworld = stackalloc Matrix3x4[Studio.MAXSTUDIOBONES];
+		SetupBones(bonetoworld, boneMask);
+
+		if (!pcache.IsNull()) {
+			// still in memory but out of date, refresh the bones.
+			pcache.UpdateBones(bonetoworld, studioHdr.NumBones(), gpGlobals.CurTime);
+		}
+		else {
+			BoneCacheParams parms = new();
+			parms.StudioHdr = studioHdr;
+			unsafe {
+				parms.BoneToWorld = bonetoworld;
+			}
+			parms.CurTime = gpGlobals.CurTime;
+			parms.BoneMask = boneMask;
+
+			BoneCacheHandle = Studio.CreateBoneCache(in parms);
+			pcache = Studio.GetBoneCache(BoneCacheHandle);
+		}
+
+		Assert(!pcache.IsNull());
+		return pcache;
+	}
+
+	private void SetupBones(Span<Matrix3x4> bonetoworld, int boneMask) {
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// TODO
+		// REALLY important todo, I am just already porting a lot in this commit, don't really want to deal with it right now
+	}
+
+	public int LookupAttachment(ReadOnlySpan<char> name) {
+		StudioHdr? studioHdr = GetModelPtr();
+		if (studioHdr == null) {
+			AssertMsg(false, "BaseAnimating.LookupAttachment: model missing");
+			return 0;
+		}
+
+		// The +1 is to make attachment indices be 1-based (namely 0 == invalid or unused attachment)
+		return BoneSetup.Studio_FindAttachment(studioHdr, name) + 1;
+	}
+
+	public bool GetAttachment(ReadOnlySpan<char> attachmentName, out Vector3 absOrigin, out QAngle absAngles) {
+		return GetAttachment(LookupAttachment(attachmentName), out absOrigin, out absAngles);
+	}
+
+
+	public bool GetAttachment(int attachment, out Vector3 absOrigin, out QAngle absAngles) {
+		Matrix3x4 attachmentToWorld;
+
+		bool bRet = GetAttachment(attachment, out attachmentToWorld);
+		MathLib.MatrixAngles(attachmentToWorld, out absAngles, out absOrigin);
+		return bRet;
+	}
+
+
+	public bool GetAttachment(int attachment, out Matrix3x4 attachmentToWorld) {
+		StudioHdr? studioHdr = GetModelPtr();
+		if (studioHdr != null) {
+			MathLib.MatrixCopy(EntityToWorldTransform(), out attachmentToWorld);
+			AssertMsg(false, "BaseAnimating.GetAttachment: model missing");
+			return false;
+		}
+
+		if (attachment < 1 || attachment > studioHdr.GetNumAttachments()) {
+			MathLib.MatrixCopy(EntityToWorldTransform(), out attachmentToWorld);
+			// Assert(!"BaseAnimating.GetAttachment: invalid attachment index");
+			return false;
+		}
+
+		MStudioAttachment pattachment = studioHdr.Attachment(attachment - 1)!;
+		int iBone = studioHdr.GetAttachmentBone(attachment - 1);
+
+		GetBoneTransform(iBone, out Matrix3x4 bonetoworld);
+		if ((pattachment.Flags & Studio.ATTACHMENT_FLAG_WORLD_ALIGN) == 0) {
+			MathLib.ConcatTransforms(bonetoworld, pattachment.Local, out attachmentToWorld);
+		}
+		else {
+			Vector3 vecLocalBonePos, vecWorldBonePos;
+			MathLib.MatrixGetColumn(pattachment.Local, 3, out vecLocalBonePos);
+			MathLib.VectorTransform(vecLocalBonePos, bonetoworld, out vecWorldBonePos);
+
+			MathLib.SetIdentityMatrix(out attachmentToWorld);
+			MathLib.MatrixSetColumn(vecWorldBonePos, 3, ref attachmentToWorld);
+		}
+
+		return true;
 	}
 
 	public float GetPoseParameter(ReadOnlySpan<char> name) => GetPoseParameter(LookupPoseParameter(name));

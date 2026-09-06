@@ -301,8 +301,8 @@ internal class EngineServer(Cbuf Cbuf, Host Host) : IEngineServer
 		return sid;
 	}
 
-	public ReadOnlySpan<char> GetMapEntitiesString() {
-		throw new NotImplementedException();
+	public ReadOnlyMemory<byte> GetMapEntitiesString() {
+		return GetCollisionBSPData().MapEntityData;
 	}
 
 	public ReadOnlySpan<char> GetMostRecentlyLoadedFileName() {

@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Game.Shared
@@ -43,15 +44,15 @@ namespace Game.Server
 		public void AddDataObjectType(DataObjectType type) => DataObjectTypes |= (1 << (int)type);
 		public void RemoveDataObjectType(DataObjectType type) => DataObjectTypes &= ~(1 << (int)type);
 
-		public object? GetDataObject(DataObjectType type) {
+		public ref T GetDataObject<T>(DataObjectType type) where T : new() {
 			if (!HasDataObjectType(type))
-				return null;
-			return g_DataObjectAccessSystem.GetDataObject(type, this);
+				return ref Unsafe.NullRef<T>();
+			return ref g_DataObjectAccessSystem.GetDataObject<T>(type, this);
 		}
 
-		public object? CreateDataObject(DataObjectType type) {
+		public ref T CreateDataObject<T>(DataObjectType type) where T : new() {
 			AddDataObjectType(type);
-			return g_DataObjectAccessSystem.CreateDataObject(type, this);
+			return ref g_DataObjectAccessSystem.CreateDataObject<T>(type, this);
 		}
 
 		public void DestroyDataObject(DataObjectType type) {
@@ -102,15 +103,15 @@ namespace Game.Server
 				return;
 
 #if GAME_DLL
-		// this can happen in-between updates to the held object controller (physcannon, +USE)
-		// so trap it here and release held objects when they become player ground
-		if (ground!= null && IsPlayer() && ground.GetMoveType() == Source.MoveType.VPhysics) {
-			BasePlayer? player = ToBasePlayer(this);
-			IPhysicsObject? physGround = ground.VPhysicsGetObject();
-			if (physGround != null && player != null)
-				if ((physGround.GetGameFlags() & PhysicsFlags.PlayerHeld) != 0 )
-					player.ForceDropOfCarriedPhysObjects(ground);
-		}
+			// this can happen in-between updates to the held object controller (physcannon, +USE)
+			// so trap it here and release held objects when they become player ground
+			if (ground != null && IsPlayer() && ground.GetMoveType() == Source.MoveType.VPhysics) {
+				BasePlayer? player = ToBasePlayer(this);
+				IPhysicsObject? physGround = ground.VPhysicsGetObject();
+				if (physGround != null && player != null)
+					if ((physGround.GetGameFlags() & PhysicsFlags.PlayerHeld) != 0)
+						player.ForceDropOfCarriedPhysObjects(ground);
+			}
 #endif
 
 			BaseEntity? oldGround = GroundEntity.Get();
@@ -238,11 +239,50 @@ namespace Game.Shared
 
 	public class DataObjectAccessSystem : AutoGameSystem
 	{
-		// Blank for now
+		public override bool Init() {
 
-		public object? GetDataObject(DataObjectType type, BaseEntity? instance) => null;
-		public object? CreateDataObject(DataObjectType type, BaseEntity? instance) => null;
-		public void DestroyDataObject(DataObjectType type, BaseEntity? instance) { }
+			return true;
+		}
+
+		public override void Shutdown() {
+			
+		}
+
+		readonly IEntityDataInstantiator[] Accessors = new IEntityDataInstantiator[MAX_ACCESSORS];
+		// Blank for now
+		const int MAX_ACCESSORS = 32;
+
+		bool IsValidType(DataObjectType type) {
+			if (type < 0 || (int)type >= MAX_ACCESSORS)
+				return false;
+
+			if (Accessors[(int)type] == null)
+				return false;
+			return true;
+		}
+
+		public ref T GetDataObject<T>(DataObjectType type, BaseEntity? instance) where T : new() {
+			if (!IsValidType(type)) {
+				AssertMsg(false, "Bogus type");
+				return ref Unsafe.NullRef<T>();
+			}
+			return ref Accessors[(int)type].GetDataObject<T>(instance!);
+		}
+		public ref T CreateDataObject<T>(DataObjectType type, BaseEntity? instance) where T : new() {
+			if (!IsValidType(type)) {
+				AssertMsg(false, "Bogus type");
+				return ref Unsafe.NullRef<T>();
+			}
+			return ref Accessors[(int)type].CreateDataObject<T>(instance!);
+		}
+		public void DestroyDataObject(DataObjectType type, BaseEntity? instance) {
+			if (!IsValidType(type)) {
+				AssertMsg(false, "Bogus type");
+				return;
+			}
+
+			Accessors[(int)type].DestroyDataObject(instance!);
+		}
 	}
 
 	public static class DataObjectAccessSystemGlobals

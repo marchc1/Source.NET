@@ -1,3 +1,5 @@
+using CommunityToolkit.HighPerformance;
+
 using Game.Shared;
 
 using Source;
@@ -27,7 +29,8 @@ public enum EntityEvent
 	ParentChanged
 }
 
-public static class BaseEntity_ConCommands {
+public static class BaseEntity_ConCommands
+{
 	[ConCommand("ent_text", "Displays text debugging information about the given entity(ies) on top of the entity (See Overlay Text)\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
 	public static void CC_Ent_Text(in TokenizedCommand args) {
 
@@ -299,11 +302,10 @@ public partial class BaseEntity : IServerEntity
 	}
 
 	public virtual void StopLoopingSounds() { }
-	public string? GlobalName;
 
 	public void Remove() => Util.Remove(this);
 
-	public void MakeDormant(){
+	public void MakeDormant() {
 		AddEFlags(EFL.Dormant);
 		SetThink(null);
 
@@ -317,7 +319,7 @@ public partial class BaseEntity : IServerEntity
 		SetNextThink(TICK_NEVER_THINK);
 	}
 
-	public bool IsBSPModel(){
+	public bool IsBSPModel() {
 		if (GetSolid() == SolidType.BSP)
 			return true;
 
@@ -328,7 +330,7 @@ public partial class BaseEntity : IServerEntity
 		return false;
 	}
 
-	public bool IsViewable(){
+	public bool IsViewable() {
 		if (IsEffectActive(EntityEffects.NoDraw))
 			return false;
 
@@ -406,7 +408,6 @@ public partial class BaseEntity : IServerEntity
 		}
 	}
 
-	public string? Name;
 	public string GetDebugName() {
 		if (this == null)
 			return "<<null>>";
@@ -415,8 +416,6 @@ public partial class BaseEntity : IServerEntity
 	}
 
 	EHANDLE Parent;
-	public string? ParentName
-;
 	public float Gravity;
 	public void SetPredictionEligible(bool canpredict) { } // nothing in game code
 	public ref readonly Vector3 GetLocalOrigin() => ref AbsOrigin;
@@ -496,34 +495,118 @@ public partial class BaseEntity : IServerEntity
 		}
 	}
 
+	public void TransformStepData_ParentToWorld(BaseEntity parent) {
+		// Fix up our step simulation points to be in the proper local space
+		ref StepSimulationData step = ref GetDataObject<StepSimulationData>(DataObjectType.StepSimulation);
+		if (!Unsafe.IsNullRef(ref step)) {
+			// Convert our positions
+			Util.ParentToWorldSpace(parent, ref step.Previous2.Origin, ref step.Previous2.Rotation);
+			Util.ParentToWorldSpace(parent, ref step.Previous.Origin, ref step.Previous.Rotation);
+		}
+	}
+
+	public void TransformStepData_ParentToParent(BaseEntity oldParent, BaseEntity newParent) {
+		// Fix up our step simulation points to be in the proper local space
+		ref StepSimulationData step = ref GetDataObject<StepSimulationData>(DataObjectType.StepSimulation);
+		if (!Unsafe.IsNullRef(ref step)) {
+			// Convert our positions
+			Util.ParentToWorldSpace(oldParent, ref step.Previous2.Origin, ref step.Previous2.Rotation);
+			Util.WorldToParentSpace(newParent, ref step.Previous2.Origin, ref step.Previous2.Rotation);
+
+			Util.ParentToWorldSpace(oldParent, ref step.Previous.Origin, ref step.Previous.Rotation);
+			Util.WorldToParentSpace(newParent, ref step.Previous.Origin, ref step.Previous.Rotation);
+		}
+	}
+
+	public void TransformStepData_WorldToParent(BaseEntity parent) {
+		// Fix up our step simulation points to be in the proper local space
+		ref StepSimulationData step = ref GetDataObject<StepSimulationData>(DataObjectType.StepSimulation);
+		if (!Unsafe.IsNullRef(ref step)) {
+			// Convert our positions
+			Util.WorldToParentSpace(parent, ref step.Previous2.Origin, ref step.Previous2.Rotation);
+			Util.WorldToParentSpace(parent, ref step.Previous.Origin, ref step.Previous.Rotation);
+		}
+	}
+
 	public void SetParent(string newParent, BaseEntity activator, int attachment = -1) {
 
 	}
 
-	public void SetParent(BaseEntity parentEnt, int attachment = -1) {
+	public void SetParent(BaseEntity parentEntity, int attachment = -1) {
 		if (attachment == -1)
 			attachment = ParentAttachment;
 
 		bool wasNotParented = GetParent() == null;
 		BaseEntity? oldParent = GetParent();
 
-		Parent.Set(parentEnt);
+		Parent.Set(parentEntity);
 
-		if (parentEnt == this) {
+		if (parentEntity == this) {
 			Assert(false);
 			Parent.Set(null);
 		}
 
 		if (Parent.Get() == null) {
 			ParentName = null;
-			// TransformStepData_ParentToWorld(oldParent);
+			TransformStepData_ParentToWorld(oldParent);
 			return;
 		}
 
-		ParentName = parentEnt.Name;
+		ParentName = parentEntity.Name;
 		RemoveSolidFlags(SolidFlags.RootParentAligned);
 
-		// todo
+		if (parentEntity != null) {
+			if (parentEntity.GetRootMoveParent()!.GetSolid() == SolidType.BSP)
+				AddSolidFlags(SolidFlags.RootParentAligned);
+			else {
+				// Must be SOLID_VPHYSICS because parent might rotate
+				if (GetSolid() == SolidType.BSP)
+					SetSolid(SolidType.VPhysics);
+			}
+		}
+
+		// set the move parent if we have one
+		if (Edict() != null) {
+			// add ourselves to the list
+			LinkChild(Parent.Get()!, this);
+
+			ParentAttachment = (byte)attachment;
+
+			EntityMatrix matrix = default, childMatrix = default;
+			matrix.InitFromEntity(parentEntity, ParentAttachment); // parent->world
+			childMatrix.InitFromEntityLocal(this); // child->world
+			Vector3 localOrigin = matrix.WorldToLocal(GetLocalOrigin());
+
+			// I have the axes of local space in world space. (childMatrix)
+			// I want to compute those world space axes in the parent's local space
+			// and set that transform (as angles) on the child's object so the net
+			// result is that the child is now in parent space, but still oriented the same way
+			Matrix4x4 tmp = matrix.Transpose(); // world->parent
+			tmp.MatrixMul(childMatrix, out matrix.Underlying); // child->parent
+			MathLib.MatrixToAngles(matrix, out QAngle angles);
+			SetLocalAngles(angles);
+			Util.SetOrigin(this, localOrigin);
+
+			// Move our step data into the correct space
+			if (wasNotParented) {
+				// Transform step data from world to parent-space
+				TransformStepData_WorldToParent(this);
+			}
+			else {
+				// Transform step data between parent-spaces
+				TransformStepData_ParentToParent(oldParent, this);
+			}
+		}
+		if (VPhysicsGetObject() != null) {
+			if (VPhysicsGetObject()!.IsStatic()) {
+				if (VPhysicsGetObject()!.IsAttachedToConstraint(false))
+					Warning($"SetParent on static object, all constraints attached to {GetDebugName()} ({GetClassname()})will now be broken!\n");
+
+				VPhysicsDestroyObject();
+				VPhysicsInitShadow(false, false);
+			}
+		}
+		CollisionRulesChanged();
 	}
 
 
@@ -542,6 +625,9 @@ public partial class BaseEntity : IServerEntity
 			return (BaseEntity?)ent.GetUnknown()!.GetBaseEntity();
 		return null;
 	}
+
+	public virtual Vector3 GetStepOrigin() => GetLocalOrigin();
+	public virtual QAngle GetStepAngles() => GetLocalAngles();
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public void SetSolidFlags(SolidFlags flags) => CollisionProp().SetSolidFlags(flags);
 	[MethodImpl(MethodImplOptions.AggressiveInlining)] public bool IsSolidFlagSet(SolidFlags flagMask) => CollisionProp().IsSolidFlagSet(flagMask);
@@ -760,6 +846,11 @@ public partial class BaseEntity : IServerEntity
 			Velocity = vecVelocity;
 		}
 	}
+	public string? Name;
+
+	public string GetEntityName() {
+		return Name;
+	}
 	public void SetName(ReadOnlySpan<char> name) {
 		Name = new(name.SliceNullTerminatedString());
 	}
@@ -842,7 +933,11 @@ public partial class BaseEntity : IServerEntity
 		return ref AbsVelocity;
 	}
 
-	string? Classname;
+	public string? Classname; // prev m_iClassname
+	public string? GlobalName; // prev m_iGlobalname
+	public string? ParentName; // prev m_iParent
+	public int HammerID;
+
 	public void SetClassname(ReadOnlySpan<char> classname) {
 		Classname = new(classname);
 	}
@@ -1152,6 +1247,23 @@ public partial class BaseEntity : IServerEntity
 		}
 	}
 
+	public ref Matrix3x4 GetParentToWorldTransform(ref Matrix3x4 tempMatrix) {
+		BaseEntity? moveParent = GetMoveParent();
+		if (moveParent == null) {
+			Assert(false);
+			MathLib.SetIdentityMatrix( out tempMatrix);
+			return ref tempMatrix;
+		}
+
+		if (ParentAttachment != 0) {
+			BaseAnimating? animating = moveParent.GetBaseAnimating();
+			if (animating != null && animating.GetAttachment(ParentAttachment, out tempMatrix)) 
+				return ref tempMatrix;
+		}
+
+		// If we fall through to here, then just use the move parent's abs origin and angles.
+		return ref moveParent.EntityToWorldTransform();
+	}
 	public ref Matrix3x4 EntityToWorldTransform() {
 		// Assert()
 

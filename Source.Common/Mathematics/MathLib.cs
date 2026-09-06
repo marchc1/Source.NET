@@ -1605,6 +1605,12 @@ public static class MathLib
 		AngleQuaternion(in angles, out q);
 	}
 
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void MatrixAngles(in Matrix3x4 matrix, out QAngle angles, out Vector3 position) {
+		MatrixAngles(matrix, out angles);
+		MatrixPosition(matrix, out position);
+	}
+
 	public static void MatrixAngles(in Matrix3x4 matrix, out QAngle angles) {
 		angles = default;
 		Span<float> forward = stackalloc float[3];
@@ -2460,6 +2466,42 @@ public static class MathLib
 		}
 	}
 
+	static void SetupMatrixAnglesInternal(ref this Matrix4x4 m, in QAngle angles) {
+		fltx4 sine, cosine;
+		fltx4 radians = Vector128.Multiply(LoadFloat3(MemoryMarshal.Cast<QAngle, float>(new(in angles))), Vector128.Create(MathF.PI / 180f));
+		(sine, cosine) = Vector128.SinCos(radians);
+
+		float sp = sine[0], sy = sine[1], sr = sine[2];
+		float cp = cosine[0], cy = cosine[1], cr = cosine[2];
+
+		// matrix = (YAW * PITCH) * ROLL
+		m[0, 0] = cp * cy;
+		m[1, 0] = cp * sy;
+		m[2, 0] = -sp;
+		m[0, 1] = sr * sp * cy + cr * -sy;
+		m[1, 1] = sr * sp * sy + cr * cy;
+		m[2, 1] = sr * cp;
+		m[0, 2] = (cr * sp * cy + -sr * -sy);
+		m[1, 2] = (cr * sp * sy + -sr * cy);
+		m[2, 2] = cr * cp;
+		m[0, 3] = 0f;
+		m[1, 3] = 0f;
+		m[2, 3] = 0f;
+	}
+
+	public static void SetupMatrixOrgAngles(ref this Matrix4x4 m, in Vector3 origin, in QAngle angles) {
+		SetupMatrixAnglesInternal(ref m, angles);
+
+		// Add translation
+		m[0, 3] = origin.X;
+		m[1, 3] = origin.Y;
+		m[2, 3] = origin.Z;
+		m[3, 0] = 0.0f;
+		m[3, 1] = 0.0f;
+		m[3, 2] = 0.0f;
+		m[3, 3] = 1.0f;
+	}
+
 	public const uint PERMUTE_0X = 0;
 	public const uint PERMUTE_0Y = 1;
 	public const uint PERMUTE_0Z = 2;
@@ -2659,6 +2701,62 @@ public static class MathLib
 		src[2, col] = column.Z;
 	}
 
+	public static Vector3 VMul4x3(ref this Matrix4x4 m, in Vector3 vec) {
+		Vector3DMultiplyPosition(ref m, vec, out Vector3 result);
+		return result;
+	}
+
+	public static Matrix4x4 Transpose3x3(ref this Matrix4x4 m, in Vector3 vec) {
+		return new Matrix4x4(
+			m[0][0], m[1][0], m[2][0], m[0][3],
+			m[0][1], m[1][1], m[2][1], m[1][3],
+			m[0][2], m[1][2], m[2][2], m[2][3],
+			m[3][0], m[3][1], m[3][2], m[3][3]
+		);
+	}
+
+	public static Matrix4x4 Transpose(ref this Matrix4x4 m, in Vector3 vec) {
+		return new Matrix4x4(
+			m[0][0], m[1][0], m[2][0], m[3][0],
+			m[0][1], m[1][1], m[2][1], m[3][1],
+			m[0][2], m[1][2], m[2][2], m[3][2],
+			m[0][3], m[1][3], m[2][3], m[3][3]
+		);
+	}
+
+	public static Vector3 VMul4x3Transpose(ref this Matrix4x4 m, in Vector3 vec) {
+		Vector3 tmp = vec;
+		tmp.X -= m[0][3];
+		tmp.Y -= m[1][3];
+		tmp.Z -= m[2][3];
+
+		return new Vector3(
+			m[0][0] * tmp.X + m[1][0] * tmp.Y + m[2][0] * tmp.Z,
+			m[0][1] * tmp.X + m[1][1] * tmp.Y + m[2][1] * tmp.Z,
+			m[0][2] * tmp.X + m[1][2] * tmp.Y + m[2][2] * tmp.Z
+		);
+	}
+
+	public static Vector3 VMul3x3(ref this Matrix4x4 m, in Vector3 vec) {
+		return new Vector3(
+			m[0][0] * vec.X + m[0][1] * vec.Y + m[0][2] * vec.Z,
+			m[1][0] * vec.X + m[1][1] * vec.Y + m[1][2] * vec.Z,
+			m[2][0] * vec.X + m[2][1] * vec.Y + m[2][2] * vec.Z
+		);
+	}
+
+	public static Vector3 VMul3x3Transpose(ref this Matrix4x4 m, in Vector3 vec) {
+		return new Vector3(
+			m[0][0] * vec.X + m[1][0] * vec.Y + m[2][0] * vec.Z,
+			m[0][1] * vec.X + m[1][1] * vec.Y + m[2][1] * vec.Z,
+			m[0][2] * vec.X + m[1][2] * vec.Y + m[2][2] * vec.Z
+		);
+	}
+
+	public static void MatrixMul(ref this Matrix4x4 m, in Matrix4x4 vm, out Matrix4x4 @out) {
+		MatrixMultiply(in m, in vm, out @out);
+	}
+
 	public static void SetForward(ref this Matrix4x4 m, in Vector3 forward) {
 		m[0, 0] = forward.X;
 		m[1, 0] = forward.Y;
@@ -2745,6 +2843,56 @@ public static class MathLib
 		}
 
 		return lineartovertex[i];
+	}
+
+	public static void MatrixToAngles(in Matrix4x4 src, out QAngle angles) {
+		Span<float> forward = stackalloc float[3];
+		Span<float> left = stackalloc float[3];
+		Span<float> up = stackalloc float[3];
+
+		// Extract the basis vectors from the matrix. Since we only need the Z
+		// component of the up vector, we don't get X and Y.
+		forward[0] = src[0][0];
+		forward[1] = src[1][0];
+		forward[2] = src[2][0];
+		left[0] = src[0][1];
+		left[1] = src[1][1];
+		left[2] = src[2][1];
+		up[2] = src[2][2];
+
+		float xyDist = MathF.Sqrt(forward[0] * forward[0] + forward[1] * forward[1]);
+
+		// enough here to get angles?
+		if (xyDist > 0.001f) {
+			// (yaw)	y = ATAN( forward.y, forward.x );		-- in our space, forward is the X axis
+			angles.Y = RAD2DEG(MathF.Atan2(forward[1], forward[0]));
+
+			// The engine does pitch inverted from this, but we always end up negating it in the DLL
+			// UNDONE: Fix the engine to make it consistent
+			// (pitch)	x = ATAN( -forward.z, sqrt(forward.x*forward.x+forward.y*forward.y) );
+			angles.X = RAD2DEG(MathF.Atan2(-forward[2], xyDist));
+
+			// (roll)	z = ATAN( left.z, up.z );
+			angles.Z = RAD2DEG(MathF.Atan2(left[2], up[2]));
+		}
+		else    // forward is mostly Z, gimbal lock-
+		{
+			// (yaw)	y = ATAN( -left.x, left.y );			-- forward is mostly z, so use right for yaw
+			angles.Y = RAD2DEG(MathF.Atan2(-left[0], left[1]));
+
+			// The engine does pitch inverted from this, but we always end up negating it in the DLL
+			// UNDONE: Fix the engine to make it consistent
+			// (pitch)	x = ATAN( -forward.z, sqrt(forward.x*forward.x+forward.y*forward.y) );
+			angles.X = RAD2DEG(MathF.Atan2(-forward[2], xyDist));
+
+			// Assume no roll in this case as one degree of freedom has been lost (i.e. yaw == roll)
+			angles.Z = 0;
+		}
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	public static void MatrixCopy(Matrix3x4 @in, out Matrix3x4 @out) {
+		@out = @in;
 	}
 
 	const int NUMVERTEXNORMALS = 162;
