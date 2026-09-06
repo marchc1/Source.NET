@@ -16,6 +16,7 @@ namespace Source.Engine;
 
 [InlineArray(Render.DECALCACHE_ENTRY_COUNT)] public struct InlineArrayDecalCacheEntryCount<T> { public T item; }
 [InlineArray(Render.DECALSORT_TYPE_COUNT)] public struct InlineArrayDecalSortTypeCount<T> { public T item; }
+[InlineArray(Render.DECAL_MESH_BATCH_COUNT)] public struct InlineArrayDecalMeshBatchCount<T> { public T item; }
 [InlineArray((int)MatSortGroup.Max + 1)] public struct InlineArrayMaxMatSortGroups<T> { public T item; }
 
 public enum DecalType
@@ -149,9 +150,8 @@ public struct DecalBatchList
 public struct DecalMeshList
 {
 	public IMesh? Mesh;
-	public List<DecalBatchList> Batches = new(128);
-
-	public DecalMeshList() { }
+	public InlineArrayDecalMeshBatchCount<DecalBatchList> Batches;
+	public int BatchCount;
 }
 
 public struct DecalContext(IMatRenderContext renderContext, in Vector3 modelOrg)
@@ -380,6 +380,7 @@ public partial class Render
 	public const int INVALID_CACHE_ENTRY = 0xFFFF;
 	public const int DECALSORT_RBTREE_SIZE = 16;
 	public const int DECALSORT_TYPE_COUNT = 3;
+	public const int DECAL_MESH_BATCH_COUNT = 128;
 
 	public static readonly ConVar r_decal_overlap_count = new("r_decal_overlap_count", "3", 0);
 	public static readonly ConVar r_decal_overlap_area = new("r_decal_overlap_area", "0.4", 0);
@@ -1516,7 +1517,7 @@ public partial class Render
 	static void DrawDecalMeshList(ref DecalMeshList meshList) {
 		IMatRenderContext renderContext = materials.GetRenderContext();
 
-		foreach (DecalBatchList batch in meshList.Batches) {
+		foreach (DecalBatchList batch in ((Span<DecalBatchList>)meshList.Batches)[..meshList.BatchCount]) {
 			if (MatSysInterface.MaterialSystemConfig.Fullbright == 1)
 				renderContext.BindLightmapPage(StandardLightmap.White);
 			else
@@ -1641,7 +1642,7 @@ public partial class Render
 
 					if (meshInit) {
 						meshList.Mesh = null;
-						meshList.Batches.Clear();
+						meshList.BatchCount = 0;
 
 						if (wireframe)
 							meshList.Mesh = renderContext.GetDynamicMesh(false, null, null, MatSys.MaterialDecalWireframe);
@@ -1656,14 +1657,14 @@ public partial class Render
 					}
 
 					if (batchInit) {
-						if (meshList.Batches.Count + 1 > meshList.Batches.Capacity) {
-							Warning($"R_DrawDecalsAll: overflowing m_aBatches. Reduce {decalSortMaxVerts * meshList.Batches.Capacity} decals in the scene.\n");
+						if (meshList.BatchCount + 1 > DECAL_MESH_BATCH_COUNT) {
+							Warning($"R_DrawDecalsAll: overflowing m_aBatches. Reduce {decalSortMaxVerts * DECAL_MESH_BATCH_COUNT} decals in the scene.\n");
 							meshBuilder.End();
 							DrawDecalMeshList(ref meshList);
 							return;
 						}
 
-						batch = meshList.Batches.Count;
+						batch = meshList.BatchCount;
 						DecalBatchList newBatch = new() {
 							StartIndex = (ushort)indexCount
 						};
@@ -1676,7 +1677,7 @@ public partial class Render
 							newBatch.LightmapPage = MatSys.MaterialSortInfoArray![ModelLoader.MSurf_MaterialSortID(ref ModelLoader.SurfaceHandleFromIndex(decalHead.SurfID))].LightmapPageID;
 						}
 
-						meshList.Batches.Add(newBatch);
+						meshList.Batches[meshList.BatchCount++] = newBatch;
 
 						batchInit = false;
 					}

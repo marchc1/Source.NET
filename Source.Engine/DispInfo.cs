@@ -474,13 +474,12 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 	}
 
 	public static readonly ConVar r_DrawDisp = new("r_DrawDisp", "1", FCvar.Cheat, "Toggles rendering of displacment maps");
+	static readonly DispInfo[] VisibleDisps = new DispInfo[BSPFileCommon.MAX_MAP_DISPINFO];
 	public static void DispInfo_RenderList(int sortGroup, Span<SurfaceHandle_t> list, int listCount, bool ortho, uint flags, RenderDepthMode depthMode) {
 		if (r_DrawDisp.GetInt() == 0 || listCount == 0)
 			return;
 
-		DispInfo[] visibleDisps = new DispInfo[BSPFileCommon.MAX_MAP_DISPINFO];
-
-		DispInfo_BuildPrimLists(sortGroup, list, listCount, depthMode != RenderDepthMode.Normal, visibleDisps, out int visibleDispCount);
+		DispInfo_BuildPrimLists(sortGroup, list, listCount, depthMode != RenderDepthMode.Normal, VisibleDisps, out int visibleDispCount);
 
 		DispInfo_DrawPrimLists(depthMode);
 
@@ -508,7 +507,7 @@ public class DispInfo : DispUtilsHelper, IDispInfo
 		// DispInfo_BatchDecals(visibleDisps, visibleDispCount);
 		// DispInfo_DrawDecals(visibleDisps, visibleDispCount);
 
-		g_ShadowMgr.DrawFlashlightDecalsOnDisplacements(sortGroup, visibleDisps, visibleDispCount, flashlightMask);
+		g_ShadowMgr.DrawFlashlightDecalsOnDisplacements(sortGroup, VisibleDisps, visibleDispCount, flashlightMask);
 		g_ShadowMgr.RenderShadows();
 		g_ShadowMgr.ClearShadowRenderList();
 
