@@ -1676,6 +1676,109 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 		surfID.Flags |= (SurfDraw)flags;
 	}
 
+	private static void LinearToGamma(Span<byte> dstRGB, in Vector3 srcRGB) {
+		dstRGB[0] = (byte)MathLib.LinearToScreenGamma(srcRGB.X);
+		dstRGB[1] = (byte)MathLib.LinearToScreenGamma(srcRGB.Y);
+		dstRGB[2] = (byte)MathLib.LinearToScreenGamma(srcRGB.Z);
+	}
+
+	private static void CheckSurfaceLighting(ref BSPMSurface2 surfID, WorldBrushData brushData) {
+#if !SWDS
+		host_state.WorldBrush = brushData;
+		ref BSPMSurfaceLighting lighting = ref SurfaceLighting(ref surfID, brushData);
+
+		if (lighting.Samples.IsEmpty)
+			return;
+
+		int smax = lighting.LightmapExtents[0] + 1;
+		int tmax = lighting.LightmapExtents[1] + 1;
+		int offset = smax * tmax;
+		if (SurfHasBumpedLightmaps(ref surfID))
+			offset *= Constants.NUM_BUMP_VECTS + 1;
+
+		int maxLightmapIndex = 0;
+		for (int maps = 1; maps < BSPFileCommon.MAXLIGHTMAPS && lighting.Styles[maps] != 255; ++maps)
+			maxLightmapIndex = maps;
+
+		if (maxLightmapIndex < 1)
+			return;
+
+		Span<byte> color = stackalloc byte[4];
+
+		for (int maps = maxLightmapIndex; maps != 0; maps--) {
+			Span<ColorRGBExp32> lightmap = lighting.Samples.Span[(maps * offset)..];
+			float maxLen = -1;
+			Vector3 maxLight = default;
+			for (int i = 0; i < offset; i++) {
+				MathLib.ColorRGBExp32ToVector(in lightmap[i], out Vector3 c);
+				if (c.Length() > maxLen) {
+					maxLight = c;
+					maxLen = c.Length();
+				}
+			}
+
+			LinearToGamma(color, in maxLight);
+			const int minLightVal = 1;
+			if (color[0] <= minLightVal && color[1] <= minLightVal && color[2] <= minLightVal) {
+				for (int i = maps; i < maxLightmapIndex; i++) {
+					Span<ColorRGBExp32> lightmapOverwrite = lighting.Samples.Span[(i * offset)..];
+					lightmapOverwrite[offset..(offset + offset)].CopyTo(lightmapOverwrite);
+					lighting.Styles[i] = lighting.Styles[i + 1];
+				}
+
+				lighting.Styles[maxLightmapIndex] = 255;
+				maxLightmapIndex--;
+			}
+		}
+
+		if (maxLightmapIndex == 0)
+			MSurf_Flags(ref surfID) &= ~SurfDraw.HasLightStyles;
+#endif
+	}
+
+	private static void CalcSurfaceExtents(in MapLoadHelper lh, ref BSPMSurface2 surfID) {
+		Span<float> textureMins = stackalloc float[2];
+		Span<float> textureMaxs = stackalloc float[2];
+		float val;
+		int i, j, e;
+		Span<int> bmins = stackalloc int[2];
+		Span<int> bmaxs = stackalloc int[2];
+
+		textureMins[0] = textureMins[1] = float.MaxValue;
+		textureMaxs[0] = textureMaxs[1] = float.MinValue;
+
+		WorldBrushData brushData = lh.GetMap();
+		ref ModelTexInfo tex = ref MSurf_TexInfo(ref surfID, brushData);
+
+		for (i = 0; i < MSurf_VertCount(ref surfID); i++) {
+			e = brushData.VertIndices![MSurf_FirstVertIndex(ref surfID) + i];
+			ref BSPDertex v = ref brushData.Vertexes![e];
+
+			for (j = 0; j < 2; j++) {
+				val = v.Position.X * tex.TextureVecsTexelsPerWorldUnits[j].X + v.Position.Y * tex.TextureVecsTexelsPerWorldUnits[j].Y + v.Position.Z * tex.TextureVecsTexelsPerWorldUnits[j].Z + tex.TextureVecsTexelsPerWorldUnits[j].W;
+				if (val < textureMins[j])
+					textureMins[j] = val;
+				if (val > textureMaxs[j])
+					textureMaxs[j] = val;
+			}
+		}
+
+		for (i = 0; i < 2; i++) {
+			if (MSurf_LightmapExtents(ref surfID, brushData)[i] == 0 && brushData.SurfaceLighting![MSurf_Index(ref surfID, brushData)].Samples.IsEmpty)
+				MSurf_Flags(ref surfID) |= SurfDraw.NoLight;
+
+			bmins[i] = (int)textureMins[i];
+			bmaxs[i] = (int)MathF.Ceiling(textureMaxs[i]);
+			MSurf_TextureMins(ref surfID, brushData)[i] = bmins[i];
+			MSurf_TextureExtents(ref surfID, brushData)[i] = (short)(bmaxs[i] - bmins[i]);
+
+			if ((tex.Flags & Surf.NoLight) == 0 && MSurf_LightmapExtents(ref surfID, brushData)[i] > MSurf_MaxLightmapSizeWithBorder(ref surfID))
+				Sys.Error($"Bad surface extents on texture {tex.Material!.GetName()}");
+		}
+
+		CheckSurfaceLighting(ref surfID, brushData);
+	}
+
 	private void Mod_LoadFaces() {
 		MapLoadHelper lh = new MapLoadHelper(LumpIndex.Faces);
 		BSPDFace[] inFaces = lh.LoadLumpData<BSPDFace>();
@@ -1773,7 +1876,7 @@ public class ModelLoader(IFileSystem fileSystem, Host Host,
 
 			// out2.FirstOverlayFragment = OVERLAY_FRAGMENT_INVALID;
 
-			// CalcSurfaceExtents(in lh, ref surfID);
+			CalcSurfaceExtents(in lh, ref surfID);
 		}
 	}
 

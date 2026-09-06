@@ -1,4 +1,4 @@
-global using static Game.Client.BaseEntityConsts;
+﻿global using static Game.Client.BaseEntityConsts;
 global using static Game.Client.PredictableList;
 
 using CommunityToolkit.HighPerformance;
@@ -24,6 +24,7 @@ using FIELD = Source.FIELD<Game.Client.C_BaseEntity>;
 
 using AimEntsListHandle_t = int;
 using Source.Common.Physics;
+using Source.Common.Formats.BSP;
 
 namespace Game.Client;
 
@@ -2525,6 +2526,40 @@ public partial class C_BaseEntity : IClientEntity
 		if (ModelInstance != MODEL_INSTANCE_INVALID) {
 			modelrender.DestroyInstance(ModelInstance);
 			ModelInstance = MODEL_INSTANCE_INVALID;
+		}
+	}
+
+	public virtual void AddStudioDecal(in Ray ray, int hitbox, int decalIndex, bool doTrace, ref Trace tr, int maxLODToDecal = -1) {
+		// throw new NotImplementedException();
+		DevWarning("AddStudioDecal not implemented\n");
+	}
+
+	public virtual void AddBrushModelDecal(in Ray ray, in Vector3 decalCenter, int decalIndex, bool doTrace, ref Trace tr) {
+		if (doTrace) {
+			enginetrace.ClipRayToEntity(in ray, Mask.Shot, this, ref tr);
+			if (tr.Fraction == 1.0f)
+				return;
+		}
+
+		effects.DecalShoot(decalIndex, Index, Model, GetAbsOrigin(), GetAbsAngles(), decalCenter, null, 0);
+	}
+
+	public void AddDecal(in Vector3 rayStart, in Vector3 rayEnd, in Vector3 decalCenter, int hitbox, int decalIndex, bool doTrace, ref Trace tr, int maxLODToDecal = -1) {
+		Ray ray = new();
+		ray.Init(in rayStart, in rayEnd);
+		ray.Delta *= 1.1f;
+
+		ModelType modelType = modelinfo.GetModelType(Model);
+		switch (modelType) {
+			case ModelType.Studio:
+				AddStudioDecal(in ray, hitbox, decalIndex, doTrace, ref tr, maxLODToDecal);
+				break;
+			case ModelType.Brush:
+				AddBrushModelDecal(in ray, in decalCenter, decalIndex, doTrace, ref tr);
+				break;
+			default:
+				tr.Fraction = 1.0f;
+				break;
 		}
 	}
 

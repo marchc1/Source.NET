@@ -622,4 +622,8 @@ public static class CFormatting
 		return originalSize - target.Length; // Should return the delta length
 	}
 	public static PrintF sprintf(Span<char> target, ReadOnlySpan<char> format) => new(target, format);
+	public static void binarytohex(ReadOnlySpan<byte> input, Span<char> output) {
+		for (int i = 0; i < input.Length; i++) input[i].TryFormat(output[(i * 2)..], out _, "x2");
+		output[input.Length * 2] = '\0';
+	}
 }

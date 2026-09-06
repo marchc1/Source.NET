@@ -1001,6 +1001,13 @@ public class Material : IMaterialInternal
 		}
 	}
 
+	public void RefreshPreservingMaterialVars() {
+		if (materials.ShaderDevice.IsUsingGraphics()) {
+			Uncache(true);
+			Precache();
+		}
+	}
+
 	public void Uncache(bool preserveVars = false) {
 		if (IsPrecached()) {
 			CleanUpStateSnapshots();

@@ -923,7 +923,7 @@ public partial class Render
 		for (nint i = 0; i < s_DecalPool.Count; i++) {
 			Decal? decal = s_DecalPool[(int)i];
 
-			if (decal != null && (decal.Flags & FDecal.PlayerSpray) != 0 && decal.UserData == userData)
+			if (decal != null && (decal.Flags & FDecal.PlayerSpray) != 0 && Equals(decal.UserData, userData))
 				decalVec.Add(decal);
 		}
 
@@ -1629,8 +1629,10 @@ public partial class Render
 							meshList.Batches[(int)batch] = finishBatch;
 						}
 
-						meshBuilder.End();
-						DrawDecalMeshList(ref meshList);
+						if (!meshInit) {// deviation, source bug?
+							meshBuilder.End();
+							DrawDecalMeshList(ref meshList);
+						}
 
 						meshInit = true;
 						batch = -1;

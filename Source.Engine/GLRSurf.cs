@@ -831,7 +831,9 @@ public static class GLRSurf
 
 		ResetWorldRenderList(renderList);
 
-		// TODO decal/overlaymgr
+		Render.DecalSurfacesInit(false);
+
+		// TODO overlaymgr
 
 		g_ShadowMgr.ClearShadowRenderList();
 	}

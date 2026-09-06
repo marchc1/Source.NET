@@ -306,6 +306,7 @@ public class DummyMaterial : IMaterial
 	public bool IsTranslucent() => false;
 	public bool IsVertexLit() => false;
 	public void Refresh() { }
+	public void RefreshPreservingMaterialVars() { }
 	public int ShaderParamCount() => 0;
 	public bool TryFindVar(ReadOnlySpan<char> varName, [NotNullWhen(true)] out IMaterialVar? found, bool complain = true) {
 		found = null;
