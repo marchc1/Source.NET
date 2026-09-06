@@ -22,6 +22,7 @@ public static class GMOD_PlayerGlobals
 	}
 }
 
+[LinkEntityToClass("player")]
 public class GMOD_Player : HL2MP_Player
 {
 	public static GMOD_Player? CreatePlayer(ReadOnlySpan<char> classname, Edict ed) {
