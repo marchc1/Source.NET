@@ -23,3 +23,10 @@ public class C_TEExplosion : C_TEParticleSystem
 	public int Radius;
 	public int Magnitude;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_Explosion(IRecipientFilter filter, float delay, in Vector3 pos, int modelIndex, float scale, int frameRate, int flags, int radius, int magnitude, in Vector3 normal, byte materialType = (byte)'C', bool shouldAffectRagdolls = true) {
+		throw new NotImplementedException();
+	}
+}

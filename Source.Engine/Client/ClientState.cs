@@ -565,7 +565,7 @@ IModelLoader modelloader, ICommandLine commandLine,
 		// clientside prediction todo
 		g_ClientSidePrediction.PostNetworkDataReceived(commandsAcknowledged);
 	}
-	readonly LinkedList<EventInfo> Events = [];
+	public readonly LinkedList<EventInfo> Events = [];
 	CLC_GMod_ClientToServer? luaFileMessage;
 
 

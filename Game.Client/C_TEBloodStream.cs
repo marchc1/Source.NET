@@ -23,3 +23,10 @@ public class C_TEBloodStream : C_TEParticleSystem
 	public int A;
 	public int Amount;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_BloodStream(IRecipientFilter filter, float delay, in Vector3 org, in Vector3 dir, int r, int g, int b, int a, int amount) {
+		throw new NotImplementedException();
+	}
+}

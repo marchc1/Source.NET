@@ -17,3 +17,10 @@ public class C_TEBSPDecal : C_BaseTempEntity
 	public int Entity;
 	public int Index;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_BSPDecal(IRecipientFilter filter, float delay, in Vector3 pos, int entity, int index) {
+		throw new NotImplementedException();
+	}
+}

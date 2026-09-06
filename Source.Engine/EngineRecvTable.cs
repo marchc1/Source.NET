@@ -323,6 +323,33 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 	];
 #endif
 
+	public void DecodeZeros(RecvTable table, object instance, int objectID) {
+		RecvDecoder? decoder = table.Decoder;
+		ErrorIfNot(decoder != null, $"RecvTable_DecodeZeros: table '{table.GetName()}' missing a decoder.");
+
+		ClientDatatableStack theStack = new(decoder, instance, objectID);
+
+		theStack.Init();
+
+		for (int iProp = 0; iProp < decoder.GetNumProps(); iProp++) {
+			theStack.SeekToProp((uint)iProp);
+
+			RecvProp? recvProp = decoder.GetProp(iProp);
+			if (recvProp == null)
+				continue;
+
+			DecodeInfo decodeInfo = new();
+			decodeInfo.Object = theStack.GetCurStructBase()!;
+			decodeInfo.FieldInfo = recvProp.FieldInfo;
+			decodeInfo.RecvProxyData.RecvProp = theStack.IsCurProxyValid() ? recvProp : null!;
+			decodeInfo.Prop = decoder.GetSendProp(iProp);
+			decodeInfo.In = null!;
+			decodeInfo.RecvProxyData.ObjectID = objectID;
+
+			PropTypeFns.Get(decodeInfo.Prop.GetPropType()).DecodeZero(ref decodeInfo);
+		}
+	}
+
 	public bool Decode(RecvTable table, object instance, bf_read inRead, int objectID, bool updateDTI = true) {
 		RecvDecoder? decoder = table.Decoder;
 		ErrorIfNot(decoder != null, $"RecvTable_Decode: table '{table.GetName()}' missing a decoder.");
@@ -346,7 +373,7 @@ public class EngineRecvTable(DtCommonEng DtCommonEng)
 			if (recvProp != null)
 				decodeInfo.FieldInfo = recvProp.FieldInfo;
 			else
-				decodeInfo.FieldInfo = null!; 
+				decodeInfo.FieldInfo = null!;
 
 #if DUMP_DECODE_DEBUGGING_INFO
 			if (!OKDatatables.Contains(table.GetName().Hash()))

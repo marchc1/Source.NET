@@ -15,3 +15,10 @@ public class C_TEMetalSparks : C_BaseTempEntity
 	public Vector3 Pos;
 	public Vector3 Dir;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_MetalSparks(IRecipientFilter filter, float delay, in Vector3 pos, in Vector3 dir) {
+		throw new NotImplementedException();
+	}
+}

@@ -16,6 +16,13 @@ namespace Game.Client
 			return h;
 		}
 	}
+
+	public enum LightIndex
+	{
+		TEDynamic = 0x10000000,
+		PlayerBright = 0x20000000,
+		MuzzleFlash = 0x30000000
+	}
 }
 
 namespace Game

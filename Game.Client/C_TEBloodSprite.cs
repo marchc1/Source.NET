@@ -27,3 +27,10 @@ public class C_TEBloodSprite
 	public int DropModel;
 	public int Size;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_BloodSprite(IRecipientFilter filter, float delay, in Vector3 org, in Vector3 dir, int r, int g, int b, int a, int size) {
+		throw new NotImplementedException();
+	}
+}

@@ -19,3 +19,10 @@ public class C_TESprite : C_BaseTempEntity
 	public float Scale;
 	public int Brightness;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_Sprite(IRecipientFilter filter, float delay, in Vector3 pos, int modelIndex, float size, int brightness) {
+		throw new NotImplementedException();
+	}
+}

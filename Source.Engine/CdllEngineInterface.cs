@@ -26,7 +26,7 @@ namespace Source.Engine;
 #if !SWDS
 public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host Host,
 							IMaterialSystem materials, MaterialSystem_Config MaterialSystemConfig,
-							MatSysInterface MatSys, ModelLoader modelloader) : IEngineClient
+							MatSysInterface MatSys, ModelLoader modelloader, CL CL) : IEngineClient
 {
 	public ReadOnlySpan<char> Key_LookupBinding(ReadOnlySpan<char> binding) => Key.NameForBinding(binding);
 	public void GetMainMenuBackgroundName(Span<char> dest) {
@@ -158,7 +158,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 	public bool IsPlayingDemo() => false; // Demos arent implemented yet
 	public bool IsPlayingTimeDemo() => false; // Demos arent implemented yet
 	public INetChannelInfo? GetNetChannelInfo() => cl.NetChannel;
-	public void FireEvents() { } // todo
+	public void FireEvents() => CL.FireEvents();
 
 	public Model? LoadModel(ReadOnlySpan<char> name, bool prop) {
 		return modelloader.GetModelForName(name, prop ? ModelLoaderFlags.DetailProp : ModelLoaderFlags.ClientDLL);

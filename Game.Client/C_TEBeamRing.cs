@@ -15,3 +15,10 @@ public class C_TEBeamRing : C_BaseBeam
 	public int StartEntity;
 	public int EndEntity;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_BeamRing(IRecipientFilter filter, float delay, int start, int end, int modelIndex, int haloIndex, int startFrame, int frameRate, float life, float width, int spread, float amplitude, int r, int g, int b, int a, int speed, int flags = 0) {
+		throw new NotImplementedException();
+	}
+}

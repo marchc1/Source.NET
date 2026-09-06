@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 
 namespace Source.GUI.Controls;
 
@@ -30,8 +30,11 @@ public static class PanelAnimationDictionary
 	public static PanelAnimationMap FindOrAddPanelAnimationMap(ReadOnlySpan<char> className) {
 		Panel.InitPropertyConverters();
 		ulong hashSymbol = className.Hash();
-		string name = new string(className);
-		return AnimationMaps.GetOrAdd(hashSymbol, static (_, n) => new PanelAnimationMap(n), name);	}
+		if (AnimationMaps.TryGetValue(hashSymbol, out PanelAnimationMap? map))
+			return map;
+
+		return AnimationMaps.GetOrAdd(hashSymbol, new PanelAnimationMap(className));
+	}
 
 	public static PanelAnimationMap? FindPanelAnimationMap(ReadOnlySpan<char> className) {
 		ulong hashSymbol = className.Hash();
