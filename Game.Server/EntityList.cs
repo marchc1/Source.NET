@@ -159,6 +159,11 @@ class SortedEntityList
 
 		if (SortedList.Count > 0)
 			Msg($"Total {SortedList.Count} entities ({EmptyCount} empty, {edicts} edicts)\n");
+
+		for (int i = 0; i < SortedList.Count; i++) {
+			BaseEntity ent = SortedList[i];
+			Msg($"  -[{ent.EntIndex()}]: {ent.GetClassname()} at {ent.GetAbsOrigin()}\n");
+		}
 	}
 }
 

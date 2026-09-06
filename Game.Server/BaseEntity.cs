@@ -2,6 +2,7 @@ using Game.Shared;
 
 using Source;
 using Source.Common;
+using Source.Common.Commands;
 using Source.Common.Engine;
 using Source.Common.Mathematics;
 using Source.Common.Physics;
@@ -25,6 +26,103 @@ public enum EntityEvent
 	WaterUntouch,
 	ParentChanged
 }
+
+public static class BaseEntity_ConCommands {
+	[ConCommand("ent_text", "Displays text debugging information about the given entity(ies) on top of the entity (See Overlay Text)\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
+	public static void CC_Ent_Text(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_bbox", "Displays the movement bounding box for the given entity(ies) in orange.  Some entites will also display entity specific overlays.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
+	public static void CC_Ent_BBox(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_absbox", "Displays the total bounding box for the given entity(s) in green.  Some entites will also display entity specific overlays.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
+	public static void CC_Ent_AbsBox(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_rbox", "Displays the total bounding box for the given entity(s) in green.  Some entites will also display entity specific overlays.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
+	public static void CC_Ent_RBox(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_attachments", "Displays the attachment points on an entity.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
+	public static void CC_Ent_AttachmentPoints(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_viewoffset", "Displays the eye position for the given entity(ies) in red.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
+	public static void CC_Ent_ViewOffset(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_remove", "Removes the given entity(s)\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
+	public static void CC_Ent_Remove(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_remove_all", "Removes all entities of the specified type\n\tArguments:   	{entity_name} / {class_name} ", FCvar.Cheat)]
+	public static void CC_Ent_RemoveAll(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_setname", "Sets the targetname of the given entity(s)\n\tArguments:   	{new entity name} {entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
+	public static void CC_Ent_SetName(in TokenizedCommand args) {
+
+	}
+	[ConCommand("find_ent", "Find and list all entities with classnames or targetnames that contain the specified substring.\nFormat: find_ent <substring>\n", FCvar.Cheat)]
+	public static void CC_Find_Ent(in TokenizedCommand args) {
+
+	}
+	[ConCommand("find_ent_index", "Display data for entity matching specified index.\nFormat: find_ent_index <index>\n", FCvar.Cheat)]
+	public static void CC_Find_Ent_Index(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_dump", "Usage:\n   ent_dump <entity name>\n", FCvar.Cheat)]
+	public static void CC_Ent_Dump(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_fire", "Usage:\n   ent_fire <target> [action] [value] [delay]\n", FCvar.Cheat)]
+	public static void EntFireAutoComplete(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_info", "Usage:\n   ent_info <class name>\n", FCvar.Cheat)]
+	public static void CC_Ent_Info(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_pause", "Toggles pausing of input/output message processing for entities.  When turned on processing of all message will stop.  Any messages displayed with 'ent_messages' will stop fading and be displayed indefinitely. To step through the messages one by one use 'ent_step'.", FCvar.Cheat)]
+	public static void CC_Ent_Pause(in TokenizedCommand args) {
+
+	}
+	[ConCommand("picker", "Toggles 'picker' mode.  When picker is on, the bounding box, pivot and debugging text is displayed for whatever entity the player is looking at.\n\tArguments:	full - enables all debug information", FCvar.Cheat)]
+	public static void CC_Ent_Picker(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_pivot", "Displays the pivot for the given entity(ies).\n\t(y=up=green, z=forward=blue, x=left=red). \n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
+	public static void CC_Ent_Pivot(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_step", "When 'ent_pause' is set this will step through one waiting input / output message at a time.", FCvar.Cheat)]
+	public static void CC_Ent_Step(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_show_response_criteria", "Print, to the console, an entity's current criteria set used to select responses.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at ", FCvar.Cheat)]
+	public static void CC_Ent_Show_Response_Criteria(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_autoaim", "Displays the entity's autoaim radius.\n\tArguments:   	{entity_name} / {class_name} / no argument picks what player is looking at", FCvar.Cheat)]
+	public static void CC_Ent_Autoaim(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_create", "Creates an entity of the given type where the player is looking.  Additional parameters can be passed in in the form: ent_create <entity name> <param 1 name> <param 1> <param 2 name> <param 2>...<param N name> <param N>", FCvar.GameDLL | FCvar.Cheat)]
+	public static void CC_Ent_Create(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_teleport", "Teleport the specified entity to where the player is looking.\n\tFormat: ent_teleport <entity name>", FCvar.Cheat)]
+	public static void CC_Ent_Teleport(in TokenizedCommand args) {
+
+	}
+	[ConCommand("ent_orient", "Orient the specified entity to match the player's angles. By default, only orients target entity's YAW. Use the 'allangles' option to orient on all axis.\n\tFormat: ent_orient <entity name> <optional: allangles>", FCvar.Cheat)]
+	public static void CC_Ent_Orient(in TokenizedCommand args) {
+
+	}
+
+}
+
 public partial class BaseEntity : IServerEntity
 {
 	public static Edict? g_pForceAttachEdict;
