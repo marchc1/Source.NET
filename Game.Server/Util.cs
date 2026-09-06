@@ -280,7 +280,7 @@ public static partial class Util
 		if (engine.IsDedicatedServer() && issuingPlayerIndex > 0)
 			return false;
 
-		return issuingPlayerIndex < 1;
+		return issuingPlayerIndex <= 1;
 	}
 
 	public static void ClientPrintAll(HudPrint dest, ReadOnlySpan<char> msgName, ReadOnlySpan<char> param1 = default, ReadOnlySpan<char> param2 = default, ReadOnlySpan<char> param3 = default, ReadOnlySpan<char> param4 = default) {
