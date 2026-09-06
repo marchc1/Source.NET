@@ -1252,13 +1252,13 @@ public partial class BaseEntity : IServerEntity
 		BaseEntity? moveParent = GetMoveParent();
 		if (moveParent == null) {
 			Assert(false);
-			MathLib.SetIdentityMatrix( out tempMatrix);
+			MathLib.SetIdentityMatrix(out tempMatrix);
 			return ref tempMatrix;
 		}
 
 		if (ParentAttachment != 0) {
 			BaseAnimating? animating = moveParent.GetBaseAnimating();
-			if (animating != null && animating.GetAttachment(ParentAttachment, out tempMatrix)) 
+			if (animating != null && animating.GetAttachment(ParentAttachment, out tempMatrix))
 				return ref tempMatrix;
 		}
 
@@ -1274,7 +1274,59 @@ public partial class BaseEntity : IServerEntity
 		return ref CoordinateFrame;
 	}
 
+	readonly object CalcAbsolutePositionMutex = new();
+
 	protected void CalcAbsolutePosition() {
+		if (!IsEFlagSet(EFL.DirtyAbsTransform))
+			return;
+
+		{
+#if !BUILD_GMOD
+			lock (CalcAbsolutePositionMutex)
+#endif
+			{
+				// Test again under the lock, in case another thread did the work in the interim
+				if (!IsEFlagSet(EFL.DirtyAbsTransform)) {
+					return;
+				}
+
+				// Plop the entity->parent matrix into m_rgflCoordinateFrame
+				MathLib.AngleMatrix(Rotation, Origin, out CoordinateFrame);
+
+				BaseEntity? moveParent = GetMoveParent();
+				if (moveParent == null) {
+					// no move parent, so just copy existing values
+					AbsOrigin = Origin;
+					AbsRotation = Rotation;
+				}
+				else {
+					// concatenate with our parent's transform
+					Matrix3x4 tmpMatrix, scratchSpace = default;
+					MathLib.ConcatTransforms(GetParentToWorldTransform(ref scratchSpace), CoordinateFrame, out tmpMatrix);
+					MathLib.MatrixCopy(tmpMatrix, out CoordinateFrame);
+
+					// pull our absolute position out of the matrix
+					MathLib.MatrixGetColumn(CoordinateFrame, 3, out AbsOrigin);
+
+					// if we have any angles, we have to extract our absolute angles from our matrix
+					if ((Rotation == vec3_angle) && (ParentAttachment == 0)) 
+						// just copy our parent's absolute angles
+						MathLib.VectorCopy(moveParent.GetAbsAngles(), out AbsRotation);
+					else 
+						MathLib.MatrixAngles(CoordinateFrame, out AbsRotation);
+				}
+
+				RemoveEFlags(EFL.DirtyAbsTransform);
+			}
+
+			// Do this callback *after* we have updated the position, and (importantly) after we clear the dirty flag, because this callback can potentially
+			// end up recursively calling back in here, so the dirty flag must be cleared to break the recursion in that case.
+			if (HasDataObjectType(DataObjectType.PositionWatcher))
+				ReportPositionChanged(this);
+		}
+	}
+
+	private void ReportPositionChanged(BaseEntity baseEntity) {
 		throw new NotImplementedException();
 	}
 
