@@ -28,7 +28,10 @@ public struct UtlSymbol
 		id = UTL_INVAL_SYMBOL;
 		ValidId = false;
 	}
-	public UtlSymbol(ReadOnlySpan<char> str) => id = CurrTable().AddString(str);
+	public UtlSymbol(ReadOnlySpan<char> str) {
+		id = CurrTable().AddString(str);
+		ValidId = id != UTL_INVAL_SYMBOL;
+	}
 	public UtlSymbol(string str) {
 		id = CurrTable().AddString(str);
 		ValidId = id != UTL_INVAL_SYMBOL;
