@@ -610,7 +610,7 @@ public partial class BasePlayer : BaseCombatCharacter
 		// if (!GameHUDInitialized)
 		// 	GameRules.SetDefaultPlayerTeam(this);
 
-		GetPlayerSpawnSpot(this);
+		g_pGameRules.GetPlayerSpawnSpot(this);
 
 		Local.Ducked = false;
 		Local.Ducking = false;

@@ -132,16 +132,18 @@ public abstract class
 #if CLIENT_DLL
 
 #else
-	public static BaseEntity? GetPlayerSpawnSpot(BasePlayer player) {
+	public BaseEntity? GetPlayerSpawnSpot(BasePlayer player) {
 		BaseEntity? spawnSpot = player.EntSelectSpawnPoint();
 		Assert(spawnSpot != null);
 
-		player.SetLocalOrigin(spawnSpot!.GetAbsOrigin() + new Vector3(0, 0, 1));
-		player.SetAbsVelocity(vec3_origin);
-		player.SetLocalAngles(spawnSpot.GetAbsAngles());
-		player.Local.PunchAngle = vec3_angle;
-		player.Local.PunchAngleVel = vec3_angle;
-		// player.SnapEyeAngles(spawnSpot.GetLocalAngles());
+		if (spawnSpot != null) {
+			player.SetLocalOrigin(spawnSpot!.GetAbsOrigin() + new Vector3(0, 0, 1));
+			player.SetAbsVelocity(vec3_origin);
+			player.SetLocalAngles(spawnSpot.GetAbsAngles());
+			player.Local.PunchAngle = vec3_angle;
+			player.Local.PunchAngleVel = vec3_angle;
+			// player.SnapEyeAngles(spawnSpot.GetLocalAngles());
+		}
 
 		return spawnSpot;
 	}
@@ -170,7 +172,7 @@ public abstract class
 	}
 
 	public virtual void Precache() {
-	
+
 	}
 #endif
 }
