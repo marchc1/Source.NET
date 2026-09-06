@@ -11,7 +11,7 @@ namespace Game.Shared;
 /// <summary>
 /// Links a class type to a hammer name
 /// </summary>
-[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
 public class LinkEntityToClassAttribute : Attribute
 {
 	public string LocalName;
