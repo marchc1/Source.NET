@@ -32,3 +32,10 @@ public class C_TEBreakModel : C_BaseTempEntity
 	public float Time;
 	public int Flags;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_BreakModel(IRecipientFilter filter, float delay, in Vector3 pos, in QAngle angles, in Vector3 size, in Vector3 vel, int modelIndex, int randomization, int count, float time, int flags) {
+		throw new NotImplementedException();
+	}
+}

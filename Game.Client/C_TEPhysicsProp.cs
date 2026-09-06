@@ -32,3 +32,10 @@ public class C_TEPhysicsProp : C_BaseTempEntity
 	public int ClrRender;
 	public float ModelScale;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_PhysicsProp(IRecipientFilter filter, float delay, int modelIndex, int skin, in Vector3 pos, in QAngle angles, in Vector3 vel, bool breakModel, int effects) {
+		throw new NotImplementedException();
+	}
+}

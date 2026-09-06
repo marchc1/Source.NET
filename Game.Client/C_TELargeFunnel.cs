@@ -14,3 +14,10 @@ public class C_TELargeFunnel : C_TEParticleSystem
 	public int ModelIndex;
 	public int Reversed;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_LargeFunnel(IRecipientFilter filter, float delay, in Vector3 pos, int modelIndex, int reversed) {
+		throw new NotImplementedException();
+	}
+}

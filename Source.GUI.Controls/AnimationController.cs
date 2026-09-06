@@ -379,9 +379,10 @@ public class AnimationController : Panel, IAnimationController
 		else if (variable == Tall)
 			panel.SetSize(panel.GetWide(), (int)value.A);
 		else {
-			KeyValues inputData = new KeyValues(ScriptSymbols.String(variable));
+			string name = ScriptSymbols.String(variable)!;
+			KeyValues inputData = new(name);
 			if (value.B == 0.0f && value.C == 0.0f && value.D == 0.0f) {
-				inputData.SetFloat(ScriptSymbols.String(variable), value.A);
+				inputData.SetFloat(name, value.A);
 			}
 			else {
 				Color col = new();
@@ -389,7 +390,7 @@ public class AnimationController : Panel, IAnimationController
 				col[1] = (byte)Math.Clamp((int)value.B, 0, 255);
 				col[2] = (byte)Math.Clamp((int)value.C, 0, 255);
 				col[3] = (byte)Math.Clamp((int)value.D, 0, 255);
-				inputData.SetColor(ScriptSymbols.String(variable), col);
+				inputData.SetColor(name, col);
 			}
 
 			panel.SetInfo(inputData);

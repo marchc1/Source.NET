@@ -13,3 +13,10 @@ public class C_TEKillPlayerAttachments : C_BaseTempEntity
 
 	public int Player;
 }
+
+public static partial class TempEnts
+{
+	public static void TE_KillPlayerAttachments(IRecipientFilter filter, float delay, int player) {
+		throw new NotImplementedException();
+	}
+}

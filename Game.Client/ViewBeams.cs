@@ -483,15 +483,112 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 	}
 
 	public void CreateBeamEntPoint(int startEntity, in Vector3 start, int endEntity, in Vector3 end, int modelIndex, int haloIndex, float haloScale, float life, float width, float endWidth, float fadeLength, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b) {
-		throw new NotImplementedException();
+		BeamInfo beamInfo = new();
+
+		if (startEntity <= 0) {
+			beamInfo.Start = start;
+			beamInfo.StartEnt = null;
+		}
+		else {
+			beamInfo.StartEnt = cl_entitylist.GetEnt(BeamEnt.Entity(startEntity));
+			beamInfo.StartAttachment = BeamEnt.Attachment(startEntity);
+
+			if (beamInfo.StartEnt == null)
+				return;
+
+			beamInfo.Start = beamInfo.StartEnt.GetRenderOrigin();
+		}
+
+		if (endEntity <= 0) {
+			beamInfo.End = end;
+			beamInfo.EndEnt = null;
+		}
+		else {
+			beamInfo.EndEnt = cl_entitylist.GetEnt(BeamEnt.Entity(endEntity));
+			beamInfo.EndAttachment = BeamEnt.Attachment(endEntity);
+
+			if (beamInfo.EndEnt == null)
+				return;
+
+			beamInfo.End = beamInfo.EndEnt.GetRenderOrigin();
+		}
+
+		beamInfo.ModelIndex = modelIndex;
+		beamInfo.HaloIndex = haloIndex;
+		beamInfo.HaloScale = haloScale;
+		beamInfo.Life = life;
+		beamInfo.Width = width;
+		beamInfo.EndWidth = endWidth;
+		beamInfo.FadeLength = fadeLength;
+		beamInfo.Amplitude = amplitude;
+		beamInfo.Brightness = brightness;
+		beamInfo.Speed = speed;
+		beamInfo.StartFrame = startFrame;
+		beamInfo.FrameRate = framerate;
+		beamInfo.Red = r;
+		beamInfo.Green = g;
+		beamInfo.Blue = b;
+
+		CreateBeamEntPoint(ref beamInfo);
 	}
 
 	public Beam? CreateBeamEnts(ref BeamInfo beamInfo) {
-		throw new NotImplementedException();
+		if (beamInfo.Life != 0 &&
+			(beamInfo.StartEnt == null || beamInfo.StartEnt.GetModel() == null ||
+			 beamInfo.EndEnt == null || beamInfo.EndEnt.GetModel() == null)) {
+			return null;
+		}
+
+		beamInfo.Start = vec3_origin;
+		beamInfo.End = vec3_origin;
+
+		Beam? pBeam = CreateGenericBeam(ref beamInfo);
+		if (pBeam == null)
+			return null;
+
+		pBeam.Type = beamInfo.Type;
+		pBeam.Flags = BeamFlags.StartEntity | BeamFlags.EndEntity;
+
+		pBeam.Entity[0].Set(beamInfo.StartEnt);
+		pBeam.AttachmentIndex[0] = beamInfo.StartAttachment;
+		pBeam.Entity[1].Set(beamInfo.EndEnt);
+		pBeam.AttachmentIndex[1] = beamInfo.EndAttachment;
+
+		SetBeamAttributes(pBeam, ref beamInfo);
+		if (beamInfo.Life == 0) {
+			pBeam.Flags |= BeamFlags.Forever;
+		}
+
+		UpdateBeam(pBeam, 0);
+
+		return pBeam;
 	}
 
 	public void CreateBeamEnts(int startEnt, int endEnt, int modelIndex, int haloIndex, float haloScale, float life, float width, float m_nEndWidth, float m_nFadeLength, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b, int type = -1) {
-		throw new NotImplementedException();
+		BeamInfo beamInfo = new() {
+			Type = type < 0 ? TempEntType.BeamPoints : (TempEntType)type,
+			StartEnt = cl_entitylist.GetEnt(BeamEnt.Entity(startEnt)),
+			StartAttachment = BeamEnt.Attachment(startEnt),
+			EndEnt = cl_entitylist.GetEnt(BeamEnt.Entity(endEnt)),
+			EndAttachment = BeamEnt.Attachment(endEnt),
+			ModelIndex = modelIndex,
+			HaloIndex = haloIndex,
+			HaloScale = haloScale,
+			Life = life,
+			Width = width,
+			EndWidth = m_nEndWidth,
+			FadeLength = m_nFadeLength,
+			Amplitude = amplitude,
+			Brightness = brightness,
+			Speed = speed,
+			StartFrame = startFrame,
+			FrameRate = framerate,
+			Red = r,
+			Green = g,
+			Blue = b
+		};
+
+		CreateBeamEnts(ref beamInfo);
 	}
 
 	public Beam? CreateBeamFollow(ref BeamInfo beamInfo) {
@@ -503,11 +600,47 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 	}
 
 	public Beam? CreateBeamPoints(ref BeamInfo beamInfo) {
-		throw new NotImplementedException();
+		if (beamInfo.Life != 0 && !CullBeam(in beamInfo.Start, in beamInfo.End, true))
+			return null;
+
+		if (!beamInfo.ModelName.IsEmpty && beamInfo.ModelIndex == -1)
+			beamInfo.ModelIndex = modelinfo.GetModelIndex(beamInfo.ModelName);
+
+		if (!beamInfo.HaloName.IsEmpty && beamInfo.HaloIndex == -1)
+			beamInfo.HaloIndex = modelinfo.GetModelIndex(beamInfo.HaloName);
+
+		Beam? beam = CreateGenericBeam(ref beamInfo);
+		if (beam == null)
+			return null;
+
+		SetBeamAttributes(beam, ref beamInfo);
+		if (beamInfo.Life == 0)
+			beam.Flags |= BeamFlags.Forever;
+
+		return beam;
 	}
 
 	public void CreateBeamPoints(ref Vector3 start, ref Vector3 end, int modelIndex, int haloIndex, float haloScale, float life, float width, float endWidth, float fadeLength, float amplitude, float brightness, float speed, int startFrame, float framerate, float r, float g, float b) {
-		throw new NotImplementedException();
+		BeamInfo beamInfo = new() {
+			Start = start,
+			End = end,
+			ModelIndex = modelIndex,
+			HaloIndex = haloIndex,
+			HaloScale = haloScale,
+			Life = life,
+			Width = width,
+			EndWidth = endWidth,
+			FadeLength = fadeLength,
+			Amplitude = amplitude,
+			Brightness = brightness,
+			Speed = speed,
+			StartFrame = startFrame,
+			FrameRate = framerate,
+			Red = r,
+			Green = g,
+			Blue = b
+		};
+		CreateBeamPoints(ref beamInfo);
 	}
 
 	public Beam? CreateBeamRing(ref BeamInfo beamInfo) {
@@ -943,7 +1076,7 @@ public class ViewRenderBeams : IViewRenderBeams, IDisposable
 		get {
 			int c = 0;
 			var beam = ActiveBeams;
-			while(beam != null){
+			while (beam != null) {
 				c++;
 				beam = beam.Next;
 			}
