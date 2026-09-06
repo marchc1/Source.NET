@@ -1560,16 +1560,17 @@ public partial class Render
 		float localClientTime = (float)cl.GetTime();
 
 		nint sortTreeCount = g_DecalSortTrees.Count;
+		Span<Decal?> decalPool = s_DecalPool.AsSpan();
 
 		for (nint iSortTree = 0; iSortTree < sortTreeCount; ++iSortTree) {
 			bool meshInit = true;
 
-			DecalSortTrees sortTree = g_DecalSortTrees[(int)iSortTree];
-			List<DecalMaterialBucket> buckets = sortTree.DecalSortBuckets[group][treeType];
+			ref DecalSortTrees sortTree = ref g_DecalSortTrees.AsSpan()[(int)iSortTree];
+			Span<DecalMaterialBucket> buckets = sortTree.DecalSortBuckets[group][treeType].AsSpan();
 
-			nint bucketCount = buckets.Count;
+			nint bucketCount = buckets.Length;
 			for (nint iBucket = 0; iBucket < bucketCount; ++iBucket) {
-				DecalMaterialBucket bucket = buckets[(int)iBucket];
+				ref DecalMaterialBucket bucket = ref buckets[(int)iBucket];
 				if (bucket.CheckCount != checkCount)
 					continue;
 
@@ -1577,7 +1578,7 @@ public partial class Render
 				if (!g_DecalSortPool.IsValidIndex((int)head))
 					continue;
 
-				Decal? decalHead = s_DecalPool[g_DecalSortPool[(int)head]];
+				Decal? decalHead = decalPool[g_DecalSortPool[(int)head]];
 				Assert(decalHead!.Material != null);
 				if (decalHead.Material == null)
 					continue;
@@ -1592,7 +1593,7 @@ public partial class Render
 				int count;
 				nint element = head;
 				while (element != PooledLinkedList<int>.INVALID_INDEX) {
-					Decal? decal = s_DecalPool[g_DecalSortPool[(int)element]];
+					Decal? decal = decalPool[g_DecalSortPool[(int)element]];
 					element = g_DecalSortPool.Next((int)element);
 
 					if (decal == null || decal.SurfID == -1)
@@ -1611,9 +1612,10 @@ public partial class Render
 						lastSurf = decal.SurfID;
 						offset = decal.LightmapOffset;
 						if ((vertexFormat & (VertexFormat.Normal | VertexFormat.TangentSpace)) != 0) {
-							normal = ModelLoader.MSurf_Plane(ref ModelLoader.SurfaceHandleFromIndex(decal.SurfID)).Normal;
+							ref BSPMSurface2 surf = ref ModelLoader.SurfaceHandleFromIndex(decal.SurfID);
+							normal = ModelLoader.MSurf_Plane(ref surf).Normal;
 							if ((vertexFormat & VertexFormat.TangentSpace) != 0) {
-								bool negate = MatSysInterface.TangentSpaceSurfaceSetup(ref ModelLoader.SurfaceHandleFromIndex(decal.SurfID), out Vector3 tVect);
+								bool negate = MatSysInterface.TangentSpaceSurfaceSetup(ref surf, out Vector3 tVect);
 								MatSysInterface.TangentSpaceComputeBasis(out tangentS, out tangentT, normal, ref tVect, negate);
 							}
 						}
