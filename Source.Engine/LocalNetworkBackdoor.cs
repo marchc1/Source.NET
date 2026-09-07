@@ -273,14 +273,20 @@ public class LocalNetworkBackdoor
 		int nFastCopyProps = 0;
 		int nSlowCopyProps = 0;
 
+		int unmatched = 0;
 		for (int iClass = 0; iClass < cl.NumServerClasses; iClass++) {
 			ClientClass? clientClass = cl.GetClientClass(iClass);
-			if (clientClass == null)
-				Error($"InitFastCopy - missing client class {iClass} (Should be equivelent of server class: {cl.ServerClasses![iClass]!.ClassName})");
+			if (clientClass == null) {
+				// TODO for datatable parity: implement the missing client classes; see datatables_dump/_DIFF.txt
+				unmatched++;
+				continue;
+			}
 
 			ServerClass? serverClass = SV.FindServerClass(clientClass.GetName());
-			if (serverClass == null)
-				Error($"InitFastCopy - missing server class {clientClass.GetName()}");
+			if (serverClass == null) {
+				Warning($"InitFastCopy - missing server class {clientClass.GetName()}\n");
+				continue;
+			}
 
 			LocalTransfer.InitFastCopy(
 				serverClass.Table,
@@ -291,6 +297,9 @@ public class LocalNetworkBackdoor
 				ref nFastCopyProps
 				);
 		}
+
+		if (unmatched > 0)
+			Warning($"InitFastCopy: {unmatched} server class(es) have no client class yet (skipped).\n");
 
 		int percentFast = (nFastCopyProps * 100) / (nSlowCopyProps + nFastCopyProps + 1);
 		if (percentFast <= 55) {

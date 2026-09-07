@@ -5,6 +5,7 @@
 
 # Source .VPK files. Mklink them if you want them.
 Game.Assets/hl2/*.vpk
+datatables_dump/*
 
 # User-specific files
 *.rsuser
