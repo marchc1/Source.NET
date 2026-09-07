@@ -1297,6 +1297,6 @@ IModelLoader modelloader, ICommandLine commandLine,
 
 	internal ClientClass? GetClientClass(int index) {
 		Assert(index < NumServerClasses);
-		return ServerClasses![index].ClientClass;
+		return ServerClasses![index]?.ClientClass;
 	}
 }
