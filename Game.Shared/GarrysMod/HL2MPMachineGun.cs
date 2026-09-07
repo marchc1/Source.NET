@@ -6,7 +6,7 @@ using System.Numerics;
 namespace Game.Shared.GarrysMod;
 
 using FIELD = Source.FIELD<HL2MPMachineGun>;
-public class HL2MPMachineGun : WeaponHL2MPBase
+public class HL2MPMachineGun : BaseHL2MPCombatWeapon
 {
 	public static readonly
 #if CLIENT_DLL
@@ -14,7 +14,7 @@ public class HL2MPMachineGun : WeaponHL2MPBase
 #else
 		SendTable
 #endif
-		DT_HL2MPMachineGun = new(DT_WeaponHL2MPBase, [
+		DT_HL2MPMachineGun = new(DT_BaseHL2MPCombatWeapon, [
 #if CLIENT_DLL
 		RecvPropInt(FIELD.OF(nameof(ShotsFired))),
 #else
