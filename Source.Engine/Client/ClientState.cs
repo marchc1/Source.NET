@@ -367,6 +367,9 @@ IModelLoader modelloader, ICommandLine commandLine,
 			Host.EndGame(true, "CL.ProcessClassInfo: CreateDecoders failed.\n");
 			return false;
 		}
+
+		LocalNetworkBackdoor.InitFastCopy();
+
 		return true;
 	}
 	void ProcessSoundsWithProtoVersion(SVC_Sounds msg, List<SoundInfo> sounds, int protoVersion) {
