@@ -10,7 +10,7 @@ public struct AddAngle
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public struct QAngle
+public struct QAngle : IEquatable<QAngle>
 {
 	public float X, Y, Z;
 
@@ -64,6 +64,10 @@ public struct QAngle
 
 	public static bool operator ==(QAngle a, QAngle b) => a.X == b.X && a.Y == b.Y && a.Z == b.Z;
 	public static bool operator !=(QAngle a, QAngle b) => a.X != b.X || a.Y != b.Y || a.Z != b.Z;
+
+	public readonly bool Equals(QAngle other) => X == other.X && Y == other.Y && Z == other.Z;
+	public readonly override bool Equals(object? obj) => obj is QAngle other && Equals(other);
+	public readonly override int GetHashCode() => HashCode.Combine(X, Y, Z);
 	public void Init() {
 		X = 0;
 		Y = 0;

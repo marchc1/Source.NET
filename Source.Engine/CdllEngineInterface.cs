@@ -148,6 +148,7 @@ public class EngineClient(Cbuf Cbuf, Scr Scr, Con Con, Key Key, IGame game, Host
 		int flags = GetCollisionBSPData()!.MapLeafs[leaf].Flags;
 		if ((flags & BSPFileCommon.LEAF_FLAGS_SKY) != 0)
 			return SkyboxVisibility.Skybox3D;
+
 		return ((flags & BSPFileCommon.LEAF_FLAGS_SKY2D) != 0) ? SkyboxVisibility.Skybox2D : SkyboxVisibility.NotVisible;
 	}
 

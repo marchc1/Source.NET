@@ -302,7 +302,7 @@ public partial class BaseEntity : IServerEntity
 		SendPropDataTable("AnimTimeMustBeFirst", DT_AnimTimeMustBeFirst, SendProxy_ClientSideAnimation),
 
 		SendPropInt(FIELD.OF(nameof(SimulationTime)), SIMULATION_TIME_WINDOW_BITS, PropFlags.Unsigned | PropFlags.ChangesOften | PropFlags.EncodedAgainstTickCount, proxyFn: SendProxy_SimulationTime /* todo */),
-		SendPropVector(FIELD.OF(nameof(Origin)), -1, PropFlags.Coord | PropFlags.ChangesOften, 0, Constants.HIGH_DEFAULT, SendProxy_Origin),
+		SendPropVector(NetworkVarFields.Origin, -1, PropFlags.Coord | PropFlags.ChangesOften, 0, Constants.HIGH_DEFAULT, SendProxy_Origin),
 		SendPropInt(FIELD.OF(nameof(InterpolationFrame)), NOINTERP_PARITY_MAX_BITS, PropFlags.Unsigned),
 		SendPropModelIndex(FIELD.OF(nameof(ModelIndex))),
 		SendPropDataTable(nameof(Collision), FIELD.OF(nameof(Collision)), CollisionProperty.DT_CollisionProperty),
@@ -313,19 +313,19 @@ public partial class BaseEntity : IServerEntity
 		SendPropInt(FIELD.OF(nameof(TeamNum)), TEAMNUM_NUM_BITS, 0),
 		SendPropInt(FIELD.OF(nameof(CollisionGroup)), 5, PropFlags.Unsigned),
 		SendPropFloat(FIELD.OF(nameof(Elasticity)), 0, PropFlags.Coord | PropFlags.NoScale),
-		SendPropFloat(FIELD.OF(nameof(ShadowCastDistance)), 12, PropFlags.Unsigned),
+		SendPropFloat(NetworkVarFields.ShadowCastDistance, 12, PropFlags.Unsigned),
 		SendPropEHandle(FIELD.OF(nameof(OwnerEntity))),
 		SendPropEHandle(FIELD.OF(nameof(EffectEntity))),
 		SendPropEHandle(FIELD.OF(nameof(MoveParent))),
 		SendPropInt(FIELD.OF(nameof(ParentAttachment)), NUM_PARENTATTACHMENT_BITS, PropFlags.Unsigned),
 		SendPropInt(FIELD.OF(nameof(MoveType)), (int)Source.MoveType.MaxBits, PropFlags.Unsigned ),
 		SendPropInt(FIELD.OF(nameof(MoveCollide)), (int)Source.MoveCollide.MaxBits, PropFlags.Unsigned ),
-		SendPropQAngles (FIELD.OF(nameof(Rotation)), 24, PropFlags.ChangesOften | PropFlags.RoundDown, SendProxy_Angles ),
+		SendPropQAngles (NetworkVarFields.Rotation, 24, PropFlags.ChangesOften | PropFlags.RoundDown, SendProxy_Angles ),
 		SendPropInt( FIELD.OF(nameof( TextureFrameIndex) ),     8, PropFlags.Unsigned ),
 		SendPropDataTable( "predictable_id", DT_PredictableId, SendProxy_SendPredictableId ),
 		SendPropInt(FIELD.OF(nameof(SimulatedEveryTick)),       1, PropFlags.Unsigned ),
 		SendPropInt(FIELD.OF(nameof(AnimatedEveryTick)),        1, PropFlags.Unsigned ),
-		SendPropBool( FIELD.OF(nameof( AlternateSorting ))),
+		SendPropBool( NetworkVarFields.AlternateSorting ),
 
 		// The rest of this is Garry's Mod specific in order
 		SendPropInt(FIELD.OF(nameof(m_takedamage)), 8),
@@ -337,7 +337,7 @@ public partial class BaseEntity : IServerEntity
 		SendPropArray2(null, 32, "OverrideSubMaterials"),
 
 		SendPropInt(FIELD.OF(nameof(Health)), 32, PropFlags.Normal | PropFlags.ChangesOften | PropFlags.VarInt),
-		SendPropInt(FIELD.OF(nameof(MaxHealth)), 32),
+		SendPropInt(NetworkVarFields.MaxHealth, 32),
 		SendPropInt(FIELD.OF(nameof(SpawnFlags)), 32),
 		SendPropInt(FIELD.OF(nameof(GModFlags)), 7),
 		SendPropBool(FIELD.OF(nameof(OnFire))),
@@ -769,25 +769,25 @@ public partial class BaseEntity : IServerEntity
 	public int TeamNum;
 	public int CollisionGroup;
 	public float Elasticity;
-	public float ShadowCastDistance;
+	[NetworkVar] public partial float ShadowCastDistance { get; set; }
 	public byte ParentAttachment;
 	public byte MoveType;
 	public byte MoveCollide;
 	public Vector3 AbsOrigin;
 	public QAngle AbsRotation;
-	public Vector3 Origin;
-	public QAngle Rotation;
+	[NetworkVar] public partial Vector3 Origin { get; set; }
+	[NetworkVar] public partial QAngle Rotation { get; set; }
 	public bool TextureFrameIndex;
 	public bool SimulatedEveryTick;
 	public bool AnimatedEveryTick;
-	public bool AlternateSorting;
+	[NetworkVar] public partial bool AlternateSorting { get; set; }
 
 	public byte m_takedamage;
 	public ushort RealClassName;
 	public ushort OverrideMaterial;
 	public InlineArray32<ushort> OverrideSubMaterials;
 	public int Health;
-	public int MaxHealth;
+	[NetworkVar] public partial int MaxHealth { get; set; }
 	public int SpawnFlags;
 	public int GModFlags;
 	public bool OnFire;

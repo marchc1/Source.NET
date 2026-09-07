@@ -18,6 +18,7 @@
     <Project Path="Source.CodeAnalysis/Source.CodeAnalysis.Test/Source.CodeAnalysis.Test.csproj" />
     <Project Path="Source.CodeAnalysis/Source.CodeAnalysis.Vsix/Source.CodeAnalysis.Vsix.csproj" />
     <Project Path="Source.CodeAnalysis/Source.CodeAnalysis/Source.CodeAnalysis.csproj" />
+    <Project Path="Source.CodeAnalysis.NetworkVars/Source.CodeAnalysis.NetworkVars.csproj" />
   </Folder>
   <Folder Name="/0. Files, Dependencies, &amp; Code Analysis/Usings/">
     <File Path="Directory.Build.props" />
