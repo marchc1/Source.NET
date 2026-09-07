@@ -6,10 +6,12 @@ using Source.Common.GUI;
 
 
 namespace Game.Server;
+using System.Numerics;
 using FIELD_DP = Source.FIELD<DynamicProp>;
 using FIELD_PBM = Source.FIELD<PhysBoxMultiplayer>;
 using FIELD_BPD = Source.FIELD<BasePropDoor>;
 using FIELD_PP = Source.FIELD<PhysicsProp>;
+using FIELD_PPM = Source.FIELD<PhysicsPropMultiplayer>;
 
 public class BaseProp : BaseAnimating
 {
@@ -61,9 +63,17 @@ public class DynamicProp : BreakableProp
 public class PhysicsPropMultiplayer : PhysicsProp
 {
 	public static readonly SendTable DT_PhysicsPropMultiplayer = new(DT_PhysicsProp, [
-
+		SendPropInt(FIELD_PPM.OF(nameof(PhysicsMode)), 2, PropFlags.Unsigned),
+		SendPropFloat(FIELD_PPM.OF(nameof(Mass)), 0, PropFlags.NoScale),
+		SendPropVector(FIELD_PPM.OF(nameof(CollisionMins)), 0, PropFlags.NoScale),
+		SendPropVector(FIELD_PPM.OF(nameof(CollisionMaxs)), 0, PropFlags.NoScale),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("PhysicsPropMultiplayer", DT_PhysicsPropMultiplayer).WithManualClassID(StaticClassIndices.CPhysicsPropMultiplayer);
+
+	public int PhysicsMode;
+	public float Mass;
+	public Vector3 CollisionMins;
+	public Vector3 CollisionMaxs;
 }
 
 

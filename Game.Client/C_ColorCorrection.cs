@@ -13,6 +13,7 @@ using FIELD = FIELD<C_ColorCorrection>;
 public class C_ColorCorrection : C_BaseEntity
 {
 	public static readonly RecvTable DT_ColorCorrection = new([
+		RecvPropVector(FIELD.OF(nameof(Origin))),
 		RecvPropFloat(FIELD.OF(nameof(MinFalloff))),
 		RecvPropFloat(FIELD.OF(nameof(MaxFalloff))),
 		RecvPropFloat(FIELD.OF(nameof(CurWeight))),

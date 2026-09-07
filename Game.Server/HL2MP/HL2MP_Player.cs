@@ -52,9 +52,6 @@ public partial class HL2MP_Player : HL2_Player
 		SendPropEHandle(FIELD.OF(nameof(Ragdoll))),
 		SendPropInt(FIELD.OF(nameof(SpawnInterpCounter)), 4),
 		SendPropBool(FIELD.OF(nameof(IsWalking))),
-
-		SendPropExclude(nameof(DT_BaseAnimating), nameof(PoseParameter)),
-		SendPropExclude(nameof(DT_BaseFlex), nameof(ViewTarget)),
 	]);
 	public static new readonly ServerClass ServerClass = new ServerClass("HL2MP_Player", DT_HL2MP_Player)
 															.WithManualClassID(StaticClassIndices.CHL2MP_Player);

@@ -16,6 +16,7 @@ public class C_FuncSmokeVolume : C_BaseParticleEntity
 		RecvPropFloat(FIELD.OF(nameof(ParticleSpacingDistance))),
 		RecvPropFloat(FIELD.OF(nameof(DensityRampSpeed))),
 		RecvPropFloat(FIELD.OF(nameof(RotationSpeed))),
+		RecvPropFloat(FIELD.OF(nameof(MovementSpeed))),
 		RecvPropFloat(FIELD.OF(nameof(Density))),
 		RecvPropInt(FIELD.OF(nameof(SpawnFlags))),
 	]);

@@ -21,6 +21,7 @@ public class FuncSmokeVolume : BaseParticleEntity
 		SendPropFloat(FIELD.OF(nameof(ParticleSpacingDistance)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(DensityRampSpeed)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(RotationSpeed)), 0, PropFlags.NoScale),
+		SendPropFloat(FIELD.OF(nameof(MovementSpeed)), 0, PropFlags.NoScale),
 		SendPropFloat(FIELD.OF(nameof(Density)), 0, PropFlags.NoScale),
 		SendPropInt(FIELD.OF(nameof(SpawnFlags)), 8, PropFlags.Unsigned),
 	]);
