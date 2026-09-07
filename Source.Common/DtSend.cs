@@ -467,7 +467,8 @@ public static class SendPropHelpers
 
 			if (arrayProp.Type == SendPropType.DataTable) {
 				props[i].SetDataTableProxyFn(SendProxy_UtlVectorElement_DataTable);
-				props[i].SetFlags(PropFlags.ProxyAlwaysYes);
+				// ruins gmod flag compat props[i].SetFlags(PropFlags.ProxyAlwaysYes);
+				// todo: make sure this is okay...
 			}
 			else {
 				props[i].SetProxyFn(SendProxy_UtlVectorElement);

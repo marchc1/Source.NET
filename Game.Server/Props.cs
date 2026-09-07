@@ -34,7 +34,7 @@ public class BreakableProp : BaseProp
 public class PhysBoxMultiplayer : PhysBox, IMultiplayerPhysics
 {
 	public static readonly SendTable DT_PhysBoxMultiplayer = new(DT_PhysBox, [
-		SendPropInt(FIELD_PBM.OF(nameof(PhysicsMode))),
+		SendPropInt(FIELD_PBM.OF(nameof(PhysicsMode)), -1, PropFlags.Unsigned),
 		SendPropFloat(FIELD_PBM.OF(nameof(Mass)), 0, PropFlags.NoScale)
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("PhysBoxMultiplayer", DT_PhysBoxMultiplayer).WithManualClassID(StaticClassIndices.CPhysBoxMultiplayer);

@@ -37,7 +37,7 @@ public class
 #else
 		SendTable
 #endif
-	DT_HL2MPGameRules = new(nameof(DT_HL2MPGameRules), [
+	DT_HL2MPRules = new(nameof(DT_HL2MPRules), [
 #if CLIENT_DLL
 		RecvPropBool(FIELD<HL2MPGameRules>.OF("TeamPlayEnabled")),
 #else
@@ -53,9 +53,9 @@ public class
 #endif
 		DT_HL2MPGameRulesProxy = new(DT_GameRulesProxy, [
 #if CLIENT_DLL
-			RecvPropDataTable(nameof(hl2mp_gamerules_data), FIELD.OF(nameof(hl2mp_gamerules_data)), DT_HL2MPGameRules, 0, DataTableRecvProxy_PointerDataTable)
+			RecvPropDataTable(nameof(hl2mp_gamerules_data), FIELD.OF(nameof(hl2mp_gamerules_data)), DT_HL2MPRules, 0, DataTableRecvProxy_PointerDataTable)
 #else
-			SendPropDataTable(nameof(hl2mp_gamerules_data), DT_HL2MPGameRules)
+			SendPropDataTable(nameof(hl2mp_gamerules_data), DT_HL2MPRules)
 #endif
 		]);
 #if CLIENT_DLL

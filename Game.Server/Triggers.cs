@@ -10,7 +10,7 @@ public class BaseTrigger : BaseToggle
 {
 	public static readonly SendTable DT_BaseTrigger = new(DT_BaseToggle, [
 		SendPropBool(FIELD_BT.OF(nameof(ClientSidePredicted))),
-		SendPropFloat(FIELD_BT.OF(nameof(SpawnFlags)), 32, PropFlags.NoScale)
+		SendPropInt(FIELD_BT.OF(nameof(SpawnFlags)), 32, PropFlags.NoScale)
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("BaseTrigger", DT_BaseTrigger).WithManualClassID(StaticClassIndices.CBaseTrigger);
 	public bool ClientSidePredicted;

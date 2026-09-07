@@ -40,7 +40,7 @@ public class PhysicsPropMultiplayer : C_PhysicsProp
 public class PhysBoxMultiplayer : C_PhysBox
 {
 	public static readonly RecvTable DT_PhysBoxMultiplayer = new(DT_PhysBox, [
-		RecvPropInt(FIELD_PBM.OF(nameof(PhysicsMode))),
+		RecvPropInt(FIELD_PBM.OF(nameof(PhysicsMode)), PropFlags.Unsigned),
 		RecvPropFloat(FIELD_PBM.OF(nameof(Mass)))
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("PhysBoxMultiplayer", DT_PhysBoxMultiplayer).WithManualClassID(StaticClassIndices.CPhysBoxMultiplayer);

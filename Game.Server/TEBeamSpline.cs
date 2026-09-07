@@ -8,7 +8,7 @@ public class TEBeamSpline(ReadOnlySpan<char> name) : BaseTempEntity(name)
 {
 	public static readonly SendTable DT_TEBeamSpline = new([
 		SendPropInt(FIELD.OF(nameof(NumPoints)), 5, PropFlags.Unsigned),
-		SendPropFloat(FIELD.OF_ARRAYINDEX(nameof(Points), 0), 8, 0, 0.0f, 1.0f),
+		SendPropVector(FIELD.OF_ARRAYINDEX(nameof(Points), 0), 8, PropFlags.Coord, 0.0f, 1.0f),
 		SendPropArray(FIELD.OF_ARRAY(nameof(Points))),
 	]);
 	public static readonly new ServerClass ServerClass = new ServerClass("TEBeamSpline", DT_TEBeamSpline).WithManualClassID(StaticClassIndices.CTEBeamSpline);

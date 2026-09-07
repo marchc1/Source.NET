@@ -12,9 +12,9 @@ public class WeaponCrossbow_HL1 : BaseHL1MPCombatWeapon
 #endif
 		DT_WeaponCrossbow_HL1 = new(DT_BaseHL1MPCombatWeapon, [
 #if CLIENT_DLL
-			RecvPropFloat(FIELD.OF(nameof(InZoom)))
+			RecvPropBool(FIELD.OF(nameof(InZoom)))
 #else
-			SendPropFloat(FIELD.OF(nameof(InZoom)), 0, PropFlags.NoScale)
+			SendPropBool(FIELD.OF(nameof(InZoom)))
 #endif
 		]);
 #if CLIENT_DLL
@@ -22,6 +22,6 @@ public class WeaponCrossbow_HL1 : BaseHL1MPCombatWeapon
 #else
 	public static readonly new ServerClass ServerClass = new ServerClass("WeaponCrossbow_HL1", DT_WeaponCrossbow_HL1).WithManualClassID(StaticClassIndices.CWeaponCrossbow_HL1);
 #endif
-	public float InZoom;
+	public bool InZoom;
 }
 #endif

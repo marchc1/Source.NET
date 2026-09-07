@@ -12,7 +12,7 @@ public class C_BaseTrigger : BaseToggle
 {
 	public static readonly RecvTable DT_BaseTrigger = new(DT_BaseToggle, [
 		RecvPropBool(FIELD_BT.OF(nameof(ClientSidePredicted))),
-		RecvPropFloat(FIELD_BT.OF(nameof(SpawnFlags)))
+		RecvPropInt(FIELD_BT.OF(nameof(SpawnFlags)))
 	]);
 	public static readonly new ClientClass ClientClass = new ClientClass("BaseTrigger", DT_BaseTrigger).WithManualClassID(StaticClassIndices.CBaseTrigger);
 	public bool ClientSidePredicted;
